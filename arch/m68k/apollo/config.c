@@ -168,11 +168,9 @@ void __init config_apollo(void)
 
 irqreturn_t dn_timer_int(int irq, void *dev_id)
 {
-	irq_handler_t timer_handler = dev_id;
-
 	volatile unsigned char x;
 
-	timer_handler(irq, dev_id);
+	legacy_timer_tick(1);
 	timer_heartbeat();
 
 	x = *(volatile unsigned char *)(apollo_timer + 3);
@@ -199,7 +197,7 @@ void dn_sched_init(irq_handler_t timer_routine)
 		*(volatile unsigned char *)(apollo_timer + 0x3));
 #endif
 
-	if (request_irq(IRQ_APOLLO, dn_timer_int, 0, "time", timer_routine))
+	if (request_irq(IRQ_APOLLO, dn_timer_int, 0, "time", NULL))
 		pr_err("Couldn't register timer interrupt\n");
 }
 

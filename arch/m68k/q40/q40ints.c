@@ -130,8 +130,6 @@ void q40_mksound(unsigned int hz, unsigned int ticks)
 
 static irqreturn_t q40_timer_int(int irq, void *dev_id)
 {
-	irq_handler_t timer_routine = dev_id;
-
 	ql_ticks = ql_ticks ? 0 : 1;
 	if (sound_ticks) {
 		unsigned char sval=(sound_ticks & 1) ? 128-SVOL : 128+SVOL;
@@ -144,7 +142,7 @@ static irqreturn_t q40_timer_int(int irq, void *dev_id)
 		unsigned long flags;
 
 		local_irq_save(flags);
-		timer_routine(0, NULL);
+		legacy_timer_tick(1);
 		timer_heartbeat();
 		local_irq_restore(flags);
 	}
@@ -157,7 +155,7 @@ void q40_sched_init (irq_handler_t timer_routine)
 
 	timer_irq = Q40_IRQ_FRAME;
 
-	if (request_irq(timer_irq, q40_timer_int, 0, "timer", timer_routine))
+	if (request_irq(timer_irq, q40_timer_int, 0, "timer", NULL))
 		panic("Couldn't register timer int");
 
 	master_outb(-1, FRAME_CLEAR_REG);

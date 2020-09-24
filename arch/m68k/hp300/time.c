@@ -55,7 +55,6 @@ static u32 clk_total, clk_offset;
 
 static irqreturn_t hp300_tick(int irq, void *dev_id)
 {
-	irq_handler_t timer_routine = dev_id;
 	unsigned long flags;
 	unsigned long tmp;
 
@@ -64,7 +63,7 @@ static irqreturn_t hp300_tick(int irq, void *dev_id)
 	asm volatile ("movpw %1@(5),%0" : "=d" (tmp) : "a" (CLOCKBASE));
 	clk_total += INTVAL;
 	clk_offset = 0;
-	timer_routine(0, NULL);
+	legacy_timer_tick(1);
 	timer_heartbeat();
 	local_irq_restore(flags);
 
@@ -106,7 +105,7 @@ void __init hp300_sched_init(irq_handler_t vector)
 
   asm volatile(" movpw %0,%1@(5)" : : "d" (INTVAL), "a" (CLOCKBASE));
 
-  if (request_irq(IRQ_AUTO_6, hp300_tick, IRQF_TIMER, "timer tick", vector))
+  if (request_irq(IRQ_AUTO_6, hp300_tick, IRQF_TIMER, "timer tick", NULL))
     pr_err("Couldn't register timer interrupt\n");
 
   out_8(CLOCKBASE + CLKCR2, 0x1);		/* select CR1 */

@@ -372,14 +372,13 @@ static u32 clk_total;
 
 static irqreturn_t mvme16x_timer_int (int irq, void *dev_id)
 {
-	irq_handler_t timer_routine = dev_id;
 	unsigned long flags;
 
 	local_irq_save(flags);
 	out_8(PCCTIC1, in_8(PCCTIC1) | PCCTIC1_INT_CLR);
 	out_8(PCCTOVR1, PCCTOVR1_OVR_CLR);
 	clk_total += PCC_TIMER_CYCLES;
-	timer_routine(0, NULL);
+	legacy_timer_tick(1);
 	local_irq_restore(flags);
 
 	return IRQ_HANDLED;
@@ -396,7 +395,7 @@ void mvme16x_sched_init (irq_handler_t timer_routine)
     out_8(PCCTOVR1, in_8(PCCTOVR1) | PCCTOVR1_TIC_EN | PCCTOVR1_COC_EN);
     out_8(PCCTIC1, PCCTIC1_INT_EN | 6);
     if (request_irq(MVME16x_IRQ_TIMER, mvme16x_timer_int, IRQF_TIMER, "timer",
-                    timer_routine))
+                    NULL))
 	panic ("Couldn't register timer int");
 
     clocksource_register_hz(&mvme16x_clk, PCC_TIMER_CLOCK_FREQ);
