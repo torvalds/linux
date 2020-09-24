@@ -1057,6 +1057,18 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict,
 		goto out;
 	}
 
+	if (old_reg->mem_type == TTM_PL_SYSTEM &&
+	    new_reg->mem_type == TTM_PL_TT) {
+		ttm_bo_move_null(bo, new_reg);
+		goto out;
+	}
+
+	if (old_reg->mem_type == TTM_PL_TT &&
+	    new_reg->mem_type == TTM_PL_SYSTEM) {
+		ret = ttm_bo_move_ttm(bo, ctx, new_reg);
+		goto out;
+	}
+
 	/* Hardware assisted copy. */
 	if (drm->ttm.move) {
 		if (new_reg->mem_type == TTM_PL_SYSTEM)
