@@ -11,7 +11,7 @@ config IIO_BUFFER_CB
 	  usage.  That is, those where the data is pushed to the consumer.
 
 config IIO_BUFFER_DMA
-	tristate
+	tristate "Industrial I/O DMA buffer infrastructure"
 	help
 	  Provides the generic IIO DMA buffer infrastructure that can be used by
 	  drivers for devices with DMA support to implement the IIO buffer.
@@ -20,13 +20,13 @@ config IIO_BUFFER_DMA
 	  infrastructure.
 
 config IIO_BUFFER_DMAENGINE
-	tristate
+	tristate "Industrial I/O DMA buffer integration with DMAEngine"
 	select IIO_BUFFER_DMA
 	help
 	  Provides a bonding of the generic IIO DMA buffer infrastructure with the
-	  DMAengine framework. This can be used by converter drivers with a DMA port
+	  DMAEngine framework. This can be used by converter drivers with a DMA port
 	  connected to an external DMA controller which is supported by the
-	  DMAengine framework.
+	  DMAEngine framework.
 
 	  Should be selected by drivers that want to use this functionality.
 
