@@ -1907,6 +1907,14 @@ static ssize_t btrfs_file_write_iter(struct kiocb *iocb,
 	size_t count;
 	loff_t oldsize;
 
+	/*
+	 * If the fs flips readonly due to some impossible error, although we
+	 * have opened a file as writable, we have to stop this write operation
+	 * to ensure consistency.
+	 */
+	if (test_bit(BTRFS_FS_STATE_ERROR, &fs_info->fs_state))
+		return -EROFS;
+
 	if (!(iocb->ki_flags & IOCB_DIRECT) &&
 	    (iocb->ki_flags & IOCB_NOWAIT))
 		return -EOPNOTSUPP;
@@ -1953,18 +1961,6 @@ static ssize_t btrfs_file_write_iter(struct kiocb *iocb,
 	err = file_remove_privs(file);
 	if (err) {
 		inode_unlock(inode);
-		goto out;
-	}
-
-	/*
-	 * If BTRFS flips readonly due to some impossible error
-	 * (fs_info->fs_state now has BTRFS_SUPER_FLAG_ERROR),
-	 * although we have opened a file as writable, we have
-	 * to stop this write operation to ensure FS consistency.
-	 */
-	if (test_bit(BTRFS_FS_STATE_ERROR, &fs_info->fs_state)) {
-		inode_unlock(inode);
-		err = -EROFS;
 		goto out;
 	}
 
