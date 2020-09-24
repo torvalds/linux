@@ -1320,7 +1320,7 @@ static void mmc_spi_dma_free(struct mmc_spi_host *host)
 			 DMA_BIDIRECTIONAL);
 }
 #else
-static inline mmc_spi_dma_alloc(struct mmc_spi_host *host) { return 0; }
+static inline int mmc_spi_dma_alloc(struct mmc_spi_host *host) { return 0; }
 static inline void mmc_spi_dma_free(struct mmc_spi_host *host) {}
 #endif
 
