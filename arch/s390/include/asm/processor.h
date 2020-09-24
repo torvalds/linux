@@ -318,14 +318,10 @@ static __always_inline void __noreturn disabled_wait(void)
 }
 
 /*
- * Basic Machine Check/Program Check Handler.
+ * Basic Program Check Handler.
  */
-
 extern void s390_base_pgm_handler(void);
-extern void s390_base_ext_handler(void);
-
 extern void (*s390_base_pgm_handler_fn)(void);
-extern void (*s390_base_ext_handler_fn)(void);
 
 #define ARCH_LOW_ADDRESS_LIMIT	0x7fffffffUL
 
