@@ -4908,7 +4908,7 @@ static void tcp_data_queue(struct sock *sk, struct sk_buff *skb)
 	int eaten;
 
 	if (sk_is_mptcp(sk))
-		mptcp_incoming_options(sk, skb, &tp->rx_opt);
+		mptcp_incoming_options(sk, skb);
 
 	if (TCP_SKB_CB(skb)->seq == TCP_SKB_CB(skb)->end_seq) {
 		__kfree_skb(skb);
@@ -6489,7 +6489,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb)
 	case TCP_LAST_ACK:
 		if (!before(TCP_SKB_CB(skb)->seq, tp->rcv_nxt)) {
 			if (sk_is_mptcp(sk))
-				mptcp_incoming_options(sk, skb, &tp->rx_opt);
+				mptcp_incoming_options(sk, skb);
 			break;
 		}
 		fallthrough;
