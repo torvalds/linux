@@ -223,10 +223,10 @@ static struct adm9240_data *adm9240_update_device(struct device *dev)
 			data->fan_min[i] = i2c_smbus_read_byte_data(client,
 					ADM9240_REG_FAN_MIN(i));
 		}
-		data->temp_max[0] = i2c_smbus_read_byte_data(client,
-				ADM9240_REG_TEMP_MAX(0));
-		data->temp_max[1] = i2c_smbus_read_byte_data(client,
-				ADM9240_REG_TEMP_MAX(1));
+		for (i = 0; i < 2; i++) {
+			data->temp_max[i] = i2c_smbus_read_byte_data(client,
+					ADM9240_REG_TEMP_MAX(i));
+		}
 
 		/* read fan divs and 5-bit VID */
 		i = i2c_smbus_read_byte_data(client, ADM9240_REG_VID_FAN_DIV);
@@ -687,14 +687,14 @@ static void adm9240_init_client(struct i2c_client *client)
 			i2c_smbus_write_byte_data(client,
 					ADM9240_REG_IN_MAX(i), 255);
 		}
-		i2c_smbus_write_byte_data(client,
-				ADM9240_REG_FAN_MIN(0), 255);
-		i2c_smbus_write_byte_data(client,
-				ADM9240_REG_FAN_MIN(1), 255);
-		i2c_smbus_write_byte_data(client,
-				ADM9240_REG_TEMP_MAX(0), 127);
-		i2c_smbus_write_byte_data(client,
-				ADM9240_REG_TEMP_MAX(1), 127);
+		for (i = 0; i < 2; i++) {
+			i2c_smbus_write_byte_data(client,
+					ADM9240_REG_FAN_MIN(i), 255);
+		}
+		for (i = 0; i < 2; i++) {
+			i2c_smbus_write_byte_data(client,
+					ADM9240_REG_TEMP_MAX(i), 127);
+		}
 
 		/* start measurement cycle */
 		i2c_smbus_write_byte_data(client, ADM9240_REG_CONFIG, 1);
