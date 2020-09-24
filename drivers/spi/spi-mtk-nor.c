@@ -273,7 +273,8 @@ static int mtk_nor_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
 static bool mtk_nor_supports_op(struct spi_mem *mem,
 				const struct spi_mem_op *op)
 {
-	size_t len;
+	if (!spi_mem_default_supports_op(mem, op))
+		return false;
 
 	if (op->cmd.buswidth != 1)
 		return false;
@@ -281,25 +282,21 @@ static bool mtk_nor_supports_op(struct spi_mem *mem,
 	if ((op->addr.nbytes == 3) || (op->addr.nbytes == 4)) {
 		switch(op->data.dir) {
 		case SPI_MEM_DATA_IN:
-			if (!mtk_nor_match_read(op))
-				return false;
+			if (mtk_nor_match_read(op))
+				return true;
 			break;
 		case SPI_MEM_DATA_OUT:
-			if ((op->addr.buswidth != 1) ||
-			    (op->dummy.nbytes != 0) ||
-			    (op->data.buswidth != 1))
-				return false;
+			if ((op->addr.buswidth == 1) &&
+			    (op->dummy.nbytes == 0) &&
+			    (op->data.buswidth == 1))
+				return true;
 			break;
 		default:
 			break;
 		}
 	}
-	len = op->cmd.nbytes + op->addr.nbytes + op->dummy.nbytes;
-	if ((len > MTK_NOR_PRG_MAX_SIZE) ||
-	    ((op->data.nbytes) && (len == MTK_NOR_PRG_MAX_SIZE)))
-		return false;
 
-	return spi_mem_default_supports_op(mem, op);
+	return mtk_nor_match_prg(op);
 }
 
 static void mtk_nor_setup_bus(struct mtk_nor *sp, const struct spi_mem_op *op)
