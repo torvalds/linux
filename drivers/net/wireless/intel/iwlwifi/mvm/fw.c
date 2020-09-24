@@ -841,27 +841,53 @@ static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
 static int iwl_mvm_get_ppag_table(struct iwl_mvm *mvm)
 {
 	union acpi_object *wifi_pkg, *data, *enabled;
-	int i, j, ret, tbl_rev;
+	union iwl_ppag_table_cmd ppag_table;
+	int i, j, ret, tbl_rev, num_sub_bands;
 	int idx = 2;
+	s8 *gain;
 
-	mvm->fwrt.ppag_table.enabled = cpu_to_le32(0);
+	/*
+	 * The 'enabled' field is the same in v1 and v2 so we can just
+	 * use v1 to access it.
+	 */
+	mvm->fwrt.ppag_table.v1.enabled = cpu_to_le32(0);
 	data = iwl_acpi_get_object(mvm->dev, ACPI_PPAG_METHOD);
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
+	/* try to read ppag table revision 1 */
+	wifi_pkg = iwl_acpi_get_wifi_pkg(mvm->dev, data,
+					 ACPI_PPAG_WIFI_DATA_SIZE_V2, &tbl_rev);
+	if (!IS_ERR(wifi_pkg)) {
+		if (tbl_rev != 1) {
+			ret = -EINVAL;
+			goto out_free;
+		}
+		num_sub_bands = IWL_NUM_SUB_BANDS_V2;
+		gain = mvm->fwrt.ppag_table.v2.gain[0];
+		mvm->fwrt.ppag_ver = 2;
+		IWL_DEBUG_RADIO(mvm, "Reading PPAG table v2 (tbl_rev=1)\n");
+		goto read_table;
+	}
+
+	/* try to read ppag table revision 0 */
 	wifi_pkg = iwl_acpi_get_wifi_pkg(mvm->dev, data,
 					 ACPI_PPAG_WIFI_DATA_SIZE, &tbl_rev);
-
-	if (IS_ERR(wifi_pkg)) {
-		ret = PTR_ERR(wifi_pkg);
-		goto out_free;
+	if (!IS_ERR(wifi_pkg)) {
+		if (tbl_rev != 0) {
+			ret = -EINVAL;
+			goto out_free;
+		}
+		num_sub_bands = IWL_NUM_SUB_BANDS;
+		gain = mvm->fwrt.ppag_table.v1.gain[0];
+		mvm->fwrt.ppag_ver = 1;
+		IWL_DEBUG_RADIO(mvm, "Reading PPAG table v1 (tbl_rev=0)\n");
+		goto read_table;
 	}
+	ret = PTR_ERR(wifi_pkg);
+	goto out_free;
 
-	if (tbl_rev != 0) {
-		ret = -EINVAL;
-		goto out_free;
-	}
-
+read_table:
 	enabled = &wifi_pkg->package.elements[1];
 	if (enabled->type != ACPI_TYPE_INTEGER ||
 	    (enabled->integer.value != 0 && enabled->integer.value != 1)) {
@@ -869,8 +895,8 @@ static int iwl_mvm_get_ppag_table(struct iwl_mvm *mvm)
 		goto out_free;
 	}
 
-	mvm->fwrt.ppag_table.enabled = cpu_to_le32(enabled->integer.value);
-	if (!mvm->fwrt.ppag_table.enabled) {
+	ppag_table.v1.enabled = cpu_to_le32(enabled->integer.value);
+	if (!ppag_table.v1.enabled) {
 		ret = 0;
 		goto out_free;
 	}
@@ -880,8 +906,8 @@ static int iwl_mvm_get_ppag_table(struct iwl_mvm *mvm)
 	 * first sub-band (j=0) corresponds to Low-Band (2.4GHz), and the
 	 * following sub-bands to High-Band (5GHz).
 	 */
-	for (i = 0; i < ACPI_PPAG_NUM_CHAINS; i++) {
-		for (j = 0; j < ACPI_PPAG_NUM_SUB_BANDS; j++) {
+	for (i = 0; i < IWL_NUM_CHAIN_LIMITS; i++) {
+		for (j = 0; j < num_sub_bands; j++) {
 			union acpi_object *ent;
 
 			ent = &wifi_pkg->package.elements[idx++];
@@ -890,11 +916,11 @@ static int iwl_mvm_get_ppag_table(struct iwl_mvm *mvm)
 			    (j == 0 && ent->integer.value < ACPI_PPAG_MIN_LB) ||
 			    (j != 0 && ent->integer.value > ACPI_PPAG_MAX_HB) ||
 			    (j != 0 && ent->integer.value < ACPI_PPAG_MIN_HB)) {
-				mvm->fwrt.ppag_table.enabled = cpu_to_le32(0);
+				ppag_table.v1.enabled = cpu_to_le32(0);
 				ret = -EINVAL;
 				goto out_free;
 			}
-			mvm->fwrt.ppag_table.gain[i][j] = ent->integer.value;
+			gain[i * num_sub_bands + j] = ent->integer.value;
 		}
 	}
 	ret = 0;
@@ -905,34 +931,55 @@ out_free:
 
 int iwl_mvm_ppag_send_cmd(struct iwl_mvm *mvm)
 {
-	int i, j, ret;
+	u8 cmd_ver;
+	int i, j, ret, num_sub_bands, cmd_size;
+	union iwl_ppag_table_cmd ppag_table;
+	s8 *gain;
 
 	if (!fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_SET_PPAG)) {
 		IWL_DEBUG_RADIO(mvm,
 				"PPAG capability not supported by FW, command not sent.\n");
 		return 0;
 	}
-
-	if (!mvm->fwrt.ppag_table.enabled) {
-		IWL_DEBUG_RADIO(mvm,
-				"PPAG not enabled, command not sent.\n");
+	if (!mvm->fwrt.ppag_table.v1.enabled) {
+		IWL_DEBUG_RADIO(mvm, "PPAG not enabled, command not sent.\n");
 		return 0;
 	}
 
-	IWL_DEBUG_RADIO(mvm, "Sending PER_PLATFORM_ANT_GAIN_CMD\n");
-
-	for (i = 0; i < ACPI_PPAG_NUM_CHAINS; i++) {
-		for (j = 0; j < ACPI_PPAG_NUM_SUB_BANDS; j++) {
+	cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, PHY_OPS_GROUP,
+					PER_PLATFORM_ANT_GAIN_CMD);
+	if (cmd_ver == 1) {
+		num_sub_bands = IWL_NUM_SUB_BANDS;
+		gain = mvm->fwrt.ppag_table.v1.gain[0];
+		cmd_size = sizeof(ppag_table.v1);
+		if (mvm->fwrt.ppag_ver == 2) {
 			IWL_DEBUG_RADIO(mvm,
-					"PPAG table: chain[%d] band[%d]: gain = %d\n",
-					i, j, mvm->fwrt.ppag_table.gain[i][j]);
+					"PPAG table is v2 but FW supports v1, sending truncated table\n");
 		}
+	} else if (cmd_ver == 2) {
+		num_sub_bands = IWL_NUM_SUB_BANDS_V2;
+		gain = mvm->fwrt.ppag_table.v2.gain[0];
+		cmd_size = sizeof(ppag_table.v2);
+		if (mvm->fwrt.ppag_ver == 1) {
+			IWL_DEBUG_RADIO(mvm,
+					"PPAG table is v1 but FW supports v2, sending padded table\n");
+		}
+	} else {
+		IWL_DEBUG_RADIO(mvm, "Unsupported PPAG command version\n");
+		return 0;
 	}
 
+	for (i = 0; i < IWL_NUM_CHAIN_LIMITS; i++) {
+		for (j = 0; j < num_sub_bands; j++) {
+			IWL_DEBUG_RADIO(mvm,
+					"PPAG table: chain[%d] band[%d]: gain = %d\n",
+					i, j, gain[i * num_sub_bands + j]);
+		}
+	}
+	IWL_DEBUG_RADIO(mvm, "Sending PER_PLATFORM_ANT_GAIN_CMD\n");
 	ret = iwl_mvm_send_cmd_pdu(mvm, WIDE_ID(PHY_OPS_GROUP,
 						PER_PLATFORM_ANT_GAIN_CMD),
-				   0, sizeof(mvm->fwrt.ppag_table),
-				   &mvm->fwrt.ppag_table);
+				   0, cmd_size, &ppag_table);
 	if (ret < 0)
 		IWL_ERR(mvm, "failed to send PER_PLATFORM_ANT_GAIN_CMD (%d)\n",
 			ret);

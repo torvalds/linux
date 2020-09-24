@@ -8,7 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2019 Intel Corporation
+ * Copyright (C) 2018 - 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,7 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2019 Intel Corporation
+ * Copyright (C) 2018 - 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -331,6 +331,7 @@ enum iwl_dev_tx_power_cmd_mode {
 
 #define IWL_NUM_CHAIN_LIMITS	2
 #define IWL_NUM_SUB_BANDS	5
+#define IWL_NUM_SUB_BANDS_V2	11
 
 /**
  * struct iwl_dev_tx_power_cmd - TX power reduction command
@@ -450,16 +451,26 @@ struct iwl_geo_tx_power_profiles_resp {
 } __packed; /* GEO_TX_POWER_LIMIT_RESP */
 
 /**
- * struct iwl_ppag_table_cmd - struct for PER_PLATFORM_ANT_GAIN_CMD cmd.
+ * union iwl_ppag_table_cmd - union for all versions of PPAG command
+ * @v1: version 1, table revision = 0
+ * @v2: version 2, table revision = 1
+ *
  * @enabled: 1 if PPAG is enabled, 0 otherwise
  * @gain: table of antenna gain values per chain and sub-band
  * @reserved: reserved
  */
-struct iwl_ppag_table_cmd {
-	__le32 enabled;
-	s8 gain[IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS];
-	s8 reserved[2];
-} __packed; /* PER_PLATFORM_ANT_GAIN_CMD */
+union iwl_ppag_table_cmd {
+	struct {
+		__le32 enabled;
+		s8 gain[IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS];
+		s8 reserved[2];
+	} v1;
+	struct {
+		__le32 enabled;
+		s8 gain[IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS_V2];
+		s8 reserved[2];
+	} v2;
+} __packed;
 
 /**
  * struct iwl_beacon_filter_cmd
