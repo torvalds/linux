@@ -73,9 +73,7 @@ void snd_hdac_i915_set_bclk(struct hdac_bus *bus)
 }
 EXPORT_SYMBOL_GPL(snd_hdac_i915_set_bclk);
 
-/**
- * Returns true if the devices can be connected for audio.
- */
+/* returns true if the devices can be connected for audio */
 static bool connectivity_check(struct pci_dev *i915, struct pci_dev *hdac)
 {
 	struct pci_bus *bus_a = i915->bus, *bus_b = hdac->bus;
