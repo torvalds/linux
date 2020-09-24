@@ -208,6 +208,7 @@ struct virtio_gpu_device {
 	bool has_edid;
 	bool has_indirect;
 	bool has_resource_assign_uuid;
+	bool has_resource_blob;
 
 	struct work_struct config_changed_work;
 
