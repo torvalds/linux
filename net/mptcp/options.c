@@ -888,6 +888,11 @@ void mptcp_incoming_options(struct sock *sk, struct sk_buff *skb,
 		mp_opt.add_addr = 0;
 	}
 
+	if (mp_opt.rm_addr) {
+		mptcp_pm_rm_addr_received(msk, mp_opt.rm_id);
+		mp_opt.rm_addr = 0;
+	}
+
 	if (!mp_opt.dss)
 		return;
 
