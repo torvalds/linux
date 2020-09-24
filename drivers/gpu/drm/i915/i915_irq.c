@@ -2254,6 +2254,63 @@ gen8_de_misc_irq_handler(struct drm_i915_private *dev_priv, u32 iir)
 		drm_err(&dev_priv->drm, "Unexpected DE Misc interrupt\n");
 }
 
+static void gen11_dsi_te_interrupt_handler(struct drm_i915_private *dev_priv,
+					   u32 te_trigger)
+{
+	enum pipe pipe = INVALID_PIPE;
+	enum transcoder dsi_trans;
+	enum port port;
+	u32 val, tmp;
+
+	/*
+	 * Incase of dual link, TE comes from DSI_1
+	 * this is to check if dual link is enabled
+	 */
+	val = I915_READ(TRANS_DDI_FUNC_CTL2(TRANSCODER_DSI_0));
+	val &= PORT_SYNC_MODE_ENABLE;
+
+	/*
+	 * if dual link is enabled, then read DSI_0
+	 * transcoder registers
+	 */
+	port = ((te_trigger & DSI1_TE && val) || (te_trigger & DSI0_TE)) ?
+						  PORT_A : PORT_B;
+	dsi_trans = (port == PORT_A) ? TRANSCODER_DSI_0 : TRANSCODER_DSI_1;
+
+	/* Check if DSI configured in command mode */
+	val = I915_READ(DSI_TRANS_FUNC_CONF(dsi_trans));
+	val = val & OP_MODE_MASK;
+
+	if (val != CMD_MODE_NO_GATE && val != CMD_MODE_TE_GATE) {
+		drm_err(&dev_priv->drm, "DSI trancoder not configured in command mode\n");
+		return;
+	}
+
+	/* Get PIPE for handling VBLANK event */
+	val = I915_READ(TRANS_DDI_FUNC_CTL(dsi_trans));
+	switch (val & TRANS_DDI_EDP_INPUT_MASK) {
+	case TRANS_DDI_EDP_INPUT_A_ON:
+		pipe = PIPE_A;
+		break;
+	case TRANS_DDI_EDP_INPUT_B_ONOFF:
+		pipe = PIPE_B;
+		break;
+	case TRANS_DDI_EDP_INPUT_C_ONOFF:
+		pipe = PIPE_C;
+		break;
+	default:
+		drm_err(&dev_priv->drm, "Invalid PIPE\n");
+		return;
+	}
+
+	intel_handle_vblank(dev_priv, pipe);
+
+	/* clear TE in dsi IIR */
+	port = (te_trigger & DSI1_TE) ? PORT_B : PORT_A;
+	tmp = I915_READ(DSI_INTR_IDENT_REG(port));
+	I915_WRITE(DSI_INTR_IDENT_REG(port), tmp);
+}
+
 static irqreturn_t
 gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 {
@@ -2316,6 +2373,14 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 			if (IS_GEN9_LP(dev_priv) && (iir & BXT_DE_PORT_GMBUS)) {
 				gmbus_irq_handler(dev_priv);
 				found = true;
+			}
+
+			if (INTEL_GEN(dev_priv) >= 11) {
+				tmp_mask = iir & (DSI0_TE | DSI1_TE);
+				if (tmp_mask) {
+					gen11_dsi_te_interrupt_handler(dev_priv, tmp_mask);
+					found = true;
+				}
 			}
 
 			if (!found)
