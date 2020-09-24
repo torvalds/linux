@@ -44,6 +44,7 @@ properties:
     description: TDM TX voltage sense time slot.
 
   ti,asi-format:
+    deprecated: true
     $ref: /schemas/types.yaml#/definitions/uint32
     description: Sets TDM RX capture edge.
     enum:
