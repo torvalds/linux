@@ -131,7 +131,7 @@ static void debug_print_tree(struct ext4_sb_info *sbi)
 
 	printk(KERN_INFO "System zones: ");
 	rcu_read_lock();
-	system_blks = rcu_dereference(sbi->system_blks);
+	system_blks = rcu_dereference(sbi->s_system_blks);
 	node = rb_first(&system_blks->root);
 	while (node) {
 		entry = rb_entry(node, struct ext4_system_zone, node);
@@ -261,7 +261,7 @@ int ext4_setup_system_zone(struct super_block *sb)
 	 * with ext4_data_block_valid() accessing the rbtree at the same
 	 * time.
 	 */
-	rcu_assign_pointer(sbi->system_blks, system_blks);
+	rcu_assign_pointer(sbi->s_system_blks, system_blks);
 
 	if (test_opt(sb, DEBUG))
 		debug_print_tree(sbi);
@@ -286,9 +286,9 @@ void ext4_release_system_zone(struct super_block *sb)
 {
 	struct ext4_system_blocks *system_blks;
 
-	system_blks = rcu_dereference_protected(EXT4_SB(sb)->system_blks,
+	system_blks = rcu_dereference_protected(EXT4_SB(sb)->s_system_blks,
 					lockdep_is_held(&sb->s_umount));
-	rcu_assign_pointer(EXT4_SB(sb)->system_blks, NULL);
+	rcu_assign_pointer(EXT4_SB(sb)->s_system_blks, NULL);
 
 	if (system_blks)
 		call_rcu(&system_blks->rcu, ext4_destroy_system_zone);
@@ -319,7 +319,7 @@ int ext4_inode_block_valid(struct inode *inode, ext4_fsblk_t start_blk,
 	 * mount option.
 	 */
 	rcu_read_lock();
-	system_blks = rcu_dereference(sbi->system_blks);
+	system_blks = rcu_dereference(sbi->s_system_blks);
 	if (system_blks == NULL)
 		goto out_rcu;
 
