@@ -33,9 +33,14 @@ int mptcp_pm_remove_addr(struct mptcp_sock *msk, u8 local_id)
 	return 0;
 }
 
-int mptcp_pm_remove_subflow(struct mptcp_sock *msk, u8 remote_id)
+int mptcp_pm_remove_subflow(struct mptcp_sock *msk, u8 local_id)
 {
-	return -ENOTSUPP;
+	pr_debug("msk=%p, local_id=%d", msk, local_id);
+
+	spin_lock_bh(&msk->pm.lock);
+	mptcp_pm_nl_rm_subflow_received(msk, local_id);
+	spin_unlock_bh(&msk->pm.lock);
+	return 0;
 }
 
 /* path manager event handlers */
