@@ -984,7 +984,7 @@ config PPC_MEM_KEYS
 config PPC_SECURE_BOOT
 	prompt "Enable secure boot support"
 	bool
-	depends on PPC_POWERNV
+	depends on PPC_POWERNV || PPC_PSERIES
 	depends on IMA_ARCH_POLICY
 	imply IMA_SECURE_AND_OR_TRUSTED_BOOT
 	help
