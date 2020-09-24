@@ -12,6 +12,8 @@
 #ifndef __CONFIG_DOT_H__
 #define __CONFIG_DOT_H__
 
+#define DEFAULT_BUFFER_SIZE     4096
+
 struct dlm_config_node {
 	int nodeid;
 	int weight;

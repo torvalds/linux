@@ -166,7 +166,6 @@ static bool dlm_check_zero(unsigned int x)
 	return !x;
 }
 
-#define DEFAULT_BUFFER_SIZE     4096
 static bool dlm_check_buffer_size(unsigned int x)
 {
 	return (x < DEFAULT_BUFFER_SIZE);
