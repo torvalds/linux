@@ -27,6 +27,7 @@
 #define MTK_NOR_CMD_MASK		GENMASK(5, 0)
 
 #define MTK_NOR_REG_PRG_CNT		0x04
+#define MTK_NOR_PRG_CNT_MAX		56
 #define MTK_NOR_REG_RDATA		0x0c
 
 #define MTK_NOR_REG_RADR0		0x10
@@ -404,6 +405,83 @@ static int mtk_nor_pp_unbuffered(struct mtk_nor *sp,
 	return mtk_nor_cmd_exec(sp, MTK_NOR_CMD_WRITE, 6 * BITS_PER_BYTE);
 }
 
+static int mtk_nor_spi_mem_prg(struct mtk_nor *sp, const struct spi_mem_op *op)
+{
+	int rx_len = 0;
+	int reg_offset = MTK_NOR_REG_PRGDATA_MAX;
+	int tx_len, prg_len;
+	int i, ret;
+	void __iomem *reg;
+	u8 bufbyte;
+
+	tx_len = op->cmd.nbytes + op->addr.nbytes;
+
+	// count dummy bytes only if we need to write data after it
+	if (op->data.dir == SPI_MEM_DATA_OUT)
+		tx_len += op->dummy.nbytes + op->data.nbytes;
+	else if (op->data.dir == SPI_MEM_DATA_IN)
+		rx_len = op->data.nbytes;
+
+	prg_len = op->cmd.nbytes + op->addr.nbytes + op->dummy.nbytes +
+		  op->data.nbytes;
+
+	// an invalid op may reach here if the caller calls exec_op without
+	// adjust_op_size. return -EINVAL instead of -ENOTSUPP so that
+	// spi-mem won't try this op again with generic spi transfers.
+	if ((tx_len > MTK_NOR_REG_PRGDATA_MAX + 1) ||
+	    (rx_len > MTK_NOR_REG_SHIFT_MAX + 1) ||
+	    (prg_len > MTK_NOR_PRG_CNT_MAX / 8))
+		return -EINVAL;
+
+	// fill tx data
+	for (i = op->cmd.nbytes; i > 0; i--, reg_offset--) {
+		reg = sp->base + MTK_NOR_REG_PRGDATA(reg_offset);
+		bufbyte = (op->cmd.opcode >> ((i - 1) * BITS_PER_BYTE)) & 0xff;
+		writeb(bufbyte, reg);
+	}
+
+	for (i = op->addr.nbytes; i > 0; i--, reg_offset--) {
+		reg = sp->base + MTK_NOR_REG_PRGDATA(reg_offset);
+		bufbyte = (op->addr.val >> ((i - 1) * BITS_PER_BYTE)) & 0xff;
+		writeb(bufbyte, reg);
+	}
+
+	if (op->data.dir == SPI_MEM_DATA_OUT) {
+		for (i = 0; i < op->dummy.nbytes; i++, reg_offset--) {
+			reg = sp->base + MTK_NOR_REG_PRGDATA(reg_offset);
+			writeb(0, reg);
+		}
+
+		for (i = 0; i < op->data.nbytes; i++, reg_offset--) {
+			reg = sp->base + MTK_NOR_REG_PRGDATA(reg_offset);
+			writeb(((const u8 *)(op->data.buf.out))[i], reg);
+		}
+	}
+
+	for (; reg_offset >= 0; reg_offset--) {
+		reg = sp->base + MTK_NOR_REG_PRGDATA(reg_offset);
+		writeb(0, reg);
+	}
+
+	// trigger op
+	writel(prg_len * BITS_PER_BYTE, sp->base + MTK_NOR_REG_PRG_CNT);
+	ret = mtk_nor_cmd_exec(sp, MTK_NOR_CMD_PROGRAM,
+			       prg_len * BITS_PER_BYTE);
+	if (ret)
+		return ret;
+
+	// fetch read data
+	reg_offset = 0;
+	if (op->data.dir == SPI_MEM_DATA_IN) {
+		for (i = op->data.nbytes - 1; i >= 0; i--, reg_offset++) {
+			reg = sp->base + MTK_NOR_REG_SHIFT(reg_offset);
+			((u8 *)(op->data.buf.in))[i] = readb(reg);
+		}
+	}
+
+	return 0;
+}
+
 static int mtk_nor_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 {
 	struct mtk_nor *sp = spi_controller_get_devdata(mem->spi->master);
@@ -411,7 +489,7 @@ static int mtk_nor_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 
 	if ((op->data.nbytes == 0) ||
 	    ((op->addr.nbytes != 3) && (op->addr.nbytes != 4)))
-		return -ENOTSUPP;
+		return mtk_nor_spi_mem_prg(sp, op);
 
 	if (op->data.dir == SPI_MEM_DATA_OUT) {
 		mtk_nor_set_addr(sp, op);
@@ -441,7 +519,7 @@ static int mtk_nor_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 		}
 	}
 
-	return -ENOTSUPP;
+	return mtk_nor_spi_mem_prg(sp, op);
 }
 
 static int mtk_nor_setup(struct spi_device *spi)
