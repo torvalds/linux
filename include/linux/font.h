@@ -65,4 +65,9 @@ extern const struct font_desc *get_default_font(int xres, int yres,
 
 #define FONT_EXTRA_WORDS 4
 
+struct font_data {
+	unsigned int extra[FONT_EXTRA_WORDS];
+	const unsigned char data[];
+} __packed;
+
 #endif /* _VIDEO_FONT_H */
