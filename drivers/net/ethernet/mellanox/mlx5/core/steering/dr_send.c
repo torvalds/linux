@@ -223,7 +223,7 @@ static void dr_cmd_notify_hw(struct mlx5dr_qp *dr_qp, void *ctrl)
 
 static void dr_rdma_segments(struct mlx5dr_qp *dr_qp, u64 remote_addr,
 			     u32 rkey, struct dr_data_seg *data_seg,
-			     u32 opcode, int nreq)
+			     u32 opcode, bool notify_hw)
 {
 	struct mlx5_wqe_raddr_seg *wq_raddr;
 	struct mlx5_wqe_ctrl_seg *wq_ctrl;
@@ -255,16 +255,16 @@ static void dr_rdma_segments(struct mlx5dr_qp *dr_qp, u64 remote_addr,
 
 	dr_qp->sq.wqe_head[idx] = dr_qp->sq.pc++;
 
-	if (nreq)
+	if (notify_hw)
 		dr_cmd_notify_hw(dr_qp, wq_ctrl);
 }
 
 static void dr_post_send(struct mlx5dr_qp *dr_qp, struct postsend_info *send_info)
 {
 	dr_rdma_segments(dr_qp, send_info->remote_addr, send_info->rkey,
-			 &send_info->write, MLX5_OPCODE_RDMA_WRITE, 0);
+			 &send_info->write, MLX5_OPCODE_RDMA_WRITE, false);
 	dr_rdma_segments(dr_qp, send_info->remote_addr, send_info->rkey,
-			 &send_info->read, MLX5_OPCODE_RDMA_READ, 1);
+			 &send_info->read, MLX5_OPCODE_RDMA_READ, true);
 }
 
 /**
