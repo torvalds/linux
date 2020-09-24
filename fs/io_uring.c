@@ -5671,6 +5671,11 @@ static void __io_clean_op(struct io_kiocb *req)
 			io_put_file(req, req->splice.file_in,
 				    (req->splice.flags & SPLICE_F_FD_IN_FIXED));
 			break;
+		case IORING_OP_OPENAT:
+		case IORING_OP_OPENAT2:
+			if (req->open.filename)
+				putname(req->open.filename);
+			break;
 		}
 		req->flags &= ~REQ_F_NEED_CLEANUP;
 	}
