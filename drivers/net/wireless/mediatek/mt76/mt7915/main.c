@@ -34,12 +34,14 @@ static int mt7915_start(struct ieee80211_hw *hw)
 		mt7915_mcu_set_pm(dev, 0, 0);
 		mt7915_mcu_set_mac(dev, 0, true, false);
 		mt7915_mcu_set_scs(dev, 0, true);
+		mt7915_mac_enable_nf(dev, 0);
 	}
 
 	if (phy != &dev->phy) {
 		mt7915_mcu_set_pm(dev, 1, 0);
 		mt7915_mcu_set_mac(dev, 1, true, false);
 		mt7915_mcu_set_scs(dev, 1, true);
+		mt7915_mac_enable_nf(dev, 1);
 	}
 
 	mt7915_mcu_set_sku_en(phy, true);

@@ -1081,17 +1081,49 @@ void mt7915_mac_set_timing(struct mt7915_phy *phy)
 		   MT_ARB_SCR_TX_DISABLE | MT_ARB_SCR_RX_DISABLE);
 }
 
-/*
- * TODO: mib counters are read-clear and there're many HE functionalities need
- * such info, hence firmware prepares a task to read the fields out to a shared
- * structure. User should switch to use event format to avoid race condition.
- */
+void mt7915_mac_enable_nf(struct mt7915_dev *dev, bool ext_phy)
+{
+	mt7915_l2_set(dev, MT_WF_PHY_RXTD12(ext_phy),
+		      MT_WF_PHY_RXTD12_IRPI_SW_CLR_ONLY |
+		      MT_WF_PHY_RXTD12_IRPI_SW_CLR);
+
+	mt7915_l2_set(dev, MT_WF_PHY_RX_CTRL1(ext_phy),
+		      FIELD_PREP(MT_WF_PHY_RX_CTRL1_IPI_EN, 0x5));
+}
+
+static u8
+mt7915_phy_get_nf(struct mt7915_phy *phy, int idx)
+{
+	static const u8 nf_power[] = { 92, 89, 86, 83, 80, 75, 70, 65, 60, 55, 52 };
+	struct mt7915_dev *dev = phy->dev;
+	u32 val, sum = 0, n = 0;
+	int nss, i;
+
+	/* TODO: DBDC: 0,1 for 2.4G, 2,3 for 5G */
+	for (nss = 0; nss < hweight8(phy->chainmask); nss++) {
+		u32 reg = MT_WF_IRPI(nss);
+
+		for (i = 0; i < ARRAY_SIZE(nf_power); i++, reg += 4) {
+			val = mt7915_l2_rr(dev, reg);
+			sum += val * nf_power[i];
+			n += val;
+		}
+	}
+
+	if (!n)
+		return 0;
+
+	return sum / n;
+}
+
 static void
 mt7915_phy_update_channel(struct mt76_phy *mphy, int idx)
 {
 	struct mt7915_dev *dev = container_of(mphy->dev, struct mt7915_dev, mt76);
+	struct mt7915_phy *phy = (struct mt7915_phy *)mphy->priv;
 	struct mt76_channel_state *state;
 	u64 busy_time, tx_time, rx_time, obss_time;
+	int nf;
 
 	busy_time = mt76_get_field(dev, MT_MIB_SDR9(idx),
 				   MT_MIB_SDR9_BUSY_MASK);
@@ -1102,12 +1134,18 @@ mt7915_phy_update_channel(struct mt76_phy *mphy, int idx)
 	obss_time = mt76_get_field(dev, MT_WF_RMAC_MIB_AIRTIME14(idx),
 				   MT_MIB_OBSSTIME_MASK);
 
-	/* TODO: state->noise */
+	nf = mt7915_phy_get_nf(phy, idx);
+	if (!phy->noise)
+		phy->noise = nf << 4;
+	else if (nf)
+		phy->noise += nf - (phy->noise >> 4);
+
 	state = mphy->chan_state;
 	state->cc_busy += busy_time;
 	state->cc_tx += tx_time;
 	state->cc_rx += rx_time + obss_time;
 	state->cc_bss_rx += rx_time;
+	state->noise = -(phy->noise >> 4);
 }
 
 void mt7915_update_channel(struct mt76_dev *mdev)
