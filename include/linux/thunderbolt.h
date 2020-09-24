@@ -247,6 +247,8 @@ struct tb_xdomain {
 	u8 depth;
 };
 
+int tb_xdomain_lane_bonding_enable(struct tb_xdomain *xd);
+void tb_xdomain_lane_bonding_disable(struct tb_xdomain *xd);
 int tb_xdomain_enable_paths(struct tb_xdomain *xd, u16 transmit_path,
 			    u16 transmit_ring, u16 receive_path,
 			    u16 receive_ring);

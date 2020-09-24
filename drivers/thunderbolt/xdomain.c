@@ -8,6 +8,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/delay.h>
 #include <linux/kmod.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
@@ -21,6 +22,7 @@
 #define XDOMAIN_UUID_RETRIES			10
 #define XDOMAIN_PROPERTIES_RETRIES		60
 #define XDOMAIN_PROPERTIES_CHANGED_RETRIES	10
+#define XDOMAIN_BONDING_WAIT			100  /* ms */
 
 struct xdomain_request_work {
 	struct work_struct work;
@@ -1442,6 +1444,70 @@ void tb_xdomain_remove(struct tb_xdomain *xd)
 	else
 		device_unregister(&xd->dev);
 }
+
+/**
+ * tb_xdomain_lane_bonding_enable() - Enable lane bonding on XDomain
+ * @xd: XDomain connection
+ *
+ * Lane bonding is disabled by default for XDomains. This function tries
+ * to enable bonding by first enabling the port and waiting for the CL0
+ * state.
+ *
+ * Return: %0 in case of success and negative errno in case of error.
+ */
+int tb_xdomain_lane_bonding_enable(struct tb_xdomain *xd)
+{
+	struct tb_port *port;
+	int ret;
+
+	port = tb_port_at(xd->route, tb_xdomain_parent(xd));
+	if (!port->dual_link_port)
+		return -ENODEV;
+
+	ret = tb_port_enable(port->dual_link_port);
+	if (ret)
+		return ret;
+
+	ret = tb_wait_for_port(port->dual_link_port, true);
+	if (ret < 0)
+		return ret;
+	if (!ret)
+		return -ENOTCONN;
+
+	ret = tb_port_lane_bonding_enable(port);
+	if (ret) {
+		tb_port_warn(port, "failed to enable lane bonding\n");
+		return ret;
+	}
+
+	tb_xdomain_update_link_attributes(xd);
+
+	dev_dbg(&xd->dev, "lane bonding enabled\n");
+	return 0;
+}
+EXPORT_SYMBOL_GPL(tb_xdomain_lane_bonding_enable);
+
+/**
+ * tb_xdomain_lane_bonding_disable() - Disable lane bonding
+ * @xd: XDomain connection
+ *
+ * Lane bonding is disabled by default for XDomains. If bonding has been
+ * enabled, this function can be used to disable it.
+ */
+void tb_xdomain_lane_bonding_disable(struct tb_xdomain *xd)
+{
+	struct tb_port *port;
+
+	port = tb_port_at(xd->route, tb_xdomain_parent(xd));
+	if (port->dual_link_port) {
+		tb_port_lane_bonding_disable(port);
+		tb_port_disable(port->dual_link_port);
+		tb_xdomain_update_link_attributes(xd);
+
+		dev_dbg(&xd->dev, "lane bonding disabled\n");
+	}
+}
+EXPORT_SYMBOL_GPL(tb_xdomain_lane_bonding_disable);
 
 /**
  * tb_xdomain_enable_paths() - Enable DMA paths for XDomain connection
