@@ -20,6 +20,8 @@
 #include "rvu_reg.h"
 #include "ptp.h"
 
+#include "rvu_trace.h"
+
 #define DRV_NAME	"octeontx2-af"
 #define DRV_STRING      "Marvell OcteonTX2 RVU Admin Function Driver"
 
@@ -1549,6 +1551,7 @@ static int rvu_process_mbox_msg(struct otx2_mbox *mbox, int devid,
 		if (rsp && err)						\
 			rsp->hdr.rc = err;				\
 									\
+		trace_otx2_msg_process(mbox->pdev, _id, err);		\
 		return rsp ? err : -ENOMEM;				\
 	}
 MBOX_MESSAGES
@@ -1881,6 +1884,8 @@ static irqreturn_t rvu_mbox_intr_handler(int irq, void *rvu_irq)
 	intr = rvu_read64(rvu, BLKADDR_RVUM, RVU_AF_PFAF_MBOX_INT);
 	/* Clear interrupts */
 	rvu_write64(rvu, BLKADDR_RVUM, RVU_AF_PFAF_MBOX_INT, intr);
+	if (intr)
+		trace_otx2_msg_interrupt(rvu->pdev, "PF(s) to AF", intr);
 
 	/* Sync with mbox memory region */
 	rmb();
@@ -1898,6 +1903,8 @@ static irqreturn_t rvu_mbox_intr_handler(int irq, void *rvu_irq)
 
 	intr = rvupf_read64(rvu, RVU_PF_VFPF_MBOX_INTX(0));
 	rvupf_write64(rvu, RVU_PF_VFPF_MBOX_INTX(0), intr);
+	if (intr)
+		trace_otx2_msg_interrupt(rvu->pdev, "VF(s) to AF", intr);
 
 	rvu_queue_work(&rvu->afvf_wq_info, 0, vfs, intr);
 

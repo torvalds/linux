@@ -187,6 +187,8 @@ static irqreturn_t otx2vf_vfaf_mbox_intr_handler(int irq, void *vf_irq)
 	mdev = &mbox->dev[0];
 	otx2_sync_mbox_bbuf(mbox, 0);
 
+	trace_otx2_msg_interrupt(mbox->pdev, "PF to VF", BIT_ULL(0));
+
 	hdr = (struct mbox_hdr *)(mdev->mbase + mbox->rx_start);
 	if (hdr->num_msgs) {
 		vf->mbox.num_msgs = hdr->num_msgs;
