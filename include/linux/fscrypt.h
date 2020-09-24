@@ -178,6 +178,8 @@ int fscrypt_ioctl_add_key(struct file *filp, void __user *arg);
 int fscrypt_ioctl_remove_key(struct file *filp, void __user *arg);
 int fscrypt_ioctl_remove_key_all_users(struct file *filp, void __user *arg);
 int fscrypt_ioctl_get_key_status(struct file *filp, void __user *arg);
+int fscrypt_register_key_removal_notifier(struct notifier_block *nb);
+int fscrypt_unregister_key_removal_notifier(struct notifier_block *nb);
 
 /* keysetup.c */
 int fscrypt_get_encryption_info(struct inode *inode);
@@ -378,6 +380,18 @@ static inline int fscrypt_ioctl_get_key_status(struct file *filp,
 					       void __user *arg)
 {
 	return -EOPNOTSUPP;
+}
+
+static inline int fscrypt_register_key_removal_notifier(
+						struct notifier_block *nb)
+{
+	return 0;
+}
+
+static inline int fscrypt_unregister_key_removal_notifier(
+						struct notifier_block *nb)
+{
+	return 0;
 }
 
 /* keysetup.c */
