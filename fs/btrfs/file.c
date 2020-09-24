@@ -1902,7 +1902,6 @@ static ssize_t btrfs_direct_write(struct kiocb *iocb, struct iov_iter *from)
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	loff_t pos;
 	ssize_t written = 0;
-	bool relock = false;
 	ssize_t written_buffered;
 	loff_t endbyte;
 	ssize_t err;
@@ -1911,6 +1910,11 @@ static ssize_t btrfs_direct_write(struct kiocb *iocb, struct iov_iter *from)
 	if (iocb->ki_flags & IOCB_NOWAIT)
 		ilock_flags |= BTRFS_ILOCK_TRY;
 
+	/* If the write DIO is within EOF, use a shared lock */
+	if (iocb->ki_pos + iov_iter_count(from) <= i_size_read(inode))
+		ilock_flags |= BTRFS_ILOCK_SHARED;
+
+relock:
 	err = btrfs_inode_lock(inode, ilock_flags);
 	if (err < 0)
 		return err;
@@ -1928,20 +1932,22 @@ static ssize_t btrfs_direct_write(struct kiocb *iocb, struct iov_iter *from)
 	}
 
 	pos = iocb->ki_pos;
+	/*
+	 * Re-check since file size may have changed just before taking the
+	 * lock or pos may have changed because of O_APPEND in generic_write_check()
+	 */
+	if ((ilock_flags & BTRFS_ILOCK_SHARED) &&
+	    pos + iov_iter_count(from) > i_size_read(inode)) {
+		btrfs_inode_unlock(inode, ilock_flags);
+		ilock_flags &= ~BTRFS_ILOCK_SHARED;
+		goto relock;
+	}
 
 	if (check_direct_IO(fs_info, from, pos)) {
 		btrfs_inode_unlock(inode, ilock_flags);
 		goto buffered;
 	}
 
-	/*
-	 * If the write DIO is beyond EOF, we need to update the isize, but it
-	 * is protected by inode lock. So we cannot unlock it here.
-	 */
-	if (pos + iov_iter_count(from) <= inode->i_size) {
-		btrfs_inode_unlock(inode, 0);
-		relock = true;
-	}
 	down_read(&BTRFS_I(inode)->dio_sem);
 
 	/*
@@ -1959,8 +1965,7 @@ static ssize_t btrfs_direct_write(struct kiocb *iocb, struct iov_iter *from)
 		written = 0;
 
 	up_read(&BTRFS_I(inode)->dio_sem);
-	if (relock)
-		btrfs_inode_lock(inode, 0);
+	btrfs_inode_unlock(inode, ilock_flags);
 
 	if (written < 0 || !iov_iter_count(from)) {
 		err = written;
