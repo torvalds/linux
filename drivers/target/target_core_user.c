@@ -699,7 +699,7 @@ static void scatter_data_area(struct tcmu_dev *udev, struct tcmu_cmd *tcmu_cmd,
 	void *from, *to = NULL;
 	size_t copy_bytes, offset;
 	struct scatterlist *sg;
-	struct page *page;
+	struct page *page = NULL;
 
 	for_each_sg(se_cmd->t_data_sg, sg, se_cmd->t_data_nents, i) {
 		int sg_remaining = sg->length;
