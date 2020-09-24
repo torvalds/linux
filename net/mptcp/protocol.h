@@ -162,7 +162,7 @@ struct mptcp_pm_data {
 
 	spinlock_t	lock;		/*protects the whole PM data */
 
-	bool		addr_signal;
+	bool		add_addr_signal;
 	bool		server_side;
 	bool		work_pending;
 	bool		accept_addr;
@@ -438,9 +438,9 @@ int mptcp_pm_announce_addr(struct mptcp_sock *msk,
 int mptcp_pm_remove_addr(struct mptcp_sock *msk, u8 local_id);
 int mptcp_pm_remove_subflow(struct mptcp_sock *msk, u8 remote_id);
 
-static inline bool mptcp_pm_should_signal(struct mptcp_sock *msk)
+static inline bool mptcp_pm_should_add_signal(struct mptcp_sock *msk)
 {
-	return READ_ONCE(msk->pm.addr_signal);
+	return READ_ONCE(msk->pm.add_addr_signal);
 }
 
 static inline unsigned int mptcp_add_addr_len(int family)
@@ -450,8 +450,8 @@ static inline unsigned int mptcp_add_addr_len(int family)
 	return TCPOLEN_MPTCP_ADD_ADDR6;
 }
 
-bool mptcp_pm_addr_signal(struct mptcp_sock *msk, unsigned int remaining,
-			  struct mptcp_addr_info *saddr);
+bool mptcp_pm_add_addr_signal(struct mptcp_sock *msk, unsigned int remaining,
+			      struct mptcp_addr_info *saddr);
 int mptcp_pm_get_local_id(struct mptcp_sock *msk, struct sock_common *skc);
 
 void __init mptcp_pm_nl_init(void);

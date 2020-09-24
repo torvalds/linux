@@ -571,18 +571,18 @@ static u64 add_addr6_generate_hmac(u64 key1, u64 key2, u8 addr_id,
 }
 #endif
 
-static bool mptcp_established_options_addr(struct sock *sk,
-					   unsigned int *size,
-					   unsigned int remaining,
-					   struct mptcp_out_options *opts)
+static bool mptcp_established_options_add_addr(struct sock *sk,
+					       unsigned int *size,
+					       unsigned int remaining,
+					       struct mptcp_out_options *opts)
 {
 	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
 	struct mptcp_sock *msk = mptcp_sk(subflow->conn);
 	struct mptcp_addr_info saddr;
 	int len;
 
-	if (!mptcp_pm_should_signal(msk) ||
-	    !(mptcp_pm_addr_signal(msk, remaining, &saddr)))
+	if (!mptcp_pm_should_add_signal(msk) ||
+	    !(mptcp_pm_add_addr_signal(msk, remaining, &saddr)))
 		return false;
 
 	len = mptcp_add_addr_len(saddr.family);
@@ -640,7 +640,7 @@ bool mptcp_established_options(struct sock *sk, struct sk_buff *skb,
 
 	*size += opt_size;
 	remaining -= opt_size;
-	if (mptcp_established_options_addr(sk, &opt_size, remaining, opts)) {
+	if (mptcp_established_options_add_addr(sk, &opt_size, remaining, opts)) {
 		*size += opt_size;
 		remaining -= opt_size;
 		ret = true;

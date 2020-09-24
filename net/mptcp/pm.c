@@ -18,7 +18,7 @@ int mptcp_pm_announce_addr(struct mptcp_sock *msk,
 	pr_debug("msk=%p, local_id=%d", msk, addr->id);
 
 	msk->pm.local = *addr;
-	WRITE_ONCE(msk->pm.addr_signal, true);
+	WRITE_ONCE(msk->pm.add_addr_signal, true);
 	return 0;
 }
 
@@ -151,22 +151,22 @@ void mptcp_pm_add_addr_received(struct mptcp_sock *msk,
 
 /* path manager helpers */
 
-bool mptcp_pm_addr_signal(struct mptcp_sock *msk, unsigned int remaining,
-			  struct mptcp_addr_info *saddr)
+bool mptcp_pm_add_addr_signal(struct mptcp_sock *msk, unsigned int remaining,
+			      struct mptcp_addr_info *saddr)
 {
 	int ret = false;
 
 	spin_lock_bh(&msk->pm.lock);
 
 	/* double check after the lock is acquired */
-	if (!mptcp_pm_should_signal(msk))
+	if (!mptcp_pm_should_add_signal(msk))
 		goto out_unlock;
 
 	if (remaining < mptcp_add_addr_len(msk->pm.local.family))
 		goto out_unlock;
 
 	*saddr = msk->pm.local;
-	WRITE_ONCE(msk->pm.addr_signal, false);
+	WRITE_ONCE(msk->pm.add_addr_signal, false);
 	ret = true;
 
 out_unlock:
@@ -186,7 +186,7 @@ void mptcp_pm_data_init(struct mptcp_sock *msk)
 	msk->pm.local_addr_used = 0;
 	msk->pm.subflows = 0;
 	WRITE_ONCE(msk->pm.work_pending, false);
-	WRITE_ONCE(msk->pm.addr_signal, false);
+	WRITE_ONCE(msk->pm.add_addr_signal, false);
 	WRITE_ONCE(msk->pm.accept_addr, false);
 	WRITE_ONCE(msk->pm.accept_subflow, false);
 	msk->pm.status = 0;
