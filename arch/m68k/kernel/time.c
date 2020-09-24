@@ -45,8 +45,12 @@ static irqreturn_t timer_interrupt(int irq, void *dummy)
 	xtime_update(1);
 	update_process_times(user_mode(get_irq_regs()));
 	profile_tick(CPU_PROFILING);
+	return IRQ_HANDLED;
+}
 
 #ifdef CONFIG_HEARTBEAT
+void timer_heartbeat(void)
+{
 	/* use power LED as a heartbeat instead -- much more useful
 	   for debugging -- based on the version for PReP by Cort */
 	/* acts like an actual heart beat -- ie thump-thump-pause... */
@@ -68,9 +72,8 @@ static irqreturn_t timer_interrupt(int irq, void *dummy)
 		dist = period / 4;
 	    }
 	}
-#endif /* CONFIG_HEARTBEAT */
-	return IRQ_HANDLED;
 }
+#endif /* CONFIG_HEARTBEAT */
 
 #ifdef CONFIG_M68KCLASSIC
 #if !IS_BUILTIN(CONFIG_RTC_DRV_GENERIC)

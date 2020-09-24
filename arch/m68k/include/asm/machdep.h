@@ -35,6 +35,13 @@ extern void (*mach_beep) (unsigned int, unsigned int);
 /* Hardware clock functions */
 extern void hw_timer_init(irq_handler_t handler);
 extern unsigned long hw_timer_offset(void);
+#ifdef CONFIG_HEARTBEAT
+extern void timer_heartbeat(void);
+#else
+static inline void timer_heartbeat(void)
+{
+}
+#endif
 
 extern void config_BSP(char *command, int len);
 

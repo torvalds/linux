@@ -21,6 +21,7 @@
 #include <linux/export.h>
 
 #include <asm/atariints.h>
+#include <asm/machdep.h>
 
 DEFINE_SPINLOCK(rtc_lock);
 EXPORT_SYMBOL_GPL(rtc_lock);
@@ -49,6 +50,7 @@ static irqreturn_t mfp_timer_c_handler(int irq, void *dev_id)
 	} while (last_timer_count == 1);
 	clk_total += INT_TICKS;
 	timer_routine(0, NULL);
+	timer_heartbeat();
 	local_irq_restore(flags);
 
 	return IRQ_HANDLED;

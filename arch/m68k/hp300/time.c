@@ -65,6 +65,7 @@ static irqreturn_t hp300_tick(int irq, void *dev_id)
 	clk_total += INTVAL;
 	clk_offset = 0;
 	timer_routine(0, NULL);
+	timer_heartbeat();
 	local_irq_restore(flags);
 
 	/* Turn off the network and SCSI leds */

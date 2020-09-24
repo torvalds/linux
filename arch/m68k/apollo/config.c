@@ -173,6 +173,7 @@ irqreturn_t dn_timer_int(int irq, void *dev_id)
 	volatile unsigned char x;
 
 	timer_handler(irq, dev_id);
+	timer_heartbeat();
 
 	x = *(volatile unsigned char *)(apollo_timer + 3);
 	x = *(volatile unsigned char *)(apollo_timer + 5);

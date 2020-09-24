@@ -17,6 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 
+#include <asm/machdep.h>
 #include <asm/ptrace.h>
 #include <asm/traps.h>
 
@@ -144,6 +145,7 @@ static irqreturn_t q40_timer_int(int irq, void *dev_id)
 
 		local_irq_save(flags);
 		timer_routine(0, NULL);
+		timer_heartbeat();
 		local_irq_restore(flags);
 	}
 	return IRQ_HANDLED;

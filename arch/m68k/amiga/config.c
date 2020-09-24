@@ -480,6 +480,7 @@ static irqreturn_t ciab_timer_handler(int irq, void *dev_id)
 	clk_total += jiffy_ticks;
 	clk_offset = 0;
 	timer_routine(0, NULL);
+	timer_heartbeat();
 
 	return IRQ_HANDLED;
 }
