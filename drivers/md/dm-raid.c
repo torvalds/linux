@@ -3730,12 +3730,14 @@ static void raid_io_hints(struct dm_target *ti, struct queue_limits *limits)
 	blk_limits_io_opt(limits, chunk_size_bytes * mddev_data_stripes(rs));
 
 	/*
-	 * RAID1 and RAID10 personalities require bio splitting,
-	 * RAID0/4/5/6 don't and process large discard bios properly.
+	 * RAID10 personality requires bio splitting,
+	 * RAID0/1/4/5/6 don't and process large discard bios properly.
 	 */
-	if (rs_is_raid1(rs) || rs_is_raid10(rs)) {
-		limits->discard_granularity = chunk_size_bytes;
-		limits->max_discard_sectors = rs->md.chunk_sectors;
+	if (rs_is_raid10(rs)) {
+		limits->discard_granularity = max(chunk_size_bytes,
+						  limits->discard_granularity);
+		limits->max_discard_sectors = min_not_zero(rs->md.chunk_sectors,
+							   limits->max_discard_sectors);
 	}
 }
 
