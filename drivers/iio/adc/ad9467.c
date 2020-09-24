@@ -88,6 +88,15 @@ enum {
 	ID_AD9467,
 };
 
+struct ad9467_chip_info {
+	struct adi_axi_adc_chip_info	axi_adc_info;
+	unsigned int			default_output_mode;
+	unsigned int			vref_mask;
+};
+
+#define to_ad9467_chip_info(_info)	\
+	container_of(_info, struct ad9467_chip_info, axi_adc_info)
+
 struct ad9467_state {
 	struct spi_device		*spi;
 	struct clk			*clk;
@@ -186,35 +195,31 @@ static const struct iio_chan_spec ad9467_channels[] = {
 	AD9467_CHAN(0, 0, 16, 'S'),
 };
 
-static const struct adi_axi_adc_chip_info ad9467_chip_tbl[] = {
+static const struct ad9467_chip_info ad9467_chip_tbl[] = {
 	[ID_AD9467] = {
-		.id = CHIPID_AD9467,
-		.max_rate = 250000000UL,
-		.scale_table = ad9467_scale_table,
-		.num_scales = ARRAY_SIZE(ad9467_scale_table),
-		.channels = ad9467_channels,
-		.num_channels = ARRAY_SIZE(ad9467_channels),
+		.axi_adc_info = {
+			.id = CHIPID_AD9467,
+			.max_rate = 250000000UL,
+			.scale_table = ad9467_scale_table,
+			.num_scales = ARRAY_SIZE(ad9467_scale_table),
+			.channels = ad9467_channels,
+			.num_channels = ARRAY_SIZE(ad9467_channels),
+		},
+		.default_output_mode = AD9467_DEF_OUTPUT_MODE,
+		.vref_mask = AD9467_REG_VREF_MASK,
 	},
 };
 
 static int ad9467_get_scale(struct adi_axi_adc_conv *conv, int *val, int *val2)
 {
 	const struct adi_axi_adc_chip_info *info = conv->chip_info;
+	const struct ad9467_chip_info *info1 = to_ad9467_chip_info(info);
 	struct ad9467_state *st = adi_axi_adc_conv_priv(conv);
-	unsigned int i, vref_val, vref_mask;
+	unsigned int i, vref_val;
 
 	vref_val = ad9467_spi_read(st->spi, AN877_ADC_REG_VREF);
 
-	switch (info->id) {
-	case CHIPID_AD9467:
-		vref_mask = AD9467_REG_VREF_MASK;
-		break;
-	default:
-		vref_mask = 0xFFFF;
-		break;
-	}
-
-	vref_val &= vref_mask;
+	vref_val &= info1->vref_mask;
 
 	for (i = 0; i < info->num_scales; i++) {
 		if (vref_val == info->scale_table[i][1])
@@ -316,18 +321,6 @@ static int ad9467_preenable_setup(struct adi_axi_adc_conv *conv)
 	return ad9467_outputmode_set(st->spi, st->output_mode);
 }
 
-static int ad9467_setup(struct ad9467_state *st, unsigned int chip_id)
-{
-	switch (chip_id) {
-	case CHIPID_AD9467:
-		st->output_mode = AD9467_DEF_OUTPUT_MODE |
-				  AN877_ADC_OUTPUT_MODE_TWOS_COMPLEMENT;
-		return 0;
-	default:
-		return -ENODEV;
-	}
-}
-
 static void ad9467_clk_disable(void *data)
 {
 	struct ad9467_state *st = data;
@@ -337,7 +330,7 @@ static void ad9467_clk_disable(void *data)
 
 static int ad9467_probe(struct spi_device *spi)
 {
-	const struct adi_axi_adc_chip_info *info;
+	const struct ad9467_chip_info *info;
 	struct adi_axi_adc_conv *conv;
 	struct ad9467_state *st;
 	unsigned int id;
@@ -386,7 +379,7 @@ static int ad9467_probe(struct spi_device *spi)
 
 	spi_set_drvdata(spi, st);
 
-	conv->chip_info = info;
+	conv->chip_info = &info->axi_adc_info;
 
 	id = ad9467_spi_read(spi, AN877_ADC_REG_CHIP_ID);
 	if (id != conv->chip_info->id) {
@@ -400,7 +393,10 @@ static int ad9467_probe(struct spi_device *spi)
 	conv->read_raw = ad9467_read_raw;
 	conv->preenable_setup = ad9467_preenable_setup;
 
-	return ad9467_setup(st, id);
+	st->output_mode = info->default_output_mode |
+			  AN877_ADC_OUTPUT_MODE_TWOS_COMPLEMENT;
+
+	return 0;
 }
 
 static const struct of_device_id ad9467_of_match[] = {
