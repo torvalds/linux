@@ -369,13 +369,6 @@ static void tk_setup_internals(struct timekeeper *tk, struct clocksource *clock)
 
 /* Timekeeper helper functions. */
 
-#ifdef CONFIG_ARCH_USES_GETTIMEOFFSET
-static u32 default_arch_gettimeoffset(void) { return 0; }
-u32 (*arch_gettimeoffset)(void) = default_arch_gettimeoffset;
-#else
-static inline u32 arch_gettimeoffset(void) { return 0; }
-#endif
-
 static inline u64 timekeeping_delta_to_ns(const struct tk_read_base *tkr, u64 delta)
 {
 	u64 nsec;
@@ -383,8 +376,7 @@ static inline u64 timekeeping_delta_to_ns(const struct tk_read_base *tkr, u64 de
 	nsec = delta * tkr->mult + tkr->xtime_nsec;
 	nsec >>= tkr->shift;
 
-	/* If arch requires, add in get_arch_timeoffset() */
-	return nsec + arch_gettimeoffset();
+	return nsec;
 }
 
 static inline u64 timekeeping_get_ns(const struct tk_read_base *tkr)
@@ -778,15 +770,7 @@ static void timekeeping_forward_now(struct timekeeper *tk)
 	tk->tkr_raw.cycle_last  = cycle_now;
 
 	tk->tkr_mono.xtime_nsec += delta * tk->tkr_mono.mult;
-
-	/* If arch requires, add in get_arch_timeoffset() */
-	tk->tkr_mono.xtime_nsec += (u64)arch_gettimeoffset() << tk->tkr_mono.shift;
-
-
 	tk->tkr_raw.xtime_nsec += delta * tk->tkr_raw.mult;
-
-	/* If arch requires, add in get_arch_timeoffset() */
-	tk->tkr_raw.xtime_nsec += (u64)arch_gettimeoffset() << tk->tkr_raw.shift;
 
 	tk_normalize_xtime(tk);
 }
@@ -2133,19 +2117,12 @@ static void timekeeping_advance(enum timekeeping_adv_mode mode)
 	if (unlikely(timekeeping_suspended))
 		goto out;
 
-#ifdef CONFIG_ARCH_USES_GETTIMEOFFSET
-	offset = real_tk->cycle_interval;
-
-	if (mode != TK_ADV_TICK)
-		goto out;
-#else
 	offset = clocksource_delta(tk_clock_read(&tk->tkr_mono),
 				   tk->tkr_mono.cycle_last, tk->tkr_mono.mask);
 
 	/* Check if there's really nothing to do */
 	if (offset < real_tk->cycle_interval && mode == TK_ADV_TICK)
 		goto out;
-#endif
 
 	/* Do some additional sanity checking */
 	timekeeping_check_update(tk, offset);
