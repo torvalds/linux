@@ -198,12 +198,12 @@ static void hisi_sfc_v3xx_write_databuf(struct hisi_sfc_v3xx_host *host,
 	}
 }
 
-static int hisi_sfc_v3xx_generic_exec_op(struct hisi_sfc_v3xx_host *host,
-					 const struct spi_mem_op *op,
-					 u8 chip_select)
+static int hisi_sfc_v3xx_start_bus(struct hisi_sfc_v3xx_host *host,
+				   const struct spi_mem_op *op,
+				   u8 chip_select)
 {
-	int ret = 0, len = op->data.nbytes, buswidth_mode;
-	u32 int_stat, config = 0;
+	int len = op->data.nbytes, buswidth_mode;
+	u32 config = 0;
 
 	if (op->addr.nbytes)
 		config |= HISI_SFC_V3XX_CMD_CFG_ADDR_EN_MSK;
@@ -227,9 +227,7 @@ static int hisi_sfc_v3xx_generic_exec_op(struct hisi_sfc_v3xx_host *host,
 		config |= HISI_SFC_V3XX_CMD_CFG_DATA_EN_MSK;
 	}
 
-	if (op->data.dir == SPI_MEM_DATA_OUT)
-		hisi_sfc_v3xx_write_databuf(host, op->data.buf.out, len);
-	else if (op->data.dir == SPI_MEM_DATA_IN)
+	if (op->data.dir == SPI_MEM_DATA_IN)
 		config |= HISI_SFC_V3XX_CMD_CFG_RW_MSK;
 
 	config |= op->dummy.nbytes << HISI_SFC_V3XX_CMD_CFG_DUMMY_CNT_OFF |
@@ -240,6 +238,23 @@ static int hisi_sfc_v3xx_generic_exec_op(struct hisi_sfc_v3xx_host *host,
 	writel(op->cmd.opcode, host->regbase + HISI_SFC_V3XX_CMD_INS);
 
 	writel(config, host->regbase + HISI_SFC_V3XX_CMD_CFG);
+
+	return 0;
+}
+
+static int hisi_sfc_v3xx_generic_exec_op(struct hisi_sfc_v3xx_host *host,
+					 const struct spi_mem_op *op,
+					 u8 chip_select)
+{
+	u32 int_stat;
+	int ret;
+
+	if (op->data.dir == SPI_MEM_DATA_OUT)
+		hisi_sfc_v3xx_write_databuf(host, op->data.buf.out, op->data.nbytes);
+
+	ret = hisi_sfc_v3xx_start_bus(host, op, chip_select);
+	if (ret)
+		return ret;
 
 	ret = hisi_sfc_v3xx_wait_cmd_idle(host);
 	if (ret)
@@ -265,7 +280,7 @@ static int hisi_sfc_v3xx_generic_exec_op(struct hisi_sfc_v3xx_host *host,
 	}
 
 	if (op->data.dir == SPI_MEM_DATA_IN)
-		hisi_sfc_v3xx_read_databuf(host, op->data.buf.in, len);
+		hisi_sfc_v3xx_read_databuf(host, op->data.buf.in, op->data.nbytes);
 
 	return 0;
 }
