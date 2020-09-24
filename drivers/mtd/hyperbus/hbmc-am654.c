@@ -13,7 +13,6 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
-#include <linux/pm_runtime.h>
 #include <linux/types.h>
 
 #define AM654_HBMC_CALIB_COUNT 25
@@ -89,13 +88,6 @@ static int am654_hbmc_probe(struct platform_device *pdev)
 		priv->mux_ctrl = control;
 	}
 
-	pm_runtime_enable(dev);
-	ret = pm_runtime_get_sync(dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
-		goto disable_pm;
-	}
-
 	priv->hbdev.map.size = resource_size(&res);
 	priv->hbdev.map.virt = devm_ioremap_resource(dev, &res);
 	if (IS_ERR(priv->hbdev.map.virt))
@@ -107,13 +99,11 @@ static int am654_hbmc_probe(struct platform_device *pdev)
 	ret = hyperbus_register_device(&priv->hbdev);
 	if (ret) {
 		dev_err(dev, "failed to register controller\n");
-		pm_runtime_put_sync(&pdev->dev);
-		goto disable_pm;
+		goto disable_mux;
 	}
 
 	return 0;
-disable_pm:
-	pm_runtime_disable(dev);
+disable_mux:
 	if (priv->mux_ctrl)
 		mux_control_deselect(priv->mux_ctrl);
 	return ret;
@@ -127,8 +117,6 @@ static int am654_hbmc_remove(struct platform_device *pdev)
 	ret = hyperbus_unregister_device(&priv->hbdev);
 	if (priv->mux_ctrl)
 		mux_control_deselect(priv->mux_ctrl);
-	pm_runtime_put_sync(&pdev->dev);
-	pm_runtime_disable(&pdev->dev);
 
 	return ret;
 }
