@@ -11,6 +11,7 @@
 #include <net/tcp.h>
 #include <net/mptcp.h>
 #include "protocol.h"
+#include "mib.h"
 
 static bool mptcp_cap_flag_sha256(u8 flags)
 {
@@ -888,8 +889,12 @@ void mptcp_incoming_options(struct sock *sk, struct sk_buff *skb,
 			addr.addr6 = mp_opt.addr6;
 		}
 #endif
-		if (!mp_opt.echo)
+		if (!mp_opt.echo) {
 			mptcp_pm_add_addr_received(msk, &addr);
+			MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_ADDADDR);
+		} else {
+			MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_ECHOADD);
+		}
 		mp_opt.add_addr = 0;
 	}
 
