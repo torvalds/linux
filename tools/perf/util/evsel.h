@@ -42,65 +42,79 @@ enum perf_tool_event {
  */
 struct evsel {
 	struct perf_evsel	core;
-	struct evlist	*evlist;
-	char			*filter;
+	struct evlist		*evlist;
+	off_t			id_offset;
+	int			idx;
+	int			id_pos;
+	int			is_pos;
+	unsigned int		sample_size;
+
+	/*
+	 * These fields can be set in the parse-events code or similar.
+	 * Please check evsel__clone() to copy them properly so that
+	 * they can be released properly.
+	 */
+	struct {
+		char			*name;
+		char			*group_name;
+		const char		*pmu_name;
+		struct tep_event	*tp_format;
+		char			*filter;
+		unsigned long		max_events;
+		double			scale;
+		const char		*unit;
+		struct cgroup		*cgrp;
+		enum perf_tool_event	tool_event;
+		/* parse modifier helper */
+		int			exclude_GH;
+		int			sample_read;
+		bool			snapshot;
+		bool			per_pkg;
+		bool			percore;
+		bool			precise_max;
+		bool			use_uncore_alias;
+		bool			is_libpfm_event;
+		bool			auto_merge_stats;
+		bool			collect_stat;
+		bool			weak_group;
+		int			bpf_fd;
+		struct bpf_object	*bpf_obj;
+	};
+
+	/*
+	 * metric fields are similar, but needs more care as they can have
+	 * references to other metric (evsel).
+	 */
+	const char *		metric_expr;
+	const char *		metric_name;
+	struct evsel		**metric_events;
+	struct evsel		*metric_leader;
+
+	void			*handler;
 	struct perf_counts	*counts;
 	struct perf_counts	*prev_raw_counts;
-	int			idx;
-	unsigned long		max_events;
 	unsigned long		nr_events_printed;
-	char			*name;
-	double			scale;
-	const char		*unit;
-	struct tep_event	*tp_format;
-	off_t			id_offset;
 	struct perf_stat_evsel  *stats;
 	void			*priv;
 	u64			db_id;
-	struct cgroup		*cgrp;
-	void			*handler;
-	unsigned int		sample_size;
-	int			id_pos;
-	int			is_pos;
-	enum perf_tool_event	tool_event;
 	bool			uniquified_name;
-	bool			snapshot;
 	bool 			supported;
 	bool 			needs_swap;
 	bool 			disabled;
 	bool			no_aux_samples;
 	bool			immediate;
 	bool			tracking;
-	bool			per_pkg;
-	bool			precise_max;
 	bool			ignore_missing_thread;
 	bool			forced_leader;
-	bool			use_uncore_alias;
-	bool			is_libpfm_event;
-	/* parse modifier helper */
-	int			exclude_GH;
-	int			sample_read;
-	unsigned long		*per_pkg_mask;
-	struct evsel		*leader;
-	char			*group_name;
 	bool			cmdline_group_boundary;
-	struct list_head	config_terms;
-	struct bpf_object	*bpf_obj;
-	int			bpf_fd;
-	int			err;
-	bool			auto_merge_stats;
 	bool			merged_stat;
-	const char *		metric_expr;
-	const char *		metric_name;
-	struct evsel		**metric_events;
-	struct evsel		*metric_leader;
-	bool			collect_stat;
-	bool			weak_group;
 	bool			reset_group;
 	bool			errored;
-	bool			percore;
+	unsigned long		*per_pkg_mask;
+	struct evsel		*leader;
+	struct list_head	config_terms;
+	int			err;
 	int			cpu_iter;
-	const char		*pmu_name;
 	struct {
 		evsel__sb_cb_t	*cb;
 		void		*data;
@@ -169,6 +183,7 @@ static inline struct evsel *evsel__new(struct perf_event_attr *attr)
 	return evsel__new_idx(attr, 0);
 }
 
+struct evsel *evsel__clone(struct evsel *orig);
 struct evsel *evsel__newtp_idx(const char *sys, const char *name, int idx);
 
 /*
