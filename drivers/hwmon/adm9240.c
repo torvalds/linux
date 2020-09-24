@@ -38,6 +38,7 @@
 #include <linux/err.h>
 #include <linux/mutex.h>
 #include <linux/jiffies.h>
+#include <linux/regmap.h>
 
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f,
@@ -123,6 +124,7 @@ static inline unsigned int AOUT_FROM_REG(u8 reg)
 /* per client data */
 struct adm9240_data {
 	struct i2c_client *client;
+	struct regmap *regmap;
 	struct mutex update_lock;
 	char valid;
 	unsigned long last_updated_measure;
@@ -143,55 +145,72 @@ struct adm9240_data {
 };
 
 /* write new fan div, callers must hold data->update_lock */
-static void adm9240_write_fan_div(struct i2c_client *client, int nr,
+static int adm9240_write_fan_div(struct adm9240_data *data, int nr,
 		u8 fan_div)
 {
-	u8 reg, old, shift = (nr + 2) * 2;
+	unsigned int reg, old, shift = (nr + 2) * 2;
+	int err;
 
-	reg = i2c_smbus_read_byte_data(client, ADM9240_REG_VID_FAN_DIV);
+	err = regmap_read(data->regmap, ADM9240_REG_VID_FAN_DIV, &reg);
+	if (err < 0)
+		return err;
 	old = (reg >> shift) & 3;
 	reg &= ~(3 << shift);
 	reg |= (fan_div << shift);
-	i2c_smbus_write_byte_data(client, ADM9240_REG_VID_FAN_DIV, reg);
-	dev_dbg(&client->dev,
+	err = regmap_write(data->regmap, ADM9240_REG_VID_FAN_DIV, reg);
+	if (err < 0)
+		return err;
+	dev_dbg(&data->client->dev,
 		"fan%d clock divider changed from %u to %u\n",
 		nr + 1, 1 << old, 1 << fan_div);
+
+	return 0;
 }
 
 static int adm9240_update_measure(struct adm9240_data *data)
 {
-	struct i2c_client *client = data->client;
+	unsigned int val;
+	u8 regs[2];
+	int err;
 	int i;
 
-	for (i = 0; i < 6; i++) { /* read voltages */
-		data->in[i] = i2c_smbus_read_byte_data(client,
-				ADM9240_REG_IN(i));
-	}
-	data->alarms = i2c_smbus_read_byte_data(client,
-			ADM9240_REG_INT(0)) |
-		i2c_smbus_read_byte_data(client,
-				ADM9240_REG_INT(1)) << 8;
+	err = regmap_bulk_read(data->regmap, ADM9240_REG_IN(0), &data->in[0], 6);
+	if (err < 0)
+		return err;
+	err = regmap_bulk_read(data->regmap, ADM9240_REG_INT(0), &regs, 2);
+	if (err < 0)
+		return err;
+
+	data->alarms = regs[0] | regs[1] << 8;
 
 	/*
 	 * read temperature: assume temperature changes less than
 	 * 0.5'C per two measurement cycles thus ignore possible
 	 * but unlikely aliasing error on lsb reading. --Grant
 	 */
-	data->temp = (i2c_smbus_read_byte_data(client,
-				ADM9240_REG_TEMP) << 8) |
-		i2c_smbus_read_byte_data(client,
-				ADM9240_REG_TEMP_CONF);
+	err = regmap_read(data->regmap, ADM9240_REG_TEMP, &val);
+	if (err < 0)
+		return err;
+	data->temp = val << 8;
+	err = regmap_read(data->regmap, ADM9240_REG_TEMP_CONF, &val);
+	if (err < 0)
+		return err;
+	data->temp |= val;
+
+	err = regmap_bulk_read(data->regmap, ADM9240_REG_FAN(0),
+			       &data->fan[0], 2);
+	if (err < 0)
+		return err;
 
 	for (i = 0; i < 2; i++) { /* read fans */
-		data->fan[i] = i2c_smbus_read_byte_data(client,
-				ADM9240_REG_FAN(i));
-
 		/* adjust fan clock divider on overflow */
 		if (data->valid && data->fan[i] == 255 &&
 				data->fan_div[i] < 3) {
 
-			adm9240_write_fan_div(client, i,
+			err = adm9240_write_fan_div(data, i,
 					++data->fan_div[i]);
+			if (err < 0)
+				return err;
 
 			/* adjust fan_min if active, but not to 0 */
 			if (data->fan_min[i] < 255 &&
@@ -205,36 +224,45 @@ static int adm9240_update_measure(struct adm9240_data *data)
 
 static int adm9240_update_config(struct adm9240_data *data)
 {
-	struct i2c_client *client = data->client;
+	unsigned int val;
 	int i;
+	int err;
 
 	for (i = 0; i < 6; i++) {
-		data->in_min[i] = i2c_smbus_read_byte_data(client,
-				ADM9240_REG_IN_MIN(i));
-		data->in_max[i] = i2c_smbus_read_byte_data(client,
-				ADM9240_REG_IN_MAX(i));
+		err = regmap_raw_read(data->regmap, ADM9240_REG_IN_MIN(i),
+				      &data->in_min[i], 1);
+		if (err < 0)
+			return err;
+		err = regmap_raw_read(data->regmap, ADM9240_REG_IN_MAX(i),
+				      &data->in_max[i], 1);
+		if (err < 0)
+			return err;
 	}
-	for (i = 0; i < 2; i++) {
-		data->fan_min[i] = i2c_smbus_read_byte_data(client,
-				ADM9240_REG_FAN_MIN(i));
-	}
-	for (i = 0; i < 2; i++) {
-		data->temp_max[i] = i2c_smbus_read_byte_data(client,
-				ADM9240_REG_TEMP_MAX(i));
-	}
+	err = regmap_bulk_read(data->regmap, ADM9240_REG_FAN_MIN(0),
+				      &data->fan_min[0], 2);
+	if (err < 0)
+		return err;
+	err = regmap_bulk_read(data->regmap, ADM9240_REG_TEMP_MAX(0),
+				      &data->temp_max[0], 2);
+	if (err < 0)
+		return err;
 
 	/* read fan divs and 5-bit VID */
-	i = i2c_smbus_read_byte_data(client, ADM9240_REG_VID_FAN_DIV);
-	data->fan_div[0] = (i >> 4) & 3;
-	data->fan_div[1] = (i >> 6) & 3;
-	data->vid = i & 0x0f;
-	data->vid |= (i2c_smbus_read_byte_data(client,
-				ADM9240_REG_VID4) & 1) << 4;
+	err = regmap_read(data->regmap, ADM9240_REG_VID_FAN_DIV, &val);
+	if (err < 0)
+		return err;
+	data->fan_div[0] = (val >> 4) & 3;
+	data->fan_div[1] = (val >> 6) & 3;
+	data->vid = val & 0x0f;
+	err = regmap_read(data->regmap, ADM9240_REG_VID4, &val);
+	if (err < 0)
+		return err;
+	data->vid |= (val & 1) << 4;
 	/* read analog out */
-	data->aout = i2c_smbus_read_byte_data(client,
-			ADM9240_REG_ANALOG_OUT);
+	err = regmap_raw_read(data->regmap, ADM9240_REG_ANALOG_OUT,
+			      &data->aout, 1);
 
-	return 0;
+	return err;
 }
 
 static struct adm9240_data *adm9240_update_device(struct device *dev)
@@ -303,7 +331,6 @@ static ssize_t max_store(struct device *dev, struct device_attribute *devattr,
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adm9240_data *data = dev_get_drvdata(dev);
-	struct i2c_client *client = data->client;
 	long val;
 	int err;
 
@@ -313,10 +340,10 @@ static ssize_t max_store(struct device *dev, struct device_attribute *devattr,
 
 	mutex_lock(&data->update_lock);
 	data->temp_max[attr->index] = TEMP_TO_REG(val);
-	i2c_smbus_write_byte_data(client, ADM9240_REG_TEMP_MAX(attr->index),
-			data->temp_max[attr->index]);
+	err = regmap_write(data->regmap, ADM9240_REG_TEMP_MAX(attr->index),
+			   data->temp_max[attr->index]);
 	mutex_unlock(&data->update_lock);
-	return count;
+	return err < 0 ? err : count;
 }
 
 static DEVICE_ATTR_RO(temp1_input);
@@ -369,7 +396,6 @@ static ssize_t in_min_store(struct device *dev,
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adm9240_data *data = dev_get_drvdata(dev);
-	struct i2c_client *client = data->client;
 	unsigned long val;
 	int err;
 
@@ -379,10 +405,10 @@ static ssize_t in_min_store(struct device *dev,
 
 	mutex_lock(&data->update_lock);
 	data->in_min[attr->index] = IN_TO_REG(val, attr->index);
-	i2c_smbus_write_byte_data(client, ADM9240_REG_IN_MIN(attr->index),
-			data->in_min[attr->index]);
+	err = regmap_write(data->regmap, ADM9240_REG_IN_MIN(attr->index),
+			   data->in_min[attr->index]);
 	mutex_unlock(&data->update_lock);
-	return count;
+	return err < 0 ? err : count;
 }
 
 static ssize_t in_max_store(struct device *dev,
@@ -391,7 +417,6 @@ static ssize_t in_max_store(struct device *dev,
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct adm9240_data *data = dev_get_drvdata(dev);
-	struct i2c_client *client = data->client;
 	unsigned long val;
 	int err;
 
@@ -401,10 +426,10 @@ static ssize_t in_max_store(struct device *dev,
 
 	mutex_lock(&data->update_lock);
 	data->in_max[attr->index] = IN_TO_REG(val, attr->index);
-	i2c_smbus_write_byte_data(client, ADM9240_REG_IN_MAX(attr->index),
-			data->in_max[attr->index]);
+	err = regmap_write(data->regmap, ADM9240_REG_IN_MAX(attr->index),
+			   data->in_max[attr->index]);
 	mutex_unlock(&data->update_lock);
-	return count;
+	return err < 0 ? err : count;
 }
 
 static SENSOR_DEVICE_ATTR_RO(in0_input, in, 0);
@@ -527,13 +552,13 @@ static ssize_t fan_min_store(struct device *dev,
 
 	if (new_div != data->fan_div[nr]) {
 		data->fan_div[nr] = new_div;
-		adm9240_write_fan_div(client, nr, new_div);
+		adm9240_write_fan_div(data, nr, new_div);
 	}
-	i2c_smbus_write_byte_data(client, ADM9240_REG_FAN_MIN(nr),
-			data->fan_min[nr]);
+	err = regmap_write(data->regmap, ADM9240_REG_FAN_MIN(nr),
+			   data->fan_min[nr]);
 
 	mutex_unlock(&data->update_lock);
-	return count;
+	return err < 0 ? err : count;
 }
 
 static SENSOR_DEVICE_ATTR_RO(fan1_input, fan, 0);
@@ -607,7 +632,6 @@ static ssize_t aout_output_store(struct device *dev,
 				 const char *buf, size_t count)
 {
 	struct adm9240_data *data = dev_get_drvdata(dev);
-	struct i2c_client *client = data->client;
 	long val;
 	int err;
 
@@ -617,9 +641,9 @@ static ssize_t aout_output_store(struct device *dev,
 
 	mutex_lock(&data->update_lock);
 	data->aout = AOUT_TO_REG(val);
-	i2c_smbus_write_byte_data(client, ADM9240_REG_ANALOG_OUT, data->aout);
+	err = regmap_write(data->regmap, ADM9240_REG_ANALOG_OUT, data->aout);
 	mutex_unlock(&data->update_lock);
-	return count;
+	return err < 0 ? err : count;
 }
 static DEVICE_ATTR_RW(aout_output);
 
@@ -627,17 +651,19 @@ static ssize_t alarm_store(struct device *dev, struct device_attribute *attr,
 			   const char *buf, size_t count)
 {
 	struct adm9240_data *data = dev_get_drvdata(dev);
-	struct i2c_client *client = data->client;
 	unsigned long val;
+	int err;
 
 	if (kstrtoul(buf, 10, &val) || val != 0)
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
-	i2c_smbus_write_byte_data(client, ADM9240_REG_CHASSIS_CLEAR, 0x80);
+	err = regmap_write(data->regmap, ADM9240_REG_CHASSIS_CLEAR, 0x80);
 	data->valid = 0;		/* Force cache refresh */
 	mutex_unlock(&data->update_lock);
-	dev_dbg(&client->dev, "chassis intrusion latch cleared\n");
+	if (err < 0)
+		return err;
+	dev_dbg(&data->client->dev, "chassis intrusion latch cleared\n");
 
 	return count;
 }
@@ -736,11 +762,18 @@ static int adm9240_detect(struct i2c_client *new_client,
 	return 0;
 }
 
-static void adm9240_init_client(struct i2c_client *client)
+static int adm9240_init_client(struct i2c_client *client, struct adm9240_data *data)
 {
-	struct adm9240_data *data = i2c_get_clientdata(client);
-	u8 conf = i2c_smbus_read_byte_data(client, ADM9240_REG_CONFIG);
-	u8 mode = i2c_smbus_read_byte_data(client, ADM9240_REG_TEMP_CONF) & 3;
+	u8 conf, mode;
+	int err;
+
+	err = regmap_raw_read(data->regmap, ADM9240_REG_CONFIG, &conf, 1);
+	if (err < 0)
+		return err;
+	err = regmap_raw_read(data->regmap, ADM9240_REG_TEMP_CONF, &mode, 1);
+	if (err < 0)
+		return err;
+	mode &= 3;
 
 	data->vrm = vid_which_vrm(); /* need this to report vid as mV */
 
@@ -756,43 +789,67 @@ static void adm9240_init_client(struct i2c_client *client)
 		int i;
 
 		for (i = 0; i < 6; i++) {
-			i2c_smbus_write_byte_data(client,
-					ADM9240_REG_IN_MIN(i), 0);
-			i2c_smbus_write_byte_data(client,
-					ADM9240_REG_IN_MAX(i), 255);
+			err = regmap_write(data->regmap,
+					   ADM9240_REG_IN_MIN(i), 0);
+			if (err < 0)
+				return err;
+			err = regmap_write(data->regmap,
+					   ADM9240_REG_IN_MAX(i), 255);
+			if (err < 0)
+				return err;
 		}
 		for (i = 0; i < 2; i++) {
-			i2c_smbus_write_byte_data(client,
+			err = regmap_write(data->regmap,
 					ADM9240_REG_FAN_MIN(i), 255);
+			if (err < 0)
+				return err;
 		}
 		for (i = 0; i < 2; i++) {
-			i2c_smbus_write_byte_data(client,
+			err = regmap_write(data->regmap,
 					ADM9240_REG_TEMP_MAX(i), 127);
+			if (err < 0)
+				return err;
 		}
 
 		/* start measurement cycle */
-		i2c_smbus_write_byte_data(client, ADM9240_REG_CONFIG, 1);
+		err = regmap_write(data->regmap, ADM9240_REG_CONFIG, 1);
+		if (err < 0)
+			return err;
 
 		dev_info(&client->dev,
 			 "cold start: config was 0x%02x mode %u\n", conf, mode);
 	}
+
+	return 0;
 }
+
+static const struct regmap_config adm9240_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.use_single_read = true,
+	.use_single_write = true,
+};
 
 static int adm9240_probe(struct i2c_client *new_client)
 {
 	struct device *dev = &new_client->dev;
 	struct device *hwmon_dev;
 	struct adm9240_data *data;
+	int err;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	i2c_set_clientdata(new_client, data);
 	data->client = new_client;
 	mutex_init(&data->update_lock);
+	data->regmap = devm_regmap_init_i2c(new_client, &adm9240_regmap_config);
+	if (IS_ERR(data->regmap))
+		return PTR_ERR(data->regmap);
 
-	adm9240_init_client(new_client);
+	err = adm9240_init_client(new_client, data);
+	if (err < 0)
+		return err;
 
 	hwmon_dev = devm_hwmon_device_register_with_groups(dev,
 							   new_client->name,
