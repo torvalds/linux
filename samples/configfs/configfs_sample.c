@@ -37,8 +37,8 @@ struct childless {
 
 static inline struct childless *to_childless(struct config_item *item)
 {
-	return item ? container_of(to_configfs_subsystem(to_config_group(item)),
-			struct childless, subsys) : NULL;
+	return container_of(to_configfs_subsystem(to_config_group(item)),
+			    struct childless, subsys);
 }
 
 static ssize_t childless_showme_show(struct config_item *item, char *page)
@@ -132,7 +132,7 @@ struct simple_child {
 
 static inline struct simple_child *to_simple_child(struct config_item *item)
 {
-	return item ? container_of(item, struct simple_child, item) : NULL;
+	return container_of(item, struct simple_child, item);
 }
 
 static ssize_t simple_child_storeme_show(struct config_item *item, char *page)
@@ -187,8 +187,8 @@ struct simple_children {
 
 static inline struct simple_children *to_simple_children(struct config_item *item)
 {
-	return item ? container_of(to_config_group(item),
-			struct simple_children, group) : NULL;
+	return container_of(to_config_group(item),
+			    struct simple_children, group);
 }
 
 static struct config_item *simple_children_make_item(struct config_group *group,
