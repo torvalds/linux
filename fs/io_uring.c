@@ -6950,6 +6950,22 @@ static int io_wake_function(struct wait_queue_entry *curr, unsigned int mode,
 	return autoremove_wake_function(curr, mode, wake_flags, key);
 }
 
+static int io_run_task_work_sig(void)
+{
+	if (io_run_task_work())
+		return 1;
+	if (!signal_pending(current))
+		return 0;
+	if (current->jobctl & JOBCTL_TASK_WORK) {
+		spin_lock_irq(&current->sighand->siglock);
+		current->jobctl &= ~JOBCTL_TASK_WORK;
+		recalc_sigpending();
+		spin_unlock_irq(&current->sighand->siglock);
+		return 1;
+	}
+	return -EINTR;
+}
+
 /*
  * Wait until events become available, if we don't already have some. The
  * application must reap them itself, as they reside on the shared cq ring.
@@ -6995,19 +7011,11 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 		prepare_to_wait_exclusive(&ctx->wait, &iowq.wq,
 						TASK_INTERRUPTIBLE);
 		/* make sure we run task_work before checking for signals */
-		if (io_run_task_work())
+		ret = io_run_task_work_sig();
+		if (ret > 0)
 			continue;
-		if (signal_pending(current)) {
-			if (current->jobctl & JOBCTL_TASK_WORK) {
-				spin_lock_irq(&current->sighand->siglock);
-				current->jobctl &= ~JOBCTL_TASK_WORK;
-				recalc_sigpending();
-				spin_unlock_irq(&current->sighand->siglock);
-				continue;
-			}
-			ret = -EINTR;
+		else if (ret < 0)
 			break;
-		}
 		if (io_should_wake(&iowq, false))
 			break;
 		schedule();
@@ -9666,8 +9674,16 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 		 * after we've killed the percpu ref.
 		 */
 		mutex_unlock(&ctx->uring_lock);
-		ret = wait_for_completion_interruptible(&ctx->ref_comp);
+		do {
+			ret = wait_for_completion_interruptible(&ctx->ref_comp);
+			if (!ret)
+				break;
+			if (io_run_task_work_sig() > 0)
+				continue;
+		} while (1);
+
 		mutex_lock(&ctx->uring_lock);
+
 		if (ret) {
 			percpu_ref_resurrect(&ctx->refs);
 			ret = -EINTR;
