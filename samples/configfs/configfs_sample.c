@@ -331,9 +331,8 @@ static struct configfs_subsystem *example_subsys[] = {
 
 static int __init configfs_example_init(void)
 {
-	int ret;
-	int i;
 	struct configfs_subsystem *subsys;
+	int ret, i;
 
 	for (i = 0; example_subsys[i]; i++) {
 		subsys = example_subsys[i];
