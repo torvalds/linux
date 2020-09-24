@@ -541,6 +541,11 @@ static u32 armv8pmu_event_cnten_mask(struct perf_event *event)
 
 static inline void armv8pmu_enable_counter(u32 mask)
 {
+	/*
+	 * Make sure event configuration register writes are visible before we
+	 * enable the counter.
+	 * */
+	isb();
 	write_sysreg(mask, pmcntenset_el0);
 }
 
