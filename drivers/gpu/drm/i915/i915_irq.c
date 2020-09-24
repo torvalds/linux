@@ -682,7 +682,11 @@ u32 i915_get_vblank_counter(struct drm_crtc *crtc)
 u32 g4x_get_vblank_counter(struct drm_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
+	struct drm_vblank_crtc *vblank = &dev_priv->drm.vblank[drm_crtc_index(crtc)];
 	enum pipe pipe = to_intel_crtc(crtc)->pipe;
+
+	if (!vblank->max_vblank_count)
+		return 0;
 
 	return I915_READ(PIPE_FRMCOUNT_G4X(pipe));
 }
