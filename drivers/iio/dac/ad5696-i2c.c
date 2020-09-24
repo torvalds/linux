@@ -88,9 +88,28 @@ static const struct i2c_device_id ad5686_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ad5686_i2c_id);
 
+static const struct of_device_id ad5686_of_match[] = {
+	{ .compatible = "adi,ad5311r" },
+	{ .compatible = "adi,ad5338r" },
+	{ .compatible = "adi,ad5671r" },
+	{ .compatible = "adi,ad5675r" },
+	{ .compatible = "adi,ad5691r" },
+	{ .compatible = "adi,ad5692r" },
+	{ .compatible = "adi,ad5693" },
+	{ .compatible = "adi,ad5693r" },
+	{ .compatible = "adi,ad5694" },
+	{ .compatible = "adi,ad5694r" },
+	{ .compatible = "adi,ad5695r" },
+	{ .compatible = "adi,ad5696" },
+	{ .compatible = "adi,ad5696r" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, ad5686_of_match);
+
 static struct i2c_driver ad5686_i2c_driver = {
 	.driver = {
 		.name = "ad5696",
+		.of_match_table = ad5686_of_match,
 	},
 	.probe = ad5686_i2c_probe,
 	.remove = ad5686_i2c_remove,
