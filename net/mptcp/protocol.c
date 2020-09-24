@@ -2128,16 +2128,21 @@ static struct sock *mptcp_accept(struct sock *sk, int flags, int *err,
 	return newsk;
 }
 
+void mptcp_destroy_common(struct mptcp_sock *msk)
+{
+	skb_rbtree_purge(&msk->out_of_order_queue);
+	mptcp_token_destroy(msk);
+	mptcp_pm_free_anno_list(msk);
+}
+
 static void mptcp_destroy(struct sock *sk)
 {
 	struct mptcp_sock *msk = mptcp_sk(sk);
 
-	skb_rbtree_purge(&msk->out_of_order_queue);
-	mptcp_token_destroy(msk);
 	if (msk->cached_ext)
 		__skb_ext_put(msk->cached_ext);
 
-	mptcp_pm_free_anno_list(msk);
+	mptcp_destroy_common(msk);
 	sk_sockets_allocated_dec(sk);
 }
 

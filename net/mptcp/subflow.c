@@ -435,9 +435,7 @@ static void mptcp_sock_destruct(struct sock *sk)
 		sock_orphan(sk);
 	}
 
-	skb_rbtree_purge(&mptcp_sk(sk)->out_of_order_queue);
-	mptcp_token_destroy(mptcp_sk(sk));
-	mptcp_pm_free_anno_list(mptcp_sk(sk));
+	mptcp_destroy_common(mptcp_sk(sk));
 	inet_sock_destruct(sk);
 }
 
