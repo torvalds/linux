@@ -276,6 +276,43 @@ chk_join_nr()
 	fi
 }
 
+chk_add_nr()
+{
+	local add_nr=$1
+	local echo_nr=$2
+	local count
+	local dump_stats
+
+	printf "%-39s %s" " " "add"
+	count=`ip netns exec $ns2 nstat -as | grep MPTcpExtAddAddr | awk '{print $2}'`
+	[ -z "$count" ] && count=0
+	if [ "$count" != "$add_nr" ]; then
+		echo "[fail] got $count ADD_ADDR[s] expected $add_nr"
+		ret=1
+		dump_stats=1
+	else
+		echo -n "[ ok ]"
+	fi
+
+	echo -n " - echo  "
+	count=`ip netns exec $ns1 nstat -as | grep MPTcpExtEchoAdd | awk '{print $2}'`
+	[ -z "$count" ] && count=0
+	if [ "$count" != "$echo_nr" ]; then
+		echo "[fail] got $count ADD_ADDR echo[s] expected $echo_nr"
+		ret=1
+		dump_stats=1
+	else
+		echo "[ ok ]"
+	fi
+
+	if [ "${dump_stats}" = 1 ]; then
+		echo Server ns stats
+		ip netns exec $ns1 nstat -as | grep MPTcp
+		echo Client ns stats
+		ip netns exec $ns2 nstat -as | grep MPTcp
+	fi
+}
+
 sin=$(mktemp)
 sout=$(mktemp)
 cin=$(mktemp)
@@ -332,6 +369,7 @@ reset
 ip netns exec $ns1 ./pm_nl_ctl add 10.0.2.1 flags signal
 run_tests $ns1 $ns2 10.0.1.1
 chk_join_nr "unused signal address" 0 0 0
+chk_add_nr 1 1
 
 # accept and use add_addr
 reset
@@ -340,6 +378,7 @@ ip netns exec $ns2 ./pm_nl_ctl limits 1 1
 ip netns exec $ns1 ./pm_nl_ctl add 10.0.2.1 flags signal
 run_tests $ns1 $ns2 10.0.1.1
 chk_join_nr "signal address" 1 1 1
+chk_add_nr 1 1
 
 # accept and use add_addr with an additional subflow
 # note: signal address in server ns and local addresses in client ns must
@@ -352,6 +391,7 @@ ip netns exec $ns2 ./pm_nl_ctl limits 1 2
 ip netns exec $ns2 ./pm_nl_ctl add 10.0.3.2 flags subflow
 run_tests $ns1 $ns2 10.0.1.1
 chk_join_nr "subflow and signal" 2 2 2
+chk_add_nr 1 1
 
 # accept and use add_addr with additional subflows
 reset
@@ -362,6 +402,7 @@ ip netns exec $ns2 ./pm_nl_ctl add 10.0.3.2 flags subflow
 ip netns exec $ns2 ./pm_nl_ctl add 10.0.4.2 flags subflow
 run_tests $ns1 $ns2 10.0.1.1
 chk_join_nr "multiple subflows and signal" 3 3 3
+chk_add_nr 1 1
 
 # single subflow, syncookies
 reset_with_cookies
@@ -396,6 +437,7 @@ ip netns exec $ns2 ./pm_nl_ctl limits 1 1
 ip netns exec $ns1 ./pm_nl_ctl add 10.0.2.1 flags signal
 run_tests $ns1 $ns2 10.0.1.1
 chk_join_nr "signal address with syn cookies" 1 1 1
+chk_add_nr 1 1
 
 # test cookie with subflow and signal
 reset_with_cookies
@@ -405,6 +447,7 @@ ip netns exec $ns2 ./pm_nl_ctl limits 1 2
 ip netns exec $ns2 ./pm_nl_ctl add 10.0.3.2 flags subflow
 run_tests $ns1 $ns2 10.0.1.1
 chk_join_nr "subflow and signal w cookies" 2 2 2
+chk_add_nr 1 1
 
 # accept and use add_addr with additional subflows
 reset_with_cookies
@@ -415,5 +458,6 @@ ip netns exec $ns2 ./pm_nl_ctl add 10.0.3.2 flags subflow
 ip netns exec $ns2 ./pm_nl_ctl add 10.0.4.2 flags subflow
 run_tests $ns1 $ns2 10.0.1.1
 chk_join_nr "subflows and signal w. cookies" 3 3 3
+chk_add_nr 1 1
 
 exit $ret
