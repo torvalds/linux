@@ -118,7 +118,7 @@ static struct clocksource mcfslt_clk = {
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-void hw_timer_init(irq_handler_t handler)
+void hw_timer_init(void)
 {
 	int r;
 

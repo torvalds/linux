@@ -38,7 +38,7 @@
 #include <asm/bvme6000hw.h>
 
 static void bvme6000_get_model(char *model);
-extern void bvme6000_sched_init(irq_handler_t handler);
+extern void bvme6000_sched_init(void);
 extern int bvme6000_hwclk (int, struct rtc_time *);
 extern void bvme6000_reset (void);
 void bvme6000_set_vectors (void);
@@ -189,7 +189,7 @@ static irqreturn_t bvme6000_timer_int (int irq, void *dev_id)
  * so divide by 8 to get the microsecond result.
  */
 
-void bvme6000_sched_init (irq_handler_t timer_routine)
+void bvme6000_sched_init (void)
 {
     volatile RtcPtr_t rtc = (RtcPtr_t)BVME_RTC_BASE;
     unsigned char msr = rtc->msr & 0xc0;

@@ -43,7 +43,7 @@ extern t_bdid mvme_bdid;
 static MK48T08ptr_t volatile rtc = (MK48T08ptr_t)MVME_RTC_BASE;
 
 static void mvme16x_get_model(char *model);
-extern void mvme16x_sched_init(irq_handler_t handler);
+extern void mvme16x_sched_init(void);
 extern int mvme16x_hwclk (int, struct rtc_time *);
 extern void mvme16x_reset (void);
 
@@ -384,7 +384,7 @@ static irqreturn_t mvme16x_timer_int (int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-void mvme16x_sched_init (irq_handler_t timer_routine)
+void mvme16x_sched_init(void)
 {
     uint16_t brdno = be16_to_cpu(mvme_bdid.brdno);
     int irq;

@@ -149,7 +149,7 @@ static irqreturn_t q40_timer_int(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-void q40_sched_init (irq_handler_t timer_routine)
+void q40_sched_init (void)
 {
 	int timer_irq;
 

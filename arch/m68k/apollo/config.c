@@ -26,7 +26,7 @@ u_long cpuctrl_physaddr;
 u_long timer_physaddr;
 u_long apollo_model;
 
-extern void dn_sched_init(irq_handler_t handler);
+extern void dn_sched_init(void);
 extern void dn_init_IRQ(void);
 extern int dn_dummy_hwclk(int, struct rtc_time *);
 extern void dn_dummy_reset(void);
@@ -179,7 +179,7 @@ irqreturn_t dn_timer_int(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-void dn_sched_init(irq_handler_t timer_routine)
+void dn_sched_init(void)
 {
 	/* program timer 1 */
 	*(volatile unsigned char *)(apollo_timer + 3) = 0x01;

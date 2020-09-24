@@ -98,7 +98,7 @@ again:
 	return ticks;
 }
 
-void __init hp300_sched_init(irq_handler_t vector)
+void __init hp300_sched_init(void)
 {
   out_8(CLOCKBASE + CLKCR2, 0x1);		/* select CR1 */
   out_8(CLOCKBASE + CLKCR1, 0x1);		/* reset */

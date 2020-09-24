@@ -92,7 +92,7 @@ static char *amiga_models[] __initdata = {
 
 static char amiga_model_name[13] = "Amiga ";
 
-static void amiga_sched_init(irq_handler_t handler);
+static void amiga_sched_init(void);
 static void amiga_get_model(char *model);
 static void amiga_get_hardware_list(struct seq_file *m);
 extern void amiga_mksound(unsigned int count, unsigned int ticks);
@@ -483,7 +483,7 @@ static irqreturn_t ciab_timer_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void __init amiga_sched_init(irq_handler_t timer_routine)
+static void __init amiga_sched_init(void)
 {
 	static struct resource sched_res = {
 		.name = "timer", .start = 0x00bfd400, .end = 0x00bfd5ff,

@@ -35,19 +35,6 @@
 unsigned long (*mach_random_get_entropy)(void);
 EXPORT_SYMBOL_GPL(mach_random_get_entropy);
 
-
-/*
- * timer_interrupt() needs to keep up the real-time clock,
- * as well as call the "xtime_update()" routine every clocktick
- */
-static irqreturn_t timer_interrupt(int irq, void *dummy)
-{
-	xtime_update(1);
-	update_process_times(user_mode(get_irq_regs()));
-	profile_tick(CPU_PROFILING);
-	return IRQ_HANDLED;
-}
-
 #ifdef CONFIG_HEARTBEAT
 void timer_heartbeat(void)
 {
@@ -157,5 +144,5 @@ module_init(rtc_init);
 
 void __init time_init(void)
 {
-	mach_sched_init(timer_interrupt);
+	mach_sched_init();
 }

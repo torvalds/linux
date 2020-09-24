@@ -56,7 +56,7 @@ static irqreturn_t mfp_timer_c_handler(int irq, void *dev_id)
 }
 
 void __init
-atari_sched_init(irq_handler_t timer_routine)
+atari_sched_init(void)
 {
     /* set Timer C data Register */
     st_mfp.tim_dt_c = INT_TICKS;

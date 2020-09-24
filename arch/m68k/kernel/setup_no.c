@@ -49,7 +49,7 @@ EXPORT_SYMBOL(memory_end);
 char __initdata command_line[COMMAND_LINE_SIZE];
 
 /* machine dependent timer functions */
-void (*mach_sched_init)(irq_handler_t handler) __initdata = NULL;
+void (*mach_sched_init)(void) __initdata = NULL;
 int (*mach_hwclk) (int, struct rtc_time*);
 
 /* machine dependent reboot functions */
