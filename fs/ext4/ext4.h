@@ -2828,6 +2828,7 @@ extern void ext4_read_bh_nowait(struct buffer_head *bh, int op_flags,
 extern int ext4_read_bh(struct buffer_head *bh, int op_flags,
 			bh_end_io_t *end_io);
 extern int ext4_read_bh_lock(struct buffer_head *bh, int op_flags, bool wait);
+extern void ext4_sb_breadahead_unmovable(struct super_block *sb, sector_t block);
 extern int ext4_seq_options_show(struct seq_file *seq, void *offset);
 extern int ext4_calculate_overhead(struct super_block *sb);
 extern void ext4_superblock_csum_set(struct super_block *sb);
