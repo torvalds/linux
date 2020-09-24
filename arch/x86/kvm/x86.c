@@ -2107,12 +2107,6 @@ static void kvm_track_tsc_matching(struct kvm_vcpu *vcpu)
 #endif
 }
 
-static void update_ia32_tsc_adjust_msr(struct kvm_vcpu *vcpu, s64 offset)
-{
-	u64 curr_offset = vcpu->arch.l1_tsc_offset;
-	vcpu->arch.ia32_tsc_adjust_msr += offset - curr_offset;
-}
-
 /*
  * Multiply tsc by a fixed point number represented by ratio.
  *
@@ -2174,14 +2168,13 @@ static inline bool kvm_check_tsc_unstable(void)
 	return check_tsc_unstable();
 }
 
-void kvm_write_tsc(struct kvm_vcpu *vcpu, struct msr_data *msr)
+static void kvm_synchronize_tsc(struct kvm_vcpu *vcpu, u64 data)
 {
 	struct kvm *kvm = vcpu->kvm;
 	u64 offset, ns, elapsed;
 	unsigned long flags;
 	bool matched;
 	bool already_matched;
-	u64 data = msr->data;
 	bool synchronizing = false;
 
 	raw_spin_lock_irqsave(&kvm->arch.tsc_write_lock, flags);
@@ -2190,7 +2183,7 @@ void kvm_write_tsc(struct kvm_vcpu *vcpu, struct msr_data *msr)
 	elapsed = ns - kvm->arch.last_tsc_nsec;
 
 	if (vcpu->arch.virtual_tsc_khz) {
-		if (data == 0 && msr->host_initiated) {
+		if (data == 0) {
 			/*
 			 * detection of vcpu initialization -- need to sync
 			 * with other vCPUs. This particularly helps to keep
@@ -2260,9 +2253,6 @@ void kvm_write_tsc(struct kvm_vcpu *vcpu, struct msr_data *msr)
 	vcpu->arch.this_tsc_nsec = kvm->arch.cur_tsc_nsec;
 	vcpu->arch.this_tsc_write = kvm->arch.cur_tsc_write;
 
-	if (!msr->host_initiated && guest_cpuid_has(vcpu, X86_FEATURE_TSC_ADJUST))
-		update_ia32_tsc_adjust_msr(vcpu, offset);
-
 	kvm_vcpu_write_tsc_offset(vcpu, offset);
 	raw_spin_unlock_irqrestore(&kvm->arch.tsc_write_lock, flags);
 
@@ -2276,8 +2266,6 @@ void kvm_write_tsc(struct kvm_vcpu *vcpu, struct msr_data *msr)
 	kvm_track_tsc_matching(vcpu);
 	spin_unlock(&kvm->arch.pvclock_gtod_sync_lock);
 }
-
-EXPORT_SYMBOL_GPL(kvm_write_tsc);
 
 static inline void adjust_tsc_offset_guest(struct kvm_vcpu *vcpu,
 					   s64 adjustment)
@@ -3073,7 +3061,13 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		vcpu->arch.msr_ia32_power_ctl = data;
 		break;
 	case MSR_IA32_TSC:
-		kvm_write_tsc(vcpu, msr_info);
+		if (msr_info->host_initiated) {
+			kvm_synchronize_tsc(vcpu, data);
+		} else {
+			u64 adj = kvm_compute_tsc_offset(vcpu, data) - vcpu->arch.l1_tsc_offset;
+			adjust_tsc_offset_guest(vcpu, adj);
+			vcpu->arch.ia32_tsc_adjust_msr += adj;
+		}
 		break;
 	case MSR_IA32_XSS:
 		if (!msr_info->host_initiated &&
@@ -9839,7 +9833,6 @@ fail_mmu_destroy:
 
 void kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
 {
-	struct msr_data msr;
 	struct kvm *kvm = vcpu->kvm;
 
 	kvm_hv_vcpu_postcreate(vcpu);
@@ -9847,10 +9840,7 @@ void kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
 	if (mutex_lock_killable(&vcpu->mutex))
 		return;
 	vcpu_load(vcpu);
-	msr.data = 0x0;
-	msr.index = MSR_IA32_TSC;
-	msr.host_initiated = true;
-	kvm_write_tsc(vcpu, &msr);
+	kvm_synchronize_tsc(vcpu, 0);
 	vcpu_put(vcpu);
 
 	/* poll control enabled by default */
