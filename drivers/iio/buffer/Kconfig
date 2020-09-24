@@ -48,7 +48,7 @@ config IIO_KFIFO_BUF
 	  often to read from the buffer.
 
 config IIO_TRIGGERED_BUFFER
-	tristate
+	tristate "Industrial I/O triggered buffer support"
 	select IIO_TRIGGER
 	select IIO_KFIFO_BUF
 	help
