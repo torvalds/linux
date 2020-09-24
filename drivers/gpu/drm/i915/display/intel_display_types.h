@@ -1055,9 +1055,6 @@ struct intel_crtc_state {
 	/* Output format RGB/YCBCR etc */
 	enum intel_output_format output_format;
 
-	/* Output down scaling is done in LSPCON device */
-	bool lspcon_downsampling;
-
 	/* enable pipe gamma? */
 	bool gamma_enable;
 

@@ -195,7 +195,6 @@ void lspcon_ycbcr420_config(struct drm_connector *connector,
 	    connector->ycbcr_420_allowed) {
 		crtc_state->port_clock /= 2;
 		crtc_state->output_format = INTEL_OUTPUT_FORMAT_YCBCR444;
-		crtc_state->lspcon_downsampling = true;
 	}
 }
 
@@ -492,14 +491,19 @@ void lspcon_set_infoframes(struct intel_encoder *encoder,
 		return;
 	}
 
-	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR444) {
-		if (crtc_state->lspcon_downsampling)
-			frame.avi.colorspace = HDMI_COLORSPACE_YUV420;
-		else
-			frame.avi.colorspace = HDMI_COLORSPACE_YUV444;
-	} else {
+	/*
+	 * Currently there is no interface defined to
+	 * check user preference between RGB/YCBCR444
+	 * or YCBCR420. So the only possible case for
+	 * YCBCR444 usage is driving YCBCR420 output
+	 * with LSPCON, when pipe is configured for
+	 * YCBCR444 output and LSPCON takes care of
+	 * downsampling it.
+	 */
+	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR444)
+		frame.avi.colorspace = HDMI_COLORSPACE_YUV420;
+	else
 		frame.avi.colorspace = HDMI_COLORSPACE_RGB;
-	}
 
 	drm_hdmi_avi_infoframe_quant_range(&frame.avi,
 					   conn_state->connector,

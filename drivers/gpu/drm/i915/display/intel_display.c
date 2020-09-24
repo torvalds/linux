@@ -11294,18 +11294,6 @@ static bool hsw_get_pipe_config(struct intel_crtc *crtc,
 	} else {
 		pipe_config->output_format =
 			bdw_get_pipemisc_output_format(crtc);
-
-		/*
-		 * Currently there is no interface defined to
-		 * check user preference between RGB/YCBCR444
-		 * or YCBCR420. So the only possible case for
-		 * YCBCR444 usage is driving YCBCR420 output
-		 * with LSPCON, when pipe is configured for
-		 * YCBCR444 output and LSPCON takes care of
-		 * downsampling it.
-		 */
-		pipe_config->lspcon_downsampling =
-			pipe_config->output_format == INTEL_OUTPUT_FORMAT_YCBCR444;
 	}
 
 	pipe_config->gamma_mode = intel_de_read(dev_priv,
