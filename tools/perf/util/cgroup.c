@@ -3,6 +3,9 @@
 #include "evsel.h"
 #include "cgroup.h"
 #include "evlist.h"
+#include "rblist.h"
+#include "metricgroup.h"
+#include "stat.h"
 #include <linux/zalloc.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -193,10 +196,12 @@ int parse_cgroups(const struct option *opt, const char *str,
 	return 0;
 }
 
-int evlist__expand_cgroup(struct evlist *evlist, const char *str)
+int evlist__expand_cgroup(struct evlist *evlist, const char *str,
+			  struct rblist *metric_events)
 {
 	struct evlist *orig_list, *tmp_list;
 	struct evsel *pos, *evsel, *leader;
+	struct rblist orig_metric_events;
 	struct cgroup *cgrp = NULL;
 	const char *p, *e, *eos = str + strlen(str);
 	int ret = -1;
@@ -216,6 +221,13 @@ int evlist__expand_cgroup(struct evlist *evlist, const char *str)
 	/* save original events and init evlist */
 	perf_evlist__splice_list_tail(orig_list, &evlist->core.entries);
 	evlist->core.nr_entries = 0;
+
+	if (metric_events) {
+		orig_metric_events = *metric_events;
+		rblist__init(metric_events);
+	} else {
+		rblist__init(&orig_metric_events);
+	}
 
 	for (;;) {
 		p = strchr(str, ',');
@@ -255,6 +267,14 @@ int evlist__expand_cgroup(struct evlist *evlist, const char *str)
 		cgroup__put(cgrp);
 		nr_cgroups++;
 
+		if (metric_events) {
+			perf_stat__collect_metric_expr(tmp_list);
+			if (metricgroup__copy_metric_events(tmp_list, cgrp,
+							    metric_events,
+							    &orig_metric_events) < 0)
+				break;
+		}
+
 		perf_evlist__splice_list_tail(evlist, &tmp_list->core.entries);
 		tmp_list->core.nr_entries = 0;
 
@@ -268,6 +288,7 @@ int evlist__expand_cgroup(struct evlist *evlist, const char *str)
 out_err:
 	evlist__delete(orig_list);
 	evlist__delete(tmp_list);
+	rblist__exit(&orig_metric_events);
 
 	return ret;
 }

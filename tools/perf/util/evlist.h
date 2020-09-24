@@ -386,4 +386,5 @@ int evlist__ctlfd_ack(struct evlist *evlist);
 #define EVLIST_ENABLED_MSG "Events enabled\n"
 #define EVLIST_DISABLED_MSG "Events disabled\n"
 
+struct evsel *evlist__find_evsel(struct evlist *evlist, int idx);
 #endif /* __PERF_EVLIST_H */
