@@ -821,7 +821,7 @@ typedef struct {
 	} while (0)
 
 /**
- * DEFINE_SEQLOCK() - Define a statically allocated seqlock_t
+ * DEFINE_SEQLOCK(sl) - Define a statically allocated seqlock_t
  * @sl: Name of the seqlock_t instance
  */
 #define DEFINE_SEQLOCK(sl) \
