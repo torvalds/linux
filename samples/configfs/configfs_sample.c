@@ -172,7 +172,7 @@ static void simple_child_release(struct config_item *item)
 }
 
 static struct configfs_item_operations simple_child_item_ops = {
-	.release		= simple_child_release,
+	.release	= simple_child_release,
 };
 
 static const struct config_item_type simple_child_type = {
