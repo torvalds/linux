@@ -267,8 +267,7 @@ config PHYS_OFFSET
 	hex "Physical address of main memory" if MMU
 	depends on !ARM_PATCH_PHYS_VIRT
 	default DRAM_BASE if !MMU
-	default 0x00000000 if ARCH_EBSA110 || \
-			ARCH_FOOTBRIDGE
+	default 0x00000000 if ARCH_FOOTBRIDGE
 	default 0x10000000 if ARCH_OMAP1 || ARCH_RPC
 	default 0x20000000 if ARCH_S5PV210
 	default 0xc0000000 if ARCH_SA1100
@@ -341,20 +340,6 @@ config ARM_SINGLE_ARMV7M
 	select NO_IOPORT_MAP
 	select SPARSE_IRQ
 	select USE_OF
-
-config ARCH_EBSA110
-	bool "EBSA-110"
-	select ARCH_USES_GETTIMEOFFSET
-	select CPU_SA110
-	select ISA
-	select NEED_MACH_IO_H
-	select NEED_MACH_MEMORY_H
-	select NO_IOPORT_MAP
-	help
-	  This is an evaluation board for the StrongARM processor available
-	  from Digital. It has limited hardware on-board, including an
-	  Ethernet interface, two PCMCIA sockets, two serial ports and a
-	  parallel port.
 
 config ARCH_EP93XX
 	bool "EP93xx-based"
@@ -1371,7 +1356,6 @@ config ARCH_NR_GPIO
 
 config HZ_FIXED
 	int
-	default 200 if ARCH_EBSA110
 	default 128 if SOC_AT91RM9200
 	default 0
 
@@ -1587,9 +1571,7 @@ config FORCE_MAX_ZONEORDER
 	  a value of 11 means that the largest free memory block is 2^10 pages.
 
 config ALIGNMENT_TRAP
-	bool
-	depends on CPU_CP15_MMU
-	default y if !ARCH_EBSA110
+	def_bool CPU_CP15_MMU
 	select HAVE_PROC_CPU if PROC_FS
 	help
 	  ARM processors cannot fetch/store information which is not
@@ -1784,7 +1766,7 @@ config CMDLINE
 	string "Default kernel command string"
 	default ""
 	help
-	  On some architectures (EBSA110 and CATS), there is currently no way
+	  On some architectures (e.g. CATS), there is currently no way
 	  for the boot loader to pass arguments to the kernel. For these
 	  architectures, you should supply some command-line options at build
 	  time by entering them here. As a minimum, you should specify the
