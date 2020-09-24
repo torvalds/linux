@@ -54,7 +54,7 @@ extern void qla2x00_abort_isp_cleanup(scsi_qla_host_t *);
 extern void qla2x00_quiesce_io(scsi_qla_host_t *);
 
 extern void qla2x00_update_fcport(scsi_qla_host_t *, fc_port_t *);
-
+void qla_register_fcport_fn(struct work_struct *);
 extern void qla2x00_alloc_fw_dump(scsi_qla_host_t *);
 extern void qla2x00_try_to_stop_firmware(scsi_qla_host_t *);
 
@@ -109,6 +109,7 @@ int qla24xx_post_newsess_work(struct scsi_qla_host *, port_id_t *, u8 *, u8*,
 int qla24xx_fcport_handle_login(struct scsi_qla_host *, fc_port_t *);
 int qla24xx_detect_sfp(scsi_qla_host_t *vha);
 int qla24xx_post_gpdb_work(struct scsi_qla_host *, fc_port_t *, u8);
+
 void qla2x00_async_prlo_done(struct scsi_qla_host *, fc_port_t *,
     uint16_t *);
 extern int qla2x00_post_async_prlo_work(struct scsi_qla_host *, fc_port_t *,
@@ -208,7 +209,7 @@ extern void qla2x00_disable_board_on_pci_error(struct work_struct *);
 extern void qla2x00_sp_compl(void *, int);
 extern void qla2xxx_qpair_sp_free_dma(void *);
 extern void qla2xxx_qpair_sp_compl(void *, int);
-extern int qla24xx_post_upd_fcport_work(struct scsi_qla_host *, fc_port_t *);
+extern void qla24xx_sched_upd_fcport(fc_port_t *);
 void qla2x00_handle_login_done_event(struct scsi_qla_host *, fc_port_t *,
 	uint16_t *);
 int qla24xx_post_gnl_work(struct scsi_qla_host *, fc_port_t *);
