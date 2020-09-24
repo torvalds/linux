@@ -1641,7 +1641,7 @@ static noinline ssize_t btrfs_buffered_write(struct kiocb *iocb,
 					       struct iov_iter *i)
 {
 	struct file *file = iocb->ki_filp;
-	loff_t pos = iocb->ki_pos;
+	loff_t pos;
 	struct inode *inode = file_inode(file);
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct page **pages = NULL;
@@ -1651,18 +1651,37 @@ static noinline ssize_t btrfs_buffered_write(struct kiocb *iocb,
 	u64 lockend;
 	size_t num_written = 0;
 	int nrptrs;
-	int ret = 0;
+	ssize_t ret;
 	bool only_release_metadata = false;
 	bool force_page_uptodate = false;
 	loff_t old_isize = i_size_read(inode);
+	unsigned int ilock_flags = 0;
 
+	if (iocb->ki_flags & IOCB_NOWAIT)
+		ilock_flags |= BTRFS_ILOCK_TRY;
+
+	ret = btrfs_inode_lock(inode, ilock_flags);
+	if (ret < 0)
+		return ret;
+
+	ret = generic_write_checks(iocb, i);
+	if (ret <= 0)
+		goto out;
+
+	ret = btrfs_write_check(iocb, i, ret);
+	if (ret < 0)
+		goto out;
+
+	pos = iocb->ki_pos;
 	nrptrs = min(DIV_ROUND_UP(iov_iter_count(i), PAGE_SIZE),
 			PAGE_SIZE / (sizeof(struct page *)));
 	nrptrs = min(nrptrs, current->nr_dirtied_pause - current->nr_dirtied);
 	nrptrs = max(nrptrs, 8);
 	pages = kmalloc_array(nrptrs, sizeof(struct page *), GFP_KERNEL);
-	if (!pages)
-		return -ENOMEM;
+	if (!pages) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	while (iov_iter_count(i) > 0) {
 		struct extent_state *cached_state = NULL;
@@ -1857,6 +1876,8 @@ again:
 		pagecache_isize_extended(inode, old_isize, iocb->ki_pos);
 		iocb->ki_pos += num_written;
 	}
+out:
+	btrfs_inode_unlock(inode, ilock_flags);
 	return num_written ? num_written : ret;
 }
 
@@ -1879,15 +1900,39 @@ static ssize_t btrfs_direct_write(struct kiocb *iocb, struct iov_iter *from)
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	loff_t pos = iocb->ki_pos;
+	loff_t pos;
 	ssize_t written = 0;
 	bool relock = false;
 	ssize_t written_buffered;
 	loff_t endbyte;
-	int err;
+	ssize_t err;
+	unsigned int ilock_flags = 0;
 
-	if (check_direct_IO(fs_info, from, pos))
+	if (iocb->ki_flags & IOCB_NOWAIT)
+		ilock_flags |= BTRFS_ILOCK_TRY;
+
+	err = btrfs_inode_lock(inode, ilock_flags);
+	if (err < 0)
+		return err;
+
+	err = generic_write_checks(iocb, from);
+	if (err <= 0) {
+		btrfs_inode_unlock(inode, ilock_flags);
+		return err;
+	}
+
+	err = btrfs_write_check(iocb, from, err);
+	if (err < 0) {
+		btrfs_inode_unlock(inode, ilock_flags);
+		goto out;
+	}
+
+	pos = iocb->ki_pos;
+
+	if (check_direct_IO(fs_info, from, pos)) {
+		btrfs_inode_unlock(inode, ilock_flags);
 		goto buffered;
+	}
 
 	/*
 	 * If the write DIO is beyond EOF, we need to update the isize, but it
@@ -1917,8 +1962,10 @@ static ssize_t btrfs_direct_write(struct kiocb *iocb, struct iov_iter *from)
 	if (relock)
 		btrfs_inode_lock(inode, 0);
 
-	if (written < 0 || !iov_iter_count(from))
-		return written;
+	if (written < 0 || !iov_iter_count(from)) {
+		err = written;
+		goto out;
+	}
 
 buffered:
 	pos = iocb->ki_pos;
@@ -1955,8 +2002,6 @@ static ssize_t btrfs_file_write_iter(struct kiocb *iocb,
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	ssize_t num_written = 0;
 	const bool sync = iocb->ki_flags & IOCB_DSYNC;
-	ssize_t err;
-	unsigned int ilock_flags = 0;
 
 	/*
 	 * If the fs flips readonly due to some impossible error, although we
@@ -1969,25 +2014,6 @@ static ssize_t btrfs_file_write_iter(struct kiocb *iocb,
 	if (!(iocb->ki_flags & IOCB_DIRECT) &&
 	    (iocb->ki_flags & IOCB_NOWAIT))
 		return -EOPNOTSUPP;
-
-	if (iocb->ki_flags & IOCB_NOWAIT)
-		ilock_flags |= BTRFS_ILOCK_TRY;
-
-	err = btrfs_inode_lock(inode, ilock_flags);
-	if (err < 0)
-		return err;
-
-	err = generic_write_checks(iocb, from);
-	if (err <= 0) {
-		btrfs_inode_unlock(inode, ilock_flags);
-		return err;
-	}
-
-	err = btrfs_write_check(iocb, from, err);
-	if (err < 0) {
-		btrfs_inode_unlock(inode, ilock_flags);
-		return err;
-	}
 
 	if (sync)
 		atomic_inc(&BTRFS_I(inode)->sync_writers);
@@ -2031,8 +2057,6 @@ static ssize_t btrfs_file_write_iter(struct kiocb *iocb,
 		num_written = btrfs_buffered_write(iocb, from);
 	}
 
-	btrfs_inode_unlock(inode, ilock_flags);
-
 	/*
 	 * We also have to set last_sub_trans to the current log transid,
 	 * otherwise subsequent syncs to a file that's been synced in this
@@ -2048,7 +2072,7 @@ static ssize_t btrfs_file_write_iter(struct kiocb *iocb,
 		atomic_dec(&BTRFS_I(inode)->sync_writers);
 
 	current->backing_dev_info = NULL;
-	return num_written ? num_written : err;
+	return num_written;
 }
 
 int btrfs_release_file(struct inode *inode, struct file *filp)
