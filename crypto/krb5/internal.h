@@ -7,6 +7,8 @@
 
 #include <linux/scatterlist.h>
 #include <crypto/krb5.h>
+#include <crypto/hash.h>
+#include <crypto/skcipher.h>
 
 /*
  * Profile used for key derivation and encryption.
@@ -137,6 +139,8 @@ int krb5_derive_Ki(const struct krb5_enctype *krb5, const struct krb5_buffer *TK
  */
 extern const struct krb5_crypto_profile rfc3961_simplified_profile;
 
+int crypto_shash_update_sg(struct shash_desc *desc, struct scatterlist *sg,
+			   size_t offset, size_t len);
 int authenc_derive_encrypt_keys(const struct krb5_enctype *krb5,
 				const struct krb5_buffer *TK,
 				unsigned int usage,
@@ -156,3 +160,12 @@ int rfc3961_load_checksum_key(const struct krb5_enctype *krb5,
 			      const struct krb5_buffer *Kc,
 			      struct krb5_buffer *setkey,
 			      gfp_t gfp);
+ssize_t krb5_aead_encrypt(const struct krb5_enctype *krb5,
+			  struct crypto_aead *aead,
+			  struct scatterlist *sg, unsigned int nr_sg, size_t sg_len,
+			  size_t data_offset, size_t data_len,
+			  bool preconfounded);
+int krb5_aead_decrypt(const struct krb5_enctype *krb5,
+		      struct crypto_aead *aead,
+		      struct scatterlist *sg, unsigned int nr_sg,
+		      size_t *_offset, size_t *_len);

@@ -66,7 +66,10 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/random.h>
+#include <linux/skbuff.h>
 #include <linux/slab.h>
+#include <linux/highmem.h>
 #include <linux/lcm.h>
 #include <linux/rtnetlink.h>
 #include <crypto/authenc.h>
@@ -76,6 +79,31 @@
 
 /* Maximum blocksize for the supported crypto algorithms */
 #define KRB5_MAX_BLOCKSIZE  (16)
+
+int crypto_shash_update_sg(struct shash_desc *desc, struct scatterlist *sg,
+			   size_t offset, size_t len)
+{
+	do {
+		int ret;
+
+		if (offset < sg->length) {
+			struct page *page = sg_page(sg);
+			void *p = kmap_local_page(page);
+			void *q = p + sg->offset + offset;
+			size_t seg = min_t(size_t, len, sg->length - offset);
+
+			ret = crypto_shash_update(desc, q, seg);
+			kunmap_local(p);
+			if (ret < 0)
+				return ret;
+			len -= seg;
+			offset = 0;
+		} else {
+			offset -= sg->length;
+		}
+	} while (len > 0 && (sg = sg_next(sg)));
+	return 0;
+}
 
 static int rfc3961_do_encrypt(struct crypto_sync_skcipher *tfm, void *iv,
 			      const struct krb5_buffer *in, struct krb5_buffer *out)
@@ -509,6 +537,122 @@ int rfc3961_load_checksum_key(const struct krb5_enctype *krb5,
 		return -ENOMEM;
 	return 0;
 }
+
+/*
+ * Apply encryption and checksumming functions to part of a scatterlist.
+ */
+ssize_t krb5_aead_encrypt(const struct krb5_enctype *krb5,
+			  struct crypto_aead *aead,
+			  struct scatterlist *sg, unsigned int nr_sg, size_t sg_len,
+			  size_t data_offset, size_t data_len,
+			  bool preconfounded)
+{
+	struct aead_request *req;
+	ssize_t ret, done;
+	size_t bsize, base_len, secure_offset, secure_len, pad_len, cksum_offset;
+	void *buffer;
+	u8 *iv;
+
+	if (WARN_ON(data_offset != krb5->conf_len))
+		return -EINVAL; /* Data is in wrong place */
+
+	secure_offset	= 0;
+	base_len	= krb5->conf_len + data_len;
+	pad_len		= 0;
+	secure_len	= base_len + pad_len;
+	cksum_offset	= secure_len;
+	if (WARN_ON(cksum_offset + krb5->cksum_len > sg_len))
+		return -EFAULT;
+
+	bsize = krb5_aead_size(aead) +
+		krb5_aead_ivsize(aead);
+	buffer = kzalloc(bsize, GFP_NOFS);
+	if (!buffer)
+		return -ENOMEM;
+
+	/* Insert the confounder into the buffer */
+	ret = -EFAULT;
+	if (!preconfounded) {
+		get_random_bytes(buffer, krb5->conf_len);
+		done = sg_pcopy_from_buffer(sg, nr_sg, buffer, krb5->conf_len,
+					    secure_offset);
+		if (done != krb5->conf_len)
+			goto error;
+	}
+
+	/* We may need to pad out to the crypto blocksize. */
+	if (pad_len) {
+		done = sg_zero_buffer(sg, nr_sg, pad_len, data_offset + data_len);
+		if (done != pad_len)
+			goto error;
+	}
+
+	/* Hash and encrypt the message. */
+	req = buffer;
+	iv = buffer + krb5_aead_size(aead);
+
+	aead_request_set_tfm(req, aead);
+	aead_request_set_callback(req, 0, NULL, NULL);
+	aead_request_set_crypt(req, sg, sg, secure_len, iv);
+	ret = crypto_aead_encrypt(req);
+	if (ret < 0)
+		goto error;
+
+	ret = secure_len + krb5->cksum_len;
+
+error:
+	kfree_sensitive(buffer);
+	return ret;
+}
+
+/*
+ * Apply decryption and checksumming functions to a message.  The offset and
+ * length are updated to reflect the actual content of the encrypted region.
+ */
+int krb5_aead_decrypt(const struct krb5_enctype *krb5,
+		      struct crypto_aead *aead,
+		      struct scatterlist *sg, unsigned int nr_sg,
+		      size_t *_offset, size_t *_len)
+{
+	struct aead_request *req;
+	size_t bsize;
+	void *buffer;
+	int ret;
+	u8 *iv;
+
+	if (WARN_ON(*_offset != 0))
+		return -EINVAL; /* Can't set offset on aead */
+
+	if (*_len < krb5->conf_len + krb5->cksum_len)
+		return -EPROTO;
+
+	bsize = krb5_aead_size(aead) +
+		krb5_aead_ivsize(aead);
+	buffer = kzalloc(bsize, GFP_NOFS);
+	if (!buffer)
+		return -ENOMEM;
+
+	/* Decrypt the message and verify its checksum. */
+	req = buffer;
+	iv = buffer + krb5_aead_size(aead);
+
+	aead_request_set_tfm(req, aead);
+	aead_request_set_callback(req, 0, NULL, NULL);
+	aead_request_set_crypt(req, sg, sg, *_len, iv);
+	ret = crypto_aead_decrypt(req);
+	if (ret < 0)
+		goto error;
+
+	/* Adjust the boundaries of the data. */
+	*_offset += krb5->conf_len;
+	*_len -= krb5->conf_len + krb5->cksum_len;
+	ret = 0;
+
+error:
+	kfree_sensitive(buffer);
+	return ret;
+}
+
 const struct krb5_crypto_profile rfc3961_simplified_profile = {
 	.calc_PRF		= rfc3961_calc_PRF,
 	.calc_Kc		= rfc3961_calc_DK,
@@ -518,4 +662,6 @@ const struct krb5_crypto_profile rfc3961_simplified_profile = {
 	.load_encrypt_keys	= authenc_load_encrypt_keys,
 	.derive_checksum_key	= rfc3961_derive_checksum_key,
 	.load_checksum_key	= rfc3961_load_checksum_key,
+	.encrypt		= krb5_aead_encrypt,
+	.decrypt		= krb5_aead_decrypt,
 };
