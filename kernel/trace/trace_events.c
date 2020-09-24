@@ -3131,14 +3131,13 @@ static inline int register_event_cmds(void) { return 0; }
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
 /*
- * The top level array has already had its trace_event_file
- * descriptors created in order to allow for early events to
- * be recorded. This function is called after the tracefs has been
- * initialized, and we now have to create the files associated
- * to the events.
+ * The top level array and trace arrays created by boot-time tracing
+ * have already had its trace_event_file descriptors created in order
+ * to allow for early events to be recorded.
+ * This function is called after the tracefs has been initialized,
+ * and we now have to create the files associated to the events.
  */
-static __init void
-__trace_early_add_event_dirs(struct trace_array *tr)
+static void __trace_early_add_event_dirs(struct trace_array *tr)
 {
 	struct trace_event_file *file;
 	int ret;
@@ -3153,13 +3152,12 @@ __trace_early_add_event_dirs(struct trace_array *tr)
 }
 
 /*
- * For early boot up, the top trace array requires to have
- * a list of events that can be enabled. This must be done before
- * the filesystem is set up in order to allow events to be traced
- * early.
+ * For early boot up, the top trace array and the trace arrays created
+ * by boot-time tracing require to have a list of events that can be
+ * enabled. This must be done before the filesystem is set up in order
+ * to allow events to be traced early.
  */
-static __init void
-__trace_early_add_events(struct trace_array *tr)
+void __trace_early_add_events(struct trace_array *tr)
 {
 	struct trace_event_call *call;
 	int ret;
@@ -3290,7 +3288,11 @@ int event_trace_add_tracer(struct dentry *parent, struct trace_array *tr)
 		goto out;
 
 	down_write(&trace_event_sem);
-	__trace_add_event_dirs(tr);
+	/* If tr already has the event list, it is initialized in early boot. */
+	if (unlikely(!list_empty(&tr->events)))
+		__trace_early_add_event_dirs(tr);
+	else
+		__trace_add_event_dirs(tr);
 	up_write(&trace_event_sem);
 
  out:

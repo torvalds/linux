@@ -8700,7 +8700,8 @@ static struct trace_array *trace_array_create(const char *name)
 		ret = trace_array_create_dir(tr);
 		if (ret)
 			goto out_free_tr;
-	}
+	} else
+		__trace_early_add_events(tr);
 
 	list_add(&tr->list, &ftrace_trace_arrays);
 
