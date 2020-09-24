@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.video
 
 .. _VIDEO_GET_STATUS:
 
@@ -16,9 +17,9 @@ VIDEO_GET_STATUS
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, VIDEO_GET_STATUS, struct video_status *status)
-    :name: VIDEO_GET_STATUS
+.. c:macro:: VIDEO_GET_STATUS
 
+``int ioctl(fd, VIDEO_GET_STATUS, struct video_status *status)``
 
 Arguments
 ---------
@@ -26,7 +27,6 @@ Arguments
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -  .. row 1
 
@@ -45,7 +45,6 @@ Arguments
        -  struct video_status \*status
 
        -  Returns the current status of the Video Device.
-
 
 Description
 -----------

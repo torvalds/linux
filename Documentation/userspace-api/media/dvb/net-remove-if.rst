@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.net
 
 .. _NET_REMOVE_IF:
 
@@ -11,30 +12,27 @@ Name
 
 NET_REMOVE_IF - Removes a network interface.
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, NET_REMOVE_IF, int ifnum )
-    :name: NET_REMOVE_IF
+.. c:macro:: NET_REMOVE_IF
 
+``int ioctl(int fd, NET_REMOVE_IF, int ifnum)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <frontend_f_open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``net_if``
     number of the interface to be removed
-
 
 Description
 ===========
 
 The NET_REMOVE_IF ioctl deletes an interface previously created via
 :ref:`NET_ADD_IF <net>`.
-
 
 Return Value
 ============

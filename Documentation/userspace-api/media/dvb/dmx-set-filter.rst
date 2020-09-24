@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.dmx
 
 .. _DMX_SET_FILTER:
 
@@ -11,23 +12,22 @@ Name
 
 DMX_SET_FILTER
 
-
 Synopsis
 --------
 
-.. c:function:: int ioctl( int fd, DMX_SET_FILTER, struct dmx_sct_filter_params *params)
-    :name: DMX_SET_FILTER
+.. c:macro:: DMX_SET_FILTER
+
+``int ioctl(int fd, DMX_SET_FILTER, struct dmx_sct_filter_params *params)``
 
 Arguments
 ---------
 
 ``fd``
-    File descriptor returned by :c:func:`open() <dvb-dmx-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``params``
 
     Pointer to structure containing filter parameters.
-
 
 Description
 -----------
@@ -43,10 +43,8 @@ operation should be started immediately (without waiting for a
 :ref:`DMX_START` ioctl call). If a filter was previously set-up, this
 filter will be canceled, and the receive buffer will be flushed.
 
-
 Return Value
 ------------
-
 
 On success 0 is returned.
 

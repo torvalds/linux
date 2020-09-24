@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.ca
 
 .. _CA_GET_SLOT_INFO:
 
@@ -11,19 +12,18 @@ Name
 
 CA_GET_SLOT_INFO
 
-
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, CA_GET_SLOT_INFO, struct ca_slot_info *info)
-    :name: CA_GET_SLOT_INFO
+.. c:macro:: CA_GET_SLOT_INFO
 
+``int ioctl(fd, CA_GET_SLOT_INFO, struct ca_slot_info *info)``
 
 Arguments
 ---------
 
 ``fd``
-  File descriptor returned by a previous call to :c:func:`open() <cec-open>`.
+  File descriptor returned by a previous call to :c:func:`open()`.
 
 ``info``
   Pointer to struct :c:type:`ca_slot_info`.
@@ -33,7 +33,6 @@ Description
 
 Returns information about a CA slot identified by
 :c:type:`ca_slot_info`.slot_num.
-
 
 Return Value
 ------------

@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.dmx
 
 .. _DMX_QUERYBUF:
 
@@ -13,23 +14,21 @@ DMX_QUERYBUF - Query the status of a buffer
 
 .. warning:: this API is still experimental
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, DMX_QUERYBUF, struct dvb_buffer *argp )
-    :name: DMX_QUERYBUF
+.. c:macro:: DMX_QUERYBUF
 
+``int ioctl(int fd, DMX_QUERYBUF, struct dvb_buffer *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <dmx_fopen>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`dvb_buffer`.
-
 
 Description
 ===========

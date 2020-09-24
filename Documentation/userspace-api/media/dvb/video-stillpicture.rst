@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.video
 
 .. _VIDEO_STILLPICTURE:
 
@@ -16,9 +17,9 @@ VIDEO_STILLPICTURE
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, VIDEO_STILLPICTURE, struct video_still_picture *sp)
-    :name: VIDEO_STILLPICTURE
+.. c:macro:: VIDEO_STILLPICTURE
 
+``int ioctl(fd, VIDEO_STILLPICTURE, struct video_still_picture *sp)``
 
 Arguments
 ---------
@@ -26,7 +27,6 @@ Arguments
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -  .. row 1
 
@@ -46,14 +46,12 @@ Arguments
 
        -  Pointer to a location where an I-frame and size is stored.
 
-
 Description
 -----------
 
 This ioctl call asks the Video Device to display a still picture
 (I-frame). The input data shall contain an I-frame. If the pointer is
 NULL, then the current displayed still picture is blanked.
-
 
 Return Value
 ------------

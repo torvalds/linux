@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.dmx
 
 .. _DMX_SET_BUFFER_SIZE:
 
@@ -11,19 +12,18 @@ Name
 
 DMX_SET_BUFFER_SIZE
 
-
 Synopsis
 --------
 
-.. c:function:: int ioctl( int fd, DMX_SET_BUFFER_SIZE, unsigned long size)
-    :name: DMX_SET_BUFFER_SIZE
+.. c:macro:: DMX_SET_BUFFER_SIZE
 
+``int ioctl(int fd, DMX_SET_BUFFER_SIZE, unsigned long size)``
 
 Arguments
 ---------
 
 ``fd``
-    File descriptor returned by :c:func:`open() <dvb-dmx-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``size``
     Unsigned long size
@@ -36,10 +36,8 @@ filtered data. The default size is two maximum sized sections, i.e. if
 this function is not called a buffer size of ``2 * 4096`` bytes will be
 used.
 
-
 Return Value
 ------------
-
 
 On success 0 is returned.
 

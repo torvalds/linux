@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.dmx
 
 .. _dmx_fclose:
 
@@ -11,27 +12,23 @@ Name
 
 Digital TV demux close()
 
-
 Synopsis
 --------
 
 .. c:function:: int close(int fd)
-    :name: dvb-dmx-close
-
 
 Arguments
 ---------
 
 ``fd``
   File descriptor returned by a previous call to
-  :c:func:`open() <dvb-dmx-open>`.
+  :c:func:`open()`.
 
 Description
 -----------
 
 This system call deactivates and deallocates a filter that was
-previously allocated via the :c:func:`open() <dvb-dmx-open>` call.
-
+previously allocated via the :c:func:`open()` call.
 
 Return Value
 ------------

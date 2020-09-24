@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.video
 
 .. _VIDEO_GET_PTS:
 
@@ -16,9 +17,9 @@ VIDEO_GET_PTS
 Synopsis
 --------
 
-.. c:function:: int ioctl(int fd, VIDEO_GET_PTS, __u64 *pts)
-    :name: VIDEO_GET_PTS
+.. c:macro:: VIDEO_GET_PTS
 
+``int ioctl(int fd, VIDEO_GET_PTS, __u64 *pts)``
 
 Arguments
 ---------
@@ -26,7 +27,6 @@ Arguments
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -  .. row 1
 
@@ -51,7 +51,6 @@ Arguments
 	  but may also be a value close to it like the PTS of the last
 	  decoded frame or the last PTS extracted by the PES parser.
 
-
 Description
 -----------
 
@@ -61,7 +60,6 @@ control.
 
 This ioctl call asks the Video Device to return the current PTS
 timestamp.
-
 
 Return Value
 ------------
