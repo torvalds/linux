@@ -81,4 +81,17 @@ obtained from the following controls:
 The analogue gain (``x`` in the formula) is controlled through
 ``V4L2_CID_ANALOGUE_GAIN`` in this case.
 
+Alternate analogue gain model
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The CCS defines another analogue gain model called alternate analogue gain. In
+this case, the formula to calculate actual gain consists of linear and
+exponential parts:
+
+	gain = linear * 2 ^ exponent
+
+The ``linear`` and ``exponent`` factors can be set using the
+``V4L2_CID_CCS_ANALOGUE_LINEAR_GAIN`` and
+``V4L2_CID_CCS_ANALOGUE_EXPONENTIAL_GAIN`` controls, respectively
+
 **Copyright** |copy| 2020 Intel Corporation
