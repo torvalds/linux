@@ -31,6 +31,9 @@ struct mptcp_pm_addr_entry {
 struct mptcp_pm_add_entry {
 	struct list_head	list;
 	struct mptcp_addr_info	addr;
+	struct timer_list	add_timer;
+	struct mptcp_sock	*sock;
+	u8			retrans_times;
 };
 
 struct pm_nl_pernet {
@@ -46,6 +49,7 @@ struct pm_nl_pernet {
 };
 
 #define MPTCP_PM_ADDR_MAX	8
+#define ADD_ADDR_RETRANS_MAX	3
 
 static bool addresses_equal(const struct mptcp_addr_info *a,
 			    struct mptcp_addr_info *b, bool use_port)
@@ -183,23 +187,83 @@ static void check_work_pending(struct mptcp_sock *msk)
 		WRITE_ONCE(msk->pm.work_pending, false);
 }
 
-static bool lookup_anno_list_by_saddr(struct mptcp_sock *msk,
-				      struct mptcp_addr_info *addr)
+static struct mptcp_pm_add_entry *
+lookup_anno_list_by_saddr(struct mptcp_sock *msk,
+			  struct mptcp_addr_info *addr)
 {
 	struct mptcp_pm_add_entry *entry;
 
 	list_for_each_entry(entry, &msk->pm.anno_list, list) {
 		if (addresses_equal(&entry->addr, addr, false))
-			return true;
+			return entry;
 	}
 
-	return false;
+	return NULL;
+}
+
+static void mptcp_pm_add_timer(struct timer_list *timer)
+{
+	struct mptcp_pm_add_entry *entry = from_timer(entry, timer, add_timer);
+	struct mptcp_sock *msk = entry->sock;
+	struct sock *sk = (struct sock *)msk;
+
+	pr_debug("msk=%p", msk);
+
+	if (!msk)
+		return;
+
+	if (inet_sk_state_load(sk) == TCP_CLOSE)
+		return;
+
+	if (!entry->addr.id)
+		return;
+
+	if (mptcp_pm_should_add_signal(msk)) {
+		sk_reset_timer(sk, timer, jiffies + TCP_RTO_MAX / 8);
+		goto out;
+	}
+
+	spin_lock_bh(&msk->pm.lock);
+
+	if (!mptcp_pm_should_add_signal(msk)) {
+		pr_debug("retransmit ADD_ADDR id=%d", entry->addr.id);
+		mptcp_pm_announce_addr(msk, &entry->addr, false);
+		entry->retrans_times++;
+	}
+
+	if (entry->retrans_times < ADD_ADDR_RETRANS_MAX)
+		sk_reset_timer(sk, timer, jiffies + TCP_RTO_MAX);
+
+	spin_unlock_bh(&msk->pm.lock);
+
+out:
+	__sock_put(sk);
+}
+
+struct mptcp_pm_add_entry *
+mptcp_pm_del_add_timer(struct mptcp_sock *msk,
+		       struct mptcp_addr_info *addr)
+{
+	struct mptcp_pm_add_entry *entry;
+	struct sock *sk = (struct sock *)msk;
+
+	spin_lock_bh(&msk->pm.lock);
+	entry = lookup_anno_list_by_saddr(msk, addr);
+	if (entry)
+		entry->retrans_times = ADD_ADDR_RETRANS_MAX;
+	spin_unlock_bh(&msk->pm.lock);
+
+	if (entry)
+		sk_stop_timer_sync(sk, &entry->add_timer);
+
+	return entry;
 }
 
 static bool mptcp_pm_alloc_anno_list(struct mptcp_sock *msk,
 				     struct mptcp_pm_addr_entry *entry)
 {
 	struct mptcp_pm_add_entry *add_entry = NULL;
+	struct sock *sk = (struct sock *)msk;
 
 	if (lookup_anno_list_by_saddr(msk, &entry->addr))
 		return false;
@@ -210,21 +274,32 @@ static bool mptcp_pm_alloc_anno_list(struct mptcp_sock *msk,
 
 	list_add(&add_entry->list, &msk->pm.anno_list);
 
+	add_entry->addr = entry->addr;
+	add_entry->sock = msk;
+	add_entry->retrans_times = 0;
+
+	timer_setup(&add_entry->add_timer, mptcp_pm_add_timer, 0);
+	sk_reset_timer(sk, &add_entry->add_timer, jiffies + TCP_RTO_MAX);
+
 	return true;
 }
 
 void mptcp_pm_free_anno_list(struct mptcp_sock *msk)
 {
 	struct mptcp_pm_add_entry *entry, *tmp;
+	struct sock *sk = (struct sock *)msk;
+	LIST_HEAD(free_list);
 
 	pr_debug("msk=%p", msk);
 
 	spin_lock_bh(&msk->pm.lock);
-	list_for_each_entry_safe(entry, tmp, &msk->pm.anno_list, list) {
-		list_del(&entry->list);
+	list_splice_init(&msk->pm.anno_list, &free_list);
+	spin_unlock_bh(&msk->pm.lock);
+
+	list_for_each_entry_safe(entry, tmp, &free_list, list) {
+		sk_stop_timer_sync(sk, &entry->add_timer);
 		kfree(entry);
 	}
-	spin_unlock_bh(&msk->pm.lock);
 }
 
 static void mptcp_pm_create_subflow_or_signal_addr(struct mptcp_sock *msk)
@@ -659,14 +734,13 @@ __lookup_addr_by_id(struct pm_nl_pernet *pernet, unsigned int id)
 static bool remove_anno_list_by_saddr(struct mptcp_sock *msk,
 				      struct mptcp_addr_info *addr)
 {
-	struct mptcp_pm_add_entry *entry, *tmp;
+	struct mptcp_pm_add_entry *entry;
 
-	list_for_each_entry_safe(entry, tmp, &msk->pm.anno_list, list) {
-		if (addresses_equal(&entry->addr, addr, false)) {
-			list_del(&entry->list);
-			kfree(entry);
-			return true;
-		}
+	entry = mptcp_pm_del_add_timer(msk, addr);
+	if (entry) {
+		list_del(&entry->list);
+		kfree(entry);
+		return true;
 	}
 
 	return false;
@@ -678,11 +752,12 @@ static bool mptcp_pm_remove_anno_addr(struct mptcp_sock *msk,
 {
 	bool ret;
 
-	spin_lock_bh(&msk->pm.lock);
 	ret = remove_anno_list_by_saddr(msk, addr);
-	if (ret || force)
+	if (ret || force) {
+		spin_lock_bh(&msk->pm.lock);
 		mptcp_pm_remove_addr(msk, addr->id);
-	spin_unlock_bh(&msk->pm.lock);
+		spin_unlock_bh(&msk->pm.lock);
+	}
 	return ret;
 }
 
