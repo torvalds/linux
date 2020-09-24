@@ -913,6 +913,7 @@ struct iwl_txq {
 /**
  * struct iwl_trans_txqs - transport tx queues data
  *
+ * @bc_table_dword: true if the BC table expects DWORD (as opposed to bytes)
  * @queue_used - bit mask of used queues
  * @queue_stopped - bit mask of stopped queues
  */
@@ -922,6 +923,8 @@ struct iwl_trans_txqs {
 	struct iwl_txq *txq[IWL_MAX_TVQM_QUEUES];
 	struct dma_pool *bc_pool;
 	size_t bc_tbl_size;
+	bool bc_table_dword;
+
 	struct {
 		u8 fifo;
 		u8 q_id;

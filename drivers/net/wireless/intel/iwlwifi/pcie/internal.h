@@ -378,7 +378,6 @@ struct cont_rec {
  * @cmd_queue - command queue number
  * @def_rx_queue - default rx queue number
  * @rx_buf_size: Rx buffer size
- * @bc_table_dword: true if the BC table expects DWORD (as opposed to bytes)
  * @scd_set_active: should the transport configure the SCD for HCMD queue
  * @sw_csum_tx: if true, then the transport will compute the csum of the TXed
  *	frame.
@@ -466,7 +465,6 @@ struct iwl_trans_pcie {
 	u16 num_rx_bufs;
 
 	enum iwl_amsdu_size rx_buf_size;
-	bool bc_table_dword;
 	bool scd_set_active;
 	bool sw_csum_tx;
 	bool pcie_dbg_dumped_once;
