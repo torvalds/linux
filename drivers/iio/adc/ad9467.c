@@ -77,6 +77,14 @@
 #define AN877_ADC_DCO_DELAY_ENABLE		0x80
 
 /*
+ * Analog Devices AD9265 16-Bit, 125/105/80 MSPS ADC
+ */
+
+#define CHIPID_AD9265			0x64
+#define AD9265_DEF_OUTPUT_MODE		0x40
+#define AD9265_REG_VREF_MASK		0xC0
+
+/*
  * Analog Devices AD9434 12-Bit, 370/500 MSPS ADC
  */
 
@@ -93,6 +101,7 @@
 #define AD9467_REG_VREF_MASK		0x0F
 
 enum {
+	ID_AD9265,
 	ID_AD9434,
 	ID_AD9467,
 };
@@ -167,6 +176,10 @@ static int ad9467_reg_access(struct adi_axi_adc_conv *conv, unsigned int reg,
 	return 0;
 }
 
+static const unsigned int ad9265_scale_table[][2] = {
+	{1250, 0x00}, {1500, 0x40}, {1750, 0x80}, {2000, 0xC0},
+};
+
 static const unsigned int ad9434_scale_table[][2] = {
 	{1600, 0x1C}, {1580, 0x1D}, {1550, 0x1E}, {1520, 0x1F}, {1500, 0x00},
 	{1470, 0x01}, {1440, 0x02}, {1420, 0x03}, {1390, 0x04}, {1360, 0x05},
@@ -216,6 +229,18 @@ static const struct iio_chan_spec ad9467_channels[] = {
 };
 
 static const struct ad9467_chip_info ad9467_chip_tbl[] = {
+	[ID_AD9265] = {
+		.axi_adc_info = {
+			.id = CHIPID_AD9265,
+			.max_rate = 125000000UL,
+			.scale_table = ad9265_scale_table,
+			.num_scales = ARRAY_SIZE(ad9265_scale_table),
+			.channels = ad9467_channels,
+			.num_channels = ARRAY_SIZE(ad9467_channels),
+		},
+		.default_output_mode = AD9265_DEF_OUTPUT_MODE,
+		.vref_mask = AD9265_REG_VREF_MASK,
+	},
 	[ID_AD9434] = {
 		.axi_adc_info = {
 			.id = CHIPID_AD9434,
@@ -432,6 +457,7 @@ static int ad9467_probe(struct spi_device *spi)
 }
 
 static const struct of_device_id ad9467_of_match[] = {
+	{ .compatible = "adi,ad9265", .data = &ad9467_chip_tbl[ID_AD9265], },
 	{ .compatible = "adi,ad9434", .data = &ad9467_chip_tbl[ID_AD9434], },
 	{ .compatible = "adi,ad9467", .data = &ad9467_chip_tbl[ID_AD9467], },
 	{}
