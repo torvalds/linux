@@ -316,6 +316,18 @@ navi10_get_allowed_feature_mask(struct smu_context *smu,
 	if (smu->dc_controlled_by_gpio)
 		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_ACDC_BIT);
 
+	if (adev->pm.pp_feature & PP_SOCCLK_DPM_MASK)
+		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_SOCCLK_BIT);
+
+	/* DPM UCLK enablement should be skipped for navi10 A0 secure board */
+	if (!(is_asic_secure(smu) &&
+	     (adev->asic_type == CHIP_NAVI10) &&
+	     (adev->rev_id == 0)) &&
+	    (adev->pm.pp_feature & PP_MCLK_DPM_MASK))
+		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_UCLK_BIT)
+				| FEATURE_MASK(FEATURE_MEM_VDDCI_SCALING_BIT)
+				| FEATURE_MASK(FEATURE_MEM_MVDD_SCALING_BIT);
+
 	/* DS SOCCLK enablement should be skipped for navi10 A0 secure board */
 	if (is_asic_secure(smu) &&
 	    (adev->asic_type == CHIP_NAVI10) &&
@@ -2629,42 +2641,11 @@ static int navi10_enable_mgpu_fan_boost(struct smu_context *smu)
 
 static int navi10_post_smu_init(struct smu_context *smu)
 {
-	struct smu_feature *feature = &smu->smu_feature;
 	struct amdgpu_device *adev = smu->adev;
-	uint64_t feature_mask = 0;
 	int ret = 0;
 
 	if (amdgpu_sriov_vf(adev))
 		return 0;
-
-	/* For Naiv1x, enable these features only after DAL initialization */
-	if (adev->pm.pp_feature & PP_SOCCLK_DPM_MASK)
-		feature_mask |= FEATURE_MASK(FEATURE_DPM_SOCCLK_BIT);
-
-	/* DPM UCLK enablement should be skipped for navi10 A0 secure board */
-	if (!(is_asic_secure(smu) &&
-	     (adev->asic_type == CHIP_NAVI10) &&
-	     (adev->rev_id == 0)) &&
-	    (adev->pm.pp_feature & PP_MCLK_DPM_MASK))
-		feature_mask |= FEATURE_MASK(FEATURE_DPM_UCLK_BIT)
-				| FEATURE_MASK(FEATURE_MEM_VDDCI_SCALING_BIT)
-				| FEATURE_MASK(FEATURE_MEM_MVDD_SCALING_BIT);
-
-	if (!feature_mask)
-		return 0;
-
-	bitmap_or(feature->allowed,
-		  feature->allowed,
-		  (unsigned long *)(&feature_mask),
-		  SMU_FEATURE_MAX);
-
-	ret = smu_cmn_feature_update_enable_state(smu,
-						  feature_mask,
-						  true);
-	if (ret) {
-		dev_err(adev->dev, "Failed to post uclk/socclk dpm enablement!\n");
-		return ret;
-	}
 
 	ret = navi10_run_umc_cdr_workaround(smu);
 	if (ret) {
