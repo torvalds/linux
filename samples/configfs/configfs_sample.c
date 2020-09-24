@@ -13,6 +13,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/configfs.h>
@@ -61,17 +62,11 @@ static ssize_t childless_storeme_store(struct config_item *item,
 		const char *page, size_t count)
 {
 	struct childless *childless = to_childless(item);
-	unsigned long tmp;
-	char *p = (char *) page;
+	int ret;
 
-	tmp = simple_strtoul(p, &p, 10);
-	if (!p || (*p && (*p != '\n')))
-		return -EINVAL;
-
-	if (tmp > INT_MAX)
-		return -ERANGE;
-
-	childless->storeme = tmp;
+	ret = kstrtoint(page, 10, &childless->storeme);
+	if (ret)
+		return ret;
 
 	return count;
 }
@@ -144,17 +139,11 @@ static ssize_t simple_child_storeme_store(struct config_item *item,
 		const char *page, size_t count)
 {
 	struct simple_child *simple_child = to_simple_child(item);
-	unsigned long tmp;
-	char *p = (char *) page;
+	int ret;
 
-	tmp = simple_strtoul(p, &p, 10);
-	if (!p || (*p && (*p != '\n')))
-		return -EINVAL;
-
-	if (tmp > INT_MAX)
-		return -ERANGE;
-
-	simple_child->storeme = tmp;
+	ret = kstrtoint(page, 10, &simple_child->storeme);
+	if (ret)
+		return ret;
 
 	return count;
 }
