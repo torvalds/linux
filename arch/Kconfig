@@ -444,10 +444,23 @@ config ARCH_WANT_OLD_COMPAT_IPC
 	select ARCH_WANT_COMPAT_IPC_PARSE_VERSION
 	bool
 
-config HAVE_ARCH_SECCOMP_FILTER
+config HAVE_ARCH_SECCOMP
 	bool
 	help
+	  An arch should select this symbol to support seccomp mode 1 (the fixed
+	  syscall policy), and must provide an overrides for __NR_seccomp_sigreturn,
+	  and compat syscalls if the asm-generic/seccomp.h defaults need adjustment:
+	  - __NR_seccomp_read_32
+	  - __NR_seccomp_write_32
+	  - __NR_seccomp_exit_32
+	  - __NR_seccomp_sigreturn_32
+
+config HAVE_ARCH_SECCOMP_FILTER
+	bool
+	select HAVE_ARCH_SECCOMP
+	help
 	  An arch should select this symbol if it provides all of these things:
+	  - all the requirements for HAVE_ARCH_SECCOMP
 	  - syscall_get_arch()
 	  - syscall_get_arguments()
 	  - syscall_rollback()
@@ -457,6 +470,23 @@ config HAVE_ARCH_SECCOMP_FILTER
 	  - secure_computing return value is checked and a return value of -1
 	    results in the system call being skipped immediately.
 	  - seccomp syscall wired up
+
+config SECCOMP
+	prompt "Enable seccomp to safely execute untrusted bytecode"
+	def_bool y
+	depends on HAVE_ARCH_SECCOMP
+	help
+	  This kernel feature is useful for number crunching applications
+	  that may need to handle untrusted bytecode during their
+	  execution. By using pipes or other transports made available
+	  to the process as file descriptors supporting the read/write
+	  syscalls, it's possible to isolate those applications in their
+	  own address space using seccomp. Once seccomp is enabled via
+	  prctl(PR_SET_SECCOMP) or the seccomp() syscall, it cannot be
+	  disabled and the task is only allowed to execute a few safe
+	  syscalls defined by each seccomp mode.
+
+	  If unsure, say Y.
 
 config SECCOMP_FILTER
 	def_bool y
