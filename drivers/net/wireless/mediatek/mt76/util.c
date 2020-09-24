@@ -110,4 +110,32 @@ int mt76_get_min_avg_rssi(struct mt76_dev *dev, bool ext_phy)
 }
 EXPORT_SYMBOL_GPL(mt76_get_min_avg_rssi);
 
+int __mt76_worker_fn(void *ptr)
+{
+	struct mt76_worker *w = ptr;
+
+	while (!kthread_should_stop()) {
+		set_current_state(TASK_INTERRUPTIBLE);
+
+		if (kthread_should_park()) {
+			kthread_parkme();
+			continue;
+		}
+
+		if (!test_and_clear_bit(MT76_WORKER_SCHEDULED, &w->state)) {
+			schedule();
+			continue;
+		}
+
+		set_bit(MT76_WORKER_RUNNING, &w->state);
+		set_current_state(TASK_RUNNING);
+		w->fn(w);
+		cond_resched();
+		clear_bit(MT76_WORKER_RUNNING, &w->state);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(__mt76_worker_fn);
+
 MODULE_LICENSE("Dual BSD/GPL");
