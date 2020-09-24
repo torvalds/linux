@@ -26,8 +26,9 @@ Returns:
 	 =======  ========================================================
 	 -EBUSY   The PMU overflow interrupt is already set
 	 -EFAULT  Error reading interrupt number
-	 -ENXIO   The overflow interrupt not set when attempting to get it
-	 -ENODEV  PMUv3 not supported
+	 -ENXIO   PMUv3 not supported or the overflow interrupt not set
+		  when attempting to get it
+	 -ENODEV  KVM_ARM_VCPU_PMU_V3 feature missing from VCPU
 	 -EINVAL  Invalid PMU overflow interrupt number supplied or
 		  trying to set the IRQ number without using an in-kernel
 		  irqchip.
@@ -48,8 +49,8 @@ Returns:
 	 =======  ======================================================
 	 -EEXIST  Interrupt number already used
 	 -ENODEV  PMUv3 not supported or GIC not initialized
-	 -ENXIO   PMUv3 not properly configured or in-kernel irqchip not
-		  configured as required prior to calling this attribute
+	 -ENXIO   PMUv3 not supported, missing VCPU feature or interrupt
+		  number not set
 	 -EBUSY   PMUv3 already initialized
 	 =======  ======================================================
 
