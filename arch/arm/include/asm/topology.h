@@ -8,6 +8,7 @@
 #include <linux/arch_topology.h>
 
 /* Replace task scheduler's default frequency-invariant accounting */
+#define arch_set_freq_scale topology_set_freq_scale
 #define arch_scale_freq_capacity topology_get_freq_scale
 #define arch_scale_freq_invariant topology_scale_freq_invariant
 
