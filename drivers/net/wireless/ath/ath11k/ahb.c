@@ -323,9 +323,10 @@ static void ath11k_ahb_stop(struct ath11k_base *ab)
 
 static int ath11k_ahb_power_up(struct ath11k_base *ab)
 {
+	struct ath11k_ahb *ab_ahb = ath11k_ahb_priv(ab);
 	int ret;
 
-	ret = rproc_boot(ab->tgt_rproc);
+	ret = rproc_boot(ab_ahb->tgt_rproc);
 	if (ret)
 		ath11k_err(ab, "failed to boot the remote processor Q6\n");
 
@@ -334,7 +335,9 @@ static int ath11k_ahb_power_up(struct ath11k_base *ab)
 
 static void ath11k_ahb_power_down(struct ath11k_base *ab)
 {
-	rproc_shutdown(ab->tgt_rproc);
+	struct ath11k_ahb *ab_ahb = ath11k_ahb_priv(ab);
+
+	rproc_shutdown(ab_ahb->tgt_rproc);
 }
 
 static void ath11k_ahb_init_qmi_ce_config(struct ath11k_base *ab)
@@ -600,6 +603,28 @@ static const struct ath11k_hif_ops ath11k_ahb_hif_ops = {
 	.power_up = ath11k_ahb_power_up,
 };
 
+static int ath11k_core_get_rproc(struct ath11k_base *ab)
+{
+	struct ath11k_ahb *ab_ahb = ath11k_ahb_priv(ab);
+	struct device *dev = ab->dev;
+	struct rproc *prproc;
+	phandle rproc_phandle;
+
+	if (of_property_read_u32(dev->of_node, "qcom,rproc", &rproc_phandle)) {
+		ath11k_err(ab, "failed to get q6_rproc handle\n");
+		return -ENOENT;
+	}
+
+	prproc = rproc_get_by_phandle(rproc_phandle);
+	if (!prproc) {
+		ath11k_err(ab, "failed to get rproc\n");
+		return -EINVAL;
+	}
+	ab_ahb->tgt_rproc = prproc;
+
+	return 0;
+}
+
 static int ath11k_ahb_probe(struct platform_device *pdev)
 {
 	struct ath11k_base *ab;
@@ -626,7 +651,9 @@ static int ath11k_ahb_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ab = ath11k_core_alloc(&pdev->dev, 0, ATH11K_BUS_AHB, &ath11k_ahb_bus_params);
+	ab = ath11k_core_alloc(&pdev->dev, sizeof(struct ath11k_ahb),
+			       ATH11K_BUS_AHB,
+			       &ath11k_ahb_bus_params);
 	if (!ab) {
 		dev_err(&pdev->dev, "failed to allocate ath11k base\n");
 		return -ENOMEM;
@@ -654,6 +681,12 @@ static int ath11k_ahb_probe(struct platform_device *pdev)
 	}
 
 	ath11k_ahb_init_qmi_ce_config(ab);
+
+	ret = ath11k_core_get_rproc(ab);
+	if (ret) {
+		ath11k_err(ab, "failed to get rproc: %d\n", ret);
+		goto err_ce_free;
+	}
 
 	ret = ath11k_core_init(ab);
 	if (ret) {
@@ -685,12 +718,16 @@ err_core_free:
 static int ath11k_ahb_remove(struct platform_device *pdev)
 {
 	struct ath11k_base *ab = platform_get_drvdata(pdev);
+	unsigned long left;
 
 	reinit_completion(&ab->driver_recovery);
 
-	if (test_bit(ATH11K_FLAG_RECOVERY, &ab->dev_flags))
-		wait_for_completion_timeout(&ab->driver_recovery,
-					    ATH11K_AHB_RECOVERY_TIMEOUT);
+	if (test_bit(ATH11K_FLAG_RECOVERY, &ab->dev_flags)) {
+		left = wait_for_completion_timeout(&ab->driver_recovery,
+						   ATH11K_AHB_RECOVERY_TIMEOUT);
+		if (!left)
+			ath11k_warn(ab, "failed to receive recovery response completion\n");
+	}
 
 	set_bit(ATH11K_FLAG_UNREGISTERING, &ab->dev_flags);
 	cancel_work_sync(&ab->restart_work);

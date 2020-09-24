@@ -57,6 +57,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.vdev_start_delay = false,
 		.htt_peer_map_v2 = true,
 		.tcl_0_only = false,
+		.spectral_fft_sz = 2,
 	},
 	{
 		.hw_rev = ATH11K_HW_IPQ6018_HW10,
@@ -86,6 +87,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.vdev_start_delay = false,
 		.htt_peer_map_v2 = true,
 		.tcl_0_only = false,
+		.spectral_fft_sz = 4,
 	},
 	{
 		.name = "qca6390 hw2.0",
@@ -115,6 +117,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.vdev_start_delay = true,
 		.htt_peer_map_v2 = false,
 		.tcl_0_only = true,
+		.spectral_fft_sz = 0,
 	},
 };
 
@@ -412,7 +415,7 @@ static int ath11k_core_soc_create(struct ath11k_base *ab)
 		return ret;
 	}
 
-	ret = ath11k_debug_soc_create(ab);
+	ret = ath11k_debugfs_soc_create(ab);
 	if (ret) {
 		ath11k_err(ab, "failed to create ath11k debugfs\n");
 		goto err_qmi_deinit;
@@ -427,7 +430,7 @@ static int ath11k_core_soc_create(struct ath11k_base *ab)
 	return 0;
 
 err_debugfs_reg:
-	ath11k_debug_soc_destroy(ab);
+	ath11k_debugfs_soc_destroy(ab);
 err_qmi_deinit:
 	ath11k_qmi_deinit_service(ab);
 	return ret;
@@ -435,7 +438,7 @@ err_qmi_deinit:
 
 static void ath11k_core_soc_destroy(struct ath11k_base *ab)
 {
-	ath11k_debug_soc_destroy(ab);
+	ath11k_debugfs_soc_destroy(ab);
 	ath11k_dp_free(ab);
 	ath11k_reg_free(ab);
 	ath11k_qmi_deinit_service(ab);
@@ -445,7 +448,7 @@ static int ath11k_core_pdev_create(struct ath11k_base *ab)
 {
 	int ret;
 
-	ret = ath11k_debug_pdev_create(ab);
+	ret = ath11k_debugfs_pdev_create(ab);
 	if (ret) {
 		ath11k_err(ab, "failed to create core pdev debugfs: %d\n", ret);
 		return ret;
@@ -485,7 +488,7 @@ err_dp_pdev_free:
 err_mac_unregister:
 	ath11k_mac_unregister(ab);
 err_pdev_debug:
-	ath11k_debug_pdev_destroy(ab);
+	ath11k_debugfs_pdev_destroy(ab);
 
 	return ret;
 }
@@ -497,7 +500,7 @@ static void ath11k_core_pdev_destroy(struct ath11k_base *ab)
 	ath11k_mac_unregister(ab);
 	ath11k_hif_irq_disable(ab);
 	ath11k_dp_pdev_free(ab);
-	ath11k_debug_pdev_destroy(ab);
+	ath11k_debugfs_pdev_destroy(ab);
 }
 
 static int ath11k_core_start(struct ath11k_base *ab,
@@ -842,42 +845,9 @@ int ath11k_core_pre_init(struct ath11k_base *ab)
 }
 EXPORT_SYMBOL(ath11k_core_pre_init);
 
-static int ath11k_core_get_rproc(struct ath11k_base *ab)
-{
-	struct device *dev = ab->dev;
-	struct rproc *prproc;
-	phandle rproc_phandle;
-
-	if (!IS_ENABLED(CONFIG_REMOTEPROC))
-		return 0;
-
-	if (ab->bus_params.mhi_support)
-		return 0;
-
-	if (of_property_read_u32(dev->of_node, "qcom,rproc", &rproc_phandle)) {
-		ath11k_err(ab, "failed to get q6_rproc handle\n");
-		return -ENOENT;
-	}
-
-	prproc = rproc_get_by_phandle(rproc_phandle);
-	if (!prproc) {
-		ath11k_err(ab, "failed to get rproc\n");
-		return -EINVAL;
-	}
-	ab->tgt_rproc = prproc;
-
-	return 0;
-}
-
 int ath11k_core_init(struct ath11k_base *ab)
 {
 	int ret;
-
-	ret = ath11k_core_get_rproc(ab);
-	if (ret) {
-		ath11k_err(ab, "failed to get rproc: %d\n", ret);
-		return ret;
-	}
 
 	ret = ath11k_core_soc_create(ab);
 	if (ret) {

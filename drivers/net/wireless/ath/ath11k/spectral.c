@@ -17,8 +17,6 @@
 #define ATH11K_SPECTRAL_ATH11K_MIN_IB_BINS	32
 #define ATH11K_SPECTRAL_ATH11K_MAX_IB_BINS	256
 
-#define ATH11K_SPECTRAL_SAMPLE_FFT_BIN_MASK	0xFF
-
 #define ATH11K_SPECTRAL_SCAN_COUNT_MAX		4095
 
 /* Max channel computed by sum of 2g and 5g band channels */
@@ -557,16 +555,16 @@ static u8 ath11k_spectral_get_max_exp(s8 max_index, u8 max_magnitude,
 	return max_exp;
 }
 
-static void ath11k_spectral_parse_16bit_fft(u8 *outbins, u8 *inbins, int num_bins)
+static void ath11k_spectral_parse_fft(u8 *outbins, u8 *inbins, int num_bins, u8 fft_sz)
 {
-	int i;
-	__le16 *data = (__le16 *)inbins;
+	int i, j;
 
 	i = 0;
+	j = 0;
 	while (i < num_bins) {
-		outbins[i] = (__le16_to_cpu(data[i])) &
-			     ATH11K_SPECTRAL_SAMPLE_FFT_BIN_MASK;
+		outbins[i] = inbins[j];
 		i++;
+		j += fft_sz;
 	}
 }
 
@@ -587,6 +585,12 @@ int ath11k_spectral_process_fft(struct ath11k *ar,
 	int ret;
 
 	lockdep_assert_held(&ar->spectral.lock);
+
+	if (!ab->hw_params.spectral_fft_sz) {
+		ath11k_warn(ab, "invalid bin size type for hw rev %d\n",
+			    ab->hw_rev);
+		return -EINVAL;
+	}
 
 	tlv = (struct spectral_tlv *)data;
 	tlv_len = FIELD_GET(SPECTRAL_TLV_HDR_LEN, __le32_to_cpu(tlv->header));
@@ -649,9 +653,8 @@ int ath11k_spectral_process_fft(struct ath11k *ar,
 	freq = summary->meta.freq2;
 	fft_sample->freq2 = __cpu_to_be16(freq);
 
-	ath11k_spectral_parse_16bit_fft(fft_sample->data,
-					fft_report->bins,
-					num_bins);
+	ath11k_spectral_parse_fft(fft_sample->data, fft_report->bins, num_bins,
+				  ab->hw_params.spectral_fft_sz);
 
 	fft_sample->max_exp = ath11k_spectral_get_max_exp(fft_sample->max_index,
 							  search.peak_mag,
@@ -957,6 +960,9 @@ int ath11k_spectral_init(struct ath11k_base *ab)
 
 	if (!test_bit(WMI_TLV_SERVICE_FREQINFO_IN_METADATA,
 		      ab->wmi_ab.svc_map))
+		return 0;
+
+	if (!ab->hw_params.spectral_fft_sz)
 		return 0;
 
 	for (i = 0; i < ab->num_radios; i++) {

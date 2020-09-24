@@ -1660,8 +1660,6 @@ struct htt_pdev_obss_pd_stats_tlv {
 	u32        num_obss_tx_ppdu_failure;
 };
 
-void ath11k_debug_htt_stats_init(struct ath11k *ar);
-
 struct htt_ring_backpressure_stats_tlv {
 	u32 pdev_id;
 	u32 current_head_idx;
@@ -1686,5 +1684,10 @@ struct htt_ring_backpressure_stats_tlv {
 	 */
 	u32 backpressure_hist[5];
 };
+
+void ath11k_debugfs_htt_stats_init(struct ath11k *ar);
+void ath11k_debugfs_htt_ext_stats_handler(struct ath11k_base *ab,
+					  struct sk_buff *skb);
+int ath11k_debugfs_htt_stats_req(struct ath11k *ar);
 
 #endif

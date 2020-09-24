@@ -8,7 +8,7 @@
 #include "dp_tx.h"
 #include "dp_rx.h"
 #include "debug.h"
-#include "debug_htt_stats.h"
+#include "debugfs_htt_stats.h"
 
 #define HTT_DBG_OUT(buf, len, fmt, ...) \
 			scnprintf(buf, len, fmt "\n", ##__VA_ARGS__)
@@ -4253,8 +4253,8 @@ static int ath11k_dbg_htt_ext_stats_parse(struct ath11k_base *ab,
 	return 0;
 }
 
-void ath11k_dbg_htt_ext_stats_handler(struct ath11k_base *ab,
-				      struct sk_buff *skb)
+void ath11k_debugfs_htt_ext_stats_handler(struct ath11k_base *ab,
+					  struct sk_buff *skb)
 {
 	struct ath11k_htt_extd_stats_msg *msg;
 	struct debug_htt_stats_req *stats_req;
@@ -4402,7 +4402,7 @@ static int ath11k_prep_htt_stats_cfg_params(struct ath11k *ar, u8 type,
 	return 0;
 }
 
-int ath11k_dbg_htt_stats_req(struct ath11k *ar)
+int ath11k_debugfs_htt_stats_req(struct ath11k *ar)
 {
 	struct debug_htt_stats_req *stats_req = ar->debug.htt_stats.stats_req;
 	u8 type = stats_req->type;
@@ -4476,7 +4476,7 @@ static int ath11k_open_htt_stats(struct inode *inode, struct file *file)
 	ar->debug.htt_stats.stats_req = stats_req;
 	stats_req->type = type;
 
-	ret = ath11k_dbg_htt_stats_req(ar);
+	ret = ath11k_debugfs_htt_stats_req(ar);
 	if (ret < 0)
 		goto out;
 
@@ -4586,7 +4586,7 @@ static const struct file_operations fops_htt_stats_reset = {
 	.llseek = default_llseek,
 };
 
-void ath11k_debug_htt_stats_init(struct ath11k *ar)
+void ath11k_debugfs_htt_stats_init(struct ath11k *ar)
 {
 	spin_lock_init(&ar->debug.htt_stats.lock);
 	debugfs_create_file("htt_stats_type", 0600, ar->debug.debugfs_pdev,
