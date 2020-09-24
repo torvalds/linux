@@ -192,8 +192,6 @@ static struct config_item *simple_children_make_item(struct config_group *group,
 	config_item_init_type_name(&simple_child->item, name,
 				   &simple_child_type);
 
-	simple_child->storeme = 0;
-
 	return &simple_child->item;
 }
 
