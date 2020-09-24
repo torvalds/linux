@@ -860,18 +860,22 @@ int dlm_comm_seq(int nodeid, uint32_t *seq)
 	return 0;
 }
 
-int dlm_comm_mark(int nodeid, unsigned int *mark)
+void dlm_comm_mark(int nodeid, unsigned int *mark)
 {
 	struct dlm_comm *cm;
 
 	cm = get_comm(nodeid);
-	if (!cm)
-		return -ENOENT;
+	if (!cm) {
+		*mark = dlm_config.ci_mark;
+		return;
+	}
 
-	*mark = cm->mark;
+	if (cm->mark)
+		*mark = cm->mark;
+	else
+		*mark = dlm_config.ci_mark;
+
 	put_comm(cm);
-
-	return 0;
 }
 
 int dlm_our_nodeid(void)
