@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_G_DV_TIMINGS:
 
@@ -11,32 +12,33 @@ Name
 
 VIDIOC_G_DV_TIMINGS - VIDIOC_S_DV_TIMINGS - VIDIOC_SUBDEV_G_DV_TIMINGS - VIDIOC_SUBDEV_S_DV_TIMINGS - Get or set DV timings for input or output
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_G_DV_TIMINGS, struct v4l2_dv_timings *argp )
-    :name: VIDIOC_G_DV_TIMINGS
+.. c:macro:: VIDIOC_G_DV_TIMINGS
 
-.. c:function:: int ioctl( int fd, VIDIOC_S_DV_TIMINGS, struct v4l2_dv_timings *argp )
-    :name: VIDIOC_S_DV_TIMINGS
+``int ioctl(int fd, VIDIOC_G_DV_TIMINGS, struct v4l2_dv_timings *argp)``
 
-.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_G_DV_TIMINGS, struct v4l2_dv_timings *argp )
-    :name: VIDIOC_SUBDEV_G_DV_TIMINGS
+.. c:macro:: VIDIOC_S_DV_TIMINGS
 
-.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_S_DV_TIMINGS, struct v4l2_dv_timings *argp )
-    :name: VIDIOC_SUBDEV_S_DV_TIMINGS
+``int ioctl(int fd, VIDIOC_S_DV_TIMINGS, struct v4l2_dv_timings *argp)``
 
+.. c:macro:: VIDIOC_SUBDEV_G_DV_TIMINGS
+
+``int ioctl(int fd, VIDIOC_SUBDEV_G_DV_TIMINGS, struct v4l2_dv_timings *argp)``
+
+.. c:macro:: VIDIOC_SUBDEV_S_DV_TIMINGS
+
+``int ioctl(int fd, VIDIOC_SUBDEV_S_DV_TIMINGS, struct v4l2_dv_timings *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`v4l2_dv_timings`.
-
 
 Description
 ===========
@@ -59,7 +61,6 @@ the formats in the :ref:`cea861` and :ref:`vesadmt` standards. If
 the current input or output does not support DV timings (e.g. if
 :ref:`VIDIOC_ENUMINPUT` does not set the
 ``V4L2_IN_CAP_DV_TIMINGS`` flag), then ``ENODATA`` error code is returned.
-
 
 Return Value
 ============
@@ -169,7 +170,6 @@ EPERM
       - ``reserved[46]``
       - Reserved for future extensions. Drivers and applications must set
 	the array to zero.
-
 
 .. tabularcolumns:: |p{3.5cm}|p{3.5cm}|p{7.0cm}|p{3.5cm}|
 

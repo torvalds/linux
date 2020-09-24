@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_ENUMAUDIO:
 
@@ -11,23 +12,21 @@ Name
 
 VIDIOC_ENUMAUDIO - Enumerate audio inputs
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_ENUMAUDIO, struct v4l2_audio *argp )
-    :name: VIDIOC_ENUMAUDIO
+.. c:macro:: VIDIOC_ENUMAUDIO
 
+``int ioctl(int fd, VIDIOC_ENUMAUDIO, struct v4l2_audio *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`v4l2_audio`.
-
 
 Description
 ===========
@@ -42,7 +41,6 @@ zero, incrementing by one until the driver returns ``EINVAL``.
 
 See :ref:`VIDIOC_G_AUDIO <VIDIOC_G_AUDIO>` for a description of struct
 :c:type:`v4l2_audio`.
-
 
 Return Value
 ============

@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_G_AUDOUT:
 
@@ -11,26 +12,25 @@ Name
 
 VIDIOC_G_AUDOUT - VIDIOC_S_AUDOUT - Query or select the current audio output
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_G_AUDOUT, struct v4l2_audioout *argp )
-    :name: VIDIOC_G_AUDOUT
+.. c:macro:: VIDIOC_G_AUDOUT
 
-.. c:function:: int ioctl( int fd, VIDIOC_S_AUDOUT, const struct v4l2_audioout *argp )
-    :name: VIDIOC_S_AUDOUT
+``int ioctl(int fd, VIDIOC_G_AUDOUT, struct v4l2_audioout *argp)``
 
+.. c:macro:: VIDIOC_S_AUDOUT
+
+``int ioctl(int fd, VIDIOC_S_AUDOUT, const struct v4l2_audioout *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`v4l2_audioout`.
-
 
 Description
 ===========
@@ -55,7 +55,6 @@ as ``VIDIOC_G_AUDOUT`` does.
 
    Connectors on a TV card to loop back the received audio signal
    to a sound card are not audio outputs in this sense.
-
 
 .. c:type:: v4l2_audioout
 
@@ -86,7 +85,6 @@ as ``VIDIOC_G_AUDOUT`` does.
       - ``reserved``\ [2]
       - Reserved for future extensions. Drivers and applications must set
 	the array to zero.
-
 
 Return Value
 ============

@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_LOG_STATUS:
 
@@ -11,20 +12,18 @@ Name
 
 VIDIOC_LOG_STATUS - Log driver status information
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_LOG_STATUS)
-    :name: VIDIOC_LOG_STATUS
+.. c:macro:: VIDIOC_LOG_STATUS
 
+``int ioctl(int fd, VIDIOC_LOG_STATUS)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
-
+    File descriptor returned by :c:func:`open()`.
 
 Description
 ===========
@@ -39,7 +38,6 @@ Mismatches may give an indication where the problem is.
 
 This ioctl is optional and not all drivers support it. It was introduced
 in Linux 2.6.15.
-
 
 Return Value
 ============

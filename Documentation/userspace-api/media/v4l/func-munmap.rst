@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _func-munmap:
 
@@ -11,7 +12,6 @@ Name
 
 v4l2-munmap - Unmap device memory
 
-
 Synopsis
 ========
 
@@ -20,37 +20,33 @@ Synopsis
     #include <unistd.h>
     #include <sys/mman.h>
 
-
 .. c:function:: int munmap( void *start, size_t length )
-    :name: v4l2-munmap
 
 Arguments
 =========
 
 ``start``
     Address of the mapped buffer as returned by the
-    :ref:`mmap() <func-mmap>` function.
+    :c:func:`mmap()` function.
 
 ``length``
     Length of the mapped buffer. This must be the same value as given to
-    :ref:`mmap() <func-mmap>` and returned by the driver in the struct
+    :c:func:`mmap()` and returned by the driver in the struct
     :c:type:`v4l2_buffer` ``length`` field for the
     single-planar API and in the struct
     :c:type:`v4l2_plane` ``length`` field for the
     multi-planar API.
 
-
 Description
 ===========
 
-Unmaps a previously with the :ref:`mmap() <func-mmap>` function mapped
+Unmaps a previously with the :c:func:`mmap()` function mapped
 buffer and frees it, if possible.
-
 
 Return Value
 ============
 
-On success :ref:`munmap() <func-munmap>` returns 0, on failure -1 and the
+On success :c:func:`munmap()` returns 0, on failure -1 and the
 ``errno`` variable is set appropriately:
 
 EINVAL

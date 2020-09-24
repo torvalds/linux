@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_SUBDEV_ENUM_MBUS_CODE:
 
@@ -11,23 +12,21 @@ Name
 
 VIDIOC_SUBDEV_ENUM_MBUS_CODE - Enumerate media bus formats
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_ENUM_MBUS_CODE, struct v4l2_subdev_mbus_code_enum * argp )
-    :name: VIDIOC_SUBDEV_ENUM_MBUS_CODE
+.. c:macro:: VIDIOC_SUBDEV_ENUM_MBUS_CODE
 
+``int ioctl(int fd, VIDIOC_SUBDEV_ENUM_MBUS_CODE, struct v4l2_subdev_mbus_code_enum * argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`v4l2_subdev_mbus_code_enum`.
-
 
 Description
 ===========
@@ -46,7 +45,6 @@ Available media bus formats may depend on the current 'try' formats at
 other pads of the sub-device, as well as on the current active links.
 See :ref:`VIDIOC_SUBDEV_G_FMT` for more
 information about the try formats.
-
 
 .. c:type:: v4l2_subdev_mbus_code_enum
 

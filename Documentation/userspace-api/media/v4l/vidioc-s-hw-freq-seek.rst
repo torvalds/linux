@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_S_HW_FREQ_SEEK:
 
@@ -11,23 +12,21 @@ Name
 
 VIDIOC_S_HW_FREQ_SEEK - Perform a hardware frequency seek
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_S_HW_FREQ_SEEK, struct v4l2_hw_freq_seek *argp )
-    :name: VIDIOC_S_HW_FREQ_SEEK
+.. c:macro:: VIDIOC_S_HW_FREQ_SEEK
 
+``int ioctl(int fd, VIDIOC_S_HW_FREQ_SEEK, struct v4l2_hw_freq_seek *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`v4l2_hw_freq_seek`.
-
 
 Description
 ===========
@@ -58,7 +57,6 @@ set.
 
 If this ioctl is called from a non-blocking filehandle, then ``EAGAIN``
 error code is returned and no seek takes place.
-
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
@@ -115,7 +113,6 @@ error code is returned and no seek takes place.
       - ``reserved``\ [5]
       - Reserved for future extensions. Applications must set the array to
 	zero.
-
 
 Return Value
 ============

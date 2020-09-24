@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_DBG_G_CHIP_INFO:
 
@@ -11,23 +12,21 @@ Name
 
 VIDIOC_DBG_G_CHIP_INFO - Identify the chips on a TV card
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_DBG_G_CHIP_INFO, struct v4l2_dbg_chip_info *argp )
-    :name: VIDIOC_DBG_G_CHIP_INFO
+.. c:macro:: VIDIOC_DBG_G_CHIP_INFO
 
+``int ioctl(int fd, VIDIOC_DBG_G_CHIP_INFO, struct v4l2_dbg_chip_info *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`v4l2_dbg_chip_info`.
-
 
 Description
 ===========
@@ -76,7 +75,6 @@ is available from the LinuxTV v4l-dvb repository; see
 `https://linuxtv.org/repo/ <https://linuxtv.org/repo/>`__ for access
 instructions.
 
-
 .. tabularcolumns:: |p{3.5cm}|p{3.5cm}|p{3.5cm}|p{7.0cm}|
 
 .. _name-v4l2-dbg-match:
@@ -101,7 +99,6 @@ instructions.
 	field. Currently unused.
     * - }
       -
-
 
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
@@ -130,7 +127,6 @@ instructions.
       - Reserved fields, both application and driver must set these to 0.
 
 
-
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. _name-chip-match-types:
@@ -147,7 +143,6 @@ instructions.
     * - ``V4L2_CHIP_MATCH_SUBDEV``
       - 4
       - Match the nth sub-device.
-
 
 Return Value
 ============

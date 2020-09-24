@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_SUBDEV_G_FRAME_INTERVAL:
 
@@ -11,26 +12,25 @@ Name
 
 VIDIOC_SUBDEV_G_FRAME_INTERVAL - VIDIOC_SUBDEV_S_FRAME_INTERVAL - Get or set the frame interval on a subdev pad
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_G_FRAME_INTERVAL, struct v4l2_subdev_frame_interval *argp )
-    :name: VIDIOC_SUBDEV_G_FRAME_INTERVAL
+.. c:macro:: VIDIOC_SUBDEV_G_FRAME_INTERVAL
 
-.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_S_FRAME_INTERVAL, struct v4l2_subdev_frame_interval *argp )
-    :name: VIDIOC_SUBDEV_S_FRAME_INTERVAL
+``int ioctl(int fd, VIDIOC_SUBDEV_G_FRAME_INTERVAL, struct v4l2_subdev_frame_interval *argp)``
 
+.. c:macro:: VIDIOC_SUBDEV_S_FRAME_INTERVAL
+
+``int ioctl(int fd, VIDIOC_SUBDEV_S_FRAME_INTERVAL, struct v4l2_subdev_frame_interval *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`v4l2_subdev_frame_interval`.
-
 
 Description
 ===========
@@ -74,7 +74,6 @@ Sub-devices that support the frame interval ioctls should implement them
 on a single pad only. Their behaviour when supported on multiple pads of
 the same sub-device is not defined.
 
-
 .. c:type:: v4l2_subdev_frame_interval
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
@@ -94,7 +93,6 @@ the same sub-device is not defined.
       - ``reserved``\ [9]
       - Reserved for future extensions. Applications and drivers must set
 	the array to zero.
-
 
 Return Value
 ============

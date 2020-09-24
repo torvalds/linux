@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_G_EDID:
 
@@ -11,33 +12,33 @@ Name
 
 VIDIOC_G_EDID - VIDIOC_S_EDID - VIDIOC_SUBDEV_G_EDID - VIDIOC_SUBDEV_S_EDID - Get or set the EDID of a video receiver/transmitter
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_G_EDID, struct v4l2_edid *argp )
-    :name: VIDIOC_G_EDID
+.. c:macro:: VIDIOC_G_EDID
 
-.. c:function:: int ioctl( int fd, VIDIOC_S_EDID, struct v4l2_edid *argp )
-    :name: VIDIOC_S_EDID
+``int ioctl(int fd, VIDIOC_G_EDID, struct v4l2_edid *argp)``
 
+.. c:macro:: VIDIOC_S_EDID
 
-.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_G_EDID, struct v4l2_edid *argp )
-    :name: VIDIOC_SUBDEV_G_EDID
+``int ioctl(int fd, VIDIOC_S_EDID, struct v4l2_edid *argp)``
 
-.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_S_EDID, struct v4l2_edid *argp )
-    :name: VIDIOC_SUBDEV_S_EDID
+.. c:macro:: VIDIOC_SUBDEV_G_EDID
 
+``int ioctl(int fd, VIDIOC_SUBDEV_G_EDID, struct v4l2_edid *argp)``
+
+.. c:macro:: VIDIOC_SUBDEV_S_EDID
+
+``int ioctl(int fd, VIDIOC_SUBDEV_S_EDID, struct v4l2_edid *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
    Pointer to struct :c:type:`v4l2_edid`.
-
 
 Description
 ===========
@@ -97,7 +98,6 @@ this will drive the hotplug pin low and/or block the source from reading
 the EDID data in some way. In any case, the end result is the same: the
 EDID is no longer available.
 
-
 .. c:type:: v4l2_edid
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
@@ -131,7 +131,6 @@ EDID is no longer available.
       - ``edid``
       - Pointer to memory that contains the EDID. The minimum size is
 	``blocks`` * 128.
-
 
 Return Value
 ============

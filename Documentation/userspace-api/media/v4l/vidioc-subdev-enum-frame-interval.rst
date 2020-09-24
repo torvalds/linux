@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL:
 
@@ -11,23 +12,21 @@ Name
 
 VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL - Enumerate frame intervals
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL, struct v4l2_subdev_frame_interval_enum * argp )
-    :name: VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL
+.. c:macro:: VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL
 
+``int ioctl(int fd, VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL, struct v4l2_subdev_frame_interval_enum * argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`v4l2_subdev_frame_interval_enum`.
-
 
 Description
 ===========
@@ -96,7 +95,6 @@ multiple pads of the same sub-device is not defined.
       - ``reserved``\ [8]
       - Reserved for future extensions. Applications and drivers must set
 	the array to zero.
-
 
 Return Value
 ============
