@@ -401,14 +401,13 @@ static void iwl_pcie_tfd_unmap(struct iwl_trans *trans,
 			       struct iwl_cmd_meta *meta,
 			       struct iwl_txq *txq, int index)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int i, num_tbs;
 	void *tfd = iwl_pcie_get_tfd(trans, txq, index);
 
 	/* Sanity check on number of chunks */
 	num_tbs = iwl_pcie_tfd_get_num_tbs(trans, tfd);
 
-	if (num_tbs > trans_pcie->max_tbs) {
+	if (num_tbs > trans->txqs.tfd.max_tbs) {
 		IWL_ERR(trans, "Too many chunks: %i\n", num_tbs);
 		/* @todo issue fatal error, it is quite serious situation */
 		return;
@@ -489,21 +488,20 @@ void iwl_pcie_txq_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq)
 static int iwl_pcie_txq_build_tfd(struct iwl_trans *trans, struct iwl_txq *txq,
 				  dma_addr_t addr, u16 len, bool reset)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	void *tfd;
 	u32 num_tbs;
 
-	tfd = txq->tfds + trans_pcie->tfd_size * txq->write_ptr;
+	tfd = txq->tfds + trans->txqs.tfd.size * txq->write_ptr;
 
 	if (reset)
-		memset(tfd, 0, trans_pcie->tfd_size);
+		memset(tfd, 0, trans->txqs.tfd.size);
 
 	num_tbs = iwl_pcie_tfd_get_num_tbs(trans, tfd);
 
 	/* Each TFD can point to a maximum max_tbs Tx buffers */
-	if (num_tbs >= trans_pcie->max_tbs) {
+	if (num_tbs >= trans->txqs.tfd.max_tbs) {
 		IWL_ERR(trans, "Error can not send more than %d chunks\n",
-			trans_pcie->max_tbs);
+			trans->txqs.tfd.max_tbs);
 		return -EINVAL;
 	}
 
@@ -519,8 +517,7 @@ static int iwl_pcie_txq_build_tfd(struct iwl_trans *trans, struct iwl_txq *txq,
 int iwl_pcie_txq_alloc(struct iwl_trans *trans, struct iwl_txq *txq,
 		       int slots_num, bool cmd_queue)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	size_t tfd_sz = trans_pcie->tfd_size *
+	size_t tfd_sz = trans->txqs.tfd.size *
 		trans->trans_cfg->base_params->max_tfd_queue_size;
 	size_t tb0_buf_sz;
 	int i;
@@ -529,7 +526,7 @@ int iwl_pcie_txq_alloc(struct iwl_trans *trans, struct iwl_txq *txq,
 		return -EINVAL;
 
 	if (trans->trans_cfg->use_tfh)
-		tfd_sz = trans_pcie->tfd_size * slots_num;
+		tfd_sz = trans->txqs.tfd.size * slots_num;
 
 	timer_setup(&txq->stuck_timer, iwl_pcie_txq_stuck_timer, 0);
 	txq->trans = trans;
@@ -708,7 +705,6 @@ static void iwl_pcie_txq_unmap(struct iwl_trans *trans, int txq_id)
  */
 static void iwl_pcie_txq_free(struct iwl_trans *trans, int txq_id)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_txq *txq = trans->txqs.txq[txq_id];
 	struct device *dev = trans->dev;
 	int i;
@@ -728,7 +724,7 @@ static void iwl_pcie_txq_free(struct iwl_trans *trans, int txq_id)
 	/* De-alloc circular buffer of TFDs */
 	if (txq->tfds) {
 		dma_free_coherent(dev,
-				  trans_pcie->tfd_size *
+				  trans->txqs.tfd.size *
 				  trans->trans_cfg->base_params->max_tfd_queue_size,
 				  txq->tfds, txq->dma_addr);
 		txq->dma_addr = 0;
@@ -2143,7 +2139,7 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 
 	trace_iwlwifi_dev_tx(trans->dev, skb,
 			     iwl_pcie_get_tfd(trans, txq, txq->write_ptr),
-			     trans_pcie->tfd_size,
+			     trans->txqs.tfd.size,
 			     &dev_cmd->hdr, IWL_FIRST_TB_SIZE + tb1_len, 0);
 
 	ip_hdrlen = skb_transport_header(skb) - skb_network_header(skb);
@@ -2352,7 +2348,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	}
 
 	if (skb_is_nonlinear(skb) &&
-	    skb_shinfo(skb)->nr_frags > IWL_PCIE_MAX_FRAGS(trans_pcie) &&
+	    skb_shinfo(skb)->nr_frags > IWL_TRANS_MAX_FRAGS(trans) &&
 	    __skb_linearize(skb))
 		return -ENOMEM;
 
@@ -2454,7 +2450,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	trace_iwlwifi_dev_tx(trans->dev, skb,
 			     iwl_pcie_get_tfd(trans, txq,
 					      txq->write_ptr),
-			     trans_pcie->tfd_size,
+			     trans->txqs.tfd.size,
 			     &dev_cmd->hdr, IWL_FIRST_TB_SIZE + tb1_len,
 			     hdr_len);
 

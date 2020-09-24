@@ -80,12 +80,6 @@
 #include "iwl-op-mode.h"
 #include "iwl-drv.h"
 
-/* We need 2 entries for the TX command and header, and another one might
- * be needed for potential data in the SKB's head. The remaining ones can
- * be used for frags.
- */
-#define IWL_PCIE_MAX_FRAGS(x) (x->max_tbs - 3)
-
 /*
  * RX related structures and functions
  */
@@ -469,8 +463,6 @@ struct iwl_trans_pcie {
 	u8 def_rx_queue;
 	u8 n_no_reclaim_cmds;
 	u8 no_reclaim_cmds[MAX_NO_RECLAIM_CMDS];
-	u8 max_tbs;
-	u16 tfd_size;
 	u16 num_rx_bufs;
 
 	enum iwl_amsdu_size rx_buf_size;
@@ -807,12 +799,10 @@ static inline u16 iwl_pcie_get_cmd_index(const struct iwl_txq *q, u32 index)
 static inline void *iwl_pcie_get_tfd(struct iwl_trans *trans,
 				     struct iwl_txq *txq, int idx)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-
 	if (trans->trans_cfg->use_tfh)
 		idx = iwl_pcie_get_cmd_index(txq, idx);
 
-	return txq->tfds + trans_pcie->tfd_size * idx;
+	return txq->tfds + trans->txqs.tfd.size * idx;
 }
 
 static inline const char *queue_name(struct device *dev,

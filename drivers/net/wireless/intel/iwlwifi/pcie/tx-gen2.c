@@ -158,13 +158,12 @@ static void iwl_pcie_gen2_tfd_unmap(struct iwl_trans *trans,
 				    struct iwl_cmd_meta *meta,
 				    struct iwl_tfh_tfd *tfd)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int i, num_tbs;
 
 	/* Sanity check on number of chunks */
 	num_tbs = iwl_pcie_gen2_get_num_tbs(trans, tfd);
 
-	if (num_tbs > trans_pcie->max_tbs) {
+	if (num_tbs > trans->txqs.tfd.max_tbs) {
 		IWL_ERR(trans, "Too many chunks: %i\n", num_tbs);
 		return;
 	}
@@ -219,7 +218,6 @@ static int iwl_pcie_gen2_set_tb(struct iwl_trans *trans,
 				struct iwl_tfh_tfd *tfd, dma_addr_t addr,
 				u16 len)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int idx = iwl_pcie_gen2_get_num_tbs(trans, tfd);
 	struct iwl_tfh_tb *tb;
 
@@ -239,9 +237,9 @@ static int iwl_pcie_gen2_set_tb(struct iwl_trans *trans,
 	tb = &tfd->tbs[idx];
 
 	/* Each TFD can point to a maximum max_tbs Tx buffers */
-	if (le16_to_cpu(tfd->num_tbs) >= trans_pcie->max_tbs) {
+	if (le16_to_cpu(tfd->num_tbs) >= trans->txqs.tfd.max_tbs) {
 		IWL_ERR(trans, "Error can not send more than %d chunks\n",
-			trans_pcie->max_tbs);
+			trans->txqs.tfd.max_tbs);
 		return -EINVAL;
 	}
 
@@ -730,7 +728,7 @@ int iwl_trans_pcie_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		return -EINVAL;
 
 	if (skb_is_nonlinear(skb) &&
-	    skb_shinfo(skb)->nr_frags > IWL_PCIE_MAX_FRAGS(trans_pcie) &&
+	    skb_shinfo(skb)->nr_frags > IWL_TRANS_MAX_FRAGS(trans) &&
 	    __skb_linearize(skb))
 		return -ENOMEM;
 
@@ -1210,13 +1208,12 @@ void iwl_pcie_gen2_txq_unmap(struct iwl_trans *trans, int txq_id)
 void iwl_pcie_gen2_txq_free_memory(struct iwl_trans *trans,
 				   struct iwl_txq *txq)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct device *dev = trans->dev;
 
 	/* De-alloc circular buffer of TFDs */
 	if (txq->tfds) {
 		dma_free_coherent(dev,
-				  trans_pcie->tfd_size * txq->n_window,
+				  trans->txqs.tfd.size * txq->n_window,
 				  txq->tfds, txq->dma_addr);
 		dma_free_coherent(dev,
 				  sizeof(*txq->first_tb_bufs) * txq->n_window,

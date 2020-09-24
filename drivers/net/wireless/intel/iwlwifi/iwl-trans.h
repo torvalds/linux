@@ -215,6 +215,12 @@ struct iwl_device_tx_cmd {
  */
 #define IWL_MAX_CMD_TBS_PER_TFD	2
 
+/* We need 2 entries for the TX command and header, and another one might
+ * be needed for potential data in the SKB's head. The remaining ones can
+ * be used for frags.
+ */
+#define IWL_TRANS_MAX_FRAGS(trans) ((trans)->txqs.tfd.max_tbs - 3)
+
 /**
  * enum iwl_hcmd_dataflag - flag for each one of the chunks of the command
  *
@@ -922,6 +928,11 @@ struct iwl_trans_txqs {
 		unsigned int wdg_timeout;
 	} cmd;
 
+	struct {
+		u8 max_tbs;
+		u16 size;
+		u8 addr_size;
+	} tfd;
 };
 
 /**

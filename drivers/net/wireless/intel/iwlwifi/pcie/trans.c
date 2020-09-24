@@ -2989,11 +2989,10 @@ static void iwl_trans_pcie_debugfs_cleanup(struct iwl_trans *trans)
 
 static u32 iwl_trans_pcie_get_cmdlen(struct iwl_trans *trans, void *tfd)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	u32 cmdlen = 0;
 	int i;
 
-	for (i = 0; i < trans_pcie->max_tbs; i++)
+	for (i = 0; i < trans->txqs.tfd.max_tbs; i++)
 		cmdlen += iwl_pcie_tfd_tb_get_len(trans, tfd, i);
 
 	return cmdlen;
@@ -3333,7 +3332,7 @@ static struct iwl_trans_dump_data
 	data = (void *)dump_data->data;
 
 	if (dump_mask & BIT(IWL_FW_ERROR_DUMP_TXCMD) && cmdq) {
-		u16 tfd_size = trans_pcie->tfd_size;
+		u16 tfd_size = trans->txqs.tfd.size;
 
 		data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_TXCMD);
 		txcmd = (void *)data->data;
@@ -3555,19 +3554,9 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 
 	trans_pcie->def_rx_queue = 0;
 
-	if (cfg_trans->use_tfh) {
-		addr_size = 64;
-		trans_pcie->max_tbs = IWL_TFH_NUM_TBS;
-		trans_pcie->tfd_size = sizeof(struct iwl_tfh_tfd);
-	} else {
-		addr_size = 36;
-		trans_pcie->max_tbs = IWL_NUM_OF_TBS;
-		trans_pcie->tfd_size = sizeof(struct iwl_tfd);
-	}
-	trans->max_skb_frags = IWL_PCIE_MAX_FRAGS(trans_pcie);
-
 	pci_set_master(pdev);
 
+	addr_size = trans->txqs.tfd.addr_size;
 	ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(addr_size));
 	if (!ret)
 		ret = pci_set_consistent_dma_mask(pdev,
