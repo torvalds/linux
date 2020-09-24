@@ -7866,6 +7866,7 @@ enum {
 # define CHICKEN3_DGMG_DONE_FIX_DISABLE		(1 << 2)
 
 #define CHICKEN_PAR1_1			_MMIO(0x42080)
+#define  KBL_ARB_FILL_SPARE_22		REG_BIT(22)
 #define  DIS_RAM_BYPASS_PSR2_MAN_TRACK	(1 << 16)
 #define  SKL_DE_COMPRESSED_HASH_MODE	(1 << 15)
 #define  DPA_MASK_VBLANK_SRD		(1 << 15)
@@ -7878,6 +7879,8 @@ enum {
 
 #define CHICKEN_MISC_2		_MMIO(0x42084)
 #define  CNL_COMP_PWR_DOWN	(1 << 23)
+#define  KBL_ARB_FILL_SPARE_14	REG_BIT(14)
+#define  KBL_ARB_FILL_SPARE_13	REG_BIT(13)
 #define  GLK_CL2_PWR_DOWN	(1 << 12)
 #define  GLK_CL1_PWR_DOWN	(1 << 11)
 #define  GLK_CL0_PWR_DOWN	(1 << 10)

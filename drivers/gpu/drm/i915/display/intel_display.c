@@ -18904,6 +18904,15 @@ static void intel_early_display_was(struct drm_i915_private *dev_priv)
 		intel_de_write(dev_priv, CHICKEN_PAR1_1,
 			       intel_de_read(dev_priv, CHICKEN_PAR1_1) | FORCE_ARB_IDLE_PLANES);
 	}
+
+	if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv) || IS_COMETLAKE(dev_priv)) {
+		/* Display WA #1142:kbl,cfl,cml */
+		intel_de_rmw(dev_priv, CHICKEN_PAR1_1,
+			     KBL_ARB_FILL_SPARE_22, KBL_ARB_FILL_SPARE_22);
+		intel_de_rmw(dev_priv, CHICKEN_MISC_2,
+			     KBL_ARB_FILL_SPARE_13 | KBL_ARB_FILL_SPARE_14,
+			     KBL_ARB_FILL_SPARE_14);
+	}
 }
 
 static void ibx_sanitize_pch_hdmi_port(struct drm_i915_private *dev_priv,
