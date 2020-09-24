@@ -713,8 +713,28 @@ static int at24_probe(struct i2c_client *client)
 			return err;
 	}
 
+	/*
+	 * If the 'label' property is not present for the AT24 EEPROM,
+	 * then nvmem_config.id is initialised to NVMEM_DEVID_AUTO,
+	 * and this will append the 'devid' to the name of the NVMEM
+	 * device. This is purely legacy and the AT24 driver has always
+	 * defaulted to this. However, if the 'label' property is
+	 * present then this means that the name is specified by the
+	 * firmware and this name should be used verbatim and so it is
+	 * not necessary to append the 'devid'.
+	 */
+	if (device_property_present(dev, "label")) {
+		nvmem_config.id = NVMEM_DEVID_NONE;
+		err = device_property_read_string(dev, "label",
+						  &nvmem_config.name);
+		if (err)
+			return err;
+	} else {
+		nvmem_config.id = NVMEM_DEVID_AUTO;
+		nvmem_config.name = dev_name(dev);
+	}
+
 	nvmem_config.type = NVMEM_TYPE_EEPROM;
-	nvmem_config.name = dev_name(dev);
 	nvmem_config.dev = dev;
 	nvmem_config.id = NVMEM_DEVID_AUTO;
 	nvmem_config.read_only = !writable;
