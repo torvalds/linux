@@ -102,7 +102,6 @@ struct mem_detect_info __bootdata(mem_detect);
 
 struct exception_table_entry *__bootdata_preserved(__start_dma_ex_table);
 struct exception_table_entry *__bootdata_preserved(__stop_dma_ex_table);
-unsigned long __bootdata_preserved(__swsusp_reset_dma);
 unsigned long __bootdata_preserved(__stext_dma);
 unsigned long __bootdata_preserved(__etext_dma);
 unsigned long __bootdata_preserved(__sdma);

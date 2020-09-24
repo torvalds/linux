@@ -48,8 +48,6 @@ struct diag_ops __bootdata_preserved(diag_dma_ops) = {
 };
 static struct diag210 _diag210_tmp_dma __section(.dma.data);
 struct diag210 *__bootdata_preserved(__diag210_tmp_dma) = &_diag210_tmp_dma;
-void _swsusp_reset_dma(void);
-unsigned long __bootdata_preserved(__swsusp_reset_dma) = __pa(_swsusp_reset_dma);
 
 void error(char *x)
 {

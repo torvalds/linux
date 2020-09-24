@@ -92,7 +92,6 @@ extern int memory_end_set;
 extern unsigned long memory_end;
 extern unsigned long vmalloc_size;
 extern unsigned long max_physmem_end;
-extern unsigned long __swsusp_reset_dma;
 
 /* The Write Back bit position in the physaddr is given by the SLPC PCI */
 extern unsigned long mio_wb_bit_mask;
