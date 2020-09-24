@@ -1463,6 +1463,8 @@ static struct rockchip_clk_branch rk3568_clk_branches[] __initdata = {
 			RK3568_CLKGATE_CON(34), 12, GFLAGS),
 	GATE(PCLK_OTPPHY, "pclk_otpphy", "pclk_top", 0,
 			RK3568_CLKGATE_CON(34), 13, GFLAGS),
+	GATE(PCLK_EDPPHY_GRF, "pclk_edpphy_grf", "pclk_top", 0,
+			RK3568_CLKGATE_CON(34), 14, GFLAGS),
 };
 
 static struct rockchip_clk_branch rk3568_clk_pmu_branches[] __initdata = {

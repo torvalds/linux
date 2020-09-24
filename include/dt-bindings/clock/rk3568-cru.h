@@ -460,8 +460,9 @@
 #define SCLK_SDMMC2_SAMPLE	399
 #define SCLK_EMMC_DRV		400
 #define SCLK_EMMC_SAMPLE	401
+#define PCLK_EDPPHY_GRF		402
 
-#define CLK_NR_CLKS		(SCLK_EMMC_SAMPLE + 1)
+#define CLK_NR_CLKS		(PCLK_EDPPHY_GRF + 1)
 
 /* pmu soft-reset indices */
 /* pmucru_softrst_con0 */
