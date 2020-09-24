@@ -1197,7 +1197,27 @@ static int dwc3_prepare_one_trb_sg(struct dwc3_ep *dep,
 			break;
 	}
 
+	return req->num_trbs - num_trbs;
+
 out:
+	/*
+	 * If we run out of TRBs for MPS alignment setup, then set IOC on the
+	 * previous TRB to get notified for TRB completion to resume when more
+	 * TRBs are available.
+	 *
+	 * Note: normally we shouldn't update the TRB after the HWO bit is set.
+	 * However, the controller doesn't update its internal cache to handle
+	 * the newly prepared TRBs until UPDATE_TRANSFER or START_TRANSFER
+	 * command is executed. At this point, it doesn't happen yet, so we
+	 * should be fine modifying it here.
+	 */
+	if (i) {
+		struct dwc3_trb	*trb;
+
+		trb = dwc3_ep_prev_trb(dep, dep->trb_enqueue);
+		trb->ctrl |= DWC3_TRB_CTRL_IOC;
+	}
+
 	return req->num_trbs - num_trbs;
 }
 
