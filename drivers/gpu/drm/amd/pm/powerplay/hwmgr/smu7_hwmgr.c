@@ -1823,6 +1823,17 @@ static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_EngineSpreadSpectrumSupport);
 	}
+
+	if ((adev->pdev->device == 0x699F) &&
+	    (adev->pdev->revision == 0xCF)) {
+		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+				PHM_PlatformCaps_PowerContainment);
+		data->enable_tdc_limit_feature = false;
+		data->enable_pkg_pwr_tracking_feature = false;
+		data->disable_edc_leakage_controller = true;
+		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+					PHM_PlatformCaps_ClockStretcher);
+	}
 }
 
 static int smu7_calculate_ro_range(struct pp_hwmgr *hwmgr)

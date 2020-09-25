@@ -2041,8 +2041,11 @@ static int polaris10_init_smc_table(struct pp_hwmgr *hwmgr)
 	if (atomctrl_get_pp_assign_pin(hwmgr, PP_AC_DC_SWITCH_GPIO_PINID,
 			&gpio_pin)) {
 		table->AcDcGpio = gpio_pin.uc_gpio_pin_bit_shift;
-		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-				PHM_PlatformCaps_AutomaticDCTransition);
+		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+				PHM_PlatformCaps_AutomaticDCTransition) &&
+		    !smum_send_msg_to_smc(hwmgr, PPSMC_MSG_UseNewGPIOScheme, NULL))
+			phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+					PHM_PlatformCaps_SMCtoPPLIBAcdcGpioScheme);
 	} else {
 		table->AcDcGpio = SMU7_UNUSED_GPIO_PIN;
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
