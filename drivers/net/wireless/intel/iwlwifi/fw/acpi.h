@@ -241,13 +241,6 @@ static inline int iwl_acpi_get_eckv(struct device *dev, u32 *extl_clk)
 	return -ENOENT;
 }
 
-static inline int iwl_sar_set_profile(union acpi_object *table,
-				      struct iwl_sar_profile *profile,
-				      bool enabled)
-{
-	return -ENOENT;
-}
-
 static inline int iwl_sar_select_profile(struct iwl_fw_runtime *fwrt,
 			   __le16 per_chain_restriction[][IWL_NUM_SUB_BANDS],
 			   int prof_a, int prof_b)
