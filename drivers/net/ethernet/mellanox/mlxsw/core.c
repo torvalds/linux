@@ -1102,13 +1102,13 @@ static int mlxsw_core_fw_rev_validate(struct mlxsw_core *mlxsw_core,
 }
 
 static int mlxsw_core_fw_flash_update(struct mlxsw_core *mlxsw_core,
-				      const char *file_name, const char *component,
+				      struct devlink_flash_update_params *params,
 				      struct netlink_ext_ack *extack)
 {
 	const struct firmware *firmware;
 	int err;
 
-	err = request_firmware_direct(&firmware, file_name, mlxsw_core->bus_info->dev);
+	err = request_firmware_direct(&firmware, params->file_name, mlxsw_core->bus_info->dev);
 	if (err)
 		return err;
 	err = mlxsw_core_fw_flash(mlxsw_core, firmware, extack);
@@ -1431,13 +1431,12 @@ mlxsw_devlink_core_bus_device_reload_up(struct devlink *devlink,
 }
 
 static int mlxsw_devlink_flash_update(struct devlink *devlink,
-				      const char *file_name,
-				      const char *component,
+				      struct devlink_flash_update_params *params,
 				      struct netlink_ext_ack *extack)
 {
 	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
 
-	return mlxsw_core_fw_flash_update(mlxsw_core, file_name, component, extack);
+	return mlxsw_core_fw_flash_update(mlxsw_core, params, extack);
 }
 
 static int mlxsw_devlink_trap_init(struct devlink *devlink,
