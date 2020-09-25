@@ -53,7 +53,6 @@
 #include <asm/byteorder.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
-#include <linux/proc_fs.h>
 
 #include <linux/mutex.h>
 #include "zoran.h"
