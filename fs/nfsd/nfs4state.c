@@ -4955,7 +4955,6 @@ static int nfsd4_check_conflicting_opens(struct nfs4_client *clp,
 		writes--;
 	if (fp->fi_fds[O_RDWR])
 		writes--;
-	WARN_ON_ONCE(writes < 0);
 	if (writes > 0)
 		return -EAGAIN;
 	spin_lock(&fp->fi_lock);
