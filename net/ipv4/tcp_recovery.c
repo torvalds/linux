@@ -246,6 +246,6 @@ void tcp_newreno_mark_lost(struct sock *sk, bool snd_una_advanced)
 			tcp_fragment(sk, TCP_FRAG_IN_RTX_QUEUE, skb,
 				     mss, mss, GFP_ATOMIC);
 
-		tcp_skb_mark_lost_uncond_verify(tp, skb);
+		tcp_mark_skb_lost(sk, skb);
 	}
 }

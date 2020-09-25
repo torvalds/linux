@@ -2675,13 +2675,8 @@ void tcp_simple_retransmit(struct sock *sk)
 
 	skb_rbtree_walk(skb, &sk->tcp_rtx_queue) {
 		if (tcp_skb_seglen(skb) > mss &&
-		    !(TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_ACKED)) {
-			if (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_RETRANS) {
-				TCP_SKB_CB(skb)->sacked &= ~TCPCB_SACKED_RETRANS;
-				tp->retrans_out -= tcp_skb_pcount(skb);
-			}
-			tcp_skb_mark_lost_uncond_verify(tp, skb);
-		}
+		    !(TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_ACKED))
+			tcp_mark_skb_lost(sk, skb);
 	}
 
 	tcp_clear_retrans_hints_partial(tp);
