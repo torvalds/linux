@@ -37,7 +37,7 @@
 
 /* Exposure controls from sensor */
 #define OV2740_REG_EXPOSURE		0x3500
-#define OV2740_EXPOSURE_MIN		8
+#define OV2740_EXPOSURE_MIN		4
 #define OV2740_EXPOSURE_MAX_MARGIN	8
 #define OV2740_EXPOSURE_STEP		1
 
