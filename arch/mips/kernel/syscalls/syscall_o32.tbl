@@ -156,8 +156,8 @@
 142	o32	_newselect			sys_select			compat_sys_select
 143	o32	flock				sys_flock
 144	o32	msync				sys_msync
-145	o32	readv				sys_readv			compat_sys_readv
-146	o32	writev				sys_writev			compat_sys_writev
+145	o32	readv				sys_readv
+146	o32	writev				sys_writev
 147	o32	cacheflush			sys_cacheflush
 148	o32	cachectl			sys_cachectl
 149	o32	sysmips				__sys_sysmips

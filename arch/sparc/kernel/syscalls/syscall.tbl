@@ -149,8 +149,8 @@
 117	common	getrusage		sys_getrusage			compat_sys_getrusage
 118	common	getsockopt		sys_getsockopt			sys_getsockopt
 119	common	getcwd			sys_getcwd
-120	common	readv			sys_readv			compat_sys_readv
-121	common	writev			sys_writev			compat_sys_writev
+120	common	readv			sys_readv
+121	common	writev			sys_writev
 122	common	settimeofday		sys_settimeofday		compat_sys_settimeofday
 123	32	fchown			sys_fchown16
 123	64	fchown			sys_fchown

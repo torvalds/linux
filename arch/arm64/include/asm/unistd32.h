@@ -301,9 +301,9 @@ __SYSCALL(__NR_flock, sys_flock)
 #define __NR_msync 144
 __SYSCALL(__NR_msync, sys_msync)
 #define __NR_readv 145
-__SYSCALL(__NR_readv, compat_sys_readv)
+__SYSCALL(__NR_readv, sys_readv)
 #define __NR_writev 146
-__SYSCALL(__NR_writev, compat_sys_writev)
+__SYSCALL(__NR_writev, sys_writev)
 #define __NR_getsid 147
 __SYSCALL(__NR_getsid, sys_getsid)
 #define __NR_fdatasync 148

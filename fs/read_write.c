@@ -1074,13 +1074,6 @@ SYSCALL_DEFINE6(pwritev2, unsigned long, fd, const struct iovec __user *, vec,
  * in_compat_syscall().
  */
 #ifdef CONFIG_COMPAT
-COMPAT_SYSCALL_DEFINE3(readv, compat_ulong_t, fd,
-		const struct iovec __user *, vec,
-		compat_ulong_t, vlen)
-{
-	return do_readv(fd, vec, vlen, 0);
-}
-
 #ifdef __ARCH_WANT_COMPAT_SYS_PREADV64
 COMPAT_SYSCALL_DEFINE4(preadv64, unsigned long, fd,
 		const struct iovec __user *, vec,
@@ -1120,13 +1113,6 @@ COMPAT_SYSCALL_DEFINE6(preadv2, compat_ulong_t, fd,
 	if (pos == -1)
 		return do_readv(fd, vec, vlen, flags);
 	return do_preadv(fd, vec, vlen, pos, flags);
-}
-
-COMPAT_SYSCALL_DEFINE3(writev, compat_ulong_t, fd,
-		const struct iovec __user *, vec,
-		compat_ulong_t, vlen)
-{
-	return do_writev(fd, vec, vlen, 0);
 }
 
 #ifdef __ARCH_WANT_COMPAT_SYS_PWRITEV64
