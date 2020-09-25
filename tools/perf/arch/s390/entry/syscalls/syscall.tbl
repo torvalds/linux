@@ -347,8 +347,8 @@
 337  common	clock_adjtime		sys_clock_adjtime		compat_sys_clock_adjtime
 338  common	syncfs			sys_syncfs			sys_syncfs
 339  common	setns			sys_setns			sys_setns
-340  common	process_vm_readv	sys_process_vm_readv		compat_sys_process_vm_readv
-341  common	process_vm_writev	sys_process_vm_writev		compat_sys_process_vm_writev
+340  common	process_vm_readv	sys_process_vm_readv		sys_process_vm_readv
+341  common	process_vm_writev	sys_process_vm_writev		sys_process_vm_writev
 342  common	s390_runtime_instr	sys_s390_runtime_instr		sys_s390_runtime_instr
 343  common	kcmp			sys_kcmp			compat_sys_kcmp
 344  common	finit_module		sys_finit_module		compat_sys_finit_module
