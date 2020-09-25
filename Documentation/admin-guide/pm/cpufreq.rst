@@ -1,7 +1,6 @@
 .. SPDX-License-Identifier: GPL-2.0
 .. include:: <isonum.txt>
 
-.. |struct cpufreq_policy| replace:: :c:type:`struct cpufreq_policy <cpufreq_policy>`
 .. |intel_pstate| replace:: :doc:`intel_pstate <intel_pstate>`
 
 =======================
@@ -92,16 +91,16 @@ control the P-state of multiple CPUs at the same time and writing to it affects
 all of those CPUs simultaneously.
 
 Sets of CPUs sharing hardware P-state control interfaces are represented by
-``CPUFreq`` as |struct cpufreq_policy| objects.  For consistency,
-|struct cpufreq_policy| is also used when there is only one CPU in the given
+``CPUFreq`` as struct cpufreq_policy objects.  For consistency,
+struct cpufreq_policy is also used when there is only one CPU in the given
 set.
 
-The ``CPUFreq`` core maintains a pointer to a |struct cpufreq_policy| object for
+The ``CPUFreq`` core maintains a pointer to a struct cpufreq_policy object for
 every CPU in the system, including CPUs that are currently offline.  If multiple
 CPUs share the same hardware P-state control interface, all of the pointers
-corresponding to them point to the same |struct cpufreq_policy| object.
+corresponding to them point to the same struct cpufreq_policy object.
 
-``CPUFreq`` uses |struct cpufreq_policy| as its basic data type and the design
+``CPUFreq`` uses struct cpufreq_policy as its basic data type and the design
 of its user space interface is based on the policy concept.
 
 
