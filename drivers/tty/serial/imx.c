@@ -1552,10 +1552,6 @@ static void imx_uart_shutdown(struct uart_port *port)
 	ucr2 = imx_uart_readl(sport, UCR2);
 	ucr2 &= ~(UCR2_TXEN | UCR2_ATEN);
 	imx_uart_writel(sport, ucr2, UCR2);
-
-	ucr4 = imx_uart_readl(sport, UCR4);
-	ucr4 &= ~UCR4_OREN;
-	imx_uart_writel(sport, ucr4, UCR4);
 	spin_unlock_irqrestore(&sport->port.lock, flags);
 
 	/*
@@ -1568,10 +1564,15 @@ static void imx_uart_shutdown(struct uart_port *port)
 	 */
 
 	spin_lock_irqsave(&sport->port.lock, flags);
+
 	ucr1 = imx_uart_readl(sport, UCR1);
 	ucr1 &= ~(UCR1_TRDYEN | UCR1_RRDYEN | UCR1_RTSDEN | UCR1_UARTEN | UCR1_RXDMAEN | UCR1_ATDMAEN);
-
 	imx_uart_writel(sport, ucr1, UCR1);
+
+	ucr4 = imx_uart_readl(sport, UCR4);
+	ucr4 &= ~(UCR4_OREN | UCR4_TCEN);
+	imx_uart_writel(sport, ucr4, UCR4);
+
 	spin_unlock_irqrestore(&sport->port.lock, flags);
 
 	clk_disable_unprepare(sport->clk_per);
