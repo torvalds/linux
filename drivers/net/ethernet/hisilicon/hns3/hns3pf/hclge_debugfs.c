@@ -428,17 +428,13 @@ static void hclge_dbg_dump_reg_cmd(struct hclge_dev *hdev, const char *cmd_buf)
 	}
 }
 
-static void hclge_title_idx_print(struct hclge_dev *hdev, bool flag, int index,
-				  char *title_buf, char *true_buf,
-				  char *false_buf)
+static void hclge_print_tc_info(struct hclge_dev *hdev, bool flag, int index)
 {
 	if (flag)
-		dev_info(&hdev->pdev->dev, "%s(%d): %s weight: %u\n",
-			 title_buf, index, true_buf,
-			 hdev->tm_info.pg_info[0].tc_dwrr[index]);
+		dev_info(&hdev->pdev->dev, "tc(%d): no sp mode weight: %u\n",
+			 index, hdev->tm_info.pg_info[0].tc_dwrr[index]);
 	else
-		dev_info(&hdev->pdev->dev, "%s(%d): %s\n", title_buf, index,
-			 false_buf);
+		dev_info(&hdev->pdev->dev, "tc(%d): sp mode\n", index);
 }
 
 static void hclge_dbg_dump_tc(struct hclge_dev *hdev)
@@ -469,8 +465,7 @@ static void hclge_dbg_dump_tc(struct hclge_dev *hdev)
 		 ets_weight->weight_offset);
 
 	for (i = 0; i < HNAE3_MAX_TC; i++)
-		hclge_title_idx_print(hdev, ets_weight->tc_weight[i], i,
-				      "tc", "no sp mode", "sp mode");
+		hclge_print_tc_info(hdev, ets_weight->tc_weight[i], i);
 }
 
 static void hclge_dbg_dump_tm_pg(struct hclge_dev *hdev)
