@@ -984,7 +984,10 @@ int drbd_send_sizes(struct drbd_peer_device *peer_device, int trigger_reply, enu
 
 	p->d_size = cpu_to_be64(d_size);
 	p->u_size = cpu_to_be64(u_size);
-	p->c_size = cpu_to_be64(trigger_reply ? 0 : drbd_get_capacity(device->this_bdev));
+	if (trigger_reply)
+		p->c_size = 0;
+	else
+		p->c_size = cpu_to_be64(get_capacity(device->vdisk));
 	p->max_bio_size = cpu_to_be32(max_bio_size);
 	p->queue_order_type = cpu_to_be16(q_order_type);
 	p->dds_flags = cpu_to_be16(flags);
@@ -2029,17 +2032,13 @@ void drbd_init_set_defaults(struct drbd_device *device)
 	device->local_max_bio_size = DRBD_MAX_BIO_SIZE_SAFE;
 }
 
-static void _drbd_set_my_capacity(struct drbd_device *device, sector_t size)
-{
-	/* set_capacity(device->this_bdev->bd_disk, size); */
-	set_capacity(device->vdisk, size);
-	device->this_bdev->bd_inode->i_size = (loff_t)size << 9;
-}
-
 void drbd_set_my_capacity(struct drbd_device *device, sector_t size)
 {
 	char ppb[10];
-	_drbd_set_my_capacity(device, size);
+
+	set_capacity(device->vdisk, size);
+	revalidate_disk_size(device->vdisk, false);
+
 	drbd_info(device, "size = %s (%llu KB)\n",
 		ppsize(ppb, size>>1), (unsigned long long)size>>1);
 }
@@ -2069,7 +2068,8 @@ void drbd_device_cleanup(struct drbd_device *device)
 	}
 	D_ASSERT(device, first_peer_device(device)->connection->net_conf == NULL);
 
-	_drbd_set_my_capacity(device, 0);
+	set_capacity(device->vdisk, 0);
+	revalidate_disk_size(device->vdisk, false);
 	if (device->bitmap) {
 		/* maybe never allocated. */
 		drbd_bm_resize(device, 0, 1);
@@ -2235,9 +2235,6 @@ void drbd_destroy_device(struct kref *kref)
 
 	/* cleanup stuff that may have been allocated during
 	 * device (re-)configuration or state changes */
-
-	if (device->this_bdev)
-		bdput(device->this_bdev);
 
 	drbd_backing_dev_free(device, device->ldev);
 	device->ldev = NULL;
@@ -2765,8 +2762,6 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
 	sprintf(disk->disk_name, "drbd%d", minor);
 	disk->private_data = device;
 
-	device->this_bdev = bdget(MKDEV(DRBD_MAJOR, minor));
-
 	blk_queue_write_cache(q, true, true);
 	/* Setting the max_hw_sectors to an odd value of 8kibyte here
 	   This triggers a max_bio_size message upon first attach or connect */
@@ -3042,7 +3037,7 @@ void drbd_md_write(struct drbd_device *device, void *b)
 
 	memset(buffer, 0, sizeof(*buffer));
 
-	buffer->la_size_sect = cpu_to_be64(drbd_get_capacity(device->this_bdev));
+	buffer->la_size_sect = cpu_to_be64(get_capacity(device->vdisk));
 	for (i = UI_CURRENT; i < UI_SIZE; i++)
 		buffer->uuid[i] = cpu_to_be64(device->ldev->md.uuid[i]);
 	buffer->flags = cpu_to_be32(device->ldev->md.flags);
@@ -3100,7 +3095,7 @@ void drbd_md_sync(struct drbd_device *device)
 
 	/* Update device->ldev->md.la_size_sect,
 	 * since we updated it on metadata. */
-	device->ldev->md.la_size_sect = drbd_get_capacity(device->this_bdev);
+	device->ldev->md.la_size_sect = get_capacity(device->vdisk);
 
 	drbd_md_put_buffer(device);
 out:

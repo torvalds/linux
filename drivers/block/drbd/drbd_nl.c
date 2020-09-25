@@ -996,7 +996,7 @@ drbd_determine_dev_size(struct drbd_device *device, enum dds_flags flags, struct
 			goto err_out;
 	}
 
-	if (drbd_get_capacity(device->this_bdev) != size ||
+	if (get_capacity(device->vdisk) != size ||
 	    drbd_bm_capacity(device) != size) {
 		int err;
 		err = drbd_bm_resize(device, size, !(flags & DDSF_NO_RESYNC));
@@ -1933,8 +1933,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 
 	/* Make sure the new disk is big enough
 	 * (we may currently be R_PRIMARY with no local disk...) */
-	if (drbd_get_max_capacity(nbc) <
-	    drbd_get_capacity(device->this_bdev)) {
+	if (drbd_get_max_capacity(nbc) < get_capacity(device->vdisk)) {
 		retcode = ERR_DISK_TOO_SMALL;
 		goto fail;
 	}
@@ -3377,7 +3376,7 @@ static void device_to_statistics(struct device_statistics *s,
 		s->dev_disk_flags = md->flags;
 		put_ldev(device);
 	}
-	s->dev_size = drbd_get_capacity(device->this_bdev);
+	s->dev_size = get_capacity(device->vdisk);
 	s->dev_read = device->read_cnt;
 	s->dev_write = device->writ_cnt;
 	s->dev_al_writes = device->al_writ_cnt;
@@ -3817,8 +3816,7 @@ static int nla_put_status_info(struct sk_buff *skb, struct drbd_device *device,
 	if (nla_put_u32(skb, T_sib_reason, sib ? sib->sib_reason : SIB_GET_STATUS_REPLY) ||
 	    nla_put_u32(skb, T_current_state, device->state.i) ||
 	    nla_put_u64_0pad(skb, T_ed_uuid, device->ed_uuid) ||
-	    nla_put_u64_0pad(skb, T_capacity,
-			     drbd_get_capacity(device->this_bdev)) ||
+	    nla_put_u64_0pad(skb, T_capacity, get_capacity(device->vdisk)) ||
 	    nla_put_u64_0pad(skb, T_send_cnt, device->send_cnt) ||
 	    nla_put_u64_0pad(skb, T_recv_cnt, device->recv_cnt) ||
 	    nla_put_u64_0pad(skb, T_read_cnt, device->read_cnt) ||

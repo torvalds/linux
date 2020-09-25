@@ -1860,7 +1860,7 @@ read_in_block(struct drbd_peer_device *peer_device, u64 id, sector_t sector,
 	      struct packet_info *pi) __must_hold(local)
 {
 	struct drbd_device *device = peer_device->device;
-	const sector_t capacity = drbd_get_capacity(device->this_bdev);
+	const sector_t capacity = get_capacity(device->vdisk);
 	struct drbd_peer_request *peer_req;
 	struct page *page;
 	int digest_size, err;
@@ -2849,7 +2849,7 @@ static int receive_DataRequest(struct drbd_connection *connection, struct packet
 	if (!peer_device)
 		return -EIO;
 	device = peer_device->device;
-	capacity = drbd_get_capacity(device->this_bdev);
+	capacity = get_capacity(device->vdisk);
 
 	sector = be64_to_cpu(p->sector);
 	size   = be32_to_cpu(p->blksize);
@@ -4117,7 +4117,7 @@ static int receive_sizes(struct drbd_connection *connection, struct packet_info 
 	if (!peer_device)
 		return config_unknown_volume(connection, pi);
 	device = peer_device->device;
-	cur_size = drbd_get_capacity(device->this_bdev);
+	cur_size = get_capacity(device->vdisk);
 
 	p_size = be64_to_cpu(p->d_size);
 	p_usize = be64_to_cpu(p->u_size);
@@ -4252,8 +4252,8 @@ static int receive_sizes(struct drbd_connection *connection, struct packet_info 
 	}
 
 	if (device->state.conn > C_WF_REPORT_PARAMS) {
-		if (be64_to_cpu(p->c_size) !=
-		    drbd_get_capacity(device->this_bdev) || ldsc) {
+		if (be64_to_cpu(p->c_size) != get_capacity(device->vdisk) ||
+		    ldsc) {
 			/* we have different sizes, probably peer
 			 * needs to know my new size... */
 			drbd_send_sizes(peer_device, 0, ddsf);

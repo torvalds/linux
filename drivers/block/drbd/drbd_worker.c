@@ -591,7 +591,7 @@ static int make_resync_request(struct drbd_device *const device, int cancel)
 	struct drbd_connection *const connection = peer_device ? peer_device->connection : NULL;
 	unsigned long bit;
 	sector_t sector;
-	const sector_t capacity = drbd_get_capacity(device->this_bdev);
+	const sector_t capacity = get_capacity(device->vdisk);
 	int max_bio_size;
 	int number, rollback_i, size;
 	int align, requeue = 0;
@@ -769,7 +769,7 @@ static int make_ov_request(struct drbd_device *device, int cancel)
 {
 	int number, i, size;
 	sector_t sector;
-	const sector_t capacity = drbd_get_capacity(device->this_bdev);
+	const sector_t capacity = get_capacity(device->vdisk);
 	bool stop_sector_reached = false;
 
 	if (unlikely(cancel))
