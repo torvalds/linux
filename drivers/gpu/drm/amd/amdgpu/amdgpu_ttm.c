@@ -1708,7 +1708,6 @@ static struct ttm_bo_driver amdgpu_bo_driver = {
 	.verify_access = &amdgpu_verify_access,
 	.move_notify = &amdgpu_bo_move_notify,
 	.release_notify = &amdgpu_bo_release_notify,
-	.fault_reserve_notify = &amdgpu_bo_fault_reserve_notify,
 	.io_mem_reserve = &amdgpu_ttm_io_mem_reserve,
 	.io_mem_pfn = amdgpu_ttm_io_mem_pfn,
 	.access_memory = &amdgpu_ttm_access_memory,
@@ -2088,15 +2087,48 @@ void amdgpu_ttm_set_buffer_funcs_status(struct amdgpu_device *adev, bool enable)
 	adev->mman.buffer_funcs_enabled = enable;
 }
 
+static vm_fault_t amdgpu_ttm_fault(struct vm_fault *vmf)
+{
+	struct ttm_buffer_object *bo = vmf->vma->vm_private_data;
+	vm_fault_t ret;
+
+	ret = ttm_bo_vm_reserve(bo, vmf);
+	if (ret)
+		return ret;
+
+	ret = amdgpu_bo_fault_reserve_notify(bo);
+	if (ret)
+		goto unlock;
+
+	ret = ttm_bo_vm_fault_reserved(vmf, vmf->vma->vm_page_prot,
+				       TTM_BO_VM_NUM_PREFAULT, 1);
+	if (ret == VM_FAULT_RETRY && !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT))
+		return ret;
+
+unlock:
+	dma_resv_unlock(bo->base.resv);
+	return ret;
+}
+
+static struct vm_operations_struct amdgpu_ttm_vm_ops = {
+	.fault = amdgpu_ttm_fault,
+	.open = ttm_bo_vm_open,
+	.close = ttm_bo_vm_close,
+	.access = ttm_bo_vm_access
+};
+
 int amdgpu_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct drm_file *file_priv = filp->private_data;
 	struct amdgpu_device *adev = drm_to_adev(file_priv->minor->dev);
+	int r;
 
-	if (adev == NULL)
-		return -EINVAL;
+	r = ttm_bo_mmap(filp, vma, &adev->mman.bdev);
+	if (unlikely(r != 0))
+		return r;
 
-	return ttm_bo_mmap(filp, vma, &adev->mman.bdev);
+	vma->vm_ops = &amdgpu_ttm_vm_ops;
+	return 0;
 }
 
 int amdgpu_copy_buffer(struct amdgpu_ring *ring, uint64_t src_offset,
