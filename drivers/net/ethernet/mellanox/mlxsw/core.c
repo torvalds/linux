@@ -1108,9 +1108,6 @@ static int mlxsw_core_fw_flash_update(struct mlxsw_core *mlxsw_core,
 	const struct firmware *firmware;
 	int err;
 
-	if (component)
-		return -EOPNOTSUPP;
-
 	err = request_firmware_direct(&firmware, file_name, mlxsw_core->bus_info->dev);
 	if (err)
 		return err;

@@ -252,16 +252,12 @@ ice_devlink_flash_update(struct devlink *devlink, const char *path,
 	const struct firmware *fw;
 	int err;
 
-	/* individual component update is not yet supported */
-	if (component)
-		return -EOPNOTSUPP;
-
 	if (!hw->dev_caps.common_cap.nvm_unified_update) {
 		NL_SET_ERR_MSG_MOD(extack, "Current firmware does not support unified update");
 		return -EOPNOTSUPP;
 	}
 
-	err = ice_check_for_pending_update(pf, component, extack);
+	err = ice_check_for_pending_update(pf, NULL, extack);
 	if (err)
 		return err;
 
@@ -272,8 +268,7 @@ ice_devlink_flash_update(struct devlink *devlink, const char *path,
 	}
 
 	devlink_flash_update_begin_notify(devlink);
-	devlink_flash_update_status_notify(devlink, "Preparing to flash",
-					   component, 0, 0);
+	devlink_flash_update_status_notify(devlink, "Preparing to flash", NULL, 0, 0);
 	err = ice_flash_pldm_image(pf, fw, extack);
 	devlink_flash_update_end_notify(devlink);
 

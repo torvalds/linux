@@ -16,9 +16,6 @@ static int ionic_dl_flash_update(struct devlink *dl,
 {
 	struct ionic *ionic = devlink_priv(dl);
 
-	if (component)
-		return -EOPNOTSUPP;
-
 	return ionic_firmware_update(ionic->lif, fwname, extack);
 }
 
