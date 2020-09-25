@@ -91,7 +91,7 @@ static DEFINE_PER_CPU(u64, current_tsc_ratio);
 static const struct svm_direct_access_msrs {
 	u32 index;   /* Index of the MSR */
 	bool always; /* True if intercept is always on */
-} direct_access_msrs[] = {
+} direct_access_msrs[MAX_DIRECT_ACCESS_MSRS] = {
 	{ .index = MSR_STAR,				.always = true  },
 	{ .index = MSR_IA32_SYSENTER_CS,		.always = true  },
 #ifdef CONFIG_X86_64
@@ -553,15 +553,41 @@ free_cpu_data:
 
 }
 
-static bool valid_msr_intercept(u32 index)
+static int direct_access_msr_slot(u32 msr)
 {
-	int i;
+	u32 i;
 
 	for (i = 0; direct_access_msrs[i].index != MSR_INVALID; i++)
-		if (direct_access_msrs[i].index == index)
-			return true;
+		if (direct_access_msrs[i].index == msr)
+			return i;
 
-	return false;
+	return -ENOENT;
+}
+
+static void set_shadow_msr_intercept(struct kvm_vcpu *vcpu, u32 msr, int read,
+				     int write)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+	int slot = direct_access_msr_slot(msr);
+
+	if (slot == -ENOENT)
+		return;
+
+	/* Set the shadow bitmaps to the desired intercept states */
+	if (read)
+		set_bit(slot, svm->shadow_msr_intercept.read);
+	else
+		clear_bit(slot, svm->shadow_msr_intercept.read);
+
+	if (write)
+		set_bit(slot, svm->shadow_msr_intercept.write);
+	else
+		clear_bit(slot, svm->shadow_msr_intercept.write);
+}
+
+static bool valid_msr_intercept(u32 index)
+{
+	return direct_access_msr_slot(index) != -ENOENT;
 }
 
 static bool msr_write_intercepted(struct kvm_vcpu *vcpu, u32 msr)
@@ -583,8 +609,8 @@ static bool msr_write_intercepted(struct kvm_vcpu *vcpu, u32 msr)
 	return !!test_bit(bit_write,  &tmp);
 }
 
-static void set_msr_interception(struct kvm_vcpu *vcpu, u32 *msrpm, u32 msr,
-				 int read, int write)
+static void set_msr_interception_bitmap(struct kvm_vcpu *vcpu, u32 *msrpm,
+					u32 msr, int read, int write)
 {
 	u8 bit_read, bit_write;
 	unsigned long tmp;
@@ -595,6 +621,13 @@ static void set_msr_interception(struct kvm_vcpu *vcpu, u32 *msrpm, u32 msr,
 	 * beginning of the file
 	 */
 	WARN_ON(!valid_msr_intercept(msr));
+
+	/* Enforce non allowed MSRs to trap */
+	if (read && !kvm_msr_allowed(vcpu, msr, KVM_MSR_FILTER_READ))
+		read = 0;
+
+	if (write && !kvm_msr_allowed(vcpu, msr, KVM_MSR_FILTER_WRITE))
+		write = 0;
 
 	offset    = svm_msrpm_offset(msr);
 	bit_read  = 2 * (msr & 0x0f);
@@ -607,6 +640,13 @@ static void set_msr_interception(struct kvm_vcpu *vcpu, u32 *msrpm, u32 msr,
 	write ? clear_bit(bit_write, &tmp) : set_bit(bit_write, &tmp);
 
 	msrpm[offset] = tmp;
+}
+
+static void set_msr_interception(struct kvm_vcpu *vcpu, u32 *msrpm, u32 msr,
+				 int read, int write)
+{
+	set_shadow_msr_intercept(vcpu, msr, read, write);
+	set_msr_interception_bitmap(vcpu, msrpm, msr, read, write);
 }
 
 static u32 *svm_vcpu_alloc_msrpm(void)
@@ -637,6 +677,25 @@ static void svm_vcpu_init_msrpm(struct kvm_vcpu *vcpu, u32 *msrpm)
 static void svm_vcpu_free_msrpm(u32 *msrpm)
 {
 	__free_pages(virt_to_page(msrpm), MSRPM_ALLOC_ORDER);
+}
+
+static void svm_msr_filter_changed(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+	u32 i;
+
+	/*
+	 * Set intercept permissions for all direct access MSRs again. They
+	 * will automatically get filtered through the MSR filter, so we are
+	 * back in sync after this.
+	 */
+	for (i = 0; direct_access_msrs[i].index != MSR_INVALID; i++) {
+		u32 msr = direct_access_msrs[i].index;
+		u32 read = test_bit(i, svm->shadow_msr_intercept.read);
+		u32 write = test_bit(i, svm->shadow_msr_intercept.write);
+
+		set_msr_interception_bitmap(vcpu, svm->msrpm, msr, read, write);
+	}
 }
 
 static void add_msr_offset(u32 offset)
@@ -4222,6 +4281,8 @@ static struct kvm_x86_ops svm_x86_ops __initdata = {
 	.can_emulate_instruction = svm_can_emulate_instruction,
 
 	.apic_init_signal_blocked = svm_apic_init_signal_blocked,
+
+	.msr_filter_changed = svm_msr_filter_changed,
 };
 
 static struct kvm_x86_init_ops svm_init_ops __initdata = {
