@@ -315,8 +315,7 @@ static void zr36057_set_vfe(struct zoran *zr, int video_width, int video_height,
 	if (video_width < BUZ_MIN_WIDTH ||
 	    video_height < BUZ_MIN_HEIGHT ||
 	    video_width > Wa || video_height > Ha) {
-		dprintk(1, KERN_ERR "%s: set_vfe: w=%d h=%d not valid\n",
-			ZR_DEVNAME(zr), video_width, video_height);
+		pci_err(zr->pci_dev, "set_vfe: w=%d h=%d not valid\n", video_width, video_height);
 		return;
 	}
 
@@ -451,10 +450,7 @@ void zr36057_overlay(struct zoran *zr, int on)
 		    zr->vbuf_bytesperline;
 		btwrite(reg, ZR36057_VDTR);
 		if (reg & 3)
-			dprintk(1,
-				KERN_ERR
-				"%s: zr36057_overlay() - video_address not aligned\n",
-				ZR_DEVNAME(zr));
+			pci_err(zr->pci_dev, "zr36057_overlay() - video_address not aligned\n");
 		if (zr->overlay_settings.height > BUZ_MAX_HEIGHT / 2)
 			reg += zr->vbuf_bytesperline;
 		btwrite(reg, ZR36057_VDBR);
@@ -466,10 +462,7 @@ void zr36057_overlay(struct zoran *zr, int on)
 		if (zr->overlay_settings.height > BUZ_MAX_HEIGHT / 2)
 			reg += zr->vbuf_bytesperline;
 		if (reg & 3)
-			dprintk(1,
-				KERN_ERR
-				"%s: zr36057_overlay() - video_stride not aligned\n",
-				ZR_DEVNAME(zr));
+			pci_err(zr->pci_dev, "zr36057_overlay() - video_stride not aligned\n");
 		reg = (reg << ZR36057_VSSFGR_DispStride);
 		reg |= ZR36057_VSSFGR_VidOvf;	/* clear overflow status */
 		btwrite(reg, ZR36057_VSSFGR);
@@ -1203,8 +1196,8 @@ static void error_handler(struct zoran *zr, u32 astat, u32 stat)
 		int j;
 
 		frame = zr->jpg_pend[zr->jpg_dma_tail & BUZ_MASK_FRAME];
-		pr_err("%s: JPEG error stat=0x%08x(0x%08x) queue_state=%ld/%ld/%ld/%ld seq=%ld frame=%ld. Codec stopped. ",
-			ZR_DEVNAME(zr), stat, zr->last_isr,
+		pci_err(zr->pci_dev, "JPEG error stat=0x%08x(0x%08x) queue_state=%ld/%ld/%ld/%ld seq=%ld frame=%ld. Codec stopped. ",
+			stat, zr->last_isr,
 			zr->jpg_que_tail, zr->jpg_dma_tail,
 			zr->jpg_dma_head, zr->jpg_que_head,
 			zr->jpg_seq_num, frame);
@@ -1272,10 +1265,8 @@ irqreturn_t zoran_irq(int irq, void *dev_id)
 		while ((stat = count_reset_interrupt(zr))) {
 			if (count++ > 100) {
 				btand(~ZR36057_ICR_IntPinEn, ZR36057_ICR);
-				dprintk(1,
-					KERN_ERR
-					"%s: IRQ lockup while testing, isr=0x%08x, cleared int mask\n",
-					ZR_DEVNAME(zr), stat);
+				pci_err(zr->pci_dev, "IRQ lockup while testing, isr=0x%08x, cleared int mask\n",
+					stat);
 				wake_up_interruptible(&zr->test_q);
 			}
 		}
@@ -1435,10 +1426,7 @@ irqreturn_t zoran_irq(int irq, void *dev_id)
 				ZR_DEVNAME(zr), count);
 			if (count > 20) {
 				btand(~ZR36057_ICR_IntPinEn, ZR36057_ICR);
-				dprintk(2,
-					KERN_ERR
-					"%s: IRQ lockup, cleared int mask\n",
-					ZR_DEVNAME(zr));
+				pci_err(zr->pci_dev, "IRQ lockup, cleared int mask\n");
 				break;
 			}
 		}

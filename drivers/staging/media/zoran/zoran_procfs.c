@@ -26,6 +26,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/printk.h>
 #include <linux/vmalloc.h>
 
 #include <linux/proc_fs.h>
@@ -192,8 +193,7 @@ int zoran_proc_init(struct zoran *zr)
 			"%s: procfs entry /proc/%s allocated. data=%p\n",
 			ZR_DEVNAME(zr), name, zr);
 	} else {
-		dprintk(1, KERN_ERR "%s: Unable to initialise /proc/%s\n",
-			ZR_DEVNAME(zr), name);
+		pr_err("%s: Unable to initialise /proc/%s\n", ZR_DEVNAME(zr), name);
 		return 1;
 	}
 #endif

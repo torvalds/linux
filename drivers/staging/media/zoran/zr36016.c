@@ -48,9 +48,7 @@ static u8 zr36016_read(struct zr36016 *ptr, u16 reg)
 	if (ptr->codec->master_data->readreg)
 		value = (ptr->codec->master_data->readreg(ptr->codec, reg)) & 0xFF;
 	else
-		dprintk(1,
-			KERN_ERR "%s: invalid I/O setup, nothing read!\n",
-			ptr->name);
+		pr_err("%s: invalid I/O setup, nothing read!\n", ptr->name);
 
 	dprintk(4, "%s: reading from 0x%04x: %02x\n", ptr->name, reg, value);
 
@@ -65,10 +63,7 @@ static void zr36016_write(struct zr36016 *ptr, u16 reg, u8 value)
 	if (ptr->codec->master_data->writereg)
 		ptr->codec->master_data->writereg(ptr->codec, reg, value);
 	else
-		dprintk(1,
-			KERN_ERR
-			"%s: invalid I/O setup, nothing written!\n",
-			ptr->name);
+		pr_err("%s: invalid I/O setup, nothing written!\n", ptr->name);
 }
 
 /* indirect read and write functions */
@@ -83,10 +78,7 @@ static u8 zr36016_readi(struct zr36016 *ptr, u16 reg)
 		ptr->codec->master_data->writereg(ptr->codec, ZR016_IADDR, reg & 0x0F);	// ADDR
 		value = (ptr->codec->master_data->readreg(ptr->codec, ZR016_IDATA)) & 0xFF;	// DATA
 	} else {
-		dprintk(1,
-			KERN_ERR
-			"%s: invalid I/O setup, nothing read (i)!\n",
-			ptr->name);
+		pr_err("%s: invalid I/O setup, nothing read (i)!\n", ptr->name);
 	}
 
 	dprintk(4, "%s: reading indirect from 0x%04x: %02x\n", ptr->name, reg, value);
@@ -103,10 +95,7 @@ static void zr36016_writei(struct zr36016 *ptr, u16 reg, u8 value)
 		ptr->codec->master_data->writereg(ptr->codec, ZR016_IADDR, reg & 0x0F);	// ADDR
 		ptr->codec->master_data->writereg(ptr->codec, ZR016_IDATA, value & 0x0FF);	// DATA
 	} else {
-		dprintk(1,
-			KERN_ERR
-			"%s: invalid I/O setup, nothing written (i)!\n",
-			ptr->name);
+		pr_err("%s: invalid I/O setup, nothing written (i)!\n", ptr->name);
 	}
 }
 
@@ -144,27 +133,19 @@ static int zr36016_basic_test(struct zr36016 *ptr)
 	// it back in both cases
 	zr36016_writei(ptr, ZR016I_PAX_LO, 0x00);
 	if (zr36016_readi(ptr, ZR016I_PAX_LO) != 0x0) {
-		dprintk(1,
-			KERN_ERR
-			"%s: attach failed, can't connect to vfe processor!\n",
-			ptr->name);
+		pr_err("%s: attach failed, can't connect to vfe processor!\n", ptr->name);
 		return -ENXIO;
 	}
 	zr36016_writei(ptr, ZR016I_PAX_LO, 0x0d0);
 	if (zr36016_readi(ptr, ZR016I_PAX_LO) != 0x0d0) {
-		dprintk(1,
-			KERN_ERR
-			"%s: attach failed, can't connect to vfe processor!\n",
-			ptr->name);
+		pr_err("%s: attach failed, can't connect to vfe processor!\n", ptr->name);
 		return -ENXIO;
 	}
 	// we allow version numbers from 0-3, should be enough, though
 	zr36016_read_version(ptr);
 	if (ptr->version & 0x0c) {
-		dprintk(1,
-			KERN_ERR
-			"%s: attach failed, suspicious version %d found...\n",
-			ptr->name, ptr->version);
+		pr_err("%s: attach failed, suspicious version %d found...\n", ptr->name,
+		       ptr->version);
 		return -ENXIO;
 	}
 
@@ -376,12 +357,12 @@ static int zr36016_setup(struct videocodec *codec)
 	dprintk(2, "zr36016: initializing VFE subsystem #%d.\n", zr36016_codecs);
 
 	if (zr36016_codecs == MAX_CODECS) {
-		dprintk(1, KERN_ERR "zr36016: Can't attach more codecs!\n");
+		pr_err("zr36016: Can't attach more codecs!\n");
 		return -ENOSPC;
 	}
 	//mem structure init
 	codec->data = ptr = kzalloc(sizeof(struct zr36016), GFP_KERNEL);
-	if (!ptr) {
+	if (!ptr)
 		return -ENOMEM;
 
 	snprintf(ptr->name, sizeof(ptr->name), "zr36016[%d]", zr36016_codecs);

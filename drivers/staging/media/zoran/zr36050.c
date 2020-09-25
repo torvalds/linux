@@ -448,8 +448,7 @@ static void zr36050_init(struct zr36050 *ptr)
 			ptr->name, ptr->status1);
 
 		if ((ptr->status1 & 0x4) == 0) {
-			dprintk(1, KERN_ERR "%s: init aborted!\n",
-				ptr->name);
+			pr_err("%s: init aborted!\n", ptr->name);
 			return;	// something is wrong, its timed out!!!!
 		}
 
@@ -518,8 +517,7 @@ static void zr36050_init(struct zr36050 *ptr)
 			ptr->name, ptr->status1);
 
 		if ((ptr->status1 & 0x4) == 0) {
-			dprintk(1, KERN_ERR "%s: init aborted!\n",
-				ptr->name);
+			pr_err("%s: init aborted!\n", ptr->name);
 			return;	// something is wrong, its timed out!!!!
 		}
 
@@ -757,10 +755,8 @@ static int zr36050_setup(struct videocodec *codec)
 	}
 	//mem structure init
 	codec->data = ptr = kzalloc(sizeof(struct zr36050), GFP_KERNEL);
-	if (!ptr) {
-		dprintk(1, KERN_ERR "zr36050: Can't get enough memory!\n");
+	if (!ptr)
 		return -ENOMEM;
-	}
 
 	snprintf(ptr->name, sizeof(ptr->name), "zr36050[%d]",
 		 zr36050_codecs);
