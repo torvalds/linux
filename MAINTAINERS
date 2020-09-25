@@ -12077,6 +12077,7 @@ NETWORKING [DSA]
 M:	Andrew Lunn <andrew@lunn.ch>
 M:	Vivien Didelot <vivien.didelot@gmail.com>
 M:	Florian Fainelli <f.fainelli@gmail.com>
+M:	Vladimir Oltean <olteanv@gmail.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/net/dsa/
 F:	drivers/net/dsa/
