@@ -70,7 +70,7 @@ static irqreturn_t
 vchiq_doorbell_irq(int irq, void *dev_id);
 
 static struct vchiq_pagelist_info *
-create_pagelist(char __user *buf, size_t count, unsigned short type);
+create_pagelist(char *buf, char __user *ubuf, size_t count, unsigned short type);
 
 static void
 free_pagelist(struct vchiq_pagelist_info *pagelistinfo,
@@ -216,12 +216,12 @@ remote_event_signal(struct remote_event *event)
 }
 
 enum vchiq_status
-vchiq_prepare_bulk_data(struct vchiq_bulk *bulk, void *offset, int size,
-			int dir)
+vchiq_prepare_bulk_data(struct vchiq_bulk *bulk, void *offset,
+			void __user *uoffset, int size, int dir)
 {
 	struct vchiq_pagelist_info *pagelistinfo;
 
-	pagelistinfo = create_pagelist((char __user *)offset, size,
+	pagelistinfo = create_pagelist(offset, uoffset, size,
 				       (dir == VCHIQ_BULK_RECEIVE)
 				       ? PAGELIST_READ
 				       : PAGELIST_WRITE);
@@ -304,7 +304,8 @@ cleanup_pagelistinfo(struct vchiq_pagelist_info *pagelistinfo)
  */
 
 static struct vchiq_pagelist_info *
-create_pagelist(char __user *buf, size_t count, unsigned short type)
+create_pagelist(char *buf, char __user *ubuf,
+		size_t count, unsigned short type)
 {
 	struct pagelist *pagelist;
 	struct vchiq_pagelist_info *pagelistinfo;
@@ -320,7 +321,10 @@ create_pagelist(char __user *buf, size_t count, unsigned short type)
 	if (count >= INT_MAX - PAGE_SIZE)
 		return NULL;
 
-	offset = ((unsigned int)(unsigned long)buf & (PAGE_SIZE - 1));
+	if (buf)
+		offset = (uintptr_t)buf & (PAGE_SIZE - 1);
+	else
+		offset = (uintptr_t)ubuf & (PAGE_SIZE - 1);
 	num_pages = DIV_ROUND_UP(count + offset, PAGE_SIZE);
 
 	if (num_pages > (SIZE_MAX - sizeof(struct pagelist) -
@@ -368,14 +372,14 @@ create_pagelist(char __user *buf, size_t count, unsigned short type)
 	pagelistinfo->scatterlist = scatterlist;
 	pagelistinfo->scatterlist_mapped = 0;
 
-	if (is_vmalloc_addr((void __force *)buf)) {
+	if (buf) {
 		unsigned long length = count;
 		unsigned int off = offset;
 
 		for (actual_pages = 0; actual_pages < num_pages;
 		     actual_pages++) {
 			struct page *pg =
-				vmalloc_to_page((void __force *)(buf +
+				vmalloc_to_page((buf +
 						 (actual_pages * PAGE_SIZE)));
 			size_t bytes = PAGE_SIZE - off;
 
@@ -393,7 +397,7 @@ create_pagelist(char __user *buf, size_t count, unsigned short type)
 		/* do not try and release vmalloc pages */
 	} else {
 		actual_pages = pin_user_pages_fast(
-					  (unsigned long)buf & PAGE_MASK,
+					  (unsigned long)ubuf & PAGE_MASK,
 					  num_pages,
 					  type == PAGELIST_READ,
 					  pages);

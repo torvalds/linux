@@ -3015,8 +3015,8 @@ vchiq_remove_service(unsigned int handle)
  * structure.
  */
 enum vchiq_status vchiq_bulk_transfer(unsigned int handle,
-				   void *offset, int size,
-				   void *userdata,
+				   void *offset, void __user *uoffset,
+				   int size, void *userdata,
 				   enum vchiq_bulk_mode mode,
 				   enum vchiq_bulk_dir dir)
 {
@@ -3032,7 +3032,8 @@ enum vchiq_status vchiq_bulk_transfer(unsigned int handle,
 	int payload[2];
 
 	if (!service || service->srvstate != VCHIQ_SRVSTATE_OPEN ||
-	    !offset || vchiq_check_service(service) != VCHIQ_SUCCESS)
+	    (!offset && !uoffset) ||
+	    vchiq_check_service(service) != VCHIQ_SUCCESS)
 		goto error_exit;
 
 	switch (mode) {
@@ -3088,7 +3089,8 @@ enum vchiq_status vchiq_bulk_transfer(unsigned int handle,
 	bulk->size = size;
 	bulk->actual = VCHIQ_BULK_ACTUAL_ABORTED;
 
-	if (vchiq_prepare_bulk_data(bulk, offset, size, dir) != VCHIQ_SUCCESS)
+	if (vchiq_prepare_bulk_data(bulk, offset, uoffset, size, dir)
+			!= VCHIQ_SUCCESS)
 		goto unlock_error_exit;
 
 	wmb();

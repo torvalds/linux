@@ -360,8 +360,8 @@ vchiq_bulk_transmit(unsigned int handle, const void *data,
 		case VCHIQ_BULK_MODE_NOCALLBACK:
 		case VCHIQ_BULK_MODE_CALLBACK:
 			status = vchiq_bulk_transfer(handle,
-						     (void *)data, size,
-						     userdata, mode,
+						     (void *)data, NULL,
+						     size, userdata, mode,
 						     VCHIQ_BULK_TRANSMIT);
 			break;
 		case VCHIQ_BULK_MODE_BLOCKING:
@@ -397,7 +397,8 @@ enum vchiq_status vchiq_bulk_receive(unsigned int handle, void *data,
 		switch (mode) {
 		case VCHIQ_BULK_MODE_NOCALLBACK:
 		case VCHIQ_BULK_MODE_CALLBACK:
-			status = vchiq_bulk_transfer(handle, data, size, userdata,
+			status = vchiq_bulk_transfer(handle, data, NULL,
+						     size, userdata,
 						     mode, VCHIQ_BULK_RECEIVE);
 			break;
 		case VCHIQ_BULK_MODE_BLOCKING:
@@ -477,7 +478,8 @@ vchiq_blocking_bulk_transfer(unsigned int handle, void *data,
 		}
 	}
 
-	status = vchiq_bulk_transfer(handle, data, size, &waiter->bulk_waiter,
+	status = vchiq_bulk_transfer(handle, data, NULL, size,
+				     &waiter->bulk_waiter,
 				     VCHIQ_BULK_MODE_BLOCKING, dir);
 	if ((status != VCHIQ_RETRY) || fatal_signal_pending(current) ||
 		!waiter->bulk_waiter.bulk) {
@@ -924,7 +926,7 @@ static int vchiq_ioc_dequeue_message(struct vchiq_instance *instance,
 		ret = -ENOTCONN;
 	} else if (header->size <= args->bufsize) {
 		/* Copy to user space if msgbuf is not NULL */
-		if (!args->buf || (copy_to_user((void __user *)args->buf,
+		if (!args->buf || (copy_to_user(args->buf,
 					header->data, header->size) == 0)) {
 			ret = header->size;
 			vchiq_release_message(service->handle, header);
@@ -997,7 +999,7 @@ static int vchiq_irq_queue_bulk_tx_rx(struct vchiq_instance *instance,
 	 * accessing kernel data instead of user space, based on the
 	 * address.
 	 */
-	status = vchiq_bulk_transfer(args->handle, args->data, args->size,
+	status = vchiq_bulk_transfer(args->handle, NULL, args->data, args->size,
 				     userdata, args->mode, dir);
 
 	if (!waiter) {
