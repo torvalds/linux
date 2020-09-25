@@ -17,6 +17,9 @@ Required properties:
  - "rockchip,rk3308-pmu-pvtm" - for RK3308 SoCs.
  - "rockchip,rk3399-pvtm" - for RK3399 SoCs.
  - "rockchip,rk3399-pmu-pvtm" - for RK3399 SoCs.
+ - "rockchip,rk3568-core-pvtm" - for RK3568 SoCs.
+ - "rockchip,rk3568-gpu-pvtm" - for RK3568 SoCs.
+ - "rockchip,rk3568-npu-pvtm" - for RK3568 SoCs.
  - "rockchip,rv1126-cpu-pvtm" - for RV1126 SoCs.
  - "rockchip,rv1126-npu-pvtm" - for RV1126 SoCs.
  - "rockchip,rv1126-pmu-pvtm" - for RV1126 SoCs.
