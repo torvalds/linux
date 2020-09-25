@@ -612,7 +612,7 @@ virtio_net(void *arg)
 					copy.out_len, hdr->gso_type);
 #endif
 #ifdef DEBUG
-				disp_iovec(mic, copy, __func__, __LINE__);
+				disp_iovec(mic, &copy, __func__, __LINE__);
 				mpsslog("%s %s %d read from tap 0x%lx\n",
 					mic->name, __func__, __LINE__,
 					len);
@@ -632,7 +632,7 @@ virtio_net(void *arg)
 				if (!err)
 					verify_out_len(mic, &copy);
 #ifdef DEBUG
-				disp_iovec(mic, copy, __func__, __LINE__);
+				disp_iovec(mic, &copy, __func__, __LINE__);
 				mpsslog("%s %s %d wrote to net 0x%lx\n",
 					mic->name, __func__, __LINE__,
 					sum_iovec_len(&copy));
@@ -681,12 +681,12 @@ virtio_net(void *arg)
 						sizeof(struct virtio_net_hdr);
 					verify_out_len(mic, &copy);
 #ifdef DEBUG
-					disp_iovec(mic, copy, __func__,
+					disp_iovec(mic, &copy, __func__,
 						   __LINE__);
 					mpsslog("%s %s %d ",
 						mic->name, __func__, __LINE__);
 					mpsslog("read from net 0x%lx\n",
-						sum_iovec_len(copy));
+						sum_iovec_len(&copy));
 #endif
 					len = writev(net_poll[NET_FD_TUN].fd,
 						copy.iov, copy.iovcnt);
@@ -814,7 +814,7 @@ virtio_console(void *arg)
 			len = readv(pty_fd, copy.iov, copy.iovcnt);
 			if (len > 0) {
 #ifdef DEBUG
-				disp_iovec(mic, copy, __func__, __LINE__);
+				disp_iovec(mic, &copy, __func__, __LINE__);
 				mpsslog("%s %s %d read from tap 0x%lx\n",
 					mic->name, __func__, __LINE__,
 					len);
@@ -834,10 +834,10 @@ virtio_console(void *arg)
 				if (!err)
 					verify_out_len(mic, &copy);
 #ifdef DEBUG
-				disp_iovec(mic, copy, __func__, __LINE__);
+				disp_iovec(mic, &copy, __func__, __LINE__);
 				mpsslog("%s %s %d wrote to net 0x%lx\n",
 					mic->name, __func__, __LINE__,
-					sum_iovec_len(copy));
+					sum_iovec_len(&copy));
 #endif
 				/* Reinitialize IOV for next run */
 				iov0->iov_len = PAGE_SIZE;
@@ -866,12 +866,12 @@ virtio_console(void *arg)
 					iov1->iov_len = copy.out_len;
 					verify_out_len(mic, &copy);
 #ifdef DEBUG
-					disp_iovec(mic, copy, __func__,
+					disp_iovec(mic, &copy, __func__,
 						   __LINE__);
 					mpsslog("%s %s %d ",
 						mic->name, __func__, __LINE__);
 					mpsslog("read from net 0x%lx\n",
-						sum_iovec_len(copy));
+						sum_iovec_len(&copy));
 #endif
 					len = writev(pty_fd,
 						copy.iov, copy.iovcnt);
@@ -883,7 +883,7 @@ virtio_console(void *arg)
 							sum_iovec_len(&copy));
 					} else {
 #ifdef DEBUG
-						disp_iovec(mic, copy, __func__,
+						disp_iovec(mic, &copy, __func__,
 							   __LINE__);
 						mpsslog("%s %s %d ",
 							mic->name, __func__,
