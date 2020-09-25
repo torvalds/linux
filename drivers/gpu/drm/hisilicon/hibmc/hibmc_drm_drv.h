@@ -22,8 +22,6 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_framebuffer.h>
 
-struct drm_device;
-
 struct hibmc_connector {
 	struct drm_connector base;
 
