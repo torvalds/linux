@@ -1685,9 +1685,29 @@ struct htt_ring_backpressure_stats_tlv {
 	u32 backpressure_hist[5];
 };
 
+#ifdef CONFIG_ATH11K_DEBUGFS
+
 void ath11k_debugfs_htt_stats_init(struct ath11k *ar);
 void ath11k_debugfs_htt_ext_stats_handler(struct ath11k_base *ab,
 					  struct sk_buff *skb);
 int ath11k_debugfs_htt_stats_req(struct ath11k *ar);
+
+#else /* CONFIG_ATH11K_DEBUGFS */
+
+static inline void ath11k_debugfs_htt_stats_init(struct ath11k *ar)
+{
+}
+
+static inline void ath11k_debugfs_htt_ext_stats_handler(struct ath11k_base *ab,
+							struct sk_buff *skb)
+{
+}
+
+static inline int ath11k_debugfs_htt_stats_req(struct ath11k *ar)
+{
+	return 0;
+}
+
+#endif /* CONFIG_ATH11K_DEBUGFS */
 
 #endif

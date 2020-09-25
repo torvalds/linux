@@ -173,11 +173,6 @@ static inline void ath11k_debugfs_unregister(struct ath11k *ar)
 {
 }
 
-static inline void ath11k_dbg_htt_ext_stats_handler(struct ath11k_base *ab,
-						    struct sk_buff *skb)
-{
-}
-
 static inline void ath11k_debugfs_fw_stats_process(struct ath11k_base *ab,
 						   struct sk_buff *skb)
 {
@@ -193,11 +188,6 @@ static inline int ath11k_debugfs_is_extd_tx_stats_enabled(struct ath11k *ar)
 }
 
 static inline int ath11k_debugfs_is_extd_rx_stats_enabled(struct ath11k *ar)
-{
-	return 0;
-}
-
-static inline int ath11k_debugfs_htt_stats_req(struct ath11k *ar)
 {
 	return 0;
 }
