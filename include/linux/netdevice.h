@@ -4455,6 +4455,10 @@ extern int		dev_rx_weight;
 extern int		dev_tx_weight;
 extern int		gro_normal_batch;
 
+struct netdev_nested_priv {
+	void *data;
+};
+
 bool netdev_has_upper_dev(struct net_device *dev, struct net_device *upper_dev);
 struct net_device *netdev_upper_get_next_dev_rcu(struct net_device *dev,
 						     struct list_head **iter);
@@ -4470,8 +4474,8 @@ struct net_device *netdev_all_upper_get_next_dev_rcu(struct net_device *dev,
 
 int netdev_walk_all_upper_dev_rcu(struct net_device *dev,
 				  int (*fn)(struct net_device *upper_dev,
-					    void *data),
-				  void *data);
+					    struct netdev_nested_priv *priv),
+				  struct netdev_nested_priv *priv);
 
 bool netdev_has_upper_dev_all_rcu(struct net_device *dev,
 				  struct net_device *upper_dev);
@@ -4508,12 +4512,12 @@ struct net_device *netdev_next_lower_dev_rcu(struct net_device *dev,
 					     struct list_head **iter);
 int netdev_walk_all_lower_dev(struct net_device *dev,
 			      int (*fn)(struct net_device *lower_dev,
-					void *data),
-			      void *data);
+					struct netdev_nested_priv *priv),
+			      struct netdev_nested_priv *priv);
 int netdev_walk_all_lower_dev_rcu(struct net_device *dev,
 				  int (*fn)(struct net_device *lower_dev,
-					    void *data),
-				  void *data);
+					    struct netdev_nested_priv *priv),
+				  struct netdev_nested_priv *priv);
 
 void *netdev_adjacent_get_private(struct list_head *adj_list);
 void *netdev_lower_get_first_private_rcu(struct net_device *dev);

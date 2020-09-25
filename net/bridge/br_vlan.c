@@ -1360,7 +1360,7 @@ static int br_vlan_is_bind_vlan_dev(const struct net_device *dev)
 }
 
 static int br_vlan_is_bind_vlan_dev_fn(struct net_device *dev,
-				       __always_unused void *data)
+			       __always_unused struct netdev_nested_priv *priv)
 {
 	return br_vlan_is_bind_vlan_dev(dev);
 }
@@ -1383,9 +1383,9 @@ struct br_vlan_bind_walk_data {
 };
 
 static int br_vlan_match_bind_vlan_dev_fn(struct net_device *dev,
-					  void *data_in)
+					  struct netdev_nested_priv *priv)
 {
-	struct br_vlan_bind_walk_data *data = data_in;
+	struct br_vlan_bind_walk_data *data = priv->data;
 	int found = 0;
 
 	if (br_vlan_is_bind_vlan_dev(dev) &&
@@ -1403,10 +1403,13 @@ br_vlan_get_upper_bind_vlan_dev(struct net_device *dev, u16 vid)
 	struct br_vlan_bind_walk_data data = {
 		.vid = vid,
 	};
+	struct netdev_nested_priv priv = {
+		.data = (void *)&data,
+	};
 
 	rcu_read_lock();
 	netdev_walk_all_upper_dev_rcu(dev, br_vlan_match_bind_vlan_dev_fn,
-				      &data);
+				      &priv);
 	rcu_read_unlock();
 
 	return data.result;
@@ -1487,9 +1490,9 @@ struct br_vlan_link_state_walk_data {
 };
 
 static int br_vlan_link_state_change_fn(struct net_device *vlan_dev,
-					void *data_in)
+					struct netdev_nested_priv *priv)
 {
-	struct br_vlan_link_state_walk_data *data = data_in;
+	struct br_vlan_link_state_walk_data *data = priv->data;
 
 	if (br_vlan_is_bind_vlan_dev(vlan_dev))
 		br_vlan_set_vlan_dev_state(data->br, vlan_dev);
@@ -1503,10 +1506,13 @@ static void br_vlan_link_state_change(struct net_device *dev,
 	struct br_vlan_link_state_walk_data data = {
 		.br = br
 	};
+	struct netdev_nested_priv priv = {
+		.data = (void *)&data,
+	};
 
 	rcu_read_lock();
 	netdev_walk_all_upper_dev_rcu(dev, br_vlan_link_state_change_fn,
-				      &data);
+				      &priv);
 	rcu_read_unlock();
 }
 
