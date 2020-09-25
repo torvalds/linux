@@ -178,15 +178,18 @@ static void jpg_fbuffer_free(struct zoran_fh *fh);
 /* Set mapping mode */
 static void map_mode_raw(struct zoran_fh *fh)
 {
+	struct zoran *zr = fh->zr;
 	fh->map_mode = ZORAN_MAP_MODE_RAW;
-	fh->buffers.buffer_size = v4l_bufsize;
+	zr->buffer_size = v4l_bufsize;
 	fh->buffers.num_buffers = v4l_nbufs;
 }
 
 static void map_mode_jpg(struct zoran_fh *fh, int play)
 {
+	struct zoran *zr = fh->zr;
+
 	fh->map_mode = play ? ZORAN_MAP_MODE_JPG_PLAY : ZORAN_MAP_MODE_JPG_REC;
-	fh->buffers.buffer_size = jpg_bufsize;
+	zr->buffer_size = jpg_bufsize;
 	fh->buffers.num_buffers = jpg_nbufs;
 }
 
@@ -212,7 +215,7 @@ static int v4l_fbuffer_alloc(struct zoran_fh *fh)
 			pci_warn(zr->pci_dev, "%s - buffer %d already allocated!?\n", __func__, i);
 
 		//udelay(20);
-		mem = kmalloc(fh->buffers.buffer_size, GFP_KERNEL | __GFP_NOWARN);
+		mem = kmalloc(zr->buffer_size, GFP_KERNEL | __GFP_NOWARN);
 		if (!mem) {
 			pci_err(zr->pci_dev, "%s - kmalloc for V4L buf %d failed\n", __func__, i);
 			v4l_fbuffer_free(fh);
@@ -221,7 +224,7 @@ static int v4l_fbuffer_alloc(struct zoran_fh *fh)
 		fh->buffers.buffer[i].v4l.fbuffer = mem;
 		fh->buffers.buffer[i].v4l.fbuffer_phys = virt_to_phys(mem);
 		fh->buffers.buffer[i].v4l.fbuffer_bus = virt_to_bus(mem);
-		for (off = 0; off < fh->buffers.buffer_size;
+		for (off = 0; off < zr->buffer_size;
 		     off += PAGE_SIZE)
 			SetPageReserved(virt_to_page(mem + off));
 		pci_info(zr->pci_dev, "%s - V4L frame %d mem %p (bus: 0x%llx)\n", __func__, i, mem,
@@ -247,7 +250,7 @@ static void v4l_fbuffer_free(struct zoran_fh *fh)
 			continue;
 
 		mem = fh->buffers.buffer[i].v4l.fbuffer;
-		for (off = 0; off < fh->buffers.buffer_size;
+		for (off = 0; off < zr->buffer_size;
 		     off += PAGE_SIZE)
 			ClearPageReserved(virt_to_page(mem + off));
 		kfree(fh->buffers.buffer[i].v4l.fbuffer);
@@ -307,7 +310,7 @@ static int jpg_fbuffer_alloc(struct zoran_fh *fh)
 		fh->buffers.buffer[i].jpg.frag_tab_bus = virt_to_bus(mem);
 
 		if (fh->buffers.need_contiguous) {
-			mem = kmalloc(fh->buffers.buffer_size, GFP_KERNEL);
+			mem = kmalloc(zr->buffer_size, GFP_KERNEL);
 			if (!mem) {
 				pci_err(zr->pci_dev, "%s - kmalloc failed for buffer %d\n", __func__, i);
 				jpg_fbuffer_free(fh);
@@ -316,12 +319,12 @@ static int jpg_fbuffer_alloc(struct zoran_fh *fh)
 			fh->buffers.buffer[i].jpg.frag_tab[0] =
 				cpu_to_le32(virt_to_bus(mem));
 			fh->buffers.buffer[i].jpg.frag_tab[1] =
-				cpu_to_le32((fh->buffers.buffer_size >> 1) | 1);
-			for (off = 0; off < fh->buffers.buffer_size; off += PAGE_SIZE)
+				cpu_to_le32((zr->buffer_size >> 1) | 1);
+			for (off = 0; off < zr->buffer_size; off += PAGE_SIZE)
 				SetPageReserved(virt_to_page(mem + off));
 		} else {
 			/* jpg_bufsize is already page aligned */
-			for (j = 0; j < fh->buffers.buffer_size / PAGE_SIZE; j++) {
+			for (j = 0; j < zr->buffer_size / PAGE_SIZE; j++) {
 				mem = (void *)get_zeroed_page(GFP_KERNEL);
 				if (!mem) {
 					pci_err(zr->pci_dev, "%s - get_zeroed_page failed for buffer %d\n", __func__, i);
@@ -341,7 +344,7 @@ static int jpg_fbuffer_alloc(struct zoran_fh *fh)
 	}
 
 	pci_dbg(zr->pci_dev, "%s - %d KB allocated\n", __func__,
-		(fh->buffers.num_buffers * fh->buffers.buffer_size) >> 10);
+		(fh->buffers.num_buffers * zr->buffer_size) >> 10);
 
 	fh->buffers.allocated = 1;
 
@@ -369,14 +372,14 @@ static void jpg_fbuffer_free(struct zoran_fh *fh)
 
 			if (frag_tab) {
 				mem = bus_to_virt(le32_to_cpu(frag_tab));
-				for (off = 0; off < fh->buffers.buffer_size; off += PAGE_SIZE)
+				for (off = 0; off < zr->buffer_size; off += PAGE_SIZE)
 					ClearPageReserved(virt_to_page(mem + off));
 				kfree(mem);
 				buffer->jpg.frag_tab[0] = 0;
 				buffer->jpg.frag_tab[1] = 0;
 			}
 		} else {
-			for (j = 0; j < fh->buffers.buffer_size / PAGE_SIZE; j++) {
+			for (j = 0; j < zr->buffer_size / PAGE_SIZE; j++) {
 				frag_tab = buffer->jpg.frag_tab[2 * j];
 
 				if (!frag_tab)
@@ -416,9 +419,9 @@ static int zoran_v4l_set_format(struct zoran_fh *fh, int width, int height,
 	bpp = (format->depth + 7) / 8;
 
 	/* Check against available buffer size */
-	if (height * width * bpp > fh->buffers.buffer_size) {
+	if (height * width * bpp > zr->buffer_size) {
 		pci_err(zr->pci_dev, "%s - video buffer size (%d kB) is too small\n",
-			__func__, fh->buffers.buffer_size >> 10);
+			__func__, zr->buffer_size >> 10);
 		return -EINVAL;
 	}
 
@@ -1189,7 +1192,7 @@ static int zoran_v4l2_buffer_status(struct zoran_fh *fh,
 		spin_unlock_irqrestore(&zr->spinlock, flags);
 
 		buf->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		buf->length = fh->buffers.buffer_size;
+		buf->length = zr->buffer_size;
 
 		/* get buffer */
 		buf->bytesused = fh->buffers.buffer[num].bs.length;
@@ -1222,7 +1225,7 @@ static int zoran_v4l2_buffer_status(struct zoran_fh *fh,
 		buf->type = (fh->map_mode == ZORAN_MAP_MODE_JPG_REC) ?
 			      V4L2_BUF_TYPE_VIDEO_CAPTURE :
 			      V4L2_BUF_TYPE_VIDEO_OUTPUT;
-		buf->length = fh->buffers.buffer_size;
+		buf->length = zr->buffer_size;
 
 		/* these variables are only written after frame has been captured */
 		if (fh->buffers.buffer[num].state == BUZ_STATE_DONE ||
@@ -1638,7 +1641,7 @@ static int zoran_s_fmt_vid_out(struct file *file, void *__fh,
 	fh->jpg_settings = settings;
 
 	map_mode_jpg(fh, fmt->type == V4L2_BUF_TYPE_VIDEO_OUTPUT);
-	fh->buffers.buffer_size = zoran_v4l2_calc_bufsize(&fh->jpg_settings);
+	zr->buffer_size = zoran_v4l2_calc_bufsize(&fh->jpg_settings);
 
 	/* tell the user what we actually did */
 	fmt->fmt.pix.width = settings.img_width / settings.HorDcm;
@@ -1651,7 +1654,7 @@ static int zoran_s_fmt_vid_out(struct file *file, void *__fh,
 		fmt->fmt.pix.field = (fh->jpg_settings.odd_even ?
 				V4L2_FIELD_TOP : V4L2_FIELD_BOTTOM);
 	fmt->fmt.pix.bytesperline = 0;
-	fmt->fmt.pix.sizeimage = fh->buffers.buffer_size;
+	fmt->fmt.pix.sizeimage = zr->buffer_size;
 	fmt->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
 	return res;
 }
@@ -1805,7 +1808,7 @@ static int zoran_reqbufs(struct file *file, void *__fh, struct v4l2_requestbuffe
 		/* The next mmap will map the MJPEG buffers */
 		map_mode_jpg(fh, req->type == V4L2_BUF_TYPE_VIDEO_OUTPUT);
 		fh->buffers.num_buffers = req->count;
-		fh->buffers.buffer_size = zoran_v4l2_calc_bufsize(&fh->jpg_settings);
+		zr->buffer_size = zoran_v4l2_calc_bufsize(&fh->jpg_settings);
 
 		if (jpg_fbuffer_alloc(fh)) {
 			res = -ENOMEM;
@@ -2279,8 +2282,7 @@ static int zoran_s_jpegcomp(struct file *file, void *__fh,
 	if (res)
 		return res;
 	if (!fh->buffers.allocated)
-		fh->buffers.buffer_size =
-			zoran_v4l2_calc_bufsize(&fh->jpg_settings);
+		zr->buffer_size = zoran_v4l2_calc_bufsize(&fh->jpg_settings);
 	fh->jpg_settings.jpg_comp = settings.jpg_comp;
 	return res;
 }
@@ -2446,15 +2448,15 @@ static int zoran_mmap(struct file *file, struct vm_area_struct *vma)
 		return res;
 	}
 
-	first = offset / fh->buffers.buffer_size;
-	last = first - 1 + size / fh->buffers.buffer_size;
-	if (offset % fh->buffers.buffer_size != 0 ||
-	    size % fh->buffers.buffer_size != 0 || first < 0 ||
+	first = offset / zr->buffer_size;
+	last = first - 1 + size / zr->buffer_size;
+	if (offset % zr->buffer_size != 0 ||
+	    size % zr->buffer_size != 0 || first < 0 ||
 	    last < 0 || first >= fh->buffers.num_buffers ||
-	    last >= fh->buffers.buffer_size) {
+	    last >= zr->buffer_size) {
 		pci_err(zr->pci_dev, "%s(%s) - offset=%lu or size=%lu invalid for bufsize=%d and numbufs=%d\n",
 			__func__, mode_name(fh->map_mode), offset, size,
-			fh->buffers.buffer_size,
+			zr->buffer_size,
 			fh->buffers.num_buffers);
 		res = -EINVAL;
 		return res;
@@ -2485,8 +2487,8 @@ static int zoran_mmap(struct file *file, struct vm_area_struct *vma)
 	if (fh->map_mode == ZORAN_MAP_MODE_RAW) {
 		for (i = first; i <= last; i++) {
 			todo = size;
-			if (todo > fh->buffers.buffer_size)
-				todo = fh->buffers.buffer_size;
+			if (todo > zr->buffer_size)
+				todo = zr->buffer_size;
 			page = fh->buffers.buffer[i].v4l.fbuffer_phys;
 			if (remap_pfn_range(vma, start, page >> PAGE_SHIFT,
 					    todo, PAGE_SHARED)) {
@@ -2503,7 +2505,7 @@ static int zoran_mmap(struct file *file, struct vm_area_struct *vma)
 	} else {
 		for (i = first; i <= last; i++) {
 			for (j = 0;
-			     j < fh->buffers.buffer_size / PAGE_SIZE;
+			     j < zr->buffer_size / PAGE_SIZE;
 			     j++) {
 				fraglen =
 				    (le32_to_cpu(fh->buffers.buffer[i].jpg.

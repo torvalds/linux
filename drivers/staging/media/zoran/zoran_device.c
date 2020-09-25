@@ -885,8 +885,7 @@ void jpeg_start(struct zoran *zr)
 void zr36057_enable_jpg(struct zoran *zr, enum zoran_codec_mode mode)
 {
 	struct vfe_settings cap;
-	int field_size =
-	    zr->jpg_buffers.buffer_size / zr->jpg_settings.field_per_buff;
+	int field_size = zr->buffer_size / zr->jpg_settings.field_per_buff;
 
 	zr->codec_mode = mode;
 

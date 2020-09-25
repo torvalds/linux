@@ -195,7 +195,7 @@ enum zoran_lock_activity {
 /* buffer collections */
 struct zoran_buffer_col {
 	enum zoran_lock_activity active;	/* feature currently in use? */
-	unsigned int num_buffers, buffer_size;
+	unsigned int num_buffers;
 	struct zoran_buffer buffer[MAX_FRAME];	/* buffers */
 	u8 allocated;		/* Flag if buffers are allocated */
 	u8 need_contiguous;	/* Flag if contiguous buffers are needed */
@@ -292,6 +292,7 @@ struct zoran {
 	v4l2_std_id norm;
 
 	/* Current buffer params */
+	unsigned int buffer_size;
 	void *vbuf_base;
 	int vbuf_height, vbuf_width;
 	int vbuf_depth;
