@@ -614,13 +614,13 @@ int iwl_pcie_txq_init(struct iwl_trans *trans, struct iwl_txq *txq,
 	return 0;
 }
 
-void iwl_pcie_free_tso_page(struct iwl_trans_pcie *trans_pcie,
+void iwl_pcie_free_tso_page(struct iwl_trans *trans,
 			    struct sk_buff *skb)
 {
 	struct page **page_ptr;
 	struct page *next;
 
-	page_ptr = (void *)((u8 *)skb->cb + trans_pcie->page_offs);
+	page_ptr = (void *)((u8 *)skb->cb + trans->txqs.page_offs);
 	next = *page_ptr;
 	*page_ptr = NULL;
 
@@ -668,7 +668,7 @@ static void iwl_pcie_txq_unmap(struct iwl_trans *trans, int txq_id)
 			if (WARN_ON_ONCE(!skb))
 				continue;
 
-			iwl_pcie_free_tso_page(trans_pcie, skb);
+			iwl_pcie_free_tso_page(trans, skb);
 		}
 		iwl_pcie_txq_free_tfd(trans, txq);
 		txq->read_ptr = iwl_queue_inc_wrap(trans, txq->read_ptr);
@@ -1107,7 +1107,6 @@ static inline void iwl_pcie_txq_progress(struct iwl_txq *txq)
 void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 			    struct sk_buff_head *skbs)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_txq *txq = trans->txqs.txq[txq_id];
 	int tfd_num = iwl_pcie_get_cmd_index(txq, ssn);
 	int read_ptr = iwl_pcie_get_cmd_index(txq, txq->read_ptr);
@@ -1156,7 +1155,7 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 		if (WARN_ON_ONCE(!skb))
 			continue;
 
-		iwl_pcie_free_tso_page(trans_pcie, skb);
+		iwl_pcie_free_tso_page(trans, skb);
 
 		__skb_queue_tail(skbs, skb);
 
@@ -1200,7 +1199,7 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 			struct iwl_device_tx_cmd *dev_cmd_ptr;
 
 			dev_cmd_ptr = *(void **)((u8 *)skb->cb +
-						 trans_pcie->dev_cmd_offs);
+						 trans->txqs.dev_cmd_offs);
 
 			/*
 			 * Note that we can very well be overflowing again.
@@ -2058,7 +2057,7 @@ struct iwl_tso_hdr_page *get_page_hdr(struct iwl_trans *trans, size_t len,
 	struct iwl_tso_hdr_page *p = this_cpu_ptr(trans_pcie->tso_hdr_page);
 	struct page **page_ptr;
 
-	page_ptr = (void *)((u8 *)skb->cb + trans_pcie->page_offs);
+	page_ptr = (void *)((u8 *)skb->cb + trans->txqs.page_offs);
 
 	if (WARN_ON(*page_ptr))
 		return NULL;
@@ -2369,7 +2368,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 			struct iwl_device_tx_cmd **dev_cmd_ptr;
 
 			dev_cmd_ptr = (void *)((u8 *)skb->cb +
-					       trans_pcie->dev_cmd_offs);
+					       trans->txqs.dev_cmd_offs);
 
 			*dev_cmd_ptr = dev_cmd;
 			__skb_queue_tail(&txq->overflow_q, skb);

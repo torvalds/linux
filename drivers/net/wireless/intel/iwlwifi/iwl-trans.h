@@ -914,6 +914,8 @@ struct iwl_txq {
  * struct iwl_trans_txqs - transport tx queues data
  *
  * @bc_table_dword: true if the BC table expects DWORD (as opposed to bytes)
+ * @page_offs: offset from skb->cb to mac header page pointer
+ * @dev_cmd_offs: offset from skb->cb to iwl_device_tx_cmd pointer
  * @queue_used - bit mask of used queues
  * @queue_stopped - bit mask of stopped queues
  */
@@ -924,6 +926,8 @@ struct iwl_trans_txqs {
 	struct dma_pool *bc_pool;
 	size_t bc_tbl_size;
 	bool bc_table_dword;
+	u8 page_offs;
+	u8 dev_cmd_offs;
 
 	struct {
 		u8 fifo;

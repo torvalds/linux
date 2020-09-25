@@ -253,11 +253,10 @@ static int iwl_pcie_gen2_set_tb(struct iwl_trans *trans,
 static struct page *get_workaround_page(struct iwl_trans *trans,
 					struct sk_buff *skb)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct page **page_ptr;
 	struct page *ret;
 
-	page_ptr = (void *)((u8 *)skb->cb + trans_pcie->page_offs);
+	page_ptr = (void *)((u8 *)skb->cb + trans->txqs.page_offs);
 
 	ret = alloc_page(GFP_ATOMIC);
 	if (!ret)
@@ -711,7 +710,6 @@ struct iwl_tfh_tfd *iwl_pcie_gen2_build_tfd(struct iwl_trans *trans,
 int iwl_trans_pcie_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 			   struct iwl_device_tx_cmd *dev_cmd, int txq_id)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_cmd_meta *out_meta;
 	struct iwl_txq *txq = trans->txqs.txq[txq_id];
 	u16 cmd_len;
@@ -741,7 +739,7 @@ int iwl_trans_pcie_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 			struct iwl_device_tx_cmd **dev_cmd_ptr;
 
 			dev_cmd_ptr = (void *)((u8 *)skb->cb +
-					       trans_pcie->dev_cmd_offs);
+					       trans->txqs.dev_cmd_offs);
 
 			*dev_cmd_ptr = dev_cmd;
 			__skb_queue_tail(&txq->overflow_q, skb);
@@ -1171,7 +1169,6 @@ int iwl_trans_pcie_gen2_send_hcmd(struct iwl_trans *trans,
  */
 void iwl_pcie_gen2_txq_unmap(struct iwl_trans *trans, int txq_id)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_txq *txq = trans->txqs.txq[txq_id];
 
 	spin_lock_bh(&txq->lock);
@@ -1186,7 +1183,7 @@ void iwl_pcie_gen2_txq_unmap(struct iwl_trans *trans, int txq_id)
 			if (WARN_ON_ONCE(!skb))
 				continue;
 
-			iwl_pcie_free_tso_page(trans_pcie, skb);
+			iwl_pcie_free_tso_page(trans, skb);
 		}
 		iwl_pcie_gen2_free_tfd(trans, txq);
 		txq->read_ptr = iwl_queue_inc_wrap(trans, txq->read_ptr);

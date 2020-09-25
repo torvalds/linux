@@ -1911,6 +1911,9 @@ static void iwl_trans_pcie_configure(struct iwl_trans *trans,
 	trans->txqs.cmd.q_id = trans_cfg->cmd_queue;
 	trans->txqs.cmd.fifo = trans_cfg->cmd_fifo;
 	trans->txqs.cmd.wdg_timeout = trans_cfg->cmd_q_wdg_timeout;
+	trans->txqs.page_offs = trans_cfg->cb_data_offs;
+	trans->txqs.dev_cmd_offs = trans_cfg->cb_data_offs + sizeof(void *);
+
 	if (WARN_ON(trans_cfg->n_no_reclaim_cmds > MAX_NO_RECLAIM_CMDS))
 		trans_pcie->n_no_reclaim_cmds = 0;
 	else
@@ -1931,9 +1934,6 @@ static void iwl_trans_pcie_configure(struct iwl_trans *trans,
 	trans->txqs.bc_table_dword = trans_cfg->bc_table_dword;
 	trans_pcie->scd_set_active = trans_cfg->scd_set_active;
 	trans_pcie->sw_csum_tx = trans_cfg->sw_csum_tx;
-
-	trans_pcie->page_offs = trans_cfg->cb_data_offs;
-	trans_pcie->dev_cmd_offs = trans_cfg->cb_data_offs + sizeof(void *);
 
 	trans->command_groups = trans_cfg->command_groups;
 	trans->command_groups_size = trans_cfg->command_groups_size;

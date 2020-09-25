@@ -457,8 +457,6 @@ struct iwl_trans_pcie {
 	wait_queue_head_t wait_command_queue;
 	wait_queue_head_t sx_waitq;
 
-	u8 page_offs, dev_cmd_offs;
-
 	u8 def_rx_queue;
 	u8 n_no_reclaim_cmds;
 	u8 no_reclaim_cmds[MAX_NO_RECLAIM_CMDS];
@@ -962,7 +960,7 @@ int iwl_pcie_alloc_dma_ptr(struct iwl_trans *trans,
 			   struct iwl_dma_ptr *ptr, size_t size);
 void iwl_pcie_free_dma_ptr(struct iwl_trans *trans, struct iwl_dma_ptr *ptr);
 void iwl_pcie_apply_destination(struct iwl_trans *trans);
-void iwl_pcie_free_tso_page(struct iwl_trans_pcie *trans_pcie,
+void iwl_pcie_free_tso_page(struct iwl_trans *trans,
 			    struct sk_buff *skb);
 #ifdef CONFIG_INET
 struct iwl_tso_hdr_page *get_page_hdr(struct iwl_trans *trans, size_t len,
