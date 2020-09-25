@@ -272,7 +272,7 @@ static int kvm_msr_ignored_check(struct kvm_vcpu *vcpu, u32 msr,
 	} else {
 		vcpu_debug_ratelimited(vcpu, "unhandled %s: 0x%x data 0x%llx\n",
 				       op, msr, data);
-		return 1;
+		return -ENOENT;
 	}
 }
 
