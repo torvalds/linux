@@ -322,6 +322,7 @@ struct iommu_gpasid_bind_data {
 #define IOMMU_GPASID_BIND_VERSION_1	1
 	__u32 version;
 #define IOMMU_PASID_FORMAT_INTEL_VTD	1
+#define IOMMU_PASID_FORMAT_LAST		2
 	__u32 format;
 	__u32 addr_width;
 #define IOMMU_SVA_GPASID_VAL	(1 << 0) /* guest PASID valid */
