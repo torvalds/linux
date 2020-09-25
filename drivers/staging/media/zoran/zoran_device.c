@@ -118,8 +118,7 @@ int post_office_wait(struct zoran *zr)
 	}
 	if ((por & ZR36057_POR_POTime) && !zr->card.gws_not_connected) {
 		/* In LML33/BUZ \GWS line is not connected, so it has always timeout set */
-		dprintk(1, KERN_INFO "%s: pop timeout %08x\n", ZR_DEVNAME(zr),
-			por);
+		pci_info(zr->pci_dev, "pop timeout %08x\n", por);
 		return -1;
 	}
 
@@ -218,16 +217,10 @@ void jpeg_codec_sleep(struct zoran *zr, int sleep)
 {
 	GPIO(zr, zr->card.gpio[ZR_GPIO_JPEG_SLEEP], !sleep);
 	if (!sleep) {
-		dprintk(3,
-			KERN_INFO
-			"%s: %s() - wake GPIO=0x%08x\n",
-			ZR_DEVNAME(zr), __func__, btread(ZR36057_GPPGCR1));
+		pci_dbg(zr->pci_dev, "%s() - wake GPIO=0x%08x\n", __func__, btread(ZR36057_GPPGCR1));
 		udelay(500);
 	} else {
-		dprintk(3,
-			KERN_INFO
-			"%s: %s() - sleep GPIO=0x%08x\n",
-			ZR_DEVNAME(zr), __func__, btread(ZR36057_GPPGCR1));
+		pci_dbg(zr->pci_dev, "%s() - sleep GPIO=0x%08x\n", __func__, btread(ZR36057_GPPGCR1));
 		udelay(2);
 	}
 }
@@ -309,8 +302,7 @@ static void zr36057_set_vfe(struct zoran *zr, int video_width, int video_height,
 	Wa = tvn->Wa;
 	Ha = tvn->Ha;
 
-	dprintk(2, KERN_INFO "%s: set_vfe() - width = %d, height = %d\n",
-		ZR_DEVNAME(zr), video_width, video_height);
+	pci_info(zr->pci_dev, "set_vfe() - width = %d, height = %d\n", video_width, video_height);
 
 	if (video_width < BUZ_MIN_WIDTH ||
 	    video_height < BUZ_MIN_HEIGHT ||
@@ -948,8 +940,7 @@ void zr36057_enable_jpg(struct zoran *zr, enum zoran_codec_mode mode)
 		zr36057_set_jpg(zr, mode);	// \P_Reset, ... Video param, FIFO
 
 		clear_interrupt_counters(zr);
-		dprintk(2, KERN_INFO "%s: enable_jpg(MOTION_COMPRESS)\n",
-			ZR_DEVNAME(zr));
+		pci_info(zr->pci_dev, "enable_jpg(MOTION_COMPRESS)\n");
 		break;
 	}
 
@@ -978,8 +969,7 @@ void zr36057_enable_jpg(struct zoran *zr, enum zoran_codec_mode mode)
 		zr36057_set_jpg(zr, mode);	// \P_Reset, ... Video param, FIFO
 
 		clear_interrupt_counters(zr);
-		dprintk(2, KERN_INFO "%s: enable_jpg(MOTION_DECOMPRESS)\n",
-			ZR_DEVNAME(zr));
+		pci_info(zr->pci_dev, "enable_jpg(MOTION_DECOMPRESS)\n");
 		break;
 
 	case BUZ_MODE_IDLE:
@@ -1006,7 +996,7 @@ void zr36057_enable_jpg(struct zoran *zr, enum zoran_codec_mode mode)
 		decoder_call(zr, video, s_stream, 1);
 		encoder_call(zr, video, s_routing, 0, 0, 0);
 
-		dprintk(2, KERN_INFO "%s: enable_jpg(IDLE)\n", ZR_DEVNAME(zr));
+		pci_info(zr->pci_dev, "enable_jpg(IDLE)\n");
 		break;
 	}
 }
@@ -1128,8 +1118,7 @@ static void zoran_restart(struct zoran *zr)
 		jpeg_start(zr);
 
 		if (zr->num_errors <= 8)
-			dprintk(2, KERN_INFO "%s: Restart\n",
-				ZR_DEVNAME(zr));
+			pci_info(zr->pci_dev, "Restart\n");
 
 		zr->JPEG_missed = 0;
 		zr->JPEG_error = 2;

@@ -225,11 +225,8 @@ static int v4l_fbuffer_alloc(struct zoran_fh *fh)
 		for (off = 0; off < fh->buffers.buffer_size;
 		     off += PAGE_SIZE)
 			SetPageReserved(virt_to_page(mem + off));
-		dprintk(4,
-			KERN_INFO
-			"%s: %s - V4L frame %d mem %p (bus: 0x%llx)\n",
-			ZR_DEVNAME(zr), __func__, i, mem,
-			(unsigned long long)virt_to_bus(mem));
+		pci_info(zr->pci_dev, "%s - V4L frame %d mem %p (bus: 0x%llx)\n", __func__, i, mem,
+			 (unsigned long long)virt_to_bus(mem));
 	}
 
 	fh->buffers.allocated = 1;
@@ -244,7 +241,7 @@ static void v4l_fbuffer_free(struct zoran_fh *fh)
 	int i, off;
 	unsigned char *mem;
 
-	dprintk(4, KERN_INFO "%s: %s\n", ZR_DEVNAME(zr), __func__);
+	pci_dbg(zr->pci_dev, "%s\n", __func__);
 
 	for (i = 0; i < fh->buffers.num_buffers; i++) {
 		if (!fh->buffers.buffer[i].v4l.fbuffer)
@@ -820,8 +817,8 @@ static int zoran_open(struct file *file)
 	struct zoran_fh *fh;
 	int res, first_open = 0;
 
-	dprintk(2, KERN_INFO "%s: %s(%s, pid=[%d]), users(-)=%d\n",
-		ZR_DEVNAME(zr), __func__, current->comm, task_pid_nr(current), zr->user + 1);
+	pci_info(zr->pci_dev, "%s(%s, pid=[%d]), users(-)=%d\n", __func__, current->comm,
+		 task_pid_nr(current), zr->user + 1);
 
 	mutex_lock(&zr->lock);
 
@@ -876,8 +873,7 @@ fail_fh:
 fail_unlock:
 	mutex_unlock(&zr->lock);
 
-	dprintk(2, KERN_INFO "%s: open failed (%d), users(-)=%d\n",
-		ZR_DEVNAME(zr), res, zr->user);
+	pci_info(zr->pci_dev, "open failed (%d), users(-)=%d\n", res, zr->user);
 
 	return res;
 }
@@ -887,8 +883,8 @@ static int zoran_close(struct file *file)
 	struct zoran_fh *fh = file->private_data;
 	struct zoran *zr = fh->zr;
 
-	dprintk(2, KERN_INFO "%s: %s(%s, pid=[%d]), users(+)=%d\n",
-		ZR_DEVNAME(zr), __func__, current->comm, task_pid_nr(current), zr->user - 1);
+	pci_info(zr->pci_dev, "%s(%s, pid=[%d]), users(+)=%d\n", __func__, current->comm,
+		 task_pid_nr(current), zr->user - 1);
 
 	/* kernel locks (fs/device.c), so don't do that ourselves
 	 * (prevents deadlocks) */
@@ -933,7 +929,7 @@ static int zoran_close(struct file *file)
 	kfree(fh->overlay_mask);
 	kfree(fh);
 
-	dprintk(4, KERN_INFO "%s: %s done\n", ZR_DEVNAME(zr), __func__);
+	pci_dbg(zr->pci_dev, "%s done\n", __func__);
 
 	return 0;
 }
@@ -2390,8 +2386,7 @@ static void zoran_vm_close(struct vm_area_struct *vma)
 	struct zoran *zr = fh->zr;
 	int i;
 
-	dprintk(3, KERN_INFO "%s: %s - munmap(%s)\n", ZR_DEVNAME(zr),
-		__func__, mode_name(fh->map_mode));
+	pci_info(zr->pci_dev, "%s - munmap(%s)\n", ZR_DEVNAME(zr), mode_name(fh->map_mode));
 
 	for (i = 0; i < fh->buffers.num_buffers; i++) {
 		if (fh->buffers.buffer[i].map == map)
@@ -2405,8 +2400,7 @@ static void zoran_vm_close(struct vm_area_struct *vma)
 			return;
 	}
 
-	dprintk(3, KERN_INFO "%s: %s - free %s buffers\n", ZR_DEVNAME(zr),
-		__func__, mode_name(fh->map_mode));
+	pci_info(zr->pci_dev, "%s - free %s buffers\n", __func__, mode_name(fh->map_mode));
 
 	if (fh->map_mode == ZORAN_MAP_MODE_RAW) {
 		if (fh->buffers.active != ZORAN_FREE) {
@@ -2446,10 +2440,8 @@ static int zoran_mmap(struct file *file, struct vm_area_struct *vma)
 	struct zoran_mapping *map;
 	int res = 0;
 
-	dprintk(3,
-		KERN_INFO "%s: %s(%s) of 0x%08lx-0x%08lx (size=%lu)\n",
-		ZR_DEVNAME(zr), __func__,
-		mode_name(fh->map_mode), vma->vm_start, vma->vm_end, size);
+	pci_info(zr->pci_dev, "%s(%s) of 0x%08lx-0x%08lx (size=%lu)\n", __func__,
+		 mode_name(fh->map_mode), vma->vm_start, vma->vm_end, size);
 
 	if (!(vma->vm_flags & VM_SHARED) || !(vma->vm_flags & VM_READ) ||
 	    !(vma->vm_flags & VM_WRITE)) {

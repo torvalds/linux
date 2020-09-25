@@ -892,9 +892,9 @@ static void test_interrupts(struct zoran *zr)
 	btwrite(0, ZR36057_ICR);
 	btwrite(0x78000000, ZR36057_ISR);
 	zr->testing = 0;
-	dprintk(5, KERN_INFO "%s: Testing interrupts...\n", ZR_DEVNAME(zr));
+	pci_info(zr->pci_dev, "Testing interrupts...\n");
 	if (timeout)
-		dprintk(1, ": time spent: %d\n", 1 * HZ - timeout);
+		pci_info(zr->pci_dev, ": time spent: %d\n", 1 * HZ - timeout);
 	if (zr36067_debug > 1)
 		print_interrupts(zr);
 	btwrite(icr, ZR36057_ICR);
@@ -904,10 +904,7 @@ static int zr36057_init(struct zoran *zr)
 {
 	int j, err;
 
-	dprintk(1,
-		KERN_INFO
-		"%s: %s - initializing card[%d], zr=%p\n",
-		ZR_DEVNAME(zr), __func__, zr->id, zr);
+	pci_info(zr->pci_dev, "initializing card[%d]\n", zr->id);
 
 	/* default setup of all parameters which will persist between opens */
 	zr->user = 0;
@@ -1140,18 +1137,12 @@ static int zoran_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto zr_unreg;
 	zr->revision = zr->pci_dev->revision;
 
-	dprintk(1,
-		KERN_INFO
-		"%s: Zoran ZR360%c7 (rev %d), irq: %d, memory: 0x%08llx\n",
-		ZR_DEVNAME(zr), zr->revision < 2 ? '5' : '6', zr->revision,
-		zr->pci_dev->irq, (uint64_t)pci_resource_start(zr->pci_dev, 0));
-	if (zr->revision >= 2) {
-		dprintk(1,
-			KERN_INFO
-			"%s: Subsystem vendor=0x%04x id=0x%04x\n",
-			ZR_DEVNAME(zr), zr->pci_dev->subsystem_vendor,
-			zr->pci_dev->subsystem_device);
-	}
+	pci_info(zr->pci_dev, "Zoran ZR360%c7 (rev %d), irq: %d, memory: 0x%08llx\n",
+		 zr->revision < 2 ? '5' : '6', zr->revision,
+		 zr->pci_dev->irq, (uint64_t)pci_resource_start(zr->pci_dev, 0));
+	if (zr->revision >= 2)
+		pci_info(zr->pci_dev, "Subsystem vendor=0x%04x id=0x%04x\n",
+			 zr->pci_dev->subsystem_vendor, zr->pci_dev->subsystem_device);
 
 	/* Use auto-detected card type? */
 	if (card[nr] == -1) {
@@ -1215,14 +1206,13 @@ static int zoran_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			     &latency);
 	need_latency = zr->revision > 1 ? 32 : 48;
 	if (latency != need_latency) {
-		dprintk(2, KERN_INFO "%s: Changing PCI latency from %d to %d\n",
-			ZR_DEVNAME(zr), latency, need_latency);
+		pci_info(zr->pci_dev, "Changing PCI latency from %d to %d\n", latency, need_latency);
 		pci_write_config_byte(zr->pci_dev, PCI_LATENCY_TIMER, need_latency);
 	}
 
 	zr36057_restart(zr);
 	/* i2c */
-	dprintk(2, KERN_INFO "%s: Initializing i2c bus...\n", ZR_DEVNAME(zr));
+	pci_info(zr->pci_dev, "Initializing i2c bus...\n");
 
 	if (zoran_register_i2c(zr) < 0) {
 		pci_err(pdev, "%s - can't initialize i2c bus\n", __func__);
@@ -1238,7 +1228,7 @@ static int zoran_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 						  zr->card.i2c_encoder, 0,
 						  zr->card.addrs_encoder);
 
-	dprintk(2, KERN_INFO "%s: Initializing videocodec bus...\n", ZR_DEVNAME(zr));
+	pci_info(zr->pci_dev, "Initializing videocodec bus...\n");
 
 	if (zr->card.video_codec) {
 		codec_name = codecid_to_modulename(zr->card.video_codec);
@@ -1294,9 +1284,7 @@ static int zoran_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* take care of Natoma chipset and a revision 1 zr36057 */
 	if ((pci_pci_problems & PCIPCI_NATOMA) && zr->revision <= 1) {
 		zr->jpg_buffers.need_contiguous = 1;
-		dprintk(1, KERN_INFO
-			"%s: ZR36057/Natoma bug, max. buffer size is 128K\n",
-			ZR_DEVNAME(zr));
+		pci_info(zr->pci_dev, "ZR36057/Natoma bug, max. buffer size is 128K\n");
 	}
 
 	if (zr36057_init(zr) < 0)
@@ -1365,12 +1353,8 @@ static int __init zoran_init(void)
 	if (jpg_bufsize > (512 * 1024))
 		jpg_bufsize = 512 * 1024;
 	/* Use parameter for vidmem or try to find a video card */
-	if (vidmem) {
-		dprintk(1,
-			KERN_INFO
-			"%s: Using supplied video memory base address @ 0x%lx\n",
-			ZORAN_NAME, vidmem);
-	}
+	if (vidmem)
+		pr_info("%s: Using supplied video memory base address @ 0x%lx\n", ZORAN_NAME, vidmem);
 
 	/* some mainboards might not do PCI-PCI data transfer well */
 	if (pci_pci_problems & (PCIPCI_FAIL | PCIAGP_FAIL | PCIPCI_ALIMAGIK))
