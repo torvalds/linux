@@ -2846,13 +2846,8 @@ static ssize_t __io_import_iovec(int rw, struct io_kiocb *req,
 		return ret;
 	}
 
-#ifdef CONFIG_COMPAT
-	if (req->ctx->compat)
-		return compat_import_iovec(rw, buf, sqe_len, UIO_FASTIOV,
-						iovec, iter);
-#endif
-
-	return import_iovec(rw, buf, sqe_len, UIO_FASTIOV, iovec, iter);
+	return __import_iovec(rw, buf, sqe_len, UIO_FASTIOV, iovec, iter,
+			      req->ctx->compat);
 }
 
 static ssize_t io_import_iovec(int rw, struct io_kiocb *req,
@@ -4166,8 +4161,9 @@ static int __io_recvmsg_copy_hdr(struct io_kiocb *req,
 				sr->len);
 		iomsg->iov = NULL;
 	} else {
-		ret = import_iovec(READ, uiov, iov_len, UIO_FASTIOV,
-					&iomsg->iov, &iomsg->msg.msg_iter);
+		ret = __import_iovec(READ, uiov, iov_len, UIO_FASTIOV,
+				     &iomsg->iov, &iomsg->msg.msg_iter,
+				     false);
 		if (ret > 0)
 			ret = 0;
 	}
@@ -4207,9 +4203,9 @@ static int __io_compat_recvmsg_copy_hdr(struct io_kiocb *req,
 		sr->len = iomsg->iov[0].iov_len;
 		iomsg->iov = NULL;
 	} else {
-		ret = compat_import_iovec(READ, uiov, len, UIO_FASTIOV,
-						&iomsg->iov,
-						&iomsg->msg.msg_iter);
+		ret = __import_iovec(READ, (struct iovec __user *)uiov, len,
+				   UIO_FASTIOV, &iomsg->iov,
+				   &iomsg->msg.msg_iter, true);
 		if (ret < 0)
 			return ret;
 	}

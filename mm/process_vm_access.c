@@ -326,7 +326,8 @@ compat_process_vm_rw(compat_pid_t pid,
 	if (flags != 0)
 		return -EINVAL;
 
-	rc = compat_import_iovec(dir, lvec, liovcnt, UIO_FASTIOV, &iov_l, &iter);
+	rc = import_iovec(dir, (const struct iovec __user *)lvec, liovcnt,
+			  UIO_FASTIOV, &iov_l, &iter);
 	if (rc < 0)
 		return rc;
 	if (!iov_iter_count(&iter))
