@@ -296,6 +296,7 @@
 				interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&soc_clocks MMP2_CLK_CCIC0>;
 				clock-names = "axi";
+				power-domains = <&soc_clocks MMP3_POWER_DOMAIN_CAMERA>;
 				#clock-cells = <0>;
 				clock-output-names = "mclk";
 				status = "disabled";
@@ -307,6 +308,7 @@
 				interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&soc_clocks MMP2_CLK_CCIC1>;
 				clock-names = "axi";
+				power-domains = <&soc_clocks MMP3_POWER_DOMAIN_CAMERA>;
 				#clock-cells = <0>;
 				clock-output-names = "mclk";
 				status = "disabled";
