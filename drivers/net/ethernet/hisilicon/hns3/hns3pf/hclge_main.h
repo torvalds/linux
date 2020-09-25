@@ -199,6 +199,7 @@ enum HLCGE_PORT_TYPE {
 #define HCLGE_SUPPORT_40G_BIT		BIT(5)
 #define HCLGE_SUPPORT_100M_BIT		BIT(6)
 #define HCLGE_SUPPORT_10M_BIT		BIT(7)
+#define HCLGE_SUPPORT_200G_BIT		BIT(8)
 #define HCLGE_SUPPORT_GE \
 	(HCLGE_SUPPORT_1G_BIT | HCLGE_SUPPORT_100M_BIT | HCLGE_SUPPORT_10M_BIT)
 
@@ -238,7 +239,8 @@ enum HCLGE_MAC_SPEED {
 	HCLGE_MAC_SPEED_25G	= 25000,	/* 25000 Mbps  = 25 Gbps */
 	HCLGE_MAC_SPEED_40G	= 40000,	/* 40000 Mbps  = 40 Gbps */
 	HCLGE_MAC_SPEED_50G	= 50000,	/* 50000 Mbps  = 50 Gbps */
-	HCLGE_MAC_SPEED_100G	= 100000	/* 100000 Mbps = 100 Gbps */
+	HCLGE_MAC_SPEED_100G	= 100000,	/* 100000 Mbps = 100 Gbps */
+	HCLGE_MAC_SPEED_200G	= 200000	/* 200000 Mbps = 200 Gbps */
 };
 
 enum HCLGE_MAC_DUPLEX {
@@ -349,7 +351,7 @@ struct hclge_cfg {
 	u8 mac_addr[ETH_ALEN];
 	u8 default_speed;
 	u32 numa_node_map;
-	u8 speed_ability;
+	u16 speed_ability;
 	u16 umv_space;
 };
 
