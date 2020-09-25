@@ -460,8 +460,8 @@ __active_engine(struct i915_request *rq, struct intel_engine_cs **active)
 		spin_lock(&locked->active.lock);
 	}
 
-	if (!i915_request_completed(rq)) {
-		if (i915_request_is_active(rq) && rq->fence.error != -EIO)
+	if (i915_request_is_active(rq)) {
+		if (!i915_request_completed(rq))
 			*active = locked;
 		ret = true;
 	}
@@ -479,13 +479,26 @@ static struct intel_engine_cs *active_engine(struct intel_context *ce)
 	if (!ce->timeline)
 		return NULL;
 
+	/*
+	 * rq->link is only SLAB_TYPESAFE_BY_RCU, we need to hold a reference
+	 * to the request to prevent it being transferred to a new timeline
+	 * (and onto a new timeline->requests list).
+	 */
 	rcu_read_lock();
-	list_for_each_entry_rcu(rq, &ce->timeline->requests, link) {
-		if (i915_request_is_active(rq) && i915_request_completed(rq))
-			continue;
+	list_for_each_entry_reverse(rq, &ce->timeline->requests, link) {
+		bool found;
+
+		/* timeline is already completed upto this point? */
+		if (!i915_request_get_rcu(rq))
+			break;
 
 		/* Check with the backend if the request is inflight */
-		if (__active_engine(rq, &engine))
+		found = true;
+		if (likely(rcu_access_pointer(rq->timeline) == ce->timeline))
+			found = __active_engine(rq, &engine);
+
+		i915_request_put(rq);
+		if (found)
 			break;
 	}
 	rcu_read_unlock();
