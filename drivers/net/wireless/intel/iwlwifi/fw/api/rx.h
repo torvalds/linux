@@ -560,7 +560,11 @@ struct iwl_rx_mpdu_desc_v3 {
 	/**
 	 * @raw_xsum: raw xsum value
 	 */
-	__le32 raw_xsum;
+	__be16 raw_xsum;
+	/**
+	 * @reserved_xsum: reserved high bits in the raw checksum
+	 */
+	__le16 reserved_xsum;
 	/* DW11 */
 	/**
 	 * @rate_n_flags: RX rate/flags encoding
