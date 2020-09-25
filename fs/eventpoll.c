@@ -1311,7 +1311,7 @@ static int reverse_path_check_proc(struct file *file, int depth)
 	int error = 0;
 	struct epitem *epi;
 
-	if (!ep_push_nested(file)) /* limits recursion */
+	if (depth > EP_MAX_NESTS) /* too deep nesting */
 		return -1;
 
 	/* CTL_DEL can remove links here, but that can't increase our count */
@@ -1336,7 +1336,6 @@ static int reverse_path_check_proc(struct file *file, int depth)
 		}
 	}
 	rcu_read_unlock();
-	nesting--; /* pop */
 	return error;
 }
 
