@@ -91,6 +91,11 @@
 	static inline long __do_compat_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__))
 #endif /* COMPAT_SYSCALL_DEFINEx */
 
+struct compat_iovec {
+	compat_uptr_t	iov_base;
+	compat_size_t	iov_len;
+};
+
 #ifdef CONFIG_COMPAT
 
 #ifndef compat_user_stack_pointer
@@ -247,11 +252,6 @@ typedef struct compat_siginfo {
 		} _sigsys;
 	} _sifields;
 } compat_siginfo_t;
-
-struct compat_iovec {
-	compat_uptr_t	iov_base;
-	compat_size_t	iov_len;
-};
 
 struct compat_rlimit {
 	compat_ulong_t	rlim_cur;
@@ -450,12 +450,6 @@ extern long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 			       compat_ulong_t addr, compat_ulong_t data);
 
 struct epoll_event;	/* fortunately, this one is fixed-layout */
-
-extern ssize_t compat_rw_copy_check_uvector(int type,
-		const struct compat_iovec __user *uvector,
-		unsigned long nr_segs,
-		unsigned long fast_segs, struct iovec *fast_pointer,
-		struct iovec **ret_pointer);
 
 extern void __user *compat_alloc_user_space(unsigned long len);
 

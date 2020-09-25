@@ -266,9 +266,15 @@ bool csum_and_copy_from_iter_full(void *addr, size_t bytes, __wsum *csum, struct
 size_t hash_and_copy_to_iter(const void *addr, size_t bytes, void *hashp,
 		struct iov_iter *i);
 
-ssize_t import_iovec(int type, const struct iovec __user * uvector,
-		 unsigned nr_segs, unsigned fast_segs,
-		 struct iovec **iov, struct iov_iter *i);
+struct iovec *iovec_from_user(const struct iovec __user *uvector,
+		unsigned long nr_segs, unsigned long fast_segs,
+		struct iovec *fast_iov, bool compat);
+ssize_t import_iovec(int type, const struct iovec __user *uvec,
+		 unsigned nr_segs, unsigned fast_segs, struct iovec **iovp,
+		 struct iov_iter *i);
+ssize_t __import_iovec(int type, const struct iovec __user *uvec,
+		 unsigned nr_segs, unsigned fast_segs, struct iovec **iovp,
+		 struct iov_iter *i, bool compat);
 
 #ifdef CONFIG_COMPAT
 struct compat_iovec;
