@@ -575,6 +575,22 @@ void analogix_dp_get_lane_count(struct analogix_dp_device *dp, u32 *count)
 	*count = reg;
 }
 
+void analogix_dp_set_lane_link_training(struct analogix_dp_device *dp)
+{
+	u8 lane;
+
+	for (lane = 0; lane < dp->link_train.lane_count; lane++)
+		analogix_dp_write(dp,
+				  ANALOGIX_DP_LN0_LINK_TRAINING_CTL + 4 * lane,
+				  dp->link_train.training_lane[lane]);
+}
+
+u32 analogix_dp_get_lane_link_training(struct analogix_dp_device *dp, u8 lane)
+{
+	return analogix_dp_read(dp,
+				ANALOGIX_DP_LN0_LINK_TRAINING_CTL + 4 * lane);
+}
+
 void analogix_dp_enable_enhanced_mode(struct analogix_dp_device *dp,
 				      bool enable)
 {
@@ -622,106 +638,6 @@ void analogix_dp_set_training_pattern(struct analogix_dp_device *dp,
 	default:
 		break;
 	}
-}
-
-void analogix_dp_set_lane0_pre_emphasis(struct analogix_dp_device *dp,
-					u32 level)
-{
-	u32 reg;
-
-	reg = analogix_dp_read(dp, ANALOGIX_DP_LN0_LINK_TRAINING_CTL);
-	reg &= ~PRE_EMPHASIS_SET_MASK;
-	reg |= level << PRE_EMPHASIS_SET_SHIFT;
-	analogix_dp_write(dp, ANALOGIX_DP_LN0_LINK_TRAINING_CTL, reg);
-}
-
-void analogix_dp_set_lane1_pre_emphasis(struct analogix_dp_device *dp,
-					u32 level)
-{
-	u32 reg;
-
-	reg = analogix_dp_read(dp, ANALOGIX_DP_LN1_LINK_TRAINING_CTL);
-	reg &= ~PRE_EMPHASIS_SET_MASK;
-	reg |= level << PRE_EMPHASIS_SET_SHIFT;
-	analogix_dp_write(dp, ANALOGIX_DP_LN1_LINK_TRAINING_CTL, reg);
-}
-
-void analogix_dp_set_lane2_pre_emphasis(struct analogix_dp_device *dp,
-					u32 level)
-{
-	u32 reg;
-
-	reg = analogix_dp_read(dp, ANALOGIX_DP_LN2_LINK_TRAINING_CTL);
-	reg &= ~PRE_EMPHASIS_SET_MASK;
-	reg |= level << PRE_EMPHASIS_SET_SHIFT;
-	analogix_dp_write(dp, ANALOGIX_DP_LN2_LINK_TRAINING_CTL, reg);
-}
-
-void analogix_dp_set_lane3_pre_emphasis(struct analogix_dp_device *dp,
-					u32 level)
-{
-	u32 reg;
-
-	reg = analogix_dp_read(dp, ANALOGIX_DP_LN3_LINK_TRAINING_CTL);
-	reg &= ~PRE_EMPHASIS_SET_MASK;
-	reg |= level << PRE_EMPHASIS_SET_SHIFT;
-	analogix_dp_write(dp, ANALOGIX_DP_LN3_LINK_TRAINING_CTL, reg);
-}
-
-void analogix_dp_set_lane0_link_training(struct analogix_dp_device *dp,
-					 u32 training_lane)
-{
-	u32 reg;
-
-	reg = training_lane;
-	analogix_dp_write(dp, ANALOGIX_DP_LN0_LINK_TRAINING_CTL, reg);
-}
-
-void analogix_dp_set_lane1_link_training(struct analogix_dp_device *dp,
-					 u32 training_lane)
-{
-	u32 reg;
-
-	reg = training_lane;
-	analogix_dp_write(dp, ANALOGIX_DP_LN1_LINK_TRAINING_CTL, reg);
-}
-
-void analogix_dp_set_lane2_link_training(struct analogix_dp_device *dp,
-					 u32 training_lane)
-{
-	u32 reg;
-
-	reg = training_lane;
-	analogix_dp_write(dp, ANALOGIX_DP_LN2_LINK_TRAINING_CTL, reg);
-}
-
-void analogix_dp_set_lane3_link_training(struct analogix_dp_device *dp,
-					 u32 training_lane)
-{
-	u32 reg;
-
-	reg = training_lane;
-	analogix_dp_write(dp, ANALOGIX_DP_LN3_LINK_TRAINING_CTL, reg);
-}
-
-u32 analogix_dp_get_lane0_link_training(struct analogix_dp_device *dp)
-{
-	return analogix_dp_read(dp, ANALOGIX_DP_LN0_LINK_TRAINING_CTL);
-}
-
-u32 analogix_dp_get_lane1_link_training(struct analogix_dp_device *dp)
-{
-	return analogix_dp_read(dp, ANALOGIX_DP_LN1_LINK_TRAINING_CTL);
-}
-
-u32 analogix_dp_get_lane2_link_training(struct analogix_dp_device *dp)
-{
-	return analogix_dp_read(dp, ANALOGIX_DP_LN2_LINK_TRAINING_CTL);
-}
-
-u32 analogix_dp_get_lane3_link_training(struct analogix_dp_device *dp)
-{
-	return analogix_dp_read(dp, ANALOGIX_DP_LN3_LINK_TRAINING_CTL);
 }
 
 void analogix_dp_reset_macro(struct analogix_dp_device *dp)
