@@ -403,6 +403,8 @@ typedef uint16_t PPSMC_Result;
 
 #define PPSMC_MSG_EnableDpmDidt               ((uint16_t) 0x309)
 #define PPSMC_MSG_DisableDpmDidt              ((uint16_t) 0x30A)
+#define PPSMC_MSG_EnableDpmMcBlackout         ((uint16_t) 0x30B)
+#define PPSMC_MSG_DisableDpmMcBlackout        ((uint16_t) 0x30C)
 
 #define PPSMC_MSG_EnableEDCController         ((uint16_t) 0x316)
 #define PPSMC_MSG_DisableEDCController        ((uint16_t) 0x317)
