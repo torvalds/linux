@@ -4776,7 +4776,7 @@ static int enter_vmx_operation(struct kvm_vcpu *vcpu)
 
 	if (vmx_pt_mode_is_host_guest()) {
 		vmx->pt_desc.guest.ctl = 0;
-		pt_update_intercept_for_msr(vmx);
+		pt_update_intercept_for_msr(vcpu);
 	}
 
 	return 0;

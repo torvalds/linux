@@ -564,7 +564,7 @@ static bool valid_msr_intercept(u32 index)
 	return false;
 }
 
-static bool msr_write_intercepted(struct kvm_vcpu *vcpu, unsigned msr)
+static bool msr_write_intercepted(struct kvm_vcpu *vcpu, u32 msr)
 {
 	u8 bit_write;
 	unsigned long tmp;
@@ -583,7 +583,7 @@ static bool msr_write_intercepted(struct kvm_vcpu *vcpu, unsigned msr)
 	return !!test_bit(bit_write,  &tmp);
 }
 
-static void set_msr_interception(u32 *msrpm, unsigned msr,
+static void set_msr_interception(struct kvm_vcpu *vcpu, u32 *msrpm, u32 msr,
 				 int read, int write)
 {
 	u8 bit_read, bit_write;
@@ -609,11 +609,10 @@ static void set_msr_interception(u32 *msrpm, unsigned msr,
 	msrpm[offset] = tmp;
 }
 
-static u32 *svm_vcpu_init_msrpm(void)
+static u32 *svm_vcpu_alloc_msrpm(void)
 {
-	int i;
-	u32 *msrpm;
 	struct page *pages = alloc_pages(GFP_KERNEL_ACCOUNT, MSRPM_ALLOC_ORDER);
+	u32 *msrpm;
 
 	if (!pages)
 		return NULL;
@@ -621,12 +620,18 @@ static u32 *svm_vcpu_init_msrpm(void)
 	msrpm = page_address(pages);
 	memset(msrpm, 0xff, PAGE_SIZE * (1 << MSRPM_ALLOC_ORDER));
 
+	return msrpm;
+}
+
+static void svm_vcpu_init_msrpm(struct kvm_vcpu *vcpu, u32 *msrpm)
+{
+	int i;
+
 	for (i = 0; direct_access_msrs[i].index != MSR_INVALID; i++) {
 		if (!direct_access_msrs[i].always)
 			continue;
-		set_msr_interception(msrpm, direct_access_msrs[i].index, 1, 1);
+		set_msr_interception(vcpu, msrpm, direct_access_msrs[i].index, 1, 1);
 	}
-	return msrpm;
 }
 
 static void svm_vcpu_free_msrpm(u32 *msrpm)
@@ -677,26 +682,26 @@ static void init_msrpm_offsets(void)
 	}
 }
 
-static void svm_enable_lbrv(struct vcpu_svm *svm)
+static void svm_enable_lbrv(struct kvm_vcpu *vcpu)
 {
-	u32 *msrpm = svm->msrpm;
+	struct vcpu_svm *svm = to_svm(vcpu);
 
 	svm->vmcb->control.virt_ext |= LBR_CTL_ENABLE_MASK;
-	set_msr_interception(msrpm, MSR_IA32_LASTBRANCHFROMIP, 1, 1);
-	set_msr_interception(msrpm, MSR_IA32_LASTBRANCHTOIP, 1, 1);
-	set_msr_interception(msrpm, MSR_IA32_LASTINTFROMIP, 1, 1);
-	set_msr_interception(msrpm, MSR_IA32_LASTINTTOIP, 1, 1);
+	set_msr_interception(vcpu, svm->msrpm, MSR_IA32_LASTBRANCHFROMIP, 1, 1);
+	set_msr_interception(vcpu, svm->msrpm, MSR_IA32_LASTBRANCHTOIP, 1, 1);
+	set_msr_interception(vcpu, svm->msrpm, MSR_IA32_LASTINTFROMIP, 1, 1);
+	set_msr_interception(vcpu, svm->msrpm, MSR_IA32_LASTINTTOIP, 1, 1);
 }
 
-static void svm_disable_lbrv(struct vcpu_svm *svm)
+static void svm_disable_lbrv(struct kvm_vcpu *vcpu)
 {
-	u32 *msrpm = svm->msrpm;
+	struct vcpu_svm *svm = to_svm(vcpu);
 
 	svm->vmcb->control.virt_ext &= ~LBR_CTL_ENABLE_MASK;
-	set_msr_interception(msrpm, MSR_IA32_LASTBRANCHFROMIP, 0, 0);
-	set_msr_interception(msrpm, MSR_IA32_LASTBRANCHTOIP, 0, 0);
-	set_msr_interception(msrpm, MSR_IA32_LASTINTFROMIP, 0, 0);
-	set_msr_interception(msrpm, MSR_IA32_LASTINTTOIP, 0, 0);
+	set_msr_interception(vcpu, svm->msrpm, MSR_IA32_LASTBRANCHFROMIP, 0, 0);
+	set_msr_interception(vcpu, svm->msrpm, MSR_IA32_LASTBRANCHTOIP, 0, 0);
+	set_msr_interception(vcpu, svm->msrpm, MSR_IA32_LASTINTFROMIP, 0, 0);
+	set_msr_interception(vcpu, svm->msrpm, MSR_IA32_LASTINTTOIP, 0, 0);
 }
 
 void disable_nmi_singlestep(struct vcpu_svm *svm)
@@ -1230,13 +1235,18 @@ static int svm_create_vcpu(struct kvm_vcpu *vcpu)
 
 	svm->nested.hsave = page_address(hsave_page);
 
-	svm->msrpm = svm_vcpu_init_msrpm();
+	svm->msrpm = svm_vcpu_alloc_msrpm();
 	if (!svm->msrpm)
 		goto error_free_hsave_page;
 
-	svm->nested.msrpm = svm_vcpu_init_msrpm();
+	svm_vcpu_init_msrpm(vcpu, svm->msrpm);
+
+	svm->nested.msrpm = svm_vcpu_alloc_msrpm();
 	if (!svm->nested.msrpm)
 		goto error_free_msrpm;
+
+	/* We only need the L1 pass-through MSR state, so leave vcpu as NULL */
+	svm_vcpu_init_msrpm(vcpu, svm->nested.msrpm);
 
 	svm->vmcb = page_address(vmcb_page);
 	svm->vmcb_pa = __sme_set(page_to_pfn(vmcb_page) << PAGE_SHIFT);
@@ -2574,7 +2584,7 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 		 * We update the L1 MSR bit as well since it will end up
 		 * touching the MSR anyway now.
 		 */
-		set_msr_interception(svm->msrpm, MSR_IA32_SPEC_CTRL, 1, 1);
+		set_msr_interception(vcpu, svm->msrpm, MSR_IA32_SPEC_CTRL, 1, 1);
 		break;
 	case MSR_IA32_PRED_CMD:
 		if (!msr->host_initiated &&
@@ -2589,7 +2599,7 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 			break;
 
 		wrmsrl(MSR_IA32_PRED_CMD, PRED_CMD_IBPB);
-		set_msr_interception(svm->msrpm, MSR_IA32_PRED_CMD, 0, 1);
+		set_msr_interception(vcpu, svm->msrpm, MSR_IA32_PRED_CMD, 0, 1);
 		break;
 	case MSR_AMD64_VIRT_SPEC_CTRL:
 		if (!msr->host_initiated &&
@@ -2653,9 +2663,9 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 		svm->vmcb->save.dbgctl = data;
 		vmcb_mark_dirty(svm->vmcb, VMCB_LBR);
 		if (data & (1ULL<<0))
-			svm_enable_lbrv(svm);
+			svm_enable_lbrv(vcpu);
 		else
-			svm_disable_lbrv(svm);
+			svm_disable_lbrv(vcpu);
 		break;
 	case MSR_VM_HSAVE_PA:
 		svm->nested.hsave_msr = data;
