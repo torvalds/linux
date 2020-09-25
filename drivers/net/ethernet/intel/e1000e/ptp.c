@@ -144,7 +144,7 @@ static int e1000e_phc_get_syncdevicetime(ktime_t *device,
 /**
  * e1000e_phc_getsynctime - Reads the current system/device cross timestamp
  * @ptp: ptp clock structure
- * @cts: structure containing timestamp
+ * @xtstamp: structure containing timestamp
  *
  * Read device and system (ART) clock simultaneously and return the scaled
  * clock values in ns.

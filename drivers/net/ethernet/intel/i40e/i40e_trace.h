@@ -22,7 +22,7 @@
 
 #include <linux/tracepoint.h>
 
-/**
+/*
  * i40e_trace() macro enables shared code to refer to trace points
  * like:
  *

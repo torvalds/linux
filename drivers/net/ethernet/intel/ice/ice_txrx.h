@@ -43,7 +43,7 @@
 
 /**
  * ice_compute_pad - compute the padding
- * rx_buf_len: buffer length
+ * @rx_buf_len: buffer length
  *
  * Figure out the size of half page based on given buffer length and
  * then subtract the skb_shared_info followed by subtraction of the

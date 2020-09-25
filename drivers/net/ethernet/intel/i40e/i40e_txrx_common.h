@@ -21,9 +21,9 @@ void i40e_release_rx_desc(struct i40e_ring *rx_ring, u32 val);
 #define I40E_XDP_TX		BIT(1)
 #define I40E_XDP_REDIR		BIT(2)
 
-/**
+/*
  * build_ctob - Builds the Tx descriptor (cmd, offset and type) qword
- **/
+ */
 static inline __le64 build_ctob(u32 td_cmd, u32 td_offset, unsigned int size,
 				u32 td_tag)
 {
@@ -37,7 +37,7 @@ static inline __le64 build_ctob(u32 td_cmd, u32 td_offset, unsigned int size,
 /**
  * i40e_update_tx_stats - Update the egress statistics for the Tx ring
  * @tx_ring: Tx ring to update
- * @total_packet: total packets sent
+ * @total_packets: total packets sent
  * @total_bytes: total bytes sent
  **/
 static inline void i40e_update_tx_stats(struct i40e_ring *tx_ring,
