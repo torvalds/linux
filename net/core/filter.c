@@ -6217,7 +6217,7 @@ static const struct bpf_func_proto bpf_tcp_gen_syncookie_proto = {
 
 BPF_CALL_3(bpf_sk_assign, struct sk_buff *, skb, struct sock *, sk, u64, flags)
 {
-	if (flags != 0)
+	if (!sk || flags != 0)
 		return -EINVAL;
 	if (!skb_at_tc_ingress(skb))
 		return -EOPNOTSUPP;
@@ -6241,7 +6241,7 @@ static const struct bpf_func_proto bpf_sk_assign_proto = {
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
 	.arg1_type      = ARG_PTR_TO_CTX,
-	.arg2_type      = ARG_PTR_TO_SOCK_COMMON,
+	.arg2_type      = ARG_PTR_TO_BTF_ID_SOCK_COMMON,
 	.arg3_type	= ARG_ANYTHING,
 };
 

@@ -3107,7 +3107,7 @@ union bpf_attr {
  * 	Return
  * 		The id is returned or 0 in case the id could not be retrieved.
  *
- * long bpf_sk_assign(struct sk_buff *skb, struct bpf_sock *sk, u64 flags)
+ * long bpf_sk_assign(struct sk_buff *skb, void *sk, u64 flags)
  *	Description
  *		Helper is overloaded depending on BPF program type. This
  *		description applies to **BPF_PROG_TYPE_SCHED_CLS** and
