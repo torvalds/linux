@@ -114,7 +114,7 @@ typedef int mpi_size_t;		/* (must be a signed type) */
  */
 #define UDIV_QRNND_PREINV(q, r, nh, nl, d, di)				\
 	do {								\
-		mpi_limb_t _ql;						\
+		mpi_limb_t _ql __maybe_unused;				\
 		mpi_limb_t _q, _r;					\
 		mpi_limb_t _xh, _xl;					\
 		umul_ppmm(_q, _ql, (nh), (di));				\

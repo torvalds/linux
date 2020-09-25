@@ -31,7 +31,7 @@ mpihelp_mod_1(mpi_ptr_t dividend_ptr, mpi_size_t dividend_size,
 {
 	mpi_size_t i;
 	mpi_limb_t n1, n0, r;
-	mpi_limb_t dummy;
+	mpi_limb_t dummy __maybe_unused;
 
 	/* Botch: Should this be handled at all?  Rely on callers?	*/
 	if (!dividend_size)
@@ -382,7 +382,7 @@ mpihelp_divmod_1(mpi_ptr_t quot_ptr,
 {
 	mpi_size_t i;
 	mpi_limb_t n1, n0, r;
-	mpi_limb_t dummy;
+	mpi_limb_t dummy __maybe_unused;
 
 	if (!dividend_size)
 		return 0;

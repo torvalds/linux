@@ -21,7 +21,6 @@ void mpi_mul(MPI w, MPI u, MPI v)
 	int usign, vsign, sign_product;
 	int assign_wp = 0;
 	mpi_ptr_t tmp_limb = NULL;
-	unsigned int tmp_limb_nlimbs = 0;
 
 	if (u->nlimbs < v->nlimbs) {
 		/* Swap U and V. */
@@ -55,7 +54,6 @@ void mpi_mul(MPI w, MPI u, MPI v)
 	} else { /* Make U and V not overlap with W.	*/
 		if (wp == up) {
 			/* W and U are identical.  Allocate temporary space for U. */
-			tmp_limb_nlimbs = usize;
 			up = tmp_limb = mpi_alloc_limb_space(usize);
 			/* Is V identical too?  Keep it identical with U.  */
 			if (wp == vp)
@@ -64,7 +62,6 @@ void mpi_mul(MPI w, MPI u, MPI v)
 			MPN_COPY(up, wp, usize);
 		} else if (wp == vp) {
 			/* W and V are identical.  Allocate temporary space for V. */
-			tmp_limb_nlimbs = vsize;
 			vp = tmp_limb = mpi_alloc_limb_space(vsize);
 			/* Copy to the temporary space.  */
 			MPN_COPY(vp, wp, vsize);
