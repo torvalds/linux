@@ -622,7 +622,7 @@ static u8 *hclge_tqps_get_strings(struct hnae3_handle *handle, u8 *data)
 {
 	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
 	u8 *buff = data;
-	int i = 0;
+	int i;
 
 	for (i = 0; i < kinfo->num_tqps; i++) {
 		struct hclge_tqp *tqp = container_of(handle->kinfo.tqp[i],
@@ -3211,7 +3211,7 @@ static int hclge_notify_roce_client(struct hclge_dev *hdev,
 				    enum hnae3_reset_notify_type type)
 {
 	struct hnae3_client *client = hdev->roce_client;
-	int ret = 0;
+	int ret;
 	u16 i;
 
 	if (!test_bit(HCLGE_STATE_ROCE_REGISTERED, &hdev->state) || !client)
@@ -11093,7 +11093,7 @@ static void hclge_sync_promisc_mode(struct hclge_dev *hdev)
 {
 	struct hclge_vport *vport = &hdev->vport[0];
 	struct hnae3_handle *handle = &vport->nic;
-	u8 tmp_flags = 0;
+	u8 tmp_flags;
 	int ret;
 
 	if (vport->last_promisc_flags != vport->overflow_promisc_flags) {

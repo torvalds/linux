@@ -19,7 +19,7 @@ static int hns3_dbg_queue_info(struct hnae3_handle *h,
 	struct hns3_enet_ring *ring;
 	u32 base_add_l, base_add_h;
 	u32 queue_num, queue_max;
-	u32 value, i = 0;
+	u32 value, i;
 	int cnt;
 
 	if (!priv->ring) {
