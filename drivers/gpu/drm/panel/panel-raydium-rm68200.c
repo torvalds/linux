@@ -82,15 +82,15 @@ struct rm68200 {
 };
 
 static const struct drm_display_mode default_mode = {
-	.clock = 52582,
+	.clock = 54000,
 	.hdisplay = 720,
-	.hsync_start = 720 + 38,
-	.hsync_end = 720 + 38 + 8,
-	.htotal = 720 + 38 + 8 + 38,
+	.hsync_start = 720 + 48,
+	.hsync_end = 720 + 48 + 9,
+	.htotal = 720 + 48 + 9 + 48,
 	.vdisplay = 1280,
 	.vsync_start = 1280 + 12,
-	.vsync_end = 1280 + 12 + 4,
-	.vtotal = 1280 + 12 + 4 + 12,
+	.vsync_end = 1280 + 12 + 5,
+	.vtotal = 1280 + 12 + 5 + 12,
 	.flags = 0,
 	.width_mm = 68,
 	.height_mm = 122,
