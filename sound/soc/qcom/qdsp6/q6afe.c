@@ -1750,11 +1750,13 @@ static int q6afe_remove(struct apr_device *adev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
 static const struct of_device_id q6afe_device_id[]  = {
 	{ .compatible = "qcom,q6afe" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, q6afe_device_id);
+#endif
 
 static struct apr_driver qcom_q6afe_driver = {
 	.probe = q6afe_probe,
