@@ -240,6 +240,8 @@ Deprecated Mount Options
   Name				Removal Schedule
 ===========================     ================
 Mounting with V4 filesystem     September 2030
+ikeep/noikeep			September 2025
+attr2/noattr2			September 2025
 ===========================     ================
 
 
