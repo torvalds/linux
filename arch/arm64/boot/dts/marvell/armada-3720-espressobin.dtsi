@@ -58,6 +58,30 @@
 	phy-names = "sata-phy";
 };
 
+/* U11 */
+&sdhci0 {
+	/* Main DTS file for Espressobin is without eMMC */
+	status = "disabled";
+
+	non-removable;
+	bus-width = <8>;
+	mmc-ddr-1_8v;
+	mmc-hs400-1_8v;
+	marvell,xenon-emmc;
+	marvell,xenon-tun-count = <9>;
+	marvell,pad-type = "fixed-1-8v";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc_pins>;
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+	mmccard: mmccard@0 {
+		compatible = "mmc-card";
+		reg = <0>;
+	};
+};
+
 /* J1 */
 &sdhci1 {
 	wp-inverted;
