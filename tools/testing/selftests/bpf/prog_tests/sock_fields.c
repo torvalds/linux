@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2019 Facebook */
 
-#include <sys/socket.h>
-#include <sys/epoll.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
@@ -12,7 +10,9 @@
 
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
+#include <linux/compiler.h>
 
+#include "network_helpers.h"
 #include "cgroup_helpers.h"
 #include "test_progs.h"
 #include "bpf_rlimit.h"
@@ -42,13 +42,6 @@ static __u32 duration;
 
 static __u32 egress_linum_idx = EGRESS_LINUM_IDX;
 static __u32 ingress_linum_idx = INGRESS_LINUM_IDX;
-
-static void init_loopback6(struct sockaddr_in6 *sa6)
-{
-	memset(sa6, 0, sizeof(*sa6));
-	sa6->sin6_family = AF_INET6;
-	sa6->sin6_addr = in6addr_loopback;
-}
 
 static void print_sk(const struct bpf_sock *sk, const char *prefix)
 {
@@ -252,28 +245,14 @@ static int init_sk_storage(int sk_fd, __u32 pkt_out_cnt)
 
 static void test(void)
 {
-	int listen_fd = -1, cli_fd = -1, accept_fd = -1, epfd, err, i;
-	struct epoll_event ev;
-	socklen_t addrlen;
+	int listen_fd = -1, cli_fd = -1, accept_fd = -1, err, i;
+	socklen_t addrlen = sizeof(struct sockaddr_in6);
 	char buf[DATA_LEN];
 
-	addrlen = sizeof(struct sockaddr_in6);
-	ev.events = EPOLLIN;
-
-	epfd = epoll_create(1);
-	if (CHECK(epfd == -1, "epoll_create()", "epfd:%d errno:%d\n",
-		  epfd, errno))
-		return;
-
 	/* Prepare listen_fd */
-	listen_fd = socket(AF_INET6, SOCK_STREAM | SOCK_NONBLOCK, 0);
-	if (CHECK(listen_fd == -1, "socket()", "listen_fd:%d errno:%d\n",
-		  listen_fd, errno))
-		goto done;
-
-	init_loopback6(&srv_sa6);
-	err = bind(listen_fd, (struct sockaddr *)&srv_sa6, sizeof(srv_sa6));
-	if (CHECK(err, "bind(listen_fd)", "err:%d errno:%d\n", err, errno))
+	listen_fd = start_server(AF_INET6, SOCK_STREAM, "::1", 0, 0);
+	/* start_server() has logged the error details */
+	if (CHECK_FAIL(listen_fd == -1))
 		goto done;
 
 	err = getsockname(listen_fd, (struct sockaddr *)&srv_sa6, &addrlen);
@@ -282,19 +261,8 @@ static void test(void)
 		goto done;
 	memcpy(&skel->bss->srv_sa6, &srv_sa6, sizeof(srv_sa6));
 
-	err = listen(listen_fd, 1);
-	if (CHECK(err, "listen(listen_fd)", "err:%d errno:%d\n", err, errno))
-		goto done;
-
-	/* Prepare cli_fd */
-	cli_fd = socket(AF_INET6, SOCK_STREAM | SOCK_NONBLOCK, 0);
-	if (CHECK(cli_fd == -1, "socket()", "cli_fd:%d errno:%d\n", cli_fd,
-		  errno))
-		goto done;
-
-	init_loopback6(&cli_sa6);
-	err = bind(cli_fd, (struct sockaddr *)&cli_sa6, sizeof(cli_sa6));
-	if (CHECK(err, "bind(cli_fd)", "err:%d errno:%d\n", err, errno))
+	cli_fd = connect_to_fd(listen_fd, 0);
+	if (CHECK_FAIL(cli_fd == -1))
 		goto done;
 
 	err = getsockname(cli_fd, (struct sockaddr *)&cli_sa6, &addrlen);
@@ -302,39 +270,10 @@ static void test(void)
 		  err, errno))
 		goto done;
 
-	/* Connect from cli_sa6 to srv_sa6 */
-	err = connect(cli_fd, (struct sockaddr *)&srv_sa6, addrlen);
-	printf("srv_sa6.sin6_port:%u cli_sa6.sin6_port:%u\n\n",
-	       ntohs(srv_sa6.sin6_port), ntohs(cli_sa6.sin6_port));
-	if (CHECK(err && errno != EINPROGRESS,
-		  "connect(cli_fd)", "err:%d errno:%d\n", err, errno))
-		goto done;
-
-	ev.data.fd = listen_fd;
-	err = epoll_ctl(epfd, EPOLL_CTL_ADD, listen_fd, &ev);
-	if (CHECK(err, "epoll_ctl(EPOLL_CTL_ADD, listen_fd)",
-		  "err:%d errno:%d\n", err, errno))
-		goto done;
-
-	/* Accept the connection */
-	/* Have some timeout in accept(listen_fd). Just in case. */
-	err = epoll_wait(epfd, &ev, 1, 1000);
-	if (CHECK(err != 1 || ev.data.fd != listen_fd,
-		  "epoll_wait(listen_fd)",
-		  "err:%d errno:%d ev.data.fd:%d listen_fd:%d\n",
-		  err, errno, ev.data.fd, listen_fd))
-		goto done;
-
 	accept_fd = accept(listen_fd, NULL, NULL);
 	if (CHECK(accept_fd == -1, "accept(listen_fd)",
 		  "accept_fd:%d errno:%d\n",
 		  accept_fd, errno))
-		goto done;
-
-	ev.data.fd = cli_fd;
-	err = epoll_ctl(epfd, EPOLL_CTL_ADD, cli_fd, &ev);
-	if (CHECK(err, "epoll_ctl(EPOLL_CTL_ADD, cli_fd)",
-		  "err:%d errno:%d\n", err, errno))
 		goto done;
 
 	if (init_sk_storage(accept_fd, 0xeB9F))
@@ -347,14 +286,6 @@ static void test(void)
 		err = send(accept_fd, DATA, DATA_LEN, MSG_EOR);
 		if (CHECK(err != DATA_LEN, "send(accept_fd)",
 			  "err:%d errno:%d\n", err, errno))
-			goto done;
-
-		/* Have some timeout in recv(cli_fd). Just in case. */
-		err = epoll_wait(epfd, &ev, 1, 1000);
-		if (CHECK(err != 1 || ev.data.fd != cli_fd,
-			  "epoll_wait(cli_fd)",
-			  "err:%d errno:%d ev.data.fd:%d cli_fd:%d\n",
-			  err, errno, ev.data.fd, cli_fd))
 			goto done;
 
 		err = recv(cli_fd, buf, DATA_LEN, 0);
@@ -383,7 +314,6 @@ done:
 		close(cli_fd);
 	if (listen_fd != -1)
 		close(listen_fd);
-	close(epfd);
 }
 
 void test_sock_fields(void)
