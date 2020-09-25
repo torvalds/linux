@@ -1831,7 +1831,7 @@ static struct mvneta_tx_queue *mvneta_tx_done_policy(struct mvneta_port *pp,
 /* Free tx queue skbuffs */
 static void mvneta_txq_bufs_free(struct mvneta_port *pp,
 				 struct mvneta_tx_queue *txq, int num,
-				 struct netdev_queue *nq)
+				 struct netdev_queue *nq, bool napi)
 {
 	unsigned int bytes_compl = 0, pkts_compl = 0;
 	int i;
@@ -1854,7 +1854,10 @@ static void mvneta_txq_bufs_free(struct mvneta_port *pp,
 			dev_kfree_skb_any(buf->skb);
 		} else if (buf->type == MVNETA_TYPE_XDP_TX ||
 			   buf->type == MVNETA_TYPE_XDP_NDO) {
-			xdp_return_frame(buf->xdpf);
+			if (napi && buf->type == MVNETA_TYPE_XDP_TX)
+				xdp_return_frame_rx_napi(buf->xdpf);
+			else
+				xdp_return_frame(buf->xdpf);
 		}
 	}
 
@@ -1872,7 +1875,7 @@ static void mvneta_txq_done(struct mvneta_port *pp,
 	if (!tx_done)
 		return;
 
-	mvneta_txq_bufs_free(pp, txq, tx_done, nq);
+	mvneta_txq_bufs_free(pp, txq, tx_done, nq, true);
 
 	txq->count -= tx_done;
 
@@ -2859,7 +2862,7 @@ static void mvneta_txq_done_force(struct mvneta_port *pp,
 	struct netdev_queue *nq = netdev_get_tx_queue(pp->dev, txq->id);
 	int tx_done = txq->count;
 
-	mvneta_txq_bufs_free(pp, txq, tx_done, nq);
+	mvneta_txq_bufs_free(pp, txq, tx_done, nq, false);
 
 	/* reset txq */
 	txq->count = 0;
