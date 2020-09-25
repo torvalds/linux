@@ -638,10 +638,17 @@ static void ilk_load_luts(const struct intel_crtc_state *crtc_state)
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	const struct drm_property_blob *gamma_lut = crtc_state->hw.gamma_lut;
 
-	if (crtc_state->gamma_mode == GAMMA_MODE_MODE_8BIT)
+	switch (crtc_state->gamma_mode) {
+	case GAMMA_MODE_MODE_8BIT:
 		ilk_load_lut_8(crtc, gamma_lut);
-	else
+		break;
+	case GAMMA_MODE_MODE_10BIT:
 		ilk_load_lut_10(crtc, gamma_lut);
+		break;
+	default:
+		MISSING_CASE(crtc_state->gamma_mode);
+		break;
+	}
 }
 
 static int ivb_lut_10_size(u32 prec_index)
@@ -745,21 +752,27 @@ static void ivb_load_luts(const struct intel_crtc_state *crtc_state)
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	const struct drm_property_blob *gamma_lut = crtc_state->hw.gamma_lut;
 	const struct drm_property_blob *degamma_lut = crtc_state->hw.degamma_lut;
+	const struct drm_property_blob *blob = gamma_lut ?: degamma_lut;
 
-	if (crtc_state->gamma_mode == GAMMA_MODE_MODE_8BIT) {
-		ilk_load_lut_8(crtc, gamma_lut);
-	} else if (crtc_state->gamma_mode == GAMMA_MODE_MODE_SPLIT) {
+	switch (crtc_state->gamma_mode) {
+	case GAMMA_MODE_MODE_8BIT:
+		ilk_load_lut_8(crtc, blob);
+		break;
+	case GAMMA_MODE_MODE_SPLIT:
 		ivb_load_lut_10(crtc, degamma_lut, PAL_PREC_SPLIT_MODE |
 				PAL_PREC_INDEX_VALUE(0));
 		ivb_load_lut_ext_max(crtc_state);
 		ivb_load_lut_10(crtc, gamma_lut, PAL_PREC_SPLIT_MODE |
 				PAL_PREC_INDEX_VALUE(512));
-	} else {
-		const struct drm_property_blob *blob = gamma_lut ?: degamma_lut;
-
+		break;
+	case GAMMA_MODE_MODE_10BIT:
 		ivb_load_lut_10(crtc, blob,
 				PAL_PREC_INDEX_VALUE(0));
 		ivb_load_lut_ext_max(crtc_state);
+		break;
+	default:
+		MISSING_CASE(crtc_state->gamma_mode);
+		break;
 	}
 }
 
@@ -768,21 +781,28 @@ static void bdw_load_luts(const struct intel_crtc_state *crtc_state)
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	const struct drm_property_blob *gamma_lut = crtc_state->hw.gamma_lut;
 	const struct drm_property_blob *degamma_lut = crtc_state->hw.degamma_lut;
+	const struct drm_property_blob *blob = gamma_lut ?: degamma_lut;
 
-	if (crtc_state->gamma_mode == GAMMA_MODE_MODE_8BIT) {
-		ilk_load_lut_8(crtc, gamma_lut);
-	} else if (crtc_state->gamma_mode == GAMMA_MODE_MODE_SPLIT) {
+	switch (crtc_state->gamma_mode) {
+	case GAMMA_MODE_MODE_8BIT:
+		ilk_load_lut_8(crtc, blob);
+		break;
+	case GAMMA_MODE_MODE_SPLIT:
 		bdw_load_lut_10(crtc, degamma_lut, PAL_PREC_SPLIT_MODE |
 				PAL_PREC_INDEX_VALUE(0));
 		ivb_load_lut_ext_max(crtc_state);
 		bdw_load_lut_10(crtc, gamma_lut, PAL_PREC_SPLIT_MODE |
 				PAL_PREC_INDEX_VALUE(512));
-	} else {
-		const struct drm_property_blob *blob = gamma_lut ?: degamma_lut;
+		break;
+	case GAMMA_MODE_MODE_10BIT:
 
 		bdw_load_lut_10(crtc, blob,
 				PAL_PREC_INDEX_VALUE(0));
 		ivb_load_lut_ext_max(crtc_state);
+		break;
+	default:
+		MISSING_CASE(crtc_state->gamma_mode);
+		break;
 	}
 }
 
@@ -875,11 +895,17 @@ static void glk_load_luts(const struct intel_crtc_state *crtc_state)
 	else
 		glk_load_degamma_lut_linear(crtc_state);
 
-	if (crtc_state->gamma_mode == GAMMA_MODE_MODE_8BIT) {
+	switch (crtc_state->gamma_mode) {
+	case GAMMA_MODE_MODE_8BIT:
 		ilk_load_lut_8(crtc, gamma_lut);
-	} else {
+		break;
+	case GAMMA_MODE_MODE_10BIT:
 		bdw_load_lut_10(crtc, gamma_lut, PAL_PREC_INDEX_VALUE(0));
 		ivb_load_lut_ext_max(crtc_state);
+		break;
+	default:
+		MISSING_CASE(crtc_state->gamma_mode);
+		break;
 	}
 }
 
@@ -1011,9 +1037,13 @@ static void icl_load_luts(const struct intel_crtc_state *crtc_state)
 		icl_program_gamma_superfine_segment(crtc_state);
 		icl_program_gamma_multi_segment(crtc_state);
 		break;
-	default:
+	case GAMMA_MODE_MODE_10BIT:
 		bdw_load_lut_10(crtc, gamma_lut, PAL_PREC_INDEX_VALUE(0));
 		ivb_load_lut_ext_max(crtc_state);
+		break;
+	default:
+		MISSING_CASE(crtc_state->gamma_mode);
+		break;
 	}
 
 	intel_dsb_commit(crtc_state);
@@ -1737,7 +1767,7 @@ bool intel_color_lut_equal(struct drm_property_blob *blob1,
 		break;
 	default:
 		MISSING_CASE(gamma_mode);
-			return false;
+		return false;
 	}
 
 	return true;
@@ -1917,10 +1947,17 @@ static void ilk_read_luts(struct intel_crtc_state *crtc_state)
 	if ((crtc_state->csc_mode & CSC_POSITION_BEFORE_GAMMA) == 0)
 		return;
 
-	if (crtc_state->gamma_mode == GAMMA_MODE_MODE_8BIT)
+	switch (crtc_state->gamma_mode) {
+	case GAMMA_MODE_MODE_8BIT:
 		crtc_state->hw.gamma_lut = ilk_read_lut_8(crtc);
-	else
+		break;
+	case GAMMA_MODE_MODE_10BIT:
 		crtc_state->hw.gamma_lut = ilk_read_lut_10(crtc);
+		break;
+	default:
+		MISSING_CASE(crtc_state->gamma_mode);
+		break;
+	}
 }
 
 /* On BDW+ the index auto increment mode actually works */
@@ -1965,10 +2002,17 @@ static void glk_read_luts(struct intel_crtc_state *crtc_state)
 	if (!crtc_state->gamma_enable)
 		return;
 
-	if (crtc_state->gamma_mode == GAMMA_MODE_MODE_8BIT)
+	switch (crtc_state->gamma_mode) {
+	case GAMMA_MODE_MODE_8BIT:
 		crtc_state->hw.gamma_lut = ilk_read_lut_8(crtc);
-	else
+		break;
+	case GAMMA_MODE_MODE_10BIT:
 		crtc_state->hw.gamma_lut = bdw_read_lut_10(crtc, PAL_PREC_INDEX_VALUE(0));
+		break;
+	default:
+		MISSING_CASE(crtc_state->gamma_mode);
+		break;
+	}
 }
 
 static struct drm_property_blob *
@@ -2020,11 +2064,15 @@ static void icl_read_luts(struct intel_crtc_state *crtc_state)
 	case GAMMA_MODE_MODE_8BIT:
 		crtc_state->hw.gamma_lut = ilk_read_lut_8(crtc);
 		break;
+	case GAMMA_MODE_MODE_10BIT:
+		crtc_state->hw.gamma_lut = bdw_read_lut_10(crtc, PAL_PREC_INDEX_VALUE(0));
+		break;
 	case GAMMA_MODE_MODE_12BIT_MULTI_SEGMENTED:
 		crtc_state->hw.gamma_lut = icl_read_lut_multi_segment(crtc);
 		break;
 	default:
-		crtc_state->hw.gamma_lut = bdw_read_lut_10(crtc, PAL_PREC_INDEX_VALUE(0));
+		MISSING_CASE(crtc_state->gamma_mode);
+		break;
 	}
 }
 
