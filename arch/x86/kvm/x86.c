@@ -1490,7 +1490,35 @@ EXPORT_SYMBOL_GPL(kvm_enable_efer_bits);
 
 bool kvm_msr_allowed(struct kvm_vcpu *vcpu, u32 index, u32 type)
 {
-	return true;
+	struct kvm *kvm = vcpu->kvm;
+	struct msr_bitmap_range *ranges = kvm->arch.msr_filter.ranges;
+	u32 count = kvm->arch.msr_filter.count;
+	u32 i;
+	bool r = kvm->arch.msr_filter.default_allow;
+	int idx;
+
+	/* MSR filtering not set up, allow everything */
+	if (!count)
+		return true;
+
+	/* Prevent collision with set_msr_filter */
+	idx = srcu_read_lock(&kvm->srcu);
+
+	for (i = 0; i < count; i++) {
+		u32 start = ranges[i].base;
+		u32 end = start + ranges[i].nmsrs;
+		u32 flags = ranges[i].flags;
+		unsigned long *bitmap = ranges[i].bitmap;
+
+		if ((index >= start) && (index < end) && (flags & type)) {
+			r = !!test_bit(index - start, bitmap);
+			break;
+		}
+	}
+
+	srcu_read_unlock(&kvm->srcu, idx);
+
+	return r;
 }
 EXPORT_SYMBOL_GPL(kvm_msr_allowed);
 
@@ -1504,6 +1532,9 @@ static int __kvm_set_msr(struct kvm_vcpu *vcpu, u32 index, u64 data,
 			 bool host_initiated)
 {
 	struct msr_data msr;
+
+	if (!host_initiated && !kvm_msr_allowed(vcpu, index, KVM_MSR_FILTER_WRITE))
+		return -EPERM;
 
 	switch (index) {
 	case MSR_FS_BASE:
@@ -1560,6 +1591,9 @@ int __kvm_get_msr(struct kvm_vcpu *vcpu, u32 index, u64 *data,
 {
 	struct msr_data msr;
 	int ret;
+
+	if (!host_initiated && !kvm_msr_allowed(vcpu, index, KVM_MSR_FILTER_READ))
+		return -EPERM;
 
 	msr.index = index;
 	msr.host_initiated = host_initiated;
@@ -1624,6 +1658,8 @@ static u64 kvm_msr_reason(int r)
 	switch (r) {
 	case -ENOENT:
 		return KVM_MSR_EXIT_REASON_UNKNOWN;
+	case -EPERM:
+		return KVM_MSR_EXIT_REASON_FILTER;
 	default:
 		return KVM_MSR_EXIT_REASON_INVAL;
 	}
@@ -3620,6 +3656,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_SET_GUEST_DEBUG:
 	case KVM_CAP_LAST_CPU:
 	case KVM_CAP_X86_USER_SPACE_MSR:
+	case KVM_CAP_X86_MSR_FILTER:
 		r = 1;
 		break;
 	case KVM_CAP_SYNC_REGS:
@@ -5151,6 +5188,103 @@ split_irqchip_unlock:
 	return r;
 }
 
+static void kvm_clear_msr_filter(struct kvm *kvm)
+{
+	u32 i;
+	u32 count = kvm->arch.msr_filter.count;
+	struct msr_bitmap_range ranges[16];
+
+	mutex_lock(&kvm->lock);
+	kvm->arch.msr_filter.count = 0;
+	memcpy(ranges, kvm->arch.msr_filter.ranges, count * sizeof(ranges[0]));
+	mutex_unlock(&kvm->lock);
+	synchronize_srcu(&kvm->srcu);
+
+	for (i = 0; i < count; i++)
+		kfree(ranges[i].bitmap);
+}
+
+static int kvm_add_msr_filter(struct kvm *kvm, struct kvm_msr_filter_range *user_range)
+{
+	struct msr_bitmap_range *ranges = kvm->arch.msr_filter.ranges;
+	struct msr_bitmap_range range;
+	unsigned long *bitmap = NULL;
+	size_t bitmap_size;
+	int r;
+
+	if (!user_range->nmsrs)
+		return 0;
+
+	bitmap_size = BITS_TO_LONGS(user_range->nmsrs) * sizeof(long);
+	if (!bitmap_size || bitmap_size > KVM_MSR_FILTER_MAX_BITMAP_SIZE)
+		return -EINVAL;
+
+	bitmap = memdup_user((__user u8*)user_range->bitmap, bitmap_size);
+	if (IS_ERR(bitmap))
+		return PTR_ERR(bitmap);
+
+	range = (struct msr_bitmap_range) {
+		.flags = user_range->flags,
+		.base = user_range->base,
+		.nmsrs = user_range->nmsrs,
+		.bitmap = bitmap,
+	};
+
+	if (range.flags & ~(KVM_MSR_FILTER_READ | KVM_MSR_FILTER_WRITE)) {
+		r = -EINVAL;
+		goto err;
+	}
+
+	if (!range.flags) {
+		r = -EINVAL;
+		goto err;
+	}
+
+	/* Everything ok, add this range identifier to our global pool */
+	ranges[kvm->arch.msr_filter.count] = range;
+	/* Make sure we filled the array before we tell anyone to walk it */
+	smp_wmb();
+	kvm->arch.msr_filter.count++;
+
+	return 0;
+err:
+	kfree(bitmap);
+	return r;
+}
+
+static int kvm_vm_ioctl_set_msr_filter(struct kvm *kvm, void __user *argp)
+{
+	struct kvm_msr_filter __user *user_msr_filter = argp;
+	struct kvm_msr_filter filter;
+	bool default_allow;
+	int r = 0;
+	u32 i;
+
+	if (copy_from_user(&filter, user_msr_filter, sizeof(filter)))
+		return -EFAULT;
+
+	kvm_clear_msr_filter(kvm);
+
+	default_allow = !(filter.flags & KVM_MSR_FILTER_DEFAULT_DENY);
+	kvm->arch.msr_filter.default_allow = default_allow;
+
+	/*
+	 * Protect from concurrent calls to this function that could trigger
+	 * a TOCTOU violation on kvm->arch.msr_filter.count.
+	 */
+	mutex_lock(&kvm->lock);
+	for (i = 0; i < ARRAY_SIZE(filter.ranges); i++) {
+		r = kvm_add_msr_filter(kvm, &filter.ranges[i]);
+		if (r)
+			break;
+	}
+
+	kvm_make_all_cpus_request(kvm, KVM_REQ_MSR_FILTER_CHANGED);
+	mutex_unlock(&kvm->lock);
+
+	return r;
+}
+
 long kvm_arch_vm_ioctl(struct file *filp,
 		       unsigned int ioctl, unsigned long arg)
 {
@@ -5456,6 +5590,9 @@ set_pit2_out:
 	}
 	case KVM_SET_PMU_EVENT_FILTER:
 		r = kvm_vm_ioctl_set_pmu_event_filter(kvm, argp);
+		break;
+	case KVM_X86_SET_MSR_FILTER:
+		r = kvm_vm_ioctl_set_msr_filter(kvm, argp);
 		break;
 	default:
 		r = -ENOTTY;
@@ -8611,6 +8748,8 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 			kvm_vcpu_update_apicv(vcpu);
 		if (kvm_check_request(KVM_REQ_APF_READY, vcpu))
 			kvm_check_async_pf_completion(vcpu);
+		if (kvm_check_request(KVM_REQ_MSR_FILTER_CHANGED, vcpu))
+			kvm_x86_ops.msr_filter_changed(vcpu);
 	}
 
 	if (kvm_check_request(KVM_REQ_EVENT, vcpu) || req_int_win) {
@@ -10163,6 +10302,8 @@ void kvm_arch_pre_destroy_vm(struct kvm *kvm)
 
 void kvm_arch_destroy_vm(struct kvm *kvm)
 {
+	u32 i;
+
 	if (current->mm == kvm->mm) {
 		/*
 		 * Free memory regions allocated on behalf of userspace,
@@ -10179,6 +10320,8 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 	}
 	if (kvm_x86_ops.vm_destroy)
 		kvm_x86_ops.vm_destroy(kvm);
+	for (i = 0; i < kvm->arch.msr_filter.count; i++)
+		kfree(kvm->arch.msr_filter.ranges[i].bitmap);
 	kvm_pic_destroy(kvm);
 	kvm_ioapic_destroy(kvm);
 	kvm_free_vcpus(kvm);

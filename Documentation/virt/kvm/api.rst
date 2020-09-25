@@ -4707,6 +4707,99 @@ KVM_PV_VM_VERIFY
   Verify the integrity of the unpacked image. Only if this succeeds,
   KVM is allowed to start protected VCPUs.
 
+4.126 KVM_X86_SET_MSR_FILTER
+----------------------------
+
+:Capability: KVM_X86_SET_MSR_FILTER
+:Architectures: x86
+:Type: vm ioctl
+:Parameters: struct kvm_msr_filter
+:Returns: 0 on success, < 0 on error
+
+::
+
+  struct kvm_msr_filter_range {
+  #define KVM_MSR_FILTER_READ  (1 << 0)
+  #define KVM_MSR_FILTER_WRITE (1 << 1)
+	__u32 flags;
+	__u32 nmsrs; /* number of msrs in bitmap */
+	__u32 base;  /* MSR index the bitmap starts at */
+	__u8 *bitmap; /* a 1 bit allows the operations in flags, 0 denies */
+  };
+
+  #define KVM_MSR_FILTER_MAX_RANGES 16
+  struct kvm_msr_filter {
+  #define KVM_MSR_FILTER_DEFAULT_ALLOW (0 << 0)
+  #define KVM_MSR_FILTER_DEFAULT_DENY  (1 << 0)
+	__u32 flags;
+	struct kvm_msr_filter_range ranges[KVM_MSR_FILTER_MAX_RANGES];
+  };
+
+flags values for struct kvm_msr_filter_range:
+
+KVM_MSR_FILTER_READ
+
+  Filter read accesses to MSRs using the given bitmap. A 0 in the bitmap
+  indicates that a read should immediately fail, while a 1 indicates that
+  a read for a particular MSR should be handled regardless of the default
+  filter action.
+
+KVM_MSR_FILTER_WRITE
+
+  Filter write accesses to MSRs using the given bitmap. A 0 in the bitmap
+  indicates that a write should immediately fail, while a 1 indicates that
+  a write for a particular MSR should be handled regardless of the default
+  filter action.
+
+KVM_MSR_FILTER_READ | KVM_MSR_FILTER_WRITE
+
+  Filter both read and write accesses to MSRs using the given bitmap. A 0
+  in the bitmap indicates that both reads and writes should immediately fail,
+  while a 1 indicates that reads and writes for a particular MSR are not
+  filtered by this range.
+
+flags values for struct kvm_msr_filter:
+
+KVM_MSR_FILTER_DEFAULT_ALLOW
+
+  If no filter range matches an MSR index that is getting accessed, KVM will
+  fall back to allowing access to the MSR.
+
+KVM_MSR_FILTER_DEFAULT_DENY
+
+  If no filter range matches an MSR index that is getting accessed, KVM will
+  fall back to rejecting access to the MSR. In this mode, all MSRs that should
+  be processed by KVM need to explicitly be marked as allowed in the bitmaps.
+
+This ioctl allows user space to define up to 16 bitmaps of MSR ranges to
+specify whether a certain MSR access should be explicitly filtered for or not.
+
+If this ioctl has never been invoked, MSR accesses are not guarded and the
+old KVM in-kernel emulation behavior is fully preserved.
+
+As soon as the filtering is in place, every MSR access is processed through
+the filtering. If a bit is within one of the defined ranges, read and write
+accesses are guarded by the bitmap's value for the MSR index. If it is not
+defined in any range, whether MSR access is rejected is determined by the flags
+field in the kvm_msr_filter struct: KVM_MSR_FILTER_DEFAULT_ALLOW and
+KVM_MSR_FILTER_DEFAULT_DENY.
+
+Calling this ioctl with an empty set of ranges (all nmsrs == 0) disables MSR
+filtering. In that mode, KVM_MSR_FILTER_DEFAULT_DENY no longer has any effect.
+
+Each bitmap range specifies a range of MSRs to potentially allow access on.
+The range goes from MSR index [base .. base+nmsrs]. The flags field
+indicates whether reads, writes or both reads and writes are filtered
+by setting a 1 bit in the bitmap for the corresponding MSR index.
+
+If an MSR access is not permitted through the filtering, it generates a
+#GP inside the guest. When combined with KVM_CAP_X86_USER_SPACE_MSR, that
+allows user space to deflect and potentially handle various MSR accesses
+into user space.
+
+If a vCPU is in running state while this ioctl is invoked, the vCPU may
+experience inconsistent filtering behavior on MSR accesses.
+
 
 5. The kvm_run structure
 ========================
@@ -5187,6 +5280,7 @@ ENABLE_CAP. Currently valid exit reasons are:
 
 	KVM_MSR_EXIT_REASON_UNKNOWN - access to MSR that is unknown to KVM
 	KVM_MSR_EXIT_REASON_INVAL - access to invalid MSRs or reserved bits
+	KVM_MSR_EXIT_REASON_FILTER - access blocked by KVM_X86_SET_MSR_FILTER
 
 For KVM_EXIT_X86_RDMSR, the "index" field tells user space which MSR the guest
 wants to read. To respond to this request with a successful read, user space
@@ -6265,3 +6359,17 @@ writes to user space. It can be enabled on a VM level. If enabled, MSR
 accesses that would usually trigger a #GP by KVM into the guest will
 instead get bounced to user space through the KVM_EXIT_X86_RDMSR and
 KVM_EXIT_X86_WRMSR exit notifications.
+
+8.25 KVM_X86_SET_MSR_FILTER
+---------------------------
+
+:Architectures: x86
+
+This capability indicates that KVM supports that accesses to user defined MSRs
+may be rejected. With this capability exposed, KVM exports new VM ioctl
+KVM_X86_SET_MSR_FILTER which user space can call to specify bitmaps of MSR
+ranges that KVM should reject access to.
+
+In combination with KVM_CAP_X86_USER_SPACE_MSR, this allows user space to
+trap and emulate MSRs that are outside of the scope of KVM as well as
+limit the attack surface on KVM's MSR emulation code.
