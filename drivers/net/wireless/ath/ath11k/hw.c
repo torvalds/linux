@@ -74,7 +74,6 @@ static void ath11k_init_wmi_config_qca6390(struct ath11k_base *ab,
 	config->beacon_tx_offload_max_vdev = 0x2;
 	config->num_multicast_filter_entries = 0x20;
 	config->num_wow_filters = 0x16;
-	config->num_keep_alive_pattern = 0x1;
 	config->num_keep_alive_pattern = 0;
 }
 
@@ -104,7 +103,12 @@ static void ath11k_init_wmi_config_ipq8074(struct ath11k_base *ab,
 	config->rx_timeout_pri[1] = TARGET_RX_TIMEOUT_LO_PRI;
 	config->rx_timeout_pri[2] = TARGET_RX_TIMEOUT_LO_PRI;
 	config->rx_timeout_pri[3] = TARGET_RX_TIMEOUT_HI_PRI;
-	config->rx_decap_mode = TARGET_DECAP_MODE_NATIVE_WIFI;
+
+	if (test_bit(ATH11K_FLAG_RAW_MODE, &ab->dev_flags))
+		config->rx_decap_mode = TARGET_DECAP_MODE_RAW;
+	else
+		config->rx_decap_mode = TARGET_DECAP_MODE_NATIVE_WIFI;
+
 	config->scan_max_pending_req = TARGET_SCAN_MAX_PENDING_REQS;
 	config->bmiss_offload_max_vdev = TARGET_BMISS_OFFLOAD_MAX_VDEV;
 	config->roam_offload_max_vdev = TARGET_ROAM_OFFLOAD_MAX_VDEV;

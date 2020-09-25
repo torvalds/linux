@@ -1894,7 +1894,7 @@ int rtl8821ae_hw_init(struct ieee80211_hw *hw)
 	}
 
 	rtstatus = _rtl8821ae_init_mac(hw);
-	if (rtstatus != true) {
+	if (!rtstatus) {
 		pr_err("Init MAC failed\n");
 		err = 1;
 		return err;

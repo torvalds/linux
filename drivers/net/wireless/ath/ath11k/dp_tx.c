@@ -6,6 +6,7 @@
 #include "core.h"
 #include "dp_tx.h"
 #include "debug.h"
+#include "debugfs_sta.h"
 #include "hw.h"
 #include "peer.h"
 
@@ -457,7 +458,7 @@ static void ath11k_dp_tx_complete_msdu(struct ath11k *ar,
 	    (info->flags & IEEE80211_TX_CTL_NO_ACK))
 		info->flags |= IEEE80211_TX_STAT_NOACK_TRANSMITTED;
 
-	if (ath11k_debug_is_extd_tx_stats_enabled(ar)) {
+	if (ath11k_debugfs_is_extd_tx_stats_enabled(ar)) {
 		if (ts->flags & HAL_TX_STATUS_FLAGS_FIRST_MSDU) {
 			if (ar->last_ppdu_id == 0) {
 				ar->last_ppdu_id = ts->ppdu_id;
@@ -465,12 +466,12 @@ static void ath11k_dp_tx_complete_msdu(struct ath11k *ar,
 				   ar->cached_ppdu_id == ar->last_ppdu_id) {
 				ar->cached_ppdu_id = ar->last_ppdu_id;
 				ar->cached_stats.is_ampdu = true;
-				ath11k_update_per_peer_stats_from_txcompl(ar, msdu, ts);
+				ath11k_debugfs_sta_update_txcompl(ar, msdu, ts);
 				memset(&ar->cached_stats, 0,
 				       sizeof(struct ath11k_per_peer_tx_stats));
 			} else {
 				ar->cached_stats.is_ampdu = false;
-				ath11k_update_per_peer_stats_from_txcompl(ar, msdu, ts);
+				ath11k_debugfs_sta_update_txcompl(ar, msdu, ts);
 				memset(&ar->cached_stats, 0,
 				       sizeof(struct ath11k_per_peer_tx_stats));
 			}

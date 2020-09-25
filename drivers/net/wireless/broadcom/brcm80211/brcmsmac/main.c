@@ -5085,13 +5085,6 @@ int brcms_c_up(struct brcms_c_info *wlc)
 	return 0;
 }
 
-static uint brcms_c_down_del_timer(struct brcms_c_info *wlc)
-{
-	uint callbacks = 0;
-
-	return callbacks;
-}
-
 static int brcms_b_bmac_down_prep(struct brcms_hardware *wlc_hw)
 {
 	bool dev_gone;
@@ -5201,8 +5194,6 @@ uint brcms_c_down(struct brcms_c_info *wlc)
 			callbacks++;
 		wlc->WDarmed = false;
 	}
-	/* cancel all other timers */
-	callbacks += brcms_c_down_del_timer(wlc);
 
 	wlc->pub->up = false;
 

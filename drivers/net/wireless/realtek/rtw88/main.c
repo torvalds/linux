@@ -1472,6 +1472,9 @@ int rtw_core_init(struct rtw_dev *rtwdev)
 		ret = rtw_load_firmware(rtwdev, RTW_WOWLAN_FW);
 		if (ret) {
 			rtw_warn(rtwdev, "no wow firmware loaded\n");
+			wait_for_completion(&rtwdev->fw.completion);
+			if (rtwdev->fw.firmware)
+				release_firmware(rtwdev->fw.firmware);
 			return ret;
 		}
 	}
@@ -1485,6 +1488,8 @@ void rtw_core_deinit(struct rtw_dev *rtwdev)
 	struct rtw_fw_state *wow_fw = &rtwdev->wow_fw;
 	struct rtw_rsvd_page *rsvd_pkt, *tmp;
 	unsigned long flags;
+
+	rtw_wait_firmware_completion(rtwdev);
 
 	if (fw->firmware)
 		release_firmware(fw->firmware);

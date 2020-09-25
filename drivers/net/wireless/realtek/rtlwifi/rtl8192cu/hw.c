@@ -828,7 +828,7 @@ static int _rtl92cu_init_mac(struct ieee80211_hw *hw)
 					? WMM_CHIP_B_TX_PAGE_BOUNDARY
 					: WMM_CHIP_A_TX_PAGE_BOUNDARY;
 	}
-	if (false == rtl92c_init_llt_table(hw, boundary)) {
+	if (!rtl92c_init_llt_table(hw, boundary)) {
 		pr_err("Failed to init LLT Table!\n");
 		return -EINVAL;
 	}

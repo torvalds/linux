@@ -858,7 +858,7 @@ static bool _rtl8723be_init_mac(struct ieee80211_hw *hw)
 	rtl_write_word(rtlpriv, REG_CR, 0x2ff);
 
 	if (!rtlhal->mac_func_enable) {
-		if (_rtl8723be_llt_table_init(hw) == false)
+		if (!_rtl8723be_llt_table_init(hw))
 			return false;
 	}
 

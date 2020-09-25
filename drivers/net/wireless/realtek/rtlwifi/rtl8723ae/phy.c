@@ -188,7 +188,7 @@ static bool _rtl8723e_phy_bb8192c_config_parafile(struct ieee80211_hw *hw)
 	rtl_dbg(rtlpriv, COMP_INIT, DBG_TRACE, "\n");
 	rtstatus = _rtl8723e_phy_config_bb_with_headerfile(hw,
 						BASEBAND_CONFIG_PHY_REG);
-	if (rtstatus != true) {
+	if (!rtstatus) {
 		pr_err("Write BB Reg Fail!!\n");
 		return false;
 	}
@@ -202,13 +202,13 @@ static bool _rtl8723e_phy_bb8192c_config_parafile(struct ieee80211_hw *hw)
 		rtstatus = _rtl8723e_phy_config_bb_with_pgheaderfile(hw,
 					BASEBAND_CONFIG_PHY_REG);
 	}
-	if (rtstatus != true) {
+	if (!rtstatus) {
 		pr_err("BB_PG Reg Fail!!\n");
 		return false;
 	}
 	rtstatus =
 	  _rtl8723e_phy_config_bb_with_headerfile(hw, BASEBAND_CONFIG_AGC_TAB);
-	if (rtstatus != true) {
+	if (!rtstatus) {
 		pr_err("AGC Table Fail\n");
 		return false;
 	}
@@ -622,7 +622,7 @@ void rtl8723e_phy_set_txpower_level(struct ieee80211_hw *hw, u8 channel)
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
 	u8 cckpowerlevel[2], ofdmpowerlevel[2];
 
-	if (rtlefuse->txpwr_fromeprom == false)
+	if (!rtlefuse->txpwr_fromeprom)
 		return;
 	_rtl8723e_get_txpower_index(hw, channel,
 				    &cckpowerlevel[0], &ofdmpowerlevel[0]);

@@ -145,13 +145,9 @@ EXPORT_SYMBOL(_rtl92c_phy_rf_serial_write);
 
 u32 _rtl92c_phy_calculate_bit_shift(u32 bitmask)
 {
-	u32 i;
+	u32 i = ffs(bitmask);
 
-	for (i = 0; i <= 31; i++) {
-		if (((bitmask >> i) & 0x1) == 1)
-			break;
-	}
-	return i;
+	return i ? i - 1 : 32;
 }
 EXPORT_SYMBOL(_rtl92c_phy_calculate_bit_shift);
 
@@ -1103,7 +1099,7 @@ static void _rtl92c_phy_path_adda_on(struct ieee80211_hw *hw,
 	u32 i;
 
 	pathon = is_patha_on ? 0x04db25a4 : 0x0b1b25a4;
-	if (false == is2t) {
+	if (!is2t) {
 		pathon = 0x0bdb25a0;
 		rtl_set_bbreg(hw, addareg[0], MASKDWORD, 0x0b1b25a0);
 	} else {

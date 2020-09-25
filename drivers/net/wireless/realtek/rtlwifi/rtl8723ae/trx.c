@@ -589,7 +589,7 @@ void rtl8723e_set_desc(struct ieee80211_hw *hw, u8 *pdesc8,
 {
 	__le32 *pdesc = (__le32 *)pdesc8;
 
-	if (istx == true) {
+	if (istx) {
 		switch (desc_name) {
 		case HW_DESC_OWN:
 			set_tx_desc_own(pdesc, 1);
@@ -630,7 +630,7 @@ u64 rtl8723e_get_desc(struct ieee80211_hw *hw,
 	u32 ret = 0;
 	__le32 *pdesc = (__le32 *)pdesc8;
 
-	if (istx == true) {
+	if (istx) {
 		switch (desc_name) {
 		case HW_DESC_OWN:
 			ret = get_tx_desc_own(pdesc);

@@ -1578,6 +1578,9 @@ void brcmf_usb_exit(void)
 	brcmf_dbg(USB, "Enter\n");
 	ret = driver_for_each_device(drv, NULL, NULL,
 				     brcmf_usb_reset_device);
+	if (ret)
+		brcmf_err("failed to reset all usb devices %d\n", ret);
+
 	usb_deregister(&brcmf_usbdrvr);
 }
 

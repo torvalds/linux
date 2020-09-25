@@ -14,6 +14,7 @@
 #include "dp_rx.h"
 #include "testmode.h"
 #include "peer.h"
+#include "debugfs_sta.h"
 
 #define CHAN2G(_channel, _freq, _flags) { \
 	.band                   = NL80211_BAND_2GHZ, \
@@ -2967,7 +2968,7 @@ static int ath11k_mac_station_add(struct ath11k *ar,
 	ath11k_dbg(ab, ATH11K_DBG_MAC, "Added peer: %pM for VDEV: %d\n",
 		   sta->addr, arvif->vdev_id);
 
-	if (ath11k_debug_is_extd_tx_stats_enabled(ar)) {
+	if (ath11k_debugfs_is_extd_tx_stats_enabled(ar)) {
 		arsta->tx_stats = kzalloc(sizeof(*arsta->tx_stats), GFP_KERNEL);
 		if (!arsta->tx_stats) {
 			ret = -ENOMEM;
@@ -4101,7 +4102,7 @@ static int ath11k_mac_config_mon_status_default(struct ath11k *ar, bool enable)
 
 	if (enable) {
 		tlv_filter = ath11k_mac_mon_status_filter_default;
-		tlv_filter.rx_filter = ath11k_debug_rx_filter(ar);
+		tlv_filter.rx_filter = ath11k_debugfs_rx_filter(ar);
 	}
 
 	for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++) {
@@ -5873,7 +5874,7 @@ static const struct ieee80211_ops ath11k_ops = {
 	.sta_statistics			= ath11k_mac_op_sta_statistics,
 	CFG80211_TESTMODE_CMD(ath11k_tm_cmd)
 #ifdef CONFIG_ATH11K_DEBUGFS
-	.sta_add_debugfs		= ath11k_sta_add_debugfs,
+	.sta_add_debugfs		= ath11k_debugfs_sta_op_add,
 #endif
 };
 
@@ -6233,7 +6234,7 @@ static int __ath11k_mac_register(struct ath11k *ar)
 		goto err_free;
 	}
 
-	ret = ath11k_debug_register(ar);
+	ret = ath11k_debugfs_register(ar);
 	if (ret) {
 		ath11k_err(ar->ab, "debugfs registration failed: %d\n", ret);
 		goto err_free;

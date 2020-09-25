@@ -2430,8 +2430,8 @@ void stop_airo_card(struct net_device *dev, int freeres)
 				iounmap(ai->pcimem);
 			if (ai->pciaux)
 				iounmap(ai->pciaux);
-			pci_free_consistent(ai->pci, PCI_SHARED_LEN,
-				ai->shared, ai->shared_dma);
+			dma_free_coherent(&ai->pci->dev, PCI_SHARED_LEN,
+					  ai->shared, ai->shared_dma);
 		}
         }
 	crypto_free_sync_skcipher(ai->tfm);
@@ -2581,9 +2581,10 @@ static int mpi_map_card(struct airo_info *ai, struct pci_dev *pci)
 	}
 
 	/* Reserve PKTSIZE for each fid and 2K for the Rids */
-	ai->shared = pci_alloc_consistent(pci, PCI_SHARED_LEN, &ai->shared_dma);
+	ai->shared = dma_alloc_coherent(&pci->dev, PCI_SHARED_LEN,
+					&ai->shared_dma, GFP_KERNEL);
 	if (!ai->shared) {
-		airo_print_err("", "Couldn't alloc_consistent %d",
+		airo_print_err("", "Couldn't alloc_coherent %d",
 			PCI_SHARED_LEN);
 		goto free_auxmap;
 	}
@@ -2643,7 +2644,8 @@ static int mpi_map_card(struct airo_info *ai, struct pci_dev *pci)
 
 	return 0;
  free_shared:
-	pci_free_consistent(pci, PCI_SHARED_LEN, ai->shared, ai->shared_dma);
+	dma_free_coherent(&pci->dev, PCI_SHARED_LEN, ai->shared,
+			  ai->shared_dma);
  free_auxmap:
 	iounmap(ai->pciaux);
  free_memmap:
@@ -2930,7 +2932,8 @@ err_out_reg:
 	unregister_netdev(dev);
 err_out_map:
 	if (test_bit(FLAG_MPI,&ai->flags) && pci) {
-		pci_free_consistent(pci, PCI_SHARED_LEN, ai->shared, ai->shared_dma);
+		dma_free_coherent(&pci->dev, PCI_SHARED_LEN, ai->shared,
+				  ai->shared_dma);
 		iounmap(ai->pciaux);
 		iounmap(ai->pcimem);
 		mpi_unmap_card(ai->pci);

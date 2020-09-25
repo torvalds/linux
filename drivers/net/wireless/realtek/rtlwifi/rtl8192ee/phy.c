@@ -203,13 +203,9 @@ static void _rtl92ee_phy_rf_serial_write(struct ieee80211_hw *hw,
 
 static u32 _rtl92ee_phy_calculate_bit_shift(u32 bitmask)
 {
-	u32 i;
+	u32 i = ffs(bitmask);
 
-	for (i = 0; i <= 31; i++) {
-		if (((bitmask >> i) & 0x1) == 1)
-			break;
-	}
-	return i;
+	return i ? i - 1 : 32;
 }
 
 bool rtl92ee_phy_mac_config(struct ieee80211_hw *hw)
