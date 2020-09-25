@@ -1929,12 +1929,15 @@ static struct drm_property_blob *bdw_read_lut_10(struct intel_crtc *crtc,
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	int i, hw_lut_size = ivb_lut_10_size(prec_index);
+	int lut_size = INTEL_INFO(dev_priv)->color.gamma_lut_size;
 	enum pipe pipe = crtc->pipe;
 	struct drm_property_blob *blob;
 	struct drm_color_lut *lut;
 
+	drm_WARN_ON(&dev_priv->drm, lut_size != hw_lut_size);
+
 	blob = drm_property_create_blob(&dev_priv->drm,
-					sizeof(struct drm_color_lut) * hw_lut_size,
+					sizeof(struct drm_color_lut) * lut_size,
 					NULL);
 	if (IS_ERR(blob))
 		return NULL;
@@ -1944,7 +1947,7 @@ static struct drm_property_blob *bdw_read_lut_10(struct intel_crtc *crtc,
 	intel_de_write(dev_priv, PREC_PAL_INDEX(pipe),
 		       prec_index | PAL_PREC_AUTO_INCREMENT);
 
-	for (i = 0; i < hw_lut_size; i++) {
+	for (i = 0; i < lut_size; i++) {
 		u32 val = intel_de_read(dev_priv, PREC_PAL_DATA(pipe));
 
 		ilk_lut_10_pack(&lut[i], val);
