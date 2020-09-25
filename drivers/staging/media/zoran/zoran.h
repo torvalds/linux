@@ -20,7 +20,6 @@
 
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-fh.h>
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-dma-contig.h>
@@ -28,13 +27,6 @@
 #define ZR_NORM_PAL 0
 #define ZR_NORM_NTSC 1
 #define ZR_NORM_SECAM 2
-
-struct zoran_sync {
-	unsigned long frame;	/* number of buffer that has been free'd */
-	unsigned long length;	/* number of code bytes in buffer (capture only) */
-	unsigned long seq;	/* frame sequence number */
-	u64 ts;			/* timestamp */
-};
 
 struct zr_buffer {
 	/* common v4l buffer stuff -- must be first */
@@ -111,18 +103,10 @@ enum zoran_codec_mode {
 	BUZ_MODE_STILL_DECOMPRESS	/* still frame conversion */
 };
 
-enum zoran_buffer_state {
-	BUZ_STATE_USER,		/* buffer is owned by application */
-	BUZ_STATE_PEND,		/* buffer is queued in pend[] ready to feed to I/O */
-	BUZ_STATE_DMA,		/* buffer is queued in dma[] for I/O */
-	BUZ_STATE_DONE		/* buffer is ready to return to application */
-};
-
 enum zoran_map_mode {
 	ZORAN_MAP_MODE_NONE,
 	ZORAN_MAP_MODE_RAW,
 	ZORAN_MAP_MODE_JPG_REC,
-#define ZORAN_MAP_MODE_JPG ZORAN_MAP_MODE_JPG_REC
 	ZORAN_MAP_MODE_JPG_PLAY,
 };
 
@@ -174,45 +158,6 @@ struct zoran_jpg_settings {
 	struct v4l2_jpegcompression jpg_comp;	/* JPEG-specific capture settings */
 };
 
-struct zoran_fh;
-
-struct zoran_mapping {
-	struct zoran_fh *fh;
-	atomic_t count;
-};
-
-struct zoran_buffer {
-	struct zoran_mapping *map;
-	enum zoran_buffer_state state;	/* state: unused/pending/dma/done */
-	struct zoran_sync bs;		/* DONE: info to return to application */
-	union {
-		struct {
-			__le32 *frag_tab;	/* addresses of frag table */
-			u32 frag_tab_bus;	/* same value cached to save time in ISR */
-		} jpg;
-		struct {
-			char *fbuffer;		/* virtual address of frame buffer */
-			unsigned long fbuffer_phys;/* physical address of frame buffer */
-			unsigned long fbuffer_bus;/* bus address of frame buffer */
-		} v4l;
-	};
-};
-
-enum zoran_lock_activity {
-	ZORAN_FREE,		/* free for use */
-	ZORAN_ACTIVE,		/* active but unlocked */
-	ZORAN_LOCKED,		/* locked */
-};
-
-/* buffer collections */
-struct zoran_buffer_col {
-	enum zoran_lock_activity active;	/* feature currently in use? */
-	unsigned int num_buffers;
-	struct zoran_buffer buffer[MAX_FRAME];	/* buffers */
-	u8 allocated;		/* Flag if buffers are allocated */
-	u8 need_contiguous;	/* Flag if contiguous buffers are needed */
-	/* only applies to jpg buffers, raw buffers are always contiguous */
-};
 
 struct zoran;
 
@@ -220,10 +165,6 @@ struct zoran;
 struct zoran_fh {
 	struct v4l2_fh fh;
 	struct zoran *zr;
-
-	enum zoran_map_mode map_mode;		/* Flag which bufferset will map by next mmap() */
-
-	struct zoran_buffer_col buffers;	/* buffers' info */
 };
 
 struct card_info {
@@ -281,7 +222,6 @@ struct zoran {
 	struct mutex lock;	/* file ops serialize lock */
 
 	u8 initialized;		/* flag if zoran has been correctly initialized */
-	int user;		/* number of current users */
 	struct card_info card;
 	const struct tvnorm *timing;
 
@@ -300,27 +240,11 @@ struct zoran {
 	/* Current buffer params */
 	unsigned int buffer_size;
 
-	wait_queue_head_t v4l_capq;
-
-	int v4l_memgrab_active;	/* Memory grab is activated */
-
-	int v4l_grab_frame;	/* Frame number being currently grabbed */
-#define NO_GRAB_ACTIVE (-1)
-	unsigned long v4l_grab_seq;	/* Number of frames grabbed */
 	struct zoran_v4l_settings v4l_settings;	/* structure with a lot of things to play with */
-
-	/* V4L grab queue of frames pending */
-	unsigned long v4l_pend_head;
-	unsigned long v4l_pend_tail;
-	unsigned long v4l_sync_tail;
-	int v4l_pend[V4L_MAX_FRAME];
-	struct zoran_buffer_col v4l_buffers;	/* V4L buffers' info */
 
 	/* Buz MJPEG parameters */
 	enum zoran_codec_mode codec_mode;	/* status of codec */
 	struct zoran_jpg_settings jpg_settings;	/* structure with a lot of things to play with */
-
-	wait_queue_head_t jpg_capq;	/* wait here for grab to finish */
 
 	/* grab queue counts/indices, mask with BUZ_MASK_STAT_COM before using as index */
 	/* (dma_head - dma_tail) is number active in DMA, must be <= BUZ_NUM_STAT_COM */
@@ -338,13 +262,8 @@ struct zoran {
 	/* zr36057's code buffer table */
 	__le32 *stat_com;		/* stat_com[i] is indexed by dma_head/tail & BUZ_MASK_STAT_COM */
 
-	/* (value & BUZ_MASK_FRAME) corresponds to index in pend[] queue */
-	int jpg_pend[BUZ_MAX_FRAME];
-
-	/* array indexed by frame number */
-	struct zoran_buffer_col jpg_buffers;	/* MJPEG buffers' info */
-
 	/* Additional stuff for testing */
+	unsigned int ghost_int;
 	int jpeg_error;
 	int intr_counter_GIRQ1;
 	int intr_counter_GIRQ0;

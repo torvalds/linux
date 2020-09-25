@@ -10,25 +10,17 @@
  */
 
 #include <linux/delay.h>
-
-#include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
-#include <linux/vmalloc.h>
 #include <linux/slab.h>
 
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 #include <linux/videodev2.h>
 #include <linux/spinlock.h>
-#include <linux/sem.h>
-#include <linux/kmod.h>
-#include <linux/wait.h>
 
 #include <linux/pci.h>
 #include <linux/interrupt.h>
-#include <linux/mutex.h>
 #include <linux/io.h>
 #include <media/v4l2-common.h>
 #include <media/i2c/bt819.h>
@@ -814,29 +806,12 @@ void zoran_open_init_params(struct zoran *zr)
 {
 	int i;
 
-	zr->v4l_memgrab_active = 0;
-	zr->v4l_grab_frame = NO_GRAB_ACTIVE;
-	zr->v4l_grab_seq = 0;
 	zr->v4l_settings.width = 192;
 	zr->v4l_settings.height = 144;
 	zr->v4l_settings.format = &zoran_formats[7];	/* YUY2 - YUV-4:2:2 packed */
-	zr->v4l_settings.bytesperline =
-	    zr->v4l_settings.width *
-	    ((zr->v4l_settings.format->depth + 7) / 8);
+	zr->v4l_settings.bytesperline = zr->v4l_settings.width *
+		((zr->v4l_settings.format->depth + 7) / 8);
 
-	/* DMA ring stuff for V4L */
-	zr->v4l_pend_tail = 0;
-	zr->v4l_pend_head = 0;
-	zr->v4l_sync_tail = 0;
-	zr->v4l_buffers.active = ZORAN_FREE;
-	for (i = 0; i < VIDEO_MAX_FRAME; i++)
-		zr->v4l_buffers.buffer[i].state = BUZ_STATE_USER;	/* nothing going on */
-	zr->v4l_buffers.allocated = 0;
-
-	for (i = 0; i < BUZ_MAX_FRAME; i++)
-		zr->jpg_buffers.buffer[i].state = BUZ_STATE_USER;	/* nothing going on */
-	zr->jpg_buffers.active = ZORAN_FREE;
-	zr->jpg_buffers.allocated = 0;
 	/* Set necessary params and call zoran_check_jpg_settings to set the defaults */
 	zr->jpg_settings.decimation = 1;
 	zr->jpg_settings.jpg_comp.quality = 50;	/* default compression factor 8 */
@@ -867,14 +842,6 @@ static int zr36057_init(struct zoran *zr)
 	int j, err;
 
 	pci_info(zr->pci_dev, "initializing card[%d]\n", zr->id);
-
-	/* default setup of all parameters which will persist between opens */
-	zr->user = 0;
-
-	init_waitqueue_head(&zr->v4l_capq);
-	init_waitqueue_head(&zr->jpg_capq);
-	zr->jpg_buffers.allocated = 0;
-	zr->v4l_buffers.allocated = 0;
 
 	/* Avoid nonsense settings from user for default input/norm */
 	if (default_norm < 0 || default_norm > 2)
@@ -951,8 +918,6 @@ static int zr36057_init(struct zoran *zr)
 	video_set_drvdata(zr->video_dev, zr);
 
 	zoran_init_hardware(zr);
-	if (zr36067_debug > 2)
-		detect_guest_activity(zr);
 	if (!pass_through) {
 		decoder_call(zr, video, s_stream, 0);
 		encoder_call(zr, video, s_routing, 2, 0, 0);
@@ -1279,10 +1244,8 @@ static int zoran_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	/* take care of Natoma chipset and a revision 1 zr36057 */
-	if ((pci_pci_problems & PCIPCI_NATOMA) && zr->revision <= 1) {
-		zr->jpg_buffers.need_contiguous = 1;
+	if ((pci_pci_problems & PCIPCI_NATOMA) && zr->revision <= 1)
 		pci_info(zr->pci_dev, "ZR36057/Natoma bug, max. buffer size is 128K\n");
-	}
 
 	if (zr36057_init(zr) < 0)
 		goto zr_detach_vfe;

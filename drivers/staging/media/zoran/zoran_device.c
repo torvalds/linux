@@ -12,9 +12,6 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/vmalloc.h>
-#include <linux/ktime.h>
-#include <linux/sched/signal.h>
 
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
@@ -22,13 +19,12 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <linux/spinlock.h>
-#include <linux/sem.h>
 
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/wait.h>
+#include <linux/dma-mapping.h>
 
-#include <asm/byteorder.h>
 #include <linux/io.h>
 
 #include "videocodec.h"
@@ -54,6 +50,7 @@ static bool lml33dpath;		/* default = 0
 module_param(lml33dpath, bool, 0644);
 MODULE_PARM_DESC(lml33dpath, "Use digital path capture mode (on LML33 cards)");
 
+int zr_set_buf(struct zoran *zr);
 /*
  * initialize video front end
  */
@@ -114,6 +111,7 @@ int post_office_wait(struct zoran *zr)
 //      while (((por = btread(ZR36057_POR)) & (ZR36057_POR_POPen | ZR36057_POR_POTime)) == ZR36057_POR_POPen) {
 	while ((por = btread(ZR36057_POR)) & ZR36057_POR_POPen) {
 		/* wait for something to happen */
+		/* TODO add timeout */
 	}
 	if ((por & ZR36057_POR_POTime) && !zr->card.gws_not_connected) {
 		/* In LML33/BUZ \GWS line is not connected, so it has always timeout set */
@@ -422,40 +420,14 @@ void zr36057_set_memgrab(struct zoran *zr, int mode)
 		zr36057_set_vfe(zr, zr->v4l_settings.width,
 				zr->v4l_settings.height,
 				zr->v4l_settings.format);
-
-		zr->v4l_memgrab_active = 1;
 	} else {
 		/* switch off VSync interrupts */
 		btand(~zr->card.vsync_int, ZR36057_ICR);	// SW
-
-		zr->v4l_memgrab_active = 0;
-		zr->v4l_grab_frame = NO_GRAB_ACTIVE;
 
 		/* re-enable grabbing to screen if it was running */
 		btand(~ZR36057_VDCR_VidEn, ZR36057_VDCR);
 		btand(~ZR36057_VSSFGR_SnapShot, ZR36057_VSSFGR);
 	}
-}
-
-int wait_grab_pending(struct zoran *zr)
-{
-	unsigned long flags;
-
-	/* wait until all pending grabs are finished */
-
-	if (!zr->v4l_memgrab_active)
-		return 0;
-
-	wait_event_interruptible(zr->v4l_capq,
-				 (zr->v4l_pend_tail == zr->v4l_pend_head));
-	if (signal_pending(current))
-		return -ERESTARTSYS;
-
-	spin_lock_irqsave(&zr->spinlock, flags);
-	zr36057_set_memgrab(zr, 0);
-	spin_unlock_irqrestore(&zr->spinlock, flags);
-
-	return 0;
 }
 
 /*****************************************************************************
@@ -501,9 +473,6 @@ static void init_jpeg_queue(struct zoran *zr)
 	zr->jpg_err_seq = 0;
 	zr->jpg_err_shift = 0;
 	zr->jpg_queued_num = 0;
-	for (i = 0; i < zr->jpg_buffers.num_buffers; i++)
-		zr->jpg_buffers.buffer[i].state = BUZ_STATE_USER;	/* nothing going on */
-
 	for (i = 0; i < BUZ_NUM_STAT_COM; i++)
 		zr->stat_com[i] = cpu_to_le32(1);	/* mark as unavailable to zr36057 */
 }
@@ -603,50 +572,6 @@ static void zr36057_set_jpg(struct zoran *zr, enum zoran_codec_mode mode)
 	}
 	btwrite(reg, ZR36057_JCFT);
 	zr36057_adjust_vfe(zr, mode);
-}
-
-void print_interrupts(struct zoran *zr)
-{
-	int res, noerr = 0;
-
-	pr_info("%s: interrupts received:", ZR_DEVNAME(zr));
-	res = zr->field_counter;
-	if (res < -1 || res > 1)
-		printk(KERN_CONT " FD:%d", res);
-	res = zr->intr_counter_GIRQ1;
-	if (res != 0) {
-		printk(KERN_CONT " GIRQ1:%d", res);
-		noerr++;
-	}
-	res = zr->intr_counter_GIRQ0;
-	if (res != 0) {
-		printk(KERN_CONT " GIRQ0:%d", res);
-		noerr++;
-	}
-	res = zr->intr_counter_CodRepIRQ;
-	if (res != 0) {
-		printk(KERN_CONT " CodRepIRQ:%d", res);
-		noerr++;
-	}
-	res = zr->intr_counter_JPEGRepIRQ;
-	if (res != 0) {
-		printk(KERN_CONT " JPEGRepIRQ:%d", res);
-		noerr++;
-	}
-	if (zr->JPEG_max_missed) {
-		printk(KERN_CONT " JPEG delays: max=%d min=%d", zr->JPEG_max_missed,
-		       zr->JPEG_min_missed);
-	}
-	if (zr->END_event_missed) {
-		printk(KERN_CONT " ENDs missed: %d", zr->END_event_missed);
-	}
-	//if (zr->jpg_queued_num) {
-	printk(KERN_CONT " queue_state=%ld/%ld/%ld/%ld", zr->jpg_que_tail,
-	       zr->jpg_dma_tail, zr->jpg_dma_head, zr->jpg_que_head);
-	//}
-	if (!noerr)
-		printk(KERN_CONT ": no interrupts detected.");
-	printk(KERN_CONT "\n");
 }
 
 void clear_interrupt_counters(struct zoran *zr)
@@ -870,37 +795,61 @@ void zoran_feed_stat_com(struct zoran *zr)
 {
 	/* move frames from pending queue to DMA */
 
-	int frame, i, max_stat_com;
+	int i, max_stat_com;
+	struct zr_buffer *buf;
+	struct vb2_v4l2_buffer *vbuf;
+	dma_addr_t phys_addr = 0;
+	unsigned long flags;
+	unsigned long payload;
 
 	max_stat_com =
 	    (zr->jpg_settings.TmpDcm ==
 	     1) ? BUZ_NUM_STAT_COM : (BUZ_NUM_STAT_COM >> 1);
 
-	while ((zr->jpg_dma_head - zr->jpg_dma_tail) < max_stat_com &&
-	       zr->jpg_dma_head < zr->jpg_que_head) {
-		frame = zr->jpg_pend[zr->jpg_dma_head & BUZ_MASK_FRAME];
+	spin_lock_irqsave(&zr->queued_bufs_lock, flags);
+	while ((zr->jpg_dma_head - zr->jpg_dma_tail) < max_stat_com) {
+		buf = list_first_entry_or_null(&zr->queued_bufs, struct zr_buffer, queue);
+		if (!buf) {
+			pci_err(zr->pci_dev, "No buffer available to queue\n");
+			spin_unlock_irqrestore(&zr->queued_bufs_lock, flags);
+			return;
+		}
+		list_del(&buf->queue);
+		zr->buf_in_reserve--;
+		vbuf = &buf->vbuf;
+		vbuf->vb2_buf.state = VB2_BUF_STATE_ACTIVE;
+		phys_addr = vb2_dma_contig_plane_dma_addr(&vbuf->vb2_buf, 0);
+		payload = vb2_get_plane_payload(&vbuf->vb2_buf, 0);
+		if (payload == 0)
+			payload = zr->buffer_size;
 		if (zr->jpg_settings.TmpDcm == 1) {
 			/* fill 1 stat_com entry */
 			i = (zr->jpg_dma_head -
 			     zr->jpg_err_shift) & BUZ_MASK_STAT_COM;
 			if (!(zr->stat_com[i] & cpu_to_le32(1)))
 				break;
-			zr->stat_com[i] =
-			    cpu_to_le32(zr->jpg_buffers.buffer[frame].jpg.frag_tab_bus);
+			zr->stat_comb[i * 2] = cpu_to_le32(phys_addr);
+			zr->stat_comb[i * 2 + 1] = cpu_to_le32((payload >> 1) | 1);
+			zr->inuse[i] = buf;
+			zr->stat_com[i] = cpu_to_le32(zr->p_scb + i * 2 * 4);
 		} else {
 			/* fill 2 stat_com entries */
 			i = ((zr->jpg_dma_head -
 			      zr->jpg_err_shift) & 1) * 2;
 			if (!(zr->stat_com[i] & cpu_to_le32(1)))
 				break;
-			zr->stat_com[i] =
-			    cpu_to_le32(zr->jpg_buffers.buffer[frame].jpg.frag_tab_bus);
-			zr->stat_com[i + 1] =
-			    cpu_to_le32(zr->jpg_buffers.buffer[frame].jpg.frag_tab_bus);
+			zr->stat_com[i] = cpu_to_le32(zr->p_scb + i * 2 * 4);
+			zr->stat_com[i + 1] = cpu_to_le32(zr->p_scb + i * 2 * 4);
+
+			zr->stat_comb[i * 2] = cpu_to_le32(phys_addr);
+			zr->stat_comb[i * 2 + 1] = cpu_to_le32((payload >> 1) | 1);
+
+			zr->inuse[i] = buf;
+			zr->inuse[i + 1] = NULL;
 		}
-		zr->jpg_buffers.buffer[frame].state = BUZ_STATE_DMA;
 		zr->jpg_dma_head++;
 	}
+	spin_unlock_irqrestore(&zr->queued_bufs_lock, flags);
 	if (zr->codec_mode == BUZ_MODE_MOTION_DECOMPRESS)
 		zr->jpg_queued_num++;
 }
@@ -914,8 +863,10 @@ static void zoran_reap_stat_com(struct zoran *zr)
 	u32 stat_com;
 	unsigned int seq;
 	unsigned int dif;
-	struct zoran_buffer *buffer;
-	int frame;
+	unsigned long flags;
+	struct zr_buffer *buf;
+	unsigned int size = 0;
+	u32 fcnt;
 
 	/* In motion decompress we don't have a hardware frame counter,
 	 * we just count the interrupts here */
@@ -923,347 +874,78 @@ static void zoran_reap_stat_com(struct zoran *zr)
 	if (zr->codec_mode == BUZ_MODE_MOTION_DECOMPRESS)
 		zr->jpg_seq_num++;
 
+	spin_lock_irqsave(&zr->queued_bufs_lock, flags);
 	while (zr->jpg_dma_tail < zr->jpg_dma_head) {
-		if (zr->jpg_settings.TmpDcm == 1)
-			i = (zr->jpg_dma_tail -
-			     zr->jpg_err_shift) & BUZ_MASK_STAT_COM;
-		else
-			i = ((zr->jpg_dma_tail -
-			      zr->jpg_err_shift) & 1) * 2 + 1;
-
-		stat_com = le32_to_cpu(zr->stat_com[i]);
-
-		if ((stat_com & 1) == 0)
-			return;
-
-		frame = zr->jpg_pend[zr->jpg_dma_tail & BUZ_MASK_FRAME];
-		buffer = &zr->jpg_buffers.buffer[frame];
-		buffer->bs.ts = ktime_get_ns();
-
-		if (zr->codec_mode == BUZ_MODE_MOTION_COMPRESS) {
-			buffer->bs.length = (stat_com & 0x7fffff) >> 1;
-
-			/* update sequence number with the help of the counter in stat_com */
-
-			seq = ((stat_com >> 24) + zr->jpg_err_seq) & 0xff;
-			dif = (seq - zr->jpg_seq_num) & 0xff;
-			zr->jpg_seq_num += dif;
-		} else {
-			buffer->bs.length = 0;
-		}
-		buffer->bs.seq =
-		    zr->jpg_settings.TmpDcm ==
-		    2 ? (zr->jpg_seq_num >> 1) : zr->jpg_seq_num;
-		buffer->state = BUZ_STATE_DONE;
-
-		zr->jpg_dma_tail++;
-	}
-}
-
-static void zoran_restart(struct zoran *zr)
-{
-	/* Now the stat_comm buffer is ready for restart */
-	unsigned int status = 0;
-	int mode;
-
-	if (zr->codec_mode == BUZ_MODE_MOTION_COMPRESS) {
-		decoder_call(zr, video, g_input_status, &status);
-		mode = CODEC_DO_COMPRESSION;
-	} else {
-		status = V4L2_IN_ST_NO_SIGNAL;
-		mode = CODEC_DO_EXPANSION;
-	}
-	if (zr->codec_mode == BUZ_MODE_MOTION_DECOMPRESS ||
-	    !(status & V4L2_IN_ST_NO_SIGNAL)) {
-		/********** RESTART code *************/
-		jpeg_codec_reset(zr);
-		zr->codec->set_mode(zr->codec, mode);
-		zr36057_set_jpg(zr, zr->codec_mode);
-		jpeg_start(zr);
-
-		if (zr->num_errors <= 8)
-			pci_info(zr->pci_dev, "Restart\n");
-
-		zr->JPEG_missed = 0;
-		zr->JPEG_error = 2;
-		/********** End RESTART code ***********/
-	}
-}
-
-static void error_handler(struct zoran *zr, u32 astat, u32 stat)
-{
-	int i;
-
-	/* This is JPEG error handling part */
-	if (zr->codec_mode != BUZ_MODE_MOTION_COMPRESS &&
-	    zr->codec_mode != BUZ_MODE_MOTION_DECOMPRESS) {
-		return;
-	}
-
-	if ((stat & 1) == 0 &&
-	    zr->codec_mode == BUZ_MODE_MOTION_COMPRESS &&
-	    zr->jpg_dma_tail - zr->jpg_que_tail >= zr->jpg_buffers.num_buffers) {
-		/* No free buffers... */
-		zoran_reap_stat_com(zr);
-		zoran_feed_stat_com(zr);
-		wake_up_interruptible(&zr->jpg_capq);
-		zr->JPEG_missed = 0;
-		return;
-	}
-
-	if (zr->JPEG_error == 1) {
-		zoran_restart(zr);
-		return;
-	}
-
-	/*
-	 * First entry: error just happened during normal operation
-	 *
-	 * In BUZ_MODE_MOTION_COMPRESS:
-	 *
-	 * Possible glitch in TV signal. In this case we should
-	 * stop the codec and wait for good quality signal before
-	 * restarting it to avoid further problems
-	 *
-	 * In BUZ_MODE_MOTION_DECOMPRESS:
-	 *
-	 * Bad JPEG frame: we have to mark it as processed (codec crashed
-	 * and was not able to do it itself), and to remove it from queue.
-	 */
-	btand(~ZR36057_JMC_Go_en, ZR36057_JMC);
-	udelay(1);
-	stat = stat | (post_office_read(zr, 7, 0) & 3) << 8;
-	btwrite(0, ZR36057_JPC);
-	btor(ZR36057_MCTCR_CFlush, ZR36057_MCTCR);
-	jpeg_codec_reset(zr);
-	jpeg_codec_sleep(zr, 1);
-	zr->JPEG_error = 1;
-	zr->num_errors++;
-
-	/* Report error */
-	if (zr36067_debug > 1 && zr->num_errors <= 8) {
-		long frame;
-		int j;
-
-		frame = zr->jpg_pend[zr->jpg_dma_tail & BUZ_MASK_FRAME];
-		pci_err(zr->pci_dev, "JPEG error stat=0x%08x(0x%08x) queue_state=%ld/%ld/%ld/%ld seq=%ld frame=%ld. Codec stopped. ",
-			stat, zr->last_isr,
-			zr->jpg_que_tail, zr->jpg_dma_tail,
-			zr->jpg_dma_head, zr->jpg_que_head,
-			zr->jpg_seq_num, frame);
-		pr_info("stat_com frames:");
-		for (j = 0; j < BUZ_NUM_STAT_COM; j++) {
-			for (i = 0; i < zr->jpg_buffers.num_buffers; i++) {
-				if (le32_to_cpu(zr->stat_com[j]) == zr->jpg_buffers.buffer[i].jpg.frag_tab_bus)
-					printk(KERN_CONT "% d->%d", j, i);
-			}
-		}
-		printk(KERN_CONT "\n");
-	}
-	/* Find an entry in stat_com and rotate contents */
-	if (zr->jpg_settings.TmpDcm == 1)
-		i = (zr->jpg_dma_tail - zr->jpg_err_shift) & BUZ_MASK_STAT_COM;
-	else
-		i = ((zr->jpg_dma_tail - zr->jpg_err_shift) & 1) * 2;
-	if (zr->codec_mode == BUZ_MODE_MOTION_DECOMPRESS) {
-		/* Mimic zr36067 operation */
-		zr->stat_com[i] |= cpu_to_le32(1);
-		if (zr->jpg_settings.TmpDcm != 1)
-			zr->stat_com[i + 1] |= cpu_to_le32(1);
-		/* Refill */
-		zoran_reap_stat_com(zr);
-		zoran_feed_stat_com(zr);
-		wake_up_interruptible(&zr->jpg_capq);
-		/* Find an entry in stat_com again after refill */
 		if (zr->jpg_settings.TmpDcm == 1)
 			i = (zr->jpg_dma_tail - zr->jpg_err_shift) & BUZ_MASK_STAT_COM;
 		else
-			i = ((zr->jpg_dma_tail - zr->jpg_err_shift) & 1) * 2;
+			i = ((zr->jpg_dma_tail - zr->jpg_err_shift) & 1) * 2 + 1;
+
+		stat_com = le32_to_cpu(zr->stat_com[i]);
+		if ((stat_com & 1) == 0) {
+			spin_unlock_irqrestore(&zr->queued_bufs_lock, flags);
+			return;
+		}
+
+		fcnt = (stat_com & GENMASK(31, 24)) >> 24;
+		size = (stat_com & GENMASK(22, 1)) >> 1;
+
+		buf = zr->inuse[i];
+		buf->vbuf.vb2_buf.timestamp = ktime_get_ns();
+
+		if (zr->codec_mode == BUZ_MODE_MOTION_COMPRESS) {
+			vb2_set_plane_payload(&buf->vbuf.vb2_buf, 0, size);
+
+			/* update sequence number with the help of the counter in stat_com */
+			seq = (fcnt + zr->jpg_err_seq) & 0xff;
+			dif = (seq - zr->jpg_seq_num) & 0xff;
+			zr->jpg_seq_num += dif;
+		}
+		buf->vbuf.sequence = zr->jpg_settings.TmpDcm ==
+		    2 ? (zr->jpg_seq_num >> 1) : zr->jpg_seq_num;
+		zr->inuse[i] = NULL;
+		if (zr->jpg_settings.TmpDcm != 1)
+			buf->vbuf.field = zr->jpg_settings.odd_even ?
+				V4L2_FIELD_TOP : V4L2_FIELD_BOTTOM;
+		else
+			buf->vbuf.field = zr->jpg_settings.odd_even ?
+				V4L2_FIELD_SEQ_TB : V4L2_FIELD_SEQ_BT;
+		vb2_buffer_done(&buf->vbuf.vb2_buf, VB2_BUF_STATE_DONE);
+
+		zr->jpg_dma_tail++;
 	}
-	if (i) {
-		/* Rotate stat_comm entries to make current entry first */
-		int j;
-		__le32 bus_addr[BUZ_NUM_STAT_COM];
-
-		/* Here we are copying the stat_com array, which
-		 * is already in little endian format, so
-		 * no endian conversions here
-		 */
-		memcpy(bus_addr, zr->stat_com, sizeof(bus_addr));
-
-		for (j = 0; j < BUZ_NUM_STAT_COM; j++)
-			zr->stat_com[j] = bus_addr[(i + j) & BUZ_MASK_STAT_COM];
-
-		zr->jpg_err_shift += i;
-		zr->jpg_err_shift &= BUZ_MASK_STAT_COM;
-	}
-	if (zr->codec_mode == BUZ_MODE_MOTION_COMPRESS)
-		zr->jpg_err_seq = zr->jpg_seq_num;	/* + 1; */
-	zoran_restart(zr);
+	spin_unlock_irqrestore(&zr->queued_bufs_lock, flags);
 }
 
 irqreturn_t zoran_irq(int irq, void *dev_id)
 {
-	u32 stat, astat;
-	int count = 0;
 	struct zoran *zr = dev_id;
-	unsigned long flags;
+	u32 stat, astat;
 
-	spin_lock_irqsave(&zr->spinlock, flags);
-	while (1) {
-		/* get/clear interrupt status bits */
-		stat = count_reset_interrupt(zr);
-		astat = stat & IRQ_MASK;
-		if (!astat)
-			break;
-		pr_debug("%s: astat: 0x%08x, mask: 0x%08x\n", __func__, astat, btread(ZR36057_ICR));
-		if (astat & zr->card.vsync_int) {	// SW
-
-			if (zr->codec_mode == BUZ_MODE_MOTION_DECOMPRESS ||
-			    zr->codec_mode == BUZ_MODE_MOTION_COMPRESS) {
-				/* count missed interrupts */
-				zr->JPEG_missed++;
-			}
-			//post_office_read(zr,1,0);
-			/*
-			 * Interrupts may still happen when
-			 * zr->v4l_memgrab_active is switched off.
-			 * We simply ignore them
-			 */
-
-			if (zr->v4l_memgrab_active) {
-				/* A lot more checks should be here ... */
-				if ((btread(ZR36057_VSSFGR) & ZR36057_VSSFGR_SnapShot) == 0)
-					pci_warn(zr->pci_dev, "BuzIRQ with SnapShot off ???\n");
-
-				if (zr->v4l_grab_frame != NO_GRAB_ACTIVE) {
-					/* There is a grab on a frame going on, check if it has finished */
-					if ((btread(ZR36057_VSSFGR) & ZR36057_VSSFGR_FrameGrab) == 0) {
-						/* it is finished, notify the user */
-
-						zr->v4l_buffers.buffer[zr->v4l_grab_frame].state = BUZ_STATE_DONE;
-						zr->v4l_buffers.buffer[zr->v4l_grab_frame].bs.seq = zr->v4l_grab_seq;
-						zr->v4l_buffers.buffer[zr->v4l_grab_frame].bs.ts = ktime_get_ns();
-						zr->v4l_grab_frame = NO_GRAB_ACTIVE;
-						zr->v4l_pend_tail++;
-					}
-				}
-
-				if (zr->v4l_grab_frame == NO_GRAB_ACTIVE)
-					wake_up_interruptible(&zr->v4l_capq);
-
-				/* Check if there is another grab queued */
-
-				if (zr->v4l_grab_frame == NO_GRAB_ACTIVE &&
-				    zr->v4l_pend_tail != zr->v4l_pend_head) {
-					int frame = zr->v4l_pend[zr->v4l_pend_tail & V4L_MASK_FRAME];
-					u32 reg;
-
-					zr->v4l_grab_frame = frame;
-
-					/* Set zr36057 video front end and enable video */
-
-					/* Buffer address */
-
-					reg = zr->v4l_buffers.buffer[frame].v4l.fbuffer_bus;
-					btwrite(reg, ZR36057_VDTR);
-					if (zr->v4l_settings.height > BUZ_MAX_HEIGHT / 2)
-						reg += zr->v4l_settings.bytesperline;
-					btwrite(reg, ZR36057_VDBR);
-
-					/* video stride, status, and frame grab register */
-					reg = 0;
-					if (zr->v4l_settings.height > BUZ_MAX_HEIGHT / 2)
-						reg += zr->v4l_settings.bytesperline;
-					reg = (reg << ZR36057_VSSFGR_DispStride);
-					reg |= ZR36057_VSSFGR_VidOvf;
-					reg |= ZR36057_VSSFGR_SnapShot;
-					reg |= ZR36057_VSSFGR_FrameGrab;
-					btwrite(reg, ZR36057_VSSFGR);
-
-					btor(ZR36057_VDCR_VidEn, ZR36057_VDCR);
-				}
-			}
-
-			/*
-			 * even if we don't grab, we do want to increment
-			 * the sequence counter to see lost frames
-			 */
-			zr->v4l_grab_seq++;
+	stat = count_reset_interrupt(zr);
+	astat = stat & IRQ_MASK;
+	if (astat & zr->card.vsync_int) {
+		if (zr->running == ZORAN_MAP_MODE_RAW) {
+			if ((btread(ZR36057_VSSFGR) & ZR36057_VSSFGR_SnapShot) == 0)
+				pci_warn(zr->pci_dev, "BuzIRQ with SnapShot off ???\n");
+			if ((btread(ZR36057_VSSFGR) & ZR36057_VSSFGR_FrameGrab) == 0)
+				zr_set_buf(zr);
+			return IRQ_HANDLED;
 		}
-#if (IRQ_MASK & ZR36057_ISR_CodRepIRQ)
-		if (astat & ZR36057_ISR_CodRepIRQ) {
-			zr->intr_counter_CodRepIRQ++;
-			IDEBUG(printk(KERN_DEBUG "%s: ZR36057_ISR_CodRepIRQ\n", ZR_DEVNAME(zr)));
-			btand(~ZR36057_ICR_CodRepIRQ, ZR36057_ICR);
-		}
-#endif				/* (IRQ_MASK & ZR36057_ISR_CodRepIRQ) */
-
-#if (IRQ_MASK & ZR36057_ISR_JPEGRepIRQ)
-		if ((astat & ZR36057_ISR_JPEGRepIRQ) &&
-		    (zr->codec_mode == BUZ_MODE_MOTION_DECOMPRESS ||
-		     zr->codec_mode == BUZ_MODE_MOTION_COMPRESS)) {
-			if (zr36067_debug > 1 && (!zr->frame_num || zr->JPEG_error)) {
-				char sv[BUZ_NUM_STAT_COM + 1];
-				int i;
-
-				pr_info("%s: first frame ready: state=0x%08x odd_even=%d field_per_buff=%d delay=%d\n",
-					ZR_DEVNAME(zr), stat, zr->jpg_settings.odd_even,
-				       zr->jpg_settings.field_per_buff, zr->JPEG_missed);
-
-				for (i = 0; i < BUZ_NUM_STAT_COM; i++)
-					sv[i] = le32_to_cpu(zr->stat_com[i]) & 1 ? '1' : '0';
-				sv[BUZ_NUM_STAT_COM] = 0;
-				pr_info("%s: stat_com=%s queue_state=%ld/%ld/%ld/%ld\n",
-					ZR_DEVNAME(zr), sv, zr->jpg_que_tail, zr->jpg_dma_tail,
-				       zr->jpg_dma_head, zr->jpg_que_head);
-			} else {
-				/* Get statistics */
-				if (zr->JPEG_missed > zr->JPEG_max_missed)
-					zr->JPEG_max_missed = zr->JPEG_missed;
-				if (zr->JPEG_missed < zr->JPEG_min_missed)
-					zr->JPEG_min_missed = zr->JPEG_missed;
+		if (astat & ZR36057_ISR_JPEGRepIRQ) {
+			if (zr->codec_mode != BUZ_MODE_MOTION_DECOMPRESS &&
+			    zr->codec_mode != BUZ_MODE_MOTION_COMPRESS) {
+				pci_err(zr->pci_dev, "JPG IRQ when not in good mode\n");
+				return IRQ_HANDLED;
 			}
-
-			if (zr36067_debug > 2 && zr->frame_num < 6) {
-				int i;
-
-				pr_info("%s: seq=%ld stat_com:", ZR_DEVNAME(zr), zr->jpg_seq_num);
-				for (i = 0; i < 4; i++)
-					printk(KERN_CONT " %08x", le32_to_cpu(zr->stat_com[i]));
-				printk(KERN_CONT "\n");
-			}
-			zr->frame_num++;
-			zr->JPEG_missed = 0;
-			zr->JPEG_error = 0;
-			zoran_reap_stat_com(zr);
-			zoran_feed_stat_com(zr);
-			wake_up_interruptible(&zr->jpg_capq);
+		zr->frame_num++;
+		zoran_reap_stat_com(zr);
+		zoran_feed_stat_com(zr);
+		return IRQ_HANDLED;
 		}
-#endif				/* (IRQ_MASK & ZR36057_ISR_JPEGRepIRQ) */
-
-		/* DATERR, too many fields missed, error processing */
-		if ((astat & zr->card.jpeg_int) ||
-		    zr->JPEG_missed > 25 ||
-		    zr->JPEG_error == 1	||
-		    ((zr->codec_mode == BUZ_MODE_MOTION_DECOMPRESS) &&
-		     (zr->frame_num && (zr->JPEG_missed > zr->jpg_settings.field_per_buff)))) {
-			error_handler(zr, astat, stat);
-		}
-
-		count++;
-		if (count > 10) {
-			pci_warn(zr->pci_dev, "irq loop %d\n", count);
-			if (count > 20) {
-				btand(~ZR36057_ICR_IntPinEn, ZR36057_ICR);
-				pci_err(zr->pci_dev, "IRQ lockup, cleared int mask\n");
-				break;
-			}
-		}
-		zr->last_isr = stat;
+		/* unused interrupts */
 	}
-	spin_unlock_irqrestore(&zr->spinlock, flags);
-
+	zr->ghost_int++;
 	return IRQ_HANDLED;
 }
 
