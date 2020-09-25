@@ -38,6 +38,8 @@ source "drivers/staging/media/sunxi/Kconfig"
 
 source "drivers/staging/media/tegra-vde/Kconfig"
 
+source "drivers/staging/media/zoran/Kconfig"
+
 source "drivers/staging/media/tegra-video/Kconfig"
 
 source "drivers/staging/media/ipu3/Kconfig"
