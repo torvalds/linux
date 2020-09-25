@@ -565,6 +565,7 @@ static const struct pci_device_id iwl_hw_card_ids[] = {
 
 /* Ma devices */
 	{IWL_PCI_DEVICE(0x2729, PCI_ANY_ID, iwl_ma_trans_cfg)},
+	{IWL_PCI_DEVICE(0x7E80, PCI_ANY_ID, iwl_ma_trans_cfg)},
 
 #endif /* CONFIG_IWLMVM */
 
