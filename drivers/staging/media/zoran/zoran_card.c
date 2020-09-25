@@ -1066,6 +1066,25 @@ static void zoran_subdev_notify(struct v4l2_subdev *sd, unsigned int cmd, void *
 		GPIO(zr, 7, 1);
 }
 
+static int zoran_video_set_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct zoran *zr = container_of(ctrl->handler, struct zoran, hdl);
+
+	switch (ctrl->id) {
+	case V4L2_CID_JPEG_COMPRESSION_QUALITY:
+		zr->jpg_settings.jpg_comp.quality = ctrl->val;
+		return zoran_check_jpg_settings(zr, &zr->jpg_settings, 0);
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static const struct v4l2_ctrl_ops zoran_video_ctrl_ops = {
+	.s_ctrl = zoran_video_set_ctrl,
+};
+
 /*
  *   Scan for a Buz card (actually for the PCI controller ZR36057),
  *   request the irq and map the io memory
@@ -1106,6 +1125,9 @@ static int zoran_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (v4l2_ctrl_handler_init(&zr->hdl, 10))
 		goto zr_unreg;
 	zr->v4l2_dev.ctrl_handler = &zr->hdl;
+	v4l2_ctrl_new_std(&zr->hdl, &zoran_video_ctrl_ops,
+			  V4L2_CID_JPEG_COMPRESSION_QUALITY, 0,
+			  100, 1, 50);
 	spin_lock_init(&zr->spinlock);
 	mutex_init(&zr->lock);
 	if (pci_enable_device(pdev))

@@ -1849,53 +1849,6 @@ static int zoran_s_selection(struct file *file, void *__fh, struct v4l2_selectio
 	return res;
 }
 
-static int zoran_g_jpegcomp(struct file *file, void *__fh,
-			    struct v4l2_jpegcompression *params)
-{
-	struct zoran *zr = video_drvdata(file);
-
-	memset(params, 0, sizeof(*params));
-
-	params->quality = zr->jpg_settings.jpg_comp.quality;
-	params->APPn = zr->jpg_settings.jpg_comp.APPn;
-	memcpy(params->APP_data, zr->jpg_settings.jpg_comp.APP_data,
-	       zr->jpg_settings.jpg_comp.APP_len);
-	params->APP_len = zr->jpg_settings.jpg_comp.APP_len;
-	memcpy(params->COM_data, zr->jpg_settings.jpg_comp.COM_data,
-	       zr->jpg_settings.jpg_comp.COM_len);
-	params->COM_len = zr->jpg_settings.jpg_comp.COM_len;
-	params->jpeg_markers = zr->jpg_settings.jpg_comp.jpeg_markers;
-
-	return 0;
-}
-
-static int zoran_s_jpegcomp(struct file *file, void *__fh,
-			    const struct v4l2_jpegcompression *params)
-{
-	struct zoran_fh *fh = __fh;
-	struct zoran *zr = fh->zr;
-	int res = 0;
-	struct zoran_jpg_settings settings;
-
-	settings = zr->jpg_settings;
-
-	settings.jpg_comp = *params;
-
-	if (fh->buffers.active != ZORAN_FREE) {
-		pci_warn(zr->pci_dev, "VIDIOC_S_JPEGCOMP called while in playback/capture mode\n");
-		res = -EBUSY;
-		return res;
-	}
-
-	res = zoran_check_jpg_settings(zr, &settings, 0);
-	if (res)
-		return res;
-	if (!fh->buffers.allocated)
-		zr->buffer_size = zoran_v4l2_calc_bufsize(&zr->jpg_settings);
-	zr->jpg_settings.jpg_comp = settings.jpg_comp;
-	return res;
-}
-
 static __poll_t zoran_poll(struct file *file, poll_table  *wait)
 {
 	struct zoran_fh *fh = file->private_data;
@@ -2176,8 +2129,6 @@ static const struct v4l2_ioctl_ops zoran_ioctl_ops = {
 	.vidioc_s_output		    = zoran_s_output,*/
 	.vidioc_g_std			    = zoran_g_std,
 	.vidioc_s_std			    = zoran_s_std,
-	.vidioc_g_jpegcomp		    = zoran_g_jpegcomp,
-	.vidioc_s_jpegcomp		    = zoran_s_jpegcomp,
 	.vidioc_reqbufs			    = zoran_reqbufs,
 	.vidioc_querybuf		    = zoran_querybuf,
 	.vidioc_qbuf			    = zoran_qbuf,
