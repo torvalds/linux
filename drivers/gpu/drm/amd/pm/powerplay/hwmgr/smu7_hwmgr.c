@@ -237,7 +237,8 @@ static int smu7_get_current_pcie_lane_number(struct pp_hwmgr *hwmgr)
 */
 static int smu7_enable_smc_voltage_controller(struct pp_hwmgr *hwmgr)
 {
-	if (hwmgr->chip_id == CHIP_VEGAM) {
+	if (hwmgr->chip_id >= CHIP_POLARIS10 &&
+	    hwmgr->chip_id <= CHIP_VEGAM) {
 		PHM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device,
 				CGS_IND_REG__SMC, PWR_SVI2_PLANE1_LOAD, PSI1, 0);
 		PHM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device,
