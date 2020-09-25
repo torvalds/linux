@@ -1973,8 +1973,20 @@ mcp25xxfd_handle_eccif(struct mcp25xxfd_priv *priv, bool set_normal_mode)
 	else
 		return err;
 
+	/* Errata Reference:
+	 * mcp2517fd: DS80000789B, mcp2518fd: DS80000792C 2.
+	 *
+	 * ECC single error correction does not work in all cases:
+	 *
+	 * Fix/Work Around:
+	 * Enable single error correction and double error detection
+	 * interrupts by setting SECIE and DEDIE. Handle SECIF as a
+	 * detection interrupt and do not rely on the error
+	 * correction. Instead, handle both interrupts as a
+	 * notification that the RAM word at ERRADDR was corrupted.
+	 */
 	if (ecc_stat & MCP25XXFD_REG_ECCSTAT_SECIF)
-		msg = "Single ECC Error corrected at address";
+		msg = "Single ECC Error detected at address";
 	else if (ecc_stat & MCP25XXFD_REG_ECCSTAT_DEDIF)
 		msg = "Double ECC Error detected at address";
 	else
@@ -1983,12 +1995,7 @@ mcp25xxfd_handle_eccif(struct mcp25xxfd_priv *priv, bool set_normal_mode)
 	if (!in_tx_ram) {
 		ecc->ecc_stat = 0;
 
-		if (ecc_stat & MCP25XXFD_REG_ECCSTAT_SECIF)
-			netdev_info(priv->ndev, "%s 0x%04x.\n",
-				    msg, addr);
-		else
-			netdev_notice(priv->ndev, "%s 0x%04x.\n",
-				      msg, addr);
+		netdev_notice(priv->ndev, "%s 0x%04x.\n", msg, addr);
 	} else {
 		/* Re-occurring error? */
 		if (ecc->ecc_stat == ecc_stat) {
