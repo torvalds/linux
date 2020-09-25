@@ -1590,12 +1590,89 @@ int kvm_set_msr(struct kvm_vcpu *vcpu, u32 index, u64 data)
 }
 EXPORT_SYMBOL_GPL(kvm_set_msr);
 
+static int complete_emulated_msr(struct kvm_vcpu *vcpu, bool is_read)
+{
+	if (vcpu->run->msr.error) {
+		kvm_inject_gp(vcpu, 0);
+		return 1;
+	} else if (is_read) {
+		kvm_rax_write(vcpu, (u32)vcpu->run->msr.data);
+		kvm_rdx_write(vcpu, vcpu->run->msr.data >> 32);
+	}
+
+	return kvm_skip_emulated_instruction(vcpu);
+}
+
+static int complete_emulated_rdmsr(struct kvm_vcpu *vcpu)
+{
+	return complete_emulated_msr(vcpu, true);
+}
+
+static int complete_emulated_wrmsr(struct kvm_vcpu *vcpu)
+{
+	return complete_emulated_msr(vcpu, false);
+}
+
+static u64 kvm_msr_reason(int r)
+{
+	switch (r) {
+	case -ENOENT:
+		return KVM_MSR_EXIT_REASON_UNKNOWN;
+	default:
+		return KVM_MSR_EXIT_REASON_INVAL;
+	}
+}
+
+static int kvm_msr_user_space(struct kvm_vcpu *vcpu, u32 index,
+			      u32 exit_reason, u64 data,
+			      int (*completion)(struct kvm_vcpu *vcpu),
+			      int r)
+{
+	u64 msr_reason = kvm_msr_reason(r);
+
+	/* Check if the user wanted to know about this MSR fault */
+	if (!(vcpu->kvm->arch.user_space_msr_mask & msr_reason))
+		return 0;
+
+	vcpu->run->exit_reason = exit_reason;
+	vcpu->run->msr.error = 0;
+	memset(vcpu->run->msr.pad, 0, sizeof(vcpu->run->msr.pad));
+	vcpu->run->msr.reason = msr_reason;
+	vcpu->run->msr.index = index;
+	vcpu->run->msr.data = data;
+	vcpu->arch.complete_userspace_io = completion;
+
+	return 1;
+}
+
+static int kvm_get_msr_user_space(struct kvm_vcpu *vcpu, u32 index, int r)
+{
+	return kvm_msr_user_space(vcpu, index, KVM_EXIT_X86_RDMSR, 0,
+				   complete_emulated_rdmsr, r);
+}
+
+static int kvm_set_msr_user_space(struct kvm_vcpu *vcpu, u32 index, u64 data, int r)
+{
+	return kvm_msr_user_space(vcpu, index, KVM_EXIT_X86_WRMSR, data,
+				   complete_emulated_wrmsr, r);
+}
+
 int kvm_emulate_rdmsr(struct kvm_vcpu *vcpu)
 {
 	u32 ecx = kvm_rcx_read(vcpu);
 	u64 data;
+	int r;
 
-	if (kvm_get_msr(vcpu, ecx, &data)) {
+	r = kvm_get_msr(vcpu, ecx, &data);
+
+	/* MSR read failed? See if we should ask user space */
+	if (r && kvm_get_msr_user_space(vcpu, ecx, r)) {
+		/* Bounce to user space */
+		return 0;
+	}
+
+	/* MSR read failed? Inject a #GP */
+	if (r) {
 		trace_kvm_msr_read_ex(ecx);
 		kvm_inject_gp(vcpu, 0);
 		return 1;
@@ -1613,8 +1690,18 @@ int kvm_emulate_wrmsr(struct kvm_vcpu *vcpu)
 {
 	u32 ecx = kvm_rcx_read(vcpu);
 	u64 data = kvm_read_edx_eax(vcpu);
+	int r;
 
-	if (kvm_set_msr(vcpu, ecx, data)) {
+	r = kvm_set_msr(vcpu, ecx, data);
+
+	/* MSR write failed? See if we should ask user space */
+	if (r && kvm_set_msr_user_space(vcpu, ecx, data, r)) {
+		/* Bounce to user space */
+		return 0;
+	}
+
+	/* MSR write failed? Inject a #GP */
+	if (r) {
 		trace_kvm_msr_write_ex(ecx, data);
 		kvm_inject_gp(vcpu, 0);
 		return 1;
@@ -3526,6 +3613,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_EXCEPTION_PAYLOAD:
 	case KVM_CAP_SET_GUEST_DEBUG:
 	case KVM_CAP_LAST_CPU:
+	case KVM_CAP_X86_USER_SPACE_MSR:
 		r = 1;
 		break;
 	case KVM_CAP_SYNC_REGS:
@@ -5046,6 +5134,10 @@ split_irqchip_unlock:
 		kvm->arch.exception_payload_enabled = cap->args[0];
 		r = 0;
 		break;
+	case KVM_CAP_X86_USER_SPACE_MSR:
+		kvm->arch.user_space_msr_mask = cap->args[0];
+		r = 0;
+		break;
 	default:
 		r = -EINVAL;
 		break;
@@ -6378,13 +6470,33 @@ static void emulator_set_segment(struct x86_emulate_ctxt *ctxt, u16 selector,
 static int emulator_get_msr(struct x86_emulate_ctxt *ctxt,
 			    u32 msr_index, u64 *pdata)
 {
-	return kvm_get_msr(emul_to_vcpu(ctxt), msr_index, pdata);
+	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
+	int r;
+
+	r = kvm_get_msr(vcpu, msr_index, pdata);
+
+	if (r && kvm_get_msr_user_space(vcpu, msr_index, r)) {
+		/* Bounce to user space */
+		return X86EMUL_IO_NEEDED;
+	}
+
+	return r;
 }
 
 static int emulator_set_msr(struct x86_emulate_ctxt *ctxt,
 			    u32 msr_index, u64 data)
 {
-	return kvm_set_msr(emul_to_vcpu(ctxt), msr_index, data);
+	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
+	int r;
+
+	r = kvm_set_msr(vcpu, msr_index, data);
+
+	if (r && kvm_set_msr_user_space(vcpu, msr_index, data, r)) {
+		/* Bounce to user space */
+		return X86EMUL_IO_NEEDED;
+	}
+
+	return r;
 }
 
 static u64 emulator_get_smbase(struct x86_emulate_ctxt *ctxt)
