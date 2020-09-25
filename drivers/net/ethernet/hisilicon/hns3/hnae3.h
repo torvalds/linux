@@ -152,6 +152,7 @@ enum hnae3_hw_error_type {
 	HNAE3_PPU_POISON_ERROR,
 	HNAE3_CMDQ_ECC_ERROR,
 	HNAE3_IMP_RD_POISON_ERROR,
+	HNAE3_ROCEE_AXI_RESP_ERROR,
 };
 
 enum hnae3_reset_type {

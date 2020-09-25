@@ -4600,6 +4600,8 @@ static const struct hns3_hw_error_info hns3_hw_err[] = {
 	  .msg = "IMP CMDQ error" },
 	{ .type = HNAE3_IMP_RD_POISON_ERROR,
 	  .msg = "IMP RD poison" },
+	{ .type = HNAE3_ROCEE_AXI_RESP_ERROR,
+	  .msg = "ROCEE AXI RESP error" },
 };
 
 static void hns3_process_hw_error(struct hnae3_handle *handle,

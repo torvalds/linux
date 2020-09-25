@@ -1507,6 +1507,8 @@ hclge_log_and_clear_rocee_ras_error(struct hclge_dev *hdev)
 
 		reset_type = HNAE3_FUNC_RESET;
 
+		hclge_report_hw_error(hdev, HNAE3_ROCEE_AXI_RESP_ERROR);
+
 		ret = hclge_log_rocee_axi_error(hdev);
 		if (ret)
 			return HNAE3_GLOBAL_RESET;
