@@ -351,6 +351,8 @@ struct zoran {
 	unsigned long frame_num;
 
 	wait_queue_head_t test_q;
+
+	dma_addr_t p_sc;
 };
 
 static inline struct zoran *to_zoran(struct v4l2_device *v4l2_dev)
