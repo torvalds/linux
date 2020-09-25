@@ -779,6 +779,7 @@ static int polaris10_populate_ulv_level(struct pp_hwmgr *hwmgr,
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
+	struct amdgpu_device *adev = hwmgr->adev;
 
 	state->CcPwrDynRm = 0;
 	state->CcPwrDynRm1 = 0;
@@ -787,7 +788,11 @@ static int polaris10_populate_ulv_level(struct pp_hwmgr *hwmgr,
 	state->VddcOffsetVid = (uint8_t)(table_info->us_ulv_voltage_offset *
 			VOLTAGE_VID_OFFSET_SCALE2 / VOLTAGE_VID_OFFSET_SCALE1);
 
-	if (hwmgr->chip_id == CHIP_POLARIS12 || hwmgr->is_kicker)
+	if ((hwmgr->chip_id == CHIP_POLARIS12) ||
+	    ASICID_IS_P20(adev->pdev->device, adev->pdev->revision) ||
+	    ASICID_IS_P21(adev->pdev->device, adev->pdev->revision) ||
+	    ASICID_IS_P30(adev->pdev->device, adev->pdev->revision) ||
+	    ASICID_IS_P31(adev->pdev->device, adev->pdev->revision))
 		state->VddcPhase = data->vddc_phase_shed_control ^ 0x3;
 	else
 		state->VddcPhase = (data->vddc_phase_shed_control) ? 0 : 1;

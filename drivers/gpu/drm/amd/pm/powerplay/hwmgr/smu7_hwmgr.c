@@ -1664,6 +1664,8 @@ static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	struct amdgpu_device *adev = hwmgr->adev;
+	uint8_t tmp1, tmp2;
+	uint16_t tmp3 = 0;
 
 	data->dll_default_on = false;
 	data->mclk_dpm0_activity_target = 0xa;
@@ -1711,19 +1713,6 @@ static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 	hwmgr->workload_mask = 1 << hwmgr->workload_prority[PP_SMC_POWER_PROFILE_FULLSCREEN3D];
 	hwmgr->power_profile_mode = PP_SMC_POWER_PROFILE_FULLSCREEN3D;
 	hwmgr->default_power_profile_mode = PP_SMC_POWER_PROFILE_FULLSCREEN3D;
-
-	if (hwmgr->chip_id == CHIP_POLARIS12 || hwmgr->is_kicker) {
-		uint8_t tmp1, tmp2;
-		uint16_t tmp3 = 0;
-		atomctrl_get_svi2_info(hwmgr, VOLTAGE_TYPE_VDDC, &tmp1, &tmp2,
-						&tmp3);
-		tmp3 = (tmp3 >> 5) & 0x3;
-		data->vddc_phase_shed_control = ((tmp3 << 1) | (tmp3 >> 1)) & 0x3;
-	} else if (hwmgr->chip_family == AMDGPU_FAMILY_CI) {
-		data->vddc_phase_shed_control = 1;
-	} else {
-		data->vddc_phase_shed_control = 0;
-	}
 
 	if (hwmgr->chip_id  == CHIP_HAWAII) {
 		data->thermal_temp_setting.temperature_low = 94500;
@@ -1782,6 +1771,22 @@ static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 	if (data->vddci_control == SMU7_VOLTAGE_CONTROL_NONE)
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_ControlVDDCI);
+
+	data->vddc_phase_shed_control = 1;
+	if ((hwmgr->chip_id == CHIP_POLARIS12) ||
+	    ASICID_IS_P20(adev->pdev->device, adev->pdev->revision) ||
+	    ASICID_IS_P21(adev->pdev->device, adev->pdev->revision) ||
+	    ASICID_IS_P30(adev->pdev->device, adev->pdev->revision) ||
+	    ASICID_IS_P31(adev->pdev->device, adev->pdev->revision)) {
+		if (data->voltage_control == SMU7_VOLTAGE_CONTROL_BY_SVID2) {
+			atomctrl_get_svi2_info(hwmgr, VOLTAGE_TYPE_VDDC, &tmp1, &tmp2,
+							&tmp3);
+			tmp3 = (tmp3 >> 5) & 0x3;
+			data->vddc_phase_shed_control = ((tmp3 << 1) | (tmp3 >> 1)) & 0x3;
+		}
+	} else if (hwmgr->chip_family == AMDGPU_FAMILY_CI) {
+		data->vddc_phase_shed_control = 1;
+	}
 
 	if ((hwmgr->pp_table_version != PP_TABLE_V0) && (hwmgr->feature_mask & PP_CLOCK_STRETCH_MASK)
 		&& (table_info->cac_dtp_table->usClockStretchAmount != 0))
