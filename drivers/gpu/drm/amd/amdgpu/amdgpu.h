@@ -725,6 +725,45 @@ struct amd_powerplay {
 	const struct amd_pm_funcs *pp_funcs;
 };
 
+/* polaris10 kickers */
+#define ASICID_IS_P20(did, rid)		(((did == 0x67DF) && \
+					 ((rid == 0xE3) || \
+					  (rid == 0xE4) || \
+					  (rid == 0xE5) || \
+					  (rid == 0xE7) || \
+					  (rid == 0xEF))) || \
+					 ((did == 0x6FDF) && \
+					 ((rid == 0xE7) || \
+					  (rid == 0xEF) || \
+					  (rid == 0xFF))))
+
+#define ASICID_IS_P30(did, rid)		((did == 0x67DF) && \
+					((rid == 0xE1) || \
+					 (rid == 0xF7)))
+
+/* polaris11 kickers */
+#define ASICID_IS_P21(did, rid)		(((did == 0x67EF) && \
+					 ((rid == 0xE0) || \
+					  (rid == 0xE5))) || \
+					 ((did == 0x67FF) && \
+					 ((rid == 0xCF) || \
+					  (rid == 0xEF) || \
+					  (rid == 0xFF))))
+
+#define ASICID_IS_P31(did, rid)		((did == 0x67EF) && \
+					((rid == 0xE2)))
+
+/* polaris12 kickers */
+#define ASICID_IS_P23(did, rid)		(((did == 0x6987) && \
+					 ((rid == 0xC0) || \
+					  (rid == 0xC1) || \
+					  (rid == 0xC3) || \
+					  (rid == 0xC7))) || \
+					 ((did == 0x6981) && \
+					 ((rid == 0x00) || \
+					  (rid == 0x01) || \
+					  (rid == 0x10))))
+
 #define AMDGPU_RESET_MAGIC_NUM 64
 #define AMDGPU_MAX_DF_PERFMONS 4
 struct amdgpu_device {
