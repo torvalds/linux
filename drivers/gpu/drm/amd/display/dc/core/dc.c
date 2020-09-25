@@ -864,7 +864,6 @@ static void disable_vbios_mode_if_required(
 		if (stream->link->local_sink &&
 			stream->link->local_sink->sink_signal == SIGNAL_TYPE_EDP) {
 			link = stream->link;
-			break;
 		}
 
 		if (link != NULL) {
