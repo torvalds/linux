@@ -91,6 +91,11 @@
 #define HZIP_SQE_MASK_OFFSET		64
 #define HZIP_SQE_MASK_LEN		48
 
+#define HZIP_CNT_CLR_CE_EN		BIT(0)
+#define HZIP_RO_CNT_CLR_CE_EN		BIT(2)
+#define HZIP_RD_CNT_CLR_CE_EN		(HZIP_CNT_CLR_CE_EN | \
+					 HZIP_RO_CNT_CLR_CE_EN)
+
 static const char hisi_zip_name[] = "hisi_zip";
 static struct dentry *hzip_debugfs_root;
 
@@ -604,10 +609,23 @@ failed_to_create:
 	return ret;
 }
 
+/* hisi_zip_debug_regs_clear() - clear the zip debug regs */
 static void hisi_zip_debug_regs_clear(struct hisi_qm *qm)
 {
+	int i, j;
+
+	/* clear current_qm */
 	writel(0x0, qm->io_base + QM_DFX_MB_CNT_VF);
 	writel(0x0, qm->io_base + QM_DFX_DB_CNT_VF);
+
+	/* enable register read_clear bit */
+	writel(HZIP_RD_CNT_CLR_CE_EN, qm->io_base + HZIP_SOFT_CTRL_CNT_CLR_CE);
+	for (i = 0; i < ARRAY_SIZE(core_offsets); i++)
+		for (j = 0; j < ARRAY_SIZE(hzip_dfx_regs); j++)
+			readl(qm->io_base + core_offsets[i] +
+			      hzip_dfx_regs[j].offset);
+
+	/* disable register read_clear bit */
 	writel(0x0, qm->io_base + HZIP_SOFT_CTRL_CNT_CLR_CE);
 
 	hisi_qm_debug_regs_clear(qm);
