@@ -4081,6 +4081,61 @@ u32 vmx_exec_control(struct vcpu_vmx *vmx)
 	return exec_control;
 }
 
+/*
+ * Adjust a single secondary execution control bit to intercept/allow an
+ * instruction in the guest.  This is usually done based on whether or not a
+ * feature has been exposed to the guest in order to correctly emulate faults.
+ */
+static inline void
+vmx_adjust_secondary_exec_control(struct vcpu_vmx *vmx, u32 *exec_control,
+				  u32 control, bool enabled, bool exiting)
+{
+	/*
+	 * If the control is for an opt-in feature, clear the control if the
+	 * feature is not exposed to the guest, i.e. not enabled.  If the
+	 * control is opt-out, i.e. an exiting control, clear the control if
+	 * the feature _is_ exposed to the guest, i.e. exiting/interception is
+	 * disabled for the associated instruction.  Note, the caller is
+	 * responsible presetting exec_control to set all supported bits.
+	 */
+	if (enabled == exiting)
+		*exec_control &= ~control;
+
+	/*
+	 * Update the nested MSR settings so that a nested VMM can/can't set
+	 * controls for features that are/aren't exposed to the guest.
+	 */
+	if (nested) {
+		if (enabled)
+			vmx->nested.msrs.secondary_ctls_high |= control;
+		else
+			vmx->nested.msrs.secondary_ctls_high &= ~control;
+	}
+}
+
+/*
+ * Wrapper macro for the common case of adjusting a secondary execution control
+ * based on a single guest CPUID bit, with a dedicated feature bit.  This also
+ * verifies that the control is actually supported by KVM and hardware.
+ */
+#define vmx_adjust_sec_exec_control(vmx, exec_control, name, feat_name, ctrl_name, exiting) \
+({									 \
+	bool __enabled;							 \
+									 \
+	if (cpu_has_vmx_##name()) {					 \
+		__enabled = guest_cpuid_has(&(vmx)->vcpu,		 \
+					    X86_FEATURE_##feat_name);	 \
+		vmx_adjust_secondary_exec_control(vmx, exec_control,	 \
+			SECONDARY_EXEC_##ctrl_name, __enabled, exiting); \
+	}								 \
+})
+
+/* More macro magic for ENABLE_/opt-in versus _EXITING/opt-out controls. */
+#define vmx_adjust_sec_exec_feature(vmx, exec_control, lname, uname) \
+	vmx_adjust_sec_exec_control(vmx, exec_control, lname, uname, ENABLE_##uname, false)
+
+#define vmx_adjust_sec_exec_exiting(vmx, exec_control, lname, uname) \
+	vmx_adjust_sec_exec_control(vmx, exec_control, lname, uname, uname##_EXITING, true)
 
 static void vmx_compute_secondary_exec_control(struct vcpu_vmx *vmx)
 {
@@ -4130,33 +4185,12 @@ static void vmx_compute_secondary_exec_control(struct vcpu_vmx *vmx)
 
 		vcpu->arch.xsaves_enabled = xsaves_enabled;
 
-		if (!xsaves_enabled)
-			exec_control &= ~SECONDARY_EXEC_XSAVES;
-
-		if (nested) {
-			if (xsaves_enabled)
-				vmx->nested.msrs.secondary_ctls_high |=
-					SECONDARY_EXEC_XSAVES;
-			else
-				vmx->nested.msrs.secondary_ctls_high &=
-					~SECONDARY_EXEC_XSAVES;
-		}
+		vmx_adjust_secondary_exec_control(vmx, &exec_control,
+						  SECONDARY_EXEC_XSAVES,
+						  xsaves_enabled, false);
 	}
 
-	if (cpu_has_vmx_rdtscp()) {
-		bool rdtscp_enabled = guest_cpuid_has(vcpu, X86_FEATURE_RDTSCP);
-		if (!rdtscp_enabled)
-			exec_control &= ~SECONDARY_EXEC_ENABLE_RDTSCP;
-
-		if (nested) {
-			if (rdtscp_enabled)
-				vmx->nested.msrs.secondary_ctls_high |=
-					SECONDARY_EXEC_ENABLE_RDTSCP;
-			else
-				vmx->nested.msrs.secondary_ctls_high &=
-					~SECONDARY_EXEC_ENABLE_RDTSCP;
-		}
-	}
+	vmx_adjust_sec_exec_feature(vmx, &exec_control, rdtscp, RDTSCP);
 
 	/*
 	 * Expose INVPCID if and only if PCID is also exposed to the guest.
@@ -4166,71 +4200,14 @@ static void vmx_compute_secondary_exec_control(struct vcpu_vmx *vmx)
 	 */
 	if (!guest_cpuid_has(vcpu, X86_FEATURE_PCID))
 		guest_cpuid_clear(vcpu, X86_FEATURE_INVPCID);
+	vmx_adjust_sec_exec_feature(vmx, &exec_control, invpcid, INVPCID);
 
-	if (cpu_has_vmx_invpcid()) {
-		/* Exposing INVPCID only when PCID is exposed */
-		bool invpcid_enabled =
-			guest_cpuid_has(vcpu, X86_FEATURE_INVPCID);
 
-		if (!invpcid_enabled)
-			exec_control &= ~SECONDARY_EXEC_ENABLE_INVPCID;
+	vmx_adjust_sec_exec_exiting(vmx, &exec_control, rdrand, RDRAND);
+	vmx_adjust_sec_exec_exiting(vmx, &exec_control, rdseed, RDSEED);
 
-		if (nested) {
-			if (invpcid_enabled)
-				vmx->nested.msrs.secondary_ctls_high |=
-					SECONDARY_EXEC_ENABLE_INVPCID;
-			else
-				vmx->nested.msrs.secondary_ctls_high &=
-					~SECONDARY_EXEC_ENABLE_INVPCID;
-		}
-	}
-
-	if (cpu_has_vmx_rdrand()) {
-		bool rdrand_enabled = guest_cpuid_has(vcpu, X86_FEATURE_RDRAND);
-		if (rdrand_enabled)
-			exec_control &= ~SECONDARY_EXEC_RDRAND_EXITING;
-
-		if (nested) {
-			if (rdrand_enabled)
-				vmx->nested.msrs.secondary_ctls_high |=
-					SECONDARY_EXEC_RDRAND_EXITING;
-			else
-				vmx->nested.msrs.secondary_ctls_high &=
-					~SECONDARY_EXEC_RDRAND_EXITING;
-		}
-	}
-
-	if (cpu_has_vmx_rdseed()) {
-		bool rdseed_enabled = guest_cpuid_has(vcpu, X86_FEATURE_RDSEED);
-		if (rdseed_enabled)
-			exec_control &= ~SECONDARY_EXEC_RDSEED_EXITING;
-
-		if (nested) {
-			if (rdseed_enabled)
-				vmx->nested.msrs.secondary_ctls_high |=
-					SECONDARY_EXEC_RDSEED_EXITING;
-			else
-				vmx->nested.msrs.secondary_ctls_high &=
-					~SECONDARY_EXEC_RDSEED_EXITING;
-		}
-	}
-
-	if (cpu_has_vmx_waitpkg()) {
-		bool waitpkg_enabled =
-			guest_cpuid_has(vcpu, X86_FEATURE_WAITPKG);
-
-		if (!waitpkg_enabled)
-			exec_control &= ~SECONDARY_EXEC_ENABLE_USR_WAIT_PAUSE;
-
-		if (nested) {
-			if (waitpkg_enabled)
-				vmx->nested.msrs.secondary_ctls_high |=
-					SECONDARY_EXEC_ENABLE_USR_WAIT_PAUSE;
-			else
-				vmx->nested.msrs.secondary_ctls_high &=
-					~SECONDARY_EXEC_ENABLE_USR_WAIT_PAUSE;
-		}
-	}
+	vmx_adjust_sec_exec_control(vmx, &exec_control, waitpkg, WAITPKG,
+				    ENABLE_USR_WAIT_PAUSE, false);
 
 	vmx->secondary_exec_control = exec_control;
 }
