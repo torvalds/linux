@@ -891,7 +891,7 @@ static int bdev_set(struct inode *inode, void *data)
 	return 0;
 }
 
-struct block_device *bdget(dev_t dev)
+static struct block_device *bdget(dev_t dev)
 {
 	struct block_device *bdev;
 	struct inode *inode;
@@ -920,8 +920,6 @@ struct block_device *bdget(dev_t dev)
 	return bdev;
 }
 
-EXPORT_SYMBOL(bdget);
-
 /**
  * bdgrab -- Grab a reference to an already referenced block device
  * @bdev:	Block device to grab a reference to.
@@ -932,6 +930,11 @@ struct block_device *bdgrab(struct block_device *bdev)
 	return bdev;
 }
 EXPORT_SYMBOL(bdgrab);
+
+struct block_device *bdget_part(struct hd_struct *part)
+{
+	return bdget(part_devt(part));
+}
 
 long nr_blockdev_pages(void)
 {

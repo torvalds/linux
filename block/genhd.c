@@ -1048,7 +1048,7 @@ struct block_device *bdget_disk(struct gendisk *disk, int partno)
 
 	part = disk_get_part(disk, partno);
 	if (part)
-		bdev = bdget(part_devt(part));
+		bdev = bdget_part(part);
 	disk_put_part(part);
 
 	return bdev;
