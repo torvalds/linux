@@ -1255,6 +1255,9 @@ static __always_inline long __get_user_pages_locked(struct mm_struct *mm,
 		BUG_ON(*locked != 1);
 	}
 
+	if (flags & FOLL_PIN)
+		atomic_set(&current->mm->has_pinned, 1);
+
 	/*
 	 * FOLL_PIN and FOLL_GET are mutually exclusive. Traditional behavior
 	 * is to set FOLL_GET if the caller wants pages[] filled in (but has
@@ -2659,6 +2662,9 @@ static int internal_get_user_pages_fast(unsigned long start, int nr_pages,
 				       FOLL_FORCE | FOLL_PIN | FOLL_GET |
 				       FOLL_FAST_ONLY)))
 		return -EINVAL;
+
+	if (gup_flags & FOLL_PIN)
+		atomic_set(&current->mm->has_pinned, 1);
 
 	if (!(gup_flags & FOLL_FAST_ONLY))
 		might_lock_read(&current->mm->mmap_lock);
