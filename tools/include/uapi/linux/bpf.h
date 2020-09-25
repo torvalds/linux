@@ -424,6 +424,11 @@ enum {
  */
 #define BPF_F_QUERY_EFFECTIVE	(1U << 0)
 
+/* Flags for BPF_PROG_TEST_RUN */
+
+/* If set, run the test on the cpu specified by bpf_attr.test.cpu */
+#define BPF_F_TEST_RUN_ON_CPU	(1U << 0)
+
 /* type for BPF_ENABLE_STATS */
 enum bpf_stats_type {
 	/* enabled run_time_ns and run_cnt */
@@ -566,6 +571,8 @@ union bpf_attr {
 						 */
 		__aligned_u64	ctx_in;
 		__aligned_u64	ctx_out;
+		__u32		flags;
+		__u32		cpu;
 	} test;
 
 	struct { /* anonymous struct used by BPF_*_GET_*_ID */

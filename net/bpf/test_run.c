@@ -11,6 +11,7 @@
 #include <net/sock.h>
 #include <net/tcp.h>
 #include <linux/error-injection.h>
+#include <linux/smp.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/bpf_test_run.h>
@@ -204,6 +205,9 @@ int bpf_prog_test_run_tracing(struct bpf_prog *prog,
 	int b = 2, err = -EFAULT;
 	u32 retval = 0;
 
+	if (kattr->test.flags || kattr->test.cpu)
+		return -EINVAL;
+
 	switch (prog->expected_attach_type) {
 	case BPF_TRACE_FENTRY:
 	case BPF_TRACE_FEXIT:
@@ -233,6 +237,87 @@ int bpf_prog_test_run_tracing(struct bpf_prog *prog,
 	err = 0;
 out:
 	trace_bpf_test_finish(&err);
+	return err;
+}
+
+struct bpf_raw_tp_test_run_info {
+	struct bpf_prog *prog;
+	void *ctx;
+	u32 retval;
+};
+
+static void
+__bpf_prog_test_run_raw_tp(void *data)
+{
+	struct bpf_raw_tp_test_run_info *info = data;
+
+	rcu_read_lock();
+	migrate_disable();
+	info->retval = BPF_PROG_RUN(info->prog, info->ctx);
+	migrate_enable();
+	rcu_read_unlock();
+}
+
+int bpf_prog_test_run_raw_tp(struct bpf_prog *prog,
+			     const union bpf_attr *kattr,
+			     union bpf_attr __user *uattr)
+{
+	void __user *ctx_in = u64_to_user_ptr(kattr->test.ctx_in);
+	__u32 ctx_size_in = kattr->test.ctx_size_in;
+	struct bpf_raw_tp_test_run_info info;
+	int cpu = kattr->test.cpu, err = 0;
+
+	/* doesn't support data_in/out, ctx_out, duration, or repeat */
+	if (kattr->test.data_in || kattr->test.data_out ||
+	    kattr->test.ctx_out || kattr->test.duration ||
+	    kattr->test.repeat)
+		return -EINVAL;
+
+	if (ctx_size_in < prog->aux->max_ctx_offset)
+		return -EINVAL;
+
+	if ((kattr->test.flags & BPF_F_TEST_RUN_ON_CPU) == 0 && cpu != 0)
+		return -EINVAL;
+
+	if (ctx_size_in) {
+		info.ctx = kzalloc(ctx_size_in, GFP_USER);
+		if (!info.ctx)
+			return -ENOMEM;
+		if (copy_from_user(info.ctx, ctx_in, ctx_size_in)) {
+			err = -EFAULT;
+			goto out;
+		}
+	} else {
+		info.ctx = NULL;
+	}
+
+	info.prog = prog;
+
+	if ((kattr->test.flags & BPF_F_TEST_RUN_ON_CPU) == 0 ||
+	    cpu == smp_processor_id()) {
+		__bpf_prog_test_run_raw_tp(&info);
+	} else {
+		/* smp_call_function_single() also checks cpu_online()
+		 * after csd_lock(). However, since cpu is from user
+		 * space, let's do an extra quick check to filter out
+		 * invalid value before smp_call_function_single().
+		 */
+		if (cpu >= nr_cpu_ids || !cpu_online(cpu)) {
+			err = -ENXIO;
+			goto out;
+		}
+
+		err = smp_call_function_single(cpu, __bpf_prog_test_run_raw_tp,
+					       &info, 1);
+		if (err)
+			goto out;
+	}
+
+	if (copy_to_user(&uattr->test.retval, &info.retval, sizeof(u32)))
+		err = -EFAULT;
+
+out:
+	kfree(info.ctx);
 	return err;
 }
 
@@ -409,6 +494,9 @@ int bpf_prog_test_run_skb(struct bpf_prog *prog, const union bpf_attr *kattr,
 	struct sock *sk;
 	void *data;
 	int ret;
+
+	if (kattr->test.flags || kattr->test.cpu)
+		return -EINVAL;
 
 	data = bpf_test_init(kattr, size, NET_SKB_PAD + NET_IP_ALIGN,
 			     SKB_DATA_ALIGN(sizeof(struct skb_shared_info)));
@@ -605,6 +693,9 @@ int bpf_prog_test_run_flow_dissector(struct bpf_prog *prog,
 	u32 i;
 
 	if (prog->type != BPF_PROG_TYPE_FLOW_DISSECTOR)
+		return -EINVAL;
+
+	if (kattr->test.flags || kattr->test.cpu)
 		return -EINVAL;
 
 	if (size < ETH_HLEN)
