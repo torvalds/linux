@@ -172,7 +172,7 @@
 
 			csidphy0_out: endpoint@0 {
 				reg = <0>;
-				remote-endpoint = <&mipi_csi2_input>;
+				remote-endpoint = <&isp_in>;
 			};
 		};
 	};
@@ -292,39 +292,6 @@
 	npu-supply = <&vdd_npu_vepu>;
 };
 
-&mipi_csi2 {
-	status = "okay";
-
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		port@0 {
-			reg = <0>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			mipi_csi2_input: endpoint@1 {
-				reg = <1>;
-				remote-endpoint = <&csidphy0_out>;
-				data-lanes = <1 2>;
-			};
-		};
-
-		port@1 {
-			reg = <1>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			mipi_csi2_output: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&cif_mipi_in>;
-				data-lanes = <1 2>;
-			};
-		};
-	};
-};
-
 &pinctrl {
 	es8311 {
 		spk_ctl: spk-ctl {
@@ -364,34 +331,6 @@
 	vccio7-supply = <&vcc_3v3>;
 };
 
-&rkcif {
-	status = "okay";
-};
-
-&rkcif_mipi_lvds {
-	status = "okay";
-
-	port {
-		/* MIPI CSI-2 endpoint */
-		cif_mipi_in: endpoint {
-			remote-endpoint = <&mipi_csi2_output>;
-			data-lanes = <1 2>;
-		};
-	};
-};
-
-&rkcif_mipi_lvds_sditf {
-	status = "okay";
-
-	port {
-		/* MIPI CSI-2 endpoint */
-		mipi_lvds_sditf: endpoint {
-			remote-endpoint = <&isp_in>;
-			data-lanes = <1 2>;
-		};
-	};
-};
-
 &rkisp_thunderboot {
 	reg = <0x10000000 (72 * 0x00100000)>;
 };
@@ -407,17 +346,13 @@
 
 			isp_in: endpoint@0 {
 				reg = <0>;
-				remote-endpoint = <&mipi_lvds_sditf>;
+				remote-endpoint = <&csidphy0_out>;
 			};
 		};
 	};
 };
 
 &rkispp {
-	status = "okay";
-};
-
-&rkispp_vir0 {
 	status = "okay";
 };
 
