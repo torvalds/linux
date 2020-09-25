@@ -115,14 +115,6 @@ enum tcp_ca_event {
 	CA_EVENT_ECN_IS_CE = 5,
 };
 
-enum tcp_ca_state {
-	TCP_CA_Open = 0,
-	TCP_CA_Disorder = 1,
-	TCP_CA_CWR = 2,
-	TCP_CA_Recovery = 3,
-	TCP_CA_Loss = 4
-};
-
 struct ack_sample {
 	__u32 pkts_acked;
 	__s32 rtt_us;
