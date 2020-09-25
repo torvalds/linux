@@ -996,18 +996,10 @@ static void zoran_remove(struct pci_dev *pdev)
 		goto exit_free;
 
 	/* unregister videocodec bus */
-	if (zr->codec) {
-		struct videocodec_master *master = zr->codec->master_data;
-
+	if (zr->codec)
 		videocodec_detach(zr->codec);
-		kfree(master);
-	}
-	if (zr->vfe) {
-		struct videocodec_master *master = zr->vfe->master_data;
-
+	if (zr->vfe)
 		videocodec_detach(zr->vfe);
-		kfree(master);
-	}
 
 	/* unregister i2c bus */
 	zoran_unregister_i2c(zr);
@@ -1036,7 +1028,7 @@ static struct videocodec_master *zoran_setup_videocodec(struct zoran *zr,
 {
 	struct videocodec_master *m = NULL;
 
-	m = kmalloc(sizeof(*m), GFP_KERNEL);
+	m = devm_kmalloc(&zr->pci_dev->dev, sizeof(*m), GFP_KERNEL);
 	if (!m)
 		return m;
 
@@ -1245,7 +1237,7 @@ static int zoran_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		zr->codec = videocodec_attach(master_codec);
 		if (!zr->codec) {
 			pci_err(pdev, "%s - no codec found\n", __func__);
-			goto zr_free_codec;
+			goto zr_unreg_i2c;
 		}
 		if (zr->codec->type != zr->card.video_codec) {
 			pci_err(pdev, "%s - wrong codec\n", __func__);
@@ -1259,7 +1251,7 @@ static int zoran_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		zr->vfe = videocodec_attach(master_vfe);
 		if (!zr->vfe) {
 			pci_err(pdev, "%s - no VFE found\n", __func__);
-			goto zr_free_vfe;
+			goto zr_detach_codec;
 		}
 		if (zr->vfe->type != zr->card.video_vfe) {
 			pci_err(pdev, "%s = wrong VFE\n", __func__);
@@ -1280,12 +1272,8 @@ static int zoran_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 zr_detach_vfe:
 	videocodec_detach(zr->vfe);
-zr_free_vfe:
-	kfree(master_vfe);
 zr_detach_codec:
 	videocodec_detach(zr->codec);
-zr_free_codec:
-	kfree(master_codec);
 zr_unreg_i2c:
 	zoran_unregister_i2c(zr);
 zr_free_irq:
