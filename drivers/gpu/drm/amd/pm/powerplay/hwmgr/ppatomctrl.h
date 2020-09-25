@@ -299,6 +299,7 @@ extern uint32_t atomctrl_get_mpll_reference_clock(struct pp_hwmgr *hwmgr);
 extern int atomctrl_get_memory_clock_spread_spectrum(struct pp_hwmgr *hwmgr, const uint32_t memory_clock, pp_atomctrl_internal_ss_info *ssInfo);
 extern int atomctrl_get_engine_clock_spread_spectrum(struct pp_hwmgr *hwmgr, const uint32_t engine_clock, pp_atomctrl_internal_ss_info *ssInfo);
 extern int atomctrl_initialize_mc_reg_table(struct pp_hwmgr *hwmgr, uint8_t module_index, pp_atomctrl_mc_reg_table *table);
+extern int atomctrl_initialize_mc_reg_table_v2_2(struct pp_hwmgr *hwmgr, uint8_t module_index, pp_atomctrl_mc_reg_table *table);
 extern int atomctrl_set_engine_dram_timings_rv770(struct pp_hwmgr *hwmgr, uint32_t engine_clock, uint32_t memory_clock);
 extern uint32_t atomctrl_get_reference_clock(struct pp_hwmgr *hwmgr);
 extern int atomctrl_get_memory_pll_dividers_si(struct pp_hwmgr *hwmgr, uint32_t clock_value, pp_atomctrl_memory_clock_param *mpll_param, bool strobe_mode);

@@ -2522,6 +2522,24 @@ static int polaris10_process_firmware_header(struct pp_hwmgr *hwmgr)
 	return error ? -1 : 0;
 }
 
+static uint8_t polaris10_get_memory_modile_index(struct pp_hwmgr *hwmgr)
+{
+	return (uint8_t) (0xFF & (cgs_read_register(hwmgr->device, mmBIOS_SCRATCH_4) >> 16));
+}
+
+static int polaris10_initialize_mc_reg_table(struct pp_hwmgr *hwmgr)
+{
+	int result;
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
+	pp_atomctrl_mc_reg_table *mc_reg_table = &smu_data->mc_reg_table;
+	uint8_t module_index = polaris10_get_memory_modile_index(hwmgr);
+
+	memset(mc_reg_table, 0, sizeof(pp_atomctrl_mc_reg_table));
+	result = atomctrl_initialize_mc_reg_table_v2_2(hwmgr, module_index, mc_reg_table);
+
+	return result;
+}
+
 static bool polaris10_is_dpm_running(struct pp_hwmgr *hwmgr)
 {
 	return (1 == PHM_READ_INDIRECT_FIELD(hwmgr->device,
@@ -2648,6 +2666,7 @@ const struct pp_smumgr_func polaris10_smu_funcs = {
 	.populate_all_graphic_levels = polaris10_populate_all_graphic_levels,
 	.populate_all_memory_levels = polaris10_populate_all_memory_levels,
 	.get_mac_definition = polaris10_get_mac_definition,
+	.initialize_mc_reg_table = polaris10_initialize_mc_reg_table,
 	.is_dpm_running = polaris10_is_dpm_running,
 	.is_hw_avfs_present = polaris10_is_hw_avfs_present,
 	.update_dpm_settings = polaris10_update_dpm_settings,

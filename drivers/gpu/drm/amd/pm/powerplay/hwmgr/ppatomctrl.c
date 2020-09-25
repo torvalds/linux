@@ -166,6 +166,43 @@ int atomctrl_initialize_mc_reg_table(
 	return result;
 }
 
+int atomctrl_initialize_mc_reg_table_v2_2(
+		struct pp_hwmgr *hwmgr,
+		uint8_t module_index,
+		pp_atomctrl_mc_reg_table *table)
+{
+	ATOM_VRAM_INFO_HEADER_V2_2 *vram_info;
+	ATOM_INIT_REG_BLOCK *reg_block;
+	int result = 0;
+	u8 frev, crev;
+	u16 size;
+
+	vram_info = (ATOM_VRAM_INFO_HEADER_V2_2 *)
+		smu_atom_get_data_table(hwmgr->adev,
+				GetIndexIntoMasterTable(DATA, VRAM_Info), &size, &frev, &crev);
+
+	if (module_index >= vram_info->ucNumOfVRAMModule) {
+		pr_err("Invalid VramInfo table.");
+		result = -1;
+	} else if (vram_info->sHeader.ucTableFormatRevision < 2) {
+		pr_err("Invalid VramInfo table.");
+		result = -1;
+	}
+
+	if (0 == result) {
+		reg_block = (ATOM_INIT_REG_BLOCK *)
+			((uint8_t *)vram_info + le16_to_cpu(vram_info->usMemClkPatchTblOffset));
+		result = atomctrl_set_mc_reg_address_table(reg_block, table);
+	}
+
+	if (0 == result) {
+		result = atomctrl_retrieve_ac_timing(module_index,
+					reg_block, table);
+	}
+
+	return result;
+}
+
 /**
  * Set DRAM timings based on engine clock and memory clock.
  */
