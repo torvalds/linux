@@ -2650,11 +2650,6 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 			udp_sum = !(flags & VXLAN_F_UDP_ZERO_CSUM6_TX);
 		label = vxlan->cfg.label;
 	} else {
-		if (!info) {
-			WARN_ONCE(1, "%s: Missing encapsulation instructions\n",
-				  dev->name);
-			goto drop;
-		}
 		remote_ip.sa.sa_family = ip_tunnel_info_af(info);
 		if (remote_ip.sa.sa_family == AF_INET) {
 			remote_ip.sin.sin_addr.s_addr = info->key.u.ipv4.dst;
@@ -2889,6 +2884,10 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 		    info->mode & IP_TUNNEL_INFO_TX) {
 			vni = tunnel_id_to_key32(info->key.tun_id);
 		} else {
+			if (!info)
+				WARN_ONCE(1, "%s: Missing encapsulation instructions\n",
+					  dev->name);
+
 			if (info && info->mode & IP_TUNNEL_INFO_TX)
 				vxlan_xmit_one(skb, dev, vni, NULL, false);
 			else
