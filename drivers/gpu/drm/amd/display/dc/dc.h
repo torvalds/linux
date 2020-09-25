@@ -503,6 +503,7 @@ struct dc_debug_options {
 	bool usbc_combo_phy_reset_wa;
 	bool disable_dsc;
 	bool enable_dram_clock_change_one_display_vactive;
+	bool force_ignore_link_settings;
 };
 
 struct dc_debug_data {
@@ -660,6 +661,7 @@ struct dc_init_data {
 #if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	bool force_smu_not_present;
 #endif
+	bool force_ignore_link_settings;
 };
 
 struct dc_callback_init {
