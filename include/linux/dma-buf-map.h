@@ -9,6 +9,78 @@
 #include <linux/io.h>
 
 /**
+ * DOC: overview
+ *
+ * Calling dma-buf's vmap operation returns a pointer to the buffer's memory.
+ * Depending on the location of the buffer, users may have to access it with
+ * I/O operations or memory load/store operations. For example, copying to
+ * system memory could be done with memcpy(), copying to I/O memory would be
+ * done with memcpy_toio().
+ *
+ * .. code-block:: c
+ *
+ *	void *vaddr = ...; // pointer to system memory
+ *	memcpy(vaddr, src, len);
+ *
+ *	void *vaddr_iomem = ...; // pointer to I/O memory
+ *	memcpy_toio(vaddr, _iomem, src, len);
+ *
+ * When using dma-buf's vmap operation, the returned pointer is encoded as
+ * :c:type:`struct dma_buf_map <dma_buf_map>`.
+ * :c:type:`struct dma_buf_map <dma_buf_map>` stores the buffer's address in
+ * system or I/O memory and a flag that signals the required method of
+ * accessing the buffer. Use the returned instance and the helper functions
+ * to access the buffer's memory in the correct way.
+ *
+ * Open-coding access to :c:type:`struct dma_buf_map <dma_buf_map>` is
+ * considered bad style. Rather then accessing its fields directly, use one
+ * of the provided helper functions, or implement your own. For example,
+ * instances of :c:type:`struct dma_buf_map <dma_buf_map>` can be initialized
+ * statically with DMA_BUF_MAP_INIT_VADDR(), or at runtime with
+ * dma_buf_map_set_vaddr(). These helpers will set an address in system memory.
+ *
+ * .. code-block:: c
+ *
+ *	struct dma_buf_map map = DMA_BUF_MAP_INIT_VADDR(0xdeadbeaf);
+ *
+ *	dma_buf_map_set_vaddr(&map. 0xdeadbeaf);
+ *
+ * Test if a mapping is valid with either dma_buf_map_is_set() or
+ * dma_buf_map_is_null().
+ *
+ * .. code-block:: c
+ *
+ *	if (dma_buf_map_is_set(&map) != dma_buf_map_is_null(&map))
+ *		// always true
+ *
+ * Instances of :c:type:`struct dma_buf_map <dma_buf_map>` can be compared
+ * for equality with dma_buf_map_is_equal(). Mappings the point to different
+ * memory spaces, system or I/O, are never equal. That's even true if both
+ * spaces are located in the same address space, both mappings contain the
+ * same address value, or both mappings refer to NULL.
+ *
+ * .. code-block:: c
+ *
+ *	struct dma_buf_map sys_map; // refers to system memory
+ *	struct dma_buf_map io_map; // refers to I/O memory
+ *
+ *	if (dma_buf_map_is_equal(&sys_map, &io_map))
+ *		// always false
+ *
+ * Instances of struct dma_buf_map do not have to be cleaned up, but
+ * can be cleared to NULL with dma_buf_map_clear(). Cleared mappings
+ * always refer to system memory.
+ *
+ * The type :c:type:`struct dma_buf_map <dma_buf_map>` and its helpers are
+ * actually independent from the dma-buf infrastructure. When sharing buffers
+ * among devices, drivers have to know the location of the memory to access
+ * the buffers in a safe way. :c:type:`struct dma_buf_map <dma_buf_map>`
+ * solves this problem for dma-buf and its users. If other drivers or
+ * sub-systems require similar functionality, the type could be generalized
+ * and moved to a more prominent header file.
+ */
+
+/**
  * struct dma_buf_map - Pointer to vmap'ed dma-buf memory.
  * @vaddr_iomem:	The buffer's address if in I/O memory
  * @vaddr:		The buffer's address if in system memory
