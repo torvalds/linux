@@ -4028,11 +4028,19 @@ static const struct bpf_reg_types *compatible_reg_types[__BPF_ARG_TYPE_MAX] = {
 };
 
 static int check_reg_type(struct bpf_verifier_env *env, u32 regno,
-			  const struct bpf_reg_types *compatible)
+			  enum bpf_arg_type arg_type,
+			  const u32 *arg_btf_id)
 {
 	struct bpf_reg_state *regs = cur_regs(env), *reg = &regs[regno];
 	enum bpf_reg_type expected, type = reg->type;
+	const struct bpf_reg_types *compatible;
 	int i, j;
+
+	compatible = compatible_reg_types[arg_type];
+	if (!compatible) {
+		verbose(env, "verifier internal error: unsupported arg type %d\n", arg_type);
+		return -EFAULT;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(compatible->types); i++) {
 		expected = compatible->types[i];
@@ -4040,7 +4048,7 @@ static int check_reg_type(struct bpf_verifier_env *env, u32 regno,
 			break;
 
 		if (type == expected)
-			return 0;
+			goto found;
 	}
 
 	verbose(env, "R%d type=%s expected=", regno, reg_type_str[type]);
@@ -4048,6 +4056,25 @@ static int check_reg_type(struct bpf_verifier_env *env, u32 regno,
 		verbose(env, "%s, ", reg_type_str[compatible->types[j]]);
 	verbose(env, "%s\n", reg_type_str[compatible->types[j]]);
 	return -EACCES;
+
+found:
+	if (type == PTR_TO_BTF_ID) {
+		if (!btf_struct_ids_match(&env->log, reg->off, reg->btf_id,
+					  *arg_btf_id)) {
+			verbose(env, "R%d is of type %s but %s is expected\n",
+				regno, kernel_type_name(reg->btf_id),
+				kernel_type_name(*arg_btf_id));
+			return -EACCES;
+		}
+
+		if (!tnum_is_const(reg->var_off) || reg->var_off.value) {
+			verbose(env, "R%d is a pointer to in-kernel struct with non-zero offset\n",
+				regno);
+			return -EACCES;
+		}
+	}
+
+	return 0;
 }
 
 static int check_func_arg(struct bpf_verifier_env *env, u32 arg,
@@ -4057,7 +4084,6 @@ static int check_func_arg(struct bpf_verifier_env *env, u32 arg,
 	u32 regno = BPF_REG_1 + arg;
 	struct bpf_reg_state *regs = cur_regs(env), *reg = &regs[regno];
 	enum bpf_arg_type arg_type = fn->arg_type[arg];
-	const struct bpf_reg_types *compatible;
 	enum bpf_reg_type type = reg->type;
 	int err = 0;
 
@@ -4097,35 +4123,11 @@ static int check_func_arg(struct bpf_verifier_env *env, u32 arg,
 		 */
 		goto skip_type_check;
 
-	compatible = compatible_reg_types[arg_type];
-	if (!compatible) {
-		verbose(env, "verifier internal error: unsupported arg type %d\n", arg_type);
-		return -EFAULT;
-	}
-
-	err = check_reg_type(env, regno, compatible);
+	err = check_reg_type(env, regno, arg_type, fn->arg_btf_id[arg]);
 	if (err)
 		return err;
 
-	if (type == PTR_TO_BTF_ID) {
-		const u32 *btf_id = fn->arg_btf_id[arg];
-
-		if (!btf_id) {
-			verbose(env, "verifier internal error: missing BTF ID\n");
-			return -EFAULT;
-		}
-
-		if (!btf_struct_ids_match(&env->log, reg->off, reg->btf_id, *btf_id)) {
-			verbose(env, "R%d is of type %s but %s is expected\n",
-				regno, kernel_type_name(reg->btf_id), kernel_type_name(*btf_id));
-			return -EACCES;
-		}
-		if (!tnum_is_const(reg->var_off) || reg->var_off.value) {
-			verbose(env, "R%d is a pointer to in-kernel struct with non-zero offset\n",
-				regno);
-			return -EACCES;
-		}
-	} else if (type == PTR_TO_CTX) {
+	if (type == PTR_TO_CTX) {
 		err = check_ctx_reg(env, reg, regno);
 		if (err < 0)
 			return err;
