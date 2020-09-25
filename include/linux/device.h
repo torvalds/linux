@@ -454,6 +454,7 @@ struct dev_links_info {
  * @pm_domain:	Provide callbacks that are executed during system suspend,
  * 		hibernation, system resume and during runtime PM transitions
  * 		along with subsystem-level and driver-level callbacks.
+ * @em_pd:	device's energy model performance domain
  * @pins:	For device pin management.
  *		See Documentation/driver-api/pinctl.rst for details.
  * @msi_list:	Hosts MSI descriptors

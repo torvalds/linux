@@ -400,6 +400,7 @@ static int felix_parse_ports_node(struct felix *felix,
 		if (err < 0) {
 			dev_err(dev, "Unsupported PHY mode %s on port %d\n",
 				phy_modes(phy_mode), port);
+			of_node_put(child);
 			return err;
 		}
 
@@ -584,7 +585,10 @@ static int felix_setup(struct dsa_switch *ds)
 	if (err)
 		return err;
 
-	ocelot_init(ocelot);
+	err = ocelot_init(ocelot);
+	if (err)
+		return err;
+
 	if (ocelot->ptp) {
 		err = ocelot_init_timestamp(ocelot, &ocelot_ptp_clock_info);
 		if (err) {
@@ -639,10 +643,13 @@ static void felix_teardown(struct dsa_switch *ds)
 {
 	struct ocelot *ocelot = ds->priv;
 	struct felix *felix = ocelot_to_felix(ocelot);
+	int port;
 
 	if (felix->info->mdio_bus_free)
 		felix->info->mdio_bus_free(ocelot);
 
+	for (port = 0; port < ocelot->num_phys_ports; port++)
+		ocelot_deinit_port(ocelot, port);
 	ocelot_deinit_timestamp(ocelot);
 	/* stop workqueue thread */
 	ocelot_deinit(ocelot);

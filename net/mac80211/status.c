@@ -755,12 +755,16 @@ static void ieee80211_report_used_skb(struct ieee80211_local *local,
  *  - current throughput (higher value for higher tpt)?
  */
 #define STA_LOST_PKT_THRESHOLD	50
+#define STA_LOST_PKT_TIME	HZ		/* 1 sec since last ACK */
 #define STA_LOST_TDLS_PKT_THRESHOLD	10
 #define STA_LOST_TDLS_PKT_TIME		(10*HZ) /* 10secs since last ACK */
 
 static void ieee80211_lost_packet(struct sta_info *sta,
 				  struct ieee80211_tx_info *info)
 {
+	unsigned long pkt_time = STA_LOST_PKT_TIME;
+	unsigned int pkt_thr = STA_LOST_PKT_THRESHOLD;
+
 	/* If driver relies on its own algorithm for station kickout, skip
 	 * mac80211 packet loss mechanism.
 	 */
@@ -773,21 +777,20 @@ static void ieee80211_lost_packet(struct sta_info *sta,
 		return;
 
 	sta->status_stats.lost_packets++;
-	if (!sta->sta.tdls &&
-	    sta->status_stats.lost_packets < STA_LOST_PKT_THRESHOLD)
-		return;
+	if (sta->sta.tdls) {
+		pkt_time = STA_LOST_TDLS_PKT_TIME;
+		pkt_thr = STA_LOST_PKT_THRESHOLD;
+	}
 
 	/*
 	 * If we're in TDLS mode, make sure that all STA_LOST_TDLS_PKT_THRESHOLD
 	 * of the last packets were lost, and that no ACK was received in the
 	 * last STA_LOST_TDLS_PKT_TIME ms, before triggering the CQM packet-loss
 	 * mechanism.
+	 * For non-TDLS, use STA_LOST_PKT_THRESHOLD and STA_LOST_PKT_TIME
 	 */
-	if (sta->sta.tdls &&
-	    (sta->status_stats.lost_packets < STA_LOST_TDLS_PKT_THRESHOLD ||
-	     time_before(jiffies,
-			 sta->status_stats.last_tdls_pkt_time +
-			 STA_LOST_TDLS_PKT_TIME)))
+	if (sta->status_stats.lost_packets < pkt_thr ||
+	    !time_after(jiffies, sta->status_stats.last_pkt_time + pkt_time))
 		return;
 
 	cfg80211_cqm_pktloss_notify(sta->sdata->dev, sta->sta.addr,
@@ -1033,9 +1036,7 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 					sta->status_stats.lost_packets = 0;
 
 				/* Track when last TDLS packet was ACKed */
-				if (test_sta_flag(sta, WLAN_STA_TDLS_PEER_AUTH))
-					sta->status_stats.last_tdls_pkt_time =
-						jiffies;
+				sta->status_stats.last_pkt_time = jiffies;
 			} else if (noack_success) {
 				/* nothing to do here, do not account as lost */
 			} else {
@@ -1137,8 +1138,16 @@ void ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 	struct ieee80211_tx_info *info = status->info;
 	struct ieee80211_sta *pubsta = status->sta;
 	struct ieee80211_supported_band *sband;
+	struct sta_info *sta;
 	int retry_count;
 	bool acked, noack_success;
+
+	if (pubsta) {
+		sta = container_of(pubsta, struct sta_info, sta);
+
+		if (status->rate)
+			sta->tx_stats.last_rate_info = *status->rate;
+	}
 
 	if (status->skb)
 		return __ieee80211_tx_status(hw, status);
@@ -1154,10 +1163,6 @@ void ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 	noack_success = !!(info->flags & IEEE80211_TX_STAT_NOACK_TRANSMITTED);
 
 	if (pubsta) {
-		struct sta_info *sta;
-
-		sta = container_of(pubsta, struct sta_info, sta);
-
 		if (!acked && !noack_success)
 			sta->status_stats.retry_failed++;
 		sta->status_stats.retry_count += retry_count;
@@ -1168,9 +1173,8 @@ void ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 			if (sta->status_stats.lost_packets)
 				sta->status_stats.lost_packets = 0;
 
-			/* Track when last TDLS packet was ACKed */
-			if (test_sta_flag(sta, WLAN_STA_TDLS_PEER_AUTH))
-				sta->status_stats.last_tdls_pkt_time = jiffies;
+			/* Track when last packet was ACKed */
+			sta->status_stats.last_pkt_time = jiffies;
 		} else if (test_sta_flag(sta, WLAN_STA_PS_STA)) {
 			return;
 		} else if (noack_success) {
@@ -1259,8 +1263,7 @@ void ieee80211_tx_status_8023(struct ieee80211_hw *hw,
 			if (sta->status_stats.lost_packets)
 				sta->status_stats.lost_packets = 0;
 
-			if (test_sta_flag(sta, WLAN_STA_TDLS_PEER_AUTH))
-				sta->status_stats.last_tdls_pkt_time = jiffies;
+			sta->status_stats.last_pkt_time = jiffies;
 		} else {
 			ieee80211_lost_packet(sta, info);
 		}

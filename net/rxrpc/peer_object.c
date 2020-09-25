@@ -502,11 +502,21 @@ EXPORT_SYMBOL(rxrpc_kernel_get_peer);
  * rxrpc_kernel_get_srtt - Get a call's peer smoothed RTT
  * @sock: The socket on which the call is in progress.
  * @call: The call to query
+ * @_srtt: Where to store the SRTT value.
  *
- * Get the call's peer smoothed RTT.
+ * Get the call's peer smoothed RTT in uS.
  */
-u32 rxrpc_kernel_get_srtt(struct socket *sock, struct rxrpc_call *call)
+bool rxrpc_kernel_get_srtt(struct socket *sock, struct rxrpc_call *call,
+			   u32 *_srtt)
 {
-	return call->peer->srtt_us >> 3;
+	struct rxrpc_peer *peer = call->peer;
+
+	if (peer->rtt_count == 0) {
+		*_srtt = 1000000; /* 1S */
+		return false;
+	}
+
+	*_srtt = call->peer->srtt_us >> 3;
+	return true;
 }
 EXPORT_SYMBOL(rxrpc_kernel_get_srtt);

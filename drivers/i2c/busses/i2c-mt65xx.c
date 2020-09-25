@@ -681,8 +681,8 @@ static int mtk_i2c_calculate_speed(struct mtk_i2c *i2c, unsigned int clk_src,
 	unsigned int cnt_mul;
 	int ret = -EINVAL;
 
-	if (target_speed > I2C_MAX_FAST_MODE_PLUS_FREQ)
-		target_speed = I2C_MAX_FAST_MODE_PLUS_FREQ;
+	if (target_speed > I2C_MAX_HIGH_SPEED_MODE_FREQ)
+		target_speed = I2C_MAX_HIGH_SPEED_MODE_FREQ;
 
 	max_step_cnt = mtk_i2c_max_step_cnt(target_speed);
 	base_step_cnt = max_step_cnt;
@@ -759,7 +759,7 @@ static int mtk_i2c_set_speed(struct mtk_i2c *i2c, unsigned int parent_clk)
 	for (clk_div = 1; clk_div <= max_clk_div; clk_div++) {
 		clk_src = parent_clk / clk_div;
 
-		if (target_speed > I2C_MAX_FAST_MODE_FREQ) {
+		if (target_speed > I2C_MAX_FAST_MODE_PLUS_FREQ) {
 			/* Set master code speed register */
 			ret = mtk_i2c_calculate_speed(i2c, clk_src,
 						      I2C_MAX_FAST_MODE_FREQ,

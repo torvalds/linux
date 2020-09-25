@@ -22,14 +22,8 @@
 
 /*
  * __has_attribute is supported on gcc >= 5, clang >= 2.9 and icc >= 17.
- * In the meantime, to support 4.6 <= gcc < 5, we implement __has_attribute
+ * In the meantime, to support gcc < 5, we implement __has_attribute
  * by hand.
- *
- * sparse does not support __has_attribute (yet) and defines __GNUC_MINOR__
- * depending on the compiler used to build it; however, these attributes have
- * no semantic effects for sparse, so it does not matter. Also note that,
- * in order to avoid sparse's warnings, even the unsupported ones must be
- * defined to 0.
  */
 #ifndef __has_attribute
 # define __has_attribute(x) __GCC4_has_attribute_##x

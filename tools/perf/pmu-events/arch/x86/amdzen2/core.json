@@ -125,6 +125,6 @@
   {
     "EventName": "ex_ret_fus_brnch_inst",
     "EventCode": "0x1d0",
-    "BriefDescription": "Retired Fused Instructions. The number of fuse-branch instructions retired per cycle. The number of events logged per cycle can vary from 0-8.",
+    "BriefDescription": "Retired Fused Instructions. The number of fuse-branch instructions retired per cycle. The number of events logged per cycle can vary from 0-8."
   }
 ]

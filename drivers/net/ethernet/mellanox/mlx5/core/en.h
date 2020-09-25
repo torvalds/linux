@@ -600,7 +600,7 @@ struct mlx5e_rq {
 	struct dim         dim; /* Dynamic Interrupt Moderation */
 
 	/* XDP */
-	struct bpf_prog       *xdp_prog;
+	struct bpf_prog __rcu *xdp_prog;
 	struct mlx5e_xdpsq    *xdpsq;
 	DECLARE_BITMAP(flags, 8);
 	struct page_pool      *page_pool;
@@ -1005,7 +1005,6 @@ int mlx5e_update_nic_rx(struct mlx5e_priv *priv);
 void mlx5e_update_carrier(struct mlx5e_priv *priv);
 int mlx5e_close(struct net_device *netdev);
 int mlx5e_open(struct net_device *netdev);
-void mlx5e_update_ndo_stats(struct mlx5e_priv *priv);
 
 void mlx5e_queue_update_stats(struct mlx5e_priv *priv);
 int mlx5e_bits_invert(unsigned long a, int size);

@@ -270,9 +270,8 @@ DEFINE_IDTENTRY_SYSVEC(sysvec_kvm_asyncpf_interrupt)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 	u32 token;
-	irqentry_state_t state;
 
-	state = irqentry_enter(regs);
+	ack_APIC_irq();
 
 	inc_irq_stat(irq_hv_callback_count);
 
@@ -283,7 +282,6 @@ DEFINE_IDTENTRY_SYSVEC(sysvec_kvm_asyncpf_interrupt)
 		wrmsrl(MSR_KVM_ASYNC_PF_ACK, 1);
 	}
 
-	irqentry_exit(regs, state);
 	set_irq_regs(old_regs);
 }
 

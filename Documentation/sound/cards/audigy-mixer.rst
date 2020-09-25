@@ -332,7 +332,7 @@ WO 9901953 (A1)
 
 
 US Patents (https://www.uspto.gov/)
-----------------------------------
+-----------------------------------
 
 US 5925841
 	Digital Sampling Instrument employing cache memory (Jul. 20, 1999)

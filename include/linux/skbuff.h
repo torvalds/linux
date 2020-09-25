@@ -71,7 +71,7 @@
  *	NETIF_F_IPV6_CSUM - Driver (device) is only able to checksum plain
  *			  TCP or UDP packets over IPv6. These are specifically
  *			  unencapsulated packets of the form IPv6|TCP or
- *			  IPv4|UDP where the Next Header field in the IPv6
+ *			  IPv6|UDP where the Next Header field in the IPv6
  *			  header is either TCP or UDP. IPv6 extension headers
  *			  are not supported with this feature. This feature
  *			  cannot be set in features for a device with
@@ -1056,7 +1056,16 @@ void kfree_skb(struct sk_buff *skb);
 void kfree_skb_list(struct sk_buff *segs);
 void skb_dump(const char *level, const struct sk_buff *skb, bool full_pkt);
 void skb_tx_error(struct sk_buff *skb);
+
+#ifdef CONFIG_TRACEPOINTS
 void consume_skb(struct sk_buff *skb);
+#else
+static inline void consume_skb(struct sk_buff *skb)
+{
+	return kfree_skb(skb);
+}
+#endif
+
 void __consume_stateless_skb(struct sk_buff *skb);
 void  __kfree_skb(struct sk_buff *skb);
 extern struct kmem_cache *skbuff_head_cache;
@@ -2658,7 +2667,7 @@ static inline int pskb_network_may_pull(struct sk_buff *skb, unsigned int len)
  *
  * Using max(32, L1_CACHE_BYTES) makes sense (especially with RPS)
  * to reduce average number of cache lines per packet.
- * get_rps_cpus() for example only access one 64 bytes aligned block :
+ * get_rps_cpu() for example only access one 64 bytes aligned block :
  * NET_IP_ALIGN(2) + ethernet_header(14) + IP_header(20/40) + ports(8)
  */
 #ifndef NET_SKB_PAD
@@ -3214,8 +3223,9 @@ static inline int skb_padto(struct sk_buff *skb, unsigned int len)
  *	is untouched. Otherwise it is extended. Returns zero on
  *	success. The skb is freed on error if @free_on_error is true.
  */
-static inline int __skb_put_padto(struct sk_buff *skb, unsigned int len,
-				  bool free_on_error)
+static inline int __must_check __skb_put_padto(struct sk_buff *skb,
+					       unsigned int len,
+					       bool free_on_error)
 {
 	unsigned int size = skb->len;
 
@@ -3238,7 +3248,7 @@ static inline int __skb_put_padto(struct sk_buff *skb, unsigned int len,
  *	is untouched. Otherwise it is extended. Returns zero on
  *	success. The skb is freed on error.
  */
-static inline int skb_put_padto(struct sk_buff *skb, unsigned int len)
+static inline int __must_check skb_put_padto(struct sk_buff *skb, unsigned int len)
 {
 	return __skb_put_padto(skb, len, true);
 }

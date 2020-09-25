@@ -2026,13 +2026,49 @@ static void nvme_update_disk_info(struct gendisk *disk,
 	blk_mq_unfreeze_queue(disk->queue);
 }
 
+static inline bool nvme_first_scan(struct gendisk *disk)
+{
+	/* nvme_alloc_ns() scans the disk prior to adding it */
+	return !(disk->flags & GENHD_FL_UP);
+}
+
+static void nvme_set_chunk_sectors(struct nvme_ns *ns, struct nvme_id_ns *id)
+{
+	struct nvme_ctrl *ctrl = ns->ctrl;
+	u32 iob;
+
+	if ((ctrl->quirks & NVME_QUIRK_STRIPE_SIZE) &&
+	    is_power_of_2(ctrl->max_hw_sectors))
+		iob = ctrl->max_hw_sectors;
+	else
+		iob = nvme_lba_to_sect(ns, le16_to_cpu(id->noiob));
+
+	if (!iob)
+		return;
+
+	if (!is_power_of_2(iob)) {
+		if (nvme_first_scan(ns->disk))
+			pr_warn("%s: ignoring unaligned IO boundary:%u\n",
+				ns->disk->disk_name, iob);
+		return;
+	}
+
+	if (blk_queue_is_zoned(ns->disk->queue)) {
+		if (nvme_first_scan(ns->disk))
+			pr_warn("%s: ignoring zoned namespace IO boundary\n",
+				ns->disk->disk_name);
+		return;
+	}
+
+	blk_queue_chunk_sectors(ns->queue, iob);
+}
+
 static int __nvme_revalidate_disk(struct gendisk *disk, struct nvme_id_ns *id)
 {
 	unsigned lbaf = id->flbas & NVME_NS_FLBAS_LBA_MASK;
 	struct nvme_ns *ns = disk->private_data;
 	struct nvme_ctrl *ctrl = ns->ctrl;
 	int ret;
-	u32 iob;
 
 	/*
 	 * If identify namespace failed, use default 512 byte block size so
@@ -2059,12 +2095,6 @@ static int __nvme_revalidate_disk(struct gendisk *disk, struct nvme_id_ns *id)
 			ns->head->ids.csi, ns->head->ns_id);
 		return -ENODEV;
 	}
-
-	if ((ctrl->quirks & NVME_QUIRK_STRIPE_SIZE) &&
-	    is_power_of_2(ctrl->max_hw_sectors))
-		iob = ctrl->max_hw_sectors;
-	else
-		iob = nvme_lba_to_sect(ns, le16_to_cpu(id->noiob));
 
 	ns->features = 0;
 	ns->ms = le16_to_cpu(id->lbaf[lbaf].ms);
@@ -2097,8 +2127,7 @@ static int __nvme_revalidate_disk(struct gendisk *disk, struct nvme_id_ns *id)
 		}
 	}
 
-	if (iob && !blk_queue_is_zoned(ns->queue))
-		blk_queue_chunk_sectors(ns->queue, rounddown_pow_of_two(iob));
+	nvme_set_chunk_sectors(ns, id);
 	nvme_update_disk_info(disk, ns, id);
 #ifdef CONFIG_NVME_MULTIPATH
 	if (ns->head->disk) {
@@ -3232,7 +3261,21 @@ static int nvme_dev_open(struct inode *inode, struct file *file)
 		return -EWOULDBLOCK;
 	}
 
+	nvme_get_ctrl(ctrl);
+	if (!try_module_get(ctrl->ops->module))
+		return -EINVAL;
+
 	file->private_data = ctrl;
+	return 0;
+}
+
+static int nvme_dev_release(struct inode *inode, struct file *file)
+{
+	struct nvme_ctrl *ctrl =
+		container_of(inode->i_cdev, struct nvme_ctrl, cdev);
+
+	module_put(ctrl->ops->module);
+	nvme_put_ctrl(ctrl);
 	return 0;
 }
 
@@ -3298,6 +3341,7 @@ static long nvme_dev_ioctl(struct file *file, unsigned int cmd,
 static const struct file_operations nvme_dev_fops = {
 	.owner		= THIS_MODULE,
 	.open		= nvme_dev_open,
+	.release	= nvme_dev_release,
 	.unlocked_ioctl	= nvme_dev_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
 };
@@ -3496,10 +3540,6 @@ static ssize_t nvme_sysfs_delete(struct device *dev,
 {
 	struct nvme_ctrl *ctrl = dev_get_drvdata(dev);
 
-	/* Can't delete non-created controllers */
-	if (!ctrl->created)
-		return -EBUSY;
-
 	if (device_remove_file_self(dev, attr))
 		nvme_delete_ctrl_sync(ctrl);
 	return count;
@@ -3675,6 +3715,10 @@ static umode_t nvme_dev_attrs_are_visible(struct kobject *kobj,
 	if (a == &dev_attr_hostnqn.attr && !ctrl->opts)
 		return 0;
 	if (a == &dev_attr_hostid.attr && !ctrl->opts)
+		return 0;
+	if (a == &dev_attr_ctrl_loss_tmo.attr && !ctrl->opts)
+		return 0;
+	if (a == &dev_attr_reconnect_delay.attr && !ctrl->opts)
 		return 0;
 
 	return a->mode;
@@ -4370,7 +4414,6 @@ void nvme_start_ctrl(struct nvme_ctrl *ctrl)
 		nvme_queue_scan(ctrl);
 		nvme_start_queues(ctrl);
 	}
-	ctrl->created = true;
 }
 EXPORT_SYMBOL_GPL(nvme_start_ctrl);
 
@@ -4390,7 +4433,7 @@ static void nvme_free_ctrl(struct device *dev)
 	struct nvme_subsystem *subsys = ctrl->subsys;
 	struct nvme_cel *cel, *next;
 
-	if (subsys && ctrl->instance != subsys->instance)
+	if (!subsys || ctrl->instance != subsys->instance)
 		ida_simple_remove(&nvme_instance_ida, ctrl->instance);
 
 	list_for_each_entry_safe(cel, next, &ctrl->cels, entry) {
@@ -4534,7 +4577,7 @@ void nvme_unfreeze(struct nvme_ctrl *ctrl)
 }
 EXPORT_SYMBOL_GPL(nvme_unfreeze);
 
-void nvme_wait_freeze_timeout(struct nvme_ctrl *ctrl, long timeout)
+int nvme_wait_freeze_timeout(struct nvme_ctrl *ctrl, long timeout)
 {
 	struct nvme_ns *ns;
 
@@ -4545,6 +4588,7 @@ void nvme_wait_freeze_timeout(struct nvme_ctrl *ctrl, long timeout)
 			break;
 	}
 	up_read(&ctrl->namespaces_rwsem);
+	return timeout;
 }
 EXPORT_SYMBOL_GPL(nvme_wait_freeze_timeout);
 

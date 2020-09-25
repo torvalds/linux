@@ -218,11 +218,11 @@ static int __nft_rbtree_insert(const struct net *net, const struct nft_set *set,
 			       struct nft_rbtree_elem *new,
 			       struct nft_set_ext **ext)
 {
+	bool overlap = false, dup_end_left = false, dup_end_right = false;
 	struct nft_rbtree *priv = nft_set_priv(set);
 	u8 genmask = nft_genmask_next(net);
 	struct nft_rbtree_elem *rbe;
 	struct rb_node *parent, **p;
-	bool overlap = false;
 	int d;
 
 	/* Detect overlaps as we descend the tree. Set the flag in these cases:
@@ -238,24 +238,44 @@ static int __nft_rbtree_insert(const struct net *net, const struct nft_set *set,
 	 *
 	 * b1. _ _ __>|  !_ _ __|  (insert end before existing start)
 	 * b2. _ _ ___|  !_ _ _>|  (insert end after existing start)
-	 * b3. _ _ ___! >|_ _ __|  (insert start after existing end)
+	 * b3. _ _ ___! >|_ _ __|  (insert start after existing end, as a leaf)
+	 *            '--' no nodes falling in this range
+	 * b4.          >|_ _   !  (insert start before existing start)
 	 *
 	 * Case a3. resolves to b3.:
 	 * - if the inserted start element is the leftmost, because the '0'
 	 *   element in the tree serves as end element
-	 * - otherwise, if an existing end is found. Note that end elements are
-	 *   always inserted after corresponding start elements.
+	 * - otherwise, if an existing end is found immediately to the left. If
+	 *   there are existing nodes in between, we need to further descend the
+	 *   tree before we can conclude the new start isn't causing an overlap
+	 *
+	 * or to b4., which, preceded by a3., means we already traversed one or
+	 * more existing intervals entirely, from the right.
 	 *
 	 * For a new, rightmost pair of elements, we'll hit cases b3. and b2.,
 	 * in that order.
 	 *
 	 * The flag is also cleared in two special cases:
 	 *
-	 * b4. |__ _ _!|<_ _ _   (insert start right before existing end)
-	 * b5. |__ _ >|!__ _ _   (insert end right after existing start)
+	 * b5. |__ _ _!|<_ _ _   (insert start right before existing end)
+	 * b6. |__ _ >|!__ _ _   (insert end right after existing start)
 	 *
 	 * which always happen as last step and imply that no further
 	 * overlapping is possible.
+	 *
+	 * Another special case comes from the fact that start elements matching
+	 * an already existing start element are allowed: insertion is not
+	 * performed but we return -EEXIST in that case, and the error will be
+	 * cleared by the caller if NLM_F_EXCL is not present in the request.
+	 * This way, request for insertion of an exact overlap isn't reported as
+	 * error to userspace if not desired.
+	 *
+	 * However, if the existing start matches a pre-existing start, but the
+	 * end element doesn't match the corresponding pre-existing end element,
+	 * we need to report a partial overlap. This is a local condition that
+	 * can be noticed without need for a tracking flag, by checking for a
+	 * local duplicated end for a corresponding start, from left and right,
+	 * separately.
 	 */
 
 	parent = NULL;
@@ -272,26 +292,41 @@ static int __nft_rbtree_insert(const struct net *net, const struct nft_set *set,
 			if (nft_rbtree_interval_start(new)) {
 				if (nft_rbtree_interval_end(rbe) &&
 				    nft_set_elem_active(&rbe->ext, genmask) &&
-				    !nft_set_elem_expired(&rbe->ext))
+				    !nft_set_elem_expired(&rbe->ext) && !*p)
 					overlap = false;
 			} else {
+				if (dup_end_left && !*p)
+					return -ENOTEMPTY;
+
 				overlap = nft_rbtree_interval_end(rbe) &&
 					  nft_set_elem_active(&rbe->ext,
 							      genmask) &&
 					  !nft_set_elem_expired(&rbe->ext);
+
+				if (overlap) {
+					dup_end_right = true;
+					continue;
+				}
 			}
 		} else if (d > 0) {
 			p = &parent->rb_right;
 
 			if (nft_rbtree_interval_end(new)) {
+				if (dup_end_right && !*p)
+					return -ENOTEMPTY;
+
 				overlap = nft_rbtree_interval_end(rbe) &&
 					  nft_set_elem_active(&rbe->ext,
 							      genmask) &&
 					  !nft_set_elem_expired(&rbe->ext);
-			} else if (nft_rbtree_interval_end(rbe) &&
-				   nft_set_elem_active(&rbe->ext, genmask) &&
+
+				if (overlap) {
+					dup_end_left = true;
+					continue;
+				}
+			} else if (nft_set_elem_active(&rbe->ext, genmask) &&
 				   !nft_set_elem_expired(&rbe->ext)) {
-				overlap = true;
+				overlap = nft_rbtree_interval_end(rbe);
 			}
 		} else {
 			if (nft_rbtree_interval_end(rbe) &&
@@ -316,6 +351,8 @@ static int __nft_rbtree_insert(const struct net *net, const struct nft_set *set,
 				p = &parent->rb_left;
 			}
 		}
+
+		dup_end_left = dup_end_right = false;
 	}
 
 	if (overlap)

@@ -11,7 +11,7 @@
 # result in fragmentation and/or PMTU discovery.
 #
 # You can check with different Orgininator/Link/Responder MTU eg:
-# sh nft_flowtable.sh -o1000 -l500 -r100
+# nft_flowtable.sh -o8000 -l1500 -r2000
 #
 
 
@@ -27,8 +27,7 @@ ns2out=""
 log_netns=$(sysctl -n net.netfilter.nf_log_all_netns)
 
 checktool (){
-	$1 > /dev/null 2>&1
-	if [ $? -ne 0 ];then
+	if ! $1 > /dev/null 2>&1; then
 		echo "SKIP: Could not $2"
 		exit $ksft_skip
 	fi
@@ -87,19 +86,36 @@ omtu=9000
 lmtu=1500
 rmtu=2000
 
+usage(){
+	echo "nft_flowtable.sh [OPTIONS]"
+	echo
+	echo "MTU options"
+	echo "   -o originator"
+	echo "   -l link"
+	echo "   -r responder"
+	exit 1
+}
+
 while getopts "o:l:r:" o
 do
 	case $o in
 		o) omtu=$OPTARG;;
 		l) lmtu=$OPTARG;;
 		r) rmtu=$OPTARG;;
+		*) usage;;
 	esac
 done
 
-ip -net nsr1 link set veth0 mtu $omtu
+if ! ip -net nsr1 link set veth0 mtu $omtu; then
+	exit 1
+fi
+
 ip -net ns1 link set eth0 mtu $omtu
 
-ip -net nsr2 link set veth1 mtu $rmtu
+if ! ip -net nsr2 link set veth1 mtu $rmtu; then
+	exit 1
+fi
+
 ip -net ns2 link set eth0 mtu $rmtu
 
 # transfer-net between nsr1 and nsr2.
@@ -120,7 +136,10 @@ for i in 1 2; do
   ip -net ns$i route add default via 10.0.$i.1
   ip -net ns$i addr add dead:$i::99/64 dev eth0
   ip -net ns$i route add default via dead:$i::1
-  ip netns exec ns$i sysctl net.ipv4.tcp_no_metrics_save=1 > /dev/null
+  if ! ip netns exec ns$i sysctl net.ipv4.tcp_no_metrics_save=1 > /dev/null; then
+	echo "ERROR: Check Originator/Responder values (problem during address addition)"
+	exit 1
+  fi
 
   # don't set ip DF bit for first two tests
   ip netns exec ns$i sysctl net.ipv4.ip_no_pmtu_disc=1 > /dev/null
@@ -178,15 +197,13 @@ if [ $? -ne 0 ]; then
 fi
 
 # test basic connectivity
-ip netns exec ns1 ping -c 1 -q 10.0.2.99 > /dev/null
-if [ $? -ne 0 ];then
+if ! ip netns exec ns1 ping -c 1 -q 10.0.2.99 > /dev/null; then
   echo "ERROR: ns1 cannot reach ns2" 1>&2
   bash
   exit 1
 fi
 
-ip netns exec ns2 ping -c 1 -q 10.0.1.99 > /dev/null
-if [ $? -ne 0 ];then
+if ! ip netns exec ns2 ping -c 1 -q 10.0.1.99 > /dev/null; then
   echo "ERROR: ns2 cannot reach ns1" 1>&2
   exit 1
 fi
@@ -203,7 +220,6 @@ ns2out=$(mktemp)
 make_file()
 {
 	name=$1
-	who=$2
 
 	SIZE=$((RANDOM % (1024 * 8)))
 	TSIZE=$((SIZE * 1024))
@@ -222,8 +238,7 @@ check_transfer()
 	out=$2
 	what=$3
 
-	cmp "$in" "$out" > /dev/null 2>&1
-	if [ $? -ne 0 ] ;then
+	if ! cmp "$in" "$out" > /dev/null 2>&1; then
 		echo "FAIL: file mismatch for $what" 1>&2
 		ls -l "$in"
 		ls -l "$out"
@@ -260,13 +275,11 @@ test_tcp_forwarding_ip()
 
 	wait
 
-	check_transfer "$ns1in" "$ns2out" "ns1 -> ns2"
-	if [ $? -ne 0 ];then
+	if ! check_transfer "$ns1in" "$ns2out" "ns1 -> ns2"; then
 		lret=1
 	fi
 
-	check_transfer "$ns2in" "$ns1out" "ns1 <- ns2"
-	if [ $? -ne 0 ];then
+	if ! check_transfer "$ns2in" "$ns1out" "ns1 <- ns2"; then
 		lret=1
 	fi
 
@@ -295,13 +308,12 @@ test_tcp_forwarding_nat()
 	return $lret
 }
 
-make_file "$ns1in" "ns1"
-make_file "$ns2in" "ns2"
+make_file "$ns1in"
+make_file "$ns2in"
 
 # First test:
 # No PMTU discovery, nsr1 is expected to fragment packets from ns1 to ns2 as needed.
-test_tcp_forwarding ns1 ns2
-if [ $? -eq 0 ] ;then
+if test_tcp_forwarding ns1 ns2; then
 	echo "PASS: flow offloaded for ns1/ns2"
 else
 	echo "FAIL: flow offload for ns1/ns2:" 1>&2
@@ -332,9 +344,7 @@ table ip nat {
 }
 EOF
 
-test_tcp_forwarding_nat ns1 ns2
-
-if [ $? -eq 0 ] ;then
+if test_tcp_forwarding_nat ns1 ns2; then
 	echo "PASS: flow offloaded for ns1/ns2 with NAT"
 else
 	echo "FAIL: flow offload for ns1/ns2 with NAT" 1>&2
@@ -346,8 +356,7 @@ fi
 # Same as second test, but with PMTU discovery enabled.
 handle=$(ip netns exec nsr1 nft -a list table inet filter | grep something-to-grep-for | cut -d \# -f 2)
 
-ip netns exec nsr1 nft delete rule inet filter forward $handle
-if [ $? -ne 0 ] ;then
+if ! ip netns exec nsr1 nft delete rule inet filter forward $handle; then
 	echo "FAIL: Could not delete large-packet accept rule"
 	exit 1
 fi
@@ -355,8 +364,7 @@ fi
 ip netns exec ns1 sysctl net.ipv4.ip_no_pmtu_disc=0 > /dev/null
 ip netns exec ns2 sysctl net.ipv4.ip_no_pmtu_disc=0 > /dev/null
 
-test_tcp_forwarding_nat ns1 ns2
-if [ $? -eq 0 ] ;then
+if test_tcp_forwarding_nat ns1 ns2; then
 	echo "PASS: flow offloaded for ns1/ns2 with NAT and pmtu discovery"
 else
 	echo "FAIL: flow offload for ns1/ns2 with NAT and pmtu discovery" 1>&2
@@ -402,8 +410,7 @@ ip -net ns2 route del 192.168.10.1 via 10.0.2.1
 ip -net ns2 route add default via 10.0.2.1
 ip -net ns2 route add default via dead:2::1
 
-test_tcp_forwarding ns1 ns2
-if [ $? -eq 0 ] ;then
+if test_tcp_forwarding ns1 ns2; then
 	echo "PASS: ipsec tunnel mode for ns1/ns2"
 else
 	echo "FAIL: ipsec tunnel mode for ns1/ns2"

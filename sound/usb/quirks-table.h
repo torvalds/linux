@@ -2827,14 +2827,24 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 /* Lenovo ThinkStation P620 Rear Line-in, Line-out and Microphone */
 {
 	USB_DEVICE(0x17aa, 0x1046),
-	QUIRK_DEVICE_PROFILE("Lenovo", "ThinkStation P620 Rear",
-			     "Lenovo-ThinkStation-P620-Rear"),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.vendor_name = "Lenovo",
+		.product_name = "ThinkStation P620 Rear",
+		.profile_name = "Lenovo-ThinkStation-P620-Rear",
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_SETUP_DISABLE_AUTOSUSPEND
+	}
 },
 /* Lenovo ThinkStation P620 Internal Speaker + Front Headset */
 {
 	USB_DEVICE(0x17aa, 0x104d),
-	QUIRK_DEVICE_PROFILE("Lenovo", "ThinkStation P620 Main",
-			     "Lenovo-ThinkStation-P620-Main"),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.vendor_name = "Lenovo",
+		.product_name = "ThinkStation P620 Main",
+		.profile_name = "Lenovo-ThinkStation-P620-Main",
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_SETUP_DISABLE_AUTOSUSPEND
+	}
 },
 
 /* Native Instruments MK2 series */
@@ -3549,14 +3559,40 @@ AU0828_DEVICE(0x2040, 0x7270, "Hauppauge", "HVR-950Q"),
 {
 	/*
 	 * Pioneer DJ DJM-250MK2
-	 * PCM is 8 channels out @ 48 fixed (endpoints 0x01).
-	 * The output from computer to the mixer is usable.
+	 * PCM is 8 channels out @ 48 fixed (endpoint 0x01)
+	 * and 8 channels in @ 48 fixed (endpoint 0x82).
 	 *
-	 * The input (phono or line to computer) is not working.
-	 * It should be at endpoint 0x82 and probably also 8 channels,
-	 * but it seems that it works only with Pioneer proprietary software.
-	 * Even on officially supported OS, the Audacity was unable to record
-	 * and Mixxx to recognize the control vinyls.
+	 * Both playback and recording is working, even simultaneously.
+	 *
+	 * Playback channels could be mapped to:
+	 *  - CH1
+	 *  - CH2
+	 *  - AUX
+	 *
+	 * Recording channels could be mapped to:
+	 *  - Post CH1 Fader
+	 *  - Post CH2 Fader
+	 *  - Cross Fader A
+	 *  - Cross Fader B
+	 *  - MIC
+	 *  - AUX
+	 *  - REC OUT
+	 *
+	 * There is remaining problem with recording directly from PHONO/LINE.
+	 * If we map a channel to:
+	 *  - CH1 Control Tone PHONO
+	 *  - CH1 Control Tone LINE
+	 *  - CH2 Control Tone PHONO
+	 *  - CH2 Control Tone LINE
+	 * it is silent.
+	 * There is no signal even on other operating systems with official drivers.
+	 * The signal appears only when a supported application is started.
+	 * This needs to be investigated yet...
+	 * (there is quite a lot communication on the USB in both directions)
+	 *
+	 * In current version this mixer could be used for playback
+	 * and for recording from vinyls (through Post CH* Fader)
+	 * but not for DVS (Digital Vinyl Systems) like in Mixxx.
 	 */
 	USB_DEVICE_VENDOR_SPEC(0x2b73, 0x0017),
 	.driver_info = (unsigned long) &(const struct snd_usb_audio_quirk) {
@@ -3575,6 +3611,26 @@ AU0828_DEVICE(0x2040, 0x7270, "Hauppauge", "HVR-950Q"),
 					.endpoint = 0x01,
 					.ep_attr = USB_ENDPOINT_XFER_ISOC|
 						USB_ENDPOINT_SYNC_ASYNC,
+					.rates = SNDRV_PCM_RATE_48000,
+					.rate_min = 48000,
+					.rate_max = 48000,
+					.nr_rates = 1,
+					.rate_table = (unsigned int[]) { 48000 }
+					}
+			},
+			{
+				.ifnum = 0,
+				.type = QUIRK_AUDIO_FIXED_ENDPOINT,
+				.data = &(const struct audioformat) {
+					.formats = SNDRV_PCM_FMTBIT_S24_3LE,
+					.channels = 8, // inputs
+					.iface = 0,
+					.altsetting = 1,
+					.altset_idx = 1,
+					.endpoint = 0x82,
+					.ep_attr = USB_ENDPOINT_XFER_ISOC|
+						USB_ENDPOINT_SYNC_ASYNC|
+						USB_ENDPOINT_USAGE_IMPLICIT_FB,
 					.rates = SNDRV_PCM_RATE_48000,
 					.rate_min = 48000,
 					.rate_max = 48000,

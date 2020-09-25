@@ -325,4 +325,14 @@ config XEN_HAVE_VPMU
 config XEN_FRONT_PGDIR_SHBUF
 	tristate
 
+config XEN_UNPOPULATED_ALLOC
+	bool "Use unpopulated memory ranges for guest mappings"
+	depends on X86 && ZONE_DEVICE
+	default XEN_BACKEND || XEN_GNTDEV || XEN_DOM0
+	help
+	  Use unpopulated memory ranges in order to create mappings for guest
+	  memory regions, including grant maps and foreign pages. This avoids
+	  having to balloon out RAM regions in order to obtain physical memory
+	  space to create such mappings.
+
 endmenu

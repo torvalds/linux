@@ -2059,9 +2059,9 @@ udma_prep_slave_sg_tr(struct udma_chan *uc, struct scatterlist *sgl,
 			return NULL;
 		}
 
-		cppi5_tr_init(&tr_req[i].flags, CPPI5_TR_TYPE1, false, false,
-			      CPPI5_TR_EVENT_SIZE_COMPLETION, 0);
-		cppi5_tr_csf_set(&tr_req[i].flags, CPPI5_TR_CSF_SUPR_EVT);
+		cppi5_tr_init(&tr_req[tr_idx].flags, CPPI5_TR_TYPE1, false,
+			      false, CPPI5_TR_EVENT_SIZE_COMPLETION, 0);
+		cppi5_tr_csf_set(&tr_req[tr_idx].flags, CPPI5_TR_CSF_SUPR_EVT);
 
 		tr_req[tr_idx].addr = sg_addr;
 		tr_req[tr_idx].icnt0 = tr0_cnt0;
@@ -3101,14 +3101,14 @@ static struct udma_match_data am654_main_data = {
 	.psil_base = 0x1000,
 	.enable_memcpy_support = true,
 	.statictr_z_mask = GENMASK(11, 0),
-	.rchan_oes_offset = 0x2000,
+	.rchan_oes_offset = 0x200,
 };
 
 static struct udma_match_data am654_mcu_data = {
 	.psil_base = 0x6000,
 	.enable_memcpy_support = false,
 	.statictr_z_mask = GENMASK(11, 0),
-	.rchan_oes_offset = 0x2000,
+	.rchan_oes_offset = 0x200,
 };
 
 static struct udma_match_data j721e_main_data = {
