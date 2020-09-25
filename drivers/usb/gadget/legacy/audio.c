@@ -225,7 +225,7 @@ static int audio_bind(struct usb_composite_dev *cdev)
 #endif
 
 #if !defined(CONFIG_GADGET_UAC1) || !defined(CONFIG_GADGET_UAC1_LEGACY)
-	memset(uac_opts, 0x0, sizeof(uac_opts));
+	memset(uac_opts, 0x0, sizeof(*uac_opts));
 	uac_opts->p_chmask = p_chmask;
 	uac_opts->p_srate[0] = p_srate;
 	uac_opts->p_srate_active = p_srate;
