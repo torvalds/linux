@@ -14899,8 +14899,10 @@ static int intel_atomic_check_crtcs(struct intel_atomic_state *state)
 	int i;
 
 	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
-		int ret = intel_crtc_atomic_check(state, crtc);
 		struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+		int ret;
+
+		ret = intel_crtc_atomic_check(state, crtc);
 		if (ret) {
 			drm_dbg_atomic(&i915->drm,
 				       "[CRTC:%d:%s] atomic driver check failed\n",
