@@ -356,7 +356,12 @@ The following sysctls are available for the XFS filesystem:
 Deprecated Sysctls
 ==================
 
-None at present.
+===========================     ================
+  Name				Removal Schedule
+===========================     ================
+fs.xfs.irix_sgid_inherit        September 2025
+fs.xfs.irix_symlink_mode        September 2025
+===========================     ================
 
 
 Removed Sysctls
