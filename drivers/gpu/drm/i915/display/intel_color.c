@@ -818,12 +818,14 @@ static void glk_load_degamma_lut(const struct intel_crtc_state *crtc_state)
 		 * as compared to just 16 to achieve this.
 		 */
 		intel_de_write(dev_priv, PRE_CSC_GAMC_DATA(pipe),
-		               lut[i].green);
+			       lut[i].green);
 	}
 
 	/* Clamp values > 1.0. */
 	while (i++ < 35)
 		intel_de_write(dev_priv, PRE_CSC_GAMC_DATA(pipe), 1 << 16);
+
+	intel_de_write(dev_priv, PRE_CSC_GAMC_INDEX(pipe), 0);
 }
 
 static void glk_load_degamma_lut_linear(const struct intel_crtc_state *crtc_state)
@@ -851,6 +853,8 @@ static void glk_load_degamma_lut_linear(const struct intel_crtc_state *crtc_stat
 	/* Clamp values > 1.0. */
 	while (i++ < 35)
 		intel_de_write(dev_priv, PRE_CSC_GAMC_DATA(pipe), 1 << 16);
+
+	intel_de_write(dev_priv, PRE_CSC_GAMC_INDEX(pipe), 0);
 }
 
 static void glk_load_luts(const struct intel_crtc_state *crtc_state)
