@@ -347,5 +347,6 @@ extern int atomctrl_get_edc_leakage_table(struct pp_hwmgr *hwmgr,
 					  AtomCtrl_EDCLeakgeTable *table,
 					  uint16_t offset);
 
+extern int atomctrl_get_vddc_shared_railinfo(struct pp_hwmgr *hwmgr, uint8_t *shared_rail);
 #endif
 

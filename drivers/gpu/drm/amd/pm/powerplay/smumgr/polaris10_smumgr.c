@@ -1016,6 +1016,16 @@ static int polaris10_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+static void polaris10_get_vddc_shared_railinfo(struct pp_hwmgr *hwmgr)
+{
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
+	SMU74_Discrete_DpmTable *table = &(smu_data->smc_state_table);
+	uint8_t shared_rail;
+
+	if (!atomctrl_get_vddc_shared_railinfo(hwmgr, &shared_rail))
+		table->SharedRails = shared_rail;
+}
+
 static int polaris10_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *hw_data = (struct smu7_hwmgr *)(hwmgr->backend);
@@ -1040,6 +1050,10 @@ static int polaris10_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 	struct amdgpu_device *adev = hwmgr->adev;
 	pp_atomctrl_clock_dividers_vi dividers;
 	uint32_t dpm0_sclkfrequency = levels[0].SclkSetting.SclkFrequency;
+
+	if (ASICID_IS_P20(adev->pdev->device, adev->pdev->revision) ||
+	    ASICID_IS_P30(adev->pdev->device, adev->pdev->revision))
+		polaris10_get_vddc_shared_railinfo(hwmgr);
 
 	polaris10_get_sclk_range_table(hwmgr, &(smu_data->smc_state_table));
 

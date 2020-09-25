@@ -1427,6 +1427,20 @@ int atomctrl_get_smc_sclk_range_table(struct pp_hwmgr *hwmgr, struct pp_atom_ctr
 	return 0;
 }
 
+int atomctrl_get_vddc_shared_railinfo(struct pp_hwmgr *hwmgr, uint8_t *shared_rail)
+{
+	ATOM_SMU_INFO_V2_1 *psmu_info =
+		(ATOM_SMU_INFO_V2_1 *)smu_atom_get_data_table(hwmgr->adev,
+			GetIndexIntoMasterTable(DATA, SMU_Info),
+			NULL, NULL, NULL);
+	if (!psmu_info)
+		return -1;
+
+	*shared_rail = psmu_info->ucSharePowerSource;
+
+	return 0;
+}
+
 int atomctrl_get_avfs_information(struct pp_hwmgr *hwmgr,
 				  struct pp_atom_ctrl__avfs_parameters *param)
 {

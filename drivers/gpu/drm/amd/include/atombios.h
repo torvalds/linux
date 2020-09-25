@@ -5636,7 +5636,9 @@ typedef struct  _ATOM_SMU_INFO_V2_1
 {
   ATOM_COMMON_TABLE_HEADER         asHeader;
   UCHAR ucSclkEntryNum;            // for potential future extend, indicate the number of ATOM_SCLK_FCW_RANGE_ENTRY_V1
-  UCHAR ucReserved[3];
+  UCHAR ucSMUVer;
+  UCHAR ucSharePowerSource;
+  UCHAR ucReserved;
   ATOM_SCLK_FCW_RANGE_ENTRY_V1     asSclkFcwRangeEntry[8];
 }ATOM_SMU_INFO_V2_1;
 
