@@ -83,8 +83,8 @@ static const struct pci_device_id hns3_pci_tbl[] = {
 	 HNAE3_DEV_SUPPORT_ROCE_DCB_BITS},
 	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_200G_RDMA),
 	 HNAE3_DEV_SUPPORT_ROCE_DCB_BITS},
-	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_100G_VF), 0},
-	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_100G_RDMA_DCB_PFC_VF),
+	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_VF), 0},
+	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_RDMA_DCB_PFC_VF),
 	 HNAE3_DEV_SUPPORT_ROCE_DCB_BITS},
 	/* required last entry */
 	{0, }
@@ -2048,8 +2048,8 @@ bool hns3_is_phys_func(struct pci_dev *pdev)
 	case HNAE3_DEV_ID_100G_RDMA_MACSEC:
 	case HNAE3_DEV_ID_200G_RDMA:
 		return true;
-	case HNAE3_DEV_ID_100G_VF:
-	case HNAE3_DEV_ID_100G_RDMA_DCB_PFC_VF:
+	case HNAE3_DEV_ID_VF:
+	case HNAE3_DEV_ID_RDMA_DCB_PFC_VF:
 		return false;
 	default:
 		dev_warn(&pdev->dev, "un-recognized pci device-id %u",
