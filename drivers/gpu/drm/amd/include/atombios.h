@@ -5655,6 +5655,22 @@ typedef struct  _ATOM_GFX_INFO_V2_1
   UCHAR max_texture_channel_caches;
 }ATOM_GFX_INFO_V2_1;
 
+typedef struct  _ATOM_GFX_INFO_V2_3
+{
+  ATOM_COMMON_TABLE_HEADER asHeader;
+  UCHAR GfxIpMinVer;
+  UCHAR GfxIpMajVer;
+  UCHAR max_shader_engines;
+  UCHAR max_tile_pipes;
+  UCHAR max_cu_per_sh;
+  UCHAR max_sh_per_se;
+  UCHAR max_backends_per_se;
+  UCHAR max_texture_channel_caches;
+  USHORT usHiLoLeakageThreshold;
+  USHORT usEdcDidtLoDpm7TableOffset; //offset of DPM7 low leakage table _ATOM_EDC_DIDT_TABLE_V1
+  USHORT usEdcDidtHiDpm7TableOffset; //offset of DPM7 high leakage table _ATOM_EDC_DIDT_TABLE_V1
+  USHORT usReserverd[3];
+}ATOM_GFX_INFO_V2_3;
 
 typedef struct _ATOM_POWER_SOURCE_OBJECT
 {

@@ -404,6 +404,9 @@ typedef uint16_t PPSMC_Result;
 #define PPSMC_MSG_EnableDpmDidt               ((uint16_t) 0x309)
 #define PPSMC_MSG_DisableDpmDidt              ((uint16_t) 0x30A)
 
+#define PPSMC_MSG_EnableEDCController         ((uint16_t) 0x316)
+#define PPSMC_MSG_DisableEDCController        ((uint16_t) 0x317)
+
 #define PPSMC_MSG_SecureSRBMWrite             ((uint16_t) 0x600)
 #define PPSMC_MSG_SecureSRBMRead              ((uint16_t) 0x601)
 #define PPSMC_MSG_SetAddress                  ((uint16_t) 0x800)

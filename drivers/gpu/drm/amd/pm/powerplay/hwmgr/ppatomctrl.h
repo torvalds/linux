@@ -278,6 +278,20 @@ struct pp_atom_ctrl__avfs_parameters {
 	uint8_t  ucReserved;
 };
 
+struct _AtomCtrl_HiLoLeakageOffsetTable
+{
+    USHORT usHiLoLeakageThreshold;
+    USHORT usEdcDidtLoDpm7TableOffset;
+    USHORT usEdcDidtHiDpm7TableOffset;
+};
+typedef struct _AtomCtrl_HiLoLeakageOffsetTable AtomCtrl_HiLoLeakageOffsetTable;
+
+struct _AtomCtrl_EDCLeakgeTable
+{
+    ULONG DIDT_REG[24];
+};
+typedef struct _AtomCtrl_EDCLeakgeTable AtomCtrl_EDCLeakgeTable;
+
 extern bool atomctrl_get_pp_assign_pin(struct pp_hwmgr *hwmgr, const uint32_t pinId, pp_atomctrl_gpio_pin_assignment *gpio_pin_assignment);
 extern int atomctrl_get_voltage_evv_on_sclk(struct pp_hwmgr *hwmgr, uint8_t voltage_type, uint32_t sclk, uint16_t virtual_voltage_Id, uint16_t *voltage);
 extern int atomctrl_get_voltage_evv(struct pp_hwmgr *hwmgr, uint16_t virtual_voltage_id, uint16_t *voltage);
@@ -324,5 +338,13 @@ extern int atomctrl_get_leakage_id_from_efuse(struct pp_hwmgr *hwmgr, uint16_t *
 
 extern void atomctrl_get_voltage_range(struct pp_hwmgr *hwmgr, uint32_t *max_vddc,
 							uint32_t *min_vddc);
+
+extern int atomctrl_get_edc_hilo_leakage_offset_table(struct pp_hwmgr *hwmgr,
+						      AtomCtrl_HiLoLeakageOffsetTable *table);
+
+extern int atomctrl_get_edc_leakage_table(struct pp_hwmgr *hwmgr,
+					  AtomCtrl_EDCLeakgeTable *table,
+					  uint16_t offset);
+
 #endif
 

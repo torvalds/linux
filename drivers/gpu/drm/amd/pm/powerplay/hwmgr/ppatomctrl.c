@@ -1566,3 +1566,56 @@ void atomctrl_get_voltage_range(struct pp_hwmgr *hwmgr, uint32_t *max_vddc,
 	*max_vddc = 0;
 	*min_vddc = 0;
 }
+
+int atomctrl_get_edc_hilo_leakage_offset_table(struct pp_hwmgr *hwmgr,
+					       AtomCtrl_HiLoLeakageOffsetTable *table)
+{
+	ATOM_GFX_INFO_V2_3 *gfxinfo = smu_atom_get_data_table(hwmgr->adev,
+					GetIndexIntoMasterTable(DATA, GFX_Info),
+					NULL, NULL, NULL);
+	if (!gfxinfo)
+		return -ENOENT;
+
+	table->usHiLoLeakageThreshold = gfxinfo->usHiLoLeakageThreshold;
+	table->usEdcDidtLoDpm7TableOffset = gfxinfo->usEdcDidtLoDpm7TableOffset;
+	table->usEdcDidtHiDpm7TableOffset = gfxinfo->usEdcDidtHiDpm7TableOffset;
+
+	return 0;
+}
+
+static AtomCtrl_EDCLeakgeTable *get_edc_leakage_table(struct pp_hwmgr *hwmgr,
+						      uint16_t offset)
+{
+	void *table_address;
+	char *temp;
+
+	table_address = smu_atom_get_data_table(hwmgr->adev,
+			GetIndexIntoMasterTable(DATA, GFX_Info),
+			NULL, NULL, NULL);
+	if (!table_address)
+		return NULL;
+
+	temp = (char *)table_address;
+	table_address += offset;
+
+	return (AtomCtrl_EDCLeakgeTable *)temp;
+}
+
+int atomctrl_get_edc_leakage_table(struct pp_hwmgr *hwmgr,
+				   AtomCtrl_EDCLeakgeTable *table,
+				   uint16_t offset)
+{
+	uint32_t length, i;
+	AtomCtrl_EDCLeakgeTable *leakage_table =
+		get_edc_leakage_table(hwmgr, offset);
+
+	if (!leakage_table)
+		return -ENOENT;
+
+	length = sizeof(leakage_table->DIDT_REG) /
+		 sizeof(leakage_table->DIDT_REG[0]);
+	for (i = 0; i < length; i++)
+		table->DIDT_REG[i] = leakage_table->DIDT_REG[i];
+
+	return 0;
+}

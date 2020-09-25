@@ -331,6 +331,10 @@ struct smu7_hwmgr {
 
 	uint32_t                              ro_range_minimum;
 	uint32_t                              ro_range_maximum;
+
+	bool                                  disable_edc_leakage_controller;
+	AtomCtrl_HiLoLeakageOffsetTable       edc_hilo_leakage_offset_from_vbios;
+	AtomCtrl_EDCLeakgeTable               edc_leakage_table;
 };
 
 /* To convert to Q8.8 format for firmware */

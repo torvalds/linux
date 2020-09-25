@@ -109,6 +109,62 @@ enum DPM_EVENT_SRC {
 	DPM_EVENT_SRC_DIGITAL_OR_EXTERNAL = 4
 };
 
+#define ixDIDT_SQ_EDC_CTRL                         0x0013
+#define ixDIDT_SQ_EDC_THRESHOLD                    0x0014
+#define ixDIDT_SQ_EDC_STALL_PATTERN_1_2            0x0015
+#define ixDIDT_SQ_EDC_STALL_PATTERN_3_4            0x0016
+#define ixDIDT_SQ_EDC_STALL_PATTERN_5_6            0x0017
+#define ixDIDT_SQ_EDC_STALL_PATTERN_7              0x0018
+
+#define ixDIDT_TD_EDC_CTRL                         0x0053
+#define ixDIDT_TD_EDC_THRESHOLD                    0x0054
+#define ixDIDT_TD_EDC_STALL_PATTERN_1_2            0x0055
+#define ixDIDT_TD_EDC_STALL_PATTERN_3_4            0x0056
+#define ixDIDT_TD_EDC_STALL_PATTERN_5_6            0x0057
+#define ixDIDT_TD_EDC_STALL_PATTERN_7              0x0058
+
+#define ixDIDT_TCP_EDC_CTRL                        0x0073
+#define ixDIDT_TCP_EDC_THRESHOLD                   0x0074
+#define ixDIDT_TCP_EDC_STALL_PATTERN_1_2           0x0075
+#define ixDIDT_TCP_EDC_STALL_PATTERN_3_4           0x0076
+#define ixDIDT_TCP_EDC_STALL_PATTERN_5_6           0x0077
+#define ixDIDT_TCP_EDC_STALL_PATTERN_7             0x0078
+
+#define ixDIDT_DB_EDC_CTRL                         0x0033
+#define ixDIDT_DB_EDC_THRESHOLD                    0x0034
+#define ixDIDT_DB_EDC_STALL_PATTERN_1_2            0x0035
+#define ixDIDT_DB_EDC_STALL_PATTERN_3_4            0x0036
+#define ixDIDT_DB_EDC_STALL_PATTERN_5_6            0x0037
+#define ixDIDT_DB_EDC_STALL_PATTERN_7              0x0038
+
+uint32_t DIDTEDCConfig_P12[] = {
+    ixDIDT_SQ_EDC_STALL_PATTERN_1_2,
+    ixDIDT_SQ_EDC_STALL_PATTERN_3_4,
+    ixDIDT_SQ_EDC_STALL_PATTERN_5_6,
+    ixDIDT_SQ_EDC_STALL_PATTERN_7,
+    ixDIDT_SQ_EDC_THRESHOLD,
+    ixDIDT_SQ_EDC_CTRL,
+    ixDIDT_TD_EDC_STALL_PATTERN_1_2,
+    ixDIDT_TD_EDC_STALL_PATTERN_3_4,
+    ixDIDT_TD_EDC_STALL_PATTERN_5_6,
+    ixDIDT_TD_EDC_STALL_PATTERN_7,
+    ixDIDT_TD_EDC_THRESHOLD,
+    ixDIDT_TD_EDC_CTRL,
+    ixDIDT_TCP_EDC_STALL_PATTERN_1_2,
+    ixDIDT_TCP_EDC_STALL_PATTERN_3_4,
+    ixDIDT_TCP_EDC_STALL_PATTERN_5_6,
+    ixDIDT_TCP_EDC_STALL_PATTERN_7,
+    ixDIDT_TCP_EDC_THRESHOLD,
+    ixDIDT_TCP_EDC_CTRL,
+    ixDIDT_DB_EDC_STALL_PATTERN_1_2,
+    ixDIDT_DB_EDC_STALL_PATTERN_3_4,
+    ixDIDT_DB_EDC_STALL_PATTERN_5_6,
+    ixDIDT_DB_EDC_STALL_PATTERN_7,
+    ixDIDT_DB_EDC_THRESHOLD,
+    ixDIDT_DB_EDC_CTRL,
+    0xFFFFFFFF // End of list
+};
+
 static const unsigned long PhwVIslands_Magic = (unsigned long)(PHM_VIslands_Magic);
 static int smu7_force_clock_level(struct pp_hwmgr *hwmgr,
 		enum pp_clock_type type, uint32_t mask);
@@ -1334,6 +1390,50 @@ static int smu7_pcie_performance_request(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+static int smu7_program_edc_didt_registers(struct pp_hwmgr *hwmgr,
+					   uint32_t *cac_config_regs,
+					   AtomCtrl_EDCLeakgeTable *edc_leakage_table)
+{
+	uint32_t data, i = 0;
+
+	while (cac_config_regs[i] != 0xFFFFFFFF) {
+		data = edc_leakage_table->DIDT_REG[i];
+		cgs_write_ind_register(hwmgr->device,
+				       CGS_IND_REG__DIDT,
+				       cac_config_regs[i],
+				       data);
+		i++;
+	}
+
+	return 0;
+}
+
+static int smu7_populate_edc_leakage_registers(struct pp_hwmgr *hwmgr)
+{
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
+	int ret = 0;
+
+	if (!data->disable_edc_leakage_controller &&
+	    data->edc_hilo_leakage_offset_from_vbios.usEdcDidtLoDpm7TableOffset &&
+	    data->edc_hilo_leakage_offset_from_vbios.usEdcDidtHiDpm7TableOffset) {
+		ret = smu7_program_edc_didt_registers(hwmgr,
+						      DIDTEDCConfig_P12,
+						      &data->edc_leakage_table);
+		if (ret)
+			return ret;
+
+		ret = smum_send_msg_to_smc(hwmgr,
+					   (PPSMC_Msg)PPSMC_MSG_EnableEDCController,
+					   NULL);
+	} else {
+		ret = smum_send_msg_to_smc(hwmgr,
+					   (PPSMC_Msg)PPSMC_MSG_DisableEDCController,
+					   NULL);
+	}
+
+	return ret;
+}
+
 static int smu7_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 {
 	int tmp_result = 0;
@@ -1399,6 +1499,13 @@ static int smu7_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 			"Failed to enable VR hot GPIO interrupt!", result = tmp_result);
 
 	smum_send_msg_to_smc(hwmgr, (PPSMC_Msg)PPSMC_NoDisplay, NULL);
+
+	if (hwmgr->chip_id >= CHIP_POLARIS10 &&
+	    hwmgr->chip_id <= CHIP_VEGAM) {
+		tmp_result = smu7_populate_edc_leakage_registers(hwmgr);
+		PP_ASSERT_WITH_CODE((0 == tmp_result),
+				"Failed to populate edc leakage registers!", result = tmp_result);
+	}
 
 	tmp_result = smu7_enable_sclk_control(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
@@ -1697,6 +1804,13 @@ static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 	if (adev->pg_flags & AMD_PG_SUPPORT_VCE)
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			      PHM_PlatformCaps_VCEPowerGating);
+
+	data->disable_edc_leakage_controller = true;
+	if (((adev->asic_type == CHIP_POLARIS10) && hwmgr->is_kicker) ||
+	    ((adev->asic_type == CHIP_POLARIS11) && hwmgr->is_kicker) ||
+	    (adev->asic_type == CHIP_POLARIS12) ||
+	    (adev->asic_type == CHIP_VEGAM))
+		data->disable_edc_leakage_controller = false;
 }
 
 static int smu7_calculate_ro_range(struct pp_hwmgr *hwmgr)
@@ -2611,6 +2725,42 @@ static int smu7_get_elb_voltages(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+#define LEAKAGE_ID_MSB			463
+#define LEAKAGE_ID_LSB			454
+
+static int smu7_update_edc_leakage_table(struct pp_hwmgr *hwmgr)
+{
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
+	uint32_t efuse;
+	uint16_t offset;
+	int ret = 0;
+
+	if (data->disable_edc_leakage_controller)
+		return 0;
+
+	ret = atomctrl_get_edc_hilo_leakage_offset_table(hwmgr,
+							 &data->edc_hilo_leakage_offset_from_vbios);
+	if (ret)
+		return ret;
+
+	if (data->edc_hilo_leakage_offset_from_vbios.usEdcDidtLoDpm7TableOffset &&
+	    data->edc_hilo_leakage_offset_from_vbios.usEdcDidtHiDpm7TableOffset) {
+		atomctrl_read_efuse(hwmgr, LEAKAGE_ID_LSB, LEAKAGE_ID_MSB, &efuse);
+		if (efuse < data->edc_hilo_leakage_offset_from_vbios.usHiLoLeakageThreshold)
+			offset = data->edc_hilo_leakage_offset_from_vbios.usEdcDidtLoDpm7TableOffset;
+		else
+			offset = data->edc_hilo_leakage_offset_from_vbios.usEdcDidtHiDpm7TableOffset;
+
+		ret = atomctrl_get_edc_leakage_table(hwmgr,
+						     &data->edc_leakage_table,
+						     offset);
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
 static int smu7_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data;
@@ -2671,6 +2821,10 @@ static int smu7_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 		/* Ignore return value in here, we are cleaning up a mess. */
 		smu7_hwmgr_backend_fini(hwmgr);
 	}
+
+	result = smu7_update_edc_leakage_table(hwmgr);
+	if (result)
+		return result;
 
 	return 0;
 }
