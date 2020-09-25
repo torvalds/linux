@@ -613,7 +613,7 @@ static int get_cac_tdp_table(
 			le16_to_cpu(tonga_table->usSoftwareShutdownTemp);
 		tdp_table->usClockStretchAmount =
 			le16_to_cpu(tonga_table->usClockStretchAmount);
-	} else {   /* Fiji and newer */
+	} else if (table->ucRevId < 4) {   /* Fiji and newer */
 		const ATOM_Fiji_PowerTune_Table *fijitable =
 			(ATOM_Fiji_PowerTune_Table *)table;
 		tdp_table->usTDP = le16_to_cpu(fijitable->usTDP);
@@ -657,6 +657,53 @@ static int get_cac_tdp_table(
 		tdp_table->ucVr_I2C_Line = fijitable->ucVr_I2C_Line;
 		tdp_table->ucPlx_I2C_address = fijitable->ucPlx_I2C_address;
 		tdp_table->ucPlx_I2C_Line = fijitable->ucPlx_I2C_Line;
+	} else {
+		const ATOM_Polaris_PowerTune_Table *polaristable =
+			(ATOM_Polaris_PowerTune_Table *)table;
+		tdp_table->usTDP = le16_to_cpu(polaristable->usTDP);
+		tdp_table->usConfigurableTDP = le16_to_cpu(polaristable->usConfigurableTDP);
+		tdp_table->usTDC = le16_to_cpu(polaristable->usTDC);
+		tdp_table->usBatteryPowerLimit = le16_to_cpu(polaristable->usBatteryPowerLimit);
+		tdp_table->usSmallPowerLimit = le16_to_cpu(polaristable->usSmallPowerLimit);
+		tdp_table->usLowCACLeakage = le16_to_cpu(polaristable->usLowCACLeakage);
+		tdp_table->usHighCACLeakage = le16_to_cpu(polaristable->usHighCACLeakage);
+		tdp_table->usMaximumPowerDeliveryLimit =
+			le16_to_cpu(polaristable->usMaximumPowerDeliveryLimit);
+		tdp_table->usDefaultTargetOperatingTemp =
+			le16_to_cpu(polaristable->usTjMax);
+		tdp_table->usTargetOperatingTemp =
+			le16_to_cpu(polaristable->usTjMax); /*Set the initial temp to the same as default */
+		tdp_table->usPowerTuneDataSetID =
+			le16_to_cpu(polaristable->usPowerTuneDataSetID);
+		tdp_table->usSoftwareShutdownTemp =
+			le16_to_cpu(polaristable->usSoftwareShutdownTemp);
+		tdp_table->usClockStretchAmount =
+			le16_to_cpu(polaristable->usClockStretchAmount);
+		tdp_table->usTemperatureLimitHotspot =
+			le16_to_cpu(polaristable->usTemperatureLimitHotspot);
+		tdp_table->usTemperatureLimitLiquid1 =
+			le16_to_cpu(polaristable->usTemperatureLimitLiquid1);
+		tdp_table->usTemperatureLimitLiquid2 =
+			le16_to_cpu(polaristable->usTemperatureLimitLiquid2);
+		tdp_table->usTemperatureLimitVrVddc =
+			le16_to_cpu(polaristable->usTemperatureLimitVrVddc);
+		tdp_table->usTemperatureLimitVrMvdd =
+			le16_to_cpu(polaristable->usTemperatureLimitVrMvdd);
+		tdp_table->usTemperatureLimitPlx =
+			le16_to_cpu(polaristable->usTemperatureLimitPlx);
+		tdp_table->ucLiquid1_I2C_address =
+			polaristable->ucLiquid1_I2C_address;
+		tdp_table->ucLiquid2_I2C_address =
+			polaristable->ucLiquid2_I2C_address;
+		tdp_table->ucLiquid_I2C_Line =
+			polaristable->ucLiquid_I2C_Line;
+		tdp_table->ucVr_I2C_address = polaristable->ucVr_I2C_address;
+		tdp_table->ucVr_I2C_Line = polaristable->ucVr_I2C_Line;
+		tdp_table->ucPlx_I2C_address = polaristable->ucPlx_I2C_address;
+		tdp_table->ucPlx_I2C_Line = polaristable->ucPlx_I2C_Line;
+		tdp_table->usBoostPowerLimit = polaristable->usBoostPowerLimit;
+		tdp_table->ucCKS_LDO_REFSEL = polaristable->ucCKS_LDO_REFSEL;
+		tdp_table->ucHotSpotOnly = polaristable->ucHotSpotOnly;
 	}
 
 	*cac_tdp_table = tdp_table;

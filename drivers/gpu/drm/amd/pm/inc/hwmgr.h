@@ -441,6 +441,7 @@ struct phm_cac_tdp_table {
 	uint8_t  ucPlx_I2C_Line;
 	uint32_t usBoostPowerLimit;
 	uint8_t  ucCKS_LDO_REFSEL;
+	uint8_t  ucHotSpotOnly;
 };
 
 struct phm_tdp_table {

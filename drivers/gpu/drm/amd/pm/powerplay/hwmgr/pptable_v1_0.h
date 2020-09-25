@@ -419,6 +419,42 @@ typedef struct _ATOM_Fiji_PowerTune_Table {
 	USHORT usReserved;
 } ATOM_Fiji_PowerTune_Table;
 
+typedef struct _ATOM_Polaris_PowerTune_Table
+{
+    UCHAR  ucRevId;
+    USHORT usTDP;
+    USHORT usConfigurableTDP;
+    USHORT usTDC;
+    USHORT usBatteryPowerLimit;
+    USHORT usSmallPowerLimit;
+    USHORT usLowCACLeakage;
+    USHORT usHighCACLeakage;
+    USHORT usMaximumPowerDeliveryLimit;
+    USHORT usTjMax;  // For Fiji, this is also usTemperatureLimitEdge;
+    USHORT usPowerTuneDataSetID;
+    USHORT usEDCLimit;
+    USHORT usSoftwareShutdownTemp;
+    USHORT usClockStretchAmount;
+    USHORT usTemperatureLimitHotspot;  //The following are added for Fiji
+    USHORT usTemperatureLimitLiquid1;
+    USHORT usTemperatureLimitLiquid2;
+    USHORT usTemperatureLimitVrVddc;
+    USHORT usTemperatureLimitVrMvdd;
+    USHORT usTemperatureLimitPlx;
+    UCHAR  ucLiquid1_I2C_address;  //Liquid
+    UCHAR  ucLiquid2_I2C_address;
+    UCHAR  ucLiquid_I2C_Line;
+    UCHAR  ucVr_I2C_address;  //VR
+    UCHAR  ucVr_I2C_Line;
+    UCHAR  ucPlx_I2C_address;  //PLX
+    UCHAR  ucPlx_I2C_Line;
+    USHORT usBoostPowerLimit;
+    UCHAR  ucCKS_LDO_REFSEL;
+    UCHAR  ucHotSpotOnly;
+    UCHAR  ucReserve;
+    USHORT usReserve;
+} ATOM_Polaris_PowerTune_Table;
+
 #define ATOM_PPM_A_A    1
 #define ATOM_PPM_A_I    2
 typedef struct _ATOM_Tonga_PPM_Table {
