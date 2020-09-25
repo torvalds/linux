@@ -13246,6 +13246,12 @@ static void intel_dump_pipe_config(const struct intel_crtc_state *pipe_config,
 			    pipe_config->csc_mode, pipe_config->gamma_mode,
 			    pipe_config->gamma_enable, pipe_config->csc_enable);
 
+	drm_dbg_kms(&dev_priv->drm, "degamma lut: %d entries, gamma lut: %d entries\n",
+		    pipe_config->hw.degamma_lut ?
+		    drm_color_lut_size(pipe_config->hw.degamma_lut) : 0,
+		    pipe_config->hw.gamma_lut ?
+		    drm_color_lut_size(pipe_config->hw.gamma_lut) : 0);
+
 dump_planes:
 	if (!state)
 		return;
