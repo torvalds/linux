@@ -425,7 +425,7 @@ static void iwl_mvm_dump_umac_error_log(struct iwl_mvm *mvm)
 	struct iwl_umac_error_event_table table;
 	u32 base = mvm->trans->dbg.umac_error_event_table;
 
-	if (!mvm->support_umac_log &&
+	if (!base &&
 	    !(mvm->trans->dbg.error_event_table_tlv_status &
 	      IWL_ERROR_EVENT_TABLE_UMAC))
 		return;
