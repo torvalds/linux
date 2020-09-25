@@ -1016,6 +1016,20 @@ static void tcp_verify_retransmit_hint(struct tcp_sock *tp, struct sk_buff *skb)
 		tp->retransmit_skb_hint = skb;
 }
 
+void tcp_mark_skb_lost(struct sock *sk, struct sk_buff *skb)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	tcp_skb_mark_lost_uncond_verify(tp, skb);
+	if (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_RETRANS) {
+		/* Account for retransmits that are lost again */
+		TCP_SKB_CB(skb)->sacked &= ~TCPCB_SACKED_RETRANS;
+		tp->retrans_out -= tcp_skb_pcount(skb);
+		NET_ADD_STATS(sock_net(sk), LINUX_MIB_TCPLOSTRETRANSMIT,
+			      tcp_skb_pcount(skb));
+	}
+}
+
 /* Sum the number of packets on the wire we have marked as lost.
  * There are two cases we care about here:
  * a) Packet hasn't been marked lost (nor retransmitted),
