@@ -54,7 +54,7 @@ namespace = None
 #
 # Handle trivial newer c domain tags that are part of Sphinx 3.1 c domain tags
 # - Store the namespace if ".. c:namespace::" tag is found
-
+#
 RE_namespace = re.compile(r'^\s*..\s*c:namespace::\s*(\S+)\s*$')
 
 def markup_namespace(match):
@@ -64,10 +64,48 @@ def markup_namespace(match):
 
     return ""
 
+#
+# Handle c:macro for function-style declaration
+#
+RE_macro = re.compile(r'^\s*..\s*c:macro::\s*(\S+)\s+(\S.*)\s*$')
+def markup_macro(match):
+    return ".. c:function:: " + match.group(1) + ' ' + match.group(2)
+
+#
+# Handle newer c domain tags that are evaluated as .. c:type: for
+# backward-compatibility with Sphinx < 3.0
+#
+RE_ctype = re.compile(r'^\s*..\s*c:(struct|union|enum|enumerator|alias)::\s*(.*)$')
+
+def markup_ctype(match):
+    return ".. c:type:: " + match.group(2)
+
+#
+# Handle newer c domain tags that are evaluated as :c:type: for
+# backward-compatibility with Sphinx < 3.0
+#
+RE_ctype_refs = re.compile(r':c:(var|struct|union|enum|enumerator)::`([^\`]+)`')
+def markup_ctype_refs(match):
+    return ":c:type:`" + match.group(2) + '`'
+
+#
+# Simply convert :c:expr: and :c:texpr: into a literal block.
+#
+RE_expr = re.compile(r':c:(expr|texpr):`([^\`]+)`')
+def markup_c_expr(match):
+    return '\ ``' + match.group(2) + '``\ '
+
+#
+# Parse Sphinx 3.x C markups, replacing them by backward-compatible ones
+#
 def c_markups(app, docname, source):
     result = ""
     markup_func = {
         RE_namespace: markup_namespace,
+        RE_expr: markup_c_expr,
+        RE_macro: markup_macro,
+        RE_ctype: markup_ctype,
+        RE_ctype_refs: markup_ctype_refs,
     }
 
     lines = iter(source[0].splitlines(True))
