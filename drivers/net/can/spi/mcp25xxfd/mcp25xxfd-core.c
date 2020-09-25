@@ -2819,11 +2819,21 @@ static int mcp25xxfd_probe(struct spi_device *spi)
 		priv->devtype_data = *(struct mcp25xxfd_devtype_data *)
 			spi_get_device_id(spi)->driver_data;
 
-	/* According to the datasheet the SPI clock must be less or
-	 * equal SYSCLOCK / 2.
+	/* Errata Reference:
+	 * mcp2517fd: DS80000789B, mcp2518fd: DS80000792C 4.
 	 *
-	 * It turns out, that the Controller is not stable at this
-	 * rate. Known good and bad combinations are:
+	 * The SPI can write corrupted data to the RAM at fast SPI
+	 * speeds:
+	 *
+	 * Simultaneous activity on the CAN bus while writing data to
+	 * RAM via the SPI interface, with high SCK frequency, can
+	 * lead to corrupted data being written to RAM.
+	 *
+	 * Fix/Work Around:
+	 * Ensure that FSCK is less than or equal to 0.85 *
+	 * (FSYSCLK/2).
+	 *
+	 * Known good and bad combinations are:
 	 *
 	 * MCP	ext-clk	SoC			SPI			SPI-clk		max-clk	parent-clk	Status	config
 	 *
@@ -2836,7 +2846,6 @@ static int mcp25xxfd_probe(struct spi_device *spi)
 	 * 2517 40 MHz	atmel,sama5d27		atmel,at91rm9200-spi	16400000 Hz	 82.00%	 82000000 Hz	good	default
 	 * 2518 40 MHz	atmel,sama5d27		atmel,at91rm9200-spi	16400000 Hz	 82.00%	 82000000 Hz	good	default
 	 *
-	 * Limit SPI clock to 85% of SYSCLOCK / 2 for now.
 	 */
 	priv->spi_max_speed_hz_orig = spi->max_speed_hz;
 	spi->max_speed_hz = min(spi->max_speed_hz, freq / 2 / 1000 * 850);
