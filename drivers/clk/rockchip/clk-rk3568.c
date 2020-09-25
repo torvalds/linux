@@ -531,6 +531,8 @@ static struct rockchip_clk_branch rk3568_clk_branches[] __initdata = {
 			RK3568_CLKGATE_CON(1), 11, GFLAGS),
 	GATE(CLK_CORE_PVTPLL, "clk_core_pvtpll", "armclk", 0,
 			RK3568_CLKGATE_CON(1), 12, GFLAGS),
+	GATE(PCLK_CORE_PVTM, "pclk_core_pvtm", "pclk_core_pre", 0,
+			RK3568_CLKGATE_CON(1), 9, GFLAGS),
 
 	/* PD_GPU */
 	COMPOSITE(CLK_GPU_SRC, "clk_gpu_src", mpll_gpll_cpll_npll_p, 0,
@@ -1584,6 +1586,7 @@ static struct rockchip_clk_branch rk3568_clk_pmu_branches[] __initdata = {
 
 static const char *const rk3568_cru_critical_clocks[] __initconst = {
 	"armclk",
+	"pclk_core_pre",
 	"aclk_bus",
 	"pclk_bus",
 	"aclk_top_high",
