@@ -968,10 +968,10 @@ static u32 nvme_known_admin_effects(u8 opcode)
 {
 	switch (opcode) {
 	case nvme_admin_format_nvm:
-		return NVME_CMD_EFFECTS_CSUPP | NVME_CMD_EFFECTS_LBCC |
+		return NVME_CMD_EFFECTS_LBCC | NVME_CMD_EFFECTS_NCC |
 			NVME_CMD_EFFECTS_CSE_MASK;
 	case nvme_admin_sanitize_nvm:
-		return NVME_CMD_EFFECTS_CSE_MASK;
+		return NVME_CMD_EFFECTS_LBCC | NVME_CMD_EFFECTS_CSE_MASK;
 	default:
 		break;
 	}
