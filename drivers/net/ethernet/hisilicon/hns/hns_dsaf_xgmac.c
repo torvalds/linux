@@ -242,7 +242,8 @@ static void hns_xgmac_config_pad_and_crc(void *mac_drv, u8 newval)
 /**
  *hns_xgmac_pausefrm_cfg - set pause param about xgmac
  *@mac_drv: mac driver
- *@newval:enable of pad and crc
+ *@rx_en: enable receive
+ *@tx_en: enable transmit
  */
 static void hns_xgmac_pausefrm_cfg(void *mac_drv, u32 rx_en, u32 tx_en)
 {

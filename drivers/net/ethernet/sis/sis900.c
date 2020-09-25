@@ -1301,7 +1301,7 @@ static void sis630_set_eq(struct net_device *net_dev, u8 revision)
 
 /**
  *	sis900_timer - sis900 timer routine
- *	@data: pointer to sis900 net device
+ *	@t: timer list containing a pointer to sis900 net device
  *
  *	On each timer ticks we check two things,
  *	link status (ON/OFF) and link mode (10/100/Full/Half)
@@ -1535,6 +1535,7 @@ static void sis900_read_mode(struct net_device *net_dev, int *speed, int *duplex
 /**
  *	sis900_tx_timeout - sis900 transmit timeout routine
  *	@net_dev: the net device to transmit
+ *	@txqueue: index of hanging queue
  *
  *	print transmit timeout status
  *	disable interrupts and do some tasks

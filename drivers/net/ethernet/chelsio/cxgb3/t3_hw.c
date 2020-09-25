@@ -2484,6 +2484,7 @@ int t3_sge_disable_cqcntxt(struct adapter *adapter, unsigned int id)
  *	@adapter: the adapter
  *	@id: the context id
  *	@op: the operation to perform
+ *	@credits: credit value to write
  *
  *	Perform the selected operation on an SGE completion queue context.
  *	The caller is responsible for ensuring only one context operation
@@ -2885,7 +2886,7 @@ static void init_cong_ctrl(unsigned short *a, unsigned short *b)
  *	t3_load_mtus - write the MTU and congestion control HW tables
  *	@adap: the adapter
  *	@mtus: the unrestricted values for the MTU table
- *	@alphs: the values for the congestion control alpha parameter
+ *	@alpha: the values for the congestion control alpha parameter
  *	@beta: the values for the congestion control beta parameter
  *	@mtu_cap: the maximum permitted effective MTU
  *
@@ -3483,7 +3484,7 @@ static void get_pci_mode(struct adapter *adapter, struct pci_params *p)
 /**
  *	init_link_config - initialize a link's SW state
  *	@lc: structure holding the link state
- *	@ai: information about the current card
+ *	@caps: information about the current card
  *
  *	Initializes the SW state maintained for each link, including the link's
  *	capabilities and default speed/duplex/flow-control/autonegotiation

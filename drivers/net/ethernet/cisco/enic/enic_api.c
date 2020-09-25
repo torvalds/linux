@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2013 Cisco Systems, Inc.  All rights reserved.
  *
  * This program is free software; you may redistribute it and/or modify

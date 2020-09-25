@@ -600,12 +600,14 @@ static void phy_intr(struct net_device *ndev)
 	struct ns83820 *dev = PRIV(ndev);
 	static const char *speeds[] = { "10", "100", "1000", "1000(?)", "1000F" };
 	u32 cfg, new_cfg;
-	u32 tbisr, tanar, tanlpar;
+	u32 tanar, tanlpar;
 	int speed, fullduplex, newlinkstate;
 
 	cfg = readl(dev->base + CFG) ^ SPDSTS_POLARITY;
 
 	if (dev->CFG_cache & CFG_TBI_EN) {
+		u32 __maybe_unused tbisr;
+
 		/* we have an optical transceiver */
 		tbisr = readl(dev->base + TBISR);
 		tanar = readl(dev->base + TANAR);

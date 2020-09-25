@@ -85,6 +85,8 @@ MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
 
 /**
  * struct gmac_queue_page - page buffer per-page info
+ * @page: the page struct
+ * @mapping: the dma address handle
  */
 struct gmac_queue_page {
 	struct page *page;

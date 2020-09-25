@@ -148,7 +148,7 @@ struct workqueue_struct *cxgb3_wq;
 
 /**
  *	link_report - show link status and link speed/duplex
- *	@p: the port whose settings are to be reported
+ *	@dev: the port whose settings are to be reported
  *
  *	Shows the link status, speed, and duplex of a port.
  */
@@ -304,8 +304,8 @@ void t3_os_link_changed(struct adapter *adapter, int port_id, int link_stat,
 
 /**
  *	t3_os_phymod_changed - handle PHY module changes
- *	@phy: the PHY reporting the module change
- *	@mod_type: new module type
+ *	@adap: the adapter associated with the link change
+ *	@port_id: the port index whose limk status has changed
  *
  *	This is the OS-dependent handler for PHY module changes.  It is
  *	invoked when a PHY module is removed or inserted for any OS-specific
@@ -1200,7 +1200,7 @@ static void cxgb_vlan_mode(struct net_device *dev, netdev_features_t features)
 
 /**
  *	cxgb_up - enable the adapter
- *	@adapter: adapter being enabled
+ *	@adap: adapter being enabled
  *
  *	Called when the first port is enabled, this function performs the
  *	actions necessary to make an adapter operational, such as completing

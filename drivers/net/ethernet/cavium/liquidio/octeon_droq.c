@@ -774,7 +774,7 @@ octeon_droq_process_packets(struct octeon_device *oct,
 	return 0;
 }
 
-/**
+/*
  * Utility function to poll for packets. check_hw_for_packets must be
  * called before calling this routine.
  */

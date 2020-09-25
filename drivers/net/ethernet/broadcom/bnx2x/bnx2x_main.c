@@ -3086,9 +3086,9 @@ void bnx2x_func_init(struct bnx2x *bp, struct bnx2x_func_init_params *p)
 /**
  * bnx2x_get_common_flags - Return common flags
  *
- * @bp		device handle
- * @fp		queue handle
- * @zero_stats	TRUE if statistics zeroing is needed
+ * @bp:		device handle
+ * @fp:		queue handle
+ * @zero_stats:	TRUE if statistics zeroing is needed
  *
  * Return the flags that are common for the Tx-only and not normal connections.
  */
@@ -13591,8 +13591,8 @@ static int bnx2x_set_qm_cid_count(struct bnx2x *bp)
 
 /**
  * bnx2x_get_num_none_def_sbs - return the number of none default SBs
- *
- * @dev:	pci device
+ * @pdev: pci device
+ * @cnic_cnt: count
  *
  */
 static int bnx2x_get_num_non_def_sbs(struct pci_dev *pdev, int cnic_cnt)
@@ -14451,9 +14451,7 @@ module_exit(bnx2x_cleanup);
 
 /**
  * bnx2x_set_iscsi_eth_mac_addr - set iSCSI MAC(s).
- *
  * @bp:		driver handle
- * @set:	set or clear the CAM entry
  *
  * This function will wait until the ramrod completion returns.
  * Return 0 if success, -ENODEV if ramrod doesn't return.

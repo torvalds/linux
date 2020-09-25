@@ -752,6 +752,8 @@ static void hns_update_rx_rate(struct hnae_ring *ring)
 
 /**
  * smooth_alg - smoothing algrithm for adjusting coalesce parameter
+ * @new_param: new value
+ * @old_param: old value
  **/
 static u32 smooth_alg(u32 new_param, u32 old_param)
 {
@@ -1829,7 +1831,7 @@ static int hns_nic_uc_unsync(struct net_device *netdev,
 }
 
 /**
- * nic_set_multicast_list - set mutl mac address
+ * hns_set_multicast_list - set mutl mac address
  * @ndev: net device
  *
  * return void

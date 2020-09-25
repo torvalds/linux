@@ -210,7 +210,7 @@ static void hns_mdio_cmd_write(struct hns_mdio_device *mdio_dev,
  * @bus: mdio bus
  * @phy_id: phy id
  * @regnum: register num
- * @value: register value
+ * @data: register value
  *
  * Return 0 on success, negative on failure
  */
@@ -273,7 +273,6 @@ static int hns_mdio_write(struct mii_bus *bus,
  * @bus: mdio bus
  * @phy_id: phy id
  * @regnum: register num
- * @value: register value
  *
  * Return phy register value
  */

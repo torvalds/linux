@@ -334,7 +334,7 @@ void stmmac_disable_eee_mode(struct stmmac_priv *priv)
 
 /**
  * stmmac_eee_ctrl_timer - EEE TX SW timer.
- * @arg : data hook
+ * @t:  timer_list struct containing private info
  * Description:
  *  if there is no data transfer and if we are not in LPI state,
  *  then MAC Transmitter can be moved to LPI state.
@@ -709,7 +709,7 @@ static int stmmac_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
  *  a proprietary structure used to pass information to the driver.
  *  Description:
  *  This function obtain the current hardware timestamping settings
-    as requested.
+ *  as requested.
  */
 static int stmmac_hwtstamp_get(struct net_device *dev, struct ifreq *ifr)
 {
@@ -769,6 +769,7 @@ static void stmmac_release_ptp(struct stmmac_priv *priv)
 /**
  *  stmmac_mac_flow_ctrl - Configure flow control in all queues
  *  @priv: driver private structure
+ *  @duplex: duplex passed to the next function
  *  Description: It is used for configuring the flow control in all queues
  */
 static void stmmac_mac_flow_ctrl(struct stmmac_priv *priv, u32 duplex)
@@ -1942,6 +1943,7 @@ static void stmmac_dma_operation_mode(struct stmmac_priv *priv)
 /**
  * stmmac_tx_clean - to manage the transmission completion
  * @priv: driver private structure
+ * @budget: napi budget limiting this functions packet handling
  * @queue: TX queue index
  * Description: it reclaims the transmit resources after transmission completes.
  */
@@ -2335,7 +2337,7 @@ static void stmmac_tx_timer_arm(struct stmmac_priv *priv, u32 queue)
 
 /**
  * stmmac_tx_timer - mitigation sw timer for tx.
- * @data: data pointer
+ * @t: data pointer
  * Description:
  * This is the timer handler to directly invoke the stmmac_tx_clean.
  */
@@ -2598,6 +2600,7 @@ static void stmmac_safety_feat_configuration(struct stmmac_priv *priv)
 /**
  * stmmac_hw_setup - setup mac in a usable state.
  *  @dev : pointer to the device structure.
+ *  @init_ptp: initialize PTP if set
  *  Description:
  *  this is the main function to setup the HW in a usable state because the
  *  dma engine is reset, the core registers are configured (e.g. AXI,
@@ -2958,7 +2961,7 @@ static bool stmmac_vlan_insert(struct stmmac_priv *priv, struct sk_buff *skb,
  *  @priv: driver private structure
  *  @des: buffer start address
  *  @total_len: total length to fill in descriptors
- *  @last_segmant: condition for the last descriptor
+ *  @last_segment: condition for the last descriptor
  *  @queue: TX queue index
  *  Description:
  *  This function fills descriptor and request new descriptors according to
@@ -3927,6 +3930,7 @@ static int stmmac_napi_poll_tx(struct napi_struct *napi, int budget)
 /**
  *  stmmac_tx_timeout
  *  @dev : Pointer to net device structure
+ *  @txqueue: the index of the hanging transmit queue
  *  Description: this function is called when a packet transmission fails to
  *   complete within a reasonable time. The driver will mark the error in the
  *   netdev structure and arrange for the device to be reset to a sane state
@@ -5162,7 +5166,7 @@ EXPORT_SYMBOL_GPL(stmmac_suspend);
 
 /**
  * stmmac_reset_queues_param - reset queue parameters
- * @dev: device pointer
+ * @priv: device pointer
  */
 static void stmmac_reset_queues_param(struct stmmac_priv *priv)
 {
