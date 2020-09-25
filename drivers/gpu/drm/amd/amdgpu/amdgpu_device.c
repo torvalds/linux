@@ -80,6 +80,7 @@ MODULE_FIRMWARE("amdgpu/renoir_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/navi10_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/navi14_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/navi12_gpu_info.bin");
+MODULE_FIRMWARE("amdgpu/vangogh_gpu_info.bin");
 
 #define AMDGPU_RESUME_MS		2000
 
@@ -1813,6 +1814,9 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 	case CHIP_NAVI12:
 		chip_name = "navi12";
 		break;
+	case CHIP_VANGOGH:
+		chip_name = "vangogh";
+		break;
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_gpu_info.bin", chip_name);
@@ -1987,7 +1991,11 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 	case  CHIP_NAVI12:
 	case  CHIP_SIENNA_CICHLID:
 	case  CHIP_NAVY_FLOUNDER:
-		adev->family = AMDGPU_FAMILY_NV;
+	case CHIP_VANGOGH:
+		if (adev->asic_type == CHIP_VANGOGH)
+			adev->family = AMDGPU_FAMILY_VGH;
+		else
+			adev->family = AMDGPU_FAMILY_NV;
 
 		r = nv_set_ip_blocks(adev);
 		if (r)
