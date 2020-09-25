@@ -229,7 +229,8 @@ static int rtw_debugfs_get_rsvd_page(struct seq_file *m, void *v)
 	if (!buf)
 		return -ENOMEM;
 
-	ret = rtw_dump_drv_rsvd_page(rtwdev, offset, buf_size, (u32 *)buf);
+	ret = rtw_fw_dump_fifo(rtwdev, RTW_FW_FIFO_SEL_RSVD_PAGE, offset,
+			       buf_size, (u32 *)buf);
 	if (ret) {
 		rtw_err(rtwdev, "failed to dump rsvd page\n");
 		vfree(buf);

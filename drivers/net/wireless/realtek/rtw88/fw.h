@@ -16,7 +16,6 @@
 
 #define FIFO_PAGE_SIZE_SHIFT		12
 #define FIFO_PAGE_SIZE			4096
-#define RSVD_PAGE_START_ADDR		0x780
 #define FIFO_DUMP_ADDR			0x8000
 
 #define DLFW_PAGE_SIZE_SHIFT_LEGACY	12
@@ -565,5 +564,7 @@ void rtw_fw_update_pkt_probe_req(struct rtw_dev *rtwdev,
 void rtw_fw_channel_switch(struct rtw_dev *rtwdev, bool enable);
 void rtw_fw_h2c_cmd_dbg(struct rtw_dev *rtwdev, u8 *h2c);
 void rtw_fw_c2h_cmd_isr(struct rtw_dev *rtwdev);
+int rtw_fw_dump_fifo(struct rtw_dev *rtwdev, u8 fifo_sel, u32 addr, u32 size,
+		     u32 *buffer);
 
 #endif
