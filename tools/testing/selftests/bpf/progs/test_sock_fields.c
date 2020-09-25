@@ -8,45 +8,11 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
 
-enum bpf_addr_array_idx {
-	ADDR_SRV_IDX,
-	ADDR_CLI_IDX,
-	__NR_BPF_ADDR_ARRAY_IDX,
-};
-
-enum bpf_result_array_idx {
-	EGRESS_SRV_IDX,
-	EGRESS_CLI_IDX,
-	INGRESS_LISTEN_IDX,
-	__NR_BPF_RESULT_ARRAY_IDX,
-};
-
 enum bpf_linum_array_idx {
 	EGRESS_LINUM_IDX,
 	INGRESS_LINUM_IDX,
 	__NR_BPF_LINUM_ARRAY_IDX,
 };
-
-struct {
-	__uint(type, BPF_MAP_TYPE_ARRAY);
-	__uint(max_entries, __NR_BPF_ADDR_ARRAY_IDX);
-	__type(key, __u32);
-	__type(value, struct sockaddr_in6);
-} addr_map SEC(".maps");
-
-struct {
-	__uint(type, BPF_MAP_TYPE_ARRAY);
-	__uint(max_entries, __NR_BPF_RESULT_ARRAY_IDX);
-	__type(key, __u32);
-	__type(value, struct bpf_sock);
-} sock_result_map SEC(".maps");
-
-struct {
-	__uint(type, BPF_MAP_TYPE_ARRAY);
-	__uint(max_entries, __NR_BPF_RESULT_ARRAY_IDX);
-	__type(key, __u32);
-	__type(value, struct bpf_tcp_sock);
-} tcp_sock_result_map SEC(".maps");
 
 struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
@@ -73,6 +39,14 @@ struct {
 	__type(key, int);
 	__type(value, struct bpf_spinlock_cnt);
 } sk_pkt_out_cnt10 SEC(".maps");
+
+struct bpf_tcp_sock listen_tp = {};
+struct sockaddr_in6 srv_sa6 = {};
+struct bpf_tcp_sock cli_tp = {};
+struct bpf_tcp_sock srv_tp = {};
+struct bpf_sock listen_sk = {};
+struct bpf_sock srv_sk = {};
+struct bpf_sock cli_sk = {};
 
 static bool is_loopback6(__u32 *a6)
 {
@@ -130,19 +104,20 @@ static void tpcpy(struct bpf_tcp_sock *dst,
 	dst->bytes_acked = src->bytes_acked;
 }
 
-#define RETURN {						\
+/* Always return CG_OK so that no pkt will be filtered out */
+#define CG_OK 1
+
+#define RET_LOG() ({						\
 	linum = __LINE__;					\
-	bpf_map_update_elem(&linum_map, &linum_idx, &linum, 0);	\
-	return 1;						\
-}
+	bpf_map_update_elem(&linum_map, &linum_idx, &linum, BPF_NOEXIST);	\
+	return CG_OK;						\
+})
 
 SEC("cgroup_skb/egress")
 int egress_read_sock_fields(struct __sk_buff *skb)
 {
 	struct bpf_spinlock_cnt cli_cnt_init = { .lock = 0, .cnt = 0xeB9F };
-	__u32 srv_idx = ADDR_SRV_IDX, cli_idx = ADDR_CLI_IDX, result_idx;
 	struct bpf_spinlock_cnt *pkt_out_cnt, *pkt_out_cnt10;
-	struct sockaddr_in6 *srv_sa6, *cli_sa6;
 	struct bpf_tcp_sock *tp, *tp_ret;
 	struct bpf_sock *sk, *sk_ret;
 	__u32 linum, linum_idx;
@@ -150,39 +125,46 @@ int egress_read_sock_fields(struct __sk_buff *skb)
 	linum_idx = EGRESS_LINUM_IDX;
 
 	sk = skb->sk;
-	if (!sk || sk->state == 10)
-		RETURN;
+	if (!sk)
+		RET_LOG();
 
+	/* Not the testing egress traffic or
+	 * TCP_LISTEN (10) socket will be copied at the ingress side.
+	 */
+	if (sk->family != AF_INET6 || !is_loopback6(sk->src_ip6) ||
+	    sk->state == 10)
+		return CG_OK;
+
+	if (sk->src_port == bpf_ntohs(srv_sa6.sin6_port)) {
+		/* Server socket */
+		sk_ret = &srv_sk;
+		tp_ret = &srv_tp;
+	} else if (sk->dst_port == srv_sa6.sin6_port) {
+		/* Client socket */
+		sk_ret = &cli_sk;
+		tp_ret = &cli_tp;
+	} else {
+		/* Not the testing egress traffic */
+		return CG_OK;
+	}
+
+	/* It must be a fullsock for cgroup_skb/egress prog */
 	sk = bpf_sk_fullsock(sk);
-	if (!sk || sk->family != AF_INET6 || sk->protocol != IPPROTO_TCP ||
-	    !is_loopback6(sk->src_ip6))
-		RETURN;
+	if (!sk)
+		RET_LOG();
+
+	/* Not the testing egress traffic */
+	if (sk->protocol != IPPROTO_TCP)
+		return CG_OK;
 
 	tp = bpf_tcp_sock(sk);
 	if (!tp)
-		RETURN;
-
-	srv_sa6 = bpf_map_lookup_elem(&addr_map, &srv_idx);
-	cli_sa6 = bpf_map_lookup_elem(&addr_map, &cli_idx);
-	if (!srv_sa6 || !cli_sa6)
-		RETURN;
-
-	if (sk->src_port == bpf_ntohs(srv_sa6->sin6_port))
-		result_idx = EGRESS_SRV_IDX;
-	else if (sk->src_port == bpf_ntohs(cli_sa6->sin6_port))
-		result_idx = EGRESS_CLI_IDX;
-	else
-		RETURN;
-
-	sk_ret = bpf_map_lookup_elem(&sock_result_map, &result_idx);
-	tp_ret = bpf_map_lookup_elem(&tcp_sock_result_map, &result_idx);
-	if (!sk_ret || !tp_ret)
-		RETURN;
+		RET_LOG();
 
 	skcpy(sk_ret, sk);
 	tpcpy(tp_ret, tp);
 
-	if (result_idx == EGRESS_SRV_IDX) {
+	if (sk_ret == &srv_sk) {
 		/* The userspace has created it for srv sk */
 		pkt_out_cnt = bpf_sk_storage_get(&sk_pkt_out_cnt, sk, 0, 0);
 		pkt_out_cnt10 = bpf_sk_storage_get(&sk_pkt_out_cnt10, sk,
@@ -197,7 +179,7 @@ int egress_read_sock_fields(struct __sk_buff *skb)
 	}
 
 	if (!pkt_out_cnt || !pkt_out_cnt10)
-		RETURN;
+		RET_LOG();
 
 	/* Even both cnt and cnt10 have lock defined in their BTF,
 	 * intentionally one cnt takes lock while one does not
@@ -208,48 +190,44 @@ int egress_read_sock_fields(struct __sk_buff *skb)
 	pkt_out_cnt10->cnt += 10;
 	bpf_spin_unlock(&pkt_out_cnt10->lock);
 
-	RETURN;
+	return CG_OK;
 }
 
 SEC("cgroup_skb/ingress")
 int ingress_read_sock_fields(struct __sk_buff *skb)
 {
-	__u32 srv_idx = ADDR_SRV_IDX, result_idx = INGRESS_LISTEN_IDX;
-	struct bpf_tcp_sock *tp, *tp_ret;
-	struct bpf_sock *sk, *sk_ret;
-	struct sockaddr_in6 *srv_sa6;
+	struct bpf_tcp_sock *tp;
 	__u32 linum, linum_idx;
+	struct bpf_sock *sk;
 
 	linum_idx = INGRESS_LINUM_IDX;
 
 	sk = skb->sk;
-	if (!sk || sk->family != AF_INET6 || !is_loopback6(sk->src_ip6))
-		RETURN;
-
-	srv_sa6 = bpf_map_lookup_elem(&addr_map, &srv_idx);
-	if (!srv_sa6 || sk->src_port != bpf_ntohs(srv_sa6->sin6_port))
-		RETURN;
-
-	if (sk->state != 10 && sk->state != 12)
-		RETURN;
-
-	sk = bpf_get_listener_sock(sk);
 	if (!sk)
-		RETURN;
+		RET_LOG();
+
+	/* Not the testing ingress traffic to the server */
+	if (sk->family != AF_INET6 || !is_loopback6(sk->src_ip6) ||
+	    sk->src_port != bpf_ntohs(srv_sa6.sin6_port))
+		return CG_OK;
+
+	/* Only interested in TCP_LISTEN */
+	if (sk->state != 10)
+		return CG_OK;
+
+	/* It must be a fullsock for cgroup_skb/ingress prog */
+	sk = bpf_sk_fullsock(sk);
+	if (!sk)
+		RET_LOG();
 
 	tp = bpf_tcp_sock(sk);
 	if (!tp)
-		RETURN;
+		RET_LOG();
 
-	sk_ret = bpf_map_lookup_elem(&sock_result_map, &result_idx);
-	tp_ret = bpf_map_lookup_elem(&tcp_sock_result_map, &result_idx);
-	if (!sk_ret || !tp_ret)
-		RETURN;
+	skcpy(&listen_sk, sk);
+	tpcpy(&listen_tp, tp);
 
-	skcpy(sk_ret, sk);
-	tpcpy(tp_ret, tp);
-
-	RETURN;
+	return CG_OK;
 }
 
 char _license[] SEC("license") = "GPL";
