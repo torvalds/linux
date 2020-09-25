@@ -14304,7 +14304,6 @@ verify_crtc_state(struct intel_crtc *crtc,
 	struct intel_encoder *encoder;
 	struct intel_crtc_state *pipe_config = old_crtc_state;
 	struct drm_atomic_state *state = old_crtc_state->uapi.state;
-	bool active;
 
 	__drm_atomic_helper_crtc_destroy_state(&old_crtc_state->uapi);
 	intel_crtc_free_hw_state(old_crtc_state);
@@ -14314,16 +14313,19 @@ verify_crtc_state(struct intel_crtc *crtc,
 	drm_dbg_kms(&dev_priv->drm, "[CRTC:%d:%s]\n", crtc->base.base.id,
 		    crtc->base.name);
 
-	active = dev_priv->display.get_pipe_config(crtc, pipe_config);
+	pipe_config->hw.enable = new_crtc_state->hw.enable;
+
+	pipe_config->hw.active =
+		dev_priv->display.get_pipe_config(crtc, pipe_config);
 
 	/* we keep both pipes enabled on 830 */
-	if (IS_I830(dev_priv))
-		active = new_crtc_state->hw.active;
+	if (IS_I830(dev_priv) && pipe_config->hw.active)
+		pipe_config->hw.active = new_crtc_state->hw.active;
 
-	I915_STATE_WARN(new_crtc_state->hw.active != active,
+	I915_STATE_WARN(new_crtc_state->hw.active != pipe_config->hw.active,
 			"crtc active state doesn't match with hw state "
 			"(expected %i, found %i)\n",
-			new_crtc_state->hw.active, active);
+			new_crtc_state->hw.active, pipe_config->hw.active);
 
 	I915_STATE_WARN(crtc->active != new_crtc_state->hw.active,
 			"transitional active state does not match atomic hw state "
@@ -14332,6 +14334,7 @@ verify_crtc_state(struct intel_crtc *crtc,
 
 	for_each_encoder_on_crtc(dev, &crtc->base, encoder) {
 		enum pipe pipe;
+		bool active;
 
 		active = encoder->get_hw_state(encoder, &pipe);
 		I915_STATE_WARN(active != new_crtc_state->hw.active,
