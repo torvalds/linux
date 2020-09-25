@@ -21,6 +21,9 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-fh.h>
+#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
+#include <media/videobuf2-dma-contig.h>
 
 #define ZR_NORM_PAL 0
 #define ZR_NORM_NTSC 1
@@ -33,6 +36,18 @@ struct zoran_sync {
 	u64 ts;			/* timestamp */
 };
 
+struct zr_buffer {
+	/* common v4l buffer stuff -- must be first */
+	struct vb2_v4l2_buffer          vbuf;
+	struct list_head                queue;
+};
+
+static inline struct zr_buffer *vb2_to_zr_buffer(struct vb2_buffer *vb)
+{
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+
+	return container_of(vbuf, struct zr_buffer, vbuf);
+}
 
 #define ZORAN_NAME    "ZORAN"	/* name of the device */
 
@@ -104,6 +119,7 @@ enum zoran_buffer_state {
 };
 
 enum zoran_map_mode {
+	ZORAN_MAP_MODE_NONE,
 	ZORAN_MAP_MODE_RAW,
 	ZORAN_MAP_MODE_JPG_REC,
 #define ZORAN_MAP_MODE_JPG ZORAN_MAP_MODE_JPG_REC
@@ -250,6 +266,7 @@ struct zoran {
 	struct v4l2_device v4l2_dev;
 	struct v4l2_ctrl_handler hdl;
 	struct video_device *video_dev;
+	struct vb2_queue vq;
 
 	struct i2c_adapter i2c_adapter;	/* */
 	struct i2c_algo_bit_data i2c_algo;	/* */
@@ -320,6 +337,7 @@ struct zoran {
 	unsigned long jpg_err_seq;	/* last seq_num before error */
 	unsigned long jpg_err_shift;
 	unsigned long jpg_queued_num;	/* count of frames queued since grab/play started */
+	unsigned long vbseq;
 
 	/* zr36057's code buffer table */
 	__le32 *stat_com;		/* stat_com[i] is indexed by dma_head/tail & BUZ_MASK_STAT_COM */
@@ -350,15 +368,23 @@ struct zoran {
 	int num_errors;
 	int JPEG_max_missed;
 	int JPEG_min_missed;
+	unsigned int prepared;
+	unsigned int queued;
 
 	u32 last_isr;
 	unsigned long frame_num;
+	int running;
+	int buf_in_reserve;
 
 	wait_queue_head_t test_q;
 
 	dma_addr_t p_sc;
 	__le32 *stat_comb;
 	dma_addr_t p_scb;
+	enum zoran_map_mode map_mode;
+	struct list_head queued_bufs;
+	spinlock_t queued_bufs_lock; /* Protects queued_bufs */
+	struct zr_buffer *inuse[BUZ_NUM_STAT_COM * 2];
 };
 
 static inline struct zoran *to_zoran(struct v4l2_device *v4l2_dev)
@@ -376,3 +402,7 @@ static inline struct zoran *to_zoran(struct v4l2_device *v4l2_dev)
 #define btaor(dat, mask, adr) btwrite((dat) | ((mask) & btread(adr)), adr)
 
 #endif
+
+int zoran_queue_init(struct zoran *zr, struct vb2_queue *vq);
+void zoran_queue_exit(struct zoran *zr);
+int zr_set_buf(struct zoran *zr);

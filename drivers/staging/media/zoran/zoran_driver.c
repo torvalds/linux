@@ -2272,3 +2272,236 @@ const struct video_device zoran_template = {
 	.tvnorms = V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM,
 };
 
+static int zr_vb2_queue_setup(struct vb2_queue *vq, unsigned int *nbuffers, unsigned int *nplanes,
+			      unsigned int sizes[], struct device *alloc_devs[])
+{
+	struct zoran *zr = vb2_get_drv_priv(vq);
+	unsigned int size = zr->buffer_size;
+
+	pci_dbg(zr->pci_dev, "%s nbuf=%u nplanes=%u", __func__, *nbuffers, *nplanes);
+
+	zr->buf_in_reserve = 0;
+
+	if (*nbuffers < vq->min_buffers_needed)
+		*nbuffers = vq->min_buffers_needed;
+
+	if (*nplanes)
+		if (sizes[0] < size)
+			return -EINVAL;
+		else
+			return 0;
+	*nplanes = 1;
+	sizes[0] = size;
+
+	return 0;
+}
+
+static void zr_vb2_queue(struct vb2_buffer *vb)
+{
+	struct zoran *zr = vb2_get_drv_priv(vb->vb2_queue);
+	struct zr_buffer *buf = vb2_to_zr_buffer(vb);
+	unsigned long flags;
+
+	spin_lock_irqsave(&zr->queued_bufs_lock, flags);
+	list_add_tail(&buf->queue, &zr->queued_bufs);
+	zr->buf_in_reserve++;
+	spin_unlock_irqrestore(&zr->queued_bufs_lock, flags);
+	if (zr->running == ZORAN_MAP_MODE_JPG_REC)
+		zoran_feed_stat_com(zr);
+	zr->queued++;
+}
+
+static int zr_vb2_prepare(struct vb2_buffer *vb)
+{
+	struct zoran *zr = vb2_get_drv_priv(vb->vb2_queue);
+
+	zr->prepared++;
+	return 0;
+}
+
+int zr_set_buf(struct zoran *zr)
+{
+	struct zr_buffer *buf;
+	struct vb2_v4l2_buffer *vbuf;
+	dma_addr_t phys_addr;
+	unsigned long flags;
+	u32 reg;
+
+	if (zr->running == ZORAN_MAP_MODE_NONE)
+		return 0;
+
+	if (zr->inuse[0]) {
+		buf = zr->inuse[0];
+		buf->vbuf.vb2_buf.timestamp = ktime_get_ns();
+		buf->vbuf.sequence = zr->vbseq++;
+		vbuf = &buf->vbuf;
+
+		buf->vbuf.field = V4L2_FIELD_INTERLACED;
+		vb2_set_plane_payload(&buf->vbuf.vb2_buf, 0, zr->buffer_size);
+		vb2_buffer_done(&buf->vbuf.vb2_buf, VB2_BUF_STATE_DONE);
+		zr->inuse[0] = NULL;
+	}
+
+	spin_lock_irqsave(&zr->queued_bufs_lock, flags);
+	if (list_empty(&zr->queued_bufs)) {
+		btand(~ZR36057_ICR_IntPinEn, ZR36057_ICR);
+		vb2_queue_error(zr->video_dev->queue);
+		spin_unlock_irqrestore(&zr->queued_bufs_lock, flags);
+		return -EINVAL;
+	}
+	buf = list_first_entry_or_null(&zr->queued_bufs, struct zr_buffer, queue);
+	if (!buf) {
+		btand(~ZR36057_ICR_IntPinEn, ZR36057_ICR);
+		vb2_queue_error(zr->video_dev->queue);
+		spin_unlock_irqrestore(&zr->queued_bufs_lock, flags);
+		return -EINVAL;
+	}
+	list_del(&buf->queue);
+	spin_unlock_irqrestore(&zr->queued_bufs_lock, flags);
+
+	vbuf = &buf->vbuf;
+	vbuf->vb2_buf.state = VB2_BUF_STATE_ACTIVE;
+	phys_addr = vb2_dma_contig_plane_dma_addr(&vbuf->vb2_buf, 0);
+
+	if (!phys_addr)
+		return -EINVAL;
+
+	zr->inuse[0] = buf;
+
+	reg = phys_addr;
+	btwrite(reg, ZR36057_VDTR);
+	if (zr->v4l_settings.height > BUZ_MAX_HEIGHT / 2)
+		reg += zr->v4l_settings.bytesperline;
+	btwrite(reg, ZR36057_VDBR);
+
+	reg = 0;
+	if (zr->v4l_settings.height > BUZ_MAX_HEIGHT / 2)
+		reg += zr->v4l_settings.bytesperline;
+	reg = (reg << ZR36057_VSSFGR_DispStride);
+	reg |= ZR36057_VSSFGR_VidOvf;
+	reg |= ZR36057_VSSFGR_SnapShot;
+	reg |= ZR36057_VSSFGR_FrameGrab;
+	btwrite(reg, ZR36057_VSSFGR);
+
+	btor(ZR36057_VDCR_VidEn, ZR36057_VDCR);
+	return 0;
+}
+
+static int zr_vb2_start_streaming(struct vb2_queue *vq, unsigned int count)
+{
+	struct zoran *zr = vq->drv_priv;
+	int j;
+
+	for (j = 0; j < BUZ_NUM_STAT_COM; j++) {
+		zr->stat_com[j] = cpu_to_le32(1);
+		zr->inuse[j] = NULL;
+	}
+
+	if (zr->map_mode != ZORAN_MAP_MODE_RAW) {
+		pci_info(zr->pci_dev, "START JPG\n");
+		zr36057_restart(zr);
+		zoran_init_hardware(zr);
+		if (zr->map_mode == ZORAN_MAP_MODE_JPG_REC)
+			zr36057_enable_jpg(zr, BUZ_MODE_MOTION_DECOMPRESS);
+		else
+			zr36057_enable_jpg(zr, BUZ_MODE_MOTION_COMPRESS);
+		zoran_feed_stat_com(zr);
+		jpeg_start(zr);
+		zr->running = zr->map_mode;
+		btor(ZR36057_ICR_IntPinEn, ZR36057_ICR);
+		return 0;
+	}
+
+	pci_info(zr->pci_dev, "START RAW\n");
+	zr36057_restart(zr);
+	zoran_init_hardware(zr);
+
+	zr36057_enable_jpg(zr, BUZ_MODE_IDLE);
+	zr36057_set_memgrab(zr, 1);
+	zr->running = zr->map_mode;
+	btor(ZR36057_ICR_IntPinEn, ZR36057_ICR);
+	return 0;
+}
+
+static void zr_vb2_stop_streaming(struct vb2_queue *vq)
+{
+	struct zoran *zr = vq->drv_priv;
+	struct zr_buffer *buf;
+	unsigned long flags;
+	int j;
+
+	btand(~ZR36057_ICR_IntPinEn, ZR36057_ICR);
+	if (zr->map_mode != ZORAN_MAP_MODE_RAW)
+		zr36057_enable_jpg(zr, BUZ_MODE_IDLE);
+	zr36057_set_memgrab(zr, 0);
+	zr->running = ZORAN_MAP_MODE_NONE;
+
+	zoran_set_pci_master(zr, 0);
+
+	if (!pass_through) {	/* Switch to color bar */
+		decoder_call(zr, video, s_stream, 0);
+		encoder_call(zr, video, s_routing, 2, 0, 0);
+	}
+
+	for (j = 0; j < BUZ_NUM_STAT_COM; j++) {
+		zr->stat_com[j] = cpu_to_le32(1);
+		if (!zr->inuse[j])
+			continue;
+		buf = zr->inuse[j];
+		pci_dbg(zr->pci_dev, "%s clean buf %d\n", __func__, j);
+		vb2_buffer_done(&buf->vbuf.vb2_buf, VB2_BUF_STATE_ERROR);
+		zr->inuse[j] = NULL;
+	}
+
+	spin_lock_irqsave(&zr->queued_bufs_lock, flags);
+	while (!list_empty(&zr->queued_bufs)) {
+		buf = list_entry(zr->queued_bufs.next, struct zr_buffer, queue);
+		list_del(&buf->queue);
+		vb2_buffer_done(&buf->vbuf.vb2_buf, VB2_BUF_STATE_ERROR);
+		zr->buf_in_reserve--;
+	}
+	spin_unlock_irqrestore(&zr->queued_bufs_lock, flags);
+	if (zr->buf_in_reserve)
+		pci_err(zr->pci_dev, "Buffer remaining %d\n", zr->buf_in_reserve);
+	zr->map_mode = ZORAN_MAP_MODE_RAW;
+}
+
+static const struct vb2_ops zr_video_qops = {
+	.queue_setup            = zr_vb2_queue_setup,
+	.buf_queue              = zr_vb2_queue,
+	.buf_prepare            = zr_vb2_prepare,
+	.start_streaming        = zr_vb2_start_streaming,
+	.stop_streaming         = zr_vb2_stop_streaming,
+	.wait_prepare           = vb2_ops_wait_prepare,
+	.wait_finish            = vb2_ops_wait_finish,
+};
+
+int zoran_queue_init(struct zoran *zr, struct vb2_queue *vq)
+{
+	int err;
+
+	spin_lock_init(&zr->queued_bufs_lock);
+	INIT_LIST_HEAD(&zr->queued_bufs);
+
+	vq->dev = &zr->pci_dev->dev;
+	vq->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	vq->io_modes = VB2_USERPTR | VB2_DMABUF | VB2_MMAP | VB2_READ | VB2_WRITE;
+	vq->drv_priv = zr;
+	vq->buf_struct_size = sizeof(struct zr_buffer);
+	vq->ops = &zr_video_qops;
+	vq->mem_ops = &vb2_dma_contig_memops;
+	vq->gfp_flags = GFP_DMA32,
+	vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	vq->min_buffers_needed = 9;
+	vq->lock = &zr->lock;
+	err = vb2_queue_init(vq);
+	if (err)
+		return err;
+	zr->video_dev->queue = vq;
+	return 0;
+}
+
+void zoran_queue_exit(struct zoran *zr)
+{
+	vb2_queue_release(zr->video_dev->queue);
+}

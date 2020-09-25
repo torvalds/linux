@@ -970,6 +970,9 @@ static int zr36057_init(struct zoran *zr)
 	 * another day.
 	 */
 	zr->video_dev->vfl_dir = VFL_DIR_M2M;
+
+	zoran_queue_init(zr, &zr->vq);
+
 	err = video_register_device(zr->video_dev, VFL_TYPE_VIDEO, video_nr[zr->id]);
 	if (err < 0)
 		goto exit_statcomb;
@@ -1004,6 +1007,8 @@ static void zoran_remove(struct pci_dev *pdev)
 
 	if (!zr->initialized)
 		goto exit_free;
+
+	zoran_queue_exit(zr);
 
 	/* unregister videocodec bus */
 	if (zr->codec)
@@ -1282,6 +1287,8 @@ static int zoran_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (zr36057_init(zr) < 0)
 		goto zr_detach_vfe;
+
+	zr->map_mode = ZORAN_MAP_MODE_RAW;
 
 	return 0;
 
