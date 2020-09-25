@@ -1143,11 +1143,13 @@ static int q6pcm_routing_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
 static const struct of_device_id q6pcm_routing_device_id[] = {
 	{ .compatible = "qcom,q6adm-routing" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, q6pcm_routing_device_id);
+#endif
 
 static struct platform_driver q6pcm_routing_platform_driver = {
 	.driver = {
