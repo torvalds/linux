@@ -7762,16 +7762,8 @@ int netdev_master_upper_dev_link(struct net_device *dev,
 }
 EXPORT_SYMBOL(netdev_master_upper_dev_link);
 
-/**
- * netdev_upper_dev_unlink - Removes a link to upper device
- * @dev: device
- * @upper_dev: new upper device
- *
- * Removes a link to device which is upper to this one. The caller must hold
- * the RTNL lock.
- */
-void netdev_upper_dev_unlink(struct net_device *dev,
-			     struct net_device *upper_dev)
+static void __netdev_upper_dev_unlink(struct net_device *dev,
+				      struct net_device *upper_dev)
 {
 	struct netdev_notifier_changeupper_info changeupper_info = {
 		.info = {
@@ -7799,6 +7791,20 @@ void netdev_upper_dev_unlink(struct net_device *dev,
 	__netdev_update_lower_level(upper_dev, NULL);
 	__netdev_walk_all_upper_dev(upper_dev, __netdev_update_lower_level,
 				    NULL);
+}
+
+/**
+ * netdev_upper_dev_unlink - Removes a link to upper device
+ * @dev: device
+ * @upper_dev: new upper device
+ *
+ * Removes a link to device which is upper to this one. The caller must hold
+ * the RTNL lock.
+ */
+void netdev_upper_dev_unlink(struct net_device *dev,
+			     struct net_device *upper_dev)
+{
+	__netdev_upper_dev_unlink(dev, upper_dev);
 }
 EXPORT_SYMBOL(netdev_upper_dev_unlink);
 
