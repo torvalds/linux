@@ -216,8 +216,6 @@ struct zoran_fh {
 	enum zoran_lock_activity overlay_active;/* feature currently in use? */
 
 	struct zoran_buffer_col buffers;	/* buffers' info */
-
-	struct zoran_jpg_settings jpg_settings;	/* structure with a lot of things to play with */
 };
 
 struct card_info {

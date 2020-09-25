@@ -587,9 +587,7 @@ static int zoran_jpg_queue_frame(struct zoran_fh *fh, int num,
 	}
 
 	/* what is the codec mode right now? */
-	if (zr->codec_mode == BUZ_MODE_IDLE) {
-		zr->jpg_settings = fh->jpg_settings;
-	} else if (zr->codec_mode != mode) {
+	if (zr->codec_mode != BUZ_MODE_IDLE && zr->codec_mode != mode) {
 		/* wrong codec mode active - invalid */
 		pci_err(zr->pci_dev, "%s - codec in wrong mode\n", __func__);
 		return -EINVAL;
@@ -750,9 +748,6 @@ static void zoran_open_init_session(struct zoran_fh *fh)
 	fh->overlay_settings.is_set = 0;
 	fh->overlay_settings.format = zr->overlay_settings.format;
 	fh->overlay_active = ZORAN_FREE;
-
-	/* jpg settings */
-	fh->jpg_settings = zr->jpg_settings;
 
 	/* buffers */
 	memset(&fh->buffers, 0, sizeof(fh->buffers));
@@ -1237,11 +1232,11 @@ static int zoran_v4l2_buffer_status(struct zoran_fh *fh,
 		}
 
 		/* which fields are these? */
-		if (fh->jpg_settings.TmpDcm != 1)
-			buf->field = fh->jpg_settings.odd_even ?
+		if (zr->jpg_settings.TmpDcm != 1)
+			buf->field = zr->jpg_settings.odd_even ?
 				V4L2_FIELD_TOP : V4L2_FIELD_BOTTOM;
 		else
-			buf->field = fh->jpg_settings.odd_even ?
+			buf->field = zr->jpg_settings.odd_even ?
 				V4L2_FIELD_SEQ_TB : V4L2_FIELD_SEQ_BT;
 
 		break;
@@ -1391,18 +1386,18 @@ static int zoran_enum_fmt_vid_overlay(struct file *file, void *__fh,
 static int zoran_g_fmt_vid_out(struct file *file, void *__fh,
 			       struct v4l2_format *fmt)
 {
-	struct zoran_fh *fh = __fh;
+	struct zoran *zr = video_drvdata(file);
 
-	fmt->fmt.pix.width = fh->jpg_settings.img_width / fh->jpg_settings.HorDcm;
-	fmt->fmt.pix.height = fh->jpg_settings.img_height * 2 /
-		(fh->jpg_settings.VerDcm * fh->jpg_settings.TmpDcm);
-	fmt->fmt.pix.sizeimage = zoran_v4l2_calc_bufsize(&fh->jpg_settings);
+	fmt->fmt.pix.width = zr->jpg_settings.img_width / zr->jpg_settings.HorDcm;
+	fmt->fmt.pix.height = zr->jpg_settings.img_height * 2 /
+		(zr->jpg_settings.VerDcm * zr->jpg_settings.TmpDcm);
+	fmt->fmt.pix.sizeimage = zoran_v4l2_calc_bufsize(&zr->jpg_settings);
 	fmt->fmt.pix.pixelformat = V4L2_PIX_FMT_MJPEG;
-	if (fh->jpg_settings.TmpDcm == 1)
-		fmt->fmt.pix.field = (fh->jpg_settings.odd_even ?
+	if (zr->jpg_settings.TmpDcm == 1)
+		fmt->fmt.pix.field = (zr->jpg_settings.odd_even ?
 				V4L2_FIELD_SEQ_TB : V4L2_FIELD_SEQ_BT);
 	else
-		fmt->fmt.pix.field = (fh->jpg_settings.odd_even ?
+		fmt->fmt.pix.field = (zr->jpg_settings.odd_even ?
 				V4L2_FIELD_TOP : V4L2_FIELD_BOTTOM);
 	fmt->fmt.pix.bytesperline = 0;
 	fmt->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
@@ -1471,15 +1466,14 @@ static int zoran_try_fmt_vid_overlay(struct file *file, void *__fh,
 static int zoran_try_fmt_vid_out(struct file *file, void *__fh,
 				 struct v4l2_format *fmt)
 {
-	struct zoran_fh *fh = __fh;
-	struct zoran *zr = fh->zr;
+	struct zoran *zr = video_drvdata(file);
 	struct zoran_jpg_settings settings;
 	int res = 0;
 
 	if (fmt->fmt.pix.pixelformat != V4L2_PIX_FMT_MJPEG)
 		return -EINVAL;
 
-	settings = fh->jpg_settings;
+	settings = zr->jpg_settings;
 
 	/* we actually need to set 'real' parameters now */
 	if ((fmt->fmt.pix.height * 2) > BUZ_MAX_HEIGHT)
@@ -1487,13 +1481,13 @@ static int zoran_try_fmt_vid_out(struct file *file, void *__fh,
 	else
 		settings.TmpDcm = 2;
 	settings.decimation = 0;
-	if (fmt->fmt.pix.height <= fh->jpg_settings.img_height / 2)
+	if (fmt->fmt.pix.height <= zr->jpg_settings.img_height / 2)
 		settings.VerDcm = 2;
 	else
 		settings.VerDcm = 1;
-	if (fmt->fmt.pix.width <= fh->jpg_settings.img_width / 4)
+	if (fmt->fmt.pix.width <= zr->jpg_settings.img_width / 4)
 		settings.HorDcm = 4;
-	else if (fmt->fmt.pix.width <= fh->jpg_settings.img_width / 2)
+	else if (fmt->fmt.pix.width <= zr->jpg_settings.img_width / 2)
 		settings.HorDcm = 2;
 	else
 		settings.HorDcm = 1;
@@ -1520,10 +1514,10 @@ static int zoran_try_fmt_vid_out(struct file *file, void *__fh,
 	fmt->fmt.pix.height = settings.img_height * 2 /
 		(settings.TmpDcm * settings.VerDcm);
 	if (settings.TmpDcm == 1)
-		fmt->fmt.pix.field = (fh->jpg_settings.odd_even ?
+		fmt->fmt.pix.field = (zr->jpg_settings.odd_even ?
 				V4L2_FIELD_SEQ_TB : V4L2_FIELD_SEQ_BT);
 	else
-		fmt->fmt.pix.field = (fh->jpg_settings.odd_even ?
+		fmt->fmt.pix.field = (zr->jpg_settings.odd_even ?
 				V4L2_FIELD_TOP : V4L2_FIELD_BOTTOM);
 
 	fmt->fmt.pix.sizeimage = zoran_v4l2_calc_bufsize(&settings);
@@ -1598,7 +1592,7 @@ static int zoran_s_fmt_vid_out(struct file *file, void *__fh,
 		return res;
 	}
 
-	settings = fh->jpg_settings;
+	settings = zr->jpg_settings;
 
 	/* we actually need to set 'real' parameters now */
 	if (fmt->fmt.pix.height * 2 > BUZ_MAX_HEIGHT)
@@ -1606,13 +1600,13 @@ static int zoran_s_fmt_vid_out(struct file *file, void *__fh,
 	else
 		settings.TmpDcm = 2;
 	settings.decimation = 0;
-	if (fmt->fmt.pix.height <= fh->jpg_settings.img_height / 2)
+	if (fmt->fmt.pix.height <= zr->jpg_settings.img_height / 2)
 		settings.VerDcm = 2;
 	else
 		settings.VerDcm = 1;
-	if (fmt->fmt.pix.width <= fh->jpg_settings.img_width / 4)
+	if (fmt->fmt.pix.width <= zr->jpg_settings.img_width / 4)
 		settings.HorDcm = 4;
-	else if (fmt->fmt.pix.width <= fh->jpg_settings.img_width / 2)
+	else if (fmt->fmt.pix.width <= zr->jpg_settings.img_width / 2)
 		settings.HorDcm = 2;
 	else
 		settings.HorDcm = 1;
@@ -1635,20 +1629,20 @@ static int zoran_s_fmt_vid_out(struct file *file, void *__fh,
 		return res;
 
 	/* it's ok, so set them */
-	fh->jpg_settings = settings;
+	zr->jpg_settings = settings;
 
 	map_mode_jpg(fh, fmt->type == V4L2_BUF_TYPE_VIDEO_OUTPUT);
-	zr->buffer_size = zoran_v4l2_calc_bufsize(&fh->jpg_settings);
+	zr->buffer_size = zoran_v4l2_calc_bufsize(&zr->jpg_settings);
 
 	/* tell the user what we actually did */
 	fmt->fmt.pix.width = settings.img_width / settings.HorDcm;
 	fmt->fmt.pix.height = settings.img_height * 2 /
 		(settings.TmpDcm * settings.VerDcm);
 	if (settings.TmpDcm == 1)
-		fmt->fmt.pix.field = (fh->jpg_settings.odd_even ?
+		fmt->fmt.pix.field = (zr->jpg_settings.odd_even ?
 				V4L2_FIELD_SEQ_TB : V4L2_FIELD_SEQ_BT);
 	else
-		fmt->fmt.pix.field = (fh->jpg_settings.odd_even ?
+		fmt->fmt.pix.field = (zr->jpg_settings.odd_even ?
 				V4L2_FIELD_TOP : V4L2_FIELD_BOTTOM);
 	fmt->fmt.pix.bytesperline = 0;
 	fmt->fmt.pix.sizeimage = zr->buffer_size;
@@ -1805,7 +1799,7 @@ static int zoran_reqbufs(struct file *file, void *__fh, struct v4l2_requestbuffe
 		/* The next mmap will map the MJPEG buffers */
 		map_mode_jpg(fh, req->type == V4L2_BUF_TYPE_VIDEO_OUTPUT);
 		fh->buffers.num_buffers = req->count;
-		zr->buffer_size = zoran_v4l2_calc_bufsize(&fh->jpg_settings);
+		zr->buffer_size = zoran_v4l2_calc_bufsize(&zr->jpg_settings);
 
 		if (jpg_fbuffer_alloc(fh)) {
 			res = -ENOMEM;
@@ -2170,10 +2164,10 @@ static int zoran_g_selection(struct file *file, void *__fh, struct v4l2_selectio
 
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP:
-		sel->r.top = fh->jpg_settings.img_y;
-		sel->r.left = fh->jpg_settings.img_x;
-		sel->r.width = fh->jpg_settings.img_width;
-		sel->r.height = fh->jpg_settings.img_height;
+		sel->r.top = zr->jpg_settings.img_y;
+		sel->r.left = zr->jpg_settings.img_x;
+		sel->r.width = zr->jpg_settings.img_width;
+		sel->r.height = zr->jpg_settings.img_height;
 		break;
 	case V4L2_SEL_TGT_CROP_DEFAULT:
 		sel->r.top = sel->r.left = 0;
@@ -2210,7 +2204,7 @@ static int zoran_s_selection(struct file *file, void *__fh, struct v4l2_selectio
 		return -EINVAL;
 	}
 
-	settings = fh->jpg_settings;
+	settings = zr->jpg_settings;
 
 	if (fh->buffers.allocated) {
 		pci_err(zr->pci_dev, "VIDIOC_S_SELECTION - cannot change settings while active\n");
@@ -2229,29 +2223,26 @@ static int zoran_s_selection(struct file *file, void *__fh, struct v4l2_selectio
 		return res;
 
 	/* accept */
-	fh->jpg_settings = settings;
+	zr->jpg_settings = settings;
 	return res;
 }
 
 static int zoran_g_jpegcomp(struct file *file, void *__fh,
 			    struct v4l2_jpegcompression *params)
 {
-	struct zoran_fh *fh = __fh;
+	struct zoran *zr = video_drvdata(file);
 
 	memset(params, 0, sizeof(*params));
 
-	params->quality = fh->jpg_settings.jpg_comp.quality;
-	params->APPn = fh->jpg_settings.jpg_comp.APPn;
-	memcpy(params->APP_data,
-	       fh->jpg_settings.jpg_comp.APP_data,
-	       fh->jpg_settings.jpg_comp.APP_len);
-	params->APP_len = fh->jpg_settings.jpg_comp.APP_len;
-	memcpy(params->COM_data,
-	       fh->jpg_settings.jpg_comp.COM_data,
-	       fh->jpg_settings.jpg_comp.COM_len);
-	params->COM_len = fh->jpg_settings.jpg_comp.COM_len;
-	params->jpeg_markers =
-	    fh->jpg_settings.jpg_comp.jpeg_markers;
+	params->quality = zr->jpg_settings.jpg_comp.quality;
+	params->APPn = zr->jpg_settings.jpg_comp.APPn;
+	memcpy(params->APP_data, zr->jpg_settings.jpg_comp.APP_data,
+	       zr->jpg_settings.jpg_comp.APP_len);
+	params->APP_len = zr->jpg_settings.jpg_comp.APP_len;
+	memcpy(params->COM_data, zr->jpg_settings.jpg_comp.COM_data,
+	       zr->jpg_settings.jpg_comp.COM_len);
+	params->COM_len = zr->jpg_settings.jpg_comp.COM_len;
+	params->jpeg_markers = zr->jpg_settings.jpg_comp.jpeg_markers;
 
 	return 0;
 }
@@ -2264,7 +2255,7 @@ static int zoran_s_jpegcomp(struct file *file, void *__fh,
 	int res = 0;
 	struct zoran_jpg_settings settings;
 
-	settings = fh->jpg_settings;
+	settings = zr->jpg_settings;
 
 	settings.jpg_comp = *params;
 
@@ -2278,8 +2269,8 @@ static int zoran_s_jpegcomp(struct file *file, void *__fh,
 	if (res)
 		return res;
 	if (!fh->buffers.allocated)
-		zr->buffer_size = zoran_v4l2_calc_bufsize(&fh->jpg_settings);
-	fh->jpg_settings.jpg_comp = settings.jpg_comp;
+		zr->buffer_size = zoran_v4l2_calc_bufsize(&zr->jpg_settings);
+	zr->jpg_settings.jpg_comp = settings.jpg_comp;
 	return res;
 }
 
