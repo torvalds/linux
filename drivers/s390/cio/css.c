@@ -1350,20 +1350,6 @@ static int __init channel_subsystem_init_sync(void)
 }
 subsys_initcall_sync(channel_subsystem_init_sync);
 
-void channel_subsystem_reinit(void)
-{
-	struct channel_path *chp;
-	struct chp_id chpid;
-
-	chsc_enable_facility(CHSC_SDA_OC_MSS);
-	chp_id_for_each(&chpid) {
-		chp = chpid_to_chp(chpid);
-		if (chp)
-			chp_update_desc(chp);
-	}
-	cmf_reactivate();
-}
-
 #ifdef CONFIG_PROC_FS
 static ssize_t cio_settle_write(struct file *file, const char __user *buf,
 				size_t count, loff_t *ppos)

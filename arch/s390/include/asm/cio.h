@@ -356,7 +356,6 @@ static inline u8 pathmask_to_pos(u8 mask)
 	return 8 - ffs(mask);
 }
 
-void channel_subsystem_reinit(void);
 extern void css_schedule_reprobe(void);
 
 extern void *cio_dma_zalloc(size_t size);
