@@ -416,7 +416,7 @@ static struct snd_kcontrol *u_audio_get_ctl(struct g_audio *audio_dev,
 
 	memset(&elem_id, 0, sizeof(elem_id));
 	elem_id.iface = SNDRV_CTL_ELEM_IFACE_PCM;
-	strcpy(elem_id.name, name);
+	strlcpy(elem_id.name, name, sizeof(elem_id.name));
 	return snd_ctl_find_id(audio_dev->uac->card, &elem_id);
 }
 
