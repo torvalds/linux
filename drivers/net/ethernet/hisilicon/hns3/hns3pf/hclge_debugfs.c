@@ -1165,6 +1165,14 @@ static void hclge_dbg_dump_serv_info(struct hclge_dev *hdev)
 		 hdev->serv_processed_cnt);
 }
 
+static void hclge_dbg_dump_interrupt(struct hclge_dev *hdev)
+{
+	dev_info(&hdev->pdev->dev, "num_nic_msi: %u\n", hdev->num_nic_msi);
+	dev_info(&hdev->pdev->dev, "num_roce_msi: %u\n", hdev->num_roce_msi);
+	dev_info(&hdev->pdev->dev, "num_msi_used: %u\n", hdev->num_msi_used);
+	dev_info(&hdev->pdev->dev, "num_msi_left: %u\n", hdev->num_msi_left);
+}
+
 static void hclge_dbg_get_m7_stats_info(struct hclge_dev *hdev)
 {
 	struct hclge_desc *desc_src, *desc_tmp;
@@ -1489,6 +1497,7 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, const char *cmd_buf)
 #define DUMP_REG	"dump reg"
 #define DUMP_TM_MAP	"dump tm map"
 #define DUMP_LOOPBACK	"dump loopback"
+#define DUMP_INTERRUPT	"dump intr"
 
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
@@ -1536,6 +1545,9 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, const char *cmd_buf)
 		hclge_dbg_dump_mac_list(hdev,
 					&cmd_buf[sizeof("dump mc mac list")],
 					false);
+	} else if (strncmp(cmd_buf, DUMP_INTERRUPT,
+		   strlen(DUMP_INTERRUPT)) == 0) {
+		hclge_dbg_dump_interrupt(hdev);
 	} else {
 		dev_info(&hdev->pdev->dev, "unknown command\n");
 		return -EINVAL;
