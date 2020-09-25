@@ -2034,6 +2034,8 @@ static bool patch_address_for_sbs_tb_stereo(
 		plane_state->address.type = PLN_ADDR_TYPE_GRPH_STEREO;
 		plane_state->address.grph_stereo.right_addr =
 				plane_state->address.grph_stereo.left_addr;
+		plane_state->address.grph_stereo.right_meta_addr =
+				plane_state->address.grph_stereo.left_meta_addr;
 	}
 	return false;
 }
