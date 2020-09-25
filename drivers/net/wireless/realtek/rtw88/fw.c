@@ -193,6 +193,15 @@ void rtw_fw_c2h_cmd_rx_irqsafe(struct rtw_dev *rtwdev, u32 pkt_offset,
 }
 EXPORT_SYMBOL(rtw_fw_c2h_cmd_rx_irqsafe);
 
+void rtw_fw_c2h_cmd_isr(struct rtw_dev *rtwdev)
+{
+	if (rtw_read8(rtwdev, REG_MCU_TST_CFG) == VAL_FW_TRIGGER)
+		rtw_fw_recovery(rtwdev);
+	else
+		rtw_warn(rtwdev, "unhandled firmware c2h interrupt\n");
+}
+EXPORT_SYMBOL(rtw_fw_c2h_cmd_isr);
+
 static void rtw_fw_send_h2c_command(struct rtw_dev *rtwdev,
 				    u8 *h2c)
 {

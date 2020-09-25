@@ -389,6 +389,7 @@ static int rtw_pci_init(struct rtw_dev *rtwdev)
 			      IMR_VODOK |
 			      IMR_ROK |
 			      IMR_BCNDMAINT_E |
+			      IMR_C2HCMD |
 			      0;
 	rtwpci->irq_mask[1] = IMR_TXFOVW |
 			      0;
@@ -1079,6 +1080,8 @@ static irqreturn_t rtw_pci_interrupt_threadfn(int irq, void *dev)
 		rtw_pci_tx_isr(rtwdev, rtwpci, RTW_TX_QUEUE_H2C);
 	if (irq_status[0] & IMR_ROK)
 		rtw_pci_rx_isr(rtwdev, rtwpci, RTW_RX_QUEUE_MPDU);
+	if (unlikely(irq_status[0] & IMR_C2HCMD))
+		rtw_fw_c2h_cmd_isr(rtwdev);
 
 	/* all of the jobs for this interrupt have been done */
 	rtw_pci_enable_interrupt(rtwdev, rtwpci);
