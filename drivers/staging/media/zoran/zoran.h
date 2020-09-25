@@ -139,14 +139,6 @@ struct zoran_format {
 #define ZORAN_FORMAT_CAPTURE BIT(2)
 #define ZORAN_FORMAT_PLAYBACK BIT(3)
 
-/* overlay-settings */
-struct zoran_overlay_settings {
-	int is_set;
-	int x, y, width, height;	/* position */
-	int clipcount;		/* position and number of clips */
-	const struct zoran_format *format;	/* overlay format */
-};
-
 /* v4l-capture settings */
 struct zoran_v4l_settings {
 	int width, height, bytesperline;	/* capture size */
@@ -210,9 +202,6 @@ struct zoran_fh {
 	struct zoran *zr;
 
 	enum zoran_map_mode map_mode;		/* Flag which bufferset will map by next mmap() */
-
-	u32 *overlay_mask;			/* overlay mask */
-	enum zoran_lock_activity overlay_active;/* feature currently in use? */
 
 	struct zoran_buffer_col buffers;	/* buffers' info */
 };
@@ -294,13 +283,8 @@ struct zoran {
 	int vbuf_depth;
 	int vbuf_bytesperline;
 
-	struct zoran_overlay_settings overlay_settings;
-	u32 *overlay_mask;	/* overlay mask */
-	enum zoran_lock_activity overlay_active;	/* feature currently in use? */
-
 	wait_queue_head_t v4l_capq;
 
-	int v4l_overlay_active;	/* Overlay grab is activated */
 	int v4l_memgrab_active;	/* Memory grab is activated */
 
 	int v4l_grab_frame;	/* Frame number being currently grabbed */

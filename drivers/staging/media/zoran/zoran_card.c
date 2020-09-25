@@ -814,13 +814,7 @@ void zoran_open_init_params(struct zoran *zr)
 {
 	int i;
 
-	/* User must explicitly set a window */
-	zr->overlay_settings.is_set = 0;
-	zr->overlay_mask = NULL;
-	zr->overlay_active = ZORAN_FREE;
-
 	zr->v4l_memgrab_active = 0;
-	zr->v4l_overlay_active = 0;
 	zr->v4l_grab_frame = NO_GRAB_ACTIVE;
 	zr->v4l_grab_seq = 0;
 	zr->v4l_settings.width = 192;

@@ -300,7 +300,6 @@ static void zr36057_set_vfe(struct zoran *zr, int video_width, int video_height,
 	unsigned int Wa, We, Ha, He;
 	unsigned int X, Y, HorDcm, VerDcm;
 	u32 reg;
-	unsigned int mask_line_size;
 
 	tvn = zr->timing;
 
@@ -395,141 +394,7 @@ static void zr36057_set_vfe(struct zoran *zr, int video_width, int video_height,
 		reg |= ZR36057_VDCR_Triton;
 	btwrite(reg, ZR36057_VDCR);
 
-	/* (Ronald) don't write this if overlay_mask = NULL */
-	if (zr->overlay_mask) {
-		/* Write overlay clipping mask data, but don't enable overlay clipping */
-		/* RJ: since this makes only sense on the screen, we use
-		 * zr->overlay_settings.width instead of video_width */
-
-		mask_line_size = (BUZ_MAX_WIDTH + 31) / 32;
-		reg = virt_to_bus(zr->overlay_mask);
-		btwrite(reg, ZR36057_MMTR);
-		reg = virt_to_bus(zr->overlay_mask + mask_line_size);
-		btwrite(reg, ZR36057_MMBR);
-		reg =
-		    mask_line_size - (zr->overlay_settings.width +
-				      31) / 32;
-		if (DispMode == 0)
-			reg += mask_line_size;
-		reg <<= ZR36057_OCR_MaskStride;
-		btwrite(reg, ZR36057_OCR);
-	}
-
 	zr36057_adjust_vfe(zr, zr->codec_mode);
-}
-
-/*
- * Switch overlay on or off
- */
-
-void zr36057_overlay(struct zoran *zr, int on)
-{
-	u32 reg;
-
-	if (on) {
-		/* do the necessary settings ... */
-		btand(~ZR36057_VDCR_VidEn, ZR36057_VDCR);	/* switch it off first */
-
-		zr36057_set_vfe(zr,
-				zr->overlay_settings.width,
-				zr->overlay_settings.height,
-				zr->overlay_settings.format);
-
-		/* Start and length of each line MUST be 4-byte aligned.
-		 * This should be already checked before the call to this routine.
-		 * All error messages are internal driver checking only! */
-
-		/* video display top and bottom registers */
-		reg = (long)zr->vbuf_base +
-		    zr->overlay_settings.x *
-		    ((zr->overlay_settings.format->depth + 7) / 8) +
-		    zr->overlay_settings.y *
-		    zr->vbuf_bytesperline;
-		btwrite(reg, ZR36057_VDTR);
-		if (reg & 3)
-			pci_err(zr->pci_dev, "zr36057_overlay() - video_address not aligned\n");
-		if (zr->overlay_settings.height > BUZ_MAX_HEIGHT / 2)
-			reg += zr->vbuf_bytesperline;
-		btwrite(reg, ZR36057_VDBR);
-
-		/* video stride, status, and frame grab register */
-		reg = zr->vbuf_bytesperline -
-		    zr->overlay_settings.width *
-		    ((zr->overlay_settings.format->depth + 7) / 8);
-		if (zr->overlay_settings.height > BUZ_MAX_HEIGHT / 2)
-			reg += zr->vbuf_bytesperline;
-		if (reg & 3)
-			pci_err(zr->pci_dev, "zr36057_overlay() - video_stride not aligned\n");
-		reg = (reg << ZR36057_VSSFGR_DispStride);
-		reg |= ZR36057_VSSFGR_VidOvf;	/* clear overflow status */
-		btwrite(reg, ZR36057_VSSFGR);
-
-		/* Set overlay clipping */
-		if (zr->overlay_settings.clipcount > 0)
-			btor(ZR36057_OCR_OvlEnable, ZR36057_OCR);
-
-		/* ... and switch it on */
-		btor(ZR36057_VDCR_VidEn, ZR36057_VDCR);
-	} else {
-		/* Switch it off */
-		btand(~ZR36057_VDCR_VidEn, ZR36057_VDCR);
-	}
-}
-
-/*
- * The overlay mask has one bit for each pixel on a scan line,
- *  and the maximum window size is BUZ_MAX_WIDTH * BUZ_MAX_HEIGHT pixels.
- */
-
-void write_overlay_mask(struct zoran_fh *fh, struct v4l2_clip *vp, int count)
-{
-	struct zoran *zr = fh->zr;
-	unsigned int mask_line_size = (BUZ_MAX_WIDTH + 31) / 32;
-	u32 *mask;
-	int x, y, width, height;
-	unsigned int i, j, k;
-
-	/* fill mask with one bits */
-	memset(fh->overlay_mask, ~0, mask_line_size * 4 * BUZ_MAX_HEIGHT);
-
-	for (i = 0; i < count; ++i) {
-		/* pick up local copy of clip */
-		x = vp[i].c.left;
-		y = vp[i].c.top;
-		width = vp[i].c.width;
-		height = vp[i].c.height;
-
-		/* trim clips that extend beyond the window */
-		if (x < 0) {
-			width += x;
-			x = 0;
-		}
-		if (y < 0) {
-			height += y;
-			y = 0;
-		}
-		if (x + width > zr->overlay_settings.width)
-			width = zr->overlay_settings.width - x;
-		if (y + height > zr->overlay_settings.height)
-			height = zr->overlay_settings.height - y;
-
-		/* ignore degenerate clips */
-		if (height <= 0)
-			continue;
-		if (width <= 0)
-			continue;
-
-		/* apply clip for each scan line */
-		for (j = 0; j < height; ++j) {
-			/* reset bit for each pixel */
-			/* this can be optimized later if need be */
-			mask = fh->overlay_mask + (y + j) * mask_line_size;
-			for (k = 0; k < width; ++k) {
-				mask[(x + k) / 32] &=
-				    ~((u32)1 << (x + k) % 32);
-			}
-		}
-	}
 }
 
 /* Enable/Disable uncompressed memory grabbing of the 36057 */
@@ -567,12 +432,8 @@ void zr36057_set_memgrab(struct zoran *zr, int mode)
 		zr->v4l_grab_frame = NO_GRAB_ACTIVE;
 
 		/* re-enable grabbing to screen if it was running */
-		if (zr->v4l_overlay_active) {
-			zr36057_overlay(zr, 1);
-		} else {
-			btand(~ZR36057_VDCR_VidEn, ZR36057_VDCR);
-			btand(~ZR36057_VSSFGR_SnapShot, ZR36057_VSSFGR);
-		}
+		btand(~ZR36057_VDCR_VidEn, ZR36057_VDCR);
+		btand(~ZR36057_VSSFGR_SnapShot, ZR36057_VSSFGR);
 	}
 }
 
