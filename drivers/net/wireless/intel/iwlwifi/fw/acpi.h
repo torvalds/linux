@@ -194,9 +194,6 @@ int iwl_sar_get_wgds_table(struct iwl_fw_runtime *fwrt);
 
 bool iwl_sar_geo_support(struct iwl_fw_runtime *fwrt);
 
-int iwl_validate_sar_geo_profile(struct iwl_fw_runtime *fwrt,
-				 struct iwl_host_cmd *cmd);
-
 int iwl_sar_geo_init(struct iwl_fw_runtime *fwrt,
 		     struct iwl_per_chain_offset_group *table);
 
@@ -276,12 +273,6 @@ static inline int iwl_sar_get_wgds_table(struct iwl_fw_runtime *fwrt)
 static inline bool iwl_sar_geo_support(struct iwl_fw_runtime *fwrt)
 {
 	return false;
-}
-
-static inline int iwl_validate_sar_geo_profile(struct iwl_fw_runtime *fwrt,
-					       struct iwl_host_cmd *cmd)
-{
-	return -ENOENT;
 }
 
 static inline int iwl_sar_geo_init(struct iwl_fw_runtime *fwrt,

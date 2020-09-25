@@ -770,6 +770,7 @@ int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
 int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm)
 {
 	union geo_tx_power_profiles_cmd geo_tx_cmd;
+	struct iwl_geo_tx_power_profiles_resp *resp;
 	u16 len;
 	int ret;
 	struct iwl_host_cmd cmd;
@@ -800,7 +801,13 @@ int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm)
 		IWL_ERR(mvm, "Failed to get geographic profile info %d\n", ret);
 		return ret;
 	}
-	ret = iwl_validate_sar_geo_profile(&mvm->fwrt, &cmd);
+
+	resp = (void *)cmd.resp_pkt->data;
+	ret = le32_to_cpu(resp->profile_idx);
+
+	if (WARN_ON(ret > ACPI_NUM_GEO_PROFILES))
+		ret = -EIO;
+
 	iwl_free_resp(&cmd);
 	return ret;
 }

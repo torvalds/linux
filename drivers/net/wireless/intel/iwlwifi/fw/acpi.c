@@ -631,23 +631,6 @@ bool iwl_sar_geo_support(struct iwl_fw_runtime *fwrt)
 }
 IWL_EXPORT_SYMBOL(iwl_sar_geo_support);
 
-int iwl_validate_sar_geo_profile(struct iwl_fw_runtime *fwrt,
-				 struct iwl_host_cmd *cmd)
-{
-	struct iwl_geo_tx_power_profiles_resp *resp;
-	int ret;
-
-	resp = (void *)cmd->resp_pkt->data;
-	ret = le32_to_cpu(resp->profile_idx);
-	if (WARN_ON(ret > ACPI_NUM_GEO_PROFILES)) {
-		ret = -EIO;
-		IWL_WARN(fwrt, "Invalid geographic profile idx (%d)\n", ret);
-	}
-
-	return ret;
-}
-IWL_EXPORT_SYMBOL(iwl_validate_sar_geo_profile);
-
 int iwl_sar_geo_init(struct iwl_fw_runtime *fwrt,
 		     struct iwl_per_chain_offset_group *table)
 {
