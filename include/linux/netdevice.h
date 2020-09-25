@@ -1955,6 +1955,7 @@ struct net_device {
 	unsigned short		type;
 	unsigned short		hard_header_len;
 	unsigned char		min_header_len;
+	unsigned char		name_assign_type;
 
 	unsigned short		needed_headroom;
 	unsigned short		needed_tailroom;
@@ -1965,12 +1966,12 @@ struct net_device {
 	unsigned char		addr_len;
 	unsigned char		upper_level;
 	unsigned char		lower_level;
+
 	unsigned short		neigh_priv_len;
 	unsigned short          dev_id;
 	unsigned short          dev_port;
 	spinlock_t		addr_list_lock;
-	unsigned char		name_assign_type;
-	bool			uc_promisc;
+
 	struct netdev_hw_addr_list	uc;
 	struct netdev_hw_addr_list	mc;
 	struct netdev_hw_addr_list	dev_addrs;
@@ -1978,8 +1979,15 @@ struct net_device {
 #ifdef CONFIG_SYSFS
 	struct kset		*queues_kset;
 #endif
+#ifdef CONFIG_LOCKDEP
+	struct list_head	unlink_list;
+#endif
 	unsigned int		promiscuity;
 	unsigned int		allmulti;
+	bool			uc_promisc;
+#ifdef CONFIG_LOCKDEP
+	unsigned char		nested_level;
+#endif
 
 
 	/* Protocol-specific pointers */
@@ -4260,17 +4268,23 @@ static inline void netif_tx_disable(struct net_device *dev)
 
 static inline void netif_addr_lock(struct net_device *dev)
 {
-	spin_lock(&dev->addr_list_lock);
-}
+	unsigned char nest_level = 0;
 
-static inline void netif_addr_lock_nested(struct net_device *dev)
-{
-	spin_lock_nested(&dev->addr_list_lock, dev->lower_level);
+#ifdef CONFIG_LOCKDEP
+	nest_level = dev->nested_level;
+#endif
+	spin_lock_nested(&dev->addr_list_lock, nest_level);
 }
 
 static inline void netif_addr_lock_bh(struct net_device *dev)
 {
-	spin_lock_bh(&dev->addr_list_lock);
+	unsigned char nest_level = 0;
+
+#ifdef CONFIG_LOCKDEP
+	nest_level = dev->nested_level;
+#endif
+	local_bh_disable();
+	spin_lock_nested(&dev->addr_list_lock, nest_level);
 }
 
 static inline void netif_addr_unlock(struct net_device *dev)
@@ -4455,7 +4469,19 @@ extern int		dev_rx_weight;
 extern int		dev_tx_weight;
 extern int		gro_normal_batch;
 
+enum {
+	NESTED_SYNC_IMM_BIT,
+	NESTED_SYNC_TODO_BIT,
+};
+
+#define __NESTED_SYNC_BIT(bit)	((u32)1 << (bit))
+#define __NESTED_SYNC(name)	__NESTED_SYNC_BIT(NESTED_SYNC_ ## name ## _BIT)
+
+#define NESTED_SYNC_IMM		__NESTED_SYNC(IMM)
+#define NESTED_SYNC_TODO	__NESTED_SYNC(TODO)
+
 struct netdev_nested_priv {
+	unsigned char flags;
 	void *data;
 };
 
@@ -4464,6 +4490,16 @@ struct net_device *netdev_upper_get_next_dev_rcu(struct net_device *dev,
 						     struct list_head **iter);
 struct net_device *netdev_all_upper_get_next_dev_rcu(struct net_device *dev,
 						     struct list_head **iter);
+
+#ifdef CONFIG_LOCKDEP
+static LIST_HEAD(net_unlink_list);
+
+static inline void net_unlink_todo(struct net_device *dev)
+{
+	if (list_empty(&dev->unlink_list))
+		list_add_tail(&dev->unlink_list, &net_unlink_list);
+}
+#endif
 
 /* iterate through upper list, must be called under RCU read lock */
 #define netdev_for_each_upper_dev_rcu(dev, updev, iter) \
