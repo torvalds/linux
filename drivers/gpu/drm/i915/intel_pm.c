@@ -3706,7 +3706,7 @@ skl_setup_sagv_block_time(struct drm_i915_private *dev_priv)
  *  - All planes can enable watermarks for latencies >= SAGV engine block time
  *  - We're not using an interlaced display configuration
  */
-int
+static int
 intel_enable_sagv(struct drm_i915_private *dev_priv)
 {
 	int ret;
@@ -3740,7 +3740,7 @@ intel_enable_sagv(struct drm_i915_private *dev_priv)
 	return 0;
 }
 
-int
+static int
 intel_disable_sagv(struct drm_i915_private *dev_priv)
 {
 	int ret;
