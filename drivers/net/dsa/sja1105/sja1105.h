@@ -244,8 +244,16 @@ enum sja1105_reset_reason {
 
 int sja1105_static_config_reload(struct sja1105_private *priv,
 				 enum sja1105_reset_reason reason);
-
+int sja1105_vlan_filtering(struct dsa_switch *ds, int port, bool enabled);
 void sja1105_frame_memory_partitioning(struct sja1105_private *priv);
+
+/* From sja1105_devlink.c */
+int sja1105_devlink_setup(struct dsa_switch *ds);
+void sja1105_devlink_teardown(struct dsa_switch *ds);
+int sja1105_devlink_param_get(struct dsa_switch *ds, u32 id,
+			      struct devlink_param_gset_ctx *ctx);
+int sja1105_devlink_param_set(struct dsa_switch *ds, u32 id,
+			      struct devlink_param_gset_ctx *ctx);
 
 /* From sja1105_spi.c */
 int sja1105_xfer_buf(const struct sja1105_private *priv,
