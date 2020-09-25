@@ -256,7 +256,7 @@ struct videocodec {
 	// set compression or decompression (or freeze, stop, standby, etc)
 	int (*set_mode)(struct videocodec *codec, int mode);
 	// setup picture size and norm (for the codec's video frontend)
-	int (*set_video)(struct videocodec *codec, struct tvnorm *norm,
+	int (*set_video)(struct videocodec *codec, const struct tvnorm *norm,
 			 struct vfe_settings *cap, struct vfe_polarity *pol);
 	// other control commands, also mmap setup etc.
 	int (*control)(struct videocodec *codec, int type, int size, void *data);

@@ -227,7 +227,7 @@ struct card_info {
 	} input[BUZ_MAX_INPUT];
 
 	v4l2_std_id norms;
-	struct tvnorm *tvn[3];	/* supported TV norms */
+	const struct tvnorm *tvn[3];	/* supported TV norms */
 
 	u32 jpeg_int;		/* JPEG interrupt */
 	u32 vsync_int;		/* VSYNC interrupt */
@@ -266,7 +266,7 @@ struct zoran {
 	u8 initialized;		/* flag if zoran has been correctly initialized */
 	int user;		/* number of current users */
 	struct card_info card;
-	struct tvnorm *timing;
+	const struct tvnorm *timing;
 
 	unsigned short id;	/* number of this device */
 	char name[32];		/* name of this device */

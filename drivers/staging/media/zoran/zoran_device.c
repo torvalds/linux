@@ -292,7 +292,7 @@ static void zr36057_adjust_vfe(struct zoran *zr, enum zoran_codec_mode mode)
 static void zr36057_set_vfe(struct zoran *zr, int video_width, int video_height,
 			    const struct zoran_format *format)
 {
-	struct tvnorm *tvn;
+	const struct tvnorm *tvn;
 	unsigned int HStart, HEnd, VStart, VEnd;
 	unsigned int DispMode;
 	unsigned int VidWinWid, VidWinHt;
@@ -510,7 +510,7 @@ static void init_jpeg_queue(struct zoran *zr)
 
 static void zr36057_set_jpg(struct zoran *zr, enum zoran_codec_mode mode)
 {
-	struct tvnorm *tvn;
+	const struct tvnorm *tvn;
 	u32 reg;
 
 	tvn = zr->timing;

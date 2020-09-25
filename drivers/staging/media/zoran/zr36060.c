@@ -477,7 +477,7 @@ static int zr36060_set_mode(struct videocodec *codec, int mode)
 }
 
 /* set picture size (norm is ignored as the codec doesn't know about it) */
-static int zr36060_set_video(struct videocodec *codec, struct tvnorm *norm,
+static int zr36060_set_video(struct videocodec *codec, const struct tvnorm *norm,
 			     struct vfe_settings *cap, struct vfe_polarity *pol)
 {
 	struct zr36060 *ptr = (struct zr36060 *)codec->data;
