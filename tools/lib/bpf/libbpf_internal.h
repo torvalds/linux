@@ -136,6 +136,11 @@ static inline bool libbpf_validate_opts(const char *opts,
 	((opts) && opts->sz >= offsetofend(typeof(*(opts)), field))
 #define OPTS_GET(opts, field, fallback_value) \
 	(OPTS_HAS(opts, field) ? (opts)->field : fallback_value)
+#define OPTS_SET(opts, field, value)		\
+	do {					\
+		if (OPTS_HAS(opts, field))	\
+			(opts)->field = value;	\
+	} while (0)
 
 int parse_cpu_mask_str(const char *s, bool **mask, int *mask_sz);
 int parse_cpu_mask_file(const char *fcpu, bool **mask, int *mask_sz);
