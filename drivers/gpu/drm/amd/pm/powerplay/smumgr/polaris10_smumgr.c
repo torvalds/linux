@@ -401,6 +401,8 @@ static int polaris10_get_dependency_volt_by_clk(struct pp_hwmgr *hwmgr,
 		*voltage |= (data->vbios_boot_state.vddci_bootup_value *
 				VOLTAGE_SCALE) << VDDCI_SHIFT;
 	else if (dep_table->entries[i-1].vddci) {
+		*voltage |= (dep_table->entries[i - 1].vddci * VOLTAGE_SCALE) << VDDC_SHIFT;
+	} else {
 		vddci = phm_find_closest_vddci(&(data->vddci_voltage_table),
 				(dep_table->entries[i].vddc -
 						(uint16_t)VDDC_VDDCI_DELTA));
