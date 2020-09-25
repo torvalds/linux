@@ -245,8 +245,10 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 		if (sta) {
 			u64 pn64;
 
-			tkip_sc = data->rsc_tsc->all_tsc_rsc.tkip.unicast_rsc;
-			tkip_tx_sc = &data->rsc_tsc->all_tsc_rsc.tkip.tsc;
+			tkip_sc =
+			   data->rsc_tsc->params.all_tsc_rsc.tkip.unicast_rsc;
+			tkip_tx_sc =
+				&data->rsc_tsc->params.all_tsc_rsc.tkip.tsc;
 
 			rx_p1ks = data->tkip->rx_uni;
 
@@ -265,7 +267,7 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 			rx_mic_key = data->tkip->mic_keys.rx_unicast;
 		} else {
 			tkip_sc =
-				data->rsc_tsc->all_tsc_rsc.tkip.multicast_rsc;
+			  data->rsc_tsc->params.all_tsc_rsc.tkip.multicast_rsc;
 			rx_p1ks = data->tkip->rx_multi;
 			rx_mic_key = data->tkip->mic_keys.rx_mcast;
 		}
@@ -302,13 +304,16 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 		if (sta) {
 			u64 pn64;
 
-			aes_sc = data->rsc_tsc->all_tsc_rsc.aes.unicast_rsc;
-			aes_tx_sc = &data->rsc_tsc->all_tsc_rsc.aes.tsc;
+			aes_sc =
+			   data->rsc_tsc->params.all_tsc_rsc.aes.unicast_rsc;
+			aes_tx_sc =
+				&data->rsc_tsc->params.all_tsc_rsc.aes.tsc;
 
 			pn64 = atomic64_read(&key->tx_pn);
 			aes_tx_sc->pn = cpu_to_le64(pn64);
 		} else {
-			aes_sc = data->rsc_tsc->all_tsc_rsc.aes.multicast_rsc;
+			aes_sc =
+			   data->rsc_tsc->params.all_tsc_rsc.aes.multicast_rsc;
 		}
 
 		/*
@@ -772,10 +777,28 @@ static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 	}
 
 	if (key_data.use_rsc_tsc) {
-		ret = iwl_mvm_send_cmd_pdu(mvm,
-					   WOWLAN_TSC_RSC_PARAM, cmd_flags,
-					   sizeof(*key_data.rsc_tsc),
+		int ver = iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
+						WOWLAN_TSC_RSC_PARAM);
+		int size;
+
+		if (ver == 4) {
+			size = sizeof(*key_data.rsc_tsc);
+			key_data.rsc_tsc->sta_id =
+				cpu_to_le32(mvmvif->ap_sta_id);
+
+		} else if (ver == 2 || ver == IWL_FW_CMD_VER_UNKNOWN) {
+			size = sizeof(key_data.rsc_tsc->params);
+		} else {
+			ret = 0;
+			WARN_ON_ONCE(1);
+			goto out;
+		}
+
+		ret = iwl_mvm_send_cmd_pdu(mvm, WOWLAN_TSC_RSC_PARAM,
+					   cmd_flags,
+					   size,
 					   key_data.rsc_tsc);
+
 		if (ret)
 			goto out;
 	}

@@ -451,9 +451,14 @@ union iwl_all_tsc_rsc {
 	struct iwl_aes_rsc_tsc aes;
 }; /* ALL_TSC_RSC_API_S_VER_2 */
 
-struct iwl_wowlan_rsc_tsc_params_cmd {
+struct iwl_wowlan_rsc_tsc_params_cmd_ver_2 {
 	union iwl_all_tsc_rsc all_tsc_rsc;
 } __packed; /* ALL_TSC_RSC_API_S_VER_2 */
+
+struct iwl_wowlan_rsc_tsc_params_cmd {
+	struct iwl_wowlan_rsc_tsc_params_cmd_ver_2 params;
+	__le32 sta_id;
+} __packed; /* ALL_TSC_RSC_API_S_VER_4 */
 
 #define IWL_MIC_KEY_SIZE	8
 struct iwl_mic_keys {
@@ -534,7 +539,7 @@ struct iwl_wowlan_gtk_status_v1 {
 	u8 reserved[3];
 	u8 decrypt_key[16];
 	u8 tkip_mic_key[8];
-	struct iwl_wowlan_rsc_tsc_params_cmd rsc;
+	struct iwl_wowlan_rsc_tsc_params_cmd_ver_2 rsc;
 } __packed; /* WOWLAN_GTK_MATERIAL_VER_1 */
 
 #define WOWLAN_KEY_MAX_SIZE	32
@@ -559,7 +564,7 @@ struct iwl_wowlan_gtk_status {
 	u8 key_flags;
 	u8 reserved[2];
 	u8 tkip_mic_key[8];
-	struct iwl_wowlan_rsc_tsc_params_cmd rsc;
+	struct iwl_wowlan_rsc_tsc_params_cmd_ver_2 rsc;
 } __packed; /* WOWLAN_GTK_MATERIAL_VER_2 */
 
 #define IWL_WOWLAN_GTK_IDX_MASK		(BIT(0) | BIT(1))
