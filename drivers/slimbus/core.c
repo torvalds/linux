@@ -297,8 +297,8 @@ void slim_report_absent(struct slim_device *sbdev)
 	mutex_lock(&ctrl->lock);
 	sbdev->is_laddr_valid = false;
 	mutex_unlock(&ctrl->lock);
-
-	ida_simple_remove(&ctrl->laddr_ida, sbdev->laddr);
+	if (!ctrl->get_laddr)
+		ida_simple_remove(&ctrl->laddr_ida, sbdev->laddr);
 	slim_device_update_status(sbdev, SLIM_DEVICE_STATUS_DOWN);
 }
 EXPORT_SYMBOL_GPL(slim_report_absent);
