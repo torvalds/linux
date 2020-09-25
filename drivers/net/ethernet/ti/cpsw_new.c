@@ -1660,12 +1660,10 @@ static int cpsw_dl_switch_mode_set(struct devlink *dl, u32 id,
 		for (i = 0; i < cpsw->data.slaves; i++) {
 			struct cpsw_slave *slave = &cpsw->slaves[i];
 			struct net_device *sl_ndev = slave->ndev;
-			struct cpsw_priv *priv;
 
 			if (!sl_ndev)
 				continue;
 
-			priv = netdev_priv(sl_ndev);
 			if (switch_en)
 				vlan = cpsw->data.default_vlan;
 			else

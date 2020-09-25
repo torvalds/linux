@@ -842,6 +842,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct mlx4_en_tx_desc *tx_desc;
 	struct mlx4_wqe_data_seg *data;
 	struct mlx4_en_tx_info *tx_info;
+	u32 __maybe_unused ring_cons;
 	int tx_ind;
 	int nr_txbb;
 	int desc_size;
@@ -855,7 +856,6 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	bool stop_queue;
 	bool inline_ok;
 	u8 data_offset;
-	u32 ring_cons;
 	bool bf_ok;
 
 	tx_ind = skb_get_queue_mapping(skb);
