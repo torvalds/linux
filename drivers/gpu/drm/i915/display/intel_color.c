@@ -1030,13 +1030,6 @@ static u32 chv_cgm_degamma_udw(const struct drm_color_lut *color)
 	return drm_color_lut_extract(color->red, 14);
 }
 
-static void chv_cgm_gamma_pack(struct drm_color_lut *entry, u32 ldw, u32 udw)
-{
-	entry->green = intel_color_lut_pack(REG_FIELD_GET(CGM_PIPE_GAMMA_GREEN_MASK, ldw), 10);
-	entry->blue = intel_color_lut_pack(REG_FIELD_GET(CGM_PIPE_GAMMA_BLUE_MASK, ldw), 10);
-	entry->red = intel_color_lut_pack(REG_FIELD_GET(CGM_PIPE_GAMMA_RED_MASK, udw), 10);
-}
-
 static void chv_load_cgm_degamma(struct intel_crtc *crtc,
 				 const struct drm_property_blob *blob)
 {
@@ -1062,6 +1055,13 @@ static u32 chv_cgm_gamma_ldw(const struct drm_color_lut *color)
 static u32 chv_cgm_gamma_udw(const struct drm_color_lut *color)
 {
 	return drm_color_lut_extract(color->red, 10);
+}
+
+static void chv_cgm_gamma_pack(struct drm_color_lut *entry, u32 ldw, u32 udw)
+{
+	entry->green = intel_color_lut_pack(REG_FIELD_GET(CGM_PIPE_GAMMA_GREEN_MASK, ldw), 10);
+	entry->blue = intel_color_lut_pack(REG_FIELD_GET(CGM_PIPE_GAMMA_BLUE_MASK, ldw), 10);
+	entry->red = intel_color_lut_pack(REG_FIELD_GET(CGM_PIPE_GAMMA_RED_MASK, udw), 10);
 }
 
 static void chv_load_cgm_gamma(struct intel_crtc *crtc,
