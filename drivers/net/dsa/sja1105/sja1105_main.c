@@ -3316,6 +3316,7 @@ static const struct dsa_switch_ops sja1105_switch_ops = {
 	.crosschip_bridge_leave	= sja1105_crosschip_bridge_leave,
 	.devlink_param_get	= sja1105_devlink_param_get,
 	.devlink_param_set	= sja1105_devlink_param_set,
+	.devlink_info_get	= sja1105_devlink_info_get,
 };
 
 static const struct of_device_id sja1105_dt_ids[];

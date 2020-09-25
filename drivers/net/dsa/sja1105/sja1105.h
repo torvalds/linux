@@ -255,6 +255,9 @@ int sja1105_devlink_param_get(struct dsa_switch *ds, u32 id,
 			      struct devlink_param_gset_ctx *ctx);
 int sja1105_devlink_param_set(struct dsa_switch *ds, u32 id,
 			      struct devlink_param_gset_ctx *ctx);
+int sja1105_devlink_info_get(struct dsa_switch *ds,
+			     struct devlink_info_req *req,
+			     struct netlink_ext_ack *extack);
 
 /* From sja1105_spi.c */
 int sja1105_xfer_buf(const struct sja1105_private *priv,
