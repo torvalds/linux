@@ -14,7 +14,7 @@ Glossary
 .. glossary::
 
     Bridge Driver
-	A :term:`device driver` that implements the main logic to talk with
+	A :term:`Device Driver` that implements the main logic to talk with
 	media hardware.
 
     CEC API
@@ -56,18 +56,18 @@ Glossary
 	See https://en.wikipedia.org/wiki/Field-programmable_gate_array.
 
     Hardware Component
-	A subset of the :term:`media hardware`. For example an :term:`I²C` or
-	:term:`SPI` device, or an :term:`IP block` inside an
+	A subset of the :term:`Media Hardware`. For example an :term:`I²C` or
+	:term:`SPI` device, or an :term:`IP Block` inside an
 	:term:`SoC` or :term:`FPGA`.
 
     Hardware Peripheral
-	A group of :term:`hardware components <hardware component>` that
+	A group of :term:`hardware components <Hardware Component>` that
 	together make a larger user-facing functional peripheral. For
-	instance, the :term:`SoC` :term:`ISP` :term:`IP block <ip block>`
+	instance, the :term:`SoC` :term:`ISP` :term:`IP Block`
 	and the external camera sensors together make a camera hardware
 	peripheral.
 
-	Also known as :term:`peripheral`.
+	Also known as :term:`Peripheral`.
 
     I²C
 	**Inter-Integrated Circuit**
@@ -127,7 +127,7 @@ Glossary
 	See :ref:`media_controller`.
 
     MC-centric
-	:term:`V4L2 hardware` device driver that requires :term:`MC API`.
+	:term:`V4L2 Hardware` device driver that requires :term:`MC API`.
 
 	Such drivers have ``V4L2_CAP_IO_MC`` device_caps field set
 	(see :ref:`VIDIOC_QUERYCAP`).
@@ -148,7 +148,7 @@ Glossary
 	instructions on a single integrated circuit.
 
     Peripheral
-	The same as :term:`hardware peripheral`.
+	The same as :term:`Hardware Peripheral`.
 
     RC API
 	**Remote Controller API**
@@ -180,7 +180,7 @@ Glossary
 	control a V4L2 hardware.
 
     V4L2 Device Node
-	A :term:`device node` that is associated to a V4L driver.
+	A :term:`Device Node` that is associated to a V4L driver.
 
 	The V4L2 device node naming is specified at :ref:`v4l2_device_naming`.
 
@@ -189,7 +189,7 @@ Glossary
 
     V4L2 Sub-device
 	V4L2 hardware components that aren't controlled by a
-	:term:`bridge driver`. See :ref:`subdev`.
+	:term:`Bridge Driver`. See :ref:`subdev`.
 
     Video-node-centric
 	V4L2 device driver that doesn't require a media controller to be used.
