@@ -13146,6 +13146,9 @@ static void intel_dump_pipe_config(const struct intel_crtc_state *pipe_config,
 		    transcoder_name(pipe_config->cpu_transcoder),
 		    pipe_config->pipe_bpp, pipe_config->dither);
 
+	drm_dbg_kms(&dev_priv->drm, "MST master transcoder: %s\n",
+		    transcoder_name(pipe_config->mst_master_transcoder));
+
 	drm_dbg_kms(&dev_priv->drm,
 		    "port sync: master transcoder: %s, slave transcoder bitmask = 0x%x\n",
 		    transcoder_name(pipe_config->master_transcoder),
@@ -13242,9 +13245,6 @@ static void intel_dump_pipe_config(const struct intel_crtc_state *pipe_config,
 			    "csc_mode: 0x%x gamma_mode: 0x%x gamma_enable: %d csc_enable: %d\n",
 			    pipe_config->csc_mode, pipe_config->gamma_mode,
 			    pipe_config->gamma_enable, pipe_config->csc_enable);
-
-	drm_dbg_kms(&dev_priv->drm, "MST master transcoder: %s\n",
-		    transcoder_name(pipe_config->mst_master_transcoder));
 
 dump_planes:
 	if (!state)
