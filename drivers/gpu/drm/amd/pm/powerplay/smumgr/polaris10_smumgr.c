@@ -2470,7 +2470,8 @@ static uint32_t polaris10_get_mac_definition(uint32_t value)
 	case SMU_MAX_LEVELS_MVDD:
 		return SMU74_MAX_LEVELS_MVDD;
 	case SMU_UVD_MCLK_HANDSHAKE_DISABLE:
-		return SMU7_UVD_MCLK_HANDSHAKE_DISABLE;
+		return SMU7_UVD_MCLK_HANDSHAKE_DISABLE |
+				SMU7_VCE_MCLK_HANDSHAKE_DISABLE;
 	}
 
 	pr_warn("can't get the mac of %x\n", value);

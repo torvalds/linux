@@ -1148,7 +1148,8 @@ static int smu7_enable_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 
 	/* enable SCLK dpm */
 	if (!data->sclk_dpm_key_disabled) {
-		if (hwmgr->chip_id == CHIP_VEGAM)
+		if (hwmgr->chip_id >= CHIP_POLARIS10 &&
+		    hwmgr->chip_id <= CHIP_VEGAM)
 			smu7_disable_sclk_vce_handshake(hwmgr);
 
 		PP_ASSERT_WITH_CODE(
@@ -1169,7 +1170,11 @@ static int smu7_enable_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 				"Failed to enable MCLK DPM during DPM Start Function!",
 				return -EINVAL);
 
-		if (hwmgr->chip_family != CHIP_VEGAM)
+		if ((hwmgr->chip_family == AMDGPU_FAMILY_CI) ||
+		    (hwmgr->chip_id == CHIP_POLARIS10) ||
+		    (hwmgr->chip_id == CHIP_POLARIS11) ||
+		    (hwmgr->chip_id == CHIP_POLARIS12) ||
+		    (hwmgr->chip_id == CHIP_TONGA))
 			PHM_WRITE_FIELD(hwmgr->device, MC_SEQ_CNTL_3, CAC_EN, 0x1);
 
 
