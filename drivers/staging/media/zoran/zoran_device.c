@@ -1109,22 +1109,6 @@ irqreturn_t zoran_irq(int irq, void *dev_id)
 	struct zoran *zr = dev_id;
 	unsigned long flags;
 
-	if (zr->testing) {
-		/* Testing interrupts */
-		spin_lock_irqsave(&zr->spinlock, flags);
-		while ((stat = count_reset_interrupt(zr))) {
-			if (count++ > 100) {
-				btand(~ZR36057_ICR_IntPinEn, ZR36057_ICR);
-				pci_err(zr->pci_dev, "IRQ lockup while testing, isr=0x%08x, cleared int mask\n",
-					stat);
-				wake_up_interruptible(&zr->test_q);
-			}
-		}
-		zr->last_isr = stat;
-		spin_unlock_irqrestore(&zr->spinlock, flags);
-		return IRQ_HANDLED;
-	}
-
 	spin_lock_irqsave(&zr->spinlock, flags);
 	while (1) {
 		/* get/clear interrupt status bits */

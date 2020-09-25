@@ -858,31 +858,6 @@ void zoran_open_init_params(struct zoran *zr)
 		pci_err(zr->pci_dev, "%s internal error\n", __func__);
 
 	clear_interrupt_counters(zr);
-	zr->testing = 0;
-}
-
-static void test_interrupts(struct zoran *zr)
-{
-	DEFINE_WAIT(wait);
-	int timeout, icr;
-
-	clear_interrupt_counters(zr);
-
-	zr->testing = 1;
-	icr = btread(ZR36057_ICR);
-	btwrite(0x78000000 | ZR36057_ICR_IntPinEn, ZR36057_ICR);
-	prepare_to_wait(&zr->test_q, &wait, TASK_INTERRUPTIBLE);
-	timeout = schedule_timeout(HZ);
-	finish_wait(&zr->test_q, &wait);
-	btwrite(0, ZR36057_ICR);
-	btwrite(0x78000000, ZR36057_ISR);
-	zr->testing = 0;
-	pci_info(zr->pci_dev, "Testing interrupts...\n");
-	if (timeout)
-		pci_info(zr->pci_dev, ": time spent: %d\n", 1 * HZ - timeout);
-	if (zr36067_debug > 1)
-		print_interrupts(zr);
-	btwrite(icr, ZR36057_ICR);
 }
 
 static int zr36057_init(struct zoran *zr)
@@ -896,7 +871,6 @@ static int zr36057_init(struct zoran *zr)
 
 	init_waitqueue_head(&zr->v4l_capq);
 	init_waitqueue_head(&zr->jpg_capq);
-	init_waitqueue_head(&zr->test_q);
 	zr->jpg_buffers.allocated = 0;
 	zr->v4l_buffers.allocated = 0;
 
@@ -977,7 +951,6 @@ static int zr36057_init(struct zoran *zr)
 	zoran_init_hardware(zr);
 	if (zr36067_debug > 2)
 		detect_guest_activity(zr);
-	test_interrupts(zr);
 	if (!pass_through) {
 		decoder_call(zr, video, s_stream, 0);
 		encoder_call(zr, video, s_routing, 2, 0, 0);

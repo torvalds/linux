@@ -345,7 +345,6 @@ struct zoran {
 	struct zoran_buffer_col jpg_buffers;	/* MJPEG buffers' info */
 
 	/* Additional stuff for testing */
-	int testing;
 	int jpeg_error;
 	int intr_counter_GIRQ1;
 	int intr_counter_GIRQ0;
@@ -371,8 +370,6 @@ struct zoran {
 	unsigned long frame_num;
 	int running;
 	int buf_in_reserve;
-
-	wait_queue_head_t test_q;
 
 	dma_addr_t p_sc;
 	__le32 *stat_comb;
