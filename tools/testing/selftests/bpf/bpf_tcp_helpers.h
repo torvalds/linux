@@ -16,6 +16,7 @@ BPF_PROG(name, args)
 
 struct sock_common {
 	unsigned char	skc_state;
+	__u16		skc_num;
 } __attribute__((preserve_access_index));
 
 enum sk_pacing {
@@ -43,6 +44,10 @@ struct inet_connection_sock {
 		__u8		  pending;
 	} icsk_ack;
 	__u64			  icsk_ca_priv[104 / sizeof(__u64)];
+} __attribute__((preserve_access_index));
+
+struct request_sock {
+	struct sock_common		__req_common;
 } __attribute__((preserve_access_index));
 
 struct tcp_sock {
