@@ -34,8 +34,8 @@ struct aspeed_lpc_ctrl {
 	struct clk		*clk;
 	phys_addr_t		mem_base;
 	resource_size_t		mem_size;
-	u32		pnor_size;
-	u32		pnor_base;
+	u32			pnor_size;
+	u32			pnor_base;
 	bool			fwh2ahb;
 };
 
