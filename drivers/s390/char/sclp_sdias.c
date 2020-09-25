@@ -275,9 +275,3 @@ out:
 	TRACE("init done\n");
 	return 0;
 }
-
-void __exit sclp_sdias_exit(void)
-{
-	debug_unregister(sdias_dbf);
-	sclp_unregister(&sclp_sdias_register);
-}

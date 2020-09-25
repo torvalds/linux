@@ -305,9 +305,7 @@ int sclp_deactivate(void);
 int sclp_reactivate(void);
 int sclp_sync_request(sclp_cmdw_t command, void *sccb);
 int sclp_sync_request_timeout(sclp_cmdw_t command, void *sccb, int timeout);
-
 int sclp_sdias_init(void);
-void sclp_sdias_exit(void);
 
 enum {
 	sclp_init_state_uninitialized,
