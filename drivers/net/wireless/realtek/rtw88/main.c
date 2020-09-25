@@ -317,6 +317,56 @@ void rtw_sta_remove(struct rtw_dev *rtwdev, struct ieee80211_sta *sta,
 		 sta->addr, si->mac_id);
 }
 
+static bool rtw_fw_dump_crash_log(struct rtw_dev *rtwdev)
+{
+	u32 size = rtwdev->chip->fw_rxff_size;
+	u32 *buf;
+	u8 seq;
+	bool ret = true;
+
+	buf = vmalloc(size);
+	if (!buf)
+		goto exit;
+
+	if (rtw_fw_dump_fifo(rtwdev, RTW_FW_FIFO_SEL_RXBUF_FW, 0, size, buf)) {
+		rtw_dbg(rtwdev, RTW_DBG_FW, "dump fw fifo fail\n");
+		goto free_buf;
+	}
+
+	if (GET_FW_DUMP_LEN(buf) == 0) {
+		rtw_dbg(rtwdev, RTW_DBG_FW, "fw crash dump's length is 0\n");
+		goto free_buf;
+	}
+
+	seq = GET_FW_DUMP_SEQ(buf);
+	if (seq > 0 && seq != (rtwdev->fw.prev_dump_seq + 1)) {
+		rtw_dbg(rtwdev, RTW_DBG_FW,
+			"fw crash dump's seq is wrong: %d\n", seq);
+		goto free_buf;
+	}
+	if (seq == 0 &&
+	    (GET_FW_DUMP_TLV_TYPE(buf) != FW_CD_TYPE ||
+	     GET_FW_DUMP_TLV_LEN(buf) != FW_CD_LEN ||
+	     GET_FW_DUMP_TLV_VAL(buf) != FW_CD_VAL)) {
+		rtw_dbg(rtwdev, RTW_DBG_FW, "fw crash dump's tlv is wrong\n");
+		goto free_buf;
+	}
+
+	print_hex_dump_bytes("rtw88 fw dump: ", DUMP_PREFIX_OFFSET, buf, size);
+
+	if (GET_FW_DUMP_MORE(buf) == 1) {
+		rtwdev->fw.prev_dump_seq = seq;
+		ret = false;
+	}
+
+free_buf:
+	vfree(buf);
+exit:
+	rtw_write8(rtwdev, REG_MCU_TST_CFG, 0);
+
+	return ret;
+}
+
 void rtw_vif_assoc_changed(struct rtw_vif *rtwvif,
 			   struct ieee80211_bss_conf *conf)
 {
@@ -372,6 +422,17 @@ static void rtw_fw_recovery_work(struct work_struct *work)
 {
 	struct rtw_dev *rtwdev = container_of(work, struct rtw_dev,
 					      fw_recovery_work);
+
+	/* rtw_fw_dump_crash_log() returns false indicates that there are
+	 * still more log to dump. Driver set 0x1cf[7:0] = 0x1 to tell firmware
+	 * to dump the remaining part of the log, and firmware will trigger an
+	 * IMR_C2HCMD interrupt to inform driver the log is ready.
+	 */
+	if (!rtw_fw_dump_crash_log(rtwdev)) {
+		rtw_write8(rtwdev, REG_HRCV_MSG, 1);
+		return;
+	}
+	rtwdev->fw.prev_dump_seq = 0;
 
 	WARN(1, "firmware crash, start reset and recover\n");
 

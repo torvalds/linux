@@ -1621,6 +1621,9 @@ struct rtw_fifo_conf {
 	const struct rtw_rqpn *rqpn;
 };
 
+#define FW_CD_TYPE 0xffff
+#define FW_CD_LEN 4
+#define FW_CD_VAL 0xaabbccdd
 struct rtw_fw_state {
 	const struct firmware *firmware;
 	struct rtw_dev *rtwdev;
@@ -1629,6 +1632,7 @@ struct rtw_fw_state {
 	u8 sub_version;
 	u8 sub_index;
 	u16 h2c_version;
+	u8 prev_dump_seq;
 };
 
 struct rtw_hal {

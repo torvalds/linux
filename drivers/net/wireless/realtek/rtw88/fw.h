@@ -507,6 +507,20 @@ static inline void rtw_h2c_pkt_set_header(u8 *h2c_pkt, u8 sub_id)
 #define SET_NLO_LOC_NLO_INFO(h2c_pkt, value)                                   \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, GENMASK(23, 16))
 
+#define GET_FW_DUMP_LEN(_header)					\
+	le32_get_bits(*((__le32 *)(_header) + 0x00), GENMASK(15, 0))
+#define GET_FW_DUMP_SEQ(_header)					\
+	le32_get_bits(*((__le32 *)(_header) + 0x00), GENMASK(22, 16))
+#define GET_FW_DUMP_MORE(_header)					\
+	le32_get_bits(*((__le32 *)(_header) + 0x00), BIT(23))
+#define GET_FW_DUMP_VERSION(_header)					\
+	le32_get_bits(*((__le32 *)(_header) + 0x00), GENMASK(31, 24))
+#define GET_FW_DUMP_TLV_TYPE(_header)					\
+	le32_get_bits(*((__le32 *)(_header) + 0x01), GENMASK(15, 0))
+#define GET_FW_DUMP_TLV_LEN(_header)					\
+	le32_get_bits(*((__le32 *)(_header) + 0x01), GENMASK(31, 16))
+#define GET_FW_DUMP_TLV_VAL(_header)					\
+	le32_get_bits(*((__le32 *)(_header) + 0x02), GENMASK(31, 0))
 static inline struct rtw_c2h_cmd *get_c2h_from_skb(struct sk_buff *skb)
 {
 	u32 pkt_offset;

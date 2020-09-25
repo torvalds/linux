@@ -619,6 +619,8 @@
 #define BIT_ANAPAR_BTPS	BIT(22)
 #define REG_RSTB_SEL	0x1c38
 
+#define REG_HRCV_MSG	0x1cf
+
 #define REG_IGN_GNTBT4	0x4160
 
 #define RF_MODE		0x00
