@@ -409,10 +409,10 @@ static void test(void)
 	check_result();
 }
 
-int main(int argc, char **argv)
+void test_sock_fields(void)
 {
 	struct bpf_prog_load_attr attr = {
-		.file = "test_sock_fields_kern.o",
+		.file = "test_sock_fields.o",
 		.prog_type = BPF_PROG_TYPE_CGROUP_SKB,
 		.prog_flags = BPF_F_TEST_RND_HI32,
 	};
@@ -477,6 +477,4 @@ int main(int argc, char **argv)
 	cleanup_cgroup_environment();
 
 	printf("PASS\n");
-
-	return 0;
 }
