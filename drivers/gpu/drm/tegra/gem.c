@@ -149,11 +149,12 @@ static void *tegra_bo_mmap(struct host1x_bo *bo)
 static void tegra_bo_munmap(struct host1x_bo *bo, void *addr)
 {
 	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
+	struct dma_buf_map map = DMA_BUF_MAP_INIT_VADDR(addr);
 
 	if (obj->vaddr)
 		return;
 	else if (obj->gem.import_attach)
-		dma_buf_vunmap(obj->gem.import_attach->dmabuf, addr);
+		dma_buf_vunmap(obj->gem.import_attach->dmabuf, &map);
 	else
 		vunmap(addr);
 }
@@ -663,7 +664,7 @@ static int tegra_gem_prime_vmap(struct dma_buf *buf, struct dma_buf_map *map)
 	return 0;
 }
 
-static void tegra_gem_prime_vunmap(struct dma_buf *buf, void *vaddr)
+static void tegra_gem_prime_vunmap(struct dma_buf *buf, struct dma_buf_map *map)
 {
 }
 

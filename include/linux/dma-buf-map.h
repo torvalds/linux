@@ -24,6 +24,16 @@ struct dma_buf_map {
 };
 
 /**
+ * DMA_BUF_MAP_INIT_VADDR - Initializes struct dma_buf_map to an address in system memory
+ * @vaddr:	A system-memory address
+ */
+#define DMA_BUF_MAP_INIT_VADDR(vaddr_) \
+	{ \
+		.vaddr = (vaddr_), \
+		.is_iomem = false, \
+	}
+
+/**
  * dma_buf_map_set_vaddr - Sets a dma-buf mapping structure to an address in system memory
  * @map:	The dma-buf mapping structure
  * @vaddr:	A system-memory address
@@ -36,10 +46,26 @@ static inline void dma_buf_map_set_vaddr(struct dma_buf_map *map, void *vaddr)
 	map->is_iomem = false;
 }
 
-/* API transition helper */
-static inline bool dma_buf_map_is_vaddr(const struct dma_buf_map *map, const void *vaddr)
+/**
+ * dma_buf_map_is_equal - Compares two dma-buf mapping structures for equality
+ * @lhs:	The dma-buf mapping structure
+ * @rhs:	A dma-buf mapping structure to compare with
+ *
+ * Two dma-buf mapping structures are equal if they both refer to the same type of memory
+ * and to the same address within that memory.
+ *
+ * Returns:
+ * True is both structures are equal, or false otherwise.
+ */
+static inline bool dma_buf_map_is_equal(const struct dma_buf_map *lhs,
+					const struct dma_buf_map *rhs)
 {
-	return !map->is_iomem && (map->vaddr == vaddr);
+	if (lhs->is_iomem != rhs->is_iomem)
+		return false;
+	else if (lhs->is_iomem)
+		return lhs->vaddr_iomem == rhs->vaddr_iomem;
+	else
+		return lhs->vaddr == rhs->vaddr;
 }
 
 /**

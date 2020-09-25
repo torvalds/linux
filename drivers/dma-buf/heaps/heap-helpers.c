@@ -252,7 +252,7 @@ static int dma_heap_dma_buf_vmap(struct dma_buf *dmabuf, struct dma_buf_map *map
 	return 0;
 }
 
-static void dma_heap_dma_buf_vunmap(struct dma_buf *dmabuf, void *vaddr)
+static void dma_heap_dma_buf_vunmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
 {
 	struct heap_helper_buffer *buffer = dmabuf->priv;
 

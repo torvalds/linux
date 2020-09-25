@@ -337,6 +337,7 @@ EXPORT_SYMBOL(drm_gem_shmem_vmap);
 static void drm_gem_shmem_vunmap_locked(struct drm_gem_shmem_object *shmem)
 {
 	struct drm_gem_object *obj = &shmem->base;
+	struct dma_buf_map map = DMA_BUF_MAP_INIT_VADDR(shmem->vaddr);
 
 	if (WARN_ON_ONCE(!shmem->vmap_use_count))
 		return;
@@ -345,7 +346,7 @@ static void drm_gem_shmem_vunmap_locked(struct drm_gem_shmem_object *shmem)
 		return;
 
 	if (obj->import_attach)
-		dma_buf_vunmap(obj->import_attach->dmabuf, shmem->vaddr);
+		dma_buf_vunmap(obj->import_attach->dmabuf, &map);
 	else
 		vunmap(shmem->vaddr);
 

@@ -175,13 +175,12 @@ drm_gem_cma_create_with_handle(struct drm_file *file_priv,
  */
 void drm_gem_cma_free_object(struct drm_gem_object *gem_obj)
 {
-	struct drm_gem_cma_object *cma_obj;
-
-	cma_obj = to_drm_gem_cma_obj(gem_obj);
+	struct drm_gem_cma_object *cma_obj = to_drm_gem_cma_obj(gem_obj);
+	struct dma_buf_map map = DMA_BUF_MAP_INIT_VADDR(cma_obj->vaddr);
 
 	if (gem_obj->import_attach) {
 		if (cma_obj->vaddr)
-			dma_buf_vunmap(gem_obj->import_attach->dmabuf, cma_obj->vaddr);
+			dma_buf_vunmap(gem_obj->import_attach->dmabuf, &map);
 		drm_prime_gem_destroy(gem_obj, cma_obj->sgt);
 	} else if (cma_obj->vaddr) {
 		dma_free_wc(gem_obj->dev->dev, cma_obj->base.size,
@@ -645,7 +644,7 @@ drm_gem_cma_prime_import_sg_table_vmap(struct drm_device *dev,
 
 	obj = drm_gem_cma_prime_import_sg_table(dev, attach, sgt);
 	if (IS_ERR(obj)) {
-		dma_buf_vunmap(attach->dmabuf, map.vaddr);
+		dma_buf_vunmap(attach->dmabuf, &map);
 		return obj;
 	}
 
