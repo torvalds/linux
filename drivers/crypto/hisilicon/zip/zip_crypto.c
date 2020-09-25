@@ -454,7 +454,7 @@ static int add_comp_head(struct scatterlist *dst, u8 req_type)
 	return head_size;
 }
 
-static size_t get_gzip_head_size(struct scatterlist *sgl)
+static size_t __maybe_unused get_gzip_head_size(struct scatterlist *sgl)
 {
 	char buf[HZIP_GZIP_HEAD_BUF];
 
@@ -463,13 +463,20 @@ static size_t get_gzip_head_size(struct scatterlist *sgl)
 	return __get_gzip_head_size(buf);
 }
 
-static size_t get_comp_head_size(struct scatterlist *src, u8 req_type)
+static int  get_comp_head_size(struct acomp_req *acomp_req, u8 req_type)
 {
+	if (!acomp_req->src || !acomp_req->slen)
+		return -EINVAL;
+
+	if ((req_type == HZIP_ALG_TYPE_GZIP) &&
+	    (acomp_req->slen < GZIP_HEAD_FEXTRA_SHIFT))
+		return -EINVAL;
+
 	switch (req_type) {
 	case HZIP_ALG_TYPE_ZLIB:
 		return TO_HEAD_SIZE(HZIP_ALG_TYPE_ZLIB);
 	case HZIP_ALG_TYPE_GZIP:
-		return get_gzip_head_size(src);
+		return TO_HEAD_SIZE(HZIP_ALG_TYPE_GZIP);
 	default:
 		pr_err("request type does not support!\n");
 		return -EINVAL;
@@ -606,10 +613,14 @@ static int hisi_zip_adecompress(struct acomp_req *acomp_req)
 	struct hisi_zip_qp_ctx *qp_ctx = &ctx->qp_ctx[HZIP_QPC_DECOMP];
 	struct device *dev = &qp_ctx->qp->qm->pdev->dev;
 	struct hisi_zip_req *req;
-	size_t head_size;
-	int ret;
+	int head_size, ret;
 
-	head_size = get_comp_head_size(acomp_req->src, qp_ctx->qp->req_type);
+	head_size = get_comp_head_size(acomp_req, qp_ctx->qp->req_type);
+	if (head_size < 0) {
+		dev_err_ratelimited(dev, "failed to get comp head size (%d)!\n",
+				    head_size);
+		return head_size;
+	}
 
 	req = hisi_zip_create_req(acomp_req, qp_ctx, head_size, false);
 	if (IS_ERR(req))
