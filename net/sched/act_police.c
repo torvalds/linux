@@ -201,8 +201,6 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 	if (new)
 		kfree_rcu(new, rcu);
 
-	if (ret == ACT_P_CREATED)
-		tcf_idr_insert(tn, *a);
 	return ret;
 
 failure:
