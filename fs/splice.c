@@ -33,7 +33,6 @@
 #include <linux/security.h>
 #include <linux/gfp.h>
 #include <linux/socket.h>
-#include <linux/compat.h>
 #include <linux/sched/signal.h>
 
 #include "internal.h"
@@ -1332,20 +1331,6 @@ static int vmsplice_type(struct fd f, int *type)
  * Currently we punt and implement it as a normal copy, see pipe_to_user().
  *
  */
-static long do_vmsplice(struct file *f, struct iov_iter *iter, unsigned int flags)
-{
-	if (unlikely(flags & ~SPLICE_F_ALL))
-		return -EINVAL;
-
-	if (!iov_iter_count(iter))
-		return 0;
-
-	if (iov_iter_rw(iter) == WRITE)
-		return vmsplice_to_pipe(f, iter, flags);
-	else
-		return vmsplice_to_user(f, iter, flags);
-}
-
 SYSCALL_DEFINE4(vmsplice, int, fd, const struct iovec __user *, uiov,
 		unsigned long, nr_segs, unsigned int, flags)
 {
@@ -1356,6 +1341,9 @@ SYSCALL_DEFINE4(vmsplice, int, fd, const struct iovec __user *, uiov,
 	struct fd f;
 	int type;
 
+	if (unlikely(flags & ~SPLICE_F_ALL))
+		return -EINVAL;
+
 	f = fdget(fd);
 	error = vmsplice_type(f, &type);
 	if (error)
@@ -1363,40 +1351,21 @@ SYSCALL_DEFINE4(vmsplice, int, fd, const struct iovec __user *, uiov,
 
 	error = import_iovec(type, uiov, nr_segs,
 			     ARRAY_SIZE(iovstack), &iov, &iter);
-	if (error >= 0) {
-		error = do_vmsplice(f.file, &iter, flags);
-		kfree(iov);
-	}
+	if (error < 0)
+		goto out_fdput;
+
+	if (!iov_iter_count(&iter))
+		error = 0;
+	else if (iov_iter_rw(&iter) == WRITE)
+		error = vmsplice_to_pipe(f.file, &iter, flags);
+	else
+		error = vmsplice_to_user(f.file, &iter, flags);
+
+	kfree(iov);
+out_fdput:
 	fdput(f);
 	return error;
 }
-
-#ifdef CONFIG_COMPAT
-COMPAT_SYSCALL_DEFINE4(vmsplice, int, fd, const struct compat_iovec __user *, iov32,
-		    unsigned int, nr_segs, unsigned int, flags)
-{
-	struct iovec iovstack[UIO_FASTIOV];
-	struct iovec *iov = iovstack;
-	struct iov_iter iter;
-	ssize_t error;
-	struct fd f;
-	int type;
-
-	f = fdget(fd);
-	error = vmsplice_type(f, &type);
-	if (error)
-		return error;
-
-	error = import_iovec(type, (struct iovec __user *)iov32, nr_segs,
-			     ARRAY_SIZE(iovstack), &iov, &iter);
-	if (error >= 0) {
-		error = do_vmsplice(f.file, &iter, flags);
-		kfree(iov);
-	}
-	fdput(f);
-	return error;
-}
-#endif
 
 SYSCALL_DEFINE6(splice, int, fd_in, loff_t __user *, off_in,
 		int, fd_out, loff_t __user *, off_out,

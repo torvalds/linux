@@ -330,7 +330,7 @@
 292	32	sync_file_range		parisc_sync_file_range
 292	64	sync_file_range		sys_sync_file_range
 293	common	tee			sys_tee
-294	common	vmsplice		sys_vmsplice			compat_sys_vmsplice
+294	common	vmsplice		sys_vmsplice
 295	common	move_pages		sys_move_pages			compat_sys_move_pages
 296	common	getcpu			sys_getcpu
 297	common	epoll_pwait		sys_epoll_pwait			compat_sys_epoll_pwait

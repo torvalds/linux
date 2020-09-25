@@ -38,7 +38,7 @@
 23	64    	setuid			sys_setuid
 24	32	getuid			sys_getuid16
 24	64   	getuid			sys_getuid
-25	common	vmsplice		sys_vmsplice			compat_sys_vmsplice
+25	common	vmsplice		sys_vmsplice
 26	common	ptrace			sys_ptrace			compat_sys_ptrace
 27	common	alarm			sys_alarm
 28	common	sigaltstack		sys_sigaltstack			compat_sys_sigaltstack

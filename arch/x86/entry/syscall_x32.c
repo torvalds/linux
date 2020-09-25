@@ -16,6 +16,7 @@
 #define __x32_sys_writev	__x64_sys_writev
 #define __x32_sys_getsockopt	__x64_sys_getsockopt
 #define __x32_sys_setsockopt	__x64_sys_setsockopt
+#define __x32_sys_vmsplice	__x64_sys_vmsplice
 
 #define __SYSCALL_64(nr, sym)
 

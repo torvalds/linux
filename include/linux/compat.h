@@ -597,10 +597,6 @@ asmlinkage long compat_sys_signalfd4(int ufd,
 				     const compat_sigset_t __user *sigmask,
 				     compat_size_t sigsetsize, int flags);
 
-/* fs/splice.c */
-asmlinkage long compat_sys_vmsplice(int fd, const struct compat_iovec __user *,
-				    unsigned int nr_segs, unsigned int flags);
-
 /* fs/stat.c */
 asmlinkage long compat_sys_newfstatat(unsigned int dfd,
 				      const char __user *filename,
