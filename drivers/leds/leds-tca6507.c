@@ -747,7 +747,7 @@ tca6507_led_dt_init(struct i2c_client *client)
 	return pdata;
 }
 
-static const struct of_device_id of_tca6507_leds_match[] = {
+static const struct of_device_id __maybe_unused of_tca6507_leds_match[] = {
 	{ .compatible = "ti,tca6507", },
 	{},
 };
