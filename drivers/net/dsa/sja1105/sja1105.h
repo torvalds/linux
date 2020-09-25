@@ -218,6 +218,7 @@ struct sja1105_private {
 	struct mutex mgmt_lock;
 	struct dsa_8021q_context *dsa_8021q_ctx;
 	enum sja1105_vlan_state vlan_state;
+	struct devlink_region **regions;
 	struct sja1105_cbs_entry *cbs;
 	struct sja1105_tagger_data tagger_data;
 	struct sja1105_ptp_data ptp_data;
@@ -265,6 +266,8 @@ int sja1105_xfer_u32(const struct sja1105_private *priv,
 int sja1105_xfer_u64(const struct sja1105_private *priv,
 		     sja1105_spi_rw_mode_t rw, u64 reg_addr, u64 *value,
 		     struct ptp_system_timestamp *ptp_sts);
+int static_config_buf_prepare_for_upload(struct sja1105_private *priv,
+					 void *config_buf, int buf_len);
 int sja1105_static_config_upload(struct sja1105_private *priv);
 int sja1105_inhibit_tx(const struct sja1105_private *priv,
 		       unsigned long port_bitmap, bool tx_inhibited);
