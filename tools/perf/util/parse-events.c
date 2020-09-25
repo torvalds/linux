@@ -940,12 +940,12 @@ do {					\
 }
 
 int parse_events_add_breakpoint(struct list_head *list, int *idx,
-				void *ptr, char *type, u64 len)
+				u64 addr, char *type, u64 len)
 {
 	struct perf_event_attr attr;
 
 	memset(&attr, 0, sizeof(attr));
-	attr.bp_addr = (unsigned long) ptr;
+	attr.bp_addr = addr;
 
 	if (parse_breakpoint_type(type, &attr))
 		return -EINVAL;
