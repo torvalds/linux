@@ -217,7 +217,6 @@ struct zoran_fh {
 
 	struct zoran_buffer_col buffers;	/* buffers' info */
 
-	struct zoran_v4l_settings v4l_settings;	/* structure with a lot of things to play with */
 	struct zoran_jpg_settings jpg_settings;	/* structure with a lot of things to play with */
 };
 

@@ -432,10 +432,10 @@ static int zoran_v4l_set_format(struct zoran_fh *fh, int width, int height,
 		return -EINVAL;
 	}
 
-	fh->v4l_settings.width = width;
-	fh->v4l_settings.height = height;
-	fh->v4l_settings.format = format;
-	fh->v4l_settings.bytesperline = bpp * fh->v4l_settings.width;
+	zr->v4l_settings.width = width;
+	zr->v4l_settings.height = height;
+	zr->v4l_settings.format = format;
+	zr->v4l_settings.bytesperline = bpp * zr->v4l_settings.width;
 
 	return 0;
 }
@@ -489,7 +489,7 @@ static int zoran_v4l_queue_frame(struct zoran_fh *fh, int num)
 			zr->v4l_pend[zr->v4l_pend_head++ & V4L_MASK_FRAME] = num;
 			zr->v4l_buffers.buffer[num].state = BUZ_STATE_PEND;
 			zr->v4l_buffers.buffer[num].bs.length =
-			    fh->v4l_settings.bytesperline *
+			    zr->v4l_settings.bytesperline *
 			    zr->v4l_settings.height;
 			fh->buffers.buffer[num] = zr->v4l_buffers.buffer[num];
 			break;
@@ -751,8 +751,6 @@ static void zoran_open_init_session(struct zoran_fh *fh)
 	fh->overlay_settings.format = zr->overlay_settings.format;
 	fh->overlay_active = ZORAN_FREE;
 
-	/* v4l settings */
-	fh->v4l_settings = zr->v4l_settings;
 	/* jpg settings */
 	fh->jpg_settings = zr->jpg_settings;
 
@@ -1205,7 +1203,7 @@ static int zoran_v4l2_buffer_status(struct zoran_fh *fh,
 			buf->flags |= V4L2_BUF_FLAG_QUEUED;
 		}
 
-		if (fh->v4l_settings.height <= BUZ_MAX_HEIGHT / 2)
+		if (zr->v4l_settings.height <= BUZ_MAX_HEIGHT / 2)
 			buf->field = V4L2_FIELD_TOP;
 		else
 			buf->field = V4L2_FIELD_INTERLACED;
@@ -1421,14 +1419,13 @@ static int zoran_g_fmt_vid_cap(struct file *file, void *__fh,
 	if (fh->map_mode != ZORAN_MAP_MODE_RAW)
 		return zoran_g_fmt_vid_out(file, fh, fmt);
 
-	fmt->fmt.pix.width = fh->v4l_settings.width;
-	fmt->fmt.pix.height = fh->v4l_settings.height;
-	fmt->fmt.pix.sizeimage = fh->v4l_settings.bytesperline *
-					fh->v4l_settings.height;
-	fmt->fmt.pix.pixelformat = fh->v4l_settings.format->fourcc;
-	fmt->fmt.pix.colorspace = fh->v4l_settings.format->colorspace;
-	fmt->fmt.pix.bytesperline = fh->v4l_settings.bytesperline;
-	if (BUZ_MAX_HEIGHT < (fh->v4l_settings.height * 2))
+	fmt->fmt.pix.width = zr->v4l_settings.width;
+	fmt->fmt.pix.height = zr->v4l_settings.height;
+	fmt->fmt.pix.sizeimage = zr->v4l_settings.bytesperline * zr->v4l_settings.height;
+	fmt->fmt.pix.pixelformat = zr->v4l_settings.format->fourcc;
+	fmt->fmt.pix.colorspace = zr->v4l_settings.format->colorspace;
+	fmt->fmt.pix.bytesperline = zr->v4l_settings.bytesperline;
+	if (BUZ_MAX_HEIGHT < (zr->v4l_settings.height * 2))
 		fmt->fmt.pix.field = V4L2_FIELD_INTERLACED;
 	else
 		fmt->fmt.pix.field = V4L2_FIELD_TOP;
@@ -1698,10 +1695,10 @@ static int zoran_s_fmt_vid_cap(struct file *file, void *__fh,
 		return res;
 
 	/* tell the user the results/missing stuff */
-	fmt->fmt.pix.bytesperline = fh->v4l_settings.bytesperline;
-	fmt->fmt.pix.sizeimage = fh->v4l_settings.height * fh->v4l_settings.bytesperline;
-	fmt->fmt.pix.colorspace = fh->v4l_settings.format->colorspace;
-	if (BUZ_MAX_HEIGHT < (fh->v4l_settings.height * 2))
+	fmt->fmt.pix.bytesperline = zr->v4l_settings.bytesperline;
+	fmt->fmt.pix.sizeimage = zr->v4l_settings.height * zr->v4l_settings.bytesperline;
+	fmt->fmt.pix.colorspace = zr->v4l_settings.format->colorspace;
+	if (BUZ_MAX_HEIGHT < (zr->v4l_settings.height * 2))
 		fmt->fmt.pix.field = V4L2_FIELD_INTERLACED;
 	else
 		fmt->fmt.pix.field = V4L2_FIELD_TOP;
@@ -1968,7 +1965,6 @@ static int zoran_streamon(struct file *file, void *__fh, enum v4l2_buf_type type
 		}
 
 		zr->v4l_buffers.active = fh->buffers.active = ZORAN_LOCKED;
-		zr->v4l_settings = fh->v4l_settings;
 
 		zr->v4l_sync_tail = zr->v4l_pend_tail;
 		if (!zr->v4l_memgrab_active &&
