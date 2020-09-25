@@ -2692,7 +2692,7 @@ union bpf_attr {
  *		result is from *reuse*\ **->socks**\ [] using the hash of the
  *		tuple.
  *
- * long bpf_tcp_check_syncookie(struct bpf_sock *sk, void *iph, u32 iph_len, struct tcphdr *th, u32 th_len)
+ * long bpf_tcp_check_syncookie(void *sk, void *iph, u32 iph_len, struct tcphdr *th, u32 th_len)
  * 	Description
  * 		Check whether *iph* and *th* contain a valid SYN cookie ACK for
  * 		the listening socket in *sk*.
@@ -2878,7 +2878,7 @@ union bpf_attr {
  *
  *		**-EAGAIN** if bpf program can try again.
  *
- * s64 bpf_tcp_gen_syncookie(struct bpf_sock *sk, void *iph, u32 iph_len, struct tcphdr *th, u32 th_len)
+ * s64 bpf_tcp_gen_syncookie(void *sk, void *iph, u32 iph_len, struct tcphdr *th, u32 th_len)
  *	Description
  *		Try to issue a SYN cookie for the packet with corresponding
  *		IP/TCP headers, *iph* and *th*, on the listening socket in *sk*.
