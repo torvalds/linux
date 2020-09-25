@@ -773,14 +773,141 @@ copy_nonpresent_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	return 0;
 }
 
-static inline void
+/*
+ * Copy a present and normal page if necessary.
+ *
+ * NOTE! The usual case is that this doesn't need to do
+ * anything, and can just return a positive value. That
+ * will let the caller know that it can just increase
+ * the page refcount and re-use the pte the traditional
+ * way.
+ *
+ * But _if_ we need to copy it because it needs to be
+ * pinned in the parent (and the child should get its own
+ * copy rather than just a reference to the same page),
+ * we'll do that here and return zero to let the caller
+ * know we're done.
+ *
+ * And if we need a pre-allocated page but don't yet have
+ * one, return a negative error to let the preallocation
+ * code know so that it can do so outside the page table
+ * lock.
+ */
+static inline int
+copy_present_page(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+		pte_t *dst_pte, pte_t *src_pte,
+		struct vm_area_struct *vma, struct vm_area_struct *new,
+		unsigned long addr, int *rss, struct page **prealloc,
+		pte_t pte, struct page *page)
+{
+	struct page *new_page;
+
+	if (!is_cow_mapping(vma->vm_flags))
+		return 1;
+
+	/*
+	 * The trick starts.
+	 *
+	 * What we want to do is to check whether this page may
+	 * have been pinned by the parent process.  If so,
+	 * instead of wrprotect the pte on both sides, we copy
+	 * the page immediately so that we'll always guarantee
+	 * the pinned page won't be randomly replaced in the
+	 * future.
+	 *
+	 * To achieve this, we do the following:
+	 *
+	 * 1. Write-protect the pte if it's writable.  This is
+	 *    to protect concurrent write fast-gup with
+	 *    FOLL_PIN, so that we'll fail the fast-gup with
+	 *    the write bit removed.
+	 *
+	 * 2. Check page_maybe_dma_pinned() to see whether this
+	 *    page may have been pinned.
+	 *
+	 * The order of these steps is important to serialize
+	 * against the fast-gup code (gup_pte_range()) on the
+	 * pte check and try_grab_compound_head(), so that
+	 * we'll make sure either we'll capture that fast-gup
+	 * so we'll copy the pinned page here, or we'll fail
+	 * that fast-gup.
+	 *
+	 * NOTE! Even if we don't end up copying the page,
+	 * we won't undo this wrprotect(), because the normal
+	 * reference copy will need it anyway.
+	 */
+	if (pte_write(pte))
+		ptep_set_wrprotect(src_mm, addr, src_pte);
+
+	/*
+	 * These are the "normally we can just copy by reference"
+	 * checks.
+	 */
+	if (likely(!atomic_read(&src_mm->has_pinned)))
+		return 1;
+	if (likely(!page_maybe_dma_pinned(page)))
+		return 1;
+
+	/*
+	 * Uhhuh. It looks like the page might be a pinned page,
+	 * and we actually need to copy it. Now we can set the
+	 * source pte back to being writable.
+	 */
+	if (pte_write(pte))
+		set_pte_at(src_mm, addr, src_pte, pte);
+
+	new_page = *prealloc;
+	if (!new_page)
+		return -EAGAIN;
+
+	/*
+	 * We have a prealloc page, all good!  Take it
+	 * over and copy the page & arm it.
+	 */
+	*prealloc = NULL;
+	copy_user_highpage(new_page, page, addr, vma);
+	__SetPageUptodate(new_page);
+	page_add_new_anon_rmap(new_page, new, addr, false);
+	lru_cache_add_inactive_or_unevictable(new_page, new);
+	rss[mm_counter(new_page)]++;
+
+	/* All done, just insert the new page copy in the child */
+	pte = mk_pte(new_page, new->vm_page_prot);
+	pte = maybe_mkwrite(pte_mkdirty(pte), new);
+	set_pte_at(dst_mm, addr, dst_pte, pte);
+	return 0;
+}
+
+/*
+ * Copy one pte.  Returns 0 if succeeded, or -EAGAIN if one preallocated page
+ * is required to copy this pte.
+ */
+static inline int
 copy_present_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 		pte_t *dst_pte, pte_t *src_pte, struct vm_area_struct *vma,
-		unsigned long addr, int *rss)
+		struct vm_area_struct *new,
+		unsigned long addr, int *rss, struct page **prealloc)
 {
 	unsigned long vm_flags = vma->vm_flags;
 	pte_t pte = *src_pte;
 	struct page *page;
+
+	page = vm_normal_page(vma, addr, pte);
+	if (page) {
+		int retval;
+
+		retval = copy_present_page(dst_mm, src_mm,
+			dst_pte, src_pte,
+			vma, new,
+			addr, rss, prealloc,
+			pte, page);
+		if (retval <= 0)
+			return retval;
+
+		get_page(page);
+		page_dup_rmap(page, false);
+		rss[mm_counter(page)]++;
+	}
 
 	/*
 	 * If it's a COW mapping, write protect it both
@@ -807,14 +934,27 @@ copy_present_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	if (!(vm_flags & VM_UFFD_WP))
 		pte = pte_clear_uffd_wp(pte);
 
-	page = vm_normal_page(vma, addr, pte);
-	if (page) {
-		get_page(page);
-		page_dup_rmap(page, false);
-		rss[mm_counter(page)]++;
-	}
-
 	set_pte_at(dst_mm, addr, dst_pte, pte);
+	return 0;
+}
+
+static inline struct page *
+page_copy_prealloc(struct mm_struct *src_mm, struct vm_area_struct *vma,
+		   unsigned long addr)
+{
+	struct page *new_page;
+
+	new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, addr);
+	if (!new_page)
+		return NULL;
+
+	if (mem_cgroup_charge(new_page, src_mm, GFP_KERNEL)) {
+		put_page(new_page);
+		return NULL;
+	}
+	cgroup_throttle_swaprate(new_page, GFP_KERNEL);
+
+	return new_page;
 }
 
 static int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
@@ -825,16 +965,20 @@ static int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	pte_t *orig_src_pte, *orig_dst_pte;
 	pte_t *src_pte, *dst_pte;
 	spinlock_t *src_ptl, *dst_ptl;
-	int progress = 0;
+	int progress, ret = 0;
 	int rss[NR_MM_COUNTERS];
 	swp_entry_t entry = (swp_entry_t){0};
+	struct page *prealloc = NULL;
 
 again:
+	progress = 0;
 	init_rss_vec(rss);
 
 	dst_pte = pte_alloc_map_lock(dst_mm, dst_pmd, addr, &dst_ptl);
-	if (!dst_pte)
-		return -ENOMEM;
+	if (!dst_pte) {
+		ret = -ENOMEM;
+		goto out;
+	}
 	src_pte = pte_offset_map(src_pmd, addr);
 	src_ptl = pte_lockptr(src_mm, src_pmd);
 	spin_lock_nested(src_ptl, SINGLE_DEPTH_NESTING);
@@ -866,8 +1010,25 @@ again:
 			progress += 8;
 			continue;
 		}
-		copy_present_pte(dst_mm, src_mm, dst_pte, src_pte,
-				 vma, addr, rss);
+		/* copy_present_pte() will clear `*prealloc' if consumed */
+		ret = copy_present_pte(dst_mm, src_mm, dst_pte, src_pte,
+				       vma, new, addr, rss, &prealloc);
+		/*
+		 * If we need a pre-allocated page for this pte, drop the
+		 * locks, allocate, and try again.
+		 */
+		if (unlikely(ret == -EAGAIN))
+			break;
+		if (unlikely(prealloc)) {
+			/*
+			 * pre-alloc page cannot be reused by next time so as
+			 * to strictly follow mempolicy (e.g., alloc_page_vma()
+			 * will allocate page according to address).  This
+			 * could only happen if one pinned pte changed.
+			 */
+			put_page(prealloc);
+			prealloc = NULL;
+		}
 		progress += 8;
 	} while (dst_pte++, src_pte++, addr += PAGE_SIZE, addr != end);
 
@@ -879,13 +1040,25 @@ again:
 	cond_resched();
 
 	if (entry.val) {
-		if (add_swap_count_continuation(entry, GFP_KERNEL) < 0)
+		if (add_swap_count_continuation(entry, GFP_KERNEL) < 0) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		entry.val = 0;
+	} else if (ret) {
+		WARN_ON_ONCE(ret != -EAGAIN);
+		prealloc = page_copy_prealloc(src_mm, vma, addr);
+		if (!prealloc)
 			return -ENOMEM;
-		progress = 0;
+		/* We've captured and resolved the error. Reset, try again. */
+		ret = 0;
 	}
 	if (addr != end)
 		goto again;
-	return 0;
+out:
+	if (unlikely(prealloc))
+		put_page(prealloc);
+	return ret;
 }
 
 static inline int copy_pmd_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
