@@ -50,7 +50,7 @@ static void __udf_adinicb_readpage(struct page *page)
 	 * So just sample it once and use the same value everywhere.
 	 */
 	kaddr = kmap_atomic(page);
-	memcpy(kaddr, iinfo->i_ext.i_data + iinfo->i_lenEAttr, isize);
+	memcpy(kaddr, iinfo->i_data + iinfo->i_lenEAttr, isize);
 	memset(kaddr + isize, 0, PAGE_SIZE - isize);
 	flush_dcache_page(page);
 	SetPageUptodate(page);
@@ -76,8 +76,7 @@ static int udf_adinicb_writepage(struct page *page,
 	BUG_ON(!PageLocked(page));
 
 	kaddr = kmap_atomic(page);
-	memcpy(iinfo->i_ext.i_data + iinfo->i_lenEAttr, kaddr,
-		i_size_read(inode));
+	memcpy(iinfo->i_data + iinfo->i_lenEAttr, kaddr, i_size_read(inode));
 	SetPageUptodate(page);
 	kunmap_atomic(kaddr);
 	mark_inode_dirty(inode);
@@ -215,7 +214,7 @@ long udf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return put_user(UDF_I(inode)->i_lenEAttr, (int __user *)arg);
 	case UDF_GETEABLOCK:
 		return copy_to_user((char __user *)arg,
-				    UDF_I(inode)->i_ext.i_data,
+				    UDF_I(inode)->i_data,
 				    UDF_I(inode)->i_lenEAttr) ? -EFAULT : 0;
 	default:
 		return -ENOIOCTLCMD;
