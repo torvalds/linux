@@ -1,23 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Zoran ZR36050 basic configuration functions
  *
  * Copyright (C) 2001 Wolfgang Scherr <scherr@net4you.at>
- *
- * $Id: zr36050.c,v 1.1.2.11 2003/08/03 14:54:53 rbultje Exp $
- *
- * ------------------------------------------------------------------------
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * ------------------------------------------------------------------------
  */
 
 #define ZR050_VERSION "v0.7.1"
@@ -64,36 +49,27 @@ MODULE_PARM_DESC(debug, "Debug level (0-4)");
    ========================================================================= */
 
 /* read and write functions */
-static u8
-zr36050_read (struct zr36050 *ptr,
-	      u16             reg)
+static u8 zr36050_read(struct zr36050 *ptr, u16 reg)
 {
 	u8 value = 0;
 
-	// just in case something is wrong...
+	/* just in case something is wrong... */
 	if (ptr->codec->master_data->readreg)
-		value = (ptr->codec->master_data->readreg(ptr->codec,
-							  reg)) & 0xFF;
+		value = (ptr->codec->master_data->readreg(ptr->codec, reg)) & 0xFF;
 	else
 		dprintk(1,
-			KERN_ERR "%s: invalid I/O setup, nothing read!\n",
-			ptr->name);
+			KERN_ERR "%s: invalid I/O setup, nothing read!\n", ptr->name);
 
-	dprintk(4, "%s: reading from 0x%04x: %02x\n", ptr->name, reg,
-		value);
+	dprintk(4, "%s: reading from 0x%04x: %02x\n", ptr->name, reg, value);
 
 	return value;
 }
 
-static void
-zr36050_write (struct zr36050 *ptr,
-	       u16             reg,
-	       u8              value)
+static void zr36050_write(struct zr36050 *ptr, u16 reg, u8 value)
 {
-	dprintk(4, "%s: writing 0x%02x to 0x%04x\n", ptr->name, value,
-		reg);
+	dprintk(4, "%s: writing 0x%02x to 0x%04x\n", ptr->name, value, reg);
 
-	// just in case something is wrong...
+	/* just in case something is wrong... */
 	if (ptr->codec->master_data->writereg)
 		ptr->codec->master_data->writereg(ptr->codec, reg, value);
 	else
@@ -110,8 +86,7 @@ zr36050_write (struct zr36050 *ptr,
    ========================================================================= */
 
 /* status is kept in datastructure */
-static u8
-zr36050_read_status1 (struct zr36050 *ptr)
+static u8 zr36050_read_status1(struct zr36050 *ptr)
 {
 	ptr->status1 = zr36050_read(ptr, ZR050_STATUS_1);
 
@@ -126,8 +101,7 @@ zr36050_read_status1 (struct zr36050 *ptr)
    ========================================================================= */
 
 /* scale factor is kept in datastructure */
-static u16
-zr36050_read_scalefactor (struct zr36050 *ptr)
+static u16 zr36050_read_scalefactor(struct zr36050 *ptr)
 {
 	ptr->scalefact = (zr36050_read(ptr, ZR050_SF_HI) << 8) |
 			 (zr36050_read(ptr, ZR050_SF_LO) & 0xFF);
@@ -143,8 +117,7 @@ zr36050_read_scalefactor (struct zr36050 *ptr)
    wait if codec is ready to proceed (end of processing) or time is over
    ========================================================================= */
 
-static void
-zr36050_wait_end (struct zr36050 *ptr)
+static void zr36050_wait_end(struct zr36050 *ptr)
 {
 	int i = 0;
 
@@ -165,8 +138,7 @@ zr36050_wait_end (struct zr36050 *ptr)
    basic test of "connectivity", writes/reads to/from memory the SOF marker
    ========================================================================= */
 
-static int
-zr36050_basic_test (struct zr36050 *ptr)
+static int zr36050_basic_test(struct zr36050 *ptr)
 {
 	zr36050_write(ptr, ZR050_SOF_IDX, 0x00);
 	zr36050_write(ptr, ZR050_SOF_IDX + 1, 0x00);
@@ -207,19 +179,14 @@ zr36050_basic_test (struct zr36050 *ptr)
    simple loop for pushing the init datasets
    ========================================================================= */
 
-static int
-zr36050_pushit (struct zr36050 *ptr,
-		u16             startreg,
-		u16             len,
-		const char     *data)
+static int zr36050_pushit(struct zr36050 *ptr, u16 startreg, u16 len, const char *data)
 {
 	int i = 0;
 
 	dprintk(4, "%s: write data block to 0x%04x (len=%d)\n", ptr->name,
 		startreg, len);
-	while (i < len) {
+	while (i < len)
 		zr36050_write(ptr, startreg++, data[i++]);
-	}
 
 	return i;
 }
@@ -338,8 +305,7 @@ static const char zr36050_decimation_v[8] = { 1, 1, 1, 0, 0, 0, 0, 0 };
 /* SOF (start of frame) segment depends on width, height and sampling ratio
 			 of each color component */
 
-static int
-zr36050_set_sof (struct zr36050 *ptr)
+static int zr36050_set_sof(struct zr36050 *ptr)
 {
 	char sof_data[34];	// max. size of register set
 	int i;
@@ -370,8 +336,7 @@ zr36050_set_sof (struct zr36050 *ptr)
 /* SOS (start of scan) segment depends on the used scan components
 			of each color component */
 
-static int
-zr36050_set_sos (struct zr36050 *ptr)
+static int zr36050_set_sos(struct zr36050 *ptr)
 {
 	char sos_data[16];	// max. size of register set
 	int i;
@@ -398,8 +363,7 @@ zr36050_set_sos (struct zr36050 *ptr)
 
 /* DRI (define restart interval) */
 
-static int
-zr36050_set_dri (struct zr36050 *ptr)
+static int zr36050_set_dri(struct zr36050 *ptr)
 {
 	char dri_data[6];	// max. size of register set
 
@@ -421,8 +385,7 @@ zr36050_set_dri (struct zr36050 *ptr)
 
    ... sorry for the spaghetti code ...
    ========================================================================= */
-static void
-zr36050_init (struct zr36050 *ptr)
+static void zr36050_init(struct zr36050 *ptr)
 {
 	int sum = 0;
 	long bitcnt, tmp;
@@ -577,11 +540,9 @@ zr36050_init (struct zr36050 *ptr)
 
 /* set compression/expansion mode and launches codec -
    this should be the last call from the master before starting processing */
-static int
-zr36050_set_mode (struct videocodec *codec,
-		  int                mode)
+static int zr36050_set_mode(struct videocodec *codec, int mode)
 {
-	struct zr36050 *ptr = (struct zr36050 *) codec->data;
+	struct zr36050 *ptr = (struct zr36050 *)codec->data;
 
 	dprintk(2, "%s: set_mode %d call\n", ptr->name, mode);
 
@@ -595,13 +556,10 @@ zr36050_set_mode (struct videocodec *codec,
 }
 
 /* set picture size (norm is ignored as the codec doesn't know about it) */
-static int
-zr36050_set_video (struct videocodec   *codec,
-		   struct tvnorm       *norm,
-		   struct vfe_settings *cap,
-		   struct vfe_polarity *pol)
+static int zr36050_set_video(struct videocodec *codec, struct tvnorm *norm,
+		   struct vfe_settings *cap, struct vfe_polarity *pol)
 {
-	struct zr36050 *ptr = (struct zr36050 *) codec->data;
+	struct zr36050 *ptr = (struct zr36050 *)codec->data;
 	int size;
 
 	dprintk(2, "%s: set_video %d.%d, %d/%d-%dx%d (0x%x) q%d call\n",
@@ -630,21 +588,17 @@ zr36050_set_video (struct videocodec   *codec,
 	ptr->real_code_vol = size >> 3; /* in bytes */
 
 	/* Set max_block_vol here (previously in zr36050_init, moved
-	 * here for consistency with zr36060 code */
+ * here for consistency with zr36060 code */
 	zr36050_write(ptr, ZR050_MBCV, ptr->max_block_vol);
 
 	return 0;
 }
 
 /* additional control functions */
-static int
-zr36050_control (struct videocodec *codec,
-		 int                type,
-		 int                size,
-		 void              *data)
+static int zr36050_control(struct videocodec *codec, int type, int size, void *data)
 {
-	struct zr36050 *ptr = (struct zr36050 *) codec->data;
-	int *ival = (int *) data;
+	struct zr36050 *ptr = (struct zr36050 *)codec->data;
+	int *ival = (int *)data;
 
 	dprintk(2, "%s: control %d call with %d byte\n", ptr->name, type,
 		size);
@@ -760,8 +714,7 @@ zr36050_control (struct videocodec *codec,
    Deinitializes Zoran's JPEG processor
    ========================================================================= */
 
-static int
-zr36050_unset (struct videocodec *codec)
+static int zr36050_unset(struct videocodec *codec)
 {
 	struct zr36050 *ptr = codec->data;
 
@@ -789,8 +742,7 @@ zr36050_unset (struct videocodec *codec)
    (the given size is determined by the processor with the video interface)
    ========================================================================= */
 
-static int
-zr36050_setup (struct videocodec *codec)
+static int zr36050_setup(struct videocodec *codec)
 {
 	struct zr36050 *ptr;
 	int res;
@@ -805,7 +757,7 @@ zr36050_setup (struct videocodec *codec)
 	}
 	//mem structure init
 	codec->data = ptr = kzalloc(sizeof(struct zr36050), GFP_KERNEL);
-	if (NULL == ptr) {
+	if (!ptr) {
 		dprintk(1, KERN_ERR "zr36050: Can't get enough memory!\n");
 		return -ENOMEM;
 	}
@@ -868,16 +820,14 @@ static const struct videocodec zr36050_codec = {
    HOOK IN DRIVER AS KERNEL MODULE
    ========================================================================= */
 
-static int __init
-zr36050_init_module (void)
+static int __init zr36050_init_module(void)
 {
 	//dprintk(1, "ZR36050 driver %s\n",ZR050_VERSION);
 	zr36050_codecs = 0;
 	return videocodec_register(&zr36050_codec);
 }
 
-static void __exit
-zr36050_cleanup_module (void)
+static void __exit zr36050_cleanup_module(void)
 {
 	if (zr36050_codecs) {
 		dprintk(1,

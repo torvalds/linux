@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * VIDEO MOTION CODECs internal API for video devices
  *
@@ -5,22 +6,6 @@
  * bound to a master device.
  *
  * (c) 2002 Wolfgang Scherr <scherr@net4you.at>
- *
- * $Id: videocodec.h,v 1.1.2.4 2003/01/14 21:15:03 rbultje Exp $
- *
- * ------------------------------------------------------------------------
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * ------------------------------------------------------------------------
  */
 
 /* =================== */
@@ -64,7 +49,6 @@
    device dependent and vary between MJPEG/MPEG/WAVELET/... devices. (!!!!)
    ----------------------------------------------------------------------------
 */
-
 
 /* ========================================== */
 /* description of the videocodec_io structure */
@@ -111,7 +95,7 @@
 		the calls include frame numbers and flags (even/odd/...)
 		if needed and a flag which allows blocking until its ready
 */
-
+
 /* ============== */
 /* user interface */
 /* ============== */
@@ -131,7 +115,6 @@ M                       zr36055[0] 0001 0000c001 00000000 (zr36050[0])
 M                       zr36055[1] 0001 0000c001 00000000 (zr36050[1])
 
 */
-
 
 /* =============================================== */
 /* special defines for the videocodec_io structure */
@@ -207,10 +190,9 @@ M                       zr36055[1] 0001 0000c001 00000000 (zr36050[1])
 #define CODEC_G_FLAG           0x8000	/* this is how 'get' is detected */
 
 /* types of transfer, directly user space or a kernel buffer (image-fn.'s) */
-/*  -> used in get_image, put_image                                        */
+/*  -> used in get_image, put_image */
 #define CODEC_TRANSFER_KERNEL 0	/* use "memcopy" */
 #define CODEC_TRANSFER_USER   1	/* use "to/from_user" */
-
 
 /* ========================= */
 /* the structures itself ... */
@@ -267,46 +249,27 @@ struct videocodec {
 	void *data;		/* private slave data */
 
 	/* attach/detach client functions (indirect call) */
-	int (*setup) (struct videocodec * codec);
-	int (*unset) (struct videocodec * codec);
+	int (*setup)(struct videocodec *codec);
+	int (*unset)(struct videocodec *codec);
 
 	/* main functions, every client needs them for sure! */
 	// set compression or decompression (or freeze, stop, standby, etc)
-	int (*set_mode) (struct videocodec * codec,
-			 int mode);
+	int (*set_mode)(struct videocodec *codec, int mode);
 	// setup picture size and norm (for the codec's video frontend)
-	int (*set_video) (struct videocodec * codec,
-			  struct tvnorm * norm,
-			  struct vfe_settings * cap,
-			  struct vfe_polarity * pol);
+	int (*set_video)(struct videocodec *codec, struct tvnorm *norm,
+			 struct vfe_settings *cap, struct vfe_polarity *pol);
 	// other control commands, also mmap setup etc.
-	int (*control) (struct videocodec * codec,
-			int type,
-			int size,
-			void *data);
+	int (*control)(struct videocodec *codec, int type, int size, void *data);
 
 	/* additional setup/query/processing (may be NULL pointer) */
 	// interrupt setup / handling (for irq's delivered by master)
-	int (*setup_interrupt) (struct videocodec * codec,
-				long mode);
-	int (*handle_interrupt) (struct videocodec * codec,
-				 int source,
-				 long flag);
+	int (*setup_interrupt)(struct videocodec *codec, long mode);
+	int (*handle_interrupt)(struct videocodec *codec, int source, long flag);
 	// picture interface (if any)
-	long (*put_image) (struct videocodec * codec,
-			   int tr_type,
-			   int block,
-			   long *fr_num,
-			   long *flag,
-			   long size,
-			   void *buf);
-	long (*get_image) (struct videocodec * codec,
-			   int tr_type,
-			   int block,
-			   long *fr_num,
-			   long *flag,
-			   long size,
-			   void *buf);
+	long (*put_image)(struct videocodec *codec, int tr_type, int block,
+			  long *fr_num, long *flag, long size, void *buf);
+	long (*get_image)(struct videocodec *codec, int tr_type, int block,
+			  long *fr_num, long *flag, long size, void *buf);
 };
 
 struct videocodec_master {
@@ -318,13 +281,9 @@ struct videocodec_master {
 
 	void *data;		/* private master data */
 
-	 __u32(*readreg) (struct videocodec * codec,
-			  __u16 reg);
-	void (*writereg) (struct videocodec * codec,
-			  __u16 reg,
-			  __u32 value);
+	__u32 (*readreg)(struct videocodec *codec, __u16 reg);
+	void (*writereg)(struct videocodec *codec, __u16 reg, __u32 value);
 };
-
 
 /* ================================================= */
 /* function prototypes of the master/slave interface */

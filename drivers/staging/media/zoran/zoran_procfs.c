@@ -83,14 +83,11 @@ static const struct procfs_params_zr36067 zr67[] = {
 	{NULL, 0, 0, 0},
 };
 
-static void
-setparam (struct zoran *zr,
-	  char         *name,
-	  char         *sval)
+static void setparam(struct zoran *zr, char *name, char *sval)
 {
 	int i = 0, reg0, reg, val;
 
-	while (zr67[i].name != NULL) {
+	while (zr67[i].name) {
 		if (!strncmp(name, zr67[i].name, strlen(zr67[i].name))) {
 			reg = reg0 = btread(zr67[i].reg);
 			reg &= ~(zr67[i].mask << zr67[i].bit);
@@ -119,19 +116,20 @@ static int zoran_show(struct seq_file *p, void *v)
 
 	seq_printf(p, "ZR36067 registers:\n");
 	for (i = 0; i < 0x130; i += 16)
-		seq_printf(p, "%03X %08X  %08X  %08X  %08X \n", i,
-			   btread(i), btread(i+4), btread(i+8), btread(i+12));
+		seq_printf(p, "%03X %08X  %08X  %08X  %08X\n", i,
+			   btread(i), btread(i + 4), btread(i + 8), btread(i + 12));
 	return 0;
 }
 
 static int zoran_open(struct inode *inode, struct file *file)
 {
 	struct zoran *data = PDE_DATA(inode);
+
 	return single_open(file, zoran_show, data);
 }
 
 static ssize_t zoran_write(struct file *file, const char __user *buffer,
-			size_t count, loff_t *ppos)
+			   size_t count, loff_t *ppos)
 {
 	struct zoran *zr = PDE_DATA(file_inode(file));
 	char *string, *sp;
@@ -142,14 +140,10 @@ static ssize_t zoran_write(struct file *file, const char __user *buffer,
 
 	string = sp = vmalloc(count + 1);
 	if (!string) {
-		dprintk(1,
-			KERN_ERR
-			"%s: write_proc: can not allocate memory\n",
-			ZR_DEVNAME(zr));
 		return -ENOMEM;
 	}
 	if (copy_from_user(string, buffer, count)) {
-		vfree (string);
+		vfree(string);
 		return -EFAULT;
 	}
 	string[count] = 0;
@@ -185,15 +179,14 @@ static const struct file_operations zoran_operations = {
 };
 #endif
 
-int
-zoran_proc_init (struct zoran *zr)
+int zoran_proc_init(struct zoran *zr)
 {
 #ifdef CONFIG_PROC_FS
 	char name[8];
 
 	snprintf(name, 7, "zoran%d", zr->id);
 	zr->zoran_proc = proc_create_data(name, 0, NULL, &zoran_operations, zr);
-	if (zr->zoran_proc != NULL) {
+	if (zr->zoran_proc) {
 		dprintk(2,
 			KERN_INFO
 			"%s: procfs entry /proc/%s allocated. data=%p\n",
@@ -207,8 +200,7 @@ zoran_proc_init (struct zoran *zr)
 	return 0;
 }
 
-void
-zoran_proc_cleanup (struct zoran *zr)
+void zoran_proc_cleanup(struct zoran *zr)
 {
 #ifdef CONFIG_PROC_FS
 	char name[8];

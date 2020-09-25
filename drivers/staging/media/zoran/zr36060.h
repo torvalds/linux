@@ -1,23 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Zoran ZR36060 basic configuration functions - header file
  *
  * Copyright (C) 2002 Laurent Pinchart <laurent.pinchart@skynet.be>
- *
- * $Id: zr36060.h,v 1.1.1.1.2.3 2003/01/14 21:18:47 rbultje Exp $
- *
- * ------------------------------------------------------------------------
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * ------------------------------------------------------------------------
  */
 
 #ifndef ZR36060_H
@@ -86,10 +71,10 @@ struct zr36060 {
 #define ZR060_ACT_MH			0x01b
 #define ZR060_ACT_ML			0x01c
 #define ZR060_ACT_LO			0x01d
-#define ZR060_ACV_TRUN_HI		0x01e
-#define ZR060_ACV_TRUN_MH		0x01f
-#define ZR060_ACV_TRUN_ML		0x020
-#define ZR060_ACV_TRUN_LO		0x021
+#define ZR060_ACV_TURN_HI		0x01e
+#define ZR060_ACV_TURN_MH		0x01f
+#define ZR060_ACV_TURN_ML		0x020
+#define ZR060_ACV_TURN_LO		0x021
 #define ZR060_IDR_DEV			0x022
 #define ZR060_IDR_REV			0x023
 #define ZR060_TCR_HI			0x024
@@ -139,78 +124,78 @@ struct zr36060 {
 
 /* ZR36060 LOAD register bits */
 
-#define ZR060_LOAD_Load			(1 << 7)
-#define ZR060_LOAD_SyncRst		(1 << 0)
+#define ZR060_LOAD_Load			 BIT(7)
+#define ZR060_LOAD_SyncRst		 BIT(0)
 
 /* ZR36060 Code FIFO Status register bits */
 
-#define ZR060_CFSR_Busy			(1 << 7)
-#define ZR060_CFSR_CBusy		(1 << 2)
+#define ZR060_CFSR_Busy			 BIT(7)
+#define ZR060_CFSR_CBusy		 BIT(2)
 #define ZR060_CFSR_CFIFO		(3 << 0)
 
 /* ZR36060 Code Interface register */
 
-#define ZR060_CIR_Code16		(1 << 7)
-#define ZR060_CIR_Endian		(1 << 6)
-#define ZR060_CIR_CFIS			(1 << 2)
-#define ZR060_CIR_CodeMstr		(1 << 0)
+#define ZR060_CIR_Code16		 BIT(7)
+#define ZR060_CIR_Endian		 BIT(6)
+#define ZR060_CIR_CFIS			 BIT(2)
+#define ZR060_CIR_CodeMstr		 BIT(0)
 
 /* ZR36060 Codec Mode register */
 
-#define ZR060_CMR_Comp			(1 << 7)
-#define ZR060_CMR_ATP			(1 << 6)
-#define ZR060_CMR_Pass2			(1 << 5)
-#define ZR060_CMR_TLM			(1 << 4)
-#define ZR060_CMR_BRB			(1 << 2)
-#define ZR060_CMR_FSF			(1 << 1)
+#define ZR060_CMR_Comp			 BIT(7)
+#define ZR060_CMR_ATP			 BIT(6)
+#define ZR060_CMR_Pass2			 BIT(5)
+#define ZR060_CMR_TLM			 BIT(4)
+#define ZR060_CMR_BRB			 BIT(2)
+#define ZR060_CMR_FSF			 BIT(1)
 
 /* ZR36060 Markers Enable register */
 
-#define ZR060_MER_App			(1 << 7)
-#define ZR060_MER_Com			(1 << 6)
-#define ZR060_MER_DRI			(1 << 5)
-#define ZR060_MER_DQT			(1 << 4)
-#define ZR060_MER_DHT			(1 << 3)
+#define ZR060_MER_App			 BIT(7)
+#define ZR060_MER_Com			 BIT(6)
+#define ZR060_MER_DRI			 BIT(5)
+#define ZR060_MER_DQT			 BIT(4)
+#define ZR060_MER_DHT			 BIT(3)
 
 /* ZR36060 Interrupt Mask register */
 
-#define ZR060_IMR_EOAV			(1 << 3)
-#define ZR060_IMR_EOI			(1 << 2)
-#define ZR060_IMR_End			(1 << 1)
-#define ZR060_IMR_DataErr		(1 << 0)
+#define ZR060_IMR_EOAV			 BIT(3)
+#define ZR060_IMR_EOI			 BIT(2)
+#define ZR060_IMR_End			 BIT(1)
+#define ZR060_IMR_DataErr		 BIT(0)
 
 /* ZR36060 Interrupt Status register */
 
 #define ZR060_ISR_ProCnt		(3 << 6)
-#define ZR060_ISR_EOAV			(1 << 3)
-#define ZR060_ISR_EOI			(1 << 2)
-#define ZR060_ISR_End			(1 << 1)
-#define ZR060_ISR_DataErr		(1 << 0)
+#define ZR060_ISR_EOAV			 BIT(3)
+#define ZR060_ISR_EOI			 BIT(2)
+#define ZR060_ISR_End			 BIT(1)
+#define ZR060_ISR_DataErr		 BIT(0)
 
 /* ZR36060 Video Control register */
 
-#define ZR060_VCR_Video8		(1 << 7)
-#define ZR060_VCR_Range			(1 << 6)
-#define ZR060_VCR_FIDet			(1 << 3)
-#define ZR060_VCR_FIVedge		(1 << 2)
-#define ZR060_VCR_FIExt			(1 << 1)
-#define ZR060_VCR_SyncMstr		(1 << 0)
+#define ZR060_VCR_Video8		 BIT(7)
+#define ZR060_VCR_Range			 BIT(6)
+#define ZR060_VCR_FIDet			 BIT(3)
+#define ZR060_VCR_FIVedge		 BIT(2)
+#define ZR060_VCR_FIExt			 BIT(1)
+#define ZR060_VCR_SyncMstr		 BIT(0)
 
 /* ZR36060 Video Polarity register */
 
-#define ZR060_VPR_VCLKPol		(1 << 7)
-#define ZR060_VPR_PValPol		(1 << 6)
-#define ZR060_VPR_PoePol		(1 << 5)
-#define ZR060_VPR_SImgPol		(1 << 4)
-#define ZR060_VPR_BLPol			(1 << 3)
-#define ZR060_VPR_FIPol			(1 << 2)
-#define ZR060_VPR_HSPol			(1 << 1)
-#define ZR060_VPR_VSPol			(1 << 0)
+#define ZR060_VPR_VCLKPol		 BIT(7)
+#define ZR060_VPR_PValPol		 BIT(6)
+#define ZR060_VPR_PoePol		 BIT(5)
+#define ZR060_VPR_SImgPol		 BIT(4)
+#define ZR060_VPR_BLPol			 BIT(3)
+#define ZR060_VPR_FIPol			 BIT(2)
+#define ZR060_VPR_HSPol			 BIT(1)
+#define ZR060_VPR_VSPol			 BIT(0)
 
 /* ZR36060 Scaling register */
 
-#define ZR060_SR_VScale			(1 << 2)
-#define ZR060_SR_HScale2		(1 << 0)
+#define ZR060_SR_VScale			 BIT(2)
+#define ZR060_SR_HScale2		 BIT(0)
 #define ZR060_SR_HScale4		(2 << 0)
 
 #endif				/*fndef ZR36060_H */
