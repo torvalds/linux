@@ -1654,7 +1654,7 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 		// enable fastboot if backend is enabled on eDP
 		if (edp_link->link_enc->funcs->is_dig_enabled(edp_link->link_enc)) {
 			/* Set optimization flag on eDP stream*/
-			if (edp_stream) {
+			if (edp_stream && edp_link->link_status.link_active) {
 				edp_stream->apply_edp_fast_boot_optimization = true;
 				can_apply_edp_fast_boot = true;
 			}
