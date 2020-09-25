@@ -295,6 +295,8 @@ struct mt7615_dev {
 	u32 debugfs_rf_wf;
 	u32 debugfs_rf_reg;
 
+	u32 muar_mask;
+
 #ifdef CONFIG_NL80211_TESTMODE
 	struct {
 		u32 *reg_backup;

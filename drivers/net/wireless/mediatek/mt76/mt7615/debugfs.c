@@ -365,6 +365,93 @@ mt7615_rf_reg_get(void *data, u64 *val)
 DEFINE_DEBUGFS_ATTRIBUTE(fops_rf_reg, mt7615_rf_reg_get, mt7615_rf_reg_set,
 			 "0x%08llx\n");
 
+static ssize_t
+mt7615_ext_mac_addr_read(struct file *file, char __user *userbuf,
+			 size_t count, loff_t *ppos)
+{
+	struct mt7615_dev *dev = file->private_data;
+	char buf[32 * ((ETH_ALEN * 3) + 4) + 1];
+	u8 addr[ETH_ALEN];
+	int ofs = 0;
+	int i;
+
+	for (i = 0; i < 32; i++) {
+		if (!(dev->muar_mask & BIT(i)))
+			continue;
+
+		mt76_wr(dev, MT_WF_RMAC_MAR1,
+			FIELD_PREP(MT_WF_RMAC_MAR1_IDX, i * 2) |
+			MT_WF_RMAC_MAR1_START);
+		put_unaligned_le32(mt76_rr(dev, MT_WF_RMAC_MAR0), addr);
+		put_unaligned_le16((mt76_rr(dev, MT_WF_RMAC_MAR1) &
+				    MT_WF_RMAC_MAR1_ADDR), addr + 4);
+		ofs += snprintf(buf + ofs, sizeof(buf) - ofs, "%d=%pM\n", i, addr);
+	}
+
+	return simple_read_from_buffer(userbuf, count, ppos, buf, ofs);
+}
+
+static ssize_t
+mt7615_ext_mac_addr_write(struct file *file, const char __user *userbuf,
+			  size_t count, loff_t *ppos)
+{
+	struct mt7615_dev *dev = file->private_data;
+	unsigned long idx = 0;
+	u8 addr[ETH_ALEN];
+	char buf[32];
+	char *p;
+
+	if (count > sizeof(buf))
+		return -EINVAL;
+
+	if (copy_from_user(buf, userbuf, count))
+		return -EFAULT;
+
+	buf[sizeof(buf) - 1] = '\0';
+
+	p = strchr(buf, '=');
+	if (p) {
+		*p = 0;
+		p++;
+
+		if (kstrtoul(buf, 0, &idx) || idx > 31)
+			return -EINVAL;
+	} else {
+		idx = 0;
+		p = buf;
+	}
+
+	if (!mac_pton(p, addr))
+		return -EINVAL;
+
+	if (is_valid_ether_addr(addr)) {
+		dev->muar_mask |= BIT(idx);
+	} else {
+		memset(addr, 0, sizeof(addr));
+		dev->muar_mask &= ~BIT(idx);
+	}
+
+	mt76_rmw_field(dev, MT_WF_RMAC_MORE(0), MT_WF_RMAC_MORE_MUAR_MODE, 1);
+	mt76_wr(dev, MT_WF_RMAC_MAR0, get_unaligned_le32(addr));
+	mt76_wr(dev, MT_WF_RMAC_MAR1,
+		get_unaligned_le16(addr + 4) |
+		FIELD_PREP(MT_WF_RMAC_MAR1_IDX, idx * 2) |
+		MT_WF_RMAC_MAR1_START |
+		MT_WF_RMAC_MAR1_WRITE);
+
+	mt76_rmw_field(dev, MT_WF_RMAC_MORE(0), MT_WF_RMAC_MORE_MUAR_MODE, !!dev->muar_mask);
+
+	return count;
+}
+
+static const struct file_operations fops_ext_mac_addr = {
+	.open = simple_open,
+	.llseek = generic_file_llseek,
+	.read = mt7615_ext_mac_addr_read,
+	.write = mt7615_ext_mac_addr_write,
+	.owner = THIS_MODULE,
+};
+
 int mt7615_init_debugfs(struct mt7615_dev *dev)
 {
 	struct dentry *dir;
@@ -406,6 +493,7 @@ int mt7615_init_debugfs(struct mt7615_dev *dev)
 			    &fops_reset_test);
 	debugfs_create_devm_seqfile(dev->mt76.dev, "temperature", dir,
 				    mt7615_read_temperature);
+	debugfs_create_file("ext_mac_addr", 0600, dir, dev, &fops_ext_mac_addr);
 
 	debugfs_create_u32("rf_wfidx", 0600, dir, &dev->debugfs_rf_wf);
 	debugfs_create_u32("rf_regidx", 0600, dir, &dev->debugfs_rf_reg);
