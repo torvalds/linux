@@ -1919,7 +1919,8 @@ static void ilk_read_luts(struct intel_crtc_state *crtc_state)
 		crtc_state->hw.gamma_lut = ilk_read_lut_10(crtc);
 }
 
-static struct drm_property_blob *glk_read_lut_10(struct intel_crtc *crtc,
+/* On BDW+ the index auto increment mode actually works */
+static struct drm_property_blob *bdw_read_lut_10(struct intel_crtc *crtc,
 						 u32 prec_index)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -1960,7 +1961,7 @@ static void glk_read_luts(struct intel_crtc_state *crtc_state)
 	if (crtc_state->gamma_mode == GAMMA_MODE_MODE_8BIT)
 		crtc_state->hw.gamma_lut = ilk_read_lut_8(crtc);
 	else
-		crtc_state->hw.gamma_lut = glk_read_lut_10(crtc, PAL_PREC_INDEX_VALUE(0));
+		crtc_state->hw.gamma_lut = bdw_read_lut_10(crtc, PAL_PREC_INDEX_VALUE(0));
 }
 
 static struct drm_property_blob *
@@ -2016,7 +2017,7 @@ static void icl_read_luts(struct intel_crtc_state *crtc_state)
 		crtc_state->hw.gamma_lut = icl_read_lut_multi_segment(crtc);
 		break;
 	default:
-		crtc_state->hw.gamma_lut = glk_read_lut_10(crtc, PAL_PREC_INDEX_VALUE(0));
+		crtc_state->hw.gamma_lut = bdw_read_lut_10(crtc, PAL_PREC_INDEX_VALUE(0));
 	}
 }
 
