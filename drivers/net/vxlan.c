@@ -3890,7 +3890,7 @@ static int __vxlan_dev_create(struct net *net, struct net_device *dev,
 	}
 
 	err = rtnl_configure_link(dev, NULL);
-	if (err)
+	if (err < 0)
 		goto unlink;
 
 	if (f) {
