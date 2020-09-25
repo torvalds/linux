@@ -218,6 +218,7 @@ struct sja1105_private {
 	struct mutex mgmt_lock;
 	struct dsa_8021q_context *dsa_8021q_ctx;
 	enum sja1105_vlan_state vlan_state;
+	struct devlink_region **regions;
 	struct sja1105_cbs_entry *cbs;
 	struct sja1105_tagger_data tagger_data;
 	struct sja1105_ptp_data ptp_data;
@@ -244,8 +245,19 @@ enum sja1105_reset_reason {
 
 int sja1105_static_config_reload(struct sja1105_private *priv,
 				 enum sja1105_reset_reason reason);
-
+int sja1105_vlan_filtering(struct dsa_switch *ds, int port, bool enabled);
 void sja1105_frame_memory_partitioning(struct sja1105_private *priv);
+
+/* From sja1105_devlink.c */
+int sja1105_devlink_setup(struct dsa_switch *ds);
+void sja1105_devlink_teardown(struct dsa_switch *ds);
+int sja1105_devlink_param_get(struct dsa_switch *ds, u32 id,
+			      struct devlink_param_gset_ctx *ctx);
+int sja1105_devlink_param_set(struct dsa_switch *ds, u32 id,
+			      struct devlink_param_gset_ctx *ctx);
+int sja1105_devlink_info_get(struct dsa_switch *ds,
+			     struct devlink_info_req *req,
+			     struct netlink_ext_ack *extack);
 
 /* From sja1105_spi.c */
 int sja1105_xfer_buf(const struct sja1105_private *priv,
@@ -257,6 +269,8 @@ int sja1105_xfer_u32(const struct sja1105_private *priv,
 int sja1105_xfer_u64(const struct sja1105_private *priv,
 		     sja1105_spi_rw_mode_t rw, u64 reg_addr, u64 *value,
 		     struct ptp_system_timestamp *ptp_sts);
+int static_config_buf_prepare_for_upload(struct sja1105_private *priv,
+					 void *config_buf, int buf_len);
 int sja1105_static_config_upload(struct sja1105_private *priv);
 int sja1105_inhibit_tx(const struct sja1105_private *priv,
 		       unsigned long port_bitmap, bool tx_inhibited);
