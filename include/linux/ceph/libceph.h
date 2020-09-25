@@ -104,6 +104,7 @@ enum {
 	CEPH_MOUNT_UNMOUNTING,
 	CEPH_MOUNT_UNMOUNTED,
 	CEPH_MOUNT_SHUTDOWN,
+	CEPH_MOUNT_RECOVER,
 };
 
 static inline unsigned long ceph_timeout_jiffies(unsigned long timeout)

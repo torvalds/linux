@@ -2747,7 +2747,7 @@ again:
 			goto out_unlock;
 		}
 
-		if (READ_ONCE(mdsc->fsc->mount_state) == CEPH_MOUNT_SHUTDOWN) {
+		if (READ_ONCE(mdsc->fsc->mount_state) >= CEPH_MOUNT_SHUTDOWN) {
 			dout("get_cap_refs %p forced umount\n", inode);
 			ret = -EIO;
 			goto out_unlock;
