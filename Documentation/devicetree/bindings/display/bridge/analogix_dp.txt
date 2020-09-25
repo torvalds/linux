@@ -7,6 +7,7 @@ Required properties for dp-controller:
 		 * "rockchip,rk3288-dp"
 		 * "rockchip,rk3368-edp"
 		 * "rockchip,rk3399-edp"
+		 * "rockchip,rk3568-edp"
 	-reg:
 		physical base address of the controller and length
 		of memory mapped region.

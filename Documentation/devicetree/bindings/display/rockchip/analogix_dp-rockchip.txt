@@ -5,6 +5,7 @@ Required properties:
 - compatible: "rockchip,rk3288-dp",
 	      "rockchip,rk3368-edp",
 	      "rockchip,rk3399-edp";
+	      "rockchip,rk3568-edp";
 
 - reg: physical base address of the controller and length
 
@@ -22,8 +23,6 @@ Required properties:
 
 - reset-names: Must include the name "dp"
 
-- rockchip,grf: this soc should set GRF regs, so need get grf here.
-
 - ports: there are 2 port nodes with endpoint definitions as defined in
   Documentation/devicetree/bindings/media/video-interfaces.txt.
     Port 0: contained 2 endpoints, connecting to the output of vop.
@@ -34,7 +33,9 @@ Optional property for different chips:
 
 - clock-names: from common clock binding:
 	       Required elements: "grf"
+- rockchip,grf: this soc should set GRF regs, so need get grf here.
 Optional properties
+- reset-names: "apb" must control the reset line to the APB interface.
 - vcc-supply: Regulator for eDP_AVDD_1V0.
 - vccio-supply: Regulator for eDP_AVDD_1V8.
 
