@@ -94,4 +94,17 @@ The ``linear`` and ``exponent`` factors can be set using the
 ``V4L2_CID_CCS_ANALOGUE_LINEAR_GAIN`` and
 ``V4L2_CID_CCS_ANALOGUE_EXPONENTIAL_GAIN`` controls, respectively
 
+Shading correction
+~~~~~~~~~~~~~~~~~~
+
+The CCS standard supports lens shading correction. The feature can be controlled
+using ``V4L2_CID_CCS_SHADING_CORRECTION``. Additionally, the luminance
+correction level may be changed using
+``V4L2_CID_CCS_LUMINANCE_CORRECTION_LEVEL``, where value 0 indicates no
+correction and 128 indicates correcting the luminance in corners to 10 % less
+than in the centre.
+
+Shading correction needs to be enabled for luminance correction level to have an
+effect.
+
 **Copyright** |copy| 2020 Intel Corporation
