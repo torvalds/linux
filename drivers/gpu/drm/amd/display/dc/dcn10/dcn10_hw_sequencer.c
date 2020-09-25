@@ -2761,7 +2761,7 @@ static struct pipe_ctx *dcn10_find_top_pipe_for_stream(
 	return NULL;
 }
 
-void dcn10_disconnect_pipes(
+bool dcn10_disconnect_pipes(
 		struct dc *dc,
 		struct dc_state *context)
 {
@@ -2772,10 +2772,6 @@ void dcn10_disconnect_pipes(
 		bool mpcc_disconnected = false;
 		struct pipe_ctx *old_pipe;
 		struct pipe_ctx *new_pipe;
-
-		dc->hwss.wait_for_pending_cleared(dc, context);
-		dc->hwss.interdependent_update_lock(dc, context, true);
-
 		DC_LOGGER_INIT(dc->ctx->logger);
 
 		/* Set pipe update flags and lock pipes */
@@ -2878,11 +2874,7 @@ void dcn10_disconnect_pipes(
 				}
 			}
 		}
-
-		dc->hwss.interdependent_update_lock(dc, context, false);
-
-		if (mpcc_disconnected)
-			dc->hwss.wait_for_pending_cleared(dc, context);
+	return mpcc_disconnected;
 }
 
 void dcn10_wait_for_pending_cleared(struct dc *dc,
