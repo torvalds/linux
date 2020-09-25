@@ -2515,7 +2515,10 @@ static void hv_pci_onchannelcallback(void *context)
 
 /**
  * hv_pci_protocol_negotiation() - Set up protocol
- * @hdev:	VMBus's tracking struct for this root PCI bus
+ * @hdev:		VMBus's tracking struct for this root PCI bus.
+ * @version:		Array of supported channel protocol versions in
+ *			the order of probing - highest go first.
+ * @num_version:	Number of elements in the version array.
  *
  * This driver is intended to support running on Windows 10
  * (server) and later versions. It will not run on earlier
