@@ -3454,6 +3454,12 @@ static int dpaa2_eth_config_hash_key(struct dpaa2_eth_priv *priv, dma_addr_t key
 			dev_err(dev, "dpni_set_rx_hash_dist failed\n");
 			break;
 		}
+
+		/* If the flow steering / hashing key is shared between all
+		 * traffic classes, install it just once
+		 */
+		if (priv->dpni_attrs.options & DPNI_OPT_SHARED_FS)
+			break;
 	}
 
 	return err;
@@ -3480,6 +3486,12 @@ static int dpaa2_eth_config_cls_key(struct dpaa2_eth_priv *priv, dma_addr_t key)
 			dev_err(dev, "dpni_set_rx_fs_dist failed\n");
 			break;
 		}
+
+		/* If the flow steering / hashing key is shared between all
+		 * traffic classes, install it just once
+		 */
+		if (priv->dpni_attrs.options & DPNI_OPT_SHARED_FS)
+			break;
 	}
 
 	return err;
