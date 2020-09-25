@@ -2573,6 +2573,21 @@ static void shadow_walk_next(struct kvm_shadow_walk_iterator *iterator)
 	__shadow_walk_next(iterator, *iterator->sptep);
 }
 
+static u64 make_nonleaf_spte(u64 *child_pt, bool ad_disabled)
+{
+	u64 spte;
+
+	spte = __pa(child_pt) | shadow_present_mask | PT_WRITABLE_MASK |
+	       shadow_user_mask | shadow_x_mask | shadow_me_mask;
+
+	if (ad_disabled)
+		spte |= SPTE_AD_DISABLED_MASK;
+	else
+		spte |= shadow_accessed_mask;
+
+	return spte;
+}
+
 static void link_shadow_page(struct kvm_vcpu *vcpu, u64 *sptep,
 			     struct kvm_mmu_page *sp)
 {
@@ -2580,13 +2595,7 @@ static void link_shadow_page(struct kvm_vcpu *vcpu, u64 *sptep,
 
 	BUILD_BUG_ON(VMX_EPT_WRITABLE_MASK != PT_WRITABLE_MASK);
 
-	spte = __pa(sp->spt) | shadow_present_mask | PT_WRITABLE_MASK |
-	       shadow_user_mask | shadow_x_mask | shadow_me_mask;
-
-	if (sp_ad_disabled(sp))
-		spte |= SPTE_AD_DISABLED_MASK;
-	else
-		spte |= shadow_accessed_mask;
+	spte = make_nonleaf_spte(sp->spt, sp_ad_disabled(sp));
 
 	mmu_spte_set(sptep, spte);
 
