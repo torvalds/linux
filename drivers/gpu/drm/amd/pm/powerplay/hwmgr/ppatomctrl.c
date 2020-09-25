@@ -1231,7 +1231,7 @@ uint32_t atomctrl_get_mpll_reference_clock(struct pp_hwmgr *hwmgr)
 /**
  * Get the asic internal spread spectrum table
  */
-static ATOM_ASIC_INTERNAL_SS_INFO *asic_internal_ss_get_ss_table(void *device)
+ATOM_ASIC_INTERNAL_SS_INFO *asic_internal_ss_get_ss_table(void *device)
 {
 	ATOM_ASIC_INTERNAL_SS_INFO *table = NULL;
 	u8 frev, crev;
@@ -1243,6 +1243,17 @@ static ATOM_ASIC_INTERNAL_SS_INFO *asic_internal_ss_get_ss_table(void *device)
 			&size, &frev, &crev);
 
 	return table;
+}
+
+bool atomctrl_is_asic_internal_ss_supported(struct pp_hwmgr *hwmgr)
+{
+	ATOM_ASIC_INTERNAL_SS_INFO *table =
+		asic_internal_ss_get_ss_table(hwmgr->adev);
+
+	if (table)
+		return true;
+	else
+		return false;
 }
 
 /**

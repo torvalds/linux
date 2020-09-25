@@ -1811,6 +1811,13 @@ static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 	    (adev->asic_type == CHIP_POLARIS12) ||
 	    (adev->asic_type == CHIP_VEGAM))
 		data->disable_edc_leakage_controller = false;
+
+	if (!atomctrl_is_asic_internal_ss_supported(hwmgr)) {
+		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_MemorySpreadSpectrumSupport);
+		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_EngineSpreadSpectrumSupport);
+	}
 }
 
 static int smu7_calculate_ro_range(struct pp_hwmgr *hwmgr)
