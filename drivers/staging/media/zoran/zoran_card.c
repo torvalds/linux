@@ -857,6 +857,8 @@ void zoran_open_init_params(struct zoran *zr)
 	if (i)
 		pci_err(zr->pci_dev, "%s internal error\n", __func__);
 
+	zr->buffer_size = zr->v4l_settings.bytesperline * zr->v4l_settings.height;
+
 	clear_interrupt_counters(zr);
 }
 
