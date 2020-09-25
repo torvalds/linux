@@ -300,14 +300,18 @@ static void vb2_dma_sg_put_userptr(void *buf_priv)
 static void *vb2_dma_sg_vaddr(void *buf_priv)
 {
 	struct vb2_dma_sg_buf *buf = buf_priv;
+	struct dma_buf_map map;
+	int ret;
 
 	BUG_ON(!buf);
 
 	if (!buf->vaddr) {
-		if (buf->db_attach)
-			buf->vaddr = dma_buf_vmap(buf->db_attach->dmabuf);
-		else
+		if (buf->db_attach) {
+			ret = dma_buf_vmap(buf->db_attach->dmabuf, &map);
+			buf->vaddr = ret ? NULL : map.vaddr;
+		} else {
 			buf->vaddr = vm_map_ram(buf->pages, buf->num_pages, -1);
+		}
 	}
 
 	/* add offset in case userptr is not page-aligned */
@@ -489,11 +493,13 @@ vb2_dma_sg_dmabuf_ops_end_cpu_access(struct dma_buf *dbuf,
 	return 0;
 }
 
-static void *vb2_dma_sg_dmabuf_ops_vmap(struct dma_buf *dbuf)
+static int vb2_dma_sg_dmabuf_ops_vmap(struct dma_buf *dbuf, struct dma_buf_map *map)
 {
 	struct vb2_dma_sg_buf *buf = dbuf->priv;
 
-	return vb2_dma_sg_vaddr(buf);
+	dma_buf_map_set_vaddr(map, buf->vaddr);
+
+	return 0;
 }
 
 static int vb2_dma_sg_dmabuf_ops_mmap(struct dma_buf *dbuf,

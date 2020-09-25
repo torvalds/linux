@@ -318,11 +318,13 @@ static void vb2_vmalloc_dmabuf_ops_release(struct dma_buf *dbuf)
 	vb2_vmalloc_put(dbuf->priv);
 }
 
-static void *vb2_vmalloc_dmabuf_ops_vmap(struct dma_buf *dbuf)
+static int vb2_vmalloc_dmabuf_ops_vmap(struct dma_buf *dbuf, struct dma_buf_map *map)
 {
 	struct vb2_vmalloc_buf *buf = dbuf->priv;
 
-	return buf->vaddr;
+	dma_buf_map_set_vaddr(map, buf->vaddr);
+
+	return 0;
 }
 
 static int vb2_vmalloc_dmabuf_ops_mmap(struct dma_buf *dbuf,
@@ -374,10 +376,15 @@ static struct dma_buf *vb2_vmalloc_get_dmabuf(void *buf_priv, unsigned long flag
 static int vb2_vmalloc_map_dmabuf(void *mem_priv)
 {
 	struct vb2_vmalloc_buf *buf = mem_priv;
+	struct dma_buf_map map;
+	int ret;
 
-	buf->vaddr = dma_buf_vmap(buf->dbuf);
+	ret = dma_buf_vmap(buf->dbuf, &map);
+	if (ret)
+		return -EFAULT;
+	buf->vaddr = map.vaddr;
 
-	return buf->vaddr ? 0 : -EFAULT;
+	return 0;
 }
 
 static void vb2_vmalloc_unmap_dmabuf(void *mem_priv)

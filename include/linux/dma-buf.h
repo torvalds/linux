@@ -266,7 +266,7 @@ struct dma_buf_ops {
 	 */
 	int (*mmap)(struct dma_buf *, struct vm_area_struct *vma);
 
-	void *(*vmap)(struct dma_buf *);
+	int (*vmap)(struct dma_buf *dmabuf, struct dma_buf_map *map);
 	void (*vunmap)(struct dma_buf *, void *vaddr);
 };
 
@@ -503,6 +503,6 @@ int dma_buf_end_cpu_access(struct dma_buf *dma_buf,
 
 int dma_buf_mmap(struct dma_buf *, struct vm_area_struct *,
 		 unsigned long);
-void *dma_buf_vmap(struct dma_buf *);
-void dma_buf_vunmap(struct dma_buf *, void *vaddr);
+int dma_buf_vmap(struct dma_buf *dmabuf, struct dma_buf_map *map);
+void dma_buf_vunmap(struct dma_buf *dmabuf, void *vaddr);
 #endif /* __DMA_BUF_H__ */

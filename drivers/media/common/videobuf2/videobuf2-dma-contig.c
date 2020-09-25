@@ -81,9 +81,13 @@ static void *vb2_dc_cookie(void *buf_priv)
 static void *vb2_dc_vaddr(void *buf_priv)
 {
 	struct vb2_dc_buf *buf = buf_priv;
+	struct dma_buf_map map;
+	int ret;
 
-	if (!buf->vaddr && buf->db_attach)
-		buf->vaddr = dma_buf_vmap(buf->db_attach->dmabuf);
+	if (!buf->vaddr && buf->db_attach) {
+		ret = dma_buf_vmap(buf->db_attach->dmabuf, &map);
+		buf->vaddr = ret ? NULL : map.vaddr;
+	}
 
 	return buf->vaddr;
 }
@@ -365,11 +369,13 @@ vb2_dc_dmabuf_ops_end_cpu_access(struct dma_buf *dbuf,
 	return 0;
 }
 
-static void *vb2_dc_dmabuf_ops_vmap(struct dma_buf *dbuf)
+static int vb2_dc_dmabuf_ops_vmap(struct dma_buf *dbuf, struct dma_buf_map *map)
 {
 	struct vb2_dc_buf *buf = dbuf->priv;
 
-	return buf->vaddr;
+	dma_buf_map_set_vaddr(map, buf->vaddr);
+
+	return 0;
 }
 
 static int vb2_dc_dmabuf_ops_mmap(struct dma_buf *dbuf,

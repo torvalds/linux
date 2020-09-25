@@ -23,6 +23,19 @@ struct dma_buf_map {
 	bool is_iomem;
 };
 
+/**
+ * dma_buf_map_set_vaddr - Sets a dma-buf mapping structure to an address in system memory
+ * @map:	The dma-buf mapping structure
+ * @vaddr:	A system-memory address
+ *
+ * Sets the address and clears the I/O-memory flag.
+ */
+static inline void dma_buf_map_set_vaddr(struct dma_buf_map *map, void *vaddr)
+{
+	map->vaddr = vaddr;
+	map->is_iomem = false;
+}
+
 /* API transition helper */
 static inline bool dma_buf_map_is_vaddr(const struct dma_buf_map *map, const void *vaddr)
 {

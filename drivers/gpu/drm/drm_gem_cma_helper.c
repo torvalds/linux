@@ -634,22 +634,23 @@ drm_gem_cma_prime_import_sg_table_vmap(struct drm_device *dev,
 {
 	struct drm_gem_cma_object *cma_obj;
 	struct drm_gem_object *obj;
-	void *vaddr;
+	struct dma_buf_map map;
+	int ret;
 
-	vaddr = dma_buf_vmap(attach->dmabuf);
-	if (!vaddr) {
+	ret = dma_buf_vmap(attach->dmabuf, &map);
+	if (ret) {
 		DRM_ERROR("Failed to vmap PRIME buffer\n");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(ret);
 	}
 
 	obj = drm_gem_cma_prime_import_sg_table(dev, attach, sgt);
 	if (IS_ERR(obj)) {
-		dma_buf_vunmap(attach->dmabuf, vaddr);
+		dma_buf_vunmap(attach->dmabuf, map.vaddr);
 		return obj;
 	}
 
 	cma_obj = to_drm_gem_cma_obj(obj);
-	cma_obj->vaddr = vaddr;
+	cma_obj->vaddr = map.vaddr;
 
 	return obj;
 }

@@ -236,7 +236,7 @@ static int dma_heap_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 	return 0;
 }
 
-static void *dma_heap_dma_buf_vmap(struct dma_buf *dmabuf)
+static int dma_heap_dma_buf_vmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
 {
 	struct heap_helper_buffer *buffer = dmabuf->priv;
 	void *vaddr;
@@ -245,7 +245,11 @@ static void *dma_heap_dma_buf_vmap(struct dma_buf *dmabuf)
 	vaddr = dma_heap_buffer_vmap_get(buffer);
 	mutex_unlock(&buffer->lock);
 
-	return vaddr;
+	if (!vaddr)
+		return -ENOMEM;
+	dma_buf_map_set_vaddr(map, vaddr);
+
+	return 0;
 }
 
 static void dma_heap_dma_buf_vunmap(struct dma_buf *dmabuf, void *vaddr)

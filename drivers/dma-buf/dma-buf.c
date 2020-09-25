@@ -1186,46 +1186,50 @@ EXPORT_SYMBOL_GPL(dma_buf_mmap);
  * dma_buf_vmap - Create virtual mapping for the buffer object into kernel
  * address space. Same restrictions as for vmap and friends apply.
  * @dmabuf:	[in]	buffer to vmap
+ * @map:	[out]	returns the vmap pointer
  *
  * This call may fail due to lack of virtual mapping address space.
  * These calls are optional in drivers. The intended use for them
  * is for mapping objects linear in kernel space for high use objects.
  * Please attempt to use kmap/kunmap before thinking about these interfaces.
  *
- * Returns NULL on error.
+ * Returns 0 on success, or a negative errno code otherwise.
  */
-void *dma_buf_vmap(struct dma_buf *dmabuf)
+int dma_buf_vmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
 {
-	void *ptr;
+	struct dma_buf_map ptr;
+	int ret = 0;
+
+	dma_buf_map_clear(map);
 
 	if (WARN_ON(!dmabuf))
-		return NULL;
+		return -EINVAL;
 
 	if (!dmabuf->ops->vmap)
-		return NULL;
+		return -EINVAL;
 
 	mutex_lock(&dmabuf->lock);
 	if (dmabuf->vmapping_counter) {
 		dmabuf->vmapping_counter++;
 		BUG_ON(dma_buf_map_is_null(&dmabuf->vmap_ptr));
-		ptr = dmabuf->vmap_ptr.vaddr;
+		*map = dmabuf->vmap_ptr;
 		goto out_unlock;
 	}
 
 	BUG_ON(dma_buf_map_is_set(&dmabuf->vmap_ptr));
 
-	ptr = dmabuf->ops->vmap(dmabuf);
-	if (WARN_ON_ONCE(IS_ERR(ptr)))
-		ptr = NULL;
-	if (!ptr)
+	ret = dmabuf->ops->vmap(dmabuf, &ptr);
+	if (WARN_ON_ONCE(ret))
 		goto out_unlock;
 
-	dmabuf->vmap_ptr.vaddr = ptr;
+	dmabuf->vmap_ptr = ptr;
 	dmabuf->vmapping_counter = 1;
+
+	*map = dmabuf->vmap_ptr;
 
 out_unlock:
 	mutex_unlock(&dmabuf->lock);
-	return ptr;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(dma_buf_vmap);
 

@@ -662,22 +662,25 @@ EXPORT_SYMBOL(drm_gem_unmap_dma_buf);
 /**
  * drm_gem_dmabuf_vmap - dma_buf vmap implementation for GEM
  * @dma_buf: buffer to be mapped
+ * @map: the virtual address of the buffer
  *
  * Sets up a kernel virtual mapping. This can be used as the &dma_buf_ops.vmap
  * callback. Calls into &drm_gem_object_funcs.vmap for device specific handling.
  *
  * Returns the kernel virtual address or NULL on failure.
  */
-void *drm_gem_dmabuf_vmap(struct dma_buf *dma_buf)
+int drm_gem_dmabuf_vmap(struct dma_buf *dma_buf, struct dma_buf_map *map)
 {
 	struct drm_gem_object *obj = dma_buf->priv;
 	void *vaddr;
 
 	vaddr = drm_gem_vmap(obj);
 	if (IS_ERR(vaddr))
-		vaddr = NULL;
+		return PTR_ERR(vaddr);
 
-	return vaddr;
+	dma_buf_map_set_vaddr(map, vaddr);
+
+	return 0;
 }
 EXPORT_SYMBOL(drm_gem_dmabuf_vmap);
 

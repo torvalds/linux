@@ -261,13 +261,16 @@ EXPORT_SYMBOL(drm_gem_shmem_unpin);
 static void *drm_gem_shmem_vmap_locked(struct drm_gem_shmem_object *shmem)
 {
 	struct drm_gem_object *obj = &shmem->base;
-	int ret;
+	struct dma_buf_map map;
+	int ret = 0;
 
 	if (shmem->vmap_use_count++ > 0)
 		return shmem->vaddr;
 
 	if (obj->import_attach) {
-		shmem->vaddr = dma_buf_vmap(obj->import_attach->dmabuf);
+		ret = dma_buf_vmap(obj->import_attach->dmabuf, &map);
+		if (!ret)
+			shmem->vaddr = map.vaddr;
 	} else {
 		pgprot_t prot = PAGE_KERNEL;
 
@@ -279,11 +282,12 @@ static void *drm_gem_shmem_vmap_locked(struct drm_gem_shmem_object *shmem)
 			prot = pgprot_writecombine(prot);
 		shmem->vaddr = vmap(shmem->pages, obj->size >> PAGE_SHIFT,
 				    VM_MAP, prot);
+		if (!shmem->vaddr)
+			ret = -ENOMEM;
 	}
 
-	if (!shmem->vaddr) {
-		DRM_DEBUG_KMS("Failed to vmap pages\n");
-		ret = -ENOMEM;
+	if (ret) {
+		DRM_DEBUG_KMS("Failed to vmap pages, error %d\n", ret);
 		goto err_put_pages;
 	}
 
