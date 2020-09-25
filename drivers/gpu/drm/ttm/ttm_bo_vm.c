@@ -290,28 +290,6 @@ vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
 	vm_fault_t ret = VM_FAULT_NOPAGE;
 	unsigned long address = vmf->address;
 
-	if (bdev->driver->fault_reserve_notify) {
-		struct dma_fence *moving = dma_fence_get(bo->moving);
-
-		err = bdev->driver->fault_reserve_notify(bo);
-		switch (err) {
-		case 0:
-			break;
-		case -EBUSY:
-		case -ERESTARTSYS:
-			dma_fence_put(moving);
-			return VM_FAULT_NOPAGE;
-		default:
-			dma_fence_put(moving);
-			return VM_FAULT_SIGBUS;
-		}
-
-		if (bo->moving != moving) {
-			ttm_bo_move_to_lru_tail_unlocked(bo);
-		}
-		dma_fence_put(moving);
-	}
-
 	/*
 	 * Wait for buffer data in transit, due to a pipelined
 	 * move.
