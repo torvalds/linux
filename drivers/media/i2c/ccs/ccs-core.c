@@ -757,6 +757,19 @@ static int ccs_set_ctrl(struct v4l2_ctrl *ctrl)
 		rval = ccs_write(sensor, TEST_DATA_GREENB, ctrl->val);
 
 		break;
+	case V4L2_CID_CCS_SHADING_CORRECTION:
+		rval = ccs_write(sensor, SHADING_CORRECTION_EN,
+				 ctrl->val ? CCS_SHADING_CORRECTION_EN_ENABLE :
+				 0);
+
+		if (!rval && sensor->luminance_level)
+			v4l2_ctrl_activate(sensor->luminance_level, ctrl->val);
+
+		break;
+	case V4L2_CID_CCS_LUMINANCE_CORRECTION_LEVEL:
+		rval = ccs_write(sensor, LUMINANCE_CORRECTION_LEVEL, ctrl->val);
+
+		break;
 	case V4L2_CID_PIXEL_RATE:
 		/* For v4l2_ctrl_s_ctrl_int64() used internally. */
 		rval = 0;
@@ -875,6 +888,39 @@ static int ccs_init_controls(struct ccs_sensor *sensor)
 					     &ctrl_cfg, NULL);
 		}
 	}
+	}
+
+	if (CCS_LIM(sensor, SHADING_CORRECTION_CAPABILITY) &
+	    (CCS_SHADING_CORRECTION_CAPABILITY_COLOR_SHADING |
+	     CCS_SHADING_CORRECTION_CAPABILITY_LUMINANCE_CORRECTION)) {
+		const struct v4l2_ctrl_config ctrl_cfg = {
+			.name = "Shading Correction",
+			.type = V4L2_CTRL_TYPE_BOOLEAN,
+			.id = V4L2_CID_CCS_SHADING_CORRECTION,
+			.ops = &ccs_ctrl_ops,
+			.max = 1,
+			.step = 1,
+		};
+
+		v4l2_ctrl_new_custom(&sensor->pixel_array->ctrl_handler,
+				     &ctrl_cfg, NULL);
+	}
+
+	if (CCS_LIM(sensor, SHADING_CORRECTION_CAPABILITY) &
+	    CCS_SHADING_CORRECTION_CAPABILITY_LUMINANCE_CORRECTION) {
+		const struct v4l2_ctrl_config ctrl_cfg = {
+			.name = "Luminance Correction Level",
+			.type = V4L2_CTRL_TYPE_BOOLEAN,
+			.id = V4L2_CID_CCS_LUMINANCE_CORRECTION_LEVEL,
+			.ops = &ccs_ctrl_ops,
+			.max = 255,
+			.step = 1,
+			.def = 128,
+		};
+
+		sensor->luminance_level =
+			v4l2_ctrl_new_custom(&sensor->pixel_array->ctrl_handler,
+					     &ctrl_cfg, NULL);
 	}
 
 	if (CCS_LIM(sensor, DIGITAL_GAIN_CAPABILITY) ==

@@ -268,6 +268,7 @@ struct ccs_sensor {
 	struct v4l2_ctrl *vblank;
 	struct v4l2_ctrl *hblank;
 	struct v4l2_ctrl *pixel_rate_parray;
+	struct v4l2_ctrl *luminance_level;
 	/* src controls */
 	struct v4l2_ctrl *link_freq;
 	struct v4l2_ctrl *pixel_rate_csi;
