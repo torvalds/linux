@@ -28,22 +28,6 @@ static u32 unsupported_ops[] = {
 static const struct btf_type *tcp_sock_type;
 static u32 tcp_sock_id, sock_id;
 
-static struct bpf_func_proto btf_sk_storage_get_proto __read_mostly;
-static struct bpf_func_proto btf_sk_storage_delete_proto __read_mostly;
-
-static void convert_sk_func_proto(struct bpf_func_proto *to, const struct bpf_func_proto *from)
-{
-	int i;
-
-	*to = *from;
-	for (i = 0; i < ARRAY_SIZE(to->arg_type); i++) {
-		if (to->arg_type[i] == ARG_PTR_TO_SOCKET) {
-			to->arg_type[i] = ARG_PTR_TO_BTF_ID;
-			to->arg_btf_id[i] = &tcp_sock_id;
-		}
-	}
-}
-
 static int bpf_tcp_ca_init(struct btf *btf)
 {
 	s32 type_id;
@@ -58,9 +42,6 @@ static int bpf_tcp_ca_init(struct btf *btf)
 		return -EINVAL;
 	tcp_sock_id = type_id;
 	tcp_sock_type = btf_type_by_id(btf, tcp_sock_id);
-
-	convert_sk_func_proto(&btf_sk_storage_get_proto, &bpf_sk_storage_get_proto);
-	convert_sk_func_proto(&btf_sk_storage_delete_proto, &bpf_sk_storage_delete_proto);
 
 	return 0;
 }
@@ -188,9 +169,9 @@ bpf_tcp_ca_get_func_proto(enum bpf_func_id func_id,
 	case BPF_FUNC_tcp_send_ack:
 		return &bpf_tcp_send_ack_proto;
 	case BPF_FUNC_sk_storage_get:
-		return &btf_sk_storage_get_proto;
+		return &bpf_sk_storage_get_proto;
 	case BPF_FUNC_sk_storage_delete:
-		return &btf_sk_storage_delete_proto;
+		return &bpf_sk_storage_delete_proto;
 	default:
 		return bpf_base_func_proto(func_id);
 	}
