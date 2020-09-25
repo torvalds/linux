@@ -8,7 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
+ * Copyright(c) 2018 - 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,7 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
+ * Copyright(c) 2018 - 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -469,12 +469,21 @@ struct iwl_p1k_cache {
 
 #define IWL_NUM_RX_P1K_CACHE	2
 
-struct iwl_wowlan_tkip_params_cmd {
+struct iwl_wowlan_tkip_params_cmd_ver_1 {
 	struct iwl_mic_keys mic_keys;
 	struct iwl_p1k_cache tx;
 	struct iwl_p1k_cache rx_uni[IWL_NUM_RX_P1K_CACHE];
 	struct iwl_p1k_cache rx_multi[IWL_NUM_RX_P1K_CACHE];
 } __packed; /* WOWLAN_TKIP_SETTING_API_S_VER_1 */
+
+struct iwl_wowlan_tkip_params_cmd {
+	struct iwl_mic_keys mic_keys;
+	struct iwl_p1k_cache tx;
+	struct iwl_p1k_cache rx_uni[IWL_NUM_RX_P1K_CACHE];
+	struct iwl_p1k_cache rx_multi[IWL_NUM_RX_P1K_CACHE];
+	u8     reversed[2];
+	__le32 sta_id;
+} __packed; /* WOWLAN_TKIP_SETTING_API_S_VER_2 */
 
 #define IWL_KCK_MAX_SIZE	32
 #define IWL_KEK_MAX_SIZE	32
