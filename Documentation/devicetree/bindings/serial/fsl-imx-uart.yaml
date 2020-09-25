@@ -18,8 +18,6 @@ properties:
     oneOf:
       - const: fsl,imx1-uart
       - const: fsl,imx21-uart
-      - const: fsl,imx53-uart
-      - const: fsl,imx6q-uart
       - items:
           - enum:
             - fsl,imx25-uart
@@ -28,12 +26,18 @@ properties:
             - fsl,imx35-uart
             - fsl,imx50-uart
             - fsl,imx51-uart
+            - fsl,imx53-uart
+            - fsl,imx6q-uart
           - const: fsl,imx21-uart
       - items:
           - enum:
             - fsl,imx6sl-uart
             - fsl,imx6sll-uart
             - fsl,imx6sx-uart
+          - const: fsl,imx6q-uart
+          - const: fsl,imx21-uart
+      - items:
+          - enum:
             - fsl,imx6ul-uart
             - fsl,imx7d-uart
             - fsl,imx8mm-uart
