@@ -1876,7 +1876,7 @@ static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 		goto drop;
 
 	if (vs->flags & VXLAN_F_REMCSUM_RX)
-		if (!vxlan_remcsum(&unparsed, skb, vs->flags))
+		if (unlikely(!vxlan_remcsum(&unparsed, skb, vs->flags)))
 			goto drop;
 
 	if (vxlan_collect_metadata(vs)) {
