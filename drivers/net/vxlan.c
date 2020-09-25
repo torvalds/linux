@@ -190,8 +190,9 @@ static inline struct vxlan_rdst *first_remote_rtnl(struct vxlan_fdb *fdb)
 	return list_first_entry(&fdb->remotes, struct vxlan_rdst, list);
 }
 
-/* Find VXLAN socket based on network namespace, address family and UDP port
- * and enabled unshareable flags.
+/* Find VXLAN socket based on network namespace, address family, UDP port,
+ * enabled unshareable flags and socket device binding (see l3mdev with
+ * non-default VRF).
  */
 static struct vxlan_sock *vxlan_find_sock(struct net *net, sa_family_t family,
 					  __be16 port, u32 flags, int ifindex)
@@ -1875,6 +1876,10 @@ static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 				   !net_eq(vxlan->net, dev_net(vxlan->dev))))
 		goto drop;
 
+	if (vs->flags & VXLAN_F_REMCSUM_RX)
+		if (unlikely(!vxlan_remcsum(&unparsed, skb, vs->flags)))
+			goto drop;
+
 	if (vxlan_collect_metadata(vs)) {
 		struct metadata_dst *tun_dst;
 
@@ -1891,9 +1896,6 @@ static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 		memset(md, 0, sizeof(*md));
 	}
 
-	if (vs->flags & VXLAN_F_REMCSUM_RX)
-		if (!vxlan_remcsum(&unparsed, skb, vs->flags))
-			goto drop;
 	if (vs->flags & VXLAN_F_GBP)
 		vxlan_parse_gbp_hdr(&unparsed, skb, vs->flags, md);
 	/* Note that GBP and GPE can never be active together. This is
@@ -2649,11 +2651,6 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 			udp_sum = !(flags & VXLAN_F_UDP_ZERO_CSUM6_TX);
 		label = vxlan->cfg.label;
 	} else {
-		if (!info) {
-			WARN_ONCE(1, "%s: Missing encapsulation instructions\n",
-				  dev->name);
-			goto drop;
-		}
 		remote_ip.sa.sa_family = ip_tunnel_info_af(info);
 		if (remote_ip.sa.sa_family == AF_INET) {
 			remote_ip.sin.sin_addr.s_addr = info->key.u.ipv4.dst;
@@ -2888,6 +2885,10 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 		    info->mode & IP_TUNNEL_INFO_TX) {
 			vni = tunnel_id_to_key32(info->key.tun_id);
 		} else {
+			if (!info)
+				WARN_ONCE(1, "%s: Missing encapsulation instructions\n",
+					  dev->name);
+
 			if (info && info->mode & IP_TUNNEL_INFO_TX)
 				vxlan_xmit_one(skb, dev, vni, NULL, false);
 			else
@@ -3890,7 +3891,7 @@ static int __vxlan_dev_create(struct net *net, struct net_device *dev,
 	}
 
 	err = rtnl_configure_link(dev, NULL);
-	if (err)
+	if (err < 0)
 		goto unlink;
 
 	if (f) {
