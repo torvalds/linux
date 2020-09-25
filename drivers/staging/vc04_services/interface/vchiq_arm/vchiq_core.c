@@ -1392,7 +1392,7 @@ abort_outstanding_bulks(struct vchiq_service *service,
 				bulk->remote_size);
 		} else {
 			/* fabricate a matching dummy bulk */
-			bulk->data = NULL;
+			bulk->data = 0;
 			bulk->size = 0;
 			bulk->actual = VCHIQ_BULK_ACTUAL_ABORTED;
 			bulk->dir = is_tx ? VCHIQ_BULK_TRANSMIT :
@@ -1764,10 +1764,10 @@ parse_rx_slots(struct vchiq_state *state)
 				queue->remote_insert++;
 
 				vchiq_log_info(vchiq_core_log_level,
-					"%d: prs %s@%pK (%d->%d) %x@%pK",
+					"%d: prs %s@%pK (%d->%d) %x@%pad",
 					state->id, msg_type_str(type),
 					header, remoteport, localport,
-					bulk->actual, bulk->data);
+					bulk->actual, &bulk->data);
 
 				vchiq_log_trace(vchiq_core_log_level,
 					"%d: prs:%d %cx li=%x ri=%x p=%x",
@@ -2316,7 +2316,7 @@ struct vchiq_header *vchiq_msg_hold(unsigned int handle)
 }
 EXPORT_SYMBOL(vchiq_msg_hold);
 
-static int vchiq_validate_params(const struct vchiq_service_params *params)
+static int vchiq_validate_params(const struct vchiq_service_params_kernel *params)
 {
 	if (!params->callback || !params->fourcc) {
 		vchiq_loud_error("Can't add service, invalid params\n");
@@ -2329,7 +2329,7 @@ static int vchiq_validate_params(const struct vchiq_service_params *params)
 /* Called from application thread when a client or server service is created. */
 struct vchiq_service *
 vchiq_add_service_internal(struct vchiq_state *state,
-			   const struct vchiq_service_params *params,
+			   const struct vchiq_service_params_kernel *params,
 			   int srvstate, struct vchiq_instance *instance,
 			   vchiq_userdata_term userdata_term)
 {
@@ -3015,7 +3015,8 @@ vchiq_remove_service(unsigned int handle)
  * structure.
  */
 enum vchiq_status vchiq_bulk_transfer(unsigned int handle,
-				   void *offset, int size, void *userdata,
+				   void *offset, int size,
+				   void *userdata,
 				   enum vchiq_bulk_mode mode,
 				   enum vchiq_bulk_dir dir)
 {
@@ -3093,9 +3094,9 @@ enum vchiq_status vchiq_bulk_transfer(unsigned int handle,
 	wmb();
 
 	vchiq_log_info(vchiq_core_log_level,
-		"%d: bt (%d->%d) %cx %x@%pK %pK",
+		"%d: bt (%d->%d) %cx %x@%pad %pK",
 		state->id, service->localport, service->remoteport, dir_char,
-		size, bulk->data, userdata);
+		size, &bulk->data, userdata);
 
 	/* The slot mutex must be held when the service is being closed, so
 	   claim it here to ensure that isn't happening */
@@ -3107,7 +3108,7 @@ enum vchiq_status vchiq_bulk_transfer(unsigned int handle,
 	if (service->srvstate != VCHIQ_SRVSTATE_OPEN)
 		goto unlock_both_error_exit;
 
-	payload[0] = (int)(long)bulk->data;
+	payload[0] = lower_32_bits(bulk->data);
 	payload[1] = bulk->size;
 	status = queue_message(state,
 			       NULL,
