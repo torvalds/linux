@@ -2865,6 +2865,8 @@ static int smu7_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 		data->pcie_gen_cap = adev->pm.pcie_gen_mask;
 		if (data->pcie_gen_cap & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3)
 			data->pcie_spc_cap = 20;
+		else
+			data->pcie_spc_cap = 16;
 		data->pcie_lane_cap = adev->pm.pcie_mlw_mask;
 
 		hwmgr->platform_descriptor.vbiosInterruptId = 0x20000400; /* IRQ_SOURCE1_SW_INT */
