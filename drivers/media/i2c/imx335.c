@@ -6,6 +6,7 @@
  *
  * V0.0X01.0X00 first version
  * V0.0X01.0X01 support 10bit DOL3
+ * V0.0X01.0X02 fix set sensor vertical invert failed
  */
 
 #define DEBUG
@@ -28,7 +29,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/rk-preisp.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x02)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -1753,8 +1754,37 @@ static int imx335_set_ctrl(struct v4l2_ctrl *ctrl)
 				       IMX335_REG_VALUE_08BIT, !!ctrl->val);
 		break;
 	case V4L2_CID_VFLIP:
-		ret = imx335_write_reg(imx335->client, IMX335_VREVERSE_REG,
-				       IMX335_REG_VALUE_08BIT, !!ctrl->val);
+		if (ctrl->val) {
+			ret = imx335_write_reg(imx335->client, IMX335_VREVERSE_REG,
+					       IMX335_REG_VALUE_08BIT, !!ctrl->val);
+			ret |= imx335_write_reg(imx335->client, 0x3081,
+					       IMX335_REG_VALUE_08BIT, 0xfe);
+			ret |= imx335_write_reg(imx335->client, 0x3083,
+					       IMX335_REG_VALUE_08BIT, 0xfe);
+			ret |= imx335_write_reg(imx335->client, 0x30b6,
+					       IMX335_REG_VALUE_08BIT, 0xfa);
+			ret |= imx335_write_reg(imx335->client, 0x30b7,
+					       IMX335_REG_VALUE_08BIT, 0x01);
+			ret |= imx335_write_reg(imx335->client, 0x3116,
+					       IMX335_REG_VALUE_08BIT, 0x02);
+			ret |= imx335_write_reg(imx335->client, 0x3117,
+					       IMX335_REG_VALUE_08BIT, 0x00);
+		} else {
+			ret = imx335_write_reg(imx335->client, IMX335_VREVERSE_REG,
+					       IMX335_REG_VALUE_08BIT, !!ctrl->val);
+			ret |= imx335_write_reg(imx335->client, 0x3081,
+					       IMX335_REG_VALUE_08BIT, 0x02);
+			ret |= imx335_write_reg(imx335->client, 0x3083,
+					       IMX335_REG_VALUE_08BIT, 0x02);
+			ret |= imx335_write_reg(imx335->client, 0x30b6,
+					       IMX335_REG_VALUE_08BIT, 0x00);
+			ret |= imx335_write_reg(imx335->client, 0x30b7,
+					       IMX335_REG_VALUE_08BIT, 0x00);
+			ret |= imx335_write_reg(imx335->client, 0x3116,
+					       IMX335_REG_VALUE_08BIT, 0x08);
+			ret |= imx335_write_reg(imx335->client, 0x3117,
+					       IMX335_REG_VALUE_08BIT, 0x00);
+		}
 		break;
 	default:
 		dev_warn(&client->dev, "%s Unhandled id:0x%x, val:0x%x\n",
