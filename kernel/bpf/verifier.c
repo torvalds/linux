@@ -486,7 +486,12 @@ static bool is_acquire_function(enum bpf_func_id func_id,
 static bool is_ptr_cast_function(enum bpf_func_id func_id)
 {
 	return func_id == BPF_FUNC_tcp_sock ||
-		func_id == BPF_FUNC_sk_fullsock;
+		func_id == BPF_FUNC_sk_fullsock ||
+		func_id == BPF_FUNC_skc_to_tcp_sock ||
+		func_id == BPF_FUNC_skc_to_tcp6_sock ||
+		func_id == BPF_FUNC_skc_to_udp6_sock ||
+		func_id == BPF_FUNC_skc_to_tcp_timewait_sock ||
+		func_id == BPF_FUNC_skc_to_tcp_request_sock;
 }
 
 /* string representation of 'enum bpf_reg_type' */
@@ -3953,6 +3958,7 @@ static int resolve_map_arg_type(struct bpf_verifier_env *env,
 
 struct bpf_reg_types {
 	const enum bpf_reg_type types[10];
+	u32 *btf_id;
 };
 
 static const struct bpf_reg_types map_key_value_types = {
@@ -3971,6 +3977,17 @@ static const struct bpf_reg_types sock_types = {
 		PTR_TO_TCP_SOCK,
 		PTR_TO_XDP_SOCK,
 	},
+};
+
+static const struct bpf_reg_types btf_id_sock_common_types = {
+	.types = {
+		PTR_TO_SOCK_COMMON,
+		PTR_TO_SOCKET,
+		PTR_TO_TCP_SOCK,
+		PTR_TO_XDP_SOCK,
+		PTR_TO_BTF_ID,
+	},
+	.btf_id = &btf_sock_ids[BTF_SOCK_TYPE_SOCK_COMMON],
 };
 
 static const struct bpf_reg_types mem_types = {
@@ -4014,6 +4031,7 @@ static const struct bpf_reg_types *compatible_reg_types[__BPF_ARG_TYPE_MAX] = {
 	[ARG_PTR_TO_CTX]		= &context_types,
 	[ARG_PTR_TO_CTX_OR_NULL]	= &context_types,
 	[ARG_PTR_TO_SOCK_COMMON]	= &sock_types,
+	[ARG_PTR_TO_BTF_ID_SOCK_COMMON]	= &btf_id_sock_common_types,
 	[ARG_PTR_TO_SOCKET]		= &fullsock_types,
 	[ARG_PTR_TO_SOCKET_OR_NULL]	= &fullsock_types,
 	[ARG_PTR_TO_BTF_ID]		= &btf_ptr_types,
@@ -4059,6 +4077,14 @@ static int check_reg_type(struct bpf_verifier_env *env, u32 regno,
 
 found:
 	if (type == PTR_TO_BTF_ID) {
+		if (!arg_btf_id) {
+			if (!compatible->btf_id) {
+				verbose(env, "verifier internal error: missing arg compatible BTF ID\n");
+				return -EFAULT;
+			}
+			arg_btf_id = compatible->btf_id;
+		}
+
 		if (!btf_struct_ids_match(&env->log, reg->off, reg->btf_id,
 					  *arg_btf_id)) {
 			verbose(env, "R%d is of type %s but %s is expected\n",
@@ -4575,9 +4601,13 @@ static bool check_btf_id_ok(const struct bpf_func_proto *fn)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(fn->arg_type); i++)
+	for (i = 0; i < ARRAY_SIZE(fn->arg_type); i++) {
 		if (fn->arg_type[i] == ARG_PTR_TO_BTF_ID && !fn->arg_btf_id[i])
 			return false;
+
+		if (fn->arg_type[i] != ARG_PTR_TO_BTF_ID && fn->arg_btf_id[i])
+			return false;
+	}
 
 	return true;
 }
