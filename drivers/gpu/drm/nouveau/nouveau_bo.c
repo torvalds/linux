@@ -1226,8 +1226,7 @@ nouveau_ttm_io_mem_free(struct ttm_bo_device *bdev, struct ttm_resource *reg)
 	mutex_unlock(&drm->ttm.io_reserve_mutex);
 }
 
-static int
-nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
+vm_fault_t nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 {
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
@@ -1243,34 +1242,38 @@ nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 		    !nvbo->kind)
 			return 0;
 
-		if (bo->mem.mem_type == TTM_PL_SYSTEM) {
-			nouveau_bo_placement_set(nvbo, NOUVEAU_GEM_DOMAIN_GART,
-						 0);
+		if (bo->mem.mem_type != TTM_PL_SYSTEM)
+			return 0;
 
-			ret = nouveau_bo_validate(nvbo, false, false);
-			if (ret)
-				return ret;
+		nouveau_bo_placement_set(nvbo, NOUVEAU_GEM_DOMAIN_GART, 0);
+
+	} else {
+		/* make sure bo is in mappable vram */
+		if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA ||
+		    bo->mem.start + bo->mem.num_pages < mappable)
+			return 0;
+
+		for (i = 0; i < nvbo->placement.num_placement; ++i) {
+			nvbo->placements[i].fpfn = 0;
+			nvbo->placements[i].lpfn = mappable;
 		}
-		return 0;
+
+		for (i = 0; i < nvbo->placement.num_busy_placement; ++i) {
+			nvbo->busy_placements[i].fpfn = 0;
+			nvbo->busy_placements[i].lpfn = mappable;
+		}
+
+		nouveau_bo_placement_set(nvbo, NOUVEAU_GEM_DOMAIN_VRAM, 0);
 	}
 
-	/* make sure bo is in mappable vram */
-	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA ||
-	    bo->mem.start + bo->mem.num_pages < mappable)
-		return 0;
+	ret = nouveau_bo_validate(nvbo, false, false);
+	if (unlikely(ret == -EBUSY || ret == -ERESTARTSYS))
+		return VM_FAULT_NOPAGE;
+	else if (unlikely(ret))
+		return VM_FAULT_SIGBUS;
 
-	for (i = 0; i < nvbo->placement.num_placement; ++i) {
-		nvbo->placements[i].fpfn = 0;
-		nvbo->placements[i].lpfn = mappable;
-	}
-
-	for (i = 0; i < nvbo->placement.num_busy_placement; ++i) {
-		nvbo->busy_placements[i].fpfn = 0;
-		nvbo->busy_placements[i].lpfn = mappable;
-	}
-
-	nouveau_bo_placement_set(nvbo, NOUVEAU_GEM_DOMAIN_VRAM, 0);
-	return nouveau_bo_validate(nvbo, false, false);
+	ttm_bo_move_to_lru_tail_unlocked(bo);
+	return 0;
 }
 
 static int
@@ -1381,7 +1384,6 @@ struct ttm_bo_driver nouveau_bo_driver = {
 	.move_notify = nouveau_bo_move_ntfy,
 	.move = nouveau_bo_move,
 	.verify_access = nouveau_bo_verify_access,
-	.fault_reserve_notify = &nouveau_ttm_fault_reserve_notify,
 	.io_mem_reserve = &nouveau_ttm_io_mem_reserve,
 	.io_mem_free = &nouveau_ttm_io_mem_free,
 };

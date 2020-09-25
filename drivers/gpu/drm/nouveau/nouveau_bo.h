@@ -89,6 +89,7 @@ void nouveau_bo_placement_set(struct nouveau_bo *, u32 type, u32 busy);
 void nouveau_bo_wr16(struct nouveau_bo *, unsigned index, u16 val);
 u32  nouveau_bo_rd32(struct nouveau_bo *, unsigned index);
 void nouveau_bo_wr32(struct nouveau_bo *, unsigned index, u32 val);
+vm_fault_t nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo);
 void nouveau_bo_fence(struct nouveau_bo *, struct nouveau_fence *, bool exclusive);
 int  nouveau_bo_validate(struct nouveau_bo *, bool interruptible,
 			 bool no_wait_gpu);
