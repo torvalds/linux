@@ -153,9 +153,6 @@ struct iwl_fw_runtime;
 
 void *iwl_acpi_get_object(struct device *dev, acpi_string method);
 
-void *iwl_acpi_get_dsm_object(struct device *dev, int rev, int func,
-			      union acpi_object *args);
-
 int iwl_acpi_get_dsm_u8(struct device *dev, int rev, int func);
 
 union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
@@ -184,10 +181,6 @@ u64 iwl_acpi_get_pwr_limit(struct device *dev);
  * from ACPI if available.
  */
 int iwl_acpi_get_eckv(struct device *dev, u32 *extl_clk);
-
-int iwl_sar_set_profile(union acpi_object *table,
-			struct iwl_sar_profile *profile,
-			bool enabled);
 
 int iwl_sar_select_profile(struct iwl_fw_runtime *fwrt,
 			   __le16 per_chain_restriction[][IWL_NUM_SUB_BANDS],

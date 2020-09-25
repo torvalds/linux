@@ -118,8 +118,8 @@ IWL_EXPORT_SYMBOL(iwl_acpi_get_object);
 * method (DSM) interface. The returned acpi object must be freed by calling
 * function.
 */
-void *iwl_acpi_get_dsm_object(struct device *dev, int rev, int func,
-			      union acpi_object *args)
+static void *iwl_acpi_get_dsm_object(struct device *dev, int rev, int func,
+				     union acpi_object *args)
 {
 	union acpi_object *obj;
 
@@ -400,9 +400,9 @@ out_free:
 }
 IWL_EXPORT_SYMBOL(iwl_acpi_get_eckv);
 
-int iwl_sar_set_profile(union acpi_object *table,
-			struct iwl_sar_profile *profile,
-			bool enabled)
+static int iwl_sar_set_profile(union acpi_object *table,
+			       struct iwl_sar_profile *profile,
+			       bool enabled)
 {
 	int i;
 
@@ -418,7 +418,6 @@ int iwl_sar_set_profile(union acpi_object *table,
 
 	return 0;
 }
-IWL_EXPORT_SYMBOL(iwl_sar_set_profile);
 
 int iwl_sar_select_profile(struct iwl_fw_runtime *fwrt,
 			   __le16 per_chain_restriction[][IWL_NUM_SUB_BANDS],
