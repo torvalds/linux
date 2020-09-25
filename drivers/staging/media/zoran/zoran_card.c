@@ -1010,7 +1010,6 @@ static void zoran_remove(struct pci_dev *pdev)
 	pci_free_irq(zr->pci_dev, 0, zr);
 	/* unmap and free memory */
 	dma_free_coherent(&zr->pci_dev->dev, BUZ_NUM_STAT_COM * sizeof(u32), zr->stat_com, zr->p_sc);
-	iounmap(zr->zr36057_mem);
 	pci_release_regions(pdev);
 	pci_disable_device(zr->pci_dev);
 	video_unregister_device(zr->video_dev);
@@ -1165,7 +1164,7 @@ static int zoran_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto zr_unreg;
 
-	zr->zr36057_mem = pci_ioremap_bar(zr->pci_dev, 0);
+	zr->zr36057_mem = devm_ioremap(&pdev->dev, pci_resource_start(pdev, 0), pci_resource_len(pdev, 0));
 	if (!zr->zr36057_mem) {
 		pci_err(pdev, "%s() - ioremap failed\n", __func__);
 		goto zr_pci_release;
@@ -1181,7 +1180,7 @@ static int zoran_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		} else {
 			pci_err(pdev, "%s - cannot assign IRQ, error code %d\n", __func__, result);
 		}
-		goto zr_unmap;
+		goto zr_pci_release;
 	}
 
 	/* set PCI latency timer */
@@ -1284,8 +1283,6 @@ zr_unreg_i2c:
 zr_free_irq:
 	btwrite(0, ZR36057_SPGPPCR);
 	pci_free_irq(zr->pci_dev, 0, zr);
-zr_unmap:
-	iounmap(zr->zr36057_mem);
 zr_pci_release:
 	pci_release_regions(pdev);
 zr_unreg:
