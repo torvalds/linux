@@ -2282,6 +2282,28 @@ static int smu7_complete_dependency_tables(struct pp_hwmgr *hwmgr)
 	return result;
 }
 
+static int smu7_find_highest_vddc(struct pp_hwmgr *hwmgr)
+{
+	struct phm_ppt_v1_information *table_info =
+			(struct phm_ppt_v1_information *)(hwmgr->pptable);
+	struct phm_ppt_v1_clock_voltage_dependency_table *allowed_sclk_vdd_table =
+						table_info->vdd_dep_on_sclk;
+	struct phm_ppt_v1_voltage_lookup_table *lookup_table =
+						table_info->vddc_lookup_table;
+	uint16_t highest_voltage;
+	uint32_t i;
+
+	highest_voltage = allowed_sclk_vdd_table->entries[allowed_sclk_vdd_table->count - 1].vddc;
+
+	for (i = 0; i < lookup_table->count; i++) {
+		if (lookup_table->entries[i].us_vdd < ATOM_VIRTUAL_VOLTAGE_ID0 &&
+		    lookup_table->entries[i].us_vdd > highest_voltage)
+			highest_voltage = lookup_table->entries[i].us_vdd;
+	}
+
+	return highest_voltage;
+}
+
 static int smu7_set_private_data_based_on_pptable_v1(struct pp_hwmgr *hwmgr)
 {
 	struct phm_ppt_v1_information *table_info =
@@ -2310,8 +2332,12 @@ static int smu7_set_private_data_based_on_pptable_v1(struct pp_hwmgr *hwmgr)
 		allowed_sclk_vdd_table->entries[allowed_sclk_vdd_table->count - 1].clk;
 	table_info->max_clock_voltage_on_ac.mclk =
 		allowed_mclk_vdd_table->entries[allowed_mclk_vdd_table->count - 1].clk;
-	table_info->max_clock_voltage_on_ac.vddc =
-		allowed_sclk_vdd_table->entries[allowed_sclk_vdd_table->count - 1].vddc;
+	if (hwmgr->chip_id >= CHIP_POLARIS10 && hwmgr->chip_id <= CHIP_VEGAM)
+		table_info->max_clock_voltage_on_ac.vddc =
+			smu7_find_highest_vddc(hwmgr);
+	else
+		table_info->max_clock_voltage_on_ac.vddc =
+			allowed_sclk_vdd_table->entries[allowed_sclk_vdd_table->count - 1].vddc;
 	table_info->max_clock_voltage_on_ac.vddci =
 		allowed_mclk_vdd_table->entries[allowed_mclk_vdd_table->count - 1].vddci;
 
