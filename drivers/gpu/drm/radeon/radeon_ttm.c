@@ -803,7 +803,6 @@ static struct ttm_bo_driver radeon_bo_driver = {
 	.move = &radeon_bo_move,
 	.verify_access = &radeon_verify_access,
 	.move_notify = &radeon_bo_move_notify,
-	.fault_reserve_notify = &radeon_bo_fault_reserve_notify,
 	.io_mem_reserve = &radeon_ttm_io_mem_reserve,
 };
 
@@ -904,17 +903,29 @@ void radeon_ttm_set_active_vram_size(struct radeon_device *rdev, u64 size)
 
 static vm_fault_t radeon_ttm_fault(struct vm_fault *vmf)
 {
-	struct ttm_buffer_object *bo;
-	struct radeon_device *rdev;
+	struct ttm_buffer_object *bo = vmf->vma->vm_private_data;
+	struct radeon_device *rdev = radeon_get_rdev(bo->bdev);
 	vm_fault_t ret;
 
-	bo = (struct ttm_buffer_object *)vmf->vma->vm_private_data;
-	if (bo == NULL)
-		return VM_FAULT_NOPAGE;
-
-	rdev = radeon_get_rdev(bo->bdev);
 	down_read(&rdev->pm.mclk_lock);
-	ret = ttm_bo_vm_fault(vmf);
+
+	ret = ttm_bo_vm_reserve(bo, vmf);
+	if (ret)
+		goto unlock_mclk;
+
+	ret = radeon_bo_fault_reserve_notify(bo);
+	if (ret)
+		goto unlock_resv;
+
+	ret = ttm_bo_vm_fault_reserved(vmf, vmf->vma->vm_page_prot,
+				       TTM_BO_VM_NUM_PREFAULT, 1);
+	if (ret == VM_FAULT_RETRY && !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT))
+		goto unlock_mclk;
+
+unlock_resv:
+	dma_resv_unlock(bo->base.resv);
+
+unlock_mclk:
 	up_read(&rdev->pm.mclk_lock);
 	return ret;
 }

@@ -775,7 +775,7 @@ void radeon_bo_move_notify(struct ttm_buffer_object *bo,
 	radeon_update_memory_usage(rbo, new_mem->mem_type, 1);
 }
 
-int radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
+vm_fault_t radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 {
 	struct ttm_operation_ctx ctx = { false, false };
 	struct radeon_device *rdev;
@@ -798,7 +798,7 @@ int radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 
 	/* Can't move a pinned BO to visible VRAM */
 	if (rbo->tbo.pin_count > 0)
-		return -EINVAL;
+		return VM_FAULT_SIGBUS;
 
 	/* hurrah the memory is not visible ! */
 	radeon_ttm_placement_from_domain(rbo, RADEON_GEM_DOMAIN_VRAM);
@@ -812,16 +812,20 @@ int radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 	r = ttm_bo_validate(bo, &rbo->placement, &ctx);
 	if (unlikely(r == -ENOMEM)) {
 		radeon_ttm_placement_from_domain(rbo, RADEON_GEM_DOMAIN_GTT);
-		return ttm_bo_validate(bo, &rbo->placement, &ctx);
-	} else if (unlikely(r != 0)) {
-		return r;
+		r = ttm_bo_validate(bo, &rbo->placement, &ctx);
+	} else if (likely(!r)) {
+		offset = bo->mem.start << PAGE_SHIFT;
+		/* this should never happen */
+		if ((offset + size) > rdev->mc.visible_vram_size)
+			return VM_FAULT_SIGBUS;
 	}
 
-	offset = bo->mem.start << PAGE_SHIFT;
-	/* this should never happen */
-	if ((offset + size) > rdev->mc.visible_vram_size)
-		return -EINVAL;
+	if (unlikely(r == -EBUSY || r == -ERESTARTSYS))
+		return VM_FAULT_NOPAGE;
+	else if (unlikely(r))
+		return VM_FAULT_SIGBUS;
 
+	ttm_bo_move_to_lru_tail_unlocked(bo);
 	return 0;
 }
 
