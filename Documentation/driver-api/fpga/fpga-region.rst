@@ -45,7 +45,7 @@ An example of usage can be seen in the probe function of [#f2]_.
 API to add a new FPGA region
 ----------------------------
 
-* struct :c:type:`fpga_region` — The FPGA region struct
+* struct fpga_region — The FPGA region struct
 * devm_fpga_region_create() — Allocate and init a region struct
 * fpga_region_register() —  Register an FPGA region
 * fpga_region_unregister() —  Unregister an FPGA region

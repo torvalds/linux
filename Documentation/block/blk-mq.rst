@@ -63,10 +63,10 @@ Software staging queues
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 The block IO subsystem adds requests  in the software staging queues
-(represented by struct :c:type:`blk_mq_ctx`) in case that they weren't sent
+(represented by struct blk_mq_ctx) in case that they weren't sent
 directly to the driver. A request is one or more BIOs. They arrived at the
-block layer through the data structure struct :c:type:`bio`. The block layer
-will then build a new structure from it, the struct :c:type:`request` that will
+block layer through the data structure struct bio. The block layer
+will then build a new structure from it, the struct request that will
 be used to communicate with the device driver. Each queue has its own lock and
 the number of queues is defined by a per-CPU or per-node basis.
 
@@ -102,7 +102,7 @@ hardware queue will be drained in sequence according to their mapping.
 Hardware dispatch queues
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-The hardware queue (represented by struct :c:type:`blk_mq_hw_ctx`) is a struct
+The hardware queue (represented by struct blk_mq_hw_ctx) is a struct
 used by device drivers to map the device submission queues (or device DMA ring
 buffer), and are the last step of the block layer submission code before the
 low level device driver taking ownership of the request. To run this queue, the
