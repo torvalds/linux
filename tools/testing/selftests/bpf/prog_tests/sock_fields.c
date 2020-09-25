@@ -29,7 +29,8 @@ struct bpf_spinlock_cnt {
 	__u32 cnt;
 };
 
-#define TEST_CGROUP "/test-bpf-sock-fields"
+#define PARENT_CGROUP	"/test-bpf-sock-fields"
+#define CHILD_CGROUP	"/test-bpf-sock-fields/child"
 #define DATA "Hello BPF!"
 #define DATA_LEN sizeof(DATA)
 
@@ -37,6 +38,8 @@ static struct sockaddr_in6 srv_sa6, cli_sa6;
 static int sk_pkt_out_cnt10_fd;
 struct test_sock_fields *skel;
 static int sk_pkt_out_cnt_fd;
+static __u64 parent_cg_id;
+static __u64 child_cg_id;
 static int linum_map_fd;
 static __u32 duration;
 
@@ -142,6 +145,8 @@ static void check_result(void)
 	      "srv_sk", "Unexpected. Check srv_sk output. egress_linum:%u\n",
 	      egress_linum);
 
+	CHECK(!skel->bss->lsndtime, "srv_tp", "Unexpected lsndtime:0\n");
+
 	CHECK(cli_sk.state == 10 ||
 	      !cli_sk.state ||
 	      cli_sk.family != AF_INET6 ||
@@ -178,6 +183,14 @@ static void check_result(void)
 	      cli_tp.bytes_received < 2 * DATA_LEN,
 	      "cli_tp", "Unexpected. Check cli_tp output. egress_linum:%u\n",
 	      egress_linum);
+
+	CHECK(skel->bss->parent_cg_id != parent_cg_id,
+	      "parent_cg_id", "%zu != %zu\n",
+	      (size_t)skel->bss->parent_cg_id, (size_t)parent_cg_id);
+
+	CHECK(skel->bss->child_cg_id != child_cg_id,
+	      "child_cg_id", "%zu != %zu\n",
+	       (size_t)skel->bss->child_cg_id, (size_t)child_cg_id);
 }
 
 static void check_sk_pkt_out_cnt(int accept_fd, int cli_fd)
@@ -319,25 +332,35 @@ done:
 void test_sock_fields(void)
 {
 	struct bpf_link *egress_link = NULL, *ingress_link = NULL;
-	int cgroup_fd;
+	int parent_cg_fd = -1, child_cg_fd = -1;
 
 	/* Create a cgroup, get fd, and join it */
-	cgroup_fd = test__join_cgroup(TEST_CGROUP);
-	if (CHECK_FAIL(cgroup_fd < 0))
+	parent_cg_fd = test__join_cgroup(PARENT_CGROUP);
+	if (CHECK_FAIL(parent_cg_fd < 0))
 		return;
+	parent_cg_id = get_cgroup_id(PARENT_CGROUP);
+	if (CHECK_FAIL(!parent_cg_id))
+		goto done;
+
+	child_cg_fd = test__join_cgroup(CHILD_CGROUP);
+	if (CHECK_FAIL(child_cg_fd < 0))
+		goto done;
+	child_cg_id = get_cgroup_id(CHILD_CGROUP);
+	if (CHECK_FAIL(!child_cg_id))
+		goto done;
 
 	skel = test_sock_fields__open_and_load();
 	if (CHECK(!skel, "test_sock_fields__open_and_load", "failed\n"))
 		goto done;
 
 	egress_link = bpf_program__attach_cgroup(skel->progs.egress_read_sock_fields,
-						 cgroup_fd);
+						 child_cg_fd);
 	if (CHECK(IS_ERR(egress_link), "attach_cgroup(egress)", "err:%ld\n",
 		  PTR_ERR(egress_link)))
 		goto done;
 
 	ingress_link = bpf_program__attach_cgroup(skel->progs.ingress_read_sock_fields,
-						  cgroup_fd);
+						  child_cg_fd);
 	if (CHECK(IS_ERR(ingress_link), "attach_cgroup(ingress)", "err:%ld\n",
 		  PTR_ERR(ingress_link)))
 		goto done;
@@ -352,5 +375,8 @@ done:
 	bpf_link__destroy(egress_link);
 	bpf_link__destroy(ingress_link);
 	test_sock_fields__destroy(skel);
-	close(cgroup_fd);
+	if (child_cg_fd != -1)
+		close(child_cg_fd);
+	if (parent_cg_fd != -1)
+		close(parent_cg_fd);
 }

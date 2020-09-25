@@ -7,6 +7,7 @@
 
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
+#include "bpf_tcp_helpers.h"
 
 enum bpf_linum_array_idx {
 	EGRESS_LINUM_IDX,
@@ -47,6 +48,9 @@ struct bpf_tcp_sock srv_tp = {};
 struct bpf_sock listen_sk = {};
 struct bpf_sock srv_sk = {};
 struct bpf_sock cli_sk = {};
+__u64 parent_cg_id = 0;
+__u64 child_cg_id = 0;
+__u64 lsndtime = 0;
 
 static bool is_loopback6(__u32 *a6)
 {
@@ -121,6 +125,7 @@ int egress_read_sock_fields(struct __sk_buff *skb)
 	struct bpf_tcp_sock *tp, *tp_ret;
 	struct bpf_sock *sk, *sk_ret;
 	__u32 linum, linum_idx;
+	struct tcp_sock *ktp;
 
 	linum_idx = EGRESS_LINUM_IDX;
 
@@ -165,9 +170,24 @@ int egress_read_sock_fields(struct __sk_buff *skb)
 	tpcpy(tp_ret, tp);
 
 	if (sk_ret == &srv_sk) {
+		ktp = bpf_skc_to_tcp_sock(sk);
+
+		if (!ktp)
+			RET_LOG();
+
+		lsndtime = ktp->lsndtime;
+
+		child_cg_id = bpf_sk_cgroup_id(ktp);
+		if (!child_cg_id)
+			RET_LOG();
+
+		parent_cg_id = bpf_sk_ancestor_cgroup_id(ktp, 2);
+		if (!parent_cg_id)
+			RET_LOG();
+
 		/* The userspace has created it for srv sk */
-		pkt_out_cnt = bpf_sk_storage_get(&sk_pkt_out_cnt, sk, 0, 0);
-		pkt_out_cnt10 = bpf_sk_storage_get(&sk_pkt_out_cnt10, sk,
+		pkt_out_cnt = bpf_sk_storage_get(&sk_pkt_out_cnt, ktp, 0, 0);
+		pkt_out_cnt10 = bpf_sk_storage_get(&sk_pkt_out_cnt10, ktp,
 						   0, 0);
 	} else {
 		pkt_out_cnt = bpf_sk_storage_get(&sk_pkt_out_cnt, sk,
