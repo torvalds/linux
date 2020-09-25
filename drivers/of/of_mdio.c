@@ -338,6 +338,29 @@ unregister:
 EXPORT_SYMBOL(of_mdiobus_register);
 
 /**
+ * of_mdio_find_device - Given a device tree node, find the mdio_device
+ * @np: pointer to the mdio_device's device tree node
+ *
+ * If successful, returns a pointer to the mdio_device with the embedded
+ * struct device refcount incremented by one, or NULL on failure.
+ * The caller should call put_device() on the mdio_device after its use
+ */
+struct mdio_device *of_mdio_find_device(struct device_node *np)
+{
+	struct device *d;
+
+	if (!np)
+		return NULL;
+
+	d = bus_find_device_by_of_node(&mdio_bus_type, np);
+	if (!d)
+		return NULL;
+
+	return to_mdio_device(d);
+}
+EXPORT_SYMBOL(of_mdio_find_device);
+
+/**
  * of_phy_find_device - Give a PHY node, find the phy_device
  * @phy_np: Pointer to the phy's device tree node
  *
@@ -346,19 +369,16 @@ EXPORT_SYMBOL(of_mdiobus_register);
  */
 struct phy_device *of_phy_find_device(struct device_node *phy_np)
 {
-	struct device *d;
 	struct mdio_device *mdiodev;
 
-	if (!phy_np)
+	mdiodev = of_mdio_find_device(phy_np);
+	if (!mdiodev)
 		return NULL;
 
-	d = bus_find_device_by_of_node(&mdio_bus_type, phy_np);
-	if (d) {
-		mdiodev = to_mdio_device(d);
-		if (mdiodev->flags & MDIO_DEVICE_FLAG_PHY)
-			return to_phy_device(d);
-		put_device(d);
-	}
+	if (mdiodev->flags & MDIO_DEVICE_FLAG_PHY)
+		return to_phy_device(&mdiodev->dev);
+
+	put_device(&mdiodev->dev);
 
 	return NULL;
 }
