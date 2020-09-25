@@ -135,6 +135,25 @@ struct iwl_fw_ini_region_err_table {
 } __packed; /* FW_TLV_DEBUG_REGION_ERROR_TABLE_API_S_VER_1 */
 
 /**
+ * struct iwl_fw_ini_region_special_device_memory - special device memory
+ *
+ * Configuration to read a special memory
+ *
+ * @type: type of the special memory
+ * @version: version of the special memory
+ * @base_addr: base address of the error table
+ * @size: size of the error table
+ * @offset: offset to add to &base_addr
+ */
+struct iwl_fw_ini_region_special_device_memory {
+	__le16 type;
+	__le16 version;
+	__le32 base_addr;
+	__le32 size;
+	__le32 offset;
+} __packed; /* FW_TLV_DEBUG_REGION_SPECIAL_DEVICE_ADDR_API_S_VER_1 */
+
+/**
  * struct iwl_fw_ini_region_internal_buffer - internal buffer region data
  *
  * Configuration to read internal monitor buffer
@@ -185,6 +204,7 @@ struct iwl_fw_ini_region_tlv {
 		struct iwl_fw_ini_region_fifos fifos;
 		struct iwl_fw_ini_region_err_table err_table;
 		struct iwl_fw_ini_region_internal_buffer internal_buffer;
+		struct iwl_fw_ini_region_special_device_memory special_mem;
 		__le32 dram_alloc_id;
 		__le32 tlv_mask;
 	}; /* FW_TLV_DEBUG_REGION_CONF_PARAMS_API_U_VER_1 */
@@ -327,6 +347,7 @@ enum iwl_fw_ini_buffer_location {
  * @IWL_FW_INI_REGION_CSR: CSR registers
  * @IWL_FW_INI_REGION_DRAM_IMR: IMR memory
  * @IWL_FW_INI_REGION_PCI_IOSF_CONFIG: PCI/IOSF config
+ * @IWL_FW_INI_REGION_SPECIAL_DEVICE_MEMORY: special device memroy
  * @IWL_FW_INI_REGION_NUM: number of region types
  */
 enum iwl_fw_ini_region_type {
@@ -347,6 +368,7 @@ enum iwl_fw_ini_region_type {
 	IWL_FW_INI_REGION_CSR,
 	IWL_FW_INI_REGION_DRAM_IMR,
 	IWL_FW_INI_REGION_PCI_IOSF_CONFIG,
+	IWL_FW_INI_REGION_SPECIAL_DEVICE_MEMORY,
 	IWL_FW_INI_REGION_NUM
 }; /* FW_TLV_DEBUG_REGION_TYPE_API_E */
 
