@@ -590,17 +590,18 @@ void br_multicast_del_pg(struct net_bridge_mdb_entry *mp,
 	struct net_bridge_group_src *ent;
 	struct hlist_node *tmp;
 
-	rhashtable_remove_fast(&br->sg_port_tbl, &pg->rhnode,
-			       br_sg_port_rht_params);
 	rcu_assign_pointer(*pp, pg->next);
 	hlist_del_init(&pg->mglist);
 	hlist_for_each_entry_safe(ent, tmp, &pg->src_list, node)
 		br_multicast_del_group_src(ent);
 	br_mdb_notify(br->dev, mp, pg, RTM_DELMDB);
-	if (!br_multicast_is_star_g(&mp->addr))
+	if (!br_multicast_is_star_g(&mp->addr)) {
+		rhashtable_remove_fast(&br->sg_port_tbl, &pg->rhnode,
+				       br_sg_port_rht_params);
 		br_multicast_sg_del_exclude_ports(mp);
-	else
+	} else {
 		br_multicast_star_g_handle_mode(pg, MCAST_INCLUDE);
+	}
 	hlist_add_head(&pg->mcast_gc.gc_node, &br->mcast_gc_list);
 	queue_work(system_long_wq, &br->mcast_gc_work);
 
