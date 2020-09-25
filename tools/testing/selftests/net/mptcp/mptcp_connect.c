@@ -54,6 +54,7 @@ static int pf = AF_INET;
 static int cfg_sndbuf;
 static int cfg_rcvbuf;
 static bool cfg_join;
+static bool cfg_remove;
 static int cfg_wait;
 
 static void die_usage(void)
@@ -271,6 +272,9 @@ static size_t do_rnd_write(const int fd, char *buf, const size_t len)
 	if (cfg_join && first && do_w > 100)
 		do_w = 100;
 
+	if (cfg_remove && do_w > 50)
+		do_w = 50;
+
 	bw = write(fd, buf, do_w);
 	if (bw < 0)
 		perror("write");
@@ -280,6 +284,9 @@ static size_t do_rnd_write(const int fd, char *buf, const size_t len)
 		usleep(200000);
 		first = false;
 	}
+
+	if (cfg_remove)
+		usleep(200000);
 
 	return bw;
 }
@@ -428,7 +435,7 @@ static int copyfd_io_poll(int infd, int peerfd, int outfd)
 	}
 
 	/* leave some time for late join/announce */
-	if (cfg_join)
+	if (cfg_join || cfg_remove)
 		usleep(cfg_wait);
 
 	close(peerfd);
@@ -686,7 +693,7 @@ static void maybe_close(int fd)
 {
 	unsigned int r = rand();
 
-	if (!cfg_join && (r & 1))
+	if (!(cfg_join || cfg_remove) && (r & 1))
 		close(fd);
 }
 
@@ -822,10 +829,15 @@ static void parse_opts(int argc, char **argv)
 {
 	int c;
 
-	while ((c = getopt(argc, argv, "6jlp:s:hut:m:S:R:w:")) != -1) {
+	while ((c = getopt(argc, argv, "6jrlp:s:hut:m:S:R:w:")) != -1) {
 		switch (c) {
 		case 'j':
 			cfg_join = true;
+			cfg_mode = CFG_MODE_POLL;
+			cfg_wait = 400000;
+			break;
+		case 'r':
+			cfg_remove = true;
 			cfg_mode = CFG_MODE_POLL;
 			cfg_wait = 400000;
 			break;
