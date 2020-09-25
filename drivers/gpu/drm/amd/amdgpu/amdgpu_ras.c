@@ -1266,6 +1266,7 @@ static int amdgpu_ras_fs_init(struct amdgpu_device *adev)
 		NULL,
 		NULL,
 	};
+	int r;
 
 	/* add features entry */
 	con->features_attr = dev_attr_features;
@@ -1281,7 +1282,9 @@ static int amdgpu_ras_fs_init(struct amdgpu_device *adev)
 		sysfs_bin_attr_init(bin_attrs[0]);
 	}
 
-	sysfs_create_group(&adev->dev->kobj, &group);
+	r = sysfs_create_group(&adev->dev->kobj, &group);
+	if (r)
+		dev_err(adev->dev, "Failed to create RAS sysfs group!");
 
 	return 0;
 }
