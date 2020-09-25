@@ -56,9 +56,9 @@ bpf_lsm_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 	case BPF_FUNC_inode_storage_delete:
 		return &bpf_inode_storage_delete_proto;
 	case BPF_FUNC_sk_storage_get:
-		return &sk_storage_get_btf_proto;
+		return &bpf_sk_storage_get_proto;
 	case BPF_FUNC_sk_storage_delete:
-		return &sk_storage_delete_btf_proto;
+		return &bpf_sk_storage_delete_proto;
 	default:
 		return tracing_prog_func_proto(func_id, prog);
 	}
