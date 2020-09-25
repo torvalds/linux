@@ -751,7 +751,7 @@ static enum es_result vc_do_mmio(struct ghcb *ghcb, struct es_em_ctxt *ctxt,
 	/* Can never be greater than 8 */
 	exit_info_2 = bytes;
 
-	ghcb->save.sw_scratch = ghcb_pa + offsetof(struct ghcb, shared_buffer);
+	ghcb_set_sw_scratch(ghcb, ghcb_pa + offsetof(struct ghcb, shared_buffer));
 
 	return sev_es_ghcb_hv_call(ghcb, ctxt, exit_code, exit_info_1, exit_info_2);
 }
