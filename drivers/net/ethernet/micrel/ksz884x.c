@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * drivers/net/ethernet/micrel/ksx884x.c - Micrel KSZ8841/2 PCI Ethernet driver
  *
  * Copyright (c) 2009-2010 Micrel, Inc.
@@ -959,7 +959,7 @@ struct ksz_sw_desc {
  * struct ksz_dma_buf - OS dependent DMA buffer data structure
  * @skb:	Associated socket buffer.
  * @dma:	Associated physical DMA address.
- * len:		Actual len used.
+ * @len:	Actual len used.
  */
 struct ksz_dma_buf {
 	struct sk_buff *skb;
@@ -1254,6 +1254,7 @@ struct ksz_port_info {
  * @multi_list_size:	Multicast address list size.
  * @enabled:		Indication of hardware enabled.
  * @rx_stop:		Indication of receive process stop.
+ * @reserved2:		none
  * @features:		Hardware features to enable.
  * @overrides:		Hardware features to override.
  * @parent:		Pointer to parent, network device private structure.
@@ -1447,7 +1448,7 @@ struct dev_info {
  * struct dev_priv - Network device private data structure
  * @adapter:		Adapter device information.
  * @port:		Port information.
- * @monitor_time_info:	Timer to monitor ports.
+ * @monitor_timer_info:	Timer to monitor ports.
  * @proc_sem:		Semaphore for proc accessing.
  * @id:			Device ID.
  * @mii_if:		MII interface information.
@@ -1566,6 +1567,7 @@ static inline void hw_restore_intr(struct ksz_hw *hw, uint interrupt)
 
 /**
  * hw_block_intr - block hardware interrupts
+ * @hw: The hardware instance.
  *
  * This function blocks all interrupts of the hardware and returns the current
  * interrupt enable mask so that interrupts can be restored later.
@@ -1649,8 +1651,7 @@ static inline void set_tx_len(struct ksz_desc *desc, u32 len)
 
 #define HW_DELAY(hw, reg)			\
 	do {					\
-		u16 dummy;			\
-		dummy = readw(hw->io + reg);	\
+		readw(hw->io + reg);		\
 	} while (0)
 
 /**
@@ -1819,6 +1820,7 @@ static void port_r_mib_cnt(struct ksz_hw *hw, int port, u16 addr, u64 *cnt)
  * port_r_mib_pkt - read dropped packet counts
  * @hw: 	The hardware instance.
  * @port:	The port index.
+ * @last:	last one
  * @cnt:	Buffer to store the receive and transmit dropped packet counts.
  *
  * This routine reads the dropped packet counts of the port.
@@ -1972,7 +1974,7 @@ static void port_cfg(struct ksz_hw *hw, int port, int offset, u16 bits,
  * port_chk_shift - check port bit
  * @hw: 	The hardware instance.
  * @port:	The port index.
- * @offset:	The offset of the register.
+ * @addr:	The offset of the register.
  * @shift:	Number of bits to shift.
  *
  * This function checks whether the specified port is set in the register or
@@ -1994,7 +1996,7 @@ static int port_chk_shift(struct ksz_hw *hw, int port, u32 addr, int shift)
  * port_cfg_shift - set port bit
  * @hw: 	The hardware instance.
  * @port:	The port index.
- * @offset:	The offset of the register.
+ * @addr:	The offset of the register.
  * @shift:	Number of bits to shift.
  * @set:	The flag indicating whether the port is to be set or not.
  *
@@ -4425,6 +4427,8 @@ static int ksz_alloc_desc(struct dev_info *adapter)
 /**
  * free_dma_buf - release DMA buffer resources
  * @adapter:	Adapter information structure.
+ * @dma_buf:	pointer to buf
+ * @direction:	to or from device
  *
  * This routine is just a helper function to release the DMA buffer resources.
  */
@@ -4562,6 +4566,7 @@ static void ksz_free_desc(struct dev_info *adapter)
  * ksz_free_buffers - free buffers used in the descriptors
  * @adapter:	Adapter information structure.
  * @desc_info:	Descriptor information structure.
+ * @direction:	to or from device
  *
  * This local routine frees buffers used in the DMA buffers.
  */
@@ -4721,7 +4726,8 @@ static void send_packet(struct sk_buff *skb, struct net_device *dev)
 
 /**
  * transmit_cleanup - clean up transmit descriptors
- * @dev:	Network device.
+ * @hw_priv:	Network device.
+ * @normal:	break if owned
  *
  * This routine is called to clean up the transmitted buffers.
  */
@@ -4777,7 +4783,7 @@ static void transmit_cleanup(struct dev_info *hw_priv, int normal)
 
 /**
  * transmit_done - transmit done processing
- * @dev:	Network device.
+ * @hw_priv:	Network device.
  *
  * This routine is called when the transmit interrupt is triggered, indicating
  * either a packet is sent successfully or there are transmit errors.
@@ -4883,6 +4889,7 @@ unlock:
 /**
  * netdev_tx_timeout - transmit timeout processing
  * @dev:	Network device.
+ * @txqueue:	index of hanging queue
  *
  * This routine is called when the transmit timer expires.  That indicates the
  * hardware is not running correctly because transmit interrupts are not
@@ -6075,14 +6082,6 @@ static void netdev_get_drvinfo(struct net_device *dev,
 		sizeof(info->bus_info));
 }
 
-/**
- * netdev_get_regs_len - get length of register dump
- * @dev:	Network device.
- *
- * This function returns the length of the register dump.
- *
- * Return length of the register dump.
- */
 static struct hw_regs {
 	int start;
 	int end;
@@ -6096,6 +6095,14 @@ static struct hw_regs {
 	{ 0, 0 }
 };
 
+/**
+ * netdev_get_regs_len - get length of register dump
+ * @dev:	Network device.
+ *
+ * This function returns the length of the register dump.
+ *
+ * Return length of the register dump.
+ */
 static int netdev_get_regs_len(struct net_device *dev)
 {
 	struct hw_regs *range = hw_regs_range;
@@ -6237,6 +6244,8 @@ static int netdev_get_eeprom_len(struct net_device *dev)
 	return EEPROM_SIZE * 2;
 }
 
+#define EEPROM_MAGIC			0x10A18842
+
 /**
  * netdev_get_eeprom - get EEPROM data
  * @dev:	Network device.
@@ -6247,8 +6256,6 @@ static int netdev_get_eeprom_len(struct net_device *dev)
  *
  * Return 0 if successful; otherwise an error code.
  */
-#define EEPROM_MAGIC			0x10A18842
-
 static int netdev_get_eeprom(struct net_device *dev,
 	struct ethtool_eeprom *eeprom, u8 *data)
 {
@@ -6385,7 +6392,7 @@ static int netdev_set_pauseparam(struct net_device *dev,
 /**
  * netdev_get_ringparam - get tx/rx ring parameters
  * @dev:	Network device.
- * @pause:	Ethtool RING settings data structure.
+ * @ring:	Ethtool RING settings data structure.
  *
  * This procedure returns the TX/RX ring settings.
  */
@@ -6689,7 +6696,7 @@ static void mib_monitor(struct timer_list *t)
 
 /**
  * dev_monitor - periodic monitoring
- * @ptr:	Network device pointer.
+ * @t:	timer list containing a network device pointer.
  *
  * This routine is run in a kernel timer to monitor the network device.
  */

@@ -507,10 +507,10 @@ static netdev_tx_t dnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 
 	struct dnet *bp = netdev_priv(dev);
-	u32 irq_enable;
 	unsigned int i, tx_cmd, wrsz;
 	unsigned long flags;
 	unsigned int *bufp;
+	u32 irq_enable;
 
 	dnet_readl(bp, TX_STATUS);
 

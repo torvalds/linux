@@ -512,7 +512,7 @@ int fec_ptp_get(struct net_device *ndev, struct ifreq *ifr)
 		-EFAULT : 0;
 }
 
-/**
+/*
  * fec_time_keep - call timecounter_read every second to avoid timer overrun
  *                 because ENET just support 32bit counter, will timeout in 4s
  */
@@ -566,7 +566,8 @@ static irqreturn_t fec_pps_interrupt(int irq, void *dev_id)
 
 /**
  * fec_ptp_init
- * @ndev: The FEC network adapter
+ * @pdev: The FEC network adapter
+ * @irq_idx: the interrupt index
  *
  * This function performs the required steps for enabling ptp
  * support. If ptp support has already been loaded it simply calls the

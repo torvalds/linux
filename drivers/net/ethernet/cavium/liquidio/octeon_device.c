@@ -1307,7 +1307,7 @@ struct octeon_config *octeon_get_conf(struct octeon_device *oct)
 /* scratch register address is same in all the OCT-II and CN70XX models */
 #define CNXX_SLI_SCRATCH1   0x3C0
 
-/** Get the octeon device pointer.
+/* Get the octeon device pointer.
  *  @param octeon_id  - The id for which the octeon device pointer is required.
  *  @return Success: Octeon device pointer.
  *  @return Failure: NULL.
@@ -1410,7 +1410,7 @@ int octeon_wait_for_ddr_init(struct octeon_device *oct, u32 *timeout)
 	return ret;
 }
 
-/** Get the octeon id assigned to the octeon device passed as argument.
+/* Get the octeon id assigned to the octeon device passed as argument.
  *  This function is exported to other modules.
  *  @param dev - octeon device pointer passed as a void *.
  *  @return octeon device id

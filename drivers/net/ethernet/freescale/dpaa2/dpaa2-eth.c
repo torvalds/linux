@@ -1344,7 +1344,7 @@ static int dpaa2_eth_seed_pool(struct dpaa2_eth_priv *priv, u16 bpid)
 	return 0;
 }
 
-/**
+/*
  * Drain the specified number of buffers from the DPNI's private buffer pool.
  * @count must not exceeed DPAA2_ETH_BUFS_PER_CMD
  */

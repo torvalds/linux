@@ -138,7 +138,10 @@ static void print_eth_id(struct net_device *ndev)
  * @priv: NIC private structure
  * @f: fifo to initialize
  * @fsz_type: fifo size type: 0-4KB, 1-8KB, 2-16KB, 3-32KB
- * @reg_XXX: offsets of registers relative to base address
+ * @reg_CFG0: offsets of registers relative to base address
+ * @reg_CFG1: offsets of registers relative to base address
+ * @reg_RPTR: offsets of registers relative to base address
+ * @reg_WPTR: offsets of registers relative to base address
  *
  * 1K extra space is allocated at the end of the fifo to simplify
  * processing of descriptors that wraps around fifo's end
@@ -558,7 +561,7 @@ static int bdx_reset(struct bdx_priv *priv)
 
 /**
  * bdx_close - Disables a network interface
- * @netdev: network interface device structure
+ * @ndev: network interface device structure
  *
  * Returns 0, this is not allowed to fail
  *
@@ -585,7 +588,7 @@ static int bdx_close(struct net_device *ndev)
 
 /**
  * bdx_open - Called when a network interface is made active
- * @netdev: network interface device structure
+ * @ndev: network interface device structure
  *
  * Returns 0 on success, negative value on failure
  *
@@ -698,7 +701,7 @@ static int bdx_ioctl(struct net_device *ndev, struct ifreq *ifr, int cmd)
  * __bdx_vlan_rx_vid - private helper for adding/killing VLAN vid
  * @ndev: network device
  * @vid:  VLAN vid
- * @op:   add or kill operation
+ * @enable: enable or disable vlan
  *
  * Passes VLAN filter table to hardware
  */
@@ -729,6 +732,7 @@ static void __bdx_vlan_rx_vid(struct net_device *ndev, uint16_t vid, int enable)
 /**
  * bdx_vlan_rx_add_vid - kernel hook for adding VLAN vid to hw filtering table
  * @ndev: network device
+ * @proto: unused
  * @vid:  VLAN vid to add
  */
 static int bdx_vlan_rx_add_vid(struct net_device *ndev, __be16 proto, u16 vid)
@@ -740,6 +744,7 @@ static int bdx_vlan_rx_add_vid(struct net_device *ndev, __be16 proto, u16 vid)
 /**
  * bdx_vlan_rx_kill_vid - kernel hook for killing VLAN vid in hw filtering table
  * @ndev: network device
+ * @proto: unused
  * @vid:  VLAN vid to kill
  */
 static int bdx_vlan_rx_kill_vid(struct net_device *ndev, __be16 proto, u16 vid)
@@ -750,7 +755,7 @@ static int bdx_vlan_rx_kill_vid(struct net_device *ndev, __be16 proto, u16 vid)
 
 /**
  * bdx_change_mtu - Change the Maximum Transfer Unit
- * @netdev: network interface device structure
+ * @ndev: network interface device structure
  * @new_mtu: new value for maximum frame size
  *
  * Returns 0 on success, negative on failure
@@ -1753,6 +1758,8 @@ static void bdx_tx_cleanup(struct bdx_priv *priv)
 
 /**
  * bdx_tx_free_skbs - frees all skbs from TXD fifo.
+ * @priv: NIC private structure
+ *
  * It gets called when OS stops this dev, eg upon "ifconfig down" or rmmod
  */
 static void bdx_tx_free_skbs(struct bdx_priv *priv)

@@ -204,7 +204,7 @@ static u32 atl1c_wait_until_idle(struct atl1c_hw *hw, u32 modu_ctrl)
 
 /**
  * atl1c_phy_config - Timer Call-back
- * @data: pointer to netdev cast into an unsigned long
+ * @t: timer list containing pointer to netdev cast into an unsigned long
  */
 static void atl1c_phy_config(struct timer_list *t)
 {
@@ -346,6 +346,7 @@ static void atl1c_del_timer(struct atl1c_adapter *adapter)
 /**
  * atl1c_tx_timeout - Respond to a Tx Hang
  * @netdev: network interface device structure
+ * @txqueue: index of hanging tx queue
  */
 static void atl1c_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
@@ -846,6 +847,7 @@ static inline void atl1c_clean_buffer(struct pci_dev *pdev,
 /**
  * atl1c_clean_tx_ring - Free Tx-skb
  * @adapter: board private structure
+ * @type: type of transmit queue
  */
 static void atl1c_clean_tx_ring(struct atl1c_adapter *adapter,
 				enum atl1c_trans_queue type)
@@ -1861,6 +1863,8 @@ rrs_checked:
 
 /**
  * atl1c_clean - NAPI Rx polling callback
+ * @napi: napi info
+ * @budget: limit of packets to clean
  */
 static int atl1c_clean(struct napi_struct *napi, int budget)
 {

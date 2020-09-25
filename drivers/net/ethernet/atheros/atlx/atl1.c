@@ -2552,7 +2552,7 @@ static irqreturn_t atl1_intr(int irq, void *data)
 
 /**
  * atl1_phy_config - Timer Call-back
- * @data: pointer to netdev cast into an unsigned long
+ * @t: timer_list containing pointer to netdev cast into an unsigned long
  */
 static void atl1_phy_config(struct timer_list *t)
 {

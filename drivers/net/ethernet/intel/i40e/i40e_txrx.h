@@ -482,7 +482,6 @@ static inline u32 i40e_get_head(struct i40e_ring *tx_ring)
 /**
  * i40e_xmit_descriptor_count - calculate number of Tx descriptors needed
  * @skb:     send buffer
- * @tx_ring: ring to send buffer on
  *
  * Returns number of data descriptors needed for this skb. Returns 0 to indicate
  * there is not enough descriptors available in this ring since we need at least

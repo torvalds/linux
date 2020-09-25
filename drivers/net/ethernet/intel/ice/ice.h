@@ -508,7 +508,7 @@ static inline void ice_set_ring_xdp(struct ice_ring *ring)
 
 /**
  * ice_xsk_pool - get XSK buffer pool bound to a ring
- * @ring - ring to use
+ * @ring: ring to use
  *
  * Returns a pointer to xdp_umem structure if there is a buffer pool present,
  * NULL otherwise.
