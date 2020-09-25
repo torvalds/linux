@@ -261,7 +261,7 @@ int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num)
 	bool complete = false;
 	u32 timeout = 0;
 	int handle = 0;
-	int retval = 0;
+	int retval;
 	int ntc;
 
 	spin_lock_bh(&hw->cmq.csq.lock);

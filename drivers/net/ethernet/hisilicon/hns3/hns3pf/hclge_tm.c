@@ -1355,7 +1355,7 @@ static int hclge_mac_pause_setup_hw(struct hclge_dev *hdev)
 
 static int hclge_tm_bp_setup(struct hclge_dev *hdev)
 {
-	int ret = 0;
+	int ret;
 	int i;
 
 	for (i = 0; i < hdev->tm_info.num_tc; i++) {

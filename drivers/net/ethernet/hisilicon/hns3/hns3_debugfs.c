@@ -19,7 +19,7 @@ static int hns3_dbg_queue_info(struct hnae3_handle *h,
 	struct hns3_enet_ring *ring;
 	u32 base_add_l, base_add_h;
 	u32 queue_num, queue_max;
-	u32 value, i = 0;
+	u32 value, i;
 	int cnt;
 
 	if (!priv->ring) {
@@ -264,6 +264,7 @@ static void hns3_dbg_help(struct hnae3_handle *h)
 	dev_info(&h->pdev->dev, "dump qs shaper [qs id]\n");
 	dev_info(&h->pdev->dev, "dump uc mac list <func id>\n");
 	dev_info(&h->pdev->dev, "dump mc mac list <func id>\n");
+	dev_info(&h->pdev->dev, "dump intr\n");
 
 	memset(printf_buf, 0, HNS3_DBG_BUF_LEN);
 	strncat(printf_buf, "dump reg [[bios common] [ssu <port_id>]",
