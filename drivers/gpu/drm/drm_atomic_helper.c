@@ -1736,8 +1736,11 @@ int drm_atomic_helper_async_check(struct drm_device *dev,
 	 * overridden by a previous synchronous update's state.
 	 */
 	if (old_plane_state->commit &&
-	    !try_wait_for_completion(&old_plane_state->commit->hw_done))
+	    !try_wait_for_completion(&old_plane_state->commit->hw_done)) {
+		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] inflight previous commit preventing async commit\n",
+			plane->base.id, plane->name);
 		return -EBUSY;
+	}
 
 	return funcs->atomic_async_check(plane, new_plane_state);
 }
@@ -1955,6 +1958,9 @@ static int stall_checks(struct drm_crtc *crtc, bool nonblock)
 			 * commit with nonblocking ones. */
 			if (!completed && nonblock) {
 				spin_unlock(&crtc->commit_lock);
+				DRM_DEBUG_ATOMIC("[CRTC:%d:%s] busy with a previous commit\n",
+					crtc->base.id, crtc->name);
+
 				return -EBUSY;
 			}
 		} else if (i == 1) {
@@ -2129,8 +2135,12 @@ int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
 		/* Userspace is not allowed to get ahead of the previous
 		 * commit with nonblocking ones. */
 		if (nonblock && old_conn_state->commit &&
-		    !try_wait_for_completion(&old_conn_state->commit->flip_done))
+		    !try_wait_for_completion(&old_conn_state->commit->flip_done)) {
+			DRM_DEBUG_ATOMIC("[CONNECTOR:%d:%s] busy with a previous commit\n",
+				conn->base.id, conn->name);
+
 			return -EBUSY;
+		}
 
 		/* Always track connectors explicitly for e.g. link retraining. */
 		commit = crtc_or_fake_commit(state, new_conn_state->crtc ?: old_conn_state->crtc);
@@ -2144,8 +2154,12 @@ int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
 		/* Userspace is not allowed to get ahead of the previous
 		 * commit with nonblocking ones. */
 		if (nonblock && old_plane_state->commit &&
-		    !try_wait_for_completion(&old_plane_state->commit->flip_done))
+		    !try_wait_for_completion(&old_plane_state->commit->flip_done)) {
+			DRM_DEBUG_ATOMIC("[PLANE:%d:%s] busy with a previous commit\n",
+				plane->base.id, plane->name);
+
 			return -EBUSY;
+		}
 
 		/* Always track planes explicitly for async pageflip support. */
 		commit = crtc_or_fake_commit(state, new_plane_state->crtc ?: old_plane_state->crtc);
