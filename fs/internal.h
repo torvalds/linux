@@ -77,6 +77,8 @@ extern int vfs_path_lookup(struct dentry *, struct vfsmount *,
 long do_rmdir(int dfd, struct filename *name);
 long do_unlinkat(int dfd, struct filename *name);
 int may_linkat(struct path *link);
+int do_renameat2(int olddfd, struct filename *oldname, int newdfd,
+		 struct filename *newname, unsigned int flags);
 
 /*
  * namespace.c
