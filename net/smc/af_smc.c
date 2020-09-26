@@ -2137,6 +2137,8 @@ static int __init smc_init(void)
 	if (rc)
 		return rc;
 
+	smc_ism_init();
+
 	rc = smc_pnet_init();
 	if (rc)
 		goto out_pernet_subsys;
