@@ -12,3 +12,5 @@ ARM64 架构
 
 .. toctree::
     :maxdepth: 2
+
+    amu
