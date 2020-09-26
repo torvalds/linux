@@ -205,10 +205,12 @@ tlc591xx_probe(struct i2c_client *client,
 		led->ldev.max_brightness = TLC591XX_MAX_BRIGHTNESS;
 		err = devm_led_classdev_register_ext(dev, &led->ldev,
 						     &init_data);
-		if (err < 0)
+		if (err < 0) {
+			of_node_put(child);
 			return dev_err_probe(dev, err,
 					     "couldn't register LED %s\n",
 					     led->ldev.name);
+		}
 	}
 	return 0;
 }
