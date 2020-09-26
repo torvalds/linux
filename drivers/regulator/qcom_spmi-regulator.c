@@ -135,6 +135,18 @@ enum spmi_regulator_subtype {
 	SPMI_REGULATOR_SUBTYPE_LV_P600		= 0x2b,
 	SPMI_REGULATOR_SUBTYPE_LV_P1200		= 0x2c,
 	SPMI_REGULATOR_SUBTYPE_LV_P450		= 0x2d,
+	SPMI_REGULATOR_SUBTYPE_HT_N300_ST	= 0x30,
+	SPMI_REGULATOR_SUBTYPE_HT_N600_ST	= 0x31,
+	SPMI_REGULATOR_SUBTYPE_HT_N1200_ST	= 0x32,
+	SPMI_REGULATOR_SUBTYPE_HT_LVP150	= 0x3b,
+	SPMI_REGULATOR_SUBTYPE_HT_LVP300	= 0x3c,
+	SPMI_REGULATOR_SUBTYPE_L660_N300_ST	= 0x42,
+	SPMI_REGULATOR_SUBTYPE_L660_N600_ST	= 0x43,
+	SPMI_REGULATOR_SUBTYPE_L660_P50		= 0x46,
+	SPMI_REGULATOR_SUBTYPE_L660_P150	= 0x47,
+	SPMI_REGULATOR_SUBTYPE_L660_P600	= 0x49,
+	SPMI_REGULATOR_SUBTYPE_L660_LVP150	= 0x4d,
+	SPMI_REGULATOR_SUBTYPE_L660_LVP600	= 0x4f,
 	SPMI_REGULATOR_SUBTYPE_LV100		= 0x01,
 	SPMI_REGULATOR_SUBTYPE_LV300		= 0x02,
 	SPMI_REGULATOR_SUBTYPE_MV300		= 0x08,
@@ -511,6 +523,22 @@ static struct spmi_voltage_range ult_pldo_ranges[] = {
 	SPMI_VOLTAGE_RANGE(0, 1750000, 1750000, 3337500, 3337500, 12500),
 };
 
+static struct spmi_voltage_range pldo660_ranges[] = {
+	SPMI_VOLTAGE_RANGE(0, 1504000, 1504000, 3544000, 3544000, 8000),
+};
+
+static struct spmi_voltage_range nldo660_ranges[] = {
+	SPMI_VOLTAGE_RANGE(0,  320000,  320000, 1304000, 1304000, 8000),
+};
+
+static struct spmi_voltage_range ht_lvpldo_ranges[] = {
+	SPMI_VOLTAGE_RANGE(0, 1504000, 1504000, 2000000, 2000000, 8000),
+};
+
+static struct spmi_voltage_range ht_nldo_ranges[] = {
+	SPMI_VOLTAGE_RANGE(0,  312000,  312000, 1304000, 1304000, 8000),
+};
+
 static struct spmi_voltage_range hfs430_ranges[] = {
 	SPMI_VOLTAGE_RANGE(0, 320000, 320000, 2040000, 2040000, 8000),
 };
@@ -530,6 +558,10 @@ static DEFINE_SPMI_SET_POINTS(ult_lo_smps);
 static DEFINE_SPMI_SET_POINTS(ult_ho_smps);
 static DEFINE_SPMI_SET_POINTS(ult_nldo);
 static DEFINE_SPMI_SET_POINTS(ult_pldo);
+static DEFINE_SPMI_SET_POINTS(pldo660);
+static DEFINE_SPMI_SET_POINTS(nldo660);
+static DEFINE_SPMI_SET_POINTS(ht_lvpldo);
+static DEFINE_SPMI_SET_POINTS(ht_nldo);
 static DEFINE_SPMI_SET_POINTS(hfs430);
 
 static inline int spmi_vreg_read(struct spmi_regulator *vreg, u16 addr, u8 *buf,
@@ -1443,6 +1475,30 @@ static const struct spmi_regulator_mapping supported_regulators[] = {
 	SPMI_VREG(LDO,   LV_P300,  0, INF, LDO,    ldo,    pldo,    10000),
 	SPMI_VREG(LDO,   LV_P600,  0, INF, LDO,    ldo,    pldo,    10000),
 	SPMI_VREG(LDO,   LV_P1200, 0, INF, LDO,    ldo,    pldo,    10000),
+	SPMI_VREG(LDO, HT_N300_ST,   0, INF, FTSMPS426, ftsmps426,
+							ht_nldo,   30000),
+	SPMI_VREG(LDO, HT_N600_ST,   0, INF, FTSMPS426, ftsmps426,
+							ht_nldo,   30000),
+	SPMI_VREG(LDO, HT_N1200_ST,  0, INF, FTSMPS426, ftsmps426,
+							ht_nldo,   30000),
+	SPMI_VREG(LDO, HT_LVP150,    0, INF, FTSMPS426, ftsmps426,
+							ht_lvpldo, 10000),
+	SPMI_VREG(LDO, HT_LVP300,    0, INF, FTSMPS426, ftsmps426,
+							ht_lvpldo, 10000),
+	SPMI_VREG(LDO, L660_N300_ST, 0, INF, FTSMPS426, ftsmps426,
+							nldo660,   10000),
+	SPMI_VREG(LDO, L660_N600_ST, 0, INF, FTSMPS426, ftsmps426,
+							nldo660,   10000),
+	SPMI_VREG(LDO, L660_P50,     0, INF, FTSMPS426, ftsmps426,
+							pldo660,   10000),
+	SPMI_VREG(LDO, L660_P150,    0, INF, FTSMPS426, ftsmps426,
+							pldo660,   10000),
+	SPMI_VREG(LDO, L660_P600,    0, INF, FTSMPS426, ftsmps426,
+							pldo660,   10000),
+	SPMI_VREG(LDO, L660_LVP150,  0, INF, FTSMPS426, ftsmps426,
+							ht_lvpldo, 10000),
+	SPMI_VREG(LDO, L660_LVP600,  0, INF, FTSMPS426, ftsmps426,
+							ht_lvpldo, 10000),
 	SPMI_VREG_VS(LV100,        0, INF),
 	SPMI_VREG_VS(LV300,        0, INF),
 	SPMI_VREG_VS(MV300,        0, INF),
