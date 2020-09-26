@@ -531,7 +531,8 @@ static int smc_connect_fallback(struct smc_sock *smc, int reason_code)
 }
 
 /* decline and fall back during connect */
-static int smc_connect_decline_fallback(struct smc_sock *smc, int reason_code)
+static int smc_connect_decline_fallback(struct smc_sock *smc, int reason_code,
+					u8 version)
 {
 	int rc;
 
@@ -541,7 +542,7 @@ static int smc_connect_decline_fallback(struct smc_sock *smc, int reason_code)
 		return reason_code;
 	}
 	if (reason_code != SMC_CLC_DECL_PEERDECL) {
-		rc = smc_clc_send_decline(smc, reason_code);
+		rc = smc_clc_send_decline(smc, reason_code, version);
 		if (rc < 0) {
 			if (smc->sk.sk_state == SMC_INIT)
 				sock_put(&smc->sk); /* passive closing */
@@ -901,6 +902,7 @@ static int smc_connect_check_aclc(struct smc_init_info *ini,
 /* perform steps before actually connecting */
 static int __smc_connect(struct smc_sock *smc)
 {
+	u8 version = smc_ism_v2_capable ? SMC_V2 : SMC_V1;
 	struct smc_clc_msg_accept_confirm_v2 *aclc2;
 	struct smc_clc_msg_accept_confirm *aclc;
 	struct smc_init_info *ini = NULL;
@@ -914,13 +916,15 @@ static int __smc_connect(struct smc_sock *smc)
 	if (!tcp_sk(smc->clcsock->sk)->syn_smc)
 		return smc_connect_fallback(smc, SMC_CLC_DECL_PEERNOSMC);
 
-	/* IPSec connections opt out of SMC-R optimizations */
+	/* IPSec connections opt out of SMC optimizations */
 	if (using_ipsec(smc))
-		return smc_connect_decline_fallback(smc, SMC_CLC_DECL_IPSEC);
+		return smc_connect_decline_fallback(smc, SMC_CLC_DECL_IPSEC,
+						    version);
 
 	ini = kzalloc(sizeof(*ini), GFP_KERNEL);
 	if (!ini)
-		return smc_connect_decline_fallback(smc, SMC_CLC_DECL_MEM);
+		return smc_connect_decline_fallback(smc, SMC_CLC_DECL_MEM,
+						    version);
 
 	ini->smcd_version = SMC_V1;
 	ini->smcd_version |= smc_ism_v2_capable ? SMC_V2 : 0;
@@ -956,6 +960,7 @@ static int __smc_connect(struct smc_sock *smc)
 
 	/* check if smc modes and versions of CLC proposal and accept match */
 	rc = smc_connect_check_aclc(ini, aclc);
+	version = aclc->hdr.version == SMC_V1 ? SMC_V1 : version;
 	if (rc)
 		goto vlan_cleanup;
 
@@ -977,7 +982,7 @@ vlan_cleanup:
 	kfree(buf);
 fallback:
 	kfree(ini);
-	return smc_connect_decline_fallback(smc, rc);
+	return smc_connect_decline_fallback(smc, rc, version);
 }
 
 static void smc_connect_work(struct work_struct *work)
@@ -1293,7 +1298,7 @@ static void smc_listen_out_err(struct smc_sock *new_smc)
 
 /* listen worker: decline and fall back if possible */
 static void smc_listen_decline(struct smc_sock *new_smc, int reason_code,
-			       struct smc_init_info *ini)
+			       struct smc_init_info *ini, u8 version)
 {
 	/* RDMA setup failed, switch back to TCP */
 	if (ini->first_contact_local)
@@ -1307,7 +1312,7 @@ static void smc_listen_decline(struct smc_sock *new_smc, int reason_code,
 	smc_switch_to_fallback(new_smc);
 	new_smc->fallback_rsn = reason_code;
 	if (reason_code && reason_code != SMC_CLC_DECL_PEERDECL) {
-		if (smc_clc_send_decline(new_smc, reason_code) < 0) {
+		if (smc_clc_send_decline(new_smc, reason_code, version) < 0) {
 			smc_listen_out_err(new_smc);
 			return;
 		}
@@ -1638,6 +1643,7 @@ static void smc_listen_work(struct work_struct *work)
 {
 	struct smc_sock *new_smc = container_of(work, struct smc_sock,
 						smc_listen_work);
+	u8 version = smc_ism_v2_capable ? SMC_V2 : SMC_V1;
 	struct socket *newclcsock = new_smc->clcsock;
 	struct smc_clc_msg_accept_confirm_v2 *cclc2;
 	struct smc_clc_msg_accept_confirm *cclc;
@@ -1675,8 +1681,9 @@ static void smc_listen_work(struct work_struct *work)
 			      SMC_CLC_PROPOSAL, CLC_WAIT_TIME);
 	if (rc)
 		goto out_decl;
+	version = pclc->hdr.version == SMC_V1 ? SMC_V1 : version;
 
-	/* IPSec connections opt out of SMC-R optimizations */
+	/* IPSec connections opt out of SMC optimizations */
 	if (using_ipsec(new_smc)) {
 		rc = SMC_CLC_DECL_IPSEC;
 		goto out_decl;
@@ -1741,7 +1748,7 @@ static void smc_listen_work(struct work_struct *work)
 out_unlock:
 	mutex_unlock(&smc_server_lgr_pending);
 out_decl:
-	smc_listen_decline(new_smc, rc, ini);
+	smc_listen_decline(new_smc, rc, ini, version);
 out_free:
 	kfree(ini);
 	kfree(buf);

@@ -244,8 +244,15 @@ struct smc_clc_msg_decline {	/* clc decline message */
 	struct smc_clc_msg_hdr hdr;
 	u8 id_for_peer[SMC_SYSTEMID_LEN]; /* sender peer_id */
 	__be32 peer_diagnosis;	/* diagnosis information */
-	u8 reserved2[4];
-	struct smc_clc_msg_trail trl; /* eye catcher "SMCR" EBCDIC */
+#if defined(__BIG_ENDIAN_BITFIELD)
+	u8 os_type  : 4,
+	   reserved : 4;
+#elif defined(__LITTLE_ENDIAN_BITFIELD)
+	u8 reserved : 4,
+	   os_type  : 4;
+#endif
+	u8 reserved2[3];
+	struct smc_clc_msg_trail trl; /* eye catcher "SMCD" or "SMCR" EBCDIC */
 } __aligned(4);
 
 /* determine start of the prefix area within the proposal message */
@@ -315,7 +322,7 @@ int smc_clc_prfx_match(struct socket *clcsock,
 		       struct smc_clc_msg_proposal_prefix *prop);
 int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 		     u8 expected_type, unsigned long timeout);
-int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info);
+int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info, u8 version);
 int smc_clc_send_proposal(struct smc_sock *smc, struct smc_init_info *ini);
 int smc_clc_send_confirm(struct smc_sock *smc, bool clnt_first_contact,
 			 u8 version);

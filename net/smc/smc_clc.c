@@ -443,7 +443,7 @@ out:
 }
 
 /* send CLC DECLINE message across internal TCP socket */
-int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info)
+int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info, u8 version)
 {
 	struct smc_clc_msg_decline dclc;
 	struct msghdr msg;
@@ -454,7 +454,8 @@ int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info)
 	memcpy(dclc.hdr.eyecatcher, SMC_EYECATCHER, sizeof(SMC_EYECATCHER));
 	dclc.hdr.type = SMC_CLC_DECLINE;
 	dclc.hdr.length = htons(sizeof(struct smc_clc_msg_decline));
-	dclc.hdr.version = SMC_V1;
+	dclc.hdr.version = version;
+	dclc.os_type = version == SMC_V1 ? 0 : SMC_CLC_OS_LINUX;
 	dclc.hdr.typev2 = (peer_diag_info == SMC_CLC_DECL_SYNCERR) ?
 						SMC_FIRST_CONTACT_MASK : 0;
 	if ((!smc->conn.lgr || !smc->conn.lgr->is_smcd) &&
