@@ -12,6 +12,8 @@
 #ifndef _SMC_PNET_H
 #define _SMC_PNET_H
 
+#include <net/smc.h>
+
 #if IS_ENABLED(CONFIG_HAVE_PNETID)
 #include <asm/pnet.h>
 #endif
@@ -29,6 +31,17 @@ struct smc_link_group;
 struct smc_pnettable {
 	rwlock_t lock;
 	struct list_head pnetlist;
+};
+
+struct smc_pnetids_ndev {	/* list of pnetids for net devices in UP state*/
+	struct list_head	list;
+	rwlock_t		lock;
+};
+
+struct smc_pnetids_ndev_entry {
+	struct list_head	list;
+	u8			pnetid[SMC_MAX_PNETID_LEN];
+	refcount_t		refcnt;
 };
 
 static inline int smc_pnetid_by_dev_port(struct device *dev,
@@ -52,4 +65,5 @@ int smc_pnetid_by_table_smcd(struct smcd_dev *smcd);
 void smc_pnet_find_alt_roce(struct smc_link_group *lgr,
 			    struct smc_init_info *ini,
 			    struct smc_ib_device *known_dev);
+bool smc_pnet_is_ndev_pnetid(struct net *net, u8 *pnetid);
 #endif
