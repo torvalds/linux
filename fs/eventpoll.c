@@ -729,14 +729,17 @@ static int ep_eventpoll_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static __poll_t ep_read_events_proc(struct eventpoll *ep, struct list_head *head,
-			       int depth);
+static __poll_t ep_item_poll(const struct epitem *epi, poll_table *pt, int depth);
 
 static __poll_t __ep_eventpoll_poll(struct file *file, poll_table *wait, int depth)
 {
 	struct eventpoll *ep = file->private_data;
 	LIST_HEAD(txlist);
-	__poll_t res;
+	struct epitem *epi, *tmp;
+	poll_table pt;
+	__poll_t res = 0;
+
+	init_poll_funcptr(&pt, NULL);
 
 	/* Insert inside our poll wait queue */
 	poll_wait(file, &ep->poll_wait, wait);
@@ -747,7 +750,20 @@ static __poll_t __ep_eventpoll_poll(struct file *file, poll_table *wait, int dep
 	 */
 	mutex_lock_nested(&ep->mtx, depth);
 	ep_start_scan(ep, &txlist);
-	res = ep_read_events_proc(ep, &txlist, depth + 1);
+	list_for_each_entry_safe(epi, tmp, &txlist, rdllink) {
+		if (ep_item_poll(epi, &pt, depth + 1)) {
+			res = EPOLLIN | EPOLLRDNORM;
+			break;
+		} else {
+			/*
+			 * Item has been dropped into the ready list by the poll
+			 * callback, but it's not actually ready, as far as
+			 * caller requested events goes. We can remove it here.
+			 */
+			__pm_relax(ep_wakeup_source(epi));
+			list_del_init(&epi->rdllink);
+		}
+	}
 	ep_done_scan(ep, &txlist);
 	mutex_unlock(&ep->mtx);
 	return res;
@@ -770,31 +786,6 @@ static __poll_t ep_item_poll(const struct epitem *epi, poll_table *pt,
 	else
 		res = __ep_eventpoll_poll(file, pt, depth);
 	return res & epi->event.events;
-}
-
-static __poll_t ep_read_events_proc(struct eventpoll *ep, struct list_head *head,
-			       int depth)
-{
-	struct epitem *epi, *tmp;
-	poll_table pt;
-
-	init_poll_funcptr(&pt, NULL);
-
-	list_for_each_entry_safe(epi, tmp, head, rdllink) {
-		if (ep_item_poll(epi, &pt, depth)) {
-			return EPOLLIN | EPOLLRDNORM;
-		} else {
-			/*
-			 * Item has been dropped into the ready list by the poll
-			 * callback, but it's not actually ready, as far as
-			 * caller requested events goes. We can remove it here.
-			 */
-			__pm_relax(ep_wakeup_source(epi));
-			list_del_init(&epi->rdllink);
-		}
-	}
-
-	return 0;
 }
 
 static __poll_t ep_eventpoll_poll(struct file *file, poll_table *wait)
