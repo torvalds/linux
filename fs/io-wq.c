@@ -27,9 +27,8 @@ enum {
 	IO_WORKER_F_UP		= 1,	/* up and active */
 	IO_WORKER_F_RUNNING	= 2,	/* account as running */
 	IO_WORKER_F_FREE	= 4,	/* worker on free list */
-	IO_WORKER_F_EXITING	= 8,	/* worker exiting */
-	IO_WORKER_F_FIXED	= 16,	/* static idle worker */
-	IO_WORKER_F_BOUND	= 32,	/* is doing bounded work */
+	IO_WORKER_F_FIXED	= 8,	/* static idle worker */
+	IO_WORKER_F_BOUND	= 16,	/* is doing bounded work */
 };
 
 enum {
