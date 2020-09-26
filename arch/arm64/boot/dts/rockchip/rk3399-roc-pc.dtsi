@@ -110,6 +110,14 @@
 		regulator-max-microvolt = <5000000>;
 	};
 
+	sys_12v: sys-12v {
+		compatible = "regulator-fixed";
+		regulator-name = "sys_12v";
+		regulator-always-on;
+		regulator-boot-on;
+		vin-supply = <&dc_12v>;
+	};
+
 	/* switched by pmic_sleep */
 	vcc1v8_s3: vcca1v8_s3: vcc1v8-s3 {
 		compatible = "regulator-fixed";
@@ -141,7 +149,7 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		vin-supply = <&dc_12v>;
+		vin-supply = <&sys_12v>;
 	};
 
 	vcca_0v9: vcca-0v9 {
@@ -186,7 +194,7 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		vin-supply = <&dc_12v>;
+		vin-supply = <&sys_12v>;
 	};
 
 	vdd_log: vdd-log {
