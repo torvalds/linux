@@ -418,15 +418,16 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 		cw1.region.base = DMUB_CW1_BASE;
 		cw1.region.top = cw1.region.base + stack_fb->size - 1;
 
-		/**
-		 * Read back all the instruction memory so we don't hang the
-		 * DMCUB when backdoor loading if the write from x86 hasn't been
-		 * flushed yet. This only occurs in backdoor loading.
-		 */
-		dmub_flush_buffer_mem(inst_fb);
+		if (params->load_inst_const && dmub->hw_funcs.backdoor_load) {
+		    /**
+		     * Read back all the instruction memory so we don't hang the
+		     * DMCUB when backdoor loading if the write from x86 hasn't been
+		     * flushed yet. This only occurs in backdoor loading.
+		     */
+		    dmub_flush_buffer_mem(inst_fb);
+		    dmub->hw_funcs.backdoor_load(dmub, &cw0, &cw1);
+		}
 
-		if (params->load_inst_const && dmub->hw_funcs.backdoor_load)
-			dmub->hw_funcs.backdoor_load(dmub, &cw0, &cw1);
 	}
 
 	if (dmub->hw_funcs.reset)
