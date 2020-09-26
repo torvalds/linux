@@ -366,11 +366,11 @@ static int mt7663s_probe(struct sdio_func *func,
 
 	ret = mt76s_init(mdev, func, &mt7663s_ops);
 	if (ret < 0)
-		goto err_free;
+		goto error;
 
 	ret = mt7663s_hw_init(dev, func);
 	if (ret)
-		goto err_deinit;
+		goto error;
 
 	mdev->rev = (mt76_rr(dev, MT_HW_CHIPID) << 16) |
 		    (mt76_rr(dev, MT_HW_REV) & 0xff);
@@ -381,7 +381,7 @@ static int mt7663s_probe(struct sdio_func *func,
 					    GFP_KERNEL);
 	if (!mdev->sdio.intr_data) {
 		ret = -ENOMEM;
-		goto err_deinit;
+		goto error;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(mdev->sdio.xmit_buf); i++) {
@@ -390,30 +390,29 @@ static int mt7663s_probe(struct sdio_func *func,
 						      GFP_KERNEL);
 		if (!mdev->sdio.xmit_buf[i]) {
 			ret = -ENOMEM;
-			goto err_deinit;
+			goto error;
 		}
 	}
 
 	ret = mt76s_alloc_queues(&dev->mt76);
 	if (ret)
-		goto err_deinit;
+		goto error;
 
 	ret = mt76_worker_setup(mt76_hw(dev), &mdev->sdio.txrx_worker,
 				mt7663s_txrx_worker, "sdio-txrx");
 	if (ret)
-		goto err_deinit;
+		goto error;
 
 	sched_set_fifo_low(mdev->sdio.txrx_worker.task);
 
 	ret = mt7663_usb_sdio_register_device(dev);
 	if (ret)
-		goto err_deinit;
+		goto error;
 
 	return 0;
 
-err_deinit:
+error:
 	mt76s_deinit(&dev->mt76);
-err_free:
 	mt76_free_device(&dev->mt76);
 
 	return ret;
@@ -454,7 +453,13 @@ static int mt7663s_suspend(struct device *dev)
 		return err;
 
 	mt76_worker_disable(&mdev->mt76.sdio.txrx_worker);
-	mt76s_stop_txrx(&mdev->mt76);
+	mt76_worker_disable(&mdev->mt76.sdio.status_worker);
+	mt76_worker_disable(&mdev->mt76.sdio.net_worker);
+
+	cancel_work_sync(&mdev->mt76.sdio.stat_work);
+	clear_bit(MT76_READING_STATS, &mdev->mphy.state);
+
+	mt76_tx_status_check(&mdev->mt76, NULL, true);
 
 	return 0;
 }
@@ -466,6 +471,8 @@ static int mt7663s_resume(struct device *dev)
 	int err;
 
 	mt76_worker_enable(&mdev->mt76.sdio.txrx_worker);
+	mt76_worker_enable(&mdev->mt76.sdio.status_worker);
+	mt76_worker_enable(&mdev->mt76.sdio.net_worker);
 
 	err = mt7615_mcu_set_drv_ctrl(mdev);
 	if (err)

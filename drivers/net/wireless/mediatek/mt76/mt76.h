@@ -445,11 +445,10 @@ struct mt76_usb {
 
 #define MT76S_XMIT_BUF_SZ	(16 * PAGE_SIZE)
 struct mt76_sdio {
-	struct workqueue_struct *txrx_wq;
-
 	struct mt76_worker txrx_worker;
-	struct work_struct status_work;
-	struct work_struct net_work;
+	struct mt76_worker status_worker;
+	struct mt76_worker net_worker;
+
 	struct work_struct stat_work;
 
 	u8 *xmit_buf[MT_TXQ_MCU_WA];
@@ -1059,7 +1058,6 @@ void mt76u_queues_deinit(struct mt76_dev *dev);
 int mt76s_init(struct mt76_dev *dev, struct sdio_func *func,
 	       const struct mt76_bus_ops *bus_ops);
 int mt76s_alloc_queues(struct mt76_dev *dev);
-void mt76s_stop_txrx(struct mt76_dev *dev);
 void mt76s_deinit(struct mt76_dev *dev);
 
 struct sk_buff *

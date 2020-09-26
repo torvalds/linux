@@ -150,7 +150,7 @@ static int mt7663s_rx_handler(struct mt76_dev *dev)
 	if (intr->isr & WHIER_RX0_DONE_INT_EN) {
 		ret = mt7663s_rx_run_queue(dev, 0, intr);
 		if (ret > 0) {
-			queue_work(sdio->txrx_wq, &sdio->net_work);
+			mt76_worker_schedule(&sdio->net_worker);
 			nframes += ret;
 		}
 	}
@@ -158,7 +158,7 @@ static int mt7663s_rx_handler(struct mt76_dev *dev)
 	if (intr->isr & WHIER_RX1_DONE_INT_EN) {
 		ret = mt7663s_rx_run_queue(dev, 1, intr);
 		if (ret > 0) {
-			queue_work(sdio->txrx_wq, &sdio->net_work);
+			mt76_worker_schedule(&sdio->net_worker);
 			nframes += ret;
 		}
 	}
@@ -269,7 +269,7 @@ next:
 	}
 	mt7663s_tx_update_quota(sdio, qid, pse_sz, ple_sz);
 
-	queue_work(sdio->txrx_wq, &sdio->status_work);
+	mt76_worker_schedule(&sdio->status_worker);
 
 	return nframes;
 }
