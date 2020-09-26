@@ -307,6 +307,7 @@ struct smc_init_info {
 	struct smcd_dev		*ism_dev[SMC_MAX_ISM_DEVS + 1];
 	u16			ism_chid[SMC_MAX_ISM_DEVS + 1];
 	u8			ism_offered_cnt; /* # of ISM devices offered */
+	u8			ism_selected;    /* index of selected ISM dev*/
 	u8			smcd_version;
 };
 

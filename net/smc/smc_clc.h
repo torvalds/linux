@@ -260,6 +260,22 @@ smc_get_clc_v2_ext(struct smc_clc_msg_proposal *prop)
 	       ntohs(prop_smcd->v2_ext_offset));
 }
 
+static inline struct smc_clc_smcd_v2_extension *
+smc_get_clc_smcd_v2_ext(struct smc_clc_v2_extension *prop_v2ext)
+{
+	if (!prop_v2ext)
+		return NULL;
+	if (!ntohs(prop_v2ext->hdr.smcd_v2_ext_offset))
+		return NULL;
+
+	return (struct smc_clc_smcd_v2_extension *)
+		((u8 *)prop_v2ext +
+		 offsetof(struct smc_clc_v2_extension, hdr) +
+		 offsetof(struct smc_clnt_opts_area_hdr, smcd_v2_ext_offset) +
+		 sizeof(prop_v2ext->hdr.smcd_v2_ext_offset) +
+		 ntohs(prop_v2ext->hdr.smcd_v2_ext_offset));
+}
+
 struct smcd_dev;
 struct smc_init_info;
 

@@ -1236,6 +1236,47 @@ static void smc_listen_decline(struct smc_sock *new_smc, int reason_code,
 	smc_listen_out_connected(new_smc);
 }
 
+/* listen worker: version checking */
+static int smc_listen_v2_check(struct smc_sock *new_smc,
+			       struct smc_clc_msg_proposal *pclc,
+			       struct smc_init_info *ini)
+{
+	struct smc_clc_smcd_v2_extension *pclc_smcd_v2_ext;
+	struct smc_clc_v2_extension *pclc_v2_ext;
+
+	ini->smc_type_v1 = pclc->hdr.typev1;
+	ini->smc_type_v2 = pclc->hdr.typev2;
+	ini->smcd_version = ini->smc_type_v1 != SMC_TYPE_N ? SMC_V1 : 0;
+	if (pclc->hdr.version > SMC_V1)
+		ini->smcd_version |=
+				ini->smc_type_v2 != SMC_TYPE_N ? SMC_V2 : 0;
+	if (!smc_ism_v2_capable) {
+		ini->smcd_version &= ~SMC_V2;
+		goto out;
+	}
+	pclc_v2_ext = smc_get_clc_v2_ext(pclc);
+	if (!pclc_v2_ext) {
+		ini->smcd_version &= ~SMC_V2;
+		goto out;
+	}
+	pclc_smcd_v2_ext = smc_get_clc_smcd_v2_ext(pclc_v2_ext);
+	if (!pclc_smcd_v2_ext)
+		ini->smcd_version &= ~SMC_V2;
+
+out:
+	if (!ini->smcd_version) {
+		if (pclc->hdr.typev1 == SMC_TYPE_B ||
+		    pclc->hdr.typev2 == SMC_TYPE_B)
+			return SMC_CLC_DECL_NOSMCDEV;
+		if (pclc->hdr.typev1 == SMC_TYPE_D ||
+		    pclc->hdr.typev2 == SMC_TYPE_D)
+			return SMC_CLC_DECL_NOSMCDDEV;
+		return SMC_CLC_DECL_NOSMCRDEV;
+	}
+
+	return 0;
+}
+
 /* listen worker: check prefixes */
 static int smc_listen_prfx_check(struct smc_sock *new_smc,
 				 struct smc_clc_msg_proposal *pclc)
@@ -1243,6 +1284,8 @@ static int smc_listen_prfx_check(struct smc_sock *new_smc,
 	struct smc_clc_msg_proposal_prefix *pclc_prfx;
 	struct socket *newclcsock = new_smc->clcsock;
 
+	if (pclc->hdr.typev1 == SMC_TYPE_N)
+		return 0;
 	pclc_prfx = smc_clc_proposal_get_prefix(pclc);
 	if (smc_clc_prfx_match(newclcsock, pclc_prfx))
 		return SMC_CLC_DECL_DIFFPREFIX;
@@ -1292,20 +1335,119 @@ static int smc_listen_ism_init(struct smc_sock *new_smc,
 	return 0;
 }
 
-static void smc_find_ism_device_serv(struct smc_sock *new_smc,
-				     struct smc_clc_msg_proposal *pclc,
-				     struct smc_init_info *ini)
+static bool smc_is_already_selected(struct smcd_dev *smcd,
+				    struct smc_init_info *ini,
+				    int matches)
+{
+	int i;
+
+	for (i = 0; i < matches; i++)
+		if (smcd == ini->ism_dev[i])
+			return true;
+
+	return false;
+}
+
+/* check for ISM devices matching proposed ISM devices */
+static void smc_check_ism_v2_match(struct smc_init_info *ini,
+				   u16 proposed_chid, u64 proposed_gid,
+				   unsigned int *matches)
+{
+	struct smcd_dev *smcd;
+
+	list_for_each_entry(smcd, &smcd_dev_list.list, list) {
+		if (smcd->going_away)
+			continue;
+		if (smc_is_already_selected(smcd, ini, *matches))
+			continue;
+		if (smc_ism_get_chid(smcd) == proposed_chid &&
+		    !smc_ism_cantalk(proposed_gid, ISM_RESERVED_VLANID, smcd)) {
+			ini->ism_peer_gid[*matches] = proposed_gid;
+			ini->ism_dev[*matches] = smcd;
+			(*matches)++;
+			break;
+		}
+	}
+}
+
+static void smc_find_ism_v2_device_serv(struct smc_sock *new_smc,
+					struct smc_clc_msg_proposal *pclc,
+					struct smc_init_info *ini)
+{
+	struct smc_clc_smcd_v2_extension *smcd_v2_ext;
+	struct smc_clc_v2_extension *smc_v2_ext;
+	struct smc_clc_msg_smcd *pclc_smcd;
+	unsigned int matches = 0;
+	u8 *eid = NULL;
+	int i;
+
+	if (!(ini->smcd_version & SMC_V2) || !smcd_indicated(ini->smc_type_v2))
+		return;
+
+	pclc_smcd = smc_get_clc_msg_smcd(pclc);
+	smc_v2_ext = smc_get_clc_v2_ext(pclc);
+	smcd_v2_ext = smc_get_clc_smcd_v2_ext(smc_v2_ext);
+	if (!smcd_v2_ext ||
+	    !smc_v2_ext->hdr.flag.seid) /* no system EID support for SMCD */
+		goto not_found;
+
+	mutex_lock(&smcd_dev_list.mutex);
+	if (pclc_smcd->ism.chid)
+		/* check for ISM device matching proposed native ISM device */
+		smc_check_ism_v2_match(ini, ntohs(pclc_smcd->ism.chid),
+				       ntohll(pclc_smcd->ism.gid), &matches);
+	for (i = 1; i <= smc_v2_ext->hdr.ism_gid_cnt; i++) {
+		/* check for ISM devices matching proposed non-native ISM
+		 * devices
+		 */
+		smc_check_ism_v2_match(ini,
+				       ntohs(smcd_v2_ext->gidchid[i - 1].chid),
+				       ntohll(smcd_v2_ext->gidchid[i - 1].gid),
+				       &matches);
+	}
+	mutex_unlock(&smcd_dev_list.mutex);
+
+	if (ini->ism_dev[0]) {
+		smc_ism_get_system_eid(ini->ism_dev[0], &eid);
+		if (memcmp(eid, smcd_v2_ext->system_eid, SMC_MAX_EID_LEN))
+			goto not_found;
+	} else {
+		goto not_found;
+	}
+
+	/* separate - outside the smcd_dev_list.lock */
+	for (i = 0; i < matches; i++) {
+		ini->smcd_version = SMC_V2;
+		ini->is_smcd = true;
+		ini->ism_selected = i;
+		if (smc_listen_ism_init(new_smc, ini))
+			/* try next active ISM device */
+			continue;
+		return; /* matching and usable V2 ISM device found */
+	}
+
+not_found:
+	ini->smcd_version &= ~SMC_V2;
+	ini->ism_dev[0] = NULL;
+	ini->is_smcd = false;
+}
+
+static void smc_find_ism_v1_device_serv(struct smc_sock *new_smc,
+					struct smc_clc_msg_proposal *pclc,
+					struct smc_init_info *ini)
 {
 	struct smc_clc_msg_smcd *pclc_smcd = smc_get_clc_msg_smcd(pclc);
 
-	if (!smcd_indicated(pclc->hdr.typev1))
+	/* check if ISM V1 is available */
+	if (!(ini->smcd_version & SMC_V1) || !smcd_indicated(ini->smc_type_v1))
 		goto not_found;
 	ini->is_smcd = true; /* prepare ISM check */
 	ini->ism_peer_gid[0] = ntohll(pclc_smcd->ism.gid);
 	if (smc_find_ism_device(new_smc, ini))
 		goto not_found;
+	ini->ism_selected = 0;
 	if (!smc_listen_ism_init(new_smc, ini))
-		return;		/* ISM device found */
+		return;		/* V1 ISM device found */
 
 not_found:
 	ini->ism_dev[0] = NULL;
@@ -1326,13 +1468,13 @@ static int smc_listen_rdma_reg(struct smc_sock *new_smc, bool local_first)
 	return 0;
 }
 
-static int smc_find_rdma_device_serv(struct smc_sock *new_smc,
-				     struct smc_clc_msg_proposal *pclc,
-				     struct smc_init_info *ini)
+static int smc_find_rdma_v1_device_serv(struct smc_sock *new_smc,
+					struct smc_clc_msg_proposal *pclc,
+					struct smc_init_info *ini)
 {
 	int rc;
 
-	if (!smcr_indicated(pclc->hdr.typev1))
+	if (!smcr_indicated(ini->smc_type_v1))
 		return SMC_CLC_DECL_NOSMCDEV;
 
 	/* prepare RDMA check */
@@ -1340,7 +1482,7 @@ static int smc_find_rdma_device_serv(struct smc_sock *new_smc,
 	rc = smc_find_rdma_device(new_smc, ini);
 	if (rc) {
 		/* no RDMA device found */
-		if (pclc->hdr.typev1 == SMC_TYPE_B)
+		if (ini->smc_type_v1 == SMC_TYPE_B)
 			/* neither ISM nor RDMA device found */
 			rc = SMC_CLC_DECL_NOSMCDEV;
 		return rc;
@@ -1356,15 +1498,35 @@ static int smc_listen_find_device(struct smc_sock *new_smc,
 				  struct smc_clc_msg_proposal *pclc,
 				  struct smc_init_info *ini)
 {
-	/* check if ISM is available */
-	smc_find_ism_device_serv(new_smc, pclc, ini);
-	if (ini->is_smcd)
+	int rc;
+
+	/* check for ISM device matching V2 proposed device */
+	smc_find_ism_v2_device_serv(new_smc, pclc, ini);
+	if (ini->ism_dev[0])
 		return 0;
+
+	if (!(ini->smcd_version & SMC_V1))
+		return SMC_CLC_DECL_NOSMCDEV;
+
+	/* check for matching IP prefix and subnet length */
+	rc = smc_listen_prfx_check(new_smc, pclc);
+	if (rc)
+		return rc;
+
+	/* get vlan id from IP device */
+	if (smc_vlan_by_tcpsk(new_smc->clcsock, ini))
+		return SMC_CLC_DECL_GETVLANERR;
+
+	/* check for ISM device matching V1 proposed device */
+	smc_find_ism_v1_device_serv(new_smc, pclc, ini);
+	if (ini->ism_dev[0])
+		return 0;
+
 	if (pclc->hdr.typev1 == SMC_TYPE_D)
 		return SMC_CLC_DECL_NOSMCDDEV; /* skip RDMA and decline */
 
 	/* check if RDMA is available */
-	return smc_find_rdma_device_serv(new_smc, pclc, ini);
+	return smc_find_rdma_v1_device_serv(new_smc, pclc, ini);
 }
 
 /* listen worker: finish RDMA setup */
@@ -1440,22 +1602,16 @@ static void smc_listen_work(struct work_struct *work)
 		goto out_decl;
 	}
 
-	/* check for matching IP prefix and subnet length */
-	rc = smc_listen_prfx_check(new_smc, pclc);
-	if (rc)
-		goto out_decl;
-
 	ini = kzalloc(sizeof(*ini), GFP_KERNEL);
 	if (!ini) {
 		rc = SMC_CLC_DECL_MEM;
 		goto out_decl;
 	}
 
-	/* get vlan id from IP device */
-	if (smc_vlan_by_tcpsk(new_smc->clcsock, ini)) {
-		rc = SMC_CLC_DECL_GETVLANERR;
+	/* initial version checking */
+	rc = smc_listen_v2_check(new_smc, pclc, ini);
+	if (rc)
 		goto out_decl;
-	}
 
 	mutex_lock(&smc_server_lgr_pending);
 	smc_close_init(new_smc);
