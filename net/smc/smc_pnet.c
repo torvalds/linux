@@ -29,8 +29,6 @@
 #include "smc_ism.h"
 #include "smc_core.h"
 
-#define SMC_ASCII_BLANK 32
-
 static struct net_device *pnet_find_base_ndev(struct net_device *ndev);
 
 static const struct nla_policy smc_pnet_policy[SMC_PNETID_MAX + 1] = {
@@ -73,14 +71,22 @@ struct smc_pnetentry {
 	};
 };
 
+/* Check if the pnetid is set */
+static bool smc_pnet_is_pnetid_set(u8 *pnetid)
+{
+	if (pnetid[0] == 0 || pnetid[0] == _S)
+		return false;
+	return true;
+}
+
 /* Check if two given pnetids match */
 static bool smc_pnet_match(u8 *pnetid1, u8 *pnetid2)
 {
 	int i;
 
 	for (i = 0; i < SMC_MAX_PNETID_LEN; i++) {
-		if ((pnetid1[i] == 0 || pnetid1[i] == SMC_ASCII_BLANK) &&
-		    (pnetid2[i] == 0 || pnetid2[i] == SMC_ASCII_BLANK))
+		if ((pnetid1[i] == 0 || pnetid1[i] == _S) &&
+		    (pnetid2[i] == 0 || pnetid2[i] == _S))
 			break;
 		if (pnetid1[i] != pnetid2[i])
 			return false;
@@ -238,11 +244,10 @@ static int smc_pnet_remove_by_ndev(struct net_device *ndev)
 static bool smc_pnet_apply_ib(struct smc_ib_device *ib_dev, u8 ib_port,
 			      char *pnet_name)
 {
-	u8 pnet_null[SMC_MAX_PNETID_LEN] = {0};
 	bool applied = false;
 
 	mutex_lock(&smc_ib_devices.mutex);
-	if (smc_pnet_match(ib_dev->pnetid[ib_port - 1], pnet_null)) {
+	if (!smc_pnet_is_pnetid_set(ib_dev->pnetid[ib_port - 1])) {
 		memcpy(ib_dev->pnetid[ib_port - 1], pnet_name,
 		       SMC_MAX_PNETID_LEN);
 		ib_dev->pnetid_by_user[ib_port - 1] = true;
@@ -256,11 +261,10 @@ static bool smc_pnet_apply_ib(struct smc_ib_device *ib_dev, u8 ib_port,
  */
 static bool smc_pnet_apply_smcd(struct smcd_dev *smcd_dev, char *pnet_name)
 {
-	u8 pnet_null[SMC_MAX_PNETID_LEN] = {0};
 	bool applied = false;
 
 	mutex_lock(&smcd_dev_list.mutex);
-	if (smc_pnet_match(smcd_dev->pnetid, pnet_null)) {
+	if (!smc_pnet_is_pnetid_set(smcd_dev->pnetid)) {
 		memcpy(smcd_dev->pnetid, pnet_name, SMC_MAX_PNETID_LEN);
 		smcd_dev->pnetid_by_user = true;
 		applied = true;
