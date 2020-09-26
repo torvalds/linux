@@ -186,6 +186,8 @@ int nsim_udp_tunnels_info_create(struct nsim_dev *nsim_dev,
 		info->flags |= UDP_TUNNEL_NIC_INFO_IPV4_ONLY;
 	if (nsim_dev->udp_ports.shared)
 		info->shared = &nsim_dev->udp_ports.utn_shared;
+	if (nsim_dev->udp_ports.static_iana_vxlan)
+		info->flags |= UDP_TUNNEL_NIC_INFO_STATIC_IANA_VXLAN;
 
 	dev->udp_tunnel_nic_info = info;
 	return 0;
@@ -207,6 +209,8 @@ void nsim_udp_tunnels_debugfs_create(struct nsim_dev *nsim_dev)
 			    &nsim_dev->udp_ports.ipv4_only);
 	debugfs_create_bool("udp_ports_shared", 0600, nsim_dev->ddir,
 			    &nsim_dev->udp_ports.shared);
+	debugfs_create_bool("udp_ports_static_iana_vxlan", 0600, nsim_dev->ddir,
+			    &nsim_dev->udp_ports.static_iana_vxlan);
 	debugfs_create_u32("udp_ports_sleep", 0600, nsim_dev->ddir,
 			   &nsim_dev->udp_ports.sleep);
 }

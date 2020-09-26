@@ -217,6 +217,7 @@ struct nsim_dev {
 		bool open_only;
 		bool ipv4_only;
 		bool shared;
+		bool static_iana_vxlan;
 		u32 sleep;
 	} udp_ports;
 };
