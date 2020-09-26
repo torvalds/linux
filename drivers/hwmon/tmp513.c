@@ -192,7 +192,7 @@ static int tmp51x_get_value(struct tmp51x_data *data, u8 reg, u8 pos,
 		/*
 		 * The valus is read in voltage in the chip but reported as
 		 * current to the user.
-		 * 2's compliment number shifted by one to four depending
+		 * 2's complement number shifted by one to four depending
 		 * on the pga gain setting. 1lsb = 10uV
 		 */
 		*val = sign_extend32(regval, 17 - tmp51x_get_pga_shift(data));
