@@ -131,7 +131,7 @@ static const struct phy_ops imx8mq_usb_phy_ops = {
 	.owner		= THIS_MODULE,
 };
 
-static struct phy_ops imx8mp_usb_phy_ops = {
+static const struct phy_ops imx8mp_usb_phy_ops = {
 	.init		= imx8mp_usb_phy_init,
 	.power_on	= imx8mq_phy_power_on,
 	.power_off	= imx8mq_phy_power_off,
