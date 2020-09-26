@@ -731,8 +731,6 @@ static int ep_eventpoll_release(struct inode *inode, struct file *file)
 
 static __poll_t ep_read_events_proc(struct eventpoll *ep, struct list_head *head,
 			       int depth);
-static void ep_ptable_queue_proc(struct file *file, wait_queue_head_t *whead,
-				 poll_table *pt);
 
 /*
  * Differs from ep_eventpoll_poll() in that internal callers already have
@@ -745,7 +743,6 @@ static __poll_t ep_item_poll(const struct epitem *epi, poll_table *pt,
 	struct eventpoll *ep;
 	LIST_HEAD(txlist);
 	__poll_t res;
-	bool locked;
 
 	pt->_key = epi->event.events;
 	if (!is_file_epoll(epi->ffd.file))
@@ -754,15 +751,11 @@ static __poll_t ep_item_poll(const struct epitem *epi, poll_table *pt,
 	ep = epi->ffd.file->private_data;
 	poll_wait(epi->ffd.file, &ep->poll_wait, pt);
 
-	// kludge: ep_insert() calls us with ep->mtx already locked
-	locked = pt && (pt->_qproc == ep_ptable_queue_proc);
-	if (!locked)
-		mutex_lock_nested(&ep->mtx, depth);
+	mutex_lock_nested(&ep->mtx, depth);
 	ep_start_scan(ep, &txlist);
 	res = ep_read_events_proc(ep, &txlist, depth + 1);
 	ep_done_scan(ep, &txlist);
-	if (!locked)
-		mutex_unlock(&ep->mtx);
+	mutex_unlock(&ep->mtx);
 	return res & epi->event.events;
 }
 
@@ -1365,6 +1358,10 @@ static int ep_insert(struct eventpoll *ep, const struct epoll_event *event,
 	long user_watches;
 	struct epitem *epi;
 	struct ep_pqueue epq;
+	struct eventpoll *tep = NULL;
+
+	if (is_file_epoll(tfile))
+		tep = tfile->private_data;
 
 	lockdep_assert_irqs_enabled();
 
@@ -1394,6 +1391,8 @@ static int ep_insert(struct eventpoll *ep, const struct epoll_event *event,
 
 	atomic_long_inc(&ep->user->epoll_watches);
 
+	if (tep)
+		mutex_lock_nested(&tep->mtx, 1);
 	/* Add the current item to the list of active epoll hook for this file */
 	spin_lock(&tfile->f_lock);
 	list_add_tail_rcu(&epi->fllink, &tfile->f_ep_links);
@@ -1404,6 +1403,8 @@ static int ep_insert(struct eventpoll *ep, const struct epoll_event *event,
 	 * protected by "mtx", and ep_insert() is called with "mtx" held.
 	 */
 	ep_rbtree_insert(ep, epi);
+	if (tep)
+		mutex_unlock(&tep->mtx);
 
 	/* now check if we've created too many backpaths */
 	if (unlikely(full_check && reverse_path_check())) {
@@ -2034,13 +2035,6 @@ int do_epoll_ctl(int epfd, int op, int fd, struct epoll_event *epds,
 			error = epoll_mutex_lock(&ep->mtx, 0, nonblock);
 			if (error)
 				goto error_tgt_fput;
-			if (is_file_epoll(tf.file)) {
-				error = epoll_mutex_lock(&tep->mtx, 1, nonblock);
-				if (error) {
-					mutex_unlock(&ep->mtx);
-					goto error_tgt_fput;
-				}
-			}
 		}
 	}
 
@@ -2076,8 +2070,6 @@ int do_epoll_ctl(int epfd, int op, int fd, struct epoll_event *epds,
 			error = -ENOENT;
 		break;
 	}
-	if (tep != NULL)
-		mutex_unlock(&tep->mtx);
 	mutex_unlock(&ep->mtx);
 
 error_tgt_fput:
