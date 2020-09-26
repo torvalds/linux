@@ -535,9 +535,14 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 	case IB_QPT_SMI:
 	case IB_QPT_GSI:
 	{
-		qp = kzalloc(sizeof(struct mthca_sqp), GFP_KERNEL);
+		qp = kzalloc(sizeof(*qp), GFP_KERNEL);
 		if (!qp)
 			return ERR_PTR(-ENOMEM);
+		qp->sqp = kzalloc(sizeof(struct mthca_sqp), GFP_KERNEL);
+		if (!qp->sqp) {
+			kfree(qp);
+			return ERR_PTR(-ENOMEM);
+		}
 
 		qp->ibqp.qp_num = init_attr->qp_type == IB_QPT_SMI ? 0 : 1;
 
@@ -546,7 +551,7 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 				      to_mcq(init_attr->recv_cq),
 				      init_attr->sq_sig_type, &init_attr->cap,
 				      qp->ibqp.qp_num, init_attr->port_num,
-				      to_msqp(qp), udata);
+				      qp, udata);
 		break;
 	}
 	default:
@@ -555,6 +560,7 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 	}
 
 	if (err) {
+		kfree(qp->sqp);
 		kfree(qp);
 		return ERR_PTR(err);
 	}
@@ -587,7 +593,8 @@ static int mthca_destroy_qp(struct ib_qp *qp, struct ib_udata *udata)
 				    to_mqp(qp)->rq.db_index);
 	}
 	mthca_free_qp(to_mdev(qp->device), to_mqp(qp));
-	kfree(qp);
+	kfree(to_mqp(qp)->sqp);
+	kfree(to_mqp(qp));
 	return 0;
 }
 
