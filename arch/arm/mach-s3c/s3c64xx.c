@@ -95,7 +95,12 @@ static struct cpu_table cpu_ids[] __initdata = {
 
 /* minimal IO mapping */
 
-/* see notes on uart map in arch/arm/mach-s3c64xx/include/mach/debug-macro.S */
+/*
+ * note, for the boot process to work we have to keep the UART
+ * virtual address aligned to an 1MiB boundary for the L1
+ * mapping the head code makes. We keep the UART virtual address
+ * aligned and add in the offset when we load the value here.
+ */
 #define UART_OFFS (S3C_PA_UART & 0xfffff)
 
 static struct map_desc s3c_iodesc[] __initdata = {

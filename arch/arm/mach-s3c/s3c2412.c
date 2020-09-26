@@ -55,7 +55,7 @@ static inline void s3c2412_init_gpio2(void)
 
 /* Initial IO mappings */
 
-static struct map_desc s3c2412_iodesc[] __initdata = {
+static struct map_desc s3c2412_iodesc[] __initdata __maybe_unused = {
 	IODESC_ENT(CLKPWR),
 	IODESC_ENT(TIMER),
 	IODESC_ENT(WATCHDOG),

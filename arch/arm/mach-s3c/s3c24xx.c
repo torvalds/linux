@@ -139,7 +139,7 @@ static struct cpu_table cpu_ids[] __initdata = {
 
 /* minimal IO mapping */
 
-static struct map_desc s3c_iodesc[] __initdata = {
+static struct map_desc s3c_iodesc[] __initdata __maybe_unused = {
 	IODESC_ENT(GPIO),
 	IODESC_ENT(IRQ),
 	IODESC_ENT(MEMCTRL),

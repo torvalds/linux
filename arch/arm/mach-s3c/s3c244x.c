@@ -39,7 +39,7 @@
 #include "nand-core-s3c24xx.h"
 #include "regs-dsc-s3c24xx.h"
 
-static struct map_desc s3c244x_iodesc[] __initdata = {
+static struct map_desc s3c244x_iodesc[] __initdata __maybe_unused = {
 	IODESC_ENT(CLKPWR),
 	IODESC_ENT(TIMER),
 	IODESC_ENT(WATCHDOG),
