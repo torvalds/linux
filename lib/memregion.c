@@ -2,6 +2,7 @@
 /* identifiers for device / performance-differentiated memory regions */
 #include <linux/idr.h>
 #include <linux/types.h>
+#include <linux/memregion.h>
 
 static DEFINE_IDA(memregion_ids);
 
