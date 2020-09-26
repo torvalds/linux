@@ -371,7 +371,7 @@
 			clocks = <&sys_ctrl HI6220_EDMAC_ACLK>;
 			dma-no-cci;
 			dma-type = "hi6220_dma";
-			status = "ok";
+			status = "okay";
 		};
 
 		dual_timer0: timer@f8008000 {
@@ -843,8 +843,9 @@
 			compatible = "arm,sp805-wdt", "arm,primecell";
 			reg = <0x0 0xf8005000 0x0 0x1000>;
 			interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&ao_ctrl HI6220_WDT0_PCLK>;
-			clock-names = "apb_pclk";
+			clocks = <&ao_ctrl HI6220_WDT0_PCLK>,
+				 <&ao_ctrl HI6220_WDT0_PCLK>;
+			clock-names = "wdog_clk", "apb_pclk";
 		};
 
 		tsensor: tsensor@0,f7030700 {
