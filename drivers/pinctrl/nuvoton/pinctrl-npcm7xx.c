@@ -1601,7 +1601,7 @@ static void npcm7xx_dt_free_map(struct pinctrl_dev *pctldev,
 	kfree(map);
 }
 
-static struct pinctrl_ops npcm7xx_pinctrl_ops = {
+static const struct pinctrl_ops npcm7xx_pinctrl_ops = {
 	.get_groups_count = npcm7xx_get_groups_count,
 	.get_group_name = npcm7xx_get_group_name,
 	.get_group_pins = npcm7xx_get_group_pins,
@@ -1701,7 +1701,7 @@ static int npcm_gpio_set_direction(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static struct pinmux_ops npcm7xx_pinmux_ops = {
+static const struct pinmux_ops npcm7xx_pinmux_ops = {
 	.get_functions_count = npcm7xx_get_functions_count,
 	.get_function_name = npcm7xx_get_function_name,
 	.get_function_groups = npcm7xx_get_function_groups,
@@ -1842,7 +1842,7 @@ static int npcm7xx_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 	return 0;
 }
 
-static struct pinconf_ops npcm7xx_pinconf_ops = {
+static const struct pinconf_ops npcm7xx_pinconf_ops = {
 	.is_generic = true,
 	.pin_config_get = npcm7xx_config_get,
 	.pin_config_set = npcm7xx_config_set,
