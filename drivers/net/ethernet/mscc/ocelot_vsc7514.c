@@ -930,10 +930,6 @@ static int mscc_ocelot_init_ports(struct platform_device *pdev,
 	if (!ocelot->ports)
 		return -ENOMEM;
 
-	/* No NPI port */
-	ocelot_configure_cpu(ocelot, -1, OCELOT_TAG_PREFIX_NONE,
-			     OCELOT_TAG_PREFIX_NONE);
-
 	for_each_available_child_of_node(ports, portnp) {
 		struct ocelot_port_private *priv;
 		struct ocelot_port *ocelot_port;
@@ -1120,6 +1116,9 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 	ocelot->vcap_is2_keys = vsc7514_vcap_is2_keys;
 	ocelot->vcap_is2_actions = vsc7514_vcap_is2_actions;
 	ocelot->vcap = vsc7514_vcap_props;
+	ocelot->inj_prefix = OCELOT_TAG_PREFIX_NONE;
+	ocelot->xtr_prefix = OCELOT_TAG_PREFIX_NONE;
+	ocelot->npi = -1;
 
 	err = ocelot_init(ocelot);
 	if (err)
