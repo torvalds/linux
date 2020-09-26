@@ -76,49 +76,43 @@ static int __init register_xor_blocks(void)
 }
 #endif
 
-#define BENCH_SIZE (PAGE_SIZE)
+#define BENCH_SIZE	4096
+#define REPS		800U
 
 static void __init
 do_xor_speed(struct xor_block_template *tmpl, void *b1, void *b2)
 {
 	int speed;
-	unsigned long now, j;
-	int i, count, max;
+	int i, j, count;
+	ktime_t min, start, diff;
 
 	tmpl->next = template_list;
 	template_list = tmpl;
 
 	preempt_disable();
 
-	/*
-	 * Count the number of XORs done during a whole jiffy, and use
-	 * this to calculate the speed of checksumming.  We use a 2-page
-	 * allocation to have guaranteed color L1-cache layout.
-	 */
-	max = 0;
-	for (i = 0; i < 5; i++) {
-		j = jiffies;
-		count = 0;
-		while ((now = jiffies) == j)
-			cpu_relax();
-		while (time_before(jiffies, now + 1)) {
+	min = (ktime_t)S64_MAX;
+	for (i = 0; i < 3; i++) {
+		start = ktime_get();
+		for (j = 0; j < REPS; j++) {
 			mb(); /* prevent loop optimzation */
 			tmpl->do_2(BENCH_SIZE, b1, b2);
 			mb();
 			count++;
 			mb();
 		}
-		if (count > max)
-			max = count;
+		diff = ktime_sub(ktime_get(), start);
+		if (diff < min)
+			min = diff;
 	}
 
 	preempt_enable();
 
-	speed = max * (HZ * BENCH_SIZE / 1024);
+	// bytes/ns == GB/s, multiply by 1000 to get MB/s [not MiB/s]
+	speed = (1000 * REPS * BENCH_SIZE) / (unsigned int)ktime_to_ns(min);
 	tmpl->speed = speed;
 
-	printk(KERN_INFO "   %-10s: %5d.%03d MB/sec\n", tmpl->name,
-	       speed / 1000, speed % 1000);
+	pr_info("   %-16s: %5d MB/sec\n", tmpl->name, speed);
 }
 
 static int __init
@@ -158,8 +152,8 @@ calibrate_xor_blocks(void)
 		if (f->speed > fastest->speed)
 			fastest = f;
 
-	printk(KERN_INFO "xor: using function: %s (%d.%03d MB/sec)\n",
-	       fastest->name, fastest->speed / 1000, fastest->speed % 1000);
+	pr_info("xor: using function: %s (%d MB/sec)\n",
+	       fastest->name, fastest->speed);
 
 #undef xor_speed
 
