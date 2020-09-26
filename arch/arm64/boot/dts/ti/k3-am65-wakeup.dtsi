@@ -39,7 +39,7 @@
 		reg = <0x43000014 0x4>;
 	};
 
-	wkup_pmx0: pinmux@4301c000 {
+	wkup_pmx0: pinctrl@4301c000 {
 		compatible = "pinctrl-single";
 		reg = <0x4301c000 0x118>;
 		#pinctrl-cells = <1>;
@@ -80,7 +80,7 @@
 		ti,interrupt-ranges = <0 712 16>;
 	};
 
-	wkup_gpio0: wkup_gpio0@42110000 {
+	wkup_gpio0: gpio@42110000 {
 		compatible = "ti,am654-gpio", "ti,keystone-gpio";
 		reg = <0x42110000 0x100>;
 		gpio-controller;
@@ -95,7 +95,7 @@
 		clock-names = "gpio";
 	};
 
-	wkup_vtm0: thermal@42050000 {
+	wkup_vtm0: temperature-sensor@42050000 {
 		compatible = "ti,am654-vtm";
 		reg = <0x42050000 0x25c>;
 		power-domains = <&k3_pds 80 TI_SCI_PD_EXCLUSIVE>;
