@@ -90,14 +90,7 @@ struct btf_dump {
 
 static size_t str_hash_fn(const void *key, void *ctx)
 {
-	const char *s = key;
-	size_t h = 0;
-
-	while (*s) {
-		h = h * 31 + *s;
-		s++;
-	}
-	return h;
+	return str_hash(key);
 }
 
 static bool str_equal_fn(const void *a, const void *b, void *ctx)
