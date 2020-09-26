@@ -35,7 +35,6 @@
 struct mlx5_ib_gsi_wr {
 	struct ib_cqe cqe;
 	struct ib_wc wc;
-	int send_flags;
 	bool completed:1;
 };
 
@@ -59,10 +58,7 @@ static void generate_completions(struct mlx5_ib_qp *mqp)
 		if (!wr->completed)
 			break;
 
-		if (gsi->sq_sig_type == IB_SIGNAL_ALL_WR ||
-		    wr->send_flags & IB_SEND_SIGNALED)
-			WARN_ON_ONCE(mlx5_ib_generate_wc(gsi_cq, &wr->wc));
-
+		WARN_ON_ONCE(mlx5_ib_generate_wc(gsi_cq, &wr->wc));
 		wr->completed = false;
 	}
 
@@ -132,7 +128,6 @@ int mlx5_ib_create_gsi(struct ib_pd *pd, struct mlx5_ib_qp *mqp,
 	spin_lock_init(&gsi->lock);
 
 	gsi->cap = attr->cap;
-	gsi->sq_sig_type = attr->sq_sig_type;
 	gsi->port_num = port_num;
 
 	gsi->cq = ib_alloc_cq(pd->device, gsi, attr->cap.max_send_wr, 0,
@@ -236,7 +231,6 @@ static struct ib_qp *create_gsi_ud_qp(struct mlx5_ib_gsi_qp *gsi)
 			.max_send_sge = gsi->cap.max_send_sge,
 			.max_inline_data = gsi->cap.max_inline_data,
 		},
-		.sq_sig_type = gsi->sq_sig_type,
 		.qp_type = IB_QPT_UD,
 		.create_flags = MLX5_IB_QP_CREATE_SQPN_QP1,
 	};

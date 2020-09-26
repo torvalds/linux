@@ -388,7 +388,6 @@ struct mlx5_ib_gsi_qp {
 	struct ib_qp *rx_qp;
 	u8 port_num;
 	struct ib_qp_cap cap;
-	enum ib_sig_type sq_sig_type;
 	struct ib_cq *cq;
 	struct mlx5_ib_gsi_wr *outstanding_wrs;
 	u32 outstanding_pi, outstanding_ci;
