@@ -446,15 +446,10 @@ struct mt76_usb {
 #define MT76S_XMIT_BUF_SZ	(16 * PAGE_SIZE)
 struct mt76_sdio {
 	struct workqueue_struct *txrx_wq;
-	struct {
-		struct work_struct xmit_work;
-		struct work_struct status_work;
-	} tx;
-	struct {
-		struct work_struct recv_work;
-		struct work_struct net_work;
-	} rx;
 
+	struct work_struct txrx_work;
+	struct work_struct status_work;
+	struct work_struct net_work;
 	struct work_struct stat_work;
 
 	u8 *xmit_buf[MT_TXQ_MCU_WA];

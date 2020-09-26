@@ -66,10 +66,9 @@ void mt76s_stop_txrx(struct mt76_dev *dev)
 {
 	struct mt76_sdio *sdio = &dev->sdio;
 
-	cancel_work_sync(&sdio->tx.xmit_work);
-	cancel_work_sync(&sdio->tx.status_work);
-	cancel_work_sync(&sdio->rx.recv_work);
-	cancel_work_sync(&sdio->rx.net_work);
+	cancel_work_sync(&sdio->txrx_work);
+	cancel_work_sync(&sdio->status_work);
+	cancel_work_sync(&sdio->net_work);
 	cancel_work_sync(&sdio->stat_work);
 	clear_bit(MT76_READING_STATS, &dev->phy.state);
 
@@ -257,7 +256,7 @@ static void mt76s_tx_kick(struct mt76_dev *dev, struct mt76_queue *q)
 {
 	struct mt76_sdio *sdio = &dev->sdio;
 
-	queue_work(sdio->txrx_wq, &sdio->tx.xmit_work);
+	queue_work(sdio->txrx_wq, &sdio->txrx_work);
 }
 
 static const struct mt76_queue_ops sdio_queue_ops = {
@@ -269,7 +268,7 @@ static const struct mt76_queue_ops sdio_queue_ops = {
 static void mt76s_tx_work(struct work_struct *work)
 {
 	struct mt76_sdio *sdio = container_of(work, struct mt76_sdio,
-					      tx.status_work);
+					      status_work);
 	struct mt76_dev *dev = container_of(sdio, struct mt76_dev, sdio);
 	int i;
 
@@ -284,7 +283,7 @@ static void mt76s_tx_work(struct work_struct *work)
 static void mt76s_rx_work(struct work_struct *work)
 {
 	struct mt76_sdio *sdio = container_of(work, struct mt76_sdio,
-					      rx.net_work);
+					      net_work);
 	struct mt76_dev *dev = container_of(sdio, struct mt76_dev, sdio);
 	int i;
 
@@ -343,8 +342,8 @@ int mt76s_init(struct mt76_dev *dev, struct sdio_func *func,
 		return -ENOMEM;
 
 	INIT_WORK(&sdio->stat_work, mt76s_tx_status_data);
-	INIT_WORK(&sdio->tx.status_work, mt76s_tx_work);
-	INIT_WORK(&sdio->rx.net_work, mt76s_rx_work);
+	INIT_WORK(&sdio->status_work, mt76s_tx_work);
+	INIT_WORK(&sdio->net_work, mt76s_rx_work);
 
 	mutex_init(&sdio->sched.lock);
 	dev->queue_ops = &sdio_queue_ops;
