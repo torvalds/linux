@@ -107,6 +107,18 @@ static struct sk_buff *brcm_tag_xmit_ll(struct sk_buff *skb,
 	return skb;
 }
 
+/* Frames with this tag have one of these two layouts:
+ * -----------------------------------
+ * | MAC DA | MAC SA | 4b tag | Type | DSA_TAG_PROTO_BRCM
+ * -----------------------------------
+ * -----------------------------------
+ * | 4b tag | MAC DA | MAC SA | Type | DSA_TAG_PROTO_BRCM_PREPEND
+ * -----------------------------------
+ * In both cases, at receive time, skb->data points 2 bytes before the actual
+ * Ethernet type field and we have an offset of 4bytes between where skb->data
+ * and where the payload starts. So the same low-level receive function can be
+ * used.
+ */
 static struct sk_buff *brcm_tag_rcv_ll(struct sk_buff *skb,
 				       struct net_device *dev,
 				       struct packet_type *pt,
@@ -149,26 +161,6 @@ static struct sk_buff *brcm_tag_rcv_ll(struct sk_buff *skb,
 
 	return skb;
 }
-
-static void brcm_tag_flow_dissect(const struct sk_buff *skb, __be16 *proto,
-				  int *offset)
-{
-	/* We have been called on the DSA master network device after
-	 * eth_type_trans() which pulled the Ethernet header already.
-	 * Frames have one of these two layouts:
-	 * -----------------------------------
-	 * | MAC DA | MAC SA | 4b tag | Type | DSA_TAG_PROTO_BRCM
-	 * -----------------------------------
-	 * -----------------------------------
-	 * | 4b tag | MAC DA | MAC SA | Type | DSA_TAG_PROTO_BRCM_PREPEND
-	 * -----------------------------------
-	 * skb->data points 2 bytes before the actual Ethernet type field and
-	 * we have an offset of 4bytes between where skb->data and where the
-	 * payload starts.
-	 */
-	*offset = BRCM_TAG_LEN;
-	*proto = ((__be16 *)skb->data)[1];
-}
 #endif
 
 #if IS_ENABLED(CONFIG_NET_DSA_TAG_BRCM)
@@ -204,7 +196,6 @@ static const struct dsa_device_ops brcm_netdev_ops = {
 	.xmit	= brcm_tag_xmit,
 	.rcv	= brcm_tag_rcv,
 	.overhead = BRCM_TAG_LEN,
-	.flow_dissect = brcm_tag_flow_dissect,
 };
 
 DSA_TAG_DRIVER(brcm_netdev_ops);
@@ -239,7 +230,6 @@ static const struct dsa_device_ops brcm_prepend_netdev_ops = {
 	.xmit	= brcm_tag_xmit_prepend,
 	.rcv	= brcm_tag_rcv_prepend,
 	.overhead = BRCM_TAG_LEN,
-	.flow_dissect = brcm_tag_flow_dissect,
 };
 
 DSA_TAG_DRIVER(brcm_prepend_netdev_ops);
