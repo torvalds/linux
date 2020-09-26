@@ -33,14 +33,55 @@ properties:
         items:
           - enum:
               - fsl,imx25-pdk
+              - karo,imx25-tx25
           - const: fsl,imx25
 
-      - description: i.MX27 Product Development Kit
+      - description: i.MX25 Eukrea CPUIMX25 Boards
+        items:
+          - enum:
+              - eukrea,mbimxsd25-baseboard   # Eukrea MBIMXSD25
+          - const: eukrea,cpuimx25
+          - const: fsl,imx25
+
+      - description: i.MX25 Eukrea MBIMXSD25 Boards
+        items:
+          - enum:
+              - eukrea,mbimxsd25-baseboard-cmo-qvga
+              - eukrea,mbimxsd25-baseboard-dvi-svga
+              - eukrea,mbimxsd25-baseboard-dvi-vga
+          - const: eukrea,mbimxsd25-baseboard
+          - const: eukrea,cpuimx25
+          - const: fsl,imx25
+
+      - description: i.MX27 based Boards
         items:
           - enum:
               - armadeus,imx27-apf27      # APF27 SoM
-              - armadeus,imx27-apf27dev   # APF27 SoM on APF27Dev board
               - fsl,imx27-pdk
+          - const: fsl,imx27
+
+      - description: i.MX27 APF27 SoM Board
+        items:
+          - const: armadeus,imx27-apf27dev
+          - const: armadeus,imx27-apf27
+          - const: fsl,imx27
+
+      - description: i.MX27 Eukrea CPUIMX27 SoM Board
+        items:
+          - const: eukrea,mbimxsd27-baseboard
+          - const: eukrea,cpuimx27
+          - const: fsl,imx27
+
+      - description: i.MX27 Phytec pca100 Board
+        items:
+          - const: phytec,imx27-pca100-rdk
+          - const: phytec,imx27-pca100
+          - const: fsl,imx27
+
+      - description: i.MX27 Phytec pcm970 Board
+        items:
+          - const: phytec,imx27-pcm970
+          - const: phytec,imx27-pcm038
           - const: fsl,imx27
 
       - description: i.MX28 based Boards
