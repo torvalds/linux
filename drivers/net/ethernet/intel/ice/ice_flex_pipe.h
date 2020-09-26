@@ -20,10 +20,10 @@
 
 bool
 ice_get_open_tunnel_port(struct ice_hw *hw, u16 *port);
-enum ice_status
-ice_create_tunnel(struct ice_hw *hw, enum ice_tunnel_type type, u16 port);
-enum ice_status ice_destroy_tunnel(struct ice_hw *hw, u16 port, bool all);
-bool ice_tunnel_port_in_use(struct ice_hw *hw, u16 port, u16 *index);
+int ice_udp_tunnel_set_port(struct net_device *netdev, unsigned int table,
+			    unsigned int idx, struct udp_tunnel_info *ti);
+int ice_udp_tunnel_unset_port(struct net_device *netdev, unsigned int table,
+			      unsigned int idx, struct udp_tunnel_info *ti);
 
 enum ice_status
 ice_add_prof(struct ice_hw *hw, enum ice_block blk, u64 id, u8 ptypes[],
