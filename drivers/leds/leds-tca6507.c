@@ -727,7 +727,7 @@ tca6507_led_dt_init(struct i2c_client *client)
 		ret = fwnode_property_read_u32(child, "reg", &reg);
 		if (ret || reg >= NUM_LEDS) {
 			fwnode_handle_put(child);
-			return ERR_PTR(ret);
+			return ERR_PTR(ret ? : -EINVAL);
 		}
 
 		tca_leds[reg] = led;
