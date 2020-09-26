@@ -184,7 +184,7 @@ struct smcr_clc_msg_accept_confirm {	/* SMCR accept/confirm */
 	u8 psn[3];		/* packet sequence number */
 } __packed;
 
-struct smcd_clc_msg_accept_confirm {	/* SMCD accept/confirm */
+struct smcd_clc_msg_accept_confirm_common {	/* SMCD accept/confirm */
 	u64 gid;		/* Sender GID */
 	u64 token;		/* DMB token */
 	u8 dmbe_idx;		/* DMBE index */
@@ -197,16 +197,31 @@ struct smcd_clc_msg_accept_confirm {	/* SMCD accept/confirm */
 #endif
 	u16 reserved4;
 	__be32 linkid;		/* Link identifier */
-	u32 reserved5[3];
 } __packed;
 
 struct smc_clc_msg_accept_confirm {	/* clc accept / confirm message */
 	struct smc_clc_msg_hdr hdr;
 	union {
 		struct smcr_clc_msg_accept_confirm r0; /* SMC-R */
-		struct smcd_clc_msg_accept_confirm d0; /* SMC-D */
+		struct { /* SMC-D */
+			struct smcd_clc_msg_accept_confirm_common d0;
+			u32 reserved5[3];
+		};
 	};
 } __packed;			/* format defined in RFC7609 */
+
+struct smc_clc_msg_accept_confirm_v2 {	/* clc accept / confirm message */
+	struct smc_clc_msg_hdr hdr;
+	union {
+		struct smcr_clc_msg_accept_confirm r0; /* SMC-R */
+		struct { /* SMC-D */
+			struct smcd_clc_msg_accept_confirm_common d0;
+			__be16 chid;
+			u8 eid[SMC_MAX_EID_LEN];
+			u8 reserved5[8];
+		};
+	};
+};
 
 struct smc_clc_msg_decline {	/* clc decline message */
 	struct smc_clc_msg_hdr hdr;
@@ -285,7 +300,9 @@ int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 		     u8 expected_type, unsigned long timeout);
 int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info);
 int smc_clc_send_proposal(struct smc_sock *smc, struct smc_init_info *ini);
-int smc_clc_send_confirm(struct smc_sock *smc);
-int smc_clc_send_accept(struct smc_sock *smc, bool srv_first_contact);
+int smc_clc_send_confirm(struct smc_sock *smc, bool clnt_first_contact,
+			 u8 version);
+int smc_clc_send_accept(struct smc_sock *smc, bool srv_first_contact,
+			u8 version);
 
 #endif

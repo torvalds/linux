@@ -660,9 +660,13 @@ static int smc_connect_ism_vlan_cleanup(struct smc_sock *smc,
 	return 0;
 }
 
+#define SMC_CLC_MAX_ACCEPT_LEN \
+	(sizeof(struct smc_clc_msg_accept_confirm_v2) + \
+	 sizeof(struct smc_clc_msg_trail))
+
 /* CLC handshake during connect */
 static int smc_connect_clc(struct smc_sock *smc,
-			   struct smc_clc_msg_accept_confirm *aclc,
+			   struct smc_clc_msg_accept_confirm_v2 *aclc2,
 			   struct smc_init_info *ini)
 {
 	int rc = 0;
@@ -672,8 +676,8 @@ static int smc_connect_clc(struct smc_sock *smc,
 	if (rc)
 		return rc;
 	/* receive SMC Accept CLC message */
-	return smc_clc_wait_msg(smc, aclc, sizeof(*aclc), SMC_CLC_ACCEPT,
-				CLC_WAIT_TIME);
+	return smc_clc_wait_msg(smc, aclc2, SMC_CLC_MAX_ACCEPT_LEN,
+				SMC_CLC_ACCEPT, CLC_WAIT_TIME);
 }
 
 /* setup for RDMA connection of client */
@@ -747,7 +751,8 @@ static int smc_connect_rdma(struct smc_sock *smc,
 	}
 	smc_rmb_sync_sg_for_device(&smc->conn);
 
-	reason_code = smc_clc_send_confirm(smc);
+	reason_code = smc_clc_send_confirm(smc, ini->first_contact_local,
+					   SMC_V1);
 	if (reason_code)
 		return smc_connect_abort(smc, reason_code,
 					 ini->first_contact_local);
@@ -773,6 +778,25 @@ static int smc_connect_rdma(struct smc_sock *smc,
 	return 0;
 }
 
+/* The server has chosen one of the proposed ISM devices for the communication.
+ * Determine from the CHID of the received CLC ACCEPT the ISM device chosen.
+ */
+static int
+smc_v2_determine_accepted_chid(struct smc_clc_msg_accept_confirm_v2 *aclc,
+			       struct smc_init_info *ini)
+{
+	int i;
+
+	for (i = 0; i < ini->ism_offered_cnt + 1; i++) {
+		if (ini->ism_chid[i] == ntohs(aclc->chid)) {
+			ini->ism_selected = i;
+			return 0;
+		}
+	}
+
+	return -EPROTO;
+}
+
 /* setup for ISM connection of client */
 static int smc_connect_ism(struct smc_sock *smc,
 			   struct smc_clc_msg_accept_confirm *aclc,
@@ -781,8 +805,17 @@ static int smc_connect_ism(struct smc_sock *smc,
 	int rc = 0;
 
 	ini->is_smcd = true;
-	ini->ism_peer_gid[0] = aclc->d0.gid;
 	ini->first_contact_peer = aclc->hdr.typev2 & SMC_FIRST_CONTACT_MASK;
+
+	if (aclc->hdr.version == SMC_V2) {
+		struct smc_clc_msg_accept_confirm_v2 *aclc_v2 =
+			(struct smc_clc_msg_accept_confirm_v2 *)aclc;
+
+		rc = smc_v2_determine_accepted_chid(aclc_v2, ini);
+		if (rc)
+			return rc;
+	}
+	ini->ism_peer_gid[ini->ism_selected] = aclc->d0.gid;
 
 	/* there is only one lgr role for SMC-D; use server lock */
 	mutex_lock(&smc_server_lgr_pending);
@@ -805,7 +838,8 @@ static int smc_connect_ism(struct smc_sock *smc,
 	smc_rx_init(smc);
 	smc_tx_init(smc);
 
-	rc = smc_clc_send_confirm(smc);
+	rc = smc_clc_send_confirm(smc, ini->first_contact_local,
+				  aclc->hdr.version);
 	if (rc)
 		return smc_connect_abort(smc, rc, ini->first_contact_local);
 	mutex_unlock(&smc_server_lgr_pending);
@@ -825,7 +859,12 @@ static int smc_connect_check_aclc(struct smc_init_info *ini,
 	if ((aclc->hdr.typev1 == SMC_TYPE_R &&
 	     !smcr_indicated(ini->smc_type_v1)) ||
 	    (aclc->hdr.typev1 == SMC_TYPE_D &&
-	     !smcd_indicated(ini->smc_type_v1)))
+	     ((!smcd_indicated(ini->smc_type_v1) &&
+	       !smcd_indicated(ini->smc_type_v2)) ||
+	      (aclc->hdr.version == SMC_V1 &&
+	       !smcd_indicated(ini->smc_type_v1)) ||
+	      (aclc->hdr.version == SMC_V2 &&
+	       !smcd_indicated(ini->smc_type_v2)))))
 		return SMC_CLC_DECL_MODEUNSUPP;
 
 	return 0;
@@ -834,8 +873,10 @@ static int smc_connect_check_aclc(struct smc_init_info *ini,
 /* perform steps before actually connecting */
 static int __smc_connect(struct smc_sock *smc)
 {
-	struct smc_clc_msg_accept_confirm aclc;
+	struct smc_clc_msg_accept_confirm_v2 *aclc2;
+	struct smc_clc_msg_accept_confirm *aclc;
 	struct smc_init_info *ini = NULL;
+	u8 *buf = NULL;
 	int rc = 0;
 
 	if (smc->use_fallback)
@@ -872,30 +913,40 @@ static int __smc_connect(struct smc_sock *smc)
 	if (rc)
 		goto fallback;
 
+	buf = kzalloc(SMC_CLC_MAX_ACCEPT_LEN, GFP_KERNEL);
+	if (!buf) {
+		rc = SMC_CLC_DECL_MEM;
+		goto fallback;
+	}
+	aclc2 = (struct smc_clc_msg_accept_confirm_v2 *)buf;
+	aclc = (struct smc_clc_msg_accept_confirm *)aclc2;
+
 	/* perform CLC handshake */
-	rc = smc_connect_clc(smc, &aclc, ini);
+	rc = smc_connect_clc(smc, aclc2, ini);
 	if (rc)
 		goto vlan_cleanup;
 
 	/* check if smc modes and versions of CLC proposal and accept match */
-	rc = smc_connect_check_aclc(ini, &aclc);
+	rc = smc_connect_check_aclc(ini, aclc);
 	if (rc)
 		goto vlan_cleanup;
 
 	/* depending on previous steps, connect using rdma or ism */
-	if (aclc.hdr.typev1 == SMC_TYPE_R)
-		rc = smc_connect_rdma(smc, &aclc, ini);
-	else if (aclc.hdr.typev1 == SMC_TYPE_D)
-		rc = smc_connect_ism(smc, &aclc, ini);
+	if (aclc->hdr.typev1 == SMC_TYPE_R)
+		rc = smc_connect_rdma(smc, aclc, ini);
+	else if (aclc->hdr.typev1 == SMC_TYPE_D)
+		rc = smc_connect_ism(smc, aclc, ini);
 	if (rc)
 		goto vlan_cleanup;
 
 	smc_connect_ism_vlan_cleanup(smc, ini);
+	kfree(buf);
 	kfree(ini);
 	return 0;
 
 vlan_cleanup:
 	smc_connect_ism_vlan_cleanup(smc, ini);
+	kfree(buf);
 fallback:
 	kfree(ini);
 	return smc_connect_decline_fallback(smc, rc);
@@ -1214,10 +1265,10 @@ static void smc_listen_out_err(struct smc_sock *new_smc)
 
 /* listen worker: decline and fall back if possible */
 static void smc_listen_decline(struct smc_sock *new_smc, int reason_code,
-			       bool local_first)
+			       struct smc_init_info *ini)
 {
 	/* RDMA setup failed, switch back to TCP */
-	if (local_first)
+	if (ini->first_contact_local)
 		smc_lgr_cleanup_early(&new_smc->conn);
 	else
 		smc_conn_free(&new_smc->conn);
@@ -1560,7 +1611,8 @@ static void smc_listen_work(struct work_struct *work)
 	struct smc_sock *new_smc = container_of(work, struct smc_sock,
 						smc_listen_work);
 	struct socket *newclcsock = new_smc->clcsock;
-	struct smc_clc_msg_accept_confirm cclc;
+	struct smc_clc_msg_accept_confirm_v2 *cclc2;
+	struct smc_clc_msg_accept_confirm *cclc;
 	struct smc_clc_msg_proposal_area *buf;
 	struct smc_clc_msg_proposal *pclc;
 	struct smc_init_info *ini = NULL;
@@ -1624,7 +1676,8 @@ static void smc_listen_work(struct work_struct *work)
 		goto out_unlock;
 
 	/* send SMC Accept CLC message */
-	rc = smc_clc_send_accept(new_smc, ini->first_contact_local);
+	rc = smc_clc_send_accept(new_smc, ini->first_contact_local,
+				 ini->smcd_version == SMC_V2 ? SMC_V2 : SMC_V1);
 	if (rc)
 		goto out_unlock;
 
@@ -1633,7 +1686,11 @@ static void smc_listen_work(struct work_struct *work)
 		mutex_unlock(&smc_server_lgr_pending);
 
 	/* receive SMC Confirm CLC message */
-	rc = smc_clc_wait_msg(new_smc, &cclc, sizeof(cclc),
+	cclc2 = (struct smc_clc_msg_accept_confirm_v2 *)buf;
+	cclc = (struct smc_clc_msg_accept_confirm *)cclc2;
+	memset(buf, 0, sizeof(struct smc_clc_msg_proposal_area));
+	rc = smc_clc_wait_msg(new_smc, cclc2,
+			      sizeof(struct smc_clc_msg_proposal_area),
 			      SMC_CLC_CONFIRM, CLC_WAIT_TIME);
 	if (rc) {
 		if (!ini->is_smcd)
@@ -1643,20 +1700,20 @@ static void smc_listen_work(struct work_struct *work)
 
 	/* finish worker */
 	if (!ini->is_smcd) {
-		rc = smc_listen_rdma_finish(new_smc, &cclc,
+		rc = smc_listen_rdma_finish(new_smc, cclc,
 					    ini->first_contact_local);
 		if (rc)
 			goto out_unlock;
 		mutex_unlock(&smc_server_lgr_pending);
 	}
-	smc_conn_save_peer_info(new_smc, &cclc);
+	smc_conn_save_peer_info(new_smc, cclc);
 	smc_listen_out_connected(new_smc);
 	goto out_free;
 
 out_unlock:
 	mutex_unlock(&smc_server_lgr_pending);
 out_decl:
-	smc_listen_decline(new_smc, rc, ini ? ini->first_contact_local : 0);
+	smc_listen_decline(new_smc, rc, ini);
 out_free:
 	kfree(ini);
 	kfree(buf);
