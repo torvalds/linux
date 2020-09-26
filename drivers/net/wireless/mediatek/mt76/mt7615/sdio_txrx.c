@@ -105,10 +105,7 @@ static int mt7663s_rx_run_queue(struct mt76_dev *dev, enum mt76_rxq_id qid,
 
 	buf = page_address(page);
 
-	sdio_claim_host(sdio->func);
 	err = sdio_readsb(sdio->func, buf, MCR_WRDR(qid), len);
-	sdio_release_host(sdio->func);
-
 	if (err < 0) {
 		dev_err(dev->dev, "sdio read data failed:%d\n", err);
 		__free_pages(page, order);
@@ -144,14 +141,9 @@ static int mt7663s_rx_handler(struct mt76_dev *dev)
 	struct mt76s_intr *intr = sdio->intr_data;
 	int nframes = 0, ret;
 
-	/* disable interrupt */
-	sdio_claim_host(sdio->func);
-	sdio_writel(sdio->func, WHLPCR_INT_EN_CLR, MCR_WHLPCR, NULL);
 	ret = sdio_readsb(sdio->func, intr, MCR_WHISR, sizeof(*intr));
-	sdio_release_host(sdio->func);
-
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	trace_dev_irq(dev, intr->isr, 0);
 
@@ -172,12 +164,6 @@ static int mt7663s_rx_handler(struct mt76_dev *dev)
 	}
 
 	nframes += !!mt7663s_refill_sched_quota(dev, intr->tx.wtqcr);
-
-out:
-	/* enable interrupt */
-	sdio_claim_host(sdio->func);
-	sdio_writel(sdio->func, WHLPCR_INT_EN_SET, MCR_WHLPCR, NULL);
-	sdio_release_host(sdio->func);
 
 	return nframes;
 }
@@ -225,10 +211,7 @@ static int __mt7663s_xmit_queue(struct mt76_dev *dev, u8 *data, int len)
 	if (len > sdio->func->cur_blksize)
 		len = roundup(len, sdio->func->cur_blksize);
 
-	sdio_claim_host(sdio->func);
 	err = sdio_writesb(sdio->func, MCR_WTDR1, data, len);
-	sdio_release_host(sdio->func);
-
 	if (err)
 		dev_err(dev->dev, "sdio write failed: %d\n", err);
 
@@ -298,6 +281,10 @@ void mt7663s_txrx_worker(struct mt76_worker *w)
 	struct mt76_dev *dev = container_of(sdio, struct mt76_dev, sdio);
 	int i, nframes, ret;
 
+	/* disable interrupt */
+	sdio_claim_host(sdio->func);
+	sdio_writel(sdio->func, WHLPCR_INT_EN_CLR, MCR_WHLPCR, NULL);
+
 	do {
 		nframes = 0;
 
@@ -313,6 +300,10 @@ void mt7663s_txrx_worker(struct mt76_worker *w)
 		if (ret > 0)
 			nframes += ret;
 	} while (nframes > 0);
+
+	/* enable interrupt */
+	sdio_writel(sdio->func, WHLPCR_INT_EN_SET, MCR_WHLPCR, NULL);
+	sdio_release_host(sdio->func);
 }
 
 void mt7663s_sdio_irq(struct sdio_func *func)
