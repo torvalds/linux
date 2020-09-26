@@ -3172,10 +3172,8 @@ static int io_read(struct io_kiocb *req, bool force_nonblock,
 			goto done;
 		/* some cases will consume bytes even on error returns */
 		iov_iter_revert(iter, iov_count - iov_iter_count(iter));
-		ret = io_setup_async_rw(req, iovec, inline_vecs, iter, false);
-		if (ret)
-			goto out_free;
-		return -EAGAIN;
+		ret = 0;
+		goto copy_iov;
 	} else if (ret < 0) {
 		/* make sure -ERESTARTSYS -> -EINTR is done */
 		goto done;
@@ -5671,6 +5669,11 @@ static void __io_clean_op(struct io_kiocb *req)
 			io_put_file(req, req->splice.file_in,
 				    (req->splice.flags & SPLICE_F_FD_IN_FIXED));
 			break;
+		case IORING_OP_OPENAT:
+		case IORING_OP_OPENAT2:
+			if (req->open.filename)
+				putname(req->open.filename);
+			break;
 		}
 		req->flags &= ~REQ_F_NEED_CLEANUP;
 	}
@@ -6348,9 +6351,6 @@ static void io_submit_state_start(struct io_submit_state *state,
 				  struct io_ring_ctx *ctx, unsigned int max_ios)
 {
 	blk_start_plug(&state->plug);
-#ifdef CONFIG_BLOCK
-	state->plug.nowait = true;
-#endif
 	state->comp.nr = 0;
 	INIT_LIST_HEAD(&state->comp.list);
 	state->comp.ctx = ctx;
