@@ -54,19 +54,19 @@
 #define SMC_CLC_DECL_ERR_RDYLNK	0x09990002  /*	 ib ready link failed	      */
 #define SMC_CLC_DECL_ERR_REGRMB	0x09990003  /*	 reg rmb failed		      */
 
+#define SMC_FIRST_CONTACT_MASK	0b10	/* first contact bit within typev2 */
+
 struct smc_clc_msg_hdr {	/* header1 of clc messages */
 	u8 eyecatcher[4];	/* eye catcher */
 	u8 type;		/* proposal / accept / confirm / decline */
 	__be16 length;
 #if defined(__BIG_ENDIAN_BITFIELD)
 	u8 version : 4,
-	   flag    : 1,
-	   rsvd	   : 1,
-	   path	   : 2;
+	   typev2  : 2,
+	   typev1  : 2;
 #elif defined(__LITTLE_ENDIAN_BITFIELD)
-	u8 path    : 2,
-	   rsvd    : 1,
-	   flag    : 1,
+	u8 typev1  : 2,
+	   typev2  : 2,
 	   version : 4;
 #endif
 } __packed;			/* format defined in RFC7609 */

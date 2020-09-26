@@ -64,12 +64,12 @@ static bool smc_clc_msg_hdr_valid(struct smc_clc_msg_hdr *clcm, bool check_trl)
 		break;
 	case SMC_CLC_ACCEPT:
 	case SMC_CLC_CONFIRM:
-		if (clcm->path != SMC_TYPE_R && clcm->path != SMC_TYPE_D)
+		if (clcm->typev1 != SMC_TYPE_R && clcm->typev1 != SMC_TYPE_D)
 			return false;
 		clc = (struct smc_clc_msg_accept_confirm *)clcm;
-		if ((clcm->path == SMC_TYPE_R &&
+		if ((clcm->typev1 == SMC_TYPE_R &&
 		     ntohs(clc->hdr.length) != SMCR_CLC_ACCEPT_CONFIRM_LEN) ||
-		    (clcm->path == SMC_TYPE_D &&
+		    (clcm->typev1 == SMC_TYPE_D &&
 		     ntohs(clc->hdr.length) != SMCD_CLC_ACCEPT_CONFIRM_LEN))
 			return false;
 		trl = (struct smc_clc_msg_trail *)
@@ -327,7 +327,7 @@ int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 		goto out;
 	}
 
-	if (clcm->type == SMC_CLC_PROPOSAL && clcm->path == SMC_TYPE_N)
+	if (clcm->type == SMC_CLC_PROPOSAL && clcm->typev1 == SMC_TYPE_N)
 		reason_code = SMC_CLC_DECL_VERSMISMAT; /* just V2 offered */
 
 	/* receive the complete CLC message */
@@ -365,7 +365,8 @@ int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 		dclc = (struct smc_clc_msg_decline *)clcm;
 		reason_code = SMC_CLC_DECL_PEERDECL;
 		smc->peer_diagnosis = ntohl(dclc->peer_diagnosis);
-		if (((struct smc_clc_msg_decline *)buf)->hdr.flag) {
+		if (((struct smc_clc_msg_decline *)buf)->hdr.typev2 &
+						SMC_FIRST_CONTACT_MASK) {
 			smc->conn.lgr->sync_err = 1;
 			smc_lgr_terminate_sched(smc->conn.lgr);
 		}
@@ -389,7 +390,8 @@ int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info)
 	dclc.hdr.type = SMC_CLC_DECLINE;
 	dclc.hdr.length = htons(sizeof(struct smc_clc_msg_decline));
 	dclc.hdr.version = SMC_V1;
-	dclc.hdr.flag = (peer_diag_info == SMC_CLC_DECL_SYNCERR) ? 1 : 0;
+	dclc.hdr.typev2 = (peer_diag_info == SMC_CLC_DECL_SYNCERR) ?
+						SMC_FIRST_CONTACT_MASK : 0;
 	if ((!smc->conn.lgr || !smc->conn.lgr->is_smcd) &&
 	    smc_ib_is_valid_local_systemid())
 		memcpy(dclc.id_for_peer, local_systemid,
@@ -447,7 +449,7 @@ int smc_clc_send_proposal(struct smc_sock *smc, int smc_type,
 	       sizeof(SMC_EYECATCHER));
 	pclc_base->hdr.type = SMC_CLC_PROPOSAL;
 	pclc_base->hdr.version = SMC_V1;		/* SMC version */
-	pclc_base->hdr.path = smc_type;
+	pclc_base->hdr.typev1 = smc_type;
 	if (smc_type == SMC_TYPE_R || smc_type == SMC_TYPE_B) {
 		/* add SMC-R specifics */
 		memcpy(pclc_base->lcl.id_for_peer, local_systemid,
@@ -509,12 +511,12 @@ static int smc_clc_send_confirm_accept(struct smc_sock *smc,
 	/* send SMC Confirm CLC msg */
 	clc->hdr.version = SMC_V1;		/* SMC version */
 	if (first_contact)
-		clc->hdr.flag = 1;
+		clc->hdr.typev2 |= SMC_FIRST_CONTACT_MASK;
 	if (conn->lgr->is_smcd) {
 		/* SMC-D specific settings */
 		memcpy(clc->hdr.eyecatcher, SMCD_EYECATCHER,
 		       sizeof(SMCD_EYECATCHER));
-		clc->hdr.path = SMC_TYPE_D;
+		clc->hdr.typev1 = SMC_TYPE_D;
 		clc->hdr.length = htons(SMCD_CLC_ACCEPT_CONFIRM_LEN);
 		clc->d0.gid = conn->lgr->smcd->local_gid;
 		clc->d0.token = conn->rmb_desc->token;
@@ -530,7 +532,7 @@ static int smc_clc_send_confirm_accept(struct smc_sock *smc,
 		link = conn->lnk;
 		memcpy(clc->hdr.eyecatcher, SMC_EYECATCHER,
 		       sizeof(SMC_EYECATCHER));
-		clc->hdr.path = SMC_TYPE_R;
+		clc->hdr.typev1 = SMC_TYPE_R;
 		clc->hdr.length = htons(SMCR_CLC_ACCEPT_CONFIRM_LEN);
 		memcpy(clc->r0.lcl.id_for_peer, local_systemid,
 		       sizeof(local_systemid));
