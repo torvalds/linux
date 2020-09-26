@@ -336,45 +336,6 @@ struct tegra_pmc_soc {
 	bool has_blink_output;
 };
 
-static const char * const tegra186_reset_sources[] = {
-	"SYS_RESET",
-	"AOWDT",
-	"MCCPLEXWDT",
-	"BPMPWDT",
-	"SCEWDT",
-	"SPEWDT",
-	"APEWDT",
-	"BCCPLEXWDT",
-	"SENSOR",
-	"AOTAG",
-	"VFSENSOR",
-	"SWREST",
-	"SC7",
-	"HSM",
-	"CORESIGHT"
-};
-
-static const char * const tegra186_reset_levels[] = {
-	"L0", "L1", "L2", "WARM"
-};
-
-static const char * const tegra30_reset_sources[] = {
-	"POWER_ON_RESET",
-	"WATCHDOG",
-	"SENSOR",
-	"SW_MAIN",
-	"LP0"
-};
-
-static const char * const tegra210_reset_sources[] = {
-	"POWER_ON_RESET",
-	"WATCHDOG",
-	"SENSOR",
-	"SW_MAIN",
-	"LP0",
-	"AOTAG"
-};
-
 /**
  * struct tegra_pmc - NVIDIA Tegra PMC
  * @dev: pointer to PMC device structure
@@ -2784,6 +2745,14 @@ static const u8 tegra30_cpu_powergates[] = {
 	TEGRA_POWERGATE_CPU3,
 };
 
+static const char * const tegra30_reset_sources[] = {
+	"POWER_ON_RESET",
+	"WATCHDOG",
+	"SENSOR",
+	"SW_MAIN",
+	"LP0"
+};
+
 static const struct tegra_pmc_soc tegra30_pmc_soc = {
 	.num_powergates = ARRAY_SIZE(tegra30_powergates),
 	.powergates = tegra30_powergates,
@@ -3061,6 +3030,15 @@ static const struct pinctrl_pin_desc tegra210_pin_descs[] = {
 	TEGRA210_IO_PAD_TABLE(TEGRA_IO_PIN_DESC)
 };
 
+static const char * const tegra210_reset_sources[] = {
+	"POWER_ON_RESET",
+	"WATCHDOG",
+	"SENSOR",
+	"SW_MAIN",
+	"LP0",
+	"AOTAG"
+};
+
 static const struct tegra_wake_event tegra210_wake_events[] = {
 	TEGRA_WAKE_IRQ("rtc", 16, 2),
 	TEGRA_WAKE_IRQ("pmu", 51, 86),
@@ -3192,6 +3170,28 @@ static void tegra186_pmc_setup_irq_polarity(struct tegra_pmc *pmc,
 
 	iounmap(wake);
 }
+
+static const char * const tegra186_reset_sources[] = {
+	"SYS_RESET",
+	"AOWDT",
+	"MCCPLEXWDT",
+	"BPMPWDT",
+	"SCEWDT",
+	"SPEWDT",
+	"APEWDT",
+	"BCCPLEXWDT",
+	"SENSOR",
+	"AOTAG",
+	"VFSENSOR",
+	"SWREST",
+	"SC7",
+	"HSM",
+	"CORESIGHT"
+};
+
+static const char * const tegra186_reset_levels[] = {
+	"L0", "L1", "L2", "WARM"
+};
 
 static const struct tegra_wake_event tegra186_wake_events[] = {
 	TEGRA_WAKE_IRQ("pmu", 24, 209),
@@ -3362,7 +3362,75 @@ static const struct tegra_pmc_soc tegra194_pmc_soc = {
 	.has_blink_output = false,
 };
 
+static const struct tegra_pmc_regs tegra234_pmc_regs = {
+	.scratch0 = 0x2000,
+	.dpd_req = 0,
+	.dpd_status = 0,
+	.dpd2_req = 0,
+	.dpd2_status = 0,
+	.rst_status = 0x70,
+	.rst_source_shift = 0x2,
+	.rst_source_mask = 0xfc,
+	.rst_level_shift = 0x0,
+	.rst_level_mask = 0x3,
+};
+
+static const char * const tegra234_reset_sources[] = {
+	"SYS_RESET_N",
+	"AOWDT",
+	"BCCPLEXWDT",
+	"BPMPWDT",
+	"SCEWDT",
+	"SPEWDT",
+	"APEWDT",
+	"LCCPLEXWDT",
+	"SENSOR",
+	"AOTAG",
+	"VFSENSOR",
+	"MAINSWRST",
+	"SC7",
+	"HSM",
+	"CSITE",
+	"RCEWDT",
+	"PVA0WDT",
+	"PVA1WDT",
+	"L1A_ASYNC",
+	"BPMPBOOT",
+	"FUSECRC",
+};
+
+static const struct tegra_pmc_soc tegra234_pmc_soc = {
+	.num_powergates = 0,
+	.powergates = NULL,
+	.num_cpu_powergates = 0,
+	.cpu_powergates = NULL,
+	.has_tsense_reset = false,
+	.has_gpu_clamps = false,
+	.needs_mbist_war = false,
+	.has_impl_33v_pwr = true,
+	.maybe_tz_only = false,
+	.num_io_pads = 0,
+	.io_pads = NULL,
+	.num_pin_descs = 0,
+	.pin_descs = NULL,
+	.regs = &tegra234_pmc_regs,
+	.init = NULL,
+	.setup_irq_polarity = tegra186_pmc_setup_irq_polarity,
+	.irq_set_wake = tegra186_pmc_irq_set_wake,
+	.irq_set_type = tegra186_pmc_irq_set_type,
+	.reset_sources = tegra234_reset_sources,
+	.num_reset_sources = ARRAY_SIZE(tegra234_reset_sources),
+	.reset_levels = tegra186_reset_levels,
+	.num_reset_levels = ARRAY_SIZE(tegra186_reset_levels),
+	.num_wake_events = 0,
+	.wake_events = NULL,
+	.pmc_clks_data = NULL,
+	.num_pmc_clks = 0,
+	.has_blink_output = false,
+};
+
 static const struct of_device_id tegra_pmc_match[] = {
+	{ .compatible = "nvidia,tegra234-pmc", .data = &tegra234_pmc_soc },
 	{ .compatible = "nvidia,tegra194-pmc", .data = &tegra194_pmc_soc },
 	{ .compatible = "nvidia,tegra186-pmc", .data = &tegra186_pmc_soc },
 	{ .compatible = "nvidia,tegra210-pmc", .data = &tegra210_pmc_soc },
