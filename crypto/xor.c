@@ -54,6 +54,28 @@ EXPORT_SYMBOL(xor_blocks);
 /* Set of all registered templates.  */
 static struct xor_block_template *__initdata template_list;
 
+#ifndef MODULE
+static void __init do_xor_register(struct xor_block_template *tmpl)
+{
+	tmpl->next = template_list;
+	template_list = tmpl;
+}
+
+static int __init register_xor_blocks(void)
+{
+	active_template = XOR_SELECT_TEMPLATE(NULL);
+
+	if (!active_template) {
+#define xor_speed	do_xor_register
+		// register all the templates and pick the first as the default
+		XOR_TRY_TEMPLATES;
+#undef xor_speed
+		active_template = template_list;
+	}
+	return 0;
+}
+#endif
+
 #define BENCH_SIZE (PAGE_SIZE)
 
 static void __init
@@ -129,6 +151,7 @@ calibrate_xor_blocks(void)
 #define xor_speed(templ)	do_xor_speed((templ), b1, b2)
 
 	printk(KERN_INFO "xor: measuring software checksum speed\n");
+	template_list = NULL;
 	XOR_TRY_TEMPLATES;
 	fastest = template_list;
 	for (f = fastest; f; f = f->next)
@@ -150,6 +173,10 @@ static __exit void xor_exit(void) { }
 
 MODULE_LICENSE("GPL");
 
+#ifndef MODULE
 /* when built-in xor.o must initialize before drivers/md/md.o */
-core_initcall(calibrate_xor_blocks);
+core_initcall(register_xor_blocks);
+#endif
+
+module_init(calibrate_xor_blocks);
 module_exit(xor_exit);
