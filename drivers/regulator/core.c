@@ -1111,10 +1111,15 @@ static void print_constraints(struct regulator_dev *rdev)
 	if (constraints->valid_modes_mask & REGULATOR_MODE_IDLE)
 		count += scnprintf(buf + count, len - count, "idle ");
 	if (constraints->valid_modes_mask & REGULATOR_MODE_STANDBY)
-		count += scnprintf(buf + count, len - count, "standby");
+		count += scnprintf(buf + count, len - count, "standby ");
 
 	if (!count)
-		scnprintf(buf, len, "no parameters");
+		count = scnprintf(buf, len, "no parameters");
+	else
+		--count;
+
+	count += scnprintf(buf + count, len - count, ", %s",
+		_regulator_is_enabled(rdev) ? "enabled" : "disabled");
 
 	rdev_dbg(rdev, "%s\n", buf);
 
