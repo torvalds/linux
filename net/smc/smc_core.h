@@ -301,8 +301,8 @@ struct smc_init_info {
 	u8			ib_port;
 	u32			ib_clcqpn;
 	/* SMC-D */
-	u64			ism_peer_gid;
-	struct smcd_dev		*ism_dev;
+	u64			ism_peer_gid[SMC_MAX_ISM_DEVS + 1];
+	struct smcd_dev		*ism_dev[SMC_MAX_ISM_DEVS + 1];
 };
 
 /* Find the connection associated with the given alert token in the link group.

@@ -933,10 +933,10 @@ static void smc_pnet_find_ism_by_pnetid(struct net_device *ndev,
 	list_for_each_entry(ismdev, &smcd_dev_list.list, list) {
 		if (smc_pnet_match(ismdev->pnetid, ndev_pnetid) &&
 		    !ismdev->going_away &&
-		    (!ini->ism_peer_gid ||
-		     !smc_ism_cantalk(ini->ism_peer_gid, ini->vlan_id,
+		    (!ini->ism_peer_gid[0] ||
+		     !smc_ism_cantalk(ini->ism_peer_gid[0], ini->vlan_id,
 				      ismdev))) {
-			ini->ism_dev = ismdev;
+			ini->ism_dev[0] = ismdev;
 			break;
 		}
 	}
@@ -970,7 +970,7 @@ void smc_pnet_find_ism_resource(struct sock *sk, struct smc_init_info *ini)
 {
 	struct dst_entry *dst = sk_dst_get(sk);
 
-	ini->ism_dev = NULL;
+	ini->ism_dev[0] = NULL;
 	if (!dst)
 		goto out;
 	if (!dst->dev)

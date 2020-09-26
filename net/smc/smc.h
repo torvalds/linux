@@ -23,6 +23,10 @@
 #define SMCPROTO_SMC		0	/* SMC protocol, IPv4 */
 #define SMCPROTO_SMC6		1	/* SMC protocol, IPv6 */
 
+#define SMC_MAX_ISM_DEVS	8	/* max # of proposed non-native ISM
+					 * devices
+					 */
+
 extern struct proto smc_proto;
 extern struct proto smc_proto6;
 

@@ -375,7 +375,7 @@ static int smc_lgr_create(struct smc_sock *smc, struct smc_init_info *ini)
 	int i;
 
 	if (ini->is_smcd && ini->vlan_id) {
-		if (smc_ism_get_vlan(ini->ism_dev, ini->vlan_id)) {
+		if (smc_ism_get_vlan(ini->ism_dev[0], ini->vlan_id)) {
 			rc = SMC_CLC_DECL_ISMVLANERR;
 			goto out;
 		}
@@ -412,13 +412,13 @@ static int smc_lgr_create(struct smc_sock *smc, struct smc_init_info *ini)
 	lgr->conns_all = RB_ROOT;
 	if (ini->is_smcd) {
 		/* SMC-D specific settings */
-		get_device(&ini->ism_dev->dev);
-		lgr->peer_gid = ini->ism_peer_gid;
-		lgr->smcd = ini->ism_dev;
-		lgr_list = &ini->ism_dev->lgr_list;
+		get_device(&ini->ism_dev[0]->dev);
+		lgr->peer_gid = ini->ism_peer_gid[0];
+		lgr->smcd = ini->ism_dev[0];
+		lgr_list = &ini->ism_dev[0]->lgr_list;
 		lgr_lock = &lgr->smcd->lgr_lock;
 		lgr->peer_shutdown = 0;
-		atomic_inc(&ini->ism_dev->lgr_cnt);
+		atomic_inc(&ini->ism_dev[0]->lgr_cnt);
 	} else {
 		/* SMC-R specific settings */
 		lgr->role = smc->listen_smc ? SMC_SERV : SMC_CLNT;
@@ -449,7 +449,7 @@ free_lgr:
 	kfree(lgr);
 ism_put_vlan:
 	if (ini->is_smcd && ini->vlan_id)
-		smc_ism_put_vlan(ini->ism_dev, ini->vlan_id);
+		smc_ism_put_vlan(ini->ism_dev[0], ini->vlan_id);
 out:
 	if (rc < 0) {
 		if (rc == -ENOMEM)
@@ -1288,8 +1288,10 @@ int smc_conn_create(struct smc_sock *smc, struct smc_init_info *ini)
 	spinlock_t *lgr_lock;
 	int rc = 0;
 
-	lgr_list = ini->is_smcd ? &ini->ism_dev->lgr_list : &smc_lgr_list.list;
-	lgr_lock = ini->is_smcd ? &ini->ism_dev->lgr_lock : &smc_lgr_list.lock;
+	lgr_list = ini->is_smcd ? &ini->ism_dev[0]->lgr_list :
+				  &smc_lgr_list.list;
+	lgr_lock = ini->is_smcd ? &ini->ism_dev[0]->lgr_lock :
+				  &smc_lgr_list.lock;
 	ini->first_contact_local = 1;
 	role = smc->listen_smc ? SMC_SERV : SMC_CLNT;
 	if (role == SMC_CLNT && ini->first_contact_peer)
@@ -1301,7 +1303,8 @@ int smc_conn_create(struct smc_sock *smc, struct smc_init_info *ini)
 	list_for_each_entry(lgr, lgr_list, list) {
 		write_lock_bh(&lgr->conns_lock);
 		if ((ini->is_smcd ?
-		     smcd_lgr_match(lgr, ini->ism_dev, ini->ism_peer_gid) :
+		     smcd_lgr_match(lgr, ini->ism_dev[0],
+				    ini->ism_peer_gid[0]) :
 		     smcr_lgr_match(lgr, ini->ib_lcl, role, ini->ib_clcqpn)) &&
 		    !lgr->sync_err &&
 		    lgr->vlan_id == ini->vlan_id &&
