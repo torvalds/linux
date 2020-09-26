@@ -1144,6 +1144,8 @@ patternProperties:
     description: Vision Optical Technology Co., Ltd.
   "^vxt,.*":
     description: VXT Ltd
+  "^wand,.*":
+    description: Wandbord (Technexion)
   "^waveshare,.*":
     description: Waveshare Electronics
   "^wd,.*":
