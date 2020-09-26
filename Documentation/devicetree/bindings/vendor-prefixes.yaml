@@ -263,6 +263,8 @@ patternProperties:
     description: Denx Software Engineering
   "^devantech,.*":
     description: Devantech, Ltd.
+  "^dfi,.*":
+    description: DFI Inc.
   "^dh,.*":
     description: DH electronics GmbH
   "^difrnce,.*":
