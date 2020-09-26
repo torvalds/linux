@@ -136,7 +136,7 @@ static efi_status_t update_fdt(void *orig_fdt, unsigned long orig_fdt_size,
 	if (status)
 		goto fdt_set_fail;
 
-	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE)) {
+	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE) && !efi_nokaslr) {
 		efi_status_t efi_status;
 
 		efi_status = efi_get_random_bytes(sizeof(fdt_val64),
@@ -145,8 +145,6 @@ static efi_status_t update_fdt(void *orig_fdt, unsigned long orig_fdt_size,
 			status = fdt_setprop_var(fdt, node, "kaslr-seed", fdt_val64);
 			if (status)
 				goto fdt_set_fail;
-		} else if (efi_status != EFI_NOT_FOUND) {
-			return efi_status;
 		}
 	}
 
