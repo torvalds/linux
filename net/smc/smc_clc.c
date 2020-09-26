@@ -450,7 +450,7 @@ int smc_clc_send_proposal(struct smc_sock *smc, int smc_type,
 	pclc_base->hdr.type = SMC_CLC_PROPOSAL;
 	pclc_base->hdr.version = SMC_V1;		/* SMC version */
 	pclc_base->hdr.typev1 = smc_type;
-	if (smc_type == SMC_TYPE_R || smc_type == SMC_TYPE_B) {
+	if (smcr_indicated(smc_type)) {
 		/* add SMC-R specifics */
 		memcpy(pclc_base->lcl.id_for_peer, local_systemid,
 		       sizeof(local_systemid));
@@ -459,7 +459,7 @@ int smc_clc_send_proposal(struct smc_sock *smc, int smc_type,
 		       ETH_ALEN);
 		pclc_base->iparea_offset = htons(0);
 	}
-	if (smc_type == SMC_TYPE_D || smc_type == SMC_TYPE_B) {
+	if (smcd_indicated(smc_type)) {
 		/* add SMC-D specifics */
 		plen += sizeof(*pclc_smcd);
 		pclc_base->iparea_offset = htons(sizeof(*pclc_smcd));
@@ -472,7 +472,7 @@ int smc_clc_send_proposal(struct smc_sock *smc, int smc_type,
 	i = 0;
 	vec[i].iov_base = pclc_base;
 	vec[i++].iov_len = sizeof(*pclc_base);
-	if (smc_type == SMC_TYPE_D || smc_type == SMC_TYPE_B) {
+	if (smcd_indicated(smc_type)) {
 		vec[i].iov_base = pclc_smcd;
 		vec[i++].iov_len = sizeof(*pclc_smcd);
 	}

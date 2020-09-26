@@ -1188,7 +1188,6 @@ static int smc_listen_rdma_init(struct smc_sock *new_smc,
 
 /* listen worker: initialize connection and buffers for SMC-D */
 static int smc_listen_ism_init(struct smc_sock *new_smc,
-			       struct smc_clc_msg_proposal *pclc,
 			       struct smc_init_info *ini)
 {
 	int rc;
@@ -1211,6 +1210,26 @@ static int smc_listen_ism_init(struct smc_sock *new_smc,
 	return 0;
 }
 
+static void smc_find_ism_device_serv(struct smc_sock *new_smc,
+				     struct smc_clc_msg_proposal *pclc,
+				     struct smc_init_info *ini)
+{
+	struct smc_clc_msg_smcd *pclc_smcd = smc_get_clc_msg_smcd(pclc);
+
+	if (!smcd_indicated(pclc->hdr.typev1))
+		goto not_found;
+	ini->is_smcd = true; /* prepare ISM check */
+	ini->ism_peer_gid = pclc_smcd->gid;
+	if (smc_find_ism_device(new_smc, ini))
+		goto not_found;
+	if (!smc_listen_ism_init(new_smc, ini))
+		return;		/* ISM device found */
+
+not_found:
+	ini->ism_dev = NULL;
+	ini->is_smcd = false;
+}
+
 /* listen worker: register buffers */
 static int smc_listen_rdma_reg(struct smc_sock *new_smc, bool local_first)
 {
@@ -1223,6 +1242,47 @@ static int smc_listen_rdma_reg(struct smc_sock *new_smc, bool local_first)
 	smc_rmb_sync_sg_for_device(&new_smc->conn);
 
 	return 0;
+}
+
+static int smc_find_rdma_device_serv(struct smc_sock *new_smc,
+				     struct smc_clc_msg_proposal *pclc,
+				     struct smc_init_info *ini)
+{
+	int rc;
+
+	if (!smcr_indicated(pclc->hdr.typev1))
+		return SMC_CLC_DECL_NOSMCDEV;
+
+	/* prepare RDMA check */
+	ini->ib_lcl = &pclc->lcl;
+	rc = smc_find_rdma_device(new_smc, ini);
+	if (rc) {
+		/* no RDMA device found */
+		if (pclc->hdr.typev1 == SMC_TYPE_B)
+			/* neither ISM nor RDMA device found */
+			rc = SMC_CLC_DECL_NOSMCDEV;
+		return rc;
+	}
+	rc = smc_listen_rdma_init(new_smc, ini);
+	if (rc)
+		return rc;
+	return smc_listen_rdma_reg(new_smc, ini->first_contact_local);
+}
+
+/* determine the local device matching to proposal */
+static int smc_listen_find_device(struct smc_sock *new_smc,
+				  struct smc_clc_msg_proposal *pclc,
+				  struct smc_init_info *ini)
+{
+	/* check if ISM is available */
+	smc_find_ism_device_serv(new_smc, pclc, ini);
+	if (ini->is_smcd)
+		return 0;
+	if (pclc->hdr.typev1 == SMC_TYPE_D)
+		return SMC_CLC_DECL_NOSMCDDEV; /* skip RDMA and decline */
+
+	/* check if RDMA is available */
+	return smc_find_rdma_device_serv(new_smc, pclc, ini);
 }
 
 /* listen worker: finish RDMA setup */
@@ -1250,7 +1310,7 @@ static int smc_listen_rdma_finish(struct smc_sock *new_smc,
 	return reason_code;
 }
 
-/* setup for RDMA connection of server */
+/* setup for connection of server */
 static void smc_listen_work(struct work_struct *work)
 {
 	struct smc_sock *new_smc = container_of(work, struct smc_sock,
@@ -1260,7 +1320,6 @@ static void smc_listen_work(struct work_struct *work)
 	struct smc_clc_msg_proposal_area *buf;
 	struct smc_clc_msg_proposal *pclc;
 	struct smc_init_info ini = {0};
-	bool ism_supported = false;
 	int rc = 0;
 
 	if (new_smc->listen_smc->sk.sk_state != SMC_LISTEN)
@@ -1315,42 +1374,10 @@ static void smc_listen_work(struct work_struct *work)
 	smc_rx_init(new_smc);
 	smc_tx_init(new_smc);
 
-	/* check if ISM is available */
-	if (pclc->hdr.typev1 == SMC_TYPE_D || pclc->hdr.typev1 == SMC_TYPE_B) {
-		struct smc_clc_msg_smcd *pclc_smcd = smc_get_clc_msg_smcd(pclc);
-
-		ini.is_smcd = true; /* prepare ISM check */
-		ini.ism_peer_gid = pclc_smcd->gid;
-		rc = smc_find_ism_device(new_smc, &ini);
-		if (!rc)
-			rc = smc_listen_ism_init(new_smc, pclc, &ini);
-		if (!rc)
-			ism_supported = true;
-		else if (pclc->hdr.typev1 == SMC_TYPE_D)
-			goto out_unlock; /* skip RDMA and decline */
-	}
-
-	/* check if RDMA is available */
-	if (!ism_supported) { /* SMC_TYPE_R or SMC_TYPE_B */
-		/* prepare RDMA check */
-		ini.is_smcd = false;
-		ini.ism_dev = NULL;
-		ini.ib_lcl = &pclc->lcl;
-		rc = smc_find_rdma_device(new_smc, &ini);
-		if (rc) {
-			/* no RDMA device found */
-			if (pclc->hdr.typev1 == SMC_TYPE_B)
-				/* neither ISM nor RDMA device found */
-				rc = SMC_CLC_DECL_NOSMCDEV;
-			goto out_unlock;
-		}
-		rc = smc_listen_rdma_init(new_smc, &ini);
-		if (rc)
-			goto out_unlock;
-		rc = smc_listen_rdma_reg(new_smc, ini.first_contact_local);
-		if (rc)
-			goto out_unlock;
-	}
+	/* determine ISM or RoCE device used for connection */
+	rc = smc_listen_find_device(new_smc, pclc, &ini);
+	if (rc)
+		goto out_unlock;
 
 	/* send SMC Accept CLC message */
 	rc = smc_clc_send_accept(new_smc, ini.first_contact_local);
@@ -1358,20 +1385,20 @@ static void smc_listen_work(struct work_struct *work)
 		goto out_unlock;
 
 	/* SMC-D does not need this lock any more */
-	if (ism_supported)
+	if (ini.is_smcd)
 		mutex_unlock(&smc_server_lgr_pending);
 
 	/* receive SMC Confirm CLC message */
 	rc = smc_clc_wait_msg(new_smc, &cclc, sizeof(cclc),
 			      SMC_CLC_CONFIRM, CLC_WAIT_TIME);
 	if (rc) {
-		if (!ism_supported)
+		if (!ini.is_smcd)
 			goto out_unlock;
 		goto out_decl;
 	}
 
 	/* finish worker */
-	if (!ism_supported) {
+	if (!ini.is_smcd) {
 		rc = smc_listen_rdma_finish(new_smc, &cclc,
 					    ini.first_contact_local);
 		if (rc)

@@ -180,11 +180,22 @@ smc_clc_proposal_get_prefix(struct smc_clc_msg_proposal *pclc)
 	       ((u8 *)pclc + sizeof(*pclc) + ntohs(pclc->iparea_offset));
 }
 
+static inline bool smcr_indicated(int smc_type)
+{
+	return smc_type == SMC_TYPE_R || smc_type == SMC_TYPE_B;
+}
+
+static inline bool smcd_indicated(int smc_type)
+{
+	return smc_type == SMC_TYPE_D || smc_type == SMC_TYPE_B;
+}
+
 /* get SMC-D info from proposal message */
 static inline struct smc_clc_msg_smcd *
 smc_get_clc_msg_smcd(struct smc_clc_msg_proposal *prop)
 {
-	if (ntohs(prop->iparea_offset) != sizeof(struct smc_clc_msg_smcd))
+	if (smcd_indicated(prop->hdr.type) &&
+	    ntohs(prop->iparea_offset) != sizeof(struct smc_clc_msg_smcd))
 		return NULL;
 
 	return (struct smc_clc_msg_smcd *)(prop + 1);
