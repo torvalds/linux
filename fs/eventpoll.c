@@ -1877,9 +1877,6 @@ static int ep_loop_check_proc(void *priv, void *cookie, int depth)
 	struct rb_node *rbp;
 	struct epitem *epi;
 
-	if (!ep_push_nested(cookie)) /* limits recursion */
-		return -1;
-
 	mutex_lock_nested(&ep->mtx, depth + 1);
 	ep->gen = loop_check_gen;
 	for (rbp = rb_first_cached(&ep->rbr); rbp; rbp = rb_next(rbp)) {
@@ -1888,8 +1885,13 @@ static int ep_loop_check_proc(void *priv, void *cookie, int depth)
 			ep_tovisit = epi->ffd.file->private_data;
 			if (ep_tovisit->gen == loop_check_gen)
 				continue;
-			error = ep_loop_check_proc(epi->ffd.file, ep_tovisit,
+			if (!ep_push_nested(ep_tovisit)) {
+				error = -1;
+			} else {
+				error = ep_loop_check_proc(epi->ffd.file, ep_tovisit,
 						   depth + 1);
+				nesting--;
+			}
 			if (error != 0)
 				break;
 		} else {
@@ -1909,7 +1911,6 @@ static int ep_loop_check_proc(void *priv, void *cookie, int depth)
 		}
 	}
 	mutex_unlock(&ep->mtx);
-	nesting--; /* pop */
 
 	return error;
 }
@@ -1927,7 +1928,12 @@ static int ep_loop_check_proc(void *priv, void *cookie, int depth)
  */
 static int ep_loop_check(struct eventpoll *ep, struct file *file)
 {
-	return ep_loop_check_proc(file, ep, 0);
+	int err;
+
+	ep_push_nested(ep); // can't fail
+	err = ep_loop_check_proc(file, ep, 0);
+	nesting--;
+	return err;
 }
 
 static void clear_tfile_check_list(void)
