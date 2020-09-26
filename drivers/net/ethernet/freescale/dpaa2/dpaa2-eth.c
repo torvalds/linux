@@ -1700,22 +1700,11 @@ static int dpaa2_eth_open(struct net_device *net_dev)
 		goto enable_err;
 	}
 
-	if (!priv->mac) {
-		/* If the DPMAC object has already processed the link up
-		 * interrupt, we have to learn the link state ourselves.
-		 */
-		err = dpaa2_eth_link_state_update(priv);
-		if (err < 0) {
-			netdev_err(net_dev, "Can't update link state\n");
-			goto link_state_err;
-		}
-	} else {
+	if (priv->mac)
 		phylink_start(priv->mac->phylink);
-	}
 
 	return 0;
 
-link_state_err:
 enable_err:
 	dpaa2_eth_disable_ch_napi(priv);
 	dpaa2_eth_drain_pool(priv);
@@ -3465,6 +3454,12 @@ static int dpaa2_eth_config_hash_key(struct dpaa2_eth_priv *priv, dma_addr_t key
 			dev_err(dev, "dpni_set_rx_hash_dist failed\n");
 			break;
 		}
+
+		/* If the flow steering / hashing key is shared between all
+		 * traffic classes, install it just once
+		 */
+		if (priv->dpni_attrs.options & DPNI_OPT_SHARED_FS)
+			break;
 	}
 
 	return err;
@@ -3491,6 +3486,12 @@ static int dpaa2_eth_config_cls_key(struct dpaa2_eth_priv *priv, dma_addr_t key)
 			dev_err(dev, "dpni_set_rx_fs_dist failed\n");
 			break;
 		}
+
+		/* If the flow steering / hashing key is shared between all
+		 * traffic classes, install it just once
+		 */
+		if (priv->dpni_attrs.options & DPNI_OPT_SHARED_FS)
+			break;
 	}
 
 	return err;

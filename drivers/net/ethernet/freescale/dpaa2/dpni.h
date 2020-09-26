@@ -75,6 +75,10 @@ struct fsl_mc_io;
  * Disables the flow steering table.
  */
 #define DPNI_OPT_NO_FS				0x000020
+/**
+ * Flow steering table is shared between all traffic classes
+ */
+#define DPNI_OPT_SHARED_FS			0x001000
 
 int dpni_open(struct fsl_mc_io	*mc_io,
 	      u32		cmd_flags,
