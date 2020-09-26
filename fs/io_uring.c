@@ -1229,16 +1229,23 @@ static bool io_task_match(struct io_kiocb *req, struct task_struct *tsk)
 	return false;
 }
 
-static void io_kill_timeouts(struct io_ring_ctx *ctx, struct task_struct *tsk)
+/*
+ * Returns true if we found and killed one or more timeouts
+ */
+static bool io_kill_timeouts(struct io_ring_ctx *ctx, struct task_struct *tsk)
 {
 	struct io_kiocb *req, *tmp;
+	int canceled = 0;
 
 	spin_lock_irq(&ctx->completion_lock);
 	list_for_each_entry_safe(req, tmp, &ctx->timeout_list, timeout.list) {
-		if (io_task_match(req, tsk))
+		if (io_task_match(req, tsk)) {
 			io_kill_timeout(req);
+			canceled++;
+		}
 	}
 	spin_unlock_irq(&ctx->completion_lock);
+	return canceled != 0;
 }
 
 static void __io_queue_deferred(struct io_ring_ctx *ctx)
@@ -5013,7 +5020,10 @@ static bool io_poll_remove_one(struct io_kiocb *req)
 	return do_complete;
 }
 
-static void io_poll_remove_all(struct io_ring_ctx *ctx, struct task_struct *tsk)
+/*
+ * Returns true if we found and killed one or more poll requests
+ */
+static bool io_poll_remove_all(struct io_ring_ctx *ctx, struct task_struct *tsk)
 {
 	struct hlist_node *tmp;
 	struct io_kiocb *req;
@@ -5033,6 +5043,8 @@ static void io_poll_remove_all(struct io_ring_ctx *ctx, struct task_struct *tsk)
 
 	if (posted)
 		io_cqring_ev_posted(ctx);
+
+	return posted != 0;
 }
 
 static int io_poll_cancel(struct io_ring_ctx *ctx, __u64 sqe_addr)
@@ -8178,11 +8190,14 @@ static void io_cancel_defer_files(struct io_ring_ctx *ctx,
 	}
 }
 
-static void io_uring_cancel_files(struct io_ring_ctx *ctx,
+/*
+ * Returns true if we found and killed one or more files pinning requests
+ */
+static bool io_uring_cancel_files(struct io_ring_ctx *ctx,
 				  struct files_struct *files)
 {
 	if (list_empty_careful(&ctx->inflight_list))
-		return;
+		return false;
 
 	io_cancel_defer_files(ctx, files);
 	/* cancel all at once, should be faster than doing it one by one*/
@@ -8218,6 +8233,8 @@ static void io_uring_cancel_files(struct io_ring_ctx *ctx,
 		schedule();
 		finish_wait(&ctx->inflight_wait, &wait);
 	}
+
+	return true;
 }
 
 static bool io_cancel_task_cb(struct io_wq_work *work, void *data)
