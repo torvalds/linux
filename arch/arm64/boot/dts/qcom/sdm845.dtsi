@@ -1093,8 +1093,8 @@
 		qup_opp_table: qup-opp-table {
 			compatible = "operating-points-v2";
 
-			opp-19200000 {
-				opp-hz = /bits/ 64 <19200000>;
+			opp-50000000 {
+				opp-hz = /bits/ 64 <50000000>;
 				required-opps = <&rpmhpd_opp_min_svs>;
 			};
 
@@ -1106,6 +1106,11 @@
 			opp-100000000 {
 				opp-hz = /bits/ 64 <100000000>;
 				required-opps = <&rpmhpd_opp_svs>;
+			};
+
+			opp-128000000 {
+				opp-hz = /bits/ 64 <128000000>;
+				required-opps = <&rpmhpd_opp_nom>;
 			};
 		};
 
