@@ -930,7 +930,6 @@ struct tee_device *tee_device_alloc(const struct tee_desc *teedesc,
 
 	cdev_init(&teedev->cdev, &tee_fops);
 	teedev->cdev.owner = teedesc->owner;
-	teedev->cdev.kobj.parent = &teedev->dev.kobj;
 
 	dev_set_drvdata(&teedev->dev, driver_data);
 	device_initialize(&teedev->dev);
@@ -976,9 +975,7 @@ static struct attribute *tee_dev_attrs[] = {
 	NULL
 };
 
-static const struct attribute_group tee_dev_group = {
-	.attrs = tee_dev_attrs,
-};
+ATTRIBUTE_GROUPS(tee_dev);
 
 /**
  * tee_device_register() - Registers a TEE device
@@ -998,39 +995,19 @@ int tee_device_register(struct tee_device *teedev)
 		return -EINVAL;
 	}
 
-	rc = cdev_add(&teedev->cdev, teedev->dev.devt, 1);
+	teedev->dev.groups = tee_dev_groups;
+
+	rc = cdev_device_add(&teedev->cdev, &teedev->dev);
 	if (rc) {
 		dev_err(&teedev->dev,
-			"unable to cdev_add() %s, major %d, minor %d, err=%d\n",
+			"unable to cdev_device_add() %s, major %d, minor %d, err=%d\n",
 			teedev->name, MAJOR(teedev->dev.devt),
 			MINOR(teedev->dev.devt), rc);
 		return rc;
 	}
 
-	rc = device_add(&teedev->dev);
-	if (rc) {
-		dev_err(&teedev->dev,
-			"unable to device_add() %s, major %d, minor %d, err=%d\n",
-			teedev->name, MAJOR(teedev->dev.devt),
-			MINOR(teedev->dev.devt), rc);
-		goto err_device_add;
-	}
-
-	rc = sysfs_create_group(&teedev->dev.kobj, &tee_dev_group);
-	if (rc) {
-		dev_err(&teedev->dev,
-			"failed to create sysfs attributes, err=%d\n", rc);
-		goto err_sysfs_create_group;
-	}
-
 	teedev->flags |= TEE_DEVICE_FLAG_REGISTERED;
 	return 0;
-
-err_sysfs_create_group:
-	device_del(&teedev->dev);
-err_device_add:
-	cdev_del(&teedev->cdev);
-	return rc;
 }
 EXPORT_SYMBOL_GPL(tee_device_register);
 
@@ -1073,11 +1050,8 @@ void tee_device_unregister(struct tee_device *teedev)
 	if (!teedev)
 		return;
 
-	if (teedev->flags & TEE_DEVICE_FLAG_REGISTERED) {
-		sysfs_remove_group(&teedev->dev.kobj, &tee_dev_group);
-		cdev_del(&teedev->cdev);
-		device_del(&teedev->dev);
-	}
+	if (teedev->flags & TEE_DEVICE_FLAG_REGISTERED)
+		cdev_device_del(&teedev->cdev, &teedev->dev);
 
 	tee_device_put(teedev);
 	wait_for_completion(&teedev->c_no_users);
