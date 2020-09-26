@@ -235,12 +235,6 @@ static int ns2_led_register(struct device *dev, struct fwnode_handle *node,
 	return ret;
 }
 
-static const struct of_device_id of_ns2_leds_match[] = {
-	{ .compatible = "lacie,ns2-leds", },
-	{},
-};
-MODULE_DEVICE_TABLE(of, of_ns2_leds_match);
-
 static int ns2_led_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -268,11 +262,17 @@ static int ns2_led_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id of_ns2_leds_match[] = {
+	{ .compatible = "lacie,ns2-leds", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, of_ns2_leds_match);
+
 static struct platform_driver ns2_led_driver = {
 	.probe		= ns2_led_probe,
 	.driver		= {
 		.name		= "leds-ns2",
-		.of_match_table	= of_match_ptr(of_ns2_leds_match),
+		.of_match_table	= of_ns2_leds_match,
 	},
 };
 
