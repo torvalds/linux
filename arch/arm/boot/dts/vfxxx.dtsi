@@ -293,7 +293,7 @@
 				status = "disabled";
 			};
 
-			wdoga5: wdog@4003e000 {
+			wdoga5: watchdog@4003e000 {
 				compatible = "fsl,vf610-wdt", "fsl,imx21-wdt";
 				reg = <0x4003e000 0x1000>;
 				interrupts = <20 IRQ_TYPE_LEVEL_HIGH>;
