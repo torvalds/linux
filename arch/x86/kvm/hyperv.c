@@ -2000,20 +2000,20 @@ int kvm_vcpu_ioctl_get_hv_cpuid(struct kvm_vcpu *vcpu, struct kvm_cpuid2 *cpuid,
 			break;
 
 		case HYPERV_CPUID_FEATURES:
-			ent->eax |= HV_X64_MSR_VP_RUNTIME_AVAILABLE;
+			ent->eax |= HV_MSR_VP_RUNTIME_AVAILABLE;
 			ent->eax |= HV_MSR_TIME_REF_COUNT_AVAILABLE;
-			ent->eax |= HV_X64_MSR_SYNIC_AVAILABLE;
+			ent->eax |= HV_MSR_SYNIC_AVAILABLE;
 			ent->eax |= HV_MSR_SYNTIMER_AVAILABLE;
-			ent->eax |= HV_X64_MSR_APIC_ACCESS_AVAILABLE;
-			ent->eax |= HV_X64_MSR_HYPERCALL_AVAILABLE;
-			ent->eax |= HV_X64_MSR_VP_INDEX_AVAILABLE;
-			ent->eax |= HV_X64_MSR_RESET_AVAILABLE;
+			ent->eax |= HV_MSR_APIC_ACCESS_AVAILABLE;
+			ent->eax |= HV_MSR_HYPERCALL_AVAILABLE;
+			ent->eax |= HV_MSR_VP_INDEX_AVAILABLE;
+			ent->eax |= HV_MSR_RESET_AVAILABLE;
 			ent->eax |= HV_MSR_REFERENCE_TSC_AVAILABLE;
-			ent->eax |= HV_X64_ACCESS_FREQUENCY_MSRS;
-			ent->eax |= HV_X64_ACCESS_REENLIGHTENMENT;
+			ent->eax |= HV_ACCESS_FREQUENCY_MSRS;
+			ent->eax |= HV_ACCESS_REENLIGHTENMENT;
 
-			ent->ebx |= HV_X64_POST_MESSAGES;
-			ent->ebx |= HV_X64_SIGNAL_EVENTS;
+			ent->ebx |= HV_POST_MESSAGES;
+			ent->ebx |= HV_SIGNAL_EVENTS;
 
 			ent->edx |= HV_FEATURE_FREQUENCY_MSRS_AVAILABLE;
 			ent->edx |= HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE;
