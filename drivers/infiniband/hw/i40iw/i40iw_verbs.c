@@ -380,7 +380,7 @@ void i40iw_free_qp_resources(struct i40iw_qp *iwqp)
 	i40iw_free_dma_mem(iwdev->sc_dev.hw, &iwqp->kqp.dma_mem);
 	kfree(iwqp->kqp.wrid_mem);
 	iwqp->kqp.wrid_mem = NULL;
-	kfree(iwqp->allocated_buffer);
+	kfree(iwqp);
 }
 
 /**
@@ -537,7 +537,6 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 	struct i40iw_create_qp_req req;
 	struct i40iw_create_qp_resp uresp;
 	u32 qp_num = 0;
-	void *mem;
 	enum i40iw_status_code ret;
 	int err_code;
 	int sq_size;
@@ -579,12 +578,10 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 	init_info.qp_uk_init_info.max_rq_frag_cnt = init_attr->cap.max_recv_sge;
 	init_info.qp_uk_init_info.max_inline_data = init_attr->cap.max_inline_data;
 
-	mem = kzalloc(sizeof(*iwqp), GFP_KERNEL);
-	if (!mem)
+	iwqp = kzalloc(sizeof(*iwqp), GFP_KERNEL);
+	if (!iwqp)
 		return ERR_PTR(-ENOMEM);
 
-	iwqp = (struct i40iw_qp *)mem;
-	iwqp->allocated_buffer = mem;
 	qp = &iwqp->sc_qp;
 	qp->back_qp = (void *)iwqp;
 	qp->push_idx = I40IW_INVALID_PUSH_PAGE_INDEX;
