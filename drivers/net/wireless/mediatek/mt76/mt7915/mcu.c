@@ -1022,11 +1022,52 @@ mt7915_mcu_bss_sync_tlv(struct sk_buff *skb, struct ieee80211_vif *vif)
 	sync->enable = true;
 }
 
+static int
+mt7915_mcu_muar_config(struct mt7915_phy *phy, struct ieee80211_vif *vif,
+		       bool bssid, bool enable)
+{
+	struct mt7915_dev *dev = phy->dev;
+	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
+	u32 idx = mvif->omac_idx - REPEATER_BSSID_START;
+	u32 mask = phy->omac_mask >> 32 & ~BIT(idx);
+	const u8 *addr = vif->addr;
+	struct {
+		u8 mode;
+		u8 force_clear;
+		u8 clear_bitmap[8];
+		u8 entry_count;
+		u8 write;
+		u8 band;
+
+		u8 index;
+		u8 bssid;
+		u8 addr[ETH_ALEN];
+	} __packed req = {
+		.mode = !!mask || enable,
+		.entry_count = 1,
+		.write = 1,
+
+		.index = idx * 2 + bssid,
+	};
+
+	if (bssid)
+		addr = vif->bss_conf.bssid;
+
+	if (enable)
+		ether_addr_copy(req.addr, addr);
+
+	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_MUAR_UPDATE,
+				   &req, sizeof(req), true);
+}
+
 int mt7915_mcu_add_bss_info(struct mt7915_phy *phy,
 			    struct ieee80211_vif *vif, int enable)
 {
 	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
 	struct sk_buff *skb;
+
+	if (mvif->omac_idx >= REPEATER_BSSID_START)
+		mt7915_mcu_muar_config(phy, vif, true, enable);
 
 	skb = mt7915_mcu_alloc_sta_req(phy->dev, mvif, NULL,
 				       MT7915_BSS_UPDATE_MAX_SIZE);
@@ -1048,10 +1089,10 @@ int mt7915_mcu_add_bss_info(struct mt7915_phy *phy,
 		if (vif->bss_conf.he_support)
 			mt7915_mcu_bss_he_tlv(skb, vif, phy);
 
-		if (mvif->omac_idx > HW_BSSID_MAX)
-			mt7915_mcu_bss_ext_tlv(skb, mvif);
-		else
+		if (mvif->omac_idx < EXT_BSSID_START)
 			mt7915_mcu_bss_sync_tlv(skb, vif);
+		else if (mvif->omac_idx < REPEATER_BSSID_START)
+			mt7915_mcu_bss_ext_tlv(skb, mvif);
 	}
 
 	return __mt76_mcu_skb_send_msg(&phy->dev->mt76, skb,
@@ -2381,9 +2422,10 @@ out:
 				       MCU_EXT_CMD_STA_REC_UPDATE, true);
 }
 
-int mt7915_mcu_add_dev_info(struct mt7915_dev *dev,
+int mt7915_mcu_add_dev_info(struct mt7915_phy *phy,
 			    struct ieee80211_vif *vif, bool enable)
 {
+	struct mt7915_dev *dev = phy->dev;
 	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
 	struct {
 		struct req_hdr {
@@ -2414,6 +2456,9 @@ int mt7915_mcu_add_dev_info(struct mt7915_dev *dev,
 			.dbdc_idx = mvif->band_idx,
 		},
 	};
+
+	if (mvif->omac_idx >= REPEATER_BSSID_START)
+		return mt7915_mcu_muar_config(phy, vif, false, enable);
 
 	memcpy(data.tlv.omac_addr, vif->addr, ETH_ALEN);
 	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_DEV_INFO_UPDATE,

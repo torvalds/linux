@@ -195,12 +195,14 @@ static const struct ieee80211_iface_limit if_limits[] = {
 		.max = 1,
 		.types = BIT(NL80211_IFTYPE_ADHOC)
 	}, {
-		.max = MT7915_MAX_INTERFACES,
+		.max = 16,
 		.types = BIT(NL80211_IFTYPE_AP) |
 #ifdef CONFIG_MAC80211_MESH
-			 BIT(NL80211_IFTYPE_MESH_POINT) |
+			 BIT(NL80211_IFTYPE_MESH_POINT)
 #endif
-			 BIT(NL80211_IFTYPE_STATION)
+	}, {
+		.max = MT7915_MAX_INTERFACES,
+		.types = BIT(NL80211_IFTYPE_STATION)
 	}
 };
 
@@ -208,7 +210,7 @@ static const struct ieee80211_iface_combination if_comb[] = {
 	{
 		.limits = if_limits,
 		.n_limits = ARRAY_SIZE(if_limits),
-		.max_interfaces = 4,
+		.max_interfaces = MT7915_MAX_INTERFACES,
 		.num_different_channels = 1,
 		.beacon_int_infra_match = true,
 		.radar_detect_widths = BIT(NL80211_CHAN_WIDTH_20_NOHT) |
