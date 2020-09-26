@@ -7081,11 +7081,13 @@ static const struct of_device_id mvpp2_match[] = {
 };
 MODULE_DEVICE_TABLE(of, mvpp2_match);
 
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id mvpp2_acpi_match[] = {
 	{ "MRVL0110", MVPP22 },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, mvpp2_acpi_match);
+#endif
 
 static struct platform_driver mvpp2_driver = {
 	.probe = mvpp2_probe,
