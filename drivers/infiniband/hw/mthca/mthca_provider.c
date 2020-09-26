@@ -535,10 +535,6 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 	case IB_QPT_SMI:
 	case IB_QPT_GSI:
 	{
-		/* Don't allow userspace to create special QPs */
-		if (udata)
-			return ERR_PTR(-EINVAL);
-
 		qp = kzalloc(sizeof(struct mthca_sqp), GFP_KERNEL);
 		if (!qp)
 			return ERR_PTR(-ENOMEM);

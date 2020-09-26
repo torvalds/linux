@@ -1235,14 +1235,6 @@ static int qedr_check_qp_attrs(struct ib_pd *ibpd, struct qedr_dev *dev,
 		return -EINVAL;
 	}
 
-	/* Unprivileged user space cannot create special QP */
-	if (udata && attrs->qp_type == IB_QPT_GSI) {
-		DP_ERR(dev,
-		       "create qp: userspace can't create special QPs of type=0x%x\n",
-		       attrs->qp_type);
-		return -EINVAL;
-	}
-
 	/* verify consumer QPs are not trying to use GSI QP's CQ.
 	 * TGT QP isn't associated with RQ/SQ
 	 */

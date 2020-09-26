@@ -2511,18 +2511,6 @@ static int check_valid_flow(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		return -EINVAL;
 	}
 
-	switch (attr->qp_type) {
-	case IB_QPT_SMI:
-	case MLX5_IB_QPT_HW_GSI:
-	case MLX5_IB_QPT_REG_UMR:
-	case IB_QPT_GSI:
-		mlx5_ib_dbg(dev, "Kernel doesn't support QP type %d\n",
-			    attr->qp_type);
-		return -EINVAL;
-	default:
-		break;
-	}
-
 	/*
 	 * We don't need to see this warning, it means that kernel code
 	 * missing ib_pd. Placed here to catch developer's mistakes.

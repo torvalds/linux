@@ -232,8 +232,7 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 	switch (init_attr->qp_type) {
 	case IB_QPT_GSI:
 		if (init_attr->port_num == 0 ||
-		    init_attr->port_num > pd->device->phys_port_cnt ||
-		    udata) {
+		    init_attr->port_num > pd->device->phys_port_cnt) {
 			dev_warn(&dev->pdev->dev, "invalid queuepair attrs\n");
 			ret = -EINVAL;
 			goto err_qp;

@@ -1015,53 +1015,32 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 	int ret;
 
 	switch (init_attr->qp_type) {
-	case IB_QPT_RC: {
-		hr_qp = kzalloc(sizeof(*hr_qp), GFP_KERNEL);
-		if (!hr_qp)
-			return ERR_PTR(-ENOMEM);
-
-		ret = hns_roce_create_qp_common(hr_dev, pd, init_attr, udata,
-						hr_qp);
-		if (ret) {
-			ibdev_err(ibdev, "Create QP 0x%06lx failed(%d)\n",
-				  hr_qp->qpn, ret);
-			kfree(hr_qp);
-			return ERR_PTR(ret);
-		}
-
+	case IB_QPT_RC:
+	case IB_QPT_GSI:
 		break;
-	}
-	case IB_QPT_GSI: {
-		/* Userspace is not allowed to create special QPs: */
-		if (udata) {
-			ibdev_err(ibdev, "not support usr space GSI\n");
-			return ERR_PTR(-EINVAL);
-		}
-
-		hr_qp = kzalloc(sizeof(*hr_qp), GFP_KERNEL);
-		if (!hr_qp)
-			return ERR_PTR(-ENOMEM);
-
-		hr_qp->port = init_attr->port_num - 1;
-		hr_qp->phy_port = hr_dev->iboe.phy_port[hr_qp->port];
-
-		ret = hns_roce_create_qp_common(hr_dev, pd, init_attr, udata,
-						hr_qp);
-		if (ret) {
-			ibdev_err(ibdev, "Create GSI QP failed!\n");
-			kfree(hr_qp);
-			return ERR_PTR(ret);
-		}
-
-		break;
-	}
-	default:{
+	default:
 		ibdev_err(ibdev, "not support QP type %d\n",
 			  init_attr->qp_type);
 		return ERR_PTR(-EOPNOTSUPP);
 	}
+
+	hr_qp = kzalloc(sizeof(*hr_qp), GFP_KERNEL);
+	if (!hr_qp)
+		return ERR_PTR(-ENOMEM);
+
+	if (init_attr->qp_type == IB_QPT_GSI) {
+		hr_qp->port = init_attr->port_num - 1;
+		hr_qp->phy_port = hr_dev->iboe.phy_port[hr_qp->port];
 	}
 
+	ret = hns_roce_create_qp_common(hr_dev, pd, init_attr, udata, hr_qp);
+	if (ret) {
+		ibdev_err(ibdev, "Create QP type 0x%x failed(%d)\n",
+			  init_attr->qp_type, ret);
+		ibdev_err(ibdev, "Create GSI QP failed!\n");
+		kfree(hr_qp);
+		return ERR_PTR(ret);
+	}
 	return &hr_qp->ibqp;
 }
 

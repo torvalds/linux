@@ -1544,9 +1544,6 @@ static int _mlx4_ib_create_qp(struct ib_pd *pd, struct mlx4_ib_qp *qp,
 	{
 		int sqpn;
 
-		/* Userspace is not allowed to create special QPs: */
-		if (udata)
-			return -EINVAL;
 		if (init_attr->create_flags & MLX4_IB_QP_CREATE_ROCE_V2_GSI) {
 			int res = mlx4_qp_reserve_range(to_mdev(pd->device)->dev,
 							1, 1, &sqpn, 0,
