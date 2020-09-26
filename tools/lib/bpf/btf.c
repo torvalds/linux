@@ -44,16 +44,46 @@ struct btf {
 	 * hdr        |         |
 	 * types_data-+         |
 	 * strs_data------------+
+	 *
+	 * If BTF data is later modified, e.g., due to types added or
+	 * removed, BTF deduplication performed, etc, this contiguous
+	 * representation is broken up into three independently allocated
+	 * memory regions to be able to modify them independently.
+	 * raw_data is nulled out at that point, but can be later allocated
+	 * and cached again if user calls btf__get_raw_data(), at which point
+	 * raw_data will contain a contiguous copy of header, types, and
+	 * strings:
+	 *
+	 * +----------+  +---------+  +-----------+
+	 * |  Header  |  |  Types  |  |  Strings  |
+	 * +----------+  +---------+  +-----------+
+	 * ^             ^            ^
+	 * |             |            |
+	 * hdr           |            |
+	 * types_data----+            |
+	 * strs_data------------------+
+	 *
+	 *               +----------+---------+-----------+
+	 *               |  Header  |  Types  |  Strings  |
+	 * raw_data----->+----------+---------+-----------+
 	 */
 	struct btf_header *hdr;
+
 	void *types_data;
-	void *strs_data;
+	size_t types_data_cap; /* used size stored in hdr->type_len */
 
 	/* type ID to `struct btf_type *` lookup index */
 	__u32 *type_offs;
 	size_t type_offs_cap;
 	__u32 nr_types;
 
+	void *strs_data;
+	size_t strs_data_cap; /* used size stored in hdr->str_len */
+
+	/* lookup index for each unique string in strings section */
+	struct hashmap *strs_hash;
+	/* whether strings are already deduplicated */
+	bool strs_deduped;
 	/* BTF object FD, if loaded into kernel */
 	int fd;
 
@@ -506,6 +536,11 @@ __s32 btf__find_by_name_kind(const struct btf *btf, const char *type_name,
 	return -ENOENT;
 }
 
+static bool btf_is_modifiable(const struct btf *btf)
+{
+	return (void *)btf->hdr != btf->raw_data;
+}
+
 void btf__free(struct btf *btf)
 {
 	if (IS_ERR_OR_NULL(btf))
@@ -514,6 +549,17 @@ void btf__free(struct btf *btf)
 	if (btf->fd >= 0)
 		close(btf->fd);
 
+	if (btf_is_modifiable(btf)) {
+		/* if BTF was modified after loading, it will have a split
+		 * in-memory representation for header, types, and strings
+		 * sections, so we need to free all of them individually. It
+		 * might still have a cached contiguous raw data present,
+		 * which will be unconditionally freed below.
+		 */
+		free(btf->hdr);
+		free(btf->types_data);
+		free(btf->strs_data);
+	}
 	free(btf->raw_data);
 	free(btf->type_offs);
 	free(btf);
@@ -922,8 +968,29 @@ void btf__set_fd(struct btf *btf, int fd)
 	btf->fd = fd;
 }
 
-const void *btf__get_raw_data(const struct btf *btf, __u32 *size)
+const void *btf__get_raw_data(const struct btf *btf_ro, __u32 *size)
 {
+	struct btf *btf = (struct btf *)btf_ro;
+
+	if (!btf->raw_data) {
+		struct btf_header *hdr = btf->hdr;
+		void *data;
+
+		btf->raw_size = hdr->hdr_len + hdr->type_len + hdr->str_len;
+		btf->raw_data = calloc(1, btf->raw_size);
+		if (!btf->raw_data)
+			return NULL;
+		data = btf->raw_data;
+
+		memcpy(data, hdr, hdr->hdr_len);
+		data += hdr->hdr_len;
+
+		memcpy(data, btf->types_data, hdr->type_len);
+		data += hdr->type_len;
+
+		memcpy(data, btf->strs_data, hdr->str_len);
+		data += hdr->str_len;
+	}
 	*size = btf->raw_size;
 	return btf->raw_data;
 }
@@ -1069,6 +1136,181 @@ int btf__get_map_kv_tids(const struct btf *btf, const char *map_name,
 	*value_type_id = value->type;
 
 	return 0;
+}
+
+static size_t strs_hash_fn(const void *key, void *ctx)
+{
+	struct btf *btf = ctx;
+	const char *str = btf->strs_data + (long)key;
+
+	return str_hash(str);
+}
+
+static bool strs_hash_equal_fn(const void *key1, const void *key2, void *ctx)
+{
+	struct btf *btf = ctx;
+	const char *str1 = btf->strs_data + (long)key1;
+	const char *str2 = btf->strs_data + (long)key2;
+
+	return strcmp(str1, str2) == 0;
+}
+
+/* Ensure BTF is ready to be modified (by splitting into a three memory
+ * regions for header, types, and strings). Also invalidate cached
+ * raw_data, if any.
+ */
+static int btf_ensure_modifiable(struct btf *btf)
+{
+	void *hdr, *types, *strs, *strs_end, *s;
+	struct hashmap *hash = NULL;
+	long off;
+	int err;
+
+	if (btf_is_modifiable(btf)) {
+		/* any BTF modification invalidates raw_data */
+		if (btf->raw_data) {
+			free(btf->raw_data);
+			btf->raw_data = NULL;
+		}
+		return 0;
+	}
+
+	/* split raw data into three memory regions */
+	hdr = malloc(btf->hdr->hdr_len);
+	types = malloc(btf->hdr->type_len);
+	strs = malloc(btf->hdr->str_len);
+	if (!hdr || !types || !strs)
+		goto err_out;
+
+	memcpy(hdr, btf->hdr, btf->hdr->hdr_len);
+	memcpy(types, btf->types_data, btf->hdr->type_len);
+	memcpy(strs, btf->strs_data, btf->hdr->str_len);
+
+	/* build lookup index for all strings */
+	hash = hashmap__new(strs_hash_fn, strs_hash_equal_fn, btf);
+	if (IS_ERR(hash)) {
+		err = PTR_ERR(hash);
+		hash = NULL;
+		goto err_out;
+	}
+
+	strs_end = strs + btf->hdr->str_len;
+	for (off = 0, s = strs; s < strs_end; off += strlen(s) + 1, s = strs + off) {
+		/* hashmap__add() returns EEXIST if string with the same
+		 * content already is in the hash map
+		 */
+		err = hashmap__add(hash, (void *)off, (void *)off);
+		if (err == -EEXIST)
+			continue; /* duplicate */
+		if (err)
+			goto err_out;
+	}
+
+	/* only when everything was successful, update internal state */
+	btf->hdr = hdr;
+	btf->types_data = types;
+	btf->types_data_cap = btf->hdr->type_len;
+	btf->strs_data = strs;
+	btf->strs_data_cap = btf->hdr->str_len;
+	btf->strs_hash = hash;
+	/* if BTF was created from scratch, all strings are guaranteed to be
+	 * unique and deduplicated
+	 */
+	btf->strs_deduped = btf->hdr->str_len <= 1;
+
+	/* invalidate raw_data representation */
+	free(btf->raw_data);
+	btf->raw_data = NULL;
+
+	return 0;
+
+err_out:
+	hashmap__free(hash);
+	free(hdr);
+	free(types);
+	free(strs);
+	return -ENOMEM;
+}
+
+static void *btf_add_str_mem(struct btf *btf, size_t add_sz)
+{
+	return btf_add_mem(&btf->strs_data, &btf->strs_data_cap, 1,
+			   btf->hdr->str_len, BTF_MAX_STR_OFFSET, add_sz);
+}
+
+/* Find an offset in BTF string section that corresponds to a given string *s*.
+ * Returns:
+ *   - >0 offset into string section, if string is found;
+ *   - -ENOENT, if string is not in the string section;
+ *   - <0, on any other error.
+ */
+int btf__find_str(struct btf *btf, const char *s)
+{
+	long old_off, new_off, len;
+	void *p;
+
+	/* BTF needs to be in a modifiable state to build string lookup index */
+	if (btf_ensure_modifiable(btf))
+		return -ENOMEM;
+
+	/* see btf__add_str() for why we do this */
+	len = strlen(s) + 1;
+	p = btf_add_str_mem(btf, len);
+	if (!p)
+		return -ENOMEM;
+
+	new_off = btf->hdr->str_len;
+	memcpy(p, s, len);
+
+	if (hashmap__find(btf->strs_hash, (void *)new_off, (void **)&old_off))
+		return old_off;
+
+	return -ENOENT;
+}
+
+/* Add a string s to the BTF string section.
+ * Returns:
+ *   - > 0 offset into string section, on success;
+ *   - < 0, on error.
+ */
+int btf__add_str(struct btf *btf, const char *s)
+{
+	long old_off, new_off, len;
+	void *p;
+	int err;
+
+	if (btf_ensure_modifiable(btf))
+		return -ENOMEM;
+
+	/* Hashmap keys are always offsets within btf->strs_data, so to even
+	 * look up some string from the "outside", we need to first append it
+	 * at the end, so that it can be addressed with an offset. Luckily,
+	 * until btf->hdr->str_len is incremented, that string is just a piece
+	 * of garbage for the rest of BTF code, so no harm, no foul. On the
+	 * other hand, if the string is unique, it's already appended and
+	 * ready to be used, only a simple btf->hdr->str_len increment away.
+	 */
+	len = strlen(s) + 1;
+	p = btf_add_str_mem(btf, len);
+	if (!p)
+		return -ENOMEM;
+
+	new_off = btf->hdr->str_len;
+	memcpy(p, s, len);
+
+	/* Now attempt to add the string, but only if the string with the same
+	 * contents doesn't exist already (HASHMAP_ADD strategy). If such
+	 * string exists, we'll get its offset in old_off (that's old_key).
+	 */
+	err = hashmap__insert(btf->strs_hash, (void *)new_off, (void *)new_off,
+			      HASHMAP_ADD, (const void **)&old_off, NULL);
+	if (err == -EEXIST)
+		return old_off; /* duplicated string, return existing offset */
+	if (err)
+		return err;
+
+	btf->hdr->str_len += len; /* new unique string, adjust data length */
+	return new_off;
 }
 
 struct btf_ext_sec_setup_param {
@@ -1537,6 +1779,9 @@ int btf__dedup(struct btf *btf, struct btf_ext *btf_ext,
 		return -EINVAL;
 	}
 
+	if (btf_ensure_modifiable(btf))
+		return -ENOMEM;
+
 	err = btf_dedup_strings(d);
 	if (err < 0) {
 		pr_debug("btf_dedup_strings failed:%d\n", err);
@@ -1926,6 +2171,9 @@ static int btf_dedup_strings(struct btf_dedup *d)
 	int i, j, err = 0, grp_idx;
 	bool grp_used;
 
+	if (d->btf->strs_deduped)
+		return 0;
+
 	/* build index of all strings */
 	while (p < end) {
 		if (strs.cnt + 1 > strs.cap) {
@@ -2018,6 +2266,7 @@ static int btf_dedup_strings(struct btf_dedup *d)
 		goto done;
 
 	d->btf->hdr->str_len = end - start;
+	d->btf->strs_deduped = true;
 
 done:
 	free(tmp_strs);
@@ -3021,12 +3270,7 @@ static int btf_dedup_compact_types(struct btf_dedup *d)
 	if (!new_offs)
 		return -ENOMEM;
 	d->btf->type_offs = new_offs;
-
-	/* make sure string section follows type information without gaps */
-	d->btf->hdr->str_off = p - d->btf->types_data;
-	memmove(p, d->btf->strs_data, d->btf->hdr->str_len);
-	d->btf->strs_data = p;
-
+	d->btf->hdr->str_off = d->btf->hdr->type_len;
 	d->btf->raw_size = d->btf->hdr->hdr_len + d->btf->hdr->type_len + d->btf->hdr->str_len;
 	return 0;
 }

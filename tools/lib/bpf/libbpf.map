@@ -305,6 +305,8 @@ LIBBPF_0.2.0 {
 		bpf_prog_bind_map;
 		bpf_prog_test_run_opts;
 		bpf_program__section_name;
+		btf__add_str;
+		btf__find_str;
 		perf_buffer__buffer_cnt;
 		perf_buffer__buffer_fd;
 		perf_buffer__epoll_fd;
