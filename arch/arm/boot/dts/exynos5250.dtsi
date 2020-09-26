@@ -330,7 +330,7 @@
 			power-domains = <&pd_g3d>;
 			status = "disabled";
 
-			gpu_opp_table: gpu-opp-table {
+			gpu_opp_table: opp-table {
 				compatible = "operating-points-v2";
 
 				opp-100000000 {
