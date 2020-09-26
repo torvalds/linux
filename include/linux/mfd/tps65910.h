@@ -890,11 +890,6 @@ struct tps65910 {
 	struct regmap *regmap;
 	unsigned long id;
 
-	/* Client devices */
-	struct tps65910_pmic *pmic;
-	struct tps65910_rtc *rtc;
-	struct tps65910_power *power;
-
 	/* Device node parsed board data */
 	struct tps65910_board *of_plat_data;
 
