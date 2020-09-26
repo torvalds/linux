@@ -3037,7 +3037,7 @@ int mlx5_ib_destroy_qp(struct ib_qp *qp, struct ib_udata *udata)
 	struct mlx5_ib_qp *mqp = to_mqp(qp);
 
 	if (unlikely(qp->qp_type == IB_QPT_GSI))
-		return mlx5_ib_gsi_destroy_qp(qp);
+		return mlx5_ib_destroy_gsi(mqp);
 
 	if (mqp->type == MLX5_IB_QPT_DCT)
 		return mlx5_ib_destroy_dct(mqp);

@@ -39,26 +39,6 @@ struct mlx5_ib_gsi_wr {
 	bool completed:1;
 };
 
-struct mlx5_ib_gsi_qp {
-	struct ib_qp ibqp;
-	struct ib_qp *rx_qp;
-	u8 port_num;
-	struct ib_qp_cap cap;
-	enum ib_sig_type sq_sig_type;
-	/* Serialize qp state modifications */
-	struct mutex mutex;
-	struct ib_cq *cq;
-	struct mlx5_ib_gsi_wr *outstanding_wrs;
-	u32 outstanding_pi, outstanding_ci;
-	int num_qps;
-	/* Protects access to the tx_qps. Post send operations synchronize
-	 * with tx_qp creation in setup_qp(). Also protects the
-	 * outstanding_wrs array and indices.
-	 */
-	spinlock_t lock;
-	struct ib_qp **tx_qps;
-};
-
 static struct mlx5_ib_gsi_qp *gsi_qp(struct ib_qp *qp)
 {
 	return container_of(qp, struct mlx5_ib_gsi_qp, ibqp);
@@ -116,6 +96,7 @@ struct ib_qp *mlx5_ib_gsi_create_qp(struct ib_pd *pd,
 				    struct ib_qp_init_attr *init_attr)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
+	struct mlx5_ib_qp *mqp;
 	struct mlx5_ib_gsi_qp *gsi;
 	struct ib_qp_init_attr hw_init_attr = *init_attr;
 	const u8 port_num = init_attr->port_num;
@@ -130,10 +111,11 @@ struct ib_qp *mlx5_ib_gsi_create_qp(struct ib_pd *pd,
 			num_qps = MLX5_MAX_PORTS;
 	}
 
-	gsi = kzalloc(sizeof(*gsi), GFP_KERNEL);
-	if (!gsi)
+	mqp = kzalloc(sizeof(struct mlx5_ib_qp), GFP_KERNEL);
+	if (!mqp)
 		return ERR_PTR(-ENOMEM);
 
+	gsi = &mqp->gsi;
 	gsi->tx_qps = kcalloc(num_qps, sizeof(*gsi->tx_qps), GFP_KERNEL);
 	if (!gsi->tx_qps) {
 		ret = -ENOMEM;
@@ -216,19 +198,17 @@ err_free_wrs:
 err_free_tx:
 	kfree(gsi->tx_qps);
 err_free:
-	kfree(gsi);
+	kfree(mqp);
 	return ERR_PTR(ret);
 }
 
-int mlx5_ib_gsi_destroy_qp(struct ib_qp *qp)
+int mlx5_ib_destroy_gsi(struct mlx5_ib_qp *mqp)
 {
-	struct mlx5_ib_dev *dev = to_mdev(qp->device);
-	struct mlx5_ib_gsi_qp *gsi = gsi_qp(qp);
+	struct mlx5_ib_dev *dev = to_mdev(mqp->ibqp.device);
+	struct mlx5_ib_gsi_qp *gsi = &mqp->gsi;
 	const int port_num = gsi->port_num;
 	int qp_index;
 	int ret;
-
-	mlx5_ib_dbg(dev, "destroying GSI QP\n");
 
 	mutex_lock(&dev->devr.mutex);
 	ret = mlx5_ib_destroy_qp(gsi->rx_qp, NULL);
@@ -253,7 +233,7 @@ int mlx5_ib_gsi_destroy_qp(struct ib_qp *qp)
 
 	kfree(gsi->outstanding_wrs);
 	kfree(gsi->tx_qps);
-	kfree(gsi);
+	kfree(mqp);
 
 	return 0;
 }

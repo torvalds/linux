@@ -384,6 +384,26 @@ struct mlx5_ib_dct {
 	u32                     *in;
 };
 
+struct mlx5_ib_gsi_qp {
+	struct ib_qp ibqp;
+	struct ib_qp *rx_qp;
+	u8 port_num;
+	struct ib_qp_cap cap;
+	enum ib_sig_type sq_sig_type;
+	/* Serialize qp state modifications */
+	struct mutex mutex;
+	struct ib_cq *cq;
+	struct mlx5_ib_gsi_wr *outstanding_wrs;
+	u32 outstanding_pi, outstanding_ci;
+	int num_qps;
+	/* Protects access to the tx_qps. Post send operations synchronize
+	 * with tx_qp creation in setup_qp(). Also protects the
+	 * outstanding_wrs array and indices.
+	 */
+	spinlock_t lock;
+	struct ib_qp **tx_qps;
+};
+
 struct mlx5_ib_qp {
 	struct ib_qp		ibqp;
 	union {
@@ -391,6 +411,7 @@ struct mlx5_ib_qp {
 		struct mlx5_ib_raw_packet_qp raw_packet_qp;
 		struct mlx5_ib_rss_qp rss_qp;
 		struct mlx5_ib_dct dct;
+		struct mlx5_ib_gsi_qp gsi;
 	};
 	struct mlx5_frag_buf	buf;
 
@@ -692,8 +713,6 @@ struct mlx5_mr_cache {
 	struct dentry		*root;
 	unsigned long		last_add;
 };
-
-struct mlx5_ib_gsi_qp;
 
 struct mlx5_ib_port_resources {
 	struct mlx5_ib_resources *devr;
@@ -1322,7 +1341,7 @@ void mlx5_ib_init_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num);
 /* GSI QP helper functions */
 struct ib_qp *mlx5_ib_gsi_create_qp(struct ib_pd *pd,
 				    struct ib_qp_init_attr *init_attr);
-int mlx5_ib_gsi_destroy_qp(struct ib_qp *qp);
+int mlx5_ib_destroy_gsi(struct mlx5_ib_qp *mqp);
 int mlx5_ib_gsi_modify_qp(struct ib_qp *qp, struct ib_qp_attr *attr,
 			  int attr_mask);
 int mlx5_ib_gsi_query_qp(struct ib_qp *qp, struct ib_qp_attr *qp_attr,
