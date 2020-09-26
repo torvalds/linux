@@ -10,16 +10,12 @@
 #include "ionic_devlink.h"
 
 static int ionic_dl_flash_update(struct devlink *dl,
-				 const char *fwname,
-				 const char *component,
+				 struct devlink_flash_update_params *params,
 				 struct netlink_ext_ack *extack)
 {
 	struct ionic *ionic = devlink_priv(dl);
 
-	if (component)
-		return -EOPNOTSUPP;
-
-	return ionic_firmware_update(ionic->lif, fwname, extack);
+	return ionic_firmware_update(ionic->lif, params->file_name, extack);
 }
 
 static int ionic_dl_info_get(struct devlink *dl, struct devlink_info_req *req,

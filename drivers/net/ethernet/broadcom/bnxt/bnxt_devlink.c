@@ -17,14 +17,12 @@
 #include "bnxt_ethtool.h"
 
 static int
-bnxt_dl_flash_update(struct devlink *dl, const char *filename,
-		     const char *region, struct netlink_ext_ack *extack)
+bnxt_dl_flash_update(struct devlink *dl,
+		     struct devlink_flash_update_params *params,
+		     struct netlink_ext_ack *extack)
 {
 	struct bnxt *bp = bnxt_get_bp_from_dl(dl);
 	int rc;
-
-	if (region)
-		return -EOPNOTSUPP;
 
 	if (!BNXT_PF(bp)) {
 		NL_SET_ERR_MSG_MOD(extack,
@@ -33,15 +31,12 @@ bnxt_dl_flash_update(struct devlink *dl, const char *filename,
 	}
 
 	devlink_flash_update_begin_notify(dl);
-	devlink_flash_update_status_notify(dl, "Preparing to flash", region, 0,
-					   0);
-	rc = bnxt_flash_package_from_file(bp->dev, filename, 0);
+	devlink_flash_update_status_notify(dl, "Preparing to flash", NULL, 0, 0);
+	rc = bnxt_flash_package_from_file(bp->dev, params->file_name, 0);
 	if (!rc)
-		devlink_flash_update_status_notify(dl, "Flashing done", region,
-						   0, 0);
+		devlink_flash_update_status_notify(dl, "Flashing done", NULL, 0, 0);
 	else
-		devlink_flash_update_status_notify(dl, "Flashing failed",
-						   region, 0, 0);
+		devlink_flash_update_status_notify(dl, "Flashing failed", NULL, 0, 0);
 	devlink_flash_update_end_notify(dl);
 	return rc;
 }
