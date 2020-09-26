@@ -59,7 +59,7 @@ static unsigned int __init get_extal_freq(void)
 #define CNTCR 0
 #define CNTFID0 0x20
 
-void __init rcar_gen2_timer_init(void)
+static void __init rcar_gen2_timer_init(void)
 {
 	bool need_update = true;
 	void __iomem *base;
@@ -174,7 +174,7 @@ static int __init rcar_gen2_scan_mem(unsigned long node, const char *uname,
 	return 0;
 }
 
-void __init rcar_gen2_reserve(void)
+static void __init rcar_gen2_reserve(void)
 {
 	struct memory_reserve_config mrc;
 
