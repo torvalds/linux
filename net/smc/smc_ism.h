@@ -51,5 +51,6 @@ int smc_ism_write(struct smcd_dev *dev, const struct smc_ism_position *pos,
 		  void *data, size_t len);
 int smc_ism_signal_shutdown(struct smc_link_group *lgr);
 void smc_ism_get_system_eid(struct smcd_dev *dev, u8 **eid);
+u16 smc_ism_get_chid(struct smcd_dev *dev);
 void smc_ism_init(void);
 #endif

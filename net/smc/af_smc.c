@@ -566,6 +566,8 @@ static int smc_find_ism_device(struct smc_sock *smc, struct smc_init_info *ini)
 	smc_pnet_find_ism_resource(smc->clcsock->sk, ini);
 	if (!ini->ism_dev[0])
 		return SMC_CLC_DECL_NOSMCDDEV;
+	else
+		ini->ism_chid[0] = smc_ism_get_chid(ini->ism_dev[0]);
 	return 0;
 }
 

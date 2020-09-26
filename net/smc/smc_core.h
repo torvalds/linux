@@ -303,6 +303,7 @@ struct smc_init_info {
 	/* SMC-D */
 	u64			ism_peer_gid[SMC_MAX_ISM_DEVS + 1];
 	struct smcd_dev		*ism_dev[SMC_MAX_ISM_DEVS + 1];
+	u16			ism_chid[SMC_MAX_ISM_DEVS + 1];
 };
 
 /* Find the connection associated with the given alert token in the link group.

@@ -66,6 +66,7 @@ struct smcd_ops {
 			 bool sf, unsigned int offset, void *data,
 			 unsigned int size);
 	void (*get_system_eid)(struct smcd_dev *dev, u8 **eid);
+	u16 (*get_chid)(struct smcd_dev *dev);
 };
 
 struct smcd_dev {

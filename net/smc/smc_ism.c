@@ -46,6 +46,11 @@ void smc_ism_get_system_eid(struct smcd_dev *smcd, u8 **eid)
 	smcd->ops->get_system_eid(smcd, eid);
 }
 
+u16 smc_ism_get_chid(struct smcd_dev *smcd)
+{
+	return smcd->ops->get_chid(smcd);
+}
+
 /* Set a connection using this DMBE. */
 void smc_ism_set_conn(struct smc_connection *conn)
 {

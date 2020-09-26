@@ -414,6 +414,17 @@ static void ism_get_system_eid(struct smcd_dev *smcd, u8 **eid)
 	*eid = &SYSTEM_EID.seid_string[0];
 }
 
+static u16 ism_get_chid(struct smcd_dev *smcd)
+{
+	struct ism_dev *ismdev;
+
+	ismdev = (struct ism_dev *)smcd->priv;
+	if (!ismdev || !ismdev->pdev)
+		return 0;
+
+	return to_zpci(ismdev->pdev)->pchid;
+}
+
 static void ism_handle_event(struct ism_dev *ism)
 {
 	struct smcd_event *entry;
@@ -471,6 +482,7 @@ static const struct smcd_ops ism_ops = {
 	.signal_event = ism_signal_ieq,
 	.move_data = ism_move,
 	.get_system_eid = ism_get_system_eid,
+	.get_chid = ism_get_chid,
 };
 
 static int ism_dev_init(struct ism_dev *ism)
