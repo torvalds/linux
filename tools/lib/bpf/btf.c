@@ -51,7 +51,7 @@ struct btf {
 
 	/* type ID to `struct btf_type *` lookup index */
 	__u32 *type_offs;
-	__u32 type_offs_cap;
+	size_t type_offs_cap;
 	__u32 nr_types;
 
 	/* BTF object FD, if loaded into kernel */
@@ -66,31 +66,60 @@ static inline __u64 ptr_to_u64(const void *ptr)
 	return (__u64) (unsigned long) ptr;
 }
 
+/* Ensure given dynamically allocated memory region pointed to by *data* with
+ * capacity of *cap_cnt* elements each taking *elem_sz* bytes has enough
+ * memory to accomodate *add_cnt* new elements, assuming *cur_cnt* elements
+ * are already used. At most *max_cnt* elements can be ever allocated.
+ * If necessary, memory is reallocated and all existing data is copied over,
+ * new pointer to the memory region is stored at *data, new memory region
+ * capacity (in number of elements) is stored in *cap.
+ * On success, memory pointer to the beginning of unused memory is returned.
+ * On error, NULL is returned.
+ */
+void *btf_add_mem(void **data, size_t *cap_cnt, size_t elem_sz,
+		  size_t cur_cnt, size_t max_cnt, size_t add_cnt)
+{
+	size_t new_cnt;
+	void *new_data;
+
+	if (cur_cnt + add_cnt <= *cap_cnt)
+		return *data + cur_cnt * elem_sz;
+
+	/* requested more than the set limit */
+	if (cur_cnt + add_cnt > max_cnt)
+		return NULL;
+
+	new_cnt = *cap_cnt;
+	new_cnt += new_cnt / 4;		  /* expand by 25% */
+	if (new_cnt < 16)		  /* but at least 16 elements */
+		new_cnt = 16;
+	if (new_cnt > max_cnt)		  /* but not exceeding a set limit */
+		new_cnt = max_cnt;
+	if (new_cnt < cur_cnt + add_cnt)  /* also ensure we have enough memory */
+		new_cnt = cur_cnt + add_cnt;
+
+	new_data = libbpf_reallocarray(*data, new_cnt, elem_sz);
+	if (!new_data)
+		return NULL;
+
+	/* zero out newly allocated portion of memory */
+	memset(new_data + (*cap_cnt) * elem_sz, 0, (new_cnt - *cap_cnt) * elem_sz);
+
+	*data = new_data;
+	*cap_cnt = new_cnt;
+	return new_data + cur_cnt * elem_sz;
+}
+
 static int btf_add_type_idx_entry(struct btf *btf, __u32 type_off)
 {
-	/* nr_types is 1-based, so N types means we need N+1-sized array */
-	if (btf->nr_types + 2 > btf->type_offs_cap) {
-		__u32 *new_offs;
-		__u32 expand_by, new_size;
+	__u32 *p;
 
-		if (btf->type_offs_cap == BTF_MAX_NR_TYPES)
-			return -E2BIG;
+	p = btf_add_mem((void **)&btf->type_offs, &btf->type_offs_cap, sizeof(__u32),
+			btf->nr_types + 1, BTF_MAX_NR_TYPES, 1);
+	if (!p)
+		return -ENOMEM;
 
-		expand_by = max(btf->type_offs_cap / 4, 16U);
-		new_size = min(BTF_MAX_NR_TYPES, btf->type_offs_cap + expand_by);
-
-		new_offs = libbpf_reallocarray(btf->type_offs, new_size, sizeof(*new_offs));
-		if (!new_offs)
-			return -ENOMEM;
-
-		new_offs[0] = UINT_MAX; /* VOID is specially handled */
-
-		btf->type_offs = new_offs;
-		btf->type_offs_cap = new_size;
-	}
-
-	btf->type_offs[btf->nr_types + 1] = type_off;
-
+	*p = type_off;
 	return 0;
 }
 
@@ -203,11 +232,17 @@ static int btf_parse_type_sec(struct btf *btf)
 	struct btf_header *hdr = btf->hdr;
 	void *next_type = btf->types_data;
 	void *end_type = next_type + hdr->type_len;
+	int err, type_size;
+
+	/* VOID (type_id == 0) is specially handled by btf__get_type_by_id(),
+	 * so ensure we can never properly use its offset from index by
+	 * setting it to a large value
+	 */
+	err = btf_add_type_idx_entry(btf, UINT_MAX);
+	if (err)
+		return err;
 
 	while (next_type < end_type) {
-		int type_size;
-		int err;
-
 		err = btf_add_type_idx_entry(btf, next_type - btf->types_data);
 		if (err)
 			return err;
