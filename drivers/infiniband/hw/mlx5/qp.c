@@ -2785,20 +2785,22 @@ static int create_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		goto out;
 	}
 
-	if (qp->type == MLX5_IB_QPT_DCT) {
+	switch (qp->type) {
+	case MLX5_IB_QPT_DCT:
 		err = create_dct(dev, pd, qp, params);
-		goto out;
-	}
-
-	if (qp->type == IB_QPT_XRC_TGT) {
+		break;
+	case IB_QPT_XRC_TGT:
 		err = create_xrc_tgt_qp(dev, qp, params);
-		goto out;
+		break;
+	case IB_QPT_GSI:
+		err = mlx5_ib_create_gsi(pd, qp, params->attr);
+		break;
+	default:
+		if (params->udata)
+			err = create_user_qp(dev, pd, qp, params);
+		else
+			err = create_kernel_qp(dev, pd, qp, params);
 	}
-
-	if (params->udata)
-		err = create_user_qp(dev, pd, qp, params);
-	else
-		err = create_kernel_qp(dev, pd, qp, params);
 
 out:
 	if (err) {
@@ -2939,9 +2941,6 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attr,
 	if (err)
 		return ERR_PTR(err);
 
-	if (attr->qp_type == IB_QPT_GSI)
-		return mlx5_ib_gsi_create_qp(pd, attr);
-
 	params.udata = udata;
 	params.uidx = MLX5_IB_DEFAULT_UIDX;
 	params.attr = attr;
@@ -3010,9 +3009,14 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attr,
 	return &qp->ibqp;
 
 destroy_qp:
-	if (qp->type == MLX5_IB_QPT_DCT) {
+	switch (qp->type) {
+	case MLX5_IB_QPT_DCT:
 		mlx5_ib_destroy_dct(qp);
-	} else {
+		break;
+	case IB_QPT_GSI:
+		mlx5_ib_destroy_gsi(qp);
+		break;
+	default:
 		/*
 		 * These lines below are temp solution till QP allocation
 		 * will be moved to be under IB/core responsiblity.

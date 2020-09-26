@@ -1335,8 +1335,8 @@ void mlx5_ib_cleanup_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num);
 void mlx5_ib_init_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num);
 
 /* GSI QP helper functions */
-struct ib_qp *mlx5_ib_gsi_create_qp(struct ib_pd *pd,
-				    struct ib_qp_init_attr *init_attr);
+int mlx5_ib_create_gsi(struct ib_pd *pd, struct mlx5_ib_qp *mqp,
+		       struct ib_qp_init_attr *attr);
 int mlx5_ib_destroy_gsi(struct mlx5_ib_qp *mqp);
 int mlx5_ib_gsi_modify_qp(struct ib_qp *qp, struct ib_qp_attr *attr,
 			  int attr_mask);
@@ -1375,7 +1375,7 @@ static inline void init_query_mad(struct ib_smp *mad)
 
 static inline int is_qp1(enum ib_qp_type qp_type)
 {
-	return qp_type == MLX5_IB_QPT_HW_GSI;
+	return qp_type == MLX5_IB_QPT_HW_GSI || qp_type == IB_QPT_GSI;
 }
 
 #define MLX5_MAX_UMR_SHIFT 16
