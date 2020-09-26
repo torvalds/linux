@@ -4,7 +4,7 @@
  *
  * DHCOM STM32MP1 variant:
  * DHCM-STM32MP157C-C065-R102-F0819-SPI-E2-CAN2-SDR104-RTC-WBT-T-DSI-I-01D2
- * DHCOR PCB number: 587-200 or newer
+ * DHCOM PCB number: 587-200 or newer
  * PDK2 PCB number: 516-400 or newer
  */
 /dts-v1/;
@@ -15,7 +15,7 @@
 #include "stm32mp15xx-dhcom-pdk2.dtsi"
 
 / {
-	model = "DH Electronics STM32MP157C DHCOM Premium Developer Kit (2)";
+	model = "DH electronics STM32MP157C DHCOM Premium Developer Kit (2)";
 	compatible = "dh,stm32mp157c-dhcom-pdk2", "dh,stm32mp157c-dhcom-som",
 		     "st,stm32mp157";
 };
