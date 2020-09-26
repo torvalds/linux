@@ -122,8 +122,8 @@ static long peci_dev_ioctl(struct file *file, uint iocmd, ulong arg)
 		}
 
 		xmsg = peci_get_xfer_msg(uxmsg.tx_len, uxmsg.rx_len);
-		if (IS_ERR(xmsg)) {
-			ret = PTR_ERR(xmsg);
+		if (!xmsg) {
+			ret = -ENOMEM;
 			break;
 		}
 
@@ -172,7 +172,8 @@ static long peci_dev_ioctl(struct file *file, uint iocmd, ulong arg)
 	}
 
 	peci_put_xfer_msg(xmsg);
-	kfree(msg);
+	if (!IS_ERR(msg))
+		kfree(msg);
 
 	return (long)ret;
 }
