@@ -254,8 +254,7 @@ static DEFINE_MUTEX(epmutex);
 static u64 loop_check_gen = 0;
 
 /* Used to check for epoll file descriptor inclusion loops */
-static void *cookies[EP_MAX_NESTS + 1];
-static int nesting;
+static struct eventpoll *inserting_into;
 
 /* Slab cache used to allocate "struct epitem" */
 static struct kmem_cache *epi_cache __read_mostly;
@@ -423,21 +422,6 @@ static inline void ep_set_busy_poll_napi_id(struct epitem *epi)
 }
 
 #endif /* CONFIG_NET_RX_BUSY_POLL */
-
-static bool ep_push_nested(void *cookie)
-{
-	int i;
-
-	if (nesting > EP_MAX_NESTS) /* too deep nesting */
-		return false;
-
-	for (i = 0; i < nesting; i++) {
-		if (cookies[i] == cookie) /* loop detected */
-			return false;
-	}
-	cookies[nesting++] = cookie;
-	return true;
-}
 
 /*
  * As described in commit 0ccf831cb lockdep: annotate epoll
@@ -1885,12 +1869,11 @@ static int ep_loop_check_proc(void *priv, void *cookie, int depth)
 			ep_tovisit = epi->ffd.file->private_data;
 			if (ep_tovisit->gen == loop_check_gen)
 				continue;
-			if (!ep_push_nested(ep_tovisit)) {
+			if (ep_tovisit == inserting_into || depth > EP_MAX_NESTS) {
 				error = -1;
 			} else {
 				error = ep_loop_check_proc(epi->ffd.file, ep_tovisit,
 						   depth + 1);
-				nesting--;
 			}
 			if (error != 0)
 				break;
@@ -1928,12 +1911,8 @@ static int ep_loop_check_proc(void *priv, void *cookie, int depth)
  */
 static int ep_loop_check(struct eventpoll *ep, struct file *file)
 {
-	int err;
-
-	ep_push_nested(ep); // can't fail
-	err = ep_loop_check_proc(file, ep, 0);
-	nesting--;
-	return err;
+	inserting_into = ep;
+	return ep_loop_check_proc(file, ep, 0);
 }
 
 static void clear_tfile_check_list(void)
