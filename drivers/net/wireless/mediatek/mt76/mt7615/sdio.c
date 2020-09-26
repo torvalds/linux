@@ -368,8 +368,6 @@ static int mt7663s_probe(struct sdio_func *func,
 	if (ret < 0)
 		goto err_free;
 
-	INIT_WORK(&mdev->sdio.txrx_work, mt7663s_txrx_work);
-
 	ret = mt7663s_hw_init(dev, func);
 	if (ret)
 		goto err_deinit;
@@ -399,6 +397,13 @@ static int mt7663s_probe(struct sdio_func *func,
 	ret = mt76s_alloc_queues(&dev->mt76);
 	if (ret)
 		goto err_deinit;
+
+	ret = mt76_worker_setup(mt76_hw(dev), &mdev->sdio.txrx_worker,
+				mt7663s_txrx_worker, "sdio-txrx");
+	if (ret)
+		goto err_deinit;
+
+	sched_set_fifo_low(mdev->sdio.txrx_worker.task);
 
 	ret = mt7663_usb_sdio_register_device(dev);
 	if (ret)
@@ -431,6 +436,7 @@ static int mt7663s_suspend(struct device *dev)
 {
 	struct sdio_func *func = dev_to_sdio_func(dev);
 	struct mt7615_dev *mdev = sdio_get_drvdata(func);
+	int err;
 
 	if (!test_bit(MT76_STATE_SUSPEND, &mdev->mphy.state) &&
 	    mt7615_firmware_offload(mdev)) {
@@ -443,9 +449,14 @@ static int mt7663s_suspend(struct device *dev)
 
 	sdio_set_host_pm_flags(func, MMC_PM_KEEP_POWER);
 
+	err = mt7615_mcu_set_fw_ctrl(mdev);
+	if (err)
+		return err;
+
+	mt76_worker_disable(&mdev->mt76.sdio.txrx_worker);
 	mt76s_stop_txrx(&mdev->mt76);
 
-	return mt7615_mcu_set_fw_ctrl(mdev);
+	return 0;
 }
 
 static int mt7663s_resume(struct device *dev)
@@ -453,6 +464,8 @@ static int mt7663s_resume(struct device *dev)
 	struct sdio_func *func = dev_to_sdio_func(dev);
 	struct mt7615_dev *mdev = sdio_get_drvdata(func);
 	int err;
+
+	mt76_worker_enable(&mdev->mt76.sdio.txrx_worker);
 
 	err = mt7615_mcu_set_drv_ctrl(mdev);
 	if (err)

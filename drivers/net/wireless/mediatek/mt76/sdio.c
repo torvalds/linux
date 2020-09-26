@@ -66,7 +66,6 @@ void mt76s_stop_txrx(struct mt76_dev *dev)
 {
 	struct mt76_sdio *sdio = &dev->sdio;
 
-	cancel_work_sync(&sdio->txrx_work);
 	cancel_work_sync(&sdio->status_work);
 	cancel_work_sync(&sdio->net_work);
 	cancel_work_sync(&sdio->stat_work);
@@ -256,7 +255,7 @@ static void mt76s_tx_kick(struct mt76_dev *dev, struct mt76_queue *q)
 {
 	struct mt76_sdio *sdio = &dev->sdio;
 
-	queue_work(sdio->txrx_wq, &sdio->txrx_work);
+	mt76_worker_schedule(&sdio->txrx_worker);
 }
 
 static const struct mt76_queue_ops sdio_queue_ops = {
@@ -302,6 +301,8 @@ void mt76s_deinit(struct mt76_dev *dev)
 {
 	struct mt76_sdio *sdio = &dev->sdio;
 	int i;
+
+	mt76_worker_teardown(&sdio->txrx_worker);
 
 	mt76s_stop_txrx(dev);
 	if (sdio->txrx_wq) {
