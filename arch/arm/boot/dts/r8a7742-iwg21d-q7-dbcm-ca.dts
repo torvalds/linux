@@ -27,6 +27,12 @@
 	status = "disabled";
 };
 
+&can0 {
+	pinctrl-0 = <&can0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
 &ether {
 	pinctrl-0 = <&ether_pins>;
 	pinctrl-names = "default";
@@ -49,6 +55,11 @@
 };
 
 &pfc {
+	can0_pins: can0 {
+		groups = "can0_data_d";
+		function = "can0";
+	};
+
 	ether_pins: ether {
 		groups = "eth_mdio", "eth_rmii";
 		function = "eth";
