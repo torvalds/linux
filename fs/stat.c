@@ -56,7 +56,7 @@ EXPORT_SYMBOL(generic_fillattr);
  * @path: file to get attributes from
  * @stat: structure to return attributes in
  * @request_mask: STATX_xxx flags indicating what the caller wants
- * @query_flags: Query mode (KSTAT_QUERY_FLAGS)
+ * @query_flags: Query mode (AT_STATX_SYNC_TYPE)
  *
  * Get attributes without calling security_inode_getattr.
  *
@@ -71,7 +71,7 @@ int vfs_getattr_nosec(const struct path *path, struct kstat *stat,
 
 	memset(stat, 0, sizeof(*stat));
 	stat->result_mask |= STATX_BASIC_STATS;
-	query_flags &= KSTAT_QUERY_FLAGS;
+	query_flags &= AT_STATX_SYNC_TYPE;
 
 	/* allow the fs to override these if it really wants to */
 	/* SB_NOATIME means filesystem supplies dummy atime value */
@@ -97,7 +97,7 @@ EXPORT_SYMBOL(vfs_getattr_nosec);
  * @path: The file of interest
  * @stat: Where to return the statistics
  * @request_mask: STATX_xxx flags indicating what the caller wants
- * @query_flags: Query mode (KSTAT_QUERY_FLAGS)
+ * @query_flags: Query mode (AT_STATX_SYNC_TYPE)
  *
  * Ask the filesystem for a file's attributes.  The caller must indicate in
  * request_mask and query_flags to indicate what they want.
@@ -171,7 +171,7 @@ static int vfs_statx(int dfd, const char __user *filename, int flags,
 	int error;
 
 	if (flags & ~(AT_SYMLINK_NOFOLLOW | AT_NO_AUTOMOUNT | AT_EMPTY_PATH |
-		      KSTAT_QUERY_FLAGS))
+		      AT_STATX_SYNC_TYPE))
 		return -EINVAL;
 
 	if (!(flags & AT_SYMLINK_NOFOLLOW))
