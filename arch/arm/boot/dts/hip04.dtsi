@@ -226,8 +226,8 @@
 			compatible = "arm,sp804", "arm,primecell";
 			reg = <0x3000000 0x1000>;
 			interrupts = <0 224 4>;
-			clocks = <&clk_50m>, <&clk_50m>;
-			clock-names = "apb_pclk";
+			clocks = <&clk_50m>, <&clk_50m>, <&clk_50m>;
+			clock-names = "timer0clk", "timer1clk", "apb_pclk";
 		};
 
 		arm-pmu {
