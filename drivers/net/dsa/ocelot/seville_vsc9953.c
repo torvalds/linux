@@ -1003,6 +1003,8 @@ static void vsc9953_xmit_template_populate(struct ocelot *ocelot, int port)
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	u8 *template = ocelot_port->xmit_template;
 	u64 bypass, dest, src;
+	__be32 *prefix;
+	u8 *injection;
 
 	/* Set the source port as the CPU port module and not the
 	 * NPI port
@@ -1011,9 +1013,14 @@ static void vsc9953_xmit_template_populate(struct ocelot *ocelot, int port)
 	dest = BIT(port);
 	bypass = true;
 
-	packing(template, &bypass, 127, 127, OCELOT_TAG_LEN, PACK, 0);
-	packing(template, &dest,    67,  57, OCELOT_TAG_LEN, PACK, 0);
-	packing(template, &src,     46,  43, OCELOT_TAG_LEN, PACK, 0);
+	injection = template + OCELOT_SHORT_PREFIX_LEN;
+	prefix = (__be32 *)template;
+
+	packing(injection, &bypass, 127, 127, OCELOT_TAG_LEN, PACK, 0);
+	packing(injection, &dest,    67,  57, OCELOT_TAG_LEN, PACK, 0);
+	packing(injection, &src,     46,  43, OCELOT_TAG_LEN, PACK, 0);
+
+	*prefix = cpu_to_be32(0x88800005);
 }
 
 static const struct felix_info seville_info_vsc9953 = {

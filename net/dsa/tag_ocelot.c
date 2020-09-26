@@ -141,10 +141,12 @@ static struct sk_buff *ocelot_xmit(struct sk_buff *skb,
 	struct dsa_switch *ds = dp->ds;
 	struct ocelot *ocelot = ds->priv;
 	struct ocelot_port *ocelot_port;
+	u8 *prefix, *injection;
 	u64 qos_class, rew_op;
-	u8 *injection;
+	int err;
 
-	if (unlikely(skb_cow_head(skb, OCELOT_TAG_LEN) < 0)) {
+	err = skb_cow_head(skb, OCELOT_TOTAL_TAG_LEN);
+	if (unlikely(err < 0)) {
 		netdev_err(netdev, "Cannot make room for tag.\n");
 		return NULL;
 	}
@@ -153,7 +155,10 @@ static struct sk_buff *ocelot_xmit(struct sk_buff *skb,
 
 	injection = skb_push(skb, OCELOT_TAG_LEN);
 
-	memcpy(injection, ocelot_port->xmit_template, OCELOT_TAG_LEN);
+	prefix = skb_push(skb, OCELOT_SHORT_PREFIX_LEN);
+
+	memcpy(prefix, ocelot_port->xmit_template, OCELOT_TOTAL_TAG_LEN);
+
 	/* Fix up the fields which are not statically determined
 	 * in the template
 	 */
@@ -187,11 +192,11 @@ static struct sk_buff *ocelot_rcv(struct sk_buff *skb,
 	 * so it points to the beginning of the frame.
 	 */
 	skb_push(skb, ETH_HLEN);
-	/* We don't care about the long prefix, it is just for easy entrance
+	/* We don't care about the short prefix, it is just for easy entrance
 	 * into the DSA master's RX filter. Discard it now by moving it into
 	 * the headroom.
 	 */
-	skb_pull(skb, OCELOT_LONG_PREFIX_LEN);
+	skb_pull(skb, OCELOT_SHORT_PREFIX_LEN);
 	/* And skb->data now points to the extraction frame header.
 	 * Keep a pointer to it.
 	 */
@@ -205,7 +210,7 @@ static struct sk_buff *ocelot_rcv(struct sk_buff *skb,
 	skb_pull(skb, ETH_HLEN);
 
 	/* Remove from inet csum the extraction header */
-	skb_postpull_rcsum(skb, start, OCELOT_LONG_PREFIX_LEN + OCELOT_TAG_LEN);
+	skb_postpull_rcsum(skb, start, OCELOT_TOTAL_TAG_LEN);
 
 	packing(extraction, &src_port,  46, 43, OCELOT_TAG_LEN, UNPACK, 0);
 	packing(extraction, &qos_class, 19, 17, OCELOT_TAG_LEN, UNPACK, 0);
@@ -231,7 +236,8 @@ static const struct dsa_device_ops ocelot_netdev_ops = {
 	.proto			= DSA_TAG_PROTO_OCELOT,
 	.xmit			= ocelot_xmit,
 	.rcv			= ocelot_rcv,
-	.overhead		= OCELOT_TAG_LEN + OCELOT_LONG_PREFIX_LEN,
+	.overhead		= OCELOT_TOTAL_TAG_LEN,
+	.promisc_on_master	= true,
 };
 
 MODULE_LICENSE("GPL v2");
