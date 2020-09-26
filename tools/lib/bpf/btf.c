@@ -565,6 +565,36 @@ void btf__free(struct btf *btf)
 	free(btf);
 }
 
+struct btf *btf__new_empty(void)
+{
+	struct btf *btf;
+
+	btf = calloc(1, sizeof(*btf));
+	if (!btf)
+		return ERR_PTR(-ENOMEM);
+	btf->fd = -1;
+	btf->ptr_sz = sizeof(void *);
+
+	/* +1 for empty string at offset 0 */
+	btf->raw_size = sizeof(struct btf_header) + 1;
+	btf->raw_data = calloc(1, btf->raw_size);
+	if (!btf->raw_data) {
+		free(btf);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	btf->hdr = btf->raw_data;
+	btf->hdr->hdr_len = sizeof(struct btf_header);
+	btf->hdr->magic = BTF_MAGIC;
+	btf->hdr->version = BTF_VERSION;
+
+	btf->types_data = btf->raw_data + btf->hdr->hdr_len;
+	btf->strs_data = btf->raw_data + btf->hdr->hdr_len;
+	btf->hdr->str_len = 1; /* empty string at offset 0 */
+
+	return btf;
+}
+
 struct btf *btf__new(const void *data, __u32 size)
 {
 	struct btf *btf;
