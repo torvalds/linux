@@ -415,8 +415,17 @@ xfs_defer_finish_noroll(
 
 	/* Until we run out of pending work to finish... */
 	while (!list_empty(&dop_pending) || !list_empty(&(*tp)->t_dfops)) {
+		/*
+		 * Deferred items that are created in the process of finishing
+		 * other deferred work items should be queued at the head of
+		 * the pending list, which puts them ahead of the deferred work
+		 * that was created by the caller.  This keeps the number of
+		 * pending work items to a minimum, which decreases the amount
+		 * of time that any one intent item can stick around in memory,
+		 * pinning the log tail.
+		 */
 		xfs_defer_create_intents(*tp);
-		list_splice_tail_init(&(*tp)->t_dfops, &dop_pending);
+		list_splice_init(&(*tp)->t_dfops, &dop_pending);
 
 		error = xfs_defer_trans_roll(tp);
 		if (error)
