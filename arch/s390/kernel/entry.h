@@ -9,7 +9,6 @@
 #include <asm/idle.h>
 
 extern void *restart_stack;
-extern unsigned long suspend_zero_pages;
 
 void system_call(void);
 void pgm_check_handler(void);

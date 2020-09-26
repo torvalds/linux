@@ -121,9 +121,6 @@ extern unsigned int console_mode;
 extern unsigned int console_devno;
 extern unsigned int console_irq;
 
-extern char vmhalt_cmd[];
-extern char vmpoff_cmd[];
-
 #define CONSOLE_IS_UNDEFINED	(console_mode == 0)
 #define CONSOLE_IS_SCLP		(console_mode == 1)
 #define CONSOLE_IS_3215		(console_mode == 2)
