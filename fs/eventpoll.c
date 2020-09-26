@@ -1317,23 +1317,15 @@ static int reverse_path_check_proc(struct file *file, int depth)
 	/* CTL_DEL can remove links here, but that can't increase our count */
 	rcu_read_lock();
 	list_for_each_entry_rcu(epi, &file->f_ep_links, fllink) {
-		struct file *child_file = epi->ep->file;
-		if (is_file_epoll(child_file)) {
-			if (list_empty(&child_file->f_ep_links)) {
-				if (path_count_inc(depth)) {
-					error = -1;
-					break;
-				}
-			} else {
-				error = reverse_path_check_proc(child_file,
-								depth + 1);
-			}
-			if (error != 0)
-				break;
-		} else {
-			printk(KERN_ERR "reverse_path_check_proc: "
-				"file is not an ep!\n");
-		}
+		struct file *recepient = epi->ep->file;
+		if (WARN_ON(!is_file_epoll(recepient)))
+			continue;
+		if (list_empty(&recepient->f_ep_links))
+			error = path_count_inc(depth);
+		else
+			error = reverse_path_check_proc(recepient, depth + 1);
+		if (error != 0)
+			break;
 	}
 	rcu_read_unlock();
 	return error;
