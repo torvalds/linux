@@ -1571,7 +1571,7 @@ static int check_can_nocow(struct btrfs_inode *inode, loff_t pos,
 	}
 
 	ret = can_nocow_extent(&inode->vfs_inode, lockstart, &num_bytes,
-			NULL, NULL, NULL);
+			NULL, NULL, NULL, false);
 	if (ret <= 0) {
 		ret = 0;
 		if (!nowait)

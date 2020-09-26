@@ -450,10 +450,10 @@ void fcoe_ctlr_link_up(struct fcoe_ctlr *fip)
 		switch (fip->mode) {
 		default:
 			LIBFCOE_FIP_DBG(fip, "invalid mode %d\n", fip->mode);
-			/* fall-through */
+			fallthrough;
 		case FIP_MODE_AUTO:
 			LIBFCOE_FIP_DBG(fip, "%s", "setting AUTO mode.\n");
-			/* fall-through */
+			fallthrough;
 		case FIP_MODE_FABRIC:
 		case FIP_MODE_NON_FIP:
 			mutex_unlock(&fip->ctlr_mutex);
@@ -773,7 +773,7 @@ int fcoe_ctlr_els_send(struct fcoe_ctlr *fip, struct fc_lport *lport,
 			fc_fcoe_set_mac(mac, fh->fh_d_id);
 			fip->update_mac(lport, mac);
 		}
-		/* fall through */
+		fallthrough;
 	case ELS_LS_RJT:
 		op = fr_encaps(fp);
 		if (op)
@@ -2439,7 +2439,7 @@ static void fcoe_ctlr_vn_probe_req(struct fcoe_ctlr *fip,
 					  frport->enode_mac, 0);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	case FIP_ST_VNMP_START:
 		LIBFCOE_FIP_DBG(fip, "vn_probe_req: "
 				"restart VN2VN negotiation\n");

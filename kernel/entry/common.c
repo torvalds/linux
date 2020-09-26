@@ -65,7 +65,8 @@ static long syscall_trace_enter(struct pt_regs *regs, long syscall,
 
 	syscall_enter_audit(regs, syscall);
 
-	return ret ? : syscall;
+	/* The above might have changed the syscall number */
+	return ret ? : syscall_get_nr(current, regs);
 }
 
 noinstr long syscall_enter_from_user_mode(struct pt_regs *regs, long syscall)

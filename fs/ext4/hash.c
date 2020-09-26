@@ -233,7 +233,7 @@ static int __ext4fs_dirhash(const char *name, int len,
 		break;
 	case DX_HASH_HALF_MD4_UNSIGNED:
 		str2hashbuf = str2hashbuf_unsigned;
-		/* fall through */
+		fallthrough;
 	case DX_HASH_HALF_MD4:
 		p = name;
 		while (len > 0) {
@@ -247,7 +247,7 @@ static int __ext4fs_dirhash(const char *name, int len,
 		break;
 	case DX_HASH_TEA_UNSIGNED:
 		str2hashbuf = str2hashbuf_unsigned;
-		/* fall through */
+		fallthrough;
 	case DX_HASH_TEA:
 		p = name;
 		while (len > 0) {

@@ -1083,7 +1083,7 @@ static phy_interface_t ksz9477_get_interface(struct ksz_device *dev, int port)
 		interface = PHY_INTERFACE_MODE_GMII;
 		if (gbit)
 			break;
-		/* fall through */
+		fallthrough;
 	case 0:
 		interface = PHY_INTERFACE_MODE_MII;
 		break;

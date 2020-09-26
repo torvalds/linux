@@ -4712,14 +4712,14 @@ static void bnx2x_sync_link(struct link_params *params,
 			LINK_STATUS_SPEED_AND_DUPLEX_MASK) {
 		case LINK_10THD:
 			vars->duplex = DUPLEX_HALF;
-			/* Fall thru */
+			fallthrough;
 		case LINK_10TFD:
 			vars->line_speed = SPEED_10;
 			break;
 
 		case LINK_100TXHD:
 			vars->duplex = DUPLEX_HALF;
-			/* Fall thru */
+			fallthrough;
 		case LINK_100T4:
 		case LINK_100TXFD:
 			vars->line_speed = SPEED_100;
@@ -4727,14 +4727,14 @@ static void bnx2x_sync_link(struct link_params *params,
 
 		case LINK_1000THD:
 			vars->duplex = DUPLEX_HALF;
-			/* Fall thru */
+			fallthrough;
 		case LINK_1000TFD:
 			vars->line_speed = SPEED_1000;
 			break;
 
 		case LINK_2500THD:
 			vars->duplex = DUPLEX_HALF;
-			/* Fall thru */
+			fallthrough;
 		case LINK_2500TFD:
 			vars->line_speed = SPEED_2500;
 			break;
@@ -6339,7 +6339,7 @@ int bnx2x_set_led(struct link_params *params,
 		 */
 		if (!vars->link_up)
 			break;
-		/* fall through */
+		fallthrough;
 	case LED_MODE_ON:
 		if (((params->phy[EXT_PHY1].type ==
 			  PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727) ||
@@ -12508,13 +12508,13 @@ static void bnx2x_phy_def_cfg(struct link_params *params,
 	switch (link_config  & PORT_FEATURE_LINK_SPEED_MASK) {
 	case PORT_FEATURE_LINK_SPEED_10M_HALF:
 		phy->req_duplex = DUPLEX_HALF;
-		/* fall through */
+		fallthrough;
 	case PORT_FEATURE_LINK_SPEED_10M_FULL:
 		phy->req_line_speed = SPEED_10;
 		break;
 	case PORT_FEATURE_LINK_SPEED_100M_HALF:
 		phy->req_duplex = DUPLEX_HALF;
-		/* fall through */
+		fallthrough;
 	case PORT_FEATURE_LINK_SPEED_100M_FULL:
 		phy->req_line_speed = SPEED_100;
 		break;

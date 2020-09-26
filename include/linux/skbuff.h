@@ -3745,19 +3745,19 @@ static inline bool __skb_metadata_differs(const struct sk_buff *skb_a,
 #define __it(x, op) (x -= sizeof(u##op))
 #define __it_diff(a, b, op) (*(u##op *)__it(a, op)) ^ (*(u##op *)__it(b, op))
 	case 32: diffs |= __it_diff(a, b, 64);
-		 /* fall through */
+		fallthrough;
 	case 24: diffs |= __it_diff(a, b, 64);
-		 /* fall through */
+		fallthrough;
 	case 16: diffs |= __it_diff(a, b, 64);
-		 /* fall through */
+		fallthrough;
 	case  8: diffs |= __it_diff(a, b, 64);
 		break;
 	case 28: diffs |= __it_diff(a, b, 64);
-		 /* fall through */
+		fallthrough;
 	case 20: diffs |= __it_diff(a, b, 64);
-		 /* fall through */
+		fallthrough;
 	case 12: diffs |= __it_diff(a, b, 64);
-		 /* fall through */
+		fallthrough;
 	case  4: diffs |= __it_diff(a, b, 32);
 		break;
 	}

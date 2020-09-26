@@ -140,11 +140,11 @@ static inline int setup_sgio_components(struct pci_dev *pdev,
 	case 3:
 		sg_ptr->u.s.len2 = cpu_to_be16(list[i * 4 + 2].size);
 		sg_ptr->ptr2 = cpu_to_be64(list[i * 4 + 2].dma_addr);
-		/* Fall through */
+		fallthrough;
 	case 2:
 		sg_ptr->u.s.len1 = cpu_to_be16(list[i * 4 + 1].size);
 		sg_ptr->ptr1 = cpu_to_be64(list[i * 4 + 1].dma_addr);
-		/* Fall through */
+		fallthrough;
 	case 1:
 		sg_ptr->u.s.len0 = cpu_to_be16(list[i * 4 + 0].size);
 		sg_ptr->ptr0 = cpu_to_be64(list[i * 4 + 0].dma_addr);

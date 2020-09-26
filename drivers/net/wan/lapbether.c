@@ -173,7 +173,7 @@ static netdev_tx_t lapbeth_xmit(struct sk_buff *skb,
 	case X25_IFACE_DISCONNECT:
 		if ((err = lapb_disconnect_request(dev)) != LAPB_OK)
 			pr_err("lapb_disconnect_request err: %d\n", err);
-		/* Fall thru */
+		fallthrough;
 	default:
 		goto drop;
 	}

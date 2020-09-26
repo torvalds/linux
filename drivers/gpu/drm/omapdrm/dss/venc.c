@@ -597,7 +597,7 @@ static void venc_bridge_mode_set(struct drm_bridge *bridge,
 	switch (venc_mode) {
 	default:
 		WARN_ON_ONCE(1);
-		/* Fall-through */
+		fallthrough;
 	case VENC_MODE_PAL:
 		venc->config = &venc_config_pal_trm;
 		break;

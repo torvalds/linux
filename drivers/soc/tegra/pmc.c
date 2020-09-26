@@ -2229,7 +2229,7 @@ static int tegra_pmc_clk_notify_cb(struct notifier_block *nb,
 
 	case POST_RATE_CHANGE:
 		pmc->rate = data->new_rate;
-		/* fall through */
+		fallthrough;
 
 	case ABORT_RATE_CHANGE:
 		mutex_unlock(&pmc->powergates_lock);

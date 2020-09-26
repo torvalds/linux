@@ -2746,7 +2746,7 @@ static void hns3_rx_checksum(struct hns3_enet_ring *ring, struct sk_buff *skb,
 	case HNS3_OL4_TYPE_MAC_IN_UDP:
 	case HNS3_OL4_TYPE_NVGRE:
 		skb->csum_level = 1;
-		/* fall through */
+		fallthrough;
 	case HNS3_OL4_TYPE_NO_TUN:
 		l3_type = hnae3_get_field(l234info, HNS3_RXD_L3ID_M,
 					  HNS3_RXD_L3ID_S);

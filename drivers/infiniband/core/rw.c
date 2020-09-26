@@ -510,7 +510,6 @@ struct ib_send_wr *rdma_rw_ctx_wrs(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 	switch (ctx->type) {
 	case RDMA_RW_SIG_MR:
 	case RDMA_RW_MR:
-		/* fallthrough */
 		for (i = 0; i < ctx->nr_ops; i++) {
 			rdma_rw_update_lkey(&ctx->reg[i],
 				ctx->reg[i].wr.wr.opcode !=

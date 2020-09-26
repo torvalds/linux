@@ -25,8 +25,8 @@ speakup-y := \
 	keyhelp.o \
 	kobjects.o \
 	selection.o \
-	serialio.o \
 	spk_ttyio.o \
 	synth.o \
 	thread.o \
 	varhandlers.o
+speakup-$(CONFIG_SPEAKUP_SERIALIO) += serialio.o

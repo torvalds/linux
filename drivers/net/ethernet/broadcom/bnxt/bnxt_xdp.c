@@ -201,10 +201,10 @@ bool bnxt_rx_xdp(struct bnxt *bp, struct bnxt_rx_ring_info *rxr, u16 cons,
 		break;
 	default:
 		bpf_warn_invalid_xdp_action(act);
-		/* Fall thru */
+		fallthrough;
 	case XDP_ABORTED:
 		trace_xdp_exception(bp->dev, xdp_prog, act);
-		/* Fall thru */
+		fallthrough;
 	case XDP_DROP:
 		bnxt_reuse_rx_data(rxr, cons, page);
 		break;

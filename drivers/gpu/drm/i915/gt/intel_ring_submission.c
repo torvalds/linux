@@ -100,7 +100,7 @@ static void set_hwsp(struct intel_engine_cs *engine, u32 offset)
 		 */
 		default:
 			GEM_BUG_ON(engine->id);
-			/* fallthrough */
+			fallthrough;
 		case RCS0:
 			hwsp = RENDER_HWS_PGA_GEN7;
 			break;

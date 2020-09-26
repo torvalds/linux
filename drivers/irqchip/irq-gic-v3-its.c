@@ -2737,7 +2737,7 @@ static bool allocate_vpe_l2_table(int cpu, u32 id)
 	switch (gpsz) {
 	default:
 		WARN_ON(1);
-		/* fall through */
+		fallthrough;
 	case GIC_PAGE_SIZE_4K:
 		psz = SZ_4K;
 		break;
@@ -2832,7 +2832,7 @@ static int allocate_vpe_l1_table(void)
 	switch (gpsz) {
 	default:
 		gpsz = GIC_PAGE_SIZE_4K;
-		/* fall through */
+		fallthrough;
 	case GIC_PAGE_SIZE_4K:
 		psz = SZ_4K;
 		break;

@@ -1173,7 +1173,7 @@ xpc_system_die(struct notifier_block *nb, unsigned long event, void *_die_args)
 		if (!xpc_kdebug_ignore)
 			break;
 
-		/* fall through */
+		fallthrough;
 	case DIE_MCA_MONARCH_ENTER:
 	case DIE_INIT_MONARCH_ENTER:
 		xpc_arch_ops.offline_heartbeat();
@@ -1184,7 +1184,7 @@ xpc_system_die(struct notifier_block *nb, unsigned long event, void *_die_args)
 		if (!xpc_kdebug_ignore)
 			break;
 
-		/* fall through */
+		fallthrough;
 	case DIE_MCA_MONARCH_LEAVE:
 	case DIE_INIT_MONARCH_LEAVE:
 		xpc_arch_ops.online_heartbeat();

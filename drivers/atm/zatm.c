@@ -1447,7 +1447,7 @@ static int zatm_ioctl(struct atm_dev *dev,unsigned int cmd,void __user *arg)
 	switch (cmd) {
 		case ZATM_GETPOOLZ:
 			if (!capable(CAP_NET_ADMIN)) return -EPERM;
-			/* fall through */
+			fallthrough;
 		case ZATM_GETPOOL:
 			{
 				struct zatm_pool_info info;

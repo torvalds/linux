@@ -115,7 +115,7 @@ static u8 ib_rate_to_memfree(u8 req_rate, u8 cur_rate)
 	switch ((cur_rate - 1) / req_rate) {
 	case 0:	 return MTHCA_RATE_MEMFREE_FULL;
 	case 1:	 return MTHCA_RATE_MEMFREE_HALF;
-	case 2:	 /* fall through */
+	case 2:
 	case 3:	 return MTHCA_RATE_MEMFREE_QUARTER;
 	default: return MTHCA_RATE_MEMFREE_EIGHTH;
 	}

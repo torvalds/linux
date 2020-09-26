@@ -1523,12 +1523,12 @@ mlxsw_sp_span_trigger_ops_set(struct mlxsw_sp_span_trigger_entry *trigger_entry)
 	enum mlxsw_sp_span_trigger_type type;
 
 	switch (trigger_entry->trigger) {
-	case MLXSW_SP_SPAN_TRIGGER_INGRESS: /* fall-through */
+	case MLXSW_SP_SPAN_TRIGGER_INGRESS:
 	case MLXSW_SP_SPAN_TRIGGER_EGRESS:
 		type = MLXSW_SP_SPAN_TRIGGER_TYPE_PORT;
 		break;
-	case MLXSW_SP_SPAN_TRIGGER_TAIL_DROP: /* fall-through */
-	case MLXSW_SP_SPAN_TRIGGER_EARLY_DROP: /* fall-through */
+	case MLXSW_SP_SPAN_TRIGGER_TAIL_DROP:
+	case MLXSW_SP_SPAN_TRIGGER_EARLY_DROP:
 	case MLXSW_SP_SPAN_TRIGGER_ECN:
 		type = MLXSW_SP_SPAN_TRIGGER_TYPE_GLOBAL;
 		break;

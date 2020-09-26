@@ -1404,7 +1404,7 @@ static int arm_ccn_init_nodes(struct arm_ccn *ccn, int region,
 		break;
 	case CCN_TYPE_SBAS:
 		ccn->sbas_present = 1;
-		/* Fall-through */
+		fallthrough;
 	default:
 		component = &ccn->node[id];
 		break;

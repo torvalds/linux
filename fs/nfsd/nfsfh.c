@@ -459,7 +459,7 @@ static bool fsid_type_ok_for_exp(u8 fsid_type, struct svc_export *exp)
 	case FSID_DEV:
 		if (!old_valid_dev(exp_sb(exp)->s_dev))
 			return false;
-		/* FALL THROUGH */
+		fallthrough;
 	case FSID_MAJOR_MINOR:
 	case FSID_ENCODE_DEV:
 		return exp_sb(exp)->s_type->fs_flags & FS_REQUIRES_DEV;
@@ -469,7 +469,7 @@ static bool fsid_type_ok_for_exp(u8 fsid_type, struct svc_export *exp)
 	case FSID_UUID16:
 		if (!is_root_export(exp))
 			return false;
-		/* fall through */
+		fallthrough;
 	case FSID_UUID4_INUM:
 	case FSID_UUID16_INUM:
 		return exp->ex_uuid != NULL;

@@ -142,7 +142,7 @@ static int ef100_pci_parse_continue_entry(struct efx_nic *efx, int entry_locatio
 
 		/* Temporarily map new BAR. */
 		rc = efx_init_io(efx, bar,
-				 DMA_BIT_MASK(ESF_GZ_TX_SEND_ADDR_WIDTH),
+				 (dma_addr_t)DMA_BIT_MASK(ESF_GZ_TX_SEND_ADDR_WIDTH),
 				 pci_resource_len(efx->pci_dev, bar));
 		if (rc) {
 			netif_err(efx, probe, efx->net_dev,
@@ -160,7 +160,7 @@ static int ef100_pci_parse_continue_entry(struct efx_nic *efx, int entry_locatio
 
 		/* Put old BAR back. */
 		rc = efx_init_io(efx, previous_bar,
-				 DMA_BIT_MASK(ESF_GZ_TX_SEND_ADDR_WIDTH),
+				 (dma_addr_t)DMA_BIT_MASK(ESF_GZ_TX_SEND_ADDR_WIDTH),
 				 pci_resource_len(efx->pci_dev, previous_bar));
 		if (rc) {
 			netif_err(efx, probe, efx->net_dev,
@@ -334,7 +334,7 @@ static int ef100_pci_parse_xilinx_cap(struct efx_nic *efx, int vndr_cap,
 
 	/* Temporarily map BAR. */
 	rc = efx_init_io(efx, bar,
-			 DMA_BIT_MASK(ESF_GZ_TX_SEND_ADDR_WIDTH),
+			 (dma_addr_t)DMA_BIT_MASK(ESF_GZ_TX_SEND_ADDR_WIDTH),
 			 pci_resource_len(efx->pci_dev, bar));
 	if (rc) {
 		netif_err(efx, probe, efx->net_dev,
@@ -495,7 +495,7 @@ static int ef100_pci_probe(struct pci_dev *pci_dev,
 
 	/* Set up basic I/O (BAR mappings etc) */
 	rc = efx_init_io(efx, fcw.bar,
-			 DMA_BIT_MASK(ESF_GZ_TX_SEND_ADDR_WIDTH),
+			 (dma_addr_t)DMA_BIT_MASK(ESF_GZ_TX_SEND_ADDR_WIDTH),
 			 pci_resource_len(efx->pci_dev, fcw.bar));
 	if (rc)
 		goto fail;

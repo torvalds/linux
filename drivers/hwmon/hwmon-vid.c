@@ -96,7 +96,7 @@ int vid_from_reg(int val, u8 vrm)
 		val &= 0x1f;
 		if (val == 0x1f)
 			return 0;
-				/* fall through */
+		fallthrough;
 	case 25:		/* AMD NPT 0Fh */
 		val &= 0x3f;
 		return (val < 32) ? 1550 - 25 * val
@@ -122,7 +122,7 @@ int vid_from_reg(int val, u8 vrm)
 
 	case 84:		/* VRM 8.4 */
 		val &= 0x0f;
-				/* fall through */
+		fallthrough;
 	case 82:		/* VRM 8.2 */
 		val &= 0x1f;
 		return val == 0x1f ? 0 :

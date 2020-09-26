@@ -260,7 +260,7 @@ static void parport_ieee1284_terminate (struct parport *port)
 			port->ieee1284.phase = IEEE1284_PH_FWD_IDLE;
 		}
 
-		/* fall through */
+		fallthrough;
 
 	default:
 		/* Terminate from all other modes. */
@@ -598,7 +598,7 @@ ssize_t parport_write (struct parport *port, const void *buffer, size_t len)
 	case IEEE1284_MODE_NIBBLE:
 	case IEEE1284_MODE_BYTE:
 		parport_negotiate (port, IEEE1284_MODE_COMPAT);
-		/* fall through */
+		fallthrough;
 	case IEEE1284_MODE_COMPAT:
 		pr_debug("%s: Using compatibility mode\n", port->name);
 		fn = port->ops->compat_write_data;
@@ -702,7 +702,7 @@ ssize_t parport_read (struct parport *port, void *buffer, size_t len)
 		if (parport_negotiate (port, IEEE1284_MODE_NIBBLE)) {
 			return -EIO;
 		}
-		/* fall through - to NIBBLE */
+		fallthrough;	/* to NIBBLE */
 	case IEEE1284_MODE_NIBBLE:
 		pr_debug("%s: Using nibble mode\n", port->name);
 		fn = port->ops->nibble_read_data;

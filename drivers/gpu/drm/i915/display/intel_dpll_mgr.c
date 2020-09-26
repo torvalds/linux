@@ -892,7 +892,7 @@ static int hsw_ddi_wrpll_get_freq(struct drm_i915_private *dev_priv,
 			refclk = dev_priv->dpll.ref_clks.nssc;
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	case WRPLL_REF_PCH_SSC:
 		/*
 		 * We could calculate spread here, but our checking
@@ -2977,7 +2977,7 @@ static bool icl_calc_tbt_pll(struct intel_crtc_state *crtc_state,
 		switch (dev_priv->dpll.ref_clks.nssc) {
 		default:
 			MISSING_CASE(dev_priv->dpll.ref_clks.nssc);
-			/* fall-through */
+			fallthrough;
 		case 19200:
 			*pll_params = tgl_tbt_pll_19_2MHz_values;
 			break;
@@ -2992,7 +2992,7 @@ static bool icl_calc_tbt_pll(struct intel_crtc_state *crtc_state,
 		switch (dev_priv->dpll.ref_clks.nssc) {
 		default:
 			MISSING_CASE(dev_priv->dpll.ref_clks.nssc);
-			/* fall-through */
+			fallthrough;
 		case 19200:
 		case 38400:
 			*pll_params = icl_tbt_pll_19_2MHz_values;
@@ -3120,7 +3120,7 @@ static bool icl_mg_pll_find_divisors(int clock_khz, bool is_dp, bool use_ssc,
 			switch (div1) {
 			default:
 				MISSING_CASE(div1);
-				/* fall through */
+				fallthrough;
 			case 2:
 				hsdiv = MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_2;
 				break;

@@ -1378,25 +1378,25 @@ static int cifs_parse_security_flavors(char *value,
 		return 1;
 	case Opt_sec_krb5i:
 		vol->sign = true;
-		/* Fallthrough */
+		fallthrough;
 	case Opt_sec_krb5:
 		vol->sectype = Kerberos;
 		break;
 	case Opt_sec_ntlmsspi:
 		vol->sign = true;
-		/* Fallthrough */
+		fallthrough;
 	case Opt_sec_ntlmssp:
 		vol->sectype = RawNTLMSSP;
 		break;
 	case Opt_sec_ntlmi:
 		vol->sign = true;
-		/* Fallthrough */
+		fallthrough;
 	case Opt_ntlm:
 		vol->sectype = NTLM;
 		break;
 	case Opt_sec_ntlmv2i:
 		vol->sign = true;
-		/* Fallthrough */
+		fallthrough;
 	case Opt_sec_ntlmv2:
 		vol->sectype = NTLMv2;
 		break;
@@ -2187,7 +2187,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 				vol->password = NULL;
 				break;
 			}
-			/* Fallthrough - to Opt_pass below.*/
+			fallthrough;	/* to Opt_pass below */
 		case Opt_pass:
 			/* Obtain the value string */
 			value = strchr(data, '=');
@@ -4909,7 +4909,7 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb_vol *vol)
 		if (!tcon)
 			continue;
 		/* Make sure that requests go through new root servers */
-		if (tcon->share_flags & (SHI1005_FLAGS_DFS | SHI1005_FLAGS_DFS_ROOT)) {
+		if (is_tcon_dfs(tcon)) {
 			put_root_ses(root_ses);
 			set_root_ses(cifs_sb, ses, &root_ses);
 		}

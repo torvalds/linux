@@ -814,13 +814,13 @@ void i40iw_puda_dele_resources(struct i40iw_sc_vsi *vsi,
 	switch (rsrc->completion) {
 	case PUDA_HASH_CRC_COMPLETE:
 		i40iw_free_hash_desc(rsrc->hash_desc);
-		/* fall through */
+		fallthrough;
 	case PUDA_QP_CREATED:
 		if (!reset)
 			i40iw_puda_free_qp(rsrc);
 
 		i40iw_free_dma_mem(dev->hw, &rsrc->qpmem);
-		/* fallthrough */
+		fallthrough;
 	case PUDA_CQ_CREATED:
 		if (!reset)
 			i40iw_puda_free_cq(rsrc);
