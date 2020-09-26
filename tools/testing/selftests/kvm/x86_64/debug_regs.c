@@ -73,7 +73,7 @@ int main(void)
 	int i;
 	/* Instruction lengths starting at ss_start */
 	int ss_size[4] = {
-		3,		/* xor */
+		2,		/* xor */
 		2,		/* cpuid */
 		5,		/* mov */
 		2,		/* rdmsr */
