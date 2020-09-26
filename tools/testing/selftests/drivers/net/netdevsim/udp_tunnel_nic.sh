@@ -7,6 +7,7 @@ NSIM_DEV_SYS=/sys/bus/netdevsim/devices/netdevsim$NSIM_ID
 NSIM_DEV_DFS=/sys/kernel/debug/netdevsim/netdevsim$NSIM_ID
 NSIM_NETDEV=
 HAS_ETHTOOL=
+STATIC_ENTRIES=
 EXIT_STATUS=0
 num_cases=0
 num_errors=0
@@ -193,6 +194,21 @@ function check_tables {
 	sleep 0.02
 	((retries--))
     done
+
+    if [ -n "$HAS_ETHTOOL" -a -n "${STATIC_ENTRIES[0]}" ]; then
+	fail=0
+	for i in "${!STATIC_ENTRIES[@]}"; do
+	    pp_expected=`pre_ethtool ${STATIC_ENTRIES[i]}`
+	    cnt=$(ethtool --show-tunnels $NSIM_NETDEV | grep -c "$pp_expected")
+	    if [ $cnt -ne 1 ]; then
+		err_cnt "ethtool static entry: $pfx - $msg"
+		echo "       check_table: ethtool does not contain '$pp_expected'"
+		ethtool --show-tunnels $NSIM_NETDEV
+		fail=1
+	    fi
+	done
+	[ $fail == 0 ] && pass_cnt
+    fi
 }
 
 function print_table {
@@ -883,6 +899,48 @@ echo 1 > $NSIM_DEV_SYS/del_port
 echo 2 > $NSIM_DEV_SYS/del_port
 
 cleanup_nsim
+
+# Static IANA port
+pfx="static IANA vxlan"
+
+echo $NSIM_ID > /sys/bus/netdevsim/new_device
+echo 0 > $NSIM_DEV_SYS/del_port
+
+echo 1 > $NSIM_DEV_DFS/udp_ports_static_iana_vxlan
+STATIC_ENTRIES=( `mke 4789 1` )
+
+port=1
+old_netdevs=$(ls /sys/class/net)
+echo $port > $NSIM_DEV_SYS/new_port
+NSIM_NETDEV=`get_netdev_name old_netdevs`
+
+msg="check empty"
+exp0=( 0 0 0 0 )
+exp1=( 0 0 0 0 )
+check_tables
+
+msg="add on static port"
+new_vxlan vxlan0 4789 $NSIM_NETDEV
+new_vxlan vxlan1 4789 $NSIM_NETDEV
+
+msg="add on different port"
+exp0=( `mke 4790 1` 0 0 0 )
+new_vxlan vxlan2 4790 $NSIM_NETDEV
+
+cleanup_tuns
+
+msg="tunnels destroyed"
+exp0=( 0 0 0 0 )
+exp1=( 0 0 0 0 )
+check_tables
+
+msg="different type"
+new_geneve gnv0	4789
+
+cleanup_tuns
+cleanup_nsim
+
+# END
 
 modprobe -r netdevsim
 
