@@ -3165,21 +3165,19 @@ extern int iterate_dir(struct file *, struct dir_context *);
 extern int vfs_statx(int, const char __user *, int, struct kstat *, u32);
 int vfs_fstat(int fd, struct kstat *stat);
 
-static inline int vfs_stat(const char __user *filename, struct kstat *stat)
-{
-	return vfs_statx(AT_FDCWD, filename, AT_NO_AUTOMOUNT,
-			 stat, STATX_BASIC_STATS);
-}
-static inline int vfs_lstat(const char __user *name, struct kstat *stat)
-{
-	return vfs_statx(AT_FDCWD, name, AT_SYMLINK_NOFOLLOW | AT_NO_AUTOMOUNT,
-			 stat, STATX_BASIC_STATS);
-}
 static inline int vfs_fstatat(int dfd, const char __user *filename,
 			      struct kstat *stat, int flags)
 {
 	return vfs_statx(dfd, filename, flags | AT_NO_AUTOMOUNT,
 			 stat, STATX_BASIC_STATS);
+}
+static inline int vfs_stat(const char __user *filename, struct kstat *stat)
+{
+	return vfs_fstatat(AT_FDCWD, filename, stat, 0);
+}
+static inline int vfs_lstat(const char __user *name, struct kstat *stat)
+{
+	return vfs_fstatat(AT_FDCWD, name, stat, AT_SYMLINK_NOFOLLOW);
 }
 
 extern const char *vfs_get_link(struct dentry *, struct delayed_call *);
