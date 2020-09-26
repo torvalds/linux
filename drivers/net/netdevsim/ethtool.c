@@ -54,7 +54,7 @@ void nsim_ethtool_init(struct netdevsim *ns)
 
 	ns->netdev->ethtool_ops = &nsim_ethtool_ops;
 
-	ethtool = debugfs_create_dir("ethtool", ns->nsim_dev->ddir);
+	ethtool = debugfs_create_dir("ethtool", ns->nsim_dev_port->ddir);
 
 	dir = debugfs_create_dir("pause", ethtool);
 	debugfs_create_bool("report_stats_rx", 0600, dir,

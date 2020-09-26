@@ -3,7 +3,7 @@
 
 NSIM_ID=$((RANDOM % 1024))
 NSIM_DEV_SYS=/sys/bus/netdevsim/devices/netdevsim$NSIM_ID
-NSIM_DEV_DFS=/sys/kernel/debug/netdevsim/netdevsim$NSIM_ID
+NSIM_DEV_DFS=/sys/kernel/debug/netdevsim/netdevsim$NSIM_ID/ports/0
 NSIM_NETDEV=
 num_passes=0
 num_errors=0
