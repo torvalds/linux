@@ -106,14 +106,12 @@ static struct sk_buff *rtl4a_tag_rcv(struct sk_buff *skb,
 	return skb;
 }
 
-static int rtl4a_tag_flow_dissect(const struct sk_buff *skb, __be16 *proto,
-				  int *offset)
+static void rtl4a_tag_flow_dissect(const struct sk_buff *skb, __be16 *proto,
+				   int *offset)
 {
 	*offset = RTL4_A_HDR_LEN;
 	/* Skip past the tag and fetch the encapsulated Ethertype */
 	*proto = ((__be16 *)skb->data)[1];
-
-	return 0;
 }
 
 static const struct dsa_device_ops rtl4a_netdev_ops = {

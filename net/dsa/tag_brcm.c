@@ -150,8 +150,8 @@ static struct sk_buff *brcm_tag_rcv_ll(struct sk_buff *skb,
 	return skb;
 }
 
-static int brcm_tag_flow_dissect(const struct sk_buff *skb, __be16 *proto,
-				 int *offset)
+static void brcm_tag_flow_dissect(const struct sk_buff *skb, __be16 *proto,
+				  int *offset)
 {
 	/* We have been called on the DSA master network device after
 	 * eth_type_trans() which pulled the Ethernet header already.
@@ -168,7 +168,6 @@ static int brcm_tag_flow_dissect(const struct sk_buff *skb, __be16 *proto,
 	 */
 	*offset = BRCM_TAG_LEN;
 	*proto = ((__be16 *)skb->data)[1];
-	return 0;
 }
 #endif
 
