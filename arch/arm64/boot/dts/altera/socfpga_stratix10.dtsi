@@ -145,8 +145,8 @@
 			mac-address = [00 00 00 00 00 00];
 			resets = <&rst EMAC0_RESET>, <&rst EMAC0_OCP_RESET>;
 			reset-names = "stmmaceth", "stmmaceth-ocp";
-			clocks = <&clkmgr STRATIX10_EMAC0_CLK>;
-			clock-names = "stmmaceth";
+			clocks = <&clkmgr STRATIX10_EMAC0_CLK>, <&clkmgr STRATIX10_EMAC_PTP_CLK>;
+			clock-names = "stmmaceth", "ptp_ref";
 			tx-fifo-depth = <16384>;
 			rx-fifo-depth = <16384>;
 			snps,multicast-filter-bins = <256>;
@@ -163,8 +163,8 @@
 			mac-address = [00 00 00 00 00 00];
 			resets = <&rst EMAC1_RESET>, <&rst EMAC1_OCP_RESET>;
 			reset-names = "stmmaceth", "stmmaceth-ocp";
-			clocks = <&clkmgr STRATIX10_EMAC1_CLK>;
-			clock-names = "stmmaceth";
+			clocks = <&clkmgr STRATIX10_EMAC1_CLK>, <&clkmgr STRATIX10_EMAC_PTP_CLK>;
+			clock-names = "stmmaceth", "ptp_ref";
 			tx-fifo-depth = <16384>;
 			rx-fifo-depth = <16384>;
 			snps,multicast-filter-bins = <256>;
@@ -181,8 +181,8 @@
 			mac-address = [00 00 00 00 00 00];
 			resets = <&rst EMAC2_RESET>, <&rst EMAC2_OCP_RESET>;
 			reset-names = "stmmaceth", "stmmaceth-ocp";
-			clocks = <&clkmgr STRATIX10_EMAC2_CLK>;
-			clock-names = "stmmaceth";
+			clocks = <&clkmgr STRATIX10_EMAC2_CLK>, <&clkmgr STRATIX10_EMAC_PTP_CLK>;
+			clock-names = "stmmaceth", "ptp_ref";
 			tx-fifo-depth = <16384>;
 			rx-fifo-depth = <16384>;
 			snps,multicast-filter-bins = <256>;
