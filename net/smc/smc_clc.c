@@ -14,6 +14,8 @@
 #include <linux/inetdevice.h>
 #include <linux/if_ether.h>
 #include <linux/sched/signal.h>
+#include <linux/utsname.h>
+#include <linux/ctype.h>
 
 #include <net/addrconf.h>
 #include <net/sock.h>
@@ -34,6 +36,8 @@
 static const char SMC_EYECATCHER[4] = {'\xe2', '\xd4', '\xc3', '\xd9'};
 /* eye catcher "SMCD" EBCDIC for CLC messages */
 static const char SMCD_EYECATCHER[4] = {'\xe2', '\xd4', '\xc3', '\xc4'};
+
+static u8 smc_hostname[SMC_MAX_HOSTNAME_LEN];
 
 /* check arriving CLC proposal */
 static bool smc_clc_msg_prop_valid(struct smc_clc_msg_proposal *pclc)
@@ -92,10 +96,21 @@ smc_clc_msg_acc_conf_valid(struct smc_clc_msg_accept_confirm_v2 *clc_v2)
 			return false;
 	} else {
 		if (hdr->typev1 == SMC_TYPE_D &&
-		    ntohs(hdr->length) != SMCD_CLC_ACCEPT_CONFIRM_LEN_V2)
+		    ntohs(hdr->length) != SMCD_CLC_ACCEPT_CONFIRM_LEN_V2 &&
+		    (ntohs(hdr->length) != SMCD_CLC_ACCEPT_CONFIRM_LEN_V2 +
+				sizeof(struct smc_clc_first_contact_ext)))
 			return false;
 	}
 	return true;
+}
+
+static void smc_clc_fill_fce(struct smc_clc_first_contact_ext *fce, int *len)
+{
+	memset(fce, 0, sizeof(*fce));
+	fce->os_type = SMC_CLC_OS_LINUX;
+	fce->release = SMC_RELEASE;
+	memcpy(fce->hostname, smc_hostname, sizeof(smc_hostname));
+	(*len) += sizeof(*fce);
 }
 
 /* check if received message has a correct header length and contains valid
@@ -623,10 +638,11 @@ static int smc_clc_send_confirm_accept(struct smc_sock *smc,
 {
 	struct smc_connection *conn = &smc->conn;
 	struct smc_clc_msg_accept_confirm *clc;
+	struct smc_clc_first_contact_ext fce;
 	struct smc_clc_msg_trail trl;
-	struct kvec vec[2];
+	struct kvec vec[3];
 	struct msghdr msg;
-	int i;
+	int i, len;
 
 	/* send SMC Confirm CLC msg */
 	clc = (struct smc_clc_msg_accept_confirm *)clc_v2;
@@ -652,8 +668,10 @@ static int smc_clc_send_confirm_accept(struct smc_sock *smc,
 			smc_ism_get_system_eid(conn->lgr->smcd, &eid);
 			if (eid)
 				memcpy(clc_v2->eid, eid, SMC_MAX_EID_LEN);
-			clc_v2->hdr.length =
-					htons(SMCD_CLC_ACCEPT_CONFIRM_LEN_V2);
+			len = SMCD_CLC_ACCEPT_CONFIRM_LEN_V2;
+			if (first_contact)
+				smc_clc_fill_fce(&fce, &len);
+			clc_v2->hdr.length = htons(len);
 		}
 		memcpy(trl.eyecatcher, SMCD_EYECATCHER,
 		       sizeof(SMCD_EYECATCHER));
@@ -701,6 +719,10 @@ static int smc_clc_send_confirm_accept(struct smc_sock *smc,
 						SMCD_CLC_ACCEPT_CONFIRM_LEN :
 						SMCR_CLC_ACCEPT_CONFIRM_LEN) -
 				   sizeof(trl);
+	if (version > SMC_V1 && first_contact) {
+		vec[i].iov_base = &fce;
+		vec[i++].iov_len = sizeof(fce);
+	}
 	vec[i].iov_base = &trl;
 	vec[i++].iov_len = sizeof(trl);
 	return kernel_sendmsg(smc->clcsock, &msg, vec, 1,
@@ -747,4 +769,14 @@ int smc_clc_send_accept(struct smc_sock *new_smc, bool srv_first_contact,
 		len = len >= 0 ? -EPROTO : -new_smc->clcsock->sk->sk_err;
 
 	return len > 0 ? 0 : len;
+}
+
+void __init smc_clc_init(void)
+{
+	struct new_utsname *u;
+
+	memset(smc_hostname, _S, sizeof(smc_hostname)); /* ASCII blanks */
+	u = utsname();
+	memcpy(smc_hostname, u->nodename,
+	       min_t(size_t, strlen(u->nodename), sizeof(smc_hostname)));
 }

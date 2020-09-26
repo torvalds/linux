@@ -199,6 +199,23 @@ struct smcd_clc_msg_accept_confirm_common {	/* SMCD accept/confirm */
 	__be32 linkid;		/* Link identifier */
 } __packed;
 
+#define SMC_CLC_OS_ZOS		1
+#define SMC_CLC_OS_LINUX	2
+#define SMC_CLC_OS_AIX		3
+
+struct smc_clc_first_contact_ext {
+	u8 reserved1;
+#if defined(__BIG_ENDIAN_BITFIELD)
+	u8 os_type : 4,
+	   release : 4;
+#elif defined(__LITTLE_ENDIAN_BITFIELD)
+	u8 release : 4,
+	   os_type : 4;
+#endif
+	u8 reserved2[2];
+	u8 hostname[SMC_MAX_HOSTNAME_LEN];
+};
+
 struct smc_clc_msg_accept_confirm {	/* clc accept / confirm message */
 	struct smc_clc_msg_hdr hdr;
 	union {
@@ -304,5 +321,6 @@ int smc_clc_send_confirm(struct smc_sock *smc, bool clnt_first_contact,
 			 u8 version);
 int smc_clc_send_accept(struct smc_sock *smc, bool srv_first_contact,
 			u8 version);
+void smc_clc_init(void) __init;
 
 #endif

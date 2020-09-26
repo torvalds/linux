@@ -26,6 +26,7 @@
 #include <linux/sched/signal.h>
 #include <linux/if_vlan.h>
 #include <linux/rcupdate_wait.h>
+#include <linux/ctype.h>
 
 #include <net/sock.h>
 #include <net/tcp.h>
@@ -448,6 +449,16 @@ static void smcr_conn_save_peer_info(struct smc_sock *smc,
 	smc->conn.tx_off = bufsize * (smc->conn.peer_rmbe_idx - 1);
 }
 
+static bool smc_isascii(char *hostname)
+{
+	int i;
+
+	for (i = 0; i < SMC_MAX_HOSTNAME_LEN; i++)
+		if (!isascii(hostname[i]))
+			return false;
+	return true;
+}
+
 static void smcd_conn_save_peer_info(struct smc_sock *smc,
 				     struct smc_clc_msg_accept_confirm *clc)
 {
@@ -459,6 +470,22 @@ static void smcd_conn_save_peer_info(struct smc_sock *smc,
 	smc->conn.peer_rmbe_size = bufsize - sizeof(struct smcd_cdc_msg);
 	atomic_set(&smc->conn.peer_rmbe_space, smc->conn.peer_rmbe_size);
 	smc->conn.tx_off = bufsize * smc->conn.peer_rmbe_idx;
+	if (clc->hdr.version > SMC_V1 &&
+	    (clc->hdr.typev2 & SMC_FIRST_CONTACT_MASK)) {
+		struct smc_clc_msg_accept_confirm_v2 *clc_v2 =
+			(struct smc_clc_msg_accept_confirm_v2 *)clc;
+		struct smc_clc_first_contact_ext *fce =
+			(struct smc_clc_first_contact_ext *)
+				(((u8 *)clc_v2) + sizeof(*clc_v2));
+
+		memcpy(smc->conn.lgr->negotiated_eid, clc_v2->eid,
+		       SMC_MAX_EID_LEN);
+		smc->conn.lgr->peer_os = fce->os_type;
+		smc->conn.lgr->peer_smc_release = fce->release;
+		if (smc_isascii(fce->hostname))
+			memcpy(smc->conn.lgr->peer_hostname, fce->hostname,
+			       SMC_MAX_HOSTNAME_LEN);
+	}
 }
 
 static void smc_conn_save_peer_info(struct smc_sock *smc,
@@ -662,6 +689,7 @@ static int smc_connect_ism_vlan_cleanup(struct smc_sock *smc,
 
 #define SMC_CLC_MAX_ACCEPT_LEN \
 	(sizeof(struct smc_clc_msg_accept_confirm_v2) + \
+	 sizeof(struct smc_clc_first_contact_ext) + \
 	 sizeof(struct smc_clc_msg_trail))
 
 /* CLC handshake during connect */
@@ -2422,6 +2450,7 @@ static int __init smc_init(void)
 		return rc;
 
 	smc_ism_init();
+	smc_clc_init();
 
 	rc = smc_pnet_init();
 	if (rc)

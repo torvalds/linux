@@ -231,6 +231,11 @@ struct smc_link_group {
 	u8			freeing : 1;	/* lgr is being freed */
 
 	bool			is_smcd;	/* SMC-R or SMC-D */
+	u8			smc_version;
+	u8			negotiated_eid[SMC_MAX_EID_LEN];
+	u8			peer_os;	/* peer operating system */
+	u8			peer_smc_release;
+	u8			peer_hostname[SMC_MAX_HOSTNAME_LEN];
 	union {
 		struct { /* SMC-R */
 			enum smc_lgr_role	role;
