@@ -434,6 +434,11 @@ static inline void msm_dp_irq_postinstall(struct msm_dp *dp_display)
 {
 }
 
+static inline void msm_dp_debugfs_init(struct msm_dp *dp_display,
+		struct drm_minor *minor)
+{
+}
+
 #endif
 
 void __init msm_mdp_register(void);
