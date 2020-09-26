@@ -299,6 +299,26 @@ struct mlx4_ib_rss {
 	u8			rss_key[MLX4_EN_RSS_KEY_SIZE];
 };
 
+enum {
+	/*
+	 * Largest possible UD header: send with GRH and immediate
+	 * data plus 18 bytes for an Ethernet header with VLAN/802.1Q
+	 * tag.  (LRH would only use 8 bytes, so Ethernet is the
+	 * biggest case)
+	 */
+	MLX4_IB_UD_HEADER_SIZE		= 82,
+	MLX4_IB_LSO_HEADER_SPARE	= 128,
+};
+
+struct mlx4_ib_sqp {
+	int pkey_index;
+	u32 qkey;
+	u32 send_psn;
+	struct ib_ud_header ud_header;
+	u8 header_buf[MLX4_IB_UD_HEADER_SIZE];
+	struct ib_qp *roce_v2_gsi;
+};
+
 struct mlx4_ib_qp {
 	union {
 		struct ib_qp	ibqp;
@@ -344,7 +364,10 @@ struct mlx4_ib_qp {
 	struct mlx4_wqn_range	*wqn_range;
 	/* Number of RSS QP parents that uses this WQ */
 	u32			rss_usecnt;
-	struct mlx4_ib_rss	*rss_ctx;
+	union {
+		struct mlx4_ib_rss *rss_ctx;
+		struct mlx4_ib_sqp *sqp;
+	};
 };
 
 struct mlx4_ib_srq {
