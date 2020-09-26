@@ -2,6 +2,7 @@
 
 #include <dt-bindings/input/gpio-keys.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/power/summit,smb347-charger.h>
 #include <dt-bindings/thermal/thermal.h>
 
 #include "tegra30.dtsi"
@@ -10,6 +11,9 @@
 
 / {
 	aliases {
+		mmc0 = &sdmmc4; /* eMMC */
+		mmc1 = &sdmmc3; /* WiFi */
+
 		rtc0 = &pmic;
 		rtc1 = "/rtc@7000e000";
 
@@ -836,6 +840,24 @@
 	i2c@7000c400 {
 		clock-frequency = <400000>;
 		status = "okay";
+
+		touchscreen@10 {
+			compatible ="elan,ektf3624";
+			reg = <0x10>;
+
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(H, 4) IRQ_TYPE_LEVEL_LOW>;
+
+			reset-gpios = <&gpio TEGRA_GPIO(H, 6) GPIO_ACTIVE_LOW>;
+
+			vcc33-supply = <&vcc_3v3_ts>;
+			vccio-supply = <&vcc_3v3_ts>;
+
+			touchscreen-size-x = <2112>;
+			touchscreen-size-y = <1280>;
+			touchscreen-swapped-x-y;
+			touchscreen-inverted-x;
+		};
 	};
 
 	i2c@7000c500 {
@@ -901,9 +923,24 @@
 			#thermal-sensor-cells = <1>;
 		};
 
-		battery@55 {
+		fuel-gauge@55 {
 			compatible = "ti,bq27541";
 			reg = <0x55>;
+			power-supplies = <&power_supply>;
+			monitored-battery = <&battery_cell>;
+		};
+
+		power_supply: charger@6a {
+			compatible = "summit,smb347";
+			reg = <0x6a>;
+
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(V, 1) IRQ_TYPE_EDGE_BOTH>;
+
+			summit,enable-charge-control = <SMB3XX_CHG_ENABLE_PIN_ACTIVE_LOW>;
+			summit,enable-usb-charging;
+
+			monitored-battery = <&battery_cell>;
 		};
 	};
 
@@ -936,12 +973,17 @@
 		power-off-delay-us = <300>;
 	};
 
-	mmc@78000400 {
+	sdmmc3: mmc@78000400 {
 		status = "okay";
 
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		assigned-clocks = <&tegra_car TEGRA30_CLK_SDMMC3>;
+		assigned-clock-parents = <&tegra_car TEGRA30_CLK_PLL_C>;
+		assigned-clock-rates = <50000000>;
+
+		max-frequency = <50000000>;
 		keep-power-in-suspend;
 		bus-width = <4>;
 		non-removable;
@@ -960,7 +1002,7 @@
 		};
 	};
 
-	mmc@78000600 {
+	sdmmc4: mmc@78000600 {
 		status = "okay";
 		bus-width = <8>;
 		vmmc-supply = <&vcore_emmc>;
@@ -991,6 +1033,12 @@
 		brightness-levels = <1 255>;
 		num-interpolated-steps = <254>;
 		default-brightness-level = <15>;
+	};
+
+	battery_cell: battery-cell {
+		compatible = "simple-battery";
+		constant-charge-current-max-microamp = <1800000>;
+		operating-range-celsius = <0 45>;
 	};
 
 	/* PMIC has a built-in 32KHz oscillator which is used by PMC */
