@@ -558,7 +558,7 @@
 			};
 		};
 
-		nfc: nand@d8000000 {
+		nfc: nand-controller@d8000000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "fsl,imx27-nand";

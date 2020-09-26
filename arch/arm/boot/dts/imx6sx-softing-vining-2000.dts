@@ -93,7 +93,7 @@
 &ecspi4 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi4>;
-	cs-gpios = <&gpio7 4 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio7 4 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 
