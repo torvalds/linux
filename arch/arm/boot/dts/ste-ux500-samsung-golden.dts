@@ -316,6 +316,28 @@
 				};
 			};
 		};
+
+		mcde@a0350000 {
+			status = "okay";
+			pinctrl-names = "default";
+			pinctrl-0 = <&dsi_default_mode>;
+
+			dsi-controller@a0351000 {
+				panel@0 {
+					compatible = "samsung,s6e63m0";
+					reg = <0>;
+					vdd3-supply = <&panel_reg_3v0>;
+					vci-supply = <&panel_reg_1v8>;
+					reset-gpios = <&gpio4 11 GPIO_ACTIVE_LOW>;
+					/* ESD (electrostatic discharge) detection interrupt */
+					interrupt-parent = <&gpio2>;
+					interrupts = <18 IRQ_TYPE_EDGE_RISING>;
+					interrupt-names = "esd";
+					pinctrl-names = "default";
+					pinctrl-0 = <&display_default_mode>;
+				};
+			};
+		};
 	};
 
 	gpio-keys {
@@ -415,6 +437,40 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&wlan_en_default>;
 	};
+
+	/* MIC5366 GPIO-controlled regulator */
+	panel_reg_1v8: regulator-panel-1v8 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "panel-fixed-supply";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		/* GPIO219 */
+		gpio = <&gpio6 27 GPIO_ACTIVE_HIGH>;
+
+		startup-delay-us = <200>;
+		enable-active-high;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&panel_reg_default_mode>;
+	};
+
+	/* MIC5366 GPIO-controlled regulator */
+	panel_reg_3v0: regulator-panel-3v0 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "panel-fixed-supply";
+		regulator-min-microvolt = <3000000>;
+		regulator-max-microvolt = <3000000>;
+		/* GPIO219 */
+		gpio = <&gpio6 27 GPIO_ACTIVE_HIGH>;
+
+		startup-delay-us = <200>;
+		enable-active-high;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&panel_reg_default_mode>;
+	};
 };
 
 &pinctrl {
@@ -472,6 +528,41 @@
 			golden_cfg1 {
 				pins = "GPIO223_AH9";	/* MEM_LDO_EN */
 				ste,config = <&gpio_out_hi>;
+			};
+		};
+	};
+
+	mcde {
+		dsi_default_mode: dsi_default {
+			default_mux1 {
+				/* Mux in VSI0 used for DSI TE */
+				function = "lcd";
+				groups =
+				"lcdvsi0_a_1"; /* VSI0 for LCD */
+			};
+			default_cfg1 {
+				pins =
+				"GPIO68_E1"; /* VSI0 */
+				ste,config = <&in_nopull>;
+			};
+		};
+	};
+
+	display {
+		display_default_mode: display_default {
+			golden_cfg1 {
+				pins = "GPIO139_C9"; /* MIPI_DSI0_RESET_N */
+				ste,config = <&gpio_out_lo>;
+			};
+			golden_cfg2 {
+				pins = "GPIO82_C1"; /* LDI_ESD_DET */
+				ste,config = <&gpio_in_pu>;
+			};
+		};
+		panel_reg_default_mode: panel_reg_default {
+			golden_cfg1 {
+				pins = "GPIO219_AG10"; /* LCD_PWR_EN */
+				ste,config = <&gpio_out_lo>;
 			};
 		};
 	};
