@@ -292,7 +292,7 @@ static int tps65910_ck32k_init(struct tps65910 *tps65910,
 	if (!pmic_pdata->en_ck32k_xtal)
 		return 0;
 
-	ret = tps65910_reg_clear_bits(tps65910, TPS65910_DEVCTRL,
+	ret = regmap_clear_bits(tps65910->regmap, TPS65910_DEVCTRL,
 						DEVCTRL_CK32K_CTRL_MASK);
 	if (ret < 0) {
 		dev_err(tps65910->dev, "clear ck32k_ctrl failed: %d\n", ret);
@@ -314,7 +314,7 @@ static int tps65910_sleepinit(struct tps65910 *tps65910,
 	dev = tps65910->dev;
 
 	/* enabling SLEEP device state */
-	ret = tps65910_reg_set_bits(tps65910, TPS65910_DEVCTRL,
+	ret = regmap_set_bits(tps65910->regmap, TPS65910_DEVCTRL,
 				DEVCTRL_DEV_SLP_MASK);
 	if (ret < 0) {
 		dev_err(dev, "set dev_slp failed: %d\n", ret);
@@ -322,7 +322,7 @@ static int tps65910_sleepinit(struct tps65910 *tps65910,
 	}
 
 	if (pmic_pdata->slp_keepon.therm_keepon) {
-		ret = tps65910_reg_set_bits(tps65910,
+		ret = regmap_set_bits(tps65910->regmap,
 				TPS65910_SLEEP_KEEP_RES_ON,
 				SLEEP_KEEP_RES_ON_THERM_KEEPON_MASK);
 		if (ret < 0) {
@@ -332,7 +332,7 @@ static int tps65910_sleepinit(struct tps65910 *tps65910,
 	}
 
 	if (pmic_pdata->slp_keepon.clkout32k_keepon) {
-		ret = tps65910_reg_set_bits(tps65910,
+		ret = regmap_set_bits(tps65910->regmap,
 				TPS65910_SLEEP_KEEP_RES_ON,
 				SLEEP_KEEP_RES_ON_CLKOUT32K_KEEPON_MASK);
 		if (ret < 0) {
@@ -342,7 +342,7 @@ static int tps65910_sleepinit(struct tps65910 *tps65910,
 	}
 
 	if (pmic_pdata->slp_keepon.i2chs_keepon) {
-		ret = tps65910_reg_set_bits(tps65910,
+		ret = regmap_set_bits(tps65910->regmap,
 				TPS65910_SLEEP_KEEP_RES_ON,
 				SLEEP_KEEP_RES_ON_I2CHS_KEEPON_MASK);
 		if (ret < 0) {
@@ -354,7 +354,7 @@ static int tps65910_sleepinit(struct tps65910 *tps65910,
 	return 0;
 
 disable_dev_slp:
-	tps65910_reg_clear_bits(tps65910, TPS65910_DEVCTRL,
+	regmap_clear_bits(tps65910->regmap, TPS65910_DEVCTRL,
 				DEVCTRL_DEV_SLP_MASK);
 
 err_sleep_init:
@@ -436,11 +436,11 @@ static void tps65910_power_off(void)
 
 	tps65910 = dev_get_drvdata(&tps65910_i2c_client->dev);
 
-	if (tps65910_reg_set_bits(tps65910, TPS65910_DEVCTRL,
+	if (regmap_set_bits(tps65910->regmap, TPS65910_DEVCTRL,
 			DEVCTRL_PWR_OFF_MASK) < 0)
 		return;
 
-	tps65910_reg_clear_bits(tps65910, TPS65910_DEVCTRL,
+	regmap_clear_bits(tps65910->regmap, TPS65910_DEVCTRL,
 			DEVCTRL_DEV_ON_MASK);
 }
 
