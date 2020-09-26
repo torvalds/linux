@@ -39,20 +39,16 @@ struct mlx5_ib_gsi_wr {
 	bool completed:1;
 };
 
-static struct mlx5_ib_gsi_qp *gsi_qp(struct ib_qp *qp)
-{
-	return container_of(qp, struct mlx5_ib_gsi_qp, ibqp);
-}
-
 static bool mlx5_ib_deth_sqpn_cap(struct mlx5_ib_dev *dev)
 {
 	return MLX5_CAP_GEN(dev->mdev, set_deth_sqpn);
 }
 
 /* Call with gsi->lock locked */
-static void generate_completions(struct mlx5_ib_gsi_qp *gsi)
+static void generate_completions(struct mlx5_ib_qp *mqp)
 {
-	struct ib_cq *gsi_cq = gsi->ibqp.send_cq;
+	struct mlx5_ib_gsi_qp *gsi = &mqp->gsi;
+	struct ib_cq *gsi_cq = mqp->ibqp.send_cq;
 	struct mlx5_ib_gsi_wr *wr;
 	u32 index;
 
@@ -78,6 +74,7 @@ static void handle_single_completion(struct ib_cq *cq, struct ib_wc *wc)
 	struct mlx5_ib_gsi_qp *gsi = cq->cq_context;
 	struct mlx5_ib_gsi_wr *wr =
 		container_of(wc->wr_cqe, struct mlx5_ib_gsi_wr, cqe);
+	struct mlx5_ib_qp *mqp = container_of(gsi, struct mlx5_ib_qp, gsi);
 	u64 wr_id;
 	unsigned long flags;
 
@@ -86,9 +83,9 @@ static void handle_single_completion(struct ib_cq *cq, struct ib_wc *wc)
 	wr_id = wr->wc.wr_id;
 	wr->wc = *wc;
 	wr->wc.wr_id = wr_id;
-	wr->wc.qp = &gsi->ibqp;
+	wr->wc.qp = &mqp->ibqp;
 
-	generate_completions(gsi);
+	generate_completions(mqp);
 	spin_unlock_irqrestore(&gsi->lock, flags);
 }
 
@@ -130,7 +127,7 @@ struct ib_qp *mlx5_ib_gsi_create_qp(struct ib_pd *pd,
 		goto err_free_tx;
 	}
 
-	mutex_init(&gsi->mutex);
+	mutex_init(&mqp->mutex);
 
 	mutex_lock(&dev->devr.mutex);
 
@@ -145,7 +142,7 @@ struct ib_qp *mlx5_ib_gsi_create_qp(struct ib_pd *pd,
 
 	gsi->cap = init_attr->cap;
 	gsi->sq_sig_type = init_attr->sq_sig_type;
-	gsi->ibqp.qp_num = 1;
+	mqp->ibqp.qp_num = 1;
 	gsi->port_num = port_num;
 
 	gsi->cq = ib_alloc_cq(pd->device, gsi, init_attr->cap.max_send_wr, 0,
@@ -188,7 +185,7 @@ struct ib_qp *mlx5_ib_gsi_create_qp(struct ib_pd *pd,
 
 	mutex_unlock(&dev->devr.mutex);
 
-	return &gsi->ibqp;
+	return &mqp->ibqp;
 
 err_destroy_cq:
 	ib_free_cq(gsi->cq);
@@ -362,56 +359,54 @@ err_destroy_qp:
 
 static void setup_qps(struct mlx5_ib_gsi_qp *gsi)
 {
+	struct mlx5_ib_dev *dev = to_mdev(gsi->rx_qp->device);
 	u16 qp_index;
 
+	mutex_lock(&dev->devr.mutex);
 	for (qp_index = 0; qp_index < gsi->num_qps; ++qp_index)
 		setup_qp(gsi, qp_index);
+	mutex_unlock(&dev->devr.mutex);
 }
 
 int mlx5_ib_gsi_modify_qp(struct ib_qp *qp, struct ib_qp_attr *attr,
 			  int attr_mask)
 {
 	struct mlx5_ib_dev *dev = to_mdev(qp->device);
-	struct mlx5_ib_gsi_qp *gsi = gsi_qp(qp);
+	struct mlx5_ib_qp *mqp = to_mqp(qp);
+	struct mlx5_ib_gsi_qp *gsi = &mqp->gsi;
 	int ret;
 
 	mlx5_ib_dbg(dev, "modifying GSI QP to state %d\n", attr->qp_state);
 
-	mutex_lock(&gsi->mutex);
 	ret = ib_modify_qp(gsi->rx_qp, attr, attr_mask);
 	if (ret) {
 		mlx5_ib_warn(dev, "unable to modify GSI rx QP: %d\n", ret);
-		goto unlock;
+		return ret;
 	}
 
 	if (to_mqp(gsi->rx_qp)->state == IB_QPS_RTS)
 		setup_qps(gsi);
-
-unlock:
-	mutex_unlock(&gsi->mutex);
-
-	return ret;
+	return 0;
 }
 
 int mlx5_ib_gsi_query_qp(struct ib_qp *qp, struct ib_qp_attr *qp_attr,
 			 int qp_attr_mask,
 			 struct ib_qp_init_attr *qp_init_attr)
 {
-	struct mlx5_ib_gsi_qp *gsi = gsi_qp(qp);
+	struct mlx5_ib_qp *mqp = to_mqp(qp);
+	struct mlx5_ib_gsi_qp *gsi = &mqp->gsi;
 	int ret;
 
-	mutex_lock(&gsi->mutex);
 	ret = ib_query_qp(gsi->rx_qp, qp_attr, qp_attr_mask, qp_init_attr);
 	qp_init_attr->cap = gsi->cap;
-	mutex_unlock(&gsi->mutex);
-
 	return ret;
 }
 
 /* Call with gsi->lock locked */
-static int mlx5_ib_add_outstanding_wr(struct mlx5_ib_gsi_qp *gsi,
+static int mlx5_ib_add_outstanding_wr(struct mlx5_ib_qp *mqp,
 				      struct ib_ud_wr *wr, struct ib_wc *wc)
 {
+	struct mlx5_ib_gsi_qp *gsi = &mqp->gsi;
 	struct mlx5_ib_dev *dev = to_mdev(gsi->rx_qp->device);
 	struct mlx5_ib_gsi_wr *gsi_wr;
 
@@ -440,22 +435,21 @@ static int mlx5_ib_add_outstanding_wr(struct mlx5_ib_gsi_qp *gsi,
 }
 
 /* Call with gsi->lock locked */
-static int mlx5_ib_gsi_silent_drop(struct mlx5_ib_gsi_qp *gsi,
-				    struct ib_ud_wr *wr)
+static int mlx5_ib_gsi_silent_drop(struct mlx5_ib_qp *mqp, struct ib_ud_wr *wr)
 {
 	struct ib_wc wc = {
 		{ .wr_id = wr->wr.wr_id },
 		.status = IB_WC_SUCCESS,
 		.opcode = IB_WC_SEND,
-		.qp = &gsi->ibqp,
+		.qp = &mqp->ibqp,
 	};
 	int ret;
 
-	ret = mlx5_ib_add_outstanding_wr(gsi, wr, &wc);
+	ret = mlx5_ib_add_outstanding_wr(mqp, wr, &wc);
 	if (ret)
 		return ret;
 
-	generate_completions(gsi);
+	generate_completions(mqp);
 
 	return 0;
 }
@@ -482,7 +476,8 @@ static struct ib_qp *get_tx_qp(struct mlx5_ib_gsi_qp *gsi, struct ib_ud_wr *wr)
 int mlx5_ib_gsi_post_send(struct ib_qp *qp, const struct ib_send_wr *wr,
 			  const struct ib_send_wr **bad_wr)
 {
-	struct mlx5_ib_gsi_qp *gsi = gsi_qp(qp);
+	struct mlx5_ib_qp *mqp = to_mqp(qp);
+	struct mlx5_ib_gsi_qp *gsi = &mqp->gsi;
 	struct ib_qp *tx_qp;
 	unsigned long flags;
 	int ret;
@@ -495,14 +490,14 @@ int mlx5_ib_gsi_post_send(struct ib_qp *qp, const struct ib_send_wr *wr,
 		spin_lock_irqsave(&gsi->lock, flags);
 		tx_qp = get_tx_qp(gsi, &cur_wr);
 		if (!tx_qp) {
-			ret = mlx5_ib_gsi_silent_drop(gsi, &cur_wr);
+			ret = mlx5_ib_gsi_silent_drop(mqp, &cur_wr);
 			if (ret)
 				goto err;
 			spin_unlock_irqrestore(&gsi->lock, flags);
 			continue;
 		}
 
-		ret = mlx5_ib_add_outstanding_wr(gsi, &cur_wr, NULL);
+		ret = mlx5_ib_add_outstanding_wr(mqp, &cur_wr, NULL);
 		if (ret)
 			goto err;
 
@@ -526,7 +521,8 @@ err:
 int mlx5_ib_gsi_post_recv(struct ib_qp *qp, const struct ib_recv_wr *wr,
 			  const struct ib_recv_wr **bad_wr)
 {
-	struct mlx5_ib_gsi_qp *gsi = gsi_qp(qp);
+	struct mlx5_ib_qp *mqp = to_mqp(qp);
+	struct mlx5_ib_gsi_qp *gsi = &mqp->gsi;
 
 	return ib_post_recv(gsi->rx_qp, wr, bad_wr);
 }
@@ -536,7 +532,5 @@ void mlx5_ib_gsi_pkey_change(struct mlx5_ib_gsi_qp *gsi)
 	if (!gsi)
 		return;
 
-	mutex_lock(&gsi->mutex);
 	setup_qps(gsi);
-	mutex_unlock(&gsi->mutex);
 }

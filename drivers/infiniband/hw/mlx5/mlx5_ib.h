@@ -385,13 +385,10 @@ struct mlx5_ib_dct {
 };
 
 struct mlx5_ib_gsi_qp {
-	struct ib_qp ibqp;
 	struct ib_qp *rx_qp;
 	u8 port_num;
 	struct ib_qp_cap cap;
 	enum ib_sig_type sq_sig_type;
-	/* Serialize qp state modifications */
-	struct mutex mutex;
 	struct ib_cq *cq;
 	struct mlx5_ib_gsi_wr *outstanding_wrs;
 	u32 outstanding_pi, outstanding_ci;
@@ -715,7 +712,6 @@ struct mlx5_mr_cache {
 };
 
 struct mlx5_ib_port_resources {
-	struct mlx5_ib_resources *devr;
 	struct mlx5_ib_gsi_qp *gsi;
 	struct work_struct pkey_change_work;
 };

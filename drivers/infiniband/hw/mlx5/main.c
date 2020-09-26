@@ -2692,9 +2692,7 @@ static void pkey_change_handler(struct work_struct *work)
 		container_of(work, struct mlx5_ib_port_resources,
 			     pkey_change_work);
 
-	mutex_lock(&ports->devr->mutex);
 	mlx5_ib_gsi_pkey_change(ports->gsi);
-	mutex_unlock(&ports->devr->mutex);
 }
 
 static void mlx5_ib_handle_internal_error(struct mlx5_ib_dev *ibdev)
@@ -3120,11 +3118,9 @@ static int mlx5_ib_dev_res_init(struct mlx5_ib_dev *dev)
 	atomic_inc(&devr->p0->usecnt);
 	atomic_set(&devr->s1->usecnt, 0);
 
-	for (port = 0; port < ARRAY_SIZE(devr->ports); ++port) {
+	for (port = 0; port < ARRAY_SIZE(devr->ports); ++port)
 		INIT_WORK(&devr->ports[port].pkey_change_work,
 			  pkey_change_handler);
-		devr->ports[port].devr = devr;
-	}
 
 	return 0;
 
