@@ -732,6 +732,27 @@ static int ep_eventpoll_release(struct inode *inode, struct file *file)
 static __poll_t ep_read_events_proc(struct eventpoll *ep, struct list_head *head,
 			       int depth);
 
+static __poll_t __ep_eventpoll_poll(struct file *file, poll_table *wait, int depth)
+{
+	struct eventpoll *ep = file->private_data;
+	LIST_HEAD(txlist);
+	__poll_t res;
+
+	/* Insert inside our poll wait queue */
+	poll_wait(file, &ep->poll_wait, wait);
+
+	/*
+	 * Proceed to find out if wanted events are really available inside
+	 * the ready list.
+	 */
+	mutex_lock_nested(&ep->mtx, depth);
+	ep_start_scan(ep, &txlist);
+	res = ep_read_events_proc(ep, &txlist, depth + 1);
+	ep_done_scan(ep, &txlist);
+	mutex_unlock(&ep->mtx);
+	return res;
+}
+
 /*
  * Differs from ep_eventpoll_poll() in that internal callers already have
  * the ep->mtx so we need to start from depth=1, such that mutex_lock_nested()
@@ -740,22 +761,14 @@ static __poll_t ep_read_events_proc(struct eventpoll *ep, struct list_head *head
 static __poll_t ep_item_poll(const struct epitem *epi, poll_table *pt,
 				 int depth)
 {
-	struct eventpoll *ep;
-	LIST_HEAD(txlist);
+	struct file *file = epi->ffd.file;
 	__poll_t res;
 
 	pt->_key = epi->event.events;
-	if (!is_file_epoll(epi->ffd.file))
-		return vfs_poll(epi->ffd.file, pt) & epi->event.events;
-
-	ep = epi->ffd.file->private_data;
-	poll_wait(epi->ffd.file, &ep->poll_wait, pt);
-
-	mutex_lock_nested(&ep->mtx, depth);
-	ep_start_scan(ep, &txlist);
-	res = ep_read_events_proc(ep, &txlist, depth + 1);
-	ep_done_scan(ep, &txlist);
-	mutex_unlock(&ep->mtx);
+	if (!is_file_epoll(file))
+		res = vfs_poll(file, pt);
+	else
+		res = __ep_eventpoll_poll(file, pt, depth);
 	return res & epi->event.events;
 }
 
@@ -786,23 +799,7 @@ static __poll_t ep_read_events_proc(struct eventpoll *ep, struct list_head *head
 
 static __poll_t ep_eventpoll_poll(struct file *file, poll_table *wait)
 {
-	struct eventpoll *ep = file->private_data;
-	LIST_HEAD(txlist);
-	__poll_t res;
-
-	/* Insert inside our poll wait queue */
-	poll_wait(file, &ep->poll_wait, wait);
-
-	/*
-	 * Proceed to find out if wanted events are really available inside
-	 * the ready list.
-	 */
-	mutex_lock(&ep->mtx);
-	ep_start_scan(ep, &txlist);
-	res = ep_read_events_proc(ep, &txlist, 1);
-	ep_done_scan(ep, &txlist);
-	mutex_unlock(&ep->mtx);
-	return res;
+	return __ep_eventpoll_poll(file, wait, 0);
 }
 
 #ifdef CONFIG_PROC_FS
