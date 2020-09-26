@@ -455,6 +455,9 @@ void ingenic_drm_plane_config(struct device *dev,
 		case DRM_FORMAT_RGB565:
 			ctrl |= JZ_LCD_OSDCTRL_BPP_15_16;
 			break;
+		case DRM_FORMAT_RGB888:
+			ctrl |= JZ_LCD_OSDCTRL_BPP_24_COMP;
+			break;
 		case DRM_FORMAT_XRGB8888:
 			ctrl |= JZ_LCD_OSDCTRL_BPP_18_24;
 			break;
@@ -472,6 +475,9 @@ void ingenic_drm_plane_config(struct device *dev,
 			fallthrough;
 		case DRM_FORMAT_RGB565:
 			ctrl |= JZ_LCD_CTRL_BPP_15_16;
+			break;
+		case DRM_FORMAT_RGB888:
+			ctrl |= JZ_LCD_CTRL_BPP_24_COMP;
 			break;
 		case DRM_FORMAT_XRGB8888:
 			ctrl |= JZ_LCD_CTRL_BPP_18_24;
@@ -1227,6 +1233,7 @@ static const u32 jz4725b_formats_f0[] = {
 static const u32 jz4770_formats_f1[] = {
 	DRM_FORMAT_XRGB1555,
 	DRM_FORMAT_RGB565,
+	DRM_FORMAT_RGB888,
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_XRGB2101010,
 };
@@ -1234,6 +1241,7 @@ static const u32 jz4770_formats_f1[] = {
 static const u32 jz4770_formats_f0[] = {
 	DRM_FORMAT_XRGB1555,
 	DRM_FORMAT_RGB565,
+	DRM_FORMAT_RGB888,
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_XRGB2101010,
 };
