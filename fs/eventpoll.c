@@ -1845,19 +1845,14 @@ send_events:
  *                      result in excessive stack usage).
  *
  * @priv: Pointer to the epoll file to be currently checked.
- * @cookie: Original cookie for this call. This is the top-of-the-chain epoll
- *          data structure pointer.
- * @call_nests: Current dept of the @ep_call_nested() call stack.
+ * @depth: Current depth of the path being checked.
  *
  * Returns: Returns zero if adding the epoll @file inside current epoll
  *          structure @ep does not violate the constraints, or -1 otherwise.
  */
-static int ep_loop_check_proc(void *priv, void *cookie, int depth)
+static int ep_loop_check_proc(struct eventpoll *ep, int depth)
 {
 	int error = 0;
-	struct file *file = priv;
-	struct eventpoll *ep = file->private_data;
-	struct eventpoll *ep_tovisit;
 	struct rb_node *rbp;
 	struct epitem *epi;
 
@@ -1866,15 +1861,14 @@ static int ep_loop_check_proc(void *priv, void *cookie, int depth)
 	for (rbp = rb_first_cached(&ep->rbr); rbp; rbp = rb_next(rbp)) {
 		epi = rb_entry(rbp, struct epitem, rbn);
 		if (unlikely(is_file_epoll(epi->ffd.file))) {
+			struct eventpoll *ep_tovisit;
 			ep_tovisit = epi->ffd.file->private_data;
 			if (ep_tovisit->gen == loop_check_gen)
 				continue;
-			if (ep_tovisit == inserting_into || depth > EP_MAX_NESTS) {
+			if (ep_tovisit == inserting_into || depth > EP_MAX_NESTS)
 				error = -1;
-			} else {
-				error = ep_loop_check_proc(epi->ffd.file, ep_tovisit,
-						   depth + 1);
-			}
+			else
+				error = ep_loop_check_proc(ep_tovisit, depth + 1);
 			if (error != 0)
 				break;
 		} else {
@@ -1899,20 +1893,20 @@ static int ep_loop_check_proc(void *priv, void *cookie, int depth)
 }
 
 /**
- * ep_loop_check - Performs a check to verify that adding an epoll file (@file)
- *                 another epoll file (represented by @ep) does not create
+ * ep_loop_check - Performs a check to verify that adding an epoll file (@to)
+ *                 into another epoll file (represented by @from) does not create
  *                 closed loops or too deep chains.
  *
- * @ep: Pointer to the epoll private data structure.
- * @file: Pointer to the epoll file to be checked.
+ * @from: Pointer to the epoll we are inserting into.
+ * @to: Pointer to the epoll to be inserted.
  *
- * Returns: Returns zero if adding the epoll @file inside current epoll
- *          structure @ep does not violate the constraints, or -1 otherwise.
+ * Returns: Returns zero if adding the epoll @to inside the epoll @from
+ * does not violate the constraints, or -1 otherwise.
  */
-static int ep_loop_check(struct eventpoll *ep, struct file *file)
+static int ep_loop_check(struct eventpoll *ep, struct eventpoll *to)
 {
 	inserting_into = ep;
-	return ep_loop_check_proc(file, ep, 0);
+	return ep_loop_check_proc(to, 0);
 }
 
 static void clear_tfile_check_list(void)
@@ -2086,8 +2080,9 @@ int do_epoll_ctl(int epfd, int op, int fd, struct epoll_event *epds,
 			loop_check_gen++;
 			full_check = 1;
 			if (is_file_epoll(tf.file)) {
+				tep = tf.file->private_data;
 				error = -ELOOP;
-				if (ep_loop_check(ep, tf.file) != 0)
+				if (ep_loop_check(ep, tep) != 0)
 					goto error_tgt_fput;
 			} else {
 				get_file(tf.file);
@@ -2098,7 +2093,6 @@ int do_epoll_ctl(int epfd, int op, int fd, struct epoll_event *epds,
 			if (error)
 				goto error_tgt_fput;
 			if (is_file_epoll(tf.file)) {
-				tep = tf.file->private_data;
 				error = epoll_mutex_lock(&tep->mtx, 1, nonblock);
 				if (error) {
 					mutex_unlock(&ep->mtx);
