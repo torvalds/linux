@@ -439,8 +439,8 @@ static int felix_init_structs(struct felix *felix, int num_phys_ports)
 	ocelot->vcap_is2_actions= felix->info->vcap_is2_actions;
 	ocelot->vcap		= felix->info->vcap;
 	ocelot->ops		= felix->info->ops;
-	ocelot->inj_prefix	= OCELOT_TAG_PREFIX_NONE;
-	ocelot->xtr_prefix	= OCELOT_TAG_PREFIX_LONG;
+	ocelot->inj_prefix	= OCELOT_TAG_PREFIX_SHORT;
+	ocelot->xtr_prefix	= OCELOT_TAG_PREFIX_SHORT;
 
 	port_phy_modes = kcalloc(num_phys_ports, sizeof(phy_interface_t),
 				 GFP_KERNEL);
@@ -511,7 +511,7 @@ static int felix_init_structs(struct felix *felix, int num_phys_ports)
 			return PTR_ERR(target);
 		}
 
-		template = devm_kzalloc(ocelot->dev, OCELOT_TAG_LEN,
+		template = devm_kzalloc(ocelot->dev, OCELOT_TOTAL_TAG_LEN,
 					GFP_KERNEL);
 		if (!template) {
 			dev_err(ocelot->dev,
