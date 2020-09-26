@@ -1007,41 +1007,42 @@ static atomic_t zcrypt_step = ATOMIC_INIT(0);
  * @mex: pointer to the modexpo request buffer
  */
 static long zcrypt_msgtype6_modexpo(struct zcrypt_queue *zq,
-				  struct ica_rsa_modexpo *mex)
+				    struct ica_rsa_modexpo *mex,
+				    struct ap_message *ap_msg)
 {
-	struct ap_message ap_msg;
 	struct response_type resp_type = {
 		.type = CEXXC_RESPONSE_TYPE_ICA,
 	};
 	int rc;
 
-	ap_init_message(&ap_msg);
-	ap_msg.msg = (void *) get_zeroed_page(GFP_KERNEL);
-	if (!ap_msg.msg)
+	ap_msg->msg = (void *) get_zeroed_page(GFP_KERNEL);
+	if (!ap_msg->msg)
 		return -ENOMEM;
-	ap_msg.receive = zcrypt_msgtype6_receive;
-	ap_msg.psmid = (((unsigned long long) current->pid) << 32) +
-				atomic_inc_return(&zcrypt_step);
-	ap_msg.private = &resp_type;
-	rc = ICAMEX_msg_to_type6MEX_msgX(zq, &ap_msg, mex);
+	ap_msg->receive = zcrypt_msgtype6_receive;
+	ap_msg->psmid = (((unsigned long long) current->pid) << 32) +
+		atomic_inc_return(&zcrypt_step);
+	ap_msg->private = &resp_type;
+	rc = ICAMEX_msg_to_type6MEX_msgX(zq, ap_msg, mex);
 	if (rc)
 		goto out_free;
 	init_completion(&resp_type.work);
-	rc = ap_queue_message(zq->queue, &ap_msg);
+	rc = ap_queue_message(zq->queue, ap_msg);
 	if (rc)
 		goto out_free;
 	rc = wait_for_completion_interruptible(&resp_type.work);
 	if (rc == 0) {
-		rc = ap_msg.rc;
+		rc = ap_msg->rc;
 		if (rc == 0)
-			rc = convert_response_ica(zq, &ap_msg,
+			rc = convert_response_ica(zq, ap_msg,
 						  mex->outputdata,
 						  mex->outputdatalength);
 	} else
 		/* Signal pending. */
-		ap_cancel_message(zq->queue, &ap_msg);
+		ap_cancel_message(zq->queue, ap_msg);
 out_free:
-	free_page((unsigned long) ap_msg.msg);
+	free_page((unsigned long) ap_msg->msg);
+	ap_msg->private = NULL;
+	ap_msg->msg = NULL;
 	return rc;
 }
 
@@ -1053,42 +1054,43 @@ out_free:
  * @crt: pointer to the modexpoc_crt request buffer
  */
 static long zcrypt_msgtype6_modexpo_crt(struct zcrypt_queue *zq,
-				      struct ica_rsa_modexpo_crt *crt)
+					struct ica_rsa_modexpo_crt *crt,
+					struct ap_message *ap_msg)
 {
-	struct ap_message ap_msg;
 	struct response_type resp_type = {
 		.type = CEXXC_RESPONSE_TYPE_ICA,
 	};
 	int rc;
 
-	ap_init_message(&ap_msg);
-	ap_msg.msg = (void *) get_zeroed_page(GFP_KERNEL);
-	if (!ap_msg.msg)
+	ap_msg->msg = (void *) get_zeroed_page(GFP_KERNEL);
+	if (!ap_msg->msg)
 		return -ENOMEM;
-	ap_msg.receive = zcrypt_msgtype6_receive;
-	ap_msg.psmid = (((unsigned long long) current->pid) << 32) +
-				atomic_inc_return(&zcrypt_step);
-	ap_msg.private = &resp_type;
-	rc = ICACRT_msg_to_type6CRT_msgX(zq, &ap_msg, crt);
+	ap_msg->receive = zcrypt_msgtype6_receive;
+	ap_msg->psmid = (((unsigned long long) current->pid) << 32) +
+		atomic_inc_return(&zcrypt_step);
+	ap_msg->private = &resp_type;
+	rc = ICACRT_msg_to_type6CRT_msgX(zq, ap_msg, crt);
 	if (rc)
 		goto out_free;
 	init_completion(&resp_type.work);
-	rc = ap_queue_message(zq->queue, &ap_msg);
+	rc = ap_queue_message(zq->queue, ap_msg);
 	if (rc)
 		goto out_free;
 	rc = wait_for_completion_interruptible(&resp_type.work);
 	if (rc == 0) {
-		rc = ap_msg.rc;
+		rc = ap_msg->rc;
 		if (rc == 0)
-			rc = convert_response_ica(zq, &ap_msg,
+			rc = convert_response_ica(zq, ap_msg,
 						  crt->outputdata,
 						  crt->outputdatalength);
 	} else {
 		/* Signal pending. */
-		ap_cancel_message(zq->queue, &ap_msg);
+		ap_cancel_message(zq->queue, ap_msg);
 	}
 out_free:
-	free_page((unsigned long) ap_msg.msg);
+	free_page((unsigned long) ap_msg->msg);
+	ap_msg->private = NULL;
+	ap_msg->msg = NULL;
 	return rc;
 }
 

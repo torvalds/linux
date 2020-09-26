@@ -635,12 +635,15 @@ static long zcrypt_rsa_modexpo(struct ap_perms *perms,
 {
 	struct zcrypt_card *zc, *pref_zc;
 	struct zcrypt_queue *zq, *pref_zq;
+	struct ap_message ap_msg;
 	unsigned int wgt = 0, pref_wgt = 0;
 	unsigned int func_code;
 	int cpen, qpen, qid = 0, rc = -ENODEV;
 	struct module *mod;
 
 	trace_s390_zcrypt_req(mex, TP_ICARSAMODEXPO);
+
+	ap_init_message(&ap_msg);
 
 	if (mex->outputdatalength < mex->inputdatalength) {
 		func_code = 0;
@@ -712,13 +715,14 @@ static long zcrypt_rsa_modexpo(struct ap_perms *perms,
 	}
 
 	qid = pref_zq->queue->qid;
-	rc = pref_zq->ops->rsa_modexpo(pref_zq, mex);
+	rc = pref_zq->ops->rsa_modexpo(pref_zq, mex, &ap_msg);
 
 	spin_lock(&zcrypt_list_lock);
 	zcrypt_drop_queue(pref_zc, pref_zq, mod, wgt);
 	spin_unlock(&zcrypt_list_lock);
 
 out:
+	ap_release_message(&ap_msg);
 	if (tr) {
 		tr->last_rc = rc;
 		tr->last_qid = qid;
@@ -734,12 +738,15 @@ static long zcrypt_rsa_crt(struct ap_perms *perms,
 {
 	struct zcrypt_card *zc, *pref_zc;
 	struct zcrypt_queue *zq, *pref_zq;
+	struct ap_message ap_msg;
 	unsigned int wgt = 0, pref_wgt = 0;
 	unsigned int func_code;
 	int cpen, qpen, qid = 0, rc = -ENODEV;
 	struct module *mod;
 
 	trace_s390_zcrypt_req(crt, TP_ICARSACRT);
+
+	ap_init_message(&ap_msg);
 
 	if (crt->outputdatalength < crt->inputdatalength) {
 		func_code = 0;
@@ -811,13 +818,14 @@ static long zcrypt_rsa_crt(struct ap_perms *perms,
 	}
 
 	qid = pref_zq->queue->qid;
-	rc = pref_zq->ops->rsa_modexpo_crt(pref_zq, crt);
+	rc = pref_zq->ops->rsa_modexpo_crt(pref_zq, crt, &ap_msg);
 
 	spin_lock(&zcrypt_list_lock);
 	zcrypt_drop_queue(pref_zc, pref_zq, mod, wgt);
 	spin_unlock(&zcrypt_list_lock);
 
 out:
+	ap_release_message(&ap_msg);
 	if (tr) {
 		tr->last_rc = rc;
 		tr->last_qid = qid;

@@ -68,9 +68,11 @@ struct zcrypt_track {
 #define TRACK_AGAIN_QUEUE_WEIGHT_PENALTY 10000
 
 struct zcrypt_ops {
-	long (*rsa_modexpo)(struct zcrypt_queue *, struct ica_rsa_modexpo *);
+	long (*rsa_modexpo)(struct zcrypt_queue *, struct ica_rsa_modexpo *,
+			    struct ap_message *);
 	long (*rsa_modexpo_crt)(struct zcrypt_queue *,
-				struct ica_rsa_modexpo_crt *);
+				struct ica_rsa_modexpo_crt *,
+				struct ap_message *);
 	long (*send_cprb)(bool userspace, struct zcrypt_queue *, struct ica_xcRB *,
 			  struct ap_message *);
 	long (*send_ep11_cprb)(bool userspace, struct zcrypt_queue *, struct ep11_urb *,
