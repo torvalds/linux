@@ -291,6 +291,8 @@ struct smc_clc_msg_local;
 
 struct smc_init_info {
 	u8			is_smcd;
+	u8			smc_type_v1;
+	u8			smc_type_v2;
 	u8			first_contact_peer;
 	u8			first_contact_local;
 	unsigned short		vlan_id;
@@ -304,6 +306,8 @@ struct smc_init_info {
 	u64			ism_peer_gid[SMC_MAX_ISM_DEVS + 1];
 	struct smcd_dev		*ism_dev[SMC_MAX_ISM_DEVS + 1];
 	u16			ism_chid[SMC_MAX_ISM_DEVS + 1];
+	u8			ism_offered_cnt; /* # of ISM devices offered */
+	u8			smcd_version;
 };
 
 /* Find the connection associated with the given alert token in the link group.

@@ -571,6 +571,41 @@ static int smc_find_ism_device(struct smc_sock *smc, struct smc_init_info *ini)
 	return 0;
 }
 
+/* determine possible V2 ISM devices (either without PNETID or with PNETID plus
+ * PNETID matching net_device)
+ */
+static int smc_find_ism_v2_device_clnt(struct smc_sock *smc,
+				       struct smc_init_info *ini)
+{
+	int rc = SMC_CLC_DECL_NOSMCDDEV;
+	struct smcd_dev *smcd;
+	int i = 1;
+
+	if (smcd_indicated(ini->smc_type_v1))
+		rc = 0;		/* already initialized for V1 */
+	mutex_lock(&smcd_dev_list.mutex);
+	list_for_each_entry(smcd, &smcd_dev_list.list, list) {
+		if (smcd->going_away || smcd == ini->ism_dev[0])
+			continue;
+		if (!smc_pnet_is_pnetid_set(smcd->pnetid) ||
+		    smc_pnet_is_ndev_pnetid(sock_net(&smc->sk), smcd->pnetid)) {
+			ini->ism_dev[i] = smcd;
+			ini->ism_chid[i] = smc_ism_get_chid(ini->ism_dev[i]);
+			ini->is_smcd = true;
+			rc = 0;
+			i++;
+			if (i > SMC_MAX_ISM_DEVS)
+				break;
+		}
+	}
+	mutex_unlock(&smcd_dev_list.mutex);
+	ini->ism_offered_cnt = i - 1;
+	if (!ini->ism_dev[0] && !ini->ism_dev[1])
+		ini->smcd_version = 0;
+
+	return rc;
+}
+
 /* Check for VLAN ID and register it on ISM device just for CLC handshake */
 static int smc_connect_ism_vlan_setup(struct smc_sock *smc,
 				      struct smc_init_info *ini)
@@ -580,13 +615,45 @@ static int smc_connect_ism_vlan_setup(struct smc_sock *smc,
 	return 0;
 }
 
+static int smc_find_proposal_devices(struct smc_sock *smc,
+				     struct smc_init_info *ini)
+{
+	int rc = 0;
+
+	/* check if there is an ism device available */
+	if (ini->smcd_version & SMC_V1) {
+		if (smc_find_ism_device(smc, ini) ||
+		    smc_connect_ism_vlan_setup(smc, ini)) {
+			if (ini->smc_type_v1 == SMC_TYPE_B)
+				ini->smc_type_v1 = SMC_TYPE_R;
+			else
+				ini->smc_type_v1 = SMC_TYPE_N;
+		} /* else ISM V1 is supported for this connection */
+		if (smc_find_rdma_device(smc, ini)) {
+			if (ini->smc_type_v1 == SMC_TYPE_B)
+				ini->smc_type_v1 = SMC_TYPE_D;
+			else
+				ini->smc_type_v1 = SMC_TYPE_N;
+		} /* else RDMA is supported for this connection */
+	}
+	if (smc_ism_v2_capable && smc_find_ism_v2_device_clnt(smc, ini))
+		ini->smc_type_v2 = SMC_TYPE_N;
+
+	/* if neither ISM nor RDMA are supported, fallback */
+	if (!smcr_indicated(ini->smc_type_v1) &&
+	    ini->smc_type_v1 == SMC_TYPE_N && ini->smc_type_v2 == SMC_TYPE_N)
+		rc = SMC_CLC_DECL_NOSMCDEV;
+
+	return rc;
+}
+
 /* cleanup temporary VLAN ID registration used for CLC handshake. If ISM is
  * used, the VLAN ID will be registered again during the connection setup.
  */
-static int smc_connect_ism_vlan_cleanup(struct smc_sock *smc, bool is_smcd,
+static int smc_connect_ism_vlan_cleanup(struct smc_sock *smc,
 					struct smc_init_info *ini)
 {
-	if (!is_smcd)
+	if (!smcd_indicated(ini->smc_type_v1))
 		return 0;
 	if (ini->vlan_id && smc_ism_put_vlan(ini->ism_dev[0], ini->vlan_id))
 		return SMC_CLC_DECL_CNFERR;
@@ -594,14 +661,14 @@ static int smc_connect_ism_vlan_cleanup(struct smc_sock *smc, bool is_smcd,
 }
 
 /* CLC handshake during connect */
-static int smc_connect_clc(struct smc_sock *smc, int smc_type,
+static int smc_connect_clc(struct smc_sock *smc,
 			   struct smc_clc_msg_accept_confirm *aclc,
 			   struct smc_init_info *ini)
 {
 	int rc = 0;
 
 	/* do inband token exchange */
-	rc = smc_clc_send_proposal(smc, smc_type, ini);
+	rc = smc_clc_send_proposal(smc, ini);
 	if (rc)
 		return rc;
 	/* receive SMC Accept CLC message */
@@ -751,13 +818,24 @@ static int smc_connect_ism(struct smc_sock *smc,
 	return 0;
 }
 
+/* check if received accept type and version matches a proposed one */
+static int smc_connect_check_aclc(struct smc_init_info *ini,
+				  struct smc_clc_msg_accept_confirm *aclc)
+{
+	if ((aclc->hdr.typev1 == SMC_TYPE_R &&
+	     !smcr_indicated(ini->smc_type_v1)) ||
+	    (aclc->hdr.typev1 == SMC_TYPE_D &&
+	     !smcd_indicated(ini->smc_type_v1)))
+		return SMC_CLC_DECL_MODEUNSUPP;
+
+	return 0;
+}
+
 /* perform steps before actually connecting */
 static int __smc_connect(struct smc_sock *smc)
 {
-	bool ism_supported = false, rdma_supported = false;
 	struct smc_clc_msg_accept_confirm aclc;
 	struct smc_init_info *ini = NULL;
-	int smc_type;
 	int rc = 0;
 
 	if (smc->use_fallback)
@@ -775,61 +853,52 @@ static int __smc_connect(struct smc_sock *smc)
 	if (!ini)
 		return smc_connect_decline_fallback(smc, SMC_CLC_DECL_MEM);
 
+	ini->smcd_version = SMC_V1;
+	ini->smcd_version |= smc_ism_v2_capable ? SMC_V2 : 0;
+	ini->smc_type_v1 = SMC_TYPE_B;
+	ini->smc_type_v2 = smc_ism_v2_capable ? SMC_TYPE_D : SMC_TYPE_N;
+
 	/* get vlan id from IP device */
 	if (smc_vlan_by_tcpsk(smc->clcsock, ini)) {
-		kfree(ini);
-		return smc_connect_decline_fallback(smc,
-						    SMC_CLC_DECL_GETVLANERR);
+		ini->smcd_version &= ~SMC_V1;
+		ini->smc_type_v1 = SMC_TYPE_N;
+		if (!ini->smcd_version) {
+			rc = SMC_CLC_DECL_GETVLANERR;
+			goto fallback;
+		}
 	}
 
-	/* check if there is an ism device available */
-	if (!smc_find_ism_device(smc, ini) &&
-	    !smc_connect_ism_vlan_setup(smc, ini)) {
-		/* ISM is supported for this connection */
-		ism_supported = true;
-		smc_type = SMC_TYPE_D;
-	}
-
-	/* check if there is a rdma device available */
-	if (!smc_find_rdma_device(smc, ini)) {
-		/* RDMA is supported for this connection */
-		rdma_supported = true;
-		if (ism_supported)
-			smc_type = SMC_TYPE_B; /* both */
-		else
-			smc_type = SMC_TYPE_R; /* only RDMA */
-	}
-
-	/* if neither ISM nor RDMA are supported, fallback */
-	if (!rdma_supported && !ism_supported) {
-		kfree(ini);
-		return smc_connect_decline_fallback(smc, SMC_CLC_DECL_NOSMCDEV);
-	}
+	rc = smc_find_proposal_devices(smc, ini);
+	if (rc)
+		goto fallback;
 
 	/* perform CLC handshake */
-	rc = smc_connect_clc(smc, smc_type, &aclc, ini);
-	if (rc) {
-		smc_connect_ism_vlan_cleanup(smc, ism_supported, ini);
-		kfree(ini);
-		return smc_connect_decline_fallback(smc, rc);
-	}
+	rc = smc_connect_clc(smc, &aclc, ini);
+	if (rc)
+		goto vlan_cleanup;
+
+	/* check if smc modes and versions of CLC proposal and accept match */
+	rc = smc_connect_check_aclc(ini, &aclc);
+	if (rc)
+		goto vlan_cleanup;
 
 	/* depending on previous steps, connect using rdma or ism */
-	if (rdma_supported && aclc.hdr.typev1 == SMC_TYPE_R)
+	if (aclc.hdr.typev1 == SMC_TYPE_R)
 		rc = smc_connect_rdma(smc, &aclc, ini);
-	else if (ism_supported && aclc.hdr.typev1 == SMC_TYPE_D)
+	else if (aclc.hdr.typev1 == SMC_TYPE_D)
 		rc = smc_connect_ism(smc, &aclc, ini);
-	else
-		rc = SMC_CLC_DECL_MODEUNSUPP;
-	if (rc) {
-		smc_connect_ism_vlan_cleanup(smc, ism_supported, ini);
-		kfree(ini);
-		return smc_connect_decline_fallback(smc, rc);
-	}
+	if (rc)
+		goto vlan_cleanup;
 
-	smc_connect_ism_vlan_cleanup(smc, ism_supported, ini);
+	smc_connect_ism_vlan_cleanup(smc, ini);
 	kfree(ini);
 	return 0;
+
+vlan_cleanup:
+	smc_connect_ism_vlan_cleanup(smc, ini);
+fallback:
+	kfree(ini);
+	return smc_connect_decline_fallback(smc, rc);
 }
 
 static void smc_connect_work(struct work_struct *work)

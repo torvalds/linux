@@ -205,8 +205,7 @@ int smc_clc_prfx_match(struct socket *clcsock,
 int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 		     u8 expected_type, unsigned long timeout);
 int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info);
-int smc_clc_send_proposal(struct smc_sock *smc, int smc_type,
-			  struct smc_init_info *ini);
+int smc_clc_send_proposal(struct smc_sock *smc, struct smc_init_info *ini);
 int smc_clc_send_confirm(struct smc_sock *smc);
 int smc_clc_send_accept(struct smc_sock *smc, bool srv_first_contact);
 

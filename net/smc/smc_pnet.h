@@ -66,4 +66,5 @@ void smc_pnet_find_alt_roce(struct smc_link_group *lgr,
 			    struct smc_init_info *ini,
 			    struct smc_ib_device *known_dev);
 bool smc_pnet_is_ndev_pnetid(struct net *net, u8 *pnetid);
+bool smc_pnet_is_pnetid_set(u8 *pnetid);
 #endif

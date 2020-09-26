@@ -73,7 +73,7 @@ struct smc_pnetentry {
 };
 
 /* Check if the pnetid is set */
-static bool smc_pnet_is_pnetid_set(u8 *pnetid)
+bool smc_pnet_is_pnetid_set(u8 *pnetid)
 {
 	if (pnetid[0] == 0 || pnetid[0] == _S)
 		return false;
