@@ -45,7 +45,12 @@ struct ingenic_dma_hwdesc {
 	u32 addr;
 	u32 id;
 	u32 cmd;
-} __packed;
+} __aligned(16);
+
+struct ingenic_dma_hwdescs {
+	struct ingenic_dma_hwdesc hwdesc_f0;
+	struct ingenic_dma_hwdesc hwdesc_f1;
+};
 
 struct jz_soc_info {
 	bool needs_dev_clk;
@@ -68,8 +73,8 @@ struct ingenic_drm {
 	struct clk *lcd_clk, *pix_clk;
 	const struct jz_soc_info *soc_info;
 
-	struct ingenic_dma_hwdesc *dma_hwdesc_f0, *dma_hwdesc_f1;
-	dma_addr_t dma_hwdesc_phys_f0, dma_hwdesc_phys_f1;
+	struct ingenic_dma_hwdescs *dma_hwdescs;
+	dma_addr_t dma_hwdescs_phys;
 
 	bool panel_is_sharp;
 	bool no_vblank;
@@ -546,9 +551,9 @@ static void ingenic_drm_plane_atomic_update(struct drm_plane *plane,
 		cpp = state->fb->format->cpp[0];
 
 		if (priv->soc_info->has_osd && plane->type == DRM_PLANE_TYPE_OVERLAY)
-			hwdesc = priv->dma_hwdesc_f0;
+			hwdesc = &priv->dma_hwdescs->hwdesc_f0;
 		else
-			hwdesc = priv->dma_hwdesc_f1;
+			hwdesc = &priv->dma_hwdescs->hwdesc_f1;
 
 		hwdesc->addr = addr;
 		hwdesc->cmd = JZ_LCD_CMD_EOF_IRQ | (width * height * cpp / 4);
@@ -856,6 +861,7 @@ static int ingenic_drm_bind(struct device *dev, bool has_components)
 	void __iomem *base;
 	long parent_rate;
 	unsigned int i, clone_mask = 0;
+	dma_addr_t dma_hwdesc_phys_f0, dma_hwdesc_phys_f1;
 	int ret, irq;
 
 	soc_info = of_device_get_match_data(dev);
@@ -930,26 +936,25 @@ static int ingenic_drm_bind(struct device *dev, bool has_components)
 		return PTR_ERR(priv->pix_clk);
 	}
 
-	priv->dma_hwdesc_f1 = dmam_alloc_coherent(dev, sizeof(*priv->dma_hwdesc_f1),
-						  &priv->dma_hwdesc_phys_f1,
-						  GFP_KERNEL);
-	if (!priv->dma_hwdesc_f1)
+	priv->dma_hwdescs = dmam_alloc_coherent(dev,
+						sizeof(*priv->dma_hwdescs),
+						&priv->dma_hwdescs_phys,
+						GFP_KERNEL);
+	if (!priv->dma_hwdescs)
 		return -ENOMEM;
 
-	priv->dma_hwdesc_f1->next = priv->dma_hwdesc_phys_f1;
-	priv->dma_hwdesc_f1->id = 0xf1;
 
-	if (priv->soc_info->has_osd) {
-		priv->dma_hwdesc_f0 = dmam_alloc_coherent(dev,
-							  sizeof(*priv->dma_hwdesc_f0),
-							  &priv->dma_hwdesc_phys_f0,
-							  GFP_KERNEL);
-		if (!priv->dma_hwdesc_f0)
-			return -ENOMEM;
+	/* Configure DMA hwdesc for foreground0 plane */
+	dma_hwdesc_phys_f0 = priv->dma_hwdescs_phys
+		+ offsetof(struct ingenic_dma_hwdescs, hwdesc_f0);
+	priv->dma_hwdescs->hwdesc_f0.next = dma_hwdesc_phys_f0;
+	priv->dma_hwdescs->hwdesc_f0.id = 0xf0;
 
-		priv->dma_hwdesc_f0->next = priv->dma_hwdesc_phys_f0;
-		priv->dma_hwdesc_f0->id = 0xf0;
-	}
+	/* Configure DMA hwdesc for foreground1 plane */
+	dma_hwdesc_phys_f1 = priv->dma_hwdescs_phys
+		+ offsetof(struct ingenic_dma_hwdescs, hwdesc_f1);
+	priv->dma_hwdescs->hwdesc_f1.next = dma_hwdesc_phys_f1;
+	priv->dma_hwdescs->hwdesc_f1.id = 0xf1;
 
 	if (soc_info->has_osd)
 		priv->ipu_plane = drm_plane_from_index(drm, 0);
@@ -1101,8 +1106,8 @@ static int ingenic_drm_bind(struct device *dev, bool has_components)
 	}
 
 	/* Set address of our DMA descriptor chain */
-	regmap_write(priv->map, JZ_REG_LCD_DA0, priv->dma_hwdesc_phys_f0);
-	regmap_write(priv->map, JZ_REG_LCD_DA1, priv->dma_hwdesc_phys_f1);
+	regmap_write(priv->map, JZ_REG_LCD_DA0, dma_hwdesc_phys_f0);
+	regmap_write(priv->map, JZ_REG_LCD_DA1, dma_hwdesc_phys_f1);
 
 	/* Enable OSD if available */
 	if (soc_info->has_osd)
