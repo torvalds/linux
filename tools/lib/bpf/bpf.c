@@ -846,7 +846,7 @@ int bpf_raw_tracepoint_open(const char *name, int prog_fd)
 	return sys_bpf(BPF_RAW_TRACEPOINT_OPEN, &attr, sizeof(attr));
 }
 
-int bpf_load_btf(void *btf, __u32 btf_size, char *log_buf, __u32 log_buf_size,
+int bpf_load_btf(const void *btf, __u32 btf_size, char *log_buf, __u32 log_buf_size,
 		 bool do_log)
 {
 	union bpf_attr attr = {};

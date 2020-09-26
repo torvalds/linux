@@ -27,18 +27,37 @@
 static struct btf_type btf_void;
 
 struct btf {
-	union {
-		struct btf_header *hdr;
-		void *data;
-	};
+	void *raw_data;
+	__u32 raw_size;
+
+	/*
+	 * When BTF is loaded from ELF or raw memory it is stored
+	 * in contiguous memory block, pointed to by raw_data pointer, and
+	 * hdr, types_data, and strs_data point inside that memory region to
+	 * respective parts of BTF representation:
+	 *
+	 * +--------------------------------+
+	 * |  Header  |  Types  |  Strings  |
+	 * +--------------------------------+
+	 * ^          ^         ^
+	 * |          |         |
+	 * hdr        |         |
+	 * types_data-+         |
+	 * strs_data------------+
+	 */
+	struct btf_header *hdr;
+	void *types_data;
+	void *strs_data;
+
+	/* type ID to `struct btf_type *` lookup index */
 	__u32 *type_offs;
 	__u32 type_offs_cap;
-	const char *strings;
-	void *nohdr_data;
-	void *types_data;
 	__u32 nr_types;
-	__u32 data_size;
+
+	/* BTF object FD, if loaded into kernel */
 	int fd;
+
+	/* Pointer size (in bytes) for a target architecture of this BTF */
 	int ptr_sz;
 };
 
@@ -80,7 +99,7 @@ static int btf_parse_hdr(struct btf *btf)
 	const struct btf_header *hdr = btf->hdr;
 	__u32 meta_left;
 
-	if (btf->data_size < sizeof(struct btf_header)) {
+	if (btf->raw_size < sizeof(struct btf_header)) {
 		pr_debug("BTF header not found\n");
 		return -EINVAL;
 	}
@@ -100,7 +119,7 @@ static int btf_parse_hdr(struct btf *btf)
 		return -ENOTSUP;
 	}
 
-	meta_left = btf->data_size - sizeof(*hdr);
+	meta_left = btf->raw_size - sizeof(*hdr);
 	if (!meta_left) {
 		pr_debug("BTF has no data\n");
 		return -EINVAL;
@@ -126,15 +145,13 @@ static int btf_parse_hdr(struct btf *btf)
 		return -EINVAL;
 	}
 
-	btf->nohdr_data = btf->hdr + 1;
-
 	return 0;
 }
 
 static int btf_parse_str_sec(struct btf *btf)
 {
 	const struct btf_header *hdr = btf->hdr;
-	const char *start = btf->nohdr_data + hdr->str_off;
+	const char *start = btf->strs_data;
 	const char *end = start + btf->hdr->str_len;
 
 	if (!hdr->str_len || hdr->str_len - 1 > BTF_MAX_STR_OFFSET ||
@@ -142,8 +159,6 @@ static int btf_parse_str_sec(struct btf *btf)
 		pr_debug("Invalid BTF string section\n");
 		return -EINVAL;
 	}
-
-	btf->strings = start;
 
 	return 0;
 }
@@ -186,10 +201,8 @@ static int btf_type_size(const struct btf_type *t)
 static int btf_parse_type_sec(struct btf *btf)
 {
 	struct btf_header *hdr = btf->hdr;
-	void *next_type = btf->nohdr_data + hdr->type_off;
+	void *next_type = btf->types_data;
 	void *end_type = next_type + hdr->type_len;
-
-	btf->types_data = next_type;
 
 	while (next_type < end_type) {
 		int type_size;
@@ -466,7 +479,7 @@ void btf__free(struct btf *btf)
 	if (btf->fd >= 0)
 		close(btf->fd);
 
-	free(btf->data);
+	free(btf->raw_data);
 	free(btf->type_offs);
 	free(btf);
 }
@@ -482,24 +495,24 @@ struct btf *btf__new(const void *data, __u32 size)
 
 	btf->fd = -1;
 
-	btf->data = malloc(size);
-	if (!btf->data) {
+	btf->raw_data = malloc(size);
+	if (!btf->raw_data) {
 		err = -ENOMEM;
 		goto done;
 	}
+	memcpy(btf->raw_data, data, size);
+	btf->raw_size = size;
 
-	memcpy(btf->data, data, size);
-	btf->data_size = size;
-
+	btf->hdr = btf->raw_data;
 	err = btf_parse_hdr(btf);
 	if (err)
 		goto done;
 
-	err = btf_parse_str_sec(btf);
-	if (err)
-		goto done;
+	btf->strs_data = btf->raw_data + btf->hdr->hdr_len + btf->hdr->str_off;
+	btf->types_data = btf->raw_data + btf->hdr->hdr_len + btf->hdr->type_off;
 
-	err = btf_parse_type_sec(btf);
+	err = btf_parse_str_sec(btf);
+	err = err ?: btf_parse_type_sec(btf);
 
 done:
 	if (err) {
@@ -820,8 +833,9 @@ int btf__finalize_data(struct bpf_object *obj, struct btf *btf)
 
 int btf__load(struct btf *btf)
 {
-	__u32 log_buf_size = 0;
+	__u32 log_buf_size = 0, raw_size;
 	char *log_buf = NULL;
+	const void *raw_data;
 	int err = 0;
 
 	if (btf->fd >= 0)
@@ -836,8 +850,13 @@ retry_load:
 		*log_buf = 0;
 	}
 
-	btf->fd = bpf_load_btf(btf->data, btf->data_size,
-			       log_buf, log_buf_size, false);
+	raw_data = btf__get_raw_data(btf, &raw_size);
+	if (!raw_data) {
+		err = -ENOMEM;
+		goto done;
+	}
+
+	btf->fd = bpf_load_btf(raw_data, raw_size, log_buf, log_buf_size, false);
 	if (btf->fd < 0) {
 		if (!log_buf || errno == ENOSPC) {
 			log_buf_size = max((__u32)BPF_LOG_BUF_SIZE,
@@ -870,14 +889,14 @@ void btf__set_fd(struct btf *btf, int fd)
 
 const void *btf__get_raw_data(const struct btf *btf, __u32 *size)
 {
-	*size = btf->data_size;
-	return btf->data;
+	*size = btf->raw_size;
+	return btf->raw_data;
 }
 
 const char *btf__name_by_offset(const struct btf *btf, __u32 offset)
 {
 	if (offset < btf->hdr->str_len)
-		return &btf->strings[offset];
+		return btf->strs_data + offset;
 	else
 		return NULL;
 }
@@ -1860,8 +1879,7 @@ static int btf_str_remap_offset(__u32 *str_off_ptr, void *ctx)
  */
 static int btf_dedup_strings(struct btf_dedup *d)
 {
-	const struct btf_header *hdr = d->btf->hdr;
-	char *start = (char *)d->btf->nohdr_data + hdr->str_off;
+	char *start = d->btf->strs_data;
 	char *end = start + d->btf->hdr->str_len;
 	char *p = start, *tmp_strs = NULL;
 	struct btf_str_ptrs strs = {
@@ -2970,12 +2988,11 @@ static int btf_dedup_compact_types(struct btf_dedup *d)
 	d->btf->type_offs = new_offs;
 
 	/* make sure string section follows type information without gaps */
-	d->btf->hdr->str_off = p - d->btf->nohdr_data;
-	memmove(p, d->btf->strings, d->btf->hdr->str_len);
-	d->btf->strings = p;
-	p += d->btf->hdr->str_len;
+	d->btf->hdr->str_off = p - d->btf->types_data;
+	memmove(p, d->btf->strs_data, d->btf->hdr->str_len);
+	d->btf->strs_data = p;
 
-	d->btf->data_size = p - d->btf->data;
+	d->btf->raw_size = d->btf->hdr->hdr_len + d->btf->hdr->type_len + d->btf->hdr->str_len;
 	return 0;
 }
 
