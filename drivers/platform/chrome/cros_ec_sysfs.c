@@ -320,7 +320,7 @@ static struct attribute *__ec_attrs[] = {
 static umode_t cros_ec_ctrl_visible(struct kobject *kobj,
 				    struct attribute *a, int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct cros_ec_dev *ec = to_cros_ec_dev(dev);
 
 	if (a == &dev_attr_kb_wake_angle.attr && !ec->has_kb_wake_angle)
