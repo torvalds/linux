@@ -193,12 +193,13 @@ static int announce_servers(struct sockaddr_qrtr *sq)
 	struct qrtr_server *srv;
 	struct qrtr_node *node;
 	void __rcu **slot;
-	int ret;
+	int ret = 0;
 
 	node = node_get(qrtr_ns.local_node);
 	if (!node)
 		return 0;
 
+	rcu_read_lock();
 	/* Announce the list of servers registered in this node */
 	radix_tree_for_each_slot(slot, &node->servers, &iter, 0) {
 		srv = radix_tree_deref_slot(slot);
@@ -206,11 +207,14 @@ static int announce_servers(struct sockaddr_qrtr *sq)
 		ret = service_announce_new(sq, srv);
 		if (ret < 0) {
 			pr_err("failed to announce new service\n");
-			return ret;
+			goto err_out;
 		}
 	}
 
-	return 0;
+err_out:
+	rcu_read_unlock();
+
+	return ret;
 }
 
 static struct qrtr_server *server_add(unsigned int service,
@@ -335,7 +339,7 @@ static int ctrl_cmd_bye(struct sockaddr_qrtr *from)
 	struct qrtr_node *node;
 	void __rcu **slot;
 	struct kvec iv;
-	int ret;
+	int ret = 0;
 
 	iv.iov_base = &pkt;
 	iv.iov_len = sizeof(pkt);
@@ -344,11 +348,13 @@ static int ctrl_cmd_bye(struct sockaddr_qrtr *from)
 	if (!node)
 		return 0;
 
+	rcu_read_lock();
 	/* Advertise removal of this client to all servers of remote node */
 	radix_tree_for_each_slot(slot, &node->servers, &iter, 0) {
 		srv = radix_tree_deref_slot(slot);
 		server_del(node, srv->port);
 	}
+	rcu_read_unlock();
 
 	/* Advertise the removal of this client to all local servers */
 	local_node = node_get(qrtr_ns.local_node);
@@ -359,6 +365,7 @@ static int ctrl_cmd_bye(struct sockaddr_qrtr *from)
 	pkt.cmd = cpu_to_le32(QRTR_TYPE_BYE);
 	pkt.client.node = cpu_to_le32(from->sq_node);
 
+	rcu_read_lock();
 	radix_tree_for_each_slot(slot, &local_node->servers, &iter, 0) {
 		srv = radix_tree_deref_slot(slot);
 
@@ -372,11 +379,14 @@ static int ctrl_cmd_bye(struct sockaddr_qrtr *from)
 		ret = kernel_sendmsg(qrtr_ns.sock, &msg, &iv, 1, sizeof(pkt));
 		if (ret < 0) {
 			pr_err("failed to send bye cmd\n");
-			return ret;
+			goto err_out;
 		}
 	}
 
-	return 0;
+err_out:
+	rcu_read_unlock();
+
+	return ret;
 }
 
 static int ctrl_cmd_del_client(struct sockaddr_qrtr *from,
@@ -394,7 +404,7 @@ static int ctrl_cmd_del_client(struct sockaddr_qrtr *from,
 	struct list_head *li;
 	void __rcu **slot;
 	struct kvec iv;
-	int ret;
+	int ret = 0;
 
 	iv.iov_base = &pkt;
 	iv.iov_len = sizeof(pkt);
@@ -434,6 +444,7 @@ static int ctrl_cmd_del_client(struct sockaddr_qrtr *from,
 	pkt.client.node = cpu_to_le32(node_id);
 	pkt.client.port = cpu_to_le32(port);
 
+	rcu_read_lock();
 	radix_tree_for_each_slot(slot, &local_node->servers, &iter, 0) {
 		srv = radix_tree_deref_slot(slot);
 
@@ -447,11 +458,14 @@ static int ctrl_cmd_del_client(struct sockaddr_qrtr *from,
 		ret = kernel_sendmsg(qrtr_ns.sock, &msg, &iv, 1, sizeof(pkt));
 		if (ret < 0) {
 			pr_err("failed to send del client cmd\n");
-			return ret;
+			goto err_out;
 		}
 	}
 
-	return 0;
+err_out:
+	rcu_read_unlock();
+
+	return ret;
 }
 
 static int ctrl_cmd_new_server(struct sockaddr_qrtr *from,
@@ -554,6 +568,7 @@ static int ctrl_cmd_new_lookup(struct sockaddr_qrtr *from,
 	filter.service = service;
 	filter.instance = instance;
 
+	rcu_read_lock();
 	radix_tree_for_each_slot(node_slot, &nodes, &node_iter, 0) {
 		node = radix_tree_deref_slot(node_slot);
 
@@ -568,6 +583,7 @@ static int ctrl_cmd_new_lookup(struct sockaddr_qrtr *from,
 			lookup_notify(from, srv, true);
 		}
 	}
+	rcu_read_unlock();
 
 	/* Empty notification, to indicate end of listing */
 	lookup_notify(from, NULL, true);
