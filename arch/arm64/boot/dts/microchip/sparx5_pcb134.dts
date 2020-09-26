@@ -5,6 +5,7 @@
 
 /dts-v1/;
 #include "sparx5_pcb134_board.dtsi"
+#include "sparx5_nand.dtsi"
 
 / {
 	model = "Sparx5 PCB134 Reference Board (NAND)";
