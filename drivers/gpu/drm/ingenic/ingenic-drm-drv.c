@@ -56,6 +56,8 @@ struct jz_soc_info {
 	bool needs_dev_clk;
 	bool has_osd;
 	unsigned int max_width, max_height;
+	const u32 *formats_f0, *formats_f1;
+	unsigned int num_formats_f0, num_formats_f1;
 };
 
 struct ingenic_drm {
@@ -93,12 +95,6 @@ struct ingenic_drm {
 	struct mutex clk_mutex;
 	bool update_clk_rate;
 	struct notifier_block clock_nb;
-};
-
-static const u32 ingenic_drm_primary_formats[] = {
-	DRM_FORMAT_XRGB1555,
-	DRM_FORMAT_RGB565,
-	DRM_FORMAT_XRGB8888,
 };
 
 static bool ingenic_drm_cached_gem_buf;
@@ -963,8 +959,8 @@ static int ingenic_drm_bind(struct device *dev, bool has_components)
 
 	ret = drm_universal_plane_init(drm, &priv->f1, 1,
 				       &ingenic_drm_primary_plane_funcs,
-				       ingenic_drm_primary_formats,
-				       ARRAY_SIZE(ingenic_drm_primary_formats),
+				       priv->soc_info->formats_f1,
+				       priv->soc_info->num_formats_f1,
 				       NULL, DRM_PLANE_TYPE_PRIMARY, NULL);
 	if (ret) {
 		dev_err(dev, "Failed to register plane: %i\n", ret);
@@ -988,8 +984,8 @@ static int ingenic_drm_bind(struct device *dev, bool has_components)
 
 		ret = drm_universal_plane_init(drm, &priv->f0, 1,
 					       &ingenic_drm_primary_plane_funcs,
-					       ingenic_drm_primary_formats,
-					       ARRAY_SIZE(ingenic_drm_primary_formats),
+					       priv->soc_info->formats_f0,
+					       priv->soc_info->num_formats_f0,
 					       NULL, DRM_PLANE_TYPE_OVERLAY,
 					       NULL);
 		if (ret) {
@@ -1204,11 +1200,44 @@ static int ingenic_drm_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const u32 jz4740_formats[] = {
+	DRM_FORMAT_XRGB1555,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_XRGB8888,
+};
+
+static const u32 jz4725b_formats_f1[] = {
+	DRM_FORMAT_XRGB1555,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_XRGB8888,
+};
+
+static const u32 jz4725b_formats_f0[] = {
+	DRM_FORMAT_XRGB1555,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_XRGB8888,
+};
+
+static const u32 jz4770_formats_f1[] = {
+	DRM_FORMAT_XRGB1555,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_XRGB8888,
+};
+
+static const u32 jz4770_formats_f0[] = {
+	DRM_FORMAT_XRGB1555,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_XRGB8888,
+};
+
 static const struct jz_soc_info jz4740_soc_info = {
 	.needs_dev_clk = true,
 	.has_osd = false,
 	.max_width = 800,
 	.max_height = 600,
+	.formats_f1 = jz4740_formats,
+	.num_formats_f1 = ARRAY_SIZE(jz4740_formats),
+	/* JZ4740 has only one plane */
 };
 
 static const struct jz_soc_info jz4725b_soc_info = {
@@ -1216,6 +1245,10 @@ static const struct jz_soc_info jz4725b_soc_info = {
 	.has_osd = true,
 	.max_width = 800,
 	.max_height = 600,
+	.formats_f1 = jz4725b_formats_f1,
+	.num_formats_f1 = ARRAY_SIZE(jz4725b_formats_f1),
+	.formats_f0 = jz4725b_formats_f0,
+	.num_formats_f0 = ARRAY_SIZE(jz4725b_formats_f0),
 };
 
 static const struct jz_soc_info jz4770_soc_info = {
@@ -1223,6 +1256,10 @@ static const struct jz_soc_info jz4770_soc_info = {
 	.has_osd = true,
 	.max_width = 1280,
 	.max_height = 720,
+	.formats_f1 = jz4770_formats_f1,
+	.num_formats_f1 = ARRAY_SIZE(jz4770_formats_f1),
+	.formats_f0 = jz4770_formats_f0,
+	.num_formats_f0 = ARRAY_SIZE(jz4770_formats_f0),
 };
 
 static const struct of_device_id ingenic_drm_of_match[] = {
