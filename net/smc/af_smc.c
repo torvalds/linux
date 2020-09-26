@@ -1301,7 +1301,7 @@ static void smc_find_ism_device_serv(struct smc_sock *new_smc,
 	if (!smcd_indicated(pclc->hdr.typev1))
 		goto not_found;
 	ini->is_smcd = true; /* prepare ISM check */
-	ini->ism_peer_gid[0] = pclc_smcd->gid;
+	ini->ism_peer_gid[0] = ntohll(pclc_smcd->ism.gid);
 	if (smc_find_ism_device(new_smc, ini))
 		goto not_found;
 	if (!smc_listen_ism_init(new_smc, ini))

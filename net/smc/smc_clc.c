@@ -34,12 +34,52 @@ static const char SMC_EYECATCHER[4] = {'\xe2', '\xd4', '\xc3', '\xd9'};
 /* eye catcher "SMCD" EBCDIC for CLC messages */
 static const char SMCD_EYECATCHER[4] = {'\xe2', '\xd4', '\xc3', '\xc4'};
 
+/* check arriving CLC proposal */
+static bool smc_clc_msg_prop_valid(struct smc_clc_msg_proposal *pclc)
+{
+	struct smc_clc_msg_proposal_prefix *pclc_prfx;
+	struct smc_clc_smcd_v2_extension *smcd_v2_ext;
+	struct smc_clc_msg_hdr *hdr = &pclc->hdr;
+	struct smc_clc_v2_extension *v2_ext;
+
+	v2_ext = smc_get_clc_v2_ext(pclc);
+	pclc_prfx = smc_clc_proposal_get_prefix(pclc);
+	if (hdr->version == SMC_V1) {
+		if (hdr->typev1 == SMC_TYPE_N)
+			return false;
+		if (ntohs(hdr->length) !=
+			sizeof(*pclc) + ntohs(pclc->iparea_offset) +
+			sizeof(*pclc_prfx) +
+			pclc_prfx->ipv6_prefixes_cnt *
+				sizeof(struct smc_clc_ipv6_prefix) +
+			sizeof(struct smc_clc_msg_trail))
+			return false;
+	} else {
+		if (ntohs(hdr->length) !=
+			sizeof(*pclc) +
+			sizeof(struct smc_clc_msg_smcd) +
+			(hdr->typev1 != SMC_TYPE_N ?
+				sizeof(*pclc_prfx) +
+				pclc_prfx->ipv6_prefixes_cnt *
+				sizeof(struct smc_clc_ipv6_prefix) : 0) +
+			(hdr->typev2 != SMC_TYPE_N ?
+				sizeof(*v2_ext) +
+				v2_ext->hdr.eid_cnt * SMC_MAX_EID_LEN : 0) +
+			(smcd_indicated(hdr->typev2) ?
+				sizeof(*smcd_v2_ext) + v2_ext->hdr.ism_gid_cnt *
+					sizeof(struct smc_clc_smcd_gid_chid) :
+				0) +
+			sizeof(struct smc_clc_msg_trail))
+			return false;
+	}
+	return true;
+}
+
 /* check if received message has a correct header length and contains valid
  * heading and trailing eyecatchers
  */
 static bool smc_clc_msg_hdr_valid(struct smc_clc_msg_hdr *clcm, bool check_trl)
 {
-	struct smc_clc_msg_proposal_prefix *pclc_prfx;
 	struct smc_clc_msg_accept_confirm *clc;
 	struct smc_clc_msg_proposal *pclc;
 	struct smc_clc_msg_decline *dclc;
@@ -51,13 +91,7 @@ static bool smc_clc_msg_hdr_valid(struct smc_clc_msg_hdr *clcm, bool check_trl)
 	switch (clcm->type) {
 	case SMC_CLC_PROPOSAL:
 		pclc = (struct smc_clc_msg_proposal *)clcm;
-		pclc_prfx = smc_clc_proposal_get_prefix(pclc);
-		if (ntohs(pclc->hdr.length) <
-			sizeof(*pclc) + ntohs(pclc->iparea_offset) +
-			sizeof(*pclc_prfx) +
-			pclc_prfx->ipv6_prefixes_cnt *
-				sizeof(struct smc_clc_ipv6_prefix) +
-			sizeof(*trl))
+		if (!smc_clc_msg_prop_valid(pclc))
 			return false;
 		trl = (struct smc_clc_msg_trail *)
 			((u8 *)pclc + ntohs(pclc->hdr.length) - sizeof(*trl));
@@ -327,9 +361,6 @@ int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 		goto out;
 	}
 
-	if (clcm->type == SMC_CLC_PROPOSAL && clcm->typev1 == SMC_TYPE_N)
-		reason_code = SMC_CLC_DECL_VERSMISMAT; /* just V2 offered */
-
 	/* receive the complete CLC message */
 	memset(&msg, 0, sizeof(struct msghdr));
 	if (datlen > buflen) {
@@ -412,15 +443,18 @@ int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info)
 /* send CLC PROPOSAL message across internal TCP socket */
 int smc_clc_send_proposal(struct smc_sock *smc, struct smc_init_info *ini)
 {
+	struct smc_clc_smcd_v2_extension *smcd_v2_ext;
 	struct smc_clc_msg_proposal_prefix *pclc_prfx;
 	struct smc_clc_msg_proposal *pclc_base;
+	struct smc_clc_smcd_gid_chid *gidchids;
 	struct smc_clc_msg_proposal_area *pclc;
 	struct smc_clc_ipv6_prefix *ipv6_prfx;
+	struct smc_clc_v2_extension *v2_ext;
 	struct smc_clc_msg_smcd *pclc_smcd;
 	struct smc_clc_msg_trail *trl;
 	int len, i, plen, rc;
 	int reason_code = 0;
-	struct kvec vec[5];
+	struct kvec vec[8];
 	struct msghdr msg;
 
 	pclc = kzalloc(sizeof(*pclc), GFP_KERNEL);
@@ -431,24 +465,37 @@ int smc_clc_send_proposal(struct smc_sock *smc, struct smc_init_info *ini)
 	pclc_smcd = &pclc->pclc_smcd;
 	pclc_prfx = &pclc->pclc_prfx;
 	ipv6_prfx = pclc->pclc_prfx_ipv6;
+	v2_ext = &pclc->pclc_v2_ext;
+	smcd_v2_ext = &pclc->pclc_smcd_v2_ext;
+	gidchids = pclc->pclc_gidchids;
 	trl = &pclc->pclc_trl;
 
+	pclc_base->hdr.version = SMC_V2;
+	pclc_base->hdr.typev1 = ini->smc_type_v1;
+	pclc_base->hdr.typev2 = ini->smc_type_v2;
+	plen = sizeof(*pclc_base) + sizeof(*pclc_smcd) + sizeof(*trl);
+
 	/* retrieve ip prefixes for CLC proposal msg */
-	rc = smc_clc_prfx_set(smc->clcsock, pclc_prfx, ipv6_prfx);
-	if (rc) {
-		kfree(pclc);
-		return SMC_CLC_DECL_CNFERR; /* configuration error */
+	if (ini->smc_type_v1 != SMC_TYPE_N) {
+		rc = smc_clc_prfx_set(smc->clcsock, pclc_prfx, ipv6_prfx);
+		if (rc) {
+			if (ini->smc_type_v2 == SMC_TYPE_N) {
+				kfree(pclc);
+				return SMC_CLC_DECL_CNFERR;
+			}
+			pclc_base->hdr.typev1 = SMC_TYPE_N;
+		} else {
+			pclc_base->iparea_offset = htons(sizeof(*pclc_smcd));
+			plen += sizeof(*pclc_prfx) +
+					pclc_prfx->ipv6_prefixes_cnt *
+					sizeof(ipv6_prfx[0]);
+		}
 	}
 
-	/* send SMC Proposal CLC message */
-	plen = sizeof(*pclc_base) + sizeof(*pclc_prfx) +
-	       (pclc_prfx->ipv6_prefixes_cnt * sizeof(ipv6_prfx[0])) +
-	       sizeof(*trl);
+	/* build SMC Proposal CLC message */
 	memcpy(pclc_base->hdr.eyecatcher, SMC_EYECATCHER,
 	       sizeof(SMC_EYECATCHER));
 	pclc_base->hdr.type = SMC_CLC_PROPOSAL;
-	pclc_base->hdr.version = SMC_V1;		/* SMC version */
-	pclc_base->hdr.typev1 = ini->smc_type_v1;
 	if (smcr_indicated(ini->smc_type_v1)) {
 		/* add SMC-R specifics */
 		memcpy(pclc_base->lcl.id_for_peer, local_systemid,
@@ -456,31 +503,83 @@ int smc_clc_send_proposal(struct smc_sock *smc, struct smc_init_info *ini)
 		memcpy(pclc_base->lcl.gid, ini->ib_gid, SMC_GID_SIZE);
 		memcpy(pclc_base->lcl.mac, &ini->ib_dev->mac[ini->ib_port - 1],
 		       ETH_ALEN);
-		pclc_base->iparea_offset = htons(0);
 	}
 	if (smcd_indicated(ini->smc_type_v1)) {
 		/* add SMC-D specifics */
-		plen += sizeof(*pclc_smcd);
-		pclc_base->iparea_offset = htons(sizeof(*pclc_smcd));
-		pclc_smcd->gid = ini->ism_dev[0]->local_gid;
+		if (ini->ism_dev[0]) {
+			pclc_smcd->ism.gid = htonll(ini->ism_dev[0]->local_gid);
+			pclc_smcd->ism.chid =
+				htons(smc_ism_get_chid(ini->ism_dev[0]));
+		}
+	}
+	if (ini->smc_type_v2 == SMC_TYPE_N) {
+		pclc_smcd->v2_ext_offset = 0;
+	} else {
+		u16 v2_ext_offset;
+		u8 *eid = NULL;
+
+		v2_ext_offset = sizeof(*pclc_smcd) -
+			offsetofend(struct smc_clc_msg_smcd, v2_ext_offset);
+		if (ini->smc_type_v1 != SMC_TYPE_N)
+			v2_ext_offset += sizeof(*pclc_prfx) +
+						pclc_prfx->ipv6_prefixes_cnt *
+						sizeof(ipv6_prfx[0]);
+		pclc_smcd->v2_ext_offset = htons(v2_ext_offset);
+		v2_ext->hdr.eid_cnt = 0;
+		v2_ext->hdr.ism_gid_cnt = ini->ism_offered_cnt;
+		v2_ext->hdr.flag.release = SMC_RELEASE;
+		v2_ext->hdr.flag.seid = 1;
+		v2_ext->hdr.smcd_v2_ext_offset = htons(sizeof(*v2_ext) -
+				offsetofend(struct smc_clnt_opts_area_hdr,
+					    smcd_v2_ext_offset) +
+				v2_ext->hdr.eid_cnt * SMC_MAX_EID_LEN);
+		if (ini->ism_dev[0])
+			smc_ism_get_system_eid(ini->ism_dev[0], &eid);
+		else
+			smc_ism_get_system_eid(ini->ism_dev[1], &eid);
+		if (eid)
+			memcpy(smcd_v2_ext->system_eid, eid, SMC_MAX_EID_LEN);
+		plen += sizeof(*v2_ext) + sizeof(*smcd_v2_ext);
+		if (ini->ism_offered_cnt) {
+			for (i = 1; i <= ini->ism_offered_cnt; i++) {
+				gidchids[i - 1].gid =
+					htonll(ini->ism_dev[i]->local_gid);
+				gidchids[i - 1].chid =
+					htons(smc_ism_get_chid(ini->ism_dev[i]));
+			}
+			plen += ini->ism_offered_cnt *
+				sizeof(struct smc_clc_smcd_gid_chid);
+		}
 	}
 	pclc_base->hdr.length = htons(plen);
-
 	memcpy(trl->eyecatcher, SMC_EYECATCHER, sizeof(SMC_EYECATCHER));
+
+	/* send SMC Proposal CLC message */
 	memset(&msg, 0, sizeof(msg));
 	i = 0;
 	vec[i].iov_base = pclc_base;
 	vec[i++].iov_len = sizeof(*pclc_base);
-	if (smcd_indicated(ini->smc_type_v1)) {
-		vec[i].iov_base = pclc_smcd;
-		vec[i++].iov_len = sizeof(*pclc_smcd);
+	vec[i].iov_base = pclc_smcd;
+	vec[i++].iov_len = sizeof(*pclc_smcd);
+	if (ini->smc_type_v1 != SMC_TYPE_N) {
+		vec[i].iov_base = pclc_prfx;
+		vec[i++].iov_len = sizeof(*pclc_prfx);
+		if (pclc_prfx->ipv6_prefixes_cnt > 0) {
+			vec[i].iov_base = ipv6_prfx;
+			vec[i++].iov_len = pclc_prfx->ipv6_prefixes_cnt *
+					   sizeof(ipv6_prfx[0]);
+		}
 	}
-	vec[i].iov_base = pclc_prfx;
-	vec[i++].iov_len = sizeof(*pclc_prfx);
-	if (pclc_prfx->ipv6_prefixes_cnt > 0) {
-		vec[i].iov_base = ipv6_prfx;
-		vec[i++].iov_len = pclc_prfx->ipv6_prefixes_cnt *
-				   sizeof(ipv6_prfx[0]);
+	if (ini->smc_type_v2 != SMC_TYPE_N) {
+		vec[i].iov_base = v2_ext;
+		vec[i++].iov_len = sizeof(*v2_ext);
+		vec[i].iov_base = smcd_v2_ext;
+		vec[i++].iov_len = sizeof(*smcd_v2_ext);
+		if (ini->ism_offered_cnt) {
+			vec[i].iov_base = gidchids;
+			vec[i++].iov_len = ini->ism_offered_cnt *
+					sizeof(struct smc_clc_smcd_gid_chid);
+		}
 	}
 	vec[i].iov_base = trl;
 	vec[i++].iov_len = sizeof(*trl);

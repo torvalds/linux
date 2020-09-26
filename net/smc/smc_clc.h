@@ -81,8 +81,6 @@ struct smc_clc_msg_local {	/* header2 of clc messages */
 	u8 mac[6];		/* mac of ib_device port */
 };
 
-#define SMC_CLC_MAX_V6_PREFIX	8
-
 /* Struct would be 4 byte aligned, but it is used in an array that is sent
  * to peers and must conform to RFC7609, hence we need to use packed here.
  */
@@ -90,6 +88,44 @@ struct smc_clc_ipv6_prefix {
 	struct in6_addr prefix;
 	u8 prefix_len;
 } __packed;			/* format defined in RFC7609 */
+
+#if defined(__BIG_ENDIAN_BITFIELD)
+struct smc_clc_v2_flag {
+	u8 release : 4,
+	   rsvd    : 3,
+	   seid    : 1;
+};
+#elif defined(__LITTLE_ENDIAN_BITFIELD)
+struct smc_clc_v2_flag {
+	u8 seid   : 1,
+	rsvd      : 3,
+	release   : 4;
+};
+#endif
+
+struct smc_clnt_opts_area_hdr {
+	u8 eid_cnt;		/* number of user defined EIDs */
+	u8 ism_gid_cnt;		/* number of ISMv2 GIDs */
+	u8 reserved1;
+	struct smc_clc_v2_flag flag;
+	u8 reserved2[2];
+	__be16 smcd_v2_ext_offset; /* SMC-Dv2 Extension Offset */
+};
+
+struct smc_clc_smcd_gid_chid {
+	__be64 gid;		/* ISM GID */
+	__be16 chid;		/* ISMv2 CHID */
+} __packed;		/* format defined in
+			 * IBM Shared Memory Communications Version 2
+			 * (https://www.ibm.com/support/pages/node/6326337)
+			 */
+
+struct smc_clc_v2_extension {
+	struct smc_clnt_opts_area_hdr hdr;
+	u8 roce[16];		/* RoCEv2 GID */
+	u8 reserved[16];
+	u8 user_eids[0][SMC_MAX_EID_LEN];
+};
 
 struct smc_clc_msg_proposal_prefix {	/* prefix part of clc proposal message*/
 	__be32 outgoing_subnet;	/* subnet mask */
@@ -99,8 +135,15 @@ struct smc_clc_msg_proposal_prefix {	/* prefix part of clc proposal message*/
 } __aligned(4);
 
 struct smc_clc_msg_smcd {	/* SMC-D GID information */
-	u64 gid;		/* ISM GID of requestor */
-	u8 res[32];
+	struct smc_clc_smcd_gid_chid ism; /* ISM native GID+CHID of requestor */
+	__be16 v2_ext_offset;	/* SMC Version 2 Extension Offset */
+	u8 reserved[28];
+};
+
+struct smc_clc_smcd_v2_extension {
+	u8 system_eid[SMC_MAX_EID_LEN];
+	u8 reserved[16];
+	struct smc_clc_smcd_gid_chid gidchid[0];
 };
 
 struct smc_clc_msg_proposal {	/* clc proposal message sent by Linux */
@@ -109,11 +152,16 @@ struct smc_clc_msg_proposal {	/* clc proposal message sent by Linux */
 	__be16 iparea_offset;	/* offset to IP address information area */
 } __aligned(4);
 
+#define SMC_CLC_MAX_V6_PREFIX		8
+
 struct smc_clc_msg_proposal_area {
 	struct smc_clc_msg_proposal		pclc_base;
 	struct smc_clc_msg_smcd			pclc_smcd;
 	struct smc_clc_msg_proposal_prefix	pclc_prfx;
 	struct smc_clc_ipv6_prefix	pclc_prfx_ipv6[SMC_CLC_MAX_V6_PREFIX];
+	struct smc_clc_v2_extension		pclc_v2_ext;
+	struct smc_clc_smcd_v2_extension	pclc_smcd_v2_ext;
+	struct smc_clc_smcd_gid_chid		pclc_gidchids[SMC_MAX_ISM_DEVS];
 	struct smc_clc_msg_trail		pclc_trl;
 };
 
@@ -190,11 +238,26 @@ static inline bool smcd_indicated(int smc_type)
 static inline struct smc_clc_msg_smcd *
 smc_get_clc_msg_smcd(struct smc_clc_msg_proposal *prop)
 {
-	if (smcd_indicated(prop->hdr.type) &&
+	if (smcd_indicated(prop->hdr.typev1) &&
 	    ntohs(prop->iparea_offset) != sizeof(struct smc_clc_msg_smcd))
 		return NULL;
 
 	return (struct smc_clc_msg_smcd *)(prop + 1);
+}
+
+static inline struct smc_clc_v2_extension *
+smc_get_clc_v2_ext(struct smc_clc_msg_proposal *prop)
+{
+	struct smc_clc_msg_smcd *prop_smcd = smc_get_clc_msg_smcd(prop);
+
+	if (!prop_smcd || !ntohs(prop_smcd->v2_ext_offset))
+		return NULL;
+
+	return (struct smc_clc_v2_extension *)
+	       ((u8 *)prop_smcd +
+	       offsetof(struct smc_clc_msg_smcd, v2_ext_offset) +
+	       sizeof(prop_smcd->v2_ext_offset) +
+	       ntohs(prop_smcd->v2_ext_offset));
 }
 
 struct smcd_dev;
