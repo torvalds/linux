@@ -505,8 +505,10 @@ static int smc_clc_send_confirm_accept(struct smc_sock *smc,
 				       int first_contact)
 {
 	struct smc_connection *conn = &smc->conn;
+	struct smc_clc_msg_trail trl;
+	struct kvec vec[2];
 	struct msghdr msg;
-	struct kvec vec;
+	int i;
 
 	/* send SMC Confirm CLC msg */
 	clc->hdr.version = SMC_V1;		/* SMC version */
@@ -523,7 +525,7 @@ static int smc_clc_send_confirm_accept(struct smc_sock *smc,
 		clc->d0.dmbe_size = conn->rmbe_size_short;
 		clc->d0.dmbe_idx = 0;
 		memcpy(&clc->d0.linkid, conn->lgr->id, SMC_LGR_ID_SIZE);
-		memcpy(clc->d0.smcd_trl.eyecatcher, SMCD_EYECATCHER,
+		memcpy(trl.eyecatcher, SMCD_EYECATCHER,
 		       sizeof(SMCD_EYECATCHER));
 	} else {
 		struct smc_link *link = conn->lnk;
@@ -556,14 +558,19 @@ static int smc_clc_send_confirm_accept(struct smc_sock *smc,
 		clc->r0.rmb_dma_addr = cpu_to_be64((u64)sg_dma_address
 				(conn->rmb_desc->sgt[link->link_idx].sgl));
 		hton24(clc->r0.psn, link->psn_initial);
-		memcpy(clc->r0.smcr_trl.eyecatcher, SMC_EYECATCHER,
-		       sizeof(SMC_EYECATCHER));
+		memcpy(trl.eyecatcher, SMC_EYECATCHER, sizeof(SMC_EYECATCHER));
 	}
 
 	memset(&msg, 0, sizeof(msg));
-	vec.iov_base = clc;
-	vec.iov_len = ntohs(clc->hdr.length);
-	return kernel_sendmsg(smc->clcsock, &msg, &vec, 1,
+	i = 0;
+	vec[i].iov_base = clc;
+	vec[i++].iov_len = (clc->hdr.typev1 == SMC_TYPE_D ?
+			    SMCD_CLC_ACCEPT_CONFIRM_LEN :
+			    SMCR_CLC_ACCEPT_CONFIRM_LEN) -
+			   sizeof(trl);
+	vec[i].iov_base = &trl;
+	vec[i++].iov_len = sizeof(trl);
+	return kernel_sendmsg(smc->clcsock, &msg, vec, 1,
 			      ntohs(clc->hdr.length));
 }
 

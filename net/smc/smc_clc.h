@@ -134,8 +134,6 @@ struct smcr_clc_msg_accept_confirm {	/* SMCR accept/confirm */
 	__be64 rmb_dma_addr;	/* RMB virtual address */
 	u8 reserved2;
 	u8 psn[3];		/* packet sequence number */
-	struct smc_clc_msg_trail smcr_trl;
-				/* eye catcher "SMCR" EBCDIC */
 } __packed;
 
 struct smcd_clc_msg_accept_confirm {	/* SMCD accept/confirm */
@@ -150,10 +148,8 @@ struct smcd_clc_msg_accept_confirm {	/* SMCD accept/confirm */
 	   dmbe_size : 4;
 #endif
 	u16 reserved4;
-	u32 linkid;		/* Link identifier */
+	__be32 linkid;		/* Link identifier */
 	u32 reserved5[3];
-	struct smc_clc_msg_trail smcd_trl;
-				/* eye catcher "SMCD" EBCDIC */
 } __packed;
 
 struct smc_clc_msg_accept_confirm {	/* clc accept / confirm message */
