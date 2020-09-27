@@ -5343,13 +5343,16 @@ static int bnxt_hwrm_vnic_qcaps(struct bnxt *bp)
 		 * VLAN_STRIP_CAP properly.
 		 */
 		if ((flags & VNIC_QCAPS_RESP_FLAGS_VLAN_STRIP_CAP) ||
-		    ((bp->flags & BNXT_FLAG_CHIP_P5) &&
+		    (BNXT_CHIP_P5_THOR(bp) &&
 		     !(bp->fw_cap & BNXT_FW_CAP_EXT_HW_STATS_SUPPORTED)))
 			bp->fw_cap |= BNXT_FW_CAP_VLAN_RX_STRIP;
 		bp->max_tpa_v2 = le16_to_cpu(resp->max_aggs_supported);
-		if (bp->max_tpa_v2)
-			bp->hw_ring_stats_size =
-				sizeof(struct ctx_hw_stats_ext);
+		if (bp->max_tpa_v2) {
+			if (BNXT_CHIP_P5_THOR(bp))
+				bp->hw_ring_stats_size = BNXT_RING_STATS_SIZE_P5;
+			else
+				bp->hw_ring_stats_size = BNXT_RING_STATS_SIZE_P5_SR2;
+		}
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
 	return rc;
@@ -8734,6 +8737,30 @@ void bnxt_tx_enable(struct bnxt *bp)
 		netif_carrier_on(bp->dev);
 }
 
+static char *bnxt_report_fec(struct bnxt_link_info *link_info)
+{
+	u8 active_fec = link_info->active_fec_sig_mode &
+			PORT_PHY_QCFG_RESP_ACTIVE_FEC_MASK;
+
+	switch (active_fec) {
+	default:
+	case PORT_PHY_QCFG_RESP_ACTIVE_FEC_FEC_NONE_ACTIVE:
+		return "None";
+	case PORT_PHY_QCFG_RESP_ACTIVE_FEC_FEC_CLAUSE74_ACTIVE:
+		return "Clause 74 BaseR";
+	case PORT_PHY_QCFG_RESP_ACTIVE_FEC_FEC_CLAUSE91_ACTIVE:
+		return "Clause 91 RS(528,514)";
+	case PORT_PHY_QCFG_RESP_ACTIVE_FEC_FEC_RS544_1XN_ACTIVE:
+		return "Clause 91 RS544_1XN";
+	case PORT_PHY_QCFG_RESP_ACTIVE_FEC_FEC_RS544_IEEE_ACTIVE:
+		return "Clause 91 RS(544,514)";
+	case PORT_PHY_QCFG_RESP_ACTIVE_FEC_FEC_RS272_1XN_ACTIVE:
+		return "Clause 91 RS272_1XN";
+	case PORT_PHY_QCFG_RESP_ACTIVE_FEC_FEC_RS272_IEEE_ACTIVE:
+		return "Clause 91 RS(272,257)";
+	}
+}
+
 static void bnxt_report_link(struct bnxt *bp)
 {
 	if (bp->link_info.link_up) {
@@ -8764,14 +8791,23 @@ static void bnxt_report_link(struct bnxt *bp)
 							 "not active");
 		fec = bp->link_info.fec_cfg;
 		if (!(fec & PORT_PHY_QCFG_RESP_FEC_CFG_FEC_NONE_SUPPORTED))
-			netdev_info(bp->dev, "FEC autoneg %s encodings: %s\n",
+			netdev_info(bp->dev, "FEC autoneg %s encoding: %s\n",
 				    (fec & BNXT_FEC_AUTONEG) ? "on" : "off",
-				    (fec & BNXT_FEC_ENC_BASE_R) ? "BaseR" :
-				     (fec & BNXT_FEC_ENC_RS) ? "RS" : "None");
+				    bnxt_report_fec(&bp->link_info));
 	} else {
 		netif_carrier_off(bp->dev);
 		netdev_err(bp->dev, "NIC Link is Down\n");
 	}
+}
+
+static bool bnxt_phy_qcaps_no_speed(struct hwrm_port_phy_qcaps_output *resp)
+{
+	if (!resp->supported_speeds_auto_mode &&
+	    !resp->supported_speeds_force_mode &&
+	    !resp->supported_pam4_speeds_auto_mode &&
+	    !resp->supported_pam4_speeds_force_mode)
+		return true;
+	return false;
 }
 
 static int bnxt_hwrm_phy_qcaps(struct bnxt *bp)
@@ -8821,9 +8857,24 @@ static int bnxt_hwrm_phy_qcaps(struct bnxt *bp)
 	if (resp->flags & PORT_PHY_QCAPS_RESP_FLAGS_CUMULATIVE_COUNTERS_ON_RESET)
 		bp->fw_cap |= BNXT_FW_CAP_PORT_STATS_NO_RESET;
 
+	if (bp->hwrm_spec_code >= 0x10a01) {
+		if (bnxt_phy_qcaps_no_speed(resp)) {
+			link_info->phy_state = BNXT_PHY_STATE_DISABLED;
+			netdev_warn(bp->dev, "Ethernet link disabled\n");
+		} else if (link_info->phy_state == BNXT_PHY_STATE_DISABLED) {
+			link_info->phy_state = BNXT_PHY_STATE_ENABLED;
+			netdev_info(bp->dev, "Ethernet link enabled\n");
+			/* Phy re-enabled, reprobe the speeds */
+			link_info->support_auto_speeds = 0;
+			link_info->support_pam4_auto_speeds = 0;
+		}
+	}
 	if (resp->supported_speeds_auto_mode)
 		link_info->support_auto_speeds =
 			le16_to_cpu(resp->supported_speeds_auto_mode);
+	if (resp->supported_pam4_speeds_auto_mode)
+		link_info->support_pam4_auto_speeds =
+			le16_to_cpu(resp->supported_pam4_speeds_auto_mode);
 
 	bp->port_count = resp->port_cnt;
 
@@ -8832,14 +8883,21 @@ hwrm_phy_qcaps_exit:
 	return rc;
 }
 
-static int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
+static bool bnxt_support_dropped(u16 advertising, u16 supported)
+{
+	u16 diff = advertising ^ supported;
+
+	return ((supported | diff) != supported);
+}
+
+int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 {
 	int rc = 0;
 	struct bnxt_link_info *link_info = &bp->link_info;
 	struct hwrm_port_phy_qcfg_input req = {0};
 	struct hwrm_port_phy_qcfg_output *resp = bp->hwrm_cmd_resp_addr;
 	u8 link_up = link_info->link_up;
-	u16 diff;
+	bool support_changed = false;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_PORT_PHY_QCFG, -1, -1);
 
@@ -8866,10 +8924,17 @@ static int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 	else
 		link_info->link_speed = 0;
 	link_info->force_link_speed = le16_to_cpu(resp->force_link_speed);
+	link_info->force_pam4_link_speed =
+		le16_to_cpu(resp->force_pam4_link_speed);
 	link_info->support_speeds = le16_to_cpu(resp->support_speeds);
+	link_info->support_pam4_speeds = le16_to_cpu(resp->support_pam4_speeds);
 	link_info->auto_link_speeds = le16_to_cpu(resp->auto_link_speed_mask);
+	link_info->auto_pam4_link_speeds =
+		le16_to_cpu(resp->auto_pam4_link_speed_mask);
 	link_info->lp_auto_link_speeds =
 		le16_to_cpu(resp->link_partner_adv_speeds);
+	link_info->lp_auto_pam4_link_speeds =
+		resp->link_partner_pam4_adv_speeds;
 	link_info->preemphasis = le32_to_cpu(resp->preemphasis);
 	link_info->phy_ver[0] = resp->phy_maj;
 	link_info->phy_ver[1] = resp->phy_min;
@@ -8918,9 +8983,10 @@ static int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 	}
 
 	link_info->fec_cfg = PORT_PHY_QCFG_RESP_FEC_CFG_FEC_NONE_SUPPORTED;
-	if (bp->hwrm_spec_code >= 0x10504)
+	if (bp->hwrm_spec_code >= 0x10504) {
 		link_info->fec_cfg = le16_to_cpu(resp->fec_cfg);
-
+		link_info->active_fec_sig_mode = resp->active_fec_signal_mode;
+	}
 	/* TODO: need to add more logic to report VF link */
 	if (chng_link_state) {
 		if (link_info->phy_link_status == BNXT_LINK_LINK)
@@ -8938,17 +9004,21 @@ static int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 	if (!BNXT_PHY_CFG_ABLE(bp))
 		return 0;
 
-	diff = link_info->support_auto_speeds ^ link_info->advertising;
-	if ((link_info->support_auto_speeds | diff) !=
-	    link_info->support_auto_speeds) {
-		/* An advertised speed is no longer supported, so we need to
-		 * update the advertisement settings.  Caller holds RTNL
-		 * so we can modify link settings.
-		 */
+	/* Check if any advertised speeds are no longer supported. The caller
+	 * holds the link_lock mutex, so we can modify link_info settings.
+	 */
+	if (bnxt_support_dropped(link_info->advertising,
+				 link_info->support_auto_speeds)) {
 		link_info->advertising = link_info->support_auto_speeds;
-		if (link_info->autoneg & BNXT_AUTONEG_SPEED)
-			bnxt_hwrm_set_link_setting(bp, true, false);
+		support_changed = true;
 	}
+	if (bnxt_support_dropped(link_info->advertising_pam4,
+				 link_info->support_pam4_auto_speeds)) {
+		link_info->advertising_pam4 = link_info->support_pam4_auto_speeds;
+		support_changed = true;
+	}
+	if (support_changed && (link_info->autoneg & BNXT_AUTONEG_SPEED))
+		bnxt_hwrm_set_link_setting(bp, true, false);
 	return 0;
 }
 
@@ -9007,27 +9077,30 @@ bnxt_hwrm_set_pause_common(struct bnxt *bp, struct hwrm_port_phy_cfg_input *req)
 	}
 }
 
-static void bnxt_hwrm_set_link_common(struct bnxt *bp,
-				      struct hwrm_port_phy_cfg_input *req)
+static void bnxt_hwrm_set_link_common(struct bnxt *bp, struct hwrm_port_phy_cfg_input *req)
 {
-	u8 autoneg = bp->link_info.autoneg;
-	u16 fw_link_speed = bp->link_info.req_link_speed;
-	u16 advertising = bp->link_info.advertising;
-
-	if (autoneg & BNXT_AUTONEG_SPEED) {
-		req->auto_mode |=
-			PORT_PHY_CFG_REQ_AUTO_MODE_SPEED_MASK;
-
-		req->enables |= cpu_to_le32(
-			PORT_PHY_CFG_REQ_ENABLES_AUTO_LINK_SPEED_MASK);
-		req->auto_link_speed_mask = cpu_to_le16(advertising);
-
+	if (bp->link_info.autoneg & BNXT_AUTONEG_SPEED) {
+		req->auto_mode |= PORT_PHY_CFG_REQ_AUTO_MODE_SPEED_MASK;
+		if (bp->link_info.advertising) {
+			req->enables |= cpu_to_le32(PORT_PHY_CFG_REQ_ENABLES_AUTO_LINK_SPEED_MASK);
+			req->auto_link_speed_mask = cpu_to_le16(bp->link_info.advertising);
+		}
+		if (bp->link_info.advertising_pam4) {
+			req->enables |=
+				cpu_to_le32(PORT_PHY_CFG_REQ_ENABLES_AUTO_PAM4_LINK_SPEED_MASK);
+			req->auto_link_pam4_speed_mask =
+				cpu_to_le16(bp->link_info.advertising_pam4);
+		}
 		req->enables |= cpu_to_le32(PORT_PHY_CFG_REQ_ENABLES_AUTO_MODE);
-		req->flags |=
-			cpu_to_le32(PORT_PHY_CFG_REQ_FLAGS_RESTART_AUTONEG);
+		req->flags |= cpu_to_le32(PORT_PHY_CFG_REQ_FLAGS_RESTART_AUTONEG);
 	} else {
-		req->force_link_speed = cpu_to_le16(fw_link_speed);
 		req->flags |= cpu_to_le32(PORT_PHY_CFG_REQ_FLAGS_FORCE);
+		if (bp->link_info.req_signal_mode == BNXT_SIG_MODE_PAM4) {
+			req->force_pam4_link_speed = cpu_to_le16(bp->link_info.req_link_speed);
+			req->enables |= cpu_to_le32(PORT_PHY_CFG_REQ_ENABLES_FORCE_PAM4_LINK_SPEED);
+		} else {
+			req->force_link_speed = cpu_to_le16(bp->link_info.req_link_speed);
+		}
 	}
 
 	/* tell chimp that the setting takes effect immediately */
@@ -9423,14 +9496,19 @@ static int bnxt_update_phy_setting(struct bnxt *bp)
 	if (!(link_info->autoneg & BNXT_AUTONEG_SPEED)) {
 		if (BNXT_AUTO_MODE(link_info->auto_mode))
 			update_link = true;
-		if (link_info->req_link_speed != link_info->force_link_speed)
+		if (link_info->req_signal_mode == BNXT_SIG_MODE_NRZ &&
+		    link_info->req_link_speed != link_info->force_link_speed)
+			update_link = true;
+		else if (link_info->req_signal_mode == BNXT_SIG_MODE_PAM4 &&
+			 link_info->req_link_speed != link_info->force_pam4_link_speed)
 			update_link = true;
 		if (link_info->req_duplex != link_info->duplex_setting)
 			update_link = true;
 	} else {
 		if (link_info->auto_mode == BNXT_LINK_AUTO_NONE)
 			update_link = true;
-		if (link_info->advertising != link_info->auto_link_speeds)
+		if (link_info->advertising != link_info->auto_link_speeds ||
+		    link_info->advertising_pam4 != link_info->auto_pam4_link_speeds)
 			update_link = true;
 	}
 
@@ -10690,8 +10768,15 @@ static void bnxt_init_ethtool_link_settings(struct bnxt *bp)
 			link_info->autoneg |= BNXT_AUTONEG_FLOW_CTRL;
 		}
 		link_info->advertising = link_info->auto_link_speeds;
+		link_info->advertising_pam4 = link_info->auto_pam4_link_speeds;
 	} else {
 		link_info->req_link_speed = link_info->force_link_speed;
+		link_info->req_signal_mode = BNXT_SIG_MODE_NRZ;
+		if (link_info->force_pam4_link_speed) {
+			link_info->req_link_speed =
+				link_info->force_pam4_link_speed;
+			link_info->req_signal_mode = BNXT_SIG_MODE_PAM4;
+		}
 		link_info->req_duplex = link_info->duplex_setting;
 	}
 	if (link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL)
@@ -12233,8 +12318,11 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		goto init_err_pci_clean;
 
-	if (BNXT_CHIP_P5(bp))
+	if (BNXT_CHIP_P5(bp)) {
 		bp->flags |= BNXT_FLAG_CHIP_P5;
+		if (BNXT_CHIP_SR2(bp))
+			bp->flags |= BNXT_FLAG_CHIP_SR2;
+	}
 
 	rc = bnxt_alloc_rss_indir_tbl(bp);
 	if (rc)
