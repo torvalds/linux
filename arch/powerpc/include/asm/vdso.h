@@ -1,8 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef __PPC64_VDSO_H__
-#define __PPC64_VDSO_H__
-
-#ifdef __KERNEL__
+#ifndef _ASM_POWERPC_VDSO_H
+#define _ASM_POWERPC_VDSO_H
 
 /* Default map addresses for 32bit vDSO */
 #define VDSO32_MBASE	0x100000
@@ -54,6 +52,4 @@ int vdso_getcpu_init(void);
 
 #endif /* __ASSEMBLY__ */
 
-#endif /* __KERNEL__ */
-
-#endif /* __PPC64_VDSO_H__ */
+#endif /* _ASM_POWERPC_VDSO_H */
