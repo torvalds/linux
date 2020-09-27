@@ -33,14 +33,6 @@
 #include <asm/vdso_datapage.h>
 #include <asm/setup.h>
 
-#undef DEBUG
-
-#ifdef DEBUG
-#define DBG(fmt...) printk(fmt)
-#else
-#define DBG(fmt...)
-#endif
-
 /* The alignment of the vDSO */
 #define VDSO_ALIGNMENT	(1 << 16)
 
