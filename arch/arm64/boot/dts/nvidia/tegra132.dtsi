@@ -925,6 +925,11 @@
 					hysteresis = <1000>;
 					type = "critical";
 				};
+				mem_throttle_trip {
+					temperature = <99000>;
+					hysteresis = <1000>;
+					type = "hot";
+				};
 			};
 
 			cooling-maps {
@@ -974,6 +979,11 @@
 					temperature = <105000>;
 					hysteresis = <1000>;
 					type = "critical";
+				};
+				pllx_throttle_trip {
+					temperature = <99000>;
+					hysteresis = <1000>;
+					type = "hot";
 				};
 			};
 
