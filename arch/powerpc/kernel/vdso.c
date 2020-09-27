@@ -44,11 +44,8 @@
 /* The alignment of the vDSO */
 #define VDSO_ALIGNMENT	(1 << 16)
 
-static void *vdso32_kbase;
-
 extern char vdso32_start, vdso32_end;
 extern char vdso64_start, vdso64_end;
-static void *vdso64_kbase = &vdso64_start;
 
 static int vdso_ready;
 
@@ -62,20 +59,6 @@ static union {
 	u8			page[PAGE_SIZE];
 } vdso_data_store __page_aligned_data;
 struct vdso_arch_data *vdso_data = &vdso_data_store.data;
-
-/*
- * Some infos carried around for each of them during parsing at
- * boot time.
- */
-struct lib32_elfinfo
-{
-	Elf32_Ehdr	*hdr;		/* ptr to ELF */
-};
-
-struct lib64_elfinfo
-{
-	Elf64_Ehdr	*hdr;
-};
 
 static int vdso_mremap(const struct vm_special_mapping *sm, struct vm_area_struct *new_vma,
 		       unsigned long text_size)
@@ -206,8 +189,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	do_##type##_fixups((value), __start, __end);					\
 } while (0)
 
-static __init int vdso_fixup_features(struct lib32_elfinfo *v32,
-				      struct lib64_elfinfo *v64)
+static int __init vdso_fixup_features(void)
 {
 #ifdef CONFIG_PPC64
 	VDSO_DO_FIXUPS(feature, cur_cpu_spec->cpu_features, 64, ftr_fixup);
@@ -230,12 +212,7 @@ static __init int vdso_fixup_features(struct lib32_elfinfo *v32,
 
 static __init int vdso_setup(void)
 {
-	struct lib32_elfinfo	v32;
-	struct lib64_elfinfo	v64;
-
-	v32.hdr = vdso32_kbase;
-	v64.hdr = vdso64_kbase;
-	if (vdso_fixup_features(&v32, &v64))
+	if (vdso_fixup_features())
 		return -1;
 
 	return 0;
@@ -330,8 +307,6 @@ static int __init vdso_init(void)
 	vdso_data->dcache_log_block_size = ppc64_caches.l1d.log_block_size;
 	vdso_data->icache_log_block_size = ppc64_caches.l1i.log_block_size;
 #endif /* CONFIG_PPC64 */
-
-	vdso32_kbase = &vdso32_start;
 
 	vdso_setup_syscall_map();
 
