@@ -8835,6 +8835,13 @@ hwrm_phy_qcaps_exit:
 	return rc;
 }
 
+static bool bnxt_support_dropped(u16 advertising, u16 supported)
+{
+	u16 diff = advertising ^ supported;
+
+	return ((supported | diff) != supported);
+}
+
 static int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 {
 	int rc = 0;
@@ -8842,7 +8849,6 @@ static int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 	struct hwrm_port_phy_qcfg_input req = {0};
 	struct hwrm_port_phy_qcfg_output *resp = bp->hwrm_cmd_resp_addr;
 	u8 link_up = link_info->link_up;
-	u16 diff;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_PORT_PHY_QCFG, -1, -1);
 
@@ -8941,13 +8947,11 @@ static int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 	if (!BNXT_PHY_CFG_ABLE(bp))
 		return 0;
 
-	diff = link_info->support_auto_speeds ^ link_info->advertising;
-	if ((link_info->support_auto_speeds | diff) !=
-	    link_info->support_auto_speeds) {
-		/* An advertised speed is no longer supported, so we need to
-		 * update the advertisement settings.  Caller holds RTNL
-		 * so we can modify link settings.
-		 */
+	/* Check if any advertised speeds are no longer supported. The caller
+	 * holds the link_lock mutex, so we can modify link_info settings.
+	 */
+	if (bnxt_support_dropped(link_info->advertising,
+				 link_info->support_auto_speeds)) {
 		link_info->advertising = link_info->support_auto_speeds;
 		if (link_info->autoneg & BNXT_AUTONEG_SPEED)
 			bnxt_hwrm_set_link_setting(bp, true, false);
