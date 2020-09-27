@@ -1383,6 +1383,20 @@ static void hclge_parse_dev_specs(struct hclge_dev *hdev,
 	ae_dev->dev_specs.max_tm_rate = le32_to_cpu(req0->max_tm_rate);
 }
 
+static void hclge_check_dev_specs(struct hclge_dev *hdev)
+{
+	struct hnae3_dev_specs *dev_specs = &hdev->ae_dev->dev_specs;
+
+	if (!dev_specs->max_non_tso_bd_num)
+		dev_specs->max_non_tso_bd_num = HCLGE_MAX_NON_TSO_BD_NUM;
+	if (!dev_specs->rss_ind_tbl_size)
+		dev_specs->rss_ind_tbl_size = HCLGE_RSS_IND_TBL_SIZE;
+	if (!dev_specs->rss_key_size)
+		dev_specs->rss_key_size = HCLGE_RSS_KEY_SIZE;
+	if (!dev_specs->max_tm_rate)
+		dev_specs->max_tm_rate = HCLGE_ETHER_MAX_RATE;
+}
+
 static int hclge_query_dev_specs(struct hclge_dev *hdev)
 {
 	struct hclge_desc desc[HCLGE_QUERY_DEV_SPECS_BD_NUM];
@@ -1409,6 +1423,7 @@ static int hclge_query_dev_specs(struct hclge_dev *hdev)
 		return ret;
 
 	hclge_parse_dev_specs(hdev, desc);
+	hclge_check_dev_specs(hdev);
 
 	return 0;
 }

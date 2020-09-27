@@ -2965,6 +2965,18 @@ static void hclgevf_parse_dev_specs(struct hclgevf_dev *hdev,
 	ae_dev->dev_specs.rss_key_size = le16_to_cpu(req0->rss_key_size);
 }
 
+static void hclgevf_check_dev_specs(struct hclgevf_dev *hdev)
+{
+	struct hnae3_dev_specs *dev_specs = &hdev->ae_dev->dev_specs;
+
+	if (!dev_specs->max_non_tso_bd_num)
+		dev_specs->max_non_tso_bd_num = HCLGEVF_MAX_NON_TSO_BD_NUM;
+	if (!dev_specs->rss_ind_tbl_size)
+		dev_specs->rss_ind_tbl_size = HCLGEVF_RSS_IND_TBL_SIZE;
+	if (!dev_specs->rss_key_size)
+		dev_specs->rss_key_size = HCLGEVF_RSS_KEY_SIZE;
+}
+
 static int hclgevf_query_dev_specs(struct hclgevf_dev *hdev)
 {
 	struct hclgevf_desc desc[HCLGEVF_QUERY_DEV_SPECS_BD_NUM];
@@ -2992,6 +3004,7 @@ static int hclgevf_query_dev_specs(struct hclgevf_dev *hdev)
 		return ret;
 
 	hclgevf_parse_dev_specs(hdev, desc);
+	hclgevf_check_dev_specs(hdev);
 
 	return 0;
 }
