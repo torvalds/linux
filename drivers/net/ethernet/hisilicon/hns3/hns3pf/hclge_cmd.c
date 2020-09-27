@@ -355,6 +355,7 @@ hclge_cmd_query_version_and_capability(struct hclge_dev *hdev)
 	    ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2) {
 		hnae3_set_bit(ae_dev->flag, HNAE3_DEV_SUPPORT_FD_B, 1);
 		hnae3_set_bit(ae_dev->flag, HNAE3_DEV_SUPPORT_GRO_B, 1);
+		hnae3_set_bit(ae_dev->flag, HNAE3_DEV_SUPPORT_FEC_B, 1);
 	}
 
 	return ret;

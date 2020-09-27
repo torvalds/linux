@@ -1363,11 +1363,12 @@ static int hns3_get_fecparam(struct net_device *netdev,
 			     struct ethtool_fecparam *fec)
 {
 	struct hnae3_handle *handle = hns3_get_handle(netdev);
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
 	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
 	u8 fec_ability;
 	u8 fec_mode;
 
-	if (handle->pdev->revision == 0x20)
+	if (!hnae3_get_bit(ae_dev->flag, HNAE3_DEV_SUPPORT_FEC_B))
 		return -EOPNOTSUPP;
 
 	if (!ops->get_fec)
@@ -1385,10 +1386,11 @@ static int hns3_set_fecparam(struct net_device *netdev,
 			     struct ethtool_fecparam *fec)
 {
 	struct hnae3_handle *handle = hns3_get_handle(netdev);
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
 	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
 	u32 fec_mode;
 
-	if (handle->pdev->revision == 0x20)
+	if (!hnae3_get_bit(ae_dev->flag, HNAE3_DEV_SUPPORT_FEC_B))
 		return -EOPNOTSUPP;
 
 	if (!ops->set_fec)

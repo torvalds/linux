@@ -63,6 +63,7 @@
 #define HNAE3_ROCE_CLIENT_INITED_B		0x5
 #define HNAE3_DEV_SUPPORT_FD_B			0x6
 #define HNAE3_DEV_SUPPORT_GRO_B			0x7
+#define HNAE3_DEV_SUPPORT_FEC_B			0x9
 
 #define HNAE3_DEV_SUPPORT_ROCE_DCB_BITS (BIT(HNAE3_DEV_SUPPORT_DCB_B) |\
 		BIT(HNAE3_DEV_SUPPORT_ROCE_B))
@@ -78,6 +79,9 @@
 
 #define hnae3_dev_gro_supported(hdev) \
 	hnae3_get_bit((hdev)->ae_dev->flag, HNAE3_DEV_SUPPORT_GRO_B)
+
+#define hnae3_dev_fec_supported(hdev) \
+	hnae3_get_bit((hdev)->ae_dev->flag, HNAE3_DEV_SUPPORT_FEC_B)
 
 #define ring_ptr_move_fw(ring, p) \
 	((ring)->p = ((ring)->p + 1) % (ring)->desc_num)

@@ -1157,7 +1157,7 @@ static void hclge_parse_fiber_link_mode(struct hclge_dev *hdev,
 	hclge_convert_setting_sr(mac, speed_ability);
 	hclge_convert_setting_lr(mac, speed_ability);
 	hclge_convert_setting_cr(mac, speed_ability);
-	if (hdev->pdev->revision >= 0x21)
+	if (hnae3_dev_fec_supported(hdev))
 		hclge_convert_setting_fec(mac);
 
 	linkmode_set_bit(ETHTOOL_LINK_MODE_FIBRE_BIT, mac->supported);
@@ -1171,7 +1171,7 @@ static void hclge_parse_backplane_link_mode(struct hclge_dev *hdev,
 	struct hclge_mac *mac = &hdev->hw.mac;
 
 	hclge_convert_setting_kr(mac, speed_ability);
-	if (hdev->pdev->revision >= 0x21)
+	if (hnae3_dev_fec_supported(hdev))
 		hclge_convert_setting_fec(mac);
 	linkmode_set_bit(ETHTOOL_LINK_MODE_Backplane_BIT, mac->supported);
 	linkmode_set_bit(ETHTOOL_LINK_MODE_Pause_BIT, mac->supported);
