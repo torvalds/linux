@@ -467,6 +467,117 @@ static void mlxsw_env_temp_warn_event_unregister(struct mlxsw_env *mlxsw_env)
 				   &mlxsw_env_temp_warn_listener, mlxsw_env);
 }
 
+struct mlxsw_env_module_plug_unplug_event {
+	struct mlxsw_env *mlxsw_env;
+	u8 module;
+	struct work_struct work;
+};
+
+static void mlxsw_env_pmpe_event_work(struct work_struct *work)
+{
+	struct mlxsw_env_module_plug_unplug_event *event;
+	struct mlxsw_env *mlxsw_env;
+	bool has_temp_sensor;
+	u16 sensor_index;
+	int err;
+
+	event = container_of(work, struct mlxsw_env_module_plug_unplug_event,
+			     work);
+	mlxsw_env = event->mlxsw_env;
+
+	spin_lock_bh(&mlxsw_env->module_info_lock);
+	mlxsw_env->module_info[event->module].is_overheat = false;
+	spin_unlock_bh(&mlxsw_env->module_info_lock);
+
+	err = mlxsw_env_module_has_temp_sensor(mlxsw_env->core, event->module,
+					       &has_temp_sensor);
+	/* Do not disable events on modules without sensors or faulty sensors
+	 * because FW returns errors.
+	 */
+	if (err)
+		goto out;
+
+	if (!has_temp_sensor)
+		goto out;
+
+	sensor_index = event->module + MLXSW_REG_MTMP_MODULE_INDEX_MIN;
+	mlxsw_env_temp_event_set(mlxsw_env->core, sensor_index, true);
+
+out:
+	kfree(event);
+}
+
+static void
+mlxsw_env_pmpe_listener_func(const struct mlxsw_reg_info *reg, char *pmpe_pl,
+			     void *priv)
+{
+	struct mlxsw_env_module_plug_unplug_event *event;
+	enum mlxsw_reg_pmpe_module_status module_status;
+	u8 module = mlxsw_reg_pmpe_module_get(pmpe_pl);
+	struct mlxsw_env *mlxsw_env = priv;
+
+	if (WARN_ON_ONCE(module >= mlxsw_env->module_count))
+		return;
+
+	module_status = mlxsw_reg_pmpe_module_status_get(pmpe_pl);
+	if (module_status != MLXSW_REG_PMPE_MODULE_STATUS_PLUGGED_ENABLED)
+		return;
+
+	event = kmalloc(sizeof(*event), GFP_ATOMIC);
+	if (!event)
+		return;
+
+	event->mlxsw_env = mlxsw_env;
+	event->module = module;
+	INIT_WORK(&event->work, mlxsw_env_pmpe_event_work);
+	mlxsw_core_schedule_work(&event->work);
+}
+
+static const struct mlxsw_listener mlxsw_env_module_plug_listener =
+	MLXSW_EVENTL(mlxsw_env_pmpe_listener_func, PMPE, PMPE);
+
+static int
+mlxsw_env_module_plug_event_register(struct mlxsw_core *mlxsw_core)
+{
+	struct mlxsw_env *mlxsw_env = mlxsw_core_env(mlxsw_core);
+
+	if (!mlxsw_core_temp_warn_enabled(mlxsw_core))
+		return 0;
+
+	return mlxsw_core_trap_register(mlxsw_core,
+					&mlxsw_env_module_plug_listener,
+					mlxsw_env);
+}
+
+static void
+mlxsw_env_module_plug_event_unregister(struct mlxsw_env *mlxsw_env)
+{
+	if (!mlxsw_core_temp_warn_enabled(mlxsw_env->core))
+		return;
+
+	mlxsw_core_trap_unregister(mlxsw_env->core,
+				   &mlxsw_env_module_plug_listener,
+				   mlxsw_env);
+}
+
+static int
+mlxsw_env_module_oper_state_event_enable(struct mlxsw_core *mlxsw_core,
+					 u8 module_count)
+{
+	int i, err;
+
+	for (i = 0; i < module_count; i++) {
+		char pmaos_pl[MLXSW_REG_PMAOS_LEN];
+
+		mlxsw_reg_pmaos_pack(pmaos_pl, i,
+				     MLXSW_REG_PMAOS_E_GENERATE_EVENT);
+		err = mlxsw_reg_write(mlxsw_core, MLXSW_REG(pmaos), pmaos_pl);
+		if (err)
+			return err;
+	}
+	return 0;
+}
+
 int
 mlxsw_env_module_overheat_counter_get(struct mlxsw_core *mlxsw_core, u8 module,
 				      u64 *p_counter)
@@ -517,6 +628,15 @@ int mlxsw_env_init(struct mlxsw_core *mlxsw_core, struct mlxsw_env **p_env)
 	if (err)
 		goto err_temp_warn_event_register;
 
+	err = mlxsw_env_module_plug_event_register(mlxsw_core);
+	if (err)
+		goto err_module_plug_event_register;
+
+	err = mlxsw_env_module_oper_state_event_enable(mlxsw_core,
+						       env->module_count);
+	if (err)
+		goto err_oper_state_event_enable;
+
 	err = mlxsw_env_module_temp_event_enable(mlxsw_core, env->module_count);
 	if (err)
 		goto err_temp_event_enable;
@@ -524,6 +644,9 @@ int mlxsw_env_init(struct mlxsw_core *mlxsw_core, struct mlxsw_env **p_env)
 	return 0;
 
 err_temp_event_enable:
+err_oper_state_event_enable:
+	mlxsw_env_module_plug_event_unregister(env);
+err_module_plug_event_register:
 	mlxsw_env_temp_warn_event_unregister(env);
 err_temp_warn_event_register:
 	kfree(env);
@@ -532,6 +655,9 @@ err_temp_warn_event_register:
 
 void mlxsw_env_fini(struct mlxsw_env *env)
 {
+	mlxsw_env_module_plug_event_unregister(env);
+	/* Make sure there is no more event work scheduled. */
+	mlxsw_core_flush_owq();
 	mlxsw_env_temp_warn_event_unregister(env);
 	kfree(env);
 }
