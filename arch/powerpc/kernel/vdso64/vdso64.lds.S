@@ -39,16 +39,24 @@ SECTIONS
 	PROVIDE(etext = .);
 
 	. = ALIGN(8);
+	VDSO_ftr_fixup_start = .;
 	__ftr_fixup	: { *(__ftr_fixup) }
+	VDSO_ftr_fixup_end = .;
 
 	. = ALIGN(8);
+	VDSO_mmu_ftr_fixup_start = .;
 	__mmu_ftr_fixup	: { *(__mmu_ftr_fixup) }
+	VDSO_mmu_ftr_fixup_end = .;
 
 	. = ALIGN(8);
+	VDSO_lwsync_fixup_start = .;
 	__lwsync_fixup	: { *(__lwsync_fixup) }
+	VDSO_lwsync_fixup_end = .;
 
 	. = ALIGN(8);
+	VDSO_fw_ftr_fixup_start = .;
 	__fw_ftr_fixup	: { *(__fw_ftr_fixup) }
+	VDSO_fw_ftr_fixup_end = .;
 
 	/*
 	 * Other stuff is appended to the text segment:

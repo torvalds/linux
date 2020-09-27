@@ -434,6 +434,12 @@ static int __init vdso_do_func_patch64(struct lib32_elfinfo *v32,
 
 #endif /* CONFIG_PPC64 */
 
+#define VDSO_DO_FIXUPS(type, value, bits, sec) do {					\
+	void *__start = (void *)VDSO##bits##_SYMBOL(&vdso##bits##_start, sec##_start);	\
+	void *__end = (void *)VDSO##bits##_SYMBOL(&vdso##bits##_start, sec##_end);	\
+											\
+	do_##type##_fixups((value), __start, __end);					\
+} while (0)
 
 static __init int vdso_do_find_sections(struct lib32_elfinfo *v32,
 					struct lib64_elfinfo *v64)
@@ -530,53 +536,20 @@ static __init int vdso_fixup_datapage(struct lib32_elfinfo *v32,
 static __init int vdso_fixup_features(struct lib32_elfinfo *v32,
 				      struct lib64_elfinfo *v64)
 {
-	unsigned long size;
-	void *start;
-
 #ifdef CONFIG_PPC64
-	start = find_section64(v64->hdr, "__ftr_fixup", &size);
-	if (start)
-		do_feature_fixups(cur_cpu_spec->cpu_features,
-				  start, start + size);
-
-	start = find_section64(v64->hdr, "__mmu_ftr_fixup", &size);
-	if (start)
-		do_feature_fixups(cur_cpu_spec->mmu_features,
-				  start, start + size);
-
-	start = find_section64(v64->hdr, "__fw_ftr_fixup", &size);
-	if (start)
-		do_feature_fixups(powerpc_firmware_features,
-				  start, start + size);
-
-	start = find_section64(v64->hdr, "__lwsync_fixup", &size);
-	if (start)
-		do_lwsync_fixups(cur_cpu_spec->cpu_features,
-				 start, start + size);
+	VDSO_DO_FIXUPS(feature, cur_cpu_spec->cpu_features, 64, ftr_fixup);
+	VDSO_DO_FIXUPS(feature, cur_cpu_spec->mmu_features, 64, mmu_ftr_fixup);
+	VDSO_DO_FIXUPS(feature, powerpc_firmware_features, 64, fw_ftr_fixup);
+	VDSO_DO_FIXUPS(lwsync, cur_cpu_spec->cpu_features, 64, lwsync_fixup);
 #endif /* CONFIG_PPC64 */
 
 #ifdef CONFIG_VDSO32
-	start = find_section32(v32->hdr, "__ftr_fixup", &size);
-	if (start)
-		do_feature_fixups(cur_cpu_spec->cpu_features,
-				  start, start + size);
-
-	start = find_section32(v32->hdr, "__mmu_ftr_fixup", &size);
-	if (start)
-		do_feature_fixups(cur_cpu_spec->mmu_features,
-				  start, start + size);
-
+	VDSO_DO_FIXUPS(feature, cur_cpu_spec->cpu_features, 32, ftr_fixup);
+	VDSO_DO_FIXUPS(feature, cur_cpu_spec->mmu_features, 32, mmu_ftr_fixup);
 #ifdef CONFIG_PPC64
-	start = find_section32(v32->hdr, "__fw_ftr_fixup", &size);
-	if (start)
-		do_feature_fixups(powerpc_firmware_features,
-				  start, start + size);
+	VDSO_DO_FIXUPS(feature, powerpc_firmware_features, 32, fw_ftr_fixup);
 #endif /* CONFIG_PPC64 */
-
-	start = find_section32(v32->hdr, "__lwsync_fixup", &size);
-	if (start)
-		do_lwsync_fixups(cur_cpu_spec->cpu_features,
-				 start, start + size);
+	VDSO_DO_FIXUPS(lwsync, cur_cpu_spec->cpu_features, 32, lwsync_fixup);
 #endif
 
 	return 0;
