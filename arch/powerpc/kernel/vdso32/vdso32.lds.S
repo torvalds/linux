@@ -162,7 +162,6 @@ VERSION
 		__kernel_time;
 		__kernel_get_tbfreq;
 		__kernel_sync_dicache;
-		__kernel_sync_dicache_p5;
 		__kernel_sigtramp32;
 		__kernel_sigtramp_rt32;
 #if defined(CONFIG_PPC64) || !defined(CONFIG_SMP)

@@ -87,10 +87,6 @@ struct vdso_patch_def
  * with a coherent icache
  */
 static struct vdso_patch_def vdso_patches[] = {
-	{
-		CPU_FTR_COHERENT_ICACHE, CPU_FTR_COHERENT_ICACHE,
-		"__kernel_sync_dicache", "__kernel_sync_dicache_p5"
-	},
 };
 
 /*
