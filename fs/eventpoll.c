@@ -1356,26 +1356,16 @@ static int ep_insert(struct eventpoll *ep, const struct epoll_event *event,
 	user_watches = atomic_long_read(&ep->user->epoll_watches);
 	if (unlikely(user_watches >= max_user_watches))
 		return -ENOSPC;
-	if (!(epi = kmem_cache_alloc(epi_cache, GFP_KERNEL)))
+	if (!(epi = kmem_cache_zalloc(epi_cache, GFP_KERNEL)))
 		return -ENOMEM;
 
 	/* Item initialization follow here ... */
 	INIT_LIST_HEAD(&epi->rdllink);
 	INIT_LIST_HEAD(&epi->fllink);
-	epi->pwqlist = NULL;
 	epi->ep = ep;
 	ep_set_ffd(&epi->ffd, tfile, fd);
 	epi->event = *event;
 	epi->next = EP_UNACTIVE_PTR;
-	if (epi->event.events & EPOLLWAKEUP) {
-		error = ep_create_wakeup_source(epi);
-		if (error) {
-			kmem_cache_free(epi_cache, epi);
-			return error;
-		}
-	} else {
-		RCU_INIT_POINTER(epi->ws, NULL);
-	}
 
 	atomic_long_inc(&ep->user->epoll_watches);
 
@@ -1398,6 +1388,14 @@ static int ep_insert(struct eventpoll *ep, const struct epoll_event *event,
 	if (unlikely(full_check && reverse_path_check())) {
 		ep_remove(ep, epi);
 		return -EINVAL;
+	}
+
+	if (epi->event.events & EPOLLWAKEUP) {
+		error = ep_create_wakeup_source(epi);
+		if (error) {
+			ep_remove(ep, epi);
+			return error;
+		}
 	}
 
 	/* Initialize the poll table using the queue callback */
