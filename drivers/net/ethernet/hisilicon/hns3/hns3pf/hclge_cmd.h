@@ -362,6 +362,20 @@ struct hclge_rx_priv_buff_cmd {
 	u8 rsv[6];
 };
 
+enum HCLGE_CAP_BITS {
+	HCLGE_CAP_UDP_GSO_B,
+	HCLGE_CAP_QB_B,
+	HCLGE_CAP_FD_FORWARD_TC_B,
+	HCLGE_CAP_PTP_B,
+	HCLGE_CAP_INT_QL_B,
+	HCLGE_CAP_SIMPLE_BD_B,
+	HCLGE_CAP_TX_PUSH_B,
+	HCLGE_CAP_PHY_IMP_B,
+	HCLGE_CAP_TQP_TXRX_INDEP_B,
+	HCLGE_CAP_HW_PAD_B,
+	HCLGE_CAP_STASH_B,
+};
+
 #define HCLGE_QUERY_CAP_LENGTH		3
 struct hclge_query_version_cmd {
 	__le32 firmware;

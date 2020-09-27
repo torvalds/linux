@@ -61,9 +61,6 @@
 #define HNAE3_KNIC_CLIENT_INITED_B		0x3
 #define HNAE3_UNIC_CLIENT_INITED_B		0x4
 #define HNAE3_ROCE_CLIENT_INITED_B		0x5
-#define HNAE3_DEV_SUPPORT_FD_B			0x6
-#define HNAE3_DEV_SUPPORT_GRO_B			0x7
-#define HNAE3_DEV_SUPPORT_FEC_B			0x9
 
 #define HNAE3_DEV_SUPPORT_ROCE_DCB_BITS (BIT(HNAE3_DEV_SUPPORT_DCB_B) |\
 		BIT(HNAE3_DEV_SUPPORT_ROCE_B))
@@ -74,14 +71,64 @@
 #define hnae3_dev_dcb_supported(hdev) \
 	hnae3_get_bit((hdev)->ae_dev->flag, HNAE3_DEV_SUPPORT_DCB_B)
 
+enum HNAE3_DEV_CAP_BITS {
+	HNAE3_DEV_SUPPORT_FD_B,
+	HNAE3_DEV_SUPPORT_GRO_B,
+	HNAE3_DEV_SUPPORT_FEC_B,
+	HNAE3_DEV_SUPPORT_UDP_GSO_B,
+	HNAE3_DEV_SUPPORT_QB_B,
+	HNAE3_DEV_SUPPORT_FD_FORWARD_TC_B,
+	HNAE3_DEV_SUPPORT_PTP_B,
+	HNAE3_DEV_SUPPORT_INT_QL_B,
+	HNAE3_DEV_SUPPORT_SIMPLE_BD_B,
+	HNAE3_DEV_SUPPORT_TX_PUSH_B,
+	HNAE3_DEV_SUPPORT_PHY_IMP_B,
+	HNAE3_DEV_SUPPORT_TQP_TXRX_INDEP_B,
+	HNAE3_DEV_SUPPORT_HW_PAD_B,
+	HNAE3_DEV_SUPPORT_STASH_B,
+};
+
 #define hnae3_dev_fd_supported(hdev) \
-	hnae3_get_bit((hdev)->ae_dev->flag, HNAE3_DEV_SUPPORT_FD_B)
+	test_bit(HNAE3_DEV_SUPPORT_FD_B, (hdev)->ae_dev->caps)
 
 #define hnae3_dev_gro_supported(hdev) \
-	hnae3_get_bit((hdev)->ae_dev->flag, HNAE3_DEV_SUPPORT_GRO_B)
+	test_bit(HNAE3_DEV_SUPPORT_GRO_B, (hdev)->ae_dev->caps)
 
 #define hnae3_dev_fec_supported(hdev) \
-	hnae3_get_bit((hdev)->ae_dev->flag, HNAE3_DEV_SUPPORT_FEC_B)
+	test_bit(HNAE3_DEV_SUPPORT_FEC_B, (hdev)->ae_dev->caps)
+
+#define hnae3_dev_udp_gso_supported(hdev) \
+	test_bit(HNAE3_DEV_SUPPORT_UDP_GSO_B, (hdev)->ae_dev->caps)
+
+#define hnae3_dev_qb_supported(hdev) \
+	test_bit(HNAE3_DEV_SUPPORT_QB_B, (hdev)->ae_dev->caps)
+
+#define hnae3_dev_fd_forward_tc_supported(hdev) \
+	test_bit(HNAE3_DEV_SUPPORT_FD_FORWARD_TC_B, (hdev)->ae_dev->caps)
+
+#define hnae3_dev_ptp_supported(hdev) \
+	test_bit(HNAE3_DEV_SUPPORT_PTP_B, (hdev)->ae_dev->caps)
+
+#define hnae3_dev_int_ql_supported(hdev) \
+	test_bit(HNAE3_DEV_SUPPORT_INT_QL_B, (hdev)->ae_dev->caps)
+
+#define hnae3_dev_simple_bd_supported(hdev) \
+	test_bit(HNAE3_DEV_SUPPORT_SIMPLE_BD_B, (hdev)->ae_dev->caps)
+
+#define hnae3_dev_tx_push_supported(hdev) \
+	test_bit(HNAE3_DEV_SUPPORT_TX_PUSH_B, (hdev)->ae_dev->caps)
+
+#define hnae3_dev_phy_imp_supported(hdev) \
+	test_bit(HNAE3_DEV_SUPPORT_PHY_IMP_B, (hdev)->ae_dev->caps)
+
+#define hnae3_dev_tqp_txrx_indep_supported(hdev) \
+	test_bit(HNAE3_DEV_SUPPORT_TQP_TXRX_INDEP_B, (hdev)->ae_dev->caps)
+
+#define hnae3_dev_hw_pad_supported(hdev) \
+	test_bit(HNAE3_DEV_SUPPORT_HW_PAD_B, (hdev)->ae_dev->caps)
+
+#define hnae3_dev_stash_supported(hdev) \
+	test_bit(HNAE3_DEV_SUPPORT_STASH_B, (hdev)->ae_dev->caps)
 
 #define ring_ptr_move_fw(ring, p) \
 	((ring)->p = ((ring)->p + 1) % (ring)->desc_num)
@@ -240,6 +287,7 @@ struct hnae3_client {
 	struct list_head node;
 };
 
+#define HNAE3_DEV_CAPS_MAX_NUM	96
 struct hnae3_ae_dev {
 	struct pci_dev *pdev;
 	const struct hnae3_ae_ops *ops;
@@ -247,6 +295,7 @@ struct hnae3_ae_dev {
 	u32 flag;
 	unsigned long hw_err_reset_req;
 	u32 dev_version;
+	unsigned long caps[BITS_TO_LONGS(HNAE3_DEV_CAPS_MAX_NUM)];
 	void *priv;
 };
 

@@ -330,6 +330,33 @@ int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num)
 	return retval;
 }
 
+static void hclge_set_default_capability(struct hclge_dev *hdev)
+{
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
+
+	set_bit(HNAE3_DEV_SUPPORT_FD_B, ae_dev->caps);
+	set_bit(HNAE3_DEV_SUPPORT_GRO_B, ae_dev->caps);
+	set_bit(HNAE3_DEV_SUPPORT_FEC_B, ae_dev->caps);
+}
+
+static void hclge_parse_capability(struct hclge_dev *hdev,
+				   struct hclge_query_version_cmd *cmd)
+{
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
+	u32 caps;
+
+	caps = __le32_to_cpu(cmd->caps[0]);
+
+	if (hnae3_get_bit(caps, HCLGE_CAP_UDP_GSO_B))
+		set_bit(HNAE3_DEV_SUPPORT_UDP_GSO_B, ae_dev->caps);
+	if (hnae3_get_bit(caps, HCLGE_CAP_PTP_B))
+		set_bit(HNAE3_DEV_SUPPORT_PTP_B, ae_dev->caps);
+	if (hnae3_get_bit(caps, HCLGE_CAP_INT_QL_B))
+		set_bit(HNAE3_DEV_SUPPORT_INT_QL_B, ae_dev->caps);
+	if (hnae3_get_bit(caps, HCLGE_CAP_TQP_TXRX_INDEP_B))
+		set_bit(HNAE3_DEV_SUPPORT_TQP_TXRX_INDEP_B, ae_dev->caps);
+}
+
 static enum hclge_cmd_status
 hclge_cmd_query_version_and_capability(struct hclge_dev *hdev)
 {
@@ -351,12 +378,10 @@ hclge_cmd_query_version_and_capability(struct hclge_dev *hdev)
 					 HNAE3_PCI_REVISION_BIT_SIZE;
 	ae_dev->dev_version |= hdev->pdev->revision;
 
-	if (!resp->caps[0] &&
-	    ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2) {
-		hnae3_set_bit(ae_dev->flag, HNAE3_DEV_SUPPORT_FD_B, 1);
-		hnae3_set_bit(ae_dev->flag, HNAE3_DEV_SUPPORT_GRO_B, 1);
-		hnae3_set_bit(ae_dev->flag, HNAE3_DEV_SUPPORT_FEC_B, 1);
-	}
+	if (ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2)
+		hclge_set_default_capability(hdev);
+
+	hclge_parse_capability(hdev, resp);
 
 	return ret;
 }
