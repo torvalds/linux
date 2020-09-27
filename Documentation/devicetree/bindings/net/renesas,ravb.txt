@@ -21,6 +21,7 @@ Required properties:
       - "renesas,etheravb-r8a774a1" for the R8A774A1 SoC.
       - "renesas,etheravb-r8a774b1" for the R8A774B1 SoC.
       - "renesas,etheravb-r8a774c0" for the R8A774C0 SoC.
+      - "renesas,etheravb-r8a774e1" for the R8A774E1 SoC.
       - "renesas,etheravb-r8a7795" for the R8A7795 SoC.
       - "renesas,etheravb-r8a7796" for the R8A77960 SoC.
       - "renesas,etheravb-r8a77961" for the R8A77961 SoC.
