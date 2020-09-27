@@ -402,13 +402,15 @@ int main(void)
 	/* datapage offsets for use by vdso */
 	OFFSET(VDSO_DATA_OFFSET, vdso_arch_data, data);
 	OFFSET(CFG_TB_TICKS_PER_SEC, vdso_arch_data, tb_ticks_per_sec);
-	OFFSET(CFG_SYSCALL_MAP32, vdso_arch_data, syscall_map_32);
 #ifdef CONFIG_PPC64
 	OFFSET(CFG_ICACHE_BLOCKSZ, vdso_arch_data, icache_block_size);
 	OFFSET(CFG_DCACHE_BLOCKSZ, vdso_arch_data, dcache_block_size);
 	OFFSET(CFG_ICACHE_LOGBLOCKSZ, vdso_arch_data, icache_log_block_size);
 	OFFSET(CFG_DCACHE_LOGBLOCKSZ, vdso_arch_data, dcache_log_block_size);
-	OFFSET(CFG_SYSCALL_MAP64, vdso_arch_data, syscall_map_64);
+	OFFSET(CFG_SYSCALL_MAP64, vdso_arch_data, syscall_map);
+	OFFSET(CFG_SYSCALL_MAP32, vdso_arch_data, compat_syscall_map);
+#else
+	OFFSET(CFG_SYSCALL_MAP32, vdso_arch_data, syscall_map);
 #endif
 
 #ifdef CONFIG_BUG
