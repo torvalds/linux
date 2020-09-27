@@ -8466,6 +8466,23 @@ static inline void mlxsw_reg_mtmp_unpack(char *payload, int *p_temp,
 		mlxsw_reg_mtmp_sensor_name_memcpy_from(payload, sensor_name);
 }
 
+/* MTWE - Management Temperature Warning Event
+ * -------------------------------------------
+ * This register is used for over temperature warning.
+ */
+#define MLXSW_REG_MTWE_ID 0x900B
+#define MLXSW_REG_MTWE_LEN 0x10
+
+MLXSW_REG_DEFINE(mtwe, MLXSW_REG_MTWE_ID, MLXSW_REG_MTWE_LEN);
+
+/* reg_mtwe_sensor_warning
+ * Bit vector indicating which of the sensor reading is above threshold.
+ * Address 00h bit31 is sensor_warning[127].
+ * Address 0Ch bit0 is sensor_warning[0].
+ * Access: RO
+ */
+MLXSW_ITEM_BIT_ARRAY(reg, mtwe, sensor_warning, 0x0, 0x10, 1);
+
 /* MTBR - Management Temperature Bulk Register
  * -------------------------------------------
  * This register is used for bulk temperature reading.
@@ -11071,6 +11088,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(fore),
 	MLXSW_REG(mtcap),
 	MLXSW_REG(mtmp),
+	MLXSW_REG(mtwe),
 	MLXSW_REG(mtbr),
 	MLXSW_REG(mcia),
 	MLXSW_REG(mpat),
