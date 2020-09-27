@@ -801,7 +801,7 @@ static void bnxt_get_channels(struct net_device *dev,
 	struct bnxt *bp = netdev_priv(dev);
 	struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
 	int max_rx_rings, max_tx_rings, tcs;
-	int max_tx_sch_inputs;
+	int max_tx_sch_inputs, tx_grps;
 
 	/* Get the most up-to-date max_tx_sch_inputs. */
 	if (netif_running(dev) && BNXT_NEW_RM(bp))
@@ -811,6 +811,12 @@ static void bnxt_get_channels(struct net_device *dev,
 	bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings, true);
 	if (max_tx_sch_inputs)
 		max_tx_rings = min_t(int, max_tx_rings, max_tx_sch_inputs);
+
+	tcs = netdev_get_num_tc(dev);
+	tx_grps = max(tcs, 1);
+	if (bp->tx_nr_rings_xdp)
+		tx_grps++;
+	max_tx_rings /= tx_grps;
 	channel->max_combined = min_t(int, max_rx_rings, max_tx_rings);
 
 	if (bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings, false)) {
@@ -820,7 +826,6 @@ static void bnxt_get_channels(struct net_device *dev,
 	if (max_tx_sch_inputs)
 		max_tx_rings = min_t(int, max_tx_rings, max_tx_sch_inputs);
 
-	tcs = netdev_get_num_tc(dev);
 	if (tcs > 1)
 		max_tx_rings /= tcs;
 
