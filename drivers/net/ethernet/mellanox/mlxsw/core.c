@@ -136,6 +136,11 @@ bool mlxsw_core_res_query_enabled(const struct mlxsw_core *mlxsw_core)
 }
 EXPORT_SYMBOL(mlxsw_core_res_query_enabled);
 
+bool mlxsw_core_temp_warn_enabled(const struct mlxsw_core *mlxsw_core)
+{
+	return mlxsw_core->driver->temp_warn_enabled;
+}
+
 bool
 mlxsw_core_fw_rev_minor_subminor_validate(const struct mlxsw_fw_rev *rev,
 					  const struct mlxsw_fw_rev *req_rev)
