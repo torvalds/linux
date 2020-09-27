@@ -5405,6 +5405,64 @@ static inline void mlxsw_reg_pspa_pack(char *payload, u8 swid, u8 local_port)
 	mlxsw_reg_pspa_sub_port_set(payload, 0);
 }
 
+/* PMAOS - Ports Module Administrative and Operational Status
+ * ----------------------------------------------------------
+ * This register configures and retrieves the per module status.
+ */
+#define MLXSW_REG_PMAOS_ID 0x5012
+#define MLXSW_REG_PMAOS_LEN 0x10
+
+MLXSW_REG_DEFINE(pmaos, MLXSW_REG_PMAOS_ID, MLXSW_REG_PMAOS_LEN);
+
+/* reg_slot_index
+ * Slot index.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pmaos, slot_index, 0x00, 24, 4);
+
+/* reg_pmaos_module
+ * Module number.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pmaos, module, 0x00, 16, 8);
+
+/* reg_pmaos_ase
+ * Admin state update enable.
+ * If this bit is set, admin state will be updated based on admin_state field.
+ * Only relevant on Set() operations.
+ * Access: WO
+ */
+MLXSW_ITEM32(reg, pmaos, ase, 0x04, 31, 1);
+
+/* reg_pmaos_ee
+ * Event update enable.
+ * If this bit is set, event generation will be updated based on the e field.
+ * Only relevant on Set operations.
+ * Access: WO
+ */
+MLXSW_ITEM32(reg, pmaos, ee, 0x04, 30, 1);
+
+enum mlxsw_reg_pmaos_e {
+	MLXSW_REG_PMAOS_E_DO_NOT_GENERATE_EVENT,
+	MLXSW_REG_PMAOS_E_GENERATE_EVENT,
+	MLXSW_REG_PMAOS_E_GENERATE_SINGLE_EVENT,
+};
+
+/* reg_pmaos_e
+ * Event Generation on operational state change.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pmaos, e, 0x04, 0, 2);
+
+static inline void mlxsw_reg_pmaos_pack(char *payload, u8 module,
+					enum mlxsw_reg_pmaos_e e)
+{
+	MLXSW_REG_ZERO(pmaos, payload);
+	mlxsw_reg_pmaos_module_set(payload, module);
+	mlxsw_reg_pmaos_e_set(payload, e);
+	mlxsw_reg_pmaos_ee_set(payload, true);
+}
+
 /* PPLR - Port Physical Loopback Register
  * --------------------------------------
  * This register allows configuration of the port's loopback mode.
@@ -11102,6 +11160,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(pptb),
 	MLXSW_REG(pbmc),
 	MLXSW_REG(pspa),
+	MLXSW_REG(pmaos),
 	MLXSW_REG(pplr),
 	MLXSW_REG(pmpe),
 	MLXSW_REG(pddr),
