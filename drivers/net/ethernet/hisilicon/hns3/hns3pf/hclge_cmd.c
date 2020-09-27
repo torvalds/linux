@@ -330,7 +330,8 @@ int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num)
 	return retval;
 }
 
-static enum hclge_cmd_status hclge_cmd_query_version(struct hclge_dev *hdev)
+static enum hclge_cmd_status
+hclge_cmd_query_version_and_capability(struct hclge_dev *hdev)
 {
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
 	struct hclge_query_version_cmd *resp;
@@ -349,6 +350,12 @@ static enum hclge_cmd_status hclge_cmd_query_version(struct hclge_dev *hdev)
 	ae_dev->dev_version = le32_to_cpu(resp->hardware) <<
 					 HNAE3_PCI_REVISION_BIT_SIZE;
 	ae_dev->dev_version |= hdev->pdev->revision;
+
+	if (!resp->caps[0] &&
+	    ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2) {
+		hnae3_set_bit(ae_dev->flag, HNAE3_DEV_SUPPORT_FD_B, 1);
+		hnae3_set_bit(ae_dev->flag, HNAE3_DEV_SUPPORT_GRO_B, 1);
+	}
 
 	return ret;
 }
@@ -436,10 +443,12 @@ int hclge_cmd_init(struct hclge_dev *hdev)
 		goto err_cmd_init;
 	}
 
-	ret = hclge_cmd_query_version(hdev);
+	/* get version and device capabilities */
+	ret = hclge_cmd_query_version_and_capability(hdev);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
-			"failed to query version ret=%d\n", ret);
+			"failed to query version and capabilities, ret = %d\n",
+			ret);
 		goto err_cmd_init;
 	}
 

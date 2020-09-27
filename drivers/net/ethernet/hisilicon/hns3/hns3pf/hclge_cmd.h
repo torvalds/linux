@@ -362,10 +362,12 @@ struct hclge_rx_priv_buff_cmd {
 	u8 rsv[6];
 };
 
+#define HCLGE_QUERY_CAP_LENGTH		3
 struct hclge_query_version_cmd {
 	__le32 firmware;
 	__le32 hardware;
-	__le32 rsv[4];
+	__le32 rsv;
+	__le32 caps[HCLGE_QUERY_CAP_LENGTH]; /* capabilities of device */
 };
 
 #define HCLGE_RX_PRIV_EN_B	15
