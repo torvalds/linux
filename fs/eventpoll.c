@@ -160,7 +160,7 @@ struct epitem {
 	struct eventpoll *ep;
 
 	/* List header used to link this item to the "struct file" items list */
-	struct list_head fllink;
+	struct hlist_node fllink;
 
 	/* wakeup_source used when EPOLLWAKEUP is set */
 	struct wakeup_source __rcu *ws;
@@ -642,7 +642,7 @@ static int ep_remove(struct eventpoll *ep, struct epitem *epi)
 
 	/* Remove the current item from the list of epoll hooks */
 	spin_lock(&file->f_lock);
-	list_del_rcu(&epi->fllink);
+	hlist_del_rcu(&epi->fllink);
 	spin_unlock(&file->f_lock);
 
 	rb_erase_cached(&epi->rbn, &ep->rbr);
@@ -835,7 +835,8 @@ static const struct file_operations eventpoll_fops = {
 void eventpoll_release_file(struct file *file)
 {
 	struct eventpoll *ep;
-	struct epitem *epi, *next;
+	struct epitem *epi;
+	struct hlist_node *next;
 
 	/*
 	 * We don't want to get "file->f_lock" because it is not
@@ -851,7 +852,7 @@ void eventpoll_release_file(struct file *file)
 	 * Besides, ep_remove() acquires the lock, so we can't hold it here.
 	 */
 	mutex_lock(&epmutex);
-	list_for_each_entry_safe(epi, next, &file->f_ep_links, fllink) {
+	hlist_for_each_entry_safe(epi, next, &file->f_ep_links, fllink) {
 		ep = epi->ep;
 		mutex_lock_nested(&ep->mtx, 0);
 		ep_remove(ep, epi);
@@ -1257,11 +1258,11 @@ static int reverse_path_check_proc(struct file *file, int depth)
 
 	/* CTL_DEL can remove links here, but that can't increase our count */
 	rcu_read_lock();
-	list_for_each_entry_rcu(epi, &file->f_ep_links, fllink) {
+	hlist_for_each_entry_rcu(epi, &file->f_ep_links, fllink) {
 		struct file *recepient = epi->ep->file;
 		if (WARN_ON(!is_file_epoll(recepient)))
 			continue;
-		if (list_empty(&recepient->f_ep_links))
+		if (hlist_empty(&recepient->f_ep_links))
 			error = path_count_inc(depth);
 		else
 			error = reverse_path_check_proc(recepient, depth + 1);
@@ -1361,7 +1362,6 @@ static int ep_insert(struct eventpoll *ep, const struct epoll_event *event,
 
 	/* Item initialization follow here ... */
 	INIT_LIST_HEAD(&epi->rdllink);
-	INIT_LIST_HEAD(&epi->fllink);
 	epi->ep = ep;
 	ep_set_ffd(&epi->ffd, tfile, fd);
 	epi->event = *event;
@@ -1373,7 +1373,7 @@ static int ep_insert(struct eventpoll *ep, const struct epoll_event *event,
 		mutex_lock_nested(&tep->mtx, 1);
 	/* Add the current item to the list of active epoll hook for this file */
 	spin_lock(&tfile->f_lock);
-	list_add_tail_rcu(&epi->fllink, &tfile->f_ep_links);
+	hlist_add_head_rcu(&epi->fllink, &tfile->f_ep_links);
 	spin_unlock(&tfile->f_lock);
 
 	/*
@@ -1999,7 +1999,7 @@ int do_epoll_ctl(int epfd, int op, int fd, struct epoll_event *epds,
 	if (error)
 		goto error_tgt_fput;
 	if (op == EPOLL_CTL_ADD) {
-		if (!list_empty(&f.file->f_ep_links) ||
+		if (!hlist_empty(&f.file->f_ep_links) ||
 				ep->gen == loop_check_gen ||
 						is_file_epoll(tf.file)) {
 			mutex_unlock(&ep->mtx);
