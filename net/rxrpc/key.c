@@ -135,7 +135,7 @@ static int rxrpc_preparse_xdr_rxkad(struct key_preparsed_payload *prep,
  */
 static int rxrpc_preparse_xdr(struct key_preparsed_payload *prep)
 {
-	const __be32 *xdr = prep->data, *token;
+	const __be32 *xdr = prep->data, *token, *p;
 	const char *cp;
 	unsigned int len, paddedlen, loop, ntoken, toklen, sec_ix;
 	size_t datalen = prep->datalen;
@@ -189,20 +189,20 @@ static int rxrpc_preparse_xdr(struct key_preparsed_payload *prep)
 		goto not_xdr;
 
 	/* check each token wrapper */
-	token = xdr;
+	p = xdr;
 	loop = ntoken;
 	do {
 		if (datalen < 8)
 			goto not_xdr;
-		toklen = ntohl(*xdr++);
-		sec_ix = ntohl(*xdr);
+		toklen = ntohl(*p++);
+		sec_ix = ntohl(*p);
 		datalen -= 4;
 		_debug("token: [%x/%zx] %x", toklen, datalen, sec_ix);
 		paddedlen = (toklen + 3) & ~3;
 		if (toklen < 20 || toklen > datalen || paddedlen > datalen)
 			goto not_xdr;
 		datalen -= paddedlen;
-		xdr += paddedlen >> 2;
+		p += paddedlen >> 2;
 
 	} while (--loop > 0);
 
@@ -214,17 +214,18 @@ static int rxrpc_preparse_xdr(struct key_preparsed_payload *prep)
 	 * - we ignore the cellname, relying on the key to be correctly named
 	 */
 	do {
-		xdr = token;
 		toklen = ntohl(*xdr++);
-		token = xdr + ((toklen + 3) >> 2);
-		sec_ix = ntohl(*xdr++);
+		token = xdr;
+		xdr += (toklen + 3) / 4;
+
+		sec_ix = ntohl(*token++);
 		toklen -= 4;
 
-		_debug("TOKEN type=%u [%p-%p]", sec_ix, xdr, token);
+		_debug("TOKEN type=%x len=%x", sec_ix, toklen);
 
 		switch (sec_ix) {
 		case RXRPC_SECURITY_RXKAD:
-			ret = rxrpc_preparse_xdr_rxkad(prep, datalen, xdr, toklen);
+			ret = rxrpc_preparse_xdr_rxkad(prep, datalen, token, toklen);
 			if (ret != 0)
 				goto error;
 			break;
