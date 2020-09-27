@@ -47,7 +47,6 @@
 /* The alignment of the vDSO */
 #define VDSO_ALIGNMENT	(1 << 16)
 
-static unsigned int vdso32_pages;
 static void *vdso32_kbase;
 unsigned long vdso32_sigtramp;
 unsigned long vdso32_rt_sigtramp;
@@ -55,7 +54,6 @@ unsigned long vdso32_rt_sigtramp;
 extern char vdso32_start, vdso32_end;
 extern char vdso64_start, vdso64_end;
 static void *vdso64_kbase = &vdso64_start;
-static unsigned int vdso64_pages;
 #ifdef CONFIG_PPC64
 unsigned long vdso64_rt_sigtramp;
 #endif /* CONFIG_PPC64 */
@@ -698,19 +696,7 @@ static int __init vdso_init(void)
 	vdso_data->icache_log_block_size = ppc64_caches.l1i.log_block_size;
 #endif /* CONFIG_PPC64 */
 
-	/*
-	 * Calculate the size of the 64 bits vDSO
-	 */
-	vdso64_pages = (&vdso64_end - &vdso64_start) >> PAGE_SHIFT;
-	DBG("vdso64_kbase: %p, 0x%x pages\n", vdso64_kbase, vdso64_pages);
-
 	vdso32_kbase = &vdso32_start;
-
-	/*
-	 * Calculate the size of the 32 bits vDSO
-	 */
-	vdso32_pages = (&vdso32_end - &vdso32_start) >> PAGE_SHIFT;
-	DBG("vdso32_kbase: %p, 0x%x pages\n", vdso32_kbase, vdso32_pages);
 
 	vdso_setup_syscall_map();
 
@@ -720,8 +706,6 @@ static int __init vdso_init(void)
 	 */
 	if (vdso_setup()) {
 		printk(KERN_ERR "vDSO setup failure, not enabled !\n");
-		vdso32_pages = 0;
-		vdso64_pages = 0;
 		return 0;
 	}
 
