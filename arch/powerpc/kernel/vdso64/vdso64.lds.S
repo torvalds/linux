@@ -17,7 +17,7 @@ ENTRY(_start)
 SECTIONS
 {
 	PROVIDE(_vdso_datapage = . - PAGE_SIZE);
-	. = VDSO64_LBASE + SIZEOF_HEADERS;
+	. = SIZEOF_HEADERS;
 
 	.hash		: { *(.hash) }			:text
 	.gnu.hash	: { *(.gnu.hash) }

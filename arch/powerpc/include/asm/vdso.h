@@ -4,10 +4,6 @@
 
 #ifdef __KERNEL__
 
-/* Default link addresses for the vDSOs */
-#define VDSO32_LBASE	0x0
-#define VDSO64_LBASE	0x0
-
 /* Default map addresses for 32bit vDSO */
 #define VDSO32_MBASE	0x100000
 
