@@ -678,10 +678,26 @@ int vdso_getcpu_init(void)
 early_initcall(vdso_getcpu_init);
 #endif
 
-static int __init vdso_init(void)
+static struct page ** __init vdso_setup_pages(void *start, void *end)
 {
 	int i;
+	struct page **pagelist;
+	int pages = (end - start) >> PAGE_SHIFT;
 
+	pagelist = kcalloc(pages + 1, sizeof(struct page *), GFP_KERNEL);
+	if (!pagelist)
+		panic("%s: Cannot allocate page list for VDSO", __func__);
+
+	for (i = 0; i < pages; i++)
+		pagelist[i] = virt_to_page(start + i * PAGE_SIZE);
+
+	pagelist[i] = virt_to_page(vdso_data);
+
+	return pagelist;
+}
+
+static int __init vdso_init(void)
+{
 #ifdef CONFIG_PPC64
 	/*
 	 * Fill up the "systemcfg" stuff for backward compatibility
@@ -742,28 +758,11 @@ static int __init vdso_init(void)
 	}
 
 #ifdef CONFIG_VDSO32
-	/* Make sure pages are in the correct state */
-	vdso32_pagelist = kcalloc(vdso32_pages + 1, sizeof(struct page *),
-				  GFP_KERNEL);
-	BUG_ON(vdso32_pagelist == NULL);
-	for (i = 0; i < vdso32_pages; i++) {
-		struct page *pg = virt_to_page(vdso32_kbase + i*PAGE_SIZE);
-
-		vdso32_pagelist[i] = pg;
-	}
-	vdso32_pagelist[i++] = virt_to_page(vdso_data);
+	vdso32_pagelist = vdso_setup_pages(&vdso32_start, &vdso32_end);
 #endif
 
 #ifdef CONFIG_PPC64
-	vdso64_pagelist = kcalloc(vdso64_pages + 1, sizeof(struct page *),
-				  GFP_KERNEL);
-	BUG_ON(vdso64_pagelist == NULL);
-	for (i = 0; i < vdso64_pages; i++) {
-		struct page *pg = virt_to_page(vdso64_kbase + i*PAGE_SIZE);
-
-		vdso64_pagelist[i] = pg;
-	}
-	vdso64_pagelist[i++] = virt_to_page(vdso_data);
+	vdso64_pagelist = vdso_setup_pages(&vdso64_start, &vdso64_end);
 #endif /* CONFIG_PPC64 */
 
 	smp_wmb();
