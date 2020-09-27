@@ -102,14 +102,14 @@ repack_boot_img()
 		--second resource.img \
 		--dtb ${DTB_PATH} \
 		-o boot.img &&
-	echo "  Image:  boot.img (${BOOT_IMG} + Image + resource.img) is ready";
+	echo "  Image:  boot.img (${BOOT_IMG} + Image) is ready";
 	${srctree}/scripts/repack-bootimg \
 		--boot_img ${BOOT_IMG} --out ${OUT} \
 		${KERNEL_ZIMAGE_ARG} \
 		--second resource.img \
 		--dtb ${DTB_PATH} \
 		-o zboot.img && \
-	echo "  Image:  zboot.img (${BOOT_IMG} + ${ZIMAGE} + resource.img) is ready"
+	echo "  Image:  zboot.img (${BOOT_IMG} + ${ZIMAGE}) is ready"
 }
 
 check_mkimage()

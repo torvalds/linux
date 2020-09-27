@@ -136,9 +136,13 @@ if [ $recovery_dtbo_size -gt 0 -a -e "$recovery_dtbo" ]; then
 	RECOVERY_DTBO="--recovery_dtbo $recovery_dtbo"
 fi
 
+if [ $version -lt 3 ]; then
+	SECOND="--second $second"
+fi
+
 $srctree/scripts/mkbootimg \
 --kernel $kernel \
---second $second \
+$SECOND \
 --ramdisk $ramdisk \
 $DTB \
 $RECOVERY_DTBO \
