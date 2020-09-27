@@ -126,7 +126,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 {
 	struct mm_struct *mm = current->mm;
 	struct page **vdso_pagelist;
-	unsigned long vdso_pages;
+	unsigned long vdso_size;
 	unsigned long vdso_base;
 	int rc;
 
@@ -135,11 +135,11 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 
 	if (is_32bit_task()) {
 		vdso_pagelist = vdso32_pagelist;
-		vdso_pages = vdso32_pages;
+		vdso_size = &vdso32_end - &vdso32_start;
 		vdso_base = VDSO32_MBASE;
 	} else {
 		vdso_pagelist = vdso64_pagelist;
-		vdso_pages = vdso64_pages;
+		vdso_size = &vdso64_end - &vdso64_start;
 		/*
 		 * On 64bit we don't have a preferred map address. This
 		 * allows get_unmapped_area to find an area near other mmaps
@@ -150,13 +150,8 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 
 	current->mm->context.vdso_base = 0;
 
-	/* vDSO has a problem and was disabled, just don't "enable" it for the
-	 * process
-	 */
-	if (vdso_pages == 0)
-		return 0;
 	/* Add a page to the vdso size for the data page */
-	vdso_pages ++;
+	vdso_size += PAGE_SIZE;
 
 	/*
 	 * pick a base address for the vDSO in process space. We try to put it
@@ -167,8 +162,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	if (mmap_write_lock_killable(mm))
 		return -EINTR;
 	vdso_base = get_unmapped_area(NULL, vdso_base,
-				      (vdso_pages << PAGE_SHIFT) +
-				      ((VDSO_ALIGNMENT - 1) & PAGE_MASK),
+				      vdso_size + ((VDSO_ALIGNMENT - 1) & PAGE_MASK),
 				      0, 0);
 	if (IS_ERR_VALUE(vdso_base)) {
 		rc = vdso_base;
@@ -195,7 +189,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	 * It's fine to use that for setting breakpoints in the vDSO code
 	 * pages though.
 	 */
-	rc = install_special_mapping(mm, vdso_base, vdso_pages << PAGE_SHIFT,
+	rc = install_special_mapping(mm, vdso_base, vdso_size,
 				     VM_READ|VM_EXEC|
 				     VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
 				     vdso_pagelist);
