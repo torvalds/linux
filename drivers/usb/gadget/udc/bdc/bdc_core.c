@@ -484,7 +484,7 @@ static void bdc_phy_exit(struct bdc *bdc)
 static int bdc_probe(struct platform_device *pdev)
 {
 	struct bdc *bdc;
-	int ret = -ENOMEM;
+	int ret;
 	int irq;
 	u32 temp;
 	struct device *dev = &pdev->dev;
