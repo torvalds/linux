@@ -53,15 +53,12 @@ static struct page **vdso32_pagelist;
 unsigned long vdso32_sigtramp;
 unsigned long vdso32_rt_sigtramp;
 
-#ifdef CONFIG_VDSO32
 extern char vdso32_start, vdso32_end;
-#endif
-
-#ifdef CONFIG_PPC64
 extern char vdso64_start, vdso64_end;
 static void *vdso64_kbase = &vdso64_start;
 static unsigned int vdso64_pages;
 static struct page **vdso64_pagelist;
+#ifdef CONFIG_PPC64
 unsigned long vdso64_rt_sigtramp;
 #endif /* CONFIG_PPC64 */
 
@@ -136,7 +133,6 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	if (!vdso_ready)
 		return 0;
 
-#ifdef CONFIG_PPC64
 	if (is_32bit_task()) {
 		vdso_pagelist = vdso32_pagelist;
 		vdso_pages = vdso32_pages;
@@ -151,11 +147,6 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 		 */
 		vdso_base = 0;
 	}
-#else
-	vdso_pagelist = vdso32_pagelist;
-	vdso_pages = vdso32_pages;
-	vdso_base = VDSO32_MBASE;
-#endif
 
 	current->mm->context.vdso_base = 0;
 
@@ -614,9 +605,7 @@ static __init int vdso_setup(void)
 	struct lib64_elfinfo	v64;
 
 	v32.hdr = vdso32_kbase;
-#ifdef CONFIG_PPC64
 	v64.hdr = vdso64_kbase;
-#endif
 	if (vdso_do_find_sections(&v32, &v64))
 		return -1;
 
@@ -722,16 +711,14 @@ static int __init vdso_init(void)
 	vdso_data->icache_block_size = ppc64_caches.l1i.block_size;
 	vdso_data->dcache_log_block_size = ppc64_caches.l1d.log_block_size;
 	vdso_data->icache_log_block_size = ppc64_caches.l1i.log_block_size;
+#endif /* CONFIG_PPC64 */
 
 	/*
 	 * Calculate the size of the 64 bits vDSO
 	 */
 	vdso64_pages = (&vdso64_end - &vdso64_start) >> PAGE_SHIFT;
 	DBG("vdso64_kbase: %p, 0x%x pages\n", vdso64_kbase, vdso64_pages);
-#endif /* CONFIG_PPC64 */
 
-
-#ifdef CONFIG_VDSO32
 	vdso32_kbase = &vdso32_start;
 
 	/*
@@ -739,8 +726,6 @@ static int __init vdso_init(void)
 	 */
 	vdso32_pages = (&vdso32_end - &vdso32_start) >> PAGE_SHIFT;
 	DBG("vdso32_kbase: %p, 0x%x pages\n", vdso32_kbase, vdso32_pages);
-#endif
-
 
 	vdso_setup_syscall_map();
 
@@ -751,19 +736,15 @@ static int __init vdso_init(void)
 	if (vdso_setup()) {
 		printk(KERN_ERR "vDSO setup failure, not enabled !\n");
 		vdso32_pages = 0;
-#ifdef CONFIG_PPC64
 		vdso64_pages = 0;
-#endif
 		return 0;
 	}
 
-#ifdef CONFIG_VDSO32
-	vdso32_pagelist = vdso_setup_pages(&vdso32_start, &vdso32_end);
-#endif
+	if (IS_ENABLED(CONFIG_VDSO32))
+		vdso32_pagelist = vdso_setup_pages(&vdso32_start, &vdso32_end);
 
-#ifdef CONFIG_PPC64
-	vdso64_pagelist = vdso_setup_pages(&vdso64_start, &vdso64_end);
-#endif /* CONFIG_PPC64 */
+	if (IS_ENABLED(CONFIG_PPC64))
+		vdso64_pagelist = vdso_setup_pages(&vdso64_start, &vdso64_end);
 
 	smp_wmb();
 	vdso_ready = 1;
