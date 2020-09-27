@@ -10,6 +10,18 @@
 #include "item.h"
 #include "reg.h"
 
+struct mlxsw_env_module_info {
+	u64 module_overheat_counter;
+	bool is_overheat;
+};
+
+struct mlxsw_env {
+	struct mlxsw_core *core;
+	u8 module_count;
+	spinlock_t module_info_lock; /* Protects 'module_info'. */
+	struct mlxsw_env_module_info module_info[];
+};
+
 static int mlxsw_env_validate_cable_ident(struct mlxsw_core *core, int id,
 					  bool *qsfp, bool *cmis)
 {
@@ -293,3 +305,57 @@ int mlxsw_env_get_module_eeprom(struct net_device *netdev,
 	return 0;
 }
 EXPORT_SYMBOL(mlxsw_env_get_module_eeprom);
+
+int
+mlxsw_env_module_overheat_counter_get(struct mlxsw_core *mlxsw_core, u8 module,
+				      u64 *p_counter)
+{
+	struct mlxsw_env *mlxsw_env = mlxsw_core_env(mlxsw_core);
+
+	/* Prevent switch driver from accessing uninitialized data. */
+	if (!mlxsw_core_is_initialized(mlxsw_core)) {
+		*p_counter = 0;
+		return 0;
+	}
+
+	if (WARN_ON_ONCE(module >= mlxsw_env->module_count))
+		return -EINVAL;
+
+	spin_lock_bh(&mlxsw_env->module_info_lock);
+	*p_counter = mlxsw_env->module_info[module].module_overheat_counter;
+	spin_unlock_bh(&mlxsw_env->module_info_lock);
+
+	return 0;
+}
+EXPORT_SYMBOL(mlxsw_env_module_overheat_counter_get);
+
+int mlxsw_env_init(struct mlxsw_core *mlxsw_core, struct mlxsw_env **p_env)
+{
+	char mgpir_pl[MLXSW_REG_MGPIR_LEN];
+	struct mlxsw_env *env;
+	u8 module_count;
+	int err;
+
+	mlxsw_reg_mgpir_pack(mgpir_pl);
+	err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(mgpir), mgpir_pl);
+	if (err)
+		return err;
+
+	mlxsw_reg_mgpir_unpack(mgpir_pl, NULL, NULL, NULL, &module_count);
+
+	env = kzalloc(struct_size(env, module_info, module_count), GFP_KERNEL);
+	if (!env)
+		return -ENOMEM;
+
+	spin_lock_init(&env->module_info_lock);
+	env->core = mlxsw_core;
+	env->module_count = module_count;
+	*p_env = env;
+
+	return 0;
+}
+
+void mlxsw_env_fini(struct mlxsw_env *env)
+{
+	kfree(env);
+}
