@@ -47,8 +47,6 @@
 extern char vdso32_start, vdso32_end;
 extern char vdso64_start, vdso64_end;
 
-static int vdso_ready;
-
 /*
  * The vdso data page (aka. systemcfg for old ppc64 fans) is here.
  * Once the early boot kernel code no longer needs to muck around
@@ -167,9 +165,6 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	int rc;
 
 	mm->context.vdso = NULL;
-
-	if (!vdso_ready)
-		return 0;
 
 	if (mmap_write_lock_killable(mm))
 		return -EINTR;
@@ -309,7 +304,6 @@ static int __init vdso_init(void)
 		vdso64_spec.pages = vdso_setup_pages(&vdso64_start, &vdso64_end);
 
 	smp_wmb();
-	vdso_ready = 1;
 
 	return 0;
 }
