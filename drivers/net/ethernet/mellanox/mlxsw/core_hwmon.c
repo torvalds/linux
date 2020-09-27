@@ -106,7 +106,7 @@ static ssize_t mlxsw_hwmon_temp_rst_store(struct device *dev,
 	struct mlxsw_hwmon_attr *mlwsw_hwmon_attr =
 			container_of(attr, struct mlxsw_hwmon_attr, dev_attr);
 	struct mlxsw_hwmon *mlxsw_hwmon = mlwsw_hwmon_attr->hwmon;
-	char mtmp_pl[MLXSW_REG_MTMP_LEN];
+	char mtmp_pl[MLXSW_REG_MTMP_LEN] = {0};
 	unsigned long val;
 	int index;
 	int err;
@@ -119,7 +119,13 @@ static ssize_t mlxsw_hwmon_temp_rst_store(struct device *dev,
 
 	index = mlxsw_hwmon_get_attr_index(mlwsw_hwmon_attr->type_index,
 					   mlxsw_hwmon->module_sensor_max);
-	mlxsw_reg_mtmp_pack(mtmp_pl, index, true, true);
+
+	mlxsw_reg_mtmp_sensor_index_set(mtmp_pl, index);
+	err = mlxsw_reg_query(mlxsw_hwmon->core, MLXSW_REG(mtmp), mtmp_pl);
+	if (err)
+		return err;
+	mlxsw_reg_mtmp_mte_set(mtmp_pl, true);
+	mlxsw_reg_mtmp_mtr_set(mtmp_pl, true);
 	err = mlxsw_reg_write(mlxsw_hwmon->core, MLXSW_REG(mtmp), mtmp_pl);
 	if (err) {
 		dev_err(mlxsw_hwmon->bus_info->dev, "Failed to reset temp sensor history\n");
@@ -570,7 +576,6 @@ static void mlxsw_hwmon_attr_add(struct mlxsw_hwmon *mlxsw_hwmon,
 static int mlxsw_hwmon_temp_init(struct mlxsw_hwmon *mlxsw_hwmon)
 {
 	char mtcap_pl[MLXSW_REG_MTCAP_LEN] = {0};
-	char mtmp_pl[MLXSW_REG_MTMP_LEN];
 	int i;
 	int err;
 
@@ -581,7 +586,15 @@ static int mlxsw_hwmon_temp_init(struct mlxsw_hwmon *mlxsw_hwmon)
 	}
 	mlxsw_hwmon->sensor_count = mlxsw_reg_mtcap_sensor_count_get(mtcap_pl);
 	for (i = 0; i < mlxsw_hwmon->sensor_count; i++) {
-		mlxsw_reg_mtmp_pack(mtmp_pl, i, true, true);
+		char mtmp_pl[MLXSW_REG_MTMP_LEN] = {0};
+
+		mlxsw_reg_mtmp_sensor_index_set(mtmp_pl, i);
+		err = mlxsw_reg_query(mlxsw_hwmon->core, MLXSW_REG(mtmp),
+				      mtmp_pl);
+		if (err)
+			return err;
+		mlxsw_reg_mtmp_mte_set(mtmp_pl, true);
+		mlxsw_reg_mtmp_mtr_set(mtmp_pl, true);
 		err = mlxsw_reg_write(mlxsw_hwmon->core,
 				      MLXSW_REG(mtmp), mtmp_pl);
 		if (err) {
