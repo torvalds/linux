@@ -227,6 +227,9 @@ struct rxrpc_security {
 	/* Destroy the payload of a server key */
 	void (*destroy_server_key)(struct key *);
 
+	/* Describe a server key */
+	void (*describe_server_key)(const struct key *, struct seq_file *);
+
 	/* initialise a connection's security */
 	int (*init_connection_security)(struct rxrpc_connection *,
 					struct rxrpc_key_token *);

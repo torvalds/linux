@@ -105,7 +105,11 @@ static void rxrpc_destroy_s(struct key *key)
 
 static void rxrpc_describe_s(const struct key *key, struct seq_file *m)
 {
+	const struct rxrpc_security *sec = key->payload.data[1];
+
 	seq_puts(m, key->description);
+	if (sec && sec->describe_server_key)
+		sec->describe_server_key(key, m);
 }
 
 /*
