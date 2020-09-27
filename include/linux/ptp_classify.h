@@ -134,5 +134,13 @@ static inline struct ptp_header *ptp_parse_header(struct sk_buff *skb,
 {
 	return NULL;
 }
+static inline u8 ptp_get_msgtype(const struct ptp_header *hdr,
+				 unsigned int type)
+{
+	/* The return is meaningless. The stub function would not be
+	 * executed since no available header from ptp_parse_header.
+	 */
+	return 0;
+}
 #endif
 #endif /* _PTP_CLASSIFY_H_ */
