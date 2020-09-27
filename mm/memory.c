@@ -708,85 +708,92 @@ out:
  * covered by this vma.
  */
 
-static inline unsigned long
-copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+static unsigned long
+copy_nonpresent_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 		pte_t *dst_pte, pte_t *src_pte, struct vm_area_struct *vma,
 		unsigned long addr, int *rss)
 {
 	unsigned long vm_flags = vma->vm_flags;
 	pte_t pte = *src_pte;
 	struct page *page;
+	swp_entry_t entry = pte_to_swp_entry(pte);
 
-	/* pte contains position in swap or file, so copy. */
-	if (unlikely(!pte_present(pte))) {
-		swp_entry_t entry = pte_to_swp_entry(pte);
+	if (likely(!non_swap_entry(entry))) {
+		if (swap_duplicate(entry) < 0)
+			return entry.val;
 
-		if (likely(!non_swap_entry(entry))) {
-			if (swap_duplicate(entry) < 0)
-				return entry.val;
-
-			/* make sure dst_mm is on swapoff's mmlist. */
-			if (unlikely(list_empty(&dst_mm->mmlist))) {
-				spin_lock(&mmlist_lock);
-				if (list_empty(&dst_mm->mmlist))
-					list_add(&dst_mm->mmlist,
-							&src_mm->mmlist);
-				spin_unlock(&mmlist_lock);
-			}
-			rss[MM_SWAPENTS]++;
-		} else if (is_migration_entry(entry)) {
-			page = migration_entry_to_page(entry);
-
-			rss[mm_counter(page)]++;
-
-			if (is_write_migration_entry(entry) &&
-					is_cow_mapping(vm_flags)) {
-				/*
-				 * COW mappings require pages in both
-				 * parent and child to be set to read.
-				 */
-				make_migration_entry_read(&entry);
-				pte = swp_entry_to_pte(entry);
-				if (pte_swp_soft_dirty(*src_pte))
-					pte = pte_swp_mksoft_dirty(pte);
-				if (pte_swp_uffd_wp(*src_pte))
-					pte = pte_swp_mkuffd_wp(pte);
-				set_pte_at(src_mm, addr, src_pte, pte);
-			}
-		} else if (is_device_private_entry(entry)) {
-			page = device_private_entry_to_page(entry);
-
-			/*
-			 * Update rss count even for unaddressable pages, as
-			 * they should treated just like normal pages in this
-			 * respect.
-			 *
-			 * We will likely want to have some new rss counters
-			 * for unaddressable pages, at some point. But for now
-			 * keep things as they are.
-			 */
-			get_page(page);
-			rss[mm_counter(page)]++;
-			page_dup_rmap(page, false);
-
-			/*
-			 * We do not preserve soft-dirty information, because so
-			 * far, checkpoint/restore is the only feature that
-			 * requires that. And checkpoint/restore does not work
-			 * when a device driver is involved (you cannot easily
-			 * save and restore device driver state).
-			 */
-			if (is_write_device_private_entry(entry) &&
-			    is_cow_mapping(vm_flags)) {
-				make_device_private_entry_read(&entry);
-				pte = swp_entry_to_pte(entry);
-				if (pte_swp_uffd_wp(*src_pte))
-					pte = pte_swp_mkuffd_wp(pte);
-				set_pte_at(src_mm, addr, src_pte, pte);
-			}
+		/* make sure dst_mm is on swapoff's mmlist. */
+		if (unlikely(list_empty(&dst_mm->mmlist))) {
+			spin_lock(&mmlist_lock);
+			if (list_empty(&dst_mm->mmlist))
+				list_add(&dst_mm->mmlist,
+						&src_mm->mmlist);
+			spin_unlock(&mmlist_lock);
 		}
-		goto out_set_pte;
+		rss[MM_SWAPENTS]++;
+	} else if (is_migration_entry(entry)) {
+		page = migration_entry_to_page(entry);
+
+		rss[mm_counter(page)]++;
+
+		if (is_write_migration_entry(entry) &&
+				is_cow_mapping(vm_flags)) {
+			/*
+			 * COW mappings require pages in both
+			 * parent and child to be set to read.
+			 */
+			make_migration_entry_read(&entry);
+			pte = swp_entry_to_pte(entry);
+			if (pte_swp_soft_dirty(*src_pte))
+				pte = pte_swp_mksoft_dirty(pte);
+			if (pte_swp_uffd_wp(*src_pte))
+				pte = pte_swp_mkuffd_wp(pte);
+			set_pte_at(src_mm, addr, src_pte, pte);
+		}
+	} else if (is_device_private_entry(entry)) {
+		page = device_private_entry_to_page(entry);
+
+		/*
+		 * Update rss count even for unaddressable pages, as
+		 * they should treated just like normal pages in this
+		 * respect.
+		 *
+		 * We will likely want to have some new rss counters
+		 * for unaddressable pages, at some point. But for now
+		 * keep things as they are.
+		 */
+		get_page(page);
+		rss[mm_counter(page)]++;
+		page_dup_rmap(page, false);
+
+		/*
+		 * We do not preserve soft-dirty information, because so
+		 * far, checkpoint/restore is the only feature that
+		 * requires that. And checkpoint/restore does not work
+		 * when a device driver is involved (you cannot easily
+		 * save and restore device driver state).
+		 */
+		if (is_write_device_private_entry(entry) &&
+		    is_cow_mapping(vm_flags)) {
+			make_device_private_entry_read(&entry);
+			pte = swp_entry_to_pte(entry);
+			if (pte_swp_uffd_wp(*src_pte))
+				pte = pte_swp_mkuffd_wp(pte);
+			set_pte_at(src_mm, addr, src_pte, pte);
+		}
 	}
+	set_pte_at(dst_mm, addr, dst_pte, pte);
+	return 0;
+}
+
+static inline void
+copy_present_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+		pte_t *dst_pte, pte_t *src_pte, struct vm_area_struct *vma,
+		unsigned long addr, int *rss)
+{
+	unsigned long vm_flags = vma->vm_flags;
+	pte_t pte = *src_pte;
+	struct page *page;
 
 	/*
 	 * If it's a COW mapping, write protect it both
@@ -820,9 +827,7 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 		rss[mm_counter(page)]++;
 	}
 
-out_set_pte:
 	set_pte_at(dst_mm, addr, dst_pte, pte);
-	return 0;
 }
 
 static int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
@@ -864,10 +869,17 @@ again:
 			progress++;
 			continue;
 		}
-		entry.val = copy_one_pte(dst_mm, src_mm, dst_pte, src_pte,
+		if (unlikely(!pte_present(*src_pte))) {
+			entry.val = copy_nonpresent_pte(dst_mm, src_mm,
+							dst_pte, src_pte,
 							vma, addr, rss);
-		if (entry.val)
-			break;
+			if (entry.val)
+				break;
+			progress += 8;
+			continue;
+		}
+		copy_present_pte(dst_mm, src_mm, dst_pte, src_pte,
+				 vma, addr, rss);
 		progress += 8;
 	} while (dst_pte++, src_pte++, addr += PAGE_SIZE, addr != end);
 
@@ -2968,8 +2980,8 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
 		 * page count reference, and the page is locked,
 		 * it's dark out, and we're wearing sunglasses. Hit it.
 		 */
-		wp_page_reuse(vmf);
 		unlock_page(page);
+		wp_page_reuse(vmf);
 		return VM_FAULT_WRITE;
 	} else if (unlikely((vma->vm_flags & (VM_WRITE|VM_SHARED)) ==
 					(VM_WRITE|VM_SHARED))) {

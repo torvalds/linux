@@ -4253,7 +4253,8 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 			cdev->mf_bits = BIT(QED_MF_LLH_MAC_CLSS) |
 					BIT(QED_MF_LLH_PROTO_CLSS) |
 					BIT(QED_MF_LL2_NON_UNICAST) |
-					BIT(QED_MF_INTER_PF_SWITCH);
+					BIT(QED_MF_INTER_PF_SWITCH) |
+					BIT(QED_MF_DISABLE_ARFS);
 			break;
 		case NVM_CFG1_GLOB_MF_MODE_DEFAULT:
 			cdev->mf_bits = BIT(QED_MF_LLH_MAC_CLSS) |
@@ -4266,6 +4267,14 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 
 		DP_INFO(p_hwfn, "Multi function mode is 0x%lx\n",
 			cdev->mf_bits);
+
+		/* In CMT the PF is unknown when the GFS block processes the
+		 * packet. Therefore cannot use searcher as it has a per PF
+		 * database, and thus ARFS must be disabled.
+		 *
+		 */
+		if (QED_IS_CMT(cdev))
+			cdev->mf_bits |= BIT(QED_MF_DISABLE_ARFS);
 	}
 
 	DP_INFO(p_hwfn, "Multi function mode is 0x%lx\n",

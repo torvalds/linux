@@ -51,7 +51,7 @@ static void mlx5e_monitor_counters_work(struct work_struct *work)
 					       monitor_counters_work);
 
 	mutex_lock(&priv->state_lock);
-	mlx5e_update_ndo_stats(priv);
+	mlx5e_stats_update_ndo_stats(priv);
 	mutex_unlock(&priv->state_lock);
 	mlx5e_monitor_counter_arm(priv);
 }
