@@ -141,6 +141,12 @@ struct hclge_port_shapping_cmd {
 	__le32 port_shapping_para;
 };
 
+struct hclge_shaper_ir_para {
+	u8 ir_b; /* IR_B parameter of IR shaper */
+	u8 ir_u; /* IR_U parameter of IR shaper */
+	u8 ir_s; /* IR_S parameter of IR shaper */
+};
+
 #define hclge_tm_set_field(dest, string, val) \
 			   hnae3_set_field((dest), \
 			   (HCLGE_TM_SHAP_##string##_MSK), \
