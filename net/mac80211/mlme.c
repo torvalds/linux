@@ -2533,7 +2533,9 @@ void ieee80211_sta_tx_notify(struct ieee80211_sub_if_data *sdata,
 	    !sdata->u.mgd.probe_send_count)
 		return;
 
-	if (!ack)
+	if (ack)
+		sdata->u.mgd.probe_send_count = 0;
+	else
 		sdata->u.mgd.nullfunc_failed = true;
 	ieee80211_queue_work(&sdata->local->hw, &sdata->work);
 }
