@@ -1076,9 +1076,6 @@ static int hns3_nway_reset(struct net_device *netdev)
 	if (phy)
 		return genphy_restart_aneg(phy);
 
-	if (handle->pdev->revision == 0x20)
-		return -EOPNOTSUPP;
-
 	return ops->restart_autoneg(handle);
 }
 
