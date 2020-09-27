@@ -319,6 +319,7 @@ struct mlxsw_sp_port {
 	int max_mtu;
 	u32 max_speed;
 	struct mlxsw_sp_hdroom *hdroom;
+	u64 module_overheat_initial_val;
 };
 
 struct mlxsw_sp_port_type_speed_ops {

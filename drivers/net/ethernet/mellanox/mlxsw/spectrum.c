@@ -1365,6 +1365,22 @@ static int mlxsw_sp_port_tc_mc_mode_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(qtctm), qtctm_pl);
 }
 
+static int mlxsw_sp_port_overheat_init_val_set(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	u8 module = mlxsw_sp_port->mapping.module;
+	u64 overheat_counter;
+	int err;
+
+	err = mlxsw_env_module_overheat_counter_get(mlxsw_sp->core, module,
+						    &overheat_counter);
+	if (err)
+		return err;
+
+	mlxsw_sp_port->module_overheat_initial_val = overheat_counter;
+	return 0;
+}
+
 static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 				u8 split_base_local_port,
 				struct mlxsw_sp_port_mapping *port_mapping)
@@ -1575,6 +1591,14 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 			  mlxsw_sp->ptp_ops->shaper_work);
 
 	mlxsw_sp->ports[local_port] = mlxsw_sp_port;
+
+	err = mlxsw_sp_port_overheat_init_val_set(mlxsw_sp_port);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to set overheat initial value\n",
+			mlxsw_sp_port->local_port);
+		goto err_port_overheat_init_val_set;
+	}
+
 	err = register_netdev(dev);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to register netdev\n",
@@ -1588,6 +1612,7 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 	return 0;
 
 err_register_netdev:
+err_port_overheat_init_val_set:
 	mlxsw_sp->ports[local_port] = NULL;
 	mlxsw_sp_port_vlan_destroy(mlxsw_sp_port_vlan);
 err_port_vlan_create:
@@ -2440,6 +2465,22 @@ static int mlxsw_sp_basic_trap_groups_set(struct mlxsw_core *mlxsw_core)
 			    MLXSW_REG_HTGT_INVALID_POLICER,
 			    MLXSW_REG_HTGT_DEFAULT_PRIORITY,
 			    MLXSW_REG_HTGT_DEFAULT_TC);
+	err = mlxsw_reg_write(mlxsw_core, MLXSW_REG(htgt), htgt_pl);
+	if (err)
+		return err;
+
+	mlxsw_reg_htgt_pack(htgt_pl, MLXSW_REG_HTGT_TRAP_GROUP_MTWE,
+			    MLXSW_REG_HTGT_INVALID_POLICER,
+			    MLXSW_REG_HTGT_DEFAULT_PRIORITY,
+			    MLXSW_REG_HTGT_DEFAULT_TC);
+	err = mlxsw_reg_write(mlxsw_core, MLXSW_REG(htgt), htgt_pl);
+	if (err)
+		return err;
+
+	mlxsw_reg_htgt_pack(htgt_pl, MLXSW_REG_HTGT_TRAP_GROUP_PMPE,
+			    MLXSW_REG_HTGT_INVALID_POLICER,
+			    MLXSW_REG_HTGT_DEFAULT_PRIORITY,
+			    MLXSW_REG_HTGT_DEFAULT_TC);
 	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(htgt), htgt_pl);
 }
 
@@ -3197,6 +3238,7 @@ static struct mlxsw_driver mlxsw_sp1_driver = {
 	.profile			= &mlxsw_sp1_config_profile,
 	.res_query_enabled		= true,
 	.fw_fatal_enabled		= true,
+	.temp_warn_enabled		= true,
 };
 
 static struct mlxsw_driver mlxsw_sp2_driver = {
@@ -3237,6 +3279,7 @@ static struct mlxsw_driver mlxsw_sp2_driver = {
 	.profile			= &mlxsw_sp2_config_profile,
 	.res_query_enabled		= true,
 	.fw_fatal_enabled		= true,
+	.temp_warn_enabled		= true,
 };
 
 static struct mlxsw_driver mlxsw_sp3_driver = {
@@ -3277,6 +3320,7 @@ static struct mlxsw_driver mlxsw_sp3_driver = {
 	.profile			= &mlxsw_sp2_config_profile,
 	.res_query_enabled		= true,
 	.fw_fatal_enabled		= true,
+	.temp_warn_enabled		= true,
 };
 
 bool mlxsw_sp_port_dev_check(const struct net_device *dev)

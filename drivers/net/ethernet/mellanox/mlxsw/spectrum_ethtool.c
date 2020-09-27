@@ -2,6 +2,7 @@
 /* Copyright (c) 2020 Mellanox Technologies. All rights reserved */
 
 #include "reg.h"
+#include "core.h"
 #include "spectrum.h"
 #include "core_env.h"
 
@@ -552,6 +553,37 @@ static struct mlxsw_sp_port_hw_stats mlxsw_sp_port_hw_tc_stats[] = {
 
 #define MLXSW_SP_PORT_HW_TC_STATS_LEN ARRAY_SIZE(mlxsw_sp_port_hw_tc_stats)
 
+struct mlxsw_sp_port_stats {
+	char str[ETH_GSTRING_LEN];
+	u64 (*getter)(struct mlxsw_sp_port *mlxsw_sp_port);
+};
+
+static u64
+mlxsw_sp_port_get_transceiver_overheat_stats(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	struct mlxsw_sp_port_mapping port_mapping = mlxsw_sp_port->mapping;
+	struct mlxsw_core *mlxsw_core = mlxsw_sp_port->mlxsw_sp->core;
+	u64 stats;
+	int err;
+
+	err = mlxsw_env_module_overheat_counter_get(mlxsw_core,
+						    port_mapping.module,
+						    &stats);
+	if (err)
+		return mlxsw_sp_port->module_overheat_initial_val;
+
+	return stats - mlxsw_sp_port->module_overheat_initial_val;
+}
+
+static struct mlxsw_sp_port_stats mlxsw_sp_port_transceiver_stats[] = {
+	{
+		.str = "transceiver_overheat",
+		.getter = mlxsw_sp_port_get_transceiver_overheat_stats,
+	},
+};
+
+#define MLXSW_SP_PORT_HW_TRANSCEIVER_STATS_LEN ARRAY_SIZE(mlxsw_sp_port_transceiver_stats)
+
 #define MLXSW_SP_PORT_ETHTOOL_STATS_LEN (MLXSW_SP_PORT_HW_STATS_LEN + \
 					 MLXSW_SP_PORT_HW_RFC_2863_STATS_LEN + \
 					 MLXSW_SP_PORT_HW_RFC_2819_STATS_LEN + \
@@ -561,7 +593,8 @@ static struct mlxsw_sp_port_hw_stats mlxsw_sp_port_hw_tc_stats[] = {
 					 (MLXSW_SP_PORT_HW_PRIO_STATS_LEN * \
 					  IEEE_8021QAZ_MAX_TCS) + \
 					 (MLXSW_SP_PORT_HW_TC_STATS_LEN * \
-					  TC_MAX_QUEUE))
+					  TC_MAX_QUEUE) + \
+					  MLXSW_SP_PORT_HW_TRANSCEIVER_STATS_LEN)
 
 static void mlxsw_sp_port_get_prio_strings(u8 **p, int prio)
 {
@@ -637,6 +670,12 @@ static void mlxsw_sp_port_get_strings(struct net_device *dev,
 			mlxsw_sp_port_get_tc_strings(&p, i);
 
 		mlxsw_sp_port->mlxsw_sp->ptp_ops->get_stats_strings(&p);
+
+		for (i = 0; i < MLXSW_SP_PORT_HW_TRANSCEIVER_STATS_LEN; i++) {
+			memcpy(p, mlxsw_sp_port_transceiver_stats[i].str,
+			       ETH_GSTRING_LEN);
+			p += ETH_GSTRING_LEN;
+		}
 		break;
 	}
 }
@@ -732,6 +771,17 @@ static void __mlxsw_sp_port_get_stats(struct net_device *dev,
 	}
 }
 
+static void __mlxsw_sp_port_get_env_stats(struct net_device *dev, u64 *data, int data_index,
+					  struct mlxsw_sp_port_stats *port_stats,
+					  int len)
+{
+	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
+	int i;
+
+	for (i = 0; i < len; i++)
+		data[data_index + i] = port_stats[i].getter(mlxsw_sp_port);
+}
+
 static void mlxsw_sp_port_get_stats(struct net_device *dev,
 				    struct ethtool_stats *stats, u64 *data)
 {
@@ -786,6 +836,11 @@ static void mlxsw_sp_port_get_stats(struct net_device *dev,
 	mlxsw_sp_port->mlxsw_sp->ptp_ops->get_stats(mlxsw_sp_port,
 						    data, data_index);
 	data_index += mlxsw_sp_port->mlxsw_sp->ptp_ops->get_stats_count();
+
+	/* Transceiver counters */
+	__mlxsw_sp_port_get_env_stats(dev, data, data_index, mlxsw_sp_port_transceiver_stats,
+				      MLXSW_SP_PORT_HW_TRANSCEIVER_STATS_LEN);
+	data_index += MLXSW_SP_PORT_HW_TRANSCEIVER_STATS_LEN;
 }
 
 static int mlxsw_sp_port_get_sset_count(struct net_device *dev, int sset)

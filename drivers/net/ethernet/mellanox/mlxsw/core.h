@@ -32,6 +32,8 @@ void *mlxsw_core_driver_priv(struct mlxsw_core *mlxsw_core);
 
 bool mlxsw_core_res_query_enabled(const struct mlxsw_core *mlxsw_core);
 
+bool mlxsw_core_temp_warn_enabled(const struct mlxsw_core *mlxsw_core);
+
 bool
 mlxsw_core_fw_rev_minor_subminor_validate(const struct mlxsw_fw_rev *rev,
 					  const struct mlxsw_fw_rev *req_rev);
@@ -221,6 +223,8 @@ enum devlink_port_type mlxsw_core_port_type_get(struct mlxsw_core *mlxsw_core,
 struct devlink_port *
 mlxsw_core_port_devlink_port_get(struct mlxsw_core *mlxsw_core,
 				 u8 local_port);
+struct mlxsw_env *mlxsw_core_env(const struct mlxsw_core *mlxsw_core);
+bool mlxsw_core_is_initialized(const struct mlxsw_core *mlxsw_core);
 int mlxsw_core_module_max_width(struct mlxsw_core *mlxsw_core, u8 module);
 
 int mlxsw_core_schedule_dw(struct delayed_work *dwork, unsigned long delay);
@@ -371,6 +375,7 @@ struct mlxsw_driver {
 	const struct mlxsw_config_profile *profile;
 	bool res_query_enabled;
 	bool fw_fatal_enabled;
+	bool temp_warn_enabled;
 };
 
 int mlxsw_core_kvd_sizes_get(struct mlxsw_core *mlxsw_core,

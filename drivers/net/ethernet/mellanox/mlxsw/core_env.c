@@ -10,6 +10,18 @@
 #include "item.h"
 #include "reg.h"
 
+struct mlxsw_env_module_info {
+	u64 module_overheat_counter;
+	bool is_overheat;
+};
+
+struct mlxsw_env {
+	struct mlxsw_core *core;
+	u8 module_count;
+	spinlock_t module_info_lock; /* Protects 'module_info'. */
+	struct mlxsw_env_module_info module_info[];
+};
+
 static int mlxsw_env_validate_cable_ident(struct mlxsw_core *core, int id,
 					  bool *qsfp, bool *cmis)
 {
@@ -293,3 +305,359 @@ int mlxsw_env_get_module_eeprom(struct net_device *netdev,
 	return 0;
 }
 EXPORT_SYMBOL(mlxsw_env_get_module_eeprom);
+
+static int mlxsw_env_module_has_temp_sensor(struct mlxsw_core *mlxsw_core,
+					    u8 module,
+					    bool *p_has_temp_sensor)
+{
+	char mtbr_pl[MLXSW_REG_MTBR_LEN];
+	u16 temp;
+	int err;
+
+	mlxsw_reg_mtbr_pack(mtbr_pl, MLXSW_REG_MTBR_BASE_MODULE_INDEX + module,
+			    1);
+	err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(mtbr), mtbr_pl);
+	if (err)
+		return err;
+
+	mlxsw_reg_mtbr_temp_unpack(mtbr_pl, 0, &temp, NULL);
+
+	switch (temp) {
+	case MLXSW_REG_MTBR_BAD_SENS_INFO:
+	case MLXSW_REG_MTBR_NO_CONN:
+	case MLXSW_REG_MTBR_NO_TEMP_SENS:
+	case MLXSW_REG_MTBR_INDEX_NA:
+		*p_has_temp_sensor = false;
+		break;
+	default:
+		*p_has_temp_sensor = temp ? true : false;
+	}
+	return 0;
+}
+
+static int mlxsw_env_temp_event_set(struct mlxsw_core *mlxsw_core,
+				    u16 sensor_index, bool enable)
+{
+	char mtmp_pl[MLXSW_REG_MTMP_LEN] = {0};
+	enum mlxsw_reg_mtmp_tee tee;
+	int err, threshold_hi;
+
+	mlxsw_reg_mtmp_sensor_index_set(mtmp_pl, sensor_index);
+	err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(mtmp), mtmp_pl);
+	if (err)
+		return err;
+
+	if (enable) {
+		err = mlxsw_env_module_temp_thresholds_get(mlxsw_core,
+							   sensor_index -
+							   MLXSW_REG_MTMP_MODULE_INDEX_MIN,
+							   SFP_TEMP_HIGH_WARN,
+							   &threshold_hi);
+		/* In case it is not possible to query the module's threshold,
+		 * use the default value.
+		 */
+		if (err)
+			threshold_hi = MLXSW_REG_MTMP_THRESH_HI;
+		else
+			/* mlxsw_env_module_temp_thresholds_get() multiplies
+			 * Celsius degrees by 1000 whereas MTMP expects
+			 * temperature in 0.125 Celsius degrees units.
+			 * Convert threshold_hi to correct units.
+			 */
+			threshold_hi = threshold_hi / 1000 * 8;
+
+		mlxsw_reg_mtmp_temperature_threshold_hi_set(mtmp_pl, threshold_hi);
+		mlxsw_reg_mtmp_temperature_threshold_lo_set(mtmp_pl, threshold_hi -
+							    MLXSW_REG_MTMP_HYSTERESIS_TEMP);
+	}
+	tee = enable ? MLXSW_REG_MTMP_TEE_GENERATE_EVENT : MLXSW_REG_MTMP_TEE_NO_EVENT;
+	mlxsw_reg_mtmp_tee_set(mtmp_pl, tee);
+	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(mtmp), mtmp_pl);
+}
+
+static int mlxsw_env_module_temp_event_enable(struct mlxsw_core *mlxsw_core,
+					      u8 module_count)
+{
+	int i, err, sensor_index;
+	bool has_temp_sensor;
+
+	for (i = 0; i < module_count; i++) {
+		err = mlxsw_env_module_has_temp_sensor(mlxsw_core, i,
+						       &has_temp_sensor);
+		if (err)
+			return err;
+
+		if (!has_temp_sensor)
+			continue;
+
+		sensor_index = i + MLXSW_REG_MTMP_MODULE_INDEX_MIN;
+		err = mlxsw_env_temp_event_set(mlxsw_core, sensor_index, true);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static void mlxsw_env_mtwe_event_func(const struct mlxsw_reg_info *reg,
+				      char *mtwe_pl, void *priv)
+{
+	struct mlxsw_env *mlxsw_env = priv;
+	int i, sensor_warning;
+	bool is_overheat;
+
+	for (i = 0; i < mlxsw_env->module_count; i++) {
+		/* 64-127 of sensor_index are mapped to the port modules
+		 * sequentially (module 0 is mapped to sensor_index 64,
+		 * module 1 to sensor_index 65 and so on)
+		 */
+		sensor_warning =
+			mlxsw_reg_mtwe_sensor_warning_get(mtwe_pl,
+							  i + MLXSW_REG_MTMP_MODULE_INDEX_MIN);
+		spin_lock(&mlxsw_env->module_info_lock);
+		is_overheat =
+			mlxsw_env->module_info[i].is_overheat;
+
+		if ((is_overheat && sensor_warning) ||
+		    (!is_overheat && !sensor_warning)) {
+			/* Current state is "warning" and MTWE still reports
+			 * warning OR current state in "no warning" and MTWE
+			 * does not report warning.
+			 */
+			spin_unlock(&mlxsw_env->module_info_lock);
+			continue;
+		} else if (is_overheat && !sensor_warning) {
+			/* MTWE reports "no warning", turn is_overheat off.
+			 */
+			mlxsw_env->module_info[i].is_overheat = false;
+			spin_unlock(&mlxsw_env->module_info_lock);
+		} else {
+			/* Current state is "no warning" and MTWE reports
+			 * "warning", increase the counter and turn is_overheat
+			 * on.
+			 */
+			mlxsw_env->module_info[i].is_overheat = true;
+			mlxsw_env->module_info[i].module_overheat_counter++;
+			spin_unlock(&mlxsw_env->module_info_lock);
+		}
+	}
+}
+
+static const struct mlxsw_listener mlxsw_env_temp_warn_listener =
+	MLXSW_EVENTL(mlxsw_env_mtwe_event_func, MTWE, MTWE);
+
+static int mlxsw_env_temp_warn_event_register(struct mlxsw_core *mlxsw_core)
+{
+	struct mlxsw_env *mlxsw_env = mlxsw_core_env(mlxsw_core);
+
+	if (!mlxsw_core_temp_warn_enabled(mlxsw_core))
+		return 0;
+
+	return mlxsw_core_trap_register(mlxsw_core,
+					&mlxsw_env_temp_warn_listener,
+					mlxsw_env);
+}
+
+static void mlxsw_env_temp_warn_event_unregister(struct mlxsw_env *mlxsw_env)
+{
+	if (!mlxsw_core_temp_warn_enabled(mlxsw_env->core))
+		return;
+
+	mlxsw_core_trap_unregister(mlxsw_env->core,
+				   &mlxsw_env_temp_warn_listener, mlxsw_env);
+}
+
+struct mlxsw_env_module_plug_unplug_event {
+	struct mlxsw_env *mlxsw_env;
+	u8 module;
+	struct work_struct work;
+};
+
+static void mlxsw_env_pmpe_event_work(struct work_struct *work)
+{
+	struct mlxsw_env_module_plug_unplug_event *event;
+	struct mlxsw_env *mlxsw_env;
+	bool has_temp_sensor;
+	u16 sensor_index;
+	int err;
+
+	event = container_of(work, struct mlxsw_env_module_plug_unplug_event,
+			     work);
+	mlxsw_env = event->mlxsw_env;
+
+	spin_lock_bh(&mlxsw_env->module_info_lock);
+	mlxsw_env->module_info[event->module].is_overheat = false;
+	spin_unlock_bh(&mlxsw_env->module_info_lock);
+
+	err = mlxsw_env_module_has_temp_sensor(mlxsw_env->core, event->module,
+					       &has_temp_sensor);
+	/* Do not disable events on modules without sensors or faulty sensors
+	 * because FW returns errors.
+	 */
+	if (err)
+		goto out;
+
+	if (!has_temp_sensor)
+		goto out;
+
+	sensor_index = event->module + MLXSW_REG_MTMP_MODULE_INDEX_MIN;
+	mlxsw_env_temp_event_set(mlxsw_env->core, sensor_index, true);
+
+out:
+	kfree(event);
+}
+
+static void
+mlxsw_env_pmpe_listener_func(const struct mlxsw_reg_info *reg, char *pmpe_pl,
+			     void *priv)
+{
+	struct mlxsw_env_module_plug_unplug_event *event;
+	enum mlxsw_reg_pmpe_module_status module_status;
+	u8 module = mlxsw_reg_pmpe_module_get(pmpe_pl);
+	struct mlxsw_env *mlxsw_env = priv;
+
+	if (WARN_ON_ONCE(module >= mlxsw_env->module_count))
+		return;
+
+	module_status = mlxsw_reg_pmpe_module_status_get(pmpe_pl);
+	if (module_status != MLXSW_REG_PMPE_MODULE_STATUS_PLUGGED_ENABLED)
+		return;
+
+	event = kmalloc(sizeof(*event), GFP_ATOMIC);
+	if (!event)
+		return;
+
+	event->mlxsw_env = mlxsw_env;
+	event->module = module;
+	INIT_WORK(&event->work, mlxsw_env_pmpe_event_work);
+	mlxsw_core_schedule_work(&event->work);
+}
+
+static const struct mlxsw_listener mlxsw_env_module_plug_listener =
+	MLXSW_EVENTL(mlxsw_env_pmpe_listener_func, PMPE, PMPE);
+
+static int
+mlxsw_env_module_plug_event_register(struct mlxsw_core *mlxsw_core)
+{
+	struct mlxsw_env *mlxsw_env = mlxsw_core_env(mlxsw_core);
+
+	if (!mlxsw_core_temp_warn_enabled(mlxsw_core))
+		return 0;
+
+	return mlxsw_core_trap_register(mlxsw_core,
+					&mlxsw_env_module_plug_listener,
+					mlxsw_env);
+}
+
+static void
+mlxsw_env_module_plug_event_unregister(struct mlxsw_env *mlxsw_env)
+{
+	if (!mlxsw_core_temp_warn_enabled(mlxsw_env->core))
+		return;
+
+	mlxsw_core_trap_unregister(mlxsw_env->core,
+				   &mlxsw_env_module_plug_listener,
+				   mlxsw_env);
+}
+
+static int
+mlxsw_env_module_oper_state_event_enable(struct mlxsw_core *mlxsw_core,
+					 u8 module_count)
+{
+	int i, err;
+
+	for (i = 0; i < module_count; i++) {
+		char pmaos_pl[MLXSW_REG_PMAOS_LEN];
+
+		mlxsw_reg_pmaos_pack(pmaos_pl, i,
+				     MLXSW_REG_PMAOS_E_GENERATE_EVENT);
+		err = mlxsw_reg_write(mlxsw_core, MLXSW_REG(pmaos), pmaos_pl);
+		if (err)
+			return err;
+	}
+	return 0;
+}
+
+int
+mlxsw_env_module_overheat_counter_get(struct mlxsw_core *mlxsw_core, u8 module,
+				      u64 *p_counter)
+{
+	struct mlxsw_env *mlxsw_env = mlxsw_core_env(mlxsw_core);
+
+	/* Prevent switch driver from accessing uninitialized data. */
+	if (!mlxsw_core_is_initialized(mlxsw_core)) {
+		*p_counter = 0;
+		return 0;
+	}
+
+	if (WARN_ON_ONCE(module >= mlxsw_env->module_count))
+		return -EINVAL;
+
+	spin_lock_bh(&mlxsw_env->module_info_lock);
+	*p_counter = mlxsw_env->module_info[module].module_overheat_counter;
+	spin_unlock_bh(&mlxsw_env->module_info_lock);
+
+	return 0;
+}
+EXPORT_SYMBOL(mlxsw_env_module_overheat_counter_get);
+
+int mlxsw_env_init(struct mlxsw_core *mlxsw_core, struct mlxsw_env **p_env)
+{
+	char mgpir_pl[MLXSW_REG_MGPIR_LEN];
+	struct mlxsw_env *env;
+	u8 module_count;
+	int err;
+
+	mlxsw_reg_mgpir_pack(mgpir_pl);
+	err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(mgpir), mgpir_pl);
+	if (err)
+		return err;
+
+	mlxsw_reg_mgpir_unpack(mgpir_pl, NULL, NULL, NULL, &module_count);
+
+	env = kzalloc(struct_size(env, module_info, module_count), GFP_KERNEL);
+	if (!env)
+		return -ENOMEM;
+
+	spin_lock_init(&env->module_info_lock);
+	env->core = mlxsw_core;
+	env->module_count = module_count;
+	*p_env = env;
+
+	err = mlxsw_env_temp_warn_event_register(mlxsw_core);
+	if (err)
+		goto err_temp_warn_event_register;
+
+	err = mlxsw_env_module_plug_event_register(mlxsw_core);
+	if (err)
+		goto err_module_plug_event_register;
+
+	err = mlxsw_env_module_oper_state_event_enable(mlxsw_core,
+						       env->module_count);
+	if (err)
+		goto err_oper_state_event_enable;
+
+	err = mlxsw_env_module_temp_event_enable(mlxsw_core, env->module_count);
+	if (err)
+		goto err_temp_event_enable;
+
+	return 0;
+
+err_temp_event_enable:
+err_oper_state_event_enable:
+	mlxsw_env_module_plug_event_unregister(env);
+err_module_plug_event_register:
+	mlxsw_env_temp_warn_event_unregister(env);
+err_temp_warn_event_register:
+	kfree(env);
+	return err;
+}
+
+void mlxsw_env_fini(struct mlxsw_env *env)
+{
+	mlxsw_env_module_plug_event_unregister(env);
+	/* Make sure there is no more event work scheduled. */
+	mlxsw_core_flush_owq();
+	mlxsw_env_temp_warn_event_unregister(env);
+	kfree(env);
+}
