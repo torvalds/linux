@@ -748,7 +748,7 @@ static int __init vdso_init(void)
 	BUG_ON(vdso32_pagelist == NULL);
 	for (i = 0; i < vdso32_pages; i++) {
 		struct page *pg = virt_to_page(vdso32_kbase + i*PAGE_SIZE);
-		get_page(pg);
+
 		vdso32_pagelist[i] = pg;
 	}
 	vdso32_pagelist[i++] = virt_to_page(vdso_data);
@@ -761,14 +761,12 @@ static int __init vdso_init(void)
 	BUG_ON(vdso64_pagelist == NULL);
 	for (i = 0; i < vdso64_pages; i++) {
 		struct page *pg = virt_to_page(vdso64_kbase + i*PAGE_SIZE);
-		get_page(pg);
+
 		vdso64_pagelist[i] = pg;
 	}
 	vdso64_pagelist[i++] = virt_to_page(vdso_data);
 	vdso64_pagelist[i] = NULL;
 #endif /* CONFIG_PPC64 */
-
-	get_page(virt_to_page(vdso_data));
 
 	smp_wmb();
 	vdso_ready = 1;
