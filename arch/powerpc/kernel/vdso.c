@@ -189,7 +189,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	do_##type##_fixups((value), __start, __end);					\
 } while (0)
 
-static int __init vdso_fixup_features(void)
+static void __init vdso_fixup_features(void)
 {
 #ifdef CONFIG_PPC64
 	VDSO_DO_FIXUPS(feature, cur_cpu_spec->cpu_features, 64, ftr_fixup);
@@ -206,16 +206,6 @@ static int __init vdso_fixup_features(void)
 #endif /* CONFIG_PPC64 */
 	VDSO_DO_FIXUPS(lwsync, cur_cpu_spec->cpu_features, 32, lwsync_fixup);
 #endif
-
-	return 0;
-}
-
-static __init int vdso_setup(void)
-{
-	if (vdso_fixup_features())
-		return -1;
-
-	return 0;
 }
 
 /*
@@ -310,14 +300,7 @@ static int __init vdso_init(void)
 
 	vdso_setup_syscall_map();
 
-	/*
-	 * Initialize the vDSO images in memory, that is do necessary
-	 * fixups of vDSO symbols, locate trampolines, etc...
-	 */
-	if (vdso_setup()) {
-		printk(KERN_ERR "vDSO setup failure, not enabled !\n");
-		return 0;
-	}
+	vdso_fixup_features();
 
 	if (IS_ENABLED(CONFIG_VDSO32))
 		vdso32_spec.pages = vdso_setup_pages(&vdso32_start, &vdso32_end);
