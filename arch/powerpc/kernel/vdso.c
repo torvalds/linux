@@ -41,9 +41,6 @@
 #define DBG(fmt...)
 #endif
 
-/* Max supported size for symbol names */
-#define MAX_SYMNAME	64
-
 /* The alignment of the vDSO */
 #define VDSO_ALIGNMENT	(1 << 16)
 
@@ -65,22 +62,6 @@ static union {
 	u8			page[PAGE_SIZE];
 } vdso_data_store __page_aligned_data;
 struct vdso_arch_data *vdso_data = &vdso_data_store.data;
-
-/* Format of the patch table */
-struct vdso_patch_def
-{
-	unsigned long	ftr_mask, ftr_value;
-	const char	*gen_name;
-	const char	*fix_name;
-};
-
-/* Table of functions to patch based on the CPU type/revision
- *
- * Currently, we only change sync_dicache to do nothing on processors
- * with a coherent icache
- */
-static struct vdso_patch_def vdso_patches[] = {
-};
 
 /*
  * Some infos carried around for each of them during parsing at
@@ -249,62 +230,6 @@ static void * __init find_section32(Elf32_Ehdr *ehdr, const char *secname,
 	*size = 0;
 	return NULL;
 }
-
-static Elf32_Sym * __init find_symbol32(struct lib32_elfinfo *lib,
-					const char *symname)
-{
-	unsigned int i;
-	char name[MAX_SYMNAME], *c;
-
-	for (i = 0; i < (lib->dynsymsize / sizeof(Elf32_Sym)); i++) {
-		if (lib->dynsym[i].st_name == 0)
-			continue;
-		strlcpy(name, lib->dynstr + lib->dynsym[i].st_name,
-			MAX_SYMNAME);
-		c = strchr(name, '@');
-		if (c)
-			*c = 0;
-		if (strcmp(symname, name) == 0)
-			return &lib->dynsym[i];
-	}
-	return NULL;
-}
-
-static int __init vdso_do_func_patch32(struct lib32_elfinfo *v32,
-				       struct lib64_elfinfo *v64,
-				       const char *orig, const char *fix)
-{
-	Elf32_Sym *sym32_gen, *sym32_fix;
-
-	sym32_gen = find_symbol32(v32, orig);
-	if (sym32_gen == NULL) {
-		printk(KERN_ERR "vDSO32: Can't find symbol %s !\n", orig);
-		return -1;
-	}
-	if (fix == NULL) {
-		sym32_gen->st_name = 0;
-		return 0;
-	}
-	sym32_fix = find_symbol32(v32, fix);
-	if (sym32_fix == NULL) {
-		printk(KERN_ERR "vDSO32: Can't find symbol %s !\n", fix);
-		return -1;
-	}
-	sym32_gen->st_value = sym32_fix->st_value;
-	sym32_gen->st_size = sym32_fix->st_size;
-	sym32_gen->st_info = sym32_fix->st_info;
-	sym32_gen->st_other = sym32_fix->st_other;
-	sym32_gen->st_shndx = sym32_fix->st_shndx;
-
-	return 0;
-}
-#else /* !CONFIG_VDSO32 */
-static int __init vdso_do_func_patch32(struct lib32_elfinfo *v32,
-				       struct lib64_elfinfo *v64,
-				       const char *orig, const char *fix)
-{
-	return 0;
-}
 #endif /* CONFIG_VDSO32 */
 
 
@@ -333,56 +258,6 @@ static void * __init find_section64(Elf64_Ehdr *ehdr, const char *secname,
 		*size = 0;
 	return NULL;
 }
-
-static Elf64_Sym * __init find_symbol64(struct lib64_elfinfo *lib,
-					const char *symname)
-{
-	unsigned int i;
-	char name[MAX_SYMNAME], *c;
-
-	for (i = 0; i < (lib->dynsymsize / sizeof(Elf64_Sym)); i++) {
-		if (lib->dynsym[i].st_name == 0)
-			continue;
-		strlcpy(name, lib->dynstr + lib->dynsym[i].st_name,
-			MAX_SYMNAME);
-		c = strchr(name, '@');
-		if (c)
-			*c = 0;
-		if (strcmp(symname, name) == 0)
-			return &lib->dynsym[i];
-	}
-	return NULL;
-}
-
-static int __init vdso_do_func_patch64(struct lib32_elfinfo *v32,
-				       struct lib64_elfinfo *v64,
-				       const char *orig, const char *fix)
-{
-	Elf64_Sym *sym64_gen, *sym64_fix;
-
-	sym64_gen = find_symbol64(v64, orig);
-	if (sym64_gen == NULL) {
-		printk(KERN_ERR "vDSO64: Can't find symbol %s !\n", orig);
-		return -1;
-	}
-	if (fix == NULL) {
-		sym64_gen->st_name = 0;
-		return 0;
-	}
-	sym64_fix = find_symbol64(v64, fix);
-	if (sym64_fix == NULL) {
-		printk(KERN_ERR "vDSO64: Can't find symbol %s !\n", fix);
-		return -1;
-	}
-	sym64_gen->st_value = sym64_fix->st_value;
-	sym64_gen->st_size = sym64_fix->st_size;
-	sym64_gen->st_info = sym64_fix->st_info;
-	sym64_gen->st_other = sym64_fix->st_other;
-	sym64_gen->st_shndx = sym64_fix->st_shndx;
-
-	return 0;
-}
-
 #endif /* CONFIG_PPC64 */
 
 #define VDSO_DO_FIXUPS(type, value, bits, sec) do {					\
@@ -456,39 +331,6 @@ static __init int vdso_fixup_features(struct lib32_elfinfo *v32,
 	return 0;
 }
 
-static __init int vdso_fixup_alt_funcs(struct lib32_elfinfo *v32,
-				       struct lib64_elfinfo *v64)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(vdso_patches); i++) {
-		struct vdso_patch_def *patch = &vdso_patches[i];
-		int match = (cur_cpu_spec->cpu_features & patch->ftr_mask)
-			== patch->ftr_value;
-		if (!match)
-			continue;
-
-		DBG("replacing %s with %s...\n", patch->gen_name,
-		    patch->fix_name ? "NONE" : patch->fix_name);
-
-		/*
-		 * Patch the 32 bits and 64 bits symbols. Note that we do not
-		 * patch the "." symbol on 64 bits.
-		 * It would be easy to do, but doesn't seem to be necessary,
-		 * patching the OPD symbol is enough.
-		 */
-		vdso_do_func_patch32(v32, v64, patch->gen_name,
-				     patch->fix_name);
-#ifdef CONFIG_PPC64
-		vdso_do_func_patch64(v32, v64, patch->gen_name,
-				     patch->fix_name);
-#endif /* CONFIG_PPC64 */
-	}
-
-	return 0;
-}
-
-
 static __init int vdso_setup(void)
 {
 	struct lib32_elfinfo	v32;
@@ -500,9 +342,6 @@ static __init int vdso_setup(void)
 		return -1;
 
 	if (vdso_fixup_features(&v32, &v64))
-		return -1;
-
-	if (vdso_fixup_alt_funcs(&v32, &v64))
 		return -1;
 
 	return 0;
