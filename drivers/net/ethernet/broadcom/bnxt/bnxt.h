@@ -1259,6 +1259,49 @@ struct bnxt_link_info {
 	struct hwrm_port_phy_qcfg_output phy_qcfg_resp;
 };
 
+#define BNXT_FEC_RS544_ON					\
+	 (PORT_PHY_CFG_REQ_FLAGS_FEC_RS544_1XN_ENABLE |		\
+	  PORT_PHY_CFG_REQ_FLAGS_FEC_RS544_IEEE_ENABLE)
+
+#define BNXT_FEC_RS544_OFF					\
+	 (PORT_PHY_CFG_REQ_FLAGS_FEC_RS544_1XN_DISABLE |	\
+	  PORT_PHY_CFG_REQ_FLAGS_FEC_RS544_IEEE_DISABLE)
+
+#define BNXT_FEC_RS272_ON					\
+	 (PORT_PHY_CFG_REQ_FLAGS_FEC_RS272_1XN_ENABLE |		\
+	  PORT_PHY_CFG_REQ_FLAGS_FEC_RS272_IEEE_ENABLE)
+
+#define BNXT_FEC_RS272_OFF					\
+	 (PORT_PHY_CFG_REQ_FLAGS_FEC_RS272_1XN_DISABLE |	\
+	  PORT_PHY_CFG_REQ_FLAGS_FEC_RS272_IEEE_DISABLE)
+
+#define BNXT_PAM4_SUPPORTED(link_info)				\
+	((link_info)->support_pam4_speeds)
+
+#define BNXT_FEC_RS_ON(link_info)				\
+	(PORT_PHY_CFG_REQ_FLAGS_FEC_CLAUSE91_ENABLE |		\
+	 PORT_PHY_CFG_REQ_FLAGS_FEC_CLAUSE74_DISABLE |		\
+	 (BNXT_PAM4_SUPPORTED(link_info) ?			\
+	  (BNXT_FEC_RS544_ON | BNXT_FEC_RS272_OFF) : 0))
+
+#define BNXT_FEC_LLRS_ON					\
+	(PORT_PHY_CFG_REQ_FLAGS_FEC_CLAUSE91_ENABLE |		\
+	 PORT_PHY_CFG_REQ_FLAGS_FEC_CLAUSE74_DISABLE |		\
+	 BNXT_FEC_RS272_ON | BNXT_FEC_RS544_OFF)
+
+#define BNXT_FEC_RS_OFF(link_info)				\
+	(PORT_PHY_CFG_REQ_FLAGS_FEC_CLAUSE91_DISABLE |		\
+	 (BNXT_PAM4_SUPPORTED(link_info) ?			\
+	  (BNXT_FEC_RS544_OFF | BNXT_FEC_RS272_OFF) : 0))
+
+#define BNXT_FEC_BASE_R_ON(link_info)				\
+	(PORT_PHY_CFG_REQ_FLAGS_FEC_CLAUSE74_ENABLE |		\
+	 BNXT_FEC_RS_OFF(link_info))
+
+#define BNXT_FEC_ALL_OFF(link_info)				\
+	(PORT_PHY_CFG_REQ_FLAGS_FEC_CLAUSE74_DISABLE |		\
+	 BNXT_FEC_RS_OFF(link_info))
+
 #define BNXT_MAX_QUEUE	8
 
 struct bnxt_queue_info {
@@ -2125,6 +2168,7 @@ int bnxt_get_avail_msix(struct bnxt *bp, int num);
 int bnxt_reserve_rings(struct bnxt *bp, bool irq_re_init);
 void bnxt_tx_disable(struct bnxt *bp);
 void bnxt_tx_enable(struct bnxt *bp);
+int bnxt_update_link(struct bnxt *bp, bool chng_link_state);
 int bnxt_hwrm_set_pause(struct bnxt *);
 int bnxt_hwrm_set_link_setting(struct bnxt *, bool, bool);
 int bnxt_hwrm_alloc_wol_fltr(struct bnxt *bp);

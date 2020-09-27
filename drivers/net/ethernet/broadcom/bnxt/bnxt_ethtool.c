@@ -1924,6 +1924,67 @@ static int bnxt_get_fecparam(struct net_device *dev,
 	return 0;
 }
 
+static u32 bnxt_ethtool_forced_fec_to_fw(struct bnxt_link_info *link_info,
+					 u32 fec)
+{
+	u32 fw_fec = PORT_PHY_CFG_REQ_FLAGS_FEC_AUTONEG_DISABLE;
+
+	if (fec & ETHTOOL_FEC_BASER)
+		fw_fec |= BNXT_FEC_BASE_R_ON(link_info);
+	else if (fec & ETHTOOL_FEC_RS)
+		fw_fec |= BNXT_FEC_RS_ON(link_info);
+	else if (fec & ETHTOOL_FEC_LLRS)
+		fw_fec |= BNXT_FEC_LLRS_ON;
+	return fw_fec;
+}
+
+static int bnxt_set_fecparam(struct net_device *dev,
+			     struct ethtool_fecparam *fecparam)
+{
+	struct hwrm_port_phy_cfg_input req = {0};
+	struct bnxt *bp = netdev_priv(dev);
+	struct bnxt_link_info *link_info;
+	u32 new_cfg, fec = fecparam->fec;
+	u16 fec_cfg;
+	int rc;
+
+	link_info = &bp->link_info;
+	fec_cfg = link_info->fec_cfg;
+	if (fec_cfg & BNXT_FEC_NONE)
+		return -EOPNOTSUPP;
+
+	if (fec & ETHTOOL_FEC_OFF) {
+		new_cfg = PORT_PHY_CFG_REQ_FLAGS_FEC_AUTONEG_DISABLE |
+			  BNXT_FEC_ALL_OFF(link_info);
+		goto apply_fec;
+	}
+	if (((fec & ETHTOOL_FEC_AUTO) && !(fec_cfg & BNXT_FEC_AUTONEG_CAP)) ||
+	    ((fec & ETHTOOL_FEC_RS) && !(fec_cfg & BNXT_FEC_ENC_RS_CAP)) ||
+	    ((fec & ETHTOOL_FEC_LLRS) && !(fec_cfg & BNXT_FEC_ENC_LLRS_CAP)) ||
+	    ((fec & ETHTOOL_FEC_BASER) && !(fec_cfg & BNXT_FEC_ENC_BASE_R_CAP)))
+		return -EINVAL;
+
+	if (fec & ETHTOOL_FEC_AUTO) {
+		if (!link_info->autoneg)
+			return -EINVAL;
+		new_cfg = PORT_PHY_CFG_REQ_FLAGS_FEC_AUTONEG_ENABLE;
+	} else {
+		new_cfg = bnxt_ethtool_forced_fec_to_fw(link_info, fec);
+	}
+
+apply_fec:
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_PORT_PHY_CFG, -1, -1);
+	req.flags = cpu_to_le32(new_cfg | PORT_PHY_CFG_REQ_FLAGS_RESET_PHY);
+	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	/* update current settings */
+	if (!rc) {
+		mutex_lock(&bp->link_lock);
+		bnxt_update_link(bp, false);
+		mutex_unlock(&bp->link_lock);
+	}
+	return rc;
+}
+
 static void bnxt_get_pauseparam(struct net_device *dev,
 				struct ethtool_pauseparam *epause)
 {
@@ -3830,6 +3891,7 @@ const struct ethtool_ops bnxt_ethtool_ops = {
 	.get_link_ksettings	= bnxt_get_link_ksettings,
 	.set_link_ksettings	= bnxt_set_link_ksettings,
 	.get_fecparam		= bnxt_get_fecparam,
+	.set_fecparam		= bnxt_set_fecparam,
 	.get_pause_stats	= bnxt_get_pause_stats,
 	.get_pauseparam		= bnxt_get_pauseparam,
 	.set_pauseparam		= bnxt_set_pauseparam,

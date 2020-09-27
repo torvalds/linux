@@ -8890,7 +8890,7 @@ static bool bnxt_support_dropped(u16 advertising, u16 supported)
 	return ((supported | diff) != supported);
 }
 
-static int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
+int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 {
 	int rc = 0;
 	struct bnxt_link_info *link_info = &bp->link_info;
