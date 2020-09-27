@@ -746,7 +746,7 @@ static int hclgevf_get_rss(struct hnae3_handle *handle, u32 *indir, u8 *key,
 	struct hclgevf_rss_cfg *rss_cfg = &hdev->rss_cfg;
 	int i, ret;
 
-	if (handle->pdev->revision >= 0x21) {
+	if (hdev->ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2) {
 		/* Get hash algorithm */
 		if (hfunc) {
 			switch (rss_cfg->hash_algo) {
@@ -792,7 +792,7 @@ static int hclgevf_set_rss(struct hnae3_handle *handle, const u32 *indir,
 	struct hclgevf_rss_cfg *rss_cfg = &hdev->rss_cfg;
 	int ret, i;
 
-	if (handle->pdev->revision >= 0x21) {
+	if (hdev->ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2) {
 		/* Set the RSS Hash Key if specififed by the user */
 		if (key) {
 			switch (hfunc) {
@@ -864,7 +864,7 @@ static int hclgevf_set_rss_tuple(struct hnae3_handle *handle,
 	u8 tuple_sets;
 	int ret;
 
-	if (handle->pdev->revision == 0x20)
+	if (hdev->ae_dev->dev_version < HNAE3_DEVICE_VERSION_V2)
 		return -EOPNOTSUPP;
 
 	if (nfc->data &
@@ -942,7 +942,7 @@ static int hclgevf_get_rss_tuple(struct hnae3_handle *handle,
 	struct hclgevf_rss_cfg *rss_cfg = &hdev->rss_cfg;
 	u8 tuple_sets;
 
-	if (handle->pdev->revision == 0x20)
+	if (hdev->ae_dev->dev_version < HNAE3_DEVICE_VERSION_V2)
 		return -EOPNOTSUPP;
 
 	nfc->data = 0;
@@ -1155,10 +1155,9 @@ static int hclgevf_set_promisc_mode(struct hnae3_handle *handle, bool en_uc_pmc,
 				    bool en_mc_pmc)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
-	struct pci_dev *pdev = hdev->pdev;
 	bool en_bc_pmc;
 
-	en_bc_pmc = pdev->revision != 0x20;
+	en_bc_pmc = hdev->ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2;
 
 	return hclgevf_cmd_set_promisc_mode(hdev, en_uc_pmc, en_mc_pmc,
 					    en_bc_pmc);
@@ -2288,7 +2287,7 @@ static enum hclgevf_evt_cause hclgevf_check_evt_cause(struct hclgevf_dev *hdev,
 		 * register, so we should just write 0 to the bit we are
 		 * handling, and keep other bits as cmdq_stat_reg.
 		 */
-		if (hdev->pdev->revision >= 0x21)
+		if (hdev->ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2)
 			*clearval = ~(1U << HCLGEVF_VECTOR0_RX_CMDQ_INT_B);
 		else
 			*clearval = cmdq_stat_reg &
@@ -2431,7 +2430,7 @@ static void hclgevf_rss_init_cfg(struct hclgevf_dev *hdev)
 	rss_cfg->hash_algo = HCLGEVF_RSS_HASH_ALGO_TOEPLITZ;
 	rss_cfg->rss_size = hdev->nic.kinfo.rss_size;
 	tuple_sets = &rss_cfg->rss_tuple_sets;
-	if (hdev->pdev->revision >= 0x21) {
+	if (hdev->ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2) {
 		rss_cfg->hash_algo = HCLGEVF_RSS_HASH_ALGO_SIMPLE;
 		memcpy(rss_cfg->rss_hash_key, hclgevf_hash_key,
 		       HCLGEVF_RSS_KEY_SIZE);
@@ -2456,7 +2455,7 @@ static int hclgevf_rss_init_hw(struct hclgevf_dev *hdev)
 	struct hclgevf_rss_cfg *rss_cfg = &hdev->rss_cfg;
 	int ret;
 
-	if (hdev->pdev->revision >= 0x21) {
+	if (hdev->ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2) {
 		ret = hclgevf_set_rss_algo_key(hdev, rss_cfg->hash_algo,
 					       rss_cfg->rss_hash_key);
 		if (ret)
@@ -2940,6 +2939,76 @@ static int hclgevf_query_vf_resource(struct hclgevf_dev *hdev)
 	return 0;
 }
 
+static void hclgevf_set_default_dev_specs(struct hclgevf_dev *hdev)
+{
+#define HCLGEVF_MAX_NON_TSO_BD_NUM			8U
+
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
+
+	ae_dev->dev_specs.max_non_tso_bd_num =
+					HCLGEVF_MAX_NON_TSO_BD_NUM;
+	ae_dev->dev_specs.rss_ind_tbl_size = HCLGEVF_RSS_IND_TBL_SIZE;
+	ae_dev->dev_specs.rss_key_size = HCLGEVF_RSS_KEY_SIZE;
+}
+
+static void hclgevf_parse_dev_specs(struct hclgevf_dev *hdev,
+				    struct hclgevf_desc *desc)
+{
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
+	struct hclgevf_dev_specs_0_cmd *req0;
+
+	req0 = (struct hclgevf_dev_specs_0_cmd *)desc[0].data;
+
+	ae_dev->dev_specs.max_non_tso_bd_num = req0->max_non_tso_bd_num;
+	ae_dev->dev_specs.rss_ind_tbl_size =
+					le16_to_cpu(req0->rss_ind_tbl_size);
+	ae_dev->dev_specs.rss_key_size = le16_to_cpu(req0->rss_key_size);
+}
+
+static void hclgevf_check_dev_specs(struct hclgevf_dev *hdev)
+{
+	struct hnae3_dev_specs *dev_specs = &hdev->ae_dev->dev_specs;
+
+	if (!dev_specs->max_non_tso_bd_num)
+		dev_specs->max_non_tso_bd_num = HCLGEVF_MAX_NON_TSO_BD_NUM;
+	if (!dev_specs->rss_ind_tbl_size)
+		dev_specs->rss_ind_tbl_size = HCLGEVF_RSS_IND_TBL_SIZE;
+	if (!dev_specs->rss_key_size)
+		dev_specs->rss_key_size = HCLGEVF_RSS_KEY_SIZE;
+}
+
+static int hclgevf_query_dev_specs(struct hclgevf_dev *hdev)
+{
+	struct hclgevf_desc desc[HCLGEVF_QUERY_DEV_SPECS_BD_NUM];
+	int ret;
+	int i;
+
+	/* set default specifications as devices lower than version V3 do not
+	 * support querying specifications from firmware.
+	 */
+	if (hdev->ae_dev->dev_version < HNAE3_DEVICE_VERSION_V3) {
+		hclgevf_set_default_dev_specs(hdev);
+		return 0;
+	}
+
+	for (i = 0; i < HCLGEVF_QUERY_DEV_SPECS_BD_NUM - 1; i++) {
+		hclgevf_cmd_setup_basic_desc(&desc[i],
+					     HCLGEVF_OPC_QUERY_DEV_SPECS, true);
+		desc[i].flag |= cpu_to_le16(HCLGEVF_CMD_FLAG_NEXT);
+	}
+	hclgevf_cmd_setup_basic_desc(&desc[i], HCLGEVF_OPC_QUERY_DEV_SPECS,
+				     true);
+
+	ret = hclgevf_cmd_send(&hdev->hw, desc, HCLGEVF_QUERY_DEV_SPECS_BD_NUM);
+	if (ret)
+		return ret;
+
+	hclgevf_parse_dev_specs(hdev, desc);
+	hclgevf_check_dev_specs(hdev);
+
+	return 0;
+}
+
 static int hclgevf_pci_reset(struct hclgevf_dev *hdev)
 {
 	struct pci_dev *pdev = hdev->pdev;
@@ -3047,6 +3116,13 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 	ret = hclgevf_query_vf_resource(hdev);
 	if (ret)
 		goto err_cmd_init;
+
+	ret = hclgevf_query_dev_specs(hdev);
+	if (ret) {
+		dev_err(&pdev->dev,
+			"failed to query dev specifications, ret = %d\n", ret);
+		goto err_cmd_init;
+	}
 
 	ret = hclgevf_init_msi(hdev);
 	if (ret) {

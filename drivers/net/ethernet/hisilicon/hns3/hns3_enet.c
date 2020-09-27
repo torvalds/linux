@@ -629,9 +629,11 @@ void hns3_enable_vlan_filter(struct net_device *netdev, bool enable)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	struct hnae3_handle *h = priv->ae_handle;
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(h->pdev);
 	bool last_state;
 
-	if (h->pdev->revision >= 0x21 && h->ae_algo->ops->enable_vlan_filter) {
+	if (ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2 &&
+	    h->ae_algo->ops->enable_vlan_filter) {
 		last_state = h->netdev_flags & HNAE3_VLAN_FLTR ? true : false;
 		if (enable != last_state) {
 			netdev_info(netdev,
@@ -2074,15 +2076,6 @@ static void hns3_disable_sriov(struct pci_dev *pdev)
 	pci_disable_sriov(pdev);
 }
 
-static void hns3_get_dev_capability(struct pci_dev *pdev,
-				    struct hnae3_ae_dev *ae_dev)
-{
-	if (pdev->revision >= 0x21) {
-		hnae3_set_bit(ae_dev->flag, HNAE3_DEV_SUPPORT_FD_B, 1);
-		hnae3_set_bit(ae_dev->flag, HNAE3_DEV_SUPPORT_GRO_B, 1);
-	}
-}
-
 /* hns3_probe - Device initialization routine
  * @pdev: PCI device information struct
  * @ent: entry in hns3_pci_tbl
@@ -2104,7 +2097,6 @@ static int hns3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	ae_dev->pdev = pdev;
 	ae_dev->flag = ent->driver_data;
-	hns3_get_dev_capability(pdev, ae_dev);
 	pci_set_drvdata(pdev, ae_dev);
 
 	ret = hnae3_register_ae_dev(ae_dev);
@@ -2265,6 +2257,7 @@ static void hns3_set_default_feature(struct net_device *netdev)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 	struct pci_dev *pdev = h->pdev;
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(pdev);
 
 	netdev->priv_flags |= IFF_UNICAST_FLT;
 
@@ -2302,7 +2295,7 @@ static void hns3_set_default_feature(struct net_device *netdev)
 		NETIF_F_GSO_UDP_TUNNEL_CSUM | NETIF_F_SCTP_CRC |
 		NETIF_F_FRAGLIST;
 
-	if (pdev->revision >= 0x21) {
+	if (ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2) {
 		netdev->hw_features |= NETIF_F_GRO_HW;
 		netdev->features |= NETIF_F_GRO_HW;
 
@@ -2801,8 +2794,9 @@ static bool hns3_parse_vlan_tag(struct hns3_enet_ring *ring,
 {
 	struct hnae3_handle *handle = ring->tqp->handle;
 	struct pci_dev *pdev = ring->tqp->handle->pdev;
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(pdev);
 
-	if (pdev->revision == 0x20) {
+	if (unlikely(ae_dev->dev_version < HNAE3_DEVICE_VERSION_V2)) {
 		*vlan_tag = le16_to_cpu(desc->rx.ot_vlan_tag);
 		if (!(*vlan_tag & VLAN_VID_MASK))
 			*vlan_tag = le16_to_cpu(desc->rx.vlan_tag);

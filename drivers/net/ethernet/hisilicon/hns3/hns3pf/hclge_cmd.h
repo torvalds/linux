@@ -115,7 +115,8 @@ enum hclge_opcode_type {
 	HCLGE_OPC_DFX_RCB_REG		= 0x004D,
 	HCLGE_OPC_DFX_TQP_REG		= 0x004E,
 	HCLGE_OPC_DFX_SSU_REG_2		= 0x004F,
-	HCLGE_OPC_DFX_QUERY_CHIP_CAP	= 0x0050,
+
+	HCLGE_OPC_QUERY_DEV_SPECS	= 0x0050,
 
 	/* MAC command */
 	HCLGE_OPC_CONFIG_MAC_MODE	= 0x0301,
@@ -362,9 +363,26 @@ struct hclge_rx_priv_buff_cmd {
 	u8 rsv[6];
 };
 
+enum HCLGE_CAP_BITS {
+	HCLGE_CAP_UDP_GSO_B,
+	HCLGE_CAP_QB_B,
+	HCLGE_CAP_FD_FORWARD_TC_B,
+	HCLGE_CAP_PTP_B,
+	HCLGE_CAP_INT_QL_B,
+	HCLGE_CAP_SIMPLE_BD_B,
+	HCLGE_CAP_TX_PUSH_B,
+	HCLGE_CAP_PHY_IMP_B,
+	HCLGE_CAP_TQP_TXRX_INDEP_B,
+	HCLGE_CAP_HW_PAD_B,
+	HCLGE_CAP_STASH_B,
+};
+
+#define HCLGE_QUERY_CAP_LENGTH		3
 struct hclge_query_version_cmd {
 	__le32 firmware;
-	__le32 firmware_rsv[5];
+	__le32 hardware;
+	__le32 rsv;
+	__le32 caps[HCLGE_QUERY_CAP_LENGTH]; /* capabilities of device */
 };
 
 #define HCLGE_RX_PRIV_EN_B	15
@@ -1069,6 +1087,20 @@ struct hclge_sfp_info_bd0_cmd {
 	__le16 offset;
 	__le16 read_len;
 	u8 data[HCLGE_SFP_INFO_BD0_LEN];
+};
+
+#define HCLGE_QUERY_DEV_SPECS_BD_NUM		4
+
+struct hclge_dev_specs_0_cmd {
+	__le32 rsv0;
+	__le32 mac_entry_num;
+	__le32 mng_entry_num;
+	__le16 rss_ind_tbl_size;
+	__le16 rss_key_size;
+	__le16 int_ql_max;
+	u8 max_non_tso_bd_num;
+	u8 rsv1;
+	__le32 max_tm_rate;
 };
 
 int hclge_cmd_init(struct hclge_dev *hdev);

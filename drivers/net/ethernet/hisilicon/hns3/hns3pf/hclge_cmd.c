@@ -330,9 +330,37 @@ int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num)
 	return retval;
 }
 
-static enum hclge_cmd_status hclge_cmd_query_firmware_version(
-		struct hclge_hw *hw, u32 *version)
+static void hclge_set_default_capability(struct hclge_dev *hdev)
 {
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
+
+	set_bit(HNAE3_DEV_SUPPORT_FD_B, ae_dev->caps);
+	set_bit(HNAE3_DEV_SUPPORT_GRO_B, ae_dev->caps);
+	set_bit(HNAE3_DEV_SUPPORT_FEC_B, ae_dev->caps);
+}
+
+static void hclge_parse_capability(struct hclge_dev *hdev,
+				   struct hclge_query_version_cmd *cmd)
+{
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
+	u32 caps;
+
+	caps = __le32_to_cpu(cmd->caps[0]);
+
+	if (hnae3_get_bit(caps, HCLGE_CAP_UDP_GSO_B))
+		set_bit(HNAE3_DEV_SUPPORT_UDP_GSO_B, ae_dev->caps);
+	if (hnae3_get_bit(caps, HCLGE_CAP_PTP_B))
+		set_bit(HNAE3_DEV_SUPPORT_PTP_B, ae_dev->caps);
+	if (hnae3_get_bit(caps, HCLGE_CAP_INT_QL_B))
+		set_bit(HNAE3_DEV_SUPPORT_INT_QL_B, ae_dev->caps);
+	if (hnae3_get_bit(caps, HCLGE_CAP_TQP_TXRX_INDEP_B))
+		set_bit(HNAE3_DEV_SUPPORT_TQP_TXRX_INDEP_B, ae_dev->caps);
+}
+
+static enum hclge_cmd_status
+hclge_cmd_query_version_and_capability(struct hclge_dev *hdev)
+{
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
 	struct hclge_query_version_cmd *resp;
 	struct hclge_desc desc;
 	int ret;
@@ -340,9 +368,20 @@ static enum hclge_cmd_status hclge_cmd_query_firmware_version(
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_QUERY_FW_VER, 1);
 	resp = (struct hclge_query_version_cmd *)desc.data;
 
-	ret = hclge_cmd_send(hw, &desc, 1);
-	if (!ret)
-		*version = le32_to_cpu(resp->firmware);
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret)
+		return ret;
+
+	hdev->fw_version = le32_to_cpu(resp->firmware);
+
+	ae_dev->dev_version = le32_to_cpu(resp->hardware) <<
+					 HNAE3_PCI_REVISION_BIT_SIZE;
+	ae_dev->dev_version |= hdev->pdev->revision;
+
+	if (ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2)
+		hclge_set_default_capability(hdev);
+
+	hclge_parse_capability(hdev, resp);
 
 	return ret;
 }
@@ -402,7 +441,6 @@ static int hclge_firmware_compat_config(struct hclge_dev *hdev)
 
 int hclge_cmd_init(struct hclge_dev *hdev)
 {
-	u32 version;
 	int ret;
 
 	spin_lock_bh(&hdev->hw.cmq.csq.lock);
@@ -431,22 +469,23 @@ int hclge_cmd_init(struct hclge_dev *hdev)
 		goto err_cmd_init;
 	}
 
-	ret = hclge_cmd_query_firmware_version(&hdev->hw, &version);
+	/* get version and device capabilities */
+	ret = hclge_cmd_query_version_and_capability(hdev);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
-			"firmware version query failed %d\n", ret);
+			"failed to query version and capabilities, ret = %d\n",
+			ret);
 		goto err_cmd_init;
 	}
-	hdev->fw_version = version;
 
 	dev_info(&hdev->pdev->dev, "The firmware version is %lu.%lu.%lu.%lu\n",
-		 hnae3_get_field(version, HNAE3_FW_VERSION_BYTE3_MASK,
+		 hnae3_get_field(hdev->fw_version, HNAE3_FW_VERSION_BYTE3_MASK,
 				 HNAE3_FW_VERSION_BYTE3_SHIFT),
-		 hnae3_get_field(version, HNAE3_FW_VERSION_BYTE2_MASK,
+		 hnae3_get_field(hdev->fw_version, HNAE3_FW_VERSION_BYTE2_MASK,
 				 HNAE3_FW_VERSION_BYTE2_SHIFT),
-		 hnae3_get_field(version, HNAE3_FW_VERSION_BYTE1_MASK,
+		 hnae3_get_field(hdev->fw_version, HNAE3_FW_VERSION_BYTE1_MASK,
 				 HNAE3_FW_VERSION_BYTE1_SHIFT),
-		 hnae3_get_field(version, HNAE3_FW_VERSION_BYTE0_MASK,
+		 hnae3_get_field(hdev->fw_version, HNAE3_FW_VERSION_BYTE0_MASK,
 				 HNAE3_FW_VERSION_BYTE0_SHIFT));
 
 	/* ask the firmware to enable some features, driver can work without

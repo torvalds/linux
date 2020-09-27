@@ -244,6 +244,7 @@ static void hns3_dbg_help(struct hnae3_handle *h)
 	dev_info(&h->pdev->dev, "queue info <number>\n");
 	dev_info(&h->pdev->dev, "queue map\n");
 	dev_info(&h->pdev->dev, "bd info <q_num> <bd index>\n");
+	dev_info(&h->pdev->dev, "dev capability\n");
 
 	if (!hns3_is_phys_func(h->pdev))
 		return;
@@ -283,6 +284,27 @@ static void hns3_dbg_help(struct hnae3_handle *h)
 	strncat(printf_buf + strlen(printf_buf), " <rq_id> <nq_id> <qset_id>\n",
 		HNS3_DBG_BUF_LEN - strlen(printf_buf) - 1);
 	dev_info(&h->pdev->dev, "%s", printf_buf);
+}
+
+static void hns3_dbg_dev_caps(struct hnae3_handle *h)
+{
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(h->pdev);
+	unsigned long *caps;
+
+	caps = ae_dev->caps;
+
+	dev_info(&h->pdev->dev, "support FD: %s\n",
+		 test_bit(HNAE3_DEV_SUPPORT_FD_B, caps) ? "yes" : "no");
+	dev_info(&h->pdev->dev, "support GRO: %s\n",
+		 test_bit(HNAE3_DEV_SUPPORT_GRO_B, caps) ? "yes" : "no");
+	dev_info(&h->pdev->dev, "support FEC: %s\n",
+		 test_bit(HNAE3_DEV_SUPPORT_FEC_B, caps) ? "yes" : "no");
+	dev_info(&h->pdev->dev, "support UDP GSO: %s\n",
+		 test_bit(HNAE3_DEV_SUPPORT_UDP_GSO_B, caps) ? "yes" : "no");
+	dev_info(&h->pdev->dev, "support PTP: %s\n",
+		 test_bit(HNAE3_DEV_SUPPORT_PTP_B, caps) ? "yes" : "no");
+	dev_info(&h->pdev->dev, "support INT QL: %s\n",
+		 test_bit(HNAE3_DEV_SUPPORT_INT_QL_B, caps) ? "yes" : "no");
 }
 
 static ssize_t hns3_dbg_cmd_read(struct file *filp, char __user *buffer,
@@ -360,6 +382,8 @@ static ssize_t hns3_dbg_cmd_write(struct file *filp, const char __user *buffer,
 		ret = hns3_dbg_queue_map(handle);
 	else if (strncmp(cmd_buf, "bd info", 7) == 0)
 		ret = hns3_dbg_bd_info(handle, cmd_buf);
+	else if (strncmp(cmd_buf, "dev capability", 14) == 0)
+		hns3_dbg_dev_caps(handle);
 	else if (handle->ae_algo->ops->dbg_run_cmd)
 		ret = handle->ae_algo->ops->dbg_run_cmd(handle, cmd_buf);
 	else
