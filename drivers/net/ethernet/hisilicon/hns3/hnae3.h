@@ -267,6 +267,16 @@ struct hnae3_ring_chain_node {
 #define HNAE3_IS_TX_RING(node) \
 	(((node)->flag & (1 << HNAE3_RING_TYPE_B)) == HNAE3_RING_TYPE_TX)
 
+/* device specification info from firmware */
+struct hnae3_dev_specs {
+	u32 mac_entry_num; /* number of mac-vlan table entry */
+	u32 mng_entry_num; /* number of manager table entry */
+	u16 rss_ind_tbl_size;
+	u16 rss_key_size;
+	u16 int_ql_max; /* max value of interrupt coalesce based on INT_QL */
+	u8 max_non_tso_bd_num; /* max BD number of one non-TSO packet */
+};
+
 struct hnae3_client_ops {
 	int (*init_instance)(struct hnae3_handle *handle);
 	void (*uninit_instance)(struct hnae3_handle *handle, bool reset);
@@ -294,6 +304,7 @@ struct hnae3_ae_dev {
 	struct list_head node;
 	u32 flag;
 	unsigned long hw_err_reset_req;
+	struct hnae3_dev_specs dev_specs;
 	u32 dev_version;
 	unsigned long caps[BITS_TO_LONGS(HNAE3_DEV_CAPS_MAX_NUM)];
 	void *priv;

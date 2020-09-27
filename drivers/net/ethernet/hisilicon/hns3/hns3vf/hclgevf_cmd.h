@@ -91,6 +91,8 @@ enum hclgevf_opcode_type {
 	/* Generic command */
 	HCLGEVF_OPC_QUERY_FW_VER	= 0x0001,
 	HCLGEVF_OPC_QUERY_VF_RSRC	= 0x0024,
+	HCLGEVF_OPC_QUERY_DEV_SPECS	= 0x0050,
+
 	/* TQP command */
 	HCLGEVF_OPC_QUERY_TX_STATUS	= 0x0B03,
 	HCLGEVF_OPC_QUERY_RX_STATUS	= 0x0B13,
@@ -269,6 +271,19 @@ struct hclgevf_cfg_tx_queue_pointer_cmd {
 #define HCLGEVF_NIC_CMQ_DESC_NUM	1024
 #define HCLGEVF_NIC_CMQ_DESC_NUM_S	3
 #define HCLGEVF_NIC_CMDQ_INT_SRC_REG	0x27100
+
+#define HCLGEVF_QUERY_DEV_SPECS_BD_NUM		4
+
+struct hclgevf_dev_specs_0_cmd {
+	__le32 rsv0;
+	__le32 mac_entry_num;
+	__le32 mng_entry_num;
+	__le16 rss_ind_tbl_size;
+	__le16 rss_key_size;
+	__le16 int_ql_max;
+	u8 max_non_tso_bd_num;
+	u8 rsv1[5];
+};
 
 static inline void hclgevf_write_reg(void __iomem *base, u32 reg, u32 value)
 {

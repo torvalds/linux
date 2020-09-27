@@ -1356,6 +1356,61 @@ static int hclge_get_cfg(struct hclge_dev *hdev, struct hclge_cfg *hcfg)
 	return 0;
 }
 
+static void hclge_set_default_dev_specs(struct hclge_dev *hdev)
+{
+#define HCLGE_MAX_NON_TSO_BD_NUM			8U
+
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
+
+	ae_dev->dev_specs.max_non_tso_bd_num = HCLGE_MAX_NON_TSO_BD_NUM;
+	ae_dev->dev_specs.rss_ind_tbl_size = HCLGE_RSS_IND_TBL_SIZE;
+	ae_dev->dev_specs.rss_key_size = HCLGE_RSS_KEY_SIZE;
+}
+
+static void hclge_parse_dev_specs(struct hclge_dev *hdev,
+				  struct hclge_desc *desc)
+{
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
+	struct hclge_dev_specs_0_cmd *req0;
+
+	req0 = (struct hclge_dev_specs_0_cmd *)desc[0].data;
+
+	ae_dev->dev_specs.max_non_tso_bd_num = req0->max_non_tso_bd_num;
+	ae_dev->dev_specs.rss_ind_tbl_size =
+		le16_to_cpu(req0->rss_ind_tbl_size);
+	ae_dev->dev_specs.rss_key_size = le16_to_cpu(req0->rss_key_size);
+}
+
+static int hclge_query_dev_specs(struct hclge_dev *hdev)
+{
+	struct hclge_desc desc[HCLGE_QUERY_DEV_SPECS_BD_NUM];
+	int ret;
+	int i;
+
+	/* set default specifications as devices lower than version V3 do not
+	 * support querying specifications from firmware.
+	 */
+	if (hdev->ae_dev->dev_version < HNAE3_DEVICE_VERSION_V3) {
+		hclge_set_default_dev_specs(hdev);
+		return 0;
+	}
+
+	for (i = 0; i < HCLGE_QUERY_DEV_SPECS_BD_NUM - 1; i++) {
+		hclge_cmd_setup_basic_desc(&desc[i], HCLGE_OPC_QUERY_DEV_SPECS,
+					   true);
+		desc[i].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+	}
+	hclge_cmd_setup_basic_desc(&desc[i], HCLGE_OPC_QUERY_DEV_SPECS, true);
+
+	ret = hclge_cmd_send(&hdev->hw, desc, HCLGE_QUERY_DEV_SPECS_BD_NUM);
+	if (ret)
+		return ret;
+
+	hclge_parse_dev_specs(hdev, desc);
+
+	return 0;
+}
+
 static int hclge_get_cap(struct hclge_dev *hdev)
 {
 	int ret;
@@ -9989,6 +10044,13 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 	ret = hclge_get_cap(hdev);
 	if (ret)
 		goto err_cmd_uninit;
+
+	ret = hclge_query_dev_specs(hdev);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to query dev specifications, ret = %d.\n",
+			ret);
+		goto err_cmd_uninit;
+	}
 
 	ret = hclge_configure(hdev);
 	if (ret) {

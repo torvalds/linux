@@ -115,7 +115,8 @@ enum hclge_opcode_type {
 	HCLGE_OPC_DFX_RCB_REG		= 0x004D,
 	HCLGE_OPC_DFX_TQP_REG		= 0x004E,
 	HCLGE_OPC_DFX_SSU_REG_2		= 0x004F,
-	HCLGE_OPC_DFX_QUERY_CHIP_CAP	= 0x0050,
+
+	HCLGE_OPC_QUERY_DEV_SPECS	= 0x0050,
 
 	/* MAC command */
 	HCLGE_OPC_CONFIG_MAC_MODE	= 0x0301,
@@ -1086,6 +1087,19 @@ struct hclge_sfp_info_bd0_cmd {
 	__le16 offset;
 	__le16 read_len;
 	u8 data[HCLGE_SFP_INFO_BD0_LEN];
+};
+
+#define HCLGE_QUERY_DEV_SPECS_BD_NUM		4
+
+struct hclge_dev_specs_0_cmd {
+	__le32 rsv0;
+	__le32 mac_entry_num;
+	__le32 mng_entry_num;
+	__le16 rss_ind_tbl_size;
+	__le16 rss_key_size;
+	__le16 int_ql_max;
+	u8 max_non_tso_bd_num;
+	u8 rsv1[5];
 };
 
 int hclge_cmd_init(struct hclge_dev *hdev);
