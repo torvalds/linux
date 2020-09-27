@@ -1781,6 +1781,12 @@
 					type = "active";
 				};
 
+				mem-hot-trip {
+					temperature = <100000>;
+					hysteresis = <1000>;
+					type = "hot";
+				};
+
 				mem-shutdown-trip {
 					temperature = <103000>;
 					hysteresis = <0>;
@@ -1842,6 +1848,12 @@
 					temperature = <103000>;
 					hysteresis = <0>;
 					type = "critical";
+				};
+
+				pllx-throttle-trip {
+					temperature = <100000>;
+					hysteresis = <1000>;
+					type = "hot";
 				};
 			};
 
