@@ -13,9 +13,6 @@
 #include <asm/vdso_datapage.h>
 
 	.text
-.global	__kernel_datapage_offset;
-__kernel_datapage_offset:
-	.long	0
 
 /*
  * void *__kernel_get_syscall_map(unsigned int *syscall_count) ;
