@@ -1736,6 +1736,11 @@ static int bnxt_force_link_speed(struct net_device *dev, u32 ethtool_speed)
 		return -EINVAL;
 	}
 
+	if (link_info->req_link_speed == fw_speed &&
+	    link_info->req_signal_mode == sig_mode &&
+	    link_info->autoneg == 0)
+		return -EALREADY;
+
 	link_info->req_link_speed = fw_speed;
 	link_info->req_signal_mode = sig_mode;
 	link_info->req_duplex = BNXT_LINK_DUPLEX_FULL;
@@ -1816,8 +1821,11 @@ static int bnxt_set_link_ksettings(struct net_device *dev,
 		}
 		speed = base->speed;
 		rc = bnxt_force_link_speed(dev, speed);
-		if (rc)
+		if (rc) {
+			if (rc == -EALREADY)
+				rc = 0;
 			goto set_setting_exit;
+		}
 	}
 
 	if (netif_running(dev))
