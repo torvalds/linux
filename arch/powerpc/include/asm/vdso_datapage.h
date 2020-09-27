@@ -105,10 +105,12 @@ extern struct vdso_arch_data *vdso_data;
 
 .macro get_datapage ptr, tmp
 	bcl	20, 31, .+4
+999:
 	mflr	\ptr
-	addi	\ptr, \ptr, (__kernel_datapage_offset - (.-4))@l
-	lwz	\tmp, 0(\ptr)
-	add	\ptr, \tmp, \ptr
+#if CONFIG_PPC_PAGE_SHIFT > 14
+	addis	\ptr, \ptr, (_vdso_datapage - 999b)@ha
+#endif
+	addi	\ptr, \ptr, (_vdso_datapage - 999b)@l
 .endm
 
 #endif /* __ASSEMBLY__ */
