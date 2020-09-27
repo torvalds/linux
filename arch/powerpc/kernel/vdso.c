@@ -123,7 +123,7 @@ static int vdso_mremap(const struct vm_special_mapping *sm, struct vm_area_struc
 	if (new_size != text_size + PAGE_SIZE)
 		return -EINVAL;
 
-	current->mm->context.vdso = (void __user *)new_vma->vm_start;
+	current->mm->context.vdso = (void __user *)new_vma->vm_start + PAGE_SIZE;
 
 	return 0;
 }
@@ -198,7 +198,7 @@ static int __arch_setup_additional_pages(struct linux_binprm *bprm, int uses_int
 	 * install_special_mapping or the perf counter mmap tracking code
 	 * will fail to recognise it as a vDSO.
 	 */
-	mm->context.vdso = (void __user *)vdso_base;
+	mm->context.vdso = (void __user *)vdso_base + PAGE_SIZE;
 
 	/*
 	 * our vma flags don't have VM_WRITE so by default, the process isn't
@@ -507,7 +507,7 @@ static __init int vdso_fixup_datapage(struct lib32_elfinfo *v32,
 		return -1;
 	}
 	*((int *)(vdso64_kbase + sym64->st_value - VDSO64_LBASE)) =
-		(vdso64_pages << PAGE_SHIFT) -
+		-PAGE_SIZE -
 		(sym64->st_value - VDSO64_LBASE);
 #endif /* CONFIG_PPC64 */
 
@@ -519,7 +519,7 @@ static __init int vdso_fixup_datapage(struct lib32_elfinfo *v32,
 		return -1;
 	}
 	*((int *)(vdso32_kbase + (sym32->st_value - VDSO32_LBASE))) =
-		(vdso32_pages << PAGE_SHIFT) -
+		-PAGE_SIZE -
 		(sym32->st_value - VDSO32_LBASE);
 #endif
 
@@ -693,10 +693,10 @@ static struct page ** __init vdso_setup_pages(void *start, void *end)
 	if (!pagelist)
 		panic("%s: Cannot allocate page list for VDSO", __func__);
 
-	for (i = 0; i < pages; i++)
-		pagelist[i] = virt_to_page(start + i * PAGE_SIZE);
+	pagelist[0] = virt_to_page(vdso_data);
 
-	pagelist[i] = virt_to_page(vdso_data);
+	for (i = 0; i < pages; i++)
+		pagelist[i + 1] = virt_to_page(start + i * PAGE_SIZE);
 
 	return pagelist;
 }
