@@ -8516,6 +8516,13 @@ MLXSW_ITEM32(reg, mtmp, max_temperature, 0x08, 0, 16);
  * 2 - Generate single event
  * Access: RW
  */
+
+enum mlxsw_reg_mtmp_tee {
+	MLXSW_REG_MTMP_TEE_NO_EVENT,
+	MLXSW_REG_MTMP_TEE_GENERATE_EVENT,
+	MLXSW_REG_MTMP_TEE_GENERATE_SINGLE_EVENT,
+};
+
 MLXSW_ITEM32(reg, mtmp, tee, 0x0C, 30, 2);
 
 #define MLXSW_REG_MTMP_THRESH_HI 0x348	/* 105 Celsius */
@@ -8526,6 +8533,7 @@ MLXSW_ITEM32(reg, mtmp, tee, 0x0C, 30, 2);
  */
 MLXSW_ITEM32(reg, mtmp, temperature_threshold_hi, 0x0C, 0, 16);
 
+#define MLXSW_REG_MTMP_HYSTERESIS_TEMP 0x28 /* 5 Celsius */
 /* reg_mtmp_temperature_threshold_lo
  * Low threshold for Temperature Warning Event. In 0.125 Celsius.
  * Access: RW

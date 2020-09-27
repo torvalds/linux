@@ -306,6 +306,99 @@ int mlxsw_env_get_module_eeprom(struct net_device *netdev,
 }
 EXPORT_SYMBOL(mlxsw_env_get_module_eeprom);
 
+static int mlxsw_env_module_has_temp_sensor(struct mlxsw_core *mlxsw_core,
+					    u8 module,
+					    bool *p_has_temp_sensor)
+{
+	char mtbr_pl[MLXSW_REG_MTBR_LEN];
+	u16 temp;
+	int err;
+
+	mlxsw_reg_mtbr_pack(mtbr_pl, MLXSW_REG_MTBR_BASE_MODULE_INDEX + module,
+			    1);
+	err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(mtbr), mtbr_pl);
+	if (err)
+		return err;
+
+	mlxsw_reg_mtbr_temp_unpack(mtbr_pl, 0, &temp, NULL);
+
+	switch (temp) {
+	case MLXSW_REG_MTBR_BAD_SENS_INFO:
+	case MLXSW_REG_MTBR_NO_CONN:
+	case MLXSW_REG_MTBR_NO_TEMP_SENS:
+	case MLXSW_REG_MTBR_INDEX_NA:
+		*p_has_temp_sensor = false;
+		break;
+	default:
+		*p_has_temp_sensor = temp ? true : false;
+	}
+	return 0;
+}
+
+static int mlxsw_env_temp_event_set(struct mlxsw_core *mlxsw_core,
+				    u16 sensor_index, bool enable)
+{
+	char mtmp_pl[MLXSW_REG_MTMP_LEN] = {0};
+	enum mlxsw_reg_mtmp_tee tee;
+	int err, threshold_hi;
+
+	mlxsw_reg_mtmp_sensor_index_set(mtmp_pl, sensor_index);
+	err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(mtmp), mtmp_pl);
+	if (err)
+		return err;
+
+	if (enable) {
+		err = mlxsw_env_module_temp_thresholds_get(mlxsw_core,
+							   sensor_index -
+							   MLXSW_REG_MTMP_MODULE_INDEX_MIN,
+							   SFP_TEMP_HIGH_WARN,
+							   &threshold_hi);
+		/* In case it is not possible to query the module's threshold,
+		 * use the default value.
+		 */
+		if (err)
+			threshold_hi = MLXSW_REG_MTMP_THRESH_HI;
+		else
+			/* mlxsw_env_module_temp_thresholds_get() multiplies
+			 * Celsius degrees by 1000 whereas MTMP expects
+			 * temperature in 0.125 Celsius degrees units.
+			 * Convert threshold_hi to correct units.
+			 */
+			threshold_hi = threshold_hi / 1000 * 8;
+
+		mlxsw_reg_mtmp_temperature_threshold_hi_set(mtmp_pl, threshold_hi);
+		mlxsw_reg_mtmp_temperature_threshold_lo_set(mtmp_pl, threshold_hi -
+							    MLXSW_REG_MTMP_HYSTERESIS_TEMP);
+	}
+	tee = enable ? MLXSW_REG_MTMP_TEE_GENERATE_EVENT : MLXSW_REG_MTMP_TEE_NO_EVENT;
+	mlxsw_reg_mtmp_tee_set(mtmp_pl, tee);
+	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(mtmp), mtmp_pl);
+}
+
+static int mlxsw_env_module_temp_event_enable(struct mlxsw_core *mlxsw_core,
+					      u8 module_count)
+{
+	int i, err, sensor_index;
+	bool has_temp_sensor;
+
+	for (i = 0; i < module_count; i++) {
+		err = mlxsw_env_module_has_temp_sensor(mlxsw_core, i,
+						       &has_temp_sensor);
+		if (err)
+			return err;
+
+		if (!has_temp_sensor)
+			continue;
+
+		sensor_index = i + MLXSW_REG_MTMP_MODULE_INDEX_MIN;
+		err = mlxsw_env_temp_event_set(mlxsw_core, sensor_index, true);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static void mlxsw_env_mtwe_event_func(const struct mlxsw_reg_info *reg,
 				      char *mtwe_pl, void *priv)
 {
@@ -424,8 +517,14 @@ int mlxsw_env_init(struct mlxsw_core *mlxsw_core, struct mlxsw_env **p_env)
 	if (err)
 		goto err_temp_warn_event_register;
 
+	err = mlxsw_env_module_temp_event_enable(mlxsw_core, env->module_count);
+	if (err)
+		goto err_temp_event_enable;
+
 	return 0;
 
+err_temp_event_enable:
+	mlxsw_env_temp_warn_event_unregister(env);
 err_temp_warn_event_register:
 	kfree(env);
 	return err;
