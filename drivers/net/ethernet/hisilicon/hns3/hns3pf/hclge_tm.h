@@ -19,6 +19,8 @@
 #define HCLGE_TM_TX_SCHD_DWRR_MSK	BIT(0)
 #define HCLGE_TM_TX_SCHD_SP_MSK		(0xFE)
 
+#define HCLGE_ETHER_MAX_RATE	100000
+
 struct hclge_pg_to_pri_link_cmd {
 	u8 pg_id;
 	u8 rsvd1[3];

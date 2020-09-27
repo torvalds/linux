@@ -271,6 +271,7 @@ struct hnae3_ring_chain_node {
 struct hnae3_dev_specs {
 	u32 mac_entry_num; /* number of mac-vlan table entry */
 	u32 mng_entry_num; /* number of manager table entry */
+	u32 max_tm_rate;
 	u16 rss_ind_tbl_size;
 	u16 rss_key_size;
 	u16 int_ql_max; /* max value of interrupt coalesce based on INT_QL */
