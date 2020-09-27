@@ -45,6 +45,9 @@ static void __init imx7ulp_set_revision(void)
 	case 2:
 		imx_set_soc_revision(IMX_CHIP_REVISION_2_1);
 		break;
+	case 3:
+		imx_set_soc_revision(IMX_CHIP_REVISION_2_2);
+		break;
 	default:
 		imx_set_soc_revision(IMX_CHIP_REVISION_1_0);
 		break;
