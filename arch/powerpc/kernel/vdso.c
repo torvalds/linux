@@ -49,7 +49,6 @@
 
 static unsigned int vdso32_pages;
 static void *vdso32_kbase;
-static struct page **vdso32_pagelist;
 unsigned long vdso32_sigtramp;
 unsigned long vdso32_rt_sigtramp;
 
@@ -57,7 +56,6 @@ extern char vdso32_start, vdso32_end;
 extern char vdso64_start, vdso64_end;
 static void *vdso64_kbase = &vdso64_start;
 static unsigned int vdso64_pages;
-static struct page **vdso64_pagelist;
 #ifdef CONFIG_PPC64
 unsigned long vdso64_rt_sigtramp;
 #endif /* CONFIG_PPC64 */
@@ -118,6 +116,14 @@ struct lib64_elfinfo
 };
 
 
+static struct vm_special_mapping vdso32_spec __ro_after_init = {
+	.name = "[vdso]",
+};
+
+static struct vm_special_mapping vdso64_spec __ro_after_init = {
+	.name = "[vdso]",
+};
+
 /*
  * This is called from binfmt_elf, we create the special vma for the
  * vDSO and insert it into the mm struct tree
@@ -125,17 +131,17 @@ struct lib64_elfinfo
 static int __arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 {
 	struct mm_struct *mm = current->mm;
-	struct page **vdso_pagelist;
+	struct vm_special_mapping *vdso_spec;
+	struct vm_area_struct *vma;
 	unsigned long vdso_size;
 	unsigned long vdso_base;
-	int rc;
 
 	if (is_32bit_task()) {
-		vdso_pagelist = vdso32_pagelist;
+		vdso_spec = &vdso32_spec;
 		vdso_size = &vdso32_end - &vdso32_start;
 		vdso_base = VDSO32_MBASE;
 	} else {
-		vdso_pagelist = vdso64_pagelist;
+		vdso_spec = &vdso64_spec;
 		vdso_size = &vdso64_end - &vdso64_start;
 		/*
 		 * On 64bit we don't have a preferred map address. This
@@ -166,7 +172,7 @@ static int __arch_setup_additional_pages(struct linux_binprm *bprm, int uses_int
 	/*
 	 * Put vDSO base into mm struct. We need to do this before calling
 	 * install_special_mapping or the perf counter mmap tracking code
-	 * will fail to recognise it as a vDSO (since arch_vma_name fails).
+	 * will fail to recognise it as a vDSO.
 	 */
 	current->mm->context.vdso_base = vdso_base;
 
@@ -180,11 +186,10 @@ static int __arch_setup_additional_pages(struct linux_binprm *bprm, int uses_int
 	 * It's fine to use that for setting breakpoints in the vDSO code
 	 * pages though.
 	 */
-	rc = install_special_mapping(mm, vdso_base, vdso_size,
-				     VM_READ|VM_EXEC|
-				     VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
-				     vdso_pagelist);
-	return rc;
+	vma = _install_special_mapping(mm, vdso_base, vdso_size,
+				       VM_READ | VM_EXEC | VM_MAYREAD |
+				       VM_MAYWRITE | VM_MAYEXEC, vdso_spec);
+	return PTR_ERR_OR_ZERO(vma);
 }
 
 int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
@@ -207,15 +212,6 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	mmap_write_unlock(mm);
 	return rc;
 }
-
-const char *arch_vma_name(struct vm_area_struct *vma)
-{
-	if (vma->vm_mm && vma->vm_start == vma->vm_mm->context.vdso_base)
-		return "[vdso]";
-	return NULL;
-}
-
-
 
 #ifdef CONFIG_VDSO32
 static void * __init find_section32(Elf32_Ehdr *ehdr, const char *secname,
@@ -737,10 +733,10 @@ static int __init vdso_init(void)
 	}
 
 	if (IS_ENABLED(CONFIG_VDSO32))
-		vdso32_pagelist = vdso_setup_pages(&vdso32_start, &vdso32_end);
+		vdso32_spec.pages = vdso_setup_pages(&vdso32_start, &vdso32_end);
 
 	if (IS_ENABLED(CONFIG_PPC64))
-		vdso64_pagelist = vdso_setup_pages(&vdso64_start, &vdso64_end);
+		vdso64_spec.pages = vdso_setup_pages(&vdso64_start, &vdso64_end);
 
 	smp_wmb();
 	vdso_ready = 1;
