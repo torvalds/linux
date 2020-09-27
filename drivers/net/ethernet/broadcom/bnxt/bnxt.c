@@ -5343,13 +5343,16 @@ static int bnxt_hwrm_vnic_qcaps(struct bnxt *bp)
 		 * VLAN_STRIP_CAP properly.
 		 */
 		if ((flags & VNIC_QCAPS_RESP_FLAGS_VLAN_STRIP_CAP) ||
-		    ((bp->flags & BNXT_FLAG_CHIP_P5) &&
+		    (BNXT_CHIP_P5_THOR(bp) &&
 		     !(bp->fw_cap & BNXT_FW_CAP_EXT_HW_STATS_SUPPORTED)))
 			bp->fw_cap |= BNXT_FW_CAP_VLAN_RX_STRIP;
 		bp->max_tpa_v2 = le16_to_cpu(resp->max_aggs_supported);
-		if (bp->max_tpa_v2)
-			bp->hw_ring_stats_size =
-				sizeof(struct ctx_hw_stats_ext);
+		if (bp->max_tpa_v2) {
+			if (BNXT_CHIP_P5_THOR(bp))
+				bp->hw_ring_stats_size = BNXT_RING_STATS_SIZE_P5;
+			else
+				bp->hw_ring_stats_size = BNXT_RING_STATS_SIZE_P5_SR2;
+		}
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
 	return rc;
@@ -12233,8 +12236,11 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		goto init_err_pci_clean;
 
-	if (BNXT_CHIP_P5(bp))
+	if (BNXT_CHIP_P5(bp)) {
 		bp->flags |= BNXT_FLAG_CHIP_P5;
+		if (BNXT_CHIP_SR2(bp))
+			bp->flags |= BNXT_FLAG_CHIP_SR2;
+	}
 
 	rc = bnxt_alloc_rss_indir_tbl(bp);
 	if (rc)

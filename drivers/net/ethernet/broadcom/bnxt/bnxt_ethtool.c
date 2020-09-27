@@ -172,6 +172,7 @@ static const char * const bnxt_ring_tpa2_stats_str[] = {
 	"rx_tpa_pkt",
 	"rx_tpa_bytes",
 	"rx_tpa_errors",
+	"rx_tpa_events",
 };
 
 static const char * const bnxt_rx_sw_stats_str[] = {
@@ -462,9 +463,12 @@ static const struct {
 static int bnxt_get_num_tpa_ring_stats(struct bnxt *bp)
 {
 	if (BNXT_SUPPORTS_TPA(bp)) {
-		if (bp->max_tpa_v2)
-			return ARRAY_SIZE(bnxt_ring_tpa2_stats_str);
-		return ARRAY_SIZE(bnxt_ring_tpa_stats_str);
+		if (bp->max_tpa_v2) {
+			if (BNXT_CHIP_P5_THOR(bp))
+				return BNXT_NUM_TPA_RING_STATS_P5;
+			return BNXT_NUM_TPA_RING_STATS_P5_SR2;
+		}
+		return BNXT_NUM_TPA_RING_STATS;
 	}
 	return 0;
 }

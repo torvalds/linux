@@ -1142,50 +1142,6 @@ struct bnxt_ntuple_filter {
 #define BNXT_FLTR_UPDATE	1
 };
 
-struct hwrm_port_phy_qcfg_output_compat {
-	__le16	error_code;
-	__le16	req_type;
-	__le16	seq_id;
-	__le16	resp_len;
-	u8	link;
-	u8	link_signal_mode;
-	__le16	link_speed;
-	u8	duplex_cfg;
-	u8	pause;
-	__le16	support_speeds;
-	__le16	force_link_speed;
-	u8	auto_mode;
-	u8	auto_pause;
-	__le16	auto_link_speed;
-	__le16	auto_link_speed_mask;
-	u8	wirespeed;
-	u8	lpbk;
-	u8	force_pause;
-	u8	module_status;
-	__le32	preemphasis;
-	u8	phy_maj;
-	u8	phy_min;
-	u8	phy_bld;
-	u8	phy_type;
-	u8	media_type;
-	u8	xcvr_pkg_type;
-	u8	eee_config_phy_addr;
-	u8	parallel_detect;
-	__le16	link_partner_adv_speeds;
-	u8	link_partner_adv_auto_mode;
-	u8	link_partner_adv_pause;
-	__le16	adv_eee_link_speed_mask;
-	__le16	link_partner_adv_eee_link_speed_mask;
-	__le32	xcvr_identifier_type_tx_lpi_timer;
-	__le16	fec_cfg;
-	u8	duplex_state;
-	u8	option_flags;
-	char	phy_vendor_name[16];
-	char	phy_vendor_partnumber[16];
-	u8	unused_0[7];
-	u8	valid;
-};
-
 struct bnxt_link_info {
 	u8			phy_type;
 	u8			media_type;
@@ -1535,6 +1491,8 @@ struct bnxt {
 
 	u8			chip_rev;
 
+#define CHIP_NUM_58818		0xd818
+
 #define BNXT_CHIP_NUM_5730X(chip_num)		\
 	((chip_num) >= CHIP_NUM_57301 &&	\
 	 (chip_num) <= CHIP_NUM_57304)
@@ -1613,6 +1571,7 @@ struct bnxt {
 					 BNXT_FLAG_ROCEV2_CAP)
 	#define BNXT_FLAG_NO_AGG_RINGS	0x20000
 	#define BNXT_FLAG_RX_PAGE_MODE	0x40000
+	#define BNXT_FLAG_CHIP_SR2	0x80000
 	#define BNXT_FLAG_MULTI_HOST	0x100000
 	#define BNXT_FLAG_DSN_VALID	0x200000
 	#define BNXT_FLAG_DOUBLE_DB	0x400000
@@ -1638,11 +1597,17 @@ struct bnxt {
 				 (!((bp)->flags & BNXT_FLAG_CHIP_P5) ||	\
 				  (bp)->max_tpa_v2) && !is_kdump_kernel())
 
-/* Chip class phase 5 */
-#define BNXT_CHIP_P5(bp)			\
+#define BNXT_CHIP_SR2(bp)			\
+	((bp)->chip_num == CHIP_NUM_58818)
+
+#define BNXT_CHIP_P5_THOR(bp)			\
 	((bp)->chip_num == CHIP_NUM_57508 ||	\
 	 (bp)->chip_num == CHIP_NUM_57504 ||	\
 	 (bp)->chip_num == CHIP_NUM_57502)
+
+/* Chip class phase 5 */
+#define BNXT_CHIP_P5(bp)			\
+	(BNXT_CHIP_P5_THOR(bp) || BNXT_CHIP_SR2(bp))
 
 /* Chip class phase 4.x */
 #define BNXT_CHIP_P4(bp)			\
@@ -1934,6 +1899,20 @@ struct bnxt {
 	struct dentry		*debugfs_pdev;
 	struct device		*hwmon_dev;
 };
+
+#define BNXT_NUM_RX_RING_STATS			8
+#define BNXT_NUM_TX_RING_STATS			8
+#define BNXT_NUM_TPA_RING_STATS			4
+#define BNXT_NUM_TPA_RING_STATS_P5		5
+#define BNXT_NUM_TPA_RING_STATS_P5_SR2		6
+
+#define BNXT_RING_STATS_SIZE_P5					\
+	((BNXT_NUM_RX_RING_STATS + BNXT_NUM_TX_RING_STATS +	\
+	  BNXT_NUM_TPA_RING_STATS_P5) * 8)
+
+#define BNXT_RING_STATS_SIZE_P5_SR2				\
+	((BNXT_NUM_RX_RING_STATS + BNXT_NUM_TX_RING_STATS +	\
+	  BNXT_NUM_TPA_RING_STATS_P5_SR2) * 8)
 
 #define BNXT_GET_RING_STATS64(sw, counter)		\
 	(*((sw) + offsetof(struct ctx_hw_stats, counter) / 8))
