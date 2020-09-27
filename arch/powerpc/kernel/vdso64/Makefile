@@ -17,7 +17,7 @@ endif
 
 # Build rules
 
-targets := $(obj-vdso64) vdso64.so vdso64.so.dbg
+targets := $(obj-vdso64) vdso64.so.dbg
 obj-vdso64 := $(addprefix $(obj)/, $(obj-vdso64))
 
 GCOV_PROFILE := n
@@ -36,27 +36,12 @@ CPPFLAGS_vdso64.lds += -P -C -U$(ARCH)
 $(obj)/vgettimeofday.o: %.o: %.c FORCE
 
 # Force dependency (incbin is bad)
-$(obj)/vdso64_wrapper.o : $(obj)/vdso64.so
+$(obj)/vdso64_wrapper.o : $(obj)/vdso64.so.dbg
 
 # link rule for the .so file, .lds has to be first
 $(obj)/vdso64.so.dbg: $(src)/vdso64.lds $(obj-vdso64) $(obj)/vgettimeofday.o FORCE
 	$(call if_changed,vdso64ld_and_check)
 
-# strip rule for the .so file
-$(obj)/%.so: OBJCOPYFLAGS := -S
-$(obj)/%.so: $(obj)/%.so.dbg FORCE
-	$(call if_changed,objcopy)
-
 # actual build commands
 quiet_cmd_vdso64ld_and_check = VDSO64L $@
       cmd_vdso64ld_and_check = $(CC) $(c_flags) -o $@ -Wl,-T$(filter %.lds,$^) $(filter %.o,$^); $(cmd_vdso_check)
-
-# install commands for the unstripped file
-quiet_cmd_vdso_install = INSTALL $@
-      cmd_vdso_install = cp $(obj)/$@.dbg $(MODLIB)/vdso/$@
-
-vdso64.so: $(obj)/vdso64.so.dbg
-	@mkdir -p $(MODLIB)/vdso
-	$(call cmd,vdso_install)
-
-vdso_install: vdso64.so

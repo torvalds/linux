@@ -406,15 +406,6 @@ PHONY += install
 install:
 	$(Q)$(MAKE) $(build)=$(boot) install
 
-PHONY += vdso_install
-vdso_install:
-ifdef CONFIG_PPC64
-	$(Q)$(MAKE) $(build)=arch/$(ARCH)/kernel/vdso64 $@
-endif
-ifdef CONFIG_VDSO32
-	$(Q)$(MAKE) $(build)=arch/$(ARCH)/kernel/vdso32 $@
-endif
-
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 
