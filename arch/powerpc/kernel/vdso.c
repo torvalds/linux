@@ -115,13 +115,37 @@ struct lib64_elfinfo
 	unsigned long	text;
 };
 
+static int vdso_mremap(const struct vm_special_mapping *sm, struct vm_area_struct *new_vma,
+		       unsigned long text_size)
+{
+	unsigned long new_size = new_vma->vm_end - new_vma->vm_start;
+
+	if (new_size != text_size + PAGE_SIZE)
+		return -EINVAL;
+
+	current->mm->context.vdso_base = new_vma->vm_start;
+
+	return 0;
+}
+
+static int vdso32_mremap(const struct vm_special_mapping *sm, struct vm_area_struct *new_vma)
+{
+	return vdso_mremap(sm, new_vma, &vdso32_end - &vdso32_start);
+}
+
+static int vdso64_mremap(const struct vm_special_mapping *sm, struct vm_area_struct *new_vma)
+{
+	return vdso_mremap(sm, new_vma, &vdso64_end - &vdso64_start);
+}
 
 static struct vm_special_mapping vdso32_spec __ro_after_init = {
 	.name = "[vdso]",
+	.mremap = vdso32_mremap,
 };
 
 static struct vm_special_mapping vdso64_spec __ro_after_init = {
 	.name = "[vdso]",
+	.mremap = vdso64_mremap,
 };
 
 /*
