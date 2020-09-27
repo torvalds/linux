@@ -881,7 +881,7 @@ nfs4_xattr_cache_count(struct shrinker *shrink, struct shrink_control *sc)
 {
 	unsigned long count;
 
-	count = list_lru_count(&nfs4_xattr_cache_lru);
+	count = list_lru_shrink_count(&nfs4_xattr_cache_lru, sc);
 	return vfs_pressure_ratio(count);
 }
 
@@ -975,7 +975,7 @@ nfs4_xattr_entry_count(struct shrinker *shrink, struct shrink_control *sc)
 	lru = (shrink == &nfs4_xattr_large_entry_shrinker) ?
 	    &nfs4_xattr_large_entry_lru : &nfs4_xattr_entry_lru;
 
-	count = list_lru_count(lru);
+	count = list_lru_shrink_count(lru, sc);
 	return vfs_pressure_ratio(count);
 }
 
