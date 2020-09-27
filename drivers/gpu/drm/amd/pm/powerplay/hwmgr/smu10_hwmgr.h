@@ -284,7 +284,7 @@ struct smu10_hwmgr {
 	uint32_t                        dclk_soft_min;
 	uint32_t                        gfx_actual_soft_min_freq;
 	uint32_t                        gfx_min_freq_limit;
-	uint32_t                        gfx_max_freq_limit;
+	uint32_t                        gfx_max_freq_limit; /* in 10Khz*/
 
 	bool                           vcn_power_gated;
 	bool                           vcn_dpg_mode;
