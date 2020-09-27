@@ -5441,6 +5441,50 @@ static inline void mlxsw_reg_pplr_pack(char *payload, u8 local_port,
 				 MLXSW_REG_PPLR_LB_TYPE_BIT_PHY_LOCAL : 0);
 }
 
+/* PMPE - Port Module Plug/Unplug Event Register
+ * ---------------------------------------------
+ * This register reports any operational status change of a module.
+ * A change in the module’s state will generate an event only if the change
+ * happens after arming the event mechanism. Any changes to the module state
+ * while the event mechanism is not armed will not be reported. Software can
+ * query the PMPE register for module status.
+ */
+#define MLXSW_REG_PMPE_ID 0x5024
+#define MLXSW_REG_PMPE_LEN 0x10
+
+MLXSW_REG_DEFINE(pmpe, MLXSW_REG_PMPE_ID, MLXSW_REG_PMPE_LEN);
+
+/* reg_pmpe_slot_index
+ * Slot index.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pmpe, slot_index, 0x00, 24, 4);
+
+/* reg_pmpe_module
+ * Module number.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pmpe, module, 0x00, 16, 8);
+
+enum mlxsw_reg_pmpe_module_status {
+	MLXSW_REG_PMPE_MODULE_STATUS_PLUGGED_ENABLED = 1,
+	MLXSW_REG_PMPE_MODULE_STATUS_UNPLUGGED,
+	MLXSW_REG_PMPE_MODULE_STATUS_PLUGGED_ERROR,
+	MLXSW_REG_PMPE_MODULE_STATUS_PLUGGED_DISABLED,
+};
+
+/* reg_pmpe_module_status
+ * Module status.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, pmpe, module_status, 0x00, 0, 4);
+
+/* reg_pmpe_error_type
+ * Module error details.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, pmpe, error_type, 0x04, 8, 4);
+
 /* PDDR - Port Diagnostics Database Register
  * -----------------------------------------
  * The PDDR enables to read the Phy debug database
@@ -11059,6 +11103,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(pbmc),
 	MLXSW_REG(pspa),
 	MLXSW_REG(pplr),
+	MLXSW_REG(pmpe),
 	MLXSW_REG(pddr),
 	MLXSW_REG(pmtm),
 	MLXSW_REG(htgt),
