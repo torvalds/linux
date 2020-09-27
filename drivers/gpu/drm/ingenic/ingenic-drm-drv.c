@@ -21,6 +21,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
+#include <drm/drm_color_mgmt.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_damage_helper.h>
@@ -50,6 +51,8 @@ struct ingenic_dma_hwdesc {
 struct ingenic_dma_hwdescs {
 	struct ingenic_dma_hwdesc hwdesc_f0;
 	struct ingenic_dma_hwdesc hwdesc_f1;
+	struct ingenic_dma_hwdesc hwdesc_pal;
+	u16 palette[256] __aligned(16);
 };
 
 struct jz_soc_info {
@@ -248,6 +251,12 @@ static int ingenic_drm_crtc_atomic_check(struct drm_crtc *crtc,
 {
 	struct ingenic_drm *priv = drm_crtc_get_priv(crtc);
 	struct drm_plane_state *f1_state, *f0_state, *ipu_state = NULL;
+
+	if (state->gamma_lut &&
+	    drm_color_lut_size(state->gamma_lut) != ARRAY_SIZE(priv->dma_hwdescs->palette)) {
+		dev_dbg(priv->dev, "Invalid palette size\n");
+		return -EINVAL;
+	}
 
 	if (drm_atomic_crtc_needs_modeset(state) && priv->soc_info->has_osd) {
 		f1_state = drm_atomic_get_plane_state(state->state, &priv->f1);
@@ -470,6 +479,9 @@ void ingenic_drm_plane_config(struct device *dev,
 				   JZ_LCD_OSDCTRL_BPP_MASK, ctrl);
 	} else {
 		switch (fourcc) {
+		case DRM_FORMAT_C8:
+			ctrl |= JZ_LCD_CTRL_BPP_8;
+			break;
 		case DRM_FORMAT_XRGB1555:
 			ctrl |= JZ_LCD_CTRL_RGB555;
 			fallthrough;
@@ -541,16 +553,34 @@ void ingenic_drm_sync_data(struct device *dev,
 	}
 }
 
+static void ingenic_drm_update_palette(struct ingenic_drm *priv,
+				       const struct drm_color_lut *lut)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(priv->dma_hwdescs->palette); i++) {
+		u16 color = drm_color_lut_extract(lut[i].red, 5) << 11
+			| drm_color_lut_extract(lut[i].green, 6) << 5
+			| drm_color_lut_extract(lut[i].blue, 5);
+
+		priv->dma_hwdescs->palette[i] = color;
+	}
+}
+
 static void ingenic_drm_plane_atomic_update(struct drm_plane *plane,
 					    struct drm_plane_state *oldstate)
 {
 	struct ingenic_drm *priv = drm_device_get_priv(plane->dev);
 	struct drm_plane_state *state = plane->state;
+	struct drm_crtc_state *crtc_state;
 	struct ingenic_dma_hwdesc *hwdesc;
-	unsigned int width, height, cpp;
+	unsigned int width, height, cpp, offset;
 	dma_addr_t addr;
+	u32 fourcc;
 
 	if (state && state->fb) {
+		crtc_state = state->crtc->state;
+
 		ingenic_drm_sync_data(priv->dev, oldstate, state);
 
 		addr = drm_fb_cma_get_gem_addr(state->fb, state, 0);
@@ -566,9 +596,23 @@ static void ingenic_drm_plane_atomic_update(struct drm_plane *plane,
 		hwdesc->addr = addr;
 		hwdesc->cmd = JZ_LCD_CMD_EOF_IRQ | (width * height * cpp / 4);
 
-		if (drm_atomic_crtc_needs_modeset(state->crtc->state))
-			ingenic_drm_plane_config(priv->dev, plane,
-						 state->fb->format->format);
+		if (drm_atomic_crtc_needs_modeset(crtc_state)) {
+			fourcc = state->fb->format->format;
+
+			ingenic_drm_plane_config(priv->dev, plane, fourcc);
+
+			if (fourcc == DRM_FORMAT_C8)
+				offset = offsetof(struct ingenic_dma_hwdescs, hwdesc_pal);
+			else
+				offset = offsetof(struct ingenic_dma_hwdescs, hwdesc_f0);
+
+			priv->dma_hwdescs->hwdesc_f0.next = priv->dma_hwdescs_phys + offset;
+
+			crtc_state->color_mgmt_changed = fourcc == DRM_FORMAT_C8;
+		}
+
+		if (crtc_state->color_mgmt_changed)
+			ingenic_drm_update_palette(priv, crtc_state->gamma_lut->data);
 	}
 }
 
@@ -964,6 +1008,15 @@ static int ingenic_drm_bind(struct device *dev, bool has_components)
 	priv->dma_hwdescs->hwdesc_f1.next = dma_hwdesc_phys_f1;
 	priv->dma_hwdescs->hwdesc_f1.id = 0xf1;
 
+	/* Configure DMA hwdesc for palette */
+	priv->dma_hwdescs->hwdesc_pal.next = priv->dma_hwdescs_phys
+		+ offsetof(struct ingenic_dma_hwdescs, hwdesc_f0);
+	priv->dma_hwdescs->hwdesc_pal.id = 0xc0;
+	priv->dma_hwdescs->hwdesc_pal.addr = priv->dma_hwdescs_phys
+		+ offsetof(struct ingenic_dma_hwdescs, palette);
+	priv->dma_hwdescs->hwdesc_pal.cmd = JZ_LCD_CMD_ENABLE_PAL
+		| (sizeof(priv->dma_hwdescs->palette) / 4);
+
 	if (soc_info->has_osd)
 		priv->ipu_plane = drm_plane_from_index(drm, 0);
 
@@ -989,6 +1042,9 @@ static int ingenic_drm_bind(struct device *dev, bool has_components)
 		dev_err(dev, "Failed to init CRTC: %i\n", ret);
 		return ret;
 	}
+
+	drm_crtc_enable_color_mgmt(&priv->crtc, 0, false,
+				   ARRAY_SIZE(priv->dma_hwdescs->palette));
 
 	if (soc_info->has_osd) {
 		drm_plane_helper_add(&priv->f0,
@@ -1225,6 +1281,7 @@ static const u32 jz4725b_formats_f1[] = {
 };
 
 static const u32 jz4725b_formats_f0[] = {
+	DRM_FORMAT_C8,
 	DRM_FORMAT_XRGB1555,
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_XRGB8888,
@@ -1239,6 +1296,7 @@ static const u32 jz4770_formats_f1[] = {
 };
 
 static const u32 jz4770_formats_f0[] = {
+	DRM_FORMAT_C8,
 	DRM_FORMAT_XRGB1555,
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_RGB888,
