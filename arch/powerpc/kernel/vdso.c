@@ -73,7 +73,6 @@ struct lib32_elfinfo
 	Elf32_Sym	*dynsym;	/* ptr to .dynsym section */
 	unsigned long	dynsymsize;	/* size of .dynsym section */
 	char		*dynstr;	/* ptr to .dynstr section */
-	unsigned long	text;		/* offset of .text section in .so */
 };
 
 struct lib64_elfinfo
@@ -82,7 +81,6 @@ struct lib64_elfinfo
 	Elf64_Sym	*dynsym;
 	unsigned long	dynsymsize;
 	char		*dynstr;
-	unsigned long	text;
 };
 
 static int vdso_mremap(const struct vm_special_mapping *sm, struct vm_area_struct *new_vma,
@@ -270,8 +268,6 @@ static void * __init find_section64(Elf64_Ehdr *ehdr, const char *secname,
 static __init int vdso_do_find_sections(struct lib32_elfinfo *v32,
 					struct lib64_elfinfo *v64)
 {
-	void *sect;
-
 	/*
 	 * Locate symbol tables & text section
 	 */
@@ -283,12 +279,6 @@ static __init int vdso_do_find_sections(struct lib32_elfinfo *v32,
 		printk(KERN_ERR "vDSO32: required symbol section not found\n");
 		return -1;
 	}
-	sect = find_section32(v32->hdr, ".text", NULL);
-	if (sect == NULL) {
-		printk(KERN_ERR "vDSO32: the .text section was not found\n");
-		return -1;
-	}
-	v32->text = sect - vdso32_kbase;
 #endif
 
 #ifdef CONFIG_PPC64
@@ -298,12 +288,6 @@ static __init int vdso_do_find_sections(struct lib32_elfinfo *v32,
 		printk(KERN_ERR "vDSO64: required symbol section not found\n");
 		return -1;
 	}
-	sect = find_section64(v64->hdr, ".text", NULL);
-	if (sect == NULL) {
-		printk(KERN_ERR "vDSO64: the .text section was not found\n");
-		return -1;
-	}
-	v64->text = sect - vdso64_kbase;
 #endif /* CONFIG_PPC64 */
 
 	return 0;
