@@ -746,7 +746,7 @@ static int hclgevf_get_rss(struct hnae3_handle *handle, u32 *indir, u8 *key,
 	struct hclgevf_rss_cfg *rss_cfg = &hdev->rss_cfg;
 	int i, ret;
 
-	if (handle->pdev->revision >= 0x21) {
+	if (hdev->ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2) {
 		/* Get hash algorithm */
 		if (hfunc) {
 			switch (rss_cfg->hash_algo) {
@@ -792,7 +792,7 @@ static int hclgevf_set_rss(struct hnae3_handle *handle, const u32 *indir,
 	struct hclgevf_rss_cfg *rss_cfg = &hdev->rss_cfg;
 	int ret, i;
 
-	if (handle->pdev->revision >= 0x21) {
+	if (hdev->ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2) {
 		/* Set the RSS Hash Key if specififed by the user */
 		if (key) {
 			switch (hfunc) {
@@ -864,7 +864,7 @@ static int hclgevf_set_rss_tuple(struct hnae3_handle *handle,
 	u8 tuple_sets;
 	int ret;
 
-	if (handle->pdev->revision == 0x20)
+	if (hdev->ae_dev->dev_version < HNAE3_DEVICE_VERSION_V2)
 		return -EOPNOTSUPP;
 
 	if (nfc->data &
@@ -942,7 +942,7 @@ static int hclgevf_get_rss_tuple(struct hnae3_handle *handle,
 	struct hclgevf_rss_cfg *rss_cfg = &hdev->rss_cfg;
 	u8 tuple_sets;
 
-	if (handle->pdev->revision == 0x20)
+	if (hdev->ae_dev->dev_version < HNAE3_DEVICE_VERSION_V2)
 		return -EOPNOTSUPP;
 
 	nfc->data = 0;
@@ -1155,10 +1155,9 @@ static int hclgevf_set_promisc_mode(struct hnae3_handle *handle, bool en_uc_pmc,
 				    bool en_mc_pmc)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
-	struct pci_dev *pdev = hdev->pdev;
 	bool en_bc_pmc;
 
-	en_bc_pmc = pdev->revision != 0x20;
+	en_bc_pmc = hdev->ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2;
 
 	return hclgevf_cmd_set_promisc_mode(hdev, en_uc_pmc, en_mc_pmc,
 					    en_bc_pmc);
@@ -2288,7 +2287,7 @@ static enum hclgevf_evt_cause hclgevf_check_evt_cause(struct hclgevf_dev *hdev,
 		 * register, so we should just write 0 to the bit we are
 		 * handling, and keep other bits as cmdq_stat_reg.
 		 */
-		if (hdev->pdev->revision >= 0x21)
+		if (hdev->ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2)
 			*clearval = ~(1U << HCLGEVF_VECTOR0_RX_CMDQ_INT_B);
 		else
 			*clearval = cmdq_stat_reg &
@@ -2431,7 +2430,7 @@ static void hclgevf_rss_init_cfg(struct hclgevf_dev *hdev)
 	rss_cfg->hash_algo = HCLGEVF_RSS_HASH_ALGO_TOEPLITZ;
 	rss_cfg->rss_size = hdev->nic.kinfo.rss_size;
 	tuple_sets = &rss_cfg->rss_tuple_sets;
-	if (hdev->pdev->revision >= 0x21) {
+	if (hdev->ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2) {
 		rss_cfg->hash_algo = HCLGEVF_RSS_HASH_ALGO_SIMPLE;
 		memcpy(rss_cfg->rss_hash_key, hclgevf_hash_key,
 		       HCLGEVF_RSS_KEY_SIZE);
@@ -2456,7 +2455,7 @@ static int hclgevf_rss_init_hw(struct hclgevf_dev *hdev)
 	struct hclgevf_rss_cfg *rss_cfg = &hdev->rss_cfg;
 	int ret;
 
-	if (hdev->pdev->revision >= 0x21) {
+	if (hdev->ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2) {
 		ret = hclgevf_set_rss_algo_key(hdev, rss_cfg->hash_algo,
 					       rss_cfg->rss_hash_key);
 		if (ret)

@@ -364,7 +364,8 @@ struct hclge_rx_priv_buff_cmd {
 
 struct hclge_query_version_cmd {
 	__le32 firmware;
-	__le32 firmware_rsv[5];
+	__le32 hardware;
+	__le32 rsv[4];
 };
 
 #define HCLGE_RX_PRIV_EN_B	15

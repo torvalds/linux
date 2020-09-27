@@ -143,7 +143,8 @@ struct hclgevf_ctrl_vector_chain {
 
 struct hclgevf_query_version_cmd {
 	__le32 firmware;
-	__le32 firmware_rsv[5];
+	__le32 hardware;
+	__le32 rsv[4];
 };
 
 #define HCLGEVF_MSIX_OFT_ROCEE_S       0

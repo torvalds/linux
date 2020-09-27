@@ -34,6 +34,13 @@
 
 #define HNAE3_MIN_VECTOR_NUM	2 /* first one for misc, another for IO */
 
+/* Device version */
+#define HNAE3_DEVICE_VERSION_V1   0x00020
+#define HNAE3_DEVICE_VERSION_V2   0x00021
+#define HNAE3_DEVICE_VERSION_V3   0x00030
+
+#define HNAE3_PCI_REVISION_BIT_SIZE		8
+
 /* Device IDs */
 #define HNAE3_DEV_ID_GE				0xA220
 #define HNAE3_DEV_ID_25GE			0xA221
@@ -235,6 +242,7 @@ struct hnae3_ae_dev {
 	struct list_head node;
 	u32 flag;
 	unsigned long hw_err_reset_req;
+	u32 dev_version;
 	void *priv;
 };
 
