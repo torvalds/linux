@@ -122,16 +122,13 @@ struct lib64_elfinfo
  * This is called from binfmt_elf, we create the special vma for the
  * vDSO and insert it into the mm struct tree
  */
-int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
+static int __arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 {
 	struct mm_struct *mm = current->mm;
 	struct page **vdso_pagelist;
 	unsigned long vdso_size;
 	unsigned long vdso_base;
 	int rc;
-
-	if (!vdso_ready)
-		return 0;
 
 	if (is_32bit_task()) {
 		vdso_pagelist = vdso32_pagelist;
@@ -148,8 +145,6 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 		vdso_base = 0;
 	}
 
-	current->mm->context.vdso_base = 0;
-
 	/* Add a page to the vdso size for the data page */
 	vdso_size += PAGE_SIZE;
 
@@ -159,15 +154,11 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	 * and end up putting it elsewhere.
 	 * Add enough to the size so that the result can be aligned.
 	 */
-	if (mmap_write_lock_killable(mm))
-		return -EINTR;
 	vdso_base = get_unmapped_area(NULL, vdso_base,
 				      vdso_size + ((VDSO_ALIGNMENT - 1) & PAGE_MASK),
 				      0, 0);
-	if (IS_ERR_VALUE(vdso_base)) {
-		rc = vdso_base;
-		goto fail_mmapsem;
-	}
+	if (IS_ERR_VALUE(vdso_base))
+		return vdso_base;
 
 	/* Add required alignment. */
 	vdso_base = ALIGN(vdso_base, VDSO_ALIGNMENT);
@@ -193,15 +184,26 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 				     VM_READ|VM_EXEC|
 				     VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
 				     vdso_pagelist);
-	if (rc) {
-		current->mm->context.vdso_base = 0;
-		goto fail_mmapsem;
-	}
+	return rc;
+}
 
-	mmap_write_unlock(mm);
-	return 0;
+int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
+{
+	struct mm_struct *mm = current->mm;
+	int rc;
 
- fail_mmapsem:
+	mm->context.vdso_base = 0;
+
+	if (!vdso_ready)
+		return 0;
+
+	if (mmap_write_lock_killable(mm))
+		return -EINTR;
+
+	rc = __arch_setup_additional_pages(bprm, uses_interp);
+	if (rc)
+		mm->context.vdso_base = 0;
+
 	mmap_write_unlock(mm);
 	return rc;
 }
