@@ -854,8 +854,8 @@ int handle_rt_signal64(struct ksignal *ksig, sigset_t *set,
 	tsk->thread.fp_state.fpscr = 0;
 
 	/* Set up to return from userspace. */
-	if (vdso64_rt_sigtramp && tsk->mm->context.vdso_base) {
-		regs->nip = tsk->mm->context.vdso_base + vdso64_rt_sigtramp;
+	if (vdso64_rt_sigtramp && tsk->mm->context.vdso) {
+		regs->nip = (unsigned long)tsk->mm->context.vdso + vdso64_rt_sigtramp;
 	} else {
 		err |= setup_trampoline(__NR_rt_sigreturn, &frame->tramp[0]);
 		if (err)

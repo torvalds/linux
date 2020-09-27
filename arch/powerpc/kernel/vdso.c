@@ -123,7 +123,7 @@ static int vdso_mremap(const struct vm_special_mapping *sm, struct vm_area_struc
 	if (new_size != text_size + PAGE_SIZE)
 		return -EINVAL;
 
-	current->mm->context.vdso_base = new_vma->vm_start;
+	current->mm->context.vdso = (void __user *)new_vma->vm_start;
 
 	return 0;
 }
@@ -198,7 +198,7 @@ static int __arch_setup_additional_pages(struct linux_binprm *bprm, int uses_int
 	 * install_special_mapping or the perf counter mmap tracking code
 	 * will fail to recognise it as a vDSO.
 	 */
-	current->mm->context.vdso_base = vdso_base;
+	mm->context.vdso = (void __user *)vdso_base;
 
 	/*
 	 * our vma flags don't have VM_WRITE so by default, the process isn't
@@ -221,7 +221,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	struct mm_struct *mm = current->mm;
 	int rc;
 
-	mm->context.vdso_base = 0;
+	mm->context.vdso = NULL;
 
 	if (!vdso_ready)
 		return 0;
@@ -231,7 +231,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 
 	rc = __arch_setup_additional_pages(bprm, uses_interp);
 	if (rc)
-		mm->context.vdso_base = 0;
+		mm->context.vdso = NULL;
 
 	mmap_write_unlock(mm);
 	return rc;
