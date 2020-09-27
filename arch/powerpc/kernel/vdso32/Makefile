@@ -59,6 +59,14 @@ $(obj-vdso32): %.o: %.S FORCE
 $(obj)/vgettimeofday.o: %.o: %.c FORCE
 	$(call if_changed_dep,vdso32cc)
 
+# Generate VDSO offsets using helper script
+gen-vdsosym := $(srctree)/$(src)/gen_vdso_offsets.sh
+quiet_cmd_vdsosym = VDSOSYM $@
+      cmd_vdsosym = $(NM) $< | $(gen-vdsosym) | LC_ALL=C sort > $@
+
+include/generated/vdso32-offsets.h: $(obj)/vdso32.so.dbg FORCE
+	$(call if_changed,vdsosym)
+
 # actual build commands
 quiet_cmd_vdso32ld_and_check = VDSO32L $@
       cmd_vdso32ld_and_check = $(VDSOCC) $(c_flags) $(CC32FLAGS) -o $@ -Wl,-T$(filter %.lds,$^) $(filter %.o,$^) ; $(cmd_vdso_check)

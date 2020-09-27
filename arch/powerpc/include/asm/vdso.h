@@ -15,6 +15,18 @@
 
 #ifndef __ASSEMBLY__
 
+#ifdef CONFIG_PPC64
+#include <generated/vdso64-offsets.h>
+#endif
+
+#ifdef CONFIG_VDSO32
+#include <generated/vdso32-offsets.h>
+#endif
+
+#define VDSO64_SYMBOL(base, name) ((unsigned long)(base) + (vdso64_offset_##name))
+
+#define VDSO32_SYMBOL(base, name) ((unsigned long)(base) + (vdso32_offset_##name))
+
 /* Offsets relative to thread->vdso_base */
 extern unsigned long vdso64_rt_sigtramp;
 extern unsigned long vdso32_sigtramp;

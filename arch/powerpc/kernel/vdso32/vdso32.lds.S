@@ -164,3 +164,9 @@ VERSION
 	local: *;
 	};
 }
+
+/*
+ * Make the sigreturn code visible to the kernel.
+ */
+VDSO_sigtramp32		= __kernel_sigtramp32;
+VDSO_sigtramp_rt32	= __kernel_sigtramp_rt32;
