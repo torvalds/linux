@@ -1061,7 +1061,6 @@ int gdb_serial_stub(struct kgdb_state *ks)
 				error_packet(remcom_out_buffer, -EINVAL);
 				break;
 			}
-			dbg_activate_sw_breakpoints();
 			fallthrough;	/* to default processing */
 		default:
 default_handle:
