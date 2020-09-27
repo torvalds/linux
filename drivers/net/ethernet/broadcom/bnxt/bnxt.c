@@ -8777,6 +8777,16 @@ static void bnxt_report_link(struct bnxt *bp)
 	}
 }
 
+static bool bnxt_phy_qcaps_no_speed(struct hwrm_port_phy_qcaps_output *resp)
+{
+	if (!resp->supported_speeds_auto_mode &&
+	    !resp->supported_speeds_force_mode &&
+	    !resp->supported_pam4_speeds_auto_mode &&
+	    !resp->supported_pam4_speeds_force_mode)
+		return true;
+	return false;
+}
+
 static int bnxt_hwrm_phy_qcaps(struct bnxt *bp)
 {
 	int rc = 0;
@@ -8824,6 +8834,18 @@ static int bnxt_hwrm_phy_qcaps(struct bnxt *bp)
 	if (resp->flags & PORT_PHY_QCAPS_RESP_FLAGS_CUMULATIVE_COUNTERS_ON_RESET)
 		bp->fw_cap |= BNXT_FW_CAP_PORT_STATS_NO_RESET;
 
+	if (bp->hwrm_spec_code >= 0x10a01) {
+		if (bnxt_phy_qcaps_no_speed(resp)) {
+			link_info->phy_state = BNXT_PHY_STATE_DISABLED;
+			netdev_warn(bp->dev, "Ethernet link disabled\n");
+		} else if (link_info->phy_state == BNXT_PHY_STATE_DISABLED) {
+			link_info->phy_state = BNXT_PHY_STATE_ENABLED;
+			netdev_info(bp->dev, "Ethernet link enabled\n");
+			/* Phy re-enabled, reprobe the speeds */
+			link_info->support_auto_speeds = 0;
+			link_info->support_pam4_auto_speeds = 0;
+		}
+	}
 	if (resp->supported_speeds_auto_mode)
 		link_info->support_auto_speeds =
 			le16_to_cpu(resp->supported_speeds_auto_mode);
