@@ -972,6 +972,7 @@ void mt7915_mac_tx_free(struct mt7915_dev *dev, struct sk_buff *skb)
 			if (list_empty(&msta->poll_list))
 				list_add_tail(&msta->poll_list, &dev->sta_poll_list);
 			spin_unlock_bh(&dev->sta_poll_lock);
+			continue;
 		}
 
 		msdu = FIELD_GET(MT_TX_FREE_MSDU_ID, info);
