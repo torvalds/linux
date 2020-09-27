@@ -1360,13 +1360,19 @@ static void esdhc_init(struct platform_device *pdev, struct sdhci_host *host)
 		clk_put(clk);
 	}
 
-	if (esdhc->peripheral_clock) {
-		esdhc_clock_enable(host, false);
-		val = sdhci_readl(host, ESDHC_DMA_SYSCTL);
+	esdhc_clock_enable(host, false);
+	val = sdhci_readl(host, ESDHC_DMA_SYSCTL);
+	/*
+	 * This bit is not able to be reset by SDHCI_RESET_ALL. Need to
+	 * initialize it as 1 or 0 once, to override the different value
+	 * which may be configured in bootloader.
+	 */
+	if (esdhc->peripheral_clock)
 		val |= ESDHC_PERIPHERAL_CLK_SEL;
-		sdhci_writel(host, val, ESDHC_DMA_SYSCTL);
-		esdhc_clock_enable(host, true);
-	}
+	else
+		val &= ~ESDHC_PERIPHERAL_CLK_SEL;
+	sdhci_writel(host, val, ESDHC_DMA_SYSCTL);
+	esdhc_clock_enable(host, true);
 }
 
 static int esdhc_hs400_prepare_ddr(struct mmc_host *mmc)
