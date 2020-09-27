@@ -27,11 +27,6 @@
 
 #define VDSO32_SYMBOL(base, name) ((unsigned long)(base) + (vdso32_offset_##name))
 
-/* Offsets relative to thread->vdso_base */
-extern unsigned long vdso64_rt_sigtramp;
-extern unsigned long vdso32_sigtramp;
-extern unsigned long vdso32_rt_sigtramp;
-
 int vdso_getcpu_init(void);
 
 #else /* __ASSEMBLY__ */

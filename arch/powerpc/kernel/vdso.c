@@ -48,15 +48,10 @@
 #define VDSO_ALIGNMENT	(1 << 16)
 
 static void *vdso32_kbase;
-unsigned long vdso32_sigtramp;
-unsigned long vdso32_rt_sigtramp;
 
 extern char vdso32_start, vdso32_end;
 extern char vdso64_start, vdso64_end;
 static void *vdso64_kbase = &vdso64_start;
-#ifdef CONFIG_PPC64
-unsigned long vdso64_rt_sigtramp;
-#endif /* CONFIG_PPC64 */
 
 static int vdso_ready;
 
@@ -275,22 +270,6 @@ static Elf32_Sym * __init find_symbol32(struct lib32_elfinfo *lib,
 	return NULL;
 }
 
-/* Note that we assume the section is .text and the symbol is relative to
- * the library base
- */
-static unsigned long __init find_function32(struct lib32_elfinfo *lib,
-					    const char *symname)
-{
-	Elf32_Sym *sym = find_symbol32(lib, symname);
-
-	if (sym == NULL) {
-		printk(KERN_WARNING "vDSO32: function %s not found !\n",
-		       symname);
-		return 0;
-	}
-	return sym->st_value - VDSO32_LBASE;
-}
-
 static int __init vdso_do_func_patch32(struct lib32_elfinfo *v32,
 				       struct lib64_elfinfo *v64,
 				       const char *orig, const char *fix)
@@ -320,12 +299,6 @@ static int __init vdso_do_func_patch32(struct lib32_elfinfo *v32,
 	return 0;
 }
 #else /* !CONFIG_VDSO32 */
-static unsigned long __init find_function32(struct lib32_elfinfo *lib,
-					    const char *symname)
-{
-	return 0;
-}
-
 static int __init vdso_do_func_patch32(struct lib32_elfinfo *v32,
 				       struct lib64_elfinfo *v64,
 				       const char *orig, const char *fix)
@@ -379,22 +352,6 @@ static Elf64_Sym * __init find_symbol64(struct lib64_elfinfo *lib,
 			return &lib->dynsym[i];
 	}
 	return NULL;
-}
-
-/* Note that we assume the section is .text and the symbol is relative to
- * the library base
- */
-static unsigned long __init find_function64(struct lib64_elfinfo *lib,
-					    const char *symname)
-{
-	Elf64_Sym *sym = find_symbol64(lib, symname);
-
-	if (sym == NULL) {
-		printk(KERN_WARNING "vDSO64: function %s not found !\n",
-		       symname);
-		return 0;
-	}
-	return sym->st_value - VDSO64_LBASE;
 }
 
 static int __init vdso_do_func_patch64(struct lib32_elfinfo *v32,
@@ -477,20 +434,6 @@ static __init int vdso_do_find_sections(struct lib32_elfinfo *v32,
 	return 0;
 }
 
-static __init void vdso_setup_trampolines(struct lib32_elfinfo *v32,
-					  struct lib64_elfinfo *v64)
-{
-	/*
-	 * Find signal trampolines
-	 */
-
-#ifdef CONFIG_PPC64
-	vdso64_rt_sigtramp = find_function64(v64, "__kernel_sigtramp_rt64");
-#endif
-	vdso32_sigtramp	   = find_function32(v32, "__kernel_sigtramp32");
-	vdso32_rt_sigtramp = find_function32(v32, "__kernel_sigtramp_rt32");
-}
-
 static __init int vdso_fixup_features(struct lib32_elfinfo *v32,
 				      struct lib64_elfinfo *v64)
 {
@@ -561,8 +504,6 @@ static __init int vdso_setup(void)
 
 	if (vdso_fixup_alt_funcs(&v32, &v64))
 		return -1;
-
-	vdso_setup_trampolines(&v32, &v64);
 
 	return 0;
 }
