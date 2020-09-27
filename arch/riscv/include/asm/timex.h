@@ -33,6 +33,19 @@ static inline u32 get_cycles_hi(void)
 #define get_cycles_hi get_cycles_hi
 #endif /* CONFIG_64BIT */
 
+/*
+ * Much like MIPS, we may not have a viable counter to use at an early point
+ * in the boot process. Unfortunately we don't have a fallback, so instead
+ * we just return 0.
+ */
+static inline unsigned long random_get_entropy(void)
+{
+	if (unlikely(clint_time_val == NULL))
+		return 0;
+	return get_cycles();
+}
+#define random_get_entropy()	random_get_entropy()
+
 #else /* CONFIG_RISCV_M_MODE */
 
 static inline cycles_t get_cycles(void)
