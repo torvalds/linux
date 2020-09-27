@@ -11,6 +11,7 @@
 #include <linux/ctype.h>
 #include <linux/stringify.h>
 #include <linux/ethtool.h>
+#include <linux/linkmode.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/etherdevice.h>
@@ -1533,6 +1534,27 @@ u32 _bnxt_fw_to_ethtool_adv_spds(u16 fw_speeds, u8 fw_pause)
 		(fw_speeds) |= BNXT_LINK_PAM4_SPEED_MSK_200GB;		\
 }
 
+static void bnxt_fw_to_ethtool_advertised_fec(struct bnxt_link_info *link_info,
+				struct ethtool_link_ksettings *lk_ksettings)
+{
+	u16 fec_cfg = link_info->fec_cfg;
+
+	if ((fec_cfg & BNXT_FEC_NONE) || !(fec_cfg & BNXT_FEC_AUTONEG)) {
+		linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_NONE_BIT,
+				 lk_ksettings->link_modes.advertising);
+		return;
+	}
+	if (fec_cfg & BNXT_FEC_ENC_BASE_R)
+		linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_BASER_BIT,
+				 lk_ksettings->link_modes.advertising);
+	if (fec_cfg & BNXT_FEC_ENC_RS)
+		linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_RS_BIT,
+				 lk_ksettings->link_modes.advertising);
+	if (fec_cfg & BNXT_FEC_ENC_LLRS)
+		linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_LLRS_BIT,
+				 lk_ksettings->link_modes.advertising);
+}
+
 static void bnxt_fw_to_ethtool_advertised_spds(struct bnxt_link_info *link_info,
 				struct ethtool_link_ksettings *lk_ksettings)
 {
@@ -1545,6 +1567,7 @@ static void bnxt_fw_to_ethtool_advertised_spds(struct bnxt_link_info *link_info,
 	BNXT_FW_TO_ETHTOOL_SPDS(fw_speeds, fw_pause, lk_ksettings, advertising);
 	fw_speeds = link_info->advertising_pam4;
 	BNXT_FW_TO_ETHTOOL_PAM4_SPDS(fw_speeds, lk_ksettings, advertising);
+	bnxt_fw_to_ethtool_advertised_fec(link_info, lk_ksettings);
 }
 
 static void bnxt_fw_to_ethtool_lp_adv(struct bnxt_link_info *link_info,
@@ -1560,6 +1583,27 @@ static void bnxt_fw_to_ethtool_lp_adv(struct bnxt_link_info *link_info,
 				lp_advertising);
 	fw_speeds = link_info->lp_auto_pam4_link_speeds;
 	BNXT_FW_TO_ETHTOOL_PAM4_SPDS(fw_speeds, lk_ksettings, lp_advertising);
+}
+
+static void bnxt_fw_to_ethtool_support_fec(struct bnxt_link_info *link_info,
+				struct ethtool_link_ksettings *lk_ksettings)
+{
+	u16 fec_cfg = link_info->fec_cfg;
+
+	if (fec_cfg & BNXT_FEC_NONE) {
+		linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_NONE_BIT,
+				 lk_ksettings->link_modes.supported);
+		return;
+	}
+	if (fec_cfg & BNXT_FEC_ENC_BASE_R_CAP)
+		linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_BASER_BIT,
+				 lk_ksettings->link_modes.supported);
+	if (fec_cfg & BNXT_FEC_ENC_RS_CAP)
+		linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_RS_BIT,
+				 lk_ksettings->link_modes.supported);
+	if (fec_cfg & BNXT_FEC_ENC_LLRS_CAP)
+		linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_LLRS_BIT,
+				 lk_ksettings->link_modes.supported);
 }
 
 static void bnxt_fw_to_ethtool_support_spds(struct bnxt_link_info *link_info,
@@ -1579,6 +1623,7 @@ static void bnxt_fw_to_ethtool_support_spds(struct bnxt_link_info *link_info,
 	    link_info->support_pam4_auto_speeds)
 		ethtool_link_ksettings_add_link_mode(lk_ksettings, supported,
 						     Autoneg);
+	bnxt_fw_to_ethtool_support_fec(link_info, lk_ksettings);
 }
 
 u32 bnxt_fw_to_ethtool_speed(u16 fw_link_speed)
@@ -1834,6 +1879,49 @@ static int bnxt_set_link_ksettings(struct net_device *dev,
 set_setting_exit:
 	mutex_unlock(&bp->link_lock);
 	return rc;
+}
+
+static int bnxt_get_fecparam(struct net_device *dev,
+			     struct ethtool_fecparam *fec)
+{
+	struct bnxt *bp = netdev_priv(dev);
+	struct bnxt_link_info *link_info;
+	u8 active_fec;
+	u16 fec_cfg;
+
+	link_info = &bp->link_info;
+	fec_cfg = link_info->fec_cfg;
+	active_fec = link_info->active_fec_sig_mode &
+		     PORT_PHY_QCFG_RESP_ACTIVE_FEC_MASK;
+	if (fec_cfg & BNXT_FEC_NONE) {
+		fec->fec = ETHTOOL_FEC_NONE;
+		fec->active_fec = ETHTOOL_FEC_NONE;
+		return 0;
+	}
+	if (fec_cfg & BNXT_FEC_AUTONEG)
+		fec->fec |= ETHTOOL_FEC_AUTO;
+	if (fec_cfg & BNXT_FEC_ENC_BASE_R)
+		fec->fec |= ETHTOOL_FEC_BASER;
+	if (fec_cfg & BNXT_FEC_ENC_RS)
+		fec->fec |= ETHTOOL_FEC_RS;
+	if (fec_cfg & BNXT_FEC_ENC_LLRS)
+		fec->fec |= ETHTOOL_FEC_LLRS;
+
+	switch (active_fec) {
+	case PORT_PHY_QCFG_RESP_ACTIVE_FEC_FEC_CLAUSE74_ACTIVE:
+		fec->active_fec |= ETHTOOL_FEC_BASER;
+		break;
+	case PORT_PHY_QCFG_RESP_ACTIVE_FEC_FEC_CLAUSE91_ACTIVE:
+	case PORT_PHY_QCFG_RESP_ACTIVE_FEC_FEC_RS544_1XN_ACTIVE:
+	case PORT_PHY_QCFG_RESP_ACTIVE_FEC_FEC_RS544_IEEE_ACTIVE:
+		fec->active_fec |= ETHTOOL_FEC_RS;
+		break;
+	case PORT_PHY_QCFG_RESP_ACTIVE_FEC_FEC_RS272_1XN_ACTIVE:
+	case PORT_PHY_QCFG_RESP_ACTIVE_FEC_FEC_RS272_IEEE_ACTIVE:
+		fec->active_fec |= ETHTOOL_FEC_LLRS;
+		break;
+	}
+	return 0;
 }
 
 static void bnxt_get_pauseparam(struct net_device *dev,
@@ -3741,6 +3829,7 @@ const struct ethtool_ops bnxt_ethtool_ops = {
 				     ETHTOOL_COALESCE_USE_ADAPTIVE_RX,
 	.get_link_ksettings	= bnxt_get_link_ksettings,
 	.set_link_ksettings	= bnxt_set_link_ksettings,
+	.get_fecparam		= bnxt_get_fecparam,
 	.get_pause_stats	= bnxt_get_pause_stats,
 	.get_pauseparam		= bnxt_get_pauseparam,
 	.set_pauseparam		= bnxt_set_pauseparam,

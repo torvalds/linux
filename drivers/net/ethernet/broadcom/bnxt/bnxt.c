@@ -8960,9 +8960,10 @@ static int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 	}
 
 	link_info->fec_cfg = PORT_PHY_QCFG_RESP_FEC_CFG_FEC_NONE_SUPPORTED;
-	if (bp->hwrm_spec_code >= 0x10504)
+	if (bp->hwrm_spec_code >= 0x10504) {
 		link_info->fec_cfg = le16_to_cpu(resp->fec_cfg);
-
+		link_info->active_fec_sig_mode = resp->active_fec_signal_mode;
+	}
 	/* TODO: need to add more logic to report VF link */
 	if (chng_link_state) {
 		if (link_info->phy_link_status == BNXT_LINK_LINK)
