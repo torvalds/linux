@@ -495,7 +495,7 @@ static char * __init unpack_to_rootfs(char *buf, unsigned long len)
 			error("junk in compressed archive");
 		if (state != Reset)
 			error("junk in compressed archive");
-		#ifdef CONFIG_ARCH_ROCKCHIP
+		#ifdef CONFIG_ROCKCHIP_ONE_INITRD
 		else
 			break;
 		#endif

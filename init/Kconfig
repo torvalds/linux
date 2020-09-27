@@ -1231,6 +1231,14 @@ config INITRD_ASYNC
 	help
 	  Init ramdisk async, can reduce kernel init time.
 
+config ROCKCHIP_ONE_INITRD
+	bool "Detect only one initrd"
+	depends on ARCH_ROCKCHIP
+	default ARCH_ROCKCHIP
+	help
+	  RK bootloader does not put a correct size to cmdline.
+	  Directly return when we get a good initrd.
+
 endif
 
 config INITCALL_ASYNC
