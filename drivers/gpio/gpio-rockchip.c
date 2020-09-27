@@ -706,8 +706,8 @@ static int rockchip_gpio_probe(struct platform_device *pdev)
 	if (id < 0)
 		id = gpio++;
 
-	bank->name = devm_kasprintf(dev, GFP_KERNEL, "%pOF", np);
 	bank->pin_base = id * GPIO_BANK_PIN_NUM;
+	bank->name = devm_kasprintf(dev, GFP_KERNEL, "GPIO%d", id);
 	bank->nr_pins = GPIO_BANK_PIN_NUM;
 	bank->dev = dev;
 	bank->of_node = dev->of_node;
