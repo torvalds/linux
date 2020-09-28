@@ -1242,9 +1242,8 @@ static void vdec_vb2_buf_queue(struct vb2_buffer *vb)
 		return;
 	}
 
-	mutex_unlock(&inst->lock);
-
 	venus_helper_vb2_buf_queue(vb);
+	mutex_unlock(&inst->lock);
 }
 
 static const struct vb2_ops vdec_vb2_ops = {
