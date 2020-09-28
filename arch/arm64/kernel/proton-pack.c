@@ -660,6 +660,20 @@ void spectre_v4_enable_task_mitigation(struct task_struct *tsk)
  * prctl() may be necessary even when PSTATE.SSBS can be toggled directly
  * from userspace.
  */
+static void ssbd_prctl_enable_mitigation(struct task_struct *task)
+{
+	task_clear_spec_ssb_noexec(task);
+	task_set_spec_ssb_disable(task);
+	set_tsk_thread_flag(task, TIF_SSBD);
+}
+
+static void ssbd_prctl_disable_mitigation(struct task_struct *task)
+{
+	task_clear_spec_ssb_noexec(task);
+	task_clear_spec_ssb_disable(task);
+	clear_tsk_thread_flag(task, TIF_SSBD);
+}
+
 static int ssbd_prctl_set(struct task_struct *task, unsigned long ctrl)
 {
 	switch (ctrl) {
@@ -679,8 +693,7 @@ static int ssbd_prctl_set(struct task_struct *task, unsigned long ctrl)
 		if (spectre_v4_mitigations_on())
 			return -EPERM;
 
-		task_clear_spec_ssb_disable(task);
-		clear_tsk_thread_flag(task, TIF_SSBD);
+		ssbd_prctl_disable_mitigation(task);
 		break;
 	case PR_SPEC_FORCE_DISABLE:
 		/* Force disable speculation: force enable mitigation */
@@ -699,8 +712,22 @@ static int ssbd_prctl_set(struct task_struct *task, unsigned long ctrl)
 		if (spectre_v4_mitigations_off())
 			return -EPERM;
 
-		task_set_spec_ssb_disable(task);
-		set_tsk_thread_flag(task, TIF_SSBD);
+		ssbd_prctl_enable_mitigation(task);
+		break;
+	case PR_SPEC_DISABLE_NOEXEC:
+		/* Disable speculation until execve(): enable mitigation */
+		/*
+		 * If the mitigation state is forced one way or the other, then
+		 * we must fail now before we try to toggle it on execve().
+		 */
+		if (task_spec_ssb_force_disable(task) ||
+		    spectre_v4_mitigations_off() ||
+		    spectre_v4_mitigations_on()) {
+			return -EPERM;
+		}
+
+		ssbd_prctl_enable_mitigation(task);
+		task_set_spec_ssb_noexec(task);
 		break;
 	default:
 		return -ERANGE;
@@ -744,6 +771,9 @@ static int ssbd_prctl_get(struct task_struct *task)
 	/* Check the mitigation state for this task */
 	if (task_spec_ssb_force_disable(task))
 		return PR_SPEC_PRCTL | PR_SPEC_FORCE_DISABLE;
+
+	if (task_spec_ssb_noexec(task))
+		return PR_SPEC_PRCTL | PR_SPEC_DISABLE_NOEXEC;
 
 	if (task_spec_ssb_disable(task))
 		return PR_SPEC_PRCTL | PR_SPEC_DISABLE;

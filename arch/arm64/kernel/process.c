@@ -21,6 +21,7 @@
 #include <linux/lockdep.h>
 #include <linux/mman.h>
 #include <linux/mm.h>
+#include <linux/nospec.h>
 #include <linux/stddef.h>
 #include <linux/sysctl.h>
 #include <linux/unistd.h>
@@ -609,6 +610,11 @@ void arch_setup_new_exec(void)
 	current->mm->context.flags = is_compat_task() ? MMCF_AARCH32 : 0;
 
 	ptrauth_thread_init_user(current);
+
+	if (task_spec_ssb_noexec(current)) {
+		arch_prctl_spec_ctrl_set(current, PR_SPEC_STORE_BYPASS,
+					 PR_SPEC_ENABLE);
+	}
 }
 
 #ifdef CONFIG_ARM64_TAGGED_ADDR_ABI
