@@ -836,8 +836,6 @@ struct AdapterControlBlock
 #define	FW_NORMAL			0x0000
 #define	FW_BOG				0x0001
 #define	FW_DEADLOCK			0x0010
-	atomic_t 		rq_map_token;
-	atomic_t		ante_token_value;
 	uint32_t		maxOutstanding;
 	int			vector_count;
 	uint32_t		maxFreeCCB;

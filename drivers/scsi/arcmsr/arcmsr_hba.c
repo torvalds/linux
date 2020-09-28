@@ -777,7 +777,6 @@ static void arcmsr_message_isr_bh_fn(struct work_struct *work)
 	struct scsi_device *psdev;
 	char diff, temp;
 
-	acb->acb_flags &= ~ACB_F_MSG_GET_CONFIG;
 	switch (acb->adapter_type) {
 	case ACB_ADAPTER_TYPE_A: {
 		struct MessageUnit_A __iomem *reg  = acb->pmuA;
@@ -815,7 +814,6 @@ static void arcmsr_message_isr_bh_fn(struct work_struct *work)
 		break;
 		}
 	}
-	atomic_inc(&acb->rq_map_token);
 	if (readl(signature) != ARCMSR_SIGNATURE_GET_CONFIG)
 		return;
 	for (target = 0; target < ARCMSR_MAX_TARGETID - 1;
@@ -846,6 +844,7 @@ static void arcmsr_message_isr_bh_fn(struct work_struct *work)
 		devicemap++;
 		acb_dev_map++;
 	}
+	acb->acb_flags &= ~ACB_F_MSG_GET_CONFIG;
 }
 
 static int
@@ -898,8 +897,6 @@ out_free_irq:
 static void arcmsr_init_get_devmap_timer(struct AdapterControlBlock *pacb)
 {
 	INIT_WORK(&pacb->arcmsr_do_message_isr_bh, arcmsr_message_isr_bh_fn);
-	atomic_set(&pacb->rq_map_token, 16);
-	atomic_set(&pacb->ante_token_value, 16);
 	pacb->fw_flag = FW_NORMAL;
 	timer_setup(&pacb->eternal_timer, arcmsr_request_device_map, 0);
 	pacb->eternal_timer.expires = jiffies + msecs_to_jiffies(6 * HZ);
@@ -3925,24 +3922,10 @@ static void arcmsr_wait_firmware_ready(struct AdapterControlBlock *acb)
 static void arcmsr_request_device_map(struct timer_list *t)
 {
 	struct AdapterControlBlock *acb = from_timer(acb, t, eternal_timer);
-	if (unlikely(atomic_read(&acb->rq_map_token) == 0) ||
-		(acb->acb_flags & ACB_F_BUS_RESET) ||
-		(acb->acb_flags & ACB_F_ABORT)) {
-		mod_timer(&acb->eternal_timer,
-			jiffies + msecs_to_jiffies(6 * HZ));
+	if (acb->acb_flags & (ACB_F_MSG_GET_CONFIG | ACB_F_BUS_RESET | ACB_F_ABORT)) {
+		mod_timer(&acb->eternal_timer, jiffies + msecs_to_jiffies(6 * HZ));
 	} else {
 		acb->fw_flag = FW_NORMAL;
-		if (atomic_read(&acb->ante_token_value) ==
-			atomic_read(&acb->rq_map_token)) {
-			atomic_set(&acb->rq_map_token, 16);
-		}
-		atomic_set(&acb->ante_token_value,
-			atomic_read(&acb->rq_map_token));
-		if (atomic_dec_and_test(&acb->rq_map_token)) {
-			mod_timer(&acb->eternal_timer, jiffies +
-				msecs_to_jiffies(6 * HZ));
-			return;
-		}
 		switch (acb->adapter_type) {
 		case ACB_ADAPTER_TYPE_A: {
 			struct MessageUnit_A __iomem *reg = acb->pmuA;
@@ -4362,8 +4345,6 @@ wait_reset_done:
 			goto wait_reset_done;
 		}
 		arcmsr_iop_init(acb);
-		atomic_set(&acb->rq_map_token, 16);
-		atomic_set(&acb->ante_token_value, 16);
 		acb->fw_flag = FW_NORMAL;
 		mod_timer(&acb->eternal_timer, jiffies +
 			msecs_to_jiffies(6 * HZ));
@@ -4372,8 +4353,6 @@ wait_reset_done:
 		pr_notice("arcmsr: scsi bus reset eh returns with success\n");
 	} else {
 		acb->acb_flags &= ~ACB_F_BUS_RESET;
-		atomic_set(&acb->rq_map_token, 16);
-		atomic_set(&acb->ante_token_value, 16);
 		acb->fw_flag = FW_NORMAL;
 		mod_timer(&acb->eternal_timer, jiffies +
 			msecs_to_jiffies(6 * HZ));
