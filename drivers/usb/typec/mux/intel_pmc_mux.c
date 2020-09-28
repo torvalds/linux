@@ -125,13 +125,19 @@ static int hsl_orientation(struct pmc_usb_port *port)
 static int pmc_usb_command(struct pmc_usb_port *port, u8 *msg, u32 len)
 {
 	u8 response[4];
+	int ret;
 
 	/*
 	 * Error bit will always be 0 with the USBC command.
-	 * Status can be checked from the response message.
+	 * Status can be checked from the response message if the
+	 * function intel_scu_ipc_dev_command succeeds.
 	 */
-	intel_scu_ipc_dev_command(port->pmc->ipc, PMC_USBC_CMD, 0, msg, len,
-				  response, sizeof(response));
+	ret = intel_scu_ipc_dev_command(port->pmc->ipc, PMC_USBC_CMD, 0, msg,
+					len, response, sizeof(response));
+
+	if (ret)
+		return ret;
+
 	if (response[2] & PMC_USB_RESP_STATUS_FAILURE) {
 		if (response[2] & PMC_USB_RESP_STATUS_FATAL)
 			return -EIO;

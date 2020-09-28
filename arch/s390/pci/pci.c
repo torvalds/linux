@@ -668,6 +668,10 @@ EXPORT_SYMBOL_GPL(zpci_enable_device);
 int zpci_disable_device(struct zpci_dev *zdev)
 {
 	zpci_dma_exit_device(zdev);
+	/*
+	 * The zPCI function may already be disabled by the platform, this is
+	 * detected in clp_disable_fh() which becomes a no-op.
+	 */
 	return clp_disable_fh(zdev);
 }
 EXPORT_SYMBOL_GPL(zpci_disable_device);

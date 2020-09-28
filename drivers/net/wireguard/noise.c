@@ -87,15 +87,12 @@ static void handshake_zero(struct noise_handshake *handshake)
 
 void wg_noise_handshake_clear(struct noise_handshake *handshake)
 {
+	down_write(&handshake->lock);
 	wg_index_hashtable_remove(
 			handshake->entry.peer->device->index_hashtable,
 			&handshake->entry);
-	down_write(&handshake->lock);
 	handshake_zero(handshake);
 	up_write(&handshake->lock);
-	wg_index_hashtable_remove(
-			handshake->entry.peer->device->index_hashtable,
-			&handshake->entry);
 }
 
 static struct noise_keypair *keypair_create(struct wg_peer *peer)

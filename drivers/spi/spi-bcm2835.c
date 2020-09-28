@@ -75,7 +75,7 @@
 #define DRV_NAME	"spi-bcm2835"
 
 /* define polling limits */
-unsigned int polling_limit_us = 30;
+static unsigned int polling_limit_us = 30;
 module_param(polling_limit_us, uint, 0664);
 MODULE_PARM_DESC(polling_limit_us,
 		 "time in us to run a transfer in polling mode\n");

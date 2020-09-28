@@ -1053,7 +1053,6 @@ static int enetc_pf_probe(struct pci_dev *pdev,
 
 err_reg_netdev:
 	enetc_teardown_serdes(priv);
-	enetc_mdio_remove(pf);
 	enetc_free_msix(priv);
 err_alloc_msix:
 	enetc_free_si_resources(priv);
@@ -1061,6 +1060,7 @@ err_alloc_si_res:
 	si->ndev = NULL;
 	free_netdev(ndev);
 err_alloc_netdev:
+	enetc_mdio_remove(pf);
 	enetc_of_put_phy(pf);
 err_map_pf_space:
 	enetc_pci_remove(pdev);

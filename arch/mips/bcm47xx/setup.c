@@ -148,7 +148,7 @@ void __init plat_mem_setup(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
 
-	if ((c->cputype == CPU_74K) || (c->cputype == CPU_1074K)) {
+	if (c->cputype == CPU_74K) {
 		pr_info("Using bcma bus\n");
 #ifdef CONFIG_BCM47XX_BCMA
 		bcm47xx_bus_type = BCM47XX_BUS_TYPE_BCMA;
