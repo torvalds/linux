@@ -4603,16 +4603,18 @@ nfsd4_encode_offload_status(struct nfsd4_compoundres *resp, __be32 nfserr,
 static __be32
 nfsd4_encode_read_plus_data(struct nfsd4_compoundres *resp,
 			    struct nfsd4_read *read,
-			    unsigned long *maxcount, u32 *eof)
+			    unsigned long *maxcount, u32 *eof,
+			    loff_t *pos)
 {
 	struct xdr_stream *xdr = &resp->xdr;
 	struct file *file = read->rd_nf->nf_file;
 	int starting_len = xdr->buf->len;
-	loff_t hole_pos = vfs_llseek(file, read->rd_offset, SEEK_HOLE);
+	loff_t hole_pos;
 	__be32 nfserr;
 	__be32 *p, tmp;
 	__be64 tmp64;
 
+	hole_pos = pos ? *pos : vfs_llseek(file, read->rd_offset, SEEK_HOLE);
 	if (hole_pos > read->rd_offset)
 		*maxcount = min_t(unsigned long, *maxcount, hole_pos - read->rd_offset);
 	*maxcount = min_t(unsigned long, *maxcount, (xdr->buf->buflen - xdr->buf->len));
@@ -4647,13 +4649,14 @@ nfsd4_encode_read_plus_hole(struct nfsd4_compoundres *resp,
 {
 	struct file *file = read->rd_nf->nf_file;
 	loff_t data_pos = vfs_llseek(file, read->rd_offset, SEEK_DATA);
+	loff_t f_size = i_size_read(file_inode(file));
 	unsigned long count;
 	__be32 *p;
 
 	if (data_pos == -ENXIO)
-		data_pos = i_size_read(file_inode(file));
-	else if (data_pos <= read->rd_offset)
-		return nfserr_resource;
+		data_pos = f_size;
+	else if (data_pos <= read->rd_offset || (data_pos < f_size && data_pos % PAGE_SIZE))
+		return nfsd4_encode_read_plus_data(resp, read, maxcount, eof, &f_size);
 	count = data_pos - read->rd_offset;
 
 	/* Content type, offset, byte count */
@@ -4665,7 +4668,7 @@ nfsd4_encode_read_plus_hole(struct nfsd4_compoundres *resp,
 	 p   = xdr_encode_hyper(p, read->rd_offset);
 	 p   = xdr_encode_hyper(p, count);
 
-	*eof = (read->rd_offset + count) >= i_size_read(file_inode(file));
+	*eof = (read->rd_offset + count) >= f_size;
 	*maxcount = min_t(unsigned long, count, *maxcount);
 	return nfs_ok;
 }
@@ -4678,8 +4681,10 @@ nfsd4_encode_read_plus(struct nfsd4_compoundres *resp, __be32 nfserr,
 	struct xdr_stream *xdr = &resp->xdr;
 	struct file *file;
 	int starting_len = xdr->buf->len;
+	int last_segment = xdr->buf->len;
 	int segments = 0;
 	__be32 *p, tmp;
+	bool is_data;
 	loff_t pos;
 	u32 eof;
 
@@ -4703,29 +4708,22 @@ nfsd4_encode_read_plus(struct nfsd4_compoundres *resp, __be32 nfserr,
 	if (eof)
 		goto out;
 
-	pos = vfs_llseek(file, read->rd_offset, SEEK_DATA);
-	if (pos == -ENXIO)
-		pos = i_size_read(file_inode(file));
-	else if (pos < 0)
-		pos = read->rd_offset;
+	pos = vfs_llseek(file, read->rd_offset, SEEK_HOLE);
+	is_data = pos > read->rd_offset;
 
-	if (pos == read->rd_offset) {
+	while (count > 0 && !eof) {
 		maxcount = count;
-		nfserr = nfsd4_encode_read_plus_data(resp, read, &maxcount, &eof);
+		if (is_data)
+			nfserr = nfsd4_encode_read_plus_data(resp, read, &maxcount, &eof,
+						segments == 0 ? &pos : NULL);
+		else
+			nfserr = nfsd4_encode_read_plus_hole(resp, read, &maxcount, &eof);
 		if (nfserr)
 			goto out;
 		count -= maxcount;
 		read->rd_offset += maxcount;
-		segments++;
-	}
-
-	if (count > 0 && !eof) {
-		maxcount = count;
-		nfserr = nfsd4_encode_read_plus_hole(resp, read, &maxcount, &eof);
-		if (nfserr)
-			goto out;
-		count -= maxcount;
-		read->rd_offset += maxcount;
+		is_data = !is_data;
+		last_segment = xdr->buf->len;
 		segments++;
 	}
 
@@ -4737,7 +4735,10 @@ out:
 		write_bytes_to_xdr_buf(xdr->buf, starting_len,     &tmp, 4);
 		tmp = htonl(segments);
 		write_bytes_to_xdr_buf(xdr->buf, starting_len + 4, &tmp, 4);
-		nfserr = nfs_ok;
+		if (nfserr) {
+			xdr_truncate_encode(xdr, last_segment);
+			nfserr = nfs_ok;
+		}
 	}
 
 	return nfserr;
