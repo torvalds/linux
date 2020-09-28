@@ -14,6 +14,13 @@ config ROCKCHIP_MPP_RKVDEC
 	help
 	  rockchip mpp rkv combo decoder and hevc decoder.
 
+config ROCKCHIP_MPP_RKVDEC2
+	tristate "RKV decoder v2 device driver"
+	depends on ROCKCHIP_MPP_SERVICE
+	default n
+	help
+	  rockchip mpp rkv combo decoder v2.
+
 config ROCKCHIP_MPP_RKVENC
 	tristate "RKV encoder device driver"
 	depends on ROCKCHIP_MPP_SERVICE
@@ -55,3 +62,10 @@ config ROCKCHIP_MPP_IEP2
 	default n
 	help
 	  rockchip iep v2.
+
+config ROCKCHIP_MPP_JPGDEC
+	tristate "RKV jpeg decoder v1 device driver"
+	depends on ROCKCHIP_MPP_SERVICE
+	default n
+	help
+	  rockchip mpp rkv jpeg decoder.

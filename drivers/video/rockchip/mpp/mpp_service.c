@@ -329,6 +329,8 @@ static int mpp_service_probe(struct platform_device *pdev)
 	MPP_REGISTER_DRIVER(srv, VEPU2, vepu2);
 	MPP_REGISTER_DRIVER(srv, VEPU22, vepu22);
 	MPP_REGISTER_DRIVER(srv, IEP2, iep2);
+	MPP_REGISTER_DRIVER(srv, JPGDEC, jpgdec);
+	MPP_REGISTER_DRIVER(srv, RKVDEC2, rkvdec2);
 
 	dev_info(dev, "probe success\n");
 

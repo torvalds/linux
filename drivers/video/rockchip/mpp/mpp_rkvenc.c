@@ -44,7 +44,7 @@
 #define	RKVENC_SESSION_MAX_BUFFERS		40
 /* The maximum registers number of all the version */
 #define RKVENC_REG_L1_NUM			780
-#define RKVENC_REG_L2_NUM			200
+#define RKVENC_REG_L2_NUM			320
 #define RKVENC_REG_START_INDEX			0
 #define RKVENC_REG_END_INDEX			131
 /* rkvenc register info */
