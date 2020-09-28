@@ -190,7 +190,7 @@ static void dp_altmode_work(struct work_struct *work)
 	switch (dp->state) {
 	case DP_STATE_ENTER:
 		ret = typec_altmode_enter(dp->alt, NULL);
-		if (ret)
+		if (ret && ret != -EBUSY)
 			dev_err(&dp->alt->dev, "failed to enter mode\n");
 		break;
 	case DP_STATE_UPDATE:
