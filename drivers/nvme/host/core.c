@@ -3899,6 +3899,7 @@ static void nvme_ns_remove(struct nvme_ns *ns)
 	if (test_and_set_bit(NVME_NS_REMOVING, &ns->flags))
 		return;
 
+	set_capacity(ns->disk, 0);
 	nvme_fault_inject_fini(&ns->fault_inject);
 
 	mutex_lock(&ns->ctrl->subsys->lock);
@@ -3936,58 +3937,54 @@ static void nvme_ns_remove_by_nsid(struct nvme_ctrl *ctrl, u32 nsid)
 	}
 }
 
-static int nvme_validate_ns(struct nvme_ns *ns, struct nvme_ns_ids *ids)
+static void nvme_validate_ns(struct nvme_ns *ns, struct nvme_ns_ids *ids)
 {
 	struct nvme_ctrl *ctrl = ns->ctrl;
 	struct nvme_id_ns *id;
-	int ret = 0;
+	int ret = -ENODEV;
 
-	if (test_bit(NVME_NS_DEAD, &ns->flags)) {
-		set_capacity(ns->disk, 0);
-		return -ENODEV;
-	}
+	if (test_bit(NVME_NS_DEAD, &ns->flags))
+		goto out;
 
 	ret = nvme_identify_ns(ctrl, ns->head->ns_id, ids, &id);
 	if (ret)
 		goto out;
 
+	ret = -ENODEV;
 	if (!nvme_ns_ids_equal(&ns->head->ids, ids)) {
 		dev_err(ctrl->device,
 			"identifiers changed for nsid %d\n", ns->head->ns_id);
-		ret = -ENODEV;
-		goto free_id;
+		goto out_free_id;
 	}
 
 	ret = nvme_update_ns_info(ns, id);
-free_id:
+
+out_free_id:
 	kfree(id);
 out:
 	/*
-	 * Only fail the function if we got a fatal error back from the
+	 * Only remove the namespace if we got a fatal error back from the
 	 * device, otherwise ignore the error and just move on.
+	 *
+	 * TODO: we should probably schedule a delayed retry here.
 	 */
-	if (ret == -ENOMEM || (ret > 0 && !(ret & NVME_SC_DNR)))
-		ret = 0;
-	else if (ret > 0)
-		ret = blk_status_to_errno(nvme_error_status(ret));
-	return ret;
+	if (ret && ret != -ENOMEM && !(ret > 0 && !(ret & NVME_SC_DNR)))
+		nvme_ns_remove(ns);
+	else
+		revalidate_disk_size(ns->disk, true);
 }
 
 static void nvme_validate_or_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 {
 	struct nvme_ns_ids ids = { };
 	struct nvme_ns *ns;
-	int ret;
 
 	if (nvme_identify_ns_descs(ctrl, nsid, &ids))
 		return;
 
 	ns = nvme_find_get_ns(ctrl, nsid);
 	if (ns) {
-		ret = nvme_validate_ns(ns, &ids);
-		revalidate_disk_size(ns->disk, ret == 0);
-		if (ret)
-			nvme_ns_remove(ns);
+		nvme_validate_ns(ns, &ids);
 		nvme_put_ns(ns);
 		return;
 	}
