@@ -810,7 +810,7 @@ static void queue_sync_cons_out(struct arm_smmu_queue *q)
 	 * Ensure that all CPU accesses (reads and writes) to the queue
 	 * are complete before we update the cons pointer.
 	 */
-	mb();
+	__iomb();
 	writel_relaxed(q->llq.cons, q->cons_reg);
 }
 
@@ -822,8 +822,15 @@ static void queue_inc_cons(struct arm_smmu_ll_queue *q)
 
 static int queue_sync_prod_in(struct arm_smmu_queue *q)
 {
+	u32 prod;
 	int ret = 0;
-	u32 prod = readl_relaxed(q->prod_reg);
+
+	/*
+	 * We can't use the _relaxed() variant here, as we must prevent
+	 * speculative reads of the queue before we have determined that
+	 * prod has indeed moved.
+	 */
+	prod = readl(q->prod_reg);
 
 	if (Q_OVF(prod) != Q_OVF(q->llq.prod))
 		ret = -EOVERFLOW;
