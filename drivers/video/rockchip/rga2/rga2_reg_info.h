@@ -142,6 +142,9 @@
 #define m_RGA2_DST_INFO_SW_DITHER_MODE               (  0x3<<14)
 #define m_RGA2_DST_INFO_SW_DST_CSC_MODE              (  0x3<<16)    //add
 #define m_RGA2_DST_INFO_SW_CSC_CLIP_MODE             (  0x1<<18)
+#define m_RGA2_DST_INFO_SW_DST_FMT_YUV400_EN         (  0x1<<24)
+#define m_RGA2_DST_INFO_SW_DST_FMT_Y4_EN             (  0x1<<25)
+#define m_RGA2_DST_INFO_SW_DST_NN_QUANTIZE_EN        (  0x1<<26)
 #define m_RGA2_DST_INFO_SW_SRC1_CSC_MODE             (  0x3<<20)    //add
 #define m_RGA2_DST_INFO_SW_SRC1_CSC_CLIP_MODE        (  0x1<<22)
 
@@ -157,6 +160,9 @@
 #define s_RGA2_DST_INFO_SW_DITHER_MODE(x)               (  (x&0x3)<<14)
 #define s_RGA2_DST_INFO_SW_DST_CSC_MODE(x)              (  (x&0x3)<<16)    //add
 #define s_RGA2_DST_INFO_SW_CSC_CLIP_MODE(x)             (  (x&0x1)<<18)
+#define s_RGA2_DST_INFO_SW_DST_FMT_YUV400_EN(x)         (  (x&0x1)<<24)
+#define s_RGA2_DST_INFO_SW_DST_FMT_Y4_EN(x)             (  (x&0x1)<<25)
+#define s_RGA2_DST_INFO_SW_DST_NN_QUANTIZE_EN(x)        (  (x&0x1)<<26)
 #define s_RGA2_DST_INFO_SW_SRC1_CSC_MODE(x)             (  (x&0x3)<<20)    //add
 #define s_RGA2_DST_INFO_SW_SRC1_CSC_CLIP_MODE(x)        (  (x&0x1)<<22)
 
@@ -287,8 +293,12 @@
 #define RGA2_PAT_CON_OFFSET                     0x5c
 #define RGA2_ROP_CTRL0_OFFSET                   0x60
 #define RGA2_CF_GR_G_OFFSET                     0x60 // repeat
+#define RGA2_DST_Y4MAP_LUT0_OFFSET             0x60 // repeat
+#define RGA2_DST_QUANTIZE_SCALE_OFFSET         0x60 // repeat
 #define RGA2_ROP_CTRL1_OFFSET                   0x64
 #define RGA2_CF_GR_R_OFFSET                     0x64 // repeat
+#define RGA2_DST_Y4MAP_LUT1_OFFSET              0x64 // repeat
+#define RGA2_DST_QUANTIZE_OFFSET_OFFSET         0x64 // repeat
 #define RGA2_MASK_BASE_OFFSET                   0x68
 #define RGA2_MMU_CTRL1_OFFSET                   0x6c
 #define RGA2_MMU_SRC_BASE_OFFSET                0x70

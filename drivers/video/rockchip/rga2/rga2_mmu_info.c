@@ -275,6 +275,7 @@ static int rga2_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr, uns
             break;
         case RGA2_FORMAT_YCbCr_420_P :
         case RGA2_FORMAT_YCrCb_420_P :
+		case RGA2_FORMAT_YCbCr_400 :
             stride = (w + 3) & (~3);
             size_yrgb = stride * h;
             size_uv = ((stride >> 1) * (h >> 1));
@@ -285,33 +286,44 @@ static int rga2_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr, uns
             end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
             pageCount = end - start;
             break;
-	case RGA2_FORMAT_YVYU_422:
-	case RGA2_FORMAT_VYUY_422:
-	case RGA2_FORMAT_YUYV_422:
-	case RGA2_FORMAT_UYVY_422:
-		stride = (w + 3) & (~3);
-		size_yrgb = stride * h;
-		size_uv = stride * h;
-		start = MIN(yrgb_addr, uv_addr);
-		start >>= PAGE_SHIFT;
-		end = MAX((yrgb_addr + size_yrgb), (uv_addr + size_uv));
-		end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
-		pageCount = end - start;
-		break;
-	case RGA2_FORMAT_YVYU_420:
-	case RGA2_FORMAT_VYUY_420:
-	case RGA2_FORMAT_YUYV_420:
-	case RGA2_FORMAT_UYVY_420:
-		stride = (w + 3) & (~3);
-		size_yrgb = stride * h;
-		size_uv = (stride * (h >> 1));
-		start = MIN(yrgb_addr, uv_addr);
-		start >>= PAGE_SHIFT;
-		end = MAX((yrgb_addr + size_yrgb), (uv_addr + size_uv));
-		end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
-		pageCount = end - start;
-		break;
-        #if 0
+		case RGA2_FORMAT_Y4:
+			stride = ((w + 3) & (~3) ) >> 1;
+			size_yrgb = stride * h;
+			size_uv = 0;
+			size_v = 0;
+			start = MIN(MIN(yrgb_addr, uv_addr), v_addr);
+			start >>= PAGE_SHIFT;
+			end = MAX(MAX((yrgb_addr + size_yrgb), (uv_addr + size_uv)), (v_addr + size_v));
+			end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
+			pageCount = end - start;
+			break;
+		case RGA2_FORMAT_YVYU_422:
+		case RGA2_FORMAT_VYUY_422:
+		case RGA2_FORMAT_YUYV_422:
+		case RGA2_FORMAT_UYVY_422:
+			stride = (w + 3) & (~3);
+			size_yrgb = stride * h;
+			size_uv = stride * h;
+			start = MIN(yrgb_addr, uv_addr);
+			start >>= PAGE_SHIFT;
+			end = MAX((yrgb_addr + size_yrgb), (uv_addr + size_uv));
+			end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
+			pageCount = end - start;
+			break;
+		case RGA2_FORMAT_YVYU_420:
+		case RGA2_FORMAT_VYUY_420:
+		case RGA2_FORMAT_YUYV_420:
+		case RGA2_FORMAT_UYVY_420:
+			stride = (w + 3) & (~3);
+			size_yrgb = stride * h;
+			size_uv = (stride * (h >> 1));
+			start = MIN(yrgb_addr, uv_addr);
+			start >>= PAGE_SHIFT;
+			end = MAX((yrgb_addr + size_yrgb), (uv_addr + size_uv));
+			end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
+			pageCount = end - start;
+			break;
+#if 0
         case RK_FORMAT_BPP1 :
             break;
         case RK_FORMAT_BPP2 :
@@ -320,7 +332,7 @@ static int rga2_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr, uns
             break;
         case RK_FORMAT_BPP8 :
             break;
-        #endif
+#endif
         case RGA2_FORMAT_YCbCr_420_SP_10B:
         case RGA2_FORMAT_YCrCb_420_SP_10B:
             stride = (w + 3) & (~3);

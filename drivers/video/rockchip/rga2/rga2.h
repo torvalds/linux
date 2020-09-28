@@ -94,6 +94,9 @@ enum
     RGA2_FORMAT_BGRA_5551    = 0xa,
     RGA2_FORMAT_BGRA_4444    = 0xb,
 
+    RGA2_FORMAT_Y4           = 0xe,
+    RGA2_FORMAT_YCbCr_400    = 0xf,
+
     RGA2_FORMAT_YCbCr_422_SP = 0x10,
     RGA2_FORMAT_YCbCr_422_P  = 0x11,
     RGA2_FORMAT_YCbCr_420_SP = 0x12,
@@ -389,6 +392,8 @@ struct rga_req {
                                     /* ([6]   alpha output mode sel) 0 src / 1 dst*/
 
     uint8_t  src_trans_mode;
+
+    uint8_t dither_mode;
 };
 struct rga_req_32
 {
