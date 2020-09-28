@@ -232,14 +232,16 @@ static int renoir_get_profiling_clk_mask(struct smu_context *smu,
 			*sclk_mask = 0;
 	} else if (level == AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK) {
 		if (mclk_mask)
-			*mclk_mask = 0;
+			/* mclk levels are in reverse order */
+			*mclk_mask = NUM_MEMCLK_DPM_LEVELS - 1;
 	} else if (level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK) {
 		if(sclk_mask)
 			/* The sclk as gfxclk and has three level about max/min/current */
 			*sclk_mask = 3 - 1;
 
 		if(mclk_mask)
-			*mclk_mask = NUM_MEMCLK_DPM_LEVELS - 1;
+			/* mclk levels are in reverse order */
+			*mclk_mask = 0;
 
 		if(soc_mask)
 			*soc_mask = NUM_SOCCLK_DPM_LEVELS - 1;
@@ -333,7 +335,7 @@ static int renoir_get_dpm_ultimate_freq(struct smu_context *smu,
 		case SMU_UCLK:
 		case SMU_FCLK:
 		case SMU_MCLK:
-			ret = renoir_get_dpm_clk_limited(smu, clk_type, 0, min);
+			ret = renoir_get_dpm_clk_limited(smu, clk_type, NUM_MEMCLK_DPM_LEVELS - 1, min);
 			if (ret)
 				goto failed;
 			break;
