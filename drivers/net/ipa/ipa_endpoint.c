@@ -51,13 +51,6 @@ enum ipa_status_opcode {
 enum ipa_status_exception {
 	/* 0 means no exception */
 	IPA_STATUS_EXCEPTION_DEAGGR		= 0x01,
-	IPA_STATUS_EXCEPTION_IPTYPE		= 0x04,
-	IPA_STATUS_EXCEPTION_PACKET_LENGTH	= 0x08,
-	IPA_STATUS_EXCEPTION_FRAG_RULE_MISS	= 0x10,
-	IPA_STATUS_EXCEPTION_SW_FILT		= 0x20,
-	/* The meaning of the next value depends on whether the IP version */
-	IPA_STATUS_EXCEPTION_NAT		= 0x40,		/* IPv4 */
-	IPA_STATUS_EXCEPTION_IPV6CT		= IPA_STATUS_EXCEPTION_NAT,
 };
 
 /* Status element provided by hardware */
@@ -1082,7 +1075,7 @@ static bool ipa_status_drop_packet(const struct ipa_status *status)
 {
 	u32 val;
 
-	/* Deaggregation exceptions we drop; others we consume */
+	/* Deaggregation exceptions we drop; all other types we consume */
 	if (status->exception)
 		return status->exception == IPA_STATUS_EXCEPTION_DEAGGR;
 
@@ -1428,11 +1421,10 @@ void ipa_endpoint_suspend_one(struct ipa_endpoint *endpoint)
 	if (!(endpoint->ipa->enabled & BIT(endpoint->endpoint_id)))
 		return;
 
-	if (!endpoint->toward_ipa)
+	if (!endpoint->toward_ipa) {
 		ipa_endpoint_replenish_disable(endpoint);
-
-	if (!endpoint->toward_ipa)
 		(void)ipa_endpoint_program_suspend(endpoint, true);
+	}
 
 	/* IPA v3.5.1 doesn't use channel stop for suspend */
 	stop_channel = endpoint->ipa->version != IPA_VERSION_3_5_1;
