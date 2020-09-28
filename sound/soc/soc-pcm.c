@@ -614,20 +614,12 @@ static int soc_pcm_components_open(struct snd_pcm_substream *substream)
 
 	for_each_rtd_components(rtd, i, component) {
 		ret = snd_soc_component_module_get_when_open(component, substream);
-		if (ret < 0) {
-			dev_err(component->dev,
-				"ASoC: can't get module %s\n",
-				component->name);
+		if (ret < 0)
 			break;
-		}
 
 		ret = snd_soc_component_open(component, substream);
-		if (ret < 0) {
-			dev_err(component->dev,
-				"ASoC: can't open component %s: %d\n",
-				component->name, ret);
+		if (ret < 0)
 			break;
-		}
 	}
 
 	return ret;
