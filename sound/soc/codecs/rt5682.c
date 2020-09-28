@@ -1529,15 +1529,34 @@ static int set_dmic_power(struct snd_soc_dapm_widget *w,
 	struct snd_soc_component *component =
 		snd_soc_dapm_to_component(w->dapm);
 	struct rt5682_priv *rt5682 = snd_soc_component_get_drvdata(component);
-	unsigned int delay = 50;
+	unsigned int delay = 50, val;
 
 	if (rt5682->pdata.dmic_delay)
 		delay = rt5682->pdata.dmic_delay;
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
+		val = snd_soc_component_read(component, RT5682_GLB_CLK);
+		val &= RT5682_SCLK_SRC_MASK;
+		if (val == RT5682_SCLK_SRC_PLL1 || val == RT5682_SCLK_SRC_PLL2)
+			snd_soc_component_update_bits(component,
+				RT5682_PWR_ANLG_1,
+				RT5682_PWR_VREF2 | RT5682_PWR_MB,
+				RT5682_PWR_VREF2 | RT5682_PWR_MB);
+
 		/*Add delay to avoid pop noise*/
 		msleep(delay);
+		break;
+
+	case SND_SOC_DAPM_POST_PMD:
+		if (!rt5682->jack_type) {
+			if (!snd_soc_dapm_get_pin_status(w->dapm, "MICBIAS"))
+				snd_soc_component_update_bits(component,
+					RT5682_PWR_ANLG_1, RT5682_PWR_MB, 0);
+			if (!snd_soc_dapm_get_pin_status(w->dapm, "Vref2"))
+				snd_soc_component_update_bits(component,
+					RT5682_PWR_ANLG_1, RT5682_PWR_VREF2, 0);
+		}
 		break;
 	}
 
@@ -1644,7 +1663,8 @@ static const struct snd_soc_dapm_widget rt5682_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("DMIC CLK", SND_SOC_NOPM, 0, 0,
 		set_dmic_clk, SND_SOC_DAPM_PRE_PMU),
 	SND_SOC_DAPM_SUPPLY("DMIC1 Power", RT5682_DMIC_CTRL_1,
-		RT5682_DMIC_1_EN_SFT, 0, set_dmic_power, SND_SOC_DAPM_POST_PMU),
+		RT5682_DMIC_1_EN_SFT, 0, set_dmic_power,
+		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 
 	/* Boost */
 	SND_SOC_DAPM_PGA("BST1 CBJ", SND_SOC_NOPM,
