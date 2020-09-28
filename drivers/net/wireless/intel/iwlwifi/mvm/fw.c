@@ -586,7 +586,8 @@ static int iwl_send_phy_cfg_cmd(struct iwl_mvm *mvm)
 		mvm->fw->default_calib[ucode_type].flow_trigger;
 
 	cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, IWL_ALWAYS_LONG_GROUP,
-					PHY_CONFIGURATION_CMD);
+					PHY_CONFIGURATION_CMD,
+					IWL_FW_CMD_VER_UNKNOWN);
 	if (cmd_ver == 3) {
 		iwl_mvm_phy_filter_init(mvm, &phy_filters);
 		memcpy(&phy_cfg_cmd.phy_specific_cfg, &phy_filters,
@@ -744,7 +745,8 @@ int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
 	u16 len = 0;
 	u32 n_subbands;
 	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
-					   REDUCE_TX_POWER_CMD);
+					   REDUCE_TX_POWER_CMD,
+					   IWL_FW_CMD_VER_UNKNOWN);
 
 	if (cmd_ver == 6) {
 		len = sizeof(cmd.v6);
@@ -787,8 +789,9 @@ int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm)
 	u16 len;
 	int ret;
 	struct iwl_host_cmd cmd;
-	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
-					   PHY_OPS_GROUP, GEO_TX_POWER_LIMIT);
+	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, PHY_OPS_GROUP,
+					   GEO_TX_POWER_LIMIT,
+					   IWL_FW_CMD_VER_UNKNOWN);
 
 	/* the ops field is at the same spot for all versions, so set in v1 */
 	geo_tx_cmd.v1.ops =
@@ -833,8 +836,9 @@ static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
 	union iwl_geo_tx_power_profiles_cmd cmd;
 	u16 len;
 	int ret;
-	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
-					   PHY_OPS_GROUP, GEO_TX_POWER_LIMIT);
+	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, PHY_OPS_GROUP,
+					   GEO_TX_POWER_LIMIT,
+					   IWL_FW_CMD_VER_UNKNOWN);
 
 	/* the table is also at the same position both in v1 and v2 */
 	ret = iwl_sar_geo_init(&mvm->fwrt, &cmd.v1.table[0][0],
@@ -975,7 +979,8 @@ int iwl_mvm_ppag_send_cmd(struct iwl_mvm *mvm)
 	}
 
 	cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, PHY_OPS_GROUP,
-					PER_PLATFORM_ANT_GAIN_CMD);
+					PER_PLATFORM_ANT_GAIN_CMD,
+					IWL_FW_CMD_VER_UNKNOWN);
 	if (cmd_ver == 1) {
 		num_sub_bands = IWL_NUM_SUB_BANDS;
 		gain = mvm->fwrt.ppag_table.v1.gain[0];

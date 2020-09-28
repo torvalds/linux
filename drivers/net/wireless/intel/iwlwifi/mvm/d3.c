@@ -781,7 +781,8 @@ static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 
 	if (key_data.use_rsc_tsc) {
 		int ver = iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
-						WOWLAN_TSC_RSC_PARAM);
+						WOWLAN_TSC_RSC_PARAM,
+						IWL_FW_CMD_VER_UNKNOWN);
 		int size;
 
 		if (ver == 4) {
@@ -810,7 +811,8 @@ static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 	    !fw_has_api(&mvm->fw->ucode_capa,
 			IWL_UCODE_TLV_API_TKIP_MIC_KEYS)) {
 		int ver = iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
-						WOWLAN_TKIP_PARAM);
+						WOWLAN_TKIP_PARAM,
+						IWL_FW_CMD_VER_UNKNOWN);
 		int size;
 
 		if (ver == 2) {
@@ -836,8 +838,10 @@ static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 
 	/* configure rekey data only if offloaded rekey is supported (d3) */
 	if (mvmvif->rekey_data.valid) {
-		cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, IWL_ALWAYS_LONG_GROUP,
-						WOWLAN_KEK_KCK_MATERIAL);
+		cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
+						IWL_ALWAYS_LONG_GROUP,
+						WOWLAN_KEK_KCK_MATERIAL,
+						IWL_FW_CMD_VER_UNKNOWN);
 		if (WARN_ON(cmd_ver != 2 && cmd_ver != 3 &&
 			    cmd_ver != IWL_FW_CMD_VER_UNKNOWN))
 			return -EINVAL;

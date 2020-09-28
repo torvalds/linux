@@ -143,7 +143,8 @@ iwl_mvm_ftm_responder_cmd(struct iwl_mvm *mvm,
 		.sta_id = mvmvif->bcast_sta.sta_id,
 	};
 	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, LOCATION_GROUP,
-					   TOF_RESPONDER_CONFIG_CMD);
+					   TOF_RESPONDER_CONFIG_CMD,
+					   IWL_FW_CMD_VER_UNKNOWN);
 	int err;
 
 	lockdep_assert_held(&mvm->mutex);

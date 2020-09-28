@@ -577,7 +577,8 @@ int iwl_mvm_ftm_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	if (new_api) {
 		u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, LOCATION_GROUP,
-						   TOF_RANGE_REQ_CMD);
+						   TOF_RANGE_REQ_CMD,
+						   IWL_FW_CMD_VER_UNKNOWN);
 
 		switch (cmd_ver) {
 		case 9:
