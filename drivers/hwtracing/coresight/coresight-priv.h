@@ -173,15 +173,13 @@ static inline int etm_readl_cp14(u32 off, unsigned int *val) { return 0; }
 static inline int etm_writel_cp14(u32 off, u32 val) { return 0; }
 #endif
 
-#ifdef CONFIG_CORESIGHT_CTI
-extern void cti_add_assoc_to_csdev(struct coresight_device *csdev);
-extern void cti_remove_assoc_from_csdev(struct coresight_device *csdev);
+struct cti_assoc_op {
+	void (*add)(struct coresight_device *csdev);
+	void (*remove)(struct coresight_device *csdev);
+};
 
-#else
-static inline void cti_add_assoc_to_csdev(struct coresight_device *csdev) {}
-static inline void
-cti_remove_assoc_from_csdev(struct coresight_device *csdev) {}
-#endif
+extern void coresight_set_cti_ops(const struct cti_assoc_op *cti_op);
+extern void coresight_remove_cti_ops(void);
 
 /*
  * Macros and inline functions to handle CoreSight UCI data and driver
