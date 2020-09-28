@@ -2021,7 +2021,7 @@ static void nvme_update_disk_info(struct gendisk *disk,
 		/* unsupported block size, set capacity to 0 later */
 		bs = (1 << 9);
 	}
-	blk_mq_freeze_queue(disk->queue);
+
 	blk_integrity_unregister(disk);
 
 	atomic_bs = phys_bs = bs;
@@ -2086,8 +2086,6 @@ static void nvme_update_disk_info(struct gendisk *disk,
 		set_disk_ro(disk, true);
 	else
 		set_disk_ro(disk, false);
-
-	blk_mq_unfreeze_queue(disk->queue);
 }
 
 static inline bool nvme_first_scan(struct gendisk *disk)
@@ -2133,6 +2131,7 @@ static int nvme_update_ns_info(struct nvme_ns *ns, struct nvme_id_ns *id)
 	struct nvme_ctrl *ctrl = ns->ctrl;
 	int ret;
 
+	blk_mq_freeze_queue(ns->disk->queue);
 	/*
 	 * If identify namespace failed, use default 512 byte block size so
 	 * block layer can use before failing read/write for 0 capacity.
@@ -2150,30 +2149,39 @@ static int nvme_update_ns_info(struct nvme_ns *ns, struct nvme_id_ns *id)
 			dev_warn(ctrl->device,
 				"failed to add zoned namespace:%u ret:%d\n",
 				ns->head->ns_id, ret);
-			return ret;
+			goto out_unfreeze;
 		}
 		break;
 	default:
 		dev_warn(ctrl->device, "unknown csi:%u ns:%u\n",
 			ns->head->ids.csi, ns->head->ns_id);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto out_unfreeze;
 	}
 
 	ret = nvme_configure_metadata(ns, id);
 	if (ret)
-		return ret;
+		goto out_unfreeze;
 	nvme_set_chunk_sectors(ns, id);
 	nvme_update_disk_info(ns->disk, ns, id);
+	blk_mq_unfreeze_queue(ns->disk->queue);
+
 #ifdef CONFIG_NVME_MULTIPATH
 	if (ns->head->disk) {
+		blk_mq_freeze_queue(ns->head->disk->queue);
 		nvme_update_disk_info(ns->head->disk, ns, id);
 		blk_stack_limits(&ns->head->disk->queue->limits,
 				 &ns->queue->limits, 0);
 		blk_queue_update_readahead(ns->head->disk->queue);
 		nvme_update_bdev_size(ns->head->disk);
+		blk_mq_unfreeze_queue(ns->head->disk->queue);
 	}
 #endif
 	return 0;
+
+out_unfreeze:
+	blk_mq_unfreeze_queue(ns->disk->queue);
+	return ret;
 }
 
 static int nvme_validate_ns(struct nvme_ns *ns)
