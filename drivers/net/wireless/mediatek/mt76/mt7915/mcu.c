@@ -2307,7 +2307,7 @@ mt7915_mcu_add_group(struct mt7915_dev *dev, struct ieee80211_vif *vif,
 		.action = cpu_to_le32(MT_STA_BSS_GROUP),
 		.wlan_idx_lo = to_wcid_lo(msta->wcid.idx),
 		.wlan_idx_hi = to_wcid_hi(msta->wcid.idx),
-		.val = cpu_to_le32(mvif->idx),
+		.val = cpu_to_le32(mvif->idx % 16),
 	};
 
 	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_SET_DRR_CTRL,
