@@ -50,8 +50,8 @@
  *
  * Each region is represented by struct memblock_region that
  * defines the region extents, its attributes and NUMA node id on NUMA
- * systems. Every memory type is described by the :c:type:`struct
- * memblock_type` which contains an array of memory regions along with
+ * systems. Every memory type is described by the struct memblock_type
+ * which contains an array of memory regions along with
  * the allocator metadata. The "memory" and "reserved" types are nicely
  * wrapped with struct memblock. This structure is statically
  * initialized at build time. The region arrays are initially sized to
