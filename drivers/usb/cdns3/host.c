@@ -52,15 +52,25 @@ static int __cdns3_host_init(struct cdns3 *cdns)
 		goto err1;
 	}
 
-	ret = platform_device_add_data(xhci, &xhci_plat_cdns3_xhci,
+	cdns->xhci_plat_data = kmemdup(&xhci_plat_cdns3_xhci,
+			sizeof(struct xhci_plat_priv), GFP_KERNEL);
+	if (!cdns->xhci_plat_data) {
+		ret = -ENOMEM;
+		goto err1;
+	}
+
+	if (cdns->pdata->quirks & CDNS3_DEFAULT_PM_RUNTIME_ALLOW)
+		cdns->xhci_plat_data->quirks |= XHCI_DEFAULT_PM_RUNTIME_ALLOW;
+
+	ret = platform_device_add_data(xhci, cdns->xhci_plat_data,
 			sizeof(struct xhci_plat_priv));
 	if (ret)
-		goto err1;
+		goto free_memory;
 
 	ret = platform_device_add(xhci);
 	if (ret) {
 		dev_err(cdns->dev, "failed to register xHCI device\n");
-		goto err1;
+		goto free_memory;
 	}
 
 	/* Glue needs to access xHCI region register for Power management */
@@ -69,6 +79,9 @@ static int __cdns3_host_init(struct cdns3 *cdns)
 		cdns->xhci_regs = hcd->regs;
 
 	return 0;
+
+free_memory:
+	kfree(cdns->xhci_plat_data);
 err1:
 	platform_device_put(xhci);
 	return ret;
@@ -102,6 +115,7 @@ int xhci_cdns3_suspend_quirk(struct usb_hcd *hcd)
 
 static void cdns3_host_exit(struct cdns3 *cdns)
 {
+	kfree(cdns->xhci_plat_data);
 	platform_device_unregister(cdns->host_dev);
 	cdns->host_dev = NULL;
 	cdns3_drd_host_off(cdns);
