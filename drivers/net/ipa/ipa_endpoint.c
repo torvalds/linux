@@ -42,11 +42,8 @@
 /** enum ipa_status_opcode - status element opcode hardware values */
 enum ipa_status_opcode {
 	IPA_STATUS_OPCODE_PACKET		= 0x01,
-	IPA_STATUS_OPCODE_NEW_FRAG_RULE		= 0x02,
 	IPA_STATUS_OPCODE_DROPPED_PACKET	= 0x04,
 	IPA_STATUS_OPCODE_SUSPENDED_PACKET	= 0x08,
-	IPA_STATUS_OPCODE_LOG			= 0x10,
-	IPA_STATUS_OPCODE_DCMP			= 0x20,
 	IPA_STATUS_OPCODE_PACKET_2ND_PASS	= 0x40,
 };
 
@@ -1048,8 +1045,7 @@ static bool ipa_endpoint_skb_build(struct ipa_endpoint *endpoint,
 }
 
 /* The format of a packet status element is the same for several status
- * types (opcodes).  The NEW_FRAG_RULE, LOG, DCMP (decompression) types
- * aren't currently supported
+ * types (opcodes).  Other types aren't currently supported.
  */
 static bool ipa_status_format_packet(enum ipa_status_opcode opcode)
 {
