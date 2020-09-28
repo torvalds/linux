@@ -582,11 +582,10 @@ This unnamed version was finally merged into Linux 2.5.46.
     above. A ``field`` field of type :c:type:`v4l2_field` was added to
     distinguish between field and frame (interlaced) overlay.
 
-17. The digital zoom interface, including struct
-    struct ``v4l2_zoomcap``, struct
+17. The digital zoom interface, including struct ``v4l2_zoomcap``,
     struct ``v4l2_zoom``, ``V4L2_ZOOM_NONCAP`` and
     ``V4L2_ZOOM_WHILESTREAMING`` was replaced by a new cropping and
-    scaling interface. The previously unused struct
+    scaling interface. The previously unused
     struct :c:type:`v4l2_cropcap` and struct :c:type:`v4l2_crop`
     where redefined for this purpose. See :ref:`crop` for details.
 
@@ -811,7 +810,7 @@ V4L2 spec erratum 2006-02-04
 
 1. The ``clips`` field in struct :c:type:`v4l2_window`
    must point to an array of struct :c:type:`v4l2_clip`, not
-   a linked list, because drivers ignore the struct
+   a linked list, because drivers ignore the
    struct :c:type:`v4l2_clip`. ``next`` pointer.
 
 
@@ -926,7 +925,7 @@ V4L2 in Linux 2.6.22
 
    A new ``global_alpha`` field was added to
    :c:type:`v4l2_window`, extending the structure. This
-   may *break compatibility* with applications using a struct
+   may *break compatibility* with applications using a
    struct :c:type:`v4l2_window` directly. However the
    :ref:`VIDIOC_G/S/TRY_FMT <VIDIOC_G_FMT>` ioctls, which take a
    pointer to a :c:type:`v4l2_format` parent structure
@@ -1013,8 +1012,7 @@ V4L2 in Linux 2.6.29
 
 1. The ``VIDIOC_G_CHIP_IDENT`` ioctl was renamed to
    ``VIDIOC_G_CHIP_IDENT_OLD`` and ``VIDIOC_DBG_G_CHIP_IDENT`` was
-   introduced in its place. The old struct
-   struct ``v4l2_chip_ident`` was renamed to
+   introduced in its place. The old struct ``v4l2_chip_ident`` was renamed to
    struct ``v4l2_chip_ident_old``.
 
 2. The pixel formats ``V4L2_PIX_FMT_VYUY``, ``V4L2_PIX_FMT_NV16`` and
