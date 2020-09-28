@@ -269,12 +269,6 @@ static inline bool iwl_sar_geo_support(struct iwl_fw_runtime *fwrt)
 	return false;
 }
 
-static int iwl_sar_geo_init(struct iwl_fw_runtime *fwrt,
-			    struct iwl_per_chain_offset *table, u32 n_bands)
-{
-	return -ENOENT;
-}
-
 static inline int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
 				   __le32 *black_list_array,
 				   int *black_list_size)
