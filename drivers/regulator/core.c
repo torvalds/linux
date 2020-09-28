@@ -964,7 +964,8 @@ static int drms_uA_update(struct regulator_dev *rdev)
 		/* set the optimum mode for our new total regulator load */
 		err = rdev->desc->ops->set_load(rdev, current_uA);
 		if (err < 0)
-			rdev_err(rdev, "failed to set load %d\n", current_uA);
+			rdev_err(rdev, "failed to set load %d: %pe\n",
+				 current_uA, ERR_PTR(err));
 	} else {
 		/* get output voltage */
 		output_uV = regulator_get_voltage_rdev(rdev);
@@ -991,14 +992,15 @@ static int drms_uA_update(struct regulator_dev *rdev)
 		/* check the new mode is allowed */
 		err = regulator_mode_constrain(rdev, &mode);
 		if (err < 0) {
-			rdev_err(rdev, "failed to get optimum mode @ %d uA %d -> %d uV\n",
-				 current_uA, input_uV, output_uV);
+			rdev_err(rdev, "failed to get optimum mode @ %d uA %d -> %d uV: %pe\n",
+				 current_uA, input_uV, output_uV, ERR_PTR(err));
 			return err;
 		}
 
 		err = rdev->desc->ops->set_mode(rdev, mode);
 		if (err < 0)
-			rdev_err(rdev, "failed to set optimum mode %x\n", mode);
+			rdev_err(rdev, "failed to set optimum mode %x: %pe\n",
+				 mode, ERR_PTR(err));
 	}
 
 	return err;
@@ -1019,14 +1021,14 @@ static int __suspend_set_state(struct regulator_dev *rdev,
 		ret = 0;
 
 	if (ret < 0) {
-		rdev_err(rdev, "failed to enabled/disable\n");
+		rdev_err(rdev, "failed to enabled/disable: %pe\n", ERR_PTR(ret));
 		return ret;
 	}
 
 	if (rdev->desc->ops->set_suspend_voltage && rstate->uV > 0) {
 		ret = rdev->desc->ops->set_suspend_voltage(rdev, rstate->uV);
 		if (ret < 0) {
-			rdev_err(rdev, "failed to set voltage\n");
+			rdev_err(rdev, "failed to set voltage: %pe\n", ERR_PTR(ret));
 			return ret;
 		}
 	}
@@ -1034,7 +1036,7 @@ static int __suspend_set_state(struct regulator_dev *rdev,
 	if (rdev->desc->ops->set_suspend_mode && rstate->mode > 0) {
 		ret = rdev->desc->ops->set_suspend_mode(rdev, rstate->mode);
 		if (ret < 0) {
-			rdev_err(rdev, "failed to set mode\n");
+			rdev_err(rdev, "failed to set mode: %pe\n", ERR_PTR(ret));
 			return ret;
 		}
 	}
@@ -1111,10 +1113,15 @@ static void print_constraints(struct regulator_dev *rdev)
 	if (constraints->valid_modes_mask & REGULATOR_MODE_IDLE)
 		count += scnprintf(buf + count, len - count, "idle ");
 	if (constraints->valid_modes_mask & REGULATOR_MODE_STANDBY)
-		count += scnprintf(buf + count, len - count, "standby");
+		count += scnprintf(buf + count, len - count, "standby ");
 
 	if (!count)
-		scnprintf(buf, len, "no parameters");
+		count = scnprintf(buf, len, "no parameters");
+	else
+		--count;
+
+	count += scnprintf(buf + count, len - count, ", %s",
+		_regulator_is_enabled(rdev) ? "enabled" : "disabled");
 
 	rdev_dbg(rdev, "%s\n", buf);
 
@@ -1149,8 +1156,8 @@ static int machine_constraints_voltage(struct regulator_dev *rdev,
 
 		if (current_uV < 0) {
 			rdev_err(rdev,
-				 "failed to get the current voltage(%d)\n",
-				 current_uV);
+				 "failed to get the current voltage: %pe\n",
+				 ERR_PTR(current_uV));
 			return current_uV;
 		}
 
@@ -1179,8 +1186,8 @@ static int machine_constraints_voltage(struct regulator_dev *rdev,
 				rdev, target_min, target_max);
 			if (ret < 0) {
 				rdev_err(rdev,
-					"failed to apply %d-%duV constraint(%d)\n",
-					target_min, target_max, ret);
+					"failed to apply %d-%duV constraint: %pe\n",
+					target_min, target_max, ERR_PTR(ret));
 				return ret;
 			}
 		}
@@ -1329,7 +1336,7 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 		ret = ops->set_input_current_limit(rdev,
 						   rdev->constraints->ilim_uA);
 		if (ret < 0) {
-			rdev_err(rdev, "failed to set input limit\n");
+			rdev_err(rdev, "failed to set input limit: %pe\n", ERR_PTR(ret));
 			return ret;
 		}
 	}
@@ -1338,7 +1345,7 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 	if (rdev->constraints->initial_state) {
 		ret = suspend_set_initial_state(rdev);
 		if (ret < 0) {
-			rdev_err(rdev, "failed to set suspend state\n");
+			rdev_err(rdev, "failed to set suspend state: %pe\n", ERR_PTR(ret));
 			return ret;
 		}
 	}
@@ -1351,7 +1358,7 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 
 		ret = ops->set_mode(rdev, rdev->constraints->initial_mode);
 		if (ret < 0) {
-			rdev_err(rdev, "failed to set initial mode: %d\n", ret);
+			rdev_err(rdev, "failed to set initial mode: %pe\n", ERR_PTR(ret));
 			return ret;
 		}
 	} else if (rdev->constraints->system_load) {
@@ -1366,7 +1373,7 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 		&& ops->set_ramp_delay) {
 		ret = ops->set_ramp_delay(rdev, rdev->constraints->ramp_delay);
 		if (ret < 0) {
-			rdev_err(rdev, "failed to set ramp_delay\n");
+			rdev_err(rdev, "failed to set ramp_delay: %pe\n", ERR_PTR(ret));
 			return ret;
 		}
 	}
@@ -1374,7 +1381,7 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 	if (rdev->constraints->pull_down && ops->set_pull_down) {
 		ret = ops->set_pull_down(rdev);
 		if (ret < 0) {
-			rdev_err(rdev, "failed to set pull down\n");
+			rdev_err(rdev, "failed to set pull down: %pe\n", ERR_PTR(ret));
 			return ret;
 		}
 	}
@@ -1382,7 +1389,7 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 	if (rdev->constraints->soft_start && ops->set_soft_start) {
 		ret = ops->set_soft_start(rdev);
 		if (ret < 0) {
-			rdev_err(rdev, "failed to set soft start\n");
+			rdev_err(rdev, "failed to set soft start: %pe\n", ERR_PTR(ret));
 			return ret;
 		}
 	}
@@ -1391,7 +1398,8 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 		&& ops->set_over_current_protection) {
 		ret = ops->set_over_current_protection(rdev);
 		if (ret < 0) {
-			rdev_err(rdev, "failed to set over current protection\n");
+			rdev_err(rdev, "failed to set over current protection: %pe\n",
+				 ERR_PTR(ret));
 			return ret;
 		}
 	}
@@ -1402,7 +1410,7 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 
 		ret = ops->set_active_discharge(rdev, ad_state);
 		if (ret < 0) {
-			rdev_err(rdev, "failed to set active discharge\n");
+			rdev_err(rdev, "failed to set active discharge: %pe\n", ERR_PTR(ret));
 			return ret;
 		}
 	}
@@ -1422,7 +1430,7 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 
 		ret = _regulator_do_enable(rdev);
 		if (ret < 0 && ret != -EINVAL) {
-			rdev_err(rdev, "failed to enable\n");
+			rdev_err(rdev, "failed to enable: %pe\n", ERR_PTR(ret));
 			return ret;
 		}
 
@@ -1646,8 +1654,8 @@ static struct regulator *create_regulator(struct regulator_dev *rdev,
 		err = sysfs_create_link_nowarn(&rdev->dev.kobj, &dev->kobj,
 					       supply_name);
 		if (err) {
-			rdev_dbg(rdev, "could not add device link %s err %d\n",
-				  dev->kobj.name, err);
+			rdev_dbg(rdev, "could not add device link %s: %pe\n",
+				  dev->kobj.name, ERR_PTR(err));
 			/* non-fatal */
 		}
 	}
@@ -2435,7 +2443,7 @@ static int _regulator_do_enable(struct regulator_dev *rdev)
 	if (ret >= 0) {
 		delay = ret;
 	} else {
-		rdev_warn(rdev, "enable_time() failed: %d\n", ret);
+		rdev_warn(rdev, "enable_time() failed: %pe\n", ERR_PTR(ret));
 		delay = 0;
 	}
 
@@ -2624,7 +2632,7 @@ static int _regulator_enable(struct regulator *regulator)
 			_notifier_call_chain(rdev, REGULATOR_EVENT_ENABLE,
 					     NULL);
 		} else if (ret < 0) {
-			rdev_err(rdev, "is_enabled() failed: %d\n", ret);
+			rdev_err(rdev, "is_enabled() failed: %pe\n", ERR_PTR(ret));
 			goto err_consumer_disable;
 		}
 		/* Fallthrough on positive return values - already enabled */
@@ -2726,7 +2734,7 @@ static int _regulator_disable(struct regulator *regulator)
 
 			ret = _regulator_do_disable(rdev);
 			if (ret < 0) {
-				rdev_err(rdev, "failed to disable\n");
+				rdev_err(rdev, "failed to disable: %pe\n", ERR_PTR(ret));
 				_notifier_call_chain(rdev,
 						REGULATOR_EVENT_ABORT_DISABLE,
 						NULL);
@@ -2793,7 +2801,7 @@ static int _regulator_force_disable(struct regulator_dev *rdev)
 
 	ret = _regulator_do_disable(rdev);
 	if (ret < 0) {
-		rdev_err(rdev, "failed to force disable\n");
+		rdev_err(rdev, "failed to force disable: %pe\n", ERR_PTR(ret));
 		_notifier_call_chain(rdev, REGULATOR_EVENT_FORCE_DISABLE |
 				REGULATOR_EVENT_ABORT_DISABLE, NULL);
 		return ret;
@@ -2872,7 +2880,8 @@ static void regulator_disable_work(struct work_struct *work)
 		for (i = 0; i < count; i++) {
 			ret = _regulator_disable(regulator);
 			if (ret != 0)
-				rdev_err(rdev, "Deferred disable failed: %d\n", ret);
+				rdev_err(rdev, "Deferred disable failed: %pe\n",
+					 ERR_PTR(ret));
 		}
 	}
 	WARN_ON(!total_count);
@@ -3397,7 +3406,7 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 	}
 
 	if (delay < 0) {
-		rdev_warn(rdev, "failed to get delay: %d\n", delay);
+		rdev_warn(rdev, "failed to get delay: %pe\n", ERR_PTR(delay));
 		delay = 0;
 	}
 
@@ -3549,8 +3558,8 @@ int regulator_set_voltage_rdev(struct regulator_dev *rdev, int min_uV,
 		ret = regulator_set_voltage_unlocked(rdev->supply,
 				best_supply_uV, INT_MAX, state);
 		if (ret) {
-			dev_err(&rdev->dev, "Failed to increase supply voltage: %d\n",
-					ret);
+			dev_err(&rdev->dev, "Failed to increase supply voltage: %pe\n",
+				ERR_PTR(ret));
 			goto out;
 		}
 	}
@@ -3567,8 +3576,8 @@ int regulator_set_voltage_rdev(struct regulator_dev *rdev, int min_uV,
 		ret = regulator_set_voltage_unlocked(rdev->supply,
 				best_supply_uV, INT_MAX, state);
 		if (ret)
-			dev_warn(&rdev->dev, "Failed to decrease supply voltage: %d\n",
-					ret);
+			dev_warn(&rdev->dev, "Failed to decrease supply voltage: %pe\n",
+				 ERR_PTR(ret));
 		/* No need to fail here */
 		ret = 0;
 	}
@@ -4554,8 +4563,8 @@ int regulator_bulk_get(struct device *dev, int num_consumers,
 
 err:
 	if (ret != -EPROBE_DEFER)
-		dev_err(dev, "Failed to get supply '%s': %d\n",
-			consumers[i].supply, ret);
+		dev_err(dev, "Failed to get supply '%s': %pe\n",
+			consumers[i].supply, ERR_PTR(ret));
 	else
 		dev_dbg(dev, "Failed to get supply '%s', deferring\n",
 			consumers[i].supply);
@@ -4613,8 +4622,8 @@ int regulator_bulk_enable(int num_consumers,
 err:
 	for (i = 0; i < num_consumers; i++) {
 		if (consumers[i].ret < 0)
-			pr_err("Failed to enable %s: %d\n", consumers[i].supply,
-			       consumers[i].ret);
+			pr_err("Failed to enable %s: %pe\n", consumers[i].supply,
+			       ERR_PTR(consumers[i].ret));
 		else
 			regulator_disable(consumers[i].consumer);
 	}
@@ -4650,12 +4659,12 @@ int regulator_bulk_disable(int num_consumers,
 	return 0;
 
 err:
-	pr_err("Failed to disable %s: %d\n", consumers[i].supply, ret);
+	pr_err("Failed to disable %s: %pe\n", consumers[i].supply, ERR_PTR(ret));
 	for (++i; i < num_consumers; ++i) {
 		r = regulator_enable(consumers[i].consumer);
 		if (r != 0)
-			pr_err("Failed to re-enable %s: %d\n",
-			       consumers[i].supply, r);
+			pr_err("Failed to re-enable %s: %pe\n",
+			       consumers[i].supply, ERR_PTR(r));
 	}
 
 	return ret;
@@ -5038,8 +5047,8 @@ static void regulator_remove_coupling(struct regulator_dev *rdev)
 	if (coupler && coupler->detach_regulator) {
 		err = coupler->detach_regulator(coupler, rdev);
 		if (err)
-			rdev_err(rdev, "failed to detach from coupler: %d\n",
-				 err);
+			rdev_err(rdev, "failed to detach from coupler: %pe\n",
+				 ERR_PTR(err));
 	}
 
 	kfree(rdev->coupling_desc.coupled_rdevs);
@@ -5083,7 +5092,7 @@ static int regulator_init_coupling(struct regulator_dev *rdev)
 
 	if (IS_ERR(rdev->coupling_desc.coupler)) {
 		err = PTR_ERR(rdev->coupling_desc.coupler);
-		rdev_err(rdev, "failed to get coupler: %d\n", err);
+		rdev_err(rdev, "failed to get coupler: %pe\n", ERR_PTR(err));
 		return err;
 	}
 
@@ -5246,8 +5255,8 @@ regulator_register(const struct regulator_desc *regulator_desc,
 	if (config->ena_gpiod) {
 		ret = regulator_ena_gpio_request(rdev, config);
 		if (ret != 0) {
-			rdev_err(rdev, "Failed to request enable GPIO: %d\n",
-				 ret);
+			rdev_err(rdev, "Failed to request enable GPIO: %pe\n",
+				 ERR_PTR(ret));
 			goto clean;
 		}
 		/* The regulator core took over the GPIO descriptor */
@@ -5271,15 +5280,20 @@ regulator_register(const struct regulator_desc *regulator_desc,
 	else if (regulator_desc->supply_name)
 		rdev->supply_name = regulator_desc->supply_name;
 
-	/*
-	 * Attempt to resolve the regulator supply, if specified,
-	 * but don't return an error if we fail because we will try
-	 * to resolve it again later as more regulators are added.
-	 */
-	if (regulator_resolve_supply(rdev))
-		rdev_dbg(rdev, "unable to resolve supply\n");
-
 	ret = set_machine_constraints(rdev, constraints);
+	if (ret == -EPROBE_DEFER) {
+		/* Regulator might be in bypass mode and so needs its supply
+		 * to set the constraints */
+		/* FIXME: this currently triggers a chicken-and-egg problem
+		 * when creating -SUPPLY symlink in sysfs to a regulator
+		 * that is just being created */
+		ret = regulator_resolve_supply(rdev);
+		if (!ret)
+			ret = set_machine_constraints(rdev, constraints);
+		else
+			rdev_dbg(rdev, "unable to resolve supply early: %pe\n",
+				 ERR_PTR(ret));
+	}
 	if (ret < 0)
 		goto wash;
 
@@ -5832,7 +5846,7 @@ static int regulator_late_cleanup(struct device *dev, void *data)
 		rdev_info(rdev, "disabling\n");
 		ret = _regulator_do_disable(rdev);
 		if (ret != 0)
-			rdev_err(rdev, "couldn't disable: %d\n", ret);
+			rdev_err(rdev, "couldn't disable: %pe\n", ERR_PTR(ret));
 	} else {
 		/* The intention is that in future we will
 		 * assume that full constraints are provided
