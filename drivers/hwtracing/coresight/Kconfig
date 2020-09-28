@@ -3,7 +3,7 @@
 # Coresight configuration
 #
 menuconfig CORESIGHT
-	bool "CoreSight Tracing Support"
+	tristate "CoreSight Tracing Support"
 	depends on ARM || ARM64
 	depends on OF || ACPI
 	select ARM_AMBA
@@ -14,6 +14,9 @@ menuconfig CORESIGHT
 	  a topological view of the CoreSight components based on a DT
 	  specification and configure the right series of components when a
 	  trace source gets enabled.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called coresight.
 
 if CORESIGHT
 config CORESIGHT_LINKS_AND_SINKS
