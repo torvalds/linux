@@ -583,6 +583,8 @@ static const char *uaccess_safe_builtin[] = {
 	"__asan_store4_noabort",
 	"__asan_store8_noabort",
 	"__asan_store16_noabort",
+	"__kasan_check_read",
+	"__kasan_check_write",
 	/* KASAN in-line */
 	"__asan_report_load_n_noabort",
 	"__asan_report_load1_noabort",
