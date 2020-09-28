@@ -89,6 +89,7 @@
 
 #define ACPI_SAR_NUM_CHAIN_LIMITS	2
 #define ACPI_SAR_NUM_SUB_BANDS		5
+#define ACPI_SAR_NUM_TABLES		1
 
 #define ACPI_WRDS_WIFI_DATA_SIZE	(ACPI_SAR_TABLE_SIZE + 2)
 #define ACPI_EWRD_WIFI_DATA_SIZE	((ACPI_SAR_PROFILE_NUM - 1) * \
@@ -183,7 +184,7 @@ u64 iwl_acpi_get_pwr_limit(struct device *dev);
 int iwl_acpi_get_eckv(struct device *dev, u32 *extl_clk);
 
 int iwl_sar_select_profile(struct iwl_fw_runtime *fwrt,
-			   __le16 per_chain[][IWL_NUM_SUB_BANDS],
+			   __le16 *per_chain, u32 n_tables, u32 n_subbands,
 			   int prof_a, int prof_b);
 
 int iwl_sar_get_wrds_table(struct iwl_fw_runtime *fwrt);
@@ -242,7 +243,7 @@ static inline int iwl_acpi_get_eckv(struct device *dev, u32 *extl_clk)
 }
 
 static inline int iwl_sar_select_profile(struct iwl_fw_runtime *fwrt,
-			   __le16 per_chain[][IWL_NUM_SUB_BANDS],
+			   __le16 *per_chain, u32 n_tables, u32 n_subbands,
 			   int prof_a, int prof_b)
 {
 	return -ENOENT;

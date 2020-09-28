@@ -739,23 +739,28 @@ int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
 	struct iwl_dev_tx_power_cmd cmd = {
 		.common.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_CHAINS),
 	};
+	__le16 *per_chain;
 	int ret;
 	u16 len = 0;
 
 	if (fw_has_api(&mvm->fw->ucode_capa,
-		       IWL_UCODE_TLV_API_REDUCE_TX_POWER))
+		       IWL_UCODE_TLV_API_REDUCE_TX_POWER)) {
 		len = sizeof(cmd.v5);
-	else if (fw_has_capa(&mvm->fw->ucode_capa,
-			     IWL_UCODE_TLV_CAPA_TX_POWER_ACK))
+		per_chain = cmd.v5.per_chain[0][0];
+	} else if (fw_has_capa(&mvm->fw->ucode_capa,
+			     IWL_UCODE_TLV_CAPA_TX_POWER_ACK)) {
 		len = sizeof(cmd.v4);
-	else
+		per_chain = cmd.v4.per_chain[0][0];
+	} else {
 		len = sizeof(cmd.v3);
+		per_chain = cmd.v3.per_chain[0][0];
+	}
 
 	/* all structs have the same common part, add it */
 	len += sizeof(cmd.common);
 
-	ret = iwl_sar_select_profile(&mvm->fwrt, cmd.v5.per_chain,
-				     prof_a, prof_b);
+	ret = iwl_sar_select_profile(&mvm->fwrt, per_chain, ACPI_SAR_NUM_TABLES,
+				     ACPI_SAR_NUM_SUB_BANDS, prof_a, prof_b);
 
 	/* return on error or if the profile is disabled (positive number) */
 	if (ret)

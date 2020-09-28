@@ -329,6 +329,7 @@ enum iwl_dev_tx_power_cmd_mode {
 	IWL_TX_POWER_MODE_SET_SAR_TIMER_DEFAULT_TABLE = 5,
 }; /* TX_POWER_REDUCED_FLAGS_TYPE_API_E_VER_5 */;
 
+#define IWL_NUM_CHAIN_TABLES	1
 #define IWL_NUM_CHAIN_LIMITS	2
 #define IWL_NUM_SUB_BANDS	5
 #define IWL_NUM_SUB_BANDS_V2	11
@@ -356,7 +357,7 @@ struct iwl_dev_tx_power_common {
  * @per_chain: per chain restrictions
  */
 struct iwl_dev_tx_power_cmd_v3 {
-	__le16 per_chain[IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS];
+	__le16 per_chain[IWL_NUM_CHAIN_TABLES][IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS];
 } __packed; /* TX_REDUCED_POWER_API_S_VER_3 */
 
 #define IWL_DEV_MAX_TX_POWER 0x7FFF
@@ -369,7 +370,7 @@ struct iwl_dev_tx_power_cmd_v3 {
  * @reserved: reserved (padding)
  */
 struct iwl_dev_tx_power_cmd_v4 {
-	__le16 per_chain[IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS];
+	__le16 per_chain[IWL_NUM_CHAIN_TABLES][IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS];
 	u8 enable_ack_reduction;
 	u8 reserved[3];
 } __packed; /* TX_REDUCED_POWER_API_S_VER_4 */
@@ -388,7 +389,7 @@ struct iwl_dev_tx_power_cmd_v4 {
  *	BIOS values. relevant if setMode is IWL_TX_POWER_MODE_SET_SAR_TIMER
  */
 struct iwl_dev_tx_power_cmd_v5 {
-	__le16 per_chain[IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS];
+	__le16 per_chain[IWL_NUM_CHAIN_TABLES][IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS];
 	u8 enable_ack_reduction;
 	u8 per_chain_restriction_changed;
 	u8 reserved[2];

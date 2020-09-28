@@ -419,16 +419,12 @@ static int iwl_sar_set_profile(union acpi_object *table,
 	return 0;
 }
 
-int iwl_sar_select_profile(struct iwl_fw_runtime *fwrt,
-			   __le16 per_chain[][IWL_NUM_SUB_BANDS],
-			   int prof_a, int prof_b)
+static int iwl_sar_fill_table(struct iwl_fw_runtime *fwrt,
+			      __le16 *per_chain, u32 n_subbands,
+			      int prof_a, int prof_b)
 {
-	int i, j, idx;
 	int profs[ACPI_SAR_NUM_CHAIN_LIMITS] = { prof_a, prof_b };
-
-	BUILD_BUG_ON(ACPI_SAR_NUM_CHAIN_LIMITS < 2);
-	BUILD_BUG_ON(ACPI_SAR_NUM_CHAIN_LIMITS * ACPI_SAR_NUM_SUB_BANDS !=
-		     ACPI_SAR_TABLE_SIZE);
+	int i, j, idx;
 
 	for (i = 0; i < ACPI_SAR_NUM_CHAIN_LIMITS; i++) {
 		struct iwl_sar_profile *prof;
@@ -460,15 +456,33 @@ int iwl_sar_select_profile(struct iwl_fw_runtime *fwrt,
 			       "SAR EWRD: chain %d profile index %d\n",
 			       i, profs[i]);
 		IWL_DEBUG_RADIO(fwrt, "  Chain[%d]:\n", i);
-		for (j = 0; j < ACPI_SAR_NUM_SUB_BANDS; j++) {
-			idx = (i * ACPI_SAR_NUM_SUB_BANDS) + j;
-			per_chain[i][j] = cpu_to_le16(prof->table[idx]);
+		for (j = 0; j < n_subbands; j++) {
+			idx = i * ACPI_SAR_NUM_SUB_BANDS + j;
+			per_chain[i * n_subbands + j] =
+				cpu_to_le16(prof->table[idx]);
 			IWL_DEBUG_RADIO(fwrt, "    Band[%d] = %d * .125dBm\n",
 					j, prof->table[idx]);
 		}
 	}
 
 	return 0;
+}
+
+int iwl_sar_select_profile(struct iwl_fw_runtime *fwrt,
+			   __le16 *per_chain, u32 n_tables, u32 n_subbands,
+			   int prof_a, int prof_b)
+{
+	int i, ret = 0;
+
+	for (i = 0; i < n_tables; i++) {
+		ret = iwl_sar_fill_table(fwrt,
+			 &per_chain[i * n_subbands * ACPI_SAR_NUM_CHAIN_LIMITS],
+			 n_subbands, prof_a, prof_b);
+		if (ret)
+			break;
+	}
+
+	return ret;
 }
 IWL_EXPORT_SYMBOL(iwl_sar_select_profile);
 
