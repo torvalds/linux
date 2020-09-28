@@ -29,8 +29,7 @@
 #include "smc_ism.h"
 #include "smc_core.h"
 
-#define SMC_ASCII_BLANK 32
-
+static struct net_device *__pnet_find_base_ndev(struct net_device *ndev);
 static struct net_device *pnet_find_base_ndev(struct net_device *ndev);
 
 static const struct nla_policy smc_pnet_policy[SMC_PNETID_MAX + 1] = {
@@ -73,14 +72,22 @@ struct smc_pnetentry {
 	};
 };
 
+/* Check if the pnetid is set */
+bool smc_pnet_is_pnetid_set(u8 *pnetid)
+{
+	if (pnetid[0] == 0 || pnetid[0] == _S)
+		return false;
+	return true;
+}
+
 /* Check if two given pnetids match */
 static bool smc_pnet_match(u8 *pnetid1, u8 *pnetid2)
 {
 	int i;
 
 	for (i = 0; i < SMC_MAX_PNETID_LEN; i++) {
-		if ((pnetid1[i] == 0 || pnetid1[i] == SMC_ASCII_BLANK) &&
-		    (pnetid2[i] == 0 || pnetid2[i] == SMC_ASCII_BLANK))
+		if ((pnetid1[i] == 0 || pnetid1[i] == _S) &&
+		    (pnetid2[i] == 0 || pnetid2[i] == _S))
 			break;
 		if (pnetid1[i] != pnetid2[i])
 			return false;
@@ -238,11 +245,10 @@ static int smc_pnet_remove_by_ndev(struct net_device *ndev)
 static bool smc_pnet_apply_ib(struct smc_ib_device *ib_dev, u8 ib_port,
 			      char *pnet_name)
 {
-	u8 pnet_null[SMC_MAX_PNETID_LEN] = {0};
 	bool applied = false;
 
 	mutex_lock(&smc_ib_devices.mutex);
-	if (smc_pnet_match(ib_dev->pnetid[ib_port - 1], pnet_null)) {
+	if (!smc_pnet_is_pnetid_set(ib_dev->pnetid[ib_port - 1])) {
 		memcpy(ib_dev->pnetid[ib_port - 1], pnet_name,
 		       SMC_MAX_PNETID_LEN);
 		ib_dev->pnetid_by_user[ib_port - 1] = true;
@@ -256,11 +262,10 @@ static bool smc_pnet_apply_ib(struct smc_ib_device *ib_dev, u8 ib_port,
  */
 static bool smc_pnet_apply_smcd(struct smcd_dev *smcd_dev, char *pnet_name)
 {
-	u8 pnet_null[SMC_MAX_PNETID_LEN] = {0};
 	bool applied = false;
 
 	mutex_lock(&smcd_dev_list.mutex);
-	if (smc_pnet_match(smcd_dev->pnetid, pnet_null)) {
+	if (!smc_pnet_is_pnetid_set(smcd_dev->pnetid)) {
 		memcpy(smcd_dev->pnetid, pnet_name, SMC_MAX_PNETID_LEN);
 		smcd_dev->pnetid_by_user = true;
 		applied = true;
@@ -708,10 +713,115 @@ static struct genl_family smc_pnet_nl_family __ro_after_init = {
 	.n_ops =  ARRAY_SIZE(smc_pnet_ops)
 };
 
+bool smc_pnet_is_ndev_pnetid(struct net *net, u8 *pnetid)
+{
+	struct smc_net *sn = net_generic(net, smc_net_id);
+	struct smc_pnetids_ndev_entry *pe;
+	bool rc = false;
+
+	read_lock(&sn->pnetids_ndev.lock);
+	list_for_each_entry(pe, &sn->pnetids_ndev.list, list) {
+		if (smc_pnet_match(pnetid, pe->pnetid)) {
+			rc = true;
+			goto unlock;
+		}
+	}
+
+unlock:
+	read_unlock(&sn->pnetids_ndev.lock);
+	return rc;
+}
+
+static int smc_pnet_add_pnetid(struct net *net, u8 *pnetid)
+{
+	struct smc_net *sn = net_generic(net, smc_net_id);
+	struct smc_pnetids_ndev_entry *pe, *pi;
+
+	pe = kzalloc(sizeof(*pe), GFP_KERNEL);
+	if (!pe)
+		return -ENOMEM;
+
+	write_lock(&sn->pnetids_ndev.lock);
+	list_for_each_entry(pi, &sn->pnetids_ndev.list, list) {
+		if (smc_pnet_match(pnetid, pe->pnetid)) {
+			refcount_inc(&pi->refcnt);
+			kfree(pe);
+			goto unlock;
+		}
+	}
+	refcount_set(&pe->refcnt, 1);
+	memcpy(pe->pnetid, pnetid, SMC_MAX_PNETID_LEN);
+	list_add_tail(&pe->list, &sn->pnetids_ndev.list);
+
+unlock:
+	write_unlock(&sn->pnetids_ndev.lock);
+	return 0;
+}
+
+static void smc_pnet_remove_pnetid(struct net *net, u8 *pnetid)
+{
+	struct smc_net *sn = net_generic(net, smc_net_id);
+	struct smc_pnetids_ndev_entry *pe, *pe2;
+
+	write_lock(&sn->pnetids_ndev.lock);
+	list_for_each_entry_safe(pe, pe2, &sn->pnetids_ndev.list, list) {
+		if (smc_pnet_match(pnetid, pe->pnetid)) {
+			if (refcount_dec_and_test(&pe->refcnt)) {
+				list_del(&pe->list);
+				kfree(pe);
+			}
+			break;
+		}
+	}
+	write_unlock(&sn->pnetids_ndev.lock);
+}
+
+static void smc_pnet_add_base_pnetid(struct net *net, struct net_device *dev,
+				     u8 *ndev_pnetid)
+{
+	struct net_device *base_dev;
+
+	base_dev = __pnet_find_base_ndev(dev);
+	if (base_dev->flags & IFF_UP &&
+	    !smc_pnetid_by_dev_port(base_dev->dev.parent, base_dev->dev_port,
+				    ndev_pnetid)) {
+		/* add to PNETIDs list */
+		smc_pnet_add_pnetid(net, ndev_pnetid);
+	}
+}
+
+/* create initial list of netdevice pnetids */
+static void smc_pnet_create_pnetids_list(struct net *net)
+{
+	u8 ndev_pnetid[SMC_MAX_PNETID_LEN];
+	struct net_device *dev;
+
+	rtnl_lock();
+	for_each_netdev(net, dev)
+		smc_pnet_add_base_pnetid(net, dev, ndev_pnetid);
+	rtnl_unlock();
+}
+
+/* clean up list of netdevice pnetids */
+static void smc_pnet_destroy_pnetids_list(struct net *net)
+{
+	struct smc_net *sn = net_generic(net, smc_net_id);
+	struct smc_pnetids_ndev_entry *pe, *temp_pe;
+
+	write_lock(&sn->pnetids_ndev.lock);
+	list_for_each_entry_safe(pe, temp_pe, &sn->pnetids_ndev.list, list) {
+		list_del(&pe->list);
+		kfree(pe);
+	}
+	write_unlock(&sn->pnetids_ndev.lock);
+}
+
 static int smc_pnet_netdev_event(struct notifier_block *this,
 				 unsigned long event, void *ptr)
 {
 	struct net_device *event_dev = netdev_notifier_info_to_dev(ptr);
+	struct net *net = dev_net(event_dev);
+	u8 ndev_pnetid[SMC_MAX_PNETID_LEN];
 
 	switch (event) {
 	case NETDEV_REBOOT:
@@ -720,6 +830,17 @@ static int smc_pnet_netdev_event(struct notifier_block *this,
 		return NOTIFY_OK;
 	case NETDEV_REGISTER:
 		smc_pnet_add_by_ndev(event_dev);
+		return NOTIFY_OK;
+	case NETDEV_UP:
+		smc_pnet_add_base_pnetid(net, event_dev, ndev_pnetid);
+		return NOTIFY_OK;
+	case NETDEV_DOWN:
+		event_dev = __pnet_find_base_ndev(event_dev);
+		if (!smc_pnetid_by_dev_port(event_dev->dev.parent,
+					    event_dev->dev_port, ndev_pnetid)) {
+			/* remove from PNETIDs list */
+			smc_pnet_remove_pnetid(net, ndev_pnetid);
+		}
 		return NOTIFY_OK;
 	default:
 		return NOTIFY_DONE;
@@ -735,9 +856,14 @@ int smc_pnet_net_init(struct net *net)
 {
 	struct smc_net *sn = net_generic(net, smc_net_id);
 	struct smc_pnettable *pnettable = &sn->pnettable;
+	struct smc_pnetids_ndev *pnetids_ndev = &sn->pnetids_ndev;
 
 	INIT_LIST_HEAD(&pnettable->pnetlist);
 	rwlock_init(&pnettable->lock);
+	INIT_LIST_HEAD(&pnetids_ndev->list);
+	rwlock_init(&pnetids_ndev->lock);
+
+	smc_pnet_create_pnetids_list(net);
 
 	return 0;
 }
@@ -752,6 +878,7 @@ int __init smc_pnet_init(void)
 	rc = register_netdevice_notifier(&smc_netdev_notifier);
 	if (rc)
 		genl_unregister_family(&smc_pnet_nl_family);
+
 	return rc;
 }
 
@@ -760,6 +887,7 @@ void smc_pnet_net_exit(struct net *net)
 {
 	/* flush pnet table */
 	smc_pnet_remove_by_pnetid(net, NULL);
+	smc_pnet_destroy_pnetids_list(net);
 }
 
 void smc_pnet_exit(void)
@@ -768,16 +896,11 @@ void smc_pnet_exit(void)
 	genl_unregister_family(&smc_pnet_nl_family);
 }
 
-/* Determine one base device for stacked net devices.
- * If the lower device level contains more than one devices
- * (for instance with bonding slaves), just the first device
- * is used to reach a base device.
- */
-static struct net_device *pnet_find_base_ndev(struct net_device *ndev)
+static struct net_device *__pnet_find_base_ndev(struct net_device *ndev)
 {
 	int i, nest_lvl;
 
-	rtnl_lock();
+	ASSERT_RTNL();
 	nest_lvl = ndev->lower_level;
 	for (i = 0; i < nest_lvl; i++) {
 		struct list_head *lower = &ndev->adj_list.lower;
@@ -787,6 +910,18 @@ static struct net_device *pnet_find_base_ndev(struct net_device *ndev)
 		lower = lower->next;
 		ndev = netdev_lower_get_next(ndev, &lower);
 	}
+	return ndev;
+}
+
+/* Determine one base device for stacked net devices.
+ * If the lower device level contains more than one devices
+ * (for instance with bonding slaves), just the first device
+ * is used to reach a base device.
+ */
+static struct net_device *pnet_find_base_ndev(struct net_device *ndev)
+{
+	rtnl_lock();
+	ndev = __pnet_find_base_ndev(ndev);
 	rtnl_unlock();
 	return ndev;
 }
@@ -929,10 +1064,10 @@ static void smc_pnet_find_ism_by_pnetid(struct net_device *ndev,
 	list_for_each_entry(ismdev, &smcd_dev_list.list, list) {
 		if (smc_pnet_match(ismdev->pnetid, ndev_pnetid) &&
 		    !ismdev->going_away &&
-		    (!ini->ism_peer_gid ||
-		     !smc_ism_cantalk(ini->ism_peer_gid, ini->vlan_id,
+		    (!ini->ism_peer_gid[0] ||
+		     !smc_ism_cantalk(ini->ism_peer_gid[0], ini->vlan_id,
 				      ismdev))) {
-			ini->ism_dev = ismdev;
+			ini->ism_dev[0] = ismdev;
 			break;
 		}
 	}
@@ -966,7 +1101,7 @@ void smc_pnet_find_ism_resource(struct sock *sk, struct smc_init_info *ini)
 {
 	struct dst_entry *dst = sk_dst_get(sk);
 
-	ini->ism_dev = NULL;
+	ini->ism_dev[0] = NULL;
 	if (!dst)
 		goto out;
 	if (!dst->dev)
