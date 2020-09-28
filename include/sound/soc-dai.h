@@ -153,7 +153,7 @@ void snd_soc_dai_hw_free(struct snd_soc_dai *dai,
 int snd_soc_dai_startup(struct snd_soc_dai *dai,
 			struct snd_pcm_substream *substream);
 void snd_soc_dai_shutdown(struct snd_soc_dai *dai,
-			  struct snd_pcm_substream *substream);
+			  struct snd_pcm_substream *substream, int rollback);
 snd_pcm_sframes_t snd_soc_dai_delay(struct snd_soc_dai *dai,
 				    struct snd_pcm_substream *substream);
 void snd_soc_dai_suspend(struct snd_soc_dai *dai);
@@ -387,6 +387,9 @@ struct snd_soc_dai {
 	unsigned int rx_mask;
 
 	struct list_head list;
+
+	/* function mark */
+	struct snd_pcm_substream *mark_startup;
 
 	/* bit field */
 	unsigned int probed:1;
