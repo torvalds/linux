@@ -645,7 +645,7 @@ bool iwl_sar_geo_support(struct iwl_fw_runtime *fwrt)
 IWL_EXPORT_SYMBOL(iwl_sar_geo_support);
 
 int iwl_sar_geo_init(struct iwl_fw_runtime *fwrt,
-		     struct iwl_per_chain_offset_group *table)
+		     struct iwl_per_chain_offset_group_v1 *table)
 {
 	int ret, i, j;
 

@@ -460,7 +460,7 @@ struct iwl_per_chain_offset {
 	u8 chain_b;
 } __packed; /* PER_CHAIN_LIMIT_OFFSET_PER_CHAIN_S_VER_1 */
 
-struct iwl_per_chain_offset_group {
+struct iwl_per_chain_offset_group_v1 {
 	struct iwl_per_chain_offset lb;
 	struct iwl_per_chain_offset hb;
 } __packed; /* PER_CHAIN_LIMIT_OFFSET_GROUP_S_VER_1 */
@@ -472,7 +472,7 @@ struct iwl_per_chain_offset_group {
  */
 struct iwl_geo_tx_power_profiles_cmd_v1 {
 	__le32 ops;
-	struct iwl_per_chain_offset_group table[IWL_NUM_GEO_PROFILES];
+	struct iwl_per_chain_offset_group_v1 table[IWL_NUM_GEO_PROFILES];
 } __packed; /* GEO_TX_POWER_LIMIT_VER_1 */
 
 /**
@@ -481,11 +481,16 @@ struct iwl_geo_tx_power_profiles_cmd_v1 {
  * @table: offset profile per band.
  * @table_revision: BIOS table revision.
  */
-struct iwl_geo_tx_power_profiles_cmd {
+struct iwl_geo_tx_power_profiles_cmd_v2 {
 	__le32 ops;
-	struct iwl_per_chain_offset_group table[IWL_NUM_GEO_PROFILES];
+	struct iwl_per_chain_offset_group_v1 table[IWL_NUM_GEO_PROFILES];
 	__le32 table_revision;
-} __packed; /* GEO_TX_POWER_LIMIT */
+} __packed; /* GEO_TX_POWER_LIMIT_VER_2 */
+
+union iwl_geo_tx_power_profiles_cmd {
+	struct iwl_geo_tx_power_profiles_cmd_v1 v1;
+	struct iwl_geo_tx_power_profiles_cmd_v2 v2;
+};
 
 /**
  * struct iwl_geo_tx_power_profiles_resp -  response to GEO_TX_POWER_LIMIT cmd
