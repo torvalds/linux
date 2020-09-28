@@ -1074,8 +1074,8 @@ static void gsi_isr_glob_ee(struct gsi *gsi)
 
 	val &= ~ERROR_INT_FMASK;
 
-	if (val & EN_GP_INT1_FMASK) {
-		val ^= EN_GP_INT1_FMASK;
+	if (val & GP_INT1_FMASK) {
+		val ^= GP_INT1_FMASK;
 		gsi_isr_gp_int1(gsi);
 	}
 
