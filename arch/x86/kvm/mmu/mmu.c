@@ -1747,6 +1747,21 @@ static int kvm_unmap_rmapp(struct kvm *kvm, struct kvm_rmap_head *rmap_head,
 	return kvm_zap_rmapp(kvm, rmap_head);
 }
 
+static u64 kvm_mmu_changed_pte_notifier_make_spte(u64 old_spte, kvm_pfn_t new_pfn)
+{
+	u64 new_spte;
+
+	new_spte = old_spte & ~PT64_BASE_ADDR_MASK;
+	new_spte |= (u64)new_pfn << PAGE_SHIFT;
+
+	new_spte &= ~PT_WRITABLE_MASK;
+	new_spte &= ~SPTE_HOST_WRITEABLE;
+
+	new_spte = mark_spte_for_access_track(new_spte);
+
+	return new_spte;
+}
+
 static int kvm_set_pte_rmapp(struct kvm *kvm, struct kvm_rmap_head *rmap_head,
 			     struct kvm_memory_slot *slot, gfn_t gfn, int level,
 			     unsigned long data)
@@ -1772,13 +1787,8 @@ restart:
 			pte_list_remove(rmap_head, sptep);
 			goto restart;
 		} else {
-			new_spte = *sptep & ~PT64_BASE_ADDR_MASK;
-			new_spte |= (u64)new_pfn << PAGE_SHIFT;
-
-			new_spte &= ~PT_WRITABLE_MASK;
-			new_spte &= ~SPTE_HOST_WRITEABLE;
-
-			new_spte = mark_spte_for_access_track(new_spte);
+			new_spte = kvm_mmu_changed_pte_notifier_make_spte(
+					*sptep, new_pfn);
 
 			mmu_spte_clear_track_bits(sptep);
 			mmu_spte_set(sptep, new_spte);
