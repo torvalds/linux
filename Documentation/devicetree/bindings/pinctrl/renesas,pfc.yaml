@@ -148,7 +148,7 @@ examples:
                 <&irqpin3 4 0>, <&irqpin3 5 0>, <&irqpin3 6 0>, <&irqpin3 7 0>;
             power-domains = <&pd_c5>;
 
-            lcd0_mux {
+            lcd0-mux-hog {
                     /* DBGMD/LCDC0/FSIA MUX */
                     gpio-hog;
                     gpios = <176 0>;
