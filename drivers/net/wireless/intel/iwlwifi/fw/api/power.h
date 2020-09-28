@@ -437,6 +437,8 @@ struct iwl_dev_tx_power_cmd {
 };
 
 #define IWL_NUM_GEO_PROFILES   3
+#define IWL_NUM_BANDS_PER_CHAIN_V1 2
+#define IWL_NUM_BANDS_PER_CHAIN_V2 3
 
 /**
  * enum iwl_geo_per_chain_offset_operation - type of operation
@@ -460,11 +462,6 @@ struct iwl_per_chain_offset {
 	u8 chain_b;
 } __packed; /* PER_CHAIN_LIMIT_OFFSET_PER_CHAIN_S_VER_1 */
 
-struct iwl_per_chain_offset_group_v1 {
-	struct iwl_per_chain_offset lb;
-	struct iwl_per_chain_offset hb;
-} __packed; /* PER_CHAIN_LIMIT_OFFSET_GROUP_S_VER_1 */
-
 /**
  * struct iwl_geo_tx_power_profile_cmd_v1 - struct for GEO_TX_POWER_LIMIT cmd.
  * @ops: operations, value from &enum iwl_geo_per_chain_offset_operation
@@ -472,24 +469,37 @@ struct iwl_per_chain_offset_group_v1 {
  */
 struct iwl_geo_tx_power_profiles_cmd_v1 {
 	__le32 ops;
-	struct iwl_per_chain_offset_group_v1 table[IWL_NUM_GEO_PROFILES];
+	struct iwl_per_chain_offset table[IWL_NUM_GEO_PROFILES][IWL_NUM_BANDS_PER_CHAIN_V1];
 } __packed; /* GEO_TX_POWER_LIMIT_VER_1 */
 
 /**
- * struct iwl_geo_tx_power_profile_cmd - struct for GEO_TX_POWER_LIMIT cmd.
+ * struct iwl_geo_tx_power_profile_cmd_v2 - struct for GEO_TX_POWER_LIMIT cmd.
  * @ops: operations, value from &enum iwl_geo_per_chain_offset_operation
  * @table: offset profile per band.
  * @table_revision: BIOS table revision.
  */
 struct iwl_geo_tx_power_profiles_cmd_v2 {
 	__le32 ops;
-	struct iwl_per_chain_offset_group_v1 table[IWL_NUM_GEO_PROFILES];
+	struct iwl_per_chain_offset table[IWL_NUM_GEO_PROFILES][IWL_NUM_BANDS_PER_CHAIN_V1];
 	__le32 table_revision;
 } __packed; /* GEO_TX_POWER_LIMIT_VER_2 */
+
+/**
+ * struct iwl_geo_tx_power_profile_cmd_v3 - struct for GEO_TX_POWER_LIMIT cmd.
+ * @ops: operations, value from &enum iwl_geo_per_chain_offset_operation
+ * @table: offset profile per band.
+ * @table_revision: BIOS table revision.
+ */
+struct iwl_geo_tx_power_profiles_cmd_v3 {
+	__le32 ops;
+	struct iwl_per_chain_offset table[IWL_NUM_GEO_PROFILES][IWL_NUM_BANDS_PER_CHAIN_V2];
+	__le32 table_revision;
+} __packed; /* GEO_TX_POWER_LIMIT_VER_3 */
 
 union iwl_geo_tx_power_profiles_cmd {
 	struct iwl_geo_tx_power_profiles_cmd_v1 v1;
 	struct iwl_geo_tx_power_profiles_cmd_v2 v2;
+	struct iwl_geo_tx_power_profiles_cmd_v3 v3;
 };
 
 /**

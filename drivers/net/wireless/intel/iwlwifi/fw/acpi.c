@@ -645,7 +645,7 @@ bool iwl_sar_geo_support(struct iwl_fw_runtime *fwrt)
 IWL_EXPORT_SYMBOL(iwl_sar_geo_support);
 
 int iwl_sar_geo_init(struct iwl_fw_runtime *fwrt,
-		     struct iwl_per_chain_offset_group_v1 *table)
+		     struct iwl_per_chain_offset *table, u32 n_bands)
 {
 	int ret, i, j;
 
@@ -661,16 +661,11 @@ int iwl_sar_geo_init(struct iwl_fw_runtime *fwrt,
 		return -ENOENT;
 	}
 
-	BUILD_BUG_ON(ACPI_NUM_GEO_PROFILES * ACPI_WGDS_NUM_BANDS *
-		     ACPI_WGDS_TABLE_SIZE + 1 !=  ACPI_WGDS_WIFI_DATA_SIZE);
-
-	BUILD_BUG_ON(ACPI_NUM_GEO_PROFILES > IWL_NUM_GEO_PROFILES);
-
 	for (i = 0; i < ACPI_NUM_GEO_PROFILES; i++) {
 		struct iwl_per_chain_offset *chain =
 			(struct iwl_per_chain_offset *)&table[i];
 
-		for (j = 0; j < ACPI_WGDS_NUM_BANDS; j++) {
+		for (j = 0; j < n_bands; j++) {
 			u8 *value;
 
 			value = &fwrt->geo_profiles[i].values[j *
