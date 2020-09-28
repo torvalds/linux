@@ -46,7 +46,7 @@ config CORESIGHT_CATU
 	   mode where the address is not translated.
 
 config CORESIGHT_SINK_TPIU
-	bool "Coresight generic TPIU driver"
+	tristate "Coresight generic TPIU driver"
 	depends on CORESIGHT_LINKS_AND_SINKS
 	help
 	  This enables support for the Trace Port Interface Unit driver,
@@ -55,6 +55,9 @@ config CORESIGHT_SINK_TPIU
 	  coresight components and a trace port collection engine, typically
 	  connected to an external host for use case capturing more traces than
 	  the on-board coresight memory can handle.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called coresight-tpiu.
 
 config CORESIGHT_SINK_ETBV10
 	tristate "Coresight ETBv1.0 driver"
