@@ -291,6 +291,8 @@ static int zoran_enum_fmt_vid_cap(struct file *file, void *__fh,
 	return zoran_enum_fmt(zr, f, ZORAN_FORMAT_CAPTURE);
 }
 
+#if 0
+/* TODO: output does not work yet */
 static int zoran_enum_fmt_vid_out(struct file *file, void *__fh,
 				  struct v4l2_fmtdesc *f)
 {
@@ -298,14 +300,7 @@ static int zoran_enum_fmt_vid_out(struct file *file, void *__fh,
 
 	return zoran_enum_fmt(zr, f, ZORAN_FORMAT_PLAYBACK);
 }
-
-static int zoran_enum_fmt_vid_overlay(struct file *file, void *__fh,
-				      struct v4l2_fmtdesc *f)
-{
-	struct zoran *zr = video_drvdata(file);
-
-	return zoran_enum_fmt(zr, f, ZORAN_FORMAT_OVERLAY);
-}
+#endif
 
 static int zoran_g_fmt_vid_out(struct file *file, void *__fh,
 			       struct v4l2_format *fmt)
@@ -632,6 +627,8 @@ static int zoran_s_input(struct file *file, void *__fh, unsigned int input)
 	return res;
 }
 
+#if 0
+/* TODO: output does not work yet */
 static int zoran_enum_output(struct file *file, void *__fh,
 			     struct v4l2_output *outp)
 {
@@ -660,6 +657,8 @@ static int zoran_s_output(struct file *file, void *__fh, unsigned int output)
 
 	return 0;
 }
+#endif
+
 /* cropping (sub-frame capture) */
 static int zoran_g_selection(struct file *file, void *__fh, struct v4l2_selection *sel)
 {
