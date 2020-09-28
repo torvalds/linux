@@ -1600,7 +1600,7 @@ err_unwind_modem:
 	/* Compute which modem channels need to be deallocated */
 	mask ^= gsi->modem_channel_bitmap;
 	while (mask) {
-		u32 channel_id = __fls(mask);
+		channel_id = __fls(mask);
 
 		mask ^= BIT(channel_id);
 
@@ -1628,7 +1628,7 @@ static void gsi_channel_teardown(struct gsi *gsi)
 	mutex_lock(&gsi->mutex);
 
 	while (mask) {
-		u32 channel_id = __fls(mask);
+		channel_id = __fls(mask);
 
 		mask ^= BIT(channel_id);
 
@@ -1972,7 +1972,6 @@ int gsi_init(struct gsi *gsi, struct platform_device *pdev, bool prefetch,
 	 */
 	init_dummy_netdev(&gsi->dummy_dev);
 
-	/* Get the GSI IRQ and request for it to wake the system */
 	ret = platform_get_irq_byname(pdev, "gsi");
 	if (ret <= 0) {
 		dev_err(dev, "DT error %d getting \"gsi\" IRQ property\n", ret);
