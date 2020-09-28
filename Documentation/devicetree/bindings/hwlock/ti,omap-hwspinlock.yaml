@@ -49,7 +49,7 @@ examples:
     / {
         /* K3 AM65x SoCs */
         model = "Texas Instruments K3 AM654 SoC";
-        compatible = "ti,am654";
+        compatible = "ti,am654-evm", "ti,am654";
         #address-cells = <2>;
         #size-cells = <2>;
 
@@ -60,7 +60,7 @@ examples:
             ranges = <0x00 0x00100000 0x00 0x00100000 0x00 0x00020000>, /* ctrl mmr */
                      <0x00 0x30800000 0x00 0x30800000 0x00 0x0bc00000>; /* Main NavSS */
 
-            main_navss@30800000 {
+            bus@30800000 {
                 compatible = "simple-mfd";
                 #address-cells = <2>;
                 #size-cells = <2>;
