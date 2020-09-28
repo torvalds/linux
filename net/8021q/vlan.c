@@ -51,8 +51,9 @@ static int vlan_group_prealloc_vid(struct vlan_group *vg,
 				   __be16 vlan_proto, u16 vlan_id)
 {
 	struct net_device **array;
-	unsigned int pidx, vidx;
+	unsigned int vidx;
 	unsigned int size;
+	int pidx;
 
 	ASSERT_RTNL();
 
