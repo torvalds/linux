@@ -3754,7 +3754,9 @@ static int skx_iio_set_mapping(struct intel_uncore_type *type)
 
 	ret = skx_iio_get_topology(type);
 	if (ret)
-		return ret;
+		goto clear_attr_update;
+
+	ret = -ENOMEM;
 
 	/* One more for NULL. */
 	attrs = kcalloc((uncore_max_dies() + 1), sizeof(*attrs), GFP_KERNEL);
@@ -3786,8 +3788,9 @@ err:
 	kfree(eas);
 	kfree(attrs);
 	kfree(type->topology);
+clear_attr_update:
 	type->attr_update = NULL;
-	return -ENOMEM;
+	return ret;
 }
 
 static void skx_iio_cleanup_mapping(struct intel_uncore_type *type)
