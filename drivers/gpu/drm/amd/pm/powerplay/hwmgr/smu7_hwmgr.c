@@ -49,6 +49,8 @@
 #include "processpptables.h"
 #include "pp_thermal.h"
 #include "smu7_baco.h"
+#include "smu7_smumgr.h"
+#include "polaris10_smumgr.h"
 
 #include "ivsrcid/ivsrcid_vislands30.h"
 
@@ -5107,6 +5109,53 @@ static int smu7_get_clock_by_type_with_latency(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+static int smu7_set_watermarks_for_clocks_ranges(struct pp_hwmgr *hwmgr,
+						 void *clock_range)
+{
+	struct phm_ppt_v1_information *table_info =
+			(struct phm_ppt_v1_information *)hwmgr->pptable;
+	struct phm_ppt_v1_clock_voltage_dependency_table *dep_mclk_table =
+			table_info->vdd_dep_on_mclk;
+	struct phm_ppt_v1_clock_voltage_dependency_table *dep_sclk_table =
+			table_info->vdd_dep_on_sclk;
+	struct polaris10_smumgr *smu_data =
+			(struct polaris10_smumgr *)(hwmgr->smu_backend);
+	SMU74_Discrete_DpmTable  *table = &(smu_data->smc_state_table);
+	struct dm_pp_wm_sets_with_clock_ranges *watermarks =
+			(struct dm_pp_wm_sets_with_clock_ranges *)clock_range;
+	uint32_t i, j, k;
+	bool valid_entry;
+
+	if (!(hwmgr->chip_id >= CHIP_POLARIS10 &&
+	      hwmgr->chip_id <= CHIP_VEGAM))
+		return -EINVAL;
+
+	for (i = 0; i < dep_mclk_table->count; i++) {
+		for (j = 0; j < dep_sclk_table->count; j++) {
+			valid_entry = false;
+			for (k = 0; k < watermarks->num_wm_sets; k++) {
+				if (dep_sclk_table->entries[i].clk / 10 >= watermarks->wm_clk_ranges[k].wm_min_eng_clk_in_khz &&
+				    dep_sclk_table->entries[i].clk / 10 < watermarks->wm_clk_ranges[k].wm_max_eng_clk_in_khz &&
+				    dep_mclk_table->entries[i].clk / 10 >= watermarks->wm_clk_ranges[k].wm_min_mem_clk_in_khz &&
+				    dep_mclk_table->entries[i].clk / 10 < watermarks->wm_clk_ranges[k].wm_max_mem_clk_in_khz) {
+					valid_entry = true;
+					table->DisplayWatermark[i][j] = watermarks->wm_clk_ranges[k].wm_set_id;
+					break;
+				}
+			}
+			PP_ASSERT_WITH_CODE(valid_entry,
+					"Clock is not in range of specified clock range for watermark from DAL!  Using highest water mark set.",
+					table->DisplayWatermark[i][j] = watermarks->wm_clk_ranges[k - 1].wm_set_id);
+		}
+	}
+
+	return smu7_copy_bytes_to_smc(hwmgr,
+				      smu_data->smu7_data.dpm_table_start + offsetof(SMU74_Discrete_DpmTable, DisplayWatermark),
+				      (uint8_t *)table->DisplayWatermark,
+				      sizeof(uint8_t) * SMU74_MAX_LEVELS_MEMORY * SMU74_MAX_LEVELS_GRAPHICS,
+				      SMC_RAM_END);
+}
+
 static int smu7_notify_cac_buffer_info(struct pp_hwmgr *hwmgr,
 					uint32_t virtual_addr_low,
 					uint32_t virtual_addr_hi,
@@ -5525,6 +5574,7 @@ static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.set_mclk_od = smu7_set_mclk_od,
 	.get_clock_by_type = smu7_get_clock_by_type,
 	.get_clock_by_type_with_latency = smu7_get_clock_by_type_with_latency,
+	.set_watermarks_for_clocks_ranges = smu7_set_watermarks_for_clocks_ranges,
 	.read_sensor = smu7_read_sensor,
 	.dynamic_state_management_disable = smu7_disable_dpm_tasks,
 	.avfs_control = smu7_avfs_control,
