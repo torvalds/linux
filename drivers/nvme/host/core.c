@@ -2017,8 +2017,12 @@ static void nvme_update_disk_info(struct gendisk *disk,
 	unsigned short bs = 1 << ns->lba_shift;
 	u32 atomic_bs, phys_bs, io_opt = 0;
 
+	/*
+	 * The block layer can't support LBA sizes larger than the page size
+	 * yet, so catch this early and don't allow block I/O.
+	 */
 	if (ns->lba_shift > PAGE_SHIFT) {
-		/* unsupported block size, set capacity to 0 later */
+		capacity = 0;
 		bs = (1 << 9);
 	}
 
@@ -2054,13 +2058,6 @@ static void nvme_update_disk_info(struct gendisk *disk,
 	blk_queue_physical_block_size(disk->queue, min(phys_bs, atomic_bs));
 	blk_queue_io_min(disk->queue, phys_bs);
 	blk_queue_io_opt(disk->queue, io_opt);
-
-	/*
-	 * The block layer can't support LBA sizes larger than the page size
-	 * yet, so catch this early and don't allow block I/O.
-	 */
-	if (ns->lba_shift > PAGE_SHIFT)
-		capacity = 0;
 
 	/*
 	 * Register a metadata profile for PI, or the plain non-integrity NVMe
