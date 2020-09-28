@@ -3690,13 +3690,13 @@ bool mlxsw_sp_port_dev_check(const struct net_device *dev)
 	return dev->netdev_ops == &mlxsw_sp_port_netdev_ops;
 }
 
-static int mlxsw_sp_lower_dev_walk(struct net_device *lower_dev, void *data)
+static int mlxsw_sp_lower_dev_walk(struct net_device *lower_dev,
+				   struct netdev_nested_priv *priv)
 {
-	struct mlxsw_sp_port **p_mlxsw_sp_port = data;
 	int ret = 0;
 
 	if (mlxsw_sp_port_dev_check(lower_dev)) {
-		*p_mlxsw_sp_port = netdev_priv(lower_dev);
+		priv->data = (void *)netdev_priv(lower_dev);
 		ret = 1;
 	}
 
@@ -3705,15 +3705,16 @@ static int mlxsw_sp_lower_dev_walk(struct net_device *lower_dev, void *data)
 
 struct mlxsw_sp_port *mlxsw_sp_port_dev_lower_find(struct net_device *dev)
 {
-	struct mlxsw_sp_port *mlxsw_sp_port;
+	struct netdev_nested_priv priv = {
+		.data = NULL,
+	};
 
 	if (mlxsw_sp_port_dev_check(dev))
 		return netdev_priv(dev);
 
-	mlxsw_sp_port = NULL;
-	netdev_walk_all_lower_dev(dev, mlxsw_sp_lower_dev_walk, &mlxsw_sp_port);
+	netdev_walk_all_lower_dev(dev, mlxsw_sp_lower_dev_walk, &priv);
 
-	return mlxsw_sp_port;
+	return (struct mlxsw_sp_port *)priv.data;
 }
 
 struct mlxsw_sp *mlxsw_sp_lower_get(struct net_device *dev)
@@ -3726,16 +3727,17 @@ struct mlxsw_sp *mlxsw_sp_lower_get(struct net_device *dev)
 
 struct mlxsw_sp_port *mlxsw_sp_port_dev_lower_find_rcu(struct net_device *dev)
 {
-	struct mlxsw_sp_port *mlxsw_sp_port;
+	struct netdev_nested_priv priv = {
+		.data = NULL,
+	};
 
 	if (mlxsw_sp_port_dev_check(dev))
 		return netdev_priv(dev);
 
-	mlxsw_sp_port = NULL;
 	netdev_walk_all_lower_dev_rcu(dev, mlxsw_sp_lower_dev_walk,
-				      &mlxsw_sp_port);
+				      &priv);
 
-	return mlxsw_sp_port;
+	return (struct mlxsw_sp_port *)priv.data;
 }
 
 struct mlxsw_sp_port *mlxsw_sp_port_lower_dev_hold(struct net_device *dev)
