@@ -136,7 +136,7 @@ config CORESIGHT_CPU_DEBUG
 	  module will be called coresight-cpu-debug.
 
 config CORESIGHT_CTI
-	bool "CoreSight Cross Trigger Interface (CTI) driver"
+	tristate "CoreSight Cross Trigger Interface (CTI) driver"
 	depends on ARM || ARM64
 	help
 	  This driver provides support for CoreSight CTI and CTM components.
@@ -146,6 +146,9 @@ config CORESIGHT_CTI
 	  control to trigger the same halt events. This can provide fast trace
 	  halt compared to disabling sources and sinks normally in driver
 	  software.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called coresight-cti.
 
 config CORESIGHT_CTI_INTEGRATION_REGS
 	bool "Access CTI CoreSight Integration Registers"

@@ -19,6 +19,6 @@ coresight-etm4x-y := coresight-etm4x-core.o coresight-etm4x-sysfs.o
 obj-$(CONFIG_CORESIGHT_STM) += coresight-stm.o
 obj-$(CONFIG_CORESIGHT_CPU_DEBUG) += coresight-cpu-debug.o
 obj-$(CONFIG_CORESIGHT_CATU) += coresight-catu.o
-obj-$(CONFIG_CORESIGHT_CTI) += coresight-cti.o \
-				coresight-cti-platform.o \
-				coresight-cti-sysfs.o
+obj-$(CONFIG_CORESIGHT_CTI) += coresight-cti.o
+coresight-cti-y := coresight-cti-core.o	coresight-cti-platform.o \
+		   coresight-cti-sysfs.o

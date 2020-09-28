@@ -822,7 +822,6 @@ static void cti_device_release(struct device *dev)
 	struct cti_drvdata *ect_item, *ect_tmp;
 
 	mutex_lock(&ect_mutex);
-	cti_remove_conn_xrefs(drvdata);
 	cti_pm_release(drvdata);
 
 	/* remove from the list */
@@ -836,6 +835,18 @@ static void cti_device_release(struct device *dev)
 
 	if (drvdata->csdev_release)
 		drvdata->csdev_release(dev);
+}
+static int __exit cti_remove(struct amba_device *adev)
+{
+	struct cti_drvdata *drvdata = dev_get_drvdata(&adev->dev);
+
+	mutex_lock(&ect_mutex);
+	cti_remove_conn_xrefs(drvdata);
+	mutex_unlock(&ect_mutex);
+
+	coresight_unregister(drvdata->csdev);
+
+	return 0;
 }
 
 static int cti_probe(struct amba_device *adev, const struct amba_id *id)
@@ -957,6 +968,8 @@ static const struct amba_id cti_ids[] = {
 	{ 0, 0},
 };
 
+MODULE_DEVICE_TABLE(amba, cti_ids);
+
 static struct amba_driver cti_driver = {
 	.drv = {
 		.name	= "coresight-cti",
@@ -964,6 +977,7 @@ static struct amba_driver cti_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe		= cti_probe,
+	.remove		= cti_remove,
 	.id_table	= cti_ids,
 };
 
@@ -986,3 +1000,7 @@ static void __exit cti_exit(void)
 
 module_init(cti_init);
 module_exit(cti_exit);
+
+MODULE_AUTHOR("Mike Leach <mike.leach@linaro.org>");
+MODULE_DESCRIPTION("Arm CoreSight CTI Driver");
+MODULE_LICENSE("GPL v2");
