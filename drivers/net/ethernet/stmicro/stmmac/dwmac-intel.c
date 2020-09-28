@@ -6,6 +6,7 @@
 #include <linux/pci.h>
 #include <linux/dmi.h>
 #include "dwmac-intel.h"
+#include "dwmac4.h"
 #include "stmmac.h"
 
 struct intel_priv_data {
@@ -295,6 +296,7 @@ static int intel_mgbe_common_data(struct pci_dev *pdev,
 	plat->axi->axi_blen[2] = 16;
 
 	plat->ptp_max_adj = plat->clk_ptp_rate;
+	plat->eee_usecs_rate = plat->clk_ptp_rate;
 
 	/* Set system clock */
 	plat->stmmac_clk = clk_register_fixed_rate(&pdev->dev,
@@ -622,6 +624,13 @@ static int intel_eth_pci_probe(struct pci_dev *pdev,
 	ret = info->setup(pdev, plat);
 	if (ret)
 		return ret;
+
+	if (plat->eee_usecs_rate > 0) {
+		u32 tx_lpi_usec;
+
+		tx_lpi_usec = (plat->eee_usecs_rate / 1000000) - 1;
+		writel(tx_lpi_usec, res.addr + GMAC_1US_TIC_COUNTER);
+	}
 
 	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
 	if (ret < 0)
