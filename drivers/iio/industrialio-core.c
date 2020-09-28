@@ -673,6 +673,19 @@ ssize_t iio_format_value(char *buf, unsigned int type, int size, int *vals)
 }
 EXPORT_SYMBOL_GPL(iio_format_value);
 
+static ssize_t iio_read_channel_label(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buf)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
+
+	if (!indio_dev->info->read_label)
+		return -EINVAL;
+
+	return indio_dev->info->read_label(indio_dev, this_attr->c, buf);
+}
+
 static ssize_t iio_read_channel_info(struct device *dev,
 				     struct device_attribute *attr,
 				     char *buf)
@@ -1141,6 +1154,29 @@ error_iio_dev_attr_free:
 	return ret;
 }
 
+static int iio_device_add_channel_label(struct iio_dev *indio_dev,
+					 struct iio_chan_spec const *chan)
+{
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
+	int ret;
+
+	if (!indio_dev->info->read_label)
+		return 0;
+
+	ret = __iio_add_chan_devattr("label",
+				     chan,
+				     &iio_read_channel_label,
+				     NULL,
+				     0,
+				     IIO_SEPARATE,
+				     &indio_dev->dev,
+				     &iio_dev_opaque->channel_attr_list);
+	if (ret < 0)
+		return ret;
+
+	return 1;
+}
+
 static int iio_device_add_info_mask_type(struct iio_dev *indio_dev,
 					 struct iio_chan_spec const *chan,
 					 enum iio_shared_by shared_by,
@@ -1270,6 +1306,11 @@ static int iio_device_add_channel_sysfs(struct iio_dev *indio_dev,
 	ret = iio_device_add_info_mask_type_avail(indio_dev, chan,
 						  IIO_SHARED_BY_ALL,
 						  &chan->info_mask_shared_by_all_available);
+	if (ret < 0)
+		return ret;
+	attrcount += ret;
+
+	ret = iio_device_add_channel_label(indio_dev, chan);
 	if (ret < 0)
 		return ret;
 	attrcount += ret;
