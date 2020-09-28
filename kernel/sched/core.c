@@ -1763,11 +1763,6 @@ void migrate_enable(void)
 }
 EXPORT_SYMBOL_GPL(migrate_enable);
 
-static inline bool is_migration_disabled(struct task_struct *p)
-{
-	return p->migration_disabled;
-}
-
 static inline bool rq_has_pinned_tasks(struct rq *rq)
 {
 	return rq->nr_pinned;
@@ -1972,6 +1967,49 @@ out:
 	return 0;
 }
 
+int push_cpu_stop(void *arg)
+{
+	struct rq *lowest_rq = NULL, *rq = this_rq();
+	struct task_struct *p = arg;
+
+	raw_spin_lock_irq(&p->pi_lock);
+	raw_spin_lock(&rq->lock);
+
+	if (task_rq(p) != rq)
+		goto out_unlock;
+
+	if (is_migration_disabled(p)) {
+		p->migration_flags |= MDF_PUSH;
+		goto out_unlock;
+	}
+
+	p->migration_flags &= ~MDF_PUSH;
+
+	if (p->sched_class->find_lock_rq)
+		lowest_rq = p->sched_class->find_lock_rq(p, rq);
+
+	if (!lowest_rq)
+		goto out_unlock;
+
+	// XXX validate p is still the highest prio task
+	if (task_rq(p) == rq) {
+		deactivate_task(rq, p, 0);
+		set_task_cpu(p, lowest_rq->cpu);
+		activate_task(lowest_rq, p, 0);
+		resched_curr(lowest_rq);
+	}
+
+	double_unlock_balance(rq, lowest_rq);
+
+out_unlock:
+	rq->push_busy = false;
+	raw_spin_unlock(&rq->lock);
+	raw_spin_unlock_irq(&p->pi_lock);
+
+	put_task_struct(p);
+	return 0;
+}
+
 /*
  * sched_class::set_cpus_allowed must do the below, but is not required to
  * actually call this function.
@@ -2052,6 +2090,14 @@ static int affine_move_task(struct rq *rq, struct task_struct *p, struct rq_flag
 
 	/* Can the task run on the task's current CPU? If so, we're done */
 	if (cpumask_test_cpu(task_cpu(p), &p->cpus_mask)) {
+		struct task_struct *push_task = NULL;
+
+		if ((flags & SCA_MIGRATE_ENABLE) &&
+		    (p->migration_flags & MDF_PUSH) && !rq->push_busy) {
+			rq->push_busy = true;
+			push_task = get_task_struct(p);
+		}
+
 		pending = p->migration_pending;
 		if (pending) {
 			refcount_inc(&pending->refs);
@@ -2059,6 +2105,11 @@ static int affine_move_task(struct rq *rq, struct task_struct *p, struct rq_flag
 			complete = true;
 		}
 		task_rq_unlock(rq, p, rf);
+
+		if (push_task) {
+			stop_one_cpu_nowait(rq->cpu, push_cpu_stop,
+					    p, &rq->push_work);
+		}
 
 		if (complete)
 			goto do_complete;
@@ -2098,6 +2149,7 @@ static int affine_move_task(struct rq *rq, struct task_struct *p, struct rq_flag
 	if (flags & SCA_MIGRATE_ENABLE) {
 
 		refcount_inc(&pending->refs); /* pending->{arg,stop_work} */
+		p->migration_flags &= ~MDF_PUSH;
 		task_rq_unlock(rq, p, rf);
 
 		pending->arg = (struct migration_arg) {
@@ -2715,11 +2767,6 @@ static inline int __set_cpus_allowed_ptr(struct task_struct *p,
 #if !defined(CONFIG_SMP) || !defined(CONFIG_PREEMPT_RT)
 
 static inline void migrate_disable_switch(struct rq *rq, struct task_struct *p) { }
-
-static inline bool is_migration_disabled(struct task_struct *p)
-{
-	return false;
-}
 
 static inline bool rq_has_pinned_tasks(struct rq *rq)
 {

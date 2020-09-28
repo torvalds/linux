@@ -325,24 +325,28 @@ static inline void preempt_notifier_init(struct preempt_notifier *notifier,
 #if defined(CONFIG_SMP) && defined(CONFIG_PREEMPT_RT)
 
 /*
- * Migrate-Disable and why it is (strongly) undesired.
+ * Migrate-Disable and why it is undesired.
  *
- * The premise of the Real-Time schedulers we have on Linux
- * (SCHED_FIFO/SCHED_DEADLINE) is that M CPUs can/will run M tasks
- * concurrently, provided there are sufficient runnable tasks, also known as
- * work-conserving. For instance SCHED_DEADLINE tries to schedule the M
- * earliest deadline threads, and SCHED_FIFO the M highest priority threads.
+ * When a preempted task becomes elegible to run under the ideal model (IOW it
+ * becomes one of the M highest priority tasks), it might still have to wait
+ * for the preemptee's migrate_disable() section to complete. Thereby suffering
+ * a reduction in bandwidth in the exact duration of the migrate_disable()
+ * section.
  *
- * The correctness of various scheduling models depends on this, but is it
- * broken by migrate_disable() that doesn't imply preempt_disable(). Where
- * preempt_disable() implies an immediate priority ceiling, preemptible
- * migrate_disable() allows nesting.
+ * Per this argument, the change from preempt_disable() to migrate_disable()
+ * gets us:
  *
- * The worst case is that all tasks preempt one another in a migrate_disable()
- * region and stack on a single CPU. This then reduces the available bandwidth
- * to a single CPU. And since Real-Time schedulability theory considers the
- * Worst-Case only, all Real-Time analysis shall revert to single-CPU
- * (instantly solving the SMP analysis problem).
+ * - a higher priority tasks gains reduced wake-up latency; with preempt_disable()
+ *   it would have had to wait for the lower priority task.
+ *
+ * - a lower priority tasks; which under preempt_disable() could've instantly
+ *   migrated away when another CPU becomes available, is now constrained
+ *   by the ability to push the higher priority task away, which might itself be
+ *   in a migrate_disable() section, reducing it's available bandwidth.
+ *
+ * IOW it trades latency / moves the interference term, but it stays in the
+ * system, and as long as it remains unbounded, the system is not fully
+ * deterministic.
  *
  *
  * The reason we have it anyway.
