@@ -555,6 +555,13 @@ struct io_rename {
 	int				flags;
 };
 
+struct io_unlink {
+	struct file			*file;
+	int				dfd;
+	int				flags;
+	struct filename			*filename;
+};
+
 struct io_completion {
 	struct file			*file;
 	struct list_head		list;
@@ -683,6 +690,7 @@ struct io_kiocb {
 		struct io_statx		statx;
 		struct io_shutdown	shutdown;
 		struct io_rename	rename;
+		struct io_unlink	unlink;
 		/* use only after cleaning per-op data, see io_clean_op() */
 		struct io_completion	compl;
 	};
@@ -954,6 +962,10 @@ static const struct io_op_def io_op_defs[] = {
 		.needs_file		= 1,
 	},
 	[IORING_OP_RENAMEAT] = {
+		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_FILES |
+						IO_WQ_WORK_FS | IO_WQ_WORK_BLKCG,
+	},
+	[IORING_OP_UNLINKAT] = {
 		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_FILES |
 						IO_WQ_WORK_FS | IO_WQ_WORK_BLKCG,
 	},
@@ -3706,6 +3718,50 @@ static int io_renameat(struct io_kiocb *req, bool force_nonblock)
 	return 0;
 }
 
+static int io_unlinkat_prep(struct io_kiocb *req,
+			    const struct io_uring_sqe *sqe)
+{
+	struct io_unlink *un = &req->unlink;
+	const char __user *fname;
+
+	if (unlikely(req->flags & REQ_F_FIXED_FILE))
+		return -EBADF;
+
+	un->dfd = READ_ONCE(sqe->fd);
+
+	un->flags = READ_ONCE(sqe->unlink_flags);
+	if (un->flags & ~AT_REMOVEDIR)
+		return -EINVAL;
+
+	fname = u64_to_user_ptr(READ_ONCE(sqe->addr));
+	un->filename = getname(fname);
+	if (IS_ERR(un->filename))
+		return PTR_ERR(un->filename);
+
+	req->flags |= REQ_F_NEED_CLEANUP;
+	return 0;
+}
+
+static int io_unlinkat(struct io_kiocb *req, bool force_nonblock)
+{
+	struct io_unlink *un = &req->unlink;
+	int ret;
+
+	if (force_nonblock)
+		return -EAGAIN;
+
+	if (un->flags & AT_REMOVEDIR)
+		ret = do_rmdir(un->dfd, un->filename);
+	else
+		ret = do_unlinkat(un->dfd, un->filename);
+
+	req->flags &= ~REQ_F_NEED_CLEANUP;
+	if (ret < 0)
+		req_set_fail_links(req);
+	io_req_complete(req, ret);
+	return 0;
+}
+
 static int io_shutdown_prep(struct io_kiocb *req,
 			    const struct io_uring_sqe *sqe)
 {
@@ -5932,6 +5988,8 @@ static int io_req_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		return io_shutdown_prep(req, sqe);
 	case IORING_OP_RENAMEAT:
 		return io_renameat_prep(req, sqe);
+	case IORING_OP_UNLINKAT:
+		return io_unlinkat_prep(req, sqe);
 	}
 
 	printk_once(KERN_WARNING "io_uring: unhandled opcode %d\n",
@@ -6073,6 +6131,9 @@ static void __io_clean_op(struct io_kiocb *req)
 			putname(req->rename.oldpath);
 			putname(req->rename.newpath);
 			break;
+		case IORING_OP_UNLINKAT:
+			putname(req->unlink.filename);
+			break;
 		}
 		req->flags &= ~REQ_F_NEED_CLEANUP;
 	}
@@ -6184,6 +6245,9 @@ static int io_issue_sqe(struct io_kiocb *req, bool force_nonblock,
 		break;
 	case IORING_OP_RENAMEAT:
 		ret = io_renameat(req, force_nonblock);
+		break;
+	case IORING_OP_UNLINKAT:
+		ret = io_unlinkat(req, force_nonblock);
 		break;
 	default:
 		ret = -EINVAL;
