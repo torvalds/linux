@@ -420,7 +420,7 @@ static int iwl_sar_set_profile(union acpi_object *table,
 }
 
 int iwl_sar_select_profile(struct iwl_fw_runtime *fwrt,
-			   __le16 per_chain_restriction[][IWL_NUM_SUB_BANDS],
+			   __le16 per_chain[][IWL_NUM_SUB_BANDS],
 			   int prof_a, int prof_b)
 {
 	int i, j, idx;
@@ -462,8 +462,7 @@ int iwl_sar_select_profile(struct iwl_fw_runtime *fwrt,
 		IWL_DEBUG_RADIO(fwrt, "  Chain[%d]:\n", i);
 		for (j = 0; j < ACPI_SAR_NUM_SUB_BANDS; j++) {
 			idx = (i * ACPI_SAR_NUM_SUB_BANDS) + j;
-			per_chain_restriction[i][j] =
-				cpu_to_le16(prof->table[idx]);
+			per_chain[i][j] = cpu_to_le16(prof->table[idx]);
 			IWL_DEBUG_RADIO(fwrt, "    Band[%d] = %d * .125dBm\n",
 					j, prof->table[idx]);
 		}

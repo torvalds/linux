@@ -334,44 +334,49 @@ enum iwl_dev_tx_power_cmd_mode {
 #define IWL_NUM_SUB_BANDS_V2	11
 
 /**
- * struct iwl_dev_tx_power_cmd - TX power reduction command
+ * struct iwl_dev_tx_power_common - Common part of the TX power reduction cmd
  * @set_mode: see &enum iwl_dev_tx_power_cmd_mode
  * @mac_context_id: id of the mac ctx for which we are reducing TX power.
  * @pwr_restriction: TX power restriction in 1/8 dBms.
  * @dev_24: device TX power restriction in 1/8 dBms
  * @dev_52_low: device TX power restriction upper band - low
  * @dev_52_high: device TX power restriction upper band - high
- * @per_chain_restriction: per chain restrictions
  */
-struct iwl_dev_tx_power_cmd_v3 {
+struct iwl_dev_tx_power_common {
 	__le32 set_mode;
 	__le32 mac_context_id;
 	__le16 pwr_restriction;
 	__le16 dev_24;
 	__le16 dev_52_low;
 	__le16 dev_52_high;
-	__le16 per_chain_restriction[IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS];
+};
+
+/**
+ * struct iwl_dev_tx_power_cmd_v3 - TX power reduction command version 3
+ * @per_chain: per chain restrictions
+ */
+struct iwl_dev_tx_power_cmd_v3 {
+	__le16 per_chain[IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS];
 } __packed; /* TX_REDUCED_POWER_API_S_VER_3 */
 
 #define IWL_DEV_MAX_TX_POWER 0x7FFF
 
 /**
- * struct iwl_dev_tx_power_cmd - TX power reduction command
- * @v3: version 3 of the command, embedded here for easier software handling
+ * struct iwl_dev_tx_power_cmd_v4 - TX power reduction command version 4
+ * @per_chain: per chain restrictions
  * @enable_ack_reduction: enable or disable close range ack TX power
  *	reduction.
  * @reserved: reserved (padding)
  */
 struct iwl_dev_tx_power_cmd_v4 {
-	/* v4 is just an extension of v3 - keep this here */
-	struct iwl_dev_tx_power_cmd_v3 v3;
+	__le16 per_chain[IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS];
 	u8 enable_ack_reduction;
 	u8 reserved[3];
 } __packed; /* TX_REDUCED_POWER_API_S_VER_4 */
 
 /**
- * struct iwl_dev_tx_power_cmd - TX power reduction command
- * @v3: version 3 of the command, embedded here for easier software handling
+ * struct iwl_dev_tx_power_cmd_v5 - TX power reduction command version 5
+ * @per_chain: per chain restrictions
  * @enable_ack_reduction: enable or disable close range ack TX power
  *	reduction.
  * @per_chain_restriction_changed: is per_chain_restriction has changed
@@ -382,14 +387,29 @@ struct iwl_dev_tx_power_cmd_v4 {
  * @timer_period: timer in milliseconds. if expires FW will change to default
  *	BIOS values. relevant if setMode is IWL_TX_POWER_MODE_SET_SAR_TIMER
  */
-struct iwl_dev_tx_power_cmd {
-	/* v5 is just an extension of v3 - keep this here */
-	struct iwl_dev_tx_power_cmd_v3 v3;
+struct iwl_dev_tx_power_cmd_v5 {
+	__le16 per_chain[IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS];
 	u8 enable_ack_reduction;
 	u8 per_chain_restriction_changed;
 	u8 reserved[2];
 	__le32 timer_period;
 } __packed; /* TX_REDUCED_POWER_API_S_VER_5 */
+
+/**
+ * struct iwl_dev_tx_power_cmd - TX power reduction command (multiversion)
+ * @common: common part of the command
+ * @v3: version 3 part of the command
+ * @v4: version 4 part of the command
+ * @v5: version 5 part of the command
+ */
+struct iwl_dev_tx_power_cmd {
+	struct iwl_dev_tx_power_common common;
+	union {
+		struct iwl_dev_tx_power_cmd_v3 v3;
+		struct iwl_dev_tx_power_cmd_v4 v4;
+		struct iwl_dev_tx_power_cmd_v5 v5;
+	};
+};
 
 #define IWL_NUM_GEO_PROFILES   3
 

@@ -1308,18 +1308,15 @@ static int iwl_mvm_set_tx_power(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 				s16 tx_power)
 {
 	int len;
-	union {
-		struct iwl_dev_tx_power_cmd v5;
-		struct iwl_dev_tx_power_cmd_v4 v4;
-	} cmd = {
-		.v5.v3.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_MAC),
-		.v5.v3.mac_context_id =
+	struct iwl_dev_tx_power_cmd cmd = {
+		.common.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_MAC),
+		.common.mac_context_id =
 			cpu_to_le32(iwl_mvm_vif_from_mac80211(vif)->id),
-		.v5.v3.pwr_restriction = cpu_to_le16(8 * tx_power),
+		.common.pwr_restriction = cpu_to_le16(8 * tx_power),
 	};
 
 	if (tx_power == IWL_DEFAULT_MAX_TX_POWER)
-		cmd.v5.v3.pwr_restriction = cpu_to_le16(IWL_DEV_MAX_TX_POWER);
+		cmd.common.pwr_restriction = cpu_to_le16(IWL_DEV_MAX_TX_POWER);
 
 	if (fw_has_api(&mvm->fw->ucode_capa,
 		       IWL_UCODE_TLV_API_REDUCE_TX_POWER))
@@ -1328,7 +1325,10 @@ static int iwl_mvm_set_tx_power(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			     IWL_UCODE_TLV_CAPA_TX_POWER_ACK))
 		len = sizeof(cmd.v4);
 	else
-		len = sizeof(cmd.v4.v3);
+		len = sizeof(cmd.v3);
+
+	/* all structs have the same common part, add it */
+	len += sizeof(cmd.common);
 
 	return iwl_mvm_send_cmd_pdu(mvm, REDUCE_TX_POWER_CMD, 0, len, &cmd);
 }

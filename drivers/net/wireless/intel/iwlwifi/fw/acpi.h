@@ -183,7 +183,7 @@ u64 iwl_acpi_get_pwr_limit(struct device *dev);
 int iwl_acpi_get_eckv(struct device *dev, u32 *extl_clk);
 
 int iwl_sar_select_profile(struct iwl_fw_runtime *fwrt,
-			   __le16 per_chain_restriction[][IWL_NUM_SUB_BANDS],
+			   __le16 per_chain[][IWL_NUM_SUB_BANDS],
 			   int prof_a, int prof_b);
 
 int iwl_sar_get_wrds_table(struct iwl_fw_runtime *fwrt);
@@ -242,7 +242,7 @@ static inline int iwl_acpi_get_eckv(struct device *dev, u32 *extl_clk)
 }
 
 static inline int iwl_sar_select_profile(struct iwl_fw_runtime *fwrt,
-			   __le16 per_chain_restriction[][IWL_NUM_SUB_BANDS],
+			   __le16 per_chain[][IWL_NUM_SUB_BANDS],
 			   int prof_a, int prof_b)
 {
 	return -ENOENT;
