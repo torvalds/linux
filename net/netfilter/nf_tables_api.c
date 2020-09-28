@@ -986,7 +986,6 @@ static int nf_tables_newtable(struct net *net, struct sock *nlsk,
 	struct nft_table *table;
 	struct nft_ctx ctx;
 	u32 flags = 0;
-	u16 udlen = 0;
 	int err;
 
 	lockdep_assert_held(&net->nft.commit_mutex);
@@ -1023,13 +1022,11 @@ static int nf_tables_newtable(struct net *net, struct sock *nlsk,
 		goto err_strdup;
 
 	if (nla[NFTA_TABLE_USERDATA]) {
-		udlen = nla_len(nla[NFTA_TABLE_USERDATA]);
-		table->udata = kzalloc(udlen, GFP_KERNEL);
+		table->udata = nla_memdup(nla[NFTA_TABLE_USERDATA], GFP_KERNEL);
 		if (table->udata == NULL)
 			goto err_table_udata;
 
-		nla_memcpy(table->udata, nla[NFTA_TABLE_USERDATA], udlen);
-		table->udlen = udlen;
+		table->udlen = nla_len(nla[NFTA_TABLE_USERDATA]);
 	}
 
 	err = rhltable_init(&table->chains_ht, &nft_chain_ht_params);
@@ -5900,7 +5897,6 @@ static int nf_tables_newobj(struct net *net, struct sock *nlsk,
 	struct nft_object *obj;
 	struct nft_ctx ctx;
 	u32 objtype;
-	u16 udlen;
 	int err;
 
 	if (!nla[NFTA_OBJ_TYPE] ||
@@ -5957,13 +5953,11 @@ static int nf_tables_newobj(struct net *net, struct sock *nlsk,
 	}
 
 	if (nla[NFTA_OBJ_USERDATA]) {
-		udlen = nla_len(nla[NFTA_OBJ_USERDATA]);
-		obj->udata = kzalloc(udlen, GFP_KERNEL);
+		obj->udata = nla_memdup(nla[NFTA_OBJ_USERDATA], GFP_KERNEL);
 		if (obj->udata == NULL)
 			goto err_userdata;
 
-		nla_memcpy(obj->udata, nla[NFTA_OBJ_USERDATA], udlen);
-		obj->udlen = udlen;
+		obj->udlen = nla_len(nla[NFTA_OBJ_USERDATA]);
 	}
 
 	err = nft_trans_obj_add(&ctx, NFT_MSG_NEWOBJ, obj);
