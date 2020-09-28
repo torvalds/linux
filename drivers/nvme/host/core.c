@@ -2076,10 +2076,9 @@ static void nvme_set_chunk_sectors(struct nvme_ns *ns, struct nvme_id_ns *id)
 	blk_queue_chunk_sectors(ns->queue, iob);
 }
 
-static int __nvme_revalidate_disk(struct gendisk *disk, struct nvme_id_ns *id)
+static int nvme_update_ns_info(struct nvme_ns *ns, struct nvme_id_ns *id)
 {
 	unsigned lbaf = id->flbas & NVME_NS_FLBAS_LBA_MASK;
-	struct nvme_ns *ns = disk->private_data;
 	struct nvme_ctrl *ctrl = ns->ctrl;
 	int ret;
 
@@ -2141,7 +2140,7 @@ static int __nvme_revalidate_disk(struct gendisk *disk, struct nvme_id_ns *id)
 	}
 
 	nvme_set_chunk_sectors(ns, id);
-	nvme_update_disk_info(disk, ns, id);
+	nvme_update_disk_info(ns->disk, ns, id);
 #ifdef CONFIG_NVME_MULTIPATH
 	if (ns->head->disk) {
 		nvme_update_disk_info(ns->head->disk, ns, id);
@@ -2186,7 +2185,7 @@ static int nvme_validate_ns(struct nvme_ns *ns)
 		goto free_id;
 	}
 
-	ret = __nvme_revalidate_disk(ns->disk, id);
+	ret = nvme_update_ns_info(ns, id);
 free_id:
 	kfree(id);
 out:
@@ -3933,7 +3932,7 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 	memcpy(disk->disk_name, disk_name, DISK_NAME_LEN);
 	ns->disk = disk;
 
-	if (__nvme_revalidate_disk(disk, id))
+	if (nvme_update_ns_info(ns, id))
 		goto out_put_disk;
 	if (blk_queue_is_zoned(ns->queue) && nvme_revalidate_zones(ns))
 		goto out_put_disk;
