@@ -43,7 +43,7 @@ out:
 }
 
 static enum drm_mode_status hibmc_connector_mode_valid(struct drm_connector *connector,
-				      struct drm_display_mode *mode)
+						       struct drm_display_mode *mode)
 {
 	return MODE_OK;
 }
@@ -76,7 +76,7 @@ static void hibmc_encoder_mode_set(struct drm_encoder *encoder,
 {
 	u32 reg;
 	struct drm_device *dev = encoder->dev;
-	struct hibmc_drm_private *priv = dev->dev_private;
+	struct hibmc_drm_private *priv = to_hibmc_drm_private(dev);
 
 	reg = readl(priv->mmio + HIBMC_DISPLAY_CONTROL_HISILE);
 	reg |= HIBMC_DISPLAY_CONTROL_FPVDDEN(1);
