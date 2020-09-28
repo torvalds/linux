@@ -20,10 +20,10 @@ Instantiating the device is regular. Example for bus 0, address 0x30:
 
 # echo "slave-testunit 0x1030" > /sys/bus/i2c/devices/i2c-0/new_device
 
-After that, you will have a write-only device listening. Reads will return an
-8-bit version number. The device consists of 4 8-bit registers and all must be
-written to start a testcase, i.e. you must always write 4 bytes to the device.
-The registers are:
+After that, you will have a write-only device listening. Reads will just return
+an 8-bit version number of the testunit. When writing, the device consists of 4
+8-bit registers and all must be written to start a testcase, i.e. you must
+always write 4 bytes to the device. The registers are:
 
 0x00 CMD   - which test to trigger
 0x01 DATAL - configuration byte 1 for the test
@@ -35,6 +35,9 @@ Using 'i2cset' from the i2c-tools package, the generic command looks like:
 # i2cset -y <bus_num> <testunit_address> <CMD> <DATAL> <DATAH> <DELAY> i
 
 DELAY is a generic parameter which will delay the execution of the test in CMD.
+While a command is running (including the delay), new commands will not be
+acknowledged. You need to wait until the old one is completed.
+
 The commands are described in the following section. An invalid command will
 result in the transfer not being acknowledged.
 
@@ -44,7 +47,7 @@ Commands
 0x00 NOOP (reserved for future use)
 
 0x01 READ_BYTES (also needs master mode)
-   DATAL - address to read data from
+   DATAL - address to read data from (lower 7 bits, highest bit currently unused)
    DATAH - number of bytes to read
 
 This is useful to test if your bus master driver is handling multi-master
