@@ -68,6 +68,12 @@ struct iwl_mvm_pasn_sta {
 	u8 addr[ETH_ALEN];
 };
 
+struct iwl_mvm_pasn_hltk_data {
+	u8 *addr;
+	u8 cipher;
+	u8 *hltk;
+};
+
 static int iwl_mvm_ftm_responder_set_bw_v1(struct cfg80211_chan_def *chandef,
 					   u8 *bw, u8 *ctrl_ch_position)
 {
@@ -143,8 +149,7 @@ iwl_mvm_ftm_responder_cmd(struct iwl_mvm *mvm,
 		.sta_id = mvmvif->bcast_sta.sta_id,
 	};
 	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, LOCATION_GROUP,
-					   TOF_RESPONDER_CONFIG_CMD,
-					   IWL_FW_CMD_VER_UNKNOWN);
+					   TOF_RESPONDER_CONFIG_CMD, 6);
 	int err;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -169,11 +174,11 @@ iwl_mvm_ftm_responder_cmd(struct iwl_mvm *mvm,
 }
 
 static int
-iwl_mvm_ftm_responder_dyn_cfg_cmd(struct iwl_mvm *mvm,
-				  struct ieee80211_vif *vif,
-				  struct ieee80211_ftm_responder_params *params)
+iwl_mvm_ftm_responder_dyn_cfg_v2(struct iwl_mvm *mvm,
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_ftm_responder_params *params)
 {
-	struct iwl_tof_responder_dyn_config_cmd cmd = {
+	struct iwl_tof_responder_dyn_config_cmd_v2 cmd = {
 		.lci_len = cpu_to_le32(params->lci_len + 2),
 		.civic_len = cpu_to_le32(params->civicloc_len + 2),
 	};
@@ -212,6 +217,93 @@ iwl_mvm_ftm_responder_dyn_cfg_cmd(struct iwl_mvm *mvm,
 	hcmd.len[1] = aligned_lci_len + aligned_civicloc_len;
 
 	return iwl_mvm_send_cmd(mvm, &hcmd);
+}
+
+static int
+iwl_mvm_ftm_responder_dyn_cfg_v3(struct iwl_mvm *mvm,
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_ftm_responder_params *params,
+				 struct iwl_mvm_pasn_hltk_data *hltk_data)
+{
+	struct iwl_tof_responder_dyn_config_cmd cmd;
+	struct iwl_host_cmd hcmd = {
+		.id = iwl_cmd_id(TOF_RESPONDER_DYN_CONFIG_CMD,
+				 LOCATION_GROUP, 0),
+		.data[0] = &cmd,
+		.len[0] = sizeof(cmd),
+		/* may not be able to DMA from stack */
+		.dataflags[0] = IWL_HCMD_DFL_DUP,
+	};
+
+	lockdep_assert_held(&mvm->mutex);
+
+	cmd.valid_flags = 0;
+
+	if (params) {
+		if (params->lci_len + 2 > sizeof(cmd.lci_buf) ||
+		    params->civicloc_len + 2 > sizeof(cmd.civic_buf)) {
+			IWL_ERR(mvm,
+				"LCI/civic data too big (lci=%zd, civic=%zd)\n",
+				params->lci_len, params->civicloc_len);
+			return -ENOBUFS;
+		}
+
+		cmd.lci_buf[0] = WLAN_EID_MEASURE_REPORT;
+		cmd.lci_buf[1] = params->lci_len;
+		memcpy(cmd.lci_buf + 2, params->lci, params->lci_len);
+		cmd.lci_len = params->lci_len + 2;
+
+		cmd.civic_buf[0] = WLAN_EID_MEASURE_REPORT;
+		cmd.civic_buf[1] = params->civicloc_len;
+		memcpy(cmd.civic_buf + 2, params->civicloc,
+		       params->civicloc_len);
+		cmd.civic_len = params->civicloc_len + 2;
+
+		cmd.valid_flags |= IWL_RESPONDER_DYN_CFG_VALID_LCI |
+			IWL_RESPONDER_DYN_CFG_VALID_CIVIC;
+	}
+
+	if (hltk_data) {
+		if (hltk_data->cipher > IWL_LOCATION_CIPHER_GCMP_256) {
+			IWL_ERR(mvm, "invalid cipher: %u\n",
+				hltk_data->cipher);
+			return -EINVAL;
+		}
+
+		cmd.cipher = hltk_data->cipher;
+		memcpy(cmd.addr, hltk_data->addr, sizeof(cmd.addr));
+		memcpy(cmd.hltk_buf, hltk_data->hltk, sizeof(cmd.hltk_buf));
+		cmd.valid_flags |= IWL_RESPONDER_DYN_CFG_VALID_PASN_STA;
+	}
+
+	return iwl_mvm_send_cmd(mvm, &hcmd);
+}
+
+static int
+iwl_mvm_ftm_responder_dyn_cfg_cmd(struct iwl_mvm *mvm,
+				  struct ieee80211_vif *vif,
+				  struct ieee80211_ftm_responder_params *params)
+{
+	int ret;
+	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, LOCATION_GROUP,
+					   TOF_RESPONDER_DYN_CONFIG_CMD, 2);
+
+	switch (cmd_ver) {
+	case 2:
+		ret = iwl_mvm_ftm_responder_dyn_cfg_v2(mvm, vif,
+						       params);
+		break;
+	case 3:
+		ret = iwl_mvm_ftm_responder_dyn_cfg_v3(mvm, vif,
+						       params, NULL);
+		break;
+	default:
+		IWL_ERR(mvm, "Unsupported DYN_CONFIG_CMD version %u\n",
+			cmd_ver);
+		ret = -ENOTSUPP;
+	}
+
+	return ret;
 }
 
 int iwl_mvm_ftm_respoder_add_pasn_sta(struct iwl_mvm *mvm,

@@ -321,11 +321,53 @@ struct iwl_tof_responder_config_cmd {
  *	data (if exists) follows, and then 0-padding again to complete a
  *	4-multiple long buffer.
  */
-struct iwl_tof_responder_dyn_config_cmd {
+struct iwl_tof_responder_dyn_config_cmd_v2 {
 	__le32 lci_len;
 	__le32 civic_len;
 	u8 lci_civic[];
 } __packed; /* TOF_RESPONDER_DYN_CONFIG_CMD_API_S_VER_2 */
+
+#define IWL_LCI_MAX_SIZE	160
+#define IWL_CIVIC_MAX_SIZE	160
+#define HLTK_11AZ_LEN	32
+
+/**
+ * enum iwl_responder_dyn_cfg_valid_flags - valid flags for dyn_config_cmd
+ * @IWL_RESPONDER_DYN_CFG_VALID_LCI: LCI data is valid
+ * @IWL_RESPONDER_DYN_CFG_VALID_CIVIC: Civic data is valid
+ * @IWL_RESPONDER_DYN_CFG_VALID_PASN_STA: the pasn_addr, HLTK and cipher fields
+ *	are valid.
+ */
+enum iwl_responder_dyn_cfg_valid_flags {
+	IWL_RESPONDER_DYN_CFG_VALID_LCI = BIT(0),
+	IWL_RESPONDER_DYN_CFG_VALID_CIVIC = BIT(1),
+	IWL_RESPONDER_DYN_CFG_VALID_PASN_STA = BIT(2),
+};
+
+/**
+ * struct iwl_tof_responder_dyn_config_cmd - Dynamic responder settings
+ * @cipher: The negotiated cipher. see &enum iwl_location_cipher.
+ * @valid_flags: flags indicating which fields in the command are valid. see
+ *	&enum iwl_responder_dyn_cfg_valid_flags.
+ * @lci_len: length of the LCI data in bytes
+ * @civic_len: length of the Civic data in bytes
+ * @lci_buf: the LCI buffer
+ * @civic_buf: the Civic buffer
+ * @hltk_buf: HLTK for secure LTF bits generation for the specified station
+ * @addr: mac address of the station for which to use the HLTK
+ * @reserved: for alignment
+ */
+struct iwl_tof_responder_dyn_config_cmd {
+	u8 cipher;
+	u8 valid_flags;
+	u8 lci_len;
+	u8 civic_len;
+	u8 lci_buf[IWL_LCI_MAX_SIZE];
+	u8 civic_buf[IWL_LCI_MAX_SIZE];
+	u8 hltk_buf[HLTK_11AZ_LEN];
+	u8 addr[ETH_ALEN];
+	u8 reserved[2];
+} __packed; /* TOF_RESPONDER_DYN_CONFIG_CMD_API_S_VER_3 */
 
 /**
  * struct iwl_tof_range_req_ext_cmd - extended range req for WLS
@@ -507,7 +549,6 @@ enum iwl_location_bw {
 	IWL_LOCATION_BW_80MHZ,
 };
 
-#define HLTK_11AZ_LEN	32
 #define TK_11AZ_LEN	32
 
 #define LOCATION_BW_POS	4
