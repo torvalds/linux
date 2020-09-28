@@ -34,6 +34,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/reset.h>
 #include <linux/regmap.h>
+#include <linux/usb/of.h>
 #include <linux/wakelock.h>
 
 static int enable_usb_uart;
@@ -63,6 +64,10 @@ static int enable_usb_uart;
 #define RK3288_UOC0_CON3_UTMI_TERMSEL_FULLSPEED		BIT(5)
 #define RK3288_UOC0_CON3_BYPASSDMEN			BIT(6)
 #define RK3288_UOC0_CON3_BYPASSSEL			BIT(7)
+#define RK3288_UOC0_CON3_IDDIG_SET_OTG			(0 << 12)
+#define RK3288_UOC0_CON3_IDDIG_SET_HOST			(2 << 12)
+#define RK3288_UOC0_CON3_IDDIG_SET_PERIPHERAL		(3 << 12)
+#define RK3288_UOC0_CON3_IDDIG_SET_MASK			(3 << 12)
 
 #define RK3288_UOC0_CON4				0x330
 #define RK3288_UOC0_CON4_BVALID_IRQ_EN			BIT(2)
@@ -139,6 +144,105 @@ struct rockchip_usb_phy {
 	struct wake_lock	wakelock;
 	enum usb_chg_state	chg_state;
 	enum power_supply_type	chg_type;
+	enum usb_dr_mode	mode;
+};
+
+static ssize_t otg_mode_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
+{
+	struct rockchip_usb_phy *rk_phy = dev_get_drvdata(dev);
+
+	if (!rk_phy) {
+		dev_err(dev, "Fail to get otg phy.\n");
+		return -EINVAL;
+	}
+
+	switch (rk_phy->mode) {
+	case USB_DR_MODE_HOST:
+		return sprintf(buf, "host\n");
+	case USB_DR_MODE_PERIPHERAL:
+		return sprintf(buf, "peripheral\n");
+	case USB_DR_MODE_OTG:
+		return sprintf(buf, "otg\n");
+	case USB_DR_MODE_UNKNOWN:
+		return sprintf(buf, "UNKNOWN\n");
+	default:
+		break;
+	}
+
+	return -EINVAL;
+}
+
+static ssize_t otg_mode_store(struct device *dev, struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	struct rockchip_usb_phy *rk_phy = dev_get_drvdata(dev);
+	enum usb_dr_mode new_dr_mode;
+	int ret = count;
+	int val = 0;
+
+	if (!rk_phy) {
+		dev_err(dev, "Fail to get otg phy.\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&rk_phy->mutex);
+
+	if (!strncmp(buf, "0", 1) || !strncmp(buf, "otg", 3)) {
+		new_dr_mode = USB_DR_MODE_OTG;
+	} else if (!strncmp(buf, "1", 1) || !strncmp(buf, "host", 4)) {
+		new_dr_mode = USB_DR_MODE_HOST;
+	} else if (!strncmp(buf, "2", 1) || !strncmp(buf, "peripheral", 10)) {
+		new_dr_mode = USB_DR_MODE_PERIPHERAL;
+	} else {
+		dev_err(&rk_phy->phy->dev, "Error mode! Input 'otg' or 'host' or 'peripheral'\n");
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	if (rk_phy->mode == new_dr_mode) {
+		dev_warn(&rk_phy->phy->dev, "Same as current mode.\n");
+		goto out_unlock;
+	}
+
+	rk_phy->mode = new_dr_mode;
+
+	switch (rk_phy->mode) {
+	case USB_DR_MODE_HOST:
+		val = HIWORD_UPDATE(RK3288_UOC0_CON3_IDDIG_SET_HOST,
+				    RK3288_UOC0_CON3_IDDIG_SET_MASK);
+		break;
+	case USB_DR_MODE_PERIPHERAL:
+		val = HIWORD_UPDATE(RK3288_UOC0_CON3_IDDIG_SET_PERIPHERAL,
+				    RK3288_UOC0_CON3_IDDIG_SET_MASK);
+		break;
+	case USB_DR_MODE_OTG:
+		val = HIWORD_UPDATE(RK3288_UOC0_CON3_IDDIG_SET_OTG,
+				    RK3288_UOC0_CON3_IDDIG_SET_MASK);
+		break;
+	default:
+		break;
+	}
+
+	regmap_write(rk_phy->base->reg_base, RK3288_UOC0_CON3, val);
+
+out_unlock:
+	mutex_unlock(&rk_phy->mutex);
+
+	return ret;
+}
+
+static DEVICE_ATTR_RW(otg_mode);
+
+/* Group all the usb2 phy attributes */
+static struct attribute *usb2_phy_attrs[] = {
+	&dev_attr_otg_mode.attr,
+	NULL,
+};
+
+static struct attribute_group usb2_phy_attr_group = {
+	.name = NULL, /* we want them in the same directory */
+	.attrs = usb2_phy_attrs,
 };
 
 static int rockchip_usb_phy_power(struct rockchip_usb_phy *phy,
@@ -361,7 +465,7 @@ static void rk3288_usb_phy_otg_sm_work(struct work_struct *work)
 	vbus_attached =
 		(val & RK3288_SOC_STATUS2_UTMISRP_BVALID) ? true : false;
 
-	if (!vbus_attached || !id) {
+	if (!vbus_attached || !id || rk_phy->mode == USB_DR_MODE_HOST) {
 		dev_dbg(&rk_phy->phy->dev, "peripheral disconnected\n");
 		wake_unlock(&rk_phy->wakelock);
 		extcon_set_state_sync(rk_phy->base->edev, cable, false);
@@ -640,6 +744,18 @@ static int rk3288_usb_phy_probe_init(struct rockchip_usb_phy *rk_phy)
 		INIT_DELAYED_WORK(&rk_phy->chg_work, rk3288_chg_detect_work);
 		INIT_DELAYED_WORK(&rk_phy->otg_sm_work,
 				  rk3288_usb_phy_otg_sm_work);
+
+		rk_phy->mode = of_usb_get_dr_mode_by_phy(rk_phy->np, -1);
+		if (rk_phy->mode == USB_DR_MODE_OTG ||
+		    rk_phy->mode == USB_DR_MODE_UNKNOWN) {
+			ret = sysfs_create_group(&rk_phy->phy->dev.kobj,
+						 &usb2_phy_attr_group);
+			if (ret) {
+				dev_err(&rk_phy->phy->dev,
+					"Cannot create sysfs group\n");
+				goto out;
+			}
+		}
 	} else if (rk_phy->reg_offset == 0x334) {
 		/*
 		 * Setting the COMMONONN to 1'b0 for EHCI PHY on RK3288 SoC.
@@ -744,18 +860,18 @@ static int rockchip_usb_phy_init(struct rockchip_usb_phy_base *base,
 	if (err)
 		return err;
 
-	if (of_device_is_compatible(np, "rockchip,rk3288-usb-phy")) {
-		err = rk3288_usb_phy_probe_init(rk_phy);
-		if (err)
-			return err;
-	}
-
 	rk_phy->phy = devm_phy_create(base->dev, child, &ops);
 	if (IS_ERR(rk_phy->phy)) {
 		dev_err(base->dev, "failed to create PHY\n");
 		return PTR_ERR(rk_phy->phy);
 	}
 	phy_set_drvdata(rk_phy->phy, rk_phy);
+
+	if (of_device_is_compatible(np, "rockchip,rk3288-usb-phy")) {
+		err = rk3288_usb_phy_probe_init(rk_phy);
+		if (err)
+			return err;
+	}
 
 	rk_phy->vbus = devm_regulator_get_optional(&rk_phy->phy->dev, "vbus");
 	if (IS_ERR(rk_phy->vbus)) {
@@ -919,6 +1035,7 @@ static int rockchip_usb_phy_probe(struct platform_device *pdev)
 	}
 
 	phy_provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
+
 	return PTR_ERR_OR_ZERO(phy_provider);
 }
 
