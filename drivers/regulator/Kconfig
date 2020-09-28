@@ -939,6 +939,15 @@ config REGULATOR_RT5033
 	  RT5033 PMIC. The device supports multiple regulators like
 	  current source, LDO and Buck.
 
+config REGULATOR_RTMV20
+	tristate "RTMV20 Laser Diode Regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver adds support for the load switch current regulator on
+	  the Richtek RTMV20. It can support the load current up to 6A and
+	  integrate strobe/vsync/fsin signal to synchronize the IR camera.
+
 config REGULATOR_S2MPA01
 	tristate "Samsung S2MPA01 voltage regulator"
 	depends on MFD_SEC_CORE || COMPILE_TEST
