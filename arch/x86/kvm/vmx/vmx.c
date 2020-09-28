@@ -457,7 +457,7 @@ static unsigned long host_idt_base;
  * support this emulation, IA32_STAR must always be included in
  * vmx_uret_msrs_list[], even in i386 builds.
  */
-const u32 vmx_uret_msrs_list[] = {
+static const u32 vmx_uret_msrs_list[] = {
 #ifdef CONFIG_X86_64
 	MSR_SYSCALL_MASK, MSR_LSTAR, MSR_CSTAR,
 #endif
