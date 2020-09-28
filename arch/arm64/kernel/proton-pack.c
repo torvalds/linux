@@ -22,6 +22,7 @@
 #include <linux/device.h>
 #include <linux/nospec.h>
 #include <linux/prctl.h>
+#include <linux/sched/task_stack.h>
 
 #include <asm/spectre.h>
 #include <asm/traps.h>
