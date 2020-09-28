@@ -14,41 +14,41 @@
 #define V4L2_META_FMT_RK_ISP1_STAT_3A  v4l2_fourcc('R', 'K', '1', 'S') /* Rockchip ISP1 3A statistics */
 
 /* Defect Pixel Cluster Detection */
-#define RKISP1_CIF_ISP_MODULE_DPCC		BIT(0)
+#define RKISP1_CIF_ISP_MODULE_DPCC		(1U << 0)
 /* Black Level Subtraction */
-#define RKISP1_CIF_ISP_MODULE_BLS		BIT(1)
+#define RKISP1_CIF_ISP_MODULE_BLS		(1U << 1)
 /* Sensor De-gamma */
-#define RKISP1_CIF_ISP_MODULE_SDG		BIT(2)
+#define RKISP1_CIF_ISP_MODULE_SDG		(1U << 2)
 /* Histogram */
-#define RKISP1_CIF_ISP_MODULE_HST		BIT(3)
+#define RKISP1_CIF_ISP_MODULE_HST		(1U << 3)
 /* Lens Shade Control */
-#define RKISP1_CIF_ISP_MODULE_LSC		BIT(4)
+#define RKISP1_CIF_ISP_MODULE_LSC		(1U << 4)
 /* Auto White Balance Gain */
-#define RKISP1_CIF_ISP_MODULE_AWB_GAIN		BIT(5)
+#define RKISP1_CIF_ISP_MODULE_AWB_GAIN		(1U << 5)
 /* Filter */
-#define RKISP1_CIF_ISP_MODULE_FLT		BIT(6)
+#define RKISP1_CIF_ISP_MODULE_FLT		(1U << 6)
 /* Bayer Demosaic */
-#define RKISP1_CIF_ISP_MODULE_BDM		BIT(7)
+#define RKISP1_CIF_ISP_MODULE_BDM		(1U << 7)
 /* Cross Talk */
-#define RKISP1_CIF_ISP_MODULE_CTK		BIT(8)
+#define RKISP1_CIF_ISP_MODULE_CTK		(1U << 8)
 /* Gamma Out Curve */
-#define RKISP1_CIF_ISP_MODULE_GOC		BIT(9)
+#define RKISP1_CIF_ISP_MODULE_GOC		(1U << 9)
 /* Color Processing */
-#define RKISP1_CIF_ISP_MODULE_CPROC		BIT(10)
+#define RKISP1_CIF_ISP_MODULE_CPROC		(1U << 10)
 /* Auto Focus Control */
-#define RKISP1_CIF_ISP_MODULE_AFC		BIT(11)
+#define RKISP1_CIF_ISP_MODULE_AFC		(1U << 11)
 /* Auto White Balancing */
-#define RKISP1_CIF_ISP_MODULE_AWB		BIT(12)
+#define RKISP1_CIF_ISP_MODULE_AWB		(1U << 12)
 /* Image Effect */
-#define RKISP1_CIF_ISP_MODULE_IE		BIT(13)
+#define RKISP1_CIF_ISP_MODULE_IE		(1U << 13)
 /* Auto Exposure Control */
-#define RKISP1_CIF_ISP_MODULE_AEC		BIT(14)
+#define RKISP1_CIF_ISP_MODULE_AEC		(1U << 14)
 /* Wide Dynamic Range */
-#define RKISP1_CIF_ISP_MODULE_WDR		BIT(15)
+#define RKISP1_CIF_ISP_MODULE_WDR		(1U << 15)
 /* Denoise Pre-Filter */
-#define RKISP1_CIF_ISP_MODULE_DPF		BIT(16)
+#define RKISP1_CIF_ISP_MODULE_DPF		(1U << 16)
 /* Denoise Pre-Filter Strength */
-#define RKISP1_CIF_ISP_MODULE_DPF_STRENGTH	BIT(17)
+#define RKISP1_CIF_ISP_MODULE_DPF_STRENGTH	(1U << 17)
 
 #define RKISP1_CIF_ISP_CTK_COEFF_MAX            0x100
 #define RKISP1_CIF_ISP_CTK_OFFSET_MAX           0x800
@@ -123,10 +123,10 @@
 /*
  * Measurement types
  */
-#define RKISP1_CIF_ISP_STAT_AWB           BIT(0)
-#define RKISP1_CIF_ISP_STAT_AUTOEXP       BIT(1)
-#define RKISP1_CIF_ISP_STAT_AFM           BIT(2)
-#define RKISP1_CIF_ISP_STAT_HIST          BIT(3)
+#define RKISP1_CIF_ISP_STAT_AWB           (1U << 0)
+#define RKISP1_CIF_ISP_STAT_AUTOEXP       (1U << 1)
+#define RKISP1_CIF_ISP_STAT_AFM           (1U << 2)
+#define RKISP1_CIF_ISP_STAT_HIST          (1U << 3)
 
 enum rkisp1_cif_isp_histogram_mode {
 	RKISP1_CIF_ISP_HISTOGRAM_MODE_DISABLE,
