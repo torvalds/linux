@@ -1281,6 +1281,8 @@ static int nvme_identify_ns_descs(struct nvme_ctrl *ctrl, unsigned nsid,
 	int status, pos, len;
 	void *data;
 
+	if (ctrl->vs < NVME_VS(1, 3, 0) && !nvme_multi_css(ctrl))
+		return 0;
 	if (ctrl->quirks & NVME_QUIRK_NO_NS_DESC_LIST)
 		return 0;
 
@@ -1335,8 +1337,8 @@ static int nvme_identify_ns_list(struct nvme_ctrl *dev, unsigned nsid, __le32 *n
 				    NVME_IDENTIFY_DATA_SIZE);
 }
 
-static int nvme_identify_ns(struct nvme_ctrl *ctrl,
-		unsigned nsid, struct nvme_id_ns **id)
+static int nvme_identify_ns(struct nvme_ctrl *ctrl, unsigned nsid,
+			struct nvme_ns_ids *ids, struct nvme_id_ns **id)
 {
 	struct nvme_command c = { };
 	int error;
@@ -1359,6 +1361,14 @@ static int nvme_identify_ns(struct nvme_ctrl *ctrl,
 	error = -ENODEV;
 	if ((*id)->ncap == 0) /* namespace not allocated or attached */
 		goto out_free_id;
+
+	if (ctrl->vs >= NVME_VS(1, 1, 0) &&
+	    !memchr_inv(ids->eui64, 0, sizeof(ids->eui64)))
+		memcpy(ids->eui64, (*id)->eui64, sizeof(ids->eui64));
+	if (ctrl->vs >= NVME_VS(1, 2, 0) &&
+	    !memchr_inv(ids->nguid, 0, sizeof(ids->nguid)))
+		memcpy(ids->nguid, (*id)->nguid, sizeof(ids->nguid));
+
 	return 0;
 
 out_free_id:
@@ -1884,20 +1894,6 @@ static void nvme_config_write_zeroes(struct gendisk *disk, struct nvme_ns *ns)
 					   nvme_lba_to_sect(ns, max_blocks));
 }
 
-static int nvme_report_ns_ids(struct nvme_ctrl *ctrl, unsigned int nsid,
-		struct nvme_id_ns *id, struct nvme_ns_ids *ids)
-{
-	memset(ids, 0, sizeof(*ids));
-
-	if (ctrl->vs >= NVME_VS(1, 1, 0))
-		memcpy(ids->eui64, id->eui64, sizeof(id->eui64));
-	if (ctrl->vs >= NVME_VS(1, 2, 0))
-		memcpy(ids->nguid, id->nguid, sizeof(id->nguid));
-	if (ctrl->vs >= NVME_VS(1, 3, 0) || nvme_multi_css(ctrl))
-		return nvme_identify_ns_descs(ctrl, nsid, ids);
-	return 0;
-}
-
 static bool nvme_ns_ids_valid(struct nvme_ns_ids *ids)
 {
 	return !uuid_is_null(&ids->uuid) ||
@@ -2117,30 +2113,16 @@ static void nvme_set_chunk_sectors(struct nvme_ns *ns, struct nvme_id_ns *id)
 static int nvme_update_ns_info(struct nvme_ns *ns, struct nvme_id_ns *id)
 {
 	unsigned lbaf = id->flbas & NVME_NS_FLBAS_LBA_MASK;
-	struct nvme_ctrl *ctrl = ns->ctrl;
 	int ret;
 
 	blk_mq_freeze_queue(ns->disk->queue);
 	ns->lba_shift = id->lbaf[lbaf].ds;
-	nvme_set_queue_limits(ctrl, ns->queue);
+	nvme_set_queue_limits(ns->ctrl, ns->queue);
 
-	switch (ns->head->ids.csi) {
-	case NVME_CSI_NVM:
-		break;
-	case NVME_CSI_ZNS:
+	if (ns->head->ids.csi == NVME_CSI_ZNS) {
 		ret = nvme_update_zone_info(ns, lbaf);
-		if (ret) {
-			dev_warn(ctrl->device,
-				"failed to add zoned namespace:%u ret:%d\n",
-				ns->head->ns_id, ret);
+		if (ret)
 			goto out_unfreeze;
-		}
-		break;
-	default:
-		dev_warn(ctrl->device, "unknown csi:%u ns:%u\n",
-			ns->head->ids.csi, ns->head->ns_id);
-		ret = -ENODEV;
-		goto out_unfreeze;
 	}
 
 	ret = nvme_configure_metadata(ns, id);
@@ -2174,11 +2156,10 @@ out_unfreeze:
 	return ret;
 }
 
-static int nvme_validate_ns(struct nvme_ns *ns)
+static int nvme_validate_ns(struct nvme_ns *ns, struct nvme_ns_ids *ids)
 {
 	struct nvme_ctrl *ctrl = ns->ctrl;
 	struct nvme_id_ns *id;
-	struct nvme_ns_ids ids;
 	int ret = 0;
 
 	if (test_bit(NVME_NS_DEAD, &ns->flags)) {
@@ -2186,15 +2167,11 @@ static int nvme_validate_ns(struct nvme_ns *ns)
 		return -ENODEV;
 	}
 
-	ret = nvme_identify_ns(ctrl, ns->head->ns_id, &id);
+	ret = nvme_identify_ns(ctrl, ns->head->ns_id, ids, &id);
 	if (ret)
 		goto out;
 
-	ret = nvme_report_ns_ids(ctrl, ns->head->ns_id, id, &ids);
-	if (ret)
-		goto free_id;
-
-	if (!nvme_ns_ids_equal(&ns->head->ids, &ids)) {
+	if (!nvme_ns_ids_equal(&ns->head->ids, ids)) {
 		dev_err(ctrl->device,
 			"identifiers changed for nsid %d\n", ns->head->ns_id);
 		ret = -ENODEV;
@@ -3794,25 +3771,16 @@ out:
 }
 
 static int nvme_init_ns_head(struct nvme_ns *ns, unsigned nsid,
-		struct nvme_id_ns *id)
+		struct nvme_ns_ids *ids, bool is_shared)
 {
 	struct nvme_ctrl *ctrl = ns->ctrl;
-	bool is_shared = id->nmic & NVME_NS_NMIC_SHARED;
 	struct nvme_ns_head *head = NULL;
-	struct nvme_ns_ids ids;
 	int ret = 0;
-
-	ret = nvme_report_ns_ids(ctrl, nsid, id, &ids);
-	if (ret) {
-		if (ret < 0)
-			return ret;
-		return blk_status_to_errno(nvme_error_status(ret));
-	}
 
 	mutex_lock(&ctrl->subsys->lock);
 	head = nvme_find_ns_head(ctrl->subsys, nsid);
 	if (!head) {
-		head = nvme_alloc_ns_head(ctrl, nsid, &ids);
+		head = nvme_alloc_ns_head(ctrl, nsid, ids);
 		if (IS_ERR(head)) {
 			ret = PTR_ERR(head);
 			goto out_unlock;
@@ -3825,7 +3793,7 @@ static int nvme_init_ns_head(struct nvme_ns *ns, unsigned nsid,
 				"Duplicate unshared namespace %d\n", nsid);
 			goto out_put_ns_head;
 		}
-		if (!nvme_ns_ids_equal(&head->ids, &ids)) {
+		if (!nvme_ns_ids_equal(&head->ids, ids)) {
 			dev_err(ctrl->device,
 				"IDs don't match for shared namespace %d\n",
 					nsid);
@@ -3873,7 +3841,8 @@ struct nvme_ns *nvme_find_get_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 }
 EXPORT_SYMBOL_NS_GPL(nvme_find_get_ns, NVME_TARGET_PASSTHRU);
 
-static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
+static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid,
+		struct nvme_ns_ids *ids)
 {
 	struct nvme_ns *ns;
 	struct gendisk *disk;
@@ -3881,7 +3850,7 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 	char disk_name[DISK_NAME_LEN];
 	int node = ctrl->numa_node, flags = GENHD_FL_EXT_DEVT, ret;
 
-	if (nvme_identify_ns(ctrl, nsid, &id))
+	if (nvme_identify_ns(ctrl, nsid, ids, &id))
 		return;
 
 	ns = kzalloc_node(sizeof(*ns), GFP_KERNEL, node);
@@ -3903,7 +3872,7 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 	ns->ctrl = ctrl;
 	kref_init(&ns->kref);
 
-	ret = nvme_init_ns_head(ns, nsid, id);
+	ret = nvme_init_ns_head(ns, nsid, ids, id->nmic & NVME_NS_NMIC_SHARED);
 	if (ret)
 		goto out_free_queue;
 	nvme_set_disk_name(disk_name, ns, ctrl, &flags);
@@ -4006,20 +3975,41 @@ static void nvme_ns_remove_by_nsid(struct nvme_ctrl *ctrl, u32 nsid)
 
 static void nvme_validate_or_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 {
+	struct nvme_ns_ids ids = { };
 	struct nvme_ns *ns;
 	int ret;
 
+	if (nvme_identify_ns_descs(ctrl, nsid, &ids))
+		return;
+
 	ns = nvme_find_get_ns(ctrl, nsid);
-	if (!ns) {
-		nvme_alloc_ns(ctrl, nsid);
+	if (ns) {
+		ret = nvme_validate_ns(ns, &ids);
+		revalidate_disk_size(ns->disk, ret == 0);
+		if (ret)
+			nvme_ns_remove(ns);
+		nvme_put_ns(ns);
 		return;
 	}
 
-	ret = nvme_validate_ns(ns);
-	revalidate_disk_size(ns->disk, ret == 0);
-	if (ret)
-		nvme_ns_remove(ns);
-	nvme_put_ns(ns);
+	switch (ids.csi) {
+	case NVME_CSI_NVM:
+		nvme_alloc_ns(ctrl, nsid, &ids);
+		break;
+	case NVME_CSI_ZNS:
+		if (!IS_ENABLED(CONFIG_BLK_DEV_ZONED)) {
+			dev_warn(ctrl->device,
+				"nsid %u not supported without CONFIG_BLK_DEV_ZONED\n",
+				nsid);
+			break;
+		}
+		nvme_alloc_ns(ctrl, nsid, &ids);
+		break;
+	default:
+		dev_warn(ctrl->device, "unknown csi %u for nsid %u\n",
+			ids.csi, nsid);
+		break;
+	}
 }
 
 static void nvme_remove_invalid_namespaces(struct nvme_ctrl *ctrl,
