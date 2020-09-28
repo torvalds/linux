@@ -1326,17 +1326,6 @@ free_data:
 	return status;
 }
 
-static int nvme_identify_ns_list(struct nvme_ctrl *dev, unsigned nsid, __le32 *ns_list)
-{
-	struct nvme_command c = { };
-
-	c.identify.opcode = nvme_admin_identify;
-	c.identify.cns = NVME_ID_CNS_NS_ACTIVE_LIST;
-	c.identify.nsid = cpu_to_le32(nsid);
-	return nvme_submit_sync_cmd(dev->admin_q, &c, ns_list,
-				    NVME_IDENTIFY_DATA_SIZE);
-}
-
 static int nvme_identify_ns(struct nvme_ctrl *ctrl, unsigned nsid,
 			struct nvme_ns_ids *ids, struct nvme_id_ns **id)
 {
@@ -4042,7 +4031,14 @@ static int nvme_scan_ns_list(struct nvme_ctrl *ctrl)
 		return -ENOMEM;
 
 	for (;;) {
-		ret = nvme_identify_ns_list(ctrl, prev, ns_list);
+		struct nvme_command cmd = {
+			.identify.opcode	= nvme_admin_identify,
+			.identify.cns		= NVME_ID_CNS_NS_ACTIVE_LIST,
+			.identify.nsid		= cpu_to_le32(prev),
+		};
+
+		ret = nvme_submit_sync_cmd(ctrl->admin_q, &cmd, ns_list,
+					    NVME_IDENTIFY_DATA_SIZE);
 		if (ret)
 			goto free;
 
