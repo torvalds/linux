@@ -244,13 +244,18 @@ coresight_control_assoc_ectdev(struct coresight_device *csdev, bool enable)
 
 	if (!ect_csdev)
 		return 0;
+	if ((!ect_ops(ect_csdev)->enable) || (!ect_ops(ect_csdev)->disable))
+		return 0;
 
 	if (enable) {
-		if (ect_ops(ect_csdev)->enable)
-			ect_ret = ect_ops(ect_csdev)->enable(ect_csdev);
+		ect_ret = ect_ops(ect_csdev)->enable(ect_csdev);
+		if (!ect_ret)
+			csdev->ect_enabled = true;
 	} else {
-		if (ect_ops(ect_csdev)->disable)
+		if (csdev->ect_enabled) {
 			ect_ret = ect_ops(ect_csdev)->disable(ect_csdev);
+			csdev->ect_enabled = false;
+		}
 	}
 
 	/* output warning if ECT enable is preventing trace operation */
