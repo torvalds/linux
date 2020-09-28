@@ -495,5 +495,3 @@ V4L2 sub-device functions and data structures
 ---------------------------------------------
 
 .. kernel-doc:: include/media/v4l2-subdev.h
-
-.. kernel-doc:: include/media/v4l2-async.h
