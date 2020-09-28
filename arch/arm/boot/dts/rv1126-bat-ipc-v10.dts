@@ -5,17 +5,13 @@
 
 /dts-v1/;
 #include "rv1126.dtsi"
-#include "rv1126-ipc.dtsi"
+#include "rv1126-bat-ipc.dtsi"
 #include "rv1126-thunder-boot-emmc.dtsi"
 #include <dt-bindings/input/input.h>
 
 / {
 	model = "Rockchip RV1126 BAT IPC V10 Board";
 	compatible = "rockchip,rv1126-bat-ipc-v10", "rockchip,rv1126";
-
-	chosen {
-		bootargs = "loglevel=0 initcall_nr_threads=-1 initcall_debug=0 printk.devkmsg=on root=/dev/rd0 console=ttyFIQ0 snd_aloop.index=7 driver_async_probe=dwmmc_rockchip";
-	};
 
 	adc-keys {
 		compatible = "adc-keys";
@@ -61,9 +57,6 @@
 		};
 	};
 
-	/delete-node/ vdd-npu;
-	/delete-node/ vdd-vepu;
-
 	vcc1v2_dvdd: vcc1v8_dovdd: vcc2v8_avdd: vcc-camera {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_camera";
@@ -78,15 +71,6 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
-	};
-
-	vcc_3v3: vcc-3v3 {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc_3v3";
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
 	};
 
 	vccio_flash: vccio-flash {
@@ -107,19 +91,6 @@
 		gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_HIGH>;
 		states = <3300000 1
 			  1800000 0>;
-	};
-
-	vdd_arm: vdd-arm {
-		compatible = "pwm-regulator";
-		pwms = <&pwm0 0 5000 1>;
-		regulator-name = "vdd_arm";
-		regulator-min-microvolt = <720000>;
-		regulator-max-microvolt = <1000000>;
-		regulator-init-microvolt = <824000>;
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-settling-time-up-us = <250>;
-		pwm-supply = <&vcc_3v3>;
 	};
 
 	vdd_npu_vepu: vdd-npu-vepu {
@@ -331,13 +302,17 @@
 	vccio7-supply = <&vcc_3v3>;
 };
 
+&pwm1 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm1m0_pins_pull_down>;
+};
+
 &rkisp_thunderboot {
 	reg = <0x10000000 (72 * 0x00100000)>;
 };
 
 &rkisp_vir0 {
-	status = "okay";
-
 	ports {
 		port@0 {
 			reg = <0>;
@@ -352,17 +327,8 @@
 	};
 };
 
-&rkispp {
-	status = "okay";
-};
-
-&rkispp_mmu {
-	status = "okay";
-};
-
 &rkvenc {
 	venc-supply = <&vdd_npu_vepu>;
-	status = "okay";
 };
 
 &rkvenc_mmu {

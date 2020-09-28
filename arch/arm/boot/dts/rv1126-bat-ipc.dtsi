@@ -1,0 +1,161 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
+ */
+
+/ {
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0xff570000 loglevel=0 initcall_nr_threads=-1 initcall_debug=0 printk.devkmsg=on root=/dev/rd0 console=ttyFIQ0 snd_aloop.index=7 driver_async_probe=dwmmc_rockchip";
+	};
+
+	vcc_3v3: vcc-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_3v3";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	vdd_arm: vdd-arm {
+		compatible = "pwm-regulator";
+		pwms = <&pwm0 0 5000 1>;
+		regulator-name = "vdd_arm";
+		regulator-min-microvolt = <720000>;
+		regulator-max-microvolt = <1000000>;
+		regulator-init-microvolt = <824000>;
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-settling-time-up-us = <250>;
+		pwm-supply = <&vcc_3v3>;
+	};
+};
+
+&cpu0 {
+	cpu-supply = <&vdd_arm>;
+};
+
+&cpu_tsadc {
+	status = "okay";
+};
+
+&display_subsystem {
+	status = "okay";
+};
+
+&fiq_debugger {
+	status = "okay";
+};
+
+&mpp_srv {
+	status = "okay";
+};
+
+&nandc {
+	/delete-property/ pinctrl-names;
+	/delete-property/ pinctrl-0;
+	status = "disabled";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	nand@0 {
+		reg = <0>;
+		nand-bus-width = <8>;
+		nand-ecc-mode = "hw";
+		nand-ecc-strength = <16>;
+		nand-ecc-step-size = <1024>;
+	};
+};
+
+&npu {
+	status = "okay";
+};
+
+&npu_tsadc {
+	status = "okay";
+};
+
+&optee {
+	status = "disabled";
+};
+
+&otp {
+	status = "okay";
+};
+
+&pwm0 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm0m0_pins_pull_down>;
+};
+
+&ramoops {
+	status = "okay";
+};
+
+&rk_rga {
+	status = "okay";
+};
+
+&rkisp {
+	status = "okay";
+};
+
+&rkisp_vir0 {
+	status = "okay";
+};
+
+&rkisp_mmu {
+	status = "disabled";
+};
+
+&rkispp {
+	rockchip,restart-monitor-en;
+	status = "okay";
+};
+
+&rkispp_vir0 {
+	status = "okay";
+};
+
+&rkispp_mmu {
+	status = "okay";
+};
+
+&rkvenc {
+	status = "okay";
+};
+
+&rkvenc_mmu {
+	status = "okay";
+};
+
+&rng {
+	status = "okay";
+};
+
+&sfc {
+	/delete-property/ pinctrl-names;
+	/delete-property/ pinctrl-0;
+	status = "disabled";
+};
+
+&u2phy0 {
+	status = "okay";
+	u2phy_otg: otg-port {
+		status = "okay";
+	};
+};
+
+&usbdrd {
+	status = "okay";
+};
+
+&usbdrd_dwc3 {
+	status = "okay";
+	extcon = <&u2phy0>;
+};
+
+&vop {
+	status = "okay";
+};
