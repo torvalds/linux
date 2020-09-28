@@ -241,19 +241,30 @@ coresight_control_assoc_ectdev(struct coresight_device *csdev, bool enable)
 {
 	int ect_ret = 0;
 	struct coresight_device *ect_csdev = csdev->ect_dev;
+	struct module *mod;
 
 	if (!ect_csdev)
 		return 0;
 	if ((!ect_ops(ect_csdev)->enable) || (!ect_ops(ect_csdev)->disable))
 		return 0;
 
+	mod = ect_csdev->dev.parent->driver->owner;
 	if (enable) {
-		ect_ret = ect_ops(ect_csdev)->enable(ect_csdev);
-		if (!ect_ret)
-			csdev->ect_enabled = true;
+		if (try_module_get(mod)) {
+			ect_ret = ect_ops(ect_csdev)->enable(ect_csdev);
+			if (ect_ret) {
+				module_put(mod);
+			} else {
+				get_device(ect_csdev->dev.parent);
+				csdev->ect_enabled = true;
+			}
+		} else
+			ect_ret = -ENODEV;
 	} else {
 		if (csdev->ect_enabled) {
 			ect_ret = ect_ops(ect_csdev)->disable(ect_csdev);
+			put_device(ect_csdev->dev.parent);
+			module_put(mod);
 			csdev->ect_enabled = false;
 		}
 	}
