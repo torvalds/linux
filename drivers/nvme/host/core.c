@@ -89,7 +89,7 @@ static dev_t nvme_chr_devt;
 static struct class *nvme_class;
 static struct class *nvme_subsys_class;
 
-static int _nvme_revalidate_disk(struct gendisk *disk);
+static int nvme_validate_ns(struct nvme_ns *ns);
 static void nvme_put_subsystem(struct nvme_subsystem *subsys);
 static void nvme_remove_invalid_namespaces(struct nvme_ctrl *ctrl,
 					   unsigned nsid);
@@ -1026,7 +1026,7 @@ static void nvme_update_formats(struct nvme_ctrl *ctrl, u32 *effects)
 
 	down_read(&ctrl->namespaces_rwsem);
 	list_for_each_entry(ns, &ctrl->namespaces, list)
-		if (_nvme_revalidate_disk(ns->disk))
+		if (nvme_validate_ns(ns))
 			nvme_set_queue_dying(ns);
 		else if (blk_queue_is_zoned(ns->disk->queue)) {
 			/*
@@ -2154,16 +2154,15 @@ static int __nvme_revalidate_disk(struct gendisk *disk, struct nvme_id_ns *id)
 	return 0;
 }
 
-static int _nvme_revalidate_disk(struct gendisk *disk)
+static int nvme_validate_ns(struct nvme_ns *ns)
 {
-	struct nvme_ns *ns = disk->private_data;
 	struct nvme_ctrl *ctrl = ns->ctrl;
 	struct nvme_id_ns *id;
 	struct nvme_ns_ids ids;
 	int ret = 0;
 
 	if (test_bit(NVME_NS_DEAD, &ns->flags)) {
-		set_capacity(disk, 0);
+		set_capacity(ns->disk, 0);
 		return -ENODEV;
 	}
 
@@ -2187,7 +2186,7 @@ static int _nvme_revalidate_disk(struct gendisk *disk)
 		goto free_id;
 	}
 
-	ret = __nvme_revalidate_disk(disk, id);
+	ret = __nvme_revalidate_disk(ns->disk, id);
 free_id:
 	kfree(id);
 out:
@@ -4032,7 +4031,7 @@ static void nvme_validate_or_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 		return;
 	}
 
-	ret = _nvme_revalidate_disk(ns->disk);
+	ret = nvme_validate_ns(ns);
 	if (!ret && blk_queue_is_zoned(ns->queue))
 		ret = nvme_revalidate_zones(ns);
 	revalidate_disk_size(ns->disk, ret == 0);
