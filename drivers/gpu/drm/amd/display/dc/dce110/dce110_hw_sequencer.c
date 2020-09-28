@@ -2737,7 +2737,7 @@ static void program_output_csc(struct dc *dc,
 	}
 }
 
-void dce110_set_cursor_position(struct pipe_ctx *pipe_ctx)
+static void dce110_set_cursor_position(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_cursor_position pos_cpy = pipe_ctx->stream->cursor_position;
 	struct input_pixel_processor *ipp = pipe_ctx->plane_res.ipp;
@@ -2782,7 +2782,7 @@ void dce110_set_cursor_position(struct pipe_ctx *pipe_ctx)
 		mi->funcs->set_cursor_position(mi, &pos_cpy, &param);
 }
 
-void dce110_set_cursor_attribute(struct pipe_ctx *pipe_ctx)
+static void dce110_set_cursor_attribute(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_cursor_attributes *attributes = &pipe_ctx->stream->cursor_attributes;
 
