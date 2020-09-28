@@ -78,7 +78,7 @@ int fsl8250_handle_irq(struct uart_port *port)
 
 	serial8250_modem_status(up);
 
-	if (lsr & UART_LSR_THRE)
+	if ((lsr & UART_LSR_THRE) && (up->ier & UART_IER_THRI))
 		serial8250_tx_chars(up);
 
 	up->lsr_saved_flags = orig_lsr;
