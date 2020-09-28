@@ -493,13 +493,25 @@ struct iwl_wowlan_tkip_params_cmd {
 #define IWL_KCK_MAX_SIZE	32
 #define IWL_KEK_MAX_SIZE	32
 
-struct iwl_wowlan_kek_kck_material_cmd {
+struct iwl_wowlan_kek_kck_material_cmd_v2 {
 	u8	kck[IWL_KCK_MAX_SIZE];
 	u8	kek[IWL_KEK_MAX_SIZE];
 	__le16	kck_len;
 	__le16	kek_len;
 	__le64	replay_ctr;
 } __packed; /* KEK_KCK_MATERIAL_API_S_VER_2 */
+
+struct iwl_wowlan_kek_kck_material_cmd_v3 {
+	u8	kck[IWL_KCK_MAX_SIZE];
+	u8	kek[IWL_KEK_MAX_SIZE];
+	__le16	kck_len;
+	__le16	kek_len;
+	__le64	replay_ctr;
+	__le32  akm;
+	__le32  gtk_cipher;
+	__le32  igtk_cipher;
+	__le32  bigtk_cipher;
+} __packed; /* KEK_KCK_MATERIAL_API_S_VER_3 */
 
 #define RF_KILL_INDICATOR_FOR_WOWLAN	0x87
 

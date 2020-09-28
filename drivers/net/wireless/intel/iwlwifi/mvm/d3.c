@@ -70,6 +70,7 @@
 #include "iwl-modparams.h"
 #include "fw-api.h"
 #include "mvm.h"
+#include "fw/img.h"
 
 void iwl_mvm_set_rekey_data(struct ieee80211_hw *hw,
 			    struct ieee80211_vif *vif,
@@ -739,7 +740,7 @@ static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 					    struct ieee80211_vif *vif,
 					    u32 cmd_flags)
 {
-	struct iwl_wowlan_kek_kck_material_cmd kek_kck_cmd = {};
+	struct iwl_wowlan_kek_kck_material_cmd_v3 kek_kck_cmd = {};
 	struct iwl_wowlan_tkip_params_cmd tkip_cmd = {};
 	bool unified = fw_has_capa(&mvm->fw->ucode_capa,
 				   IWL_UCODE_TLV_CAPA_CNSLDTD_D3_D0_IMG);
@@ -751,6 +752,8 @@ static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 	};
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	int ret;
+	u8 cmd_ver;
+	size_t cmd_size;
 
 	key_data.rsc_tsc = kzalloc(sizeof(*key_data.rsc_tsc), GFP_KERNEL);
 	if (!key_data.rsc_tsc)
@@ -833,6 +836,16 @@ static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 
 	/* configure rekey data only if offloaded rekey is supported (d3) */
 	if (mvmvif->rekey_data.valid) {
+		cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, IWL_ALWAYS_LONG_GROUP,
+						WOWLAN_KEK_KCK_MATERIAL);
+		if (WARN_ON(cmd_ver != 2 && cmd_ver != 3 &&
+			    cmd_ver != IWL_FW_CMD_VER_UNKNOWN))
+			return -EINVAL;
+		if (cmd_ver == 3)
+			cmd_size = sizeof(struct iwl_wowlan_kek_kck_material_cmd_v3);
+		else
+			cmd_size = sizeof(struct iwl_wowlan_kek_kck_material_cmd_v2);
+
 		memset(&kek_kck_cmd, 0, sizeof(kek_kck_cmd));
 		memcpy(kek_kck_cmd.kck, mvmvif->rekey_data.kck,
 		       NL80211_KCK_LEN);
@@ -844,7 +857,7 @@ static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 
 		ret = iwl_mvm_send_cmd_pdu(mvm,
 					   WOWLAN_KEK_KCK_MATERIAL, cmd_flags,
-					   sizeof(kek_kck_cmd),
+					   cmd_size,
 					   &kek_kck_cmd);
 		if (ret)
 			goto out;
