@@ -330,6 +330,7 @@ enum iwl_dev_tx_power_cmd_mode {
 }; /* TX_POWER_REDUCED_FLAGS_TYPE_API_E_VER_5 */;
 
 #define IWL_NUM_CHAIN_TABLES	1
+#define IWL_NUM_CHAIN_TABLES_V2	2
 #define IWL_NUM_CHAIN_LIMITS	2
 #define IWL_NUM_SUB_BANDS	5
 #define IWL_NUM_SUB_BANDS_V2	11
@@ -397,11 +398,33 @@ struct iwl_dev_tx_power_cmd_v5 {
 } __packed; /* TX_REDUCED_POWER_API_S_VER_5 */
 
 /**
+ * struct iwl_dev_tx_power_cmd_v5 - TX power reduction command version 5
+ * @per_chain: per chain restrictions
+ * @enable_ack_reduction: enable or disable close range ack TX power
+ *	reduction.
+ * @per_chain_restriction_changed: is per_chain_restriction has changed
+ *	from last command. used if set_mode is
+ *	IWL_TX_POWER_MODE_SET_SAR_TIMER.
+ *	note: if not changed, the command is used for keep alive only.
+ * @reserved: reserved (padding)
+ * @timer_period: timer in milliseconds. if expires FW will change to default
+ *	BIOS values. relevant if setMode is IWL_TX_POWER_MODE_SET_SAR_TIMER
+ */
+struct iwl_dev_tx_power_cmd_v6 {
+	__le16 per_chain[IWL_NUM_CHAIN_TABLES_V2][IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS_V2];
+	u8 enable_ack_reduction;
+	u8 per_chain_restriction_changed;
+	u8 reserved[2];
+	__le32 timer_period;
+} __packed; /* TX_REDUCED_POWER_API_S_VER_6 */
+
+/**
  * struct iwl_dev_tx_power_cmd - TX power reduction command (multiversion)
  * @common: common part of the command
  * @v3: version 3 part of the command
  * @v4: version 4 part of the command
  * @v5: version 5 part of the command
+ * @v6: version 6 part of the command
  */
 struct iwl_dev_tx_power_cmd {
 	struct iwl_dev_tx_power_common common;
@@ -409,6 +432,7 @@ struct iwl_dev_tx_power_cmd {
 		struct iwl_dev_tx_power_cmd_v3 v3;
 		struct iwl_dev_tx_power_cmd_v4 v4;
 		struct iwl_dev_tx_power_cmd_v5 v5;
+		struct iwl_dev_tx_power_cmd_v6 v6;
 	};
 };
 
