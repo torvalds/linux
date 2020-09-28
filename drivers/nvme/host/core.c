@@ -3887,9 +3887,12 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 	char disk_name[DISK_NAME_LEN];
 	int node = ctrl->numa_node, flags = GENHD_FL_EXT_DEVT, ret;
 
+	if (nvme_identify_ns(ctrl, nsid, &id))
+		return;
+
 	ns = kzalloc_node(sizeof(*ns), GFP_KERNEL, node);
 	if (!ns)
-		return;
+		goto out_free_id;
 
 	ns->queue = blk_mq_init_queue(ctrl->tagset);
 	if (IS_ERR(ns->queue))
@@ -3911,13 +3914,9 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 	blk_queue_logical_block_size(ns->queue, 1 << ns->lba_shift);
 	nvme_set_queue_limits(ctrl, ns->queue);
 
-	ret = nvme_identify_ns(ctrl, nsid, &id);
-	if (ret)
-		goto out_free_queue;
-
 	ret = nvme_init_ns_head(ns, nsid, id);
 	if (ret)
-		goto out_free_id;
+		goto out_free_queue;
 	nvme_set_disk_name(disk_name, ns, ctrl, &flags);
 
 	disk = alloc_disk_node(0, node);
@@ -3968,12 +3967,12 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 		list_del_init(&ns->head->entry);
 	mutex_unlock(&ctrl->subsys->lock);
 	nvme_put_ns_head(ns->head);
- out_free_id:
-	kfree(id);
  out_free_queue:
 	blk_cleanup_queue(ns->queue);
  out_free_ns:
 	kfree(ns);
+ out_free_id:
+	kfree(id);
 }
 
 static void nvme_ns_remove(struct nvme_ns *ns)
