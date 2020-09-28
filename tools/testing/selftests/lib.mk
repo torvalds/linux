@@ -107,9 +107,8 @@ endif
 emit_tests:
 	for TEST in $(TEST_GEN_PROGS) $(TEST_CUSTOM_PROGS) $(TEST_PROGS); do \
 		BASENAME_TEST=`basename $$TEST`;	\
-		echo "	\\";				\
-		echo -n "	\"$$BASENAME_TEST\"";	\
-	done;						\
+		echo "$(COLLECTION):$$BASENAME_TEST";	\
+	done
 
 # define if isn't already. It is undefined in make O= case.
 ifeq ($(RM),)
