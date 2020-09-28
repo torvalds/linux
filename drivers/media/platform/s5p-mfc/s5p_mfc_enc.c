@@ -263,6 +263,7 @@ static struct mfc_control controls[] = {
 	},
 	{
 		.id = V4L2_CID_MPEG_VIDEO_FRAME_SKIP_MODE,
+		.type = V4L2_CTRL_TYPE_MENU,
 		.maximum = V4L2_MPEG_VIDEO_FRAME_SKIP_MODE_BUF_LIMIT,
 		.default_value = V4L2_MPEG_VIDEO_FRAME_SKIP_MODE_DISABLED,
 	},
