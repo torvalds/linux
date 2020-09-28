@@ -651,12 +651,7 @@ static int soc_pcm_components_close(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-/*
- * Called by ALSA when a PCM substream is closed. Private data can be
- * freed here. The cpu DAI, codec DAI, machine and components are also
- * shutdown.
- */
-static int soc_pcm_close(struct snd_pcm_substream *substream)
+static int soc_pcm_clean(struct snd_pcm_substream *substream, int rollback)
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_component *component;
@@ -665,26 +660,38 @@ static int soc_pcm_close(struct snd_pcm_substream *substream)
 
 	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
 
-	snd_soc_runtime_deactivate(rtd, substream->stream);
+	if (!rollback)
+		snd_soc_runtime_deactivate(rtd, substream->stream);
 
 	for_each_rtd_dais(rtd, i, dai)
-		snd_soc_dai_shutdown(dai, substream, 0);
+		snd_soc_dai_shutdown(dai, substream, rollback);
 
-	snd_soc_link_shutdown(substream, 0);
+	snd_soc_link_shutdown(substream, rollback);
 
-	soc_pcm_components_close(substream, 0);
+	soc_pcm_components_close(substream, rollback);
 
-	snd_soc_dapm_stream_stop(rtd, substream->stream);
+	if (!rollback)
+		snd_soc_dapm_stream_stop(rtd, substream->stream);
 
 	mutex_unlock(&rtd->card->pcm_mutex);
 
-	snd_soc_pcm_component_pm_runtime_put(rtd, substream, 0);
+	snd_soc_pcm_component_pm_runtime_put(rtd, substream, rollback);
 
 	for_each_rtd_components(rtd, i, component)
 		if (!snd_soc_component_active(component))
 			pinctrl_pm_select_sleep_state(component->dev);
 
 	return 0;
+}
+
+/*
+ * Called by ALSA when a PCM substream is closed. Private data can be
+ * freed here. The cpu DAI, codec DAI, machine and components are also
+ * shutdown.
+ */
+static int soc_pcm_close(struct snd_pcm_substream *substream)
+{
+	return soc_pcm_clean(substream, 0);
 }
 
 /*
@@ -707,17 +714,17 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 
 	ret = snd_soc_pcm_component_pm_runtime_get(rtd, substream);
 	if (ret < 0)
-		goto pm_err;
+		goto err;
 
 	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
 
 	ret = soc_pcm_components_open(substream);
 	if (ret < 0)
-		goto component_err;
+		goto err;
 
 	ret = snd_soc_link_startup(substream);
 	if (ret < 0)
-		goto rtd_startup_err;
+		goto err;
 
 	/* startup the audio subsystem */
 	for_each_rtd_dais(rtd, i, dai) {
@@ -726,7 +733,7 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 			dev_err(dai->dev,
 				"ASoC: can't open DAI %s: %d\n",
 				dai->name, ret);
-			goto config_err;
+			goto err;
 		}
 
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
@@ -755,18 +762,18 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 	if (!runtime->hw.rates) {
 		printk(KERN_ERR "ASoC: %s <-> %s No matching rates\n",
 			codec_dai_name, cpu_dai_name);
-		goto config_err;
+		goto err;
 	}
 	if (!runtime->hw.formats) {
 		printk(KERN_ERR "ASoC: %s <-> %s No matching formats\n",
 			codec_dai_name, cpu_dai_name);
-		goto config_err;
+		goto err;
 	}
 	if (!runtime->hw.channels_min || !runtime->hw.channels_max ||
 	    runtime->hw.channels_min > runtime->hw.channels_max) {
 		printk(KERN_ERR "ASoC: %s <-> %s No matching channels\n",
 				codec_dai_name, cpu_dai_name);
-		goto config_err;
+		goto err;
 	}
 
 	soc_pcm_apply_msb(substream);
@@ -776,7 +783,7 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 		if (snd_soc_dai_active(dai)) {
 			ret = soc_pcm_apply_symmetry(substream, dai);
 			if (ret != 0)
-				goto config_err;
+				goto err;
 		}
 	}
 
@@ -787,29 +794,13 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 		 runtime->hw.channels_max);
 	pr_debug("ASoC: min rate %d max rate %d\n", runtime->hw.rate_min,
 		 runtime->hw.rate_max);
-
 dynamic:
-
 	snd_soc_runtime_activate(rtd, substream->stream);
-
+err:
 	mutex_unlock(&rtd->card->pcm_mutex);
-	return 0;
 
-config_err:
-	for_each_rtd_dais_rollback(rtd, i, dai)
-		snd_soc_dai_shutdown(dai, substream, 1);
-
-	snd_soc_link_shutdown(substream, 1);
-rtd_startup_err:
-	soc_pcm_components_close(substream, 1);
-component_err:
-	mutex_unlock(&rtd->card->pcm_mutex);
-pm_err:
-	snd_soc_pcm_component_pm_runtime_put(rtd, substream, 1);
-
-	for_each_rtd_components(rtd, i, component)
-		if (!snd_soc_component_active(component))
-			pinctrl_pm_select_sleep_state(component->dev);
+	if (ret < 0)
+		soc_pcm_clean(substream, 1);
 
 	return ret;
 }
