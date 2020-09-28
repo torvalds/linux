@@ -916,10 +916,6 @@ static int vdec_start_capture(struct venus_inst *inst)
 		return 0;
 
 reconfigure:
-	ret = hfi_session_flush(inst, HFI_FLUSH_OUTPUT, true);
-	if (ret)
-		return ret;
-
 	ret = vdec_output_conf(inst);
 	if (ret)
 		return ret;
@@ -946,6 +942,8 @@ reconfigure:
 		goto free_dpb_bufs;
 
 	venus_pm_load_scale(inst);
+
+	inst->next_buf_last = false;
 
 	ret = hfi_session_continue(inst);
 	if (ret)
@@ -987,6 +985,7 @@ static int vdec_start_output(struct venus_inst *inst)
 	venus_helper_init_instance(inst);
 	inst->sequence_out = 0;
 	inst->reconfig = false;
+	inst->next_buf_last = false;
 
 	ret = vdec_set_properties(inst);
 	if (ret)
@@ -1080,9 +1079,7 @@ static int vdec_stop_capture(struct venus_inst *inst)
 		inst->codec_state = VENUS_DEC_STATE_STOPPED;
 		break;
 	case VENUS_DEC_STATE_DRC:
-		WARN_ON(1);
-		fallthrough;
-	case VENUS_DEC_STATE_DRC_FLUSH_DONE:
+		ret = hfi_session_flush(inst, HFI_FLUSH_OUTPUT, true);
 		inst->codec_state = VENUS_DEC_STATE_CAPTURE_SETUP;
 		venus_helper_free_dpb_bufs(inst);
 		break;
@@ -1206,8 +1203,27 @@ static void vdec_buf_cleanup(struct vb2_buffer *vb)
 static void vdec_vb2_buf_queue(struct vb2_buffer *vb)
 {
 	struct venus_inst *inst = vb2_get_drv_priv(vb->vb2_queue);
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	static const struct v4l2_event eos = { .type = V4L2_EVENT_EOS };
 
 	vdec_pm_get_put(inst);
+
+	mutex_lock(&inst->lock);
+
+	if (inst->next_buf_last && V4L2_TYPE_IS_CAPTURE(vb->vb2_queue->type) &&
+	    inst->codec_state == VENUS_DEC_STATE_DRC) {
+		vbuf->flags |= V4L2_BUF_FLAG_LAST;
+		vbuf->sequence = inst->sequence_cap++;
+		vbuf->field = V4L2_FIELD_NONE;
+		vb2_set_plane_payload(vb, 0, 0);
+		v4l2_m2m_buf_done(vbuf, VB2_BUF_STATE_DONE);
+		v4l2_event_queue_fh(&inst->fh, &eos);
+		inst->next_buf_last = false;
+		mutex_unlock(&inst->lock);
+		return;
+	}
+
+	mutex_unlock(&inst->lock);
 
 	venus_helper_vb2_buf_queue(vb);
 }
@@ -1251,13 +1267,6 @@ static void vdec_buf_done(struct venus_inst *inst, unsigned int buf_type,
 		vb->planes[0].data_offset = data_offset;
 		vb->timestamp = timestamp_us * NSEC_PER_USEC;
 		vbuf->sequence = inst->sequence_cap++;
-
-		if (inst->last_buf == vb) {
-			inst->last_buf = NULL;
-			vbuf->flags |= V4L2_BUF_FLAG_LAST;
-			vb2_set_plane_payload(vb, 0, 0);
-			vb->timestamp = 0;
-		}
 
 		if (vbuf->flags & V4L2_BUF_FLAG_LAST) {
 			const struct v4l2_event ev = { .type = V4L2_EVENT_EOS };
@@ -1343,12 +1352,9 @@ static void vdec_event_change(struct venus_inst *inst,
 	 */
 
 	if (!sufficient && inst->codec_state == VENUS_DEC_STATE_DRC) {
-		struct vb2_v4l2_buffer *last;
 		int ret;
 
-		last = v4l2_m2m_last_dst_buf(inst->m2m_ctx);
-		if (last)
-			inst->last_buf = &last->vb2_buf;
+		inst->next_buf_last = true;
 
 		ret = hfi_session_flush(inst, HFI_FLUSH_OUTPUT, false);
 		if (ret)
@@ -1397,8 +1403,7 @@ static void vdec_event_notify(struct venus_inst *inst, u32 event,
 
 static void vdec_flush_done(struct venus_inst *inst)
 {
-	if (inst->codec_state == VENUS_DEC_STATE_DRC)
-		inst->codec_state = VENUS_DEC_STATE_DRC_FLUSH_DONE;
+	dev_dbg(inst->core->dev_dec, VDBGH "flush done\n");
 }
 
 static const struct hfi_inst_ops vdec_hfi_ops = {
