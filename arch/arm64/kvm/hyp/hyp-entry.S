@@ -259,7 +259,6 @@ SYM_CODE_START(__kvm_hyp_vector)
 	valid_vect	el1_error		// Error 32-bit EL1
 SYM_CODE_END(__kvm_hyp_vector)
 
-#ifdef CONFIG_RANDOMIZE_BASE
 .macro hyp_ventry
 	.align 7
 1:	esb
@@ -309,4 +308,3 @@ SYM_CODE_START(__bp_harden_hyp_vecs)
 1:	.org __bp_harden_hyp_vecs + __BP_HARDEN_HYP_VECS_SZ
 	.org 1b
 SYM_CODE_END(__bp_harden_hyp_vecs)
-#endif

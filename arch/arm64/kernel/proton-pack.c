@@ -177,7 +177,6 @@ enum mitigation_state arm64_get_spectre_v2_state(void)
 }
 
 #ifdef CONFIG_KVM
-#ifdef CONFIG_RANDOMIZE_BASE
 #include <asm/cacheflush.h>
 #include <asm/kvm_asm.h>
 
@@ -235,7 +234,6 @@ static void install_bp_hardening_cb(bp_hardening_cb_t fn)
 {
 	__this_cpu_write(bp_hardening_data.fn, fn);
 }
-#endif	/* CONFIG_RANDOMIZE_BASE */
 #endif	/* CONFIG_KVM */
 
 static void call_smc_arch_workaround_1(void)
