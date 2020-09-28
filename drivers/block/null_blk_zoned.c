@@ -45,6 +45,7 @@ int null_init_zoned_dev(struct nullb_device *dev, struct request_queue *q)
 	if (!dev->zones)
 		return -ENOMEM;
 
+	spin_lock_init(&dev->zone_lock);
 	if (dev->zone_nr_conv >= dev->nr_zones) {
 		dev->zone_nr_conv = dev->nr_zones - 1;
 		pr_info("changed the number of conventional zones to %u",
@@ -149,8 +150,11 @@ int null_report_zones(struct gendisk *disk, sector_t sector,
 		 * So use a local copy to avoid corruption of the device zone
 		 * array.
 		 */
+		spin_lock_irq(&dev->zone_lock);
 		memcpy(&zone, &dev->zones[first_zone + i],
 		       sizeof(struct blk_zone));
+		spin_unlock_irq(&dev->zone_lock);
+
 		error = cb(&zone, i, data);
 		if (error)
 			return error;
@@ -499,18 +503,28 @@ static blk_status_t null_zone_mgmt(struct nullb_cmd *cmd, enum req_opf op,
 blk_status_t null_process_zoned_cmd(struct nullb_cmd *cmd, enum req_opf op,
 				    sector_t sector, sector_t nr_sectors)
 {
+	blk_status_t sts;
+	struct nullb_device *dev = cmd->nq->dev;
+
+	spin_lock_irq(&dev->zone_lock);
 	switch (op) {
 	case REQ_OP_WRITE:
-		return null_zone_write(cmd, sector, nr_sectors, false);
+		sts = null_zone_write(cmd, sector, nr_sectors, false);
+		break;
 	case REQ_OP_ZONE_APPEND:
-		return null_zone_write(cmd, sector, nr_sectors, true);
+		sts = null_zone_write(cmd, sector, nr_sectors, true);
+		break;
 	case REQ_OP_ZONE_RESET:
 	case REQ_OP_ZONE_RESET_ALL:
 	case REQ_OP_ZONE_OPEN:
 	case REQ_OP_ZONE_CLOSE:
 	case REQ_OP_ZONE_FINISH:
-		return null_zone_mgmt(cmd, op, sector);
+		sts = null_zone_mgmt(cmd, op, sector);
+		break;
 	default:
-		return null_process_cmd(cmd, op, sector, nr_sectors);
+		sts = null_process_cmd(cmd, op, sector, nr_sectors);
 	}
+	spin_unlock_irq(&dev->zone_lock);
+
+	return sts;
 }
