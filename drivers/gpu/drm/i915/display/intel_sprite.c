@@ -47,6 +47,7 @@
 #include "intel_frontbuffer.h"
 #include "intel_pm.h"
 #include "intel_psr.h"
+#include "intel_dsi.h"
 #include "intel_sprite.h"
 
 int intel_usecs_to_scanlines(const struct drm_display_mode *adjusted_mode,
@@ -207,6 +208,14 @@ void intel_pipe_update_end(struct intel_crtc_state *new_crtc_state)
 		return;
 
 	trace_intel_pipe_update_end(crtc, end_vbl_count, scanline_end);
+
+	/*
+	 * Incase of mipi dsi command mode, we need to set frame update
+	 * request for every commit.
+	 */
+	if (INTEL_GEN(dev_priv) >= 11 &&
+	    intel_crtc_has_type(new_crtc_state, INTEL_OUTPUT_DSI))
+		icl_dsi_frame_update(new_crtc_state);
 
 	/* We're still in the vblank-evade critical section, this can't race.
 	 * Would be slightly nice to just grab the vblank count and arm the
