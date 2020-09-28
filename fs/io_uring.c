@@ -546,6 +546,15 @@ struct io_shutdown {
 	int				how;
 };
 
+struct io_rename {
+	struct file			*file;
+	int				old_dfd;
+	int				new_dfd;
+	struct filename			*oldpath;
+	struct filename			*newpath;
+	int				flags;
+};
+
 struct io_completion {
 	struct file			*file;
 	struct list_head		list;
@@ -673,6 +682,7 @@ struct io_kiocb {
 		struct io_provide_buf	pbuf;
 		struct io_statx		statx;
 		struct io_shutdown	shutdown;
+		struct io_rename	rename;
 		/* use only after cleaning per-op data, see io_clean_op() */
 		struct io_completion	compl;
 	};
@@ -942,6 +952,10 @@ static const struct io_op_def io_op_defs[] = {
 	},
 	[IORING_OP_SHUTDOWN] = {
 		.needs_file		= 1,
+	},
+	[IORING_OP_RENAMEAT] = {
+		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_FILES |
+						IO_WQ_WORK_FS | IO_WQ_WORK_BLKCG,
 	},
 };
 
@@ -3645,6 +3659,53 @@ out_free:
 	return ret;
 }
 
+static int io_renameat_prep(struct io_kiocb *req,
+			    const struct io_uring_sqe *sqe)
+{
+	struct io_rename *ren = &req->rename;
+	const char __user *oldf, *newf;
+
+	if (unlikely(req->flags & REQ_F_FIXED_FILE))
+		return -EBADF;
+
+	ren->old_dfd = READ_ONCE(sqe->fd);
+	oldf = u64_to_user_ptr(READ_ONCE(sqe->addr));
+	newf = u64_to_user_ptr(READ_ONCE(sqe->addr2));
+	ren->new_dfd = READ_ONCE(sqe->len);
+	ren->flags = READ_ONCE(sqe->rename_flags);
+
+	ren->oldpath = getname(oldf);
+	if (IS_ERR(ren->oldpath))
+		return PTR_ERR(ren->oldpath);
+
+	ren->newpath = getname(newf);
+	if (IS_ERR(ren->newpath)) {
+		putname(ren->oldpath);
+		return PTR_ERR(ren->newpath);
+	}
+
+	req->flags |= REQ_F_NEED_CLEANUP;
+	return 0;
+}
+
+static int io_renameat(struct io_kiocb *req, bool force_nonblock)
+{
+	struct io_rename *ren = &req->rename;
+	int ret;
+
+	if (force_nonblock)
+		return -EAGAIN;
+
+	ret = do_renameat2(ren->old_dfd, ren->oldpath, ren->new_dfd,
+				ren->newpath, ren->flags);
+
+	req->flags &= ~REQ_F_NEED_CLEANUP;
+	if (ret < 0)
+		req_set_fail_links(req);
+	io_req_complete(req, ret);
+	return 0;
+}
+
 static int io_shutdown_prep(struct io_kiocb *req,
 			    const struct io_uring_sqe *sqe)
 {
@@ -5869,6 +5930,8 @@ static int io_req_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		return io_tee_prep(req, sqe);
 	case IORING_OP_SHUTDOWN:
 		return io_shutdown_prep(req, sqe);
+	case IORING_OP_RENAMEAT:
+		return io_renameat_prep(req, sqe);
 	}
 
 	printk_once(KERN_WARNING "io_uring: unhandled opcode %d\n",
@@ -6006,6 +6069,10 @@ static void __io_clean_op(struct io_kiocb *req)
 			if (req->open.filename)
 				putname(req->open.filename);
 			break;
+		case IORING_OP_RENAMEAT:
+			putname(req->rename.oldpath);
+			putname(req->rename.newpath);
+			break;
 		}
 		req->flags &= ~REQ_F_NEED_CLEANUP;
 	}
@@ -6114,6 +6181,9 @@ static int io_issue_sqe(struct io_kiocb *req, bool force_nonblock,
 		break;
 	case IORING_OP_SHUTDOWN:
 		ret = io_shutdown(req, force_nonblock);
+		break;
+	case IORING_OP_RENAMEAT:
+		ret = io_renameat(req, force_nonblock);
 		break;
 	default:
 		ret = -EINVAL;
