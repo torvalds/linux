@@ -269,13 +269,23 @@ struct ieee80211_rate {
  * struct ieee80211_he_obss_pd - AP settings for spatial reuse
  *
  * @enable: is the feature enabled.
+ * @sr_ctrl: The SR Control field of SRP element.
+ * @non_srg_max_offset: non-SRG maximum tx power offset
  * @min_offset: minimal tx power offset an associated station shall use
  * @max_offset: maximum tx power offset an associated station shall use
+ * @bss_color_bitmap: bitmap that indicates the BSS color values used by
+ *	members of the SRG
+ * @partial_bssid_bitmap: bitmap that indicates the partial BSSID values
+ *	used by members of the SRG
  */
 struct ieee80211_he_obss_pd {
 	bool enable;
+	u8 sr_ctrl;
+	u8 non_srg_max_offset;
 	u8 min_offset;
 	u8 max_offset;
+	u8 bss_color_bitmap[8];
+	u8 partial_bssid_bitmap[8];
 };
 
 /**

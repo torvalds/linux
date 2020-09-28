@@ -329,6 +329,13 @@ he_obss_pd_policy[NL80211_HE_OBSS_PD_ATTR_MAX + 1] = {
 		NLA_POLICY_RANGE(NLA_U8, 1, 20),
 	[NL80211_HE_OBSS_PD_ATTR_MAX_OFFSET] =
 		NLA_POLICY_RANGE(NLA_U8, 1, 20),
+	[NL80211_HE_OBSS_PD_ATTR_NON_SRG_MAX_OFFSET] =
+		NLA_POLICY_RANGE(NLA_U8, 1, 20),
+	[NL80211_HE_OBSS_PD_ATTR_BSS_COLOR_BITMAP] =
+		NLA_POLICY_EXACT_LEN(8),
+	[NL80211_HE_OBSS_PD_ATTR_PARTIAL_BSSID_BITMAP] =
+		NLA_POLICY_EXACT_LEN(8),
+	[NL80211_HE_OBSS_PD_ATTR_SR_CTRL] = { .type = NLA_U8 },
 };
 
 static const struct nla_policy
@@ -4857,15 +4864,33 @@ static int nl80211_parse_he_obss_pd(struct nlattr *attrs,
 	if (err)
 		return err;
 
+	if (!tb[NL80211_HE_OBSS_PD_ATTR_SR_CTRL])
+		return -EINVAL;
+
+	he_obss_pd->sr_ctrl = nla_get_u8(tb[NL80211_HE_OBSS_PD_ATTR_SR_CTRL]);
+
 	if (tb[NL80211_HE_OBSS_PD_ATTR_MIN_OFFSET])
 		he_obss_pd->min_offset =
 			nla_get_u8(tb[NL80211_HE_OBSS_PD_ATTR_MIN_OFFSET]);
 	if (tb[NL80211_HE_OBSS_PD_ATTR_MAX_OFFSET])
 		he_obss_pd->max_offset =
 			nla_get_u8(tb[NL80211_HE_OBSS_PD_ATTR_MAX_OFFSET]);
+	if (tb[NL80211_HE_OBSS_PD_ATTR_NON_SRG_MAX_OFFSET])
+		he_obss_pd->non_srg_max_offset =
+			nla_get_u8(tb[NL80211_HE_OBSS_PD_ATTR_NON_SRG_MAX_OFFSET]);
 
 	if (he_obss_pd->min_offset > he_obss_pd->max_offset)
 		return -EINVAL;
+
+	if (tb[NL80211_HE_OBSS_PD_ATTR_BSS_COLOR_BITMAP])
+		memcpy(he_obss_pd->bss_color_bitmap,
+		       nla_data(tb[NL80211_HE_OBSS_PD_ATTR_BSS_COLOR_BITMAP]),
+		       sizeof(he_obss_pd->bss_color_bitmap));
+
+	if (tb[NL80211_HE_OBSS_PD_ATTR_PARTIAL_BSSID_BITMAP])
+		memcpy(he_obss_pd->partial_bssid_bitmap,
+		       nla_data(tb[NL80211_HE_OBSS_PD_ATTR_PARTIAL_BSSID_BITMAP]),
+		       sizeof(he_obss_pd->partial_bssid_bitmap));
 
 	he_obss_pd->enable = true;
 

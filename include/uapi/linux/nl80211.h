@@ -6991,6 +6991,13 @@ enum nl80211_peer_measurement_ftm_resp {
  *
  * @NL80211_HE_OBSS_PD_ATTR_MIN_OFFSET: the OBSS PD minimum tx power offset.
  * @NL80211_HE_OBSS_PD_ATTR_MAX_OFFSET: the OBSS PD maximum tx power offset.
+ * @NL80211_HE_OBSS_PD_ATTR_NON_SRG_MAX_OFFSET: the non-SRG OBSS PD maximum
+ *	tx power offset.
+ * @NL80211_HE_OBSS_PD_ATTR_BSS_COLOR_BITMAP: bitmap that indicates the BSS color
+ *	values used by members of the SRG.
+ * @NL80211_HE_OBSS_PD_ATTR_PARTIAL_BSSID_BITMAP: bitmap that indicates the partial
+ *	BSSID values used by members of the SRG.
+ * @NL80211_HE_OBSS_PD_ATTR_SR_CTRL: The SR Control field of SRP element.
  *
  * @__NL80211_HE_OBSS_PD_ATTR_LAST: Internal
  * @NL80211_HE_OBSS_PD_ATTR_MAX: highest OBSS PD attribute.
@@ -7000,6 +7007,10 @@ enum nl80211_obss_pd_attributes {
 
 	NL80211_HE_OBSS_PD_ATTR_MIN_OFFSET,
 	NL80211_HE_OBSS_PD_ATTR_MAX_OFFSET,
+	NL80211_HE_OBSS_PD_ATTR_NON_SRG_MAX_OFFSET,
+	NL80211_HE_OBSS_PD_ATTR_BSS_COLOR_BITMAP,
+	NL80211_HE_OBSS_PD_ATTR_PARTIAL_BSSID_BITMAP,
+	NL80211_HE_OBSS_PD_ATTR_SR_CTRL,
 
 	/* keep last */
 	__NL80211_HE_OBSS_PD_ATTR_LAST,
