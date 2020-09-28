@@ -97,11 +97,11 @@ static int pending_scrq(struct ibmvnic_adapter *,
 static union sub_crq *ibmvnic_next_scrq(struct ibmvnic_adapter *,
 					struct ibmvnic_sub_crq_queue *);
 static int ibmvnic_poll(struct napi_struct *napi, int data);
-static void send_map_query(struct ibmvnic_adapter *adapter);
+static void send_query_map(struct ibmvnic_adapter *adapter);
 static int send_request_map(struct ibmvnic_adapter *, dma_addr_t, __be32, u8);
 static int send_request_unmap(struct ibmvnic_adapter *, u8);
 static int send_login(struct ibmvnic_adapter *adapter);
-static void send_cap_queries(struct ibmvnic_adapter *adapter);
+static void send_query_cap(struct ibmvnic_adapter *adapter);
 static int init_sub_crqs(struct ibmvnic_adapter *);
 static int init_sub_crq_irqs(struct ibmvnic_adapter *adapter);
 static int ibmvnic_reset_init(struct ibmvnic_adapter *, bool reset);
@@ -882,7 +882,7 @@ static int ibmvnic_login(struct net_device *netdev)
 				   "Received partial success, retrying...\n");
 			adapter->init_done_rc = 0;
 			reinit_completion(&adapter->init_done);
-			send_cap_queries(adapter);
+			send_query_cap(adapter);
 			if (!wait_for_completion_timeout(&adapter->init_done,
 							 timeout)) {
 				netdev_warn(netdev,
@@ -1113,7 +1113,7 @@ static int init_resources(struct ibmvnic_adapter *adapter)
 	if (rc)
 		return rc;
 
-	send_map_query(adapter);
+	send_query_map(adapter);
 
 	rc = init_rx_pools(netdev);
 	if (rc)
@@ -3299,7 +3299,7 @@ tx_failed:
 	return -1;
 }
 
-static void ibmvnic_send_req_caps(struct ibmvnic_adapter *adapter, int retry)
+static void send_request_cap(struct ibmvnic_adapter *adapter, int retry)
 {
 	struct device *dev = &adapter->vdev->dev;
 	union ibmvnic_crq crq;
@@ -3825,7 +3825,7 @@ static int send_request_unmap(struct ibmvnic_adapter *adapter, u8 map_id)
 	return ibmvnic_send_crq(adapter, &crq);
 }
 
-static void send_map_query(struct ibmvnic_adapter *adapter)
+static void send_query_map(struct ibmvnic_adapter *adapter)
 {
 	union ibmvnic_crq crq;
 
@@ -3836,7 +3836,7 @@ static void send_map_query(struct ibmvnic_adapter *adapter)
 }
 
 /* Send a series of CRQs requesting various capabilities of the VNIC server */
-static void send_cap_queries(struct ibmvnic_adapter *adapter)
+static void send_query_cap(struct ibmvnic_adapter *adapter)
 {
 	union ibmvnic_crq crq;
 
@@ -3953,6 +3953,113 @@ static void send_cap_queries(struct ibmvnic_adapter *adapter)
 	ibmvnic_send_crq(adapter, &crq);
 }
 
+static void send_query_ip_offload(struct ibmvnic_adapter *adapter)
+{
+	int buf_sz = sizeof(struct ibmvnic_query_ip_offload_buffer);
+	struct device *dev = &adapter->vdev->dev;
+	union ibmvnic_crq crq;
+
+	adapter->ip_offload_tok =
+		dma_map_single(dev,
+			       &adapter->ip_offload_buf,
+			       buf_sz,
+			       DMA_FROM_DEVICE);
+
+	if (dma_mapping_error(dev, adapter->ip_offload_tok)) {
+		if (!firmware_has_feature(FW_FEATURE_CMO))
+			dev_err(dev, "Couldn't map offload buffer\n");
+		return;
+	}
+
+	memset(&crq, 0, sizeof(crq));
+	crq.query_ip_offload.first = IBMVNIC_CRQ_CMD;
+	crq.query_ip_offload.cmd = QUERY_IP_OFFLOAD;
+	crq.query_ip_offload.len = cpu_to_be32(buf_sz);
+	crq.query_ip_offload.ioba =
+	    cpu_to_be32(adapter->ip_offload_tok);
+
+	ibmvnic_send_crq(adapter, &crq);
+}
+
+static void send_control_ip_offload(struct ibmvnic_adapter *adapter)
+{
+	struct ibmvnic_control_ip_offload_buffer *ctrl_buf = &adapter->ip_offload_ctrl;
+	struct ibmvnic_query_ip_offload_buffer *buf = &adapter->ip_offload_buf;
+	struct device *dev = &adapter->vdev->dev;
+	netdev_features_t old_hw_features = 0;
+	union ibmvnic_crq crq;
+
+	adapter->ip_offload_ctrl_tok =
+		dma_map_single(dev,
+			       ctrl_buf,
+			       sizeof(adapter->ip_offload_ctrl),
+			       DMA_TO_DEVICE);
+
+	if (dma_mapping_error(dev, adapter->ip_offload_ctrl_tok)) {
+		dev_err(dev, "Couldn't map ip offload control buffer\n");
+		return;
+	}
+
+	ctrl_buf->len = cpu_to_be32(sizeof(adapter->ip_offload_ctrl));
+	ctrl_buf->version = cpu_to_be32(INITIAL_VERSION_IOB);
+	ctrl_buf->ipv4_chksum = buf->ipv4_chksum;
+	ctrl_buf->ipv6_chksum = buf->ipv6_chksum;
+	ctrl_buf->tcp_ipv4_chksum = buf->tcp_ipv4_chksum;
+	ctrl_buf->udp_ipv4_chksum = buf->udp_ipv4_chksum;
+	ctrl_buf->tcp_ipv6_chksum = buf->tcp_ipv6_chksum;
+	ctrl_buf->udp_ipv6_chksum = buf->udp_ipv6_chksum;
+	ctrl_buf->large_tx_ipv4 = buf->large_tx_ipv4;
+	ctrl_buf->large_tx_ipv6 = buf->large_tx_ipv6;
+
+	/* large_rx disabled for now, additional features needed */
+	ctrl_buf->large_rx_ipv4 = 0;
+	ctrl_buf->large_rx_ipv6 = 0;
+
+	if (adapter->state != VNIC_PROBING) {
+		old_hw_features = adapter->netdev->hw_features;
+		adapter->netdev->hw_features = 0;
+	}
+
+	adapter->netdev->hw_features = NETIF_F_SG | NETIF_F_GSO | NETIF_F_GRO;
+
+	if (buf->tcp_ipv4_chksum || buf->udp_ipv4_chksum)
+		adapter->netdev->hw_features |= NETIF_F_IP_CSUM;
+
+	if (buf->tcp_ipv6_chksum || buf->udp_ipv6_chksum)
+		adapter->netdev->hw_features |= NETIF_F_IPV6_CSUM;
+
+	if ((adapter->netdev->features &
+	    (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM)))
+		adapter->netdev->hw_features |= NETIF_F_RXCSUM;
+
+	if (buf->large_tx_ipv4)
+		adapter->netdev->hw_features |= NETIF_F_TSO;
+	if (buf->large_tx_ipv6)
+		adapter->netdev->hw_features |= NETIF_F_TSO6;
+
+	if (adapter->state == VNIC_PROBING) {
+		adapter->netdev->features |= adapter->netdev->hw_features;
+	} else if (old_hw_features != adapter->netdev->hw_features) {
+		netdev_features_t tmp = 0;
+
+		/* disable features no longer supported */
+		adapter->netdev->features &= adapter->netdev->hw_features;
+		/* turn on features now supported if previously enabled */
+		tmp = (old_hw_features ^ adapter->netdev->hw_features) &
+			adapter->netdev->hw_features;
+		adapter->netdev->features |=
+				tmp & adapter->netdev->wanted_features;
+	}
+
+	memset(&crq, 0, sizeof(crq));
+	crq.control_ip_offload.first = IBMVNIC_CRQ_CMD;
+	crq.control_ip_offload.cmd = CONTROL_IP_OFFLOAD;
+	crq.control_ip_offload.len =
+	    cpu_to_be32(sizeof(adapter->ip_offload_ctrl));
+	crq.control_ip_offload.ioba = cpu_to_be32(adapter->ip_offload_ctrl_tok);
+	ibmvnic_send_crq(adapter, &crq);
+}
+
 static void handle_vpd_size_rsp(union ibmvnic_crq *crq,
 				struct ibmvnic_adapter *adapter)
 {
@@ -4022,8 +4129,6 @@ static void handle_query_ip_offload_rsp(struct ibmvnic_adapter *adapter)
 {
 	struct device *dev = &adapter->vdev->dev;
 	struct ibmvnic_query_ip_offload_buffer *buf = &adapter->ip_offload_buf;
-	netdev_features_t old_hw_features = 0;
-	union ibmvnic_crq crq;
 	int i;
 
 	dma_unmap_single(dev, adapter->ip_offload_tok,
@@ -4073,74 +4178,7 @@ static void handle_query_ip_offload_rsp(struct ibmvnic_adapter *adapter)
 	netdev_dbg(adapter->netdev, "off_ipv6_ext_hd = %d\n",
 		   buf->off_ipv6_ext_headers);
 
-	adapter->ip_offload_ctrl_tok =
-	    dma_map_single(dev, &adapter->ip_offload_ctrl,
-			   sizeof(adapter->ip_offload_ctrl), DMA_TO_DEVICE);
-
-	if (dma_mapping_error(dev, adapter->ip_offload_ctrl_tok)) {
-		dev_err(dev, "Couldn't map ip offload control buffer\n");
-		return;
-	}
-
-	adapter->ip_offload_ctrl.len =
-	    cpu_to_be32(sizeof(adapter->ip_offload_ctrl));
-	adapter->ip_offload_ctrl.version = cpu_to_be32(INITIAL_VERSION_IOB);
-	adapter->ip_offload_ctrl.ipv4_chksum = buf->ipv4_chksum;
-	adapter->ip_offload_ctrl.ipv6_chksum = buf->ipv6_chksum;
-	adapter->ip_offload_ctrl.tcp_ipv4_chksum = buf->tcp_ipv4_chksum;
-	adapter->ip_offload_ctrl.udp_ipv4_chksum = buf->udp_ipv4_chksum;
-	adapter->ip_offload_ctrl.tcp_ipv6_chksum = buf->tcp_ipv6_chksum;
-	adapter->ip_offload_ctrl.udp_ipv6_chksum = buf->udp_ipv6_chksum;
-	adapter->ip_offload_ctrl.large_tx_ipv4 = buf->large_tx_ipv4;
-	adapter->ip_offload_ctrl.large_tx_ipv6 = buf->large_tx_ipv6;
-
-	/* large_rx disabled for now, additional features needed */
-	adapter->ip_offload_ctrl.large_rx_ipv4 = 0;
-	adapter->ip_offload_ctrl.large_rx_ipv6 = 0;
-
-	if (adapter->state != VNIC_PROBING) {
-		old_hw_features = adapter->netdev->hw_features;
-		adapter->netdev->hw_features = 0;
-	}
-
-	adapter->netdev->hw_features = NETIF_F_SG | NETIF_F_GSO | NETIF_F_GRO;
-
-	if (buf->tcp_ipv4_chksum || buf->udp_ipv4_chksum)
-		adapter->netdev->hw_features |= NETIF_F_IP_CSUM;
-
-	if (buf->tcp_ipv6_chksum || buf->udp_ipv6_chksum)
-		adapter->netdev->hw_features |= NETIF_F_IPV6_CSUM;
-
-	if ((adapter->netdev->features &
-	    (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM)))
-		adapter->netdev->hw_features |= NETIF_F_RXCSUM;
-
-	if (buf->large_tx_ipv4)
-		adapter->netdev->hw_features |= NETIF_F_TSO;
-	if (buf->large_tx_ipv6)
-		adapter->netdev->hw_features |= NETIF_F_TSO6;
-
-	if (adapter->state == VNIC_PROBING) {
-		adapter->netdev->features |= adapter->netdev->hw_features;
-	} else if (old_hw_features != adapter->netdev->hw_features) {
-		netdev_features_t tmp = 0;
-
-		/* disable features no longer supported */
-		adapter->netdev->features &= adapter->netdev->hw_features;
-		/* turn on features now supported if previously enabled */
-		tmp = (old_hw_features ^ adapter->netdev->hw_features) &
-			adapter->netdev->hw_features;
-		adapter->netdev->features |=
-				tmp & adapter->netdev->wanted_features;
-	}
-
-	memset(&crq, 0, sizeof(crq));
-	crq.control_ip_offload.first = IBMVNIC_CRQ_CMD;
-	crq.control_ip_offload.cmd = CONTROL_IP_OFFLOAD;
-	crq.control_ip_offload.len =
-	    cpu_to_be32(sizeof(adapter->ip_offload_ctrl));
-	crq.control_ip_offload.ioba = cpu_to_be32(adapter->ip_offload_ctrl_tok);
-	ibmvnic_send_crq(adapter, &crq);
+	send_control_ip_offload(adapter);
 }
 
 static const char *ibmvnic_fw_err_cause(u16 cause)
@@ -4266,7 +4304,7 @@ static void handle_request_cap_rsp(union ibmvnic_crq *crq,
 				be64_to_cpu(crq->request_capability_rsp.number);
 		}
 
-		ibmvnic_send_req_caps(adapter, 1);
+		send_request_cap(adapter, 1);
 		return;
 	default:
 		dev_err(dev, "Error %d in request cap rsp\n",
@@ -4276,30 +4314,8 @@ static void handle_request_cap_rsp(union ibmvnic_crq *crq,
 
 	/* Done receiving requested capabilities, query IP offload support */
 	if (atomic_read(&adapter->running_cap_crqs) == 0) {
-		union ibmvnic_crq newcrq;
-		int buf_sz = sizeof(struct ibmvnic_query_ip_offload_buffer);
-		struct ibmvnic_query_ip_offload_buffer *ip_offload_buf =
-		    &adapter->ip_offload_buf;
-
 		adapter->wait_capability = false;
-		adapter->ip_offload_tok = dma_map_single(dev, ip_offload_buf,
-							 buf_sz,
-							 DMA_FROM_DEVICE);
-
-		if (dma_mapping_error(dev, adapter->ip_offload_tok)) {
-			if (!firmware_has_feature(FW_FEATURE_CMO))
-				dev_err(dev, "Couldn't map offload buffer\n");
-			return;
-		}
-
-		memset(&newcrq, 0, sizeof(newcrq));
-		newcrq.query_ip_offload.first = IBMVNIC_CRQ_CMD;
-		newcrq.query_ip_offload.cmd = QUERY_IP_OFFLOAD;
-		newcrq.query_ip_offload.len = cpu_to_be32(buf_sz);
-		newcrq.query_ip_offload.ioba =
-		    cpu_to_be32(adapter->ip_offload_tok);
-
-		ibmvnic_send_crq(adapter, &newcrq);
+		send_query_ip_offload(adapter);
 	}
 }
 
@@ -4582,7 +4598,7 @@ static void handle_query_cap_rsp(union ibmvnic_crq *crq,
 out:
 	if (atomic_read(&adapter->running_cap_crqs) == 0) {
 		adapter->wait_capability = false;
-		ibmvnic_send_req_caps(adapter, 0);
+		send_request_cap(adapter, 0);
 	}
 }
 
@@ -4750,7 +4766,7 @@ static void ibmvnic_handle_crq(union ibmvnic_crq *crq,
 			    be16_to_cpu(crq->version_exchange_rsp.version);
 		dev_info(dev, "Partner protocol version is %d\n",
 			 ibmvnic_version);
-		send_cap_queries(adapter);
+		send_query_cap(adapter);
 		break;
 	case QUERY_CAPABILITY_RSP:
 		handle_query_cap_rsp(crq, adapter);
