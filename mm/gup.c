@@ -1256,7 +1256,7 @@ static __always_inline long __get_user_pages_locked(struct mm_struct *mm,
 	}
 
 	if (flags & FOLL_PIN)
-		atomic_set(&current->mm->has_pinned, 1);
+		atomic_set(&mm->has_pinned, 1);
 
 	/*
 	 * FOLL_PIN and FOLL_GET are mutually exclusive. Traditional behavior
