@@ -1394,9 +1394,6 @@ void ext4_set_bits(void *bm, int cur, int len)
 	}
 }
 
-/*
- * _________________________________________________________________ */
-
 static inline int mb_buddy_adjust_border(int* bit, void* bitmap, int side)
 {
 	if (mb_test_bit(*bit + side, bitmap)) {
