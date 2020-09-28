@@ -25,7 +25,8 @@ config CORESIGHT_LINKS_AND_SINKS
 	  entity at run time to form a complete trace path.
 
 config CORESIGHT_LINK_AND_SINK_TMC
-	bool "Coresight generic TMC driver"
+	tristate "Coresight generic TMC driver"
+
 	depends on CORESIGHT_LINKS_AND_SINKS
 	help
 	  This enables support for the Trace Memory Controller driver.
@@ -33,6 +34,9 @@ config CORESIGHT_LINK_AND_SINK_TMC
 	  trace router - ETR) or sink (embedded trace FIFO).  The driver
 	  complies with the generic implementation of the component without
 	  special enhancement or added features.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called coresight-tmc.
 
 config CORESIGHT_CATU
 	bool "Coresight Address Translation Unit (CATU) driver"
