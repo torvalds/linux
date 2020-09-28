@@ -114,7 +114,19 @@ static const struct capture_fmt scl_fmts[] = {
 		.bpp = { 8 },
 		.cplanes = 1,
 		.mplanes = 1,
-		.wr_fmt = FMT_YUV420,
+		.wr_fmt = FMT_YUV422,
+	}, {
+		.fourcc = V4L2_PIX_FMT_YUYV,
+		.bpp = { 16 },
+		.cplanes = 1,
+		.mplanes = 1,
+		.wr_fmt = FMT_YC_SWAP | FMT_YUYV | FMT_YUV422,
+	}, {
+		.fourcc = V4L2_PIX_FMT_UYVY,
+		.bpp = { 16 },
+		.cplanes = 1,
+		.mplanes = 1,
+		.wr_fmt = FMT_YUYV | FMT_YUV422,
 	}
 };
 
@@ -1245,7 +1257,7 @@ static int limit_check_scl(struct rkispp_stream *stream,
 		return ret;
 
 	if (stream->id == STREAM_S0) {
-		if (*h == sdev->out_fmt.height || (forcc == V4L2_PIX_FMT_NV16))
+		if (*h == sdev->out_fmt.height || (forcc != V4L2_PIX_FMT_NV12))
 			max_width = 3264;
 		else
 			max_width = 2080;
