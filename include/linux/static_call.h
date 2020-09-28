@@ -136,7 +136,7 @@ extern void arch_static_call_transform(void *site, void *tramp, void *func, bool
 
 #ifdef CONFIG_HAVE_STATIC_CALL_INLINE
 
-extern void __init static_call_init(void);
+extern int __init static_call_init(void);
 
 struct static_call_mod {
 	struct static_call_mod *next;
@@ -187,7 +187,7 @@ extern int static_call_text_reserved(void *start, void *end);
 
 #elif defined(CONFIG_HAVE_STATIC_CALL)
 
-static inline void static_call_init(void) { }
+static inline int static_call_init(void) { return 0; }
 
 struct static_call_key {
 	void *func;
@@ -234,7 +234,7 @@ static inline int static_call_text_reserved(void *start, void *end)
 
 #else /* Generic implementation */
 
-static inline void static_call_init(void) { }
+static inline int static_call_init(void) { return 0; }
 
 struct static_call_key {
 	void *func;
