@@ -142,7 +142,7 @@ the tags from or set the tags to a tracee's address space. The
 ``ptrace()`` system call is invoked as ``ptrace(request, pid, addr,
 data)`` where:
 
-- ``request`` - one of ``PTRACE_PEEKMTETAGS`` or ``PTRACE_PEEKMTETAGS``.
+- ``request`` - one of ``PTRACE_PEEKMTETAGS`` or ``PTRACE_POKEMTETAGS``.
 - ``pid`` - the tracee's PID.
 - ``addr`` - address in the tracee's address space.
 - ``data`` - pointer to a ``struct iovec`` where ``iov_base`` points to
