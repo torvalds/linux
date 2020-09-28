@@ -220,6 +220,7 @@ struct snd_soc_component {
 	/* function mark */
 	struct snd_pcm_substream *mark_module;
 	struct snd_pcm_substream *mark_open;
+	void *mark_pm;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_root;
@@ -464,5 +465,9 @@ void snd_soc_pcm_component_hw_free(struct snd_pcm_substream *substream,
 				   struct snd_soc_component *last);
 int snd_soc_pcm_component_trigger(struct snd_pcm_substream *substream,
 				  int cmd);
+int snd_soc_pcm_component_pm_runtime_get(struct snd_soc_pcm_runtime *rtd,
+					 void *stream);
+void snd_soc_pcm_component_pm_runtime_put(struct snd_soc_pcm_runtime *rtd,
+					  void *stream, int rollback);
 
 #endif /* __SOC_COMPONENT_H */

@@ -678,10 +678,7 @@ static int soc_pcm_close(struct snd_pcm_substream *substream)
 
 	mutex_unlock(&rtd->card->pcm_mutex);
 
-	for_each_rtd_components(rtd, i, component) {
-		pm_runtime_mark_last_busy(component->dev);
-		pm_runtime_put_autosuspend(component->dev);
-	}
+	snd_soc_pcm_component_pm_runtime_put(rtd, substream, 0);
 
 	for_each_rtd_components(rtd, i, component)
 		if (!snd_soc_component_active(component))
@@ -708,8 +705,9 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 	for_each_rtd_components(rtd, i, component)
 		pinctrl_pm_select_default_state(component->dev);
 
-	for_each_rtd_components(rtd, i, component)
-		pm_runtime_get_sync(component->dev);
+	ret = snd_soc_pcm_component_pm_runtime_get(rtd, substream);
+	if (ret < 0)
+		goto pm_err;
 
 	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
 
@@ -806,11 +804,8 @@ rtd_startup_err:
 	soc_pcm_components_close(substream, 1);
 component_err:
 	mutex_unlock(&rtd->card->pcm_mutex);
-
-	for_each_rtd_components(rtd, i, component) {
-		pm_runtime_mark_last_busy(component->dev);
-		pm_runtime_put_autosuspend(component->dev);
-	}
+pm_err:
+	snd_soc_pcm_component_pm_runtime_put(rtd, substream, 1);
 
 	for_each_rtd_components(rtd, i, component)
 		if (!snd_soc_component_active(component))

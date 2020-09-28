@@ -9,6 +9,7 @@
 // Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
 //
 #include <linux/module.h>
+#include <linux/pm_runtime.h>
 #include <sound/soc.h>
 
 #define soc_component_ret(dai, ret) _soc_component_ret(dai, __func__, ret)
@@ -835,4 +836,41 @@ int snd_soc_pcm_component_trigger(struct snd_pcm_substream *substream,
 	}
 
 	return 0;
+}
+
+int snd_soc_pcm_component_pm_runtime_get(struct snd_soc_pcm_runtime *rtd,
+					 void *stream)
+{
+	struct snd_soc_component *component;
+	int i, ret;
+
+	for_each_rtd_components(rtd, i, component) {
+		ret = pm_runtime_get_sync(component->dev);
+		if (ret < 0 && ret != -EACCES) {
+			pm_runtime_put_noidle(component->dev);
+			return soc_component_ret(component, ret);
+		}
+		/* mark stream if succeeded */
+		soc_component_mark_push(component, stream, pm);
+	}
+
+	return 0;
+}
+
+void snd_soc_pcm_component_pm_runtime_put(struct snd_soc_pcm_runtime *rtd,
+					  void *stream, int rollback)
+{
+	struct snd_soc_component *component;
+	int i;
+
+	for_each_rtd_components(rtd, i, component) {
+		if (rollback && !soc_component_mark_match(component, stream, pm))
+			continue;
+
+		pm_runtime_mark_last_busy(component->dev);
+		pm_runtime_put_autosuspend(component->dev);
+
+		/* remove marked stream */
+		soc_component_mark_pop(component, stream, pm);
+	}
 }
