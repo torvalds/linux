@@ -1281,6 +1281,9 @@ static int dspi_probe(struct platform_device *pdev)
 	if (!ctlr)
 		return -ENOMEM;
 
+	spi_controller_set_devdata(ctlr, dspi);
+	platform_set_drvdata(pdev, dspi);
+
 	dspi->pdev = pdev;
 	dspi->ctlr = ctlr;
 
@@ -1416,8 +1419,6 @@ poll_mode:
 
 	if (dspi->devtype_data->trans_mode != DSPI_DMA_MODE)
 		ctlr->ptp_sts_supported = true;
-
-	platform_set_drvdata(pdev, dspi);
 
 	ret = spi_register_controller(ctlr);
 	if (ret != 0) {
