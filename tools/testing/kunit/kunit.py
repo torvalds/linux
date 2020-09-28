@@ -261,6 +261,8 @@ def main(argv, linux=None):
 	if cli_args.subcommand == 'run':
 		if not os.path.exists(cli_args.build_dir):
 			os.mkdir(cli_args.build_dir)
+
+		if not os.path.exists(kunit_kernel.kunitconfig_path):
 			create_default_kunitconfig()
 
 		if not linux:
@@ -277,10 +279,12 @@ def main(argv, linux=None):
 		if result.status != KunitStatus.SUCCESS:
 			sys.exit(1)
 	elif cli_args.subcommand == 'config':
-		if cli_args.build_dir:
-			if not os.path.exists(cli_args.build_dir):
-				os.mkdir(cli_args.build_dir)
-				create_default_kunitconfig()
+		if cli_args.build_dir and (
+				not os.path.exists(cli_args.build_dir)):
+			os.mkdir(cli_args.build_dir)
+
+		if not os.path.exists(kunit_kernel.kunitconfig_path):
+			create_default_kunitconfig()
 
 		if not linux:
 			linux = kunit_kernel.LinuxSourceTree()
