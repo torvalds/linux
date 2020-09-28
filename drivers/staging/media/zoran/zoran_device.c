@@ -938,10 +938,10 @@ irqreturn_t zoran_irq(int irq, void *dev_id)
 				pci_err(zr->pci_dev, "JPG IRQ when not in good mode\n");
 				return IRQ_HANDLED;
 			}
-		zr->frame_num++;
-		zoran_reap_stat_com(zr);
-		zoran_feed_stat_com(zr);
-		return IRQ_HANDLED;
+			zr->frame_num++;
+			zoran_reap_stat_com(zr);
+			zoran_feed_stat_com(zr);
+			return IRQ_HANDLED;
 		}
 		/* unused interrupts */
 	}
