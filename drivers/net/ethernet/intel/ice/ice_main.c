@@ -2873,6 +2873,7 @@ static void ice_set_ops(struct net_device *netdev)
 	}
 
 	netdev->netdev_ops = &ice_netdev_ops;
+	netdev->udp_tunnel_nic_info = &pf->hw.udp_tunnel_nic;
 	ice_set_ethtool_ops(netdev);
 }
 
@@ -3978,7 +3979,7 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 	struct device *dev = &pdev->dev;
 	struct ice_pf *pf;
 	struct ice_hw *hw;
-	int err;
+	int i, err;
 
 	/* this driver uses devres, see
 	 * Documentation/driver-api/driver-model/devres.rst
@@ -4073,10 +4074,36 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 
 	ice_devlink_init_regions(pf);
 
+	pf->hw.udp_tunnel_nic.set_port = ice_udp_tunnel_set_port;
+	pf->hw.udp_tunnel_nic.unset_port = ice_udp_tunnel_unset_port;
+	pf->hw.udp_tunnel_nic.flags = UDP_TUNNEL_NIC_INFO_MAY_SLEEP;
+	pf->hw.udp_tunnel_nic.shared = &pf->hw.udp_tunnel_shared;
+	i = 0;
+	if (pf->hw.tnl.valid_count[TNL_VXLAN]) {
+		pf->hw.udp_tunnel_nic.tables[i].n_entries =
+			pf->hw.tnl.valid_count[TNL_VXLAN];
+		pf->hw.udp_tunnel_nic.tables[i].tunnel_types =
+			UDP_TUNNEL_TYPE_VXLAN;
+		i++;
+	}
+	if (pf->hw.tnl.valid_count[TNL_GENEVE]) {
+		pf->hw.udp_tunnel_nic.tables[i].n_entries =
+			pf->hw.tnl.valid_count[TNL_GENEVE];
+		pf->hw.udp_tunnel_nic.tables[i].tunnel_types =
+			UDP_TUNNEL_TYPE_GENEVE;
+		i++;
+	}
+
 	pf->num_alloc_vsi = hw->func_caps.guar_num_vsi;
 	if (!pf->num_alloc_vsi) {
 		err = -EIO;
 		goto err_init_pf_unroll;
+	}
+	if (pf->num_alloc_vsi > UDP_TUNNEL_NIC_MAX_SHARING_DEVICES) {
+		dev_warn(&pf->pdev->dev,
+			 "limiting the VSI count due to UDP tunnel limitation %d > %d\n",
+			 pf->num_alloc_vsi, UDP_TUNNEL_NIC_MAX_SHARING_DEVICES);
+		pf->num_alloc_vsi = UDP_TUNNEL_NIC_MAX_SHARING_DEVICES;
 	}
 
 	pf->vsi = devm_kcalloc(dev, pf->num_alloc_vsi, sizeof(*pf->vsi),
@@ -6575,70 +6602,6 @@ static void ice_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 }
 
 /**
- * ice_udp_tunnel_add - Get notifications about UDP tunnel ports that come up
- * @netdev: This physical port's netdev
- * @ti: Tunnel endpoint information
- */
-static void
-ice_udp_tunnel_add(struct net_device *netdev, struct udp_tunnel_info *ti)
-{
-	struct ice_netdev_priv *np = netdev_priv(netdev);
-	struct ice_vsi *vsi = np->vsi;
-	struct ice_pf *pf = vsi->back;
-	enum ice_tunnel_type tnl_type;
-	u16 port = ntohs(ti->port);
-	enum ice_status status;
-
-	switch (ti->type) {
-	case UDP_TUNNEL_TYPE_VXLAN:
-		tnl_type = TNL_VXLAN;
-		break;
-	case UDP_TUNNEL_TYPE_GENEVE:
-		tnl_type = TNL_GENEVE;
-		break;
-	default:
-		netdev_err(netdev, "Unknown tunnel type\n");
-		return;
-	}
-
-	status = ice_create_tunnel(&pf->hw, tnl_type, port);
-	if (status == ICE_ERR_OUT_OF_RANGE)
-		netdev_info(netdev, "Max tunneled UDP ports reached, port %d not added\n",
-			    port);
-	else if (status)
-		netdev_err(netdev, "Error adding UDP tunnel - %s\n",
-			   ice_stat_str(status));
-}
-
-/**
- * ice_udp_tunnel_del - Get notifications about UDP tunnel ports that go away
- * @netdev: This physical port's netdev
- * @ti: Tunnel endpoint information
- */
-static void
-ice_udp_tunnel_del(struct net_device *netdev, struct udp_tunnel_info *ti)
-{
-	struct ice_netdev_priv *np = netdev_priv(netdev);
-	struct ice_vsi *vsi = np->vsi;
-	struct ice_pf *pf = vsi->back;
-	u16 port = ntohs(ti->port);
-	enum ice_status status;
-	bool retval;
-
-	retval = ice_tunnel_port_in_use(&pf->hw, port, NULL);
-	if (!retval) {
-		netdev_info(netdev, "port %d not found in UDP tunnels list\n",
-			    port);
-		return;
-	}
-
-	status = ice_destroy_tunnel(&pf->hw, port, false);
-	if (status)
-		netdev_err(netdev, "error deleting port %d from UDP tunnels list\n",
-			   port);
-}
-
-/**
  * ice_open - Called when a network interface becomes active
  * @netdev: network interface device structure
  *
@@ -6830,6 +6793,6 @@ static const struct net_device_ops ice_netdev_ops = {
 	.ndo_bpf = ice_xdp,
 	.ndo_xdp_xmit = ice_xdp_xmit,
 	.ndo_xsk_wakeup = ice_xsk_wakeup,
-	.ndo_udp_tunnel_add = ice_udp_tunnel_add,
-	.ndo_udp_tunnel_del = ice_udp_tunnel_del,
+	.ndo_udp_tunnel_add = udp_tunnel_nic_add_port,
+	.ndo_udp_tunnel_del = udp_tunnel_nic_del_port,
 };

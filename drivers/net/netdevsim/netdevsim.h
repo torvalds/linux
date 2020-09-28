@@ -20,6 +20,7 @@
 #include <linux/netdevice.h>
 #include <linux/u64_stats_sync.h>
 #include <net/devlink.h>
+#include <net/udp_tunnel.h>
 #include <net/xdp.h>
 
 #define DRV_NAME	"netdevsim"
@@ -84,7 +85,8 @@ struct netdevsim {
 	struct {
 		u32 inject_error;
 		u32 sleep;
-		u32 ports[2][NSIM_UDP_TUNNEL_N_PORTS];
+		u32 __ports[2][NSIM_UDP_TUNNEL_N_PORTS];
+		u32 (*ports)[NSIM_UDP_TUNNEL_N_PORTS];
 		struct debugfs_u32_array dfs_ports[2];
 	} udp_ports;
 
@@ -209,9 +211,13 @@ struct nsim_dev {
 	bool fail_trap_policer_set;
 	bool fail_trap_policer_counter_get;
 	struct {
+		struct udp_tunnel_nic_shared utn_shared;
+		u32 __ports[2][NSIM_UDP_TUNNEL_N_PORTS];
 		bool sync_all;
 		bool open_only;
 		bool ipv4_only;
+		bool shared;
+		bool static_iana_vxlan;
 		u32 sleep;
 	} udp_ports;
 };

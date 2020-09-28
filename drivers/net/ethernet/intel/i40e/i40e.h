@@ -35,6 +35,7 @@
 #include <net/pkt_cls.h>
 #include <net/tc_act/tc_gact.h>
 #include <net/tc_act/tc_mirred.h>
+#include <net/udp_tunnel.h>
 #include <net/xdp_sock.h>
 #include "i40e_type.h"
 #include "i40e_prototype.h"
@@ -133,7 +134,6 @@ enum i40e_state_t {
 	__I40E_PORT_SUSPENDED,
 	__I40E_VF_DISABLE,
 	__I40E_MACVLAN_SYNC_PENDING,
-	__I40E_UDP_FILTER_SYNC_PENDING,
 	__I40E_TEMP_LINK_POLLING,
 	__I40E_CLIENT_SERVICE_REQUESTED,
 	__I40E_CLIENT_L2_CHANGE,
@@ -478,8 +478,8 @@ struct i40e_pf {
 	struct list_head l3_flex_pit_list;
 	struct list_head l4_flex_pit_list;
 
-	struct i40e_udp_port_config udp_ports[I40E_MAX_PF_UDP_OFFLOAD_PORTS];
-	u16 pending_udp_bitmap;
+	struct udp_tunnel_nic_shared udp_tunnel_shared;
+	struct udp_tunnel_nic_info udp_tunnel_nic;
 
 	struct hlist_head cloud_filter_list;
 	u16 num_cloud_filters;
