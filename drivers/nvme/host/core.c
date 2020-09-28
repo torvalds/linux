@@ -2129,13 +2129,7 @@ static int nvme_update_ns_info(struct nvme_ns *ns, struct nvme_id_ns *id)
 	int ret;
 
 	blk_mq_freeze_queue(ns->disk->queue);
-	/*
-	 * If identify namespace failed, use default 512 byte block size so
-	 * block layer can use before failing read/write for 0 capacity.
-	 */
 	ns->lba_shift = id->lbaf[lbaf].ds;
-	if (ns->lba_shift == 0)
-		ns->lba_shift = 9;
 
 	switch (ns->head->ids.csi) {
 	case NVME_CSI_NVM:
