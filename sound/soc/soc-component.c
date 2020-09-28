@@ -33,6 +33,14 @@ static inline int _soc_component_ret(struct snd_soc_component *component,
 	return ret;
 }
 
+/*
+ * We might want to check substream by using list.
+ * In such case, we can update these macros.
+ */
+#define soc_component_mark_push(component, substream, tgt)	((component)->mark_##tgt = substream)
+#define soc_component_mark_pop(component, substream, tgt)	((component)->mark_##tgt = NULL)
+#define soc_component_mark_match(component, substream, tgt)	((component)->mark_##tgt == substream)
+
 void snd_soc_component_set_aux(struct snd_soc_component *component,
 			       struct snd_soc_aux_dev *aux)
 {
@@ -238,6 +246,7 @@ int snd_soc_component_set_jack(struct snd_soc_component *component,
 EXPORT_SYMBOL_GPL(snd_soc_component_set_jack);
 
 int snd_soc_component_module_get(struct snd_soc_component *component,
+				 struct snd_pcm_substream *substream,
 				 int upon_open)
 {
 	int ret = 0;
@@ -246,14 +255,25 @@ int snd_soc_component_module_get(struct snd_soc_component *component,
 	    !try_module_get(component->dev->driver->owner))
 		ret = -ENODEV;
 
+	/* mark substream if succeeded */
+	if (ret == 0)
+		soc_component_mark_push(component, substream, module);
+
 	return soc_component_ret(component, ret);
 }
 
 void snd_soc_component_module_put(struct snd_soc_component *component,
-				  int upon_open)
+				  struct snd_pcm_substream *substream,
+				  int upon_open, int rollback)
 {
+	if (rollback && !soc_component_mark_match(component, substream, module))
+		return;
+
 	if (component->driver->module_get_upon_open == !!upon_open)
 		module_put(component->dev->driver->owner);
+
+	/* remove marked substream */
+	soc_component_mark_pop(component, substream, module);
 }
 
 int snd_soc_component_open(struct snd_soc_component *component,
@@ -264,16 +284,27 @@ int snd_soc_component_open(struct snd_soc_component *component,
 	if (component->driver->open)
 		ret = component->driver->open(component, substream);
 
+	/* mark substream if succeeded */
+	if (ret == 0)
+		soc_component_mark_push(component, substream, open);
+
 	return soc_component_ret(component, ret);
 }
 
 int snd_soc_component_close(struct snd_soc_component *component,
-			    struct snd_pcm_substream *substream)
+			    struct snd_pcm_substream *substream,
+			    int rollback)
 {
 	int ret = 0;
 
+	if (rollback && !soc_component_mark_match(component, substream, open))
+		return 0;
+
 	if (component->driver->close)
 		ret = component->driver->close(component, substream);
+
+	/* remove marked substream */
+	soc_component_mark_pop(component, substream, open);
 
 	return soc_component_ret(component, ret);
 }

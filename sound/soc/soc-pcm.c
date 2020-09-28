@@ -609,14 +609,11 @@ static void soc_pcm_init_runtime_hw(struct snd_pcm_substream *substream)
 static int soc_pcm_components_open(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct snd_soc_component *last = NULL;
 	struct snd_soc_component *component;
 	int i, ret = 0;
 
 	for_each_rtd_components(rtd, i, component) {
-		last = component;
-
-		ret = snd_soc_component_module_get_when_open(component);
+		ret = snd_soc_component_module_get_when_open(component, substream);
 		if (ret < 0) {
 			dev_err(component->dev,
 				"ASoC: can't get module %s\n",
@@ -626,7 +623,6 @@ static int soc_pcm_components_open(struct snd_pcm_substream *substream)
 
 		ret = snd_soc_component_open(component, substream);
 		if (ret < 0) {
-			snd_soc_component_module_put_when_close(component);
 			dev_err(component->dev,
 				"ASoC: can't open component %s: %d\n",
 				component->name, ret);
@@ -634,32 +630,22 @@ static int soc_pcm_components_open(struct snd_pcm_substream *substream)
 		}
 	}
 
-	if (ret < 0) {
-		/* rollback on error */
-		for_each_rtd_components(rtd, i, component) {
-			if (component == last)
-				break;
-
-			snd_soc_component_close(component, substream);
-			snd_soc_component_module_put_when_close(component);
-		}
-	}
-
 	return ret;
 }
 
-static int soc_pcm_components_close(struct snd_pcm_substream *substream)
+static int soc_pcm_components_close(struct snd_pcm_substream *substream,
+				    int rollback)
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_component *component;
 	int i, r, ret = 0;
 
 	for_each_rtd_components(rtd, i, component) {
-		r = snd_soc_component_close(component, substream);
+		r = snd_soc_component_close(component, substream, rollback);
 		if (r < 0)
 			ret = r; /* use last ret */
 
-		snd_soc_component_module_put_when_close(component);
+		snd_soc_component_module_put_when_close(component, substream, rollback);
 	}
 
 	return ret;
@@ -686,7 +672,7 @@ static int soc_pcm_close(struct snd_pcm_substream *substream)
 
 	snd_soc_link_shutdown(substream, 0);
 
-	soc_pcm_components_close(substream);
+	soc_pcm_components_close(substream, 0);
 
 	snd_soc_dapm_stream_stop(rtd, substream->stream);
 
@@ -817,7 +803,7 @@ config_err:
 
 	snd_soc_link_shutdown(substream, 1);
 rtd_startup_err:
-	soc_pcm_components_close(substream);
+	soc_pcm_components_close(substream, 1);
 component_err:
 	mutex_unlock(&rtd->card->pcm_mutex);
 
