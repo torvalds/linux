@@ -1191,7 +1191,6 @@ static struct ccw_driver tape_34xx_driver = {
 	.remove = tape_generic_remove,
 	.set_online = tape_34xx_online,
 	.set_offline = tape_generic_offline,
-	.freeze = tape_generic_pm_suspend,
 	.int_class = IRQIO_TAP,
 };
 
