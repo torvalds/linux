@@ -619,11 +619,8 @@ static int __mb_check_buddy(struct ext4_buddy *e4b, char *file,
 	void *buddy;
 	void *buddy2;
 
-	{
-		static int mb_check_counter;
-		if (mb_check_counter++ % 100 != 0)
-			return 0;
-	}
+	if (e4b->bd_info->bb_check_counter++ % 10)
+		return 0;
 
 	while (order > 1) {
 		buddy = mb_find_buddy(e4b, order, &max);
