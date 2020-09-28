@@ -11,6 +11,7 @@
 #include <linux/of.h>
 #include <linux/phy.h>
 #include <linux/delay.h>
+#include <linux/bitfield.h>
 
 #include <dt-bindings/net/ti-dp83869.h>
 
@@ -20,6 +21,7 @@
 #define MII_DP83869_PHYCTRL	0x10
 #define MII_DP83869_MICR	0x12
 #define MII_DP83869_ISR		0x13
+#define DP83869_CFG2		0x14
 #define DP83869_CTRL		0x1f
 #define DP83869_CFG4		0x1e
 
@@ -119,6 +121,18 @@
 #define DP83869_WOL_UCAST_EN		BIT(4)
 #define DP83869_WOL_SEC_EN		BIT(5)
 #define DP83869_WOL_ENH_MAC		BIT(7)
+
+/* CFG2 bits */
+#define DP83869_DOWNSHIFT_EN		(BIT(8) | BIT(9))
+#define DP83869_DOWNSHIFT_ATTEMPT_MASK	(BIT(10) | BIT(11))
+#define DP83869_DOWNSHIFT_1_COUNT_VAL	0
+#define DP83869_DOWNSHIFT_2_COUNT_VAL	1
+#define DP83869_DOWNSHIFT_4_COUNT_VAL	2
+#define DP83869_DOWNSHIFT_8_COUNT_VAL	3
+#define DP83869_DOWNSHIFT_1_COUNT	1
+#define DP83869_DOWNSHIFT_2_COUNT	2
+#define DP83869_DOWNSHIFT_4_COUNT	4
+#define DP83869_DOWNSHIFT_8_COUNT	8
 
 enum {
 	DP83869_PORT_MIRRORING_KEEP,
@@ -348,6 +362,99 @@ static void dp83869_get_wol(struct phy_device *phydev,
 
 	if (!(value & DP83869_WOL_ENH_MAC))
 		wol->wolopts = 0;
+}
+
+static int dp83869_get_downshift(struct phy_device *phydev, u8 *data)
+{
+	int val, cnt, enable, count;
+
+	val = phy_read(phydev, DP83869_CFG2);
+	if (val < 0)
+		return val;
+
+	enable = FIELD_GET(DP83869_DOWNSHIFT_EN, val);
+	cnt = FIELD_GET(DP83869_DOWNSHIFT_ATTEMPT_MASK, val);
+
+	switch (cnt) {
+	case DP83869_DOWNSHIFT_1_COUNT_VAL:
+		count = DP83869_DOWNSHIFT_1_COUNT;
+		break;
+	case DP83869_DOWNSHIFT_2_COUNT_VAL:
+		count = DP83869_DOWNSHIFT_2_COUNT;
+		break;
+	case DP83869_DOWNSHIFT_4_COUNT_VAL:
+		count = DP83869_DOWNSHIFT_4_COUNT;
+		break;
+	case DP83869_DOWNSHIFT_8_COUNT_VAL:
+		count = DP83869_DOWNSHIFT_8_COUNT;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	*data = enable ? count : DOWNSHIFT_DEV_DISABLE;
+
+	return 0;
+}
+
+static int dp83869_set_downshift(struct phy_device *phydev, u8 cnt)
+{
+	int val, count;
+
+	if (cnt > DP83869_DOWNSHIFT_8_COUNT)
+		return -EINVAL;
+
+	if (!cnt)
+		return phy_clear_bits(phydev, DP83869_CFG2,
+				      DP83869_DOWNSHIFT_EN);
+
+	switch (cnt) {
+	case DP83869_DOWNSHIFT_1_COUNT:
+		count = DP83869_DOWNSHIFT_1_COUNT_VAL;
+		break;
+	case DP83869_DOWNSHIFT_2_COUNT:
+		count = DP83869_DOWNSHIFT_2_COUNT_VAL;
+		break;
+	case DP83869_DOWNSHIFT_4_COUNT:
+		count = DP83869_DOWNSHIFT_4_COUNT_VAL;
+		break;
+	case DP83869_DOWNSHIFT_8_COUNT:
+		count = DP83869_DOWNSHIFT_8_COUNT_VAL;
+		break;
+	default:
+		phydev_err(phydev,
+			   "Downshift count must be 1, 2, 4 or 8\n");
+		return -EINVAL;
+	}
+
+	val = DP83869_DOWNSHIFT_EN;
+	val |= FIELD_PREP(DP83869_DOWNSHIFT_ATTEMPT_MASK, count);
+
+	return phy_modify(phydev, DP83869_CFG2,
+			  DP83869_DOWNSHIFT_EN | DP83869_DOWNSHIFT_ATTEMPT_MASK,
+			  val);
+}
+
+static int dp83869_get_tunable(struct phy_device *phydev,
+			       struct ethtool_tunable *tuna, void *data)
+{
+	switch (tuna->id) {
+	case ETHTOOL_PHY_DOWNSHIFT:
+		return dp83869_get_downshift(phydev, data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int dp83869_set_tunable(struct phy_device *phydev,
+			       struct ethtool_tunable *tuna, const void *data)
+{
+	switch (tuna->id) {
+	case ETHTOOL_PHY_DOWNSHIFT:
+		return dp83869_set_downshift(phydev, *(const u8 *)data);
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static int dp83869_config_port_mirroring(struct phy_device *phydev)
@@ -642,6 +749,12 @@ static int dp83869_config_init(struct phy_device *phydev)
 	struct dp83869_private *dp83869 = phydev->priv;
 	int ret, val;
 
+	/* Force speed optimization for the PHY even if it strapped */
+	ret = phy_modify(phydev, DP83869_CFG2, DP83869_DOWNSHIFT_EN,
+			 DP83869_DOWNSHIFT_EN);
+	if (ret)
+		return ret;
+
 	ret = dp83869_configure_mode(phydev, dp83869);
 	if (ret)
 		return ret;
@@ -740,6 +853,9 @@ static struct phy_driver dp83869_driver[] = {
 		.ack_interrupt	= dp83869_ack_interrupt,
 		.config_intr	= dp83869_config_intr,
 		.read_status	= dp83869_read_status,
+
+		.get_tunable	= dp83869_get_tunable,
+		.set_tunable	= dp83869_set_tunable,
 
 		.get_wol	= dp83869_get_wol,
 		.set_wol	= dp83869_set_wol,
