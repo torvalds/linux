@@ -684,7 +684,7 @@ static int soc_pcm_close(struct snd_pcm_substream *substream)
 	for_each_rtd_dais(rtd, i, dai)
 		snd_soc_dai_shutdown(dai, substream, 0);
 
-	snd_soc_link_shutdown(substream);
+	snd_soc_link_shutdown(substream, 0);
 
 	soc_pcm_components_close(substream);
 
@@ -815,7 +815,7 @@ config_err:
 	for_each_rtd_dais_rollback(rtd, i, dai)
 		snd_soc_dai_shutdown(dai, substream, 1);
 
-	snd_soc_link_shutdown(substream);
+	snd_soc_link_shutdown(substream, 1);
 rtd_startup_err:
 	soc_pcm_components_close(substream);
 component_err:
