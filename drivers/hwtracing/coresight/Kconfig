@@ -86,7 +86,7 @@ config CORESIGHT_SOURCE_ETM4X
 	  data tracing may also be available.
 
 config CORESIGHT_STM
-	bool "CoreSight System Trace Macrocell driver"
+	tristate "CoreSight System Trace Macrocell driver"
 	depends on (ARM && !(CPU_32v3 || CPU_32v4 || CPU_32v4T)) || ARM64
 	select CORESIGHT_LINKS_AND_SINKS
 	select STM
@@ -95,6 +95,9 @@ config CORESIGHT_STM
 	  instrumentation based tracing. This is primarily used for
 	  logging useful software events or data coming from various entities
 	  in the system, possibly running different OSs
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called coresight-stm.
 
 config CORESIGHT_CPU_DEBUG
 	tristate "CoreSight CPU Debug driver"
