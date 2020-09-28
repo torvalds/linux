@@ -895,7 +895,7 @@ static struct platform_driver j721e_soc_driver = {
 	.driver = {
 		.name = "j721e-audio",
 		.pm = &snd_soc_pm_ops,
-		.of_match_table = of_match_ptr(j721e_audio_of_match),
+		.of_match_table = j721e_audio_of_match,
 	},
 	.probe = j721e_soc_probe,
 };
