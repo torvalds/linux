@@ -4743,6 +4743,8 @@ static int io_poll_double_wake(struct wait_queue_entry *wait, unsigned mode,
 	if (mask && !(mask & poll->events))
 		return 0;
 
+	list_del_init(&wait->entry);
+
 	if (poll && poll->head) {
 		bool done;
 
