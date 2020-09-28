@@ -1676,17 +1676,11 @@ static blk_qc_t dm_process_bio(struct mapped_device *md,
 	}
 
 	/*
-	 * If in ->submit_bio we need to use blk_queue_split(), otherwise
-	 * queue_limits for abnormal requests (e.g. discard, writesame, etc)
-	 * won't be imposed.
-	 * If called from dm_wq_work() for deferred bio processing, bio
-	 * was already handled by following code with previous ->submit_bio.
+	 * Use blk_queue_split() for abnormal IO (e.g. discard, writesame, etc)
+	 * otherwise associated queue_limits won't be imposed.
 	 */
-	if (current->bio_list) {
-		if (is_abnormal_io(bio))
-			blk_queue_split(&bio);
-		/* regular IO is split by __split_and_process_bio */
-	}
+	if (is_abnormal_io(bio))
+		blk_queue_split(&bio);
 
 	if (dm_get_md_type(md) == DM_TYPE_NVME_BIO_BASED)
 		return __process_bio(md, map, bio);
@@ -2383,29 +2377,19 @@ static int dm_wait_for_completion(struct mapped_device *md, long task_state)
  */
 static void dm_wq_work(struct work_struct *work)
 {
-	struct mapped_device *md = container_of(work, struct mapped_device,
-						work);
-	struct bio *c;
-	int srcu_idx;
-	struct dm_table *map;
-
-	map = dm_get_live_table(md, &srcu_idx);
+	struct mapped_device *md = container_of(work, struct mapped_device, work);
+	struct bio *bio;
 
 	while (!test_bit(DMF_BLOCK_IO_FOR_SUSPEND, &md->flags)) {
 		spin_lock_irq(&md->deferred_lock);
-		c = bio_list_pop(&md->deferred);
+		bio = bio_list_pop(&md->deferred);
 		spin_unlock_irq(&md->deferred_lock);
 
-		if (!c)
+		if (!bio)
 			break;
 
-		if (dm_request_based(md))
-			(void) submit_bio_noacct(c);
-		else
-			(void) dm_process_bio(md, map, c);
+		submit_bio_noacct(bio);
 	}
-
-	dm_put_live_table(md, srcu_idx);
 }
 
 static void dm_queue_flush(struct mapped_device *md)
