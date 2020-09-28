@@ -254,8 +254,8 @@ static void gsi_irq_enable(struct gsi *gsi)
 
 	/* We don't use inter-EE channel or event interrupts */
 	val = GSI_CNTXT_TYPE_IRQ_MSK_ALL;
-	val &= ~MSK_INTER_EE_CH_CTRL_FMASK;
-	val &= ~MSK_INTER_EE_EV_CTRL_FMASK;
+	val &= ~INTER_EE_CH_CTRL_FMASK;
+	val &= ~INTER_EE_EV_CTRL_FMASK;
 	iowrite32(val, gsi->virt + GSI_CNTXT_TYPE_IRQ_MSK_OFFSET);
 
 	val = GENMASK(gsi->channel_count - 1, 0);
