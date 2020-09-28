@@ -567,10 +567,20 @@ out:
 	return ret;
 }
 
+static int __exit catu_remove(struct amba_device *adev)
+{
+	struct catu_drvdata *drvdata = dev_get_drvdata(&adev->dev);
+
+	coresight_unregister(drvdata->csdev);
+	return 0;
+}
+
 static struct amba_id catu_ids[] = {
 	CS_AMBA_ID(0x000bb9ee),
 	{},
 };
+
+MODULE_DEVICE_TABLE(amba, catu_ids);
 
 static struct amba_driver catu_driver = {
 	.drv = {
@@ -579,6 +589,7 @@ static struct amba_driver catu_driver = {
 		.suppress_bind_attrs	= true,
 	},
 	.probe				= catu_probe,
+	.remove				= catu_remove,
 	.id_table			= catu_ids,
 };
 
@@ -601,3 +612,7 @@ static void __exit catu_exit(void)
 
 module_init(catu_init);
 module_exit(catu_exit);
+
+MODULE_AUTHOR("Suzuki K Poulose <suzuki.poulose@arm.com>");
+MODULE_DESCRIPTION("Arm CoreSight Address Translation Unit (CATU) Driver");
+MODULE_LICENSE("GPL v2");

@@ -42,7 +42,7 @@ config CORESIGHT_LINK_AND_SINK_TMC
 	  module will be called coresight-tmc.
 
 config CORESIGHT_CATU
-	bool "Coresight Address Translation Unit (CATU) driver"
+	tristate "Coresight Address Translation Unit (CATU) driver"
 	depends on CORESIGHT_LINK_AND_SINK_TMC
 	help
 	   Enable support for the Coresight Address Translation Unit (CATU).
@@ -51,6 +51,9 @@ config CORESIGHT_CATU
 	   buffer by translating the addresses used by ETR to the physical address
 	   by looking up the provided table. CATU can also be used in pass-through
 	   mode where the address is not translated.
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called coresight-catu.
 
 config CORESIGHT_SINK_TPIU
 	tristate "Coresight generic TPIU driver"
