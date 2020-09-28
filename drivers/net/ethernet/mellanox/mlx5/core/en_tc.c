@@ -1238,8 +1238,10 @@ mlx5e_tc_unoffload_from_slow_path(struct mlx5_eswitch *esw,
 	struct mlx5_flow_attr *slow_attr;
 
 	slow_attr = mlx5_alloc_flow_attr(MLX5_FLOW_NAMESPACE_FDB);
-	if (!slow_attr)
-		mlx5_core_warn(flow->priv->mdev, "Unable to unoffload slow path rule\n");
+	if (!slow_attr) {
+		mlx5_core_warn(flow->priv->mdev, "Unable to alloc attr to unoffload slow path rule\n");
+		return;
+	}
 
 	memcpy(slow_attr, flow->attr, ESW_FLOW_ATTR_SZ);
 	slow_attr->action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
