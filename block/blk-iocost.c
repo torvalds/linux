@@ -3405,7 +3405,7 @@ static int __init ioc_init(void)
 
 static void __exit ioc_exit(void)
 {
-	return blkcg_policy_unregister(&blkcg_policy_iocost);
+	blkcg_policy_unregister(&blkcg_policy_iocost);
 }
 
 module_init(ioc_init);
