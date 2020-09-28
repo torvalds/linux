@@ -55,6 +55,19 @@ config CAN_GW
 
 source "net/can/j1939/Kconfig"
 
+config CAN_ISOTP
+	tristate "ISO 15765-2:2016 CAN transport protocol"
+	default y
+	help
+	  CAN Transport Protocols offer support for segmented Point-to-Point
+	  communication between CAN nodes via two defined CAN Identifiers.
+	  As CAN frames can only transport a small amount of data bytes
+	  (max. 8 bytes for 'classic' CAN and max. 64 bytes for CAN FD) this
+	  segmentation is needed to transport longer PDUs as needed e.g. for
+	  vehicle diagnosis (UDS, ISO 14229) or IP-over-CAN traffic.
+	  This protocol driver implements data transfers according to
+	  ISO 15765-2:2016 for 'classic' CAN and CAN FD frame types.
+
 source "drivers/net/can/Kconfig"
 
 endif
