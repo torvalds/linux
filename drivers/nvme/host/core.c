@@ -1381,9 +1381,16 @@ static int nvme_identify_ns(struct nvme_ctrl *ctrl,
 	error = nvme_submit_sync_cmd(ctrl->admin_q, &c, *id, sizeof(**id));
 	if (error) {
 		dev_warn(ctrl->device, "Identify namespace failed (%d)\n", error);
-		kfree(*id);
+		goto out_free_id;
 	}
 
+	error = -ENODEV;
+	if ((*id)->ncap == 0) /* namespace not allocated or attached */
+		goto out_free_id;
+	return 0;
+
+out_free_id:
+	kfree(*id);
 	return error;
 }
 
@@ -2168,11 +2175,6 @@ static int nvme_validate_ns(struct nvme_ns *ns)
 	ret = nvme_identify_ns(ctrl, ns->head->ns_id, &id);
 	if (ret)
 		goto out;
-
-	if (id->ncap == 0) {
-		ret = -ENODEV;
-		goto free_id;
-	}
 
 	ret = nvme_report_ns_ids(ctrl, ns->head->ns_id, id, &ids);
 	if (ret)
@@ -3912,9 +3914,6 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 	ret = nvme_identify_ns(ctrl, nsid, &id);
 	if (ret)
 		goto out_free_queue;
-
-	if (id->ncap == 0)	/* no namespace (legacy quirk) */
-		goto out_free_id;
 
 	ret = nvme_init_ns_head(ns, nsid, id);
 	if (ret)
