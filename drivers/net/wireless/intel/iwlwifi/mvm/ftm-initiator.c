@@ -166,7 +166,7 @@ static void iwl_mvm_ftm_cmd_v5(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 static void iwl_mvm_ftm_cmd_common(struct iwl_mvm *mvm,
 				   struct ieee80211_vif *vif,
-				   struct iwl_tof_range_req_cmd *cmd,
+				   struct iwl_tof_range_req_cmd_v9 *cmd,
 				   struct cfg80211_pmsr_request *req)
 {
 	int i;
@@ -335,7 +335,7 @@ iwl_mvm_ftm_put_target_v2(struct iwl_mvm *mvm,
 static void
 iwl_mvm_ftm_put_target_common(struct iwl_mvm *mvm,
 			      struct cfg80211_pmsr_request_peer *peer,
-			      struct iwl_tof_range_req_ap_entry *target)
+			      struct iwl_tof_range_req_ap_entry_v6 *target)
 {
 	memcpy(target->bssid, peer->addr, ETH_ALEN);
 	target->burst_period =
@@ -411,7 +411,7 @@ iwl_mvm_ftm_put_target_v4(struct iwl_mvm *mvm,
 static int
 iwl_mvm_ftm_put_target(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		       struct cfg80211_pmsr_request_peer *peer,
-		       struct iwl_tof_range_req_ap_entry *target)
+		       struct iwl_tof_range_req_ap_entry_v6 *target)
 {
 	int ret;
 
@@ -421,7 +421,7 @@ iwl_mvm_ftm_put_target(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (ret)
 		return ret;
 
-	iwl_mvm_ftm_put_target_common(mvm, peer, (void *)target);
+	iwl_mvm_ftm_put_target_common(mvm, peer, target);
 
 	if (vif->bss_conf.assoc &&
 	    !memcmp(peer->addr, vif->bss_conf.bssid, ETH_ALEN)) {
@@ -539,7 +539,7 @@ static int iwl_mvm_ftm_start_v8(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 static int iwl_mvm_ftm_start_v9(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 				struct cfg80211_pmsr_request *req)
 {
-	struct iwl_tof_range_req_cmd cmd;
+	struct iwl_tof_range_req_cmd_v9 cmd;
 	struct iwl_host_cmd hcmd = {
 		.id = iwl_cmd_id(TOF_RANGE_REQ_CMD, LOCATION_GROUP, 0),
 		.dataflags[0] = IWL_HCMD_DFL_DUP,
@@ -553,9 +553,37 @@ static int iwl_mvm_ftm_start_v9(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	for (i = 0; i < cmd.num_of_ap; i++) {
 		struct cfg80211_pmsr_request_peer *peer = &req->peers[i];
-		struct iwl_tof_range_req_ap_entry *target = &cmd.ap[i];
+		struct iwl_tof_range_req_ap_entry_v6 *target = &cmd.ap[i];
 
 		err = iwl_mvm_ftm_put_target(mvm, vif, peer, target);
+		if (err)
+			return err;
+	}
+
+	return iwl_mvm_ftm_send_cmd(mvm, &hcmd);
+}
+
+static int iwl_mvm_ftm_start_v11(struct iwl_mvm *mvm,
+				 struct ieee80211_vif *vif,
+				 struct cfg80211_pmsr_request *req)
+{
+	struct iwl_tof_range_req_cmd_v11 cmd;
+	struct iwl_host_cmd hcmd = {
+		.id = iwl_cmd_id(TOF_RANGE_REQ_CMD, LOCATION_GROUP, 0),
+		.dataflags[0] = IWL_HCMD_DFL_DUP,
+		.data[0] = &cmd,
+		.len[0] = sizeof(cmd),
+	};
+	u8 i;
+	int err;
+
+	iwl_mvm_ftm_cmd_common(mvm, vif, (void *)&cmd, req);
+
+	for (i = 0; i < cmd.num_of_ap; i++) {
+		struct cfg80211_pmsr_request_peer *peer = &req->peers[i];
+		struct iwl_tof_range_req_ap_entry_v7 *target = &cmd.ap[i];
+
+		err = iwl_mvm_ftm_put_target(mvm, vif, peer, (void *)target);
 		if (err)
 			return err;
 	}
@@ -581,6 +609,9 @@ int iwl_mvm_ftm_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 						   IWL_FW_CMD_VER_UNKNOWN);
 
 		switch (cmd_ver) {
+		case 11:
+			err = iwl_mvm_ftm_start_v11(mvm, vif, req);
+			break;
 		case 9:
 		case 10:
 			err = iwl_mvm_ftm_start_v9(mvm, vif, req);
@@ -721,7 +752,8 @@ void iwl_mvm_ftm_range_resp(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_tof_range_rsp_ntfy_v5 *fw_resp_v5 = (void *)pkt->data;
 	struct iwl_tof_range_rsp_ntfy_v6 *fw_resp_v6 = (void *)pkt->data;
-	struct iwl_tof_range_rsp_ntfy *fw_resp = (void *)pkt->data;
+	struct iwl_tof_range_rsp_ntfy_v7 *fw_resp_v7 = (void *)pkt->data;
+	struct iwl_tof_range_rsp_ntfy_v8 *fw_resp_v8 = (void *)pkt->data;
 	int i;
 	bool new_api = fw_has_api(&mvm->fw->ucode_capa,
 				  IWL_UCODE_TLV_API_FTM_NEW_RANGE_REQ);
@@ -734,12 +766,12 @@ void iwl_mvm_ftm_range_resp(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 	}
 
 	if (new_api) {
-		if (iwl_mvm_ftm_range_resp_valid(mvm, fw_resp->request_id,
-						 fw_resp->num_of_aps))
+		if (iwl_mvm_ftm_range_resp_valid(mvm, fw_resp_v8->request_id,
+						 fw_resp_v8->num_of_aps))
 			return;
 
-		num_of_aps = fw_resp->num_of_aps;
-		last_in_batch = fw_resp->last_report;
+		num_of_aps = fw_resp_v8->num_of_aps;
+		last_in_batch = fw_resp_v8->last_report;
 	} else {
 		if (iwl_mvm_ftm_range_resp_valid(mvm, fw_resp_v5->request_id,
 						 fw_resp_v5->num_of_aps))
@@ -755,17 +787,19 @@ void iwl_mvm_ftm_range_resp(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 
 	for (i = 0; i < num_of_aps && i < IWL_MVM_TOF_MAX_APS; i++) {
 		struct cfg80211_pmsr_result result = {};
-		struct iwl_tof_range_rsp_ap_entry_ntfy *fw_ap;
+		struct iwl_tof_range_rsp_ap_entry_ntfy_v6 *fw_ap;
 		int peer_idx;
 
 		if (new_api) {
-			if (fw_has_api(&mvm->fw->ucode_capa,
-				       IWL_UCODE_TLV_API_FTM_RTT_ACCURACY))
-				fw_ap = &fw_resp->ap[i];
+			if (mvm->cmd_ver.range_resp == 8)
+				fw_ap = &fw_resp_v8->ap[i];
+			else if (fw_has_api(&mvm->fw->ucode_capa,
+					    IWL_UCODE_TLV_API_FTM_RTT_ACCURACY))
+				fw_ap = (void *)&fw_resp_v7->ap[i];
 			else
 				fw_ap = (void *)&fw_resp_v6->ap[i];
 
-			result.final = fw_resp->ap[i].last_burst;
+			result.final = fw_ap->last_burst;
 			result.ap_tsf = le32_to_cpu(fw_ap->start_tsf);
 			result.ap_tsf_valid = 1;
 		} else {

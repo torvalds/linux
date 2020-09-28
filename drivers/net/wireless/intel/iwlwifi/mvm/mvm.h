@@ -1113,6 +1113,7 @@ struct iwl_mvm {
 
 	struct {
 		u8 d0i3_resp;
+		u8 range_resp;
 	} cmd_ver;
 
 	struct ieee80211_vif *nan_vif;
