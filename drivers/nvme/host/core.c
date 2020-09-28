@@ -2150,6 +2150,12 @@ static int nvme_update_ns_info(struct nvme_ns *ns, struct nvme_id_ns *id)
 	nvme_update_disk_info(ns->disk, ns, id);
 	blk_mq_unfreeze_queue(ns->disk->queue);
 
+	if (blk_queue_is_zoned(ns->queue)) {
+		ret = nvme_revalidate_zones(ns);
+		if (ret)
+			return ret;
+	}
+
 #ifdef CONFIG_NVME_MULTIPATH
 	if (ns->head->disk) {
 		blk_mq_freeze_queue(ns->head->disk->queue);
@@ -3915,8 +3921,6 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 
 	if (nvme_update_ns_info(ns, id))
 		goto out_put_disk;
-	if (blk_queue_is_zoned(ns->queue) && nvme_revalidate_zones(ns))
-		goto out_put_disk;
 
 	if ((ctrl->quirks & NVME_QUIRK_LIGHTNVM) && id->vs[0] == 0x1) {
 		ret = nvme_nvm_register(ns, disk_name, node);
@@ -4012,8 +4016,6 @@ static void nvme_validate_or_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 	}
 
 	ret = nvme_validate_ns(ns);
-	if (!ret && blk_queue_is_zoned(ns->queue))
-		ret = nvme_revalidate_zones(ns);
 	revalidate_disk_size(ns->disk, ret == 0);
 	if (ret)
 		nvme_ns_remove(ns);
