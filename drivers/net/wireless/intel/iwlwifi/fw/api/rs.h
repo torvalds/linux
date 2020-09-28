@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
+ * Copyright(c) 2018 - 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -29,7 +29,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
+ * Copyright(c) 2018 - 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -485,6 +485,13 @@ enum {
 /* Bit 28: (1) 106-tone RX (8 MHz RU), (0) normal bandwidth */
 #define RATE_MCS_HE_106T_POS		28
 #define RATE_MCS_HE_106T_MSK		(1 << RATE_MCS_HE_106T_POS)
+
+/* Bit 30-31: (1) RTS, (2) CTS */
+#define RATE_MCS_RTS_REQUIRED_POS  (30)
+#define RATE_MCS_RTS_REQUIRED_MSK  (0x1 << RATE_MCS_RTS_REQUIRED_POS)
+
+#define RATE_MCS_CTS_REQUIRED_POS  (31)
+#define RATE_MCS_CTS_REQUIRED_MSK  (0x1 << RATE_MCS_CTS_REQUIRED_POS)
 
 /* Link Quality definitions */
 
