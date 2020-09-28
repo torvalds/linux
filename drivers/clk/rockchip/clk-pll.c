@@ -1255,8 +1255,12 @@ struct clk *rockchip_clk_register_pll(struct rockchip_clk_provider *ctx,
 	/* now create the actual pll */
 	init.name = pll_name;
 
+#ifndef CONFIG_ROCKCHIP_LOW_PERFORMANCE
 	/* keep all plls untouched for now */
 	init.flags = flags | CLK_IGNORE_UNUSED;
+#else
+	init.flags = flags;
+#endif
 
 	init.parent_names = &parent_names[0];
 	init.num_parents = 1;
