@@ -2010,6 +2010,26 @@ static int nvme_configure_metadata(struct nvme_ns *ns, struct nvme_id_ns *id)
 	return 0;
 }
 
+static void nvme_set_queue_limits(struct nvme_ctrl *ctrl,
+		struct request_queue *q)
+{
+	bool vwc = false;
+
+	if (ctrl->max_hw_sectors) {
+		u32 max_segments =
+			(ctrl->max_hw_sectors / (NVME_CTRL_PAGE_SIZE >> 9)) + 1;
+
+		max_segments = min_not_zero(max_segments, ctrl->max_segments);
+		blk_queue_max_hw_sectors(q, ctrl->max_hw_sectors);
+		blk_queue_max_segments(q, min_t(u32, max_segments, USHRT_MAX));
+	}
+	blk_queue_virt_boundary(q, NVME_CTRL_PAGE_SIZE - 1);
+	blk_queue_dma_alignment(q, 7);
+	if (ctrl->vwc & NVME_CTRL_VWC_PRESENT)
+		vwc = true;
+	blk_queue_write_cache(q, vwc, vwc);
+}
+
 static void nvme_update_disk_info(struct gendisk *disk,
 		struct nvme_ns *ns, struct nvme_id_ns *id)
 {
@@ -2130,6 +2150,7 @@ static int nvme_update_ns_info(struct nvme_ns *ns, struct nvme_id_ns *id)
 
 	blk_mq_freeze_queue(ns->disk->queue);
 	ns->lba_shift = id->lbaf[lbaf].ds;
+	nvme_set_queue_limits(ctrl, ns->queue);
 
 	switch (ns->head->ids.csi) {
 	case NVME_CSI_NVM:
@@ -2494,26 +2515,6 @@ int nvme_shutdown_ctrl(struct nvme_ctrl *ctrl)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(nvme_shutdown_ctrl);
-
-static void nvme_set_queue_limits(struct nvme_ctrl *ctrl,
-		struct request_queue *q)
-{
-	bool vwc = false;
-
-	if (ctrl->max_hw_sectors) {
-		u32 max_segments =
-			(ctrl->max_hw_sectors / (NVME_CTRL_PAGE_SIZE >> 9)) + 1;
-
-		max_segments = min_not_zero(max_segments, ctrl->max_segments);
-		blk_queue_max_hw_sectors(q, ctrl->max_hw_sectors);
-		blk_queue_max_segments(q, min_t(u32, max_segments, USHRT_MAX));
-	}
-	blk_queue_virt_boundary(q, NVME_CTRL_PAGE_SIZE - 1);
-	blk_queue_dma_alignment(q, 7);
-	if (ctrl->vwc & NVME_CTRL_VWC_PRESENT)
-		vwc = true;
-	blk_queue_write_cache(q, vwc, vwc);
-}
 
 static int nvme_configure_timestamp(struct nvme_ctrl *ctrl)
 {
@@ -3922,12 +3923,7 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 
 	ns->queue->queuedata = ns;
 	ns->ctrl = ctrl;
-
 	kref_init(&ns->kref);
-	ns->lba_shift = 9; /* set to a default value for 512 until disk is validated */
-
-	blk_queue_logical_block_size(ns->queue, 1 << ns->lba_shift);
-	nvme_set_queue_limits(ctrl, ns->queue);
 
 	ret = nvme_init_ns_head(ns, nsid, id);
 	if (ret)
