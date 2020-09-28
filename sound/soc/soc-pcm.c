@@ -729,12 +729,8 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 	/* startup the audio subsystem */
 	for_each_rtd_dais(rtd, i, dai) {
 		ret = snd_soc_dai_startup(dai, substream);
-		if (ret < 0) {
-			dev_err(dai->dev,
-				"ASoC: can't open DAI %s: %d\n",
-				dai->name, ret);
+		if (ret < 0)
 			goto err;
-		}
 
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 			dai->tx_mask = 0;
