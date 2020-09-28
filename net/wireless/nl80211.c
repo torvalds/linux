@@ -984,6 +984,8 @@ static int nl80211_msg_put_channel(struct sk_buff *msg, struct wiphy *wiphy,
 	if (!large && chan->flags &
 	    (IEEE80211_CHAN_NO_10MHZ | IEEE80211_CHAN_NO_20MHZ))
 		return 0;
+	if (!large && chan->freq_offset)
+		return 0;
 
 	if (nla_put_u32(msg, NL80211_FREQUENCY_ATTR_FREQ,
 			chan->center_freq))
@@ -1676,7 +1678,8 @@ nl80211_send_iftype_data(struct sk_buff *msg,
 }
 
 static int nl80211_send_band_rateinfo(struct sk_buff *msg,
-				      struct ieee80211_supported_band *sband)
+				      struct ieee80211_supported_band *sband,
+				      bool large)
 {
 	struct nlattr *nl_rates, *nl_rate;
 	struct ieee80211_rate *rate;
@@ -1704,7 +1707,7 @@ static int nl80211_send_band_rateinfo(struct sk_buff *msg,
 			 sband->vht_cap.cap)))
 		return -ENOBUFS;
 
-	if (sband->n_iftype_data) {
+	if (large && sband->n_iftype_data) {
 		struct nlattr *nl_iftype_data =
 			nla_nest_start_noflag(msg,
 					      NL80211_BAND_ATTR_IFTYPE_DATA);
@@ -1732,7 +1735,7 @@ static int nl80211_send_band_rateinfo(struct sk_buff *msg,
 	}
 
 	/* add EDMG info */
-	if (sband->edmg_cap.channels &&
+	if (large && sband->edmg_cap.channels &&
 	    (nla_put_u8(msg, NL80211_BAND_ATTR_EDMG_CHANNELS,
 		       sband->edmg_cap.channels) ||
 	    nla_put_u8(msg, NL80211_BAND_ATTR_EDMG_BW_CONFIG,
@@ -2150,13 +2153,7 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *rdev,
 		    nla_put_u16(msg, NL80211_ATTR_MAX_SCHED_SCAN_IE_LEN,
 				rdev->wiphy.max_sched_scan_ie_len) ||
 		    nla_put_u8(msg, NL80211_ATTR_MAX_MATCH_SETS,
-			       rdev->wiphy.max_match_sets) ||
-		    nla_put_u32(msg, NL80211_ATTR_MAX_NUM_SCHED_SCAN_PLANS,
-				rdev->wiphy.max_sched_scan_plans) ||
-		    nla_put_u32(msg, NL80211_ATTR_MAX_SCAN_PLAN_INTERVAL,
-				rdev->wiphy.max_sched_scan_plan_interval) ||
-		    nla_put_u32(msg, NL80211_ATTR_MAX_SCAN_PLAN_ITERATIONS,
-				rdev->wiphy.max_sched_scan_plan_iterations))
+			       rdev->wiphy.max_match_sets))
 			goto nla_put_failure;
 
 		if ((rdev->wiphy.flags & WIPHY_FLAG_IBSS_RSN) &&
@@ -2246,6 +2243,10 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *rdev,
 		     band < NUM_NL80211_BANDS; band++) {
 			struct ieee80211_supported_band *sband;
 
+			/* omit higher bands for ancient software */
+			if (band > NL80211_BAND_5GHZ && !state->split)
+				break;
+
 			sband = rdev->wiphy.bands[band];
 
 			if (!sband)
@@ -2257,7 +2258,8 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *rdev,
 
 			switch (state->chan_start) {
 			case 0:
-				if (nl80211_send_band_rateinfo(msg, sband))
+				if (nl80211_send_band_rateinfo(msg, sband,
+							       state->split))
 					goto nla_put_failure;
 				state->chan_start++;
 				if (state->split)
@@ -2359,8 +2361,6 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *rdev,
 		    nla_put_flag(msg, NL80211_ATTR_OFFCHANNEL_TX_OK))
 			goto nla_put_failure;
 
-		if (nl80211_send_mgmt_stypes(msg, mgmt_stypes))
-			goto nla_put_failure;
 		state->split_start++;
 		if (state->split)
 			break;
@@ -2431,6 +2431,17 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *rdev,
 		state->split_start++;
 		break;
 	case 9:
+		if (nl80211_send_mgmt_stypes(msg, mgmt_stypes))
+			goto nla_put_failure;
+
+		if (nla_put_u32(msg, NL80211_ATTR_MAX_NUM_SCHED_SCAN_PLANS,
+				rdev->wiphy.max_sched_scan_plans) ||
+		    nla_put_u32(msg, NL80211_ATTR_MAX_SCAN_PLAN_INTERVAL,
+				rdev->wiphy.max_sched_scan_plan_interval) ||
+		    nla_put_u32(msg, NL80211_ATTR_MAX_SCAN_PLAN_ITERATIONS,
+				rdev->wiphy.max_sched_scan_plan_iterations))
+			goto nla_put_failure;
+
 		if (rdev->wiphy.extended_capabilities &&
 		    (nla_put(msg, NL80211_ATTR_EXT_CAPA,
 			     rdev->wiphy.extended_capabilities_len,
