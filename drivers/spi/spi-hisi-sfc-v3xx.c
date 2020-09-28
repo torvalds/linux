@@ -121,7 +121,7 @@ static int hisi_sfc_v3xx_handle_completion(struct hisi_sfc_v3xx_host *host)
 	 * happens, we regard it as an unsupported error here.
 	 */
 	if (!(reg & HISI_SFC_V3XX_INT_MASK_CPLT)) {
-		dev_err(host->dev, "unsupported error occured, status=0x%x\n", reg);
+		dev_err(host->dev, "unsupported error occurred, status=0x%x\n", reg);
 		return -EIO;
 	}
 
