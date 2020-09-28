@@ -2156,43 +2156,6 @@ out_unfreeze:
 	return ret;
 }
 
-static int nvme_validate_ns(struct nvme_ns *ns, struct nvme_ns_ids *ids)
-{
-	struct nvme_ctrl *ctrl = ns->ctrl;
-	struct nvme_id_ns *id;
-	int ret = 0;
-
-	if (test_bit(NVME_NS_DEAD, &ns->flags)) {
-		set_capacity(ns->disk, 0);
-		return -ENODEV;
-	}
-
-	ret = nvme_identify_ns(ctrl, ns->head->ns_id, ids, &id);
-	if (ret)
-		goto out;
-
-	if (!nvme_ns_ids_equal(&ns->head->ids, ids)) {
-		dev_err(ctrl->device,
-			"identifiers changed for nsid %d\n", ns->head->ns_id);
-		ret = -ENODEV;
-		goto free_id;
-	}
-
-	ret = nvme_update_ns_info(ns, id);
-free_id:
-	kfree(id);
-out:
-	/*
-	 * Only fail the function if we got a fatal error back from the
-	 * device, otherwise ignore the error and just move on.
-	 */
-	if (ret == -ENOMEM || (ret > 0 && !(ret & NVME_SC_DNR)))
-		ret = 0;
-	else if (ret > 0)
-		ret = blk_status_to_errno(nvme_error_status(ret));
-	return ret;
-}
-
 static char nvme_pr_type(enum pr_type type)
 {
 	switch (type) {
@@ -3971,6 +3934,43 @@ static void nvme_ns_remove_by_nsid(struct nvme_ctrl *ctrl, u32 nsid)
 		nvme_ns_remove(ns);
 		nvme_put_ns(ns);
 	}
+}
+
+static int nvme_validate_ns(struct nvme_ns *ns, struct nvme_ns_ids *ids)
+{
+	struct nvme_ctrl *ctrl = ns->ctrl;
+	struct nvme_id_ns *id;
+	int ret = 0;
+
+	if (test_bit(NVME_NS_DEAD, &ns->flags)) {
+		set_capacity(ns->disk, 0);
+		return -ENODEV;
+	}
+
+	ret = nvme_identify_ns(ctrl, ns->head->ns_id, ids, &id);
+	if (ret)
+		goto out;
+
+	if (!nvme_ns_ids_equal(&ns->head->ids, ids)) {
+		dev_err(ctrl->device,
+			"identifiers changed for nsid %d\n", ns->head->ns_id);
+		ret = -ENODEV;
+		goto free_id;
+	}
+
+	ret = nvme_update_ns_info(ns, id);
+free_id:
+	kfree(id);
+out:
+	/*
+	 * Only fail the function if we got a fatal error back from the
+	 * device, otherwise ignore the error and just move on.
+	 */
+	if (ret == -ENOMEM || (ret > 0 && !(ret & NVME_SC_DNR)))
+		ret = 0;
+	else if (ret > 0)
+		ret = blk_status_to_errno(nvme_error_status(ret));
+	return ret;
 }
 
 static void nvme_validate_or_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
