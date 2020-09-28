@@ -56,7 +56,7 @@ config IA64
 	select NEED_DMA_MAP_STATE
 	select NEED_SG_DMA_LENGTH
 	select NUMA if !FLATMEM
-	select PCI_MSI_ARCH_FALLBACKS
+	select PCI_MSI_ARCH_FALLBACKS if PCI_MSI
 	default y
 	help
 	  The Itanium Processor Family is Intel's 64-bit successor to
