@@ -138,6 +138,7 @@ genl_dumpit_info(struct netlink_callback *cb)
  * @cmd: command identifier
  * @internal_flags: flags used by the family
  * @flags: flags
+ * @validate: validation flags from enum genl_validate_flags
  * @doit: standard command callback
  * @start: start callback for dumps
  * @dumpit: callback for dumpers
