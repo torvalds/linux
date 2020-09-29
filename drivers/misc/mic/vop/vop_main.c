@@ -124,6 +124,7 @@ static void vop_transport_features(struct virtio_device *vdev)
 	 * creates virtio rings on preallocated memory.
 	 */
 	__virtio_clear_bit(vdev, VIRTIO_F_RING_PACKED);
+	__virtio_set_bit(vdev, VIRTIO_F_ACCESS_PLATFORM);
 }
 
 static int vop_finalize_features(struct virtio_device *vdev)
