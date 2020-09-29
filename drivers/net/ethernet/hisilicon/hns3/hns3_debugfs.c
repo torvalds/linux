@@ -15,6 +15,7 @@ static struct dentry *hns3_dbgfs_root;
 static int hns3_dbg_queue_info(struct hnae3_handle *h,
 			       const char *cmd_buf)
 {
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(h->pdev);
 	struct hns3_nic_priv *priv = h->priv;
 	struct hns3_enet_ring *ring;
 	u32 base_add_l, base_add_h;
@@ -118,8 +119,25 @@ static int hns3_dbg_queue_info(struct hnae3_handle *h,
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_TX_RING_PKTNUM_RECORD_REG);
-		dev_info(&h->pdev->dev, "TX(%u) RING PKTNUM: %u\n\n", i,
-			 value);
+		dev_info(&h->pdev->dev, "TX(%u) RING PKTNUM: %u\n", i, value);
+
+		value = readl_relaxed(ring->tqp->io_base + HNS3_RING_EN_REG);
+		dev_info(&h->pdev->dev, "TX/RX(%u) RING EN: %s\n", i,
+			 value ? "enable" : "disable");
+
+		if (hnae3_ae_dev_tqp_txrx_indep_supported(ae_dev)) {
+			value = readl_relaxed(ring->tqp->io_base +
+					      HNS3_RING_TX_EN_REG);
+			dev_info(&h->pdev->dev, "TX(%u) RING EN: %s\n", i,
+				 value ? "enable" : "disable");
+
+			value = readl_relaxed(ring->tqp->io_base +
+					      HNS3_RING_RX_EN_REG);
+			dev_info(&h->pdev->dev, "RX(%u) RING EN: %s\n", i,
+				 value ? "enable" : "disable");
+		}
+
+		dev_info(&h->pdev->dev, "\n");
 	}
 
 	return 0;
@@ -245,6 +263,7 @@ static void hns3_dbg_help(struct hnae3_handle *h)
 	dev_info(&h->pdev->dev, "queue map\n");
 	dev_info(&h->pdev->dev, "bd info <q_num> <bd index>\n");
 	dev_info(&h->pdev->dev, "dev capability\n");
+	dev_info(&h->pdev->dev, "dev spec\n");
 
 	if (!hns3_is_phys_func(h->pdev))
 		return;
@@ -305,6 +324,31 @@ static void hns3_dbg_dev_caps(struct hnae3_handle *h)
 		 test_bit(HNAE3_DEV_SUPPORT_PTP_B, caps) ? "yes" : "no");
 	dev_info(&h->pdev->dev, "support INT QL: %s\n",
 		 test_bit(HNAE3_DEV_SUPPORT_INT_QL_B, caps) ? "yes" : "no");
+}
+
+static void hns3_dbg_dev_specs(struct hnae3_handle *h)
+{
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(h->pdev);
+	struct hnae3_dev_specs *dev_specs = &ae_dev->dev_specs;
+	struct hnae3_knic_private_info *kinfo = &h->kinfo;
+	struct hns3_nic_priv *priv  = h->priv;
+
+	dev_info(priv->dev, "MAC entry num: %u\n", dev_specs->mac_entry_num);
+	dev_info(priv->dev, "MNG entry num: %u\n", dev_specs->mng_entry_num);
+	dev_info(priv->dev, "MAX non tso bd num: %u\n",
+		 dev_specs->max_non_tso_bd_num);
+	dev_info(priv->dev, "RSS ind tbl size: %u\n",
+		 dev_specs->rss_ind_tbl_size);
+	dev_info(priv->dev, "RSS key size: %u\n", dev_specs->rss_key_size);
+	dev_info(priv->dev, "RSS size: %u\n", kinfo->rss_size);
+	dev_info(priv->dev, "Allocated RSS size: %u\n", kinfo->req_rss_size);
+	dev_info(priv->dev, "Task queue pairs numbers: %u\n", kinfo->num_tqps);
+
+	dev_info(priv->dev, "RX buffer length: %u\n", kinfo->rx_buf_len);
+	dev_info(priv->dev, "Desc num per TX queue: %u\n", kinfo->num_tx_desc);
+	dev_info(priv->dev, "Desc num per RX queue: %u\n", kinfo->num_rx_desc);
+	dev_info(priv->dev, "Total number of enabled TCs: %u\n", kinfo->num_tc);
+	dev_info(priv->dev, "MAX INT QL: %u\n", dev_specs->int_ql_max);
 }
 
 static ssize_t hns3_dbg_cmd_read(struct file *filp, char __user *buffer,
@@ -384,6 +428,8 @@ static ssize_t hns3_dbg_cmd_write(struct file *filp, const char __user *buffer,
 		ret = hns3_dbg_bd_info(handle, cmd_buf);
 	else if (strncmp(cmd_buf, "dev capability", 14) == 0)
 		hns3_dbg_dev_caps(handle);
+	else if (strncmp(cmd_buf, "dev spec", 8) == 0)
+		hns3_dbg_dev_specs(handle);
 	else if (handle->ae_algo->ops->dbg_run_cmd)
 		ret = handle->ae_algo->ops->dbg_run_cmd(handle, cmd_buf);
 	else

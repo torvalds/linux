@@ -311,9 +311,6 @@ static void hns3_self_test(struct net_device *ndev,
 	struct hnae3_handle *h = priv->ae_handle;
 	int st_param[HNS3_SELF_TEST_TYPE_NUM][2];
 	bool if_running = netif_running(ndev);
-#if IS_ENABLED(CONFIG_VLAN_8021Q)
-	bool dis_vlan_filter;
-#endif
 	int test_index = 0;
 	u32 i;
 
@@ -350,9 +347,7 @@ static void hns3_self_test(struct net_device *ndev,
 
 #if IS_ENABLED(CONFIG_VLAN_8021Q)
 	/* Disable the vlan filter for selftest does not support it */
-	dis_vlan_filter = (ndev->features & NETIF_F_HW_VLAN_CTAG_FILTER) &&
-				h->ae_algo->ops->enable_vlan_filter;
-	if (dis_vlan_filter)
+	if (h->ae_algo->ops->enable_vlan_filter)
 		h->ae_algo->ops->enable_vlan_filter(h, false);
 #endif
 
@@ -389,7 +384,7 @@ static void hns3_self_test(struct net_device *ndev,
 		h->ae_algo->ops->halt_autoneg(h, false);
 
 #if IS_ENABLED(CONFIG_VLAN_8021Q)
-	if (dis_vlan_filter)
+	if (h->ae_algo->ops->enable_vlan_filter)
 		h->ae_algo->ops->enable_vlan_filter(h, true);
 #endif
 

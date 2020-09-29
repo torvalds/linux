@@ -1702,6 +1702,26 @@ static int hclgevf_notify_client(struct hclgevf_dev *hdev,
 	return ret;
 }
 
+static int hclgevf_notify_roce_client(struct hclgevf_dev *hdev,
+				      enum hnae3_reset_notify_type type)
+{
+	struct hnae3_client *client = hdev->roce_client;
+	struct hnae3_handle *handle = &hdev->roce;
+	int ret;
+
+	if (!test_bit(HCLGEVF_STATE_ROCE_REGISTERED, &hdev->state) || !client)
+		return 0;
+
+	if (!client->ops->reset_notify)
+		return -EOPNOTSUPP;
+
+	ret = client->ops->reset_notify(handle, type);
+	if (ret)
+		dev_err(&hdev->pdev->dev, "notify roce client failed %d(%d)",
+			type, ret);
+	return ret;
+}
+
 static int hclgevf_reset_wait(struct hclgevf_dev *hdev)
 {
 #define HCLGEVF_RESET_WAIT_US	20000
@@ -1865,6 +1885,11 @@ static int hclgevf_reset_prepare(struct hclgevf_dev *hdev)
 
 	hdev->rst_stats.rst_cnt++;
 
+	/* perform reset of the stack & ae device for a client */
+	ret = hclgevf_notify_roce_client(hdev, HNAE3_DOWN_CLIENT);
+	if (ret)
+		return ret;
+
 	rtnl_lock();
 	/* bring down the nic to stop any ongoing TX/RX */
 	ret = hclgevf_notify_client(hdev, HNAE3_DOWN_CLIENT);
@@ -1880,6 +1905,9 @@ static int hclgevf_reset_rebuild(struct hclgevf_dev *hdev)
 	int ret;
 
 	hdev->rst_stats.hw_rst_done_cnt++;
+	ret = hclgevf_notify_roce_client(hdev, HNAE3_UNINIT_CLIENT);
+	if (ret)
+		return ret;
 
 	rtnl_lock();
 	/* now, re-initialize the nic client and ae device */
@@ -1889,6 +1917,18 @@ static int hclgevf_reset_rebuild(struct hclgevf_dev *hdev)
 		dev_err(&hdev->pdev->dev, "failed to reset VF stack\n");
 		return ret;
 	}
+
+	ret = hclgevf_notify_roce_client(hdev, HNAE3_INIT_CLIENT);
+	/* ignore RoCE notify error if it fails HCLGEVF_RESET_MAX_FAIL_CNT - 1
+	 * times
+	 */
+	if (ret &&
+	    hdev->rst_stats.rst_fail_cnt < HCLGEVF_RESET_MAX_FAIL_CNT - 1)
+		return ret;
+
+	ret = hclgevf_notify_roce_client(hdev, HNAE3_UP_CLIENT);
+	if (ret)
+		return ret;
 
 	hdev->last_reset_time = jiffies;
 	hdev->rst_stats.rst_done_cnt++;
@@ -2757,6 +2797,7 @@ static int hclgevf_init_roce_client_instance(struct hnae3_ae_dev *ae_dev,
 	if (ret)
 		return ret;
 
+	set_bit(HCLGEVF_STATE_ROCE_REGISTERED, &hdev->state);
 	hnae3_set_client_init_flag(client, ae_dev, 1);
 
 	return 0;
@@ -2817,6 +2858,7 @@ static void hclgevf_uninit_client_instance(struct hnae3_client *client,
 
 	/* un-init roce, if it exists */
 	if (hdev->roce_client) {
+		clear_bit(HCLGEVF_STATE_ROCE_REGISTERED, &hdev->state);
 		hdev->roce_client->ops->uninit_instance(&hdev->roce, 0);
 		hdev->roce_client = NULL;
 		hdev->roce.client = NULL;
@@ -3419,6 +3461,13 @@ static bool hclgevf_get_hw_reset_stat(struct hnae3_handle *handle)
 	return !!hclgevf_read_dev(&hdev->hw, HCLGEVF_RST_ING);
 }
 
+static bool hclgevf_get_cmdq_stat(struct hnae3_handle *handle)
+{
+	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+
+	return test_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state);
+}
+
 static bool hclgevf_ae_dev_resetting(struct hnae3_handle *handle)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
@@ -3604,6 +3653,7 @@ static const struct hnae3_ae_ops hclgevf_ops = {
 	.get_link_mode = hclgevf_get_link_mode,
 	.set_promisc_mode = hclgevf_set_promisc_mode,
 	.request_update_promisc_mode = hclgevf_request_update_promisc_mode,
+	.get_cmdq_stat = hclgevf_get_cmdq_stat,
 };
 
 static struct hnae3_ae_algo ae_algovf = {
