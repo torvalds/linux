@@ -1839,6 +1839,7 @@ qla24xx_mbx_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
     struct mbx_24xx_entry *pkt)
 {
 	const char func[] = "MBX-IOCB2";
+	struct qla_hw_data *ha = vha->hw;
 	srb_t *sp;
 	struct srb_iocb *si;
 	u16 sz, i;
@@ -1847,6 +1848,18 @@ qla24xx_mbx_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 	sp = qla2x00_get_sp_from_handle(vha, func, req, pkt);
 	if (!sp)
 		return;
+
+	if (sp->type == SRB_SCSI_CMD ||
+	    sp->type == SRB_NVME_CMD ||
+	    sp->type == SRB_TM_CMD) {
+		ql_log(ql_log_warn, vha, 0x509d,
+			"Inconsistent event entry type %d\n", sp->type);
+		if (IS_P3P_TYPE(ha))
+			set_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags);
+		else
+			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+		return;
+	}
 
 	si = &sp->u.iocb_cmd;
 	sz = min(ARRAY_SIZE(pkt->mb), ARRAY_SIZE(sp->u.iocb_cmd.u.mbx.in_mb));
@@ -3400,32 +3413,6 @@ void qla24xx_nvme_ls4_iocb(struct scsi_qla_host *vha,
 	sp->done(sp, comp_status);
 }
 
-static void qla24xx_process_mbx_iocb_response(struct scsi_qla_host *vha,
-	struct rsp_que *rsp, struct sts_entry_24xx *pkt)
-{
-	struct qla_hw_data *ha = vha->hw;
-	srb_t *sp;
-	static const char func[] = "MBX-IOCB2";
-
-	sp = qla2x00_get_sp_from_handle(vha, func, rsp->req, pkt);
-	if (!sp)
-		return;
-
-	if (sp->type == SRB_SCSI_CMD ||
-	    sp->type == SRB_NVME_CMD ||
-	    sp->type == SRB_TM_CMD) {
-		ql_log(ql_log_warn, vha, 0x509d,
-			"Inconsistent event entry type %d\n", sp->type);
-		if (IS_P3P_TYPE(ha))
-			set_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags);
-		else
-			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
-		return;
-	}
-
-	qla24xx_mbx_iocb_entry(vha, rsp->req, (struct mbx_24xx_entry *)pkt);
-}
-
 /**
  * qla24xx_process_response_queue() - Process response queue entries.
  * @vha: SCSI driver HA context
@@ -3535,7 +3522,8 @@ process_err:
 			    (struct abort_entry_24xx *)pkt);
 			break;
 		case MBX_IOCB_TYPE:
-			qla24xx_process_mbx_iocb_response(vha, rsp, pkt);
+			qla24xx_mbx_iocb_entry(vha, rsp->req,
+			    (struct mbx_24xx_entry *)pkt);
 			break;
 		case VP_CTRL_IOCB_TYPE:
 			qla_ctrlvp_completed(vha, rsp->req,
