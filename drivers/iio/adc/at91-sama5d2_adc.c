@@ -1673,11 +1673,17 @@ static int at91_adc_buffer_and_trigger_init(struct device *dev,
 					    struct iio_dev *indio)
 {
 	struct at91_adc_state *st = iio_priv(indio);
+	const struct attribute **fifo_attrs;
 	int ret;
 
-	ret = devm_iio_triggered_buffer_setup(&indio->dev, indio,
+	if (st->selected_trig->hw_trig)
+		fifo_attrs = at91_adc_fifo_attributes;
+	else
+		fifo_attrs = NULL;
+
+	ret = devm_iio_triggered_buffer_setup_ext(&indio->dev, indio,
 		&iio_pollfunc_store_time,
-		&at91_adc_trigger_handler, &at91_buffer_setup_ops);
+		&at91_adc_trigger_handler, &at91_buffer_setup_ops, fifo_attrs);
 	if (ret < 0) {
 		dev_err(dev, "couldn't initialize the buffer.\n");
 		return ret;
@@ -1685,8 +1691,6 @@ static int at91_adc_buffer_and_trigger_init(struct device *dev,
 
 	if (!st->selected_trig->hw_trig)
 		return 0;
-
-	iio_buffer_set_attrs(indio->buffer, at91_adc_fifo_attributes);
 
 	st->trig = at91_adc_allocate_trigger(indio, st->selected_trig->name);
 	if (IS_ERR(st->trig)) {
