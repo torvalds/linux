@@ -8,53 +8,40 @@
 #ifndef __MTD_NAND_ECC_SW_BCH_H__
 #define __MTD_NAND_ECC_SW_BCH_H__
 
-struct mtd_info;
-struct nand_chip;
+#include <linux/mtd/nand.h>
 
 #if IS_ENABLED(CONFIG_MTD_NAND_ECC_SW_BCH)
 
-/*
- * Calculate BCH ecc code
- */
-int nand_bch_calculate_ecc(struct nand_chip *chip, const u_char *dat,
-			   u_char *ecc_code);
-
-/*
- * Detect and correct bit errors
- */
-int nand_bch_correct_data(struct nand_chip *chip, u_char *dat,
-			  u_char *read_ecc, u_char *calc_ecc);
-/*
- * Initialize BCH encoder/decoder
- */
-int nand_bch_init(struct nand_chip *chip);
-/*
- * Release BCH encoder/decoder resources
- */
-void nand_bch_free(struct nand_chip *chip);
+int nand_ecc_sw_bch_calculate(struct nand_device *nand,
+			      const unsigned char *buf, unsigned char *code);
+int nand_ecc_sw_bch_correct(struct nand_device *nand, unsigned char *buf,
+			    unsigned char *read_ecc, unsigned char *calc_ecc);
+int nand_ecc_sw_bch_init(struct nand_device *nand);
+void nand_ecc_sw_bch_cleanup(struct nand_device *nand);
 
 #else /* !CONFIG_MTD_NAND_ECC_SW_BCH */
 
-static inline int
-nand_bch_calculate_ecc(struct nand_chip *chip, const u_char *dat,
-		       u_char *ecc_code)
+static inline int nand_ecc_sw_bch_calculate(struct nand_device *nand,
+					    const unsigned char *buf,
+					    unsigned char *code)
 {
 	return -ENOTSUPP;
 }
 
-static inline int
-nand_bch_correct_data(struct nand_chip *chip, unsigned char *buf,
-		      unsigned char *read_ecc, unsigned char *calc_ecc)
+static inline int nand_ecc_sw_bch_correct(struct nand_device *nand,
+					  unsigned char *buf,
+					  unsigned char *read_ecc,
+					  unsigned char *calc_ecc)
 {
 	return -ENOTSUPP;
 }
 
-static inline int nand_bch_init(struct nand_chip *chip)
+static inline int nand_ecc_sw_bch_init(struct nand_device *nand)
 {
 	return -ENOTSUPP;
 }
 
-static inline void nand_bch_free(struct nand_chip *chip) {}
+static inline void nand_ecc_sw_bch_cleanup(struct nand_device *nand) {}
 
 #endif /* CONFIG_MTD_NAND_ECC_SW_BCH */
 

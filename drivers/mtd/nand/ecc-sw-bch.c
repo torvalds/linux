@@ -13,6 +13,7 @@
 #include <linux/bitops.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/rawnand.h>
+#include <linux/mtd/nand.h>
 #include <linux/mtd/nand-ecc-sw-bch.h>
 #include <linux/bch.h>
 
@@ -29,14 +30,15 @@ struct nand_bch_control {
 };
 
 /**
- * nand_bch_calcuate_ecc - Calculate the ECC corresponding to a data block
- * @chip: NAND chip object
+ * nand_ecc_sw_bch_calculate - Calculate the ECC corresponding to a data block
+ * @nand: NAND device
  * @buf: Input buffer with raw data
  * @code: Output buffer with ECC
  */
-int nand_bch_calculate_ecc(struct nand_chip *chip, const unsigned char *buf,
-			   unsigned char *code)
+int nand_ecc_sw_bch_calculate(struct nand_device *nand,
+			      const unsigned char *buf, unsigned char *code)
 {
+	struct nand_chip *chip = mtd_to_nand(nanddev_to_mtd(nand));
 	struct nand_bch_control *nbc = chip->ecc.priv;
 	unsigned int i;
 
@@ -49,20 +51,21 @@ int nand_bch_calculate_ecc(struct nand_chip *chip, const unsigned char *buf,
 
 	return 0;
 }
-EXPORT_SYMBOL(nand_bch_calculate_ecc);
+EXPORT_SYMBOL(nand_ecc_sw_bch_calculate);
 
 /**
- * nand_bch_correct_data - Detect, correct and report bit error(s)
- * @chip: NAND chip object
+ * nand_ecc_sw_bch_correct - Detect, correct and report bit error(s)
+ * @nand: NAND device
  * @buf: Raw data read from the chip
  * @read_ecc: ECC bytes from the chip
  * @calc_ecc: ECC calculated from the raw data
  *
  * Detect and correct bit errors for a data block.
  */
-int nand_bch_correct_data(struct nand_chip *chip, unsigned char *buf,
-			  unsigned char *read_ecc, unsigned char *calc_ecc)
+int nand_ecc_sw_bch_correct(struct nand_device *nand, unsigned char *buf,
+			    unsigned char *read_ecc, unsigned char *calc_ecc)
 {
+	struct nand_chip *chip = mtd_to_nand(nanddev_to_mtd(nand));
 	struct nand_bch_control *nbc = chip->ecc.priv;
 	unsigned int *errloc = nbc->errloc;
 	int i, count;
@@ -86,11 +89,11 @@ int nand_bch_correct_data(struct nand_chip *chip, unsigned char *buf,
 
 	return count;
 }
-EXPORT_SYMBOL(nand_bch_correct_data);
+EXPORT_SYMBOL(nand_ecc_sw_bch_correct);
 
 /**
- * nand_bch_init - Initialize software BCH ECC engine
- * @chip: NAND chip object
+ * nand_ecc_sw_bch_init - Initialize software BCH ECC engine
+ * @nand: NAND device
  *
  * Returns: a pointer to a new NAND BCH control structure, or NULL upon failure
  *
@@ -105,9 +108,10 @@ EXPORT_SYMBOL(nand_bch_correct_data);
  * @eccsize = 512 (thus, m = 13 is the smallest integer such that 2^m - 1 > 512 * 8)
  * @eccbytes = 7 (7 bytes are required to store m * t = 13 * 4 = 52 bits)
  */
-int nand_bch_init(struct nand_chip *chip)
+int nand_ecc_sw_bch_init(struct nand_device *nand)
 {
-	struct mtd_info *mtd = nand_to_mtd(chip);
+	struct mtd_info *mtd = nanddev_to_mtd(nand);
+	struct nand_chip *chip = mtd_to_nand(mtd);
 	unsigned int m, t, eccsteps, i;
 	struct nand_bch_control *nbc = NULL;
 	unsigned char *erased_page;
@@ -198,18 +202,21 @@ int nand_bch_init(struct nand_chip *chip)
 		chip->ecc.strength = (eccbytes * 8) / fls(8 * eccsize);
 
 	return 0;
+
 fail:
-	nand_bch_free(chip);
+	nand_ecc_sw_bch_cleanup(nand);
+
 	return -EINVAL;
 }
-EXPORT_SYMBOL(nand_bch_init);
+EXPORT_SYMBOL(nand_ecc_sw_bch_init);
 
 /**
- * nand_bch_free - Release NAND BCH ECC resources
- * @nbc: NAND BCH control structure
+ * nand_ecc_sw_bch_cleanup - Cleanup software BCH ECC resources
+ * @nand: NAND device
  */
-void nand_bch_free(struct nand_chip *chip)
+void nand_ecc_sw_bch_cleanup(struct nand_device *nand)
 {
+	struct nand_chip *chip = mtd_to_nand(nanddev_to_mtd(nand));
 	struct nand_bch_control *nbc = chip->ecc.priv;
 
 	if (nbc) {
@@ -219,7 +226,7 @@ void nand_bch_free(struct nand_chip *chip)
 		kfree(nbc);
 	}
 }
-EXPORT_SYMBOL(nand_bch_free);
+EXPORT_SYMBOL(nand_ecc_sw_bch_cleanup);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ivan Djelic <ivan.djelic@parrot.com>");
