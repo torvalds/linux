@@ -13391,6 +13391,11 @@ static const struct npc_mcam_kex npc_mkex_default = {
 				/* TOS: 1 byte, KW1[63:56] */
 				KEX_LD_CFG(0x0, 0x1, 0x1, 0x0, 0xf),
 			},
+			/* Layer C: IPv6 */
+			[NPC_LT_LC_IP6] = {
+				/* Everything up to SADDR: 8 bytes, KW2[63:0] */
+				KEX_LD_CFG(0x07, 0x0, 0x1, 0x0, 0x10),
+			},
 		},
 		[NPC_LID_LD] = {
 			/* Layer D:UDP */
