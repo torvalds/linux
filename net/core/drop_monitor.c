@@ -122,8 +122,6 @@ struct net_dm_alert_ops {
 				int work, int budget);
 	void (*work_item_func)(struct work_struct *work);
 	void (*hw_work_item_func)(struct work_struct *work);
-	void (*hw_probe)(struct sk_buff *skb,
-			 const struct net_dm_hw_metadata *hw_metadata);
 	void (*hw_trap_probe)(void *ignore, const struct devlink *devlink,
 			      struct sk_buff *skb,
 			      const struct devlink_trap_metadata *metadata);
@@ -443,49 +441,6 @@ out:
 }
 
 static void
-net_dm_hw_summary_probe(struct sk_buff *skb,
-			const struct net_dm_hw_metadata *hw_metadata)
-{
-	struct net_dm_hw_entries *hw_entries;
-	struct net_dm_hw_entry *hw_entry;
-	struct per_cpu_dm_data *hw_data;
-	unsigned long flags;
-	int i;
-
-	hw_data = this_cpu_ptr(&dm_hw_cpu_data);
-	spin_lock_irqsave(&hw_data->lock, flags);
-	hw_entries = hw_data->hw_entries;
-
-	if (!hw_entries)
-		goto out;
-
-	for (i = 0; i < hw_entries->num_entries; i++) {
-		hw_entry = &hw_entries->entries[i];
-		if (!strncmp(hw_entry->trap_name, hw_metadata->trap_name,
-			     NET_DM_MAX_HW_TRAP_NAME_LEN - 1)) {
-			hw_entry->count++;
-			goto out;
-		}
-	}
-	if (WARN_ON_ONCE(hw_entries->num_entries == dm_hit_limit))
-		goto out;
-
-	hw_entry = &hw_entries->entries[hw_entries->num_entries];
-	strlcpy(hw_entry->trap_name, hw_metadata->trap_name,
-		NET_DM_MAX_HW_TRAP_NAME_LEN - 1);
-	hw_entry->count = 1;
-	hw_entries->num_entries++;
-
-	if (!timer_pending(&hw_data->send_timer)) {
-		hw_data->send_timer.expires = jiffies + dm_delay * HZ;
-		add_timer(&hw_data->send_timer);
-	}
-
-out:
-	spin_unlock_irqrestore(&hw_data->lock, flags);
-}
-
-static void
 net_dm_hw_trap_summary_probe(void *ignore, const struct devlink *devlink,
 			     struct sk_buff *skb,
 			     const struct devlink_trap_metadata *metadata)
@@ -534,7 +489,6 @@ static const struct net_dm_alert_ops net_dm_alert_summary_ops = {
 	.napi_poll_probe	= trace_napi_poll_hit,
 	.work_item_func		= send_dm_alert,
 	.hw_work_item_func	= net_dm_hw_summary_work,
-	.hw_probe		= net_dm_hw_summary_probe,
 	.hw_trap_probe		= net_dm_hw_trap_summary_probe,
 };
 
@@ -867,54 +821,6 @@ nla_put_failure:
 }
 
 static struct net_dm_hw_metadata *
-net_dm_hw_metadata_clone(const struct net_dm_hw_metadata *hw_metadata)
-{
-	const struct flow_action_cookie *fa_cookie;
-	struct net_dm_hw_metadata *n_hw_metadata;
-	const char *trap_group_name;
-	const char *trap_name;
-
-	n_hw_metadata = kzalloc(sizeof(*hw_metadata), GFP_ATOMIC);
-	if (!n_hw_metadata)
-		return NULL;
-
-	trap_group_name = kstrdup(hw_metadata->trap_group_name, GFP_ATOMIC);
-	if (!trap_group_name)
-		goto free_hw_metadata;
-	n_hw_metadata->trap_group_name = trap_group_name;
-
-	trap_name = kstrdup(hw_metadata->trap_name, GFP_ATOMIC);
-	if (!trap_name)
-		goto free_trap_group;
-	n_hw_metadata->trap_name = trap_name;
-
-	if (hw_metadata->fa_cookie) {
-		size_t cookie_size = sizeof(*fa_cookie) +
-				     hw_metadata->fa_cookie->cookie_len;
-
-		fa_cookie = kmemdup(hw_metadata->fa_cookie, cookie_size,
-				    GFP_ATOMIC);
-		if (!fa_cookie)
-			goto free_trap_name;
-		n_hw_metadata->fa_cookie = fa_cookie;
-	}
-
-	n_hw_metadata->input_dev = hw_metadata->input_dev;
-	if (n_hw_metadata->input_dev)
-		dev_hold(n_hw_metadata->input_dev);
-
-	return n_hw_metadata;
-
-free_trap_name:
-	kfree(trap_name);
-free_trap_group:
-	kfree(trap_group_name);
-free_hw_metadata:
-	kfree(n_hw_metadata);
-	return NULL;
-}
-
-static struct net_dm_hw_metadata *
 net_dm_hw_metadata_copy(const struct devlink_trap_metadata *metadata)
 {
 	const struct flow_action_cookie *fa_cookie;
@@ -1028,53 +934,6 @@ static void net_dm_hw_packet_work(struct work_struct *work)
 }
 
 static void
-net_dm_hw_packet_probe(struct sk_buff *skb,
-		       const struct net_dm_hw_metadata *hw_metadata)
-{
-	struct net_dm_hw_metadata *n_hw_metadata;
-	ktime_t tstamp = ktime_get_real();
-	struct per_cpu_dm_data *hw_data;
-	struct sk_buff *nskb;
-	unsigned long flags;
-
-	if (!skb_mac_header_was_set(skb))
-		return;
-
-	nskb = skb_clone(skb, GFP_ATOMIC);
-	if (!nskb)
-		return;
-
-	n_hw_metadata = net_dm_hw_metadata_clone(hw_metadata);
-	if (!n_hw_metadata)
-		goto free;
-
-	NET_DM_SKB_CB(nskb)->hw_metadata = n_hw_metadata;
-	nskb->tstamp = tstamp;
-
-	hw_data = this_cpu_ptr(&dm_hw_cpu_data);
-
-	spin_lock_irqsave(&hw_data->drop_queue.lock, flags);
-	if (skb_queue_len(&hw_data->drop_queue) < net_dm_queue_len)
-		__skb_queue_tail(&hw_data->drop_queue, nskb);
-	else
-		goto unlock_free;
-	spin_unlock_irqrestore(&hw_data->drop_queue.lock, flags);
-
-	schedule_work(&hw_data->dm_alert_work);
-
-	return;
-
-unlock_free:
-	spin_unlock_irqrestore(&hw_data->drop_queue.lock, flags);
-	u64_stats_update_begin(&hw_data->stats.syncp);
-	hw_data->stats.dropped++;
-	u64_stats_update_end(&hw_data->stats.syncp);
-	net_dm_hw_metadata_free(n_hw_metadata);
-free:
-	consume_skb(nskb);
-}
-
-static void
 net_dm_hw_trap_packet_probe(void *ignore, const struct devlink *devlink,
 			    struct sk_buff *skb,
 			    const struct devlink_trap_metadata *metadata)
@@ -1127,7 +986,6 @@ static const struct net_dm_alert_ops net_dm_alert_packet_ops = {
 	.napi_poll_probe	= net_dm_packet_trace_napi_poll_hit,
 	.work_item_func		= net_dm_packet_work,
 	.hw_work_item_func	= net_dm_hw_packet_work,
-	.hw_probe		= net_dm_hw_packet_probe,
 	.hw_trap_probe		= net_dm_hw_trap_packet_probe,
 };
 
