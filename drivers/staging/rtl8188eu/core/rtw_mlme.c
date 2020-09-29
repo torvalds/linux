@@ -1730,7 +1730,7 @@ int rtw_restruct_sec_ie(struct adapter *adapter, u8 *in_ie, u8 *out_ie, uint in_
 	    (ndisauthmode == Ndis802_11AuthModeWPAPSK))
 		authmode = _WPA_IE_ID_;
 	else if ((ndisauthmode == Ndis802_11AuthModeWPA2) ||
-	         (ndisauthmode == Ndis802_11AuthModeWPA2PSK))
+		 (ndisauthmode == Ndis802_11AuthModeWPA2PSK))
 		authmode = _WPA2_IE_ID_;
 	else
 		authmode = 0x0;
