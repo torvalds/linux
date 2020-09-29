@@ -199,11 +199,9 @@ _GLOBAL(add_hash_page)
 	 * covered by a BAT).  -- paulus
 	 */
 	mfmsr	r9
-	SYNC
 	rlwinm	r0,r9,0,17,15		/* clear bit 16 (MSR_EE) */
 	rlwinm	r0,r0,0,28,26		/* clear MSR_DR */
 	mtmsr	r0
-	SYNC_601
 	isync
 
 #ifdef CONFIG_SMP
@@ -262,7 +260,6 @@ _GLOBAL(add_hash_page)
 
 	/* reenable interrupts and DR */
 	mtmsr	r9
-	SYNC_601
 	isync
 
 	lwz	r0,4(r1)
@@ -506,11 +503,9 @@ _GLOBAL(flush_hash_pages)
 	 * covered by a BAT).  -- paulus
 	 */
 	mfmsr	r10
-	SYNC
 	rlwinm	r0,r10,0,17,15		/* clear bit 16 (MSR_EE) */
 	rlwinm	r0,r0,0,28,26		/* clear MSR_DR */
 	mtmsr	r0
-	SYNC_601
 	isync
 
 	/* First find a PTE in the range that has _PAGE_HASHPTE set */
@@ -629,7 +624,6 @@ _GLOBAL(flush_hash_pages)
 #endif
 
 19:	mtmsr	r10
-	SYNC_601
 	isync
 	blr
 EXPORT_SYMBOL(flush_hash_pages)
@@ -643,11 +637,9 @@ _GLOBAL(_tlbie)
 	lwz	r8,TASK_CPU(r2)
 	oris	r8,r8,11
 	mfmsr	r10
-	SYNC
 	rlwinm	r0,r10,0,17,15		/* clear bit 16 (MSR_EE) */
 	rlwinm	r0,r0,0,28,26		/* clear DR */
 	mtmsr	r0
-	SYNC_601
 	isync
 	lis	r9,mmu_hash_lock@h
 	ori	r9,r9,mmu_hash_lock@l
@@ -664,7 +656,6 @@ _GLOBAL(_tlbie)
 	li	r0,0
 	stw	r0,0(r9)		/* clear mmu_hash_lock */
 	mtmsr	r10
-	SYNC_601
 	isync
 #else /* CONFIG_SMP */
 	tlbie	r3
@@ -681,11 +672,9 @@ _GLOBAL(_tlbia)
 	lwz	r8,TASK_CPU(r2)
 	oris	r8,r8,10
 	mfmsr	r10
-	SYNC
 	rlwinm	r0,r10,0,17,15		/* clear bit 16 (MSR_EE) */
 	rlwinm	r0,r0,0,28,26		/* clear DR */
 	mtmsr	r0
-	SYNC_601
 	isync
 	lis	r9,mmu_hash_lock@h
 	ori	r9,r9,mmu_hash_lock@l
@@ -709,7 +698,6 @@ _GLOBAL(_tlbia)
 	li	r0,0
 	stw	r0,0(r9)		/* clear mmu_hash_lock */
 	mtmsr	r10
-	SYNC_601
 	isync
 #endif /* CONFIG_SMP */
 	blr

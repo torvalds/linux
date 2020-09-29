@@ -382,10 +382,6 @@ n:
 #endif
 
 /* various errata or part fixups */
-#define	SYNC
-#define SYNC_601
-#define ISYNC_601
-
 #if defined(CONFIG_PPC_CELL) || defined(CONFIG_PPC_FSL_BOOK3E)
 #define MFTB(dest)			\
 90:	mfspr dest, SPRN_TBRL;		\

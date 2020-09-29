@@ -234,7 +234,6 @@ transfer_to_handler_cont:
 	mtspr	SPRN_SRR0,r11
 	mtspr	SPRN_SRR1,r10
 	mtlr	r9
-	SYNC
 	RFI				/* jump to handler, enable MMU */
 
 #if defined (CONFIG_PPC_BOOK3S_32) || defined(CONFIG_E500)
@@ -264,7 +263,6 @@ _ASM_NOKPROBE_SYMBOL(transfer_to_handler_cont)
 	LOAD_REG_IMMEDIATE(r0, MSR_KERNEL)
 	mtspr	SPRN_SRR0,r12
 	mtspr	SPRN_SRR1,r0
-	SYNC
 	RFI
 
 reenable_mmu:
@@ -323,7 +321,6 @@ stack_ovf:
 #endif
 	mtspr	SPRN_SRR0,r9
 	mtspr	SPRN_SRR1,r10
-	SYNC
 	RFI
 _ASM_NOKPROBE_SYMBOL(stack_ovf)
 #endif
@@ -411,7 +408,6 @@ ret_from_syscall:
 	/* disable interrupts so current_thread_info()->flags can't change */
 	LOAD_REG_IMMEDIATE(r10,MSR_KERNEL)	/* doesn't include MSR_EE */
 	/* Note: We don't bother telling lockdep about it */
-	SYNC
 	mtmsr	r10
 	lwz	r9,TI_FLAGS(r2)
 	li	r8,-MAX_ERRNO
@@ -474,7 +470,6 @@ syscall_exit_finish:
 #endif
 	mtspr	SPRN_SRR0,r7
 	mtspr	SPRN_SRR1,r8
-	SYNC
 	RFI
 _ASM_NOKPROBE_SYMBOL(syscall_exit_finish)
 #ifdef CONFIG_44x
@@ -567,7 +562,6 @@ syscall_exit_work:
 	 * lockdep as we are supposed to have IRQs on at this point
 	 */
 	ori	r10,r10,MSR_EE
-	SYNC
 	mtmsr	r10
 
 	/* Save NVGPRS if they're not saved already */
@@ -606,7 +600,6 @@ ret_from_kernel_syscall:
 #endif
 	mtspr	SPRN_SRR0, r9
 	mtspr	SPRN_SRR1, r10
-	SYNC
 	RFI
 _ASM_NOKPROBE_SYMBOL(ret_from_kernel_syscall)
 
@@ -810,7 +803,6 @@ fast_exception_return:
 	REST_GPR(9, r11)
 	REST_GPR(12, r11)
 	lwz	r11,GPR11(r11)
-	SYNC
 	RFI
 _ASM_NOKPROBE_SYMBOL(fast_exception_return)
 
@@ -872,7 +864,6 @@ ret_from_except:
 	 * from the interrupt. */
 	/* Note: We don't bother telling lockdep about it */
 	LOAD_REG_IMMEDIATE(r10,MSR_KERNEL)
-	SYNC			/* Some chip revs have problems here... */
 	mtmsr	r10		/* disable interrupts */
 
 	lwz	r3,_MSR(r1)	/* Returning to user mode? */
@@ -1035,7 +1026,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_NEED_PAIRED_STWCX)
 	 * exc_exit_restart below.  -- paulus
 	 */
 	LOAD_REG_IMMEDIATE(r10,MSR_KERNEL & ~MSR_RI)
-	SYNC
 	mtmsr	r10		/* clear the RI bit */
 	.globl exc_exit_restart
 exc_exit_restart:
@@ -1046,7 +1036,6 @@ exc_exit_restart:
 	lwz	r1,GPR1(r1)
 	.globl exc_exit_restart_end
 exc_exit_restart_end:
-	SYNC
 	RFI
 _ASM_NOKPROBE_SYMBOL(exc_exit_restart)
 _ASM_NOKPROBE_SYMBOL(exc_exit_restart_end)
@@ -1274,7 +1263,6 @@ do_resched:			/* r10 contains MSR_KERNEL here */
 	mfmsr	r10
 #endif
 	ori	r10,r10,MSR_EE
-	SYNC
 	mtmsr	r10		/* hard-enable interrupts */
 	bl	schedule
 recheck:
@@ -1283,7 +1271,6 @@ recheck:
 	 * TI_FLAGS aren't advertised.
 	 */
 	LOAD_REG_IMMEDIATE(r10,MSR_KERNEL)
-	SYNC
 	mtmsr	r10		/* disable interrupts */
 	lwz	r9,TI_FLAGS(r2)
 	andi.	r0,r9,_TIF_NEED_RESCHED
@@ -1292,7 +1279,6 @@ recheck:
 	beq	restore_user
 do_user_signal:			/* r10 contains MSR_KERNEL here */
 	ori	r10,r10,MSR_EE
-	SYNC
 	mtmsr	r10		/* hard-enable interrupts */
 	/* save r13-r31 in the exception frame, if not already done */
 	lwz	r3,_TRAP(r1)
@@ -1382,8 +1368,7 @@ _GLOBAL(enter_rtas)
 	mfmsr	r9
 	stw	r9,8(r1)
 	LOAD_REG_IMMEDIATE(r0,MSR_KERNEL)
-	SYNC			/* disable interrupts so SRR0/1 */
-	mtmsr	r0		/* don't get trashed */
+	mtmsr	r0	/* disable interrupts so SRR0/1 don't get trashed */
 	li	r9,MSR_KERNEL & ~(MSR_IR|MSR_DR)
 	mtlr	r6
 	stw	r7, THREAD + RTAS_SP(r2)

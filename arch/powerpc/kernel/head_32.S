@@ -219,7 +219,6 @@ turn_on_mmu:
 	lis	r0,start_here@h
 	ori	r0,r0,start_here@l
 	mtspr	SPRN_SRR0,r0
-	SYNC
 	RFI				/* enables MMU */
 
 /*
@@ -784,14 +783,12 @@ fast_hash_page_return:
 	mtcr	r11
 	lwz	r11, THR11(r10)
 	mfspr	r10, SPRN_SPRG_SCRATCH0
-	SYNC
 	RFI
 
 1:	/* ISI */
 	mtcr	r11
 	mfspr	r11, SPRN_SPRG_SCRATCH1
 	mfspr	r10, SPRN_SPRG_SCRATCH0
-	SYNC
 	RFI
 
 stack_overflow:
@@ -882,7 +879,6 @@ __secondary_start_pmac_0:
 	   set to map the 0xf0000000 - 0xffffffff region */
 	mfmsr	r0
 	rlwinm	r0,r0,0,28,26		/* clear DR (0x10) */
-	SYNC
 	mtmsr	r0
 	isync
 
@@ -930,7 +926,6 @@ __secondary_start:
 	ori	r3,r3,start_secondary@l
 	mtspr	SPRN_SRR0,r3
 	mtspr	SPRN_SRR1,r4
-	SYNC
 	RFI
 #endif /* CONFIG_SMP */
 
@@ -1074,7 +1069,6 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
 	.align	4
 	mtspr	SPRN_SRR0,r4
 	mtspr	SPRN_SRR1,r3
-	SYNC
 	RFI
 /* Load up the kernel context */
 2:	bl	load_up_mmu
@@ -1099,7 +1093,6 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
 	ori	r3,r3,start_kernel@l
 	mtspr	SPRN_SRR0,r3
 	mtspr	SPRN_SRR1,r4
-	SYNC
 	RFI
 
 /*
@@ -1217,7 +1210,6 @@ _ENTRY(update_bats)
 	.align	4
 	mtspr	SPRN_SRR0, r4
 	mtspr	SPRN_SRR1, r3
-	SYNC
 	RFI
 1:	bl	clear_bats
 	lis	r3, BATS@ha
@@ -1237,7 +1229,6 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_USE_HIGH_BATS)
 	mtmsr	r3
 	mtspr	SPRN_SRR0, r7
 	mtspr	SPRN_SRR1, r6
-	SYNC
 	RFI
 
 flush_tlbs:

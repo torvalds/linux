@@ -87,7 +87,6 @@ BEGIN_FTR_SECTION
 	oris	r5,r5,MSR_VSX@h
 END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 #endif
-	SYNC
 	MTMSRD(r5)			/* enable use of fpu now */
 	isync
 	/* enable use of FP after return */
