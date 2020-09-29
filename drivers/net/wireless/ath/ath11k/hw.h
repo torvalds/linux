@@ -158,6 +158,7 @@ struct ath11k_hw_params {
 	u8 spectral_fft_sz;
 
 	u16 interface_modes;
+	bool supports_monitor;
 };
 
 struct ath11k_hw_ops {
