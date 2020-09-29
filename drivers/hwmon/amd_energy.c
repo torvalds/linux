@@ -74,108 +74,67 @@ static void get_energy_units(struct amd_energy_data *data)
 	data->energy_units = (rapl_units & AMD_ENERGY_UNIT_MASK) >> 8;
 }
 
-static void accumulate_socket_delta(struct amd_energy_data *data,
-				    int sock, int cpu)
+static void accumulate_delta(struct amd_energy_data *data,
+			     int channel, int cpu, u32 reg)
 {
-	struct sensor_accumulator *s_accum;
+	struct sensor_accumulator *accum;
 	u64 input;
 
 	mutex_lock(&data->lock);
-	rdmsrl_safe_on_cpu(cpu, ENERGY_PKG_MSR, &input);
+	rdmsrl_safe_on_cpu(cpu, reg, &input);
 	input &= AMD_ENERGY_MASK;
 
-	s_accum = &data->accums[data->nr_cpus + sock];
-	if (input >= s_accum->prev_value)
-		s_accum->energy_ctr +=
-			input - s_accum->prev_value;
+	accum = &data->accums[channel];
+	if (input >= accum->prev_value)
+		accum->energy_ctr +=
+			input - accum->prev_value;
 	else
-		s_accum->energy_ctr += UINT_MAX -
-			s_accum->prev_value + input;
+		accum->energy_ctr += UINT_MAX -
+			accum->prev_value + input;
 
-	s_accum->prev_value = input;
-	mutex_unlock(&data->lock);
-}
-
-static void accumulate_core_delta(struct amd_energy_data *data)
-{
-	struct sensor_accumulator *c_accum;
-	u64 input;
-	int cpu;
-
-	mutex_lock(&data->lock);
-	if (data->core_id >= data->nr_cpus)
-		data->core_id = 0;
-
-	cpu = data->core_id;
-
-	if (!cpu_online(cpu))
-		goto out;
-
-	rdmsrl_safe_on_cpu(cpu, ENERGY_CORE_MSR, &input);
-	input &= AMD_ENERGY_MASK;
-
-	c_accum = &data->accums[cpu];
-
-	if (input >= c_accum->prev_value)
-		c_accum->energy_ctr +=
-			input - c_accum->prev_value;
-	else
-		c_accum->energy_ctr += UINT_MAX -
-			c_accum->prev_value + input;
-
-	c_accum->prev_value = input;
-
-out:
-	data->core_id++;
+	accum->prev_value = input;
 	mutex_unlock(&data->lock);
 }
 
 static void read_accumulate(struct amd_energy_data *data)
 {
-	int sock;
+	int sock, scpu, cpu;
 
 	for (sock = 0; sock < data->nr_socks; sock++) {
-		int cpu;
+		scpu = cpumask_first_and(cpu_online_mask,
+					 cpumask_of_node(sock));
 
-		cpu = cpumask_first_and(cpu_online_mask,
-					cpumask_of_node(sock));
-
-		accumulate_socket_delta(data, sock, cpu);
+		accumulate_delta(data, data->nr_cpus + sock,
+				 scpu, ENERGY_PKG_MSR);
 	}
 
-	accumulate_core_delta(data);
+	if (data->core_id >= data->nr_cpus)
+		data->core_id = 0;
+
+	cpu = data->core_id;
+	if (cpu_online(cpu))
+		accumulate_delta(data, cpu, cpu, ENERGY_CORE_MSR);
+
+	data->core_id++;
 }
 
 static void amd_add_delta(struct amd_energy_data *data, int ch,
-			  int cpu, long *val, bool is_core)
+			  int cpu, long *val, u32 reg)
 {
-	struct sensor_accumulator *s_accum, *c_accum;
+	struct sensor_accumulator *accum;
 	u64 input;
 
 	mutex_lock(&data->lock);
-	if (!is_core) {
-		rdmsrl_safe_on_cpu(cpu, ENERGY_PKG_MSR, &input);
-		input &= AMD_ENERGY_MASK;
+	rdmsrl_safe_on_cpu(cpu, reg, &input);
+	input &= AMD_ENERGY_MASK;
 
-		s_accum = &data->accums[ch];
-		if (input >= s_accum->prev_value)
-			input += s_accum->energy_ctr -
-				  s_accum->prev_value;
-		else
-			input += UINT_MAX - s_accum->prev_value +
-				  s_accum->energy_ctr;
-	} else {
-		rdmsrl_safe_on_cpu(cpu, ENERGY_CORE_MSR, &input);
-		input &= AMD_ENERGY_MASK;
-
-		c_accum = &data->accums[ch];
-		if (input >= c_accum->prev_value)
-			input += c_accum->energy_ctr -
-				 c_accum->prev_value;
-		else
-			input += UINT_MAX - c_accum->prev_value +
-				 c_accum->energy_ctr;
-	}
+	accum = &data->accums[ch];
+	if (input >= accum->prev_value)
+		input += accum->energy_ctr -
+				accum->prev_value;
+	else
+		input += UINT_MAX - accum->prev_value +
+				accum->energy_ctr;
 
 	/* Energy consumed = (1/(2^ESU) * RAW * 1000000UL) μJoules */
 	*val = div64_ul(input * 1000000UL, BIT(data->energy_units));
@@ -188,20 +147,22 @@ static int amd_energy_read(struct device *dev,
 			   u32 attr, int channel, long *val)
 {
 	struct amd_energy_data *data = dev_get_drvdata(dev);
+	u32 reg;
 	int cpu;
 
 	if (channel >= data->nr_cpus) {
 		cpu = cpumask_first_and(cpu_online_mask,
 					cpumask_of_node
 					(channel - data->nr_cpus));
-		amd_add_delta(data, channel, cpu, val, false);
+		reg = ENERGY_PKG_MSR;
 	} else {
 		cpu = channel;
 		if (!cpu_online(cpu))
 			return -ENODEV;
 
-		amd_add_delta(data, channel, cpu, val, true);
+		reg = ENERGY_CORE_MSR;
 	}
+	amd_add_delta(data, channel, cpu, val, reg);
 
 	return 0;
 }
@@ -242,7 +203,7 @@ static const struct hwmon_ops amd_energy_ops = {
 
 static int amd_create_sensor(struct device *dev,
 			     struct amd_energy_data *data,
-			     u8 type, u32 config)
+			     enum hwmon_sensor_types type, u32 config)
 {
 	struct hwmon_channel_info *info = &data->energy_info;
 	struct sensor_accumulator *accums;
@@ -301,6 +262,7 @@ static int amd_energy_probe(struct platform_device *pdev)
 	struct device *hwmon_dev;
 	struct amd_energy_data *data;
 	struct device *dev = &pdev->dev;
+	int ret;
 
 	data = devm_kzalloc(dev,
 			    sizeof(struct amd_energy_data), GFP_KERNEL);
@@ -313,8 +275,10 @@ static int amd_energy_probe(struct platform_device *pdev)
 	dev_set_drvdata(dev, data);
 	/* Populate per-core energy reporting */
 	data->info[0] = &data->energy_info;
-	amd_create_sensor(dev, data, hwmon_energy,
-			  HWMON_E_INPUT | HWMON_E_LABEL);
+	ret = amd_create_sensor(dev, data, hwmon_energy,
+				HWMON_E_INPUT | HWMON_E_LABEL);
+	if (ret)
+		return ret;
 
 	mutex_init(&data->lock);
 	get_energy_units(data);
@@ -335,9 +299,6 @@ static int amd_energy_probe(struct platform_device *pdev)
 
 	data->wrap_accumulate = kthread_run(energy_accumulator, data,
 					    "%s", dev_name(hwmon_dev));
-	if (IS_ERR(data->wrap_accumulate))
-		return PTR_ERR(data->wrap_accumulate);
-
 	return PTR_ERR_OR_ZERO(data->wrap_accumulate);
 }
 
