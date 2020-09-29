@@ -782,7 +782,7 @@ static void update_una(struct mptcp_sock *msk,
 	}
 }
 
-bool mptcp_update_rcv_data_fin(struct mptcp_sock *msk, u64 data_fin_seq)
+bool mptcp_update_rcv_data_fin(struct mptcp_sock *msk, u64 data_fin_seq, bool use_64bit)
 {
 	/* Skip if DATA_FIN was already received.
 	 * If updating simultaneously with the recvmsg loop, values
@@ -792,7 +792,8 @@ bool mptcp_update_rcv_data_fin(struct mptcp_sock *msk, u64 data_fin_seq)
 	if (READ_ONCE(msk->rcv_data_fin) || !READ_ONCE(msk->first))
 		return false;
 
-	WRITE_ONCE(msk->rcv_data_fin_seq, data_fin_seq);
+	WRITE_ONCE(msk->rcv_data_fin_seq,
+		   expand_ack(READ_ONCE(msk->ack_seq), data_fin_seq, use_64bit));
 	WRITE_ONCE(msk->rcv_data_fin, 1);
 
 	return true;
@@ -875,7 +876,7 @@ void mptcp_incoming_options(struct sock *sk, struct sk_buff *skb,
 	 */
 	if (TCP_SKB_CB(skb)->seq == TCP_SKB_CB(skb)->end_seq) {
 		if (mp_opt.data_fin && mp_opt.data_len == 1 &&
-		    mptcp_update_rcv_data_fin(msk, mp_opt.data_seq) &&
+		    mptcp_update_rcv_data_fin(msk, mp_opt.data_seq, mp_opt.dsn64) &&
 		    schedule_work(&msk->work))
 			sock_hold(subflow->conn);
 

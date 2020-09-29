@@ -731,7 +731,8 @@ static enum mapping_status get_mapping_status(struct sock *ssk,
 
 	if (mpext->data_fin == 1) {
 		if (data_len == 1) {
-			bool updated = mptcp_update_rcv_data_fin(msk, mpext->data_seq);
+			bool updated = mptcp_update_rcv_data_fin(msk, mpext->data_seq,
+								 mpext->dsn64);
 			pr_debug("DATA_FIN with no payload seq=%llu", mpext->data_seq);
 			if (subflow->map_valid) {
 				/* A DATA_FIN might arrive in a DSS
@@ -748,8 +749,17 @@ static enum mapping_status get_mapping_status(struct sock *ssk,
 				return MAPPING_DATA_FIN;
 			}
 		} else {
-			mptcp_update_rcv_data_fin(msk, mpext->data_seq + data_len);
-			pr_debug("DATA_FIN with mapping seq=%llu", mpext->data_seq + data_len);
+			u64 data_fin_seq = mpext->data_seq + data_len;
+
+			/* If mpext->data_seq is a 32-bit value, data_fin_seq
+			 * must also be limited to 32 bits.
+			 */
+			if (!mpext->dsn64)
+				data_fin_seq &= GENMASK_ULL(31, 0);
+
+			mptcp_update_rcv_data_fin(msk, data_fin_seq, mpext->dsn64);
+			pr_debug("DATA_FIN with mapping seq=%llu dsn64=%d",
+				 data_fin_seq, mpext->dsn64);
 		}
 
 		/* Adjust for DATA_FIN using 1 byte of sequence space */
