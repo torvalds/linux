@@ -1,12 +1,20 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /*
  * Copyright 2013-2016 Freescale Semiconductor Inc.
+ * Copyright 2020 NXP
  *
  */
 #include <linux/kernel.h>
 #include <linux/fsl/mc.h>
 
 #include "fsl-mc-private.h"
+
+/*
+ * cache the DPRC version to reduce the number of commands
+ * towards the mc firmware
+ */
+static u16 dprc_major_ver;
+static u16 dprc_minor_ver;
 
 /**
  * dprc_open() - Open DPRC object for use
@@ -443,15 +451,19 @@ int dprc_get_obj_region(struct fsl_mc_io *mc_io,
 	struct fsl_mc_command cmd = { 0 };
 	struct dprc_cmd_get_obj_region *cmd_params;
 	struct dprc_rsp_get_obj_region *rsp_params;
-	u16 major_ver, minor_ver;
 	int err;
 
-	/* prepare command */
-	err = dprc_get_api_version(mc_io, 0,
-				     &major_ver,
-				     &minor_ver);
-	if (err)
-		return err;
+    /*
+     * If the DPRC object version was not yet cached, cache it now.
+     * Otherwise use the already cached value.
+     */
+	if (!dprc_major_ver && !dprc_minor_ver) {
+		err = dprc_get_api_version(mc_io, 0,
+				      &dprc_major_ver,
+				      &dprc_minor_ver);
+		if (err)
+			return err;
+	}
 
 	/**
 	 * MC API version 6.3 introduced a new field to the region
@@ -459,7 +471,7 @@ int dprc_get_obj_region(struct fsl_mc_io *mc_io,
 	 * address is set to zero to indicate it needs to be obtained elsewhere
 	 * (typically the device tree).
 	 */
-	if (major_ver > 6 || (major_ver == 6 && minor_ver >= 3))
+	if (dprc_major_ver > 6 || (dprc_major_ver == 6 && dprc_minor_ver >= 3))
 		cmd.header =
 			mc_encode_cmd_header(DPRC_CMDID_GET_OBJ_REG_V2,
 					     cmd_flags, token);
@@ -483,7 +495,7 @@ int dprc_get_obj_region(struct fsl_mc_io *mc_io,
 	rsp_params = (struct dprc_rsp_get_obj_region *)cmd.params;
 	region_desc->base_offset = le64_to_cpu(rsp_params->base_offset);
 	region_desc->size = le32_to_cpu(rsp_params->size);
-	if (major_ver > 6 || (major_ver == 6 && minor_ver >= 3))
+	if (dprc_major_ver > 6 || (dprc_major_ver == 6 && dprc_minor_ver >= 3))
 		region_desc->base_address = le64_to_cpu(rsp_params->base_addr);
 	else
 		region_desc->base_address = 0;
