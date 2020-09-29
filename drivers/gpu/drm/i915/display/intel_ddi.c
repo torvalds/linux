@@ -1034,24 +1034,48 @@ cnl_get_buf_trans_edp(struct intel_encoder *encoder, int *n_entries)
 }
 
 static const struct cnl_ddi_buf_trans *
-icl_get_combo_buf_trans(struct intel_encoder *encoder, int type, int rate,
-			int *n_entries)
+icl_get_combo_buf_trans_hdmi(struct intel_encoder *encoder, int type, int rate,
+			     int *n_entries)
+{
+	*n_entries = ARRAY_SIZE(icl_combo_phy_ddi_translations_hdmi);
+	return icl_combo_phy_ddi_translations_hdmi;
+}
+
+static const struct cnl_ddi_buf_trans *
+icl_get_combo_buf_trans_dp(struct intel_encoder *encoder, int type, int rate,
+			   int *n_entries)
+{
+	*n_entries = ARRAY_SIZE(icl_combo_phy_ddi_translations_dp_hbr2);
+	return icl_combo_phy_ddi_translations_dp_hbr2;
+}
+
+static const struct cnl_ddi_buf_trans *
+icl_get_combo_buf_trans_edp(struct intel_encoder *encoder, int type, int rate,
+			    int *n_entries)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
-	if (type == INTEL_OUTPUT_HDMI) {
-		*n_entries = ARRAY_SIZE(icl_combo_phy_ddi_translations_hdmi);
-		return icl_combo_phy_ddi_translations_hdmi;
-	} else if (rate > 540000 && type == INTEL_OUTPUT_EDP) {
+	if (rate > 540000) {
 		*n_entries = ARRAY_SIZE(icl_combo_phy_ddi_translations_edp_hbr3);
 		return icl_combo_phy_ddi_translations_edp_hbr3;
-	} else if (type == INTEL_OUTPUT_EDP && dev_priv->vbt.edp.low_vswing) {
+	} else if (dev_priv->vbt.edp.low_vswing) {
 		*n_entries = ARRAY_SIZE(icl_combo_phy_ddi_translations_edp_hbr2);
 		return icl_combo_phy_ddi_translations_edp_hbr2;
 	}
 
-	*n_entries = ARRAY_SIZE(icl_combo_phy_ddi_translations_dp_hbr2);
-	return icl_combo_phy_ddi_translations_dp_hbr2;
+	return icl_get_combo_buf_trans_dp(encoder, type, rate, n_entries);
+}
+
+static const struct cnl_ddi_buf_trans *
+icl_get_combo_buf_trans(struct intel_encoder *encoder, int type, int rate,
+			int *n_entries)
+{
+	if (type == INTEL_OUTPUT_HDMI)
+		return icl_get_combo_buf_trans_hdmi(encoder, type, rate, n_entries);
+	else if (type == INTEL_OUTPUT_EDP)
+		return icl_get_combo_buf_trans_edp(encoder, type, rate, n_entries);
+	else
+		return icl_get_combo_buf_trans_dp(encoder, type, rate, n_entries);
 }
 
 static const struct icl_mg_phy_ddi_buf_trans *
