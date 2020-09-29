@@ -726,14 +726,15 @@ static int ocelot_vcap_block_get_filter_index(struct ocelot_vcap_block *block,
 					      struct ocelot_vcap_filter *filter)
 {
 	struct ocelot_vcap_filter *tmp;
-	int index = -1;
+	int index = 0;
 
 	list_for_each_entry(tmp, &block->rules, list) {
-		++index;
 		if (filter->id == tmp->id)
-			break;
+			return index;
+		index++;
 	}
-	return index;
+
+	return -ENOENT;
 }
 
 static struct ocelot_vcap_filter*
@@ -877,6 +878,8 @@ int ocelot_vcap_filter_add(struct ocelot *ocelot,
 
 	/* Get the index of the inserted filter */
 	index = ocelot_vcap_block_get_filter_index(block, filter);
+	if (index < 0)
+		return index;
 
 	/* Move down the rules to make place for the new filter */
 	for (i = block->count - 1; i > index; i--) {
@@ -924,6 +927,8 @@ int ocelot_vcap_filter_del(struct ocelot *ocelot,
 
 	/* Gets index of the filter */
 	index = ocelot_vcap_block_get_filter_index(block, filter);
+	if (index < 0)
+		return index;
 
 	/* Delete filter */
 	ocelot_vcap_block_remove_filter(ocelot, block, filter);
@@ -950,6 +955,9 @@ int ocelot_vcap_filter_stats_update(struct ocelot *ocelot,
 	int index;
 
 	index = ocelot_vcap_block_get_filter_index(block, filter);
+	if (index < 0)
+		return index;
+
 	is2_entry_get(ocelot, filter, index);
 
 	/* After we get the result we need to clear the counters */
