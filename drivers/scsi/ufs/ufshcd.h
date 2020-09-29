@@ -547,19 +547,25 @@ enum ufshcd_quirks {
 
 	/*
 	 * This quirk needs to be enabled if the host controller supports inline
-	 * encryption, but it uses a nonstandard mechanism where the standard
-	 * crypto registers aren't used and there is no concept of keyslots.
-	 * ufs_hba_variant_ops::init() is expected to initialize ufs_hba::ksm as
-	 * a passthrough keyslot manager.
+	 * encryption, but it doesn't use the standard crypto capability
+	 * registers.  If enabled, the standard code won't initialize the
+	 * keyslot manager; ufs_hba_variant_ops::init() must do it instead.
 	 */
-	UFSHCD_QUIRK_NO_KEYSLOTS			= 1 << 12,
+	UFSHCD_QUIRK_BROKEN_CRYPTO_CAPS			= 1 << 20,
+
+	/*
+	 * This quirk needs to be enabled if the host controller supports inline
+	 * encryption, but the CRYPTO_GENERAL_ENABLE bit is not implemented and
+	 * breaks the HCE sequence if used.
+	 */
+	UFSHCD_QUIRK_BROKEN_CRYPTO_ENABLE		= 1 << 21,
 
 	/*
 	 * This quirk needs to be enabled if the host controller requires that
 	 * the PRDT be cleared after each encrypted request because encryption
 	 * keys were stored in it.
 	 */
-	UFSHCD_QUIRK_KEYS_IN_PRDT			= 1 << 13,
+	UFSHCD_QUIRK_KEYS_IN_PRDT			= 1 << 22,
 };
 
 enum ufshcd_caps {
