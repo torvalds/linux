@@ -685,12 +685,12 @@ static struct vcap_field vsc9959_vcap_is2_actions[] = {
 	[VCAP_IS2_ACT_POLICE_ENA]		= {  9,  1},
 	[VCAP_IS2_ACT_POLICE_IDX]		= { 10,  9},
 	[VCAP_IS2_ACT_POLICE_VCAP_ONLY]		= { 19,  1},
-	[VCAP_IS2_ACT_PORT_MASK]		= { 20, 11},
-	[VCAP_IS2_ACT_REW_OP]			= { 31,  9},
-	[VCAP_IS2_ACT_SMAC_REPLACE_ENA]		= { 40,  1},
-	[VCAP_IS2_ACT_RSV]			= { 41,  2},
-	[VCAP_IS2_ACT_ACL_ID]			= { 43,  6},
-	[VCAP_IS2_ACT_HIT_CNT]			= { 49, 32},
+	[VCAP_IS2_ACT_PORT_MASK]		= { 20,  6},
+	[VCAP_IS2_ACT_REW_OP]			= { 26,  9},
+	[VCAP_IS2_ACT_SMAC_REPLACE_ENA]		= { 35,  1},
+	[VCAP_IS2_ACT_RSV]			= { 36,  2},
+	[VCAP_IS2_ACT_ACL_ID]			= { 38,  6},
+	[VCAP_IS2_ACT_HIT_CNT]			= { 44, 32},
 };
 
 static const struct vcap_props vsc9959_vcap_props[] = {
