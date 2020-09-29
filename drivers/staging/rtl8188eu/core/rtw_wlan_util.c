@@ -53,32 +53,6 @@ static const u8 rtw_basic_rate_mix[7] = {
 	IEEE80211_OFDM_RATE_24MB | IEEE80211_BASIC_RATE_MASK
 };
 
-bool cckrates_included(unsigned char *rate, int ratelen)
-{
-	int i;
-
-	for (i = 0; i < ratelen; i++) {
-		u8 r = rate[i] & 0x7f;
-
-		if (r == 2 || r == 4 || r == 11 || r == 22)
-			return true;
-	}
-	return false;
-}
-
-bool cckratesonly_included(unsigned char *rate, int ratelen)
-{
-	int i;
-
-	for (i = 0; i < ratelen; i++) {
-		u8 r = rate[i] & 0x7f;
-
-		if (r != 2 && r != 4 && r != 11 && r != 22)
-			return false;
-	}
-	return true;
-}
-
 unsigned char networktype_to_raid(unsigned char network_type)
 {
 	switch (network_type) {
@@ -111,9 +85,9 @@ u8 judge_network_type(struct adapter *padapter, unsigned char *rate, int ratelen
 	if (pmlmeinfo->HT_enable)
 		network_type = WIRELESS_11_24N;
 
-	if (cckratesonly_included(rate, ratelen))
+	if (rtw_is_cckratesonly_included(rate))
 		network_type |= WIRELESS_11B;
-	else if (cckrates_included(rate, ratelen))
+	else if (rtw_is_cckrates_included(rate))
 		network_type |= WIRELESS_11BG;
 	else
 		network_type |= WIRELESS_11G;
@@ -1362,9 +1336,9 @@ void update_wireless_mode(struct adapter *padapter)
 	if (pmlmeinfo->HT_enable)
 		network_type = WIRELESS_11_24N;
 
-	if (cckratesonly_included(rate, ratelen))
+	if (rtw_is_cckratesonly_included(rate))
 		network_type |= WIRELESS_11B;
-	else if (cckrates_included(rate, ratelen))
+	else if (rtw_is_cckrates_included(rate))
 		network_type |= WIRELESS_11BG;
 	else
 		network_type |= WIRELESS_11G;
