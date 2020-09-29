@@ -8,7 +8,10 @@
 #include <linux/devcoredump.h>
 #include <linux/dma-mapping.h>
 #include <linux/firmware.h>
+#include <linux/pci.h>
+#include <linux/pxa2xx_ssp.h>
 #include "core.h"
+#include "messages.h"
 #include "registers.h"
 
 static bool catpt_dma_filter(struct dma_chan *chan, void *param)
@@ -136,6 +139,337 @@ void catpt_dmac_remove(struct catpt_dev *cdev)
 	 * before removing DW to prevent postmortem resume and suspend.
 	 */
 	dw_dma_remove(cdev->dmac);
+}
+
+static void catpt_dsp_set_srampge(struct catpt_dev *cdev, struct resource *sram,
+				  unsigned long mask, unsigned long new)
+{
+	unsigned long old;
+	u32 off = sram->start;
+	u32 b = __ffs(mask);
+
+	old = catpt_readl_pci(cdev, VDRTCTL0) & mask;
+	dev_dbg(cdev->dev, "SRAMPGE [0x%08lx] 0x%08lx -> 0x%08lx",
+		mask, old, new);
+
+	if (old == new)
+		return;
+
+	catpt_updatel_pci(cdev, VDRTCTL0, mask, new);
+	/* wait for SRAM power gating to propagate */
+	udelay(60);
+
+	/*
+	 * Dummy read as the very first access after block enable
+	 * to prevent byte loss in future operations.
+	 */
+	for_each_clear_bit_from(b, &new, fls_long(mask)) {
+		u8 buf[4];
+
+		/* newly enabled: new bit=0 while old bit=1 */
+		if (test_bit(b, &old)) {
+			dev_dbg(cdev->dev, "sanitize block %ld: off 0x%08x\n",
+				b - __ffs(mask), off);
+			memcpy_fromio(buf, cdev->lpe_ba + off, sizeof(buf));
+		}
+		off += CATPT_MEMBLOCK_SIZE;
+	}
+}
+
+void catpt_dsp_update_srampge(struct catpt_dev *cdev, struct resource *sram,
+			      unsigned long mask)
+{
+	struct resource *res;
+	unsigned long new = 0;
+
+	/* flag all busy blocks */
+	for (res = sram->child; res; res = res->sibling) {
+		u32 h, l;
+
+		h = (res->end - sram->start) / CATPT_MEMBLOCK_SIZE;
+		l = (res->start - sram->start) / CATPT_MEMBLOCK_SIZE;
+		new |= GENMASK(h, l);
+	}
+
+	/* offset value given mask's start and invert it as ON=b0 */
+	new = ~(new << __ffs(mask)) & mask;
+
+	/* disable core clock gating */
+	catpt_updatel_pci(cdev, VDRTCTL2, CATPT_VDRTCTL2_DCLCGE, 0);
+
+	catpt_dsp_set_srampge(cdev, sram, mask, new);
+
+	/* enable core clock gating */
+	catpt_updatel_pci(cdev, VDRTCTL2, CATPT_VDRTCTL2_DCLCGE,
+			  CATPT_VDRTCTL2_DCLCGE);
+}
+
+int catpt_dsp_stall(struct catpt_dev *cdev, bool stall)
+{
+	u32 reg, val;
+
+	val = stall ? CATPT_CS_STALL : 0;
+	catpt_updatel_shim(cdev, CS1, CATPT_CS_STALL, val);
+
+	return catpt_readl_poll_shim(cdev, CS1,
+				     reg, (reg & CATPT_CS_STALL) == val,
+				     500, 10000);
+}
+
+static int catpt_dsp_reset(struct catpt_dev *cdev, bool reset)
+{
+	u32 reg, val;
+
+	val = reset ? CATPT_CS_RST : 0;
+	catpt_updatel_shim(cdev, CS1, CATPT_CS_RST, val);
+
+	return catpt_readl_poll_shim(cdev, CS1,
+				     reg, (reg & CATPT_CS_RST) == val,
+				     500, 10000);
+}
+
+void lpt_dsp_pll_shutdown(struct catpt_dev *cdev, bool enable)
+{
+	u32 val;
+
+	val = enable ? LPT_VDRTCTL0_APLLSE : 0;
+	catpt_updatel_pci(cdev, VDRTCTL0, LPT_VDRTCTL0_APLLSE, val);
+}
+
+void wpt_dsp_pll_shutdown(struct catpt_dev *cdev, bool enable)
+{
+	u32 val;
+
+	val = enable ? WPT_VDRTCTL2_APLLSE : 0;
+	catpt_updatel_pci(cdev, VDRTCTL2, WPT_VDRTCTL2_APLLSE, val);
+}
+
+static int catpt_dsp_select_lpclock(struct catpt_dev *cdev, bool lp, bool waiti)
+{
+	u32 mask, reg, val;
+	int ret;
+
+	mutex_lock(&cdev->clk_mutex);
+
+	val = lp ? CATPT_CS_LPCS : 0;
+	reg = catpt_readl_shim(cdev, CS1) & CATPT_CS_LPCS;
+	dev_dbg(cdev->dev, "LPCS [0x%08lx] 0x%08x -> 0x%08x",
+		CATPT_CS_LPCS, reg, val);
+
+	if (reg == val) {
+		mutex_unlock(&cdev->clk_mutex);
+		return 0;
+	}
+
+	if (waiti) {
+		/* wait for DSP to signal WAIT state */
+		ret = catpt_readl_poll_shim(cdev, ISD,
+					    reg, (reg & CATPT_ISD_DCPWM),
+					    500, 10000);
+		if (ret) {
+			dev_err(cdev->dev, "await WAITI timeout\n");
+			mutex_unlock(&cdev->clk_mutex);
+			return ret;
+		}
+	}
+
+	ret = catpt_readl_poll_shim(cdev, CLKCTL,
+				    reg, !(reg & CATPT_CLKCTL_CFCIP),
+				    500, 10000);
+	if (ret)
+		dev_warn(cdev->dev, "clock change still in progress\n");
+
+	/* default to DSP core & audio fabric high clock */
+	val |= CATPT_CS_DCS_HIGH;
+	mask = CATPT_CS_LPCS | CATPT_CS_DCS;
+	catpt_updatel_shim(cdev, CS1, mask, val);
+
+	ret = catpt_readl_poll_shim(cdev, CLKCTL,
+				    reg, !(reg & CATPT_CLKCTL_CFCIP),
+				    500, 10000);
+	if (ret)
+		dev_warn(cdev->dev, "clock change still in progress\n");
+
+	/* update PLL accordingly */
+	cdev->spec->pll_shutdown(cdev, lp);
+
+	mutex_unlock(&cdev->clk_mutex);
+	return 0;
+}
+
+int catpt_dsp_update_lpclock(struct catpt_dev *cdev)
+{
+	struct catpt_stream_runtime *stream;
+
+	list_for_each_entry(stream, &cdev->stream_list, node)
+		if (stream->prepared)
+			return catpt_dsp_select_lpclock(cdev, false, true);
+
+	return catpt_dsp_select_lpclock(cdev, true, true);
+}
+
+/* bring registers to their defaults as HW won't reset itself */
+static void catpt_dsp_set_regs_defaults(struct catpt_dev *cdev)
+{
+	int i;
+
+	catpt_writel_shim(cdev, CS1, CATPT_CS_DEFAULT);
+	catpt_writel_shim(cdev, ISC, CATPT_ISC_DEFAULT);
+	catpt_writel_shim(cdev, ISD, CATPT_ISD_DEFAULT);
+	catpt_writel_shim(cdev, IMC, CATPT_IMC_DEFAULT);
+	catpt_writel_shim(cdev, IMD, CATPT_IMD_DEFAULT);
+	catpt_writel_shim(cdev, IPCC, CATPT_IPCC_DEFAULT);
+	catpt_writel_shim(cdev, IPCD, CATPT_IPCD_DEFAULT);
+	catpt_writel_shim(cdev, CLKCTL, CATPT_CLKCTL_DEFAULT);
+	catpt_writel_shim(cdev, CS2, CATPT_CS2_DEFAULT);
+	catpt_writel_shim(cdev, LTRC, CATPT_LTRC_DEFAULT);
+	catpt_writel_shim(cdev, HMDC, CATPT_HMDC_DEFAULT);
+
+	for (i = 0; i < CATPT_SSP_COUNT; i++) {
+		catpt_writel_ssp(cdev, i, SSCR0, CATPT_SSC0_DEFAULT);
+		catpt_writel_ssp(cdev, i, SSCR1, CATPT_SSC1_DEFAULT);
+		catpt_writel_ssp(cdev, i, SSSR, CATPT_SSS_DEFAULT);
+		catpt_writel_ssp(cdev, i, SSITR, CATPT_SSIT_DEFAULT);
+		catpt_writel_ssp(cdev, i, SSDR, CATPT_SSD_DEFAULT);
+		catpt_writel_ssp(cdev, i, SSTO, CATPT_SSTO_DEFAULT);
+		catpt_writel_ssp(cdev, i, SSPSP, CATPT_SSPSP_DEFAULT);
+		catpt_writel_ssp(cdev, i, SSTSA, CATPT_SSTSA_DEFAULT);
+		catpt_writel_ssp(cdev, i, SSRSA, CATPT_SSRSA_DEFAULT);
+		catpt_writel_ssp(cdev, i, SSTSS, CATPT_SSTSS_DEFAULT);
+		catpt_writel_ssp(cdev, i, SSCR2, CATPT_SSCR2_DEFAULT);
+		catpt_writel_ssp(cdev, i, SSPSP2, CATPT_SSPSP2_DEFAULT);
+	}
+}
+
+int lpt_dsp_power_down(struct catpt_dev *cdev)
+{
+	catpt_dsp_reset(cdev, true);
+
+	/* set 24Mhz clock for both SSPs */
+	catpt_updatel_shim(cdev, CS1, CATPT_CS_SBCS(0) | CATPT_CS_SBCS(1),
+			   CATPT_CS_SBCS(0) | CATPT_CS_SBCS(1));
+	catpt_dsp_select_lpclock(cdev, true, false);
+
+	/* DRAM power gating all */
+	catpt_dsp_set_srampge(cdev, &cdev->dram, cdev->spec->dram_mask,
+			      cdev->spec->dram_mask);
+	catpt_dsp_set_srampge(cdev, &cdev->iram, cdev->spec->iram_mask,
+			      cdev->spec->iram_mask);
+
+	catpt_updatel_pci(cdev, PMCS, PCI_PM_CTRL_STATE_MASK, PCI_D3hot);
+	/* give hw time to drop off */
+	udelay(50);
+
+	return 0;
+}
+
+int lpt_dsp_power_up(struct catpt_dev *cdev)
+{
+	/* SRAM power gating none */
+	catpt_dsp_set_srampge(cdev, &cdev->dram, cdev->spec->dram_mask, 0);
+	catpt_dsp_set_srampge(cdev, &cdev->iram, cdev->spec->iram_mask, 0);
+
+	catpt_updatel_pci(cdev, PMCS, PCI_PM_CTRL_STATE_MASK, PCI_D0);
+	/* give hw time to wake up */
+	udelay(100);
+
+	catpt_dsp_select_lpclock(cdev, false, false);
+	catpt_updatel_shim(cdev, CS1,
+			   CATPT_CS_SBCS(0) | CATPT_CS_SBCS(1),
+			   CATPT_CS_SBCS(0) | CATPT_CS_SBCS(1));
+	/* stagger DSP reset after clock selection */
+	udelay(50);
+
+	catpt_dsp_reset(cdev, false);
+	/* generate int deassert msg to fix inversed int logic */
+	catpt_updatel_shim(cdev, IMC, CATPT_IMC_IPCDB | CATPT_IMC_IPCCD, 0);
+
+	return 0;
+}
+
+int wpt_dsp_power_down(struct catpt_dev *cdev)
+{
+	u32 mask, val;
+
+	/* disable core clock gating */
+	catpt_updatel_pci(cdev, VDRTCTL2, CATPT_VDRTCTL2_DCLCGE, 0);
+
+	catpt_dsp_reset(cdev, true);
+	/* set 24Mhz clock for both SSPs */
+	catpt_updatel_shim(cdev, CS1, CATPT_CS_SBCS(0) | CATPT_CS_SBCS(1),
+			   CATPT_CS_SBCS(0) | CATPT_CS_SBCS(1));
+	catpt_dsp_select_lpclock(cdev, true, false);
+	/* disable MCLK */
+	catpt_updatel_shim(cdev, CLKCTL, CATPT_CLKCTL_SMOS, 0);
+
+	catpt_dsp_set_regs_defaults(cdev);
+
+	/* switch clock gating */
+	mask = CATPT_VDRTCTL2_CGEALL & (~CATPT_VDRTCTL2_DCLCGE);
+	val = mask & (~CATPT_VDRTCTL2_DTCGE);
+	catpt_updatel_pci(cdev, VDRTCTL2, mask, val);
+	/* enable DTCGE separatelly */
+	catpt_updatel_pci(cdev, VDRTCTL2, CATPT_VDRTCTL2_DTCGE,
+			  CATPT_VDRTCTL2_DTCGE);
+
+	/* SRAM power gating all */
+	catpt_dsp_set_srampge(cdev, &cdev->dram, cdev->spec->dram_mask,
+			      cdev->spec->dram_mask);
+	catpt_dsp_set_srampge(cdev, &cdev->iram, cdev->spec->iram_mask,
+			      cdev->spec->iram_mask);
+	mask = WPT_VDRTCTL0_D3SRAMPGD | WPT_VDRTCTL0_D3PGD;
+	catpt_updatel_pci(cdev, VDRTCTL0, mask, WPT_VDRTCTL0_D3PGD);
+
+	catpt_updatel_pci(cdev, PMCS, PCI_PM_CTRL_STATE_MASK, PCI_D3hot);
+	/* give hw time to drop off */
+	udelay(50);
+
+	/* enable core clock gating */
+	catpt_updatel_pci(cdev, VDRTCTL2, CATPT_VDRTCTL2_DCLCGE,
+			  CATPT_VDRTCTL2_DCLCGE);
+	udelay(50);
+
+	return 0;
+}
+
+int wpt_dsp_power_up(struct catpt_dev *cdev)
+{
+	u32 mask, val;
+
+	/* disable core clock gating */
+	catpt_updatel_pci(cdev, VDRTCTL2, CATPT_VDRTCTL2_DCLCGE, 0);
+
+	/* switch clock gating */
+	mask = CATPT_VDRTCTL2_CGEALL & (~CATPT_VDRTCTL2_DCLCGE);
+	val = mask & (~CATPT_VDRTCTL2_DTCGE);
+	catpt_updatel_pci(cdev, VDRTCTL2, mask, val);
+
+	catpt_updatel_pci(cdev, PMCS, PCI_PM_CTRL_STATE_MASK, PCI_D0);
+
+	/* SRAM power gating none */
+	mask = WPT_VDRTCTL0_D3SRAMPGD | WPT_VDRTCTL0_D3PGD;
+	catpt_updatel_pci(cdev, VDRTCTL0, mask, mask);
+	catpt_dsp_set_srampge(cdev, &cdev->dram, cdev->spec->dram_mask, 0);
+	catpt_dsp_set_srampge(cdev, &cdev->iram, cdev->spec->iram_mask, 0);
+
+	catpt_dsp_set_regs_defaults(cdev);
+
+	/* restore MCLK */
+	catpt_updatel_shim(cdev, CLKCTL, CATPT_CLKCTL_SMOS, CATPT_CLKCTL_SMOS);
+	catpt_dsp_select_lpclock(cdev, false, false);
+	/* set 24Mhz clock for both SSPs */
+	catpt_updatel_shim(cdev, CS1, CATPT_CS_SBCS(0) | CATPT_CS_SBCS(1),
+			   CATPT_CS_SBCS(0) | CATPT_CS_SBCS(1));
+	catpt_dsp_reset(cdev, false);
+
+	/* enable core clock gating */
+	catpt_updatel_pci(cdev, VDRTCTL2, CATPT_VDRTCTL2_DCLCGE,
+			  CATPT_VDRTCTL2_DCLCGE);
+
+	/* generate int deassert msg to fix inversed int logic */
+	catpt_updatel_shim(cdev, IMC, CATPT_IMC_IPCDB | CATPT_IMC_IPCCD, 0);
+
+	return 0;
 }
 
 #define CATPT_DUMP_MAGIC		0xcd42

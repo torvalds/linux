@@ -99,6 +99,10 @@ struct catpt_dev {
 	struct resource dram;
 	struct resource iram;
 	struct resource *scratch;
+
+	struct list_head stream_list;
+	spinlock_t list_lock;
+	struct mutex clk_mutex;
 };
 
 int catpt_dmac_probe(struct catpt_dev *cdev);
@@ -111,6 +115,16 @@ int catpt_dma_memcpy_fromdsp(struct catpt_dev *cdev, struct dma_chan *chan,
 			     dma_addr_t dst_addr, dma_addr_t src_addr,
 			     size_t size);
 
+void lpt_dsp_pll_shutdown(struct catpt_dev *cdev, bool enable);
+void wpt_dsp_pll_shutdown(struct catpt_dev *cdev, bool enable);
+int lpt_dsp_power_up(struct catpt_dev *cdev);
+int lpt_dsp_power_down(struct catpt_dev *cdev);
+int wpt_dsp_power_up(struct catpt_dev *cdev);
+int wpt_dsp_power_down(struct catpt_dev *cdev);
+int catpt_dsp_stall(struct catpt_dev *cdev, bool stall);
+void catpt_dsp_update_srampge(struct catpt_dev *cdev, struct resource *sram,
+			      unsigned long mask);
+int catpt_dsp_update_lpclock(struct catpt_dev *cdev);
 irqreturn_t catpt_dsp_irq_handler(int irq, void *dev_id);
 irqreturn_t catpt_dsp_irq_thread(int irq, void *dev_id);
 
@@ -128,5 +142,25 @@ int catpt_dsp_send_msg(struct catpt_dev *cdev, struct catpt_ipc_msg request,
 		       struct catpt_ipc_msg *reply);
 
 int catpt_coredump(struct catpt_dev *cdev);
+
+#include <sound/memalloc.h>
+#include <uapi/sound/asound.h>
+
+struct snd_pcm_substream;
+struct catpt_stream_template;
+
+struct catpt_stream_runtime {
+	struct snd_pcm_substream *substream;
+
+	struct catpt_stream_template *template;
+	struct catpt_stream_info info;
+	struct resource *persistent;
+	struct snd_dma_buffer pgtbl;
+
+	bool allocated;
+	bool prepared;
+
+	struct list_head node;
+};
 
 #endif
