@@ -130,6 +130,9 @@ enum HNAE3_DEV_CAP_BITS {
 #define hnae3_dev_stash_supported(hdev) \
 	test_bit(HNAE3_DEV_SUPPORT_STASH_B, (hdev)->ae_dev->caps)
 
+#define hnae3_ae_dev_tqp_txrx_indep_supported(ae_dev) \
+	test_bit(HNAE3_DEV_SUPPORT_TQP_TXRX_INDEP_B, (ae_dev)->caps)
+
 #define ring_ptr_move_fw(ring, p) \
 	((ring)->p = ((ring)->p + 1) % (ring)->desc_num)
 #define ring_ptr_move_bw(ring, p) \

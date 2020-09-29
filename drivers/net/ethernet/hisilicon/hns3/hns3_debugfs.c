@@ -15,6 +15,7 @@ static struct dentry *hns3_dbgfs_root;
 static int hns3_dbg_queue_info(struct hnae3_handle *h,
 			       const char *cmd_buf)
 {
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(h->pdev);
 	struct hns3_nic_priv *priv = h->priv;
 	struct hns3_enet_ring *ring;
 	u32 base_add_l, base_add_h;
@@ -118,8 +119,25 @@ static int hns3_dbg_queue_info(struct hnae3_handle *h,
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_TX_RING_PKTNUM_RECORD_REG);
-		dev_info(&h->pdev->dev, "TX(%u) RING PKTNUM: %u\n\n", i,
-			 value);
+		dev_info(&h->pdev->dev, "TX(%u) RING PKTNUM: %u\n", i, value);
+
+		value = readl_relaxed(ring->tqp->io_base + HNS3_RING_EN_REG);
+		dev_info(&h->pdev->dev, "TX/RX(%u) RING EN: %s\n", i,
+			 value ? "enable" : "disable");
+
+		if (hnae3_ae_dev_tqp_txrx_indep_supported(ae_dev)) {
+			value = readl_relaxed(ring->tqp->io_base +
+					      HNS3_RING_TX_EN_REG);
+			dev_info(&h->pdev->dev, "TX(%u) RING EN: %s\n", i,
+				 value ? "enable" : "disable");
+
+			value = readl_relaxed(ring->tqp->io_base +
+					      HNS3_RING_RX_EN_REG);
+			dev_info(&h->pdev->dev, "RX(%u) RING EN: %s\n", i,
+				 value ? "enable" : "disable");
+		}
+
+		dev_info(&h->pdev->dev, "\n");
 	}
 
 	return 0;
