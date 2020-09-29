@@ -420,6 +420,9 @@ static int l2tp_nl_tunnel_send(struct sk_buff *skb, u32 portid, u32 seq, int fla
 	    nla_put_u64_64bit(skb, L2TP_ATTR_RX_SEQ_DISCARDS,
 			      atomic_long_read(&tunnel->stats.rx_seq_discards),
 			      L2TP_ATTR_STATS_PAD) ||
+	    nla_put_u64_64bit(skb, L2TP_ATTR_RX_COOKIE_DISCARDS,
+			      atomic_long_read(&tunnel->stats.rx_cookie_discards),
+			      L2TP_ATTR_STATS_PAD) ||
 	    nla_put_u64_64bit(skb, L2TP_ATTR_RX_OOS_PACKETS,
 			      atomic_long_read(&tunnel->stats.rx_oos_packets),
 			      L2TP_ATTR_STATS_PAD) ||
@@ -759,6 +762,9 @@ static int l2tp_nl_session_send(struct sk_buff *skb, u32 portid, u32 seq, int fl
 			      L2TP_ATTR_STATS_PAD) ||
 	    nla_put_u64_64bit(skb, L2TP_ATTR_RX_SEQ_DISCARDS,
 			      atomic_long_read(&session->stats.rx_seq_discards),
+			      L2TP_ATTR_STATS_PAD) ||
+	    nla_put_u64_64bit(skb, L2TP_ATTR_RX_COOKIE_DISCARDS,
+			      atomic_long_read(&session->stats.rx_cookie_discards),
 			      L2TP_ATTR_STATS_PAD) ||
 	    nla_put_u64_64bit(skb, L2TP_ATTR_RX_OOS_PACKETS,
 			      atomic_long_read(&session->stats.rx_oos_packets),
