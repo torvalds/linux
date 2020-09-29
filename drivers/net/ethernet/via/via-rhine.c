@@ -32,8 +32,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #define DRV_NAME	"via-rhine"
-#define DRV_VERSION	"1.5.1"
-#define DRV_RELDATE	"2010-10-09"
 
 #include <linux/types.h>
 
@@ -116,10 +114,6 @@ static const int multicast_filter_limit = 32;
 #include <asm/irq.h>
 #include <linux/uaccess.h>
 #include <linux/dmi.h>
-
-/* These identify the driver base version and may not be removed. */
-static const char version[] =
-	"v1.10-LK" DRV_VERSION " " DRV_RELDATE " Written by Donald Becker";
 
 MODULE_AUTHOR("Donald Becker <becker@scyld.com>");
 MODULE_DESCRIPTION("VIA Rhine PCI Fast Ethernet driver");
@@ -1049,11 +1043,6 @@ static int rhine_init_one_pci(struct pci_dev *pdev,
 	u32 quirks = rqNeedEnMMIO;
 #else
 	u32 quirks = 0;
-#endif
-
-/* when built into the kernel, we only print version if device is found */
-#ifndef MODULE
-	pr_info_once("%s\n", version);
 #endif
 
 	rc = pci_enable_device(pdev);
@@ -2296,7 +2285,6 @@ static void netdev_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *i
 	struct device *hwdev = dev->dev.parent;
 
 	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	strlcpy(info->bus_info, dev_name(hwdev), sizeof(info->bus_info));
 }
 
@@ -2618,9 +2606,6 @@ static int __init rhine_init(void)
 	int ret_pci, ret_platform;
 
 /* when a module, this is printed whether or not devices are found in probe */
-#ifdef MODULE
-	pr_info("%s\n", version);
-#endif
 	if (dmi_check_system(rhine_dmi_table)) {
 		/* these BIOSes fail at PXE boot if chip is in D3 */
 		avoid_D3 = true;
