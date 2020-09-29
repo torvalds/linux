@@ -136,6 +136,13 @@ static int ovl_real_fdget_meta(const struct file *file, struct fd *real,
 
 static int ovl_real_fdget(const struct file *file, struct fd *real)
 {
+	if (d_is_dir(file_dentry(file))) {
+		real->flags = 0;
+		real->file = ovl_dir_real_file(file, false);
+
+		return PTR_ERR_OR_ZERO(real->file);
+	}
+
 	return ovl_real_fdget_meta(file, real, false);
 }
 
@@ -648,7 +655,7 @@ static long ovl_ioctl_set_fsxflags(struct file *file, unsigned int cmd,
 				   ovl_fsxflags_to_iflags(fa.fsx_xflags));
 }
 
-static long ovl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+long ovl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	long ret;
 
@@ -673,8 +680,8 @@ static long ovl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return ret;
 }
 
-static long ovl_compat_ioctl(struct file *file, unsigned int cmd,
-			     unsigned long arg)
+#ifdef CONFIG_COMPAT
+long ovl_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	switch (cmd) {
 	case FS_IOC32_GETFLAGS:
@@ -691,6 +698,7 @@ static long ovl_compat_ioctl(struct file *file, unsigned int cmd,
 
 	return ovl_ioctl(file, cmd, arg);
 }
+#endif
 
 enum ovl_copyop {
 	OVL_COPY,
@@ -792,7 +800,9 @@ const struct file_operations ovl_file_operations = {
 	.fallocate	= ovl_fallocate,
 	.fadvise	= ovl_fadvise,
 	.unlocked_ioctl	= ovl_ioctl,
+#ifdef CONFIG_COMPAT
 	.compat_ioctl	= ovl_compat_ioctl,
+#endif
 	.splice_read    = ovl_splice_read,
 	.splice_write   = ovl_splice_write,
 
