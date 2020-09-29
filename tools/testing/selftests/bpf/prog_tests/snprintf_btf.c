@@ -27,7 +27,9 @@ void test_snprintf_btf(void)
 		goto cleanup;
 
 	/* generate receive event */
-	(void) system("ping -c 1 127.0.0.1 > /dev/null");
+	err = system("ping -c 1 127.0.0.1 > /dev/null");
+	if (CHECK(err, "system", "ping failed: %d\n", err))
+		goto cleanup;
 
 	if (bss->skip) {
 		printf("%s:SKIP:no __builtin_btf_type_id\n", __func__);
