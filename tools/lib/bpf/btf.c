@@ -31,10 +31,10 @@ struct btf {
 	__u32 raw_size;
 
 	/*
-	 * When BTF is loaded from ELF or raw memory it is stored
-	 * in contiguous memory block, pointed to by raw_data pointer, and
-	 * hdr, types_data, and strs_data point inside that memory region to
-	 * respective parts of BTF representation:
+	 * When BTF is loaded from an ELF or raw memory it is stored
+	 * in a contiguous memory block. The hdr, type_data, and, strs_data
+	 * point inside that memory region to their respective parts of BTF
+	 * representation:
 	 *
 	 * +--------------------------------+
 	 * |  Header  |  Types  |  Strings  |
