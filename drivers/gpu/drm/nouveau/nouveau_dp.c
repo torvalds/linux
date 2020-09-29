@@ -232,11 +232,13 @@ nv50_dp_mode_valid(struct drm_connector *connector,
 		   unsigned *out_clock)
 {
 	const unsigned min_clock = 25000;
-	unsigned max_clock, ds_clock, clock;
-	enum drm_mode_status ret;
+	unsigned max_clock, ds_clock, clock = mode->clock;
 
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE && !outp->caps.dp_interlace)
 		return MODE_NO_INTERLACE;
+
+	if ((mode->flags & DRM_MODE_FLAG_3D_MASK) == DRM_MODE_FLAG_3D_FRAME_PACKING)
+		clock *= 2;
 
 	max_clock = outp->dp.link_nr * outp->dp.link_bw;
 	ds_clock = drm_dp_downstream_max_dotclock(outp->dp.dpcd,
@@ -245,9 +247,13 @@ nv50_dp_mode_valid(struct drm_connector *connector,
 		max_clock = min(max_clock, ds_clock);
 
 	clock = mode->clock * (connector->display_info.bpc * 3) / 10;
-	ret = nouveau_conn_mode_clock_valid(mode, min_clock, max_clock,
-					    &clock);
+	if (clock < min_clock)
+		return MODE_CLOCK_LOW;
+	if (clock > max_clock)
+		return MODE_CLOCK_HIGH;
+
 	if (out_clock)
 		*out_clock = clock;
-	return ret;
+
+	return MODE_OK;
 }
