@@ -4351,7 +4351,7 @@ static int ath11k_set_he_mu_sounding_mode(struct ath11k *ar,
 }
 
 static void ath11k_mac_op_update_vif_offload(struct ieee80211_hw *hw,
-					    struct ieee80211_vif *vif)
+					     struct ieee80211_vif *vif)
 {
 	struct ath11k *ar = hw->priv;
 	struct ath11k_base *ab = ar->ab;
