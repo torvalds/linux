@@ -167,13 +167,12 @@ enum hns3_nic_state {
 #define HNS3_VECTOR_INITED			1
 
 #define HNS3_MAX_BD_SIZE			65535
-#define HNS3_MAX_NON_TSO_BD_NUM			8U
 #define HNS3_MAX_TSO_BD_NUM			63U
 #define HNS3_MAX_TSO_SIZE \
 	(HNS3_MAX_BD_SIZE * HNS3_MAX_TSO_BD_NUM)
 
-#define HNS3_MAX_NON_TSO_SIZE \
-	(HNS3_MAX_BD_SIZE * HNS3_MAX_NON_TSO_BD_NUM)
+#define HNS3_MAX_NON_TSO_SIZE(max_non_tso_bd_num) \
+	(HNS3_MAX_BD_SIZE * (max_non_tso_bd_num))
 
 #define HNS3_VECTOR_GL0_OFFSET			0x100
 #define HNS3_VECTOR_GL1_OFFSET			0x200
@@ -475,6 +474,7 @@ struct hns3_nic_priv {
 	struct hns3_enet_ring *ring;
 	struct hns3_enet_tqp_vector *tqp_vector;
 	u16 vector_num;
+	u8 max_non_tso_bd_num;
 
 	u64 tx_timeout_count;
 

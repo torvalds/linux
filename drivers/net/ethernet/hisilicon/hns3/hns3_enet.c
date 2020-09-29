@@ -1184,21 +1184,23 @@ static unsigned int hns3_skb_bd_num(struct sk_buff *skb, unsigned int *bd_size,
 	return bd_num;
 }
 
-static unsigned int hns3_tx_bd_num(struct sk_buff *skb, unsigned int *bd_size)
+static unsigned int hns3_tx_bd_num(struct sk_buff *skb, unsigned int *bd_size,
+				   u8 max_non_tso_bd_num)
 {
 	struct sk_buff *frag_skb;
 	unsigned int bd_num = 0;
 
 	/* If the total len is within the max bd limit */
 	if (likely(skb->len <= HNS3_MAX_BD_SIZE && !skb_has_frag_list(skb) &&
-		   skb_shinfo(skb)->nr_frags < HNS3_MAX_NON_TSO_BD_NUM))
+		   skb_shinfo(skb)->nr_frags < max_non_tso_bd_num))
 		return skb_shinfo(skb)->nr_frags + 1U;
 
 	/* The below case will always be linearized, return
 	 * HNS3_MAX_BD_NUM_TSO + 1U to make sure it is linearized.
 	 */
 	if (unlikely(skb->len > HNS3_MAX_TSO_SIZE ||
-		     (!skb_is_gso(skb) && skb->len > HNS3_MAX_NON_TSO_SIZE)))
+		     (!skb_is_gso(skb) && skb->len >
+		      HNS3_MAX_NON_TSO_SIZE(max_non_tso_bd_num))))
 		return HNS3_MAX_TSO_BD_NUM + 1U;
 
 	bd_num = hns3_skb_bd_num(skb, bd_size, bd_num);
@@ -1223,31 +1225,34 @@ static unsigned int hns3_gso_hdr_len(struct sk_buff *skb)
 	return skb_inner_transport_offset(skb) + inner_tcp_hdrlen(skb);
 }
 
-/* HW need every continuous 8 buffer data to be larger than MSS,
- * we simplify it by ensuring skb_headlen + the first continuous
- * 7 frags to to be larger than gso header len + mss, and the remaining
- * continuous 7 frags to be larger than MSS except the last 7 frags.
+/* HW need every continuous max_non_tso_bd_num buffer data to be larger
+ * than MSS, we simplify it by ensuring skb_headlen + the first continuous
+ * max_non_tso_bd_num - 1 frags to be larger than gso header len + mss,
+ * and the remaining continuous max_non_tso_bd_num - 1 frags to be larger
+ * than MSS except the last max_non_tso_bd_num - 1 frags.
  */
 static bool hns3_skb_need_linearized(struct sk_buff *skb, unsigned int *bd_size,
-				     unsigned int bd_num)
+				     unsigned int bd_num, u8 max_non_tso_bd_num)
 {
 	unsigned int tot_len = 0;
 	int i;
 
-	for (i = 0; i < HNS3_MAX_NON_TSO_BD_NUM - 1U; i++)
+	for (i = 0; i < max_non_tso_bd_num - 1U; i++)
 		tot_len += bd_size[i];
 
-	/* ensure the first 8 frags is greater than mss + header */
-	if (tot_len + bd_size[HNS3_MAX_NON_TSO_BD_NUM - 1U] <
+	/* ensure the first max_non_tso_bd_num frags is greater than
+	 * mss + header
+	 */
+	if (tot_len + bd_size[max_non_tso_bd_num - 1U] <
 	    skb_shinfo(skb)->gso_size + hns3_gso_hdr_len(skb))
 		return true;
 
-	/* ensure every continuous 7 buffer is greater than mss
-	 * except the last one.
+	/* ensure every continuous max_non_tso_bd_num - 1 buffer is greater
+	 * than mss except the last one.
 	 */
-	for (i = 0; i < bd_num - HNS3_MAX_NON_TSO_BD_NUM; i++) {
+	for (i = 0; i < bd_num - max_non_tso_bd_num; i++) {
 		tot_len -= bd_size[i];
-		tot_len += bd_size[i + HNS3_MAX_NON_TSO_BD_NUM - 1U];
+		tot_len += bd_size[i + max_non_tso_bd_num - 1U];
 
 		if (tot_len < skb_shinfo(skb)->gso_size)
 			return true;
@@ -1269,13 +1274,15 @@ static int hns3_nic_maybe_stop_tx(struct hns3_enet_ring *ring,
 				  struct sk_buff *skb)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
+	u8 max_non_tso_bd_num = priv->max_non_tso_bd_num;
 	unsigned int bd_size[HNS3_MAX_TSO_BD_NUM + 1U];
 	unsigned int bd_num;
 
-	bd_num = hns3_tx_bd_num(skb, bd_size);
-	if (unlikely(bd_num > HNS3_MAX_NON_TSO_BD_NUM)) {
+	bd_num = hns3_tx_bd_num(skb, bd_size, max_non_tso_bd_num);
+	if (unlikely(bd_num > max_non_tso_bd_num)) {
 		if (bd_num <= HNS3_MAX_TSO_BD_NUM && skb_is_gso(skb) &&
-		    !hns3_skb_need_linearized(skb, bd_size, bd_num)) {
+		    !hns3_skb_need_linearized(skb, bd_size, bd_num,
+					      max_non_tso_bd_num)) {
 			trace_hns3_over_8bd(skb);
 			goto out;
 		}
@@ -1286,7 +1293,7 @@ static int hns3_nic_maybe_stop_tx(struct hns3_enet_ring *ring,
 		bd_num = hns3_tx_bd_count(skb->len);
 		if ((skb_is_gso(skb) && bd_num > HNS3_MAX_TSO_BD_NUM) ||
 		    (!skb_is_gso(skb) &&
-		     bd_num > HNS3_MAX_NON_TSO_BD_NUM)) {
+		     bd_num > max_non_tso_bd_num)) {
 			trace_hns3_over_8bd(skb);
 			return -ENOMEM;
 		}
@@ -3991,6 +3998,7 @@ static void hns3_info_show(struct hns3_nic_priv *priv)
 static int hns3_client_init(struct hnae3_handle *handle)
 {
 	struct pci_dev *pdev = handle->pdev;
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(pdev);
 	u16 alloc_tqps, max_rss_size;
 	struct hns3_nic_priv *priv;
 	struct net_device *netdev;
@@ -4007,6 +4015,7 @@ static int hns3_client_init(struct hnae3_handle *handle)
 	priv->netdev = netdev;
 	priv->ae_handle = handle;
 	priv->tx_timeout_count = 0;
+	priv->max_non_tso_bd_num = ae_dev->dev_specs.max_non_tso_bd_num;
 	set_bit(HNS3_NIC_STATE_DOWN, &priv->state);
 
 	handle->msg_enable = netif_msg_init(debug, DEFAULT_MSG_LEVEL);
