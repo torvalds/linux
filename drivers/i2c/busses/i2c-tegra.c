@@ -1375,6 +1375,7 @@ static int tegra_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 	ret = pm_runtime_get_sync(i2c_dev->dev);
 	if (ret < 0) {
 		dev_err(i2c_dev->dev, "runtime resume failed %d\n", ret);
+		pm_runtime_put_noidle(i2c_dev->dev);
 		return ret;
 	}
 
@@ -1786,7 +1787,7 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 		ret = pm_runtime_get_sync(i2c_dev->dev);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "runtime resume failed\n");
-			goto disable_rpm;
+			goto put_rpm;
 		}
 	}
 
@@ -1851,7 +1852,6 @@ put_rpm:
 	else
 		tegra_i2c_runtime_suspend(&pdev->dev);
 
-disable_rpm:
 	if (pm_runtime_enabled(&pdev->dev))
 		pm_runtime_disable(&pdev->dev);
 
