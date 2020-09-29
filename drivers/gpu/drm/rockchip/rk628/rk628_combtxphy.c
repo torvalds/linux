@@ -5,6 +5,7 @@
  * Author: Wyon Bi <bivvy.bi@rock-chips.com>
  */
 
+#include <asm/bitsperlong.h>
 #include <linux/kernel.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -13,8 +14,9 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
-#include <linux/phy/phy.h>
 #include <linux/mfd/rk628.h>
+
+#include "rk628_combtxphy.h"
 
 #define REG(x)			((x) + 0x90000)
 
@@ -82,14 +84,16 @@ struct rk628_combtxphy {
 	struct regmap *grf;
 	struct regmap *regmap;
 	struct clk *pclk;
+	struct clk *ref_clk;
 	struct reset_control *rstc;
 	enum phy_mode mode;
 	unsigned int flags;
 
+	u16 frac_div;
 	u8 ref_div;
 	u8 fb_div;
-	u16 frac_div;
 	u8 rate_div;
+	u8 division_mode;
 };
 
 static int rk628_combtxphy_dsi_power_on(struct rk628_combtxphy *combtxphy)
@@ -179,8 +183,16 @@ static int rk628_combtxphy_lvds_power_on(struct rk628_combtxphy *combtxphy)
 
 static int rk628_combtxphy_gvi_power_on(struct rk628_combtxphy *combtxphy)
 {
+	int ref_div = 0;
+
+	if (combtxphy->ref_div % 2) {
+		ref_div = combtxphy->ref_div - 1;
+	} else {
+		ref_div = BIT(4);
+		ref_div |= combtxphy->ref_div / 2 - 1;
+	}
 	regmap_write(combtxphy->regmap, COMBTXPHY_CON5,
-		     SW_REF_DIV(combtxphy->ref_div - 1) |
+		     SW_REF_DIV(ref_div) |
 		     SW_PLL_FB_DIV(combtxphy->fb_div) |
 		     SW_PLL_FRAC_DIV(combtxphy->frac_div) |
 		     SW_RATE(combtxphy->rate_div / 2));
@@ -196,6 +208,15 @@ static int rk628_combtxphy_gvi_power_on(struct rk628_combtxphy *combtxphy)
 	usleep_range(100, 200);
 	regmap_update_bits(combtxphy->regmap, COMBTXPHY_CON0,
 			   SW_TX_IDLE_MASK, 0);
+
+	return 0;
+}
+
+int rk628_combtxphy_set_gvi_division_mode(struct phy *phy, u8 mode)
+{
+	struct rk628_combtxphy *combtxphy = phy_get_drvdata(phy);
+
+	combtxphy->division_mode = mode;
 
 	return 0;
 }
@@ -231,7 +252,7 @@ static int rk628_combtxphy_power_on(struct phy *phy)
 	case PHY_MODE_GVI:
 		regmap_update_bits(combtxphy->grf, GRF_POST_PROC_CON,
 				   SW_TXPHY_REFCLK_SEL_MASK,
-				   SW_TXPHY_REFCLK_SEL(0));
+				   SW_TXPHY_REFCLK_SEL(2));
 		return rk628_combtxphy_gvi_power_on(combtxphy);
 	default:
 		return -EINVAL;
@@ -257,12 +278,13 @@ static int rk628_combtxphy_power_off(struct phy *phy)
 static int rk628_combtxphy_set_mode(struct phy *phy, enum phy_mode mode)
 {
 	struct rk628_combtxphy *combtxphy = phy_get_drvdata(phy);
-	unsigned int fvco, frac_rate, fin = 24;
+	unsigned int bus_width = phy_get_bus_width(phy);
+	unsigned int frac_rate, fin = 24;
+	unsigned long fvco, fpfd;
 
 	switch (mode) {
 	case PHY_MODE_VIDEO_MIPI:
 	{
-		int bus_width = phy_get_bus_width(phy);
 		unsigned int fhsc = bus_width >> 8;
 		unsigned int flags = bus_width & 0xff;
 
@@ -301,7 +323,6 @@ static int rk628_combtxphy_set_mode(struct phy *phy, enum phy_mode mode)
 	}
 	case PHY_MODE_VIDEO_LVDS:
 	{
-		int bus_width = phy_get_bus_width(phy);
 		unsigned int flags = bus_width & 0xff;
 		unsigned int rate = (bus_width >> 8) * 7;
 
@@ -320,35 +341,55 @@ static int rk628_combtxphy_set_mode(struct phy *phy, enum phy_mode mode)
 	}
 	case PHY_MODE_GVI:
 	{
-		unsigned int fhsc = phy_get_bus_width(phy) & 0xfff;
+		unsigned int i, delta_freq, best_delta_freq, fb_div;
+		unsigned long ref_clk;
+		unsigned long long pre_clk;
 
-		if (fhsc < 500 || fhsc > 4000)
+		if (bus_width < 500000 || bus_width > 4000000)
 			return -EINVAL;
-		else if (fhsc < 1000)
+		else if (bus_width < 1000000)
 			combtxphy->rate_div = 4;
-		else if (fhsc < 2000)
+		else if (bus_width < 2000000)
 			combtxphy->rate_div = 2;
 		else
 			combtxphy->rate_div = 1;
-		fvco = fhsc * combtxphy->rate_div;
-
-		combtxphy->ref_div = 1;
-		combtxphy->fb_div = fvco / 8 / fin;
-		frac_rate = fvco - (fin * 8 * combtxphy->fb_div);
-
-		if (frac_rate) {
-			frac_rate <<= 10;
-			frac_rate /= fin * 8;
-			combtxphy->frac_div = frac_rate;
-		} else {
-			combtxphy->frac_div = 0;
+		fvco = bus_width * combtxphy->rate_div;
+		ref_clk = clk_get_rate(combtxphy->ref_clk) / 1000; /* khz */
+		if (combtxphy->division_mode)
+			ref_clk /= 2;
+		/*
+		 * the reference clock at PFD(FPFD = ref_clk / ref_div) about
+		 * 25MHz is recommende, FPFD must range from 16MHz to 35MHz,
+		 * here to find the best rev_div.
+		 */
+		best_delta_freq = ref_clk;
+		for (i = 1; i <= 32; i++) {
+			fpfd = ref_clk / i;
+			delta_freq = abs(fpfd - 25000);
+			if (delta_freq < best_delta_freq) {
+				best_delta_freq = delta_freq;
+				combtxphy->ref_div = i;
+			}
 		}
 
-		fvco = fin * (1024 * combtxphy->fb_div + combtxphy->frac_div);
-		fvco *= 8;
-		fvco /= 1024 * combtxphy->ref_div;
-		fhsc = fvco / combtxphy->rate_div;
-		phy_set_bus_width(phy, fhsc);
+		/*
+		 * ref_clk / ref_div * 8 * fb_div = FVCO
+		 */
+		pre_clk = (unsigned long long)fvco / 8 * combtxphy->ref_div * 1024;
+		do_div(pre_clk, ref_clk);
+		fb_div = pre_clk / 1024;
+
+		/*
+		 * get the actually frequence
+		 */
+		bus_width = ref_clk / combtxphy->ref_div * 8;
+		bus_width *= fb_div;
+		bus_width /= combtxphy->rate_div;
+
+		combtxphy->frac_div = 0;
+		combtxphy->fb_div = fb_div;
+
+		phy_set_bus_width(phy, bus_width);
 
 		break;
 	}
@@ -410,6 +451,12 @@ static int rk628_combtxphy_probe(struct platform_device *pdev)
 	combtxphy->pclk = devm_clk_get(dev, "pclk");
 	if (IS_ERR(combtxphy->pclk))
 		return PTR_ERR(combtxphy->pclk);
+
+	combtxphy->ref_clk = devm_clk_get(dev, "ref_clk");
+	if (IS_ERR(combtxphy->ref_clk)) {
+		dev_err(dev, "fail to get ref clk\n");
+		return PTR_ERR(combtxphy->ref_clk);
+	}
 
 	combtxphy->rstc = of_reset_control_get(dev->of_node, NULL);
 	if (IS_ERR(combtxphy->rstc)) {
