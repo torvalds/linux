@@ -2572,8 +2572,6 @@ static int __init init_btrfs_fs(void)
 	if (err)
 		goto free_end_io_wq;
 
-	btrfs_init_lockdep();
-
 	btrfs_print_mod_info();
 
 	err = btrfs_run_sanity_tests();
