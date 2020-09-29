@@ -174,7 +174,8 @@ static void vcap_cache2action(struct ocelot *ocelot,
 static void vcap_data_offset_get(const struct vcap_props *vcap,
 				 struct vcap_data *data, int ix)
 {
-	int i, col, offset, num_entries_per_row, cnt, base;
+	int num_subwords_per_entry, num_subwords_per_action;
+	int i, col, offset, num_entries_per_row, base;
 	u32 width = vcap->tg_width;
 
 	switch (data->tg_sw) {
@@ -192,11 +193,12 @@ static void vcap_data_offset_get(const struct vcap_props *vcap,
 	}
 
 	col = (ix % num_entries_per_row);
-	cnt = (vcap->sw_count / num_entries_per_row);
-	base = (vcap->sw_count - col * cnt - cnt);
+	num_subwords_per_entry = (vcap->sw_count / num_entries_per_row);
+	base = (vcap->sw_count - col * num_subwords_per_entry -
+		num_subwords_per_entry);
 	data->tg_value = 0;
 	data->tg_mask = 0;
-	for (i = 0; i < cnt; i++) {
+	for (i = 0; i < num_subwords_per_entry; i++) {
 		offset = ((base + i) * width);
 		data->tg_value |= (data->tg_sw << offset);
 		data->tg_mask |= GENMASK(offset + width - 1, offset);
@@ -205,12 +207,14 @@ static void vcap_data_offset_get(const struct vcap_props *vcap,
 	/* Calculate key/action/counter offsets */
 	col = (num_entries_per_row - col - 1);
 	data->key_offset = (base * vcap->entry_width) / vcap->sw_count;
-	data->counter_offset = (cnt * col * vcap->counter_width);
+	data->counter_offset = (num_subwords_per_entry * col *
+				vcap->counter_width);
 	i = data->type;
 	width = vcap->action_table[i].width;
-	cnt = vcap->action_table[i].count;
-	data->action_offset = (((cnt * col * width) / num_entries_per_row) +
-			      vcap->action_type_width);
+	num_subwords_per_action = vcap->action_table[i].count;
+	data->action_offset = ((num_subwords_per_action * col * width) /
+				num_entries_per_row);
+	data->action_offset += vcap->action_type_width;
 }
 
 static void vcap_data_set(u32 *data, u32 offset, u32 len, u32 value)
