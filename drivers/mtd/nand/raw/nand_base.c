@@ -5231,7 +5231,7 @@ static int nand_set_ecc_soft_ops(struct nand_chip *chip)
 
 		return 0;
 	case NAND_ECC_ALGO_BCH:
-		if (!mtd_nand_has_bch()) {
+		if (!IS_ENABLED(CONFIG_MTD_NAND_ECC_SW_BCH)) {
 			WARN(1, "CONFIG_MTD_NAND_ECC_SW_BCH not enabled\n");
 			return -EINVAL;
 		}
