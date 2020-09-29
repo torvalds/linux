@@ -5150,17 +5150,11 @@ int rawnand_sw_bch_init(struct nand_chip *chip)
 	base->ecc.user_conf.step_size = chip->ecc.size;
 	base->ecc.user_conf.strength = chip->ecc.strength;
 
-	engine_conf = kzalloc(sizeof(*engine_conf), GFP_KERNEL);
-	if (!engine_conf)
-		return -ENOMEM;
-
-	engine_conf->code_size = chip->ecc.bytes;
-
-	base->ecc.ctx.priv = engine_conf;
-
-	ret = nand_ecc_sw_bch_init(base);
+	ret = nand_ecc_sw_bch_init_ctx(base);
 	if (ret)
-		kfree(base->ecc.ctx.priv);
+		return ret;
+
+	engine_conf = base->ecc.ctx.priv;
 
 	chip->ecc.size = base->ecc.ctx.conf.step_size;
 	chip->ecc.strength = base->ecc.ctx.conf.strength;
@@ -5168,7 +5162,7 @@ int rawnand_sw_bch_init(struct nand_chip *chip)
 	chip->ecc.steps = engine_conf->nsteps;
 	chip->ecc.bytes = engine_conf->code_size;
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(rawnand_sw_bch_init);
 
@@ -5194,9 +5188,7 @@ void rawnand_sw_bch_cleanup(struct nand_chip *chip)
 {
 	struct nand_device *base = &chip->base;
 
-	nand_ecc_sw_bch_cleanup(base);
-
-	kfree(base->ecc.ctx.priv);
+	nand_ecc_sw_bch_cleanup_ctx(base);
 }
 EXPORT_SYMBOL(rawnand_sw_bch_cleanup);
 
@@ -5309,50 +5301,14 @@ static int nand_set_ecc_soft_ops(struct nand_chip *chip)
 		ecc->write_oob = nand_write_oob_std;
 
 		/*
-		* Board driver should supply ecc.size and ecc.strength
-		* values to select how many bits are correctable.
-		* Otherwise, default to 4 bits for large page devices.
-		*/
-		if (!ecc->size && (mtd->oobsize >= 64)) {
-			ecc->size = 512;
-			ecc->strength = 4;
-		}
-
-		/*
-		 * if no ecc placement scheme was provided pickup the default
-		 * large page one.
-		 */
-		if (!mtd->ooblayout) {
-			/* handle large page devices only */
-			if (mtd->oobsize < 64) {
-				WARN(1, "OOB layout is required when using software BCH on small pages\n");
-				return -EINVAL;
-			}
-
-			mtd_set_ooblayout(mtd, nand_get_large_page_ooblayout());
-
-		}
-
-		/*
 		 * We can only maximize ECC config when the default layout is
 		 * used, otherwise we don't know how many bytes can really be
 		 * used.
 		 */
-		if (mtd->ooblayout == nand_get_large_page_ooblayout() &&
-		    nanddev->ecc.user_conf.flags & NAND_ECC_MAXIMIZE_STRENGTH) {
-			int steps, bytes;
+		if (nanddev->ecc.user_conf.flags & NAND_ECC_MAXIMIZE_STRENGTH &&
+		    mtd->ooblayout != nand_get_large_page_ooblayout())
+			nanddev->ecc.user_conf.flags &= ~NAND_ECC_MAXIMIZE_STRENGTH;
 
-			/* Always prefer 1k blocks over 512bytes ones */
-			ecc->size = 1024;
-			steps = mtd->writesize / ecc->size;
-
-			/* Reserve 2 bytes for the BBM */
-			bytes = (mtd->oobsize - 2) / steps;
-			ecc->strength = bytes * 8 / fls(8 * ecc->size);
-		}
-
-		/* See the software BCH ECC initialization for details */
-		ecc->bytes = 0;
 		ret = rawnand_sw_bch_init(chip);
 		if (ret) {
 			WARN(1, "BCH ECC initialization failed!\n");
