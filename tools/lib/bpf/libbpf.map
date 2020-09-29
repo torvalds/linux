@@ -304,6 +304,7 @@ LIBBPF_0.2.0 {
 	global:
 		bpf_prog_bind_map;
 		bpf_prog_test_run_opts;
+		bpf_program__attach_freplace;
 		bpf_program__section_name;
 		btf__add_array;
 		btf__add_const;

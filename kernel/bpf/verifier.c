@@ -2648,8 +2648,7 @@ static int check_map_access(struct bpf_verifier_env *env, u32 regno,
 
 static enum bpf_prog_type resolve_prog_type(struct bpf_prog *prog)
 {
-	return prog->aux->linked_prog ? prog->aux->linked_prog->type
-				      : prog->type;
+	return prog->aux->dst_prog ? prog->aux->dst_prog->type : prog->type;
 }
 
 static bool may_access_direct_pkt_data(struct bpf_verifier_env *env,
@@ -11405,6 +11404,11 @@ int bpf_check_attach_target(struct bpf_verifier_log *log,
 		if (!btf_type_is_func_proto(t))
 			return -EINVAL;
 
+		if ((prog->aux->saved_dst_prog_type || prog->aux->saved_dst_attach_type) &&
+		    (!tgt_prog || prog->aux->saved_dst_prog_type != tgt_prog->type ||
+		     prog->aux->saved_dst_attach_type != tgt_prog->expected_attach_type))
+			return -EINVAL;
+
 		if (tgt_prog && conservative)
 			t = NULL;
 
@@ -11475,7 +11479,7 @@ int bpf_check_attach_target(struct bpf_verifier_log *log,
 static int check_attach_btf_id(struct bpf_verifier_env *env)
 {
 	struct bpf_prog *prog = env->prog;
-	struct bpf_prog *tgt_prog = prog->aux->linked_prog;
+	struct bpf_prog *tgt_prog = prog->aux->dst_prog;
 	struct bpf_attach_target_info tgt_info = {};
 	u32 btf_id = prog->aux->attach_btf_id;
 	struct bpf_trampoline *tr;
@@ -11501,6 +11505,10 @@ static int check_attach_btf_id(struct bpf_verifier_env *env)
 		return ret;
 
 	if (tgt_prog && prog->type == BPF_PROG_TYPE_EXT) {
+		/* to make freplace equivalent to their targets, they need to
+		 * inherit env->ops and expected_attach_type for the rest of the
+		 * verification
+		 */
 		env->ops = bpf_verifier_ops[tgt_prog->type];
 		prog->expected_attach_type = tgt_prog->expected_attach_type;
 	}
@@ -11508,6 +11516,11 @@ static int check_attach_btf_id(struct bpf_verifier_env *env)
 	/* store info about the attachment target that will be used later */
 	prog->aux->attach_func_proto = tgt_info.tgt_type;
 	prog->aux->attach_func_name = tgt_info.tgt_name;
+
+	if (tgt_prog) {
+		prog->aux->saved_dst_prog_type = tgt_prog->type;
+		prog->aux->saved_dst_attach_type = tgt_prog->expected_attach_type;
+	}
 
 	if (prog->expected_attach_type == BPF_TRACE_RAW_TP) {
 		prog->aux->attach_btf_trace = true;
@@ -11529,7 +11542,7 @@ static int check_attach_btf_id(struct bpf_verifier_env *env)
 	if (!tr)
 		return -ENOMEM;
 
-	prog->aux->trampoline = tr;
+	prog->aux->dst_trampoline = tr;
 	return 0;
 }
 
