@@ -81,9 +81,9 @@ static int __fsl_mc_device_remove(struct device *dev, void *data)
  * the MC by removing devices that represent MC objects that have
  * been dynamically removed in the physical DPRC.
  */
-static void dprc_remove_devices(struct fsl_mc_device *mc_bus_dev,
-				struct fsl_mc_obj_desc *obj_desc_array,
-				int num_child_objects_in_mc)
+void dprc_remove_devices(struct fsl_mc_device *mc_bus_dev,
+			 struct fsl_mc_obj_desc *obj_desc_array,
+			 int num_child_objects_in_mc)
 {
 	if (num_child_objects_in_mc != 0) {
 		/*
@@ -105,6 +105,7 @@ static void dprc_remove_devices(struct fsl_mc_device *mc_bus_dev,
 				      __fsl_mc_device_remove);
 	}
 }
+EXPORT_SYMBOL_GPL(dprc_remove_devices);
 
 static int __fsl_mc_device_match(struct device *dev, void *data)
 {
@@ -354,9 +355,10 @@ static int dprc_scan_objects(struct fsl_mc_device *mc_bus_dev,
  * bus driver with the actual state of the MC by adding and removing
  * devices as appropriate.
  */
-static int dprc_scan_container(struct fsl_mc_device *mc_bus_dev)
+int dprc_scan_container(struct fsl_mc_device *mc_bus_dev,
+			bool alloc_interrupts)
 {
-	int error;
+	int error = 0;
 	struct fsl_mc_bus *mc_bus = to_fsl_mc_bus(mc_bus_dev);
 
 	fsl_mc_init_all_resource_pools(mc_bus_dev);
@@ -365,16 +367,12 @@ static int dprc_scan_container(struct fsl_mc_device *mc_bus_dev)
 	 * Discover objects in the DPRC:
 	 */
 	mutex_lock(&mc_bus->scan_mutex);
-	error = dprc_scan_objects(mc_bus_dev, true);
+	error = dprc_scan_objects(mc_bus_dev, alloc_interrupts);
 	mutex_unlock(&mc_bus->scan_mutex);
-	if (error < 0) {
-		fsl_mc_cleanup_all_resource_pools(mc_bus_dev);
-		return error;
-	}
 
-	return 0;
+	return error;
 }
-
+EXPORT_SYMBOL_GPL(dprc_scan_container);
 /**
  * dprc_irq0_handler - Regular ISR for DPRC interrupt 0
  *
@@ -683,12 +681,10 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 		goto error_cleanup_open;
 	}
 
-	mutex_init(&mc_bus->scan_mutex);
-
 	/*
 	 * Discover MC objects in DPRC object:
 	 */
-	error = dprc_scan_container(mc_dev);
+	error = dprc_scan_container(mc_dev, true);
 	if (error < 0)
 		goto error_cleanup_open;
 
