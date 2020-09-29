@@ -174,25 +174,25 @@ static void vcap_cache2action(struct ocelot *ocelot,
 static void vcap_data_offset_get(const struct vcap_props *vcap,
 				 struct vcap_data *data, int ix)
 {
-	int i, col, offset, count, cnt, base;
+	int i, col, offset, num_entries_per_row, cnt, base;
 	u32 width = vcap->tg_width;
 
 	switch (data->tg_sw) {
 	case VCAP_TG_FULL:
-		count = 1;
+		num_entries_per_row = 1;
 		break;
 	case VCAP_TG_HALF:
-		count = 2;
+		num_entries_per_row = 2;
 		break;
 	case VCAP_TG_QUARTER:
-		count = 4;
+		num_entries_per_row = 4;
 		break;
 	default:
 		return;
 	}
 
-	col = (ix % count);
-	cnt = (vcap->sw_count / count);
+	col = (ix % num_entries_per_row);
+	cnt = (vcap->sw_count / num_entries_per_row);
 	base = (vcap->sw_count - col * cnt - cnt);
 	data->tg_value = 0;
 	data->tg_mask = 0;
@@ -203,13 +203,13 @@ static void vcap_data_offset_get(const struct vcap_props *vcap,
 	}
 
 	/* Calculate key/action/counter offsets */
-	col = (count - col - 1);
+	col = (num_entries_per_row - col - 1);
 	data->key_offset = (base * vcap->entry_width) / vcap->sw_count;
 	data->counter_offset = (cnt * col * vcap->counter_width);
 	i = data->type;
 	width = vcap->action_table[i].width;
 	cnt = vcap->action_table[i].count;
-	data->action_offset = (((cnt * col * width) / count) +
+	data->action_offset = (((cnt * col * width) / num_entries_per_row) +
 			      vcap->action_type_width);
 }
 
