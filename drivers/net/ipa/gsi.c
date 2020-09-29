@@ -254,8 +254,8 @@ static void gsi_irq_enable(struct gsi *gsi)
 
 	/* We don't use inter-EE channel or event interrupts */
 	val = GSI_CNTXT_TYPE_IRQ_MSK_ALL;
-	val &= ~MSK_INTER_EE_CH_CTRL_FMASK;
-	val &= ~MSK_INTER_EE_EV_CTRL_FMASK;
+	val &= ~INTER_EE_CH_CTRL_FMASK;
+	val &= ~INTER_EE_EV_CTRL_FMASK;
 	iowrite32(val, gsi->virt + GSI_CNTXT_TYPE_IRQ_MSK_OFFSET);
 
 	val = GENMASK(gsi->channel_count - 1, 0);
@@ -271,7 +271,7 @@ static void gsi_irq_enable(struct gsi *gsi)
 	iowrite32(val, gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
 
 	/* Never enable GSI_BREAK_POINT */
-	val = GSI_CNTXT_GSI_IRQ_ALL & ~EN_BREAK_POINT_FMASK;
+	val = GSI_CNTXT_GSI_IRQ_ALL & ~BREAK_POINT_FMASK;
 	iowrite32(val, gsi->virt + GSI_CNTXT_GSI_IRQ_EN_OFFSET);
 }
 
@@ -1074,8 +1074,8 @@ static void gsi_isr_glob_ee(struct gsi *gsi)
 
 	val &= ~ERROR_INT_FMASK;
 
-	if (val & EN_GP_INT1_FMASK) {
-		val ^= EN_GP_INT1_FMASK;
+	if (val & GP_INT1_FMASK) {
+		val ^= GP_INT1_FMASK;
 		gsi_isr_gp_int1(gsi);
 	}
 
@@ -1600,7 +1600,7 @@ err_unwind_modem:
 	/* Compute which modem channels need to be deallocated */
 	mask ^= gsi->modem_channel_bitmap;
 	while (mask) {
-		u32 channel_id = __fls(mask);
+		channel_id = __fls(mask);
 
 		mask ^= BIT(channel_id);
 
@@ -1628,7 +1628,7 @@ static void gsi_channel_teardown(struct gsi *gsi)
 	mutex_lock(&gsi->mutex);
 
 	while (mask) {
-		u32 channel_id = __fls(mask);
+		channel_id = __fls(mask);
 
 		mask ^= BIT(channel_id);
 
@@ -1972,7 +1972,6 @@ int gsi_init(struct gsi *gsi, struct platform_device *pdev, bool prefetch,
 	 */
 	init_dummy_netdev(&gsi->dummy_dev);
 
-	/* Get the GSI IRQ and request for it to wake the system */
 	ret = platform_get_irq_byname(pdev, "gsi");
 	if (ret <= 0) {
 		dev_err(dev, "DT error %d getting \"gsi\" IRQ property\n", ret);

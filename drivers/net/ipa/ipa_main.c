@@ -723,8 +723,8 @@ static int ipa_probe(struct platform_device *pdev)
 	bool modem_alloc;
 	bool modem_init;
 	struct ipa *ipa;
-	phandle phandle;
 	bool prefetch;
+	phandle ph;
 	int ret;
 
 	ipa_validate_build();
@@ -736,13 +736,13 @@ static int ipa_probe(struct platform_device *pdev)
 			return -EPROBE_DEFER;
 
 	/* We rely on remoteproc to tell us about modem state changes */
-	phandle = of_property_read_phandle(dev->of_node, "modem-remoteproc");
-	if (!phandle) {
+	ph = of_property_read_phandle(dev->of_node, "modem-remoteproc");
+	if (!ph) {
 		dev_err(dev, "DT missing \"modem-remoteproc\" property\n");
 		return -EINVAL;
 	}
 
-	rproc = rproc_get_by_phandle(phandle);
+	rproc = rproc_get_by_phandle(ph);
 	if (!rproc)
 		return -EPROBE_DEFER;
 
