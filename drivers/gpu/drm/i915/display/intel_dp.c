@@ -3850,7 +3850,7 @@ g4x_set_link_train(struct intel_dp *intel_dp,
 }
 
 static void intel_dp_enable_port(struct intel_dp *intel_dp,
-				 const struct intel_crtc_state *old_crtc_state)
+				 const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 
@@ -3865,7 +3865,7 @@ static void intel_dp_enable_port(struct intel_dp *intel_dp,
 	 * fail when the power sequencer is freshly used for this port.
 	 */
 	intel_dp->DP |= DP_PORT_EN;
-	if (old_crtc_state->has_audio)
+	if (crtc_state->has_audio)
 		intel_dp->DP |= DP_AUDIO_OUTPUT_ENABLE;
 
 	intel_de_write(dev_priv, intel_dp->output_reg, intel_dp->DP);
