@@ -5141,33 +5141,23 @@ static void nand_scan_ident_cleanup(struct nand_chip *chip)
 
 int rawnand_sw_hamming_init(struct nand_chip *chip)
 {
-	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct nand_ecc_sw_hamming_conf *engine_conf;
 	struct nand_device *base = &chip->base;
+	int ret;
 
 	base->ecc.user_conf.engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
 	base->ecc.user_conf.algo = NAND_ECC_ALGO_HAMMING;
 	base->ecc.user_conf.strength = chip->ecc.strength;
 	base->ecc.user_conf.step_size = chip->ecc.size;
 
-	if (base->ecc.user_conf.strength != 1 ||
-	    (base->ecc.user_conf.step_size != 256 &&
-	     base->ecc.user_conf.step_size != 512)) {
-		pr_err("%s: unsupported strength or step size\n", __func__);
-		return -EINVAL;
-	}
+	ret = nand_ecc_sw_hamming_init_ctx(base);
+	if (ret)
+		return ret;
 
-	engine_conf = kzalloc(sizeof(*engine_conf), GFP_KERNEL);
-	if (!engine_conf)
-		return -ENOMEM;
-
-	engine_conf->code_size = 3;
-	engine_conf->nsteps = mtd->writesize / base->ecc.user_conf.step_size;
+	engine_conf = base->ecc.ctx.priv;
 
 	if (chip->ecc.options & NAND_ECC_SOFT_HAMMING_SM_ORDER)
 		engine_conf->sm_order = true;
-
-	base->ecc.ctx.priv = engine_conf;
 
 	chip->ecc.size = base->ecc.ctx.conf.step_size;
 	chip->ecc.strength = base->ecc.ctx.conf.strength;
@@ -5204,7 +5194,7 @@ void rawnand_sw_hamming_cleanup(struct nand_chip *chip)
 {
 	struct nand_device *base = &chip->base;
 
-	kfree(base->ecc.ctx.priv);
+	nand_ecc_sw_hamming_cleanup_ctx(base);
 }
 EXPORT_SYMBOL(rawnand_sw_hamming_cleanup);
 
@@ -5733,7 +5723,9 @@ static int nand_scan_tail(struct nand_chip *chip)
 	 */
 	if (!mtd->ooblayout &&
 	    !(ecc->engine_type == NAND_ECC_ENGINE_TYPE_SOFT &&
-	      ecc->algo == NAND_ECC_ALGO_BCH)) {
+	      ecc->algo == NAND_ECC_ALGO_BCH) &&
+	    !(ecc->engine_type == NAND_ECC_ENGINE_TYPE_SOFT &&
+	      ecc->algo == NAND_ECC_ALGO_HAMMING)) {
 		switch (mtd->oobsize) {
 		case 8:
 		case 16:

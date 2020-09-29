@@ -17,7 +17,9 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mtd/nand.h>
 #include <linux/mtd/nand-ecc-sw-hamming.h>
+#include <linux/slab.h>
 #include <asm/byteorder.h>
 
 /*
@@ -459,6 +461,197 @@ int nand_ecc_sw_hamming_correct(struct nand_device *nand, unsigned char *buf,
 				      engine_conf->sm_order);
 }
 EXPORT_SYMBOL(nand_ecc_sw_hamming_correct);
+
+int nand_ecc_sw_hamming_init_ctx(struct nand_device *nand)
+{
+	struct nand_ecc_props *conf = &nand->ecc.ctx.conf;
+	struct nand_ecc_sw_hamming_conf *engine_conf;
+	struct mtd_info *mtd = nanddev_to_mtd(nand);
+	int ret;
+
+	if (!mtd->ooblayout) {
+		switch (mtd->oobsize) {
+		case 8:
+		case 16:
+			mtd_set_ooblayout(mtd, nand_get_small_page_ooblayout());
+			break;
+		case 64:
+		case 128:
+			mtd_set_ooblayout(mtd,
+					  nand_get_large_page_hamming_ooblayout());
+			break;
+		default:
+			return -ENOTSUPP;
+		}
+	}
+
+	conf->engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
+	conf->algo = NAND_ECC_ALGO_HAMMING;
+	conf->step_size = nand->ecc.user_conf.step_size;
+	conf->strength = 1;
+
+	/* Use the strongest configuration by default */
+	if (conf->step_size != 256 && conf->step_size != 512)
+		conf->step_size = 256;
+
+	engine_conf = kzalloc(sizeof(*engine_conf), GFP_KERNEL);
+	if (!engine_conf)
+		return -ENOMEM;
+
+	ret = nand_ecc_init_req_tweaking(&engine_conf->req_ctx, nand);
+	if (ret)
+		goto free_engine_conf;
+
+	engine_conf->code_size = 3;
+	engine_conf->nsteps = mtd->writesize / conf->step_size;
+	engine_conf->calc_buf = kzalloc(mtd->oobsize, GFP_KERNEL);
+	engine_conf->code_buf = kzalloc(mtd->oobsize, GFP_KERNEL);
+	if (!engine_conf->calc_buf || !engine_conf->code_buf) {
+		ret = -ENOMEM;
+		goto free_bufs;
+	}
+
+	nand->ecc.ctx.priv = engine_conf;
+	nand->ecc.ctx.total = engine_conf->nsteps * engine_conf->code_size;
+
+	return 0;
+
+free_bufs:
+	nand_ecc_cleanup_req_tweaking(&engine_conf->req_ctx);
+	kfree(engine_conf->calc_buf);
+	kfree(engine_conf->code_buf);
+free_engine_conf:
+	kfree(engine_conf);
+
+	return ret;
+}
+EXPORT_SYMBOL(nand_ecc_sw_hamming_init_ctx);
+
+void nand_ecc_sw_hamming_cleanup_ctx(struct nand_device *nand)
+{
+	struct nand_ecc_sw_hamming_conf *engine_conf = nand->ecc.ctx.priv;
+
+	if (engine_conf) {
+		nand_ecc_cleanup_req_tweaking(&engine_conf->req_ctx);
+		kfree(engine_conf->calc_buf);
+		kfree(engine_conf->code_buf);
+		kfree(engine_conf);
+	}
+}
+EXPORT_SYMBOL(nand_ecc_sw_hamming_cleanup_ctx);
+
+static int nand_ecc_sw_hamming_prepare_io_req(struct nand_device *nand,
+					      struct nand_page_io_req *req)
+{
+	struct nand_ecc_sw_hamming_conf *engine_conf = nand->ecc.ctx.priv;
+	struct mtd_info *mtd = nanddev_to_mtd(nand);
+	int eccsize = nand->ecc.ctx.conf.step_size;
+	int eccbytes = engine_conf->code_size;
+	int eccsteps = engine_conf->nsteps;
+	int total = nand->ecc.ctx.total;
+	u8 *ecccalc = engine_conf->calc_buf;
+	const u8 *data;
+	int i;
+
+	/* Nothing to do for a raw operation */
+	if (req->mode == MTD_OPS_RAW)
+		return 0;
+
+	/* This engine does not provide BBM/free OOB bytes protection */
+	if (!req->datalen)
+		return 0;
+
+	nand_ecc_tweak_req(&engine_conf->req_ctx, req);
+
+	/* No more preparation for page read */
+	if (req->type == NAND_PAGE_READ)
+		return 0;
+
+	/* Preparation for page write: derive the ECC bytes and place them */
+	for (i = 0, data = req->databuf.out;
+	     eccsteps;
+	     eccsteps--, i += eccbytes, data += eccsize)
+		nand_ecc_sw_hamming_calculate(nand, data, &ecccalc[i]);
+
+	return mtd_ooblayout_set_eccbytes(mtd, ecccalc, (void *)req->oobbuf.out,
+					  0, total);
+}
+
+static int nand_ecc_sw_hamming_finish_io_req(struct nand_device *nand,
+					     struct nand_page_io_req *req)
+{
+	struct nand_ecc_sw_hamming_conf *engine_conf = nand->ecc.ctx.priv;
+	struct mtd_info *mtd = nanddev_to_mtd(nand);
+	int eccsize = nand->ecc.ctx.conf.step_size;
+	int total = nand->ecc.ctx.total;
+	int eccbytes = engine_conf->code_size;
+	int eccsteps = engine_conf->nsteps;
+	u8 *ecccalc = engine_conf->calc_buf;
+	u8 *ecccode = engine_conf->code_buf;
+	unsigned int max_bitflips = 0;
+	u8 *data = req->databuf.in;
+	int i, ret;
+
+	/* Nothing to do for a raw operation */
+	if (req->mode == MTD_OPS_RAW)
+		return 0;
+
+	/* This engine does not provide BBM/free OOB bytes protection */
+	if (!req->datalen)
+		return 0;
+
+	/* No more preparation for page write */
+	if (req->type == NAND_PAGE_WRITE) {
+		nand_ecc_restore_req(&engine_conf->req_ctx, req);
+		return 0;
+	}
+
+	/* Finish a page read: retrieve the (raw) ECC bytes*/
+	ret = mtd_ooblayout_get_eccbytes(mtd, ecccode, req->oobbuf.in, 0,
+					 total);
+	if (ret)
+		return ret;
+
+	/* Calculate the ECC bytes */
+	for (i = 0; eccsteps; eccsteps--, i += eccbytes, data += eccsize)
+		nand_ecc_sw_hamming_calculate(nand, data, &ecccalc[i]);
+
+	/* Finish a page read: compare and correct */
+	for (eccsteps = engine_conf->nsteps, i = 0, data = req->databuf.in;
+	     eccsteps;
+	     eccsteps--, i += eccbytes, data += eccsize) {
+		int stat =  nand_ecc_sw_hamming_correct(nand, data,
+							&ecccode[i],
+							&ecccalc[i]);
+		if (stat < 0) {
+			mtd->ecc_stats.failed++;
+		} else {
+			mtd->ecc_stats.corrected += stat;
+			max_bitflips = max_t(unsigned int, max_bitflips, stat);
+		}
+	}
+
+	nand_ecc_restore_req(&engine_conf->req_ctx, req);
+
+	return max_bitflips;
+}
+
+static struct nand_ecc_engine_ops nand_ecc_sw_hamming_engine_ops = {
+	.init_ctx = nand_ecc_sw_hamming_init_ctx,
+	.cleanup_ctx = nand_ecc_sw_hamming_cleanup_ctx,
+	.prepare_io_req = nand_ecc_sw_hamming_prepare_io_req,
+	.finish_io_req = nand_ecc_sw_hamming_finish_io_req,
+};
+
+static struct nand_ecc_engine nand_ecc_sw_hamming_engine = {
+	.ops = &nand_ecc_sw_hamming_engine_ops,
+};
+
+struct nand_ecc_engine *nand_ecc_sw_hamming_get_engine(void)
+{
+	return &nand_ecc_sw_hamming_engine;
+}
+EXPORT_SYMBOL(nand_ecc_sw_hamming_get_engine);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Frans Meulenbroeks <fransmeulenbroeks@gmail.com>");

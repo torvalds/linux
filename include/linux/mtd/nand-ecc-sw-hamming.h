@@ -14,8 +14,8 @@
 
 /**
  * struct nand_ecc_sw_hamming_conf - private software Hamming ECC engine structure
- * @reqooblen: Save the actual user OOB length requested before overwriting it
- * @spare_oobbuf: Spare OOB buffer if none is provided
+ * @req_ctx: Save request context and tweak the original request to fit the
+ *           engine needs
  * @code_size: Number of bytes needed to store a code (one code per step)
  * @nsteps: Number of steps
  * @calc_buf: Buffer to use when calculating ECC bytes
@@ -23,8 +23,7 @@
  * @sm_order: Smart Media special ordering
  */
 struct nand_ecc_sw_hamming_conf {
-	unsigned int reqooblen;
-	void *spare_oobbuf;
+	struct nand_ecc_req_tweak_ctx req_ctx;
 	unsigned int code_size;
 	unsigned int nsteps;
 	u8 *calc_buf;
@@ -34,6 +33,8 @@ struct nand_ecc_sw_hamming_conf {
 
 #if IS_ENABLED(CONFIG_MTD_NAND_ECC_SW_HAMMING)
 
+int nand_ecc_sw_hamming_init_ctx(struct nand_device *nand);
+void nand_ecc_sw_hamming_cleanup_ctx(struct nand_device *nand);
 int ecc_sw_hamming_calculate(const unsigned char *buf, unsigned int step_size,
 			     unsigned char *code, bool sm_order);
 int nand_ecc_sw_hamming_calculate(struct nand_device *nand,
@@ -47,6 +48,13 @@ int nand_ecc_sw_hamming_correct(struct nand_device *nand, unsigned char *buf,
 				unsigned char *calc_ecc);
 
 #else /* !CONFIG_MTD_NAND_ECC_SW_HAMMING */
+
+static inline int nand_ecc_sw_hamming_init_ctx(struct nand_device *nand)
+{
+	return -ENOTSUPP;
+}
+
+static inline void nand_ecc_sw_hamming_cleanup_ctx(struct nand_device *nand) {}
 
 static inline int ecc_sw_hamming_calculate(const unsigned char *buf,
 					   unsigned int step_size,
