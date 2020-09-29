@@ -625,6 +625,20 @@ struct devlink_health_reporter_ops {
 };
 
 /**
+ * struct devlink_trap_metadata - Packet trap metadata.
+ * @trap_name: Trap name.
+ * @trap_group_name: Trap group name.
+ * @input_dev: Input netdevice.
+ * @fa_cookie: Flow action user cookie.
+ */
+struct devlink_trap_metadata {
+	const char *trap_name;
+	const char *trap_group_name;
+	struct net_device *input_dev;
+	const struct flow_action_cookie *fa_cookie;
+};
+
+/**
  * struct devlink_trap_policer - Immutable packet trap policer attributes.
  * @id: Policer identifier.
  * @init_rate: Initial rate in packets / sec.

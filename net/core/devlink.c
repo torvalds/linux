@@ -84,6 +84,7 @@ EXPORT_SYMBOL(devlink_dpipe_header_ipv6);
 
 EXPORT_TRACEPOINT_SYMBOL_GPL(devlink_hwmsg);
 EXPORT_TRACEPOINT_SYMBOL_GPL(devlink_hwerr);
+EXPORT_TRACEPOINT_SYMBOL_GPL(devlink_trap_report);
 
 static const struct nla_policy devlink_function_nl_policy[DEVLINK_PORT_FUNCTION_ATTR_MAX + 1] = {
 	[DEVLINK_PORT_FUNCTION_ATTR_HW_ADDR] = { .type = NLA_BINARY },
@@ -9278,6 +9279,22 @@ devlink_trap_report_metadata_fill(struct net_dm_hw_metadata *hw_metadata,
 	spin_unlock(&in_devlink_port->type_lock);
 }
 
+static void
+devlink_trap_report_metadata_set(struct devlink_trap_metadata *metadata,
+				 const struct devlink_trap_item *trap_item,
+				 struct devlink_port *in_devlink_port,
+				 const struct flow_action_cookie *fa_cookie)
+{
+	metadata->trap_name = trap_item->trap->name;
+	metadata->trap_group_name = trap_item->group_item->group->name;
+	metadata->fa_cookie = fa_cookie;
+
+	spin_lock(&in_devlink_port->type_lock);
+	if (in_devlink_port->type == DEVLINK_PORT_TYPE_ETH)
+		metadata->input_dev = in_devlink_port->type_dev;
+	spin_unlock(&in_devlink_port->type_lock);
+}
+
 /**
  * devlink_trap_report - Report trapped packet to drop monitor.
  * @devlink: devlink.
@@ -9307,6 +9324,14 @@ void devlink_trap_report(struct devlink *devlink, struct sk_buff *skb,
 	devlink_trap_report_metadata_fill(&hw_metadata, trap_item,
 					  in_devlink_port, fa_cookie);
 	net_dm_hw_report(skb, &hw_metadata);
+
+	if (trace_devlink_trap_report_enabled()) {
+		struct devlink_trap_metadata metadata = {};
+
+		devlink_trap_report_metadata_set(&metadata, trap_item,
+						 in_devlink_port, fa_cookie);
+		trace_devlink_trap_report(devlink, skb, &metadata);
+	}
 }
 EXPORT_SYMBOL_GPL(devlink_trap_report);
 
