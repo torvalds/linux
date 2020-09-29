@@ -38,6 +38,10 @@ properties:
               - allwinner,sun8i-h3-system-controller
               - allwinner,sun8i-v3s-system-controller
               - allwinner,sun50i-a64-system-controller
+              - hisilicon,dsa-subctrl
+              - hisilicon,hi6220-sramctrl
+              - hisilicon,pcie-sas-subctrl
+              - hisilicon,peri-subctrl
               - microchip,sparx5-cpu-syscon
               - mstar,msc313-pmsleep
 
