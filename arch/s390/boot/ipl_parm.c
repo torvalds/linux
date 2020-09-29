@@ -280,14 +280,23 @@ void parse_boot_command_line(void)
 	}
 }
 
+static inline bool is_ipl_block_dump(void)
+{
+	if (ipl_block.pb0_hdr.pbt == IPL_PBT_FCP &&
+	    ipl_block.fcp.opt == IPL_PB0_FCP_OPT_DUMP)
+		return true;
+	if (ipl_block.pb0_hdr.pbt == IPL_PBT_NVME &&
+	    ipl_block.nvme.opt == IPL_PB0_NVME_OPT_DUMP)
+		return true;
+	return false;
+}
+
 void setup_memory_end(void)
 {
 #ifdef CONFIG_CRASH_DUMP
 	if (OLDMEM_BASE) {
 		kaslr_enabled = 0;
-	} else if (ipl_block_valid &&
-		   ipl_block.pb0_hdr.pbt == IPL_PBT_FCP &&
-		   ipl_block.fcp.opt == IPL_PB0_FCP_OPT_DUMP) {
+	} else if (ipl_block_valid && is_ipl_block_dump()) {
 		kaslr_enabled = 0;
 		if (!sclp_early_get_hsa_size(&memory_end) && memory_end)
 			memory_end_set = 1;

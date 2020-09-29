@@ -257,7 +257,7 @@ static int __init sclp_sdias_init_async(void)
 
 int __init sclp_sdias_init(void)
 {
-	if (ipl_info.type != IPL_TYPE_FCP_DUMP)
+	if (!is_ipl_type_dump())
 		return 0;
 	sclp_sdias_sccb = (void *) __get_free_page(GFP_KERNEL | GFP_DMA);
 	BUG_ON(!sclp_sdias_sccb);

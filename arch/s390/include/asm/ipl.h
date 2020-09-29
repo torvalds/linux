@@ -95,6 +95,12 @@ extern struct ipl_info ipl_info;
 extern void setup_ipl(void);
 extern void set_os_info_reipl_block(void);
 
+static inline bool is_ipl_type_dump(void)
+{
+	return (ipl_info.type == IPL_TYPE_FCP_DUMP) ||
+		(ipl_info.type == IPL_TYPE_NVME_DUMP);
+}
+
 struct ipl_report {
 	struct ipl_parameter_block *ipib;
 	struct list_head components;
