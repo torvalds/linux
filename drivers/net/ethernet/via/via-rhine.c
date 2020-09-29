@@ -1706,6 +1706,8 @@ static int rhine_open(struct net_device *dev)
 		goto out_free_ring;
 
 	alloc_tbufs(dev);
+	enable_mmio(rp->pioaddr, rp->quirks);
+	rhine_power_init(dev);
 	rhine_chip_reset(dev);
 	rhine_task_enable(rp);
 	init_registers(dev);
