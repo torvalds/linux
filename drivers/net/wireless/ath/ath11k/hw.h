@@ -156,6 +156,8 @@ struct ath11k_hw_params {
 	bool htt_peer_map_v2;
 	bool tcl_0_only;
 	u8 spectral_fft_sz;
+
+	u16 interface_modes;
 };
 
 struct ath11k_hw_ops {
