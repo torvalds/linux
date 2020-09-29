@@ -320,12 +320,6 @@ static int hfa384x_cmd(struct net_device *dev, u16 cmd, u16 param0,
 	iface = netdev_priv(dev);
 	local = iface->local;
 
-	if (in_interrupt()) {
-		printk(KERN_DEBUG "%s: hfa384x_cmd called from interrupt "
-		       "context\n", dev->name);
-		return -1;
-	}
-
 	if (local->cmd_queue_len >= HOSTAP_CMD_QUEUE_MAX_LEN) {
 		printk(KERN_DEBUG "%s: hfa384x_cmd: cmd_queue full\n",
 		       dev->name);
@@ -1559,12 +1553,6 @@ static void prism2_hw_reset(struct net_device *dev)
 
 	iface = netdev_priv(dev);
 	local = iface->local;
-
-	if (in_interrupt()) {
-		printk(KERN_DEBUG "%s: driver bug - prism2_hw_reset() called "
-		       "in interrupt context\n", dev->name);
-		return;
-	}
 
 	if (local->hw_downloading)
 		return;
