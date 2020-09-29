@@ -3,6 +3,7 @@
  * Freescale Management Complex (MC) bus public interface
  *
  * Copyright (C) 2014-2016 Freescale Semiconductor, Inc.
+ * Copyright 2019-2020 NXP
  * Author: German Rivera <German.Rivera@freescale.com>
  *
  */
@@ -147,6 +148,13 @@ struct fsl_mc_obj_desc {
  * Bit masks for a MC object device (struct fsl_mc_device) flags
  */
 #define FSL_MC_IS_DPRC	0x0001
+
+/* Region flags */
+/* Indicates that region can be mapped as cacheable */
+#define FSL_MC_REGION_CACHEABLE	0x00000001
+
+/* Indicates that region can be mapped as shareable */
+#define FSL_MC_REGION_SHAREABLE	0x00000002
 
 /**
  * struct fsl_mc_device - MC object device object
