@@ -325,8 +325,10 @@ LIBBPF_0.2.0 {
 		btf__add_union;
 		btf__add_var;
 		btf__add_volatile;
+		btf__endianness;
 		btf__find_str;
 		btf__new_empty;
+		btf__set_endianness;
 		btf__str_by_offset;
 		perf_buffer__buffer_cnt;
 		perf_buffer__buffer_fd;
