@@ -889,7 +889,7 @@ static int soc_pcm_hw_free(struct snd_pcm_substream *substream)
 	snd_soc_link_hw_free(substream, 0);
 
 	/* free any component resources */
-	snd_soc_pcm_component_hw_free(substream, NULL);
+	snd_soc_pcm_component_hw_free(substream, 0);
 
 	/* now free hw params for the DAIs  */
 	for_each_rtd_dais(rtd, i, dai) {
@@ -912,7 +912,6 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct snd_soc_component *component;
 	struct snd_soc_dai *cpu_dai;
 	struct snd_soc_dai *codec_dai;
 	int i, ret = 0;
@@ -995,7 +994,7 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 		snd_soc_dapm_update_dai(substream, params, cpu_dai);
 	}
 
-	ret = snd_soc_pcm_component_hw_params(substream, params, &component);
+	ret = snd_soc_pcm_component_hw_params(substream, params);
 	if (ret < 0)
 		goto component_err;
 
@@ -1004,7 +1003,7 @@ out:
 	return ret;
 
 component_err:
-	snd_soc_pcm_component_hw_free(substream, component);
+	snd_soc_pcm_component_hw_free(substream, 1);
 
 	i = rtd->num_cpus;
 
