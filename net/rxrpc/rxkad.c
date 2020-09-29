@@ -1162,8 +1162,6 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 	if (skb_copy_bits(skb, sizeof(struct rxrpc_wire_header),
 			  response, sizeof(*response)) < 0)
 		goto protocol_error;
-	if (!pskb_pull(skb, sizeof(*response)))
-		BUG();
 
 	version = ntohl(response->version);
 	ticket_len = ntohl(response->ticket_len);
@@ -1194,7 +1192,7 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 
 	eproto = tracepoint_string("rxkad_tkt_short");
 	abort_code = RXKADPACKETSHORT;
-	if (skb_copy_bits(skb, sizeof(struct rxrpc_wire_header),
+	if (skb_copy_bits(skb, sizeof(struct rxrpc_wire_header) + sizeof(*response),
 			  ticket, ticket_len) < 0)
 		goto protocol_error_free;
 
