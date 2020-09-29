@@ -515,9 +515,6 @@ There's a bunch of issues with it:
   this (together with the drm_minor->drm_device move) would allow us to remove
   debugfs_init.
 
-- Drop the return code and error checking from all debugfs functions. Greg KH is
-  working on this already.
-
 Contact: Daniel Vetter
 
 Level: Intermediate
