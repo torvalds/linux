@@ -4425,20 +4425,8 @@ static int smu7_set_max_fan_pwm_output(struct pp_hwmgr *hwmgr, uint16_t us_max_f
 }
 
 static int
-smu7_notify_smc_display_change(struct pp_hwmgr *hwmgr, bool has_display)
-{
-	PPSMC_Msg msg = has_display ? (PPSMC_Msg)PPSMC_HasDisplay : (PPSMC_Msg)PPSMC_NoDisplay;
-
-	return (smum_send_msg_to_smc(hwmgr, msg, NULL) == 0) ?  0 : -1;
-}
-
-static int
 smu7_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr)
 {
-	if (hwmgr->display_config->num_display > 1 &&
-			!hwmgr->display_config->multi_monitor_in_sync)
-		smu7_notify_smc_display_change(hwmgr, false);
-
 	return 0;
 }
 
