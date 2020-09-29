@@ -252,9 +252,7 @@ __bpf_prog_test_run_raw_tp(void *data)
 	struct bpf_raw_tp_test_run_info *info = data;
 
 	rcu_read_lock();
-	migrate_disable();
 	info->retval = BPF_PROG_RUN(info->prog, info->ctx);
-	migrate_enable();
 	rcu_read_unlock();
 }
 
@@ -266,6 +264,7 @@ int bpf_prog_test_run_raw_tp(struct bpf_prog *prog,
 	__u32 ctx_size_in = kattr->test.ctx_size_in;
 	struct bpf_raw_tp_test_run_info info;
 	int cpu = kattr->test.cpu, err = 0;
+	int current_cpu;
 
 	/* doesn't support data_in/out, ctx_out, duration, or repeat */
 	if (kattr->test.data_in || kattr->test.data_out ||
@@ -293,27 +292,25 @@ int bpf_prog_test_run_raw_tp(struct bpf_prog *prog,
 
 	info.prog = prog;
 
+	current_cpu = get_cpu();
 	if ((kattr->test.flags & BPF_F_TEST_RUN_ON_CPU) == 0 ||
-	    cpu == smp_processor_id()) {
+	    cpu == current_cpu) {
 		__bpf_prog_test_run_raw_tp(&info);
-	} else {
+	} else if (cpu >= nr_cpu_ids || !cpu_online(cpu)) {
 		/* smp_call_function_single() also checks cpu_online()
 		 * after csd_lock(). However, since cpu is from user
 		 * space, let's do an extra quick check to filter out
 		 * invalid value before smp_call_function_single().
 		 */
-		if (cpu >= nr_cpu_ids || !cpu_online(cpu)) {
-			err = -ENXIO;
-			goto out;
-		}
-
+		err = -ENXIO;
+	} else {
 		err = smp_call_function_single(cpu, __bpf_prog_test_run_raw_tp,
 					       &info, 1);
-		if (err)
-			goto out;
 	}
+	put_cpu();
 
-	if (copy_to_user(&uattr->test.retval, &info.retval, sizeof(u32)))
+	if (!err &&
+	    copy_to_user(&uattr->test.retval, &info.retval, sizeof(u32)))
 		err = -EFAULT;
 
 out:
