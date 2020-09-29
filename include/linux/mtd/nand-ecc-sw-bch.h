@@ -10,7 +10,6 @@
 
 struct mtd_info;
 struct nand_chip;
-struct nand_bch_control;
 
 #if IS_ENABLED(CONFIG_MTD_NAND_ECC_SW_BCH)
 
@@ -30,11 +29,11 @@ int nand_bch_correct_data(struct nand_chip *chip, u_char *dat,
 /*
  * Initialize BCH encoder/decoder
  */
-struct nand_bch_control *nand_bch_init(struct mtd_info *mtd);
+int nand_bch_init(struct nand_chip *chip);
 /*
  * Release BCH encoder/decoder resources
  */
-void nand_bch_free(struct nand_bch_control *nbc);
+void nand_bch_free(struct nand_chip *chip);
 
 #else /* !CONFIG_MTD_NAND_ECC_SW_BCH */
 
@@ -54,12 +53,12 @@ nand_bch_correct_data(struct nand_chip *chip, unsigned char *buf,
 	return -ENOTSUPP;
 }
 
-static inline struct nand_bch_control *nand_bch_init(struct mtd_info *mtd)
+static inline int nand_bch_init(struct nand_chip *chip)
 {
-	return NULL;
+	return -ENOTSUPP;
 }
 
-static inline void nand_bch_free(struct nand_bch_control *nbc) {}
+static inline void nand_bch_free(struct nand_chip *chip) {}
 
 #endif /* CONFIG_MTD_NAND_ECC_SW_BCH */
 

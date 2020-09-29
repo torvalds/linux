@@ -90,7 +90,7 @@ EXPORT_SYMBOL(nand_bch_correct_data);
 
 /**
  * nand_bch_init - Initialize software BCH ECC engine
- * @mtd: MTD device
+ * @chip: NAND chip object
  *
  * Returns: a pointer to a new NAND BCH control structure, or NULL upon failure
  *
@@ -105,24 +105,24 @@ EXPORT_SYMBOL(nand_bch_correct_data);
  * @eccsize = 512 (thus, m = 13 is the smallest integer such that 2^m - 1 > 512 * 8)
  * @eccbytes = 7 (7 bytes are required to store m * t = 13 * 4 = 52 bits)
  */
-struct nand_bch_control *nand_bch_init(struct mtd_info *mtd)
+int nand_bch_init(struct nand_chip *chip)
 {
-	struct nand_chip *nand = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	unsigned int m, t, eccsteps, i;
 	struct nand_bch_control *nbc = NULL;
 	unsigned char *erased_page;
-	unsigned int eccsize = nand->ecc.size;
-	unsigned int eccbytes = nand->ecc.bytes;
-	unsigned int eccstrength = nand->ecc.strength;
+	unsigned int eccsize = chip->ecc.size;
+	unsigned int eccbytes = chip->ecc.bytes;
+	unsigned int eccstrength = chip->ecc.strength;
 
 	if (!eccbytes && eccstrength) {
 		eccbytes = DIV_ROUND_UP(eccstrength * fls(8 * eccsize), 8);
-		nand->ecc.bytes = eccbytes;
+		chip->ecc.bytes = eccbytes;
 	}
 
 	if (!eccsize || !eccbytes) {
 		pr_warn("ecc parameters not supplied\n");
-		goto fail;
+		return -EINVAL;
 	}
 
 	m = fls(1+8*eccsize);
@@ -130,7 +130,9 @@ struct nand_bch_control *nand_bch_init(struct mtd_info *mtd)
 
 	nbc = kzalloc(sizeof(*nbc), GFP_KERNEL);
 	if (!nbc)
-		goto fail;
+		return -ENOMEM;
+
+	chip->ecc.priv = nbc;
 
 	nbc->bch = bch_init(m, t, 0, false);
 	if (!nbc->bch)
@@ -165,9 +167,9 @@ struct nand_bch_control *nand_bch_init(struct mtd_info *mtd)
 	 * FIXME: we should probably rework the sequencing in nand_scan_tail()
 	 * to avoid setting those fields twice.
 	 */
-	nand->ecc.steps = eccsteps;
-	nand->ecc.total = eccsteps * eccbytes;
-	nand->base.ecc.ctx.total = nand->ecc.total;
+	chip->ecc.steps = eccsteps;
+	chip->ecc.total = eccsteps * eccbytes;
+	nand->base.ecc.ctx.total = chip->ecc.total;
 	if (mtd_ooblayout_count_eccbytes(mtd) != (eccsteps*eccbytes)) {
 		pr_warn("invalid ecc layout\n");
 		goto fail;
@@ -193,12 +195,12 @@ struct nand_bch_control *nand_bch_init(struct mtd_info *mtd)
 		nbc->eccmask[i] ^= 0xff;
 
 	if (!eccstrength)
-		nand->ecc.strength = (eccbytes * 8) / fls(8 * eccsize);
+		chip->ecc.strength = (eccbytes * 8) / fls(8 * eccsize);
 
-	return nbc;
+	return 0;
 fail:
-	nand_bch_free(nbc);
-	return NULL;
+	nand_bch_free(chip);
+	return -EINVAL;
 }
 EXPORT_SYMBOL(nand_bch_init);
 
@@ -206,8 +208,10 @@ EXPORT_SYMBOL(nand_bch_init);
  * nand_bch_free - Release NAND BCH ECC resources
  * @nbc: NAND BCH control structure
  */
-void nand_bch_free(struct nand_bch_control *nbc)
+void nand_bch_free(struct nand_chip *chip)
 {
+	struct nand_bch_control *nbc = chip->ecc.priv;
+
 	if (nbc) {
 		bch_free(nbc->bch);
 		kfree(nbc->errloc);

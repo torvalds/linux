@@ -2047,10 +2047,10 @@ static int omap_nand_attach_chip(struct nand_chip *chip)
 		/* Reserve one byte for the OMAP marker */
 		oobbytes_per_step	= chip->ecc.bytes + 1;
 		/* Software BCH library is used for locating errors */
-		chip->ecc.priv		= nand_bch_init(mtd);
-		if (!chip->ecc.priv) {
+		err = nand_bch_init(chip);
+		if (err) {
 			dev_err(dev, "Unable to use BCH library\n");
-			return -EINVAL;
+			return err;
 		}
 		break;
 
@@ -2089,10 +2089,10 @@ static int omap_nand_attach_chip(struct nand_chip *chip)
 		/* Reserve one byte for the OMAP marker */
 		oobbytes_per_step	= chip->ecc.bytes + 1;
 		/* Software BCH library is used for locating errors */
-		chip->ecc.priv		= nand_bch_init(mtd);
-		if (!chip->ecc.priv) {
+		err = nand_bch_init(chip);
+		if (err) {
 			dev_err(dev, "unable to use BCH library\n");
-			return -EINVAL;
+			return err;
 		}
 		break;
 
@@ -2272,7 +2272,7 @@ return_error:
 	if (!IS_ERR_OR_NULL(info->dma))
 		dma_release_channel(info->dma);
 	if (nand_chip->ecc.priv) {
-		nand_bch_free(nand_chip->ecc.priv);
+		nand_bch_free(nand_chip);
 		nand_chip->ecc.priv = NULL;
 	}
 	return err;
@@ -2286,7 +2286,7 @@ static int omap_nand_remove(struct platform_device *pdev)
 	int ret;
 
 	if (nand_chip->ecc.priv) {
-		nand_bch_free(nand_chip->ecc.priv);
+		nand_bch_free(nand_chip);
 		nand_chip->ecc.priv = NULL;
 	}
 	if (info->dma)
