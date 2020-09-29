@@ -15,7 +15,6 @@
 #define CATPT_SHIM_REGS_SIZE	4096
 #define CATPT_DMA_REGS_SIZE	1024
 #define CATPT_DMA_COUNT		2
-#define CATPT_SSP_COUNT		2
 #define CATPT_SSP_REGS_SIZE	512
 
 /* DSP Shim registers */
