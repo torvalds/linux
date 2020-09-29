@@ -68,7 +68,7 @@
  * gets 300/(100+300) or 75% share, and A0 and A1 equally splits the rest,
  * 12.5% each.  The distribution mechanism only cares about these flattened
  * shares.  They're called hweights (hierarchical weights) and always add
- * upto 1 (HWEIGHT_WHOLE).
+ * upto 1 (WEIGHT_ONE).
  *
  * A given cgroup's vtime runs slower in inverse proportion to its hweight.
  * For example, with 12.5% weight, A0's time runs 8 times slower (100/12.5)
@@ -179,6 +179,8 @@
 #include <linux/parser.h>
 #include <linux/sched/signal.h>
 #include <linux/blk-cgroup.h>
+#include <asm/local.h>
+#include <asm/local64.h>
 #include "blk-rq-qos.h"
 #include "blk-stat.h"
 #include "blk-wbt.h"
@@ -215,36 +217,21 @@ enum {
 	MAX_PERIOD		= USEC_PER_SEC,
 
 	/*
-	 * A cgroup's vtime can run 50% behind the device vtime, which
+	 * iocg->vtime is targeted at 50% behind the device vtime, which
 	 * serves as its IO credit buffer.  Surplus weight adjustment is
 	 * immediately canceled if the vtime margin runs below 10%.
 	 */
-	MARGIN_PCT		= 50,
-	INUSE_MARGIN_PCT	= 10,
+	MARGIN_MIN_PCT		= 10,
+	MARGIN_LOW_PCT		= 20,
+	MARGIN_TARGET_PCT	= 50,
 
-	/* Have some play in waitq timer operations */
-	WAITQ_TIMER_MARGIN_PCT	= 5,
+	INUSE_ADJ_STEP_PCT	= 25,
 
-	/*
-	 * vtime can wrap well within a reasonable uptime when vrate is
-	 * consistently raised.  Don't trust recorded cgroup vtime if the
-	 * period counter indicates that it's older than 5mins.
-	 */
-	VTIME_VALID_DUR		= 300 * USEC_PER_SEC,
-
-	/*
-	 * Remember the past three non-zero usages and use the max for
-	 * surplus calculation.  Three slots guarantee that we remember one
-	 * full period usage from the last active stretch even after
-	 * partial deactivation and re-activation periods.  Don't start
-	 * giving away weight before collecting two data points to prevent
-	 * hweight adjustments based on one partial activation period.
-	 */
-	NR_USAGE_SLOTS		= 3,
-	MIN_VALID_USAGES	= 2,
+	/* Have some play in timer operations */
+	TIMER_SLACK_PCT		= 1,
 
 	/* 1/64k is granular enough and can easily be handled w/ u32 */
-	HWEIGHT_WHOLE		= 1 << 16,
+	WEIGHT_ONE		= 1 << 16,
 
 	/*
 	 * As vtime is used to calculate the cost of each IO, it needs to
@@ -275,16 +262,37 @@ enum {
 	/* unbusy hysterisis */
 	UNBUSY_THR_PCT		= 75,
 
+	/*
+	 * The effect of delay is indirect and non-linear and a huge amount of
+	 * future debt can accumulate abruptly while unthrottled. Linearly scale
+	 * up delay as debt is going up and then let it decay exponentially.
+	 * This gives us quick ramp ups while delay is accumulating and long
+	 * tails which can help reducing the frequency of debt explosions on
+	 * unthrottle. The parameters are experimentally determined.
+	 *
+	 * The delay mechanism provides adequate protection and behavior in many
+	 * cases. However, this is far from ideal and falls shorts on both
+	 * fronts. The debtors are often throttled too harshly costing a
+	 * significant level of fairness and possibly total work while the
+	 * protection against their impacts on the system can be choppy and
+	 * unreliable.
+	 *
+	 * The shortcoming primarily stems from the fact that, unlike for page
+	 * cache, the kernel doesn't have well-defined back-pressure propagation
+	 * mechanism and policies for anonymous memory. Fully addressing this
+	 * issue will likely require substantial improvements in the area.
+	 */
+	MIN_DELAY_THR_PCT	= 500,
+	MAX_DELAY_THR_PCT	= 25000,
+	MIN_DELAY		= 250,
+	MAX_DELAY		= 250 * USEC_PER_MSEC,
+
+	/* halve debts if avg usage over 100ms is under 50% */
+	DFGV_USAGE_PCT		= 50,
+	DFGV_PERIOD		= 100 * USEC_PER_MSEC,
+
 	/* don't let cmds which take a very long time pin lagging for too long */
 	MAX_LAGGING_PERIODS	= 10,
-
-	/*
-	 * If usage% * 1.25 + 2% is lower than hweight% by more than 3%,
-	 * donate the surplus.
-	 */
-	SURPLUS_SCALE_PCT	= 125,			/* * 125% */
-	SURPLUS_SCALE_ABS	= HWEIGHT_WHOLE / 50,	/* + 2% */
-	SURPLUS_MIN_ADJ_DELTA	= HWEIGHT_WHOLE / 33,	/* 3% */
 
 	/* switch iff the conditions are met for longer than this */
 	AUTOP_CYCLE_NSEC	= 10LLU * NSEC_PER_SEC,
@@ -372,9 +380,15 @@ struct ioc_params {
 	u32				too_slow_vrate_pct;
 };
 
+struct ioc_margins {
+	s64				min;
+	s64				low;
+	s64				target;
+};
+
 struct ioc_missed {
-	u32				nr_met;
-	u32				nr_missed;
+	local_t				nr_met;
+	local_t				nr_missed;
 	u32				last_met;
 	u32				last_missed;
 };
@@ -382,7 +396,7 @@ struct ioc_missed {
 struct ioc_pcpu_stat {
 	struct ioc_missed		missed[2];
 
-	u64				rq_wait_ns;
+	local64_t			rq_wait_ns;
 	u64				last_rq_wait_ns;
 };
 
@@ -393,8 +407,9 @@ struct ioc {
 	bool				enabled;
 
 	struct ioc_params		params;
+	struct ioc_margins		margins;
 	u32				period_us;
-	u32				margin_us;
+	u32				timer_slack_ns;
 	u64				vrate_min;
 	u64				vrate_max;
 
@@ -405,23 +420,40 @@ struct ioc {
 
 	enum ioc_running		running;
 	atomic64_t			vtime_rate;
+	u64				vtime_base_rate;
+	s64				vtime_err;
 
 	seqcount_spinlock_t		period_seqcount;
-	u32				period_at;	/* wallclock starttime */
+	u64				period_at;	/* wallclock starttime */
 	u64				period_at_vtime; /* vtime starttime */
 
 	atomic64_t			cur_period;	/* inc'd each period */
 	int				busy_level;	/* saturation history */
 
-	u64				inuse_margin_vtime;
 	bool				weights_updated;
 	atomic_t			hweight_gen;	/* for lazy hweights */
+
+	/* debt forgivness */
+	u64				dfgv_period_at;
+	u64				dfgv_period_rem;
+	u64				dfgv_usage_us_sum;
 
 	u64				autop_too_fast_at;
 	u64				autop_too_slow_at;
 	int				autop_idx;
 	bool				user_qos_params:1;
 	bool				user_cost_model:1;
+};
+
+struct iocg_pcpu_stat {
+	local64_t			abs_vusage;
+};
+
+struct iocg_stat {
+	u64				usage_us;
+	u64				wait_us;
+	u64				indebt_us;
+	u64				indelay_us;
 };
 
 /* per device-cgroup pair */
@@ -443,12 +475,17 @@ struct ioc_gq {
 	 *
 	 * `last_inuse` remembers `inuse` while an iocg is idle to persist
 	 * surplus adjustments.
+	 *
+	 * `inuse` may be adjusted dynamically during period. `saved_*` are used
+	 * to determine and track adjustments.
 	 */
 	u32				cfg_weight;
 	u32				weight;
 	u32				active;
 	u32				inuse;
+
 	u32				last_inuse;
+	s64				saved_margin;
 
 	sector_t			cursor;		/* to detect randio */
 
@@ -461,14 +498,14 @@ struct ioc_gq {
 	 * `vtime_done` is the same but progressed on completion rather
 	 * than issue.  The delta behind `vtime` represents the cost of
 	 * currently in-flight IOs.
-	 *
-	 * `last_vtime` is used to remember `vtime` at the end of the last
-	 * period to calculate utilization.
 	 */
 	atomic64_t			vtime;
 	atomic64_t			done_vtime;
 	u64				abs_vdebt;
-	u64				last_vtime;
+
+	/* current delay in effect and when it started */
+	u64				delay;
+	u64				delay_at;
 
 	/*
 	 * The period this iocg was last active in.  Used for deactivation
@@ -477,21 +514,35 @@ struct ioc_gq {
 	atomic64_t			active_period;
 	struct list_head		active_list;
 
-	/* see __propagate_active_weight() and current_hweight() for details */
+	/* see __propagate_weights() and current_hweight() for details */
 	u64				child_active_sum;
 	u64				child_inuse_sum;
+	u64				child_adjusted_sum;
 	int				hweight_gen;
 	u32				hweight_active;
 	u32				hweight_inuse;
-	bool				has_surplus;
+	u32				hweight_donating;
+	u32				hweight_after_donation;
+
+	struct list_head		walk_list;
+	struct list_head		surplus_list;
 
 	struct wait_queue_head		waitq;
 	struct hrtimer			waitq_timer;
-	struct hrtimer			delay_timer;
 
-	/* usage is recorded as fractions of HWEIGHT_WHOLE */
-	int				usage_idx;
-	u32				usages[NR_USAGE_SLOTS];
+	/* timestamp at the latest activation */
+	u64				activated_at;
+
+	/* statistics */
+	struct iocg_pcpu_stat __percpu	*pcpu_stat;
+	struct iocg_stat		local_stat;
+	struct iocg_stat		desc_stat;
+	struct iocg_stat		last_stat;
+	u64				last_stat_abs_vusage;
+	u64				usage_delta_us;
+	u64				wait_since;
+	u64				indebt_since;
+	u64				indelay_since;
 
 	/* this iocg's depth in the hierarchy and ancestors including self */
 	int				level;
@@ -506,7 +557,7 @@ struct ioc_cgrp {
 
 struct ioc_now {
 	u64				now_ns;
-	u32				now;
+	u64				now;
 	u64				vnow;
 	u64				vrate;
 };
@@ -656,7 +707,7 @@ static struct ioc_cgrp *blkcg_to_iocc(struct blkcg *blkcg)
  */
 static u64 abs_cost_to_cost(u64 abs_cost, u32 hw_inuse)
 {
-	return DIV64_U64_ROUND_UP(abs_cost * HWEIGHT_WHOLE, hw_inuse);
+	return DIV64_U64_ROUND_UP(abs_cost * WEIGHT_ONE, hw_inuse);
 }
 
 /*
@@ -664,17 +715,55 @@ static u64 abs_cost_to_cost(u64 abs_cost, u32 hw_inuse)
  */
 static u64 cost_to_abs_cost(u64 cost, u32 hw_inuse)
 {
-	return DIV64_U64_ROUND_UP(cost * hw_inuse, HWEIGHT_WHOLE);
+	return DIV64_U64_ROUND_UP(cost * hw_inuse, WEIGHT_ONE);
 }
 
-static void iocg_commit_bio(struct ioc_gq *iocg, struct bio *bio, u64 cost)
+static void iocg_commit_bio(struct ioc_gq *iocg, struct bio *bio,
+			    u64 abs_cost, u64 cost)
 {
+	struct iocg_pcpu_stat *gcs;
+
 	bio->bi_iocost_cost = cost;
 	atomic64_add(cost, &iocg->vtime);
+
+	gcs = get_cpu_ptr(iocg->pcpu_stat);
+	local64_add(abs_cost, &gcs->abs_vusage);
+	put_cpu_ptr(gcs);
+}
+
+static void iocg_lock(struct ioc_gq *iocg, bool lock_ioc, unsigned long *flags)
+{
+	if (lock_ioc) {
+		spin_lock_irqsave(&iocg->ioc->lock, *flags);
+		spin_lock(&iocg->waitq.lock);
+	} else {
+		spin_lock_irqsave(&iocg->waitq.lock, *flags);
+	}
+}
+
+static void iocg_unlock(struct ioc_gq *iocg, bool unlock_ioc, unsigned long *flags)
+{
+	if (unlock_ioc) {
+		spin_unlock(&iocg->waitq.lock);
+		spin_unlock_irqrestore(&iocg->ioc->lock, *flags);
+	} else {
+		spin_unlock_irqrestore(&iocg->waitq.lock, *flags);
+	}
 }
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/iocost.h>
+
+static void ioc_refresh_margins(struct ioc *ioc)
+{
+	struct ioc_margins *margins = &ioc->margins;
+	u32 period_us = ioc->period_us;
+	u64 vrate = ioc->vtime_base_rate;
+
+	margins->min = (period_us * MARGIN_MIN_PCT / 100) * vrate;
+	margins->low = (period_us * MARGIN_LOW_PCT / 100) * vrate;
+	margins->target = (period_us * MARGIN_TARGET_PCT / 100) * vrate;
+}
 
 /* latency Qos params changed, update period_us and all the dependent params */
 static void ioc_refresh_period_us(struct ioc *ioc)
@@ -709,9 +798,10 @@ static void ioc_refresh_period_us(struct ioc *ioc)
 
 	/* calculate dependent params */
 	ioc->period_us = period_us;
-	ioc->margin_us = period_us * MARGIN_PCT / 100;
-	ioc->inuse_margin_vtime = DIV64_U64_ROUND_UP(
-			period_us * VTIME_PER_USEC * INUSE_MARGIN_PCT, 100);
+	ioc->timer_slack_ns = div64_u64(
+		(u64)period_us * NSEC_PER_USEC * TIMER_SLACK_PCT,
+		100);
+	ioc_refresh_margins(ioc);
 }
 
 static int ioc_autop_idx(struct ioc *ioc)
@@ -738,8 +828,7 @@ static int ioc_autop_idx(struct ioc *ioc)
 		return idx;
 
 	/* step up/down based on the vrate */
-	vrate_pct = div64_u64(atomic64_read(&ioc->vtime_rate) * 100,
-			      VTIME_PER_USEC);
+	vrate_pct = div64_u64(ioc->vtime_base_rate * 100, VTIME_PER_USEC);
 	now_ns = ktime_get_ns();
 
 	if (p->too_fast_vrate_pct && p->too_fast_vrate_pct <= vrate_pct) {
@@ -847,6 +936,43 @@ static bool ioc_refresh_params(struct ioc *ioc, bool force)
 	return true;
 }
 
+/*
+ * When an iocg accumulates too much vtime or gets deactivated, we throw away
+ * some vtime, which lowers the overall device utilization. As the exact amount
+ * which is being thrown away is known, we can compensate by accelerating the
+ * vrate accordingly so that the extra vtime generated in the current period
+ * matches what got lost.
+ */
+static void ioc_refresh_vrate(struct ioc *ioc, struct ioc_now *now)
+{
+	s64 pleft = ioc->period_at + ioc->period_us - now->now;
+	s64 vperiod = ioc->period_us * ioc->vtime_base_rate;
+	s64 vcomp, vcomp_min, vcomp_max;
+
+	lockdep_assert_held(&ioc->lock);
+
+	/* we need some time left in this period */
+	if (pleft <= 0)
+		goto done;
+
+	/*
+	 * Calculate how much vrate should be adjusted to offset the error.
+	 * Limit the amount of adjustment and deduct the adjusted amount from
+	 * the error.
+	 */
+	vcomp = -div64_s64(ioc->vtime_err, pleft);
+	vcomp_min = -(ioc->vtime_base_rate >> 1);
+	vcomp_max = ioc->vtime_base_rate;
+	vcomp = clamp(vcomp, vcomp_min, vcomp_max);
+
+	ioc->vtime_err += vcomp * pleft;
+
+	atomic64_set(&ioc->vtime_rate, ioc->vtime_base_rate + vcomp);
+done:
+	/* bound how much error can accumulate */
+	ioc->vtime_err = clamp(ioc->vtime_err, -vperiod, vperiod);
+}
+
 /* take a snapshot of the current [v]time and vrate */
 static void ioc_now(struct ioc *ioc, struct ioc_now *now)
 {
@@ -886,16 +1012,25 @@ static void ioc_start_period(struct ioc *ioc, struct ioc_now *now)
 
 /*
  * Update @iocg's `active` and `inuse` to @active and @inuse, update level
- * weight sums and propagate upwards accordingly.
+ * weight sums and propagate upwards accordingly. If @save, the current margin
+ * is saved to be used as reference for later inuse in-period adjustments.
  */
-static void __propagate_active_weight(struct ioc_gq *iocg, u32 active, u32 inuse)
+static void __propagate_weights(struct ioc_gq *iocg, u32 active, u32 inuse,
+				bool save, struct ioc_now *now)
 {
 	struct ioc *ioc = iocg->ioc;
 	int lvl;
 
 	lockdep_assert_held(&ioc->lock);
 
-	inuse = min(active, inuse);
+	inuse = clamp_t(u32, inuse, 1, active);
+
+	iocg->last_inuse = iocg->inuse;
+	if (save)
+		iocg->saved_margin = now->vnow - atomic64_read(&iocg->vtime);
+
+	if (active == iocg->active && inuse == iocg->inuse)
+		return;
 
 	for (lvl = iocg->level - 1; lvl >= 0; lvl--) {
 		struct ioc_gq *parent = iocg->ancestors[lvl];
@@ -933,7 +1068,7 @@ static void __propagate_active_weight(struct ioc_gq *iocg, u32 active, u32 inuse
 	ioc->weights_updated = true;
 }
 
-static void commit_active_weights(struct ioc *ioc)
+static void commit_weights(struct ioc *ioc)
 {
 	lockdep_assert_held(&ioc->lock);
 
@@ -945,10 +1080,11 @@ static void commit_active_weights(struct ioc *ioc)
 	}
 }
 
-static void propagate_active_weight(struct ioc_gq *iocg, u32 active, u32 inuse)
+static void propagate_weights(struct ioc_gq *iocg, u32 active, u32 inuse,
+			      bool save, struct ioc_now *now)
 {
-	__propagate_active_weight(iocg, active, inuse);
-	commit_active_weights(iocg->ioc);
+	__propagate_weights(iocg, active, inuse, save, now);
+	commit_weights(iocg->ioc);
 }
 
 static void current_hweight(struct ioc_gq *iocg, u32 *hw_activep, u32 *hw_inusep)
@@ -964,9 +1100,9 @@ static void current_hweight(struct ioc_gq *iocg, u32 *hw_activep, u32 *hw_inusep
 		goto out;
 
 	/*
-	 * Paired with wmb in commit_active_weights().  If we saw the
-	 * updated hweight_gen, all the weight updates from
-	 * __propagate_active_weight() are visible too.
+	 * Paired with wmb in commit_weights(). If we saw the updated
+	 * hweight_gen, all the weight updates from __propagate_weights() are
+	 * visible too.
 	 *
 	 * We can race with weight updates during calculation and get it
 	 * wrong.  However, hweight_gen would have changed and a future
@@ -975,12 +1111,12 @@ static void current_hweight(struct ioc_gq *iocg, u32 *hw_activep, u32 *hw_inusep
 	 */
 	smp_rmb();
 
-	hwa = hwi = HWEIGHT_WHOLE;
+	hwa = hwi = WEIGHT_ONE;
 	for (lvl = 0; lvl <= iocg->level - 1; lvl++) {
 		struct ioc_gq *parent = iocg->ancestors[lvl];
 		struct ioc_gq *child = iocg->ancestors[lvl + 1];
-		u32 active_sum = READ_ONCE(parent->child_active_sum);
-		u32 inuse_sum = READ_ONCE(parent->child_inuse_sum);
+		u64 active_sum = READ_ONCE(parent->child_active_sum);
+		u64 inuse_sum = READ_ONCE(parent->child_inuse_sum);
 		u32 active = READ_ONCE(child->active);
 		u32 inuse = READ_ONCE(child->inuse);
 
@@ -988,11 +1124,11 @@ static void current_hweight(struct ioc_gq *iocg, u32 *hw_activep, u32 *hw_inusep
 		if (!active_sum || !inuse_sum)
 			continue;
 
-		active_sum = max(active, active_sum);
-		hwa = hwa * active / active_sum;	/* max 16bits * 10000 */
+		active_sum = max_t(u64, active, active_sum);
+		hwa = div64_u64((u64)hwa * active, active_sum);
 
-		inuse_sum = max(inuse, inuse_sum);
-		hwi = hwi * inuse / inuse_sum;		/* max 16bits * 10000 */
+		inuse_sum = max_t(u64, inuse, inuse_sum);
+		hwi = div64_u64((u64)hwi * inuse, inuse_sum);
 	}
 
 	iocg->hweight_active = max_t(u32, hwa, 1);
@@ -1005,7 +1141,33 @@ out:
 		*hw_inusep = iocg->hweight_inuse;
 }
 
-static void weight_updated(struct ioc_gq *iocg)
+/*
+ * Calculate the hweight_inuse @iocg would get with max @inuse assuming all the
+ * other weights stay unchanged.
+ */
+static u32 current_hweight_max(struct ioc_gq *iocg)
+{
+	u32 hwm = WEIGHT_ONE;
+	u32 inuse = iocg->active;
+	u64 child_inuse_sum;
+	int lvl;
+
+	lockdep_assert_held(&iocg->ioc->lock);
+
+	for (lvl = iocg->level - 1; lvl >= 0; lvl--) {
+		struct ioc_gq *parent = iocg->ancestors[lvl];
+		struct ioc_gq *child = iocg->ancestors[lvl + 1];
+
+		child_inuse_sum = parent->child_inuse_sum + inuse - child->inuse;
+		hwm = div64_u64((u64)hwm * inuse, child_inuse_sum);
+		inuse = DIV64_U64_ROUND_UP(parent->active * child_inuse_sum,
+					   parent->child_active_sum);
+	}
+
+	return max_t(u32, hwm, 1);
+}
+
+static void weight_updated(struct ioc_gq *iocg, struct ioc_now *now)
 {
 	struct ioc *ioc = iocg->ioc;
 	struct blkcg_gq *blkg = iocg_to_blkg(iocg);
@@ -1016,16 +1178,15 @@ static void weight_updated(struct ioc_gq *iocg)
 
 	weight = iocg->cfg_weight ?: iocc->dfl_weight;
 	if (weight != iocg->weight && iocg->active)
-		propagate_active_weight(iocg, weight,
-			DIV64_U64_ROUND_UP(iocg->inuse * weight, iocg->weight));
+		propagate_weights(iocg, weight, iocg->inuse, true, now);
 	iocg->weight = weight;
 }
 
 static bool iocg_activate(struct ioc_gq *iocg, struct ioc_now *now)
 {
 	struct ioc *ioc = iocg->ioc;
-	u64 last_period, cur_period, max_period_delta;
-	u64 vtime, vmargin, vmin;
+	u64 last_period, cur_period;
+	u64 vtime, vtarget;
 	int i;
 
 	/*
@@ -1064,22 +1225,15 @@ static bool iocg_activate(struct ioc_gq *iocg, struct ioc_now *now)
 		goto fail_unlock;
 
 	/*
-	 * vtime may wrap when vrate is raised substantially due to
-	 * underestimated IO costs.  Look at the period and ignore its
-	 * vtime if the iocg has been idle for too long.  Also, cap the
-	 * budget it can start with to the margin.
+	 * Always start with the target budget. On deactivation, we throw away
+	 * anything above it.
 	 */
-	max_period_delta = DIV64_U64_ROUND_UP(VTIME_VALID_DUR, ioc->period_us);
+	vtarget = now->vnow - ioc->margins.target;
 	vtime = atomic64_read(&iocg->vtime);
-	vmargin = ioc->margin_us * now->vrate;
-	vmin = now->vnow - vmargin;
 
-	if (last_period + max_period_delta < cur_period ||
-	    time_before64(vtime, vmin)) {
-		atomic64_add(vmin - vtime, &iocg->vtime);
-		atomic64_add(vmin - vtime, &iocg->done_vtime);
-		vtime = vmin;
-	}
+	atomic64_add(vtarget - vtime, &iocg->vtime);
+	atomic64_add(vtarget - vtime, &iocg->done_vtime);
+	vtime = vtarget;
 
 	/*
 	 * Activate, propagate weight and start period timer if not
@@ -1088,16 +1242,19 @@ static bool iocg_activate(struct ioc_gq *iocg, struct ioc_now *now)
 	 */
 	iocg->hweight_gen = atomic_read(&ioc->hweight_gen) - 1;
 	list_add(&iocg->active_list, &ioc->active_iocgs);
-	propagate_active_weight(iocg, iocg->weight,
-				iocg->last_inuse ?: iocg->weight);
+
+	propagate_weights(iocg, iocg->weight,
+			  iocg->last_inuse ?: iocg->weight, true, now);
 
 	TRACE_IOCG_PATH(iocg_activate, iocg, now,
 			last_period, cur_period, vtime);
 
-	iocg->last_vtime = vtime;
+	iocg->activated_at = now->now;
 
 	if (ioc->running == IOC_IDLE) {
 		ioc->running = IOC_RUNNING;
+		ioc->dfgv_period_at = now->now;
+		ioc->dfgv_period_rem = 0;
 		ioc_start_period(ioc, now);
 	}
 
@@ -1108,6 +1265,110 @@ succeed_unlock:
 fail_unlock:
 	spin_unlock_irq(&ioc->lock);
 	return false;
+}
+
+static bool iocg_kick_delay(struct ioc_gq *iocg, struct ioc_now *now)
+{
+	struct ioc *ioc = iocg->ioc;
+	struct blkcg_gq *blkg = iocg_to_blkg(iocg);
+	u64 tdelta, delay, new_delay;
+	s64 vover, vover_pct;
+	u32 hwa;
+
+	lockdep_assert_held(&iocg->waitq.lock);
+
+	/* calculate the current delay in effect - 1/2 every second */
+	tdelta = now->now - iocg->delay_at;
+	if (iocg->delay)
+		delay = iocg->delay >> div64_u64(tdelta, USEC_PER_SEC);
+	else
+		delay = 0;
+
+	/* calculate the new delay from the debt amount */
+	current_hweight(iocg, &hwa, NULL);
+	vover = atomic64_read(&iocg->vtime) +
+		abs_cost_to_cost(iocg->abs_vdebt, hwa) - now->vnow;
+	vover_pct = div64_s64(100 * vover,
+			      ioc->period_us * ioc->vtime_base_rate);
+
+	if (vover_pct <= MIN_DELAY_THR_PCT)
+		new_delay = 0;
+	else if (vover_pct >= MAX_DELAY_THR_PCT)
+		new_delay = MAX_DELAY;
+	else
+		new_delay = MIN_DELAY +
+			div_u64((MAX_DELAY - MIN_DELAY) *
+				(vover_pct - MIN_DELAY_THR_PCT),
+				MAX_DELAY_THR_PCT - MIN_DELAY_THR_PCT);
+
+	/* pick the higher one and apply */
+	if (new_delay > delay) {
+		iocg->delay = new_delay;
+		iocg->delay_at = now->now;
+		delay = new_delay;
+	}
+
+	if (delay >= MIN_DELAY) {
+		if (!iocg->indelay_since)
+			iocg->indelay_since = now->now;
+		blkcg_set_delay(blkg, delay * NSEC_PER_USEC);
+		return true;
+	} else {
+		if (iocg->indelay_since) {
+			iocg->local_stat.indelay_us += now->now - iocg->indelay_since;
+			iocg->indelay_since = 0;
+		}
+		iocg->delay = 0;
+		blkcg_clear_delay(blkg);
+		return false;
+	}
+}
+
+static void iocg_incur_debt(struct ioc_gq *iocg, u64 abs_cost,
+			    struct ioc_now *now)
+{
+	struct iocg_pcpu_stat *gcs;
+
+	lockdep_assert_held(&iocg->ioc->lock);
+	lockdep_assert_held(&iocg->waitq.lock);
+	WARN_ON_ONCE(list_empty(&iocg->active_list));
+
+	/*
+	 * Once in debt, debt handling owns inuse. @iocg stays at the minimum
+	 * inuse donating all of it share to others until its debt is paid off.
+	 */
+	if (!iocg->abs_vdebt && abs_cost) {
+		iocg->indebt_since = now->now;
+		propagate_weights(iocg, iocg->active, 0, false, now);
+	}
+
+	iocg->abs_vdebt += abs_cost;
+
+	gcs = get_cpu_ptr(iocg->pcpu_stat);
+	local64_add(abs_cost, &gcs->abs_vusage);
+	put_cpu_ptr(gcs);
+}
+
+static void iocg_pay_debt(struct ioc_gq *iocg, u64 abs_vpay,
+			  struct ioc_now *now)
+{
+	lockdep_assert_held(&iocg->ioc->lock);
+	lockdep_assert_held(&iocg->waitq.lock);
+
+	/* make sure that nobody messed with @iocg */
+	WARN_ON_ONCE(list_empty(&iocg->active_list));
+	WARN_ON_ONCE(iocg->inuse > 1);
+
+	iocg->abs_vdebt -= min(abs_vpay, iocg->abs_vdebt);
+
+	/* if debt is paid in full, restore inuse */
+	if (!iocg->abs_vdebt) {
+		iocg->local_stat.indebt_us += now->now - iocg->indebt_since;
+		iocg->indebt_since = 0;
+
+		propagate_weights(iocg, iocg->active, iocg->last_inuse,
+				  false, now);
+	}
 }
 
 static int iocg_wake_fn(struct wait_queue_entry *wq_entry, unsigned mode,
@@ -1122,7 +1383,7 @@ static int iocg_wake_fn(struct wait_queue_entry *wq_entry, unsigned mode,
 	if (ctx->vbudget < 0)
 		return -1;
 
-	iocg_commit_bio(ctx->iocg, wait->bio, cost);
+	iocg_commit_bio(ctx->iocg, wait->bio, wait->abs_cost, cost);
 
 	/*
 	 * autoremove_wake_function() removes the wait entry only when it
@@ -1136,132 +1397,106 @@ static int iocg_wake_fn(struct wait_queue_entry *wq_entry, unsigned mode,
 	return 0;
 }
 
-static void iocg_kick_waitq(struct ioc_gq *iocg, struct ioc_now *now)
+/*
+ * Calculate the accumulated budget, pay debt if @pay_debt and wake up waiters
+ * accordingly. When @pay_debt is %true, the caller must be holding ioc->lock in
+ * addition to iocg->waitq.lock.
+ */
+static void iocg_kick_waitq(struct ioc_gq *iocg, bool pay_debt,
+			    struct ioc_now *now)
 {
 	struct ioc *ioc = iocg->ioc;
 	struct iocg_wake_ctx ctx = { .iocg = iocg };
-	u64 margin_ns = (u64)(ioc->period_us *
-			      WAITQ_TIMER_MARGIN_PCT / 100) * NSEC_PER_USEC;
-	u64 vdebt, vshortage, expires, oexpires;
+	u64 vshortage, expires, oexpires;
 	s64 vbudget;
-	u32 hw_inuse;
+	u32 hwa;
 
 	lockdep_assert_held(&iocg->waitq.lock);
 
-	current_hweight(iocg, NULL, &hw_inuse);
+	current_hweight(iocg, &hwa, NULL);
 	vbudget = now->vnow - atomic64_read(&iocg->vtime);
 
 	/* pay off debt */
-	vdebt = abs_cost_to_cost(iocg->abs_vdebt, hw_inuse);
-	if (vdebt && vbudget > 0) {
-		u64 delta = min_t(u64, vbudget, vdebt);
-		u64 abs_delta = min(cost_to_abs_cost(delta, hw_inuse),
-				    iocg->abs_vdebt);
+	if (pay_debt && iocg->abs_vdebt && vbudget > 0) {
+		u64 abs_vbudget = cost_to_abs_cost(vbudget, hwa);
+		u64 abs_vpay = min_t(u64, abs_vbudget, iocg->abs_vdebt);
+		u64 vpay = abs_cost_to_cost(abs_vpay, hwa);
 
-		atomic64_add(delta, &iocg->vtime);
-		atomic64_add(delta, &iocg->done_vtime);
-		iocg->abs_vdebt -= abs_delta;
+		lockdep_assert_held(&ioc->lock);
+
+		atomic64_add(vpay, &iocg->vtime);
+		atomic64_add(vpay, &iocg->done_vtime);
+		iocg_pay_debt(iocg, abs_vpay, now);
+		vbudget -= vpay;
+	}
+
+	if (iocg->abs_vdebt || iocg->delay)
+		iocg_kick_delay(iocg, now);
+
+	/*
+	 * Debt can still be outstanding if we haven't paid all yet or the
+	 * caller raced and called without @pay_debt. Shouldn't wake up waiters
+	 * under debt. Make sure @vbudget reflects the outstanding amount and is
+	 * not positive.
+	 */
+	if (iocg->abs_vdebt) {
+		s64 vdebt = abs_cost_to_cost(iocg->abs_vdebt, hwa);
+		vbudget = min_t(s64, 0, vbudget - vdebt);
 	}
 
 	/*
-	 * Wake up the ones which are due and see how much vtime we'll need
-	 * for the next one.
+	 * Wake up the ones which are due and see how much vtime we'll need for
+	 * the next one. As paying off debt restores hw_inuse, it must be read
+	 * after the above debt payment.
 	 */
-	ctx.hw_inuse = hw_inuse;
-	ctx.vbudget = vbudget - vdebt;
+	ctx.vbudget = vbudget;
+	current_hweight(iocg, NULL, &ctx.hw_inuse);
+
 	__wake_up_locked_key(&iocg->waitq, TASK_NORMAL, &ctx);
-	if (!waitqueue_active(&iocg->waitq))
+
+	if (!waitqueue_active(&iocg->waitq)) {
+		if (iocg->wait_since) {
+			iocg->local_stat.wait_us += now->now - iocg->wait_since;
+			iocg->wait_since = 0;
+		}
 		return;
+	}
+
+	if (!iocg->wait_since)
+		iocg->wait_since = now->now;
+
 	if (WARN_ON_ONCE(ctx.vbudget >= 0))
 		return;
 
-	/* determine next wakeup, add a quarter margin to guarantee chunking */
+	/* determine next wakeup, add a timer margin to guarantee chunking */
 	vshortage = -ctx.vbudget;
 	expires = now->now_ns +
-		DIV64_U64_ROUND_UP(vshortage, now->vrate) * NSEC_PER_USEC;
-	expires += margin_ns / 4;
+		DIV64_U64_ROUND_UP(vshortage, ioc->vtime_base_rate) *
+		NSEC_PER_USEC;
+	expires += ioc->timer_slack_ns;
 
 	/* if already active and close enough, don't bother */
 	oexpires = ktime_to_ns(hrtimer_get_softexpires(&iocg->waitq_timer));
 	if (hrtimer_is_queued(&iocg->waitq_timer) &&
-	    abs(oexpires - expires) <= margin_ns / 4)
+	    abs(oexpires - expires) <= ioc->timer_slack_ns)
 		return;
 
 	hrtimer_start_range_ns(&iocg->waitq_timer, ns_to_ktime(expires),
-			       margin_ns / 4, HRTIMER_MODE_ABS);
+			       ioc->timer_slack_ns, HRTIMER_MODE_ABS);
 }
 
 static enum hrtimer_restart iocg_waitq_timer_fn(struct hrtimer *timer)
 {
 	struct ioc_gq *iocg = container_of(timer, struct ioc_gq, waitq_timer);
+	bool pay_debt = READ_ONCE(iocg->abs_vdebt);
 	struct ioc_now now;
 	unsigned long flags;
 
 	ioc_now(iocg->ioc, &now);
 
-	spin_lock_irqsave(&iocg->waitq.lock, flags);
-	iocg_kick_waitq(iocg, &now);
-	spin_unlock_irqrestore(&iocg->waitq.lock, flags);
-
-	return HRTIMER_NORESTART;
-}
-
-static bool iocg_kick_delay(struct ioc_gq *iocg, struct ioc_now *now)
-{
-	struct ioc *ioc = iocg->ioc;
-	struct blkcg_gq *blkg = iocg_to_blkg(iocg);
-	u64 vtime = atomic64_read(&iocg->vtime);
-	u64 vmargin = ioc->margin_us * now->vrate;
-	u64 margin_ns = ioc->margin_us * NSEC_PER_USEC;
-	u64 delta_ns, expires, oexpires;
-	u32 hw_inuse;
-
-	lockdep_assert_held(&iocg->waitq.lock);
-
-	/* debt-adjust vtime */
-	current_hweight(iocg, NULL, &hw_inuse);
-	vtime += abs_cost_to_cost(iocg->abs_vdebt, hw_inuse);
-
-	/*
-	 * Clear or maintain depending on the overage. Non-zero vdebt is what
-	 * guarantees that @iocg is online and future iocg_kick_delay() will
-	 * clear use_delay. Don't leave it on when there's no vdebt.
-	 */
-	if (!iocg->abs_vdebt || time_before_eq64(vtime, now->vnow)) {
-		blkcg_clear_delay(blkg);
-		return false;
-	}
-	if (!atomic_read(&blkg->use_delay) &&
-	    time_before_eq64(vtime, now->vnow + vmargin))
-		return false;
-
-	/* use delay */
-	delta_ns = DIV64_U64_ROUND_UP(vtime - now->vnow,
-				      now->vrate) * NSEC_PER_USEC;
-	blkcg_set_delay(blkg, delta_ns);
-	expires = now->now_ns + delta_ns;
-
-	/* if already active and close enough, don't bother */
-	oexpires = ktime_to_ns(hrtimer_get_softexpires(&iocg->delay_timer));
-	if (hrtimer_is_queued(&iocg->delay_timer) &&
-	    abs(oexpires - expires) <= margin_ns / 4)
-		return true;
-
-	hrtimer_start_range_ns(&iocg->delay_timer, ns_to_ktime(expires),
-			       margin_ns / 4, HRTIMER_MODE_ABS);
-	return true;
-}
-
-static enum hrtimer_restart iocg_delay_timer_fn(struct hrtimer *timer)
-{
-	struct ioc_gq *iocg = container_of(timer, struct ioc_gq, delay_timer);
-	struct ioc_now now;
-	unsigned long flags;
-
-	spin_lock_irqsave(&iocg->waitq.lock, flags);
-	ioc_now(iocg->ioc, &now);
-	iocg_kick_delay(iocg, &now);
-	spin_unlock_irqrestore(&iocg->waitq.lock, flags);
+	iocg_lock(iocg, pay_debt, &flags);
+	iocg_kick_waitq(iocg, pay_debt, &now);
+	iocg_unlock(iocg, pay_debt, &flags);
 
 	return HRTIMER_NORESTART;
 }
@@ -1278,8 +1513,8 @@ static void ioc_lat_stat(struct ioc *ioc, u32 *missed_ppm_ar, u32 *rq_wait_pct_p
 		u64 this_rq_wait_ns;
 
 		for (rw = READ; rw <= WRITE; rw++) {
-			u32 this_met = READ_ONCE(stat->missed[rw].nr_met);
-			u32 this_missed = READ_ONCE(stat->missed[rw].nr_missed);
+			u32 this_met = local_read(&stat->missed[rw].nr_met);
+			u32 this_missed = local_read(&stat->missed[rw].nr_missed);
 
 			nr_met[rw] += this_met - stat->missed[rw].last_met;
 			nr_missed[rw] += this_missed - stat->missed[rw].last_missed;
@@ -1287,7 +1522,7 @@ static void ioc_lat_stat(struct ioc *ioc, u32 *missed_ppm_ar, u32 *rq_wait_pct_p
 			stat->missed[rw].last_missed = this_missed;
 		}
 
-		this_rq_wait_ns = READ_ONCE(stat->rq_wait_ns);
+		this_rq_wait_ns = local64_read(&stat->rq_wait_ns);
 		rq_wait_ns += this_rq_wait_ns - stat->last_rq_wait_ns;
 		stat->last_rq_wait_ns = this_rq_wait_ns;
 	}
@@ -1322,18 +1557,518 @@ static bool iocg_is_idle(struct ioc_gq *iocg)
 	return true;
 }
 
-/* returns usage with margin added if surplus is large enough */
-static u32 surplus_adjusted_hweight_inuse(u32 usage, u32 hw_inuse)
+/*
+ * Call this function on the target leaf @iocg's to build pre-order traversal
+ * list of all the ancestors in @inner_walk. The inner nodes are linked through
+ * ->walk_list and the caller is responsible for dissolving the list after use.
+ */
+static void iocg_build_inner_walk(struct ioc_gq *iocg,
+				  struct list_head *inner_walk)
 {
-	/* add margin */
-	usage = DIV_ROUND_UP(usage * SURPLUS_SCALE_PCT, 100);
-	usage += SURPLUS_SCALE_ABS;
+	int lvl;
 
-	/* don't bother if the surplus is too small */
-	if (usage + SURPLUS_MIN_ADJ_DELTA > hw_inuse)
-		return 0;
+	WARN_ON_ONCE(!list_empty(&iocg->walk_list));
 
-	return usage;
+	/* find the first ancestor which hasn't been visited yet */
+	for (lvl = iocg->level - 1; lvl >= 0; lvl--) {
+		if (!list_empty(&iocg->ancestors[lvl]->walk_list))
+			break;
+	}
+
+	/* walk down and visit the inner nodes to get pre-order traversal */
+	while (++lvl <= iocg->level - 1) {
+		struct ioc_gq *inner = iocg->ancestors[lvl];
+
+		/* record traversal order */
+		list_add_tail(&inner->walk_list, inner_walk);
+	}
+}
+
+/* collect per-cpu counters and propagate the deltas to the parent */
+static void iocg_flush_stat_one(struct ioc_gq *iocg, struct ioc_now *now)
+{
+	struct ioc *ioc = iocg->ioc;
+	struct iocg_stat new_stat;
+	u64 abs_vusage = 0;
+	u64 vusage_delta;
+	int cpu;
+
+	lockdep_assert_held(&iocg->ioc->lock);
+
+	/* collect per-cpu counters */
+	for_each_possible_cpu(cpu) {
+		abs_vusage += local64_read(
+				per_cpu_ptr(&iocg->pcpu_stat->abs_vusage, cpu));
+	}
+	vusage_delta = abs_vusage - iocg->last_stat_abs_vusage;
+	iocg->last_stat_abs_vusage = abs_vusage;
+
+	iocg->usage_delta_us = div64_u64(vusage_delta, ioc->vtime_base_rate);
+	iocg->local_stat.usage_us += iocg->usage_delta_us;
+
+	/* propagate upwards */
+	new_stat.usage_us =
+		iocg->local_stat.usage_us + iocg->desc_stat.usage_us;
+	new_stat.wait_us =
+		iocg->local_stat.wait_us + iocg->desc_stat.wait_us;
+	new_stat.indebt_us =
+		iocg->local_stat.indebt_us + iocg->desc_stat.indebt_us;
+	new_stat.indelay_us =
+		iocg->local_stat.indelay_us + iocg->desc_stat.indelay_us;
+
+	/* propagate the deltas to the parent */
+	if (iocg->level > 0) {
+		struct iocg_stat *parent_stat =
+			&iocg->ancestors[iocg->level - 1]->desc_stat;
+
+		parent_stat->usage_us +=
+			new_stat.usage_us - iocg->last_stat.usage_us;
+		parent_stat->wait_us +=
+			new_stat.wait_us - iocg->last_stat.wait_us;
+		parent_stat->indebt_us +=
+			new_stat.indebt_us - iocg->last_stat.indebt_us;
+		parent_stat->indelay_us +=
+			new_stat.indelay_us - iocg->last_stat.indelay_us;
+	}
+
+	iocg->last_stat = new_stat;
+}
+
+/* get stat counters ready for reading on all active iocgs */
+static void iocg_flush_stat(struct list_head *target_iocgs, struct ioc_now *now)
+{
+	LIST_HEAD(inner_walk);
+	struct ioc_gq *iocg, *tiocg;
+
+	/* flush leaves and build inner node walk list */
+	list_for_each_entry(iocg, target_iocgs, active_list) {
+		iocg_flush_stat_one(iocg, now);
+		iocg_build_inner_walk(iocg, &inner_walk);
+	}
+
+	/* keep flushing upwards by walking the inner list backwards */
+	list_for_each_entry_safe_reverse(iocg, tiocg, &inner_walk, walk_list) {
+		iocg_flush_stat_one(iocg, now);
+		list_del_init(&iocg->walk_list);
+	}
+}
+
+/*
+ * Determine what @iocg's hweight_inuse should be after donating unused
+ * capacity. @hwm is the upper bound and used to signal no donation. This
+ * function also throws away @iocg's excess budget.
+ */
+static u32 hweight_after_donation(struct ioc_gq *iocg, u32 old_hwi, u32 hwm,
+				  u32 usage, struct ioc_now *now)
+{
+	struct ioc *ioc = iocg->ioc;
+	u64 vtime = atomic64_read(&iocg->vtime);
+	s64 excess, delta, target, new_hwi;
+
+	/* debt handling owns inuse for debtors */
+	if (iocg->abs_vdebt)
+		return 1;
+
+	/* see whether minimum margin requirement is met */
+	if (waitqueue_active(&iocg->waitq) ||
+	    time_after64(vtime, now->vnow - ioc->margins.min))
+		return hwm;
+
+	/* throw away excess above target */
+	excess = now->vnow - vtime - ioc->margins.target;
+	if (excess > 0) {
+		atomic64_add(excess, &iocg->vtime);
+		atomic64_add(excess, &iocg->done_vtime);
+		vtime += excess;
+		ioc->vtime_err -= div64_u64(excess * old_hwi, WEIGHT_ONE);
+	}
+
+	/*
+	 * Let's say the distance between iocg's and device's vtimes as a
+	 * fraction of period duration is delta. Assuming that the iocg will
+	 * consume the usage determined above, we want to determine new_hwi so
+	 * that delta equals MARGIN_TARGET at the end of the next period.
+	 *
+	 * We need to execute usage worth of IOs while spending the sum of the
+	 * new budget (1 - MARGIN_TARGET) and the leftover from the last period
+	 * (delta):
+	 *
+	 *   usage = (1 - MARGIN_TARGET + delta) * new_hwi
+	 *
+	 * Therefore, the new_hwi is:
+	 *
+	 *   new_hwi = usage / (1 - MARGIN_TARGET + delta)
+	 */
+	delta = div64_s64(WEIGHT_ONE * (now->vnow - vtime),
+			  now->vnow - ioc->period_at_vtime);
+	target = WEIGHT_ONE * MARGIN_TARGET_PCT / 100;
+	new_hwi = div64_s64(WEIGHT_ONE * usage, WEIGHT_ONE - target + delta);
+
+	return clamp_t(s64, new_hwi, 1, hwm);
+}
+
+/*
+ * For work-conservation, an iocg which isn't using all of its share should
+ * donate the leftover to other iocgs. There are two ways to achieve this - 1.
+ * bumping up vrate accordingly 2. lowering the donating iocg's inuse weight.
+ *
+ * #1 is mathematically simpler but has the drawback of requiring synchronous
+ * global hweight_inuse updates when idle iocg's get activated or inuse weights
+ * change due to donation snapbacks as it has the possibility of grossly
+ * overshooting what's allowed by the model and vrate.
+ *
+ * #2 is inherently safe with local operations. The donating iocg can easily
+ * snap back to higher weights when needed without worrying about impacts on
+ * other nodes as the impacts will be inherently correct. This also makes idle
+ * iocg activations safe. The only effect activations have is decreasing
+ * hweight_inuse of others, the right solution to which is for those iocgs to
+ * snap back to higher weights.
+ *
+ * So, we go with #2. The challenge is calculating how each donating iocg's
+ * inuse should be adjusted to achieve the target donation amounts. This is done
+ * using Andy's method described in the following pdf.
+ *
+ *   https://drive.google.com/file/d/1PsJwxPFtjUnwOY1QJ5AeICCcsL7BM3bo
+ *
+ * Given the weights and target after-donation hweight_inuse values, Andy's
+ * method determines how the proportional distribution should look like at each
+ * sibling level to maintain the relative relationship between all non-donating
+ * pairs. To roughly summarize, it divides the tree into donating and
+ * non-donating parts, calculates global donation rate which is used to
+ * determine the target hweight_inuse for each node, and then derives per-level
+ * proportions.
+ *
+ * The following pdf shows that global distribution calculated this way can be
+ * achieved by scaling inuse weights of donating leaves and propagating the
+ * adjustments upwards proportionally.
+ *
+ *   https://drive.google.com/file/d/1vONz1-fzVO7oY5DXXsLjSxEtYYQbOvsE
+ *
+ * Combining the above two, we can determine how each leaf iocg's inuse should
+ * be adjusted to achieve the target donation.
+ *
+ *   https://drive.google.com/file/d/1WcrltBOSPN0qXVdBgnKm4mdp9FhuEFQN
+ *
+ * The inline comments use symbols from the last pdf.
+ *
+ *   b is the sum of the absolute budgets in the subtree. 1 for the root node.
+ *   f is the sum of the absolute budgets of non-donating nodes in the subtree.
+ *   t is the sum of the absolute budgets of donating nodes in the subtree.
+ *   w is the weight of the node. w = w_f + w_t
+ *   w_f is the non-donating portion of w. w_f = w * f / b
+ *   w_b is the donating portion of w. w_t = w * t / b
+ *   s is the sum of all sibling weights. s = Sum(w) for siblings
+ *   s_f and s_t are the non-donating and donating portions of s.
+ *
+ * Subscript p denotes the parent's counterpart and ' the adjusted value - e.g.
+ * w_pt is the donating portion of the parent's weight and w'_pt the same value
+ * after adjustments. Subscript r denotes the root node's values.
+ */
+static void transfer_surpluses(struct list_head *surpluses, struct ioc_now *now)
+{
+	LIST_HEAD(over_hwa);
+	LIST_HEAD(inner_walk);
+	struct ioc_gq *iocg, *tiocg, *root_iocg;
+	u32 after_sum, over_sum, over_target, gamma;
+
+	/*
+	 * It's pretty unlikely but possible for the total sum of
+	 * hweight_after_donation's to be higher than WEIGHT_ONE, which will
+	 * confuse the following calculations. If such condition is detected,
+	 * scale down everyone over its full share equally to keep the sum below
+	 * WEIGHT_ONE.
+	 */
+	after_sum = 0;
+	over_sum = 0;
+	list_for_each_entry(iocg, surpluses, surplus_list) {
+		u32 hwa;
+
+		current_hweight(iocg, &hwa, NULL);
+		after_sum += iocg->hweight_after_donation;
+
+		if (iocg->hweight_after_donation > hwa) {
+			over_sum += iocg->hweight_after_donation;
+			list_add(&iocg->walk_list, &over_hwa);
+		}
+	}
+
+	if (after_sum >= WEIGHT_ONE) {
+		/*
+		 * The delta should be deducted from the over_sum, calculate
+		 * target over_sum value.
+		 */
+		u32 over_delta = after_sum - (WEIGHT_ONE - 1);
+		WARN_ON_ONCE(over_sum <= over_delta);
+		over_target = over_sum - over_delta;
+	} else {
+		over_target = 0;
+	}
+
+	list_for_each_entry_safe(iocg, tiocg, &over_hwa, walk_list) {
+		if (over_target)
+			iocg->hweight_after_donation =
+				div_u64((u64)iocg->hweight_after_donation *
+					over_target, over_sum);
+		list_del_init(&iocg->walk_list);
+	}
+
+	/*
+	 * Build pre-order inner node walk list and prepare for donation
+	 * adjustment calculations.
+	 */
+	list_for_each_entry(iocg, surpluses, surplus_list) {
+		iocg_build_inner_walk(iocg, &inner_walk);
+	}
+
+	root_iocg = list_first_entry(&inner_walk, struct ioc_gq, walk_list);
+	WARN_ON_ONCE(root_iocg->level > 0);
+
+	list_for_each_entry(iocg, &inner_walk, walk_list) {
+		iocg->child_adjusted_sum = 0;
+		iocg->hweight_donating = 0;
+		iocg->hweight_after_donation = 0;
+	}
+
+	/*
+	 * Propagate the donating budget (b_t) and after donation budget (b'_t)
+	 * up the hierarchy.
+	 */
+	list_for_each_entry(iocg, surpluses, surplus_list) {
+		struct ioc_gq *parent = iocg->ancestors[iocg->level - 1];
+
+		parent->hweight_donating += iocg->hweight_donating;
+		parent->hweight_after_donation += iocg->hweight_after_donation;
+	}
+
+	list_for_each_entry_reverse(iocg, &inner_walk, walk_list) {
+		if (iocg->level > 0) {
+			struct ioc_gq *parent = iocg->ancestors[iocg->level - 1];
+
+			parent->hweight_donating += iocg->hweight_donating;
+			parent->hweight_after_donation += iocg->hweight_after_donation;
+		}
+	}
+
+	/*
+	 * Calculate inner hwa's (b) and make sure the donation values are
+	 * within the accepted ranges as we're doing low res calculations with
+	 * roundups.
+	 */
+	list_for_each_entry(iocg, &inner_walk, walk_list) {
+		if (iocg->level) {
+			struct ioc_gq *parent = iocg->ancestors[iocg->level - 1];
+
+			iocg->hweight_active = DIV64_U64_ROUND_UP(
+				(u64)parent->hweight_active * iocg->active,
+				parent->child_active_sum);
+
+		}
+
+		iocg->hweight_donating = min(iocg->hweight_donating,
+					     iocg->hweight_active);
+		iocg->hweight_after_donation = min(iocg->hweight_after_donation,
+						   iocg->hweight_donating - 1);
+		if (WARN_ON_ONCE(iocg->hweight_active <= 1 ||
+				 iocg->hweight_donating <= 1 ||
+				 iocg->hweight_after_donation == 0)) {
+			pr_warn("iocg: invalid donation weights in ");
+			pr_cont_cgroup_path(iocg_to_blkg(iocg)->blkcg->css.cgroup);
+			pr_cont(": active=%u donating=%u after=%u\n",
+				iocg->hweight_active, iocg->hweight_donating,
+				iocg->hweight_after_donation);
+		}
+	}
+
+	/*
+	 * Calculate the global donation rate (gamma) - the rate to adjust
+	 * non-donating budgets by.
+	 *
+	 * No need to use 64bit multiplication here as the first operand is
+	 * guaranteed to be smaller than WEIGHT_ONE (1<<16).
+	 *
+	 * We know that there are beneficiary nodes and the sum of the donating
+	 * hweights can't be whole; however, due to the round-ups during hweight
+	 * calculations, root_iocg->hweight_donating might still end up equal to
+	 * or greater than whole. Limit the range when calculating the divider.
+	 *
+	 * gamma = (1 - t_r') / (1 - t_r)
+	 */
+	gamma = DIV_ROUND_UP(
+		(WEIGHT_ONE - root_iocg->hweight_after_donation) * WEIGHT_ONE,
+		WEIGHT_ONE - min_t(u32, root_iocg->hweight_donating, WEIGHT_ONE - 1));
+
+	/*
+	 * Calculate adjusted hwi, child_adjusted_sum and inuse for the inner
+	 * nodes.
+	 */
+	list_for_each_entry(iocg, &inner_walk, walk_list) {
+		struct ioc_gq *parent;
+		u32 inuse, wpt, wptp;
+		u64 st, sf;
+
+		if (iocg->level == 0) {
+			/* adjusted weight sum for 1st level: s' = s * b_pf / b'_pf */
+			iocg->child_adjusted_sum = DIV64_U64_ROUND_UP(
+				iocg->child_active_sum * (WEIGHT_ONE - iocg->hweight_donating),
+				WEIGHT_ONE - iocg->hweight_after_donation);
+			continue;
+		}
+
+		parent = iocg->ancestors[iocg->level - 1];
+
+		/* b' = gamma * b_f + b_t' */
+		iocg->hweight_inuse = DIV64_U64_ROUND_UP(
+			(u64)gamma * (iocg->hweight_active - iocg->hweight_donating),
+			WEIGHT_ONE) + iocg->hweight_after_donation;
+
+		/* w' = s' * b' / b'_p */
+		inuse = DIV64_U64_ROUND_UP(
+			(u64)parent->child_adjusted_sum * iocg->hweight_inuse,
+			parent->hweight_inuse);
+
+		/* adjusted weight sum for children: s' = s_f + s_t * w'_pt / w_pt */
+		st = DIV64_U64_ROUND_UP(
+			iocg->child_active_sum * iocg->hweight_donating,
+			iocg->hweight_active);
+		sf = iocg->child_active_sum - st;
+		wpt = DIV64_U64_ROUND_UP(
+			(u64)iocg->active * iocg->hweight_donating,
+			iocg->hweight_active);
+		wptp = DIV64_U64_ROUND_UP(
+			(u64)inuse * iocg->hweight_after_donation,
+			iocg->hweight_inuse);
+
+		iocg->child_adjusted_sum = sf + DIV64_U64_ROUND_UP(st * wptp, wpt);
+	}
+
+	/*
+	 * All inner nodes now have ->hweight_inuse and ->child_adjusted_sum and
+	 * we can finally determine leaf adjustments.
+	 */
+	list_for_each_entry(iocg, surpluses, surplus_list) {
+		struct ioc_gq *parent = iocg->ancestors[iocg->level - 1];
+		u32 inuse;
+
+		/*
+		 * In-debt iocgs participated in the donation calculation with
+		 * the minimum target hweight_inuse. Configuring inuse
+		 * accordingly would work fine but debt handling expects
+		 * @iocg->inuse stay at the minimum and we don't wanna
+		 * interfere.
+		 */
+		if (iocg->abs_vdebt) {
+			WARN_ON_ONCE(iocg->inuse > 1);
+			continue;
+		}
+
+		/* w' = s' * b' / b'_p, note that b' == b'_t for donating leaves */
+		inuse = DIV64_U64_ROUND_UP(
+			parent->child_adjusted_sum * iocg->hweight_after_donation,
+			parent->hweight_inuse);
+
+		TRACE_IOCG_PATH(inuse_transfer, iocg, now,
+				iocg->inuse, inuse,
+				iocg->hweight_inuse,
+				iocg->hweight_after_donation);
+
+		__propagate_weights(iocg, iocg->active, inuse, true, now);
+	}
+
+	/* walk list should be dissolved after use */
+	list_for_each_entry_safe(iocg, tiocg, &inner_walk, walk_list)
+		list_del_init(&iocg->walk_list);
+}
+
+/*
+ * A low weight iocg can amass a large amount of debt, for example, when
+ * anonymous memory gets reclaimed aggressively. If the system has a lot of
+ * memory paired with a slow IO device, the debt can span multiple seconds or
+ * more. If there are no other subsequent IO issuers, the in-debt iocg may end
+ * up blocked paying its debt while the IO device is idle.
+ *
+ * The following protects against such cases. If the device has been
+ * sufficiently idle for a while, the debts are halved and delays are
+ * recalculated.
+ */
+static void ioc_forgive_debts(struct ioc *ioc, u64 usage_us_sum, int nr_debtors,
+			      struct ioc_now *now)
+{
+	struct ioc_gq *iocg;
+	u64 dur, usage_pct, nr_cycles;
+
+	/* if no debtor, reset the cycle */
+	if (!nr_debtors) {
+		ioc->dfgv_period_at = now->now;
+		ioc->dfgv_period_rem = 0;
+		ioc->dfgv_usage_us_sum = 0;
+		return;
+	}
+
+	/*
+	 * Debtors can pass through a lot of writes choking the device and we
+	 * don't want to be forgiving debts while the device is struggling from
+	 * write bursts. If we're missing latency targets, consider the device
+	 * fully utilized.
+	 */
+	if (ioc->busy_level > 0)
+		usage_us_sum = max_t(u64, usage_us_sum, ioc->period_us);
+
+	ioc->dfgv_usage_us_sum += usage_us_sum;
+	if (time_before64(now->now, ioc->dfgv_period_at + DFGV_PERIOD))
+		return;
+
+	/*
+	 * At least DFGV_PERIOD has passed since the last period. Calculate the
+	 * average usage and reset the period counters.
+	 */
+	dur = now->now - ioc->dfgv_period_at;
+	usage_pct = div64_u64(100 * ioc->dfgv_usage_us_sum, dur);
+
+	ioc->dfgv_period_at = now->now;
+	ioc->dfgv_usage_us_sum = 0;
+
+	/* if was too busy, reset everything */
+	if (usage_pct > DFGV_USAGE_PCT) {
+		ioc->dfgv_period_rem = 0;
+		return;
+	}
+
+	/*
+	 * Usage is lower than threshold. Let's forgive some debts. Debt
+	 * forgiveness runs off of the usual ioc timer but its period usually
+	 * doesn't match ioc's. Compensate the difference by performing the
+	 * reduction as many times as would fit in the duration since the last
+	 * run and carrying over the left-over duration in @ioc->dfgv_period_rem
+	 * - if ioc period is 75% of DFGV_PERIOD, one out of three consecutive
+	 * reductions is doubled.
+	 */
+	nr_cycles = dur + ioc->dfgv_period_rem;
+	ioc->dfgv_period_rem = do_div(nr_cycles, DFGV_PERIOD);
+
+	list_for_each_entry(iocg, &ioc->active_iocgs, active_list) {
+		u64 __maybe_unused old_debt, __maybe_unused old_delay;
+
+		if (!iocg->abs_vdebt && !iocg->delay)
+			continue;
+
+		spin_lock(&iocg->waitq.lock);
+
+		old_debt = iocg->abs_vdebt;
+		old_delay = iocg->delay;
+
+		if (iocg->abs_vdebt)
+			iocg->abs_vdebt = iocg->abs_vdebt >> nr_cycles ?: 1;
+		if (iocg->delay)
+			iocg->delay = iocg->delay >> nr_cycles ?: 1;
+
+		iocg_kick_waitq(iocg, true, now);
+
+		TRACE_IOCG_PATH(iocg_forgive_debt, iocg, now, usage_pct,
+				old_debt, iocg->abs_vdebt,
+				old_delay, iocg->delay);
+
+		spin_unlock(&iocg->waitq.lock);
+	}
 }
 
 static void ioc_timer_fn(struct timer_list *timer)
@@ -1341,12 +2076,14 @@ static void ioc_timer_fn(struct timer_list *timer)
 	struct ioc *ioc = container_of(timer, struct ioc, timer);
 	struct ioc_gq *iocg, *tiocg;
 	struct ioc_now now;
-	int nr_surpluses = 0, nr_shortages = 0, nr_lagging = 0;
+	LIST_HEAD(surpluses);
+	int nr_debtors = 0, nr_shortages = 0, nr_lagging = 0;
+	u64 usage_us_sum = 0;
 	u32 ppm_rthr = MILLION - ioc->params.qos[QOS_RPPM];
 	u32 ppm_wthr = MILLION - ioc->params.qos[QOS_WPPM];
 	u32 missed_ppm[2], rq_wait_pct;
 	u64 period_vtime;
-	int prev_busy_level, i;
+	int prev_busy_level;
 
 	/* how were the latencies during the period? */
 	ioc_lat_stat(ioc, missed_ppm, &rq_wait_pct);
@@ -1370,30 +2107,71 @@ static void ioc_timer_fn(struct timer_list *timer)
 	 */
 	list_for_each_entry_safe(iocg, tiocg, &ioc->active_iocgs, active_list) {
 		if (!waitqueue_active(&iocg->waitq) && !iocg->abs_vdebt &&
-		    !iocg_is_idle(iocg))
+		    !iocg->delay && !iocg_is_idle(iocg))
 			continue;
 
 		spin_lock(&iocg->waitq.lock);
 
-		if (waitqueue_active(&iocg->waitq) || iocg->abs_vdebt) {
+		/* flush wait and indebt stat deltas */
+		if (iocg->wait_since) {
+			iocg->local_stat.wait_us += now.now - iocg->wait_since;
+			iocg->wait_since = now.now;
+		}
+		if (iocg->indebt_since) {
+			iocg->local_stat.indebt_us +=
+				now.now - iocg->indebt_since;
+			iocg->indebt_since = now.now;
+		}
+		if (iocg->indelay_since) {
+			iocg->local_stat.indelay_us +=
+				now.now - iocg->indelay_since;
+			iocg->indelay_since = now.now;
+		}
+
+		if (waitqueue_active(&iocg->waitq) || iocg->abs_vdebt ||
+		    iocg->delay) {
 			/* might be oversleeping vtime / hweight changes, kick */
-			iocg_kick_waitq(iocg, &now);
-			iocg_kick_delay(iocg, &now);
+			iocg_kick_waitq(iocg, true, &now);
+			if (iocg->abs_vdebt || iocg->delay)
+				nr_debtors++;
 		} else if (iocg_is_idle(iocg)) {
 			/* no waiter and idle, deactivate */
-			iocg->last_inuse = iocg->inuse;
-			__propagate_active_weight(iocg, 0, 0);
+			u64 vtime = atomic64_read(&iocg->vtime);
+			s64 excess;
+
+			/*
+			 * @iocg has been inactive for a full duration and will
+			 * have a high budget. Account anything above target as
+			 * error and throw away. On reactivation, it'll start
+			 * with the target budget.
+			 */
+			excess = now.vnow - vtime - ioc->margins.target;
+			if (excess > 0) {
+				u32 old_hwi;
+
+				current_hweight(iocg, NULL, &old_hwi);
+				ioc->vtime_err -= div64_u64(excess * old_hwi,
+							    WEIGHT_ONE);
+			}
+
+			__propagate_weights(iocg, 0, 0, false, &now);
 			list_del_init(&iocg->active_list);
 		}
 
 		spin_unlock(&iocg->waitq.lock);
 	}
-	commit_active_weights(ioc);
+	commit_weights(ioc);
 
-	/* calc usages and see whether some weights need to be moved around */
+	/*
+	 * Wait and indebt stat are flushed above and the donation calculation
+	 * below needs updated usage stat. Let's bring stat up-to-date.
+	 */
+	iocg_flush_stat(&ioc->active_iocgs, &now);
+
+	/* calc usage and see whether some weights need to be moved around */
 	list_for_each_entry(iocg, &ioc->active_iocgs, active_list) {
-		u64 vdone, vtime, vusage, vmargin, vmin;
-		u32 hw_active, hw_inuse, usage;
+		u64 vdone, vtime, usage_us, usage_dur;
+		u32 usage, hw_active, hw_inuse;
 
 		/*
 		 * Collect unused and wind vtime closer to vnow to prevent
@@ -1417,116 +2195,73 @@ static void ioc_timer_fn(struct timer_list *timer)
 		    time_before64(vdone, now.vnow - period_vtime))
 			nr_lagging++;
 
-		if (waitqueue_active(&iocg->waitq))
-			vusage = now.vnow - iocg->last_vtime;
-		else if (time_before64(iocg->last_vtime, vtime))
-			vusage = vtime - iocg->last_vtime;
-		else
-			vusage = 0;
-
-		iocg->last_vtime += vusage;
 		/*
-		 * Factor in in-flight vtime into vusage to avoid
-		 * high-latency completions appearing as idle.  This should
-		 * be done after the above ->last_time adjustment.
+		 * Determine absolute usage factoring in in-flight IOs to avoid
+		 * high-latency completions appearing as idle.
 		 */
-		vusage = max(vusage, vtime - vdone);
+		usage_us = iocg->usage_delta_us;
+		usage_us_sum += usage_us;
 
-		/* calculate hweight based usage ratio and record */
-		if (vusage) {
-			usage = DIV64_U64_ROUND_UP(vusage * hw_inuse,
-						   period_vtime);
-			iocg->usage_idx = (iocg->usage_idx + 1) % NR_USAGE_SLOTS;
-			iocg->usages[iocg->usage_idx] = usage;
-		} else {
-			usage = 0;
+		if (vdone != vtime) {
+			u64 inflight_us = DIV64_U64_ROUND_UP(
+				cost_to_abs_cost(vtime - vdone, hw_inuse),
+				ioc->vtime_base_rate);
+			usage_us = max(usage_us, inflight_us);
 		}
 
+		/* convert to hweight based usage ratio */
+		if (time_after64(iocg->activated_at, ioc->period_at))
+			usage_dur = max_t(u64, now.now - iocg->activated_at, 1);
+		else
+			usage_dur = max_t(u64, now.now - ioc->period_at, 1);
+
+		usage = clamp_t(u32,
+				DIV64_U64_ROUND_UP(usage_us * WEIGHT_ONE,
+						   usage_dur),
+				1, WEIGHT_ONE);
+
 		/* see whether there's surplus vtime */
-		vmargin = ioc->margin_us * now.vrate;
-		vmin = now.vnow - vmargin;
+		WARN_ON_ONCE(!list_empty(&iocg->surplus_list));
+		if (hw_inuse < hw_active ||
+		    (!waitqueue_active(&iocg->waitq) &&
+		     time_before64(vtime, now.vnow - ioc->margins.low))) {
+			u32 hwa, old_hwi, hwm, new_hwi;
 
-		iocg->has_surplus = false;
-
-		if (!waitqueue_active(&iocg->waitq) &&
-		    time_before64(vtime, vmin)) {
-			u64 delta = vmin - vtime;
-
-			/* throw away surplus vtime */
-			atomic64_add(delta, &iocg->vtime);
-			atomic64_add(delta, &iocg->done_vtime);
-			iocg->last_vtime += delta;
-			/* if usage is sufficiently low, maybe it can donate */
-			if (surplus_adjusted_hweight_inuse(usage, hw_inuse)) {
-				iocg->has_surplus = true;
-				nr_surpluses++;
-			}
-		} else if (hw_inuse < hw_active) {
-			u32 new_hwi, new_inuse;
-
-			/* was donating but might need to take back some */
-			if (waitqueue_active(&iocg->waitq)) {
-				new_hwi = hw_active;
+			/*
+			 * Already donating or accumulated enough to start.
+			 * Determine the donation amount.
+			 */
+			current_hweight(iocg, &hwa, &old_hwi);
+			hwm = current_hweight_max(iocg);
+			new_hwi = hweight_after_donation(iocg, old_hwi, hwm,
+							 usage, &now);
+			if (new_hwi < hwm) {
+				iocg->hweight_donating = hwa;
+				iocg->hweight_after_donation = new_hwi;
+				list_add(&iocg->surplus_list, &surpluses);
 			} else {
-				new_hwi = max(hw_inuse,
-					      usage * SURPLUS_SCALE_PCT / 100 +
-					      SURPLUS_SCALE_ABS);
-			}
+				TRACE_IOCG_PATH(inuse_shortage, iocg, &now,
+						iocg->inuse, iocg->active,
+						iocg->hweight_inuse, new_hwi);
 
-			new_inuse = div64_u64((u64)iocg->inuse * new_hwi,
-					      hw_inuse);
-			new_inuse = clamp_t(u32, new_inuse, 1, iocg->active);
-
-			if (new_inuse > iocg->inuse) {
-				TRACE_IOCG_PATH(inuse_takeback, iocg, &now,
-						iocg->inuse, new_inuse,
-						hw_inuse, new_hwi);
-				__propagate_active_weight(iocg, iocg->weight,
-							  new_inuse);
+				__propagate_weights(iocg, iocg->active,
+						    iocg->active, true, &now);
+				nr_shortages++;
 			}
 		} else {
-			/* genuninely out of vtime */
+			/* genuinely short on vtime */
 			nr_shortages++;
 		}
 	}
 
-	if (!nr_shortages || !nr_surpluses)
-		goto skip_surplus_transfers;
+	if (!list_empty(&surpluses) && nr_shortages)
+		transfer_surpluses(&surpluses, &now);
 
-	/* there are both shortages and surpluses, transfer surpluses */
-	list_for_each_entry(iocg, &ioc->active_iocgs, active_list) {
-		u32 usage, hw_active, hw_inuse, new_hwi, new_inuse;
-		int nr_valid = 0;
+	commit_weights(ioc);
 
-		if (!iocg->has_surplus)
-			continue;
-
-		/* base the decision on max historical usage */
-		for (i = 0, usage = 0; i < NR_USAGE_SLOTS; i++) {
-			if (iocg->usages[i]) {
-				usage = max(usage, iocg->usages[i]);
-				nr_valid++;
-			}
-		}
-		if (nr_valid < MIN_VALID_USAGES)
-			continue;
-
-		current_hweight(iocg, &hw_active, &hw_inuse);
-		new_hwi = surplus_adjusted_hweight_inuse(usage, hw_inuse);
-		if (!new_hwi)
-			continue;
-
-		new_inuse = DIV64_U64_ROUND_UP((u64)iocg->inuse * new_hwi,
-					       hw_inuse);
-		if (new_inuse < iocg->inuse) {
-			TRACE_IOCG_PATH(inuse_giveaway, iocg, &now,
-					iocg->inuse, new_inuse,
-					hw_inuse, new_hwi);
-			__propagate_active_weight(iocg, iocg->weight, new_inuse);
-		}
-	}
-skip_surplus_transfers:
-	commit_active_weights(ioc);
+	/* surplus list should be dissolved after use */
+	list_for_each_entry_safe(iocg, tiocg, &surpluses, surplus_list)
+		list_del_init(&iocg->surplus_list);
 
 	/*
 	 * If q is getting clogged or we're missing too much, we're issuing
@@ -1554,11 +2289,9 @@ skip_surplus_transfers:
 
 			/*
 			 * If there are IOs spanning multiple periods, wait
-			 * them out before pushing the device harder.  If
-			 * there are surpluses, let redistribution work it
-			 * out first.
+			 * them out before pushing the device harder.
 			 */
-			if (!nr_lagging && !nr_surpluses)
+			if (!nr_lagging)
 				ioc->busy_level--;
 		} else {
 			/*
@@ -1577,7 +2310,7 @@ skip_surplus_transfers:
 	ioc->busy_level = clamp(ioc->busy_level, -1000, 1000);
 
 	if (ioc->busy_level > 0 || (ioc->busy_level < 0 && !nr_lagging)) {
-		u64 vrate = atomic64_read(&ioc->vtime_rate);
+		u64 vrate = ioc->vtime_base_rate;
 		u64 vrate_min = ioc->vrate_min, vrate_max = ioc->vrate_max;
 
 		/* rq_wait signal is always reliable, ignore user vrate_min */
@@ -1612,19 +2345,19 @@ skip_surplus_transfers:
 		}
 
 		trace_iocost_ioc_vrate_adj(ioc, vrate, missed_ppm, rq_wait_pct,
-					   nr_lagging, nr_shortages,
-					   nr_surpluses);
+					   nr_lagging, nr_shortages);
 
-		atomic64_set(&ioc->vtime_rate, vrate);
-		ioc->inuse_margin_vtime = DIV64_U64_ROUND_UP(
-			ioc->period_us * vrate * INUSE_MARGIN_PCT, 100);
+		ioc->vtime_base_rate = vrate;
+		ioc_refresh_margins(ioc);
 	} else if (ioc->busy_level != prev_busy_level || nr_lagging) {
 		trace_iocost_ioc_vrate_adj(ioc, atomic64_read(&ioc->vtime_rate),
 					   missed_ppm, rq_wait_pct, nr_lagging,
-					   nr_shortages, nr_surpluses);
+					   nr_shortages);
 	}
 
 	ioc_refresh_params(ioc, false);
+
+	ioc_forgive_debts(ioc, usage_us_sum, nr_debtors, &now);
 
 	/*
 	 * This period is done.  Move onto the next one.  If nothing's
@@ -1637,11 +2370,74 @@ skip_surplus_transfers:
 			ioc_start_period(ioc, &now);
 		} else {
 			ioc->busy_level = 0;
+			ioc->vtime_err = 0;
 			ioc->running = IOC_IDLE;
 		}
+
+		ioc_refresh_vrate(ioc, &now);
 	}
 
 	spin_unlock_irq(&ioc->lock);
+}
+
+static u64 adjust_inuse_and_calc_cost(struct ioc_gq *iocg, u64 vtime,
+				      u64 abs_cost, struct ioc_now *now)
+{
+	struct ioc *ioc = iocg->ioc;
+	struct ioc_margins *margins = &ioc->margins;
+	u32 __maybe_unused old_inuse = iocg->inuse, __maybe_unused old_hwi;
+	u32 hwi, adj_step;
+	s64 margin;
+	u64 cost, new_inuse;
+
+	current_hweight(iocg, NULL, &hwi);
+	old_hwi = hwi;
+	cost = abs_cost_to_cost(abs_cost, hwi);
+	margin = now->vnow - vtime - cost;
+
+	/* debt handling owns inuse for debtors */
+	if (iocg->abs_vdebt)
+		return cost;
+
+	/*
+	 * We only increase inuse during period and do so iff the margin has
+	 * deteriorated since the previous adjustment.
+	 */
+	if (margin >= iocg->saved_margin || margin >= margins->low ||
+	    iocg->inuse == iocg->active)
+		return cost;
+
+	spin_lock_irq(&ioc->lock);
+
+	/* we own inuse only when @iocg is in the normal active state */
+	if (iocg->abs_vdebt || list_empty(&iocg->active_list)) {
+		spin_unlock_irq(&ioc->lock);
+		return cost;
+	}
+
+	/*
+	 * Bump up inuse till @abs_cost fits in the existing budget.
+	 * adj_step must be determined after acquiring ioc->lock - we might
+	 * have raced and lost to another thread for activation and could
+	 * be reading 0 iocg->active before ioc->lock which will lead to
+	 * infinite loop.
+	 */
+	new_inuse = iocg->inuse;
+	adj_step = DIV_ROUND_UP(iocg->active * INUSE_ADJ_STEP_PCT, 100);
+	do {
+		new_inuse = new_inuse + adj_step;
+		propagate_weights(iocg, iocg->active, new_inuse, true, now);
+		current_hweight(iocg, NULL, &hwi);
+		cost = abs_cost_to_cost(abs_cost, hwi);
+	} while (time_after64(vtime + cost, now->vnow) &&
+		 iocg->inuse != iocg->active);
+
+	spin_unlock_irq(&ioc->lock);
+
+	TRACE_IOCG_PATH(inuse_adjust, iocg, now,
+			old_inuse, iocg->inuse, old_hwi, hwi);
+
+	return cost;
 }
 
 static void calc_vtime_cost_builtin(struct bio *bio, struct ioc_gq *iocg,
@@ -1725,15 +2521,12 @@ static void ioc_rqos_throttle(struct rq_qos *rqos, struct bio *bio)
 	struct ioc_gq *iocg = blkg_to_iocg(blkg);
 	struct ioc_now now;
 	struct iocg_wait wait;
-	u32 hw_active, hw_inuse;
 	u64 abs_cost, cost, vtime;
+	bool use_debt, ioc_locked;
+	unsigned long flags;
 
 	/* bypass IOs if disabled or for root cgroup */
 	if (!ioc->enabled || !iocg->level)
-		return;
-
-	/* always activate so that even 0 cost IOs get protected to some level */
-	if (!iocg_activate(iocg, &now))
 		return;
 
 	/* calculate the absolute vtime cost */
@@ -1741,22 +2534,12 @@ static void ioc_rqos_throttle(struct rq_qos *rqos, struct bio *bio)
 	if (!abs_cost)
 		return;
 
+	if (!iocg_activate(iocg, &now))
+		return;
+
 	iocg->cursor = bio_end_sector(bio);
-
 	vtime = atomic64_read(&iocg->vtime);
-	current_hweight(iocg, &hw_active, &hw_inuse);
-
-	if (hw_inuse < hw_active &&
-	    time_after_eq64(vtime + ioc->inuse_margin_vtime, now.vnow)) {
-		TRACE_IOCG_PATH(inuse_reset, iocg, &now,
-				iocg->inuse, iocg->weight, hw_inuse, hw_active);
-		spin_lock_irq(&ioc->lock);
-		propagate_active_weight(iocg, iocg->weight, iocg->weight);
-		spin_unlock_irq(&ioc->lock);
-		current_hweight(iocg, &hw_active, &hw_inuse);
-	}
-
-	cost = abs_cost_to_cost(abs_cost, hw_inuse);
+	cost = adjust_inuse_and_calc_cost(iocg, vtime, abs_cost, &now);
 
 	/*
 	 * If no one's waiting and within budget, issue right away.  The
@@ -1765,21 +2548,32 @@ static void ioc_rqos_throttle(struct rq_qos *rqos, struct bio *bio)
 	 */
 	if (!waitqueue_active(&iocg->waitq) && !iocg->abs_vdebt &&
 	    time_before_eq64(vtime + cost, now.vnow)) {
-		iocg_commit_bio(iocg, bio, cost);
+		iocg_commit_bio(iocg, bio, abs_cost, cost);
 		return;
 	}
 
 	/*
-	 * We activated above but w/o any synchronization. Deactivation is
-	 * synchronized with waitq.lock and we won't get deactivated as long
-	 * as we're waiting or has debt, so we're good if we're activated
-	 * here. In the unlikely case that we aren't, just issue the IO.
+	 * We're over budget. This can be handled in two ways. IOs which may
+	 * cause priority inversions are punted to @ioc->aux_iocg and charged as
+	 * debt. Otherwise, the issuer is blocked on @iocg->waitq. Debt handling
+	 * requires @ioc->lock, waitq handling @iocg->waitq.lock. Determine
+	 * whether debt handling is needed and acquire locks accordingly.
 	 */
-	spin_lock_irq(&iocg->waitq.lock);
+	use_debt = bio_issue_as_root_blkg(bio) || fatal_signal_pending(current);
+	ioc_locked = use_debt || READ_ONCE(iocg->abs_vdebt);
+retry_lock:
+	iocg_lock(iocg, ioc_locked, &flags);
 
+	/*
+	 * @iocg must stay activated for debt and waitq handling. Deactivation
+	 * is synchronized against both ioc->lock and waitq.lock and we won't
+	 * get deactivated as long as we're waiting or has debt, so we're good
+	 * if we're activated here. In the unlikely cases that we aren't, just
+	 * issue the IO.
+	 */
 	if (unlikely(list_empty(&iocg->active_list))) {
-		spin_unlock_irq(&iocg->waitq.lock);
-		iocg_commit_bio(iocg, bio, cost);
+		iocg_unlock(iocg, ioc_locked, &flags);
+		iocg_commit_bio(iocg, bio, abs_cost, cost);
 		return;
 	}
 
@@ -1800,13 +2594,24 @@ static void ioc_rqos_throttle(struct rq_qos *rqos, struct bio *bio)
 	 * clear them and leave @iocg inactive w/ dangling use_delay heavily
 	 * penalizing the cgroup and its descendants.
 	 */
-	if (bio_issue_as_root_blkg(bio) || fatal_signal_pending(current)) {
-		iocg->abs_vdebt += abs_cost;
+	if (use_debt) {
+		iocg_incur_debt(iocg, abs_cost, &now);
 		if (iocg_kick_delay(iocg, &now))
 			blkcg_schedule_throttle(rqos->q,
 					(bio->bi_opf & REQ_SWAP) == REQ_SWAP);
-		spin_unlock_irq(&iocg->waitq.lock);
+		iocg_unlock(iocg, ioc_locked, &flags);
 		return;
+	}
+
+	/* guarantee that iocgs w/ waiters have maximum inuse */
+	if (!iocg->abs_vdebt && iocg->inuse != iocg->active) {
+		if (!ioc_locked) {
+			iocg_unlock(iocg, false, &flags);
+			ioc_locked = true;
+			goto retry_lock;
+		}
+		propagate_weights(iocg, iocg->active, iocg->active, true,
+				  &now);
 	}
 
 	/*
@@ -1829,9 +2634,9 @@ static void ioc_rqos_throttle(struct rq_qos *rqos, struct bio *bio)
 	wait.committed = false;	/* will be set true by waker */
 
 	__add_wait_queue_entry_tail(&iocg->waitq, &wait.wait);
-	iocg_kick_waitq(iocg, &now);
+	iocg_kick_waitq(iocg, ioc_locked, &now);
 
-	spin_unlock_irq(&iocg->waitq.lock);
+	iocg_unlock(iocg, ioc_locked, &flags);
 
 	while (true) {
 		set_current_state(TASK_UNINTERRUPTIBLE);
@@ -1851,8 +2656,7 @@ static void ioc_rqos_merge(struct rq_qos *rqos, struct request *rq,
 	struct ioc *ioc = iocg->ioc;
 	sector_t bio_end = bio_end_sector(bio);
 	struct ioc_now now;
-	u32 hw_inuse;
-	u64 abs_cost, cost;
+	u64 vtime, abs_cost, cost;
 	unsigned long flags;
 
 	/* bypass if disabled or for root cgroup */
@@ -1864,8 +2668,9 @@ static void ioc_rqos_merge(struct rq_qos *rqos, struct request *rq,
 		return;
 
 	ioc_now(ioc, &now);
-	current_hweight(iocg, NULL, &hw_inuse);
-	cost = abs_cost_to_cost(abs_cost, hw_inuse);
+
+	vtime = atomic64_read(&iocg->vtime);
+	cost = adjust_inuse_and_calc_cost(iocg, vtime, abs_cost, &now);
 
 	/* update cursor if backmerging into the request at the cursor */
 	if (blk_rq_pos(rq) < bio_end &&
@@ -1878,7 +2683,7 @@ static void ioc_rqos_merge(struct rq_qos *rqos, struct request *rq,
 	 */
 	if (rq->bio && rq->bio->bi_iocost_cost &&
 	    time_before_eq64(atomic64_read(&iocg->vtime) + cost, now.vnow)) {
-		iocg_commit_bio(iocg, bio, cost);
+		iocg_commit_bio(iocg, bio, abs_cost, cost);
 		return;
 	}
 
@@ -1887,14 +2692,20 @@ static void ioc_rqos_merge(struct rq_qos *rqos, struct request *rq,
 	 * be for the vast majority of cases. See debt handling in
 	 * ioc_rqos_throttle() for details.
 	 */
-	spin_lock_irqsave(&iocg->waitq.lock, flags);
+	spin_lock_irqsave(&ioc->lock, flags);
+	spin_lock(&iocg->waitq.lock);
+
 	if (likely(!list_empty(&iocg->active_list))) {
-		iocg->abs_vdebt += abs_cost;
-		iocg_kick_delay(iocg, &now);
+		iocg_incur_debt(iocg, abs_cost, &now);
+		if (iocg_kick_delay(iocg, &now))
+			blkcg_schedule_throttle(rqos->q,
+					(bio->bi_opf & REQ_SWAP) == REQ_SWAP);
 	} else {
-		iocg_commit_bio(iocg, bio, cost);
+		iocg_commit_bio(iocg, bio, abs_cost, cost);
 	}
-	spin_unlock_irqrestore(&iocg->waitq.lock, flags);
+
+	spin_unlock(&iocg->waitq.lock);
+	spin_unlock_irqrestore(&ioc->lock, flags);
 }
 
 static void ioc_rqos_done_bio(struct rq_qos *rqos, struct bio *bio)
@@ -1908,6 +2719,7 @@ static void ioc_rqos_done_bio(struct rq_qos *rqos, struct bio *bio)
 static void ioc_rqos_done(struct rq_qos *rqos, struct request *rq)
 {
 	struct ioc *ioc = rqos_to_ioc(rqos);
+	struct ioc_pcpu_stat *ccs;
 	u64 on_q_ns, rq_wait_ns, size_nsec;
 	int pidx, rw;
 
@@ -1931,13 +2743,17 @@ static void ioc_rqos_done(struct rq_qos *rqos, struct request *rq)
 	rq_wait_ns = rq->start_time_ns - rq->alloc_time_ns;
 	size_nsec = div64_u64(calc_size_vtime_cost(rq, ioc), VTIME_PER_NSEC);
 
+	ccs = get_cpu_ptr(ioc->pcpu_stat);
+
 	if (on_q_ns <= size_nsec ||
 	    on_q_ns - size_nsec <= ioc->params.qos[pidx] * NSEC_PER_USEC)
-		this_cpu_inc(ioc->pcpu_stat->missed[rw].nr_met);
+		local_inc(&ccs->missed[rw].nr_met);
 	else
-		this_cpu_inc(ioc->pcpu_stat->missed[rw].nr_missed);
+		local_inc(&ccs->missed[rw].nr_missed);
 
-	this_cpu_add(ioc->pcpu_stat->rq_wait_ns, rq_wait_ns);
+	local64_add(rq_wait_ns, &ccs->rq_wait_ns);
+
+	put_cpu_ptr(ccs);
 }
 
 static void ioc_rqos_queue_depth_changed(struct rq_qos *rqos)
@@ -1977,7 +2793,7 @@ static int blk_iocost_init(struct request_queue *q)
 {
 	struct ioc *ioc;
 	struct rq_qos *rqos;
-	int ret;
+	int i, cpu, ret;
 
 	ioc = kzalloc(sizeof(*ioc), GFP_KERNEL);
 	if (!ioc)
@@ -1987,6 +2803,16 @@ static int blk_iocost_init(struct request_queue *q)
 	if (!ioc->pcpu_stat) {
 		kfree(ioc);
 		return -ENOMEM;
+	}
+
+	for_each_possible_cpu(cpu) {
+		struct ioc_pcpu_stat *ccs = per_cpu_ptr(ioc->pcpu_stat, cpu);
+
+		for (i = 0; i < ARRAY_SIZE(ccs->missed); i++) {
+			local_set(&ccs->missed[i].nr_met, 0);
+			local_set(&ccs->missed[i].nr_missed, 0);
+		}
+		local64_set(&ccs->rq_wait_ns, 0);
 	}
 
 	rqos = &ioc->rqos;
@@ -1999,6 +2825,7 @@ static int blk_iocost_init(struct request_queue *q)
 	INIT_LIST_HEAD(&ioc->active_iocgs);
 
 	ioc->running = IOC_IDLE;
+	ioc->vtime_base_rate = VTIME_PER_USEC;
 	atomic64_set(&ioc->vtime_rate, VTIME_PER_USEC);
 	seqcount_spinlock_init(&ioc->period_seqcount, &ioc->lock);
 	ioc->period_at = ktime_to_us(ktime_get());
@@ -2029,7 +2856,7 @@ static struct blkcg_policy_data *ioc_cpd_alloc(gfp_t gfp)
 	if (!iocc)
 		return NULL;
 
-	iocc->dfl_weight = CGROUP_WEIGHT_DFL;
+	iocc->dfl_weight = CGROUP_WEIGHT_DFL * WEIGHT_ONE;
 	return &iocc->cpd;
 }
 
@@ -2047,6 +2874,12 @@ static struct blkg_policy_data *ioc_pd_alloc(gfp_t gfp, struct request_queue *q,
 	iocg = kzalloc_node(struct_size(iocg, ancestors, levels), gfp, q->node);
 	if (!iocg)
 		return NULL;
+
+	iocg->pcpu_stat = alloc_percpu_gfp(struct iocg_pcpu_stat, gfp);
+	if (!iocg->pcpu_stat) {
+		kfree(iocg);
+		return NULL;
+	}
 
 	return &iocg->pd;
 }
@@ -2067,14 +2900,14 @@ static void ioc_pd_init(struct blkg_policy_data *pd)
 	atomic64_set(&iocg->done_vtime, now.vnow);
 	atomic64_set(&iocg->active_period, atomic64_read(&ioc->cur_period));
 	INIT_LIST_HEAD(&iocg->active_list);
-	iocg->hweight_active = HWEIGHT_WHOLE;
-	iocg->hweight_inuse = HWEIGHT_WHOLE;
+	INIT_LIST_HEAD(&iocg->walk_list);
+	INIT_LIST_HEAD(&iocg->surplus_list);
+	iocg->hweight_active = WEIGHT_ONE;
+	iocg->hweight_inuse = WEIGHT_ONE;
 
 	init_waitqueue_head(&iocg->waitq);
 	hrtimer_init(&iocg->waitq_timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 	iocg->waitq_timer.function = iocg_waitq_timer_fn;
-	hrtimer_init(&iocg->delay_timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
-	iocg->delay_timer.function = iocg_delay_timer_fn;
 
 	iocg->level = blkg->blkcg->css.cgroup->level;
 
@@ -2084,7 +2917,7 @@ static void ioc_pd_init(struct blkg_policy_data *pd)
 	}
 
 	spin_lock_irqsave(&ioc->lock, flags);
-	weight_updated(iocg);
+	weight_updated(iocg, &now);
 	spin_unlock_irqrestore(&ioc->lock, flags);
 }
 
@@ -2096,16 +2929,54 @@ static void ioc_pd_free(struct blkg_policy_data *pd)
 
 	if (ioc) {
 		spin_lock_irqsave(&ioc->lock, flags);
+
 		if (!list_empty(&iocg->active_list)) {
-			propagate_active_weight(iocg, 0, 0);
+			struct ioc_now now;
+
+			ioc_now(ioc, &now);
+			propagate_weights(iocg, 0, 0, false, &now);
 			list_del_init(&iocg->active_list);
 		}
+
+		WARN_ON_ONCE(!list_empty(&iocg->walk_list));
+		WARN_ON_ONCE(!list_empty(&iocg->surplus_list));
+
 		spin_unlock_irqrestore(&ioc->lock, flags);
 
 		hrtimer_cancel(&iocg->waitq_timer);
-		hrtimer_cancel(&iocg->delay_timer);
 	}
+	free_percpu(iocg->pcpu_stat);
 	kfree(iocg);
+}
+
+static size_t ioc_pd_stat(struct blkg_policy_data *pd, char *buf, size_t size)
+{
+	struct ioc_gq *iocg = pd_to_iocg(pd);
+	struct ioc *ioc = iocg->ioc;
+	size_t pos = 0;
+
+	if (!ioc->enabled)
+		return 0;
+
+	if (iocg->level == 0) {
+		unsigned vp10k = DIV64_U64_ROUND_CLOSEST(
+			ioc->vtime_base_rate * 10000,
+			VTIME_PER_USEC);
+		pos += scnprintf(buf + pos, size - pos, " cost.vrate=%u.%02u",
+				  vp10k / 100, vp10k % 100);
+	}
+
+	pos += scnprintf(buf + pos, size - pos, " cost.usage=%llu",
+			 iocg->last_stat.usage_us);
+
+	if (blkcg_debug_stats)
+		pos += scnprintf(buf + pos, size - pos,
+				 " cost.wait=%llu cost.indebt=%llu cost.indelay=%llu",
+				 iocg->last_stat.wait_us,
+				 iocg->last_stat.indebt_us,
+				 iocg->last_stat.indelay_us);
+
+	return pos;
 }
 
 static u64 ioc_weight_prfill(struct seq_file *sf, struct blkg_policy_data *pd,
@@ -2115,7 +2986,7 @@ static u64 ioc_weight_prfill(struct seq_file *sf, struct blkg_policy_data *pd,
 	struct ioc_gq *iocg = pd_to_iocg(pd);
 
 	if (dname && iocg->cfg_weight)
-		seq_printf(sf, "%s %u\n", dname, iocg->cfg_weight);
+		seq_printf(sf, "%s %u\n", dname, iocg->cfg_weight / WEIGHT_ONE);
 	return 0;
 }
 
@@ -2125,7 +2996,7 @@ static int ioc_weight_show(struct seq_file *sf, void *v)
 	struct blkcg *blkcg = css_to_blkcg(seq_css(sf));
 	struct ioc_cgrp *iocc = blkcg_to_iocc(blkcg);
 
-	seq_printf(sf, "default %u\n", iocc->dfl_weight);
+	seq_printf(sf, "default %u\n", iocc->dfl_weight / WEIGHT_ONE);
 	blkcg_print_blkgs(sf, blkcg, ioc_weight_prfill,
 			  &blkcg_policy_iocost, seq_cft(sf)->private, false);
 	return 0;
@@ -2137,6 +3008,7 @@ static ssize_t ioc_weight_write(struct kernfs_open_file *of, char *buf,
 	struct blkcg *blkcg = css_to_blkcg(of_css(of));
 	struct ioc_cgrp *iocc = blkcg_to_iocc(blkcg);
 	struct blkg_conf_ctx ctx;
+	struct ioc_now now;
 	struct ioc_gq *iocg;
 	u32 v;
 	int ret;
@@ -2151,13 +3023,14 @@ static ssize_t ioc_weight_write(struct kernfs_open_file *of, char *buf,
 			return -EINVAL;
 
 		spin_lock(&blkcg->lock);
-		iocc->dfl_weight = v;
+		iocc->dfl_weight = v * WEIGHT_ONE;
 		hlist_for_each_entry(blkg, &blkcg->blkg_list, blkcg_node) {
 			struct ioc_gq *iocg = blkg_to_iocg(blkg);
 
 			if (iocg) {
 				spin_lock_irq(&iocg->ioc->lock);
-				weight_updated(iocg);
+				ioc_now(iocg->ioc, &now);
+				weight_updated(iocg, &now);
 				spin_unlock_irq(&iocg->ioc->lock);
 			}
 		}
@@ -2182,8 +3055,9 @@ static ssize_t ioc_weight_write(struct kernfs_open_file *of, char *buf,
 	}
 
 	spin_lock(&iocg->ioc->lock);
-	iocg->cfg_weight = v;
-	weight_updated(iocg);
+	iocg->cfg_weight = v * WEIGHT_ONE;
+	ioc_now(iocg->ioc, &now);
+	weight_updated(iocg, &now);
 	spin_unlock(&iocg->ioc->lock);
 
 	blkg_conf_finish(&ctx);
@@ -2521,6 +3395,7 @@ static struct blkcg_policy blkcg_policy_iocost = {
 	.pd_alloc_fn	= ioc_pd_alloc,
 	.pd_init_fn	= ioc_pd_init,
 	.pd_free_fn	= ioc_pd_free,
+	.pd_stat_fn	= ioc_pd_stat,
 };
 
 static int __init ioc_init(void)
