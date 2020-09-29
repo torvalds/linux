@@ -24,6 +24,10 @@
 #define WINDOW_START			0x80000
 #define WINDOW_RANGE_MASK		GENMASK(18, 0)
 
+#define TCSR_SOC_HW_VERSION		0x0224
+#define TCSR_SOC_HW_VERSION_MAJOR_MASK	GENMASK(16, 8)
+#define TCSR_SOC_HW_VERSION_MINOR_MASK	GENMASK(7, 0)
+
 #define QCA6390_DEVICE_ID		0x1101
 
 static const struct pci_device_id ath11k_pci_id_table[] = {
@@ -839,20 +843,10 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 {
 	struct ath11k_base *ab;
 	struct ath11k_pci *ab_pci;
-	enum ath11k_hw_rev hw_rev;
+	u32 soc_hw_version, soc_hw_version_major, soc_hw_version_minor;
 	int ret;
 
 	dev_warn(&pdev->dev, "WARNING: ath11k PCI support is experimental!\n");
-
-	switch (pci_dev->device) {
-	case QCA6390_DEVICE_ID:
-		hw_rev = ATH11K_HW_QCA6390_HW20;
-		break;
-	default:
-		dev_err(&pdev->dev, "Unknown PCI device found: 0x%x\n",
-			pci_dev->device);
-		return -ENOTSUPP;
-	}
 
 	ab = ath11k_core_alloc(&pdev->dev, sizeof(*ab_pci), ATH11K_BUS_PCI,
 			       &ath11k_pci_bus_params);
@@ -862,7 +856,6 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 	}
 
 	ab->dev = &pdev->dev;
-	ab->hw_rev = hw_rev;
 	pci_set_drvdata(pdev, ab);
 	ab_pci = ath11k_pci_priv(ab);
 	ab_pci->dev_id = pci_dev->device;
@@ -876,6 +869,35 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 	if (ret) {
 		ath11k_err(ab, "failed to claim device: %d\n", ret);
 		goto err_free_core;
+	}
+
+	switch (pci_dev->device) {
+	case QCA6390_DEVICE_ID:
+		soc_hw_version = ath11k_pci_read32(ab, TCSR_SOC_HW_VERSION);
+		soc_hw_version_major = FIELD_GET(TCSR_SOC_HW_VERSION_MAJOR_MASK,
+						 soc_hw_version);
+		soc_hw_version_minor = FIELD_GET(TCSR_SOC_HW_VERSION_MINOR_MASK,
+						 soc_hw_version);
+
+		ath11k_dbg(ab, ATH11K_DBG_PCI, "pci tcsr_soc_hw_version major %d minor %d\n",
+			   soc_hw_version_major, soc_hw_version_minor);
+
+		switch (soc_hw_version_major) {
+		case 2:
+			ab->hw_rev = ATH11K_HW_QCA6390_HW20;
+			break;
+		default:
+			dev_err(&pdev->dev, "Unsupported QCA6390 SOC hardware version: %d %d\n",
+				soc_hw_version_major, soc_hw_version_minor);
+			ret = -EOPNOTSUPP;
+			goto err_pci_free_region;
+		}
+		break;
+	default:
+		dev_err(&pdev->dev, "Unknown PCI device found: 0x%x\n",
+			pci_dev->device);
+		ret = -EOPNOTSUPP;
+		goto err_pci_free_region;
 	}
 
 	ret = ath11k_pci_enable_msi(ab_pci);
