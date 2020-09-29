@@ -48,13 +48,6 @@ struct dw_spi_mmio {
 #define SPARX5_FORCE_ENA			0xa4
 #define SPARX5_FORCE_VAL			0xa8
 
-/*
- * For Keem Bay, CTRLR0[31] is used to select controller mode.
- * 0: SSI is slave
- * 1: SSI is master
- */
-#define KEEMBAY_CTRLR0_SSIC_IS_MST		BIT(31)
-
 struct dw_spi_mscc {
 	struct regmap       *syscon;
 	void __iomem        *spi_mst; /* Not sparx5 */
@@ -204,7 +197,7 @@ static int dw_spi_mscc_sparx5_init(struct platform_device *pdev,
 static int dw_spi_alpine_init(struct platform_device *pdev,
 			      struct dw_spi_mmio *dwsmmio)
 {
-	dwsmmio->dws.cs_override = 1;
+	dwsmmio->dws.caps = DW_SPI_CAP_CS_OVERRIDE;
 
 	/* Register hook to configure CTRLR0 */
 	dwsmmio->dws.update_cr0 = dw_spi_update_cr0;
@@ -234,20 +227,13 @@ static int dw_spi_dwc_ssi_init(struct platform_device *pdev,
 	return 0;
 }
 
-static u32 dw_spi_update_cr0_keembay(struct spi_controller *master,
-				     struct spi_device *spi,
-				     struct spi_transfer *transfer)
-{
-	u32 cr0 = dw_spi_update_cr0_v1_01a(master, spi, transfer);
-
-	return cr0 | KEEMBAY_CTRLR0_SSIC_IS_MST;
-}
-
 static int dw_spi_keembay_init(struct platform_device *pdev,
 			       struct dw_spi_mmio *dwsmmio)
 {
+	dwsmmio->dws.caps = DW_SPI_CAP_KEEMBAY_MST;
+
 	/* Register hook to configure CTRLR0 */
-	dwsmmio->dws.update_cr0 = dw_spi_update_cr0_keembay;
+	dwsmmio->dws.update_cr0 = dw_spi_update_cr0_v1_01a;
 
 	return 0;
 }

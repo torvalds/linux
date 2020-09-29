@@ -2,6 +2,7 @@
 #ifndef DW_SPI_HEADER_H
 #define DW_SPI_HEADER_H
 
+#include <linux/bits.h>
 #include <linux/completion.h>
 #include <linux/debugfs.h>
 #include <linux/irqreturn.h>
@@ -70,6 +71,13 @@
 #define DWC_SSI_CTRLR0_FRF_OFFSET	6
 #define DWC_SSI_CTRLR0_DFS_OFFSET	0
 
+/*
+ * For Keem Bay, CTRLR0[31] is used to select controller mode.
+ * 0: SSI is slave
+ * 1: SSI is master
+ */
+#define DWC_SSI_CTRLR0_KEEMBAY_MST	BIT(31)
+
 /* Bit fields in SR, 7 bits */
 #define SR_MASK				0x7f		/* cover 7 bits */
 #define SR_BUSY				(1 << 0)
@@ -92,14 +100,15 @@
 #define SPI_DMA_RDMAE			(1 << 0)
 #define SPI_DMA_TDMAE			(1 << 1)
 
-/* TX RX interrupt level threshold, max can be 256 */
-#define SPI_INT_THRESHOLD		32
-
 enum dw_ssi_type {
 	SSI_MOTO_SPI = 0,
 	SSI_TI_SSP,
 	SSI_NS_MICROWIRE,
 };
+
+/* DW SPI capabilities */
+#define DW_SPI_CAP_CS_OVERRIDE		BIT(0)
+#define DW_SPI_CAP_KEEMBAY_MST		BIT(1)
 
 struct dw_spi;
 struct dw_spi_dma_ops {
@@ -114,7 +123,6 @@ struct dw_spi_dma_ops {
 
 struct dw_spi {
 	struct spi_controller	*master;
-	enum dw_ssi_type	type;
 
 	void __iomem		*regs;
 	unsigned long		paddr;
@@ -122,7 +130,8 @@ struct dw_spi {
 	u32			fifo_len;	/* depth of the FIFO buffer */
 	u32			max_freq;	/* max bus freq supported */
 
-	int			cs_override;
+	u32			caps;		/* DW SPI capabilities */
+
 	u32			reg_io_width;	/* DR I/O width in bytes */
 	u16			bus_num;
 	u16			num_cs;		/* supported slave numbers */
@@ -134,7 +143,6 @@ struct dw_spi {
 	size_t			len;
 	void			*tx;
 	void			*tx_end;
-	spinlock_t		buf_lock;
 	void			*rx;
 	void			*rx_end;
 	int			dma_mapped;
@@ -166,29 +174,19 @@ static inline u32 dw_readl(struct dw_spi *dws, u32 offset)
 	return __raw_readl(dws->regs + offset);
 }
 
-static inline u16 dw_readw(struct dw_spi *dws, u32 offset)
-{
-	return __raw_readw(dws->regs + offset);
-}
-
 static inline void dw_writel(struct dw_spi *dws, u32 offset, u32 val)
 {
 	__raw_writel(val, dws->regs + offset);
-}
-
-static inline void dw_writew(struct dw_spi *dws, u32 offset, u16 val)
-{
-	__raw_writew(val, dws->regs + offset);
 }
 
 static inline u32 dw_read_io_reg(struct dw_spi *dws, u32 offset)
 {
 	switch (dws->reg_io_width) {
 	case 2:
-		return dw_readw(dws, offset);
+		return readw_relaxed(dws->regs + offset);
 	case 4:
 	default:
-		return dw_readl(dws, offset);
+		return readl_relaxed(dws->regs + offset);
 	}
 }
 
@@ -196,11 +194,11 @@ static inline void dw_write_io_reg(struct dw_spi *dws, u32 offset, u32 val)
 {
 	switch (dws->reg_io_width) {
 	case 2:
-		dw_writew(dws, offset, val);
+		writew_relaxed(val, dws->regs + offset);
 		break;
 	case 4:
 	default:
-		dw_writel(dws, offset, val);
+		writel_relaxed(val, dws->regs + offset);
 		break;
 	}
 }
@@ -234,14 +232,15 @@ static inline void spi_umask_intr(struct dw_spi *dws, u32 mask)
 }
 
 /*
- * This does disable the SPI controller, interrupts, and re-enable the
- * controller back. Transmit and receive FIFO buffers are cleared when the
- * device is disabled.
+ * This disables the SPI controller, interrupts, clears the interrupts status,
+ * and re-enable the controller back. Transmit and receive FIFO buffers are
+ * cleared when the device is disabled.
  */
 static inline void spi_reset_chip(struct dw_spi *dws)
 {
 	spi_enable_chip(dws, 0);
 	spi_mask_intr(dws, 0xff);
+	dw_readl(dws, DW_SPI_ICR);
 	spi_enable_chip(dws, 1);
 }
 
