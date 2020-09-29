@@ -758,6 +758,81 @@ static const struct ocelot_ops ocelot_ops = {
 	.wm_enc			= ocelot_wm_enc,
 };
 
+static const struct vcap_field vsc7514_vcap_is1_keys[] = {
+	[VCAP_IS1_HK_TYPE]			= {  0,   1},
+	[VCAP_IS1_HK_LOOKUP]			= {  1,   2},
+	[VCAP_IS1_HK_IGR_PORT_MASK]		= {  3,  12},
+	[VCAP_IS1_HK_RSV]			= { 15,   9},
+	[VCAP_IS1_HK_OAM_Y1731]			= { 24,   1},
+	[VCAP_IS1_HK_L2_MC]			= { 25,   1},
+	[VCAP_IS1_HK_L2_BC]			= { 26,   1},
+	[VCAP_IS1_HK_IP_MC]			= { 27,   1},
+	[VCAP_IS1_HK_VLAN_TAGGED]		= { 28,   1},
+	[VCAP_IS1_HK_VLAN_DBL_TAGGED]		= { 29,   1},
+	[VCAP_IS1_HK_TPID]			= { 30,   1},
+	[VCAP_IS1_HK_VID]			= { 31,  12},
+	[VCAP_IS1_HK_DEI]			= { 43,   1},
+	[VCAP_IS1_HK_PCP]			= { 44,   3},
+	/* Specific Fields for IS1 Half Key S1_NORMAL */
+	[VCAP_IS1_HK_L2_SMAC]			= { 47,  48},
+	[VCAP_IS1_HK_ETYPE_LEN]			= { 95,   1},
+	[VCAP_IS1_HK_ETYPE]			= { 96,  16},
+	[VCAP_IS1_HK_IP_SNAP]			= {112,   1},
+	[VCAP_IS1_HK_IP4]			= {113,   1},
+	/* Layer-3 Information */
+	[VCAP_IS1_HK_L3_FRAGMENT]		= {114,   1},
+	[VCAP_IS1_HK_L3_FRAG_OFS_GT0]		= {115,   1},
+	[VCAP_IS1_HK_L3_OPTIONS]		= {116,   1},
+	[VCAP_IS1_HK_L3_DSCP]			= {117,   6},
+	[VCAP_IS1_HK_L3_IP4_SIP]		= {123,  32},
+	/* Layer-4 Information */
+	[VCAP_IS1_HK_TCP_UDP]			= {155,   1},
+	[VCAP_IS1_HK_TCP]			= {156,   1},
+	[VCAP_IS1_HK_L4_SPORT]			= {157,  16},
+	[VCAP_IS1_HK_L4_RNG]			= {173,   8},
+	/* Specific Fields for IS1 Half Key S1_5TUPLE_IP4 */
+	[VCAP_IS1_HK_IP4_INNER_TPID]            = { 47,   1},
+	[VCAP_IS1_HK_IP4_INNER_VID]		= { 48,  12},
+	[VCAP_IS1_HK_IP4_INNER_DEI]		= { 60,   1},
+	[VCAP_IS1_HK_IP4_INNER_PCP]		= { 61,   3},
+	[VCAP_IS1_HK_IP4_IP4]			= { 64,   1},
+	[VCAP_IS1_HK_IP4_L3_FRAGMENT]		= { 65,   1},
+	[VCAP_IS1_HK_IP4_L3_FRAG_OFS_GT0]	= { 66,   1},
+	[VCAP_IS1_HK_IP4_L3_OPTIONS]		= { 67,   1},
+	[VCAP_IS1_HK_IP4_L3_DSCP]		= { 68,   6},
+	[VCAP_IS1_HK_IP4_L3_IP4_DIP]		= { 74,  32},
+	[VCAP_IS1_HK_IP4_L3_IP4_SIP]		= {106,  32},
+	[VCAP_IS1_HK_IP4_L3_PROTO]		= {138,   8},
+	[VCAP_IS1_HK_IP4_TCP_UDP]		= {146,   1},
+	[VCAP_IS1_HK_IP4_TCP]			= {147,   1},
+	[VCAP_IS1_HK_IP4_L4_RNG]		= {148,   8},
+	[VCAP_IS1_HK_IP4_IP_PAYLOAD_S1_5TUPLE]	= {156,  32},
+};
+
+static const struct vcap_field vsc7514_vcap_is1_actions[] = {
+	[VCAP_IS1_ACT_DSCP_ENA]			= {  0,  1},
+	[VCAP_IS1_ACT_DSCP_VAL]			= {  1,  6},
+	[VCAP_IS1_ACT_QOS_ENA]			= {  7,  1},
+	[VCAP_IS1_ACT_QOS_VAL]			= {  8,  3},
+	[VCAP_IS1_ACT_DP_ENA]			= { 11,  1},
+	[VCAP_IS1_ACT_DP_VAL]			= { 12,  1},
+	[VCAP_IS1_ACT_PAG_OVERRIDE_MASK]	= { 13,  8},
+	[VCAP_IS1_ACT_PAG_VAL]			= { 21,  8},
+	[VCAP_IS1_ACT_RSV]			= { 29,  9},
+	/* The fields below are incorrectly shifted by 2 in the manual */
+	[VCAP_IS1_ACT_VID_REPLACE_ENA]		= { 38,  1},
+	[VCAP_IS1_ACT_VID_ADD_VAL]		= { 39, 12},
+	[VCAP_IS1_ACT_FID_SEL]			= { 51,  2},
+	[VCAP_IS1_ACT_FID_VAL]			= { 53, 13},
+	[VCAP_IS1_ACT_PCP_DEI_ENA]		= { 66,  1},
+	[VCAP_IS1_ACT_PCP_VAL]			= { 67,  3},
+	[VCAP_IS1_ACT_DEI_VAL]			= { 70,  1},
+	[VCAP_IS1_ACT_VLAN_POP_CNT_ENA]		= { 71,  1},
+	[VCAP_IS1_ACT_VLAN_POP_CNT]		= { 72,  2},
+	[VCAP_IS1_ACT_CUSTOM_ACE_TYPE_ENA]	= { 74,  4},
+	[VCAP_IS1_ACT_HIT_STICKY]		= { 78,  1},
+};
+
 static const struct vcap_field vsc7514_vcap_is2_keys[] = {
 	/* Common: 46 bits */
 	[VCAP_IS2_TYPE]				= {  0,   4},
@@ -857,6 +932,18 @@ static const struct vcap_field vsc7514_vcap_is2_actions[] = {
 };
 
 static const struct vcap_props vsc7514_vcap_props[] = {
+	[VCAP_IS1] = {
+		.action_type_width = 0,
+		.action_table = {
+			[IS1_ACTION_TYPE_NORMAL] = {
+				.width = 78, /* HIT_STICKY not included */
+				.count = 4,
+			},
+		},
+		.target = S1,
+		.keys = vsc7514_vcap_is1_keys,
+		.actions = vsc7514_vcap_is1_actions,
+	},
 	[VCAP_IS2] = {
 		.tg_width = 2,
 		.sw_count = 4,
@@ -1042,6 +1129,7 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 		{ QSYS, "qsys" },
 		{ ANA, "ana" },
 		{ QS, "qs" },
+		{ S1, "s1" },
 		{ S2, "s2" },
 		{ PTP, "ptp", 1 },
 	};

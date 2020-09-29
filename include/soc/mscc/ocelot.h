@@ -123,6 +123,7 @@ enum ocelot_target {
 	QSYS,
 	REW,
 	SYS,
+	S1,
 	S2,
 	HSIO,
 	PTP,

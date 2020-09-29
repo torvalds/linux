@@ -354,6 +354,7 @@ static const u32 *vsc9953_regmap[TARGET_MAX] = {
 	[QSYS]		= vsc9953_qsys_regmap,
 	[REW]		= vsc9953_rew_regmap,
 	[SYS]		= vsc9953_sys_regmap,
+	[S1]		= vsc9953_vcap_regmap,
 	[S2]		= vsc9953_vcap_regmap,
 	[GCB]		= vsc9953_gcb_regmap,
 	[DEV_GMII]	= vsc9953_dev_gmii_regmap,
@@ -385,6 +386,11 @@ static const struct resource vsc9953_target_io_res[TARGET_MAX] = {
 		.start	= 0x0010000,
 		.end	= 0x001ffff,
 		.name	= "sys",
+	},
+	[S1] = {
+		.start	= 0x0050000,
+		.end	= 0x00503ff,
+		.name	= "s1",
 	},
 	[S2] = {
 		.start	= 0x0060000,
@@ -601,6 +607,80 @@ static const struct ocelot_stat_layout vsc9953_stats_layout[] = {
 	{ .offset = 0x91,	.name = "drop_green_prio_7", },
 };
 
+static const struct vcap_field vsc9953_vcap_is1_keys[] = {
+	[VCAP_IS1_HK_TYPE]			= {  0,   1},
+	[VCAP_IS1_HK_LOOKUP]			= {  1,   2},
+	[VCAP_IS1_HK_IGR_PORT_MASK]		= {  3,  11},
+	[VCAP_IS1_HK_RSV]			= { 14,  10},
+	/* VCAP_IS1_HK_OAM_Y1731 not supported */
+	[VCAP_IS1_HK_L2_MC]			= { 24,   1},
+	[VCAP_IS1_HK_L2_BC]			= { 25,   1},
+	[VCAP_IS1_HK_IP_MC]			= { 26,   1},
+	[VCAP_IS1_HK_VLAN_TAGGED]		= { 27,   1},
+	[VCAP_IS1_HK_VLAN_DBL_TAGGED]		= { 28,   1},
+	[VCAP_IS1_HK_TPID]			= { 29,   1},
+	[VCAP_IS1_HK_VID]			= { 30,  12},
+	[VCAP_IS1_HK_DEI]			= { 42,   1},
+	[VCAP_IS1_HK_PCP]			= { 43,   3},
+	/* Specific Fields for IS1 Half Key S1_NORMAL */
+	[VCAP_IS1_HK_L2_SMAC]			= { 46,  48},
+	[VCAP_IS1_HK_ETYPE_LEN]			= { 94,   1},
+	[VCAP_IS1_HK_ETYPE]			= { 95,  16},
+	[VCAP_IS1_HK_IP_SNAP]			= {111,   1},
+	[VCAP_IS1_HK_IP4]			= {112,   1},
+	/* Layer-3 Information */
+	[VCAP_IS1_HK_L3_FRAGMENT]		= {113,   1},
+	[VCAP_IS1_HK_L3_FRAG_OFS_GT0]		= {114,   1},
+	[VCAP_IS1_HK_L3_OPTIONS]		= {115,   1},
+	[VCAP_IS1_HK_L3_DSCP]			= {116,   6},
+	[VCAP_IS1_HK_L3_IP4_SIP]		= {122,  32},
+	/* Layer-4 Information */
+	[VCAP_IS1_HK_TCP_UDP]			= {154,   1},
+	[VCAP_IS1_HK_TCP]			= {155,   1},
+	[VCAP_IS1_HK_L4_SPORT]			= {156,  16},
+	[VCAP_IS1_HK_L4_RNG]			= {172,   8},
+	/* Specific Fields for IS1 Half Key S1_5TUPLE_IP4 */
+	[VCAP_IS1_HK_IP4_INNER_TPID]            = { 46,   1},
+	[VCAP_IS1_HK_IP4_INNER_VID]		= { 47,  12},
+	[VCAP_IS1_HK_IP4_INNER_DEI]		= { 59,   1},
+	[VCAP_IS1_HK_IP4_INNER_PCP]		= { 60,   3},
+	[VCAP_IS1_HK_IP4_IP4]			= { 63,   1},
+	[VCAP_IS1_HK_IP4_L3_FRAGMENT]		= { 64,   1},
+	[VCAP_IS1_HK_IP4_L3_FRAG_OFS_GT0]	= { 65,   1},
+	[VCAP_IS1_HK_IP4_L3_OPTIONS]		= { 66,   1},
+	[VCAP_IS1_HK_IP4_L3_DSCP]		= { 67,   6},
+	[VCAP_IS1_HK_IP4_L3_IP4_DIP]		= { 73,  32},
+	[VCAP_IS1_HK_IP4_L3_IP4_SIP]		= {105,  32},
+	[VCAP_IS1_HK_IP4_L3_PROTO]		= {137,   8},
+	[VCAP_IS1_HK_IP4_TCP_UDP]		= {145,   1},
+	[VCAP_IS1_HK_IP4_TCP]			= {146,   1},
+	[VCAP_IS1_HK_IP4_L4_RNG]		= {147,   8},
+	[VCAP_IS1_HK_IP4_IP_PAYLOAD_S1_5TUPLE]	= {155,  32},
+};
+
+static const struct vcap_field vsc9953_vcap_is1_actions[] = {
+	[VCAP_IS1_ACT_DSCP_ENA]			= {  0,  1},
+	[VCAP_IS1_ACT_DSCP_VAL]			= {  1,  6},
+	[VCAP_IS1_ACT_QOS_ENA]			= {  7,  1},
+	[VCAP_IS1_ACT_QOS_VAL]			= {  8,  3},
+	[VCAP_IS1_ACT_DP_ENA]			= { 11,  1},
+	[VCAP_IS1_ACT_DP_VAL]			= { 12,  1},
+	[VCAP_IS1_ACT_PAG_OVERRIDE_MASK]	= { 13,  8},
+	[VCAP_IS1_ACT_PAG_VAL]			= { 21,  8},
+	[VCAP_IS1_ACT_RSV]			= { 29, 11},
+	[VCAP_IS1_ACT_VID_REPLACE_ENA]		= { 40,  1},
+	[VCAP_IS1_ACT_VID_ADD_VAL]		= { 41, 12},
+	[VCAP_IS1_ACT_FID_SEL]			= { 53,  2},
+	[VCAP_IS1_ACT_FID_VAL]			= { 55, 13},
+	[VCAP_IS1_ACT_PCP_DEI_ENA]		= { 68,  1},
+	[VCAP_IS1_ACT_PCP_VAL]			= { 69,  3},
+	[VCAP_IS1_ACT_DEI_VAL]			= { 72,  1},
+	[VCAP_IS1_ACT_VLAN_POP_CNT_ENA]		= { 73,  1},
+	[VCAP_IS1_ACT_VLAN_POP_CNT]		= { 74,  2},
+	[VCAP_IS1_ACT_CUSTOM_ACE_TYPE_ENA]	= { 76,  4},
+	[VCAP_IS1_ACT_HIT_STICKY]		= { 80,  1},
+};
+
 static struct vcap_field vsc9953_vcap_is2_keys[] = {
 	/* Common: 41 bits */
 	[VCAP_IS2_TYPE]				= {  0,   4},
@@ -687,6 +767,18 @@ static struct vcap_field vsc9953_vcap_is2_actions[] = {
 };
 
 static const struct vcap_props vsc9953_vcap_props[] = {
+	[VCAP_IS1] = {
+		.action_type_width = 0,
+		.action_table = {
+			[IS1_ACTION_TYPE_NORMAL] = {
+				.width = 80, /* HIT_STICKY not included */
+				.count = 4,
+			},
+		},
+		.target = S1,
+		.keys = vsc9953_vcap_is1_keys,
+		.actions = vsc9953_vcap_is1_actions,
+	},
 	[VCAP_IS2] = {
 		.tg_width = 2,
 		.sw_count = 4,
