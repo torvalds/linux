@@ -347,7 +347,7 @@ static int btf_parse_type_sec(struct btf *btf)
 	struct btf_header *hdr = btf->hdr;
 	void *next_type = btf->types_data;
 	void *end_type = next_type + hdr->type_len;
-	int err, i, type_size;
+	int err, i = 0, type_size;
 
 	/* VOID (type_id == 0) is specially handled by btf__get_type_by_id(),
 	 * so ensure we can never properly use its offset from index by
