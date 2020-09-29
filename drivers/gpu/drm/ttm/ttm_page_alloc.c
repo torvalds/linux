@@ -466,11 +466,11 @@ static int ttm_set_pages_caching(struct page **pages,
  * any pages that have changed their caching state already put them to the
  * pool.
  */
-static void ttm_handle_caching_state_failure(struct list_head *pages,
-		int ttm_flags, enum ttm_caching_state cstate,
-		struct page **failed_pages, unsigned cpages)
+static void ttm_handle_caching_failure(struct page **failed_pages,
+				       unsigned cpages)
 {
 	unsigned i;
+
 	/* Failed pages have to be freed */
 	for (i = 0; i < cpages; ++i) {
 		list_del(&failed_pages[i]->lru);
@@ -516,9 +516,8 @@ static int ttm_alloc_new_pages(struct list_head *pages, gfp_t gfp_flags,
 				r = ttm_set_pages_caching(caching_array,
 							  cstate, cpages);
 				if (r)
-					ttm_handle_caching_state_failure(pages,
-						ttm_flags, cstate,
-						caching_array, cpages);
+					ttm_handle_caching_failure(caching_array,
+								   cpages);
 			}
 			r = -ENOMEM;
 			goto out;
@@ -541,9 +540,8 @@ static int ttm_alloc_new_pages(struct list_head *pages, gfp_t gfp_flags,
 				r = ttm_set_pages_caching(caching_array,
 						cstate, cpages);
 				if (r) {
-					ttm_handle_caching_state_failure(pages,
-						ttm_flags, cstate,
-						caching_array, cpages);
+					ttm_handle_caching_failure(caching_array,
+								   cpages);
 					goto out;
 				}
 				cpages = 0;
@@ -554,9 +552,7 @@ static int ttm_alloc_new_pages(struct list_head *pages, gfp_t gfp_flags,
 	if (cpages) {
 		r = ttm_set_pages_caching(caching_array, cstate, cpages);
 		if (r)
-			ttm_handle_caching_state_failure(pages,
-					ttm_flags, cstate,
-					caching_array, cpages);
+			ttm_handle_caching_failure(caching_array, cpages);
 	}
 out:
 	kfree(caching_array);
