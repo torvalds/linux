@@ -46,7 +46,6 @@ int pci_bus_error_reset(struct pci_dev *dev);
 #define PCI_PM_D2_DELAY         200
 #define PCI_PM_D3HOT_WAIT       10
 #define PCI_PM_D3COLD_WAIT      100
-#define PCI_PM_BUS_WAIT         50
 
 /**
  * struct pci_platform_pm_ops - Firmware PM callbacks
