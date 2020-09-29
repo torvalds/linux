@@ -231,8 +231,9 @@ nv50_dp_mode_valid(struct drm_connector *connector,
 		   const struct drm_display_mode *mode,
 		   unsigned *out_clock)
 {
-	const unsigned min_clock = 25000;
-	unsigned max_clock, ds_clock, clock = mode->clock;
+	const unsigned int min_clock = 25000;
+	unsigned int max_rate, mode_rate, ds_max_dotclock, clock = mode->clock;
+	const u8 bpp = connector->display_info.bpc * 3;
 
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE && !outp->caps.dp_interlace)
 		return MODE_NO_INTERLACE;
@@ -240,17 +241,17 @@ nv50_dp_mode_valid(struct drm_connector *connector,
 	if ((mode->flags & DRM_MODE_FLAG_3D_MASK) == DRM_MODE_FLAG_3D_FRAME_PACKING)
 		clock *= 2;
 
-	max_clock = outp->dp.link_nr * outp->dp.link_bw;
-	ds_clock = drm_dp_downstream_max_dotclock(outp->dp.dpcd,
-						  outp->dp.downstream_ports);
-	if (ds_clock)
-		max_clock = min(max_clock, ds_clock);
+	max_rate = outp->dp.link_nr * outp->dp.link_bw;
+	mode_rate = DIV_ROUND_UP(clock * bpp, 8);
+	if (mode_rate > max_rate)
+		return MODE_CLOCK_HIGH;
 
-	clock = mode->clock * (connector->display_info.bpc * 3) / 10;
+	ds_max_dotclock = drm_dp_downstream_max_dotclock(outp->dp.dpcd, outp->dp.downstream_ports);
+	if (ds_max_dotclock && clock > ds_max_dotclock)
+		return MODE_CLOCK_HIGH;
+
 	if (clock < min_clock)
 		return MODE_CLOCK_LOW;
-	if (clock > max_clock)
-		return MODE_CLOCK_HIGH;
 
 	if (out_clock)
 		*out_clock = clock;
