@@ -17,8 +17,6 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/mtd/mtd.h>
-#include <linux/mtd/rawnand.h>
 #include <linux/mtd/nand-ecc-sw-hamming.h>
 #include <asm/byteorder.h>
 
@@ -361,10 +359,11 @@ EXPORT_SYMBOL(ecc_sw_hamming_calculate);
 int nand_ecc_sw_hamming_calculate(struct nand_device *nand,
 				  const unsigned char *buf, unsigned char *code)
 {
-	struct nand_chip *chip = mtd_to_nand(nanddev_to_mtd(nand));
-	bool sm_order = chip->ecc.options & NAND_ECC_SOFT_HAMMING_SM_ORDER;
+	struct nand_ecc_sw_hamming_conf *engine_conf = nand->ecc.ctx.priv;
+	unsigned int step_size = nand->ecc.ctx.conf.step_size;
 
-	return ecc_sw_hamming_calculate(buf, chip->ecc.size, code, sm_order);
+	return ecc_sw_hamming_calculate(buf, step_size, code,
+					engine_conf->sm_order);
 }
 EXPORT_SYMBOL(nand_ecc_sw_hamming_calculate);
 
@@ -453,11 +452,11 @@ int nand_ecc_sw_hamming_correct(struct nand_device *nand, unsigned char *buf,
 				unsigned char *read_ecc,
 				unsigned char *calc_ecc)
 {
-	struct nand_chip *chip = mtd_to_nand(nanddev_to_mtd(nand));
-	bool sm_order = chip->ecc.options & NAND_ECC_SOFT_HAMMING_SM_ORDER;
+	struct nand_ecc_sw_hamming_conf *engine_conf = nand->ecc.ctx.priv;
+	unsigned int step_size = nand->ecc.ctx.conf.step_size;
 
-	return ecc_sw_hamming_correct(buf, read_ecc, calc_ecc, chip->ecc.size,
-				      sm_order);
+	return ecc_sw_hamming_correct(buf, read_ecc, calc_ecc, step_size,
+				      engine_conf->sm_order);
 }
 EXPORT_SYMBOL(nand_ecc_sw_hamming_correct);
 
