@@ -150,7 +150,7 @@ static int rk_ion_probe(struct platform_device *pdev)
 		}
 		pr_info("rockchip ion: success to create - %s\n",
 			heaps[i]->name);
-		ion_device_add_heap_legency(idev, heaps[i]);
+		ion_device_add_heap(idev, heaps[i]);
 	}
 	platform_set_drvdata(pdev, idev);
 

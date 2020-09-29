@@ -17,7 +17,7 @@
 #define _LINUX_ROCKCHIP_ION_H
 
 #ifdef __KERNEL__
-#include "../../drivers/staging/android/ion_legency/ion.h"
+#include "../../drivers/staging/android/ion/ion.h"
 #else
 #include <linux/ion.h>
 #endif
