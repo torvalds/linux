@@ -2732,7 +2732,6 @@ static int DAC960_LA_hw_init(struct pci_dev *pdev,
 	DAC960_LA_disable_intr(base);
 	DAC960_LA_ack_hw_mbox_status(base);
 	udelay(1000);
-	timeout = 0;
 	while (DAC960_LA_init_in_progress(base) &&
 	       timeout < MYRB_MAILBOX_TIMEOUT) {
 		if (DAC960_LA_read_error_status(base, &error,
