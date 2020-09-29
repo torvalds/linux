@@ -186,24 +186,6 @@ Example:
 		#clock-cells = <1>;
 	};
 
-
-Hisilicon Hi6220 SRAM controller
-
-Required properties:
-- compatible : "hisilicon,hi6220-sramctrl", "syscon"
-- reg : Register address and size
-
-Hisilicon's SoCs use sram for multiple purpose; on Hi6220 there have several
-SRAM banks for power management, modem, security, etc. Further, use "syscon"
-managing the common sram which can be shared by multiple modules.
-
-Example:
-	/*for Hi6220*/
-	sram: sram@fff80000 {
-		compatible = "hisilicon,hi6220-sramctrl", "syscon";
-		reg = <0x0 0xfff80000 0x0 0x12000>;
-	};
-
 -----------------------------------------------------------------------
 Hisilicon HiP01 system controller
 
@@ -223,56 +205,6 @@ Example:
 		compatible = "hisilicon,hip01-sysctrl", "hisilicon,sysctrl";
 		reg = <0x10000000 0x1000>;
 		reboot-offset = <0x4>;
-	};
-
------------------------------------------------------------------------
-Hisilicon HiP05/HiP06 PCIe-SAS sub system controller
-
-Required properties:
-- compatible : "hisilicon,pcie-sas-subctrl", "syscon";
-- reg : Register address and size
-
-The PCIe-SAS sub system controller is shared by PCIe and SAS controllers in
-HiP05 or HiP06 Soc to implement some basic configurations.
-
-Example:
-	/* for HiP05 PCIe-SAS sub system */
-	pcie_sas: system_controller@b0000000 {
-		compatible = "hisilicon,pcie-sas-subctrl", "syscon";
-		reg = <0xb0000000 0x10000>;
-	};
-
-Hisilicon HiP05/HiP06 PERI sub system controller
-
-Required properties:
-- compatible : "hisilicon,peri-subctrl", "syscon";
-- reg : Register address and size
-
-The PERI sub system controller is shared by peripheral controllers in
-HiP05 or HiP06 Soc to implement some basic configurations. The peripheral
-controllers include mdio, ddr, iic, uart, timer and so on.
-
-Example:
-	/* for HiP05 sub peri system */
-	peri_c_subctrl: syscon@80000000 {
-		compatible = "hisilicon,peri-subctrl", "syscon";
-		reg = <0x0 0x80000000 0x0 0x10000>;
-	};
-
-Hisilicon HiP05/HiP06 DSA sub system controller
-
-Required properties:
-- compatible : "hisilicon,dsa-subctrl", "syscon";
-- reg : Register address and size
-
-The DSA sub system controller is shared by peripheral controllers in
-HiP05 or HiP06 Soc to implement some basic configurations.
-
-Example:
-	/* for HiP05 dsa sub system */
-	pcie_sas: system_controller@a0000000 {
-		compatible = "hisilicon,dsa-subctrl", "syscon";
-		reg = <0xa0000000 0x10000>;
 	};
 
 -----------------------------------------------------------------------
