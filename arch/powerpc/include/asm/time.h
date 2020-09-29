@@ -38,9 +38,6 @@ struct div_result {
 	u64 result_low;
 };
 
-/* Accessor functions for the timebase (RTC on 601) registers. */
-#define __USE_RTC()	(0)
-
 #ifdef CONFIG_PPC64
 
 /* For compatibility, get_tbl() is defined as get_tb() on ppc64 */
@@ -58,25 +55,6 @@ static inline unsigned int get_tbu(void)
 	return mftbu();
 }
 #endif /* !CONFIG_PPC64 */
-
-static inline unsigned int get_rtcl(void)
-{
-	unsigned int rtcl;
-
-	asm volatile("mfrtcl %0" : "=r" (rtcl));
-	return rtcl;
-}
-
-static inline u64 get_rtc(void)
-{
-	unsigned int hi, lo, hi2;
-
-	do {
-		asm volatile("mfrtcu %0; mfrtcl %1; mfrtcu %2"
-			     : "=r" (hi), "=r" (lo), "=r" (hi2));
-	} while (hi2 != hi);
-	return (u64)hi * 1000000000 + lo;
-}
 
 static inline u64 get_vtb(void)
 {
@@ -109,7 +87,7 @@ static inline u64 get_tb(void)
 
 static inline u64 get_tb_or_rtc(void)
 {
-	return __USE_RTC() ? get_rtc() : get_tb();
+	return get_tb();
 }
 
 static inline void set_tb(unsigned int upper, unsigned int lower)
@@ -153,10 +131,6 @@ static inline void set_dec(u64 val)
 
 static inline unsigned long tb_ticks_since(unsigned long tstamp)
 {
-	if (__USE_RTC()) {
-		int delta = get_rtcl() - (unsigned int) tstamp;
-		return delta < 0 ? delta + 1000000000 : delta;
-	}
 	return get_tbl() - tstamp;
 }
 
