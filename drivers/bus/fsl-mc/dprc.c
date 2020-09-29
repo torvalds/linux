@@ -536,20 +536,30 @@ int dprc_get_obj_region(struct fsl_mc_io *mc_io,
 			return err;
 	}
 
-	/**
-	 * MC API version 6.3 introduced a new field to the region
-	 * descriptor: base_address. If the older API is in use then the base
-	 * address is set to zero to indicate it needs to be obtained elsewhere
-	 * (typically the device tree).
-	 */
-	if (dprc_major_ver > 6 || (dprc_major_ver == 6 && dprc_minor_ver >= 3))
-		cmd.header =
-			mc_encode_cmd_header(DPRC_CMDID_GET_OBJ_REG_V2,
-					     cmd_flags, token);
-	else
-		cmd.header =
-			mc_encode_cmd_header(DPRC_CMDID_GET_OBJ_REG,
-					     cmd_flags, token);
+	if (dprc_major_ver > 6 || (dprc_major_ver == 6 && dprc_minor_ver >= 6)) {
+		/*
+		 * MC API version 6.6 changed the size of the MC portals and software
+		 * portals to 64K (as implemented by hardware). If older API is in use the
+		 * size reported is less (64 bytes for mc portals and 4K for software
+		 * portals).
+		 */
+
+		cmd.header = mc_encode_cmd_header(DPRC_CMDID_GET_OBJ_REG_V3,
+						  cmd_flags, token);
+
+	} else if (dprc_major_ver == 6 && dprc_minor_ver >= 3) {
+		/*
+		 * MC API version 6.3 introduced a new field to the region
+		 * descriptor: base_address. If the older API is in use then the base
+		 * address is set to zero to indicate it needs to be obtained elsewhere
+		 * (typically the device tree).
+		 */
+		cmd.header = mc_encode_cmd_header(DPRC_CMDID_GET_OBJ_REG_V2,
+						  cmd_flags, token);
+	} else {
+		cmd.header = mc_encode_cmd_header(DPRC_CMDID_GET_OBJ_REG,
+						  cmd_flags, token);
+	}
 
 	cmd_params = (struct dprc_cmd_get_obj_region *)cmd.params;
 	cmd_params->obj_id = cpu_to_le32(obj_id);

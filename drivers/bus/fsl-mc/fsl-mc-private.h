@@ -80,10 +80,12 @@ int dpmcp_reset(struct fsl_mc_io *mc_io,
 /* DPRC command versioning */
 #define DPRC_CMD_BASE_VERSION			1
 #define DPRC_CMD_2ND_VERSION			2
+#define DPRC_CMD_3RD_VERSION			3
 #define DPRC_CMD_ID_OFFSET			4
 
 #define DPRC_CMD(id)	(((id) << DPRC_CMD_ID_OFFSET) | DPRC_CMD_BASE_VERSION)
 #define DPRC_CMD_V2(id)	(((id) << DPRC_CMD_ID_OFFSET) | DPRC_CMD_2ND_VERSION)
+#define DPRC_CMD_V3(id)	(((id) << DPRC_CMD_ID_OFFSET) | DPRC_CMD_3RD_VERSION)
 
 /* DPRC command IDs */
 #define DPRC_CMDID_CLOSE                        DPRC_CMD(0x800)
@@ -105,6 +107,7 @@ int dpmcp_reset(struct fsl_mc_io *mc_io,
 #define DPRC_CMDID_GET_OBJ                      DPRC_CMD(0x15A)
 #define DPRC_CMDID_GET_OBJ_REG                  DPRC_CMD(0x15E)
 #define DPRC_CMDID_GET_OBJ_REG_V2               DPRC_CMD_V2(0x15E)
+#define DPRC_CMDID_GET_OBJ_REG_V3               DPRC_CMD_V3(0x15E)
 #define DPRC_CMDID_SET_OBJ_IRQ                  DPRC_CMD(0x15F)
 
 #define DPRC_CMDID_GET_CONNECTION               DPRC_CMD(0x16C)
