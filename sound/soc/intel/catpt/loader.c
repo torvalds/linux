@@ -658,6 +658,12 @@ int catpt_first_boot_firmware(struct catpt_dev *cdev)
 	if (ret)
 		return CATPT_IPC_ERROR(ret);
 
+	ret = catpt_arm_stream_templates(cdev);
+	if (ret) {
+		dev_err(cdev->dev, "arm templates failed: %d\n", ret);
+		return ret;
+	}
+
 	/* update dram pg for scratch and restricted regions */
 	catpt_dsp_update_srampge(cdev, &cdev->dram, cdev->spec->dram_mask);
 

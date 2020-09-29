@@ -175,4 +175,12 @@ struct catpt_stream_runtime {
 	struct list_head node;
 };
 
+int catpt_register_plat_component(struct catpt_dev *cdev);
+void catpt_stream_update_position(struct catpt_dev *cdev,
+				  struct catpt_stream_runtime *stream,
+				  struct catpt_notify_position *pos);
+struct catpt_stream_runtime *
+catpt_stream_find(struct catpt_dev *cdev, u8 stream_hw_id);
+int catpt_arm_stream_templates(struct catpt_dev *cdev);
+
 #endif

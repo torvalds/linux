@@ -138,6 +138,42 @@ int catpt_dsp_send_msg(struct catpt_dev *cdev, struct catpt_ipc_msg request,
 					  cdev->ipc.default_timeout);
 }
 
+static void
+catpt_dsp_notify_stream(struct catpt_dev *cdev, union catpt_notify_msg msg)
+{
+	struct catpt_stream_runtime *stream;
+	struct catpt_notify_position pos;
+	struct catpt_notify_glitch glitch;
+
+	stream = catpt_stream_find(cdev, msg.stream_hw_id);
+	if (!stream) {
+		dev_warn(cdev->dev, "notify %d for non-existent stream %d\n",
+			 msg.notify_reason, msg.stream_hw_id);
+		return;
+	}
+
+	switch (msg.notify_reason) {
+	case CATPT_NOTIFY_POSITION_CHANGED:
+		memcpy_fromio(&pos, catpt_inbox_addr(cdev), sizeof(pos));
+
+		catpt_stream_update_position(cdev, stream, &pos);
+		break;
+
+	case CATPT_NOTIFY_GLITCH_OCCURRED:
+		memcpy_fromio(&glitch, catpt_inbox_addr(cdev), sizeof(glitch));
+
+		dev_warn(cdev->dev, "glitch %d at pos: 0x%08llx, wp: 0x%08x\n",
+			 glitch.type, glitch.presentation_pos,
+			 glitch.write_pos);
+		break;
+
+	default:
+		dev_warn(cdev->dev, "unknown notification: %d received\n",
+			 msg.notify_reason);
+		break;
+	}
+}
+
 static void catpt_dsp_copy_rx(struct catpt_dev *cdev, u32 header)
 {
 	struct catpt_ipc *ipc = &cdev->ipc;
@@ -177,6 +213,7 @@ static void catpt_dsp_process_response(struct catpt_dev *cdev, u32 header)
 	case CATPT_GLB_STREAM_MESSAGE:
 		switch (msg.stream_msg_type) {
 		case CATPT_STRM_NOTIFICATION:
+			catpt_dsp_notify_stream(cdev, msg);
 			break;
 		default:
 			catpt_dsp_copy_rx(cdev, header);
