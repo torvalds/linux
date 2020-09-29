@@ -988,7 +988,7 @@ static const struct npc_kpu_profile_action ikpu_action_entries[] = {
 	},
 	{
 		NPC_ERRLEV_RE, NPC_EC_NOERR,
-		12, 16, 20, 0, 0,
+		12, 14, 20, 0, 0,
 		NPC_S_KPU1_EXDSA, 0, 0,
 		NPC_LID_LA, NPC_LT_NA,
 		0,
@@ -1360,10 +1360,10 @@ static const struct npc_kpu_profile_cam kpu1_cam_entries[] = {
 	},
 	{
 		NPC_S_KPU1_EXDSA, 0xff,
-		NPC_DSA_EXTEND,
-		NPC_DSA_EXTEND,
 		0x0000,
 		0x0000,
+		NPC_DSA_EXTEND,
+		NPC_DSA_EXTEND,
 		0x0000,
 		0x0000,
 	},
