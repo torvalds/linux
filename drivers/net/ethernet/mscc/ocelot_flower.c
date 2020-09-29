@@ -44,8 +44,8 @@ static int ocelot_flower_parse_action(struct flow_cls_offload *f,
 	return 0;
 }
 
-static int ocelot_flower_parse(struct flow_cls_offload *f,
-			       struct ocelot_vcap_filter *filter)
+static int ocelot_flower_parse_key(struct flow_cls_offload *f,
+				   struct ocelot_vcap_filter *filter)
 {
 	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
 	struct flow_dissector *dissector = rule->match.dissector;
@@ -179,9 +179,22 @@ finished_key_parsing:
 	}
 	/* else, a filter of type OCELOT_VCAP_KEY_ANY is implicitly added */
 
+	return 0;
+}
+
+static int ocelot_flower_parse(struct flow_cls_offload *f,
+			       struct ocelot_vcap_filter *filter)
+{
+	int ret;
+
 	filter->prio = f->common.prio;
 	filter->id = f->cookie;
-	return ocelot_flower_parse_action(f, filter);
+
+	ret = ocelot_flower_parse_action(f, filter);
+	if (ret)
+		return ret;
+
+	return ocelot_flower_parse_key(f, filter);
 }
 
 static struct ocelot_vcap_filter
