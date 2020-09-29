@@ -35,7 +35,6 @@
 struct sensor_accumulator {
 	u64 energy_ctr;
 	u64 prev_value;
-	char label[10];
 };
 
 struct amd_energy_data {
@@ -52,6 +51,7 @@ struct amd_energy_data {
 	int nr_cpus;
 	int nr_socks;
 	int core_id;
+	char (*label)[10];
 };
 
 static int amd_energy_read_labels(struct device *dev,
@@ -61,7 +61,7 @@ static int amd_energy_read_labels(struct device *dev,
 {
 	struct amd_energy_data *data = dev_get_drvdata(dev);
 
-	*str = data->accums[channel].label;
+	*str = data->label[channel];
 	return 0;
 }
 
@@ -253,6 +253,7 @@ static int amd_create_sensor(struct device *dev,
 	struct sensor_accumulator *accums;
 	int i, num_siblings, cpus, sockets;
 	u32 *s_config;
+	char (*label_l)[10];
 
 	/* Identify the number of siblings per core */
 	num_siblings = ((cpuid_ebx(0x8000001e) >> 8) & 0xff) + 1;
@@ -276,21 +277,25 @@ static int amd_create_sensor(struct device *dev,
 	if (!accums)
 		return -ENOMEM;
 
+	label_l = devm_kcalloc(dev, cpus + sockets,
+			       sizeof(*label_l), GFP_KERNEL);
+	if (!label_l)
+		return -ENOMEM;
+
 	info->type = type;
 	info->config = s_config;
 
 	data->nr_cpus = cpus;
 	data->nr_socks = sockets;
 	data->accums = accums;
+	data->label = label_l;
 
 	for (i = 0; i < cpus + sockets; i++) {
 		s_config[i] = config;
 		if (i < cpus)
-			scnprintf(accums[i].label, 10,
-				  "Ecore%03u", i);
+			scnprintf(label_l[i], 10, "Ecore%03u", i);
 		else
-			scnprintf(accums[i].label, 10,
-				  "Esocket%u", (i - cpus));
+			scnprintf(label_l[i], 10, "Esocket%u", (i - cpus));
 	}
 
 	return 0;
