@@ -2267,7 +2267,11 @@ readpage:
 		}
 
 		if (!PageUptodate(page)) {
-			error = lock_page_killable(page);
+			if (iocb->ki_flags & IOCB_WAITQ)
+				error = lock_page_async(page, iocb->ki_waitq);
+			else
+				error = lock_page_killable(page);
+
 			if (unlikely(error))
 				goto readpage_error;
 			if (!PageUptodate(page)) {
