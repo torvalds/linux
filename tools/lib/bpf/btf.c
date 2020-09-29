@@ -1343,6 +1343,787 @@ int btf__add_str(struct btf *btf, const char *s)
 	return new_off;
 }
 
+static void *btf_add_type_mem(struct btf *btf, size_t add_sz)
+{
+	return btf_add_mem(&btf->types_data, &btf->types_data_cap, 1,
+			   btf->hdr->type_len, UINT_MAX, add_sz);
+}
+
+static __u32 btf_type_info(int kind, int vlen, int kflag)
+{
+	return (kflag << 31) | (kind << 24) | vlen;
+}
+
+static void btf_type_inc_vlen(struct btf_type *t)
+{
+	t->info = btf_type_info(btf_kind(t), btf_vlen(t) + 1, btf_kflag(t));
+}
+
+/*
+ * Append new BTF_KIND_INT type with:
+ *   - *name* - non-empty, non-NULL type name;
+ *   - *sz* - power-of-2 (1, 2, 4, ..) size of the type, in bytes;
+ *   - encoding is a combination of BTF_INT_SIGNED, BTF_INT_CHAR, BTF_INT_BOOL.
+ * Returns:
+ *   - >0, type ID of newly added BTF type;
+ *   - <0, on error.
+ */
+int btf__add_int(struct btf *btf, const char *name, size_t byte_sz, int encoding)
+{
+	struct btf_type *t;
+	int sz, err, name_off;
+
+	/* non-empty name */
+	if (!name || !name[0])
+		return -EINVAL;
+	/* byte_sz must be power of 2 */
+	if (!byte_sz || (byte_sz & (byte_sz - 1)) || byte_sz > 16)
+		return -EINVAL;
+	if (encoding & ~(BTF_INT_SIGNED | BTF_INT_CHAR | BTF_INT_BOOL))
+		return -EINVAL;
+
+	/* deconstruct BTF, if necessary, and invalidate raw_data */
+	if (btf_ensure_modifiable(btf))
+		return -ENOMEM;
+
+	sz = sizeof(struct btf_type) + sizeof(int);
+	t = btf_add_type_mem(btf, sz);
+	if (!t)
+		return -ENOMEM;
+
+	/* if something goes wrong later, we might end up with an extra string,
+	 * but that shouldn't be a problem, because BTF can't be constructed
+	 * completely anyway and will most probably be just discarded
+	 */
+	name_off = btf__add_str(btf, name);
+	if (name_off < 0)
+		return name_off;
+
+	t->name_off = name_off;
+	t->info = btf_type_info(BTF_KIND_INT, 0, 0);
+	t->size = byte_sz;
+	/* set INT info, we don't allow setting legacy bit offset/size */
+	*(__u32 *)(t + 1) = (encoding << 24) | (byte_sz * 8);
+
+	err = btf_add_type_idx_entry(btf, btf->hdr->type_len);
+	if (err)
+		return err;
+
+	btf->hdr->type_len += sz;
+	btf->hdr->str_off += sz;
+	btf->nr_types++;
+	return btf->nr_types;
+}
+
+/* it's completely legal to append BTF types with type IDs pointing forward to
+ * types that haven't been appended yet, so we only make sure that id looks
+ * sane, we can't guarantee that ID will always be valid
+ */
+static int validate_type_id(int id)
+{
+	if (id < 0 || id > BTF_MAX_NR_TYPES)
+		return -EINVAL;
+	return 0;
+}
+
+/* generic append function for PTR, TYPEDEF, CONST/VOLATILE/RESTRICT */
+static int btf_add_ref_kind(struct btf *btf, int kind, const char *name, int ref_type_id)
+{
+	struct btf_type *t;
+	int sz, name_off = 0, err;
+
+	if (validate_type_id(ref_type_id))
+		return -EINVAL;
+
+	if (btf_ensure_modifiable(btf))
+		return -ENOMEM;
+
+	sz = sizeof(struct btf_type);
+	t = btf_add_type_mem(btf, sz);
+	if (!t)
+		return -ENOMEM;
+
+	if (name && name[0]) {
+		name_off = btf__add_str(btf, name);
+		if (name_off < 0)
+			return name_off;
+	}
+
+	t->name_off = name_off;
+	t->info = btf_type_info(kind, 0, 0);
+	t->type = ref_type_id;
+
+	err = btf_add_type_idx_entry(btf, btf->hdr->type_len);
+	if (err)
+		return err;
+
+	btf->hdr->type_len += sz;
+	btf->hdr->str_off += sz;
+	btf->nr_types++;
+	return btf->nr_types;
+}
+
+/*
+ * Append new BTF_KIND_PTR type with:
+ *   - *ref_type_id* - referenced type ID, it might not exist yet;
+ * Returns:
+ *   - >0, type ID of newly added BTF type;
+ *   - <0, on error.
+ */
+int btf__add_ptr(struct btf *btf, int ref_type_id)
+{
+	return btf_add_ref_kind(btf, BTF_KIND_PTR, NULL, ref_type_id);
+}
+
+/*
+ * Append new BTF_KIND_ARRAY type with:
+ *   - *index_type_id* - type ID of the type describing array index;
+ *   - *elem_type_id* - type ID of the type describing array element;
+ *   - *nr_elems* - the size of the array;
+ * Returns:
+ *   - >0, type ID of newly added BTF type;
+ *   - <0, on error.
+ */
+int btf__add_array(struct btf *btf, int index_type_id, int elem_type_id, __u32 nr_elems)
+{
+	struct btf_type *t;
+	struct btf_array *a;
+	int sz, err;
+
+	if (validate_type_id(index_type_id) || validate_type_id(elem_type_id))
+		return -EINVAL;
+
+	if (btf_ensure_modifiable(btf))
+		return -ENOMEM;
+
+	sz = sizeof(struct btf_type) + sizeof(struct btf_array);
+	t = btf_add_type_mem(btf, sz);
+	if (!t)
+		return -ENOMEM;
+
+	t->name_off = 0;
+	t->info = btf_type_info(BTF_KIND_ARRAY, 0, 0);
+	t->size = 0;
+
+	a = btf_array(t);
+	a->type = elem_type_id;
+	a->index_type = index_type_id;
+	a->nelems = nr_elems;
+
+	err = btf_add_type_idx_entry(btf, btf->hdr->type_len);
+	if (err)
+		return err;
+
+	btf->hdr->type_len += sz;
+	btf->hdr->str_off += sz;
+	btf->nr_types++;
+	return btf->nr_types;
+}
+
+/* generic STRUCT/UNION append function */
+static int btf_add_composite(struct btf *btf, int kind, const char *name, __u32 bytes_sz)
+{
+	struct btf_type *t;
+	int sz, err, name_off = 0;
+
+	if (btf_ensure_modifiable(btf))
+		return -ENOMEM;
+
+	sz = sizeof(struct btf_type);
+	t = btf_add_type_mem(btf, sz);
+	if (!t)
+		return -ENOMEM;
+
+	if (name && name[0]) {
+		name_off = btf__add_str(btf, name);
+		if (name_off < 0)
+			return name_off;
+	}
+
+	/* start out with vlen=0 and no kflag; this will be adjusted when
+	 * adding each member
+	 */
+	t->name_off = name_off;
+	t->info = btf_type_info(kind, 0, 0);
+	t->size = bytes_sz;
+
+	err = btf_add_type_idx_entry(btf, btf->hdr->type_len);
+	if (err)
+		return err;
+
+	btf->hdr->type_len += sz;
+	btf->hdr->str_off += sz;
+	btf->nr_types++;
+	return btf->nr_types;
+}
+
+/*
+ * Append new BTF_KIND_STRUCT type with:
+ *   - *name* - name of the struct, can be NULL or empty for anonymous structs;
+ *   - *byte_sz* - size of the struct, in bytes;
+ *
+ * Struct initially has no fields in it. Fields can be added by
+ * btf__add_field() right after btf__add_struct() succeeds. 
+ *
+ * Returns:
+ *   - >0, type ID of newly added BTF type;
+ *   - <0, on error.
+ */
+int btf__add_struct(struct btf *btf, const char *name, __u32 byte_sz)
+{
+	return btf_add_composite(btf, BTF_KIND_STRUCT, name, byte_sz);
+}
+
+/*
+ * Append new BTF_KIND_UNION type with:
+ *   - *name* - name of the union, can be NULL or empty for anonymous union;
+ *   - *byte_sz* - size of the union, in bytes;
+ *
+ * Union initially has no fields in it. Fields can be added by
+ * btf__add_field() right after btf__add_union() succeeds. All fields
+ * should have *bit_offset* of 0.
+ *
+ * Returns:
+ *   - >0, type ID of newly added BTF type;
+ *   - <0, on error.
+ */
+int btf__add_union(struct btf *btf, const char *name, __u32 byte_sz)
+{
+	return btf_add_composite(btf, BTF_KIND_UNION, name, byte_sz);
+}
+
+/*
+ * Append new field for the current STRUCT/UNION type with:
+ *   - *name* - name of the field, can be NULL or empty for anonymous field;
+ *   - *type_id* - type ID for the type describing field type;
+ *   - *bit_offset* - bit offset of the start of the field within struct/union;
+ *   - *bit_size* - bit size of a bitfield, 0 for non-bitfield fields;
+ * Returns:
+ *   -  0, on success;
+ *   - <0, on error.
+ */
+int btf__add_field(struct btf *btf, const char *name, int type_id,
+		   __u32 bit_offset, __u32 bit_size)
+{
+	struct btf_type *t;
+	struct btf_member *m;
+	bool is_bitfield;
+	int sz, name_off = 0;
+
+	/* last type should be union/struct */
+	if (btf->nr_types == 0)
+		return -EINVAL;
+	t = btf_type_by_id(btf, btf->nr_types);
+	if (!btf_is_composite(t))
+		return -EINVAL;
+
+	if (validate_type_id(type_id))
+		return -EINVAL;
+	/* best-effort bit field offset/size enforcement */
+	is_bitfield = bit_size || (bit_offset % 8 != 0);
+	if (is_bitfield && (bit_size == 0 || bit_size > 255 || bit_offset > 0xffffff))
+		return -EINVAL;
+
+	/* only offset 0 is allowed for unions */
+	if (btf_is_union(t) && bit_offset)
+		return -EINVAL;
+
+	/* decompose and invalidate raw data */
+	if (btf_ensure_modifiable(btf))
+		return -ENOMEM;
+
+	sz = sizeof(struct btf_member);
+	m = btf_add_type_mem(btf, sz);
+	if (!m)
+		return -ENOMEM;
+
+	if (name && name[0]) {
+		name_off = btf__add_str(btf, name);
+		if (name_off < 0)
+			return name_off;
+	}
+
+	m->name_off = name_off;
+	m->type = type_id;
+	m->offset = bit_offset | (bit_size << 24);
+
+	/* btf_add_type_mem can invalidate t pointer */
+	t = btf_type_by_id(btf, btf->nr_types);
+	/* update parent type's vlen and kflag */
+	t->info = btf_type_info(btf_kind(t), btf_vlen(t) + 1, is_bitfield || btf_kflag(t));
+
+	btf->hdr->type_len += sz;
+	btf->hdr->str_off += sz;
+	return 0;
+}
+
+/*
+ * Append new BTF_KIND_ENUM type with:
+ *   - *name* - name of the enum, can be NULL or empty for anonymous enums;
+ *   - *byte_sz* - size of the enum, in bytes.
+ *
+ * Enum initially has no enum values in it (and corresponds to enum forward
+ * declaration). Enumerator values can be added by btf__add_enum_value()
+ * immediately after btf__add_enum() succeeds.
+ *
+ * Returns:
+ *   - >0, type ID of newly added BTF type;
+ *   - <0, on error.
+ */
+int btf__add_enum(struct btf *btf, const char *name, __u32 byte_sz)
+{
+	struct btf_type *t;
+	int sz, err, name_off = 0;
+
+	/* byte_sz must be power of 2 */
+	if (!byte_sz || (byte_sz & (byte_sz - 1)) || byte_sz > 8)
+		return -EINVAL;
+
+	if (btf_ensure_modifiable(btf))
+		return -ENOMEM;
+
+	sz = sizeof(struct btf_type);
+	t = btf_add_type_mem(btf, sz);
+	if (!t)
+		return -ENOMEM;
+
+	if (name && name[0]) {
+		name_off = btf__add_str(btf, name);
+		if (name_off < 0)
+			return name_off;
+	}
+
+	/* start out with vlen=0; it will be adjusted when adding enum values */
+	t->name_off = name_off;
+	t->info = btf_type_info(BTF_KIND_ENUM, 0, 0);
+	t->size = byte_sz;
+
+	err = btf_add_type_idx_entry(btf, btf->hdr->type_len);
+	if (err)
+		return err;
+
+	btf->hdr->type_len += sz;
+	btf->hdr->str_off += sz;
+	btf->nr_types++;
+	return btf->nr_types;
+}
+
+/*
+ * Append new enum value for the current ENUM type with:
+ *   - *name* - name of the enumerator value, can't be NULL or empty;
+ *   - *value* - integer value corresponding to enum value *name*;
+ * Returns:
+ *   -  0, on success;
+ *   - <0, on error.
+ */
+int btf__add_enum_value(struct btf *btf, const char *name, __s64 value)
+{
+	struct btf_type *t;
+	struct btf_enum *v;
+	int sz, name_off;
+
+	/* last type should be BTF_KIND_ENUM */
+	if (btf->nr_types == 0)
+		return -EINVAL;
+	t = btf_type_by_id(btf, btf->nr_types);
+	if (!btf_is_enum(t))
+		return -EINVAL;
+
+	/* non-empty name */
+	if (!name || !name[0])
+		return -EINVAL;
+	if (value < INT_MIN || value > UINT_MAX)
+		return -E2BIG;
+
+	/* decompose and invalidate raw data */
+	if (btf_ensure_modifiable(btf))
+		return -ENOMEM;
+
+	sz = sizeof(struct btf_enum);
+	v = btf_add_type_mem(btf, sz);
+	if (!v)
+		return -ENOMEM;
+
+	name_off = btf__add_str(btf, name);
+	if (name_off < 0)
+		return name_off;
+
+	v->name_off = name_off;
+	v->val = value;
+
+	/* update parent type's vlen */
+	t = btf_type_by_id(btf, btf->nr_types);
+	btf_type_inc_vlen(t);
+
+	btf->hdr->type_len += sz;
+	btf->hdr->str_off += sz;
+	return 0;
+}
+
+/*
+ * Append new BTF_KIND_FWD type with:
+ *   - *name*, non-empty/non-NULL name;
+ *   - *fwd_kind*, kind of forward declaration, one of BTF_FWD_STRUCT,
+ *     BTF_FWD_UNION, or BTF_FWD_ENUM;
+ * Returns:
+ *   - >0, type ID of newly added BTF type;
+ *   - <0, on error.
+ */
+int btf__add_fwd(struct btf *btf, const char *name, enum btf_fwd_kind fwd_kind)
+{
+	if (!name || !name[0])
+		return -EINVAL;
+
+	switch (fwd_kind) {
+	case BTF_FWD_STRUCT:
+	case BTF_FWD_UNION: {
+		struct btf_type *t;
+		int id;
+
+		id = btf_add_ref_kind(btf, BTF_KIND_FWD, name, 0);
+		if (id <= 0)
+			return id;
+		t = btf_type_by_id(btf, id);
+		t->info = btf_type_info(BTF_KIND_FWD, 0, fwd_kind == BTF_FWD_UNION);
+		return id;
+	}
+	case BTF_FWD_ENUM:
+		/* enum forward in BTF currently is just an enum with no enum
+		 * values; we also assume a standard 4-byte size for it
+		 */
+		return btf__add_enum(btf, name, sizeof(int));
+	default:
+		return -EINVAL;
+	}
+}
+
+/*
+ * Append new BTF_KING_TYPEDEF type with:
+ *   - *name*, non-empty/non-NULL name;
+ *   - *ref_type_id* - referenced type ID, it might not exist yet;
+ * Returns:
+ *   - >0, type ID of newly added BTF type;
+ *   - <0, on error.
+ */
+int btf__add_typedef(struct btf *btf, const char *name, int ref_type_id)
+{
+	if (!name || !name[0])
+		return -EINVAL;
+
+	return btf_add_ref_kind(btf, BTF_KIND_TYPEDEF, name, ref_type_id);
+}
+
+/*
+ * Append new BTF_KIND_VOLATILE type with:
+ *   - *ref_type_id* - referenced type ID, it might not exist yet;
+ * Returns:
+ *   - >0, type ID of newly added BTF type;
+ *   - <0, on error.
+ */
+int btf__add_volatile(struct btf *btf, int ref_type_id)
+{
+	return btf_add_ref_kind(btf, BTF_KIND_VOLATILE, NULL, ref_type_id);
+}
+
+/*
+ * Append new BTF_KIND_CONST type with:
+ *   - *ref_type_id* - referenced type ID, it might not exist yet;
+ * Returns:
+ *   - >0, type ID of newly added BTF type;
+ *   - <0, on error.
+ */
+int btf__add_const(struct btf *btf, int ref_type_id)
+{
+	return btf_add_ref_kind(btf, BTF_KIND_CONST, NULL, ref_type_id);
+}
+
+/*
+ * Append new BTF_KIND_RESTRICT type with:
+ *   - *ref_type_id* - referenced type ID, it might not exist yet;
+ * Returns:
+ *   - >0, type ID of newly added BTF type;
+ *   - <0, on error.
+ */
+int btf__add_restrict(struct btf *btf, int ref_type_id)
+{
+	return btf_add_ref_kind(btf, BTF_KIND_RESTRICT, NULL, ref_type_id);
+}
+
+/*
+ * Append new BTF_KIND_FUNC type with:
+ *   - *name*, non-empty/non-NULL name;
+ *   - *proto_type_id* - FUNC_PROTO's type ID, it might not exist yet;
+ * Returns:
+ *   - >0, type ID of newly added BTF type;
+ *   - <0, on error.
+ */
+int btf__add_func(struct btf *btf, const char *name,
+		  enum btf_func_linkage linkage, int proto_type_id)
+{
+	int id;
+
+	if (!name || !name[0])
+		return -EINVAL;
+	if (linkage != BTF_FUNC_STATIC && linkage != BTF_FUNC_GLOBAL &&
+	    linkage != BTF_FUNC_EXTERN)
+		return -EINVAL;
+
+	id = btf_add_ref_kind(btf, BTF_KIND_FUNC, name, proto_type_id);
+	if (id > 0) {
+		struct btf_type *t = btf_type_by_id(btf, id);
+
+		t->info = btf_type_info(BTF_KIND_FUNC, linkage, 0);
+	}
+	return id;
+}
+
+/*
+ * Append new BTF_KIND_FUNC_PROTO with:
+ *   - *ret_type_id* - type ID for return result of a function.
+ *
+ * Function prototype initially has no arguments, but they can be added by
+ * btf__add_func_param() one by one, immediately after
+ * btf__add_func_proto() succeeded.
+ *
+ * Returns:
+ *   - >0, type ID of newly added BTF type;
+ *   - <0, on error.
+ */
+int btf__add_func_proto(struct btf *btf, int ret_type_id)
+{
+	struct btf_type *t;
+	int sz, err;
+
+	if (validate_type_id(ret_type_id))
+		return -EINVAL;
+
+	if (btf_ensure_modifiable(btf))
+		return -ENOMEM;
+
+	sz = sizeof(struct btf_type);
+	t = btf_add_type_mem(btf, sz);
+	if (!t)
+		return -ENOMEM;
+
+	/* start out with vlen=0; this will be adjusted when adding enum
+	 * values, if necessary
+	 */
+	t->name_off = 0;
+	t->info = btf_type_info(BTF_KIND_FUNC_PROTO, 0, 0);
+	t->type = ret_type_id;
+
+	err = btf_add_type_idx_entry(btf, btf->hdr->type_len);
+	if (err)
+		return err;
+
+	btf->hdr->type_len += sz;
+	btf->hdr->str_off += sz;
+	btf->nr_types++;
+	return btf->nr_types;
+}
+
+/*
+ * Append new function parameter for current FUNC_PROTO type with:
+ *   - *name* - parameter name, can be NULL or empty;
+ *   - *type_id* - type ID describing the type of the parameter.
+ * Returns:
+ *   -  0, on success;
+ *   - <0, on error.
+ */
+int btf__add_func_param(struct btf *btf, const char *name, int type_id)
+{
+	struct btf_type *t;
+	struct btf_param *p;
+	int sz, name_off = 0;
+
+	if (validate_type_id(type_id))
+		return -EINVAL;
+
+	/* last type should be BTF_KIND_FUNC_PROTO */
+	if (btf->nr_types == 0)
+		return -EINVAL;
+	t = btf_type_by_id(btf, btf->nr_types);
+	if (!btf_is_func_proto(t))
+		return -EINVAL;
+
+	/* decompose and invalidate raw data */
+	if (btf_ensure_modifiable(btf))
+		return -ENOMEM;
+
+	sz = sizeof(struct btf_param);
+	p = btf_add_type_mem(btf, sz);
+	if (!p)
+		return -ENOMEM;
+
+	if (name && name[0]) {
+		name_off = btf__add_str(btf, name);
+		if (name_off < 0)
+			return name_off;
+	}
+
+	p->name_off = name_off;
+	p->type = type_id;
+
+	/* update parent type's vlen */
+	t = btf_type_by_id(btf, btf->nr_types);
+	btf_type_inc_vlen(t);
+
+	btf->hdr->type_len += sz;
+	btf->hdr->str_off += sz;
+	return 0;
+}
+
+/*
+ * Append new BTF_KIND_VAR type with:
+ *   - *name* - non-empty/non-NULL name;
+ *   - *linkage* - variable linkage, one of BTF_VAR_STATIC,
+ *     BTF_VAR_GLOBAL_ALLOCATED, or BTF_VAR_GLOBAL_EXTERN;
+ *   - *type_id* - type ID of the type describing the type of the variable.
+ * Returns:
+ *   - >0, type ID of newly added BTF type;
+ *   - <0, on error.
+ */
+int btf__add_var(struct btf *btf, const char *name, int linkage, int type_id)
+{
+	struct btf_type *t;
+	struct btf_var *v;
+	int sz, err, name_off;
+
+	/* non-empty name */
+	if (!name || !name[0])
+		return -EINVAL;
+	if (linkage != BTF_VAR_STATIC && linkage != BTF_VAR_GLOBAL_ALLOCATED &&
+	    linkage != BTF_VAR_GLOBAL_EXTERN)
+		return -EINVAL;
+	if (validate_type_id(type_id))
+		return -EINVAL;
+
+	/* deconstruct BTF, if necessary, and invalidate raw_data */
+	if (btf_ensure_modifiable(btf))
+		return -ENOMEM;
+
+	sz = sizeof(struct btf_type) + sizeof(struct btf_var);
+	t = btf_add_type_mem(btf, sz);
+	if (!t)
+		return -ENOMEM;
+
+	name_off = btf__add_str(btf, name);
+	if (name_off < 0)
+		return name_off;
+
+	t->name_off = name_off;
+	t->info = btf_type_info(BTF_KIND_VAR, 0, 0);
+	t->type = type_id;
+
+	v = btf_var(t);
+	v->linkage = linkage;
+
+	err = btf_add_type_idx_entry(btf, btf->hdr->type_len);
+	if (err)
+		return err;
+
+	btf->hdr->type_len += sz;
+	btf->hdr->str_off += sz;
+	btf->nr_types++;
+	return btf->nr_types;
+}
+
+/*
+ * Append new BTF_KIND_DATASEC type with:
+ *   - *name* - non-empty/non-NULL name;
+ *   - *byte_sz* - data section size, in bytes.
+ *
+ * Data section is initially empty. Variables info can be added with
+ * btf__add_datasec_var_info() calls, after btf__add_datasec() succeeds.
+ *
+ * Returns:
+ *   - >0, type ID of newly added BTF type;
+ *   - <0, on error.
+ */
+int btf__add_datasec(struct btf *btf, const char *name, __u32 byte_sz)
+{
+	struct btf_type *t;
+	int sz, err, name_off;
+
+	/* non-empty name */
+	if (!name || !name[0])
+		return -EINVAL;
+
+	if (btf_ensure_modifiable(btf))
+		return -ENOMEM;
+
+	sz = sizeof(struct btf_type);
+	t = btf_add_type_mem(btf, sz);
+	if (!t)
+		return -ENOMEM;
+
+	name_off = btf__add_str(btf, name);
+	if (name_off < 0)
+		return name_off;
+
+	/* start with vlen=0, which will be update as var_secinfos are added */
+	t->name_off = name_off;
+	t->info = btf_type_info(BTF_KIND_DATASEC, 0, 0);
+	t->size = byte_sz;
+
+	err = btf_add_type_idx_entry(btf, btf->hdr->type_len);
+	if (err)
+		return err;
+
+	btf->hdr->type_len += sz;
+	btf->hdr->str_off += sz;
+	btf->nr_types++;
+	return btf->nr_types;
+}
+
+/*
+ * Append new data section variable information entry for current DATASEC type:
+ *   - *var_type_id* - type ID, describing type of the variable;
+ *   - *offset* - variable offset within data section, in bytes;
+ *   - *byte_sz* - variable size, in bytes.
+ *
+ * Returns:
+ *   -  0, on success;
+ *   - <0, on error.
+ */
+int btf__add_datasec_var_info(struct btf *btf, int var_type_id, __u32 offset, __u32 byte_sz)
+{
+	struct btf_type *t;
+	struct btf_var_secinfo *v;
+	int sz;
+
+	/* last type should be BTF_KIND_DATASEC */
+	if (btf->nr_types == 0)
+		return -EINVAL;
+	t = btf_type_by_id(btf, btf->nr_types);
+	if (!btf_is_datasec(t))
+		return -EINVAL;
+
+	if (validate_type_id(var_type_id))
+		return -EINVAL;
+
+	/* decompose and invalidate raw data */
+	if (btf_ensure_modifiable(btf))
+		return -ENOMEM;
+
+	sz = sizeof(struct btf_var_secinfo);
+	v = btf_add_type_mem(btf, sz);
+	if (!v)
+		return -ENOMEM;
+
+	v->type = var_type_id;
+	v->offset = offset;
+	v->size = byte_sz;
+
+	/* update parent type's vlen */
+	t = btf_type_by_id(btf, btf->nr_types);
+	btf_type_inc_vlen(t);
+
+	btf->hdr->type_len += sz;
+	btf->hdr->str_off += sz;
+	return 0;
+}
+
 struct btf_ext_sec_setup_param {
 	__u32 off;
 	__u32 len;
