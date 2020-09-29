@@ -43,7 +43,7 @@ static inline int
 nand_bch_calculate_ecc(struct nand_chip *chip, const u_char *dat,
 		       u_char *ecc_code)
 {
-	return -1;
+	return -ENOTSUPP;
 }
 
 static inline int
