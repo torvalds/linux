@@ -1184,14 +1184,10 @@ struct snd_soc_pcm_runtime {
 	for ((i) = 0;							\
 	     ((i) < rtd->num_cpus) && ((dai) = asoc_rtd_to_cpu(rtd, i)); \
 	     (i)++)
-#define for_each_rtd_cpu_dais_rollback(rtd, i, dai)		\
-	for (; (--(i) >= 0) && ((dai) = asoc_rtd_to_cpu(rtd, i));)
 #define for_each_rtd_codec_dais(rtd, i, dai)				\
 	for ((i) = 0;							\
 	     ((i) < rtd->num_codecs) && ((dai) = asoc_rtd_to_codec(rtd, i)); \
 	     (i)++)
-#define for_each_rtd_codec_dais_rollback(rtd, i, dai)		\
-	for (; (--(i) >= 0) && ((dai) = asoc_rtd_to_codec(rtd, i));)
 #define for_each_rtd_dais(rtd, i, dai)					\
 	for ((i) = 0;							\
 	     ((i) < (rtd)->num_cpus + (rtd)->num_codecs) &&		\

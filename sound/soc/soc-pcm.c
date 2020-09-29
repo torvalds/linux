@@ -860,10 +860,7 @@ static void soc_pcm_codec_params_fixup(struct snd_pcm_hw_params *params,
 	interval->max = channels;
 }
 
-/*
- * Frees resources allocated by hw_params, can be called multiple times
- */
-static int soc_pcm_hw_free(struct snd_pcm_substream *substream)
+static int soc_pcm_hw_clean(struct snd_pcm_substream *substream, int rollback)
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_dai *dai;
@@ -886,21 +883,29 @@ static int soc_pcm_hw_free(struct snd_pcm_substream *substream)
 	}
 
 	/* free any machine hw params */
-	snd_soc_link_hw_free(substream, 0);
+	snd_soc_link_hw_free(substream, rollback);
 
 	/* free any component resources */
-	snd_soc_pcm_component_hw_free(substream, 0);
+	snd_soc_pcm_component_hw_free(substream, rollback);
 
 	/* now free hw params for the DAIs  */
 	for_each_rtd_dais(rtd, i, dai) {
 		if (!snd_soc_dai_stream_valid(dai, substream->stream))
 			continue;
 
-		snd_soc_dai_hw_free(dai, substream, 0);
+		snd_soc_dai_hw_free(dai, substream, rollback);
 	}
 
 	mutex_unlock(&rtd->card->pcm_mutex);
 	return 0;
+}
+
+/*
+ * Frees resources allocated by hw_params, can be called multiple times
+ */
+static int soc_pcm_hw_free(struct snd_pcm_substream *substream)
+{
+	return soc_pcm_hw_clean(substream, 0);
 }
 
 /*
@@ -963,7 +968,7 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 		ret = snd_soc_dai_hw_params(codec_dai, substream,
 					    &codec_params);
 		if(ret < 0)
-			goto codec_err;
+			goto out;
 
 		codec_dai->rate = params_rate(&codec_params);
 		codec_dai->channels = params_channels(&codec_params);
@@ -983,7 +988,7 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 
 		ret = snd_soc_dai_hw_params(cpu_dai, substream, params);
 		if (ret < 0)
-			goto interface_err;
+			goto out;
 
 		/* store the parameters for each DAI */
 		cpu_dai->rate = params_rate(params);
@@ -995,41 +1000,12 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	ret = snd_soc_pcm_component_hw_params(substream, params);
-	if (ret < 0)
-		goto component_err;
-
 out:
 	mutex_unlock(&rtd->card->pcm_mutex);
-	return ret;
 
-component_err:
-	snd_soc_pcm_component_hw_free(substream, 1);
+	if (ret < 0)
+		soc_pcm_hw_clean(substream, 1);
 
-	i = rtd->num_cpus;
-
-interface_err:
-	for_each_rtd_cpu_dais_rollback(rtd, i, cpu_dai) {
-		if (!snd_soc_dai_stream_valid(cpu_dai, substream->stream))
-			continue;
-
-		snd_soc_dai_hw_free(cpu_dai, substream, 1);
-		cpu_dai->rate = 0;
-	}
-
-	i = rtd->num_codecs;
-
-codec_err:
-	for_each_rtd_codec_dais_rollback(rtd, i, codec_dai) {
-		if (!snd_soc_dai_stream_valid(codec_dai, substream->stream))
-			continue;
-
-		snd_soc_dai_hw_free(codec_dai, substream, 1);
-		codec_dai->rate = 0;
-	}
-
-	snd_soc_link_hw_free(substream, 1);
-
-	mutex_unlock(&rtd->card->pcm_mutex);
 	return ret;
 }
 
