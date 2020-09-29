@@ -139,6 +139,7 @@
 
 #define NPC_DSA_EXTEND		0x1000
 #define NPC_DSA_EDSA		0x8000
+#define NPC_DSA_FDSA		0xc000
 
 #define NPC_KEXOF_DMAC	8
 #define MKEX_SIGN	0x19bbfdbd15f /* strtoull of "mkexprof" with base:36 */
@@ -172,6 +173,7 @@ enum npc_kpu_parser_state {
 	NPC_S_KPU3_DSA,
 	NPC_S_KPU4_MPLS,
 	NPC_S_KPU4_NSH,
+	NPC_S_KPU4_FDSA,
 	NPC_S_KPU5_IP,
 	NPC_S_KPU5_IP6,
 	NPC_S_KPU5_ARP,
@@ -277,6 +279,7 @@ enum npc_kpu_lb_lflag {
 	NPC_F_LB_L_EDSA_VLAN,
 	NPC_F_LB_L_EXDSA,
 	NPC_F_LB_L_EXDSA_VLAN,
+	NPC_F_LB_L_FDSA,
 };
 
 enum npc_kpu_lc_uflag {
@@ -1359,6 +1362,15 @@ static const struct npc_kpu_profile_cam kpu1_cam_entries[] = {
 		NPC_S_KPU1_EXDSA, 0xff,
 		NPC_DSA_EXTEND,
 		NPC_DSA_EXTEND,
+		0x0000,
+		0x0000,
+		0x0000,
+		0x0000,
+	},
+	{
+		NPC_S_KPU1_EXDSA, 0xff,
+		NPC_DSA_FDSA,
+		NPC_DSA_FDSA,
 		0x0000,
 		0x0000,
 		0x0000,
@@ -3996,6 +4008,68 @@ static const struct npc_kpu_profile_cam kpu4_cam_entries[] = {
 		NPC_S_KPU4_NSH, 0xff,
 		0x0000,
 		0x0000,
+		0x0000,
+		0x0000,
+		0x0000,
+		0x0000,
+	},
+	{
+		NPC_S_KPU4_FDSA, 0xff,
+		NPC_ETYPE_IP,
+		0xffff,
+		0x0000,
+		0x0000,
+		0x0000,
+		0x0000,
+	},
+	{
+		NPC_S_KPU4_FDSA, 0xff,
+		NPC_ETYPE_IP6,
+		0xffff,
+		0x0000,
+		0x0000,
+		0x0000,
+		0x0000,
+	},
+	{
+		NPC_S_KPU4_FDSA, 0xff,
+		NPC_ETYPE_ARP,
+		0xffff,
+		0x0000,
+		0x0000,
+		0x0000,
+		0x0000,
+	},
+	{
+		NPC_S_KPU4_FDSA, 0xff,
+		NPC_ETYPE_RARP,
+		0xffff,
+		0x0000,
+		0x0000,
+		0x0000,
+		0x0000,
+	},
+	{
+		NPC_S_KPU4_FDSA, 0xff,
+		NPC_ETYPE_PTP,
+		0xffff,
+		0x0000,
+		0x0000,
+		0x0000,
+	},
+	{
+		NPC_S_KPU4_FDSA, 0xff,
+		NPC_ETYPE_FCOE,
+		0xffff,
+		0x0000,
+		0x0000,
+		0x0000,
+		0x0000,
+	},
+	{
+		NPC_S_KPU4_FDSA, 0xff,
+		0x0000,
+		NPC_DSA_FDSA,
 		0x0000,
 		0x0000,
 		0x0000,
@@ -7679,6 +7753,14 @@ static const struct npc_kpu_profile_action kpu1_action_entries[] = {
 		0, 0, 0, 0,
 	},
 	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR,
+		4, 8, 16, 2, 0,
+		NPC_S_KPU4_FDSA, 12, 1,
+		NPC_LID_LA, NPC_LT_LA_ETHER,
+		0,
+		0, 0, 0, 0,
+	},
+	{
 		NPC_ERRLEV_LA, NPC_EC_EDSA_UNK,
 		0, 0, 0, 0, 1,
 		NPC_S_NA, 0, 1,
@@ -10037,6 +10119,62 @@ static const struct npc_kpu_profile_action kpu4_action_entries[] = {
 		NPC_S_NA, 0, 1,
 		NPC_LID_LC, NPC_LT_LC_NSH,
 		0,
+		0, 0, 0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR,
+		8, 0, 6, 0, 0,
+		NPC_S_KPU5_IP, 6, 1,
+		NPC_LID_LB, NPC_LT_LB_FDSA,
+		NPC_F_LB_L_FDSA,
+		0, 0, 0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR,
+		6, 0, 0, 0, 0,
+		NPC_S_KPU5_IP6, 6, 1,
+		NPC_LID_LB, NPC_LT_LB_FDSA,
+		NPC_F_LB_L_FDSA,
+		0, 0, 0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR,
+		0, 0, 0, 0, 0,
+		NPC_S_KPU5_ARP, 6, 1,
+		NPC_LID_LB, NPC_LT_LB_FDSA,
+		NPC_F_LB_L_FDSA,
+		0, 0, 0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR,
+		8, 0, 6, 0, 0,
+		NPC_S_KPU5_RARP, 6, 1,
+		NPC_LID_LB, NPC_LT_LB_FDSA,
+		NPC_F_LB_L_FDSA,
+		0, 0, 0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR,
+		6, 0, 0, 0, 0,
+		NPC_S_KPU5_PTP, 6, 1,
+		NPC_LID_LB, NPC_LT_LB_FDSA,
+		NPC_F_LB_L_FDSA,
+		0, 0, 0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR,
+		0, 0, 0, 0, 0,
+		NPC_S_KPU5_FCOE, 6, 1,
+		NPC_LID_LB, NPC_LT_LB_FDSA,
+		NPC_F_LB_L_FDSA,
+		0, 0, 0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR,
+		0, 0, 0, 0, 1,
+		NPC_S_NA, 0, 1,
+		NPC_LID_LB, NPC_LT_LB_FDSA,
+		NPC_F_LB_U_UNK_ETYPE | NPC_F_LB_L_FDSA,
 		0, 0, 0, 0,
 	},
 	{
@@ -13237,6 +13375,12 @@ static const struct npc_mcam_kex npc_mkex_default = {
 			[NPC_LT_LB_STAG_QINQ] = {
 				/* CTAG VLAN[2..3] + Ethertype, 4 bytes, KW0[63:32] */
 				KEX_LD_CFG(0x03, 0x4, 0x1, 0x0, 0x4),
+			},
+			[NPC_LT_LB_FDSA] = {
+				/* SWITCH PORT: 1 byte, KW0[63:48] */
+				KEX_LD_CFG(0x0, 0x1, 0x1, 0x0, 0x6),
+				/* Ethertype: 2 bytes, KW0[47:32] */
+				KEX_LD_CFG(0x01, 0x4, 0x1, 0x0, 0x4),
 			},
 		},
 		[NPC_LID_LC] = {

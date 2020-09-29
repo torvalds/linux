@@ -49,6 +49,7 @@ enum npc_kpu_lb_ltype {
 	NPC_LT_LB_EDSA_VLAN,
 	NPC_LT_LB_EXDSA,
 	NPC_LT_LB_EXDSA_VLAN,
+	NPC_LT_LB_FDSA,
 	NPC_LT_LB_CUSTOM0 = 0xE,
 	NPC_LT_LB_CUSTOM1 = 0xF,
 };
