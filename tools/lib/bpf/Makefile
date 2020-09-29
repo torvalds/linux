@@ -98,7 +98,7 @@ PC_FILE		= libbpf.pc
 ifdef EXTRA_CFLAGS
   CFLAGS := $(EXTRA_CFLAGS)
 else
-  CFLAGS := -g -Wall
+  CFLAGS := -g -O2
 endif
 
 # Append required CFLAGS
