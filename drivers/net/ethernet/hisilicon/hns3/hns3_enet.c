@@ -696,12 +696,19 @@ static int hns3_set_tso(struct sk_buff *skb, u32 *paylen,
 
 	/* normal or tunnel packet */
 	l4_offset = l4.hdr - skb->data;
-	hdr_len = (l4.tcp->doff << 2) + l4_offset;
 
 	/* remove payload length from inner pseudo checksum when tso */
 	l4_paylen = skb->len - l4_offset;
-	csum_replace_by_diff(&l4.tcp->check,
-			     (__force __wsum)htonl(l4_paylen));
+
+	if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4) {
+		hdr_len = sizeof(*l4.udp) + l4_offset;
+		csum_replace_by_diff(&l4.udp->check,
+				     (__force __wsum)htonl(l4_paylen));
+	} else {
+		hdr_len = (l4.tcp->doff << 2) + l4_offset;
+		csum_replace_by_diff(&l4.tcp->check,
+				     (__force __wsum)htonl(l4_paylen));
+	}
 
 	/* find the txbd field values */
 	*paylen = skb->len - hdr_len;
@@ -2310,6 +2317,13 @@ static void hns3_set_default_feature(struct net_device *netdev)
 			netdev->hw_features |= NETIF_F_NTUPLE;
 			netdev->features |= NETIF_F_NTUPLE;
 		}
+	}
+
+	if (test_bit(HNAE3_DEV_SUPPORT_UDP_GSO_B, ae_dev->caps)) {
+		netdev->hw_features |= NETIF_F_GSO_UDP_L4;
+		netdev->features |= NETIF_F_GSO_UDP_L4;
+		netdev->vlan_features |= NETIF_F_GSO_UDP_L4;
+		netdev->hw_enc_features |= NETIF_F_GSO_UDP_L4;
 	}
 }
 
