@@ -5320,9 +5320,14 @@ create_fake_sink(struct amdgpu_dm_connector *aconnector)
 static void set_multisync_trigger_params(
 		struct dc_stream_state *stream)
 {
+	struct dc_stream_state *master = NULL;
+
 	if (stream->triggered_crtc_reset.enabled) {
-		stream->triggered_crtc_reset.event = CRTC_EVENT_VSYNC_RISING;
-		stream->triggered_crtc_reset.delay = TRIGGER_DELAY_NEXT_LINE;
+		master = stream->triggered_crtc_reset.event_source;
+		stream->triggered_crtc_reset.event =
+			master->timing.flags.VSYNC_POSITIVE_POLARITY ?
+			CRTC_EVENT_VSYNC_RISING : CRTC_EVENT_VSYNC_FALLING;
+		stream->triggered_crtc_reset.delay = TRIGGER_DELAY_NEXT_PIXEL;
 	}
 }
 
@@ -5352,6 +5357,7 @@ static void set_master_stream(struct dc_stream_state *stream_set[],
 static void dm_enable_per_frame_crtc_master_sync(struct dc_state *context)
 {
 	int i = 0;
+	struct dc_stream_state *stream;
 
 	if (context->stream_count < 2)
 		return;
@@ -5363,9 +5369,18 @@ static void dm_enable_per_frame_crtc_master_sync(struct dc_state *context)
 		 * crtc_sync_master.multi_sync_enabled flag
 		 * For now it's set to false
 		 */
-		set_multisync_trigger_params(context->streams[i]);
 	}
+
 	set_master_stream(context->streams, context->stream_count);
+
+	for (i = 0; i < context->stream_count ; i++) {
+		stream = context->streams[i];
+
+		if (!stream)
+			continue;
+
+		set_multisync_trigger_params(stream);
+	}
 }
 
 static struct drm_display_mode *
