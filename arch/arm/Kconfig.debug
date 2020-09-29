@@ -1086,6 +1086,14 @@ choice
 		  on SA-11x0 UART ports. The kernel will check for the first
 		  enabled UART in a sequence 3-1-2.
 
+	config DEBUG_SD5203_UART
+		bool "Hisilicon SD5203 Debug UART"
+		depends on ARCH_SD5203
+		select DEBUG_UART_8250
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on SD5203 UART.
+
 	config DEBUG_SOCFPGA_UART0
 		depends on ARCH_SOCFPGA
 		bool "Use SOCFPGA UART0 for low-level debug"
@@ -1639,6 +1647,7 @@ config DEBUG_UART_PHYS
 	default 0x11006000 if DEBUG_MT6589_UART0
 	default 0x11009000 if DEBUG_MT8135_UART3
 	default 0x16000000 if DEBUG_INTEGRATOR
+	default 0x1600d000 if DEBUG_SD5203_UART
 	default 0x18000300 if DEBUG_BCM_5301X
 	default 0x18000400 if DEBUG_BCM_HR2
 	default 0x18010000 if DEBUG_SIRFATLAS7_UART0
@@ -1841,7 +1850,7 @@ config DEBUG_UART_VIRT
 	default 0xfec60000 if DEBUG_SIRFPRIMA2_UART1
 	default 0xfec90000 if DEBUG_RK32_UART2
 	default 0xfed0c000 if DEBUG_DAVINCI_DA8XX_UART1
-	default 0xfed0d000 if DEBUG_DAVINCI_DA8XX_UART2
+	default 0xfed0d000 if DEBUG_DAVINCI_DA8XX_UART2 || DEBUG_SD5203_UART
 	default 0xfed60000 if DEBUG_RK29_UART0
 	default 0xfed64000 if DEBUG_RK29_UART1 || DEBUG_RK3X_UART2
 	default 0xfed68000 if DEBUG_RK29_UART2 || DEBUG_RK3X_UART3
