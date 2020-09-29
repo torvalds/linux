@@ -3,40 +3,6 @@
 #include <test_progs.h>
 #include <bpf/btf.h>
 
-#define ASSERT_EQ(actual, expected, name) ({				\
-	typeof(actual) ___act = (actual);				\
-	typeof(expected) ___exp = (expected);				\
-	bool ___ok = ___act == ___exp;					\
-	CHECK(!___ok, (name),						\
-	      "unexpected %s: actual %lld != expected %lld\n",		\
-	      (name), (long long)(___act), (long long)(___exp));	\
-	___ok;								\
-})
-
-#define ASSERT_STREQ(actual, expected, name) ({				\
-	const char *___act = actual;					\
-	const char *___exp = expected;					\
-	bool ___ok = strcmp(___act, ___exp) == 0;			\
-	CHECK(!___ok, (name),						\
-	      "unexpected %s: actual '%s' != expected '%s'\n",		\
-	      (name), ___act, ___exp);					\
-	___ok;								\
-})
-
-#define ASSERT_OK(res, name) ({						\
-	long long ___res = (res);					\
-	bool ___ok = ___res == 0;					\
-	CHECK(!___ok, (name), "unexpected error: %lld\n", ___res);	\
-	___ok;								\
-})
-
-#define ASSERT_ERR(res, name) ({					\
-	long long ___res = (res);					\
-	bool ___ok = ___res < 0;					\
-	CHECK(!___ok, (name), "unexpected success: %lld\n", ___res);	\
-	___ok;								\
-})
-
 static int duration = 0;
 
 void test_btf_write() {
