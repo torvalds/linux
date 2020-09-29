@@ -25,6 +25,11 @@ struct btf_type;
 
 struct bpf_object;
 
+enum btf_endianness {
+	BTF_LITTLE_ENDIAN = 0,
+	BTF_BIG_ENDIAN = 1,
+};
+
 LIBBPF_API void btf__free(struct btf *btf);
 LIBBPF_API struct btf *btf__new(const void *data, __u32 size);
 LIBBPF_API struct btf *btf__new_empty(void);
@@ -42,6 +47,8 @@ LIBBPF_API const struct btf_type *btf__type_by_id(const struct btf *btf,
 						  __u32 id);
 LIBBPF_API size_t btf__pointer_size(const struct btf *btf);
 LIBBPF_API int btf__set_pointer_size(struct btf *btf, size_t ptr_sz);
+LIBBPF_API enum btf_endianness btf__endianness(const struct btf *btf);
+LIBBPF_API int btf__set_endianness(struct btf *btf, enum btf_endianness endian);
 LIBBPF_API __s64 btf__resolve_size(const struct btf *btf, __u32 type_id);
 LIBBPF_API int btf__resolve_type(const struct btf *btf, __u32 type_id);
 LIBBPF_API int btf__align_of(const struct btf *btf, __u32 id);
