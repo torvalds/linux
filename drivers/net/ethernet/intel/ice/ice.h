@@ -166,7 +166,7 @@ struct ice_tc_cfg {
 struct ice_res_tracker {
 	u16 num_entries;
 	u16 end;
-	u16 list[1];
+	u16 list[];
 };
 
 struct ice_qs_cfg {

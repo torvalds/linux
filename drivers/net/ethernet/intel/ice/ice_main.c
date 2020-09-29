@@ -3495,9 +3495,9 @@ static int ice_init_interrupt_scheme(struct ice_pf *pf)
 		return vectors;
 
 	/* set up vector assignment tracking */
-	pf->irq_tracker =
-		devm_kzalloc(ice_pf_to_dev(pf), sizeof(*pf->irq_tracker) +
-			     (sizeof(u16) * vectors), GFP_KERNEL);
+	pf->irq_tracker = devm_kzalloc(ice_pf_to_dev(pf),
+				       struct_size(pf->irq_tracker, list, vectors),
+				       GFP_KERNEL);
 	if (!pf->irq_tracker) {
 		ice_dis_msix(pf);
 		return -ENOMEM;
