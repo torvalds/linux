@@ -104,13 +104,12 @@ endif
 # Append required CFLAGS
 override CFLAGS += $(EXTRA_WARNINGS) -Wno-switch-enum
 override CFLAGS += -Werror -Wall
-override CFLAGS += -fPIC
 override CFLAGS += $(INCLUDES)
 override CFLAGS += -fvisibility=hidden
 override CFLAGS += -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64
 
 # flags specific for shared library
-SHLIB_FLAGS := -DSHARED
+SHLIB_FLAGS := -DSHARED -fPIC
 
 ifeq ($(VERBOSE),1)
   Q =
