@@ -59,4 +59,9 @@ properties:
       - description: HiP07 D05 Board
         items:
           - const: hisilicon,hip07-d05
+
+      - description: SD5203 based boards
+        items:
+          - const: H836ASDJ
+          - const: hisilicon,sd5203
 ...
