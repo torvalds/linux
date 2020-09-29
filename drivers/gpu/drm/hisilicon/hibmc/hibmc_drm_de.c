@@ -52,8 +52,6 @@ static const struct hibmc_dislay_pll_config hibmc_pll_table[] = {
 	{1920, 1200, CRT_PLL1_HS_193MHZ, CRT_PLL2_HS_193MHZ},
 };
 
-#define PADDING(align, data) (((data) + (align) - 1) & (~((align) - 1)))
-
 static int hibmc_plane_atomic_check(struct drm_plane *plane,
 				    struct drm_plane_state *state)
 {
