@@ -12,3 +12,11 @@ config MHI_BUS
 	  communication protocol used by the host processors to control
 	  and communicate with modem devices over a high speed peripheral
 	  bus or shared memory.
+
+config MHI_BUS_DEBUG
+	bool "Debugfs support for the MHI bus"
+	depends on MHI_BUS && DEBUG_FS
+	help
+	  Enable debugfs support for use with the MHI transport. Allows
+	  reading and/or modifying some values within the MHI controller
+	  for debug and test purposes.
