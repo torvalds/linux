@@ -89,7 +89,7 @@
 		};
 
 		sysctrl: system-controller@802000 {
-			compatible = "hisilicon,sysctrl";
+			compatible = "hisilicon,sysctrl", "syscon";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0 0x802000 0x1000>;
