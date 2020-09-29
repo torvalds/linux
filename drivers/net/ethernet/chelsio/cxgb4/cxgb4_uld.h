@@ -44,6 +44,7 @@
 #include "cxgb4.h"
 
 #define MAX_ULD_QSETS 16
+#define MAX_ULD_NPORTS 4
 
 /* CPL message priority levels */
 enum {
@@ -365,17 +366,10 @@ struct cxgb4_virt_res {                      /* virtualized HW resources */
 };
 
 #if IS_ENABLED(CONFIG_CHELSIO_TLS_DEVICE)
-struct ch_ktls_stats_debug {
+struct ch_ktls_port_stats_debug {
 	atomic64_t ktls_tx_connection_open;
 	atomic64_t ktls_tx_connection_fail;
 	atomic64_t ktls_tx_connection_close;
-	atomic64_t ktls_tx_send_records;
-	atomic64_t ktls_tx_end_pkts;
-	atomic64_t ktls_tx_start_pkts;
-	atomic64_t ktls_tx_middle_pkts;
-	atomic64_t ktls_tx_retransmit_pkts;
-	atomic64_t ktls_tx_complete_pkts;
-	atomic64_t ktls_tx_trimmed_pkts;
 	atomic64_t ktls_tx_encrypted_packets;
 	atomic64_t ktls_tx_encrypted_bytes;
 	atomic64_t ktls_tx_ctx;
@@ -383,6 +377,17 @@ struct ch_ktls_stats_debug {
 	atomic64_t ktls_tx_skip_no_sync_data;
 	atomic64_t ktls_tx_drop_no_sync_data;
 	atomic64_t ktls_tx_drop_bypass_req;
+};
+
+struct ch_ktls_stats_debug {
+	struct ch_ktls_port_stats_debug ktls_port[MAX_ULD_NPORTS];
+	atomic64_t ktls_tx_send_records;
+	atomic64_t ktls_tx_end_pkts;
+	atomic64_t ktls_tx_start_pkts;
+	atomic64_t ktls_tx_middle_pkts;
+	atomic64_t ktls_tx_retransmit_pkts;
+	atomic64_t ktls_tx_complete_pkts;
+	atomic64_t ktls_tx_trimmed_pkts;
 };
 #endif
 
