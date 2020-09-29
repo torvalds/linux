@@ -146,6 +146,23 @@ void *btf_add_mem(void **data, size_t *cap_cnt, size_t elem_sz,
 	return new_data + cur_cnt * elem_sz;
 }
 
+/* Ensure given dynamically allocated memory region has enough allocated space
+ * to accommodate *need_cnt* elements of size *elem_sz* bytes each
+ */
+int btf_ensure_mem(void **data, size_t *cap_cnt, size_t elem_sz, size_t need_cnt)
+{
+	void *p;
+
+	if (need_cnt <= *cap_cnt)
+		return 0;
+
+	p = btf_add_mem(data, cap_cnt, elem_sz, *cap_cnt, SIZE_MAX, need_cnt - *cap_cnt);
+	if (!p)
+		return -ENOMEM;
+
+	return 0;
+}
+
 static int btf_add_type_idx_entry(struct btf *btf, __u32 type_off)
 {
 	__u32 *p;
