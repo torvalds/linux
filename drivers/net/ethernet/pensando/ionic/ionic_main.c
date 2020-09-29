@@ -255,8 +255,6 @@ static int ionic_adminq_post(struct ionic_lif *lif, struct ionic_admin_ctx *ctx)
 	struct ionic_queue *q;
 	int err = 0;
 
-	WARN_ON(in_interrupt());
-
 	if (!lif->adminqcq)
 		return -EIO;
 
@@ -327,8 +325,6 @@ int ionic_dev_cmd_wait(struct ionic *ionic, unsigned long max_seconds)
 	int hb = 0;
 	int done;
 	int err;
-
-	WARN_ON(in_interrupt());
 
 	/* Wait for dev cmd to complete, retrying if we get EAGAIN,
 	 * but don't wait any longer than max_seconds.
