@@ -36,6 +36,7 @@
 #include "v9_structs.h"
 #include "soc15.h"
 #include "soc15d.h"
+#include "gfx_v9_0.h"
 
 enum hqd_dequeue_request_type {
 	NO_ACTION = 0,
@@ -703,6 +704,179 @@ void kgd_gfx_v9_set_vm_context_page_table_base(struct kgd_dev *kgd,
 	adev->gfxhub.funcs->setup_vm_pt_regs(adev, vmid, page_table_base);
 }
 
+static void lock_spi_csq_mutexes(struct amdgpu_device *adev)
+{
+	mutex_lock(&adev->srbm_mutex);
+	mutex_lock(&adev->grbm_idx_mutex);
+
+}
+
+static void unlock_spi_csq_mutexes(struct amdgpu_device *adev)
+{
+	mutex_unlock(&adev->grbm_idx_mutex);
+	mutex_unlock(&adev->srbm_mutex);
+}
+
+/**
+ * @get_wave_count: Read device registers to get number of waves in flight for
+ * a particular queue. The method also returns the VMID associated with the
+ * queue.
+ *
+ * @adev: Handle of device whose registers are to be read
+ * @queue_idx: Index of queue in the queue-map bit-field
+ * @wave_cnt: Output parameter updated with number of waves in flight
+ * @vmid: Output parameter updated with VMID of queue whose wave count
+ * is being collected
+ */
+static void get_wave_count(struct amdgpu_device *adev, int queue_idx,
+		int *wave_cnt, int *vmid)
+{
+	int pipe_idx;
+	int queue_slot;
+	unsigned int reg_val;
+
+	/*
+	 * Program GRBM with appropriate MEID, PIPEID, QUEUEID and VMID
+	 * parameters to read out waves in flight. Get VMID if there are
+	 * non-zero waves in flight.
+	 */
+	*vmid = 0xFF;
+	*wave_cnt = 0;
+	pipe_idx = queue_idx / adev->gfx.mec.num_queue_per_pipe;
+	queue_slot = queue_idx % adev->gfx.mec.num_queue_per_pipe;
+	soc15_grbm_select(adev, 1, pipe_idx, queue_slot, 0);
+	reg_val = RREG32(SOC15_REG_OFFSET(GC, 0, mmSPI_CSQ_WF_ACTIVE_COUNT_0) +
+			 queue_slot);
+	*wave_cnt = reg_val & SPI_CSQ_WF_ACTIVE_COUNT_0__COUNT_MASK;
+	if (*wave_cnt != 0)
+		*vmid = (RREG32_SOC15(GC, 0, mmCP_HQD_VMID) &
+			 CP_HQD_VMID__VMID_MASK) >> CP_HQD_VMID__VMID__SHIFT;
+}
+
+/**
+ * @kgd_gfx_v9_get_cu_occupancy: Reads relevant registers associated with each
+ * shader engine and aggregates the number of waves that are in flight for the
+ * process whose pasid is provided as a parameter. The process could have ZERO
+ * or more queues running and submitting waves to compute units.
+ *
+ * @kgd: Handle of device from which to get number of waves in flight
+ * @pasid: Identifies the process for which this query call is invoked
+ * @wave_cnt: Output parameter updated with number of waves in flight that
+ * belong to process with given pasid
+ * @max_waves_per_cu: Output parameter updated with maximum number of waves
+ * possible per Compute Unit
+ *
+ * @note: It's possible that the device has too many queues (oversubscription)
+ * in which case a VMID could be remapped to a different PASID. This could lead
+ * to an iaccurate wave count. Following is a high-level sequence:
+ *    Time T1: vmid = getVmid(); vmid is associated with Pasid P1
+ *    Time T2: passId = getPasId(vmid); vmid is associated with Pasid P2
+ * In the sequence above wave count obtained from time T1 will be incorrectly
+ * lost or added to total wave count.
+ *
+ * The registers that provide the waves in flight are:
+ *
+ *  SPI_CSQ_WF_ACTIVE_STATUS - bit-map of queues per pipe. The bit is ON if a
+ *  queue is slotted, OFF if there is no queue. A process could have ZERO or
+ *  more queues slotted and submitting waves to be run on compute units. Even
+ *  when there is a queue it is possible there could be zero wave fronts, this
+ *  can happen when queue is waiting on top-of-pipe events - e.g. waitRegMem
+ *  command
+ *
+ *  For each bit that is ON from above:
+ *
+ *    Read (SPI_CSQ_WF_ACTIVE_COUNT_0 + queue_idx) register. It provides the
+ *    number of waves that are in flight for the queue at specified index. The
+ *    index ranges from 0 to 7.
+ *
+ *    If non-zero waves are in flight, read CP_HQD_VMID register to obtain VMID
+ *    of the wave(s).
+ *
+ *    Determine if VMID from above step maps to pasid provided as parameter. If
+ *    it matches agrregate the wave count. That the VMID will not match pasid is
+ *    a normal condition i.e. a device is expected to support multiple queues
+ *    from multiple proceses.
+ *
+ *  Reading registers referenced above involves programming GRBM appropriately
+ */
+static void kgd_gfx_v9_get_cu_occupancy(struct kgd_dev *kgd, int pasid,
+		int *pasid_wave_cnt, int *max_waves_per_cu)
+{
+	int qidx;
+	int vmid;
+	int se_idx;
+	int sh_idx;
+	int se_cnt;
+	int sh_cnt;
+	int wave_cnt;
+	int queue_map;
+	int pasid_tmp;
+	int max_queue_cnt;
+	int vmid_wave_cnt = 0;
+	struct amdgpu_device *adev;
+	DECLARE_BITMAP(cp_queue_bitmap, KGD_MAX_QUEUES);
+
+	adev = get_amdgpu_device(kgd);
+	lock_spi_csq_mutexes(adev);
+	soc15_grbm_select(adev, 1, 0, 0, 0);
+
+	/*
+	 * Iterate through the shader engines and arrays of the device
+	 * to get number of waves in flight
+	 */
+	bitmap_complement(cp_queue_bitmap, adev->gfx.mec.queue_bitmap,
+			  KGD_MAX_QUEUES);
+	max_queue_cnt = adev->gfx.mec.num_pipe_per_mec *
+			adev->gfx.mec.num_queue_per_pipe;
+	sh_cnt = adev->gfx.config.max_sh_per_se;
+	se_cnt = adev->gfx.config.max_shader_engines;
+	for (se_idx = 0; se_idx < se_cnt; se_idx++) {
+		for (sh_idx = 0; sh_idx < sh_cnt; sh_idx++) {
+
+			gfx_v9_0_select_se_sh(adev, se_idx, sh_idx, 0xffffffff);
+			queue_map = RREG32(SOC15_REG_OFFSET(GC, 0,
+					   mmSPI_CSQ_WF_ACTIVE_STATUS));
+
+			/*
+			 * Assumption: queue map encodes following schema: four
+			 * pipes per each micro-engine, with each pipe mapping
+			 * eight queues. This schema is true for GFX9 devices
+			 * and must be verified for newer device families
+			 */
+			for (qidx = 0; qidx < max_queue_cnt; qidx++) {
+
+				/* Skip qeueus that are not associated with
+				 * compute functions
+				 */
+				if (!test_bit(qidx, cp_queue_bitmap))
+					continue;
+
+				if (!(queue_map & (1 << qidx)))
+					continue;
+
+				/* Get number of waves in flight and aggregate them */
+				get_wave_count(adev, qidx, &wave_cnt, &vmid);
+				if (wave_cnt != 0) {
+					pasid_tmp =
+					  RREG32(SOC15_REG_OFFSET(OSSSYS, 0,
+						 mmIH_VMID_0_LUT) + vmid);
+					if (pasid_tmp == pasid)
+						vmid_wave_cnt += wave_cnt;
+				}
+			}
+		}
+	}
+
+	gfx_v9_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
+	soc15_grbm_select(adev, 0, 0, 0, 0);
+	unlock_spi_csq_mutexes(adev);
+
+	/* Update the output parameters and return */
+	*pasid_wave_cnt = vmid_wave_cnt;
+	*max_waves_per_cu = adev->gfx.cu_info.simd_per_cu *
+				adev->gfx.cu_info.max_waves_per_simd;
+}
+
 const struct kfd2kgd_calls gfx_v9_kfd2kgd = {
 	.program_sh_mem_settings = kgd_gfx_v9_program_sh_mem_settings,
 	.set_pasid_vmid_mapping = kgd_gfx_v9_set_pasid_vmid_mapping,
@@ -723,4 +897,5 @@ const struct kfd2kgd_calls gfx_v9_kfd2kgd = {
 	.get_atc_vmid_pasid_mapping_info =
 			kgd_gfx_v9_get_atc_vmid_pasid_mapping_info,
 	.set_vm_context_page_table_base = kgd_gfx_v9_set_vm_context_page_table_base,
+	.get_cu_occupancy = kgd_gfx_v9_get_cu_occupancy,
 };
