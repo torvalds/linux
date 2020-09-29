@@ -200,12 +200,37 @@ struct ap_queue {
 
 typedef enum ap_sm_wait (ap_func_t)(struct ap_queue *queue);
 
+/* failure injection cmd struct */
+struct ap_fi {
+	union {
+		u16 cmd;		/* fi flags + action */
+		struct {
+			u8 flags;	/* fi flags only */
+			u8 action;	/* fi action only */
+		};
+	};
+};
+
+/* all currently known fi actions */
+enum ap_fi_actions {
+	AP_FI_ACTION_CCA_AGENT_FF   = 0x01,
+	AP_FI_ACTION_CCA_DOM_INVAL  = 0x02,
+	AP_FI_ACTION_NQAP_QID_INVAL = 0x03,
+};
+
+/* all currently known fi flags */
+enum ap_fi_flags {
+	AP_FI_FLAG_NO_RETRY	  = 0x01,
+	AP_FI_FLAG_TOGGLE_SPECIAL = 0x02,
+};
+
 struct ap_message {
 	struct list_head list;		/* Request queueing. */
 	unsigned long long psmid;	/* Message id. */
 	void *msg;			/* Pointer to message buffer. */
 	unsigned int len;		/* Message length. */
-	u32 flags;			/* Flags, see AP_MSG_FLAG_xxx */
+	u16 flags;			/* Flags, see AP_MSG_FLAG_xxx */
+	struct ap_fi fi;		/* Failure Injection cmd */
 	int rc;				/* Return code for this message */
 	void *private;			/* ap driver private pointer. */
 	/* receive is called from tasklet context */
@@ -213,7 +238,7 @@ struct ap_message {
 			struct ap_message *);
 };
 
-#define AP_MSG_FLAG_SPECIAL  (1 << 16)	/* flag msg as 'special' with NQAP */
+#define AP_MSG_FLAG_SPECIAL  1		/* flag msg as 'special' with NQAP */
 
 /**
  * ap_init_message() - Initialize ap_message.

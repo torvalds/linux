@@ -60,6 +60,9 @@ struct zcrypt_track {
 	int again_counter;		/* retry attempts counter */
 	int last_qid;			/* last qid used */
 	int last_rc;			/* last return code */
+#ifdef CONFIG_ZCRYPT_DEBUG
+	struct ap_fi fi;		/* failure injection cmd */
+#endif
 };
 
 /* defines related to message tracking */
