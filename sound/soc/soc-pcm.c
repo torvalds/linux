@@ -896,7 +896,7 @@ static int soc_pcm_hw_free(struct snd_pcm_substream *substream)
 		if (!snd_soc_dai_stream_valid(dai, substream->stream))
 			continue;
 
-		snd_soc_dai_hw_free(dai, substream);
+		snd_soc_dai_hw_free(dai, substream, 0);
 	}
 
 	mutex_unlock(&rtd->card->pcm_mutex);
@@ -1012,7 +1012,7 @@ interface_err:
 		if (!snd_soc_dai_stream_valid(cpu_dai, substream->stream))
 			continue;
 
-		snd_soc_dai_hw_free(cpu_dai, substream);
+		snd_soc_dai_hw_free(cpu_dai, substream, 1);
 		cpu_dai->rate = 0;
 	}
 
@@ -1023,7 +1023,7 @@ codec_err:
 		if (!snd_soc_dai_stream_valid(codec_dai, substream->stream))
 			continue;
 
-		snd_soc_dai_hw_free(codec_dai, substream);
+		snd_soc_dai_hw_free(codec_dai, substream, 1);
 		codec_dai->rate = 0;
 	}
 

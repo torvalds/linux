@@ -335,16 +335,27 @@ int snd_soc_dai_hw_params(struct snd_soc_dai *dai,
 	if (dai->driver->ops &&
 	    dai->driver->ops->hw_params)
 		ret = dai->driver->ops->hw_params(substream, params, dai);
+
+	/* mark substream if succeeded */
+	if (ret == 0)
+		soc_dai_mark_push(dai, substream, hw_params);
 end:
 	return soc_dai_ret(dai, ret);
 }
 
 void snd_soc_dai_hw_free(struct snd_soc_dai *dai,
-			 struct snd_pcm_substream *substream)
+			 struct snd_pcm_substream *substream,
+			 int rollback)
 {
+	if (rollback && !soc_dai_mark_match(dai, substream, hw_params))
+		return;
+
 	if (dai->driver->ops &&
 	    dai->driver->ops->hw_free)
 		dai->driver->ops->hw_free(substream, dai);
+
+	/* remove marked substream */
+	soc_dai_mark_pop(dai, substream, hw_params);
 }
 
 int snd_soc_dai_startup(struct snd_soc_dai *dai,
