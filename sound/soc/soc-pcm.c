@@ -886,7 +886,7 @@ static int soc_pcm_hw_free(struct snd_pcm_substream *substream)
 	}
 
 	/* free any machine hw params */
-	snd_soc_link_hw_free(substream);
+	snd_soc_link_hw_free(substream, 0);
 
 	/* free any component resources */
 	snd_soc_pcm_component_hw_free(substream, NULL);
@@ -1028,7 +1028,7 @@ codec_err:
 		codec_dai->rate = 0;
 	}
 
-	snd_soc_link_hw_free(substream);
+	snd_soc_link_hw_free(substream, 1);
 
 	mutex_unlock(&rtd->card->pcm_mutex);
 	return ret;
