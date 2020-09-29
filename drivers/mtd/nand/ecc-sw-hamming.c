@@ -115,19 +115,18 @@ static const char addressbits[256] = {
 void __nand_calculate_ecc(const unsigned char *buf, unsigned int eccsize,
 			  unsigned char *code, bool sm_order)
 {
+	const u32 *bp = (uint32_t *)buf;
+	const u32 eccsize_mult = eccsize >> 8;
+	/* current value in buffer */
+	u32 cur;
+	/* rp0..rp17 are the various accumulated parities (per byte) */
+	u32 rp0, rp1, rp2, rp3, rp4, rp5, rp6, rp7, rp8, rp9, rp10, rp11, rp12,
+		rp13, rp14, rp15, rp16, rp17;
+	/* Cumulative parity for all data */
+	u32 par;
+	/* Cumulative parity at the end of the loop (rp12, rp14, rp16) */
+	u32 tmppar;
 	int i;
-	const uint32_t *bp = (uint32_t *)buf;
-	/* 256 or 512 bytes/ecc  */
-	const uint32_t eccsize_mult = eccsize >> 8;
-	uint32_t cur;		/* current value in buffer */
-	/* rp0..rp15..rp17 are the various accumulated parities (per byte) */
-	uint32_t rp0, rp1, rp2, rp3, rp4, rp5, rp6, rp7;
-	uint32_t rp8, rp9, rp10, rp11, rp12, rp13, rp14, rp15, rp16;
-	uint32_t rp17;
-	uint32_t par;		/* the cumulative parity for all data */
-	uint32_t tmppar;	/* the cumulative parity for this iteration;
-				   for rp12, rp14 and rp16 at the end of the
-				   loop */
 
 	par = 0;
 	rp4 = 0;
@@ -372,10 +371,9 @@ int __nand_correct_data(unsigned char *buf,
 			unsigned char *read_ecc, unsigned char *calc_ecc,
 			unsigned int eccsize, bool sm_order)
 {
+	const u32 eccsize_mult = eccsize >> 8;
 	unsigned char b0, b1, b2, bit_addr;
 	unsigned int byte_addr;
-	/* 256 or 512 bytes/ecc  */
-	const uint32_t eccsize_mult = eccsize >> 8;
 
 	/*
 	 * b0 to b2 indicate which bit is faulty (if any)
