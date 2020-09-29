@@ -683,6 +683,10 @@ bpf_base_func_proto(enum bpf_func_id func_id)
 		if (!perfmon_capable())
 			return NULL;
 		return bpf_get_trace_printk_proto();
+	case BPF_FUNC_snprintf_btf:
+		if (!perfmon_capable())
+			return NULL;
+		return &bpf_snprintf_btf_proto;
 	case BPF_FUNC_jiffies64:
 		return &bpf_jiffies64_proto;
 	default:
