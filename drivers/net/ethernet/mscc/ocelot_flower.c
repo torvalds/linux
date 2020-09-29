@@ -234,28 +234,33 @@ EXPORT_SYMBOL_GPL(ocelot_cls_flower_replace);
 int ocelot_cls_flower_destroy(struct ocelot *ocelot, int port,
 			      struct flow_cls_offload *f, bool ingress)
 {
-	struct ocelot_vcap_filter filter;
+	struct ocelot_vcap_block *block = &ocelot->block;
+	struct ocelot_vcap_filter *filter;
 
-	filter.prio = f->common.prio;
-	filter.id = f->cookie;
+	filter = ocelot_vcap_block_find_filter_by_id(block, f->cookie);
+	if (!filter)
+		return 0;
 
-	return ocelot_vcap_filter_del(ocelot, &filter);
+	return ocelot_vcap_filter_del(ocelot, filter);
 }
 EXPORT_SYMBOL_GPL(ocelot_cls_flower_destroy);
 
 int ocelot_cls_flower_stats(struct ocelot *ocelot, int port,
 			    struct flow_cls_offload *f, bool ingress)
 {
-	struct ocelot_vcap_filter filter;
+	struct ocelot_vcap_block *block = &ocelot->block;
+	struct ocelot_vcap_filter *filter;
 	int ret;
 
-	filter.prio = f->common.prio;
-	filter.id = f->cookie;
-	ret = ocelot_vcap_filter_stats_update(ocelot, &filter);
+	filter = ocelot_vcap_block_find_filter_by_id(block, f->cookie);
+	if (!filter)
+		return 0;
+
+	ret = ocelot_vcap_filter_stats_update(ocelot, filter);
 	if (ret)
 		return ret;
 
-	flow_stats_update(&f->stats, 0x0, filter.stats.pkts, 0, 0x0,
+	flow_stats_update(&f->stats, 0x0, filter->stats.pkts, 0, 0x0,
 			  FLOW_ACTION_HW_STATS_IMMEDIATE);
 	return 0;
 }
