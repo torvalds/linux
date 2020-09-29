@@ -34,16 +34,6 @@
 
 #include "head_32.h"
 
-/* 601 only have IBAT */
-#ifdef CONFIG_PPC_BOOK3S_601
-#define LOAD_BAT(n, reg, RA, RB)	\
-	li	RA,0;			\
-	mtspr	SPRN_IBAT##n##U,RA;	\
-	lwz	RA,(n*16)+0(reg);	\
-	lwz	RB,(n*16)+4(reg);	\
-	mtspr	SPRN_IBAT##n##U,RA;	\
-	mtspr	SPRN_IBAT##n##L,RB
-#else
 #define LOAD_BAT(n, reg, RA, RB)	\
 	/* see the comment for clear_bats() -- Cort */ \
 	li	RA,0;			\
@@ -57,7 +47,6 @@
 	lwz	RB,(n*16)+12(reg);	\
 	mtspr	SPRN_DBAT##n##U,RA;	\
 	mtspr	SPRN_DBAT##n##L,RB
-#endif
 
 	__HEAD
 	.stabs	"arch/powerpc/kernel/",N_SO,0,0,0f
@@ -432,7 +421,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_FPU_UNAVAILABLE)
 SystemCall:
 	SYSCALL_ENTRY	0xc00
 
-/* Single step - not used on 601 */
 	EXCEPTION(0xd00, SingleStep, single_step_exception, EXC_XFER_STD)
 	EXCEPTION(0xe00, Trap_0e, unknown_exception, EXC_XFER_STD)
 
@@ -974,8 +962,7 @@ load_up_mmu:
 	lwz	r6,_SDR1@l(r6)
 	mtspr	SPRN_SDR1,r6
 
-/* Load the BAT registers with the values set up by MMU_init.
-   MMU_init takes care of whether we're on a 601 or not. */
+/* Load the BAT registers with the values set up by MMU_init. */
 	lis	r3,BATS@ha
 	addi	r3,r3,BATS@l
 	tophys(r3,r3)
@@ -1152,7 +1139,6 @@ EXPORT_SYMBOL(switch_mmu_context)
 clear_bats:
 	li	r10,0
 
-#ifndef CONFIG_PPC_BOOK3S_601
 	mtspr	SPRN_DBAT0U,r10
 	mtspr	SPRN_DBAT0L,r10
 	mtspr	SPRN_DBAT1U,r10
@@ -1161,7 +1147,6 @@ clear_bats:
 	mtspr	SPRN_DBAT2L,r10
 	mtspr	SPRN_DBAT3U,r10
 	mtspr	SPRN_DBAT3L,r10
-#endif
 	mtspr	SPRN_IBAT0U,r10
 	mtspr	SPRN_IBAT0L,r10
 	mtspr	SPRN_IBAT1U,r10
@@ -1252,26 +1237,9 @@ mmu_off:
 	sync
 	RFI
 
-/*
- * On 601, we use 3 BATs to map up to 24M of RAM at _PAGE_OFFSET
- * (we keep one for debugging) and on others, we use one 256M BAT.
- */
+/* We use one BAT to map up to 256M of RAM at _PAGE_OFFSET */
 initial_bats:
 	lis	r11,PAGE_OFFSET@h
-#ifdef CONFIG_PPC_BOOK3S_601
-	ori	r11,r11,4		/* set up BAT registers for 601 */
-	li	r8,0x7f			/* valid, block length = 8MB */
-	mtspr	SPRN_IBAT0U,r11		/* N.B. 601 has valid bit in */
-	mtspr	SPRN_IBAT0L,r8		/* lower BAT register */
-	addis	r11,r11,0x800000@h
-	addis	r8,r8,0x800000@h
-	mtspr	SPRN_IBAT1U,r11
-	mtspr	SPRN_IBAT1L,r8
-	addis	r11,r11,0x800000@h
-	addis	r8,r8,0x800000@h
-	mtspr	SPRN_IBAT2U,r11
-	mtspr	SPRN_IBAT2L,r8
-#else
 	tophys(r8,r11)
 #ifdef CONFIG_SMP
 	ori	r8,r8,0x12		/* R/W access, M=1 */
@@ -1280,11 +1248,10 @@ initial_bats:
 #endif /* CONFIG_SMP */
 	ori	r11,r11,BL_256M<<2|0x2	/* set up BAT registers for 604 */
 
-	mtspr	SPRN_DBAT0L,r8		/* N.B. 6xx (not 601) have valid */
+	mtspr	SPRN_DBAT0L,r8		/* N.B. 6xx have valid */
 	mtspr	SPRN_DBAT0U,r11		/* bit in upper BAT register */
 	mtspr	SPRN_IBAT0L,r8
 	mtspr	SPRN_IBAT0U,r11
-#endif
 	isync
 	blr
 
@@ -1302,13 +1269,8 @@ setup_disp_bat:
 	beqlr
 	lwz	r11,0(r8)
 	lwz	r8,4(r8)
-#ifndef CONFIG_PPC_BOOK3S_601
 	mtspr	SPRN_DBAT3L,r8
 	mtspr	SPRN_DBAT3U,r11
-#else
-	mtspr	SPRN_IBAT3L,r8
-	mtspr	SPRN_IBAT3U,r11
-#endif
 	blr
 #endif /* CONFIG_BOOTX_TEXT */
 

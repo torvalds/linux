@@ -529,9 +529,6 @@ out:
  * Check if the NIP corresponds to the address of a sync
  * instruction for which there is an entry in the exception
  * table.
- * Note that the 601 only takes a machine check on TEA
- * (transfer error ack) signal assertion, and does not
- * set any of the top 16 bits of SRR1.
  *  -- paulus.
  */
 static inline int check_io_access(struct pt_regs *regs)
@@ -796,7 +793,6 @@ int machine_check_generic(struct pt_regs *regs)
 	case 0x80000:
 		pr_cont("Machine check signal\n");
 		break;
-	case 0:		/* for 601 */
 	case 0x40000:
 	case 0x140000:	/* 7450 MSS error and TEA */
 		pr_cont("Transfer error ack signal\n");

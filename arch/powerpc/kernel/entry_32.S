@@ -811,19 +811,11 @@ _ASM_NOKPROBE_SYMBOL(fast_exception_return)
 1:	lis	r3,exc_exit_restart_end@ha
 	addi	r3,r3,exc_exit_restart_end@l
 	cmplw	r12,r3
-#ifdef CONFIG_PPC_BOOK3S_601
-	bge	2b
-#else
 	bge	3f
-#endif
 	lis	r4,exc_exit_restart@ha
 	addi	r4,r4,exc_exit_restart@l
 	cmplw	r12,r4
-#ifdef CONFIG_PPC_BOOK3S_601
-	blt	2b
-#else
 	blt	3f
-#endif
 	lis	r3,fee_restarts@ha
 	tophys(r3,r3)
 	lwz	r5,fee_restarts@l(r3)
@@ -840,7 +832,6 @@ fee_restarts:
 
 /* aargh, a nonrecoverable interrupt, panic */
 /* aargh, we don't know which trap this is */
-/* but the 601 doesn't implement the RI bit, so assume it's OK */
 3:
 	li	r10,-1
 	stw	r10,_TRAP(r11)
@@ -1302,19 +1293,11 @@ nonrecoverable:
 	lis	r10,exc_exit_restart_end@ha
 	addi	r10,r10,exc_exit_restart_end@l
 	cmplw	r12,r10
-#ifdef CONFIG_PPC_BOOK3S_601
-	bgelr
-#else
 	bge	3f
-#endif
 	lis	r11,exc_exit_restart@ha
 	addi	r11,r11,exc_exit_restart@l
 	cmplw	r12,r11
-#ifdef CONFIG_PPC_BOOK3S_601
-	bltlr
-#else
 	blt	3f
-#endif
 	lis	r10,ee_restarts@ha
 	lwz	r12,ee_restarts@l(r10)
 	addi	r12,r12,1
@@ -1322,7 +1305,6 @@ nonrecoverable:
 	mr	r12,r11		/* restart at exc_exit_restart */
 	blr
 3:	/* OK, we can't recover, kill this process */
-	/* but the 601 doesn't implement the RI bit, so assume it's OK */
 	lwz	r3,_TRAP(r1)
 	andi.	r0,r3,1
 	beq	5f

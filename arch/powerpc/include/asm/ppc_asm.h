@@ -401,8 +401,7 @@ END_FTR_SECTION_NESTED(CPU_FTR_CELL_TB_BUG, CPU_FTR_CELL_TB_BUG, 96)
 #define MFTBU(dest)			mfspr dest, SPRN_TBRU
 #endif
 
-/* tlbsync is not implemented on 601 */
-#if !defined(CONFIG_SMP) || defined(CONFIG_PPC_BOOK3S_601)
+#ifndef CONFIG_SMP
 #define TLBSYNC
 #else
 #define TLBSYNC		tlbsync; sync

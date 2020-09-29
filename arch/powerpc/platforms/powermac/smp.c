@@ -270,10 +270,6 @@ static void __init smp_psurge_probe(void)
 	int i, ncpus;
 	struct device_node *dn;
 
-	/* We don't do SMP on the PPC601 -- paulus */
-	if (PVR_VER(mfspr(SPRN_PVR)) == 1)
-		return;
-
 	/*
 	 * The powersurge cpu board can be used in the generation
 	 * of powermacs that have a socket for an upgradeable cpu card,

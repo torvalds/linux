@@ -39,7 +39,7 @@ struct div_result {
 };
 
 /* Accessor functions for the timebase (RTC on 601) registers. */
-#define __USE_RTC()	(IS_ENABLED(CONFIG_PPC_BOOK3S_601))
+#define __USE_RTC()	(0)
 
 #ifdef CONFIG_PPC64
 
