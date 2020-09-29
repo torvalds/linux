@@ -172,17 +172,18 @@ done:
 
 static char taskbuf[TASKBUFSZ];
 
-static void do_btf_read(struct bpf_iter_task_btf *skel)
+static int do_btf_read(struct bpf_iter_task_btf *skel)
 {
 	struct bpf_program *prog = skel->progs.dump_task_struct;
 	struct bpf_iter_task_btf__bss *bss = skel->bss;
 	int iter_fd = -1, len = 0, bufleft = TASKBUFSZ;
 	struct bpf_link *link;
 	char *buf = taskbuf;
+	int ret = 0;
 
 	link = bpf_program__attach_iter(prog, NULL);
 	if (CHECK(IS_ERR(link), "attach_iter", "attach_iter failed\n"))
-		return;
+		return ret;
 
 	iter_fd = bpf_iter_create(bpf_link__fd(link));
 	if (CHECK(iter_fd < 0, "create_iter", "create_iter failed\n"))
@@ -198,6 +199,7 @@ static void do_btf_read(struct bpf_iter_task_btf *skel)
 
 	if (bss->skip) {
 		printf("%s:SKIP:no __builtin_btf_type_id\n", __func__);
+		ret = 1;
 		test__skip();
 		goto free_link;
 	}
@@ -212,12 +214,14 @@ free_link:
 	if (iter_fd > 0)
 		close(iter_fd);
 	bpf_link__destroy(link);
+	return ret;
 }
 
 static void test_task_btf(void)
 {
 	struct bpf_iter_task_btf__bss *bss;
 	struct bpf_iter_task_btf *skel;
+	int ret;
 
 	skel = bpf_iter_task_btf__open_and_load();
 	if (CHECK(!skel, "bpf_iter_task_btf__open_and_load",
@@ -226,7 +230,9 @@ static void test_task_btf(void)
 
 	bss = skel->bss;
 
-	do_btf_read(skel);
+	ret = do_btf_read(skel);
+	if (ret)
+		goto cleanup;
 
 	if (CHECK(bss->tasks == 0, "check if iterated over tasks",
 		  "no task iteration, did BPF program run?\n"))
