@@ -142,7 +142,7 @@ void rtw_wep_encrypt(struct adapter *padapter, struct xmit_frame *pxmitframe)
 	struct sk_buff *skb;
 	struct lib80211_crypto_ops *crypto_ops;
 
-	if (pxmitframe->buf_addr == NULL)
+	if (!pxmitframe->buf_addr)
 		return;
 
 	if ((pattrib->encrypt != _WEP40_) && (pattrib->encrypt != _WEP104_))
@@ -589,7 +589,7 @@ u32	rtw_tkip_encrypt(struct adapter *padapter, struct xmit_frame *pxmitframe)
 	struct	xmit_priv		*pxmitpriv = &padapter->xmitpriv;
 	u32	res = _SUCCESS;
 
-	if (pxmitframe->buf_addr == NULL)
+	if (!pxmitframe->buf_addr)
 		return _FAIL;
 
 	hw_hdr_offset = TXDESC_SIZE +
@@ -602,7 +602,7 @@ u32	rtw_tkip_encrypt(struct adapter *padapter, struct xmit_frame *pxmitframe)
 		else
 			stainfo = rtw_get_stainfo(&padapter->stapriv, &pattrib->ra[0]);
 
-		if (stainfo != NULL) {
+		if (stainfo) {
 			RT_TRACE(_module_rtl871x_security_c_, _drv_err_, ("%s: stainfo!= NULL!!!\n", __func__));
 
 			if (is_multicast_ether_addr(pattrib->ra))
@@ -834,7 +834,7 @@ u32 rtw_aes_decrypt(struct adapter *padapter, struct recv_frame *precvframe)
 	if (prxattrib->encrypt == _AES_) {
 		struct sta_info *stainfo = rtw_get_stainfo(&padapter->stapriv, &prxattrib->ta[0]);
 
-		if (stainfo != NULL) {
+		if (stainfo) {
 			int key_idx;
 			const int key_length = 16, iv_len = 8, icv_len = 8;
 			struct sk_buff *skb = precvframe->pkt;
