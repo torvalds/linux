@@ -2236,18 +2236,21 @@ mvneta_swbm_rx_frame(struct mvneta_port *pp,
 	enum dma_data_direction dma_dir;
 	struct skb_shared_info *sinfo;
 
-	if (rx_desc->data_size > MVNETA_MAX_RX_BUF_SIZE) {
+	if (*size > MVNETA_MAX_RX_BUF_SIZE) {
 		len = MVNETA_MAX_RX_BUF_SIZE;
 		data_len += len;
 	} else {
-		len = rx_desc->data_size;
+		len = *size;
 		data_len += len - ETH_FCS_LEN;
 	}
+	*size = *size - len;
 
 	dma_dir = page_pool_get_dma_dir(rxq->page_pool);
 	dma_sync_single_for_cpu(dev->dev.parent,
 				rx_desc->buf_phys_addr,
 				len, dma_dir);
+
+	rx_desc->buf_phys_addr = 0;
 
 	/* Prefetch header */
 	prefetch(data);
@@ -2259,9 +2262,6 @@ mvneta_swbm_rx_frame(struct mvneta_port *pp,
 
 	sinfo = xdp_get_shared_info_from_buff(xdp);
 	sinfo->nr_frags = 0;
-
-	*size = rx_desc->data_size - len;
-	rx_desc->buf_phys_addr = 0;
 }
 
 static void
@@ -2375,7 +2375,7 @@ static int mvneta_rx_swbm(struct napi_struct *napi,
 
 			size = rx_desc->data_size;
 			frame_sz = size - ETH_FCS_LEN;
-			desc_status = rx_desc->status;
+			desc_status = rx_status;
 
 			mvneta_swbm_rx_frame(pp, rx_desc, rxq, &xdp_buf,
 					     &size, page);
