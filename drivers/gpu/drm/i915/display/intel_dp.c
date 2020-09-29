@@ -5562,7 +5562,7 @@ intel_dp_autotest_phy_ddi_enable(struct intel_dp *intel_dp, uint8_t lane_cnt)
 		       trans_ddi_func_ctl_value);
 }
 
-void intel_dp_process_phy_request(struct intel_dp *intel_dp)
+static void intel_dp_process_phy_request(struct intel_dp *intel_dp)
 {
 	struct drm_dp_phy_test_params *data =
 		&intel_dp->compliance.test_data.phytest;
