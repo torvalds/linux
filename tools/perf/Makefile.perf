@@ -537,6 +537,12 @@ mmap_flags_tbl := $(srctree)/tools/perf/trace/beauty/mmap_flags.sh
 $(mmap_flags_array): $(linux_uapi_dir)/mman.h $(asm_generic_uapi_dir)/mman.h $(asm_generic_uapi_dir)/mman-common.h $(mmap_flags_tbl)
 	$(Q)$(SHELL) '$(mmap_flags_tbl)' $(linux_uapi_dir) $(asm_generic_uapi_dir) $(arch_asm_uapi_dir) > $@
 
+mremap_flags_array := $(beauty_outdir)/mremap_flags_array.c
+mremap_flags_tbl := $(srctree)/tools/perf/trace/beauty/mremap_flags.sh
+
+$(mremap_flags_array): $(linux_uapi_dir)/mman.h $(mremap_flags_tbl)
+	$(Q)$(SHELL) '$(mremap_flags_tbl)' $(linux_uapi_dir) > $@
+
 mount_flags_array := $(beauty_outdir)/mount_flags_array.c
 mount_flags_tbl := $(srctree)/tools/perf/trace/beauty/mount_flags.sh
 
@@ -710,6 +716,7 @@ prepare: $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h archheaders $(drm_ioc
 	$(vhost_virtio_ioctl_array) \
 	$(madvise_behavior_array) \
 	$(mmap_flags_array) \
+	$(mremap_flags_array) \
 	$(mount_flags_array) \
 	$(move_mount_flags_array) \
 	$(perf_ioctl_array) \
@@ -1008,6 +1015,7 @@ clean:: $(LIBTRACEEVENT)-clean $(LIBAPI)-clean $(LIBBPF)-clean $(LIBSUBCMD)-clea
 		$(OUTPUT)$(fspick_arrays) \
 		$(OUTPUT)$(madvise_behavior_array) \
 		$(OUTPUT)$(mmap_flags_array) \
+		$(OUTPUT)$(mremap_flags_array) \
 		$(OUTPUT)$(mount_flags_array) \
 		$(OUTPUT)$(move_mount_flags_array) \
 		$(OUTPUT)$(drm_ioctl_array) \

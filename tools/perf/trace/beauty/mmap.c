@@ -34,7 +34,7 @@ static size_t syscall_arg__scnprintf_mmap_prot(char *bf, size_t size,
 #define SCA_MMAP_PROT syscall_arg__scnprintf_mmap_prot
 
 #include "trace/beauty/generated/mmap_flags_array.c"
-       static DEFINE_STRARRAY(mmap_flags, "MAP_");
+static DEFINE_STRARRAY(mmap_flags, "MAP_");
 
 static size_t mmap__scnprintf_flags(unsigned long flags, char *bf, size_t size, bool show_prefix)
 {
@@ -54,28 +54,22 @@ static size_t syscall_arg__scnprintf_mmap_flags(char *bf, size_t size,
 
 #define SCA_MMAP_FLAGS syscall_arg__scnprintf_mmap_flags
 
-static size_t syscall_arg__scnprintf_mremap_flags(char *bf, size_t size,
-						  struct syscall_arg *arg)
+#include "trace/beauty/generated/mremap_flags_array.c"
+static DEFINE_STRARRAY(mremap_flags, "MREMAP_");
+
+static size_t mremap__scnprintf_flags(unsigned long flags, char *bf, size_t size, bool show_prefix)
 {
-	const char *flags_prefix = "MREMAP_";
-	bool show_prefix = arg->show_string_prefix;
-	int printed = 0, flags = arg->val;
+       return strarray__scnprintf_flags(&strarray__mremap_flags, bf, size, show_prefix, flags);
+}
 
-#define P_MREMAP_FLAG(n) \
-	if (flags & MREMAP_##n) { \
-		printed += scnprintf(bf + printed, size - printed, "%s%s%s", printed ? "|" : "", show_prefix ? flags_prefix : "", #n); \
-		flags &= ~MREMAP_##n; \
-	}
+static size_t syscall_arg__scnprintf_mremap_flags(char *bf, size_t size, struct syscall_arg *arg)
+{
+	unsigned long flags = arg->val;
 
-	P_MREMAP_FLAG(MAYMOVE);
-	P_MREMAP_FLAG(FIXED);
-	P_MREMAP_FLAG(DONTUNMAP);
-#undef P_MREMAP_FLAG
+	if (!(flags & MREMAP_FIXED))
+		arg->mask |=  (1 << 5); /* Mask 5th ('new_address') args, ignored */
 
-	if (flags)
-		printed += scnprintf(bf + printed, size - printed, "%s%#x", printed ? "|" : "", flags);
-
-	return printed;
+	return mremap__scnprintf_flags(flags, bf, size, arg->show_string_prefix);
 }
 
 #define SCA_MREMAP_FLAGS syscall_arg__scnprintf_mremap_flags
