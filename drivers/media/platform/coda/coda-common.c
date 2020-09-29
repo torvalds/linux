@@ -2861,7 +2861,7 @@ static int coda_register_device(struct coda_dev *dev, int i)
 	strscpy(vfd->name, dev->devtype->vdevs[i]->name, sizeof(vfd->name));
 	vfd->fops	= &coda_fops;
 	vfd->ioctl_ops	= &coda_ioctl_ops;
-	vfd->release	= video_device_release_empty,
+	vfd->release	= video_device_release_empty;
 	vfd->lock	= &dev->dev_mutex;
 	vfd->v4l2_dev	= &dev->v4l2_dev;
 	vfd->vfl_dir	= VFL_DIR_M2M;
