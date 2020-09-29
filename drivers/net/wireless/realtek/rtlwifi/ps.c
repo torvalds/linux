@@ -653,22 +653,22 @@ void rtl_lps_change_work_callback(struct work_struct *work)
 }
 EXPORT_SYMBOL_GPL(rtl_lps_change_work_callback);
 
-void rtl_lps_enter(struct ieee80211_hw *hw)
+void rtl_lps_enter(struct ieee80211_hw *hw, bool may_block)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
-	if (!in_interrupt())
+	if (may_block)
 		return rtl_lps_enter_core(hw);
 	rtlpriv->enter_ps = true;
 	schedule_work(&rtlpriv->works.lps_change_work);
 }
 EXPORT_SYMBOL_GPL(rtl_lps_enter);
 
-void rtl_lps_leave(struct ieee80211_hw *hw)
+void rtl_lps_leave(struct ieee80211_hw *hw, bool may_block)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
-	if (!in_interrupt())
+	if (may_block)
 		return rtl_lps_leave_core(hw);
 	rtlpriv->enter_ps = false;
 	schedule_work(&rtlpriv->works.lps_change_work);

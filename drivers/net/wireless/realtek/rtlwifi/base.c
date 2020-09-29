@@ -1456,7 +1456,7 @@ static void setup_special_tx(struct rtl_priv *rtlpriv, struct rtl_ps_ctl *ppsc,
 	if (rtlpriv->cfg->ops->get_btc_status())
 		rtlpriv->btcoexist.btc_ops->btc_special_packet_notify(
 					rtlpriv, type);
-	rtl_lps_leave(hw);
+	rtl_lps_leave(hw, false);
 	ppsc->last_delaylps_stamp_jiffies = jiffies;
 }
 
@@ -1546,7 +1546,7 @@ u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx,
 
 		if (is_tx) {
 			rtlpriv->ra.is_special_data = true;
-			rtl_lps_leave(hw);
+			rtl_lps_leave(hw, false);
 			ppsc->last_delaylps_stamp_jiffies = jiffies;
 
 			setup_special_tx(rtlpriv, ppsc, PACKET_EAPOL);
@@ -2147,9 +2147,9 @@ static void rtl_watchdog_wq_callback(struct work_struct *work)
 		if (rtlpriv->link_info.num_rx_inperiod +
 		      rtlpriv->link_info.num_tx_inperiod > 8 ||
 		    rtlpriv->link_info.num_rx_inperiod > 2)
-			rtl_lps_leave(hw);
+			rtl_lps_leave(hw, true);
 		else
-			rtl_lps_enter(hw);
+			rtl_lps_enter(hw, true);
 
 label_lps_done:
 		;

@@ -544,7 +544,7 @@ static int rtl_op_suspend(struct ieee80211_hw *hw,
 	rtlhal->driver_is_goingto_unload = true;
 	rtlhal->enter_pnp_sleep = true;
 
-	rtl_lps_leave(hw);
+	rtl_lps_leave(hw, true);
 	rtl_op_stop(hw);
 	device_set_wakeup_enable(wiphy_dev(hw->wiphy), true);
 	return 0;
@@ -1151,7 +1151,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 			mstatus = RT_MEDIA_DISCONNECT;
 
 			if (mac->link_state == MAC80211_LINKED)
-				rtl_lps_leave(hw);
+				rtl_lps_leave(hw, true);
 			if (ppsc->p2p_ps_info.p2p_ps_mode > P2P_PS_NONE)
 				rtl_p2p_ps_cmd(hw, P2P_PS_DISABLE);
 			mac->link_state = MAC80211_NOLINK;
@@ -1448,7 +1448,7 @@ static void rtl_op_sw_scan_start(struct ieee80211_hw *hw,
 	}
 
 	if (mac->link_state == MAC80211_LINKED) {
-		rtl_lps_leave(hw);
+		rtl_lps_leave(hw, true);
 		mac->link_state = MAC80211_LINKED_SCANNING;
 	} else {
 		rtl_ips_nic_on(hw);
