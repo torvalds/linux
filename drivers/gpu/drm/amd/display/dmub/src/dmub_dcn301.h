@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-15 Advanced Micro Devices, Inc.
+ * Copyright 2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,41 +23,15 @@
  *
  */
 
-#ifndef __DAL_TYPES_H__
-#define __DAL_TYPES_H__
+#ifndef _DMUB_DCN301_H_
+#define _DMUB_DCN301_H_
 
-#include "signal_types.h"
-#include "dc_types.h"
+#include "dmub_dcn20.h"
 
-struct dal_logger;
-struct dc_bios;
+/* Registers. */
 
-enum dce_version {
-	DCE_VERSION_UNKNOWN = (-1),
-	DCE_VERSION_6_0,
-	DCE_VERSION_6_1,
-	DCE_VERSION_6_4,
-	DCE_VERSION_8_0,
-	DCE_VERSION_8_1,
-	DCE_VERSION_8_3,
-	DCE_VERSION_10_0,
-	DCE_VERSION_11_0,
-	DCE_VERSION_11_2,
-	DCE_VERSION_11_22,
-	DCE_VERSION_12_0,
-	DCE_VERSION_12_1,
-	DCE_VERSION_MAX,
-	DCN_VERSION_1_0,
-	DCN_VERSION_1_01,
-	DCN_VERSION_2_0,
-	DCN_VERSION_2_1,
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
-	DCN_VERSION_3_0,
-#endif
-#if defined(CONFIG_DRM_AMD_DC_DCN3_01)
-	DCN_VERSION_3_01,
-#endif
-	DCN_VERSION_MAX
-};
+extern const struct dmub_srv_common_regs dmub_srv_dcn301_regs;
 
-#endif /* __DAL_TYPES_H__ */
+/* Hardware functions. */
+
+#endif /* _DMUB_DCN301_H_ */

@@ -1743,6 +1743,167 @@ static enum bp_result get_integrated_info_v11(
 	return BP_RESULT_OK;
 }
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_01)
+static enum bp_result get_integrated_info_v2_1(
+	struct bios_parser *bp,
+	struct integrated_info *info)
+{
+	struct atom_integrated_system_info_v2_1 *info_v2_1;
+	uint32_t i;
+
+	info_v2_1 = GET_IMAGE(struct atom_integrated_system_info_v2_1,
+					DATA_TABLES(integratedsysteminfo));
+
+	if (info_v2_1 == NULL)
+		return BP_RESULT_BADBIOSTABLE;
+
+	info->gpu_cap_info =
+	le32_to_cpu(info_v2_1->gpucapinfo);
+	/*
+	* system_config: Bit[0] = 0 : PCIE power gating disabled
+	*                       = 1 : PCIE power gating enabled
+	*                Bit[1] = 0 : DDR-PLL shut down disabled
+	*                       = 1 : DDR-PLL shut down enabled
+	*                Bit[2] = 0 : DDR-PLL power down disabled
+	*                       = 1 : DDR-PLL power down enabled
+	*/
+	info->system_config = le32_to_cpu(info_v2_1->system_config);
+	info->cpu_cap_info = le32_to_cpu(info_v2_1->cpucapinfo);
+	info->memory_type = info_v2_1->memorytype;
+	info->ma_channel_number = info_v2_1->umachannelnumber;
+	info->dp_ss_control =
+		le16_to_cpu(info_v2_1->reserved1);
+
+	for (i = 0; i < NUMBER_OF_UCHAR_FOR_GUID; ++i) {
+		info->ext_disp_conn_info.gu_id[i] =
+				info_v2_1->extdispconninfo.guid[i];
+	}
+
+	for (i = 0; i < MAX_NUMBER_OF_EXT_DISPLAY_PATH; ++i) {
+		info->ext_disp_conn_info.path[i].device_connector_id =
+		object_id_from_bios_object_id(
+		le16_to_cpu(info_v2_1->extdispconninfo.path[i].connectorobjid));
+
+		info->ext_disp_conn_info.path[i].ext_encoder_obj_id =
+		object_id_from_bios_object_id(
+			le16_to_cpu(
+			info_v2_1->extdispconninfo.path[i].ext_encoder_objid));
+
+		info->ext_disp_conn_info.path[i].device_tag =
+			le16_to_cpu(
+				info_v2_1->extdispconninfo.path[i].device_tag);
+		info->ext_disp_conn_info.path[i].device_acpi_enum =
+		le16_to_cpu(
+			info_v2_1->extdispconninfo.path[i].device_acpi_enum);
+		info->ext_disp_conn_info.path[i].ext_aux_ddc_lut_index =
+			info_v2_1->extdispconninfo.path[i].auxddclut_index;
+		info->ext_disp_conn_info.path[i].ext_hpd_pin_lut_index =
+			info_v2_1->extdispconninfo.path[i].hpdlut_index;
+		info->ext_disp_conn_info.path[i].channel_mapping.raw =
+			info_v2_1->extdispconninfo.path[i].channelmapping;
+		info->ext_disp_conn_info.path[i].caps =
+				le16_to_cpu(info_v2_1->extdispconninfo.path[i].caps);
+	}
+
+	info->ext_disp_conn_info.checksum =
+		info_v2_1->extdispconninfo.checksum;
+	info->dp0_ext_hdmi_slv_addr = info_v2_1->dp0_retimer_set.HdmiSlvAddr;
+	info->dp0_ext_hdmi_reg_num = info_v2_1->dp0_retimer_set.HdmiRegNum;
+	for (i = 0; i < info->dp0_ext_hdmi_reg_num; i++) {
+		info->dp0_ext_hdmi_reg_settings[i].i2c_reg_index =
+				info_v2_1->dp0_retimer_set.HdmiRegSetting[i].ucI2cRegIndex;
+		info->dp0_ext_hdmi_reg_settings[i].i2c_reg_val =
+				info_v2_1->dp0_retimer_set.HdmiRegSetting[i].ucI2cRegVal;
+	}
+	info->dp0_ext_hdmi_6g_reg_num = info_v2_1->dp0_retimer_set.Hdmi6GRegNum;
+	for (i = 0; i < info->dp0_ext_hdmi_6g_reg_num; i++) {
+		info->dp0_ext_hdmi_6g_reg_settings[i].i2c_reg_index =
+				info_v2_1->dp0_retimer_set.Hdmi6GhzRegSetting[i].ucI2cRegIndex;
+		info->dp0_ext_hdmi_6g_reg_settings[i].i2c_reg_val =
+				info_v2_1->dp0_retimer_set.Hdmi6GhzRegSetting[i].ucI2cRegVal;
+	}
+	info->dp1_ext_hdmi_slv_addr = info_v2_1->dp1_retimer_set.HdmiSlvAddr;
+	info->dp1_ext_hdmi_reg_num = info_v2_1->dp1_retimer_set.HdmiRegNum;
+	for (i = 0; i < info->dp1_ext_hdmi_reg_num; i++) {
+		info->dp1_ext_hdmi_reg_settings[i].i2c_reg_index =
+				info_v2_1->dp1_retimer_set.HdmiRegSetting[i].ucI2cRegIndex;
+		info->dp1_ext_hdmi_reg_settings[i].i2c_reg_val =
+				info_v2_1->dp1_retimer_set.HdmiRegSetting[i].ucI2cRegVal;
+	}
+	info->dp1_ext_hdmi_6g_reg_num = info_v2_1->dp1_retimer_set.Hdmi6GRegNum;
+	for (i = 0; i < info->dp1_ext_hdmi_6g_reg_num; i++) {
+		info->dp1_ext_hdmi_6g_reg_settings[i].i2c_reg_index =
+				info_v2_1->dp1_retimer_set.Hdmi6GhzRegSetting[i].ucI2cRegIndex;
+		info->dp1_ext_hdmi_6g_reg_settings[i].i2c_reg_val =
+				info_v2_1->dp1_retimer_set.Hdmi6GhzRegSetting[i].ucI2cRegVal;
+	}
+	info->dp2_ext_hdmi_slv_addr = info_v2_1->dp2_retimer_set.HdmiSlvAddr;
+	info->dp2_ext_hdmi_reg_num = info_v2_1->dp2_retimer_set.HdmiRegNum;
+	for (i = 0; i < info->dp2_ext_hdmi_reg_num; i++) {
+		info->dp2_ext_hdmi_reg_settings[i].i2c_reg_index =
+				info_v2_1->dp2_retimer_set.HdmiRegSetting[i].ucI2cRegIndex;
+		info->dp2_ext_hdmi_reg_settings[i].i2c_reg_val =
+				info_v2_1->dp2_retimer_set.HdmiRegSetting[i].ucI2cRegVal;
+	}
+	info->dp2_ext_hdmi_6g_reg_num = info_v2_1->dp2_retimer_set.Hdmi6GRegNum;
+	for (i = 0; i < info->dp2_ext_hdmi_6g_reg_num; i++) {
+		info->dp2_ext_hdmi_6g_reg_settings[i].i2c_reg_index =
+				info_v2_1->dp2_retimer_set.Hdmi6GhzRegSetting[i].ucI2cRegIndex;
+		info->dp2_ext_hdmi_6g_reg_settings[i].i2c_reg_val =
+				info_v2_1->dp2_retimer_set.Hdmi6GhzRegSetting[i].ucI2cRegVal;
+	}
+	info->dp3_ext_hdmi_slv_addr = info_v2_1->dp3_retimer_set.HdmiSlvAddr;
+	info->dp3_ext_hdmi_reg_num = info_v2_1->dp3_retimer_set.HdmiRegNum;
+	for (i = 0; i < info->dp3_ext_hdmi_reg_num; i++) {
+		info->dp3_ext_hdmi_reg_settings[i].i2c_reg_index =
+				info_v2_1->dp3_retimer_set.HdmiRegSetting[i].ucI2cRegIndex;
+		info->dp3_ext_hdmi_reg_settings[i].i2c_reg_val =
+				info_v2_1->dp3_retimer_set.HdmiRegSetting[i].ucI2cRegVal;
+	}
+	info->dp3_ext_hdmi_6g_reg_num = info_v2_1->dp3_retimer_set.Hdmi6GRegNum;
+	for (i = 0; i < info->dp3_ext_hdmi_6g_reg_num; i++) {
+		info->dp3_ext_hdmi_6g_reg_settings[i].i2c_reg_index =
+				info_v2_1->dp3_retimer_set.Hdmi6GhzRegSetting[i].ucI2cRegIndex;
+		info->dp3_ext_hdmi_6g_reg_settings[i].i2c_reg_val =
+				info_v2_1->dp3_retimer_set.Hdmi6GhzRegSetting[i].ucI2cRegVal;
+	}
+
+	info->edp1_info.edp_backlight_pwm_hz =
+	le16_to_cpu(info_v2_1->edp1_info.edp_backlight_pwm_hz);
+	info->edp1_info.edp_ss_percentage =
+	le16_to_cpu(info_v2_1->edp1_info.edp_ss_percentage);
+	info->edp1_info.edp_ss_rate_10hz =
+	le16_to_cpu(info_v2_1->edp1_info.edp_ss_rate_10hz);
+	info->edp1_info.edp_pwr_on_off_delay =
+		info_v2_1->edp1_info.edp_pwr_on_off_delay;
+	info->edp1_info.edp_pwr_on_vary_bl_to_blon =
+		info_v2_1->edp1_info.edp_pwr_on_vary_bl_to_blon;
+	info->edp1_info.edp_pwr_down_bloff_to_vary_bloff =
+		info_v2_1->edp1_info.edp_pwr_down_bloff_to_vary_bloff;
+	info->edp1_info.edp_panel_bpc =
+		info_v2_1->edp1_info.edp_panel_bpc;
+	info->edp1_info.edp_bootup_bl_level =
+
+	info->edp2_info.edp_backlight_pwm_hz =
+	le16_to_cpu(info_v2_1->edp2_info.edp_backlight_pwm_hz);
+	info->edp2_info.edp_ss_percentage =
+	le16_to_cpu(info_v2_1->edp2_info.edp_ss_percentage);
+	info->edp2_info.edp_ss_rate_10hz =
+	le16_to_cpu(info_v2_1->edp2_info.edp_ss_rate_10hz);
+	info->edp2_info.edp_pwr_on_off_delay =
+		info_v2_1->edp2_info.edp_pwr_on_off_delay;
+	info->edp2_info.edp_pwr_on_vary_bl_to_blon =
+		info_v2_1->edp2_info.edp_pwr_on_vary_bl_to_blon;
+	info->edp2_info.edp_pwr_down_bloff_to_vary_bloff =
+		info_v2_1->edp2_info.edp_pwr_down_bloff_to_vary_bloff;
+	info->edp2_info.edp_panel_bpc =
+		info_v2_1->edp2_info.edp_panel_bpc;
+	info->edp2_info.edp_bootup_bl_level =
+		info_v2_1->edp2_info.edp_bootup_bl_level;
+
+	return BP_RESULT_OK;
+}
+#endif
 
 /*
  * construct_integrated_info
@@ -1775,6 +1936,31 @@ static enum bp_result construct_integrated_info(
 
 		get_atom_data_table_revision(header, &revision);
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_01)
+		switch (revision.major) {
+		case 1:
+			switch (revision.minor) {
+			case 11:
+			case 12:
+				result = get_integrated_info_v11(bp, info);
+				break;
+			default:
+				return result;
+			}
+			break;
+		case 2:
+			switch (revision.minor) {
+			case 1:
+				result = get_integrated_info_v2_1(bp, info);
+				break;
+			default:
+				return result;
+			}
+			break;
+		default:
+			return result;
+		}
+#else
 		/* Don't need to check major revision as they are all 1 */
 		switch (revision.minor) {
 		case 11:
@@ -1784,6 +1970,7 @@ static enum bp_result construct_integrated_info(
 		default:
 			return result;
 		}
+#endif
 	}
 
 	if (result != BP_RESULT_OK)

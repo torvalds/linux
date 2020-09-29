@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-15 Advanced Micro Devices, Inc.
+ * Copyright 2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,41 +23,53 @@
  *
  */
 
-#ifndef __DAL_TYPES_H__
-#define __DAL_TYPES_H__
+#include "reg_helper.h"
+#include "core_types.h"
+#include "dcn301_dccg.h"
 
-#include "signal_types.h"
-#include "dc_types.h"
+#define TO_DCN_DCCG(dccg)\
+	container_of(dccg, struct dcn_dccg, base)
 
-struct dal_logger;
-struct dc_bios;
+#define REG(reg) \
+	(dccg_dcn->regs->reg)
 
-enum dce_version {
-	DCE_VERSION_UNKNOWN = (-1),
-	DCE_VERSION_6_0,
-	DCE_VERSION_6_1,
-	DCE_VERSION_6_4,
-	DCE_VERSION_8_0,
-	DCE_VERSION_8_1,
-	DCE_VERSION_8_3,
-	DCE_VERSION_10_0,
-	DCE_VERSION_11_0,
-	DCE_VERSION_11_2,
-	DCE_VERSION_11_22,
-	DCE_VERSION_12_0,
-	DCE_VERSION_12_1,
-	DCE_VERSION_MAX,
-	DCN_VERSION_1_0,
-	DCN_VERSION_1_01,
-	DCN_VERSION_2_0,
-	DCN_VERSION_2_1,
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
-	DCN_VERSION_3_0,
-#endif
-#if defined(CONFIG_DRM_AMD_DC_DCN3_01)
-	DCN_VERSION_3_01,
-#endif
-	DCN_VERSION_MAX
+#undef FN
+#define FN(reg_name, field_name) \
+	dccg_dcn->dccg_shift->field_name, dccg_dcn->dccg_mask->field_name
+
+#define CTX \
+	dccg_dcn->base.ctx
+#define DC_LOGGER \
+	dccg->ctx->logger
+
+static const struct dccg_funcs dccg301_funcs = {
+	.update_dpp_dto = dccg2_update_dpp_dto,
+	.get_dccg_ref_freq = dccg2_get_dccg_ref_freq,
+	.dccg_init = dccg2_init
 };
 
-#endif /* __DAL_TYPES_H__ */
+struct dccg *dccg301_create(
+	struct dc_context *ctx,
+	const struct dccg_registers *regs,
+	const struct dccg_shift *dccg_shift,
+	const struct dccg_mask *dccg_mask)
+{
+	struct dcn_dccg *dccg_dcn = kzalloc(sizeof(*dccg_dcn), GFP_KERNEL);
+	struct dccg *base;
+
+	if (dccg_dcn == NULL) {
+		BREAK_TO_DEBUGGER();
+		return NULL;
+	}
+
+	base = &dccg_dcn->base;
+	base->ctx = ctx;
+	base->funcs = &dccg301_funcs;
+
+	dccg_dcn->regs = regs;
+	dccg_dcn->dccg_shift = dccg_shift;
+	dccg_dcn->dccg_mask = dccg_mask;
+
+	return &dccg_dcn->base;
+}
+

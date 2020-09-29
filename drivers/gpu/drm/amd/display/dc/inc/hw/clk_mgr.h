@@ -62,6 +62,25 @@ struct dcn3_clk_internal {
 };
 
 #endif
+
+#if defined(CONFIG_DRM_AMD_DC_DCN3_01)
+struct dcn301_clk_internal {
+	int dummy;
+	uint32_t CLK1_CLK0_CURRENT_CNT; //dispclk
+	uint32_t CLK1_CLK1_CURRENT_CNT; //dppclk
+	uint32_t CLK1_CLK2_CURRENT_CNT; //dprefclk
+	uint32_t CLK1_CLK3_CURRENT_CNT; //dcfclk
+	uint32_t CLK1_CLK3_DS_CNTL;	//dcf_deep_sleep_divider
+	uint32_t CLK1_CLK3_ALLOW_DS;	//dcf_deep_sleep_allow
+
+	uint32_t CLK1_CLK0_BYPASS_CNTL; //dispclk bypass
+	uint32_t CLK1_CLK1_BYPASS_CNTL; //dppclk bypass
+	uint32_t CLK1_CLK2_BYPASS_CNTL; //dprefclk bypass
+	uint32_t CLK1_CLK3_BYPASS_CNTL; //dcfclk bypass
+};
+
+#endif
+
 /* Will these bw structures be ASIC specific? */
 
 #define MAX_NUM_DPM_LVL		8
@@ -262,6 +281,17 @@ struct clk_mgr_funcs {
 #endif
 };
 
+#ifdef CONFIG_DRM_AMD_DC_DCN3_01
+struct dpm_clocks;
+struct wartermarks;
+
+struct smu_watermark_set {
+	struct watermarks *wm_set;
+	union large_integer mc_address;
+};
+
+#endif
+
 struct clk_mgr {
 	struct dc_context *ctx;
 	struct clk_mgr_funcs *funcs;
@@ -275,6 +305,9 @@ struct clk_mgr {
 	struct clk_state_registers_and_bypass boot_snapshot;
 	struct clk_bw_params *bw_params;
 	struct pp_smu_wm_range_sets ranges;
+#ifdef CONFIG_DRM_AMD_DC_DCN3_01
+	struct smu_watermark_set smu_wm_set;
+#endif
 };
 
 /* forward declarations */

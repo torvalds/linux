@@ -449,14 +449,32 @@ struct dcn10_link_enc_registers {
 	type AUX_RX_TIMEOUT_LEN;\
 	type AUX_RX_TIMEOUT_LEN_MUL
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+
+#define DCN30_LINK_ENCODER_REG_FIELD_LIST(type) \
+	type TMDS_SYNC_DCBAL_EN;\
+	type PHY_HPO_DIG_SRC_SEL;\
+	type PHY_HPO_ENC_SRC_SEL;\
+	type DPCS_TX_HDMI_FRL_MODE;\
+	type DPCS_TX_DATA_SWAP_10_BIT;\
+	type DPCS_TX_DATA_ORDER_INVERT_18_BIT;\
+	type RDPCS_TX_CLK_EN
+#endif
+
 struct dcn10_link_enc_shift {
 	DCN_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
 	DCN20_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	DCN30_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
+#endif
 };
 
 struct dcn10_link_enc_mask {
 	DCN_LINK_ENCODER_REG_FIELD_LIST(uint32_t);
 	DCN20_LINK_ENCODER_REG_FIELD_LIST(uint32_t);
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	DCN30_LINK_ENCODER_REG_FIELD_LIST(uint32_t);
+#endif
 };
 
 struct dcn10_link_encoder {

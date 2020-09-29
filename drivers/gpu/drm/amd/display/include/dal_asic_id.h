@@ -205,6 +205,16 @@ enum {
 #if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 #define ASICREV_IS_SIENNA_CICHLID_P(eChipRev)        ((eChipRev >= NV_SIENNA_CICHLID_P_A0))
 #endif
+#if defined(CONFIG_DRM_AMD_DC_DCN3_01)
+#define FAMILY_VGH 144
+#define DEVICE_ID_VGH_163F 0x163F
+#define VANGOGH_A0 0x01
+#define VANGOGH_UNKNOWN 0xFF
+
+#ifndef ASICREV_IS_VANGOGH
+#define ASICREV_IS_VANGOGH(eChipRev) ((eChipRev >= VANGOGH_A0) && (eChipRev < VANGOGH_UNKNOWN))
+#endif
+#endif
 
 /*
  * ASIC chip ID

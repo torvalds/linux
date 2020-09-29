@@ -187,6 +187,11 @@ struct hubp_funcs {
 			struct _vcs_dpi_display_rq_regs_st *dml_rq_regs,
 			struct _vcs_dpi_display_dlg_regs_st *dml_dlg_attr,
 			struct _vcs_dpi_display_ttu_regs_st *dml_ttu_attr);
+#if defined(CONFIG_DRM_AMD_DC_DCN3_01)
+	void (*set_unbounded_requesting)(
+		struct hubp *hubp,
+		bool enable);
+#endif
 
 };
 

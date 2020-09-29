@@ -384,6 +384,16 @@ void hubbub3_force_wm_propagate_to_pipes(struct hubbub *hubbub)
 			DCHUBBUB_ARB_VM_ROW_URGENCY_WATERMARK_A, prog_wm_value);
 }
 
+void hubbub3_force_pstate_change_control(struct hubbub *hubbub,
+		bool force, bool allow)
+{
+	struct dcn20_hubbub *hubbub1 = TO_DCN20_HUBBUB(hubbub);
+
+	REG_UPDATE_2(DCHUBBUB_ARB_DRAM_STATE_CNTL,
+			DCHUBBUB_ARB_ALLOW_PSTATE_CHANGE_FORCE_VALUE, allow,
+			DCHUBBUB_ARB_ALLOW_PSTATE_CHANGE_FORCE_ENABLE, force);
+}
+
 static const struct hubbub_funcs hubbub30_funcs = {
 	.update_dchub = hubbub2_update_dchub,
 	.init_dchub_sys_ctx = hubbub3_init_dchub_sys_ctx,
@@ -397,6 +407,7 @@ static const struct hubbub_funcs hubbub30_funcs = {
 	.allow_self_refresh_control = hubbub1_allow_self_refresh_control,
 	.is_allow_self_refresh_enabled = hubbub1_is_allow_self_refresh_enabled,
 	.force_wm_propagate_to_pipes = hubbub3_force_wm_propagate_to_pipes,
+	.force_pstate_change_control = hubbub3_force_pstate_change_control,
 };
 
 void hubbub3_construct(struct dcn20_hubbub *hubbub3,
