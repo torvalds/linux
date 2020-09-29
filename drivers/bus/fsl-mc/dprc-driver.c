@@ -728,6 +728,55 @@ static void dprc_teardown_irq(struct fsl_mc_device *mc_dev)
 }
 
 /**
+ * dprc_cleanup - function that cleanups a DPRC
+ *
+ * @mc_dev: Pointer to fsl-mc device representing the DPRC
+ *
+ * It closes the DPRC device in the MC.
+ * It destroys the interrupt pool associated with this MC bus.
+ */
+
+int dprc_cleanup(struct fsl_mc_device *mc_dev)
+{
+	int error;
+	struct fsl_mc_bus *mc_bus = to_fsl_mc_bus(mc_dev);
+
+
+	/* this function should be called only for DPRCs, it
+	 * is an error to call it for regular objects
+	 */
+	if (!is_fsl_mc_bus_dprc(mc_dev))
+		return -EINVAL;
+
+	if (dev_get_msi_domain(&mc_dev->dev)) {
+		fsl_mc_cleanup_irq_pool(mc_bus);
+		dev_set_msi_domain(&mc_dev->dev, NULL);
+	}
+
+	fsl_mc_cleanup_all_resource_pools(mc_dev);
+
+	/* if this step fails we cannot go further with cleanup as there is no way of
+	 * communicating with the firmware
+	 */
+	if (!mc_dev->mc_io) {
+		dev_err(&mc_dev->dev, "mc_io is NULL, tear down cannot be performed in firmware\n");
+		return -EINVAL;
+	}
+
+	error = dprc_close(mc_dev->mc_io, 0, mc_dev->mc_handle);
+	if (error < 0)
+		dev_err(&mc_dev->dev, "dprc_close() failed: %d\n", error);
+
+	if (!fsl_mc_is_root_dprc(&mc_dev->dev)) {
+		fsl_destroy_mc_io(mc_dev->mc_io);
+		mc_dev->mc_io = NULL;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dprc_cleanup);
+
+/**
  * dprc_remove - callback invoked when a DPRC is being unbound from this driver
  *
  * @mc_dev: Pointer to fsl-mc device representing the DPRC
@@ -739,12 +788,9 @@ static void dprc_teardown_irq(struct fsl_mc_device *mc_dev)
  */
 static int dprc_remove(struct fsl_mc_device *mc_dev)
 {
-	int error;
 	struct fsl_mc_bus *mc_bus = to_fsl_mc_bus(mc_dev);
 
 	if (!is_fsl_mc_bus_dprc(mc_dev))
-		return -EINVAL;
-	if (!mc_dev->mc_io)
 		return -EINVAL;
 
 	if (!mc_bus->irq_resources)
@@ -755,21 +801,7 @@ static int dprc_remove(struct fsl_mc_device *mc_dev)
 
 	device_for_each_child(&mc_dev->dev, NULL, __fsl_mc_device_remove);
 
-	if (dev_get_msi_domain(&mc_dev->dev)) {
-		fsl_mc_cleanup_irq_pool(mc_bus);
-		dev_set_msi_domain(&mc_dev->dev, NULL);
-	}
-
-	fsl_mc_cleanup_all_resource_pools(mc_dev);
-
-	error = dprc_close(mc_dev->mc_io, 0, mc_dev->mc_handle);
-	if (error < 0)
-		dev_err(&mc_dev->dev, "dprc_close() failed: %d\n", error);
-
-	if (!fsl_mc_is_root_dprc(&mc_dev->dev)) {
-		fsl_destroy_mc_io(mc_dev->mc_io);
-		mc_dev->mc_io = NULL;
-	}
+	dprc_cleanup(mc_dev);
 
 	dev_info(&mc_dev->dev, "DPRC device unbound from driver");
 	return 0;
