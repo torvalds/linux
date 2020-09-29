@@ -15,6 +15,8 @@
 
 struct catpt_dev;
 
+extern const struct attribute_group *catpt_attr_groups[];
+
 void catpt_sram_init(struct resource *sram, u32 start, u32 size);
 void catpt_sram_free(struct resource *sram);
 struct resource *
