@@ -1478,7 +1478,7 @@ struct htt_ppdu_stats_info *ath11k_dp_htt_get_ppdu_desc(struct ath11k *ar,
 	}
 	spin_unlock_bh(&ar->data_lock);
 
-	ppdu_info = kzalloc(sizeof(*ppdu_info), GFP_KERNEL);
+	ppdu_info = kzalloc(sizeof(*ppdu_info), GFP_ATOMIC);
 	if (!ppdu_info)
 		return NULL;
 
