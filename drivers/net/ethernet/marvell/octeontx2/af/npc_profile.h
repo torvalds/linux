@@ -140,6 +140,12 @@
 #define NPC_DSA_EXTEND		0x1000
 #define NPC_DSA_EDSA		0x8000
 
+#define NPC_KEXOF_DMAC	8
+#define MKEX_SIGN	0x19bbfdbd15f /* strtoull of "mkexprof" with base:36 */
+#define KEX_LD_CFG(bytesm1, hdr_ofs, ena, flags_ena, key_ofs)		\
+			(((bytesm1) << 16) | ((hdr_ofs) << 8) | ((ena) << 7) | \
+			 ((flags_ena) << 6) | ((key_ofs) & 0x3F))
+
 enum npc_kpu_parser_state {
 	NPC_S_NA = 0,
 	NPC_S_KPU1_ETHER,
@@ -13111,6 +13117,154 @@ static const struct npc_kpu_profile npc_kpu_profiles[] = {
 		ARRAY_SIZE(kpu16_action_entries),
 		&kpu16_cam_entries[0],
 		&kpu16_action_entries[0],
+	},
+};
+
+static const struct npc_lt_def_cfg npc_lt_defaults = {
+	.rx_ol2 = {
+		.lid = NPC_LID_LA,
+		.ltype_match = NPC_LT_LA_ETHER,
+		.ltype_mask = 0x0F,
+	},
+	.rx_oip4 = {
+		.lid = NPC_LID_LC,
+		.ltype_match = NPC_LT_LC_IP,
+		.ltype_mask = 0x0E,
+	},
+	.rx_iip4 = {
+		.lid = NPC_LID_LG,
+		.ltype_match = NPC_LT_LG_TU_IP,
+		.ltype_mask = 0x0F,
+	},
+	.rx_oip6 = {
+		.lid = NPC_LID_LC,
+		.ltype_match = NPC_LT_LC_IP6,
+		.ltype_mask = 0x0E,
+	},
+	.rx_iip6 = {
+		.lid = NPC_LID_LG,
+		.ltype_match = NPC_LT_LG_TU_IP6,
+		.ltype_mask = 0x0F,
+	},
+	.rx_otcp = {
+		.lid = NPC_LID_LD,
+		.ltype_match = NPC_LT_LD_TCP,
+		.ltype_mask = 0x0F,
+	},
+	.rx_itcp = {
+		.lid = NPC_LID_LH,
+		.ltype_match = NPC_LT_LH_TU_TCP,
+		.ltype_mask = 0x0F,
+	},
+	.rx_oudp = {
+		.lid = NPC_LID_LD,
+		.ltype_match = NPC_LT_LD_UDP,
+		.ltype_mask = 0x0F,
+	},
+	.rx_iudp = {
+		.lid = NPC_LID_LH,
+		.ltype_match = NPC_LT_LH_TU_UDP,
+		.ltype_mask = 0x0F,
+	},
+	.rx_osctp = {
+		.lid = NPC_LID_LD,
+		.ltype_match = NPC_LT_LD_SCTP,
+		.ltype_mask = 0x0F,
+	},
+	.rx_isctp = {
+		.lid = NPC_LID_LH,
+		.ltype_match = NPC_LT_LH_TU_SCTP,
+		.ltype_mask = 0x0F,
+	},
+	.rx_ipsec = {
+		{
+			.lid = NPC_LID_LD,
+			.ltype_match = NPC_LT_LD_ESP,
+			.ltype_mask = 0x0F,
+		},
+		{
+			.spi_offset = 8,
+			.lid = NPC_LID_LH,
+			.ltype_match = NPC_LT_LH_TU_ESP,
+			.ltype_mask = 0x0F,
+		},
+	},
+	.pck_ol2 = {
+			.lid = NPC_LID_LA,
+			.ltype_match = NPC_LT_LA_ETHER,
+			.ltype_mask = 0x0F,
+	},
+	.pck_oip4 = {
+			.lid = NPC_LID_LC,
+			.ltype_match = NPC_LT_LC_IP,
+			.ltype_mask = 0x0E,
+	},
+	.pck_iip4 = {
+			.lid = NPC_LID_LG,
+			.ltype_match = NPC_LT_LG_TU_IP,
+			.ltype_mask = 0x0F,
+	},
+};
+
+static const struct npc_mcam_kex npc_mkex_default = {
+	.mkex_sign = MKEX_SIGN,
+	.name = "default",
+	.kpu_version = NPC_KPU_PROFILE_VER,
+	.keyx_cfg = {
+		/* nibble: LA..LE (ltype only) + Channel */
+		[NIX_INTF_RX] = ((u64)NPC_MCAM_KEY_X2 << 32) | 0x49247,
+		[NIX_INTF_TX] = ((u64)NPC_MCAM_KEY_X2 << 32) | ((1ULL << 19) - 1),
+	},
+	.intf_lid_lt_ld = {
+	/* Default RX MCAM KEX profile */
+	[NIX_INTF_RX] = {
+		[NPC_LID_LA] = {
+			/* Layer A: Ethernet: */
+			[NPC_LT_LA_ETHER] = {
+				/* DMAC: 6 bytes, KW1[47:0] */
+				KEX_LD_CFG(0x05, 0x0, 0x1, 0x0, NPC_KEXOF_DMAC),
+				/* Ethertype: 2 bytes, KW0[47:32] */
+				KEX_LD_CFG(0x01, 0xc, 0x1, 0x0, 0x4),
+			},
+		},
+		[NPC_LID_LB] = {
+			/* Layer B: Single VLAN (CTAG) */
+			/* CTAG VLAN[2..3] + Ethertype, 4 bytes, KW0[63:32] */
+			[NPC_LT_LB_CTAG] = {
+				KEX_LD_CFG(0x03, 0x0, 0x1, 0x0, 0x4),
+			},
+			/* Layer B: Stacked VLAN (STAG|QinQ) */
+			[NPC_LT_LB_STAG_QINQ] = {
+				/* CTAG VLAN[2..3] + Ethertype, 4 bytes, KW0[63:32] */
+				KEX_LD_CFG(0x03, 0x4, 0x1, 0x0, 0x4),
+			},
+		},
+		[NPC_LID_LC] = {
+			/* Layer C: IPv4 */
+			[NPC_LT_LC_IP] = {
+				/* SIP+DIP: 8 bytes, KW2[63:0] */
+				KEX_LD_CFG(0x07, 0xc, 0x1, 0x0, 0x10),
+				/* TOS: 1 byte, KW1[63:56] */
+				KEX_LD_CFG(0x0, 0x1, 0x1, 0x0, 0xf),
+			},
+		},
+		[NPC_LID_LD] = {
+			/* Layer D:UDP */
+			[NPC_LT_LD_UDP] = {
+				/* SPORT: 2 bytes, KW3[15:0] */
+				KEX_LD_CFG(0x1, 0x0, 0x1, 0x0, 0x18),
+				/* DPORT: 2 bytes, KW3[31:16] */
+				KEX_LD_CFG(0x1, 0x2, 0x1, 0x0, 0x1a),
+			},
+			/* Layer D:TCP */
+			[NPC_LT_LD_TCP] = {
+				/* SPORT: 2 bytes, KW3[15:0] */
+				KEX_LD_CFG(0x1, 0x0, 0x1, 0x0, 0x18),
+				/* DPORT: 2 bytes, KW3[31:16] */
+				KEX_LD_CFG(0x1, 0x2, 0x1, 0x0, 0x1a),
+			},
+		},
+	},
 	},
 };
 

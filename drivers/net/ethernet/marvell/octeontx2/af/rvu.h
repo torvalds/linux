@@ -291,6 +291,20 @@ struct rvu_fwdata {
 
 struct ptp;
 
+/* KPU profile adapter structure gathering all KPU configuration data and abstracting out the
+ * source where it came from.
+ */
+struct npc_kpu_profile_adapter {
+	const char			*name;
+	u64				version;
+	const struct npc_lt_def_cfg	*lt_def;
+	const struct npc_kpu_profile_action	*ikpu; /* array[pkinds] */
+	const struct npc_kpu_profile	*kpu; /* array[kpus] */
+	const struct npc_mcam_kex	*mkex;
+	size_t				pkinds;
+	size_t				kpus;
+};
+
 struct rvu {
 	void __iomem		*afreg_base;
 	void __iomem		*pfreg_base;
@@ -338,6 +352,9 @@ struct rvu {
 
 	/* Firmware data */
 	struct rvu_fwdata	*fwdata;
+
+	/* NPC KPU data */
+	struct npc_kpu_profile_adapter kpu;
 
 	struct ptp		*ptp;
 
