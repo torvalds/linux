@@ -1218,19 +1218,34 @@ tgl_get_combo_buf_trans(struct intel_encoder *encoder, int type, int rate,
 }
 
 static const struct tgl_dkl_phy_ddi_buf_trans *
+tgl_get_dkl_buf_trans_hdmi(struct intel_encoder *encoder, int type, int rate,
+			   int *n_entries)
+{
+	*n_entries = ARRAY_SIZE(tgl_dkl_phy_hdmi_ddi_trans);
+	return tgl_dkl_phy_hdmi_ddi_trans;
+}
+
+static const struct tgl_dkl_phy_ddi_buf_trans *
+tgl_get_dkl_buf_trans_dp(struct intel_encoder *encoder, int type, int rate,
+			 int *n_entries)
+{
+	if (rate > 270000) {
+		*n_entries = ARRAY_SIZE(tgl_dkl_phy_dp_ddi_trans_hbr2);
+		return tgl_dkl_phy_dp_ddi_trans_hbr2;
+	} else {
+		*n_entries = ARRAY_SIZE(tgl_dkl_phy_dp_ddi_trans);
+		return tgl_dkl_phy_dp_ddi_trans;
+	}
+}
+
+static const struct tgl_dkl_phy_ddi_buf_trans *
 tgl_get_dkl_buf_trans(struct intel_encoder *encoder, int type, int rate,
 		      int *n_entries)
 {
-	if (type == INTEL_OUTPUT_HDMI) {
-		*n_entries = ARRAY_SIZE(tgl_dkl_phy_hdmi_ddi_trans);
-		return tgl_dkl_phy_hdmi_ddi_trans;
-	} else if (rate > 270000) {
-		*n_entries = ARRAY_SIZE(tgl_dkl_phy_dp_ddi_trans_hbr2);
-		return tgl_dkl_phy_dp_ddi_trans_hbr2;
-	}
-
-	*n_entries = ARRAY_SIZE(tgl_dkl_phy_dp_ddi_trans);
-	return tgl_dkl_phy_dp_ddi_trans;
+	if (type == INTEL_OUTPUT_HDMI)
+		return tgl_get_dkl_buf_trans_hdmi(encoder, type, rate, n_entries);
+	else
+		return tgl_get_dkl_buf_trans_dp(encoder, type, rate, n_entries);
 }
 
 static int intel_ddi_hdmi_level(struct intel_encoder *encoder)
