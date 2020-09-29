@@ -5147,6 +5147,8 @@ struct sff_8247_a0 {
 	 ha->current_topology == ISP_CFG_N || \
 	 !ha->current_topology)
 
+#define QLA_N2N_WAIT_TIME	5 /* 2 * ra_tov(n2n) + 1 */
+
 #define NVME_TYPE(fcport) \
 	(fcport->fc4_type & FS_FC4TYPE_NVME) \
 
