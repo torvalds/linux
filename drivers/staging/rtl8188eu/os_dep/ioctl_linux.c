@@ -782,7 +782,7 @@ static int rtw_wx_set_pmkid(struct net_device *dev,
 				/*  BSSID is matched, the same AP => rewrite with new PMKID. */
 				DBG_88E("[%s] BSSID exists in the PMKList.\n", __func__);
 				memcpy(psecuritypriv->PMKIDList[j].PMKID, pPMK->pmkid, IW_PMKID_LEN);
-				psecuritypriv->PMKIDList[j].bUsed = true;
+				psecuritypriv->PMKIDList[j].used = true;
 				psecuritypriv->PMKIDIndex = j + 1;
 				blInserted = true;
 				break;
@@ -797,7 +797,7 @@ static int rtw_wx_set_pmkid(struct net_device *dev,
 			memcpy(psecuritypriv->PMKIDList[psecuritypriv->PMKIDIndex].bssid, strIssueBssid, ETH_ALEN);
 			memcpy(psecuritypriv->PMKIDList[psecuritypriv->PMKIDIndex].PMKID, pPMK->pmkid, IW_PMKID_LEN);
 
-			psecuritypriv->PMKIDList[psecuritypriv->PMKIDIndex].bUsed = true;
+			psecuritypriv->PMKIDList[psecuritypriv->PMKIDIndex].used = true;
 			psecuritypriv->PMKIDIndex++;
 			if (psecuritypriv->PMKIDIndex == 16)
 				psecuritypriv->PMKIDIndex = 0;
@@ -809,7 +809,7 @@ static int rtw_wx_set_pmkid(struct net_device *dev,
 			if (!memcmp(psecuritypriv->PMKIDList[j].bssid, strIssueBssid, ETH_ALEN)) {
 				/*  BSSID is matched, the same AP => Remove this PMKID information and reset it. */
 				eth_zero_addr(psecuritypriv->PMKIDList[j].bssid);
-				psecuritypriv->PMKIDList[j].bUsed = false;
+				psecuritypriv->PMKIDList[j].used = false;
 				break;
 			}
 		}
