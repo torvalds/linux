@@ -2994,7 +2994,8 @@ static int ath11k_mac_station_add(struct ath11k *ar,
 		goto free_tx_stats;
 	}
 
-	if (ab->hw_params.vdev_start_delay) {
+	if (ab->hw_params.vdev_start_delay &&
+	    arvif->vdev_type != WMI_VDEV_TYPE_AP) {
 		ret = ath11k_start_vdev_delay(ar->hw, vif);
 		if (ret) {
 			ath11k_warn(ab, "failed to delay vdev start: %d\n", ret);
@@ -5215,7 +5216,8 @@ ath11k_mac_op_assign_vif_chanctx(struct ieee80211_hw *hw,
 		   ctx, arvif->vdev_id);
 
 	/* for QCA6390 bss peer must be created before vdev_start */
-	if (ab->hw_params.vdev_start_delay) {
+	if (ab->hw_params.vdev_start_delay &&
+	    arvif->vdev_type != WMI_VDEV_TYPE_AP) {
 		memcpy(&arvif->chanctx, ctx, sizeof(*ctx));
 		mutex_unlock(&ar->conf_mutex);
 		return 0;
