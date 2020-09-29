@@ -27,22 +27,20 @@
 #define CHCR_KTLS_WR_SIZE	(CHCR_PLAIN_TX_DATA_LEN +\
 				 sizeof(struct cpl_tx_sec_pdu))
 
-enum chcr_ktls_conn_state {
-	KTLS_CONN_CLOSED,
-	KTLS_CONN_ACT_OPEN_REQ,
-	KTLS_CONN_ACT_OPEN_RPL,
-	KTLS_CONN_SET_TCB_REQ,
-	KTLS_CONN_SET_TCB_RPL,
-	KTLS_CONN_TX_READY,
+enum ch_ktls_open_state {
+	CH_KTLS_OPEN_SUCCESS = 0,
+	CH_KTLS_OPEN_PENDING = 1,
+	CH_KTLS_OPEN_FAILURE = 2,
 };
 
 struct chcr_ktls_info {
 	struct sock *sk;
-	spinlock_t lock; /* state machine lock */
+	spinlock_t lock; /* lock for pending_close */
 	struct ktls_key_ctx key_ctx;
 	struct adapter *adap;
 	struct l2t_entry *l2te;
 	struct net_device *netdev;
+	struct completion completion;
 	u64 iv;
 	u64 record_no;
 	int tid;
@@ -58,13 +56,14 @@ struct chcr_ktls_info {
 	u32 tcp_start_seq_number;
 	u32 scmd0_short_seqno_numivs;
 	u32 scmd0_short_ivgen_hdrlen;
-	enum chcr_ktls_conn_state connection_state;
 	u16 prev_win;
 	u8 tx_chan;
 	u8 smt_idx;
 	u8 port_id;
 	u8 ip_family;
 	u8 first_qset;
+	enum ch_ktls_open_state open_state;
+	bool pending_close;
 };
 
 struct chcr_ktls_ofld_ctx_tx {
