@@ -518,11 +518,11 @@ static bool mptcp_established_options_dss(struct sock *sk, struct sk_buff *skb,
 
 	if (subflow->use_64bit_ack) {
 		ack_size = TCPOLEN_MPTCP_DSS_ACK64;
-		opts->ext_copy.data_ack = msk->ack_seq;
+		opts->ext_copy.data_ack = READ_ONCE(msk->ack_seq);
 		opts->ext_copy.ack64 = 1;
 	} else {
 		ack_size = TCPOLEN_MPTCP_DSS_ACK32;
-		opts->ext_copy.data_ack32 = (uint32_t)(msk->ack_seq);
+		opts->ext_copy.data_ack32 = (uint32_t)READ_ONCE(msk->ack_seq);
 		opts->ext_copy.ack64 = 0;
 	}
 	opts->ext_copy.use_ack = 1;
