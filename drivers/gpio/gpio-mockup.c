@@ -29,8 +29,8 @@
  * of GPIO lines.
  */
 #define GPIO_MOCKUP_MAX_RANGES	(GPIO_MOCKUP_MAX_GC * 2)
-/* Maximum of three properties + the sentinel. */
-#define GPIO_MOCKUP_MAX_PROP	4
+/* Maximum of four properties + the sentinel. */
+#define GPIO_MOCKUP_MAX_PROP	5
 
 /*
  * struct gpio_pin_status - structure describing a GPIO status
