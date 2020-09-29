@@ -209,7 +209,7 @@ adreno_iommu_create_address_space(struct msm_gpu *gpu,
 	size = iommu->geometry.aperture_end - start + 1;
 
 	aspace = msm_gem_address_space_create(mmu, "gpu",
-		start & GENMASK(48, 0), size);
+		start & GENMASK_ULL(48, 0), size);
 
 	if (IS_ERR(aspace) && !IS_ERR(mmu))
 		mmu->funcs->destroy(mmu);

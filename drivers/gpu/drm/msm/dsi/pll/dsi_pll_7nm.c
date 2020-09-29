@@ -879,7 +879,7 @@ struct msm_dsi_pll *msm_dsi_pll_7nm_init(struct platform_device *pdev, int id)
 	pll->max_rate = 3500000000UL;
 	if (pll->type == MSM_DSI_PHY_7NM_V4_1) {
 		pll->min_rate = 600000000UL;
-		pll->max_rate = 5000000000UL;
+		pll->max_rate = (unsigned long)5000000000ULL;
 		/* workaround for max rate overflowing on 32-bit builds: */
 		pll->max_rate = max(pll->max_rate, 0xffffffffUL);
 	}
