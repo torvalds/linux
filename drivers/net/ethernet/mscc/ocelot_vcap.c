@@ -1001,11 +1001,79 @@ static void ocelot_vcap_init_one(struct ocelot *ocelot,
 		 VCAP_SEL_ACTION | VCAP_SEL_COUNTER);
 }
 
+static void ocelot_vcap_detect_constants(struct ocelot *ocelot,
+					 struct vcap_props *vcap)
+{
+	int counter_memory_width;
+	int num_default_actions;
+	int version;
+
+	version = ocelot_target_read(ocelot, vcap->target,
+				     VCAP_CONST_VCAP_VER);
+	/* Only version 0 VCAP supported for now */
+	if (WARN_ON(version != 0))
+		return;
+
+	/* Width in bits of type-group field */
+	vcap->tg_width = ocelot_target_read(ocelot, vcap->target,
+					    VCAP_CONST_ENTRY_TG_WIDTH);
+	/* Number of subwords per TCAM row */
+	vcap->sw_count = ocelot_target_read(ocelot, vcap->target,
+					    VCAP_CONST_ENTRY_SWCNT);
+	/* Number of rows in TCAM. There can be this many full keys, or double
+	 * this number half keys, or 4 times this number quarter keys.
+	 */
+	vcap->entry_count = ocelot_target_read(ocelot, vcap->target,
+					       VCAP_CONST_ENTRY_CNT);
+	/* Assuming there are 4 subwords per TCAM row, their layout in the
+	 * actual TCAM (not in the cache) would be:
+	 *
+	 * |  SW 3  | TG 3 |  SW 2  | TG 2 |  SW 1  | TG 1 |  SW 0  | TG 0 |
+	 *
+	 * (where SW=subword and TG=Type-Group).
+	 *
+	 * What VCAP_CONST_ENTRY_CNT is giving us is the width of one full TCAM
+	 * row. But when software accesses the TCAM through the cache
+	 * registers, the Type-Group values are written through another set of
+	 * registers VCAP_TG_DAT, and therefore, it appears as though the 4
+	 * subwords are contiguous in the cache memory.
+	 * Important mention: regardless of the number of key entries per row
+	 * (and therefore of key size: 1 full key or 2 half keys or 4 quarter
+	 * keys), software always has to configure 4 Type-Group values. For
+	 * example, in the case of 1 full key, the driver needs to set all 4
+	 * Type-Group to be full key.
+	 *
+	 * For this reason, we need to fix up the value that the hardware is
+	 * giving us. We don't actually care about the width of the entry in
+	 * the TCAM. What we care about is the width of the entry in the cache
+	 * registers, which is how we get to interact with it. And since the
+	 * VCAP_ENTRY_DAT cache registers access only the subwords and not the
+	 * Type-Groups, this means we need to subtract the width of the
+	 * Type-Groups when packing and unpacking key entry data in a TCAM row.
+	 */
+	vcap->entry_width = ocelot_target_read(ocelot, vcap->target,
+					       VCAP_CONST_ENTRY_WIDTH);
+	vcap->entry_width -= vcap->tg_width * vcap->sw_count;
+	num_default_actions = ocelot_target_read(ocelot, vcap->target,
+						 VCAP_CONST_ACTION_DEF_CNT);
+	vcap->action_count = vcap->entry_count + num_default_actions;
+	vcap->action_width = ocelot_target_read(ocelot, vcap->target,
+						VCAP_CONST_ACTION_WIDTH);
+	/* The width of the counter memory, this is the complete width of all
+	 * counter-fields associated with one full-word entry. There is one
+	 * counter per entry sub-word (see CAP_CORE::ENTRY_SWCNT for number of
+	 * subwords.)
+	 */
+	vcap->counter_words = vcap->sw_count;
+	counter_memory_width = ocelot_target_read(ocelot, vcap->target,
+						  VCAP_CONST_CNT_WIDTH);
+	vcap->counter_width = counter_memory_width / vcap->counter_words;
+}
+
 int ocelot_vcap_init(struct ocelot *ocelot)
 {
 	struct ocelot_vcap_block *block = &ocelot->block;
-
-	ocelot_vcap_init_one(ocelot, &ocelot->vcap[VCAP_IS2]);
+	int i;
 
 	/* Create a policer that will drop the frames for the cpu.
 	 * This policer will be used as action in the acl rules to drop
@@ -1021,6 +1089,13 @@ int ocelot_vcap_init(struct ocelot *ocelot)
 			 OCELOT_POLICER_DISCARD);
 	ocelot_write_gix(ocelot, 0x3fffff, ANA_POL_CIR_STATE,
 			 OCELOT_POLICER_DISCARD);
+
+	for (i = 0; i < OCELOT_NUM_VCAP_BLOCKS; i++) {
+		struct vcap_props *vcap = &ocelot->vcap[i];
+
+		ocelot_vcap_detect_constants(ocelot, vcap);
+		ocelot_vcap_init_one(ocelot, vcap);
+	}
 
 	block->pol_lpr = OCELOT_POLICER_DISCARD - 1;
 

@@ -523,6 +523,17 @@ enum {
 	VCAP_CACHE_ACTION_DAT,
 	VCAP_CACHE_CNT_DAT,
 	VCAP_CACHE_TG_DAT,
+	/* VCAP_CONST */
+	VCAP_CONST_VCAP_VER,
+	VCAP_CONST_ENTRY_WIDTH,
+	VCAP_CONST_ENTRY_CNT,
+	VCAP_CONST_ENTRY_SWCNT,
+	VCAP_CONST_ENTRY_TG_WIDTH,
+	VCAP_CONST_ACTION_DEF_CNT,
+	VCAP_CONST_ACTION_WIDTH,
+	VCAP_CONST_CNT_WIDTH,
+	VCAP_CONST_CORE_CNT,
+	VCAP_CONST_IF_CNT,
 };
 
 enum ocelot_ptp_pins {
@@ -621,7 +632,7 @@ struct ocelot {
 	struct list_head		multicast;
 
 	struct ocelot_vcap_block	block;
-	const struct vcap_props		*vcap;
+	struct vcap_props		*vcap;
 
 	/* Workqueue to check statistics for overflow with its lock */
 	struct mutex			stats_lock;

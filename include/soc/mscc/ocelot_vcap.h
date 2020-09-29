@@ -17,7 +17,10 @@ enum {
 	VCAP_ES0,
 	VCAP_IS1,
 	VCAP_IS2,
+	__VCAP_COUNT,
 };
+
+#define OCELOT_NUM_VCAP_BLOCKS		__VCAP_COUNT
 
 struct vcap_props {
 	u16 tg_width; /* Type-group width (in bits) */
