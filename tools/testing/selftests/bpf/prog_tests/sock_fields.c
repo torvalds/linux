@@ -36,7 +36,7 @@ struct bpf_spinlock_cnt {
 
 static struct sockaddr_in6 srv_sa6, cli_sa6;
 static int sk_pkt_out_cnt10_fd;
-struct test_sock_fields *skel;
+static struct test_sock_fields *skel;
 static int sk_pkt_out_cnt_fd;
 static __u64 parent_cg_id;
 static __u64 child_cg_id;

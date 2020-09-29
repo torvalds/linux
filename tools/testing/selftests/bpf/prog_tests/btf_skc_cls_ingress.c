@@ -16,7 +16,7 @@
 #include "test_progs.h"
 #include "test_btf_skc_cls_ingress.skel.h"
 
-struct test_btf_skc_cls_ingress *skel;
+static struct test_btf_skc_cls_ingress *skel;
 struct sockaddr_in6 srv_sa6;
 static __u32 duration;
 
