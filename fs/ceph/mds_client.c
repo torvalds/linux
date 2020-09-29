@@ -516,13 +516,9 @@ static int parse_reply_info_create(void **p, void *end,
 			/* Malformed reply? */
 			info->has_create_ino = false;
 		} else if (test_bit(CEPHFS_FEATURE_DELEG_INO, &s->s_features)) {
-			u8 struct_v, struct_compat;
-			u32 len;
-
 			info->has_create_ino = true;
-			ceph_decode_8_safe(p, end, struct_v, bad);
-			ceph_decode_8_safe(p, end, struct_compat, bad);
-			ceph_decode_32_safe(p, end, len, bad);
+			/* struct_v, struct_compat, and len */
+			ceph_decode_skip_n(p, end, 2 + sizeof(u32), bad);
 			ceph_decode_64_safe(p, end, info->ino, bad);
 			ret = ceph_parse_deleg_inos(p, end, s);
 			if (ret)
@@ -4860,10 +4856,8 @@ void ceph_mdsc_handle_fsmap(struct ceph_mds_client *mdsc, struct ceph_msg *msg)
 	void *p = msg->front.iov_base;
 	void *end = p + msg->front.iov_len;
 	u32 epoch;
-	u32 map_len;
 	u32 num_fs;
 	u32 mount_fscid = (u32)-1;
-	u8 struct_v, struct_cv;
 	int err = -EINVAL;
 
 	ceph_decode_need(&p, end, sizeof(u32), bad);
@@ -4871,24 +4865,17 @@ void ceph_mdsc_handle_fsmap(struct ceph_mds_client *mdsc, struct ceph_msg *msg)
 
 	dout("handle_fsmap epoch %u\n", epoch);
 
-	ceph_decode_need(&p, end, 2 + sizeof(u32), bad);
-	struct_v = ceph_decode_8(&p);
-	struct_cv = ceph_decode_8(&p);
-	map_len = ceph_decode_32(&p);
+	/* struct_v, struct_cv, map_len, epoch, legacy_client_fscid */
+	ceph_decode_skip_n(&p, end, 2 + sizeof(u32) * 3, bad);
 
-	ceph_decode_need(&p, end, sizeof(u32) * 3, bad);
-	p += sizeof(u32) * 2; /* skip epoch and legacy_client_fscid */
-
-	num_fs = ceph_decode_32(&p);
+	ceph_decode_32_safe(&p, end, num_fs, bad);
 	while (num_fs-- > 0) {
 		void *info_p, *info_end;
 		u32 info_len;
-		u8 info_v, info_cv;
 		u32 fscid, namelen;
 
 		ceph_decode_need(&p, end, 2 + sizeof(u32), bad);
-		info_v = ceph_decode_8(&p);
-		info_cv = ceph_decode_8(&p);
+		p += 2;		// info_v, info_cv
 		info_len = ceph_decode_32(&p);
 		ceph_decode_need(&p, end, info_len, bad);
 		info_p = p;

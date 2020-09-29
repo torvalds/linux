@@ -4028,15 +4028,13 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	}
 
 	if (msg_version >= 8) {
-		u64 flush_tid;
-		u32 caller_uid, caller_gid;
 		u32 pool_ns_len;
 
 		/* version >= 6 */
-		ceph_decode_64_safe(&p, end, flush_tid, bad);
+		ceph_decode_skip_64(&p, end, bad);	// flush_tid
 		/* version >= 7 */
-		ceph_decode_32_safe(&p, end, caller_uid, bad);
-		ceph_decode_32_safe(&p, end, caller_gid, bad);
+		ceph_decode_skip_32(&p, end, bad);	// caller_uid
+		ceph_decode_skip_32(&p, end, bad);	// caller_gid
 		/* version >= 8 */
 		ceph_decode_32_safe(&p, end, pool_ns_len, bad);
 		if (pool_ns_len > 0) {
@@ -4059,9 +4057,8 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	}
 
 	if (msg_version >= 11) {
-		u32 flags;
 		/* version >= 10 */
-		ceph_decode_32_safe(&p, end, flags, bad);
+		ceph_decode_skip_32(&p, end, bad); // flags
 		/* version >= 11 */
 		extra_info.dirstat_valid = true;
 		ceph_decode_64_safe(&p, end, extra_info.nfiles, bad);
