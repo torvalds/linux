@@ -46,8 +46,9 @@ struct amd_energy_data {
 	struct mutex lock;
 	/* An accumulator for each core and socket */
 	struct sensor_accumulator *accums;
+	unsigned int timeout_ms;
 	/* Energy Status Units */
-	u64 energy_units;
+	int energy_units;
 	int nr_cpus;
 	int nr_socks;
 	int core_id;
@@ -215,6 +216,7 @@ static umode_t amd_energy_is_visible(const void *_data,
 static int energy_accumulator(void *p)
 {
 	struct amd_energy_data *data = (struct amd_energy_data *)p;
+	unsigned int timeout = data->timeout_ms;
 
 	while (!kthread_should_stop()) {
 		/*
@@ -227,14 +229,7 @@ static int energy_accumulator(void *p)
 		if (kthread_should_stop())
 			break;
 
-		/*
-		 * On a 240W system, with default resolution the
-		 * Socket Energy status register may wrap around in
-		 * 2^32*15.3 e-6/240 = 273.8041 secs (~4.5 mins)
-		 *
-		 * let us accumulate for every 100secs
-		 */
-		schedule_timeout(msecs_to_jiffies(100000));
+		schedule_timeout(msecs_to_jiffies(timeout));
 	}
 	return 0;
 }
@@ -330,6 +325,13 @@ static int amd_energy_probe(struct platform_device *pdev)
 							 NULL);
 	if (IS_ERR(hwmon_dev))
 		return PTR_ERR(hwmon_dev);
+
+	/*
+	 * On a system with peak wattage of 250W
+	 * timeout = 2 ^ 32 / 2 ^ energy_units / 250 secs
+	 */
+	data->timeout_ms = 1000 *
+			   BIT(min(28, 31 - data->energy_units)) / 250;
 
 	data->wrap_accumulate = kthread_run(energy_accumulator, data,
 					    "%s", dev_name(hwmon_dev));
