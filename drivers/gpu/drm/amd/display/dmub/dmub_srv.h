@@ -94,6 +94,9 @@ enum dmub_asic {
 #ifdef CONFIG_DRM_AMD_DC_DCN3_01
 	DMUB_ASIC_DCN301,
 #endif
+#ifdef CONFIG_DRM_AMD_DC_DCN3_02
+	DMUB_ASIC_DCN302,
+#endif
 	DMUB_ASIC_MAX,
 };
 

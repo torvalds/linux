@@ -186,6 +186,12 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 			dcn3_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
 			break;
 		}
+#if defined(CONFIG_DRM_AMD_DC_DCN3_02)
+		if (ASICREV_IS_DIMGREY_CAVEFISH_P(asic_id.hw_internal_rev)) {
+			dcn3_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
+			break;
+		}
+#endif
 #endif
 		dcn20_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
 		break;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-15 Advanced Micro Devices, Inc.
+ * Copyright 2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,44 +23,19 @@
  *
  */
 
-#ifndef __DAL_TYPES_H__
-#define __DAL_TYPES_H__
+#ifndef __DCN302_DCCG_H__
+#define __DCN302_DCCG_H__
 
-#include "signal_types.h"
-#include "dc_types.h"
+#include "dcn30/dcn30_dccg.h"
 
-struct dal_logger;
-struct dc_bios;
 
-enum dce_version {
-	DCE_VERSION_UNKNOWN = (-1),
-	DCE_VERSION_6_0,
-	DCE_VERSION_6_1,
-	DCE_VERSION_6_4,
-	DCE_VERSION_8_0,
-	DCE_VERSION_8_1,
-	DCE_VERSION_8_3,
-	DCE_VERSION_10_0,
-	DCE_VERSION_11_0,
-	DCE_VERSION_11_2,
-	DCE_VERSION_11_22,
-	DCE_VERSION_12_0,
-	DCE_VERSION_12_1,
-	DCE_VERSION_MAX,
-	DCN_VERSION_1_0,
-	DCN_VERSION_1_01,
-	DCN_VERSION_2_0,
-	DCN_VERSION_2_1,
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
-	DCN_VERSION_3_0,
-#endif
-#if defined(CONFIG_DRM_AMD_DC_DCN3_01)
-	DCN_VERSION_3_01,
-#endif
-#if defined(CONFIG_DRM_AMD_DC_DCN3_02)
-	DCN_VERSION_3_02,
-#endif
-	DCN_VERSION_MAX
-};
+#define DCCG_REG_LIST_DCN3_02() \
+	DCCG_COMMON_REG_LIST_DCN_BASE(),\
+	DCCG_SRII(DTO_PARAM, DPPCLK, 4)
 
-#endif /* __DAL_TYPES_H__ */
+#define DCCG_MASK_SH_LIST_DCN3_02(mask_sh) \
+	DCCG_COMMON_MASK_SH_LIST_DCN_COMMON_BASE(mask_sh),\
+	DCCG_SFI(DPPCLK_DTO_CTRL, DTO_ENABLE, DPPCLK, 4, mask_sh),\
+	DCCG_SFI(DPPCLK_DTO_CTRL, DTO_DB_EN, DPPCLK, 4, mask_sh)
+
+#endif //__DCN302_DCCG_H__

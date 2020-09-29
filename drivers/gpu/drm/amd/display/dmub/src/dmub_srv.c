@@ -33,6 +33,9 @@
 #ifdef CONFIG_DRM_AMD_DC_DCN3_01
 #include "dmub_dcn301.h"
 #endif
+#ifdef CONFIG_DRM_AMD_DC_DCN3_02
+#include "dmub_dcn302.h"
+#endif
 #include "os_types.h"
 /*
  * Note: the DMUB service is standalone. No additional headers should be
@@ -145,6 +148,9 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 #ifdef CONFIG_DRM_AMD_DC_DCN3_01
 	case DMUB_ASIC_DCN301:
 #endif
+#ifdef CONFIG_DRM_AMD_DC_DCN3_02
+	case DMUB_ASIC_DCN302:
+#endif
 		dmub->regs = &dmub_srv_dcn20_regs;
 
 		funcs->reset = dmub_dcn20_reset;
@@ -178,6 +184,14 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 #ifdef CONFIG_DRM_AMD_DC_DCN3_01
 		if (asic == DMUB_ASIC_DCN301) {
 			dmub->regs = &dmub_srv_dcn301_regs;
+
+			funcs->backdoor_load = dmub_dcn30_backdoor_load;
+			funcs->setup_windows = dmub_dcn30_setup_windows;
+		}
+#endif
+#ifdef CONFIG_DRM_AMD_DC_DCN3_02
+		if (asic == DMUB_ASIC_DCN302) {
+			dmub->regs = &dmub_srv_dcn302_regs;
 
 			funcs->backdoor_load = dmub_dcn30_backdoor_load;
 			funcs->setup_windows = dmub_dcn30_setup_windows;
