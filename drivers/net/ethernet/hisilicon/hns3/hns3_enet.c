@@ -1283,7 +1283,7 @@ static int hns3_nic_maybe_stop_tx(struct hns3_enet_ring *ring,
 		if (bd_num <= HNS3_MAX_TSO_BD_NUM && skb_is_gso(skb) &&
 		    !hns3_skb_need_linearized(skb, bd_size, bd_num,
 					      max_non_tso_bd_num)) {
-			trace_hns3_over_8bd(skb);
+			trace_hns3_over_max_bd(skb);
 			goto out;
 		}
 
@@ -1294,7 +1294,7 @@ static int hns3_nic_maybe_stop_tx(struct hns3_enet_ring *ring,
 		if ((skb_is_gso(skb) && bd_num > HNS3_MAX_TSO_BD_NUM) ||
 		    (!skb_is_gso(skb) &&
 		     bd_num > max_non_tso_bd_num)) {
-			trace_hns3_over_8bd(skb);
+			trace_hns3_over_max_bd(skb);
 			return -ENOMEM;
 		}
 

@@ -53,7 +53,7 @@ DECLARE_EVENT_CLASS(hns3_skb_template,
 	)
 );
 
-DEFINE_EVENT(hns3_skb_template, hns3_over_8bd,
+DEFINE_EVENT(hns3_skb_template, hns3_over_max_bd,
 	TP_PROTO(struct sk_buff *skb),
 	TP_ARGS(skb));
 
