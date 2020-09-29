@@ -11,6 +11,7 @@
 #include "a6xx_gpu.h"
 #include "a6xx_gmu.xml.h"
 #include "msm_gem.h"
+#include "msm_gpu_trace.h"
 #include "msm_mmu.h"
 
 static void a6xx_gmu_fault(struct a6xx_gmu *gmu)
@@ -123,6 +124,8 @@ void a6xx_gmu_set_freq(struct msm_gpu *gpu, struct dev_pm_opp *opp)
 
 	gmu->current_perf_index = perf_index;
 	gmu->freq = gmu->gpu_freqs[perf_index];
+
+	trace_msm_gmu_freq_change(gmu->freq, perf_index);
 
 	/*
 	 * This can get called from devfreq while the hardware is idle. Don't

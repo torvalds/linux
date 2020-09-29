@@ -100,6 +100,14 @@ static void drm_mode_to_intf_timing_params(
 	 * display_v_end -= mode->hsync_start - mode->hdisplay;
 	 * }
 	 */
+	/* for DP/EDP, Shift timings to align it to bottom right */
+	if ((phys_enc->hw_intf->cap->type == INTF_DP) ||
+		(phys_enc->hw_intf->cap->type == INTF_EDP)) {
+		timing->h_back_porch += timing->h_front_porch;
+		timing->h_front_porch = 0;
+		timing->v_back_porch += timing->v_front_porch;
+		timing->v_front_porch = 0;
+	}
 }
 
 static u32 get_horizontal_total(const struct intf_timing_params *timing)
@@ -298,7 +306,6 @@ static void dpu_encoder_phys_vid_vblank_irq(void *arg, int irq_idx)
 	struct dpu_hw_ctl *hw_ctl;
 	unsigned long lock_flags;
 	u32 flush_register = 0;
-	int new_cnt = -1, old_cnt = -1;
 
 	hw_ctl = phys_enc->hw_ctl;
 
@@ -308,7 +315,7 @@ static void dpu_encoder_phys_vid_vblank_irq(void *arg, int irq_idx)
 		phys_enc->parent_ops->handle_vblank_virt(phys_enc->parent,
 				phys_enc);
 
-	old_cnt  = atomic_read(&phys_enc->pending_kickoff_cnt);
+	atomic_read(&phys_enc->pending_kickoff_cnt);
 
 	/*
 	 * only decrement the pending flush count if we've actually flushed
@@ -320,8 +327,7 @@ static void dpu_encoder_phys_vid_vblank_irq(void *arg, int irq_idx)
 		flush_register = hw_ctl->ops.get_flush_register(hw_ctl);
 
 	if (!(flush_register & hw_ctl->ops.get_pending_flush(hw_ctl)))
-		new_cnt = atomic_add_unless(&phys_enc->pending_kickoff_cnt,
-				-1, 0);
+		atomic_add_unless(&phys_enc->pending_kickoff_cnt, -1, 0);
 	spin_unlock_irqrestore(phys_enc->enc_spinlock, lock_flags);
 
 	/* Signal any waiting atomic commit thread */
