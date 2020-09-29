@@ -140,14 +140,16 @@ static const u32 vsc9953_qs_regmap[] = {
 	REG_RESERVED(QS_INH_DBG),
 };
 
-static const u32 vsc9953_s2_regmap[] = {
-	REG(S2_CORE_UPDATE_CTRL,		0x000000),
-	REG(S2_CORE_MV_CFG,			0x000004),
-	REG(S2_CACHE_ENTRY_DAT,			0x000008),
-	REG(S2_CACHE_MASK_DAT,			0x000108),
-	REG(S2_CACHE_ACTION_DAT,		0x000208),
-	REG(S2_CACHE_CNT_DAT,			0x000308),
-	REG(S2_CACHE_TG_DAT,			0x000388),
+static const u32 vsc9953_vcap_regmap[] = {
+	/* VCAP_CORE_CFG */
+	REG(VCAP_CORE_UPDATE_CTRL,		0x000000),
+	REG(VCAP_CORE_MV_CFG,			0x000004),
+	/* VCAP_CORE_CACHE */
+	REG(VCAP_CACHE_ENTRY_DAT,		0x000008),
+	REG(VCAP_CACHE_MASK_DAT,		0x000108),
+	REG(VCAP_CACHE_ACTION_DAT,		0x000208),
+	REG(VCAP_CACHE_CNT_DAT,			0x000308),
+	REG(VCAP_CACHE_TG_DAT,			0x000388),
 };
 
 static const u32 vsc9953_qsys_regmap[] = {
@@ -352,7 +354,7 @@ static const u32 *vsc9953_regmap[TARGET_MAX] = {
 	[QSYS]		= vsc9953_qsys_regmap,
 	[REW]		= vsc9953_rew_regmap,
 	[SYS]		= vsc9953_sys_regmap,
-	[S2]		= vsc9953_s2_regmap,
+	[S2]		= vsc9953_vcap_regmap,
 	[GCB]		= vsc9953_gcb_regmap,
 	[DEV_GMII]	= vsc9953_dev_gmii_regmap,
 };
@@ -706,6 +708,9 @@ static const struct vcap_props vsc9953_vcap_props[] = {
 		},
 		.counter_words = 4,
 		.counter_width = 32,
+		.target = S2,
+		.keys = vsc9953_vcap_is2_keys,
+		.actions = vsc9953_vcap_is2_actions,
 	},
 };
 
@@ -1031,8 +1036,6 @@ static const struct felix_info seville_info_vsc9953 = {
 	.ops			= &vsc9953_ops,
 	.stats_layout		= vsc9953_stats_layout,
 	.num_stats		= ARRAY_SIZE(vsc9953_stats_layout),
-	.vcap_is2_keys		= vsc9953_vcap_is2_keys,
-	.vcap_is2_actions	= vsc9953_vcap_is2_actions,
 	.vcap			= vsc9953_vcap_props,
 	.shared_queue_sz	= 2048 * 1024,
 	.num_mact_rows		= 2048,

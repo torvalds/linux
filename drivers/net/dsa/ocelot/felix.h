@@ -21,8 +21,6 @@ struct felix_info {
 	unsigned int			num_stats;
 	int				num_ports;
 	int				num_tx_queues;
-	struct vcap_field		*vcap_is2_keys;
-	struct vcap_field		*vcap_is2_actions;
 	const struct vcap_props		*vcap;
 	int				switch_pci_bar;
 	int				imdio_pci_bar;

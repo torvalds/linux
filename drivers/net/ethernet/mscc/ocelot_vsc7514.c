@@ -241,14 +241,16 @@ static const u32 ocelot_sys_regmap[] = {
 	REG(SYS_PTP_CFG,				0x0006c4),
 };
 
-static const u32 ocelot_s2_regmap[] = {
-	REG(S2_CORE_UPDATE_CTRL,			0x000000),
-	REG(S2_CORE_MV_CFG,				0x000004),
-	REG(S2_CACHE_ENTRY_DAT,				0x000008),
-	REG(S2_CACHE_MASK_DAT,				0x000108),
-	REG(S2_CACHE_ACTION_DAT,			0x000208),
-	REG(S2_CACHE_CNT_DAT,				0x000308),
-	REG(S2_CACHE_TG_DAT,				0x000388),
+static const u32 ocelot_vcap_regmap[] = {
+	/* VCAP_CORE_CFG */
+	REG(VCAP_CORE_UPDATE_CTRL,			0x000000),
+	REG(VCAP_CORE_MV_CFG,				0x000004),
+	/* VCAP_CORE_CACHE */
+	REG(VCAP_CACHE_ENTRY_DAT,			0x000008),
+	REG(VCAP_CACHE_MASK_DAT,			0x000108),
+	REG(VCAP_CACHE_ACTION_DAT,			0x000208),
+	REG(VCAP_CACHE_CNT_DAT,				0x000308),
+	REG(VCAP_CACHE_TG_DAT,				0x000388),
 };
 
 static const u32 ocelot_ptp_regmap[] = {
@@ -311,7 +313,7 @@ static const u32 *ocelot_regmap[TARGET_MAX] = {
 	[QSYS] = ocelot_qsys_regmap,
 	[REW] = ocelot_rew_regmap,
 	[SYS] = ocelot_sys_regmap,
-	[S2] = ocelot_s2_regmap,
+	[S2] = ocelot_vcap_regmap,
 	[PTP] = ocelot_ptp_regmap,
 	[DEV_GMII] = ocelot_dev_gmii_regmap,
 };
@@ -876,6 +878,9 @@ static const struct vcap_props vsc7514_vcap_props[] = {
 		},
 		.counter_words = 4,
 		.counter_width = 32,
+		.target = S2,
+		.keys = vsc7514_vcap_is2_keys,
+		.actions = vsc7514_vcap_is2_actions,
 	},
 };
 
@@ -1113,8 +1118,6 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 
 	ocelot->num_phys_ports = of_get_child_count(ports);
 
-	ocelot->vcap_is2_keys = vsc7514_vcap_is2_keys;
-	ocelot->vcap_is2_actions = vsc7514_vcap_is2_actions;
 	ocelot->vcap = vsc7514_vcap_props;
 	ocelot->inj_prefix = OCELOT_TAG_PREFIX_NONE;
 	ocelot->xtr_prefix = OCELOT_TAG_PREFIX_NONE;
