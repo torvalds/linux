@@ -748,7 +748,7 @@ static int cdns_mhdp_fw_activate(const struct firmware *fw,
 	 * bridge should already be detached.
 	 */
 	if (mhdp->bridge_attached)
-		writel(~CDNS_APB_INT_MASK_SW_EVENT_INT,
+		writel(~(u32)CDNS_APB_INT_MASK_SW_EVENT_INT,
 		       mhdp->regs + CDNS_APB_INT_MASK);
 
 	spin_unlock(&mhdp->start_lock);
@@ -1689,7 +1689,7 @@ static int cdns_mhdp_attach(struct drm_bridge *bridge,
 
 	/* Enable SW event interrupts */
 	if (hw_ready)
-		writel(~CDNS_APB_INT_MASK_SW_EVENT_INT,
+		writel(~(u32)CDNS_APB_INT_MASK_SW_EVENT_INT,
 		       mhdp->regs + CDNS_APB_INT_MASK);
 
 	return 0;
@@ -2122,7 +2122,7 @@ static void cdns_mhdp_bridge_hpd_enable(struct drm_bridge *bridge)
 
 	/* Enable SW event interrupts */
 	if (mhdp->bridge_attached)
-		writel(~CDNS_APB_INT_MASK_SW_EVENT_INT,
+		writel(~(u32)CDNS_APB_INT_MASK_SW_EVENT_INT,
 		       mhdp->regs + CDNS_APB_INT_MASK);
 }
 
