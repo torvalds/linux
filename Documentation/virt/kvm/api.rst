@@ -4455,9 +4455,9 @@ that KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2 is present.
 4.118 KVM_GET_SUPPORTED_HV_CPUID
 --------------------------------
 
-:Capability: KVM_CAP_HYPERV_CPUID
+:Capability: KVM_CAP_HYPERV_CPUID (vcpu), KVM_CAP_SYS_HYPERV_CPUID (system)
 :Architectures: x86
-:Type: vcpu ioctl
+:Type: system ioctl, vcpu ioctl
 :Parameters: struct kvm_cpuid2 (in/out)
 :Returns: 0 on success, -1 on error
 
@@ -4502,9 +4502,6 @@ Currently, the following list of CPUID leaves are returned:
  - HYPERV_CPUID_SYNDBG_INTERFACE
  - HYPERV_CPUID_SYNDBG_PLATFORM_CAPABILITIES
 
-HYPERV_CPUID_NESTED_FEATURES leaf is only exposed when Enlightened VMCS was
-enabled on the corresponding vCPU (KVM_CAP_HYPERV_ENLIGHTENED_VMCS).
-
 Userspace invokes KVM_GET_SUPPORTED_HV_CPUID by passing a kvm_cpuid2 structure
 with the 'nent' field indicating the number of entries in the variable-size
 array 'entries'.  If the number of entries is too low to describe all Hyper-V
@@ -4514,6 +4511,15 @@ number of valid entries in the 'entries' array, which is then filled.
 
 'index' and 'flags' fields in 'struct kvm_cpuid_entry2' are currently reserved,
 userspace should not expect to get any particular value there.
+
+Note, vcpu version of KVM_GET_SUPPORTED_HV_CPUID is currently deprecated. Unlike
+system ioctl which exposes all supported feature bits unconditionally, vcpu
+version has the following quirks:
+- HYPERV_CPUID_NESTED_FEATURES leaf and HV_X64_ENLIGHTENED_VMCS_RECOMMENDED
+  feature bit are only exposed when Enlightened VMCS was previously enabled
+  on the corresponding vCPU (KVM_CAP_HYPERV_ENLIGHTENED_VMCS).
+- HV_STIMER_DIRECT_MODE_AVAILABLE bit is only exposed with in-kernel LAPIC.
+  (presumes KVM_CREATE_IRQCHIP has already been called).
 
 4.119 KVM_ARM_VCPU_FINALIZE
 ---------------------------
