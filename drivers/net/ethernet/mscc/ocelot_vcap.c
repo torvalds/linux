@@ -177,8 +177,21 @@ static void vcap_data_offset_get(const struct vcap_props *vcap,
 	int i, col, offset, count, cnt, base;
 	u32 width = vcap->tg_width;
 
-	count = (data->tg_sw == VCAP_TG_HALF ? 2 : 4);
-	col = (ix % 2);
+	switch (data->tg_sw) {
+	case VCAP_TG_FULL:
+		count = 1;
+		break;
+	case VCAP_TG_HALF:
+		count = 2;
+		break;
+	case VCAP_TG_QUARTER:
+		count = 4;
+		break;
+	default:
+		return;
+	}
+
+	col = (ix % count);
 	cnt = (vcap->sw_count / count);
 	base = (vcap->sw_count - col * cnt - cnt);
 	data->tg_value = 0;
