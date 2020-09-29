@@ -110,6 +110,11 @@ btf_resolve_size(const struct btf *btf, const struct btf_type *type,
 	     i < btf_type_vlen(struct_type);			\
 	     i++, member++)
 
+#define for_each_vsi(i, datasec_type, member)			\
+	for (i = 0, member = btf_type_var_secinfo(datasec_type);	\
+	     i < btf_type_vlen(datasec_type);			\
+	     i++, member++)
+
 static inline bool btf_type_is_ptr(const struct btf_type *t)
 {
 	return BTF_INFO_KIND(t->info) == BTF_KIND_PTR;
@@ -192,6 +197,12 @@ static inline u32 btf_member_bitfield_size(const struct btf_type *struct_type,
 static inline const struct btf_member *btf_type_member(const struct btf_type *t)
 {
 	return (const struct btf_member *)(t + 1);
+}
+
+static inline const struct btf_var_secinfo *btf_type_var_secinfo(
+		const struct btf_type *t)
+{
+	return (const struct btf_var_secinfo *)(t + 1);
 }
 
 #ifdef CONFIG_BPF_SYSCALL

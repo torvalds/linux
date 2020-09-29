@@ -188,11 +188,6 @@
 	     i < btf_type_vlen(struct_type);				\
 	     i++, member++)
 
-#define for_each_vsi(i, struct_type, member)			\
-	for (i = 0, member = btf_type_var_secinfo(struct_type);	\
-	     i < btf_type_vlen(struct_type);			\
-	     i++, member++)
-
 #define for_each_vsi_from(i, from, struct_type, member)				\
 	for (i = from, member = btf_type_var_secinfo(struct_type) + from;	\
 	     i < btf_type_vlen(struct_type);					\
@@ -596,11 +591,6 @@ static const struct btf_enum *btf_type_enum(const struct btf_type *t)
 static const struct btf_var *btf_type_var(const struct btf_type *t)
 {
 	return (const struct btf_var *)(t + 1);
-}
-
-static const struct btf_var_secinfo *btf_type_var_secinfo(const struct btf_type *t)
-{
-	return (const struct btf_var_secinfo *)(t + 1);
 }
 
 static const struct btf_kind_operations *btf_type_ops(const struct btf_type *t)
