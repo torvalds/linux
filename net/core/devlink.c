@@ -9269,6 +9269,7 @@ devlink_trap_report_metadata_set(struct devlink_trap_metadata *metadata,
 	metadata->trap_name = trap_item->trap->name;
 	metadata->trap_group_name = trap_item->group_item->group->name;
 	metadata->fa_cookie = fa_cookie;
+	metadata->trap_type = trap_item->trap->type;
 
 	spin_lock(&in_devlink_port->type_lock);
 	if (in_devlink_port->type == DEVLINK_PORT_TYPE_ETH)
@@ -9293,13 +9294,6 @@ void devlink_trap_report(struct devlink *devlink, struct sk_buff *skb,
 
 	devlink_trap_stats_update(trap_item->stats, skb->len);
 	devlink_trap_stats_update(trap_item->group_item->stats, skb->len);
-
-	/* Control packets were not dropped by the device or encountered an
-	 * exception during forwarding and therefore should not be reported to
-	 * the kernel's drop monitor.
-	 */
-	if (trap_item->trap->type == DEVLINK_TRAP_TYPE_CONTROL)
-		return;
 
 	if (trace_devlink_trap_report_enabled()) {
 		struct devlink_trap_metadata metadata = {};

@@ -630,12 +630,14 @@ struct devlink_health_reporter_ops {
  * @trap_group_name: Trap group name.
  * @input_dev: Input netdevice.
  * @fa_cookie: Flow action user cookie.
+ * @trap_type: Trap type.
  */
 struct devlink_trap_metadata {
 	const char *trap_name;
 	const char *trap_group_name;
 	struct net_device *input_dev;
 	const struct flow_action_cookie *fa_cookie;
+	enum devlink_trap_type trap_type;
 };
 
 /**
