@@ -41,8 +41,6 @@
 #include "hns_roce_hem.h"
 #include <rdma/hns-abi.h>
 
-#define SQP_NUM				(2 * HNS_ROCE_MAX_PORTS)
-
 static void flush_work_handle(struct work_struct *work)
 {
 	struct hns_roce_work *flush_work = container_of(work,

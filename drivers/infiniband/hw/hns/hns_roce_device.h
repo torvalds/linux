@@ -57,7 +57,6 @@
 /* Hardware specification only for v1 engine */
 #define HNS_ROCE_MAX_INNER_MTPT_NUM		0x7
 #define HNS_ROCE_MAX_MTPT_PBL_NUM		0x100000
-#define HNS_ROCE_MAX_SGE_NUM			2
 
 #define HNS_ROCE_EACH_FREE_CQ_WAIT_MSECS	20
 #define HNS_ROCE_MAX_FREE_CQ_WAIT_CNT	\
@@ -87,12 +86,7 @@
 #define HNS_ROCE_V2_QPC_SZ 256
 #define HNS_ROCE_V3_QPC_SZ 512
 
-#define HNS_ROCE_SL_SHIFT			28
-#define HNS_ROCE_TCLASS_SHIFT			20
-#define HNS_ROCE_FLOW_LABEL_MASK		0xfffff
-
 #define HNS_ROCE_MAX_PORTS			6
-#define HNS_ROCE_MAX_GID_NUM			16
 #define HNS_ROCE_GID_SIZE			16
 #define HNS_ROCE_SGE_SIZE			16
 
@@ -119,8 +113,6 @@
 #define PAGES_SHIFT_16				16
 #define PAGES_SHIFT_24				24
 #define PAGES_SHIFT_32				32
-
-#define HNS_ROCE_PCI_BAR_NUM			2
 
 #define HNS_ROCE_IDX_QUE_ENTRY_SZ		4
 #define SRQ_DB_REG				0x230
