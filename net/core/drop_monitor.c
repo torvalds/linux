@@ -26,7 +26,6 @@
 #include <linux/bitops.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <net/drop_monitor.h>
 #include <net/genetlink.h>
 #include <net/netevent.h>
 #include <net/flow_offload.h>
@@ -34,6 +33,7 @@
 
 #include <trace/events/skb.h>
 #include <trace/events/napi.h>
+#include <trace/events/devlink.h>
 
 #include <asm/unaligned.h>
 
@@ -107,6 +107,13 @@ static LIST_HEAD(hw_stats_list);
 static enum net_dm_alert_mode net_dm_alert_mode = NET_DM_ALERT_MODE_SUMMARY;
 static u32 net_dm_trunc_len;
 static u32 net_dm_queue_len = 1000;
+
+struct net_dm_hw_metadata {
+	const char *trap_group_name;
+	const char *trap_name;
+	struct net_device *input_dev;
+	const struct flow_action_cookie *fa_cookie;
+};
 
 struct net_dm_alert_ops {
 	void (*kfree_skb_probe)(void *ignore, struct sk_buff *skb,
@@ -1129,25 +1136,32 @@ static const struct net_dm_alert_ops *net_dm_alert_ops_arr[] = {
 	[NET_DM_ALERT_MODE_PACKET]	= &net_dm_alert_packet_ops,
 };
 
-void net_dm_hw_report(struct sk_buff *skb,
-		      const struct net_dm_hw_metadata *hw_metadata)
+#if IS_ENABLED(CONFIG_NET_DEVLINK)
+static int net_dm_hw_probe_register(const struct net_dm_alert_ops *ops)
 {
-	rcu_read_lock();
-
-	if (!monitor_hw)
-		goto out;
-
-	net_dm_alert_ops_arr[net_dm_alert_mode]->hw_probe(skb, hw_metadata);
-
-out:
-	rcu_read_unlock();
+	return register_trace_devlink_trap_report(ops->hw_trap_probe, NULL);
 }
-EXPORT_SYMBOL_GPL(net_dm_hw_report);
+
+static void net_dm_hw_probe_unregister(const struct net_dm_alert_ops *ops)
+{
+	unregister_trace_devlink_trap_report(ops->hw_trap_probe, NULL);
+	tracepoint_synchronize_unregister();
+}
+#else
+static int net_dm_hw_probe_register(const struct net_dm_alert_ops *ops)
+{
+	return -EOPNOTSUPP;
+}
+
+static void net_dm_hw_probe_unregister(const struct net_dm_alert_ops *ops)
+{
+}
+#endif
 
 static int net_dm_hw_monitor_start(struct netlink_ext_ack *extack)
 {
 	const struct net_dm_alert_ops *ops;
-	int cpu;
+	int cpu, rc;
 
 	if (monitor_hw) {
 		NL_SET_ERR_MSG_MOD(extack, "Hardware monitoring already enabled");
@@ -1171,13 +1185,24 @@ static int net_dm_hw_monitor_start(struct netlink_ext_ack *extack)
 		kfree(hw_entries);
 	}
 
+	rc = net_dm_hw_probe_register(ops);
+	if (rc) {
+		NL_SET_ERR_MSG_MOD(extack, "Failed to connect probe to devlink_trap_probe() tracepoint");
+		goto err_module_put;
+	}
+
 	monitor_hw = true;
 
 	return 0;
+
+err_module_put:
+	module_put(THIS_MODULE);
+	return rc;
 }
 
 static void net_dm_hw_monitor_stop(struct netlink_ext_ack *extack)
 {
+	const struct net_dm_alert_ops *ops;
 	int cpu;
 
 	if (!monitor_hw) {
@@ -1185,12 +1210,11 @@ static void net_dm_hw_monitor_stop(struct netlink_ext_ack *extack)
 		return;
 	}
 
+	ops = net_dm_alert_ops_arr[net_dm_alert_mode];
+
 	monitor_hw = false;
 
-	/* After this call returns we are guaranteed that no CPU is processing
-	 * any hardware drops.
-	 */
-	synchronize_rcu();
+	net_dm_hw_probe_unregister(ops);
 
 	for_each_possible_cpu(cpu) {
 		struct per_cpu_dm_data *hw_data = &per_cpu(dm_hw_cpu_data, cpu);
