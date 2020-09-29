@@ -50,6 +50,7 @@
 
   */
 
+#include <linux/build_bug.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/jiffies.h>
@@ -1018,8 +1019,7 @@ static void __NS8390_init(struct net_device *dev, int startp)
 	    ? (0x48 | ENDCFG_WTS | (ei_local->bigendian ? ENDCFG_BOS : 0))
 	    : 0x48;
 
-	if (sizeof(struct e8390_pkt_hdr) != 4)
-		panic("8390.c: header struct mispacked\n");
+	BUILD_BUG_ON(sizeof(struct e8390_pkt_hdr) != 4);
 	/* Follow National Semi's recommendations for initing the DP83902. */
 	ei_outb_p(E8390_NODMA+E8390_PAGE0+E8390_STOP, e8390_base+E8390_CMD); /* 0x21 */
 	ei_outb_p(endcfg, e8390_base + EN0_DCFG);	/* 0x48 or 0x49 */
