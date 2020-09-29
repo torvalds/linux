@@ -75,7 +75,7 @@ static const char bitsperbyte[256] = {
  * addressbits is a lookup table to filter out the bits from the xor-ed
  * ECC data that identify the faulty location.
  * this is only used for repairing parity
- * see the comments in nand_correct_data for more details
+ * see the comments in nand_ecc_sw_hamming_correct for more details
  */
 static const char addressbits[256] = {
 	0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x01,
@@ -112,11 +112,11 @@ static const char addressbits[256] = {
 	0x0e, 0x0e, 0x0f, 0x0f, 0x0e, 0x0e, 0x0f, 0x0f
 };
 
-void __nand_calculate_ecc(const unsigned char *buf, unsigned int eccsize,
-			  unsigned char *code, bool sm_order)
+int ecc_sw_hamming_calculate(const unsigned char *buf, unsigned int step_size,
+			     unsigned char *code, bool sm_order)
 {
 	const u32 *bp = (uint32_t *)buf;
-	const u32 eccsize_mult = eccsize >> 8;
+	const u32 eccsize_mult = step_size >> 8;
 	/* current value in buffer */
 	u32 cur;
 	/* rp0..rp17 are the various accumulated parities (per byte) */
@@ -347,31 +347,32 @@ void __nand_calculate_ecc(const unsigned char *buf, unsigned int eccsize,
 		    (invparity[par & 0x55] << 2) |
 		    (invparity[rp17] << 1) |
 		    (invparity[rp16] << 0);
-}
-EXPORT_SYMBOL(__nand_calculate_ecc);
-
-/**
- * nand_calculate_ecc - Calculate 3-byte ECC for 256/512-byte block
- * @chip: NAND chip object
- * @buf: Input buffer with raw data
- * @code: Output buffer with ECC
- */
-int nand_calculate_ecc(struct nand_chip *chip, const unsigned char *buf,
-		       unsigned char *code)
-{
-	bool sm_order = chip->ecc.options & NAND_ECC_SOFT_HAMMING_SM_ORDER;
-
-	__nand_calculate_ecc(buf, chip->ecc.size, code, sm_order);
 
 	return 0;
 }
-EXPORT_SYMBOL(nand_calculate_ecc);
+EXPORT_SYMBOL(ecc_sw_hamming_calculate);
 
-int __nand_correct_data(unsigned char *buf,
-			unsigned char *read_ecc, unsigned char *calc_ecc,
-			unsigned int eccsize, bool sm_order)
+/**
+ * nand_ecc_sw_hamming_calculate - Calculate 3-byte ECC for 256/512-byte block
+ * @nand: NAND device
+ * @buf: Input buffer with raw data
+ * @code: Output buffer with ECC
+ */
+int nand_ecc_sw_hamming_calculate(struct nand_device *nand,
+				  const unsigned char *buf, unsigned char *code)
 {
-	const u32 eccsize_mult = eccsize >> 8;
+	struct nand_chip *chip = mtd_to_nand(nanddev_to_mtd(nand));
+	bool sm_order = chip->ecc.options & NAND_ECC_SOFT_HAMMING_SM_ORDER;
+
+	return ecc_sw_hamming_calculate(buf, chip->ecc.size, code, sm_order);
+}
+EXPORT_SYMBOL(nand_ecc_sw_hamming_calculate);
+
+int ecc_sw_hamming_correct(unsigned char *buf, unsigned char *read_ecc,
+			   unsigned char *calc_ecc, unsigned int step_size,
+			   bool sm_order)
+{
+	const u32 eccsize_mult = step_size >> 8;
 	unsigned char b0, b1, b2, bit_addr;
 	unsigned int byte_addr;
 
@@ -437,26 +438,28 @@ int __nand_correct_data(unsigned char *buf,
 	pr_err("%s: uncorrectable ECC error\n", __func__);
 	return -EBADMSG;
 }
-EXPORT_SYMBOL(__nand_correct_data);
+EXPORT_SYMBOL(ecc_sw_hamming_correct);
 
 /**
- * nand_correct_data - Detect and correct bit error(s)
- * @chip: NAND chip object
+ * nand_ecc_sw_hamming_correct - Detect and correct bit error(s)
+ * @nand: NAND device
  * @buf: Raw data read from the chip
  * @read_ecc: ECC bytes read from the chip
  * @calc_ecc: ECC calculated from the raw data
  *
  * Detect and correct up to 1 bit error per 256/512-byte block.
  */
-int nand_correct_data(struct nand_chip *chip, unsigned char *buf,
-		      unsigned char *read_ecc, unsigned char *calc_ecc)
+int nand_ecc_sw_hamming_correct(struct nand_device *nand, unsigned char *buf,
+				unsigned char *read_ecc,
+				unsigned char *calc_ecc)
 {
+	struct nand_chip *chip = mtd_to_nand(nanddev_to_mtd(nand));
 	bool sm_order = chip->ecc.options & NAND_ECC_SOFT_HAMMING_SM_ORDER;
 
-	return __nand_correct_data(buf, read_ecc, calc_ecc, chip->ecc.size,
-				   sm_order);
+	return ecc_sw_hamming_correct(buf, read_ecc, calc_ecc, chip->ecc.size,
+				      sm_order);
 }
-EXPORT_SYMBOL(nand_correct_data);
+EXPORT_SYMBOL(nand_ecc_sw_hamming_correct);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Frans Meulenbroeks <fransmeulenbroeks@gmail.com>");
