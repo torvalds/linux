@@ -82,7 +82,7 @@ union Keytype {
 
 struct rt_pmkid_list {
 	u8	bUsed;
-	u8	bssid[6];
+	u8	bssid[ETH_ALEN];
 	u8	PMKID[16];
 	u8	SsidBuf[33];
 	u8	*ssid_octet;
