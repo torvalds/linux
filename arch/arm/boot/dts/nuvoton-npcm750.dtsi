@@ -32,6 +32,7 @@
 			next-level-cache = <&l2>;
 		};
 	};
+
 	soc {
 		timer@3fe600 {
 			compatible = "arm,cortex-a9-twd-timer";
@@ -39,6 +40,23 @@
 			interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(2) |
 						  IRQ_TYPE_LEVEL_HIGH)>;
 			clocks = <&clk NPCM7XX_CLK_AHB>;
+		};
+	};
+
+	ahb {
+		gmac1: eth@f0804000 {
+			device_type = "network";
+			compatible = "snps,dwmac";
+			reg = <0xf0804000 0x2000>;
+			interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "macirq";
+			ethernet = <1>;
+			clocks	= <&clk_rg2refck>, <&clk NPCM7XX_CLK_AHB>;
+			clock-names = "stmmaceth", "clk_gmac";
+			pinctrl-names = "default";
+			pinctrl-0 = <&rg2_pins
+					&rg2mdio_pins>;
+			status = "disabled";
 		};
 	};
 };
