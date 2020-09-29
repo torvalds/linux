@@ -22,7 +22,7 @@ static void ionic_watchdog_cb(struct timer_list *t)
 	hb = ionic_heartbeat_check(ionic);
 
 	if (hb >= 0 && ionic->lif)
-		ionic_link_status_check_request(ionic->lif);
+		ionic_link_status_check_request(ionic->lif, false);
 }
 
 void ionic_init_devinfo(struct ionic *ionic)

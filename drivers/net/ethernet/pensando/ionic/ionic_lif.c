@@ -151,7 +151,7 @@ static void ionic_link_status_check(struct ionic_lif *lif)
 	clear_bit(IONIC_LIF_F_LINK_CHECK_REQUESTED, lif->state);
 }
 
-void ionic_link_status_check_request(struct ionic_lif *lif)
+void ionic_link_status_check_request(struct ionic_lif *lif, bool can_sleep)
 {
 	struct ionic_deferred_work *work;
 
@@ -159,7 +159,7 @@ void ionic_link_status_check_request(struct ionic_lif *lif)
 	if (test_and_set_bit(IONIC_LIF_F_LINK_CHECK_REQUESTED, lif->state))
 		return;
 
-	if (in_interrupt()) {
+	if (!can_sleep) {
 		work = kzalloc(sizeof(*work), GFP_ATOMIC);
 		if (!work)
 			return;
@@ -798,7 +798,7 @@ static bool ionic_notifyq_service(struct ionic_cq *cq,
 
 	switch (le16_to_cpu(comp->event.ecode)) {
 	case IONIC_EVENT_LINK_CHANGE:
-		ionic_link_status_check_request(lif);
+		ionic_link_status_check_request(lif, false);
 		break;
 	case IONIC_EVENT_RESET:
 		work = kzalloc(sizeof(*work), GFP_ATOMIC);
@@ -981,7 +981,8 @@ static int ionic_lif_addr_del(struct ionic_lif *lif, const u8 *addr)
 	return 0;
 }
 
-static int ionic_lif_addr(struct ionic_lif *lif, const u8 *addr, bool add)
+static int ionic_lif_addr(struct ionic_lif *lif, const u8 *addr, bool add,
+			  bool can_sleep)
 {
 	struct ionic *ionic = lif->ionic;
 	struct ionic_deferred_work *work;
@@ -1010,7 +1011,7 @@ static int ionic_lif_addr(struct ionic_lif *lif, const u8 *addr, bool add)
 			lif->nucast--;
 	}
 
-	if (in_interrupt()) {
+	if (!can_sleep) {
 		work = kzalloc(sizeof(*work), GFP_ATOMIC);
 		if (!work) {
 			netdev_err(lif->netdev, "%s OOM\n", __func__);
@@ -1036,12 +1037,22 @@ static int ionic_lif_addr(struct ionic_lif *lif, const u8 *addr, bool add)
 
 static int ionic_addr_add(struct net_device *netdev, const u8 *addr)
 {
-	return ionic_lif_addr(netdev_priv(netdev), addr, true);
+	return ionic_lif_addr(netdev_priv(netdev), addr, true, true);
+}
+
+static int ionic_ndo_addr_add(struct net_device *netdev, const u8 *addr)
+{
+	return ionic_lif_addr(netdev_priv(netdev), addr, true, false);
 }
 
 static int ionic_addr_del(struct net_device *netdev, const u8 *addr)
 {
-	return ionic_lif_addr(netdev_priv(netdev), addr, false);
+	return ionic_lif_addr(netdev_priv(netdev), addr, false, true);
+}
+
+static int ionic_ndo_addr_del(struct net_device *netdev, const u8 *addr)
+{
+	return ionic_lif_addr(netdev_priv(netdev), addr, false, false);
 }
 
 static void ionic_lif_rx_mode(struct ionic_lif *lif, unsigned int rx_mode)
@@ -1081,11 +1092,12 @@ static void ionic_lif_rx_mode(struct ionic_lif *lif, unsigned int rx_mode)
 		lif->rx_mode = rx_mode;
 }
 
-static void _ionic_lif_rx_mode(struct ionic_lif *lif, unsigned int rx_mode)
+static void _ionic_lif_rx_mode(struct ionic_lif *lif, unsigned int rx_mode,
+			       bool from_ndo)
 {
 	struct ionic_deferred_work *work;
 
-	if (in_interrupt()) {
+	if (from_ndo) {
 		work = kzalloc(sizeof(*work), GFP_ATOMIC);
 		if (!work) {
 			netdev_err(lif->netdev, "%s OOM\n", __func__);
@@ -1100,7 +1112,16 @@ static void _ionic_lif_rx_mode(struct ionic_lif *lif, unsigned int rx_mode)
 	}
 }
 
-static void ionic_set_rx_mode(struct net_device *netdev)
+static void ionic_dev_uc_sync(struct net_device *netdev, bool from_ndo)
+{
+	if (from_ndo)
+		__dev_uc_sync(netdev, ionic_ndo_addr_add, ionic_ndo_addr_del);
+	else
+		__dev_uc_sync(netdev, ionic_addr_add, ionic_addr_del);
+
+}
+
+static void ionic_set_rx_mode(struct net_device *netdev, bool from_ndo)
 {
 	struct ionic_lif *lif = netdev_priv(netdev);
 	struct ionic_identity *ident;
@@ -1122,7 +1143,7 @@ static void ionic_set_rx_mode(struct net_device *netdev)
 	 *       we remove our overflow flag and check the netdev flags
 	 *       to see if we can disable NIC PROMISC
 	 */
-	__dev_uc_sync(netdev, ionic_addr_add, ionic_addr_del);
+	ionic_dev_uc_sync(netdev, from_ndo);
 	nfilters = le32_to_cpu(ident->lif.eth.max_ucast_filters);
 	if (netdev_uc_count(netdev) + 1 > nfilters) {
 		rx_mode |= IONIC_RX_MODE_F_PROMISC;
@@ -1134,7 +1155,7 @@ static void ionic_set_rx_mode(struct net_device *netdev)
 	}
 
 	/* same for multicast */
-	__dev_mc_sync(netdev, ionic_addr_add, ionic_addr_del);
+	ionic_dev_uc_sync(netdev, from_ndo);
 	nfilters = le32_to_cpu(ident->lif.eth.max_mcast_filters);
 	if (netdev_mc_count(netdev) > nfilters) {
 		rx_mode |= IONIC_RX_MODE_F_ALLMULTI;
@@ -1146,7 +1167,12 @@ static void ionic_set_rx_mode(struct net_device *netdev)
 	}
 
 	if (lif->rx_mode != rx_mode)
-		_ionic_lif_rx_mode(lif, rx_mode);
+		_ionic_lif_rx_mode(lif, rx_mode, from_ndo);
+}
+
+static void ionic_ndo_set_rx_mode(struct net_device *netdev)
+{
+	ionic_set_rx_mode(netdev, true);
 }
 
 static __le64 ionic_netdev_features_to_nic(netdev_features_t features)
@@ -1391,7 +1417,7 @@ static int ionic_start_queues_reconfig(struct ionic_lif *lif)
 	 */
 	err = ionic_txrx_init(lif);
 	mutex_unlock(&lif->queue_lock);
-	ionic_link_status_check_request(lif);
+	ionic_link_status_check_request(lif, true);
 	netif_device_attach(lif->netdev);
 
 	return err;
@@ -1720,7 +1746,7 @@ static int ionic_txrx_init(struct ionic_lif *lif)
 	if (lif->netdev->features & NETIF_F_RXHASH)
 		ionic_lif_rss_init(lif);
 
-	ionic_set_rx_mode(lif->netdev);
+	ionic_set_rx_mode(lif->netdev, false);
 
 	return 0;
 
@@ -2093,7 +2119,7 @@ static const struct net_device_ops ionic_netdev_ops = {
 	.ndo_stop               = ionic_stop,
 	.ndo_start_xmit		= ionic_start_xmit,
 	.ndo_get_stats64	= ionic_get_stats64,
-	.ndo_set_rx_mode	= ionic_set_rx_mode,
+	.ndo_set_rx_mode	= ionic_ndo_set_rx_mode,
 	.ndo_set_features	= ionic_set_features,
 	.ndo_set_mac_address	= ionic_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -2521,7 +2547,7 @@ static void ionic_lif_handle_fw_up(struct ionic_lif *lif)
 	}
 
 	clear_bit(IONIC_LIF_F_FW_RESET, lif->state);
-	ionic_link_status_check_request(lif);
+	ionic_link_status_check_request(lif, true);
 	netif_device_attach(lif->netdev);
 	dev_info(ionic->dev, "FW Up: LIFs restarted\n");
 
@@ -2713,7 +2739,7 @@ static int ionic_station_set(struct ionic_lif *lif)
 		 */
 		if (!ether_addr_equal(ctx.comp.lif_getattr.mac,
 				      netdev->dev_addr))
-			ionic_lif_addr(lif, netdev->dev_addr, true);
+			ionic_lif_addr(lif, netdev->dev_addr, true, true);
 	} else {
 		/* Update the netdev mac with the device's mac */
 		memcpy(addr.sa_data, ctx.comp.lif_getattr.mac, netdev->addr_len);
@@ -2730,7 +2756,7 @@ static int ionic_station_set(struct ionic_lif *lif)
 
 	netdev_dbg(lif->netdev, "adding station MAC addr %pM\n",
 		   netdev->dev_addr);
-	ionic_lif_addr(lif, netdev->dev_addr, true);
+	ionic_lif_addr(lif, netdev->dev_addr, true, true);
 
 	return 0;
 }
