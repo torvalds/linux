@@ -11,6 +11,8 @@ static int duration;
 void test_ksyms_btf(void)
 {
 	__u64 runqueues_addr, bpf_prog_active_addr;
+	__u32 this_rq_cpu;
+	int this_bpf_prog_active;
 	struct test_ksyms_btf *skel = NULL;
 	struct test_ksyms_btf__data *data;
 	struct btf *btf;
@@ -63,6 +65,22 @@ void test_ksyms_btf(void)
 	      "got %llu, exp %llu\n",
 	      (unsigned long long)data->out__bpf_prog_active_addr,
 	      (unsigned long long)bpf_prog_active_addr);
+
+	CHECK(data->out__rq_cpu == -1, "rq_cpu",
+	      "got %u, exp != -1\n", data->out__rq_cpu);
+	CHECK(data->out__bpf_prog_active < 0, "bpf_prog_active",
+	      "got %d, exp >= 0\n", data->out__bpf_prog_active);
+	CHECK(data->out__cpu_0_rq_cpu != 0, "cpu_rq(0)->cpu",
+	      "got %u, exp 0\n", data->out__cpu_0_rq_cpu);
+
+	this_rq_cpu = data->out__this_rq_cpu;
+	CHECK(this_rq_cpu != data->out__rq_cpu, "this_rq_cpu",
+	      "got %u, exp %u\n", this_rq_cpu, data->out__rq_cpu);
+
+	this_bpf_prog_active = data->out__this_bpf_prog_active;
+	CHECK(this_bpf_prog_active != data->out__bpf_prog_active, "this_bpf_prog_active",
+	      "got %d, exp %d\n", this_bpf_prog_active,
+	      data->out__bpf_prog_active);
 
 cleanup:
 	btf__free(btf);
