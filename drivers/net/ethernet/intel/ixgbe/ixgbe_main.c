@@ -5672,7 +5672,6 @@ static void ixgbe_up_complete(struct ixgbe_adapter *adapter)
 
 void ixgbe_reinit_locked(struct ixgbe_adapter *adapter)
 {
-	WARN_ON(in_interrupt());
 	/* put off any impending NetWatchDogTimeout */
 	netif_trans_update(adapter->netdev);
 
