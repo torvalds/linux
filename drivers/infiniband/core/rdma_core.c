@@ -889,7 +889,6 @@ void uverbs_destroy_ufile_hw(struct ib_uverbs_file *ufile,
 	if (!ufile->ucontext)
 		goto done;
 
-	ufile->ucontext->closing = true;
 	ufile->ucontext->cleanup_retryable = true;
 	while (!list_empty(&ufile->uobjects))
 		if (__uverbs_cleanup_ufile(ufile, reason)) {
