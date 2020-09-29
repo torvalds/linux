@@ -29,10 +29,10 @@ struct nand_bch_control {
 };
 
 /**
- * nand_bch_calculate_ecc - [NAND Interface] Calculate ECC for data block
- * @chip:	NAND chip object
- * @buf:	input buffer with raw data
- * @code:	output buffer with ECC
+ * nand_bch_calcuate_ecc - Calculate the ECC corresponding to a data block
+ * @chip: NAND chip object
+ * @buf: Input buffer with raw data
+ * @code: Output buffer with ECC
  */
 int nand_bch_calculate_ecc(struct nand_chip *chip, const unsigned char *buf,
 			   unsigned char *code)
@@ -52,13 +52,13 @@ int nand_bch_calculate_ecc(struct nand_chip *chip, const unsigned char *buf,
 EXPORT_SYMBOL(nand_bch_calculate_ecc);
 
 /**
- * nand_bch_correct_data - [NAND Interface] Detect and correct bit error(s)
- * @chip:	NAND chip object
- * @buf:	raw data read from the chip
- * @read_ecc:	ECC from the chip
- * @calc_ecc:	the ECC calculated from raw data
+ * nand_bch_correct_data - Detect, correct and report bit error(s)
+ * @chip: NAND chip object
+ * @buf: Raw data read from the chip
+ * @read_ecc: ECC bytes from the chip
+ * @calc_ecc: ECC calculated from the raw data
  *
- * Detect and correct bit errors for a data byte block
+ * Detect and correct bit errors for a data block.
  */
 int nand_bch_correct_data(struct nand_chip *chip, unsigned char *buf,
 			  unsigned char *read_ecc, unsigned char *calc_ecc)
@@ -71,37 +71,39 @@ int nand_bch_correct_data(struct nand_chip *chip, unsigned char *buf,
 			   NULL, errloc);
 	if (count > 0) {
 		for (i = 0; i < count; i++) {
-			if (errloc[i] < (chip->ecc.size*8))
-				/* error is located in data, correct it */
+			if (errloc[i] < (chip->ecc.size * 8))
+				/* The error is in the data area: correct it */
 				buf[errloc[i] >> 3] ^= (1 << (errloc[i] & 7));
-			/* else error in ecc, no action needed */
 
+			/* Otherwise the error is in the ECC area: nothing to do */
 			pr_debug("%s: corrected bitflip %u\n", __func__,
-					errloc[i]);
+				 errloc[i]);
 		}
 	} else if (count < 0) {
-		pr_err("ecc unrecoverable error\n");
+		pr_err("ECC unrecoverable error\n");
 		count = -EBADMSG;
 	}
+
 	return count;
 }
 EXPORT_SYMBOL(nand_bch_correct_data);
 
 /**
- * nand_bch_init - [NAND Interface] Initialize NAND BCH error correction
- * @mtd:	MTD block structure
+ * nand_bch_init - Initialize software BCH ECC engine
+ * @mtd: MTD device
  *
- * Returns:
- *  a pointer to a new NAND BCH control structure, or NULL upon failure
+ * Returns: a pointer to a new NAND BCH control structure, or NULL upon failure
  *
  * Initialize NAND BCH error correction. Parameters @eccsize and @eccbytes
- * are used to compute BCH parameters m (Galois field order) and t (error
- * correction capability). @eccbytes should be equal to the number of bytes
- * required to store m*t bits, where m is such that 2^m-1 > @eccsize*8.
+ * are used to compute the following BCH parameters:
+ *     m, the Galois field order
+ *     t, the error correction capability
+ * @eccbytes should be equal to the number of bytes required to store m * t
+ * bits, where m is such that 2^m - 1 > step_size * 8.
  *
  * Example: to configure 4 bit correction per 512 bytes, you should pass
- * @eccsize = 512  (thus, m=13 is the smallest integer such that 2^m-1 > 512*8)
- * @eccbytes = 7   (7 bytes are required to store m*t = 13*4 = 52 bits)
+ * @eccsize = 512 (thus, m = 13 is the smallest integer such that 2^m - 1 > 512 * 8)
+ * @eccbytes = 7 (7 bytes are required to store m * t = 13 * 4 = 52 bits)
  */
 struct nand_bch_control *nand_bch_init(struct mtd_info *mtd)
 {
@@ -175,6 +177,7 @@ struct nand_bch_control *nand_bch_init(struct mtd_info *mtd)
 	nbc->errloc = kmalloc_array(t, sizeof(*nbc->errloc), GFP_KERNEL);
 	if (!nbc->eccmask || !nbc->errloc)
 		goto fail;
+
 	/*
 	 * compute and store the inverted ecc of an erased ecc block
 	 */
@@ -200,8 +203,8 @@ fail:
 EXPORT_SYMBOL(nand_bch_init);
 
 /**
- * nand_bch_free - [NAND Interface] Release NAND BCH ECC resources
- * @nbc:	NAND BCH control structure
+ * nand_bch_free - Release NAND BCH ECC resources
+ * @nbc: NAND BCH control structure
  */
 void nand_bch_free(struct nand_bch_control *nbc)
 {
