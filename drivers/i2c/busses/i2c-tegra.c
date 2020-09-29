@@ -206,20 +206,20 @@ struct tegra_i2c_hw_feature {
 	bool has_continue_xfer_support;
 	bool has_per_pkt_xfer_complete_irq;
 	bool has_config_load_reg;
-	int clk_divisor_hs_mode;
-	int clk_divisor_std_mode;
-	int clk_divisor_fast_mode;
-	u16 clk_divisor_fast_plus_mode;
+	u32 clk_divisor_hs_mode;
+	u32 clk_divisor_std_mode;
+	u32 clk_divisor_fast_mode;
+	u32 clk_divisor_fast_plus_mode;
 	bool has_multi_master_mode;
 	bool has_slcg_override_reg;
 	bool has_mst_fifo;
 	const struct i2c_adapter_quirks *quirks;
 	bool supports_bus_clear;
 	bool has_apb_dma;
-	u8 tlow_std_mode;
-	u8 thigh_std_mode;
-	u8 tlow_fast_fastplus_mode;
-	u8 thigh_fast_fastplus_mode;
+	u32 tlow_std_mode;
+	u32 thigh_std_mode;
+	u32 tlow_fast_fastplus_mode;
+	u32 thigh_fast_fastplus_mode;
 	u32 setup_hold_time_std_mode;
 	u32 setup_hold_time_fast_fast_plus_mode;
 	u32 setup_hold_time_hs_mode;
@@ -267,15 +267,15 @@ struct tegra_i2c_dev {
 	struct reset_control *rst;
 	void __iomem *base;
 	phys_addr_t base_phys;
-	int cont_id;
-	int irq;
-	int is_dvc;
+	unsigned int cont_id;
+	unsigned int irq;
+	bool is_dvc;
 	bool is_vi;
 	struct completion msg_complete;
 	int msg_err;
 	u8 *msg_buf;
 	size_t msg_buf_remaining;
-	int msg_read;
+	bool msg_read;
 	u32 bus_clk_rate;
 	bool is_multimaster_mode;
 	struct dma_chan *tx_dma_chan;
@@ -329,13 +329,13 @@ static u32 i2c_readl(struct tegra_i2c_dev *i2c_dev, unsigned long reg)
 }
 
 static void i2c_writesl(struct tegra_i2c_dev *i2c_dev, void *data,
-			unsigned long reg, int len)
+			unsigned long reg, unsigned int len)
 {
 	writesl(i2c_dev->base + tegra_i2c_reg_addr(i2c_dev, reg), data, len);
 }
 
 static void i2c_readsl(struct tegra_i2c_dev *i2c_dev, void *data,
-		       unsigned long reg, int len)
+		       unsigned long reg, unsigned int len)
 {
 	readsl(i2c_dev->base + tegra_i2c_reg_addr(i2c_dev, reg), data, len);
 }
@@ -712,10 +712,10 @@ static int tegra_i2c_disable_packet_mode(struct tegra_i2c_dev *i2c_dev)
 static int tegra_i2c_empty_rx_fifo(struct tegra_i2c_dev *i2c_dev)
 {
 	u32 val;
-	int rx_fifo_avail;
+	unsigned int rx_fifo_avail;
 	u8 *buf = i2c_dev->msg_buf;
 	size_t buf_remaining = i2c_dev->msg_buf_remaining;
-	int words_to_transfer;
+	unsigned int words_to_transfer;
 
 	/*
 	 * Catch overflow due to message fully sent
@@ -773,10 +773,10 @@ static int tegra_i2c_empty_rx_fifo(struct tegra_i2c_dev *i2c_dev)
 static int tegra_i2c_fill_tx_fifo(struct tegra_i2c_dev *i2c_dev)
 {
 	u32 val;
-	int tx_fifo_avail;
+	unsigned int tx_fifo_avail;
 	u8 *buf = i2c_dev->msg_buf;
 	size_t buf_remaining = i2c_dev->msg_buf_remaining;
-	int words_to_transfer;
+	unsigned int words_to_transfer;
 
 	if (i2c_dev->hw->has_mst_fifo) {
 		val = i2c_readl(i2c_dev, I2C_MST_FIFO_STATUS);
@@ -1134,7 +1134,7 @@ static int tegra_i2c_xfer_msg(struct tegra_i2c_dev *i2c_dev,
 	i2c_dev->msg_buf = msg->buf;
 	i2c_dev->msg_buf_remaining = msg->len;
 	i2c_dev->msg_err = I2C_ERR_NONE;
-	i2c_dev->msg_read = (msg->flags & I2C_M_RD);
+	i2c_dev->msg_read = !!(msg->flags & I2C_M_RD);
 	reinit_completion(&i2c_dev->msg_complete);
 
 	if (i2c_dev->msg_read)
