@@ -100,9 +100,16 @@ struct catpt_dev {
 	struct resource iram;
 	struct resource *scratch;
 
+	struct catpt_mixer_stream_info mixer;
+	struct catpt_module_type modules[CATPT_MODULE_COUNT];
+	struct catpt_ssp_device_format devfmt[CATPT_SSP_COUNT];
 	struct list_head stream_list;
 	spinlock_t list_lock;
 	struct mutex clk_mutex;
+
+	struct catpt_dx_context dx_ctx;
+	void *dxbuf_vaddr;
+	dma_addr_t dxbuf_paddr;
 };
 
 int catpt_dmac_probe(struct catpt_dev *cdev);
@@ -141,6 +148,11 @@ int catpt_dsp_send_msg_timeout(struct catpt_dev *cdev,
 int catpt_dsp_send_msg(struct catpt_dev *cdev, struct catpt_ipc_msg request,
 		       struct catpt_ipc_msg *reply);
 
+int catpt_first_boot_firmware(struct catpt_dev *cdev);
+int catpt_boot_firmware(struct catpt_dev *cdev, bool restore);
+int catpt_store_streams_context(struct catpt_dev *cdev, struct dma_chan *chan);
+int catpt_store_module_states(struct catpt_dev *cdev, struct dma_chan *chan);
+int catpt_store_memdumps(struct catpt_dev *cdev, struct dma_chan *chan);
 int catpt_coredump(struct catpt_dev *cdev);
 
 #include <sound/memalloc.h>
