@@ -112,14 +112,6 @@ static const char addressbits[256] = {
 	0x0e, 0x0e, 0x0f, 0x0f, 0x0e, 0x0e, 0x0f, 0x0f
 };
 
-/**
- * __nand_calculate_ecc - [NAND Interface] Calculate 3-byte ECC for 256/512-byte
- *			 block
- * @buf:	input buffer with raw data
- * @eccsize:	data bytes per ECC step (256 or 512)
- * @code:	output buffer with ECC
- * @sm_order:	Smart Media byte ordering
- */
 void __nand_calculate_ecc(const unsigned char *buf, unsigned int eccsize,
 			  unsigned char *code, bool sm_order)
 {
@@ -360,11 +352,10 @@ void __nand_calculate_ecc(const unsigned char *buf, unsigned int eccsize,
 EXPORT_SYMBOL(__nand_calculate_ecc);
 
 /**
- * nand_calculate_ecc - [NAND Interface] Calculate 3-byte ECC for 256/512-byte
- *			 block
- * @chip:	NAND chip object
- * @buf:	input buffer with raw data
- * @code:	output buffer with ECC
+ * nand_calculate_ecc - Calculate 3-byte ECC for 256/512-byte block
+ * @chip: NAND chip object
+ * @buf: Input buffer with raw data
+ * @code: Output buffer with ECC
  */
 int nand_calculate_ecc(struct nand_chip *chip, const unsigned char *buf,
 		       unsigned char *code)
@@ -377,16 +368,6 @@ int nand_calculate_ecc(struct nand_chip *chip, const unsigned char *buf,
 }
 EXPORT_SYMBOL(nand_calculate_ecc);
 
-/**
- * __nand_correct_data - [NAND Interface] Detect and correct bit error(s)
- * @buf:	raw data read from the chip
- * @read_ecc:	ECC from the chip
- * @calc_ecc:	the ECC calculated from raw data
- * @eccsize:	data bytes per ECC step (256 or 512)
- * @sm_order:	Smart Media byte order
- *
- * Detect and correct a 1 bit error for eccsize byte block
- */
 int __nand_correct_data(unsigned char *buf,
 			unsigned char *read_ecc, unsigned char *calc_ecc,
 			unsigned int eccsize, bool sm_order)
@@ -461,13 +442,13 @@ int __nand_correct_data(unsigned char *buf,
 EXPORT_SYMBOL(__nand_correct_data);
 
 /**
- * nand_correct_data - [NAND Interface] Detect and correct bit error(s)
- * @chip:	NAND chip object
- * @buf:	raw data read from the chip
- * @read_ecc:	ECC from the chip
- * @calc_ecc:	the ECC calculated from raw data
+ * nand_correct_data - Detect and correct bit error(s)
+ * @chip: NAND chip object
+ * @buf: Raw data read from the chip
+ * @read_ecc: ECC bytes read from the chip
+ * @calc_ecc: ECC calculated from the raw data
  *
- * Detect and correct a 1 bit error for 256/512 byte block
+ * Detect and correct up to 1 bit error per 256/512-byte block.
  */
 int nand_correct_data(struct nand_chip *chip, unsigned char *buf,
 		      unsigned char *read_ecc, unsigned char *calc_ecc)
