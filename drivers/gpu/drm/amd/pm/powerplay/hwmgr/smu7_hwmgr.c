@@ -4318,6 +4318,7 @@ static int smu7_notify_has_display(struct pp_hwmgr *hwmgr)
 			smum_send_msg_to_smc_with_parameter(hwmgr,
 					(PPSMC_Msg)PPSMC_MSG_SetVBITimeout, data->frame_time_x2,
 					NULL);
+		data->last_sent_vbi_timeout = data->frame_time_x2;
 	}
 
 	return (smum_send_msg_to_smc(hwmgr, (PPSMC_Msg)PPSMC_HasDisplay, NULL) == 0) ?  0 : -EINVAL;
@@ -4558,6 +4559,11 @@ smu7_check_smc_update_required_for_display_configuration(struct pp_hwmgr *hwmgr)
 		is_update_required = true;
 
 	if (data->display_timing.vrefresh != hwmgr->display_config->vrefresh)
+		is_update_required = true;
+
+	if (hwmgr->chip_id >= CHIP_POLARIS10 &&
+	    hwmgr->chip_id <= CHIP_VEGAM &&
+	    data->last_sent_vbi_timeout != data->frame_time_x2)
 		is_update_required = true;
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_SclkDeepSleep)) {

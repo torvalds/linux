@@ -336,6 +336,7 @@ struct smu7_hwmgr {
 	uint32_t                              avfs_vdroop_override_setting;
 	bool                                  apply_avfs_cks_off_voltage;
 	uint32_t                              frame_time_x2;
+	uint32_t                              last_sent_vbi_timeout;
 	uint16_t                              mem_latency_high;
 	uint16_t                              mem_latency_low;
 	uint32_t                              vr_config;
