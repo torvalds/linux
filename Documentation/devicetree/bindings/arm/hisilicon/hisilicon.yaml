@@ -1,0 +1,62 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/hisilicon/hisilicon.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Hisilicon Platforms Device Tree Bindings
+
+maintainers:
+  - Wei Xu <xuwei5@hisilicon.com>
+
+properties:
+  $nodename:
+    const: '/'
+
+  compatible:
+    oneOf:
+      - description: Hi3660 based boards.
+        items:
+          - const: hisilicon,hi3660-hikey960
+          - const: hisilicon,hi3660
+
+      - description: Hi3670 based boards.
+        items:
+          - const: hisilicon,hi3670-hikey970
+          - const: hisilicon,hi3670
+
+      - description: Hi3798cv200 based boards.
+        items:
+          - const: hisilicon,hi3798cv200-poplar
+          - const: hisilicon,hi3798cv200
+
+      - description: Hi4511 Board
+        items:
+          - const: hisilicon,hi3620-hi4511
+
+      - description: Hi6220 based boards.
+        items:
+          - const: hisilicon,hi6220-hikey
+          - const: hisilicon,hi6220
+
+      - description: HiP01 based boards.
+        items:
+          - const: hisilicon,hip01-ca9x2
+          - const: hisilicon,hip01
+
+      - description: HiP04 D01 Board
+        items:
+          - const: hisilicon,hip04-d01
+
+      - description: HiP05 D02 Board
+        items:
+          - const: hisilicon,hip05-d02
+
+      - description: HiP06 D03 Board
+        items:
+          - const: hisilicon,hip06-d03
+
+      - description: HiP07 D05 Board
+        items:
+          - const: hisilicon,hip07-d05
+...
