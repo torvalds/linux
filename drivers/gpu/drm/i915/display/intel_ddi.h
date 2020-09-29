@@ -7,6 +7,7 @@
 #define __INTEL_DDI_H__
 
 #include "intel_display.h"
+#include "i915_reg.h"
 
 struct drm_connector_state;
 struct drm_i915_private;
@@ -18,6 +19,10 @@ struct intel_dpll_hw_state;
 struct intel_encoder;
 enum transcoder;
 
+i915_reg_t dp_tp_ctl_reg(struct intel_encoder *encoder,
+			 const struct intel_crtc_state *crtc_state);
+i915_reg_t dp_tp_status_reg(struct intel_encoder *encoder,
+			    const struct intel_crtc_state *crtc_state);
 void intel_ddi_fdi_post_disable(struct intel_atomic_state *state,
 				struct intel_encoder *intel_encoder,
 				const struct intel_crtc_state *old_crtc_state,

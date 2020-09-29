@@ -8109,8 +8109,6 @@ bool intel_dp_init(struct drm_i915_private *dev_priv,
 
 	dig_port->dp.output_reg = output_reg;
 	dig_port->max_lanes = 4;
-	dig_port->dp.regs.dp_tp_ctl = DP_TP_CTL(port);
-	dig_port->dp.regs.dp_tp_status = DP_TP_STATUS(port);
 
 	intel_encoder->type = INTEL_OUTPUT_DP;
 	intel_encoder->power_domain = intel_port_to_power_domain(port);

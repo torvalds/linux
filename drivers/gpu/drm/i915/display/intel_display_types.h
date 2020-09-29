@@ -1338,14 +1338,6 @@ struct intel_dp {
 	bool is_mst;
 	int active_mst_links;
 
-	/*
-	 * DP_TP_* registers may be either on port or transcoder register space.
-	 */
-	struct {
-		i915_reg_t dp_tp_ctl;
-		i915_reg_t dp_tp_status;
-	} regs;
-
 	/* connector directly attached - won't be use for modeset in mst world */
 	struct intel_connector *attached_connector;
 
