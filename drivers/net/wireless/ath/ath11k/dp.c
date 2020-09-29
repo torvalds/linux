@@ -812,8 +812,7 @@ int ath11k_dp_service_srng(struct ath11k_base *ab,
 				struct dp_rxdma_ring *rx_ring = &dp->rx_refill_buf_ring;
 
 				ath11k_dp_rxbufs_replenish(ab, id, rx_ring, 0,
-							   HAL_RX_BUF_RBM_SW3_BM,
-							   GFP_ATOMIC);
+							   HAL_RX_BUF_RBM_SW3_BM);
 			}
 		}
 	}

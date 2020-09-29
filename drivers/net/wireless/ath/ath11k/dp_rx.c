@@ -266,8 +266,7 @@ static u32 ath11k_dp_rxdesc_get_ppduid(struct hal_rx_desc *rx_desc)
 int ath11k_dp_rxbufs_replenish(struct ath11k_base *ab, int mac_id,
 			       struct dp_rxdma_ring *rx_ring,
 			       int req_entries,
-			       enum hal_rx_buf_return_buf_manager mgr,
-			       gfp_t gfp)
+			       enum hal_rx_buf_return_buf_manager mgr)
 {
 	struct hal_srng *srng;
 	u32 *desc;
@@ -314,7 +313,7 @@ int ath11k_dp_rxbufs_replenish(struct ath11k_base *ab, int mac_id,
 
 		spin_lock_bh(&rx_ring->idr_lock);
 		buf_id = idr_alloc(&rx_ring->bufs_idr, skb, 0,
-				   rx_ring->bufs_max * 3, gfp);
+				   rx_ring->bufs_max * 3, GFP_ATOMIC);
 		spin_unlock_bh(&rx_ring->idr_lock);
 		if (buf_id < 0)
 			goto fail_dma_unmap;
@@ -434,7 +433,7 @@ static int ath11k_dp_rxdma_ring_buf_setup(struct ath11k *ar,
 
 	rx_ring->bufs_max = num_entries;
 	ath11k_dp_rxbufs_replenish(ar->ab, dp->mac_id, rx_ring, num_entries,
-				   HAL_RX_BUF_RBM_SW3_BM, GFP_KERNEL);
+				   HAL_RX_BUF_RBM_SW3_BM);
 	return 0;
 }
 
@@ -2598,7 +2597,7 @@ try_again:
 		rx_ring = &ar->dp.rx_refill_buf_ring;
 
 		ath11k_dp_rxbufs_replenish(ab, i, rx_ring, num_buffs_reaped[i],
-					   HAL_RX_BUF_RBM_SW3_BM, GFP_ATOMIC);
+					   HAL_RX_BUF_RBM_SW3_BM);
 	}
 
 	ath11k_dp_rx_process_received_packets(ab, napi, &msdu_list,
@@ -2680,7 +2679,7 @@ static void ath11k_dp_rx_update_peer_stats(struct ath11k_sta *arsta,
 
 static struct sk_buff *ath11k_dp_rx_alloc_mon_status_buf(struct ath11k_base *ab,
 							 struct dp_rxdma_ring *rx_ring,
-							 int *buf_id, gfp_t gfp)
+							 int *buf_id)
 {
 	struct sk_buff *skb;
 	dma_addr_t paddr;
@@ -2705,7 +2704,7 @@ static struct sk_buff *ath11k_dp_rx_alloc_mon_status_buf(struct ath11k_base *ab,
 
 	spin_lock_bh(&rx_ring->idr_lock);
 	*buf_id = idr_alloc(&rx_ring->bufs_idr, skb, 0,
-			    rx_ring->bufs_max, gfp);
+			    rx_ring->bufs_max, GFP_ATOMIC);
 	spin_unlock_bh(&rx_ring->idr_lock);
 	if (*buf_id < 0)
 		goto fail_dma_unmap;
@@ -2725,8 +2724,7 @@ fail_alloc_skb:
 int ath11k_dp_rx_mon_status_bufs_replenish(struct ath11k_base *ab, int mac_id,
 					   struct dp_rxdma_ring *rx_ring,
 					   int req_entries,
-					   enum hal_rx_buf_return_buf_manager mgr,
-					   gfp_t gfp)
+					   enum hal_rx_buf_return_buf_manager mgr)
 {
 	struct hal_srng *srng;
 	u32 *desc;
@@ -2752,7 +2750,7 @@ int ath11k_dp_rx_mon_status_bufs_replenish(struct ath11k_base *ab, int mac_id,
 
 	while (num_remain > 0) {
 		skb = ath11k_dp_rx_alloc_mon_status_buf(ab, rx_ring,
-							&buf_id, gfp);
+							&buf_id);
 		if (!skb)
 			break;
 		paddr = ATH11K_SKB_RXCB(skb)->paddr;
@@ -2863,7 +2861,7 @@ static int ath11k_dp_rx_reap_mon_status_ring(struct ath11k_base *ab, int mac_id,
 		}
 move_next:
 		skb = ath11k_dp_rx_alloc_mon_status_buf(ab, rx_ring,
-							&buf_id, GFP_ATOMIC);
+							&buf_id);
 
 		if (!skb) {
 			ath11k_hal_rx_buf_addr_info_set(rx_mon_status_desc, 0, 0,
@@ -3676,7 +3674,7 @@ exit:
 		rx_ring = &ar->dp.rx_refill_buf_ring;
 
 		ath11k_dp_rxbufs_replenish(ab, i, rx_ring, n_bufs_reaped[i],
-					   HAL_RX_BUF_RBM_SW3_BM, GFP_ATOMIC);
+					   HAL_RX_BUF_RBM_SW3_BM);
 	}
 
 	return tot_n_bufs_reaped;
@@ -3972,7 +3970,7 @@ int ath11k_dp_rx_process_wbm_err(struct ath11k_base *ab,
 		rx_ring = &ar->dp.rx_refill_buf_ring;
 
 		ath11k_dp_rxbufs_replenish(ab, i, rx_ring, num_buffs_reaped[i],
-					   HAL_RX_BUF_RBM_SW3_BM, GFP_ATOMIC);
+					   HAL_RX_BUF_RBM_SW3_BM);
 	}
 
 	rcu_read_lock();
@@ -4081,7 +4079,7 @@ int ath11k_dp_process_rxdma_err(struct ath11k_base *ab, int mac_id, int budget)
 
 	if (num_buf_freed)
 		ath11k_dp_rxbufs_replenish(ab, mac_id, rx_ring, num_buf_freed,
-					   HAL_RX_BUF_RBM_SW3_BM, GFP_ATOMIC);
+					   HAL_RX_BUF_RBM_SW3_BM);
 
 	return budget - quota;
 }
@@ -4844,7 +4842,7 @@ static void ath11k_dp_rx_mon_dest_process(struct ath11k *ar, u32 quota,
 		ath11k_dp_rxbufs_replenish(ar->ab, dp->mac_id,
 					   &dp->rxdma_mon_buf_ring,
 					   rx_bufs_used,
-					   HAL_RX_BUF_RBM_SW3_BM, GFP_ATOMIC);
+					   HAL_RX_BUF_RBM_SW3_BM);
 	}
 }
 
