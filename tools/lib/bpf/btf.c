@@ -1025,12 +1025,17 @@ const void *btf__get_raw_data(const struct btf *btf_ro, __u32 *size)
 	return btf->raw_data;
 }
 
-const char *btf__name_by_offset(const struct btf *btf, __u32 offset)
+const char *btf__str_by_offset(const struct btf *btf, __u32 offset)
 {
 	if (offset < btf->hdr->str_len)
 		return btf->strs_data + offset;
 	else
 		return NULL;
+}
+
+const char *btf__name_by_offset(const struct btf *btf, __u32 offset)
+{
+	return btf__str_by_offset(btf, offset);
 }
 
 int btf__get_from_id(__u32 id, struct btf **btf)
