@@ -4991,6 +4991,29 @@ qla2x00_free_fcport(fc_port_t *fcport)
 	kfree(fcport);
 }
 
+static void qla_get_login_template(scsi_qla_host_t *vha)
+{
+	struct qla_hw_data *ha = vha->hw;
+	int rval;
+	u32 *bp, sz;
+	__be32 *q;
+
+	memset(ha->init_cb, 0, ha->init_cb_size);
+	sz = min_t(int, sizeof(struct fc_els_flogi), ha->init_cb_size);
+	rval = qla24xx_get_port_login_templ(vha, ha->init_cb_dma,
+					    ha->init_cb, sz);
+	if (rval != QLA_SUCCESS) {
+		ql_dbg(ql_dbg_init, vha, 0x00d1,
+		       "PLOGI ELS param read fail.\n");
+		return;
+	}
+	q = (__be32 *)&ha->plogi_els_payld.fl_csp;
+
+	bp = (uint32_t *)ha->init_cb;
+	cpu_to_be32_array(q, bp, sz / 4);
+	ha->flags.plogi_template_valid = 1;
+}
+
 /*
  * qla2x00_configure_loop
  *      Updates Fibre Channel Device Database with what is actually on loop.
@@ -5034,6 +5057,7 @@ qla2x00_configure_loop(scsi_qla_host_t *vha)
 	clear_bit(RSCN_UPDATE, &vha->dpc_flags);
 
 	qla2x00_get_data_rate(vha);
+	qla_get_login_template(vha);
 
 	/* Determine what we need to do */
 	if ((ha->current_topology == ISP_CFG_FL ||
@@ -5118,32 +5142,11 @@ qla2x00_configure_loop(scsi_qla_host_t *vha)
 
 static int qla2x00_configure_n2n_loop(scsi_qla_host_t *vha)
 {
-	struct qla_hw_data *ha = vha->hw;
 	unsigned long flags;
 	fc_port_t *fcport;
-	int rval;
 
-	if (test_and_clear_bit(N2N_LOGIN_NEEDED, &vha->dpc_flags)) {
-		/* borrowing */
-		u32 *bp, sz;
-
-		memset(ha->init_cb, 0, ha->init_cb_size);
-		sz = min_t(int, sizeof(struct els_plogi_payload),
-			   ha->init_cb_size);
-		rval = qla24xx_get_port_login_templ(vha, ha->init_cb_dma,
-						    ha->init_cb, sz);
-		if (rval == QLA_SUCCESS) {
-			__be32 *q = &ha->plogi_els_payld.data[0];
-
-			bp = (uint32_t *)ha->init_cb;
-			cpu_to_be32_array(q, bp, sz / 4);
-			memcpy(bp, q, sizeof(ha->plogi_els_payld.data));
-		} else {
-			ql_dbg(ql_dbg_init, vha, 0x00d1,
-			       "PLOGI ELS param read fail.\n");
-			goto skip_login;
-		}
-	}
+	if (test_and_clear_bit(N2N_LOGIN_NEEDED, &vha->dpc_flags))
+		set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
 
 	list_for_each_entry(fcport, &vha->vp_fcports, list) {
 		if (fcport->n2n_flag) {
@@ -5152,7 +5155,6 @@ static int qla2x00_configure_n2n_loop(scsi_qla_host_t *vha)
 		}
 	}
 
-skip_login:
 	spin_lock_irqsave(&vha->work_lock, flags);
 	vha->scan.scan_retry++;
 	spin_unlock_irqrestore(&vha->work_lock, flags);

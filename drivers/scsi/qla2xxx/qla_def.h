@@ -3915,6 +3915,7 @@ struct qla_hw_data {
 				/* Enabled in Driver */
 		uint32_t	scm_enabled:1;
 		uint32_t	max_req_queue_warned:1;
+		uint32_t	plogi_template_valid:1;
 	} flags;
 
 	uint16_t max_exchg;
@@ -4263,7 +4264,8 @@ struct qla_hw_data {
 	int 		exchoffld_count;
 
 	/* n2n */
-	struct els_plogi_payload plogi_els_payld;
+	struct fc_els_flogi plogi_els_payld;
+#define LOGIN_TEMPLATE_SIZE (sizeof(struct fc_els_flogi) - 4)
 
 	void            *swl;
 
