@@ -10,10 +10,6 @@
 struct iio_buffer;
 struct device;
 
-struct iio_buffer *iio_dmaengine_buffer_alloc(struct device *dev,
-	const char *channel);
-void iio_dmaengine_buffer_free(struct iio_buffer *buffer);
-
 struct iio_buffer *devm_iio_dmaengine_buffer_alloc(struct device *dev,
 						   const char *channel);
 

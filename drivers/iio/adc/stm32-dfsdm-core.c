@@ -226,15 +226,12 @@ static int stm32_dfsdm_parse_of(struct platform_device *pdev,
 	if (!node)
 		return -EINVAL;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "Failed to get memory resource\n");
-		return -ENODEV;
-	}
-	priv->dfsdm.phys_base = res->start;
-	priv->dfsdm.base = devm_ioremap_resource(&pdev->dev, res);
+	priv->dfsdm.base = devm_platform_get_and_ioremap_resource(pdev, 0,
+							&res);
 	if (IS_ERR(priv->dfsdm.base))
 		return PTR_ERR(priv->dfsdm.base);
+
+	priv->dfsdm.phys_base = res->start;
 
 	/*
 	 * "dfsdm" clock is mandatory for DFSDM peripheral clocking.

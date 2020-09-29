@@ -77,6 +77,22 @@
 #define AN877_ADC_DCO_DELAY_ENABLE		0x80
 
 /*
+ * Analog Devices AD9265 16-Bit, 125/105/80 MSPS ADC
+ */
+
+#define CHIPID_AD9265			0x64
+#define AD9265_DEF_OUTPUT_MODE		0x40
+#define AD9265_REG_VREF_MASK		0xC0
+
+/*
+ * Analog Devices AD9434 12-Bit, 370/500 MSPS ADC
+ */
+
+#define CHIPID_AD9434			0x6A
+#define AD9434_DEF_OUTPUT_MODE		0x00
+#define AD9434_REG_VREF_MASK		0xC0
+
+/*
  * Analog Devices AD9467 16-Bit, 200/250 MSPS ADC
  */
 
@@ -85,8 +101,19 @@
 #define AD9467_REG_VREF_MASK		0x0F
 
 enum {
+	ID_AD9265,
+	ID_AD9434,
 	ID_AD9467,
 };
+
+struct ad9467_chip_info {
+	struct adi_axi_adc_chip_info	axi_adc_info;
+	unsigned int			default_output_mode;
+	unsigned int			vref_mask;
+};
+
+#define to_ad9467_chip_info(_info)	\
+	container_of(_info, struct ad9467_chip_info, axi_adc_info)
 
 struct ad9467_state {
 	struct spi_device		*spi;
@@ -149,6 +176,17 @@ static int ad9467_reg_access(struct adi_axi_adc_conv *conv, unsigned int reg,
 	return 0;
 }
 
+static const unsigned int ad9265_scale_table[][2] = {
+	{1250, 0x00}, {1500, 0x40}, {1750, 0x80}, {2000, 0xC0},
+};
+
+static const unsigned int ad9434_scale_table[][2] = {
+	{1600, 0x1C}, {1580, 0x1D}, {1550, 0x1E}, {1520, 0x1F}, {1500, 0x00},
+	{1470, 0x01}, {1440, 0x02}, {1420, 0x03}, {1390, 0x04}, {1360, 0x05},
+	{1340, 0x06}, {1310, 0x07}, {1280, 0x08}, {1260, 0x09}, {1230, 0x0A},
+	{1200, 0x0B}, {1180, 0x0C},
+};
+
 static const unsigned int ad9467_scale_table[][2] = {
 	{2000, 0}, {2100, 6}, {2200, 7},
 	{2300, 8}, {2400, 9}, {2500, 10},
@@ -182,39 +220,63 @@ static void __ad9467_get_scale(struct adi_axi_adc_conv *conv, int index,
 	},								\
 }
 
+static const struct iio_chan_spec ad9434_channels[] = {
+	AD9467_CHAN(0, 0, 12, 'S'),
+};
+
 static const struct iio_chan_spec ad9467_channels[] = {
 	AD9467_CHAN(0, 0, 16, 'S'),
 };
 
-static const struct adi_axi_adc_chip_info ad9467_chip_tbl[] = {
+static const struct ad9467_chip_info ad9467_chip_tbl[] = {
+	[ID_AD9265] = {
+		.axi_adc_info = {
+			.id = CHIPID_AD9265,
+			.max_rate = 125000000UL,
+			.scale_table = ad9265_scale_table,
+			.num_scales = ARRAY_SIZE(ad9265_scale_table),
+			.channels = ad9467_channels,
+			.num_channels = ARRAY_SIZE(ad9467_channels),
+		},
+		.default_output_mode = AD9265_DEF_OUTPUT_MODE,
+		.vref_mask = AD9265_REG_VREF_MASK,
+	},
+	[ID_AD9434] = {
+		.axi_adc_info = {
+			.id = CHIPID_AD9434,
+			.max_rate = 500000000UL,
+			.scale_table = ad9434_scale_table,
+			.num_scales = ARRAY_SIZE(ad9434_scale_table),
+			.channels = ad9434_channels,
+			.num_channels = ARRAY_SIZE(ad9434_channels),
+		},
+		.default_output_mode = AD9434_DEF_OUTPUT_MODE,
+		.vref_mask = AD9434_REG_VREF_MASK,
+	},
 	[ID_AD9467] = {
-		.id = CHIPID_AD9467,
-		.max_rate = 250000000UL,
-		.scale_table = ad9467_scale_table,
-		.num_scales = ARRAY_SIZE(ad9467_scale_table),
-		.channels = ad9467_channels,
-		.num_channels = ARRAY_SIZE(ad9467_channels),
+		.axi_adc_info = {
+			.id = CHIPID_AD9467,
+			.max_rate = 250000000UL,
+			.scale_table = ad9467_scale_table,
+			.num_scales = ARRAY_SIZE(ad9467_scale_table),
+			.channels = ad9467_channels,
+			.num_channels = ARRAY_SIZE(ad9467_channels),
+		},
+		.default_output_mode = AD9467_DEF_OUTPUT_MODE,
+		.vref_mask = AD9467_REG_VREF_MASK,
 	},
 };
 
 static int ad9467_get_scale(struct adi_axi_adc_conv *conv, int *val, int *val2)
 {
 	const struct adi_axi_adc_chip_info *info = conv->chip_info;
+	const struct ad9467_chip_info *info1 = to_ad9467_chip_info(info);
 	struct ad9467_state *st = adi_axi_adc_conv_priv(conv);
-	unsigned int i, vref_val, vref_mask;
+	unsigned int i, vref_val;
 
 	vref_val = ad9467_spi_read(st->spi, AN877_ADC_REG_VREF);
 
-	switch (info->id) {
-	case CHIPID_AD9467:
-		vref_mask = AD9467_REG_VREF_MASK;
-		break;
-	default:
-		vref_mask = 0xFFFF;
-		break;
-	}
-
-	vref_val &= vref_mask;
+	vref_val &= info1->vref_mask;
 
 	for (i = 0; i < info->num_scales; i++) {
 		if (vref_val == info->scale_table[i][1])
@@ -316,18 +378,6 @@ static int ad9467_preenable_setup(struct adi_axi_adc_conv *conv)
 	return ad9467_outputmode_set(st->spi, st->output_mode);
 }
 
-static int ad9467_setup(struct ad9467_state *st, unsigned int chip_id)
-{
-	switch (chip_id) {
-	case CHIPID_AD9467:
-		st->output_mode = AD9467_DEF_OUTPUT_MODE |
-				  AN877_ADC_OUTPUT_MODE_TWOS_COMPLEMENT;
-		return 0;
-	default:
-		return -ENODEV;
-	}
-}
-
 static void ad9467_clk_disable(void *data)
 {
 	struct ad9467_state *st = data;
@@ -337,7 +387,7 @@ static void ad9467_clk_disable(void *data)
 
 static int ad9467_probe(struct spi_device *spi)
 {
-	const struct adi_axi_adc_chip_info *info;
+	const struct ad9467_chip_info *info;
 	struct adi_axi_adc_conv *conv;
 	struct ad9467_state *st;
 	unsigned int id;
@@ -386,7 +436,7 @@ static int ad9467_probe(struct spi_device *spi)
 
 	spi_set_drvdata(spi, st);
 
-	conv->chip_info = info;
+	conv->chip_info = &info->axi_adc_info;
 
 	id = ad9467_spi_read(spi, AN877_ADC_REG_CHIP_ID);
 	if (id != conv->chip_info->id) {
@@ -400,10 +450,15 @@ static int ad9467_probe(struct spi_device *spi)
 	conv->read_raw = ad9467_read_raw;
 	conv->preenable_setup = ad9467_preenable_setup;
 
-	return ad9467_setup(st, id);
+	st->output_mode = info->default_output_mode |
+			  AN877_ADC_OUTPUT_MODE_TWOS_COMPLEMENT;
+
+	return 0;
 }
 
 static const struct of_device_id ad9467_of_match[] = {
+	{ .compatible = "adi,ad9265", .data = &ad9467_chip_tbl[ID_AD9265], },
+	{ .compatible = "adi,ad9434", .data = &ad9467_chip_tbl[ID_AD9434], },
 	{ .compatible = "adi,ad9467", .data = &ad9467_chip_tbl[ID_AD9467], },
 	{}
 };
