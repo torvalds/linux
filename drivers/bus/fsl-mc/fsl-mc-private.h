@@ -91,6 +91,8 @@ int dpmcp_reset(struct fsl_mc_io *mc_io,
 #define DPRC_CMDID_GET_API_VERSION              DPRC_CMD(0xa05)
 
 #define DPRC_CMDID_GET_ATTR                     DPRC_CMD(0x004)
+#define DPRC_CMDID_RESET_CONT                   DPRC_CMD(0x005)
+#define DPRC_CMDID_RESET_CONT_V2                DPRC_CMD_V2(0x005)
 
 #define DPRC_CMDID_SET_IRQ                      DPRC_CMD(0x010)
 #define DPRC_CMDID_SET_IRQ_ENABLE               DPRC_CMD(0x012)
@@ -109,6 +111,11 @@ int dpmcp_reset(struct fsl_mc_io *mc_io,
 
 struct dprc_cmd_open {
 	__le32 container_id;
+};
+
+struct dprc_cmd_reset_container {
+	__le32 child_container_id;
+	__le32 options;
 };
 
 struct dprc_cmd_set_irq {
