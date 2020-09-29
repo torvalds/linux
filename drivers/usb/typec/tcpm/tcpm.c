@@ -4629,6 +4629,49 @@ sink:
 	return 0;
 }
 
+static int tcpm_copy_pdos(u32 *dest_pdo, const u32 *src_pdo, unsigned int nr_pdo)
+{
+	unsigned int i;
+
+	if (nr_pdo > PDO_MAX_OBJECTS)
+		nr_pdo = PDO_MAX_OBJECTS;
+
+	for (i = 0; i < nr_pdo; i++)
+		dest_pdo[i] = src_pdo[i];
+
+	return nr_pdo;
+}
+
+int tcpm_update_sink_capabilities(struct tcpm_port *port, const u32 *pdo, unsigned int nr_pdo,
+				  unsigned int operating_snk_mw)
+{
+	if (tcpm_validate_caps(port, pdo, nr_pdo))
+		return -EINVAL;
+
+	mutex_lock(&port->lock);
+	port->nr_snk_pdo = tcpm_copy_pdos(port->snk_pdo, pdo, nr_pdo);
+	port->operating_snk_mw = operating_snk_mw;
+	port->update_sink_caps = true;
+
+	switch (port->state) {
+	case SNK_NEGOTIATE_CAPABILITIES:
+	case SNK_NEGOTIATE_PPS_CAPABILITIES:
+	case SNK_READY:
+	case SNK_TRANSITION_SINK:
+	case SNK_TRANSITION_SINK_VBUS:
+		if (port->pps_data.active)
+			tcpm_set_state(port, SNK_NEGOTIATE_PPS_CAPABILITIES, 0);
+		else
+			tcpm_set_state(port, SNK_NEGOTIATE_CAPABILITIES, 0);
+		break;
+	default:
+		break;
+	}
+	mutex_unlock(&port->lock);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(tcpm_update_sink_capabilities);
+
 /* Power Supply access to expose source power information */
 enum tcpm_psy_online_states {
 	TCPM_PSY_OFFLINE = 0,
