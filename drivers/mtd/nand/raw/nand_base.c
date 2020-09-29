@@ -5142,8 +5142,33 @@ static void nand_scan_ident_cleanup(struct nand_chip *chip)
 int rawnand_sw_bch_init(struct nand_chip *chip)
 {
 	struct nand_device *base = &chip->base;
+	struct nand_ecc_sw_bch_conf *engine_conf;
+	int ret;
 
-	return nand_ecc_sw_bch_init(base);
+	base->ecc.user_conf.engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
+	base->ecc.user_conf.algo = NAND_ECC_ALGO_BCH;
+	base->ecc.user_conf.step_size = chip->ecc.size;
+	base->ecc.user_conf.strength = chip->ecc.strength;
+
+	engine_conf = kzalloc(sizeof(*engine_conf), GFP_KERNEL);
+	if (!engine_conf)
+		return -ENOMEM;
+
+	engine_conf->code_size = chip->ecc.bytes;
+
+	base->ecc.ctx.priv = engine_conf;
+
+	ret = nand_ecc_sw_bch_init(base);
+	if (ret)
+		kfree(base->ecc.ctx.priv);
+
+	chip->ecc.size = base->ecc.ctx.conf.step_size;
+	chip->ecc.strength = base->ecc.ctx.conf.strength;
+	chip->ecc.total = base->ecc.ctx.total;
+	chip->ecc.steps = engine_conf->nsteps;
+	chip->ecc.bytes = engine_conf->code_size;
+
+	return ret;
 }
 EXPORT_SYMBOL(rawnand_sw_bch_init);
 
@@ -5171,7 +5196,7 @@ void rawnand_sw_bch_cleanup(struct nand_chip *chip)
 
 	nand_ecc_sw_bch_cleanup(base);
 
-	chip->ecc.priv = NULL;
+	kfree(base->ecc.ctx.priv);
 }
 EXPORT_SYMBOL(rawnand_sw_bch_cleanup);
 
@@ -5794,15 +5819,18 @@ static int nand_scan_tail(struct nand_chip *chip)
 	 * Set the number of read / write steps for one page depending on ECC
 	 * mode.
 	 */
-	ecc->steps = mtd->writesize / ecc->size;
+	if (!ecc->steps)
+		ecc->steps = mtd->writesize / ecc->size;
 	if (ecc->steps * ecc->size != mtd->writesize) {
 		WARN(1, "Invalid ECC parameters\n");
 		ret = -EINVAL;
 		goto err_nand_manuf_cleanup;
 	}
 
-	ecc->total = ecc->steps * ecc->bytes;
-	chip->base.ecc.ctx.total = ecc->total;
+	if (!ecc->total) {
+		ecc->total = ecc->steps * ecc->bytes;
+		chip->base.ecc.ctx.total = ecc->total;
+	}
 
 	if (ecc->total > mtd->oobsize) {
 		WARN(1, "Total number of ECC bytes exceeded oobsize\n");
