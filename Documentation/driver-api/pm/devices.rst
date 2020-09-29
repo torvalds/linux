@@ -410,7 +410,7 @@ On many platforms they will gate off one or more clock sources; sometimes they
 will also switch off power supplies or reduce voltages.  [Drivers supporting
 runtime PM may already have performed some or all of these steps.]
 
-If :c:func:`device_may_wakeup(dev)` returns ``true``, the device should be
+If :c:func:`device_may_wakeup()` returns ``true``, the device should be
 prepared for generating hardware wakeup signals to trigger a system wakeup event
 when the system is in the sleep state.  For example, :c:func:`enable_irq_wake()`
 might identify GPIO signals hooked up to a switch or other external hardware,
