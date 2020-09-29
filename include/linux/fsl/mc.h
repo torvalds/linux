@@ -540,6 +540,8 @@ void dprc_remove_devices(struct fsl_mc_device *mc_bus_dev,
 
 int dprc_cleanup(struct fsl_mc_device *mc_dev);
 
+int dprc_setup(struct fsl_mc_device *mc_dev);
+
 /*
  * Data Path Buffer Pool (DPBP) API
  * Contains initialization APIs and runtime control APIs for DPBP

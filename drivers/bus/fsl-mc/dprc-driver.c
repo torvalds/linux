@@ -588,25 +588,24 @@ error_free_irqs:
 }
 
 /**
- * dprc_probe - callback invoked when a DPRC is being bound to this driver
+ * dprc_setup - opens and creates a mc_io for DPRC
  *
  * @mc_dev: Pointer to fsl-mc device representing a DPRC
  *
  * It opens the physical DPRC in the MC.
- * It scans the DPRC to discover the MC objects contained in it.
- * It creates the interrupt pool for the MC bus associated with the DPRC.
- * It configures the interrupts for the DPRC device itself.
+ * It configures the DPRC portal used to communicate with MC
  */
-static int dprc_probe(struct fsl_mc_device *mc_dev)
+
+int dprc_setup(struct fsl_mc_device *mc_dev)
 {
-	int error;
-	size_t region_size;
 	struct device *parent_dev = mc_dev->dev.parent;
 	struct fsl_mc_bus *mc_bus = to_fsl_mc_bus(mc_dev);
+	struct irq_domain *mc_msi_domain;
 	bool mc_io_created = false;
 	bool msi_domain_set = false;
 	u16 major_ver, minor_ver;
-	struct irq_domain *mc_msi_domain;
+	size_t region_size;
+	int error;
 
 	if (!is_fsl_mc_bus_dprc(mc_dev))
 		return -EINVAL;
@@ -681,21 +680,6 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 		goto error_cleanup_open;
 	}
 
-	/*
-	 * Discover MC objects in DPRC object:
-	 */
-	error = dprc_scan_container(mc_dev, true);
-	if (error < 0)
-		goto error_cleanup_open;
-
-	/*
-	 * Configure interrupt for the DPRC object associated with this MC bus:
-	 */
-	error = dprc_setup_irq(mc_dev);
-	if (error < 0)
-		goto error_cleanup_open;
-
-	dev_info(&mc_dev->dev, "DPRC device bound to driver");
 	return 0;
 
 error_cleanup_open:
@@ -710,6 +694,49 @@ error_cleanup_msi_domain:
 		mc_dev->mc_io = NULL;
 	}
 
+	return error;
+}
+EXPORT_SYMBOL_GPL(dprc_setup);
+
+/**
+ * dprc_probe - callback invoked when a DPRC is being bound to this driver
+ *
+ * @mc_dev: Pointer to fsl-mc device representing a DPRC
+ *
+ * It opens the physical DPRC in the MC.
+ * It scans the DPRC to discover the MC objects contained in it.
+ * It creates the interrupt pool for the MC bus associated with the DPRC.
+ * It configures the interrupts for the DPRC device itself.
+ */
+static int dprc_probe(struct fsl_mc_device *mc_dev)
+{
+	int error;
+
+	error = dprc_setup(mc_dev);
+	if (error < 0)
+		return error;
+
+	/*
+	 * Discover MC objects in DPRC object:
+	 */
+	error = dprc_scan_container(mc_dev, true);
+	if (error < 0)
+		goto dprc_cleanup;
+
+	/*
+	 * Configure interrupt for the DPRC object associated with this MC bus:
+	 */
+	error = dprc_setup_irq(mc_dev);
+	if (error < 0)
+		goto scan_cleanup;
+
+	dev_info(&mc_dev->dev, "DPRC device bound to driver");
+	return 0;
+
+scan_cleanup:
+	device_for_each_child(&mc_dev->dev, NULL, __fsl_mc_device_remove);
+dprc_cleanup:
+	dprc_cleanup(mc_dev);
 	return error;
 }
 
