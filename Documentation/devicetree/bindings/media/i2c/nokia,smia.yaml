@@ -1,0 +1,106 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (C) 2014--2020 Intel Corporation
+
+$id: http://devicetree.org/schemas/media/i2c/nokia,smia.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: SMIA/SMIA++ sensor
+
+maintainers:
+  - Sakari Ailus <sakari.ailus@linux.intel.com>
+
+description:
+
+  SMIA (Standard Mobile Imaging Architecture) is an image sensor standard
+  defined jointly by Nokia and ST. SMIA++, defined by Nokia, is an extension of
+  that. These definitions are valid for both types of sensors.
+
+  More detailed documentation can be found in
+  Documentation/devicetree/bindings/media/video-interfaces.txt .
+
+properties:
+  compatible:
+    const: nokia,smia
+
+  reg:
+    maxItems: 1
+
+  vana-supply:
+    description: Analogue voltage supply (VANA), typically 2,8 volts (sensor
+      dependent).
+    maxItems: 1
+
+  clocks:
+    description: External clock to the sensor.
+    maxItems: 1
+
+  clock-frequency:
+    description: Frequency of the external clock to the sensor in Hz.
+
+  reset-gpios:
+    description: Reset GPIO. Also commonly called XSHUTDOWN in hardware
+      documentation.
+    maxItems: 1
+
+  flash-leds:
+    description: Flash LED phandles. See ../video-interfaces.txt for details.
+
+  lens-focus:
+    description: Lens focus controller phandles. See ../video-interfaces.txt
+      for details.
+
+  rotation:
+    description: Rotation of the sensor.  See ../video-interfaces.txt for
+      details.
+    enum: [ 0, 180 ]
+
+  port:
+    type: object
+    properties:
+      endpoint:
+        type: object
+        properties:
+          link-frequencies:
+            $ref: /schemas/types.yaml#/definitions/uint64-array
+            description: List of allowed data link frequencies.
+          data-lanes:
+            minItems: 1
+            maxItems: 8
+        required:
+          - link-frequencies
+          - data-lanes
+
+required:
+  - compatible
+  - reg
+  - clock-frequency
+  - clocks
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c2 {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        clock-frequency = <400000>;
+
+        camera-sensor@10 {
+            compatible = "nokia,smia";
+            reg = <0x10>;
+            reset-gpios = <&gpio3 20 0>;
+            vana-supply = <&vaux3>;
+            clocks = <&omap3_isp 0>;
+            clock-frequency = <9600000>;
+            port {
+                smiapp_ep: endpoint {
+                    data-lanes = <1 2>;
+                    remote-endpoint = <&csi2a_ep>;
+                    link-frequencies = /bits/ 64 <199200000 210000000
+                                                  499200000>;
+                };
+            };
+        };
+    };
+...
