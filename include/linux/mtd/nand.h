@@ -279,6 +279,38 @@ int nand_ecc_finish_io_req(struct nand_device *nand,
 bool nand_ecc_is_strong_enough(struct nand_device *nand);
 
 /**
+ * struct nand_ecc_req_tweak_ctx - Help for automatically tweaking requests
+ * @orig_req: Pointer to the original IO request
+ * @nand: Related NAND device, to have access to its memory organization
+ * @page_buffer_size: Real size of the page buffer to use (can be set by the
+ *                    user before the tweaking mechanism initialization)
+ * @oob_buffer_size: Real size of the OOB buffer to use (can be set by the
+ *                   user before the tweaking mechanism initialization)
+ * @spare_databuf: Data bounce buffer
+ * @spare_oobbuf: OOB bounce buffer
+ * @bounce_data: Flag indicating a data bounce buffer is used
+ * @bounce_oob: Flag indicating an OOB bounce buffer is used
+ */
+struct nand_ecc_req_tweak_ctx {
+	struct nand_page_io_req orig_req;
+	struct nand_device *nand;
+	unsigned int page_buffer_size;
+	unsigned int oob_buffer_size;
+	void *spare_databuf;
+	void *spare_oobbuf;
+	bool bounce_data;
+	bool bounce_oob;
+};
+
+int nand_ecc_init_req_tweaking(struct nand_ecc_req_tweak_ctx *ctx,
+			       struct nand_device *nand);
+void nand_ecc_cleanup_req_tweaking(struct nand_ecc_req_tweak_ctx *ctx);
+void nand_ecc_tweak_req(struct nand_ecc_req_tweak_ctx *ctx,
+			struct nand_page_io_req *req);
+void nand_ecc_restore_req(struct nand_ecc_req_tweak_ctx *ctx,
+			  struct nand_page_io_req *req);
+
+/**
  * struct nand_ecc - Information relative to the ECC
  * @defaults: Default values, depend on the underlying subsystem
  * @requirements: ECC requirements from the NAND chip perspective
