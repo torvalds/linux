@@ -16,9 +16,6 @@
 #include <linux/pci.h>
 #include "felix.h"
 
-#define VSC9959_VCAP_IS2_CNT		1024
-#define VSC9959_VCAP_IS2_ENTRY_WIDTH	376
-#define VSC9959_VCAP_PORT_CNT		6
 #define VSC9959_TAS_GCL_ENTRY_MAX	63
 
 static const u32 vsc9959_ana_regmap[] = {
@@ -851,13 +848,6 @@ static struct vcap_props vsc9959_vcap_props[] = {
 		.actions = vsc9959_vcap_is1_actions,
 	},
 	[VCAP_IS2] = {
-		.tg_width = 2,
-		.sw_count = 4,
-		.entry_count = VSC9959_VCAP_IS2_CNT,
-		.entry_width = VSC9959_VCAP_IS2_ENTRY_WIDTH,
-		.action_count = VSC9959_VCAP_IS2_CNT +
-				VSC9959_VCAP_PORT_CNT + 2,
-		.action_width = 89,
 		.action_type_width = 1,
 		.action_table = {
 			[IS2_ACTION_TYPE_NORMAL] = {
@@ -869,8 +859,6 @@ static struct vcap_props vsc9959_vcap_props[] = {
 				.count = 4
 			},
 		},
-		.counter_words = 4,
-		.counter_width = 32,
 		.target = S2,
 		.keys = vsc9959_vcap_is2_keys,
 		.actions = vsc9959_vcap_is2_actions,

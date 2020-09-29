@@ -12,10 +12,6 @@
 #include <linux/iopoll.h>
 #include "felix.h"
 
-#define VSC9953_VCAP_IS2_CNT			1024
-#define VSC9953_VCAP_IS2_ENTRY_WIDTH		376
-#define VSC9953_VCAP_PORT_CNT			10
-
 #define MSCC_MIIM_CMD_OPR_WRITE			BIT(1)
 #define MSCC_MIIM_CMD_OPR_READ			BIT(2)
 #define MSCC_MIIM_CMD_WRDATA_SHIFT		4
@@ -841,13 +837,6 @@ static struct vcap_props vsc9953_vcap_props[] = {
 		.actions = vsc9953_vcap_is1_actions,
 	},
 	[VCAP_IS2] = {
-		.tg_width = 2,
-		.sw_count = 4,
-		.entry_count = VSC9953_VCAP_IS2_CNT,
-		.entry_width = VSC9953_VCAP_IS2_ENTRY_WIDTH,
-		.action_count = VSC9953_VCAP_IS2_CNT +
-				VSC9953_VCAP_PORT_CNT + 2,
-		.action_width = 101,
 		.action_type_width = 1,
 		.action_table = {
 			[IS2_ACTION_TYPE_NORMAL] = {
@@ -859,8 +848,6 @@ static struct vcap_props vsc9953_vcap_props[] = {
 				.count = 4
 			},
 		},
-		.counter_words = 4,
-		.counter_width = 32,
 		.target = S2,
 		.keys = vsc9953_vcap_is2_keys,
 		.actions = vsc9953_vcap_is2_actions,
