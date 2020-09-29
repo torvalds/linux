@@ -127,4 +127,6 @@ int catpt_dsp_send_msg_timeout(struct catpt_dev *cdev,
 int catpt_dsp_send_msg(struct catpt_dev *cdev, struct catpt_ipc_msg request,
 		       struct catpt_ipc_msg *reply);
 
+int catpt_coredump(struct catpt_dev *cdev);
+
 #endif

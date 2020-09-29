@@ -168,6 +168,10 @@ static void catpt_dsp_process_response(struct catpt_dev *cdev, u32 header)
 
 	switch (msg.global_msg_type) {
 	case CATPT_GLB_REQUEST_CORE_DUMP:
+		dev_err(cdev->dev, "ADSP device coredump received\n");
+		ipc->ready = false;
+		catpt_coredump(cdev);
+		/* TODO: attempt recovery */
 		break;
 
 	case CATPT_GLB_STREAM_MESSAGE:

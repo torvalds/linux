@@ -5,6 +5,7 @@
 // Author: Cezary Rojewski <cezary.rojewski@intel.com>
 //
 
+#include <linux/devcoredump.h>
 #include <linux/dma-mapping.h>
 #include <linux/firmware.h>
 #include "core.h"
@@ -135,4 +136,109 @@ void catpt_dmac_remove(struct catpt_dev *cdev)
 	 * before removing DW to prevent postmortem resume and suspend.
 	 */
 	dw_dma_remove(cdev->dmac);
+}
+
+#define CATPT_DUMP_MAGIC		0xcd42
+#define CATPT_DUMP_SECTION_ID_FILE	0x00
+#define CATPT_DUMP_SECTION_ID_IRAM	0x01
+#define CATPT_DUMP_SECTION_ID_DRAM	0x02
+#define CATPT_DUMP_SECTION_ID_REGS	0x03
+#define CATPT_DUMP_HASH_SIZE		20
+
+struct catpt_dump_section_hdr {
+	u16 magic;
+	u8 core_id;
+	u8 section_id;
+	u32 size;
+};
+
+int catpt_coredump(struct catpt_dev *cdev)
+{
+	struct catpt_dump_section_hdr *hdr;
+	size_t dump_size, regs_size;
+	u8 *dump, *pos;
+	const char *eof;
+	char *info;
+	int i;
+
+	regs_size = CATPT_SHIM_REGS_SIZE;
+	regs_size += CATPT_DMA_COUNT * CATPT_DMA_REGS_SIZE;
+	regs_size += CATPT_SSP_COUNT * CATPT_SSP_REGS_SIZE;
+	dump_size = resource_size(&cdev->dram);
+	dump_size += resource_size(&cdev->iram);
+	dump_size += regs_size;
+	/* account for header of each section and hash chunk */
+	dump_size += 4 * sizeof(*hdr) + CATPT_DUMP_HASH_SIZE;
+
+	dump = vzalloc(dump_size);
+	if (!dump)
+		return -ENOMEM;
+
+	pos = dump;
+
+	hdr = (struct catpt_dump_section_hdr *)pos;
+	hdr->magic = CATPT_DUMP_MAGIC;
+	hdr->core_id = cdev->spec->core_id;
+	hdr->section_id = CATPT_DUMP_SECTION_ID_FILE;
+	hdr->size = dump_size - sizeof(*hdr);
+	pos += sizeof(*hdr);
+
+	info = cdev->ipc.config.fw_info;
+	eof = info + FW_INFO_SIZE_MAX;
+	/* navigate to fifth info segment (fw hash) */
+	for (i = 0; i < 4 && info < eof; i++, info++) {
+		/* info segments are separated by space each */
+		info = strnchr(info, eof - info, ' ');
+		if (!info)
+			break;
+	}
+
+	if (i == 4 && info)
+		memcpy(pos, info, min_t(u32, eof - info, CATPT_DUMP_HASH_SIZE));
+	pos += CATPT_DUMP_HASH_SIZE;
+
+	hdr = (struct catpt_dump_section_hdr *)pos;
+	hdr->magic = CATPT_DUMP_MAGIC;
+	hdr->core_id = cdev->spec->core_id;
+	hdr->section_id = CATPT_DUMP_SECTION_ID_IRAM;
+	hdr->size = resource_size(&cdev->iram);
+	pos += sizeof(*hdr);
+
+	memcpy_fromio(pos, cdev->lpe_ba + cdev->iram.start, hdr->size);
+	pos += hdr->size;
+
+	hdr = (struct catpt_dump_section_hdr *)pos;
+	hdr->magic = CATPT_DUMP_MAGIC;
+	hdr->core_id = cdev->spec->core_id;
+	hdr->section_id = CATPT_DUMP_SECTION_ID_DRAM;
+	hdr->size = resource_size(&cdev->dram);
+	pos += sizeof(*hdr);
+
+	memcpy_fromio(pos, cdev->lpe_ba + cdev->dram.start, hdr->size);
+	pos += hdr->size;
+
+	hdr = (struct catpt_dump_section_hdr *)pos;
+	hdr->magic = CATPT_DUMP_MAGIC;
+	hdr->core_id = cdev->spec->core_id;
+	hdr->section_id = CATPT_DUMP_SECTION_ID_REGS;
+	hdr->size = regs_size;
+	pos += sizeof(*hdr);
+
+	memcpy_fromio(pos, catpt_shim_addr(cdev), CATPT_SHIM_REGS_SIZE);
+	pos += CATPT_SHIM_REGS_SIZE;
+
+	for (i = 0; i < CATPT_SSP_COUNT; i++) {
+		memcpy_fromio(pos, catpt_ssp_addr(cdev, i),
+			      CATPT_SSP_REGS_SIZE);
+		pos += CATPT_SSP_REGS_SIZE;
+	}
+	for (i = 0; i < CATPT_DMA_COUNT; i++) {
+		memcpy_fromio(pos, catpt_dma_addr(cdev, i),
+			      CATPT_DMA_REGS_SIZE);
+		pos += CATPT_DMA_REGS_SIZE;
+	}
+
+	dev_coredumpv(cdev->dev, dump, dump_size, GFP_KERNEL);
+
+	return 0;
 }
