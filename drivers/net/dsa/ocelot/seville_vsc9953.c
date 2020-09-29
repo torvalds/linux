@@ -706,7 +706,7 @@ static const struct vcap_props vsc9953_vcap_props[] = {
 		.action_type_width = 1,
 		.action_table = {
 			[IS2_ACTION_TYPE_NORMAL] = {
-				.width = 44,
+				.width = 50, /* HIT_CNT not included */
 				.count = 2
 			},
 			[IS2_ACTION_TYPE_SMAC_SIP] = {
