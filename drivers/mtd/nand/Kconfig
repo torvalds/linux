@@ -15,6 +15,17 @@ config MTD_NAND_ECC
        bool
        depends on MTD_NAND_CORE
 
+config MTD_NAND_ECC_SW_HAMMING
+	bool
+
+config MTD_NAND_ECC_SW_HAMMING_SMC
+	bool "NAND ECC Smart Media byte order"
+	depends on MTD_NAND_ECC_SW_HAMMING
+	default n
+	help
+	  Software ECC according to the Smart Media Specification.
+	  The original Linux implementation had byte 0 and 1 swapped.
+
 config MTD_NAND_ECC_SW_BCH
 	bool "Software BCH ECC engine"
 	select BCH

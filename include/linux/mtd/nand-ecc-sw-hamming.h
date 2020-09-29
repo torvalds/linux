@@ -7,8 +7,8 @@
  * This file is the header for the ECC algorithm.
  */
 
-#ifndef __MTD_NAND_ECC_H__
-#define __MTD_NAND_ECC_H__
+#ifndef __MTD_NAND_ECC_SW_HAMMING_H__
+#define __MTD_NAND_ECC_SW_HAMMING_H__
 
 struct nand_chip;
 
@@ -36,4 +36,4 @@ int __nand_correct_data(u_char *dat, u_char *read_ecc, u_char *calc_ecc,
 int nand_correct_data(struct nand_chip *chip, u_char *dat, u_char *read_ecc,
 		      u_char *calc_ecc);
 
-#endif /* __MTD_NAND_ECC_H__ */
+#endif /* __MTD_NAND_ECC_SW_HAMMING_H__ */
