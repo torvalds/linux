@@ -4167,12 +4167,12 @@ static u8 intel_dp_voltage_max_3(struct intel_dp *intel_dp)
 	return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
 }
 
-static u8 intel_dp_pre_empemph_max_2(struct intel_dp *intel_dp)
+static u8 intel_dp_preemph_max_2(struct intel_dp *intel_dp)
 {
 	return DP_TRAIN_PRE_EMPH_LEVEL_2;
 }
 
-static u8 intel_dp_pre_empemph_max_3(struct intel_dp *intel_dp)
+static u8 intel_dp_preemph_max_3(struct intel_dp *intel_dp)
 {
 	return DP_TRAIN_PRE_EMPH_LEVEL_3;
 }
@@ -7953,10 +7953,10 @@ bool intel_dp_init(struct drm_i915_private *dev_priv,
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv) ||
 	    (HAS_PCH_SPLIT(dev_priv) && port != PORT_A)) {
-		dig_port->dp.preemph_max = intel_dp_pre_empemph_max_3;
+		dig_port->dp.preemph_max = intel_dp_preemph_max_3;
 		dig_port->dp.voltage_max = intel_dp_voltage_max_3;
 	} else {
-		dig_port->dp.preemph_max = intel_dp_pre_empemph_max_2;
+		dig_port->dp.preemph_max = intel_dp_preemph_max_2;
 		dig_port->dp.voltage_max = intel_dp_voltage_max_2;
 	}
 
