@@ -240,8 +240,8 @@
 
 	rk628_combtxphy: combtxphy {
 		compatible = "rockchip,rk628-combtxphy";
-		clocks = <&rk628_cru CGU_PCLK_TXPHY_CON>;
-		clock-names = "pclk";
+		clocks = <&rk628_cru CGU_PCLK_TXPHY_CON>, <&rk628_cru CGU_SCLK_VOP>;
+		clock-names = "pclk", "ref_clk";
 		resets = <&rk628_cru RGU_TXPHY_CON>;
 		#phy-cells = <0>;
 		status = "disabled";
