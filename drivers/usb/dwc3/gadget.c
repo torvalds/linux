@@ -1326,8 +1326,13 @@ static int __dwc3_gadget_kick_transfer(struct dwc3_ep *dep)
 	int				ret;
 	u32				cmd;
 
+	/*
+	 * Note that it's normal to have no new TRBs prepared (i.e. ret == 0).
+	 * This happens when we need to stop and restart a transfer such as in
+	 * the case of reinitiating a stream or retrying an isoc transfer.
+	 */
 	ret = dwc3_prepare_trbs(dep);
-	if (ret <= 0)
+	if (ret < 0)
 		return ret;
 
 	starting = !(dep->flags & DWC3_EP_TRANSFER_STARTED);
