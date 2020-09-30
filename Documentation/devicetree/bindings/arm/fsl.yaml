@@ -129,13 +129,33 @@ properties:
               - kobo,aura
           - const: fsl,imx50
 
-      - description: i.MX51 Babbage Board
+      - description: i.MX51 based Boards
         items:
           - enum:
-              - armadeus,imx51-apf51    # APF51 SoM
-              - armadeus,imx51-apf51dev # APF51 SoM on APF51Dev board
+              - armadeus,imx51-apf51      # Armadeus Systems APF51 module
               - fsl,imx51-babbage
               - technologic,imx51-ts4800
+              - zii,imx51-scu3-esb
+              - zii,imx51-scu2-mezz
+              - zii,imx51-rdu1
+          - const: fsl,imx51
+
+      - description: i.MX51 based Armadeus Systems APF51Dev Board
+        items:
+          - const: armadeus,imx51-apf51dev
+          - const: armadeus,imx51-apf51
+          - const: fsl,imx51
+
+      - description: i.MX51 based Digi ConnectCore CC(W)-MX51 JSK Board
+        items:
+          - const: digi,connectcore-ccxmx51-jsk
+          - const: digi,connectcore-ccxmx51-som
+          - const: fsl,imx51
+
+      - description: i.MX51 based Eukrea CPUIMX51 Board
+        items:
+          - const: eukrea,mbimxsd51
+          - const: eukrea,cpuimx51
           - const: fsl,imx51
 
       - description: i.MX53 based Boards
