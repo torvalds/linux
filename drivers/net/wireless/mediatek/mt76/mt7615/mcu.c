@@ -3478,9 +3478,8 @@ int mt7615_mcu_set_bss_pm(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 	};
 	int err;
 
-	if (vif->type != NL80211_IFTYPE_STATION ||
-	    !mt7615_firmware_offload(dev))
-		return -ENOTSUPP;
+	if (vif->type != NL80211_IFTYPE_STATION)
+		return 0;
 
 	err = mt76_mcu_send_msg(&dev->mt76, MCU_CMD_SET_BSS_ABORT, &req_hdr,
 				sizeof(req_hdr), false);
@@ -3693,8 +3692,6 @@ void mt7615_mcu_set_suspend_iter(void *priv, u8 *mac,
 	struct ieee80211_hw *hw = phy->mt76->hw;
 	struct cfg80211_wowlan *wowlan = hw->wiphy->wowlan_config;
 	int i;
-
-	mt7615_mcu_set_bss_pm(phy->dev, vif, suspend);
 
 	mt7615_mcu_set_gtk_rekey(phy->dev, vif, suspend);
 	mt7615_mcu_set_arp_filter(phy->dev, vif, suspend);

@@ -55,11 +55,26 @@ static int
 mt7615_pm_set(void *data, u64 val)
 {
 	struct mt7615_dev *dev = data;
+	int ret = 0;
 
 	if (!mt7615_wait_for_mcu_init(dev))
 		return 0;
 
-	return mt7615_pm_set_enable(dev, val);
+	if (!mt7615_firmware_offload(dev) || !mt76_is_mmio(&dev->mt76))
+		return -EOPNOTSUPP;
+
+	mt7615_mutex_acquire(dev);
+
+	if (dev->phy.n_beacon_vif) {
+		ret = -EBUSY;
+		goto out;
+	}
+
+	dev->pm.enable = val;
+out:
+	mt7615_mutex_release(dev);
+
+	return ret;
 }
 
 static int
