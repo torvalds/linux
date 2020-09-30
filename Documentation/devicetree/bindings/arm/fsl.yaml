@@ -581,10 +581,26 @@ properties:
               - fsl,vf600
               - fsl,vf610
               - fsl,vf610m4
-              - toradex,vf500-colibri_vf50              # Colibri VF50 Module
-              - toradex,vf500-colibri_vf50-on-eval      # Colibri VF50 Module on Colibri Evaluation Board
-              - toradex,vf610-colibri_vf61              # Colibri VF61 Module
-              - toradex,vf610-colibri_vf61-on-eval      # Colibri VF61 Module on Colibri Evaluation Board
+
+      - description: Toradex Colibri VF50 Module on Colibri Evaluation Board
+        items:
+          - const: toradex,vf500-colibri_vf50-on-eval
+          - const: toradex,vf500-colibri_vf50
+          - const: fsl,vf500
+
+      - description: VF610 based Boards
+        items:
+          - enum:
+              - lwn,bk4                   # Liebherr BK4 controller
+              - phytec,vf610-cosmic       # PHYTEC Cosmic/Cosmic+ Board
+              - fsl,vf610-twr             # VF610 Tower Board
+          - const: fsl,vf610
+
+      - description: Toradex Colibri VF61 Module on Colibri Evaluation Board
+        items:
+          - const: toradex,vf610-colibri_vf61-on-eval
+          - const: toradex,vf610-colibri_vf61
+          - const: fsl,vf610
 
       - description: ZII's VF610 based Boards
         items:
