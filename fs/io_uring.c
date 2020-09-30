@@ -3008,7 +3008,7 @@ static ssize_t io_import_iovec(int rw, struct io_kiocb *req,
 
 static inline loff_t *io_kiocb_ppos(struct kiocb *kiocb)
 {
-	return kiocb->ki_filp->f_mode & FMODE_STREAM ? NULL : &kiocb->ki_pos;
+	return (kiocb->ki_filp->f_mode & FMODE_STREAM) ? NULL : &kiocb->ki_pos;
 }
 
 /*
