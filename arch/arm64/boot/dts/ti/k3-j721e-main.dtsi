@@ -6,7 +6,7 @@
  */
 #include <dt-bindings/phy/phy.h>
 #include <dt-bindings/mux/mux.h>
-#include <dt-bindings/mux/mux-j721e-wiz.h>
+#include <dt-bindings/mux/ti-serdes.h>
 
 &cbass_main {
 	msmc_ram: sram@70000000 {
@@ -70,11 +70,12 @@
 					<0x40b0 0x3>, <0x40b4 0x3>, /* SERDES3 lane0/1 select */
 					<0x40c0 0x3>, <0x40c4 0x3>, <0x40c8 0x3>, <0x40cc 0x3>;
 					/* SERDES4 lane0/1/2/3 select */
-			idle-states = <SERDES0_LANE0_PCIE0_LANE0>, <SERDES0_LANE1_PCIE0_LANE1>,
-				      <SERDES1_LANE0_PCIE1_LANE0>, <SERDES1_LANE1_PCIE1_LANE1>,
-				      <SERDES2_LANE0_PCIE2_LANE0>, <SERDES2_LANE1_PCIE2_LANE1>,
-				      <MUX_IDLE_AS_IS>, <SERDES3_LANE1_USB3_0>,
-				      <SERDES4_LANE0_EDP_LANE0>, <SERDES4_LANE1_EDP_LANE1>, <SERDES4_LANE2_EDP_LANE2>, <SERDES4_LANE3_EDP_LANE3>;
+			idle-states = <J721E_SERDES0_LANE0_PCIE0_LANE0>, <J721E_SERDES0_LANE1_PCIE0_LANE1>,
+				      <J721E_SERDES1_LANE0_PCIE1_LANE0>, <J721E_SERDES1_LANE1_PCIE1_LANE1>,
+				      <J721E_SERDES2_LANE0_PCIE2_LANE0>, <J721E_SERDES2_LANE1_PCIE2_LANE1>,
+				      <MUX_IDLE_AS_IS>, <J721E_SERDES3_LANE1_USB3_0>,
+				      <J721E_SERDES4_LANE0_EDP_LANE0>, <J721E_SERDES4_LANE1_EDP_LANE1>,
+				      <J721E_SERDES4_LANE2_EDP_LANE2>, <J721E_SERDES4_LANE3_EDP_LANE3>;
 		};
 
 		usb_serdes_mux: mux-controller@4000 {
