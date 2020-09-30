@@ -278,6 +278,227 @@ out:
 	return verity_file_digest;
 }
 
+static int incfs_build_merkle_tree(struct file *f, struct data_file *df,
+			     struct backing_file_context *bfc,
+			     struct mtree *hash_tree, loff_t hash_offset,
+			     struct incfs_hash_alg *alg, struct mem_range hash)
+{
+	int error = 0;
+	int limit, lvl, i, result;
+	struct mem_range buf = {.len = INCFS_DATA_FILE_BLOCK_SIZE};
+	struct mem_range tmp = {.len = 2 * INCFS_DATA_FILE_BLOCK_SIZE};
+
+	buf.data = (u8 *)__get_free_pages(GFP_NOFS, get_order(buf.len));
+	tmp.data = (u8 *)__get_free_pages(GFP_NOFS, get_order(tmp.len));
+	if (!buf.data || !tmp.data) {
+		error = -ENOMEM;
+		goto out;
+	}
+
+	/*
+	 * lvl - 1 is the level we are reading, lvl the level we are writing
+	 * lvl == -1 means actual blocks
+	 * lvl == hash_tree->depth means root hash
+	 */
+	limit = df->df_data_block_count;
+	for (lvl = 0; lvl <= hash_tree->depth; lvl++) {
+		for (i = 0; i < limit; ++i) {
+			loff_t hash_level_offset;
+			struct mem_range partial_buf = buf;
+
+			if (lvl == 0)
+				result = incfs_read_data_file_block(partial_buf,
+							f, i, 0, 0, 0, tmp);
+			else {
+				hash_level_offset = hash_offset +
+				       hash_tree->hash_level_suboffset[lvl - 1];
+
+				result = incfs_kread(bfc, partial_buf.data,
+						partial_buf.len,
+						hash_level_offset + i *
+						INCFS_DATA_FILE_BLOCK_SIZE);
+			}
+
+			if (result < 0) {
+				error = result;
+				goto out;
+			}
+
+			partial_buf.len = result;
+			error = incfs_calc_digest(alg, partial_buf, hash);
+			if (error)
+				goto out;
+
+			/*
+			 * last level - only one hash to take and it is stored
+			 * in the incfs signature record
+			 */
+			if (lvl == hash_tree->depth)
+				break;
+
+			hash_level_offset = hash_offset +
+				hash_tree->hash_level_suboffset[lvl];
+
+			result = incfs_kwrite(bfc, hash.data, hash.len,
+					hash_level_offset + hash.len * i);
+
+			if (result < 0) {
+				error = result;
+				goto out;
+			}
+
+			if (result != hash.len) {
+				error = -EIO;
+				goto out;
+			}
+		}
+		limit = DIV_ROUND_UP(limit,
+				     INCFS_DATA_FILE_BLOCK_SIZE / hash.len);
+	}
+
+out:
+	free_pages((unsigned long)tmp.data, get_order(tmp.len));
+	free_pages((unsigned long)buf.data, get_order(buf.len));
+	return error;
+}
+
+/*
+ * incfs files have a signature record that is separate from the
+ * verity_signature record. The signature record does not actually contain a
+ * signature, rather it contains the size/offset of the hash tree, and a binary
+ * blob which contains the root hash and potentially a signature.
+ *
+ * If the file was created with a signature record, then this function simply
+ * returns.
+ *
+ * Otherwise it will create a signature record with a minimal binary blob as
+ * defined by the structure below, create space for the hash tree and then
+ * populate it using incfs_build_merkle_tree
+ */
+static int incfs_add_signature_record(struct file *f)
+{
+	/* See incfs_parse_signature */
+	struct {
+		__le32 version;
+		__le32 size_of_hash_info_section;
+		struct {
+			__le32 hash_algorithm;
+			u8 log2_blocksize;
+			__le32 salt_size;
+			u8 salt[0];
+			__le32 hash_size;
+			u8 root_hash[32];
+		} __packed hash_section;
+		__le32 size_of_signing_info_section;
+		u8 signing_info_section[0];
+	} __packed sig = {
+		.version = cpu_to_le32(INCFS_SIGNATURE_VERSION),
+		.size_of_hash_info_section =
+			cpu_to_le32(sizeof(sig.hash_section)),
+		.hash_section = {
+			.hash_algorithm = cpu_to_le32(INCFS_HASH_TREE_SHA256),
+			.log2_blocksize = ilog2(INCFS_DATA_FILE_BLOCK_SIZE),
+			.hash_size = cpu_to_le32(SHA256_DIGEST_SIZE),
+		},
+	};
+
+	struct data_file *df = get_incfs_data_file(f);
+	struct mtree *hash_tree = NULL;
+	struct backing_file_context *bfc;
+	int error;
+	loff_t hash_offset, sig_offset;
+	struct incfs_hash_alg *alg = incfs_get_hash_alg(INCFS_HASH_TREE_SHA256);
+	u8 hash_buf[INCFS_MAX_HASH_SIZE];
+	int hash_size = alg->digest_size;
+	struct mem_range hash = range(hash_buf, hash_size);
+	int result;
+	struct incfs_df_signature *signature = NULL;
+
+	if (!df)
+		return -EINVAL;
+
+	if (df->df_header_flags & INCFS_FILE_MAPPED)
+		return -EINVAL;
+
+	/* Already signed? */
+	if (df->df_signature && df->df_hash_tree)
+		return 0;
+
+	if (df->df_signature || df->df_hash_tree)
+		return -EFSCORRUPTED;
+
+	/* Add signature metadata record to file */
+	hash_tree = incfs_alloc_mtree(range((u8 *)&sig, sizeof(sig)),
+				      df->df_data_block_count);
+	if (IS_ERR(hash_tree))
+		return PTR_ERR(hash_tree);
+
+	bfc = df->df_backing_file_context;
+	if (!bfc) {
+		error = -EFSCORRUPTED;
+		goto out;
+	}
+
+	error = mutex_lock_interruptible(&bfc->bc_mutex);
+	if (error)
+		goto out;
+
+	error = incfs_write_signature_to_backing_file(bfc,
+				range((u8 *)&sig, sizeof(sig)),
+				hash_tree->hash_tree_area_size,
+				&hash_offset, &sig_offset);
+	mutex_unlock(&bfc->bc_mutex);
+	if (error)
+		goto out;
+
+	/* Populate merkle tree */
+	error = incfs_build_merkle_tree(f, df, bfc, hash_tree, hash_offset, alg,
+				  hash);
+	if (error)
+		goto out;
+
+	/* Update signature metadata record */
+	memcpy(sig.hash_section.root_hash, hash.data, alg->digest_size);
+	result = incfs_kwrite(bfc, &sig, sizeof(sig), sig_offset);
+	if (result < 0) {
+		error = result;
+		goto out;
+	}
+
+	if (result != sizeof(sig)) {
+		error = -EIO;
+		goto out;
+	}
+
+	/* Update in-memory records */
+	memcpy(hash_tree->root_hash, hash.data, alg->digest_size);
+	signature = kzalloc(sizeof(*signature), GFP_NOFS);
+	if (!signature) {
+		error = -ENOMEM;
+		goto out;
+	}
+	*signature = (struct incfs_df_signature) {
+		.hash_offset = hash_offset,
+		.hash_size = hash_tree->hash_tree_area_size,
+		.sig_offset = sig_offset,
+		.sig_size = sizeof(sig),
+	};
+	df->df_signature = signature;
+	signature = NULL;
+
+	/*
+	 * Use memory barrier to prevent readpage seeing the hash tree until
+	 * it's fully there
+	 */
+	smp_store_release(&df->df_hash_tree, hash_tree);
+	hash_tree = NULL;
+
+out:
+	kfree(signature);
+	kfree(hash_tree);
+	return error;
+}
+
 static int incfs_enable_verity(struct file *filp,
 			 const struct fsverity_enable_arg *arg)
 {
@@ -298,6 +519,10 @@ static int incfs_enable_verity(struct file *filp,
 		err = -EEXIST;
 		goto out;
 	}
+
+	err = incfs_add_signature_record(filp);
+	if (err)
+		goto out;
 
 	/* Get the signature if the user provided one */
 	if (arg->sig_size) {
