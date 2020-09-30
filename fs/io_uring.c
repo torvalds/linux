@@ -2633,8 +2633,7 @@ static bool io_file_supports_async(struct file *file, int rw)
 	return file->f_op->write_iter != NULL;
 }
 
-static int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe,
-		      bool force_nonblock)
+static int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	struct kiocb *kiocb = &req->rw.kiocb;
@@ -2668,9 +2667,6 @@ static int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	/* don't allow async punt if RWF_NOWAIT was requested */
 	if (kiocb->ki_flags & IOCB_NOWAIT)
 		req->flags |= REQ_F_NOWAIT;
-
-	if (force_nonblock)
-		kiocb->ki_flags |= IOCB_NOWAIT;
 
 	if (ctx->flags & IORING_SETUP_IOPOLL) {
 		if (!(kiocb->ki_flags & IOCB_DIRECT) ||
@@ -3149,7 +3145,7 @@ static int io_read_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 {
 	ssize_t ret;
 
-	ret = io_prep_rw(req, sqe, force_nonblock);
+	ret = io_prep_rw(req, sqe);
 	if (ret)
 		return ret;
 
@@ -3284,6 +3280,9 @@ static int io_read(struct io_kiocb *req, bool force_nonblock,
 	/* Ensure we clear previously set non-block flag */
 	if (!force_nonblock)
 		kiocb->ki_flags &= ~IOCB_NOWAIT;
+	else
+		kiocb->ki_flags |= IOCB_NOWAIT;
+
 
 	/* If the file doesn't support async, just async punt */
 	no_async = force_nonblock && !io_file_supports_async(req->file, READ);
@@ -3373,7 +3372,7 @@ static int io_write_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 {
 	ssize_t ret;
 
-	ret = io_prep_rw(req, sqe, force_nonblock);
+	ret = io_prep_rw(req, sqe);
 	if (ret)
 		return ret;
 
@@ -3408,7 +3407,9 @@ static int io_write(struct io_kiocb *req, bool force_nonblock,
 
 	/* Ensure we clear previously set non-block flag */
 	if (!force_nonblock)
-		req->rw.kiocb.ki_flags &= ~IOCB_NOWAIT;
+		kiocb->ki_flags &= ~IOCB_NOWAIT;
+	else
+		kiocb->ki_flags |= IOCB_NOWAIT;
 
 	/* If the file doesn't support async, just async punt */
 	if (force_nonblock && !io_file_supports_async(req->file, WRITE))
