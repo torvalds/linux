@@ -3643,6 +3643,15 @@ union bpf_attr {
  *		*flags* are identical to those used for bpf_snprintf_btf.
  *	Return
  *		0 on success or a negative error in case of failure.
+ *
+ * u64 bpf_skb_cgroup_classid(struct sk_buff *skb)
+ * 	Description
+ * 		See **bpf_get_cgroup_classid**\ () for the main description.
+ * 		This helper differs from **bpf_get_cgroup_classid**\ () in that
+ * 		the cgroup v1 net_cls class is retrieved only from the *skb*'s
+ * 		associated socket instead of the current process.
+ * 	Return
+ * 		The id is returned or 0 in case the id could not be retrieved.
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -3796,6 +3805,7 @@ union bpf_attr {
 	FN(copy_from_user),		\
 	FN(snprintf_btf),		\
 	FN(seq_printf_btf),		\
+	FN(skb_cgroup_classid),		\
 	/* */
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
