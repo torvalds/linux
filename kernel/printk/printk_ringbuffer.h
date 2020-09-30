@@ -303,7 +303,7 @@ static inline void prb_rec_init_wr(struct printk_record *r,
 bool prb_reserve(struct prb_reserved_entry *e, struct printk_ringbuffer *rb,
 		 struct printk_record *r);
 bool prb_reserve_in_last(struct prb_reserved_entry *e, struct printk_ringbuffer *rb,
-			 struct printk_record *r, u32 caller_id);
+			 struct printk_record *r, u32 caller_id, unsigned int max_size);
 void prb_commit(struct prb_reserved_entry *e);
 void prb_final_commit(struct prb_reserved_entry *e);
 

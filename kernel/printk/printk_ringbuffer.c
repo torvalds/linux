@@ -202,7 +202,8 @@
  *	// specify additional 5 bytes text space to extend
  *	prb_rec_init_wr(&r, 5);
  *
- *	if (prb_reserve_in_last(&e, &test_rb, &r, printk_caller_id())) {
+ *	// try to extend, but only if it does not exceed 32 bytes
+ *	if (prb_reserve_in_last(&e, &test_rb, &r, printk_caller_id()), 32) {
  *		snprintf(&r.text_buf[r.info->text_len],
  *			 r.text_buf_size - r.info->text_len, "hello");
  *
@@ -1309,6 +1310,7 @@ static struct prb_desc *desc_reopen_last(struct prb_desc_ring *desc_ring,
  * @rb:        The ringbuffer to re-reserve and extend data in.
  * @r:         The record structure to allocate buffers for.
  * @caller_id: The caller ID of the caller (reserving writer).
+ * @max_size:  Fail if the extended size would be greater than this.
  *
  * This is the public function available to writers to re-reserve and extend
  * data.
@@ -1343,7 +1345,7 @@ static struct prb_desc *desc_reopen_last(struct prb_desc_ring *desc_ring,
  *            @r->info->text_len after concatenating.
  */
 bool prb_reserve_in_last(struct prb_reserved_entry *e, struct printk_ringbuffer *rb,
-			 struct printk_record *r, u32 caller_id)
+			 struct printk_record *r, u32 caller_id, unsigned int max_size)
 {
 	struct prb_desc_ring *desc_ring = &rb->desc_ring;
 	struct printk_info *info;
@@ -1389,6 +1391,9 @@ bool prb_reserve_in_last(struct prb_reserved_entry *e, struct printk_ringbuffer 
 		if (!data_check_size(&rb->text_data_ring, r->text_buf_size))
 			goto fail;
 
+		if (r->text_buf_size > max_size)
+			goto fail;
+
 		r->text_buf = data_alloc(rb, &rb->text_data_ring, r->text_buf_size,
 					 &d->text_blk_lpos, id);
 	} else {
@@ -1408,6 +1413,9 @@ bool prb_reserve_in_last(struct prb_reserved_entry *e, struct printk_ringbuffer 
 		r->text_buf_size += info->text_len;
 
 		if (!data_check_size(&rb->text_data_ring, r->text_buf_size))
+			goto fail;
+
+		if (r->text_buf_size > max_size)
 			goto fail;
 
 		r->text_buf = data_realloc(rb, &rb->text_data_ring, r->text_buf_size,
