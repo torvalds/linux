@@ -16,9 +16,6 @@
 #include <linux/pci.h>
 #include "felix.h"
 
-#define VSC9959_VCAP_IS2_CNT		1024
-#define VSC9959_VCAP_IS2_ENTRY_WIDTH	376
-#define VSC9959_VCAP_PORT_CNT		6
 #define VSC9959_TAS_GCL_ENTRY_MAX	63
 
 static const u32 vsc9959_ana_regmap[] = {
@@ -138,14 +135,27 @@ static const u32 vsc9959_qs_regmap[] = {
 	REG_RESERVED(QS_INH_DBG),
 };
 
-static const u32 vsc9959_s2_regmap[] = {
-	REG(S2_CORE_UPDATE_CTRL,		0x000000),
-	REG(S2_CORE_MV_CFG,			0x000004),
-	REG(S2_CACHE_ENTRY_DAT,			0x000008),
-	REG(S2_CACHE_MASK_DAT,			0x000108),
-	REG(S2_CACHE_ACTION_DAT,		0x000208),
-	REG(S2_CACHE_CNT_DAT,			0x000308),
-	REG(S2_CACHE_TG_DAT,			0x000388),
+static const u32 vsc9959_vcap_regmap[] = {
+	/* VCAP_CORE_CFG */
+	REG(VCAP_CORE_UPDATE_CTRL,		0x000000),
+	REG(VCAP_CORE_MV_CFG,			0x000004),
+	/* VCAP_CORE_CACHE */
+	REG(VCAP_CACHE_ENTRY_DAT,		0x000008),
+	REG(VCAP_CACHE_MASK_DAT,		0x000108),
+	REG(VCAP_CACHE_ACTION_DAT,		0x000208),
+	REG(VCAP_CACHE_CNT_DAT,			0x000308),
+	REG(VCAP_CACHE_TG_DAT,			0x000388),
+	/* VCAP_CONST */
+	REG(VCAP_CONST_VCAP_VER,		0x000398),
+	REG(VCAP_CONST_ENTRY_WIDTH,		0x00039c),
+	REG(VCAP_CONST_ENTRY_CNT,		0x0003a0),
+	REG(VCAP_CONST_ENTRY_SWCNT,		0x0003a4),
+	REG(VCAP_CONST_ENTRY_TG_WIDTH,		0x0003a8),
+	REG(VCAP_CONST_ACTION_DEF_CNT,		0x0003ac),
+	REG(VCAP_CONST_ACTION_WIDTH,		0x0003b0),
+	REG(VCAP_CONST_CNT_WIDTH,		0x0003b4),
+	REG(VCAP_CONST_CORE_CNT,		0x0003b8),
+	REG(VCAP_CONST_IF_CNT,			0x0003bc),
 };
 
 static const u32 vsc9959_qsys_regmap[] = {
@@ -359,7 +369,9 @@ static const u32 *vsc9959_regmap[TARGET_MAX] = {
 	[QSYS]	= vsc9959_qsys_regmap,
 	[REW]	= vsc9959_rew_regmap,
 	[SYS]	= vsc9959_sys_regmap,
-	[S2]	= vsc9959_s2_regmap,
+	[S0]	= vsc9959_vcap_regmap,
+	[S1]	= vsc9959_vcap_regmap,
+	[S2]	= vsc9959_vcap_regmap,
 	[PTP]	= vsc9959_ptp_regmap,
 	[GCB]	= vsc9959_gcb_regmap,
 	[DEV_GMII] = vsc9959_dev_gmii_regmap,
@@ -391,6 +403,16 @@ static const struct resource vsc9959_target_io_res[TARGET_MAX] = {
 		.start	= 0x0010000,
 		.end	= 0x001ffff,
 		.name	= "sys",
+	},
+	[S0] = {
+		.start	= 0x0040000,
+		.end	= 0x00403ff,
+		.name	= "s0",
+	},
+	[S1] = {
+		.start	= 0x0050000,
+		.end	= 0x00503ff,
+		.name	= "s1",
 	},
 	[S2] = {
 		.start	= 0x0060000,
@@ -596,6 +618,112 @@ static const struct ocelot_stat_layout vsc9959_stats_layout[] = {
 	{ .offset = 0x111,	.name = "drop_green_prio_7", },
 };
 
+static const struct vcap_field vsc9959_vcap_es0_keys[] = {
+	[VCAP_ES0_EGR_PORT]			= {  0,  3},
+	[VCAP_ES0_IGR_PORT]			= {  3,  3},
+	[VCAP_ES0_RSV]				= {  6,  2},
+	[VCAP_ES0_L2_MC]			= {  8,  1},
+	[VCAP_ES0_L2_BC]			= {  9,  1},
+	[VCAP_ES0_VID]				= { 10, 12},
+	[VCAP_ES0_DP]				= { 22,  1},
+	[VCAP_ES0_PCP]				= { 23,  3},
+};
+
+static const struct vcap_field vsc9959_vcap_es0_actions[] = {
+	[VCAP_ES0_ACT_PUSH_OUTER_TAG]		= {  0,  2},
+	[VCAP_ES0_ACT_PUSH_INNER_TAG]		= {  2,  1},
+	[VCAP_ES0_ACT_TAG_A_TPID_SEL]		= {  3,  2},
+	[VCAP_ES0_ACT_TAG_A_VID_SEL]		= {  5,  1},
+	[VCAP_ES0_ACT_TAG_A_PCP_SEL]		= {  6,  2},
+	[VCAP_ES0_ACT_TAG_A_DEI_SEL]		= {  8,  2},
+	[VCAP_ES0_ACT_TAG_B_TPID_SEL]		= { 10,  2},
+	[VCAP_ES0_ACT_TAG_B_VID_SEL]		= { 12,  1},
+	[VCAP_ES0_ACT_TAG_B_PCP_SEL]		= { 13,  2},
+	[VCAP_ES0_ACT_TAG_B_DEI_SEL]		= { 15,  2},
+	[VCAP_ES0_ACT_VID_A_VAL]		= { 17, 12},
+	[VCAP_ES0_ACT_PCP_A_VAL]		= { 29,  3},
+	[VCAP_ES0_ACT_DEI_A_VAL]		= { 32,  1},
+	[VCAP_ES0_ACT_VID_B_VAL]		= { 33, 12},
+	[VCAP_ES0_ACT_PCP_B_VAL]		= { 45,  3},
+	[VCAP_ES0_ACT_DEI_B_VAL]		= { 48,  1},
+	[VCAP_ES0_ACT_RSV]			= { 49, 23},
+	[VCAP_ES0_ACT_HIT_STICKY]		= { 72,  1},
+};
+
+static const struct vcap_field vsc9959_vcap_is1_keys[] = {
+	[VCAP_IS1_HK_TYPE]			= {  0,   1},
+	[VCAP_IS1_HK_LOOKUP]			= {  1,   2},
+	[VCAP_IS1_HK_IGR_PORT_MASK]		= {  3,   7},
+	[VCAP_IS1_HK_RSV]			= { 10,   9},
+	[VCAP_IS1_HK_OAM_Y1731]			= { 19,   1},
+	[VCAP_IS1_HK_L2_MC]			= { 20,   1},
+	[VCAP_IS1_HK_L2_BC]			= { 21,   1},
+	[VCAP_IS1_HK_IP_MC]			= { 22,   1},
+	[VCAP_IS1_HK_VLAN_TAGGED]		= { 23,   1},
+	[VCAP_IS1_HK_VLAN_DBL_TAGGED]		= { 24,   1},
+	[VCAP_IS1_HK_TPID]			= { 25,   1},
+	[VCAP_IS1_HK_VID]			= { 26,  12},
+	[VCAP_IS1_HK_DEI]			= { 38,   1},
+	[VCAP_IS1_HK_PCP]			= { 39,   3},
+	/* Specific Fields for IS1 Half Key S1_NORMAL */
+	[VCAP_IS1_HK_L2_SMAC]			= { 42,  48},
+	[VCAP_IS1_HK_ETYPE_LEN]			= { 90,   1},
+	[VCAP_IS1_HK_ETYPE]			= { 91,  16},
+	[VCAP_IS1_HK_IP_SNAP]			= {107,   1},
+	[VCAP_IS1_HK_IP4]			= {108,   1},
+	/* Layer-3 Information */
+	[VCAP_IS1_HK_L3_FRAGMENT]		= {109,   1},
+	[VCAP_IS1_HK_L3_FRAG_OFS_GT0]		= {110,   1},
+	[VCAP_IS1_HK_L3_OPTIONS]		= {111,   1},
+	[VCAP_IS1_HK_L3_DSCP]			= {112,   6},
+	[VCAP_IS1_HK_L3_IP4_SIP]		= {118,  32},
+	/* Layer-4 Information */
+	[VCAP_IS1_HK_TCP_UDP]			= {150,   1},
+	[VCAP_IS1_HK_TCP]			= {151,   1},
+	[VCAP_IS1_HK_L4_SPORT]			= {152,  16},
+	[VCAP_IS1_HK_L4_RNG]			= {168,   8},
+	/* Specific Fields for IS1 Half Key S1_5TUPLE_IP4 */
+	[VCAP_IS1_HK_IP4_INNER_TPID]            = { 42,   1},
+	[VCAP_IS1_HK_IP4_INNER_VID]		= { 43,  12},
+	[VCAP_IS1_HK_IP4_INNER_DEI]		= { 55,   1},
+	[VCAP_IS1_HK_IP4_INNER_PCP]		= { 56,   3},
+	[VCAP_IS1_HK_IP4_IP4]			= { 59,   1},
+	[VCAP_IS1_HK_IP4_L3_FRAGMENT]		= { 60,   1},
+	[VCAP_IS1_HK_IP4_L3_FRAG_OFS_GT0]	= { 61,   1},
+	[VCAP_IS1_HK_IP4_L3_OPTIONS]		= { 62,   1},
+	[VCAP_IS1_HK_IP4_L3_DSCP]		= { 63,   6},
+	[VCAP_IS1_HK_IP4_L3_IP4_DIP]		= { 69,  32},
+	[VCAP_IS1_HK_IP4_L3_IP4_SIP]		= {101,  32},
+	[VCAP_IS1_HK_IP4_L3_PROTO]		= {133,   8},
+	[VCAP_IS1_HK_IP4_TCP_UDP]		= {141,   1},
+	[VCAP_IS1_HK_IP4_TCP]			= {142,   1},
+	[VCAP_IS1_HK_IP4_L4_RNG]		= {143,   8},
+	[VCAP_IS1_HK_IP4_IP_PAYLOAD_S1_5TUPLE]	= {151,  32},
+};
+
+static const struct vcap_field vsc9959_vcap_is1_actions[] = {
+	[VCAP_IS1_ACT_DSCP_ENA]			= {  0,  1},
+	[VCAP_IS1_ACT_DSCP_VAL]			= {  1,  6},
+	[VCAP_IS1_ACT_QOS_ENA]			= {  7,  1},
+	[VCAP_IS1_ACT_QOS_VAL]			= {  8,  3},
+	[VCAP_IS1_ACT_DP_ENA]			= { 11,  1},
+	[VCAP_IS1_ACT_DP_VAL]			= { 12,  1},
+	[VCAP_IS1_ACT_PAG_OVERRIDE_MASK]	= { 13,  8},
+	[VCAP_IS1_ACT_PAG_VAL]			= { 21,  8},
+	[VCAP_IS1_ACT_RSV]			= { 29,  9},
+	[VCAP_IS1_ACT_VID_REPLACE_ENA]		= { 38,  1},
+	[VCAP_IS1_ACT_VID_ADD_VAL]		= { 39, 12},
+	[VCAP_IS1_ACT_FID_SEL]			= { 51,  2},
+	[VCAP_IS1_ACT_FID_VAL]			= { 53, 13},
+	[VCAP_IS1_ACT_PCP_DEI_ENA]		= { 66,  1},
+	[VCAP_IS1_ACT_PCP_VAL]			= { 67,  3},
+	[VCAP_IS1_ACT_DEI_VAL]			= { 70,  1},
+	[VCAP_IS1_ACT_VLAN_POP_CNT_ENA]		= { 71,  1},
+	[VCAP_IS1_ACT_VLAN_POP_CNT]		= { 72,  2},
+	[VCAP_IS1_ACT_CUSTOM_ACE_TYPE_ENA]	= { 74,  4},
+	[VCAP_IS1_ACT_HIT_STICKY]		= { 78,  1},
+};
+
 static struct vcap_field vsc9959_vcap_is2_keys[] = {
 	/* Common: 41 bits */
 	[VCAP_IS2_TYPE]				= {  0,   4},
@@ -694,15 +822,32 @@ static struct vcap_field vsc9959_vcap_is2_actions[] = {
 	[VCAP_IS2_ACT_HIT_CNT]			= { 49, 32},
 };
 
-static const struct vcap_props vsc9959_vcap_props[] = {
+static struct vcap_props vsc9959_vcap_props[] = {
+	[VCAP_ES0] = {
+		.action_type_width = 0,
+		.action_table = {
+			[ES0_ACTION_TYPE_NORMAL] = {
+				.width = 72, /* HIT_STICKY not included */
+				.count = 1,
+			},
+		},
+		.target = S0,
+		.keys = vsc9959_vcap_es0_keys,
+		.actions = vsc9959_vcap_es0_actions,
+	},
+	[VCAP_IS1] = {
+		.action_type_width = 0,
+		.action_table = {
+			[IS1_ACTION_TYPE_NORMAL] = {
+				.width = 78, /* HIT_STICKY not included */
+				.count = 4,
+			},
+		},
+		.target = S1,
+		.keys = vsc9959_vcap_is1_keys,
+		.actions = vsc9959_vcap_is1_actions,
+	},
 	[VCAP_IS2] = {
-		.tg_width = 2,
-		.sw_count = 4,
-		.entry_count = VSC9959_VCAP_IS2_CNT,
-		.entry_width = VSC9959_VCAP_IS2_ENTRY_WIDTH,
-		.action_count = VSC9959_VCAP_IS2_CNT +
-				VSC9959_VCAP_PORT_CNT + 2,
-		.action_width = 89,
 		.action_type_width = 1,
 		.action_table = {
 			[IS2_ACTION_TYPE_NORMAL] = {
@@ -714,8 +859,9 @@ static const struct vcap_props vsc9959_vcap_props[] = {
 				.count = 4
 			},
 		},
-		.counter_words = 4,
-		.counter_width = 32,
+		.target = S2,
+		.keys = vsc9959_vcap_is2_keys,
+		.actions = vsc9959_vcap_is2_actions,
 	},
 };
 
@@ -1184,8 +1330,6 @@ static const struct felix_info felix_info_vsc9959 = {
 	.ops			= &vsc9959_ops,
 	.stats_layout		= vsc9959_stats_layout,
 	.num_stats		= ARRAY_SIZE(vsc9959_stats_layout),
-	.vcap_is2_keys		= vsc9959_vcap_is2_keys,
-	.vcap_is2_actions	= vsc9959_vcap_is2_actions,
 	.vcap			= vsc9959_vcap_props,
 	.shared_queue_sz	= 128 * 1024,
 	.num_mact_rows		= 2048,
