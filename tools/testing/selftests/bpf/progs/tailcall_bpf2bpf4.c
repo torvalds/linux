@@ -14,21 +14,21 @@ static volatile int count;
 __noinline
 int subprog_tail_2(struct __sk_buff *skb)
 {
-	bpf_tail_call(skb, &jmp_table, 2);
+	bpf_tail_call_static(skb, &jmp_table, 2);
 	return skb->len * 3;
 }
 
 __noinline
 int subprog_tail_1(struct __sk_buff *skb)
 {
-	bpf_tail_call(skb, &jmp_table, 1);
+	bpf_tail_call_static(skb, &jmp_table, 1);
 	return skb->len * 2;
 }
 
 __noinline
 int subprog_tail(struct __sk_buff *skb)
 {
-	bpf_tail_call(skb, &jmp_table, 0);
+	bpf_tail_call_static(skb, &jmp_table, 0);
 	return skb->len;
 }
 

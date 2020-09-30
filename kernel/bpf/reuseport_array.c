@@ -191,7 +191,7 @@ int bpf_fd_reuseport_array_lookup_elem(struct bpf_map *map, void *key,
 	rcu_read_lock();
 	sk = reuseport_array_lookup_elem(map, key);
 	if (sk) {
-		*(u64 *)value = sock_gen_cookie(sk);
+		*(u64 *)value = __sock_gen_cookie(sk);
 		err = 0;
 	} else {
 		err = -ENOENT;

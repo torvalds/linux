@@ -14,9 +14,9 @@ static __noinline
 int subprog_tail(struct __sk_buff *skb)
 {
 	if (load_byte(skb, 0))
-		bpf_tail_call(skb, &jmp_table, 1);
+		bpf_tail_call_static(skb, &jmp_table, 1);
 	else
-		bpf_tail_call(skb, &jmp_table, 0);
+		bpf_tail_call_static(skb, &jmp_table, 0);
 	return 1;
 }
 
@@ -32,7 +32,7 @@ int bpf_func_0(struct __sk_buff *skb)
 SEC("classifier")
 int entry(struct __sk_buff *skb)
 {
-	bpf_tail_call(skb, &jmp_table, 0);
+	bpf_tail_call_static(skb, &jmp_table, 0);
 
 	return 0;
 }

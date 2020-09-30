@@ -401,7 +401,7 @@ static void *sock_map_lookup_sys(struct bpf_map *map, void *key)
 	if (!sk)
 		return ERR_PTR(-ENOENT);
 
-	sock_gen_cookie(sk);
+	__sock_gen_cookie(sk);
 	return &sk->sk_cookie;
 }
 
@@ -1209,7 +1209,7 @@ static void *sock_hash_lookup_sys(struct bpf_map *map, void *key)
 	if (!sk)
 		return ERR_PTR(-ENOENT);
 
-	sock_gen_cookie(sk);
+	__sock_gen_cookie(sk);
 	return &sk->sk_cookie;
 }
 
