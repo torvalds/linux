@@ -2449,7 +2449,7 @@ static void ql_dbg_prefix(char *pbuf, int pbuf_size,
 		const struct pci_dev *pdev = vha->hw->pdev;
 
 		/* <module-name> [<dev-name>]-<msg-id>:<host>: */
-		snprintf(pbuf, pbuf_size, "%s [%s]-%04x:%ld: ", QL_MSGHDR,
+		snprintf(pbuf, pbuf_size, "%s [%s]-%04x:%lu: ", QL_MSGHDR,
 			 dev_name(&(pdev->dev)), msg_id, vha->host_no);
 	} else {
 		/* <module-name> [<dev-name>]-<msg-id>: : */
