@@ -1707,6 +1707,11 @@ out_put_budget:
 		    scsi_device_blocked(sdev))
 			ret = BLK_STS_DEV_RESOURCE;
 		break;
+	case BLK_STS_AGAIN:
+		scsi_req(req)->result = DID_BUS_BUSY << 16;
+		if (req->rq_flags & RQF_DONTPREP)
+			scsi_mq_uninit_cmd(cmd);
+		break;
 	default:
 		if (unlikely(!scsi_device_online(sdev)))
 			scsi_req(req)->result = DID_NO_CONNECT << 16;
