@@ -269,30 +269,51 @@ properties:
       - description: i.MX6DL based Boards
         items:
           - enum:
-              - armadeus,imx6dl-apf6      # APF6 (Solo) SoM
-              - armadeus,imx6dl-apf6dev   # APF6 (Solo) SoM on APF6Dev board
+              - boundary,imx6dl-nit6xlite     # Boundary Devices Nitrogen6 Lite
+              - boundary,imx6dl-nitrogen6x    # Boundary Devices Nitrogen6x
+              - bticino,imx6dl-mamoj      # BTicino i.MX6DL Mamoj
               - eckelmann,imx6dl-ci4x10
               - emtrion,emcon-mx6         # emCON-MX6S or emCON-MX6DL SoM
               - emtrion,emcon-mx6-avari   # emCON-MX6S or emCON-MX6DL SoM on Avari Base
+              - engicam,imx6-icore        # Engicam i.CoreM6 Starter Kit
+              - engicam,imx6-icore-rqs    # Engicam i.CoreM6 RQS Starter Kit
               - fsl,imx6dl-sabreauto      # i.MX6 DualLite/Solo SABRE Automotive Board
+              - fsl,imx6dl-sabrelite      # i.MX6 DualLite SABRE Lite Board
               - fsl,imx6dl-sabresd        # i.MX6 DualLite SABRE Smart Device Board
+              - karo,imx6dl-tx6dl         # Ka-Ro electronics TX6U Modules
               - kontron,imx6dl-samx6i     # Kontron i.MX6 Solo SMARC Module
+              - poslab,imx6dl-savageboard # Poslab SavageBoard Dual
               - prt,prtrvt                # Protonic RVT board
               - prt,prtvt7                # Protonic VT7 board
+              - rex,imx6dl-rex-basic      # Rex Basic i.MX6 Dual Lite Board
+              - riot,imx6s-riotboard      # RIoTboard i.MX6S
+              - solidrun,cubox-i/dl            # SolidRun Cubox-i Solo/DualLite
+              - solidrun,hummingboard/dl
+              - solidrun,hummingboard2/dl      # SolidRun HummingBoard2 Solo/DualLite
               - technexion,imx6dl-pico-dwarf   # TechNexion i.MX6DL Pico-Dwarf
               - technexion,imx6dl-pico-hobbit  # TechNexion i.MX6DL Pico-Hobbit
               - technexion,imx6dl-pico-nymph   # TechNexion i.MX6DL Pico-Nymph
               - technexion,imx6dl-pico-pi      # TechNexion i.MX6DL Pico-Pi
               - technologic,imx6dl-ts4900
               - technologic,imx6dl-ts7970
-              - toradex,colibri_imx6dl          # Colibri iMX6 Module
-              - toradex,colibri_imx6dl-v1_1     # Colibri iMX6 Module V1.1
-              - toradex,colibri_imx6dl-eval-v3  # Colibri iMX6 Module on Colibri Evaluation Board V3
-              - toradex,colibri_imx6dl-v1_1-eval-v3 # Colibri iMX6 Module V1.1 on Colibri Evaluation Board V3
+              - udoo,imx6dl-udoo          # Udoo i.MX6 Dual-lite Board
+              - wand,imx6dl-wandboard     # Wandboard i.MX6 Dual Lite Board
               - ysoft,imx6dl-yapp4-draco  # i.MX6 DualLite Y Soft IOTA Draco board
               - ysoft,imx6dl-yapp4-hydra  # i.MX6 DualLite Y Soft IOTA Hydra board
               - ysoft,imx6dl-yapp4-orion  # i.MX6 DualLite Y Soft IOTA Orion board
               - ysoft,imx6dl-yapp4-ursa   # i.MX6 Solo Y Soft IOTA Ursa board
+          - const: fsl,imx6dl
+
+      - description: i.MX6DL based Armadeus AFP6 Board
+        items:
+          - const: armadeus,imx6dl-apf6dev
+          - const: armadeus,imx6dl-apf6         # APF6 (Solo) SoM
+          - const: fsl,imx6dl
+
+      - description: i.MX6DL based DFI FS700-M60-6DL Board
+        items:
+          - const: dfi,fs700-m60-6dl
+          - const: dfi,fs700e-m60
           - const: fsl,imx6dl
 
       - description: i.MX6DL Gateworks Ventana Boards
@@ -328,6 +349,22 @@ properties:
         items:
           - const: phytec,imx6dl-pbab01   # PHYTEC phyFLEX carrier board
           - const: phytec,imx6dl-pfla02   # PHYTEC phyFLEX-i.MX6 Quad
+          - const: fsl,imx6dl
+
+      - description: i.MX6DL Toradex Colibri iMX6 Module on Colibri
+                     Evaluation Board V3
+        items:
+          - const: toradex,colibri_imx6dl-eval-v3
+          - const: toradex,colibri_imx6dl          # Colibri iMX6 Module
+          - const: fsl,imx6dl
+
+      - description: i.MX6DL Toradex Colibri iMX6 Module V1.1 on Colibri
+                     Evaluation Board V3
+        items:
+          - const: toradex,colibri_imx6dl-v1_1-eval-v3
+          - const: toradex,colibri_imx6dl-v1_1     # Colibri iMX6 Module V1.1
+          - const: toradex,colibri_imx6dl-eval-v3
+          - const: toradex,colibri_imx6dl          # Colibri iMX6 Module
           - const: fsl,imx6dl
 
       - description: i.MX6SL based Boards
