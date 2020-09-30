@@ -114,8 +114,8 @@ mt7603_mcu_init_download(struct mt7603_dev *dev, u32 addr, u32 len)
 		.mode = cpu_to_le32(BIT(31)),
 	};
 
-	return __mt76_mcu_send_msg(&dev->mt76, -MCU_CMD_TARGET_ADDRESS_LEN_REQ,
-				   &req, sizeof(req), true);
+	return mt76_mcu_send_msg(&dev->mt76, -MCU_CMD_TARGET_ADDRESS_LEN_REQ,
+				 &req, sizeof(req), true);
 }
 
 static int
@@ -127,8 +127,8 @@ mt7603_mcu_send_firmware(struct mt7603_dev *dev, const void *data, int len)
 		cur_len = min_t(int, 4096 - sizeof(struct mt7603_mcu_txd),
 				len);
 
-		ret = __mt76_mcu_send_msg(&dev->mt76, -MCU_CMD_FW_SCATTER,
-					  data, cur_len, false);
+		ret = mt76_mcu_send_msg(&dev->mt76, -MCU_CMD_FW_SCATTER, data,
+					cur_len, false);
 		if (ret)
 			break;
 
@@ -150,15 +150,14 @@ mt7603_mcu_start_firmware(struct mt7603_dev *dev, u32 addr)
 		.addr = cpu_to_le32(addr),
 	};
 
-	return __mt76_mcu_send_msg(&dev->mt76, -MCU_CMD_FW_START_REQ,
-				   &req, sizeof(req), true);
+	return mt76_mcu_send_msg(&dev->mt76, -MCU_CMD_FW_START_REQ, &req,
+				 sizeof(req), true);
 }
 
 static int
 mt7603_mcu_restart(struct mt76_dev *dev)
 {
-	return __mt76_mcu_send_msg(dev, -MCU_CMD_RESTART_DL_REQ,
-				   NULL, 0, true);
+	return mt76_mcu_send_msg(dev, -MCU_CMD_RESTART_DL_REQ, NULL, 0, true);
 }
 
 static int mt7603_load_firmware(struct mt7603_dev *dev)
@@ -377,8 +376,8 @@ int mt7603_mcu_set_eeprom(struct mt7603_dev *dev)
 		data[i].val = eep[req_fields[i]];
 	}
 
-	ret = __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_EFUSE_BUFFER_MODE,
-				  req, len, true);
+	ret = mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_EFUSE_BUFFER_MODE,
+				req, len, true);
 	kfree(req);
 
 	return ret;
@@ -424,8 +423,8 @@ static int mt7603_mcu_set_tx_power(struct mt7603_dev *dev)
 	memcpy(req.temp_comp_power, eep + MT_EE_STEP_NUM_NEG_6_7,
 	       sizeof(req.temp_comp_power));
 
-	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_SET_TX_POWER_CTRL,
-				   &req, sizeof(req), true);
+	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_SET_TX_POWER_CTRL,
+				 &req, sizeof(req), true);
 }
 
 int mt7603_mcu_set_channel(struct mt7603_dev *dev)
@@ -470,8 +469,8 @@ int mt7603_mcu_set_channel(struct mt7603_dev *dev)
 	for (i = 0; i < ARRAY_SIZE(req.txpower); i++)
 		req.txpower[i] = tx_power;
 
-	ret = __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_CHANNEL_SWITCH,
-				  &req, sizeof(req), true);
+	ret = mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_CHANNEL_SWITCH, &req,
+				sizeof(req), true);
 	if (ret)
 		return ret;
 

@@ -89,7 +89,8 @@ int mt76x02_mcu_function_select(struct mt76x02_dev *dev, enum mcu_function func,
 	if (func != Q_SELECT)
 		wait = true;
 
-	return mt76_mcu_send_msg(dev, CMD_FUN_SET_OP, &msg, sizeof(msg), wait);
+	return mt76_mcu_send_msg(&dev->mt76, CMD_FUN_SET_OP, &msg,
+				 sizeof(msg), wait);
 }
 EXPORT_SYMBOL_GPL(mt76x02_mcu_function_select);
 
@@ -103,8 +104,8 @@ int mt76x02_mcu_set_radio_state(struct mt76x02_dev *dev, bool on)
 		.level = cpu_to_le32(0),
 	};
 
-	return mt76_mcu_send_msg(dev, CMD_POWER_SAVING_OP, &msg, sizeof(msg),
-				 false);
+	return mt76_mcu_send_msg(&dev->mt76, CMD_POWER_SAVING_OP, &msg,
+				 sizeof(msg), false);
 }
 EXPORT_SYMBOL_GPL(mt76x02_mcu_set_radio_state);
 
@@ -123,8 +124,8 @@ int mt76x02_mcu_calibrate(struct mt76x02_dev *dev, int type, u32 param)
 	if (is_mt76x2e)
 		mt76_rmw(dev, MT_MCU_COM_REG0, BIT(31), 0);
 
-	ret = mt76_mcu_send_msg(dev, CMD_CALIBRATION_OP, &msg, sizeof(msg),
-				true);
+	ret = mt76_mcu_send_msg(&dev->mt76, CMD_CALIBRATION_OP, &msg,
+				sizeof(msg), true);
 	if (ret)
 		return ret;
 
