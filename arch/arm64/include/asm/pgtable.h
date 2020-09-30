@@ -51,6 +51,14 @@ extern void __pgd_error(const char *file, int line, unsigned long val);
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 /*
+ * Outside of a few very special situations (e.g. hibernation), we always
+ * use broadcast TLB invalidation instructions, therefore a spurious page
+ * fault on one CPU which has been handled concurrently by another CPU
+ * does not need to perform additional invalidation.
+ */
+#define flush_tlb_fix_spurious_fault(vma, address) do { } while (0)
+
+/*
  * ZERO_PAGE is a global shared page that is always zero: used
  * for zero-mapped memory areas etc..
  */
