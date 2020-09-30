@@ -6,7 +6,7 @@
 //                          Marc Kleine-Budde <kernel@pengutronix.de>
 //
 
-#include "mcp25xxfd.h"
+#include "mcp251xfd.h"
 
 #include <asm/unaligned.h>
 

@@ -12,7 +12,7 @@
 // Copyright (c) 2019 Martin Sperl <kernel@martin.sperl.org>
 //
 
-#include "mcp25xxfd.h"
+#include "mcp251xfd.h"
 
 /* The standard crc16 in linux/crc16.h is unfortunately not computing
  * the correct results (left shift vs. right shift). So here an

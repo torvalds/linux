@@ -23,7 +23,7 @@
 
 #include <asm/unaligned.h>
 
-#include "mcp25xxfd.h"
+#include "mcp251xfd.h"
 
 #define DEVICE_NAME "mcp25xxfd"
 
