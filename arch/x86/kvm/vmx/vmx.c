@@ -4053,13 +4053,16 @@ void vmx_set_constant_host_state(struct vcpu_vmx *vmx)
 
 void set_cr4_guest_host_mask(struct vcpu_vmx *vmx)
 {
-	vmx->vcpu.arch.cr4_guest_owned_bits = KVM_POSSIBLE_CR4_GUEST_BITS;
+	struct kvm_vcpu *vcpu = &vmx->vcpu;
+
+	vcpu->arch.cr4_guest_owned_bits = KVM_POSSIBLE_CR4_GUEST_BITS &
+					  ~vcpu->arch.cr4_guest_rsvd_bits;
 	if (!enable_ept)
-		vmx->vcpu.arch.cr4_guest_owned_bits &= ~X86_CR4_PGE;
+		vcpu->arch.cr4_guest_owned_bits &= ~X86_CR4_PGE;
 	if (is_guest_mode(&vmx->vcpu))
-		vmx->vcpu.arch.cr4_guest_owned_bits &=
-			~get_vmcs12(&vmx->vcpu)->cr4_guest_host_mask;
-	vmcs_writel(CR4_GUEST_HOST_MASK, ~vmx->vcpu.arch.cr4_guest_owned_bits);
+		vcpu->arch.cr4_guest_owned_bits &=
+			~get_vmcs12(vcpu)->cr4_guest_host_mask;
+	vmcs_writel(CR4_GUEST_HOST_MASK, ~vcpu->arch.cr4_guest_owned_bits);
 }
 
 u32 vmx_pin_based_exec_ctrl(struct vcpu_vmx *vmx)
@@ -7248,6 +7251,8 @@ static void vmx_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 			vmx_set_guest_uret_msr(vmx, msr, enabled ? 0 : TSX_CTRL_RTM_DISABLE);
 		}
 	}
+
+	set_cr4_guest_host_mask(vmx);
 
 	/* Refresh #PF interception to account for MAXPHYADDR changes. */
 	update_exception_bitmap(vcpu);
