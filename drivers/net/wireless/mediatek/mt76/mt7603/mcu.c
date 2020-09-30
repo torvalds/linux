@@ -36,13 +36,15 @@ mt7603_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 }
 
 static int
-__mt7603_mcu_msg_send(struct mt7603_dev *dev, struct sk_buff *skb,
-		      int cmd, int *wait_seq)
+mt7603_mcu_skb_send_msg(struct mt76_dev *mdev, struct sk_buff *skb,
+			int cmd, int *wait_seq)
 {
+	struct mt7603_dev *dev = container_of(mdev, struct mt7603_dev, mt76);
 	int hdrlen = dev->mcu_running ? sizeof(struct mt7603_mcu_txd) : 12;
-	struct mt76_dev *mdev = &dev->mt76;
 	struct mt7603_mcu_txd *txd;
 	u8 seq;
+
+	mdev->mcu.timeout = 3 * HZ;
 
 	seq = ++mdev->mcu.msg_seq & 0xf;
 	if (!seq)
@@ -72,39 +74,6 @@ __mt7603_mcu_msg_send(struct mt7603_dev *dev, struct sk_buff *skb,
 		*wait_seq = seq;
 
 	return mt76_tx_queue_skb_raw(dev, MT_TXQ_MCU, skb, 0);
-}
-
-static int
-mt7603_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
-		    int len, bool wait_resp)
-{
-	struct mt7603_dev *dev = container_of(mdev, struct mt7603_dev, mt76);
-	unsigned long expires = jiffies + 3 * HZ;
-	struct sk_buff *skb;
-	int ret, seq;
-
-	skb = mt76_mcu_msg_alloc(mdev, data, len);
-	if (!skb)
-		return -ENOMEM;
-
-	mutex_lock(&mdev->mcu.mutex);
-
-	ret = __mt7603_mcu_msg_send(dev, skb, cmd, &seq);
-	if (ret)
-		goto out;
-
-	while (wait_resp) {
-		skb = mt76_mcu_get_response(&dev->mt76, expires);
-		ret = mt7603_mcu_parse_response(mdev, cmd, skb, seq);
-		dev_kfree_skb(skb);
-		if (ret != -EAGAIN)
-			break;
-	}
-
-out:
-	mutex_unlock(&mdev->mcu.mutex);
-
-	return ret;
 }
 
 static int
@@ -271,7 +240,7 @@ int mt7603_mcu_init(struct mt7603_dev *dev)
 {
 	static const struct mt76_mcu_ops mt7603_mcu_ops = {
 		.headroom = sizeof(struct mt7603_mcu_txd),
-		.mcu_send_msg = mt7603_mcu_msg_send,
+		.mcu_skb_send_msg = mt7603_mcu_skb_send_msg,
 		.mcu_parse_response = mt7603_mcu_parse_response,
 		.mcu_restart = mt7603_mcu_restart,
 	};
