@@ -28,6 +28,7 @@ enum tb_cfg_error {
 	TB_CFG_ERROR_LOOP = 8,
 	TB_CFG_ERROR_HEC_ERROR_DETECTED = 12,
 	TB_CFG_ERROR_FLOW_CONTROL_ERROR = 13,
+	TB_CFG_ERROR_LOCK = 15,
 };
 
 /* common header */
