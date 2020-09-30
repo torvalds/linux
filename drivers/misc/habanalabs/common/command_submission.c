@@ -242,20 +242,6 @@ static void free_job(struct hl_device *hdev, struct hl_cs_job *job)
 	kfree(job);
 }
 
-static void cs_counters_aggregate(struct hl_device *hdev, struct hl_ctx *ctx)
-{
-	hdev->aggregated_cs_counters.device_in_reset_drop_cnt +=
-			ctx->cs_counters.device_in_reset_drop_cnt;
-	hdev->aggregated_cs_counters.out_of_mem_drop_cnt +=
-			ctx->cs_counters.out_of_mem_drop_cnt;
-	hdev->aggregated_cs_counters.parsing_drop_cnt +=
-			ctx->cs_counters.parsing_drop_cnt;
-	hdev->aggregated_cs_counters.queue_full_drop_cnt +=
-			ctx->cs_counters.queue_full_drop_cnt;
-	hdev->aggregated_cs_counters.max_cs_in_flight_drop_cnt +=
-			ctx->cs_counters.max_cs_in_flight_drop_cnt;
-}
-
 static void cs_do_release(struct kref *ref)
 {
 	struct hl_cs *cs = container_of(ref, struct hl_cs,
@@ -358,7 +344,6 @@ static void cs_do_release(struct kref *ref)
 
 	complete_all(&cs->fence->completion);
 	hl_fence_put(cs->fence);
-	cs_counters_aggregate(hdev, cs->ctx);
 
 	kfree(cs->jobs_in_queue_cnt);
 	kfree(cs);
@@ -397,10 +382,13 @@ static void cs_timedout(struct work_struct *work)
 static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 			enum hl_cs_type cs_type, struct hl_cs **cs_new)
 {
-	struct hl_cs_compl *cs_cmpl;
+	struct hl_cs_counters_atomic *cntr;
 	struct hl_fence *other = NULL;
+	struct hl_cs_compl *cs_cmpl;
 	struct hl_cs *cs;
 	int rc;
+
+	cntr = &hdev->aggregated_cs_counters;
 
 	cs = kzalloc(sizeof(*cs), GFP_ATOMIC);
 	if (!cs)
@@ -436,6 +424,7 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 		dev_dbg_ratelimited(hdev->dev,
 			"Rejecting CS because of too many in-flights CS\n");
 		ctx->cs_counters.max_cs_in_flight_drop_cnt++;
+		atomic64_inc(&cntr->max_cs_in_flight_drop_cnt);
 		rc = -EAGAIN;
 		goto free_fence;
 	}
@@ -610,6 +599,7 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 {
 	struct hl_device *hdev = hpriv->hdev;
 	struct hl_cs_chunk *cs_chunk_array;
+	struct hl_cs_counters_atomic *cntr;
 	struct hl_cs_job *job;
 	struct hl_cs *cs;
 	struct hl_cb *cb;
@@ -617,6 +607,7 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 	u32 size_to_copy;
 	int rc, i;
 
+	cntr = &hdev->aggregated_cs_counters;
 	*cs_seq = ULLONG_MAX;
 
 	if (num_chunks > HL_MAX_JOBS_PER_CS) {
@@ -664,6 +655,7 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 						&is_kernel_allocated_cb);
 		if (rc) {
 			hpriv->ctx->cs_counters.parsing_drop_cnt++;
+			atomic64_inc(&cntr->parsing_drop_cnt);
 			goto free_cs_object;
 		}
 
@@ -671,6 +663,7 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 			cb = get_cb_from_cs_chunk(hdev, &hpriv->cb_mgr, chunk);
 			if (!cb) {
 				hpriv->ctx->cs_counters.parsing_drop_cnt++;
+				atomic64_inc(&cntr->parsing_drop_cnt);
 				rc = -EINVAL;
 				goto free_cs_object;
 			}
@@ -685,6 +678,7 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 						is_kernel_allocated_cb);
 		if (!job) {
 			hpriv->ctx->cs_counters.out_of_mem_drop_cnt++;
+			atomic64_inc(&cntr->out_of_mem_drop_cnt);
 			dev_err(hdev->dev, "Failed to allocate a new job\n");
 			rc = -ENOMEM;
 			if (is_kernel_allocated_cb)
@@ -718,6 +712,7 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 		rc = cs_parser(hpriv, job);
 		if (rc) {
 			hpriv->ctx->cs_counters.parsing_drop_cnt++;
+			atomic64_inc(&cntr->parsing_drop_cnt);
 			dev_err(hdev->dev,
 				"Failed to parse JOB %d.%llu.%d, err %d, rejecting the CS\n",
 				cs->ctx->asid, cs->sequence, job->id, rc);
@@ -727,6 +722,7 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 
 	if (int_queues_only) {
 		hpriv->ctx->cs_counters.parsing_drop_cnt++;
+		atomic64_inc(&cntr->parsing_drop_cnt);
 		dev_err(hdev->dev,
 			"Reject CS %d.%llu because only internal queues jobs are present\n",
 			cs->ctx->asid, cs->sequence);
@@ -768,20 +764,22 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 				void __user *chunks, u32 num_chunks,
 				u64 *cs_seq)
 {
-	struct hl_device *hdev = hpriv->hdev;
-	struct hl_ctx *ctx = hpriv->ctx;
+	u32 size_to_copy, q_idx, signal_seq_arr_len, cb_size;
 	struct hl_cs_chunk *cs_chunk_array, *chunk;
 	struct hw_queue_properties *hw_queue_prop;
+	u64 *signal_seq_arr = NULL, signal_seq;
+	struct hl_device *hdev = hpriv->hdev;
+	struct hl_cs_counters_atomic *cntr;
 	struct hl_fence *sig_fence = NULL;
+	struct hl_ctx *ctx = hpriv->ctx;
+	enum hl_queue_type q_type;
 	struct hl_cs_job *job;
 	struct hl_cs *cs;
 	struct hl_cb *cb;
-	enum hl_queue_type q_type;
-	u64 *signal_seq_arr = NULL, signal_seq;
-	u32 size_to_copy, q_idx, signal_seq_arr_len, cb_size;
 	int rc;
 
 	*cs_seq = ULLONG_MAX;
+	cntr = &hdev->aggregated_cs_counters;
 
 	if (num_chunks > HL_MAX_JOBS_PER_CS) {
 		dev_err(hdev->dev,
@@ -920,6 +918,7 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 	job = hl_cs_allocate_job(hdev, q_type, true);
 	if (!job) {
 		ctx->cs_counters.out_of_mem_drop_cnt++;
+		atomic64_inc(&cntr->out_of_mem_drop_cnt);
 		dev_err(hdev->dev, "Failed to allocate a new job\n");
 		rc = -ENOMEM;
 		goto put_cs;
@@ -934,6 +933,7 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 				q_type == QUEUE_TYPE_HW && hdev->mmu_enable);
 	if (!cb) {
 		ctx->cs_counters.out_of_mem_drop_cnt++;
+		atomic64_inc(&cntr->out_of_mem_drop_cnt);
 		kfree(job);
 		rc = -EFAULT;
 		goto put_cs;

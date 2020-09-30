@@ -1067,6 +1067,21 @@ struct hl_cs_parser {
 	u8			contains_dma_pkt;
 };
 
+/**
+ * struct hl_info_cs_counters - command submission counters
+ * @out_of_mem_drop_cnt: dropped due to memory allocation issue
+ * @parsing_drop_cnt: dropped due to error in packet parsing
+ * @queue_full_drop_cnt: dropped due to queue full
+ * @device_in_reset_drop_cnt: dropped due to device in reset
+ * @max_cs_in_flight_drop_cnt: dropped due to maximum CS in-flight
+ */
+struct hl_cs_counters_atomic {
+	atomic64_t out_of_mem_drop_cnt;
+	atomic64_t parsing_drop_cnt;
+	atomic64_t queue_full_drop_cnt;
+	atomic64_t device_in_reset_drop_cnt;
+	atomic64_t max_cs_in_flight_drop_cnt;
+};
 
 /*
  * MEMORY STRUCTURE
@@ -1649,7 +1664,7 @@ struct hl_device {
 
 	struct hl_device_idle_busy_ts	*idle_busy_ts_arr;
 
-	struct hl_cs_counters		aggregated_cs_counters;
+	struct hl_cs_counters_atomic	aggregated_cs_counters;
 
 	struct hl_mmu_priv		mmu_priv;
 	struct hl_mmu_funcs		mmu_func;
