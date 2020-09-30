@@ -245,9 +245,9 @@ struct v4l2_fwnode_connector {
  *
  * The function does not change the V4L2 fwnode endpoint state if it fails.
  *
- * NOTE: This function does not parse properties the size of which is variable
- * without a low fixed limit. Please use v4l2_fwnode_endpoint_alloc_parse() in
- * new drivers instead.
+ * NOTE: This function does not parse "link-frequencies" property as its size is
+ * not known in advance. Please use v4l2_fwnode_endpoint_alloc_parse() if you
+ * need properties of variable size.
  *
  * Return: %0 on success or a negative error code on failure:
  *	   %-ENOMEM on memory allocation failure
