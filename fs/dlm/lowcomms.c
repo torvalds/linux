@@ -175,7 +175,7 @@ static struct connection *__find_con(int nodeid)
  */
 static struct connection *nodeid2con(int nodeid, gfp_t alloc)
 {
-	struct connection *con = NULL;
+	struct connection *con, *tmp;
 	int r;
 
 	con = __find_con(nodeid);
@@ -213,6 +213,20 @@ static struct connection *nodeid2con(int nodeid, gfp_t alloc)
 	r = nodeid_hash(nodeid);
 
 	spin_lock(&connections_lock);
+	/* Because multiple workqueues/threads calls this function it can
+	 * race on multiple cpu's. Instead of locking hot path __find_con()
+	 * we just check in rare cases of recently added nodes again
+	 * under protection of connections_lock. If this is the case we
+	 * abort our connection creation and return the existing connection.
+	 */
+	tmp = __find_con(nodeid);
+	if (tmp) {
+		spin_unlock(&connections_lock);
+		kfree(con->rx_buf);
+		kfree(con);
+		return tmp;
+	}
+
 	hlist_add_head_rcu(&con->list, &connection_hash[r]);
 	spin_unlock(&connections_lock);
 
