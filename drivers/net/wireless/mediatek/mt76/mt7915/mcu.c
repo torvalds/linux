@@ -215,14 +215,74 @@ mt7915_mcu_get_sta_nss(u16 mcs_map)
 	return nss - 1;
 }
 
-static int __mt7915_mcu_msg_send(struct mt7915_dev *dev, struct sk_buff *skb,
-				 int cmd, int *wait_seq)
+static int
+mt7915_mcu_parse_eeprom(struct mt7915_dev *dev, struct sk_buff *skb)
 {
+	struct mt7915_mcu_eeprom_info *res;
+	u8 *buf;
+
+	if (!skb)
+		return -EINVAL;
+
+	skb_pull(skb, sizeof(struct mt7915_mcu_rxd));
+
+	res = (struct mt7915_mcu_eeprom_info *)skb->data;
+	buf = dev->mt76.eeprom.data + le32_to_cpu(res->addr);
+	memcpy(buf, res->data, 16);
+
+	return 0;
+}
+
+static int
+mt7915_mcu_parse_response(struct mt76_dev *mdev, int cmd,
+			  struct sk_buff *skb, int seq)
+{
+	struct mt7915_dev *dev = container_of(mdev, struct mt7915_dev, mt76);
+	struct mt7915_mcu_rxd *rxd;
+	int ret = 0;
+
+	if (!skb) {
+		dev_err(mdev->dev, "Message %d (seq %d) timeout\n",
+			cmd, seq);
+		return -ETIMEDOUT;
+	}
+
+	rxd = (struct mt7915_mcu_rxd *)skb->data;
+	if (seq != rxd->seq)
+		return -EAGAIN;
+
+	switch (cmd) {
+	case -MCU_CMD_PATCH_SEM_CONTROL:
+		skb_pull(skb, sizeof(*rxd) - 4);
+		ret = *skb->data;
+		break;
+	case MCU_EXT_CMD_THERMAL_CTRL:
+		skb_pull(skb, sizeof(*rxd) + 4);
+		ret = le32_to_cpu(*(__le32 *)skb->data);
+		break;
+	case MCU_EXT_CMD_EFUSE_ACCESS:
+		ret = mt7915_mcu_parse_eeprom(dev, skb);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
+static int
+mt7915_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
+			int cmd, int *wait_seq)
+{
+	struct mt7915_dev *dev = container_of(mdev, struct mt7915_dev, mt76);
 	struct mt7915_mcu_txd *mcu_txd;
 	u8 seq, pkt_fmt, qidx;
 	enum mt76_txq_id txq;
 	__le32 *txd;
 	u32 val;
+
+	/* TODO: make dynamic based on msg type */
+	mdev->mcu.timeout = 20 * HZ;
 
 	seq = ++dev->mt76.mcu.msg_seq & 0xf;
 	if (!seq)
@@ -288,101 +348,6 @@ exit:
 		*wait_seq = seq;
 
 	return mt76_tx_queue_skb_raw(dev, txq, skb, 0);
-}
-
-static int
-mt7915_mcu_parse_eeprom(struct mt7915_dev *dev, struct sk_buff *skb)
-{
-	struct mt7915_mcu_eeprom_info *res;
-	u8 *buf;
-
-	if (!skb)
-		return -EINVAL;
-
-	skb_pull(skb, sizeof(struct mt7915_mcu_rxd));
-
-	res = (struct mt7915_mcu_eeprom_info *)skb->data;
-	buf = dev->mt76.eeprom.data + le32_to_cpu(res->addr);
-	memcpy(buf, res->data, 16);
-
-	return 0;
-}
-
-static int
-mt7915_mcu_parse_response(struct mt76_dev *mdev, int cmd,
-			  struct sk_buff *skb, int seq)
-{
-	struct mt7915_dev *dev = container_of(mdev, struct mt7915_dev, mt76);
-	struct mt7915_mcu_rxd *rxd;
-	int ret = 0;
-
-	if (!skb) {
-		dev_err(mdev->dev, "Message %d (seq %d) timeout\n",
-			cmd, seq);
-		return -ETIMEDOUT;
-	}
-
-	rxd = (struct mt7915_mcu_rxd *)skb->data;
-	if (seq != rxd->seq)
-		return -EAGAIN;
-
-	switch (cmd) {
-	case -MCU_CMD_PATCH_SEM_CONTROL:
-		skb_pull(skb, sizeof(*rxd) - 4);
-		ret = *skb->data;
-		break;
-	case MCU_EXT_CMD_THERMAL_CTRL:
-		skb_pull(skb, sizeof(*rxd) + 4);
-		ret = le32_to_cpu(*(__le32 *)skb->data);
-		break;
-	case MCU_EXT_CMD_EFUSE_ACCESS:
-		ret = mt7915_mcu_parse_eeprom(dev, skb);
-		break;
-	default:
-		break;
-	}
-
-	return ret;
-}
-
-static int
-mt7915_mcu_wait_response(struct mt7915_dev *dev, int cmd, int seq)
-{
-	unsigned long expires = jiffies + 20 * HZ;
-	struct sk_buff *skb;
-	int ret = 0;
-
-	while (true) {
-		skb = mt76_mcu_get_response(&dev->mt76, expires);
-		ret = mt7915_mcu_parse_response(&dev->mt76, cmd, skb, seq);
-		dev_kfree_skb(skb);
-		if (ret != -EAGAIN)
-			break;
-	}
-
-	return ret;
-}
-
-static int
-mt7915_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
-			int cmd, bool wait_resp)
-{
-	struct mt7915_dev *dev = container_of(mdev, struct mt7915_dev, mt76);
-	int ret, seq;
-
-	mutex_lock(&mdev->mcu.mutex);
-
-	ret = __mt7915_mcu_msg_send(dev, skb, cmd, &seq);
-	if (ret)
-		goto out;
-
-	if (wait_resp)
-		ret = mt7915_mcu_wait_response(dev, cmd, seq);
-
-out:
-	mutex_unlock(&mdev->mcu.mutex);
-
-	return ret;
 }
 
 static int

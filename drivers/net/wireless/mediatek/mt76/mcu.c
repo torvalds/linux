@@ -50,3 +50,35 @@ void mt76_mcu_rx_event(struct mt76_dev *dev, struct sk_buff *skb)
 	wake_up(&dev->mcu.wait);
 }
 EXPORT_SYMBOL_GPL(mt76_mcu_rx_event);
+
+int mt76_mcu_skb_send_msg(struct mt76_dev *dev, struct sk_buff *skb,
+			  int cmd, bool wait_resp)
+{
+	unsigned long expires;
+	int ret, seq;
+
+	mutex_lock(&dev->mcu.mutex);
+
+	ret = dev->mcu_ops->mcu_skb_send_msg(dev, skb, cmd, &seq);
+	if (ret < 0)
+		goto out;
+
+	if (!wait_resp) {
+		ret = 0;
+		goto out;
+	}
+
+	expires = jiffies + dev->mcu.timeout;
+
+	do {
+		skb = mt76_mcu_get_response(dev, expires);
+		ret = dev->mcu_ops->mcu_parse_response(dev, cmd, skb, seq);
+		dev_kfree_skb(skb);
+	} while (ret == -EAGAIN);
+
+out:
+	mutex_unlock(&dev->mcu.mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(mt76_mcu_skb_send_msg);

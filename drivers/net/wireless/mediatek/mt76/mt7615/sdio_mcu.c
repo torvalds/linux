@@ -41,24 +41,17 @@ static int mt7663s_mcu_init_sched(struct mt7615_dev *dev)
 
 static int
 mt7663s_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
-			 int cmd, bool wait_resp)
+			 int cmd, int *seq)
 {
 	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
-	int ret, seq;
+	int ret;
 
-	mutex_lock(&mdev->mcu.mutex);
-
-	mt7615_mcu_fill_msg(dev, skb, cmd, &seq);
+	mt7615_mcu_fill_msg(dev, skb, cmd, seq);
 	ret = mt76_tx_queue_skb_raw(dev, MT_TXQ_MCU, skb, 0);
 	if (ret)
-		goto out;
+		return ret;
 
 	mt76_queue_kick(dev, mdev->q_tx[MT_TXQ_MCU]);
-	if (wait_resp)
-		ret = mt7615_mcu_wait_response(dev, cmd, seq);
-
-out:
-	mutex_unlock(&mdev->mcu.mutex);
 
 	return ret;
 }

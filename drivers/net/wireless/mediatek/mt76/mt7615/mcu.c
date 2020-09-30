@@ -94,6 +94,9 @@ void mt7615_mcu_fill_msg(struct mt7615_dev *dev, struct sk_buff *skb,
 	__le32 *txd;
 	u32 val;
 
+	/* TODO: make dynamic based on msg type */
+	dev->mt76.mcu.timeout = 20 * HZ;
+
 	seq = ++dev->mt76.mcu.msg_seq & 0xf;
 	if (!seq)
 		seq = ++dev->mt76.mcu.msg_seq & 0xf;
@@ -165,20 +168,6 @@ void mt7615_mcu_fill_msg(struct mt7615_dev *dev, struct sk_buff *skb,
 }
 EXPORT_SYMBOL_GPL(mt7615_mcu_fill_msg);
 
-static int __mt7615_mcu_msg_send(struct mt7615_dev *dev, struct sk_buff *skb,
-				 int cmd, int *wait_seq)
-{
-	enum mt76_txq_id qid;
-
-	mt7615_mcu_fill_msg(dev, skb, cmd, wait_seq);
-	if (test_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state))
-		qid = MT_TXQ_MCU;
-	else
-		qid = MT_TXQ_FWDL;
-
-	return mt76_tx_queue_skb_raw(dev, qid, skb, 0);
-}
-
 int mt7615_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 			      struct sk_buff *skb, int seq)
 {
@@ -237,44 +226,20 @@ int mt7615_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 }
 EXPORT_SYMBOL_GPL(mt7615_mcu_parse_response);
 
-int mt7615_mcu_wait_response(struct mt7615_dev *dev, int cmd, int seq)
-{
-	unsigned long expires = jiffies + 20 * HZ;
-	struct sk_buff *skb;
-	int ret = 0;
-
-	while (true) {
-		skb = mt76_mcu_get_response(&dev->mt76, expires);
-		ret = mt7615_mcu_parse_response(&dev->mt76, cmd, skb, seq);
-		dev_kfree_skb(skb);
-		if (ret != -EAGAIN)
-			break;
-	}
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(mt7615_mcu_wait_response);
-
 static int
 mt7615_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
-			int cmd, bool wait_resp)
+			int cmd, int *seq)
 {
 	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
-	int ret, seq;
+	enum mt76_txq_id qid;
 
-	mutex_lock(&mdev->mcu.mutex);
+	mt7615_mcu_fill_msg(dev, skb, cmd, seq);
+	if (test_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state))
+		qid = MT_TXQ_MCU;
+	else
+		qid = MT_TXQ_FWDL;
 
-	ret = __mt7615_mcu_msg_send(dev, skb, cmd, &seq);
-	if (ret)
-		goto out;
-
-	if (wait_resp)
-		ret = mt7615_mcu_wait_response(dev, cmd, seq);
-
-out:
-	mutex_unlock(&mdev->mcu.mutex);
-
-	return ret;
+	return mt76_tx_queue_skb_raw(dev, qid, skb, 0);
 }
 
 int mt7615_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
