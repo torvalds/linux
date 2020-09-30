@@ -129,7 +129,7 @@ struct iwl_umac_alive {
 } __packed; /* UMAC_ALIVE_DATA_API_S_VER_2 */
 
 struct iwl_sku_id {
-	u32 data[3];
+	__le32 data[3];
 } __packed; /* SKU_ID_API_S_VER_1 */
 
 struct iwl_alive_ntf_v3 {
