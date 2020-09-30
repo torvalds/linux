@@ -308,17 +308,11 @@ enum iwl_rx_mpdu_status {
 	IWL_RX_MPDU_STATUS_EXT_IV_MATCH		= BIT(13),
 	IWL_RX_MPDU_STATUS_KEY_ID_MATCH		= BIT(14),
 	IWL_RX_MPDU_STATUS_ROBUST_MNG_FRAME	= BIT(15),
-};
 
-enum iwl_rx_mpdu_hash_filter {
-	IWL_RX_MPDU_HF_A1_HASH_MASK		= 0x3f,
-	IWL_RX_MPDU_HF_FILTER_STATUS_MASK	= 0xc0,
-};
+	IWL_RX_MPDU_STATUS_KEY			= 0x3f0000,
+	IWL_RX_MPDU_STATUS_DUPLICATE		= BIT(22),
 
-enum iwl_rx_mpdu_sta_id_flags {
-	IWL_RX_MPDU_SIF_STA_ID_MASK		= 0x1f,
-	IWL_RX_MPDU_SIF_RRF_ABORT		= 0x20,
-	IWL_RX_MPDU_SIF_FILTER_STATUS_MASK	= 0xc0,
+	IWL_RX_MPDU_STATUS_STA_ID		= 0x1f000000,
 };
 
 #define IWL_RX_REORDER_DATA_INVALID_BAID 0x7f
@@ -672,15 +666,8 @@ struct iwl_rx_mpdu_desc {
 	/**
 	 * @status: &enum iwl_rx_mpdu_status
 	 */
-	__le16 status;
-	/**
-	 * @hash_filter: hash filter value
-	 */
-	u8 hash_filter;
-	/**
-	 * @sta_id_flags: &enum iwl_rx_mpdu_sta_id_flags
-	 */
-	u8 sta_id_flags;
+	__le32 status;
+
 	/* DW6 */
 	/**
 	 * @reorder_data: &enum iwl_rx_mpdu_reorder_data
