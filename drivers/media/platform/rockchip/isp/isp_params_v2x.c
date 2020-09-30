@@ -3433,23 +3433,20 @@ isp_gain_config(struct rkisp_isp_params_vdev *params_vdev,
 	struct rkisp_isp_params_val_v2x *priv_val =
 		(struct rkisp_isp_params_val_v2x *)params_vdev->priv_val;
 	u32 value, i, gain_wsize;
-	u8 tmo_en, mge_en;
+	u8 mge_en;
 
 	if (dev->csi_dev.rd_mode != HDR_NORMAL &&
-	    dev->csi_dev.rd_mode != HDR_RDBK_FRAME1) {
-		tmo_en = 1;
+	    dev->csi_dev.rd_mode != HDR_RDBK_FRAME1)
 		mge_en = 1;
-	} else {
-		tmo_en = 0;
+	else
 		mge_en = 0;
-	}
 
 	gain_wsize = rkisp_ioread32(params_vdev, MI_GAIN_WR_SIZE);
 	gain_wsize &= 0x0FFFFFF0;
 	if (gain_wsize)
 		value = (priv_val->dhaz_en & 0x01) << 16 |
 			(priv_val->wdr_en & 0x01) << 12 |
-			(tmo_en & 0x01) << 8 |
+			(priv_val->tmo_en & 0x01) << 8 |
 			(priv_val->lsc_en & 0x01) << 4 |
 			(mge_en & 0x01);
 	else
