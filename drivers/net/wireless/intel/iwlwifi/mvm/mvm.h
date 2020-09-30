@@ -416,7 +416,11 @@ struct iwl_mvm_vif {
 #ifdef CONFIG_PM
 	/* WoWLAN GTK rekey data */
 	struct {
-		u8 kck[NL80211_KCK_LEN], kek[NL80211_KEK_LEN];
+		u8 kck[NL80211_KCK_EXT_LEN];
+		u8 kek[NL80211_KEK_EXT_LEN];
+		size_t kek_len;
+		size_t kck_len;
+		u32 akm;
 		__le64 replay_ctr;
 		bool valid;
 	} rekey_data;

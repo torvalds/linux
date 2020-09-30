@@ -81,8 +81,11 @@ void iwl_mvm_set_rekey_data(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 
-	memcpy(mvmvif->rekey_data.kek, data->kek, NL80211_KEK_LEN);
-	memcpy(mvmvif->rekey_data.kck, data->kck, NL80211_KCK_LEN);
+	mvmvif->rekey_data.kek_len = data->kek_len;
+	mvmvif->rekey_data.kck_len = data->kck_len;
+	memcpy(mvmvif->rekey_data.kek, data->kek, data->kek_len);
+	memcpy(mvmvif->rekey_data.kck, data->kck, data->kck_len);
+	mvmvif->rekey_data.akm = data->akm & 0xFF;
 	mvmvif->rekey_data.replay_ctr =
 		cpu_to_le64(be64_to_cpup((__be64 *)data->replay_ctr));
 	mvmvif->rekey_data.valid = true;
@@ -157,6 +160,7 @@ static const u8 *iwl_mvm_find_max_pn(struct ieee80211_key_conf *key,
 struct wowlan_key_data {
 	struct iwl_wowlan_rsc_tsc_params_cmd *rsc_tsc;
 	struct iwl_wowlan_tkip_params_cmd *tkip;
+	struct iwl_wowlan_kek_kck_material_cmd_v3 *kek_kck_cmd;
 	bool error, use_rsc_tsc, use_tkip, configure_keys;
 	int wep_key_idx;
 };
@@ -233,7 +237,12 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 	default:
 		data->error = true;
 		return;
+	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+		data->kek_kck_cmd->igtk_cipher = cpu_to_le32(STA_KEY_FLG_GCMP);
+		return;
 	case WLAN_CIPHER_SUITE_AES_CMAC:
+		data->kek_kck_cmd->igtk_cipher = cpu_to_le32(STA_KEY_FLG_CCM);
 		/*
 		 * Ignore CMAC keys -- the WoWLAN firmware doesn't support them
 		 * but we also shouldn't abort suspend due to that. It does have
@@ -271,6 +280,8 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 			  data->rsc_tsc->params.all_tsc_rsc.tkip.multicast_rsc;
 			rx_p1ks = data->tkip->rx_multi;
 			rx_mic_key = data->tkip->mic_keys.rx_mcast;
+			data->kek_kck_cmd->gtk_cipher =
+				cpu_to_le32(STA_KEY_FLG_TKIP);
 		}
 
 		/*
@@ -315,6 +326,10 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 		} else {
 			aes_sc =
 			   data->rsc_tsc->params.all_tsc_rsc.aes.multicast_rsc;
+			data->kek_kck_cmd->gtk_cipher =
+				key->cipher == WLAN_CIPHER_SUITE_CCMP ?
+				cpu_to_le32(STA_KEY_FLG_CCM) :
+				cpu_to_le32(STA_KEY_FLG_GCMP);
 		}
 
 		/*
@@ -749,6 +764,7 @@ static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 		.use_rsc_tsc = false,
 		.tkip = &tkip_cmd,
 		.use_tkip = false,
+		.kek_kck_cmd = &kek_kck_cmd,
 	};
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	int ret;
@@ -852,12 +868,13 @@ static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 
 		memset(&kek_kck_cmd, 0, sizeof(kek_kck_cmd));
 		memcpy(kek_kck_cmd.kck, mvmvif->rekey_data.kck,
-		       NL80211_KCK_LEN);
-		kek_kck_cmd.kck_len = cpu_to_le16(NL80211_KCK_LEN);
+		       mvmvif->rekey_data.kck_len);
+		kek_kck_cmd.kck_len = cpu_to_le16(mvmvif->rekey_data.kck_len);
 		memcpy(kek_kck_cmd.kek, mvmvif->rekey_data.kek,
-		       NL80211_KEK_LEN);
-		kek_kck_cmd.kek_len = cpu_to_le16(NL80211_KEK_LEN);
+		       mvmvif->rekey_data.kek_len);
+		kek_kck_cmd.kek_len = cpu_to_le16(mvmvif->rekey_data.kek_len);
 		kek_kck_cmd.replay_ctr = mvmvif->rekey_data.replay_ctr;
+		kek_kck_cmd.akm = cpu_to_le32(mvmvif->rekey_data.akm);
 
 		ret = iwl_mvm_send_cmd_pdu(mvm,
 					   WOWLAN_KEK_KCK_MATERIAL, cmd_flags,
