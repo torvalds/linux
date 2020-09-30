@@ -409,7 +409,7 @@ static int rtlgen_write_mmd(struct phy_device *phydev, int devnum, u16 regnum,
 	return ret;
 }
 
-static int rtl8125_read_mmd(struct phy_device *phydev, int devnum, u16 regnum)
+static int rtl822x_read_mmd(struct phy_device *phydev, int devnum, u16 regnum)
 {
 	int ret = rtlgen_read_mmd(phydev, devnum, regnum);
 
@@ -433,7 +433,7 @@ static int rtl8125_read_mmd(struct phy_device *phydev, int devnum, u16 regnum)
 	return ret;
 }
 
-static int rtl8125_write_mmd(struct phy_device *phydev, int devnum, u16 regnum,
+static int rtl822x_write_mmd(struct phy_device *phydev, int devnum, u16 regnum,
 			     u16 val)
 {
 	int ret = rtlgen_write_mmd(phydev, devnum, regnum, val);
@@ -450,7 +450,7 @@ static int rtl8125_write_mmd(struct phy_device *phydev, int devnum, u16 regnum,
 	return ret;
 }
 
-static int rtl8125_get_features(struct phy_device *phydev)
+static int rtl822x_get_features(struct phy_device *phydev)
 {
 	int val;
 
@@ -468,7 +468,7 @@ static int rtl8125_get_features(struct phy_device *phydev)
 	return genphy_read_abilities(phydev);
 }
 
-static int rtl8125_config_aneg(struct phy_device *phydev)
+static int rtl822x_config_aneg(struct phy_device *phydev)
 {
 	int ret = 0;
 
@@ -488,7 +488,7 @@ static int rtl8125_config_aneg(struct phy_device *phydev)
 	return __genphy_config_aneg(phydev, ret);
 }
 
-static int rtl8125_read_status(struct phy_device *phydev)
+static int rtl822x_read_status(struct phy_device *phydev)
 {
 	int ret;
 
@@ -530,7 +530,7 @@ static int rtlgen_match_phy_device(struct phy_device *phydev)
 	       !rtlgen_supports_2_5gbps(phydev);
 }
 
-static int rtl8125_match_phy_device(struct phy_device *phydev)
+static int rtl8226_match_phy_device(struct phy_device *phydev)
 {
 	return phydev->phy_id == RTL_GENERIC_PHYID &&
 	       rtlgen_supports_2_5gbps(phydev);
@@ -635,29 +635,29 @@ static struct phy_driver realtek_drvs[] = {
 		.read_mmd	= rtlgen_read_mmd,
 		.write_mmd	= rtlgen_write_mmd,
 	}, {
-		.name		= "RTL8125 2.5Gbps internal",
-		.match_phy_device = rtl8125_match_phy_device,
-		.get_features	= rtl8125_get_features,
-		.config_aneg	= rtl8125_config_aneg,
-		.read_status	= rtl8125_read_status,
+		.name		= "RTL8226 2.5Gbps PHY",
+		.match_phy_device = rtl8226_match_phy_device,
+		.get_features	= rtl822x_get_features,
+		.config_aneg	= rtl822x_config_aneg,
+		.read_status	= rtl822x_read_status,
 		.suspend	= genphy_suspend,
 		.resume		= rtlgen_resume,
 		.read_page	= rtl821x_read_page,
 		.write_page	= rtl821x_write_page,
-		.read_mmd	= rtl8125_read_mmd,
-		.write_mmd	= rtl8125_write_mmd,
+		.read_mmd	= rtl822x_read_mmd,
+		.write_mmd	= rtl822x_write_mmd,
 	}, {
 		PHY_ID_MATCH_EXACT(0x001cc840),
-		.name		= "RTL8125B 2.5Gbps internal",
-		.get_features	= rtl8125_get_features,
-		.config_aneg	= rtl8125_config_aneg,
-		.read_status	= rtl8125_read_status,
+		.name		= "RTL8226B_RTL8221B 2.5Gbps PHY",
+		.get_features	= rtl822x_get_features,
+		.config_aneg	= rtl822x_config_aneg,
+		.read_status	= rtl822x_read_status,
 		.suspend	= genphy_suspend,
 		.resume		= rtlgen_resume,
 		.read_page	= rtl821x_read_page,
 		.write_page	= rtl821x_write_page,
-		.read_mmd	= rtl8125_read_mmd,
-		.write_mmd	= rtl8125_write_mmd,
+		.read_mmd	= rtl822x_read_mmd,
+		.write_mmd	= rtl822x_write_mmd,
 	}, {
 		PHY_ID_MATCH_EXACT(0x001cc961),
 		.name		= "RTL8366RB Gigabit Ethernet",
