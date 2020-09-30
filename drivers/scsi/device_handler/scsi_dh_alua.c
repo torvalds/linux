@@ -408,12 +408,20 @@ static char print_alua_state(unsigned char state)
 static int alua_check_sense(struct scsi_device *sdev,
 			    struct scsi_sense_hdr *sense_hdr)
 {
+	struct alua_dh_data *h = sdev->handler_data;
+	struct alua_port_group *pg;
+
 	switch (sense_hdr->sense_key) {
 	case NOT_READY:
 		if (sense_hdr->asc == 0x04 && sense_hdr->ascq == 0x0a) {
 			/*
 			 * LUN Not Accessible - ALUA state transition
 			 */
+			rcu_read_lock();
+			pg = rcu_dereference(h->pg);
+			if (pg)
+				pg->state = SCSI_ACCESS_STATE_TRANSITIONING;
+			rcu_read_unlock();
 			alua_check(sdev, false);
 			return NEEDS_RETRY;
 		}
