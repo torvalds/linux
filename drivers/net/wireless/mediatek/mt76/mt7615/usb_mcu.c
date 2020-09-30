@@ -48,7 +48,6 @@ int mt7663u_mcu_init(struct mt7615_dev *dev)
 		.headroom = MT_USB_HDR_SIZE + sizeof(struct mt7615_mcu_txd),
 		.tailroom = MT_USB_TAIL_SIZE,
 		.mcu_skb_send_msg = mt7663u_mcu_send_message,
-		.mcu_send_msg = mt7615_mcu_msg_send,
 		.mcu_parse_response = mt7615_mcu_parse_response,
 		.mcu_restart = mt7615_mcu_restart,
 	};

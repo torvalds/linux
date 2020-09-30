@@ -51,6 +51,22 @@ void mt76_mcu_rx_event(struct mt76_dev *dev, struct sk_buff *skb)
 }
 EXPORT_SYMBOL_GPL(mt76_mcu_rx_event);
 
+int mt76_mcu_send_msg(struct mt76_dev *dev, int cmd, const void *data,
+		      int len, bool wait_resp)
+{
+	struct sk_buff *skb;
+
+	if (dev->mcu_ops->mcu_send_msg)
+		return dev->mcu_ops->mcu_send_msg(dev, cmd, data, len, wait_resp);
+
+	skb = mt76_mcu_msg_alloc(dev, data, len);
+	if (!skb)
+		return -ENOMEM;
+
+	return mt76_mcu_skb_send_msg(dev, skb, cmd, wait_resp);
+}
+EXPORT_SYMBOL_GPL(mt76_mcu_send_msg);
+
 int mt76_mcu_skb_send_msg(struct mt76_dev *dev, struct sk_buff *skb,
 			  int cmd, bool wait_resp)
 {

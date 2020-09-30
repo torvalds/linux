@@ -350,19 +350,6 @@ exit:
 	return mt76_tx_queue_skb_raw(dev, txq, skb, 0);
 }
 
-static int
-mt7915_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
-		    int len, bool wait_resp)
-{
-	struct sk_buff *skb;
-
-	skb = mt76_mcu_msg_alloc(mdev, data, len);
-	if (!skb)
-		return -ENOMEM;
-
-	return mt76_mcu_skb_send_msg(mdev, skb, cmd, wait_resp);
-}
-
 static void
 mt7915_mcu_csa_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
 {
@@ -2924,7 +2911,6 @@ int mt7915_mcu_init(struct mt7915_dev *dev)
 	static const struct mt76_mcu_ops mt7915_mcu_ops = {
 		.headroom = sizeof(struct mt7915_mcu_txd),
 		.mcu_skb_send_msg = mt7915_mcu_send_message,
-		.mcu_send_msg = mt7915_mcu_msg_send,
 		.mcu_parse_response = mt7915_mcu_parse_response,
 		.mcu_restart = mt7915_mcu_restart,
 	};

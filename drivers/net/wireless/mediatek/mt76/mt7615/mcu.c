@@ -242,19 +242,6 @@ mt7615_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 	return mt76_tx_queue_skb_raw(dev, qid, skb, 0);
 }
 
-int mt7615_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
-			int len, bool wait_resp)
-{
-	struct sk_buff *skb;
-
-	skb = mt76_mcu_msg_alloc(mdev, data, len);
-	if (!skb)
-		return -ENOMEM;
-
-	return mt76_mcu_skb_send_msg(mdev, skb, cmd, wait_resp);
-}
-EXPORT_SYMBOL_GPL(mt7615_mcu_msg_send);
-
 u32 mt7615_rf_rr(struct mt7615_dev *dev, u32 wf, u32 reg)
 {
 	struct {
@@ -2429,7 +2416,6 @@ int mt7615_mcu_init(struct mt7615_dev *dev)
 	static const struct mt76_mcu_ops mt7615_mcu_ops = {
 		.headroom = sizeof(struct mt7615_mcu_txd),
 		.mcu_skb_send_msg = mt7615_mcu_send_message,
-		.mcu_send_msg = mt7615_mcu_msg_send,
 		.mcu_parse_response = mt7615_mcu_parse_response,
 		.mcu_restart = mt7615_mcu_restart,
 	};

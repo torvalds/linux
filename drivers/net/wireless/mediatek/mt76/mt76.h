@@ -689,7 +689,6 @@ enum mt76_phy_type {
 #define mt76_rd_rp(dev, ...)	(dev)->mt76.bus->rd_rp(&((dev)->mt76), __VA_ARGS__)
 
 
-#define mt76_mcu_send_msg(dev, ...)	(dev)->mcu_ops->mcu_send_msg((dev), __VA_ARGS__)
 #define mt76_mcu_restart(dev, ...)	(dev)->mt76.mcu_ops->mcu_restart(&((dev)->mt76))
 #define __mt76_mcu_restart(dev, ...)	(dev)->mcu_ops->mcu_restart((dev))
 
@@ -1068,6 +1067,8 @@ mt76_mcu_msg_alloc(struct mt76_dev *dev, const void *data,
 void mt76_mcu_rx_event(struct mt76_dev *dev, struct sk_buff *skb);
 struct sk_buff *mt76_mcu_get_response(struct mt76_dev *dev,
 				      unsigned long expires);
+int mt76_mcu_send_msg(struct mt76_dev *dev, int cmd, const void *data,
+		      int len, bool wait_resp);
 int mt76_mcu_skb_send_msg(struct mt76_dev *dev, struct sk_buff *skb,
 			  int cmd, bool wait_resp);
 
