@@ -59,6 +59,10 @@ struct sdio_func {
 	const char		**info;		/* info strings */
 
 	struct sdio_func_tuple *tuples;
+
+#ifdef CONFIG_SDIO_KEEPALIVE
+	u8 card_alive;
+#endif
 };
 
 #define sdio_func_present(f)	((f)->state & SDIO_STATE_PRESENT)

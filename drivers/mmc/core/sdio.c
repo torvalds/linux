@@ -587,11 +587,25 @@ try_again:
 	/*
 	 * Inform the card of the voltage
 	 */
+#ifdef CONFIG_SDIO_KEEPALIVE
+	if (!(host->chip_alive)) {
+		if (!powered_resume) {
+			err = mmc_send_io_op_cond(host, ocr, &rocr);
+			if (err) {
+				pr_err("%s: mmc_send_io_op_cond() err=%d\n", __func__, err);
+				goto err;
+			}
+		}
+	} else {
+		rocr = 0xa0ffff00;
+	}
+#else
 	if (!powered_resume) {
 		err = mmc_send_io_op_cond(host, ocr, &rocr);
 		if (err)
 			goto err;
 	}
+#endif
 
 	/*
 	 * For SPI, enable CRC as appropriate.
@@ -661,9 +675,19 @@ try_again:
 	 * For native busses:  set card RCA and quit open drain mode.
 	 */
 	if (!powered_resume && !mmc_host_is_spi(host)) {
+#ifdef CONFIG_SDIO_KEEPALIVE
+		if (!(host->chip_alive)) {
+			err = mmc_send_relative_addr(host, &card->rca);
+			if (err)
+				goto remove;
+		} else {
+			card->rca = 1;
+		}
+#else
 		err = mmc_send_relative_addr(host, &card->rca);
 		if (err)
 			goto remove;
+#endif
 
 		/*
 		 * Update oldcard with the new RCA received from the SDIO
@@ -1104,9 +1128,21 @@ int mmc_attach_sdio(struct mmc_host *host)
 
 	WARN_ON(!host->claimed);
 
+#ifdef CONFIG_SDIO_KEEPALIVE
+	if (!(host->chip_alive)) {
+		err = mmc_send_io_op_cond(host, 0, &ocr);
+		if (err) {
+			pr_err("%s mmc_send_io_op_cond err: %d\n", mmc_hostname(host), err);
+			return err;
+		}
+	} else {
+		ocr = 0x20ffff00;
+	}
+#else
 	err = mmc_send_io_op_cond(host, 0, &ocr);
 	if (err)
 		return err;
+#endif
 
 	mmc_attach_bus(host, &mmc_sdio_ops);
 	if (host->ocr_avail_sdio)
@@ -1177,6 +1213,11 @@ int mmc_attach_sdio(struct mmc_host *host)
 			pm_runtime_enable(&card->sdio_func[i]->dev);
 	}
 
+#ifdef CONFIG_SDIO_KEEPALIVE
+	if (host->card->sdio_func[1])
+		host->card->sdio_func[1]->card_alive = host->chip_alive;
+#endif
+
 	/*
 	 * First add the card to the driver model...
 	 */
@@ -1227,6 +1268,11 @@ int sdio_reset_comm(struct mmc_card *card)
 	u32 ocr;
 	u32 rocr;
 	int err;
+
+#ifdef CONFIG_SDIO_KEEPALIVE
+	if (host->chip_alive)
+		host->chip_alive = 0;
+#endif
 
 	printk("%s():\n", __func__);
 	mmc_claim_host(host);

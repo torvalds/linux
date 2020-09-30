@@ -2505,6 +2505,20 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 	mmc_hw_reset_for_init(host);
 #endif
 
+#ifdef CONFIG_SDIO_KEEPALIVE
+	if (host->support_chip_alive) {
+		host->chip_alive = 1;
+		if (!mmc_attach_sdio(host)) {
+			return 0;
+		} else {
+			pr_err("%s: chip_alive attach sdio failed.\n", mmc_hostname(host));
+			host->chip_alive = 0;
+		}
+	} else {
+		host->chip_alive = 0;
+	}
+#endif
+
 	/*
 	 * sdio_reset sends CMD52 to reset card.  Since we do not know
 	 * if the card is being re-initialized, just send it.  CMD52
@@ -2533,8 +2547,13 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 		if (!mmc_attach_mmc(host))
 			return 0;
 #else
+#ifdef CONFIG_SDIO_KEEPALIVE
+	if ((!(host->chip_alive)) && (host->restrict_caps & RESTRICT_CARD_TYPE_SDIO))
+		sdio_reset(host);
+#else
 	if (host->restrict_caps & RESTRICT_CARD_TYPE_SDIO)
 		sdio_reset(host);
+#endif
 
 	mmc_go_idle(host);
 

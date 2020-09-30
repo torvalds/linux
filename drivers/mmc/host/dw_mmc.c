@@ -1005,6 +1005,11 @@ static int dw_mci_get_cd(struct mmc_host *mmc)
 	struct dw_mci *host = slot->host;
 	int gpio_cd = mmc_gpio_get_cd(mmc);
 
+#ifdef CONFIG_SDIO_KEEPALIVE
+	if (mmc->logic_remove_card)
+		return test_bit(DW_MMC_CARD_PRESENT, &slot->flags);
+#endif
+
 	/* Use platform get_cd function, else try onboard card detect */
 	if (((mmc->caps & MMC_CAP_NEEDS_POLL)
 				|| !mmc_card_is_removable(mmc))) {
@@ -2943,6 +2948,11 @@ static int dw_mci_init_slot(struct dw_mci *host)
 	}
 
 	dw_mci_get_cd(mmc);
+
+#ifdef CONFIG_SDIO_KEEPALIVE
+	if (mmc->logic_remove_card)
+		clear_bit(DW_MMC_CARD_PRESENT, &slot->flags);
+#endif
 
 	ret = mmc_add_host(mmc);
 	if (ret)
