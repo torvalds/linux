@@ -200,7 +200,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	pci_set_master(pdev);
 
-	if (adf_enable_aer(accel_dev, &adf_driver)) {
+	if (adf_enable_aer(accel_dev)) {
 		dev_err(&pdev->dev, "Failed to enable aer\n");
 		ret = -EFAULT;
 		goto out_err_free_reg;
