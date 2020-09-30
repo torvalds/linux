@@ -3667,6 +3667,7 @@ static void gfx_v10_0_check_gfxoff_flag(struct amdgpu_device *adev)
 			adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
 		break;
 	case CHIP_NAVY_FLOUNDER:
+	case CHIP_VANGOGH:
 		adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
 		break;
 	default:
