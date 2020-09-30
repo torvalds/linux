@@ -165,8 +165,27 @@ properties:
               - fsl,imx53-ard
               - fsl,imx53-evk
               - fsl,imx53-qsb
+              - fsl,imx53-qsrb                # Freescale i.MX53 Quick Start-R Board
               - fsl,imx53-smd
+              - ge,imx53-cpuvo                # General Electric CS ONE
+              - inversepath,imx53-usbarmory   # Inverse Path USB armory
+              - karo,tx53                     # Ka-Ro electronics TX53 module
+              - kiebackpeter,imx53-ddc        # K+P imx53 DDC
+              - kiebackpeter,imx53-hsc        # K+P imx53 HSC
               - menlo,m53menlo
+              - voipac,imx53-dmm-668          # Voipac i.MX53 X53-DMM-668
+          - const: fsl,imx53
+
+      - description: i.MX53 based Aries/DENX M53EVK Board
+        items:
+          - const: aries,imx53-m53evk
+          - const: denx,imx53-m53evk
+          - const: fsl,imx53
+
+      - description: i.MX53 based TQ MBa53 Board
+        items:
+          - const: tq,mba53
+          - const: tq,tqma53
           - const: fsl,imx53
 
       - description: i.MX6Q based Boards
