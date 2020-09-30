@@ -877,6 +877,7 @@ config VIDEO_OV2740
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API
 	select V4L2_FWNODE
+	select REGMAP_I2C
 	help
 	  This is a Video4Linux2 sensor driver for the OmniVision
 	  OV2740 camera.
