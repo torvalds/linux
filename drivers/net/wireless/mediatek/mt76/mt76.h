@@ -1067,10 +1067,23 @@ mt76_mcu_msg_alloc(struct mt76_dev *dev, const void *data,
 void mt76_mcu_rx_event(struct mt76_dev *dev, struct sk_buff *skb);
 struct sk_buff *mt76_mcu_get_response(struct mt76_dev *dev,
 				      unsigned long expires);
-int mt76_mcu_send_msg(struct mt76_dev *dev, int cmd, const void *data,
-		      int len, bool wait_resp);
-int mt76_mcu_skb_send_msg(struct mt76_dev *dev, struct sk_buff *skb,
-			  int cmd, bool wait_resp);
+int mt76_mcu_send_and_get_msg(struct mt76_dev *dev, int cmd, const void *data,
+			      int len, bool wait_resp, struct sk_buff **ret);
+int mt76_mcu_skb_send_and_get_msg(struct mt76_dev *dev, struct sk_buff *skb,
+				  int cmd, bool wait_resp, struct sk_buff **ret);
+static inline int
+mt76_mcu_send_msg(struct mt76_dev *dev, int cmd, const void *data, int len,
+		  bool wait_resp)
+{
+	return mt76_mcu_send_and_get_msg(dev, cmd, data, len, wait_resp, NULL);
+}
+
+static inline int
+mt76_mcu_skb_send_msg(struct mt76_dev *dev, struct sk_buff *skb, int cmd,
+		      bool wait_resp)
+{
+	return mt76_mcu_skb_send_and_get_msg(dev, skb, cmd, wait_resp, NULL);
+}
 
 void mt76_set_irq_mask(struct mt76_dev *dev, u32 addr, u32 clear, u32 set);
 
