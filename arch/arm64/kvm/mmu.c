@@ -742,7 +742,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 			  struct kvm_memory_slot *memslot, unsigned long hva,
 			  unsigned long fault_status)
 {
-	int ret;
+	int ret = 0;
 	bool write_fault, writable, force_pte = false;
 	bool exec_fault;
 	bool device = false;
