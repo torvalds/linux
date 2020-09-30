@@ -59,3 +59,13 @@
 &rkvenc {
 	venc-supply = <&vdd_npu_vepu>;
 };
+
+&rkvenc_opp_table {
+	/*
+	 * max IR-drop values on different freq condition for this board!
+	 */
+	rockchip,board-irdrop = <
+	     /* MHz	MHz	uV */
+		500	594	50000
+	>;
+};
