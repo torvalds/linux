@@ -1752,6 +1752,12 @@ static int psp_get_fw_type(struct amdgpu_firmware_info *ucode,
 	case AMDGPU_UCODE_ID_RLC_RESTORE_LIST_SRM_MEM:
 		*type = GFX_FW_TYPE_RLC_RESTORE_LIST_SRM_MEM;
 		break;
+	case AMDGPU_UCODE_ID_RLC_IRAM:
+		*type = GFX_FW_TYPE_RLC_IRAM;
+		break;
+	case AMDGPU_UCODE_ID_RLC_DRAM:
+		*type = GFX_FW_TYPE_RLC_DRAM_BOOT;
+		break;
 	case AMDGPU_UCODE_ID_SMC:
 		*type = GFX_FW_TYPE_SMU;
 		break;
