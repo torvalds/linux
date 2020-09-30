@@ -231,6 +231,9 @@ struct v4l2_fwnode_connector {
  * guessing @vep.bus_type between CSI-2 D-PHY, parallel and BT.656 busses is
  * supported. NEVER RELY ON GUESSING @vep.bus_type IN NEW DRIVERS!
  *
+ * The caller is required to initialise all fields of @vep, either with
+ * explicitly values, or by zeroing them.
+ *
  * The function does not change the V4L2 fwnode endpoint state if it fails.
  *
  * NOTE: This function does not parse properties the size of which is variable
@@ -272,6 +275,9 @@ void v4l2_fwnode_endpoint_free(struct v4l2_fwnode_endpoint *vep);
  * FEATURE REQUIRES "bus-type" PROPERTY IN DT BINDINGS. For old drivers,
  * guessing @vep.bus_type between CSI-2 D-PHY, parallel and BT.656 busses is
  * supported. NEVER RELY ON GUESSING @vep.bus_type IN NEW DRIVERS!
+ *
+ * The caller is required to initialise all fields of @vep, either with
+ * explicitly values, or by zeroing them.
  *
  * The function does not change the V4L2 fwnode endpoint state if it fails.
  *
