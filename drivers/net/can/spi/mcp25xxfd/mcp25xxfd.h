@@ -553,7 +553,7 @@ struct mcp25xxfd_regs_status {
 enum mcp25xxfd_model {
 	MCP25XXFD_MODEL_MCP2517FD = 0x2517,
 	MCP25XXFD_MODEL_MCP2518FD = 0x2518,
-	MCP25XXFD_MODEL_MCP25XXFD = 0xffff,	/* autodetect model */
+	MCP25XXFD_MODEL_MCP251XFD = 0xffff,	/* autodetect model */
 };
 
 struct mcp25xxfd_devtype_data {
@@ -607,7 +607,7 @@ mcp25xxfd_is_##_model(const struct mcp25xxfd_priv *priv) \
 
 MCP25XXFD_IS(2517);
 MCP25XXFD_IS(2518);
-MCP25XXFD_IS(25XX);
+MCP25XXFD_IS(251X);
 
 static inline u8 mcp25xxfd_first_byte_set(u32 mask)
 {

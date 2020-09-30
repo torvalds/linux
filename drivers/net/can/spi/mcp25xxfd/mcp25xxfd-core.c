@@ -41,10 +41,10 @@ static const struct mcp25xxfd_devtype_data mcp25xxfd_devtype_data_mcp2518fd = {
 };
 
 /* Autodetect model, start with CRC enabled. */
-static const struct mcp25xxfd_devtype_data mcp25xxfd_devtype_data_mcp25xxfd = {
+static const struct mcp25xxfd_devtype_data mcp25xxfd_devtype_data_mcp251xfd = {
 	.quirks = MCP25XXFD_QUIRK_CRC_REG | MCP25XXFD_QUIRK_CRC_RX |
 		MCP25XXFD_QUIRK_CRC_TX | MCP25XXFD_QUIRK_ECC,
-	.model = MCP25XXFD_MODEL_MCP25XXFD,
+	.model = MCP25XXFD_MODEL_MCP251XFD,
 };
 
 static const struct can_bittiming_const mcp25xxfd_bittiming_const = {
@@ -78,8 +78,8 @@ static const char *__mcp25xxfd_get_model_str(enum mcp25xxfd_model model)
 		return "MCP2517FD"; break;
 	case MCP25XXFD_MODEL_MCP2518FD:
 		return "MCP2518FD"; break;
-	case MCP25XXFD_MODEL_MCP25XXFD:
-		return "MCP25xxFD"; break;
+	case MCP25XXFD_MODEL_MCP251XFD:
+		return "MCP251xFD"; break;
 	}
 
 	return "<unknown>";
@@ -2494,7 +2494,7 @@ static int mcp25xxfd_register_chip_detect(struct mcp25xxfd_priv *priv)
 	else
 		devtype_data = &mcp25xxfd_devtype_data_mcp2517fd;
 
-	if (!mcp25xxfd_is_25XX(priv) &&
+	if (!mcp25xxfd_is_251X(priv) &&
 	    priv->devtype_data.model != devtype_data->model) {
 		netdev_info(ndev,
 			    "Detected %s, but firmware specifies a %s. Fixing up.",
@@ -2703,8 +2703,8 @@ static const struct of_device_id mcp25xxfd_of_match[] = {
 		.compatible = "microchip,mcp2518fd",
 		.data = &mcp25xxfd_devtype_data_mcp2518fd,
 	}, {
-		.compatible = "microchip,mcp25xxfd",
-		.data = &mcp25xxfd_devtype_data_mcp25xxfd,
+		.compatible = "microchip,mcp251xfd",
+		.data = &mcp25xxfd_devtype_data_mcp251xfd,
 	}, {
 		/* sentinel */
 	},
@@ -2719,8 +2719,8 @@ static const struct spi_device_id mcp25xxfd_id_table[] = {
 		.name = "mcp2518fd",
 		.driver_data = (kernel_ulong_t)&mcp25xxfd_devtype_data_mcp2518fd,
 	}, {
-		.name = "mcp25xxfd",
-		.driver_data = (kernel_ulong_t)&mcp25xxfd_devtype_data_mcp25xxfd,
+		.name = "mcp251xfd",
+		.driver_data = (kernel_ulong_t)&mcp25xxfd_devtype_data_mcp251xfd,
 	}, {
 		/* sentinel */
 	},
