@@ -2853,7 +2853,7 @@ static int __maybe_unused ccs_resume(struct device *dev)
 static int ccs_get_hwconfig(struct ccs_sensor *sensor, struct device *dev)
 {
 	struct ccs_hwconfig *hwcfg = &sensor->hwcfg;
-	struct v4l2_fwnode_endpoint bus_cfg = { .bus_type = 0 };
+	struct v4l2_fwnode_endpoint bus_cfg = { .bus_type = V4L2_MBUS_UNKNOWN };
 	struct fwnode_handle *ep;
 	struct fwnode_handle *fwnode = dev_fwnode(dev);
 	u32 rotation;
@@ -2864,13 +2864,11 @@ static int ccs_get_hwconfig(struct ccs_sensor *sensor, struct device *dev)
 	if (!ep)
 		return -ENODEV;
 
-	bus_cfg.bus_type = V4L2_MBUS_CSI2_DPHY;
+	/*
+	 * Note that we do need to rely on detecting the bus type between CSI-2
+	 * D-PHY and CCP2 as the old bindings did not require it.
+	 */
 	rval = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
-	if (rval == -ENXIO) {
-		bus_cfg = (struct v4l2_fwnode_endpoint)
-			{ .bus_type = V4L2_MBUS_CCP2 };
-		rval = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
-	}
 	if (rval)
 		goto out_err;
 
@@ -2879,6 +2877,7 @@ static int ccs_get_hwconfig(struct ccs_sensor *sensor, struct device *dev)
 		hwcfg->csi_signalling_mode = CCS_CSI_SIGNALING_MODE_CSI_2_DPHY;
 		hwcfg->lanes = bus_cfg.bus.mipi_csi2.num_data_lanes;
 		break;
+	case V4L2_MBUS_CSI1:
 	case V4L2_MBUS_CCP2:
 		hwcfg->csi_signalling_mode = (bus_cfg.bus.mipi_csi1.strobe) ?
 		SMIAPP_CSI_SIGNALLING_MODE_CCP2_DATA_STROBE :
