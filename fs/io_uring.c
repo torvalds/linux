@@ -3122,14 +3122,13 @@ static int io_setup_async_rw(struct io_kiocb *req, const struct iovec *iovec,
 	return 0;
 }
 
-static inline int io_rw_prep_async(struct io_kiocb *req, int rw,
-				   bool force_nonblock)
+static inline int io_rw_prep_async(struct io_kiocb *req, int rw)
 {
 	struct io_async_rw *iorw = req->async_data;
 	struct iovec *iov = iorw->fast_iov;
 	ssize_t ret;
 
-	ret = __io_import_iovec(rw, req, &iov, &iorw->iter, !force_nonblock);
+	ret = __io_import_iovec(rw, req, &iov, &iorw->iter, false);
 	if (unlikely(ret < 0))
 		return ret;
 
@@ -3140,8 +3139,7 @@ static inline int io_rw_prep_async(struct io_kiocb *req, int rw,
 	return 0;
 }
 
-static int io_read_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe,
-			bool force_nonblock)
+static int io_read_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	ssize_t ret;
 
@@ -3155,7 +3153,7 @@ static int io_read_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	/* either don't need iovec imported or already have it */
 	if (!req->async_data)
 		return 0;
-	return io_rw_prep_async(req, READ, force_nonblock);
+	return io_rw_prep_async(req, READ);
 }
 
 /*
@@ -3367,8 +3365,7 @@ out_free:
 	return ret;
 }
 
-static int io_write_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe,
-			 bool force_nonblock)
+static int io_write_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	ssize_t ret;
 
@@ -3382,7 +3379,7 @@ static int io_write_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	/* either don't need iovec imported or already have it */
 	if (!req->async_data)
 		return 0;
-	return io_rw_prep_async(req, WRITE, force_nonblock);
+	return io_rw_prep_async(req, WRITE);
 }
 
 static int io_write(struct io_kiocb *req, bool force_nonblock,
@@ -5615,12 +5612,12 @@ static int io_req_defer_prep(struct io_kiocb *req,
 	case IORING_OP_READV:
 	case IORING_OP_READ_FIXED:
 	case IORING_OP_READ:
-		ret = io_read_prep(req, sqe, true);
+		ret = io_read_prep(req, sqe);
 		break;
 	case IORING_OP_WRITEV:
 	case IORING_OP_WRITE_FIXED:
 	case IORING_OP_WRITE:
-		ret = io_write_prep(req, sqe, true);
+		ret = io_write_prep(req, sqe);
 		break;
 	case IORING_OP_POLL_ADD:
 		ret = io_poll_add_prep(req, sqe);
@@ -5851,7 +5848,7 @@ static int io_issue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	case IORING_OP_READ_FIXED:
 	case IORING_OP_READ:
 		if (sqe) {
-			ret = io_read_prep(req, sqe, force_nonblock);
+			ret = io_read_prep(req, sqe);
 			if (ret < 0)
 				break;
 		}
@@ -5861,7 +5858,7 @@ static int io_issue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	case IORING_OP_WRITE_FIXED:
 	case IORING_OP_WRITE:
 		if (sqe) {
-			ret = io_write_prep(req, sqe, force_nonblock);
+			ret = io_write_prep(req, sqe);
 			if (ret < 0)
 				break;
 		}
