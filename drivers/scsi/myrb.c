@@ -1050,7 +1050,7 @@ static int myrb_get_hba_config(struct myrb_hba *cb)
 		enquiry2->fw.turn_id = 0;
 	}
 	snprintf(cb->fw_version, sizeof(cb->fw_version),
-		"%d.%02d-%c-%02d",
+		"%u.%02u-%c-%02u",
 		enquiry2->fw.major_version,
 		enquiry2->fw.minor_version,
 		enquiry2->fw.firmware_type,
@@ -2167,7 +2167,7 @@ static ssize_t ctlr_num_show(struct device *dev,
 	struct Scsi_Host *shost = class_to_shost(dev);
 	struct myrb_hba *cb = shost_priv(shost);
 
-	return snprintf(buf, 20, "%d\n", cb->ctlr_num);
+	return snprintf(buf, 20, "%u\n", cb->ctlr_num);
 }
 static DEVICE_ATTR_RO(ctlr_num);
 
