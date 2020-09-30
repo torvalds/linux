@@ -59,7 +59,7 @@ struct ib_port {
 	struct gid_attr_group *gid_attr_group;
 	struct attribute_group gid_group;
 	struct attribute_group *pkey_group;
-	struct attribute_group *pma_table;
+	const struct attribute_group *pma_table;
 	struct attribute_group *hw_stats_ag;
 	struct rdma_hw_stats   *hw_stats;
 	u8                     port_num;
@@ -653,17 +653,17 @@ static struct attribute *pma_attrs_noietf[] = {
 	NULL
 };
 
-static struct attribute_group pma_group = {
+static const struct attribute_group pma_group = {
 	.name  = "counters",
 	.attrs  = pma_attrs
 };
 
-static struct attribute_group pma_group_ext = {
+static const struct attribute_group pma_group_ext = {
 	.name  = "counters",
 	.attrs  = pma_attrs_ext
 };
 
-static struct attribute_group pma_group_noietf = {
+static const struct attribute_group pma_group_noietf = {
 	.name  = "counters",
 	.attrs  = pma_attrs_noietf
 };
@@ -778,8 +778,8 @@ err:
  * Figure out which counter table to use depending on
  * the device capabilities.
  */
-static struct attribute_group *get_counter_table(struct ib_device *dev,
-						 int port_num)
+static const struct attribute_group *get_counter_table(struct ib_device *dev,
+						       int port_num)
 {
 	struct ib_class_port_info cpi;
 
