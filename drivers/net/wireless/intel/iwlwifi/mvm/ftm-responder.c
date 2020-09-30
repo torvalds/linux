@@ -322,7 +322,7 @@ int iwl_mvm_ftm_respoder_add_pasn_sta(struct iwl_mvm *mvm,
 				      u8 *hltk, u32 hltk_len)
 {
 	int ret;
-	struct iwl_mvm_pasn_sta *sta;
+	struct iwl_mvm_pasn_sta *sta = NULL;
 	struct iwl_mvm_pasn_hltk_data hltk_data = {
 		.addr = addr,
 		.hltk = hltk,
@@ -343,20 +343,23 @@ int iwl_mvm_ftm_respoder_add_pasn_sta(struct iwl_mvm *mvm,
 		return -EINVAL;
 	}
 
-	sta = kmalloc(sizeof(*sta), GFP_KERNEL);
-	if (!sta)
-		return -ENOBUFS;
+	if (tk && tk_len) {
+		sta = kzalloc(sizeof(*sta), GFP_KERNEL);
+		if (!sta)
+			return -ENOBUFS;
 
-	ret = iwl_mvm_add_pasn_sta(mvm, vif, &sta->int_sta, addr, cipher, tk,
-				   tk_len);
-	if (ret) {
-		kfree(sta);
-		return ret;
+		ret = iwl_mvm_add_pasn_sta(mvm, vif, &sta->int_sta, addr,
+					   cipher, tk, tk_len);
+		if (ret) {
+			kfree(sta);
+			return ret;
+		}
 	}
 
 	ret = iwl_mvm_ftm_responder_dyn_cfg_v3(mvm, vif, NULL, &hltk_data);
 	if (ret) {
-		iwl_mvm_resp_del_pasn_sta(mvm, vif, sta);
+		if (sta)
+			iwl_mvm_resp_del_pasn_sta(mvm, vif, sta);
 		return ret;
 	}
 
