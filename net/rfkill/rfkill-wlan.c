@@ -44,6 +44,7 @@
 #include <linux/of_gpio.h>
 #endif
 #include <linux/soc/rockchip/rk_vendor_storage.h>
+#include <linux/device.h>
 
 #include "../../drivers/mmc/core/pwrseq.h"
 
@@ -275,9 +276,10 @@ int rockchip_wifi_power(int on)
 			}
 
 			wifi_power_state = 1;
-			LOG("wifi turn on power. %d\n", poweron->io);
+			LOG("wifi turn on power [GPIO%d-%d]\n", poweron->io, poweron->enable);
 		} else {
 			if (gpio_is_valid(poweron->io)) {
+				printk("wifi power off\n");
 				gpio_set_value(poweron->io, !(poweron->enable));
 				msleep(100);
 			}
@@ -287,7 +289,7 @@ int rockchip_wifi_power(int on)
 			}
 
 			wifi_power_state = 0;
-			LOG("wifi shut off power.\n");
+			LOG("wifi shut off power [GPIO%d-%d]\n", poweron->io, !poweron->enable);
 		}
 	}
 
@@ -696,6 +698,36 @@ static struct notifier_block rfkill_wlan_fb_notifier = {
 	.notifier_call = rfkill_wlan_fb_event_notify,
 };
 
+static ssize_t wifi_power_write_store(struct class *cls, struct class_attribute *attr, const char *_buf, size_t _count)
+{
+	long poweren = 0;
+
+	if (kstrtol(_buf, 10, &poweren) < 0)
+		return -EINVAL;
+
+	LOG("%s: poweren = %ld\n", __func__, poweren);
+
+	if (poweren > 0)
+		rockchip_wifi_power(1);
+	else
+		rockchip_wifi_power(0);
+
+	return _count;
+}
+
+static CLASS_ATTR_WO(wifi_power_write);
+static struct attribute *rkwifi_power_attrs[] = {
+	&class_attr_wifi_power_write.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(rkwifi_power);
+
+/** Device model classes */
+static struct class rkwifi_power = {
+	.name        = "rkwifi",
+	.class_groups = rkwifi_power_groups,
+};
+
 static int rfkill_wlan_probe(struct platform_device *pdev)
 {
 	struct rfkill_wlan_data *rfkill;
@@ -703,6 +735,8 @@ static int rfkill_wlan_probe(struct platform_device *pdev)
 	int ret = -1;
 
 	LOG("Enter %s\n", __func__);
+
+	class_register(&rkwifi_power);
 
 	if (!pdata) {
 #ifdef CONFIG_OF
@@ -752,10 +786,14 @@ static int rfkill_wlan_probe(struct platform_device *pdev)
 	if (gpio_is_valid(pdata->vbat_n.io))
 		gpio_direction_output(pdata->vbat_n.io, pdata->vbat_n.enable);
 
-	// Turn off wifi power as default
+#ifdef CONFIG_SDIO_KEEPALIVE
+	if (primary_sdio_host && primary_sdio_host->support_chip_alive)
+		gpio_direction_output(pdata->power_n.io, pdata->power_n.enable);
+#else
 	if (gpio_is_valid(pdata->power_n.io))
-		gpio_direction_output(pdata->power_n.io,
-				      !pdata->power_n.enable);
+		gpio_direction_output(pdata->power_n.io, !pdata->power_n.enable);
+#endif
+
 
 	if (pdata->wifi_power_remain)
 		rockchip_wifi_power(1);
