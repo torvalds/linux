@@ -1085,6 +1085,7 @@ void iwl_dbg_tlv_time_point(struct iwl_fw_runtime *fwrt,
 		break;
 	case IWL_FW_INI_TIME_POINT_FW_RSP_OR_NOTIF:
 	case IWL_FW_INI_TIME_POINT_MISSED_BEACONS:
+	case IWL_FW_INI_TIME_POINT_FW_DHC_NOTIFICATION:
 		iwl_dbg_tlv_send_hcmds(fwrt, hcmd_list);
 		iwl_dbg_tlv_tp_trigger(fwrt, trig_list, tp_data,
 				       iwl_dbg_tlv_check_fw_pkt);
