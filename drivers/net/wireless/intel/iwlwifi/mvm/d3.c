@@ -377,6 +377,8 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 		break;
 	}
 
+	IWL_DEBUG_WOWLAN(mvm, "GTK cipher %d\n", data->kek_kck_cmd->gtk_cipher);
+
 	if (data->configure_keys) {
 		mutex_lock(&mvm->mutex);
 		/*
@@ -877,6 +879,9 @@ static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 		kek_kck_cmd.kek_len = cpu_to_le16(mvmvif->rekey_data.kek_len);
 		kek_kck_cmd.replay_ctr = mvmvif->rekey_data.replay_ctr;
 		kek_kck_cmd.akm = cpu_to_le32(mvmvif->rekey_data.akm);
+
+		IWL_DEBUG_WOWLAN(mvm, "setting akm %d\n",
+				 mvmvif->rekey_data.akm);
 
 		ret = iwl_mvm_send_cmd_pdu(mvm,
 					   WOWLAN_KEK_KCK_MATERIAL, cmd_flags,
@@ -1542,6 +1547,8 @@ static bool iwl_mvm_setup_connection_keep(struct iwl_mvm *mvm,
 	ieee80211_iter_keys(mvm->hw, vif,
 			    iwl_mvm_d3_update_keys, &gtkdata);
 
+	IWL_DEBUG_WOWLAN(mvm, "num of GTK rekeying %d\n",
+			 le32_to_cpu(status->num_of_gtk_rekeys));
 	if (status->num_of_gtk_rekeys) {
 		struct ieee80211_key_conf *key;
 		struct {
@@ -1554,6 +1561,9 @@ static bool iwl_mvm_setup_connection_keep(struct iwl_mvm *mvm,
 		};
 		__be64 replay_ctr;
 
+		IWL_DEBUG_WOWLAN(mvm,
+				 "Received from FW GTK cipher %d, key index %d\n",
+				 conf.conf.cipher, conf.conf.keyidx);
 		switch (gtkdata.cipher) {
 		case WLAN_CIPHER_SUITE_CCMP:
 		case WLAN_CIPHER_SUITE_GCMP:
@@ -1739,6 +1749,9 @@ static bool iwl_mvm_query_wakeup_reasons(struct iwl_mvm *mvm,
 	fw_status = iwl_mvm_get_wakeup_status(mvm);
 	if (IS_ERR_OR_NULL(fw_status))
 		goto out_unlock;
+
+	IWL_DEBUG_WOWLAN(mvm, "wakeup reason 0x%x\n",
+			 le32_to_cpu(fw_status->wakeup_reasons));
 
 	status.pattern_number = le16_to_cpu(fw_status->pattern_number);
 	for (i = 0; i < 8; i++)
