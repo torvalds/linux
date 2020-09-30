@@ -928,6 +928,7 @@ struct iwl_trans_txqs {
 	bool bc_table_dword;
 	u8 page_offs;
 	u8 dev_cmd_offs;
+	struct __percpu iwl_tso_hdr_page * tso_hdr_page;
 
 	struct {
 		u8 fifo;

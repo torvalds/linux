@@ -66,6 +66,7 @@
 #include "iwl-trans.h"
 #include "iwl-drv.h"
 #include "iwl-fh.h"
+#include "queue/tx.h"
 #include <linux/dmapool.h>
 
 struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
@@ -150,11 +151,29 @@ struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 
 	WARN_ON(!ops->wait_txq_empty && !ops->wait_tx_queues_empty);
 
+	trans->txqs.tso_hdr_page = alloc_percpu(struct iwl_tso_hdr_page);
+	if (!trans->txqs.tso_hdr_page) {
+		kmem_cache_destroy(trans->dev_cmd_pool);
+		return NULL;
+	}
+
 	return trans;
 }
 
 void iwl_trans_free(struct iwl_trans *trans)
 {
+	int i;
+
+	for_each_possible_cpu(i) {
+		struct iwl_tso_hdr_page *p =
+			per_cpu_ptr(trans->txqs.tso_hdr_page, i);
+
+		if (p->page)
+			__free_page(p->page);
+	}
+
+	free_percpu(trans->txqs.tso_hdr_page);
+
 	kmem_cache_destroy(trans->dev_cmd_pool);
 }
 
