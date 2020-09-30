@@ -62,7 +62,6 @@ __efistub__ctype		= _ctype;
  */
 
 /* Alternative callbacks for init-time patching of nVHE hyp code. */
-KVM_NVHE_ALIAS(arm64_enable_wa2_handling);
 KVM_NVHE_ALIAS(kvm_patch_vector_branch);
 KVM_NVHE_ALIAS(kvm_update_va_mask);
 
