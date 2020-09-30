@@ -1082,9 +1082,12 @@ static enum power_supply_property rk816_bat_props[] = {
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_CAPACITY,
+	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_CHARGE_COUNTER,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
+	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
+	POWER_SUPPLY_PROP_TIME_TO_FULL_NOW,
 };
 
 static int rk816_bat_ac_set_property(struct power_supply *psy,
@@ -1127,6 +1130,42 @@ static int rk816_bat_usb_set_property(struct power_supply *psy,
 	return 0;
 }
 
+static int rk816_get_capacity_leve(struct rk816_battery *di)
+{
+	if (di->pdata->bat_mode == MODE_VIRTUAL)
+		return POWER_SUPPLY_CAPACITY_LEVEL_NORMAL;
+
+	if (di->dsoc < 1)
+		return POWER_SUPPLY_CAPACITY_LEVEL_CRITICAL;
+	else if (di->dsoc <= 20)
+		return POWER_SUPPLY_CAPACITY_LEVEL_LOW;
+	else if (di->dsoc <= 70)
+		return POWER_SUPPLY_CAPACITY_LEVEL_NORMAL;
+	else if (di->dsoc <= 90)
+		return POWER_SUPPLY_CAPACITY_LEVEL_HIGH;
+	else
+		return POWER_SUPPLY_CAPACITY_LEVEL_FULL;
+}
+
+static int rk816_battery_time_to_full(struct rk816_battery *di)
+{
+	int time_sec;
+	int cap_temp;
+
+	if (di->pdata->bat_mode == MODE_VIRTUAL) {
+		time_sec = 3600;
+	} else if (di->voltage_avg > 0) {
+		cap_temp = di->pdata->design_capacity - di->remain_cap;
+		if (cap_temp < 0)
+			cap_temp = 0;
+		time_sec = (3600 * cap_temp) / di->voltage_avg;
+	} else {
+		time_sec = 3600 * 24; /* One day */
+	}
+
+	return time_sec;
+}
+
 static int rk816_battery_get_property(struct power_supply *psy,
 				      enum power_supply_property psp,
 				      union power_supply_propval *val)
@@ -1155,6 +1194,9 @@ static int rk816_battery_get_property(struct power_supply *psy,
 			val->intval = VIRTUAL_SOC;
 		DBG("<%s>. report dsoc: %d\n", __func__, val->intval);
 		break;
+	case POWER_SUPPLY_PROP_CAPACITY_LEVEL:
+		val->intval = rk816_get_capacity_leve(di);
+		break;
 	case POWER_SUPPLY_PROP_HEALTH:
 		val->intval = POWER_SUPPLY_HEALTH_GOOD;
 		break;
@@ -1174,7 +1216,11 @@ static int rk816_battery_get_property(struct power_supply *psy,
 		val->intval = di->charge_count;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
+	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
 		val->intval = di->pdata->design_capacity * 1000;/* uAh */
+		break;
+	case POWER_SUPPLY_PROP_TIME_TO_FULL_NOW:
+		val->intval = rk816_battery_time_to_full(di);
 		break;
 	default:
 		return -EINVAL;
