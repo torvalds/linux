@@ -10,6 +10,7 @@
 
 #include <linux/delay.h>
 #include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/types.h>
 
 #include "../../pci.h"
@@ -548,11 +549,15 @@ void dw_pcie_setup(struct dw_pcie *pci)
 	u32 val;
 	struct device *dev = pci->dev;
 	struct device_node *np = dev->of_node;
+	struct platform_device *pdev = to_platform_device(dev);
 
 	if (pci->version >= 0x480A || (!pci->version &&
 				       dw_pcie_iatu_unroll_enabled(pci))) {
 		pci->iatu_unroll_enabled = true;
 		if (!pci->atu_base)
+			pci->atu_base =
+			    devm_platform_ioremap_resource_byname(pdev, "atu");
+		if (IS_ERR(pci->atu_base))
 			pci->atu_base = pci->dbi_base + DEFAULT_DBI_ATU_OFFSET;
 	}
 	dev_dbg(pci->dev, "iATU unroll: %s\n", pci->iatu_unroll_enabled ?
