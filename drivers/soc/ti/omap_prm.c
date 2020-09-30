@@ -128,6 +128,12 @@ static const struct omap_prm_domain_map omap_prm_alwon = {
 	.usable_modes = BIT(OMAP_PRMD_ON_ACTIVE),
 };
 
+static const struct omap_prm_domain_map omap_prm_reton = {
+	.usable_modes = BIT(OMAP_PRMD_ON_ACTIVE) | BIT(OMAP_PRMD_RETENTION),
+	.statechange = 1,
+	.logicretstate = 1,
+};
+
 static const struct omap_rst_map rst_map_0[] = {
 	{ .rst = 0, .st = 0 },
 	{ .rst = -1 },
@@ -147,14 +153,71 @@ static const struct omap_rst_map rst_map_012[] = {
 };
 
 static const struct omap_prm_data omap4_prm_data[] = {
-	{ .name = "tesla", .base = 0x4a306400, .rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01 },
+	{
+		.name = "mpu", .base = 0x4a306300,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_reton,
+	},
+	{
+		.name = "tesla", .base = 0x4a306400,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_noinact,
+		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01
+	},
 	{
 		.name = "abe", .base = 0x4a306500,
 		.pwrstctrl = 0, .pwrstst = 0x4, .dmap = &omap_prm_all,
 	},
-	{ .name = "core", .base = 0x4a306700, .rstctrl = 0x210, .rstst = 0x214, .clkdm_name = "ducati", .rstmap = rst_map_012 },
-	{ .name = "ivahd", .base = 0x4a306f00, .rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_012 },
-	{ .name = "device", .base = 0x4a307b00, .rstctrl = 0x0, .rstst = 0x4, .rstmap = rst_map_01, .flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_NO_CLKDM },
+	{
+		.name = "always_on_core", .base = 0x4a306600,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_alwon,
+	},
+	{
+		.name = "core", .base = 0x4a306700,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_reton,
+		.rstctrl = 0x210, .rstst = 0x214, .clkdm_name = "ducati",
+		.rstmap = rst_map_012
+	},
+	{
+		.name = "ivahd", .base = 0x4a306f00,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_noinact,
+		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_012
+	},
+	{
+		.name = "cam", .base = 0x4a307000,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+	},
+	{
+		.name = "dss", .base = 0x4a307100,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_noinact
+	},
+	{
+		.name = "gfx", .base = 0x4a307200,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto
+	},
+	{
+		.name = "l3init", .base = 0x4a307300,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_reton
+	},
+	{
+		.name = "l4per", .base = 0x4a307400,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_reton
+	},
+	{
+		.name = "cefuse", .base = 0x4a307600,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto
+	},
+	{
+		.name = "wkup", .base = 0x4a307700,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_alwon
+	},
+	{
+		.name = "emu", .base = 0x4a307900,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto
+	},
+	{
+		.name = "device", .base = 0x4a307b00,
+		.rstctrl = 0x0, .rstst = 0x4, .rstmap = rst_map_01,
+		.flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_NO_CLKDM
+	},
 	{ },
 };
 
