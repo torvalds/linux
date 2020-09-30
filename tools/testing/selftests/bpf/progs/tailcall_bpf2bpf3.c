@@ -16,9 +16,9 @@ int subprog_tail2(struct __sk_buff *skb)
 	volatile char arr[64] = {};
 
 	if (load_word(skb, 0) || load_half(skb, 0))
-		bpf_tail_call(skb, &jmp_table, 10);
+		bpf_tail_call_static(skb, &jmp_table, 10);
 	else
-		bpf_tail_call(skb, &jmp_table, 1);
+		bpf_tail_call_static(skb, &jmp_table, 1);
 
 	return skb->len;
 }
@@ -28,7 +28,7 @@ int subprog_tail(struct __sk_buff *skb)
 {
 	volatile char arr[64] = {};
 
-	bpf_tail_call(skb, &jmp_table, 0);
+	bpf_tail_call_static(skb, &jmp_table, 0);
 
 	return skb->len * 2;
 }
