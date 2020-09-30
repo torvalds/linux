@@ -370,8 +370,8 @@ static int otx2_forward_vf_mbox_msgs(struct otx2_nic *pf,
 		dst_mbox = &pf->mbox;
 		dst_size = dst_mbox->mbox.tx_size -
 				ALIGN(sizeof(*mbox_hdr), MBOX_MSG_ALIGN);
-		/* Check if msgs fit into destination area */
-		if (mbox_hdr->msg_size > dst_size)
+		/* Check if msgs fit into destination area and has valid size */
+		if (mbox_hdr->msg_size > dst_size || !mbox_hdr->msg_size)
 			return -EINVAL;
 
 		dst_mdev = &dst_mbox->mbox.dev[0];
@@ -526,10 +526,10 @@ static void otx2_pfvf_mbox_up_handler(struct work_struct *work)
 
 end:
 		offset = mbox->rx_start + msg->next_msgoff;
+		if (mdev->msgs_acked == (vf_mbox->up_num_msgs - 1))
+			__otx2_mbox_reset(mbox, 0);
 		mdev->msgs_acked++;
 	}
-
-	otx2_mbox_reset(mbox, vf_idx);
 }
 
 static irqreturn_t otx2_pfvf_mbox_intr_handler(int irq, void *pf_irq)
@@ -803,10 +803,11 @@ static void otx2_pfaf_mbox_handler(struct work_struct *work)
 		msg = (struct mbox_msghdr *)(mdev->mbase + offset);
 		otx2_process_pfaf_mbox_msg(pf, msg);
 		offset = mbox->rx_start + msg->next_msgoff;
+		if (mdev->msgs_acked == (af_mbox->num_msgs - 1))
+			__otx2_mbox_reset(mbox, 0);
 		mdev->msgs_acked++;
 	}
 
-	otx2_mbox_reset(mbox, 0);
 }
 
 static void otx2_handle_link_event(struct otx2_nic *pf)
