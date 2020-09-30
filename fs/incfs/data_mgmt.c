@@ -601,7 +601,11 @@ static int validate_hash_tree(struct backing_file_context *bfc, struct file *f,
 	int hash_per_block;
 	pgoff_t file_pages;
 
-	tree = df->df_hash_tree;
+	/*
+	 * Memory barrier to make sure tree is fully present if added via enable
+	 * verity
+	 */
+	tree = smp_load_acquire(&df->df_hash_tree);
 	sig = df->df_signature;
 	if (!tree || !sig)
 		return 0;
@@ -1509,6 +1513,7 @@ static int incfs_scan_metadata_chain(struct data_file *df)
 	int records_count = 0;
 	int error = 0;
 	struct backing_file_context *bfc = NULL;
+	int nondata_block_count;
 
 	if (!df || !df->df_backing_file_context)
 		return -EFAULT;
@@ -1543,15 +1548,25 @@ static int incfs_scan_metadata_chain(struct data_file *df)
 	} else
 		result = records_count;
 
+	nondata_block_count = df->df_total_block_count -
+		df->df_data_block_count;
 	if (df->df_hash_tree) {
 		int hash_block_count = get_blocks_count_for_size(
 			df->df_hash_tree->hash_tree_area_size);
 
-		if (df->df_data_block_count + hash_block_count !=
-		    df->df_total_block_count)
+		/*
+		 * Files that were created with a hash tree have the hash tree
+		 * included in the block map, i.e. nondata_block_count ==
+		 * hash_block_count.  Files whose hash tree was added by
+		 * FS_IOC_ENABLE_VERITY will still have the original block
+		 * count, i.e. nondata_block_count == 0.
+		 */
+		if (nondata_block_count != hash_block_count &&
+		    nondata_block_count != 0)
 			result = -EINVAL;
-	} else if (df->df_data_block_count != df->df_total_block_count)
+	} else if (nondata_block_count != 0) {
 		result = -EINVAL;
+	}
 
 	kfree(handler);
 	return result;

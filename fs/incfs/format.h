@@ -236,6 +236,10 @@ struct incfs_blockmap {
  * definition of incfs_new_file_args::signature_info for an explanation of this
  * blob. Specifically, it contains the root hash, but it does *not* contain
  * anything that the kernel treats as a signature.
+ *
+ * When FS_IOC_ENABLE_VERITY is called on a file without this record, an APK V4
+ * signature blob and a hash tree are added to the file, and then this metadata
+ * record is created to record their locations.
  */
 struct incfs_file_signature {
 	struct incfs_md_header sg_header;
@@ -367,7 +371,8 @@ int incfs_write_hash_block_to_backing_file(struct backing_file_context *bfc,
 					   loff_t file_size);
 
 int incfs_write_signature_to_backing_file(struct backing_file_context *bfc,
-					  struct mem_range sig, u32 tree_size);
+				struct mem_range sig, u32 tree_size,
+				loff_t *tree_offset, loff_t *sig_offset);
 
 int incfs_write_status_to_backing_file(struct backing_file_context *bfc,
 				       loff_t status_offset,

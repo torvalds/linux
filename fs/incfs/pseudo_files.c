@@ -354,8 +354,9 @@ static int init_new_file(struct mount_info *mi, struct dentry *dentry,
 			goto out;
 		}
 
-		error = incfs_write_signature_to_backing_file(
-			bfc, raw_signature, hash_tree->hash_tree_area_size);
+		error = incfs_write_signature_to_backing_file(bfc,
+				raw_signature, hash_tree->hash_tree_area_size,
+				NULL, NULL);
 		if (error)
 			goto out;
 
