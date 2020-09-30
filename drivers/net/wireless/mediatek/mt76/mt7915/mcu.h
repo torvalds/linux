@@ -153,6 +153,18 @@ struct mt7915_mcu_ra_info {
 	u8 prob_down_pending;
 } __packed;
 
+
+struct mt7915_mcu_phy_rx_info {
+	u8 category;
+	u8 rate;
+	u8 mode;
+	u8 nsts;
+	u8 gi;
+	u8 coding;
+	u8 stbc;
+	u8 bw;
+};
+
 #define MT_RA_RATE_NSS			GENMASK(8, 6)
 #define MT_RA_RATE_MCS			GENMASK(3, 0)
 #define MT_RA_RATE_TX_MODE		GENMASK(12, 9)
@@ -217,6 +229,7 @@ enum {
 	MCU_EXT_CMD_FW_DBG_CTRL = 0x95,
 	MCU_EXT_CMD_SET_RDD_TH = 0x9d,
 	MCU_EXT_CMD_SET_SPR = 0xa8,
+	MCU_EXT_CMD_PHY_STAT_INFO = 0xad,
 };
 
 enum {
@@ -248,6 +261,14 @@ enum {
 	EE_FORMAT_BIN,
 	EE_FORMAT_WHOLE,
 	EE_FORMAT_MULTIPLE,
+};
+
+enum {
+	MCU_PHY_STATE_TX_RATE,
+	MCU_PHY_STATE_RX_RATE,
+	MCU_PHY_STATE_RSSI,
+	MCU_PHY_STATE_CONTENTION_RX_RATE,
+	MCU_PHY_STATE_OFDMLQ_CNINFO,
 };
 
 #define STA_TYPE_STA			BIT(0)
