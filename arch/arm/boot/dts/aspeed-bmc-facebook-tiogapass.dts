@@ -191,6 +191,14 @@
 	use-ncsi;
 };
 
+&mac1 {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rmii2_default>;
+	use-ncsi;
+};
+
 &adc {
 	status = "okay";
 };
