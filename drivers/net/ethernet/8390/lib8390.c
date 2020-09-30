@@ -113,8 +113,10 @@ static void do_set_multicast_list(struct net_device *dev);
 static void __NS8390_init(struct net_device *dev, int startp);
 
 static unsigned version_printed;
-static u32 msg_enable;
-module_param(msg_enable, uint, 0444);
+static int msg_enable;
+static const int default_msg_level = (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_RX_ERR |
+				     NETIF_MSG_TX_ERR);
+module_param(msg_enable, int, 0444);
 MODULE_PARM_DESC(msg_enable, "Debug message level (see linux/netdevice.h for bitmap)");
 
 /*
@@ -974,14 +976,14 @@ static void ethdev_setup(struct net_device *dev)
 {
 	struct ei_device *ei_local = netdev_priv(dev);
 
-	if ((msg_enable & NETIF_MSG_DRV) && (version_printed++ == 0))
-		pr_info("%s", version);
-
 	ether_setup(dev);
 
 	spin_lock_init(&ei_local->page_lock);
 
-	ei_local->msg_enable = msg_enable;
+	ei_local->msg_enable = netif_msg_init(msg_enable, default_msg_level);
+
+	if (netif_msg_drv(ei_local) && (version_printed++ == 0))
+		pr_info("%s", version);
 }
 
 /**
