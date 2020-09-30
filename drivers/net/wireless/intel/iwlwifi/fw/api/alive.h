@@ -5,10 +5,9 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
+ * Copyright(c) 2012 - 2014, 2018, 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,7 +30,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
+ * Copyright(c) 2012 - 2014, 2018, 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -129,19 +128,31 @@ struct iwl_umac_alive {
 	struct iwl_umac_debug_addrs dbg_ptrs;
 } __packed; /* UMAC_ALIVE_DATA_API_S_VER_2 */
 
-struct mvm_alive_resp_v3 {
+struct iwl_sku_id {
+	u32 data[3];
+} __packed; /* SKU_ID_API_S_VER_1 */
+
+struct iwl_alive_ntf_v3 {
 	__le16 status;
 	__le16 flags;
 	struct iwl_lmac_alive lmac_data;
 	struct iwl_umac_alive umac_data;
-} __packed; /* ALIVE_RES_API_S_VER_3 */
+} __packed; /* UCODE_ALIVE_NTFY_API_S_VER_3 */
 
-struct mvm_alive_resp {
+struct iwl_alive_ntf_v4 {
 	__le16 status;
 	__le16 flags;
 	struct iwl_lmac_alive lmac_data[2];
 	struct iwl_umac_alive umac_data;
-} __packed; /* ALIVE_RES_API_S_VER_4 */
+} __packed; /* UCODE_ALIVE_NTFY_API_S_VER_4 */
+
+struct iwl_alive_ntf_v5 {
+	__le16 status;
+	__le16 flags;
+	struct iwl_lmac_alive lmac_data[2];
+	struct iwl_umac_alive umac_data;
+	struct iwl_sku_id sku_id;
+} __packed; /* UCODE_ALIVE_NTFY_API_S_VER_5 */
 
 /**
  * enum iwl_extended_cfg_flag - commands driver may send before

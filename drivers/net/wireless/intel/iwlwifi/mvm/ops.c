@@ -319,7 +319,7 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
  * Access is done through binary search
  */
 static const struct iwl_hcmd_names iwl_mvm_legacy_names[] = {
-	HCMD_NAME(MVM_ALIVE),
+	HCMD_NAME(UCODE_ALIVE_NTFY),
 	HCMD_NAME(REPLY_ERROR),
 	HCMD_NAME(ECHO_CMD),
 	HCMD_NAME(INIT_COMPLETE_NOTIF),

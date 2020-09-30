@@ -210,25 +210,36 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 	struct iwl_mvm *mvm =
 		container_of(notif_wait, struct iwl_mvm, notif_wait);
 	struct iwl_mvm_alive_data *alive_data = data;
-	struct mvm_alive_resp_v3 *palive3;
-	struct mvm_alive_resp *palive;
 	struct iwl_umac_alive *umac;
 	struct iwl_lmac_alive *lmac1;
 	struct iwl_lmac_alive *lmac2 = NULL;
 	u16 status;
 	u32 lmac_error_event_table, umac_error_table;
 
-	if (iwl_rx_packet_payload_len(pkt) == sizeof(*palive)) {
+	/* we don't use the SKU ID from v5 yet, so handle it as v4 */
+	if (iwl_fw_lookup_notif_ver(mvm->fw, LONG_GROUP,
+				    UCODE_ALIVE_NTFY, 0) == 5 ||
+	    iwl_rx_packet_payload_len(pkt) == sizeof(struct iwl_alive_ntf_v4)) {
+		struct iwl_alive_ntf_v4 *palive;
+
 		palive = (void *)pkt->data;
 		umac = &palive->umac_data;
 		lmac1 = &palive->lmac_data[0];
 		lmac2 = &palive->lmac_data[1];
 		status = le16_to_cpu(palive->status);
-	} else {
+	} else if (iwl_rx_packet_payload_len(pkt) ==
+		   sizeof(struct iwl_alive_ntf_v3)) {
+		struct iwl_alive_ntf_v3 *palive3;
+
 		palive3 = (void *)pkt->data;
 		umac = &palive3->umac_data;
 		lmac1 = &palive3->lmac_data;
 		status = le16_to_cpu(palive3->status);
+	} else {
+		WARN(1, "unsupported alive notification (size %d)\n",
+		     iwl_rx_packet_payload_len(pkt));
+		/* get timeout later */
+		return false;
 	}
 
 	lmac_error_event_table =
@@ -306,7 +317,7 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	const struct fw_img *fw;
 	int ret;
 	enum iwl_ucode_type old_type = mvm->fwrt.cur_fw_img;
-	static const u16 alive_cmd[] = { MVM_ALIVE };
+	static const u16 alive_cmd[] = { UCODE_ALIVE_NTFY };
 	bool run_in_rfkill =
 		ucode_type == IWL_UCODE_INIT || iwl_mvm_has_unified_ucode(mvm);
 
