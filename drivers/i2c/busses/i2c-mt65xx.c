@@ -476,8 +476,7 @@ static int mtk_i2c_clock_enable(struct mtk_i2c *i2c)
 	return 0;
 
 err_arb:
-	if (i2c->have_pmic)
-		clk_disable_unprepare(i2c->clk_pmic);
+	clk_disable_unprepare(i2c->clk_pmic);
 err_pmic:
 	clk_disable_unprepare(i2c->clk_main);
 err_main:
@@ -488,11 +487,9 @@ err_main:
 
 static void mtk_i2c_clock_disable(struct mtk_i2c *i2c)
 {
-	if (i2c->clk_arb)
-		clk_disable_unprepare(i2c->clk_arb);
+	clk_disable_unprepare(i2c->clk_arb);
 
-	if (i2c->have_pmic)
-		clk_disable_unprepare(i2c->clk_pmic);
+	clk_disable_unprepare(i2c->clk_pmic);
 
 	clk_disable_unprepare(i2c->clk_main);
 	clk_disable_unprepare(i2c->clk_dma);
