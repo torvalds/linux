@@ -971,9 +971,7 @@ static int io_prep_work_files(struct io_kiocb *req);
 static void __io_clean_op(struct io_kiocb *req);
 static int io_file_get(struct io_submit_state *state, struct io_kiocb *req,
 		       int fd, struct file **out_file, bool fixed);
-static void __io_queue_sqe(struct io_kiocb *req,
-			   const struct io_uring_sqe *sqe,
-			   struct io_comp_state *cs);
+static void __io_queue_sqe(struct io_kiocb *req, struct io_comp_state *cs);
 static void io_file_put_work(struct work_struct *work);
 
 static ssize_t io_import_iovec(int rw, struct io_kiocb *req,
@@ -1944,7 +1942,7 @@ static void __io_req_task_submit(struct io_kiocb *req)
 
 	if (!__io_sq_thread_acquire_mm(ctx)) {
 		mutex_lock(&ctx->uring_lock);
-		__io_queue_sqe(req, NULL, NULL);
+		__io_queue_sqe(req, NULL);
 		mutex_unlock(&ctx->uring_lock);
 	} else {
 		__io_req_task_cancel(req, -EFAULT);
@@ -5809,17 +5807,11 @@ static void __io_clean_op(struct io_kiocb *req)
 		io_req_drop_files(req);
 }
 
-static int io_issue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
-			bool force_nonblock, struct io_comp_state *cs)
+static int io_issue_sqe(struct io_kiocb *req, bool force_nonblock,
+			struct io_comp_state *cs)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	int ret;
-
-	if (sqe) {
-		ret = io_req_prep(req, sqe);
-		if (unlikely(ret < 0))
-			return ret;
-	}
 
 	switch (req->opcode) {
 	case IORING_OP_NOP:
@@ -5958,7 +5950,7 @@ static struct io_wq_work *io_wq_submit_work(struct io_wq_work *work)
 
 	if (!ret) {
 		do {
-			ret = io_issue_sqe(req, NULL, false, NULL);
+			ret = io_issue_sqe(req, false, NULL);
 			/*
 			 * We can get EAGAIN for polled IO even though we're
 			 * forcing a sync submission from here, since we can't
@@ -6136,8 +6128,7 @@ static struct io_kiocb *io_prep_linked_timeout(struct io_kiocb *req)
 	return nxt;
 }
 
-static void __io_queue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
-			   struct io_comp_state *cs)
+static void __io_queue_sqe(struct io_kiocb *req, struct io_comp_state *cs)
 {
 	struct io_kiocb *linked_timeout;
 	struct io_kiocb *nxt;
@@ -6157,7 +6148,7 @@ again:
 			old_creds = override_creds(req->work.creds);
 	}
 
-	ret = io_issue_sqe(req, sqe, true, cs);
+	ret = io_issue_sqe(req, true, cs);
 
 	/*
 	 * We async punt it if the file wasn't marked NOWAIT, or if the file
@@ -6236,7 +6227,12 @@ fail_req:
 		req->work.flags |= IO_WQ_WORK_CONCURRENT;
 		io_queue_async_work(req);
 	} else {
-		__io_queue_sqe(req, sqe, cs);
+		if (sqe) {
+			ret = io_req_prep(req, sqe);
+			if (unlikely(ret))
+				goto fail_req;
+		}
+		__io_queue_sqe(req, cs);
 	}
 }
 
