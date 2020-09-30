@@ -2,7 +2,7 @@ ARCH=x86_64
 
 CLANG_TRIPLE=x86_64-linux-gnu-
 CROSS_COMPILE=x86_64-linux-androidkernel-
-LINUX_GCC_CROSS_COMPILE_PREBUILTS_BIN=prebuilts/gcc/linux-x86/x86/x86_64-linux-android-4.9/bin
+LINUX_GCC_CROSS_COMPILE_PREBUILTS_BIN=prebuilts/gas/linux-x86
 
 MAKE_GOALS="
 bzImage

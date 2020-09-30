@@ -2,7 +2,7 @@ ARCH=arm64
 
 CLANG_TRIPLE=aarch64-linux-gnu-
 CROSS_COMPILE=aarch64-linux-androidkernel-
-LINUX_GCC_CROSS_COMPILE_PREBUILTS_BIN=prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin
+LINUX_GCC_CROSS_COMPILE_PREBUILTS_BIN=prebuilts/gas/linux-x86
 
 MAKE_GOALS="
 Image
