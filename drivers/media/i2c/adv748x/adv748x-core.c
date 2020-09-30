@@ -589,14 +589,13 @@ static int adv748x_parse_csi2_lanes(struct adv748x_state *state,
 				    unsigned int port,
 				    struct device_node *ep)
 {
-	struct v4l2_fwnode_endpoint vep;
+	struct v4l2_fwnode_endpoint vep = { .bus_type = V4L2_MBUS_CSI2_DPHY };
 	unsigned int num_lanes;
 	int ret;
 
 	if (port != ADV748X_PORT_TXA && port != ADV748X_PORT_TXB)
 		return 0;
 
-	vep.bus_type = V4L2_MBUS_CSI2_DPHY;
 	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep), &vep);
 	if (ret)
 		return ret;
