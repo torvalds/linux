@@ -1187,7 +1187,7 @@
 				reg = <4>;
 				clocks = <&pmucru SCLK_PVTM_PMU>;
 				clock-names = "clk";
-				resets = <&cru SRST_PVTM>;
+				resets = <&pmucru SRST_PVTM>;
 				reset-names = "rst";
 			};
 		};
