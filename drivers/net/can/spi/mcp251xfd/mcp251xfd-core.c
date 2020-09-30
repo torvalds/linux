@@ -25,7 +25,7 @@
 
 #include "mcp251xfd.h"
 
-#define DEVICE_NAME "mcp25xxfd"
+#define DEVICE_NAME "mcp251xfd"
 
 static const struct mcp25xxfd_devtype_data mcp25xxfd_devtype_data_mcp2517fd = {
 	.quirks = MCP25XXFD_QUIRK_MAB_NO_WARN | MCP25XXFD_QUIRK_CRC_REG |
@@ -2923,5 +2923,5 @@ static struct spi_driver mcp25xxfd_driver = {
 module_spi_driver(mcp25xxfd_driver);
 
 MODULE_AUTHOR("Marc Kleine-Budde <mkl@pengutronix.de>");
-MODULE_DESCRIPTION("Microchip MCP25xxFD Family CAN controller driver");
+MODULE_DESCRIPTION("Microchip MCP251xFD Family CAN controller driver");
 MODULE_LICENSE("GPL v2");

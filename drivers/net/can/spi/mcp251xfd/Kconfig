@@ -1,14 +1,14 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
-config CAN_MCP25XXFD
-	tristate "Microchip MCP25xxFD SPI CAN controllers"
+config CAN_MCP251XFD
+	tristate "Microchip MCP251xFD SPI CAN controllers"
 	select REGMAP
 	help
-	  Driver for the Microchip MCP25XXFD SPI FD-CAN controller
+	  Driver for the Microchip MCP251XFD SPI FD-CAN controller
 	  family.
 
-config CAN_MCP25XXFD_SANITY
-	depends on CAN_MCP25XXFD
+config CAN_MCP251XFD_SANITY
+	depends on CAN_MCP251XFD
 	bool "Additional Sanity Checks"
 	help
 	  This option enables additional sanity checks in the driver,
