@@ -17,8 +17,18 @@ static int
 mt7603_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 			  struct sk_buff *skb, int seq)
 {
-	struct mt7603_mcu_rxd *rxd = (struct mt7603_mcu_rxd *)skb->data;
+	struct mt7603_dev *dev = container_of(mdev, struct mt7603_dev, mt76);
+	struct mt7603_mcu_rxd *rxd;
 
+	if (!skb) {
+		dev_err(mdev->dev,
+			"MCU message %d (seq %d) timed out\n",
+			cmd, seq);
+		dev->mcu_hang = MT7603_WATCHDOG_TIMEOUT;
+		return -ETIMEDOUT;
+	}
+
+	rxd = (struct mt7603_mcu_rxd *)skb->data;
 	if (seq != rxd->seq)
 		return -EAGAIN;
 
@@ -85,15 +95,6 @@ mt7603_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
 
 	while (wait_resp) {
 		skb = mt76_mcu_get_response(&dev->mt76, expires);
-		if (!skb) {
-			dev_err(mdev->dev,
-				"MCU message %d (seq %d) timed out\n",
-				cmd, seq);
-			dev->mcu_hang = MT7603_WATCHDOG_TIMEOUT;
-			ret = -ETIMEDOUT;
-			break;
-		}
-
 		ret = mt7603_mcu_parse_response(mdev, cmd, skb, seq);
 		dev_kfree_skb(skb);
 		if (ret != -EAGAIN)

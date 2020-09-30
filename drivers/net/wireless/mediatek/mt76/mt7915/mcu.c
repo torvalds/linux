@@ -313,9 +313,16 @@ mt7915_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 			  struct sk_buff *skb, int seq)
 {
 	struct mt7915_dev *dev = container_of(mdev, struct mt7915_dev, mt76);
-	struct mt7915_mcu_rxd *rxd = (struct mt7915_mcu_rxd *)skb->data;
+	struct mt7915_mcu_rxd *rxd;
 	int ret = 0;
 
+	if (!skb) {
+		dev_err(mdev->dev, "Message %d (seq %d) timeout\n",
+			cmd, seq);
+		return -ETIMEDOUT;
+	}
+
+	rxd = (struct mt7915_mcu_rxd *)skb->data;
 	if (seq != rxd->seq)
 		return -EAGAIN;
 
@@ -347,12 +354,6 @@ mt7915_mcu_wait_response(struct mt7915_dev *dev, int cmd, int seq)
 
 	while (true) {
 		skb = mt76_mcu_get_response(&dev->mt76, expires);
-		if (!skb) {
-			dev_err(dev->mt76.dev, "Message %d (seq %d) timeout\n",
-				cmd, seq);
-			return -ETIMEDOUT;
-		}
-
 		ret = mt7915_mcu_parse_response(&dev->mt76, cmd, skb, seq);
 		dev_kfree_skb(skb);
 		if (ret != -EAGAIN)

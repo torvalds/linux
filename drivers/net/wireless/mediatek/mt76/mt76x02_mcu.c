@@ -13,8 +13,18 @@
 int mt76x02_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 			       struct sk_buff *skb, int seq)
 {
-	u32 *rxfce = (u32 *)skb->cb;
+	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
+	u32 *rxfce;
 
+	if (!skb) {
+		dev_err(mdev->dev,
+			"MCU message %d (seq %d) timed out\n", cmd,
+			seq);
+		dev->mcu_timeout = 1;
+		return -ETIMEDOUT;
+	}
+
+	rxfce = (u32 *)skb->cb;
 	if (seq != FIELD_GET(MT_RX_FCE_INFO_CMD_SEQ, *rxfce))
 		return -EAGAIN;
 
@@ -57,15 +67,6 @@ int mt76x02_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
 
 	while (wait_resp) {
 		skb = mt76_mcu_get_response(&dev->mt76, expires);
-		if (!skb) {
-			dev_err(mdev->dev,
-				"MCU message %d (seq %d) timed out\n", cmd,
-				seq);
-			ret = -ETIMEDOUT;
-			dev->mcu_timeout = 1;
-			break;
-		}
-
 		ret = mt76x02_mcu_parse_response(mdev, cmd, skb, seq);
 		dev_kfree_skb(skb);
 		if (ret != -EAGAIN)

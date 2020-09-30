@@ -182,9 +182,16 @@ static int __mt7615_mcu_msg_send(struct mt7615_dev *dev, struct sk_buff *skb,
 int mt7615_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 			      struct sk_buff *skb, int seq)
 {
-	struct mt7615_mcu_rxd *rxd = (struct mt7615_mcu_rxd *)skb->data;
+	struct mt7615_mcu_rxd *rxd;
 	int ret = 0;
 
+	if (!skb) {
+		dev_err(mdev->dev, "Message %ld (seq %d) timeout\n",
+			cmd & MCU_CMD_MASK, seq);
+		return -ETIMEDOUT;
+	}
+
+	rxd = (struct mt7615_mcu_rxd *)skb->data;
 	if (seq != rxd->seq)
 		return -EAGAIN;
 
@@ -238,12 +245,6 @@ int mt7615_mcu_wait_response(struct mt7615_dev *dev, int cmd, int seq)
 
 	while (true) {
 		skb = mt76_mcu_get_response(&dev->mt76, expires);
-		if (!skb) {
-			dev_err(dev->mt76.dev, "Message %ld (seq %d) timeout\n",
-				cmd & MCU_CMD_MASK, seq);
-			return -ETIMEDOUT;
-		}
-
 		ret = mt7615_mcu_parse_response(&dev->mt76, cmd, skb, seq);
 		dev_kfree_skb(skb);
 		if (ret != -EAGAIN)
