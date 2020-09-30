@@ -133,6 +133,7 @@ module_exit(iwl_mvm_exit);
 static void iwl_mvm_nic_config(struct iwl_op_mode *op_mode)
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
+	struct iwl_trans_debug *dbg = &mvm->trans->dbg;
 	u8 radio_cfg_type, radio_cfg_step, radio_cfg_dash;
 	u32 reg_val = 0;
 	u32 phy_config = iwl_mvm_get_phy_config(mvm);
@@ -169,7 +170,10 @@ static void iwl_mvm_nic_config(struct iwl_op_mode *op_mode)
 	if (mvm->trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_8000)
 		reg_val |= CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI;
 
-	if (iwl_fw_dbg_is_d3_debug_enabled(&mvm->fwrt))
+	if (iwl_fw_dbg_is_d3_debug_enabled(&mvm->fwrt) ||
+	    (iwl_trans_dbg_ini_valid(mvm->trans) &&
+	     dbg->fw_mon_cfg[IWL_FW_INI_ALLOCATION_ID_INTERNAL].buf_location)
+	    )
 		reg_val |= CSR_HW_IF_CONFIG_REG_D3_DEBUG;
 
 	iwl_trans_set_bits_mask(mvm->trans, CSR_HW_IF_CONFIG_REG,
