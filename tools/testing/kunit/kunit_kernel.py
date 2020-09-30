@@ -36,9 +36,9 @@ class LinuxSourceTreeOperations(object):
 		try:
 			subprocess.check_output(['make', 'mrproper'], stderr=subprocess.STDOUT)
 		except OSError as e:
-			raise ConfigError('Could not call make command: ' + e)
+			raise ConfigError('Could not call make command: ' + str(e))
 		except subprocess.CalledProcessError as e:
-			raise ConfigError(e.output)
+			raise ConfigError(e.output.decode())
 
 	def make_olddefconfig(self, build_dir, make_options):
 		command = ['make', 'ARCH=um', 'olddefconfig']
@@ -49,9 +49,9 @@ class LinuxSourceTreeOperations(object):
 		try:
 			subprocess.check_output(command, stderr=subprocess.STDOUT)
 		except OSError as e:
-			raise ConfigError('Could not call make command: ' + e)
+			raise ConfigError('Could not call make command: ' + str(e))
 		except subprocess.CalledProcessError as e:
-			raise ConfigError(e.output)
+			raise ConfigError(e.output.decode())
 
 	def make_allyesconfig(self, build_dir, make_options):
 		kunit_parser.print_with_timestamp(
@@ -84,9 +84,9 @@ class LinuxSourceTreeOperations(object):
 		try:
 			subprocess.check_output(command, stderr=subprocess.STDOUT)
 		except OSError as e:
-			raise BuildError('Could not call execute make: ' + e)
+			raise BuildError('Could not call execute make: ' + str(e))
 		except subprocess.CalledProcessError as e:
-			raise BuildError(e.output)
+			raise BuildError(e.output.decode())
 
 	def linux_bin(self, params, timeout, build_dir, outfile):
 		"""Runs the Linux UML binary. Must be named 'linux'."""
