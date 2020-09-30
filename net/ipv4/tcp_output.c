@@ -3941,10 +3941,15 @@ void __tcp_send_ack(struct sock *sk, u32 rcv_nxt)
 	buff = alloc_skb(MAX_TCP_HEADER,
 			 sk_gfp_mask(sk, GFP_ATOMIC | __GFP_NOWARN));
 	if (unlikely(!buff)) {
+		struct inet_connection_sock *icsk = inet_csk(sk);
+		unsigned long delay;
+
+		delay = TCP_DELACK_MAX << icsk->icsk_ack.retry;
+		if (delay < TCP_RTO_MAX)
+			icsk->icsk_ack.retry++;
 		inet_csk_schedule_ack(sk);
-		inet_csk(sk)->icsk_ack.ato = TCP_ATO_MIN;
-		inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK,
-					  TCP_DELACK_MAX, TCP_RTO_MAX);
+		icsk->icsk_ack.ato = TCP_ATO_MIN;
+		inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK, delay, TCP_RTO_MAX);
 		return;
 	}
 

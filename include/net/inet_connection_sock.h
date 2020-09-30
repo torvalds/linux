@@ -110,7 +110,7 @@ struct inet_connection_sock {
 		__u8		  pending;	 /* ACK is pending			   */
 		__u8		  quick;	 /* Scheduled number of quick acks	   */
 		__u8		  pingpong;	 /* The session is interactive		   */
-		/* one byte hole. */
+		__u8		  retry;	 /* Number of attempts			   */
 		__u32		  ato;		 /* Predicted tick of soft clock	   */
 		unsigned long	  timeout;	 /* Currently scheduled timeout		   */
 		__u32		  lrcvtime;	 /* timestamp of last received data packet */
@@ -199,6 +199,7 @@ static inline void inet_csk_clear_xmit_timer(struct sock *sk, const int what)
 #endif
 	} else if (what == ICSK_TIME_DACK) {
 		icsk->icsk_ack.pending = 0;
+		icsk->icsk_ack.retry = 0;
 #ifdef INET_CSK_CLEAR_TIMERS
 		sk_stop_timer(sk, &icsk->icsk_delack_timer);
 #endif
