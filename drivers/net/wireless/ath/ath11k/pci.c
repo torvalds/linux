@@ -971,10 +971,17 @@ static void ath11k_pci_remove(struct pci_dev *pdev)
 	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
 
 	set_bit(ATH11K_FLAG_UNREGISTERING, &ab->dev_flags);
+
+	ath11k_core_deinit(ab);
+
 	ath11k_mhi_unregister(ab_pci);
+
+	ath11k_pci_free_irq(ab);
 	ath11k_pci_disable_msi(ab_pci);
 	ath11k_pci_free_region(ab_pci);
-	ath11k_pci_free_irq(ab);
+
+	ath11k_hal_srng_deinit(ab);
+	ath11k_ce_free_pipes(ab);
 	ath11k_core_free(ab);
 }
 
