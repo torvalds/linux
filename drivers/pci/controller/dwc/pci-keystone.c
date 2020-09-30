@@ -1154,7 +1154,6 @@ static int __init ks_pcie_probe(struct platform_device *pdev)
 	struct keystone_pcie *ks_pcie;
 	struct device_link **link;
 	struct gpio_desc *gpiod;
-	void __iomem *atu_base;
 	struct resource *res;
 	unsigned int version;
 	void __iomem *base;
@@ -1275,23 +1274,12 @@ static int __init ks_pcie_probe(struct platform_device *pdev)
 		goto err_get_sync;
 	}
 
-	if (pci->version >= 0x480A) {
-		atu_base = devm_platform_ioremap_resource_byname(pdev, "atu");
-		if (IS_ERR(atu_base)) {
-			ret = PTR_ERR(atu_base);
-			goto err_get_sync;
-		}
-
-		pci->atu_base = atu_base;
-
+	if (pci->version >= 0x480A)
 		ret = ks_pcie_am654_set_mode(dev, mode);
-		if (ret < 0)
-			goto err_get_sync;
-	} else {
+	else
 		ret = ks_pcie_set_mode(dev);
-		if (ret < 0)
-			goto err_get_sync;
-	}
+	if (ret < 0)
+		goto err_get_sync;
 
 	switch (mode) {
 	case DW_PCIE_RC_TYPE:
