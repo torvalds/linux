@@ -4742,7 +4742,7 @@ static void gaudi_write_pte(struct hl_device *hdev, u64 addr, u64 val)
 			(addr - gaudi->hbm_bar_cur_addr));
 }
 
-static void gaudi_mmu_prepare_reg(struct hl_device *hdev, u64 reg, u32 asid)
+void gaudi_mmu_prepare_reg(struct hl_device *hdev, u64 reg, u32 asid)
 {
 	/* mask to zero the MMBP and ASID bits */
 	WREG32_AND(reg, ~0x7FF);
@@ -4909,9 +4909,6 @@ static void gaudi_mmu_prepare(struct hl_device *hdev, u32 asid)
 	gaudi_mmu_prepare_reg(hdev, mmMME1_ACC_WBC, asid);
 	gaudi_mmu_prepare_reg(hdev, mmMME2_ACC_WBC, asid);
 	gaudi_mmu_prepare_reg(hdev, mmMME3_ACC_WBC, asid);
-
-	gaudi_mmu_prepare_reg(hdev, mmPSOC_GLOBAL_CONF_TRACE_ARUSER, asid);
-	gaudi_mmu_prepare_reg(hdev, mmPSOC_GLOBAL_CONF_TRACE_AWUSER, asid);
 
 	hdev->asic_funcs->set_clock_gating(hdev);
 
