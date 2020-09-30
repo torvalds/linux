@@ -4500,8 +4500,6 @@ static int gaudi_context_switch(struct hl_device *hdev, u32 asid)
 		return rc;
 	}
 
-	gaudi_mmu_prepare(hdev, asid);
-
 	gaudi_restore_user_registers(hdev);
 
 	return 0;
@@ -6353,6 +6351,8 @@ static enum hl_device_hw_state gaudi_get_hw_state(struct hl_device *hdev)
 
 static int gaudi_ctx_init(struct hl_ctx *ctx)
 {
+	gaudi_mmu_prepare(ctx->hdev, ctx->asid);
+
 	return 0;
 }
 
