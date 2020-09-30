@@ -325,15 +325,15 @@ static struct dma_page *__ttm_dma_alloc_page(struct dma_pool *pool)
 	}
 	return d_page;
 }
-static enum pool_type ttm_to_type(int flags, enum ttm_caching_state cstate)
+static enum pool_type ttm_to_type(int flags, enum ttm_caching cstate)
 {
 	enum pool_type type = IS_UNDEFINED;
 
 	if (flags & TTM_PAGE_FLAG_DMA32)
 		type |= IS_DMA32;
-	if (cstate == tt_cached)
+	if (cstate == ttm_cached)
 		type |= IS_CACHED;
-	else if (cstate == tt_uncached)
+	else if (cstate == ttm_uncached)
 		type |= IS_UC;
 	else
 		type |= IS_WC;
@@ -663,7 +663,7 @@ static struct dma_pool *ttm_dma_find_pool(struct device *dev,
  * are pages that have changed their caching state already put them to the
  * pool.
  */
-static void ttm_dma_handle_caching_state_failure(struct dma_pool *pool,
+static void ttm_dma_handle_caching_failure(struct dma_pool *pool,
 						 struct list_head *d_pages,
 						 struct page **failed_pages,
 						 unsigned cpages)
@@ -734,7 +734,7 @@ static int ttm_dma_pool_alloc_new_pages(struct dma_pool *pool,
 				r = ttm_set_pages_caching(pool, caching_array,
 							  cpages);
 				if (r)
-					ttm_dma_handle_caching_state_failure(
+					ttm_dma_handle_caching_failure(
 						pool, d_pages, caching_array,
 						cpages);
 			}
@@ -760,7 +760,7 @@ static int ttm_dma_pool_alloc_new_pages(struct dma_pool *pool,
 				r = ttm_set_pages_caching(pool, caching_array,
 							  cpages);
 				if (r) {
-					ttm_dma_handle_caching_state_failure(
+					ttm_dma_handle_caching_failure(
 					     pool, d_pages, caching_array,
 					     cpages);
 					goto out;
@@ -773,7 +773,7 @@ static int ttm_dma_pool_alloc_new_pages(struct dma_pool *pool,
 	if (cpages) {
 		r = ttm_set_pages_caching(pool, caching_array, cpages);
 		if (r)
-			ttm_dma_handle_caching_state_failure(pool, d_pages,
+			ttm_dma_handle_caching_failure(pool, d_pages,
 					caching_array, cpages);
 	}
 out:
@@ -904,7 +904,7 @@ int ttm_dma_populate(struct ttm_dma_tt *ttm_dma, struct device *dev,
 	INIT_LIST_HEAD(&ttm_dma->pages_list);
 	i = 0;
 
-	type = ttm_to_type(ttm->page_flags, ttm->caching_state);
+	type = ttm_to_type(ttm->page_flags, ttm->caching);
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	if (ttm->page_flags & TTM_PAGE_FLAG_DMA32)
@@ -1000,7 +1000,7 @@ void ttm_dma_unpopulate(struct ttm_dma_tt *ttm_dma, struct device *dev)
 	unsigned count, i, npages = 0;
 	unsigned long irq_flags;
 
-	type = ttm_to_type(ttm->page_flags, ttm->caching_state);
+	type = ttm_to_type(ttm->page_flags, ttm->caching);
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	pool = ttm_dma_find_pool(dev, type | IS_HUGE);
@@ -1032,7 +1032,7 @@ void ttm_dma_unpopulate(struct ttm_dma_tt *ttm_dma, struct device *dev)
 		return;
 
 	is_cached = (ttm_dma_find_pool(pool->dev,
-		     ttm_to_type(ttm->page_flags, tt_cached)) == pool);
+		     ttm_to_type(ttm->page_flags, ttm_cached)) == pool);
 
 	/* make sure pages array match list and count number of pages */
 	count = 0;

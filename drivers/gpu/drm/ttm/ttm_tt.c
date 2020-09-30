@@ -114,31 +114,30 @@ static int ttm_sg_tt_alloc_page_directory(struct ttm_dma_tt *ttm)
 	return 0;
 }
 
-static int ttm_tt_set_caching(struct ttm_tt *ttm,
-			      enum ttm_caching_state c_state)
+static int ttm_tt_set_caching(struct ttm_tt *ttm, enum ttm_caching caching)
 {
-	if (ttm->caching_state == c_state)
+	if (ttm->caching == caching)
 		return 0;
 
 	/* Can't change the caching state after TT is populated */
 	if (WARN_ON_ONCE(ttm_tt_is_populated(ttm)))
 		return -EINVAL;
 
-	ttm->caching_state = c_state;
+	ttm->caching = caching;
 
 	return 0;
 }
 
 int ttm_tt_set_placement_caching(struct ttm_tt *ttm, uint32_t placement)
 {
-	enum ttm_caching_state state;
+	enum ttm_caching state;
 
 	if (placement & TTM_PL_FLAG_WC)
-		state = tt_wc;
+		state = ttm_write_combined;
 	else if (placement & TTM_PL_FLAG_UNCACHED)
-		state = tt_uncached;
+		state = ttm_uncached;
 	else
-		state = tt_cached;
+		state = ttm_cached;
 
 	return ttm_tt_set_caching(ttm, state);
 }
@@ -162,20 +161,22 @@ void ttm_tt_destroy(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
 
 static void ttm_tt_init_fields(struct ttm_tt *ttm,
 			       struct ttm_buffer_object *bo,
-			       uint32_t page_flags)
+			       uint32_t page_flags,
+			       enum ttm_caching caching)
 {
 	ttm->num_pages = bo->num_pages;
-	ttm->caching_state = tt_cached;
+	ttm->caching = ttm_cached;
 	ttm->page_flags = page_flags;
 	ttm_tt_set_unpopulated(ttm);
 	ttm->swap_storage = NULL;
 	ttm->sg = bo->sg;
+	ttm->caching = caching;
 }
 
 int ttm_tt_init(struct ttm_tt *ttm, struct ttm_buffer_object *bo,
-		uint32_t page_flags)
+		uint32_t page_flags, enum ttm_caching caching)
 {
-	ttm_tt_init_fields(ttm, bo, page_flags);
+	ttm_tt_init_fields(ttm, bo, page_flags, caching);
 
 	if (ttm_tt_alloc_page_directory(ttm)) {
 		pr_err("Failed allocating page table\n");
@@ -193,11 +194,11 @@ void ttm_tt_fini(struct ttm_tt *ttm)
 EXPORT_SYMBOL(ttm_tt_fini);
 
 int ttm_dma_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_buffer_object *bo,
-		    uint32_t page_flags)
+		    uint32_t page_flags, enum ttm_caching caching)
 {
 	struct ttm_tt *ttm = &ttm_dma->ttm;
 
-	ttm_tt_init_fields(ttm, bo, page_flags);
+	ttm_tt_init_fields(ttm, bo, page_flags, caching);
 
 	INIT_LIST_HEAD(&ttm_dma->pages_list);
 	if (ttm_dma_tt_alloc_page_directory(ttm_dma)) {
@@ -209,12 +210,12 @@ int ttm_dma_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_buffer_object *bo,
 EXPORT_SYMBOL(ttm_dma_tt_init);
 
 int ttm_sg_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_buffer_object *bo,
-		   uint32_t page_flags)
+		   uint32_t page_flags, enum ttm_caching caching)
 {
 	struct ttm_tt *ttm = &ttm_dma->ttm;
 	int ret;
 
-	ttm_tt_init_fields(ttm, bo, page_flags);
+	ttm_tt_init_fields(ttm, bo, page_flags, caching);
 
 	INIT_LIST_HEAD(&ttm_dma->pages_list);
 	if (page_flags & TTM_PAGE_FLAG_SG)

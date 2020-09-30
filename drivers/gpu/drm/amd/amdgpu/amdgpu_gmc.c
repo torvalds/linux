@@ -124,7 +124,7 @@ uint64_t amdgpu_gmc_agp_addr(struct ttm_buffer_object *bo)
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->bdev);
 	struct ttm_dma_tt *ttm;
 
-	if (bo->num_pages != 1 || bo->ttm->caching_state == tt_cached)
+	if (bo->num_pages != 1 || bo->ttm->caching == ttm_cached)
 		return AMDGPU_BO_INVALID_OFFSET;
 
 	ttm = container_of(bo->ttm, struct ttm_dma_tt, ttm);

@@ -546,7 +546,7 @@ static int radeon_ttm_backend_bind(struct ttm_bo_device *bdev,
 		WARN(1, "nothing to bind %lu pages for mreg %p back %p!\n",
 		     ttm->num_pages, bo_mem, ttm);
 	}
-	if (ttm->caching_state == tt_cached)
+	if (ttm->caching == ttm_cached)
 		flags |= RADEON_GART_PAGE_SNOOP;
 	r = radeon_gart_bind(rdev, gtt->offset, ttm->num_pages,
 			     ttm->pages, gtt->ttm.dma_address, flags);
@@ -590,6 +590,10 @@ static struct ttm_tt *radeon_ttm_tt_create(struct ttm_buffer_object *bo,
 {
 	struct radeon_device *rdev;
 	struct radeon_ttm_tt *gtt;
+	enum ttm_caching caching;
+	struct radeon_bo *rbo;
+
+	rbo = container_of(bo, struct radeon_bo, tbo);
 
 	rdev = radeon_get_rdev(bo->bdev);
 #if IS_ENABLED(CONFIG_AGP)
@@ -603,7 +607,15 @@ static struct ttm_tt *radeon_ttm_tt_create(struct ttm_buffer_object *bo,
 	if (gtt == NULL) {
 		return NULL;
 	}
-	if (ttm_dma_tt_init(&gtt->ttm, bo, page_flags)) {
+
+	if (rbo->flags & RADEON_GEM_GTT_UC)
+		caching = ttm_uncached;
+	else if (rbo->flags & RADEON_GEM_GTT_WC)
+		caching = ttm_write_combined;
+	else
+		caching = ttm_cached;
+
+	if (ttm_dma_tt_init(&gtt->ttm, bo, page_flags, caching)) {
 		kfree(gtt);
 		return NULL;
 	}

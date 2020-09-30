@@ -28,6 +28,7 @@
 #define _TTM_TT_H_
 
 #include <linux/types.h>
+#include <drm/ttm/ttm_caching.h>
 
 struct ttm_tt;
 struct ttm_resource;
@@ -41,12 +42,6 @@ struct ttm_operation_ctx;
 #define TTM_PAGE_FLAG_NO_RETRY	      (1 << 9)
 
 #define TTM_PAGE_FLAG_PRIV_POPULATED  (1 << 31)
-
-enum ttm_caching_state {
-	tt_uncached,
-	tt_wc,
-	tt_cached
-};
 
 /**
  * struct ttm_tt
@@ -69,7 +64,7 @@ struct ttm_tt {
 	unsigned long num_pages;
 	struct sg_table *sg; /* for SG objects via dma-buf */
 	struct file *swap_storage;
-	enum ttm_caching_state caching_state;
+	enum ttm_caching caching;
 };
 
 static inline bool ttm_tt_is_populated(struct ttm_tt *tt)
@@ -121,6 +116,7 @@ int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc);
  * @ttm: The struct ttm_tt.
  * @bo: The buffer object we create the ttm for.
  * @page_flags: Page flags as identified by TTM_PAGE_FLAG_XX flags.
+ * @caching: the desired caching state of the pages
  *
  * Create a struct ttm_tt to back data with system memory pages.
  * No pages are actually allocated.
@@ -128,11 +124,11 @@ int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc);
  * NULL: Out of memory.
  */
 int ttm_tt_init(struct ttm_tt *ttm, struct ttm_buffer_object *bo,
-		uint32_t page_flags);
+		uint32_t page_flags, enum ttm_caching caching);
 int ttm_dma_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_buffer_object *bo,
-		    uint32_t page_flags);
+		    uint32_t page_flags, enum ttm_caching caching);
 int ttm_sg_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_buffer_object *bo,
-		   uint32_t page_flags);
+		   uint32_t page_flags, enum ttm_caching caching);
 
 /**
  * ttm_tt_fini

@@ -5,6 +5,7 @@
 #include "nouveau_drv.h"
 #include "nouveau_mem.h"
 #include "nouveau_ttm.h"
+#include "nouveau_bo.h"
 
 struct nouveau_sgdma_be {
 	/* this has to be the first field so populate/unpopulated in
@@ -67,13 +68,23 @@ nouveau_sgdma_unbind(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
 struct ttm_tt *
 nouveau_sgdma_create_ttm(struct ttm_buffer_object *bo, uint32_t page_flags)
 {
+	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
+	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct nouveau_sgdma_be *nvbe;
+	enum ttm_caching caching;
+
+	if (nvbo->force_coherent)
+		caching = ttm_uncached;
+	else if (drm->agp.bridge)
+		caching = ttm_write_combined;
+	else
+		caching = ttm_cached;
 
 	nvbe = kzalloc(sizeof(*nvbe), GFP_KERNEL);
 	if (!nvbe)
 		return NULL;
 
-	if (ttm_dma_tt_init(&nvbe->ttm, bo, page_flags)) {
+	if (ttm_dma_tt_init(&nvbe->ttm, bo, page_flags, caching)) {
 		kfree(nvbe);
 		return NULL;
 	}
