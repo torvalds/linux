@@ -940,9 +940,7 @@ static int bnxt_re_init_user_qp(struct bnxt_re_dev *rdev, struct bnxt_re_pd *pd,
 		return PTR_ERR(umem);
 
 	qp->sumem = umem;
-	qplib_qp->sq.sg_info.sghead = umem->sg_head.sgl;
-	qplib_qp->sq.sg_info.npages = ib_umem_num_dma_blocks(umem, PAGE_SIZE);
-	qplib_qp->sq.sg_info.nmap = umem->nmap;
+	qplib_qp->sq.sg_info.umem = umem;
 	qplib_qp->sq.sg_info.pgsize = PAGE_SIZE;
 	qplib_qp->sq.sg_info.pgshft = PAGE_SHIFT;
 	qplib_qp->qp_handle = ureq.qp_handle;
@@ -955,10 +953,7 @@ static int bnxt_re_init_user_qp(struct bnxt_re_dev *rdev, struct bnxt_re_pd *pd,
 		if (IS_ERR(umem))
 			goto rqfail;
 		qp->rumem = umem;
-		qplib_qp->rq.sg_info.sghead = umem->sg_head.sgl;
-		qplib_qp->rq.sg_info.npages =
-			ib_umem_num_dma_blocks(umem, PAGE_SIZE);
-		qplib_qp->rq.sg_info.nmap = umem->nmap;
+		qplib_qp->rq.sg_info.umem = umem;
 		qplib_qp->rq.sg_info.pgsize = PAGE_SIZE;
 		qplib_qp->rq.sg_info.pgshft = PAGE_SHIFT;
 	}
@@ -1612,9 +1607,7 @@ static int bnxt_re_init_user_srq(struct bnxt_re_dev *rdev,
 		return PTR_ERR(umem);
 
 	srq->umem = umem;
-	qplib_srq->sg_info.sghead = umem->sg_head.sgl;
-	qplib_srq->sg_info.npages = ib_umem_num_dma_blocks(umem, PAGE_SIZE);
-	qplib_srq->sg_info.nmap = umem->nmap;
+	qplib_srq->sg_info.umem = umem;
 	qplib_srq->sg_info.pgsize = PAGE_SIZE;
 	qplib_srq->sg_info.pgshft = PAGE_SHIFT;
 	qplib_srq->srq_handle = ureq.srq_handle;
@@ -2865,10 +2858,7 @@ int bnxt_re_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 			rc = PTR_ERR(cq->umem);
 			goto fail;
 		}
-		cq->qplib_cq.sg_info.sghead = cq->umem->sg_head.sgl;
-		cq->qplib_cq.sg_info.npages =
-			ib_umem_num_dma_blocks(cq->umem, PAGE_SIZE);
-		cq->qplib_cq.sg_info.nmap = cq->umem->nmap;
+		cq->qplib_cq.sg_info.umem = cq->umem;
 		cq->qplib_cq.dpi = &uctx->dpi;
 	} else {
 		cq->max_cql = min_t(u32, entries, MAX_CQL_PER_POLL);
