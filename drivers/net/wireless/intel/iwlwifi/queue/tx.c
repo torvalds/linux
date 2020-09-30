@@ -1373,3 +1373,157 @@ error:
 	return ret;
 }
 
+static inline dma_addr_t iwl_txq_gen1_tfd_tb_get_addr(struct iwl_trans *trans,
+						      void *_tfd, u8 idx)
+{
+	struct iwl_tfd *tfd;
+	struct iwl_tfd_tb *tb;
+	dma_addr_t addr;
+	dma_addr_t hi_len;
+
+	if (trans->trans_cfg->use_tfh) {
+		struct iwl_tfh_tfd *tfd = _tfd;
+		struct iwl_tfh_tb *tb = &tfd->tbs[idx];
+
+		return (dma_addr_t)(le64_to_cpu(tb->addr));
+	}
+
+	tfd = _tfd;
+	tb = &tfd->tbs[idx];
+	addr = get_unaligned_le32(&tb->lo);
+
+	if (sizeof(dma_addr_t) <= sizeof(u32))
+		return addr;
+
+	hi_len = le16_to_cpu(tb->hi_n_len) & 0xF;
+
+	/*
+	 * shift by 16 twice to avoid warnings on 32-bit
+	 * (where this code never runs anyway due to the
+	 * if statement above)
+	 */
+	return addr | ((hi_len << 16) << 16);
+}
+
+void iwl_txq_gen1_tfd_unmap(struct iwl_trans *trans,
+			    struct iwl_cmd_meta *meta,
+			    struct iwl_txq *txq, int index)
+{
+	int i, num_tbs;
+	void *tfd = iwl_txq_get_tfd(trans, txq, index);
+
+	/* Sanity check on number of chunks */
+	num_tbs = iwl_txq_gen1_tfd_get_num_tbs(trans, tfd);
+
+	if (num_tbs > trans->txqs.tfd.max_tbs) {
+		IWL_ERR(trans, "Too many chunks: %i\n", num_tbs);
+		/* @todo issue fatal error, it is quite serious situation */
+		return;
+	}
+
+	/* first TB is never freed - it's the bidirectional DMA data */
+
+	for (i = 1; i < num_tbs; i++) {
+		if (meta->tbs & BIT(i))
+			dma_unmap_page(trans->dev,
+				       iwl_txq_gen1_tfd_tb_get_addr(trans,
+								    tfd, i),
+				       iwl_txq_gen1_tfd_tb_get_len(trans,
+								   tfd, i),
+				       DMA_TO_DEVICE);
+		else
+			dma_unmap_single(trans->dev,
+					 iwl_txq_gen1_tfd_tb_get_addr(trans,
+								      tfd, i),
+					 iwl_txq_gen1_tfd_tb_get_len(trans,
+								     tfd, i),
+					 DMA_TO_DEVICE);
+	}
+
+	meta->tbs = 0;
+
+	if (trans->trans_cfg->use_tfh) {
+		struct iwl_tfh_tfd *tfd_fh = (void *)tfd;
+
+		tfd_fh->num_tbs = 0;
+	} else {
+		struct iwl_tfd *tfd_fh = (void *)tfd;
+
+		tfd_fh->num_tbs = 0;
+	}
+}
+
+#define IWL_TX_CRC_SIZE 4
+#define IWL_TX_DELIMITER_SIZE 4
+
+/*
+ * iwl_txq_gen1_update_byte_cnt_tbl - Set up entry in Tx byte-count array
+ */
+void iwl_txq_gen1_update_byte_cnt_tbl(struct iwl_trans *trans,
+				      struct iwl_txq *txq, u16 byte_cnt,
+				      int num_tbs)
+{
+	struct iwlagn_scd_bc_tbl *scd_bc_tbl;
+	int write_ptr = txq->write_ptr;
+	int txq_id = txq->id;
+	u8 sec_ctl = 0;
+	u16 len = byte_cnt + IWL_TX_CRC_SIZE + IWL_TX_DELIMITER_SIZE;
+	__le16 bc_ent;
+	struct iwl_device_tx_cmd *dev_cmd = txq->entries[txq->write_ptr].cmd;
+	struct iwl_tx_cmd *tx_cmd = (void *)dev_cmd->payload;
+	u8 sta_id = tx_cmd->sta_id;
+
+	scd_bc_tbl = trans->txqs.scd_bc_tbls.addr;
+
+	sec_ctl = tx_cmd->sec_ctl;
+
+	switch (sec_ctl & TX_CMD_SEC_MSK) {
+	case TX_CMD_SEC_CCM:
+		len += IEEE80211_CCMP_MIC_LEN;
+		break;
+	case TX_CMD_SEC_TKIP:
+		len += IEEE80211_TKIP_ICV_LEN;
+		break;
+	case TX_CMD_SEC_WEP:
+		len += IEEE80211_WEP_IV_LEN + IEEE80211_WEP_ICV_LEN;
+		break;
+	}
+	if (trans->txqs.bc_table_dword)
+		len = DIV_ROUND_UP(len, 4);
+
+	if (WARN_ON(len > 0xFFF || write_ptr >= TFD_QUEUE_SIZE_MAX))
+		return;
+
+	bc_ent = cpu_to_le16(len | (sta_id << 12));
+
+	scd_bc_tbl[txq_id].tfd_offset[write_ptr] = bc_ent;
+
+	if (write_ptr < TFD_QUEUE_SIZE_BC_DUP)
+		scd_bc_tbl[txq_id].tfd_offset[TFD_QUEUE_SIZE_MAX + write_ptr] =
+			bc_ent;
+}
+
+void iwl_txq_gen1_inval_byte_cnt_tbl(struct iwl_trans *trans,
+				     struct iwl_txq *txq)
+{
+	struct iwlagn_scd_bc_tbl *scd_bc_tbl = trans->txqs.scd_bc_tbls.addr;
+	int txq_id = txq->id;
+	int read_ptr = txq->read_ptr;
+	u8 sta_id = 0;
+	__le16 bc_ent;
+	struct iwl_device_tx_cmd *dev_cmd = txq->entries[read_ptr].cmd;
+	struct iwl_tx_cmd *tx_cmd = (void *)dev_cmd->payload;
+
+	WARN_ON(read_ptr >= TFD_QUEUE_SIZE_MAX);
+
+	if (txq_id != trans->txqs.cmd.q_id)
+		sta_id = tx_cmd->sta_id;
+
+	bc_ent = cpu_to_le16(1 | (sta_id << 12));
+
+	scd_bc_tbl[txq_id].tfd_offset[read_ptr] = bc_ent;
+
+	if (read_ptr < TFD_QUEUE_SIZE_BC_DUP)
+		scd_bc_tbl[txq_id].tfd_offset[TFD_QUEUE_SIZE_MAX + read_ptr] =
+			bc_ent;
+}

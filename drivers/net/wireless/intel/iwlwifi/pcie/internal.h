@@ -338,7 +338,6 @@ struct cont_rec {
  *	count for allocating and freeing the memory.
  * @trans: pointer to the generic transport area
  * @scd_base_addr: scheduler sram base address in SRAM
- * @scd_bc_tbls: pointer to the byte count table of the scheduler
  * @kw: keep warm address
  * @pci_dev: basic pci-network driver stuff
  * @hw_base: pci hardware address support
@@ -409,7 +408,6 @@ struct iwl_trans_pcie {
 	struct mutex mutex;
 	u32 inta_mask;
 	u32 scd_base_addr;
-	struct iwl_dma_ptr scd_bc_tbls;
 	struct iwl_dma_ptr kw;
 
 	struct iwl_txq *txq_memory;
@@ -554,22 +552,6 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 			    struct sk_buff_head *skbs);
 void iwl_trans_pcie_set_q_ptrs(struct iwl_trans *trans, int txq_id, int ptr);
 void iwl_trans_pcie_tx_reset(struct iwl_trans *trans);
-
-static inline u16 iwl_pcie_tfd_tb_get_len(struct iwl_trans *trans, void *_tfd,
-					  u8 idx)
-{
-	if (trans->trans_cfg->use_tfh) {
-		struct iwl_tfh_tfd *tfd = _tfd;
-		struct iwl_tfh_tb *tb = &tfd->tbs[idx];
-
-		return le16_to_cpu(tb->tb_len);
-	} else {
-		struct iwl_tfd *tfd = _tfd;
-		struct iwl_tfd_tb *tb = &tfd->tbs[idx];
-
-		return le16_to_cpu(tb->hi_n_len) >> 4;
-	}
-}
 
 /*****************************************************
 * Error handling

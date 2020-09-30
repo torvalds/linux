@@ -185,4 +185,46 @@ int iwl_txq_gen2_init(struct iwl_trans *trans, int txq_id, int queue_size);
 struct iwl_tso_hdr_page *get_page_hdr(struct iwl_trans *trans, size_t len,
 				      struct sk_buff *skb);
 #endif
+static inline u8 iwl_txq_gen1_tfd_get_num_tbs(struct iwl_trans *trans,
+					      void *_tfd)
+{
+	struct iwl_tfd *tfd;
+
+	if (trans->trans_cfg->use_tfh) {
+		struct iwl_tfh_tfd *tfd = _tfd;
+
+		return le16_to_cpu(tfd->num_tbs) & 0x1f;
+	}
+
+	tfd = (struct iwl_tfd *)_tfd;
+	return tfd->num_tbs & 0x1f;
+}
+
+static inline u16 iwl_txq_gen1_tfd_tb_get_len(struct iwl_trans *trans,
+					      void *_tfd, u8 idx)
+{
+	struct iwl_tfd *tfd;
+	struct iwl_tfd_tb *tb;
+
+	if (trans->trans_cfg->use_tfh) {
+		struct iwl_tfh_tfd *tfd = _tfd;
+		struct iwl_tfh_tb *tb = &tfd->tbs[idx];
+
+		return le16_to_cpu(tb->tb_len);
+	}
+
+	tfd = (struct iwl_tfd *)_tfd;
+	tb = &tfd->tbs[idx];
+
+	return le16_to_cpu(tb->hi_n_len) >> 4;
+}
+
+void iwl_txq_gen1_tfd_unmap(struct iwl_trans *trans,
+			    struct iwl_cmd_meta *meta,
+			    struct iwl_txq *txq, int index);
+void iwl_txq_gen1_inval_byte_cnt_tbl(struct iwl_trans *trans,
+				     struct iwl_txq *txq);
+void iwl_txq_gen1_update_byte_cnt_tbl(struct iwl_trans *trans,
+				      struct iwl_txq *txq, u16 byte_cnt,
+				      int num_tbs);
 #endif /* __iwl_trans_queue_tx_h__ */

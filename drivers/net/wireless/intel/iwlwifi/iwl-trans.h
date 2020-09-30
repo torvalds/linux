@@ -918,6 +918,7 @@ struct iwl_txq {
  * @dev_cmd_offs: offset from skb->cb to iwl_device_tx_cmd pointer
  * @queue_used - bit mask of used queues
  * @queue_stopped - bit mask of stopped queues
+ * @scd_bc_tbls: gen1 pointer to the byte count table of the scheduler
  */
 struct iwl_trans_txqs {
 	unsigned long queue_used[BITS_TO_LONGS(IWL_MAX_TVQM_QUEUES)];
@@ -941,6 +942,8 @@ struct iwl_trans_txqs {
 		u16 size;
 		u8 addr_size;
 	} tfd;
+
+	struct iwl_dma_ptr scd_bc_tbls;
 };
 
 /**

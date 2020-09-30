@@ -2954,7 +2954,7 @@ static u32 iwl_trans_pcie_get_cmdlen(struct iwl_trans *trans, void *tfd)
 	int i;
 
 	for (i = 0; i < trans->txqs.tfd.max_tbs; i++)
-		cmdlen += iwl_pcie_tfd_tb_get_len(trans, tfd, i);
+		cmdlen += iwl_txq_gen1_tfd_tb_get_len(trans, tfd, i);
 
 	return cmdlen;
 }
