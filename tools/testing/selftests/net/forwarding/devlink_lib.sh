@@ -5,7 +5,7 @@
 # Defines
 
 if [[ ! -v DEVLINK_DEV ]]; then
-	DEVLINK_DEV=$(devlink port show "${NETIFS[p1]}" -j \
+	DEVLINK_DEV=$(devlink port show "${NETIFS[p1]:-$NETIF_NO_CABLE}" -j \
 			     | jq -r '.port | keys[]' | cut -d/ -f-2)
 	if [ -z "$DEVLINK_DEV" ]; then
 		echo "SKIP: ${NETIFS[p1]} has no devlink device registered for it"
