@@ -1414,11 +1414,11 @@ static int rk3308_codec_reset(struct snd_soc_component *component)
 	struct rk3308_codec_priv *rk3308 = snd_soc_component_get_drvdata(component);
 
 	reset_control_assert(rk3308->reset);
-	usleep_range(2000, 2500);	/* estimated value */
+	usleep_range(10000, 11000);     /* estimated value */
 	reset_control_deassert(rk3308->reset);
 
 	regmap_write(rk3308->regmap, RK3308_GLB_CON, 0x00);
-	usleep_range(200, 300);		/* estimated value */
+	usleep_range(10000, 11000);     /* estimated value */
 	regmap_write(rk3308->regmap, RK3308_GLB_CON,
 		     RK3308_SYS_WORK |
 		     RK3308_DAC_DIG_WORK |
@@ -1445,7 +1445,7 @@ static int rk3308_codec_dac_dig_reset(struct rk3308_codec_priv *rk3308)
 	regmap_update_bits(rk3308->regmap, RK3308_GLB_CON,
 			   RK3308_DAC_DIG_WORK,
 			   RK3308_DAC_DIG_RESET);
-	udelay(50);
+	usleep_range(10000, 11000);
 	regmap_update_bits(rk3308->regmap, RK3308_GLB_CON,
 			   RK3308_DAC_DIG_WORK,
 			   RK3308_DAC_DIG_WORK);
