@@ -147,7 +147,7 @@ struct iwl_mvm_scan_params {
 	struct cfg80211_match_set *match_sets;
 	int n_scan_plans;
 	struct cfg80211_sched_scan_plan *scan_plans;
-	u32 measurement_dwell;
+	bool iter_notif;
 };
 
 static inline void *iwl_mvm_get_scan_req_umac_data(struct iwl_mvm *mvm)
@@ -335,33 +335,6 @@ iwl_mvm_scan_type iwl_mvm_get_scan_type_band(struct iwl_mvm *mvm,
 	low_latency = iwl_mvm_low_latency_band(mvm, band);
 
 	return _iwl_mvm_get_scan_type(mvm, vif, load, low_latency);
-}
-
-static int
-iwl_mvm_get_measurement_dwell(struct iwl_mvm *mvm,
-			      struct cfg80211_scan_request *req,
-			      struct iwl_mvm_scan_params *params)
-{
-	u32 duration = scan_timing[params->type].max_out_time;
-
-	if (!req->duration)
-		return 0;
-
-	if (iwl_mvm_is_cdb_supported(mvm)) {
-		u32 hb_time = scan_timing[params->hb_type].max_out_time;
-
-		duration = min_t(u32, duration, hb_time);
-	}
-
-	if (req->duration_mandatory && req->duration > duration) {
-		IWL_DEBUG_SCAN(mvm,
-			       "Measurement scan - too long dwell %hu (max out time %u)\n",
-			       req->duration,
-			       duration);
-		return -EOPNOTSUPP;
-	}
-
-	return min_t(u32, (u32)req->duration, duration);
 }
 
 static inline bool iwl_mvm_rrm_scan_needed(struct iwl_mvm *mvm)
@@ -1333,10 +1306,8 @@ static void iwl_mvm_scan_umac_dwell(struct iwl_mvm *mvm,
 	u8 active_dwell, passive_dwell;
 
 	timing = &scan_timing[params->type];
-	active_dwell = params->measurement_dwell ?
-		params->measurement_dwell : IWL_SCAN_DWELL_ACTIVE;
-	passive_dwell = params->measurement_dwell ?
-		params->measurement_dwell : IWL_SCAN_DWELL_PASSIVE;
+	active_dwell = IWL_SCAN_DWELL_ACTIVE;
+	passive_dwell = IWL_SCAN_DWELL_PASSIVE;
 
 	if (iwl_mvm_is_adaptive_dwell_supported(mvm)) {
 		cmd->v7.adwell_default_n_aps_social =
@@ -1389,8 +1360,7 @@ static void iwl_mvm_scan_umac_dwell(struct iwl_mvm *mvm,
 			}
 		}
 	} else {
-		cmd->v1.extended_dwell = params->measurement_dwell ?
-			params->measurement_dwell : IWL_SCAN_DWELL_EXTENDED;
+		cmd->v1.extended_dwell = IWL_SCAN_DWELL_EXTENDED;
 		cmd->v1.active_dwell = active_dwell;
 		cmd->v1.passive_dwell = passive_dwell;
 		cmd->v1.fragmented_dwell = IWL_SCAN_DWELL_FRAGMENTED;
@@ -1443,10 +1413,8 @@ iwl_mvm_scan_umac_dwell_v10(struct iwl_mvm *mvm,
 	u8 active_dwell, passive_dwell;
 
 	timing = &scan_timing[params->type];
-	active_dwell = params->measurement_dwell ?
-		params->measurement_dwell : IWL_SCAN_DWELL_ACTIVE;
-	passive_dwell = params->measurement_dwell ?
-		params->measurement_dwell : IWL_SCAN_DWELL_PASSIVE;
+	active_dwell = IWL_SCAN_DWELL_ACTIVE;
+	passive_dwell = IWL_SCAN_DWELL_PASSIVE;
 
 	general_params->adwell_default_social_chn =
 		IWL_SCAN_ADWELL_DEFAULT_N_APS_SOCIAL;
@@ -1737,7 +1705,7 @@ static u16 iwl_mvm_scan_umac_flags_v2(struct iwl_mvm *mvm,
 	if (!iwl_mvm_is_regular_scan(params))
 		flags |= IWL_UMAC_SCAN_GEN_FLAGS_V2_PERIODIC;
 
-	if (params->measurement_dwell ||
+	if (params->iter_notif ||
 	    mvm->sched_scan_pass_all == SCHED_SCAN_PASS_ALL_ENABLED)
 		flags |= IWL_UMAC_SCAN_GEN_FLAGS_V2_NTFY_ITER_COMPLETE;
 
@@ -1782,7 +1750,7 @@ static u16 iwl_mvm_scan_umac_flags(struct iwl_mvm *mvm,
 	if (!iwl_mvm_is_regular_scan(params))
 		flags |= IWL_UMAC_SCAN_GEN_FLAGS_PERIODIC;
 
-	if (params->measurement_dwell)
+	if (params->iter_notif)
 		flags |= IWL_UMAC_SCAN_GEN_FLAGS_ITER_COMPLETE;
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
@@ -2294,11 +2262,8 @@ int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	iwl_mvm_fill_scan_type(mvm, &params, vif);
 
-	ret = iwl_mvm_get_measurement_dwell(mvm, req, &params);
-	if (ret < 0)
-		return ret;
-
-	params.measurement_dwell = ret;
+	if (req->duration)
+		params.iter_notif = true;
 
 	iwl_mvm_build_scan_probe(mvm, vif, ies, &params);
 
