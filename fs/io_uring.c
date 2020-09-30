@@ -5590,120 +5590,95 @@ static int io_files_update(struct io_kiocb *req, bool force_nonblock,
 	return 0;
 }
 
+static int io_req_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+{
+	switch (req->opcode) {
+	case IORING_OP_NOP:
+		return 0;
+	case IORING_OP_READV:
+	case IORING_OP_READ_FIXED:
+	case IORING_OP_READ:
+		return io_read_prep(req, sqe);
+	case IORING_OP_WRITEV:
+	case IORING_OP_WRITE_FIXED:
+	case IORING_OP_WRITE:
+		return io_write_prep(req, sqe);
+	case IORING_OP_POLL_ADD:
+		return io_poll_add_prep(req, sqe);
+	case IORING_OP_POLL_REMOVE:
+		return io_poll_remove_prep(req, sqe);
+	case IORING_OP_FSYNC:
+		return io_prep_fsync(req, sqe);
+	case IORING_OP_SYNC_FILE_RANGE:
+		return io_prep_sfr(req, sqe);
+	case IORING_OP_SENDMSG:
+	case IORING_OP_SEND:
+		return io_sendmsg_prep(req, sqe);
+	case IORING_OP_RECVMSG:
+	case IORING_OP_RECV:
+		return io_recvmsg_prep(req, sqe);
+	case IORING_OP_CONNECT:
+		return io_connect_prep(req, sqe);
+	case IORING_OP_TIMEOUT:
+		return io_timeout_prep(req, sqe, false);
+	case IORING_OP_TIMEOUT_REMOVE:
+		return io_timeout_remove_prep(req, sqe);
+	case IORING_OP_ASYNC_CANCEL:
+		return io_async_cancel_prep(req, sqe);
+	case IORING_OP_LINK_TIMEOUT:
+		return io_timeout_prep(req, sqe, true);
+	case IORING_OP_ACCEPT:
+		return io_accept_prep(req, sqe);
+	case IORING_OP_FALLOCATE:
+		return io_fallocate_prep(req, sqe);
+	case IORING_OP_OPENAT:
+		return io_openat_prep(req, sqe);
+	case IORING_OP_CLOSE:
+		return io_close_prep(req, sqe);
+	case IORING_OP_FILES_UPDATE:
+		return io_files_update_prep(req, sqe);
+	case IORING_OP_STATX:
+		return io_statx_prep(req, sqe);
+	case IORING_OP_FADVISE:
+		return io_fadvise_prep(req, sqe);
+	case IORING_OP_MADVISE:
+		return io_madvise_prep(req, sqe);
+	case IORING_OP_OPENAT2:
+		return io_openat2_prep(req, sqe);
+	case IORING_OP_EPOLL_CTL:
+		return io_epoll_ctl_prep(req, sqe);
+	case IORING_OP_SPLICE:
+		return io_splice_prep(req, sqe);
+	case IORING_OP_PROVIDE_BUFFERS:
+		return io_provide_buffers_prep(req, sqe);
+	case IORING_OP_REMOVE_BUFFERS:
+		return io_remove_buffers_prep(req, sqe);
+	case IORING_OP_TEE:
+		return io_tee_prep(req, sqe);
+	}
+
+	printk_once(KERN_WARNING "io_uring: unhandled opcode %d\n",
+			req->opcode);
+	return-EINVAL;
+}
+
 static int io_req_defer_prep(struct io_kiocb *req,
 			     const struct io_uring_sqe *sqe)
 {
-	ssize_t ret = 0;
+	int ret;
 
 	if (!sqe)
 		return 0;
-
 	if (io_alloc_async_data(req))
 		return -EAGAIN;
+
 	ret = io_prep_work_files(req);
 	if (unlikely(ret))
 		return ret;
 
 	io_prep_async_work(req);
 
-	switch (req->opcode) {
-	case IORING_OP_NOP:
-		break;
-	case IORING_OP_READV:
-	case IORING_OP_READ_FIXED:
-	case IORING_OP_READ:
-		ret = io_read_prep(req, sqe);
-		break;
-	case IORING_OP_WRITEV:
-	case IORING_OP_WRITE_FIXED:
-	case IORING_OP_WRITE:
-		ret = io_write_prep(req, sqe);
-		break;
-	case IORING_OP_POLL_ADD:
-		ret = io_poll_add_prep(req, sqe);
-		break;
-	case IORING_OP_POLL_REMOVE:
-		ret = io_poll_remove_prep(req, sqe);
-		break;
-	case IORING_OP_FSYNC:
-		ret = io_prep_fsync(req, sqe);
-		break;
-	case IORING_OP_SYNC_FILE_RANGE:
-		ret = io_prep_sfr(req, sqe);
-		break;
-	case IORING_OP_SENDMSG:
-	case IORING_OP_SEND:
-		ret = io_sendmsg_prep(req, sqe);
-		break;
-	case IORING_OP_RECVMSG:
-	case IORING_OP_RECV:
-		ret = io_recvmsg_prep(req, sqe);
-		break;
-	case IORING_OP_CONNECT:
-		ret = io_connect_prep(req, sqe);
-		break;
-	case IORING_OP_TIMEOUT:
-		ret = io_timeout_prep(req, sqe, false);
-		break;
-	case IORING_OP_TIMEOUT_REMOVE:
-		ret = io_timeout_remove_prep(req, sqe);
-		break;
-	case IORING_OP_ASYNC_CANCEL:
-		ret = io_async_cancel_prep(req, sqe);
-		break;
-	case IORING_OP_LINK_TIMEOUT:
-		ret = io_timeout_prep(req, sqe, true);
-		break;
-	case IORING_OP_ACCEPT:
-		ret = io_accept_prep(req, sqe);
-		break;
-	case IORING_OP_FALLOCATE:
-		ret = io_fallocate_prep(req, sqe);
-		break;
-	case IORING_OP_OPENAT:
-		ret = io_openat_prep(req, sqe);
-		break;
-	case IORING_OP_CLOSE:
-		ret = io_close_prep(req, sqe);
-		break;
-	case IORING_OP_FILES_UPDATE:
-		ret = io_files_update_prep(req, sqe);
-		break;
-	case IORING_OP_STATX:
-		ret = io_statx_prep(req, sqe);
-		break;
-	case IORING_OP_FADVISE:
-		ret = io_fadvise_prep(req, sqe);
-		break;
-	case IORING_OP_MADVISE:
-		ret = io_madvise_prep(req, sqe);
-		break;
-	case IORING_OP_OPENAT2:
-		ret = io_openat2_prep(req, sqe);
-		break;
-	case IORING_OP_EPOLL_CTL:
-		ret = io_epoll_ctl_prep(req, sqe);
-		break;
-	case IORING_OP_SPLICE:
-		ret = io_splice_prep(req, sqe);
-		break;
-	case IORING_OP_PROVIDE_BUFFERS:
-		ret = io_provide_buffers_prep(req, sqe);
-		break;
-	case IORING_OP_REMOVE_BUFFERS:
-		ret = io_remove_buffers_prep(req, sqe);
-		break;
-	case IORING_OP_TEE:
-		ret = io_tee_prep(req, sqe);
-		break;
-	default:
-		printk_once(KERN_WARNING "io_uring: unhandled opcode %d\n",
-				req->opcode);
-		ret = -EINVAL;
-		break;
-	}
-
-	return ret;
+	return io_req_prep(req, sqe);
 }
 
 static u32 io_get_sequence(struct io_kiocb *req)
@@ -5840,6 +5815,12 @@ static int io_issue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	struct io_ring_ctx *ctx = req->ctx;
 	int ret;
 
+	if (sqe) {
+		ret = io_req_prep(req, sqe);
+		if (unlikely(ret < 0))
+			return ret;
+	}
+
 	switch (req->opcode) {
 	case IORING_OP_NOP:
 		ret = io_nop(req, cs);
@@ -5847,62 +5828,27 @@ static int io_issue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	case IORING_OP_READV:
 	case IORING_OP_READ_FIXED:
 	case IORING_OP_READ:
-		if (sqe) {
-			ret = io_read_prep(req, sqe);
-			if (ret < 0)
-				break;
-		}
 		ret = io_read(req, force_nonblock, cs);
 		break;
 	case IORING_OP_WRITEV:
 	case IORING_OP_WRITE_FIXED:
 	case IORING_OP_WRITE:
-		if (sqe) {
-			ret = io_write_prep(req, sqe);
-			if (ret < 0)
-				break;
-		}
 		ret = io_write(req, force_nonblock, cs);
 		break;
 	case IORING_OP_FSYNC:
-		if (sqe) {
-			ret = io_prep_fsync(req, sqe);
-			if (ret < 0)
-				break;
-		}
 		ret = io_fsync(req, force_nonblock);
 		break;
 	case IORING_OP_POLL_ADD:
-		if (sqe) {
-			ret = io_poll_add_prep(req, sqe);
-			if (ret)
-				break;
-		}
 		ret = io_poll_add(req);
 		break;
 	case IORING_OP_POLL_REMOVE:
-		if (sqe) {
-			ret = io_poll_remove_prep(req, sqe);
-			if (ret < 0)
-				break;
-		}
 		ret = io_poll_remove(req);
 		break;
 	case IORING_OP_SYNC_FILE_RANGE:
-		if (sqe) {
-			ret = io_prep_sfr(req, sqe);
-			if (ret < 0)
-				break;
-		}
 		ret = io_sync_file_range(req, force_nonblock);
 		break;
 	case IORING_OP_SENDMSG:
 	case IORING_OP_SEND:
-		if (sqe) {
-			ret = io_sendmsg_prep(req, sqe);
-			if (ret < 0)
-				break;
-		}
 		if (req->opcode == IORING_OP_SENDMSG)
 			ret = io_sendmsg(req, force_nonblock, cs);
 		else
@@ -5910,158 +5856,63 @@ static int io_issue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 		break;
 	case IORING_OP_RECVMSG:
 	case IORING_OP_RECV:
-		if (sqe) {
-			ret = io_recvmsg_prep(req, sqe);
-			if (ret)
-				break;
-		}
 		if (req->opcode == IORING_OP_RECVMSG)
 			ret = io_recvmsg(req, force_nonblock, cs);
 		else
 			ret = io_recv(req, force_nonblock, cs);
 		break;
 	case IORING_OP_TIMEOUT:
-		if (sqe) {
-			ret = io_timeout_prep(req, sqe, false);
-			if (ret)
-				break;
-		}
 		ret = io_timeout(req);
 		break;
 	case IORING_OP_TIMEOUT_REMOVE:
-		if (sqe) {
-			ret = io_timeout_remove_prep(req, sqe);
-			if (ret)
-				break;
-		}
 		ret = io_timeout_remove(req);
 		break;
 	case IORING_OP_ACCEPT:
-		if (sqe) {
-			ret = io_accept_prep(req, sqe);
-			if (ret)
-				break;
-		}
 		ret = io_accept(req, force_nonblock, cs);
 		break;
 	case IORING_OP_CONNECT:
-		if (sqe) {
-			ret = io_connect_prep(req, sqe);
-			if (ret)
-				break;
-		}
 		ret = io_connect(req, force_nonblock, cs);
 		break;
 	case IORING_OP_ASYNC_CANCEL:
-		if (sqe) {
-			ret = io_async_cancel_prep(req, sqe);
-			if (ret)
-				break;
-		}
 		ret = io_async_cancel(req);
 		break;
 	case IORING_OP_FALLOCATE:
-		if (sqe) {
-			ret = io_fallocate_prep(req, sqe);
-			if (ret)
-				break;
-		}
 		ret = io_fallocate(req, force_nonblock);
 		break;
 	case IORING_OP_OPENAT:
-		if (sqe) {
-			ret = io_openat_prep(req, sqe);
-			if (ret)
-				break;
-		}
 		ret = io_openat(req, force_nonblock);
 		break;
 	case IORING_OP_CLOSE:
-		if (sqe) {
-			ret = io_close_prep(req, sqe);
-			if (ret)
-				break;
-		}
 		ret = io_close(req, force_nonblock, cs);
 		break;
 	case IORING_OP_FILES_UPDATE:
-		if (sqe) {
-			ret = io_files_update_prep(req, sqe);
-			if (ret)
-				break;
-		}
 		ret = io_files_update(req, force_nonblock, cs);
 		break;
 	case IORING_OP_STATX:
-		if (sqe) {
-			ret = io_statx_prep(req, sqe);
-			if (ret)
-				break;
-		}
 		ret = io_statx(req, force_nonblock);
 		break;
 	case IORING_OP_FADVISE:
-		if (sqe) {
-			ret = io_fadvise_prep(req, sqe);
-			if (ret)
-				break;
-		}
 		ret = io_fadvise(req, force_nonblock);
 		break;
 	case IORING_OP_MADVISE:
-		if (sqe) {
-			ret = io_madvise_prep(req, sqe);
-			if (ret)
-				break;
-		}
 		ret = io_madvise(req, force_nonblock);
 		break;
 	case IORING_OP_OPENAT2:
-		if (sqe) {
-			ret = io_openat2_prep(req, sqe);
-			if (ret)
-				break;
-		}
 		ret = io_openat2(req, force_nonblock);
 		break;
 	case IORING_OP_EPOLL_CTL:
-		if (sqe) {
-			ret = io_epoll_ctl_prep(req, sqe);
-			if (ret)
-				break;
-		}
 		ret = io_epoll_ctl(req, force_nonblock, cs);
 		break;
 	case IORING_OP_SPLICE:
-		if (sqe) {
-			ret = io_splice_prep(req, sqe);
-			if (ret < 0)
-				break;
-		}
 		ret = io_splice(req, force_nonblock);
 		break;
 	case IORING_OP_PROVIDE_BUFFERS:
-		if (sqe) {
-			ret = io_provide_buffers_prep(req, sqe);
-			if (ret)
-				break;
-		}
 		ret = io_provide_buffers(req, force_nonblock, cs);
 		break;
 	case IORING_OP_REMOVE_BUFFERS:
-		if (sqe) {
-			ret = io_remove_buffers_prep(req, sqe);
-			if (ret)
-				break;
-		}
 		ret = io_remove_buffers(req, force_nonblock, cs);
 		break;
 	case IORING_OP_TEE:
-		if (sqe) {
-			ret = io_tee_prep(req, sqe);
-			if (ret < 0)
-				break;
-		}
 		ret = io_tee(req, force_nonblock);
 		break;
 	default:
