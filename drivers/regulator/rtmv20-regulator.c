@@ -325,6 +325,7 @@ static int rtmv20_probe(struct i2c_client *i2c)
 	 * keep in shutdown mode to minimize the current consumption
 	 * and also mark regcache as dirty
 	 */
+	regcache_cache_only(priv->regmap, true);
 	regcache_mark_dirty(priv->regmap);
 	gpiod_set_value(priv->enable_gpio, 0);
 
