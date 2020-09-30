@@ -19,9 +19,12 @@ static void ionic_watchdog_cb(struct timer_list *t)
 	mod_timer(&ionic->watchdog_timer,
 		  round_jiffies(jiffies + ionic->watchdog_period));
 
+	if (!ionic->lif)
+		return;
+
 	hb = ionic_heartbeat_check(ionic);
 
-	if (hb >= 0 && ionic->lif)
+	if (hb >= 0)
 		ionic_link_status_check_request(ionic->lif, false);
 }
 
