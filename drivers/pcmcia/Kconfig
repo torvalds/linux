@@ -258,6 +258,7 @@ config OMAP_CF
 config AT91_CF
 	tristate "AT91 CompactFlash Controller"
 	depends on PCI
+	depends on OF
 	depends on PCMCIA && ARCH_AT91
 	help
 	  Say Y here to support the CompactFlash controller on AT91 chips.
