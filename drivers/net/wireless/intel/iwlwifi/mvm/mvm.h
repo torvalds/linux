@@ -1107,6 +1107,9 @@ struct iwl_mvm {
 		struct wireless_dev *req_wdev;
 		struct list_head loc_list;
 		int responses[IWL_MVM_TOF_MAX_APS];
+		struct {
+			struct list_head resp;
+		} smooth;
 	} ftm_initiator;
 
 	struct list_head resp_pasn_list;
@@ -2011,6 +2014,8 @@ void iwl_mvm_ftm_lc_notif(struct iwl_mvm *mvm,
 int iwl_mvm_ftm_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		      struct cfg80211_pmsr_request *request);
 void iwl_mvm_ftm_abort(struct iwl_mvm *mvm, struct cfg80211_pmsr_request *req);
+void iwl_mvm_ftm_initiator_smooth_config(struct iwl_mvm *mvm);
+void iwl_mvm_ftm_initiator_smooth_stop(struct iwl_mvm *mvm);
 
 /* TDLS */
 

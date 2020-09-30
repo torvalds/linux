@@ -1512,6 +1512,8 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	iwl_mvm_tas_init(mvm);
 	iwl_mvm_leds_sync(mvm);
 
+	iwl_mvm_ftm_initiator_smooth_config(mvm);
+
 	IWL_DEBUG_INFO(mvm, "RT uCode started.\n");
 	return 0;
  error:

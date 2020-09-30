@@ -76,6 +76,13 @@ struct iwl_mvm_loc_entry {
 	u8 buf[];
 };
 
+struct iwl_mvm_smooth_entry {
+	struct list_head list;
+	u8 addr[ETH_ALEN];
+	s64 rtt_avg;
+	u64 host_time;
+};
+
 static void iwl_mvm_ftm_reset(struct iwl_mvm *mvm)
 {
 	struct iwl_mvm_loc_entry *e, *t;
@@ -84,6 +91,7 @@ static void iwl_mvm_ftm_reset(struct iwl_mvm *mvm)
 	mvm->ftm_initiator.req_wdev = NULL;
 	memset(mvm->ftm_initiator.responses, 0,
 	       sizeof(mvm->ftm_initiator.responses));
+
 	list_for_each_entry_safe(e, t, &mvm->ftm_initiator.loc_list, list) {
 		list_del(&e->list);
 		kfree(e);
@@ -118,6 +126,30 @@ void iwl_mvm_ftm_restart(struct iwl_mvm *mvm)
 	cfg80211_pmsr_complete(mvm->ftm_initiator.req_wdev,
 			       mvm->ftm_initiator.req, GFP_KERNEL);
 	iwl_mvm_ftm_reset(mvm);
+}
+
+void iwl_mvm_ftm_initiator_smooth_config(struct iwl_mvm *mvm)
+{
+	INIT_LIST_HEAD(&mvm->ftm_initiator.smooth.resp);
+
+	IWL_DEBUG_INFO(mvm,
+		       "enable=%u, alpha=%u, age_jiffies=%u, thresh=(%u:%u)\n",
+			IWL_MVM_FTM_INITIATOR_ENABLE_SMOOTH,
+			IWL_MVM_FTM_INITIATOR_SMOOTH_ALPHA,
+			IWL_MVM_FTM_INITIATOR_SMOOTH_AGE_SEC * HZ,
+			IWL_MVM_FTM_INITIATOR_SMOOTH_OVERSHOOT,
+			IWL_MVM_FTM_INITIATOR_SMOOTH_UNDERSHOOT);
+}
+
+void iwl_mvm_ftm_initiator_smooth_stop(struct iwl_mvm *mvm)
+{
+	struct iwl_mvm_smooth_entry *se, *st;
+
+	list_for_each_entry_safe(se, st, &mvm->ftm_initiator.smooth.resp,
+				 list) {
+		list_del(&se->list);
+		kfree(se);
+	}
 }
 
 static int
@@ -728,6 +760,95 @@ static int iwl_mvm_ftm_range_resp_valid(struct iwl_mvm *mvm, u8 request_id,
 	return 0;
 }
 
+static void iwl_mvm_ftm_rtt_smoothing(struct iwl_mvm *mvm,
+				      struct cfg80211_pmsr_result *res)
+{
+	struct iwl_mvm_smooth_entry *resp;
+	s64 rtt_avg, rtt = res->ftm.rtt_avg;
+	u32 undershoot, overshoot;
+	u8 alpha;
+	bool found;
+
+	if (!IWL_MVM_FTM_INITIATOR_ENABLE_SMOOTH)
+		return;
+
+	WARN_ON(rtt < 0);
+
+	if (res->status != NL80211_PMSR_STATUS_SUCCESS) {
+		IWL_DEBUG_INFO(mvm,
+			       ": %pM: ignore failed measurement. Status=%u\n",
+			       res->addr, res->status);
+		return;
+	}
+
+	found = false;
+	list_for_each_entry(resp, &mvm->ftm_initiator.smooth.resp, list) {
+		if (!memcmp(res->addr, resp->addr, ETH_ALEN)) {
+			found = true;
+			break;
+		}
+	}
+
+	if (!found) {
+		resp = kzalloc(sizeof(*resp), GFP_KERNEL);
+		if (!resp)
+			return;
+
+		memcpy(resp->addr, res->addr, ETH_ALEN);
+		list_add_tail(&resp->list, &mvm->ftm_initiator.smooth.resp);
+
+		resp->rtt_avg = rtt;
+
+		IWL_DEBUG_INFO(mvm, "new: %pM: rtt_avg=%lld\n",
+			       resp->addr, resp->rtt_avg);
+		goto update_time;
+	}
+
+	if (res->host_time - resp->host_time >
+	    IWL_MVM_FTM_INITIATOR_SMOOTH_AGE_SEC * 1000000000) {
+		resp->rtt_avg = rtt;
+
+		IWL_DEBUG_INFO(mvm, "expired: %pM: rtt_avg=%lld\n",
+			       resp->addr, resp->rtt_avg);
+		goto update_time;
+	}
+
+	/* Smooth the results based on the tracked RTT average */
+	undershoot = IWL_MVM_FTM_INITIATOR_SMOOTH_UNDERSHOOT;
+	overshoot = IWL_MVM_FTM_INITIATOR_SMOOTH_OVERSHOOT;
+	alpha = IWL_MVM_FTM_INITIATOR_SMOOTH_ALPHA;
+
+	rtt_avg = (alpha * rtt + (100 - alpha) * resp->rtt_avg) / 100;
+
+	IWL_DEBUG_INFO(mvm,
+		       "%pM: prev rtt_avg=%lld, new rtt_avg=%lld, rtt=%lld\n",
+		       resp->addr, resp->rtt_avg, rtt_avg, rtt);
+
+	/*
+	 * update the responder's average RTT results regardless of
+	 * the under/over shoot logic below
+	 */
+	resp->rtt_avg = rtt_avg;
+
+	/* smooth the results */
+	if (rtt_avg > rtt && (rtt_avg - rtt) > undershoot) {
+		res->ftm.rtt_avg = rtt_avg;
+
+		IWL_DEBUG_INFO(mvm,
+			       "undershoot: val=%lld\n",
+			       (rtt_avg - rtt));
+	} else if (rtt_avg < rtt && (rtt - rtt_avg) >
+		   overshoot) {
+		res->ftm.rtt_avg = rtt_avg;
+		IWL_DEBUG_INFO(mvm,
+			       "overshoot: val=%lld\n",
+			       (rtt - rtt_avg));
+	}
+
+update_time:
+	resp->host_time = res->host_time;
+}
+
 static void iwl_mvm_debug_range_resp(struct iwl_mvm *mvm, u8 index,
 				     struct cfg80211_pmsr_result *res)
 {
@@ -864,6 +985,8 @@ void iwl_mvm_ftm_range_resp(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 		result.ftm.rtt_spread_valid = 1;
 
 		iwl_mvm_ftm_get_lci_civic(mvm, &result);
+
+		iwl_mvm_ftm_rtt_smoothing(mvm, &result);
 
 		cfg80211_pmsr_report(mvm->ftm_initiator.req_wdev,
 				     mvm->ftm_initiator.req,
