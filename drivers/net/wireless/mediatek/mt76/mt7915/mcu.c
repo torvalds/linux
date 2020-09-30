@@ -216,28 +216,9 @@ mt7915_mcu_get_sta_nss(u16 mcs_map)
 }
 
 static int
-mt7915_mcu_parse_eeprom(struct mt7915_dev *dev, struct sk_buff *skb)
-{
-	struct mt7915_mcu_eeprom_info *res;
-	u8 *buf;
-
-	if (!skb)
-		return -EINVAL;
-
-	skb_pull(skb, sizeof(struct mt7915_mcu_rxd));
-
-	res = (struct mt7915_mcu_eeprom_info *)skb->data;
-	buf = dev->mt76.eeprom.data + le32_to_cpu(res->addr);
-	memcpy(buf, res->data, 16);
-
-	return 0;
-}
-
-static int
 mt7915_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 			  struct sk_buff *skb, int seq)
 {
-	struct mt7915_dev *dev = container_of(mdev, struct mt7915_dev, mt76);
 	struct mt7915_mcu_rxd *rxd;
 	int ret = 0;
 
@@ -260,10 +241,8 @@ mt7915_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 		skb_pull(skb, sizeof(*rxd) + 4);
 		ret = le32_to_cpu(*(__le32 *)skb->data);
 		break;
-	case MCU_EXT_CMD_EFUSE_ACCESS:
-		ret = mt7915_mcu_parse_eeprom(dev, skb);
-		break;
 	default:
+		skb_pull(skb, sizeof(struct mt7915_mcu_rxd));
 		break;
 	}
 
@@ -3247,9 +3226,22 @@ int mt7915_mcu_get_eeprom(struct mt7915_dev *dev, u32 offset)
 	struct mt7915_mcu_eeprom_info req = {
 		.addr = cpu_to_le32(round_down(offset, 16)),
 	};
+	struct mt7915_mcu_eeprom_info *res;
+	struct sk_buff *skb;
+	int ret;
+	u8 *buf;
 
-	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_EFUSE_ACCESS, &req,
-				 sizeof(req), true);
+	ret = mt76_mcu_send_and_get_msg(&dev->mt76, MCU_EXT_CMD_EFUSE_ACCESS, &req,
+				sizeof(req), true, &skb);
+	if (ret)
+		return ret;
+
+	res = (struct mt7915_mcu_eeprom_info *)skb->data;
+	buf = dev->mt76.eeprom.data + le32_to_cpu(res->addr);
+	memcpy(buf, res->data, 16);
+	dev_kfree_skb(skb);
+
+	return 0;
 }
 
 int mt7915_mcu_get_temperature(struct mt7915_dev *dev, int index)
