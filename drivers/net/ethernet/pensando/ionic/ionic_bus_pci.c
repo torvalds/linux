@@ -350,7 +350,7 @@ err_out_port_reset:
 err_out_reset:
 	ionic_reset(ionic);
 err_out_teardown:
-	ionic_dev_teardown(ionic);
+	del_timer_sync(&ionic->watchdog_timer);
 	pci_clear_master(pdev);
 	/* Don't fail the probe for these errors, keep
 	 * the hw interface around for inspection
@@ -378,6 +378,8 @@ static void ionic_remove(struct pci_dev *pdev)
 	if (!ionic)
 		return;
 
+	del_timer_sync(&ionic->watchdog_timer);
+
 	if (ionic->lif) {
 		ionic_devlink_unregister(ionic);
 		ionic_lif_unregister(ionic->lif);
@@ -389,7 +391,6 @@ static void ionic_remove(struct pci_dev *pdev)
 
 	ionic_port_reset(ionic);
 	ionic_reset(ionic);
-	ionic_dev_teardown(ionic);
 	pci_clear_master(pdev);
 	ionic_unmap_bars(ionic);
 	pci_release_regions(pdev);

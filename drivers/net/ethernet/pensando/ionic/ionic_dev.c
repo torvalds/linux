@@ -19,9 +19,12 @@ static void ionic_watchdog_cb(struct timer_list *t)
 	mod_timer(&ionic->watchdog_timer,
 		  round_jiffies(jiffies + ionic->watchdog_period));
 
+	if (!ionic->lif)
+		return;
+
 	hb = ionic_heartbeat_check(ionic);
 
-	if (hb >= 0 && ionic->lif)
+	if (hb >= 0)
 		ionic_link_status_check_request(ionic->lif, false);
 }
 
@@ -96,11 +99,6 @@ int ionic_dev_setup(struct ionic *ionic)
 	idev->phy_db_pages = bar->bus_addr;
 
 	return 0;
-}
-
-void ionic_dev_teardown(struct ionic *ionic)
-{
-	del_timer_sync(&ionic->watchdog_timer);
 }
 
 /* Devcmd Interface */
