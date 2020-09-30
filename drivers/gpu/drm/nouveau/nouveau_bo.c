@@ -1134,6 +1134,8 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_resource *reg)
 	struct nouveau_drm *drm = nouveau_bdev(bdev);
 	struct nvkm_device *device = nvxx_device(&drm->client.device);
 	struct nouveau_mem *mem = nouveau_mem(reg);
+	struct nvif_mmu *mmu = &drm->client.mmu;
+	const u8 type = mmu->type[drm->ttm.type_vram].type;
 	int ret;
 
 	mutex_lock(&drm->ttm.io_reserve_mutex);
@@ -1149,6 +1151,7 @@ retry:
 			reg->bus.offset = (reg->start << PAGE_SHIFT) +
 				drm->agp.base;
 			reg->bus.is_iomem = !drm->agp.cma;
+			reg->bus.caching = ttm_write_combined;
 		}
 #endif
 		if (drm->client.mem->oclass < NVIF_CLASS_MEM_NV50 ||
@@ -1162,6 +1165,14 @@ retry:
 		reg->bus.offset = (reg->start << PAGE_SHIFT) +
 			device->func->resource_addr(device, 1);
 		reg->bus.is_iomem = true;
+
+		/* Some BARs do not support being ioremapped WC */
+		if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA &&
+		    type & NVIF_MEM_UNCACHED)
+			reg->bus.caching = ttm_uncached;
+		else
+			reg->bus.caching = ttm_write_combined;
+
 		if (drm->client.mem->oclass >= NVIF_CLASS_MEM_NV50) {
 			union {
 				struct nv50_mem_map_v0 nv50;

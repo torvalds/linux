@@ -688,6 +688,7 @@ static int vmw_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_resourc
 		mem->bus.offset = (mem->start << PAGE_SHIFT) +
 			dev_priv->vram_start;
 		mem->bus.is_iomem = true;
+		mem->bus.caching = ttm_cached;
 		break;
 	default:
 		return -EINVAL;

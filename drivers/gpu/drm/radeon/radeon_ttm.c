@@ -372,6 +372,7 @@ static int radeon_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_reso
 			mem->bus.offset = (mem->start << PAGE_SHIFT) +
 				rdev->mc.agp_base;
 			mem->bus.is_iomem = !rdev->ddev->agp->cant_use_aperture;
+			mem->bus.caching = ttm_write_combined;
 		}
 #endif
 		break;
@@ -382,6 +383,7 @@ static int radeon_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_reso
 			return -EINVAL;
 		mem->bus.offset += rdev->mc.aper_base;
 		mem->bus.is_iomem = true;
+		mem->bus.caching = ttm_write_combined;
 #ifdef __alpha__
 		/*
 		 * Alpha: use bus.addr to hold the ioremap() return,

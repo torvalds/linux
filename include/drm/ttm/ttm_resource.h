@@ -29,6 +29,7 @@
 #include <linux/mutex.h>
 #include <linux/dma-fence.h>
 #include <drm/drm_print.h>
+#include <drm/ttm/ttm_caching.h>
 
 #define TTM_MAX_BO_PRIORITY	4U
 
@@ -148,9 +149,10 @@ struct ttm_resource_manager {
  * Structure indicating the bus placement of an object.
  */
 struct ttm_bus_placement {
-	void		*addr;
-	phys_addr_t	offset;
-	bool		is_iomem;
+	void			*addr;
+	phys_addr_t		offset;
+	bool			is_iomem;
+	enum ttm_caching	caching;
 };
 
 /**

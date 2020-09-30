@@ -769,6 +769,7 @@ static int amdgpu_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_reso
 
 		mem->bus.offset += adev->gmc.aper_base;
 		mem->bus.is_iomem = true;
+		mem->bus.caching = ttm_write_combined;
 		break;
 	default:
 		return -EINVAL;
