@@ -1283,6 +1283,7 @@ void mlx5_odp_populate_xlt(void *xlt, size_t idx, size_t nentries,
 int mlx5_ib_advise_mr_prefetch(struct ib_pd *pd,
 			       enum ib_uverbs_advise_mr_advice advice,
 			       u32 flags, struct ib_sge *sg_list, u32 num_sge);
+int mlx5_ib_init_odp_mr(struct mlx5_ib_mr *mr, bool enable);
 #else /* CONFIG_INFINIBAND_ON_DEMAND_PAGING */
 static inline void mlx5_ib_internal_fill_odp_caps(struct mlx5_ib_dev *dev)
 {
@@ -1301,6 +1302,10 @@ static inline int
 mlx5_ib_advise_mr_prefetch(struct ib_pd *pd,
 			   enum ib_uverbs_advise_mr_advice advice, u32 flags,
 			   struct ib_sge *sg_list, u32 num_sge)
+{
+	return -EOPNOTSUPP;
+}
+static inline int mlx5_ib_init_odp_mr(struct mlx5_ib_mr *mr, bool enable)
 {
 	return -EOPNOTSUPP;
 }
