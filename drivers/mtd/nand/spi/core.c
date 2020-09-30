@@ -309,7 +309,7 @@ static struct nand_ecc_engine_ops spinand_ondie_ecc_engine_ops = {
 	.finish_io_req = spinand_ondie_ecc_finish_io_req,
 };
 
-static __maybe_unused struct nand_ecc_engine spinand_ondie_ecc_engine = {
+static struct nand_ecc_engine spinand_ondie_ecc_engine = {
 	.ops = &spinand_ondie_ecc_engine_ops,
 };
 
@@ -1132,6 +1132,10 @@ static int spinand_init(struct spinand_device *spinand)
 	ret = nanddev_init(nand, &spinand_ops, THIS_MODULE);
 	if (ret)
 		goto err_manuf_cleanup;
+
+	/* SPI-NAND default ECC engine is on-die */
+	nand->ecc.defaults.engine_type = NAND_ECC_ENGINE_TYPE_ON_DIE;
+	nand->ecc.ondie_engine = &spinand_ondie_ecc_engine;
 
 	/*
 	 * Right now, we don't support ECC, so let the whole oob
