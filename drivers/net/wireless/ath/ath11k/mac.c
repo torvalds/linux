@@ -758,21 +758,12 @@ static int ath11k_monitor_vdev_up(struct ath11k *ar, int vdev_id)
 
 static int ath11k_mac_op_config(struct ieee80211_hw *hw, u32 changed)
 {
-	struct ath11k *ar = hw->priv;
-	int ret = 0;
-
 	/* mac80211 requires this op to be present and that's why
 	 * there's an empty function, this can be extended when
 	 * required.
 	 */
 
-	mutex_lock(&ar->conf_mutex);
-
-	/* TODO: Handle configuration changes as appropriate */
-
-	mutex_unlock(&ar->conf_mutex);
-
-	return ret;
+	return 0;
 }
 
 static int ath11k_mac_setup_bcn_tmpl(struct ath11k_vif *arvif)
