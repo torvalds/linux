@@ -549,3 +549,9 @@ devlink_cpu_port_get()
 
 	echo "$DEVLINK_DEV/$cpu_dl_port_num"
 }
+
+devlink_cell_size_get()
+{
+	devlink sb pool show "$DEVLINK_DEV" pool 0 -j \
+	    | jq '.pool[][].cell_size'
+}
