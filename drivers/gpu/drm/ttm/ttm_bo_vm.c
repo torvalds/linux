@@ -310,7 +310,7 @@ vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
 	if (unlikely(page_offset >= bo->num_pages))
 		return VM_FAULT_SIGBUS;
 
-	prot = ttm_io_prot(bo->mem.placement, prot);
+	prot = ttm_io_prot(bo, &bo->mem, prot);
 	if (!bo->mem.bus.is_iomem) {
 		struct ttm_operation_ctx ctx = {
 			.interruptible = false,

@@ -279,13 +279,11 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 	for (i = 0; i < new_mem->num_pages; ++i) {
 		page = i * dir + add;
 		if (old_iomap == NULL) {
-			pgprot_t prot = ttm_io_prot(old_mem->placement,
-						    PAGE_KERNEL);
+			pgprot_t prot = ttm_io_prot(bo, old_mem, PAGE_KERNEL);
 			ret = ttm_copy_ttm_io_page(ttm, new_iomap, page,
 						   prot);
 		} else if (new_iomap == NULL) {
-			pgprot_t prot = ttm_io_prot(new_mem->placement,
-						    PAGE_KERNEL);
+			pgprot_t prot = ttm_io_prot(bo, new_mem, PAGE_KERNEL);
 			ret = ttm_copy_io_ttm_page(ttm, old_iomap, page,
 						   prot);
 		} else {
@@ -384,21 +382,28 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	return 0;
 }
 
-pgprot_t ttm_io_prot(uint32_t caching_flags, pgprot_t tmp)
+pgprot_t ttm_io_prot(struct ttm_buffer_object *bo, struct ttm_resource *res,
+		     pgprot_t tmp)
 {
+	struct ttm_resource_manager *man;
+	enum ttm_caching caching;
+
+	man = ttm_manager_type(bo->bdev, res->mem_type);
+	caching = man->use_tt ? bo->ttm->caching : res->bus.caching;
+
 	/* Cached mappings need no adjustment */
-	if (caching_flags & TTM_PL_FLAG_CACHED)
+	if (caching == ttm_cached)
 		return tmp;
 
 #if defined(__i386__) || defined(__x86_64__)
-	if (caching_flags & TTM_PL_FLAG_WC)
+	if (caching == ttm_write_combined)
 		tmp = pgprot_writecombine(tmp);
 	else if (boot_cpu_data.x86 > 3)
 		tmp = pgprot_noncached(tmp);
 #endif
 #if defined(__ia64__) || defined(__arm__) || defined(__aarch64__) || \
     defined(__powerpc__) || defined(__mips__)
-	if (caching_flags & TTM_PL_FLAG_WC)
+	if (caching == ttm_write_combined)
 		tmp = pgprot_writecombine(tmp);
 	else
 		tmp = pgprot_noncached(tmp);
@@ -466,7 +471,7 @@ static int ttm_bo_kmap_ttm(struct ttm_buffer_object *bo,
 		 * We need to use vmap to get the desired page protection
 		 * or to make the buffer object look contiguous.
 		 */
-		prot = ttm_io_prot(mem->placement, PAGE_KERNEL);
+		prot = ttm_io_prot(bo, mem, PAGE_KERNEL);
 		map->bo_kmap_type = ttm_bo_map_vmap;
 		map->virtual = vmap(ttm->pages + start_page, num_pages,
 				    0, prot);
