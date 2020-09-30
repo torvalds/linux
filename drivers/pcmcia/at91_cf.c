@@ -13,7 +13,6 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/gpio.h>
-#include <linux/platform_data/atmel.h>
 #include <linux/io.h>
 #include <linux/sizes.h>
 #include <linux/mfd/syscon.h>
@@ -34,6 +33,17 @@
 #define	CF_ATTR_PHYS	(0)
 #define	CF_IO_PHYS	(1 << 23)
 #define	CF_MEM_PHYS	(0x017ff800)
+
+struct at91_cf_data {
+	int	irq_pin;		/* I/O IRQ */
+	int	det_pin;		/* Card detect */
+	int	vcc_pin;		/* power switching */
+	int	rst_pin;		/* card reset */
+	u8	chipselect;		/* EBI Chip Select number */
+	u8	flags;
+#define AT91_CF_TRUE_IDE	0x01
+#define AT91_IDE_SWAP_A0_A2	0x02
+};
 
 struct regmap *mc;
 
