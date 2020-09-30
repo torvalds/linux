@@ -1650,10 +1650,8 @@ static struct io_kiocb *io_get_fallback_req(struct io_ring_ctx *ctx)
 static struct io_kiocb *io_alloc_req(struct io_ring_ctx *ctx,
 				     struct io_submit_state *state)
 {
-	gfp_t gfp = GFP_KERNEL | __GFP_NOWARN;
-	struct io_kiocb *req;
-
 	if (!state->free_reqs) {
+		gfp_t gfp = GFP_KERNEL | __GFP_NOWARN;
 		size_t sz;
 		int ret;
 
@@ -1670,14 +1668,11 @@ static struct io_kiocb *io_alloc_req(struct io_ring_ctx *ctx,
 				goto fallback;
 			ret = 1;
 		}
-		state->free_reqs = ret - 1;
-		req = state->reqs[ret - 1];
-	} else {
-		state->free_reqs--;
-		req = state->reqs[state->free_reqs];
+		state->free_reqs = ret;
 	}
 
-	return req;
+	state->free_reqs--;
+	return state->reqs[state->free_reqs];
 fallback:
 	return io_get_fallback_req(ctx);
 }
