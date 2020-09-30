@@ -9,8 +9,10 @@
 #include <linux/seq_file.h>
 #include <linux/init.h>
 #include <linux/debugfs.h>
-#include <asm/mce.h>
 #include <linux/uaccess.h>
+
+#include <asm/mce.h>
+#include <asm/intel-family.h>
 
 #include "internal.h"
 
@@ -40,9 +42,14 @@ static struct severity {
 	unsigned char context;
 	unsigned char excp;
 	unsigned char covered;
+	unsigned char cpu_model;
+	unsigned char cpu_minstepping;
+	unsigned char bank_lo, bank_hi;
 	char *msg;
 } severities[] = {
 #define MCESEV(s, m, c...) { .sev = MCE_ ## s ## _SEVERITY, .msg = m, ## c }
+#define BANK_RANGE(l, h) .bank_lo = l, .bank_hi = h
+#define MODEL_STEPPING(m, s) .cpu_model = m, .cpu_minstepping = s
 #define  KERNEL		.context = IN_KERNEL
 #define  USER		.context = IN_USER
 #define  KERNEL_RECOV	.context = IN_KERNEL_RECOV
@@ -97,7 +104,6 @@ static struct severity {
 		KEEP, "Corrected error",
 		NOSER, BITCLR(MCI_STATUS_UC)
 		),
-
 	/*
 	 * known AO MCACODs reported via MCE or CMC:
 	 *
@@ -113,6 +119,18 @@ static struct severity {
 		AO, "Action optional: last level cache writeback error",
 		SER, MASK(MCI_UC_AR|MCACOD, MCI_STATUS_UC|MCACOD_L3WB)
 		),
+	/*
+	 * Quirk for Skylake/Cascade Lake. Patrol scrubber may be configured
+	 * to report uncorrected errors using CMCI with a special signature.
+	 * UC=0, MSCOD=0x0010, MCACOD=binary(000X 0000 1100 XXXX) reported
+	 * in one of the memory controller banks.
+	 * Set severity to "AO" for same action as normal patrol scrub error.
+	 */
+	MCESEV(
+		AO, "Uncorrected Patrol Scrub Error",
+		SER, MASK(MCI_STATUS_UC|MCI_ADDR|0xffffeff0, MCI_ADDR|0x001000c0),
+		MODEL_STEPPING(INTEL_FAM6_SKYLAKE_X, 4), BANK_RANGE(13, 18)
+	),
 
 	/* ignore OVER for UCNA */
 	MCESEV(
@@ -323,6 +341,12 @@ static int mce_severity_intel(struct mce *m, int tolerant, char **msg, bool is_e
 		if (s->context && ctx != s->context)
 			continue;
 		if (s->excp && excp != s->excp)
+			continue;
+		if (s->cpu_model && boot_cpu_data.x86_model != s->cpu_model)
+			continue;
+		if (s->cpu_minstepping && boot_cpu_data.x86_stepping < s->cpu_minstepping)
+			continue;
+		if (s->bank_lo && (m->bank < s->bank_lo || m->bank > s->bank_hi))
 			continue;
 		if (msg)
 			*msg = s->msg;
