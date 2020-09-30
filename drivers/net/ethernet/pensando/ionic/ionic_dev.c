@@ -98,11 +98,6 @@ int ionic_dev_setup(struct ionic *ionic)
 	return 0;
 }
 
-void ionic_dev_teardown(struct ionic *ionic)
-{
-	del_timer_sync(&ionic->watchdog_timer);
-}
-
 /* Devcmd Interface */
 int ionic_heartbeat_check(struct ionic *ionic)
 {
