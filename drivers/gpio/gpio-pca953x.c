@@ -814,9 +814,11 @@ static irqreturn_t pca953x_irq_handler(int irq, void *devid)
 {
 	struct pca953x_chip *chip = devid;
 	struct gpio_chip *gc = &chip->gpio_chip;
-	DECLARE_BITMAP(pending, MAX_LINE) = {};
+	DECLARE_BITMAP(pending, MAX_LINE);
 	int level;
 	bool ret;
+
+	bitmap_zero(pending, MAX_LINE);
 
 	mutex_lock(&chip->i2c_lock);
 	ret = pca953x_irq_pending(chip, pending);
