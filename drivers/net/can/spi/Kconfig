@@ -13,6 +13,6 @@ config CAN_MCP251X
 	  Driver for the Microchip MCP251x and MCP25625 SPI CAN
 	  controllers.
 
-source "drivers/net/can/spi/mcp25xxfd/Kconfig"
+source "drivers/net/can/spi/mcp251xfd/Kconfig"
 
 endmenu

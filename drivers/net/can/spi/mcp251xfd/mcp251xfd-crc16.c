@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 //
-// mcp25xxfd - Microchip MCP25xxFD Family CAN controller driver
+// mcp251xfd - Microchip MCP251xFD Family CAN controller driver
 //
 // Copyright (c) 2020 Pengutronix,
 //                    Marc Kleine-Budde <kernel@pengutronix.de>
@@ -12,7 +12,7 @@
 // Copyright (c) 2019 Martin Sperl <kernel@martin.sperl.org>
 //
 
-#include "mcp25xxfd.h"
+#include "mcp251xfd.h"
 
 /* The standard crc16 in linux/crc16.h is unfortunately not computing
  * the correct results (left shift vs. right shift). So here an
@@ -20,7 +20,7 @@
  *
  * http://lkml.iu.edu/hypermail/linux/kernel/0508.1/1085.html
  */
-static const u16 mcp25xxfd_crc16_table[] = {
+static const u16 mcp251xfd_crc16_table[] = {
 	0x0000, 0x8005, 0x800f, 0x000a, 0x801b, 0x001e, 0x0014, 0x8011,
 	0x8033, 0x0036, 0x003c, 0x8039, 0x0028, 0x802d, 0x8027, 0x0022,
 	0x8063, 0x0066, 0x006c, 0x8069, 0x0078, 0x807d, 0x8077, 0x0072,
@@ -55,35 +55,35 @@ static const u16 mcp25xxfd_crc16_table[] = {
 	0x8213, 0x0216, 0x021c, 0x8219, 0x0208, 0x820d, 0x8207, 0x0202
 };
 
-static inline u16 mcp25xxfd_crc16_byte(u16 crc, const u8 data)
+static inline u16 mcp251xfd_crc16_byte(u16 crc, const u8 data)
 {
 	u8 index = (crc >> 8) ^ data;
 
-	return (crc << 8) ^ mcp25xxfd_crc16_table[index];
+	return (crc << 8) ^ mcp251xfd_crc16_table[index];
 }
 
-static u16 mcp25xxfd_crc16(u16 crc, u8 const *buffer, size_t len)
+static u16 mcp251xfd_crc16(u16 crc, u8 const *buffer, size_t len)
 {
 	while (len--)
-		crc = mcp25xxfd_crc16_byte(crc, *buffer++);
+		crc = mcp251xfd_crc16_byte(crc, *buffer++);
 
 	return crc;
 }
 
-u16 mcp25xxfd_crc16_compute(const void *data, size_t data_size)
+u16 mcp251xfd_crc16_compute(const void *data, size_t data_size)
 {
 	u16 crc = 0xffff;
 
-	return mcp25xxfd_crc16(crc, data, data_size);
+	return mcp251xfd_crc16(crc, data, data_size);
 }
 
-u16 mcp25xxfd_crc16_compute2(const void *cmd, size_t cmd_size,
+u16 mcp251xfd_crc16_compute2(const void *cmd, size_t cmd_size,
 			     const void *data, size_t data_size)
 {
 	u16 crc;
 
-	crc = mcp25xxfd_crc16_compute(cmd, cmd_size);
-	crc = mcp25xxfd_crc16(crc, data, data_size);
+	crc = mcp251xfd_crc16_compute(cmd, cmd_size);
+	crc = mcp251xfd_crc16(crc, data, data_size);
 
 	return crc;
 }
