@@ -2161,4 +2161,19 @@ static inline int iwl_umac_scan_get_max_profiles(const struct iwl_fw *fw)
 	return (ver == IWL_FW_CMD_VER_UNKNOWN || ver < 3) ?
 		IWL_SCAN_MAX_PROFILES : IWL_SCAN_MAX_PROFILES_V2;
 }
+
+static inline
+enum iwl_location_cipher iwl_mvm_cipher_to_location_cipher(u32 cipher)
+{
+	switch (cipher) {
+	case WLAN_CIPHER_SUITE_CCMP:
+		return IWL_LOCATION_CIPHER_CCMP_128;
+	case WLAN_CIPHER_SUITE_GCMP:
+		return IWL_LOCATION_CIPHER_GCMP_128;
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		return IWL_LOCATION_CIPHER_GCMP_256;
+	default:
+		return IWL_LOCATION_CIPHER_INVALID;
+	}
+}
 #endif /* __IWL_MVM_H__ */

@@ -306,6 +306,16 @@ iwl_mvm_ftm_responder_dyn_cfg_cmd(struct iwl_mvm *mvm,
 	return ret;
 }
 
+static void iwl_mvm_resp_del_pasn_sta(struct iwl_mvm *mvm,
+				      struct ieee80211_vif *vif,
+				      struct iwl_mvm_pasn_sta *sta)
+{
+	list_del(&sta->list);
+	iwl_mvm_rm_sta_id(mvm, vif, sta->int_sta.sta_id);
+	iwl_mvm_dealloc_int_sta(mvm, &sta->int_sta);
+	kfree(sta);
+}
+
 int iwl_mvm_ftm_respoder_add_pasn_sta(struct iwl_mvm *mvm,
 				      struct ieee80211_vif *vif,
 				      u8 *addr, u32 cipher, u8 *tk, u32 tk_len,
@@ -313,8 +323,25 @@ int iwl_mvm_ftm_respoder_add_pasn_sta(struct iwl_mvm *mvm,
 {
 	int ret;
 	struct iwl_mvm_pasn_sta *sta;
+	struct iwl_mvm_pasn_hltk_data hltk_data = {
+		.addr = addr,
+		.hltk = hltk,
+	};
+	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, LOCATION_GROUP,
+					   TOF_RESPONDER_DYN_CONFIG_CMD, 2);
 
 	lockdep_assert_held(&mvm->mutex);
+
+	if (cmd_ver < 3) {
+		IWL_ERR(mvm, "Adding PASN station not supported by FW\n");
+		return -ENOTSUPP;
+	}
+
+	hltk_data.cipher = iwl_mvm_cipher_to_location_cipher(cipher);
+	if (hltk_data.cipher == IWL_LOCATION_CIPHER_INVALID) {
+		IWL_ERR(mvm, "invalid cipher: %u\n", cipher);
+		return -EINVAL;
+	}
 
 	sta = kmalloc(sizeof(*sta), GFP_KERNEL);
 	if (!sta)
@@ -327,21 +354,15 @@ int iwl_mvm_ftm_respoder_add_pasn_sta(struct iwl_mvm *mvm,
 		return ret;
 	}
 
-	// TODO: set the HLTK to fw
+	ret = iwl_mvm_ftm_responder_dyn_cfg_v3(mvm, vif, NULL, &hltk_data);
+	if (ret) {
+		iwl_mvm_resp_del_pasn_sta(mvm, vif, sta);
+		return ret;
+	}
 
 	memcpy(sta->addr, addr, ETH_ALEN);
 	list_add_tail(&sta->list, &mvm->resp_pasn_list);
 	return 0;
-}
-
-static void iwl_mvm_resp_del_pasn_sta(struct iwl_mvm *mvm,
-				      struct ieee80211_vif *vif,
-				      struct iwl_mvm_pasn_sta *sta)
-{
-	list_del(&sta->list);
-	iwl_mvm_rm_sta_id(mvm, vif, sta->int_sta.sta_id);
-	iwl_mvm_dealloc_int_sta(mvm, &sta->int_sta);
-	kfree(sta);
 }
 
 int iwl_mvm_ftm_resp_remove_pasn_sta(struct iwl_mvm *mvm,
