@@ -140,8 +140,16 @@ int amdgpu_compute_multipipe = -1;
 int amdgpu_gpu_recovery = -1; /* auto */
 int amdgpu_emu_mode = 0;
 uint amdgpu_smu_memory_pool_size = 0;
-/* FBC (bit 0) disabled by default*/
-uint amdgpu_dc_feature_mask = 0;
+/*
+ * FBC (bit 0) disabled by default
+ * MULTI_MON_PP_MCLK_SWITCH (bit 1) enabled by default
+ *   - With this, for multiple monitors in sync(e.g. with the same model),
+ *     mclk switching will be allowed. And the mclk will be not foced to the
+ *     highest. That helps saving some idle power.
+ * DISABLE_FRACTIONAL_PWM (bit 2) disabled by default
+ * PSR (bit 3) disabled by default
+ */
+uint amdgpu_dc_feature_mask = 2;
 uint amdgpu_dc_debug_mask = 0;
 int amdgpu_async_gfx_ring = 1;
 int amdgpu_mcbp = 0;
