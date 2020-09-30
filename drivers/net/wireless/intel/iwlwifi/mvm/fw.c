@@ -217,7 +217,7 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 	u32 lmac_error_event_table, umac_error_table;
 
 	/* we don't use the SKU ID from v5 yet, so handle it as v4 */
-	if (iwl_fw_lookup_notif_ver(mvm->fw, LONG_GROUP,
+	if (iwl_fw_lookup_notif_ver(mvm->fw, LEGACY_GROUP,
 				    UCODE_ALIVE_NTFY, 0) == 5 ||
 	    iwl_rx_packet_payload_len(pkt) == sizeof(struct iwl_alive_ntf_v4)) {
 		struct iwl_alive_ntf_v4 *palive;
