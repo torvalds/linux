@@ -881,10 +881,13 @@ static enum power_supply_property rk818_bat_props[] = {
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_CAPACITY,
+	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_CHARGE_COUNTER,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
+	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
+	POWER_SUPPLY_PROP_TIME_TO_FULL_NOW,
 	POWER_SUPPLY_PROP_VOLTAGE_MAX,
 	POWER_SUPPLY_PROP_CURRENT_MAX,
 };
@@ -955,6 +958,42 @@ static int rk818_bat_get_charge_state(struct rk818_battery *di)
 	return (di->usb_in || di->ac_in);
 }
 
+static int rk818_get_capacity_leve(struct rk818_battery *di)
+{
+	if (di->pdata->bat_mode == MODE_VIRTUAL)
+		return POWER_SUPPLY_CAPACITY_LEVEL_NORMAL;
+
+	if (di->dsoc < 1)
+		return POWER_SUPPLY_CAPACITY_LEVEL_CRITICAL;
+	else if (di->dsoc <= 20)
+		return POWER_SUPPLY_CAPACITY_LEVEL_LOW;
+	else if (di->dsoc <= 70)
+		return POWER_SUPPLY_CAPACITY_LEVEL_NORMAL;
+	else if (di->dsoc <= 90)
+		return POWER_SUPPLY_CAPACITY_LEVEL_HIGH;
+	else
+		return POWER_SUPPLY_CAPACITY_LEVEL_FULL;
+}
+
+static int rk818_battery_time_to_full(struct rk818_battery *di)
+{
+	int time_sec;
+	int cap_temp;
+
+	if (di->pdata->bat_mode == MODE_VIRTUAL) {
+		time_sec = 3600;
+	} else if (di->voltage_avg > 0) {
+		cap_temp = di->pdata->design_capacity - di->remain_cap;
+		if (cap_temp < 0)
+			cap_temp = 0;
+		time_sec = (3600 * cap_temp) / di->voltage_avg;
+	} else {
+		time_sec = 3600 * 24; /* One day */
+	}
+
+	return time_sec;
+}
+
 static int rk818_battery_get_property(struct power_supply *psy,
 				      enum power_supply_property psp,
 				      union power_supply_propval *val)
@@ -983,6 +1022,9 @@ static int rk818_battery_get_property(struct power_supply *psy,
 			val->intval = VIRTUAL_SOC;
 		DBG("<%s>. report dsoc: %d\n", __func__, val->intval);
 		break;
+	case POWER_SUPPLY_PROP_CAPACITY_LEVEL:
+		val->intval = rk818_get_capacity_leve(di);
+		break;
 	case POWER_SUPPLY_PROP_HEALTH:
 		val->intval = POWER_SUPPLY_HEALTH_GOOD;
 		break;
@@ -1005,7 +1047,11 @@ static int rk818_battery_get_property(struct power_supply *psy,
 		val->intval = di->charge_count;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
+	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
 		val->intval = di->pdata->design_capacity * 1000;/* uAh */
+		break;
+	case POWER_SUPPLY_PROP_TIME_TO_FULL_NOW:
+		val->intval = rk818_battery_time_to_full(di);
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
 		val->intval = di->voltage_max;
