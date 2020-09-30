@@ -560,6 +560,8 @@ void ath11k_hal_srng_get_params(struct ath11k_base *ab, struct hal_srng *srng,
 	params->intr_batch_cntr_thres_entries =
 		srng->intr_batch_cntr_thres_entries;
 	params->low_threshold = srng->u.src_ring.low_threshold;
+	params->msi_addr = srng->msi_addr;
+	params->msi_data = srng->msi_data;
 	params->flags = srng->flags;
 }
 

@@ -37,6 +37,8 @@
 
 extern unsigned int ath11k_frame_mode;
 
+#define ATH11K_MON_TIMER_INTERVAL  10
+
 enum ath11k_supported_bw {
 	ATH11K_BW_20	= 0,
 	ATH11K_BW_40	= 1,
@@ -727,6 +729,7 @@ struct ath11k_base {
 	struct ath11k_dbring_cap *db_caps;
 	u32 num_db_cap;
 
+	struct timer_list mon_reap_timer;
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));
 };

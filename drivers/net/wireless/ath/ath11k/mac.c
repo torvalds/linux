@@ -4703,6 +4703,10 @@ static void ath11k_mac_op_configure_filter(struct ieee80211_hw *hw,
 		ath11k_warn(ar->ab,
 			    "fail to set monitor filter: %d\n", ret);
 	}
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC,
+		   "changed_flags:0x%x, total_flags:0x%x, reset_flag:%d\n",
+		   changed_flags, *total_flags, reset_flag);
+
 	mutex_unlock(&ar->conf_mutex);
 }
 
@@ -5208,6 +5212,7 @@ ath11k_mac_op_assign_vif_chanctx(struct ieee80211_hw *hw,
 	struct ath11k_base *ab = ar->ab;
 	struct ath11k_vif *arvif = (void *)vif->drv_priv;
 	int ret;
+	struct peer_create_params param;
 
 	mutex_lock(&ar->conf_mutex);
 
@@ -5217,7 +5222,8 @@ ath11k_mac_op_assign_vif_chanctx(struct ieee80211_hw *hw,
 
 	/* for QCA6390 bss peer must be created before vdev_start */
 	if (ab->hw_params.vdev_start_delay &&
-	    arvif->vdev_type != WMI_VDEV_TYPE_AP) {
+	    arvif->vdev_type != WMI_VDEV_TYPE_AP &&
+	    arvif->vdev_type != WMI_VDEV_TYPE_MONITOR) {
 		memcpy(&arvif->chanctx, ctx, sizeof(*ctx));
 		mutex_unlock(&ar->conf_mutex);
 		return 0;
@@ -5226,6 +5232,13 @@ ath11k_mac_op_assign_vif_chanctx(struct ieee80211_hw *hw,
 	if (WARN_ON(arvif->is_started)) {
 		mutex_unlock(&ar->conf_mutex);
 		return -EBUSY;
+	}
+
+	if (ab->hw_params.vdev_start_delay) {
+		param.vdev_id = arvif->vdev_id;
+		param.peer_type = WMI_PEER_TYPE_DEFAULT;
+		param.peer_addr = ar->mac_addr;
+		ret = ath11k_peer_create(ar, arvif, NULL, &param);
 	}
 
 	ret = ath11k_mac_vdev_start(arvif, &ctx->def);
@@ -5273,12 +5286,21 @@ ath11k_mac_op_unassign_vif_chanctx(struct ieee80211_hw *hw,
 
 	WARN_ON(!arvif->is_started);
 
+	if (ab->hw_params.vdev_start_delay &&
+	    arvif->vdev_type == WMI_VDEV_TYPE_MONITOR &&
+	    ath11k_peer_find_by_addr(ab, ar->mac_addr))
+		ath11k_peer_delete(ar, arvif->vdev_id, ar->mac_addr);
+
 	ret = ath11k_mac_vdev_stop(arvif);
 	if (ret)
 		ath11k_warn(ab, "failed to stop vdev %i: %d\n",
 			    arvif->vdev_id, ret);
 
 	arvif->is_started = false;
+
+	if (ab->hw_params.vdev_start_delay &&
+	    arvif->vdev_type == WMI_VDEV_TYPE_MONITOR)
+		ath11k_wmi_vdev_down(ar, arvif->vdev_id);
 
 	mutex_unlock(&ar->conf_mutex);
 }

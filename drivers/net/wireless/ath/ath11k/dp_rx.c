@@ -262,6 +262,18 @@ static u32 ath11k_dp_rxdesc_get_ppduid(struct hal_rx_desc *rx_desc)
 	return __le16_to_cpu(rx_desc->mpdu_start.phy_ppdu_id);
 }
 
+static void ath11k_dp_service_mon_ring(struct timer_list *t)
+{
+	struct ath11k_base *ab = from_timer(ab, t, mon_reap_timer);
+	int i;
+
+	for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++)
+		ath11k_dp_rx_process_mon_rings(ab, i, NULL, DP_MON_SERVICE_BUDGET);
+
+	mod_timer(&ab->mon_reap_timer, jiffies +
+		  msecs_to_jiffies(ATH11K_MON_TIMER_INTERVAL));
+}
+
 /* Returns number of Rx buffers replenished */
 int ath11k_dp_rxbufs_replenish(struct ath11k_base *ab, int mac_id,
 			       struct dp_rxdma_ring *rx_ring,
@@ -569,9 +581,14 @@ static int ath11k_dp_rx_pdev_srng_alloc(struct ath11k *ar)
 	/* if rxdma1_enable is false, then it doesn't need
 	 * to setup rxdam_mon_buf_ring, rxdma_mon_dst_ring
 	 * and rxdma_mon_desc_ring.
+	 * init reap timer for QCA6390.
 	 */
-	if (!ar->ab->hw_params.rxdma1_enable)
+	if (!ar->ab->hw_params.rxdma1_enable) {
+		//init mon status buffer reap timer
+		timer_setup(&ar->ab->mon_reap_timer,
+			    ath11k_dp_service_mon_ring, 0);
 		return 0;
+	}
 
 	ret = ath11k_dp_srng_setup(ar->ab,
 				   &dp->rxdma_mon_buf_ring.refill_buf_ring,
@@ -4289,8 +4306,13 @@ int ath11k_dp_rx_monitor_link_desc_return(struct ath11k *ar,
 	void *src_srng_desc;
 	int ret = 0;
 
-	dp_srng = &dp->rxdma_mon_desc_ring;
-	hal_srng = &ar->ab->hal.srng_list[dp_srng->ring_id];
+	if (ar->ab->hw_params.rxdma1_enable) {
+		dp_srng = &dp->rxdma_mon_desc_ring;
+		hal_srng = &ar->ab->hal.srng_list[dp_srng->ring_id];
+	} else {
+		dp_srng = &ar->ab->dp.wbm_desc_rel_ring;
+		hal_srng = &ar->ab->hal.srng_list[dp_srng->ring_id];
+	}
 
 	ath11k_hal_srng_access_begin(ar->ab, hal_srng);
 
@@ -4314,16 +4336,16 @@ int ath11k_dp_rx_monitor_link_desc_return(struct ath11k *ar,
 static
 void ath11k_dp_rx_mon_next_link_desc_get(void *rx_msdu_link_desc,
 					 dma_addr_t *paddr, u32 *sw_cookie,
+					 u8 *rbm,
 					 void **pp_buf_addr_info)
 {
 	struct hal_rx_msdu_link *msdu_link =
 			(struct hal_rx_msdu_link *)rx_msdu_link_desc;
 	struct ath11k_buffer_addr *buf_addr_info;
-	u8 rbm = 0;
 
 	buf_addr_info = (struct ath11k_buffer_addr *)&msdu_link->buf_addr_info;
 
-	ath11k_hal_rx_buf_addr_info_get(buf_addr_info, paddr, sw_cookie, &rbm);
+	ath11k_hal_rx_buf_addr_info_get(buf_addr_info, paddr, sw_cookie, rbm);
 
 	*pp_buf_addr_info = (void *)buf_addr_info;
 }
@@ -4434,7 +4456,7 @@ static void ath11k_dp_mon_get_buf_len(struct hal_rx_msdu_desc_info *info,
 }
 
 static u32
-ath11k_dp_rx_mon_mpdu_pop(struct ath11k *ar,
+ath11k_dp_rx_mon_mpdu_pop(struct ath11k *ar, int mac_id,
 			  void *ring_entry, struct sk_buff **head_msdu,
 			  struct sk_buff **tail_msdu, u32 *npackets,
 			  u32 *ppdu_id)
@@ -4459,9 +4481,15 @@ ath11k_dp_rx_mon_mpdu_pop(struct ath11k *ar,
 	struct hal_reo_entrance_ring *ent_desc =
 			(struct hal_reo_entrance_ring *)ring_entry;
 	int buf_id;
+	u32 rx_link_buf_info[2];
+	u8 rbm;
+
+	if (!ar->ab->hw_params.rxdma1_enable)
+		rx_ring = &dp->rx_refill_buf_ring;
 
 	ath11k_hal_rx_reo_ent_buf_paddr_get(ring_entry, &paddr,
-					    &sw_cookie, &p_last_buf_addr_info,
+					    &sw_cookie,
+					    &p_last_buf_addr_info, &rbm,
 					    &msdu_cnt);
 
 	if (FIELD_GET(HAL_REO_ENTR_RING_INFO1_RXDMA_PUSH_REASON,
@@ -4487,9 +4515,14 @@ ath11k_dp_rx_mon_mpdu_pop(struct ath11k *ar,
 			return rx_bufs_used;
 		}
 
-		rx_msdu_link_desc =
-			(void *)pmon->link_desc_banks[sw_cookie].vaddr +
-			(paddr - pmon->link_desc_banks[sw_cookie].paddr);
+		if (ar->ab->hw_params.rxdma1_enable)
+			rx_msdu_link_desc =
+				(void *)pmon->link_desc_banks[sw_cookie].vaddr +
+				(paddr - pmon->link_desc_banks[sw_cookie].paddr);
+		else
+			rx_msdu_link_desc =
+				(void *)ar->ab->dp.link_desc_banks[sw_cookie].vaddr +
+				(paddr - ar->ab->dp.link_desc_banks[sw_cookie].paddr);
 
 		ath11k_hal_rx_msdu_list_get(ar, rx_msdu_link_desc, &msdu_list,
 					    &num_msdus);
@@ -4585,15 +4618,22 @@ next_msdu:
 			spin_unlock_bh(&rx_ring->idr_lock);
 		}
 
+		ath11k_hal_rx_buf_addr_info_set(rx_link_buf_info, paddr, sw_cookie, rbm);
+
 		ath11k_dp_rx_mon_next_link_desc_get(rx_msdu_link_desc, &paddr,
-						    &sw_cookie,
+						    &sw_cookie, &rbm,
 						    &p_buf_addr_info);
 
-		if (ath11k_dp_rx_monitor_link_desc_return(ar,
-							  p_last_buf_addr_info,
-							  dp->mac_id))
-			ath11k_dbg(ar->ab, ATH11K_DBG_DATA,
-				   "dp_rx_monitor_link_desc_return failed");
+		if (ar->ab->hw_params.rxdma1_enable) {
+			if (ath11k_dp_rx_monitor_link_desc_return(ar,
+								  p_last_buf_addr_info,
+								  dp->mac_id))
+				ath11k_dbg(ar->ab, ATH11K_DBG_DATA,
+					   "dp_rx_monitor_link_desc_return failed");
+		} else {
+			ath11k_dp_rx_link_desc_return(ar->ab, rx_link_buf_info,
+						      HAL_WBM_REL_BM_ACT_PUT_IN_IDLE);
+		}
 
 		p_last_buf_addr_info = p_buf_addr_info;
 
@@ -4777,8 +4817,8 @@ mon_deliver_fail:
 	return -EINVAL;
 }
 
-static void ath11k_dp_rx_mon_dest_process(struct ath11k *ar, u32 quota,
-					  struct napi_struct *napi)
+static void ath11k_dp_rx_mon_dest_process(struct ath11k *ar, int mac_id,
+					  u32 quota, struct napi_struct *napi)
 {
 	struct ath11k_pdev_dp *dp = &ar->dp;
 	struct ath11k_mon_data *pmon = (struct ath11k_mon_data *)&dp->mon_data;
@@ -4786,10 +4826,16 @@ static void ath11k_dp_rx_mon_dest_process(struct ath11k *ar, u32 quota,
 	void *mon_dst_srng;
 	u32 ppdu_id;
 	u32 rx_bufs_used;
+	u32 ring_id;
 	struct ath11k_pdev_mon_stats *rx_mon_stats;
 	u32	 npackets = 0;
 
-	mon_dst_srng = &ar->ab->hal.srng_list[dp->rxdma_mon_dst_ring.ring_id];
+	if (ar->ab->hw_params.rxdma1_enable)
+		ring_id = dp->rxdma_mon_dst_ring.ring_id;
+	else
+		ring_id = dp->rxdma_err_dst_ring[mac_id].ring_id;
+
+	mon_dst_srng = &ar->ab->hal.srng_list[ring_id];
 
 	if (!mon_dst_srng) {
 		ath11k_warn(ar->ab,
@@ -4812,7 +4858,7 @@ static void ath11k_dp_rx_mon_dest_process(struct ath11k *ar, u32 quota,
 		head_msdu = NULL;
 		tail_msdu = NULL;
 
-		rx_bufs_used += ath11k_dp_rx_mon_mpdu_pop(ar, ring_entry,
+		rx_bufs_used += ath11k_dp_rx_mon_mpdu_pop(ar, mac_id, ring_entry,
 							  &head_msdu,
 							  &tail_msdu,
 							  &npackets, &ppdu_id);
@@ -4839,15 +4885,21 @@ static void ath11k_dp_rx_mon_dest_process(struct ath11k *ar, u32 quota,
 
 	if (rx_bufs_used) {
 		rx_mon_stats->dest_ppdu_done++;
-		ath11k_dp_rxbufs_replenish(ar->ab, dp->mac_id,
-					   &dp->rxdma_mon_buf_ring,
-					   rx_bufs_used,
-					   HAL_RX_BUF_RBM_SW3_BM);
+		if (ar->ab->hw_params.rxdma1_enable)
+			ath11k_dp_rxbufs_replenish(ar->ab, dp->mac_id,
+						   &dp->rxdma_mon_buf_ring,
+						   rx_bufs_used,
+						   HAL_RX_BUF_RBM_SW3_BM);
+		else
+			ath11k_dp_rxbufs_replenish(ar->ab, dp->mac_id,
+						   &dp->rx_refill_buf_ring,
+						   rx_bufs_used,
+						   HAL_RX_BUF_RBM_SW3_BM);
 	}
 }
 
 static void ath11k_dp_rx_mon_status_process_tlv(struct ath11k *ar,
-						u32 quota,
+						int mac_id, u32 quota,
 						struct napi_struct *napi)
 {
 	struct ath11k_pdev_dp *dp = &ar->dp;
@@ -4871,7 +4923,7 @@ static void ath11k_dp_rx_mon_status_process_tlv(struct ath11k *ar,
 		if (tlv_status == HAL_TLV_STATUS_PPDU_DONE) {
 			rx_mon_stats->status_ppdu_done++;
 			pmon->mon_ppdu_status = DP_PPDU_STATUS_DONE;
-			ath11k_dp_rx_mon_dest_process(ar, quota, napi);
+			ath11k_dp_rx_mon_dest_process(ar, mac_id, quota, napi);
 			pmon->mon_ppdu_status = DP_PPDU_STATUS_START;
 		}
 		dev_kfree_skb_any(status_skb);
@@ -4886,10 +4938,10 @@ static int ath11k_dp_mon_process_rx(struct ath11k_base *ab, int mac_id,
 	struct ath11k_mon_data *pmon = (struct ath11k_mon_data *)&dp->mon_data;
 	int num_buffs_reaped = 0;
 
-	num_buffs_reaped = ath11k_dp_rx_reap_mon_status_ring(ar->ab, dp->mac_id, &budget,
+	num_buffs_reaped = ath11k_dp_rx_reap_mon_status_ring(ar->ab, mac_id, &budget,
 							     &pmon->rx_status_q);
 	if (num_buffs_reaped)
-		ath11k_dp_rx_mon_status_process_tlv(ar, budget, napi);
+		ath11k_dp_rx_mon_status_process_tlv(ar, mac_id, budget, napi);
 
 	return num_buffs_reaped;
 }

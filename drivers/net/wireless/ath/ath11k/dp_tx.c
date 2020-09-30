@@ -786,9 +786,9 @@ int ath11k_dp_tx_htt_srng_setup(struct ath11k_base *ab, u32 ring_id,
 	cmd->ring_tail_off32_remote_addr_hi = (u64)tp_addr >>
 					      HAL_ADDR_MSB_REG_SHIFT;
 
-	cmd->ring_msi_addr_lo = 0;
-	cmd->ring_msi_addr_hi = 0;
-	cmd->msi_data = 0;
+	cmd->ring_msi_addr_lo = params.msi_addr & 0xffffffff;
+	cmd->ring_msi_addr_hi = ((uint64_t)(params.msi_addr) >> 32) & 0xffffffff;
+	cmd->msi_data = params.msi_data;
 
 	cmd->intr_info = FIELD_PREP(
 			HTT_SRNG_SETUP_CMD_INTR_INFO_BATCH_COUNTER_THRESH,
@@ -803,6 +803,15 @@ int ath11k_dp_tx_htt_srng_setup(struct ath11k_base *ab, u32 ring_id,
 				HTT_SRNG_SETUP_CMD_INFO2_INTR_LOW_THRESH,
 				params.low_threshold);
 	}
+
+	ath11k_dbg(ab, ATH11k_DBG_HAL,
+		   "%s msi_addr_lo:0x%x, msi_addr_hi:0x%x, msi_data:0x%x\n",
+		   __func__, cmd->ring_msi_addr_lo, cmd->ring_msi_addr_hi,
+		   cmd->msi_data);
+
+	ath11k_dbg(ab, ATH11k_DBG_HAL,
+		   "ring_id:%d, ring_type:%d, intr_info:0x%x, flags:0x%x\n",
+		   ring_id, ring_type, cmd->intr_info, cmd->info2);
 
 	ret = ath11k_htc_send(&ab->htc, ab->dp.eid, skb);
 	if (ret)
@@ -868,24 +877,27 @@ int ath11k_dp_tx_htt_h2t_ppdu_stats_req(struct ath11k *ar, u32 mask)
 	int len = sizeof(*cmd);
 	u8 pdev_mask;
 	int ret;
+	int i;
 
-	skb = ath11k_htc_alloc_skb(ab, len);
-	if (!skb)
-		return -ENOMEM;
+	for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++) {
+		skb = ath11k_htc_alloc_skb(ab, len);
+		if (!skb)
+			return -ENOMEM;
 
-	skb_put(skb, len);
-	cmd = (struct htt_ppdu_stats_cfg_cmd *)skb->data;
-	cmd->msg = FIELD_PREP(HTT_PPDU_STATS_CFG_MSG_TYPE,
-			      HTT_H2T_MSG_TYPE_PPDU_STATS_CFG);
+		skb_put(skb, len);
+		cmd = (struct htt_ppdu_stats_cfg_cmd *)skb->data;
+		cmd->msg = FIELD_PREP(HTT_PPDU_STATS_CFG_MSG_TYPE,
+				      HTT_H2T_MSG_TYPE_PPDU_STATS_CFG);
 
-	pdev_mask = 1 << (ar->pdev_idx);
-	cmd->msg |= FIELD_PREP(HTT_PPDU_STATS_CFG_PDEV_ID, pdev_mask);
-	cmd->msg |= FIELD_PREP(HTT_PPDU_STATS_CFG_TLV_TYPE_BITMASK, mask);
+		pdev_mask = 1 << (i + 1);
+		cmd->msg |= FIELD_PREP(HTT_PPDU_STATS_CFG_PDEV_ID, pdev_mask);
+		cmd->msg |= FIELD_PREP(HTT_PPDU_STATS_CFG_TLV_TYPE_BITMASK, mask);
 
-	ret = ath11k_htc_send(&ab->htc, dp->eid, skb);
-	if (ret) {
-		dev_kfree_skb_any(skb);
-		return ret;
+		ret = ath11k_htc_send(&ab->htc, dp->eid, skb);
+		if (ret) {
+			dev_kfree_skb_any(skb);
+			return ret;
+		}
 	}
 
 	return 0;
@@ -1028,10 +1040,23 @@ int ath11k_dp_tx_htt_monitor_mode_ring_config(struct ath11k *ar, bool reset)
 					HTT_RX_MON_MO_DATA_FILTER_FLASG3;
 	}
 
-	ret = ath11k_dp_tx_htt_rx_filter_setup(ar->ab, ring_id, dp->mac_id,
-					       HAL_RXDMA_MONITOR_BUF,
-					       DP_RXDMA_REFILL_RING_SIZE,
-					       &tlv_filter);
+	if (ab->hw_params.rxdma1_enable) {
+		ret = ath11k_dp_tx_htt_rx_filter_setup(ar->ab, ring_id, dp->mac_id,
+						       HAL_RXDMA_MONITOR_BUF,
+						       DP_RXDMA_REFILL_RING_SIZE,
+						       &tlv_filter);
+	} else if (!reset) {
+		/* set in monitor mode only */
+		for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++) {
+			ring_id = dp->rx_mac_buf_ring[i].ring_id;
+			ret = ath11k_dp_tx_htt_rx_filter_setup(ar->ab, ring_id,
+							       dp->mac_id + i,
+							       HAL_RXDMA_BUF,
+							       1024,
+							       &tlv_filter);
+		}
+	}
+
 	if (ret)
 		return ret;
 
@@ -1049,6 +1074,10 @@ int ath11k_dp_tx_htt_monitor_mode_ring_config(struct ath11k *ar, bool reset)
 						       DP_RXDMA_REFILL_RING_SIZE,
 						       &tlv_filter);
 	}
+
+	if (!ar->ab->hw_params.rxdma1_enable)
+		mod_timer(&ar->ab->mon_reap_timer, jiffies +
+			  msecs_to_jiffies(ATH11K_MON_TIMER_INTERVAL));
 
 	return ret;
 }
