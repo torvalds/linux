@@ -568,7 +568,7 @@ void kvm_set_sei_esr(struct kvm_vcpu *vcpu, u64 syndrome);
 
 struct kvm_vcpu *kvm_mpidr_to_vcpu(struct kvm *kvm, unsigned long mpidr);
 
-DECLARE_PER_CPU(struct kvm_host_data, kvm_host_data);
+DECLARE_KVM_HYP_PER_CPU(struct kvm_host_data, kvm_host_data);
 
 static inline void kvm_init_host_cpu_context(struct kvm_cpu_context *cpu_ctxt)
 {
@@ -633,46 +633,6 @@ void kvm_vcpu_pmu_restore_host(struct kvm_vcpu *vcpu);
 static inline void kvm_set_pmu_events(u32 set, struct perf_event_attr *attr) {}
 static inline void kvm_clr_pmu_events(u32 clr) {}
 #endif
-
-#define KVM_BP_HARDEN_UNKNOWN		-1
-#define KVM_BP_HARDEN_WA_NEEDED		0
-#define KVM_BP_HARDEN_NOT_REQUIRED	1
-
-static inline int kvm_arm_harden_branch_predictor(void)
-{
-	switch (get_spectre_v2_workaround_state()) {
-	case ARM64_BP_HARDEN_WA_NEEDED:
-		return KVM_BP_HARDEN_WA_NEEDED;
-	case ARM64_BP_HARDEN_NOT_REQUIRED:
-		return KVM_BP_HARDEN_NOT_REQUIRED;
-	case ARM64_BP_HARDEN_UNKNOWN:
-	default:
-		return KVM_BP_HARDEN_UNKNOWN;
-	}
-}
-
-#define KVM_SSBD_UNKNOWN		-1
-#define KVM_SSBD_FORCE_DISABLE		0
-#define KVM_SSBD_KERNEL		1
-#define KVM_SSBD_FORCE_ENABLE		2
-#define KVM_SSBD_MITIGATED		3
-
-static inline int kvm_arm_have_ssbd(void)
-{
-	switch (arm64_get_ssbd_state()) {
-	case ARM64_SSBD_FORCE_DISABLE:
-		return KVM_SSBD_FORCE_DISABLE;
-	case ARM64_SSBD_KERNEL:
-		return KVM_SSBD_KERNEL;
-	case ARM64_SSBD_FORCE_ENABLE:
-		return KVM_SSBD_FORCE_ENABLE;
-	case ARM64_SSBD_MITIGATED:
-		return KVM_SSBD_MITIGATED;
-	case ARM64_SSBD_UNKNOWN:
-	default:
-		return KVM_SSBD_UNKNOWN;
-	}
-}
 
 void kvm_vcpu_load_sysregs_vhe(struct kvm_vcpu *vcpu);
 void kvm_vcpu_put_sysregs_vhe(struct kvm_vcpu *vcpu);

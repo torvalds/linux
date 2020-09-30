@@ -319,10 +319,6 @@ int kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 		vcpu->arch.reset_state.reset = false;
 	}
 
-	/* Default workaround setup is enabled (if supported) */
-	if (kvm_arm_have_ssbd() == KVM_SSBD_KERNEL)
-		vcpu->arch.workaround_flags |= VCPU_WORKAROUND_2_FLAG;
-
 	/* Reset timer */
 	ret = kvm_timer_vcpu_reset(vcpu);
 out:

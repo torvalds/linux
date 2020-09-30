@@ -383,7 +383,7 @@ static inline bool __hyp_handle_ptrauth(struct kvm_vcpu *vcpu)
 	    !esr_is_ptrauth_trap(kvm_vcpu_get_esr(vcpu)))
 		return false;
 
-	ctxt = __hyp_this_cpu_ptr(kvm_hyp_ctxt);
+	ctxt = this_cpu_ptr(&kvm_hyp_ctxt);
 	__ptrauth_save_key(ctxt, APIA);
 	__ptrauth_save_key(ctxt, APIB);
 	__ptrauth_save_key(ctxt, APDA);
@@ -474,39 +474,6 @@ static inline bool fixup_guest_exit(struct kvm_vcpu *vcpu, u64 *exit_code)
 exit:
 	/* Return to the host kernel and handle the exit */
 	return false;
-}
-
-static inline bool __needs_ssbd_off(struct kvm_vcpu *vcpu)
-{
-	if (!cpus_have_final_cap(ARM64_SSBD))
-		return false;
-
-	return !(vcpu->arch.workaround_flags & VCPU_WORKAROUND_2_FLAG);
-}
-
-static inline void __set_guest_arch_workaround_state(struct kvm_vcpu *vcpu)
-{
-#ifdef CONFIG_ARM64_SSBD
-	/*
-	 * The host runs with the workaround always present. If the
-	 * guest wants it disabled, so be it...
-	 */
-	if (__needs_ssbd_off(vcpu) &&
-	    __hyp_this_cpu_read(arm64_ssbd_callback_required))
-		arm_smccc_1_1_smc(ARM_SMCCC_ARCH_WORKAROUND_2, 0, NULL);
-#endif
-}
-
-static inline void __set_host_arch_workaround_state(struct kvm_vcpu *vcpu)
-{
-#ifdef CONFIG_ARM64_SSBD
-	/*
-	 * If the guest has disabled the workaround, bring it back on.
-	 */
-	if (__needs_ssbd_off(vcpu) &&
-	    __hyp_this_cpu_read(arm64_ssbd_callback_required))
-		arm_smccc_1_1_smc(ARM_SMCCC_ARCH_WORKAROUND_2, 1, NULL);
-#endif
 }
 
 static inline void __kvm_unexpected_el2_exception(void)

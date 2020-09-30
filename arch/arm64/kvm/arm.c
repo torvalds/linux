@@ -46,10 +46,10 @@
 __asm__(".arch_extension	virt");
 #endif
 
-DEFINE_PER_CPU(struct kvm_host_data, kvm_host_data);
-DEFINE_PER_CPU(struct kvm_cpu_context, kvm_hyp_ctxt);
-DEFINE_PER_CPU(unsigned long, kvm_hyp_vector);
+DECLARE_KVM_HYP_PER_CPU(unsigned long, kvm_hyp_vector);
+
 static DEFINE_PER_CPU(unsigned long, kvm_arm_hyp_stack_page);
+unsigned long kvm_arm_hyp_percpu_base[NR_CPUS];
 
 /* The VMID used in the VTTBR */
 static atomic64_t kvm_vmid_gen = ATOMIC64_INIT(1);
@@ -1263,6 +1263,53 @@ long kvm_arch_vm_ioctl(struct file *filp,
 	}
 }
 
+static unsigned long nvhe_percpu_size(void)
+{
+	return (unsigned long)CHOOSE_NVHE_SYM(__per_cpu_end) -
+		(unsigned long)CHOOSE_NVHE_SYM(__per_cpu_start);
+}
+
+static unsigned long nvhe_percpu_order(void)
+{
+	unsigned long size = nvhe_percpu_size();
+
+	return size ? get_order(size) : 0;
+}
+
+static int kvm_map_vectors(void)
+{
+	/*
+	 * SV2  = ARM64_SPECTRE_V2
+	 * HEL2 = ARM64_HARDEN_EL2_VECTORS
+	 *
+	 * !SV2 + !HEL2 -> use direct vectors
+	 *  SV2 + !HEL2 -> use hardened vectors in place
+	 * !SV2 +  HEL2 -> allocate one vector slot and use exec mapping
+	 *  SV2 +  HEL2 -> use hardened vectors and use exec mapping
+	 */
+	if (cpus_have_const_cap(ARM64_SPECTRE_V2)) {
+		__kvm_bp_vect_base = kvm_ksym_ref(__bp_harden_hyp_vecs);
+		__kvm_bp_vect_base = kern_hyp_va(__kvm_bp_vect_base);
+	}
+
+	if (cpus_have_const_cap(ARM64_HARDEN_EL2_VECTORS)) {
+		phys_addr_t vect_pa = __pa_symbol(__bp_harden_hyp_vecs);
+		unsigned long size = __BP_HARDEN_HYP_VECS_SZ;
+
+		/*
+		 * Always allocate a spare vector slot, as we don't
+		 * know yet which CPUs have a BP hardening slot that
+		 * we can reuse.
+		 */
+		__kvm_harden_el2_vector_slot = atomic_inc_return(&arm64_el2_vector_last_slot);
+		BUG_ON(__kvm_harden_el2_vector_slot >= BP_HARDEN_EL2_SLOTS);
+		return create_hyp_exec_mappings(vect_pa, size,
+						&__kvm_bp_vect_base);
+	}
+
+	return 0;
+}
+
 static void cpu_init_hyp_mode(void)
 {
 	phys_addr_t pgd_ptr;
@@ -1279,8 +1326,8 @@ static void cpu_init_hyp_mode(void)
 	 * kernel's mapping to the linear mapping, and store it in tpidr_el2
 	 * so that we can use adr_l to access per-cpu variables in EL2.
 	 */
-	tpidr_el2 = ((unsigned long)this_cpu_ptr(&kvm_host_data) -
-		     (unsigned long)kvm_ksym_ref(&kvm_host_data));
+	tpidr_el2 = (unsigned long)this_cpu_ptr_nvhe_sym(__per_cpu_start) -
+		    (unsigned long)kvm_ksym_ref(CHOOSE_NVHE_SYM(__per_cpu_start));
 
 	pgd_ptr = kvm_mmu_get_httbr();
 	hyp_stack_ptr = __this_cpu_read(kvm_arm_hyp_stack_page) + PAGE_SIZE;
@@ -1303,7 +1350,7 @@ static void cpu_init_hyp_mode(void)
 	 * at EL2.
 	 */
 	if (this_cpu_has_cap(ARM64_SSBS) &&
-	    arm64_get_ssbd_state() == ARM64_SSBD_FORCE_DISABLE) {
+	    arm64_get_spectre_v4_state() == SPECTRE_VULNERABLE) {
 		kvm_call_hyp_nvhe(__kvm_enable_ssbs);
 	}
 }
@@ -1316,11 +1363,11 @@ static void cpu_hyp_reset(void)
 
 static void cpu_hyp_reinit(void)
 {
-	kvm_init_host_cpu_context(&this_cpu_ptr(&kvm_host_data)->host_ctxt);
+	kvm_init_host_cpu_context(&this_cpu_ptr_hyp_sym(kvm_host_data)->host_ctxt);
 
 	cpu_hyp_reset();
 
-	__this_cpu_write(kvm_hyp_vector, (unsigned long)kvm_get_hyp_vector());
+	*this_cpu_ptr_hyp_sym(kvm_hyp_vector) = (unsigned long)kvm_get_hyp_vector();
 
 	if (is_kernel_in_hyp_mode())
 		kvm_timer_init_vhe();
@@ -1472,8 +1519,10 @@ static void teardown_hyp_mode(void)
 	int cpu;
 
 	free_hyp_pgds();
-	for_each_possible_cpu(cpu)
+	for_each_possible_cpu(cpu) {
 		free_page(per_cpu(kvm_arm_hyp_stack_page, cpu));
+		free_pages(kvm_arm_hyp_percpu_base[cpu], nvhe_percpu_order());
+	}
 }
 
 /**
@@ -1504,6 +1553,24 @@ static int init_hyp_mode(void)
 		}
 
 		per_cpu(kvm_arm_hyp_stack_page, cpu) = stack_page;
+	}
+
+	/*
+	 * Allocate and initialize pages for Hypervisor-mode percpu regions.
+	 */
+	for_each_possible_cpu(cpu) {
+		struct page *page;
+		void *page_addr;
+
+		page = alloc_pages(GFP_KERNEL, nvhe_percpu_order());
+		if (!page) {
+			err = -ENOMEM;
+			goto out_err;
+		}
+
+		page_addr = page_address(page);
+		memcpy(page_addr, CHOOSE_NVHE_SYM(__per_cpu_start), nvhe_percpu_size());
+		kvm_arm_hyp_percpu_base[cpu] = (unsigned long)page_addr;
 	}
 
 	/*
@@ -1550,39 +1617,20 @@ static int init_hyp_mode(void)
 		}
 	}
 
+	/*
+	 * Map Hyp percpu pages
+	 */
 	for_each_possible_cpu(cpu) {
-		struct kvm_host_data *cpu_data;
-		struct kvm_cpu_context *hyp_ctxt;
-		unsigned long *vector;
+		char *percpu_begin = (char *)kvm_arm_hyp_percpu_base[cpu];
+		char *percpu_end = percpu_begin + nvhe_percpu_size();
 
-		cpu_data = per_cpu_ptr(&kvm_host_data, cpu);
-		err = create_hyp_mappings(cpu_data, cpu_data + 1, PAGE_HYP);
+		err = create_hyp_mappings(percpu_begin, percpu_end, PAGE_HYP);
 
 		if (err) {
-			kvm_err("Cannot map host CPU state: %d\n", err);
-			goto out_err;
-		}
-
-		hyp_ctxt = per_cpu_ptr(&kvm_hyp_ctxt, cpu);
-		err = create_hyp_mappings(hyp_ctxt, hyp_ctxt + 1, PAGE_HYP);
-
-		if (err) {
-			kvm_err("Cannot map hyp context: %d\n", err);
-			goto out_err;
-		}
-
-		vector = per_cpu_ptr(&kvm_hyp_vector, cpu);
-		err = create_hyp_mappings(vector, vector + 1, PAGE_HYP);
-
-		if (err) {
-			kvm_err("Cannot map hyp guest vector address\n");
+			kvm_err("Cannot map hyp percpu region\n");
 			goto out_err;
 		}
 	}
-
-	err = hyp_map_aux_data();
-	if (err)
-		kvm_err("Cannot map host auxiliary data: %d\n", err);
 
 	return 0;
 
