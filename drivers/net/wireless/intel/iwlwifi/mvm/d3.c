@@ -1610,15 +1610,60 @@ out:
 	return true;
 }
 
+/* Occasionally, templates would be nice. This is one of those times ... */
+#define iwl_mvm_parse_wowlan_status_common(_ver)			\
+static struct iwl_wowlan_status *					\
+iwl_mvm_parse_wowlan_status_common_ ## _ver(struct iwl_mvm *mvm,	\
+					    void *_data, int len)	\
+{									\
+	struct iwl_wowlan_status *status;				\
+	struct iwl_wowlan_status_ ##_ver *data = _data;			\
+	int data_size;							\
+									\
+	if (len < sizeof(*data)) {					\
+		IWL_ERR(mvm, "Invalid WoWLAN status response!\n");	\
+		return ERR_PTR(-EIO);					\
+	}								\
+									\
+	data_size = ALIGN(le32_to_cpu(data->wake_packet_bufsize), 4);	\
+	if (len != sizeof(*data) + data_size) {				\
+		IWL_ERR(mvm, "Invalid WoWLAN status response!\n");	\
+		return ERR_PTR(-EIO);					\
+	}								\
+									\
+	status = kzalloc(sizeof(*status) + data_size, GFP_KERNEL);	\
+	if (!status)							\
+		return ERR_PTR(-ENOMEM);				\
+									\
+	/* copy all the common fields */				\
+	status->replay_ctr = data->replay_ctr;				\
+	status->pattern_number = data->pattern_number;			\
+	status->non_qos_seq_ctr = data->non_qos_seq_ctr;		\
+	memcpy(status->qos_seq_ctr, data->qos_seq_ctr,			\
+	       sizeof(status->qos_seq_ctr));				\
+	status->wakeup_reasons = data->wakeup_reasons;			\
+	status->num_of_gtk_rekeys = data->num_of_gtk_rekeys;		\
+	status->received_beacons = data->received_beacons;		\
+	status->wake_packet_length = data->wake_packet_length;		\
+	status->wake_packet_bufsize = data->wake_packet_bufsize;	\
+	memcpy(status->wake_packet, data->wake_packet,			\
+	       le32_to_cpu(status->wake_packet_bufsize));		\
+									\
+	return status;							\
+}
+
+iwl_mvm_parse_wowlan_status_common(v6)
+iwl_mvm_parse_wowlan_status_common(v7)
+iwl_mvm_parse_wowlan_status_common(v9)
+
 struct iwl_wowlan_status *iwl_mvm_send_wowlan_get_status(struct iwl_mvm *mvm)
 {
-	struct iwl_wowlan_status_v7 *v7;
 	struct iwl_wowlan_status *status;
 	struct iwl_host_cmd cmd = {
 		.id = WOWLAN_GET_STATUSES,
 		.flags = CMD_WANT_SKB,
 	};
-	int ret, len, status_size, data_size;
+	int ret, len;
 	u8 notif_ver;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -1630,28 +1675,19 @@ struct iwl_wowlan_status *iwl_mvm_send_wowlan_get_status(struct iwl_mvm *mvm)
 	}
 
 	len = iwl_rx_packet_payload_len(cmd.resp_pkt);
+
+	/* default to 7 (when we have IWL_UCODE_TLV_API_WOWLAN_KEY_MATERIAL) */
+	notif_ver = iwl_fw_lookup_notif_ver(mvm->fw, LEGACY_GROUP,
+					    WOWLAN_GET_STATUSES, 7);
+
 	if (!fw_has_api(&mvm->fw->ucode_capa,
 			IWL_UCODE_TLV_API_WOWLAN_KEY_MATERIAL)) {
 		struct iwl_wowlan_status_v6 *v6 = (void *)cmd.resp_pkt->data;
 
-		status_size = sizeof(*v6);
-
-		if (len < status_size) {
-			IWL_ERR(mvm, "Invalid WoWLAN status response!\n");
-			status = ERR_PTR(-EIO);
-			goto out_free_resp;
-		}
-
-		data_size = ALIGN(le32_to_cpu(v6->wake_packet_bufsize), 4);
-
-		if (len != (status_size + data_size)) {
-			IWL_ERR(mvm, "Invalid WoWLAN status response!\n");
-			status = ERR_PTR(-EIO);
-			goto out_free_resp;
-		}
-
-		status = kzalloc(sizeof(*status) + data_size, GFP_KERNEL);
-		if (!status)
+		status = iwl_mvm_parse_wowlan_status_common_v6(mvm,
+							       cmd.resp_pkt->data,
+							       len);
+		if (IS_ERR(status))
 			goto out_free_resp;
 
 		BUILD_BUG_ON(sizeof(v6->gtk.decrypt_key) >
@@ -1676,47 +1712,36 @@ struct iwl_wowlan_status *iwl_mvm_send_wowlan_get_status(struct iwl_mvm *mvm)
 		 * currently used key.
 		 */
 		status->gtk[0].key_flags = v6->gtk.key_index | BIT(7);
+	} else if (notif_ver == 7) {
+		struct iwl_wowlan_status_v7 *v7 = (void *)cmd.resp_pkt->data;
 
-		status->replay_ctr = v6->replay_ctr;
+		status = iwl_mvm_parse_wowlan_status_common_v7(mvm,
+							       cmd.resp_pkt->data,
+							       len);
+		if (IS_ERR(status))
+			goto out_free_resp;
 
-		/* everything starting from pattern_number is identical */
-		memcpy(&status->pattern_number, &v6->pattern_number,
-		       offsetof(struct iwl_wowlan_status, wake_packet) -
-		       offsetof(struct iwl_wowlan_status, pattern_number) +
-		       data_size);
+		status->gtk[0] = v7->gtk[0];
+		status->igtk[0] = v7->igtk[0];
+	} else if (notif_ver == 9) {
+		struct iwl_wowlan_status_v9 *v9 = (void *)cmd.resp_pkt->data;
 
-		goto out_free_resp;
-	}
+		status = iwl_mvm_parse_wowlan_status_common_v9(mvm,
+							       cmd.resp_pkt->data,
+							       len);
+		if (IS_ERR(status))
+			goto out_free_resp;
 
-	v7 = (void *)cmd.resp_pkt->data;
-	notif_ver = iwl_fw_lookup_notif_ver(mvm->fw, LEGACY_GROUP,
-					    WOWLAN_GET_STATUSES, 0);
+		status->gtk[0] = v9->gtk[0];
+		status->igtk[0] = v9->igtk[0];
 
-	status_size = sizeof(*status);
-
-	/* only ver 9 has a different size */
-	if (notif_ver == IWL_FW_CMD_VER_UNKNOWN || notif_ver != 9)
-		status_size = sizeof(*v7);
-
-	if (len < status_size) {
-		IWL_ERR(mvm, "Invalid WoWLAN status response!\n");
+		status->tid_tear_down = v9->tid_tear_down;
+	} else {
+		IWL_ERR(mvm,
+			"Firmware advertises unknown WoWLAN status response %d!\n",
+			notif_ver);
 		status = ERR_PTR(-EIO);
-		goto out_free_resp;
 	}
-	data_size = ALIGN(le32_to_cpu(v7->wake_packet_bufsize), 4);
-
-	if (len != (status_size + data_size)) {
-		IWL_ERR(mvm, "Invalid WoWLAN status response!\n");
-		status = ERR_PTR(-EIO);
-		goto out_free_resp;
-	}
-
-	status = kzalloc(sizeof(*status) + data_size, GFP_KERNEL);
-	if (!status)
-		goto out_free_resp;
-
-	memcpy(status, v7, status_size);
-	memcpy(status->wake_packet, (u8 *)v7 + status_size, data_size);
 
 out_free_resp:
 	iwl_free_resp(&cmd);
