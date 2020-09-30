@@ -3652,6 +3652,19 @@ union bpf_attr {
  * 		associated socket instead of the current process.
  * 	Return
  * 		The id is returned or 0 in case the id could not be retrieved.
+ *
+ * long bpf_redirect_neigh(u32 ifindex, u64 flags)
+ * 	Description
+ * 		Redirect the packet to another net device of index *ifindex*
+ * 		and fill in L2 addresses from neighboring subsystem. This helper
+ * 		is somewhat similar to **bpf_redirect**\ (), except that it
+ * 		fills in e.g. MAC addresses based on the L3 information from
+ * 		the packet. This helper is supported for IPv4 and IPv6 protocols.
+ * 		The *flags* argument is reserved and must be 0. The helper is
+ * 		currently only supported for tc BPF program types.
+ * 	Return
+ * 		The helper returns **TC_ACT_REDIRECT** on success or
+ * 		**TC_ACT_SHOT** on error.
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -3806,6 +3819,7 @@ union bpf_attr {
 	FN(snprintf_btf),		\
 	FN(seq_printf_btf),		\
 	FN(skb_cgroup_classid),		\
+	FN(redirect_neigh),		\
 	/* */
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
