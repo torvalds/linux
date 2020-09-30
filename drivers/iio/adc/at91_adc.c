@@ -22,8 +22,6 @@
 #include <linux/slab.h>
 #include <linux/wait.h>
 
-#include <linux/platform_data/at91_adc.h>
-
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
 #include <linux/iio/trigger.h>
@@ -152,6 +150,25 @@
 #define TOUCH_SAMPLE_PERIOD_US_RL      10000   /* 10ms, the SoC can't keep up with 2ms */
 #define TOUCH_SHTIM                    0xa
 #define TOUCH_SCTIM_US		10		/* 10us for the Touchscreen Switches Closure Time */
+
+enum atmel_adc_ts_type {
+	ATMEL_ADC_TOUCHSCREEN_NONE = 0,
+	ATMEL_ADC_TOUCHSCREEN_4WIRE = 4,
+	ATMEL_ADC_TOUCHSCREEN_5WIRE = 5,
+};
+
+/**
+ * struct at91_adc_trigger - description of triggers
+ * @name:		name of the trigger advertised to the user
+ * @value:		value to set in the ADC's trigger setup register
+ *			to enable the trigger
+ * @is_external:	Does the trigger rely on an external pin?
+ */
+struct at91_adc_trigger {
+	const char	*name;
+	u8		value;
+	bool		is_external;
+};
 
 /**
  * struct at91_adc_reg_desc - Various informations relative to registers
@@ -873,9 +890,6 @@ static int at91_adc_probe_dt(struct iio_dev *idev,
 	int i = 0, ret;
 	u32 prop;
 
-	if (!node)
-		return -EINVAL;
-
 	st->caps = of_device_get_match_data(&pdev->dev);
 
 	st->use_external = of_property_read_bool(node, "atmel,adc-use-external-triggers");
@@ -955,30 +969,6 @@ static int at91_adc_probe_dt(struct iio_dev *idev,
 
 error_ret:
 	return ret;
-}
-
-static int at91_adc_probe_pdata(struct at91_adc_state *st,
-				struct platform_device *pdev)
-{
-	struct at91_adc_data *pdata = pdev->dev.platform_data;
-
-	if (!pdata)
-		return -EINVAL;
-
-	st->caps = (struct at91_adc_caps *)
-			platform_get_device_id(pdev)->driver_data;
-
-	st->use_external = pdata->use_external_triggers;
-	st->vref_mv = pdata->vref;
-	st->channels_mask = pdata->channels_used;
-	st->num_channels = st->caps->num_channels;
-	st->startup_time = pdata->startup_time;
-	st->trigger_number = pdata->trigger_number;
-	st->trigger_list = pdata->trigger_list;
-	st->registers = &st->caps->registers;
-	st->touchscreen_type = pdata->touchscreen_type;
-
-	return 0;
 }
 
 static const struct iio_info at91_adc_info = {
@@ -1157,15 +1147,9 @@ static int at91_adc_probe(struct platform_device *pdev)
 
 	st = iio_priv(idev);
 
-	if (pdev->dev.of_node)
-		ret = at91_adc_probe_dt(idev, pdev);
-	else
-		ret = at91_adc_probe_pdata(st, pdev);
-
-	if (ret) {
-		dev_err(&pdev->dev, "No platform data available.\n");
-		return -EINVAL;
-	}
+	ret = at91_adc_probe_dt(idev, pdev);
+	if (ret)
+		return ret;
 
 	platform_set_drvdata(pdev, idev);
 
