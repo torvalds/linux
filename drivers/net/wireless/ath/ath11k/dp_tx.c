@@ -536,6 +536,8 @@ void ath11k_dp_tx_completion_handler(struct ath11k_base *ab, int ring_id)
 	u32 msdu_id;
 	u8 mac_id;
 
+	spin_lock_bh(&status_ring->lock);
+
 	ath11k_hal_srng_access_begin(ab, status_ring);
 
 	while ((ATH11K_TX_COMPL_NEXT(tx_ring->tx_status_head) !=
@@ -554,6 +556,8 @@ void ath11k_dp_tx_completion_handler(struct ath11k_base *ab, int ring_id)
 	}
 
 	ath11k_hal_srng_access_end(ab, status_ring);
+
+	spin_unlock_bh(&status_ring->lock);
 
 	while (ATH11K_TX_COMPL_NEXT(tx_ring->tx_status_tail) != tx_ring->tx_status_head) {
 		struct hal_wbm_release_ring *tx_status;
