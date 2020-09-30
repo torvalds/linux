@@ -26,108 +26,99 @@ properties:
 
   wakeup-source: true
 
-  interrupts-extend:
+  interrupts:
     maxItems: 1
 
   enable-gpios:
     description: A connection of the 'enable' gpio line.
     maxItems: 1
 
-  ld-pulse-delay-us:
+  richtek,ld-pulse-delay-us:
     description: |
       load current pulse delay in microsecond after strobe pin pulse high.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
     minimum: 0
     maximum: 100000
     default: 0
 
-  ld-pulse-width-us:
+  richtek,ld-pulse-width-us:
     description: |
       Load current pulse width in microsecond after strobe pin pulse high.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
     minimum: 0
     maximum: 10000
     default: 1200
 
-  fsin1-delay-us:
+  richtek,fsin1-delay-us:
     description: |
       Fsin1 pulse high delay in microsecond after vsync signal pulse high.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
     minimum: 0
     maximum: 100000
     default: 23000
 
-  fsin1-width-us:
+  richtek,fsin1-width-us:
     description: |
       Fsin1 pulse high width in microsecond after vsync signal pulse high.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
     minimum: 40
     maximum: 10000
     default: 160
 
-  fsin2-delay-us:
+  richtek,fsin2-delay-us:
     description: |
       Fsin2 pulse high delay in microsecond after vsync signal pulse high.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
     minimum: 0
     maximum: 100000
     default: 23000
 
-  fsin2-width-us:
+  richtek,fsin2-width-us:
     description: |
       Fsin2 pulse high width in microsecond after vsync signal pulse high.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
     minimum: 40
     maximum: 10000
     default: 160
 
-  es-pulse-width-us:
+  richtek,es-pulse-width-us:
     description: Eye safety function pulse width limit in microsecond.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
     minimum: 0
     maximum: 10000
     default: 1200
 
-  es-ld-current-microamp:
+  richtek,es-ld-current-microamp:
     description: Eye safety function load current limit in microamp.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
     minimum: 0
     maximum: 6000000
     default: 3000000
 
-  lbp-level-microvolt:
+  richtek,lbp-level-microvolt:
     description: Low battery protection level in microvolt.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
     minimum: 2400000
     maximum: 3700000
     default: 2700000
 
-  lbp-enable:
+  richtek,lbp-enable:
     description: Low battery protection function enable control.
     type: boolean
 
-  strobe-polarity-high:
+  richtek,strobe-polarity-high:
     description: Strobe pin active polarity control.
     type: boolean
 
-  vsync-polarity-high:
+  richtek,vsync-polarity-high:
     description: Vsync pin active polarity control.
     type: boolean
 
-  fsin-enable:
+  richtek,fsin-enable:
     description: Fsin function enable control.
     type: boolean
 
-  fsin-output:
+  richtek,fsin-output:
     description: Fsin function output control.
     type: boolean
 
-  es-enable:
+  richtek,es-enable:
     description: Eye safety function enable control.
     type: boolean
 
-patternProperties:
-  "lsw":
+  lsw:
+    description: load switch current regulator description.
     type: object
     $ref: "regulator.yaml#"
 
@@ -135,7 +126,7 @@ required:
   - compatible
   - reg
   - wakeup-source
-  - interrupts-extend
+  - interrupts
   - enable-gpios
   - lsw
 
@@ -152,11 +143,11 @@ examples:
         compatible = "richtek,rtmv20";
         reg = <0x34>;
         wakeup-source;
-        interrupts-extend = <&gpio26 2 IRQ_TYPE_LEVEL_LOW>;
+        interrupts-extended = <&gpio26 2 IRQ_TYPE_LEVEL_LOW>;
         enable-gpios = <&gpio26 3 0>;
 
-        strobe-polarity-high;
-        vsync-polarity-high;
+        richtek,strobe-polarity-high;
+        richtek,vsync-polarity-high;
 
         lsw {
                 regulator-name = "rtmv20,lsw";
