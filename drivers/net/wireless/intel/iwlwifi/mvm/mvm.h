@@ -1110,6 +1110,7 @@ struct iwl_mvm {
 		struct {
 			struct list_head resp;
 		} smooth;
+		struct list_head pasn_list;
 	} ftm_initiator;
 
 	struct list_head resp_pasn_list;
@@ -2016,6 +2017,10 @@ int iwl_mvm_ftm_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 void iwl_mvm_ftm_abort(struct iwl_mvm *mvm, struct cfg80211_pmsr_request *req);
 void iwl_mvm_ftm_initiator_smooth_config(struct iwl_mvm *mvm);
 void iwl_mvm_ftm_initiator_smooth_stop(struct iwl_mvm *mvm);
+int iwl_mvm_ftm_add_pasn_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			     u8 *addr, u32 cipher, u8 *tk, u32 tk_len,
+			     u8 *hltk, u32 hltk_len);
+void iwl_mvm_ftm_remove_pasn_sta(struct iwl_mvm *mvm, u8 *addr);
 
 /* TDLS */
 
