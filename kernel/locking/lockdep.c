@@ -585,6 +585,8 @@ static const char *usage_str[] =
 #include "lockdep_states.h"
 #undef LOCKDEP_STATE
 	[LOCK_USED] = "INITIAL USE",
+	[LOCK_USED_READ] = "INITIAL READ USE",
+	/* abused as string storage for verify_lock_unused() */
 	[LOCK_USAGE_STATES] = "IN-NMI",
 };
 #endif
@@ -1939,7 +1941,7 @@ static void print_lock_class_header(struct lock_class *class, int depth)
 #endif
 	printk(KERN_CONT " {\n");
 
-	for (bit = 0; bit < LOCK_USAGE_STATES; bit++) {
+	for (bit = 0; bit < LOCK_TRACE_STATES; bit++) {
 		if (class->usage_mask & (1 << bit)) {
 			int len = depth;
 
@@ -3969,7 +3971,7 @@ static int separate_irq_context(struct task_struct *curr,
 static int mark_lock(struct task_struct *curr, struct held_lock *this,
 			     enum lock_usage_bit new_bit)
 {
-	unsigned int old_mask, new_mask, ret = 1;
+	unsigned int new_mask, ret = 1;
 
 	if (new_bit >= LOCK_USAGE_STATES) {
 		DEBUG_LOCKS_WARN_ON(1);
@@ -3996,30 +3998,26 @@ static int mark_lock(struct task_struct *curr, struct held_lock *this,
 	if (unlikely(hlock_class(this)->usage_mask & new_mask))
 		goto unlock;
 
-	old_mask = hlock_class(this)->usage_mask;
 	hlock_class(this)->usage_mask |= new_mask;
 
-	/*
-	 * Save one usage_traces[] entry and map both LOCK_USED and
-	 * LOCK_USED_READ onto the same entry.
-	 */
-	if (new_bit == LOCK_USED || new_bit == LOCK_USED_READ) {
-		if (old_mask & (LOCKF_USED | LOCKF_USED_READ))
-			goto unlock;
-		new_bit = LOCK_USED;
+	if (new_bit < LOCK_TRACE_STATES) {
+		if (!(hlock_class(this)->usage_traces[new_bit] = save_trace()))
+			return 0;
 	}
 
-	if (!(hlock_class(this)->usage_traces[new_bit] = save_trace()))
-		return 0;
-
 	switch (new_bit) {
-	case LOCK_USED:
-		debug_atomic_dec(nr_unused_locks);
-		break;
-	default:
+	case 0 ... LOCK_USED-1:
 		ret = mark_lock_irq(curr, this, new_bit);
 		if (!ret)
 			return 0;
+		break;
+
+	case LOCK_USED:
+		debug_atomic_dec(nr_unused_locks);
+		break;
+
+	default:
+		break;
 	}
 
 unlock:
