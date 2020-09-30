@@ -91,7 +91,6 @@
 #define DEVICE_MEMSETCPY_ALIGN_IN_BYTES 16
 #define ANDROID 
 #define SUPPORT_ION 
-#define PVR_ANDROID_ION_HEADER "../drivers/staging/android/ion_legency/ion.h"
-#define PVR_ANDROID_ION_PRIV_HEADER "../drivers/staging/android/ion_legency/ion_priv.h"
+#define PVR_ANDROID_ION_HEADER "../drivers/staging/android/ion/ion.h"
 #define PVR_ANDROID_ION_USE_SG_LENGTH 
 #define PVR_ANDROID_SYNC_HEADER "../drivers/staging/android/sync.h"

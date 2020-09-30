@@ -70,7 +70,6 @@ typedef struct _ENV_ION_CONNECTION_DATA_
 {
 	IMG_CHAR azIonClientName[ION_CLIENT_NAME_SIZE];
 	struct ion_device *psIonDev;
-	struct ion_client *psIonClient;
 	IMG_UINT32 ui32IonClientRefCount;
 } ENV_ION_CONNECTION_DATA;
 #endif
@@ -91,23 +90,13 @@ typedef struct _ENV_CONNECTION_DATA_
 } ENV_CONNECTION_DATA;
 
 #if defined(SUPPORT_ION)
-static inline struct ion_client *EnvDataIonClientAcquire(ENV_CONNECTION_DATA *psEnvData)
-{
-	PVR_ASSERT(psEnvData->psIonData != NULL);
-	PVR_ASSERT(psEnvData->psIonData->psIonClient != NULL);
-	PVR_ASSERT(psEnvData->psIonData->ui32IonClientRefCount > 0);
-	psEnvData->psIonData->ui32IonClientRefCount++;
-	return psEnvData->psIonData->psIonClient;
-}
 
 static inline void EnvDataIonClientRelease(ENV_ION_CONNECTION_DATA *psIonData)
 {
 	PVR_ASSERT(psIonData != NULL);
-	PVR_ASSERT(psIonData->psIonClient != NULL);
 	PVR_ASSERT(psIonData->ui32IonClientRefCount > 0);
 	if (--psIonData->ui32IonClientRefCount == 0)
 	{
-		ion_client_destroy(psIonData->psIonClient);
 		IonDevRelease(psIonData->psIonDev);
 		OSFreeMem(psIonData);
 		psIonData = NULL;

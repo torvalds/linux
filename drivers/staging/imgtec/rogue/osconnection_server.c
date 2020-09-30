@@ -63,9 +63,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 #define SUPPORT_ROCKCHIP_ION  (1)
-#if SUPPORT_ROCKCHIP_ION
-struct ion_client *rockchip_ion_client_create(const char *name);
-#endif
 
 PVRSRV_ERROR OSConnectionPrivateDataInit(IMG_HANDLE *phOsPrivateData, void *pvOSData)
 {
@@ -106,20 +103,7 @@ PVRSRV_ERROR OSConnectionPrivateDataInit(IMG_HANDLE *phOsPrivateData, void *pvOS
 	*/
 	psEnvConnection->psIonData->psIonDev = IonDevAcquire();
 	OSSNPrintf(psEnvConnection->psIonData->azIonClientName, ION_CLIENT_NAME_SIZE, "pvr_ion_client-%p-%d", *phOsPrivateData, OSGetCurrentClientProcessIDKM());
-#if SUPPORT_ROCKCHIP_ION
-	psEnvConnection->psIonData->psIonClient =
-		rockchip_ion_client_create(psEnvConnection->psIonData->azIonClientName);
-#else
-	psEnvConnection->psIonData->psIonClient =
-		ion_client_create(psEnvConnection->psIonData->psIonDev,
-						  psEnvConnection->psIonData->azIonClientName);
-#endif
-	if (IS_ERR_OR_NULL(psEnvConnection->psIonData->psIonClient))
-	{
-		PVR_DPF((PVR_DBG_ERROR, "OSConnectionPrivateDataInit: Couldn't create "
-								"ion client for per connection data"));
-		return PVRSRV_ERROR_OUT_OF_MEMORY;
-	}
+
 	psEnvConnection->psIonData->ui32IonClientRefCount = 1;
 #endif /* SUPPORT_ION */
 	return PVRSRV_OK;
@@ -135,10 +119,6 @@ PVRSRV_ERROR OSConnectionPrivateDataDeInit(IMG_HANDLE hOsPrivateData)
 	}
 
 	psEnvConnection = hOsPrivateData;
-
-#if defined(SUPPORT_ION)
-	EnvDataIonClientRelease(psEnvConnection->psIonData);
-#endif
 
 	OSFreeMem(hOsPrivateData);
 	/*not nulling pointer, copy on stack*/
