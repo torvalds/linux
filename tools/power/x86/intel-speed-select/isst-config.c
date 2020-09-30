@@ -545,20 +545,23 @@ static void set_cpu_present_cpu_mask(void)
 	}
 }
 
-int get_core_count(int pkg_id, int die_id)
+int get_max_punit_core_id(int pkg_id, int die_id)
 {
-	int cnt = 0;
+	int max_id = 0;
+	int i;
 
-	if (pkg_id < MAX_PACKAGE_COUNT && die_id < MAX_DIE_PER_PACKAGE) {
-		int i;
+	for (i = 0; i < topo_max_cpus; ++i)
+	{
+		if (!CPU_ISSET_S(i, present_cpumask_size, present_cpumask))
+			continue;
 
-		for (i = 0; i < sizeof(long long) * 8; ++i) {
-			if (core_mask[pkg_id][die_id] & (1ULL << i))
-				cnt++;
-		}
+		if (cpu_map[i].pkg_id == pkg_id &&
+			cpu_map[i].die_id == die_id &&
+			cpu_map[i].punit_cpu_core > max_id)
+			max_id = cpu_map[i].punit_cpu_core;
 	}
 
-	return cnt;
+	return max_id;
 }
 
 int get_cpu_count(int pkg_id, int die_id)
