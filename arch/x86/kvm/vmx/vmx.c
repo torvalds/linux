@@ -7248,6 +7248,9 @@ static void vmx_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 			vmx_set_guest_uret_msr(vmx, msr, enabled ? 0 : TSX_CTRL_RTM_DISABLE);
 		}
 	}
+
+	/* Refresh #PF interception to account for MAXPHYADDR changes. */
+	update_exception_bitmap(vcpu);
 }
 
 static __init void vmx_set_cpu_caps(void)

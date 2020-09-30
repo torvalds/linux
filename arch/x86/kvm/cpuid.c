@@ -171,7 +171,6 @@ static void kvm_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 
 	/* Invoke the vendor callback only after the above state is updated. */
 	kvm_x86_ops.vcpu_after_set_cpuid(vcpu);
-	kvm_x86_ops.update_exception_bitmap(vcpu);
 }
 
 static int is_efer_nx(void)
