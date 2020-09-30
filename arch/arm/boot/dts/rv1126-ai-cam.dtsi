@@ -273,6 +273,7 @@
 };
 
 &rkispp {
+	rockchip,restart-monitor-en;
 	status = "okay";
 	/* the max input w h and fps of mulit sensor */
 	//max-input = <2688 1520 30>;
