@@ -414,6 +414,9 @@ enum {
 
 /* Enable memory-mapping BPF map */
 	BPF_F_MMAPABLE		= (1U << 10),
+
+/* Share perf_event among processes */
+	BPF_F_PRESERVE_ELEMS	= (1U << 11),
 };
 
 /* Flags for BPF_PROG_QUERY. */
