@@ -5424,25 +5424,6 @@ static u8 intel_dp_autotest_edid(struct intel_dp *intel_dp)
 	return test_result;
 }
 
-static u8 intel_dp_prepare_phytest(struct intel_dp *intel_dp)
-{
-	struct drm_dp_phy_test_params *data =
-		&intel_dp->compliance.test_data.phytest;
-
-	if (drm_dp_get_phy_test_pattern(&intel_dp->aux, data)) {
-		DRM_DEBUG_KMS("DP Phy Test pattern AUX read failure\n");
-		return DP_TEST_NAK;
-	}
-
-	/*
-	 * link_mst is set to false to avoid executing mst related code
-	 * during compliance testing.
-	 */
-	intel_dp->link_mst = false;
-
-	return DP_TEST_ACK;
-}
-
 static void intel_dp_phy_pattern_update(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv =
@@ -5590,15 +5571,18 @@ static void intel_dp_process_phy_request(struct intel_dp *intel_dp)
 
 static u8 intel_dp_autotest_phy_pattern(struct intel_dp *intel_dp)
 {
-	u8 test_result;
+	struct drm_dp_phy_test_params *data =
+		&intel_dp->compliance.test_data.phytest;
 
-	test_result = intel_dp_prepare_phytest(intel_dp);
-	if (test_result != DP_TEST_ACK)
-		DRM_ERROR("Phy test preparation failed\n");
+	if (drm_dp_get_phy_test_pattern(&intel_dp->aux, data)) {
+		DRM_DEBUG_KMS("DP Phy Test pattern AUX read failure\n");
+		return DP_TEST_NAK;
+	}
 
-	intel_dp_process_phy_request(intel_dp);
+	/* Set test active flag here so userspace doesn't interrupt things */
+	intel_dp->compliance.test_active = true;
 
-	return test_result;
+	return DP_TEST_ACK;
 }
 
 static void intel_dp_handle_test_request(struct intel_dp *intel_dp)
@@ -5887,6 +5871,104 @@ int intel_dp_retrain_link(struct intel_encoder *encoder,
 	return 0;
 }
 
+static int intel_dp_prep_phy_test(struct intel_dp *intel_dp,
+				  struct drm_modeset_acquire_ctx *ctx,
+				  u32 *crtc_mask)
+{
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	struct drm_connector_list_iter conn_iter;
+	struct intel_connector *connector;
+	int ret = 0;
+
+	*crtc_mask = 0;
+
+	drm_connector_list_iter_begin(&i915->drm, &conn_iter);
+	for_each_intel_connector_iter(connector, &conn_iter) {
+		struct drm_connector_state *conn_state =
+			connector->base.state;
+		struct intel_crtc_state *crtc_state;
+		struct intel_crtc *crtc;
+
+		if (!intel_dp_has_connector(intel_dp, conn_state))
+			continue;
+
+		crtc = to_intel_crtc(conn_state->crtc);
+		if (!crtc)
+			continue;
+
+		ret = drm_modeset_lock(&crtc->base.mutex, ctx);
+		if (ret)
+			break;
+
+		crtc_state = to_intel_crtc_state(crtc->base.state);
+
+		drm_WARN_ON(&i915->drm, !intel_crtc_has_dp_encoder(crtc_state));
+
+		if (!crtc_state->hw.active)
+			continue;
+
+		if (conn_state->commit &&
+		    !try_wait_for_completion(&conn_state->commit->hw_done))
+			continue;
+
+		*crtc_mask |= drm_crtc_mask(&crtc->base);
+	}
+	drm_connector_list_iter_end(&conn_iter);
+
+	return ret;
+}
+
+static int intel_dp_do_phy_test(struct intel_encoder *encoder,
+				struct drm_modeset_acquire_ctx *ctx)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+	u32 crtc_mask;
+	int ret;
+
+	ret = drm_modeset_lock(&dev_priv->drm.mode_config.connection_mutex,
+			       ctx);
+	if (ret)
+		return ret;
+
+	ret = intel_dp_prep_phy_test(intel_dp, ctx, &crtc_mask);
+	if (ret)
+		return ret;
+
+	if (crtc_mask == 0)
+		return 0;
+
+	drm_dbg_kms(&dev_priv->drm, "[ENCODER:%d:%s] PHY test\n",
+		    encoder->base.base.id, encoder->base.name);
+	intel_dp_process_phy_request(intel_dp);
+
+	return 0;
+}
+
+static void intel_dp_phy_test(struct intel_encoder *encoder)
+{
+	struct drm_modeset_acquire_ctx ctx;
+	int ret;
+
+	drm_modeset_acquire_init(&ctx, 0);
+
+	for (;;) {
+		ret = intel_dp_do_phy_test(encoder, &ctx);
+
+		if (ret == -EDEADLK) {
+			drm_modeset_backoff(&ctx);
+			continue;
+		}
+
+		break;
+	}
+
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
+	drm_WARN(encoder->base.dev, ret,
+		 "Acquiring modeset locks failed with %i\n", ret);
+}
+
 /*
  * If display is now connected check links status,
  * there has been known issues of link loss triggering
@@ -5903,9 +5985,17 @@ static enum intel_hotplug_state
 intel_dp_hotplug(struct intel_encoder *encoder,
 		 struct intel_connector *connector)
 {
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct drm_modeset_acquire_ctx ctx;
 	enum intel_hotplug_state state;
 	int ret;
+
+	if (intel_dp->compliance.test_active &&
+	    intel_dp->compliance.test_type == DP_TEST_LINK_PHY_TEST_PATTERN) {
+		intel_dp_phy_test(encoder);
+		/* just do the PHY test and nothing else */
+		return INTEL_HOTPLUG_UNCHANGED;
+	}
 
 	state = intel_encoder_hotplug(encoder, connector);
 
@@ -6011,11 +6101,23 @@ intel_dp_short_pulse(struct intel_dp *intel_dp)
 
 	intel_psr_short_pulse(intel_dp);
 
-	if (intel_dp->compliance.test_type == DP_TEST_LINK_TRAINING) {
+	switch (intel_dp->compliance.test_type) {
+	case DP_TEST_LINK_TRAINING:
 		drm_dbg_kms(&dev_priv->drm,
 			    "Link Training Compliance Test requested\n");
 		/* Send a Hotplug Uevent to userspace to start modeset */
 		drm_kms_helper_hotplug_event(&dev_priv->drm);
+		break;
+	case DP_TEST_LINK_PHY_TEST_PATTERN:
+		drm_dbg_kms(&dev_priv->drm,
+			    "PHY test pattern Compliance Test requested\n");
+		/*
+		 * Schedule long hpd to do the test
+		 *
+		 * FIXME get rid of the ad-hoc phy test modeset code
+		 * and properly incorporate it into the normal modeset.
+		 */
+		return false;
 	}
 
 	return true;
