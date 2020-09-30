@@ -66,22 +66,6 @@ static void put_indicator(u32 *addr)
 	atomic_dec(&ind->count);
 }
 
-void tiqdio_add_device(struct qdio_irq *irq_ptr)
-{
-	mutex_lock(&tiq_list_lock);
-	list_add_rcu(&irq_ptr->entry, &tiq_list);
-	mutex_unlock(&tiq_list_lock);
-}
-
-void tiqdio_remove_device(struct qdio_irq *irq_ptr)
-{
-	mutex_lock(&tiq_list_lock);
-	list_del_rcu(&irq_ptr->entry);
-	mutex_unlock(&tiq_list_lock);
-	synchronize_rcu();
-	INIT_LIST_HEAD(&irq_ptr->entry);
-}
-
 static inline int references_shared_dsci(struct qdio_irq *irq_ptr)
 {
 	return irq_ptr->dsci == &q_indicators[TIQDIO_SHARED_IND].ind;
@@ -186,16 +170,26 @@ int qdio_establish_thinint(struct qdio_irq *irq_ptr)
 	DBF_HEX(&irq_ptr->dsci, sizeof(void *));
 
 	rc = set_subchannel_ind(irq_ptr, 0);
-	if (rc)
+	if (rc) {
 		put_indicator(irq_ptr->dsci);
+		return rc;
+	}
 
-	return rc;
+	mutex_lock(&tiq_list_lock);
+	list_add_rcu(&irq_ptr->entry, &tiq_list);
+	mutex_unlock(&tiq_list_lock);
+	return 0;
 }
 
 void qdio_shutdown_thinint(struct qdio_irq *irq_ptr)
 {
 	if (!is_thinint_irq(irq_ptr))
 		return;
+
+	mutex_lock(&tiq_list_lock);
+	list_del_rcu(&irq_ptr->entry);
+	mutex_unlock(&tiq_list_lock);
+	synchronize_rcu();
 
 	/* reset adapter interrupt indicators */
 	set_subchannel_ind(irq_ptr, 1);

@@ -363,8 +363,6 @@ extern u64 last_ai_time;
 /* prototypes for thin interrupt */
 int qdio_establish_thinint(struct qdio_irq *irq_ptr);
 void qdio_shutdown_thinint(struct qdio_irq *irq_ptr);
-void tiqdio_add_device(struct qdio_irq *irq_ptr);
-void tiqdio_remove_device(struct qdio_irq *irq_ptr);
 int qdio_thinint_init(void);
 void qdio_thinint_exit(void);
 int test_nonshared_ind(struct qdio_irq *);
