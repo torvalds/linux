@@ -865,7 +865,7 @@ static inline bool acpi_driver_match_device(struct device *dev,
 
 static inline union acpi_object *acpi_evaluate_dsm(acpi_handle handle,
 						   const guid_t *guid,
-						   int rev, int func,
+						   u64 rev, u64 func,
 						   union acpi_object *argv4)
 {
 	return NULL;
