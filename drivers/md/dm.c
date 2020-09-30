@@ -2518,13 +2518,12 @@ static int __dm_suspend(struct mapped_device *md, struct dm_table *map,
 	/*
 	 * Here we must make sure that no processes are submitting requests
 	 * to target drivers i.e. no one may be executing
-	 * __split_and_process_bio. This is called from dm_request and
-	 * dm_wq_work.
+	 * __split_and_process_bio from dm_submit_bio.
 	 *
-	 * To get all processes out of __split_and_process_bio in dm_request,
+	 * To get all processes out of __split_and_process_bio in dm_submit_bio,
 	 * we take the write lock. To prevent any process from reentering
-	 * __split_and_process_bio from dm_request and quiesce the thread
-	 * (dm_wq_work), we set BMF_BLOCK_IO_FOR_SUSPEND and call
+	 * __split_and_process_bio from dm_submit_bio and quiesce the thread
+	 * (dm_wq_work), we set DMF_BLOCK_IO_FOR_SUSPEND and call
 	 * flush_workqueue(md->wq).
 	 */
 	set_bit(DMF_BLOCK_IO_FOR_SUSPEND, &md->flags);
