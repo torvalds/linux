@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: GPL-2.0
+config BCMDHD_INDEP_POWER
+	depends on BCMDHD
+	bool "wifi keepalive"
+	default y
+
+config BCMDHD_FW_PATH
+	depends on BCMDHD
+	string "Firmware path"
+	default "/vendor/etc/firmware/fw_bcmdhd.bin"
+	---help---
+	  Path to the firmware file.
+
+config BCMDHD_NVRAM_PATH
+	depends on BCMDHD
+	string "NVRAM path"
+	default "/vendor/etc/firmware/nvram.txt"
+	---help---
+	  Path to the calibration file.
+
+config BCMDHD_WEXT
+	bool "Enable WEXT support"
+	depends on BCMDHD && CFG80211 = n
+	select WIRELESS_EXT
+	select WEXT_PRIV
+	help
+	  Enables WEXT support
+
+choice
+	prompt "Enable Chip Interface"
+	depends on BCMDHD
+	---help---
+		Enable Chip Interface.
+config BCMDHD_SDIO
+		bool "SDIO bus interface support"
+		depends on BCMDHD && MMC
+config BCMDHD_PCIE
+		bool "PCIe bus interface support"
+		depends on BCMDHD && PCI
+config BCMDHD_USB
+		bool "USB bus interface support"
+		depends on BCMDHD && USB
+endchoice
+
+choice
+	depends on BCMDHD && BCMDHD_SDIO
+	prompt "Interrupt type"
+	---help---
+		Interrupt type
+config BCMDHD_OOB
+	depends on BCMDHD && BCMDHD_SDIO
+	bool "Out-of-Band Interrupt"
+	default y
+	---help---
+		Interrupt from WL_HOST_WAKE.
+config BCMDHD_SDIO_IRQ
+	depends on BCMDHD && BCMDHD_SDIO
+	bool "In-Band Interrupt"
+	---help---
+	  Interrupt from SDIO DAT[1]
+endchoice
