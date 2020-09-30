@@ -130,7 +130,6 @@
 		wifi_chip_type = "ap6203";
 		WIFI,poweren_gpio = <&gpio0 RK_PA6 GPIO_ACTIVE_LOW>;
 		WIFI,host_wake_irq = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
-		keep_wifi_power_on;
 		status = "okay";
 	};
 };
@@ -394,6 +393,8 @@
 	keep-power-in-suspend;
 	rockchip,default-sample-phase = <90>;
 	supports-sdio;
+	supports-chip-alive;
+	logic-remove-card;
 	status = "okay";
 };
 
