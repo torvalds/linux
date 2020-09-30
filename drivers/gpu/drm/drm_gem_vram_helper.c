@@ -147,15 +147,12 @@ static void drm_gem_vram_placement(struct drm_gem_vram_object *gbo,
 
 	if (pl_flag & DRM_GEM_VRAM_PL_FLAG_VRAM) {
 		gbo->placements[c].mem_type = TTM_PL_VRAM;
-		gbo->placements[c++].flags = TTM_PL_FLAG_WC |
-					     TTM_PL_FLAG_UNCACHED |
-					     invariant_flags;
+		gbo->placements[c++].flags = invariant_flags;
 	}
 
 	if (pl_flag & DRM_GEM_VRAM_PL_FLAG_SYSTEM || !c) {
 		gbo->placements[c].mem_type = TTM_PL_SYSTEM;
-		gbo->placements[c++].flags = TTM_PL_MASK_CACHING |
-					     invariant_flags;
+		gbo->placements[c++].flags = invariant_flags;
 	}
 
 	gbo->placement.num_placement = c;

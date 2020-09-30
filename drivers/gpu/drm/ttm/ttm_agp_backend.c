@@ -54,7 +54,7 @@ int ttm_agp_bind(struct ttm_tt *ttm, struct ttm_resource *bo_mem)
 	struct page *dummy_read_page = ttm_bo_glob.dummy_read_page;
 	struct drm_mm_node *node = bo_mem->mm_node;
 	struct agp_memory *mem;
-	int ret, cached = (bo_mem->placement & TTM_PL_FLAG_CACHED);
+	int ret, cached = ttm->caching == ttm_cached;
 	unsigned i;
 
 	if (agp_be->mem)

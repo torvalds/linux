@@ -64,21 +64,21 @@ void qxl_ttm_placement_from_domain(struct qxl_bo *qbo, u32 domain)
 	qbo->placement.busy_placement = qbo->placements;
 	if (domain == QXL_GEM_DOMAIN_VRAM) {
 		qbo->placements[c].mem_type = TTM_PL_VRAM;
-		qbo->placements[c++].flags = TTM_PL_FLAG_CACHED | pflag;
+		qbo->placements[c++].flags = pflag;
 	}
 	if (domain == QXL_GEM_DOMAIN_SURFACE) {
 		qbo->placements[c].mem_type = TTM_PL_PRIV;
-		qbo->placements[c++].flags = TTM_PL_FLAG_CACHED | pflag;
+		qbo->placements[c++].flags = pflag;
 		qbo->placements[c].mem_type = TTM_PL_VRAM;
-		qbo->placements[c++].flags = TTM_PL_FLAG_CACHED | pflag;
+		qbo->placements[c++].flags = pflag;
 	}
 	if (domain == QXL_GEM_DOMAIN_CPU) {
 		qbo->placements[c].mem_type = TTM_PL_SYSTEM;
-		qbo->placements[c++].flags = TTM_PL_MASK_CACHING | pflag;
+		qbo->placements[c++].flags = pflag;
 	}
 	if (!c) {
 		qbo->placements[c].mem_type = TTM_PL_SYSTEM;
-		qbo->placements[c++].flags = TTM_PL_MASK_CACHING;
+		qbo->placements[c++].flags = 0;
 	}
 	qbo->placement.num_placement = c;
 	qbo->placement.num_busy_placement = c;

@@ -34,28 +34,28 @@ static const struct ttm_place vram_placement_flags = {
 	.fpfn = 0,
 	.lpfn = 0,
 	.mem_type = TTM_PL_VRAM,
-	.flags = TTM_PL_FLAG_CACHED
+	.flags = 0
 };
 
 static const struct ttm_place sys_placement_flags = {
 	.fpfn = 0,
 	.lpfn = 0,
 	.mem_type = TTM_PL_SYSTEM,
-	.flags = TTM_PL_FLAG_CACHED
+	.flags = 0
 };
 
 static const struct ttm_place gmr_placement_flags = {
 	.fpfn = 0,
 	.lpfn = 0,
 	.mem_type = VMW_PL_GMR,
-	.flags = TTM_PL_FLAG_CACHED
+	.flags = 0
 };
 
 static const struct ttm_place mob_placement_flags = {
 	.fpfn = 0,
 	.lpfn = 0,
 	.mem_type = VMW_PL_MOB,
-	.flags = TTM_PL_FLAG_CACHED
+	.flags = 0
 };
 
 struct ttm_placement vmw_vram_placement = {
@@ -70,12 +70,12 @@ static const struct ttm_place vram_gmr_placement_flags[] = {
 		.fpfn = 0,
 		.lpfn = 0,
 		.mem_type = TTM_PL_VRAM,
-		.flags = TTM_PL_FLAG_CACHED
+		.flags = 0
 	}, {
 		.fpfn = 0,
 		.lpfn = 0,
 		.mem_type = VMW_PL_GMR,
-		.flags = TTM_PL_FLAG_CACHED
+		.flags = 0
 	}
 };
 
@@ -84,12 +84,12 @@ static const struct ttm_place gmr_vram_placement_flags[] = {
 		.fpfn = 0,
 		.lpfn = 0,
 		.mem_type = VMW_PL_GMR,
-		.flags = TTM_PL_FLAG_CACHED
+		.flags = 0
 	}, {
 		.fpfn = 0,
 		.lpfn = 0,
 		.mem_type = TTM_PL_VRAM,
-		.flags = TTM_PL_FLAG_CACHED
+		.flags = 0
 	}
 };
 
@@ -119,22 +119,22 @@ static const struct ttm_place evictable_placement_flags[] = {
 		.fpfn = 0,
 		.lpfn = 0,
 		.mem_type = TTM_PL_SYSTEM,
-		.flags = TTM_PL_FLAG_CACHED
+		.flags = 0
 	}, {
 		.fpfn = 0,
 		.lpfn = 0,
 		.mem_type = TTM_PL_VRAM,
-		.flags = TTM_PL_FLAG_CACHED
+		.flags = 0
 	}, {
 		.fpfn = 0,
 		.lpfn = 0,
 		.mem_type = VMW_PL_GMR,
-		.flags = TTM_PL_FLAG_CACHED
+		.flags = 0
 	}, {
 		.fpfn = 0,
 		.lpfn = 0,
 		.mem_type = VMW_PL_MOB,
-		.flags = TTM_PL_FLAG_CACHED
+		.flags = 0
 	}
 };
 
@@ -143,17 +143,17 @@ static const struct ttm_place nonfixed_placement_flags[] = {
 		.fpfn = 0,
 		.lpfn = 0,
 		.mem_type = TTM_PL_SYSTEM,
-		.flags = TTM_PL_FLAG_CACHED
+		.flags = 0
 	}, {
 		.fpfn = 0,
 		.lpfn = 0,
 		.mem_type = VMW_PL_GMR,
-		.flags = TTM_PL_FLAG_CACHED
+		.flags = 0
 	}, {
 		.fpfn = 0,
 		.lpfn = 0,
 		.mem_type = VMW_PL_MOB,
-		.flags = TTM_PL_FLAG_CACHED
+		.flags = 0
 	}
 };
 

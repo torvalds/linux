@@ -137,7 +137,7 @@ void amdgpu_bo_placement_from_domain(struct amdgpu_bo *abo, u32 domain)
 		places[c].fpfn = 0;
 		places[c].lpfn = 0;
 		places[c].mem_type = TTM_PL_VRAM;
-		places[c].flags = TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED;
+		places[c].flags = 0;
 
 		if (flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED)
 			places[c].lpfn = visible_pfn;
@@ -154,11 +154,6 @@ void amdgpu_bo_placement_from_domain(struct amdgpu_bo *abo, u32 domain)
 		places[c].lpfn = 0;
 		places[c].mem_type = TTM_PL_TT;
 		places[c].flags = 0;
-		if (flags & AMDGPU_GEM_CREATE_CPU_GTT_USWC)
-			places[c].flags |= TTM_PL_FLAG_WC |
-				TTM_PL_FLAG_UNCACHED;
-		else
-			places[c].flags |= TTM_PL_FLAG_CACHED;
 		c++;
 	}
 
@@ -167,11 +162,6 @@ void amdgpu_bo_placement_from_domain(struct amdgpu_bo *abo, u32 domain)
 		places[c].lpfn = 0;
 		places[c].mem_type = TTM_PL_SYSTEM;
 		places[c].flags = 0;
-		if (flags & AMDGPU_GEM_CREATE_CPU_GTT_USWC)
-			places[c].flags |= TTM_PL_FLAG_WC |
-				TTM_PL_FLAG_UNCACHED;
-		else
-			places[c].flags |= TTM_PL_FLAG_CACHED;
 		c++;
 	}
 
@@ -179,7 +169,7 @@ void amdgpu_bo_placement_from_domain(struct amdgpu_bo *abo, u32 domain)
 		places[c].fpfn = 0;
 		places[c].lpfn = 0;
 		places[c].mem_type = AMDGPU_PL_GDS;
-		places[c].flags = TTM_PL_FLAG_UNCACHED;
+		places[c].flags = 0;
 		c++;
 	}
 
@@ -187,7 +177,7 @@ void amdgpu_bo_placement_from_domain(struct amdgpu_bo *abo, u32 domain)
 		places[c].fpfn = 0;
 		places[c].lpfn = 0;
 		places[c].mem_type = AMDGPU_PL_GWS;
-		places[c].flags = TTM_PL_FLAG_UNCACHED;
+		places[c].flags = 0;
 		c++;
 	}
 
@@ -195,7 +185,7 @@ void amdgpu_bo_placement_from_domain(struct amdgpu_bo *abo, u32 domain)
 		places[c].fpfn = 0;
 		places[c].lpfn = 0;
 		places[c].mem_type = AMDGPU_PL_OA;
-		places[c].flags = TTM_PL_FLAG_UNCACHED;
+		places[c].flags = 0;
 		c++;
 	}
 
@@ -203,7 +193,7 @@ void amdgpu_bo_placement_from_domain(struct amdgpu_bo *abo, u32 domain)
 		places[c].fpfn = 0;
 		places[c].lpfn = 0;
 		places[c].mem_type = TTM_PL_SYSTEM;
-		places[c].flags = TTM_PL_MASK_CACHING;
+		places[c].flags = 0;
 		c++;
 	}
 

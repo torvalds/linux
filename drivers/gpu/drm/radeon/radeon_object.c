@@ -113,57 +113,29 @@ void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 			rbo->placements[c].fpfn =
 				rbo->rdev->mc.visible_vram_size >> PAGE_SHIFT;
 			rbo->placements[c].mem_type = TTM_PL_VRAM;
-			rbo->placements[c++].flags = TTM_PL_FLAG_WC |
-						     TTM_PL_FLAG_UNCACHED;
+			rbo->placements[c++].flags = 0;
 		}
 
 		rbo->placements[c].fpfn = 0;
 		rbo->placements[c].mem_type = TTM_PL_VRAM;
-		rbo->placements[c++].flags = TTM_PL_FLAG_WC |
-					     TTM_PL_FLAG_UNCACHED;
+		rbo->placements[c++].flags = 0;
 	}
 
 	if (domain & RADEON_GEM_DOMAIN_GTT) {
-		if (rbo->flags & RADEON_GEM_GTT_UC) {
-			rbo->placements[c].fpfn = 0;
-			rbo->placements[c].mem_type = TTM_PL_TT;
-			rbo->placements[c++].flags = TTM_PL_FLAG_UNCACHED;
-
-		} else if ((rbo->flags & RADEON_GEM_GTT_WC) ||
-			   (rbo->rdev->flags & RADEON_IS_AGP)) {
-			rbo->placements[c].fpfn = 0;
-			rbo->placements[c].mem_type = TTM_PL_TT;
-			rbo->placements[c++].flags = TTM_PL_FLAG_WC |
-				TTM_PL_FLAG_UNCACHED;
-		} else {
-			rbo->placements[c].fpfn = 0;
-			rbo->placements[c].mem_type = TTM_PL_TT;
-			rbo->placements[c++].flags = TTM_PL_FLAG_CACHED;
-		}
+		rbo->placements[c].fpfn = 0;
+		rbo->placements[c].mem_type = TTM_PL_TT;
+		rbo->placements[c++].flags = 0;
 	}
 
 	if (domain & RADEON_GEM_DOMAIN_CPU) {
-		if (rbo->flags & RADEON_GEM_GTT_UC) {
-			rbo->placements[c].fpfn = 0;
-			rbo->placements[c].mem_type = TTM_PL_SYSTEM;
-			rbo->placements[c++].flags = TTM_PL_FLAG_UNCACHED;
-
-		} else if ((rbo->flags & RADEON_GEM_GTT_WC) ||
-		    rbo->rdev->flags & RADEON_IS_AGP) {
-			rbo->placements[c].fpfn = 0;
-			rbo->placements[c].mem_type = TTM_PL_SYSTEM;
-			rbo->placements[c++].flags = TTM_PL_FLAG_WC |
-				TTM_PL_FLAG_UNCACHED;
-		} else {
-			rbo->placements[c].fpfn = 0;
-			rbo->placements[c].mem_type = TTM_PL_SYSTEM;
-			rbo->placements[c++].flags = TTM_PL_FLAG_CACHED;
-		}
+		rbo->placements[c].fpfn = 0;
+		rbo->placements[c].mem_type = TTM_PL_SYSTEM;
+		rbo->placements[c++].flags = 0;
 	}
 	if (!c) {
 		rbo->placements[c].fpfn = 0;
 		rbo->placements[c].mem_type = TTM_PL_SYSTEM;
-		rbo->placements[c++].flags = TTM_PL_MASK_CACHING;
+		rbo->placements[c++].flags = 0;
 	}
 
 	rbo->placement.num_placement = c;

@@ -114,35 +114,6 @@ static int ttm_sg_tt_alloc_page_directory(struct ttm_dma_tt *ttm)
 	return 0;
 }
 
-static int ttm_tt_set_caching(struct ttm_tt *ttm, enum ttm_caching caching)
-{
-	if (ttm->caching == caching)
-		return 0;
-
-	/* Can't change the caching state after TT is populated */
-	if (WARN_ON_ONCE(ttm_tt_is_populated(ttm)))
-		return -EINVAL;
-
-	ttm->caching = caching;
-
-	return 0;
-}
-
-int ttm_tt_set_placement_caching(struct ttm_tt *ttm, uint32_t placement)
-{
-	enum ttm_caching state;
-
-	if (placement & TTM_PL_FLAG_WC)
-		state = ttm_write_combined;
-	else if (placement & TTM_PL_FLAG_UNCACHED)
-		state = ttm_uncached;
-	else
-		state = ttm_cached;
-
-	return ttm_tt_set_caching(ttm, state);
-}
-EXPORT_SYMBOL(ttm_tt_set_placement_caching);
-
 void ttm_tt_destroy_common(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
 {
 	ttm_tt_unpopulate(bdev, ttm);

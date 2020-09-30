@@ -72,10 +72,6 @@ int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
 		old_mem->mem_type = TTM_PL_SYSTEM;
 	}
 
-	ret = ttm_tt_set_placement_caching(ttm, new_mem->placement);
-	if (unlikely(ret != 0))
-		return ret;
-
 	if (new_mem->mem_type != TTM_PL_SYSTEM) {
 
 		ret = ttm_tt_populate(bo->bdev, ttm, ctx);
@@ -135,7 +131,7 @@ static int ttm_resource_ioremap(struct ttm_bo_device *bdev,
 	} else {
 		size_t bus_size = (size_t)mem->num_pages << PAGE_SHIFT;
 
-		if (mem->placement & TTM_PL_FLAG_WC)
+		if (mem->bus.caching == ttm_write_combined)
 			addr = ioremap_wc(mem->bus.offset, bus_size);
 		else
 			addr = ioremap(mem->bus.offset, bus_size);
@@ -427,7 +423,7 @@ static int ttm_bo_ioremap(struct ttm_buffer_object *bo,
 		map->virtual = (void *)(((u8 *)bo->mem.bus.addr) + offset);
 	} else {
 		map->bo_kmap_type = ttm_bo_map_iomap;
-		if (mem->placement & TTM_PL_FLAG_WC)
+		if (mem->bus.caching == ttm_write_combined)
 			map->virtual = ioremap_wc(bo->mem.bus.offset + offset,
 						  size);
 		else
@@ -457,7 +453,7 @@ static int ttm_bo_kmap_ttm(struct ttm_buffer_object *bo,
 	if (ret)
 		return ret;
 
-	if (num_pages == 1 && (mem->placement & TTM_PL_FLAG_CACHED)) {
+	if (num_pages == 1 && ttm->caching == ttm_cached) {
 		/*
 		 * We're mapping a single page, and the desired
 		 * page protection is consistent with the bo.
