@@ -10,6 +10,18 @@
 
 #include "mt76x02_mcu.h"
 
+int mt76x02_mcu_parse_response(struct mt76_dev *mdev, int cmd,
+			       struct sk_buff *skb, int seq)
+{
+	u32 *rxfce = (u32 *)skb->cb;
+
+	if (seq != FIELD_GET(MT_RX_FCE_INFO_CMD_SEQ, *rxfce))
+		return -EAGAIN;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mt76x02_mcu_parse_response);
+
 int mt76x02_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
 			 int len, bool wait_resp)
 {
@@ -44,9 +56,6 @@ int mt76x02_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
 		goto out;
 
 	while (wait_resp) {
-		u32 *rxfce;
-		bool check_seq = false;
-
 		skb = mt76_mcu_get_response(&dev->mt76, expires);
 		if (!skb) {
 			dev_err(mdev->dev,
@@ -57,13 +66,9 @@ int mt76x02_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
 			break;
 		}
 
-		rxfce = (u32 *)skb->cb;
-
-		if (seq == FIELD_GET(MT_RX_FCE_INFO_CMD_SEQ, *rxfce))
-			check_seq = true;
-
+		ret = mt76x02_mcu_parse_response(mdev, cmd, skb, seq);
 		dev_kfree_skb(skb);
-		if (check_seq)
+		if (ret != -EAGAIN)
 			break;
 	}
 

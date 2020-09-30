@@ -179,17 +179,14 @@ static int __mt7615_mcu_msg_send(struct mt7615_dev *dev, struct sk_buff *skb,
 	return mt76_tx_queue_skb_raw(dev, qid, skb, 0);
 }
 
-static int
-mt7615_mcu_parse_response(struct mt7615_dev *dev, int cmd,
-			  struct sk_buff *skb, int seq)
+int mt7615_mcu_parse_response(struct mt76_dev *mdev, int cmd,
+			      struct sk_buff *skb, int seq)
 {
 	struct mt7615_mcu_rxd *rxd = (struct mt7615_mcu_rxd *)skb->data;
 	int ret = 0;
 
-	if (seq != rxd->seq) {
-		ret = -EAGAIN;
-		goto out;
-	}
+	if (seq != rxd->seq)
+		return -EAGAIN;
 
 	switch (cmd) {
 	case MCU_CMD_PATCH_SEM_CONTROL:
@@ -228,11 +225,10 @@ mt7615_mcu_parse_response(struct mt7615_dev *dev, int cmd,
 	default:
 		break;
 	}
-out:
-	dev_kfree_skb(skb);
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(mt7615_mcu_parse_response);
 
 int mt7615_mcu_wait_response(struct mt7615_dev *dev, int cmd, int seq)
 {
@@ -248,7 +244,8 @@ int mt7615_mcu_wait_response(struct mt7615_dev *dev, int cmd, int seq)
 			return -ETIMEDOUT;
 		}
 
-		ret = mt7615_mcu_parse_response(dev, cmd, skb, seq);
+		ret = mt7615_mcu_parse_response(&dev->mt76, cmd, skb, seq);
+		dev_kfree_skb(skb);
 		if (ret != -EAGAIN)
 			break;
 	}
@@ -2467,6 +2464,7 @@ int mt7615_mcu_init(struct mt7615_dev *dev)
 		.headroom = sizeof(struct mt7615_mcu_txd),
 		.mcu_skb_send_msg = mt7615_mcu_send_message,
 		.mcu_send_msg = mt7615_mcu_msg_send,
+		.mcu_parse_response = mt7615_mcu_parse_response,
 		.mcu_restart = mt7615_mcu_restart,
 	};
 	int ret;

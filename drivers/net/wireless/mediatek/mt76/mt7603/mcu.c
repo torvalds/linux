@@ -14,6 +14,18 @@ struct mt7603_fw_trailer {
 } __packed;
 
 static int
+mt7603_mcu_parse_response(struct mt76_dev *mdev, int cmd,
+			  struct sk_buff *skb, int seq)
+{
+	struct mt7603_mcu_rxd *rxd = (struct mt7603_mcu_rxd *)skb->data;
+
+	if (seq != rxd->seq)
+		return -EAGAIN;
+
+	return 0;
+}
+
+static int
 __mt7603_mcu_msg_send(struct mt7603_dev *dev, struct sk_buff *skb,
 		      int cmd, int *wait_seq)
 {
@@ -58,7 +70,6 @@ mt7603_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
 {
 	struct mt7603_dev *dev = container_of(mdev, struct mt7603_dev, mt76);
 	unsigned long expires = jiffies + 3 * HZ;
-	struct mt7603_mcu_rxd *rxd;
 	struct sk_buff *skb;
 	int ret, seq;
 
@@ -73,8 +84,6 @@ mt7603_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
 		goto out;
 
 	while (wait_resp) {
-		bool check_seq = false;
-
 		skb = mt76_mcu_get_response(&dev->mt76, expires);
 		if (!skb) {
 			dev_err(mdev->dev,
@@ -85,13 +94,9 @@ mt7603_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
 			break;
 		}
 
-		rxd = (struct mt7603_mcu_rxd *)skb->data;
-		if (seq == rxd->seq)
-			check_seq = true;
-
+		ret = mt7603_mcu_parse_response(mdev, cmd, skb, seq);
 		dev_kfree_skb(skb);
-
-		if (check_seq)
+		if (ret != -EAGAIN)
 			break;
 	}
 
@@ -266,6 +271,7 @@ int mt7603_mcu_init(struct mt7603_dev *dev)
 	static const struct mt76_mcu_ops mt7603_mcu_ops = {
 		.headroom = sizeof(struct mt7603_mcu_txd),
 		.mcu_send_msg = mt7603_mcu_msg_send,
+		.mcu_parse_response = mt7603_mcu_parse_response,
 		.mcu_restart = mt7603_mcu_restart,
 	};
 
