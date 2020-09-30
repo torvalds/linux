@@ -17,7 +17,6 @@
 #include "npc.h"
 #include "cgx.h"
 
-static int nix_update_bcast_mce_list(struct rvu *rvu, u16 pcifunc, bool add);
 static int rvu_nix_get_bpid(struct rvu *rvu, struct nix_bp_cfg_req *req,
 			    int type, int chan_id);
 
@@ -2020,7 +2019,7 @@ static int nix_update_mce_list(struct nix_mce_list *mce_list,
 	return 0;
 }
 
-static int nix_update_bcast_mce_list(struct rvu *rvu, u16 pcifunc, bool add)
+int nix_update_bcast_mce_list(struct rvu *rvu, u16 pcifunc, bool add)
 {
 	int err = 0, idx, next_idx, last_idx;
 	struct nix_mce_list *mce_list;
@@ -2065,7 +2064,7 @@ static int nix_update_bcast_mce_list(struct rvu *rvu, u16 pcifunc, bool add)
 
 	/* Disable MCAM entry in NPC */
 	if (!mce_list->count) {
-		rvu_npc_disable_bcast_entry(rvu, pcifunc);
+		rvu_npc_enable_bcast_entry(rvu, pcifunc, false);
 		goto end;
 	}
 
