@@ -1365,7 +1365,6 @@ start_binary(struct ia_css_pipe *pipe,
 {
 	assert(pipe);
 	/* Acceleration uses firmware, the binary thus can be NULL */
-	/* assert(binary != NULL); */
 
 	if (binary)
 		sh_css_metrics_start_binary(&binary->metrics);
@@ -1381,10 +1380,10 @@ start_binary(struct ia_css_pipe *pipe,
 #endif
 
 #if !defined(ISP2401)
-	if (stream->reconfigure_css_rx) {
+	if (pipe->stream->reconfigure_css_rx) {
 		ia_css_isys_rx_configure(&pipe->stream->csi_rx_config,
 					 pipe->stream->config.mode);
-		stream->reconfigure_css_rx = false;
+		pipe->stream->reconfigure_css_rx = false;
 	}
 #endif
 }
@@ -2820,6 +2819,8 @@ load_preview_binaries(struct ia_css_pipe *pipe) {
 	bool need_isp_copy_binary = false;
 #ifdef ISP2401
 	bool sensor = false;
+#else
+	bool continuous;
 #endif
 	/* preview only have 1 output pin now */
 	struct ia_css_frame_info *pipe_out_info = &pipe->output_info[0];
@@ -2833,6 +2834,8 @@ load_preview_binaries(struct ia_css_pipe *pipe) {
 	online = pipe->stream->config.online;
 #ifdef ISP2401
 	sensor = pipe->stream->config.mode == IA_CSS_INPUT_MODE_SENSOR;
+#else
+	continuous = pipe->stream->config.continuous;
 #endif
 
 	if (mycs->preview_binary.info)
@@ -5987,6 +5990,8 @@ static int load_primary_binaries(
 	bool need_ldc = false;
 #ifdef ISP2401
 	bool sensor = false;
+#else
+	bool memory, continuous;
 #endif
 	struct ia_css_frame_info prim_in_info,
 		       prim_out_info,
@@ -6009,6 +6014,9 @@ static int load_primary_binaries(
 	online = pipe->stream->config.online;
 #ifdef ISP2401
 	sensor = (pipe->stream->config.mode == IA_CSS_INPUT_MODE_SENSOR);
+#else
+	memory = pipe->stream->config.mode == IA_CSS_INPUT_MODE_MEMORY;
+	continuous = pipe->stream->config.continuous;
 #endif
 
 	mycs = &pipe->pipe_settings.capture;
