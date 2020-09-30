@@ -13,7 +13,6 @@
 #include <linux/etherdevice.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/platform_data/macb.h>
 #include <linux/platform_device.h>
 #include "macb.h"
 

@@ -7,6 +7,7 @@
 #ifndef _MACB_H
 #define _MACB_H
 
+#include <linux/clk.h>
 #include <linux/phylink.h>
 #include <linux/ptp_clock_kernel.h>
 #include <linux/net_tstamp.h>
@@ -1297,5 +1298,15 @@ static inline bool gem_has_ptp(struct macb *bp)
 {
 	return !!(bp->caps & MACB_CAPS_GEM_HAS_PTP);
 }
+
+/**
+ * struct macb_platform_data - platform data for MACB Ethernet used for PCI registration
+ * @pclk:		platform clock
+ * @hclk:		AHB clock
+ */
+struct macb_platform_data {
+	struct clk	*pclk;
+	struct clk	*hclk;
+};
 
 #endif /* _MACB_H */
