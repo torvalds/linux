@@ -269,7 +269,7 @@ static void rxrpc_call_is_secure(struct rxrpc_call *call)
 	if (call) {
 		write_lock_bh(&call->state_lock);
 		if (call->state == RXRPC_CALL_SERVER_SECURING) {
-			call->state = RXRPC_CALL_SERVER_ACCEPTING;
+			call->state = RXRPC_CALL_SERVER_RECV_REQUEST;
 			rxrpc_notify_socket(call);
 		}
 		write_unlock_bh(&call->state_lock);
