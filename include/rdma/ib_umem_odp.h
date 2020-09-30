@@ -14,17 +14,13 @@ struct ib_umem_odp {
 	struct mmu_interval_notifier notifier;
 	struct pid *tgid;
 
+	/* An array of the pfns included in the on-demand paging umem. */
+	unsigned long *pfn_list;
+
 	/*
-	 * An array of the pages included in the on-demand paging umem.
-	 * Indices of pages that are currently not mapped into the device will
-	 * contain NULL.
-	 */
-	struct page		**page_list;
-	/*
-	 * An array of the same size as page_list, with DMA addresses mapped
-	 * for pages the pages in page_list. The lower two bits designate
-	 * access permissions. See ODP_READ_ALLOWED_BIT and
-	 * ODP_WRITE_ALLOWED_BIT.
+	 * An array with DMA addresses mapped for pfns in pfn_list.
+	 * The lower two bits designate access permissions.
+	 * See ODP_READ_ALLOWED_BIT and ODP_WRITE_ALLOWED_BIT.
 	 */
 	dma_addr_t		*dma_list;
 	/*
@@ -97,9 +93,8 @@ ib_umem_odp_alloc_child(struct ib_umem_odp *root_umem, unsigned long addr,
 			const struct mmu_interval_notifier_ops *ops);
 void ib_umem_odp_release(struct ib_umem_odp *umem_odp);
 
-int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp, u64 start_offset,
-			      u64 bcnt, u64 access_mask,
-			      unsigned long current_seq);
+int ib_umem_odp_map_dma_and_lock(struct ib_umem_odp *umem_odp, u64 start_offset,
+				 u64 bcnt, u64 access_mask);
 
 void ib_umem_odp_unmap_dma_pages(struct ib_umem_odp *umem_odp, u64 start_offset,
 				 u64 bound);

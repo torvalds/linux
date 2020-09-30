@@ -671,7 +671,6 @@ static int pagefault_real_mr(struct mlx5_ib_mr *mr, struct ib_umem_odp *odp,
 {
 	int page_shift, ret, np;
 	bool downgrade = flags & MLX5_PF_FLAGS_DOWNGRADE;
-	unsigned long current_seq;
 	u64 access_mask;
 	u64 start_idx;
 
@@ -682,25 +681,16 @@ static int pagefault_real_mr(struct mlx5_ib_mr *mr, struct ib_umem_odp *odp,
 	if (odp->umem.writable && !downgrade)
 		access_mask |= ODP_WRITE_ALLOWED_BIT;
 
-	current_seq = mmu_interval_read_begin(&odp->notifier);
-
-	np = ib_umem_odp_map_dma_pages(odp, user_va, bcnt, access_mask,
-				       current_seq);
+	np = ib_umem_odp_map_dma_and_lock(odp, user_va, bcnt, access_mask);
 	if (np < 0)
 		return np;
 
-	mutex_lock(&odp->umem_mutex);
-	if (!mmu_interval_read_retry(&odp->notifier, current_seq)) {
-		/*
-		 * No need to check whether the MTTs really belong to
-		 * this MR, since ib_umem_odp_map_dma_pages already
-		 * checks this.
-		 */
-		ret = mlx5_ib_update_xlt(mr, start_idx, np,
-					 page_shift, MLX5_IB_UPD_XLT_ATOMIC);
-	} else {
-		ret = -EAGAIN;
-	}
+	/*
+	 * No need to check whether the MTTs really belong to this MR, since
+	 * ib_umem_odp_map_dma_and_lock already checks this.
+	 */
+	ret = mlx5_ib_update_xlt(mr, start_idx, np, page_shift,
+				 MLX5_IB_UPD_XLT_ATOMIC);
 	mutex_unlock(&odp->umem_mutex);
 
 	if (ret < 0) {
