@@ -770,8 +770,6 @@ static int iwl_mvm_tvqm_enable_txq(struct iwl_mvm *mvm,
 	IWL_DEBUG_TX_QUEUES(mvm, "Enabling TXQ #%d for sta %d tid %d\n",
 			    queue, sta_id, tid);
 
-	IWL_DEBUG_TX_QUEUES(mvm, "Enabling TXQ #%d\n", queue);
-
 	return queue;
 }
 
