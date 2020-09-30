@@ -90,8 +90,8 @@ mt7615_tm_set_tx_power(struct mt7615_phy *phy)
 			data[ret - MT_EE_NIC_CONF_0] = tx_power[i];
 	}
 
-	return __mt76_mcu_skb_send_msg(&dev->mt76, skb,
-				       MCU_EXT_CMD_SET_TX_POWER_CTRL, false);
+	return mt76_mcu_skb_send_msg(&dev->mt76, skb,
+				     MCU_EXT_CMD_SET_TX_POWER_CTRL, false);
 }
 
 static void
