@@ -906,6 +906,9 @@ static void rxrpc_unbundle_conn(struct rxrpc_connection *conn)
 
 	_enter("C=%x", conn->debug_id);
 
+	if (conn->flags & RXRPC_CONN_FINAL_ACK_MASK)
+		rxrpc_process_delayed_final_acks(conn, true);
+
 	spin_lock(&bundle->channel_lock);
 	bindex = conn->bundle_shift / RXRPC_MAXCALLS;
 	if (bundle->conns[bindex] == conn) {
