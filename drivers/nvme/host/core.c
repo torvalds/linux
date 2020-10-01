@@ -1970,7 +1970,7 @@ static int nvme_configure_metadata(struct nvme_ns *ns, struct nvme_id_ns *id)
 static void nvme_set_queue_limits(struct nvme_ctrl *ctrl,
 		struct request_queue *q)
 {
-	bool vwc = false;
+	bool vwc = ctrl->vwc & NVME_CTRL_VWC_PRESENT;
 
 	if (ctrl->max_hw_sectors) {
 		u32 max_segments =
@@ -1982,8 +1982,6 @@ static void nvme_set_queue_limits(struct nvme_ctrl *ctrl,
 	}
 	blk_queue_virt_boundary(q, NVME_CTRL_PAGE_SIZE - 1);
 	blk_queue_dma_alignment(q, 7);
-	if (ctrl->vwc & NVME_CTRL_VWC_PRESENT)
-		vwc = true;
 	blk_queue_write_cache(q, vwc, vwc);
 }
 
