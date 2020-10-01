@@ -3861,10 +3861,10 @@ int qedr_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 		 * in first 4 bytes and need to update WQE producer in
 		 * next 4 bytes.
 		 */
-		srq->hw_srq.virt_prod_pair_addr->sge_prod = hw_srq->sge_prod;
+		srq->hw_srq.virt_prod_pair_addr->sge_prod = cpu_to_le32(hw_srq->sge_prod);
 		/* Make sure sge producer is updated first */
 		dma_wmb();
-		srq->hw_srq.virt_prod_pair_addr->wqe_prod = hw_srq->wqe_prod;
+		srq->hw_srq.virt_prod_pair_addr->wqe_prod = cpu_to_le32(hw_srq->wqe_prod);
 
 		wr = wr->next;
 	}
