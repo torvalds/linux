@@ -206,7 +206,7 @@ static void acpi_gpiochip_request_irqs(struct acpi_gpio_chip *acpi_gpio)
 }
 
 static enum gpiod_flags
-acpi_gpio_to_gpiod_flags(const struct acpi_resource_gpio *agpio)
+acpi_gpio_to_gpiod_flags(const struct acpi_resource_gpio *agpio, int polarity)
 {
 	switch (agpio->io_restriction) {
 	case ACPI_IO_RESTRICT_INPUT:
@@ -215,15 +215,17 @@ acpi_gpio_to_gpiod_flags(const struct acpi_resource_gpio *agpio)
 		/*
 		 * ACPI GPIO resources don't contain an initial value for the
 		 * GPIO. Therefore we deduce that value from the pull field
-		 * instead. If the pin is pulled up we assume default to be
-		 * high, if it is pulled down we assume default to be low,
-		 * otherwise we leave pin untouched.
+		 * and the polarity instead. If the pin is pulled up we assume
+		 * default to be high, if it is pulled down we assume default
+		 * to be low, otherwise we leave pin untouched. For active low
+		 * polarity values will be switched. See also
+		 * Documentation/firmware-guide/acpi/gpio-properties.rst.
 		 */
 		switch (agpio->pin_config) {
 		case ACPI_PIN_CONFIG_PULLUP:
-			return GPIOD_OUT_HIGH;
+			return polarity == GPIO_ACTIVE_LOW ? GPIOD_OUT_LOW : GPIOD_OUT_HIGH;
 		case ACPI_PIN_CONFIG_PULLDOWN:
-			return GPIOD_OUT_LOW;
+			return polarity == GPIO_ACTIVE_LOW ? GPIOD_OUT_HIGH : GPIOD_OUT_LOW;
 		default:
 			break;
 		}
@@ -683,8 +685,8 @@ static int acpi_populate_gpio_lookup(struct acpi_resource *ares, void *data)
 			lookup->info.polarity = agpio->polarity;
 			lookup->info.triggering = agpio->triggering;
 		} else {
-			lookup->info.flags = acpi_gpio_to_gpiod_flags(agpio);
 			lookup->info.polarity = lookup->active_low;
+			lookup->info.flags = acpi_gpio_to_gpiod_flags(agpio, lookup->info.polarity);
 		}
 	}
 
@@ -1055,12 +1057,13 @@ acpi_gpio_adr_space_handler(u32 function, acpi_physical_address address,
 		}
 
 		if (!found) {
-			enum gpiod_flags flags = acpi_gpio_to_gpiod_flags(agpio);
+			int polarity = GPIO_ACTIVE_HIGH;
+			enum gpiod_flags flags = acpi_gpio_to_gpiod_flags(agpio, polarity);
 			const char *label = "ACPI:OpRegion";
 			int ret;
 
 			desc = gpiochip_request_own_desc(chip, pin, label,
-							 GPIO_ACTIVE_HIGH,
+							 polarity,
 							 flags);
 			if (IS_ERR(desc)) {
 				mutex_unlock(&achip->conn_lock);
