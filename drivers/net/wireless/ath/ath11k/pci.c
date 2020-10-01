@@ -28,6 +28,12 @@
 #define TCSR_SOC_HW_VERSION_MAJOR_MASK	GENMASK(16, 8)
 #define TCSR_SOC_HW_VERSION_MINOR_MASK	GENMASK(7, 0)
 
+/* BAR0 + 4k is always accessible, and no
+ * need to force wakeup.
+ * 4K - 32 = 0xFE0
+ */
+#define ACCESS_ALWAYS_OFF 0xFE0
+
 #define QCA6390_DEVICE_ID		0x1101
 
 static const struct pci_device_id ath11k_pci_id_table[] = {
@@ -128,6 +134,13 @@ void ath11k_pci_write32(struct ath11k_base *ab, u32 offset, u32 value)
 {
 	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
 
+	/* for offset beyond BAR + 4K - 32, may
+	 * need to wakeup MHI to access.
+	 */
+	if (test_bit(ATH11K_PCI_FLAG_INIT_DONE, &ab_pci->flags) &&
+	    offset >= ACCESS_ALWAYS_OFF)
+		mhi_device_get_sync(ab_pci->mhi_ctrl->mhi_dev);
+
 	if (offset < WINDOW_START) {
 		iowrite32(value, ab->mem  + offset);
 	} else {
@@ -136,12 +149,23 @@ void ath11k_pci_write32(struct ath11k_base *ab, u32 offset, u32 value)
 		iowrite32(value, ab->mem + WINDOW_START + (offset & WINDOW_RANGE_MASK));
 		spin_unlock_bh(&ab_pci->window_lock);
 	}
+
+	if (test_bit(ATH11K_PCI_FLAG_INIT_DONE, &ab_pci->flags) &&
+	    offset >= ACCESS_ALWAYS_OFF)
+		mhi_device_put(ab_pci->mhi_ctrl->mhi_dev);
 }
 
 u32 ath11k_pci_read32(struct ath11k_base *ab, u32 offset)
 {
 	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
 	u32 val;
+
+	/* for offset beyond BAR + 4K - 32, may
+	 * need to wakeup MHI to access.
+	 */
+	if (test_bit(ATH11K_PCI_FLAG_INIT_DONE, &ab_pci->flags) &&
+	    offset >= ACCESS_ALWAYS_OFF)
+		mhi_device_get_sync(ab_pci->mhi_ctrl->mhi_dev);
 
 	if (offset < WINDOW_START) {
 		val = ioread32(ab->mem + offset);
@@ -151,6 +175,10 @@ u32 ath11k_pci_read32(struct ath11k_base *ab, u32 offset)
 		val = ioread32(ab->mem + WINDOW_START + (offset & WINDOW_RANGE_MASK));
 		spin_unlock_bh(&ab_pci->window_lock);
 	}
+
+	if (test_bit(ATH11K_PCI_FLAG_INIT_DONE, &ab_pci->flags) &&
+	    offset >= ACCESS_ALWAYS_OFF)
+		mhi_device_put(ab_pci->mhi_ctrl->mhi_dev);
 
 	return val;
 }
@@ -731,6 +759,8 @@ static int ath11k_pci_power_up(struct ath11k_base *ab)
 	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
 	int ret;
 
+	ab_pci->register_window = 0;
+	clear_bit(ATH11K_PCI_FLAG_INIT_DONE, &ab_pci->flags);
 	ath11k_pci_sw_reset(ab_pci->ab);
 
 	ret = ath11k_mhi_start(ab_pci);
@@ -747,6 +777,7 @@ static void ath11k_pci_power_down(struct ath11k_base *ab)
 	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
 
 	ath11k_mhi_stop(ab_pci);
+	clear_bit(ATH11K_PCI_FLAG_INIT_DONE, &ab_pci->flags);
 	ath11k_pci_force_wake(ab_pci->ab);
 	ath11k_pci_sw_reset(ab_pci->ab);
 }
@@ -775,6 +806,10 @@ static void ath11k_pci_stop(struct ath11k_base *ab)
 
 static int ath11k_pci_start(struct ath11k_base *ab)
 {
+	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
+
+	set_bit(ATH11K_PCI_FLAG_INIT_DONE, &ab_pci->flags);
+
 	ath11k_pci_ce_irqs_enable(ab);
 	ath11k_ce_rx_post_buf(ab);
 

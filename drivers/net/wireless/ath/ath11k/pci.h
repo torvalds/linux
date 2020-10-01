@@ -36,6 +36,10 @@ struct ath11k_msi_config {
 	struct ath11k_msi_user *users;
 };
 
+enum ath11k_pci_flags {
+	ATH11K_PCI_FLAG_INIT_DONE,
+};
+
 struct ath11k_pci {
 	struct pci_dev *pdev;
 	struct ath11k_base *ab;
@@ -48,6 +52,9 @@ struct ath11k_pci {
 
 	/* protects register_window above */
 	spinlock_t window_lock;
+
+	/* enum ath11k_pci_flags */
+	unsigned long flags;
 };
 
 static inline struct ath11k_pci *ath11k_pci_priv(struct ath11k_base *ab)
