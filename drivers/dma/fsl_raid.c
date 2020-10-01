@@ -163,8 +163,6 @@ static void fsl_re_dequeue(struct tasklet_struct *t)
 	unsigned int count, oub_count;
 	int found;
 
-	re_chan = dev_get_drvdata((struct device *)data);
-
 	fsl_re_cleanup_descs(re_chan);
 
 	spin_lock_irqsave(&re_chan->desc_lock, flags);
