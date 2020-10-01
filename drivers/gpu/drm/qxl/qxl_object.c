@@ -351,10 +351,16 @@ int qxl_bo_check_id(struct qxl_device *qdev, struct qxl_bo *bo)
 
 int qxl_surf_evict(struct qxl_device *qdev)
 {
-	return ttm_bo_evict_mm(&qdev->mman.bdev, TTM_PL_PRIV);
+	struct ttm_resource_manager *man;
+
+	man = ttm_manager_type(&qdev->mman.bdev, TTM_PL_PRIV);
+	return ttm_resource_manager_evict_all(&qdev->mman.bdev, man);
 }
 
 int qxl_vram_evict(struct qxl_device *qdev)
 {
-	return ttm_bo_evict_mm(&qdev->mman.bdev, TTM_PL_VRAM);
+	struct ttm_resource_manager *man;
+
+	man = ttm_manager_type(&qdev->mman.bdev, TTM_PL_VRAM);
+	return ttm_resource_manager_evict_all(&qdev->mman.bdev, man);
 }

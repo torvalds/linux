@@ -820,6 +820,7 @@ static int
 nouveau_do_suspend(struct drm_device *dev, bool runtime)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct ttm_resource_manager *man;
 	int ret;
 
 	nouveau_svm_suspend(drm);
@@ -836,7 +837,9 @@ nouveau_do_suspend(struct drm_device *dev, bool runtime)
 	}
 
 	NV_DEBUG(drm, "evicting buffers...\n");
-	ttm_bo_evict_mm(&drm->ttm.bdev, TTM_PL_VRAM);
+
+	man = ttm_manager_type(&drm->ttm.bdev, TTM_PL_VRAM);
+	ttm_resource_manager_evict_all(&drm->ttm.bdev, man);
 
 	NV_DEBUG(drm, "waiting for kernel channels to go idle...\n");
 	if (drm->cechan) {

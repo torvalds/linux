@@ -149,7 +149,7 @@ void vmw_thp_fini(struct vmw_private *dev_priv)
 
 	ttm_resource_manager_set_used(man, false);
 
-	ret = ttm_resource_manager_force_list_clean(&dev_priv->bdev, man);
+	ret = ttm_resource_manager_evict_all(&dev_priv->bdev, man);
 	if (ret)
 		return;
 	spin_lock(&rman->lock);

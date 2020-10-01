@@ -449,26 +449,6 @@ int ttm_bo_init(struct ttm_bo_device *bdev, struct ttm_buffer_object *bo,
 		void (*destroy) (struct ttm_buffer_object *));
 
 /**
- * ttm_bo_evict_mm
- *
- * @bdev: Pointer to a ttm_bo_device struct.
- * @mem_type: The memory type.
- *
- * Evicts all buffers on the lru list of the memory type.
- * This is normally part of a VT switch or an
- * out-of-memory-space-due-to-fragmentation handler.
- * The caller must make sure that there are no other processes
- * currently validating buffers, and can do that by taking the
- * struct ttm_bo_device::ttm_lock in write mode.
- *
- * Returns:
- * -EINVAL: Invalid or uninitialized memory type.
- * -ERESTARTSYS: The call was interrupted by a signal while waiting to
- * evict a buffer.
- */
-int ttm_bo_evict_mm(struct ttm_bo_device *bdev, unsigned mem_type);
-
-/**
  * ttm_kmap_obj_virtual
  *
  * @map: A struct ttm_bo_kmap_obj returned from ttm_bo_kmap.

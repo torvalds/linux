@@ -402,6 +402,9 @@ void radeon_bo_unpin(struct radeon_bo *bo)
 
 int radeon_bo_evict_vram(struct radeon_device *rdev)
 {
+	struct ttm_bo_device *bdev = &rdev->mman.bdev;
+	struct ttm_resource_manager *man;
+
 	/* late 2.6.33 fix IGP hibernate - we need pm ops to do this correct */
 #ifndef CONFIG_HIBERNATION
 	if (rdev->flags & RADEON_IS_IGP) {
@@ -410,7 +413,8 @@ int radeon_bo_evict_vram(struct radeon_device *rdev)
 			return 0;
 	}
 #endif
-	return ttm_bo_evict_mm(&rdev->mman.bdev, TTM_PL_VRAM);
+	man = ttm_manager_type(bdev, TTM_PL_VRAM);
+	return ttm_resource_manager_evict_all(bdev, man);
 }
 
 void radeon_bo_force_delete(struct radeon_device *rdev)

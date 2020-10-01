@@ -222,7 +222,7 @@ nouveau_ttm_fini_vram(struct nouveau_drm *drm)
 
 	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
 		ttm_resource_manager_set_used(man, false);
-		ttm_resource_manager_force_list_clean(&drm->ttm.bdev, man);
+		ttm_resource_manager_evict_all(&drm->ttm.bdev, man);
 		ttm_resource_manager_cleanup(man);
 		ttm_set_driver_manager(&drm->ttm.bdev, TTM_PL_VRAM, NULL);
 		kfree(man);
@@ -267,7 +267,7 @@ nouveau_ttm_fini_gtt(struct nouveau_drm *drm)
 		ttm_range_man_fini(&drm->ttm.bdev, TTM_PL_TT);
 	else {
 		ttm_resource_manager_set_used(man, false);
-		ttm_resource_manager_force_list_clean(&drm->ttm.bdev, man);
+		ttm_resource_manager_evict_all(&drm->ttm.bdev, man);
 		ttm_resource_manager_cleanup(man);
 		ttm_set_driver_manager(&drm->ttm.bdev, TTM_PL_TT, NULL);
 		kfree(man);

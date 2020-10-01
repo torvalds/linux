@@ -1029,6 +1029,8 @@ void amdgpu_bo_unpin(struct amdgpu_bo *bo)
  */
 int amdgpu_bo_evict_vram(struct amdgpu_device *adev)
 {
+	struct ttm_resource_manager *man;
+
 	/* late 2.6.33 fix IGP hibernate - we need pm ops to do this correct */
 #ifndef CONFIG_HIBERNATION
 	if (adev->flags & AMD_IS_APU) {
@@ -1036,7 +1038,9 @@ int amdgpu_bo_evict_vram(struct amdgpu_device *adev)
 		return 0;
 	}
 #endif
-	return ttm_bo_evict_mm(&adev->mman.bdev, TTM_PL_VRAM);
+
+	man = ttm_manager_type(&adev->mman.bdev, TTM_PL_VRAM);
+	return ttm_resource_manager_evict_all(&adev->mman.bdev, man);
 }
 
 static const char *amdgpu_vram_names[] = {

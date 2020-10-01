@@ -468,7 +468,10 @@ out_no_query_bo:
 	if (dev_priv->cman)
 		vmw_cmdbuf_remove_pool(dev_priv->cman);
 	if (dev_priv->has_mob) {
-		(void) ttm_bo_evict_mm(&dev_priv->bdev, VMW_PL_MOB);
+		struct ttm_resource_manager *man;
+
+		man = ttm_manager_type(&dev_priv->bdev, VMW_PL_MOB);
+		ttm_resource_manager_evict_all(&dev_priv->bdev, man);
 		vmw_otables_takedown(dev_priv);
 	}
 	if (dev_priv->cman)
@@ -501,7 +504,10 @@ static void vmw_release_device_early(struct vmw_private *dev_priv)
 		vmw_cmdbuf_remove_pool(dev_priv->cman);
 
 	if (dev_priv->has_mob) {
-		ttm_bo_evict_mm(&dev_priv->bdev, VMW_PL_MOB);
+		struct ttm_resource_manager *man;
+
+		man = ttm_manager_type(&dev_priv->bdev, VMW_PL_MOB);
+		ttm_resource_manager_evict_all(&dev_priv->bdev, man);
 		vmw_otables_takedown(dev_priv);
 	}
 }
@@ -1257,7 +1263,7 @@ void vmw_svga_disable(struct vmw_private *dev_priv)
 	if (ttm_resource_manager_used(man)) {
 		ttm_resource_manager_set_used(man, false);
 		spin_unlock(&dev_priv->svga_lock);
-		if (ttm_bo_evict_mm(&dev_priv->bdev, TTM_PL_VRAM))
+		if (ttm_resource_manager_evict_all(&dev_priv->bdev, man))
 			DRM_ERROR("Failed evicting VRAM buffers.\n");
 		vmw_write(dev_priv, SVGA_REG_ENABLE,
 			  SVGA_REG_ENABLE_HIDE |

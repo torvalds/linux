@@ -212,7 +212,7 @@ void amdgpu_vram_mgr_fini(struct amdgpu_device *adev)
 
 	ttm_resource_manager_set_used(man, false);
 
-	ret = ttm_resource_manager_force_list_clean(&adev->mman.bdev, man);
+	ret = ttm_resource_manager_evict_all(&adev->mman.bdev, man);
 	if (ret)
 		return;
 
