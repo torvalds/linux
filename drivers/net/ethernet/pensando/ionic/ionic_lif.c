@@ -264,10 +264,11 @@ static int ionic_qcq_enable(struct ionic_qcq *qcq)
 	return ionic_adminq_post_wait(lif, &ctx);
 }
 
-static int ionic_qcq_disable(struct ionic_qcq *qcq)
+static int ionic_qcq_disable(struct ionic_qcq *qcq, bool send_to_hw)
 {
 	struct ionic_queue *q;
 	struct ionic_lif *lif;
+	int err = 0;
 
 	struct ionic_admin_ctx ctx = {
 		.work = COMPLETION_INITIALIZER_ONSTACK(ctx.work),
@@ -294,13 +295,17 @@ static int ionic_qcq_disable(struct ionic_qcq *qcq)
 		napi_disable(&qcq->napi);
 	}
 
-	ctx.cmd.q_control.lif_index = cpu_to_le16(lif->index);
-	ctx.cmd.q_control.type = q->type;
-	ctx.cmd.q_control.index = cpu_to_le32(q->index);
-	dev_dbg(lif->ionic->dev, "q_disable.index %d q_disable.qtype %d\n",
-		ctx.cmd.q_control.index, ctx.cmd.q_control.type);
+	if (send_to_hw) {
+		ctx.cmd.q_control.lif_index = cpu_to_le16(lif->index);
+		ctx.cmd.q_control.type = q->type;
+		ctx.cmd.q_control.index = cpu_to_le32(q->index);
+		dev_dbg(lif->ionic->dev, "q_disable.index %d q_disable.qtype %d\n",
+			ctx.cmd.q_control.index, ctx.cmd.q_control.type);
 
-	return ionic_adminq_post_wait(lif, &ctx);
+		err = ionic_adminq_post_wait(lif, &ctx);
+	}
+
+	return err;
 }
 
 static void ionic_lif_qcq_deinit(struct ionic_lif *lif, struct ionic_qcq *qcq)
@@ -1627,22 +1632,16 @@ static void ionic_lif_rss_deinit(struct ionic_lif *lif)
 static void ionic_txrx_disable(struct ionic_lif *lif)
 {
 	unsigned int i;
-	int err;
+	int err = 0;
 
 	if (lif->txqcqs) {
-		for (i = 0; i < lif->nxqs; i++) {
-			err = ionic_qcq_disable(lif->txqcqs[i]);
-			if (err == -ETIMEDOUT)
-				break;
-		}
+		for (i = 0; i < lif->nxqs; i++)
+			err = ionic_qcq_disable(lif->txqcqs[i], (err != -ETIMEDOUT));
 	}
 
 	if (lif->rxqcqs) {
-		for (i = 0; i < lif->nxqs; i++) {
-			err = ionic_qcq_disable(lif->rxqcqs[i]);
-			if (err == -ETIMEDOUT)
-				break;
-		}
+		for (i = 0; i < lif->nxqs; i++)
+			err = ionic_qcq_disable(lif->rxqcqs[i], (err != -ETIMEDOUT));
 	}
 }
 
@@ -1794,6 +1793,7 @@ err_out:
 
 static int ionic_txrx_enable(struct ionic_lif *lif)
 {
+	int derr = 0;
 	int i, err;
 
 	for (i = 0; i < lif->nxqs; i++) {
@@ -1810,8 +1810,7 @@ static int ionic_txrx_enable(struct ionic_lif *lif)
 
 		err = ionic_qcq_enable(lif->txqcqs[i]);
 		if (err) {
-			if (err != -ETIMEDOUT)
-				ionic_qcq_disable(lif->rxqcqs[i]);
+			derr = ionic_qcq_disable(lif->rxqcqs[i], (err != -ETIMEDOUT));
 			goto err_out;
 		}
 	}
@@ -1820,12 +1819,8 @@ static int ionic_txrx_enable(struct ionic_lif *lif)
 
 err_out:
 	while (i--) {
-		err = ionic_qcq_disable(lif->txqcqs[i]);
-		if (err == -ETIMEDOUT)
-			break;
-		err = ionic_qcq_disable(lif->rxqcqs[i]);
-		if (err == -ETIMEDOUT)
-			break;
+		derr = ionic_qcq_disable(lif->txqcqs[i], (derr != -ETIMEDOUT));
+		derr = ionic_qcq_disable(lif->rxqcqs[i], (derr != -ETIMEDOUT));
 	}
 
 	return err;
