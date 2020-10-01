@@ -1894,7 +1894,7 @@ int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	int i;
 
 	if (cpu_migrate(cpu)) {
-		fprintf(outf, "Could not migrate to CPU %d\n", cpu);
+		fprintf(outf, "get_counters: Could not migrate to CPU %d\n", cpu);
 		return -1;
 	}
 
@@ -2764,7 +2764,12 @@ int get_thread_siblings(struct cpu_topology *thiscpu)
 
 	sprintf(path,
 		"/sys/devices/system/cpu/cpu%d/topology/thread_siblings", cpu);
-	filep = fopen_or_die(path, "r");
+	filep = fopen(path, "r");
+
+	if (!filep) {
+		warnx("%s: open failed", path);
+		return -1;
+	}
 	do {
 		offset -= BITMASK_SIZE;
 		if (fscanf(filep, "%lx%c", &map, &character) != 2)
@@ -2877,7 +2882,7 @@ void re_initialize(void)
 {
 	free_all_buffers();
 	setup_all_buffers();
-	printf("turbostat: re-initialized with num_cpus %d\n", topo.num_cpus);
+	fprintf(outf, "turbostat: re-initialized with num_cpus %d\n", topo.num_cpus);
 }
 
 void set_max_cpu_num(void)
@@ -3331,7 +3336,7 @@ restart:
 	if (retval < -1) {
 		exit(retval);
 	} else if (retval == -1) {
-		if (restarted > 1) {
+		if (restarted > 10) {
 			exit(retval);
 		}
 		re_initialize();
@@ -3926,7 +3931,7 @@ int print_epb(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 		return 0;
 
 	if (cpu_migrate(cpu)) {
-		fprintf(outf, "Could not migrate to CPU %d\n", cpu);
+		fprintf(outf, "print_epb: Could not migrate to CPU %d\n", cpu);
 		return -1;
 	}
 
@@ -3970,7 +3975,7 @@ int print_hwp(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 		return 0;
 
 	if (cpu_migrate(cpu)) {
-		fprintf(outf, "Could not migrate to CPU %d\n", cpu);
+		fprintf(outf, "print_hwp: Could not migrate to CPU %d\n", cpu);
 		return -1;
 	}
 
@@ -4058,7 +4063,7 @@ int print_perf_limit(struct thread_data *t, struct core_data *c, struct pkg_data
 		return 0;
 
 	if (cpu_migrate(cpu)) {
-		fprintf(outf, "Could not migrate to CPU %d\n", cpu);
+		fprintf(outf, "print_perf_limit: Could not migrate to CPU %d\n", cpu);
 		return -1;
 	}
 
@@ -4439,7 +4444,7 @@ int print_thermal(struct thread_data *t, struct core_data *c, struct pkg_data *p
 		return 0;
 
 	if (cpu_migrate(cpu)) {
-		fprintf(outf, "Could not migrate to CPU %d\n", cpu);
+		fprintf(outf, "print_thermal: Could not migrate to CPU %d\n", cpu);
 		return -1;
 	}
 
@@ -4511,7 +4516,7 @@ int print_rapl(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 
 	cpu = t->cpu_id;
 	if (cpu_migrate(cpu)) {
-		fprintf(outf, "Could not migrate to CPU %d\n", cpu);
+		fprintf(outf, "print_rapl: Could not migrate to CPU %d\n", cpu);
 		return -1;
 	}
 
