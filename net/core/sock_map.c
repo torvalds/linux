@@ -401,7 +401,7 @@ static void *sock_map_lookup_sys(struct bpf_map *map, void *key)
 	if (!sk)
 		return ERR_PTR(-ENOENT);
 
-	sock_gen_cookie(sk);
+	__sock_gen_cookie(sk);
 	return &sk->sk_cookie;
 }
 
@@ -609,6 +609,9 @@ static int sock_map_update_elem(struct bpf_map *map, void *key,
 {
 	struct sock *sk = (struct sock *)value;
 	int ret;
+
+	if (unlikely(!sk || !sk_fullsock(sk)))
+		return -EINVAL;
 
 	if (!sock_map_sk_is_suitable(sk))
 		return -EOPNOTSUPP;
@@ -1206,7 +1209,7 @@ static void *sock_hash_lookup_sys(struct bpf_map *map, void *key)
 	if (!sk)
 		return ERR_PTR(-ENOENT);
 
-	sock_gen_cookie(sk);
+	__sock_gen_cookie(sk);
 	return &sk->sk_cookie;
 }
 

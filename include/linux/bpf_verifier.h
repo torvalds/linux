@@ -347,8 +347,9 @@ static inline bool bpf_verifier_log_full(const struct bpf_verifier_log *log)
 
 static inline bool bpf_verifier_log_needed(const struct bpf_verifier_log *log)
 {
-	return (log->level && log->ubuf && !bpf_verifier_log_full(log)) ||
-		log->level == BPF_LOG_KERNEL;
+	return log &&
+		((log->level && log->ubuf && !bpf_verifier_log_full(log)) ||
+		 log->level == BPF_LOG_KERNEL);
 }
 
 #define BPF_MAX_SUBPROGS 256
@@ -448,5 +449,18 @@ bpf_prog_offload_remove_insns(struct bpf_verifier_env *env, u32 off, u32 cnt);
 
 int check_ctx_reg(struct bpf_verifier_env *env,
 		  const struct bpf_reg_state *reg, int regno);
+
+/* this lives here instead of in bpf.h because it needs to dereference tgt_prog */
+static inline u64 bpf_trampoline_compute_key(const struct bpf_prog *tgt_prog,
+					     u32 btf_id)
+{
+        return tgt_prog ? (((u64)tgt_prog->aux->id) << 32 | btf_id) : btf_id;
+}
+
+int bpf_check_attach_target(struct bpf_verifier_log *log,
+			    const struct bpf_prog *prog,
+			    const struct bpf_prog *tgt_prog,
+			    u32 btf_id,
+			    struct bpf_attach_target_info *tgt_info);
 
 #endif /* _LINUX_BPF_VERIFIER_H */

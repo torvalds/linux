@@ -303,7 +303,34 @@ LIBBPF_0.1.0 {
 LIBBPF_0.2.0 {
 	global:
 		bpf_prog_bind_map;
+		bpf_prog_test_run_opts;
+		bpf_program__attach_freplace;
 		bpf_program__section_name;
+		btf__add_array;
+		btf__add_const;
+		btf__add_enum;
+		btf__add_enum_value;
+		btf__add_datasec;
+		btf__add_datasec_var_info;
+		btf__add_field;
+		btf__add_func;
+		btf__add_func_param;
+		btf__add_func_proto;
+		btf__add_fwd;
+		btf__add_int;
+		btf__add_ptr;
+		btf__add_restrict;
+		btf__add_str;
+		btf__add_struct;
+		btf__add_typedef;
+		btf__add_union;
+		btf__add_var;
+		btf__add_volatile;
+		btf__endianness;
+		btf__find_str;
+		btf__new_empty;
+		btf__set_endianness;
+		btf__str_by_offset;
 		perf_buffer__buffer_cnt;
 		perf_buffer__buffer_fd;
 		perf_buffer__epoll_fd;

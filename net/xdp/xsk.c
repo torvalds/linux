@@ -703,6 +703,7 @@ static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 			xs->pool = xp_create_and_assign_umem(xs,
 							     umem_xs->umem);
 			if (!xs->pool) {
+				err = -ENOMEM;
 				sockfd_put(sock);
 				goto out_unlock;
 			}

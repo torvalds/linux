@@ -54,6 +54,52 @@
 #endif
 
 /*
+ * Helper macro to throw a compilation error if __bpf_unreachable() gets
+ * built into the resulting code. This works given BPF back end does not
+ * implement __builtin_trap(). This is useful to assert that certain paths
+ * of the program code are never used and hence eliminated by the compiler.
+ *
+ * For example, consider a switch statement that covers known cases used by
+ * the program. __bpf_unreachable() can then reside in the default case. If
+ * the program gets extended such that a case is not covered in the switch
+ * statement, then it will throw a build error due to the default case not
+ * being compiled out.
+ */
+#ifndef __bpf_unreachable
+# define __bpf_unreachable()	__builtin_trap()
+#endif
+
+/*
+ * Helper function to perform a tail call with a constant/immediate map slot.
+ */
+static __always_inline void
+bpf_tail_call_static(void *ctx, const void *map, const __u32 slot)
+{
+	if (!__builtin_constant_p(slot))
+		__bpf_unreachable();
+
+	/*
+	 * Provide a hard guarantee that LLVM won't optimize setting r2 (map
+	 * pointer) and r3 (constant map index) from _different paths_ ending
+	 * up at the _same_ call insn as otherwise we won't be able to use the
+	 * jmpq/nopl retpoline-free patching by the x86-64 JIT in the kernel
+	 * given they mismatch. See also d2e4c1e6c294 ("bpf: Constant map key
+	 * tracking for prog array pokes") for details on verifier tracking.
+	 *
+	 * Note on clobber list: we need to stay in-line with BPF calling
+	 * convention, so even if we don't end up using r0, r4, r5, we need
+	 * to mark them as clobber so that LLVM doesn't end up using them
+	 * before / after the call.
+	 */
+	asm volatile("r1 = %[ctx]\n\t"
+		     "r2 = %[map]\n\t"
+		     "r3 = %[slot]\n\t"
+		     "call 12"
+		     :: [ctx]"r"(ctx), [map]"r"(map), [slot]"i"(slot)
+		     : "r0", "r1", "r2", "r3", "r4", "r5");
+}
+
+/*
  * Helper structure used by eBPF C program
  * to describe BPF map attributes to libbpf loader
  */

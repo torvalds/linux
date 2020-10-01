@@ -28,6 +28,12 @@ struct symbol test_symbols[] = {
 	{ "func",    BTF_KIND_FUNC,    -1 },
 };
 
+/* Align the .BTF_ids section to 4 bytes */
+asm (
+".pushsection " BTF_IDS_SECTION " ,\"a\"; \n"
+".balign 4, 0;                            \n"
+".popsection;                             \n");
+
 BTF_ID_LIST(test_list_local)
 BTF_ID_UNUSED
 BTF_ID(typedef, S)

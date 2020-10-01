@@ -13,7 +13,6 @@ test_verifier_log
 feature
 test_sock
 test_sock_addr
-test_sock_fields
 urandom_read
 test_sockmap
 test_lirc_mode2_user

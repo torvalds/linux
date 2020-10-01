@@ -96,7 +96,7 @@ struct xsk_queue {
  * seen and read by the consumer.
  *
  * The consumer peeks into the ring to see if the producer has written
- * any new entries. If so, the producer can then read these entries
+ * any new entries. If so, the consumer can then read these entries
  * and when it is done reading them release them back to the producer
  * so that the producer can use these slots to fill in new entries.
  *

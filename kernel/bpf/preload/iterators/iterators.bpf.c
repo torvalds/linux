@@ -42,7 +42,7 @@ struct bpf_prog_aux {
 	__u32 id;
 	char name[16];
 	const char *attach_func_name;
-	struct bpf_prog *linked_prog;
+	struct bpf_prog *dst_prog;
 	struct bpf_func_info *func_info;
 	struct btf *btf;
 };
@@ -108,7 +108,7 @@ int dump_bpf_prog(struct bpf_iter__bpf_prog *ctx)
 
 	BPF_SEQ_PRINTF(seq, "%4u %-16s %s %s\n", aux->id,
 		       get_name(aux->btf, aux->func_info[0].type_id, aux->name),
-		       aux->attach_func_name, aux->linked_prog->aux->name);
+		       aux->attach_func_name, aux->dst_prog->aux->name);
 	return 0;
 }
 char LICENSE[] SEC("license") = "GPL";

@@ -21,7 +21,7 @@ TAIL_FUNC(1)
 static __noinline
 int subprog_tail(struct __sk_buff *skb)
 {
-	bpf_tail_call(skb, &jmp_table, 0);
+	bpf_tail_call_static(skb, &jmp_table, 0);
 
 	return skb->len * 2;
 }
@@ -29,7 +29,7 @@ int subprog_tail(struct __sk_buff *skb)
 SEC("classifier")
 int entry(struct __sk_buff *skb)
 {
-	bpf_tail_call(skb, &jmp_table, 1);
+	bpf_tail_call_static(skb, &jmp_table, 1);
 
 	return subprog_tail(skb);
 }
