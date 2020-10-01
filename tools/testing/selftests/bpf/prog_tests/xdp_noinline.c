@@ -25,7 +25,7 @@ void test_xdp_noinline(void)
 		__u8 flags;
 	} real_def = {.dst = MAGIC_VAL};
 	__u32 ch_key = 11, real_num = 3;
-	__u32 duration, retval, size;
+	__u32 duration = 0, retval, size;
 	int err, i;
 	__u64 bytes = 0, pkts = 0;
 	char buf[128];
