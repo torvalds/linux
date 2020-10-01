@@ -280,5 +280,7 @@ int smu_v11_0_gfx_ulv_control(struct smu_context *smu,
 int smu_v11_0_deep_sleep_control(struct smu_context *smu,
 				 bool enablement);
 
+void smu_v11_0_interrupt_work(struct smu_context *smu);
+
 #endif
 #endif

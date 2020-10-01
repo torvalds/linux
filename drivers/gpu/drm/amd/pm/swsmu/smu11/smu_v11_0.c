@@ -955,6 +955,12 @@ static int smu_v11_0_process_pending_interrupt(struct smu_context *smu)
 	return ret;
 }
 
+void smu_v11_0_interrupt_work(struct smu_context *smu)
+{
+	if (smu_v11_0_ack_ac_dc_interrupt(smu))
+		dev_err(smu->adev->dev, "Ack AC/DC interrupt Failed!\n");
+}
+
 int smu_v11_0_enable_thermal_alert(struct smu_context *smu)
 {
 	int ret = 0;
@@ -1320,11 +1326,11 @@ static int smu_v11_0_irq_process(struct amdgpu_device *adev,
 			switch (ctxid) {
 			case 0x3:
 				dev_dbg(adev->dev, "Switched to AC mode!\n");
-				smu_v11_0_ack_ac_dc_interrupt(&adev->smu);
+				schedule_work(&smu->interrupt_work);
 				break;
 			case 0x4:
 				dev_dbg(adev->dev, "Switched to DC mode!\n");
-				smu_v11_0_ack_ac_dc_interrupt(&adev->smu);
+				schedule_work(&smu->interrupt_work);
 				break;
 			case 0x7:
 				/*

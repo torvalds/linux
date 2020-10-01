@@ -2388,6 +2388,7 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.gfx_ulv_control = smu_v11_0_gfx_ulv_control,
 	.deep_sleep_control = smu_v11_0_deep_sleep_control,
 	.get_fan_parameters = arcturus_get_fan_parameters,
+	.interrupt_work = smu_v11_0_interrupt_work,
 };
 
 void arcturus_set_ppt_funcs(struct smu_context *smu)

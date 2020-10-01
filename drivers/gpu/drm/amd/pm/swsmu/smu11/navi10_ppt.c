@@ -2755,6 +2755,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.deep_sleep_control = smu_v11_0_deep_sleep_control,
 	.get_fan_parameters = navi10_get_fan_parameters,
 	.post_init = navi10_post_smu_init,
+	.interrupt_work = smu_v11_0_interrupt_work,
 };
 
 void navi10_set_ppt_funcs(struct smu_context *smu)
