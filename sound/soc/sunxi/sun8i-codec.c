@@ -24,10 +24,13 @@
 
 #define SUN8I_SYSCLK_CTL				0x00c
 #define SUN8I_SYSCLK_CTL_AIF1CLK_ENA			11
-#define SUN8I_SYSCLK_CTL_AIF1CLK_SRC_PLL		9
-#define SUN8I_SYSCLK_CTL_AIF1CLK_SRC			8
+#define SUN8I_SYSCLK_CTL_AIF1CLK_SRC_PLL		(0x2 << 8)
+#define SUN8I_SYSCLK_CTL_AIF2CLK_ENA			7
+#define SUN8I_SYSCLK_CTL_AIF2CLK_SRC_PLL		(0x2 << 4)
 #define SUN8I_SYSCLK_CTL_SYSCLK_ENA			3
 #define SUN8I_SYSCLK_CTL_SYSCLK_SRC			0
+#define SUN8I_SYSCLK_CTL_SYSCLK_SRC_AIF1CLK		(0x0 << 0)
+#define SUN8I_SYSCLK_CTL_SYSCLK_SRC_AIF2CLK		(0x1 << 0)
 #define SUN8I_MOD_CLK_ENA				0x010
 #define SUN8I_MOD_CLK_ENA_AIF1				15
 #define SUN8I_MOD_CLK_ENA_ADC				3
@@ -79,6 +82,8 @@
 #define SUN8I_DAC_MXR_SRC_DACR_MXR_SRC_AIF2DACR		9
 #define SUN8I_DAC_MXR_SRC_DACR_MXR_SRC_ADCR		8
 
+#define SUN8I_SYSCLK_CTL_AIF1CLK_SRC_MASK	GENMASK(9, 8)
+#define SUN8I_SYSCLK_CTL_AIF2CLK_SRC_MASK	GENMASK(5, 4)
 #define SUN8I_SYS_SR_CTRL_AIF1_FS_MASK		GENMASK(15, 12)
 #define SUN8I_SYS_SR_CTRL_AIF2_FS_MASK		GENMASK(11, 8)
 #define SUN8I_AIF1CLK_CTRL_AIF1_BCLK_DIV_MASK	GENMASK(12, 9)
@@ -323,9 +328,6 @@ static int sun8i_codec_hw_params(struct snd_pcm_substream *substream,
 	regmap_update_bits(scodec->regmap, SUN8I_SYS_SR_CTRL,
 			   SUN8I_SYS_SR_CTRL_AIF1_FS_MASK,
 			   sample_rate << SUN8I_SYS_SR_CTRL_AIF1_FS);
-	regmap_update_bits(scodec->regmap, SUN8I_SYS_SR_CTRL,
-			   SUN8I_SYS_SR_CTRL_AIF2_FS_MASK,
-			   sample_rate << SUN8I_SYS_SR_CTRL_AIF2_FS);
 
 	return 0;
 }
@@ -366,7 +368,15 @@ static const struct snd_kcontrol_new sun8i_input_mixer_controls[] = {
 };
 
 static const struct snd_soc_dapm_widget sun8i_codec_dapm_widgets[] = {
+	/* System Clocks */
 	SND_SOC_DAPM_CLOCK_SUPPLY("mod"),
+
+	SND_SOC_DAPM_SUPPLY("AIF1CLK",
+			    SUN8I_SYSCLK_CTL,
+			    SUN8I_SYSCLK_CTL_AIF1CLK_ENA, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("SYSCLK",
+			    SUN8I_SYSCLK_CTL,
+			    SUN8I_SYSCLK_CTL_SYSCLK_ENA, 0, NULL, 0),
 
 	/* Digital parts of the DACs and ADC */
 	SND_SOC_DAPM_SUPPLY("DAC", SUN8I_DAC_DIG_CTRL, SUN8I_DAC_DIG_CTRL_ENDA,
@@ -415,16 +425,6 @@ static const struct snd_soc_dapm_widget sun8i_codec_dapm_widgets[] = {
 			    SUN8I_MOD_CLK_ENA_DAC, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("MODCLK ADC", SUN8I_MOD_CLK_ENA,
 			    SUN8I_MOD_CLK_ENA_ADC, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("AIF1", SUN8I_SYSCLK_CTL,
-			    SUN8I_SYSCLK_CTL_AIF1CLK_ENA, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("SYSCLK", SUN8I_SYSCLK_CTL,
-			    SUN8I_SYSCLK_CTL_SYSCLK_ENA, 0, NULL, 0),
-
-	SND_SOC_DAPM_SUPPLY("AIF1 PLL", SUN8I_SYSCLK_CTL,
-			    SUN8I_SYSCLK_CTL_AIF1CLK_SRC_PLL, 0, NULL, 0),
-	/* Inversion as 0=AIF1, 1=AIF2 */
-	SND_SOC_DAPM_SUPPLY("SYSCLK AIF1", SUN8I_SYSCLK_CTL,
-			    SUN8I_SYSCLK_CTL_SYSCLK_SRC, 1, NULL, 0),
 
 	/* Module reset */
 	SND_SOC_DAPM_SUPPLY("RST AIF1", SUN8I_MOD_RST_CTL,
@@ -437,12 +437,11 @@ static const struct snd_soc_dapm_widget sun8i_codec_dapm_widgets[] = {
 
 static const struct snd_soc_dapm_route sun8i_codec_dapm_routes[] = {
 	/* Clock Routes */
-	{ "AIF1", NULL, "mod" },
+	{ "AIF1CLK", NULL, "mod" },
 
-	{ "AIF1", NULL, "SYSCLK AIF1" },
-	{ "AIF1 PLL", NULL, "AIF1" },
-	{ "SYSCLK", NULL, "AIF1 PLL" },
+	{ "SYSCLK", NULL, "AIF1CLK" },
 
+	{ "RST AIF1", NULL, "AIF1CLK" },
 	{ "RST AIF1", NULL, "SYSCLK" },
 	{ "MODCLK AIF1", NULL, "RST AIF1" },
 	{ "AIF1 AD0L", NULL, "MODCLK AIF1" },
@@ -523,6 +522,23 @@ static int sun8i_codec_component_probe(struct snd_soc_component *component)
 		if (ret)
 			return ret;
 	}
+
+	/*
+	 * AIF1CLK and AIF2CLK share a pair of clock parents: PLL_AUDIO ("mod")
+	 * and MCLK (from the CPU DAI connected to AIF1). MCLK's parent is also
+	 * PLL_AUDIO, so using it adds no additional flexibility. Use PLL_AUDIO
+	 * directly to simplify the clock tree.
+	 */
+	regmap_update_bits(scodec->regmap, SUN8I_SYSCLK_CTL,
+			   SUN8I_SYSCLK_CTL_AIF1CLK_SRC_MASK |
+			   SUN8I_SYSCLK_CTL_AIF2CLK_SRC_MASK,
+			   SUN8I_SYSCLK_CTL_AIF1CLK_SRC_PLL |
+			   SUN8I_SYSCLK_CTL_AIF2CLK_SRC_PLL);
+
+	/* Use AIF1CLK as the SYSCLK parent since AIF1 is used most often. */
+	regmap_update_bits(scodec->regmap, SUN8I_SYSCLK_CTL,
+			   BIT(SUN8I_SYSCLK_CTL_SYSCLK_SRC),
+			   SUN8I_SYSCLK_CTL_SYSCLK_SRC_AIF1CLK);
 
 	return 0;
 }
