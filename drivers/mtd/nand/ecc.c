@@ -105,7 +105,7 @@
  */
 int nand_ecc_init_ctx(struct nand_device *nand)
 {
-	if (!nand->ecc.engine->ops->init_ctx)
+	if (!nand->ecc.engine || !nand->ecc.engine->ops->init_ctx)
 		return 0;
 
 	return nand->ecc.engine->ops->init_ctx(nand);
@@ -118,7 +118,7 @@ EXPORT_SYMBOL(nand_ecc_init_ctx);
  */
 void nand_ecc_cleanup_ctx(struct nand_device *nand)
 {
-	if (nand->ecc.engine->ops->cleanup_ctx)
+	if (nand->ecc.engine && nand->ecc.engine->ops->cleanup_ctx)
 		nand->ecc.engine->ops->cleanup_ctx(nand);
 }
 EXPORT_SYMBOL(nand_ecc_cleanup_ctx);
@@ -131,7 +131,7 @@ EXPORT_SYMBOL(nand_ecc_cleanup_ctx);
 int nand_ecc_prepare_io_req(struct nand_device *nand,
 			    struct nand_page_io_req *req)
 {
-	if (!nand->ecc.engine->ops->prepare_io_req)
+	if (!nand->ecc.engine || !nand->ecc.engine->ops->prepare_io_req)
 		return 0;
 
 	return nand->ecc.engine->ops->prepare_io_req(nand, req);
@@ -146,7 +146,7 @@ EXPORT_SYMBOL(nand_ecc_prepare_io_req);
 int nand_ecc_finish_io_req(struct nand_device *nand,
 			   struct nand_page_io_req *req)
 {
-	if (!nand->ecc.engine->ops->finish_io_req)
+	if (!nand->ecc.engine || !nand->ecc.engine->ops->finish_io_req)
 		return 0;
 
 	return nand->ecc.engine->ops->finish_io_req(nand, req);
