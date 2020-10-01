@@ -479,14 +479,35 @@ properties:
       - description: i.MX6UL based Boards
         items:
           - enum:
-              - armadeus,imx6ul-opos6ul    # OPOS6UL (i.MX6UL) SoM
-              - armadeus,imx6ul-opos6uldev # OPOS6UL (i.MX6UL) SoM on OPOS6ULDev board
+              - engicam,imx6ul-geam       # Engicam GEAM6UL Starter Kit
+              - engicam,imx6ul-isiot      # Engicam Is.IoT MX6UL eMMC/NAND Starter kit
               - fsl,imx6ul-14x14-evk      # i.MX6 UltraLite 14x14 EVK Board
+              - karo,imx6ul-tx6ul         # Ka-Ro electronics TXUL-0010 Module
               - kontron,imx6ul-n6310-som  # Kontron N6310 SOM
               - kontron,imx6ul-n6311-som  # Kontron N6311 SOM
               - technexion,imx6ul-pico-dwarf   # TechNexion i.MX6UL Pico-Dwarf
               - technexion,imx6ul-pico-hobbit  # TechNexion i.MX6UL Pico-Hobbit
               - technexion,imx6ul-pico-pi      # TechNexion i.MX6UL Pico-Pi
+          - const: fsl,imx6ul
+
+      - description: i.MX6UL Armadeus Systems OPOS6UL SoM Board
+        items:
+          - const: armadeus,imx6ul-opos6uldev   # OPOS6UL (i.MX6UL) SoM on OPOS6ULDev board
+          - const: armadeus,imx6ul-opos6ul      # OPOS6UL (i.MX6UL) SoM
+          - const: fsl,imx6ul
+
+      - description: i.MX6UL Digi International ConnectCore 6UL Boards
+        items:
+          - enum:
+              - digi,ccimx6ulsbcexpress   # Digi International ConnectCore 6UL SBC Express
+              - digi,ccimx6ulsbcpro       # Digi International ConnectCore 6UL SBC Pro
+          - const: digi,ccimx6ulsom
+          - const: fsl,imx6ul
+
+      - description: i.MX6UL Grinn liteBoard
+        items:
+          - const: grinn,imx6ul-liteboard
+          - const: grinn,imx6ul-litesom
           - const: fsl,imx6ul
 
       - description: i.MX6UL PHYTEC phyBOARD-Segin
