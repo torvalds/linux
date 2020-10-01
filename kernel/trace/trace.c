@@ -3546,13 +3546,15 @@ struct trace_entry *trace_find_next_entry(struct trace_iterator *iter,
 	if (iter->ent && iter->ent != iter->temp) {
 		if ((!iter->temp || iter->temp_size < iter->ent_size) &&
 		    !WARN_ON_ONCE(iter->temp == static_temp_buf)) {
-			kfree(iter->temp);
-			iter->temp = kmalloc(iter->ent_size, GFP_KERNEL);
-			if (!iter->temp)
+			void *temp;
+			temp = kmalloc(iter->ent_size, GFP_KERNEL);
+			if (!temp)
 				return NULL;
+			kfree(iter->temp);
+			iter->temp = temp;
+			iter->temp_size = iter->ent_size;
 		}
 		memcpy(iter->temp, iter->ent, iter->ent_size);
-		iter->temp_size = iter->ent_size;
 		iter->ent = iter->temp;
 	}
 	entry = __find_next_entry(iter, ent_cpu, NULL, ent_ts);
