@@ -466,9 +466,14 @@ properties:
       - description: i.MX6SX based Boards
         items:
           - enum:
+              - boundary,imx6sx-nitrogen6sx
               - fsl,imx6sx-sabreauto      # i.MX6 SoloX Sabre Auto Board
               - fsl,imx6sx-sdb            # i.MX6 SoloX SDB Board
               - fsl,imx6sx-sdb-reva       # i.MX6 SoloX SDB Rev-A Board
+              - samtec,imx6sx-vining-2000 # Softing VIN|ING 2000 Board
+              - udoo,neobasic             # UDOO Neo Basic Board
+              - udoo,neoextended          # UDOO Neo Extended
+              - udoo,neofull              # UDOO Neo Full
           - const: fsl,imx6sx
 
       - description: i.MX6UL based Boards
