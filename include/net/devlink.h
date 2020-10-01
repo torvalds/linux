@@ -1243,6 +1243,16 @@ struct devlink_ops {
 			      const struct devlink_trap_policer *policer,
 			      struct netlink_ext_ack *extack);
 	/**
+	 * @trap_group_action_set: Trap group action set function.
+	 *
+	 * If this callback is populated, it will take precedence over looping
+	 * over all traps in a group and calling .trap_action_set().
+	 */
+	int (*trap_group_action_set)(struct devlink *devlink,
+				     const struct devlink_trap_group *group,
+				     enum devlink_trap_action action,
+				     struct netlink_ext_ack *extack);
+	/**
 	 * @trap_policer_init: Trap policer initialization function.
 	 *
 	 * Should be used by device drivers to initialize the trap policer in
