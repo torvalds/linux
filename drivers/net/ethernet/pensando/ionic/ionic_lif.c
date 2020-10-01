@@ -164,8 +164,10 @@ void ionic_link_status_check_request(struct ionic_lif *lif, bool can_sleep)
 
 	if (!can_sleep) {
 		work = kzalloc(sizeof(*work), GFP_ATOMIC);
-		if (!work)
+		if (!work) {
+			clear_bit(IONIC_LIF_F_LINK_CHECK_REQUESTED, lif->state);
 			return;
+		}
 
 		work->type = IONIC_DW_TYPE_LINK_STATUS;
 		ionic_lif_deferred_enqueue(&lif->deferred, work);
