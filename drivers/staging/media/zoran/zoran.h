@@ -75,11 +75,11 @@ enum card_type {
 	UNKNOWN = -1,
 
 	/* Pinnacle/Miro */
-	DC10_old,		/* DC30 like */
-	DC10_new,		/* DC10plus like */
-	DC10plus,
+	DC10_OLD,		/* DC30 like */
+	DC10_NEW,		/* DC10_PLUS like */
+	DC10_PLUS,
 	DC30,
-	DC30plus,
+	DC30_PLUS,
 
 	/* Linux Media Labs */
 	LML33,

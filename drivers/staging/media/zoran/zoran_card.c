@@ -104,8 +104,8 @@ MODULE_VERSION(ZORAN_VERSION);
 	.subvendor = (subven), .subdevice = (subdev), .driver_data = (data) }
 
 static const struct pci_device_id zr36067_pci_tbl[] = {
-	ZR_DEVICE(PCI_VENDOR_ID_MIRO, PCI_DEVICE_ID_MIRO_DC10PLUS, DC10plus),
-	ZR_DEVICE(PCI_VENDOR_ID_MIRO, PCI_DEVICE_ID_MIRO_DC30PLUS, DC30plus),
+	ZR_DEVICE(PCI_VENDOR_ID_MIRO, PCI_DEVICE_ID_MIRO_DC10PLUS, DC10_PLUS),
+	ZR_DEVICE(PCI_VENDOR_ID_MIRO, PCI_DEVICE_ID_MIRO_DC30PLUS, DC30_PLUS),
 	ZR_DEVICE(PCI_VENDOR_ID_ELECTRONICDESIGNGMBH, PCI_DEVICE_ID_LML_33R10, LML33R10),
 	ZR_DEVICE(PCI_VENDOR_ID_IOMEGA, PCI_DEVICE_ID_IOMEGA_BUZ, BUZ),
 	ZR_DEVICE(PCI_ANY_ID, PCI_ANY_ID, NUM_CARDS),
@@ -311,7 +311,7 @@ static const unsigned short bt866_addrs[] = { 0x44, I2C_CLIENT_END };
 
 static struct card_info zoran_cards[NUM_CARDS] = {
 	{
-		.type = DC10_old,
+		.type = DC10_OLD,
 		.name = "DC10(old)",
 		.i2c_decoder = "vpx3220a",
 		.addrs_decoder = vpx3220_addrs,
@@ -340,7 +340,7 @@ static struct card_info zoran_cards[NUM_CARDS] = {
 		.input_mux = 0,
 		.init = &dc10_init,
 	}, {
-		.type = DC10_new,
+		.type = DC10_NEW,
 		.name = "DC10(new)",
 		.i2c_decoder = "saa7110",
 		.addrs_decoder = saa7110_addrs,
@@ -369,8 +369,8 @@ static struct card_info zoran_cards[NUM_CARDS] = {
 		.input_mux = 0,
 		.init = &dc10plus_init,
 	}, {
-		.type = DC10plus,
-		.name = "DC10plus",
+		.type = DC10_PLUS,
+		.name = "DC10_PLUS",
 		.i2c_decoder = "saa7110",
 		.addrs_decoder = saa7110_addrs,
 		.i2c_encoder = "adv7175",
@@ -430,8 +430,8 @@ static struct card_info zoran_cards[NUM_CARDS] = {
 		.input_mux = 0,
 		.init = &dc10_init,
 	}, {
-		.type = DC30plus,
-		.name = "DC30plus",
+		.type = DC30_PLUS,
+		.name = "DC30_PLUS",
 		.i2c_decoder = "vpx3220a",
 		.addrs_decoder = vpx3220_addrs,
 		.i2c_encoder = "adv7175",
@@ -694,7 +694,7 @@ int zoran_check_jpg_settings(struct zoran *zr,
 		break;
 	case 4:
 
-		if (zr->card.type == DC10_new) {
+		if (zr->card.type == DC10_NEW) {
 			pci_dbg(zr->pci_dev, "%s - HDec by 4 is not supported on the DC10\n", __func__);
 			err0++;
 			break;
@@ -715,7 +715,7 @@ int zoran_check_jpg_settings(struct zoran *zr,
 		/* We have to check the data the user has set */
 
 		if (settings->HorDcm != 1 && settings->HorDcm != 2 &&
-		    (zr->card.type == DC10_new || settings->HorDcm != 4)) {
+		    (zr->card.type == DC10_NEW || settings->HorDcm != 4)) {
 			settings->HorDcm = clamp(settings->HorDcm, 1, 2);
 			err0++;
 		}
