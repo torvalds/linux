@@ -266,29 +266,26 @@ static int ionic_qcq_enable(struct ionic_qcq *qcq)
 
 static int ionic_qcq_disable(struct ionic_qcq *qcq)
 {
-	struct ionic_queue *q = &qcq->q;
-	struct ionic_lif *lif = q->lif;
-	struct ionic_dev *idev;
-	struct device *dev;
+	struct ionic_queue *q;
+	struct ionic_lif *lif;
 
 	struct ionic_admin_ctx ctx = {
 		.work = COMPLETION_INITIALIZER_ONSTACK(ctx.work),
 		.cmd.q_control = {
 			.opcode = IONIC_CMD_Q_CONTROL,
-			.lif_index = cpu_to_le16(lif->index),
-			.type = q->type,
-			.index = cpu_to_le32(q->index),
 			.oper = IONIC_Q_DISABLE,
 		},
 	};
 
-	idev = &lif->ionic->idev;
-	dev = lif->ionic->dev;
+	if (!qcq)
+		return -ENXIO;
 
-	dev_dbg(dev, "q_disable.index %d q_disable.qtype %d\n",
-		ctx.cmd.q_control.index, ctx.cmd.q_control.type);
+	q = &qcq->q;
+	lif = q->lif;
 
 	if (qcq->flags & IONIC_QCQ_F_INTR) {
+		struct ionic_dev *idev = &lif->ionic->idev;
+
 		cancel_work_sync(&qcq->dim.work);
 		ionic_intr_mask(idev->intr_ctrl, qcq->intr.index,
 				IONIC_INTR_MASK_SET);
@@ -296,6 +293,12 @@ static int ionic_qcq_disable(struct ionic_qcq *qcq)
 		irq_set_affinity_hint(qcq->intr.vector, NULL);
 		napi_disable(&qcq->napi);
 	}
+
+	ctx.cmd.q_control.lif_index = cpu_to_le16(lif->index);
+	ctx.cmd.q_control.type = q->type;
+	ctx.cmd.q_control.index = cpu_to_le32(q->index);
+	dev_dbg(lif->ionic->dev, "q_disable.index %d q_disable.qtype %d\n",
+		ctx.cmd.q_control.index, ctx.cmd.q_control.type);
 
 	return ionic_adminq_post_wait(lif, &ctx);
 }
@@ -1794,6 +1797,12 @@ static int ionic_txrx_enable(struct ionic_lif *lif)
 	int i, err;
 
 	for (i = 0; i < lif->nxqs; i++) {
+		if (!(lif->rxqcqs[i] && lif->txqcqs[i])) {
+			dev_err(lif->ionic->dev, "%s: bad qcq %d\n", __func__, i);
+			err = -ENXIO;
+			goto err_out;
+		}
+
 		ionic_rx_fill(&lif->rxqcqs[i]->q);
 		err = ionic_qcq_enable(lif->rxqcqs[i]);
 		if (err)
