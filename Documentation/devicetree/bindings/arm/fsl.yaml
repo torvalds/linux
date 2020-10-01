@@ -593,6 +593,8 @@ properties:
       - description: i.MX7D based Boards
         items:
           - enum:
+              - boundary,imx7d-nitrogen7
+              - compulab,cl-som-imx7      # CompuLab CL-SOM-iMX7
               - fsl,imx7d-sdb             # i.MX7 SabreSD Board
               - fsl,imx7d-sdb-reva        # i.MX7 SabreSD Rev-A Board
               - novtech,imx7d-meerkat96   # i.MX7 Meerkat96 Board
@@ -628,6 +630,22 @@ properties:
         items:
           - const: compulab,sbc-imx7
           - const: compulab,cl-som-imx7
+          - const: fsl,imx7d
+
+      - description: i.MX7D Boards with Toradex Colibri i.MX7D Module
+        items:
+          - enum:
+              - toradex,colibri-imx7d-aster   # Module on Aster Carrier Board
+              - toradex,colibri-imx7d-eval-v3 # Module on Colibri Evaluation Board V3
+          - const: toradex,colibri-imx7d
+          - const: fsl,imx7d
+
+      - description: i.MX7D Boards with Toradex Colibri i.MX7D eMMC Module
+        items:
+          - enum:
+              - toradex,colibri-imx7d-emmc-aster    # Module on Aster Carrier Board
+              - toradex,colibri-imx7d-emmc-eval-v3  # Module on Colibri Evaluation Board V3
+          - const: toradex,colibri-imx7d-emmc
           - const: fsl,imx7d
 
       - description: i.MX7ULP based Boards
