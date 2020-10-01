@@ -481,6 +481,9 @@ int nested_svm_vmrun(struct vcpu_svm *svm)
 
 	vmcb12 = map.hva;
 
+	if (WARN_ON_ONCE(!svm->nested.initialized))
+		return -EINVAL;
+
 	if (!nested_vmcb_checks(svm, vmcb12)) {
 		vmcb12->control.exit_code    = SVM_EXIT_ERR;
 		vmcb12->control.exit_code_hi = 0;
@@ -696,6 +699,45 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	kvm_clear_interrupt_queue(&svm->vcpu);
 
 	return 0;
+}
+
+int svm_allocate_nested(struct vcpu_svm *svm)
+{
+	struct page *hsave_page;
+
+	if (svm->nested.initialized)
+		return 0;
+
+	hsave_page = alloc_page(GFP_KERNEL_ACCOUNT | __GFP_ZERO);
+	if (!hsave_page)
+		return -ENOMEM;
+	svm->nested.hsave = page_address(hsave_page);
+
+	svm->nested.msrpm = svm_vcpu_alloc_msrpm();
+	if (!svm->nested.msrpm)
+		goto err_free_hsave;
+	svm_vcpu_init_msrpm(&svm->vcpu, svm->nested.msrpm);
+
+	svm->nested.initialized = true;
+	return 0;
+
+err_free_hsave:
+	__free_page(hsave_page);
+	return -ENOMEM;
+}
+
+void svm_free_nested(struct vcpu_svm *svm)
+{
+	if (!svm->nested.initialized)
+		return;
+
+	svm_vcpu_free_msrpm(svm->nested.msrpm);
+	svm->nested.msrpm = NULL;
+
+	__free_page(virt_to_page(svm->nested.hsave));
+	svm->nested.hsave = NULL;
+
+	svm->nested.initialized = false;
 }
 
 /*

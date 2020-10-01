@@ -266,6 +266,7 @@ static int get_max_npt_level(void)
 int svm_set_efer(struct kvm_vcpu *vcpu, u64 efer)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
+	u64 old_efer = vcpu->arch.efer;
 	vcpu->arch.efer = efer;
 
 	if (!npt_enabled) {
@@ -276,9 +277,27 @@ int svm_set_efer(struct kvm_vcpu *vcpu, u64 efer)
 			efer &= ~EFER_LME;
 	}
 
-	if (!(efer & EFER_SVME)) {
-		svm_leave_nested(svm);
-		svm_set_gif(svm, true);
+	if ((old_efer & EFER_SVME) != (efer & EFER_SVME)) {
+		if (!(efer & EFER_SVME)) {
+			svm_leave_nested(svm);
+			svm_set_gif(svm, true);
+
+			/*
+			 * Free the nested guest state, unless we are in SMM.
+			 * In this case we will return to the nested guest
+			 * as soon as we leave SMM.
+			 */
+			if (!is_smm(&svm->vcpu))
+				svm_free_nested(svm);
+
+		} else {
+			int ret = svm_allocate_nested(svm);
+
+			if (ret) {
+				vcpu->arch.efer = old_efer;
+				return ret;
+			}
+		}
 	}
 
 	svm->vmcb->save.efer = efer | EFER_SVME;
@@ -650,7 +669,7 @@ static void set_msr_interception(struct kvm_vcpu *vcpu, u32 *msrpm, u32 msr,
 	set_msr_interception_bitmap(vcpu, msrpm, msr, read, write);
 }
 
-static u32 *svm_vcpu_alloc_msrpm(void)
+u32 *svm_vcpu_alloc_msrpm(void)
 {
 	struct page *pages = alloc_pages(GFP_KERNEL_ACCOUNT, MSRPM_ALLOC_ORDER);
 	u32 *msrpm;
@@ -664,7 +683,7 @@ static u32 *svm_vcpu_alloc_msrpm(void)
 	return msrpm;
 }
 
-static void svm_vcpu_init_msrpm(struct kvm_vcpu *vcpu, u32 *msrpm)
+void svm_vcpu_init_msrpm(struct kvm_vcpu *vcpu, u32 *msrpm)
 {
 	int i;
 
@@ -675,7 +694,8 @@ static void svm_vcpu_init_msrpm(struct kvm_vcpu *vcpu, u32 *msrpm)
 	}
 }
 
-static void svm_vcpu_free_msrpm(u32 *msrpm)
+
+void svm_vcpu_free_msrpm(u32 *msrpm)
 {
 	__free_pages(virt_to_page(msrpm), MSRPM_ALLOC_ORDER);
 }
@@ -1268,7 +1288,6 @@ static int svm_create_vcpu(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm;
 	struct page *vmcb_page;
-	struct page *hsave_page;
 	int err;
 
 	BUILD_BUG_ON(offsetof(struct vcpu_svm, vcpu) != 0);
@@ -1279,13 +1298,9 @@ static int svm_create_vcpu(struct kvm_vcpu *vcpu)
 	if (!vmcb_page)
 		goto out;
 
-	hsave_page = alloc_page(GFP_KERNEL_ACCOUNT | __GFP_ZERO);
-	if (!hsave_page)
-		goto error_free_vmcb_page;
-
 	err = avic_init_vcpu(svm);
 	if (err)
-		goto error_free_hsave_page;
+		goto error_free_vmcb_page;
 
 	/* We initialize this flag to true to make sure that the is_running
 	 * bit would be set the first time the vcpu is loaded.
@@ -1293,20 +1308,11 @@ static int svm_create_vcpu(struct kvm_vcpu *vcpu)
 	if (irqchip_in_kernel(vcpu->kvm) && kvm_apicv_activated(vcpu->kvm))
 		svm->avic_is_running = true;
 
-	svm->nested.hsave = page_address(hsave_page);
-
 	svm->msrpm = svm_vcpu_alloc_msrpm();
 	if (!svm->msrpm)
-		goto error_free_hsave_page;
+		goto error_free_vmcb_page;
 
 	svm_vcpu_init_msrpm(vcpu, svm->msrpm);
-
-	svm->nested.msrpm = svm_vcpu_alloc_msrpm();
-	if (!svm->nested.msrpm)
-		goto error_free_msrpm;
-
-	/* We only need the L1 pass-through MSR state, so leave vcpu as NULL */
-	svm_vcpu_init_msrpm(vcpu, svm->nested.msrpm);
 
 	svm->vmcb = page_address(vmcb_page);
 	svm->vmcb_pa = __sme_set(page_to_pfn(vmcb_page) << PAGE_SHIFT);
@@ -1318,10 +1324,6 @@ static int svm_create_vcpu(struct kvm_vcpu *vcpu)
 
 	return 0;
 
-error_free_msrpm:
-	svm_vcpu_free_msrpm(svm->msrpm);
-error_free_hsave_page:
-	__free_page(hsave_page);
 error_free_vmcb_page:
 	__free_page(vmcb_page);
 out:
@@ -1347,10 +1349,10 @@ static void svm_free_vcpu(struct kvm_vcpu *vcpu)
 	 */
 	svm_clear_current_vmcb(svm->vmcb);
 
+	svm_free_nested(svm);
+
 	__free_page(pfn_to_page(__sme_clr(svm->vmcb_pa) >> PAGE_SHIFT));
 	__free_pages(virt_to_page(svm->msrpm), MSRPM_ALLOC_ORDER);
-	__free_page(virt_to_page(svm->nested.hsave));
-	__free_pages(virt_to_page(svm->nested.msrpm), MSRPM_ALLOC_ORDER);
 }
 
 static void svm_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
@@ -4036,6 +4038,9 @@ static int svm_pre_leave_smm(struct kvm_vcpu *vcpu, const char *smstate)
 
 			if (kvm_vcpu_map(&svm->vcpu,
 					 gpa_to_gfn(vmcb12_gpa), &map) == -EINVAL)
+				return 1;
+
+			if (svm_allocate_nested(svm))
 				return 1;
 
 			ret = enter_svm_guest_mode(svm, vmcb12_gpa, map.hva);
