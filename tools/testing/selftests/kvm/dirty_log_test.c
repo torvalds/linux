@@ -62,7 +62,9 @@
 # define test_and_clear_bit_le	test_and_clear_bit
 #endif
 
-#define TEST_DIRTY_RING_COUNT		1024
+#define TEST_DIRTY_RING_COUNT		65536
+
+#define SIG_IPI SIGUSR1
 
 /*
  * Guest/Host shared variables. Ensure addr_gva2hva() and/or
@@ -139,6 +141,12 @@ static uint64_t host_track_next_count;
 static sem_t dirty_ring_vcpu_stop;
 static sem_t dirty_ring_vcpu_cont;
 /*
+ * This is updated by the vcpu thread to tell the host whether it's a
+ * ring-full event.  It should only be read until a sem_wait() of
+ * dirty_ring_vcpu_stop and before vcpu continues to run.
+ */
+static bool dirty_ring_vcpu_ring_full;
+/*
  * This is only used for verifying the dirty pages.  Dirty ring has a very
  * tricky case when the ring just got full, kvm will do userspace exit due to
  * ring full.  When that happens, the very last PFN is set but actually the
@@ -175,6 +183,11 @@ static enum log_mode_t host_log_mode_option = LOG_MODE_ALL;
 /* Logging mode for current run */
 static enum log_mode_t host_log_mode;
 static pthread_t vcpu_thread;
+
+static void vcpu_kick(void)
+{
+	pthread_kill(vcpu_thread, SIG_IPI);
+}
 
 /*
  * In our test we do signal tricks, let's use a better version of
@@ -286,6 +299,8 @@ static uint32_t dirty_ring_collect_one(struct kvm_dirty_gfn *dirty_gfns,
 
 static void dirty_ring_wait_vcpu(void)
 {
+	/* This makes sure that hardware PML cache flushed */
+	vcpu_kick();
 	sem_wait_until(&dirty_ring_vcpu_stop);
 }
 
@@ -301,8 +316,18 @@ static void dirty_ring_collect_dirty_pages(struct kvm_vm *vm, int slot,
 	/* We only have one vcpu */
 	static uint32_t fetch_index = 0;
 	uint32_t count = 0, cleared;
+	bool continued_vcpu = false;
 
 	dirty_ring_wait_vcpu();
+
+	if (!dirty_ring_vcpu_ring_full) {
+		/*
+		 * This is not a ring-full event, it's safe to allow
+		 * vcpu to continue
+		 */
+		dirty_ring_continue_vcpu();
+		continued_vcpu = true;
+	}
 
 	/* Only have one vcpu */
 	count = dirty_ring_collect_one(vcpu_map_dirty_ring(vm, VCPU_ID),
@@ -314,7 +339,11 @@ static void dirty_ring_collect_dirty_pages(struct kvm_vm *vm, int slot,
 	TEST_ASSERT(cleared == count, "Reset dirty pages (%u) mismatch "
 		    "with collected (%u)", cleared, count);
 
-	dirty_ring_continue_vcpu();
+	if (!continued_vcpu) {
+		TEST_ASSERT(dirty_ring_vcpu_ring_full,
+			    "Didn't continue vcpu even without ring full");
+		dirty_ring_continue_vcpu();
+	}
 
 	pr_info("Iteration %ld collected %u pages\n", iteration, count);
 }
@@ -327,10 +356,15 @@ static void dirty_ring_after_vcpu_run(struct kvm_vm *vm, int ret, int err)
 	if (get_ucall(vm, VCPU_ID, NULL) == UCALL_SYNC) {
 		/* We should allow this to continue */
 		;
-	} else if (run->exit_reason == KVM_EXIT_DIRTY_RING_FULL) {
+	} else if (run->exit_reason == KVM_EXIT_DIRTY_RING_FULL ||
+		   (ret == -1 && err == EINTR)) {
 		/* Update the flag first before pause */
+		WRITE_ONCE(dirty_ring_vcpu_ring_full,
+			   run->exit_reason == KVM_EXIT_DIRTY_RING_FULL);
 		sem_post(&dirty_ring_vcpu_stop);
-		pr_info("vcpu stops because dirty ring is full...\n");
+		pr_info("vcpu stops because %s...\n",
+			dirty_ring_vcpu_ring_full ?
+			"dirty ring is full" : "vcpu is kicked out");
 		sem_wait_until(&dirty_ring_vcpu_cont);
 		pr_info("vcpu continues now.\n");
 	} else {
@@ -458,8 +492,25 @@ static void *vcpu_worker(void *data)
 	struct kvm_vm *vm = data;
 	uint64_t *guest_array;
 	uint64_t pages_count = 0;
+	struct kvm_signal_mask *sigmask = alloca(offsetof(struct kvm_signal_mask, sigset)
+						 + sizeof(sigset_t));
+	sigset_t *sigset = (sigset_t *) &sigmask->sigset;
 
 	vcpu_fd = vcpu_get_fd(vm, VCPU_ID);
+
+	/*
+	 * SIG_IPI is unblocked atomically while in KVM_RUN.  It causes the
+	 * ioctl to return with -EINTR, but it is still pending and we need
+	 * to accept it with the sigwait.
+	 */
+	sigmask->len = 8;
+	pthread_sigmask(0, NULL, sigset);
+	vcpu_ioctl(vm, VCPU_ID, KVM_SET_SIGNAL_MASK, sigmask);
+	sigaddset(sigset, SIG_IPI);
+	pthread_sigmask(SIG_BLOCK, sigset, NULL);
+
+	sigemptyset(sigset);
+	sigaddset(sigset, SIG_IPI);
 
 	guest_array = addr_gva2hva(vm, (vm_vaddr_t)random_array);
 
@@ -469,6 +520,11 @@ static void *vcpu_worker(void *data)
 		pages_count += TEST_PAGES_PER_LOOP;
 		/* Let the guest dirty the random pages */
 		ret = ioctl(vcpu_fd, KVM_RUN, NULL);
+		if (ret == -1 && errno == EINTR) {
+			int sig = -1;
+			sigwait(sigset, &sig);
+			assert(sig == SIG_IPI);
+		}
 		log_mode_after_vcpu_run(vm, ret, errno);
 	}
 
