@@ -518,30 +518,55 @@ static int ionic_qcq_alloc(struct ionic_lif *lif, unsigned int type,
 		goto err_out_free_cq_info;
 	}
 
-	new->q_size = PAGE_SIZE + (num_descs * desc_size);
-	new->q_base = dma_alloc_coherent(dev, new->q_size, &new->q_base_pa,
-					 GFP_KERNEL);
-	if (!new->q_base) {
-		netdev_err(lif->netdev, "Cannot allocate queue DMA memory\n");
-		err = -ENOMEM;
-		goto err_out_free_cq_info;
-	}
-	q_base = PTR_ALIGN(new->q_base, PAGE_SIZE);
-	q_base_pa = ALIGN(new->q_base_pa, PAGE_SIZE);
-	ionic_q_map(&new->q, q_base, q_base_pa);
+	if (flags & IONIC_QCQ_F_NOTIFYQ) {
+		int q_size, cq_size;
 
-	new->cq_size = PAGE_SIZE + (num_descs * cq_desc_size);
-	new->cq_base = dma_alloc_coherent(dev, new->cq_size, &new->cq_base_pa,
-					  GFP_KERNEL);
-	if (!new->cq_base) {
-		netdev_err(lif->netdev, "Cannot allocate cq DMA memory\n");
-		err = -ENOMEM;
-		goto err_out_free_q;
+		/* q & cq need to be contiguous in case of notifyq */
+		q_size = ALIGN(num_descs * desc_size, PAGE_SIZE);
+		cq_size = ALIGN(num_descs * cq_desc_size, PAGE_SIZE);
+
+		new->q_size = PAGE_SIZE + q_size + cq_size;
+		new->q_base = dma_alloc_coherent(dev, new->q_size,
+						 &new->q_base_pa, GFP_KERNEL);
+		if (!new->q_base) {
+			netdev_err(lif->netdev, "Cannot allocate qcq DMA memory\n");
+			err = -ENOMEM;
+			goto err_out_free_cq_info;
+		}
+		q_base = PTR_ALIGN(new->q_base, PAGE_SIZE);
+		q_base_pa = ALIGN(new->q_base_pa, PAGE_SIZE);
+		ionic_q_map(&new->q, q_base, q_base_pa);
+
+		cq_base = PTR_ALIGN(q_base + q_size, PAGE_SIZE);
+		cq_base_pa = ALIGN(new->q_base_pa + q_size, PAGE_SIZE);
+		ionic_cq_map(&new->cq, cq_base, cq_base_pa);
+		ionic_cq_bind(&new->cq, &new->q);
+	} else {
+		new->q_size = PAGE_SIZE + (num_descs * desc_size);
+		new->q_base = dma_alloc_coherent(dev, new->q_size, &new->q_base_pa,
+						 GFP_KERNEL);
+		if (!new->q_base) {
+			netdev_err(lif->netdev, "Cannot allocate queue DMA memory\n");
+			err = -ENOMEM;
+			goto err_out_free_cq_info;
+		}
+		q_base = PTR_ALIGN(new->q_base, PAGE_SIZE);
+		q_base_pa = ALIGN(new->q_base_pa, PAGE_SIZE);
+		ionic_q_map(&new->q, q_base, q_base_pa);
+
+		new->cq_size = PAGE_SIZE + (num_descs * cq_desc_size);
+		new->cq_base = dma_alloc_coherent(dev, new->cq_size, &new->cq_base_pa,
+						  GFP_KERNEL);
+		if (!new->cq_base) {
+			netdev_err(lif->netdev, "Cannot allocate cq DMA memory\n");
+			err = -ENOMEM;
+			goto err_out_free_q;
+		}
+		cq_base = PTR_ALIGN(new->cq_base, PAGE_SIZE);
+		cq_base_pa = ALIGN(new->cq_base_pa, PAGE_SIZE);
+		ionic_cq_map(&new->cq, cq_base, cq_base_pa);
+		ionic_cq_bind(&new->cq, &new->q);
 	}
-	cq_base = PTR_ALIGN(new->cq_base, PAGE_SIZE);
-	cq_base_pa = ALIGN(new->cq_base_pa, PAGE_SIZE);
-	ionic_cq_map(&new->cq, cq_base, cq_base_pa);
-	ionic_cq_bind(&new->cq, &new->q);
 
 	if (flags & IONIC_QCQ_F_SG) {
 		new->sg_size = PAGE_SIZE + (num_descs * sg_desc_size);
