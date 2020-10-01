@@ -26,6 +26,8 @@ static struct vmw_thp_manager *to_thp_manager(struct ttm_resource_manager *man)
 	return container_of(man, struct vmw_thp_manager, manager);
 }
 
+static const struct ttm_resource_manager_func vmw_thp_func;
+
 static int vmw_thp_insert_aligned(struct drm_mm *mm, struct drm_mm_node *node,
 				  unsigned long align_pages,
 				  const struct ttm_place *place,
@@ -132,6 +134,7 @@ int vmw_thp_init(struct vmw_private *dev_priv)
 	ttm_resource_manager_init(&rman->manager,
 				  dev_priv->vram_size >> PAGE_SHIFT);
 
+	rman->manager.func = &vmw_thp_func;
 	drm_mm_init(&rman->mm, 0, rman->manager.size);
 	spin_lock_init(&rman->lock);
 
@@ -171,7 +174,7 @@ static void vmw_thp_debug(struct ttm_resource_manager *man,
 	spin_unlock(&rman->lock);
 }
 
-const struct ttm_resource_manager_func vmw_thp_func = {
+static const struct ttm_resource_manager_func vmw_thp_func = {
 	.alloc = vmw_thp_get_node,
 	.free = vmw_thp_put_node,
 	.debug = vmw_thp_debug
