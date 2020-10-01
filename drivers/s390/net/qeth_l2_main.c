@@ -571,9 +571,10 @@ static u16 qeth_l2_select_queue(struct net_device *dev, struct sk_buff *skb,
 		return qeth_iqd_select_queue(dev, skb,
 					     qeth_get_ether_cast_type(skb),
 					     sb_dev);
+	if (qeth_uses_tx_prio_queueing(card))
+		return qeth_get_priority_queue(card, skb);
 
-	return IS_VM_NIC(card) ? netdev_pick_tx(dev, skb, sb_dev) :
-				 qeth_get_priority_queue(card, skb);
+	return netdev_pick_tx(dev, skb, sb_dev);
 }
 
 static void qeth_l2_set_rx_mode(struct net_device *dev)

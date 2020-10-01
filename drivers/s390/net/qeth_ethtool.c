@@ -220,6 +220,10 @@ static int qeth_set_channels(struct net_device *dev,
 	if (channels->tx_count > card->qdio.no_out_queues)
 		return -EINVAL;
 
+	/* Prio-queueing needs all TX queues: */
+	if (qeth_uses_tx_prio_queueing(card))
+		return -EPERM;
+
 	if (IS_IQD(card)) {
 		if (channels->tx_count < QETH_IQD_MIN_TXQ)
 			return -EINVAL;
@@ -230,10 +234,6 @@ static int qeth_set_channels(struct net_device *dev,
 		if (netif_running(dev) &&
 		    channels->tx_count < dev->real_num_tx_queues)
 			return -EPERM;
-	} else {
-		/* OSA still uses the legacy prio-queue mechanism: */
-		if (!IS_VM_NIC(card))
-			return -EOPNOTSUPP;
 	}
 
 	rc = qeth_set_real_num_tx_queues(card, channels->tx_count);

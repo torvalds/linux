@@ -278,6 +278,10 @@ struct qeth_hdr {
 	} hdr;
 } __attribute__ ((packed));
 
+#define QETH_QIB_PQUE_ORDER_RR		0
+#define QETH_QIB_PQUE_UNITS_SBAL	2
+#define QETH_QIB_PQUE_PRIO_DEFAULT	4
+
 struct qeth_qib_parms {
 	char pcit_magic[4];
 	u32 pcit_a;
@@ -287,6 +291,11 @@ struct qeth_qib_parms {
 	u32 blkt_total;
 	u32 blkt_inter_packet;
 	u32 blkt_inter_packet_jumbo;
+	char pque_magic[4];
+	u8 pque_order;
+	u8 pque_units;
+	u16 reserved;
+	u32 pque_priority[4];
 };
 
 /*TCP Segmentation Offload header*/
@@ -492,6 +501,7 @@ struct qeth_qdio_out_q {
 	struct qdio_outbuf_state *bufstates; /* convenience pointer */
 	struct qeth_out_q_stats stats;
 	spinlock_t lock;
+	unsigned int priority;
 	u8 next_buf_to_fill;
 	u8 max_elements;
 	u8 queue_no;
@@ -885,9 +895,17 @@ struct qeth_trap_id {
 /*some helper functions*/
 #define QETH_CARD_IFNAME(card) (((card)->dev)? (card)->dev->name : "")
 
+static inline bool qeth_uses_tx_prio_queueing(struct qeth_card *card)
+{
+	return card->qdio.do_prio_queueing != QETH_NO_PRIO_QUEUEING;
+}
+
 static inline unsigned int qeth_tx_actual_queues(struct qeth_card *card)
 {
 	struct qeth_priv *priv = netdev_priv(card->dev);
+
+	if (qeth_uses_tx_prio_queueing(card))
+		return min(card->dev->num_tx_queues, card->qdio.no_out_queues);
 
 	return min(priv->tx_wanted_queues, card->qdio.no_out_queues);
 }

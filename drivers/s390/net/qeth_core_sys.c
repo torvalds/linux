@@ -164,9 +164,11 @@ static ssize_t qeth_dev_prioqing_show(struct device *dev,
 		return sprintf(buf, "%s\n", "by skb-priority");
 	case QETH_PRIO_Q_ING_VLAN:
 		return sprintf(buf, "%s\n", "by VLAN headers");
-	default:
+	case QETH_PRIO_Q_ING_FIXED:
 		return sprintf(buf, "always queue %i\n",
 			       card->qdio.default_out_queue);
+	default:
+		return sprintf(buf, "disabled\n");
 	}
 }
 

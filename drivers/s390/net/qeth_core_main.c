@@ -2683,6 +2683,7 @@ static int qeth_alloc_qdio_queues(struct qeth_card *card)
 		timer_setup(&queue->timer, qeth_tx_completion_timer, 0);
 		queue->coalesce_usecs = QETH_TX_COALESCE_USECS;
 		queue->max_coalesced_frames = QETH_TX_MAX_COALESCED_FRAMES;
+		queue->priority = QETH_QIB_PQUE_PRIO_DEFAULT;
 
 		/* give outbound qeth_qdio_buffers their qdio_buffers */
 		for (j = 0; j < QDIO_MAX_BUFFERS_PER_Q; ++j) {
@@ -2746,6 +2747,9 @@ static void qeth_free_qdio_queues(struct qeth_card *card)
 static void qeth_fill_qib_parms(struct qeth_card *card,
 				struct qeth_qib_parms *parms)
 {
+	struct qeth_qdio_out_q *queue;
+	unsigned int i;
+
 	parms->pcit_magic[0] = 'P';
 	parms->pcit_magic[1] = 'C';
 	parms->pcit_magic[2] = 'I';
@@ -2763,6 +2767,21 @@ static void qeth_fill_qib_parms(struct qeth_card *card,
 	parms->blkt_total = card->info.blkt.time_total;
 	parms->blkt_inter_packet = card->info.blkt.inter_packet;
 	parms->blkt_inter_packet_jumbo = card->info.blkt.inter_packet_jumbo;
+
+	/* Prio-queueing implicitly uses the default priorities: */
+	if (qeth_uses_tx_prio_queueing(card) || card->qdio.no_out_queues == 1)
+		return;
+
+	parms->pque_magic[0] = 'P';
+	parms->pque_magic[1] = 'Q';
+	parms->pque_magic[2] = 'U';
+	parms->pque_magic[3] = 'E';
+	ASCEBC(parms->pque_magic, sizeof(parms->pque_magic));
+	parms->pque_order = QETH_QIB_PQUE_ORDER_RR;
+	parms->pque_units = QETH_QIB_PQUE_UNITS_SBAL;
+
+	qeth_for_each_output_queue(card, queue, i)
+		parms->pque_priority[i] = queue->priority;
 }
 
 static int qeth_qdio_activate(struct qeth_card *card)
@@ -5298,19 +5317,9 @@ static int qeth_set_online(struct qeth_card *card)
 
 	qeth_print_status_message(card);
 
-	if (card->dev->reg_state != NETREG_REGISTERED) {
-		struct qeth_priv *priv = netdev_priv(card->dev);
-
-		if (IS_IQD(card))
-			priv->tx_wanted_queues = QETH_IQD_MIN_TXQ;
-		else if (IS_VM_NIC(card))
-			priv->tx_wanted_queues = 1;
-		else
-			priv->tx_wanted_queues = card->dev->num_tx_queues;
-
+	if (card->dev->reg_state != NETREG_REGISTERED)
 		/* no need for locking / error handling at this early stage: */
 		qeth_set_real_num_tx_queues(card, qeth_tx_actual_queues(card));
-	}
 
 	rc = card->discipline->set_online(card, carrier_ok);
 	if (rc)
@@ -6236,6 +6245,7 @@ static struct net_device *qeth_alloc_netdev(struct qeth_card *card)
 
 	priv = netdev_priv(dev);
 	priv->rx_copybreak = QETH_RX_COPYBREAK;
+	priv->tx_wanted_queues = IS_IQD(card) ? QETH_IQD_MIN_TXQ : 1;
 
 	dev->ml_priv = card;
 	dev->watchdog_timeo = QETH_TX_TIMEOUT;
