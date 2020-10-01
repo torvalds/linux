@@ -17,16 +17,16 @@
 
 #define DC_LOGGER \
 	link->ctx->logger
-
+#define DC_TRACE_LEVEL_MESSAGE(...) /* do nothing */
 
 #define DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE   0x50
 
-/* maximum pre emphasis level allowed for each voltage swing level*/
-static const enum dc_pre_emphasis voltage_swing_to_pre_emphasis[] = {
-		PRE_EMPHASIS_LEVEL3,
-		PRE_EMPHASIS_LEVEL2,
-		PRE_EMPHASIS_LEVEL1,
-		PRE_EMPHASIS_DISABLED };
+	/* maximum pre emphasis level allowed for each voltage swing level*/
+	static const enum dc_pre_emphasis
+	voltage_swing_to_pre_emphasis[] = { PRE_EMPHASIS_LEVEL3,
+					    PRE_EMPHASIS_LEVEL2,
+					    PRE_EMPHASIS_LEVEL1,
+					    PRE_EMPHASIS_DISABLED };
 
 enum {
 	POST_LT_ADJ_REQ_LIMIT = 6,
@@ -4372,6 +4372,7 @@ void dp_set_fec_enable(struct dc_link *link, bool enable)
 void dpcd_set_source_specific_data(struct dc_link *link)
 {
 	if (!link->dc->vendor_signature.is_valid) {
+		enum dc_status result_write_min_hblank = DC_NOT_SUPPORTED;
 		struct dpcd_amd_signature amd_signature;
 		amd_signature.AMD_IEEE_TxSignature_byte1 = 0x0;
 		amd_signature.AMD_IEEE_TxSignature_byte2 = 0x0;
@@ -4390,6 +4391,30 @@ void dpcd_set_source_specific_data(struct dc_link *link)
 				(uint8_t *)(&amd_signature),
 				sizeof(amd_signature));
 
+		if (link->ctx->dce_version >= DCN_VERSION_2_0 &&
+			link->dc->caps.min_horizontal_blanking_period != 0) {
+
+			uint8_t hblank_size = (uint8_t)link->dc->caps.min_horizontal_blanking_period;
+
+			result_write_min_hblank = core_link_write_dpcd(link,
+				DP_SOURCE_MINIMUM_HBLANK_SUPPORTED, (uint8_t *)(&hblank_size),
+				sizeof(hblank_size));
+		}
+		DC_TRACE_LEVEL_MESSAGE(DAL_TRACE_LEVEL_INFORMATION,
+							WPP_BIT_FLAG_DC_DETECTION_DP_CAPS,
+							"result=%u link_index=%u enum dce_version=%d DPCD=0x%04X min_hblank=%u branch_dev_id=0x%x branch_dev_name='%c%c%c%c%c%c'",
+							result_write_min_hblank,
+							link->link_index,
+							link->ctx->dce_version,
+							DP_SOURCE_MINIMUM_HBLANK_SUPPORTED,
+							link->dc->caps.min_horizontal_blanking_period,
+							link->dpcd_caps.branch_dev_id,
+							link->dpcd_caps.branch_dev_name[0],
+							link->dpcd_caps.branch_dev_name[1],
+							link->dpcd_caps.branch_dev_name[2],
+							link->dpcd_caps.branch_dev_name[3],
+							link->dpcd_caps.branch_dev_name[4],
+							link->dpcd_caps.branch_dev_name[5]);
 	} else {
 		core_link_write_dpcd(link, DP_SOURCE_OUI,
 				link->dc->vendor_signature.data.raw,

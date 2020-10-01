@@ -1066,6 +1066,7 @@ static bool dce100_resource_construct(
 	dc->caps.i2c_speed_in_khz = 40;
 	dc->caps.i2c_speed_in_khz = 40;
 	dc->caps.max_cursor_size = 128;
+	dc->caps.min_horizontal_blanking_period = 80;
 	dc->caps.dual_link_dvi = true;
 	dc->caps.disable_dp_clk_share = true;
 	dc->caps.extended_aux_timeout_support = false;

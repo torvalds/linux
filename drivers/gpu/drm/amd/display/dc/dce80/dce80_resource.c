@@ -965,6 +965,7 @@ static bool dce80_construct(
 	dc->caps.i2c_speed_in_khz = 40;
 	dc->caps.i2c_speed_in_khz_hdcp = 40;
 	dc->caps.max_cursor_size = 128;
+	dc->caps.min_horizontal_blanking_period = 80;
 	dc->caps.dual_link_dvi = true;
 	dc->caps.extended_aux_timeout_support = false;
 
@@ -1164,6 +1165,7 @@ static bool dce81_construct(
 	dc->caps.i2c_speed_in_khz = 40;
 	dc->caps.i2c_speed_in_khz_hdcp = 40;
 	dc->caps.max_cursor_size = 128;
+	dc->caps.min_horizontal_blanking_period = 80;
 	dc->caps.is_apu = true;
 
 	/*************************************************
@@ -1362,6 +1364,7 @@ static bool dce83_construct(
 	dc->caps.i2c_speed_in_khz = 40;
 	dc->caps.i2c_speed_in_khz_hdcp = 40;
 	dc->caps.max_cursor_size = 128;
+	dc->caps.min_horizontal_blanking_period = 80;
 	dc->caps.is_apu = true;
 
 	/*************************************************

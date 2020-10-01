@@ -1418,6 +1418,7 @@ static bool dcn10_resource_construct(
 	dc->caps.i2c_speed_in_khz = 100;
 	dc->caps.i2c_speed_in_khz_hdcp = 100; /*1.4 w/a not applied by default*/
 	dc->caps.max_cursor_size = 256;
+	dc->caps.min_horizontal_blanking_period = 80;
 	dc->caps.max_slave_planes = 1;
 	dc->caps.is_apu = true;
 	dc->caps.post_blend_color_processing = false;
