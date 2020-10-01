@@ -602,6 +602,40 @@ enum v4l2_mpeg_video_bitrate_mode -
     Encoder will decide the appropriate quantization parameter and
     bitrate to produce requested frame quality.
 
+
+``V4L2_CID_MPEG_VIDEO_FRAME_SKIP_MODE (enum)``
+
+enum v4l2_mpeg_video_frame_skip_mode -
+    Indicates in what conditions the encoder should skip frames. If
+    encoding a frame would cause the encoded stream to be larger then a
+    chosen data limit then the frame will be skipped. Possible values
+    are:
+
+
+.. tabularcolumns:: |p{9.2cm}|p{8.3cm}|
+
+.. raw:: latex
+
+    \small
+
+.. flat-table::
+    :header-rows:  0
+    :stub-columns: 0
+
+    * - ``V4L2_MPEG_FRAME_SKIP_MODE_DISABLED``
+      - Frame skip mode is disabled.
+    * - ``V4L2_MPEG_FRAME_SKIP_MODE_LEVEL_LIMIT``
+      - Frame skip mode enabled and buffer limit is set by the chosen
+        level and is defined by the standard.
+    * - ``V4L2_MPEG_FRAME_SKIP_MODE_BUF_LIMIT``
+      - Frame skip mode enabled and buffer limit is set by the
+        :ref:`VBV (MPEG1/2/4) <v4l2-mpeg-video-vbv-size>` or
+        :ref:`CPB (H264) buffer size <v4l2-mpeg-video-h264-cpb-size>` control.
+
+.. raw:: latex
+
+    \normalsize
+
 ``V4L2_CID_MPEG_VIDEO_TEMPORAL_DECIMATION (integer)``
     For every captured frame, skip this many subsequent frames (default
     0).
@@ -1173,6 +1207,8 @@ enum v4l2_mpeg_video_h264_entropy_mode -
     Quantization parameter for an B frame for MPEG4. Valid range: from 1
     to 31.
 
+.. _v4l2-mpeg-video-vbv-size:
+
 ``V4L2_CID_MPEG_VIDEO_VBV_SIZE (integer)``
     The Video Buffer Verifier size in kilobytes, it is used as a
     limitation of frame skip. The VBV is defined in the standard as a
@@ -1209,6 +1245,8 @@ enum v4l2_mpeg_video_h264_entropy_mode -
 ``V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME (button)``
     Force a key frame for the next queued buffer. Applicable to
     encoders. This is a general, codec-agnostic keyframe control.
+
+.. _v4l2-mpeg-video-h264-cpb-size:
 
 ``V4L2_CID_MPEG_VIDEO_H264_CPB_SIZE (integer)``
     The Coded Picture Buffer size in kilobytes, it is used as a
