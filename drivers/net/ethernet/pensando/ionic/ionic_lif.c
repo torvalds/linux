@@ -62,15 +62,18 @@ static void ionic_lif_deferred_work(struct work_struct *work)
 	struct ionic_deferred *def = &lif->deferred;
 	struct ionic_deferred_work *w = NULL;
 
-	spin_lock_bh(&def->lock);
-	if (!list_empty(&def->list)) {
-		w = list_first_entry(&def->list,
-				     struct ionic_deferred_work, list);
-		list_del(&w->list);
-	}
-	spin_unlock_bh(&def->lock);
+	do {
+		spin_lock_bh(&def->lock);
+		if (!list_empty(&def->list)) {
+			w = list_first_entry(&def->list,
+					     struct ionic_deferred_work, list);
+			list_del(&w->list);
+		}
+		spin_unlock_bh(&def->lock);
 
-	if (w) {
+		if (!w)
+			break;
+
 		switch (w->type) {
 		case IONIC_DW_TYPE_RX_MODE:
 			ionic_lif_rx_mode(lif, w->rx_mode);
@@ -94,8 +97,8 @@ static void ionic_lif_deferred_work(struct work_struct *work)
 			break;
 		}
 		kfree(w);
-		schedule_work(&def->work);
-	}
+		w = NULL;
+	} while (true);
 }
 
 void ionic_lif_deferred_enqueue(struct ionic_deferred *def,
