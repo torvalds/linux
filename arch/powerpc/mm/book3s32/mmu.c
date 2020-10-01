@@ -31,6 +31,8 @@
 
 #include <mm/mmu_decl.h>
 
+u8 __initdata early_hash[SZ_256K] __aligned(SZ_256K) = {0};
+
 struct hash_pte *Hash;
 static unsigned long Hash_size, Hash_mask;
 unsigned long _SDR1;
@@ -395,21 +397,15 @@ void __init MMU_init_hw(void)
 	hash_mb2 = hash_mb = 32 - LG_HPTEG_SIZE - lg_n_hpteg;
 	if (lg_n_hpteg > 16)
 		hash_mb2 = 16 - LG_HPTEG_SIZE;
-
-	/*
-	 * When KASAN is selected, there is already an early temporary hash
-	 * table and the switch to the final hash table is done later.
-	 */
-	if (IS_ENABLED(CONFIG_KASAN))
-		return;
-
-	MMU_init_hw_patch();
 }
 
 void __init MMU_init_hw_patch(void)
 {
 	unsigned int hmask = Hash_mask >> (16 - LG_HPTEG_SIZE);
 	unsigned int hash = (unsigned int)Hash - PAGE_OFFSET;
+
+	if (!mmu_has_feature(MMU_FTR_HPTE_TABLE))
+		return;
 
 	if (ppc_md.progress)
 		ppc_md.progress("hash:patch", 0x345);

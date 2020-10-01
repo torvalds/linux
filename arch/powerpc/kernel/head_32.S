@@ -155,9 +155,9 @@ __after_mmu_off:
 
 	bl	initial_bats
 	bl	load_segment_registers
-#ifdef CONFIG_KASAN
+BEGIN_MMU_FTR_SECTION
 	bl	early_hash_table
-#endif
+END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
 #if defined(CONFIG_BOOTX_TEXT)
 	bl	setup_disp_bat
 #endif
@@ -936,7 +936,6 @@ _ENTRY(__restore_cpu_setup)
  * Load stuff into the MMU.  Intended to be called with
  * IR=0 and DR=0.
  */
-#ifdef CONFIG_KASAN
 early_hash_table:
 	sync			/* Force all PTE updates to finish */
 	isync
@@ -947,8 +946,10 @@ early_hash_table:
 	lis	r6, early_hash - PAGE_OFFSET@h
 	ori	r6, r6, 3	/* 256kB table */
 	mtspr	SPRN_SDR1, r6
+	lis	r6, early_hash@h
+	lis	r3, Hash@ha
+	stw	r6, Hash@l(r3)
 	blr
-#endif
 
 load_up_mmu:
 	sync			/* Force all PTE updates to finish */
@@ -1037,11 +1038,7 @@ start_here:
 	bl	machine_init
 	bl	__save_cpu_setup
 	bl	MMU_init
-#ifdef CONFIG_KASAN
-BEGIN_MMU_FTR_SECTION
 	bl	MMU_init_hw_patch
-END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
-#endif
 
 /*
  * Go back to running unmapped so we can load up new values
