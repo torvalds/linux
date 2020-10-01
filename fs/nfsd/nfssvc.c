@@ -1021,29 +1021,24 @@ int nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 	dprintk("nfsd_dispatch: vers %d proc %d\n",
 				rqstp->rq_vers, rqstp->rq_proc);
 
-	if (nfs_request_too_big(rqstp, proc)) {
-		dprintk("nfsd: NFSv%d argument too large\n", rqstp->rq_vers);
-		*statp = rpc_garbage_args;
-		return 1;
-	}
+	if (nfs_request_too_big(rqstp, proc))
+		goto out_too_large;
+
 	/*
 	 * Give the xdr decoder a chance to change this if it wants
 	 * (necessary in the NFSv4.0 compound case)
 	 */
 	rqstp->rq_cachetype = proc->pc_cachetype;
-	if (!proc->pc_decode(rqstp, argv->iov_base)) {
-		dprintk("nfsd: failed to decode arguments!\n");
-		*statp = rpc_garbage_args;
-		return 1;
-	}
+	if (!proc->pc_decode(rqstp, argv->iov_base))
+		goto out_decode_err;
 
 	switch (nfsd_cache_lookup(rqstp)) {
 	case RC_DOIT:
 		break;
 	case RC_REPLY:
-		return 1;
+		goto out_cached_reply;
 	case RC_DROPIT:
-		return 0;
+		goto out_dropit;
 	}
 
 	/*
@@ -1055,11 +1050,8 @@ int nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 
 	nfserr = proc->pc_func(rqstp);
 	nfserr = map_new_errors(rqstp->rq_vers, nfserr);
-	if (nfserr == nfserr_dropit || test_bit(RQ_DROPME, &rqstp->rq_flags)) {
-		dprintk("nfsd: Dropping request; may be revisited later\n");
-		nfsd_cache_update(rqstp, RC_NOCACHE, NULL);
-		return 0;
-	}
+	if (nfserr == nfserr_dropit || test_bit(RQ_DROPME, &rqstp->rq_flags))
+		goto out_update_drop;
 
 	if (rqstp->rq_proc != 0)
 		*nfserrp++ = nfserr;
@@ -1067,16 +1059,34 @@ int nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 	/*
 	 * For NFSv2, additional info is never returned in case of an error.
 	 */
-	if (!(nfserr && rqstp->rq_vers == 2)) {
-		if (!proc->pc_encode(rqstp, nfserrp)) {
-			dprintk("nfsd: failed to encode result!\n");
-			nfsd_cache_update(rqstp, RC_NOCACHE, NULL);
-			*statp = rpc_system_err;
-			return 1;
-		}
-	}
+	if (!(nfserr && rqstp->rq_vers == 2))
+		if (!proc->pc_encode(rqstp, nfserrp))
+			goto out_encode_err;
 
 	nfsd_cache_update(rqstp, rqstp->rq_cachetype, statp + 1);
+out_cached_reply:
+	return 1;
+
+out_too_large:
+	dprintk("nfsd: NFSv%d argument too large\n", rqstp->rq_vers);
+	*statp = rpc_garbage_args;
+	return 1;
+
+out_decode_err:
+	dprintk("nfsd: failed to decode arguments!\n");
+	*statp = rpc_garbage_args;
+	return 1;
+
+out_update_drop:
+	dprintk("nfsd: Dropping request; may be revisited later\n");
+	nfsd_cache_update(rqstp, RC_NOCACHE, NULL);
+out_dropit:
+	return 0;
+
+out_encode_err:
+	dprintk("nfsd: failed to encode result!\n");
+	nfsd_cache_update(rqstp, RC_NOCACHE, NULL);
+	*statp = rpc_system_err;
 	return 1;
 }
 
