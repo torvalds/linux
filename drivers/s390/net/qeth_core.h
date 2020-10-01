@@ -278,6 +278,17 @@ struct qeth_hdr {
 	} hdr;
 } __attribute__ ((packed));
 
+struct qeth_qib_parms {
+	char pcit_magic[4];
+	u32 pcit_a;
+	u32 pcit_b;
+	u32 pcit_c;
+	char blkt_magic[4];
+	u32 blkt_total;
+	u32 blkt_inter_packet;
+	u32 blkt_inter_packet_jumbo;
+};
+
 /*TCP Segmentation Offload header*/
 struct qeth_hdr_ext_tso {
 	__u16 hdr_tot_len;
