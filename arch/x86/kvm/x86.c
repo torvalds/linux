@@ -1737,13 +1737,16 @@ int kvm_emulate_wrmsr(struct kvm_vcpu *vcpu)
 	r = kvm_set_msr(vcpu, ecx, data);
 
 	/* MSR write failed? See if we should ask user space */
-	if (r && kvm_set_msr_user_space(vcpu, ecx, data, r)) {
+	if (r && kvm_set_msr_user_space(vcpu, ecx, data, r))
 		/* Bounce to user space */
 		return 0;
-	}
+
+	/* Signal all other negative errors to userspace */
+	if (r < 0)
+		return r;
 
 	/* MSR write failed? Inject a #GP */
-	if (r) {
+	if (r > 0) {
 		trace_kvm_msr_write_ex(ecx, data);
 		kvm_inject_gp(vcpu, 0);
 		return 1;

@@ -3712,10 +3712,10 @@ static int em_wrmsr(struct x86_emulate_ctxt *ctxt)
 	if (r == X86EMUL_IO_NEEDED)
 		return r;
 
-	if (r)
+	if (r > 0)
 		return emulate_gp(ctxt, 0);
 
-	return X86EMUL_CONTINUE;
+	return r < 0 ? X86EMUL_UNHANDLEABLE : X86EMUL_CONTINUE;
 }
 
 static int em_rdmsr(struct x86_emulate_ctxt *ctxt)
