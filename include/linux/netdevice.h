@@ -212,9 +212,8 @@ struct netdev_hw_addr {
 	unsigned char		type;
 #define NETDEV_HW_ADDR_T_LAN		1
 #define NETDEV_HW_ADDR_T_SAN		2
-#define NETDEV_HW_ADDR_T_SLAVE		3
-#define NETDEV_HW_ADDR_T_UNICAST	4
-#define NETDEV_HW_ADDR_T_MULTICAST	5
+#define NETDEV_HW_ADDR_T_UNICAST	3
+#define NETDEV_HW_ADDR_T_MULTICAST	4
 	bool			global_use;
 	int			sync_cnt;
 	int			refcount;
