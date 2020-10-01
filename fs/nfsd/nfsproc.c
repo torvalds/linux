@@ -11,9 +11,6 @@
 #include "xdr.h"
 #include "vfs.h"
 
-typedef struct svc_rqst	svc_rqst;
-typedef struct svc_buf	svc_buf;
-
 #define NFSDDBG_FACILITY		NFSDDBG_PROC
 
 
