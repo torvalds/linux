@@ -1189,8 +1189,8 @@ int bch_cached_dev_attach(struct cached_dev *dc, struct cache_set *c,
 	struct cached_dev *exist_dc, *t;
 	int ret = 0;
 
-	if ((set_uuid && memcmp(set_uuid, c->sb.set_uuid, 16)) ||
-	    (!set_uuid && memcmp(dc->sb.set_uuid, c->sb.set_uuid, 16)))
+	if ((set_uuid && memcmp(set_uuid, c->set_uuid, 16)) ||
+	    (!set_uuid && memcmp(dc->sb.set_uuid, c->set_uuid, 16)))
 		return -ENOENT;
 
 	if (dc->disk.c) {
@@ -1262,7 +1262,7 @@ int bch_cached_dev_attach(struct cached_dev *dc, struct cache_set *c,
 		u->first_reg = u->last_reg = rtime;
 		bch_uuid_write(c);
 
-		memcpy(dc->sb.set_uuid, c->sb.set_uuid, 16);
+		memcpy(dc->sb.set_uuid, c->set_uuid, 16);
 		SET_BDEV_STATE(&dc->sb, BDEV_STATE_CLEAN);
 
 		bch_write_bdev_super(dc, &cl);
@@ -1324,7 +1324,7 @@ int bch_cached_dev_attach(struct cached_dev *dc, struct cache_set *c,
 	pr_info("Caching %s as %s on set %pU\n",
 		dc->backing_dev_name,
 		dc->disk.disk->disk_name,
-		dc->disk.c->sb.set_uuid);
+		dc->disk.c->set_uuid);
 	return 0;
 }
 
@@ -1631,7 +1631,7 @@ bool bch_cache_set_error(struct cache_set *c, const char *fmt, ...)
 	vaf.va = &args;
 
 	pr_err("error on %pU: %pV, disabling caching\n",
-	       c->sb.set_uuid, &vaf);
+	       c->set_uuid, &vaf);
 
 	va_end(args);
 
@@ -1684,7 +1684,7 @@ static void cache_set_free(struct closure *cl)
 	list_del(&c->list);
 	mutex_unlock(&bch_register_lock);
 
-	pr_info("Cache set %pU unregistered\n", c->sb.set_uuid);
+	pr_info("Cache set %pU unregistered\n", c->set_uuid);
 	wake_up(&unregister_wait);
 
 	closure_debug_destroy(&c->cl);
@@ -1754,7 +1754,7 @@ static void conditional_stop_bcache_device(struct cache_set *c,
 {
 	if (dc->stop_when_cache_set_failed == BCH_CACHED_DEV_STOP_ALWAYS) {
 		pr_warn("stop_when_cache_set_failed of %s is \"always\", stop it for failed cache set %pU.\n",
-			d->disk->disk_name, c->sb.set_uuid);
+			d->disk->disk_name, c->set_uuid);
 		bcache_device_stop(d);
 	} else if (atomic_read(&dc->has_dirty)) {
 		/*
@@ -1861,7 +1861,7 @@ struct cache_set *bch_cache_set_alloc(struct cache_sb *sb)
 
 	bch_cache_accounting_init(&c->accounting, &c->cl);
 
-	memcpy(c->sb.set_uuid, sb->set_uuid, 16);
+	memcpy(c->set_uuid, sb->set_uuid, 16);
 	c->sb.block_size	= sb->block_size;
 	c->sb.bucket_size	= sb->bucket_size;
 	c->sb.nr_in_set		= sb->nr_in_set;
@@ -2144,7 +2144,7 @@ static const char *register_cache_set(struct cache *ca)
 	struct cache_set *c;
 
 	list_for_each_entry(c, &bch_cache_sets, list)
-		if (!memcmp(c->sb.set_uuid, ca->sb.set_uuid, 16)) {
+		if (!memcmp(c->set_uuid, ca->sb.set_uuid, 16)) {
 			if (c->cache)
 				return "duplicate cache set member";
 
@@ -2162,7 +2162,7 @@ static const char *register_cache_set(struct cache *ca)
 		return err;
 
 	err = "error creating kobject";
-	if (kobject_add(&c->kobj, bcache_kobj, "%pU", c->sb.set_uuid) ||
+	if (kobject_add(&c->kobj, bcache_kobj, "%pU", c->set_uuid) ||
 	    kobject_add(&c->internal, &c->kobj, "internal"))
 		goto err;
 
@@ -2187,7 +2187,7 @@ found:
 	 */
 	if (ca->sb.seq > c->sb.seq || c->sb.seq == 0) {
 		c->sb.version		= ca->sb.version;
-		memcpy(c->sb.set_uuid, ca->sb.set_uuid, 16);
+		memcpy(c->set_uuid, ca->sb.set_uuid, 16);
 		c->sb.flags             = ca->sb.flags;
 		c->sb.seq		= ca->sb.seq;
 		pr_debug("set version = %llu\n", c->sb.version);
@@ -2702,7 +2702,7 @@ static ssize_t bch_pending_bdevs_cleanup(struct kobject *k,
 	list_for_each_entry_safe(pdev, tpdev, &pending_devs, list) {
 		list_for_each_entry_safe(c, tc, &bch_cache_sets, list) {
 			char *pdev_set_uuid = pdev->dc->sb.set_uuid;
-			char *set_uuid = c->sb.uuid;
+			char *set_uuid = c->set_uuid;
 
 			if (!memcmp(pdev_set_uuid, set_uuid, 16)) {
 				list_del(&pdev->list);

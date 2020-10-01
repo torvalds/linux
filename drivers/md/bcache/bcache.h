@@ -668,6 +668,7 @@ struct cache_set {
 	struct mutex		verify_lock;
 #endif
 
+	uint8_t			set_uuid[16];
 	unsigned int		nr_uuids;
 	struct uuid_entry	*uuids;
 	BKEY_PADDED(uuid_bucket);
