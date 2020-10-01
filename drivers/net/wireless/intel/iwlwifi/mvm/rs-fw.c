@@ -195,14 +195,20 @@ rs_fw_vht_set_enabled_rates(const struct ieee80211_sta *sta,
 {
 	u16 supp;
 	int i, highest_mcs;
-	u8 nss = sta->rx_nss;
+	u8 max_nss = sta->rx_nss;
+	struct ieee80211_vht_cap ieee_vht_cap = {
+		.vht_cap_info = cpu_to_le32(vht_cap->cap),
+		.supp_mcs = vht_cap->vht_mcs,
+	};
 
 	/* the station support only a single receive chain */
 	if (sta->smps_mode == IEEE80211_SMPS_STATIC)
-		nss = 1;
+		max_nss = 1;
 
-	for (i = 0; i < nss && i < IWL_TLC_NSS_MAX; i++) {
-		highest_mcs = rs_fw_vht_highest_rx_mcs_index(vht_cap, i + 1);
+	for (i = 0; i < max_nss && i < IWL_TLC_NSS_MAX; i++) {
+		int nss = i + 1;
+
+		highest_mcs = rs_fw_vht_highest_rx_mcs_index(vht_cap, nss);
 		if (!highest_mcs)
 			continue;
 
@@ -211,7 +217,15 @@ rs_fw_vht_set_enabled_rates(const struct ieee80211_sta *sta,
 			supp &= ~BIT(IWL_TLC_MNG_HT_RATE_MCS9);
 
 		cmd->ht_rates[i][IWL_TLC_HT_BW_NONE_160] = cpu_to_le16(supp);
-		if (sta->bandwidth == IEEE80211_STA_RX_BW_160)
+		/*
+		 * Check if VHT extended NSS indicates that the bandwidth/NSS
+		 * configuration is supported - only for MCS 0 since we already
+		 * decoded the MCS bits anyway ourselves.
+		 */
+		if (sta->bandwidth == IEEE80211_STA_RX_BW_160 &&
+		    ieee80211_get_vht_max_nss(&ieee_vht_cap,
+					      IEEE80211_VHT_CHANWIDTH_160MHZ,
+					      0, true, nss) >= nss)
 			cmd->ht_rates[i][IWL_TLC_HT_BW_160] =
 				cmd->ht_rates[i][IWL_TLC_HT_BW_NONE_160];
 	}

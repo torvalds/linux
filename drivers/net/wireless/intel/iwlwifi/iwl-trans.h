@@ -215,6 +215,12 @@ struct iwl_device_tx_cmd {
  */
 #define IWL_MAX_CMD_TBS_PER_TFD	2
 
+/* We need 2 entries for the TX command and header, and another one might
+ * be needed for potential data in the SKB's head. The remaining ones can
+ * be used for frags.
+ */
+#define IWL_TRANS_MAX_FRAGS(trans) ((trans)->txqs.tfd.max_tbs - 3)
+
 /**
  * enum iwl_hcmd_dataflag - flag for each one of the chunks of the command
  *
@@ -316,6 +322,7 @@ static inline void iwl_free_rxb(struct iwl_rx_cmd_buffer *r)
 #define IWL_MGMT_TID		15
 #define IWL_FRAME_LIMIT	64
 #define IWL_MAX_RX_HW_QUEUES	16
+#define IWL_9000_MAX_RX_HW_QUEUES	6
 
 /**
  * enum iwl_wowlan_status - WoWLAN image/device status
@@ -906,19 +913,37 @@ struct iwl_txq {
 /**
  * struct iwl_trans_txqs - transport tx queues data
  *
+ * @bc_table_dword: true if the BC table expects DWORD (as opposed to bytes)
+ * @page_offs: offset from skb->cb to mac header page pointer
+ * @dev_cmd_offs: offset from skb->cb to iwl_device_tx_cmd pointer
  * @queue_used - bit mask of used queues
  * @queue_stopped - bit mask of stopped queues
+ * @scd_bc_tbls: gen1 pointer to the byte count table of the scheduler
  */
 struct iwl_trans_txqs {
 	unsigned long queue_used[BITS_TO_LONGS(IWL_MAX_TVQM_QUEUES)];
 	unsigned long queue_stopped[BITS_TO_LONGS(IWL_MAX_TVQM_QUEUES)];
 	struct iwl_txq *txq[IWL_MAX_TVQM_QUEUES];
+	struct dma_pool *bc_pool;
+	size_t bc_tbl_size;
+	bool bc_table_dword;
+	u8 page_offs;
+	u8 dev_cmd_offs;
+	struct __percpu iwl_tso_hdr_page * tso_hdr_page;
+
 	struct {
 		u8 fifo;
 		u8 q_id;
 		unsigned int wdg_timeout;
 	} cmd;
 
+	struct {
+		u8 max_tbs;
+		u16 size;
+		u8 addr_size;
+	} tfd;
+
+	struct iwl_dma_ptr scd_bc_tbls;
 };
 
 /**
@@ -939,7 +964,6 @@ struct iwl_trans_txqs {
  * @hw_id_str: a string with info about HW ID. Set during transport allocation.
  * @pm_support: set to true in start_hw if link pm is supported
  * @ltr_enabled: set to true if the LTR is enabled
- * @wide_cmd_header: true when ucode supports wide command header format
  * @num_rx_queues: number of RX queues allocated by the transport;
  *	the transport must set this before calling iwl_drv_start()
  * @iml_len: the length of the image loader
@@ -979,7 +1003,6 @@ struct iwl_trans {
 
 	const struct iwl_hcmd_arr *command_groups;
 	int command_groups_size;
-	bool wide_cmd_header;
 
 	u8 num_rx_queues;
 
@@ -1435,10 +1458,9 @@ static inline bool iwl_trans_dbg_ini_valid(struct iwl_trans *trans)
  * transport helper functions
  *****************************************************/
 struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
-				  struct device *dev,
-				  const struct iwl_trans_ops *ops,
-				  unsigned int cmd_pool_size,
-				  unsigned int cmd_pool_align);
+			  struct device *dev,
+			  const struct iwl_trans_ops *ops,
+			  const struct iwl_cfg_trans_params *cfg_trans);
 void iwl_trans_free(struct iwl_trans *trans);
 
 /*****************************************************

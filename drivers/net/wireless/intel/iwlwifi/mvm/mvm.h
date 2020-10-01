@@ -184,11 +184,6 @@ enum iwl_power_scheme {
 	IWL_POWER_SCHEME_LP
 };
 
-union geo_tx_power_profiles_cmd {
-	struct iwl_geo_tx_power_profiles_cmd geo_cmd;
-	struct iwl_geo_tx_power_profiles_cmd_v1 geo_cmd_v1;
-};
-
 #define IWL_CONN_MAX_LISTEN_INTERVAL	10
 #define IWL_UAPSD_MAX_SP		IEEE80211_WMM_IE_STA_QOSINFO_SP_ALL
 
@@ -421,7 +416,11 @@ struct iwl_mvm_vif {
 #ifdef CONFIG_PM
 	/* WoWLAN GTK rekey data */
 	struct {
-		u8 kck[NL80211_KCK_LEN], kek[NL80211_KEK_LEN];
+		u8 kck[NL80211_KCK_EXT_LEN];
+		u8 kek[NL80211_KEK_EXT_LEN];
+		size_t kek_len;
+		size_t kck_len;
+		u32 akm;
 		__le64 replay_ctr;
 		bool valid;
 	} rekey_data;
@@ -852,7 +851,6 @@ struct iwl_mvm {
 
 	bool hw_registered;
 	bool rfkill_safe_init_done;
-	bool support_umac_log;
 
 	u32 ampdu_ref;
 	bool ampdu_toggle;
@@ -1113,10 +1111,17 @@ struct iwl_mvm {
 		struct wireless_dev *req_wdev;
 		struct list_head loc_list;
 		int responses[IWL_MVM_TOF_MAX_APS];
+		struct {
+			struct list_head resp;
+		} smooth;
+		struct list_head pasn_list;
 	} ftm_initiator;
+
+	struct list_head resp_pasn_list;
 
 	struct {
 		u8 d0i3_resp;
+		u8 range_resp;
 	} cmd_ver;
 
 	struct ieee80211_vif *nan_vif;
@@ -1996,6 +2001,14 @@ void iwl_mvm_ftm_restart_responder(struct iwl_mvm *mvm,
 				   struct ieee80211_vif *vif);
 void iwl_mvm_ftm_responder_stats(struct iwl_mvm *mvm,
 				 struct iwl_rx_cmd_buffer *rxb);
+int iwl_mvm_ftm_resp_remove_pasn_sta(struct iwl_mvm *mvm,
+				     struct ieee80211_vif *vif, u8 *addr);
+int iwl_mvm_ftm_respoder_add_pasn_sta(struct iwl_mvm *mvm,
+				      struct ieee80211_vif *vif,
+				      u8 *addr, u32 cipher, u8 *tk, u32 tk_len,
+				      u8 *hltk, u32 hltk_len);
+void iwl_mvm_ftm_responder_clear(struct iwl_mvm *mvm,
+				 struct ieee80211_vif *vif);
 
 /* FTM initiator */
 void iwl_mvm_ftm_restart(struct iwl_mvm *mvm);
@@ -2006,6 +2019,12 @@ void iwl_mvm_ftm_lc_notif(struct iwl_mvm *mvm,
 int iwl_mvm_ftm_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		      struct cfg80211_pmsr_request *request);
 void iwl_mvm_ftm_abort(struct iwl_mvm *mvm, struct cfg80211_pmsr_request *req);
+void iwl_mvm_ftm_initiator_smooth_config(struct iwl_mvm *mvm);
+void iwl_mvm_ftm_initiator_smooth_stop(struct iwl_mvm *mvm);
+int iwl_mvm_ftm_add_pasn_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			     u8 *addr, u32 cipher, u8 *tk, u32 tk_len,
+			     u8 *hltk, u32 hltk_len);
+void iwl_mvm_ftm_remove_pasn_sta(struct iwl_mvm *mvm, u8 *addr);
 
 /* TDLS */
 
@@ -2146,8 +2165,24 @@ iwl_mvm_set_chan_info_chandef(struct iwl_mvm *mvm,
 static inline int iwl_umac_scan_get_max_profiles(const struct iwl_fw *fw)
 {
 	u8 ver = iwl_fw_lookup_cmd_ver(fw, IWL_ALWAYS_LONG_GROUP,
-				       SCAN_OFFLOAD_UPDATE_PROFILES_CMD);
+				       SCAN_OFFLOAD_UPDATE_PROFILES_CMD,
+				       IWL_FW_CMD_VER_UNKNOWN);
 	return (ver == IWL_FW_CMD_VER_UNKNOWN || ver < 3) ?
 		IWL_SCAN_MAX_PROFILES : IWL_SCAN_MAX_PROFILES_V2;
+}
+
+static inline
+enum iwl_location_cipher iwl_mvm_cipher_to_location_cipher(u32 cipher)
+{
+	switch (cipher) {
+	case WLAN_CIPHER_SUITE_CCMP:
+		return IWL_LOCATION_CIPHER_CCMP_128;
+	case WLAN_CIPHER_SUITE_GCMP:
+		return IWL_LOCATION_CIPHER_GCMP_128;
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		return IWL_LOCATION_CIPHER_GCMP_256;
+	default:
+		return IWL_LOCATION_CIPHER_INVALID;
+	}
 }
 #endif /* __IWL_MVM_H__ */
