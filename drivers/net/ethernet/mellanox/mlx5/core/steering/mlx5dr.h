@@ -67,7 +67,8 @@ struct mlx5dr_rule *
 mlx5dr_rule_create(struct mlx5dr_matcher *matcher,
 		   struct mlx5dr_match_parameters *value,
 		   size_t num_actions,
-		   struct mlx5dr_action *actions[]);
+		   struct mlx5dr_action *actions[],
+		   u32 flow_source);
 
 int mlx5dr_rule_destroy(struct mlx5dr_rule *rule);
 

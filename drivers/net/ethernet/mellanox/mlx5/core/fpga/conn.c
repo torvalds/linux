@@ -54,7 +54,7 @@ static int mlx5_fpga_conn_map_buf(struct mlx5_fpga_conn *conn,
 	if (unlikely(!buf->sg[0].data))
 		goto out;
 
-	dma_device = &conn->fdev->mdev->pdev->dev;
+	dma_device = mlx5_core_dma_dev(conn->fdev->mdev);
 	buf->sg[0].dma_addr = dma_map_single(dma_device, buf->sg[0].data,
 					     buf->sg[0].size, buf->dma_dir);
 	err = dma_mapping_error(dma_device, buf->sg[0].dma_addr);
@@ -86,7 +86,7 @@ static void mlx5_fpga_conn_unmap_buf(struct mlx5_fpga_conn *conn,
 {
 	struct device *dma_device;
 
-	dma_device = &conn->fdev->mdev->pdev->dev;
+	dma_device = mlx5_core_dma_dev(conn->fdev->mdev);
 	if (buf->sg[1].data)
 		dma_unmap_single(dma_device, buf->sg[1].dma_addr,
 				 buf->sg[1].size, buf->dma_dir);

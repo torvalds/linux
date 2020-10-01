@@ -247,8 +247,11 @@ mlx5_eswitch_set_rule_flow_source(struct mlx5_eswitch *esw,
 				  struct mlx5_esw_flow_attr *attr)
 {
 	if (MLX5_CAP_ESW_FLOWTABLE(esw->dev, flow_source) &&
-	    attr && attr->in_rep && attr->in_rep->vport == MLX5_VPORT_UPLINK)
-		spec->flow_context.flow_source = MLX5_FLOW_CONTEXT_FLOW_SOURCE_UPLINK;
+	    attr && attr->in_rep)
+		spec->flow_context.flow_source =
+			attr->in_rep->vport == MLX5_VPORT_UPLINK ?
+				MLX5_FLOW_CONTEXT_FLOW_SOURCE_UPLINK :
+				MLX5_FLOW_CONTEXT_FLOW_SOURCE_LOCAL_VPORT;
 }
 
 static void
@@ -1820,14 +1823,11 @@ static void __unload_reps_all_vport(struct mlx5_eswitch *esw, u8 rep_type)
 	__esw_offloads_unload_rep(esw, rep, rep_type);
 }
 
-int esw_offloads_load_rep(struct mlx5_eswitch *esw, u16 vport_num)
+static int mlx5_esw_offloads_rep_load(struct mlx5_eswitch *esw, u16 vport_num)
 {
 	struct mlx5_eswitch_rep *rep;
 	int rep_type;
 	int err;
-
-	if (esw->mode != MLX5_ESWITCH_OFFLOADS)
-		return 0;
 
 	rep = mlx5_eswitch_get_rep(esw, vport_num);
 	for (rep_type = 0; rep_type < NUM_REP_TYPES; rep_type++)
@@ -1847,17 +1847,44 @@ err_reps:
 	return err;
 }
 
-void esw_offloads_unload_rep(struct mlx5_eswitch *esw, u16 vport_num)
+static void mlx5_esw_offloads_rep_unload(struct mlx5_eswitch *esw, u16 vport_num)
 {
 	struct mlx5_eswitch_rep *rep;
 	int rep_type;
 
-	if (esw->mode != MLX5_ESWITCH_OFFLOADS)
-		return;
-
 	rep = mlx5_eswitch_get_rep(esw, vport_num);
 	for (rep_type = NUM_REP_TYPES - 1; rep_type >= 0; rep_type--)
 		__esw_offloads_unload_rep(esw, rep, rep_type);
+}
+
+int esw_offloads_load_rep(struct mlx5_eswitch *esw, u16 vport_num)
+{
+	int err;
+
+	if (esw->mode != MLX5_ESWITCH_OFFLOADS)
+		return 0;
+
+	err = mlx5_esw_offloads_devlink_port_register(esw, vport_num);
+	if (err)
+		return err;
+
+	err = mlx5_esw_offloads_rep_load(esw, vport_num);
+	if (err)
+		goto load_err;
+	return err;
+
+load_err:
+	mlx5_esw_offloads_devlink_port_unregister(esw, vport_num);
+	return err;
+}
+
+void esw_offloads_unload_rep(struct mlx5_eswitch *esw, u16 vport_num)
+{
+	if (esw->mode != MLX5_ESWITCH_OFFLOADS)
+		return;
+
+	mlx5_esw_offloads_rep_unload(esw, vport_num);
+	mlx5_esw_offloads_devlink_port_unregister(esw, vport_num);
 }
 
 #define ESW_OFFLOADS_DEVCOM_PAIR	(0)
@@ -2019,31 +2046,31 @@ esw_check_vport_match_metadata_supported(const struct mlx5_eswitch *esw)
 
 u32 mlx5_esw_match_metadata_alloc(struct mlx5_eswitch *esw)
 {
-	u32 num_vports = GENMASK(ESW_VPORT_BITS - 1, 0) - 1;
-	u32 vhca_id_mask = GENMASK(ESW_VHCA_ID_BITS - 1, 0);
-	u32 vhca_id = MLX5_CAP_GEN(esw->dev, vhca_id);
-	u32 start;
-	u32 end;
+	u32 vport_end_ida = (1 << ESW_VPORT_BITS) - 1;
+	u32 max_pf_num = (1 << ESW_PFNUM_BITS) - 1;
+	u32 pf_num;
 	int id;
 
-	/* Make sure the vhca_id fits the ESW_VHCA_ID_BITS */
-	WARN_ON_ONCE(vhca_id >= BIT(ESW_VHCA_ID_BITS));
+	/* Only 4 bits of pf_num */
+	pf_num = PCI_FUNC(esw->dev->pdev->devfn);
+	if (pf_num > max_pf_num)
+		return 0;
 
-	/* Trim vhca_id to ESW_VHCA_ID_BITS */
-	vhca_id &= vhca_id_mask;
-
-	start = (vhca_id << ESW_VPORT_BITS);
-	end = start + num_vports;
-	if (!vhca_id)
-		start += 1; /* zero is reserved/invalid metadata */
-	id = ida_alloc_range(&esw->offloads.vport_metadata_ida, start, end, GFP_KERNEL);
-
-	return (id < 0) ? 0 : id;
+	/* Metadata is 4 bits of PFNUM and 12 bits of unique id */
+	/* Use only non-zero vport_id (1-4095) for all PF's */
+	id = ida_alloc_range(&esw->offloads.vport_metadata_ida, 1, vport_end_ida, GFP_KERNEL);
+	if (id < 0)
+		return 0;
+	id = (pf_num << ESW_VPORT_BITS) | id;
+	return id;
 }
 
 void mlx5_esw_match_metadata_free(struct mlx5_eswitch *esw, u32 metadata)
 {
-	ida_free(&esw->offloads.vport_metadata_ida, metadata);
+	u32 vport_bit_mask = (1 << ESW_VPORT_BITS) - 1;
+
+	/* Metadata contains only 12 bits of actual ida id */
+	ida_free(&esw->offloads.vport_metadata_ida, metadata & vport_bit_mask);
 }
 
 static int esw_offloads_vport_metadata_setup(struct mlx5_eswitch *esw,
@@ -2108,11 +2135,9 @@ esw_vport_create_offloads_acl_tables(struct mlx5_eswitch *esw,
 	if (err)
 		return err;
 
-	if (mlx5_eswitch_is_vf_vport(esw, vport->vport)) {
-		err = esw_acl_egress_ofld_setup(esw, vport);
-		if (err)
-			goto egress_err;
-	}
+	err = esw_acl_egress_ofld_setup(esw, vport);
+	if (err)
+		goto egress_err;
 
 	return 0;
 

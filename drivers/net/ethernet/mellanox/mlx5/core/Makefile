@@ -49,7 +49,8 @@ mlx5_core-$(CONFIG_MLX5_ESWITCH)   += eswitch.o eswitch_offloads.o eswitch_offlo
 				      ecpf.o rdma.o
 mlx5_core-$(CONFIG_MLX5_ESWITCH)   += esw/acl/helper.o \
 				      esw/acl/egress_lgcy.o esw/acl/egress_ofld.o \
-				      esw/acl/ingress_lgcy.o esw/acl/ingress_ofld.o
+				      esw/acl/ingress_lgcy.o esw/acl/ingress_ofld.o \
+				      esw/devlink_port.o
 
 mlx5_core-$(CONFIG_MLX5_MPFS)      += lib/mpfs.o
 mlx5_core-$(CONFIG_VXLAN)          += lib/vxlan.o

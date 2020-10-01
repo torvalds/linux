@@ -124,7 +124,7 @@ static void mlx5_fw_tracer_ownership_release(struct mlx5_fw_tracer *tracer)
 static int mlx5_fw_tracer_create_log_buf(struct mlx5_fw_tracer *tracer)
 {
 	struct mlx5_core_dev *dev = tracer->dev;
-	struct device *ddev = &dev->pdev->dev;
+	struct device *ddev;
 	dma_addr_t dma;
 	void *buff;
 	gfp_t gfp;
@@ -142,6 +142,7 @@ static int mlx5_fw_tracer_create_log_buf(struct mlx5_fw_tracer *tracer)
 	}
 	tracer->buff.log_buf = buff;
 
+	ddev = mlx5_core_dma_dev(dev);
 	dma = dma_map_single(ddev, buff, tracer->buff.size, DMA_FROM_DEVICE);
 	if (dma_mapping_error(ddev, dma)) {
 		mlx5_core_warn(dev, "FWTracer: Unable to map DMA: %d\n",
@@ -162,11 +163,12 @@ free_pages:
 static void mlx5_fw_tracer_destroy_log_buf(struct mlx5_fw_tracer *tracer)
 {
 	struct mlx5_core_dev *dev = tracer->dev;
-	struct device *ddev = &dev->pdev->dev;
+	struct device *ddev;
 
 	if (!tracer->buff.log_buf)
 		return;
 
+	ddev = mlx5_core_dma_dev(dev);
 	dma_unmap_single(ddev, tracer->buff.dma, tracer->buff.size, DMA_FROM_DEVICE);
 	free_pages((unsigned long)tracer->buff.log_buf, get_order(tracer->buff.size));
 }
