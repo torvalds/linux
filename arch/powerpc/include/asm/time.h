@@ -38,18 +38,11 @@ struct div_result {
 	u64 result_low;
 };
 
-#ifdef CONFIG_PPC64
-
 /* For compatibility, get_tbl() is defined as get_tb() on ppc64 */
-#define get_tbl		get_tb
-
-#else
-
 static inline unsigned long get_tbl(void)
 {
 	return mftb();
 }
-#endif /* !CONFIG_PPC64 */
 
 static inline u64 get_vtb(void)
 {
