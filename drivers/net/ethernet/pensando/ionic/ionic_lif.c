@@ -1022,7 +1022,6 @@ static int ionic_lif_addr_del(struct ionic_lif *lif, const u8 *addr)
 static int ionic_lif_addr(struct ionic_lif *lif, const u8 *addr, bool add,
 			  bool can_sleep)
 {
-	struct ionic *ionic = lif->ionic;
 	struct ionic_deferred_work *work;
 	unsigned int nmfilters;
 	unsigned int nufilters;
@@ -1032,8 +1031,8 @@ static int ionic_lif_addr(struct ionic_lif *lif, const u8 *addr, bool add,
 		 * here before checking the need for deferral so that we
 		 * can return an overflow error to the stack.
 		 */
-		nmfilters = le32_to_cpu(ionic->ident.lif.eth.max_mcast_filters);
-		nufilters = le32_to_cpu(ionic->ident.lif.eth.max_ucast_filters);
+		nmfilters = le32_to_cpu(lif->identity->eth.max_mcast_filters);
+		nufilters = le32_to_cpu(lif->identity->eth.max_ucast_filters);
 
 		if ((is_multicast_ether_addr(addr) && lif->nmcast < nmfilters))
 			lif->nmcast++;
@@ -1162,11 +1161,8 @@ static void ionic_dev_uc_sync(struct net_device *netdev, bool from_ndo)
 static void ionic_set_rx_mode(struct net_device *netdev, bool from_ndo)
 {
 	struct ionic_lif *lif = netdev_priv(netdev);
-	struct ionic_identity *ident;
 	unsigned int nfilters;
 	unsigned int rx_mode;
-
-	ident = &lif->ionic->ident;
 
 	rx_mode = IONIC_RX_MODE_F_UNICAST;
 	rx_mode |= (netdev->flags & IFF_MULTICAST) ? IONIC_RX_MODE_F_MULTICAST : 0;
@@ -1182,7 +1178,7 @@ static void ionic_set_rx_mode(struct net_device *netdev, bool from_ndo)
 	 *       to see if we can disable NIC PROMISC
 	 */
 	ionic_dev_uc_sync(netdev, from_ndo);
-	nfilters = le32_to_cpu(ident->lif.eth.max_ucast_filters);
+	nfilters = le32_to_cpu(lif->identity->eth.max_ucast_filters);
 	if (netdev_uc_count(netdev) + 1 > nfilters) {
 		rx_mode |= IONIC_RX_MODE_F_PROMISC;
 		lif->uc_overflow = true;
@@ -1194,7 +1190,7 @@ static void ionic_set_rx_mode(struct net_device *netdev, bool from_ndo)
 
 	/* same for multicast */
 	ionic_dev_uc_sync(netdev, from_ndo);
-	nfilters = le32_to_cpu(ident->lif.eth.max_mcast_filters);
+	nfilters = le32_to_cpu(lif->identity->eth.max_mcast_filters);
 	if (netdev_mc_count(netdev) > nfilters) {
 		rx_mode |= IONIC_RX_MODE_F_ALLMULTI;
 		lif->mc_overflow = true;
@@ -2425,7 +2421,12 @@ int ionic_lif_alloc(struct ionic *ionic)
 
 	lif->identity = lid;
 	lif->lif_type = IONIC_LIF_TYPE_CLASSIC;
-	ionic_lif_identify(ionic, lif->lif_type, lif->identity);
+	err = ionic_lif_identify(ionic, lif->lif_type, lif->identity);
+	if (err) {
+		dev_err(ionic->dev, "Cannot identify type %d: %d\n",
+			lif->lif_type, err);
+		goto err_out_free_netdev;
+	}
 	lif->netdev->min_mtu = max_t(unsigned int, ETH_MIN_MTU,
 				     le32_to_cpu(lif->identity->eth.min_frame_size));
 	lif->netdev->max_mtu =
