@@ -264,7 +264,6 @@ struct zoran {
 
 	/* Additional stuff for testing */
 	unsigned int ghost_int;
-	int jpeg_error;
 	int intr_counter_GIRQ1;
 	int intr_counter_GIRQ0;
 	int intr_counter_CodRepIRQ;
