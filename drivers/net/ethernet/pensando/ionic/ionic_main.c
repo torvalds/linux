@@ -64,6 +64,8 @@ static const char *ionic_error_to_str(enum ionic_status_code code)
 		return "IONIC_RC_ERROR";
 	case IONIC_RC_ERDMA:
 		return "IONIC_RC_ERDMA";
+	case IONIC_RC_EBAD_FW:
+		return "IONIC_RC_EBAD_FW";
 	default:
 		return "IONIC_RC_UNKNOWN";
 	}
