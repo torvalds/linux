@@ -49,11 +49,6 @@ static inline unsigned long get_tbl(void)
 {
 	return mftb();
 }
-
-static inline unsigned int get_tbu(void)
-{
-	return mftbu();
-}
 #endif /* !CONFIG_PPC64 */
 
 static inline u64 get_vtb(void)
