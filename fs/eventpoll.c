@@ -1375,6 +1375,10 @@ static int ep_insert(struct eventpoll *ep, const struct epoll_event *event,
 	spin_lock(&tfile->f_lock);
 	hlist_add_head_rcu(&epi->fllink, &tfile->f_ep_links);
 	spin_unlock(&tfile->f_lock);
+	if (full_check && !tep) {
+		get_file(tfile);
+		list_add(&tfile->f_tfile_llink, &tfile_check_list);
+	}
 
 	/*
 	 * Add the current item to the RB tree. All RB tree operations are
@@ -2013,10 +2017,6 @@ int do_epoll_ctl(int epfd, int op, int fd, struct epoll_event *epds,
 				error = -ELOOP;
 				if (ep_loop_check(ep, tep) != 0)
 					goto error_tgt_fput;
-			} else {
-				get_file(tf.file);
-				list_add(&tf.file->f_tfile_llink,
-							&tfile_check_list);
 			}
 			error = epoll_mutex_lock(&ep->mtx, 0, nonblock);
 			if (error)
