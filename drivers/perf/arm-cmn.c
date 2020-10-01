@@ -1324,7 +1324,7 @@ static void arm_cmn_init_node_info(struct arm_cmn *cmn, u32 offset, struct arm_c
 	else
 		level = 2;
 
-	dev_dbg(cmn->dev, "node%*c%#06hx%*ctype:%-#6hx id:%-4hd off:%#x\n",
+	dev_dbg(cmn->dev, "node%*c%#06hx%*ctype:%-#6x id:%-4hd off:%#x\n",
 			(level * 2) + 1, ' ', node->id, 5 - (level * 2), ' ',
 			node->type, node->logid, offset);
 }
@@ -1430,7 +1430,7 @@ static int arm_cmn_discover(struct arm_cmn *cmn, unsigned int rgn_offset)
 				break;
 			/* Something has gone horribly wrong */
 			default:
-				dev_err(cmn->dev, "invalid device node type: 0x%hx\n", dn->type);
+				dev_err(cmn->dev, "invalid device node type: 0x%x\n", dn->type);
 				return -ENODEV;
 			}
 		}
