@@ -254,6 +254,8 @@ tcl_ring_sel:
 
 	ath11k_hal_srng_access_end(ab, tcl_ring);
 
+	ath11k_dp_shadow_start_timer(ab, tcl_ring, &dp->tx_ring_timer[ti.ring_id]);
+
 	spin_unlock_bh(&tcl_ring->lock);
 
 	ath11k_dbg_dump(ab, ATH11K_DBG_DP_TX, NULL, "dp tx msdu: ",

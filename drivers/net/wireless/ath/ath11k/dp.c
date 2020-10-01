@@ -304,11 +304,23 @@ int ath11k_dp_srng_setup(struct ath11k_base *ab, struct dp_srng *ring,
 	return 0;
 }
 
+static void ath11k_dp_stop_shadow_timers(struct ath11k_base *ab)
+{
+	int i;
+
+	if (!ab->hw_params.supports_shadow_regs)
+		return;
+
+	for (i = 0; i < DP_TCL_NUM_RING_MAX; i++)
+		ath11k_dp_shadow_stop_timer(ab, &ab->dp.tx_ring_timer[i]);
+}
+
 static void ath11k_dp_srng_common_cleanup(struct ath11k_base *ab)
 {
 	struct ath11k_dp *dp = &ab->dp;
 	int i;
 
+	ath11k_dp_stop_shadow_timers(ab);
 	ath11k_dp_srng_cleanup(ab, &dp->wbm_desc_rel_ring);
 	ath11k_dp_srng_cleanup(ab, &dp->tcl_cmd_ring);
 	ath11k_dp_srng_cleanup(ab, &dp->tcl_status_ring);
@@ -374,6 +386,10 @@ static int ath11k_dp_srng_common_setup(struct ath11k_base *ab)
 
 		srng = &ab->hal.srng_list[dp->tx_ring[i].tcl_data_ring.ring_id];
 		ath11k_hal_tx_init_data_ring(ab, srng);
+
+		ath11k_dp_shadow_init_timer(ab, &dp->tx_ring_timer[i],
+					    ATH11K_SHADOW_DP_TIMER_INTERVAL,
+					    dp->tx_ring[i].tcl_data_ring.ring_id);
 	}
 
 	ret = ath11k_dp_srng_setup(ab, &dp->reo_reinject_ring, HAL_REO_REINJECT,
@@ -1065,4 +1081,79 @@ fail_link_desc_cleanup:
 				    HAL_WBM_IDLE_LINK, &dp->wbm_idle_ring);
 
 	return ret;
+}
+
+static void ath11k_dp_shadow_timer_handler(struct timer_list *t)
+{
+	struct ath11k_hp_update_timer *update_timer = from_timer(update_timer,
+								 t, timer);
+	struct ath11k_base *ab = update_timer->ab;
+	struct hal_srng	*srng = &ab->hal.srng_list[update_timer->ring_id];
+
+	spin_lock_bh(&srng->lock);
+
+	/* when the timer is fired, the handler checks whether there
+	 * are new TX happened. The handler updates HP only when there
+	 * are no TX operations during the timeout interval, and stop
+	 * the timer. Timer will be started again when TX happens again.
+	 */
+	if (update_timer->timer_tx_num != update_timer->tx_num) {
+		update_timer->timer_tx_num = update_timer->tx_num;
+		mod_timer(&update_timer->timer, jiffies +
+		  msecs_to_jiffies(update_timer->interval));
+	} else {
+		update_timer->started = false;
+		ath11k_hal_srng_shadow_update_hp_tp(ab, srng);
+	}
+
+	spin_unlock_bh(&srng->lock);
+}
+
+void ath11k_dp_shadow_start_timer(struct ath11k_base *ab,
+				  struct hal_srng *srng,
+				  struct ath11k_hp_update_timer *update_timer)
+{
+	lockdep_assert_held(&srng->lock);
+
+	if (!ab->hw_params.supports_shadow_regs)
+		return;
+
+	update_timer->tx_num++;
+
+	if (update_timer->started)
+		return;
+
+	update_timer->started = true;
+	update_timer->timer_tx_num = update_timer->tx_num;
+	mod_timer(&update_timer->timer, jiffies +
+		  msecs_to_jiffies(update_timer->interval));
+}
+
+void ath11k_dp_shadow_stop_timer(struct ath11k_base *ab,
+				 struct ath11k_hp_update_timer *update_timer)
+{
+	if (!ab->hw_params.supports_shadow_regs)
+		return;
+
+	if (!update_timer->init)
+		return;
+
+	del_timer_sync(&update_timer->timer);
+}
+
+void ath11k_dp_shadow_init_timer(struct ath11k_base *ab,
+				 struct ath11k_hp_update_timer *update_timer,
+				 u32 interval, u32 ring_id)
+{
+	if (!ab->hw_params.supports_shadow_regs)
+		return;
+
+	update_timer->tx_num = 0;
+	update_timer->timer_tx_num = 0;
+	update_timer->ab = ab;
+	update_timer->ring_id = ring_id;
+	update_timer->interval = interval;
+	update_timer->init = true;
+	timer_setup(&update_timer->timer,
+		    ath11k_dp_shadow_timer_handler, 0);
 }

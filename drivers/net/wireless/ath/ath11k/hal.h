@@ -945,4 +945,6 @@ int ath11k_hal_srng_update_shadow_config(struct ath11k_base *ab,
 					 enum hal_ring_type ring_type,
 					int ring_num);
 void ath11k_hal_srng_shadow_config(struct ath11k_base *ab);
+void ath11k_hal_srng_shadow_update_hp_tp(struct ath11k_base *ab,
+					 struct hal_srng *srng);
 #endif
