@@ -41,6 +41,11 @@ description:
   l3, l4, l5, l6, l7, l8, l9, l10, l11, l12, l13, l14, l15, l16, l17, l18, l19,
   l20, l21, l22, l23, l24, l25, l26, l27, l28, lvs1, lvs2
 
+  For pm660, s1, s2, s3, s4, s5, s6, l1, l2, l3, l5, l6, l7, l8, l9, l10, l22,
+  l12, l13, l14, l15, l16, l17, l18, l19
+
+  For pm660l s1, s2, s3, s5, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, bob
+
   For pma8084, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, l1, l2, l3,
   l4, l5, l6, l7, l8, l9, l10, l11, l12, l13, l14, l15, l16, l17, l18, l19,
   l20, l21, l22, l23, l24, l25, l26, l27, lvs1, lvs2, lvs3, lvs4, 5vs1
@@ -65,6 +70,8 @@ properties:
       - qcom,rpm-pm8950-regulators
       - qcom,rpm-pm8994-regulators
       - qcom,rpm-pm8998-regulators
+      - qcom,rpm-pm660-regulators
+      - qcom,rpm-pm660l-regulators
       - qcom,rpm-pma8084-regulators
       - qcom,rpm-pmi8994-regulators
       - qcom,rpm-pmi8998-regulators
