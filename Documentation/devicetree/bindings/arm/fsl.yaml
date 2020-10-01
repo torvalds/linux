@@ -326,8 +326,13 @@ properties:
       - description: i.MX6QP based Boards
         items:
           - enum:
+              - boundary,imx6qp-nitrogen6_max
+              - boundary,imx6qp-nitrogen6_som2
               - fsl,imx6qp-sabreauto      # i.MX6 Quad Plus SABRE Automotive Board
               - fsl,imx6qp-sabresd        # i.MX6 Quad Plus SABRE Smart Device Board
+              - karo,imx6qp-tx6qp         # Ka-Ro electronics TX6QP-8037 Module
+              - wand,imx6qp-wandboard     # Wandboard i.MX6 QuadPlus Board
+              - zii,imx6qp-zii-rdu2       # ZII RDU2+ Board
           - const: fsl,imx6qp
 
       - description: i.MX6QP PHYTEC phyBOARD-Mira
