@@ -614,6 +614,9 @@ static void ath11k_pci_init_qmi_ce_config(struct ath11k_base *ab)
 	cfg->svc_to_ce_map = ab->hw_params.svc_to_ce_map;
 	cfg->svc_to_ce_map_len = ab->hw_params.svc_to_ce_map_len;
 	ab->qmi.service_ins_id = ATH11K_QMI_WLFW_SERVICE_INS_ID_V01_QCA6390;
+
+	ath11k_ce_get_shadow_config(ab, &cfg->shadow_reg_v2,
+				    &cfg->shadow_reg_v2_len);
 }
 
 static void ath11k_pci_ce_irqs_enable(struct ath11k_base *ab)

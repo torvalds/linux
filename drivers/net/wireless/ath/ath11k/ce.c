@@ -713,6 +713,49 @@ static void ath11k_ce_rx_pipe_cleanup(struct ath11k_ce_pipe *pipe)
 	}
 }
 
+static void ath11k_ce_shadow_config(struct ath11k_base *ab)
+{
+	int i;
+
+	for (i = 0; i < ab->hw_params.ce_count; i++) {
+		if (ab->hw_params.host_ce_config[i].src_nentries)
+			ath11k_hal_srng_update_shadow_config(ab,
+							     HAL_CE_SRC, i);
+
+		if (ab->hw_params.host_ce_config[i].dest_nentries) {
+			ath11k_hal_srng_update_shadow_config(ab,
+							     HAL_CE_DST, i);
+
+			ath11k_hal_srng_update_shadow_config(ab,
+							     HAL_CE_DST_STATUS, i);
+		}
+	}
+}
+
+void ath11k_ce_get_shadow_config(struct ath11k_base *ab,
+				 u32 **shadow_cfg, u32 *shadow_cfg_len)
+{
+	if (!ab->hw_params.supports_shadow_regs)
+		return;
+
+	ath11k_hal_srng_get_shadow_config(ab, shadow_cfg, shadow_cfg_len);
+
+	/* shadow is already configured */
+	if (*shadow_cfg_len)
+		return;
+
+	/* shadow isn't configured yet, configure now.
+	 * non-CE srngs are configured firstly, then
+	 * all CE srngs.
+	 */
+	ath11k_hal_srng_shadow_config(ab);
+	ath11k_ce_shadow_config(ab);
+
+	/* get the shadow configuration */
+	ath11k_hal_srng_get_shadow_config(ab, shadow_cfg, shadow_cfg_len);
+}
+EXPORT_SYMBOL(ath11k_ce_get_shadow_config);
+
 void ath11k_ce_cleanup_pipes(struct ath11k_base *ab)
 {
 	struct ath11k_ce_pipe *pipe;
@@ -766,6 +809,9 @@ int ath11k_ce_init_pipes(struct ath11k_base *ab)
 	struct ath11k_ce_pipe *pipe;
 	int i;
 	int ret;
+
+	ath11k_ce_get_shadow_config(ab, &ab->qmi.ce_cfg.shadow_reg_v2,
+				    &ab->qmi.ce_cfg.shadow_reg_v2_len);
 
 	for (i = 0; i < ab->hw_params.ce_count; i++) {
 		pipe = &ab->ce.ce_pipe[i];
