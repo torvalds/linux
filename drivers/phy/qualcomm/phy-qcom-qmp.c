@@ -3928,9 +3928,9 @@ static int qcom_qmp_phy_probe(struct platform_device *pdev)
 	void __iomem *usb_serdes;
 	void __iomem *dp_serdes;
 	const struct qmp_phy_combo_cfg *combo_cfg = NULL;
-	const struct qmp_phy_cfg *cfg;
-	const struct qmp_phy_cfg *usb_cfg;
-	const struct qmp_phy_cfg *dp_cfg;
+	const struct qmp_phy_cfg *cfg = NULL;
+	const struct qmp_phy_cfg *usb_cfg = NULL;
+	const struct qmp_phy_cfg *dp_cfg = NULL;
 	int num, id, expected_phys;
 	int ret;
 
