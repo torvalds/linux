@@ -519,9 +519,7 @@ struct cache_set {
 
 	struct cache_sb		sb;
 
-	struct cache		*cache[MAX_CACHES_PER_SET];
-	struct cache		*cache_by_alloc[MAX_CACHES_PER_SET];
-	int			caches_loaded;
+	struct cache		*cache;
 
 	struct bcache_device	**devices;
 	unsigned int		devices_max_used;
@@ -808,7 +806,7 @@ static inline struct cache *PTR_CACHE(struct cache_set *c,
 				      const struct bkey *k,
 				      unsigned int ptr)
 {
-	return c->cache[PTR_DEV(k, ptr)];
+	return c->cache;
 }
 
 static inline size_t PTR_BUCKET_NR(struct cache_set *c,
@@ -890,7 +888,7 @@ do {									\
 /* Looping macros */
 
 #define for_each_cache(ca, cs, iter)					\
-	for (iter = 0; ca = cs->cache[iter], iter < (cs)->sb.nr_in_set; iter++)
+	for (iter = 0; ca = cs->cache, iter < 1; iter++)
 
 #define for_each_bucket(b, ca)						\
 	for (b = (ca)->buckets + (ca)->sb.first_bucket;			\

@@ -1674,7 +1674,7 @@ static void cache_set_free(struct closure *cl)
 	for_each_cache(ca, c, i)
 		if (ca) {
 			ca->set = NULL;
-			c->cache[ca->sb.nr_this_dev] = NULL;
+			c->cache = NULL;
 			kobject_put(&ca->kobj);
 		}
 
@@ -2165,7 +2165,7 @@ static const char *register_cache_set(struct cache *ca)
 
 	list_for_each_entry(c, &bch_cache_sets, list)
 		if (!memcmp(c->sb.set_uuid, ca->sb.set_uuid, 16)) {
-			if (c->cache[ca->sb.nr_this_dev])
+			if (c->cache)
 				return "duplicate cache set member";
 
 			if (!can_attach_cache(ca, c))
@@ -2215,14 +2215,11 @@ found:
 
 	kobject_get(&ca->kobj);
 	ca->set = c;
-	ca->set->cache[ca->sb.nr_this_dev] = ca;
-	c->cache_by_alloc[c->caches_loaded++] = ca;
+	ca->set->cache = ca;
 
-	if (c->caches_loaded == c->sb.nr_in_set) {
-		err = "failed to run cache set";
-		if (run_cache_set(c) < 0)
-			goto err;
-	}
+	err = "failed to run cache set";
+	if (run_cache_set(c) < 0)
+		goto err;
 
 	return NULL;
 err:
@@ -2239,8 +2236,8 @@ void bch_cache_release(struct kobject *kobj)
 	unsigned int i;
 
 	if (ca->set) {
-		BUG_ON(ca->set->cache[ca->sb.nr_this_dev] != ca);
-		ca->set->cache[ca->sb.nr_this_dev] = NULL;
+		BUG_ON(ca->set->cache != ca);
+		ca->set->cache = NULL;
 	}
 
 	free_pages((unsigned long) ca->disk_buckets, ilog2(meta_bucket_pages(&ca->sb)));

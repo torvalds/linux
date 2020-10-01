@@ -501,7 +501,7 @@ int __bch_bucket_alloc_set(struct cache_set *c, unsigned int reserve,
 
 	bkey_init(k);
 
-	ca = c->cache_by_alloc[0];
+	ca = c->cache;
 	b = bch_bucket_alloc(ca, reserve, wait);
 	if (b == -1)
 		goto err;
