@@ -434,7 +434,6 @@ config NET_SOCK_MSG
 config NET_DEVLINK
 	bool
 	default n
-	imply NET_DROP_MONITOR
 
 config PAGE_POOL
 	bool
