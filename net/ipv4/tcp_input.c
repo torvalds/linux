@@ -1020,6 +1020,14 @@ static void tcp_verify_retransmit_hint(struct tcp_sock *tp, struct sk_buff *skb)
 		tp->retransmit_skb_hint = skb;
 }
 
+/* Sum the number of packets on the wire we have marked as lost, and
+ * notify the congestion control module that the given skb was marked lost.
+ */
+static void tcp_notify_skb_loss_event(struct tcp_sock *tp, const struct sk_buff *skb)
+{
+	tp->lost += tcp_skb_pcount(skb);
+}
+
 void tcp_mark_skb_lost(struct sock *sk, struct sk_buff *skb)
 {
 	__u8 sacked = TCP_SKB_CB(skb)->sacked;
@@ -1036,10 +1044,12 @@ void tcp_mark_skb_lost(struct sock *sk, struct sk_buff *skb)
 			tp->retrans_out -= tcp_skb_pcount(skb);
 			NET_ADD_STATS(sock_net(sk), LINUX_MIB_TCPLOSTRETRANSMIT,
 				      tcp_skb_pcount(skb));
+			tcp_notify_skb_loss_event(tp, skb);
 		}
 	} else {
 		tp->lost_out += tcp_skb_pcount(skb);
 		TCP_SKB_CB(skb)->sacked |= TCPCB_LOST;
+		tcp_notify_skb_loss_event(tp, skb);
 	}
 }
 
