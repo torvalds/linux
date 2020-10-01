@@ -561,7 +561,7 @@ static int zr36050_set_video(struct videocodec *codec, const struct tvnorm *norm
 	int size;
 
 	dprintk(2, "%s: set_video %d.%d, %d/%d-%dx%d (0x%x) q%d call\n",
-		ptr->name, norm->HStart, norm->VStart,
+		ptr->name, norm->h_start, norm->v_start,
 		cap->x, cap->y, cap->width, cap->height,
 		cap->decimation, cap->quality);
 	/* if () return -EINVAL;

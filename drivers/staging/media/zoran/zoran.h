@@ -45,8 +45,8 @@ static inline struct zr_buffer *vb2_to_zr_buffer(struct vb2_buffer *vb)
 
 #define ZR_DEVNAME(zr) ((zr)->name)
 
-#define   BUZ_MAX_WIDTH   (zr->timing->Wa)
-#define   BUZ_MAX_HEIGHT  (zr->timing->Ha)
+#define   BUZ_MAX_WIDTH   (zr->timing->wa)
+#define   BUZ_MAX_HEIGHT  (zr->timing->ha)
 #define   BUZ_MIN_WIDTH    32	/* never display less than 32 pixels */
 #define   BUZ_MIN_HEIGHT   24	/* never display less than 24 rows */
 
@@ -152,8 +152,8 @@ struct zoran_v4l_settings {
 /* jpg-capture/-playback settings */
 struct zoran_jpg_settings {
 	int decimation;		/* this bit is used to set everything to default */
-	int HorDcm, VerDcm, TmpDcm;	/* capture decimation settings (TmpDcm=1 means both fields) */
-	int field_per_buff, odd_even;	/* field-settings (odd_even=1 (+TmpDcm=1) means top-field-first) */
+	int hor_dcm, ver_dcm, tmp_dcm;	/* capture decimation settings (tmp_dcm=1 means both fields) */
+	int field_per_buff, odd_even;	/* field-settings (odd_even=1 (+tmp_dcm=1) means top-field-first) */
 	int img_x, img_y, img_width, img_height;	/* crop settings (subframe capture) */
 	struct v4l2_jpegcompression jpg_comp;	/* JPEG-specific capture settings */
 };
@@ -266,21 +266,21 @@ struct zoran {
 	unsigned int ghost_int;
 	int intr_counter_GIRQ1;
 	int intr_counter_GIRQ0;
-	int intr_counter_CodRepIRQ;
-	int intr_counter_JPEGRepIRQ;
+	int intr_counter_cod_rep_irq;
+	int intr_counter_jpeg_rep_irq;
 	int field_counter;
-	int IRQ1_in;
-	int IRQ1_out;
-	int JPEG_in;
-	int JPEG_out;
+	int irq1_in;
+	int irq1_out;
+	int jpeg_in;
+	int jpeg_out;
 	int JPEG_0;
 	int JPEG_1;
-	int END_event_missed;
-	int JPEG_missed;
-	int JPEG_error;
+	int end_event_missed;
+	int jpeg_missed;
+	int jpeg_error;
 	int num_errors;
-	int JPEG_max_missed;
-	int JPEG_min_missed;
+	int jpeg_max_missed;
+	int jpeg_min_missed;
 	unsigned int prepared;
 	unsigned int queued;
 

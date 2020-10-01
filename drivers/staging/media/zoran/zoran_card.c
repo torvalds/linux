@@ -266,7 +266,7 @@ static const char *codecid_to_modulename(u16 codecid)
 }
 
 // struct tvnorm {
-//      u16 Wt, Wa, HStart, HSyncStart, Ht, Ha, VStart;
+//      u16 wt, wa, h_start, h_sync_start, ht, ha, v_start;
 // };
 
 static const struct tvnorm f50sqpixel = { 944, 768, 83, 880, 625, 576, 16 };
@@ -277,7 +277,7 @@ static const struct tvnorm f60ccir601 = { 858, 720, 57, 788, 525, 480, 16 };
 static const struct tvnorm f50ccir601_lml33 = { 864, 720, 75 + 34, 804, 625, 576, 18 };
 static const struct tvnorm f60ccir601_lml33 = { 858, 720, 57 + 34, 788, 525, 480, 16 };
 
-/* The DC10 (57/16/50) uses VActive as HSync, so HStart must be 0 */
+/* The DC10 (57/16/50) uses VActive as HSync, so h_start must be 0 */
 static const struct tvnorm f50sqpixel_dc10 = { 944, 768, 0, 880, 625, 576, 0 };
 static const struct tvnorm f60sqpixel_dc10 = { 780, 640, 0, 716, 525, 480, 12 };
 
@@ -662,8 +662,8 @@ int zoran_check_jpg_settings(struct zoran *zr,
 	int err = 0, err0 = 0;
 
 	pci_dbg(zr->pci_dev, "%s - dec: %d, Hdcm: %d, Vdcm: %d, Tdcm: %d\n",
-		__func__, settings->decimation, settings->HorDcm,
-		settings->VerDcm, settings->TmpDcm);
+		__func__, settings->decimation, settings->hor_dcm,
+		settings->ver_dcm, settings->tmp_dcm);
 	pci_dbg(zr->pci_dev, "%s - x: %d, y: %d, w: %d, y: %d\n", __func__,
 		settings->img_x, settings->img_y,
 		settings->img_width, settings->img_height);
@@ -671,9 +671,9 @@ int zoran_check_jpg_settings(struct zoran *zr,
 	switch (settings->decimation) {
 	case 1:
 
-		settings->HorDcm = 1;
-		settings->VerDcm = 1;
-		settings->TmpDcm = 1;
+		settings->hor_dcm = 1;
+		settings->ver_dcm = 1;
+		settings->tmp_dcm = 1;
 		settings->field_per_buff = 2;
 		settings->img_x = 0;
 		settings->img_y = 0;
@@ -682,9 +682,9 @@ int zoran_check_jpg_settings(struct zoran *zr,
 		break;
 	case 2:
 
-		settings->HorDcm = 2;
-		settings->VerDcm = 1;
-		settings->TmpDcm = 2;
+		settings->hor_dcm = 2;
+		settings->ver_dcm = 1;
+		settings->tmp_dcm = 2;
 		settings->field_per_buff = 1;
 		settings->img_x = (BUZ_MAX_WIDTH == 720) ? 8 : 0;
 		settings->img_y = 0;
@@ -700,9 +700,9 @@ int zoran_check_jpg_settings(struct zoran *zr,
 			break;
 		}
 
-		settings->HorDcm = 4;
-		settings->VerDcm = 2;
-		settings->TmpDcm = 2;
+		settings->hor_dcm = 4;
+		settings->ver_dcm = 2;
+		settings->tmp_dcm = 2;
 		settings->field_per_buff = 1;
 		settings->img_x = (BUZ_MAX_WIDTH == 720) ? 8 : 0;
 		settings->img_y = 0;
@@ -714,17 +714,17 @@ int zoran_check_jpg_settings(struct zoran *zr,
 
 		/* We have to check the data the user has set */
 
-		if (settings->HorDcm != 1 && settings->HorDcm != 2 &&
-		    (zr->card.type == DC10_NEW || settings->HorDcm != 4)) {
-			settings->HorDcm = clamp(settings->HorDcm, 1, 2);
+		if (settings->hor_dcm != 1 && settings->hor_dcm != 2 &&
+		    (zr->card.type == DC10_NEW || settings->hor_dcm != 4)) {
+			settings->hor_dcm = clamp(settings->hor_dcm, 1, 2);
 			err0++;
 		}
-		if (settings->VerDcm != 1 && settings->VerDcm != 2) {
-			settings->VerDcm = clamp(settings->VerDcm, 1, 2);
+		if (settings->ver_dcm != 1 && settings->ver_dcm != 2) {
+			settings->ver_dcm = clamp(settings->ver_dcm, 1, 2);
 			err0++;
 		}
-		if (settings->TmpDcm != 1 && settings->TmpDcm != 2) {
-			settings->TmpDcm = clamp(settings->TmpDcm, 1, 2);
+		if (settings->tmp_dcm != 1 && settings->tmp_dcm != 2) {
+			settings->tmp_dcm = clamp(settings->tmp_dcm, 1, 2);
 			err0++;
 		}
 		if (settings->field_per_buff != 1 &&
@@ -756,16 +756,16 @@ int zoran_check_jpg_settings(struct zoran *zr,
 			settings->img_y = BUZ_MAX_HEIGHT / 2 - settings->img_height;
 			err0++;
 		}
-		if (settings->img_width % (16 * settings->HorDcm) != 0) {
-			settings->img_width -= settings->img_width % (16 * settings->HorDcm);
+		if (settings->img_width % (16 * settings->hor_dcm) != 0) {
+			settings->img_width -= settings->img_width % (16 * settings->hor_dcm);
 			if (settings->img_width == 0)
-				settings->img_width = 16 * settings->HorDcm;
+				settings->img_width = 16 * settings->hor_dcm;
 			err0++;
 		}
-		if (settings->img_height % (8 * settings->VerDcm) != 0) {
-			settings->img_height -= settings->img_height % (8 * settings->VerDcm);
+		if (settings->img_height % (8 * settings->ver_dcm) != 0) {
+			settings->img_height -= settings->img_height % (8 * settings->ver_dcm);
 			if (settings->img_height == 0)
-				settings->img_height = 8 * settings->VerDcm;
+				settings->img_height = 8 * settings->ver_dcm;
 			err0++;
 		}
 

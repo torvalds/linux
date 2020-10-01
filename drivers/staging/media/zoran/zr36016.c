@@ -244,7 +244,7 @@ static int zr36016_set_video(struct videocodec *codec, const struct tvnorm *norm
 	struct zr36016 *ptr = (struct zr36016 *)codec->data;
 
 	dprintk(2, "%s: set_video %d.%d, %d/%d-%dx%d (0x%x) call\n",
-		ptr->name, norm->HStart, norm->VStart,
+		ptr->name, norm->h_start, norm->v_start,
 		cap->x, cap->y, cap->width, cap->height,
 		cap->decimation);
 
@@ -254,17 +254,17 @@ static int zr36016_set_video(struct videocodec *codec, const struct tvnorm *norm
 	ptr->width = cap->width;
 	ptr->height = cap->height;
 	/* (Ronald) This is ugly. zoran_device.c, line 387
-	 * already mentions what happens if HStart is even
+	 * already mentions what happens if h_start is even
 	 * (blue faces, etc., cr/cb inversed). There's probably
-	 * some good reason why HStart is 0 instead of 1, so I'm
+	 * some good reason why h_start is 0 instead of 1, so I'm
 	 * leaving it to this for now, but really... This can be
 	 * done a lot simpler */
-	ptr->xoff = (norm->HStart ? norm->HStart : 1) + cap->x;
+	ptr->xoff = (norm->h_start ? norm->h_start : 1) + cap->x;
 	/* Something to note here (I don't understand it), setting
-	 * VStart too high will cause the codec to 'not work'. I
-	 * really don't get it. values of 16 (VStart) already break
+	 * v_start too high will cause the codec to 'not work'. I
+	 * really don't get it. values of 16 (v_start) already break
 	 * it here. Just '0' seems to work. More testing needed! */
-	ptr->yoff = norm->VStart + cap->y;
+	ptr->yoff = norm->v_start + cap->y;
 	/* (Ronald) dzjeeh, can't this thing do hor_decimation = 4? */
 	ptr->xdec = ((cap->decimation & 0xff) == 1) ? 0 : 1;
 	ptr->ydec = (((cap->decimation >> 8) & 0xff) == 1) ? 0 : 1;

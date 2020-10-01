@@ -106,7 +106,7 @@ static void zr36060_wait_end(struct zr36060 *ptr)
 {
 	int i = 0;
 
-	while (zr36060_read_status(ptr) & ZR060_CFSR_Busy) {
+	while (zr36060_read_status(ptr) & ZR060_CFSR_BUSY) {
 		udelay(1);
 		if (i++ > 200000) {	// 200ms, there is for sure something wrong!!!
 			dprintk(1,
@@ -127,7 +127,7 @@ static int zr36060_basic_test(struct zr36060 *ptr)
 	}
 
 	zr36060_wait_end(ptr);
-	if (ptr->status & ZR060_CFSR_Busy) {
+	if (ptr->status & ZR060_CFSR_BUSY) {
 		pr_err("%s: attach failed, jpeg processor failed (end flag)!\n", ptr->name);
 		return -EBUSY;
 	}
@@ -328,14 +328,14 @@ static void zr36060_init(struct zr36060 *ptr)
 	if (ptr->mode == CODEC_DO_COMPRESSION) {
 		dprintk(2, "%s: COMPRESSION SETUP\n", ptr->name);
 
-		zr36060_write(ptr, ZR060_LOAD, ZR060_LOAD_SyncRst);
+		zr36060_write(ptr, ZR060_LOAD, ZR060_LOAD_SYNC_RST);
 
 		/* 060 communicates with 067 in master mode */
-		zr36060_write(ptr, ZR060_CIR, ZR060_CIR_CodeMstr);
+		zr36060_write(ptr, ZR060_CIR, ZR060_CIR_CODE_MSTR);
 
 		/* Compression with or without variable scale factor */
 		/*FIXME: What about ptr->bitrate_ctrl? */
-		zr36060_write(ptr, ZR060_CMR, ZR060_CMR_Comp | ZR060_CMR_Pass2 | ZR060_CMR_BRB);
+		zr36060_write(ptr, ZR060_CMR, ZR060_CMR_COMP | ZR060_CMR_PASS2 | ZR060_CMR_BRB);
 
 		/* Must be zero */
 		zr36060_write(ptr, ZR060_MBZ, 0x00);
@@ -403,20 +403,20 @@ static void zr36060_init(struct zr36060 *ptr)
 		/* JPEG markers to be included in the compressed stream */
 		zr36060_write(ptr, ZR060_MER,
 			      ZR060_MER_DQT | ZR060_MER_DHT |
-			      ((ptr->com.len > 0) ? ZR060_MER_Com : 0) |
-			      ((ptr->app.len > 0) ? ZR060_MER_App : 0));
+			      ((ptr->com.len > 0) ? ZR060_MER_COM : 0) |
+			      ((ptr->app.len > 0) ? ZR060_MER_APP : 0));
 
 		/* Setup the Video Frontend */
 		/* Limit pixel range to 16..235 as per CCIR-601 */
-		zr36060_write(ptr, ZR060_VCR, ZR060_VCR_Range);
+		zr36060_write(ptr, ZR060_VCR, ZR060_VCR_RANGE);
 
 	} else {
 		dprintk(2, "%s: EXPANSION SETUP\n", ptr->name);
 
-		zr36060_write(ptr, ZR060_LOAD, ZR060_LOAD_SyncRst);
+		zr36060_write(ptr, ZR060_LOAD, ZR060_LOAD_SYNC_RST);
 
 		/* 060 communicates with 067 in master mode */
-		zr36060_write(ptr, ZR060_CIR, ZR060_CIR_CodeMstr);
+		zr36060_write(ptr, ZR060_CIR, ZR060_CIR_CODE_MSTR);
 
 		/* Decompression */
 		zr36060_write(ptr, ZR060_CMR, 0);
@@ -436,17 +436,17 @@ static void zr36060_init(struct zr36060 *ptr)
 		zr36060_pushit(ptr, ZR060_DHT_IDX, sizeof(zr36060_dht), zr36060_dht);
 
 		/* Setup the Video Frontend */
-		//zr36060_write(ptr, ZR060_VCR, ZR060_VCR_FIExt);
+		//zr36060_write(ptr, ZR060_VCR, ZR060_VCR_FI_EXT);
 		//this doesn't seem right and doesn't work...
-		zr36060_write(ptr, ZR060_VCR, ZR060_VCR_Range);
+		zr36060_write(ptr, ZR060_VCR, ZR060_VCR_RANGE);
 	}
 
 	/* Load the tables */
-	zr36060_write(ptr, ZR060_LOAD, ZR060_LOAD_SyncRst | ZR060_LOAD_Load);
+	zr36060_write(ptr, ZR060_LOAD, ZR060_LOAD_SYNC_RST | ZR060_LOAD_LOAD);
 	zr36060_wait_end(ptr);
 	dprintk(2, "%s: Status after table preload: 0x%02x\n", ptr->name, ptr->status);
 
-	if (ptr->status & ZR060_CFSR_Busy) {
+	if (ptr->status & ZR060_CFSR_BUSY) {
 		pr_err("%s: init aborted!\n", ptr->name);
 		return;		// something is wrong, its timed out!!!!
 	}
@@ -494,21 +494,21 @@ static int zr36060_set_video(struct videocodec *codec, const struct tvnorm *norm
 	ptr->width = cap->width / (cap->decimation & 0xff);
 	ptr->height = cap->height / (cap->decimation >> 8);
 
-	zr36060_write(ptr, ZR060_LOAD, ZR060_LOAD_SyncRst);
+	zr36060_write(ptr, ZR060_LOAD, ZR060_LOAD_SYNC_RST);
 
 	/* Note that VSPol/HSPol bits in zr36060 have the opposite
 	 * meaning of their zr360x7 counterparts with the same names
 	 * N.b. for VSPol this is only true if FIVEdge = 0 (default,
 	 * left unchanged here - in accordance with datasheet).
 	 */
-	reg = (!pol->vsync_pol ? ZR060_VPR_VSPol : 0)
-	    | (!pol->hsync_pol ? ZR060_VPR_HSPol : 0)
-	    | (pol->field_pol ? ZR060_VPR_FIPol : 0)
-	    | (pol->blank_pol ? ZR060_VPR_BLPol : 0)
-	    | (pol->subimg_pol ? ZR060_VPR_SImgPol : 0)
-	    | (pol->poe_pol ? ZR060_VPR_PoePol : 0)
-	    | (pol->pvalid_pol ? ZR060_VPR_PValPol : 0)
-	    | (pol->vclk_pol ? ZR060_VPR_VCLKPol : 0);
+	reg = (!pol->vsync_pol ? ZR060_VPR_VS_POL : 0)
+	    | (!pol->hsync_pol ? ZR060_VPR_HS_POL : 0)
+	    | (pol->field_pol ? ZR060_VPR_FI_POL : 0)
+	    | (pol->blank_pol ? ZR060_VPR_BL_POL : 0)
+	    | (pol->subimg_pol ? ZR060_VPR_S_IMG_POL : 0)
+	    | (pol->poe_pol ? ZR060_VPR_POE_POL : 0)
+	    | (pol->pvalid_pol ? ZR060_VPR_P_VAL_POL : 0)
+	    | (pol->vclk_pol ? ZR060_VPR_VCLK_POL : 0);
 	zr36060_write(ptr, ZR060_VPR, reg);
 
 	reg = 0;
@@ -518,11 +518,11 @@ static int zr36060_set_video(struct videocodec *codec, const struct tvnorm *norm
 		break;
 
 	case 2:
-		reg |= ZR060_SR_HScale2;
+		reg |= ZR060_SR_H_SCALE2;
 		break;
 
 	case 4:
-		reg |= ZR060_SR_HScale4;
+		reg |= ZR060_SR_H_SCALE4;
 		break;
 	}
 
@@ -532,7 +532,7 @@ static int zr36060_set_video(struct videocodec *codec, const struct tvnorm *norm
 		break;
 
 	case 2:
-		reg |= ZR060_SR_VScale;
+		reg |= ZR060_SR_V_SCALE;
 		break;
 	}
 	zr36060_write(ptr, ZR060_SR, reg);
@@ -543,11 +543,11 @@ static int zr36060_set_video(struct videocodec *codec, const struct tvnorm *norm
 
 	/* sync generator */
 
-	reg = norm->Ht - 1;	/* Vtotal */
+	reg = norm->ht - 1;	/* Vtotal */
 	zr36060_write(ptr, ZR060_SGR_VTOTAL_HI, (reg >> 8) & 0xff);
 	zr36060_write(ptr, ZR060_SGR_VTOTAL_LO, (reg >> 0) & 0xff);
 
-	reg = norm->Wt - 1;	/* Htotal */
+	reg = norm->wt - 1;	/* Htotal */
 	zr36060_write(ptr, ZR060_SGR_HTOTAL_HI, (reg >> 8) & 0xff);
 	zr36060_write(ptr, ZR060_SGR_HTOTAL_LO, (reg >> 0) & 0xff);
 
@@ -559,22 +559,22 @@ static int zr36060_set_video(struct videocodec *codec, const struct tvnorm *norm
 	reg = 68;
 	zr36060_write(ptr, ZR060_SGR_HSYNC, reg);
 
-	reg = norm->VStart - 1;	/* BVstart */
+	reg = norm->v_start - 1;	/* BVstart */
 	zr36060_write(ptr, ZR060_SGR_BVSTART, reg);
 
-	reg += norm->Ha / 2;	/* BVend */
+	reg += norm->ha / 2;	/* BVend */
 	zr36060_write(ptr, ZR060_SGR_BVEND_HI, (reg >> 8) & 0xff);
 	zr36060_write(ptr, ZR060_SGR_BVEND_LO, (reg >> 0) & 0xff);
 
-	reg = norm->HStart - 1;	/* BHstart */
+	reg = norm->h_start - 1;	/* BHstart */
 	zr36060_write(ptr, ZR060_SGR_BHSTART, reg);
 
-	reg += norm->Wa;	/* BHend */
+	reg += norm->wa;	/* BHend */
 	zr36060_write(ptr, ZR060_SGR_BHEND_HI, (reg >> 8) & 0xff);
 	zr36060_write(ptr, ZR060_SGR_BHEND_LO, (reg >> 0) & 0xff);
 
 	/* active area */
-	reg = cap->y + norm->VStart;	/* Vstart */
+	reg = cap->y + norm->v_start;	/* Vstart */
 	zr36060_write(ptr, ZR060_AAR_VSTART_HI, (reg >> 8) & 0xff);
 	zr36060_write(ptr, ZR060_AAR_VSTART_LO, (reg >> 0) & 0xff);
 
@@ -582,7 +582,7 @@ static int zr36060_set_video(struct videocodec *codec, const struct tvnorm *norm
 	zr36060_write(ptr, ZR060_AAR_VEND_HI, (reg >> 8) & 0xff);
 	zr36060_write(ptr, ZR060_AAR_VEND_LO, (reg >> 0) & 0xff);
 
-	reg = cap->x + norm->HStart;	/* Hstart */
+	reg = cap->x + norm->h_start;	/* Hstart */
 	zr36060_write(ptr, ZR060_AAR_HSTART_HI, (reg >> 8) & 0xff);
 	zr36060_write(ptr, ZR060_AAR_HSTART_LO, (reg >> 0) & 0xff);
 
@@ -591,19 +591,19 @@ static int zr36060_set_video(struct videocodec *codec, const struct tvnorm *norm
 	zr36060_write(ptr, ZR060_AAR_HEND_LO, (reg >> 0) & 0xff);
 
 	/* subimage area */
-	reg = norm->VStart - 4;	/* SVstart */
+	reg = norm->v_start - 4;	/* SVstart */
 	zr36060_write(ptr, ZR060_SWR_VSTART_HI, (reg >> 8) & 0xff);
 	zr36060_write(ptr, ZR060_SWR_VSTART_LO, (reg >> 0) & 0xff);
 
-	reg += norm->Ha / 2 + 8;	/* SVend */
+	reg += norm->ha / 2 + 8;	/* SVend */
 	zr36060_write(ptr, ZR060_SWR_VEND_HI, (reg >> 8) & 0xff);
 	zr36060_write(ptr, ZR060_SWR_VEND_LO, (reg >> 0) & 0xff);
 
-	reg = norm->HStart /*+ 64 */  - 4;	/* SHstart */
+	reg = norm->h_start /*+ 64 */  - 4;	/* SHstart */
 	zr36060_write(ptr, ZR060_SWR_HSTART_HI, (reg >> 8) & 0xff);
 	zr36060_write(ptr, ZR060_SWR_HSTART_LO, (reg >> 0) & 0xff);
 
-	reg += norm->Wa + 8;	/* SHend */
+	reg += norm->wa + 8;	/* SHend */
 	zr36060_write(ptr, ZR060_SWR_HEND_HI, (reg >> 8) & 0xff);
 	zr36060_write(ptr, ZR060_SWR_HEND_LO, (reg >> 0) & 0xff);
 

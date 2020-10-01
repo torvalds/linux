@@ -64,44 +64,44 @@ const struct zoran_format zoran_formats[] = {
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.depth = 15,
 		.flags = ZORAN_FORMAT_CAPTURE,
-		.vfespfr = ZR36057_VFESPFR_RGB555 | ZR36057_VFESPFR_ErrDif |
-			   ZR36057_VFESPFR_LittleEndian,
+		.vfespfr = ZR36057_VFESPFR_RGB555 | ZR36057_VFESPFR_ERR_DIF |
+			   ZR36057_VFESPFR_LITTLE_ENDIAN,
 	}, {
 		.name = "15-bit RGB BE",
 		.fourcc = V4L2_PIX_FMT_RGB555X,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.depth = 15,
 		.flags = ZORAN_FORMAT_CAPTURE,
-		.vfespfr = ZR36057_VFESPFR_RGB555 | ZR36057_VFESPFR_ErrDif,
+		.vfespfr = ZR36057_VFESPFR_RGB555 | ZR36057_VFESPFR_ERR_DIF,
 	}, {
 		.name = "16-bit RGB LE",
 		.fourcc = V4L2_PIX_FMT_RGB565,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.depth = 16,
 		.flags = ZORAN_FORMAT_CAPTURE,
-		.vfespfr = ZR36057_VFESPFR_RGB565 | ZR36057_VFESPFR_ErrDif |
-			   ZR36057_VFESPFR_LittleEndian,
+		.vfespfr = ZR36057_VFESPFR_RGB565 | ZR36057_VFESPFR_ERR_DIF |
+			   ZR36057_VFESPFR_LITTLE_ENDIAN,
 	}, {
 		.name = "16-bit RGB BE",
 		.fourcc = V4L2_PIX_FMT_RGB565X,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.depth = 16,
 		.flags = ZORAN_FORMAT_CAPTURE,
-		.vfespfr = ZR36057_VFESPFR_RGB565 | ZR36057_VFESPFR_ErrDif,
+		.vfespfr = ZR36057_VFESPFR_RGB565 | ZR36057_VFESPFR_ERR_DIF,
 	}, {
 		.name = "24-bit RGB",
 		.fourcc = V4L2_PIX_FMT_BGR24,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.depth = 24,
 		.flags = ZORAN_FORMAT_CAPTURE,
-		.vfespfr = ZR36057_VFESPFR_RGB888 | ZR36057_VFESPFR_Pack24,
+		.vfespfr = ZR36057_VFESPFR_RGB888 | ZR36057_VFESPFR_PACK24,
 	}, {
 		.name = "32-bit RGB LE",
 		.fourcc = V4L2_PIX_FMT_BGR32,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.depth = 32,
 		.flags = ZORAN_FORMAT_CAPTURE,
-		.vfespfr = ZR36057_VFESPFR_RGB888 | ZR36057_VFESPFR_LittleEndian,
+		.vfespfr = ZR36057_VFESPFR_RGB888 | ZR36057_VFESPFR_LITTLE_ENDIAN,
 	}, {
 		.name = "32-bit RGB BE",
 		.fourcc = V4L2_PIX_FMT_RGB32,
@@ -122,7 +122,7 @@ const struct zoran_format zoran_formats[] = {
 		.colorspace = V4L2_COLORSPACE_SMPTE170M,
 		.depth = 16,
 		.flags = ZORAN_FORMAT_CAPTURE,
-		.vfespfr = ZR36057_VFESPFR_YUV422 | ZR36057_VFESPFR_LittleEndian,
+		.vfespfr = ZR36057_VFESPFR_YUV422 | ZR36057_VFESPFR_LITTLE_ENDIAN,
 	}, {
 		.name = "Hardware-encoded Motion-JPEG",
 		.fourcc = V4L2_PIX_FMT_MJPEG,
@@ -143,7 +143,7 @@ const struct zoran_format zoran_formats[] = {
 	 */
 static __u32 zoran_v4l2_calc_bufsize(struct zoran_jpg_settings *settings)
 {
-	__u8 div = settings->VerDcm * settings->HorDcm * settings->TmpDcm;
+	__u8 div = settings->ver_dcm * settings->hor_dcm * settings->tmp_dcm;
 	__u32 num = (1024 * 512) / (div);
 	__u32 result = 2;
 
@@ -307,12 +307,12 @@ static int zoran_g_fmt_vid_out(struct file *file, void *__fh,
 {
 	struct zoran *zr = video_drvdata(file);
 
-	fmt->fmt.pix.width = zr->jpg_settings.img_width / zr->jpg_settings.HorDcm;
+	fmt->fmt.pix.width = zr->jpg_settings.img_width / zr->jpg_settings.hor_dcm;
 	fmt->fmt.pix.height = zr->jpg_settings.img_height * 2 /
-		(zr->jpg_settings.VerDcm * zr->jpg_settings.TmpDcm);
+		(zr->jpg_settings.ver_dcm * zr->jpg_settings.tmp_dcm);
 	fmt->fmt.pix.sizeimage = zr->buffer_size;
 	fmt->fmt.pix.pixelformat = V4L2_PIX_FMT_MJPEG;
-	if (zr->jpg_settings.TmpDcm == 1)
+	if (zr->jpg_settings.tmp_dcm == 1)
 		fmt->fmt.pix.field = (zr->jpg_settings.odd_even ?
 				V4L2_FIELD_SEQ_TB : V4L2_FIELD_SEQ_BT);
 	else
@@ -358,26 +358,26 @@ static int zoran_try_fmt_vid_out(struct file *file, void *__fh,
 
 	/* we actually need to set 'real' parameters now */
 	if ((fmt->fmt.pix.height * 2) > BUZ_MAX_HEIGHT)
-		settings.TmpDcm = 1;
+		settings.tmp_dcm = 1;
 	else
-		settings.TmpDcm = 2;
+		settings.tmp_dcm = 2;
 	settings.decimation = 0;
 	if (fmt->fmt.pix.height <= zr->jpg_settings.img_height / 2)
-		settings.VerDcm = 2;
+		settings.ver_dcm = 2;
 	else
-		settings.VerDcm = 1;
+		settings.ver_dcm = 1;
 	if (fmt->fmt.pix.width <= zr->jpg_settings.img_width / 4)
-		settings.HorDcm = 4;
+		settings.hor_dcm = 4;
 	else if (fmt->fmt.pix.width <= zr->jpg_settings.img_width / 2)
-		settings.HorDcm = 2;
+		settings.hor_dcm = 2;
 	else
-		settings.HorDcm = 1;
-	if (settings.TmpDcm == 1)
+		settings.hor_dcm = 1;
+	if (settings.tmp_dcm == 1)
 		settings.field_per_buff = 2;
 	else
 		settings.field_per_buff = 1;
 
-	if (settings.HorDcm > 1) {
+	if (settings.hor_dcm > 1) {
 		settings.img_x = (BUZ_MAX_WIDTH == 720) ? 8 : 0;
 		settings.img_width = (BUZ_MAX_WIDTH == 720) ? 704 : BUZ_MAX_WIDTH;
 	} else {
@@ -391,10 +391,10 @@ static int zoran_try_fmt_vid_out(struct file *file, void *__fh,
 		return res;
 
 	/* tell the user what we actually did */
-	fmt->fmt.pix.width = settings.img_width / settings.HorDcm;
+	fmt->fmt.pix.width = settings.img_width / settings.hor_dcm;
 	fmt->fmt.pix.height = settings.img_height * 2 /
-		(settings.TmpDcm * settings.VerDcm);
-	if (settings.TmpDcm == 1)
+		(settings.tmp_dcm * settings.ver_dcm);
+	if (settings.tmp_dcm == 1)
 		fmt->fmt.pix.field = (zr->jpg_settings.odd_even ?
 				V4L2_FIELD_SEQ_TB : V4L2_FIELD_SEQ_BT);
 	else
@@ -462,26 +462,26 @@ static int zoran_s_fmt_vid_out(struct file *file, void *__fh,
 
 	/* we actually need to set 'real' parameters now */
 	if (fmt->fmt.pix.height * 2 > BUZ_MAX_HEIGHT)
-		settings.TmpDcm = 1;
+		settings.tmp_dcm = 1;
 	else
-		settings.TmpDcm = 2;
+		settings.tmp_dcm = 2;
 	settings.decimation = 0;
 	if (fmt->fmt.pix.height <= zr->jpg_settings.img_height / 2)
-		settings.VerDcm = 2;
+		settings.ver_dcm = 2;
 	else
-		settings.VerDcm = 1;
+		settings.ver_dcm = 1;
 	if (fmt->fmt.pix.width <= zr->jpg_settings.img_width / 4)
-		settings.HorDcm = 4;
+		settings.hor_dcm = 4;
 	else if (fmt->fmt.pix.width <= zr->jpg_settings.img_width / 2)
-		settings.HorDcm = 2;
+		settings.hor_dcm = 2;
 	else
-		settings.HorDcm = 1;
-	if (settings.TmpDcm == 1)
+		settings.hor_dcm = 1;
+	if (settings.tmp_dcm == 1)
 		settings.field_per_buff = 2;
 	else
 		settings.field_per_buff = 1;
 
-	if (settings.HorDcm > 1) {
+	if (settings.hor_dcm > 1) {
 		settings.img_x = (BUZ_MAX_WIDTH == 720) ? 8 : 0;
 		settings.img_width = (BUZ_MAX_WIDTH == 720) ? 704 : BUZ_MAX_WIDTH;
 	} else {
@@ -505,10 +505,10 @@ static int zoran_s_fmt_vid_out(struct file *file, void *__fh,
 	zr->buffer_size = zoran_v4l2_calc_bufsize(&zr->jpg_settings);
 
 	/* tell the user what we actually did */
-	fmt->fmt.pix.width = settings.img_width / settings.HorDcm;
+	fmt->fmt.pix.width = settings.img_width / settings.hor_dcm;
 	fmt->fmt.pix.height = settings.img_height * 2 /
-		(settings.TmpDcm * settings.VerDcm);
-	if (settings.TmpDcm == 1)
+		(settings.tmp_dcm * settings.ver_dcm);
+	if (settings.tmp_dcm == 1)
 		fmt->fmt.pix.field = (zr->jpg_settings.odd_even ?
 				V4L2_FIELD_SEQ_TB : V4L2_FIELD_SEQ_BT);
 	else
@@ -874,14 +874,14 @@ int zr_set_buf(struct zoran *zr)
 
 	spin_lock_irqsave(&zr->queued_bufs_lock, flags);
 	if (list_empty(&zr->queued_bufs)) {
-		btand(~ZR36057_ICR_IntPinEn, ZR36057_ICR);
+		btand(~ZR36057_ICR_INT_PIN_EN, ZR36057_ICR);
 		vb2_queue_error(zr->video_dev->queue);
 		spin_unlock_irqrestore(&zr->queued_bufs_lock, flags);
 		return -EINVAL;
 	}
 	buf = list_first_entry_or_null(&zr->queued_bufs, struct zr_buffer, queue);
 	if (!buf) {
-		btand(~ZR36057_ICR_IntPinEn, ZR36057_ICR);
+		btand(~ZR36057_ICR_INT_PIN_EN, ZR36057_ICR);
 		vb2_queue_error(zr->video_dev->queue);
 		spin_unlock_irqrestore(&zr->queued_bufs_lock, flags);
 		return -EINVAL;
@@ -907,13 +907,13 @@ int zr_set_buf(struct zoran *zr)
 	reg = 0;
 	if (zr->v4l_settings.height > BUZ_MAX_HEIGHT / 2)
 		reg += zr->v4l_settings.bytesperline;
-	reg = (reg << ZR36057_VSSFGR_DispStride);
-	reg |= ZR36057_VSSFGR_VidOvf;
-	reg |= ZR36057_VSSFGR_SnapShot;
-	reg |= ZR36057_VSSFGR_FrameGrab;
+	reg = (reg << ZR36057_VSSFGR_DISP_STRIDE);
+	reg |= ZR36057_VSSFGR_VID_OVF;
+	reg |= ZR36057_VSSFGR_SNAP_SHOT;
+	reg |= ZR36057_VSSFGR_FRAME_GRAB;
 	btwrite(reg, ZR36057_VSSFGR);
 
-	btor(ZR36057_VDCR_VidEn, ZR36057_VDCR);
+	btor(ZR36057_VDCR_VID_EN, ZR36057_VDCR);
 	return 0;
 }
 
@@ -938,7 +938,7 @@ static int zr_vb2_start_streaming(struct vb2_queue *vq, unsigned int count)
 		zoran_feed_stat_com(zr);
 		jpeg_start(zr);
 		zr->running = zr->map_mode;
-		btor(ZR36057_ICR_IntPinEn, ZR36057_ICR);
+		btor(ZR36057_ICR_INT_PIN_EN, ZR36057_ICR);
 		return 0;
 	}
 
@@ -949,7 +949,7 @@ static int zr_vb2_start_streaming(struct vb2_queue *vq, unsigned int count)
 	zr36057_enable_jpg(zr, BUZ_MODE_IDLE);
 	zr36057_set_memgrab(zr, 1);
 	zr->running = zr->map_mode;
-	btor(ZR36057_ICR_IntPinEn, ZR36057_ICR);
+	btor(ZR36057_ICR_INT_PIN_EN, ZR36057_ICR);
 	return 0;
 }
 
@@ -960,7 +960,7 @@ static void zr_vb2_stop_streaming(struct vb2_queue *vq)
 	unsigned long flags;
 	int j;
 
-	btand(~ZR36057_ICR_IntPinEn, ZR36057_ICR);
+	btand(~ZR36057_ICR_INT_PIN_EN, ZR36057_ICR);
 	if (zr->map_mode != ZORAN_MAP_MODE_RAW)
 		zr36057_enable_jpg(zr, BUZ_MODE_IDLE);
 	zr36057_set_memgrab(zr, 0);

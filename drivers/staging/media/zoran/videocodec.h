@@ -218,7 +218,7 @@ struct vfe_settings {
 };
 
 struct tvnorm {
-	u16 Wt, Wa, HStart, HSyncStart, Ht, Ha, VStart;
+	u16 wt, wa, h_start, h_sync_start, ht, ha, v_start;
 };
 
 struct jpeg_com_marker {
