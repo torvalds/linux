@@ -43,6 +43,9 @@ properties:
   reg:
     maxItems: 1
 
+  vs-supply:
+    description: phandle to the regulator that provides the +VS supply
+
 required:
   - compatible
   - reg
@@ -58,5 +61,6 @@ examples:
       sensor@48 {
         compatible = "st,stlm75";
         reg = <0x48>;
+        vs-supply = <&vs>;
       };
     };
