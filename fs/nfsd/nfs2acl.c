@@ -183,6 +183,11 @@ static __be32 nfsacld_proc_access(struct svc_rqst *rqstp)
 /*
  * XDR decode functions
  */
+static int nfsaclsvc_decode_voidarg(struct svc_rqst *rqstp, __be32 *p)
+{
+	return 1;
+}
+
 static int nfsaclsvc_decode_getaclargs(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd3_getaclargs *argp = rqstp->rq_argp;
@@ -357,6 +362,7 @@ struct nfsd3_voidargs { int dummy; };
 static const struct svc_procedure nfsd_acl_procedures2[5] = {
 	[ACLPROC2_NULL] = {
 		.pc_func = nfsacld_proc_null,
+		.pc_decode = nfsaclsvc_decode_voidarg,
 		.pc_encode = nfsaclsvc_encode_voidres,
 		.pc_argsize = sizeof(struct nfsd3_voidargs),
 		.pc_ressize = sizeof(struct nfsd3_voidargs),

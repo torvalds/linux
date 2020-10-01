@@ -5135,6 +5135,12 @@ void nfsd4_release_compoundargs(struct svc_rqst *rqstp)
 }
 
 int
+nfs4svc_decode_voidarg(struct svc_rqst *rqstp, __be32 *p)
+{
+	return 1;
+}
+
+int
 nfs4svc_decode_compoundargs(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd4_compoundargs *args = rqstp->rq_argp;
