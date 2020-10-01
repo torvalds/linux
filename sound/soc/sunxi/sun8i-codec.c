@@ -378,6 +378,28 @@ static const struct snd_soc_dapm_widget sun8i_codec_dapm_widgets[] = {
 			    SUN8I_SYSCLK_CTL,
 			    SUN8I_SYSCLK_CTL_SYSCLK_ENA, 0, NULL, 0),
 
+	/* Module Clocks */
+	SND_SOC_DAPM_SUPPLY("CLK AIF1",
+			    SUN8I_MOD_CLK_ENA,
+			    SUN8I_MOD_CLK_ENA_AIF1, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("CLK ADC",
+			    SUN8I_MOD_CLK_ENA,
+			    SUN8I_MOD_CLK_ENA_ADC, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("CLK DAC",
+			    SUN8I_MOD_CLK_ENA,
+			    SUN8I_MOD_CLK_ENA_DAC, 0, NULL, 0),
+
+	/* Module Resets */
+	SND_SOC_DAPM_SUPPLY("RST AIF1",
+			    SUN8I_MOD_RST_CTL,
+			    SUN8I_MOD_RST_CTL_AIF1, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("RST ADC",
+			    SUN8I_MOD_RST_CTL,
+			    SUN8I_MOD_RST_CTL_ADC, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("RST DAC",
+			    SUN8I_MOD_RST_CTL,
+			    SUN8I_MOD_RST_CTL_DAC, 0, NULL, 0),
+
 	/* Digital parts of the DACs and ADC */
 	SND_SOC_DAPM_SUPPLY("DAC", SUN8I_DAC_DIG_CTRL, SUN8I_DAC_DIG_CTRL_ENDA,
 			    0, NULL, 0),
@@ -417,22 +439,6 @@ static const struct snd_soc_dapm_widget sun8i_codec_dapm_widgets[] = {
 			sun8i_input_mixer_controls),
 	SOC_MIXER_ARRAY("Right Digital ADC Mixer", SND_SOC_NOPM, 0, 0,
 			sun8i_input_mixer_controls),
-
-	/* Clocks */
-	SND_SOC_DAPM_SUPPLY("MODCLK AIF1", SUN8I_MOD_CLK_ENA,
-			    SUN8I_MOD_CLK_ENA_AIF1, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("MODCLK DAC", SUN8I_MOD_CLK_ENA,
-			    SUN8I_MOD_CLK_ENA_DAC, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("MODCLK ADC", SUN8I_MOD_CLK_ENA,
-			    SUN8I_MOD_CLK_ENA_ADC, 0, NULL, 0),
-
-	/* Module reset */
-	SND_SOC_DAPM_SUPPLY("RST AIF1", SUN8I_MOD_RST_CTL,
-			    SUN8I_MOD_RST_CTL_AIF1, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("RST DAC", SUN8I_MOD_RST_CTL,
-			    SUN8I_MOD_RST_CTL_DAC, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("RST ADC", SUN8I_MOD_RST_CTL,
-			    SUN8I_MOD_RST_CTL_ADC, 0, NULL, 0),
 };
 
 static const struct snd_soc_dapm_route sun8i_codec_dapm_routes[] = {
@@ -441,25 +447,25 @@ static const struct snd_soc_dapm_route sun8i_codec_dapm_routes[] = {
 
 	{ "SYSCLK", NULL, "AIF1CLK" },
 
-	{ "RST AIF1", NULL, "AIF1CLK" },
-	{ "RST AIF1", NULL, "SYSCLK" },
-	{ "MODCLK AIF1", NULL, "RST AIF1" },
-	{ "AIF1 AD0L", NULL, "MODCLK AIF1" },
-	{ "AIF1 AD0R", NULL, "MODCLK AIF1" },
-	{ "AIF1 DA0L", NULL, "MODCLK AIF1" },
-	{ "AIF1 DA0R", NULL, "MODCLK AIF1" },
+	{ "CLK AIF1", NULL, "AIF1CLK" },
+	{ "CLK AIF1", NULL, "SYSCLK" },
+	{ "RST AIF1", NULL, "CLK AIF1" },
+	{ "AIF1 AD0L", NULL, "RST AIF1" },
+	{ "AIF1 AD0R", NULL, "RST AIF1" },
+	{ "AIF1 DA0L", NULL, "RST AIF1" },
+	{ "AIF1 DA0R", NULL, "RST AIF1" },
 
-	{ "RST DAC", NULL, "SYSCLK" },
-	{ "MODCLK DAC", NULL, "RST DAC" },
-	{ "DAC", NULL, "MODCLK DAC" },
-	{ "DACL", NULL, "DAC" },
-	{ "DACR", NULL, "DAC" },
-
-	{ "RST ADC", NULL, "SYSCLK" },
-	{ "MODCLK ADC", NULL, "RST ADC" },
-	{ "ADC", NULL, "MODCLK ADC" },
+	{ "CLK ADC", NULL, "SYSCLK" },
+	{ "RST ADC", NULL, "CLK ADC" },
+	{ "ADC", NULL, "RST ADC" },
 	{ "ADCL", NULL, "ADC" },
 	{ "ADCR", NULL, "ADC" },
+
+	{ "CLK DAC", NULL, "SYSCLK" },
+	{ "RST DAC", NULL, "CLK DAC" },
+	{ "DAC", NULL, "RST DAC" },
+	{ "DACL", NULL, "DAC" },
+	{ "DACR", NULL, "DAC" },
 
 	/* DAC Routes */
 	{ "DACL", NULL, "Left Digital DAC Mixer" },
