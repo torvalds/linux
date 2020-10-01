@@ -574,6 +574,9 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 	u32 status;
 	int rc;
 
+	if (!(hdev->fw_loading & FW_TYPE_BOOT_CPU))
+		return 0;
+
 	dev_info(hdev->dev, "Going to wait for device boot (up to %lds)\n",
 		cpu_timeout / USEC_PER_SEC);
 
@@ -631,6 +634,8 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 		10000,
 		cpu_timeout);
 
+	dev_dbg(hdev->dev, "uboot status = %d\n", status);
+
 	/* Read U-Boot version now in case we will later fail */
 	hdev->asic_funcs->read_device_fw_version(hdev, FW_COMP_UBOOT);
 
@@ -640,8 +645,8 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 		goto out;
 	}
 
-	if (!hdev->fw_loading) {
-		dev_info(hdev->dev, "Skip loading FW\n");
+	if (!(hdev->fw_loading & FW_TYPE_LINUX)) {
+		dev_info(hdev->dev, "Skip loading Linux F/W\n");
 		goto out;
 	}
 

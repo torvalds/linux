@@ -125,6 +125,18 @@ enum hl_fw_component {
 };
 
 /**
+ * enum hl_fw_types - F/W types to load
+ * @FW_TYPE_LINUX: Linux image for device CPU
+ * @FW_TYPE_BOOT_CPU: Boot image for device CPU
+ * @FW_TYPE_ALL_TYPES: Mask for all types
+ */
+enum hl_fw_types {
+	FW_TYPE_LINUX = 0x1,
+	FW_TYPE_BOOT_CPU = 0x2,
+	FW_TYPE_ALL_TYPES = (FW_TYPE_LINUX | FW_TYPE_BOOT_CPU)
+};
+
+/**
  * enum hl_queue_type - Supported QUEUE types.
  * @QUEUE_TYPE_NA: queue is not available.
  * @QUEUE_TYPE_EXT: external queue which is a DMA channel that may access the
@@ -1709,12 +1721,12 @@ struct hl_device {
 	u8				supports_cb_mapping;
 
 	/* Parameters for bring-up */
+	u64				fw_loading;
 	u8				mmu_enable;
 	u8				mmu_huge_page_opt;
 	u8				cpu_enable;
 	u8				reset_pcilink;
 	u8				cpu_queues_enable;
-	u8				fw_loading;
 	u8				pldm;
 	u8				axi_drain;
 	u8				sram_scrambler_enable;
