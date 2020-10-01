@@ -104,7 +104,7 @@
 
 static inline struct bset *write_block(struct btree *b)
 {
-	return ((void *) btree_bset_first(b)) + b->written * block_bytes(b->c);
+	return ((void *) btree_bset_first(b)) + b->written * block_bytes(b->c->cache);
 }
 
 static void bch_btree_init_next(struct btree *b)
@@ -173,7 +173,7 @@ void bch_btree_node_read_done(struct btree *b)
 			goto err;
 
 		err = "bad btree header";
-		if (b->written + set_blocks(i, block_bytes(b->c)) >
+		if (b->written + set_blocks(i, block_bytes(b->c->cache)) >
 		    btree_blocks(b))
 			goto err;
 
@@ -199,13 +199,13 @@ void bch_btree_node_read_done(struct btree *b)
 
 		bch_btree_iter_push(iter, i->start, bset_bkey_last(i));
 
-		b->written += set_blocks(i, block_bytes(b->c));
+		b->written += set_blocks(i, block_bytes(b->c->cache));
 	}
 
 	err = "corrupted btree";
 	for (i = write_block(b);
 	     bset_sector_offset(&b->keys, i) < KEY_SIZE(&b->key);
-	     i = ((void *) i) + block_bytes(b->c))
+	     i = ((void *) i) + block_bytes(b->c->cache))
 		if (i->seq == b->keys.set[0].data->seq)
 			goto err;
 
@@ -347,7 +347,7 @@ static void do_btree_node_write(struct btree *b)
 
 	b->bio->bi_end_io	= btree_node_write_endio;
 	b->bio->bi_private	= cl;
-	b->bio->bi_iter.bi_size	= roundup(set_bytes(i), block_bytes(b->c));
+	b->bio->bi_iter.bi_size	= roundup(set_bytes(i), block_bytes(b->c->cache));
 	b->bio->bi_opf		= REQ_OP_WRITE | REQ_META | REQ_FUA;
 	bch_bio_map(b->bio, i);
 
@@ -423,10 +423,10 @@ void __bch_btree_node_write(struct btree *b, struct closure *parent)
 
 	do_btree_node_write(b);
 
-	atomic_long_add(set_blocks(i, block_bytes(b->c)) * b->c->sb.block_size,
+	atomic_long_add(set_blocks(i, block_bytes(b->c->cache)) * b->c->sb.block_size,
 			&PTR_CACHE(b->c, &b->key, 0)->btree_sectors_written);
 
-	b->written += set_blocks(i, block_bytes(b->c));
+	b->written += set_blocks(i, block_bytes(b->c->cache));
 }
 
 void bch_btree_node_write(struct btree *b, struct closure *parent)
@@ -1344,7 +1344,7 @@ static int btree_gc_coalesce(struct btree *b, struct btree_op *op,
 
 	if (nodes < 2 ||
 	    __set_blocks(b->keys.set[0].data, keys,
-			 block_bytes(b->c)) > blocks * (nodes - 1))
+			 block_bytes(b->c->cache)) > blocks * (nodes - 1))
 		return 0;
 
 	for (i = 0; i < nodes; i++) {
@@ -1378,7 +1378,7 @@ static int btree_gc_coalesce(struct btree *b, struct btree_op *op,
 			     k = bkey_next(k)) {
 				if (__set_blocks(n1, n1->keys + keys +
 						 bkey_u64s(k),
-						 block_bytes(b->c)) > blocks)
+						 block_bytes(b->c->cache)) > blocks)
 					break;
 
 				last = k;
@@ -1394,7 +1394,7 @@ static int btree_gc_coalesce(struct btree *b, struct btree_op *op,
 			 * though)
 			 */
 			if (__set_blocks(n1, n1->keys + n2->keys,
-					 block_bytes(b->c)) >
+					 block_bytes(b->c->cache)) >
 			    btree_blocks(new_nodes[i]))
 				goto out_unlock_nocoalesce;
 
@@ -1403,7 +1403,7 @@ static int btree_gc_coalesce(struct btree *b, struct btree_op *op,
 			last = &r->b->key;
 		}
 
-		BUG_ON(__set_blocks(n1, n1->keys + keys, block_bytes(b->c)) >
+		BUG_ON(__set_blocks(n1, n1->keys + keys, block_bytes(b->c->cache)) >
 		       btree_blocks(new_nodes[i]));
 
 		if (last)
@@ -2210,7 +2210,7 @@ static int btree_split(struct btree *b, struct btree_op *op,
 		goto err;
 
 	split = set_blocks(btree_bset_first(n1),
-			   block_bytes(n1->c)) > (btree_blocks(b) * 4) / 5;
+			   block_bytes(n1->c->cache)) > (btree_blocks(b) * 4) / 5;
 
 	if (split) {
 		unsigned int keys = 0;

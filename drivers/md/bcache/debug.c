@@ -25,8 +25,8 @@ struct dentry *bcache_debug;
 	for (i = (start);						\
 	     (void *) i < (void *) (start) + (KEY_SIZE(&b->key) << 9) &&\
 	     i->seq == (start)->seq;					\
-	     i = (void *) i + set_blocks(i, block_bytes(b->c)) *	\
-		 block_bytes(b->c))
+	     i = (void *) i + set_blocks(i, block_bytes(b->c->cache)) *	\
+		 block_bytes(b->c->cache))
 
 void bch_btree_verify(struct btree *b)
 {
@@ -82,14 +82,14 @@ void bch_btree_verify(struct btree *b)
 
 		for_each_written_bset(b, ondisk, i) {
 			unsigned int block = ((void *) i - (void *) ondisk) /
-				block_bytes(b->c);
+				block_bytes(b->c->cache);
 
 			pr_err("*** on disk block %u:\n", block);
 			bch_dump_bset(&b->keys, i, block);
 		}
 
 		pr_err("*** block %zu not written\n",
-		       ((void *) i - (void *) ondisk) / block_bytes(b->c));
+		       ((void *) i - (void *) ondisk) / block_bytes(b->c->cache));
 
 		for (j = 0; j < inmemory->keys; j++)
 			if (inmemory->d[j] != sorted->d[j])

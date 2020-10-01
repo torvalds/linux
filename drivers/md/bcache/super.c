@@ -1527,7 +1527,7 @@ static int flash_dev_run(struct cache_set *c, struct uuid_entry *u)
 
 	kobject_init(&d->kobj, &bch_flash_dev_ktype);
 
-	if (bcache_device_init(d, block_bytes(c), u->sectors,
+	if (bcache_device_init(d, block_bytes(c->cache), u->sectors,
 			NULL, &bcache_flash_ops))
 		goto err;
 

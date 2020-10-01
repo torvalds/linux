@@ -99,7 +99,7 @@ static int bch_keylist_realloc(struct keylist *l, unsigned int u64s,
 	 * bch_data_insert_keys() will insert the keys created so far
 	 * and finish the rest when the keylist is empty.
 	 */
-	if (newsize * sizeof(uint64_t) > block_bytes(c) - sizeof(struct jset))
+	if (newsize * sizeof(uint64_t) > block_bytes(c->cache) - sizeof(struct jset))
 		return -ENOMEM;
 
 	return __bch_keylist_realloc(l, u64s);
