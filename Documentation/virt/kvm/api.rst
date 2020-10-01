@@ -6489,3 +6489,10 @@ processor's dirty page buffers into the kernel buffer (with dirty bitmaps, the
 flushing is done by the KVM_GET_DIRTY_LOG ioctl).  To achieve that, one
 needs to kick the vcpu out of KVM_RUN using a signal.  The resulting
 vmexit ensures that all dirty GFNs are flushed to the dirty rings.
+
+NOTE: the capability KVM_CAP_DIRTY_LOG_RING and the corresponding
+ioctl KVM_RESET_DIRTY_RINGS are mutual exclusive to the existing ioctls
+KVM_GET_DIRTY_LOG and KVM_CLEAR_DIRTY_LOG.  After enabling
+KVM_CAP_DIRTY_LOG_RING with an acceptable dirty ring size, the virtual
+machine will switch to ring-buffer dirty page tracking and further
+KVM_GET_DIRTY_LOG or KVM_CLEAR_DIRTY_LOG ioctls will fail.
