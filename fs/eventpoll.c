@@ -1257,7 +1257,6 @@ static int reverse_path_check_proc(struct file *file, int depth)
 		return -1;
 
 	/* CTL_DEL can remove links here, but that can't increase our count */
-	rcu_read_lock();
 	hlist_for_each_entry_rcu(epi, &file->f_ep_links, fllink) {
 		struct file *recepient = epi->ep->file;
 		if (WARN_ON(!is_file_epoll(recepient)))
@@ -1269,7 +1268,6 @@ static int reverse_path_check_proc(struct file *file, int depth)
 		if (error != 0)
 			break;
 	}
-	rcu_read_unlock();
 	return error;
 }
 
@@ -1291,7 +1289,9 @@ static int reverse_path_check(void)
 	/* let's call this for all tfiles */
 	list_for_each_entry(current_file, &tfile_check_list, f_tfile_llink) {
 		path_count_init();
+		rcu_read_lock();
 		error = reverse_path_check_proc(current_file, 0);
+		rcu_read_unlock();
 		if (error)
 			break;
 	}
