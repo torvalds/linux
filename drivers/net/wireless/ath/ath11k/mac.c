@@ -758,21 +758,12 @@ static int ath11k_monitor_vdev_up(struct ath11k *ar, int vdev_id)
 
 static int ath11k_mac_op_config(struct ieee80211_hw *hw, u32 changed)
 {
-	struct ath11k *ar = hw->priv;
-	int ret = 0;
-
 	/* mac80211 requires this op to be present and that's why
 	 * there's an empty function, this can be extended when
 	 * required.
 	 */
 
-	mutex_lock(&ar->conf_mutex);
-
-	/* TODO: Handle configuration changes as appropriate */
-
-	mutex_unlock(&ar->conf_mutex);
-
-	return ret;
+	return 0;
 }
 
 static int ath11k_mac_setup_bcn_tmpl(struct ath11k_vif *arvif)
@@ -2994,7 +2985,8 @@ static int ath11k_mac_station_add(struct ath11k *ar,
 		goto free_tx_stats;
 	}
 
-	if (ab->hw_params.vdev_start_delay) {
+	if (ab->hw_params.vdev_start_delay &&
+	    arvif->vdev_type != WMI_VDEV_TYPE_AP) {
 		ret = ath11k_start_vdev_delay(ar->hw, vif);
 		if (ret) {
 			ath11k_warn(ab, "failed to delay vdev start: %d\n", ret);
@@ -4216,6 +4208,15 @@ static int ath11k_mac_op_start(struct ieee80211_hw *hw)
 	rcu_assign_pointer(ab->pdevs_active[ar->pdev_idx],
 			   &ab->pdevs[ar->pdev_idx]);
 
+	/* allow device to enter IMPS */
+	if (ab->hw_params.idle_ps) {
+		ret = ath11k_wmi_pdev_set_param(ar, WMI_PDEV_PARAM_IDLE_PS_CONFIG,
+						1, pdev->pdev_id);
+		if (ret) {
+			ath11k_err(ab, "failed to enable idle ps: %d\n", ret);
+			goto err;
+		}
+	}
 	return 0;
 
 err:
@@ -4351,7 +4352,7 @@ static int ath11k_set_he_mu_sounding_mode(struct ath11k *ar,
 }
 
 static void ath11k_mac_op_update_vif_offload(struct ieee80211_hw *hw,
-					    struct ieee80211_vif *vif)
+					     struct ieee80211_vif *vif)
 {
 	struct ath11k *ar = hw->priv;
 	struct ath11k_base *ab = ar->ab;
@@ -4702,6 +4703,10 @@ static void ath11k_mac_op_configure_filter(struct ieee80211_hw *hw,
 		ath11k_warn(ar->ab,
 			    "fail to set monitor filter: %d\n", ret);
 	}
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC,
+		   "changed_flags:0x%x, total_flags:0x%x, reset_flag:%d\n",
+		   changed_flags, *total_flags, reset_flag);
+
 	mutex_unlock(&ar->conf_mutex);
 }
 
@@ -5207,6 +5212,7 @@ ath11k_mac_op_assign_vif_chanctx(struct ieee80211_hw *hw,
 	struct ath11k_base *ab = ar->ab;
 	struct ath11k_vif *arvif = (void *)vif->drv_priv;
 	int ret;
+	struct peer_create_params param;
 
 	mutex_lock(&ar->conf_mutex);
 
@@ -5215,7 +5221,9 @@ ath11k_mac_op_assign_vif_chanctx(struct ieee80211_hw *hw,
 		   ctx, arvif->vdev_id);
 
 	/* for QCA6390 bss peer must be created before vdev_start */
-	if (ab->hw_params.vdev_start_delay) {
+	if (ab->hw_params.vdev_start_delay &&
+	    arvif->vdev_type != WMI_VDEV_TYPE_AP &&
+	    arvif->vdev_type != WMI_VDEV_TYPE_MONITOR) {
 		memcpy(&arvif->chanctx, ctx, sizeof(*ctx));
 		mutex_unlock(&ar->conf_mutex);
 		return 0;
@@ -5224,6 +5232,13 @@ ath11k_mac_op_assign_vif_chanctx(struct ieee80211_hw *hw,
 	if (WARN_ON(arvif->is_started)) {
 		mutex_unlock(&ar->conf_mutex);
 		return -EBUSY;
+	}
+
+	if (ab->hw_params.vdev_start_delay) {
+		param.vdev_id = arvif->vdev_id;
+		param.peer_type = WMI_PEER_TYPE_DEFAULT;
+		param.peer_addr = ar->mac_addr;
+		ret = ath11k_peer_create(ar, arvif, NULL, &param);
 	}
 
 	ret = ath11k_mac_vdev_start(arvif, &ctx->def);
@@ -5271,12 +5286,21 @@ ath11k_mac_op_unassign_vif_chanctx(struct ieee80211_hw *hw,
 
 	WARN_ON(!arvif->is_started);
 
+	if (ab->hw_params.vdev_start_delay &&
+	    arvif->vdev_type == WMI_VDEV_TYPE_MONITOR &&
+	    ath11k_peer_find_by_addr(ab, ar->mac_addr))
+		ath11k_peer_delete(ar, arvif->vdev_id, ar->mac_addr);
+
 	ret = ath11k_mac_vdev_stop(arvif);
 	if (ret)
 		ath11k_warn(ab, "failed to stop vdev %i: %d\n",
 			    arvif->vdev_id, ret);
 
 	arvif->is_started = false;
+
+	if (ab->hw_params.vdev_start_delay &&
+	    arvif->vdev_type == WMI_VDEV_TYPE_MONITOR)
+		ath11k_wmi_vdev_down(ar, arvif->vdev_id);
 
 	mutex_unlock(&ar->conf_mutex);
 }
@@ -5878,35 +5902,6 @@ static const struct ieee80211_ops ath11k_ops = {
 #endif
 };
 
-static const struct ieee80211_iface_limit ath11k_if_limits[] = {
-	{
-		.max = 1,
-		.types = BIT(NL80211_IFTYPE_STATION),
-	},
-	{
-		.max    = 16,
-		.types  = BIT(NL80211_IFTYPE_AP)
-#ifdef CONFIG_MAC80211_MESH
-			| BIT(NL80211_IFTYPE_MESH_POINT)
-#endif
-	},
-};
-
-static const struct ieee80211_iface_combination ath11k_if_comb[] = {
-	{
-		.limits = ath11k_if_limits,
-		.n_limits = ARRAY_SIZE(ath11k_if_limits),
-		.max_interfaces = 16,
-		.num_different_channels = 1,
-		.beacon_int_infra_match = true,
-		.beacon_int_min_gcd = 100,
-		.radar_detect_widths =	BIT(NL80211_CHAN_WIDTH_20_NOHT) |
-					BIT(NL80211_CHAN_WIDTH_20) |
-					BIT(NL80211_CHAN_WIDTH_40) |
-					BIT(NL80211_CHAN_WIDTH_80),
-	},
-};
-
 static void ath11k_mac_update_ch_list(struct ath11k *ar,
 				      struct ieee80211_supported_band *band,
 				      u32 freq_low, u32 freq_high)
@@ -6032,6 +6027,50 @@ static int ath11k_mac_setup_channels_rates(struct ath11k *ar,
 	return 0;
 }
 
+static int ath11k_mac_setup_iface_combinations(struct ath11k *ar)
+{
+	struct ath11k_base *ab = ar->ab;
+	struct ieee80211_iface_combination *combinations;
+	struct ieee80211_iface_limit *limits;
+	int n_limits;
+
+	combinations = kzalloc(sizeof(*combinations), GFP_KERNEL);
+	if (!combinations)
+		return -ENOMEM;
+
+	n_limits = 2;
+
+	limits = kcalloc(n_limits, sizeof(*limits), GFP_KERNEL);
+	if (!limits)
+		return -ENOMEM;
+
+	limits[0].max = 1;
+	limits[0].types |= BIT(NL80211_IFTYPE_STATION);
+
+	limits[1].max = 16;
+	limits[1].types |= BIT(NL80211_IFTYPE_AP);
+
+	if (IS_ENABLED(CONFIG_MAC80211_MESH) &&
+	    ab->hw_params.interface_modes & BIT(NL80211_IFTYPE_MESH_POINT))
+		limits[1].types |= BIT(NL80211_IFTYPE_MESH_POINT);
+
+	combinations[0].limits = limits;
+	combinations[0].n_limits = n_limits;
+	combinations[0].max_interfaces = 16;
+	combinations[0].num_different_channels = 1;
+	combinations[0].beacon_int_infra_match = true;
+	combinations[0].beacon_int_min_gcd = 100;
+	combinations[0].radar_detect_widths = BIT(NL80211_CHAN_WIDTH_20_NOHT) |
+						BIT(NL80211_CHAN_WIDTH_20) |
+						BIT(NL80211_CHAN_WIDTH_40) |
+						BIT(NL80211_CHAN_WIDTH_80);
+
+	ar->hw->wiphy->iface_combinations = combinations;
+	ar->hw->wiphy->n_iface_combinations = 1;
+
+	return 0;
+}
+
 static const u8 ath11k_if_types_ext_capa[] = {
 	[0] = WLAN_EXT_CAPA1_EXT_CHANNEL_SWITCHING,
 	[7] = WLAN_EXT_CAPA8_OPMODE_NOTIF,
@@ -6081,6 +6120,9 @@ static void __ath11k_mac_unregister(struct ath11k *ar)
 	kfree(ar->mac.sbands[NL80211_BAND_2GHZ].channels);
 	kfree(ar->mac.sbands[NL80211_BAND_5GHZ].channels);
 	kfree(ar->mac.sbands[NL80211_BAND_6GHZ].channels);
+
+	kfree(ar->hw->wiphy->iface_combinations[0].limits);
+	kfree(ar->hw->wiphy->iface_combinations);
 
 	SET_IEEE80211_DEV(ar->hw, NULL);
 }
@@ -6133,12 +6175,16 @@ static int __ath11k_mac_register(struct ath11k *ar)
 	ath11k_mac_setup_ht_vht_cap(ar, cap, &ht_cap);
 	ath11k_mac_setup_he_cap(ar, cap);
 
+	ret = ath11k_mac_setup_iface_combinations(ar);
+	if (ret) {
+		ath11k_err(ar->ab, "failed to setup interface combinations: %d\n", ret);
+		goto err_free_channels;
+	}
+
 	ar->hw->wiphy->available_antennas_rx = cap->rx_chain_mask;
 	ar->hw->wiphy->available_antennas_tx = cap->tx_chain_mask;
 
-	ar->hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
-					 BIT(NL80211_IFTYPE_AP) |
-					 BIT(NL80211_IFTYPE_MESH_POINT);
+	ar->hw->wiphy->interface_modes = ab->hw_params.interface_modes;
 
 	ieee80211_hw_set(ar->hw, SIGNAL_DBM);
 	ieee80211_hw_set(ar->hw, SUPPORTS_PS);
@@ -6200,9 +6246,6 @@ static int __ath11k_mac_register(struct ath11k *ar)
 	ar->hw->vif_data_size = sizeof(struct ath11k_vif);
 	ar->hw->sta_data_size = sizeof(struct ath11k_sta);
 
-	ar->hw->wiphy->iface_combinations = ath11k_if_comb;
-	ar->hw->wiphy->n_iface_combinations = ARRAY_SIZE(ath11k_if_comb);
-
 	wiphy_ext_feature_set(ar->hw->wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
 	wiphy_ext_feature_set(ar->hw->wiphy, NL80211_EXT_FEATURE_STA_TX_PWR);
 
@@ -6224,25 +6267,37 @@ static int __ath11k_mac_register(struct ath11k *ar)
 	ret = ieee80211_register_hw(ar->hw);
 	if (ret) {
 		ath11k_err(ar->ab, "ieee80211 registration failed: %d\n", ret);
-		goto err_free;
+		goto err_free_if_combs;
 	}
+
+	if (!ab->hw_params.supports_monitor)
+		/* There's a race between calling ieee80211_register_hw()
+		 * and here where the monitor mode is enabled for a little
+		 * while. But that time is so short and in practise it make
+		 * a difference in real life.
+		 */
+		ar->hw->wiphy->interface_modes &= ~BIT(NL80211_IFTYPE_MONITOR);
 
 	/* Apply the regd received during initialization */
 	ret = ath11k_regd_update(ar, true);
 	if (ret) {
 		ath11k_err(ar->ab, "ath11k regd update failed: %d\n", ret);
-		goto err_free;
+		goto err_free_if_combs;
 	}
 
 	ret = ath11k_debugfs_register(ar);
 	if (ret) {
 		ath11k_err(ar->ab, "debugfs registration failed: %d\n", ret);
-		goto err_free;
+		goto err_free_if_combs;
 	}
 
 	return 0;
 
-err_free:
+err_free_if_combs:
+	kfree(ar->hw->wiphy->iface_combinations[0].limits);
+	kfree(ar->hw->wiphy->iface_combinations);
+
+err_free_channels:
 	kfree(ar->mac.sbands[NL80211_BAND_2GHZ].channels);
 	kfree(ar->mac.sbands[NL80211_BAND_5GHZ].channels);
 	kfree(ar->mac.sbands[NL80211_BAND_6GHZ].channels);

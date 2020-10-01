@@ -31,8 +31,12 @@ struct ath11k_base;
 #define HAL_DSCP_TID_TBL_SIZE			24
 
 /* calculate the register address from bar0 of shadow register x */
-#define SHADOW_BASE_ADDRESS			0x00003024
-#define SHADOW_NUM_REGISTERS				36
+#define HAL_SHADOW_BASE_ADDR			0x000008fc
+#define HAL_SHADOW_NUM_REGS			36
+#define HAL_HP_OFFSET_IN_REG_START		1
+#define HAL_OFFSET_FROM_HP_TO_TP		4
+
+#define HAL_SHADOW_REG(x) (HAL_SHADOW_BASE_ADDR + (4 * (x)))
 
 /* WCSS Relative address */
 #define HAL_SEQ_WCSS_UMAC_REO_REG		0x00a38000
@@ -882,7 +886,7 @@ struct ath11k_hal {
 	u8 current_blk_index;
 
 	/* shadow register configuration */
-	u32 shadow_reg_addr[SHADOW_NUM_REGISTERS];
+	u32 shadow_reg_addr[HAL_SHADOW_NUM_REGS];
 	int num_shadow_reg_configured;
 };
 
@@ -935,5 +939,12 @@ int ath11k_hal_srng_setup(struct ath11k_base *ab, enum hal_ring_type type,
 int ath11k_hal_srng_init(struct ath11k_base *ath11k);
 void ath11k_hal_srng_deinit(struct ath11k_base *ath11k);
 void ath11k_hal_dump_srng_stats(struct ath11k_base *ab);
-
+void ath11k_hal_srng_get_shadow_config(struct ath11k_base *ab,
+				       u32 **cfg, u32 *len);
+int ath11k_hal_srng_update_shadow_config(struct ath11k_base *ab,
+					 enum hal_ring_type ring_type,
+					int ring_num);
+void ath11k_hal_srng_shadow_config(struct ath11k_base *ab);
+void ath11k_hal_srng_shadow_update_hp_tp(struct ath11k_base *ab,
+					 struct hal_srng *srng);
 #endif

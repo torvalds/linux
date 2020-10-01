@@ -256,6 +256,8 @@ int ath11k_hal_reo_cmd_send(struct ath11k_base *ab, struct hal_srng *srng,
 		break;
 	}
 
+	ath11k_dp_shadow_start_timer(ab, srng, &ab->dp.reo_cmd_timer);
+
 out:
 	ath11k_hal_srng_access_end(ab, srng);
 	spin_unlock_bh(&srng->lock);
@@ -1195,7 +1197,7 @@ ath11k_hal_rx_parse_mon_status(struct ath11k_base *ab,
 
 void ath11k_hal_rx_reo_ent_buf_paddr_get(void *rx_desc, dma_addr_t *paddr,
 					 u32 *sw_cookie, void **pp_buf_addr,
-					 u32  *msdu_cnt)
+					 u8 *rbm, u32 *msdu_cnt)
 {
 	struct hal_reo_entrance_ring *reo_ent_ring =
 		(struct hal_reo_entrance_ring *)rx_desc;
@@ -1217,6 +1219,8 @@ void ath11k_hal_rx_reo_ent_buf_paddr_get(void *rx_desc, dma_addr_t *paddr,
 
 	*sw_cookie = FIELD_GET(BUFFER_ADDR_INFO1_SW_COOKIE,
 			       buf_addr_info->info1);
+	*rbm = FIELD_GET(BUFFER_ADDR_INFO1_RET_BUF_MGR,
+			 buf_addr_info->info1);
 
 	*pp_buf_addr = (void *)buf_addr_info;
 }

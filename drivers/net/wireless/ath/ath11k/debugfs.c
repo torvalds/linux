@@ -837,12 +837,8 @@ int ath11k_debugfs_pdev_create(struct ath11k_base *ab)
 		return 0;
 
 	ab->debugfs_soc = debugfs_create_dir(ab->hw_params.name, ab->debugfs_ath11k);
-
-	if (IS_ERR_OR_NULL(ab->debugfs_soc)) {
-		if (IS_ERR(ab->debugfs_soc))
-			return PTR_ERR(ab->debugfs_soc);
-		return -ENOMEM;
-	}
+	if (IS_ERR(ab->debugfs_soc))
+		return PTR_ERR(ab->debugfs_soc);
 
 	debugfs_create_file("simulate_fw_crash", 0600, ab->debugfs_soc, ab,
 			    &fops_simulate_fw_crash);
@@ -855,27 +851,21 @@ int ath11k_debugfs_pdev_create(struct ath11k_base *ab)
 
 void ath11k_debugfs_pdev_destroy(struct ath11k_base *ab)
 {
-	debugfs_remove_recursive(ab->debugfs_ath11k);
-	ab->debugfs_ath11k = NULL;
+	debugfs_remove_recursive(ab->debugfs_soc);
+	ab->debugfs_soc = NULL;
 }
 
 int ath11k_debugfs_soc_create(struct ath11k_base *ab)
 {
 	ab->debugfs_ath11k = debugfs_create_dir("ath11k", NULL);
 
-	if (IS_ERR_OR_NULL(ab->debugfs_ath11k)) {
-		if (IS_ERR(ab->debugfs_ath11k))
-			return PTR_ERR(ab->debugfs_ath11k);
-		return -ENOMEM;
-	}
-
-	return 0;
+	return PTR_ERR_OR_ZERO(ab->debugfs_ath11k);
 }
 
 void ath11k_debugfs_soc_destroy(struct ath11k_base *ab)
 {
-	debugfs_remove_recursive(ab->debugfs_soc);
-	ab->debugfs_soc = NULL;
+	debugfs_remove_recursive(ab->debugfs_ath11k);
+	ab->debugfs_ath11k = NULL;
 }
 
 void ath11k_debugfs_fw_stats_init(struct ath11k *ar)
@@ -1069,13 +1059,8 @@ int ath11k_debugfs_register(struct ath11k *ar)
 	snprintf(pdev_name, sizeof(pdev_name), "%s%d", "mac", ar->pdev_idx);
 
 	ar->debug.debugfs_pdev = debugfs_create_dir(pdev_name, ab->debugfs_soc);
-
-	if (IS_ERR_OR_NULL(ar->debug.debugfs_pdev)) {
-		if (IS_ERR(ar->debug.debugfs_pdev))
-			return PTR_ERR(ar->debug.debugfs_pdev);
-
-		return -ENOMEM;
-	}
+	if (IS_ERR(ar->debug.debugfs_pdev))
+		return PTR_ERR(ar->debug.debugfs_pdev);
 
 	/* Create a symlink under ieee80211/phy* */
 	snprintf(buf, 100, "../../ath11k/%pd2", ar->debug.debugfs_pdev);
