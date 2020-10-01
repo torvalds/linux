@@ -1056,12 +1056,8 @@ int nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 	if (rqstp->rq_proc != 0)
 		*nfserrp++ = nfserr;
 
-	/*
-	 * For NFSv2, additional info is never returned in case of an error.
-	 */
-	if (!(nfserr && rqstp->rq_vers == 2))
-		if (!proc->pc_encode(rqstp, nfserrp))
-			goto out_encode_err;
+	if (!proc->pc_encode(rqstp, nfserrp))
+		goto out_encode_err;
 
 	nfsd_cache_update(rqstp, rqstp->rq_cachetype, statp + 1);
 out_cached_reply:

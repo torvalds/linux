@@ -83,26 +83,32 @@ struct nfsd_readdirargs {
 };
 
 struct nfsd_attrstat {
+	__be32			status;
 	struct svc_fh		fh;
 	struct kstat		stat;
 };
 
 struct nfsd_diropres  {
+	__be32			status;
 	struct svc_fh		fh;
 	struct kstat		stat;
 };
 
 struct nfsd_readlinkres {
+	__be32			status;
 	int			len;
 };
 
 struct nfsd_readres {
+	__be32			status;
 	struct svc_fh		fh;
 	unsigned long		count;
 	struct kstat		stat;
 };
 
 struct nfsd_readdirres {
+	__be32			status;
+
 	int			count;
 
 	struct readdir_cd	common;
@@ -112,6 +118,7 @@ struct nfsd_readdirres {
 };
 
 struct nfsd_statfsres {
+	__be32			status;
 	struct kstatfs		stats;
 };
 
