@@ -1274,7 +1274,7 @@ static int dwc3_prepare_trbs(struct dwc3_ep *dep)
 	list_for_each_entry(req, &dep->started_list, list) {
 		if (req->num_pending_sgs > 0) {
 			ret = dwc3_prepare_trbs_sg(dep, req);
-			if (!ret)
+			if (!ret || req->num_pending_sgs)
 				return ret;
 		}
 
@@ -1303,10 +1303,13 @@ static int dwc3_prepare_trbs(struct dwc3_ep *dep)
 		req->num_queued_sgs	= 0;
 		req->num_pending_sgs	= req->request.num_mapped_sgs;
 
-		if (req->num_pending_sgs > 0)
+		if (req->num_pending_sgs > 0) {
 			ret = dwc3_prepare_trbs_sg(dep, req);
-		else
+			if (req->num_pending_sgs)
+				return ret;
+		} else {
 			ret = dwc3_prepare_trbs_linear(dep, req);
+		}
 
 		if (!ret || !dwc3_calc_trbs_left(dep))
 			return ret;
