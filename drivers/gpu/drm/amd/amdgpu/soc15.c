@@ -662,12 +662,12 @@ static void soc15_reg_base_init(struct amdgpu_device *adev)
 		 * it doesn't support SRIOV. */
 		if (amdgpu_discovery) {
 			r = amdgpu_discovery_reg_base_init(adev);
-			if (r) {
-				DRM_WARN("failed to init reg base from ip discovery table, "
-					 "fallback to legacy init method\n");
-				vega10_reg_base_init(adev);
-			}
+			if (r == 0)
+				break;
+			DRM_WARN("failed to init reg base from ip discovery table, "
+				 "fallback to legacy init method\n");
 		}
+		vega10_reg_base_init(adev);
 		break;
 	case CHIP_VEGA20:
 		vega20_reg_base_init(adev);
