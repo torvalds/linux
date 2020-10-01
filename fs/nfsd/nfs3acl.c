@@ -235,33 +235,42 @@ static void nfs3svc_release_getacl(struct svc_rqst *rqstp)
 	posix_acl_release(resp->acl_default);
 }
 
-#define nfs3svc_decode_voidargs		NULL
-#define nfs3svc_release_void		NULL
-#define nfsd3_setaclres			nfsd3_attrstat
-#define nfsd3_voidres			nfsd3_voidargs
 struct nfsd3_voidargs { int dummy; };
-
-#define PROC(name, argt, rest, relt, cache, respsize)			\
-{									\
-	.pc_func	= nfsd3_proc_##name,				\
-	.pc_decode	= nfs3svc_decode_##argt##args,			\
-	.pc_encode	= nfs3svc_encode_##rest##res,			\
-	.pc_release	= nfs3svc_release_##relt,			\
-	.pc_argsize	= sizeof(struct nfsd3_##argt##args),		\
-	.pc_ressize	= sizeof(struct nfsd3_##rest##res),		\
-	.pc_cachetype	= cache,					\
-	.pc_xdrressize	= respsize,					\
-}
 
 #define ST 1		/* status*/
 #define AT 21		/* attributes */
 #define pAT (1+AT)	/* post attributes - conditional */
 #define ACL (1+NFS_ACL_MAX_ENTRIES*3)  /* Access Control List */
 
-static const struct svc_procedure nfsd_acl_procedures3[] = {
-  PROC(null,	void,		void,		void,	  RC_NOCACHE, ST),
-  PROC(getacl,	getacl,		getacl,		getacl,	  RC_NOCACHE, ST+1+2*(1+ACL)),
-  PROC(setacl,	setacl,		setacl,		fhandle,  RC_NOCACHE, ST+pAT),
+static const struct svc_procedure nfsd_acl_procedures3[3] = {
+	[ACLPROC3_NULL] = {
+		.pc_func = nfsd3_proc_null,
+		.pc_encode = nfs3svc_encode_voidres,
+		.pc_argsize = sizeof(struct nfsd3_voidargs),
+		.pc_ressize = sizeof(struct nfsd3_voidargs),
+		.pc_cachetype = RC_NOCACHE,
+		.pc_xdrressize = ST,
+	},
+	[ACLPROC3_GETACL] = {
+		.pc_func = nfsd3_proc_getacl,
+		.pc_decode = nfs3svc_decode_getaclargs,
+		.pc_encode = nfs3svc_encode_getaclres,
+		.pc_release = nfs3svc_release_getacl,
+		.pc_argsize = sizeof(struct nfsd3_getaclargs),
+		.pc_ressize = sizeof(struct nfsd3_getaclres),
+		.pc_cachetype = RC_NOCACHE,
+		.pc_xdrressize = ST+1+2*(1+ACL),
+	},
+	[ACLPROC3_SETACL] = {
+		.pc_func = nfsd3_proc_setacl,
+		.pc_decode = nfs3svc_decode_setaclargs,
+		.pc_encode = nfs3svc_encode_setaclres,
+		.pc_release = nfs3svc_release_fhandle,
+		.pc_argsize = sizeof(struct nfsd3_setaclargs),
+		.pc_ressize = sizeof(struct nfsd3_attrstat),
+		.pc_cachetype = RC_NOCACHE,
+		.pc_xdrressize = ST+pAT,
+	},
 };
 
 static unsigned int nfsd_acl_count3[ARRAY_SIZE(nfsd_acl_procedures3)];

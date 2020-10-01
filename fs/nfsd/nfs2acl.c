@@ -347,36 +347,62 @@ static void nfsaclsvc_release_access(struct svc_rqst *rqstp)
 	fh_put(&resp->fh);
 }
 
-#define nfsaclsvc_decode_voidargs	NULL
-#define nfsaclsvc_release_void		NULL
-#define nfsd3_fhandleargs	nfsd_fhandle
-#define nfsd3_attrstatres	nfsd_attrstat
-#define nfsd3_voidres		nfsd3_voidargs
 struct nfsd3_voidargs { int dummy; };
-
-#define PROC(name, argt, rest, relt, cache, respsize)			\
-{									\
-	.pc_func	= nfsacld_proc_##name,				\
-	.pc_decode	= nfsaclsvc_decode_##argt##args,		\
-	.pc_encode	= nfsaclsvc_encode_##rest##res,			\
-	.pc_release	= nfsaclsvc_release_##relt,	\
-	.pc_argsize	= sizeof(struct nfsd3_##argt##args),		\
-	.pc_ressize	= sizeof(struct nfsd3_##rest##res),		\
-	.pc_cachetype	= cache,					\
-	.pc_xdrressize	= respsize,					\
-}
 
 #define ST 1		/* status*/
 #define AT 21		/* attributes */
 #define pAT (1+AT)	/* post attributes - conditional */
 #define ACL (1+NFS_ACL_MAX_ENTRIES*3)  /* Access Control List */
 
-static const struct svc_procedure nfsd_acl_procedures2[] = {
-  PROC(null,	void,		void,		void,	  RC_NOCACHE, ST),
-  PROC(getacl,	getacl,		getacl,		getacl,	  RC_NOCACHE, ST+1+2*(1+ACL)),
-  PROC(setacl,	setacl,		attrstat,	attrstat, RC_NOCACHE, ST+AT),
-  PROC(getattr, fhandle,	attrstat,	attrstat, RC_NOCACHE, ST+AT),
-  PROC(access,	access,		access,		access,   RC_NOCACHE, ST+AT+1),
+static const struct svc_procedure nfsd_acl_procedures2[5] = {
+	[ACLPROC2_NULL] = {
+		.pc_func = nfsacld_proc_null,
+		.pc_encode = nfsaclsvc_encode_voidres,
+		.pc_argsize = sizeof(struct nfsd3_voidargs),
+		.pc_ressize = sizeof(struct nfsd3_voidargs),
+		.pc_cachetype = RC_NOCACHE,
+		.pc_xdrressize = ST,
+	},
+	[ACLPROC2_GETACL] = {
+		.pc_func = nfsacld_proc_getacl,
+		.pc_decode = nfsaclsvc_decode_getaclargs,
+		.pc_encode = nfsaclsvc_encode_getaclres,
+		.pc_release = nfsaclsvc_release_getacl,
+		.pc_argsize = sizeof(struct nfsd3_getaclargs),
+		.pc_ressize = sizeof(struct nfsd3_getaclres),
+		.pc_cachetype = RC_NOCACHE,
+		.pc_xdrressize = ST+1+2*(1+ACL),
+	},
+	[ACLPROC2_SETACL] = {
+		.pc_func = nfsacld_proc_setacl,
+		.pc_decode = nfsaclsvc_decode_setaclargs,
+		.pc_encode = nfsaclsvc_encode_attrstatres,
+		.pc_release = nfsaclsvc_release_attrstat,
+		.pc_argsize = sizeof(struct nfsd3_setaclargs),
+		.pc_ressize = sizeof(struct nfsd_attrstat),
+		.pc_cachetype = RC_NOCACHE,
+		.pc_xdrressize = ST+AT,
+	},
+	[ACLPROC2_GETATTR] = {
+		.pc_func = nfsacld_proc_getattr,
+		.pc_decode = nfsaclsvc_decode_fhandleargs,
+		.pc_encode = nfsaclsvc_encode_attrstatres,
+		.pc_release = nfsaclsvc_release_attrstat,
+		.pc_argsize = sizeof(struct nfsd_fhandle),
+		.pc_ressize = sizeof(struct nfsd_attrstat),
+		.pc_cachetype = RC_NOCACHE,
+		.pc_xdrressize = ST+AT,
+	},
+	[ACLPROC2_ACCESS] = {
+		.pc_func = nfsacld_proc_access,
+		.pc_decode = nfsaclsvc_decode_accessargs,
+		.pc_encode = nfsaclsvc_encode_accessres,
+		.pc_release = nfsaclsvc_release_access,
+		.pc_argsize = sizeof(struct nfsd3_accessargs),
+		.pc_ressize = sizeof(struct nfsd3_accessres),
+		.pc_cachetype = RC_NOCACHE,
+		.pc_xdrressize = ST+AT+1,
+	},
 };
 
 static unsigned int nfsd_acl_count2[ARRAY_SIZE(nfsd_acl_procedures2)];
