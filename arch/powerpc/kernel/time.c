@@ -448,8 +448,8 @@ void __delay(unsigned long loops)
 		 */
 		spin_cpu_relax();
 	} else {
-		start = get_tbl();
-		while (get_tbl() - start < loops)
+		start = mftb();
+		while (mftb() - start < loops)
 			spin_cpu_relax();
 	}
 	spin_end();
