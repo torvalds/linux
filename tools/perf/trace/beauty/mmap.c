@@ -1,34 +1,22 @@
 // SPDX-License-Identifier: LGPL-2.1
-#include <uapi/linux/mman.h>
 #include <linux/log2.h>
 
-static size_t syscall_arg__scnprintf_mmap_prot(char *bf, size_t size,
-					       struct syscall_arg *arg)
+#include "trace/beauty/generated/mmap_prot_array.c"
+static DEFINE_STRARRAY(mmap_prot, "PROT_");
+
+static size_t mmap__scnprintf_prot(unsigned long prot, char *bf, size_t size, bool show_prefix)
 {
-	const char *prot_prefix = "PROT_";
-	int printed = 0, prot = arg->val;
-	bool show_prefix = arg->show_string_prefix;
+       return strarray__scnprintf_flags(&strarray__mmap_prot, bf, size, show_prefix, prot);
+}
 
-	if (prot == PROT_NONE)
-		return scnprintf(bf, size, "%sNONE", show_prefix ? prot_prefix : "");
-#define	P_MMAP_PROT(n) \
-	if (prot & PROT_##n) { \
-		printed += scnprintf(bf + printed, size - printed, "%s%s%s", printed ? "|" : "", show_prefix ? prot_prefix :"", #n); \
-		prot &= ~PROT_##n; \
-	}
+static size_t syscall_arg__scnprintf_mmap_prot(char *bf, size_t size, struct syscall_arg *arg)
+{
+	unsigned long prot = arg->val;
 
-	P_MMAP_PROT(READ);
-	P_MMAP_PROT(WRITE);
-	P_MMAP_PROT(EXEC);
-	P_MMAP_PROT(SEM);
-	P_MMAP_PROT(GROWSDOWN);
-	P_MMAP_PROT(GROWSUP);
-#undef P_MMAP_PROT
+	if (prot == 0)
+		return scnprintf(bf, size, "%sNONE", arg->show_string_prefix ? strarray__mmap_prot.prefix : "");
 
-	if (prot)
-		printed += scnprintf(bf + printed, size - printed, "%s%#x", printed ? "|" : "", prot);
-
-	return printed;
+	return mmap__scnprintf_prot(prot, bf, size, arg->show_string_prefix);
 }
 
 #define SCA_MMAP_PROT syscall_arg__scnprintf_mmap_prot
