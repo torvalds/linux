@@ -947,7 +947,7 @@ static void __dwc3_prepare_one_trb(struct dwc3_ep *dep, struct dwc3_trb *trb,
 		dma_addr_t dma, unsigned int length, unsigned int chain,
 		unsigned int node, unsigned int stream_id,
 		unsigned int short_not_ok, unsigned int no_interrupt,
-		unsigned int is_last)
+		unsigned int is_last, bool must_interrupt)
 {
 	struct dwc3		*dwc = dep->dwc;
 	struct usb_gadget	*gadget = dwc->gadget;
@@ -1034,7 +1034,7 @@ static void __dwc3_prepare_one_trb(struct dwc3_ep *dep, struct dwc3_trb *trb,
 			trb->ctrl |= DWC3_TRB_CTRL_ISP_IMI;
 	}
 
-	if ((!no_interrupt && !chain) ||
+	if ((!no_interrupt && !chain) || must_interrupt ||
 			(dwc3_calc_trbs_left(dep) == 1))
 		trb->ctrl |= DWC3_TRB_CTRL_IOC;
 
@@ -1061,10 +1061,12 @@ static void __dwc3_prepare_one_trb(struct dwc3_ep *dep, struct dwc3_trb *trb,
  * @chain: should this TRB be chained to the next?
  * @node: only for isochronous endpoints. First TRB needs different type.
  * @use_bounce_buffer: set to use bounce buffer
+ * @must_interrupt: set to interrupt on TRB completion
  */
 static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
 		struct dwc3_request *req, unsigned int trb_length,
-		unsigned int chain, unsigned int node, bool use_bounce_buffer)
+		unsigned int chain, unsigned int node, bool use_bounce_buffer,
+		bool must_interrupt)
 {
 	struct dwc3_trb		*trb;
 	dma_addr_t		dma;
@@ -1091,7 +1093,21 @@ static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
 	req->num_trbs++;
 
 	__dwc3_prepare_one_trb(dep, trb, dma, trb_length, chain, node,
-			stream_id, short_not_ok, no_interrupt, is_last);
+			stream_id, short_not_ok, no_interrupt, is_last,
+			must_interrupt);
+}
+
+static bool dwc3_needs_extra_trb(struct dwc3_ep *dep, struct dwc3_request *req)
+{
+	unsigned int maxp = usb_endpoint_maxp(dep->endpoint.desc);
+	unsigned int rem = req->request.length % maxp;
+
+	if ((req->request.length && req->request.zero && !rem &&
+			!usb_endpoint_xfer_isoc(dep->endpoint.desc)) ||
+			(!req->direction && rem))
+		return true;
+
+	return false;
 }
 
 /**
@@ -1111,9 +1127,7 @@ static int dwc3_prepare_last_sg(struct dwc3_ep *dep,
 	unsigned int rem = req->request.length % maxp;
 	unsigned int num_trbs = 1;
 
-	if ((req->request.length && req->request.zero && !rem &&
-			!usb_endpoint_xfer_isoc(dep->endpoint.desc)) ||
-			(!req->direction && rem))
+	if (dwc3_needs_extra_trb(dep, req))
 		num_trbs++;
 
 	if (dwc3_calc_trbs_left(dep) < num_trbs)
@@ -1124,13 +1138,13 @@ static int dwc3_prepare_last_sg(struct dwc3_ep *dep,
 	/* Prepare a normal TRB */
 	if (req->direction || req->request.length)
 		dwc3_prepare_one_trb(dep, req, entry_length,
-				req->needs_extra_trb, node, false);
+				req->needs_extra_trb, node, false, false);
 
 	/* Prepare extra TRBs for ZLP and MPS OUT transfer alignment */
 	if ((!req->direction && !req->request.length) || req->needs_extra_trb)
 		dwc3_prepare_one_trb(dep, req,
 				req->direction ? 0 : maxp - rem,
-				false, 1, true);
+				false, 1, true, false);
 
 	return num_trbs;
 }
@@ -1145,6 +1159,7 @@ static int dwc3_prepare_trbs_sg(struct dwc3_ep *dep,
 	unsigned int remaining = req->request.num_mapped_sgs
 		- req->num_queued_sgs;
 	unsigned int num_trbs = req->num_trbs;
+	bool needs_extra_trb = dwc3_needs_extra_trb(dep, req);
 
 	/*
 	 * If we resume preparing the request, then get the remaining length of
@@ -1155,6 +1170,7 @@ static int dwc3_prepare_trbs_sg(struct dwc3_ep *dep,
 
 	for_each_sg(sg, s, remaining, i) {
 		unsigned int trb_length;
+		bool must_interrupt = false;
 		bool last_sg = false;
 
 		trb_length = min_t(unsigned int, length, sg_dma_len(s));
@@ -1176,9 +1192,20 @@ static int dwc3_prepare_trbs_sg(struct dwc3_ep *dep,
 
 		if (last_sg) {
 			if (!dwc3_prepare_last_sg(dep, req, trb_length, i))
-				goto out;
+				break;
 		} else {
-			dwc3_prepare_one_trb(dep, req, trb_length, 1, i, false);
+			/*
+			 * Look ahead to check if we have enough TRBs for the
+			 * last SG entry. If not, set interrupt on this TRB to
+			 * resume preparing the last SG entry when more TRBs are
+			 * free.
+			 */
+			if (needs_extra_trb && dwc3_calc_trbs_left(dep) <= 2 &&
+					sg_dma_len(sg_next(s)) >= length)
+				must_interrupt = true;
+
+			dwc3_prepare_one_trb(dep, req, trb_length, 1, i, false,
+					must_interrupt);
 		}
 
 		/*
@@ -1203,29 +1230,8 @@ static int dwc3_prepare_trbs_sg(struct dwc3_ep *dep,
 			break;
 		}
 
-		if (!dwc3_calc_trbs_left(dep))
+		if (!dwc3_calc_trbs_left(dep) || must_interrupt)
 			break;
-	}
-
-	return req->num_trbs - num_trbs;
-
-out:
-	/*
-	 * If we run out of TRBs for MPS alignment setup, then set IOC on the
-	 * previous TRB to get notified for TRB completion to resume when more
-	 * TRBs are available.
-	 *
-	 * Note: normally we shouldn't update the TRB after the HWO bit is set.
-	 * However, the controller doesn't update its internal cache to handle
-	 * the newly prepared TRBs until UPDATE_TRANSFER or START_TRANSFER
-	 * command is executed. At this point, it doesn't happen yet, so we
-	 * should be fine modifying it here.
-	 */
-	if (i) {
-		struct dwc3_trb	*trb;
-
-		trb = dwc3_ep_prev_trb(dep, dep->trb_enqueue);
-		trb->ctrl |= DWC3_TRB_CTRL_IOC;
 	}
 
 	return req->num_trbs - num_trbs;
