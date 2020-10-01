@@ -187,6 +187,26 @@ const struct ce_attr ath11k_host_ce_config_qca6390[] = {
 
 };
 
+static bool ath11k_ce_need_shadow_fix(int ce_id)
+{
+	/* only ce4 needs shadow workaroud*/
+	if (ce_id == 4)
+		return true;
+	return false;
+}
+
+static void ath11k_ce_stop_shadow_timers(struct ath11k_base *ab)
+{
+	int i;
+
+	if (!ab->hw_params.supports_shadow_regs)
+		return;
+
+	for (i = 0; i < ab->hw_params.ce_count; i++)
+		if (ath11k_ce_need_shadow_fix(i))
+			ath11k_dp_shadow_stop_timer(ab, &ab->ce.hp_timer[i]);
+}
+
 static int ath11k_ce_rx_buf_enqueue_pipe(struct ath11k_ce_pipe *pipe,
 					 struct sk_buff *skb, dma_addr_t paddr)
 {
@@ -505,6 +525,12 @@ static int ath11k_ce_init_ring(struct ath11k_base *ab,
 
 	ce_ring->hal_ring_id = ret;
 
+	if (ab->hw_params.supports_shadow_regs &&
+	    ath11k_ce_need_shadow_fix(ce_id))
+		ath11k_dp_shadow_init_timer(ab, &ab->ce.hp_timer[ce_id],
+					    ATH11K_SHADOW_CTRL_TIMER_INTERVAL,
+					    ce_ring->hal_ring_id);
+
 	return 0;
 }
 
@@ -677,6 +703,9 @@ int ath11k_ce_send(struct ath11k_base *ab, struct sk_buff *skb, u8 pipe_id,
 
 	ath11k_hal_srng_access_end(ab, srng);
 
+	if (ath11k_ce_need_shadow_fix(pipe_id))
+		ath11k_dp_shadow_start_timer(ab, srng, &ab->ce.hp_timer[pipe_id]);
+
 	spin_unlock_bh(&srng->lock);
 
 	spin_unlock_bh(&ab->ce.ce_lock);
@@ -760,6 +789,8 @@ void ath11k_ce_cleanup_pipes(struct ath11k_base *ab)
 {
 	struct ath11k_ce_pipe *pipe;
 	int pipe_num;
+
+	ath11k_ce_stop_shadow_timers(ab);
 
 	for (pipe_num = 0; pipe_num < ab->hw_params.ce_count; pipe_num++) {
 		pipe = &ab->ce.ce_pipe[pipe_num];
@@ -873,6 +904,9 @@ void ath11k_ce_free_pipes(struct ath11k_base *ab)
 
 	for (i = 0; i < ab->hw_params.ce_count; i++) {
 		pipe = &ab->ce.ce_pipe[i];
+
+		if (ath11k_ce_need_shadow_fix(i))
+			ath11k_dp_shadow_stop_timer(ab, &ab->ce.hp_timer[i]);
 
 		if (pipe->src_ring) {
 			desc_sz = ath11k_hal_ce_get_desc_size(HAL_CE_DESC_SRC);

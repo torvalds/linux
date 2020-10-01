@@ -168,6 +168,7 @@ struct ath11k_ce {
 	struct ath11k_ce_pipe ce_pipe[CE_COUNT_MAX];
 	/* Protects rings of all ce pipes */
 	spinlock_t ce_lock;
+	struct ath11k_hp_update_timer hp_timer[CE_COUNT_MAX];
 };
 
 extern const struct ce_attr ath11k_host_ce_config_ipq8074[];
