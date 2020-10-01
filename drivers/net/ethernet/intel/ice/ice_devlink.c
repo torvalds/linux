@@ -58,7 +58,7 @@ static int ice_info_fw_build(struct ice_pf *pf, char *buf, size_t len)
 
 static int ice_info_orom_ver(struct ice_pf *pf, char *buf, size_t len)
 {
-	struct ice_orom_info *orom = &pf->hw.nvm.orom;
+	struct ice_orom_info *orom = &pf->hw.flash.orom;
 
 	snprintf(buf, len, "%u.%u.%u", orom->major, orom->build, orom->patch);
 
@@ -67,16 +67,16 @@ static int ice_info_orom_ver(struct ice_pf *pf, char *buf, size_t len)
 
 static int ice_info_nvm_ver(struct ice_pf *pf, char *buf, size_t len)
 {
-	struct ice_nvm_info *nvm = &pf->hw.nvm;
+	struct ice_nvm_info *nvm = &pf->hw.flash.nvm;
 
-	snprintf(buf, len, "%x.%02x", nvm->major_ver, nvm->minor_ver);
+	snprintf(buf, len, "%x.%02x", nvm->major, nvm->minor);
 
 	return 0;
 }
 
 static int ice_info_eetrack(struct ice_pf *pf, char *buf, size_t len)
 {
-	struct ice_nvm_info *nvm = &pf->hw.nvm;
+	struct ice_nvm_info *nvm = &pf->hw.flash.nvm;
 
 	snprintf(buf, len, "0x%08x", nvm->eetrack);
 
@@ -111,7 +111,7 @@ static int ice_info_ddp_pkg_bundle_id(struct ice_pf *pf, char *buf, size_t len)
 
 static int ice_info_netlist_ver(struct ice_pf *pf, char *buf, size_t len)
 {
-	struct ice_netlist_ver_info *netlist = &pf->hw.netlist_ver;
+	struct ice_netlist_info *netlist = &pf->hw.flash.netlist;
 
 	/* The netlist version fields are BCD formatted */
 	snprintf(buf, len, "%x.%x.%x-%x.%x.%x", netlist->major, netlist->minor,
@@ -123,7 +123,7 @@ static int ice_info_netlist_ver(struct ice_pf *pf, char *buf, size_t len)
 
 static int ice_info_netlist_build(struct ice_pf *pf, char *buf, size_t len)
 {
-	struct ice_netlist_ver_info *netlist = &pf->hw.netlist_ver;
+	struct ice_netlist_info *netlist = &pf->hw.flash.netlist;
 
 	snprintf(buf, len, "0x%08x", netlist->hash);
 
@@ -433,7 +433,7 @@ static int ice_devlink_nvm_snapshot(struct devlink *devlink,
 	void *nvm_data;
 	u32 nvm_size;
 
-	nvm_size = hw->nvm.flash_size;
+	nvm_size = hw->flash.flash_size;
 	nvm_data = vzalloc(nvm_size);
 	if (!nvm_data)
 		return -ENOMEM;
@@ -533,7 +533,7 @@ void ice_devlink_init_regions(struct ice_pf *pf)
 	struct device *dev = ice_pf_to_dev(pf);
 	u64 nvm_size;
 
-	nvm_size = pf->hw.nvm.flash_size;
+	nvm_size = pf->hw.flash.flash_size;
 	pf->nvm_region = devlink_region_create(devlink, &ice_nvm_region_ops, 1,
 					       nvm_size);
 	if (IS_ERR(pf->nvm_region)) {
