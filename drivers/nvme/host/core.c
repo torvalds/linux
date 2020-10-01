@@ -3928,20 +3928,19 @@ static void nvme_ns_remove_by_nsid(struct nvme_ctrl *ctrl, u32 nsid)
 
 static void nvme_validate_ns(struct nvme_ns *ns, struct nvme_ns_ids *ids)
 {
-	struct nvme_ctrl *ctrl = ns->ctrl;
 	struct nvme_id_ns *id;
 	int ret = -ENODEV;
 
 	if (test_bit(NVME_NS_DEAD, &ns->flags))
 		goto out;
 
-	ret = nvme_identify_ns(ctrl, ns->head->ns_id, ids, &id);
+	ret = nvme_identify_ns(ns->ctrl, ns->head->ns_id, ids, &id);
 	if (ret)
 		goto out;
 
 	ret = -ENODEV;
 	if (!nvme_ns_ids_equal(&ns->head->ids, ids)) {
-		dev_err(ctrl->device,
+		dev_err(ns->ctrl->device,
 			"identifiers changed for nsid %d\n", ns->head->ns_id);
 		goto out_free_id;
 	}
