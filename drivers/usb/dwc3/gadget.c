@@ -1347,6 +1347,13 @@ static int __dwc3_gadget_kick_transfer(struct dwc3_ep *dep)
 
 	starting = !(dep->flags & DWC3_EP_TRANSFER_STARTED);
 
+	/*
+	 * If there's no new TRB prepared and we don't need to restart a
+	 * transfer, there's no need to update the transfer.
+	 */
+	if (!ret && !starting)
+		return ret;
+
 	req = next_request(&dep->started_list);
 	if (!req) {
 		dep->flags |= DWC3_EP_PENDING_REQUEST;
