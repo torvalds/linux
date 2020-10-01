@@ -4208,6 +4208,15 @@ static int ath11k_mac_op_start(struct ieee80211_hw *hw)
 	rcu_assign_pointer(ab->pdevs_active[ar->pdev_idx],
 			   &ab->pdevs[ar->pdev_idx]);
 
+	/* allow device to enter IMPS */
+	if (ab->hw_params.idle_ps) {
+		ret = ath11k_wmi_pdev_set_param(ar, WMI_PDEV_PARAM_IDLE_PS_CONFIG,
+						1, pdev->pdev_id);
+		if (ret) {
+			ath11k_err(ab, "failed to enable idle ps: %d\n", ret);
+			goto err;
+		}
+	}
 	return 0;
 
 err:

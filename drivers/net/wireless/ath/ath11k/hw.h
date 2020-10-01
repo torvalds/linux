@@ -160,6 +160,7 @@ struct ath11k_hw_params {
 	u16 interface_modes;
 	bool supports_monitor;
 	bool supports_shadow_regs;
+	bool idle_ps;
 };
 
 struct ath11k_hw_ops {

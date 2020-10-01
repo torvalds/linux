@@ -64,6 +64,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 					BIT(NL80211_IFTYPE_MESH_POINT),
 		.supports_monitor = true,
 		.supports_shadow_regs = false,
+		.idle_ps = false,
 	},
 	{
 		.hw_rev = ATH11K_HW_IPQ6018_HW10,
@@ -100,6 +101,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 					BIT(NL80211_IFTYPE_MESH_POINT),
 		.supports_monitor = true,
 		.supports_shadow_regs = false,
+		.idle_ps = false,
 	},
 	{
 		.name = "qca6390 hw2.0",
@@ -135,6 +137,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 					BIT(NL80211_IFTYPE_AP),
 		.supports_monitor = false,
 		.supports_shadow_regs = true,
+		.idle_ps = true,
 	},
 };
 
