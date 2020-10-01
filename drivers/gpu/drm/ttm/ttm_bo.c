@@ -1525,17 +1525,6 @@ out:
 }
 EXPORT_SYMBOL(ttm_bo_swapout);
 
-void ttm_bo_swapout_all(void)
-{
-	struct ttm_operation_ctx ctx = {
-		.interruptible = false,
-		.no_wait_gpu = false
-	};
-
-	while (ttm_bo_swapout(&ctx) == 0);
-}
-EXPORT_SYMBOL(ttm_bo_swapout_all);
-
 void ttm_bo_tt_destroy(struct ttm_buffer_object *bo)
 {
 	if (bo->ttm == NULL)

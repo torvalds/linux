@@ -542,7 +542,6 @@ ssize_t ttm_bo_io(struct ttm_bo_device *bdev, struct file *filp,
 		  size_t count, loff_t *f_pos, bool write);
 
 int ttm_bo_swapout(struct ttm_operation_ctx *ctx);
-void ttm_bo_swapout_all(void);
 
 /**
  * ttm_bo_uses_embedded_gem_object - check if the given bo uses the
