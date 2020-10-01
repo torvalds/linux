@@ -54,7 +54,24 @@ static u32 xstate_required_size(u64 xstate_bv, bool compacted)
 
 #define F feature_bit
 
-static int kvm_check_cpuid(struct kvm_vcpu *vcpu)
+static inline struct kvm_cpuid_entry2 *cpuid_entry2_find(
+	struct kvm_cpuid_entry2 *entries, int nent, u32 function, u32 index)
+{
+	struct kvm_cpuid_entry2 *e;
+	int i;
+
+	for (i = 0; i < nent; i++) {
+		e = &entries[i];
+
+		if (e->function == function && (e->index == index ||
+		    !(e->flags & KVM_CPUID_FLAG_SIGNIFCANT_INDEX)))
+			return e;
+	}
+
+	return NULL;
+}
+
+static int kvm_check_cpuid(struct kvm_cpuid_entry2 *entries, int nent)
 {
 	struct kvm_cpuid_entry2 *best;
 
@@ -62,7 +79,7 @@ static int kvm_check_cpuid(struct kvm_vcpu *vcpu)
 	 * The existing code assumes virtual address is 48-bit or 57-bit in the
 	 * canonical address checks; exit if it is ever changed.
 	 */
-	best = kvm_find_cpuid_entry(vcpu, 0x80000008, 0);
+	best = cpuid_entry2_find(entries, nent, 0x80000008, 0);
 	if (best) {
 		int vaddr_bits = (best->eax & 0xff00) >> 8;
 
@@ -227,7 +244,7 @@ int kvm_vcpu_ioctl_set_cpuid(struct kvm_vcpu *vcpu,
 		vcpu->arch.cpuid_entries[i].padding[2] = 0;
 	}
 	vcpu->arch.cpuid_nent = cpuid->nent;
-	r = kvm_check_cpuid(vcpu);
+	r = kvm_check_cpuid(vcpu->arch.cpuid_entries, cpuid->nent);
 	if (r) {
 		vcpu->arch.cpuid_nent = 0;
 		kvfree(cpuid_entries);
@@ -257,7 +274,7 @@ int kvm_vcpu_ioctl_set_cpuid2(struct kvm_vcpu *vcpu,
 			   cpuid->nent * sizeof(struct kvm_cpuid_entry2)))
 		goto out;
 	vcpu->arch.cpuid_nent = cpuid->nent;
-	r = kvm_check_cpuid(vcpu);
+	r = kvm_check_cpuid(vcpu->arch.cpuid_entries, cpuid->nent);
 	if (r) {
 		vcpu->arch.cpuid_nent = 0;
 		goto out;
@@ -947,17 +964,8 @@ out_free:
 struct kvm_cpuid_entry2 *kvm_find_cpuid_entry(struct kvm_vcpu *vcpu,
 					      u32 function, u32 index)
 {
-	struct kvm_cpuid_entry2 *e;
-	int i;
-
-	for (i = 0; i < vcpu->arch.cpuid_nent; ++i) {
-		e = &vcpu->arch.cpuid_entries[i];
-
-		if (e->function == function && (e->index == index ||
-		    !(e->flags & KVM_CPUID_FLAG_SIGNIFCANT_INDEX)))
-			return e;
-	}
-	return NULL;
+	return cpuid_entry2_find(vcpu->arch.cpuid_entries, vcpu->arch.cpuid_nent,
+				 function, index);
 }
 EXPORT_SYMBOL_GPL(kvm_find_cpuid_entry);
 
