@@ -317,6 +317,8 @@ patternProperties:
     description: Einfochips
   "^elan,.*":
     description: Elan Microelectronic Corp.
+  "^element14,.*":
+    description: Element14 (A Premier Farnell Company)
   "^elgin,.*":
     description: Elgin S/A.
   "^elida,.*":
