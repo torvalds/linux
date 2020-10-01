@@ -1013,13 +1013,13 @@ static bool nfs_request_too_big(struct svc_rqst *rqstp,
  */
 int nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 {
-	const struct svc_procedure *proc;
-	__be32			nfserr;
-	__be32			*nfserrp;
+	const struct svc_procedure *proc = rqstp->rq_procinfo;
+	struct kvec *argv = &rqstp->rq_arg.head[0];
+	struct kvec *resv = &rqstp->rq_res.head[0];
+	__be32 nfserr, *nfserrp;
 
 	dprintk("nfsd_dispatch: vers %d proc %d\n",
 				rqstp->rq_vers, rqstp->rq_proc);
-	proc = rqstp->rq_procinfo;
 
 	if (nfs_request_too_big(rqstp, proc)) {
 		dprintk("nfsd: NFSv%d argument too large\n", rqstp->rq_vers);
@@ -1031,7 +1031,7 @@ int nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 	 * (necessary in the NFSv4.0 compound case)
 	 */
 	rqstp->rq_cachetype = proc->pc_cachetype;
-	if (!proc->pc_decode(rqstp, (__be32 *)rqstp->rq_arg.head[0].iov_base)) {
+	if (!proc->pc_decode(rqstp, argv->iov_base)) {
 		dprintk("nfsd: failed to decode arguments!\n");
 		*statp = rpc_garbage_args;
 		return 1;
@@ -1050,9 +1050,8 @@ int nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 	 * Need to grab the location to store the status, as
 	 * NFSv4 does some encoding while processing
 	 */
-	nfserrp = rqstp->rq_res.head[0].iov_base
-		+ rqstp->rq_res.head[0].iov_len;
-	rqstp->rq_res.head[0].iov_len += sizeof(__be32);
+	nfserrp = resv->iov_base + resv->iov_len;
+	resv->iov_len += sizeof(__be32);
 
 	nfserr = proc->pc_func(rqstp);
 	nfserr = map_new_errors(rqstp->rq_vers, nfserr);
