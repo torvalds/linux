@@ -17,6 +17,7 @@
 #include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/util_macros.h>
+#include <linux/regulator/consumer.h>
 #include "lm75.h"
 
 /*
@@ -101,6 +102,7 @@ static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b, 0x4c,
 struct lm75_data {
 	struct i2c_client		*client;
 	struct regmap			*regmap;
+	struct regulator		*vs;
 	u8				orig_conf;
 	u8				current_conf;
 	u8				resolution;	/* In bits, 9 to 16 */
@@ -534,6 +536,13 @@ static const struct regmap_config lm75_regmap_config = {
 	.use_single_write = true,
 };
 
+static void lm75_disable_regulator(void *data)
+{
+	struct lm75_data *lm75 = data;
+
+	regulator_disable(lm75->vs);
+}
+
 static void lm75_remove(void *data)
 {
 	struct lm75_data *lm75 = data;
@@ -568,6 +577,10 @@ static int lm75_probe(struct i2c_client *client)
 	data->client = client;
 	data->kind = kind;
 
+	data->vs = devm_regulator_get(dev, "vs");
+	if (IS_ERR(data->vs))
+		return PTR_ERR(data->vs);
+
 	data->regmap = devm_regmap_init_i2c(client, &lm75_regmap_config);
 	if (IS_ERR(data->regmap))
 		return PTR_ERR(data->regmap);
@@ -581,6 +594,17 @@ static int lm75_probe(struct i2c_client *client)
 	/* Save default sample time and resolution*/
 	data->sample_time = data->params->default_sample_time;
 	data->resolution = data->params->default_resolution;
+
+	/* Enable the power */
+	err = regulator_enable(data->vs);
+	if (err) {
+		dev_err(dev, "failed to enable regulator: %d\n", err);
+		return err;
+	}
+
+	err = devm_add_action_or_reset(dev, lm75_disable_regulator, data);
+	if (err)
+		return err;
 
 	/* Cache original configuration */
 	status = i2c_smbus_read_byte_data(client, LM75_REG_CONF);
