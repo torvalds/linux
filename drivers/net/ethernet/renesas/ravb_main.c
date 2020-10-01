@@ -1034,11 +1034,8 @@ static int ravb_phy_init(struct net_device *ndev)
 		pn = of_node_get(np);
 	}
 
-	iface = priv->phy_interface;
-	if (priv->chip_id != RCAR_GEN2 && phy_interface_mode_is_rgmii(iface)) {
-		/* ravb_set_delay_mode() takes care of internal delay mode */
-		iface = PHY_INTERFACE_MODE_RGMII;
-	}
+	iface = priv->rgmii_override ? PHY_INTERFACE_MODE_RGMII
+				     : priv->phy_interface;
 	phydev = of_phy_connect(ndev, pn, ravb_adjust_link, 0, iface);
 	of_node_put(pn);
 	if (!phydev) {
@@ -1999,20 +1996,41 @@ static const struct soc_device_attribute ravb_delay_mode_quirk_match[] = {
 };
 
 /* Set tx and rx clock internal delay modes */
-static void ravb_parse_delay_mode(struct net_device *ndev)
+static void ravb_parse_delay_mode(struct device_node *np, struct net_device *ndev)
 {
 	struct ravb_private *priv = netdev_priv(ndev);
+	bool explicit_delay = false;
+	u32 delay;
 
+	if (!of_property_read_u32(np, "rx-internal-delay-ps", &delay)) {
+		/* Valid values are 0 and 1800, according to DT bindings */
+		priv->rxcidm = !!delay;
+		explicit_delay = true;
+	}
+	if (!of_property_read_u32(np, "tx-internal-delay-ps", &delay)) {
+		/* Valid values are 0 and 2000, according to DT bindings */
+		priv->txcidm = !!delay;
+		explicit_delay = true;
+	}
+
+	if (explicit_delay)
+		return;
+
+	/* Fall back to legacy rgmii-*id behavior */
 	if (priv->phy_interface == PHY_INTERFACE_MODE_RGMII_ID ||
-	    priv->phy_interface == PHY_INTERFACE_MODE_RGMII_RXID)
+	    priv->phy_interface == PHY_INTERFACE_MODE_RGMII_RXID) {
 		priv->rxcidm = 1;
+		priv->rgmii_override = 1;
+	}
 
 	if (priv->phy_interface == PHY_INTERFACE_MODE_RGMII_ID ||
 	    priv->phy_interface == PHY_INTERFACE_MODE_RGMII_TXID) {
 		if (!WARN(soc_device_match(ravb_delay_mode_quirk_match),
 			  "phy-mode %s requires TX clock internal delay mode which is not supported by this hardware revision. Please update device tree",
-			  phy_modes(priv->phy_interface)))
+			  phy_modes(priv->phy_interface))) {
 			priv->txcidm = 1;
+			priv->rgmii_override = 1;
+		}
 	}
 }
 
@@ -2158,7 +2176,7 @@ static int ravb_probe(struct platform_device *pdev)
 	ravb_modify(ndev, GCCR, GCCR_LTI, GCCR_LTI);
 
 	if (priv->chip_id != RCAR_GEN2) {
-		ravb_parse_delay_mode(ndev);
+		ravb_parse_delay_mode(np, ndev);
 		ravb_set_delay_mode(ndev);
 	}
 
