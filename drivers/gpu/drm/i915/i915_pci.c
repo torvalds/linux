@@ -1090,11 +1090,19 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return 0;
 }
 
+static void i915_pci_shutdown(struct pci_dev *pdev)
+{
+	struct drm_i915_private *i915 = pci_get_drvdata(pdev);
+
+	i915_driver_shutdown(i915);
+}
+
 static struct pci_driver i915_pci_driver = {
 	.name = DRIVER_NAME,
 	.id_table = pciidlist,
 	.probe = i915_pci_probe,
 	.remove = i915_pci_remove,
+	.shutdown = i915_pci_shutdown,
 	.driver.pm = &i915_pm_ops,
 };
 
