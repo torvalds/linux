@@ -46,6 +46,8 @@ noinline static int handle_kernel_vaddr_fault(unsigned long address)
 	if (!p4d_present(*p4d_k))
 		goto bad_area;
 
+	set_p4d(p4d, *p4d_k);
+
 	pud = pud_offset(p4d, address);
 	pud_k = pud_offset(p4d_k, address);
 	if (!pud_present(*pud_k))
