@@ -62,7 +62,7 @@ KVM_FEATURE_PV_EOI                6           paravirtualized end of interrupt
                                               handler can be enabled by
                                               writing to msr 0x4b564d04
 
-KVM_FEATURE_PV_UNHAULT            7           guest checks this feature bit
+KVM_FEATURE_PV_UNHALT             7           guest checks this feature bit
                                               before enabling paravirtualized
                                               spinlock support
 
