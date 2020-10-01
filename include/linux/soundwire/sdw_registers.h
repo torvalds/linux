@@ -5,13 +5,6 @@
 #define __SDW_REGISTERS_H
 
 /*
- * typically we define register and shifts but if one observes carefully,
- * the shift can be generated from MASKS using few bit primitaives like ffs
- * etc, so we use that and avoid defining shifts
- */
-#define SDW_REG_SHIFT(n)			(ffs(n) - 1)
-
-/*
  * SDW registers as defined by MIPI 1.2 Spec
  */
 #define SDW_REGADDR				GENMASK(14, 0)
