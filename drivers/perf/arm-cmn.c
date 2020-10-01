@@ -217,7 +217,7 @@ struct arm_cmn_node {
 
 struct arm_cmn_dtc {
 	void __iomem *base;
-	unsigned int irq;
+	int irq;
 	int irq_friend;
 	bool cc_active;
 
