@@ -561,10 +561,23 @@ nfssvc_encode_entry(void *ccdv, const char *name,
 /*
  * XDR release functions
  */
-void
-nfssvc_release_fhandle(struct svc_rqst *rqstp)
+void nfssvc_release_attrstat(struct svc_rqst *rqstp)
 {
-	struct nfsd_fhandle *resp = rqstp->rq_resp;
+	struct nfsd_attrstat *resp = rqstp->rq_resp;
+
+	fh_put(&resp->fh);
+}
+
+void nfssvc_release_diropres(struct svc_rqst *rqstp)
+{
+	struct nfsd_diropres *resp = rqstp->rq_resp;
+
+	fh_put(&resp->fh);
+}
+
+void nfssvc_release_readres(struct svc_rqst *rqstp)
+{
+	struct nfsd_readres *resp = rqstp->rq_resp;
 
 	fh_put(&resp->fh);
 }
