@@ -2127,13 +2127,6 @@ err:
 	return -EIO;
 }
 
-static bool can_attach_cache(struct cache *ca, struct cache_set *c)
-{
-	return ca->sb.block_size	== c->sb.block_size &&
-		ca->sb.bucket_size	== c->sb.bucket_size &&
-		ca->sb.nr_in_set	== c->sb.nr_in_set;
-}
-
 static const char *register_cache_set(struct cache *ca)
 {
 	char buf[12];
@@ -2144,9 +2137,6 @@ static const char *register_cache_set(struct cache *ca)
 		if (!memcmp(c->set_uuid, ca->sb.set_uuid, 16)) {
 			if (c->cache)
 				return "duplicate cache set member";
-
-			if (!can_attach_cache(ca, c))
-				return "cache sb does not match set";
 
 			if (!CACHE_SYNC(&ca->sb))
 				SET_CACHE_SYNC(&c->sb, false);
