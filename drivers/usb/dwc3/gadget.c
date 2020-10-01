@@ -1034,8 +1034,7 @@ static void __dwc3_prepare_one_trb(struct dwc3_ep *dep, struct dwc3_trb *trb,
 			trb->ctrl |= DWC3_TRB_CTRL_ISP_IMI;
 	}
 
-	if ((!no_interrupt && !chain) || must_interrupt ||
-			(dwc3_calc_trbs_left(dep) == 1))
+	if ((!no_interrupt && !chain) || must_interrupt)
 		trb->ctrl |= DWC3_TRB_CTRL_IOC;
 
 	if (chain)
@@ -1169,6 +1168,7 @@ static int dwc3_prepare_trbs_sg(struct dwc3_ep *dep,
 		length -= sg_dma_len(s);
 
 	for_each_sg(sg, s, remaining, i) {
+		unsigned int num_trbs_left = dwc3_calc_trbs_left(dep);
 		unsigned int trb_length;
 		bool must_interrupt = false;
 		bool last_sg = false;
@@ -1187,7 +1187,7 @@ static int dwc3_prepare_trbs_sg(struct dwc3_ep *dep,
 		if ((i == remaining - 1) || !length)
 			last_sg = true;
 
-		if (!dwc3_calc_trbs_left(dep))
+		if (!num_trbs_left)
 			break;
 
 		if (last_sg) {
@@ -1196,12 +1196,13 @@ static int dwc3_prepare_trbs_sg(struct dwc3_ep *dep,
 		} else {
 			/*
 			 * Look ahead to check if we have enough TRBs for the
-			 * last SG entry. If not, set interrupt on this TRB to
-			 * resume preparing the last SG entry when more TRBs are
+			 * next SG entry. If not, set interrupt on this TRB to
+			 * resume preparing the next SG entry when more TRBs are
 			 * free.
 			 */
-			if (needs_extra_trb && dwc3_calc_trbs_left(dep) <= 2 &&
-					sg_dma_len(sg_next(s)) >= length)
+			if (num_trbs_left == 1 || (needs_extra_trb &&
+					num_trbs_left <= 2 &&
+					sg_dma_len(sg_next(s)) >= length))
 				must_interrupt = true;
 
 			dwc3_prepare_one_trb(dep, req, trb_length, 1, i, false,
@@ -1230,7 +1231,7 @@ static int dwc3_prepare_trbs_sg(struct dwc3_ep *dep,
 			break;
 		}
 
-		if (!dwc3_calc_trbs_left(dep) || must_interrupt)
+		if (must_interrupt)
 			break;
 	}
 
