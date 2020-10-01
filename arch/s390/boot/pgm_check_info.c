@@ -33,7 +33,8 @@ void print_pgm_check_info(void)
 	char *p;
 
 	add_str(buf, "Linux version ");
-	strlcat(buf, kernel_version, sizeof(buf));
+	strlcat(buf, kernel_version, sizeof(buf) - 1);
+	strlcat(buf, "\n", sizeof(buf));
 	sclp_early_printk(buf);
 
 	p = add_str(buf, "Kernel fault: interruption code ");
