@@ -542,7 +542,7 @@ int hl_hwmon_init(struct hl_device *hdev)
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	int rc;
 
-	if ((hdev->hwmon_initialized) || !(hdev->fw_loading))
+	if ((hdev->hwmon_initialized) || !(hdev->cpu_queues_enable))
 		return 0;
 
 	if (hdev->hl_chip_info->info) {
