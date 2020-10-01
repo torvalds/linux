@@ -1886,8 +1886,7 @@ static struct io_kiocb *io_req_find_next(struct io_kiocb *req)
 	return __io_req_find_next(req);
 }
 
-static int io_req_task_work_add(struct io_kiocb *req, struct callback_head *cb,
-				bool twa_signal_ok)
+static int io_req_task_work_add(struct io_kiocb *req, bool twa_signal_ok)
 {
 	struct task_struct *tsk = req->task;
 	struct io_ring_ctx *ctx = req->ctx;
@@ -1906,7 +1905,7 @@ static int io_req_task_work_add(struct io_kiocb *req, struct callback_head *cb,
 	if (!(ctx->flags & IORING_SETUP_SQPOLL) && twa_signal_ok)
 		notify = TWA_SIGNAL;
 
-	ret = task_work_add(tsk, cb, notify);
+	ret = task_work_add(tsk, &req->task_work, notify);
 	if (!ret)
 		wake_up_process(tsk);
 
@@ -1965,7 +1964,7 @@ static void io_req_task_queue(struct io_kiocb *req)
 	init_task_work(&req->task_work, io_req_task_submit);
 	percpu_ref_get(&req->ctx->refs);
 
-	ret = io_req_task_work_add(req, &req->task_work, true);
+	ret = io_req_task_work_add(req, true);
 	if (unlikely(ret)) {
 		struct task_struct *tsk;
 
@@ -3185,7 +3184,7 @@ static int io_async_buf_func(struct wait_queue_entry *wait, unsigned mode,
 
 	/* submit ref gets dropped, acquire a new one */
 	refcount_inc(&req->refs);
-	ret = io_req_task_work_add(req, &req->task_work, true);
+	ret = io_req_task_work_add(req, true);
 	if (unlikely(ret)) {
 		struct task_struct *tsk;
 
@@ -4752,7 +4751,7 @@ static int __io_async_wake(struct io_kiocb *req, struct io_poll_iocb *poll,
 	 * of executing it. We can't safely execute it anyway, as we may not
 	 * have the needed state needed for it anyway.
 	 */
-	ret = io_req_task_work_add(req, &req->task_work, twa_signal_ok);
+	ret = io_req_task_work_add(req, twa_signal_ok);
 	if (unlikely(ret)) {
 		struct task_struct *tsk;
 
