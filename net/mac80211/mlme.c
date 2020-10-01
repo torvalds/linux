@@ -172,19 +172,22 @@ ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 			ret = 0;
 		vht_chandef = *chandef;
 		goto out;
-	}
+	} else if (sband->band == NL80211_BAND_S1GHZ) {
+		if (!ieee80211_chandef_s1g_oper(s1g_oper, chandef)) {
+			sdata_info(sdata,
+				   "Missing S1G Operation Element? Trying operating == primary\n");
+			chandef->width = ieee80211_s1g_channel_width(channel);
+		}
 
-	memcpy(&sta_ht_cap, &sband->ht_cap, sizeof(sta_ht_cap));
-	ieee80211_apply_htcap_overrides(sdata, &sta_ht_cap);
-
-	if (s1g_oper && sband->band == NL80211_BAND_S1GHZ) {
-		ieee80211_chandef_s1g_oper(s1g_oper, chandef);
 		ret = IEEE80211_STA_DISABLE_HT | IEEE80211_STA_DISABLE_40MHZ |
 		      IEEE80211_STA_DISABLE_VHT |
 		      IEEE80211_STA_DISABLE_80P80MHZ |
 		      IEEE80211_STA_DISABLE_160MHZ;
 		goto out;
 	}
+
+	memcpy(&sta_ht_cap, &sband->ht_cap, sizeof(sta_ht_cap));
+	ieee80211_apply_htcap_overrides(sdata, &sta_ht_cap);
 
 	if (!ht_oper || !sta_ht_cap.ht_supported) {
 		ret = IEEE80211_STA_DISABLE_HT |
