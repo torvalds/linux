@@ -2560,10 +2560,11 @@ static void handle_hpd_rx_irq(void *param)
 	struct drm_device *dev = connector->dev;
 	struct dc_link *dc_link = aconnector->dc_link;
 	bool is_mst_root_connector = aconnector->mst_mgr.mst_state;
+	bool result = false;
 	enum dc_connection_type new_connection_type = dc_connection_none;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 #ifdef CONFIG_DRM_AMD_DC_HDCP
 	union hpd_irq_data hpd_irq_data;
-	struct amdgpu_device *adev = drm_to_adev(dev);
 
 	memset(&hpd_irq_data, 0, sizeof(hpd_irq_data));
 #endif
@@ -2576,13 +2577,15 @@ static void handle_hpd_rx_irq(void *param)
 	if (dc_link->type != dc_connection_mst_branch)
 		mutex_lock(&aconnector->hpd_lock);
 
-
+	mutex_lock(&adev->dm.dc_lock);
 #ifdef CONFIG_DRM_AMD_DC_HDCP
-	if (dc_link_handle_hpd_rx_irq(dc_link, &hpd_irq_data, NULL) &&
+	result = dc_link_handle_hpd_rx_irq(dc_link, &hpd_irq_data, NULL);
 #else
-	if (dc_link_handle_hpd_rx_irq(dc_link, NULL, NULL) &&
+	result = dc_link_handle_hpd_rx_irq(dc_link, NULL, NULL);
 #endif
-			!is_mst_root_connector) {
+	mutex_unlock(&adev->dm.dc_lock);
+
+	if (result && !is_mst_root_connector) {
 		/* Downstream Port status changed. */
 		if (!dc_link_detect_sink(dc_link, &new_connection_type))
 			DRM_ERROR("KMS: Failed to detect connector\n");
