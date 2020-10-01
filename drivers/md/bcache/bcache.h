@@ -887,9 +887,6 @@ do {									\
 
 /* Looping macros */
 
-#define for_each_cache(ca, cs, iter)					\
-	for (iter = 0; ca = cs->cache, iter < 1; iter++)
-
 #define for_each_bucket(b, ca)						\
 	for (b = (ca)->buckets + (ca)->sb.first_bucket;			\
 	     b < (ca)->buckets + (ca)->sb.nbuckets; b++)
@@ -931,11 +928,9 @@ static inline uint8_t bucket_gc_gen(struct bucket *b)
 
 static inline void wake_up_allocators(struct cache_set *c)
 {
-	struct cache *ca;
-	unsigned int i;
+	struct cache *ca = c->cache;
 
-	for_each_cache(ca, c, i)
-		wake_up_process(ca->alloc_thread);
+	wake_up_process(ca->alloc_thread);
 }
 
 static inline void closure_bio_submit(struct cache_set *c,

@@ -1167,19 +1167,18 @@ static void make_btree_freeing_key(struct btree *b, struct bkey *k)
 static int btree_check_reserve(struct btree *b, struct btree_op *op)
 {
 	struct cache_set *c = b->c;
-	struct cache *ca;
-	unsigned int i, reserve = (c->root->level - b->level) * 2 + 1;
+	struct cache *ca = c->cache;
+	unsigned int reserve = (c->root->level - b->level) * 2 + 1;
 
 	mutex_lock(&c->bucket_lock);
 
-	for_each_cache(ca, c, i)
-		if (fifo_used(&ca->free[RESERVE_BTREE]) < reserve) {
-			if (op)
-				prepare_to_wait(&c->btree_cache_wait, &op->wait,
-						TASK_UNINTERRUPTIBLE);
-			mutex_unlock(&c->bucket_lock);
-			return -EINTR;
-		}
+	if (fifo_used(&ca->free[RESERVE_BTREE]) < reserve) {
+		if (op)
+			prepare_to_wait(&c->btree_cache_wait, &op->wait,
+					TASK_UNINTERRUPTIBLE);
+		mutex_unlock(&c->bucket_lock);
+		return -EINTR;
+	}
 
 	mutex_unlock(&c->bucket_lock);
 
@@ -1695,7 +1694,6 @@ static void btree_gc_start(struct cache_set *c)
 {
 	struct cache *ca;
 	struct bucket *b;
-	unsigned int i;
 
 	if (!c->gc_mark_valid)
 		return;
@@ -1705,14 +1703,14 @@ static void btree_gc_start(struct cache_set *c)
 	c->gc_mark_valid = 0;
 	c->gc_done = ZERO_KEY;
 
-	for_each_cache(ca, c, i)
-		for_each_bucket(b, ca) {
-			b->last_gc = b->gen;
-			if (!atomic_read(&b->pin)) {
-				SET_GC_MARK(b, 0);
-				SET_GC_SECTORS_USED(b, 0);
-			}
+	ca = c->cache;
+	for_each_bucket(b, ca) {
+		b->last_gc = b->gen;
+		if (!atomic_read(&b->pin)) {
+			SET_GC_MARK(b, 0);
+			SET_GC_SECTORS_USED(b, 0);
 		}
+	}
 
 	mutex_unlock(&c->bucket_lock);
 }
@@ -1721,7 +1719,8 @@ static void bch_btree_gc_finish(struct cache_set *c)
 {
 	struct bucket *b;
 	struct cache *ca;
-	unsigned int i;
+	unsigned int i, j;
+	uint64_t *k;
 
 	mutex_lock(&c->bucket_lock);
 
@@ -1739,7 +1738,6 @@ static void bch_btree_gc_finish(struct cache_set *c)
 		struct bcache_device *d = c->devices[i];
 		struct cached_dev *dc;
 		struct keybuf_key *w, *n;
-		unsigned int j;
 
 		if (!d || UUID_FLASH_ONLY(&c->uuids[i]))
 			continue;
@@ -1756,29 +1754,27 @@ static void bch_btree_gc_finish(struct cache_set *c)
 	rcu_read_unlock();
 
 	c->avail_nbuckets = 0;
-	for_each_cache(ca, c, i) {
-		uint64_t *i;
 
-		ca->invalidate_needs_gc = 0;
+	ca = c->cache;
+	ca->invalidate_needs_gc = 0;
 
-		for (i = ca->sb.d; i < ca->sb.d + ca->sb.keys; i++)
-			SET_GC_MARK(ca->buckets + *i, GC_MARK_METADATA);
+	for (k = ca->sb.d; k < ca->sb.d + ca->sb.keys; k++)
+		SET_GC_MARK(ca->buckets + *k, GC_MARK_METADATA);
 
-		for (i = ca->prio_buckets;
-		     i < ca->prio_buckets + prio_buckets(ca) * 2; i++)
-			SET_GC_MARK(ca->buckets + *i, GC_MARK_METADATA);
+	for (k = ca->prio_buckets;
+	     k < ca->prio_buckets + prio_buckets(ca) * 2; k++)
+		SET_GC_MARK(ca->buckets + *k, GC_MARK_METADATA);
 
-		for_each_bucket(b, ca) {
-			c->need_gc	= max(c->need_gc, bucket_gc_gen(b));
+	for_each_bucket(b, ca) {
+		c->need_gc	= max(c->need_gc, bucket_gc_gen(b));
 
-			if (atomic_read(&b->pin))
-				continue;
+		if (atomic_read(&b->pin))
+			continue;
 
-			BUG_ON(!GC_MARK(b) && GC_SECTORS_USED(b));
+		BUG_ON(!GC_MARK(b) && GC_SECTORS_USED(b));
 
-			if (!GC_MARK(b) || GC_MARK(b) == GC_MARK_RECLAIMABLE)
-				c->avail_nbuckets++;
-		}
+		if (!GC_MARK(b) || GC_MARK(b) == GC_MARK_RECLAIMABLE)
+			c->avail_nbuckets++;
 	}
 
 	mutex_unlock(&c->bucket_lock);
@@ -1830,12 +1826,10 @@ static void bch_btree_gc(struct cache_set *c)
 
 static bool gc_should_run(struct cache_set *c)
 {
-	struct cache *ca;
-	unsigned int i;
+	struct cache *ca = c->cache;
 
-	for_each_cache(ca, c, i)
-		if (ca->invalidate_needs_gc)
-			return true;
+	if (ca->invalidate_needs_gc)
+		return true;
 
 	if (atomic_read(&c->sectors_to_gc) < 0)
 		return true;
@@ -2081,9 +2075,8 @@ out:
 
 void bch_initial_gc_finish(struct cache_set *c)
 {
-	struct cache *ca;
+	struct cache *ca = c->cache;
 	struct bucket *b;
-	unsigned int i;
 
 	bch_btree_gc_finish(c);
 
@@ -2098,20 +2091,18 @@ void bch_initial_gc_finish(struct cache_set *c)
 	 * This is only safe for buckets that have no live data in them, which
 	 * there should always be some of.
 	 */
-	for_each_cache(ca, c, i) {
-		for_each_bucket(b, ca) {
-			if (fifo_full(&ca->free[RESERVE_PRIO]) &&
-			    fifo_full(&ca->free[RESERVE_BTREE]))
-				break;
+	for_each_bucket(b, ca) {
+		if (fifo_full(&ca->free[RESERVE_PRIO]) &&
+		    fifo_full(&ca->free[RESERVE_BTREE]))
+			break;
 
-			if (bch_can_invalidate_bucket(ca, b) &&
-			    !GC_MARK(b)) {
-				__bch_invalidate_one_bucket(ca, b);
-				if (!fifo_push(&ca->free[RESERVE_PRIO],
-				   b - ca->buckets))
-					fifo_push(&ca->free[RESERVE_BTREE],
-						  b - ca->buckets);
-			}
+		if (bch_can_invalidate_bucket(ca, b) &&
+		    !GC_MARK(b)) {
+			__bch_invalidate_one_bucket(ca, b);
+			if (!fifo_push(&ca->free[RESERVE_PRIO],
+			   b - ca->buckets))
+				fifo_push(&ca->free[RESERVE_BTREE],
+					  b - ca->buckets);
 		}
 	}
 

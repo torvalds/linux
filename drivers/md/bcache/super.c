@@ -343,8 +343,9 @@ static void bcache_write_super_unlock(struct closure *cl)
 void bcache_write_super(struct cache_set *c)
 {
 	struct closure *cl = &c->sb_write;
-	struct cache *ca;
-	unsigned int i, version = BCACHE_SB_VERSION_CDEV_WITH_UUID;
+	struct cache *ca = c->cache;
+	struct bio *bio = &ca->sb_bio;
+	unsigned int version = BCACHE_SB_VERSION_CDEV_WITH_UUID;
 
 	down(&c->sb_write_mutex);
 	closure_init(cl, &c->cl);
@@ -354,23 +355,19 @@ void bcache_write_super(struct cache_set *c)
 	if (c->sb.version > version)
 		version = c->sb.version;
 
-	for_each_cache(ca, c, i) {
-		struct bio *bio = &ca->sb_bio;
+	ca->sb.version		= version;
+	ca->sb.seq		= c->sb.seq;
+	ca->sb.last_mount	= c->sb.last_mount;
 
-		ca->sb.version		= version;
-		ca->sb.seq		= c->sb.seq;
-		ca->sb.last_mount	= c->sb.last_mount;
+	SET_CACHE_SYNC(&ca->sb, CACHE_SYNC(&c->sb));
 
-		SET_CACHE_SYNC(&ca->sb, CACHE_SYNC(&c->sb));
+	bio_init(bio, ca->sb_bv, 1);
+	bio_set_dev(bio, ca->bdev);
+	bio->bi_end_io	= write_super_endio;
+	bio->bi_private = ca;
 
-		bio_init(bio, ca->sb_bv, 1);
-		bio_set_dev(bio, ca->bdev);
-		bio->bi_end_io	= write_super_endio;
-		bio->bi_private = ca;
-
-		closure_get(cl);
-		__write_super(&ca->sb, ca->sb_disk, bio);
-	}
+	closure_get(cl);
+	__write_super(&ca->sb, ca->sb_disk, bio);
 
 	closure_return_with_destructor(cl, bcache_write_super_unlock);
 }
@@ -772,26 +769,22 @@ static void bcache_device_unlink(struct bcache_device *d)
 	lockdep_assert_held(&bch_register_lock);
 
 	if (d->c && !test_and_set_bit(BCACHE_DEV_UNLINK_DONE, &d->flags)) {
-		unsigned int i;
-		struct cache *ca;
+		struct cache *ca = d->c->cache;
 
 		sysfs_remove_link(&d->c->kobj, d->name);
 		sysfs_remove_link(&d->kobj, "cache");
 
-		for_each_cache(ca, d->c, i)
-			bd_unlink_disk_holder(ca->bdev, d->disk);
+		bd_unlink_disk_holder(ca->bdev, d->disk);
 	}
 }
 
 static void bcache_device_link(struct bcache_device *d, struct cache_set *c,
 			       const char *name)
 {
-	unsigned int i;
-	struct cache *ca;
+	struct cache *ca = c->cache;
 	int ret;
 
-	for_each_cache(ca, d->c, i)
-		bd_link_disk_holder(ca->bdev, d->disk);
+	bd_link_disk_holder(ca->bdev, d->disk);
 
 	snprintf(d->name, BCACHEDEVNAME_SIZE,
 		 "%s%u", name, d->id);
@@ -1662,7 +1655,6 @@ static void cache_set_free(struct closure *cl)
 {
 	struct cache_set *c = container_of(cl, struct cache_set, cl);
 	struct cache *ca;
-	unsigned int i;
 
 	debugfs_remove(c->debug);
 
@@ -1671,12 +1663,12 @@ static void cache_set_free(struct closure *cl)
 	bch_journal_free(c);
 
 	mutex_lock(&bch_register_lock);
-	for_each_cache(ca, c, i)
-		if (ca) {
-			ca->set = NULL;
-			c->cache = NULL;
-			kobject_put(&ca->kobj);
-		}
+	ca = c->cache;
+	if (ca) {
+		ca->set = NULL;
+		c->cache = NULL;
+		kobject_put(&ca->kobj);
+	}
 
 	bch_bset_sort_state_free(&c->sort);
 	free_pages((unsigned long) c->uuids, ilog2(meta_bucket_pages(&c->sb)));
@@ -1702,9 +1694,8 @@ static void cache_set_free(struct closure *cl)
 static void cache_set_flush(struct closure *cl)
 {
 	struct cache_set *c = container_of(cl, struct cache_set, caching);
-	struct cache *ca;
+	struct cache *ca = c->cache;
 	struct btree *b;
-	unsigned int i;
 
 	bch_cache_accounting_destroy(&c->accounting);
 
@@ -1729,9 +1720,8 @@ static void cache_set_flush(struct closure *cl)
 			mutex_unlock(&b->write_lock);
 		}
 
-	for_each_cache(ca, c, i)
-		if (ca->alloc_thread)
-			kthread_stop(ca->alloc_thread);
+	if (ca->alloc_thread)
+		kthread_stop(ca->alloc_thread);
 
 	if (c->journal.cur) {
 		cancel_delayed_work_sync(&c->journal.work);
@@ -1972,16 +1962,14 @@ static int run_cache_set(struct cache_set *c)
 {
 	const char *err = "cannot allocate memory";
 	struct cached_dev *dc, *t;
-	struct cache *ca;
+	struct cache *ca = c->cache;
 	struct closure cl;
-	unsigned int i;
 	LIST_HEAD(journal);
 	struct journal_replay *l;
 
 	closure_init_stack(&cl);
 
-	for_each_cache(ca, c, i)
-		c->nbuckets += ca->sb.nbuckets;
+	c->nbuckets = ca->sb.nbuckets;
 	set_gc_sectors(c);
 
 	if (CACHE_SYNC(&c->sb)) {
@@ -2001,10 +1989,8 @@ static int run_cache_set(struct cache_set *c)
 		j = &list_entry(journal.prev, struct journal_replay, list)->j;
 
 		err = "IO error reading priorities";
-		for_each_cache(ca, c, i) {
-			if (prio_read(ca, j->prio_bucket[ca->sb.nr_this_dev]))
-				goto err;
-		}
+		if (prio_read(ca, j->prio_bucket[ca->sb.nr_this_dev]))
+			goto err;
 
 		/*
 		 * If prio_read() fails it'll call cache_set_error and we'll
@@ -2048,9 +2034,8 @@ static int run_cache_set(struct cache_set *c)
 		bch_journal_next(&c->journal);
 
 		err = "error starting allocator thread";
-		for_each_cache(ca, c, i)
-			if (bch_cache_allocator_start(ca))
-				goto err;
+		if (bch_cache_allocator_start(ca))
+			goto err;
 
 		/*
 		 * First place it's safe to allocate: btree_check() and
@@ -2069,28 +2054,23 @@ static int run_cache_set(struct cache_set *c)
 		if (bch_journal_replay(c, &journal))
 			goto err;
 	} else {
+		unsigned int j;
+
 		pr_notice("invalidating existing data\n");
+		ca->sb.keys = clamp_t(int, ca->sb.nbuckets >> 7,
+					2, SB_JOURNAL_BUCKETS);
 
-		for_each_cache(ca, c, i) {
-			unsigned int j;
-
-			ca->sb.keys = clamp_t(int, ca->sb.nbuckets >> 7,
-					      2, SB_JOURNAL_BUCKETS);
-
-			for (j = 0; j < ca->sb.keys; j++)
-				ca->sb.d[j] = ca->sb.first_bucket + j;
-		}
+		for (j = 0; j < ca->sb.keys; j++)
+			ca->sb.d[j] = ca->sb.first_bucket + j;
 
 		bch_initial_gc_finish(c);
 
 		err = "error starting allocator thread";
-		for_each_cache(ca, c, i)
-			if (bch_cache_allocator_start(ca))
-				goto err;
+		if (bch_cache_allocator_start(ca))
+			goto err;
 
 		mutex_lock(&c->bucket_lock);
-		for_each_cache(ca, c, i)
-			bch_prio_write(ca, true);
+		bch_prio_write(ca, true);
 		mutex_unlock(&c->bucket_lock);
 
 		err = "cannot allocate new UUID bucket";
@@ -2465,13 +2445,14 @@ static bool bch_is_open_backing(struct block_device *bdev)
 static bool bch_is_open_cache(struct block_device *bdev)
 {
 	struct cache_set *c, *tc;
-	struct cache *ca;
-	unsigned int i;
 
-	list_for_each_entry_safe(c, tc, &bch_cache_sets, list)
-		for_each_cache(ca, c, i)
-			if (ca->bdev == bdev)
-				return true;
+	list_for_each_entry_safe(c, tc, &bch_cache_sets, list) {
+		struct cache *ca = c->cache;
+
+		if (ca->bdev == bdev)
+			return true;
+	}
+
 	return false;
 }
 

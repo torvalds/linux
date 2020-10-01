@@ -88,7 +88,6 @@ void bch_rescale_priorities(struct cache_set *c, int sectors)
 	struct cache *ca;
 	struct bucket *b;
 	unsigned long next = c->nbuckets * c->sb.bucket_size / 1024;
-	unsigned int i;
 	int r;
 
 	atomic_sub(sectors, &c->rescale);
@@ -104,14 +103,14 @@ void bch_rescale_priorities(struct cache_set *c, int sectors)
 
 	c->min_prio = USHRT_MAX;
 
-	for_each_cache(ca, c, i)
-		for_each_bucket(b, ca)
-			if (b->prio &&
-			    b->prio != BTREE_PRIO &&
-			    !atomic_read(&b->pin)) {
-				b->prio--;
-				c->min_prio = min(c->min_prio, b->prio);
-			}
+	ca = c->cache;
+	for_each_bucket(b, ca)
+		if (b->prio &&
+		    b->prio != BTREE_PRIO &&
+		    !atomic_read(&b->pin)) {
+			b->prio--;
+			c->min_prio = min(c->min_prio, b->prio);
+		}
 
 	mutex_unlock(&c->bucket_lock);
 }
