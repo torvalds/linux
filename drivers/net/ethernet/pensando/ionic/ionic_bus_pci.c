@@ -266,6 +266,7 @@ static int ionic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_err(dev, "Cannot identify device: %d, aborting\n", err);
 		goto err_out_teardown;
 	}
+	ionic_debugfs_add_ident(ionic);
 
 	err = ionic_init(ionic);
 	if (err) {
@@ -286,14 +287,7 @@ static int ionic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_reset;
 	}
 
-	/* Configure LIFs */
-	err = ionic_lif_identify(ionic, IONIC_LIF_TYPE_CLASSIC,
-				 &ionic->ident.lif);
-	if (err) {
-		dev_err(dev, "Cannot identify LIFs: %d, aborting\n", err);
-		goto err_out_port_reset;
-	}
-
+	/* Allocate and init the LIF */
 	err = ionic_lif_size(ionic);
 	if (err) {
 		dev_err(dev, "Cannot size LIF: %d, aborting\n", err);
