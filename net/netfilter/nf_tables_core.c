@@ -47,6 +47,16 @@ static inline void nft_trace_packet(struct nft_traceinfo *info,
 	}
 }
 
+static void nft_bitwise_fast_eval(const struct nft_expr *expr,
+				  struct nft_regs *regs)
+{
+	const struct nft_bitwise_fast_expr *priv = nft_expr_priv(expr);
+	u32 *src = &regs->data[priv->sreg];
+	u32 *dst = &regs->data[priv->dreg];
+
+	*dst = (*src & priv->mask) ^ priv->xor;
+}
+
 static void nft_cmp_fast_eval(const struct nft_expr *expr,
 			      struct nft_regs *regs)
 {
@@ -175,6 +185,8 @@ next_rule:
 		nft_rule_for_each_expr(expr, last, rule) {
 			if (expr->ops == &nft_cmp_fast_ops)
 				nft_cmp_fast_eval(expr, &regs);
+			else if (expr->ops == &nft_bitwise_fast_ops)
+				nft_bitwise_fast_eval(expr, &regs);
 			else if (expr->ops != &nft_payload_fast_ops ||
 				 !nft_payload_fast_eval(expr, &regs, pkt))
 				expr_call_ops_eval(expr, &regs, pkt);
