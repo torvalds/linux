@@ -13,8 +13,6 @@
 #include "xdr3.h"
 #include "vfs.h"
 
-#define RETURN_STATUS(st)	{ resp->status = (st); return (st); }
-
 /*
  * NULL call.
  */
@@ -34,17 +32,18 @@ static __be32 nfsd3_proc_getacl(struct svc_rqst *rqstp)
 	struct posix_acl *acl;
 	struct inode *inode;
 	svc_fh *fh;
-	__be32 nfserr = 0;
 
 	fh = fh_copy(&resp->fh, &argp->fh);
-	nfserr = fh_verify(rqstp, &resp->fh, 0, NFSD_MAY_NOP);
-	if (nfserr)
-		RETURN_STATUS(nfserr);
+	resp->status = fh_verify(rqstp, &resp->fh, 0, NFSD_MAY_NOP);
+	if (resp->status != nfs_ok)
+		goto out;
 
 	inode = d_inode(fh->fh_dentry);
 
-	if (argp->mask & ~NFS_ACL_MASK)
-		RETURN_STATUS(nfserr_inval);
+	if (argp->mask & ~NFS_ACL_MASK) {
+		resp->status = nfserr_inval;
+		goto out;
+	}
 	resp->mask = argp->mask;
 
 	if (resp->mask & (NFS_ACL|NFS_ACLCNT)) {
@@ -54,7 +53,7 @@ static __be32 nfsd3_proc_getacl(struct svc_rqst *rqstp)
 			acl = posix_acl_from_mode(inode->i_mode, GFP_KERNEL);
 		}
 		if (IS_ERR(acl)) {
-			nfserr = nfserrno(PTR_ERR(acl));
+			resp->status = nfserrno(PTR_ERR(acl));
 			goto fail;
 		}
 		resp->acl_access = acl;
@@ -64,19 +63,20 @@ static __be32 nfsd3_proc_getacl(struct svc_rqst *rqstp)
 		   of a non-directory! */
 		acl = get_acl(inode, ACL_TYPE_DEFAULT);
 		if (IS_ERR(acl)) {
-			nfserr = nfserrno(PTR_ERR(acl));
+			resp->status = nfserrno(PTR_ERR(acl));
 			goto fail;
 		}
 		resp->acl_default = acl;
 	}
 
 	/* resp->acl_{access,default} are released in nfs3svc_release_getacl. */
-	RETURN_STATUS(0);
+out:
+	return resp->status;
 
 fail:
 	posix_acl_release(resp->acl_access);
 	posix_acl_release(resp->acl_default);
-	RETURN_STATUS(nfserr);
+	goto out;
 }
 
 /*
@@ -88,12 +88,11 @@ static __be32 nfsd3_proc_setacl(struct svc_rqst *rqstp)
 	struct nfsd3_attrstat *resp = rqstp->rq_resp;
 	struct inode *inode;
 	svc_fh *fh;
-	__be32 nfserr = 0;
 	int error;
 
 	fh = fh_copy(&resp->fh, &argp->fh);
-	nfserr = fh_verify(rqstp, &resp->fh, 0, NFSD_MAY_SATTR);
-	if (nfserr)
+	resp->status = fh_verify(rqstp, &resp->fh, 0, NFSD_MAY_SATTR);
+	if (resp->status != nfs_ok)
 		goto out;
 
 	inode = d_inode(fh->fh_dentry);
@@ -113,13 +112,13 @@ out_drop_lock:
 	fh_unlock(fh);
 	fh_drop_write(fh);
 out_errno:
-	nfserr = nfserrno(error);
+	resp->status = nfserrno(error);
 out:
 	/* argp->acl_{access,default} may have been allocated in
 	   nfs3svc_decode_setaclargs. */
 	posix_acl_release(argp->acl_access);
 	posix_acl_release(argp->acl_default);
-	RETURN_STATUS(nfserr);
+	return resp->status;
 }
 
 /*
