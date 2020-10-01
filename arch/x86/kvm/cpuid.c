@@ -217,46 +217,53 @@ int kvm_vcpu_ioctl_set_cpuid(struct kvm_vcpu *vcpu,
 			     struct kvm_cpuid_entry __user *entries)
 {
 	int r, i;
-	struct kvm_cpuid_entry *cpuid_entries = NULL;
+	struct kvm_cpuid_entry *e = NULL;
+	struct kvm_cpuid_entry2 *e2 = NULL;
 
-	r = -E2BIG;
 	if (cpuid->nent > KVM_MAX_CPUID_ENTRIES)
-		goto out;
+		return -E2BIG;
+
 	if (cpuid->nent) {
-		cpuid_entries = vmemdup_user(entries,
-					     array_size(sizeof(struct kvm_cpuid_entry),
-							cpuid->nent));
-		if (IS_ERR(cpuid_entries)) {
-			r = PTR_ERR(cpuid_entries);
-			goto out;
+		e = vmemdup_user(entries, array_size(sizeof(*e), cpuid->nent));
+		if (IS_ERR(e))
+			return PTR_ERR(e);
+
+		e2 = kvmalloc_array(cpuid->nent, sizeof(*e2), GFP_KERNEL_ACCOUNT);
+		if (!e2) {
+			r = -ENOMEM;
+			goto out_free_cpuid;
 		}
 	}
 	for (i = 0; i < cpuid->nent; i++) {
-		vcpu->arch.cpuid_entries[i].function = cpuid_entries[i].function;
-		vcpu->arch.cpuid_entries[i].eax = cpuid_entries[i].eax;
-		vcpu->arch.cpuid_entries[i].ebx = cpuid_entries[i].ebx;
-		vcpu->arch.cpuid_entries[i].ecx = cpuid_entries[i].ecx;
-		vcpu->arch.cpuid_entries[i].edx = cpuid_entries[i].edx;
-		vcpu->arch.cpuid_entries[i].index = 0;
-		vcpu->arch.cpuid_entries[i].flags = 0;
-		vcpu->arch.cpuid_entries[i].padding[0] = 0;
-		vcpu->arch.cpuid_entries[i].padding[1] = 0;
-		vcpu->arch.cpuid_entries[i].padding[2] = 0;
+		e2[i].function = e[i].function;
+		e2[i].eax = e[i].eax;
+		e2[i].ebx = e[i].ebx;
+		e2[i].ecx = e[i].ecx;
+		e2[i].edx = e[i].edx;
+		e2[i].index = 0;
+		e2[i].flags = 0;
+		e2[i].padding[0] = 0;
+		e2[i].padding[1] = 0;
+		e2[i].padding[2] = 0;
 	}
-	vcpu->arch.cpuid_nent = cpuid->nent;
-	r = kvm_check_cpuid(vcpu->arch.cpuid_entries, cpuid->nent);
+
+	r = kvm_check_cpuid(e2, cpuid->nent);
 	if (r) {
-		vcpu->arch.cpuid_nent = 0;
-		kvfree(cpuid_entries);
-		goto out;
+		kvfree(e2);
+		goto out_free_cpuid;
 	}
+
+	kvfree(vcpu->arch.cpuid_entries);
+	vcpu->arch.cpuid_entries = e2;
+	vcpu->arch.cpuid_nent = cpuid->nent;
 
 	cpuid_fix_nx_cap(vcpu);
 	kvm_update_cpuid_runtime(vcpu);
 	kvm_vcpu_after_set_cpuid(vcpu);
 
-	kvfree(cpuid_entries);
-out:
+out_free_cpuid:
+	kvfree(e);
+
 	return r;
 }
 
@@ -264,26 +271,32 @@ int kvm_vcpu_ioctl_set_cpuid2(struct kvm_vcpu *vcpu,
 			      struct kvm_cpuid2 *cpuid,
 			      struct kvm_cpuid_entry2 __user *entries)
 {
+	struct kvm_cpuid_entry2 *e2 = NULL;
 	int r;
 
-	r = -E2BIG;
 	if (cpuid->nent > KVM_MAX_CPUID_ENTRIES)
-		goto out;
-	r = -EFAULT;
-	if (copy_from_user(&vcpu->arch.cpuid_entries, entries,
-			   cpuid->nent * sizeof(struct kvm_cpuid_entry2)))
-		goto out;
-	vcpu->arch.cpuid_nent = cpuid->nent;
-	r = kvm_check_cpuid(vcpu->arch.cpuid_entries, cpuid->nent);
-	if (r) {
-		vcpu->arch.cpuid_nent = 0;
-		goto out;
+		return -E2BIG;
+
+	if (cpuid->nent) {
+		e2 = vmemdup_user(entries, array_size(sizeof(*e2), cpuid->nent));
+		if (IS_ERR(e2))
+			return PTR_ERR(e2);
 	}
+
+	r = kvm_check_cpuid(e2, cpuid->nent);
+	if (r) {
+		kvfree(e2);
+		return r;
+	}
+
+	kvfree(vcpu->arch.cpuid_entries);
+	vcpu->arch.cpuid_entries = e2;
+	vcpu->arch.cpuid_nent = cpuid->nent;
 
 	kvm_update_cpuid_runtime(vcpu);
 	kvm_vcpu_after_set_cpuid(vcpu);
-out:
-	return r;
+
+	return 0;
 }
 
 int kvm_vcpu_ioctl_get_cpuid2(struct kvm_vcpu *vcpu,
