@@ -517,8 +517,6 @@ struct cache_set {
 	atomic_t		idle_counter;
 	atomic_t		at_max_writeback_rate;
 
-	struct cache_sb		sb;
-
 	struct cache		*cache;
 
 	struct bcache_device	**devices;
@@ -799,7 +797,7 @@ static inline sector_t bucket_to_sector(struct cache_set *c, size_t b)
 
 static inline sector_t bucket_remainder(struct cache_set *c, sector_t s)
 {
-	return s & (c->sb.bucket_size - 1);
+	return s & (c->cache->sb.bucket_size - 1);
 }
 
 static inline struct cache *PTR_CACHE(struct cache_set *c,

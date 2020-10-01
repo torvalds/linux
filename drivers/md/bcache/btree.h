@@ -194,7 +194,7 @@ static inline unsigned int bset_block_offset(struct btree *b, struct bset *i)
 
 static inline void set_gc_sectors(struct cache_set *c)
 {
-	atomic_set(&c->sectors_to_gc, c->sb.bucket_size * c->nbuckets / 16);
+	atomic_set(&c->sectors_to_gc, c->cache->sb.bucket_size * c->nbuckets / 16);
 }
 
 void bkey_put(struct cache_set *c, struct bkey *k);

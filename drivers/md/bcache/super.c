@@ -350,16 +350,10 @@ void bcache_write_super(struct cache_set *c)
 	down(&c->sb_write_mutex);
 	closure_init(cl, &c->cl);
 
-	c->sb.seq++;
+	ca->sb.seq++;
 
-	if (c->sb.version > version)
-		version = c->sb.version;
-
-	ca->sb.version		= version;
-	ca->sb.seq		= c->sb.seq;
-	ca->sb.last_mount	= c->sb.last_mount;
-
-	SET_CACHE_SYNC(&ca->sb, CACHE_SYNC(&c->sb));
+	if (ca->sb.version < version)
+		ca->sb.version = version;
 
 	bio_init(bio, ca->sb_bv, 1);
 	bio_set_dev(bio, ca->bdev);
@@ -477,7 +471,7 @@ static int __uuid_write(struct cache_set *c)
 {
 	BKEY_PADDED(key) k;
 	struct closure cl;
-	struct cache *ca;
+	struct cache *ca = c->cache;
 	unsigned int size;
 
 	closure_init_stack(&cl);
@@ -486,13 +480,12 @@ static int __uuid_write(struct cache_set *c)
 	if (bch_bucket_alloc_set(c, RESERVE_BTREE, &k.key, true))
 		return 1;
 
-	size =  meta_bucket_pages(&c->sb) * PAGE_SECTORS;
+	size =  meta_bucket_pages(&ca->sb) * PAGE_SECTORS;
 	SET_KEY_SIZE(&k.key, size);
 	uuid_io(c, REQ_OP_WRITE, 0, &k.key, &cl);
 	closure_sync(&cl);
 
 	/* Only one bucket used for uuid write */
-	ca = PTR_CACHE(c, &k.key, 0);
 	atomic_long_add(ca->sb.bucket_size, &ca->meta_sectors_written);
 
 	bkey_copy(&c->uuid_bucket, &k.key);
@@ -1205,7 +1198,7 @@ int bch_cached_dev_attach(struct cached_dev *dc, struct cache_set *c,
 		return -EINVAL;
 	}
 
-	if (dc->sb.block_size < c->sb.block_size) {
+	if (dc->sb.block_size < c->cache->sb.block_size) {
 		/* Will die */
 		pr_err("Couldn't attach %s: block size less than set's block size\n",
 		       dc->backing_dev_name);
@@ -1663,6 +1656,9 @@ static void cache_set_free(struct closure *cl)
 	bch_journal_free(c);
 
 	mutex_lock(&bch_register_lock);
+	bch_bset_sort_state_free(&c->sort);
+	free_pages((unsigned long) c->uuids, ilog2(meta_bucket_pages(&c->cache->sb)));
+
 	ca = c->cache;
 	if (ca) {
 		ca->set = NULL;
@@ -1670,8 +1666,6 @@ static void cache_set_free(struct closure *cl)
 		kobject_put(&ca->kobj);
 	}
 
-	bch_bset_sort_state_free(&c->sort);
-	free_pages((unsigned long) c->uuids, ilog2(meta_bucket_pages(&c->sb)));
 
 	if (c->moving_gc_wq)
 		destroy_workqueue(c->moving_gc_wq);
@@ -1837,6 +1831,7 @@ void bch_cache_set_unregister(struct cache_set *c)
 struct cache_set *bch_cache_set_alloc(struct cache_sb *sb)
 {
 	int iter_size;
+	struct cache *ca = container_of(sb, struct cache, sb);
 	struct cache_set *c = kzalloc(sizeof(struct cache_set), GFP_KERNEL);
 
 	if (!c)
@@ -1859,23 +1854,15 @@ struct cache_set *bch_cache_set_alloc(struct cache_sb *sb)
 	bch_cache_accounting_init(&c->accounting, &c->cl);
 
 	memcpy(c->set_uuid, sb->set_uuid, 16);
-	c->sb.block_size	= sb->block_size;
-	c->sb.bucket_size	= sb->bucket_size;
-	c->sb.nr_in_set		= sb->nr_in_set;
-	c->sb.last_mount	= sb->last_mount;
-	c->sb.version		= sb->version;
-	if (c->sb.version >= BCACHE_SB_VERSION_CDEV_WITH_FEATURES) {
-		c->sb.feature_compat = sb->feature_compat;
-		c->sb.feature_ro_compat = sb->feature_ro_compat;
-		c->sb.feature_incompat = sb->feature_incompat;
-	}
 
+	c->cache		= ca;
+	c->cache->set		= c;
 	c->bucket_bits		= ilog2(sb->bucket_size);
 	c->block_bits		= ilog2(sb->block_size);
-	c->nr_uuids		= meta_bucket_bytes(&c->sb) / sizeof(struct uuid_entry);
+	c->nr_uuids		= meta_bucket_bytes(sb) / sizeof(struct uuid_entry);
 	c->devices_max_used	= 0;
 	atomic_set(&c->attached_dev_nr, 0);
-	c->btree_pages		= meta_bucket_pages(&c->sb);
+	c->btree_pages		= meta_bucket_pages(sb);
 	if (c->btree_pages > BTREE_MAX_PAGES)
 		c->btree_pages = max_t(int, c->btree_pages / 4,
 				       BTREE_MAX_PAGES);
@@ -1913,7 +1900,7 @@ struct cache_set *bch_cache_set_alloc(struct cache_sb *sb)
 
 	if (mempool_init_kmalloc_pool(&c->bio_meta, 2,
 			sizeof(struct bbio) +
-			sizeof(struct bio_vec) * meta_bucket_pages(&c->sb)))
+			sizeof(struct bio_vec) * meta_bucket_pages(sb)))
 		goto err;
 
 	if (mempool_init_kmalloc_pool(&c->fill_iter, 1, iter_size))
@@ -1923,7 +1910,7 @@ struct cache_set *bch_cache_set_alloc(struct cache_sb *sb)
 			BIOSET_NEED_BVECS|BIOSET_NEED_RESCUER))
 		goto err;
 
-	c->uuids = alloc_meta_bucket_pages(GFP_KERNEL, &c->sb);
+	c->uuids = alloc_meta_bucket_pages(GFP_KERNEL, sb);
 	if (!c->uuids)
 		goto err;
 
@@ -2103,7 +2090,7 @@ static int run_cache_set(struct cache_set *c)
 		goto err;
 
 	closure_sync(&cl);
-	c->sb.last_mount = (u32)ktime_get_real_seconds();
+	c->cache->sb.last_mount = (u32)ktime_get_real_seconds();
 	bcache_write_super(c);
 
 	list_for_each_entry_safe(dc, t, &uncached_devices, list)

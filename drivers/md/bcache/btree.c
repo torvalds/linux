@@ -117,7 +117,7 @@ static void bch_btree_init_next(struct btree *b)
 
 	if (b->written < btree_blocks(b))
 		bch_bset_init_next(&b->keys, write_block(b),
-				   bset_magic(&b->c->sb));
+				   bset_magic(&b->c->cache->sb));
 
 }
 
@@ -155,7 +155,7 @@ void bch_btree_node_read_done(struct btree *b)
 	 * See the comment arount cache_set->fill_iter.
 	 */
 	iter = mempool_alloc(&b->c->fill_iter, GFP_NOIO);
-	iter->size = b->c->sb.bucket_size / b->c->sb.block_size;
+	iter->size = b->c->cache->sb.bucket_size / b->c->cache->sb.block_size;
 	iter->used = 0;
 
 #ifdef CONFIG_BCACHE_DEBUG
@@ -178,7 +178,7 @@ void bch_btree_node_read_done(struct btree *b)
 			goto err;
 
 		err = "bad magic";
-		if (i->magic != bset_magic(&b->c->sb))
+		if (i->magic != bset_magic(&b->c->cache->sb))
 			goto err;
 
 		err = "bad checksum";
@@ -219,7 +219,7 @@ void bch_btree_node_read_done(struct btree *b)
 
 	if (b->written < btree_blocks(b))
 		bch_bset_init_next(&b->keys, write_block(b),
-				   bset_magic(&b->c->sb));
+				   bset_magic(&b->c->cache->sb));
 out:
 	mempool_free(iter, &b->c->fill_iter);
 	return;
@@ -423,7 +423,7 @@ void __bch_btree_node_write(struct btree *b, struct closure *parent)
 
 	do_btree_node_write(b);
 
-	atomic_long_add(set_blocks(i, block_bytes(b->c->cache)) * b->c->sb.block_size,
+	atomic_long_add(set_blocks(i, block_bytes(b->c->cache)) * b->c->cache->sb.block_size,
 			&PTR_CACHE(b->c, &b->key, 0)->btree_sectors_written);
 
 	b->written += set_blocks(i, block_bytes(b->c->cache));
@@ -738,7 +738,7 @@ void bch_btree_cache_free(struct cache_set *c)
 	if (c->verify_data)
 		list_move(&c->verify_data->list, &c->btree_cache);
 
-	free_pages((unsigned long) c->verify_ondisk, ilog2(meta_bucket_pages(&c->sb)));
+	free_pages((unsigned long) c->verify_ondisk, ilog2(meta_bucket_pages(&c->cache->sb)));
 #endif
 
 	list_splice(&c->btree_cache_freeable,
@@ -785,7 +785,8 @@ int bch_btree_cache_alloc(struct cache_set *c)
 	mutex_init(&c->verify_lock);
 
 	c->verify_ondisk = (void *)
-		__get_free_pages(GFP_KERNEL|__GFP_COMP, ilog2(meta_bucket_pages(&c->sb)));
+		__get_free_pages(GFP_KERNEL|__GFP_COMP,
+				 ilog2(meta_bucket_pages(&c->cache->sb)));
 	if (!c->verify_ondisk) {
 		/*
 		 * Don't worry about the mca_rereserve buckets
@@ -1108,7 +1109,7 @@ retry:
 	}
 
 	b->parent = parent;
-	bch_bset_init_next(&b->keys, b->keys.set->data, bset_magic(&b->c->sb));
+	bch_bset_init_next(&b->keys, b->keys.set->data, bset_magic(&b->c->cache->sb));
 
 	mutex_unlock(&c->bucket_lock);
 

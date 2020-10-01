@@ -666,7 +666,7 @@ static void journal_reclaim(struct cache_set *c)
 
 	bkey_init(k);
 	SET_KEY_PTRS(k, 1);
-	c->journal.blocks_free = c->sb.bucket_size >> c->block_bits;
+	c->journal.blocks_free = ca->sb.bucket_size >> c->block_bits;
 
 out:
 	if (!journal_full(&c->journal))
@@ -735,7 +735,7 @@ static void journal_write_unlocked(struct closure *cl)
 	struct journal_write *w = c->journal.cur;
 	struct bkey *k = &c->journal.key;
 	unsigned int i, sectors = set_blocks(w->data, block_bytes(ca)) *
-		c->sb.block_size;
+		ca->sb.block_size;
 
 	struct bio *bio;
 	struct bio_list list;
@@ -762,7 +762,7 @@ static void journal_write_unlocked(struct closure *cl)
 	bkey_copy(&w->data->uuid_bucket, &c->uuid_bucket);
 
 	w->data->prio_bucket[ca->sb.nr_this_dev] = ca->prio_buckets[0];
-	w->data->magic		= jset_magic(&c->sb);
+	w->data->magic		= jset_magic(&ca->sb);
 	w->data->version	= BCACHE_JSET_VERSION;
 	w->data->last_seq	= last_seq(&c->journal);
 	w->data->csum		= csum_set(w->data);
@@ -838,6 +838,7 @@ static struct journal_write *journal_wait_for_write(struct cache_set *c,
 	size_t sectors;
 	struct closure cl;
 	bool wait = false;
+	struct cache *ca = c->cache;
 
 	closure_init_stack(&cl);
 
@@ -847,10 +848,10 @@ static struct journal_write *journal_wait_for_write(struct cache_set *c,
 		struct journal_write *w = c->journal.cur;
 
 		sectors = __set_blocks(w->data, w->data->keys + nkeys,
-				       block_bytes(c->cache)) * c->sb.block_size;
+				       block_bytes(ca)) * ca->sb.block_size;
 
 		if (sectors <= min_t(size_t,
-				     c->journal.blocks_free * c->sb.block_size,
+				     c->journal.blocks_free * ca->sb.block_size,
 				     PAGE_SECTORS << JSET_BITS))
 			return w;
 
