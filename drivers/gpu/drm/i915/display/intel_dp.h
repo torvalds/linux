@@ -45,8 +45,7 @@ bool intel_dp_init(struct drm_i915_private *dev_priv, i915_reg_t output_reg,
 bool intel_dp_init_connector(struct intel_digital_port *dig_port,
 			     struct intel_connector *intel_connector);
 void intel_dp_set_link_params(struct intel_dp *intel_dp,
-			      int link_rate, u8 lane_count,
-			      bool link_mst);
+			      int link_rate, int lane_count);
 int intel_dp_get_link_train_fallback_values(struct intel_dp *intel_dp,
 					    int link_rate, u8 lane_count);
 int intel_dp_retrain_link(struct intel_encoder *encoder,
@@ -93,10 +92,13 @@ void intel_edp_drrs_flush(struct drm_i915_private *dev_priv,
 
 void
 intel_dp_program_link_training_pattern(struct intel_dp *intel_dp,
+				       const struct intel_crtc_state *crtc_state,
 				       u8 dp_train_pat);
 void
-intel_dp_set_signal_levels(struct intel_dp *intel_dp);
-void intel_dp_set_idle_link_train(struct intel_dp *intel_dp);
+intel_dp_set_signal_levels(struct intel_dp *intel_dp,
+			   const struct intel_crtc_state *crtc_state);
+void intel_dp_set_idle_link_train(struct intel_dp *intel_dp,
+				  const struct intel_crtc_state *crtc_state);
 void intel_dp_compute_rate(struct intel_dp *intel_dp, int port_clock,
 			   u8 *link_bw, u8 *rate_select);
 bool intel_dp_source_supports_hbr2(struct intel_dp *intel_dp);

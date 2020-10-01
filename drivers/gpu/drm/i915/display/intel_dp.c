@@ -2799,13 +2799,11 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 }
 
 void intel_dp_set_link_params(struct intel_dp *intel_dp,
-			      int link_rate, u8 lane_count,
-			      bool link_mst)
+			      int link_rate, int lane_count)
 {
 	intel_dp->link_trained = false;
 	intel_dp->link_rate = link_rate;
 	intel_dp->lane_count = lane_count;
-	intel_dp->link_mst = link_mst;
 }
 
 static void intel_dp_prepare(struct intel_encoder *encoder,
@@ -2817,10 +2815,9 @@ static void intel_dp_prepare(struct intel_encoder *encoder,
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	const struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
 
-	intel_dp_set_link_params(intel_dp, pipe_config->port_clock,
-				 pipe_config->lane_count,
-				 intel_crtc_has_type(pipe_config,
-						     INTEL_OUTPUT_DP_MST));
+	intel_dp_set_link_params(intel_dp,
+				 pipe_config->port_clock,
+				 pipe_config->lane_count);
 
 	/*
 	 * There are four kinds of DP registers:
@@ -3791,6 +3788,7 @@ static void chv_post_disable_dp(struct intel_atomic_state *state,
 
 static void
 cpt_set_link_train(struct intel_dp *intel_dp,
+		   const struct intel_crtc_state *crtc_state,
 		   u8 dp_train_pat)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
@@ -3821,6 +3819,7 @@ cpt_set_link_train(struct intel_dp *intel_dp,
 
 static void
 g4x_set_link_train(struct intel_dp *intel_dp,
+		   const struct intel_crtc_state *crtc_state,
 		   u8 dp_train_pat)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
@@ -3856,7 +3855,8 @@ static void intel_dp_enable_port(struct intel_dp *intel_dp,
 
 	/* enable with pattern 1 (as per spec) */
 
-	intel_dp_program_link_training_pattern(intel_dp, DP_TRAINING_PATTERN_1);
+	intel_dp_program_link_training_pattern(intel_dp, crtc_state,
+					       DP_TRAINING_PATTERN_1);
 
 	/*
 	 * Magic for VLV/CHV. We _must_ first set up the register
@@ -3947,8 +3947,8 @@ static void intel_enable_dp(struct intel_atomic_state *state,
 
 	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
 	intel_dp_configure_protocol_converter(intel_dp);
-	intel_dp_start_link_train(intel_dp);
-	intel_dp_stop_link_train(intel_dp);
+	intel_dp_start_link_train(intel_dp, pipe_config);
+	intel_dp_stop_link_train(intel_dp, pipe_config);
 
 	if (pipe_config->has_audio) {
 		drm_dbg(&dev_priv->drm, "Enabling DP audio on pipe %c\n",
@@ -4157,12 +4157,14 @@ intel_dp_get_link_status(struct intel_dp *intel_dp, u8 link_status[DP_LINK_STATU
 				DP_LINK_STATUS_SIZE) == DP_LINK_STATUS_SIZE;
 }
 
-static u8 intel_dp_voltage_max_2(struct intel_dp *intel_dp)
+static u8 intel_dp_voltage_max_2(struct intel_dp *intel_dp,
+				 const struct intel_crtc_state *crtc_state)
 {
 	return DP_TRAIN_VOLTAGE_SWING_LEVEL_2;
 }
 
-static u8 intel_dp_voltage_max_3(struct intel_dp *intel_dp)
+static u8 intel_dp_voltage_max_3(struct intel_dp *intel_dp,
+				 const struct intel_crtc_state *crtc_state)
 {
 	return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
 }
@@ -4177,7 +4179,8 @@ static u8 intel_dp_preemph_max_3(struct intel_dp *intel_dp)
 	return DP_TRAIN_PRE_EMPH_LEVEL_3;
 }
 
-static void vlv_set_signal_levels(struct intel_dp *intel_dp)
+static void vlv_set_signal_levels(struct intel_dp *intel_dp,
+				  const struct intel_crtc_state *crtc_state)
 {
 	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 	unsigned long demph_reg_value, preemph_reg_value,
@@ -4257,11 +4260,13 @@ static void vlv_set_signal_levels(struct intel_dp *intel_dp)
 		return;
 	}
 
-	vlv_set_phy_signal_level(encoder, demph_reg_value, preemph_reg_value,
+	vlv_set_phy_signal_level(encoder, crtc_state,
+				 demph_reg_value, preemph_reg_value,
 				 uniqtranscale_reg_value, 0);
 }
 
-static void chv_set_signal_levels(struct intel_dp *intel_dp)
+static void chv_set_signal_levels(struct intel_dp *intel_dp,
+				  const struct intel_crtc_state *crtc_state)
 {
 	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 	u32 deemph_reg_value, margin_reg_value;
@@ -4338,8 +4343,9 @@ static void chv_set_signal_levels(struct intel_dp *intel_dp)
 		return;
 	}
 
-	chv_set_phy_signal_level(encoder, deemph_reg_value,
-				 margin_reg_value, uniq_trans_scale);
+	chv_set_phy_signal_level(encoder, crtc_state,
+				 deemph_reg_value, margin_reg_value,
+				 uniq_trans_scale);
 }
 
 static u32 g4x_signal_levels(u8 train_set)
@@ -4380,7 +4386,8 @@ static u32 g4x_signal_levels(u8 train_set)
 }
 
 static void
-g4x_set_signal_levels(struct intel_dp *intel_dp)
+g4x_set_signal_levels(struct intel_dp *intel_dp,
+		      const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	u8 train_set = intel_dp->train_set[0];
@@ -4427,7 +4434,8 @@ static u32 snb_cpu_edp_signal_levels(u8 train_set)
 }
 
 static void
-snb_cpu_edp_set_signal_levels(struct intel_dp *intel_dp)
+snb_cpu_edp_set_signal_levels(struct intel_dp *intel_dp,
+			      const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	u8 train_set = intel_dp->train_set[0];
@@ -4478,7 +4486,8 @@ static u32 ivb_cpu_edp_signal_levels(u8 train_set)
 }
 
 static void
-ivb_cpu_edp_set_signal_levels(struct intel_dp *intel_dp)
+ivb_cpu_edp_set_signal_levels(struct intel_dp *intel_dp,
+			      const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	u8 train_set = intel_dp->train_set[0];
@@ -4496,7 +4505,8 @@ ivb_cpu_edp_set_signal_levels(struct intel_dp *intel_dp)
 	intel_de_posting_read(dev_priv, intel_dp->output_reg);
 }
 
-void intel_dp_set_signal_levels(struct intel_dp *intel_dp)
+void intel_dp_set_signal_levels(struct intel_dp *intel_dp,
+				const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	u8 train_set = intel_dp->train_set[0];
@@ -4510,11 +4520,12 @@ void intel_dp_set_signal_levels(struct intel_dp *intel_dp)
 		    train_set & DP_TRAIN_MAX_PRE_EMPHASIS_REACHED ?
 		    " (max)" : "");
 
-	intel_dp->set_signal_levels(intel_dp);
+	intel_dp->set_signal_levels(intel_dp, crtc_state);
 }
 
 void
 intel_dp_program_link_training_pattern(struct intel_dp *intel_dp,
+				       const struct intel_crtc_state *crtc_state,
 				       u8 dp_train_pat)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
@@ -4525,13 +4536,14 @@ intel_dp_program_link_training_pattern(struct intel_dp *intel_dp,
 			    "Using DP training pattern TPS%d\n",
 			    dp_train_pat & train_pat_mask);
 
-	intel_dp->set_link_train(intel_dp, dp_train_pat);
+	intel_dp->set_link_train(intel_dp, crtc_state, dp_train_pat);
 }
 
-void intel_dp_set_idle_link_train(struct intel_dp *intel_dp)
+void intel_dp_set_idle_link_train(struct intel_dp *intel_dp,
+				  const struct intel_crtc_state *crtc_state)
 {
 	if (intel_dp->set_idle_link_train)
-		intel_dp->set_idle_link_train(intel_dp);
+		intel_dp->set_idle_link_train(intel_dp, crtc_state);
 }
 
 static void
@@ -5424,14 +5436,14 @@ static u8 intel_dp_autotest_edid(struct intel_dp *intel_dp)
 	return test_result;
 }
 
-static void intel_dp_phy_pattern_update(struct intel_dp *intel_dp)
+static void intel_dp_phy_pattern_update(struct intel_dp *intel_dp,
+					const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv =
 			to_i915(dp_to_dig_port(intel_dp)->base.base.dev);
-	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_dp_phy_test_params *data =
 			&intel_dp->compliance.test_data.phytest;
-	struct intel_crtc *crtc = to_intel_crtc(dig_port->base.base.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	enum pipe pipe = crtc->pipe;
 	u32 pattern_val;
 
@@ -5491,7 +5503,8 @@ static void intel_dp_phy_pattern_update(struct intel_dp *intel_dp)
 }
 
 static void
-intel_dp_autotest_phy_ddi_disable(struct intel_dp *intel_dp)
+intel_dp_autotest_phy_ddi_disable(struct intel_dp *intel_dp,
+				  const struct intel_crtc_state *crtc_state)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = dig_port->base.base.dev;
@@ -5517,7 +5530,8 @@ intel_dp_autotest_phy_ddi_disable(struct intel_dp *intel_dp)
 }
 
 static void
-intel_dp_autotest_phy_ddi_enable(struct intel_dp *intel_dp, uint8_t lane_cnt)
+intel_dp_autotest_phy_ddi_enable(struct intel_dp *intel_dp,
+				 const struct intel_crtc_state *crtc_state)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = dig_port->base.base.dev;
@@ -5543,7 +5557,8 @@ intel_dp_autotest_phy_ddi_enable(struct intel_dp *intel_dp, uint8_t lane_cnt)
 		       trans_ddi_func_ctl_value);
 }
 
-static void intel_dp_process_phy_request(struct intel_dp *intel_dp)
+static void intel_dp_process_phy_request(struct intel_dp *intel_dp,
+					 const struct intel_crtc_state *crtc_state)
 {
 	struct drm_dp_phy_test_params *data =
 		&intel_dp->compliance.test_data.phytest;
@@ -5555,15 +5570,15 @@ static void intel_dp_process_phy_request(struct intel_dp *intel_dp)
 	}
 
 	/* retrieve vswing & pre-emphasis setting */
-	intel_dp_get_adjust_train(intel_dp, link_status);
+	intel_dp_get_adjust_train(intel_dp, crtc_state, link_status);
 
-	intel_dp_autotest_phy_ddi_disable(intel_dp);
+	intel_dp_autotest_phy_ddi_disable(intel_dp, crtc_state);
 
-	intel_dp_set_signal_levels(intel_dp);
+	intel_dp_set_signal_levels(intel_dp, crtc_state);
 
-	intel_dp_phy_pattern_update(intel_dp);
+	intel_dp_phy_pattern_update(intel_dp, crtc_state);
 
-	intel_dp_autotest_phy_ddi_enable(intel_dp, data->num_lanes);
+	intel_dp_autotest_phy_ddi_enable(intel_dp, crtc_state);
 
 	drm_dp_set_phy_test_pattern(&intel_dp->aux, data,
 				    link_status[DP_DPCD_REV]);
@@ -5719,6 +5734,10 @@ intel_dp_needs_link_retrain(struct intel_dp *intel_dp)
 	/*
 	 * Validate the cached values of intel_dp->link_rate and
 	 * intel_dp->lane_count before attempting to retrain.
+	 *
+	 * FIXME would be nice to user the crtc state here, but since
+	 * we need to call this from the short HPD handler that seems
+	 * a bit hard.
 	 */
 	if (!intel_dp_link_params_valid(intel_dp, intel_dp->link_rate,
 					intel_dp->lane_count))
@@ -5852,8 +5871,20 @@ int intel_dp_retrain_link(struct intel_encoder *encoder,
 							      intel_crtc_pch_transcoder(crtc), false);
 	}
 
-	intel_dp_start_link_train(intel_dp);
-	intel_dp_stop_link_train(intel_dp);
+	for_each_intel_crtc_mask(&dev_priv->drm, crtc, crtc_mask) {
+		const struct intel_crtc_state *crtc_state =
+			to_intel_crtc_state(crtc->base.state);
+
+		/* retrain on the MST master transcoder */
+		if (INTEL_GEN(dev_priv) >= 12 &&
+		    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST) &&
+		    !intel_dp_mst_is_master_trans(crtc_state))
+			continue;
+
+		intel_dp_start_link_train(intel_dp, crtc_state);
+		intel_dp_stop_link_train(intel_dp, crtc_state);
+		break;
+	}
 
 	for_each_intel_crtc_mask(&dev_priv->drm, crtc, crtc_mask) {
 		const struct intel_crtc_state *crtc_state =
@@ -5923,6 +5954,7 @@ static int intel_dp_do_phy_test(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+	struct intel_crtc *crtc;
 	u32 crtc_mask;
 	int ret;
 
@@ -5940,7 +5972,20 @@ static int intel_dp_do_phy_test(struct intel_encoder *encoder,
 
 	drm_dbg_kms(&dev_priv->drm, "[ENCODER:%d:%s] PHY test\n",
 		    encoder->base.base.id, encoder->base.name);
-	intel_dp_process_phy_request(intel_dp);
+
+	for_each_intel_crtc_mask(&dev_priv->drm, crtc, crtc_mask) {
+		const struct intel_crtc_state *crtc_state =
+			to_intel_crtc_state(crtc->base.state);
+
+		/* test on the MST master transcoder */
+		if (INTEL_GEN(dev_priv) >= 12 &&
+		    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST) &&
+		    !intel_dp_mst_is_master_trans(crtc_state))
+			continue;
+
+		intel_dp_process_phy_request(intel_dp, crtc_state);
+		break;
+	}
 
 	return 0;
 }

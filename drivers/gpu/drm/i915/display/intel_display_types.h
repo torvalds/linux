@@ -1273,7 +1273,6 @@ struct intel_dp {
 	int link_rate;
 	u8 lane_count;
 	u8 sink_count;
-	bool link_mst;
 	bool link_trained;
 	bool has_hdmi_sink;
 	bool has_audio;
@@ -1366,13 +1365,19 @@ struct intel_dp {
 	i915_reg_t (*aux_ch_data_reg)(struct intel_dp *dp, int index);
 
 	/* This is called before a link training is starterd */
-	void (*prepare_link_retrain)(struct intel_dp *intel_dp);
-	void (*set_link_train)(struct intel_dp *intel_dp, u8 dp_train_pat);
-	void (*set_idle_link_train)(struct intel_dp *intel_dp);
-	void (*set_signal_levels)(struct intel_dp *intel_dp);
+	void (*prepare_link_retrain)(struct intel_dp *intel_dp,
+				     const struct intel_crtc_state *crtc_state);
+	void (*set_link_train)(struct intel_dp *intel_dp,
+			       const struct intel_crtc_state *crtc_state,
+			       u8 dp_train_pat);
+	void (*set_idle_link_train)(struct intel_dp *intel_dp,
+				    const struct intel_crtc_state *crtc_state);
+	void (*set_signal_levels)(struct intel_dp *intel_dp,
+				  const struct intel_crtc_state *crtc_state);
 
 	u8 (*preemph_max)(struct intel_dp *intel_dp);
-	u8 (*voltage_max)(struct intel_dp *intel_dp);
+	u8 (*voltage_max)(struct intel_dp *intel_dp,
+			  const struct intel_crtc_state *crtc_state);
 
 	/* Displayport compliance testing */
 	struct intel_dp_compliance compliance;
