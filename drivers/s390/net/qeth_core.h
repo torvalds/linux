@@ -858,7 +858,7 @@ struct qeth_card {
 	struct qeth_qdio_info qdio;
 	int read_or_write_problem;
 	struct qeth_osn_info osn_info;
-	struct qeth_discipline *discipline;
+	const struct qeth_discipline *discipline;
 	atomic_t force_alloc_skb;
 	struct service_level qeth_service_level;
 	struct qdio_ssqd_desc ssqd;
@@ -1051,8 +1051,8 @@ static inline int qeth_send_simple_setassparms_v6(struct qeth_card *card,
 
 int qeth_get_priority_queue(struct qeth_card *card, struct sk_buff *skb);
 
-extern struct qeth_discipline qeth_l2_discipline;
-extern struct qeth_discipline qeth_l3_discipline;
+extern const struct qeth_discipline qeth_l2_discipline;
+extern const struct qeth_discipline qeth_l3_discipline;
 extern const struct ethtool_ops qeth_ethtool_ops;
 extern const struct ethtool_ops qeth_osn_ethtool_ops;
 extern const struct attribute_group *qeth_generic_attr_groups[];

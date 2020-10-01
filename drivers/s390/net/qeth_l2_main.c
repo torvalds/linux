@@ -2340,7 +2340,7 @@ static int qeth_l2_control_event(struct qeth_card *card,
 	}
 }
 
-struct qeth_discipline qeth_l2_discipline = {
+const struct qeth_discipline qeth_l2_discipline = {
 	.devtype = &qeth_l2_devtype,
 	.setup = qeth_l2_probe_device,
 	.remove = qeth_l2_remove_device,
