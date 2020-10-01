@@ -214,6 +214,11 @@ struct intel_encoder {
 	 * device interrupts are disabled.
 	 */
 	void (*suspend)(struct intel_encoder *);
+	/*
+	 * Called during system reboot/shutdown after all the
+	 * encoders have been disabled and suspended.
+	 */
+	void (*shutdown)(struct intel_encoder *encoder);
 	enum hpd_pin hpd_pin;
 	enum intel_display_power_domain power_domain;
 	/* for communication with audio component; protected by av_mutex */
