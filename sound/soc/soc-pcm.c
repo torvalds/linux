@@ -784,6 +784,7 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 		 runtime->hw.rate_max);
 dynamic:
 	snd_soc_runtime_activate(rtd, substream->stream);
+	ret = 0;
 err:
 	mutex_unlock(&rtd->card->pcm_mutex);
 pm_err:
