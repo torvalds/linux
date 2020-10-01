@@ -207,6 +207,7 @@ struct ath11k_pdev_dp {
 #define DP_TX_DESC_ID_POOL_ID GENMASK(20, 19)
 
 #define ATH11K_SHADOW_DP_TIMER_INTERVAL 20
+#define ATH11K_SHADOW_CTRL_TIMER_INTERVAL 10
 
 struct ath11k_hp_update_timer {
 	struct timer_list timer;
@@ -248,6 +249,7 @@ struct ath11k_dp {
 	 * - reo_cmd_cache_flush_count
 	 */
 	spinlock_t reo_cmd_lock;
+	struct ath11k_hp_update_timer reo_cmd_timer;
 	struct ath11k_hp_update_timer tx_ring_timer[DP_TCL_NUM_RING_MAX];
 };
 

@@ -256,6 +256,8 @@ int ath11k_hal_reo_cmd_send(struct ath11k_base *ab, struct hal_srng *srng,
 		break;
 	}
 
+	ath11k_dp_shadow_start_timer(ab, srng, &ab->dp.reo_cmd_timer);
+
 out:
 	ath11k_hal_srng_access_end(ab, srng);
 	spin_unlock_bh(&srng->lock);

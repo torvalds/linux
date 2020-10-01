@@ -313,6 +313,8 @@ static void ath11k_dp_stop_shadow_timers(struct ath11k_base *ab)
 
 	for (i = 0; i < DP_TCL_NUM_RING_MAX; i++)
 		ath11k_dp_shadow_stop_timer(ab, &ab->dp.tx_ring_timer[i]);
+
+	ath11k_dp_shadow_stop_timer(ab, &ab->dp.reo_cmd_timer);
 }
 
 static void ath11k_dp_srng_common_cleanup(struct ath11k_base *ab)
@@ -424,6 +426,10 @@ static int ath11k_dp_srng_common_setup(struct ath11k_base *ab)
 
 	srng = &ab->hal.srng_list[dp->reo_cmd_ring.ring_id];
 	ath11k_hal_reo_init_cmd_ring(ab, srng);
+
+	ath11k_dp_shadow_init_timer(ab, &dp->reo_cmd_timer,
+				    ATH11K_SHADOW_CTRL_TIMER_INTERVAL,
+				    dp->reo_cmd_ring.ring_id);
 
 	ret = ath11k_dp_srng_setup(ab, &dp->reo_status_ring, HAL_REO_STATUS,
 				   0, 0, DP_REO_STATUS_RING_SIZE);
