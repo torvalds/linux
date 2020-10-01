@@ -167,7 +167,7 @@ static int sun8i_codec_get_hw_rate(struct snd_pcm_hw_params *params)
 
 static int sun8i_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
-	struct sun8i_codec *scodec = snd_soc_component_get_drvdata(dai->component);
+	struct sun8i_codec *scodec = snd_soc_dai_get_drvdata(dai);
 	u32 value;
 
 	/* clock masters */
@@ -299,7 +299,7 @@ static int sun8i_codec_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *params,
 				 struct snd_soc_dai *dai)
 {
-	struct sun8i_codec *scodec = snd_soc_component_get_drvdata(dai->component);
+	struct sun8i_codec *scodec = snd_soc_dai_get_drvdata(dai);
 	int sample_rate, lrck_div;
 	u8 bclk_div;
 
