@@ -2448,7 +2448,6 @@ static ssize_t bch_pending_bdevs_cleanup(struct kobject *k,
 
 kobj_attribute_write(register,		register_bcache);
 kobj_attribute_write(register_quiet,	register_bcache);
-kobj_attribute_write(register_async,	register_bcache);
 kobj_attribute_write(pendings_cleanup,	bch_pending_bdevs_cleanup);
 
 static bool bch_is_open_backing(struct block_device *bdev)
@@ -2571,6 +2570,11 @@ static ssize_t register_bcache(struct kobject *k, struct kobj_attribute *attr,
 	struct cache_sb_disk *sb_disk;
 	struct block_device *bdev;
 	ssize_t ret;
+	bool async_registration = false;
+
+#ifdef CONFIG_BCACHE_ASYNC_REGISTRATION
+	async_registration = true;
+#endif
 
 	ret = -EBUSY;
 	err = "failed to reference bcache module";
@@ -2624,7 +2628,8 @@ static ssize_t register_bcache(struct kobject *k, struct kobj_attribute *attr,
 		goto out_blkdev_put;
 
 	err = "failed to register device";
-	if (attr == &ksysfs_register_async) {
+
+	if (async_registration) {
 		/* register in asynchronous way */
 		struct async_reg_args *args =
 			kzalloc(sizeof(struct async_reg_args), GFP_KERNEL);
@@ -2887,9 +2892,6 @@ static int __init bcache_init(void)
 	static const struct attribute *files[] = {
 		&ksysfs_register.attr,
 		&ksysfs_register_quiet.attr,
-#ifdef CONFIG_BCACHE_ASYNC_REGISTRATION
-		&ksysfs_register_async.attr,
-#endif
 		&ksysfs_pendings_cleanup.attr,
 		NULL
 	};
