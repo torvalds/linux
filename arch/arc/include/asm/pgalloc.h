@@ -70,6 +70,17 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 	return ret;
 }
 
+#if CONFIG_PGTABLE_LEVELS > 2
+
+static inline void pud_populate(struct mm_struct *mm, pud_t *pudp, pmd_t *pmdp)
+{
+	set_pud(pudp, __pud((unsigned long)pmdp));
+}
+
+#define __pmd_free_tlb(tlb, pmd, addr)  pmd_free((tlb)->mm, pmd)
+
+#endif
+
 #define __pte_free_tlb(tlb, pte, addr)  pte_free((tlb)->mm, pte)
 
 #endif /* _ASM_ARC_PGALLOC_H */

@@ -314,6 +314,10 @@ config ARC_HUGEPAGE_16M
 
 endchoice
 
+config PGTABLE_LEVELS
+	int "Number of Page table levels"
+	default 2
+
 config ARC_COMPACT_IRQ_LEVELS
 	depends on ISA_ARCOMPACT
 	bool "Setup Timer IRQ as high Priority"

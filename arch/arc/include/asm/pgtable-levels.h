@@ -10,6 +10,8 @@
 #ifndef _ASM_ARC_PGTABLE_LEVELS_H
 #define _ASM_ARC_PGTABLE_LEVELS_H
 
+#if CONFIG_PGTABLE_LEVELS == 2
+
 /*
  * 2 level paging setup for software walked MMUv3 (ARC700) and MMUv4 (HS)
  *
@@ -47,16 +49,38 @@
 
 #endif
 
-#define PGDIR_SIZE		BIT(PGDIR_SHIFT)	/* vaddr span, not PDG sz */
-#define PGDIR_MASK		(~(PGDIR_SIZE - 1))
+#else /* CONFIG_PGTABLE_LEVELS != 2 */
 
+/*
+ * A default 3 level paging testing setup in software walked MMU
+ *   MMUv4 (8K page): <4> : <7> : <8> : <13>
+ */
+#define PGDIR_SHIFT		28
+#if CONFIG_PGTABLE_LEVELS > 2
+#define PMD_SHIFT		21
+#endif
+
+#endif /* CONFIG_PGTABLE_LEVELS */
+
+#define PGDIR_SIZE		BIT(PGDIR_SHIFT)
+#define PGDIR_MASK		(~(PGDIR_SIZE - 1))
 #define PTRS_PER_PGD		BIT(32 - PGDIR_SHIFT)
 
-#define PTRS_PER_PTE		BIT(PGDIR_SHIFT - PAGE_SHIFT)
+#if CONFIG_PGTABLE_LEVELS > 2
+#define PMD_SIZE		BIT(PMD_SHIFT)
+#define PMD_MASK		(~(PMD_SIZE - 1))
+#define PTRS_PER_PMD		BIT(PGDIR_SHIFT - PMD_SHIFT)
+#endif
+
+#define PTRS_PER_PTE		BIT(PMD_SHIFT - PAGE_SHIFT)
 
 #ifndef __ASSEMBLY__
 
+#if CONFIG_PGTABLE_LEVELS > 2
+#include <asm-generic/pgtable-nopud.h>
+#else
 #include <asm-generic/pgtable-nopmd.h>
+#endif
 
 /*
  * 1st level paging: pgd
@@ -67,9 +91,35 @@
 #define pgd_ERROR(e) \
 	pr_crit("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
 
+#if CONFIG_PGTABLE_LEVELS > 2
+
+/* In 3 level paging, pud_* macros work on pgd */
+#define pud_none(x)		(!pud_val(x))
+#define pud_bad(x)		((pud_val(x) & ~PAGE_MASK))
+#define pud_present(x)		(pud_val(x))
+#define pud_clear(xp)		do { pud_val(*(xp)) = 0; } while (0)
+#define pud_pgtable(pud)	((pmd_t *)(pud_val(pud) & PAGE_MASK))
+#define pud_page(pud)		virt_to_page(pud_pgtable(pud))
+#define set_pud(pudp, pud)	(*(pudp) = pud)
+
 /*
- * Due to the strange way generic pgtable level folding works, in a 2 level
- * setup, pmd_val() returns pgd, so these pmd_* macros actually work on pgd
+ * 2nd level paging: pmd
+ */
+#define pmd_ERROR(e) \
+	pr_crit("%s:%d: bad pmd %08lx.\n", __FILE__, __LINE__, pmd_val(e))
+
+#define pmd_pfn(pmd)		((pmd_val(pmd) & PMD_MASK) >> PAGE_SHIFT)
+#define pfn_pmd(pfn,prot)	__pmd(((pfn) << PAGE_SHIFT) | pgprot_val(prot))
+#define mk_pmd(page,prot)	pfn_pmd(page_to_pfn(page),prot)
+
+#endif
+
+/*
+ * Due to the strange way generic pgtable level folding works, the pmd_* macros
+ *  - are valid even for 2 levels (which supposedly only has pgd - pte)
+ *  - behave differently for 2 vs. 3
+ * In 2  level paging        (pgd -> pte), pmd_* macros work on pgd
+ * In 3+ level paging (pgd -> pmd -> pte), pmd_* macros work on pmd
  */
 #define pmd_none(x)		(!pmd_val(x))
 #define pmd_bad(x)		((pmd_val(x) & ~PAGE_MASK))
@@ -80,6 +130,9 @@
 #define set_pmd(pmdp, pmd)	(*(pmdp) = pmd)
 #define pmd_pgtable(pmd)	((pgtable_t) pmd_page_vaddr(pmd))
 
+/*
+ * 3rd level paging: pte
+ */
 #define pte_ERROR(e) \
 	pr_crit("%s:%d: bad pte %08lx.\n", __FILE__, __LINE__, pte_val(e))
 

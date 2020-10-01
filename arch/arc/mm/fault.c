@@ -39,6 +39,8 @@ noinline static int handle_kernel_vaddr_fault(unsigned long address)
 	if (!pgd_present(*pgd_k))
 		goto bad_area;
 
+	set_pgd(pgd, *pgd_k);
+
 	p4d = p4d_offset(pgd, address);
 	p4d_k = p4d_offset(pgd_k, address);
 	if (!p4d_present(*p4d_k))
@@ -48,6 +50,8 @@ noinline static int handle_kernel_vaddr_fault(unsigned long address)
 	pud_k = pud_offset(p4d_k, address);
 	if (!pud_present(*pud_k))
 		goto bad_area;
+
+	set_pud(pud, *pud_k);
 
 	pmd = pmd_offset(pud, address);
 	pmd_k = pmd_offset(pud_k, address);
