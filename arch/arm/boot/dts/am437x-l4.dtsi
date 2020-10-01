@@ -521,7 +521,7 @@
 			ranges = <0x0 0x100000 0x8000>;
 
 			mac_sw: switch@0 {
-				compatible = "ti,am4372-cpsw","ti,cpsw-switch";
+				compatible = "ti,am4372-cpsw-switch", "ti,cpsw-switch";
 				reg = <0x0 0x4000>;
 				ranges = <0 0 0x4000>;
 				clocks = <&cpsw_125mhz_gclk>, <&dpll_clksel_mac_clk>;
