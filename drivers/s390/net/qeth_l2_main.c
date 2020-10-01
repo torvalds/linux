@@ -183,7 +183,7 @@ static void qeth_l2_fill_header(struct qeth_qdio_out_q *queue,
 	/* VSWITCH relies on the VLAN
 	 * information to be present in
 	 * the QDIO header */
-	if (veth->h_vlan_proto == __constant_htons(ETH_P_8021Q)) {
+	if (veth->h_vlan_proto == htons(ETH_P_8021Q)) {
 		hdr->hdr.l2.flags[2] |= QETH_LAYER2_FLAG_VLAN;
 		hdr->hdr.l2.vlan_id = ntohs(veth->h_vlan_TCI);
 	}
@@ -877,7 +877,7 @@ static const struct net_device_ops qeth_l2_netdev_ops = {
 	.ndo_set_mac_address    = qeth_l2_set_mac_address,
 	.ndo_vlan_rx_add_vid	= qeth_l2_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid   = qeth_l2_vlan_rx_kill_vid,
-	.ndo_tx_timeout	   	= qeth_tx_timeout,
+	.ndo_tx_timeout		= qeth_tx_timeout,
 	.ndo_fix_features	= qeth_fix_features,
 	.ndo_set_features	= qeth_set_features,
 	.ndo_bridge_getlink	= qeth_l2_bridge_getlink,
@@ -1125,7 +1125,6 @@ void qeth_osn_deregister(struct net_device *dev)
 	QETH_CARD_TEXT(card, 2, "osndereg");
 	card->osn_info.assist_cb = NULL;
 	card->osn_info.data_cb = NULL;
-	return;
 }
 EXPORT_SYMBOL(qeth_osn_deregister);
 #endif

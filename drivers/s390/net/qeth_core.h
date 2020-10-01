@@ -177,8 +177,8 @@ struct qeth_vnicc_info {
 /**
  * some more defs
  */
-#define QETH_TX_TIMEOUT		100 * HZ
-#define QETH_RCD_TIMEOUT	60 * HZ
+#define QETH_TX_TIMEOUT		(100 * HZ)
+#define QETH_RCD_TIMEOUT	(60 * HZ)
 #define QETH_RECLAIM_WORK_TIME	HZ
 #define QETH_MAX_PORTNO		15
 
@@ -1069,7 +1069,8 @@ extern struct qeth_dbf_info qeth_dbf[QETH_DBF_INFOS];
 
 struct net_device *qeth_clone_netdev(struct net_device *orig);
 struct qeth_card *qeth_get_card_by_busid(char *bus_id);
-void qeth_set_allowed_threads(struct qeth_card *, unsigned long , int);
+void qeth_set_allowed_threads(struct qeth_card *card, unsigned long threads,
+			      int clear_start_mask);
 int qeth_threads_running(struct qeth_card *, unsigned long);
 int qeth_set_offline(struct qeth_card *card, bool resetting);
 

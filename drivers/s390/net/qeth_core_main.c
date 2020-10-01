@@ -17,6 +17,7 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/log2.h>
+#include <linux/io.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/mii.h>
@@ -35,7 +36,6 @@
 
 #include <asm/ebcdic.h>
 #include <asm/chpid.h>
-#include <asm/io.h>
 #include <asm/sysinfo.h>
 #include <asm/diag.h>
 #include <asm/cio.h>
@@ -209,9 +209,8 @@ static void qeth_clear_working_pool_list(struct qeth_card *card)
 
 	QETH_CARD_TEXT(card, 5, "clwrklst");
 	list_for_each_entry_safe(pool_entry, tmp,
-			    &card->qdio.in_buf_pool.entry_list, list){
-			list_del(&pool_entry->list);
-	}
+				 &card->qdio.in_buf_pool.entry_list, list)
+		list_del(&pool_entry->list);
 
 	for (i = 0; i < ARRAY_SIZE(queue->bufs); i++)
 		queue->bufs[i].pool_entry = NULL;
@@ -481,6 +480,7 @@ static void qeth_cleanup_handled_pending(struct qeth_qdio_out_q *q, int bidx,
 			    atomic_read(&c->state) ==
 			      QETH_QDIO_BUF_HANDLED_DELAYED) {
 				struct qeth_qdio_out_buffer *f = c;
+
 				QETH_CARD_TEXT(f->q->card, 5, "fp");
 				QETH_CARD_TEXT_(f->q->card, 5, "%lx", (long) f);
 				/* release here to avoid interleaving between
@@ -506,7 +506,6 @@ static void qeth_cleanup_handled_pending(struct qeth_qdio_out_q *q, int bidx,
 		QETH_CARD_TEXT(q->card, 2, "clprecov");
 	}
 }
-
 
 static void qeth_qdio_handle_aob(struct qeth_card *card,
 				 unsigned long phys_aob_addr)
@@ -884,6 +883,7 @@ static void qeth_issue_ipa_msg(struct qeth_ipa_cmd *cmd, int rc,
 {
 	const char *ipa_name;
 	int com = cmd->hdr.command;
+
 	ipa_name = qeth_get_ipa_cmd_name(com);
 
 	if (rc)
@@ -1253,7 +1253,7 @@ static int qeth_get_problem(struct qeth_card *card, struct ccw_device *cdev,
 			return 0;
 		}
 		QETH_CARD_TEXT(card, 2, "DGENCHK");
-			return -EIO;
+		return -EIO;
 	}
 	return 0;
 }
@@ -1600,7 +1600,7 @@ static void qeth_start_kernel_thread(struct work_struct *work)
 	struct task_struct *ts;
 	struct qeth_card *card = container_of(work, struct qeth_card,
 					kernel_thread_starter);
-	QETH_CARD_TEXT(card , 2, "strthrd");
+	QETH_CARD_TEXT(card, 2, "strthrd");
 
 	if (card->read.state != CH_STATE_UP &&
 	    card->write.state != CH_STATE_UP)
@@ -3416,7 +3416,6 @@ static void qeth_get_trap_id(struct qeth_card *card, struct qeth_trap_id *tid)
 		memcpy(tid->vmname, info322->vm[0].name, sizeof(tid->vmname));
 	}
 	free_page(info);
-	return;
 }
 
 static int qeth_hw_trap_cb(struct qeth_card *card,
@@ -4998,7 +4997,6 @@ static void qeth_determine_capabilities(struct qeth_card *card)
 		card->options.cq = QETH_CQ_NOTAVAILABLE;
 	}
 
-
 out_offline:
 	if (ddev_offline == 1)
 		qeth_stop_channel(channel);
@@ -6050,6 +6048,7 @@ EXPORT_SYMBOL_GPL(qeth_send_simple_setassparms_prot);
 static void qeth_unregister_dbf_views(void)
 {
 	int x;
+
 	for (x = 0; x < QETH_DBF_INFOS; x++) {
 		debug_unregister(qeth_dbf[x].id);
 		qeth_dbf[x].id = NULL;
@@ -6413,6 +6412,7 @@ static int qeth_core_set_offline(struct ccwgroup_device *gdev)
 static void qeth_core_shutdown(struct ccwgroup_device *gdev)
 {
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
+
 	qeth_set_allowed_threads(card, 0, 1);
 	if ((gdev->state == CCWGROUP_ONLINE) && card->info.hwtrap)
 		qeth_hw_trap(card, QETH_DIAGS_TRAP_DISARM);

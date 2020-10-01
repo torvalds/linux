@@ -97,7 +97,7 @@ static bool qeth_l3_is_addr_covered_by_ipato(struct qeth_card *card,
 		return false;
 
 	qeth_l3_convert_addr_to_bits((u8 *) &addr->u, addr_bits,
-				  (addr->proto == QETH_PROT_IPV4)? 4:16);
+				     (addr->proto == QETH_PROT_IPV4) ? 4 : 16);
 	list_for_each_entry(ipatoe, &card->ipato.entries, entry) {
 		if (addr->proto != ipatoe->proto)
 			continue;
@@ -540,7 +540,7 @@ int qeth_l3_add_ipato_entry(struct qeth_card *card,
 		if (ipatoe->proto != new->proto)
 			continue;
 		if (!memcmp(ipatoe->addr, new->addr,
-			    (ipatoe->proto == QETH_PROT_IPV4)? 4:16) &&
+			    (ipatoe->proto == QETH_PROT_IPV4) ? 4 : 16) &&
 		    (ipatoe->mask_bits == new->mask_bits)) {
 			rc = -EEXIST;
 			break;
@@ -572,7 +572,7 @@ int qeth_l3_del_ipato_entry(struct qeth_card *card,
 		if (ipatoe->proto != proto)
 			continue;
 		if (!memcmp(ipatoe->addr, addr,
-			    (proto == QETH_PROT_IPV4)? 4:16) &&
+			    (proto == QETH_PROT_IPV4) ? 4 : 16) &&
 		    (ipatoe->mask_bits == mask_bits)) {
 			list_del(&ipatoe->entry);
 			qeth_l3_update_ipato(card);
@@ -2139,7 +2139,6 @@ static struct qeth_card *qeth_l3_get_card_from_dev(struct net_device *dev)
 static int qeth_l3_ip_event(struct notifier_block *this,
 			    unsigned long event, void *ptr)
 {
-
 	struct in_ifaddr *ifa = (struct in_ifaddr *)ptr;
 	struct net_device *dev = ifa->ifa_dev->dev;
 	struct qeth_ipaddr addr;
