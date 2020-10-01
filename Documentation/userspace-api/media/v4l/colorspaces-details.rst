@@ -674,8 +674,9 @@ Colorspace EBU Tech. 3213 (V4L2_COLORSPACE_470_SYSTEM_BG)
 =========================================================
 
 The :ref:`tech3213` standard defines the colorspace used by PAL/SECAM
-in 1975. In practice this colorspace is obsolete and SMPTE 170M should
-be used instead. The default transfer function is
+in 1975. Note that this colorspace is not supported by the HDMI interface.
+Instead :ref:`tech3321` recommends that Rec. 709 is used instead for HDMI.
+The default transfer function is
 ``V4L2_XFER_FUNC_709``. The default Y'CbCr encoding is
 ``V4L2_YCBCR_ENC_601``. The default Y'CbCr quantization is limited
 range. The chromaticities of the primary colors and the white reference
