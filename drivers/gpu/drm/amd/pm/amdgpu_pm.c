@@ -1501,7 +1501,7 @@ static ssize_t amdgpu_get_pp_sclk_od(struct device *dev,
 	}
 
 	if (is_support_sw_smu(adev))
-		value = smu_get_od_percentage(&(adev->smu), SMU_OD_SCLK);
+		value = 0;
 	else if (adev->powerplay.pp_funcs->get_sclk_od)
 		value = amdgpu_dpm_get_sclk_od(adev);
 
@@ -1536,7 +1536,7 @@ static ssize_t amdgpu_set_pp_sclk_od(struct device *dev,
 	}
 
 	if (is_support_sw_smu(adev)) {
-		value = smu_set_od_percentage(&(adev->smu), SMU_OD_SCLK, (uint32_t)value);
+		value = 0;
 	} else {
 		if (adev->powerplay.pp_funcs->set_sclk_od)
 			amdgpu_dpm_set_sclk_od(adev, (uint32_t)value);
@@ -1574,7 +1574,7 @@ static ssize_t amdgpu_get_pp_mclk_od(struct device *dev,
 	}
 
 	if (is_support_sw_smu(adev))
-		value = smu_get_od_percentage(&(adev->smu), SMU_OD_MCLK);
+		value = 0;
 	else if (adev->powerplay.pp_funcs->get_mclk_od)
 		value = amdgpu_dpm_get_mclk_od(adev);
 
@@ -1609,7 +1609,7 @@ static ssize_t amdgpu_set_pp_mclk_od(struct device *dev,
 	}
 
 	if (is_support_sw_smu(adev)) {
-		value = smu_set_od_percentage(&(adev->smu), SMU_OD_MCLK, (uint32_t)value);
+		value = 0;
 	} else {
 		if (adev->powerplay.pp_funcs->set_mclk_od)
 			amdgpu_dpm_set_mclk_od(adev, (uint32_t)value);
