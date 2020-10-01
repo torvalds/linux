@@ -679,6 +679,7 @@ Starting UML
 
 We can now run UML.
 ::
+
    # linux mem=2048M umid=TEST \
     ubd0=Filesystem.img \
     vec0:transport=tap,ifname=tap0,depth=128,gro=1 \
