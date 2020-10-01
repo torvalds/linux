@@ -1372,7 +1372,7 @@ static void qeth_addr_change_event_worker(struct work_struct *work)
 
 		dev_info(&data->card->gdev->dev,
 			 "Address change notification stopped on %s (%s)\n",
-			 data->card->dev->name,
+			 netdev_name(card->dev),
 			(data->ac_event.lost_event_mask == 0x01)
 			? "Overflow"
 			: (data->ac_event.lost_event_mask == 0x02)

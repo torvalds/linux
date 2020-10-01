@@ -915,12 +915,12 @@ static struct qeth_ipa_cmd *qeth_check_ipa_data(struct qeth_card *card,
 		if (cmd->hdr.return_code == IPA_RC_VEPA_TO_VEB_TRANSITION) {
 			dev_err(&card->gdev->dev,
 				"Interface %s is down because the adjacent port is no longer in reflective relay mode\n",
-				QETH_CARD_IFNAME(card));
+				netdev_name(card->dev));
 			schedule_work(&card->close_dev_work);
 		} else {
 			dev_warn(&card->gdev->dev,
 				 "The link for interface %s on CHPID 0x%X failed\n",
-				 QETH_CARD_IFNAME(card), card->info.chpid);
+				 netdev_name(card->dev), card->info.chpid);
 			qeth_issue_ipa_msg(cmd, cmd->hdr.return_code, card);
 			netif_carrier_off(card->dev);
 		}
@@ -928,7 +928,7 @@ static struct qeth_ipa_cmd *qeth_check_ipa_data(struct qeth_card *card,
 	case IPA_CMD_STARTLAN:
 		dev_info(&card->gdev->dev,
 			 "The link for %s on CHPID 0x%X has been restored\n",
-			 QETH_CARD_IFNAME(card), card->info.chpid);
+			 netdev_name(card->dev), card->info.chpid);
 		if (card->info.hwtrap)
 			card->info.hwtrap = 2;
 		qeth_schedule_recovery(card);

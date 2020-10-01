@@ -892,9 +892,6 @@ struct qeth_trap_id {
 	__u16 devno;
 } __packed;
 
-/*some helper functions*/
-#define QETH_CARD_IFNAME(card) (((card)->dev)? (card)->dev->name : "")
-
 static inline bool qeth_uses_tx_prio_queueing(struct qeth_card *card)
 {
 	return card->qdio.do_prio_queueing != QETH_NO_PRIO_QUEUEING;
