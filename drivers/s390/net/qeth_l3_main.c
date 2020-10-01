@@ -1875,10 +1875,6 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 	unsigned int headroom;
 	int rc;
 
-	rc = qeth_setup_netdev(card);
-	if (rc)
-		return rc;
-
 	if (IS_OSD(card) || IS_OSX(card)) {
 		card->dev->netdev_ops = &qeth_l3_osa_netdev_ops;
 
@@ -2022,6 +2018,13 @@ static int qeth_l3_set_online(struct qeth_card *card, bool carrier_ok)
 			netif_carrier_on(dev);
 	} else {
 		rtnl_lock();
+		rc = qeth_set_real_num_tx_queues(card,
+						 qeth_tx_actual_queues(card));
+		if (rc) {
+			rtnl_unlock();
+			goto err_set_queues;
+		}
+
 		if (carrier_ok)
 			netif_carrier_on(dev);
 		else
@@ -2038,6 +2041,7 @@ static int qeth_l3_set_online(struct qeth_card *card, bool carrier_ok)
 	}
 	return 0;
 
+err_set_queues:
 err_setup:
 	qeth_set_allowed_threads(card, 0, 1);
 	card->state = CARD_STATE_DOWN;

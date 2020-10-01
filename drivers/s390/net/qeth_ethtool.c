@@ -211,7 +211,9 @@ static void qeth_get_channels(struct net_device *dev,
 static int qeth_set_channels(struct net_device *dev,
 			     struct ethtool_channels *channels)
 {
+	struct qeth_priv *priv = netdev_priv(dev);
 	struct qeth_card *card = dev->ml_priv;
+	int rc;
 
 	if (channels->rx_count == 0 || channels->tx_count == 0)
 		return -EINVAL;
@@ -234,7 +236,11 @@ static int qeth_set_channels(struct net_device *dev,
 			return -EOPNOTSUPP;
 	}
 
-	return qeth_set_real_num_tx_queues(card, channels->tx_count);
+	rc = qeth_set_real_num_tx_queues(card, channels->tx_count);
+	if (!rc)
+		priv->tx_wanted_queues = channels->tx_count;
+
+	return rc;
 }
 
 static int qeth_get_ts_info(struct net_device *dev,

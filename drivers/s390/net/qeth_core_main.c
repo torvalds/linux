@@ -1511,23 +1511,12 @@ static void qeth_drain_output_queues(struct qeth_card *card)
 	}
 }
 
-static int qeth_osa_set_output_queues(struct qeth_card *card, bool single)
+static void qeth_osa_set_output_queues(struct qeth_card *card, bool single)
 {
 	unsigned int max = single ? 1 : card->dev->num_tx_queues;
-	unsigned int count;
-	int rc;
-
-	count = IS_VM_NIC(card) ? min(max, card->dev->real_num_tx_queues) : max;
-
-	rtnl_lock();
-	rc = netif_set_real_num_tx_queues(card->dev, count);
-	rtnl_unlock();
-
-	if (rc)
-		return rc;
 
 	if (card->qdio.no_out_queues == max)
-		return 0;
+		return;
 
 	if (atomic_read(&card->qdio.state) != QETH_QDIO_UNINITIALIZED)
 		qeth_free_qdio_queues(card);
@@ -1536,14 +1525,12 @@ static int qeth_osa_set_output_queues(struct qeth_card *card, bool single)
 		dev_info(&card->gdev->dev, "Priority Queueing not supported\n");
 
 	card->qdio.no_out_queues = max;
-	return 0;
 }
 
 static int qeth_update_from_chp_desc(struct qeth_card *card)
 {
 	struct ccw_device *ccwdev;
 	struct channel_path_desc_fmt0 *chp_dsc;
-	int rc = 0;
 
 	QETH_CARD_TEXT(card, 2, "chp_desc");
 
@@ -1556,12 +1543,12 @@ static int qeth_update_from_chp_desc(struct qeth_card *card)
 
 	if (IS_OSD(card) || IS_OSX(card))
 		/* CHPP field bit 6 == 1 -> single queue */
-		rc = qeth_osa_set_output_queues(card, chp_dsc->chpp & 0x02);
+		qeth_osa_set_output_queues(card, chp_dsc->chpp & 0x02);
 
 	kfree(chp_dsc);
 	QETH_CARD_TEXT_(card, 2, "nr:%x", card->qdio.no_out_queues);
 	QETH_CARD_TEXT_(card, 2, "lvl:%02x", card->info.func_level);
-	return rc;
+	return 0;
 }
 
 static void qeth_init_qdio_info(struct qeth_card *card)
@@ -5316,6 +5303,20 @@ static int qeth_set_online(struct qeth_card *card)
 
 	qeth_print_status_message(card);
 
+	if (card->dev->reg_state != NETREG_REGISTERED) {
+		struct qeth_priv *priv = netdev_priv(card->dev);
+
+		if (IS_IQD(card))
+			priv->tx_wanted_queues = QETH_IQD_MIN_TXQ;
+		else if (IS_VM_NIC(card))
+			priv->tx_wanted_queues = 1;
+		else
+			priv->tx_wanted_queues = card->dev->num_tx_queues;
+
+		/* no need for locking / error handling at this early stage: */
+		qeth_set_real_num_tx_queues(card, qeth_tx_actual_queues(card));
+	}
+
 	rc = card->discipline->set_online(card, carrier_ok);
 	if (rc)
 		goto err_online;
@@ -6250,8 +6251,16 @@ static struct net_device *qeth_alloc_netdev(struct qeth_card *card)
 	SET_NETDEV_DEV(dev, &card->gdev->dev);
 	netif_carrier_off(dev);
 
-	dev->ethtool_ops = IS_OSN(card) ? &qeth_osn_ethtool_ops :
-					  &qeth_ethtool_ops;
+	if (IS_OSN(card)) {
+		dev->ethtool_ops = &qeth_osn_ethtool_ops;
+	} else {
+		dev->ethtool_ops = &qeth_ethtool_ops;
+		dev->priv_flags &= ~IFF_TX_SKB_SHARING;
+		dev->hw_features |= NETIF_F_SG;
+		dev->vlan_features |= NETIF_F_SG;
+		if (IS_IQD(card))
+			dev->features |= NETIF_F_SG;
+	}
 
 	return dev;
 }
@@ -6266,28 +6275,6 @@ struct net_device *qeth_clone_netdev(struct net_device *orig)
 	clone->dev_port = orig->dev_port;
 	return clone;
 }
-
-int qeth_setup_netdev(struct qeth_card *card)
-{
-	struct net_device *dev = card->dev;
-	unsigned int num_tx_queues;
-
-	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
-	dev->hw_features |= NETIF_F_SG;
-	dev->vlan_features |= NETIF_F_SG;
-
-	if (IS_IQD(card)) {
-		dev->features |= NETIF_F_SG;
-		num_tx_queues = QETH_IQD_MIN_TXQ;
-	} else if (IS_VM_NIC(card)) {
-		num_tx_queues = 1;
-	} else {
-		num_tx_queues = dev->real_num_tx_queues;
-	}
-
-	return qeth_set_real_num_tx_queues(card, num_tx_queues);
-}
-EXPORT_SYMBOL_GPL(qeth_setup_netdev);
 
 static int qeth_core_probe_device(struct ccwgroup_device *gdev)
 {
@@ -6959,6 +6946,7 @@ int qeth_set_real_num_tx_queues(struct qeth_card *card, unsigned int count)
 
 	return rc;
 }
+EXPORT_SYMBOL_GPL(qeth_set_real_num_tx_queues);
 
 u16 qeth_iqd_select_queue(struct net_device *dev, struct sk_buff *skb,
 			  u8 cast_type, struct net_device *sb_dev)

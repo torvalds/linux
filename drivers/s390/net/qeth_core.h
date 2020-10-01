@@ -538,7 +538,7 @@ struct qeth_qdio_info {
 	int in_buf_size;
 
 	/* output */
-	int no_out_queues;
+	unsigned int no_out_queues;
 	struct qeth_qdio_out_q *out_qs[QETH_MAX_OUT_QUEUES];
 	struct qdio_outbuf_state *out_bufstates;
 
@@ -788,6 +788,7 @@ struct qeth_switch_info {
 
 struct qeth_priv {
 	unsigned int rx_copybreak;
+	unsigned int tx_wanted_queues;
 	u32 brport_hw_features;
 	u32 brport_features;
 };
@@ -872,6 +873,13 @@ struct qeth_trap_id {
 
 /*some helper functions*/
 #define QETH_CARD_IFNAME(card) (((card)->dev)? (card)->dev->name : "")
+
+static inline unsigned int qeth_tx_actual_queues(struct qeth_card *card)
+{
+	struct qeth_priv *priv = netdev_priv(card->dev);
+
+	return min(priv->tx_wanted_queues, card->qdio.no_out_queues);
+}
 
 static inline u16 qeth_iqd_translate_txq(struct net_device *dev, u16 txq)
 {
@@ -1087,7 +1095,6 @@ void qeth_dbf_longtext(debug_info_t *id, int level, char *text, ...);
 int qeth_configure_cq(struct qeth_card *, enum qeth_cq);
 int qeth_hw_trap(struct qeth_card *, enum qeth_diags_trap_action);
 int qeth_setassparms_cb(struct qeth_card *, struct qeth_reply *, unsigned long);
-int qeth_setup_netdev(struct qeth_card *card);
 int qeth_set_features(struct net_device *, netdev_features_t);
 void qeth_enable_hw_features(struct net_device *dev);
 netdev_features_t qeth_fix_features(struct net_device *, netdev_features_t);

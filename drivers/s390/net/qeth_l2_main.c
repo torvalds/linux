@@ -894,17 +894,11 @@ static const struct net_device_ops qeth_osn_netdev_ops = {
 
 static int qeth_l2_setup_netdev(struct qeth_card *card)
 {
-	int rc;
-
 	if (IS_OSN(card)) {
 		card->dev->netdev_ops = &qeth_osn_netdev_ops;
 		card->dev->flags |= IFF_NOARP;
 		goto add_napi;
 	}
-
-	rc = qeth_setup_netdev(card);
-	if (rc)
-		return rc;
 
 	card->dev->needed_headroom = sizeof(struct qeth_hdr);
 	card->dev->netdev_ops = &qeth_l2_netdev_ops;
@@ -2274,6 +2268,13 @@ static int qeth_l2_set_online(struct qeth_card *card, bool carrier_ok)
 			netif_carrier_on(dev);
 	} else {
 		rtnl_lock();
+		rc = qeth_set_real_num_tx_queues(card,
+						 qeth_tx_actual_queues(card));
+		if (rc) {
+			rtnl_unlock();
+			goto err_set_queues;
+		}
+
 		if (carrier_ok)
 			netif_carrier_on(dev);
 		else
@@ -2291,6 +2292,7 @@ static int qeth_l2_set_online(struct qeth_card *card, bool carrier_ok)
 	}
 	return 0;
 
+err_set_queues:
 err_setup:
 	qeth_set_allowed_threads(card, 0, 1);
 	card->state = CARD_STATE_DOWN;
