@@ -706,7 +706,7 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 
 	ret = snd_soc_pcm_component_pm_runtime_get(rtd, substream);
 	if (ret < 0)
-		goto err;
+		goto pm_err;
 
 	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
 
@@ -786,7 +786,7 @@ dynamic:
 	snd_soc_runtime_activate(rtd, substream->stream);
 err:
 	mutex_unlock(&rtd->card->pcm_mutex);
-
+pm_err:
 	if (ret < 0)
 		soc_pcm_clean(substream, 1);
 
