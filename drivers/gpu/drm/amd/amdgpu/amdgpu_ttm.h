@@ -60,7 +60,7 @@ struct amdgpu_gtt_mgr {
 };
 
 struct amdgpu_mman {
-	struct ttm_bo_device		bdev;
+	struct ttm_device		bdev;
 	bool				initialized;
 	void __iomem			*aper_base_kaddr;
 

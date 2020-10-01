@@ -372,7 +372,7 @@ void radeon_bo_unpin(struct radeon_bo *bo)
 
 int radeon_bo_evict_vram(struct radeon_device *rdev)
 {
-	struct ttm_bo_device *bdev = &rdev->mman.bdev;
+	struct ttm_device *bdev = &rdev->mman.bdev;
 	struct ttm_resource_manager *man;
 
 	/* late 2.6.33 fix IGP hibernate - we need pm ops to do this correct */

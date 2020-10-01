@@ -83,7 +83,7 @@ EXPORT_SYMBOL(ttm_resource_manager_init);
  * Evict all the objects out of a memory manager until it is empty.
  * Part of memory manager cleanup sequence.
  */
-int ttm_resource_manager_evict_all(struct ttm_bo_device *bdev,
+int ttm_resource_manager_evict_all(struct ttm_device *bdev,
 				   struct ttm_resource_manager *man)
 {
 	struct ttm_operation_ctx ctx = {
@@ -91,7 +91,7 @@ int ttm_resource_manager_evict_all(struct ttm_bo_device *bdev,
 		.no_wait_gpu = false,
 		.force_alloc = true
 	};
-	struct ttm_bo_global *glob = &ttm_bo_glob;
+	struct ttm_global *glob = &ttm_glob;
 	struct dma_fence *fence;
 	int ret;
 	unsigned i;

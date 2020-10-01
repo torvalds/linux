@@ -545,7 +545,7 @@ int vmw_bo_init(struct vmw_private *dev_priv,
 		void (*bo_free)(struct ttm_buffer_object *bo))
 {
 	struct ttm_operation_ctx ctx = { interruptible, false };
-	struct ttm_bo_device *bdev = &dev_priv->bdev;
+	struct ttm_device *bdev = &dev_priv->bdev;
 	size_t acc_size;
 	int ret;
 	bool user = (bo_free == &vmw_user_bo_destroy);
@@ -1058,7 +1058,7 @@ int vmw_user_bo_reference(struct ttm_object_file *tfile,
 void vmw_bo_fence_single(struct ttm_buffer_object *bo,
 			 struct vmw_fence_obj *fence)
 {
-	struct ttm_bo_device *bdev = bo->bdev;
+	struct ttm_device *bdev = bo->bdev;
 
 	struct vmw_private *dev_priv =
 		container_of(bdev, struct vmw_private, bdev);

@@ -483,7 +483,7 @@ const struct vmw_sg_table *vmw_bo_sg_table(struct ttm_buffer_object *bo)
 }
 
 
-static int vmw_ttm_bind(struct ttm_bo_device *bdev,
+static int vmw_ttm_bind(struct ttm_device *bdev,
 			struct ttm_tt *ttm, struct ttm_resource *bo_mem)
 {
 	struct vmw_ttm_tt *vmw_be =
@@ -527,7 +527,7 @@ static int vmw_ttm_bind(struct ttm_bo_device *bdev,
 	return ret;
 }
 
-static void vmw_ttm_unbind(struct ttm_bo_device *bdev,
+static void vmw_ttm_unbind(struct ttm_device *bdev,
 			   struct ttm_tt *ttm)
 {
 	struct vmw_ttm_tt *vmw_be =
@@ -553,7 +553,7 @@ static void vmw_ttm_unbind(struct ttm_bo_device *bdev,
 }
 
 
-static void vmw_ttm_destroy(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
+static void vmw_ttm_destroy(struct ttm_device *bdev, struct ttm_tt *ttm)
 {
 	struct vmw_ttm_tt *vmw_be =
 		container_of(ttm, struct vmw_ttm_tt, dma_ttm);
@@ -573,7 +573,7 @@ static void vmw_ttm_destroy(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
 }
 
 
-static int vmw_ttm_populate(struct ttm_bo_device *bdev,
+static int vmw_ttm_populate(struct ttm_device *bdev,
 			    struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 {
 	/* TODO: maybe completely drop this ? */
@@ -583,7 +583,7 @@ static int vmw_ttm_populate(struct ttm_bo_device *bdev,
 	return ttm_pool_alloc(&bdev->pool, ttm, ctx);
 }
 
-static void vmw_ttm_unpopulate(struct ttm_bo_device *bdev,
+static void vmw_ttm_unpopulate(struct ttm_device *bdev,
 			       struct ttm_tt *ttm)
 {
 	struct vmw_ttm_tt *vmw_tt = container_of(ttm, struct vmw_ttm_tt,
@@ -640,7 +640,7 @@ static int vmw_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 	return vmw_user_bo_verify_access(bo, tfile);
 }
 
-static int vmw_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_resource *mem)
+static int vmw_ttm_io_mem_reserve(struct ttm_device *bdev, struct ttm_resource *mem)
 {
 	struct vmw_private *dev_priv = container_of(bdev, struct vmw_private, bdev);
 
@@ -744,7 +744,7 @@ vmw_delete_mem_notify(struct ttm_buffer_object *bo)
 	vmw_move_notify(bo, false, NULL);
 }
 
-struct ttm_bo_driver vmw_bo_driver = {
+struct ttm_device_funcs vmw_bo_driver = {
 	.ttm_tt_create = &vmw_ttm_tt_create,
 	.ttm_tt_populate = &vmw_ttm_populate,
 	.ttm_tt_unpopulate = &vmw_ttm_unpopulate,

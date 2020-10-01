@@ -856,7 +856,7 @@ void vmw_query_move_notify(struct ttm_buffer_object *bo,
 			   struct ttm_resource *mem)
 {
 	struct vmw_buffer_object *dx_query_mob;
-	struct ttm_bo_device *bdev = bo->bdev;
+	struct ttm_device *bdev = bo->bdev;
 	struct vmw_private *dev_priv;
 
 

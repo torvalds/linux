@@ -36,7 +36,7 @@
 #include "qxl_drv.h"
 #include "qxl_object.h"
 
-static struct qxl_device *qxl_get_qdev(struct ttm_bo_device *bdev)
+static struct qxl_device *qxl_get_qdev(struct ttm_device *bdev)
 {
 	struct qxl_mman *mman;
 	struct qxl_device *qdev;
@@ -69,7 +69,7 @@ static void qxl_evict_flags(struct ttm_buffer_object *bo,
 	*placement = qbo->placement;
 }
 
-int qxl_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
+int qxl_ttm_io_mem_reserve(struct ttm_device *bdev,
 			   struct ttm_resource *mem)
 {
 	struct qxl_device *qdev = qxl_get_qdev(bdev);
@@ -98,8 +98,7 @@ int qxl_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
 /*
  * TTM backend functions.
  */
-static void qxl_ttm_backend_destroy(struct ttm_bo_device *bdev,
-				    struct ttm_tt *ttm)
+static void qxl_ttm_backend_destroy(struct ttm_device *bdev, struct ttm_tt *ttm)
 {
 	ttm_tt_destroy_common(bdev, ttm);
 	ttm_tt_fini(ttm);
@@ -170,7 +169,7 @@ static void qxl_bo_delete_mem_notify(struct ttm_buffer_object *bo)
 	qxl_bo_move_notify(bo, false, NULL);
 }
 
-static struct ttm_bo_driver qxl_bo_driver = {
+static struct ttm_device_funcs qxl_bo_driver = {
 	.ttm_tt_create = &qxl_ttm_tt_create,
 	.ttm_tt_destroy = &qxl_ttm_backend_destroy,
 	.eviction_valuable = ttm_bo_eviction_valuable,
@@ -193,10 +192,10 @@ int qxl_ttm_init(struct qxl_device *qdev)
 	int num_io_pages; /* != rom->num_io_pages, we include surface0 */
 
 	/* No others user of address space so set it to 0 */
-	r = ttm_bo_device_init(&qdev->mman.bdev, &qxl_bo_driver, NULL,
-			       qdev->ddev.anon_inode->i_mapping,
-			       qdev->ddev.vma_offset_manager,
-			       false, false);
+	r = ttm_device_init(&qdev->mman.bdev, &qxl_bo_driver, NULL,
+			    qdev->ddev.anon_inode->i_mapping,
+			    qdev->ddev.vma_offset_manager,
+			    false, false);
 	if (r) {
 		DRM_ERROR("failed initializing buffer object driver(%d).\n", r);
 		return r;
@@ -227,7 +226,7 @@ void qxl_ttm_fini(struct qxl_device *qdev)
 {
 	ttm_range_man_fini(&qdev->mman.bdev, TTM_PL_VRAM);
 	ttm_range_man_fini(&qdev->mman.bdev, TTM_PL_PRIV);
-	ttm_bo_device_release(&qdev->mman.bdev);
+	ttm_device_fini(&qdev->mman.bdev);
 	DRM_INFO("qxl: ttm finalized\n");
 }
 

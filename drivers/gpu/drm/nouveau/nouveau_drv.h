@@ -151,7 +151,7 @@ struct nouveau_drm {
 
 	/* TTM interface support */
 	struct {
-		struct ttm_bo_device bdev;
+		struct ttm_device bdev;
 		atomic_t validate_sequence;
 		int (*move)(struct nouveau_channel *,
 			    struct ttm_buffer_object *,

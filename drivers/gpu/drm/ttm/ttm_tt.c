@@ -43,7 +43,7 @@
  */
 int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc)
 {
-	struct ttm_bo_device *bdev = bo->bdev;
+	struct ttm_device *bdev = bo->bdev;
 	uint32_t page_flags = 0;
 
 	dma_resv_assert_held(bo->base.resv);
@@ -66,7 +66,7 @@ int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc)
 		return -EINVAL;
 	}
 
-	bo->ttm = bdev->driver->ttm_tt_create(bo, page_flags);
+	bo->ttm = bdev->funcs->ttm_tt_create(bo, page_flags);
 	if (unlikely(bo->ttm == NULL))
 		return -ENOMEM;
 
@@ -108,7 +108,7 @@ static int ttm_sg_tt_alloc_page_directory(struct ttm_tt *ttm)
 	return 0;
 }
 
-void ttm_tt_destroy_common(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
+void ttm_tt_destroy_common(struct ttm_device *bdev, struct ttm_tt *ttm)
 {
 	ttm_tt_unpopulate(bdev, ttm);
 
@@ -119,9 +119,9 @@ void ttm_tt_destroy_common(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
 }
 EXPORT_SYMBOL(ttm_tt_destroy_common);
 
-void ttm_tt_destroy(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
+void ttm_tt_destroy(struct ttm_device *bdev, struct ttm_tt *ttm)
 {
-	bdev->driver->ttm_tt_destroy(bdev, ttm);
+	bdev->funcs->ttm_tt_destroy(bdev, ttm);
 }
 
 static void ttm_tt_init_fields(struct ttm_tt *ttm,
@@ -223,7 +223,7 @@ out_err:
 	return ret;
 }
 
-int ttm_tt_swapout(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
+int ttm_tt_swapout(struct ttm_device *bdev, struct ttm_tt *ttm)
 {
 	struct address_space *swap_space;
 	struct file *swap_storage;
@@ -271,7 +271,7 @@ out_err:
 	return ret;
 }
 
-static void ttm_tt_add_mapping(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
+static void ttm_tt_add_mapping(struct ttm_device *bdev, struct ttm_tt *ttm)
 {
 	pgoff_t i;
 
@@ -282,7 +282,7 @@ static void ttm_tt_add_mapping(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
 		ttm->pages[i]->mapping = bdev->dev_mapping;
 }
 
-int ttm_tt_populate(struct ttm_bo_device *bdev,
+int ttm_tt_populate(struct ttm_device *bdev,
 		    struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 {
 	int ret;
@@ -293,8 +293,8 @@ int ttm_tt_populate(struct ttm_bo_device *bdev,
 	if (ttm_tt_is_populated(ttm))
 		return 0;
 
-	if (bdev->driver->ttm_tt_populate)
-		ret = bdev->driver->ttm_tt_populate(bdev, ttm, ctx);
+	if (bdev->funcs->ttm_tt_populate)
+		ret = bdev->funcs->ttm_tt_populate(bdev, ttm, ctx);
 	else
 		ret = ttm_pool_alloc(&bdev->pool, ttm, ctx);
 	if (ret)
@@ -328,15 +328,15 @@ static void ttm_tt_clear_mapping(struct ttm_tt *ttm)
 	}
 }
 
-void ttm_tt_unpopulate(struct ttm_bo_device *bdev,
+void ttm_tt_unpopulate(struct ttm_device *bdev,
 		       struct ttm_tt *ttm)
 {
 	if (!ttm_tt_is_populated(ttm))
 		return;
 
 	ttm_tt_clear_mapping(ttm);
-	if (bdev->driver->ttm_tt_unpopulate)
-		bdev->driver->ttm_tt_unpopulate(bdev, ttm);
+	if (bdev->funcs->ttm_tt_unpopulate)
+		bdev->funcs->ttm_tt_unpopulate(bdev, ttm);
 	else
 		ttm_pool_free(&bdev->pool, ttm);
 	ttm->page_flags &= ~TTM_PAGE_FLAG_PRIV_POPULATED;

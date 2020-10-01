@@ -187,7 +187,7 @@ struct drm_gem_vram_object *drm_gem_vram_create(struct drm_device *dev,
 	struct drm_gem_vram_object *gbo;
 	struct drm_gem_object *gem;
 	struct drm_vram_mm *vmm = dev->vram_mm;
-	struct ttm_bo_device *bdev;
+	struct ttm_device *bdev;
 	int ret;
 	size_t acc_size;
 
@@ -551,7 +551,7 @@ err_drm_gem_object_put:
 EXPORT_SYMBOL(drm_gem_vram_fill_create_dumb);
 
 /*
- * Helpers for struct ttm_bo_driver
+ * Helpers for struct ttm_device_funcs
  */
 
 static bool drm_is_gem_vram(struct ttm_buffer_object *bo)
@@ -893,7 +893,7 @@ static const struct drm_gem_object_funcs drm_gem_vram_object_funcs = {
  * TTM TT
  */
 
-static void bo_driver_ttm_tt_destroy(struct ttm_bo_device *bdev, struct ttm_tt *tt)
+static void bo_driver_ttm_tt_destroy(struct ttm_device *bdev, struct ttm_tt *tt)
 {
 	ttm_tt_destroy_common(bdev, tt);
 	ttm_tt_fini(tt);
@@ -965,7 +965,7 @@ static int bo_driver_move(struct ttm_buffer_object *bo,
 	return drm_gem_vram_bo_driver_move(gbo, evict, ctx, new_mem);
 }
 
-static int bo_driver_io_mem_reserve(struct ttm_bo_device *bdev,
+static int bo_driver_io_mem_reserve(struct ttm_device *bdev,
 				    struct ttm_resource *mem)
 {
 	struct drm_vram_mm *vmm = drm_vram_mm_of_bdev(bdev);
@@ -985,7 +985,7 @@ static int bo_driver_io_mem_reserve(struct ttm_bo_device *bdev,
 	return 0;
 }
 
-static struct ttm_bo_driver bo_driver = {
+static struct ttm_device_funcs bo_driver = {
 	.ttm_tt_create = bo_driver_ttm_tt_create,
 	.ttm_tt_destroy = bo_driver_ttm_tt_destroy,
 	.eviction_valuable = ttm_bo_eviction_valuable,
@@ -1036,7 +1036,7 @@ static int drm_vram_mm_init(struct drm_vram_mm *vmm, struct drm_device *dev,
 	vmm->vram_base = vram_base;
 	vmm->vram_size = vram_size;
 
-	ret = ttm_bo_device_init(&vmm->bdev, &bo_driver, dev->dev,
+	ret = ttm_device_init(&vmm->bdev, &bo_driver, dev->dev,
 				 dev->anon_inode->i_mapping,
 				 dev->vma_offset_manager,
 				 false, true);
@@ -1054,7 +1054,7 @@ static int drm_vram_mm_init(struct drm_vram_mm *vmm, struct drm_device *dev,
 static void drm_vram_mm_cleanup(struct drm_vram_mm *vmm)
 {
 	ttm_range_man_fini(&vmm->bdev, TTM_PL_VRAM);
-	ttm_bo_device_release(&vmm->bdev);
+	ttm_device_fini(&vmm->bdev);
 }
 
 /*
