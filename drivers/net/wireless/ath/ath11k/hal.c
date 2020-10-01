@@ -330,7 +330,7 @@ static void ath11k_hal_srng_dst_hw_init(struct ath11k_base *ab,
 	if (srng->flags & HAL_SRNG_FLAGS_MSI_INTR) {
 		ath11k_hif_write32(ab, reg_base +
 				   HAL_REO1_RING_MSI1_BASE_LSB_OFFSET(ab),
-				   (u32)srng->msi_addr);
+				   srng->msi_addr);
 
 		val = FIELD_PREP(HAL_REO1_RING_MSI1_BASE_MSB_ADDR,
 				 ((u64)srng->msi_addr >>
@@ -344,7 +344,7 @@ static void ath11k_hal_srng_dst_hw_init(struct ath11k_base *ab,
 				   srng->msi_data);
 	}
 
-	ath11k_hif_write32(ab, reg_base, (u32)srng->ring_base_paddr);
+	ath11k_hif_write32(ab, reg_base, srng->ring_base_paddr);
 
 	val = FIELD_PREP(HAL_REO1_RING_BASE_MSB_RING_BASE_ADDR_MSB,
 			 ((u64)srng->ring_base_paddr >>
@@ -409,7 +409,7 @@ static void ath11k_hal_srng_src_hw_init(struct ath11k_base *ab,
 	if (srng->flags & HAL_SRNG_FLAGS_MSI_INTR) {
 		ath11k_hif_write32(ab, reg_base +
 				   HAL_TCL1_RING_MSI1_BASE_LSB_OFFSET(ab),
-				   (u32)srng->msi_addr);
+				   srng->msi_addr);
 
 		val = FIELD_PREP(HAL_TCL1_RING_MSI1_BASE_MSB_ADDR,
 				 ((u64)srng->msi_addr >>
@@ -424,7 +424,7 @@ static void ath11k_hal_srng_src_hw_init(struct ath11k_base *ab,
 				   srng->msi_data);
 	}
 
-	ath11k_hif_write32(ab, reg_base, (u32)srng->ring_base_paddr);
+	ath11k_hif_write32(ab, reg_base, srng->ring_base_paddr);
 
 	val = FIELD_PREP(HAL_TCL1_RING_BASE_MSB_RING_BASE_ADDR_MSB,
 			 ((u64)srng->ring_base_paddr >>
