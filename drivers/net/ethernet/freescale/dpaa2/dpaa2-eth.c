@@ -4223,6 +4223,14 @@ static int dpaa2_eth_probe(struct fsl_mc_device *dpni_dev)
 	if (err)
 		goto err_connect_mac;
 
+	err = dpaa2_eth_dl_register(priv);
+	if (err)
+		goto err_dl_register;
+
+	err = dpaa2_eth_dl_port_add(priv);
+	if (err)
+		goto err_dl_port_add;
+
 	err = register_netdev(net_dev);
 	if (err < 0) {
 		dev_err(dev, "register_netdev() failed\n");
@@ -4237,6 +4245,10 @@ static int dpaa2_eth_probe(struct fsl_mc_device *dpni_dev)
 	return 0;
 
 err_netdev_reg:
+	dpaa2_eth_dl_port_del(priv);
+err_dl_port_add:
+	dpaa2_eth_dl_unregister(priv);
+err_dl_register:
 	dpaa2_eth_disconnect_mac(priv);
 err_connect_mac:
 	if (priv->do_link_poll)
@@ -4290,6 +4302,9 @@ static int dpaa2_eth_remove(struct fsl_mc_device *ls_dev)
 	rtnl_unlock();
 
 	unregister_netdev(net_dev);
+
+	dpaa2_eth_dl_port_del(priv);
+	dpaa2_eth_dl_unregister(priv);
 
 	if (priv->do_link_poll)
 		kthread_stop(priv->poll_thread);

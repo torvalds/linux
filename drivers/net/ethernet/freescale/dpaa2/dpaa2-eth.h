@@ -11,6 +11,7 @@
 #include <linux/if_vlan.h>
 #include <linux/fsl/mc.h>
 #include <linux/net_tstamp.h>
+#include <net/devlink.h>
 
 #include <soc/fsl/dpaa2-io.h>
 #include <soc/fsl/dpaa2-fd.h>
@@ -503,6 +504,12 @@ struct dpaa2_eth_priv {
 	 * queue before transmit current packet.
 	 */
 	struct mutex		onestep_tstamp_lock;
+	struct devlink *devlink;
+	struct devlink_port devlink_port;
+};
+
+struct dpaa2_eth_devlink_priv {
+	struct dpaa2_eth_priv *dpaa2_priv;
 };
 
 #define TX_TSTAMP		0x1
@@ -635,5 +642,11 @@ void dpaa2_eth_set_rx_taildrop(struct dpaa2_eth_priv *priv,
 			       bool tx_pause, bool pfc);
 
 extern const struct dcbnl_rtnl_ops dpaa2_eth_dcbnl_ops;
+
+int dpaa2_eth_dl_register(struct dpaa2_eth_priv *priv);
+void dpaa2_eth_dl_unregister(struct dpaa2_eth_priv *priv);
+
+int dpaa2_eth_dl_port_add(struct dpaa2_eth_priv *priv);
+void dpaa2_eth_dl_port_del(struct dpaa2_eth_priv *priv);
 
 #endif	/* __DPAA2_H */
