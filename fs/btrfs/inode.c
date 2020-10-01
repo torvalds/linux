@@ -4835,11 +4835,11 @@ static int btrfs_setsize(struct inode *inode, struct iattr *attr)
 
 		/*
 		 * We're truncating a file that used to have good data down to
-		 * zero. Make sure it gets into the ordered flush list so that
-		 * any new writes get down to disk quickly.
+		 * zero. Make sure any new writes to the file get on disk
+		 * on close.
 		 */
 		if (newsize == 0)
-			set_bit(BTRFS_INODE_ORDERED_DATA_CLOSE,
+			set_bit(BTRFS_INODE_FLUSH_ON_CLOSE,
 				&BTRFS_I(inode)->runtime_flags);
 
 		truncate_setsize(inode, newsize);
