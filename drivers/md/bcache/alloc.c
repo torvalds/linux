@@ -361,7 +361,7 @@ retry_invalidate:
 		 * new stuff to them:
 		 */
 		allocator_wait(ca, !atomic_read(&ca->set->prio_blocked));
-		if (CACHE_SYNC(&ca->set->sb)) {
+		if (CACHE_SYNC(&ca->sb)) {
 			/*
 			 * This could deadlock if an allocation with a btree
 			 * node locked ever blocked - having the btree node

@@ -1969,7 +1969,7 @@ static int run_cache_set(struct cache_set *c)
 	c->nbuckets = ca->sb.nbuckets;
 	set_gc_sectors(c);
 
-	if (CACHE_SYNC(&c->sb)) {
+	if (CACHE_SYNC(&c->cache->sb)) {
 		struct bkey *k;
 		struct jset *j;
 
@@ -2092,7 +2092,7 @@ static int run_cache_set(struct cache_set *c)
 		 * everything is set up - fortunately journal entries won't be
 		 * written until the SET_CACHE_SYNC() here:
 		 */
-		SET_CACHE_SYNC(&c->sb, true);
+		SET_CACHE_SYNC(&c->cache->sb, true);
 
 		bch_journal_next(&c->journal);
 		bch_journal_meta(c, &cl);
@@ -2137,9 +2137,6 @@ static const char *register_cache_set(struct cache *ca)
 		if (!memcmp(c->set_uuid, ca->sb.set_uuid, 16)) {
 			if (c->cache)
 				return "duplicate cache set member";
-
-			if (!CACHE_SYNC(&ca->sb))
-				SET_CACHE_SYNC(&c->sb, false);
 
 			goto found;
 		}

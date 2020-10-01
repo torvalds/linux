@@ -915,7 +915,7 @@ atomic_t *bch_journal(struct cache_set *c,
 	if (unlikely(test_bit(CACHE_SET_IO_DISABLE, &c->flags)))
 		return NULL;
 
-	if (!CACHE_SYNC(&c->sb))
+	if (!CACHE_SYNC(&c->cache->sb))
 		return NULL;
 
 	w = journal_wait_for_write(c, bch_keylist_nkeys(keys));
