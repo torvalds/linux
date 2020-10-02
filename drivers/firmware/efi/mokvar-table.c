@@ -40,6 +40,8 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 
+#include <asm/early_ioremap.h>
+
 /*
  * The LINUX_EFI_MOK_VARIABLE_TABLE_GUID config table is a packed
  * sequence of struct efi_mokvar_table_entry, one for each named
