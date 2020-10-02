@@ -340,15 +340,20 @@ int rtl8366_init_vlan(struct realtek_smi *smi)
 }
 EXPORT_SYMBOL_GPL(rtl8366_init_vlan);
 
-int rtl8366_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering)
+int rtl8366_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering,
+			   struct switchdev_trans *trans)
 {
 	struct realtek_smi *smi = ds->priv;
 	struct rtl8366_vlan_4k vlan4k;
 	int ret;
 
 	/* Use VLAN nr port + 1 since VLAN0 is not valid */
-	if (!smi->ops->is_vlan_valid(smi, port + 1))
-		return -EINVAL;
+	if (switchdev_trans_ph_prepare(trans)) {
+		if (!smi->ops->is_vlan_valid(smi, port + 1))
+			return -EINVAL;
+
+		return 0;
+	}
 
 	dev_info(smi->dev, "%s filtering on port %d\n",
 		 vlan_filtering ? "enable" : "disable",

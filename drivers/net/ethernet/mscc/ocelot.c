@@ -199,11 +199,14 @@ static int ocelot_port_set_native_vlan(struct ocelot *ocelot, int port,
 	return 0;
 }
 
-void ocelot_port_vlan_filtering(struct ocelot *ocelot, int port,
-				bool vlan_aware)
+int ocelot_port_vlan_filtering(struct ocelot *ocelot, int port,
+			       bool vlan_aware, struct switchdev_trans *trans)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	u32 val;
+
+	if (switchdev_trans_ph_prepare(trans))
+		return 0;
 
 	ocelot_port->vlan_aware = vlan_aware;
 
@@ -218,6 +221,8 @@ void ocelot_port_vlan_filtering(struct ocelot *ocelot, int port,
 		       ANA_PORT_VLAN_CFG, port);
 
 	ocelot_port_set_native_vlan(ocelot, port, ocelot_port->vid);
+
+	return 0;
 }
 EXPORT_SYMBOL(ocelot_port_vlan_filtering);
 
@@ -1102,12 +1107,24 @@ EXPORT_SYMBOL(ocelot_port_bridge_join);
 int ocelot_port_bridge_leave(struct ocelot *ocelot, int port,
 			     struct net_device *bridge)
 {
+	struct switchdev_trans trans;
+	int ret;
+
 	ocelot->bridge_mask &= ~BIT(port);
 
 	if (!ocelot->bridge_mask)
 		ocelot->hw_bridge_dev = NULL;
 
-	ocelot_port_vlan_filtering(ocelot, port, 0);
+	trans.ph_prepare = true;
+	ret = ocelot_port_vlan_filtering(ocelot, port, false, &trans);
+	if (ret)
+		return ret;
+
+	trans.ph_prepare = false;
+	ret = ocelot_port_vlan_filtering(ocelot, port, false, &trans);
+	if (ret)
+		return ret;
+
 	ocelot_port_set_pvid(ocelot, port, 0);
 	return ocelot_port_set_native_vlan(ocelot, port, 0);
 }

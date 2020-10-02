@@ -1289,8 +1289,12 @@ mt7530_vlan_cmd(struct mt7530_priv *priv, enum mt7530_vlan_cmd cmd, u16 vid)
 
 static int
 mt7530_port_vlan_filtering(struct dsa_switch *ds, int port,
-			   bool vlan_filtering)
+			   bool vlan_filtering,
+			   struct switchdev_trans *trans)
 {
+	if (switchdev_trans_ph_prepare(trans))
+		return 0;
+
 	if (vlan_filtering) {
 		/* The port is being kept as VLAN-unaware port when bridge is
 		 * set up with vlan_filtering not being set, Otherwise, the

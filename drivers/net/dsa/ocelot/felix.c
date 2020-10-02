@@ -119,13 +119,12 @@ static int felix_vlan_prepare(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-static int felix_vlan_filtering(struct dsa_switch *ds, int port, bool enabled)
+static int felix_vlan_filtering(struct dsa_switch *ds, int port, bool enabled,
+				struct switchdev_trans *trans)
 {
 	struct ocelot *ocelot = ds->priv;
 
-	ocelot_port_vlan_filtering(ocelot, port, enabled);
-
-	return 0;
+	return ocelot_port_vlan_filtering(ocelot, port, enabled, trans);
 }
 
 static void felix_vlan_add(struct dsa_switch *ds, int port,

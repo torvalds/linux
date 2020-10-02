@@ -790,7 +790,7 @@ static int ocelot_port_attr_set(struct net_device *dev,
 		break;
 	case SWITCHDEV_ATTR_ID_BRIDGE_VLAN_FILTERING:
 		ocelot_port_vlan_filtering(ocelot, port,
-					   attr->u.vlan_filtering);
+					   attr->u.vlan_filtering, trans);
 		break;
 	case SWITCHDEV_ATTR_ID_BRIDGE_MC_DISABLED:
 		ocelot_port_attr_mc_set(ocelot, port, !attr->u.mc_disabled);

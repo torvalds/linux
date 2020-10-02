@@ -347,7 +347,8 @@ void b53_phylink_mac_link_up(struct dsa_switch *ds, int port,
 			     struct phy_device *phydev,
 			     int speed, int duplex,
 			     bool tx_pause, bool rx_pause);
-int b53_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering);
+int b53_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering,
+		       struct switchdev_trans *trans);
 int b53_vlan_prepare(struct dsa_switch *ds, int port,
 		     const struct switchdev_obj_port_vlan *vlan);
 void b53_vlan_add(struct dsa_switch *ds, int port,

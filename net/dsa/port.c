@@ -280,22 +280,23 @@ int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
 		rcu_read_unlock();
 		if (!apply)
 			return -EINVAL;
-
-		return 0;
 	}
 
 	if (dsa_port_is_vlan_filtering(dp) == vlan_filtering)
 		return 0;
 
-	err = ds->ops->port_vlan_filtering(ds, dp->index,
-					   vlan_filtering);
+	err = ds->ops->port_vlan_filtering(ds, dp->index, vlan_filtering,
+					   trans);
 	if (err)
 		return err;
 
-	if (ds->vlan_filtering_is_global)
-		ds->vlan_filtering = vlan_filtering;
-	else
-		dp->vlan_filtering = vlan_filtering;
+	if (switchdev_trans_ph_commit(trans)) {
+		if (ds->vlan_filtering_is_global)
+			ds->vlan_filtering = vlan_filtering;
+		else
+			dp->vlan_filtering = vlan_filtering;
+	}
+
 	return 0;
 }
 

@@ -493,9 +493,13 @@ static void ksz9477_flush_dyn_mac_table(struct ksz_device *dev, int port)
 }
 
 static int ksz9477_port_vlan_filtering(struct dsa_switch *ds, int port,
-				       bool flag)
+				       bool flag,
+				       struct switchdev_trans *trans)
 {
 	struct ksz_device *dev = ds->priv;
+
+	if (switchdev_trans_ph_prepare(trans))
+		return 0;
 
 	if (flag) {
 		ksz_port_cfg(dev, port, REG_PORT_LUE_CTRL,
