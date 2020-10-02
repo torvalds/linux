@@ -1379,6 +1379,7 @@ static struct s3c64xx_spi_port_config exynos4_spi_port_config = {
 	.tx_st_done	= 25,
 	.high_speed	= true,
 	.clk_from_cmu	= true,
+	.quirks		= S3C64XX_SPI_QUIRK_CS_AUTO,
 };
 
 static struct s3c64xx_spi_port_config exynos7_spi_port_config = {
