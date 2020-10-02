@@ -482,6 +482,9 @@ legacy_init:
 	case CHIP_VANGOGH:
 		vangogh_reg_base_init(adev);
 		break;
+	case CHIP_DIMGREY_CAVEFISH:
+		dimgrey_cavefish_reg_base_init(adev);
+		break;
 	default:
 		return -EINVAL;
 	}
