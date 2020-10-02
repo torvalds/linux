@@ -83,9 +83,9 @@ static int smp_spin_table_cpu_prepare(unsigned int cpu)
 
 	/*
 	 * We write the release address as LE regardless of the native
-	 * endianess of the kernel. Therefore, any boot-loaders that
+	 * endianness of the kernel. Therefore, any boot-loaders that
 	 * read this address need to convert this address to the
-	 * boot-loader's endianess before jumping. This is mandated by
+	 * boot-loader's endianness before jumping. This is mandated by
 	 * the boot protocol.
 	 */
 	writeq_relaxed(__pa_symbol(secondary_holding_pen), release_addr);

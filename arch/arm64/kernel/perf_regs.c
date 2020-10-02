@@ -16,7 +16,7 @@ u64 perf_reg_value(struct pt_regs *regs, int idx)
 
 	/*
 	 * Our handling of compat tasks (PERF_SAMPLE_REGS_ABI_32) is weird, but
-	 * we're stuck with it for ABI compatability reasons.
+	 * we're stuck with it for ABI compatibility reasons.
 	 *
 	 * For a 32-bit consumer inspecting a 32-bit task, then it will look at
 	 * the first 16 registers (see arch/arm/include/uapi/asm/perf_regs.h).

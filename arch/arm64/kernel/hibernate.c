@@ -21,7 +21,6 @@
 #include <linux/sched.h>
 #include <linux/suspend.h>
 #include <linux/utsname.h>
-#include <linux/version.h>
 
 #include <asm/barrier.h>
 #include <asm/cacheflush.h>

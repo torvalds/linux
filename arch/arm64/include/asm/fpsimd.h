@@ -69,6 +69,9 @@ static inline void *sve_pffr(struct thread_struct *thread)
 extern void sve_save_state(void *state, u32 *pfpsr);
 extern void sve_load_state(void const *state, u32 const *pfpsr,
 			   unsigned long vq_minus_1);
+extern void sve_flush_live(void);
+extern void sve_load_from_fpsimd_state(struct user_fpsimd_state const *state,
+				       unsigned long vq_minus_1);
 extern unsigned int sve_get_vl(void);
 
 struct arm64_cpu_capabilities;

@@ -35,11 +35,6 @@
 
 extern struct page *vmemmap;
 
-extern void __pte_error(const char *file, int line, unsigned long val);
-extern void __pmd_error(const char *file, int line, unsigned long val);
-extern void __pud_error(const char *file, int line, unsigned long val);
-extern void __pgd_error(const char *file, int line, unsigned long val);
-
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 #define __HAVE_ARCH_FLUSH_PMD_TLB_RANGE
 
@@ -51,13 +46,22 @@ extern void __pgd_error(const char *file, int line, unsigned long val);
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 /*
+ * Outside of a few very special situations (e.g. hibernation), we always
+ * use broadcast TLB invalidation instructions, therefore a spurious page
+ * fault on one CPU which has been handled concurrently by another CPU
+ * does not need to perform additional invalidation.
+ */
+#define flush_tlb_fix_spurious_fault(vma, address) do { } while (0)
+
+/*
  * ZERO_PAGE is a global shared page that is always zero: used
  * for zero-mapped memory areas etc..
  */
 extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 #define ZERO_PAGE(vaddr)	phys_to_page(__pa_symbol(empty_zero_page))
 
-#define pte_ERROR(pte)		__pte_error(__FILE__, __LINE__, pte_val(pte))
+#define pte_ERROR(e)	\
+	pr_err("%s:%d: bad pte %016llx.\n", __FILE__, __LINE__, pte_val(e))
 
 /*
  * Macros to convert between a physical address and its placement in a
@@ -143,6 +147,18 @@ static inline pte_t set_pte_bit(pte_t pte, pgprot_t prot)
 {
 	pte_val(pte) |= pgprot_val(prot);
 	return pte;
+}
+
+static inline pmd_t clear_pmd_bit(pmd_t pmd, pgprot_t prot)
+{
+	pmd_val(pmd) &= ~pgprot_val(prot);
+	return pmd;
+}
+
+static inline pmd_t set_pmd_bit(pmd_t pmd, pgprot_t prot)
+{
+	pmd_val(pmd) |= pgprot_val(prot);
+	return pmd;
 }
 
 static inline pte_t pte_wrprotect(pte_t pte)
@@ -363,15 +379,24 @@ static inline int pmd_protnone(pmd_t pmd)
 }
 #endif
 
+#define pmd_present_invalid(pmd)     (!!(pmd_val(pmd) & PMD_PRESENT_INVALID))
+
+static inline int pmd_present(pmd_t pmd)
+{
+	return pte_present(pmd_pte(pmd)) || pmd_present_invalid(pmd);
+}
+
 /*
  * THP definitions.
  */
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-#define pmd_trans_huge(pmd)	(pmd_val(pmd) && !(pmd_val(pmd) & PMD_TABLE_BIT))
+static inline int pmd_trans_huge(pmd_t pmd)
+{
+	return pmd_val(pmd) && pmd_present(pmd) && !(pmd_val(pmd) & PMD_TABLE_BIT);
+}
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
-#define pmd_present(pmd)	pte_present(pmd_pte(pmd))
 #define pmd_dirty(pmd)		pte_dirty(pmd_pte(pmd))
 #define pmd_young(pmd)		pte_young(pmd_pte(pmd))
 #define pmd_valid(pmd)		pte_valid(pmd_pte(pmd))
@@ -381,7 +406,14 @@ static inline int pmd_protnone(pmd_t pmd)
 #define pmd_mkclean(pmd)	pte_pmd(pte_mkclean(pmd_pte(pmd)))
 #define pmd_mkdirty(pmd)	pte_pmd(pte_mkdirty(pmd_pte(pmd)))
 #define pmd_mkyoung(pmd)	pte_pmd(pte_mkyoung(pmd_pte(pmd)))
-#define pmd_mkinvalid(pmd)	(__pmd(pmd_val(pmd) & ~PMD_SECT_VALID))
+
+static inline pmd_t pmd_mkinvalid(pmd_t pmd)
+{
+	pmd = set_pmd_bit(pmd, __pgprot(PMD_PRESENT_INVALID));
+	pmd = clear_pmd_bit(pmd, __pgprot(PMD_SECT_VALID));
+
+	return pmd;
+}
 
 #define pmd_thp_or_huge(pmd)	(pmd_huge(pmd) || pmd_trans_huge(pmd))
 
@@ -541,7 +573,8 @@ static inline unsigned long pmd_page_vaddr(pmd_t pmd)
 
 #if CONFIG_PGTABLE_LEVELS > 2
 
-#define pmd_ERROR(pmd)		__pmd_error(__FILE__, __LINE__, pmd_val(pmd))
+#define pmd_ERROR(e)	\
+	pr_err("%s:%d: bad pmd %016llx.\n", __FILE__, __LINE__, pmd_val(e))
 
 #define pud_none(pud)		(!pud_val(pud))
 #define pud_bad(pud)		(!(pud_val(pud) & PUD_TABLE_BIT))
@@ -608,7 +641,8 @@ static inline unsigned long pud_page_vaddr(pud_t pud)
 
 #if CONFIG_PGTABLE_LEVELS > 3
 
-#define pud_ERROR(pud)		__pud_error(__FILE__, __LINE__, pud_val(pud))
+#define pud_ERROR(e)	\
+	pr_err("%s:%d: bad pud %016llx.\n", __FILE__, __LINE__, pud_val(e))
 
 #define p4d_none(p4d)		(!p4d_val(p4d))
 #define p4d_bad(p4d)		(!(p4d_val(p4d) & 2))
@@ -667,7 +701,8 @@ static inline unsigned long p4d_page_vaddr(p4d_t p4d)
 
 #endif  /* CONFIG_PGTABLE_LEVELS > 3 */
 
-#define pgd_ERROR(pgd)		__pgd_error(__FILE__, __LINE__, pgd_val(pgd))
+#define pgd_ERROR(e)	\
+	pr_err("%s:%d: bad pgd %016llx.\n", __FILE__, __LINE__, pgd_val(e))
 
 #define pgd_set_fixmap(addr)	((pgd_t *)set_fixmap_offset(FIX_PGD, addr))
 #define pgd_clear_fixmap()	clear_fixmap(FIX_PGD)
@@ -846,6 +881,11 @@ static inline pmd_t pmdp_establish(struct vm_area_struct *vma,
 
 #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(swp)	((pte_t) { (swp).val })
+
+#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
+#define __pmd_to_swp_entry(pmd)		((swp_entry_t) { pmd_val(pmd) })
+#define __swp_entry_to_pmd(swp)		__pmd((swp).val)
+#endif /* CONFIG_ARCH_ENABLE_THP_MIGRATION */
 
 /*
  * Ensure that there are not more swap files than can be encoded in the kernel

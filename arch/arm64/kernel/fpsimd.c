@@ -32,9 +32,11 @@
 #include <linux/swab.h>
 
 #include <asm/esr.h>
+#include <asm/exception.h>
 #include <asm/fpsimd.h>
 #include <asm/cpufeature.h>
 #include <asm/cputype.h>
+#include <asm/neon.h>
 #include <asm/processor.h>
 #include <asm/simd.h>
 #include <asm/sigcontext.h>
@@ -312,7 +314,7 @@ static void fpsimd_save(void)
 				 * re-enter user with corrupt state.
 				 * There's no way to recover, so kill it:
 				 */
-				force_signal_inject(SIGKILL, SI_KERNEL, 0);
+				force_signal_inject(SIGKILL, SI_KERNEL, 0, 0);
 				return;
 			}
 
@@ -928,7 +930,7 @@ void fpsimd_release_task(struct task_struct *dead_task)
  * the SVE access trap will be disabled the next time this task
  * reaches ret_to_user.
  *
- * TIF_SVE should be clear on entry: otherwise, task_fpsimd_load()
+ * TIF_SVE should be clear on entry: otherwise, fpsimd_restore_current_state()
  * would have disabled the SVE access trap for userspace during
  * ret_to_user, making an SVE access trap impossible in that case.
  */
@@ -936,7 +938,7 @@ void do_sve_acc(unsigned int esr, struct pt_regs *regs)
 {
 	/* Even if we chose not to use SVE, the hardware could still trap: */
 	if (unlikely(!system_supports_sve()) || WARN_ON(is_compat_task())) {
-		force_signal_inject(SIGILL, ILL_ILLOPC, regs->pc);
+		force_signal_inject(SIGILL, ILL_ILLOPC, regs->pc, 0);
 		return;
 	}
 
