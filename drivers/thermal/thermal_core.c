@@ -541,6 +541,7 @@ int thermal_zone_device_is_enabled(struct thermal_zone_device *tz)
 
 	return mode == THERMAL_DEVICE_ENABLED;
 }
+EXPORT_SYMBOL_GPL(thermal_zone_device_is_enabled);
 
 void thermal_zone_device_update(struct thermal_zone_device *tz,
 				enum thermal_notify_event event)

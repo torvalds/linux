@@ -179,6 +179,4 @@ of_thermal_get_trip_points(struct thermal_zone_device *tz)
 }
 #endif
 
-int thermal_zone_device_is_enabled(struct thermal_zone_device *tz);
-
 #endif /* __THERMAL_CORE_H__ */
