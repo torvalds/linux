@@ -518,28 +518,13 @@ static int msg_verify_data(struct msghdr *msg, int size, int chunk_sz)
 		if (i == 0 && txmsg_ktls_skb) {
 			if (msg->msg_iov[i].iov_len < 4)
 				return -EIO;
-			if (txmsg_ktls_skb_redir) {
-				if (memcmp(&d[13], "PASS", 4) != 0) {
-					fprintf(stderr,
-						"detected redirect ktls_skb data error with skb ingress update @iov[%i]:%i \"%02x %02x %02x %02x\" != \"PASS\"\n", i, 0, d[13], d[14], d[15], d[16]);
-					return -EIO;
-				}
-				d[13] = 0;
-				d[14] = 1;
-				d[15] = 2;
-				d[16] = 3;
-				j = 13;
-			} else if (txmsg_ktls_skb) {
-				if (memcmp(d, "PASS", 4) != 0) {
-					fprintf(stderr,
-						"detected ktls_skb data error with skb ingress update @iov[%i]:%i \"%02x %02x %02x %02x\" != \"PASS\"\n", i, 0, d[0], d[1], d[2], d[3]);
-					return -EIO;
-				}
-				d[0] = 0;
-				d[1] = 1;
-				d[2] = 2;
-				d[3] = 3;
+			if (memcmp(d, "PASS", 4) != 0) {
+				fprintf(stderr,
+					"detected skb data error with skb ingress update @iov[%i]:%i \"%02x %02x %02x %02x\" != \"PASS\"\n",
+					i, 0, d[0], d[1], d[2], d[3]);
+				return -EIO;
 			}
+			j = 4; /* advance index past PASS header */
 		}
 
 		for (; j < msg->msg_iov[i].iov_len && size; j++) {
