@@ -1462,9 +1462,7 @@ static void rkisp1_params_vb2_stop_streaming(struct vb2_queue *vq)
 {
 	struct rkisp1_params *params = vq->drv_priv;
 	struct rkisp1_buffer *buf;
-	struct list_head tmp_list;
-
-	INIT_LIST_HEAD(&tmp_list);
+	LIST_HEAD(tmp_list);
 
 	/*
 	 * we first move the buffers into a local list 'tmp_list'
@@ -1473,7 +1471,7 @@ static void rkisp1_params_vb2_stop_streaming(struct vb2_queue *vq)
 	 */
 	spin_lock_irq(&params->config_lock);
 	params->is_streaming = false;
-	list_cut_position(&tmp_list, &params->params, params->params.prev);
+	list_splice_init(&params->params, &tmp_list);
 	spin_unlock_irq(&params->config_lock);
 
 	list_for_each_entry(buf, &tmp_list, queue)
