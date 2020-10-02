@@ -1938,7 +1938,8 @@ void nla_get_range_signed(const struct nla_policy *pt,
 int netlink_policy_dump_start(const struct nla_policy *policy,
 			      unsigned int maxtype,
 			      unsigned long *state);
-bool netlink_policy_dump_loop(unsigned long *state);
+bool netlink_policy_dump_loop(unsigned long state);
 int netlink_policy_dump_write(struct sk_buff *skb, unsigned long state);
+void netlink_policy_dump_free(unsigned long state);
 
 #endif

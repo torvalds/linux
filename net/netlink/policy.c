@@ -84,7 +84,6 @@ int netlink_policy_dump_start(const struct nla_policy *policy,
 	unsigned int policy_idx;
 	int err;
 
-	/* also returns 0 if "*_state" is our ERR_PTR() end marker */
 	if (*_state)
 		return 0;
 
@@ -140,21 +139,11 @@ static bool netlink_policy_dump_finished(struct nl_policy_dump *state)
 	       !state->policies[state->policy_idx].policy;
 }
 
-bool netlink_policy_dump_loop(unsigned long *_state)
+bool netlink_policy_dump_loop(unsigned long _state)
 {
-	struct nl_policy_dump *state = (void *)*_state;
+	struct nl_policy_dump *state = (void *)_state;
 
-	if (IS_ERR(state))
-		return false;
-
-	if (netlink_policy_dump_finished(state)) {
-		kfree(state);
-		/* store end marker instead of freed state */
-		*_state = (unsigned long)ERR_PTR(-ENOENT);
-		return false;
-	}
-
-	return true;
+	return !netlink_policy_dump_finished(state);
 }
 
 int netlink_policy_dump_write(struct sk_buff *skb, unsigned long _state)
@@ -315,4 +304,11 @@ next:
 nla_put_failure:
 	nla_nest_cancel(skb, policy);
 	return -ENOBUFS;
+}
+
+void netlink_policy_dump_free(unsigned long _state)
+{
+	struct nl_policy_dump *state = (void *)_state;
+
+	kfree(state);
 }
