@@ -1256,6 +1256,40 @@ long kvm_arch_vm_ioctl(struct file *filp,
 	}
 }
 
+static int kvm_map_vectors(void)
+{
+	/*
+	 * SV2  = ARM64_SPECTRE_V2
+	 * HEL2 = ARM64_HARDEN_EL2_VECTORS
+	 *
+	 * !SV2 + !HEL2 -> use direct vectors
+	 *  SV2 + !HEL2 -> use hardened vectors in place
+	 * !SV2 +  HEL2 -> allocate one vector slot and use exec mapping
+	 *  SV2 +  HEL2 -> use hardened vectors and use exec mapping
+	 */
+	if (cpus_have_const_cap(ARM64_SPECTRE_V2)) {
+		__kvm_bp_vect_base = kvm_ksym_ref(__bp_harden_hyp_vecs);
+		__kvm_bp_vect_base = kern_hyp_va(__kvm_bp_vect_base);
+	}
+
+	if (cpus_have_const_cap(ARM64_HARDEN_EL2_VECTORS)) {
+		phys_addr_t vect_pa = __pa_symbol(__bp_harden_hyp_vecs);
+		unsigned long size = __BP_HARDEN_HYP_VECS_SZ;
+
+		/*
+		 * Always allocate a spare vector slot, as we don't
+		 * know yet which CPUs have a BP hardening slot that
+		 * we can reuse.
+		 */
+		__kvm_harden_el2_vector_slot = atomic_inc_return(&arm64_el2_vector_last_slot);
+		BUG_ON(__kvm_harden_el2_vector_slot >= BP_HARDEN_EL2_SLOTS);
+		return create_hyp_exec_mappings(vect_pa, size,
+						&__kvm_bp_vect_base);
+	}
+
+	return 0;
+}
+
 static void cpu_init_hyp_mode(void)
 {
 	phys_addr_t pgd_ptr;
@@ -1292,7 +1326,7 @@ static void cpu_init_hyp_mode(void)
 	 * at EL2.
 	 */
 	if (this_cpu_has_cap(ARM64_SSBS) &&
-	    arm64_get_ssbd_state() == ARM64_SSBD_FORCE_DISABLE) {
+	    arm64_get_spectre_v4_state() == SPECTRE_VULNERABLE) {
 		kvm_call_hyp_nvhe(__kvm_enable_ssbs);
 	}
 }
@@ -1548,10 +1582,6 @@ static int init_hyp_mode(void)
 			goto out_err;
 		}
 	}
-
-	err = hyp_map_aux_data();
-	if (err)
-		kvm_err("Cannot map host auxiliary data: %d\n", err);
 
 	return 0;
 
