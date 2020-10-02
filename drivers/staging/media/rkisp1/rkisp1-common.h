@@ -240,19 +240,17 @@ struct rkisp1_capture {
  *
  * @vnode:	  video node
  * @rkisp1:	  pointer to the rkisp1 device
- * @lock:	  locks the buffer list 'stat' and 'is_streaming'
+ * @lock:	  locks the buffer list 'stat'
  * @stat:	  queue of rkisp1_buffer
  * @vdev_fmt:	  v4l2_format of the metadata format
- * @is_streaming: device is streaming
  */
 struct rkisp1_stats {
 	struct rkisp1_vdev_node vnode;
 	struct rkisp1_device *rkisp1;
 
-	spinlock_t lock; /* locks the buffers list 'stats' and 'is_streaming' */
+	spinlock_t lock; /* locks the buffers list 'stats' */
 	struct list_head stat;
 	struct v4l2_format vdev_fmt;
-	bool is_streaming;
 };
 
 /*
@@ -260,10 +258,9 @@ struct rkisp1_stats {
  *
  * @vnode:		video node
  * @rkisp1:		pointer to the rkisp1 device
- * @config_lock:	locks the buffer list 'params' and 'is_streaming'
+ * @config_lock:	locks the buffer list 'params'
  * @params:		queue of rkisp1_buffer
  * @vdev_fmt:		v4l2_format of the metadata format
- * @is_streaming:	device is streaming
  * @quantization:	the quantization configured on the isp's src pad
  * @raw_type:		the bayer pattern on the isp video sink pad
  */
@@ -271,10 +268,9 @@ struct rkisp1_params {
 	struct rkisp1_vdev_node vnode;
 	struct rkisp1_device *rkisp1;
 
-	spinlock_t config_lock; /* locks the buffers list 'params' and 'is_streaming' */
+	spinlock_t config_lock; /* locks the buffers list 'params' */
 	struct list_head params;
 	struct v4l2_format vdev_fmt;
-	bool is_streaming;
 
 	enum v4l2_quantization quantization;
 	enum rkisp1_fmt_raw_pat_type raw_type;

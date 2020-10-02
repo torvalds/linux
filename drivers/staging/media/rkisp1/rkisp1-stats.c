@@ -136,7 +136,6 @@ static void rkisp1_stats_vb2_stop_streaming(struct vb2_queue *vq)
 	unsigned int i;
 
 	spin_lock_irq(&stats->lock);
-	stats->is_streaming = false;
 	for (i = 0; i < RKISP1_ISP_STATS_REQ_BUFS_MAX; i++) {
 		if (list_empty(&stats->stat))
 			break;
@@ -148,18 +147,6 @@ static void rkisp1_stats_vb2_stop_streaming(struct vb2_queue *vq)
 	spin_unlock_irq(&stats->lock);
 }
 
-static int
-rkisp1_stats_vb2_start_streaming(struct vb2_queue *queue, unsigned int count)
-{
-	struct rkisp1_stats *stats = queue->drv_priv;
-
-	spin_lock_irq(&stats->lock);
-	stats->is_streaming = true;
-	spin_unlock_irq(&stats->lock);
-
-	return 0;
-}
-
 static const struct vb2_ops rkisp1_stats_vb2_ops = {
 	.queue_setup = rkisp1_stats_vb2_queue_setup,
 	.buf_queue = rkisp1_stats_vb2_buf_queue,
@@ -167,7 +154,6 @@ static const struct vb2_ops rkisp1_stats_vb2_ops = {
 	.wait_prepare = vb2_ops_wait_prepare,
 	.wait_finish = vb2_ops_wait_finish,
 	.stop_streaming = rkisp1_stats_vb2_stop_streaming,
-	.start_streaming = rkisp1_stats_vb2_start_streaming,
 };
 
 static int
@@ -355,12 +341,9 @@ void rkisp1_stats_isr(struct rkisp1_stats *stats, u32 isp_ris)
 	if (isp_mis_tmp & RKISP1_STATS_MEAS_MASK)
 		rkisp1->debug.stats_error++;
 
-	if (!stats->is_streaming)
-		goto unlock;
 	if (isp_ris & RKISP1_STATS_MEAS_MASK)
 		rkisp1_stats_send_measurement(stats, isp_ris);
 
-unlock:
 	spin_unlock(&stats->lock);
 }
 

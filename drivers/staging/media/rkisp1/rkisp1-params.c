@@ -1224,10 +1224,6 @@ void rkisp1_params_isr(struct rkisp1_device *rkisp1)
 	struct rkisp1_params *params = &rkisp1->params;
 
 	spin_lock(&params->config_lock);
-	if (!params->is_streaming) {
-		spin_unlock(&params->config_lock);
-		return;
-	}
 	rkisp1_params_apply_params_cfg(params, frame_sequence);
 
 	spin_unlock(&params->config_lock);
@@ -1303,8 +1299,7 @@ static void rkisp1_params_config_parameter(struct rkisp1_params *params)
 	spin_lock_irq(&params->config_lock);
 
 	/* apply the first buffer if there is one already */
-	if (params->is_streaming)
-		rkisp1_params_apply_params_cfg(params, 0);
+	rkisp1_params_apply_params_cfg(params, 0);
 
 	spin_unlock_irq(&params->config_lock);
 }
@@ -1467,24 +1462,11 @@ static void rkisp1_params_vb2_stop_streaming(struct vb2_queue *vq)
 	 * without holding the lock
 	 */
 	spin_lock_irq(&params->config_lock);
-	params->is_streaming = false;
 	list_splice_init(&params->params, &tmp_list);
 	spin_unlock_irq(&params->config_lock);
 
 	list_for_each_entry(buf, &tmp_list, queue)
 		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
-}
-
-static int
-rkisp1_params_vb2_start_streaming(struct vb2_queue *queue, unsigned int count)
-{
-	struct rkisp1_params *params = queue->drv_priv;
-
-	spin_lock_irq(&params->config_lock);
-	params->is_streaming = true;
-	spin_unlock_irq(&params->config_lock);
-
-	return 0;
 }
 
 static struct vb2_ops rkisp1_params_vb2_ops = {
@@ -1493,7 +1475,6 @@ static struct vb2_ops rkisp1_params_vb2_ops = {
 	.wait_finish = vb2_ops_wait_finish,
 	.buf_queue = rkisp1_params_vb2_buf_queue,
 	.buf_prepare = rkisp1_params_vb2_buf_prepare,
-	.start_streaming = rkisp1_params_vb2_start_streaming,
 	.stop_streaming = rkisp1_params_vb2_stop_streaming,
 
 };
