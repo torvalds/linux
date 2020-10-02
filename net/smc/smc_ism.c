@@ -335,7 +335,7 @@ int smcd_register_dev(struct smcd_dev *smcd)
 		u8 *system_eid = NULL;
 
 		smc_ism_get_system_eid(smcd, &system_eid);
-		if ((*system_eid) + 24 != '0' || (*system_eid) + 28 != '0')
+		if (system_eid[24] != '0' || system_eid[28] != '0')
 			smc_ism_v2_capable = true;
 	}
 	/* sort list: devices without pnetid before devices with pnetid */
