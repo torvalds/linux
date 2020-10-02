@@ -1013,23 +1013,23 @@ ocelot_vcap_block_find_filter_by_id(struct ocelot_vcap_block *block, int id)
  * on any _other_ keys than MAC_ETYPE ones.
  */
 static void ocelot_match_all_as_mac_etype(struct ocelot *ocelot, int port,
-					  bool on)
+					  int lookup, bool on)
 {
 	u32 val = 0;
 
 	if (on)
-		val = ANA_PORT_VCAP_S2_CFG_S2_SNAP_DIS(3) |
-		      ANA_PORT_VCAP_S2_CFG_S2_ARP_DIS(3) |
-		      ANA_PORT_VCAP_S2_CFG_S2_IP_TCPUDP_DIS(3) |
-		      ANA_PORT_VCAP_S2_CFG_S2_IP_OTHER_DIS(3) |
-		      ANA_PORT_VCAP_S2_CFG_S2_OAM_DIS(3);
+		val = ANA_PORT_VCAP_S2_CFG_S2_SNAP_DIS(BIT(lookup)) |
+		      ANA_PORT_VCAP_S2_CFG_S2_ARP_DIS(BIT(lookup)) |
+		      ANA_PORT_VCAP_S2_CFG_S2_IP_TCPUDP_DIS(BIT(lookup)) |
+		      ANA_PORT_VCAP_S2_CFG_S2_IP_OTHER_DIS(BIT(lookup)) |
+		      ANA_PORT_VCAP_S2_CFG_S2_OAM_DIS(BIT(lookup));
 
 	ocelot_rmw_gix(ocelot, val,
-		       ANA_PORT_VCAP_S2_CFG_S2_SNAP_DIS_M |
-		       ANA_PORT_VCAP_S2_CFG_S2_ARP_DIS_M |
-		       ANA_PORT_VCAP_S2_CFG_S2_IP_TCPUDP_DIS_M |
-		       ANA_PORT_VCAP_S2_CFG_S2_IP_OTHER_DIS_M |
-		       ANA_PORT_VCAP_S2_CFG_S2_OAM_DIS_M,
+		       ANA_PORT_VCAP_S2_CFG_S2_SNAP_DIS(BIT(lookup)) |
+		       ANA_PORT_VCAP_S2_CFG_S2_ARP_DIS(BIT(lookup)) |
+		       ANA_PORT_VCAP_S2_CFG_S2_IP_TCPUDP_DIS(BIT(lookup)) |
+		       ANA_PORT_VCAP_S2_CFG_S2_IP_OTHER_DIS(BIT(lookup)) |
+		       ANA_PORT_VCAP_S2_CFG_S2_OAM_DIS(BIT(lookup)),
 		       ANA_PORT_VCAP_S2_CFG, port);
 }
 
@@ -1080,30 +1080,38 @@ ocelot_exclusive_mac_etype_filter_rules(struct ocelot *ocelot,
 	unsigned long port;
 	int i;
 
+	/* We only have the S2_IP_TCPUDP_DIS set of knobs for VCAP IS2 */
+	if (filter->block_id != VCAP_IS2)
+		return true;
+
 	if (ocelot_vcap_is_problematic_mac_etype(filter)) {
 		/* Search for any non-MAC_ETYPE rules on the port */
 		for (i = 0; i < block->count; i++) {
 			tmp = ocelot_vcap_block_find_filter_by_index(block, i);
 			if (tmp->ingress_port_mask & filter->ingress_port_mask &&
+			    tmp->lookup == filter->lookup &&
 			    ocelot_vcap_is_problematic_non_mac_etype(tmp))
 				return false;
 		}
 
 		for_each_set_bit(port, &filter->ingress_port_mask,
 				 ocelot->num_phys_ports)
-			ocelot_match_all_as_mac_etype(ocelot, port, true);
+			ocelot_match_all_as_mac_etype(ocelot, port,
+						      filter->lookup, true);
 	} else if (ocelot_vcap_is_problematic_non_mac_etype(filter)) {
 		/* Search for any MAC_ETYPE rules on the port */
 		for (i = 0; i < block->count; i++) {
 			tmp = ocelot_vcap_block_find_filter_by_index(block, i);
 			if (tmp->ingress_port_mask & filter->ingress_port_mask &&
+			    tmp->lookup == filter->lookup &&
 			    ocelot_vcap_is_problematic_mac_etype(tmp))
 				return false;
 		}
 
 		for_each_set_bit(port, &filter->ingress_port_mask,
 				 ocelot->num_phys_ports)
-			ocelot_match_all_as_mac_etype(ocelot, port, false);
+			ocelot_match_all_as_mac_etype(ocelot, port,
+						      filter->lookup, false);
 	}
 
 	return true;
@@ -1118,7 +1126,7 @@ int ocelot_vcap_filter_add(struct ocelot *ocelot,
 
 	if (!ocelot_exclusive_mac_etype_filter_rules(ocelot, filter)) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Cannot mix MAC_ETYPE with non-MAC_ETYPE rules");
+				   "Cannot mix MAC_ETYPE with non-MAC_ETYPE rules, use the other IS2 lookup");
 		return -EBUSY;
 	}
 
