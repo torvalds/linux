@@ -626,6 +626,7 @@ static int s3c64xx_spi_config(struct s3c64xx_spi_driver_data *sdd)
 		ret = clk_set_rate(sdd->src_clk, sdd->cur_speed * 2);
 		if (ret)
 			return ret;
+		sdd->cur_speed = clk_get_rate(sdd->src_clk) / 2;
 	} else {
 		/* Configure Clock */
 		val = readl(regs + S3C64XX_SPI_CLK_CFG);
