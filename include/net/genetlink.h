@@ -137,6 +137,8 @@ struct genl_small_ops {
  * @cmd: command identifier
  * @internal_flags: flags used by the family
  * @flags: flags
+ * @maxattr: maximum number of attributes supported
+ * @policy: netlink policy (takes precedence over family policy)
  * @doit: standard command callback
  * @start: start callback for dumps
  * @dumpit: callback for dumpers
@@ -149,6 +151,8 @@ struct genl_ops {
 	int		       (*dumpit)(struct sk_buff *skb,
 					 struct netlink_callback *cb);
 	int		       (*done)(struct netlink_callback *cb);
+	const struct nla_policy *policy;
+	unsigned int		maxattr;
 	u8			cmd;
 	u8			internal_flags;
 	u8			flags;

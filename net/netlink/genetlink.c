@@ -116,6 +116,11 @@ static void genl_op_from_full(const struct genl_family *family,
 			      unsigned int i, struct genl_ops *op)
 {
 	*op = family->ops[i];
+
+	if (!op->maxattr)
+		op->maxattr = family->maxattr;
+	if (!op->policy)
+		op->policy = family->policy;
 }
 
 static int genl_get_cmd_full(u8 cmd, const struct genl_family *family,
@@ -142,6 +147,9 @@ static void genl_op_from_small(const struct genl_family *family,
 	op->internal_flags = family->small_ops[i].internal_flags;
 	op->flags	= family->small_ops[i].flags;
 	op->validate	= family->small_ops[i].validate;
+
+	op->maxattr = family->maxattr;
+	op->policy = family->policy;
 }
 
 static int genl_get_cmd_small(u8 cmd, const struct genl_family *family,
@@ -529,16 +537,16 @@ genl_family_rcv_msg_attrs_parse(const struct genl_family *family,
 	struct nlattr **attrbuf;
 	int err;
 
-	if (!family->maxattr)
+	if (!ops->maxattr)
 		return NULL;
 
-	attrbuf = kmalloc_array(family->maxattr + 1,
+	attrbuf = kmalloc_array(ops->maxattr + 1,
 				sizeof(struct nlattr *), GFP_KERNEL);
 	if (!attrbuf)
 		return ERR_PTR(-ENOMEM);
 
-	err = __nlmsg_parse(nlh, hdrlen, attrbuf, family->maxattr,
-			    family->policy, validate, extack);
+	err = __nlmsg_parse(nlh, hdrlen, attrbuf, ops->maxattr, ops->policy,
+			    validate, extack);
 	if (err) {
 		kfree(attrbuf);
 		return ERR_PTR(err);
@@ -845,7 +853,7 @@ static int ctrl_fill_info(const struct genl_family *family, u32 portid, u32 seq,
 				op_flags |= GENL_CMD_CAP_DUMP;
 			if (op.doit)
 				op_flags |= GENL_CMD_CAP_DO;
-			if (family->policy)
+			if (op.policy)
 				op_flags |= GENL_CMD_CAP_HASPOL;
 
 			nest = nla_nest_start_noflag(skb, i + 1);
