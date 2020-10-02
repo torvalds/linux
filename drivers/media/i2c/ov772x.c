@@ -31,6 +31,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
+#include <media/v4l2-fwnode.h>
 #include <media/v4l2-image-sizes.h>
 #include <media/v4l2-subdev.h>
 
@@ -434,6 +435,7 @@ struct ov772x_priv {
 #ifdef CONFIG_MEDIA_CONTROLLER
 	struct media_pad pad;
 #endif
+	enum v4l2_mbus_type		  bus_type;
 };
 
 /*
@@ -1348,6 +1350,34 @@ static const struct v4l2_subdev_ops ov772x_subdev_ops = {
 	.pad	= &ov772x_subdev_pad_ops,
 };
 
+static int ov772x_parse_dt(struct i2c_client *client,
+			   struct ov772x_priv *priv)
+{
+	struct v4l2_fwnode_endpoint bus_cfg = {
+		.bus_type = V4L2_MBUS_PARALLEL
+	};
+	struct fwnode_handle *ep;
+	int ret;
+
+	ep = fwnode_graph_get_next_endpoint(dev_fwnode(&client->dev), NULL);
+	if (!ep) {
+		dev_err(&client->dev, "Endpoint node not found\n");
+		return -EINVAL;
+	}
+
+	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
+	if (ret)
+		goto error_fwnode_put;
+
+	priv->bus_type = bus_cfg.bus_type;
+	v4l2_fwnode_endpoint_free(&bus_cfg);
+
+error_fwnode_put:
+	fwnode_handle_put(ep);
+
+	return ret;
+}
+
 /*
  * i2c_driver function
  */
@@ -1414,6 +1444,10 @@ static int ov772x_probe(struct i2c_client *client)
 		ret = PTR_ERR(priv->pwdn_gpio);
 		goto error_clk_put;
 	}
+
+	ret = ov772x_parse_dt(client, priv);
+	if (ret)
+		goto error_clk_put;
 
 	ret = ov772x_video_probe(priv);
 	if (ret < 0)
