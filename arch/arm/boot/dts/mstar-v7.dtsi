@@ -113,6 +113,7 @@
 				compatible = "ns16550a";
 				reg = <0x221000 0x100>;
 				reg-shift = <3>;
+				interrupts-extended = <&intc_irq GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
 				clock-frequency = <172000000>;
 				status = "disabled";
 			};
