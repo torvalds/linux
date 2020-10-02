@@ -235,6 +235,8 @@ static int tcf_dump_walker(struct tcf_idrinfo *idrinfo, struct sk_buff *skb,
 		index++;
 		if (index < s_i)
 			continue;
+		if (IS_ERR(p))
+			continue;
 
 		if (jiffy_since &&
 		    time_after(jiffy_since,
