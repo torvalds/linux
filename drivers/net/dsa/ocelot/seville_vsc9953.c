@@ -1058,6 +1058,8 @@ static u16 vsc9953_wm_enc(u16 value)
 static const struct ocelot_ops vsc9953_ops = {
 	.reset			= vsc9953_reset,
 	.wm_enc			= vsc9953_wm_enc,
+	.port_to_netdev		= felix_port_to_netdev,
+	.netdev_to_port		= felix_netdev_to_port,
 };
 
 static int vsc9953_mdio_bus_alloc(struct ocelot *ocelot)
