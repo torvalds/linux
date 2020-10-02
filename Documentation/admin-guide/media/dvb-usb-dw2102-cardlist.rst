@@ -40,6 +40,10 @@ dvb-usb-dw2102 cards list
      - 0b48:3011
    * - TerraTec Cinergy S USB
      - 0ccd:0064
+   * - Terratec Cinergy S2 PCIe Dual Port 1
+     - 153b:1181
+   * - Terratec Cinergy S2 PCIe Dual Port 2
+     - 153b:1182
    * - Terratec Cinergy S2 USB BOX
      - 0ccd:0x0105
    * - Terratec Cinergy S2 USB HD
