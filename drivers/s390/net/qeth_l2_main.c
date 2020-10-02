@@ -183,7 +183,7 @@ static void qeth_l2_fill_header(struct qeth_qdio_out_q *queue,
 	/* VSWITCH relies on the VLAN
 	 * information to be present in
 	 * the QDIO header */
-	if (veth->h_vlan_proto == __constant_htons(ETH_P_8021Q)) {
+	if (veth->h_vlan_proto == htons(ETH_P_8021Q)) {
 		hdr->hdr.l2.flags[2] |= QETH_LAYER2_FLAG_VLAN;
 		hdr->hdr.l2.vlan_id = ntohs(veth->h_vlan_TCI);
 	}
@@ -571,9 +571,10 @@ static u16 qeth_l2_select_queue(struct net_device *dev, struct sk_buff *skb,
 		return qeth_iqd_select_queue(dev, skb,
 					     qeth_get_ether_cast_type(skb),
 					     sb_dev);
+	if (qeth_uses_tx_prio_queueing(card))
+		return qeth_get_priority_queue(card, skb);
 
-	return IS_VM_NIC(card) ? netdev_pick_tx(dev, skb, sb_dev) :
-				 qeth_get_priority_queue(card, skb);
+	return netdev_pick_tx(dev, skb, sb_dev);
 }
 
 static void qeth_l2_set_rx_mode(struct net_device *dev)
@@ -876,7 +877,7 @@ static const struct net_device_ops qeth_l2_netdev_ops = {
 	.ndo_set_mac_address    = qeth_l2_set_mac_address,
 	.ndo_vlan_rx_add_vid	= qeth_l2_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid   = qeth_l2_vlan_rx_kill_vid,
-	.ndo_tx_timeout	   	= qeth_tx_timeout,
+	.ndo_tx_timeout		= qeth_tx_timeout,
 	.ndo_fix_features	= qeth_fix_features,
 	.ndo_set_features	= qeth_set_features,
 	.ndo_bridge_getlink	= qeth_l2_bridge_getlink,
@@ -894,17 +895,11 @@ static const struct net_device_ops qeth_osn_netdev_ops = {
 
 static int qeth_l2_setup_netdev(struct qeth_card *card)
 {
-	int rc;
-
 	if (IS_OSN(card)) {
 		card->dev->netdev_ops = &qeth_osn_netdev_ops;
 		card->dev->flags |= IFF_NOARP;
 		goto add_napi;
 	}
-
-	rc = qeth_setup_netdev(card);
-	if (rc)
-		return rc;
 
 	card->dev->needed_headroom = sizeof(struct qeth_hdr);
 	card->dev->netdev_ops = &qeth_l2_netdev_ops;
@@ -1130,7 +1125,6 @@ void qeth_osn_deregister(struct net_device *dev)
 	QETH_CARD_TEXT(card, 2, "osndereg");
 	card->osn_info.assist_cb = NULL;
 	card->osn_info.data_cb = NULL;
-	return;
 }
 EXPORT_SYMBOL(qeth_osn_deregister);
 #endif
@@ -1377,7 +1371,7 @@ static void qeth_addr_change_event_worker(struct work_struct *work)
 
 		dev_info(&data->card->gdev->dev,
 			 "Address change notification stopped on %s (%s)\n",
-			 data->card->dev->name,
+			 netdev_name(card->dev),
 			(data->ac_event.lost_event_mask == 0x01)
 			? "Overflow"
 			: (data->ac_event.lost_event_mask == 0x02)
@@ -2274,6 +2268,13 @@ static int qeth_l2_set_online(struct qeth_card *card, bool carrier_ok)
 			netif_carrier_on(dev);
 	} else {
 		rtnl_lock();
+		rc = qeth_set_real_num_tx_queues(card,
+						 qeth_tx_actual_queues(card));
+		if (rc) {
+			rtnl_unlock();
+			goto err_set_queues;
+		}
+
 		if (carrier_ok)
 			netif_carrier_on(dev);
 		else
@@ -2291,6 +2292,7 @@ static int qeth_l2_set_online(struct qeth_card *card, bool carrier_ok)
 	}
 	return 0;
 
+err_set_queues:
 err_setup:
 	qeth_set_allowed_threads(card, 0, 1);
 	card->state = CARD_STATE_DOWN;
@@ -2337,7 +2339,7 @@ static int qeth_l2_control_event(struct qeth_card *card,
 	}
 }
 
-struct qeth_discipline qeth_l2_discipline = {
+const struct qeth_discipline qeth_l2_discipline = {
 	.devtype = &qeth_l2_devtype,
 	.setup = qeth_l2_probe_device,
 	.remove = qeth_l2_remove_device,

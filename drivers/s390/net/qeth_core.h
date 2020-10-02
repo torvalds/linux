@@ -177,8 +177,8 @@ struct qeth_vnicc_info {
 /**
  * some more defs
  */
-#define QETH_TX_TIMEOUT		100 * HZ
-#define QETH_RCD_TIMEOUT	60 * HZ
+#define QETH_TX_TIMEOUT		(100 * HZ)
+#define QETH_RCD_TIMEOUT	(60 * HZ)
 #define QETH_RECLAIM_WORK_TIME	HZ
 #define QETH_MAX_PORTNO		15
 
@@ -277,6 +277,26 @@ struct qeth_hdr {
 		struct qeth_hdr_osn    osn;
 	} hdr;
 } __attribute__ ((packed));
+
+#define QETH_QIB_PQUE_ORDER_RR		0
+#define QETH_QIB_PQUE_UNITS_SBAL	2
+#define QETH_QIB_PQUE_PRIO_DEFAULT	4
+
+struct qeth_qib_parms {
+	char pcit_magic[4];
+	u32 pcit_a;
+	u32 pcit_b;
+	u32 pcit_c;
+	char blkt_magic[4];
+	u32 blkt_total;
+	u32 blkt_inter_packet;
+	u32 blkt_inter_packet_jumbo;
+	char pque_magic[4];
+	u8 pque_order;
+	u8 pque_units;
+	u16 reserved;
+	u32 pque_priority[4];
+};
 
 /*TCP Segmentation Offload header*/
 struct qeth_hdr_ext_tso {
@@ -481,6 +501,7 @@ struct qeth_qdio_out_q {
 	struct qdio_outbuf_state *bufstates; /* convenience pointer */
 	struct qeth_out_q_stats stats;
 	spinlock_t lock;
+	unsigned int priority;
 	u8 next_buf_to_fill;
 	u8 max_elements;
 	u8 queue_no;
@@ -538,7 +559,7 @@ struct qeth_qdio_info {
 	int in_buf_size;
 
 	/* output */
-	int no_out_queues;
+	unsigned int no_out_queues;
 	struct qeth_qdio_out_q *out_qs[QETH_MAX_OUT_QUEUES];
 	struct qdio_outbuf_state *out_bufstates;
 
@@ -788,6 +809,7 @@ struct qeth_switch_info {
 
 struct qeth_priv {
 	unsigned int rx_copybreak;
+	unsigned int tx_wanted_queues;
 	u32 brport_hw_features;
 	u32 brport_features;
 };
@@ -836,7 +858,7 @@ struct qeth_card {
 	struct qeth_qdio_info qdio;
 	int read_or_write_problem;
 	struct qeth_osn_info osn_info;
-	struct qeth_discipline *discipline;
+	const struct qeth_discipline *discipline;
 	atomic_t force_alloc_skb;
 	struct service_level qeth_service_level;
 	struct qdio_ssqd_desc ssqd;
@@ -870,8 +892,20 @@ struct qeth_trap_id {
 	__u16 devno;
 } __packed;
 
-/*some helper functions*/
-#define QETH_CARD_IFNAME(card) (((card)->dev)? (card)->dev->name : "")
+static inline bool qeth_uses_tx_prio_queueing(struct qeth_card *card)
+{
+	return card->qdio.do_prio_queueing != QETH_NO_PRIO_QUEUEING;
+}
+
+static inline unsigned int qeth_tx_actual_queues(struct qeth_card *card)
+{
+	struct qeth_priv *priv = netdev_priv(card->dev);
+
+	if (qeth_uses_tx_prio_queueing(card))
+		return min(card->dev->num_tx_queues, card->qdio.no_out_queues);
+
+	return min(priv->tx_wanted_queues, card->qdio.no_out_queues);
+}
 
 static inline u16 qeth_iqd_translate_txq(struct net_device *dev, u16 txq)
 {
@@ -1014,8 +1048,8 @@ static inline int qeth_send_simple_setassparms_v6(struct qeth_card *card,
 
 int qeth_get_priority_queue(struct qeth_card *card, struct sk_buff *skb);
 
-extern struct qeth_discipline qeth_l2_discipline;
-extern struct qeth_discipline qeth_l3_discipline;
+extern const struct qeth_discipline qeth_l2_discipline;
+extern const struct qeth_discipline qeth_l3_discipline;
 extern const struct ethtool_ops qeth_ethtool_ops;
 extern const struct ethtool_ops qeth_osn_ethtool_ops;
 extern const struct attribute_group *qeth_generic_attr_groups[];
@@ -1035,7 +1069,8 @@ extern struct qeth_dbf_info qeth_dbf[QETH_DBF_INFOS];
 
 struct net_device *qeth_clone_netdev(struct net_device *orig);
 struct qeth_card *qeth_get_card_by_busid(char *bus_id);
-void qeth_set_allowed_threads(struct qeth_card *, unsigned long , int);
+void qeth_set_allowed_threads(struct qeth_card *card, unsigned long threads,
+			      int clear_start_mask);
 int qeth_threads_running(struct qeth_card *, unsigned long);
 int qeth_set_offline(struct qeth_card *card, bool resetting);
 
@@ -1087,7 +1122,6 @@ void qeth_dbf_longtext(debug_info_t *id, int level, char *text, ...);
 int qeth_configure_cq(struct qeth_card *, enum qeth_cq);
 int qeth_hw_trap(struct qeth_card *, enum qeth_diags_trap_action);
 int qeth_setassparms_cb(struct qeth_card *, struct qeth_reply *, unsigned long);
-int qeth_setup_netdev(struct qeth_card *card);
 int qeth_set_features(struct net_device *, netdev_features_t);
 void qeth_enable_hw_features(struct net_device *dev);
 netdev_features_t qeth_fix_features(struct net_device *, netdev_features_t);
