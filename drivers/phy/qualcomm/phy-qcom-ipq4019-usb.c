@@ -48,7 +48,7 @@ static int ipq4019_ss_phy_power_on(struct phy *_phy)
 	return 0;
 }
 
-static struct phy_ops ipq4019_usb_ss_phy_ops = {
+static const struct phy_ops ipq4019_usb_ss_phy_ops = {
 	.power_on	= ipq4019_ss_phy_power_on,
 	.power_off	= ipq4019_ss_phy_power_off,
 };
@@ -80,7 +80,7 @@ static int ipq4019_hs_phy_power_on(struct phy *_phy)
 	return 0;
 }
 
-static struct phy_ops ipq4019_usb_hs_phy_ops = {
+static const struct phy_ops ipq4019_usb_hs_phy_ops = {
 	.power_on	= ipq4019_hs_phy_power_on,
 	.power_off	= ipq4019_hs_phy_power_off,
 };
