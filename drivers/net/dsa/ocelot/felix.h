@@ -52,4 +52,7 @@ struct felix {
 	resource_size_t			imdio_base;
 };
 
+struct net_device *felix_port_to_netdev(struct ocelot *ocelot, int port);
+int felix_netdev_to_port(struct net_device *dev);
+
 #endif

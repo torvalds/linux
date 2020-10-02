@@ -559,6 +559,8 @@ enum ocelot_tag_prefix {
 struct ocelot;
 
 struct ocelot_ops {
+	struct net_device *(*port_to_netdev)(struct ocelot *ocelot, int port);
+	int (*netdev_to_port)(struct net_device *dev);
 	int (*reset)(struct ocelot *ocelot);
 	u16 (*wm_enc)(u16 value);
 };
@@ -631,7 +633,8 @@ struct ocelot {
 
 	struct list_head		multicast;
 
-	struct ocelot_vcap_block	block;
+	struct list_head		dummy_rules;
+	struct ocelot_vcap_block	block[3];
 	struct vcap_props		*vcap;
 
 	/* Workqueue to check statistics for overflow with its lock */

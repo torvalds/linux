@@ -711,6 +711,7 @@ static const struct vcap_field vsc9959_vcap_is1_actions[] = {
 	[VCAP_IS1_ACT_PAG_OVERRIDE_MASK]	= { 13,  8},
 	[VCAP_IS1_ACT_PAG_VAL]			= { 21,  8},
 	[VCAP_IS1_ACT_RSV]			= { 29,  9},
+	/* The fields below are incorrectly shifted by 2 in the manual */
 	[VCAP_IS1_ACT_VID_REPLACE_ENA]		= { 38,  1},
 	[VCAP_IS1_ACT_VID_ADD_VAL]		= { 39, 12},
 	[VCAP_IS1_ACT_FID_SEL]			= { 51,  2},
@@ -1006,6 +1007,8 @@ static u16 vsc9959_wm_enc(u16 value)
 static const struct ocelot_ops vsc9959_ops = {
 	.reset			= vsc9959_reset,
 	.wm_enc			= vsc9959_wm_enc,
+	.port_to_netdev		= felix_port_to_netdev,
+	.netdev_to_port		= felix_netdev_to_port,
 };
 
 static int vsc9959_mdio_bus_alloc(struct ocelot *ocelot)

@@ -11,6 +11,8 @@
 #include <net/sch_generic.h>
 #include <net/pkt_cls.h>
 
+#define OCELOT_POLICER_DISCARD 0x17f
+
 struct ocelot_ipv4 {
 	u8 addr[4];
 };
@@ -74,6 +76,11 @@ struct ocelot_vcap_ipv4 {
 struct ocelot_vcap_udp_tcp {
 	u16 value;
 	u16 mask;
+};
+
+struct ocelot_vcap_port {
+	u8 value;
+	u8 mask;
 };
 
 enum ocelot_vcap_key_type {
@@ -158,6 +165,7 @@ struct ocelot_vcap_key_ipv4 {
 struct ocelot_vcap_key_ipv6 {
 	struct ocelot_vcap_u8 proto; /* IPv6 protocol */
 	struct ocelot_vcap_u128 sip; /* IPv6 source (byte 0-7 ignored) */
+	struct ocelot_vcap_u128 dip; /* IPv6 destination (byte 0-7 ignored) */
 	enum ocelot_vcap_bit ttl;  /* TTL zero */
 	struct ocelot_vcap_u8 ds;
 	struct ocelot_vcap_u48 data; /* Not UDP/TCP: IP data */
@@ -174,10 +182,71 @@ struct ocelot_vcap_key_ipv6 {
 	enum ocelot_vcap_bit seq_zero;       /* TCP sequence number is zero */
 };
 
-enum ocelot_vcap_action {
-	OCELOT_VCAP_ACTION_DROP,
-	OCELOT_VCAP_ACTION_TRAP,
-	OCELOT_VCAP_ACTION_POLICE,
+enum ocelot_mask_mode {
+	OCELOT_MASK_MODE_NONE,
+	OCELOT_MASK_MODE_PERMIT_DENY,
+	OCELOT_MASK_MODE_POLICY,
+	OCELOT_MASK_MODE_REDIRECT,
+};
+
+enum ocelot_es0_tag {
+	OCELOT_NO_ES0_TAG,
+	OCELOT_ES0_TAG,
+	OCELOT_FORCE_PORT_TAG,
+	OCELOT_FORCE_UNTAG,
+};
+
+enum ocelot_tag_tpid_sel {
+	OCELOT_TAG_TPID_SEL_8021Q,
+	OCELOT_TAG_TPID_SEL_8021AD,
+};
+
+struct ocelot_vcap_action {
+	union {
+		/* VCAP ES0 */
+		struct {
+			enum ocelot_es0_tag push_outer_tag;
+			enum ocelot_es0_tag push_inner_tag;
+			enum ocelot_tag_tpid_sel tag_a_tpid_sel;
+			int tag_a_vid_sel;
+			int tag_a_pcp_sel;
+			u16 vid_a_val;
+			u8 pcp_a_val;
+			u8 dei_a_val;
+			enum ocelot_tag_tpid_sel tag_b_tpid_sel;
+			int tag_b_vid_sel;
+			int tag_b_pcp_sel;
+			u16 vid_b_val;
+			u8 pcp_b_val;
+			u8 dei_b_val;
+		};
+
+		/* VCAP IS1 */
+		struct {
+			bool vid_replace_ena;
+			u16 vid;
+			bool vlan_pop_cnt_ena;
+			int vlan_pop_cnt;
+			bool pcp_dei_ena;
+			u8 pcp;
+			u8 dei;
+			bool qos_ena;
+			u8 qos_val;
+			u8 pag_override_mask;
+			u8 pag_val;
+		};
+
+		/* VCAP IS2 */
+		struct {
+			bool cpu_copy_ena;
+			u8 cpu_qu_num;
+			enum ocelot_mask_mode mask_mode;
+			unsigned long port_mask;
+			bool police_ena;
+			struct ocelot_policer pol;
+			u32 pol_ix;
+		};
+	};
 };
 
 struct ocelot_vcap_stats {
@@ -186,15 +255,30 @@ struct ocelot_vcap_stats {
 	u64 used;
 };
 
+enum ocelot_vcap_filter_type {
+	OCELOT_VCAP_FILTER_DUMMY,
+	OCELOT_VCAP_FILTER_PAG,
+	OCELOT_VCAP_FILTER_OFFLOAD,
+};
+
 struct ocelot_vcap_filter {
 	struct list_head list;
 
+	enum ocelot_vcap_filter_type type;
+	int block_id;
+	int goto_target;
+	int lookup;
+	u8 pag;
 	u16 prio;
 	u32 id;
 
-	enum ocelot_vcap_action action;
+	struct ocelot_vcap_action action;
 	struct ocelot_vcap_stats stats;
+	/* For VCAP IS1 and IS2 */
 	unsigned long ingress_port_mask;
+	/* For VCAP ES0 */
+	struct ocelot_vcap_port ingress_port;
+	struct ocelot_vcap_port egress_port;
 
 	enum ocelot_vcap_bit dmac_mc;
 	enum ocelot_vcap_bit dmac_bc;
@@ -210,8 +294,6 @@ struct ocelot_vcap_filter {
 		struct ocelot_vcap_key_ipv4 ipv4;
 		struct ocelot_vcap_key_ipv6 ipv6;
 	} key;
-	struct ocelot_policer pol;
-	u32 pol_ix;
 };
 
 int ocelot_vcap_filter_add(struct ocelot *ocelot,
