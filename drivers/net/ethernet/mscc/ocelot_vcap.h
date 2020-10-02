@@ -160,6 +160,7 @@ struct ocelot_vcap_key_ipv4 {
 struct ocelot_vcap_key_ipv6 {
 	struct ocelot_vcap_u8 proto; /* IPv6 protocol */
 	struct ocelot_vcap_u128 sip; /* IPv6 source (byte 0-7 ignored) */
+	struct ocelot_vcap_u128 dip; /* IPv6 destination (byte 0-7 ignored) */
 	enum ocelot_vcap_bit ttl;  /* TTL zero */
 	struct ocelot_vcap_u8 ds;
 	struct ocelot_vcap_u48 data; /* Not UDP/TCP: IP data */
@@ -185,6 +186,21 @@ enum ocelot_mask_mode {
 
 struct ocelot_vcap_action {
 	union {
+		/* VCAP IS1 */
+		struct {
+			bool vid_replace_ena;
+			u16 vid;
+			bool vlan_pop_cnt_ena;
+			int vlan_pop_cnt;
+			bool pcp_dei_ena;
+			u8 pcp;
+			u8 dei;
+			bool qos_ena;
+			u8 qos_val;
+			u8 pag_override_mask;
+			u8 pag_val;
+		};
+
 		/* VCAP IS2 */
 		struct {
 			bool cpu_copy_ena;
@@ -217,6 +233,7 @@ struct ocelot_vcap_filter {
 	int block_id;
 	int goto_target;
 	int lookup;
+	u8 pag;
 	u16 prio;
 	u32 id;
 

@@ -711,6 +711,7 @@ static const struct vcap_field vsc9959_vcap_is1_actions[] = {
 	[VCAP_IS1_ACT_PAG_OVERRIDE_MASK]	= { 13,  8},
 	[VCAP_IS1_ACT_PAG_VAL]			= { 21,  8},
 	[VCAP_IS1_ACT_RSV]			= { 29,  9},
+	/* The fields below are incorrectly shifted by 2 in the manual */
 	[VCAP_IS1_ACT_VID_REPLACE_ENA]		= { 38,  1},
 	[VCAP_IS1_ACT_VID_ADD_VAL]		= { 39, 12},
 	[VCAP_IS1_ACT_FID_SEL]			= { 51,  2},

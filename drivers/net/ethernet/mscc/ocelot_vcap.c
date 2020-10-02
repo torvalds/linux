@@ -640,6 +640,140 @@ static void is2_entry_set(struct ocelot *ocelot, int ix,
 	vcap_row_cmd(ocelot, vcap, row, VCAP_CMD_WRITE, VCAP_SEL_ALL);
 }
 
+static void is1_action_set(struct ocelot *ocelot, struct vcap_data *data,
+			   const struct ocelot_vcap_filter *filter)
+{
+	const struct vcap_props *vcap = &ocelot->vcap[VCAP_IS1];
+	const struct ocelot_vcap_action *a = &filter->action;
+
+	vcap_action_set(vcap, data, VCAP_IS1_ACT_VID_REPLACE_ENA,
+			a->vid_replace_ena);
+	vcap_action_set(vcap, data, VCAP_IS1_ACT_VID_ADD_VAL, a->vid);
+	vcap_action_set(vcap, data, VCAP_IS1_ACT_VLAN_POP_CNT_ENA,
+			a->vlan_pop_cnt_ena);
+	vcap_action_set(vcap, data, VCAP_IS1_ACT_VLAN_POP_CNT,
+			a->vlan_pop_cnt);
+	vcap_action_set(vcap, data, VCAP_IS1_ACT_PCP_DEI_ENA, a->pcp_dei_ena);
+	vcap_action_set(vcap, data, VCAP_IS1_ACT_PCP_VAL, a->pcp);
+	vcap_action_set(vcap, data, VCAP_IS1_ACT_DEI_VAL, a->dei);
+	vcap_action_set(vcap, data, VCAP_IS1_ACT_QOS_ENA, a->qos_ena);
+	vcap_action_set(vcap, data, VCAP_IS1_ACT_QOS_VAL, a->qos_val);
+	vcap_action_set(vcap, data, VCAP_IS1_ACT_PAG_OVERRIDE_MASK,
+			a->pag_override_mask);
+	vcap_action_set(vcap, data, VCAP_IS1_ACT_PAG_VAL, a->pag_val);
+}
+
+static void is1_entry_set(struct ocelot *ocelot, int ix,
+			  struct ocelot_vcap_filter *filter)
+{
+	const struct vcap_props *vcap = &ocelot->vcap[VCAP_IS1];
+	struct ocelot_vcap_key_vlan *tag = &filter->vlan;
+	struct ocelot_vcap_u64 payload;
+	struct vcap_data data;
+	int row = ix / 2;
+	u32 type;
+
+	memset(&payload, 0, sizeof(payload));
+	memset(&data, 0, sizeof(data));
+
+	/* Read row */
+	vcap_row_cmd(ocelot, vcap, row, VCAP_CMD_READ, VCAP_SEL_ALL);
+	vcap_cache2entry(ocelot, vcap, &data);
+	vcap_cache2action(ocelot, vcap, &data);
+
+	data.tg_sw = VCAP_TG_HALF;
+	data.type = IS1_ACTION_TYPE_NORMAL;
+	vcap_data_offset_get(vcap, &data, ix);
+	data.tg = (data.tg & ~data.tg_mask);
+	if (filter->prio != 0)
+		data.tg |= data.tg_value;
+
+	vcap_key_set(vcap, &data, VCAP_IS1_HK_IGR_PORT_MASK, 0,
+		     ~filter->ingress_port_mask);
+	vcap_key_bit_set(vcap, &data, VCAP_IS1_HK_L2_MC, filter->dmac_mc);
+	vcap_key_bit_set(vcap, &data, VCAP_IS1_HK_L2_BC, filter->dmac_bc);
+	vcap_key_bit_set(vcap, &data, VCAP_IS1_HK_VLAN_TAGGED, tag->tagged);
+	vcap_key_set(vcap, &data, VCAP_IS1_HK_VID,
+		     tag->vid.value, tag->vid.mask);
+	vcap_key_set(vcap, &data, VCAP_IS1_HK_PCP,
+		     tag->pcp.value[0], tag->pcp.mask[0]);
+	type = IS1_TYPE_S1_NORMAL;
+
+	switch (filter->key_type) {
+	case OCELOT_VCAP_KEY_ETYPE: {
+		struct ocelot_vcap_key_etype *etype = &filter->key.etype;
+
+		vcap_key_bytes_set(vcap, &data, VCAP_IS1_HK_L2_SMAC,
+				   etype->smac.value, etype->smac.mask);
+		vcap_key_bytes_set(vcap, &data, VCAP_IS1_HK_ETYPE,
+				   etype->etype.value, etype->etype.mask);
+		break;
+	}
+	case OCELOT_VCAP_KEY_IPV4: {
+		struct ocelot_vcap_key_ipv4 *ipv4 = &filter->key.ipv4;
+		struct ocelot_vcap_udp_tcp *sport = &ipv4->sport;
+		struct ocelot_vcap_udp_tcp *dport = &ipv4->dport;
+		enum ocelot_vcap_bit tcp_udp = OCELOT_VCAP_BIT_0;
+		struct ocelot_vcap_u8 proto = ipv4->proto;
+		struct ocelot_vcap_ipv4 sip = ipv4->sip;
+		u32 val, msk;
+
+		vcap_key_bit_set(vcap, &data, VCAP_IS1_HK_IP_SNAP,
+				 OCELOT_VCAP_BIT_1);
+		vcap_key_bit_set(vcap, &data, VCAP_IS1_HK_IP4,
+				 OCELOT_VCAP_BIT_1);
+		vcap_key_bit_set(vcap, &data, VCAP_IS1_HK_ETYPE_LEN,
+				 OCELOT_VCAP_BIT_1);
+		vcap_key_bytes_set(vcap, &data, VCAP_IS1_HK_L3_IP4_SIP,
+				   sip.value.addr, sip.mask.addr);
+
+		val = proto.value[0];
+		msk = proto.mask[0];
+
+		if ((val == NEXTHDR_TCP || val == NEXTHDR_UDP) && msk == 0xff)
+			tcp_udp = OCELOT_VCAP_BIT_1;
+		vcap_key_bit_set(vcap, &data, VCAP_IS1_HK_TCP_UDP, tcp_udp);
+
+		if (tcp_udp) {
+			enum ocelot_vcap_bit tcp = OCELOT_VCAP_BIT_0;
+
+			if (val == NEXTHDR_TCP)
+				tcp = OCELOT_VCAP_BIT_1;
+
+			vcap_key_bit_set(vcap, &data, VCAP_IS1_HK_TCP, tcp);
+			vcap_key_l4_port_set(vcap, &data, VCAP_IS1_HK_L4_SPORT,
+					     sport);
+			/* Overloaded field */
+			vcap_key_l4_port_set(vcap, &data, VCAP_IS1_HK_ETYPE,
+					     dport);
+		} else {
+			/* IPv4 "other" frame */
+			struct ocelot_vcap_u16 etype = {0};
+
+			/* Overloaded field */
+			etype.value[0] = proto.value[0];
+			etype.mask[0] = proto.mask[0];
+
+			vcap_key_bytes_set(vcap, &data, VCAP_IS1_HK_ETYPE,
+					   etype.value, etype.mask);
+		}
+	}
+	default:
+		break;
+	}
+	vcap_key_bit_set(vcap, &data, VCAP_IS1_HK_TYPE,
+			 type ? OCELOT_VCAP_BIT_1 : OCELOT_VCAP_BIT_0);
+
+	is1_action_set(ocelot, &data, filter);
+	vcap_data_set(data.counter, data.counter_offset,
+		      vcap->counter_width, filter->stats.pkts);
+
+	/* Write row */
+	vcap_entry2cache(ocelot, vcap, &data);
+	vcap_action2cache(ocelot, vcap, &data);
+	vcap_row_cmd(ocelot, vcap, row, VCAP_CMD_WRITE, VCAP_SEL_ALL);
+}
+
 static void vcap_entry_get(struct ocelot *ocelot, int ix,
 			   struct ocelot_vcap_filter *filter)
 {
@@ -663,6 +797,8 @@ static void vcap_entry_get(struct ocelot *ocelot, int ix,
 static void vcap_entry_set(struct ocelot *ocelot, int ix,
 			   struct ocelot_vcap_filter *filter)
 {
+	if (filter->block_id == VCAP_IS1)
+		return is1_entry_set(ocelot, ix, filter);
 	if (filter->block_id == VCAP_IS2)
 		return is2_entry_set(ocelot, ix, filter);
 }

@@ -57,6 +57,17 @@ static int ocelot_chain_to_lookup(int chain)
 	return (chain / VCAP_LOOKUP) % 10;
 }
 
+/* Caller must ensure this is a valid IS2 chain first,
+ * by calling ocelot_chain_to_block.
+ */
+static int ocelot_chain_to_pag(int chain)
+{
+	int lookup = ocelot_chain_to_lookup(chain);
+
+	/* calculate PAG value as chain index relative to the first PAG */
+	return chain - VCAP_IS2_CHAIN(lookup, 0);
+}
+
 static bool ocelot_is_goto_target_valid(int goto_target, int chain,
 					bool ingress)
 {
@@ -209,8 +220,52 @@ static int ocelot_flower_parse_action(struct flow_cls_offload *f, bool ingress,
 			filter->action.pol.burst = a->police.burst;
 			filter->type = OCELOT_VCAP_FILTER_OFFLOAD;
 			break;
+		case FLOW_ACTION_VLAN_POP:
+			if (filter->block_id != VCAP_IS1) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "VLAN pop action can only be offloaded to VCAP IS1");
+				return -EOPNOTSUPP;
+			}
+			if (filter->goto_target != -1) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Last action must be GOTO");
+				return -EOPNOTSUPP;
+			}
+			filter->action.vlan_pop_cnt_ena = true;
+			filter->action.vlan_pop_cnt++;
+			if (filter->action.vlan_pop_cnt > 2) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Cannot pop more than 2 VLAN headers");
+				return -EOPNOTSUPP;
+			}
+			filter->type = OCELOT_VCAP_FILTER_OFFLOAD;
+			break;
+		case FLOW_ACTION_PRIORITY:
+			if (filter->block_id != VCAP_IS1) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Priority action can only be offloaded to VCAP IS1");
+				return -EOPNOTSUPP;
+			}
+			if (filter->goto_target != -1) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Last action must be GOTO");
+				return -EOPNOTSUPP;
+			}
+			filter->action.qos_ena = true;
+			filter->action.qos_val = a->priority;
+			filter->type = OCELOT_VCAP_FILTER_OFFLOAD;
+			break;
 		case FLOW_ACTION_GOTO:
 			filter->goto_target = a->chain_index;
+
+			if (filter->block_id == VCAP_IS1 &&
+			    ocelot_chain_to_lookup(chain) == 2) {
+				int pag = ocelot_chain_to_pag(filter->goto_target);
+
+				filter->action.pag_override_mask = 0xff;
+				filter->action.pag_val = pag;
+				filter->type = OCELOT_VCAP_FILTER_PAG;
+			}
 			break;
 		default:
 			NL_SET_ERR_MSG_MOD(extack, "Cannot offload action");
@@ -242,6 +297,7 @@ static int ocelot_flower_parse_key(struct flow_cls_offload *f, bool ingress,
 {
 	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
 	struct flow_dissector *dissector = rule->match.dissector;
+	struct netlink_ext_ack *extack = f->common.extack;
 	u16 proto = ntohs(f->common.protocol);
 	bool match_protocol = true;
 
@@ -264,6 +320,13 @@ static int ocelot_flower_parse_key(struct flow_cls_offload *f, bool ingress,
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
 		struct flow_match_eth_addrs match;
+
+		if (filter->block_id == VCAP_IS1 &&
+		    !is_zero_ether_addr(match.mask->dst)) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Key type S1_NORMAL cannot match on destination MAC");
+			return -EOPNOTSUPP;
+		}
 
 		/* The hw support mac matches only for MAC_ETYPE key,
 		 * therefore if other matches(port, tcp flags, etc) are added
@@ -317,6 +380,12 @@ static int ocelot_flower_parse_key(struct flow_cls_offload *f, bool ingress,
 	    proto == ETH_P_IP) {
 		struct flow_match_ipv4_addrs match;
 		u8 *tmp;
+
+		if (filter->block_id == VCAP_IS1 && *(u32 *)&match.mask->dst) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Key type S1_NORMAL cannot match on destination IP");
+			return -EOPNOTSUPP;
+		}
 
 		flow_rule_match_ipv4_addrs(rule, &match);
 		tmp = &filter->key.ipv4.sip.value.addr[0];
