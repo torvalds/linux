@@ -31,6 +31,13 @@ enum chips { max34440, max34441, max34446, max34451, max34460, max34461 };
 #define MAX34440_STATUS_OT_FAULT	BIT(5)
 #define MAX34440_STATUS_OT_WARN		BIT(6)
 
+/*
+ * The whole max344* family have IOUT_OC_WARN_LIMIT and IOUT_OC_FAULT_LIMIT
+ * swapped from the standard pmbus spec addresses.
+ */
+#define MAX34440_IOUT_OC_WARN_LIMIT	0x46
+#define MAX34440_IOUT_OC_FAULT_LIMIT	0x4A
+
 #define MAX34451_MFR_CHANNEL_CONFIG	0xe4
 #define MAX34451_MFR_CHANNEL_CONFIG_SEL_MASK	0x3f
 
@@ -51,6 +58,14 @@ static int max34440_read_word_data(struct i2c_client *client, int page,
 	const struct max34440_data *data = to_max34440_data(info);
 
 	switch (reg) {
+	case PMBUS_IOUT_OC_FAULT_LIMIT:
+		ret = pmbus_read_word_data(client, page, phase,
+					   MAX34440_IOUT_OC_FAULT_LIMIT);
+		break;
+	case PMBUS_IOUT_OC_WARN_LIMIT:
+		ret = pmbus_read_word_data(client, page, phase,
+					   MAX34440_IOUT_OC_WARN_LIMIT);
+		break;
 	case PMBUS_VIRT_READ_VOUT_MIN:
 		ret = pmbus_read_word_data(client, page, phase,
 					   MAX34440_MFR_VOUT_MIN);
@@ -117,6 +132,14 @@ static int max34440_write_word_data(struct i2c_client *client, int page,
 	int ret;
 
 	switch (reg) {
+	case PMBUS_IOUT_OC_FAULT_LIMIT:
+		ret = pmbus_write_word_data(client, page, MAX34440_IOUT_OC_FAULT_LIMIT,
+					    word);
+		break;
+	case PMBUS_IOUT_OC_WARN_LIMIT:
+		ret = pmbus_write_word_data(client, page, MAX34440_IOUT_OC_WARN_LIMIT,
+					    word);
+		break;
 	case PMBUS_VIRT_RESET_POUT_HISTORY:
 		ret = pmbus_write_word_data(client, page,
 					    MAX34446_MFR_POUT_PEAK, 0);
