@@ -2673,7 +2673,7 @@ static bool may_access_direct_pkt_data(struct bpf_verifier_env *env,
 	case BPF_PROG_TYPE_CGROUP_SKB:
 		if (t == BPF_WRITE)
 			return false;
-		/* fallthrough */
+		fallthrough;
 
 	/* Program types with direct read + write access go here! */
 	case BPF_PROG_TYPE_SCHED_CLS:
@@ -5475,7 +5475,7 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 		/* smin_val represents the known value */
 		if (known && smin_val == 0 && opcode == BPF_ADD)
 			break;
-		/* fall-through */
+		fallthrough;
 	case PTR_TO_PACKET_END:
 	case PTR_TO_SOCKET:
 	case PTR_TO_SOCKET_OR_NULL:
