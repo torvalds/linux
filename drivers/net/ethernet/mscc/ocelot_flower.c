@@ -148,6 +148,7 @@ static int ocelot_flower_parse_action(struct flow_cls_offload *f, bool ingress,
 	struct netlink_ext_ack *extack = f->common.extack;
 	bool allow_missing_goto_target = false;
 	const struct flow_action_entry *a;
+	enum ocelot_tag_tpid_sel tpid;
 	int i, chain;
 	u64 rate;
 
@@ -267,6 +268,31 @@ static int ocelot_flower_parse_action(struct flow_cls_offload *f, bool ingress,
 				filter->type = OCELOT_VCAP_FILTER_PAG;
 			}
 			break;
+		case FLOW_ACTION_VLAN_PUSH:
+			if (filter->block_id != VCAP_ES0) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "VLAN push action can only be offloaded to VCAP ES0");
+				return -EOPNOTSUPP;
+			}
+			switch (ntohs(a->vlan.proto)) {
+			case ETH_P_8021Q:
+				tpid = OCELOT_TAG_TPID_SEL_8021Q;
+				break;
+			case ETH_P_8021AD:
+				tpid = OCELOT_TAG_TPID_SEL_8021AD;
+				break;
+			default:
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Cannot push custom TPID");
+				return -EOPNOTSUPP;
+			}
+			filter->action.tag_a_tpid_sel = tpid;
+			filter->action.push_outer_tag = OCELOT_ES0_TAG;
+			filter->action.tag_a_vid_sel = 1;
+			filter->action.vid_a_val = a->vlan.vid;
+			filter->action.pcp_a_val = a->vlan.prio;
+			filter->type = OCELOT_VCAP_FILTER_OFFLOAD;
+			break;
 		default:
 			NL_SET_ERR_MSG_MOD(extack, "Cannot offload action");
 			return -EOPNOTSUPP;
@@ -292,24 +318,86 @@ static int ocelot_flower_parse_action(struct flow_cls_offload *f, bool ingress,
 	return 0;
 }
 
-static int ocelot_flower_parse_key(struct flow_cls_offload *f, bool ingress,
-				   struct ocelot_vcap_filter *filter)
+static int ocelot_flower_parse_indev(struct ocelot *ocelot, int port,
+				     struct flow_cls_offload *f,
+				     struct ocelot_vcap_filter *filter)
+{
+	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
+	const struct vcap_props *vcap = &ocelot->vcap[VCAP_ES0];
+	int key_length = vcap->keys[VCAP_ES0_IGR_PORT].length;
+	struct netlink_ext_ack *extack = f->common.extack;
+	struct net_device *dev, *indev;
+	struct flow_match_meta match;
+	int ingress_port;
+
+	flow_rule_match_meta(rule, &match);
+
+	if (!match.mask->ingress_ifindex)
+		return 0;
+
+	if (match.mask->ingress_ifindex != 0xFFFFFFFF) {
+		NL_SET_ERR_MSG_MOD(extack, "Unsupported ingress ifindex mask");
+		return -EOPNOTSUPP;
+	}
+
+	dev = ocelot->ops->port_to_netdev(ocelot, port);
+	if (!dev)
+		return -EINVAL;
+
+	indev = __dev_get_by_index(dev_net(dev), match.key->ingress_ifindex);
+	if (!indev) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Can't find the ingress port to match on");
+		return -ENOENT;
+	}
+
+	ingress_port = ocelot->ops->netdev_to_port(indev);
+	if (ingress_port < 0) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Can only offload an ocelot ingress port");
+		return -EOPNOTSUPP;
+	}
+	if (ingress_port == port) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Ingress port is equal to the egress port");
+		return -EINVAL;
+	}
+
+	filter->ingress_port.value = ingress_port;
+	filter->ingress_port.mask = GENMASK(key_length - 1, 0);
+
+	return 0;
+}
+
+static int
+ocelot_flower_parse_key(struct ocelot *ocelot, int port, bool ingress,
+			struct flow_cls_offload *f,
+			struct ocelot_vcap_filter *filter)
 {
 	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
 	struct flow_dissector *dissector = rule->match.dissector;
 	struct netlink_ext_ack *extack = f->common.extack;
 	u16 proto = ntohs(f->common.protocol);
 	bool match_protocol = true;
+	int ret;
 
 	if (dissector->used_keys &
 	    ~(BIT(FLOW_DISSECTOR_KEY_CONTROL) |
 	      BIT(FLOW_DISSECTOR_KEY_BASIC) |
+	      BIT(FLOW_DISSECTOR_KEY_META) |
 	      BIT(FLOW_DISSECTOR_KEY_PORTS) |
 	      BIT(FLOW_DISSECTOR_KEY_VLAN) |
 	      BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS))) {
 		return -EOPNOTSUPP;
+	}
+
+	/* For VCAP ES0 (egress rewriter) we can match on the ingress port */
+	if (!ingress) {
+		ret = ocelot_flower_parse_indev(ocelot, port, f, filter);
+		if (ret)
+			return ret;
 	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_CONTROL)) {
@@ -320,6 +408,12 @@ static int ocelot_flower_parse_key(struct flow_cls_offload *f, bool ingress,
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
 		struct flow_match_eth_addrs match;
+
+		if (filter->block_id == VCAP_ES0) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "VCAP ES0 cannot match on MAC address");
+			return -EOPNOTSUPP;
+		}
 
 		if (filter->block_id == VCAP_IS1 &&
 		    !is_zero_ether_addr(match.mask->dst)) {
@@ -359,6 +453,12 @@ static int ocelot_flower_parse_key(struct flow_cls_offload *f, bool ingress,
 
 		flow_rule_match_basic(rule, &match);
 		if (ntohs(match.key->n_proto) == ETH_P_IP) {
+			if (filter->block_id == VCAP_ES0) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "VCAP ES0 cannot match on IP protocol");
+				return -EOPNOTSUPP;
+			}
+
 			filter->key_type = OCELOT_VCAP_KEY_IPV4;
 			filter->key.ipv4.proto.value[0] =
 				match.key->ip_proto;
@@ -367,6 +467,12 @@ static int ocelot_flower_parse_key(struct flow_cls_offload *f, bool ingress,
 			match_protocol = false;
 		}
 		if (ntohs(match.key->n_proto) == ETH_P_IPV6) {
+			if (filter->block_id == VCAP_ES0) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "VCAP ES0 cannot match on IP protocol");
+				return -EOPNOTSUPP;
+			}
+
 			filter->key_type = OCELOT_VCAP_KEY_IPV6;
 			filter->key.ipv6.proto.value[0] =
 				match.key->ip_proto;
@@ -380,6 +486,12 @@ static int ocelot_flower_parse_key(struct flow_cls_offload *f, bool ingress,
 	    proto == ETH_P_IP) {
 		struct flow_match_ipv4_addrs match;
 		u8 *tmp;
+
+		if (filter->block_id == VCAP_ES0) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "VCAP ES0 cannot match on IP address");
+			return -EOPNOTSUPP;
+		}
 
 		if (filter->block_id == VCAP_IS1 && *(u32 *)&match.mask->dst) {
 			NL_SET_ERR_MSG_MOD(extack,
@@ -410,6 +522,12 @@ static int ocelot_flower_parse_key(struct flow_cls_offload *f, bool ingress,
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_PORTS)) {
 		struct flow_match_ports match;
 
+		if (filter->block_id == VCAP_ES0) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "VCAP ES0 cannot match on L4 ports");
+			return -EOPNOTSUPP;
+		}
+
 		flow_rule_match_ports(rule, &match);
 		filter->key.ipv4.sport.value = ntohs(match.key->src);
 		filter->key.ipv4.sport.mask = ntohs(match.mask->src);
@@ -432,6 +550,12 @@ static int ocelot_flower_parse_key(struct flow_cls_offload *f, bool ingress,
 
 finished_key_parsing:
 	if (match_protocol && proto != ETH_P_ALL) {
+		if (filter->block_id == VCAP_ES0) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "VCAP ES0 cannot match on L2 proto");
+			return -EOPNOTSUPP;
+		}
+
 		/* TODO: support SNAP, LLC etc */
 		if (proto < ETH_P_802_3_MIN)
 			return -EOPNOTSUPP;
@@ -444,7 +568,8 @@ finished_key_parsing:
 	return 0;
 }
 
-static int ocelot_flower_parse(struct flow_cls_offload *f, bool ingress,
+static int ocelot_flower_parse(struct ocelot *ocelot, int port, bool ingress,
+			       struct flow_cls_offload *f,
 			       struct ocelot_vcap_filter *filter)
 {
 	int ret;
@@ -456,12 +581,12 @@ static int ocelot_flower_parse(struct flow_cls_offload *f, bool ingress,
 	if (ret)
 		return ret;
 
-	return ocelot_flower_parse_key(f, ingress, filter);
+	return ocelot_flower_parse_key(ocelot, port, ingress, f, filter);
 }
 
 static struct ocelot_vcap_filter
-*ocelot_vcap_filter_create(struct ocelot *ocelot, int port,
-			 struct flow_cls_offload *f)
+*ocelot_vcap_filter_create(struct ocelot *ocelot, int port, bool ingress,
+			   struct flow_cls_offload *f)
 {
 	struct ocelot_vcap_filter *filter;
 
@@ -469,7 +594,16 @@ static struct ocelot_vcap_filter
 	if (!filter)
 		return NULL;
 
-	filter->ingress_port_mask = BIT(port);
+	if (ingress) {
+		filter->ingress_port_mask = BIT(port);
+	} else {
+		const struct vcap_props *vcap = &ocelot->vcap[VCAP_ES0];
+		int key_length = vcap->keys[VCAP_ES0_EGR_PORT].length;
+
+		filter->egress_port.value = port;
+		filter->egress_port.mask = GENMASK(key_length - 1, 0);
+	}
+
 	return filter;
 }
 
@@ -503,11 +637,11 @@ int ocelot_cls_flower_replace(struct ocelot *ocelot, int port,
 		return -EOPNOTSUPP;
 	}
 
-	filter = ocelot_vcap_filter_create(ocelot, port, f);
+	filter = ocelot_vcap_filter_create(ocelot, port, ingress, f);
 	if (!filter)
 		return -ENOMEM;
 
-	ret = ocelot_flower_parse(f, ingress, filter);
+	ret = ocelot_flower_parse(ocelot, port, ingress, f, filter);
 	if (ret) {
 		kfree(filter);
 		return ret;

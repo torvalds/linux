@@ -111,6 +111,10 @@ static void ocelot_vcap_enable(struct ocelot *ocelot, int port)
 
 	ocelot_write_gix(ocelot, ANA_PORT_VCAP_CFG_S1_ENA,
 			 ANA_PORT_VCAP_CFG, port);
+
+	ocelot_rmw_gix(ocelot, REW_PORT_CFG_ES0_EN,
+		       REW_PORT_CFG_ES0_EN,
+		       REW_PORT_CFG, port);
 }
 
 static inline u32 ocelot_vlant_read_vlanaccess(struct ocelot *ocelot)
