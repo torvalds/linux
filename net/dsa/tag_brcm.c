@@ -152,11 +152,6 @@ static struct sk_buff *brcm_tag_rcv_ll(struct sk_buff *skb,
 	/* Remove Broadcom tag and update checksum */
 	skb_pull_rcsum(skb, BRCM_TAG_LEN);
 
-	/* Set the MAC header to where it should point for
-	 * dsa_untag_bridge_pvid() to parse the correct VLAN header.
-	 */
-	skb_set_mac_header(skb, -ETH_HLEN);
-
 	skb->offload_fwd_mark = 1;
 
 	return skb;
@@ -187,7 +182,7 @@ static struct sk_buff *brcm_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 		nskb->data - ETH_HLEN - BRCM_TAG_LEN,
 		2 * ETH_ALEN);
 
-	return dsa_untag_bridge_pvid(nskb);
+	return nskb;
 }
 
 static const struct dsa_device_ops brcm_netdev_ops = {
@@ -214,14 +209,8 @@ static struct sk_buff *brcm_tag_rcv_prepend(struct sk_buff *skb,
 					    struct net_device *dev,
 					    struct packet_type *pt)
 {
-	struct sk_buff *nskb;
-
 	/* tag is prepended to the packet */
-	nskb = brcm_tag_rcv_ll(skb, dev, pt, ETH_HLEN);
-	if (!nskb)
-		return nskb;
-
-	return dsa_untag_bridge_pvid(nskb);
+	return brcm_tag_rcv_ll(skb, dev, pt, ETH_HLEN);
 }
 
 static const struct dsa_device_ops brcm_prepend_netdev_ops = {

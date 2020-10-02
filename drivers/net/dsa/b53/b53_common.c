@@ -2603,6 +2603,7 @@ struct b53_device *b53_switch_alloc(struct device *base,
 	dev->ops = ops;
 	ds->ops = &b53_switch_ops;
 	ds->configure_vlan_while_not_filtering = true;
+	ds->untag_bridge_pvid = true;
 	dev->vlan_enabled = ds->configure_vlan_while_not_filtering;
 	mutex_init(&dev->reg_mutex);
 	mutex_init(&dev->stats_mutex);
