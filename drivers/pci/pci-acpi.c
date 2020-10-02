@@ -944,6 +944,16 @@ static bool acpi_pci_bridge_d3(struct pci_dev *dev)
 	if (!dev->is_hotplug_bridge)
 		return false;
 
+	/* Assume D3 support if the bridge is power-manageable by ACPI. */
+	adev = ACPI_COMPANION(&dev->dev);
+	if (!adev && !pci_dev_is_added(dev)) {
+		adev = acpi_pci_find_companion(&dev->dev);
+		ACPI_COMPANION_SET(&dev->dev, adev);
+	}
+
+	if (adev && acpi_device_power_manageable(adev))
+		return true;
+
 	/*
 	 * Look for a special _DSD property for the root port and if it
 	 * is set we know the hierarchy behind it supports D3 just fine.
