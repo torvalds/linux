@@ -67,25 +67,25 @@ irqchip.
 :Returns:
 
 	 =======  ======================================================
-	 -ENODEV: PMUv3 not supported or GIC not initialized
-	 -ENXIO:  PMUv3 not properly configured or in-kernel irqchip not
+	 -ENODEV  PMUv3 not supported or GIC not initialized
+	 -ENXIO   PMUv3 not properly configured or in-kernel irqchip not
 	 	  configured as required prior to calling this attribute
-	 -EBUSY:  PMUv3 already initialized
-	 -EINVAL: Invalid filter range
+	 -EBUSY   PMUv3 already initialized
+	 -EINVAL  Invalid filter range
 	 =======  ======================================================
 
-Request the installation of a PMU event filter described as follows:
+Request the installation of a PMU event filter described as follows::
 
-struct kvm_pmu_event_filter {
-	__u16	base_event;
-	__u16	nevents;
+    struct kvm_pmu_event_filter {
+	    __u16	base_event;
+	    __u16	nevents;
 
-#define KVM_PMU_EVENT_ALLOW	0
-#define KVM_PMU_EVENT_DENY	1
+    #define KVM_PMU_EVENT_ALLOW	0
+    #define KVM_PMU_EVENT_DENY	1
 
-	__u8	action;
-	__u8	pad[3];
-};
+	    __u8	action;
+	    __u8	pad[3];
+    };
 
 A filter range is defined as the range [@base_event, @base_event + @nevents),
 together with an @action (KVM_PMU_EVENT_ALLOW or KVM_PMU_EVENT_DENY). The
