@@ -41,6 +41,8 @@ struct genl_info;
  *	(private)
  * @ops: the operations supported by this family
  * @n_ops: number of operations supported by this family
+ * @small_ops: the small-struct operations supported by this family
+ * @n_small_ops: number of small-struct operations supported by this family
  */
 struct genl_family {
 	int			id;		/* private */
@@ -52,6 +54,7 @@ struct genl_family {
 	u8			netnsok:1;
 	u8			parallel_ops:1;
 	u8			n_ops;
+	u8			n_small_ops;
 	u8			n_mcgrps;
 	const struct nla_policy *policy;
 	int			(*pre_doit)(const struct genl_ops *ops,
@@ -61,6 +64,7 @@ struct genl_family {
 					     struct sk_buff *skb,
 					     struct genl_info *info);
 	const struct genl_ops *	ops;
+	const struct genl_small_ops *small_ops;
 	const struct genl_multicast_group *mcgrps;
 	struct module		*module;
 };
@@ -108,22 +112,25 @@ enum genl_validate_flags {
 };
 
 /**
- * struct genl_info - info that is available during dumpit op call
- * @family: generic netlink family - for internal genl code usage
- * @ops: generic netlink ops - for internal genl code usage
- * @attrs: netlink attributes
+ * struct genl_small_ops - generic netlink operations (small version)
+ * @cmd: command identifier
+ * @internal_flags: flags used by the family
+ * @flags: flags
+ * @validate: validation flags from enum genl_validate_flags
+ * @doit: standard command callback
+ * @dumpit: callback for dumpers
+ *
+ * This is a cut-down version of struct genl_ops for users who don't need
+ * most of the ancillary infra and want to save space.
  */
-struct genl_dumpit_info {
-	const struct genl_family *family;
-	const struct genl_ops *ops;
-	struct nlattr **attrs;
+struct genl_small_ops {
+	int	(*doit)(struct sk_buff *skb, struct genl_info *info);
+	int	(*dumpit)(struct sk_buff *skb, struct netlink_callback *cb);
+	u8	cmd;
+	u8	internal_flags;
+	u8	flags;
+	u8	validate;
 };
-
-static inline const struct genl_dumpit_info *
-genl_dumpit_info(struct netlink_callback *cb)
-{
-	return cb->data;
-}
 
 /**
  * struct genl_ops - generic netlink operations
@@ -147,6 +154,24 @@ struct genl_ops {
 	u8			flags;
 	u8			validate;
 };
+
+/**
+ * struct genl_info - info that is available during dumpit op call
+ * @family: generic netlink family - for internal genl code usage
+ * @ops: generic netlink ops - for internal genl code usage
+ * @attrs: netlink attributes
+ */
+struct genl_dumpit_info {
+	const struct genl_family *family;
+	struct genl_ops op;
+	struct nlattr **attrs;
+};
+
+static inline const struct genl_dumpit_info *
+genl_dumpit_info(struct netlink_callback *cb)
+{
+	return cb->data;
+}
 
 int genl_register_family(struct genl_family *family);
 int genl_unregister_family(const struct genl_family *family);

@@ -107,16 +107,75 @@ static const struct genl_family *genl_family_find_byname(char *name)
 	return NULL;
 }
 
-static const struct genl_ops *genl_get_cmd(u8 cmd,
-					   const struct genl_family *family)
+static int genl_get_cmd_cnt(const struct genl_family *family)
+{
+	return family->n_ops + family->n_small_ops;
+}
+
+static void genl_op_from_full(const struct genl_family *family,
+			      unsigned int i, struct genl_ops *op)
+{
+	*op = family->ops[i];
+}
+
+static int genl_get_cmd_full(u8 cmd, const struct genl_family *family,
+			     struct genl_ops *op)
 {
 	int i;
 
 	for (i = 0; i < family->n_ops; i++)
-		if (family->ops[i].cmd == cmd)
-			return &family->ops[i];
+		if (family->ops[i].cmd == cmd) {
+			genl_op_from_full(family, i, op);
+			return 0;
+		}
 
-	return NULL;
+	return -ENOENT;
+}
+
+static void genl_op_from_small(const struct genl_family *family,
+			       unsigned int i, struct genl_ops *op)
+{
+	memset(op, 0, sizeof(*op));
+	op->doit	= family->small_ops[i].doit;
+	op->dumpit	= family->small_ops[i].dumpit;
+	op->cmd		= family->small_ops[i].cmd;
+	op->internal_flags = family->small_ops[i].internal_flags;
+	op->flags	= family->small_ops[i].flags;
+	op->validate	= family->small_ops[i].validate;
+}
+
+static int genl_get_cmd_small(u8 cmd, const struct genl_family *family,
+			      struct genl_ops *op)
+{
+	int i;
+
+	for (i = 0; i < family->n_small_ops; i++)
+		if (family->small_ops[i].cmd == cmd) {
+			genl_op_from_small(family, i, op);
+			return 0;
+		}
+
+	return -ENOENT;
+}
+
+static int genl_get_cmd(u8 cmd, const struct genl_family *family,
+			struct genl_ops *op)
+{
+	if (!genl_get_cmd_full(cmd, family, op))
+		return 0;
+	return genl_get_cmd_small(cmd, family, op);
+}
+
+static void genl_get_cmd_by_index(unsigned int i,
+				  const struct genl_family *family,
+				  struct genl_ops *op)
+{
+	if (i < family->n_ops)
+		genl_op_from_full(family, i, op);
+	else if (i < family->n_ops + family->n_small_ops)
+		genl_op_from_small(family, i - family->n_ops, op);
+	else
+		WARN_ON_ONCE(1);
 }
 
 static int genl_allocate_reserve_groups(int n_groups, int *first_id)
@@ -286,22 +345,25 @@ static void genl_unregister_mc_groups(const struct genl_family *family)
 
 static int genl_validate_ops(const struct genl_family *family)
 {
-	const struct genl_ops *ops = family->ops;
-	unsigned int n_ops = family->n_ops;
 	int i, j;
 
-	if (WARN_ON(n_ops && !ops))
+	if (WARN_ON(family->n_ops && !family->ops) ||
+	    WARN_ON(family->n_small_ops && !family->small_ops))
 		return -EINVAL;
 
-	if (!n_ops)
-		return 0;
+	for (i = 0; i < genl_get_cmd_cnt(family); i++) {
+		struct genl_ops op;
 
-	for (i = 0; i < n_ops; i++) {
-		if (ops[i].dumpit == NULL && ops[i].doit == NULL)
+		genl_get_cmd_by_index(i, family, &op);
+		if (op.dumpit == NULL && op.doit == NULL)
 			return -EINVAL;
-		for (j = i + 1; j < n_ops; j++)
-			if (ops[i].cmd == ops[j].cmd)
+		for (j = i + 1; j < genl_get_cmd_cnt(family); j++) {
+			struct genl_ops op2;
+
+			genl_get_cmd_by_index(j, family, &op2);
+			if (op.cmd == op2.cmd)
 				return -EINVAL;
+		}
 	}
 
 	return 0;
@@ -524,7 +586,7 @@ no_attrs:
 		return -ENOMEM;
 	}
 	info->family = ctx->family;
-	info->ops = ops;
+	info->op = *ops;
 	info->attrs = attrs;
 
 	cb->data = info;
@@ -546,7 +608,7 @@ no_attrs:
 
 static int genl_lock_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	const struct genl_ops *ops = genl_dumpit_info(cb)->ops;
+	const struct genl_ops *ops = &genl_dumpit_info(cb)->op;
 	int rc;
 
 	genl_lock();
@@ -558,7 +620,7 @@ static int genl_lock_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 static int genl_lock_done(struct netlink_callback *cb)
 {
 	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
-	const struct genl_ops *ops = info->ops;
+	const struct genl_ops *ops = &info->op;
 	int rc = 0;
 
 	if (ops->done) {
@@ -574,7 +636,7 @@ static int genl_lock_done(struct netlink_callback *cb)
 static int genl_parallel_done(struct netlink_callback *cb)
 {
 	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
-	const struct genl_ops *ops = info->ops;
+	const struct genl_ops *ops = &info->op;
 	int rc = 0;
 
 	if (ops->done)
@@ -682,9 +744,9 @@ static int genl_family_rcv_msg(const struct genl_family *family,
 			       struct nlmsghdr *nlh,
 			       struct netlink_ext_ack *extack)
 {
-	const struct genl_ops *ops;
 	struct net *net = sock_net(skb->sk);
 	struct genlmsghdr *hdr = nlmsg_data(nlh);
+	struct genl_ops op;
 	int hdrlen;
 
 	/* this family doesn't exist in this netns */
@@ -695,24 +757,23 @@ static int genl_family_rcv_msg(const struct genl_family *family,
 	if (nlh->nlmsg_len < nlmsg_msg_size(hdrlen))
 		return -EINVAL;
 
-	ops = genl_get_cmd(hdr->cmd, family);
-	if (ops == NULL)
+	if (genl_get_cmd(hdr->cmd, family, &op))
 		return -EOPNOTSUPP;
 
-	if ((ops->flags & GENL_ADMIN_PERM) &&
+	if ((op.flags & GENL_ADMIN_PERM) &&
 	    !netlink_capable(skb, CAP_NET_ADMIN))
 		return -EPERM;
 
-	if ((ops->flags & GENL_UNS_ADMIN_PERM) &&
+	if ((op.flags & GENL_UNS_ADMIN_PERM) &&
 	    !netlink_ns_capable(skb, net->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
 	if ((nlh->nlmsg_flags & NLM_F_DUMP) == NLM_F_DUMP)
 		return genl_family_rcv_msg_dumpit(family, skb, nlh, extack,
-						  ops, hdrlen, net);
+						  &op, hdrlen, net);
 	else
 		return genl_family_rcv_msg_doit(family, skb, nlh, extack,
-						ops, hdrlen, net);
+						&op, hdrlen, net);
 }
 
 static int genl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
@@ -765,7 +826,7 @@ static int ctrl_fill_info(const struct genl_family *family, u32 portid, u32 seq,
 	    nla_put_u32(skb, CTRL_ATTR_MAXATTR, family->maxattr))
 		goto nla_put_failure;
 
-	if (family->n_ops) {
+	if (genl_get_cmd_cnt(family)) {
 		struct nlattr *nla_ops;
 		int i;
 
@@ -773,14 +834,16 @@ static int ctrl_fill_info(const struct genl_family *family, u32 portid, u32 seq,
 		if (nla_ops == NULL)
 			goto nla_put_failure;
 
-		for (i = 0; i < family->n_ops; i++) {
+		for (i = 0; i < genl_get_cmd_cnt(family); i++) {
 			struct nlattr *nest;
-			const struct genl_ops *ops = &family->ops[i];
-			u32 op_flags = ops->flags;
+			struct genl_ops op;
+			u32 op_flags;
 
-			if (ops->dumpit)
+			genl_get_cmd_by_index(i, family, &op);
+			op_flags = op.flags;
+			if (op.dumpit)
 				op_flags |= GENL_CMD_CAP_DUMP;
-			if (ops->doit)
+			if (op.doit)
 				op_flags |= GENL_CMD_CAP_DO;
 			if (family->policy)
 				op_flags |= GENL_CMD_CAP_HASPOL;
@@ -789,7 +852,7 @@ static int ctrl_fill_info(const struct genl_family *family, u32 portid, u32 seq,
 			if (nest == NULL)
 				goto nla_put_failure;
 
-			if (nla_put_u32(skb, CTRL_ATTR_OP_ID, ops->cmd) ||
+			if (nla_put_u32(skb, CTRL_ATTR_OP_ID, op.cmd) ||
 			    nla_put_u32(skb, CTRL_ATTR_OP_FLAGS, op_flags))
 				goto nla_put_failure;
 

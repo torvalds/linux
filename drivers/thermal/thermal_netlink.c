@@ -545,7 +545,7 @@ static int thermal_genl_cmd_dumpit(struct sk_buff *skb,
 {
 	struct param p = { .msg = skb };
 	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
-	int cmd = info->ops->cmd;
+	int cmd = info->op.cmd;
 	int ret;
 	void *hdr;
 
