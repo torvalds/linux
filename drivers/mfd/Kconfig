@@ -1188,6 +1188,7 @@ config MFD_SIMPLE_MFD_I2C
 
 config MFD_SL28CPLD
 	tristate "Kontron sl28cpld Board Management Controller"
+	depends on I2C
 	select MFD_SIMPLE_MFD_I2C
 	help
 	  Say yes here to enable support for the Kontron sl28cpld board
