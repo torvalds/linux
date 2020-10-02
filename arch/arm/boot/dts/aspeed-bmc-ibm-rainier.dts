@@ -47,9 +47,9 @@
 		#size-cells = <1>;
 		ranges;
 
-		flash_memory: region@B8000000 {
+		flash_memory: region@b8000000 {
 			no-map;
-			reg = <0xB8000000 0x04000000>; /* 64M */
+			reg = <0xb8000000 0x04000000>; /* 64M */
 		};
 
 		ramoops@bc000000 {
