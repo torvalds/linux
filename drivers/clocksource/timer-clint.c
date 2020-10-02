@@ -38,6 +38,7 @@ static unsigned int clint_timer_irq;
 
 #ifdef CONFIG_RISCV_M_MODE
 u64 __iomem *clint_time_val;
+EXPORT_SYMBOL(clint_time_val);
 #endif
 
 static void clint_send_ipi(const struct cpumask *target)
