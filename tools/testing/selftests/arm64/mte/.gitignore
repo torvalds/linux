@@ -1,2 +1,3 @@
 check_buffer_fill
 check_tags_inclusion
+check_child_memory
