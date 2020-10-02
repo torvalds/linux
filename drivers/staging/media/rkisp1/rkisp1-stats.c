@@ -94,16 +94,12 @@ static int rkisp1_stats_vb2_queue_setup(struct vb2_queue *vq,
 					unsigned int sizes[],
 					struct device *alloc_devs[])
 {
-	struct rkisp1_stats *stats = vq->drv_priv;
-
 	*num_planes = 1;
 
 	*num_buffers = clamp_t(u32, *num_buffers, RKISP1_ISP_STATS_REQ_BUFS_MIN,
 			       RKISP1_ISP_STATS_REQ_BUFS_MAX);
 
 	sizes[0] = sizeof(struct rkisp1_stat_buffer);
-
-	INIT_LIST_HEAD(&stats->stat);
 
 	return 0;
 }
