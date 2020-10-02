@@ -1613,11 +1613,11 @@ static void __drm_state_dump(struct drm_device *dev, struct drm_printer *p,
  * to dmesg in case of error irq's.  (Hint, you probably want to
  * ratelimit this!)
  *
- * The caller must drm_modeset_lock_all(), or if this is called
- * from error irq handler, it should not be enabled by default.
- * (Ie. if you are debugging errors you might not care that this
- * is racey.  But calling this without all modeset locks held is
- * not inherently safe.)
+ * The caller must wrap this drm_modeset_lock_all_ctx() and
+ * drm_modeset_drop_locks(). If this is called from error irq handler, it should
+ * not be enabled by default - if you are debugging errors you might
+ * not care that this is racey, but calling this without all modeset locks held
+ * is inherently unsafe.
  */
 void drm_state_dump(struct drm_device *dev, struct drm_printer *p)
 {
