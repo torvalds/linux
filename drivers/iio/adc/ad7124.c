@@ -177,12 +177,12 @@ static const struct iio_chan_spec ad7124_channel_template = {
 
 static struct ad7124_chip_info ad7124_chip_info_tbl[] = {
 	[ID_AD7124_4] = {
-		.name = "ad7127-4",
+		.name = "ad7124-4",
 		.chip_id = CHIPID_AD7124_4,
 		.num_inputs = 8,
 	},
 	[ID_AD7124_8] = {
-		.name = "ad7127-8",
+		.name = "ad7124-8",
 		.chip_id = CHIPID_AD7124_8,
 		.num_inputs = 16,
 	},
