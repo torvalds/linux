@@ -1117,17 +1117,12 @@ struct ctrl_dump_policy_ctx {
 
 static int ctrl_dumppolicy_start(struct netlink_callback *cb)
 {
+	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
 	struct ctrl_dump_policy_ctx *ctx = (void *)cb->ctx;
-	struct nlattr *tb[CTRL_ATTR_MAX + 1];
+	struct nlattr **tb = info->attrs;
 	const struct genl_family *rt;
-	int err;
 
 	BUILD_BUG_ON(sizeof(*ctx) > sizeof(cb->ctx));
-
-	err = genlmsg_parse(cb->nlh, &genl_ctrl, tb, genl_ctrl.maxattr,
-			    genl_ctrl.policy, cb->extack);
-	if (err)
-		return err;
 
 	if (!tb[CTRL_ATTR_FAMILY_ID] && !tb[CTRL_ATTR_FAMILY_NAME])
 		return -EINVAL;
