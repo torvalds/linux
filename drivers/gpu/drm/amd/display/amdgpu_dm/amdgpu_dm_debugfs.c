@@ -3077,6 +3077,37 @@ static int force_timing_sync_get(void *data, u64 *val)
 DEFINE_DEBUGFS_ATTRIBUTE(force_timing_sync_ops, force_timing_sync_get,
 			 force_timing_sync_set, "%llu\n");
 
+
+/*
+ * Disables all HPD and HPD RX interrupt handling in the
+ * driver when set to 1. Default is 0.
+ */
+static int disable_hpd_set(void *data, u64 val)
+{
+	struct amdgpu_device *adev = data;
+
+	adev->dm.disable_hpd_irq = (bool)val;
+
+	return 0;
+}
+
+
+/*
+ * Returns 1 if HPD and HPRX interrupt handling is disabled,
+ * 0 otherwise.
+ */
+static int disable_hpd_get(void *data, u64 *val)
+{
+	struct amdgpu_device *adev = data;
+
+	*val = adev->dm.disable_hpd_irq;
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(disable_hpd_ops, disable_hpd_get,
+			 disable_hpd_set, "%llu\n");
+
 /*
  * Sets the DC visual confirm debug option from the given string.
  * Example usage: echo 1 > /sys/kernel/debug/dri/0/amdgpu_visual_confirm
@@ -3213,4 +3244,8 @@ void dtn_debugfs_init(struct amdgpu_device *adev)
 
 	debugfs_create_file_unsafe("amdgpu_dm_dcc_en", 0644, root, adev,
 				   &dcc_en_bits_fops);
+
+	debugfs_create_file_unsafe("amdgpu_dm_disable_hpd", 0644, root, adev,
+				   &disable_hpd_ops);
+
 }

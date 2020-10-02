@@ -2552,10 +2552,13 @@ static void handle_hpd_irq(void *param)
 	struct drm_connector *connector = &aconnector->base;
 	struct drm_device *dev = connector->dev;
 	enum dc_connection_type new_connection_type = dc_connection_none;
-#ifdef CONFIG_DRM_AMD_DC_HDCP
 	struct amdgpu_device *adev = drm_to_adev(dev);
+#ifdef CONFIG_DRM_AMD_DC_HDCP
 	struct dm_connector_state *dm_con_state = to_dm_connector_state(connector->state);
 #endif
+
+	if (adev->dm.disable_hpd_irq)
+		return;
 
 	/*
 	 * In case of failure or MST no need to update connector status or notify the OS
@@ -2695,6 +2698,10 @@ static void handle_hpd_rx_irq(void *param)
 	union hpd_irq_data hpd_irq_data;
 
 	memset(&hpd_irq_data, 0, sizeof(hpd_irq_data));
+
+	if (adev->dm.disable_hpd_irq)
+		return;
+
 
 	/*
 	 * TODO:Temporary add mutex to protect hpd interrupt not have a gpio
