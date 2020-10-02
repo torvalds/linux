@@ -84,13 +84,13 @@ struct can_priv {
 
 /*
  * get_can_dlc(value) - helper macro to cast a given data length code (dlc)
- * to __u8 and ensure the dlc value to be max. 8 bytes.
+ * to u8 and ensure the dlc value to be max. 8 bytes.
  *
  * To be used in the CAN netdriver receive path to ensure conformance with
  * ISO 11898-1 Chapter 8.4.2.3 (DLC field)
  */
-#define get_can_dlc(i)		(min_t(__u8, (i), CAN_MAX_DLC))
-#define get_canfd_dlc(i)	(min_t(__u8, (i), CANFD_MAX_DLC))
+#define get_can_dlc(i)		(min_t(u8, (i), CAN_MAX_DLC))
+#define get_canfd_dlc(i)	(min_t(u8, (i), CANFD_MAX_DLC))
 
 /* Check for outgoing skbs that have not been created by the CAN subsystem */
 static inline bool can_skb_headroom_valid(struct net_device *dev,
