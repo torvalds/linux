@@ -1147,7 +1147,21 @@ void intel_psr_disable(struct intel_dp *intel_dp,
 
 static void psr_force_hw_tracking_exit(struct drm_i915_private *dev_priv)
 {
-	if (INTEL_GEN(dev_priv) >= 9)
+	if (IS_TIGERLAKE(dev_priv))
+		/*
+		 * Writes to CURSURFLIVE in TGL are causing IOMMU errors and
+		 * visual glitches that are often reproduced when executing
+		 * CPU intensive workloads while a eDP 4K panel is attached.
+		 *
+		 * Manually exiting PSR causes the frontbuffer to be updated
+		 * without glitches and the IOMMU errors are also gone but
+		 * this comes at the cost of less time with PSR active.
+		 *
+		 * So using this workaround until this issue is root caused
+		 * and a better fix is found.
+		 */
+		intel_psr_exit(dev_priv);
+	else if (INTEL_GEN(dev_priv) >= 9)
 		/*
 		 * Display WA #0884: skl+
 		 * This documented WA for bxt can be safely applied
