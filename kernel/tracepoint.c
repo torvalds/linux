@@ -221,7 +221,7 @@ static void *func_remove(struct tracepoint_func **funcs,
 	return old;
 }
 
-static void tracepoint_update_call(struct tracepoint *tp, struct tracepoint_func *tp_funcs)
+static void tracepoint_update_call(struct tracepoint *tp, struct tracepoint_func *tp_funcs, bool sync)
 {
 	void *func = tp->iterator;
 
@@ -229,8 +229,17 @@ static void tracepoint_update_call(struct tracepoint *tp, struct tracepoint_func
 	if (!tp->static_call_key)
 		return;
 
-	if (!tp_funcs[1].func)
+	if (!tp_funcs[1].func) {
 		func = tp_funcs[0].func;
+		/*
+		 * If going from the iterator back to a single caller,
+		 * we need to synchronize with __DO_TRACE to make sure
+		 * that the data passed to the callback is the one that
+		 * belongs to that callback.
+		 */
+		if (sync)
+			tracepoint_synchronize_unregister();
+	}
 
 	__static_call_update(tp->static_call_key, tp->static_call_tramp, func);
 }
@@ -265,7 +274,7 @@ static int tracepoint_add_func(struct tracepoint *tp,
 	 * include/linux/tracepoint.h using rcu_dereference_sched().
 	 */
 	rcu_assign_pointer(tp->funcs, tp_funcs);
-	tracepoint_update_call(tp, tp_funcs);
+	tracepoint_update_call(tp, tp_funcs, false);
 	static_key_enable(&tp->key);
 
 	release_probes(old);
@@ -297,11 +306,12 @@ static int tracepoint_remove_func(struct tracepoint *tp,
 			tp->unregfunc();
 
 		static_key_disable(&tp->key);
+		rcu_assign_pointer(tp->funcs, tp_funcs);
 	} else {
-		tracepoint_update_call(tp, tp_funcs);
+		rcu_assign_pointer(tp->funcs, tp_funcs);
+		tracepoint_update_call(tp, tp_funcs,
+				       tp_funcs[0].func != old[0].func);
 	}
-
-	rcu_assign_pointer(tp->funcs, tp_funcs);
 	release_probes(old);
 	return 0;
 }
