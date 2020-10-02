@@ -397,6 +397,7 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 		break;
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_NAVY_FLOUNDER:
+	case CHIP_DIMGREY_CAVEFISH:
 		sienna_cichlid_set_ppt_funcs(smu);
 		break;
 	case CHIP_RENOIR:
