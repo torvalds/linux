@@ -201,7 +201,6 @@ dsa_slave_to_master(const struct net_device *dev)
 static inline struct sk_buff *dsa_untag_bridge_pvid(struct sk_buff *skb)
 {
 	struct dsa_port *dp = dsa_slave_to_port(skb->dev);
-	struct vlan_ethhdr *hdr = vlan_eth_hdr(skb);
 	struct net_device *br = dp->bridge_dev;
 	struct net_device *dev = skb->dev;
 	struct net_device *upper_dev;
@@ -217,7 +216,7 @@ static inline struct sk_buff *dsa_untag_bridge_pvid(struct sk_buff *skb)
 		return skb;
 
 	/* Move VLAN tag from data to hwaccel */
-	if (!skb_vlan_tag_present(skb) && hdr->h_vlan_proto == htons(proto)) {
+	if (!skb_vlan_tag_present(skb) && skb->protocol == htons(proto)) {
 		skb = skb_vlan_untag(skb);
 		if (!skb)
 			return NULL;
