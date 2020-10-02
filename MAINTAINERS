@@ -2152,9 +2152,7 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 W:	http://linux-chenxing.org/
 F:	Documentation/devicetree/bindings/arm/mstar/*
-F:	arch/arm/boot/dts/infinity*.dtsi
-F:	arch/arm/boot/dts/mercury*.dtsi
-F:	arch/arm/boot/dts/mstar-v7.dtsi
+F:	arch/arm/boot/dts/mstar-*
 F:	arch/arm/mach-mstar/
 
 ARM/NEC MOBILEPRO 900/c MACHINE SUPPORT
