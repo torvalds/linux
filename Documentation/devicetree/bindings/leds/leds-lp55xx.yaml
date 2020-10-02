@@ -58,6 +58,12 @@ properties:
       - 2 # D1~6 with VOUT, D7~9 with VDD
       - 3 # D1~9 are connected to VOUT
 
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
 patternProperties:
   "(^led@[0-9a-f]$|led)":
     type: object
@@ -97,6 +103,8 @@ patternProperties:
 required:
   - compatible
   - reg
+
+additionalProperties: false
 
 examples:
   - |

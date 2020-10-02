@@ -50,6 +50,8 @@ properties:
 required:
   - compatible
 
+additionalProperties: false
+
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>

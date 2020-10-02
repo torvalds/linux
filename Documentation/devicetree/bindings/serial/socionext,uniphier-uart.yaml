@@ -32,6 +32,8 @@ required:
   - interrupts
   - clocks
 
+additionalProperties: false
+
 examples:
   - |
     aliases {

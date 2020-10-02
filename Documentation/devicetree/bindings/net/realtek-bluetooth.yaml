@@ -37,6 +37,8 @@ properties:
 required:
   - compatible
 
+additionalProperties: false
+
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
@@ -49,6 +51,6 @@ examples:
         bluetooth {
             compatible = "realtek,rtl8723bs-bt";
             device-wake-gpios = <&r_pio 0 5 GPIO_ACTIVE_HIGH>; /* PL5 */
-            host-wakeup-gpios = <&r_pio 0 6 GPIO_ACTIVE_HIGH>; /* PL6 */
+            host-wake-gpios = <&r_pio 0 6 GPIO_ACTIVE_HIGH>; /* PL6 */
         };
     };

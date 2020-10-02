@@ -144,6 +144,8 @@ required:
   - "#address-cells"
   - "#size-cells"
 
+additionalProperties: false
+
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
