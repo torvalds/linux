@@ -204,7 +204,6 @@ static inline struct sk_buff *dsa_untag_bridge_pvid(struct sk_buff *skb)
 	struct net_device *br = dp->bridge_dev;
 	struct net_device *dev = skb->dev;
 	struct net_device *upper_dev;
-	struct list_head *iter;
 	u16 vid, pvid, proto;
 	int err;
 
@@ -246,13 +245,9 @@ static inline struct sk_buff *dsa_untag_bridge_pvid(struct sk_buff *skb)
 	 * supports because vlan_filtering is 0. In that case, we should
 	 * definitely keep the tag, to make sure it keeps working.
 	 */
-	netdev_for_each_upper_dev_rcu(dev, upper_dev, iter) {
-		if (!is_vlan_dev(upper_dev))
-			continue;
-
-		if (vid == vlan_dev_vlan_id(upper_dev))
-			return skb;
-	}
+	upper_dev = __vlan_find_dev_deep_rcu(br, htons(proto), vid);
+	if (upper_dev)
+		return skb;
 
 	__vlan_hwaccel_clear_tag(skb);
 
