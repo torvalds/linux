@@ -91,18 +91,7 @@ static bool opt_need_wakeup = true;
 static u32 opt_num_xsks = 1;
 static u32 prog_id;
 
-struct xsk_umem_info {
-	struct xsk_ring_prod fq;
-	struct xsk_ring_cons cq;
-	struct xsk_umem *umem;
-	void *buffer;
-};
-
-struct xsk_socket_info {
-	struct xsk_ring_cons rx;
-	struct xsk_ring_prod tx;
-	struct xsk_umem_info *umem;
-	struct xsk_socket *xsk;
+struct xsk_ring_stats {
 	unsigned long rx_npkts;
 	unsigned long tx_npkts;
 	unsigned long rx_dropped_npkts;
@@ -119,6 +108,21 @@ struct xsk_socket_info {
 	unsigned long prev_rx_full_npkts;
 	unsigned long prev_rx_fill_empty_npkts;
 	unsigned long prev_tx_empty_npkts;
+};
+
+struct xsk_umem_info {
+	struct xsk_ring_prod fq;
+	struct xsk_ring_cons cq;
+	struct xsk_umem *umem;
+	void *buffer;
+};
+
+struct xsk_socket_info {
+	struct xsk_ring_cons rx;
+	struct xsk_ring_prod tx;
+	struct xsk_umem_info *umem;
+	struct xsk_socket *xsk;
+	struct xsk_ring_stats ring_stats;
 	u32 outstanding_tx;
 };
 
@@ -173,12 +177,12 @@ static int xsk_get_xdp_stats(int fd, struct xsk_socket_info *xsk)
 		return err;
 
 	if (optlen == sizeof(struct xdp_statistics)) {
-		xsk->rx_dropped_npkts = stats.rx_dropped;
-		xsk->rx_invalid_npkts = stats.rx_invalid_descs;
-		xsk->tx_invalid_npkts = stats.tx_invalid_descs;
-		xsk->rx_full_npkts = stats.rx_ring_full;
-		xsk->rx_fill_empty_npkts = stats.rx_fill_ring_empty_descs;
-		xsk->tx_empty_npkts = stats.tx_ring_empty_descs;
+		xsk->ring_stats.rx_dropped_npkts = stats.rx_dropped;
+		xsk->ring_stats.rx_invalid_npkts = stats.rx_invalid_descs;
+		xsk->ring_stats.tx_invalid_npkts = stats.tx_invalid_descs;
+		xsk->ring_stats.rx_full_npkts = stats.rx_ring_full;
+		xsk->ring_stats.rx_fill_empty_npkts = stats.rx_fill_ring_empty_descs;
+		xsk->ring_stats.tx_empty_npkts = stats.tx_ring_empty_descs;
 		return 0;
 	}
 
@@ -198,9 +202,9 @@ static void dump_stats(void)
 		double rx_pps, tx_pps, dropped_pps, rx_invalid_pps, full_pps, fill_empty_pps,
 			tx_invalid_pps, tx_empty_pps;
 
-		rx_pps = (xsks[i]->rx_npkts - xsks[i]->prev_rx_npkts) *
+		rx_pps = (xsks[i]->ring_stats.rx_npkts - xsks[i]->ring_stats.prev_rx_npkts) *
 			 1000000000. / dt;
-		tx_pps = (xsks[i]->tx_npkts - xsks[i]->prev_tx_npkts) *
+		tx_pps = (xsks[i]->ring_stats.tx_npkts - xsks[i]->ring_stats.prev_tx_npkts) *
 			 1000000000. / dt;
 
 		printf("\n sock%d@", i);
@@ -209,47 +213,58 @@ static void dump_stats(void)
 
 		printf("%-15s %-11s %-11s %-11.2f\n", "", "pps", "pkts",
 		       dt / 1000000000.);
-		printf(fmt, "rx", rx_pps, xsks[i]->rx_npkts);
-		printf(fmt, "tx", tx_pps, xsks[i]->tx_npkts);
+		printf(fmt, "rx", rx_pps, xsks[i]->ring_stats.rx_npkts);
+		printf(fmt, "tx", tx_pps, xsks[i]->ring_stats.tx_npkts);
 
-		xsks[i]->prev_rx_npkts = xsks[i]->rx_npkts;
-		xsks[i]->prev_tx_npkts = xsks[i]->tx_npkts;
+		xsks[i]->ring_stats.prev_rx_npkts = xsks[i]->ring_stats.rx_npkts;
+		xsks[i]->ring_stats.prev_tx_npkts = xsks[i]->ring_stats.tx_npkts;
 
 		if (opt_extra_stats) {
 			if (!xsk_get_xdp_stats(xsk_socket__fd(xsks[i]->xsk), xsks[i])) {
-				dropped_pps = (xsks[i]->rx_dropped_npkts -
-						xsks[i]->prev_rx_dropped_npkts) * 1000000000. / dt;
-				rx_invalid_pps = (xsks[i]->rx_invalid_npkts -
-						xsks[i]->prev_rx_invalid_npkts) * 1000000000. / dt;
-				tx_invalid_pps = (xsks[i]->tx_invalid_npkts -
-						xsks[i]->prev_tx_invalid_npkts) * 1000000000. / dt;
-				full_pps = (xsks[i]->rx_full_npkts -
-						xsks[i]->prev_rx_full_npkts) * 1000000000. / dt;
-				fill_empty_pps = (xsks[i]->rx_fill_empty_npkts -
-						xsks[i]->prev_rx_fill_empty_npkts)
-						* 1000000000. / dt;
-				tx_empty_pps = (xsks[i]->tx_empty_npkts -
-						xsks[i]->prev_tx_empty_npkts) * 1000000000. / dt;
+				dropped_pps = (xsks[i]->ring_stats.rx_dropped_npkts -
+						xsks[i]->ring_stats.prev_rx_dropped_npkts) *
+							1000000000. / dt;
+				rx_invalid_pps = (xsks[i]->ring_stats.rx_invalid_npkts -
+						xsks[i]->ring_stats.prev_rx_invalid_npkts) *
+							1000000000. / dt;
+				tx_invalid_pps = (xsks[i]->ring_stats.tx_invalid_npkts -
+						xsks[i]->ring_stats.prev_tx_invalid_npkts) *
+							1000000000. / dt;
+				full_pps = (xsks[i]->ring_stats.rx_full_npkts -
+						xsks[i]->ring_stats.prev_rx_full_npkts) *
+							1000000000. / dt;
+				fill_empty_pps = (xsks[i]->ring_stats.rx_fill_empty_npkts -
+						xsks[i]->ring_stats.prev_rx_fill_empty_npkts) *
+							1000000000. / dt;
+				tx_empty_pps = (xsks[i]->ring_stats.tx_empty_npkts -
+						xsks[i]->ring_stats.prev_tx_empty_npkts) *
+							1000000000. / dt;
 
 				printf(fmt, "rx dropped", dropped_pps,
-				       xsks[i]->rx_dropped_npkts);
+				       xsks[i]->ring_stats.rx_dropped_npkts);
 				printf(fmt, "rx invalid", rx_invalid_pps,
-				       xsks[i]->rx_invalid_npkts);
+				       xsks[i]->ring_stats.rx_invalid_npkts);
 				printf(fmt, "tx invalid", tx_invalid_pps,
-				       xsks[i]->tx_invalid_npkts);
+				       xsks[i]->ring_stats.tx_invalid_npkts);
 				printf(fmt, "rx queue full", full_pps,
-				       xsks[i]->rx_full_npkts);
+				       xsks[i]->ring_stats.rx_full_npkts);
 				printf(fmt, "fill ring empty", fill_empty_pps,
-				       xsks[i]->rx_fill_empty_npkts);
+				       xsks[i]->ring_stats.rx_fill_empty_npkts);
 				printf(fmt, "tx ring empty", tx_empty_pps,
-				       xsks[i]->tx_empty_npkts);
+				       xsks[i]->ring_stats.tx_empty_npkts);
 
-				xsks[i]->prev_rx_dropped_npkts = xsks[i]->rx_dropped_npkts;
-				xsks[i]->prev_rx_invalid_npkts = xsks[i]->rx_invalid_npkts;
-				xsks[i]->prev_tx_invalid_npkts = xsks[i]->tx_invalid_npkts;
-				xsks[i]->prev_rx_full_npkts = xsks[i]->rx_full_npkts;
-				xsks[i]->prev_rx_fill_empty_npkts = xsks[i]->rx_fill_empty_npkts;
-				xsks[i]->prev_tx_empty_npkts = xsks[i]->tx_empty_npkts;
+				xsks[i]->ring_stats.prev_rx_dropped_npkts =
+					xsks[i]->ring_stats.rx_dropped_npkts;
+				xsks[i]->ring_stats.prev_rx_invalid_npkts =
+					xsks[i]->ring_stats.rx_invalid_npkts;
+				xsks[i]->ring_stats.prev_tx_invalid_npkts =
+					xsks[i]->ring_stats.tx_invalid_npkts;
+				xsks[i]->ring_stats.prev_rx_full_npkts =
+					xsks[i]->ring_stats.rx_full_npkts;
+				xsks[i]->ring_stats.prev_rx_fill_empty_npkts =
+					xsks[i]->ring_stats.rx_fill_empty_npkts;
+				xsks[i]->ring_stats.prev_tx_empty_npkts =
+					xsks[i]->ring_stats.tx_empty_npkts;
 			} else {
 				printf("%-15s\n", "Error retrieving extra stats");
 			}
@@ -936,7 +951,7 @@ static inline void complete_tx_l2fwd(struct xsk_socket_info *xsk,
 		xsk_ring_prod__submit(&xsk->umem->fq, rcvd);
 		xsk_ring_cons__release(&xsk->umem->cq, rcvd);
 		xsk->outstanding_tx -= rcvd;
-		xsk->tx_npkts += rcvd;
+		xsk->ring_stats.tx_npkts += rcvd;
 	}
 }
 
@@ -956,7 +971,7 @@ static inline void complete_tx_only(struct xsk_socket_info *xsk,
 	if (rcvd > 0) {
 		xsk_ring_cons__release(&xsk->umem->cq, rcvd);
 		xsk->outstanding_tx -= rcvd;
-		xsk->tx_npkts += rcvd;
+		xsk->ring_stats.tx_npkts += rcvd;
 	}
 }
 
@@ -996,7 +1011,7 @@ static void rx_drop(struct xsk_socket_info *xsk, struct pollfd *fds)
 
 	xsk_ring_prod__submit(&xsk->umem->fq, rcvd);
 	xsk_ring_cons__release(&xsk->rx, rcvd);
-	xsk->rx_npkts += rcvd;
+	xsk->ring_stats.rx_npkts += rcvd;
 }
 
 static void rx_drop_all(void)
@@ -1155,7 +1170,7 @@ static void l2fwd(struct xsk_socket_info *xsk, struct pollfd *fds)
 	xsk_ring_prod__submit(&xsk->tx, rcvd);
 	xsk_ring_cons__release(&xsk->rx, rcvd);
 
-	xsk->rx_npkts += rcvd;
+	xsk->ring_stats.rx_npkts += rcvd;
 	xsk->outstanding_tx += rcvd;
 }
 
