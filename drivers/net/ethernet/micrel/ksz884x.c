@@ -5833,8 +5833,7 @@ static int netdev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	/* Get address of MII PHY in use. */
 	case SIOCGMIIPHY:
 		data->phy_id = priv->id;
-
-		/* Fallthrough... */
+		fallthrough;
 
 	/* Read MII PHY register. */
 	case SIOCGMIIREG:
