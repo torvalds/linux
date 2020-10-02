@@ -246,11 +246,15 @@ static int ad7887_probe(struct spi_device *spi)
 
 	st = iio_priv(indio_dev);
 
-	if (!pdata || !pdata->use_onchip_ref) {
-		st->reg = devm_regulator_get(&spi->dev, "vref");
-		if (IS_ERR(st->reg))
+	st->reg = devm_regulator_get_optional(&spi->dev, "vref");
+	if (IS_ERR(st->reg)) {
+		if (PTR_ERR(st->reg) != -ENODEV)
 			return PTR_ERR(st->reg);
 
+		st->reg = NULL;
+	}
+
+	if (st->reg) {
 		ret = regulator_enable(st->reg);
 		if (ret)
 			return ret;
@@ -269,7 +273,7 @@ static int ad7887_probe(struct spi_device *spi)
 	/* Setup default message */
 
 	mode = AD7887_PM_MODE4;
-	if (!pdata || !pdata->use_onchip_ref)
+	if (!st->reg)
 		mode |= AD7887_REF_DIS;
 	if (pdata && pdata->en_dual)
 		mode |= AD7887_DUAL;
