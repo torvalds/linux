@@ -32,7 +32,7 @@ static int	nfs3_ftypes[] = {
 static __be32
 nfsd3_proc_null(struct svc_rqst *rqstp)
 {
-	return nfs_ok;
+	return rpc_success;
 }
 
 /*
@@ -55,7 +55,7 @@ nfsd3_proc_getattr(struct svc_rqst *rqstp)
 
 	resp->status = fh_getattr(&resp->fh, &resp->stat);
 out:
-	return resp->status;
+	return rpc_success;
 }
 
 /*
@@ -73,7 +73,7 @@ nfsd3_proc_setattr(struct svc_rqst *rqstp)
 	fh_copy(&resp->fh, &argp->fh);
 	resp->status = nfsd_setattr(rqstp, &resp->fh, &argp->attrs,
 				    argp->check_guard, argp->guardtime);
-	return resp->status;
+	return rpc_success;
 }
 
 /*
@@ -96,7 +96,7 @@ nfsd3_proc_lookup(struct svc_rqst *rqstp)
 	resp->status = nfsd_lookup(rqstp, &resp->dirfh,
 				   argp->name, argp->len,
 				   &resp->fh);
-	return resp->status;
+	return rpc_success;
 }
 
 /*
@@ -115,7 +115,7 @@ nfsd3_proc_access(struct svc_rqst *rqstp)
 	fh_copy(&resp->fh, &argp->fh);
 	resp->access = argp->access;
 	resp->status = nfsd_access(rqstp, &resp->fh, &resp->access, NULL);
-	return resp->status;
+	return rpc_success;
 }
 
 /*
@@ -133,7 +133,7 @@ nfsd3_proc_readlink(struct svc_rqst *rqstp)
 	fh_copy(&resp->fh, &argp->fh);
 	resp->len = NFS3_MAXPATHLEN;
 	resp->status = nfsd_readlink(rqstp, &resp->fh, argp->buffer, &resp->len);
-	return resp->status;
+	return rpc_success;
 }
 
 /*
@@ -163,7 +163,7 @@ nfsd3_proc_read(struct svc_rqst *rqstp)
 	resp->status = nfsd_read(rqstp, &resp->fh, argp->offset,
 				 rqstp->rq_vec, argp->vlen, &resp->count,
 				 &resp->eof);
-	return resp->status;
+	return rpc_success;
 }
 
 /*
@@ -196,7 +196,7 @@ nfsd3_proc_write(struct svc_rqst *rqstp)
 				  resp->committed, resp->verf);
 	resp->count = cnt;
 out:
-	return resp->status;
+	return rpc_success;
 }
 
 /*
@@ -234,7 +234,7 @@ nfsd3_proc_create(struct svc_rqst *rqstp)
 	resp->status = do_nfsd_create(rqstp, dirfhp, argp->name, argp->len,
 				      attr, newfhp, argp->createmode,
 				      (u32 *)argp->verf, NULL, NULL);
-	return resp->status;
+	return rpc_success;
 }
 
 /*
@@ -257,7 +257,7 @@ nfsd3_proc_mkdir(struct svc_rqst *rqstp)
 	resp->status = nfsd_create(rqstp, &resp->dirfh, argp->name, argp->len,
 				   &argp->attrs, S_IFDIR, 0, &resp->fh);
 	fh_unlock(&resp->dirfh);
-	return resp->status;
+	return rpc_success;
 }
 
 static __be32
@@ -294,7 +294,7 @@ nfsd3_proc_symlink(struct svc_rqst *rqstp)
 				    argp->flen, argp->tname, &resp->fh);
 	kfree(argp->tname);
 out:
-	return resp->status;
+	return rpc_success;
 }
 
 /*
@@ -337,7 +337,7 @@ nfsd3_proc_mknod(struct svc_rqst *rqstp)
 				   &argp->attrs, type, rdev, &resp->fh);
 	fh_unlock(&resp->dirfh);
 out:
-	return resp->status;
+	return rpc_success;
 }
 
 /*
@@ -359,7 +359,7 @@ nfsd3_proc_remove(struct svc_rqst *rqstp)
 	resp->status = nfsd_unlink(rqstp, &resp->fh, -S_IFDIR,
 				   argp->name, argp->len);
 	fh_unlock(&resp->fh);
-	return resp->status;
+	return rpc_success;
 }
 
 /*
@@ -380,7 +380,7 @@ nfsd3_proc_rmdir(struct svc_rqst *rqstp)
 	resp->status = nfsd_unlink(rqstp, &resp->fh, S_IFDIR,
 				   argp->name, argp->len);
 	fh_unlock(&resp->fh);
-	return resp->status;
+	return rpc_success;
 }
 
 static __be32
@@ -402,7 +402,7 @@ nfsd3_proc_rename(struct svc_rqst *rqstp)
 	fh_copy(&resp->tfh, &argp->tfh);
 	resp->status = nfsd_rename(rqstp, &resp->ffh, argp->fname, argp->flen,
 				   &resp->tfh, argp->tname, argp->tlen);
-	return resp->status;
+	return rpc_success;
 }
 
 static __be32
@@ -422,7 +422,7 @@ nfsd3_proc_link(struct svc_rqst *rqstp)
 	fh_copy(&resp->tfh, &argp->tfh);
 	resp->status = nfsd_link(rqstp, &resp->tfh, argp->tname, argp->tlen,
 				 &resp->fh);
-	return resp->status;
+	return rpc_success;
 }
 
 /*
@@ -481,7 +481,7 @@ nfsd3_proc_readdir(struct svc_rqst *rqstp)
 		resp->offset = NULL;
 	}
 
-	return resp->status;
+	return rpc_success;
 }
 
 /*
@@ -551,7 +551,7 @@ nfsd3_proc_readdirplus(struct svc_rqst *rqstp)
 	}
 
 out:
-	return resp->status;
+	return rpc_success;
 }
 
 /*
@@ -568,7 +568,7 @@ nfsd3_proc_fsstat(struct svc_rqst *rqstp)
 
 	resp->status = nfsd_statfs(rqstp, &argp->fh, &resp->stats, 0);
 	fh_put(&argp->fh);
-	return resp->status;
+	return rpc_success;
 }
 
 /*
@@ -611,7 +611,7 @@ nfsd3_proc_fsinfo(struct svc_rqst *rqstp)
 	}
 
 	fh_put(&argp->fh);
-	return resp->status;
+	return rpc_success;
 }
 
 /*
@@ -653,7 +653,7 @@ nfsd3_proc_pathconf(struct svc_rqst *rqstp)
 	}
 
 	fh_put(&argp->fh);
-	return resp->status;
+	return rpc_success;
 }
 
 /*
@@ -679,7 +679,7 @@ nfsd3_proc_commit(struct svc_rqst *rqstp)
 	resp->status = nfsd_commit(rqstp, &resp->fh, argp->offset,
 				   argp->count, resp->verf);
 out:
-	return resp->status;
+	return rpc_success;
 }
 
 

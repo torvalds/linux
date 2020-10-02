@@ -21,7 +21,7 @@
 static __be32
 nfsacld_proc_null(struct svc_rqst *rqstp)
 {
-	return nfs_ok;
+	return rpc_success;
 }
 
 /*
@@ -79,7 +79,7 @@ static __be32 nfsacld_proc_getacl(struct svc_rqst *rqstp)
 
 	/* resp->acl_{access,default} are released in nfssvc_release_getacl. */
 out:
-	return resp->status;
+	return rpc_success;
 
 fail:
 	posix_acl_release(resp->acl_access);
@@ -131,7 +131,7 @@ out:
 	   nfssvc_decode_setaclargs. */
 	posix_acl_release(argp->acl_access);
 	posix_acl_release(argp->acl_default);
-	return resp->status;
+	return rpc_success;
 
 out_drop_lock:
 	fh_unlock(fh);
@@ -157,7 +157,7 @@ static __be32 nfsacld_proc_getattr(struct svc_rqst *rqstp)
 		goto out;
 	resp->status = fh_getattr(&resp->fh, &resp->stat);
 out:
-	return resp->status;
+	return rpc_success;
 }
 
 /*
@@ -179,7 +179,7 @@ static __be32 nfsacld_proc_access(struct svc_rqst *rqstp)
 		goto out;
 	resp->status = fh_getattr(&resp->fh, &resp->stat);
 out:
-	return resp->status;
+	return rpc_success;
 }
 
 /*
@@ -275,6 +275,7 @@ static int nfsaclsvc_encode_getaclres(struct svc_rqst *rqstp, __be32 *p)
 	int n;
 	int w;
 
+	*p++ = resp->status;
 	if (resp->status != nfs_ok)
 		return xdr_ressize_check(rqstp, p);
 
@@ -317,10 +318,12 @@ static int nfsaclsvc_encode_attrstatres(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd_attrstat *resp = rqstp->rq_resp;
 
+	*p++ = resp->status;
 	if (resp->status != nfs_ok)
-		return xdr_ressize_check(rqstp, p);
+		goto out;
 
 	p = nfs2svc_encode_fattr(rqstp, p, &resp->fh, &resp->stat);
+out:
 	return xdr_ressize_check(rqstp, p);
 }
 
@@ -329,11 +332,13 @@ static int nfsaclsvc_encode_accessres(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd3_accessres *resp = rqstp->rq_resp;
 
+	*p++ = resp->status;
 	if (resp->status != nfs_ok)
-		return xdr_ressize_check(rqstp, p);
+		goto out;
 
 	p = nfs2svc_encode_fattr(rqstp, p, &resp->fh, &resp->stat);
 	*p++ = htonl(resp->access);
+out:
 	return xdr_ressize_check(rqstp, p);
 }
 

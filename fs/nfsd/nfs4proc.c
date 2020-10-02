@@ -2165,7 +2165,7 @@ nfsd4_removexattr(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 static __be32
 nfsd4_proc_null(struct svc_rqst *rqstp)
 {
-	return nfs_ok;
+	return rpc_success;
 }
 
 static inline void nfsd4_increment_op_stats(u32 opnum)
@@ -2457,15 +2457,14 @@ encode_op:
 		nfsd4_increment_op_stats(op->opnum);
 	}
 
-	cstate->status = status;
 	fh_put(current_fh);
 	fh_put(save_fh);
 	BUG_ON(cstate->replay_owner);
 out:
+	cstate->status = status;
 	/* Reset deferral mechanism for RPC deferrals */
 	set_bit(RQ_USEDEFERRAL, &rqstp->rq_flags);
-	dprintk("nfsv4 compound returned %d\n", ntohl(status));
-	return status;
+	return rpc_success;
 }
 
 #define op_encode_hdr_size		(2)

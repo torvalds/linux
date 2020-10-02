@@ -430,14 +430,24 @@ nfssvc_encode_void(struct svc_rqst *rqstp, __be32 *p)
 }
 
 int
+nfssvc_encode_stat(struct svc_rqst *rqstp, __be32 *p)
+{
+	struct nfsd_stat *resp = rqstp->rq_resp;
+
+	*p++ = resp->status;
+	return xdr_ressize_check(rqstp, p);
+}
+
+int
 nfssvc_encode_attrstat(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd_attrstat *resp = rqstp->rq_resp;
 
+	*p++ = resp->status;
 	if (resp->status != nfs_ok)
-		return xdr_ressize_check(rqstp, p);
-
+		goto out;
 	p = encode_fattr(rqstp, p, &resp->fh, &resp->stat);
+out:
 	return xdr_ressize_check(rqstp, p);
 }
 
@@ -446,11 +456,12 @@ nfssvc_encode_diropres(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd_diropres *resp = rqstp->rq_resp;
 
+	*p++ = resp->status;
 	if (resp->status != nfs_ok)
-		return xdr_ressize_check(rqstp, p);
-
+		goto out;
 	p = encode_fh(p, &resp->fh);
 	p = encode_fattr(rqstp, p, &resp->fh, &resp->stat);
+out:
 	return xdr_ressize_check(rqstp, p);
 }
 
@@ -459,6 +470,7 @@ nfssvc_encode_readlinkres(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd_readlinkres *resp = rqstp->rq_resp;
 
+	*p++ = resp->status;
 	if (resp->status != nfs_ok)
 		return xdr_ressize_check(rqstp, p);
 
@@ -479,6 +491,7 @@ nfssvc_encode_readres(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd_readres *resp = rqstp->rq_resp;
 
+	*p++ = resp->status;
 	if (resp->status != nfs_ok)
 		return xdr_ressize_check(rqstp, p);
 
@@ -502,6 +515,7 @@ nfssvc_encode_readdirres(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd_readdirres *resp = rqstp->rq_resp;
 
+	*p++ = resp->status;
 	if (resp->status != nfs_ok)
 		return xdr_ressize_check(rqstp, p);
 
@@ -520,6 +534,7 @@ nfssvc_encode_statfsres(struct svc_rqst *rqstp, __be32 *p)
 	struct nfsd_statfsres *resp = rqstp->rq_resp;
 	struct kstatfs	*stat = &resp->stats;
 
+	*p++ = resp->status;
 	if (resp->status != nfs_ok)
 		return xdr_ressize_check(rqstp, p);
 

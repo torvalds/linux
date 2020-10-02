@@ -82,6 +82,10 @@ struct nfsd_readdirargs {
 	__be32 *		buffer;
 };
 
+struct nfsd_stat {
+	__be32			status;
+};
+
 struct nfsd_attrstat {
 	__be32			status;
 	struct svc_fh		fh;
@@ -153,6 +157,7 @@ int nfssvc_decode_linkargs(struct svc_rqst *, __be32 *);
 int nfssvc_decode_symlinkargs(struct svc_rqst *, __be32 *);
 int nfssvc_decode_readdirargs(struct svc_rqst *, __be32 *);
 int nfssvc_encode_void(struct svc_rqst *, __be32 *);
+int nfssvc_encode_stat(struct svc_rqst *, __be32 *);
 int nfssvc_encode_attrstat(struct svc_rqst *, __be32 *);
 int nfssvc_encode_diropres(struct svc_rqst *, __be32 *);
 int nfssvc_encode_readlinkres(struct svc_rqst *, __be32 *);

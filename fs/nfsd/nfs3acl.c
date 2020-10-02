@@ -19,7 +19,7 @@
 static __be32
 nfsd3_proc_null(struct svc_rqst *rqstp)
 {
-	return nfs_ok;
+	return rpc_success;
 }
 
 /*
@@ -71,7 +71,7 @@ static __be32 nfsd3_proc_getacl(struct svc_rqst *rqstp)
 
 	/* resp->acl_{access,default} are released in nfs3svc_release_getacl. */
 out:
-	return resp->status;
+	return rpc_success;
 
 fail:
 	posix_acl_release(resp->acl_access);
@@ -118,7 +118,7 @@ out:
 	   nfs3svc_decode_setaclargs. */
 	posix_acl_release(argp->acl_access);
 	posix_acl_release(argp->acl_default);
-	return resp->status;
+	return rpc_success;
 }
 
 /*
@@ -173,6 +173,7 @@ static int nfs3svc_encode_getaclres(struct svc_rqst *rqstp, __be32 *p)
 	struct nfsd3_getaclres *resp = rqstp->rq_resp;
 	struct dentry *dentry = resp->fh.fh_dentry;
 
+	*p++ = resp->status;
 	p = nfs3svc_encode_post_op_attr(rqstp, p, &resp->fh);
 	if (resp->status == 0 && dentry && d_really_is_positive(dentry)) {
 		struct inode *inode = d_inode(dentry);
@@ -217,8 +218,8 @@ static int nfs3svc_encode_setaclres(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd3_attrstat *resp = rqstp->rq_resp;
 
+	*p++ = resp->status;
 	p = nfs3svc_encode_post_op_attr(rqstp, p, &resp->fh);
-
 	return xdr_ressize_check(rqstp, p);
 }
 

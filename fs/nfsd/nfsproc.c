@@ -16,7 +16,7 @@
 static __be32
 nfsd_proc_null(struct svc_rqst *rqstp)
 {
-	return nfs_ok;
+	return rpc_success;
 }
 
 /*
@@ -38,7 +38,7 @@ nfsd_proc_getattr(struct svc_rqst *rqstp)
 		goto out;
 	resp->status = fh_getattr(&resp->fh, &resp->stat);
 out:
-	return resp->status;
+	return rpc_success;
 }
 
 /*
@@ -85,7 +85,7 @@ nfsd_proc_setattr(struct svc_rqst *rqstp)
 
 		resp->status = fh_verify(rqstp, fhp, 0, NFSD_MAY_NOP);
 		if (resp->status != nfs_ok)
-			return resp->status;
+			goto out;
 
 		if (delta < 0)
 			delta = -delta;
@@ -106,14 +106,14 @@ nfsd_proc_setattr(struct svc_rqst *rqstp)
 
 	resp->status = fh_getattr(&resp->fh, &resp->stat);
 out:
-	return resp->status;
+	return rpc_success;
 }
 
 /* Obsolete, replaced by MNTPROC_MNT. */
 static __be32
 nfsd_proc_root(struct svc_rqst *rqstp)
 {
-	return nfs_ok;
+	return rpc_success;
 }
 
 /*
@@ -140,7 +140,7 @@ nfsd_proc_lookup(struct svc_rqst *rqstp)
 
 	resp->status = fh_getattr(&resp->fh, &resp->stat);
 out:
-	return resp->status;
+	return rpc_success;
 }
 
 /*
@@ -159,7 +159,7 @@ nfsd_proc_readlink(struct svc_rqst *rqstp)
 	resp->status = nfsd_readlink(rqstp, &argp->fh, argp->buffer, &resp->len);
 
 	fh_put(&argp->fh);
-	return resp->status;
+	return rpc_success;
 }
 
 /*
@@ -197,19 +197,18 @@ nfsd_proc_read(struct svc_rqst *rqstp)
 				 rqstp->rq_vec, argp->vlen,
 				 &resp->count,
 				 &eof);
-	if (resp->status != nfs_ok)
-		goto out;
-
-	resp->status = fh_getattr(&resp->fh, &resp->stat);
-out:
-	return resp->status;
+	if (resp->status == nfs_ok)
+		resp->status = fh_getattr(&resp->fh, &resp->stat);
+	else if (resp->status == nfserr_jukebox)
+		return rpc_drop_reply;
+	return rpc_success;
 }
 
 /* Reserved */
 static __be32
 nfsd_proc_writecache(struct svc_rqst *rqstp)
 {
-	return nfs_ok;
+	return rpc_success;
 }
 
 /*
@@ -238,12 +237,12 @@ nfsd_proc_write(struct svc_rqst *rqstp)
 	resp->status = nfsd_write(rqstp, fh_copy(&resp->fh, &argp->fh),
 				  argp->offset, rqstp->rq_vec, nvecs,
 				  &cnt, NFS_DATA_SYNC, NULL);
-	if (resp->status != nfs_ok)
-		goto out;
-
-	resp->status = fh_getattr(&resp->fh, &resp->stat);
+	if (resp->status == nfs_ok)
+		resp->status = fh_getattr(&resp->fh, &resp->stat);
+	else if (resp->status == nfserr_jukebox)
+		return rpc_drop_reply;
 out:
-	return resp->status;
+	return rpc_success;
 }
 
 /*
@@ -410,47 +409,48 @@ done:
 		goto out;
 	resp->status = fh_getattr(&resp->fh, &resp->stat);
 out:
-	return resp->status;
+	return rpc_success;
 }
 
 static __be32
 nfsd_proc_remove(struct svc_rqst *rqstp)
 {
 	struct nfsd_diropargs *argp = rqstp->rq_argp;
-	__be32	nfserr;
+	struct nfsd_stat *resp = rqstp->rq_resp;
 
 	dprintk("nfsd: REMOVE   %s %.*s\n", SVCFH_fmt(&argp->fh),
 		argp->len, argp->name);
 
 	/* Unlink. -SIFDIR means file must not be a directory */
-	nfserr = nfsd_unlink(rqstp, &argp->fh, -S_IFDIR, argp->name, argp->len);
+	resp->status = nfsd_unlink(rqstp, &argp->fh, -S_IFDIR,
+				   argp->name, argp->len);
 	fh_put(&argp->fh);
-	return nfserr;
+	return rpc_success;
 }
 
 static __be32
 nfsd_proc_rename(struct svc_rqst *rqstp)
 {
 	struct nfsd_renameargs *argp = rqstp->rq_argp;
-	__be32	nfserr;
+	struct nfsd_stat *resp = rqstp->rq_resp;
 
 	dprintk("nfsd: RENAME   %s %.*s -> \n",
 		SVCFH_fmt(&argp->ffh), argp->flen, argp->fname);
 	dprintk("nfsd:        ->  %s %.*s\n",
 		SVCFH_fmt(&argp->tfh), argp->tlen, argp->tname);
 
-	nfserr = nfsd_rename(rqstp, &argp->ffh, argp->fname, argp->flen,
-				    &argp->tfh, argp->tname, argp->tlen);
+	resp->status = nfsd_rename(rqstp, &argp->ffh, argp->fname, argp->flen,
+				   &argp->tfh, argp->tname, argp->tlen);
 	fh_put(&argp->ffh);
 	fh_put(&argp->tfh);
-	return nfserr;
+	return rpc_success;
 }
 
 static __be32
 nfsd_proc_link(struct svc_rqst *rqstp)
 {
 	struct nfsd_linkargs *argp = rqstp->rq_argp;
-	__be32	nfserr;
+	struct nfsd_stat *resp = rqstp->rq_resp;
 
 	dprintk("nfsd: LINK     %s ->\n",
 		SVCFH_fmt(&argp->ffh));
@@ -459,22 +459,22 @@ nfsd_proc_link(struct svc_rqst *rqstp)
 		argp->tlen,
 		argp->tname);
 
-	nfserr = nfsd_link(rqstp, &argp->tfh, argp->tname, argp->tlen,
-				  &argp->ffh);
+	resp->status = nfsd_link(rqstp, &argp->tfh, argp->tname, argp->tlen,
+				 &argp->ffh);
 	fh_put(&argp->ffh);
 	fh_put(&argp->tfh);
-	return nfserr;
+	return rpc_success;
 }
 
 static __be32
 nfsd_proc_symlink(struct svc_rqst *rqstp)
 {
 	struct nfsd_symlinkargs *argp = rqstp->rq_argp;
+	struct nfsd_stat *resp = rqstp->rq_resp;
 	struct svc_fh	newfh;
-	__be32		nfserr;
 
 	if (argp->tlen > NFS_MAXPATHLEN) {
-		nfserr = nfserr_nametoolong;
+		resp->status = nfserr_nametoolong;
 		goto out;
 	}
 
@@ -482,7 +482,7 @@ nfsd_proc_symlink(struct svc_rqst *rqstp)
 						page_address(rqstp->rq_arg.pages[0]),
 						argp->tlen);
 	if (IS_ERR(argp->tname)) {
-		nfserr = nfserrno(PTR_ERR(argp->tname));
+		resp->status = nfserrno(PTR_ERR(argp->tname));
 		goto out;
 	}
 
@@ -491,14 +491,14 @@ nfsd_proc_symlink(struct svc_rqst *rqstp)
 		argp->tlen, argp->tname);
 
 	fh_init(&newfh, NFS_FHSIZE);
-	nfserr = nfsd_symlink(rqstp, &argp->ffh, argp->fname, argp->flen,
-						 argp->tname, &newfh);
+	resp->status = nfsd_symlink(rqstp, &argp->ffh, argp->fname, argp->flen,
+				    argp->tname, &newfh);
 
 	kfree(argp->tname);
 	fh_put(&argp->ffh);
 	fh_put(&newfh);
 out:
-	return nfserr;
+	return rpc_success;
 }
 
 /*
@@ -528,7 +528,7 @@ nfsd_proc_mkdir(struct svc_rqst *rqstp)
 
 	resp->status = fh_getattr(&resp->fh, &resp->stat);
 out:
-	return resp->status;
+	return rpc_success;
 }
 
 /*
@@ -538,13 +538,14 @@ static __be32
 nfsd_proc_rmdir(struct svc_rqst *rqstp)
 {
 	struct nfsd_diropargs *argp = rqstp->rq_argp;
-	__be32	nfserr;
+	struct nfsd_stat *resp = rqstp->rq_resp;
 
 	dprintk("nfsd: RMDIR    %s %.*s\n", SVCFH_fmt(&argp->fh), argp->len, argp->name);
 
-	nfserr = nfsd_unlink(rqstp, &argp->fh, S_IFDIR, argp->name, argp->len);
+	resp->status = nfsd_unlink(rqstp, &argp->fh, S_IFDIR,
+				   argp->name, argp->len);
 	fh_put(&argp->fh);
-	return nfserr;
+	return rpc_success;
 }
 
 /*
@@ -584,7 +585,7 @@ nfsd_proc_readdir(struct svc_rqst *rqstp)
 		*resp->offset = htonl(offset);
 
 	fh_put(&argp->fh);
-	return resp->status;
+	return rpc_success;
 }
 
 /*
@@ -601,7 +602,7 @@ nfsd_proc_statfs(struct svc_rqst *rqstp)
 	resp->status = nfsd_statfs(rqstp, &argp->fh, &resp->stats,
 				   NFSD_MAY_BYPASS_GSS_ON_ROOT);
 	fh_put(&argp->fh);
-	return resp->status;
+	return rpc_success;
 }
 
 /*
@@ -622,7 +623,7 @@ static const struct svc_procedure nfsd_procedures2[18] = {
 		.pc_argsize = sizeof(struct nfsd_void),
 		.pc_ressize = sizeof(struct nfsd_void),
 		.pc_cachetype = RC_NOCACHE,
-		.pc_xdrressize = ST,
+		.pc_xdrressize = 0,
 	},
 	[NFSPROC_GETATTR] = {
 		.pc_func = nfsd_proc_getattr,
@@ -651,7 +652,7 @@ static const struct svc_procedure nfsd_procedures2[18] = {
 		.pc_argsize = sizeof(struct nfsd_void),
 		.pc_ressize = sizeof(struct nfsd_void),
 		.pc_cachetype = RC_NOCACHE,
-		.pc_xdrressize = ST,
+		.pc_xdrressize = 0,
 	},
 	[NFSPROC_LOOKUP] = {
 		.pc_func = nfsd_proc_lookup,
@@ -689,7 +690,7 @@ static const struct svc_procedure nfsd_procedures2[18] = {
 		.pc_argsize = sizeof(struct nfsd_void),
 		.pc_ressize = sizeof(struct nfsd_void),
 		.pc_cachetype = RC_NOCACHE,
-		.pc_xdrressize = ST,
+		.pc_xdrressize = 0,
 	},
 	[NFSPROC_WRITE] = {
 		.pc_func = nfsd_proc_write,
@@ -714,36 +715,36 @@ static const struct svc_procedure nfsd_procedures2[18] = {
 	[NFSPROC_REMOVE] = {
 		.pc_func = nfsd_proc_remove,
 		.pc_decode = nfssvc_decode_diropargs,
-		.pc_encode = nfssvc_encode_void,
+		.pc_encode = nfssvc_encode_stat,
 		.pc_argsize = sizeof(struct nfsd_diropargs),
-		.pc_ressize = sizeof(struct nfsd_void),
+		.pc_ressize = sizeof(struct nfsd_stat),
 		.pc_cachetype = RC_REPLSTAT,
 		.pc_xdrressize = ST,
 	},
 	[NFSPROC_RENAME] = {
 		.pc_func = nfsd_proc_rename,
 		.pc_decode = nfssvc_decode_renameargs,
-		.pc_encode = nfssvc_encode_void,
+		.pc_encode = nfssvc_encode_stat,
 		.pc_argsize = sizeof(struct nfsd_renameargs),
-		.pc_ressize = sizeof(struct nfsd_void),
+		.pc_ressize = sizeof(struct nfsd_stat),
 		.pc_cachetype = RC_REPLSTAT,
 		.pc_xdrressize = ST,
 	},
 	[NFSPROC_LINK] = {
 		.pc_func = nfsd_proc_link,
 		.pc_decode = nfssvc_decode_linkargs,
-		.pc_encode = nfssvc_encode_void,
+		.pc_encode = nfssvc_encode_stat,
 		.pc_argsize = sizeof(struct nfsd_linkargs),
-		.pc_ressize = sizeof(struct nfsd_void),
+		.pc_ressize = sizeof(struct nfsd_stat),
 		.pc_cachetype = RC_REPLSTAT,
 		.pc_xdrressize = ST,
 	},
 	[NFSPROC_SYMLINK] = {
 		.pc_func = nfsd_proc_symlink,
 		.pc_decode = nfssvc_decode_symlinkargs,
-		.pc_encode = nfssvc_encode_void,
+		.pc_encode = nfssvc_encode_stat,
 		.pc_argsize = sizeof(struct nfsd_symlinkargs),
-		.pc_ressize = sizeof(struct nfsd_void),
+		.pc_ressize = sizeof(struct nfsd_stat),
 		.pc_cachetype = RC_REPLSTAT,
 		.pc_xdrressize = ST,
 	},
@@ -760,9 +761,9 @@ static const struct svc_procedure nfsd_procedures2[18] = {
 	[NFSPROC_RMDIR] = {
 		.pc_func = nfsd_proc_rmdir,
 		.pc_decode = nfssvc_decode_diropargs,
-		.pc_encode = nfssvc_encode_void,
+		.pc_encode = nfssvc_encode_stat,
 		.pc_argsize = sizeof(struct nfsd_diropargs),
-		.pc_ressize = sizeof(struct nfsd_void),
+		.pc_ressize = sizeof(struct nfsd_stat),
 		.pc_cachetype = RC_REPLSTAT,
 		.pc_xdrressize = ST,
 	},

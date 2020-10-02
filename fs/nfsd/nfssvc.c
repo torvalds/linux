@@ -960,13 +960,6 @@ out:
 	return 0;
 }
 
-static __be32 map_new_errors(u32 vers, __be32 nfserr)
-{
-	if (nfserr == nfserr_jukebox && vers == 2)
-		return nfserr_dropit;
-	return nfserr;
-}
-
 /*
  * A write procedure can have a large argument, and a read procedure can
  * have a large reply, but no NFSv2 or NFSv3 procedure has argument and
@@ -1014,7 +1007,7 @@ int nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 	const struct svc_procedure *proc = rqstp->rq_procinfo;
 	struct kvec *argv = &rqstp->rq_arg.head[0];
 	struct kvec *resv = &rqstp->rq_res.head[0];
-	__be32 nfserr, *nfserrp;
+	__be32 *p;
 
 	dprintk("nfsd_dispatch: vers %d proc %d\n",
 				rqstp->rq_vers, rqstp->rq_proc);
@@ -1043,18 +1036,14 @@ int nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 	 * Need to grab the location to store the status, as
 	 * NFSv4 does some encoding while processing
 	 */
-	nfserrp = resv->iov_base + resv->iov_len;
+	p = resv->iov_base + resv->iov_len;
 	resv->iov_len += sizeof(__be32);
 
-	nfserr = proc->pc_func(rqstp);
-	nfserr = map_new_errors(rqstp->rq_vers, nfserr);
-	if (nfserr == nfserr_dropit || test_bit(RQ_DROPME, &rqstp->rq_flags))
+	*statp = proc->pc_func(rqstp);
+	if (*statp == rpc_drop_reply || test_bit(RQ_DROPME, &rqstp->rq_flags))
 		goto out_update_drop;
 
-	if (rqstp->rq_proc != 0)
-		*nfserrp++ = nfserr;
-
-	if (!proc->pc_encode(rqstp, nfserrp))
+	if (!proc->pc_encode(rqstp, p))
 		goto out_encode_err;
 
 	nfsd_cache_update(rqstp, rqstp->rq_cachetype, statp + 1);
