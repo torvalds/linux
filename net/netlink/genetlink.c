@@ -1107,35 +1107,31 @@ struct ctrl_dump_policy_ctx {
 	u16 fam_id;
 };
 
-static int ctrl_dumppolicy(struct sk_buff *skb, struct netlink_callback *cb)
+static int ctrl_dumppolicy_start(struct netlink_callback *cb)
 {
 	struct ctrl_dump_policy_ctx *ctx = (void *)cb->ctx;
+	struct nlattr *tb[CTRL_ATTR_MAX + 1];
 	const struct genl_family *rt;
 	int err;
 
 	BUILD_BUG_ON(sizeof(*ctx) > sizeof(cb->ctx));
 
-	if (!ctx->fam_id) {
-		struct nlattr *tb[CTRL_ATTR_MAX + 1];
+	err = genlmsg_parse(cb->nlh, &genl_ctrl, tb, genl_ctrl.maxattr,
+			    genl_ctrl.policy, cb->extack);
+	if (err)
+		return err;
 
-		err = genlmsg_parse(cb->nlh, &genl_ctrl, tb,
-				    genl_ctrl.maxattr,
-				    genl_ctrl.policy, cb->extack);
-		if (err)
-			return err;
+	if (!tb[CTRL_ATTR_FAMILY_ID] && !tb[CTRL_ATTR_FAMILY_NAME])
+		return -EINVAL;
 
-		if (!tb[CTRL_ATTR_FAMILY_ID] && !tb[CTRL_ATTR_FAMILY_NAME])
-			return -EINVAL;
-
-		if (tb[CTRL_ATTR_FAMILY_ID]) {
-			ctx->fam_id = nla_get_u16(tb[CTRL_ATTR_FAMILY_ID]);
-		} else {
-			rt = genl_family_find_byname(
-				nla_data(tb[CTRL_ATTR_FAMILY_NAME]));
-			if (!rt)
-				return -ENOENT;
-			ctx->fam_id = rt->id;
-		}
+	if (tb[CTRL_ATTR_FAMILY_ID]) {
+		ctx->fam_id = nla_get_u16(tb[CTRL_ATTR_FAMILY_ID]);
+	} else {
+		rt = genl_family_find_byname(
+			nla_data(tb[CTRL_ATTR_FAMILY_NAME]));
+		if (!rt)
+			return -ENOENT;
+		ctx->fam_id = rt->id;
 	}
 
 	rt = genl_family_find_byid(ctx->fam_id);
@@ -1145,9 +1141,12 @@ static int ctrl_dumppolicy(struct sk_buff *skb, struct netlink_callback *cb)
 	if (!rt->policy)
 		return -ENODATA;
 
-	err = netlink_policy_dump_start(rt->policy, rt->maxattr, &ctx->state);
-	if (err)
-		return err;
+	return netlink_policy_dump_start(rt->policy, rt->maxattr, &ctx->state);
+}
+
+static int ctrl_dumppolicy(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	struct ctrl_dump_policy_ctx *ctx = (void *)cb->ctx;
 
 	while (netlink_policy_dump_loop(ctx->state)) {
 		void *hdr;
@@ -1159,7 +1158,7 @@ static int ctrl_dumppolicy(struct sk_buff *skb, struct netlink_callback *cb)
 		if (!hdr)
 			goto nla_put_failure;
 
-		if (nla_put_u16(skb, CTRL_ATTR_FAMILY_ID, rt->id))
+		if (nla_put_u16(skb, CTRL_ATTR_FAMILY_ID, ctx->fam_id))
 			goto nla_put_failure;
 
 		nest = nla_nest_start(skb, CTRL_ATTR_POLICY);
@@ -1199,6 +1198,7 @@ static const struct genl_ops genl_ctrl_ops[] = {
 	},
 	{
 		.cmd		= CTRL_CMD_GETPOLICY,
+		.start		= ctrl_dumppolicy_start,
 		.dumpit		= ctrl_dumppolicy,
 		.done		= ctrl_dumppolicy_done,
 	},
