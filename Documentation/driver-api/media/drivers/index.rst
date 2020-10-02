@@ -25,6 +25,7 @@ Video4Linux (V4L) drivers
 	sh_mobile_ceu_camera
 	tuners
 	vimc-devel
+	zoran
 
 
 Digital TV drivers
