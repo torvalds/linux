@@ -1,6 +1,9 @@
 config DMABUF_HEAPS_DEFERRED_FREE
 	tristate
 
+config DMABUF_HEAPS_PAGE_POOL
+	tristate
+
 config DMABUF_HEAPS_SYSTEM
 	tristate "DMA-BUF System Heap"
 	depends on DMABUF_HEAPS
