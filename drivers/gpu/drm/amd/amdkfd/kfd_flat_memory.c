@@ -418,6 +418,7 @@ int kfd_init_apertures(struct kfd_process *process)
 			case CHIP_SIENNA_CICHLID:
 			case CHIP_NAVY_FLOUNDER:
 			case CHIP_VANGOGH:
+			case CHIP_DIMGREY_CAVEFISH:
 				kfd_init_apertures_v9(pdd, id);
 				break;
 			default:
