@@ -142,14 +142,15 @@ ocelot_find_vcap_filter_that_points_at(struct ocelot *ocelot, int chain)
 	return NULL;
 }
 
-static int ocelot_flower_parse_action(struct flow_cls_offload *f, bool ingress,
+static int ocelot_flower_parse_action(struct ocelot *ocelot, bool ingress,
+				      struct flow_cls_offload *f,
 				      struct ocelot_vcap_filter *filter)
 {
 	struct netlink_ext_ack *extack = f->common.extack;
 	bool allow_missing_goto_target = false;
 	const struct flow_action_entry *a;
 	enum ocelot_tag_tpid_sel tpid;
-	int i, chain;
+	int i, chain, egress_port;
 	u64 rate;
 
 	if (!flow_action_basic_hw_stats_check(&f->rule->action,
@@ -222,6 +223,27 @@ static int ocelot_flower_parse_action(struct flow_cls_offload *f, bool ingress,
 			rate = a->police.rate_bytes_ps;
 			filter->action.pol.rate = div_u64(rate, 1000) * 8;
 			filter->action.pol.burst = a->police.burst;
+			filter->type = OCELOT_VCAP_FILTER_OFFLOAD;
+			break;
+		case FLOW_ACTION_REDIRECT:
+			if (filter->block_id != VCAP_IS2) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Redirect action can only be offloaded to VCAP IS2");
+				return -EOPNOTSUPP;
+			}
+			if (filter->goto_target != -1) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Last action must be GOTO");
+				return -EOPNOTSUPP;
+			}
+			egress_port = ocelot->ops->netdev_to_port(a->dev);
+			if (egress_port < 0) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Destination not an ocelot port");
+				return -EOPNOTSUPP;
+			}
+			filter->action.mask_mode = OCELOT_MASK_MODE_REDIRECT;
+			filter->action.port_mask = BIT(egress_port);
 			filter->type = OCELOT_VCAP_FILTER_OFFLOAD;
 			break;
 		case FLOW_ACTION_VLAN_POP:
@@ -579,7 +601,7 @@ static int ocelot_flower_parse(struct ocelot *ocelot, int port, bool ingress,
 	filter->prio = f->common.prio;
 	filter->id = f->cookie;
 
-	ret = ocelot_flower_parse_action(f, ingress, filter);
+	ret = ocelot_flower_parse_action(ocelot, ingress, f, filter);
 	if (ret)
 		return ret;
 
