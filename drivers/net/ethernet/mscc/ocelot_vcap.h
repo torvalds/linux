@@ -11,6 +11,8 @@
 #include <net/sch_generic.h>
 #include <net/pkt_cls.h>
 
+#define OCELOT_POLICER_DISCARD 0x17f
+
 struct ocelot_ipv4 {
 	u8 addr[4];
 };
@@ -174,10 +176,26 @@ struct ocelot_vcap_key_ipv6 {
 	enum ocelot_vcap_bit seq_zero;       /* TCP sequence number is zero */
 };
 
-enum ocelot_vcap_action {
-	OCELOT_VCAP_ACTION_DROP,
-	OCELOT_VCAP_ACTION_TRAP,
-	OCELOT_VCAP_ACTION_POLICE,
+enum ocelot_mask_mode {
+	OCELOT_MASK_MODE_NONE,
+	OCELOT_MASK_MODE_PERMIT_DENY,
+	OCELOT_MASK_MODE_POLICY,
+	OCELOT_MASK_MODE_REDIRECT,
+};
+
+struct ocelot_vcap_action {
+	union {
+		/* VCAP IS2 */
+		struct {
+			bool cpu_copy_ena;
+			u8 cpu_qu_num;
+			enum ocelot_mask_mode mask_mode;
+			unsigned long port_mask;
+			bool police_ena;
+			struct ocelot_policer pol;
+			u32 pol_ix;
+		};
+	};
 };
 
 struct ocelot_vcap_stats {
@@ -192,7 +210,7 @@ struct ocelot_vcap_filter {
 	u16 prio;
 	u32 id;
 
-	enum ocelot_vcap_action action;
+	struct ocelot_vcap_action action;
 	struct ocelot_vcap_stats stats;
 	unsigned long ingress_port_mask;
 
@@ -210,8 +228,6 @@ struct ocelot_vcap_filter {
 		struct ocelot_vcap_key_ipv4 ipv4;
 		struct ocelot_vcap_key_ipv6 ipv6;
 	} key;
-	struct ocelot_policer pol;
-	u32 pol_ix;
 };
 
 int ocelot_vcap_filter_add(struct ocelot *ocelot,

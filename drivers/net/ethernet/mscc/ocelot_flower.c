@@ -15,9 +15,6 @@ static int ocelot_flower_parse_action(struct flow_cls_offload *f,
 	u64 rate;
 	int i;
 
-	if (!flow_offload_has_one_action(&f->rule->action))
-		return -EOPNOTSUPP;
-
 	if (!flow_action_basic_hw_stats_check(&f->rule->action,
 					      f->common.extack))
 		return -EOPNOTSUPP;
@@ -25,16 +22,22 @@ static int ocelot_flower_parse_action(struct flow_cls_offload *f,
 	flow_action_for_each(i, a, &f->rule->action) {
 		switch (a->id) {
 		case FLOW_ACTION_DROP:
-			filter->action = OCELOT_VCAP_ACTION_DROP;
+			filter->action.mask_mode = OCELOT_MASK_MODE_PERMIT_DENY;
+			filter->action.port_mask = 0;
+			filter->action.police_ena = true;
+			filter->action.pol_ix = OCELOT_POLICER_DISCARD;
 			break;
 		case FLOW_ACTION_TRAP:
-			filter->action = OCELOT_VCAP_ACTION_TRAP;
+			filter->action.mask_mode = OCELOT_MASK_MODE_PERMIT_DENY;
+			filter->action.port_mask = 0;
+			filter->action.cpu_copy_ena = true;
+			filter->action.cpu_qu_num = 0;
 			break;
 		case FLOW_ACTION_POLICE:
-			filter->action = OCELOT_VCAP_ACTION_POLICE;
+			filter->action.police_ena = true;
 			rate = a->police.rate_bytes_ps;
-			filter->pol.rate = div_u64(rate, 1000) * 8;
-			filter->pol.burst = a->police.burst;
+			filter->action.pol.rate = div_u64(rate, 1000) * 8;
+			filter->action.pol.burst = a->police.burst;
 			break;
 		default:
 			return -EOPNOTSUPP;
