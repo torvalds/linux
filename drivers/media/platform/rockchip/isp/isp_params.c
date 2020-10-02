@@ -326,6 +326,18 @@ void rkisp_params_disable_isp(struct rkisp_isp_params_vdev *params_vdev)
 	params_vdev->ops->disable_isp(params_vdev);
 }
 
+void rkisp_params_get_ldchbuf_inf(struct rkisp_isp_params_vdev *params_vdev,
+				  struct rkisp_ldchbuf_info *ldchbuf)
+{
+	params_vdev->ops->get_ldchbuf_inf(params_vdev, ldchbuf);
+}
+
+void rkisp_params_set_ldchbuf_size(struct rkisp_isp_params_vdev *params_vdev,
+				   struct rkisp_ldchbuf_size *ldchsize)
+{
+	params_vdev->ops->set_ldchbuf_size(params_vdev, ldchsize);
+}
+
 int rkisp_register_params_vdev(struct rkisp_isp_params_vdev *params_vdev,
 				struct v4l2_device *v4l2_dev,
 				struct rkisp_device *dev)

@@ -88,8 +88,18 @@ int rkisp_alloc_buffer(struct rkisp_device *dev,
 	buf->dma_addr = *((dma_addr_t *)g_ops->cookie(mem_priv));
 	if (!attrs)
 		buf->vaddr = g_ops->vaddr(mem_priv);
-	if (buf->is_need_dbuf)
+	if (buf->is_need_dbuf) {
 		buf->dbuf = g_ops->get_dmabuf(mem_priv, O_RDWR);
+		if (buf->is_need_dmafd) {
+			buf->dma_fd = dma_buf_fd(buf->dbuf, O_CLOEXEC);
+			if (buf->dma_fd < 0) {
+				dma_buf_put(buf->dbuf);
+				ret = buf->dma_fd;
+				goto err;
+			}
+			get_dma_buf(buf->dbuf);
+		}
+	}
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
 		 "%s buf:0x%x~0x%x size:%d\n", __func__,
 		 (u32)buf->dma_addr, (u32)buf->dma_addr + buf->size, buf->size);
@@ -115,6 +125,7 @@ void rkisp_free_buffer(struct rkisp_device *dev,
 		buf->mem_priv = NULL;
 		buf->is_need_dbuf = false;
 		buf->is_need_vaddr = false;
+		buf->is_need_dmafd = false;
 	}
 }
 

@@ -25,6 +25,10 @@ struct rkisp_isp_params_ops {
 	void (*param_cfg)(struct rkisp_isp_params_vdev *params_vdev, u32 frame_id,
 			  u32 rdbk_times, enum rkisp_params_type type);
 	void (*param_cfgsram)(struct rkisp_isp_params_vdev *params_vdev);
+	void (*get_ldchbuf_inf)(struct rkisp_isp_params_vdev *params_vdev,
+				struct rkisp_ldchbuf_info *ldchbuf);
+	void (*set_ldchbuf_size)(struct rkisp_isp_params_vdev *params_vdev,
+				 struct rkisp_ldchbuf_size *ldchsize);
 };
 
 /*
@@ -87,5 +91,9 @@ void rkisp_params_cfg(struct rkisp_isp_params_vdev *params_vdev,
 		      u32 frame_id, u32 rdbk_times);
 
 void rkisp_params_cfgsram(struct rkisp_isp_params_vdev *params_vdev);
+void rkisp_params_get_ldchbuf_inf(struct rkisp_isp_params_vdev *params_vdev,
+				  struct rkisp_ldchbuf_info *ldchbuf);
+void rkisp_params_set_ldchbuf_size(struct rkisp_isp_params_vdev *params_vdev,
+				   struct rkisp_ldchbuf_size *ldchsize);
 
 #endif /* _RKISP_ISP_PARAM_H */

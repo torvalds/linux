@@ -24,6 +24,12 @@
 #define RKISP_CMD_FREE_SHARED_BUF \
 	_IO('V', BASE_VIDIOC_PRIVATE + 3)
 
+#define RKISP_CMD_GET_LDCHBUF_INFO \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 4, struct rkisp_ldchbuf_info)
+
+#define RKISP_CMD_SET_LDCHBUF_SIZE \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 5, struct rkisp_ldchbuf_size)
+
 #define ISP2X_MODULE_DPCC		BIT_ULL(0)
 #define ISP2X_MODULE_BLS		BIT_ULL(1)
 #define ISP2X_MODULE_SDG		BIT_ULL(2)
@@ -148,6 +154,7 @@
 #define ISP2X_3DLUT_DATA_NUM		729
 
 #define ISP2X_LDCH_MESH_XY_NUM		0x80000
+#define ISP2X_LDCH_BUF_NUM		2
 
 #define ISP2X_THUNDERBOOT_VIDEO_BUF_NUM	30
 
@@ -874,10 +881,31 @@ struct isp2x_3dlut_cfg {
 	u16 lut_b[ISP2X_3DLUT_DATA_NUM];
 } __attribute__ ((packed));
 
+enum isp2x_ldch_buf_stat {
+	LDCH_BUF_INIT = 0,
+	LDCH_BUF_WAIT2CHIP,
+	LDCH_BUF_CHIPINUSE,
+};
+
+struct rkisp_ldchbuf_info {
+	s32 buf_fd[ISP2X_LDCH_BUF_NUM];
+	u32 buf_size[ISP2X_LDCH_BUF_NUM];
+} __attribute__ ((packed));
+
+struct rkisp_ldchbuf_size {
+	u32 meas_width;
+	u32 meas_height;
+} __attribute__ ((packed));
+
+struct isp2x_ldch_head {
+	enum isp2x_ldch_buf_stat stat;
+	u32 data_oft;
+} __attribute__ ((packed));
+
 struct isp2x_ldch_cfg {
 	u32 hsize;
 	u32 vsize;
-	u16 data[ISP2X_LDCH_MESH_XY_NUM];
+	s32 buf_fd;
 } __attribute__ ((packed));
 
 struct isp2x_awb_gain_cfg {

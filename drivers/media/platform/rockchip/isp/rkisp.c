@@ -1806,6 +1806,8 @@ static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct rkisp_device *isp_dev = sd_to_isp_dev(sd);
 	struct rkisp_thunderboot_resmem *resmem;
 	struct rkisp_thunderboot_resmem_head *head;
+	struct rkisp_ldchbuf_info *ldchbuf;
+	struct rkisp_ldchbuf_size *ldchsize;
 	void *resmem_va;
 	long ret = 0;
 
@@ -1856,6 +1858,14 @@ static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		isp_dev->resmem_pa = 0;
 		isp_dev->resmem_size = 0;
 		break;
+	case RKISP_CMD_GET_LDCHBUF_INFO:
+		ldchbuf = (struct rkisp_ldchbuf_info *)arg;
+		rkisp_params_get_ldchbuf_inf(&isp_dev->params_vdev, ldchbuf);
+		break;
+	case RKISP_CMD_SET_LDCHBUF_SIZE:
+		ldchsize = (struct rkisp_ldchbuf_size *)arg;
+		rkisp_params_set_ldchbuf_size(&isp_dev->params_vdev, ldchsize);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 	}
@@ -1870,6 +1880,8 @@ static long rkisp_compat_ioctl32(struct v4l2_subdev *sd,
 	void __user *up = compat_ptr(arg);
 	struct isp2x_csi_trigger trigger;
 	struct rkisp_thunderboot_resmem resmem;
+	struct rkisp_ldchbuf_info ldchbuf;
+	struct rkisp_ldchbuf_size ldchsize;
 	long ret = 0;
 	int mode;
 
@@ -1894,6 +1906,16 @@ static long rkisp_compat_ioctl32(struct v4l2_subdev *sd,
 		break;
 	case RKISP_CMD_FREE_SHARED_BUF:
 		ret = rkisp_ioctl(sd, cmd, NULL);
+		break;
+	case RKISP_CMD_GET_LDCHBUF_INFO:
+		ret = rkisp_ioctl(sd, cmd, &ldchbuf);
+		if (!ret)
+			ret = copy_to_user(up, &ldchbuf, sizeof(ldchbuf));
+		break;
+	case RKISP_CMD_SET_LDCHBUF_SIZE:
+		ret = copy_from_user(&ldchsize, up, sizeof(ldchsize));
+		if (!ret)
+			ret = rkisp_ioctl(sd, cmd, &ldchsize);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;

@@ -173,8 +173,6 @@
 #define RKISP_PARAM_3DLUT_BUF_NUM		2
 #define RKISP_PARAM_3DLUT_BUF_SIZE		(9 * 9 * 9 * 4)
 
-#define RKISP_PARAM_LDCH_BUF_NUM		2
-
 #define RKISP_PARAM_LSC_LUT_BUF_NUM		2
 #define RKISP_PARAM_LSC_LUT_TBL_SIZE		(9 * 17 * 4)
 #define RKISP_PARAM_LSC_LUT_BUF_SIZE		(RKISP_PARAM_LSC_LUT_TBL_SIZE * 4)
@@ -325,7 +323,7 @@ struct rkisp_isp_params_val_v2x {
 	struct rkisp_dummy_buffer buf_3dlut[RKISP_PARAM_3DLUT_BUF_NUM];
 	u32 buf_3dlut_idx;
 
-	struct rkisp_dummy_buffer buf_ldch[RKISP_PARAM_LDCH_BUF_NUM];
+	struct rkisp_dummy_buffer buf_ldch[ISP2X_LDCH_BUF_NUM];
 	u32 buf_ldch_idx;
 
 	struct rkisp_dummy_buffer buf_lsclut[RKISP_PARAM_LSC_LUT_BUF_NUM];

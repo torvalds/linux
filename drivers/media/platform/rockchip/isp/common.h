@@ -121,8 +121,10 @@ struct rkisp_dummy_buffer {
 	void *mem_priv;
 	void *vaddr;
 	u32 size;
+	int dma_fd;
 	bool is_need_vaddr;
 	bool is_need_dbuf;
+	bool is_need_dmafd;
 };
 
 extern int rkisp_debug;
