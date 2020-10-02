@@ -21,6 +21,7 @@
 
 __u8 test_kind = TCPOPT_EXP;
 __u16 test_magic = 0xeB9F;
+__u32 inherit_cb_flags = 0;
 
 struct bpf_test_option passive_synack_out = {};
 struct bpf_test_option passive_fin_out	= {};
@@ -467,6 +468,8 @@ static int handle_passive_estab(struct bpf_sock_ops *skops)
 	struct tcphdr *th;
 	int err;
 
+	inherit_cb_flags = skops->bpf_sock_ops_cb_flags;
+
 	err = load_option(skops, &passive_estab_in, true);
 	if (err == -ENOENT) {
 		/* saved_syn is not found. It was in syncookie mode.
@@ -600,10 +603,10 @@ int estab(struct bpf_sock_ops *skops)
 	case BPF_SOCK_OPS_TCP_LISTEN_CB:
 		bpf_setsockopt(skops, SOL_TCP, TCP_SAVE_SYN,
 			       &true_val, sizeof(true_val));
-		set_hdr_cb_flags(skops);
+		set_hdr_cb_flags(skops, BPF_SOCK_OPS_STATE_CB_FLAG);
 		break;
 	case BPF_SOCK_OPS_TCP_CONNECT_CB:
-		set_hdr_cb_flags(skops);
+		set_hdr_cb_flags(skops, 0);
 		break;
 	case BPF_SOCK_OPS_PARSE_HDR_OPT_CB:
 		return handle_parse_hdr(skops);
