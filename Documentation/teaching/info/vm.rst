@@ -72,7 +72,7 @@ machine after finding out the allocated IP address:
 
 .. code-block:: shell
 
-   $ mincom -D serial.pts
+   $ minicom -D serial.pts
 
    Poky (Yocto Project Reference Distro) 2.3 qemux86 /dev/hvc0
 
