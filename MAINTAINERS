@@ -12158,6 +12158,7 @@ F:	net/ipv6/ipcomp6.c
 F:	net/ipv6/xfrm*
 F:	net/key/
 F:	net/xfrm/
+F:	tools/testing/selftests/net/ipsec.c
 
 NETWORKING [IPv4/IPv6]
 M:	"David S. Miller" <davem@davemloft.net>
