@@ -2505,8 +2505,6 @@ static int goya_hw_init(struct hl_device *hdev)
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	int rc;
 
-	dev_info(hdev->dev, "Starting initialization of H/W\n");
-
 	/* Perform read from the device to make sure device is up */
 	RREG32(mmPCIE_DBI_DEVICE_ID_VENDOR_ID_REG);
 

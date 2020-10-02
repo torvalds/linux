@@ -2946,8 +2946,6 @@ static int gaudi_hw_init(struct hl_device *hdev)
 {
 	int rc;
 
-	dev_info(hdev->dev, "Starting initialization of H/W\n");
-
 	gaudi_pre_hw_init(hdev);
 
 	gaudi_init_pci_dma_qmans(hdev);
