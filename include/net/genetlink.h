@@ -48,8 +48,11 @@ struct genl_family {
 	char			name[GENL_NAMSIZ];
 	unsigned int		version;
 	unsigned int		maxattr;
-	bool			netnsok;
-	bool			parallel_ops;
+	unsigned int		mcgrp_offset;	/* private */
+	u8			netnsok:1;
+	u8			parallel_ops:1;
+	u8			n_ops;
+	u8			n_mcgrps;
 	const struct nla_policy *policy;
 	int			(*pre_doit)(const struct genl_ops *ops,
 					    struct sk_buff *skb,
@@ -59,9 +62,6 @@ struct genl_family {
 					     struct genl_info *info);
 	const struct genl_ops *	ops;
 	const struct genl_multicast_group *mcgrps;
-	unsigned int		n_ops;
-	unsigned int		n_mcgrps;
-	unsigned int		mcgrp_offset;	/* private */
 	struct module		*module;
 };
 
