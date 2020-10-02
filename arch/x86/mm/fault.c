@@ -1446,11 +1446,14 @@ DEFINE_IDTENTRY_RAW_ERRORCODE(exc_page_fault)
 	prefetchw(&current->mm->mmap_lock);
 
 	/*
-	 * KVM has two types of events that are, logically, interrupts, but
-	 * are unfortunately delivered using the #PF vector.  These events are
-	 * "you just accessed valid memory, but the host doesn't have it right
-	 * now, so I'll put you to sleep if you continue" and "that memory
-	 * you tried to access earlier is available now."
+	 * KVM uses #PF vector to deliver 'page not present' events to guests
+	 * (asynchronous page fault mechanism). The event happens when a
+	 * userspace task is trying to access some valid (from guest's point of
+	 * view) memory which is not currently mapped by the host (e.g. the
+	 * memory is swapped out). Note, the corresponding "page ready" event
+	 * which is injected when the memory becomes available, is delived via
+	 * an interrupt mechanism and not a #PF exception
+	 * (see arch/x86/kernel/kvm.c: sysvec_kvm_asyncpf_interrupt()).
 	 *
 	 * We are relying on the interrupted context being sane (valid RSP,
 	 * relevant locks not held, etc.), which is fine as long as the
