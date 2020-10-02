@@ -10,9 +10,6 @@
 #include <linux/types.h>
 #include <asm/efi.h>
 
-/* error code which can't be mistaken for valid address */
-#define EFI_ERROR	(~0UL)
-
 /*
  * __init annotations should not be used in the EFI stub, since the code is
  * either included in the decompressor (x86, ARM) where they have no effect,
@@ -740,6 +737,9 @@ efi_status_t efi_allocate_pages(unsigned long size, unsigned long *addr,
 efi_status_t efi_allocate_pages_aligned(unsigned long size, unsigned long *addr,
 					unsigned long max, unsigned long align);
 
+efi_status_t efi_low_alloc_above(unsigned long size, unsigned long align,
+				 unsigned long *addr, unsigned long min);
+
 efi_status_t efi_relocate_kernel(unsigned long *image_addr,
 				 unsigned long image_size,
 				 unsigned long alloc_size,
@@ -786,7 +786,6 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 				 unsigned long *image_size,
 				 unsigned long *reserve_addr,
 				 unsigned long *reserve_size,
-				 unsigned long dram_base,
 				 efi_loaded_image_t *image);
 
 asmlinkage void __noreturn efi_enter_kernel(unsigned long entrypoint,
