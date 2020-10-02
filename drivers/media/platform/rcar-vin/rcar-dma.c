@@ -600,10 +600,10 @@ void rvin_crop_scale_comp(struct rvin_dev *vin)
 	 * format in 2 pixel unit hence configure VNIS_REG as stride / 2.
 	 */
 	switch (vin->format.pixelformat) {
-	case MEDIA_BUS_FMT_SBGGR8_1X8:
-	case MEDIA_BUS_FMT_SGBRG8_1X8:
-	case MEDIA_BUS_FMT_SGRBG8_1X8:
-	case MEDIA_BUS_FMT_SRGGB8_1X8:
+	case V4L2_PIX_FMT_SBGGR8:
+	case V4L2_PIX_FMT_SGBRG8:
+	case V4L2_PIX_FMT_SGRBG8:
+	case V4L2_PIX_FMT_SRGGB8:
 		stride /= 2;
 		break;
 	default:
