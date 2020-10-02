@@ -1851,6 +1851,11 @@ enum netdev_priv_flags {
  *	@udp_tunnel_nic:	UDP tunnel offload state
  *	@xdp_state:		stores info on attached XDP BPF programs
  *
+ *	@nested_level:	Used as as a parameter of spin_lock_nested() of
+ *			dev->addr_list_lock.
+ *	@unlink_list:	As netif_addr_lock() can be called recursively,
+ *			keep a list of interfaces to be deleted.
+ *
  *	FIXME: cleanup struct net_device such that network protocol info
  *	moves out.
  */
