@@ -2525,10 +2525,11 @@ static void interrupt_disable_v3_hw(struct hisi_hba *hisi_hba)
 	synchronize_irq(pci_irq_vector(pdev, 1));
 	synchronize_irq(pci_irq_vector(pdev, 2));
 	synchronize_irq(pci_irq_vector(pdev, 11));
-	for (i = 0; i < hisi_hba->queue_count; i++) {
+	for (i = 0; i < hisi_hba->queue_count; i++)
 		hisi_sas_write32(hisi_hba, OQ0_INT_SRC_MSK + 0x4 * i, 0x1);
+
+	for (i = 0; i < hisi_hba->cq_nvecs; i++)
 		synchronize_irq(pci_irq_vector(pdev, i + 16));
-	}
 
 	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK1, 0xffffffff);
 	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK2, 0xffffffff);
