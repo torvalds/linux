@@ -1252,7 +1252,6 @@ static int fsl_spdif_probe_txclk(struct fsl_spdif_priv *spdif_priv,
 
 static int fsl_spdif_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
 	struct fsl_spdif_priv *spdif_priv;
 	struct spdif_mixer_control *ctrl;
 	struct resource *res;
