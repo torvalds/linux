@@ -749,6 +749,9 @@ static void setup_return(struct pt_regs *regs, struct k_sigaction *ka,
 		regs->pstate |= PSR_BTYPE_C;
 	}
 
+	/* TCO (Tag Check Override) always cleared for signal handlers */
+	regs->pstate &= ~PSR_TCO_BIT;
+
 	if (ka->sa.sa_flags & SA_RESTORER)
 		sigtramp = ka->sa.sa_restorer;
 	else
@@ -932,6 +935,12 @@ asmlinkage void do_notify_resume(struct pt_regs *regs,
 
 			if (thread_flags & _TIF_UPROBE)
 				uprobe_notify_resume(regs);
+
+			if (thread_flags & _TIF_MTE_ASYNC_FAULT) {
+				clear_thread_flag(TIF_MTE_ASYNC_FAULT);
+				send_sig_fault(SIGSEGV, SEGV_MTEAERR,
+					       (void __user *)NULL, current);
+			}
 
 			if (thread_flags & _TIF_SIGPENDING)
 				do_signal(regs);
