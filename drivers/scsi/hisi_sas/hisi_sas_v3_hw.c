@@ -903,6 +903,7 @@ static int reset_hw_v3_hw(struct hisi_hba *hisi_hba)
 static int hw_init_v3_hw(struct hisi_hba *hisi_hba)
 {
 	struct device *dev = hisi_hba->dev;
+	struct acpi_device *acpi_dev;
 	union acpi_object *obj;
 	guid_t guid;
 	int rc;
@@ -933,6 +934,9 @@ static int hw_init_v3_hw(struct hisi_hba *hisi_hba)
 	else
 		ACPI_FREE(obj);
 
+	acpi_dev = ACPI_COMPANION(dev);
+	if (!acpi_device_power_manageable(acpi_dev))
+		dev_notice(dev, "neither _PS0 nor _PR0 is defined\n");
 	return 0;
 }
 
