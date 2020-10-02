@@ -563,7 +563,7 @@ static int splice_from_pipe_next(struct pipe_inode_info *pipe, struct splice_des
 			sd->need_wakeup = false;
 		}
 
-		pipe_wait(pipe);
+		pipe_wait_readable(pipe);
 	}
 
 	return 1;
@@ -1077,7 +1077,7 @@ static int wait_for_space(struct pipe_inode_info *pipe, unsigned flags)
 			return -EAGAIN;
 		if (signal_pending(current))
 			return -ERESTARTSYS;
-		pipe_wait(pipe);
+		pipe_wait_writable(pipe);
 	}
 }
 
@@ -1454,7 +1454,7 @@ static int ipipe_prep(struct pipe_inode_info *pipe, unsigned int flags)
 			ret = -EAGAIN;
 			break;
 		}
-		pipe_wait(pipe);
+		pipe_wait_readable(pipe);
 	}
 
 	pipe_unlock(pipe);
@@ -1493,7 +1493,7 @@ static int opipe_prep(struct pipe_inode_info *pipe, unsigned int flags)
 			ret = -ERESTARTSYS;
 			break;
 		}
-		pipe_wait(pipe);
+		pipe_wait_writable(pipe);
 	}
 
 	pipe_unlock(pipe);
