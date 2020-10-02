@@ -541,6 +541,7 @@ static int rt715_sdw_probe(struct sdw_slave *slave,
 }
 
 static const struct sdw_device_id rt715_id[] = {
+	SDW_SLAVE_ENTRY_EXT(0x025d, 0x714, 0x2, 0, 0),
 	SDW_SLAVE_ENTRY_EXT(0x025d, 0x715, 0x2, 0, 0),
 	{},
 };
