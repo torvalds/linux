@@ -3,3 +3,4 @@ check_tags_inclusion
 check_child_memory
 check_mmap_options
 check_ksm_options
+check_user_mem

@@ -64,6 +64,7 @@ int create_temp_file(void);
 
 /* Assembly MTE utility functions */
 void *mte_insert_random_tag(void *ptr);
+void *mte_insert_new_tag(void *ptr);
 void *mte_get_tag_address(void *ptr);
 void mte_set_tag_address_range(void *ptr, int range);
 void mte_clear_tag_address_range(void *ptr, int range);

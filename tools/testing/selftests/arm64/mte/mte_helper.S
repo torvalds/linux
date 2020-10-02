@@ -27,6 +27,20 @@ ENTRY(mte_insert_random_tag)
 ENDPROC(mte_insert_random_tag)
 
 /*
+ * mte_insert_new_tag: Insert new tag and different from the source tag if
+ *		       source pointer has it.
+ * Input:
+ *		x0 - source pointer with a tag/no-tag
+ * Return:
+ *		x0 - pointer with random tag
+ */
+ENTRY(mte_insert_new_tag)
+	gmi	x1, x0, xzr
+	irg	x0, x0, x1
+	ret
+ENDPROC(mte_insert_new_tag)
+
+/*
  * mte_get_tag_address: Get the tag from given address.
  * Input:
  *		x0 - source pointer
