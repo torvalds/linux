@@ -5,7 +5,7 @@
  */
 
 /dts-v1/;
-#include "mercury5-ssc8336n.dtsi"
+#include "mstar-mercury5-ssc8336n.dtsi"
 
 / {
 	model = "70mai Midrive D08";
