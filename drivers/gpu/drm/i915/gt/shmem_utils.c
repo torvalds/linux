@@ -73,7 +73,7 @@ void *shmem_pin_map(struct file *file)
 	mapping_set_unevictable(file->f_mapping);
 	return vaddr;
 err_page:
-	while (--i >= 0)
+	while (i--)
 		put_page(pages[i]);
 	kvfree(pages);
 	return NULL;
