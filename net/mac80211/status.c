@@ -982,10 +982,6 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 		if (!(info->flags & IEEE80211_TX_CTL_INJECTED) && acked)
 			ieee80211_frame_acked(sta, skb);
 
-		if ((sta->sdata->vif.type == NL80211_IFTYPE_STATION) &&
-		    ieee80211_hw_check(&local->hw, REPORTS_TX_ACK_STATUS))
-			ieee80211_sta_tx_notify(sta->sdata, (void *) skb->data,
-						acked, info->status.tx_time);
 	}
 
 	/* SNMP counters
@@ -1120,11 +1116,18 @@ void ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 	noack_success = !!(info->flags & IEEE80211_TX_STAT_NOACK_TRANSMITTED);
 
 	if (pubsta) {
+		struct ieee80211_sub_if_data *sdata = sta->sdata;
+
 		if (!acked && !noack_success)
 			sta->status_stats.retry_failed++;
 		sta->status_stats.retry_count += retry_count;
 
 		if (ieee80211_hw_check(&local->hw, REPORTS_TX_ACK_STATUS)) {
+			if (sdata->vif.type == NL80211_IFTYPE_STATION &&
+			    skb && !(info->flags & IEEE80211_TX_CTL_HW_80211_ENCAP))
+				ieee80211_sta_tx_notify(sdata, (void *) skb->data,
+							acked, info->status.tx_time);
+
 			if (acked) {
 				sta->status_stats.last_ack = jiffies;
 
@@ -1133,6 +1136,11 @@ void ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 
 				/* Track when last packet was ACKed */
 				sta->status_stats.last_pkt_time = jiffies;
+
+				/* Reset connection monitor */
+				if (sdata->vif.type == NL80211_IFTYPE_STATION &&
+				    unlikely(sdata->u.mgd.probe_send_count > 0))
+					sdata->u.mgd.probe_send_count = 0;
 
 				if (info->status.is_valid_ack_signal) {
 					sta->status_stats.last_ack_signal =

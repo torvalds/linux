@@ -1433,6 +1433,11 @@ static void ieee80211_iface_work(struct work_struct *work)
 				WARN_ON(1);
 				break;
 			}
+		} else if (ieee80211_is_ext(mgmt->frame_control)) {
+			if (sdata->vif.type == NL80211_IFTYPE_STATION)
+				ieee80211_sta_rx_queued_ext(sdata, skb);
+			else
+				WARN_ON(1);
 		} else if (ieee80211_is_data_qos(mgmt->frame_control)) {
 			struct ieee80211_hdr *hdr = (void *)mgmt;
 			/*

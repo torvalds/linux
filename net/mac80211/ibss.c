@@ -1037,7 +1037,8 @@ static void ieee80211_update_sta_info(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (sta && !sta->sta.wme &&
-	    elems->wmm_info && local->hw.queues >= IEEE80211_NUM_ACS) {
+	    (elems->wmm_info || elems->s1g_capab) &&
+	    local->hw.queues >= IEEE80211_NUM_ACS) {
 		sta->sta.wme = true;
 		ieee80211_check_fast_xmit(sta);
 	}

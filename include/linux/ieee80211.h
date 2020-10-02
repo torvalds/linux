@@ -151,6 +151,9 @@
 
 #define IEEE80211_ANO_NETTYPE_WILD              15
 
+/* bits unique to S1G beacon */
+#define IEEE80211_S1G_BCN_NEXT_TBTT    0x100
+
 /* control extension - for IEEE80211_FTYPE_CTL | IEEE80211_STYPE_CTL_EXT */
 #define IEEE80211_CTL_EXT_POLL		0x2000
 #define IEEE80211_CTL_EXT_SPR		0x3000
@@ -551,6 +554,28 @@ static inline bool ieee80211_is_s1g_beacon(__le16 fc)
 	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE |
 				 IEEE80211_FCTL_STYPE)) ==
 	       cpu_to_le16(IEEE80211_FTYPE_EXT | IEEE80211_STYPE_S1G_BEACON);
+}
+
+/**
+ * ieee80211_next_tbtt_present - check if IEEE80211_FTYPE_EXT &&
+ * IEEE80211_STYPE_S1G_BEACON && IEEE80211_S1G_BCN_NEXT_TBTT
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_next_tbtt_present(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
+	       cpu_to_le16(IEEE80211_FTYPE_EXT | IEEE80211_STYPE_S1G_BEACON) &&
+	       fc & cpu_to_le16(IEEE80211_S1G_BCN_NEXT_TBTT);
+}
+
+/**
+ * ieee80211_is_s1g_short_beacon - check if next tbtt present bit is set. Only
+ * true for S1G beacons when they're short.
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_is_s1g_short_beacon(__le16 fc)
+{
+	return ieee80211_is_s1g_beacon(fc) && ieee80211_next_tbtt_present(fc);
 }
 
 /**
@@ -962,6 +987,25 @@ enum ieee80211_vht_opmode_bits {
 	IEEE80211_OPMODE_NOTIF_RX_NSS_TYPE_BF	= 0x80,
 };
 
+/**
+ * enum ieee80211_s1g_chanwidth
+ * These are defined in IEEE802.11-2016ah Table 10-20
+ * as BSS Channel Width
+ *
+ * @IEEE80211_S1G_CHANWIDTH_1MHZ: 1MHz operating channel
+ * @IEEE80211_S1G_CHANWIDTH_2MHZ: 2MHz operating channel
+ * @IEEE80211_S1G_CHANWIDTH_4MHZ: 4MHz operating channel
+ * @IEEE80211_S1G_CHANWIDTH_8MHZ: 8MHz operating channel
+ * @IEEE80211_S1G_CHANWIDTH_16MHZ: 16MHz operating channel
+ */
+enum ieee80211_s1g_chanwidth {
+	IEEE80211_S1G_CHANWIDTH_1MHZ = 0,
+	IEEE80211_S1G_CHANWIDTH_2MHZ = 1,
+	IEEE80211_S1G_CHANWIDTH_4MHZ = 3,
+	IEEE80211_S1G_CHANWIDTH_8MHZ = 7,
+	IEEE80211_S1G_CHANWIDTH_16MHZ = 15,
+};
+
 #define WLAN_SA_QUERY_TR_ID_LEN 2
 #define WLAN_MEMBERSHIP_LEN 8
 #define WLAN_USER_POSITION_LEN 16
@@ -1034,6 +1078,13 @@ struct ieee80211_ext {
 			u8 change_seq;
 			u8 variable[0];
 		} __packed s1g_beacon;
+		struct {
+			u8 sa[ETH_ALEN];
+			__le32 timestamp;
+			u8 change_seq;
+			u8 next_tbtt[3];
+			u8 variable[0];
+		} __packed s1g_short_beacon;
 	} u;
 } __packed __aligned(2);
 
@@ -1068,6 +1119,11 @@ struct ieee80211_mgmt {
 			/* followed by Supported rates */
 			u8 variable[0];
 		} __packed assoc_resp, reassoc_resp;
+		struct {
+			__le16 capab_info;
+			__le16 status_code;
+			u8 variable[0];
+		} __packed s1g_assoc_resp, s1g_reassoc_resp;
 		struct {
 			__le16 capab_info;
 			__le16 listen_interval;
@@ -2294,8 +2350,11 @@ ieee80211_he_6ghz_oper(const struct ieee80211_he_operation *he_oper)
 }
 
 /* HE Spatial Reuse defines */
-#define IEEE80211_HE_SPR_NON_SRG_OFFSET_PRESENT			0x4
-#define IEEE80211_HE_SPR_SRG_INFORMATION_PRESENT		0x8
+#define IEEE80211_HE_SPR_PSR_DISALLOWED				BIT(0)
+#define IEEE80211_HE_SPR_NON_SRG_OBSS_PD_SR_DISALLOWED		BIT(1)
+#define IEEE80211_HE_SPR_NON_SRG_OFFSET_PRESENT			BIT(2)
+#define IEEE80211_HE_SPR_SRG_INFORMATION_PRESENT		BIT(3)
+#define IEEE80211_HE_SPR_HESIGA_SR_VAL15_ALLOWED		BIT(4)
 
 /*
  * ieee80211_he_spr_size - calculate 802.11ax HE Spatial Reuse IE size
@@ -2330,6 +2389,8 @@ ieee80211_he_spr_size(const u8 *he_spr_ie)
 }
 
 /* S1G Capabilities Information field */
+#define IEEE80211_S1G_CAPABILITY_LEN	15
+
 #define S1G_CAP0_S1G_LONG	BIT(0)
 #define S1G_CAP0_SGI_1MHZ	BIT(1)
 #define S1G_CAP0_SGI_2MHZ	BIT(2)
@@ -2408,6 +2469,13 @@ ieee80211_he_spr_size(const u8 *he_spr_ie)
 
 #define S1G_OPER_CH_WIDTH_PRIMARY_1MHZ	BIT(0)
 #define S1G_OPER_CH_WIDTH_OPER		GENMASK(4, 1)
+
+
+#define LISTEN_INT_USF	GENMASK(15, 14)
+#define LISTEN_INT_UI	GENMASK(13, 0)
+
+#define IEEE80211_MAX_USF	FIELD_MAX(LISTEN_INT_USF)
+#define IEEE80211_MAX_UI	FIELD_MAX(LISTEN_INT_UI)
 
 /* Authentication algorithms */
 #define WLAN_AUTH_OPEN 0
@@ -2808,6 +2876,8 @@ enum ieee80211_eid {
 
 	WLAN_EID_REDUCED_NEIGHBOR_REPORT = 201,
 
+	WLAN_EID_AID_REQUEST = 210,
+	WLAN_EID_AID_RESPONSE = 211,
 	WLAN_EID_S1G_BCN_COMPAT = 213,
 	WLAN_EID_S1G_SHORT_BCN_INTERVAL = 214,
 	WLAN_EID_S1G_CAPABILITIES = 217,

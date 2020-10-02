@@ -627,6 +627,7 @@ struct ieee80211_fils_discovery {
  * @fils_discovery: FILS discovery configuration
  * @unsol_bcast_probe_resp_interval: Unsolicited broadcast probe response
  *	interval.
+ * @s1g: BSS is S1G BSS (affects Association Request format).
  */
 struct ieee80211_bss_conf {
 	const u8 *bssid;
@@ -696,6 +697,7 @@ struct ieee80211_bss_conf {
 	struct cfg80211_he_bss_color he_bss_color;
 	struct ieee80211_fils_discovery fils_discovery;
 	u32 unsol_bcast_probe_resp_interval;
+	bool s1g;
 };
 
 /**
@@ -832,6 +834,8 @@ enum mac80211_tx_info_flags {
 };
 
 #define IEEE80211_TX_CTL_STBC_SHIFT		23
+
+#define IEEE80211_TX_RC_S1G_MCS IEEE80211_TX_RC_VHT_MCS
 
 /**
  * enum mac80211_tx_control_flags - flags to describe transmit control
@@ -5403,11 +5407,15 @@ void ieee80211_sched_scan_stopped(struct ieee80211_hw *hw);
  * @IEEE80211_IFACE_ITER_RESUME_ALL: During resume, iterate over all
  *	interfaces, even if they haven't been re-added to the driver yet.
  * @IEEE80211_IFACE_ITER_ACTIVE: Iterate only active interfaces (netdev is up).
+ * @IEEE80211_IFACE_SKIP_SDATA_NOT_IN_DRIVER: Skip any interfaces where SDATA
+ *	is not in the driver.  This may fix crashes during firmware recovery
+ *	for instance.
  */
 enum ieee80211_interface_iteration_flags {
 	IEEE80211_IFACE_ITER_NORMAL	= 0,
 	IEEE80211_IFACE_ITER_RESUME_ALL	= BIT(0),
 	IEEE80211_IFACE_ITER_ACTIVE	= BIT(1),
+	IEEE80211_IFACE_SKIP_SDATA_NOT_IN_DRIVER	= BIT(2),
 };
 
 /**

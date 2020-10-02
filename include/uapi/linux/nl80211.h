@@ -2521,6 +2521,12 @@ enum nl80211_commands {
  *	unsolicited broadcast probe response. It is a nested attribute, see
  *	&enum nl80211_unsol_bcast_probe_resp_attributes.
  *
+ * @NL80211_ATTR_S1G_CAPABILITY: S1G Capability information element (from
+ *	association request when used with NL80211_CMD_NEW_STATION)
+ * @NL80211_ATTR_S1G_CAPABILITY_MASK: S1G Capability Information element
+ *	override mask. Used with NL80211_ATTR_S1G_CAPABILITY in
+ *	NL80211_CMD_ASSOCIATE or NL80211_CMD_CONNECT.
+ *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -3006,6 +3012,9 @@ enum nl80211_attrs {
 	NL80211_ATTR_FILS_DISCOVERY,
 
 	NL80211_ATTR_UNSOL_BCAST_PROBE_RESP,
+
+	NL80211_ATTR_S1G_CAPABILITY,
+	NL80211_ATTR_S1G_CAPABILITY_MASK,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -4088,6 +4097,7 @@ enum nl80211_user_reg_hint_type {
  *	receiving frames destined to the local BSS
  * @NL80211_SURVEY_INFO_MAX: highest survey info attribute number
  *	currently defined
+ * @NL80211_SURVEY_INFO_FREQUENCY_OFFSET: center frequency offset in KHz
  * @__NL80211_SURVEY_INFO_AFTER_LAST: internal use
  */
 enum nl80211_survey_info {
@@ -4103,6 +4113,7 @@ enum nl80211_survey_info {
 	NL80211_SURVEY_INFO_TIME_SCAN,
 	NL80211_SURVEY_INFO_PAD,
 	NL80211_SURVEY_INFO_TIME_BSS_RX,
+	NL80211_SURVEY_INFO_FREQUENCY_OFFSET,
 
 	/* keep last */
 	__NL80211_SURVEY_INFO_AFTER_LAST,
@@ -6059,6 +6070,8 @@ enum nl80211_timeout_reason {
  * @NL80211_SCAN_FLAG_FREQ_KHZ: report scan results with
  *	%NL80211_ATTR_SCAN_FREQ_KHZ. This also means
  *	%NL80211_ATTR_SCAN_FREQUENCIES will not be included.
+ * @NL80211_SCAN_FLAG_COLOCATED_6GHZ: scan for colocated APs reported by
+ *	2.4/5 GHz APs
  */
 enum nl80211_scan_flags {
 	NL80211_SCAN_FLAG_LOW_PRIORITY				= 1<<0,
@@ -6075,6 +6088,7 @@ enum nl80211_scan_flags {
 	NL80211_SCAN_FLAG_RANDOM_SN				= 1<<11,
 	NL80211_SCAN_FLAG_MIN_PREQ_CONTENT			= 1<<12,
 	NL80211_SCAN_FLAG_FREQ_KHZ				= 1<<13,
+	NL80211_SCAN_FLAG_COLOCATED_6GHZ			= 1<<14,
 };
 
 /**
@@ -6977,6 +6991,13 @@ enum nl80211_peer_measurement_ftm_resp {
  *
  * @NL80211_HE_OBSS_PD_ATTR_MIN_OFFSET: the OBSS PD minimum tx power offset.
  * @NL80211_HE_OBSS_PD_ATTR_MAX_OFFSET: the OBSS PD maximum tx power offset.
+ * @NL80211_HE_OBSS_PD_ATTR_NON_SRG_MAX_OFFSET: the non-SRG OBSS PD maximum
+ *	tx power offset.
+ * @NL80211_HE_OBSS_PD_ATTR_BSS_COLOR_BITMAP: bitmap that indicates the BSS color
+ *	values used by members of the SRG.
+ * @NL80211_HE_OBSS_PD_ATTR_PARTIAL_BSSID_BITMAP: bitmap that indicates the partial
+ *	BSSID values used by members of the SRG.
+ * @NL80211_HE_OBSS_PD_ATTR_SR_CTRL: The SR Control field of SRP element.
  *
  * @__NL80211_HE_OBSS_PD_ATTR_LAST: Internal
  * @NL80211_HE_OBSS_PD_ATTR_MAX: highest OBSS PD attribute.
@@ -6986,6 +7007,10 @@ enum nl80211_obss_pd_attributes {
 
 	NL80211_HE_OBSS_PD_ATTR_MIN_OFFSET,
 	NL80211_HE_OBSS_PD_ATTR_MAX_OFFSET,
+	NL80211_HE_OBSS_PD_ATTR_NON_SRG_MAX_OFFSET,
+	NL80211_HE_OBSS_PD_ATTR_BSS_COLOR_BITMAP,
+	NL80211_HE_OBSS_PD_ATTR_PARTIAL_BSSID_BITMAP,
+	NL80211_HE_OBSS_PD_ATTR_SR_CTRL,
 
 	/* keep last */
 	__NL80211_HE_OBSS_PD_ATTR_LAST,

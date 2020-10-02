@@ -544,6 +544,8 @@ struct ieee80211_if_managed {
 	struct ieee80211_ht_cap ht_capa_mask; /* Valid parts of ht_capa */
 	struct ieee80211_vht_cap vht_capa; /* configured VHT overrides */
 	struct ieee80211_vht_cap vht_capa_mask; /* Valid parts of vht_capa */
+	struct ieee80211_s1g_cap s1g_capa; /* configured S1G overrides */
+	struct ieee80211_s1g_cap s1g_capa_mask; /* valid s1g_capa bits */
 
 	/* TDLS support */
 	u8 tdls_peer[ETH_ALEN] __aligned(2);
@@ -1376,7 +1378,6 @@ struct ieee80211_local {
 				*/
 
 	bool pspolling;
-	bool offchannel_ps_enabled;
 	/*
 	 * PS can only be enabled when we have exactly one managed
 	 * interface (and monitors) in PS, this then points there.
@@ -1534,6 +1535,10 @@ struct ieee802_11_elems {
 	u8 dtim_count;
 	u8 dtim_period;
 	const struct ieee80211_addba_ext_ie *addba_ext_ie;
+	const struct ieee80211_s1g_cap *s1g_capab;
+	const struct ieee80211_s1g_oper_ie *s1g_oper;
+	const struct ieee80211_s1g_bcn_compat_ie *s1g_bcn_compat;
+	const struct ieee80211_aid_response_ie *aid_resp;
 
 	/* length of them, respectively */
 	u8 ext_capab_len;
@@ -1652,6 +1657,8 @@ int ieee80211_set_arp_filter(struct ieee80211_sub_if_data *sdata);
 void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata);
 void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 				  struct sk_buff *skb);
+void ieee80211_sta_rx_queued_ext(struct ieee80211_sub_if_data *sdata,
+				 struct sk_buff *skb);
 void ieee80211_sta_reset_beacon_monitor(struct ieee80211_sub_if_data *sdata);
 void ieee80211_sta_reset_conn_monitor(struct ieee80211_sub_if_data *sdata);
 void ieee80211_mgd_stop(struct ieee80211_sub_if_data *sdata);
@@ -2204,6 +2211,11 @@ int ieee80211_add_ext_srates_ie(struct ieee80211_sub_if_data *sdata,
 				struct sk_buff *skb, bool need_basic,
 				enum nl80211_band band);
 u8 *ieee80211_add_wmm_info_ie(u8 *buf, u8 qosinfo);
+void ieee80211_add_s1g_capab_ie(struct ieee80211_sub_if_data *sdata,
+				struct ieee80211_sta_s1g_cap *caps,
+				struct sk_buff *skb);
+void ieee80211_add_aid_request_ie(struct ieee80211_sub_if_data *sdata,
+				  struct sk_buff *skb);
 
 /* channel management */
 bool ieee80211_chandef_ht_oper(const struct ieee80211_ht_operation *ht_oper,
@@ -2215,6 +2227,8 @@ bool ieee80211_chandef_vht_oper(struct ieee80211_hw *hw, u32 vht_cap_info,
 bool ieee80211_chandef_he_6ghz_oper(struct ieee80211_sub_if_data *sdata,
 				    const struct ieee80211_he_operation *he_oper,
 				    struct cfg80211_chan_def *chandef);
+bool ieee80211_chandef_s1g_oper(const struct ieee80211_s1g_oper_ie *oper,
+				struct cfg80211_chan_def *chandef);
 u32 ieee80211_chandef_downgrade(struct cfg80211_chan_def *c);
 
 int __must_check
@@ -2293,6 +2307,9 @@ void ieee80211_tdls_chsw_work(struct work_struct *wk);
 void ieee80211_tdls_handle_disconnect(struct ieee80211_sub_if_data *sdata,
 				      const u8 *peer, u16 reason);
 const char *ieee80211_get_reason_code_string(u16 reason_code);
+u16 ieee80211_encode_usf(int val);
+u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len,
+			enum nl80211_iftype type);
 
 extern const struct ethtool_ops ieee80211_ethtool_ops;
 

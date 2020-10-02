@@ -329,6 +329,13 @@ he_obss_pd_policy[NL80211_HE_OBSS_PD_ATTR_MAX + 1] = {
 		NLA_POLICY_RANGE(NLA_U8, 1, 20),
 	[NL80211_HE_OBSS_PD_ATTR_MAX_OFFSET] =
 		NLA_POLICY_RANGE(NLA_U8, 1, 20),
+	[NL80211_HE_OBSS_PD_ATTR_NON_SRG_MAX_OFFSET] =
+		NLA_POLICY_RANGE(NLA_U8, 1, 20),
+	[NL80211_HE_OBSS_PD_ATTR_BSS_COLOR_BITMAP] =
+		NLA_POLICY_EXACT_LEN(8),
+	[NL80211_HE_OBSS_PD_ATTR_PARTIAL_BSSID_BITMAP] =
+		NLA_POLICY_EXACT_LEN(8),
+	[NL80211_HE_OBSS_PD_ATTR_SR_CTRL] = { .type = NLA_U8 },
 };
 
 static const struct nla_policy
@@ -704,6 +711,10 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 		NLA_POLICY_NESTED(nl80211_fils_discovery_policy),
 	[NL80211_ATTR_UNSOL_BCAST_PROBE_RESP] =
 		NLA_POLICY_NESTED(nl80211_unsol_bcast_probe_resp_policy),
+	[NL80211_ATTR_S1G_CAPABILITY] =
+		NLA_POLICY_EXACT_LEN(IEEE80211_S1G_CAPABILITY_LEN),
+	[NL80211_ATTR_S1G_CAPABILITY_MASK] =
+		NLA_POLICY_EXACT_LEN(IEEE80211_S1G_CAPABILITY_LEN),
 };
 
 /* policy for the key attributes */
@@ -972,6 +983,8 @@ static int nl80211_msg_put_channel(struct sk_buff *msg, struct wiphy *wiphy,
 	 */
 	if (!large && chan->flags &
 	    (IEEE80211_CHAN_NO_10MHZ | IEEE80211_CHAN_NO_20MHZ))
+		return 0;
+	if (!large && chan->freq_offset)
 		return 0;
 
 	if (nla_put_u32(msg, NL80211_FREQUENCY_ATTR_FREQ,
@@ -1665,7 +1678,8 @@ nl80211_send_iftype_data(struct sk_buff *msg,
 }
 
 static int nl80211_send_band_rateinfo(struct sk_buff *msg,
-				      struct ieee80211_supported_band *sband)
+				      struct ieee80211_supported_band *sband,
+				      bool large)
 {
 	struct nlattr *nl_rates, *nl_rate;
 	struct ieee80211_rate *rate;
@@ -1693,7 +1707,7 @@ static int nl80211_send_band_rateinfo(struct sk_buff *msg,
 			 sband->vht_cap.cap)))
 		return -ENOBUFS;
 
-	if (sband->n_iftype_data) {
+	if (large && sband->n_iftype_data) {
 		struct nlattr *nl_iftype_data =
 			nla_nest_start_noflag(msg,
 					      NL80211_BAND_ATTR_IFTYPE_DATA);
@@ -1721,7 +1735,7 @@ static int nl80211_send_band_rateinfo(struct sk_buff *msg,
 	}
 
 	/* add EDMG info */
-	if (sband->edmg_cap.channels &&
+	if (large && sband->edmg_cap.channels &&
 	    (nla_put_u8(msg, NL80211_BAND_ATTR_EDMG_CHANNELS,
 		       sband->edmg_cap.channels) ||
 	    nla_put_u8(msg, NL80211_BAND_ATTR_EDMG_BW_CONFIG,
@@ -2139,13 +2153,7 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *rdev,
 		    nla_put_u16(msg, NL80211_ATTR_MAX_SCHED_SCAN_IE_LEN,
 				rdev->wiphy.max_sched_scan_ie_len) ||
 		    nla_put_u8(msg, NL80211_ATTR_MAX_MATCH_SETS,
-			       rdev->wiphy.max_match_sets) ||
-		    nla_put_u32(msg, NL80211_ATTR_MAX_NUM_SCHED_SCAN_PLANS,
-				rdev->wiphy.max_sched_scan_plans) ||
-		    nla_put_u32(msg, NL80211_ATTR_MAX_SCAN_PLAN_INTERVAL,
-				rdev->wiphy.max_sched_scan_plan_interval) ||
-		    nla_put_u32(msg, NL80211_ATTR_MAX_SCAN_PLAN_ITERATIONS,
-				rdev->wiphy.max_sched_scan_plan_iterations))
+			       rdev->wiphy.max_match_sets))
 			goto nla_put_failure;
 
 		if ((rdev->wiphy.flags & WIPHY_FLAG_IBSS_RSN) &&
@@ -2235,6 +2243,10 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *rdev,
 		     band < NUM_NL80211_BANDS; band++) {
 			struct ieee80211_supported_band *sband;
 
+			/* omit higher bands for ancient software */
+			if (band > NL80211_BAND_5GHZ && !state->split)
+				break;
+
 			sband = rdev->wiphy.bands[band];
 
 			if (!sband)
@@ -2246,7 +2258,8 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *rdev,
 
 			switch (state->chan_start) {
 			case 0:
-				if (nl80211_send_band_rateinfo(msg, sband))
+				if (nl80211_send_band_rateinfo(msg, sband,
+							       state->split))
 					goto nla_put_failure;
 				state->chan_start++;
 				if (state->split)
@@ -2348,8 +2361,6 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *rdev,
 		    nla_put_flag(msg, NL80211_ATTR_OFFCHANNEL_TX_OK))
 			goto nla_put_failure;
 
-		if (nl80211_send_mgmt_stypes(msg, mgmt_stypes))
-			goto nla_put_failure;
 		state->split_start++;
 		if (state->split)
 			break;
@@ -2417,9 +2428,23 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *rdev,
 		 * case we'll continue with more data in the next round,
 		 * but break unconditionally so unsplit data stops here.
 		 */
-		state->split_start++;
+		if (state->split)
+			state->split_start++;
+		else
+			state->split_start = 0;
 		break;
 	case 9:
+		if (nl80211_send_mgmt_stypes(msg, mgmt_stypes))
+			goto nla_put_failure;
+
+		if (nla_put_u32(msg, NL80211_ATTR_MAX_NUM_SCHED_SCAN_PLANS,
+				rdev->wiphy.max_sched_scan_plans) ||
+		    nla_put_u32(msg, NL80211_ATTR_MAX_SCAN_PLAN_INTERVAL,
+				rdev->wiphy.max_sched_scan_plan_interval) ||
+		    nla_put_u32(msg, NL80211_ATTR_MAX_SCAN_PLAN_ITERATIONS,
+				rdev->wiphy.max_sched_scan_plan_iterations))
+			goto nla_put_failure;
+
 		if (rdev->wiphy.extended_capabilities &&
 		    (nla_put(msg, NL80211_ATTR_EXT_CAPA,
 			     rdev->wiphy.extended_capabilities_len,
@@ -4853,17 +4878,33 @@ static int nl80211_parse_he_obss_pd(struct nlattr *attrs,
 	if (err)
 		return err;
 
-	if (!tb[NL80211_HE_OBSS_PD_ATTR_MIN_OFFSET] ||
-	    !tb[NL80211_HE_OBSS_PD_ATTR_MAX_OFFSET])
+	if (!tb[NL80211_HE_OBSS_PD_ATTR_SR_CTRL])
 		return -EINVAL;
 
-	he_obss_pd->min_offset =
-		nla_get_u32(tb[NL80211_HE_OBSS_PD_ATTR_MIN_OFFSET]);
-	he_obss_pd->max_offset =
-		nla_get_u32(tb[NL80211_HE_OBSS_PD_ATTR_MAX_OFFSET]);
+	he_obss_pd->sr_ctrl = nla_get_u8(tb[NL80211_HE_OBSS_PD_ATTR_SR_CTRL]);
 
-	if (he_obss_pd->min_offset >= he_obss_pd->max_offset)
+	if (tb[NL80211_HE_OBSS_PD_ATTR_MIN_OFFSET])
+		he_obss_pd->min_offset =
+			nla_get_u8(tb[NL80211_HE_OBSS_PD_ATTR_MIN_OFFSET]);
+	if (tb[NL80211_HE_OBSS_PD_ATTR_MAX_OFFSET])
+		he_obss_pd->max_offset =
+			nla_get_u8(tb[NL80211_HE_OBSS_PD_ATTR_MAX_OFFSET]);
+	if (tb[NL80211_HE_OBSS_PD_ATTR_NON_SRG_MAX_OFFSET])
+		he_obss_pd->non_srg_max_offset =
+			nla_get_u8(tb[NL80211_HE_OBSS_PD_ATTR_NON_SRG_MAX_OFFSET]);
+
+	if (he_obss_pd->min_offset > he_obss_pd->max_offset)
 		return -EINVAL;
+
+	if (tb[NL80211_HE_OBSS_PD_ATTR_BSS_COLOR_BITMAP])
+		memcpy(he_obss_pd->bss_color_bitmap,
+		       nla_data(tb[NL80211_HE_OBSS_PD_ATTR_BSS_COLOR_BITMAP]),
+		       sizeof(he_obss_pd->bss_color_bitmap));
+
+	if (tb[NL80211_HE_OBSS_PD_ATTR_PARTIAL_BSSID_BITMAP])
+		memcpy(he_obss_pd->partial_bssid_bitmap,
+		       nla_data(tb[NL80211_HE_OBSS_PD_ATTR_PARTIAL_BSSID_BITMAP]),
+		       sizeof(he_obss_pd->partial_bssid_bitmap));
 
 	he_obss_pd->enable = true;
 
@@ -8236,7 +8277,7 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 	request->scan_start = jiffies;
 
 	rdev->scan_req = request;
-	err = rdev_scan(rdev, request);
+	err = cfg80211_scan(rdev);
 
 	if (err)
 		goto out_free;
@@ -9315,6 +9356,11 @@ static int nl80211_send_survey(struct sk_buff *msg, u32 portid, u32 seq,
 			survey->channel->center_freq))
 		goto nla_put_failure;
 
+	if (survey->channel && survey->channel->freq_offset &&
+	    nla_put_u32(msg, NL80211_SURVEY_INFO_FREQUENCY_OFFSET,
+			survey->channel->freq_offset))
+		goto nla_put_failure;
+
 	if ((survey->filled & SURVEY_INFO_NOISE_DBM) &&
 	    nla_put_u8(msg, NL80211_SURVEY_INFO_NOISE, survey->noise))
 		goto nla_put_failure;
@@ -9790,6 +9836,22 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 			return -EINVAL;
 		req.fils_nonces =
 			nla_data(info->attrs[NL80211_ATTR_FILS_NONCES]);
+	}
+
+	if (info->attrs[NL80211_ATTR_S1G_CAPABILITY_MASK]) {
+		if (!info->attrs[NL80211_ATTR_S1G_CAPABILITY])
+			return -EINVAL;
+		memcpy(&req.s1g_capa_mask,
+		       nla_data(info->attrs[NL80211_ATTR_S1G_CAPABILITY_MASK]),
+		       sizeof(req.s1g_capa_mask));
+	}
+
+	if (info->attrs[NL80211_ATTR_S1G_CAPABILITY]) {
+		if (!info->attrs[NL80211_ATTR_S1G_CAPABILITY_MASK])
+			return -EINVAL;
+		memcpy(&req.s1g_capa,
+		       nla_data(info->attrs[NL80211_ATTR_S1G_CAPABILITY]),
+		       sizeof(req.s1g_capa));
 	}
 
 	err = nl80211_crypto_settings(rdev, info, &req.crypto, 1);
@@ -15518,6 +15580,7 @@ static int nl80211_add_scan_req(struct sk_buff *msg,
 	struct cfg80211_scan_request *req = rdev->scan_req;
 	struct nlattr *nest;
 	int i;
+	struct cfg80211_scan_info *info;
 
 	if (WARN_ON(!req))
 		return 0;
@@ -15561,11 +15624,13 @@ static int nl80211_add_scan_req(struct sk_buff *msg,
 	    nla_put_u32(msg, NL80211_ATTR_SCAN_FLAGS, req->flags))
 		goto nla_put_failure;
 
-	if (req->info.scan_start_tsf &&
+	info = rdev->int_scan_req ? &rdev->int_scan_req->info :
+		&rdev->scan_req->info;
+	if (info->scan_start_tsf &&
 	    (nla_put_u64_64bit(msg, NL80211_ATTR_SCAN_START_TIME_TSF,
-			       req->info.scan_start_tsf, NL80211_BSS_PAD) ||
+			       info->scan_start_tsf, NL80211_BSS_PAD) ||
 	     nla_put(msg, NL80211_ATTR_SCAN_START_TIME_TSF_BSSID, ETH_ALEN,
-		     req->info.tsf_bssid)))
+		     info->tsf_bssid)))
 		goto nla_put_failure;
 
 	return 0;

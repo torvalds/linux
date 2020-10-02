@@ -45,6 +45,58 @@ struct ieee80211_hw *wiphy_to_ieee80211_hw(struct wiphy *wiphy)
 }
 EXPORT_SYMBOL(wiphy_to_ieee80211_hw);
 
+u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len,
+			enum nl80211_iftype type)
+{
+	__le16 fc = hdr->frame_control;
+
+	if (ieee80211_is_data(fc)) {
+		if (len < 24) /* drop incorrect hdr len (data) */
+			return NULL;
+
+		if (ieee80211_has_a4(fc))
+			return NULL;
+		if (ieee80211_has_tods(fc))
+			return hdr->addr1;
+		if (ieee80211_has_fromds(fc))
+			return hdr->addr2;
+
+		return hdr->addr3;
+	}
+
+	if (ieee80211_is_s1g_beacon(fc)) {
+		struct ieee80211_ext *ext = (void *) hdr;
+
+		return ext->u.s1g_beacon.sa;
+	}
+
+	if (ieee80211_is_mgmt(fc)) {
+		if (len < 24) /* drop incorrect hdr len (mgmt) */
+			return NULL;
+		return hdr->addr3;
+	}
+
+	if (ieee80211_is_ctl(fc)) {
+		if (ieee80211_is_pspoll(fc))
+			return hdr->addr1;
+
+		if (ieee80211_is_back_req(fc)) {
+			switch (type) {
+			case NL80211_IFTYPE_STATION:
+				return hdr->addr2;
+			case NL80211_IFTYPE_AP:
+			case NL80211_IFTYPE_AP_VLAN:
+				return hdr->addr1;
+			default:
+				break; /* fall through to the return */
+			}
+		}
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL(ieee80211_get_bssid);
+
 void ieee80211_tx_set_protected(struct ieee80211_tx_data *tx)
 {
 	struct sk_buff *skb;
@@ -733,6 +785,9 @@ static void __iterate_interfaces(struct ieee80211_local *local,
 		if (!(iter_flags & IEEE80211_IFACE_ITER_RESUME_ALL) &&
 		    active_only && !(sdata->flags & IEEE80211_SDATA_IN_DRIVER))
 			continue;
+		if ((iter_flags & IEEE80211_IFACE_SKIP_SDATA_NOT_IN_DRIVER) &&
+		    !(sdata->flags & IEEE80211_SDATA_IN_DRIVER))
+			continue;
 		if (ieee80211_sdata_running(sdata) || !active_only)
 			iterator(data, sdata->vif.addr,
 				 &sdata->vif);
@@ -1003,6 +1058,11 @@ _ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 		case WLAN_EID_LINK_ID:
 		case WLAN_EID_BSS_MAX_IDLE_PERIOD:
 		case WLAN_EID_RSNX:
+		case WLAN_EID_S1G_BCN_COMPAT:
+		case WLAN_EID_S1G_CAPABILITIES:
+		case WLAN_EID_S1G_OPERATION:
+		case WLAN_EID_AID_RESPONSE:
+		case WLAN_EID_S1G_SHORT_BCN_INTERVAL:
 		/*
 		 * not listing WLAN_EID_CHANNEL_SWITCH_WRAPPER -- it seems possible
 		 * that if the content gets bigger it might be needed more than once
@@ -1287,6 +1347,30 @@ _ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 			ieee80211_parse_extension_element(calc_crc ?
 								&crc : NULL,
 							  elem, elems);
+			break;
+		case WLAN_EID_S1G_CAPABILITIES:
+			if (elen == sizeof(*elems->s1g_capab))
+				elems->s1g_capab = (void *)pos;
+			else
+				elem_parse_failed = true;
+			break;
+		case WLAN_EID_S1G_OPERATION:
+			if (elen == sizeof(*elems->s1g_oper))
+				elems->s1g_oper = (void *)pos;
+			else
+				elem_parse_failed = true;
+			break;
+		case WLAN_EID_S1G_BCN_COMPAT:
+			if (elen == sizeof(*elems->s1g_bcn_compat))
+				elems->s1g_bcn_compat = (void *)pos;
+			else
+				elem_parse_failed = true;
+			break;
+		case WLAN_EID_AID_RESPONSE:
+			if (elen == sizeof(struct ieee80211_aid_response_ie))
+				elems->aid_resp = (void *)pos;
+			else
+				elem_parse_failed = true;
 			break;
 		default:
 			break;
@@ -3371,6 +3455,42 @@ bool ieee80211_chandef_he_6ghz_oper(struct ieee80211_sub_if_data *sdata,
 
 	*chandef = he_chandef;
 
+	return false;
+}
+
+bool ieee80211_chandef_s1g_oper(const struct ieee80211_s1g_oper_ie *oper,
+				struct cfg80211_chan_def *chandef)
+{
+	u32 oper_freq;
+
+	if (!oper)
+		return false;
+
+	switch (FIELD_GET(S1G_OPER_CH_WIDTH_OPER, oper->ch_width)) {
+	case IEEE80211_S1G_CHANWIDTH_1MHZ:
+		chandef->width = NL80211_CHAN_WIDTH_1;
+		break;
+	case IEEE80211_S1G_CHANWIDTH_2MHZ:
+		chandef->width = NL80211_CHAN_WIDTH_2;
+		break;
+	case IEEE80211_S1G_CHANWIDTH_4MHZ:
+		chandef->width = NL80211_CHAN_WIDTH_4;
+		break;
+	case IEEE80211_S1G_CHANWIDTH_8MHZ:
+		chandef->width = NL80211_CHAN_WIDTH_8;
+		break;
+	case IEEE80211_S1G_CHANWIDTH_16MHZ:
+		chandef->width = NL80211_CHAN_WIDTH_16;
+		break;
+	default:
+		return false;
+	}
+
+	oper_freq = ieee80211_channel_to_freq_khz(oper->oper_ch,
+						  NL80211_BAND_S1GHZ);
+	chandef->center_freq1 = KHZ_TO_MHZ(oper_freq);
+	chandef->freq1_offset = oper_freq % 1000;
+
 	return true;
 }
 
@@ -4277,6 +4397,58 @@ int ieee80211_max_num_channels(struct ieee80211_local *local)
 	return max_num_different_channels;
 }
 
+void ieee80211_add_s1g_capab_ie(struct ieee80211_sub_if_data *sdata,
+				struct ieee80211_sta_s1g_cap *caps,
+				struct sk_buff *skb)
+{
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+	struct ieee80211_s1g_cap s1g_capab;
+	u8 *pos;
+	int i;
+
+	if (WARN_ON(sdata->vif.type != NL80211_IFTYPE_STATION))
+		return;
+
+	if (!caps->s1g)
+		return;
+
+	memcpy(s1g_capab.capab_info, caps->cap, sizeof(caps->cap));
+	memcpy(s1g_capab.supp_mcs_nss, caps->nss_mcs, sizeof(caps->nss_mcs));
+
+	/* override the capability info */
+	for (i = 0; i < sizeof(ifmgd->s1g_capa.capab_info); i++) {
+		u8 mask = ifmgd->s1g_capa_mask.capab_info[i];
+
+		s1g_capab.capab_info[i] &= ~mask;
+		s1g_capab.capab_info[i] |= ifmgd->s1g_capa.capab_info[i] & mask;
+	}
+
+	/* then MCS and NSS set */
+	for (i = 0; i < sizeof(ifmgd->s1g_capa.supp_mcs_nss); i++) {
+		u8 mask = ifmgd->s1g_capa_mask.supp_mcs_nss[i];
+
+		s1g_capab.supp_mcs_nss[i] &= ~mask;
+		s1g_capab.supp_mcs_nss[i] |=
+			ifmgd->s1g_capa.supp_mcs_nss[i] & mask;
+	}
+
+	pos = skb_put(skb, 2 + sizeof(s1g_capab));
+	*pos++ = WLAN_EID_S1G_CAPABILITIES;
+	*pos++ = sizeof(s1g_capab);
+
+	memcpy(pos, &s1g_capab, sizeof(s1g_capab));
+}
+
+void ieee80211_add_aid_request_ie(struct ieee80211_sub_if_data *sdata,
+				  struct sk_buff *skb)
+{
+	u8 *pos = skb_put(skb, 3);
+
+	*pos++ = WLAN_EID_AID_REQUEST;
+	*pos++ = 1;
+	*pos++ = 0;
+}
+
 u8 *ieee80211_add_wmm_info_ie(u8 *buf, u8 qosinfo)
 {
 	*buf++ = WLAN_EID_VENDOR_SPECIFIC;
@@ -4319,3 +4491,24 @@ const u8 ieee80211_ac_to_qos_mask[IEEE80211_NUM_ACS] = {
 	IEEE80211_WMM_IE_STA_QOSINFO_AC_BE,
 	IEEE80211_WMM_IE_STA_QOSINFO_AC_BK
 };
+
+u16 ieee80211_encode_usf(int listen_interval)
+{
+	static const int listen_int_usf[] = { 1, 10, 1000, 10000 };
+	u16 ui, usf = 0;
+
+	/* find greatest USF */
+	while (usf < IEEE80211_MAX_USF) {
+		if (listen_interval % listen_int_usf[usf + 1])
+			break;
+		usf += 1;
+	}
+	ui = listen_interval / listen_int_usf[usf];
+
+	/* error if there is a remainder. Should've been checked by user */
+	WARN_ON_ONCE(ui > IEEE80211_MAX_UI);
+	listen_interval = FIELD_PREP(LISTEN_INT_USF, usf) |
+			  FIELD_PREP(LISTEN_INT_UI, ui);
+
+	return (u16) listen_interval;
+}
