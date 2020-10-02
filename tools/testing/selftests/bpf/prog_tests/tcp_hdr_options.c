@@ -264,7 +264,17 @@ static int check_error_linum(const struct sk_fds *sk_fds)
 
 static void check_hdr_and_close_fds(struct sk_fds *sk_fds)
 {
+	const __u32 expected_inherit_cb_flags =
+		BPF_SOCK_OPS_PARSE_UNKNOWN_HDR_OPT_CB_FLAG |
+		BPF_SOCK_OPS_WRITE_HDR_OPT_CB_FLAG |
+		BPF_SOCK_OPS_STATE_CB_FLAG;
+
 	if (sk_fds_shutdown(sk_fds))
+		goto check_linum;
+
+	if (CHECK(expected_inherit_cb_flags != skel->bss->inherit_cb_flags,
+		  "Unexpected inherit_cb_flags", "0x%x != 0x%x\n",
+		  skel->bss->inherit_cb_flags, expected_inherit_cb_flags))
 		goto check_linum;
 
 	if (check_hdr_stg(&exp_passive_hdr_stg, sk_fds->passive_fd,
@@ -320,6 +330,8 @@ static void reset_test(void)
 
 	memset(&skel->bss->active_estab_in, 0, optsize);
 	memset(&skel->bss->active_fin_in, 0, optsize);
+
+	skel->bss->inherit_cb_flags = 0;
 
 	skel->data->test_kind = TCPOPT_EXP;
 	skel->data->test_magic = 0xeB9F;
