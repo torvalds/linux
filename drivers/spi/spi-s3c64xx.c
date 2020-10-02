@@ -731,17 +731,28 @@ static int s3c64xx_spi_transfer_one(struct spi_master *master,
 
 		if (status) {
 			dev_err(&spi->dev,
-				"I/O Error: rx-%d tx-%d res:rx-%c tx-%c len-%d\n",
+				"I/O Error: rx-%d tx-%d rx-%c tx-%c len-%d dma-%d res-(%d)\n",
 				xfer->rx_buf ? 1 : 0, xfer->tx_buf ? 1 : 0,
 				(sdd->state & RXBUSY) ? 'f' : 'p',
 				(sdd->state & TXBUSY) ? 'f' : 'p',
-				xfer->len);
+				xfer->len, use_dma ? 1 : 0, status);
 
 			if (use_dma) {
-				if (xfer->tx_buf && (sdd->state & TXBUSY))
+				struct dma_tx_state s;
+
+				if (xfer->tx_buf && (sdd->state & TXBUSY)) {
+					dmaengine_pause(sdd->tx_dma.ch);
+					dmaengine_tx_status(sdd->tx_dma.ch, sdd->tx_dma.cookie, &s);
 					dmaengine_terminate_all(sdd->tx_dma.ch);
-				if (xfer->rx_buf && (sdd->state & RXBUSY))
+					dev_err(&spi->dev, "TX residue: %d\n", s.residue);
+
+				}
+				if (xfer->rx_buf && (sdd->state & RXBUSY)) {
+					dmaengine_pause(sdd->rx_dma.ch);
+					dmaengine_tx_status(sdd->rx_dma.ch, sdd->rx_dma.cookie, &s);
 					dmaengine_terminate_all(sdd->rx_dma.ch);
+					dev_err(&spi->dev, "RX residue: %d\n", s.residue);
+				}
 			}
 		} else {
 			s3c64xx_flush_fifo(sdd);
