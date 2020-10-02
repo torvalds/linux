@@ -78,6 +78,7 @@ struct lm3697 {
 	struct mutex lock;
 
 	int bank_cfg;
+	int num_banks;
 
 	struct lm3697_led leds[];
 };
@@ -180,7 +181,7 @@ static int lm3697_init(struct lm3697 *priv)
 	if (ret)
 		dev_err(dev, "Cannot write OUTPUT config\n");
 
-	for (i = 0; i < LM3697_MAX_CONTROL_BANKS; i++) {
+	for (i = 0; i < priv->num_banks; i++) {
 		led = &priv->leds[i];
 		ret = ti_lmu_common_set_ramp(&led->lmu_data);
 		if (ret)
@@ -301,8 +302,8 @@ static int lm3697_probe(struct i2c_client *client,
 	int ret;
 
 	count = device_get_child_node_count(dev);
-	if (!count) {
-		dev_err(dev, "LEDs are not defined in device tree!");
+	if (!count || count > LM3697_MAX_CONTROL_BANKS) {
+		dev_err(dev, "Strange device tree!");
 		return -ENODEV;
 	}
 
@@ -315,6 +316,7 @@ static int lm3697_probe(struct i2c_client *client,
 
 	led->client = client;
 	led->dev = dev;
+	led->num_banks = count;
 	led->regmap = devm_regmap_init_i2c(client, &lm3697_regmap_config);
 	if (IS_ERR(led->regmap)) {
 		ret = PTR_ERR(led->regmap);
