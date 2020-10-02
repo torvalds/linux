@@ -64,6 +64,7 @@
 
 static int mi_frame_end(struct rkisp_stream *stream);
 static void rkisp_buf_queue(struct vb2_buffer *vb);
+static int rkisp_create_dummy_buf(struct rkisp_stream *stream);
 
 /* Get xsubs and ysubs for fourcc formats
  *
@@ -2100,7 +2101,7 @@ static int rkisp_queue_setup(struct vb2_queue *queue,
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev, "%s count %d, size %d\n",
 		 v4l2_type_names[queue->type], *num_buffers, sizes[0]);
 
-	return 0;
+	return rkisp_create_dummy_buf(stream);
 }
 
 /*
@@ -2176,25 +2177,18 @@ static int rkisp_create_dummy_buf(struct rkisp_stream *stream)
 {
 	struct rkisp_dummy_buffer *dummy_buf = &stream->dummy_buf;
 	struct rkisp_device *dev = stream->ispdev;
+	u32 size = max3(stream->out_fmt.plane_fmt[0].bytesperline *
+			stream->out_fmt.height,
+			stream->out_fmt.plane_fmt[1].sizeimage,
+			stream->out_fmt.plane_fmt[2].sizeimage);
 
-	/* get a maximum size */
-	dummy_buf->size = max3(stream->out_fmt.plane_fmt[0].bytesperline *
-		stream->out_fmt.height,
-		stream->out_fmt.plane_fmt[1].sizeimage,
-		stream->out_fmt.plane_fmt[2].sizeimage);
-	if (dev->active_sensor &&
-	    dev->active_sensor->mbus.type == V4L2_MBUS_CSI2 &&
-	    (dev->isp_ver == ISP_V12 ||
-	     dev->isp_ver == ISP_V13 ||
-	     dev->isp_ver == ISP_V20)) {
-		u32 in_size;
-		struct rkisp_stream *dmatx =
-			&dev->cap_dev.stream[RKISP_STREAM_DMATX0];
-
-		in_size = dmatx->out_fmt.plane_fmt[0].sizeimage;
-		dummy_buf->size = max(dummy_buf->size, in_size);
+	if (dummy_buf->mem_priv) {
+		if (dummy_buf->size >= size)
+			return 0;
+		rkisp_free_buffer(dev, dummy_buf);
 	}
 
+	dummy_buf->size = size;
 	if (rkisp_alloc_buffer(dev, dummy_buf) < 0) {
 		v4l2_err(&dev->v4l2_dev,
 			 "Failed to allocate the memory for dummy buffer\n");
@@ -2391,10 +2385,6 @@ rkisp_start_streaming(struct vb2_queue *queue, unsigned int count)
 		stream->u.sp.field = RKISP_FIELD_INVAL;
 		stream->u.sp.field_rec = RKISP_FIELD_INVAL;
 	}
-
-	ret = rkisp_create_dummy_buf(stream);
-	if (ret < 0)
-		goto buffer_done;
 
 	/* enable clocks/power-domains */
 	ret = dev->pipe.open(&dev->pipe, &node->vdev.entity, true);
