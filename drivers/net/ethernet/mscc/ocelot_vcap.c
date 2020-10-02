@@ -367,7 +367,10 @@ static void is2_entry_set(struct ocelot *ocelot, int ix,
 
 	data.type = IS2_ACTION_TYPE_NORMAL;
 
-	vcap_key_set(vcap, &data, VCAP_IS2_HK_PAG, 0, 0);
+	vcap_key_set(vcap, &data, VCAP_IS2_HK_PAG, filter->pag, 0xff);
+	vcap_key_bit_set(vcap, &data, VCAP_IS2_HK_FIRST,
+			 (filter->lookup == 0) ? OCELOT_VCAP_BIT_1 :
+			 OCELOT_VCAP_BIT_0);
 	vcap_key_set(vcap, &data, VCAP_IS2_HK_IGR_PORT_MASK, 0,
 		     ~filter->ingress_port_mask);
 	vcap_key_bit_set(vcap, &data, VCAP_IS2_HK_FIRST, OCELOT_VCAP_BIT_ANY);
@@ -688,6 +691,7 @@ static void is1_entry_set(struct ocelot *ocelot, int ix,
 	if (filter->prio != 0)
 		data.tg |= data.tg_value;
 
+	vcap_key_set(vcap, &data, VCAP_IS1_HK_LOOKUP, filter->lookup, 0x3);
 	vcap_key_set(vcap, &data, VCAP_IS1_HK_IGR_PORT_MASK, 0,
 		     ~filter->ingress_port_mask);
 	vcap_key_bit_set(vcap, &data, VCAP_IS1_HK_L2_MC, filter->dmac_mc);

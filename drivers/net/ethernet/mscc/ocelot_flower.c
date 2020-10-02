@@ -164,6 +164,8 @@ static int ocelot_flower_parse_action(struct flow_cls_offload *f, bool ingress,
 	}
 	if (filter->block_id == VCAP_IS1 || filter->block_id == VCAP_IS2)
 		filter->lookup = ocelot_chain_to_lookup(chain);
+	if (filter->block_id == VCAP_IS2)
+		filter->pag = ocelot_chain_to_pag(chain);
 
 	filter->goto_target = -1;
 	filter->type = OCELOT_VCAP_FILTER_DUMMY;
@@ -205,9 +207,10 @@ static int ocelot_flower_parse_action(struct flow_cls_offload *f, bool ingress,
 			filter->type = OCELOT_VCAP_FILTER_OFFLOAD;
 			break;
 		case FLOW_ACTION_POLICE:
-			if (filter->block_id != VCAP_IS2) {
+			if (filter->block_id != VCAP_IS2 ||
+			    filter->lookup != 0) {
 				NL_SET_ERR_MSG_MOD(extack,
-						   "Police action can only be offloaded to VCAP IS2");
+						   "Police action can only be offloaded to VCAP IS2 lookup 0");
 				return -EOPNOTSUPP;
 			}
 			if (filter->goto_target != -1) {
@@ -259,8 +262,7 @@ static int ocelot_flower_parse_action(struct flow_cls_offload *f, bool ingress,
 		case FLOW_ACTION_GOTO:
 			filter->goto_target = a->chain_index;
 
-			if (filter->block_id == VCAP_IS1 &&
-			    ocelot_chain_to_lookup(chain) == 2) {
+			if (filter->block_id == VCAP_IS1 && filter->lookup == 2) {
 				int pag = ocelot_chain_to_pag(filter->goto_target);
 
 				filter->action.pag_override_mask = 0xff;
