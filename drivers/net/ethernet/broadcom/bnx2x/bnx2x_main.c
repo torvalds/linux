@@ -6313,11 +6313,11 @@ static void bnx2x_init_internal(struct bnx2x *bp, u32 load_code)
 	case FW_MSG_CODE_DRV_LOAD_COMMON:
 	case FW_MSG_CODE_DRV_LOAD_COMMON_CHIP:
 		bnx2x_init_internal_common(bp);
-		/* no break */
+		fallthrough;
 
 	case FW_MSG_CODE_DRV_LOAD_PORT:
 		/* nothing to do */
-		/* no break */
+		fallthrough;
 
 	case FW_MSG_CODE_DRV_LOAD_FUNCTION:
 		/* internal memory per function is
