@@ -33,7 +33,7 @@ struct basic_ring {
 	u32 lastWrite;
 };
 
-/* The Typoon transmit ring -- same as a basic ring, plus:
+/* The Typhoon transmit ring -- same as a basic ring, plus:
  * lastRead:      where we're at in regard to cleaning up the ring
  * writeRegister: register to use for writing (different for Hi & Lo rings)
  */
