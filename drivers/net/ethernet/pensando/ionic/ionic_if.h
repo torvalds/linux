@@ -96,6 +96,7 @@ enum ionic_status_code {
 	IONIC_RC_ERROR		= 29,	/* Generic error */
 	IONIC_RC_ERDMA		= 30,	/* Generic RDMA error */
 	IONIC_RC_EVFID		= 31,	/* VF ID does not exist */
+	IONIC_RC_EBAD_FW	= 32,	/* FW file is invalid or corrupted */
 };
 
 enum ionic_notifyq_opcode {
