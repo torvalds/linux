@@ -640,10 +640,10 @@ static void is2_entry_set(struct ocelot *ocelot, int ix,
 	vcap_row_cmd(ocelot, vcap, row, VCAP_CMD_WRITE, VCAP_SEL_ALL);
 }
 
-static void
-vcap_entry_get(struct ocelot *ocelot, struct ocelot_vcap_filter *filter, int ix)
+static void vcap_entry_get(struct ocelot *ocelot, int ix,
+			   struct ocelot_vcap_filter *filter)
 {
-	const struct vcap_props *vcap = &ocelot->vcap[VCAP_IS2];
+	const struct vcap_props *vcap = &ocelot->vcap[filter->block_id];
 	struct vcap_data data;
 	int row, count;
 	u32 cnt;
@@ -658,6 +658,13 @@ vcap_entry_get(struct ocelot *ocelot, struct ocelot_vcap_filter *filter, int ix)
 			    vcap->counter_width);
 
 	filter->stats.pkts = cnt;
+}
+
+static void vcap_entry_set(struct ocelot *ocelot, int ix,
+			   struct ocelot_vcap_filter *filter)
+{
+	if (filter->block_id == VCAP_IS2)
+		return is2_entry_set(ocelot, ix, filter);
 }
 
 static int ocelot_vcap_policer_add(struct ocelot *ocelot, u32 pol_ix,
@@ -688,7 +695,8 @@ static void ocelot_vcap_policer_del(struct ocelot *ocelot,
 
 	list_for_each_entry(filter, &block->rules, list) {
 		index++;
-		if (filter->action.police_ena &&
+		if (filter->block_id == VCAP_IS2 &&
+		    filter->action.police_ena &&
 		    filter->action.pol_ix < pol_ix) {
 			filter->action.pol_ix += 1;
 			ocelot_vcap_policer_add(ocelot, filter->action.pol_ix,
@@ -710,7 +718,7 @@ static void ocelot_vcap_filter_add_to_block(struct ocelot *ocelot,
 	struct ocelot_vcap_filter *tmp;
 	struct list_head *pos, *n;
 
-	if (filter->action.police_ena) {
+	if (filter->block_id == VCAP_IS2 && filter->action.police_ena) {
 		block->pol_lpr--;
 		filter->action.pol_ix = block->pol_lpr;
 		ocelot_vcap_policer_add(ocelot, filter->action.pol_ix,
@@ -848,7 +856,7 @@ static bool
 ocelot_exclusive_mac_etype_filter_rules(struct ocelot *ocelot,
 					struct ocelot_vcap_filter *filter)
 {
-	struct ocelot_vcap_block *block = &ocelot->block;
+	struct ocelot_vcap_block *block = &ocelot->block[filter->block_id];
 	struct ocelot_vcap_filter *tmp;
 	unsigned long port;
 	int i;
@@ -886,7 +894,7 @@ int ocelot_vcap_filter_add(struct ocelot *ocelot,
 			   struct ocelot_vcap_filter *filter,
 			   struct netlink_ext_ack *extack)
 {
-	struct ocelot_vcap_block *block = &ocelot->block;
+	struct ocelot_vcap_block *block = &ocelot->block[filter->block_id];
 	int i, index;
 
 	if (!ocelot_exclusive_mac_etype_filter_rules(ocelot, filter)) {
@@ -908,11 +916,11 @@ int ocelot_vcap_filter_add(struct ocelot *ocelot,
 		struct ocelot_vcap_filter *tmp;
 
 		tmp = ocelot_vcap_block_find_filter_by_index(block, i);
-		is2_entry_set(ocelot, i, tmp);
+		vcap_entry_set(ocelot, i, tmp);
 	}
 
 	/* Now insert the new filter */
-	is2_entry_set(ocelot, index, filter);
+	vcap_entry_set(ocelot, index, filter);
 	return 0;
 }
 
@@ -926,7 +934,8 @@ static void ocelot_vcap_block_remove_filter(struct ocelot *ocelot,
 	list_for_each_safe(pos, q, &block->rules) {
 		tmp = list_entry(pos, struct ocelot_vcap_filter, list);
 		if (tmp->id == filter->id) {
-			if (tmp->action.police_ena)
+			if (tmp->block_id == VCAP_IS2 &&
+			    tmp->action.police_ena)
 				ocelot_vcap_policer_del(ocelot, block,
 							tmp->action.pol_ix);
 
@@ -941,7 +950,7 @@ static void ocelot_vcap_block_remove_filter(struct ocelot *ocelot,
 int ocelot_vcap_filter_del(struct ocelot *ocelot,
 			   struct ocelot_vcap_filter *filter)
 {
-	struct ocelot_vcap_block *block = &ocelot->block;
+	struct ocelot_vcap_block *block = &ocelot->block[filter->block_id];
 	struct ocelot_vcap_filter del_filter;
 	int i, index;
 
@@ -960,11 +969,11 @@ int ocelot_vcap_filter_del(struct ocelot *ocelot,
 		struct ocelot_vcap_filter *tmp;
 
 		tmp = ocelot_vcap_block_find_filter_by_index(block, i);
-		is2_entry_set(ocelot, i, tmp);
+		vcap_entry_set(ocelot, i, tmp);
 	}
 
 	/* Now delete the last filter, because it is duplicated */
-	is2_entry_set(ocelot, block->count, &del_filter);
+	vcap_entry_set(ocelot, block->count, &del_filter);
 
 	return 0;
 }
@@ -972,7 +981,7 @@ int ocelot_vcap_filter_del(struct ocelot *ocelot,
 int ocelot_vcap_filter_stats_update(struct ocelot *ocelot,
 				    struct ocelot_vcap_filter *filter)
 {
-	struct ocelot_vcap_block *block = &ocelot->block;
+	struct ocelot_vcap_block *block = &ocelot->block[filter->block_id];
 	struct ocelot_vcap_filter tmp;
 	int index;
 
@@ -980,12 +989,12 @@ int ocelot_vcap_filter_stats_update(struct ocelot *ocelot,
 	if (index < 0)
 		return index;
 
-	vcap_entry_get(ocelot, filter, index);
+	vcap_entry_get(ocelot, index, filter);
 
 	/* After we get the result we need to clear the counters */
 	tmp = *filter;
 	tmp.stats.pkts = 0;
-	is2_entry_set(ocelot, index, &tmp);
+	vcap_entry_set(ocelot, index, &tmp);
 
 	return 0;
 }
@@ -1080,7 +1089,6 @@ static void ocelot_vcap_detect_constants(struct ocelot *ocelot,
 
 int ocelot_vcap_init(struct ocelot *ocelot)
 {
-	struct ocelot_vcap_block *block = &ocelot->block;
 	int i;
 
 	/* Create a policer that will drop the frames for the cpu.
@@ -1099,15 +1107,17 @@ int ocelot_vcap_init(struct ocelot *ocelot)
 			 OCELOT_POLICER_DISCARD);
 
 	for (i = 0; i < OCELOT_NUM_VCAP_BLOCKS; i++) {
+		struct ocelot_vcap_block *block = &ocelot->block[i];
 		struct vcap_props *vcap = &ocelot->vcap[i];
+
+		INIT_LIST_HEAD(&block->rules);
+		block->pol_lpr = OCELOT_POLICER_DISCARD - 1;
 
 		ocelot_vcap_detect_constants(ocelot, vcap);
 		ocelot_vcap_init_one(ocelot, vcap);
 	}
 
-	block->pol_lpr = OCELOT_POLICER_DISCARD - 1;
-
-	INIT_LIST_HEAD(&block->rules);
+	INIT_LIST_HEAD(&ocelot->dummy_rules);
 
 	return 0;
 }

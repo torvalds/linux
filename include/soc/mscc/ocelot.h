@@ -633,7 +633,8 @@ struct ocelot {
 
 	struct list_head		multicast;
 
-	struct ocelot_vcap_block	block;
+	struct list_head		dummy_rules;
+	struct ocelot_vcap_block	block[3];
 	struct vcap_props		*vcap;
 
 	/* Workqueue to check statistics for overflow with its lock */
