@@ -305,7 +305,7 @@ static int dp83869_set_wol(struct phy_device *phydev,
 static void dp83869_get_wol(struct phy_device *phydev,
 			    struct ethtool_wolinfo *wol)
 {
-	u16 value, sopass_val;
+	int value, sopass_val;
 
 	wol->supported = (WAKE_UCAST | WAKE_BCAST | WAKE_MAGIC |
 			WAKE_MAGICSECURE);
