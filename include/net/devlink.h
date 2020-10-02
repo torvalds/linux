@@ -784,6 +784,22 @@ enum devlink_trap_generic_id {
 	DEVLINK_TRAP_GENERIC_ID_FLOW_ACTION_SAMPLE,
 	DEVLINK_TRAP_GENERIC_ID_FLOW_ACTION_TRAP,
 	DEVLINK_TRAP_GENERIC_ID_EARLY_DROP,
+	DEVLINK_TRAP_GENERIC_ID_VXLAN_PARSING,
+	DEVLINK_TRAP_GENERIC_ID_LLC_SNAP_PARSING,
+	DEVLINK_TRAP_GENERIC_ID_VLAN_PARSING,
+	DEVLINK_TRAP_GENERIC_ID_PPPOE_PPP_PARSING,
+	DEVLINK_TRAP_GENERIC_ID_MPLS_PARSING,
+	DEVLINK_TRAP_GENERIC_ID_ARP_PARSING,
+	DEVLINK_TRAP_GENERIC_ID_IP_1_PARSING,
+	DEVLINK_TRAP_GENERIC_ID_IP_N_PARSING,
+	DEVLINK_TRAP_GENERIC_ID_GRE_PARSING,
+	DEVLINK_TRAP_GENERIC_ID_UDP_PARSING,
+	DEVLINK_TRAP_GENERIC_ID_TCP_PARSING,
+	DEVLINK_TRAP_GENERIC_ID_IPSEC_PARSING,
+	DEVLINK_TRAP_GENERIC_ID_SCTP_PARSING,
+	DEVLINK_TRAP_GENERIC_ID_DCCP_PARSING,
+	DEVLINK_TRAP_GENERIC_ID_GTP_PARSING,
+	DEVLINK_TRAP_GENERIC_ID_ESP_PARSING,
 
 	/* Add new generic trap IDs above */
 	__DEVLINK_TRAP_GENERIC_ID_MAX,
@@ -819,6 +835,7 @@ enum devlink_trap_group_generic_id {
 	DEVLINK_TRAP_GROUP_GENERIC_ID_PTP_GENERAL,
 	DEVLINK_TRAP_GROUP_GENERIC_ID_ACL_SAMPLE,
 	DEVLINK_TRAP_GROUP_GENERIC_ID_ACL_TRAP,
+	DEVLINK_TRAP_GROUP_GENERIC_ID_PARSER_ERROR_DROPS,
 
 	/* Add new generic trap group IDs above */
 	__DEVLINK_TRAP_GROUP_GENERIC_ID_MAX,
@@ -974,6 +991,39 @@ enum devlink_trap_group_generic_id {
 	"flow_action_trap"
 #define DEVLINK_TRAP_GENERIC_NAME_EARLY_DROP \
 	"early_drop"
+#define DEVLINK_TRAP_GENERIC_NAME_VXLAN_PARSING \
+	"vxlan_parsing"
+#define DEVLINK_TRAP_GENERIC_NAME_LLC_SNAP_PARSING \
+	"llc_snap_parsing"
+#define DEVLINK_TRAP_GENERIC_NAME_VLAN_PARSING \
+	"vlan_parsing"
+#define DEVLINK_TRAP_GENERIC_NAME_PPPOE_PPP_PARSING \
+	"pppoe_ppp_parsing"
+#define DEVLINK_TRAP_GENERIC_NAME_MPLS_PARSING \
+	"mpls_parsing"
+#define DEVLINK_TRAP_GENERIC_NAME_ARP_PARSING \
+	"arp_parsing"
+#define DEVLINK_TRAP_GENERIC_NAME_IP_1_PARSING \
+	"ip_1_parsing"
+#define DEVLINK_TRAP_GENERIC_NAME_IP_N_PARSING \
+	"ip_n_parsing"
+#define DEVLINK_TRAP_GENERIC_NAME_GRE_PARSING \
+	"gre_parsing"
+#define DEVLINK_TRAP_GENERIC_NAME_UDP_PARSING \
+	"udp_parsing"
+#define DEVLINK_TRAP_GENERIC_NAME_TCP_PARSING \
+	"tcp_parsing"
+#define DEVLINK_TRAP_GENERIC_NAME_IPSEC_PARSING \
+	"ipsec_parsing"
+#define DEVLINK_TRAP_GENERIC_NAME_SCTP_PARSING \
+	"sctp_parsing"
+#define DEVLINK_TRAP_GENERIC_NAME_DCCP_PARSING \
+	"dccp_parsing"
+#define DEVLINK_TRAP_GENERIC_NAME_GTP_PARSING \
+	"gtp_parsing"
+#define DEVLINK_TRAP_GENERIC_NAME_ESP_PARSING \
+	"esp_parsing"
+
 
 #define DEVLINK_TRAP_GROUP_GENERIC_NAME_L2_DROPS \
 	"l2_drops"
@@ -1025,6 +1075,8 @@ enum devlink_trap_group_generic_id {
 	"acl_sample"
 #define DEVLINK_TRAP_GROUP_GENERIC_NAME_ACL_TRAP \
 	"acl_trap"
+#define DEVLINK_TRAP_GROUP_GENERIC_NAME_PARSER_ERROR_DROPS \
+	"parser_error_drops"
 
 #define DEVLINK_TRAP_GENERIC(_type, _init_action, _id, _group_id,	      \
 			     _metadata_cap)				      \
@@ -1190,6 +1242,16 @@ struct devlink_ops {
 			      const struct devlink_trap_group *group,
 			      const struct devlink_trap_policer *policer,
 			      struct netlink_ext_ack *extack);
+	/**
+	 * @trap_group_action_set: Trap group action set function.
+	 *
+	 * If this callback is populated, it will take precedence over looping
+	 * over all traps in a group and calling .trap_action_set().
+	 */
+	int (*trap_group_action_set)(struct devlink *devlink,
+				     const struct devlink_trap_group *group,
+				     enum devlink_trap_action action,
+				     struct netlink_ext_ack *extack);
 	/**
 	 * @trap_policer_init: Trap policer initialization function.
 	 *

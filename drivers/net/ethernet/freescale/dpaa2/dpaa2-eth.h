@@ -11,6 +11,7 @@
 #include <linux/if_vlan.h>
 #include <linux/fsl/mc.h>
 #include <linux/net_tstamp.h>
+#include <net/devlink.h>
 
 #include <soc/fsl/dpaa2-io.h>
 #include <soc/fsl/dpaa2-fd.h>
@@ -181,6 +182,49 @@ struct dpaa2_fas {
  */
 #define DPAA2_TS_OFFSET			0x8
 
+/* Frame annotation parse results */
+struct dpaa2_fapr {
+	/* 64-bit word 1 */
+	__le32 faf_lo;
+	__le16 faf_ext;
+	__le16 nxt_hdr;
+	/* 64-bit word 2 */
+	__le64 faf_hi;
+	/* 64-bit word 3 */
+	u8 last_ethertype_offset;
+	u8 vlan_tci_offset_n;
+	u8 vlan_tci_offset_1;
+	u8 llc_snap_offset;
+	u8 eth_offset;
+	u8 ip1_pid_offset;
+	u8 shim_offset_2;
+	u8 shim_offset_1;
+	/* 64-bit word 4 */
+	u8 l5_offset;
+	u8 l4_offset;
+	u8 gre_offset;
+	u8 l3_offset_n;
+	u8 l3_offset_1;
+	u8 mpls_offset_n;
+	u8 mpls_offset_1;
+	u8 pppoe_offset;
+	/* 64-bit word 5 */
+	__le16 running_sum;
+	__le16 gross_running_sum;
+	u8 ipv6_frag_offset;
+	u8 nxt_hdr_offset;
+	u8 routing_hdr_offset_2;
+	u8 routing_hdr_offset_1;
+	/* 64-bit word 6 */
+	u8 reserved[5]; /* Soft-parsing context */
+	u8 ip_proto_offset_n;
+	u8 nxt_hdr_frag_offset;
+	u8 parse_error_code;
+};
+
+#define DPAA2_FAPR_OFFSET		0x10
+#define DPAA2_FAPR_SIZE			sizeof((struct dpaa2_fapr))
+
 /* Frame annotation egress action descriptor */
 #define DPAA2_FAEAD_OFFSET		0x58
 
@@ -227,6 +271,11 @@ static inline struct dpaa2_fas *dpaa2_get_fas(void *buf_addr, bool swa)
 static inline __le64 *dpaa2_get_ts(void *buf_addr, bool swa)
 {
 	return dpaa2_get_hwa(buf_addr, swa) + DPAA2_TS_OFFSET;
+}
+
+static inline struct dpaa2_fapr *dpaa2_get_fapr(void *buf_addr, bool swa)
+{
+	return dpaa2_get_hwa(buf_addr, swa) + DPAA2_FAPR_OFFSET;
 }
 
 static inline struct dpaa2_faead *dpaa2_get_faead(void *buf_addr, bool swa)
@@ -343,8 +392,10 @@ struct dpaa2_eth_ch_stats {
 #define DPAA2_ETH_MAX_RX_QUEUES		\
 	(DPAA2_ETH_MAX_RX_QUEUES_PER_TC * DPAA2_ETH_MAX_TCS)
 #define DPAA2_ETH_MAX_TX_QUEUES		16
+#define DPAA2_ETH_MAX_RX_ERR_QUEUES	1
 #define DPAA2_ETH_MAX_QUEUES		(DPAA2_ETH_MAX_RX_QUEUES + \
-					DPAA2_ETH_MAX_TX_QUEUES)
+					DPAA2_ETH_MAX_TX_QUEUES + \
+					DPAA2_ETH_MAX_RX_ERR_QUEUES)
 #define DPAA2_ETH_MAX_NETDEV_QUEUES	\
 	(DPAA2_ETH_MAX_TX_QUEUES * DPAA2_ETH_MAX_TCS)
 
@@ -353,6 +404,7 @@ struct dpaa2_eth_ch_stats {
 enum dpaa2_eth_fq_type {
 	DPAA2_RX_FQ = 0,
 	DPAA2_TX_CONF_FQ,
+	DPAA2_RX_ERR_FQ
 };
 
 struct dpaa2_eth_priv;
@@ -424,6 +476,15 @@ struct dpaa2_eth_cls_rule {
 struct dpaa2_eth_sgt_cache {
 	void *buf[DPAA2_ETH_SGT_CACHE_SIZE];
 	u16 count;
+};
+
+struct dpaa2_eth_trap_item {
+	void *trap_ctx;
+};
+
+struct dpaa2_eth_trap_data {
+	struct dpaa2_eth_trap_item *trap_items_arr;
+	struct dpaa2_eth_priv *priv;
 };
 
 /* Driver private data */
@@ -503,6 +564,13 @@ struct dpaa2_eth_priv {
 	 * queue before transmit current packet.
 	 */
 	struct mutex		onestep_tstamp_lock;
+	struct devlink *devlink;
+	struct dpaa2_eth_trap_data *trap_data;
+	struct devlink_port devlink_port;
+};
+
+struct dpaa2_eth_devlink_priv {
+	struct dpaa2_eth_priv *dpaa2_priv;
 };
 
 #define TX_TSTAMP		0x1
@@ -636,4 +704,15 @@ void dpaa2_eth_set_rx_taildrop(struct dpaa2_eth_priv *priv,
 
 extern const struct dcbnl_rtnl_ops dpaa2_eth_dcbnl_ops;
 
+int dpaa2_eth_dl_register(struct dpaa2_eth_priv *priv);
+void dpaa2_eth_dl_unregister(struct dpaa2_eth_priv *priv);
+
+int dpaa2_eth_dl_port_add(struct dpaa2_eth_priv *priv);
+void dpaa2_eth_dl_port_del(struct dpaa2_eth_priv *priv);
+
+int dpaa2_eth_dl_traps_register(struct dpaa2_eth_priv *priv);
+void dpaa2_eth_dl_traps_unregister(struct dpaa2_eth_priv *priv);
+
+struct dpaa2_eth_trap_item *dpaa2_eth_dl_get_trap(struct dpaa2_eth_priv *priv,
+						  struct dpaa2_fapr *fapr);
 #endif	/* __DPAA2_H */

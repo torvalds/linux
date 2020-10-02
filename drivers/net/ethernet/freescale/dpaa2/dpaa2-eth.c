@@ -509,6 +509,58 @@ err_frame_format:
 	percpu_stats->rx_dropped++;
 }
 
+/* Processing of Rx frames received on the error FQ
+ * We check and print the error bits and then free the frame
+ */
+static void dpaa2_eth_rx_err(struct dpaa2_eth_priv *priv,
+			     struct dpaa2_eth_channel *ch,
+			     const struct dpaa2_fd *fd,
+			     struct dpaa2_eth_fq *fq __always_unused)
+{
+	struct device *dev = priv->net_dev->dev.parent;
+	dma_addr_t addr = dpaa2_fd_get_addr(fd);
+	u8 fd_format = dpaa2_fd_get_format(fd);
+	struct rtnl_link_stats64 *percpu_stats;
+	struct dpaa2_eth_trap_item *trap_item;
+	struct dpaa2_fapr *fapr;
+	struct sk_buff *skb;
+	void *buf_data;
+	void *vaddr;
+
+	vaddr = dpaa2_iova_to_virt(priv->iommu_domain, addr);
+	dma_sync_single_for_cpu(dev, addr, priv->rx_buf_size,
+				DMA_BIDIRECTIONAL);
+
+	buf_data = vaddr + dpaa2_fd_get_offset(fd);
+
+	if (fd_format == dpaa2_fd_single) {
+		dma_unmap_page(dev, addr, priv->rx_buf_size,
+			       DMA_BIDIRECTIONAL);
+		skb = dpaa2_eth_build_linear_skb(ch, fd, vaddr);
+	} else if (fd_format == dpaa2_fd_sg) {
+		dma_unmap_page(dev, addr, priv->rx_buf_size,
+			       DMA_BIDIRECTIONAL);
+		skb = dpaa2_eth_build_frag_skb(priv, ch, buf_data);
+		free_pages((unsigned long)vaddr, 0);
+	} else {
+		/* We don't support any other format */
+		dpaa2_eth_free_rx_fd(priv, fd, vaddr);
+		goto err_frame_format;
+	}
+
+	fapr = dpaa2_get_fapr(vaddr, false);
+	trap_item = dpaa2_eth_dl_get_trap(priv, fapr);
+	if (trap_item)
+		devlink_trap_report(priv->devlink, skb, trap_item->trap_ctx,
+				    &priv->devlink_port, NULL);
+	consume_skb(skb);
+
+err_frame_format:
+	percpu_stats = this_cpu_ptr(priv->percpu_stats);
+	percpu_stats->rx_errors++;
+	ch->buf_count--;
+}
+
 /* Consume all frames pull-dequeued into the store. This is the simplest way to
  * make sure we don't accidentally issue another volatile dequeue which would
  * overwrite (leak) frames already in the store.
@@ -2723,6 +2775,7 @@ static void dpaa2_eth_set_fq_affinity(struct dpaa2_eth_priv *priv)
 		fq = &priv->fq[i];
 		switch (fq->type) {
 		case DPAA2_RX_FQ:
+		case DPAA2_RX_ERR_FQ:
 			fq->target_cpu = rx_cpu;
 			rx_cpu = cpumask_next(rx_cpu, &priv->dpio_cpumask);
 			if (rx_cpu >= nr_cpu_ids)
@@ -2765,6 +2818,10 @@ static void dpaa2_eth_setup_fqs(struct dpaa2_eth_priv *priv)
 			priv->fq[priv->num_fqs++].flowid = (u16)i;
 		}
 	}
+
+	/* We have exactly one Rx error queue per DPNI */
+	priv->fq[priv->num_fqs].type = DPAA2_RX_ERR_FQ;
+	priv->fq[priv->num_fqs++].consume = dpaa2_eth_rx_err;
 
 	/* For each FQ, decide on which core to process incoming frames */
 	dpaa2_eth_set_fq_affinity(priv);
@@ -3341,6 +3398,38 @@ static int dpaa2_eth_setup_tx_flow(struct dpaa2_eth_priv *priv,
 	return 0;
 }
 
+static int setup_rx_err_flow(struct dpaa2_eth_priv *priv,
+			     struct dpaa2_eth_fq *fq)
+{
+	struct device *dev = priv->net_dev->dev.parent;
+	struct dpni_queue q = { { 0 } };
+	struct dpni_queue_id qid;
+	u8 q_opt = DPNI_QUEUE_OPT_USER_CTX | DPNI_QUEUE_OPT_DEST;
+	int err;
+
+	err = dpni_get_queue(priv->mc_io, 0, priv->mc_token,
+			     DPNI_QUEUE_RX_ERR, 0, 0, &q, &qid);
+	if (err) {
+		dev_err(dev, "dpni_get_queue() failed (%d)\n", err);
+		return err;
+	}
+
+	fq->fqid = qid.fqid;
+
+	q.destination.id = fq->channel->dpcon_id;
+	q.destination.type = DPNI_DEST_DPCON;
+	q.destination.priority = 1;
+	q.user_context = (u64)(uintptr_t)fq;
+	err = dpni_set_queue(priv->mc_io, 0, priv->mc_token,
+			     DPNI_QUEUE_RX_ERR, 0, 0, q_opt, &q);
+	if (err) {
+		dev_err(dev, "dpni_set_queue() failed (%d)\n", err);
+		return err;
+	}
+
+	return 0;
+}
+
 /* Supported header fields for Rx hash distribution key */
 static const struct dpaa2_eth_dist_fields dist_fields[] = {
 	{
@@ -3738,6 +3827,9 @@ static int dpaa2_eth_bind_dpni(struct dpaa2_eth_priv *priv)
 			break;
 		case DPAA2_TX_CONF_FQ:
 			err = dpaa2_eth_setup_tx_flow(priv, &priv->fq[i]);
+			break;
+		case DPAA2_RX_ERR_FQ:
+			err = setup_rx_err_flow(priv, &priv->fq[i]);
 			break;
 		default:
 			dev_err(dev, "Invalid FQ type %d\n", priv->fq[i].type);
@@ -4223,6 +4315,18 @@ static int dpaa2_eth_probe(struct fsl_mc_device *dpni_dev)
 	if (err)
 		goto err_connect_mac;
 
+	err = dpaa2_eth_dl_register(priv);
+	if (err)
+		goto err_dl_register;
+
+	err = dpaa2_eth_dl_traps_register(priv);
+	if (err)
+		goto err_dl_trap_register;
+
+	err = dpaa2_eth_dl_port_add(priv);
+	if (err)
+		goto err_dl_port_add;
+
 	err = register_netdev(net_dev);
 	if (err < 0) {
 		dev_err(dev, "register_netdev() failed\n");
@@ -4237,6 +4341,12 @@ static int dpaa2_eth_probe(struct fsl_mc_device *dpni_dev)
 	return 0;
 
 err_netdev_reg:
+	dpaa2_eth_dl_port_del(priv);
+err_dl_port_add:
+	dpaa2_eth_dl_traps_unregister(priv);
+err_dl_trap_register:
+	dpaa2_eth_dl_unregister(priv);
+err_dl_register:
 	dpaa2_eth_disconnect_mac(priv);
 err_connect_mac:
 	if (priv->do_link_poll)
@@ -4290,6 +4400,10 @@ static int dpaa2_eth_remove(struct fsl_mc_device *ls_dev)
 	rtnl_unlock();
 
 	unregister_netdev(net_dev);
+
+	dpaa2_eth_dl_port_del(priv);
+	dpaa2_eth_dl_traps_unregister(priv);
+	dpaa2_eth_dl_unregister(priv);
 
 	if (priv->do_link_poll)
 		kthread_stop(priv->poll_thread);
