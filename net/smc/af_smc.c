@@ -599,6 +599,18 @@ static int smc_find_ism_device(struct smc_sock *smc, struct smc_init_info *ini)
 	return 0;
 }
 
+/* is chid unique for the ism devices that are already determined? */
+static bool smc_find_ism_v2_is_unique_chid(u16 chid, struct smc_init_info *ini,
+					   int cnt)
+{
+	int i = (!ini->ism_dev[0]) ? 1 : 0;
+
+	for (; i < cnt; i++)
+		if (ini->ism_chid[i] == chid)
+			return false;
+	return true;
+}
+
 /* determine possible V2 ISM devices (either without PNETID or with PNETID plus
  * PNETID matching net_device)
  */
@@ -608,6 +620,7 @@ static int smc_find_ism_v2_device_clnt(struct smc_sock *smc,
 	int rc = SMC_CLC_DECL_NOSMCDDEV;
 	struct smcd_dev *smcd;
 	int i = 1;
+	u16 chid;
 
 	if (smcd_indicated(ini->smc_type_v1))
 		rc = 0;		/* already initialized for V1 */
@@ -615,10 +628,13 @@ static int smc_find_ism_v2_device_clnt(struct smc_sock *smc,
 	list_for_each_entry(smcd, &smcd_dev_list.list, list) {
 		if (smcd->going_away || smcd == ini->ism_dev[0])
 			continue;
+		chid = smc_ism_get_chid(smcd);
+		if (!smc_find_ism_v2_is_unique_chid(chid, ini, i))
+			continue;
 		if (!smc_pnet_is_pnetid_set(smcd->pnetid) ||
 		    smc_pnet_is_ndev_pnetid(sock_net(&smc->sk), smcd->pnetid)) {
 			ini->ism_dev[i] = smcd;
-			ini->ism_chid[i] = smc_ism_get_chid(ini->ism_dev[i]);
+			ini->ism_chid[i] = chid;
 			ini->is_smcd = true;
 			rc = 0;
 			i++;
