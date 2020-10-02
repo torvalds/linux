@@ -41,6 +41,7 @@ struct	es8311_priv {
 	struct gpio_desc *spk_ctl_gpio;
 	struct regmap *regmap;
 	/* Optional properties: */
+	int adc_pga_gain;
 	int adc_volume;
 	int dac_volume;
 	int aec_mode;
@@ -568,6 +569,9 @@ static int es8311_probe(struct snd_soc_component *component)
 	if (es8311->aec_mode)
 		snd_soc_component_update_bits(component, ES8311_GPIO_REG44,
 					      0x70, es8311->aec_mode << 4);
+	if (es8311->adc_pga_gain)
+		snd_soc_component_write(component, ES8311_SYSTEM_REG14,
+					es8311->adc_pga_gain);
 	if (es8311->adc_volume)
 		snd_soc_component_write(component, ES8311_ADC_REG17,
 					es8311->adc_volume);
@@ -609,6 +613,15 @@ static int es8311_parse_dt(struct i2c_client *client,
 	np = client->dev.of_node;
 	if (!np)
 		return -EINVAL;
+
+	es8311->adc_pga_gain = 0; /* ADC PGA Gain is 0dB by default reset. */
+	if (!of_property_read_u32(np, "adc-pga-gain", &v)) {
+		if (v >= 0 && v <= 10)
+			es8311->adc_pga_gain = v;
+		else
+			dev_warn(&client->dev,
+				 "adc-pga-gain (%d) is out of range\n", v);
+	}
 
 	es8311->adc_volume = 0; /* ADC Volume is -95dB by default reset. */
 	if (!of_property_read_u32(np, "adc-volume", &v)) {
