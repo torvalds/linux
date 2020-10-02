@@ -1672,14 +1672,15 @@ int security_kernel_module_request(char *kmod_name)
 	return integrity_kernel_module_request(kmod_name);
 }
 
-int security_kernel_read_file(struct file *file, enum kernel_read_file_id id)
+int security_kernel_read_file(struct file *file, enum kernel_read_file_id id,
+			      bool contents)
 {
 	int ret;
 
-	ret = call_int_hook(kernel_read_file, 0, file, id);
+	ret = call_int_hook(kernel_read_file, 0, file, id, contents);
 	if (ret)
 		return ret;
-	return ima_read_file(file, id);
+	return ima_read_file(file, id, contents);
 }
 EXPORT_SYMBOL_GPL(security_kernel_read_file);
 

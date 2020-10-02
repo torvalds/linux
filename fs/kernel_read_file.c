@@ -39,7 +39,7 @@ int kernel_read_file(struct file *file, void **buf,
 	if (ret)
 		return ret;
 
-	ret = security_kernel_read_file(file, id);
+	ret = security_kernel_read_file(file, id, true);
 	if (ret)
 		goto out;
 

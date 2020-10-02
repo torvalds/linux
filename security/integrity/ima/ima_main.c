@@ -602,6 +602,7 @@ void ima_post_path_mknod(struct dentry *dentry)
  * ima_read_file - pre-measure/appraise hook decision based on policy
  * @file: pointer to the file to be measured/appraised/audit
  * @read_id: caller identifier
+ * @contents: whether a subsequent call will be made to ima_post_read_file()
  *
  * Permit reading a file based on policy. The policy rules are written
  * in terms of the policy identifier.  Appraising the integrity of
@@ -609,8 +610,15 @@ void ima_post_path_mknod(struct dentry *dentry)
  *
  * For permission return 0, otherwise return -EACCES.
  */
-int ima_read_file(struct file *file, enum kernel_read_file_id read_id)
+int ima_read_file(struct file *file, enum kernel_read_file_id read_id,
+		  bool contents)
 {
+	/* Reject all partial reads during appraisal. */
+	if (!contents) {
+		if (ima_appraise & IMA_APPRAISE_ENFORCE)
+			return -EACCES;
+	}
+
 	/*
 	 * Do devices using pre-allocated memory run the risk of the
 	 * firmware being accessible to the device prior to the completion
