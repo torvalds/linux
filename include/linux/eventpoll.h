@@ -22,14 +22,6 @@ struct file;
 struct file *get_epoll_tfile_raw_ptr(struct file *file, int tfd, unsigned long toff);
 #endif
 
-/* Used to initialize the epoll bits inside the "struct file" */
-static inline void eventpoll_init_file(struct file *file)
-{
-	INIT_HLIST_HEAD(&file->f_ep_links);
-	INIT_LIST_HEAD(&file->f_tfile_llink);
-}
-
-
 /* Used to release the epoll bits inside the "struct file" */
 void eventpoll_release_file(struct file *file);
 
@@ -50,7 +42,7 @@ static inline void eventpoll_release(struct file *file)
 	 * because the file in on the way to be removed and nobody ( but
 	 * eventpoll ) has still a reference to this file.
 	 */
-	if (likely(hlist_empty(&file->f_ep_links)))
+	if (likely(!file->f_ep))
 		return;
 
 	/*
@@ -72,7 +64,6 @@ static inline int ep_op_has_event(int op)
 
 #else
 
-static inline void eventpoll_init_file(struct file *file) {}
 static inline void eventpoll_release(struct file *file) {}
 
 #endif
