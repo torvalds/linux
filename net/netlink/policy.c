@@ -14,7 +14,7 @@
 
 #define INITIAL_POLICIES_ALLOC	10
 
-struct nl_policy_dump {
+struct netlink_policy_dump_state {
 	unsigned int policy_idx;
 	unsigned int attr_idx;
 	unsigned int n_alloc;
@@ -24,11 +24,11 @@ struct nl_policy_dump {
 	} policies[];
 };
 
-static int add_policy(struct nl_policy_dump **statep,
+static int add_policy(struct netlink_policy_dump_state **statep,
 		      const struct nla_policy *policy,
 		      unsigned int maxtype)
 {
-	struct nl_policy_dump *state = *statep;
+	struct netlink_policy_dump_state *state = *statep;
 	unsigned int n_alloc, i;
 
 	if (!policy || !maxtype)
@@ -62,7 +62,7 @@ static int add_policy(struct nl_policy_dump **statep,
 	return 0;
 }
 
-static unsigned int get_policy_idx(struct nl_policy_dump *state,
+static unsigned int get_policy_idx(struct netlink_policy_dump_state *state,
 				   const struct nla_policy *policy)
 {
 	unsigned int i;
@@ -78,13 +78,13 @@ static unsigned int get_policy_idx(struct nl_policy_dump *state,
 
 int netlink_policy_dump_start(const struct nla_policy *policy,
 			      unsigned int maxtype,
-                              unsigned long *_state)
+			      struct netlink_policy_dump_state **statep)
 {
-	struct nl_policy_dump *state;
+	struct netlink_policy_dump_state *state;
 	unsigned int policy_idx;
 	int err;
 
-	if (*_state)
+	if (*statep)
 		return 0;
 
 	/*
@@ -128,27 +128,26 @@ int netlink_policy_dump_start(const struct nla_policy *policy,
 		}
 	}
 
-	*_state = (unsigned long)state;
+	*statep = state;
 
 	return 0;
 }
 
-static bool netlink_policy_dump_finished(struct nl_policy_dump *state)
+static bool
+netlink_policy_dump_finished(struct netlink_policy_dump_state *state)
 {
 	return state->policy_idx >= state->n_alloc ||
 	       !state->policies[state->policy_idx].policy;
 }
 
-bool netlink_policy_dump_loop(unsigned long _state)
+bool netlink_policy_dump_loop(struct netlink_policy_dump_state *state)
 {
-	struct nl_policy_dump *state = (void *)_state;
-
 	return !netlink_policy_dump_finished(state);
 }
 
-int netlink_policy_dump_write(struct sk_buff *skb, unsigned long _state)
+int netlink_policy_dump_write(struct sk_buff *skb,
+			      struct netlink_policy_dump_state *state)
 {
-	struct nl_policy_dump *state = (void *)_state;
 	const struct nla_policy *pt;
 	struct nlattr *policy, *attr;
 	enum netlink_attribute_type type;
@@ -306,9 +305,7 @@ nla_put_failure:
 	return -ENOBUFS;
 }
 
-void netlink_policy_dump_free(unsigned long _state)
+void netlink_policy_dump_free(struct netlink_policy_dump_state *state)
 {
-	struct nl_policy_dump *state = (void *)_state;
-
 	kfree(state);
 }

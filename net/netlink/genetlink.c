@@ -1102,13 +1102,20 @@ static int genl_ctrl_event(int event, const struct genl_family *family,
 	return 0;
 }
 
+struct ctrl_dump_policy_ctx {
+	struct netlink_policy_dump_state *state;
+	u16 fam_id;
+};
+
 static int ctrl_dumppolicy(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct ctrl_dump_policy_ctx *ctx = (void *)cb->ctx;
 	const struct genl_family *rt;
-	unsigned int fam_id = cb->args[0];
 	int err;
 
-	if (!fam_id) {
+	BUILD_BUG_ON(sizeof(*ctx) > sizeof(cb->ctx));
+
+	if (!ctx->fam_id) {
 		struct nlattr *tb[CTRL_ATTR_MAX + 1];
 
 		err = genlmsg_parse(cb->nlh, &genl_ctrl, tb,
@@ -1121,28 +1128,28 @@ static int ctrl_dumppolicy(struct sk_buff *skb, struct netlink_callback *cb)
 			return -EINVAL;
 
 		if (tb[CTRL_ATTR_FAMILY_ID]) {
-			fam_id = nla_get_u16(tb[CTRL_ATTR_FAMILY_ID]);
+			ctx->fam_id = nla_get_u16(tb[CTRL_ATTR_FAMILY_ID]);
 		} else {
 			rt = genl_family_find_byname(
 				nla_data(tb[CTRL_ATTR_FAMILY_NAME]));
 			if (!rt)
 				return -ENOENT;
-			fam_id = rt->id;
+			ctx->fam_id = rt->id;
 		}
 	}
 
-	rt = genl_family_find_byid(fam_id);
+	rt = genl_family_find_byid(ctx->fam_id);
 	if (!rt)
 		return -ENOENT;
 
 	if (!rt->policy)
 		return -ENODATA;
 
-	err = netlink_policy_dump_start(rt->policy, rt->maxattr, &cb->args[1]);
+	err = netlink_policy_dump_start(rt->policy, rt->maxattr, &ctx->state);
 	if (err)
 		return err;
 
-	while (netlink_policy_dump_loop(cb->args[1])) {
+	while (netlink_policy_dump_loop(ctx->state)) {
 		void *hdr;
 		struct nlattr *nest;
 
@@ -1159,7 +1166,7 @@ static int ctrl_dumppolicy(struct sk_buff *skb, struct netlink_callback *cb)
 		if (!nest)
 			goto nla_put_failure;
 
-		if (netlink_policy_dump_write(skb, cb->args[1]))
+		if (netlink_policy_dump_write(skb, ctx->state))
 			goto nla_put_failure;
 
 		nla_nest_end(skb, nest);
@@ -1172,13 +1179,14 @@ nla_put_failure:
 		break;
 	}
 
-	cb->args[0] = fam_id;
 	return skb->len;
 }
 
 static int ctrl_dumppolicy_done(struct netlink_callback *cb)
 {
-	netlink_policy_dump_free(cb->args[1]);
+	struct ctrl_dump_policy_ctx *ctx = (void *)cb->ctx;
+
+	netlink_policy_dump_free(ctx->state);
 	return 0;
 }
 
