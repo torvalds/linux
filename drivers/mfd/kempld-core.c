@@ -553,11 +553,13 @@ static int kempld_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id kempld_acpi_table[] = {
 	{ "KEM0001", (kernel_ulong_t)&kempld_platform_data_generic },
 	{}
 };
 MODULE_DEVICE_TABLE(acpi, kempld_acpi_table);
+#endif
 
 static struct platform_driver kempld_driver = {
 	.driver		= {
