@@ -25,8 +25,10 @@ void nf_tables_core_module_exit(void);
 
 struct nft_cmp_fast_expr {
 	u32			data;
+	u32			mask;
 	enum nft_registers	sreg:8;
 	u8			len;
+	bool			inv;
 };
 
 struct nft_immediate_expr {
