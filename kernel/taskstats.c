@@ -34,17 +34,13 @@ struct kmem_cache *taskstats_cache;
 
 static struct genl_family family;
 
-static const struct nla_policy taskstats_cmd_get_policy[TASKSTATS_CMD_ATTR_MAX+1] = {
+static const struct nla_policy taskstats_cmd_get_policy[] = {
 	[TASKSTATS_CMD_ATTR_PID]  = { .type = NLA_U32 },
 	[TASKSTATS_CMD_ATTR_TGID] = { .type = NLA_U32 },
 	[TASKSTATS_CMD_ATTR_REGISTER_CPUMASK] = { .type = NLA_STRING },
 	[TASKSTATS_CMD_ATTR_DEREGISTER_CPUMASK] = { .type = NLA_STRING },};
 
-/*
- * We have to use TASKSTATS_CMD_ATTR_MAX here, it is the maxattr in the family.
- * Make sure they are always aligned.
- */
-static const struct nla_policy cgroupstats_cmd_get_policy[TASKSTATS_CMD_ATTR_MAX+1] = {
+static const struct nla_policy cgroupstats_cmd_get_policy[] = {
 	[CGROUPSTATS_CMD_ATTR_FD] = { .type = NLA_U32 },
 };
 
@@ -644,52 +640,30 @@ err:
 	nlmsg_free(rep_skb);
 }
 
-static const struct genl_small_ops taskstats_ops[] = {
+static const struct genl_ops taskstats_ops[] = {
 	{
 		.cmd		= TASKSTATS_CMD_GET,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit		= taskstats_user_cmd,
-		/* policy enforced later */
-		.flags		= GENL_ADMIN_PERM | GENL_CMD_CAP_HASPOL,
+		.policy		= taskstats_cmd_get_policy,
+		.maxattr	= ARRAY_SIZE(taskstats_cmd_get_policy) - 1,
+		.flags		= GENL_ADMIN_PERM,
 	},
 	{
 		.cmd		= CGROUPSTATS_CMD_GET,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit		= cgroupstats_user_cmd,
-		/* policy enforced later */
-		.flags		= GENL_CMD_CAP_HASPOL,
+		.policy		= cgroupstats_cmd_get_policy,
+		.maxattr	= ARRAY_SIZE(cgroupstats_cmd_get_policy) - 1,
 	},
 };
-
-static int taskstats_pre_doit(const struct genl_ops *ops, struct sk_buff *skb,
-			      struct genl_info *info)
-{
-	const struct nla_policy *policy = NULL;
-
-	switch (ops->cmd) {
-	case TASKSTATS_CMD_GET:
-		policy = taskstats_cmd_get_policy;
-		break;
-	case CGROUPSTATS_CMD_GET:
-		policy = cgroupstats_cmd_get_policy;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return nlmsg_validate_deprecated(info->nlhdr, GENL_HDRLEN,
-					 TASKSTATS_CMD_ATTR_MAX, policy,
-					 info->extack);
-}
 
 static struct genl_family family __ro_after_init = {
 	.name		= TASKSTATS_GENL_NAME,
 	.version	= TASKSTATS_GENL_VERSION,
-	.maxattr	= TASKSTATS_CMD_ATTR_MAX,
 	.module		= THIS_MODULE,
-	.small_ops	= taskstats_ops,
-	.n_small_ops	= ARRAY_SIZE(taskstats_ops),
-	.pre_doit	= taskstats_pre_doit,
+	.ops		= taskstats_ops,
+	.n_ops		= ARRAY_SIZE(taskstats_ops),
 };
 
 /* Needed early in initialization */
