@@ -304,10 +304,12 @@ void brcmf_fweh_detach(struct brcmf_pub *drvr)
 {
 	struct brcmf_fweh_info *fweh = &drvr->fweh;
 
-	/* cancel the worker */
-	cancel_work_sync(&fweh->event_work);
-	WARN_ON(!list_empty(&fweh->event_q));
-	memset(fweh->evt_handler, 0, sizeof(fweh->evt_handler));
+	/* cancel the worker if initialized */
+	if (fweh->event_work.func) {
+		cancel_work_sync(&fweh->event_work);
+		WARN_ON(!list_empty(&fweh->event_q));
+		memset(fweh->evt_handler, 0, sizeof(fweh->evt_handler));
+	}
 }
 
 /**

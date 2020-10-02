@@ -126,6 +126,9 @@
 				 BIT_WINTINI_RDY | BIT_RAM_DL_SEL)
 #define FW_READY_MASK		0xffff
 
+#define REG_MCU_TST_CFG		0x84
+#define VAL_FW_TRIGGER		0x1
+
 #define REG_EFUSE_ACCESS	0x00CF
 #define EFUSE_ACCESS_ON		0x69
 #define EFUSE_ACCESS_OFF	0x00
@@ -615,6 +618,8 @@
 #define REG_ANAPAR	0x1c30
 #define BIT_ANAPAR_BTPS	BIT(22)
 #define REG_RSTB_SEL	0x1c38
+
+#define REG_HRCV_MSG	0x1cf
 
 #define REG_IGN_GNTBT4	0x4160
 

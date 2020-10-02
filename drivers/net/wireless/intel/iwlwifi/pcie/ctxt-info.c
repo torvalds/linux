@@ -73,7 +73,7 @@ static void *_iwl_pcie_ctxt_info_dma_alloc_coherent(struct iwl_trans *trans,
 	if (!result)
 		return NULL;
 
-	if (unlikely(iwl_pcie_crosses_4g_boundary(*phys, size))) {
+	if (unlikely(iwl_txq_crosses_4g_boundary(*phys, size))) {
 		void *old = result;
 		dma_addr_t oldphys = *phys;
 

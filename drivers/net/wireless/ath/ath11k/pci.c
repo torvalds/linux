@@ -24,6 +24,16 @@
 #define WINDOW_START			0x80000
 #define WINDOW_RANGE_MASK		GENMASK(18, 0)
 
+#define TCSR_SOC_HW_VERSION		0x0224
+#define TCSR_SOC_HW_VERSION_MAJOR_MASK	GENMASK(16, 8)
+#define TCSR_SOC_HW_VERSION_MINOR_MASK	GENMASK(7, 0)
+
+/* BAR0 + 4k is always accessible, and no
+ * need to force wakeup.
+ * 4K - 32 = 0xFE0
+ */
+#define ACCESS_ALWAYS_OFF 0xFE0
+
 #define QCA6390_DEVICE_ID		0x1101
 
 static const struct pci_device_id ath11k_pci_id_table[] = {
@@ -124,6 +134,13 @@ void ath11k_pci_write32(struct ath11k_base *ab, u32 offset, u32 value)
 {
 	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
 
+	/* for offset beyond BAR + 4K - 32, may
+	 * need to wakeup MHI to access.
+	 */
+	if (test_bit(ATH11K_PCI_FLAG_INIT_DONE, &ab_pci->flags) &&
+	    offset >= ACCESS_ALWAYS_OFF)
+		mhi_device_get_sync(ab_pci->mhi_ctrl->mhi_dev);
+
 	if (offset < WINDOW_START) {
 		iowrite32(value, ab->mem  + offset);
 	} else {
@@ -132,12 +149,23 @@ void ath11k_pci_write32(struct ath11k_base *ab, u32 offset, u32 value)
 		iowrite32(value, ab->mem + WINDOW_START + (offset & WINDOW_RANGE_MASK));
 		spin_unlock_bh(&ab_pci->window_lock);
 	}
+
+	if (test_bit(ATH11K_PCI_FLAG_INIT_DONE, &ab_pci->flags) &&
+	    offset >= ACCESS_ALWAYS_OFF)
+		mhi_device_put(ab_pci->mhi_ctrl->mhi_dev);
 }
 
 u32 ath11k_pci_read32(struct ath11k_base *ab, u32 offset)
 {
 	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
 	u32 val;
+
+	/* for offset beyond BAR + 4K - 32, may
+	 * need to wakeup MHI to access.
+	 */
+	if (test_bit(ATH11K_PCI_FLAG_INIT_DONE, &ab_pci->flags) &&
+	    offset >= ACCESS_ALWAYS_OFF)
+		mhi_device_get_sync(ab_pci->mhi_ctrl->mhi_dev);
 
 	if (offset < WINDOW_START) {
 		val = ioread32(ab->mem + offset);
@@ -147,6 +175,10 @@ u32 ath11k_pci_read32(struct ath11k_base *ab, u32 offset)
 		val = ioread32(ab->mem + WINDOW_START + (offset & WINDOW_RANGE_MASK));
 		spin_unlock_bh(&ab_pci->window_lock);
 	}
+
+	if (test_bit(ATH11K_PCI_FLAG_INIT_DONE, &ab_pci->flags) &&
+	    offset >= ACCESS_ALWAYS_OFF)
+		mhi_device_put(ab_pci->mhi_ctrl->mhi_dev);
 
 	return val;
 }
@@ -582,6 +614,9 @@ static void ath11k_pci_init_qmi_ce_config(struct ath11k_base *ab)
 	cfg->svc_to_ce_map = ab->hw_params.svc_to_ce_map;
 	cfg->svc_to_ce_map_len = ab->hw_params.svc_to_ce_map_len;
 	ab->qmi.service_ins_id = ATH11K_QMI_WLFW_SERVICE_INS_ID_V01_QCA6390;
+
+	ath11k_ce_get_shadow_config(ab, &cfg->shadow_reg_v2,
+				    &cfg->shadow_reg_v2_len);
 }
 
 static void ath11k_pci_ce_irqs_enable(struct ath11k_base *ab)
@@ -727,6 +762,8 @@ static int ath11k_pci_power_up(struct ath11k_base *ab)
 	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
 	int ret;
 
+	ab_pci->register_window = 0;
+	clear_bit(ATH11K_PCI_FLAG_INIT_DONE, &ab_pci->flags);
 	ath11k_pci_sw_reset(ab_pci->ab);
 
 	ret = ath11k_mhi_start(ab_pci);
@@ -743,6 +780,7 @@ static void ath11k_pci_power_down(struct ath11k_base *ab)
 	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
 
 	ath11k_mhi_stop(ab_pci);
+	clear_bit(ATH11K_PCI_FLAG_INIT_DONE, &ab_pci->flags);
 	ath11k_pci_force_wake(ab_pci->ab);
 	ath11k_pci_sw_reset(ab_pci->ab);
 }
@@ -771,6 +809,10 @@ static void ath11k_pci_stop(struct ath11k_base *ab)
 
 static int ath11k_pci_start(struct ath11k_base *ab)
 {
+	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
+
+	set_bit(ATH11K_PCI_FLAG_INIT_DONE, &ab_pci->flags);
+
 	ath11k_pci_ce_irqs_enable(ab);
 	ath11k_ce_rx_post_buf(ab);
 
@@ -839,20 +881,10 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 {
 	struct ath11k_base *ab;
 	struct ath11k_pci *ab_pci;
-	enum ath11k_hw_rev hw_rev;
+	u32 soc_hw_version, soc_hw_version_major, soc_hw_version_minor;
 	int ret;
 
 	dev_warn(&pdev->dev, "WARNING: ath11k PCI support is experimental!\n");
-
-	switch (pci_dev->device) {
-	case QCA6390_DEVICE_ID:
-		hw_rev = ATH11K_HW_QCA6390_HW20;
-		break;
-	default:
-		dev_err(&pdev->dev, "Unknown PCI device found: 0x%x\n",
-			pci_dev->device);
-		return -ENOTSUPP;
-	}
 
 	ab = ath11k_core_alloc(&pdev->dev, sizeof(*ab_pci), ATH11K_BUS_PCI,
 			       &ath11k_pci_bus_params);
@@ -862,7 +894,6 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 	}
 
 	ab->dev = &pdev->dev;
-	ab->hw_rev = hw_rev;
 	pci_set_drvdata(pdev, ab);
 	ab_pci = ath11k_pci_priv(ab);
 	ab_pci->dev_id = pci_dev->device;
@@ -876,6 +907,35 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 	if (ret) {
 		ath11k_err(ab, "failed to claim device: %d\n", ret);
 		goto err_free_core;
+	}
+
+	switch (pci_dev->device) {
+	case QCA6390_DEVICE_ID:
+		soc_hw_version = ath11k_pci_read32(ab, TCSR_SOC_HW_VERSION);
+		soc_hw_version_major = FIELD_GET(TCSR_SOC_HW_VERSION_MAJOR_MASK,
+						 soc_hw_version);
+		soc_hw_version_minor = FIELD_GET(TCSR_SOC_HW_VERSION_MINOR_MASK,
+						 soc_hw_version);
+
+		ath11k_dbg(ab, ATH11K_DBG_PCI, "pci tcsr_soc_hw_version major %d minor %d\n",
+			   soc_hw_version_major, soc_hw_version_minor);
+
+		switch (soc_hw_version_major) {
+		case 2:
+			ab->hw_rev = ATH11K_HW_QCA6390_HW20;
+			break;
+		default:
+			dev_err(&pdev->dev, "Unsupported QCA6390 SOC hardware version: %d %d\n",
+				soc_hw_version_major, soc_hw_version_minor);
+			ret = -EOPNOTSUPP;
+			goto err_pci_free_region;
+		}
+		break;
+	default:
+		dev_err(&pdev->dev, "Unknown PCI device found: 0x%x\n",
+			pci_dev->device);
+		ret = -EOPNOTSUPP;
+		goto err_pci_free_region;
 	}
 
 	ret = ath11k_pci_enable_msi(ab_pci);
@@ -949,10 +1009,17 @@ static void ath11k_pci_remove(struct pci_dev *pdev)
 	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
 
 	set_bit(ATH11K_FLAG_UNREGISTERING, &ab->dev_flags);
+
+	ath11k_core_deinit(ab);
+
 	ath11k_mhi_unregister(ab_pci);
+
+	ath11k_pci_free_irq(ab);
 	ath11k_pci_disable_msi(ab_pci);
 	ath11k_pci_free_region(ab_pci);
-	ath11k_pci_free_irq(ab);
+
+	ath11k_hal_srng_deinit(ab);
+	ath11k_ce_free_pipes(ab);
 	ath11k_core_free(ab);
 }
 

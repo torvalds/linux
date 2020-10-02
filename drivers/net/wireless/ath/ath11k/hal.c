@@ -330,7 +330,7 @@ static void ath11k_hal_srng_dst_hw_init(struct ath11k_base *ab,
 	if (srng->flags & HAL_SRNG_FLAGS_MSI_INTR) {
 		ath11k_hif_write32(ab, reg_base +
 				   HAL_REO1_RING_MSI1_BASE_LSB_OFFSET(ab),
-				   (u32)srng->msi_addr);
+				   srng->msi_addr);
 
 		val = FIELD_PREP(HAL_REO1_RING_MSI1_BASE_MSB_ADDR,
 				 ((u64)srng->msi_addr >>
@@ -344,7 +344,7 @@ static void ath11k_hal_srng_dst_hw_init(struct ath11k_base *ab,
 				   srng->msi_data);
 	}
 
-	ath11k_hif_write32(ab, reg_base, (u32)srng->ring_base_paddr);
+	ath11k_hif_write32(ab, reg_base, srng->ring_base_paddr);
 
 	val = FIELD_PREP(HAL_REO1_RING_BASE_MSB_RING_BASE_ADDR_MSB,
 			 ((u64)srng->ring_base_paddr >>
@@ -409,7 +409,7 @@ static void ath11k_hal_srng_src_hw_init(struct ath11k_base *ab,
 	if (srng->flags & HAL_SRNG_FLAGS_MSI_INTR) {
 		ath11k_hif_write32(ab, reg_base +
 				   HAL_TCL1_RING_MSI1_BASE_LSB_OFFSET(ab),
-				   (u32)srng->msi_addr);
+				   srng->msi_addr);
 
 		val = FIELD_PREP(HAL_TCL1_RING_MSI1_BASE_MSB_ADDR,
 				 ((u64)srng->msi_addr >>
@@ -424,7 +424,7 @@ static void ath11k_hal_srng_src_hw_init(struct ath11k_base *ab,
 				   srng->msi_data);
 	}
 
-	ath11k_hif_write32(ab, reg_base, (u32)srng->ring_base_paddr);
+	ath11k_hif_write32(ab, reg_base, srng->ring_base_paddr);
 
 	val = FIELD_PREP(HAL_TCL1_RING_BASE_MSB_RING_BASE_ADDR_MSB,
 			 ((u64)srng->ring_base_paddr >>
@@ -560,6 +560,8 @@ void ath11k_hal_srng_get_params(struct ath11k_base *ab, struct hal_srng *srng,
 	params->intr_batch_cntr_thres_entries =
 		srng->intr_batch_cntr_thres_entries;
 	params->low_threshold = srng->u.src_ring.low_threshold;
+	params->msi_addr = srng->msi_addr;
+	params->msi_data = srng->msi_data;
 	params->flags = srng->flags;
 }
 
@@ -1018,8 +1020,16 @@ int ath11k_hal_srng_setup(struct ath11k_base *ab, enum hal_ring_type type,
 						   lmac_idx);
 			srng->flags |= HAL_SRNG_FLAGS_LMAC_RING;
 		} else {
-			srng->u.src_ring.hp_addr =
+			if (!ab->hw_params.supports_shadow_regs)
+				srng->u.src_ring.hp_addr =
 				(u32 *)((unsigned long)ab->mem + reg_base);
+			else
+				ath11k_dbg(ab, ATH11k_DBG_HAL,
+					   "hal type %d ring_num %d reg_base 0x%x shadow 0x%lx\n",
+					   type, ring_num,
+					   reg_base,
+					   (unsigned long)srng->u.src_ring.hp_addr -
+					   (unsigned long)ab->mem);
 		}
 	} else {
 		/* During initialization loop count in all the descriptors
@@ -1043,9 +1053,18 @@ int ath11k_hal_srng_setup(struct ath11k_base *ab, enum hal_ring_type type,
 						   lmac_idx);
 			srng->flags |= HAL_SRNG_FLAGS_LMAC_RING;
 		} else {
-			srng->u.dst_ring.tp_addr =
+			if (!ab->hw_params.supports_shadow_regs)
+				srng->u.dst_ring.tp_addr =
 				(u32 *)((unsigned long)ab->mem + reg_base +
 					(HAL_REO1_RING_TP(ab) - HAL_REO1_RING_HP(ab)));
+			else
+				ath11k_dbg(ab, ATH11k_DBG_HAL,
+					   "type %d ring_num %d target_reg 0x%x shadow 0x%lx\n",
+					   type, ring_num,
+					   reg_base + (HAL_REO1_RING_TP(ab) -
+						       HAL_REO1_RING_HP(ab)),
+					   (unsigned long)srng->u.dst_ring.tp_addr -
+					   (unsigned long)ab->mem);
 		}
 	}
 
@@ -1060,6 +1079,112 @@ int ath11k_hal_srng_setup(struct ath11k_base *ab, enum hal_ring_type type,
 	}
 
 	return ring_id;
+}
+
+static void ath11k_hal_srng_update_hp_tp_addr(struct ath11k_base *ab,
+					      int shadow_cfg_idx,
+					  enum hal_ring_type ring_type,
+					  int ring_num)
+{
+	struct hal_srng *srng;
+	struct ath11k_hal *hal = &ab->hal;
+	int ring_id;
+	struct hal_srng_config *srng_config = &hal->srng_config[ring_type];
+
+	ring_id = ath11k_hal_srng_get_ring_id(ab, ring_type, ring_num, 0);
+	if (ring_id < 0)
+		return;
+
+	srng = &hal->srng_list[ring_id];
+
+	if (srng_config->ring_dir == HAL_SRNG_DIR_DST)
+		srng->u.dst_ring.tp_addr = (u32 *)(HAL_SHADOW_REG(shadow_cfg_idx) +
+						   (unsigned long)ab->mem);
+	else
+		srng->u.src_ring.hp_addr = (u32 *)(HAL_SHADOW_REG(shadow_cfg_idx) +
+						   (unsigned long)ab->mem);
+}
+
+int ath11k_hal_srng_update_shadow_config(struct ath11k_base *ab,
+					 enum hal_ring_type ring_type,
+					 int ring_num)
+{
+	struct ath11k_hal *hal = &ab->hal;
+	struct hal_srng_config *srng_config = &hal->srng_config[ring_type];
+	int shadow_cfg_idx = hal->num_shadow_reg_configured;
+	u32 target_reg;
+
+	if (shadow_cfg_idx >= HAL_SHADOW_NUM_REGS)
+		return -EINVAL;
+
+	hal->num_shadow_reg_configured++;
+
+	target_reg = srng_config->reg_start[HAL_HP_OFFSET_IN_REG_START];
+	target_reg += srng_config->reg_size[HAL_HP_OFFSET_IN_REG_START] *
+		ring_num;
+
+	/* For destination ring, shadow the TP */
+	if (srng_config->ring_dir == HAL_SRNG_DIR_DST)
+		target_reg += HAL_OFFSET_FROM_HP_TO_TP;
+
+	hal->shadow_reg_addr[shadow_cfg_idx] = target_reg;
+
+	/* update hp/tp addr to hal structure*/
+	ath11k_hal_srng_update_hp_tp_addr(ab, shadow_cfg_idx, ring_type,
+					  ring_num);
+
+	ath11k_dbg(ab, ATH11k_DBG_HAL,
+		   "target_reg %x, shadow reg 0x%x shadow_idx 0x%x, ring_type %d, ring num %d",
+		  target_reg,
+		  HAL_SHADOW_REG(shadow_cfg_idx),
+		  shadow_cfg_idx,
+		  ring_type, ring_num);
+
+	return 0;
+}
+
+void ath11k_hal_srng_shadow_config(struct ath11k_base *ab)
+{
+	struct ath11k_hal *hal = &ab->hal;
+	int ring_type, ring_num;
+
+	/* update all the non-CE srngs. */
+	for (ring_type = 0; ring_type < HAL_MAX_RING_TYPES; ring_type++) {
+		struct hal_srng_config *srng_config = &hal->srng_config[ring_type];
+
+		if (ring_type == HAL_CE_SRC ||
+		    ring_type == HAL_CE_DST ||
+			ring_type == HAL_CE_DST_STATUS)
+			continue;
+
+		if (srng_config->lmac_ring)
+			continue;
+
+		for (ring_num = 0; ring_num < srng_config->max_rings; ring_num++)
+			ath11k_hal_srng_update_shadow_config(ab, ring_type, ring_num);
+	}
+}
+
+void ath11k_hal_srng_get_shadow_config(struct ath11k_base *ab,
+				       u32 **cfg, u32 *len)
+{
+	struct ath11k_hal *hal = &ab->hal;
+
+	*len = hal->num_shadow_reg_configured;
+	*cfg = hal->shadow_reg_addr;
+}
+
+void ath11k_hal_srng_shadow_update_hp_tp(struct ath11k_base *ab,
+					 struct hal_srng *srng)
+{
+	lockdep_assert_held(&srng->lock);
+
+	/* check whether the ring is emptry. Update the shadow
+	 * HP only when then ring isn't' empty.
+	 */
+	if (srng->ring_dir == HAL_SRNG_DIR_SRC &&
+	    *srng->u.src_ring.tp_addr != srng->u.src_ring.hp)
+		ath11k_hal_srng_access_end(ab, srng);
 }
 
 static int ath11k_hal_srng_create_config(struct ath11k_base *ab)

@@ -5,9 +5,8 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2017        Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
+ * Copyright(c) 2012 - 2014, 2018 - 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -27,9 +26,8 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2017        Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
+ * Copyright(c) 2012 - 2014, 2018 - 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -188,9 +186,17 @@ struct iwl_mac_data_ibss {
 /**
  * enum iwl_mac_data_policy - policy of the data path for this MAC
  * @TWT_SUPPORTED: twt is supported
+ * @MORE_DATA_ACK_SUPPORTED: AP supports More Data Ack according to
+ *	paragraph 9.4.1.17 in P802.11ax_D4 specification. Used for TWT
+ *	early termination detection.
+ * @FLEXIBLE_TWT_SUPPORTED: AP supports flexible TWT schedule
+ * @PROTECTED_TWT_SUPPORTED: AP supports protected TWT frames (with 11w)
  */
 enum iwl_mac_data_policy {
-	TWT_SUPPORTED	= BIT(0),
+	TWT_SUPPORTED = BIT(0),
+	MORE_DATA_ACK_SUPPORTED = BIT(1),
+	FLEXIBLE_TWT_SUPPORTED = BIT(2),
+	PROTECTED_TWT_SUPPORTED = BIT(3),
 };
 
 /**

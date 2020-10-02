@@ -77,7 +77,7 @@ struct ath11k_qmi_ce_cfg {
 	int svc_to_ce_map_len;
 	const u8 *shadow_reg;
 	int shadow_reg_len;
-	u8 *shadow_reg_v2;
+	u32 *shadow_reg_v2;
 	int shadow_reg_v2_len;
 };
 

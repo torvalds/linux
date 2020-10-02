@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2019 - 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -28,6 +29,7 @@
  *
  * Copyright(c) 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2019 - 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,17 +62,20 @@
 #include <linux/kernel.h>
 #include <linux/bsearch.h>
 
+#include "fw/api/tx.h"
 #include "iwl-trans.h"
 #include "iwl-drv.h"
 #include "iwl-fh.h"
+#include "queue/tx.h"
+#include <linux/dmapool.h>
 
 struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 				  struct device *dev,
 				  const struct iwl_trans_ops *ops,
-				  unsigned int cmd_pool_size,
-				  unsigned int cmd_pool_align)
+				  const struct iwl_cfg_trans_params *cfg_trans)
 {
 	struct iwl_trans *trans;
+	int txcmd_size, txcmd_align;
 #ifdef CONFIG_LOCKDEP
 	static struct lock_class_key __key;
 #endif
@@ -78,6 +83,25 @@ struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 	trans = devm_kzalloc(dev, sizeof(*trans) + priv_size, GFP_KERNEL);
 	if (!trans)
 		return NULL;
+
+	trans->trans_cfg = cfg_trans;
+	if (!cfg_trans->gen2) {
+		txcmd_size = sizeof(struct iwl_tx_cmd);
+		txcmd_align = sizeof(void *);
+	} else if (cfg_trans->device_family < IWL_DEVICE_FAMILY_AX210) {
+		txcmd_size = sizeof(struct iwl_tx_cmd_gen2);
+		txcmd_align = 64;
+	} else {
+		txcmd_size = sizeof(struct iwl_tx_cmd_gen3);
+		txcmd_align = 128;
+	}
+
+	txcmd_size += sizeof(struct iwl_cmd_header);
+	txcmd_size += 36; /* biggest possible 802.11 header */
+
+	/* Ensure device TX cmd cannot reach/cross a page boundary in gen2 */
+	if (WARN_ON(cfg_trans->gen2 && txcmd_size >= txcmd_align))
+		return ERR_PTR(-EINVAL);
 
 #ifdef CONFIG_LOCKDEP
 	lockdep_init_map(&trans->sync_cmd_lockdep_map, "sync_cmd_lockdep_map",
@@ -88,22 +112,68 @@ struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 	trans->ops = ops;
 	trans->num_rx_queues = 1;
 
+	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
+		trans->txqs.bc_tbl_size = sizeof(struct iwl_gen3_bc_tbl);
+	else
+		trans->txqs.bc_tbl_size = sizeof(struct iwlagn_scd_bc_tbl);
+	/*
+	 * For gen2 devices, we use a single allocation for each byte-count
+	 * table, but they're pretty small (1k) so use a DMA pool that we
+	 * allocate here.
+	 */
+	if (trans->trans_cfg->gen2) {
+		trans->txqs.bc_pool = dmam_pool_create("iwlwifi:bc", dev,
+						       trans->txqs.bc_tbl_size,
+						       256, 0);
+		if (!trans->txqs.bc_pool)
+			return NULL;
+	}
+
+	if (trans->trans_cfg->use_tfh) {
+		trans->txqs.tfd.addr_size = 64;
+		trans->txqs.tfd.max_tbs = IWL_TFH_NUM_TBS;
+		trans->txqs.tfd.size = sizeof(struct iwl_tfh_tfd);
+	} else {
+		trans->txqs.tfd.addr_size = 36;
+		trans->txqs.tfd.max_tbs = IWL_NUM_OF_TBS;
+		trans->txqs.tfd.size = sizeof(struct iwl_tfd);
+	}
+	trans->max_skb_frags = IWL_TRANS_MAX_FRAGS(trans);
+
 	snprintf(trans->dev_cmd_pool_name, sizeof(trans->dev_cmd_pool_name),
 		 "iwl_cmd_pool:%s", dev_name(trans->dev));
 	trans->dev_cmd_pool =
 		kmem_cache_create(trans->dev_cmd_pool_name,
-				  cmd_pool_size, cmd_pool_align,
+				  txcmd_size, txcmd_align,
 				  SLAB_HWCACHE_ALIGN, NULL);
 	if (!trans->dev_cmd_pool)
 		return NULL;
 
 	WARN_ON(!ops->wait_txq_empty && !ops->wait_tx_queues_empty);
 
+	trans->txqs.tso_hdr_page = alloc_percpu(struct iwl_tso_hdr_page);
+	if (!trans->txqs.tso_hdr_page) {
+		kmem_cache_destroy(trans->dev_cmd_pool);
+		return NULL;
+	}
+
 	return trans;
 }
 
 void iwl_trans_free(struct iwl_trans *trans)
 {
+	int i;
+
+	for_each_possible_cpu(i) {
+		struct iwl_tso_hdr_page *p =
+			per_cpu_ptr(trans->txqs.tso_hdr_page, i);
+
+		if (p->page)
+			__free_page(p->page);
+	}
+
+	free_percpu(trans->txqs.tso_hdr_page);
+
 	kmem_cache_destroy(trans->dev_cmd_pool);
 }
 
@@ -130,7 +200,7 @@ int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	if (!(cmd->flags & CMD_ASYNC))
 		lock_map_acquire_read(&trans->sync_cmd_lockdep_map);
 
-	if (trans->wide_cmd_header && !iwl_cmd_groupid(cmd->id))
+	if (!iwl_cmd_groupid(cmd->id))
 		cmd->id = DEF_ID(cmd->id);
 
 	ret = trans->ops->send_cmd(trans, cmd);

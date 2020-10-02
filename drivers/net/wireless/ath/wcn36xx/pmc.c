@@ -31,6 +31,7 @@ int wcn36xx_pmc_enter_bmps_state(struct wcn36xx *wcn,
 	if (!ret) {
 		wcn36xx_dbg(WCN36XX_DBG_PMC, "Entered BMPS\n");
 		vif_priv->pw_state = WCN36XX_BMPS;
+		vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER;
 	} else {
 		/*
 		 * One of the reasons why HW will not enter BMPS is because
@@ -55,6 +56,7 @@ int wcn36xx_pmc_exit_bmps_state(struct wcn36xx *wcn,
 	}
 	wcn36xx_smd_exit_bmps(wcn, vif);
 	vif_priv->pw_state = WCN36XX_FULL_POWER;
+	vif->driver_flags &= ~IEEE80211_VIF_BEACON_FILTER;
 	return 0;
 }
 

@@ -259,6 +259,198 @@ static void rtw_c2h_work(struct work_struct *work)
 	}
 }
 
+static u8 rtw_acquire_macid(struct rtw_dev *rtwdev)
+{
+	unsigned long mac_id;
+
+	mac_id = find_first_zero_bit(rtwdev->mac_id_map, RTW_MAX_MAC_ID_NUM);
+	if (mac_id < RTW_MAX_MAC_ID_NUM)
+		set_bit(mac_id, rtwdev->mac_id_map);
+
+	return mac_id;
+}
+
+int rtw_sta_add(struct rtw_dev *rtwdev, struct ieee80211_sta *sta,
+		struct ieee80211_vif *vif)
+{
+	struct rtw_sta_info *si = (struct rtw_sta_info *)sta->drv_priv;
+	int i;
+
+	si->mac_id = rtw_acquire_macid(rtwdev);
+	if (si->mac_id >= RTW_MAX_MAC_ID_NUM)
+		return -ENOSPC;
+
+	si->sta = sta;
+	si->vif = vif;
+	si->init_ra_lv = 1;
+	ewma_rssi_init(&si->avg_rssi);
+	for (i = 0; i < ARRAY_SIZE(sta->txq); i++)
+		rtw_txq_init(rtwdev, sta->txq[i]);
+
+	rtw_update_sta_info(rtwdev, si);
+	rtw_fw_media_status_report(rtwdev, si->mac_id, true);
+
+	rtwdev->sta_cnt++;
+	rtw_info(rtwdev, "sta %pM joined with macid %d\n",
+		 sta->addr, si->mac_id);
+
+	return 0;
+}
+
+void rtw_sta_remove(struct rtw_dev *rtwdev, struct ieee80211_sta *sta,
+		    bool fw_exist)
+{
+	struct rtw_sta_info *si = (struct rtw_sta_info *)sta->drv_priv;
+	int i;
+
+	rtw_release_macid(rtwdev, si->mac_id);
+	if (fw_exist)
+		rtw_fw_media_status_report(rtwdev, si->mac_id, false);
+
+	for (i = 0; i < ARRAY_SIZE(sta->txq); i++)
+		rtw_txq_cleanup(rtwdev, sta->txq[i]);
+
+	kfree(si->mask);
+
+	rtwdev->sta_cnt--;
+	rtw_info(rtwdev, "sta %pM with macid %d left\n",
+		 sta->addr, si->mac_id);
+}
+
+static bool rtw_fw_dump_crash_log(struct rtw_dev *rtwdev)
+{
+	u32 size = rtwdev->chip->fw_rxff_size;
+	u32 *buf;
+	u8 seq;
+	bool ret = true;
+
+	buf = vmalloc(size);
+	if (!buf)
+		goto exit;
+
+	if (rtw_fw_dump_fifo(rtwdev, RTW_FW_FIFO_SEL_RXBUF_FW, 0, size, buf)) {
+		rtw_dbg(rtwdev, RTW_DBG_FW, "dump fw fifo fail\n");
+		goto free_buf;
+	}
+
+	if (GET_FW_DUMP_LEN(buf) == 0) {
+		rtw_dbg(rtwdev, RTW_DBG_FW, "fw crash dump's length is 0\n");
+		goto free_buf;
+	}
+
+	seq = GET_FW_DUMP_SEQ(buf);
+	if (seq > 0 && seq != (rtwdev->fw.prev_dump_seq + 1)) {
+		rtw_dbg(rtwdev, RTW_DBG_FW,
+			"fw crash dump's seq is wrong: %d\n", seq);
+		goto free_buf;
+	}
+	if (seq == 0 &&
+	    (GET_FW_DUMP_TLV_TYPE(buf) != FW_CD_TYPE ||
+	     GET_FW_DUMP_TLV_LEN(buf) != FW_CD_LEN ||
+	     GET_FW_DUMP_TLV_VAL(buf) != FW_CD_VAL)) {
+		rtw_dbg(rtwdev, RTW_DBG_FW, "fw crash dump's tlv is wrong\n");
+		goto free_buf;
+	}
+
+	print_hex_dump_bytes("rtw88 fw dump: ", DUMP_PREFIX_OFFSET, buf, size);
+
+	if (GET_FW_DUMP_MORE(buf) == 1) {
+		rtwdev->fw.prev_dump_seq = seq;
+		ret = false;
+	}
+
+free_buf:
+	vfree(buf);
+exit:
+	rtw_write8(rtwdev, REG_MCU_TST_CFG, 0);
+
+	return ret;
+}
+
+void rtw_vif_assoc_changed(struct rtw_vif *rtwvif,
+			   struct ieee80211_bss_conf *conf)
+{
+	if (conf && conf->assoc) {
+		rtwvif->aid = conf->aid;
+		rtwvif->net_type = RTW_NET_MGD_LINKED;
+	} else {
+		rtwvif->aid = 0;
+		rtwvif->net_type = RTW_NET_NO_LINK;
+	}
+}
+
+static void rtw_reset_key_iter(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif,
+			       struct ieee80211_sta *sta,
+			       struct ieee80211_key_conf *key,
+			       void *data)
+{
+	struct rtw_dev *rtwdev = (struct rtw_dev *)data;
+	struct rtw_sec_desc *sec = &rtwdev->sec;
+
+	rtw_sec_clear_cam(rtwdev, sec, key->hw_key_idx);
+}
+
+static void rtw_reset_sta_iter(void *data, struct ieee80211_sta *sta)
+{
+	struct rtw_dev *rtwdev = (struct rtw_dev *)data;
+
+	if (rtwdev->sta_cnt == 0) {
+		rtw_warn(rtwdev, "sta count before reset should not be 0\n");
+		return;
+	}
+	rtw_sta_remove(rtwdev, sta, false);
+}
+
+static void rtw_reset_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
+{
+	struct rtw_dev *rtwdev = (struct rtw_dev *)data;
+	struct rtw_vif *rtwvif = (struct rtw_vif *)vif->drv_priv;
+
+	rtw_bf_disassoc(rtwdev, vif, NULL);
+	rtw_vif_assoc_changed(rtwvif, NULL);
+	rtw_txq_cleanup(rtwdev, vif->txq);
+}
+
+void rtw_fw_recovery(struct rtw_dev *rtwdev)
+{
+	if (!test_bit(RTW_FLAG_RESTARTING, rtwdev->flags))
+		ieee80211_queue_work(rtwdev->hw, &rtwdev->fw_recovery_work);
+}
+
+static void rtw_fw_recovery_work(struct work_struct *work)
+{
+	struct rtw_dev *rtwdev = container_of(work, struct rtw_dev,
+					      fw_recovery_work);
+
+	/* rtw_fw_dump_crash_log() returns false indicates that there are
+	 * still more log to dump. Driver set 0x1cf[7:0] = 0x1 to tell firmware
+	 * to dump the remaining part of the log, and firmware will trigger an
+	 * IMR_C2HCMD interrupt to inform driver the log is ready.
+	 */
+	if (!rtw_fw_dump_crash_log(rtwdev)) {
+		rtw_write8(rtwdev, REG_HRCV_MSG, 1);
+		return;
+	}
+	rtwdev->fw.prev_dump_seq = 0;
+
+	WARN(1, "firmware crash, start reset and recover\n");
+
+	mutex_lock(&rtwdev->mutex);
+
+	set_bit(RTW_FLAG_RESTARTING, rtwdev->flags);
+	rcu_read_lock();
+	rtw_iterate_keys_rcu(rtwdev, NULL, rtw_reset_key_iter, rtwdev);
+	rcu_read_unlock();
+	rtw_iterate_stas_atomic(rtwdev, rtw_reset_sta_iter, rtwdev);
+	rtw_iterate_vifs_atomic(rtwdev, rtw_reset_vif_iter, rtwdev);
+	rtw_enter_ips(rtwdev);
+
+	mutex_unlock(&rtwdev->mutex);
+
+	ieee80211_restart_hw(rtwdev->hw);
+}
+
 struct rtw_txq_ba_iter_data {
 };
 
@@ -1431,6 +1623,7 @@ int rtw_core_init(struct rtw_dev *rtwdev)
 	INIT_DELAYED_WORK(&coex->wl_remain_work, rtw_coex_wl_remain_work);
 	INIT_DELAYED_WORK(&coex->bt_remain_work, rtw_coex_bt_remain_work);
 	INIT_WORK(&rtwdev->c2h_work, rtw_c2h_work);
+	INIT_WORK(&rtwdev->fw_recovery_work, rtw_fw_recovery_work);
 	INIT_WORK(&rtwdev->ba_work, rtw_txq_ba_work);
 	skb_queue_head_init(&rtwdev->c2h_queue);
 	skb_queue_head_init(&rtwdev->coex.queue);

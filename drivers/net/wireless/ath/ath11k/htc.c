@@ -515,6 +515,12 @@ int ath11k_htc_wait_target(struct ath11k_htc *htc)
 		return -ECOMM;
 	}
 
+	/* For QCA6390, wmi endpoint uses 1 credit to avoid
+	 * back-to-back write.
+	 */
+	if (ab->hw_params.supports_shadow_regs)
+		htc->total_transmit_credits = 1;
+
 	ath11k_htc_setup_target_buffer_assignments(htc);
 
 	return 0;

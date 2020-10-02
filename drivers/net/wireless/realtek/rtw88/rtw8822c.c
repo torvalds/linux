@@ -4294,6 +4294,7 @@ struct rtw_chip_info rtw8822c_hw_spec = {
 	.ptct_efuse_size = 124,
 	.txff_size = 262144,
 	.rxff_size = 24576,
+	.fw_rxff_size = 12288,
 	.txgi_factor = 2,
 	.is_pwr_by_rate_dec = false,
 	.max_power_index = 0x7f,
@@ -4364,6 +4365,8 @@ struct rtw_chip_info rtw8822c_hw_spec = {
 
 	.coex_info_hw_regs_num = ARRAY_SIZE(coex_info_hw_regs_8822c),
 	.coex_info_hw_regs = coex_info_hw_regs_8822c,
+
+	.fw_fifo_addr = {0x780, 0x700, 0x780, 0x660, 0x650, 0x680},
 };
 EXPORT_SYMBOL(rtw8822c_hw_spec);
 

@@ -217,7 +217,7 @@ enum wl12xx_acx_int_reg {
  Halt eCPU   - 32bit RW
  ------------------------------------------
  0 HALT_ECPU Halt Embedded CPU - This bit is the
- compliment of bit 1 (MDATA2) in the SOR_CFG register.
+ complement of bit 1 (MDATA2) in the SOR_CFG register.
  During a hardware reset, this bit holds
  the inverse of MDATA2.
  When downloading firmware from the host,

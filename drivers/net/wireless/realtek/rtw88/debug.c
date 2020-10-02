@@ -229,7 +229,8 @@ static int rtw_debugfs_get_rsvd_page(struct seq_file *m, void *v)
 	if (!buf)
 		return -ENOMEM;
 
-	ret = rtw_dump_drv_rsvd_page(rtwdev, offset, buf_size, (u32 *)buf);
+	ret = rtw_fw_dump_fifo(rtwdev, RTW_FW_FIFO_SEL_RSVD_PAGE, offset,
+			       buf_size, (u32 *)buf);
 	if (ret) {
 		rtw_err(rtwdev, "failed to dump rsvd page\n");
 		vfree(buf);
@@ -543,6 +544,28 @@ static void rtw_print_rate(struct seq_file *m, u8 rate)
 	}
 }
 
+#define case_REGD(src) \
+	case RTW_REGD_##src: return #src
+
+static const char *rtw_get_regd_string(u8 regd)
+{
+	switch (regd) {
+	case_REGD(FCC);
+	case_REGD(MKK);
+	case_REGD(ETSI);
+	case_REGD(IC);
+	case_REGD(KCC);
+	case_REGD(ACMA);
+	case_REGD(CHILE);
+	case_REGD(UKRAINE);
+	case_REGD(MEXICO);
+	case_REGD(CN);
+	case_REGD(WW);
+	default:
+		return "Unknown";
+	}
+}
+
 static int rtw_debugfs_get_tx_pwr_tbl(struct seq_file *m, void *v)
 {
 	struct rtw_debugfs_priv *debugfs_priv = m->private;
@@ -554,6 +577,7 @@ static int rtw_debugfs_get_tx_pwr_tbl(struct seq_file *m, void *v)
 	u8 ch = hal->current_channel;
 	u8 regd = rtwdev->regd.txpwr_regd;
 
+	seq_printf(m, "regulatory: %s\n", rtw_get_regd_string(regd));
 	seq_printf(m, "%-4s %-10s %-3s%6s %-4s %4s (%-4s %-4s) %-4s\n",
 		   "path", "rate", "pwr", "", "base", "", "byr", "lmt", "rem");
 
