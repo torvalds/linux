@@ -177,7 +177,7 @@ static int loadpin_read_file(struct file *file, enum kernel_read_file_id id)
 	return 0;
 }
 
-static int loadpin_load_data(enum kernel_load_data_id id)
+static int loadpin_load_data(enum kernel_load_data_id id, bool contents)
 {
 	return loadpin_read_file(NULL, (enum kernel_read_file_id) id);
 }

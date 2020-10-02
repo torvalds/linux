@@ -676,6 +676,8 @@ int ima_post_read_file(struct file *file, void *buf, loff_t size,
 /**
  * ima_load_data - appraise decision based on policy
  * @id: kernel load data caller identifier
+ * @contents: whether the full contents will be available in a later
+ *	      call to ima_post_load_data().
  *
  * Callers of this LSM hook can not measure, appraise, or audit the
  * data provided by userspace.  Enforce policy rules requring a file
@@ -683,7 +685,7 @@ int ima_post_read_file(struct file *file, void *buf, loff_t size,
  *
  * For permission return 0, otherwise return -EACCES.
  */
-int ima_load_data(enum kernel_load_data_id id)
+int ima_load_data(enum kernel_load_data_id id, bool contents)
 {
 	bool ima_enforce, sig_enforce;
 
@@ -720,6 +722,26 @@ int ima_load_data(enum kernel_load_data_id id)
 	default:
 		break;
 	}
+	return 0;
+}
+
+/**
+ * ima_post_load_data - appraise decision based on policy
+ * @buf: pointer to in memory file contents
+ * @size: size of in memory file contents
+ * @id: kernel load data caller identifier
+ * @description: @id-specific description of contents
+ *
+ * Measure/appraise/audit in memory buffer based on policy.  Policy rules
+ * are written in terms of a policy identifier.
+ *
+ * On success return 0.  On integrity appraisal error, assuming the file
+ * is in policy and IMA-appraisal is in enforcing mode, return -EACCES.
+ */
+int ima_post_load_data(char *buf, loff_t size,
+		       enum kernel_load_data_id load_id,
+		       char *description)
+{
 	return 0;
 }
 

@@ -613,7 +613,7 @@ static bool fw_run_sysfs_fallback(u32 opt_flags)
 		return false;
 
 	/* Also permit LSMs and IMA to fail firmware sysfs fallback */
-	ret = security_kernel_load_data(LOADING_FIRMWARE);
+	ret = security_kernel_load_data(LOADING_FIRMWARE, false);
 	if (ret < 0)
 		return false;
 

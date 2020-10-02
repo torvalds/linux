@@ -205,7 +205,7 @@ static inline int kexec_load_check(unsigned long nr_segments,
 		return -EPERM;
 
 	/* Permit LSMs and IMA to fail the kexec */
-	result = security_kernel_load_data(LOADING_KEXEC_IMAGE);
+	result = security_kernel_load_data(LOADING_KEXEC_IMAGE, false);
 	if (result < 0)
 		return result;
 
