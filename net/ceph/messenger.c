@@ -2811,13 +2811,13 @@ static int queue_con_delay(struct ceph_connection *con, unsigned long delay)
 		return -ENOENT;
 	}
 
+	dout("%s %p %lu\n", __func__, con, delay);
 	if (!queue_delayed_work(ceph_msgr_wq, &con->work, delay)) {
 		dout("%s %p - already queued\n", __func__, con);
 		con->ops->put(con);
 		return -EBUSY;
 	}
 
-	dout("%s %p %lu\n", __func__, con, delay);
 	return 0;
 }
 
