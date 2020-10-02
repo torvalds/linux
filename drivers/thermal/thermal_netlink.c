@@ -601,7 +601,7 @@ out_free_msg:
 	return ret;
 }
 
-static const struct genl_ops thermal_genl_ops[] = {
+static const struct genl_small_ops thermal_genl_ops[] = {
 	{
 		.cmd = THERMAL_GENL_CMD_TZ_GET_ID,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
@@ -635,8 +635,8 @@ static struct genl_family thermal_gnl_family __ro_after_init = {
 	.version	= THERMAL_GENL_VERSION,
 	.maxattr	= THERMAL_GENL_ATTR_MAX,
 	.policy		= thermal_genl_policy,
-	.ops		= thermal_genl_ops,
-	.n_ops		= ARRAY_SIZE(thermal_genl_ops),
+	.small_ops	= thermal_genl_ops,
+	.n_small_ops	= ARRAY_SIZE(thermal_genl_ops),
 	.mcgrps		= thermal_genl_mcgrps,
 	.n_mcgrps	= ARRAY_SIZE(thermal_genl_mcgrps),
 };

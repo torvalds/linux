@@ -644,7 +644,7 @@ err:
 	nlmsg_free(rep_skb);
 }
 
-static const struct genl_ops taskstats_ops[] = {
+static const struct genl_small_ops taskstats_ops[] = {
 	{
 		.cmd		= TASKSTATS_CMD_GET,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
@@ -687,8 +687,8 @@ static struct genl_family family __ro_after_init = {
 	.version	= TASKSTATS_GENL_VERSION,
 	.maxattr	= TASKSTATS_CMD_ATTR_MAX,
 	.module		= THIS_MODULE,
-	.ops		= taskstats_ops,
-	.n_ops		= ARRAY_SIZE(taskstats_ops),
+	.small_ops	= taskstats_ops,
+	.n_small_ops	= ARRAY_SIZE(taskstats_ops),
 	.pre_doit	= taskstats_pre_doit,
 };
 

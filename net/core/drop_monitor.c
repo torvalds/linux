@@ -1575,7 +1575,7 @@ static const struct nla_policy net_dm_nl_policy[NET_DM_ATTR_MAX + 1] = {
 	[NET_DM_ATTR_HW_DROPS]	= {. type = NLA_FLAG },
 };
 
-static const struct genl_ops dropmon_ops[] = {
+static const struct genl_small_ops dropmon_ops[] = {
 	{
 		.cmd = NET_DM_CMD_CONFIG,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
@@ -1625,8 +1625,8 @@ static struct genl_family net_drop_monitor_family __ro_after_init = {
 	.pre_doit	= net_dm_nl_pre_doit,
 	.post_doit	= net_dm_nl_post_doit,
 	.module		= THIS_MODULE,
-	.ops		= dropmon_ops,
-	.n_ops		= ARRAY_SIZE(dropmon_ops),
+	.small_ops	= dropmon_ops,
+	.n_small_ops	= ARRAY_SIZE(dropmon_ops),
 	.mcgrps		= dropmon_mcgrps,
 	.n_mcgrps	= ARRAY_SIZE(dropmon_mcgrps),
 };
