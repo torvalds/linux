@@ -176,8 +176,6 @@ void amdgpu_gmc_gart_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc)
 	/*To avoid the hole, limit the max mc address to AMDGPU_GMC_HOLE_START*/
 	u64 max_mc_address = min(adev->gmc.mc_mask, AMDGPU_GMC_HOLE_START - 1);
 
-	mc->gart_size += adev->pm.smu_prv_buffer_size;
-
 	/* VCE doesn't like it when BOs cross a 4GB segment, so align
 	 * the GART base on a 4GB boundary as well.
 	 */

@@ -1344,6 +1344,8 @@ static int gmc_v9_0_mc_init(struct amdgpu_device *adev)
 		adev->gmc.gart_size = (u64)amdgpu_gart_size << 20;
 	}
 
+	adev->gmc.gart_size += adev->pm.smu_prv_buffer_size;
+
 	gmc_v9_0_vram_gtt_location(adev, &adev->gmc);
 
 	return 0;
