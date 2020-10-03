@@ -245,13 +245,6 @@ static int qedr_register_device(struct qedr_dev *dev)
 	dev->ibdev.node_guid = dev->attr.node_guid;
 	memcpy(dev->ibdev.node_desc, QEDR_NODE_DESC, sizeof(QEDR_NODE_DESC));
 
-	dev->ibdev.uverbs_cmd_mask |=
-				     QEDR_UVERBS(REQ_NOTIFY_CQ) |
-				     QEDR_UVERBS(POST_SRQ_RECV) |
-				     QEDR_UVERBS(POLL_CQ) |
-				     QEDR_UVERBS(POST_SEND) |
-				     QEDR_UVERBS(POST_RECV);
-
 	if (IS_IWARP(dev)) {
 		rc = qedr_iw_register_device(dev);
 		if (rc)

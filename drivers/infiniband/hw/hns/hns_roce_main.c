@@ -505,8 +505,6 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 
 	/* SRQ */
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_SRQ) {
-		ib_dev->uverbs_cmd_mask |=
-				(1ULL << IB_USER_VERBS_CMD_POST_SRQ_RECV);
 		ib_set_device_ops(ib_dev, &hns_roce_dev_srq_ops);
 		ib_set_device_ops(ib_dev, hr_dev->hw->hns_roce_dev_srq_ops);
 	}

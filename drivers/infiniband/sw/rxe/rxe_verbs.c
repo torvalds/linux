@@ -1142,12 +1142,7 @@ int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name)
 	dma_set_coherent_mask(&dev->dev, dma_get_required_mask(&dev->dev));
 
 	dev->uverbs_cmd_mask |=
-	    BIT_ULL(IB_USER_VERBS_CMD_POST_SRQ_RECV)
-	    | BIT_ULL(IB_USER_VERBS_CMD_POST_SEND)
-	    | BIT_ULL(IB_USER_VERBS_CMD_POST_RECV)
-	    | BIT_ULL(IB_USER_VERBS_CMD_POLL_CQ)
-	    | BIT_ULL(IB_USER_VERBS_CMD_PEEK_CQ)
-	    | BIT_ULL(IB_USER_VERBS_CMD_REQ_NOTIFY_CQ)
+	    BIT_ULL(IB_USER_VERBS_CMD_REQ_NOTIFY_CQ)
 	    | BIT_ULL(IB_USER_VERBS_CMD_CREATE_AH)
 	    | BIT_ULL(IB_USER_VERBS_CMD_MODIFY_AH)
 	    | BIT_ULL(IB_USER_VERBS_CMD_QUERY_AH)

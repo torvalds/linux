@@ -204,11 +204,6 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 	BUILD_BUG_ON(sizeof(OCRDMA_NODE_DESC) > IB_DEVICE_NODE_DESC_MAX);
 	memcpy(dev->ibdev.node_desc, OCRDMA_NODE_DESC,
 	       sizeof(OCRDMA_NODE_DESC));
-	dev->ibdev.uverbs_cmd_mask |=
-	    OCRDMA_UVERBS(REQ_NOTIFY_CQ) |
-	    OCRDMA_UVERBS(POLL_CQ) |
-	    OCRDMA_UVERBS(POST_SEND) |
-	    OCRDMA_UVERBS(POST_RECV);
 
 	dev->ibdev.uverbs_cmd_mask |=
 	    OCRDMA_UVERBS(CREATE_AH) |
@@ -225,12 +220,9 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 
 	ib_set_device_ops(&dev->ibdev, &ocrdma_dev_ops);
 
-	if (ocrdma_get_asic_type(dev) == OCRDMA_ASIC_GEN_SKH_R) {
-		dev->ibdev.uverbs_cmd_mask |=
-		     OCRDMA_UVERBS(POST_SRQ_RECV);
-
+	if (ocrdma_get_asic_type(dev) == OCRDMA_ASIC_GEN_SKH_R)
 		ib_set_device_ops(&dev->ibdev, &ocrdma_dev_srq_ops);
-	}
+
 	rdma_set_device_sysfs_group(&dev->ibdev, &ocrdma_attr_group);
 	ret = ib_device_set_netdev(&dev->ibdev, dev->nic_info.netdev, 1);
 	if (ret)
