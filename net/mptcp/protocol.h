@@ -464,11 +464,12 @@ static inline bool mptcp_pm_should_rm_signal(struct mptcp_sock *msk)
 	return READ_ONCE(msk->pm.rm_addr_signal);
 }
 
-static inline unsigned int mptcp_add_addr_len(int family)
+static inline unsigned int mptcp_add_addr_len(int family, bool echo)
 {
 	if (family == AF_INET)
-		return TCPOLEN_MPTCP_ADD_ADDR;
-	return TCPOLEN_MPTCP_ADD_ADDR6;
+		return echo ? TCPOLEN_MPTCP_ADD_ADDR_BASE
+			    : TCPOLEN_MPTCP_ADD_ADDR;
+	return echo ? TCPOLEN_MPTCP_ADD_ADDR6_BASE : TCPOLEN_MPTCP_ADD_ADDR6;
 }
 
 bool mptcp_pm_add_addr_signal(struct mptcp_sock *msk, unsigned int remaining,

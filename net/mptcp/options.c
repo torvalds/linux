@@ -587,7 +587,7 @@ static bool mptcp_established_options_add_addr(struct sock *sk,
 	    !(mptcp_pm_add_addr_signal(msk, remaining, &saddr, &echo)))
 		return false;
 
-	len = mptcp_add_addr_len(saddr.family);
+	len = mptcp_add_addr_len(saddr.family, echo);
 	if (remaining < len)
 		return false;
 

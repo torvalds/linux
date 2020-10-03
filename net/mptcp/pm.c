@@ -183,11 +183,12 @@ bool mptcp_pm_add_addr_signal(struct mptcp_sock *msk, unsigned int remaining,
 	if (!mptcp_pm_should_add_signal(msk))
 		goto out_unlock;
 
-	if (remaining < mptcp_add_addr_len(msk->pm.local.family))
+	*echo = READ_ONCE(msk->pm.add_addr_echo);
+
+	if (remaining < mptcp_add_addr_len(msk->pm.local.family, *echo))
 		goto out_unlock;
 
 	*saddr = msk->pm.local;
-	*echo = READ_ONCE(msk->pm.add_addr_echo);
 	WRITE_ONCE(msk->pm.add_addr_signal, false);
 	ret = true;
 
