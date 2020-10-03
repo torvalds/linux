@@ -1006,7 +1006,7 @@ int c4iw_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 
 	pr_debug("ib_dev %p entries %d\n", ibdev, entries);
 	if (attr->flags)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	if (vector >= rhp->rdev.lldi.nciq)
 		return -EINVAL;

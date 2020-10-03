@@ -632,6 +632,7 @@ struct ib_device *_ib_alloc_device(size_t size)
 		BIT_ULL(IB_USER_VERBS_CMD_RESIZE_CQ);
 
 	device->uverbs_ex_cmd_mask =
+		BIT_ULL(IB_USER_VERBS_EX_CMD_CREATE_CQ) |
 		BIT_ULL(IB_USER_VERBS_EX_CMD_CREATE_FLOW) |
 		BIT_ULL(IB_USER_VERBS_EX_CMD_CREATE_RWQ_IND_TBL) |
 		BIT_ULL(IB_USER_VERBS_EX_CMD_CREATE_WQ) |

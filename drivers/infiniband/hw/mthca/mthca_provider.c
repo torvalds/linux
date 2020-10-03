@@ -612,7 +612,7 @@ static int mthca_create_cq(struct ib_cq *ibcq,
 		udata, struct mthca_ucontext, ibucontext);
 
 	if (attr->flags)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	if (entries < 1 || entries > to_mdev(ibdev)->limits.max_cqes)
 		return -EINVAL;

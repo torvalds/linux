@@ -1097,6 +1097,9 @@ int siw_create_cq(struct ib_cq *base_cq, const struct ib_cq_init_attr *attr,
 	struct siw_cq *cq = to_siw_cq(base_cq);
 	int rv, size = attr->cqe;
 
+	if (attr->flags)
+		return -EOPNOTSUPP;
+
 	if (atomic_inc_return(&sdev->num_cq) > SIW_MAX_CQ) {
 		siw_dbg(base_cq->device, "too many CQ's\n");
 		rv = -ENOMEM;

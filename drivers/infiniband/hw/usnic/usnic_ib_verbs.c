@@ -584,7 +584,7 @@ int usnic_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		       struct ib_udata *udata)
 {
 	if (attr->flags)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	return 0;
 }

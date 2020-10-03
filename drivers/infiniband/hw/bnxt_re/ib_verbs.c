@@ -2831,6 +2831,9 @@ int bnxt_re_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	struct bnxt_qplib_nq *nq = NULL;
 	unsigned int nq_alloc_cnt;
 
+	if (attr->flags)
+		return -EOPNOTSUPP;
+
 	/* Validate CQ fields */
 	if (cqe < 1 || cqe > dev_attr->max_cq_wqes) {
 		ibdev_err(&rdev->ibdev, "Failed to create CQ -max exceeded");

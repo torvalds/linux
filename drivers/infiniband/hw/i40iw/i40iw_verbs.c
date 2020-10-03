@@ -1107,6 +1107,9 @@ static int i40iw_create_cq(struct ib_cq *ibcq,
 	int err_code;
 	int entries = attr->cqe;
 
+	if (attr->flags)
+		return -EOPNOTSUPP;
+
 	if (iwdev->closing)
 		return -ENODEV;
 

@@ -928,6 +928,9 @@ int qedr_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		 "create_cq: called from %s. entries=%d, vector=%d\n",
 		 udata ? "User Lib" : "Kernel", entries, vector);
 
+	if (attr->flags)
+		return -EOPNOTSUPP;
+
 	if (entries > QEDR_MAX_CQES) {
 		DP_ERR(dev,
 		       "create cq: the number of entries %d is too high. Must be equal or below %d.\n",
