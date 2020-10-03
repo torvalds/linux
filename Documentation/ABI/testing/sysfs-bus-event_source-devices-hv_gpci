@@ -72,3 +72,10 @@ Contact:	Linux on PowerPC Developer List <linuxppc-dev@lists.ozlabs.org>
 Description:
 		A number indicating the latest version of the gpci interface
 		that the kernel is aware of.
+
+What:		/sys/devices/hv_gpci/cpumask
+Date:		October 2020
+Contact:	Linux on PowerPC Developer List <linuxppc-dev@lists.ozlabs.org>
+Description:	read only
+		This sysfs file exposes the cpumask which is designated to make
+		HCALLs to retrieve hv-gpci pmu event counter data.
