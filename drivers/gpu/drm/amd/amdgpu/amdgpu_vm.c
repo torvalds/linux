@@ -1502,6 +1502,8 @@ static int amdgpu_vm_update_ptes(struct amdgpu_vm_update_params *params,
 
 			pt = cursor.entry->base.bo;
 			shift = parent_shift;
+			frag_end = max(frag_end, ALIGN(frag_start + 1,
+				   1ULL << shift));
 		}
 
 		/* Looks good so far, calculate parameters for the update */
