@@ -104,7 +104,7 @@ Ethernet switch connected via MDIO to the host, CPU port wired to eth0:
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		switch0: ethernet-switch@30 {
+		switch0: ethernet-switch@1e {
 			compatible = "brcm,bcm53125";
 			reg = <30>;
 			#address-cells = <1>;
