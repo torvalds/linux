@@ -1154,6 +1154,24 @@ static int ctrl_dumppolicy_start(struct netlink_callback *cb)
 					      rt->maxattr);
 }
 
+static void *ctrl_dumppolicy_prep(struct sk_buff *skb,
+				  struct netlink_callback *cb)
+{
+	struct ctrl_dump_policy_ctx *ctx = (void *)cb->ctx;
+	void *hdr;
+
+	hdr = genlmsg_put(skb, NETLINK_CB(cb->skb).portid,
+			  cb->nlh->nlmsg_seq, &genl_ctrl,
+			  NLM_F_MULTI, CTRL_CMD_GETPOLICY);
+	if (!hdr)
+		return NULL;
+
+	if (nla_put_u16(skb, CTRL_ATTR_FAMILY_ID, ctx->fam_id))
+		return NULL;
+
+	return hdr;
+}
+
 static int ctrl_dumppolicy(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct ctrl_dump_policy_ctx *ctx = (void *)cb->ctx;
@@ -1162,13 +1180,8 @@ static int ctrl_dumppolicy(struct sk_buff *skb, struct netlink_callback *cb)
 		void *hdr;
 		struct nlattr *nest;
 
-		hdr = genlmsg_put(skb, NETLINK_CB(cb->skb).portid,
-				  cb->nlh->nlmsg_seq, &genl_ctrl,
-				  NLM_F_MULTI, CTRL_CMD_GETPOLICY);
+		hdr = ctrl_dumppolicy_prep(skb, cb);
 		if (!hdr)
-			goto nla_put_failure;
-
-		if (nla_put_u16(skb, CTRL_ATTR_FAMILY_ID, ctx->fam_id))
 			goto nla_put_failure;
 
 		nest = nla_nest_start(skb, CTRL_ATTR_POLICY);
