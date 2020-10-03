@@ -2622,11 +2622,22 @@ static bool cnl_ddi_hdmi_pll_dividers(struct intel_crtc_state *crtc_state)
 	return true;
 }
 
+/*
+ * Display WA #22010492432: tgl
+ * Program half of the nominal DCO divider fraction value.
+ */
+static bool
+tgl_combo_pll_div_frac_wa_needed(struct drm_i915_private *i915)
+{
+	return IS_TIGERLAKE(i915) && i915->dpll.ref_clks.nssc == 38400;
+}
+
 static int __cnl_ddi_wrpll_get_freq(struct drm_i915_private *dev_priv,
 				    const struct intel_shared_dpll *pll,
 				    int ref_clock)
 {
 	const struct intel_dpll_hw_state *pll_state = &pll->state.hw_state;
+	u32 dco_fraction;
 	u32 p0, p1, p2, dco_freq;
 
 	p0 = pll_state->cfgcr1 & DPLL_CFGCR1_PDIV_MASK;
@@ -2669,8 +2680,13 @@ static int __cnl_ddi_wrpll_get_freq(struct drm_i915_private *dev_priv,
 	dco_freq = (pll_state->cfgcr0 & DPLL_CFGCR0_DCO_INTEGER_MASK) *
 		   ref_clock;
 
-	dco_freq += (((pll_state->cfgcr0 & DPLL_CFGCR0_DCO_FRACTION_MASK) >>
-		      DPLL_CFGCR0_DCO_FRACTION_SHIFT) * ref_clock) / 0x8000;
+	dco_fraction = (pll_state->cfgcr0 & DPLL_CFGCR0_DCO_FRACTION_MASK) >>
+		       DPLL_CFGCR0_DCO_FRACTION_SHIFT;
+
+	if (tgl_combo_pll_div_frac_wa_needed(dev_priv))
+		dco_fraction *= 2;
+
+	dco_freq += (dco_fraction * ref_clock) / 0x8000;
 
 	if (drm_WARN_ON(&dev_priv->drm, p0 == 0 || p1 == 0 || p2 == 0))
 		return 0;
@@ -2948,16 +2964,6 @@ static const struct skl_wrpll_params tgl_tbt_pll_24MHz_values = {
 	/* the following params are unused */
 };
 
-/*
- * Display WA #22010492432: tgl
- * Divide the nominal .dco_fraction value by 2.
- */
-static const struct skl_wrpll_params tgl_tbt_pll_38_4MHz_values = {
-	.dco_integer = 0x54, .dco_fraction = 0x1800,
-	/* the following params are unused */
-	.pdiv = 0, .kdiv = 0, .qdiv_mode = 0, .qdiv_ratio = 0,
-};
-
 static bool icl_calc_dp_combo_pll(struct intel_crtc_state *crtc_state,
 				  struct skl_wrpll_params *pll_params)
 {
@@ -2991,13 +2997,11 @@ static bool icl_calc_tbt_pll(struct intel_crtc_state *crtc_state,
 			MISSING_CASE(dev_priv->dpll.ref_clks.nssc);
 			fallthrough;
 		case 19200:
+		case 38400:
 			*pll_params = tgl_tbt_pll_19_2MHz_values;
 			break;
 		case 24000:
 			*pll_params = tgl_tbt_pll_24MHz_values;
-			break;
-		case 38400:
-			*pll_params = tgl_tbt_pll_38_4MHz_values;
 			break;
 		}
 	} else {
@@ -3065,9 +3069,14 @@ static void icl_calc_dpll_state(struct drm_i915_private *i915,
 				const struct skl_wrpll_params *pll_params,
 				struct intel_dpll_hw_state *pll_state)
 {
+	u32 dco_fraction = pll_params->dco_fraction;
+
 	memset(pll_state, 0, sizeof(*pll_state));
 
-	pll_state->cfgcr0 = DPLL_CFGCR0_DCO_FRACTION(pll_params->dco_fraction) |
+	if (tgl_combo_pll_div_frac_wa_needed(i915))
+		dco_fraction = DIV_ROUND_CLOSEST(dco_fraction, 2);
+
+	pll_state->cfgcr0 = DPLL_CFGCR0_DCO_FRACTION(dco_fraction) |
 			    pll_params->dco_integer;
 
 	pll_state->cfgcr1 = DPLL_CFGCR1_QDIV_RATIO(pll_params->qdiv_ratio) |
