@@ -131,16 +131,7 @@ static int emif_regdump_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int emif_regdump_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, emif_regdump_show, inode->i_private);
-}
-
-static const struct file_operations emif_regdump_fops = {
-	.open			= emif_regdump_open,
-	.read			= seq_read,
-	.release		= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(emif_regdump);
 
 static int emif_mr4_show(struct seq_file *s, void *unused)
 {
@@ -150,16 +141,7 @@ static int emif_mr4_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int emif_mr4_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, emif_mr4_show, inode->i_private);
-}
-
-static const struct file_operations emif_mr4_fops = {
-	.open			= emif_mr4_open,
-	.read			= seq_read,
-	.release		= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(emif_mr4);
 
 static int __init_or_module emif_debugfs_init(struct emif_data *emif)
 {

@@ -501,7 +501,6 @@ static u32 tegra210_emc_r21021_periodic_compensation(struct tegra210_emc *emc)
 		emc_cfg_o = emc_readl(emc, EMC_CFG);
 		emc_cfg = emc_cfg_o & ~(EMC_CFG_DYN_SELF_REF |
 					EMC_CFG_DRAM_ACPD |
-					EMC_CFG_DRAM_CLKSTOP_PD |
 					EMC_CFG_DRAM_CLKSTOP_PD);
 
 

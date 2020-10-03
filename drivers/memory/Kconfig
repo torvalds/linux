@@ -104,6 +104,7 @@ config TI_EMIF
 
 config OMAP_GPMC
 	bool "Texas Instruments OMAP SoC GPMC driver" if COMPILE_TEST
+	depends on OF_ADDRESS
 	select GPIOLIB
 	help
 	  This driver is for the General Purpose Memory Controller (GPMC)
