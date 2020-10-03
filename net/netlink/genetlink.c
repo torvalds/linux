@@ -123,7 +123,7 @@ static void genl_op_from_full(const struct genl_family *family,
 		op->policy = family->policy;
 }
 
-static int genl_get_cmd_full(u8 cmd, const struct genl_family *family,
+static int genl_get_cmd_full(u32 cmd, const struct genl_family *family,
 			     struct genl_ops *op)
 {
 	int i;
@@ -152,7 +152,7 @@ static void genl_op_from_small(const struct genl_family *family,
 	op->policy = family->policy;
 }
 
-static int genl_get_cmd_small(u8 cmd, const struct genl_family *family,
+static int genl_get_cmd_small(u32 cmd, const struct genl_family *family,
 			      struct genl_ops *op)
 {
 	int i;
@@ -166,7 +166,7 @@ static int genl_get_cmd_small(u8 cmd, const struct genl_family *family,
 	return -ENOENT;
 }
 
-static int genl_get_cmd(u8 cmd, const struct genl_family *family,
+static int genl_get_cmd(u32 cmd, const struct genl_family *family,
 			struct genl_ops *op)
 {
 	if (!genl_get_cmd_full(cmd, family, op))
@@ -1114,14 +1114,17 @@ struct ctrl_dump_policy_ctx {
 	struct netlink_policy_dump_state *state;
 	const struct genl_family *rt;
 	unsigned int opidx;
+	u32 op;
 	u16 fam_id;
-	u8 policies:1;
+	u8 policies:1,
+	   single_op:1;
 };
 
 static const struct nla_policy ctrl_policy_policy[] = {
 	[CTRL_ATTR_FAMILY_ID]	= { .type = NLA_U16 },
 	[CTRL_ATTR_FAMILY_NAME]	= { .type = NLA_NUL_STRING,
 				    .len = GENL_NAMSIZ - 1 },
+	[CTRL_ATTR_OP]		= { .type = NLA_U32 },
 };
 
 static int ctrl_dumppolicy_start(struct netlink_callback *cb)
@@ -1153,6 +1156,23 @@ static int ctrl_dumppolicy_start(struct netlink_callback *cb)
 		return -ENOENT;
 
 	ctx->rt = rt;
+
+	if (tb[CTRL_ATTR_OP]) {
+		ctx->single_op = true;
+		ctx->op = nla_get_u32(tb[CTRL_ATTR_OP]);
+
+		err = genl_get_cmd(ctx->op, rt, &op);
+		if (err) {
+			NL_SET_BAD_ATTR(cb->extack, tb[CTRL_ATTR_OP]);
+			return err;
+		}
+
+		if (!op.policy)
+			return -ENODATA;
+
+		return netlink_policy_dump_add_policy(&ctx->state, op.policy,
+						      op.maxattr);
+	}
 
 	for (i = 0; i < genl_get_cmd_cnt(rt); i++) {
 		genl_get_cmd_by_index(i, rt, &op);
@@ -1248,7 +1268,18 @@ static int ctrl_dumppolicy(struct sk_buff *skb, struct netlink_callback *cb)
 		while (ctx->opidx < genl_get_cmd_cnt(ctx->rt)) {
 			struct genl_ops op;
 
-			genl_get_cmd_by_index(ctx->opidx, ctx->rt, &op);
+			if (ctx->single_op) {
+				int err;
+
+				err = genl_get_cmd(ctx->op, ctx->rt, &op);
+				if (WARN_ON(err))
+					return skb->len;
+
+				/* break out of the loop after this one */
+				ctx->opidx = genl_get_cmd_cnt(ctx->rt);
+			} else {
+				genl_get_cmd_by_index(ctx->opidx, ctx->rt, &op);
+			}
 
 			if (ctrl_dumppolicy_put_op(skb, cb, &op))
 				return skb->len;
