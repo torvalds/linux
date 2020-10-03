@@ -1079,6 +1079,7 @@ static const struct ib_device_ops rxe_dev_ops = {
 	.create_cq = rxe_create_cq,
 	.create_qp = rxe_create_qp,
 	.create_srq = rxe_create_srq,
+	.create_user_ah = rxe_create_ah,
 	.dealloc_driver = rxe_dealloc,
 	.dealloc_pd = rxe_dealloc_pd,
 	.dealloc_ucontext = rxe_dealloc_ucontext,
@@ -1141,13 +1142,7 @@ int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name)
 	dma_set_max_seg_size(&dev->dev, UINT_MAX);
 	dma_set_coherent_mask(&dev->dev, dma_get_required_mask(&dev->dev));
 
-	dev->uverbs_cmd_mask |=
-	    BIT_ULL(IB_USER_VERBS_CMD_REQ_NOTIFY_CQ)
-	    | BIT_ULL(IB_USER_VERBS_CMD_CREATE_AH)
-	    | BIT_ULL(IB_USER_VERBS_CMD_MODIFY_AH)
-	    | BIT_ULL(IB_USER_VERBS_CMD_QUERY_AH)
-	    | BIT_ULL(IB_USER_VERBS_CMD_DESTROY_AH)
-	    ;
+	dev->uverbs_cmd_mask |= BIT_ULL(IB_USER_VERBS_CMD_REQ_NOTIFY_CQ);
 
 	ib_set_device_ops(dev, &rxe_dev_ops);
 	err = ib_device_set_netdev(&rxe->ib_dev, rxe->ndev, 1);

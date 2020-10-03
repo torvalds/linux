@@ -646,6 +646,7 @@ static const struct ib_device_ops bnxt_re_dev_ops = {
 	.create_cq = bnxt_re_create_cq,
 	.create_qp = bnxt_re_create_qp,
 	.create_srq = bnxt_re_create_srq,
+	.create_user_ah = bnxt_re_create_ah,
 	.dealloc_driver = bnxt_re_dealloc_driver,
 	.dealloc_pd = bnxt_re_dealloc_pd,
 	.dealloc_ucontext = bnxt_re_dealloc_ucontext,
@@ -700,15 +701,6 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 	ibdev->num_comp_vectors	= rdev->num_msix - 1;
 	ibdev->dev.parent = &rdev->en_dev->pdev->dev;
 	ibdev->local_dma_lkey = BNXT_QPLIB_RSVD_LKEY;
-
-	/* User space */
-	ibdev->uverbs_cmd_mask |=
-			(1ull << IB_USER_VERBS_CMD_CREATE_AH)		|
-			(1ull << IB_USER_VERBS_CMD_MODIFY_AH)		|
-			(1ull << IB_USER_VERBS_CMD_QUERY_AH)		|
-			(1ull << IB_USER_VERBS_CMD_DESTROY_AH);
-	/* POLL_CQ and REQ_NOTIFY_CQ is directly handled in libbnxt_re */
-
 
 	rdma_set_device_sysfs_group(ibdev, &bnxt_re_dev_attr_group);
 	ib_set_device_ops(ibdev, &bnxt_re_dev_ops);

@@ -533,7 +533,10 @@ static struct ib_ah *_rdma_create_ah(struct ib_pd *pd,
 	init_attr.flags = flags;
 	init_attr.xmit_slave = xmit_slave;
 
-	ret = device->ops.create_ah(ah, &init_attr, udata);
+	if (udata)
+		ret = device->ops.create_user_ah(ah, &init_attr, udata);
+	else
+		ret = device->ops.create_ah(ah, &init_attr, NULL);
 	if (ret) {
 		kfree(ah);
 		return ERR_PTR(ret);

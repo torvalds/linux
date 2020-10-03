@@ -3689,13 +3689,13 @@ const struct uapi_definition uverbs_def_write_intf[] = {
 				     ib_uverbs_create_ah,
 				     UAPI_DEF_WRITE_UDATA_IO(
 					     struct ib_uverbs_create_ah,
-					     struct ib_uverbs_create_ah_resp),
-				     UAPI_DEF_METHOD_NEEDS_FN(create_ah)),
+					     struct ib_uverbs_create_ah_resp)),
 		DECLARE_UVERBS_WRITE(
 			IB_USER_VERBS_CMD_DESTROY_AH,
 			ib_uverbs_destroy_ah,
-			UAPI_DEF_WRITE_I(struct ib_uverbs_destroy_ah),
-			UAPI_DEF_METHOD_NEEDS_FN(destroy_ah))),
+			UAPI_DEF_WRITE_I(struct ib_uverbs_destroy_ah)),
+		UAPI_DEF_OBJ_NEEDS_FN(create_user_ah),
+		UAPI_DEF_OBJ_NEEDS_FN(destroy_ah)),
 
 	DECLARE_UVERBS_OBJECT(
 		UVERBS_OBJECT_COMP_CHANNEL,
