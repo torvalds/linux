@@ -24,6 +24,7 @@ struct rkisp_isp_params_ops {
 	void (*isr_hdl)(struct rkisp_isp_params_vdev *params_vdev, u32 isp_mis);
 	void (*param_cfg)(struct rkisp_isp_params_vdev *params_vdev, u32 frame_id,
 			  u32 rdbk_times, enum rkisp_params_type type);
+	void (*param_cfgsram)(struct rkisp_isp_params_vdev *params_vdev);
 };
 
 /*
@@ -65,6 +66,7 @@ struct rkisp_isp_params_vdev {
 	struct isp2x_hdrmge_cfg last_hdrmge;
 	struct isp2x_hdrtmo_cfg cur_hdrtmo;
 	struct isp2x_hdrmge_cfg cur_hdrmge;
+	struct isp2x_lsc_cfg cur_lsccfg;
 };
 
 /* config params before ISP streaming */
@@ -83,5 +85,7 @@ void rkisp_params_isr(struct rkisp_isp_params_vdev *params_vdev, u32 isp_mis);
 
 void rkisp_params_cfg(struct rkisp_isp_params_vdev *params_vdev,
 		      u32 frame_id, u32 rdbk_times);
+
+void rkisp_params_cfgsram(struct rkisp_isp_params_vdev *params_vdev);
 
 #endif /* _RKISP_ISP_PARAM_H */

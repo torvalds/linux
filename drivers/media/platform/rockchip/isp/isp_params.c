@@ -297,6 +297,12 @@ void rkisp_params_cfg(struct rkisp_isp_params_vdev *params_vdev,
 					    rdbk_times, RKISP_PARAMS_IMD);
 }
 
+void rkisp_params_cfgsram(struct rkisp_isp_params_vdev *params_vdev)
+{
+	if (params_vdev->ops->param_cfgsram)
+		params_vdev->ops->param_cfgsram(params_vdev);
+}
+
 void rkisp_params_isr(struct rkisp_isp_params_vdev *params_vdev,
 		      u32 isp_mis)
 {
