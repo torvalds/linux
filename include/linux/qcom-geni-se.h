@@ -296,7 +296,7 @@ static inline void geni_se_setup_m_cmd(struct geni_se *se, u32 cmd, u32 params)
 	u32 m_cmd;
 
 	m_cmd = (cmd << M_OPCODE_SHFT) | (params & M_PARAMS_MSK);
-	writel_relaxed(m_cmd, se->base + SE_GENI_M_CMD0);
+	writel(m_cmd, se->base + SE_GENI_M_CMD0);
 }
 
 /**
@@ -316,7 +316,7 @@ static inline void geni_se_setup_s_cmd(struct geni_se *se, u32 cmd, u32 params)
 	s_cmd &= ~(S_OPCODE_MSK | S_PARAMS_MSK);
 	s_cmd |= (cmd << S_OPCODE_SHFT);
 	s_cmd |= (params & S_PARAMS_MSK);
-	writel_relaxed(s_cmd, se->base + SE_GENI_S_CMD0);
+	writel(s_cmd, se->base + SE_GENI_S_CMD0);
 }
 
 /**
