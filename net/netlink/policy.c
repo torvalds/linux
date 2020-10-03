@@ -35,7 +35,8 @@ static int add_policy(struct netlink_policy_dump_state **statep,
 		return 0;
 
 	for (i = 0; i < state->n_alloc; i++) {
-		if (state->policies[i].policy == policy)
+		if (state->policies[i].policy == policy &&
+		    state->policies[i].maxtype == maxtype)
 			return 0;
 
 		if (!state->policies[i].policy) {
@@ -63,12 +64,14 @@ static int add_policy(struct netlink_policy_dump_state **statep,
 }
 
 static unsigned int get_policy_idx(struct netlink_policy_dump_state *state,
-				   const struct nla_policy *policy)
+				   const struct nla_policy *policy,
+				   unsigned int maxtype)
 {
 	unsigned int i;
 
 	for (i = 0; i < state->n_alloc; i++) {
-		if (state->policies[i].policy == policy)
+		if (state->policies[i].policy == policy &&
+		    state->policies[i].maxtype == maxtype)
 			return i;
 	}
 
@@ -182,7 +185,8 @@ send_attribute:
 			type = NL_ATTR_TYPE_NESTED_ARRAY;
 		if (pt->nested_policy && pt->len &&
 		    (nla_put_u32(skb, NL_POLICY_TYPE_ATTR_POLICY_IDX,
-				 get_policy_idx(state, pt->nested_policy)) ||
+				 get_policy_idx(state, pt->nested_policy,
+						pt->len)) ||
 		     nla_put_u32(skb, NL_POLICY_TYPE_ATTR_POLICY_MAXTYPE,
 				 pt->len)))
 			goto nla_put_failure;
