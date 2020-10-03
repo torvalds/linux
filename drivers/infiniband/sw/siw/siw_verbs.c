@@ -544,6 +544,9 @@ int siw_verbs_modify_qp(struct ib_qp *base_qp, struct ib_qp_attr *attr,
 	if (!attr_mask)
 		return 0;
 
+	if (attr_mask & ~IB_QP_ATTR_STANDARD_BITS)
+		return -EOPNOTSUPP;
+
 	memset(&new_attrs, 0, sizeof(new_attrs));
 
 	if (attr_mask & IB_QP_ACCESS_FLAGS) {

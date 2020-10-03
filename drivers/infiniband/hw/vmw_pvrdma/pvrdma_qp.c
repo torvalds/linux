@@ -544,6 +544,9 @@ int pvrdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	enum ib_qp_state cur_state, next_state;
 	int ret;
 
+	if (attr_mask & ~IB_QP_ATTR_STANDARD_BITS)
+		return -EOPNOTSUPP;
+
 	/* Sanity checking. Should need lock here */
 	mutex_lock(&qp->mutex);
 	cur_state = (attr_mask & IB_QP_CUR_STATE) ? attr->cur_qp_state :

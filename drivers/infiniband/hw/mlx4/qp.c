@@ -2787,6 +2787,9 @@ int mlx4_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	struct mlx4_ib_qp *mqp = to_mqp(ibqp);
 	int ret;
 
+	if (attr_mask & ~IB_QP_ATTR_STANDARD_BITS)
+		return -EOPNOTSUPP;
+
 	ret = _mlx4_ib_modify_qp(ibqp, attr, attr_mask, udata);
 
 	if (mqp->mlx4_ib_qp_type == MLX4_IB_QPT_GSI) {

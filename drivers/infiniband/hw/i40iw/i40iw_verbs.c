@@ -855,6 +855,9 @@ int i40iw_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	u32 err;
 	unsigned long flags;
 
+	if (attr_mask & ~IB_QP_ATTR_STANDARD_BITS)
+		return -EOPNOTSUPP;
+
 	memset(&info, 0, sizeof(info));
 	ctx_info = &iwqp->ctx_info;
 	iwarp_info = &iwqp->iwarp_info;

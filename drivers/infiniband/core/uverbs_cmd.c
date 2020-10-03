@@ -1906,8 +1906,7 @@ static int ib_uverbs_modify_qp(struct uverbs_attr_bundle *attrs)
 	if (ret)
 		return ret;
 
-	if (cmd.base.attr_mask &
-	    ~((IB_USER_LEGACY_LAST_QP_ATTR_MASK << 1) - 1))
+	if (cmd.base.attr_mask & ~IB_QP_ATTR_STANDARD_BITS)
 		return -EOPNOTSUPP;
 
 	return modify_qp(attrs, &cmd);
@@ -1929,10 +1928,7 @@ static int ib_uverbs_ex_modify_qp(struct uverbs_attr_bundle *attrs)
 	 * Last bit is reserved for extending the attr_mask by
 	 * using another field.
 	 */
-	BUILD_BUG_ON(IB_USER_LAST_QP_ATTR_MASK == (1ULL << 31));
-
-	if (cmd.base.attr_mask &
-	    ~((IB_USER_LAST_QP_ATTR_MASK << 1) - 1))
+	if (cmd.base.attr_mask & ~(IB_QP_ATTR_STANDARD_BITS | IB_QP_RATE_LIMIT))
 		return -EOPNOTSUPP;
 
 	ret = modify_qp(attrs, &cmd);

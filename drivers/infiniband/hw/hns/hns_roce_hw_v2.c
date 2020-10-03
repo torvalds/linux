@@ -4757,6 +4757,9 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 	unsigned long rq_flag = 0;
 	int ret;
 
+	if (attr_mask & ~IB_QP_ATTR_STANDARD_BITS)
+		return -EOPNOTSUPP;
+
 	/*
 	 * In v2 engine, software pass context and context mask to hardware
 	 * when modifying qp. If software need modify some fields in context,
