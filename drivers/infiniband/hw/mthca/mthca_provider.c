@@ -470,7 +470,7 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 	int err;
 
 	if (init_attr->create_flags)
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(-EOPNOTSUPP);
 
 	switch (init_attr->qp_type) {
 	case IB_QPT_RC:

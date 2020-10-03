@@ -869,17 +869,6 @@ static int set_qp_param(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 		if (ret)
 			ibdev_err(ibdev, "Failed to set user SQ size\n");
 	} else {
-		if (init_attr->create_flags &
-		    IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK) {
-			ibdev_err(ibdev, "Failed to check multicast loopback\n");
-			return -EINVAL;
-		}
-
-		if (init_attr->create_flags & IB_QP_CREATE_IPOIB_UD_LSO) {
-			ibdev_err(ibdev, "Failed to check ipoib ud lso\n");
-			return -EINVAL;
-		}
-
 		ret = set_kernel_sq_size(hr_dev, &init_attr->cap, hr_qp);
 		if (ret)
 			ibdev_err(ibdev, "Failed to set kernel SQ size\n");
@@ -905,6 +894,9 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 
 	hr_qp->state = IB_QPS_RESET;
 	hr_qp->flush_flag = 0;
+
+	if (init_attr->create_flags)
+		return -EOPNOTSUPP;
 
 	ret = set_qp_param(hr_dev, hr_qp, init_attr, udata, &ucmd);
 	if (ret) {

@@ -395,6 +395,9 @@ static struct ib_qp *rxe_create_qp(struct ib_pd *ibpd,
 		uresp = udata->outbuf;
 	}
 
+	if (init->create_flags)
+		return ERR_PTR(-EOPNOTSUPP);
+
 	err = rxe_qp_chk_init(rxe, init);
 	if (err)
 		goto err1;

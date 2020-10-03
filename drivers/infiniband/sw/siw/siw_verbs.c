@@ -307,6 +307,9 @@ struct ib_qp *siw_create_qp(struct ib_pd *pd,
 
 	siw_dbg(base_dev, "create new QP\n");
 
+	if (attrs->create_flags)
+		return ERR_PTR(-EOPNOTSUPP);
+
 	if (atomic_inc_return(&sdev->num_qp) > SIW_MAX_QP) {
 		siw_dbg(base_dev, "too many QP's\n");
 		rv = -ENOMEM;

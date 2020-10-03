@@ -2239,6 +2239,9 @@ struct ib_qp *qedr_create_qp(struct ib_pd *ibpd,
 	struct ib_qp *ibqp;
 	int rc = 0;
 
+	if (attrs->create_flags)
+		return ERR_PTR(-EOPNOTSUPP);
+
 	if (attrs->qp_type == IB_QPT_XRC_TGT) {
 		xrcd = get_qedr_xrcd(attrs->xrcd);
 		dev = get_qedr_dev(xrcd->ibxrcd.device);
