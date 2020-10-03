@@ -1154,6 +1154,9 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 		}
 	}
 
+	if (ieee80211_hw_check(&local->hw, HAS_RATE_CONTROL))
+		sdata->vif.bss_conf.beacon_tx_rate = params->beacon_rate;
+
 	err = ieee80211_assign_beacon(sdata, &params->beacon, NULL);
 	if (err < 0)
 		goto error;

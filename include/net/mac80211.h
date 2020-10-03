@@ -628,6 +628,8 @@ struct ieee80211_fils_discovery {
  * @unsol_bcast_probe_resp_interval: Unsolicited broadcast probe response
  *	interval.
  * @s1g: BSS is S1G BSS (affects Association Request format).
+ * @beacon_tx_rate: The configured beacon transmit rate that needs to be passed
+ *	to driver when rate control is offloaded to firmware.
  */
 struct ieee80211_bss_conf {
 	const u8 *bssid;
@@ -698,6 +700,7 @@ struct ieee80211_bss_conf {
 	struct ieee80211_fils_discovery fils_discovery;
 	u32 unsol_bcast_probe_resp_interval;
 	bool s1g;
+	struct cfg80211_bitrate_mask beacon_tx_rate;
 };
 
 /**
