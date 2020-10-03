@@ -725,8 +725,10 @@ static int serdes_am654_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 
 	phy = devm_phy_create(dev, NULL, &ops);
-	if (IS_ERR(phy))
-		return PTR_ERR(phy);
+	if (IS_ERR(phy)) {
+		ret = PTR_ERR(phy);
+		goto clk_err;
+	}
 
 	phy_set_drvdata(phy, am654_phy);
 	phy_provider = devm_of_phy_provider_register(dev, serdes_am654_xlate);
