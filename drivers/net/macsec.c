@@ -3285,7 +3285,7 @@ done:
 	return skb->len;
 }
 
-static const struct genl_ops macsec_genl_ops[] = {
+static const struct genl_small_ops macsec_genl_ops[] = {
 	{
 		.cmd = MACSEC_CMD_GET_TXSC,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
@@ -3361,8 +3361,8 @@ static struct genl_family macsec_fam __ro_after_init = {
 	.policy = macsec_genl_policy,
 	.netnsok	= true,
 	.module		= THIS_MODULE,
-	.ops		= macsec_genl_ops,
-	.n_ops		= ARRAY_SIZE(macsec_genl_ops),
+	.small_ops	= macsec_genl_ops,
+	.n_small_ops	= ARRAY_SIZE(macsec_genl_ops),
 };
 
 static netdev_tx_t macsec_start_xmit(struct sk_buff *skb,

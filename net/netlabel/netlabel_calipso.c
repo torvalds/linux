@@ -304,7 +304,7 @@ static int netlbl_calipso_remove(struct sk_buff *skb, struct genl_info *info)
 /* NetLabel Generic NETLINK Command Definitions
  */
 
-static const struct genl_ops netlbl_calipso_ops[] = {
+static const struct genl_small_ops netlbl_calipso_ops[] = {
 	{
 	.cmd = NLBL_CALIPSO_C_ADD,
 	.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
@@ -342,8 +342,8 @@ static struct genl_family netlbl_calipso_gnl_family __ro_after_init = {
 	.maxattr = NLBL_CALIPSO_A_MAX,
 	.policy = calipso_genl_policy,
 	.module = THIS_MODULE,
-	.ops = netlbl_calipso_ops,
-	.n_ops = ARRAY_SIZE(netlbl_calipso_ops),
+	.small_ops = netlbl_calipso_ops,
+	.n_small_ops = ARRAY_SIZE(netlbl_calipso_ops),
 };
 
 /* NetLabel Generic NETLINK Protocol Functions

@@ -911,7 +911,7 @@ static int fou_nl_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	return skb->len;
 }
 
-static const struct genl_ops fou_nl_ops[] = {
+static const struct genl_small_ops fou_nl_ops[] = {
 	{
 		.cmd = FOU_CMD_ADD,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
@@ -940,8 +940,8 @@ static struct genl_family fou_nl_family __ro_after_init = {
 	.policy = fou_nl_policy,
 	.netnsok	= true,
 	.module		= THIS_MODULE,
-	.ops		= fou_nl_ops,
-	.n_ops		= ARRAY_SIZE(fou_nl_ops),
+	.small_ops	= fou_nl_ops,
+	.n_small_ops	= ARRAY_SIZE(fou_nl_ops),
 };
 
 size_t fou_encap_hlen(struct ip_tunnel_encap *e)

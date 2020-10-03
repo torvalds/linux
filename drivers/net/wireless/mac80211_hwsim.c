@@ -3964,7 +3964,7 @@ done:
 }
 
 /* Generic Netlink operations array */
-static const struct genl_ops hwsim_ops[] = {
+static const struct genl_small_ops hwsim_ops[] = {
 	{
 		.cmd = HWSIM_CMD_REGISTER,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
@@ -4008,8 +4008,8 @@ static struct genl_family hwsim_genl_family __ro_after_init = {
 	.policy = hwsim_genl_policy,
 	.netnsok = true,
 	.module = THIS_MODULE,
-	.ops = hwsim_ops,
-	.n_ops = ARRAY_SIZE(hwsim_ops),
+	.small_ops = hwsim_ops,
+	.n_small_ops = ARRAY_SIZE(hwsim_ops),
 	.mcgrps = hwsim_mcgrps,
 	.n_mcgrps = ARRAY_SIZE(hwsim_mcgrps),
 };
