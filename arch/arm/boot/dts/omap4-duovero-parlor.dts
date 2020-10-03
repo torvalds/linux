@@ -171,11 +171,11 @@
 };
 
 &dss {
-	status = "ok";
+	status = "okay";
 };
 
 &hdmi {
-	status = "ok";
+	status = "okay";
 	vdda-supply = <&vdac>;
 
 	pinctrl-names = "default";

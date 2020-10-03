@@ -521,54 +521,57 @@
 			#size-cells = <1>;
 			ranges = <0x0 0x100000 0x8000>;
 
-			mac: ethernet@0 {
-				compatible = "ti,am4372-cpsw","ti,cpsw";
-				reg = <0x0 0x800
-				       0x1200 0x100>;
+			mac_sw: switch@0 {
+				compatible = "ti,am4372-cpsw","ti,cpsw-switch";
+				reg = <0x0 0x4000>;
+				ranges = <0 0 0x4000>;
+				clocks = <&cpsw_125mhz_gclk>, <&dpll_clksel_mac_clk>;
+				clock-names = "fck", "50mclk";
+				assigned-clocks = <&dpll_clksel_mac_clk>;
+				assigned-clock-rates = <50000000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				syscon = <&scm_conf>;
+				status = "disabled";
+
 				interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH
 					      GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH
 					      GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH
 					      GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
-				#address-cells = <1>;
-				#size-cells = <1>;
-				clocks = <&cpsw_125mhz_gclk>, <&cpsw_cpts_rft_clk>,
-					 <&dpll_clksel_mac_clk>;
-				clock-names = "fck", "cpts", "50mclk";
-				assigned-clocks = <&dpll_clksel_mac_clk>;
-				assigned-clock-rates = <50000000>;
-				status = "disabled";
-				cpdma_channels = <8>;
-				ale_entries = <1024>;
-				bd_ram_size = <0x2000>;
-				mac_control = <0x20>;
-				slaves = <2>;
-				active_slave = <0>;
-				cpts_clock_mult = <0x80000000>;
-				cpts_clock_shift = <29>;
-				ranges = <0 0 0x8000>;
-				syscon = <&scm_conf>;
+				interrupt-names = "rx_thresh", "rx", "tx", "misc";
 
-				davinci_mdio: mdio@1000 {
-					compatible = "ti,am4372-mdio","ti,cpsw-mdio","ti,davinci_mdio";
-					reg = <0x1000 0x100>;
-					clocks = <&cpsw_125mhz_clkctrl AM4_CPSW_125MHZ_CPGMAC0_CLKCTRL 0>;
+				ethernet-ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					cpsw_port1: port@1 {
+						reg = <1>;
+						label = "port1";
+						mac-address = [ 00 00 00 00 00 00 ];
+						phys = <&phy_gmii_sel 1 0>;
+					};
+
+					cpsw_port2: port@2 {
+						reg = <2>;
+						label = "port2";
+						mac-address = [ 00 00 00 00 00 00 ];
+						phys = <&phy_gmii_sel 2 0>;
+					};
+				};
+
+				davinci_mdio_sw: mdio@1000 {
+					compatible = "ti,am4372-mdio", "ti,cpsw-mdio","ti,davinci_mdio";
+					clocks = <&cpsw_125mhz_gclk>;
 					clock-names = "fck";
 					#address-cells = <1>;
 					#size-cells = <0>;
 					bus_freq = <1000000>;
-					status = "disabled";
+					reg = <0x1000 0x100>;
 				};
 
-				cpsw_emac0: slave@200 {
-					/* Filled in by U-Boot */
-					mac-address = [ 00 00 00 00 00 00 ];
-					phys = <&phy_gmii_sel 1 0>;
-				};
-
-				cpsw_emac1: slave@300 {
-					/* Filled in by U-Boot */
-					mac-address = [ 00 00 00 00 00 00 ];
-					phys = <&phy_gmii_sel 2 0>;
+				cpts {
+					clocks = <&cpsw_cpts_rft_clk>;
+					clock-names = "cpts";
 				};
 			};
 		};

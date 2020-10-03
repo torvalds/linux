@@ -76,7 +76,6 @@
 		vana-supply = <&vaux3>;
 		clocks = <&isp 0>;
 		clock-frequency = <9600000>;
-		nokia,nvm-size = <(16 * 64)>;
 		flash-leds = <&as3645a_flash &as3645a_indicator>;
 		port {
 			smia_1_1: endpoint {
@@ -205,13 +204,13 @@
 };
 
 &dss {
-	status = "ok";
+	status = "okay";
 
 	vdda_video-supply = <&vdac>;
 };
 
 &dsi {
-	status = "ok";
+	status = "okay";
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&dsi_pins>;

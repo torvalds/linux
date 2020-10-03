@@ -1083,7 +1083,7 @@
 };
 
 &dss {
-	status = "ok";
+	status = "okay";
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&dss_sdi_pins>;
@@ -1106,7 +1106,7 @@
 };
 
 &venc {
-	status = "ok";
+	status = "okay";
 
 	vdda-supply = <&vdac>;
 
@@ -1119,7 +1119,7 @@
 };
 
 &mcbsp2 {
-	status = "ok";
+	status = "okay";
 };
 
 &ssi_port1 {
