@@ -179,6 +179,8 @@ patternProperties:
     description: CALAO Systems SAS
   "^calxeda,.*":
     description: Calxeda
+  "^caninos,.*":
+    description: Caninos Loucos Program
   "^capella,.*":
     description: Capella Microsystems, Inc
   "^cascoda,.*":
@@ -894,6 +896,8 @@ patternProperties:
     description: Ronbo Electronics
   "^roofull,.*":
     description: Shenzhen Roofull Technology Co, Ltd
+  "^roseapplepi,.*":
+    description: RoseapplePi.org
   "^samsung,.*":
     description: Samsung Semiconductor
   "^samtec,.*":
