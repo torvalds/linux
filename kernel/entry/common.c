@@ -161,7 +161,6 @@ static unsigned long exit_to_user_mode_loop(struct pt_regs *regs,
 			arch_do_signal(regs);
 
 		if (ti_work & _TIF_NOTIFY_RESUME) {
-			clear_thread_flag(TIF_NOTIFY_RESUME);
 			tracehook_notify_resume(regs);
 			rseq_handle_notify_resume(NULL, regs);
 		}
