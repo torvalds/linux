@@ -288,6 +288,10 @@ int hns_roce_create_srq(struct ib_srq *ib_srq,
 	int ret;
 	u32 cqn;
 
+	if (init_attr->srq_type != IB_SRQT_BASIC &&
+	    init_attr->srq_type != IB_SRQT_XRC)
+		return -EOPNOTSUPP;
+
 	/* Check the actual SRQ wqe and SRQ sge num */
 	if (init_attr->attr.max_wr >= hr_dev->caps.max_srq_wrs ||
 	    init_attr->attr.max_sge > hr_dev->caps.max_srq_sges)

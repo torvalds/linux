@@ -1770,6 +1770,9 @@ int ocrdma_create_srq(struct ib_srq *ibsrq, struct ib_srq_init_attr *init_attr,
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibsrq->device);
 	struct ocrdma_srq *srq = get_ocrdma_srq(ibsrq);
 
+	if (init_attr->srq_type != IB_SRQT_BASIC)
+		return -EOPNOTSUPP;
+
 	if (init_attr->attr.max_sge > dev->attr.max_recv_sge)
 		return -EINVAL;
 	if (init_attr->attr.max_wr > dev->attr.max_rqe)

@@ -265,6 +265,9 @@ static int rxe_create_srq(struct ib_srq *ibsrq, struct ib_srq_init_attr *init,
 	struct rxe_srq *srq = to_rsrq(ibsrq);
 	struct rxe_create_srq_resp __user *uresp = NULL;
 
+	if (init->srq_type != IB_SRQT_BASIC)
+		return -EOPNOTSUPP;
+
 	if (udata) {
 		if (udata->outlen < sizeof(*uresp))
 			return -EINVAL;

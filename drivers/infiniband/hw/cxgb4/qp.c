@@ -2680,6 +2680,9 @@ int c4iw_create_srq(struct ib_srq *ib_srq, struct ib_srq_init_attr *attrs,
 	int ret;
 	int wr_len;
 
+	if (attrs->srq_type != IB_SRQT_BASIC)
+		return -EOPNOTSUPP;
+
 	pr_debug("%s ib_pd %p\n", __func__, pd);
 
 	php = to_c4iw_pd(pd);

@@ -121,7 +121,7 @@ int pvrdma_create_srq(struct ib_srq *ibsrq, struct ib_srq_init_attr *init_attr,
 		dev_warn(&dev->pdev->dev,
 			 "shared receive queue type %d not supported\n",
 			 init_attr->srq_type);
-		return -EINVAL;
+		return -EOPNOTSUPP;
 	}
 
 	if (init_attr->attr.max_wr  > dev->dsr->caps.max_srq_wr ||
