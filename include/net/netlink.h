@@ -1937,9 +1937,12 @@ void nla_get_range_signed(const struct nla_policy *pt,
 
 struct netlink_policy_dump_state;
 
-int netlink_policy_dump_start(const struct nla_policy *policy,
-			      unsigned int maxtype,
-			      struct netlink_policy_dump_state **state);
+int netlink_policy_dump_add_policy(struct netlink_policy_dump_state **pstate,
+				   const struct nla_policy *policy,
+				   unsigned int maxtype);
+int netlink_policy_dump_get_policy_idx(struct netlink_policy_dump_state *state,
+				       const struct nla_policy *policy,
+				       unsigned int maxtype);
 bool netlink_policy_dump_loop(struct netlink_policy_dump_state *state);
 int netlink_policy_dump_write(struct sk_buff *skb,
 			      struct netlink_policy_dump_state *state);
