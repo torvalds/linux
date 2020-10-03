@@ -4139,25 +4139,11 @@ static int mlx5_ib_stage_caps_init(struct mlx5_ib_dev *dev)
 	struct mlx5_core_dev *mdev = dev->mdev;
 	int err;
 
-	dev->ib_dev.uverbs_cmd_mask	=
-		(1ull << IB_USER_VERBS_CMD_GET_CONTEXT)		|
-		(1ull << IB_USER_VERBS_CMD_QUERY_DEVICE)	|
-		(1ull << IB_USER_VERBS_CMD_QUERY_PORT)		|
-		(1ull << IB_USER_VERBS_CMD_ALLOC_PD)		|
-		(1ull << IB_USER_VERBS_CMD_DEALLOC_PD)		|
+	dev->ib_dev.uverbs_cmd_mask |=
 		(1ull << IB_USER_VERBS_CMD_CREATE_AH)		|
 		(1ull << IB_USER_VERBS_CMD_DESTROY_AH)		|
-		(1ull << IB_USER_VERBS_CMD_REG_MR)		|
 		(1ull << IB_USER_VERBS_CMD_REREG_MR)		|
-		(1ull << IB_USER_VERBS_CMD_DEREG_MR)		|
-		(1ull << IB_USER_VERBS_CMD_CREATE_COMP_CHANNEL)	|
-		(1ull << IB_USER_VERBS_CMD_CREATE_CQ)		|
 		(1ull << IB_USER_VERBS_CMD_RESIZE_CQ)		|
-		(1ull << IB_USER_VERBS_CMD_DESTROY_CQ)		|
-		(1ull << IB_USER_VERBS_CMD_CREATE_QP)		|
-		(1ull << IB_USER_VERBS_CMD_MODIFY_QP)		|
-		(1ull << IB_USER_VERBS_CMD_QUERY_QP)		|
-		(1ull << IB_USER_VERBS_CMD_DESTROY_QP)		|
 		(1ull << IB_USER_VERBS_CMD_ATTACH_MCAST)	|
 		(1ull << IB_USER_VERBS_CMD_DETACH_MCAST)	|
 		(1ull << IB_USER_VERBS_CMD_CREATE_SRQ)		|

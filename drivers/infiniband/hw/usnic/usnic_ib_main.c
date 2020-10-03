@@ -398,21 +398,7 @@ static void *usnic_ib_device_add(struct pci_dev *dev)
 	us_ibdev->ib_dev.num_comp_vectors = USNIC_IB_NUM_COMP_VECTORS;
 	us_ibdev->ib_dev.dev.parent = &dev->dev;
 
-	us_ibdev->ib_dev.uverbs_cmd_mask =
-		(1ull << IB_USER_VERBS_CMD_GET_CONTEXT) |
-		(1ull << IB_USER_VERBS_CMD_QUERY_DEVICE) |
-		(1ull << IB_USER_VERBS_CMD_QUERY_PORT) |
-		(1ull << IB_USER_VERBS_CMD_ALLOC_PD) |
-		(1ull << IB_USER_VERBS_CMD_DEALLOC_PD) |
-		(1ull << IB_USER_VERBS_CMD_REG_MR) |
-		(1ull << IB_USER_VERBS_CMD_DEREG_MR) |
-		(1ull << IB_USER_VERBS_CMD_CREATE_COMP_CHANNEL) |
-		(1ull << IB_USER_VERBS_CMD_CREATE_CQ) |
-		(1ull << IB_USER_VERBS_CMD_DESTROY_CQ) |
-		(1ull << IB_USER_VERBS_CMD_CREATE_QP) |
-		(1ull << IB_USER_VERBS_CMD_MODIFY_QP) |
-		(1ull << IB_USER_VERBS_CMD_QUERY_QP) |
-		(1ull << IB_USER_VERBS_CMD_DESTROY_QP) |
+	us_ibdev->ib_dev.uverbs_cmd_mask |=
 		(1ull << IB_USER_VERBS_CMD_ATTACH_MCAST) |
 		(1ull << IB_USER_VERBS_CMD_DETACH_MCAST) |
 		(1ull << IB_USER_VERBS_CMD_OPEN_QP);

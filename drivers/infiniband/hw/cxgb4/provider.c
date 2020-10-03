@@ -531,23 +531,9 @@ void c4iw_register_device(struct work_struct *work)
 	if (fastreg_support)
 		dev->device_cap_flags |= IB_DEVICE_MEM_MGT_EXTENSIONS;
 	dev->ibdev.local_dma_lkey = 0;
-	dev->ibdev.uverbs_cmd_mask =
-	    (1ull << IB_USER_VERBS_CMD_GET_CONTEXT) |
-	    (1ull << IB_USER_VERBS_CMD_QUERY_DEVICE) |
-	    (1ull << IB_USER_VERBS_CMD_QUERY_PORT) |
-	    (1ull << IB_USER_VERBS_CMD_ALLOC_PD) |
-	    (1ull << IB_USER_VERBS_CMD_DEALLOC_PD) |
-	    (1ull << IB_USER_VERBS_CMD_REG_MR) |
-	    (1ull << IB_USER_VERBS_CMD_DEREG_MR) |
-	    (1ull << IB_USER_VERBS_CMD_CREATE_COMP_CHANNEL) |
-	    (1ull << IB_USER_VERBS_CMD_CREATE_CQ) |
-	    (1ull << IB_USER_VERBS_CMD_DESTROY_CQ) |
+	dev->ibdev.uverbs_cmd_mask |=
 	    (1ull << IB_USER_VERBS_CMD_REQ_NOTIFY_CQ) |
-	    (1ull << IB_USER_VERBS_CMD_CREATE_QP) |
-	    (1ull << IB_USER_VERBS_CMD_MODIFY_QP) |
-	    (1ull << IB_USER_VERBS_CMD_QUERY_QP) |
 	    (1ull << IB_USER_VERBS_CMD_POLL_CQ) |
-	    (1ull << IB_USER_VERBS_CMD_DESTROY_QP) |
 	    (1ull << IB_USER_VERBS_CMD_POST_SEND) |
 	    (1ull << IB_USER_VERBS_CMD_POST_RECV) |
 	    (1ull << IB_USER_VERBS_CMD_CREATE_SRQ) |

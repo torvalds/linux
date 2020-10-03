@@ -2684,25 +2684,11 @@ static struct i40iw_ib_device *i40iw_init_rdma_device(struct i40iw_device *iwdev
 	iwibdev->ibdev.node_type = RDMA_NODE_RNIC;
 	ether_addr_copy((u8 *)&iwibdev->ibdev.node_guid, netdev->dev_addr);
 
-	iwibdev->ibdev.uverbs_cmd_mask =
-	    (1ull << IB_USER_VERBS_CMD_GET_CONTEXT) |
-	    (1ull << IB_USER_VERBS_CMD_QUERY_DEVICE) |
-	    (1ull << IB_USER_VERBS_CMD_QUERY_PORT) |
-	    (1ull << IB_USER_VERBS_CMD_ALLOC_PD) |
-	    (1ull << IB_USER_VERBS_CMD_DEALLOC_PD) |
-	    (1ull << IB_USER_VERBS_CMD_REG_MR) |
-	    (1ull << IB_USER_VERBS_CMD_DEREG_MR) |
-	    (1ull << IB_USER_VERBS_CMD_CREATE_COMP_CHANNEL) |
-	    (1ull << IB_USER_VERBS_CMD_CREATE_CQ) |
-	    (1ull << IB_USER_VERBS_CMD_DESTROY_CQ) |
+	iwibdev->ibdev.uverbs_cmd_mask |=
 	    (1ull << IB_USER_VERBS_CMD_REQ_NOTIFY_CQ) |
-	    (1ull << IB_USER_VERBS_CMD_CREATE_QP) |
-	    (1ull << IB_USER_VERBS_CMD_MODIFY_QP) |
-	    (1ull << IB_USER_VERBS_CMD_QUERY_QP) |
 	    (1ull << IB_USER_VERBS_CMD_POLL_CQ) |
 	    (1ull << IB_USER_VERBS_CMD_CREATE_AH) |
 	    (1ull << IB_USER_VERBS_CMD_DESTROY_AH) |
-	    (1ull << IB_USER_VERBS_CMD_DESTROY_QP) |
 	    (1ull << IB_USER_VERBS_CMD_POST_RECV) |
 	    (1ull << IB_USER_VERBS_CMD_POST_SEND);
 	iwibdev->ibdev.phys_port_cnt = 1;

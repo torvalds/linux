@@ -205,23 +205,9 @@ static int pvrdma_register_device(struct pvrdma_dev *dev)
 	dev->flags = 0;
 	dev->ib_dev.num_comp_vectors = 1;
 	dev->ib_dev.dev.parent = &dev->pdev->dev;
-	dev->ib_dev.uverbs_cmd_mask =
-		(1ull << IB_USER_VERBS_CMD_GET_CONTEXT)		|
-		(1ull << IB_USER_VERBS_CMD_QUERY_DEVICE)	|
-		(1ull << IB_USER_VERBS_CMD_QUERY_PORT)		|
-		(1ull << IB_USER_VERBS_CMD_ALLOC_PD)		|
-		(1ull << IB_USER_VERBS_CMD_DEALLOC_PD)		|
-		(1ull << IB_USER_VERBS_CMD_REG_MR)		|
-		(1ull << IB_USER_VERBS_CMD_DEREG_MR)		|
-		(1ull << IB_USER_VERBS_CMD_CREATE_COMP_CHANNEL)	|
-		(1ull << IB_USER_VERBS_CMD_CREATE_CQ)		|
+	dev->ib_dev.uverbs_cmd_mask |=
 		(1ull << IB_USER_VERBS_CMD_POLL_CQ)		|
 		(1ull << IB_USER_VERBS_CMD_REQ_NOTIFY_CQ)	|
-		(1ull << IB_USER_VERBS_CMD_DESTROY_CQ)		|
-		(1ull << IB_USER_VERBS_CMD_CREATE_QP)		|
-		(1ull << IB_USER_VERBS_CMD_MODIFY_QP)		|
-		(1ull << IB_USER_VERBS_CMD_QUERY_QP)		|
-		(1ull << IB_USER_VERBS_CMD_DESTROY_QP)		|
 		(1ull << IB_USER_VERBS_CMD_POST_SEND)		|
 		(1ull << IB_USER_VERBS_CMD_POST_RECV)		|
 		(1ull << IB_USER_VERBS_CMD_CREATE_AH)		|

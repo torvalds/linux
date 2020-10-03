@@ -702,23 +702,9 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 	ibdev->local_dma_lkey = BNXT_QPLIB_RSVD_LKEY;
 
 	/* User space */
-	ibdev->uverbs_cmd_mask =
-			(1ull << IB_USER_VERBS_CMD_GET_CONTEXT)		|
-			(1ull << IB_USER_VERBS_CMD_QUERY_DEVICE)	|
-			(1ull << IB_USER_VERBS_CMD_QUERY_PORT)		|
-			(1ull << IB_USER_VERBS_CMD_ALLOC_PD)		|
-			(1ull << IB_USER_VERBS_CMD_DEALLOC_PD)		|
-			(1ull << IB_USER_VERBS_CMD_REG_MR)		|
+	ibdev->uverbs_cmd_mask |=
 			(1ull << IB_USER_VERBS_CMD_REREG_MR)		|
-			(1ull << IB_USER_VERBS_CMD_DEREG_MR)		|
-			(1ull << IB_USER_VERBS_CMD_CREATE_COMP_CHANNEL) |
-			(1ull << IB_USER_VERBS_CMD_CREATE_CQ)		|
 			(1ull << IB_USER_VERBS_CMD_RESIZE_CQ)		|
-			(1ull << IB_USER_VERBS_CMD_DESTROY_CQ)		|
-			(1ull << IB_USER_VERBS_CMD_CREATE_QP)		|
-			(1ull << IB_USER_VERBS_CMD_MODIFY_QP)		|
-			(1ull << IB_USER_VERBS_CMD_QUERY_QP)		|
-			(1ull << IB_USER_VERBS_CMD_DESTROY_QP)		|
 			(1ull << IB_USER_VERBS_CMD_CREATE_SRQ)		|
 			(1ull << IB_USER_VERBS_CMD_MODIFY_SRQ)		|
 			(1ull << IB_USER_VERBS_CMD_QUERY_SRQ)		|

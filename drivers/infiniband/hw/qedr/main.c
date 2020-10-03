@@ -249,27 +249,14 @@ static int qedr_register_device(struct qedr_dev *dev)
 	dev->ibdev.node_guid = dev->attr.node_guid;
 	memcpy(dev->ibdev.node_desc, QEDR_NODE_DESC, sizeof(QEDR_NODE_DESC));
 
-	dev->ibdev.uverbs_cmd_mask = QEDR_UVERBS(GET_CONTEXT) |
-				     QEDR_UVERBS(QUERY_DEVICE) |
-				     QEDR_UVERBS(QUERY_PORT) |
-				     QEDR_UVERBS(ALLOC_PD) |
-				     QEDR_UVERBS(DEALLOC_PD) |
-				     QEDR_UVERBS(CREATE_COMP_CHANNEL) |
-				     QEDR_UVERBS(CREATE_CQ) |
+	dev->ibdev.uverbs_cmd_mask |=
 				     QEDR_UVERBS(RESIZE_CQ) |
-				     QEDR_UVERBS(DESTROY_CQ) |
 				     QEDR_UVERBS(REQ_NOTIFY_CQ) |
-				     QEDR_UVERBS(CREATE_QP) |
-				     QEDR_UVERBS(MODIFY_QP) |
-				     QEDR_UVERBS(QUERY_QP) |
-				     QEDR_UVERBS(DESTROY_QP) |
 				     QEDR_UVERBS(CREATE_SRQ) |
 				     QEDR_UVERBS(DESTROY_SRQ) |
 				     QEDR_UVERBS(QUERY_SRQ) |
 				     QEDR_UVERBS(MODIFY_SRQ) |
 				     QEDR_UVERBS(POST_SRQ_RECV) |
-				     QEDR_UVERBS(REG_MR) |
-				     QEDR_UVERBS(DEREG_MR) |
 				     QEDR_UVERBS(POLL_CQ) |
 				     QEDR_UVERBS(POST_SEND) |
 				     QEDR_UVERBS(POST_RECV);
