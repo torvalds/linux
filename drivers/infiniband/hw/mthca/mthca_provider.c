@@ -1158,22 +1158,12 @@ int mthca_register_device(struct mthca_dev *dev)
 	if (ret)
 		return ret;
 
-	dev->ib_dev.uverbs_cmd_mask |=
-		(1ull << IB_USER_VERBS_CMD_RESIZE_CQ)		|
-		(1ull << IB_USER_VERBS_CMD_ATTACH_MCAST)	|
-		(1ull << IB_USER_VERBS_CMD_DETACH_MCAST);
 	dev->ib_dev.node_type            = RDMA_NODE_IB_CA;
 	dev->ib_dev.phys_port_cnt        = dev->limits.num_ports;
 	dev->ib_dev.num_comp_vectors     = 1;
 	dev->ib_dev.dev.parent           = &dev->pdev->dev;
 
 	if (dev->mthca_flags & MTHCA_FLAG_SRQ) {
-		dev->ib_dev.uverbs_cmd_mask	|=
-			(1ull << IB_USER_VERBS_CMD_CREATE_SRQ)		|
-			(1ull << IB_USER_VERBS_CMD_MODIFY_SRQ)		|
-			(1ull << IB_USER_VERBS_CMD_QUERY_SRQ)		|
-			(1ull << IB_USER_VERBS_CMD_DESTROY_SRQ);
-
 		if (mthca_is_memfree(dev))
 			ib_set_device_ops(&dev->ib_dev,
 					  &mthca_dev_arbel_srq_ops);

@@ -492,18 +492,12 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 	ib_dev->local_dma_lkey = hr_dev->caps.reserved_lkey;
 	ib_dev->num_comp_vectors = hr_dev->caps.num_comp_vectors;
 
-	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_REREG_MR) {
-		ib_dev->uverbs_cmd_mask |= (1ULL << IB_USER_VERBS_CMD_REREG_MR);
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_REREG_MR)
 		ib_set_device_ops(ib_dev, &hns_roce_dev_mr_ops);
-	}
 
 	/* MW */
-	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_MW) {
-		ib_dev->uverbs_cmd_mask |=
-					(1ULL << IB_USER_VERBS_CMD_ALLOC_MW) |
-					(1ULL << IB_USER_VERBS_CMD_DEALLOC_MW);
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_MW)
 		ib_set_device_ops(ib_dev, &hns_roce_dev_mw_ops);
-	}
 
 	/* FRMR */
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_FRMR)
@@ -512,10 +506,6 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 	/* SRQ */
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_SRQ) {
 		ib_dev->uverbs_cmd_mask |=
-				(1ULL << IB_USER_VERBS_CMD_CREATE_SRQ) |
-				(1ULL << IB_USER_VERBS_CMD_MODIFY_SRQ) |
-				(1ULL << IB_USER_VERBS_CMD_QUERY_SRQ) |
-				(1ULL << IB_USER_VERBS_CMD_DESTROY_SRQ) |
 				(1ULL << IB_USER_VERBS_CMD_POST_SRQ_RECV);
 		ib_set_device_ops(ib_dev, &hns_roce_dev_srq_ops);
 		ib_set_device_ops(ib_dev, hr_dev->hw->hns_roce_dev_srq_ops);

@@ -351,11 +351,7 @@ static struct siw_device *siw_device_create(struct net_device *netdev)
 		(1ull << IB_USER_VERBS_CMD_REQ_NOTIFY_CQ) |
 		(1ull << IB_USER_VERBS_CMD_POST_SEND) |
 		(1ull << IB_USER_VERBS_CMD_POST_RECV) |
-		(1ull << IB_USER_VERBS_CMD_CREATE_SRQ) |
-		(1ull << IB_USER_VERBS_CMD_POST_SRQ_RECV) |
-		(1ull << IB_USER_VERBS_CMD_MODIFY_SRQ) |
-		(1ull << IB_USER_VERBS_CMD_QUERY_SRQ) |
-		(1ull << IB_USER_VERBS_CMD_DESTROY_SRQ);
+		(1ull << IB_USER_VERBS_CMD_POST_SRQ_RECV);
 
 	base_dev->node_type = RDMA_NODE_RNIC;
 	memcpy(base_dev->node_desc, SIW_NODE_DESC_COMMON,

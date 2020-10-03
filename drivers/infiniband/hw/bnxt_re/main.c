@@ -703,12 +703,6 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 
 	/* User space */
 	ibdev->uverbs_cmd_mask |=
-			(1ull << IB_USER_VERBS_CMD_REREG_MR)		|
-			(1ull << IB_USER_VERBS_CMD_RESIZE_CQ)		|
-			(1ull << IB_USER_VERBS_CMD_CREATE_SRQ)		|
-			(1ull << IB_USER_VERBS_CMD_MODIFY_SRQ)		|
-			(1ull << IB_USER_VERBS_CMD_QUERY_SRQ)		|
-			(1ull << IB_USER_VERBS_CMD_DESTROY_SRQ)		|
 			(1ull << IB_USER_VERBS_CMD_CREATE_AH)		|
 			(1ull << IB_USER_VERBS_CMD_MODIFY_AH)		|
 			(1ull << IB_USER_VERBS_CMD_QUERY_AH)		|

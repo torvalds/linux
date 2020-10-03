@@ -2658,16 +2658,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	ibdev->ib_dev.dev.parent	= &dev->persist->pdev->dev;
 
 	ibdev->ib_dev.uverbs_cmd_mask |=
-		(1ull << IB_USER_VERBS_CMD_REREG_MR)		|
-		(1ull << IB_USER_VERBS_CMD_RESIZE_CQ)		|
-		(1ull << IB_USER_VERBS_CMD_ATTACH_MCAST)	|
-		(1ull << IB_USER_VERBS_CMD_DETACH_MCAST)	|
-		(1ull << IB_USER_VERBS_CMD_CREATE_SRQ)		|
-		(1ull << IB_USER_VERBS_CMD_MODIFY_SRQ)		|
-		(1ull << IB_USER_VERBS_CMD_QUERY_SRQ)		|
-		(1ull << IB_USER_VERBS_CMD_DESTROY_SRQ)		|
-		(1ull << IB_USER_VERBS_CMD_CREATE_XSRQ)		|
-		(1ull << IB_USER_VERBS_CMD_OPEN_QP);
+		(1ull << IB_USER_VERBS_CMD_CREATE_XSRQ);
 
 	ib_set_device_ops(&ibdev->ib_dev, &mlx4_ib_dev_ops);
 	ibdev->ib_dev.uverbs_ex_cmd_mask |=
@@ -2682,17 +2673,10 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 		ib_set_device_ops(&ibdev->ib_dev, &mlx4_ib_dev_wq_ops);
 
 	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_MEM_WINDOW ||
-	    dev->caps.bmme_flags & MLX4_BMME_FLAG_TYPE_2_WIN) {
-		ibdev->ib_dev.uverbs_cmd_mask |=
-			(1ull << IB_USER_VERBS_CMD_ALLOC_MW) |
-			(1ull << IB_USER_VERBS_CMD_DEALLOC_MW);
+	    dev->caps.bmme_flags & MLX4_BMME_FLAG_TYPE_2_WIN)
 		ib_set_device_ops(&ibdev->ib_dev, &mlx4_ib_dev_mw_ops);
-	}
 
 	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_XRC) {
-		ibdev->ib_dev.uverbs_cmd_mask |=
-			(1ull << IB_USER_VERBS_CMD_OPEN_XRCD) |
-			(1ull << IB_USER_VERBS_CMD_CLOSE_XRCD);
 		ib_set_device_ops(&ibdev->ib_dev, &mlx4_ib_dev_xrc_ops);
 	}
 

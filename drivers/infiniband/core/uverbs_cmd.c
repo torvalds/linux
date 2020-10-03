@@ -3999,8 +3999,7 @@ const struct uapi_definition uverbs_def_write_intf[] = {
 		DECLARE_UVERBS_WRITE(
 			IB_USER_VERBS_CMD_CLOSE_XRCD,
 			ib_uverbs_close_xrcd,
-			UAPI_DEF_WRITE_I(struct ib_uverbs_close_xrcd),
-			UAPI_DEF_METHOD_NEEDS_FN(dealloc_xrcd)),
+			UAPI_DEF_WRITE_I(struct ib_uverbs_close_xrcd)),
 		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_OPEN_QP,
 				     ib_uverbs_open_qp,
 				     UAPI_DEF_WRITE_UDATA_IO(
@@ -4010,8 +4009,9 @@ const struct uapi_definition uverbs_def_write_intf[] = {
 				     ib_uverbs_open_xrcd,
 				     UAPI_DEF_WRITE_UDATA_IO(
 					     struct ib_uverbs_open_xrcd,
-					     struct ib_uverbs_open_xrcd_resp),
-				     UAPI_DEF_METHOD_NEEDS_FN(alloc_xrcd))),
+					     struct ib_uverbs_open_xrcd_resp)),
+		UAPI_DEF_OBJ_NEEDS_FN(alloc_xrcd),
+		UAPI_DEF_OBJ_NEEDS_FN(dealloc_xrcd)),
 
 	{},
 };

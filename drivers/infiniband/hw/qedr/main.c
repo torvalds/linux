@@ -189,8 +189,7 @@ static void qedr_roce_register_device(struct qedr_dev *dev)
 
 	ib_set_device_ops(&dev->ibdev, &qedr_roce_dev_ops);
 
-	dev->ibdev.uverbs_cmd_mask |= QEDR_UVERBS(OPEN_XRCD) |
-		QEDR_UVERBS(CLOSE_XRCD) |
+	dev->ibdev.uverbs_cmd_mask |=
 		QEDR_UVERBS(CREATE_XSRQ);
 }
 
@@ -250,12 +249,7 @@ static int qedr_register_device(struct qedr_dev *dev)
 	memcpy(dev->ibdev.node_desc, QEDR_NODE_DESC, sizeof(QEDR_NODE_DESC));
 
 	dev->ibdev.uverbs_cmd_mask |=
-				     QEDR_UVERBS(RESIZE_CQ) |
 				     QEDR_UVERBS(REQ_NOTIFY_CQ) |
-				     QEDR_UVERBS(CREATE_SRQ) |
-				     QEDR_UVERBS(DESTROY_SRQ) |
-				     QEDR_UVERBS(QUERY_SRQ) |
-				     QEDR_UVERBS(MODIFY_SRQ) |
 				     QEDR_UVERBS(POST_SRQ_RECV) |
 				     QEDR_UVERBS(POLL_CQ) |
 				     QEDR_UVERBS(POST_SEND) |

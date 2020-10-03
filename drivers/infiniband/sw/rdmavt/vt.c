@@ -598,17 +598,10 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 		(1ull << IB_USER_VERBS_CMD_MODIFY_AH)           |
 		(1ull << IB_USER_VERBS_CMD_QUERY_AH)            |
 		(1ull << IB_USER_VERBS_CMD_DESTROY_AH)          |
-		(1ull << IB_USER_VERBS_CMD_RESIZE_CQ)           |
 		(1ull << IB_USER_VERBS_CMD_POLL_CQ)             |
 		(1ull << IB_USER_VERBS_CMD_REQ_NOTIFY_CQ)       |
 		(1ull << IB_USER_VERBS_CMD_POST_SEND)           |
 		(1ull << IB_USER_VERBS_CMD_POST_RECV)           |
-		(1ull << IB_USER_VERBS_CMD_ATTACH_MCAST)        |
-		(1ull << IB_USER_VERBS_CMD_DETACH_MCAST)        |
-		(1ull << IB_USER_VERBS_CMD_CREATE_SRQ)          |
-		(1ull << IB_USER_VERBS_CMD_MODIFY_SRQ)          |
-		(1ull << IB_USER_VERBS_CMD_QUERY_SRQ)           |
-		(1ull << IB_USER_VERBS_CMD_DESTROY_SRQ)         |
 		(1ull << IB_USER_VERBS_CMD_POST_SRQ_RECV);
 	rdi->ibdev.node_type = RDMA_NODE_IB_CA;
 	if (!rdi->ibdev.num_comp_vectors)

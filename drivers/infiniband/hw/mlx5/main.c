@@ -4142,16 +4142,7 @@ static int mlx5_ib_stage_caps_init(struct mlx5_ib_dev *dev)
 	dev->ib_dev.uverbs_cmd_mask |=
 		(1ull << IB_USER_VERBS_CMD_CREATE_AH)		|
 		(1ull << IB_USER_VERBS_CMD_DESTROY_AH)		|
-		(1ull << IB_USER_VERBS_CMD_REREG_MR)		|
-		(1ull << IB_USER_VERBS_CMD_RESIZE_CQ)		|
-		(1ull << IB_USER_VERBS_CMD_ATTACH_MCAST)	|
-		(1ull << IB_USER_VERBS_CMD_DETACH_MCAST)	|
-		(1ull << IB_USER_VERBS_CMD_CREATE_SRQ)		|
-		(1ull << IB_USER_VERBS_CMD_MODIFY_SRQ)		|
-		(1ull << IB_USER_VERBS_CMD_QUERY_SRQ)		|
-		(1ull << IB_USER_VERBS_CMD_DESTROY_SRQ)		|
-		(1ull << IB_USER_VERBS_CMD_CREATE_XSRQ)		|
-		(1ull << IB_USER_VERBS_CMD_OPEN_QP);
+		(1ull << IB_USER_VERBS_CMD_CREATE_XSRQ);
 	dev->ib_dev.uverbs_ex_cmd_mask |=
 		(1ull << IB_USER_VERBS_EX_CMD_CREATE_CQ)	|
 		(1ull << IB_USER_VERBS_EX_CMD_CREATE_QP)	|
@@ -4167,19 +4158,11 @@ static int mlx5_ib_stage_caps_init(struct mlx5_ib_dev *dev)
 
 	dev->umr_fence = mlx5_get_umr_fence(MLX5_CAP_GEN(mdev, umr_fence));
 
-	if (MLX5_CAP_GEN(mdev, imaicl)) {
-		dev->ib_dev.uverbs_cmd_mask |=
-			(1ull << IB_USER_VERBS_CMD_ALLOC_MW)	|
-			(1ull << IB_USER_VERBS_CMD_DEALLOC_MW);
+	if (MLX5_CAP_GEN(mdev, imaicl))
 		ib_set_device_ops(&dev->ib_dev, &mlx5_ib_dev_mw_ops);
-	}
 
-	if (MLX5_CAP_GEN(mdev, xrc)) {
-		dev->ib_dev.uverbs_cmd_mask |=
-			(1ull << IB_USER_VERBS_CMD_OPEN_XRCD) |
-			(1ull << IB_USER_VERBS_CMD_CLOSE_XRCD);
+	if (MLX5_CAP_GEN(mdev, xrc))
 		ib_set_device_ops(&dev->ib_dev, &mlx5_ib_dev_xrc_ops);
-	}
 
 	if (MLX5_CAP_DEV_MEM(mdev, memic) ||
 	    MLX5_CAP_GEN_64(dev->mdev, general_obj_types) &

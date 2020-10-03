@@ -398,11 +398,6 @@ static void *usnic_ib_device_add(struct pci_dev *dev)
 	us_ibdev->ib_dev.num_comp_vectors = USNIC_IB_NUM_COMP_VECTORS;
 	us_ibdev->ib_dev.dev.parent = &dev->dev;
 
-	us_ibdev->ib_dev.uverbs_cmd_mask |=
-		(1ull << IB_USER_VERBS_CMD_ATTACH_MCAST) |
-		(1ull << IB_USER_VERBS_CMD_DETACH_MCAST) |
-		(1ull << IB_USER_VERBS_CMD_OPEN_QP);
-
 	ib_set_device_ops(&us_ibdev->ib_dev, &usnic_dev_ops);
 
 	rdma_set_device_sysfs_group(&us_ibdev->ib_dev, &usnic_attr_group);

@@ -1133,14 +1133,9 @@ int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name)
 	dma_set_coherent_mask(&dev->dev, dma_get_required_mask(&dev->dev));
 
 	dev->uverbs_cmd_mask |=
-	    BIT_ULL(IB_USER_VERBS_CMD_CREATE_SRQ)
-	    | BIT_ULL(IB_USER_VERBS_CMD_MODIFY_SRQ)
-	    | BIT_ULL(IB_USER_VERBS_CMD_QUERY_SRQ)
-	    | BIT_ULL(IB_USER_VERBS_CMD_DESTROY_SRQ)
-	    | BIT_ULL(IB_USER_VERBS_CMD_POST_SRQ_RECV)
+	    BIT_ULL(IB_USER_VERBS_CMD_POST_SRQ_RECV)
 	    | BIT_ULL(IB_USER_VERBS_CMD_POST_SEND)
 	    | BIT_ULL(IB_USER_VERBS_CMD_POST_RECV)
-	    | BIT_ULL(IB_USER_VERBS_CMD_RESIZE_CQ)
 	    | BIT_ULL(IB_USER_VERBS_CMD_POLL_CQ)
 	    | BIT_ULL(IB_USER_VERBS_CMD_PEEK_CQ)
 	    | BIT_ULL(IB_USER_VERBS_CMD_REQ_NOTIFY_CQ)
@@ -1148,8 +1143,6 @@ int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name)
 	    | BIT_ULL(IB_USER_VERBS_CMD_MODIFY_AH)
 	    | BIT_ULL(IB_USER_VERBS_CMD_QUERY_AH)
 	    | BIT_ULL(IB_USER_VERBS_CMD_DESTROY_AH)
-	    | BIT_ULL(IB_USER_VERBS_CMD_ATTACH_MCAST)
-	    | BIT_ULL(IB_USER_VERBS_CMD_DETACH_MCAST)
 	    ;
 
 	ib_set_device_ops(dev, &rxe_dev_ops);

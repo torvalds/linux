@@ -205,7 +205,6 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 	memcpy(dev->ibdev.node_desc, OCRDMA_NODE_DESC,
 	       sizeof(OCRDMA_NODE_DESC));
 	dev->ibdev.uverbs_cmd_mask |=
-	    OCRDMA_UVERBS(RESIZE_CQ) |
 	    OCRDMA_UVERBS(REQ_NOTIFY_CQ) |
 	    OCRDMA_UVERBS(POLL_CQ) |
 	    OCRDMA_UVERBS(POST_SEND) |
@@ -228,10 +227,6 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 
 	if (ocrdma_get_asic_type(dev) == OCRDMA_ASIC_GEN_SKH_R) {
 		dev->ibdev.uverbs_cmd_mask |=
-		     OCRDMA_UVERBS(CREATE_SRQ) |
-		     OCRDMA_UVERBS(MODIFY_SRQ) |
-		     OCRDMA_UVERBS(QUERY_SRQ) |
-		     OCRDMA_UVERBS(DESTROY_SRQ) |
 		     OCRDMA_UVERBS(POST_SRQ_RECV);
 
 		ib_set_device_ops(&dev->ibdev, &ocrdma_dev_srq_ops);

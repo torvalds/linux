@@ -535,10 +535,7 @@ void c4iw_register_device(struct work_struct *work)
 	    (1ull << IB_USER_VERBS_CMD_REQ_NOTIFY_CQ) |
 	    (1ull << IB_USER_VERBS_CMD_POLL_CQ) |
 	    (1ull << IB_USER_VERBS_CMD_POST_SEND) |
-	    (1ull << IB_USER_VERBS_CMD_POST_RECV) |
-	    (1ull << IB_USER_VERBS_CMD_CREATE_SRQ) |
-	    (1ull << IB_USER_VERBS_CMD_MODIFY_SRQ) |
-	    (1ull << IB_USER_VERBS_CMD_DESTROY_SRQ);
+	    (1ull << IB_USER_VERBS_CMD_POST_RECV);
 	dev->ibdev.node_type = RDMA_NODE_RNIC;
 	BUILD_BUG_ON(sizeof(C4IW_NODE_DESC) > IB_DEVICE_NODE_DESC_MAX);
 	memcpy(dev->ibdev.node_desc, C4IW_NODE_DESC, sizeof(C4IW_NODE_DESC));

@@ -236,10 +236,6 @@ static int pvrdma_register_device(struct pvrdma_dev *dev)
 	/* Check if SRQ is supported by backend */
 	if (dev->dsr->caps.max_srq) {
 		dev->ib_dev.uverbs_cmd_mask |=
-			(1ull << IB_USER_VERBS_CMD_CREATE_SRQ)	|
-			(1ull << IB_USER_VERBS_CMD_MODIFY_SRQ)	|
-			(1ull << IB_USER_VERBS_CMD_QUERY_SRQ)	|
-			(1ull << IB_USER_VERBS_CMD_DESTROY_SRQ)	|
 			(1ull << IB_USER_VERBS_CMD_POST_SRQ_RECV);
 
 		ib_set_device_ops(&dev->ib_dev, &pvrdma_dev_srq_ops);
