@@ -213,7 +213,7 @@
 		};
 
 		sysctrl: sysctrl {
-			compatible = "hisilicon,sysctrl";
+			compatible = "hisilicon,sysctrl", "syscon";
 			reg = <0x3e00000 0x00100000>;
 		};
 
