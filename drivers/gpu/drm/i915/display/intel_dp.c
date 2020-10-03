@@ -3707,6 +3707,18 @@ bool intel_dp_initial_fastset_check(struct intel_encoder *encoder,
 				    struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+
+	/*
+	 * If BIOS has set an unsupported or non-standard link rate for some
+	 * reason force an encoder recompute and full modeset.
+	 */
+	if (intel_dp_rate_index(intel_dp->source_rates, intel_dp->num_source_rates,
+				crtc_state->port_clock) < 0) {
+		drm_dbg_kms(&i915->drm, "Forcing full modeset due to unsupported link rate\n");
+		crtc_state->uapi.connectors_changed = true;
+		return false;
+	}
 
 	/*
 	 * FIXME hack to force full modeset when DSC is being used.
