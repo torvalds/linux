@@ -1370,6 +1370,20 @@ bool vhost_log_access_ok(struct vhost_dev *dev)
 }
 EXPORT_SYMBOL_GPL(vhost_log_access_ok);
 
+static bool vq_log_used_access_ok(struct vhost_virtqueue *vq,
+				  void __user *log_base,
+				  bool log_used,
+				  u64 log_addr)
+{
+	/* If an IOTLB device is present, log_addr is a GIOVA that
+	 * will never be logged by log_used(). */
+	if (vq->iotlb)
+		return true;
+
+	return !log_used || log_access_ok(log_base, log_addr,
+					  vhost_get_used_size(vq, vq->num));
+}
+
 /* Verify access for write logging. */
 /* Caller should have vq mutex and device mutex */
 static bool vq_log_access_ok(struct vhost_virtqueue *vq,
@@ -1377,8 +1391,7 @@ static bool vq_log_access_ok(struct vhost_virtqueue *vq,
 {
 	return vq_memory_access_ok(log_base, vq->umem,
 				   vhost_has_feature(vq, VHOST_F_LOG_ALL)) &&
-		(!vq->log_used || log_access_ok(log_base, vq->log_addr,
-				  vhost_get_used_size(vq, vq->num)));
+		vq_log_used_access_ok(vq, log_base, vq->log_used, vq->log_addr);
 }
 
 /* Can we start vq? */
@@ -1517,9 +1530,9 @@ static long vhost_vring_set_addr(struct vhost_dev *d,
 			return -EINVAL;
 
 		/* Also validate log access for used ring if enabled. */
-		if ((a.flags & (0x1 << VHOST_VRING_F_LOG)) &&
-			!log_access_ok(vq->log_base, a.log_guest_addr,
-				       vhost_get_used_size(vq, vq->num)))
+		if (!vq_log_used_access_ok(vq, vq->log_base,
+				a.flags & (0x1 << VHOST_VRING_F_LOG),
+				a.log_guest_addr))
 			return -EINVAL;
 	}
 
