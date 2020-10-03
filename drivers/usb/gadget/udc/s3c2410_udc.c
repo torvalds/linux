@@ -1270,7 +1270,6 @@ static int s3c2410_udc_queue(struct usb_ep *_ep, struct usb_request *_req,
 static int s3c2410_udc_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 {
 	struct s3c2410_ep	*ep = to_s3c2410_ep(_ep);
-	struct s3c2410_udc	*udc;
 	int			retval = -EINVAL;
 	unsigned long		flags;
 	struct s3c2410_request	*req = NULL;
@@ -1282,8 +1281,6 @@ static int s3c2410_udc_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 
 	if (!_ep || !_req)
 		return retval;
-
-	udc = to_s3c2410_udc(ep->gadget);
 
 	local_irq_save(flags);
 
