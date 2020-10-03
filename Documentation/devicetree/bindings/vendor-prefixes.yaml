@@ -425,6 +425,8 @@ patternProperties:
     description: Gumstix, Inc.
   "^gw,.*":
     description: Gateworks Corporation
+                 use "gateworks" vendor prefix
+    deprecated: true
   "^hannstar,.*":
     description: HannStar Display Corporation
   "^haoyu,.*":
