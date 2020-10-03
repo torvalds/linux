@@ -213,8 +213,6 @@ static inline bool efi_is_64bit(void)
 
 static inline bool efi_is_native(void)
 {
-	if (!IS_ENABLED(CONFIG_X86_64))
-		return true;
 	return efi_is_64bit();
 }
 
