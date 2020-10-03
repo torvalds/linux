@@ -48,6 +48,8 @@ EVENT_DEFINE_RANGE_FORMAT(length, config1, 24, 31);
 /* u32, byte offset */
 EVENT_DEFINE_RANGE_FORMAT(offset, config1, 32, 63);
 
+static cpumask_t hv_gpci_cpumask;
+
 static struct attribute *format_attrs[] = {
 	&format_attr_request.attr,
 	&format_attr_starting_index.attr,
@@ -266,6 +268,45 @@ static struct pmu h_gpci_pmu = {
 	.capabilities = PERF_PMU_CAP_NO_EXCLUDE,
 };
 
+static int ppc_hv_gpci_cpu_online(unsigned int cpu)
+{
+	if (cpumask_empty(&hv_gpci_cpumask))
+		cpumask_set_cpu(cpu, &hv_gpci_cpumask);
+
+	return 0;
+}
+
+static int ppc_hv_gpci_cpu_offline(unsigned int cpu)
+{
+	int target;
+
+	/* Check if exiting cpu is used for collecting gpci events */
+	if (!cpumask_test_and_clear_cpu(cpu, &hv_gpci_cpumask))
+		return 0;
+
+	/* Find a new cpu to collect gpci events */
+	target = cpumask_last(cpu_active_mask);
+
+	if (target < 0 || target >= nr_cpu_ids) {
+		pr_err("hv_gpci: CPU hotplug init failed\n");
+		return -1;
+	}
+
+	/* Migrate gpci events to the new target */
+	cpumask_set_cpu(target, &hv_gpci_cpumask);
+	perf_pmu_migrate_context(&h_gpci_pmu, cpu, target);
+
+	return 0;
+}
+
+static int hv_gpci_cpu_hotplug_init(void)
+{
+	return cpuhp_setup_state(CPUHP_AP_PERF_POWERPC_HV_GPCI_ONLINE,
+			  "perf/powerpc/hv_gcpi:online",
+			  ppc_hv_gpci_cpu_online,
+			  ppc_hv_gpci_cpu_offline);
+}
+
 static int hv_gpci_init(void)
 {
 	int r;
@@ -285,6 +326,11 @@ static int hv_gpci_init(void)
 				hret);
 		return -ENODEV;
 	}
+
+	/* init cpuhotplug */
+	r = hv_gpci_cpu_hotplug_init();
+	if (r)
+		return r;
 
 	/* sampling not supported */
 	h_gpci_pmu.capabilities |= PERF_PMU_CAP_NO_INTERRUPT;
