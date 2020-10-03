@@ -361,6 +361,64 @@ static int rkispp_sd_s_power(struct v4l2_subdev *sd, int on)
 	return ret;
 }
 
+static long rkispp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
+{
+	struct rkispp_subdev *ispp_sdev = v4l2_get_subdevdata(sd);
+	struct rkispp_device *ispp_dev = ispp_sdev->dev;
+	struct rkispp_fecbuf_info *fecbuf;
+	struct rkispp_fecbuf_size *fecsize;
+	long ret = 0;
+
+	if (!arg)
+		return -EINVAL;
+
+	switch (cmd) {
+	case RKISPP_CMD_GET_FECBUF_INFO:
+		fecbuf = (struct rkispp_fecbuf_info *)arg;
+		rkispp_params_get_fecbuf_inf(&ispp_dev->params_vdev, fecbuf);
+		break;
+	case RKISPP_CMD_SET_FECBUF_SIZE:
+		fecsize = (struct rkispp_fecbuf_size *)arg;
+		rkispp_params_set_fecbuf_size(&ispp_dev->params_vdev, fecsize);
+		break;
+	default:
+		ret = -ENOIOCTLCMD;
+	}
+
+	return ret;
+}
+
+#ifdef CONFIG_COMPAT
+static long rkispp_compat_ioctl32(struct v4l2_subdev *sd,
+				  unsigned int cmd, unsigned long arg)
+{
+	void __user *up = compat_ptr(arg);
+	struct rkispp_fecbuf_info fecbuf;
+	struct rkispp_fecbuf_size fecsize;
+	long ret = 0;
+
+	if (!up)
+		return -EINVAL;
+
+	switch (cmd) {
+	case RKISPP_CMD_GET_FECBUF_INFO:
+		ret = rkispp_ioctl(sd, cmd, &fecbuf);
+		if (!ret)
+			ret = copy_to_user(up, &fecbuf, sizeof(fecbuf));
+		break;
+	case RKISPP_CMD_SET_FECBUF_SIZE:
+		ret = copy_from_user(&fecsize, up, sizeof(fecsize));
+		if (!ret)
+			ret = rkisp_ioctl(sd, cmd, &fecsize);
+		break;
+	default:
+		ret = -ENOIOCTLCMD;
+	}
+
+	return ret;
+}
+#endif
+
 static const struct media_entity_operations rkispp_sd_media_ops = {
 	.link_setup = rkispp_subdev_link_setup,
 	.link_validate = v4l2_subdev_link_validate,
@@ -380,6 +438,10 @@ static const struct v4l2_subdev_video_ops rkispp_sd_video_ops = {
 
 static const struct v4l2_subdev_core_ops rkispp_sd_core_ops = {
 	.s_power = rkispp_sd_s_power,
+	.ioctl = rkispp_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl32 = rkispp_compat_ioctl32,
+#endif
 };
 
 static struct v4l2_subdev_ops rkispp_sd_ops = {

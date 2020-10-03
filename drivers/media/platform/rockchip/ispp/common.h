@@ -68,8 +68,10 @@ struct rkispp_dummy_buffer {
 	u64 timestamp;
 	u32 size;
 	u32 id;
+	int dma_fd;
 	bool is_need_vaddr;
 	bool is_need_dbuf;
+	bool is_need_dmafd;
 };
 
 static inline struct rkispp_vdev_node *vdev_to_node(struct video_device *vdev)

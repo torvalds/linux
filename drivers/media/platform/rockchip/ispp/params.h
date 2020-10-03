@@ -26,10 +26,17 @@ struct rkispp_params_vdev {
 	struct v4l2_format vdev_fmt;
 	bool streamon;
 	bool first_params;
+
+	struct rkispp_dummy_buffer buf_fec[FEC_MESH_BUF_NUM];
+	u32 buf_fec_idx;
 };
 
 int rkispp_register_params_vdev(struct rkispp_device *dev);
 void rkispp_unregister_params_vdev(struct rkispp_device *dev);
 void rkispp_params_configure(struct rkispp_params_vdev *params_vdev);
 void rkispp_params_isr(struct rkispp_params_vdev *params_vdev, u32 mis);
+void rkispp_params_get_fecbuf_inf(struct rkispp_params_vdev *params_vdev,
+				  struct rkispp_fecbuf_info *fecbuf);
+void rkispp_params_set_fecbuf_size(struct rkispp_params_vdev *params_vdev,
+				   struct rkispp_fecbuf_size *fecsize);
 #endif

@@ -72,6 +72,13 @@
 
 #define FEC_MESH_XY_POINT_SIZE		6
 #define FEC_MESH_XY_NUM			131072
+#define FEC_MESH_BUF_NUM		2
+
+#define RKISPP_CMD_GET_FECBUF_INFO	\
+	_IOR('V', BASE_VIDIOC_PRIVATE + 0, struct rkispp_fecbuf_info)
+
+#define RKISPP_CMD_SET_FECBUF_SIZE	\
+	_IOW('V', BASE_VIDIOC_PRIVATE + 1, struct rkispp_fecbuf_size)
 
 struct rkispp_tnr_config {
 	u8 opty_en;
@@ -215,18 +222,38 @@ struct rkispp_sharp_config {
 	u16 rfh_ratio;
 } __attribute__ ((packed));
 
+enum rkispp_fecbuf_stat {
+	FEC_BUF_INIT = 0,
+	FEC_BUF_WAIT2CHIP,
+	FEC_BUF_CHIPINUSE,
+};
+
+struct rkispp_fecbuf_info {
+	s32 buf_fd[FEC_MESH_BUF_NUM];
+	u32 buf_size[FEC_MESH_BUF_NUM];
+} __attribute__ ((packed));
+
+struct rkispp_fecbuf_size {
+	u32 meas_width;
+	u32 meas_height;
+	u32 meas_mode;
+} __attribute__ ((packed));
+
+struct rkispp_fec_head {
+	enum rkispp_fecbuf_stat stat;
+	u32 meshxf_oft;
+	u32 meshyf_oft;
+	u32 meshxi_oft;
+	u32 meshyi_oft;
+} __attribute__ ((packed));
+
 struct rkispp_fec_config {
 	u8 mesh_density;
 	u8 crop_en;
-	u8 meshxf[FEC_MESH_XY_NUM];
-	u8 meshyf[FEC_MESH_XY_NUM];
-
 	u16 crop_width __attribute__((aligned(2)));
 	u16 crop_height;
-	u16 meshxi[FEC_MESH_XY_NUM];
-	u16 meshyi[FEC_MESH_XY_NUM];
-
 	u32 mesh_size __attribute__((aligned(4)));
+	s32 buf_fd;
 } __attribute__ ((packed));
 
 struct rkispp_orb_config {

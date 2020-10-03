@@ -207,7 +207,6 @@ struct rkispp_stream_vdev {
 	struct tnr_module tnr;
 	struct nr_module nr;
 	struct fec_module fec;
-	struct in_fec_buf fec_buf;
 	struct frame_debug_info dbg;
 	struct rkispp_monitor monitor;
 	atomic_t refcnt;

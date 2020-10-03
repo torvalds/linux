@@ -529,16 +529,53 @@ static void fec_config(struct rkispp_params_vdev *params_vdev,
 		       struct rkispp_fec_config *arg)
 {
 	struct rkispp_device *dev = params_vdev->dev;
-	struct rkispp_stream_vdev *vdev = &dev->stream_vdev;
-	struct rkispp_dummy_buffer *buf;
-	u32 val;
+	struct rkispp_fec_head *fec_data;
+	u32 width, height, mesh_size;
+	dma_addr_t dma_addr;
+	u32 val, i, buf_idx;
 
-	if (arg->mesh_size > vdev->fec_buf.mesh_xint.size) {
+	width = dev->ispp_sdev.out_fmt.width;
+	height = dev->ispp_sdev.out_fmt.height;
+	mesh_size = cal_fec_mesh(width, height, 0);
+	if (arg->mesh_size > mesh_size) {
 		v4l2_err(&dev->v4l2_dev,
 			 "Input mesh size too large. mesh size 0x%x, 0x%x\n",
-			 arg->mesh_size, vdev->fec_buf.mesh_xint.size);
+			 arg->mesh_size, mesh_size);
 		return;
 	}
+
+	for (i = 0; i < FEC_MESH_BUF_NUM; i++) {
+		if (arg->buf_fd == params_vdev->buf_fec[i].dma_fd)
+			break;
+	}
+	if (i == FEC_MESH_BUF_NUM) {
+		dev_err(dev->dev, "cannot find fec buf fd(%d)\n", arg->buf_fd);
+		return;
+	}
+
+	if (!params_vdev->buf_fec[i].vaddr) {
+		dev_err(dev->dev, "no fec buffer allocated\n");
+		return;
+	}
+
+	buf_idx = params_vdev->buf_fec_idx;
+	fec_data = (struct rkispp_fec_head *)params_vdev->buf_fec[buf_idx].vaddr;
+	fec_data->stat = FEC_BUF_INIT;
+
+	buf_idx = i;
+	fec_data = (struct rkispp_fec_head *)params_vdev->buf_fec[buf_idx].vaddr;
+	fec_data->stat = FEC_BUF_CHIPINUSE;
+	params_vdev->buf_fec_idx = buf_idx;
+
+	dma_addr = params_vdev->buf_fec[buf_idx].dma_addr;
+	val = dma_addr + fec_data->meshxf_oft;
+	rkispp_write(params_vdev->dev, RKISPP_FEC_MESH_XFRA_BASE, val);
+	val = dma_addr + fec_data->meshyf_oft;
+	rkispp_write(params_vdev->dev, RKISPP_FEC_MESH_YFRA_BASE, val);
+	val = dma_addr + fec_data->meshxi_oft;
+	rkispp_write(params_vdev->dev, RKISPP_FEC_MESH_XINT_BASE, val);
+	val = dma_addr + fec_data->meshyi_oft;
+	rkispp_write(params_vdev->dev, RKISPP_FEC_MESH_YINT_BASE, val);
 
 	val = 0;
 	if (arg->mesh_density)
@@ -550,20 +587,19 @@ static void fec_config(struct rkispp_params_vdev *params_vdev,
 	val = (arg->crop_height & 0x1FFFF) << 14 |
 	      (arg->crop_width & 0x1FFFF) << 1 | (arg->crop_en & 0x01);
 	rkispp_write(params_vdev->dev, RKISPP_FEC_CROP, val);
-
-	buf = &vdev->fec_buf.mesh_xint;
-	memcpy(buf->vaddr, &arg->meshxi[0], arg->mesh_size * sizeof(u16));
-	buf = &vdev->fec_buf.mesh_yint;
-	memcpy(buf->vaddr, &arg->meshyi[0], arg->mesh_size * sizeof(u16));
-	buf = &vdev->fec_buf.mesh_xfra;
-	memcpy(buf->vaddr, &arg->meshxf[0], arg->mesh_size * sizeof(u8));
-	buf = &vdev->fec_buf.mesh_yfra;
-	memcpy(buf->vaddr, &arg->meshyf[0], arg->mesh_size * sizeof(u8));
 }
 
 static void fec_enable(struct rkispp_params_vdev *params_vdev, bool en)
 {
+	struct rkispp_device *dev = params_vdev->dev;
+	u32 buf_idx;
+
 	if (en) {
+		buf_idx = params_vdev->buf_fec_idx;
+		if (!params_vdev->buf_fec[buf_idx].vaddr) {
+			dev_err(dev->dev, "no fec buffer allocated\n");
+			return;
+		}
 		rkispp_clear_bits(params_vdev->dev, RKISPP_SCL0_CTRL, SW_SCL_FIRST_MODE);
 		rkispp_clear_bits(params_vdev->dev, RKISPP_SCL1_CTRL, SW_SCL_FIRST_MODE);
 		rkispp_clear_bits(params_vdev->dev, RKISPP_SCL2_CTRL, SW_SCL_FIRST_MODE);
@@ -682,6 +718,54 @@ static const struct v4l2_ioctl_ops rkispp_params_ioctl = {
 	.vidioc_subscribe_event = rkispp_params_subs_evt,
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe
 };
+
+static int
+rkispp_param_init_fecbuf(struct rkispp_params_vdev *params,
+			 struct rkispp_fecbuf_size *fecsize)
+{
+	struct rkispp_device *pp_dev = params->dev;
+	struct rkispp_fec_head *fec_data;
+	u32 width, height, mesh_size, buf_size;
+	int i, ret;
+
+	width = fecsize->meas_width;
+	height = fecsize->meas_height;
+	mesh_size = cal_fec_mesh(width, height, fecsize->meas_mode);
+	buf_size = ALIGN(sizeof(struct rkispp_fec_head), 16);
+	buf_size += 2 * (ALIGN(mesh_size * 2, 16) + ALIGN(mesh_size, 16));
+
+	params->buf_fec_idx = 0;
+	for (i = 0; i < FEC_MESH_BUF_NUM; i++) {
+		params->buf_fec[i].is_need_vaddr = true;
+		params->buf_fec[i].is_need_dbuf = true;
+		params->buf_fec[i].is_need_dmafd = true;
+		params->buf_fec[i].size = PAGE_ALIGN(buf_size);
+		ret = rkispp_allow_buffer(params->dev, &params->buf_fec[i]);
+		if (ret) {
+			dev_err(pp_dev->dev, "can not alloc fec buffer\n");
+			return ret;
+		}
+
+		fec_data = (struct rkispp_fec_head *)params->buf_fec[i].vaddr;
+		fec_data->stat = FEC_BUF_INIT;
+		fec_data->meshxf_oft = ALIGN(sizeof(struct rkispp_fec_head), 16);
+		fec_data->meshyf_oft = fec_data->meshxf_oft + ALIGN(mesh_size, 16);
+		fec_data->meshxi_oft = fec_data->meshyf_oft + ALIGN(mesh_size, 16);
+		fec_data->meshyi_oft = fec_data->meshxi_oft + ALIGN(mesh_size * 2, 16);
+	}
+
+	return 0;
+}
+
+static void
+rkispp_param_deinit_fecbuf(struct rkispp_params_vdev *params)
+{
+	int i;
+
+	params->buf_fec_idx = 0;
+	for (i = 0; i < FEC_MESH_BUF_NUM; i++)
+		rkispp_free_buffer(params->dev, &params->buf_fec[i]);
+}
 
 static int rkispp_params_vb2_queue_setup(struct vb2_queue *vq,
 					 unsigned int *num_buffers,
@@ -803,9 +887,14 @@ rkispp_param_fh_open(struct file *filp)
 		if (ret < 0) {
 			v4l2_err(&isppdev->v4l2_dev,
 				 "pipeline power on failed %d\n", ret);
-			vb2_fop_release(filp);
+			goto ERR;
 		}
 	}
+
+	return 0;
+
+ERR:
+	vb2_fop_release(filp);
 	return ret;
 }
 
@@ -823,6 +912,7 @@ rkispp_param_fh_release(struct file *filp)
 			v4l2_err(&isppdev->v4l2_dev,
 				 "pipeline power off failed %d\n", ret);
 	}
+	rkispp_param_deinit_fecbuf(params);
 	return ret;
 }
 
@@ -1058,6 +1148,24 @@ void rkispp_params_configure(struct rkispp_params_vdev *params_vdev)
 	if (module_en_update & ISPP_MODULE_ORB)
 		orb_enable(params_vdev,
 			   !!(module_ens & ISPP_MODULE_ORB));
+}
+
+void rkispp_params_get_fecbuf_inf(struct rkispp_params_vdev *params_vdev,
+				  struct rkispp_fecbuf_info *fecbuf)
+{
+	int i;
+
+	for (i = 0; i < FEC_MESH_BUF_NUM; i++) {
+		fecbuf->buf_fd[i] = params_vdev->buf_fec[i].dma_fd;
+		fecbuf->buf_size[i] = params_vdev->buf_fec[i].size;
+	}
+}
+
+void rkispp_params_set_fecbuf_size(struct rkispp_params_vdev *params_vdev,
+				   struct rkispp_fecbuf_size *fecsize)
+{
+	rkispp_param_deinit_fecbuf(params_vdev);
+	rkispp_param_init_fecbuf(params_vdev, fecsize);
 }
 
 int rkispp_register_params_vdev(struct rkispp_device *dev)
