@@ -8,6 +8,17 @@
 
 #include <linux/mtd/map.h>
 
+/* HyperBus command bits */
+#define HYPERBUS_RW	0x80	/* R/W# */
+#define HYPERBUS_RW_WRITE 0
+#define HYPERBUS_RW_READ 0x80
+#define HYPERBUS_AS	0x40	/* Address Space */
+#define HYPERBUS_AS_MEM	0
+#define HYPERBUS_AS_REG	0x40
+#define HYPERBUS_BT	0x20	/* Burst Type */
+#define HYPERBUS_BT_WRAPPED 0
+#define HYPERBUS_BT_LINEAR 0x20
+
 enum hyperbus_memtype {
 	HYPERFLASH,
 	HYPERRAM,
