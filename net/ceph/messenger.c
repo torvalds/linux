@@ -2016,11 +2016,11 @@ static int process_banner(struct ceph_connection *con)
 		   sizeof(con->peer_addr)) != 0 &&
 	    !(addr_is_blank(&con->actual_peer_addr) &&
 	      con->actual_peer_addr.nonce == con->peer_addr.nonce)) {
-		pr_warn("wrong peer, want %s/%d, got %s/%d\n",
+		pr_warn("wrong peer, want %s/%u, got %s/%u\n",
 			ceph_pr_addr(&con->peer_addr),
-			(int)le32_to_cpu(con->peer_addr.nonce),
+			le32_to_cpu(con->peer_addr.nonce),
 			ceph_pr_addr(&con->actual_peer_addr),
-			(int)le32_to_cpu(con->actual_peer_addr.nonce));
+			le32_to_cpu(con->actual_peer_addr.nonce));
 		con->error_msg = "wrong peer at address";
 		return -1;
 	}
