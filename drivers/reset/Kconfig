@@ -65,9 +65,10 @@ config RESET_HSDK
 	  This enables the reset controller driver for HSDK board.
 
 config RESET_IMX7
-	bool "i.MX7/8 Reset Driver" if COMPILE_TEST
+	tristate "i.MX7/8 Reset Driver"
 	depends on HAS_IOMEM
-	default SOC_IMX7D || (ARM64 && ARCH_MXC)
+	depends on SOC_IMX7D || (ARM64 && ARCH_MXC) || COMPILE_TEST
+	default y if SOC_IMX7D
 	select MFD_SYSCON
 	help
 	  This enables the reset controller driver for i.MX7 SoCs.
