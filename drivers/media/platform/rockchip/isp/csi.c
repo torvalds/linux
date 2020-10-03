@@ -426,8 +426,7 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 			}
 
 			/* normal read back mode */
-			if (dev->hdr.op_mode == HDR_NORMAL &&
-			    (dev->isp_inp & INP_RAWRD2 || !dev->hw_dev->is_single))
+			if (dev->hdr.op_mode == HDR_NORMAL)
 				dev->hdr.op_mode = HDR_RDBK_FRAME1;
 		} else {
 			switch (dev->isp_inp & 0x7) {
