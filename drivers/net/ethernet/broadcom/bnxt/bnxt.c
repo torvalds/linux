@@ -1172,7 +1172,10 @@ static void bnxt_sched_reset(struct bnxt *bp, struct bnxt_rx_ring_info *rxr)
 {
 	if (!rxr->bnapi->in_reset) {
 		rxr->bnapi->in_reset = true;
-		set_bit(BNXT_RESET_TASK_SP_EVENT, &bp->sp_event);
+		if (bp->flags & BNXT_FLAG_CHIP_P5)
+			set_bit(BNXT_RESET_TASK_SP_EVENT, &bp->sp_event);
+		else
+			set_bit(BNXT_RST_RING_SP_EVENT, &bp->sp_event);
 		bnxt_queue_sp_work(bp);
 	}
 	rxr->rx_next_cons = 0xffff;
@@ -1773,8 +1776,8 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 		if (rx_err & RX_CMPL_ERRORS_BUFFER_ERROR_MASK) {
 			bnapi->cp_ring.sw_stats.rx.rx_buf_errors++;
 			if (!(bp->flags & BNXT_FLAG_CHIP_P5)) {
-				netdev_warn(bp->dev, "RX buffer error %x\n",
-					    rx_err);
+				netdev_warn_once(bp->dev, "RX buffer error %x\n",
+						 rx_err);
 				bnxt_sched_reset(bp, rxr);
 			}
 		}
@@ -2250,7 +2253,7 @@ static void __bnxt_poll_work_done(struct bnxt *bp, struct bnxt_napi *bnapi)
 		bnapi->tx_pkts = 0;
 	}
 
-	if (bnapi->events & BNXT_RX_EVENT) {
+	if ((bnapi->events & BNXT_RX_EVENT) && !(bnapi->in_reset)) {
 		struct bnxt_rx_ring_info *rxr = bnapi->rx_ring;
 
 		if (bnapi->events & BNXT_AGG_EVENT)
@@ -10510,6 +10513,23 @@ static void bnxt_dbg_dump_states(struct bnxt *bp)
 	}
 }
 
+static int bnxt_hwrm_rx_ring_reset(struct bnxt *bp, int ring_nr)
+{
+	struct bnxt_rx_ring_info *rxr = &bp->rx_ring[ring_nr];
+	struct hwrm_ring_reset_input req = {0};
+	struct bnxt_napi *bnapi = rxr->bnapi;
+	struct bnxt_cp_ring_info *cpr;
+	u16 cp_ring_id;
+
+	cpr = &bnapi->cp_ring;
+	cp_ring_id = cpr->cp_ring_struct.fw_ring_id;
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_RING_RESET, cp_ring_id, -1);
+	req.ring_type = RING_RESET_REQ_RING_TYPE_RX_RING_GRP;
+	req.ring_id = cpu_to_le16(bp->grp_info[bnapi->index].fw_grp_id);
+	return hwrm_send_message_silent(bp, &req, sizeof(req),
+					HWRM_CMD_TIMEOUT);
+}
+
 static void bnxt_reset_task(struct bnxt *bp, bool silent)
 {
 	if (!silent)
@@ -10642,6 +10662,54 @@ static void bnxt_reset(struct bnxt *bp, bool silent)
 	bnxt_rtnl_lock_sp(bp);
 	if (test_bit(BNXT_STATE_OPEN, &bp->state))
 		bnxt_reset_task(bp, silent);
+	bnxt_rtnl_unlock_sp(bp);
+}
+
+/* Only called from bnxt_sp_task() */
+static void bnxt_rx_ring_reset(struct bnxt *bp)
+{
+	int i;
+
+	bnxt_rtnl_lock_sp(bp);
+	if (!test_bit(BNXT_STATE_OPEN, &bp->state)) {
+		bnxt_rtnl_unlock_sp(bp);
+		return;
+	}
+	/* Disable and flush TPA before resetting the RX ring */
+	if (bp->flags & BNXT_FLAG_TPA)
+		bnxt_set_tpa(bp, false);
+	for (i = 0; i < bp->rx_nr_rings; i++) {
+		struct bnxt_rx_ring_info *rxr = &bp->rx_ring[i];
+		struct bnxt_cp_ring_info *cpr;
+		int rc;
+
+		if (!rxr->bnapi->in_reset)
+			continue;
+
+		rc = bnxt_hwrm_rx_ring_reset(bp, i);
+		if (rc) {
+			if (rc == -EINVAL || rc == -EOPNOTSUPP)
+				netdev_info_once(bp->dev, "RX ring reset not supported by firmware, falling back to global reset\n");
+			else
+				netdev_warn(bp->dev, "RX ring reset failed, rc = %d, falling back to global reset\n",
+					    rc);
+			bnxt_reset_task(bp, false);
+			break;
+		}
+		bnxt_free_one_rx_ring_skbs(bp, i);
+		rxr->rx_prod = 0;
+		rxr->rx_agg_prod = 0;
+		rxr->rx_sw_agg_prod = 0;
+		rxr->rx_next_cons = 0;
+		rxr->bnapi->in_reset = false;
+		bnxt_alloc_one_rx_ring(bp, i);
+		cpr = &rxr->bnapi->cp_ring;
+		if (bp->flags & BNXT_FLAG_AGG_RINGS)
+			bnxt_db_write(bp, &rxr->rx_agg_db, rxr->rx_agg_prod);
+		bnxt_db_write(bp, &rxr->rx_db, rxr->rx_prod);
+	}
+	if (bp->flags & BNXT_FLAG_TPA)
+		bnxt_set_tpa(bp, true);
 	bnxt_rtnl_unlock_sp(bp);
 }
 
@@ -10932,6 +11000,9 @@ static void bnxt_sp_task(struct work_struct *work)
 
 	if (test_and_clear_bit(BNXT_RESET_TASK_SILENT_SP_EVENT, &bp->sp_event))
 		bnxt_reset(bp, true);
+
+	if (test_and_clear_bit(BNXT_RST_RING_SP_EVENT, &bp->sp_event))
+		bnxt_rx_ring_reset(bp);
 
 	if (test_and_clear_bit(BNXT_FW_RESET_NOTIFY_SP_EVENT, &bp->sp_event))
 		bnxt_devlink_health_report(bp, BNXT_FW_RESET_NOTIFY_SP_EVENT);
