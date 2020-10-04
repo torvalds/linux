@@ -1815,7 +1815,7 @@ void rtw_update_registrypriv_dev_network(struct adapter *adapter)
 
 	sz = rtw_generate_ie(pregistrypriv);
 	pdev_network->ie_length = sz;
-	pdev_network->Length = get_wlan_bssid_ex_sz((struct wlan_bssid_ex  *)pdev_network);
+	pdev_network->Length = get_wlan_bssid_ex_sz(pdev_network);
 
 	/* notes: translate ie_length & Length after assign the Length to cmdsz in createbss_cmd(); */
 	/* pdev_network->ie_length = cpu_to_le32(sz); */

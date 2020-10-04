@@ -1771,7 +1771,7 @@ static void issue_action_BSSCoexistPacket(struct adapter *padapter)
 
 			plist = plist->next;
 
-			pbss_network = (struct wlan_bssid_ex *)&pnetwork->network;
+			pbss_network = &pnetwork->network;
 
 			p = rtw_get_ie(pbss_network->ies + _FIXED_IE_LENGTH_, _HT_CAPABILITY_IE_, &len, pbss_network->ie_length - _FIXED_IE_LENGTH_);
 			if (!p || len == 0) { /* non-HT */
@@ -2131,7 +2131,7 @@ static u8 collect_bss_info(struct adapter *padapter,
 	bssid->Configuration.BeaconPeriod =
 		get_unaligned_le16(rtw_get_beacon_interval_from_ie(bssid->ies));
 
-	val16 = rtw_get_capability((struct wlan_bssid_ex *)bssid);
+	val16 = rtw_get_capability(bssid);
 
 	if (val16 & BIT(0)) {
 		bssid->InfrastructureMode = Ndis802_11Infrastructure;
@@ -2177,7 +2177,7 @@ static void start_create_ibss(struct adapter *padapter)
 	u8 join_type;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
-	struct wlan_bssid_ex *pnetwork = (struct wlan_bssid_ex *)(&pmlmeinfo->network);
+	struct wlan_bssid_ex *pnetwork = &pmlmeinfo->network;
 
 	pmlmeext->cur_channel = (u8)pnetwork->Configuration.DSConfig;
 	pmlmeinfo->bcn_interval = get_beacon_interval(pnetwork);
@@ -2186,7 +2186,7 @@ static void start_create_ibss(struct adapter *padapter)
 	update_wireless_mode(padapter);
 
 	/* update capability */
-	caps = rtw_get_capability((struct wlan_bssid_ex *)pnetwork);
+	caps = rtw_get_capability(pnetwork);
 	update_capinfo(padapter, caps);
 	if (caps & cap_IBSS) {/* adhoc master */
 		val8 = 0xcf;
@@ -2228,7 +2228,7 @@ static void start_clnt_join(struct adapter *padapter)
 	u8 val8;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
-	struct wlan_bssid_ex *pnetwork = (struct wlan_bssid_ex *)(&pmlmeinfo->network);
+	struct wlan_bssid_ex *pnetwork = &pmlmeinfo->network;
 	int beacon_timeout;
 
 	pmlmeext->cur_channel = (u8)pnetwork->Configuration.DSConfig;
@@ -2238,7 +2238,7 @@ static void start_clnt_join(struct adapter *padapter)
 	update_wireless_mode(padapter);
 
 	/* update capability */
-	caps = rtw_get_capability((struct wlan_bssid_ex *)pnetwork);
+	caps = rtw_get_capability(pnetwork);
 	update_capinfo(padapter, caps);
 	if (caps & cap_ESS) {
 		Set_MSR(padapter, WIFI_FW_STATION_STATE);
@@ -4193,7 +4193,7 @@ void report_survey_event(struct adapter *padapter,
 
 	psurvey_evt = (struct survey_event *)(pevtcmd + sizeof(struct C2HEvent_Header));
 
-	if (collect_bss_info(padapter, precv_frame, (struct wlan_bssid_ex *)&psurvey_evt->bss) == _FAIL) {
+	if (collect_bss_info(padapter, precv_frame, &psurvey_evt->bss) == _FAIL) {
 		kfree(pcmd_obj);
 		kfree(pevtcmd);
 		return;
@@ -4851,7 +4851,7 @@ u8 createbss_hdl(struct adapter *padapter, u8 *pbuf)
 {
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
-	struct wlan_bssid_ex *pnetwork = (struct wlan_bssid_ex *)(&pmlmeinfo->network);
+	struct wlan_bssid_ex *pnetwork = &pmlmeinfo->network;
 	struct wlan_bssid_ex *pparm = (struct wlan_bssid_ex *)pbuf;
 
 	if (pparm->InfrastructureMode == Ndis802_11APMode) {
@@ -4913,7 +4913,7 @@ u8 join_cmd_hdl(struct adapter *padapter, u8 *pbuf)
 	struct registry_priv *pregpriv = &padapter->registrypriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
-	struct wlan_bssid_ex *pnetwork = (struct wlan_bssid_ex *)(&pmlmeinfo->network);
+	struct wlan_bssid_ex *pnetwork = &pmlmeinfo->network;
 	struct wlan_bssid_ex *pparm = (struct wlan_bssid_ex *)pbuf;
 	u32 i;
 
@@ -5024,7 +5024,7 @@ u8 disconnect_hdl(struct adapter *padapter, unsigned char *pbuf)
 	struct disconnect_parm *param = (struct disconnect_parm *)pbuf;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
-	struct wlan_bssid_ex *pnetwork = (struct wlan_bssid_ex *)(&pmlmeinfo->network);
+	struct wlan_bssid_ex *pnetwork = &pmlmeinfo->network;
 	u8 val8;
 
 	if (is_client_associated_to_ap(padapter))
