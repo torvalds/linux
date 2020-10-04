@@ -111,7 +111,7 @@ module_param(one_vm_per_core, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(one_vm_per_core, "Only run vCPUs from the same VM on a core (requires indep_threads_mode=N)");
 
 #ifdef CONFIG_KVM_XICS
-static struct kernel_param_ops module_param_ops = {
+static const struct kernel_param_ops module_param_ops = {
 	.set = param_set_int,
 	.get = param_get_int,
 };
