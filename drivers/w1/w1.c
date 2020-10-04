@@ -613,7 +613,7 @@ end:
 
 static int w1_family_notify(unsigned long action, struct w1_slave *sl)
 {
-	struct w1_family_ops *fops;
+	const struct w1_family_ops *fops;
 	int err;
 
 	fops = sl->family->fops;
