@@ -976,6 +976,15 @@ static irqreturn_t lpuart_int(int irq, void *dev_id)
 
 	sts = readb(sport->port.membase + UARTSR1);
 
+	/* SysRq, using dma, check for linebreak by framing err. */
+	if (sts & UARTSR1_FE && sport->lpuart_dma_rx_use) {
+		readb(sport->port.membase + UARTDR);
+		uart_handle_break(&sport->port);
+		/* linebreak produces some garbage, removing it */
+		writeb(UARTCFIFO_RXFLUSH, sport->port.membase + UARTCFIFO);
+		return IRQ_HANDLED;
+	}
+
 	if (sts & UARTSR1_RDRF && !sport->lpuart_dma_rx_use)
 		lpuart_rxint(sport);
 
@@ -1002,6 +1011,37 @@ static irqreturn_t lpuart32_int(int irq, void *dev_id)
 
 	lpuart32_write(&sport->port, sts, UARTSTAT);
 	return IRQ_HANDLED;
+}
+
+
+static inline void lpuart_handle_sysrq_chars(struct uart_port *port,
+					     unsigned char *p, int count)
+{
+	while (count--) {
+		if (*p && uart_handle_sysrq_char(port, *p))
+			return;
+		p++;
+	}
+}
+
+static void lpuart_handle_sysrq(struct lpuart_port *sport)
+{
+	struct circ_buf *ring = &sport->rx_ring;
+	int count;
+
+	if (ring->head < ring->tail) {
+		count = sport->rx_sgl.length - ring->tail;
+		lpuart_handle_sysrq_chars(&sport->port,
+					  ring->buf + ring->tail, count);
+		ring->tail = 0;
+	}
+
+	if (ring->head > ring->tail) {
+		count = ring->head - ring->tail;
+		lpuart_handle_sysrq_chars(&sport->port,
+					  ring->buf + ring->tail, count);
+		ring->tail = ring->head;
+	}
 }
 
 static void lpuart_copy_rx_to_tty(struct lpuart_port *sport)
@@ -1090,6 +1130,15 @@ static void lpuart_copy_rx_to_tty(struct lpuart_port *sport)
 	 */
 	ring->head = sport->rx_sgl.length - state.residue;
 	BUG_ON(ring->head > sport->rx_sgl.length);
+
+	/*
+	 * Silent handling of keys pressed in the sysrq timeframe
+	 */
+	if (sport->port.sysrq) {
+		lpuart_handle_sysrq(sport);
+		goto exit;
+	}
+
 	/*
 	 * At this point ring->head may point to the first byte right after the
 	 * last byte of the dma buffer:
@@ -1121,6 +1170,7 @@ static void lpuart_copy_rx_to_tty(struct lpuart_port *sport)
 		sport->port.icount.rx += count;
 	}
 
+exit:
 	dma_sync_sg_for_device(chan->device->dev, &sport->rx_sgl, 1,
 			       DMA_FROM_DEVICE);
 
@@ -1557,6 +1607,7 @@ err:
 static void lpuart_rx_dma_startup(struct lpuart_port *sport)
 {
 	int ret;
+	unsigned char cr3;
 
 	if (!sport->dma_rx_chan)
 		goto err;
@@ -1572,6 +1623,12 @@ static void lpuart_rx_dma_startup(struct lpuart_port *sport)
 
 	sport->lpuart_dma_rx_use = true;
 	rx_dma_timer_init(sport);
+
+	if (sport->port.has_sysrq) {
+		cr3 = readb(sport->port.membase + UARTCR3);
+		cr3 |= UARTCR3_FEIE;
+		writeb(cr3, sport->port.membase + UARTCR3);
+	}
 
 	return;
 
