@@ -11365,7 +11365,7 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 			if (time_after(jiffies, bp->fw_reset_timestamp +
 				       (bp->fw_reset_max_dsecs * HZ / 10))) {
 				netdev_err(bp->dev, "Firmware reset aborted\n");
-				goto fw_reset_abort;
+				goto fw_reset_abort_status;
 			}
 			bnxt_queue_fw_reset_work(bp, HZ / 5);
 			return;
@@ -11399,6 +11399,13 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 	}
 	return;
 
+fw_reset_abort_status:
+	if (bp->fw_health->status_reliable ||
+	    (bp->fw_cap & BNXT_FW_CAP_ERROR_RECOVERY)) {
+		u32 sts = bnxt_fw_health_readl(bp, BNXT_FW_HEALTH_REG);
+
+		netdev_err(bp->dev, "fw_health_status 0x%x\n", sts);
+	}
 fw_reset_abort:
 	clear_bit(BNXT_STATE_IN_FW_RESET, &bp->state);
 	if (bp->fw_reset_state != BNXT_FW_RESET_STATE_POLL_VF)
