@@ -215,6 +215,7 @@ struct dsa_port {
 	u8			stp_state;
 	struct net_device	*bridge_dev;
 	struct devlink_port	devlink_port;
+	bool			devlink_port_setup;
 	struct phylink		*pl;
 	struct phylink_config	pl_config;
 
