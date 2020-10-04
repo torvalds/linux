@@ -272,6 +272,15 @@ static int dsa_port_setup(struct dsa_port *dp)
 
 	switch (dp->type) {
 	case DSA_PORT_TYPE_UNUSED:
+		memset(dlp, 0, sizeof(*dlp));
+		attrs.flavour = DEVLINK_PORT_FLAVOUR_UNUSED;
+		devlink_port_attrs_set(dlp, &attrs);
+		err = devlink_port_register(dl, dlp, dp->index);
+		if (err)
+			break;
+
+		devlink_port_registered = true;
+
 		dsa_port_disable(dp);
 		break;
 	case DSA_PORT_TYPE_CPU:
@@ -355,6 +364,7 @@ static void dsa_port_teardown(struct dsa_port *dp)
 
 	switch (dp->type) {
 	case DSA_PORT_TYPE_UNUSED:
+		devlink_port_unregister(dlp);
 		break;
 	case DSA_PORT_TYPE_CPU:
 		dsa_port_disable(dp);
