@@ -423,6 +423,20 @@ dsa_devlink_region_create(struct dsa_switch *ds,
 }
 EXPORT_SYMBOL_GPL(dsa_devlink_region_create);
 
+struct devlink_region *
+dsa_devlink_port_region_create(struct dsa_switch *ds,
+			       int port,
+			       const struct devlink_port_region_ops *ops,
+			       u32 region_max_snapshots, u64 region_size)
+{
+	struct dsa_port *dp = dsa_to_port(ds, port);
+
+	return devlink_port_region_create(&dp->devlink_port, ops,
+					  region_max_snapshots,
+					  region_size);
+}
+EXPORT_SYMBOL_GPL(dsa_devlink_port_region_create);
+
 void dsa_devlink_region_destroy(struct devlink_region *region)
 {
 	devlink_region_destroy(region);

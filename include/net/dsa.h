@@ -681,6 +681,11 @@ struct devlink_region *
 dsa_devlink_region_create(struct dsa_switch *ds,
 			  const struct devlink_region_ops *ops,
 			  u32 region_max_snapshots, u64 region_size);
+struct devlink_region *
+dsa_devlink_port_region_create(struct dsa_switch *ds,
+			       int port,
+			       const struct devlink_port_region_ops *ops,
+			       u32 region_max_snapshots, u64 region_size);
 void dsa_devlink_region_destroy(struct devlink_region *region);
 
 struct dsa_port *dsa_port_from_netdev(struct net_device *netdev);
