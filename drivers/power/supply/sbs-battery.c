@@ -280,6 +280,12 @@ static int sbs_update_presence(struct sbs_info *chip, bool is_present)
 	else
 		client->flags &= ~I2C_CLIENT_PEC;
 
+	if (of_device_is_compatible(client->dev.parent->of_node, "google,cros-ec-i2c-tunnel")
+	    && client->flags & I2C_CLIENT_PEC) {
+		dev_info(&client->dev, "Disabling PEC because of broken Cros-EC implementation\n");
+		client->flags &= ~I2C_CLIENT_PEC;
+	}
+
 	dev_dbg(&client->dev, "PEC: %s\n", (client->flags & I2C_CLIENT_PEC) ?
 		"enabled" : "disabled");
 
