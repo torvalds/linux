@@ -232,6 +232,7 @@ static struct snd_soc_dai_link bdw_rt5650_dais[] = {
 	{
 		.name = "System PCM",
 		.stream_name = "System Playback",
+		.nonatomic = 1,
 		.dynamic = 1,
 		.ops = &bdw_rt5650_fe_ops,
 		.trigger = {
