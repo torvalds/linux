@@ -475,21 +475,21 @@ static const struct hwmon_chip_info w1_chip_info = {
 
 /* Family operations */
 
-static struct w1_family_ops w1_therm_fops = {
+static const struct w1_family_ops w1_therm_fops = {
 	.add_slave	= w1_therm_add_slave,
 	.remove_slave	= w1_therm_remove_slave,
 	.groups		= w1_therm_groups,
 	.chip_info	= W1_CHIPINFO,
 };
 
-static struct w1_family_ops w1_ds18s20_fops = {
+static const struct w1_family_ops w1_ds18s20_fops = {
 	.add_slave	= w1_therm_add_slave,
 	.remove_slave	= w1_therm_remove_slave,
 	.groups		= w1_ds18s20_groups,
 	.chip_info	= W1_CHIPINFO,
 };
 
-static struct w1_family_ops w1_ds28ea00_fops = {
+static const struct w1_family_ops w1_ds28ea00_fops = {
 	.add_slave	= w1_therm_add_slave,
 	.remove_slave	= w1_therm_remove_slave,
 	.groups		= w1_ds28ea00_groups,

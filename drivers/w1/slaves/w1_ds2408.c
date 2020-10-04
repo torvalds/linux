@@ -336,7 +336,7 @@ static const struct attribute_group *w1_f29_groups[] = {
 	NULL,
 };
 
-static struct w1_family_ops w1_f29_fops = {
+static const struct w1_family_ops w1_f29_fops = {
 	.add_slave      = w1_f29_disable_test_mode,
 	.groups		= w1_f29_groups,
 };
