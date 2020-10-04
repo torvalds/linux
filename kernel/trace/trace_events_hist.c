@@ -3289,6 +3289,15 @@ static int check_synth_field(struct synth_event *event,
 
 	field = event->fields[field_pos];
 
+	/*
+	 * A dynamic string synth field can accept static or
+	 * dynamic. A static string synth field can only accept a
+	 * same-sized static string, which is checked for later.
+	 */
+	if (strstr(hist_field->type, "char[") && field->is_string
+	    && field->is_dynamic)
+		return 0;
+
 	if (strcmp(field->type, hist_field->type) != 0) {
 		if (field->size != hist_field->size ||
 		    field->is_signed != hist_field->is_signed)

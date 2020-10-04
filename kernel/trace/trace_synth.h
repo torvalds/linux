@@ -16,6 +16,8 @@ struct synth_field {
 	unsigned int offset;
 	bool is_signed;
 	bool is_string;
+	bool is_dynamic;
+	bool field_pos;
 };
 
 struct synth_event {
@@ -24,6 +26,8 @@ struct synth_event {
 	char					*name;
 	struct synth_field			**fields;
 	unsigned int				n_fields;
+	struct synth_field			**dynamic_fields;
+	unsigned int				n_dynamic_fields;
 	unsigned int				n_u64;
 	struct trace_event_class		class;
 	struct trace_event_call			call;

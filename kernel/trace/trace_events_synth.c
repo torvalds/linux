@@ -88,7 +88,7 @@ static int synth_event_define_fields(struct trace_event_call *call)
 
 		event->fields[i]->offset = n_u64;
 
-		if (event->fields[i]->is_string) {
+		if (event->fields[i]->is_string && !event->fields[i]->is_dynamic) {
 			offset += STR_VAR_LEN_MAX;
 			n_u64 += STR_VAR_LEN_MAX / sizeof(u64);
 		} else {
@@ -138,6 +138,9 @@ static int synth_field_string_size(char *type)
 	len = end - start;
 	if (len > 3)
 		return -EINVAL;
+
+	if (len == 0)
+		return 0; /* variable-length string */
 
 	strncpy(buf, start, len);
 	buf[len] = '\0';
@@ -290,10 +293,25 @@ static enum print_line_t print_synth_event(struct trace_iterator *iter,
 
 		/* parameter values */
 		if (se->fields[i]->is_string) {
-			trace_seq_printf(s, print_fmt, se->fields[i]->name,
-					 (char *)&entry->fields[n_u64],
-					 i == se->n_fields - 1 ? "" : " ");
-			n_u64 += STR_VAR_LEN_MAX / sizeof(u64);
+			if (se->fields[i]->is_dynamic) {
+				u32 offset, data_offset;
+				char *str_field;
+
+				offset = (u32)entry->fields[n_u64];
+				data_offset = offset & 0xffff;
+
+				str_field = (char *)entry + data_offset;
+
+				trace_seq_printf(s, print_fmt, se->fields[i]->name,
+						 str_field,
+						 i == se->n_fields - 1 ? "" : " ");
+				n_u64++;
+			} else {
+				trace_seq_printf(s, print_fmt, se->fields[i]->name,
+						 (char *)&entry->fields[n_u64],
+						 i == se->n_fields - 1 ? "" : " ");
+				n_u64 += STR_VAR_LEN_MAX / sizeof(u64);
+			}
 		} else {
 			struct trace_print_flags __flags[] = {
 			    __def_gfpflag_names, {-1, NULL} };
@@ -325,16 +343,52 @@ static struct trace_event_functions synth_event_funcs = {
 	.trace		= print_synth_event
 };
 
+static unsigned int trace_string(struct synth_trace_event *entry,
+				 struct synth_event *event,
+				 char *str_val,
+				 bool is_dynamic,
+				 unsigned int data_size,
+				 unsigned int *n_u64)
+{
+	unsigned int len = 0;
+	char *str_field;
+
+	if (is_dynamic) {
+		u32 data_offset;
+
+		data_offset = offsetof(typeof(*entry), fields);
+		data_offset += event->n_u64 * sizeof(u64);
+		data_offset += data_size;
+
+		str_field = (char *)entry + data_offset;
+
+		len = strlen(str_val) + 1;
+		strscpy(str_field, str_val, len);
+
+		data_offset |= len << 16;
+		*(u32 *)&entry->fields[*n_u64] = data_offset;
+
+		(*n_u64)++;
+	} else {
+		str_field = (char *)&entry->fields[*n_u64];
+
+		strscpy(str_field, str_val, STR_VAR_LEN_MAX);
+		(*n_u64) += STR_VAR_LEN_MAX / sizeof(u64);
+	}
+
+	return len;
+}
+
 static notrace void trace_event_raw_event_synth(void *__data,
 						u64 *var_ref_vals,
 						unsigned int *var_ref_idx)
 {
+	unsigned int i, n_u64, val_idx, len, data_size = 0;
 	struct trace_event_file *trace_file = __data;
 	struct synth_trace_event *entry;
 	struct trace_event_buffer fbuffer;
 	struct trace_buffer *buffer;
 	struct synth_event *event;
-	unsigned int i, n_u64, val_idx;
 	int fields_size = 0;
 
 	event = trace_file->event_call->data;
@@ -343,6 +397,18 @@ static notrace void trace_event_raw_event_synth(void *__data,
 		return;
 
 	fields_size = event->n_u64 * sizeof(u64);
+
+	for (i = 0; i < event->n_dynamic_fields; i++) {
+		unsigned int field_pos = event->dynamic_fields[i]->field_pos;
+		char *str_val;
+
+		val_idx = var_ref_idx[field_pos];
+		str_val = (char *)(long)var_ref_vals[val_idx];
+
+		len = strlen(str_val) + 1;
+
+		fields_size += len;
+	}
 
 	/*
 	 * Avoid ring buffer recursion detection, as this event
@@ -360,10 +426,11 @@ static notrace void trace_event_raw_event_synth(void *__data,
 		val_idx = var_ref_idx[i];
 		if (event->fields[i]->is_string) {
 			char *str_val = (char *)(long)var_ref_vals[val_idx];
-			char *str_field = (char *)&entry->fields[n_u64];
 
-			strscpy(str_field, str_val, STR_VAR_LEN_MAX);
-			n_u64 += STR_VAR_LEN_MAX / sizeof(u64);
+			len = trace_string(entry, event, str_val,
+					   event->fields[i]->is_dynamic,
+					   data_size, &n_u64);
+			data_size += len; /* only dynamic string increments */
 		} else {
 			struct synth_field *field = event->fields[i];
 			u64 val = var_ref_vals[val_idx];
@@ -422,8 +489,13 @@ static int __set_synth_event_print_fmt(struct synth_event *event,
 	pos += snprintf(buf + pos, LEN_OR_ZERO, "\"");
 
 	for (i = 0; i < event->n_fields; i++) {
-		pos += snprintf(buf + pos, LEN_OR_ZERO,
-				", REC->%s", event->fields[i]->name);
+		if (event->fields[i]->is_dynamic &&
+		    event->fields[i]->is_dynamic)
+			pos += snprintf(buf + pos, LEN_OR_ZERO,
+				", __get_str(%s)", event->fields[i]->name);
+		else
+			pos += snprintf(buf + pos, LEN_OR_ZERO,
+					", REC->%s", event->fields[i]->name);
 	}
 
 #undef LEN_OR_ZERO
@@ -522,9 +594,30 @@ static struct synth_field *parse_synth_field(int argc, const char **argv,
 	}
 
 	size = synth_field_size(field->type);
-	if (size <= 0) {
+	if (size < 0) {
 		ret = -EINVAL;
 		goto free;
+	} else if (size == 0) {
+		if (synth_field_is_string(field->type)) {
+			char *type;
+
+			type = kzalloc(sizeof("__data_loc ") + strlen(field->type) + 1, GFP_KERNEL);
+			if (!type) {
+				ret = -ENOMEM;
+				goto free;
+			}
+
+			strcat(type, "__data_loc ");
+			strcat(type, field->type);
+			kfree(field->type);
+			field->type = type;
+
+			field->is_dynamic = true;
+			size = sizeof(u64);
+		} else {
+			ret = -EINVAL;
+			goto free;
+		}
 	}
 	field->size = size;
 
@@ -532,7 +625,6 @@ static struct synth_field *parse_synth_field(int argc, const char **argv,
 		field->is_string = true;
 
 	field->is_signed = synth_field_signed(field->type);
-
  out:
 	return field;
  free:
@@ -663,6 +755,7 @@ static void free_synth_event(struct synth_event *event)
 		free_synth_field(event->fields[i]);
 
 	kfree(event->fields);
+	kfree(event->dynamic_fields);
 	kfree(event->name);
 	kfree(event->class.system);
 	free_synth_tracepoint(event->tp);
@@ -673,8 +766,8 @@ static void free_synth_event(struct synth_event *event)
 static struct synth_event *alloc_synth_event(const char *name, int n_fields,
 					     struct synth_field **fields)
 {
+	unsigned int i, j, n_dynamic_fields = 0;
 	struct synth_event *event;
-	unsigned int i;
 
 	event = kzalloc(sizeof(*event), GFP_KERNEL);
 	if (!event) {
@@ -696,11 +789,33 @@ static struct synth_event *alloc_synth_event(const char *name, int n_fields,
 		goto out;
 	}
 
+	for (i = 0; i < n_fields; i++)
+		if (fields[i]->is_dynamic)
+			n_dynamic_fields++;
+
+	if (n_dynamic_fields) {
+		event->dynamic_fields = kcalloc(n_dynamic_fields,
+						sizeof(*event->dynamic_fields),
+						GFP_KERNEL);
+		if (!event->dynamic_fields) {
+			free_synth_event(event);
+			event = ERR_PTR(-ENOMEM);
+			goto out;
+		}
+	}
+
 	dyn_event_init(&event->devent, &synth_event_ops);
 
-	for (i = 0; i < n_fields; i++)
+	for (i = 0, j = 0; i < n_fields; i++) {
 		event->fields[i] = fields[i];
 
+		if (fields[i]->is_dynamic) {
+			event->dynamic_fields[j] = fields[i];
+			event->dynamic_fields[j]->field_pos = i;
+			event->dynamic_fields[j++] = fields[i];
+			event->n_dynamic_fields++;
+		}
+	}
 	event->n_fields = n_fields;
  out:
 	return event;
@@ -712,6 +827,10 @@ static int synth_event_check_arg_fn(void *data)
 	int size;
 
 	size = synth_field_size((char *)arg_pair->lhs);
+	if (size == 0) {
+		if (strstr((char *)arg_pair->lhs, "["))
+			return 0;
+	}
 
 	return size ? 0 : -EINVAL;
 }
@@ -1200,10 +1319,9 @@ void synth_event_cmd_init(struct dynevent_cmd *cmd, char *buf, int maxlen)
 EXPORT_SYMBOL_GPL(synth_event_cmd_init);
 
 static inline int
-__synth_event_trace_start(struct trace_event_file *file,
-			  struct synth_event_trace_state *trace_state)
+__synth_event_trace_init(struct trace_event_file *file,
+			 struct synth_event_trace_state *trace_state)
 {
-	int entry_size, fields_size = 0;
 	int ret = 0;
 
 	memset(trace_state, '\0', sizeof(*trace_state));
@@ -1225,8 +1343,20 @@ __synth_event_trace_start(struct trace_event_file *file,
 	}
 
 	trace_state->event = file->event_call->data;
+out:
+	return ret;
+}
+
+static inline int
+__synth_event_trace_start(struct trace_event_file *file,
+			  struct synth_event_trace_state *trace_state,
+			  int dynamic_fields_size)
+{
+	int entry_size, fields_size = 0;
+	int ret = 0;
 
 	fields_size = trace_state->event->n_u64 * sizeof(u64);
+	fields_size += dynamic_fields_size;
 
 	/*
 	 * Avoid ring buffer recursion detection, as this event
@@ -1243,7 +1373,7 @@ __synth_event_trace_start(struct trace_event_file *file,
 		ring_buffer_nest_end(trace_state->buffer);
 		ret = -EINVAL;
 	}
-out:
+
 	return ret;
 }
 
@@ -1276,22 +1406,45 @@ __synth_event_trace_end(struct synth_event_trace_state *trace_state)
  */
 int synth_event_trace(struct trace_event_file *file, unsigned int n_vals, ...)
 {
+	unsigned int i, n_u64, len, data_size = 0;
 	struct synth_event_trace_state state;
-	unsigned int i, n_u64;
 	va_list args;
 	int ret;
 
-	ret = __synth_event_trace_start(file, &state);
+	ret = __synth_event_trace_init(file, &state);
 	if (ret) {
 		if (ret == -ENOENT)
 			ret = 0; /* just disabled, not really an error */
 		return ret;
 	}
 
+	if (state.event->n_dynamic_fields) {
+		va_start(args, n_vals);
+
+		for (i = 0; i < state.event->n_fields; i++) {
+			u64 val = va_arg(args, u64);
+
+			if (state.event->fields[i]->is_string &&
+			    state.event->fields[i]->is_dynamic) {
+				char *str_val = (char *)(long)val;
+
+				data_size += strlen(str_val) + 1;
+			}
+		}
+
+		va_end(args);
+	}
+
+	ret = __synth_event_trace_start(file, &state, data_size);
+	if (ret)
+		return ret;
+
 	if (n_vals != state.event->n_fields) {
 		ret = -EINVAL;
 		goto out;
 	}
+
+	data_size = 0;
 
 	va_start(args, n_vals);
 	for (i = 0, n_u64 = 0; i < state.event->n_fields; i++) {
@@ -1301,10 +1454,11 @@ int synth_event_trace(struct trace_event_file *file, unsigned int n_vals, ...)
 
 		if (state.event->fields[i]->is_string) {
 			char *str_val = (char *)(long)val;
-			char *str_field = (char *)&state.entry->fields[n_u64];
 
-			strscpy(str_field, str_val, STR_VAR_LEN_MAX);
-			n_u64 += STR_VAR_LEN_MAX / sizeof(u64);
+			len = trace_string(state.entry, state.event, str_val,
+					   state.event->fields[i]->is_dynamic,
+					   data_size, &n_u64);
+			data_size += len; /* only dynamic string increments */
 		} else {
 			struct synth_field *field = state.event->fields[i];
 
@@ -1357,29 +1511,46 @@ EXPORT_SYMBOL_GPL(synth_event_trace);
 int synth_event_trace_array(struct trace_event_file *file, u64 *vals,
 			    unsigned int n_vals)
 {
+	unsigned int i, n_u64, field_pos, len, data_size = 0;
 	struct synth_event_trace_state state;
-	unsigned int i, n_u64;
+	char *str_val;
 	int ret;
 
-	ret = __synth_event_trace_start(file, &state);
+	ret = __synth_event_trace_init(file, &state);
 	if (ret) {
 		if (ret == -ENOENT)
 			ret = 0; /* just disabled, not really an error */
 		return ret;
 	}
 
+	if (state.event->n_dynamic_fields) {
+		for (i = 0; i < state.event->n_dynamic_fields; i++) {
+			field_pos = state.event->dynamic_fields[i]->field_pos;
+			str_val = (char *)(long)vals[field_pos];
+			len = strlen(str_val) + 1;
+			data_size += len;
+		}
+	}
+
+	ret = __synth_event_trace_start(file, &state, data_size);
+	if (ret)
+		return ret;
+
 	if (n_vals != state.event->n_fields) {
 		ret = -EINVAL;
 		goto out;
 	}
 
+	data_size = 0;
+
 	for (i = 0, n_u64 = 0; i < state.event->n_fields; i++) {
 		if (state.event->fields[i]->is_string) {
 			char *str_val = (char *)(long)vals[i];
-			char *str_field = (char *)&state.entry->fields[n_u64];
 
-			strscpy(str_field, str_val, STR_VAR_LEN_MAX);
-			n_u64 += STR_VAR_LEN_MAX / sizeof(u64);
+			len = trace_string(state.entry, state.event, str_val,
+					   state.event->fields[i]->is_dynamic,
+					   data_size, &n_u64);
+			data_size += len; /* only dynamic string increments */
 		} else {
 			struct synth_field *field = state.event->fields[i];
 			u64 val = vals[i];
@@ -1447,9 +1618,17 @@ int synth_event_trace_start(struct trace_event_file *file,
 	if (!trace_state)
 		return -EINVAL;
 
-	ret = __synth_event_trace_start(file, trace_state);
-	if (ret == -ENOENT)
-		ret = 0; /* just disabled, not really an error */
+	ret = __synth_event_trace_init(file, trace_state);
+	if (ret) {
+		if (ret == -ENOENT)
+			ret = 0; /* just disabled, not really an error */
+		return ret;
+	}
+
+	if (trace_state->event->n_dynamic_fields)
+		return -ENOTSUPP;
+
+	ret = __synth_event_trace_start(file, trace_state, 0);
 
 	return ret;
 }
@@ -1509,6 +1688,11 @@ static int __synth_event_add_val(const char *field_name, u64 val,
 	if (field->is_string) {
 		char *str_val = (char *)(long)val;
 		char *str_field;
+
+		if (field->is_dynamic) { /* add_val can't do dynamic strings */
+			ret = -EINVAL;
+			goto out;
+		}
 
 		if (!str_val) {
 			ret = -EINVAL;
