@@ -25,6 +25,7 @@ config H8300
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_HASH
 	select CPU_NO_EFFICIENT_FFS
+	select SET_FS
 	select UACCESS_MEMCPY
 
 config CPU_BIG_ENDIAN

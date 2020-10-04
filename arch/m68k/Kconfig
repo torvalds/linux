@@ -32,6 +32,7 @@ config M68K
 	select OLD_SIGSUSPEND3
 	select OLD_SIGACTION
 	select MMU_GATHER_NO_RANGE if MMU
+	select SET_FS
 
 config CPU_BIG_ENDIAN
 	def_bool y
