@@ -7336,6 +7336,36 @@ hwrm_cfa_adv_qcaps_exit:
 	return rc;
 }
 
+static int __bnxt_alloc_fw_health(struct bnxt *bp)
+{
+	if (bp->fw_health)
+		return 0;
+
+	bp->fw_health = kzalloc(sizeof(*bp->fw_health), GFP_KERNEL);
+	if (!bp->fw_health)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static int bnxt_alloc_fw_health(struct bnxt *bp)
+{
+	int rc;
+
+	if (!(bp->fw_cap & BNXT_FW_CAP_HOT_RESET) &&
+	    !(bp->fw_cap & BNXT_FW_CAP_ERROR_RECOVERY))
+		return 0;
+
+	rc = __bnxt_alloc_fw_health(bp);
+	if (rc) {
+		bp->fw_cap &= ~BNXT_FW_CAP_HOT_RESET;
+		bp->fw_cap &= ~BNXT_FW_CAP_ERROR_RECOVERY;
+		return rc;
+	}
+
+	return 0;
+}
+
 static int bnxt_map_fw_health_regs(struct bnxt *bp)
 {
 	struct bnxt_fw_health *fw_health = bp->fw_health;
@@ -10966,23 +10996,6 @@ static void bnxt_init_dflt_coal(struct bnxt *bp)
 	bp->stats_coal_ticks = BNXT_DEF_STATS_COAL_TICKS;
 }
 
-static void bnxt_alloc_fw_health(struct bnxt *bp)
-{
-	if (bp->fw_health)
-		return;
-
-	if (!(bp->fw_cap & BNXT_FW_CAP_HOT_RESET) &&
-	    !(bp->fw_cap & BNXT_FW_CAP_ERROR_RECOVERY))
-		return;
-
-	bp->fw_health = kzalloc(sizeof(*bp->fw_health), GFP_KERNEL);
-	if (!bp->fw_health) {
-		netdev_warn(bp->dev, "Failed to allocate fw_health\n");
-		bp->fw_cap &= ~BNXT_FW_CAP_HOT_RESET;
-		bp->fw_cap &= ~BNXT_FW_CAP_ERROR_RECOVERY;
-	}
-}
-
 static int bnxt_fw_init_one_p1(struct bnxt *bp)
 {
 	int rc;
@@ -11029,11 +11042,14 @@ static int bnxt_fw_init_one_p2(struct bnxt *bp)
 		netdev_warn(bp->dev, "hwrm query adv flow mgnt failure rc: %d\n",
 			    rc);
 
-	bnxt_alloc_fw_health(bp);
-	rc = bnxt_hwrm_error_recovery_qcfg(bp);
-	if (rc)
-		netdev_warn(bp->dev, "hwrm query error recovery failure rc: %d\n",
-			    rc);
+	if (bnxt_alloc_fw_health(bp)) {
+		netdev_warn(bp->dev, "no memory for firmware error recovery\n");
+	} else {
+		rc = bnxt_hwrm_error_recovery_qcfg(bp);
+		if (rc)
+			netdev_warn(bp->dev, "hwrm query error recovery failure rc: %d\n",
+				    rc);
+	}
 
 	rc = bnxt_hwrm_func_drv_rgtr(bp, NULL, 0, false);
 	if (rc)
