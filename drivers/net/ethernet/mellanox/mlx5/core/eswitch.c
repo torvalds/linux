@@ -1615,7 +1615,6 @@ int mlx5_eswitch_enable_locked(struct mlx5_eswitch *esw, int mode, int num_vfs)
 		err = esw_legacy_enable(esw);
 	} else {
 		mlx5_rescan_drivers(esw->dev);
-		mlx5_reload_interface(esw->dev, MLX5_INTERFACE_PROTOCOL_IB);
 		err = esw_offloads_enable(esw);
 	}
 
@@ -1633,10 +1632,9 @@ int mlx5_eswitch_enable_locked(struct mlx5_eswitch *esw, int mode, int num_vfs)
 abort:
 	esw->mode = MLX5_ESWITCH_NONE;
 
-	if (mode == MLX5_ESWITCH_OFFLOADS) {
-		mlx5_reload_interface(esw->dev, MLX5_INTERFACE_PROTOCOL_IB);
+	if (mode == MLX5_ESWITCH_OFFLOADS)
 		mlx5_rescan_drivers(esw->dev);
-	}
+
 	esw_destroy_tsar(esw);
 	return err;
 }
@@ -1697,10 +1695,9 @@ void mlx5_eswitch_disable_locked(struct mlx5_eswitch *esw, bool clear_vf)
 
 	mlx5_lag_update(esw->dev);
 
-	if (old_mode == MLX5_ESWITCH_OFFLOADS) {
-		mlx5_reload_interface(esw->dev, MLX5_INTERFACE_PROTOCOL_IB);
+	if (old_mode == MLX5_ESWITCH_OFFLOADS)
 		mlx5_rescan_drivers(esw->dev);
-	}
+
 	esw_destroy_tsar(esw);
 
 	if (clear_vf)

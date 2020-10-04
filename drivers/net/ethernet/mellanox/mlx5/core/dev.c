@@ -144,16 +144,82 @@ static bool is_vnet_supported(struct mlx5_core_dev *dev)
 	return true;
 }
 
+static bool is_ib_rep_supported(struct mlx5_core_dev *dev)
+{
+	if (!IS_ENABLED(CONFIG_MLX5_INFINIBAND))
+		return false;
+
+	if (dev->priv.flags & MLX5_PRIV_FLAGS_DISABLE_IB_ADEV)
+		return false;
+
+	if (!is_eth_rep_supported(dev))
+		return false;
+
+	if (!MLX5_ESWITCH_MANAGER(dev))
+		return false;
+
+	if (mlx5_eswitch_mode(dev->priv.eswitch) != MLX5_ESWITCH_OFFLOADS)
+		return false;
+
+	if (mlx5_core_mp_enabled(dev))
+		return false;
+
+	return true;
+}
+
+static bool is_mp_supported(struct mlx5_core_dev *dev)
+{
+	if (!IS_ENABLED(CONFIG_MLX5_INFINIBAND))
+		return false;
+
+	if (dev->priv.flags & MLX5_PRIV_FLAGS_DISABLE_IB_ADEV)
+		return false;
+
+	if (is_ib_rep_supported(dev))
+		return false;
+
+	if (MLX5_CAP_GEN(dev, port_type) != MLX5_CAP_PORT_TYPE_ETH)
+		return false;
+
+	if (!mlx5_core_is_mp_slave(dev))
+		return false;
+
+	return true;
+}
+
+static bool is_ib_supported(struct mlx5_core_dev *dev)
+{
+	if (!IS_ENABLED(CONFIG_MLX5_INFINIBAND))
+		return false;
+
+	if (dev->priv.flags & MLX5_PRIV_FLAGS_DISABLE_IB_ADEV)
+		return false;
+
+	if (is_ib_rep_supported(dev))
+		return false;
+
+	if (is_mp_supported(dev))
+		return false;
+
+	return true;
+}
+
 static const struct mlx5_adev_device {
 	const char *suffix;
 	bool (*is_supported)(struct mlx5_core_dev *dev);
 } mlx5_adev_devices[] = {
 	[MLX5_INTERFACE_PROTOCOL_VDPA] = { .suffix = "vnet",
 					   .is_supported = &is_vnet_supported },
+	[MLX5_INTERFACE_PROTOCOL_IB] = { .suffix = "rdma",
+					 .is_supported = &is_ib_supported },
 	[MLX5_INTERFACE_PROTOCOL_ETH] = { .suffix = "eth",
 					  .is_supported = &is_eth_supported },
 	[MLX5_INTERFACE_PROTOCOL_ETH_REP] = { .suffix = "eth-rep",
 					   .is_supported = &is_eth_rep_supported },
+	[MLX5_INTERFACE_PROTOCOL_IB_REP] = { .suffix = "rdma-rep",
+					   .is_supported = &is_ib_rep_supported },
+	[MLX5_INTERFACE_PROTOCOL_MPIB] = { .suffix = "multiport",
+					   .is_supported = &is_mp_supported },
 };
 
 int mlx5_adev_idx_alloc(void)
