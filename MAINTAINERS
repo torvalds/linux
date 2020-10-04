@@ -19247,7 +19247,7 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 W:	http://mjpeg.sourceforge.net/driver-zoran/
 Q:	https://patchwork.linuxtv.org/project/linux-media/list/
-F:	Documentation/media/v4l-drivers/zoran.rst
+F:	Documentation/driver-api/media/drivers/zoran.rst
 F:	drivers/staging/media/zoran/
 
 ZPOOL COMPRESSED PAGE STORAGE API
