@@ -1685,27 +1685,19 @@ int hl_vm_ctx_init(struct hl_ctx *ctx)
 	 *   In case of DRAM mapping, the returned address is the physical
 	 *   address of the memory related to the given handle.
 	 */
-	if (ctx->hdev->mmu_enable) {
-		dram_range_start = prop->dmmu.start_addr;
-		dram_range_end = prop->dmmu.end_addr;
-		host_range_start = prop->pmmu.start_addr;
-		host_range_end = prop->pmmu.end_addr;
-		host_huge_range_start = prop->pmmu_huge.start_addr;
-		host_huge_range_end = prop->pmmu_huge.end_addr;
-	} else {
-		dram_range_start = prop->dram_user_base_address;
-		dram_range_end = prop->dram_end_address;
-		host_range_start = prop->dram_user_base_address;
-		host_range_end = prop->dram_end_address;
-		host_huge_range_start = prop->dram_user_base_address;
-		host_huge_range_end = prop->dram_end_address;
-	}
+	if (!ctx->hdev->mmu_enable)
+		return 0;
+
+	dram_range_start = prop->dmmu.start_addr;
+	dram_range_end = prop->dmmu.end_addr;
+	host_range_start = prop->pmmu.start_addr;
+	host_range_end = prop->pmmu.end_addr;
+	host_huge_range_start = prop->pmmu_huge.start_addr;
+	host_huge_range_end = prop->pmmu_huge.end_addr;
 
 	return vm_ctx_init_with_ranges(ctx, host_range_start, host_range_end,
-					host_huge_range_start,
-					host_huge_range_end,
-					dram_range_start,
-					dram_range_end);
+				host_huge_range_start, host_huge_range_end,
+				dram_range_start, dram_range_end);
 }
 
 /*
@@ -1736,6 +1728,9 @@ void hl_vm_ctx_fini(struct hl_ctx *ctx)
 	struct hl_vm_hash_node *hnode;
 	struct hlist_node *tmp_node;
 	int i;
+
+	if (!ctx->hdev->mmu_enable)
+		return;
 
 	hl_debugfs_remove_ctx_mem_hash(hdev, ctx);
 
