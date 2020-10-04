@@ -369,7 +369,7 @@ static void rtl8723bs_recv_tasklet(struct tasklet_struct *t)
 				}
 			}
 
-			pkt_offset = _RND8(pkt_offset);
+			pkt_offset = round_up(pkt_offset, 8);
 			precvbuf->pdata += pkt_offset;
 			ptr = precvbuf->pdata;
 			precvframe = NULL;

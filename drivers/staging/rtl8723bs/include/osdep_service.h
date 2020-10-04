@@ -132,17 +132,6 @@ static inline int rtw_bug_check(void *parg1, void *parg2, void *parg3, void *par
 
 #define _RND(sz, r) ((((sz)+((r)-1))/(r))*(r))
 
-static inline u32 _RND8(u32 sz)
-{
-
-	u32 val;
-
-	val = ((sz >> 3) + ((sz & 7) ? 1 : 0)) << 3;
-
-	return val;
-
-}
-
 #ifndef MAC_FMT
 #define MAC_FMT "%pM"
 #endif
