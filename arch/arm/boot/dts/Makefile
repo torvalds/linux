@@ -1241,7 +1241,8 @@ dtb-$(CONFIG_ARCH_TEGRA_3x_SOC) += \
 	tegra30-beaver.dtb \
 	tegra30-cardhu-a02.dtb \
 	tegra30-cardhu-a04.dtb \
-	tegra30-colibri-eval-v3.dtb
+	tegra30-colibri-eval-v3.dtb \
+	tegra30-ouya.dtb
 dtb-$(CONFIG_ARCH_TEGRA_114_SOC) += \
 	tegra114-dalmore.dtb \
 	tegra114-roth.dtb \
