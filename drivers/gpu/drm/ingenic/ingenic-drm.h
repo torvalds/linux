@@ -171,10 +171,6 @@ void ingenic_drm_plane_config(struct device *dev,
 			      struct drm_plane *plane, u32 fourcc);
 void ingenic_drm_plane_disable(struct device *dev, struct drm_plane *plane);
 
-void ingenic_drm_sync_data(struct device *dev,
-			   struct drm_plane_state *old_state,
-			   struct drm_plane_state *state);
-
 extern struct platform_driver *ingenic_ipu_driver_ptr;
 
 #endif /* DRIVERS_GPU_DRM_INGENIC_INGENIC_DRM_H */
