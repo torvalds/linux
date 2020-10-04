@@ -907,6 +907,7 @@ struct bnxt_rx_ring_info {
 
 struct bnxt_rx_sw_stats {
 	u64			rx_l4_csum_errors;
+	u64			rx_resets;
 	u64			rx_buf_errors;
 };
 
