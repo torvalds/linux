@@ -7366,6 +7366,47 @@ static int bnxt_alloc_fw_health(struct bnxt *bp)
 	return 0;
 }
 
+static void __bnxt_map_fw_health_reg(struct bnxt *bp, u32 reg)
+{
+	writel(reg & BNXT_GRC_BASE_MASK, bp->bar0 +
+					 BNXT_GRCPF_REG_WINDOW_BASE_OUT +
+					 BNXT_FW_HEALTH_WIN_MAP_OFF);
+}
+
+static void bnxt_try_map_fw_health_reg(struct bnxt *bp)
+{
+	void __iomem *hs;
+	u32 status_loc;
+	u32 reg_type;
+	u32 sig;
+
+	__bnxt_map_fw_health_reg(bp, HCOMM_STATUS_STRUCT_LOC);
+	hs = bp->bar0 + BNXT_FW_HEALTH_WIN_OFF(HCOMM_STATUS_STRUCT_LOC);
+
+	sig = readl(hs + offsetof(struct hcomm_status, sig_ver));
+	if ((sig & HCOMM_STATUS_SIGNATURE_MASK) != HCOMM_STATUS_SIGNATURE_VAL) {
+		if (bp->fw_health)
+			bp->fw_health->status_reliable = false;
+		return;
+	}
+
+	if (__bnxt_alloc_fw_health(bp)) {
+		netdev_warn(bp->dev, "no memory for firmware status checks\n");
+		return;
+	}
+
+	status_loc = readl(hs + offsetof(struct hcomm_status, fw_status_loc));
+	bp->fw_health->regs[BNXT_FW_HEALTH_REG] = status_loc;
+	reg_type = BNXT_FW_HEALTH_REG_TYPE(status_loc);
+	if (reg_type == BNXT_FW_HEALTH_REG_TYPE_GRC) {
+		__bnxt_map_fw_health_reg(bp, status_loc);
+		bp->fw_health->mapped_regs[BNXT_FW_HEALTH_REG] =
+			BNXT_FW_HEALTH_WIN_OFF(status_loc);
+	}
+
+	bp->fw_health->status_reliable = true;
+}
+
 static int bnxt_map_fw_health_regs(struct bnxt *bp)
 {
 	struct bnxt_fw_health *fw_health = bp->fw_health;
@@ -7382,14 +7423,12 @@ static int bnxt_map_fw_health_regs(struct bnxt *bp)
 			reg_base = reg & BNXT_GRC_BASE_MASK;
 		if ((reg & BNXT_GRC_BASE_MASK) != reg_base)
 			return -ERANGE;
-		fw_health->mapped_regs[i] = BNXT_FW_HEALTH_WIN_BASE +
-					    (reg & BNXT_GRC_OFFSET_MASK);
+		fw_health->mapped_regs[i] = BNXT_FW_HEALTH_WIN_OFF(reg);
 	}
 	if (reg_base == 0xffffffff)
 		return 0;
 
-	writel(reg_base, bp->bar0 + BNXT_GRCPF_REG_WINDOW_BASE_OUT +
-			 BNXT_FW_HEALTH_WIN_MAP_OFF);
+	__bnxt_map_fw_health_reg(bp, reg_base);
 	return 0;
 }
 
@@ -11002,8 +11041,15 @@ static int bnxt_fw_init_one_p1(struct bnxt *bp)
 
 	bp->fw_cap = 0;
 	rc = bnxt_hwrm_ver_get(bp);
-	if (rc)
+	bnxt_try_map_fw_health_reg(bp);
+	if (rc) {
+		if (bp->fw_health && bp->fw_health->status_reliable)
+			netdev_err(bp->dev,
+				   "Firmware not responding, status: 0x%x\n",
+				   bnxt_fw_health_readl(bp,
+							BNXT_FW_HEALTH_REG));
 		return rc;
+	}
 
 	if (bp->fw_cap & BNXT_FW_CAP_KONG_MB_CHNL) {
 		rc = bnxt_alloc_kong_hwrm_resources(bp);

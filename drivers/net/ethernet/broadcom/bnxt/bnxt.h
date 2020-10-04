@@ -1494,6 +1494,7 @@ struct bnxt_fw_health {
 	u8 enabled:1;
 	u8 master:1;
 	u8 fatal:1;
+	u8 status_reliable:1;
 	u8 tmr_multiplier;
 	u8 tmr_counter;
 	u8 fw_reset_seq_cnt;
@@ -1520,6 +1521,9 @@ struct bnxt_fw_reporter_ctx {
 
 #define BNXT_FW_HEALTH_WIN_BASE		0x3000
 #define BNXT_FW_HEALTH_WIN_MAP_OFF	8
+
+#define BNXT_FW_HEALTH_WIN_OFF(reg)	(BNXT_FW_HEALTH_WIN_BASE +	\
+					 ((reg) & BNXT_GRC_OFFSET_MASK))
 
 #define BNXT_FW_STATUS_HEALTHY		0x8000
 #define BNXT_FW_STATUS_SHUTDOWN		0x100000
