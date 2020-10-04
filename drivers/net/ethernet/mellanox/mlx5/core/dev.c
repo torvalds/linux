@@ -31,6 +31,7 @@
  */
 
 #include <linux/mlx5/driver.h>
+#include <linux/mlx5/mlx5_ifc_vdpa.h>
 #include "mlx5_core.h"
 
 static LIST_HEAD(intf_list);
@@ -51,10 +52,35 @@ enum {
 	MLX5_INTERFACE_ATTACHED,
 };
 
+static bool is_vnet_supported(struct mlx5_core_dev *dev)
+{
+	if (!IS_ENABLED(CONFIG_MLX5_VDPA_NET))
+		return false;
+
+	if (mlx5_core_is_pf(dev))
+		return false;
+
+	if (!(MLX5_CAP_GEN_64(dev, general_obj_types) &
+	      MLX5_GENERAL_OBJ_TYPES_CAP_VIRTIO_NET_Q))
+		return false;
+
+	if (!(MLX5_CAP_DEV_VDPA_EMULATION(dev, event_mode) &
+	      MLX5_VIRTIO_Q_EVENT_MODE_QP_MODE))
+		return false;
+
+	if (!MLX5_CAP_DEV_VDPA_EMULATION(dev, eth_frame_offload_type))
+		return false;
+
+	return true;
+}
+
 static const struct mlx5_adev_device {
 	const char *suffix;
 	bool (*is_supported)(struct mlx5_core_dev *dev);
-} mlx5_adev_devices[1] = {};
+} mlx5_adev_devices[] = {
+	[MLX5_INTERFACE_PROTOCOL_VDPA] = { .suffix = "vnet",
+					   .is_supported = &is_vnet_supported },
+};
 
 int mlx5_adev_idx_alloc(void)
 {
