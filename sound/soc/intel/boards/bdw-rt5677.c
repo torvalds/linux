@@ -323,6 +323,7 @@ static struct snd_soc_dai_link bdw_rt5677_dais[] = {
 	{
 		.name = "System PCM",
 		.stream_name = "System Playback/Capture",
+		.nonatomic = 1,
 		.dynamic = 1,
 		.trigger = {
 			SND_SOC_DPCM_TRIGGER_POST,
