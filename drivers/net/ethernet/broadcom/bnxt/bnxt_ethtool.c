@@ -178,6 +178,7 @@ static const char * const bnxt_ring_tpa2_stats_str[] = {
 
 static const char * const bnxt_rx_sw_stats_str[] = {
 	"rx_l4_csum_errors",
+	"rx_resets",
 	"rx_buf_errors",
 };
 

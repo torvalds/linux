@@ -373,6 +373,7 @@ struct cmd_nums {
 	#define HWRM_TF_SESSION_RESC_FLUSH                0x2cfUL
 	#define HWRM_TF_TBL_TYPE_GET                      0x2daUL
 	#define HWRM_TF_TBL_TYPE_SET                      0x2dbUL
+	#define HWRM_TF_TBL_TYPE_BULK_GET                 0x2dcUL
 	#define HWRM_TF_CTXT_MEM_ALLOC                    0x2e2UL
 	#define HWRM_TF_CTXT_MEM_FREE                     0x2e3UL
 	#define HWRM_TF_CTXT_MEM_RGTR                     0x2e4UL
@@ -486,8 +487,8 @@ struct hwrm_err_output {
 #define HWRM_VERSION_MAJOR 1
 #define HWRM_VERSION_MINOR 10
 #define HWRM_VERSION_UPDATE 1
-#define HWRM_VERSION_RSVD 65
-#define HWRM_VERSION_STR "1.10.1.65"
+#define HWRM_VERSION_RSVD 68
+#define HWRM_VERSION_STR "1.10.1.68"
 
 /* hwrm_ver_get_input (size:192b/24B) */
 struct hwrm_ver_get_input {
@@ -8272,7 +8273,7 @@ struct hwrm_nvm_get_dev_info_input {
 	__le64	resp_addr;
 };
 
-/* hwrm_nvm_get_dev_info_output (size:256b/32B) */
+/* hwrm_nvm_get_dev_info_output (size:640b/80B) */
 struct hwrm_nvm_get_dev_info_output {
 	__le16	error_code;
 	__le16	req_type;
@@ -8287,6 +8288,22 @@ struct hwrm_nvm_get_dev_info_output {
 	u8	nvm_cfg_ver_maj;
 	u8	nvm_cfg_ver_min;
 	u8	nvm_cfg_ver_upd;
+	u8	flags;
+	#define NVM_GET_DEV_INFO_RESP_FLAGS_FW_VER_VALID     0x1UL
+	char	pkg_name[16];
+	__le16	hwrm_fw_major;
+	__le16	hwrm_fw_minor;
+	__le16	hwrm_fw_build;
+	__le16	hwrm_fw_patch;
+	__le16	mgmt_fw_major;
+	__le16	mgmt_fw_minor;
+	__le16	mgmt_fw_build;
+	__le16	mgmt_fw_patch;
+	__le16	roce_fw_major;
+	__le16	roce_fw_minor;
+	__le16	roce_fw_build;
+	__le16	roce_fw_patch;
+	u8	unused_0[7];
 	u8	valid;
 };
 
@@ -8627,6 +8644,7 @@ struct fw_status_reg {
 	#define FW_STATUS_REG_CRASHDUMP_ONGOING      0x40000UL
 	#define FW_STATUS_REG_CRASHDUMP_COMPLETE     0x80000UL
 	#define FW_STATUS_REG_SHUTDOWN               0x100000UL
+	#define FW_STATUS_REG_CRASHED_NO_MASTER      0x200000UL
 };
 
 /* hcomm_status (size:64b/8B) */
