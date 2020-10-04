@@ -254,6 +254,7 @@ static const u16 bnxt_async_events_arr[] = {
 	ASYNC_EVENT_CMPL_EVENT_ID_PORT_PHY_CFG_CHANGE,
 	ASYNC_EVENT_CMPL_EVENT_ID_RESET_NOTIFY,
 	ASYNC_EVENT_CMPL_EVENT_ID_ERROR_RECOVERY,
+	ASYNC_EVENT_CMPL_EVENT_ID_RING_MONITOR_MSG,
 };
 
 static struct workqueue_struct *bnxt_pf_wq;
@@ -1777,7 +1778,8 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 		rc = -EIO;
 		if (rx_err & RX_CMPL_ERRORS_BUFFER_ERROR_MASK) {
 			bnapi->cp_ring.sw_stats.rx.rx_buf_errors++;
-			if (!(bp->flags & BNXT_FLAG_CHIP_P5)) {
+			if (!(bp->flags & BNXT_FLAG_CHIP_P5) &&
+			    !(bp->fw_cap & BNXT_FW_CAP_RING_MONITOR)) {
 				netdev_warn_once(bp->dev, "RX buffer error %x\n",
 						 rx_err);
 				bnxt_sched_reset(bp, rxr);
@@ -1946,9 +1948,32 @@ u32 bnxt_fw_health_readl(struct bnxt *bp, int reg_idx)
 	return val;
 }
 
+static u16 bnxt_agg_ring_id_to_grp_idx(struct bnxt *bp, u16 ring_id)
+{
+	int i;
+
+	for (i = 0; i < bp->rx_nr_rings; i++) {
+		u16 grp_idx = bp->rx_ring[i].bnapi->index;
+		struct bnxt_ring_grp_info *grp_info;
+
+		grp_info = &bp->grp_info[grp_idx];
+		if (grp_info->agg_fw_ring_id == ring_id)
+			return grp_idx;
+	}
+	return INVALID_HW_RING_ID;
+}
+
 #define BNXT_GET_EVENT_PORT(data)	\
 	((data) &			\
 	 ASYNC_EVENT_CMPL_PORT_CONN_NOT_ALLOWED_EVENT_DATA1_PORT_ID_MASK)
+
+#define BNXT_EVENT_RING_TYPE(data2)	\
+	((data2) &			\
+	 ASYNC_EVENT_CMPL_RING_MONITOR_MSG_EVENT_DATA2_DISABLE_RING_TYPE_MASK)
+
+#define BNXT_EVENT_RING_TYPE_RX(data2)	\
+	(BNXT_EVENT_RING_TYPE(data2) ==	\
+	 ASYNC_EVENT_CMPL_RING_MONITOR_MSG_EVENT_DATA2_DISABLE_RING_TYPE_RX)
 
 static int bnxt_async_event_process(struct bnxt *bp,
 				    struct hwrm_async_event_cmpl *cmpl)
@@ -2055,6 +2080,30 @@ static int bnxt_async_event_process(struct bnxt *bp,
 			bnxt_fw_health_readl(bp, BNXT_FW_HEARTBEAT_REG);
 		fw_health->last_fw_reset_cnt =
 			bnxt_fw_health_readl(bp, BNXT_FW_RESET_CNT_REG);
+		goto async_event_process_exit;
+	}
+	case ASYNC_EVENT_CMPL_EVENT_ID_RING_MONITOR_MSG: {
+		u32 data1 = le32_to_cpu(cmpl->event_data1);
+		u32 data2 = le32_to_cpu(cmpl->event_data2);
+		struct bnxt_rx_ring_info *rxr;
+		u16 grp_idx;
+
+		if (bp->flags & BNXT_FLAG_CHIP_P5)
+			goto async_event_process_exit;
+
+		netdev_warn(bp->dev, "Ring monitor event, ring type %lu id 0x%x\n",
+			    BNXT_EVENT_RING_TYPE(data2), data1);
+		if (!BNXT_EVENT_RING_TYPE_RX(data2))
+			goto async_event_process_exit;
+
+		grp_idx = bnxt_agg_ring_id_to_grp_idx(bp, data1);
+		if (grp_idx == INVALID_HW_RING_ID) {
+			netdev_warn(bp->dev, "Unknown RX agg ring id 0x%x\n",
+				    data1);
+			goto async_event_process_exit;
+		}
+		rxr = bp->bnapi[grp_idx]->rx_ring;
+		bnxt_sched_reset(bp, rxr);
 		goto async_event_process_exit;
 	}
 	default:
@@ -6649,6 +6698,8 @@ static int bnxt_hwrm_func_qcfg(struct bnxt *bp)
 	}
 	if (BNXT_PF(bp) && (flags & FUNC_QCFG_RESP_FLAGS_MULTI_HOST))
 		bp->flags |= BNXT_FLAG_MULTI_HOST;
+	if (flags & FUNC_QCFG_RESP_FLAGS_RING_MONITOR_ENABLED)
+		bp->fw_cap |= BNXT_FW_CAP_RING_MONITOR;
 
 	switch (resp->port_partition_type) {
 	case FUNC_QCFG_RESP_PORT_PARTITION_TYPE_NPAR1_0:
