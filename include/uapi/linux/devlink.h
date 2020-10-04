@@ -197,6 +197,9 @@ enum devlink_port_flavour {
 				      * port that faces the PCI VF.
 				      */
 	DEVLINK_PORT_FLAVOUR_VIRTUAL, /* Any virtual port facing the user. */
+	DEVLINK_PORT_FLAVOUR_UNUSED, /* Port which exists in the switch, but
+				      * is not used in any way.
+				      */
 };
 
 enum devlink_param_cmode {

@@ -110,6 +110,7 @@ struct devlink_port_attrs {
 struct devlink_port {
 	struct list_head list;
 	struct list_head param_list;
+	struct list_head region_list;
 	struct devlink *devlink;
 	unsigned int index;
 	bool registered;
@@ -586,6 +587,26 @@ struct devlink_region_ops {
 	void (*destructor)(const void *data);
 	int (*snapshot)(struct devlink *devlink,
 			const struct devlink_region_ops *ops,
+			struct netlink_ext_ack *extack,
+			u8 **data);
+	void *priv;
+};
+
+/**
+ * struct devlink_port_region_ops - Region operations for a port
+ * @name: region name
+ * @destructor: callback used to free snapshot memory when deleting
+ * @snapshot: callback to request an immediate snapshot. On success,
+ *            the data variable must be updated to point to the snapshot data.
+ *            The function will be called while the devlink instance lock is
+ *            held.
+ * @priv: Pointer to driver private data for the region operation
+ */
+struct devlink_port_region_ops {
+	const char *name;
+	void (*destructor)(const void *data);
+	int (*snapshot)(struct devlink_port *port,
+			const struct devlink_port_region_ops *ops,
 			struct netlink_ext_ack *extack,
 			u8 **data);
 	void *priv;
@@ -1445,7 +1466,13 @@ struct devlink_region *
 devlink_region_create(struct devlink *devlink,
 		      const struct devlink_region_ops *ops,
 		      u32 region_max_snapshots, u64 region_size);
+struct devlink_region *
+devlink_port_region_create(struct devlink_port *port,
+			   const struct devlink_port_region_ops *ops,
+			   u32 region_max_snapshots, u64 region_size);
 void devlink_region_destroy(struct devlink_region *region);
+void devlink_port_region_destroy(struct devlink_region *region);
+
 int devlink_region_snapshot_id_get(struct devlink *devlink, u32 *id);
 void devlink_region_snapshot_id_put(struct devlink *devlink, u32 id);
 int devlink_region_snapshot_create(struct devlink_region *region,
