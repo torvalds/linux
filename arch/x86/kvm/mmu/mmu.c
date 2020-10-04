@@ -64,12 +64,12 @@ static uint __read_mostly nx_huge_pages_recovery_ratio = 60;
 static int set_nx_huge_pages(const char *val, const struct kernel_param *kp);
 static int set_nx_huge_pages_recovery_ratio(const char *val, const struct kernel_param *kp);
 
-static struct kernel_param_ops nx_huge_pages_ops = {
+static const struct kernel_param_ops nx_huge_pages_ops = {
 	.set = set_nx_huge_pages,
 	.get = param_get_bool,
 };
 
-static struct kernel_param_ops nx_huge_pages_recovery_ratio_ops = {
+static const struct kernel_param_ops nx_huge_pages_recovery_ratio_ops = {
 	.set = set_nx_huge_pages_recovery_ratio,
 	.get = param_get_uint,
 };
