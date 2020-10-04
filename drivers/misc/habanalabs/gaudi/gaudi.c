@@ -1406,7 +1406,8 @@ static int gaudi_alloc_cpu_accessible_dma_mem(struct hl_device *hdev)
 	hdev->cpu_pci_msb_addr =
 		GAUDI_CPU_PCI_MSB_ADDR(hdev->cpu_accessible_dma_address);
 
-	GAUDI_PCI_TO_CPU_ADDR(hdev->cpu_accessible_dma_address);
+	if (hdev->asic_prop.fw_security_disabled)
+		GAUDI_PCI_TO_CPU_ADDR(hdev->cpu_accessible_dma_address);
 
 free_dma_mem_arr:
 	for (j = 0 ; j < i ; j++)
@@ -1560,8 +1561,9 @@ static int gaudi_sw_init(struct hl_device *hdev)
 free_cpu_accessible_dma_pool:
 	gen_pool_destroy(hdev->cpu_accessible_dma_pool);
 free_cpu_dma_mem:
-	GAUDI_CPU_TO_PCI_ADDR(hdev->cpu_accessible_dma_address,
-				hdev->cpu_pci_msb_addr);
+	if (hdev->asic_prop.fw_security_disabled)
+		GAUDI_CPU_TO_PCI_ADDR(hdev->cpu_accessible_dma_address,
+					hdev->cpu_pci_msb_addr);
 	hdev->asic_funcs->asic_dma_free_coherent(hdev,
 			HL_CPU_ACCESSIBLE_MEM_SIZE,
 			hdev->cpu_accessible_dma_mem,
@@ -1581,8 +1583,10 @@ static int gaudi_sw_fini(struct hl_device *hdev)
 
 	gen_pool_destroy(hdev->cpu_accessible_dma_pool);
 
-	GAUDI_CPU_TO_PCI_ADDR(hdev->cpu_accessible_dma_address,
+	if (hdev->asic_prop.fw_security_disabled)
+		GAUDI_CPU_TO_PCI_ADDR(hdev->cpu_accessible_dma_address,
 					hdev->cpu_pci_msb_addr);
+
 	hdev->asic_funcs->asic_dma_free_coherent(hdev,
 			HL_CPU_ACCESSIBLE_MEM_SIZE,
 			hdev->cpu_accessible_dma_mem,
@@ -1768,6 +1772,14 @@ static void gaudi_init_scrambler_sram(struct hl_device *hdev)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
 
+	if (!hdev->asic_prop.fw_security_disabled)
+		return;
+
+	if (hdev->asic_prop.fw_security_status_valid &&
+			(hdev->asic_prop.fw_app_security_map &
+					CPU_BOOT_DEV_STS0_SRAM_SCR_EN))
+		return;
+
 	if (gaudi->hw_cap_initialized & HW_CAP_SRAM_SCRAMBLER)
 		return;
 
@@ -1832,6 +1844,14 @@ static void gaudi_init_scrambler_hbm(struct hl_device *hdev)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
 
+	if (!hdev->asic_prop.fw_security_disabled)
+		return;
+
+	if (hdev->asic_prop.fw_security_status_valid &&
+			(hdev->asic_prop.fw_boot_cpu_security_map &
+					CPU_BOOT_DEV_STS0_DRAM_SCR_EN))
+		return;
+
 	if (gaudi->hw_cap_initialized & HW_CAP_HBM_SCRAMBLER)
 		return;
 
@@ -1894,6 +1914,14 @@ static void gaudi_init_scrambler_hbm(struct hl_device *hdev)
 
 static void gaudi_init_e2e(struct hl_device *hdev)
 {
+	if (!hdev->asic_prop.fw_security_disabled)
+		return;
+
+	if (hdev->asic_prop.fw_security_status_valid &&
+			(hdev->asic_prop.fw_boot_cpu_security_map &
+					CPU_BOOT_DEV_STS0_E2E_CRED_EN))
+		return;
+
 	WREG32(mmSIF_RTR_CTRL_0_E2E_HBM_WR_SIZE, 247 >> 3);
 	WREG32(mmSIF_RTR_CTRL_0_E2E_HBM_RD_SIZE, 785 >> 3);
 	WREG32(mmSIF_RTR_CTRL_0_E2E_PCI_WR_SIZE, 49);
@@ -2260,6 +2288,14 @@ static void gaudi_init_e2e(struct hl_device *hdev)
 static void gaudi_init_hbm_cred(struct hl_device *hdev)
 {
 	uint32_t hbm0_wr, hbm1_wr, hbm0_rd, hbm1_rd;
+
+	if (!hdev->asic_prop.fw_security_disabled)
+		return;
+
+	if (hdev->asic_prop.fw_security_status_valid &&
+			(hdev->asic_prop.fw_boot_cpu_security_map &
+					CPU_BOOT_DEV_STS0_HBM_CRED_EN))
+		return;
 
 	hbm0_wr = 0x33333333;
 	hbm0_rd = 0x77777777;
@@ -3594,7 +3630,8 @@ static int gaudi_init_cpu(struct hl_device *hdev)
 	 * The device CPU works with 40 bits addresses.
 	 * This register sets the extension to 50 bits.
 	 */
-	WREG32(mmCPU_IF_CPU_MSB_ADDR, hdev->cpu_pci_msb_addr);
+	if (hdev->asic_prop.fw_security_disabled)
+		WREG32(mmCPU_IF_CPU_MSB_ADDR, hdev->cpu_pci_msb_addr);
 
 	rc = hl_fw_init_cpu(hdev, mmPSOC_GLOBAL_CONF_CPU_BOOT_STATUS,
 			mmPSOC_GLOBAL_CONF_KMD_MSG_TO_CPU,
@@ -3679,17 +3716,19 @@ static void gaudi_pre_hw_init(struct hl_device *hdev)
 	/* Perform read from the device to make sure device is up */
 	RREG32(mmPCIE_DBI_DEVICE_ID_VENDOR_ID_REG);
 
-	/* Set the access through PCI bars (Linux driver only) as
-	 * secured
-	 */
-	WREG32(mmPCIE_WRAP_LBW_PROT_OVR,
-			(PCIE_WRAP_LBW_PROT_OVR_RD_EN_MASK |
-			PCIE_WRAP_LBW_PROT_OVR_WR_EN_MASK));
+	if (hdev->asic_prop.fw_security_disabled) {
+		/* Set the access through PCI bars (Linux driver only) as
+		 * secured
+		 */
+		WREG32(mmPCIE_WRAP_LBW_PROT_OVR,
+				(PCIE_WRAP_LBW_PROT_OVR_RD_EN_MASK |
+				PCIE_WRAP_LBW_PROT_OVR_WR_EN_MASK));
 
-	/* Perform read to flush the waiting writes to ensure
-	 * configuration was set in the device
-	 */
-	RREG32(mmPCIE_WRAP_LBW_PROT_OVR);
+		/* Perform read to flush the waiting writes to ensure
+		 * configuration was set in the device
+		 */
+		RREG32(mmPCIE_WRAP_LBW_PROT_OVR);
+	}
 
 	/*
 	 * Let's mark in the H/W that we have reached this point. We check
@@ -3698,32 +3737,33 @@ static void gaudi_pre_hw_init(struct hl_device *hdev)
 	 * cleared by the H/W upon H/W reset
 	 */
 	WREG32(mmHW_STATE, HL_DEVICE_HW_STATE_DIRTY);
+	if (hdev->asic_prop.fw_security_disabled) {
+		/* Configure the reset registers. Must be done as early as
+		 * possible in case we fail during H/W initialization
+		 */
+		WREG32(mmPSOC_GLOBAL_CONF_SOFT_RST_CFG_H,
+						(CFG_RST_H_DMA_MASK |
+						CFG_RST_H_MME_MASK |
+						CFG_RST_H_SM_MASK |
+						CFG_RST_H_TPC_7_MASK));
 
-	/* Configure the reset registers. Must be done as early as possible
-	 * in case we fail during H/W initialization
-	 */
-	WREG32(mmPSOC_GLOBAL_CONF_SOFT_RST_CFG_H,
-					(CFG_RST_H_DMA_MASK |
-					CFG_RST_H_MME_MASK |
-					CFG_RST_H_SM_MASK |
-					CFG_RST_H_TPC_7_MASK));
+		WREG32(mmPSOC_GLOBAL_CONF_SOFT_RST_CFG_L, CFG_RST_L_TPC_MASK);
 
-	WREG32(mmPSOC_GLOBAL_CONF_SOFT_RST_CFG_L, CFG_RST_L_TPC_MASK);
+		WREG32(mmPSOC_GLOBAL_CONF_SW_ALL_RST_CFG_H,
+						(CFG_RST_H_HBM_MASK |
+						CFG_RST_H_TPC_7_MASK |
+						CFG_RST_H_NIC_MASK |
+						CFG_RST_H_SM_MASK |
+						CFG_RST_H_DMA_MASK |
+						CFG_RST_H_MME_MASK |
+						CFG_RST_H_CPU_MASK |
+						CFG_RST_H_MMU_MASK));
 
-	WREG32(mmPSOC_GLOBAL_CONF_SW_ALL_RST_CFG_H,
-					(CFG_RST_H_HBM_MASK |
-					CFG_RST_H_TPC_7_MASK |
-					CFG_RST_H_NIC_MASK |
-					CFG_RST_H_SM_MASK |
-					CFG_RST_H_DMA_MASK |
-					CFG_RST_H_MME_MASK |
-					CFG_RST_H_CPU_MASK |
-					CFG_RST_H_MMU_MASK));
-
-	WREG32(mmPSOC_GLOBAL_CONF_SW_ALL_RST_CFG_L,
-					(CFG_RST_L_IF_MASK |
-					CFG_RST_L_PSOC_MASK |
-					CFG_RST_L_TPC_MASK));
+		WREG32(mmPSOC_GLOBAL_CONF_SW_ALL_RST_CFG_L,
+						(CFG_RST_L_IF_MASK |
+						CFG_RST_L_PSOC_MASK |
+						CFG_RST_L_TPC_MASK));
+	}
 }
 
 static int gaudi_hw_init(struct hl_device *hdev)
@@ -3839,7 +3879,8 @@ static void gaudi_hw_fini(struct hl_device *hdev, bool hard_reset)
 	WREG32(mmPSOC_GLOBAL_CONF_BOOT_STRAP_PINS, boot_strap & ~0x2);
 
 	/* Restart BTL/BLR upon hard-reset */
-	WREG32(mmPSOC_GLOBAL_CONF_BOOT_SEQ_RE_START, 1);
+	if (hdev->asic_prop.fw_security_disabled)
+		WREG32(mmPSOC_GLOBAL_CONF_BOOT_SEQ_RE_START, 1);
 
 	WREG32(mmPSOC_GLOBAL_CONF_SW_ALL_RST,
 			1 << PSOC_GLOBAL_CONF_SW_ALL_RST_IND_SHIFT);

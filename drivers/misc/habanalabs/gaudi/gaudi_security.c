@@ -1448,21 +1448,23 @@ static void gaudi_init_dma_protection_bits(struct hl_device *hdev)
 	u32 pb_addr, mask;
 	u8 word_offset;
 
-	gaudi_pb_set_block(hdev, mmDMA_IF_E_S_BASE);
-	gaudi_pb_set_block(hdev, mmDMA_IF_E_S_DOWN_CH0_BASE);
-	gaudi_pb_set_block(hdev, mmDMA_IF_E_S_DOWN_CH1_BASE);
-	gaudi_pb_set_block(hdev, mmDMA_E_PLL_BASE);
-	gaudi_pb_set_block(hdev, mmDMA_IF_E_S_DOWN_BASE);
+	if (hdev->asic_prop.fw_security_disabled) {
+		gaudi_pb_set_block(hdev, mmDMA_IF_E_S_BASE);
+		gaudi_pb_set_block(hdev, mmDMA_IF_E_S_DOWN_CH0_BASE);
+		gaudi_pb_set_block(hdev, mmDMA_IF_E_S_DOWN_CH1_BASE);
+		gaudi_pb_set_block(hdev, mmDMA_E_PLL_BASE);
+		gaudi_pb_set_block(hdev, mmDMA_IF_E_S_DOWN_BASE);
 
-	gaudi_pb_set_block(hdev, mmDMA_IF_W_N_BASE);
-	gaudi_pb_set_block(hdev, mmDMA_IF_W_N_DOWN_CH0_BASE);
-	gaudi_pb_set_block(hdev, mmDMA_IF_W_N_DOWN_CH1_BASE);
-	gaudi_pb_set_block(hdev, mmDMA_IF_W_N_DOWN_BASE);
+		gaudi_pb_set_block(hdev, mmDMA_IF_W_N_BASE);
+		gaudi_pb_set_block(hdev, mmDMA_IF_W_N_DOWN_CH0_BASE);
+		gaudi_pb_set_block(hdev, mmDMA_IF_W_N_DOWN_CH1_BASE);
+		gaudi_pb_set_block(hdev, mmDMA_IF_W_N_DOWN_BASE);
 
-	gaudi_pb_set_block(hdev, mmDMA_IF_E_N_BASE);
-	gaudi_pb_set_block(hdev, mmDMA_IF_E_N_DOWN_CH0_BASE);
-	gaudi_pb_set_block(hdev, mmDMA_IF_E_N_DOWN_CH1_BASE);
-	gaudi_pb_set_block(hdev, mmDMA_IF_E_N_DOWN_BASE);
+		gaudi_pb_set_block(hdev, mmDMA_IF_E_N_BASE);
+		gaudi_pb_set_block(hdev, mmDMA_IF_E_N_DOWN_CH0_BASE);
+		gaudi_pb_set_block(hdev, mmDMA_IF_E_N_DOWN_CH1_BASE);
+		gaudi_pb_set_block(hdev, mmDMA_IF_E_N_DOWN_BASE);
+	}
 
 	WREG32(mmDMA0_QM_BASE - CFG_BASE + PROT_BITS_OFFS + 0x7C, 0);
 	WREG32(mmDMA1_QM_BASE - CFG_BASE + PROT_BITS_OFFS + 0x7C, 0);
@@ -9133,14 +9135,16 @@ static void gaudi_init_tpc_protection_bits(struct hl_device *hdev)
 	u32 pb_addr, mask;
 	u8 word_offset;
 
-	gaudi_pb_set_block(hdev, mmTPC0_E2E_CRED_BASE);
-	gaudi_pb_set_block(hdev, mmTPC1_E2E_CRED_BASE);
-	gaudi_pb_set_block(hdev, mmTPC2_E2E_CRED_BASE);
-	gaudi_pb_set_block(hdev, mmTPC3_E2E_CRED_BASE);
-	gaudi_pb_set_block(hdev, mmTPC4_E2E_CRED_BASE);
-	gaudi_pb_set_block(hdev, mmTPC5_E2E_CRED_BASE);
-	gaudi_pb_set_block(hdev, mmTPC6_E2E_CRED_BASE);
-	gaudi_pb_set_block(hdev, mmTPC7_E2E_CRED_BASE);
+	if (hdev->asic_prop.fw_security_disabled) {
+		gaudi_pb_set_block(hdev, mmTPC0_E2E_CRED_BASE);
+		gaudi_pb_set_block(hdev, mmTPC1_E2E_CRED_BASE);
+		gaudi_pb_set_block(hdev, mmTPC2_E2E_CRED_BASE);
+		gaudi_pb_set_block(hdev, mmTPC3_E2E_CRED_BASE);
+		gaudi_pb_set_block(hdev, mmTPC4_E2E_CRED_BASE);
+		gaudi_pb_set_block(hdev, mmTPC5_E2E_CRED_BASE);
+		gaudi_pb_set_block(hdev, mmTPC6_E2E_CRED_BASE);
+		gaudi_pb_set_block(hdev, mmTPC7_E2E_CRED_BASE);
+	}
 
 	WREG32(mmTPC0_QM_BASE - CFG_BASE + PROT_BITS_OFFS + 0x7C, 0);
 	WREG32(mmTPC0_CFG_BASE - CFG_BASE + PROT_BITS_OFFS + 0x7C, 0);
@@ -12822,11 +12826,13 @@ static void gaudi_init_protection_bits(struct hl_device *hdev)
 	 * secured
 	 */
 
-	gaudi_pb_set_block(hdev, mmIF_E_PLL_BASE);
-	gaudi_pb_set_block(hdev, mmMESH_W_PLL_BASE);
-	gaudi_pb_set_block(hdev, mmSRAM_W_PLL_BASE);
-	gaudi_pb_set_block(hdev, mmMESH_E_PLL_BASE);
-	gaudi_pb_set_block(hdev, mmSRAM_E_PLL_BASE);
+	if (hdev->asic_prop.fw_security_disabled) {
+		gaudi_pb_set_block(hdev, mmIF_E_PLL_BASE);
+		gaudi_pb_set_block(hdev, mmMESH_W_PLL_BASE);
+		gaudi_pb_set_block(hdev, mmSRAM_W_PLL_BASE);
+		gaudi_pb_set_block(hdev, mmMESH_E_PLL_BASE);
+		gaudi_pb_set_block(hdev, mmSRAM_E_PLL_BASE);
+	}
 
 	gaudi_init_dma_protection_bits(hdev);
 
@@ -13025,17 +13031,20 @@ void gaudi_init_security(struct hl_device *hdev)
 	 * property configuration of MME SBAB and ACC to be non-privileged and
 	 * non-secured
 	 */
-	WREG32(mmMME0_SBAB_PROT, 0x2);
-	WREG32(mmMME0_ACC_PROT, 0x2);
-	WREG32(mmMME1_SBAB_PROT, 0x2);
-	WREG32(mmMME1_ACC_PROT, 0x2);
-	WREG32(mmMME2_SBAB_PROT, 0x2);
-	WREG32(mmMME2_ACC_PROT, 0x2);
-	WREG32(mmMME3_SBAB_PROT, 0x2);
-	WREG32(mmMME3_ACC_PROT, 0x2);
+	if (hdev->asic_prop.fw_security_disabled) {
+		WREG32(mmMME0_SBAB_PROT, 0x2);
+		WREG32(mmMME0_ACC_PROT, 0x2);
+		WREG32(mmMME1_SBAB_PROT, 0x2);
+		WREG32(mmMME1_ACC_PROT, 0x2);
+		WREG32(mmMME2_SBAB_PROT, 0x2);
+		WREG32(mmMME2_ACC_PROT, 0x2);
+		WREG32(mmMME3_SBAB_PROT, 0x2);
+		WREG32(mmMME3_ACC_PROT, 0x2);
+	}
 
 	/* On RAZWI, 0 will be returned from RR and 0xBABA0BAD from PB */
-	WREG32(0xC01B28, 0x1);
+	if (hdev->asic_prop.fw_security_disabled)
+		WREG32(0xC01B28, 0x1);
 
 	gaudi_init_range_registers_lbw(hdev);
 
