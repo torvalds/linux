@@ -307,7 +307,6 @@ struct nvme_ctrl {
 	struct nvme_command ka_cmd;
 	struct work_struct fw_act_work;
 	unsigned long events;
-	bool created;
 
 #ifdef CONFIG_NVME_MULTIPATH
 	/* asymmetric namespace access: */
@@ -828,9 +827,12 @@ static inline struct nvme_ns *nvme_get_ns_from_dev(struct device *dev)
 }
 
 #ifdef CONFIG_NVME_HWMON
-void nvme_hwmon_init(struct nvme_ctrl *ctrl);
+int nvme_hwmon_init(struct nvme_ctrl *ctrl);
 #else
-static inline void nvme_hwmon_init(struct nvme_ctrl *ctrl) { }
+static inline int nvme_hwmon_init(struct nvme_ctrl *ctrl)
+{
+	return 0;
+}
 #endif
 
 u32 nvme_command_effects(struct nvme_ctrl *ctrl, struct nvme_ns *ns,

@@ -174,6 +174,24 @@ err_init_txq:
 	return err;
 }
 
+static void enable_txqs_napi(struct hinic_dev *nic_dev)
+{
+	int num_txqs = hinic_hwdev_num_qps(nic_dev->hwdev);
+	int i;
+
+	for (i = 0; i < num_txqs; i++)
+		napi_enable(&nic_dev->txqs[i].napi);
+}
+
+static void disable_txqs_napi(struct hinic_dev *nic_dev)
+{
+	int num_txqs = hinic_hwdev_num_qps(nic_dev->hwdev);
+	int i;
+
+	for (i = 0; i < num_txqs; i++)
+		napi_disable(&nic_dev->txqs[i].napi);
+}
+
 /**
  * free_txqs - Free the Logical Tx Queues of specific NIC device
  * @nic_dev: the specific NIC device
@@ -400,6 +418,8 @@ int hinic_open(struct net_device *netdev)
 		goto err_create_txqs;
 	}
 
+	enable_txqs_napi(nic_dev);
+
 	err = create_rxqs(nic_dev);
 	if (err) {
 		netif_err(nic_dev, drv, netdev,
@@ -484,6 +504,7 @@ err_port_state:
 	}
 
 err_create_rxqs:
+	disable_txqs_napi(nic_dev);
 	free_txqs(nic_dev);
 
 err_create_txqs:
@@ -496,6 +517,9 @@ int hinic_close(struct net_device *netdev)
 {
 	struct hinic_dev *nic_dev = netdev_priv(netdev);
 	unsigned int flags;
+
+	/* Disable txq napi firstly to aviod rewaking txq in free_tx_poll */
+	disable_txqs_napi(nic_dev);
 
 	down(&nic_dev->mgmt_lock);
 

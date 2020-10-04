@@ -466,14 +466,13 @@ static void mtk_dsi_config_vdo_timing(struct mtk_dsi *dsi)
 	horizontal_sync_active_byte = (vm->hsync_len * dsi_tmp_buf_bpp - 10);
 
 	if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO_SYNC_PULSE)
-		horizontal_backporch_byte =
-			(vm->hback_porch * dsi_tmp_buf_bpp - 10);
+		horizontal_backporch_byte = vm->hback_porch * dsi_tmp_buf_bpp;
 	else
-		horizontal_backporch_byte = ((vm->hback_porch + vm->hsync_len) *
-			dsi_tmp_buf_bpp - 10);
+		horizontal_backporch_byte = (vm->hback_porch + vm->hsync_len) *
+					    dsi_tmp_buf_bpp;
 
 	data_phy_cycles = timing->lpx + timing->da_hs_prepare +
-			  timing->da_hs_zero + timing->da_hs_exit + 3;
+			  timing->da_hs_zero + timing->da_hs_exit;
 
 	if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO_BURST) {
 		if ((vm->hfront_porch + vm->hback_porch) * dsi_tmp_buf_bpp >

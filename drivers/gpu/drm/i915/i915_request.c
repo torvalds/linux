@@ -388,17 +388,38 @@ static bool __request_in_flight(const struct i915_request *signal)
 	 * As we know that there are always preemption points between
 	 * requests, we know that only the currently executing request
 	 * may be still active even though we have cleared the flag.
-	 * However, we can't rely on our tracking of ELSP[0] to known
+	 * However, we can't rely on our tracking of ELSP[0] to know
 	 * which request is currently active and so maybe stuck, as
 	 * the tracking maybe an event behind. Instead assume that
 	 * if the context is still inflight, then it is still active
 	 * even if the active flag has been cleared.
+	 *
+	 * To further complicate matters, if there a pending promotion, the HW
+	 * may either perform a context switch to the second inflight execlists,
+	 * or it may switch to the pending set of execlists. In the case of the
+	 * latter, it may send the ACK and we process the event copying the
+	 * pending[] over top of inflight[], _overwriting_ our *active. Since
+	 * this implies the HW is arbitrating and not struck in *active, we do
+	 * not worry about complete accuracy, but we do require no read/write
+	 * tearing of the pointer [the read of the pointer must be valid, even
+	 * as the array is being overwritten, for which we require the writes
+	 * to avoid tearing.]
+	 *
+	 * Note that the read of *execlists->active may race with the promotion
+	 * of execlists->pending[] to execlists->inflight[], overwritting
+	 * the value at *execlists->active. This is fine. The promotion implies
+	 * that we received an ACK from the HW, and so the context is not
+	 * stuck -- if we do not see ourselves in *active, the inflight status
+	 * is valid. If instead we see ourselves being copied into *active,
+	 * we are inflight and may signal the callback.
 	 */
 	if (!intel_context_inflight(signal->context))
 		return false;
 
 	rcu_read_lock();
-	for (port = __engine_active(signal->engine); (rq = *port); port++) {
+	for (port = __engine_active(signal->engine);
+	     (rq = READ_ONCE(*port)); /* may race with promotion of pending[] */
+	     port++) {
 		if (rq->context == signal->context) {
 			inflight = i915_seqno_passed(rq->fence.seqno,
 						     signal->fence.seqno);

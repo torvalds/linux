@@ -420,17 +420,18 @@ static int lpass_core_sc7180_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	ret = pm_clk_create(&pdev->dev);
 	if (ret)
-		return ret;
+		goto disable_pm_runtime;
 
 	ret = pm_clk_add(&pdev->dev, "iface");
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to acquire iface clock\n");
-		goto disable_pm_runtime;
+		goto destroy_pm_clk;
 	}
 
+	ret = -EINVAL;
 	clk_probe = of_device_get_match_data(&pdev->dev);
 	if (!clk_probe)
-		return -EINVAL;
+		goto destroy_pm_clk;
 
 	ret = clk_probe(pdev);
 	if (ret)
