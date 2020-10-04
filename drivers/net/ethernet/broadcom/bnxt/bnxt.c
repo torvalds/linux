@@ -2540,93 +2540,91 @@ static void bnxt_free_tx_skbs(struct bnxt *bp)
 	}
 }
 
+static void bnxt_free_one_rx_ring_skbs(struct bnxt *bp, int ring_nr)
+{
+	struct bnxt_rx_ring_info *rxr = &bp->rx_ring[ring_nr];
+	struct pci_dev *pdev = bp->pdev;
+	struct bnxt_tpa_idx_map *map;
+	int i, max_idx, max_agg_idx;
+
+	max_idx = bp->rx_nr_pages * RX_DESC_CNT;
+	max_agg_idx = bp->rx_agg_nr_pages * RX_DESC_CNT;
+	if (!rxr->rx_tpa)
+		goto skip_rx_tpa_free;
+
+	for (i = 0; i < bp->max_tpa; i++) {
+		struct bnxt_tpa_info *tpa_info = &rxr->rx_tpa[i];
+		u8 *data = tpa_info->data;
+
+		if (!data)
+			continue;
+
+		dma_unmap_single_attrs(&pdev->dev, tpa_info->mapping,
+				       bp->rx_buf_use_size, bp->rx_dir,
+				       DMA_ATTR_WEAK_ORDERING);
+
+		tpa_info->data = NULL;
+
+		kfree(data);
+	}
+
+skip_rx_tpa_free:
+	for (i = 0; i < max_idx; i++) {
+		struct bnxt_sw_rx_bd *rx_buf = &rxr->rx_buf_ring[i];
+		dma_addr_t mapping = rx_buf->mapping;
+		void *data = rx_buf->data;
+
+		if (!data)
+			continue;
+
+		rx_buf->data = NULL;
+		if (BNXT_RX_PAGE_MODE(bp)) {
+			mapping -= bp->rx_dma_offset;
+			dma_unmap_page_attrs(&pdev->dev, mapping, PAGE_SIZE,
+					     bp->rx_dir,
+					     DMA_ATTR_WEAK_ORDERING);
+			page_pool_recycle_direct(rxr->page_pool, data);
+		} else {
+			dma_unmap_single_attrs(&pdev->dev, mapping,
+					       bp->rx_buf_use_size, bp->rx_dir,
+					       DMA_ATTR_WEAK_ORDERING);
+			kfree(data);
+		}
+	}
+	for (i = 0; i < max_agg_idx; i++) {
+		struct bnxt_sw_rx_agg_bd *rx_agg_buf = &rxr->rx_agg_ring[i];
+		struct page *page = rx_agg_buf->page;
+
+		if (!page)
+			continue;
+
+		dma_unmap_page_attrs(&pdev->dev, rx_agg_buf->mapping,
+				     BNXT_RX_PAGE_SIZE, PCI_DMA_FROMDEVICE,
+				     DMA_ATTR_WEAK_ORDERING);
+
+		rx_agg_buf->page = NULL;
+		__clear_bit(i, rxr->rx_agg_bmap);
+
+		__free_page(page);
+	}
+	if (rxr->rx_page) {
+		__free_page(rxr->rx_page);
+		rxr->rx_page = NULL;
+	}
+	map = rxr->rx_tpa_idx_map;
+	if (map)
+		memset(map->agg_idx_bmap, 0, sizeof(map->agg_idx_bmap));
+}
+
 static void bnxt_free_rx_skbs(struct bnxt *bp)
 {
-	int i, max_idx, max_agg_idx;
-	struct pci_dev *pdev = bp->pdev;
+	int i;
 
 	if (!bp->rx_ring)
 		return;
 
-	max_idx = bp->rx_nr_pages * RX_DESC_CNT;
-	max_agg_idx = bp->rx_agg_nr_pages * RX_DESC_CNT;
-	for (i = 0; i < bp->rx_nr_rings; i++) {
-		struct bnxt_rx_ring_info *rxr = &bp->rx_ring[i];
-		struct bnxt_tpa_idx_map *map;
-		int j;
-
-		if (rxr->rx_tpa) {
-			for (j = 0; j < bp->max_tpa; j++) {
-				struct bnxt_tpa_info *tpa_info =
-							&rxr->rx_tpa[j];
-				u8 *data = tpa_info->data;
-
-				if (!data)
-					continue;
-
-				dma_unmap_single_attrs(&pdev->dev,
-						       tpa_info->mapping,
-						       bp->rx_buf_use_size,
-						       bp->rx_dir,
-						       DMA_ATTR_WEAK_ORDERING);
-
-				tpa_info->data = NULL;
-
-				kfree(data);
-			}
-		}
-
-		for (j = 0; j < max_idx; j++) {
-			struct bnxt_sw_rx_bd *rx_buf = &rxr->rx_buf_ring[j];
-			dma_addr_t mapping = rx_buf->mapping;
-			void *data = rx_buf->data;
-
-			if (!data)
-				continue;
-
-			rx_buf->data = NULL;
-
-			if (BNXT_RX_PAGE_MODE(bp)) {
-				mapping -= bp->rx_dma_offset;
-				dma_unmap_page_attrs(&pdev->dev, mapping,
-						     PAGE_SIZE, bp->rx_dir,
-						     DMA_ATTR_WEAK_ORDERING);
-				page_pool_recycle_direct(rxr->page_pool, data);
-			} else {
-				dma_unmap_single_attrs(&pdev->dev, mapping,
-						       bp->rx_buf_use_size,
-						       bp->rx_dir,
-						       DMA_ATTR_WEAK_ORDERING);
-				kfree(data);
-			}
-		}
-
-		for (j = 0; j < max_agg_idx; j++) {
-			struct bnxt_sw_rx_agg_bd *rx_agg_buf =
-				&rxr->rx_agg_ring[j];
-			struct page *page = rx_agg_buf->page;
-
-			if (!page)
-				continue;
-
-			dma_unmap_page_attrs(&pdev->dev, rx_agg_buf->mapping,
-					     BNXT_RX_PAGE_SIZE,
-					     PCI_DMA_FROMDEVICE,
-					     DMA_ATTR_WEAK_ORDERING);
-
-			rx_agg_buf->page = NULL;
-			__clear_bit(j, rxr->rx_agg_bmap);
-
-			__free_page(page);
-		}
-		if (rxr->rx_page) {
-			__free_page(rxr->rx_page);
-			rxr->rx_page = NULL;
-		}
-		map = rxr->rx_tpa_idx_map;
-		if (map)
-			memset(map->agg_idx_bmap, 0, sizeof(map->agg_idx_bmap));
-	}
+	for (i = 0; i < bp->rx_nr_rings; i++)
+		bnxt_free_one_rx_ring_skbs(bp, i);
 }
 
 static void bnxt_free_skbs(struct bnxt *bp)
