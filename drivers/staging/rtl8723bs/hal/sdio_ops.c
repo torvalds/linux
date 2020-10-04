@@ -534,7 +534,7 @@ static s32 _sdio_local_read(
 	if (!mac_pwr_ctrl_on)
 		return _sd_cmd52_read(intfhdl, addr, cnt, buf);
 
-	n = RND4(cnt);
+	n = round_up(cnt, 4);
 	tmpbuf = rtw_malloc(n);
 	if (!tmpbuf)
 		return -1;
@@ -575,7 +575,7 @@ s32 sdio_local_read(
 	)
 		return sd_cmd52_read(intfhdl, addr, cnt, buf);
 
-	n = RND4(cnt);
+	n = round_up(cnt, 4);
 	tmpbuf = rtw_malloc(n);
 	if (!tmpbuf)
 		return -1;
@@ -859,7 +859,7 @@ static struct recv_buf *sd_recv_rxfifo(struct adapter *adapter, u32 size)
 
 	/*  Patch for some SDIO Host 4 bytes issue */
 	/*  ex. RK3188 */
-	readsize = RND4(size);
+	readsize = round_up(size, 4);
 
 	/* 3 1. alloc recvbuf */
 	recv_priv = &adapter->recvpriv;

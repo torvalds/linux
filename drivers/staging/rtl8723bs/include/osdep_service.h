@@ -131,7 +131,6 @@ static inline int rtw_bug_check(void *parg1, void *parg2, void *parg3, void *par
 }
 
 #define _RND(sz, r) ((((sz)+((r)-1))/(r))*(r))
-#define RND4(x)	(((x >> 2) + (((x & 3) == 0) ?  0 : 1)) << 2)
 
 static inline u32 _RND4(u32 sz)
 {
