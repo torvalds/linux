@@ -420,6 +420,29 @@ enum cpucp_card_types {
 	cpucp_card_type_pmc
 };
 
+#define CPUCP_SEC_CONF_ENABLED_SHIFT	0
+#define CPUCP_SEC_CONF_ENABLED_MASK	0x00000001
+
+#define CPUCP_SEC_CONF_FLASH_WP_SHIFT	1
+#define CPUCP_SEC_CONF_FLASH_WP_MASK	0x00000002
+
+#define CPUCP_SEC_CONF_EEPROM_WP_SHIFT	2
+#define CPUCP_SEC_CONF_EEPROM_WP_MASK	0x00000004
+
+/**
+ * struct cpucp_security_info - Security information.
+ * @config: configuration bit field
+ * @keys_num: number of stored keys
+ * @revoked_keys: revoked keys bit field
+ * @min_svn: minimal security version
+ */
+struct cpucp_security_info {
+	__u8 config;
+	__u8 keys_num;
+	__u8 revoked_keys;
+	__u8 min_svn;
+};
+
 /**
  * struct cpucp_info - Info from CpuCP that is necessary to the host's driver
  * @sensors: available sensors description.
@@ -435,6 +458,7 @@ enum cpucp_card_types {
  * @cpucp_version: CpuCP S/W version.
  * @dram_size: available DRAM size.
  * @card_name: card name that will be displayed in HWMON subsystem on the host
+ * @sec_info: security information
  */
 struct cpucp_info {
 	struct cpucp_sensor sensors[CPUCP_MAX_SENSORS];
@@ -450,6 +474,12 @@ struct cpucp_info {
 	__le32 reserved2;
 	__le64 dram_size;
 	char card_name[CARD_NAME_MAX_LEN];
+	__le64 reserved3;
+	__le64 reserved4;
+	__u8 reserved5;
+	__u8 pad[7];
+	struct cpucp_security_info sec_info;
+	__le32 reserved6;
 };
 
 struct cpucp_mac_addr {

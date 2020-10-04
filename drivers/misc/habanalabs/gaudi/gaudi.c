@@ -514,6 +514,10 @@ static int gaudi_get_fixed_properties(struct hl_device *hdev)
 			prop->sync_stream_first_mon +
 			(num_sync_stream_queues * HL_RSVD_MONS);
 
+	/* disable fw security for now, set it in a later stage */
+	prop->fw_security_disabled = true;
+	prop->fw_security_status_valid = false;
+
 	return 0;
 }
 
@@ -638,13 +642,13 @@ static int gaudi_early_init(struct hl_device *hdev)
 	prop->dram_pci_bar_size = pci_resource_len(pdev, HBM_BAR_ID);
 
 	rc = hl_pci_init(hdev, mmPSOC_GLOBAL_CONF_CPU_BOOT_STATUS,
-			mmCPU_BOOT_ERR0, GAUDI_BOOT_FIT_REQ_TIMEOUT_USEC);
+			mmCPU_BOOT_DEV_STS0, mmCPU_BOOT_ERR0,
+			GAUDI_BOOT_FIT_REQ_TIMEOUT_USEC);
 	if (rc)
 		goto free_queue_props;
 
-	/* GAUDI Firmware does not yet support security */
-	prop->fw_security_disabled = true;
-	dev_info(hdev->dev, "firmware-level security is disabled\n");
+	dev_info(hdev->dev, "firmware-level security is %s\n",
+		hdev->asic_prop.fw_security_disabled ? "disabled" : "enabled");
 
 	return 0;
 
@@ -2315,7 +2319,6 @@ static void gaudi_init_golden_registers(struct hl_device *hdev)
 	int tpc_id, i;
 
 	gaudi_init_e2e(hdev);
-
 	gaudi_init_hbm_cred(hdev);
 
 	hdev->asic_funcs->disable_clock_gating(hdev);
@@ -3596,7 +3599,7 @@ static int gaudi_init_cpu(struct hl_device *hdev)
 	rc = hl_fw_init_cpu(hdev, mmPSOC_GLOBAL_CONF_CPU_BOOT_STATUS,
 			mmPSOC_GLOBAL_CONF_KMD_MSG_TO_CPU,
 			mmCPU_CMD_STATUS_TO_HOST,
-			mmCPU_BOOT_ERR0,
+			mmCPU_BOOT_DEV_STS0, mmCPU_BOOT_ERR0,
 			!hdev->bmc_enable, GAUDI_CPU_TIMEOUT_USEC,
 			GAUDI_BOOT_FIT_REQ_TIMEOUT_USEC);
 

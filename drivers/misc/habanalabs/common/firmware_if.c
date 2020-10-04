@@ -448,9 +448,10 @@ int hl_fw_cpucp_total_energy_get(struct hl_device *hdev, u64 *total_energy)
 	return rc;
 }
 
-static void fw_read_errors(struct hl_device *hdev, u32 boot_err0_reg)
+static void fw_read_errors(struct hl_device *hdev, u32 boot_err0_reg,
+		u32 cpu_security_boot_status_reg)
 {
-	u32 err_val;
+	u32 err_val, security_val;
 
 	/* Some of the firmware status codes are deprecated in newer f/w
 	 * versions. In those versions, the errors are reported
@@ -485,6 +486,11 @@ static void fw_read_errors(struct hl_device *hdev, u32 boot_err0_reg)
 	if (err_val & CPU_BOOT_ERR0_NIC_FW_FAIL)
 		dev_err(hdev->dev,
 			"Device boot error - NIC F/W initialization failed\n");
+
+	security_val = RREG32(cpu_security_boot_status_reg);
+	if (security_val & CPU_BOOT_DEV_STS0_ENABLED)
+		dev_info(hdev->dev, "Device security status %#x\n",
+				security_val);
 }
 
 static void detect_cpu_boot_status(struct hl_device *hdev, u32 status)
@@ -537,10 +543,12 @@ static void detect_cpu_boot_status(struct hl_device *hdev, u32 status)
 	}
 }
 
-int hl_fw_read_preboot_ver(struct hl_device *hdev, u32 cpu_boot_status_reg,
-				u32 boot_err0_reg, u32 timeout)
+int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
+		u32 cpu_security_boot_status_reg, u32 boot_err0_reg,
+		u32 timeout)
 {
-	u32 status;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	u32 status, security_status;
 	int rc;
 
 	if (!hdev->cpu_enable)
@@ -570,19 +578,43 @@ int hl_fw_read_preboot_ver(struct hl_device *hdev, u32 cpu_boot_status_reg,
 	if (rc) {
 		dev_err(hdev->dev, "Failed to read preboot version\n");
 		detect_cpu_boot_status(hdev, status);
-		fw_read_errors(hdev, boot_err0_reg);
+		fw_read_errors(hdev, boot_err0_reg,
+				cpu_security_boot_status_reg);
 		return -EIO;
 	}
 
 	hdev->asic_funcs->read_device_fw_version(hdev, FW_COMP_PREBOOT);
+
+	security_status = RREG32(cpu_security_boot_status_reg);
+
+	/* We read security status multiple times during boot:
+	 * 1. preboot - we check if fw security feature is supported
+	 * 2. boot cpu - we get boot cpu security status
+	 * 3. FW application - we get FW application security status
+	 *
+	 * Preboot:
+	 * Check security status bit (CPU_BOOT_DEV_STS0_ENABLED), if it is set
+	 * check security enabled bit (CPU_BOOT_DEV_STS0_SECURITY_EN)
+	 */
+	if (security_status & CPU_BOOT_DEV_STS0_ENABLED) {
+		hdev->asic_prop.fw_security_status_valid = 1;
+		prop->fw_security_disabled =
+			!(security_status & CPU_BOOT_DEV_STS0_SECURITY_EN);
+	} else {
+		hdev->asic_prop.fw_security_status_valid = 0;
+		prop->fw_security_disabled = true;
+	}
+
+	dev_info(hdev->dev, "firmware-level security is %s\n",
+		prop->fw_security_disabled ? "disabled" : "enabled");
 
 	return 0;
 }
 
 int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 			u32 msg_to_cpu_reg, u32 cpu_msg_status_reg,
-			u32 boot_err0_reg, bool skip_bmc,
-			u32 cpu_timeout, u32 boot_fit_timeout)
+			u32 cpu_security_boot_status_reg, u32 boot_err0_reg,
+			bool skip_bmc, u32 cpu_timeout, u32 boot_fit_timeout)
 {
 	u32 status;
 	int rc;
@@ -652,6 +684,11 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 	/* Read U-Boot version now in case we will later fail */
 	hdev->asic_funcs->read_device_fw_version(hdev, FW_COMP_UBOOT);
 
+	/* Read boot_cpu security bits */
+	if (hdev->asic_prop.fw_security_status_valid)
+		hdev->asic_prop.fw_boot_cpu_security_map =
+				RREG32(cpu_security_boot_status_reg);
+
 	if (rc) {
 		detect_cpu_boot_status(hdev, status);
 		rc = -EIO;
@@ -720,10 +757,15 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 		goto out;
 	}
 
+	/* Read FW application security bits */
+	if (hdev->asic_prop.fw_security_status_valid)
+		hdev->asic_prop.fw_app_security_map =
+				RREG32(cpu_security_boot_status_reg);
+
 	dev_info(hdev->dev, "Successfully loaded firmware to device\n");
 
 out:
-	fw_read_errors(hdev, boot_err0_reg);
+	fw_read_errors(hdev, boot_err0_reg, cpu_security_boot_status_reg);
 
 	return rc;
 }

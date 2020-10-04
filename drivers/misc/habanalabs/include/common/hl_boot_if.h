@@ -53,6 +53,9 @@
  *					trust), boot authentication (chain of
  *					trust), data packets authentication.
  *
+ * CPU_BOOT_ERR0_EFUSE_FAIL		Reading from eFuse failed.
+ *					The PCI device ID might be wrong.
+ *
  * CPU_BOOT_ERR0_ENABLED		Error registers enabled.
  *					This is a main indication that the
  *					running FW populates the error
@@ -68,7 +71,78 @@
 #define CPU_BOOT_ERR0_NIC_FW_FAIL		(1 << 6)
 #define CPU_BOOT_ERR0_SECURITY_NOT_RDY		(1 << 7)
 #define CPU_BOOT_ERR0_SECURITY_FAIL		(1 << 8)
+#define CPU_BOOT_ERR0_EFUSE_FAIL		(1 << 9)
 #define CPU_BOOT_ERR0_ENABLED			(1 << 31)
+
+/*
+ * BOOT DEVICE STATUS bits in BOOT_DEVICE_STS registers
+ *
+ * CPU_BOOT_DEV_STS0_SECURITY_EN	Security is Enabled.
+ *					This is an indication for security
+ *					enabled in FW, which means that
+ *					all conditions for security are met:
+ *					device is indicated as security enabled,
+ *					registers are protected, and device
+ *					uses keys for image verification.
+ *					Initialized at: preboot
+ *
+ * CPU_BOOT_DEV_STS0_DEBUG_EN		Debug is enabled.
+ *					Enabled when JTAG or DEBUG is enabled
+ *					in FW.
+ *					Initialized at: preboot
+ *
+ * CPU_BOOT_DEV_STS0_WATCHDOG_EN	Watchdog is enabled.
+ *					Watchdog is enabled in FW.
+ *					Initialized at: preboot
+ *
+ * CPU_BOOT_DEV_STS0_DRAM_INIT_EN	DRAM initialization is enabled.
+ *					DRAM initialization has been done in FW.
+ *					Initialized at: u-boot
+ *
+ * CPU_BOOT_DEV_STS0_BMC_WAIT_EN	Waiting for BMC data enabled.
+ *					If set, it means that during boot,
+ *					FW waited for BMC data.
+ *					Initialized at: u-boot
+ *
+ * CPU_BOOT_DEV_STS0_E2E_CRED_EN	E2E credits initialized.
+ *					FW initialized E2E credits.
+ *					Initialized at: u-boot
+ *
+ * CPU_BOOT_DEV_STS0_HBM_CRED_EN	HBM credits initialized.
+ *					FW initialized HBM credits.
+ *					Initialized at: u-boot
+ *
+ * CPU_BOOT_DEV_STS0_RL_EN		Rate limiter initialized.
+ *					FW initialized rate limiter.
+ *					Initialized at: u-boot
+ *
+ * CPU_BOOT_DEV_STS0_SRAM_SCR_EN	SRAM scrambler enabled.
+ *					FW initialized SRAM scrambler.
+ *					Initialized at: linux
+ *
+ * CPU_BOOT_DEV_STS0_DRAM_SCR_EN	DRAM scrambler enabled.
+ *					FW initialized DRAM scrambler.
+ *					Initialized at: u-boot
+ *
+ * CPU_BOOT_DEV_STS0_ENABLED		Device status register enabled.
+ *					This is a main indication that the
+ *					running FW populates the device status
+ *					register. Meaning the device status
+ *					bits are not garbage, but actual
+ *					statuses.
+ *					Initialized at: preboot
+ */
+#define CPU_BOOT_DEV_STS0_SECURITY_EN			(1 << 0)
+#define CPU_BOOT_DEV_STS0_DEBUG_EN			(1 << 1)
+#define CPU_BOOT_DEV_STS0_WATCHDOG_EN			(1 << 2)
+#define CPU_BOOT_DEV_STS0_DRAM_INIT_EN			(1 << 3)
+#define CPU_BOOT_DEV_STS0_BMC_WAIT_EN			(1 << 4)
+#define CPU_BOOT_DEV_STS0_E2E_CRED_EN			(1 << 5)
+#define CPU_BOOT_DEV_STS0_HBM_CRED_EN			(1 << 6)
+#define CPU_BOOT_DEV_STS0_RL_EN				(1 << 7)
+#define CPU_BOOT_DEV_STS0_SRAM_SCR_EN			(1 << 8)
+#define CPU_BOOT_DEV_STS0_DRAM_SCR_EN			(1 << 9)
+#define CPU_BOOT_DEV_STS0_ENABLED			(1 << 31)
 
 enum cpu_boot_status {
 	CPU_BOOT_STATUS_NA = 0,		/* Default value after reset of chip */

@@ -456,6 +456,10 @@ int goya_get_fixed_properties(struct hl_device *hdev)
 
 	prop->max_pending_cs = GOYA_MAX_PENDING_CS;
 
+	/* disable fw security for now, set it in a later stage */
+	prop->fw_security_disabled = true;
+	prop->fw_security_status_valid = false;
+
 	return 0;
 }
 
@@ -601,13 +605,10 @@ static int goya_early_init(struct hl_device *hdev)
 	prop->dram_pci_bar_size = pci_resource_len(pdev, DDR_BAR_ID);
 
 	rc = hl_pci_init(hdev, mmPSOC_GLOBAL_CONF_CPU_BOOT_STATUS,
-			mmCPU_BOOT_ERR0, GOYA_BOOT_FIT_REQ_TIMEOUT_USEC);
+			mmCPU_BOOT_DEV_STS0, mmCPU_BOOT_ERR0,
+			GOYA_BOOT_FIT_REQ_TIMEOUT_USEC);
 	if (rc)
 		goto free_queue_props;
-
-	/* Goya Firmware does not support security */
-	prop->fw_security_disabled = true;
-	dev_info(hdev->dev, "firmware-level security is disabled\n");
 
 	if (!hdev->pldm) {
 		val = RREG32(mmPSOC_GLOBAL_CONF_BOOT_STRAP_PINS);
@@ -615,6 +616,9 @@ static int goya_early_init(struct hl_device *hdev)
 			dev_warn(hdev->dev,
 				"PCI strap is not configured correctly, PCI bus errors may occur\n");
 	}
+
+	dev_info(hdev->dev, "firmware-level security is %s\n",
+		hdev->asic_prop.fw_security_disabled ? "disabled" : "enabled");
 
 	return 0;
 
@@ -2397,7 +2401,8 @@ static int goya_init_cpu(struct hl_device *hdev)
 
 	rc = hl_fw_init_cpu(hdev, mmPSOC_GLOBAL_CONF_CPU_BOOT_STATUS,
 			mmPSOC_GLOBAL_CONF_UBOOT_MAGIC,
-			mmCPU_CMD_STATUS_TO_HOST, mmCPU_BOOT_ERR0,
+			mmCPU_CMD_STATUS_TO_HOST,
+			mmCPU_BOOT_DEV_STS0, mmCPU_BOOT_ERR0,
 			false, GOYA_CPU_TIMEOUT_USEC,
 			GOYA_BOOT_FIT_REQ_TIMEOUT_USEC);
 

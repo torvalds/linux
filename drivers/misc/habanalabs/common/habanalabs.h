@@ -372,6 +372,12 @@ struct hl_mmu_properties {
  * @cb_pool_cb_size: size of each CB in the CB pool.
  * @max_pending_cs: maximum of concurrent pending command submissions
  * @max_queues: maximum amount of queues in the system
+ * @fw_boot_cpu_security_map: bitmap representation of boot cpu security status
+ *                            reported by FW, bit description can be found in
+ *                            CPU_BOOT_DEV_STS*
+ * @fw_app_security_map: bitmap representation of application security status
+ *                       reported by FW, bit description can be found in
+ *                       CPU_BOOT_DEV_STS*
  * @collective_first_sob: first sync object available for collective use
  * @collective_first_mon: first monitor available for collective use
  * @sync_stream_first_sob: first sync object available for sync stream use
@@ -382,6 +388,8 @@ struct hl_mmu_properties {
  * @completion_queues_count: number of completion queues.
  * @fw_security_disabled: true if security measures are disabled in firmware,
  *                        false otherwise
+ * @fw_security_status_valid: security status bits are valid and can be fetched
+ *                            from BOOT_DEV_STS0
  */
 struct asic_fixed_properties {
 	struct hw_queue_properties	*hw_queues_props;
@@ -426,6 +434,8 @@ struct asic_fixed_properties {
 	u32				cb_pool_cb_size;
 	u32				max_pending_cs;
 	u32				max_queues;
+	u32				fw_boot_cpu_security_map;
+	u32				fw_app_security_map;
 	u16				collective_first_sob;
 	u16				collective_first_mon;
 	u16				sync_stream_first_sob;
@@ -435,6 +445,7 @@ struct asic_fixed_properties {
 	u8				tpc_enabled_mask;
 	u8				completion_queues_count;
 	u8				fw_security_disabled;
+	u8				fw_security_status_valid;
 };
 
 /**
@@ -2050,10 +2061,11 @@ int hl_fw_cpucp_total_energy_get(struct hl_device *hdev,
 			u64 *total_energy);
 int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 			u32 msg_to_cpu_reg, u32 cpu_msg_status_reg,
-			u32 boot_err0_reg, bool skip_bmc,
-			u32 cpu_timeout, u32 boot_fit_timeout);
-int hl_fw_read_preboot_ver(struct hl_device *hdev, u32 cpu_boot_status_reg,
-				u32 boot_err0_reg, u32 timeout);
+			u32 cpu_security_boot_status_reg, u32 boot_err0_reg,
+			bool skip_bmc, u32 cpu_timeout, u32 boot_fit_timeout);
+int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
+		u32 cpu_security_boot_status_reg, u32 boot_err0_reg,
+		u32 timeout);
 
 int hl_pci_bars_map(struct hl_device *hdev, const char * const name[3],
 			bool is_wc[3]);
@@ -2063,7 +2075,8 @@ int hl_pci_set_inbound_region(struct hl_device *hdev, u8 region,
 int hl_pci_set_outbound_region(struct hl_device *hdev,
 		struct hl_outbound_pci_region *pci_region);
 int hl_pci_init(struct hl_device *hdev, u32 cpu_boot_status_reg,
-		u32 boot_err0_reg, u32 preboot_ver_timeout);
+		u32 cpu_security_boot_status_reg, u32 boot_err0_reg,
+		u32 preboot_ver_timeout);
 void hl_pci_fini(struct hl_device *hdev);
 
 long hl_get_frequency(struct hl_device *hdev, u32 pll_index, bool curr);
