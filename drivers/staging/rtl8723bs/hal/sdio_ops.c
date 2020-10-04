@@ -474,7 +474,7 @@ static u32 sdio_write_port(
 		return _FAIL;
 	}
 
-	cnt = _RND4(cnt);
+	cnt = round_up(cnt, 4);
 	HalSdioGetCmdAddr8723BSdio(adapter, addr, cnt >> 2, &addr);
 
 	if (cnt > psdio->block_transfer_len)
