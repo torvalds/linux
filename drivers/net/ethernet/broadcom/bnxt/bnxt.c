@@ -3163,13 +3163,60 @@ static void bnxt_init_rxbd_pages(struct bnxt_ring_struct *ring, u32 type)
 	}
 }
 
+static int bnxt_alloc_one_rx_ring(struct bnxt *bp, int ring_nr)
+{
+	struct bnxt_rx_ring_info *rxr = &bp->rx_ring[ring_nr];
+	struct net_device *dev = bp->dev;
+	u32 prod;
+	int i;
+
+	prod = rxr->rx_prod;
+	for (i = 0; i < bp->rx_ring_size; i++) {
+		if (bnxt_alloc_rx_data(bp, rxr, prod, GFP_KERNEL)) {
+			netdev_warn(dev, "init'ed rx ring %d with %d/%d skbs only\n",
+				    ring_nr, i, bp->rx_ring_size);
+			break;
+		}
+		prod = NEXT_RX(prod);
+	}
+	rxr->rx_prod = prod;
+
+	if (!(bp->flags & BNXT_FLAG_AGG_RINGS))
+		return 0;
+
+	prod = rxr->rx_agg_prod;
+	for (i = 0; i < bp->rx_agg_ring_size; i++) {
+		if (bnxt_alloc_rx_page(bp, rxr, prod, GFP_KERNEL)) {
+			netdev_warn(dev, "init'ed rx ring %d with %d/%d pages only\n",
+				    ring_nr, i, bp->rx_ring_size);
+			break;
+		}
+		prod = NEXT_RX_AGG(prod);
+	}
+	rxr->rx_agg_prod = prod;
+
+	if (rxr->rx_tpa) {
+		dma_addr_t mapping;
+		u8 *data;
+
+		for (i = 0; i < bp->max_tpa; i++) {
+			data = __bnxt_alloc_rx_data(bp, &mapping, GFP_KERNEL);
+			if (!data)
+				return -ENOMEM;
+
+			rxr->rx_tpa[i].data = data;
+			rxr->rx_tpa[i].data_ptr = data + bp->rx_offset;
+			rxr->rx_tpa[i].mapping = mapping;
+		}
+	}
+	return 0;
+}
+
 static int bnxt_init_one_rx_ring(struct bnxt *bp, int ring_nr)
 {
-	struct net_device *dev = bp->dev;
 	struct bnxt_rx_ring_info *rxr;
 	struct bnxt_ring_struct *ring;
-	u32 prod, type;
-	int i;
+	u32 type;
 
 	type = (bp->rx_buf_use_size << RX_BD_LEN_SHIFT) |
 		RX_BD_TYPE_RX_PACKET_BD | RX_BD_FLAGS_EOP;
@@ -3185,62 +3232,19 @@ static int bnxt_init_one_rx_ring(struct bnxt *bp, int ring_nr)
 		bpf_prog_add(bp->xdp_prog, 1);
 		rxr->xdp_prog = bp->xdp_prog;
 	}
-	prod = rxr->rx_prod;
-	for (i = 0; i < bp->rx_ring_size; i++) {
-		if (bnxt_alloc_rx_data(bp, rxr, prod, GFP_KERNEL) != 0) {
-			netdev_warn(dev, "init'ed rx ring %d with %d/%d skbs only\n",
-				    ring_nr, i, bp->rx_ring_size);
-			break;
-		}
-		prod = NEXT_RX(prod);
-	}
-	rxr->rx_prod = prod;
 	ring->fw_ring_id = INVALID_HW_RING_ID;
 
 	ring = &rxr->rx_agg_ring_struct;
 	ring->fw_ring_id = INVALID_HW_RING_ID;
 
-	if (!(bp->flags & BNXT_FLAG_AGG_RINGS))
-		return 0;
+	if ((bp->flags & BNXT_FLAG_AGG_RINGS)) {
+		type = ((u32)BNXT_RX_PAGE_SIZE << RX_BD_LEN_SHIFT) |
+			RX_BD_TYPE_RX_AGG_BD | RX_BD_FLAGS_SOP;
 
-	type = ((u32)BNXT_RX_PAGE_SIZE << RX_BD_LEN_SHIFT) |
-		RX_BD_TYPE_RX_AGG_BD | RX_BD_FLAGS_SOP;
-
-	bnxt_init_rxbd_pages(ring, type);
-
-	prod = rxr->rx_agg_prod;
-	for (i = 0; i < bp->rx_agg_ring_size; i++) {
-		if (bnxt_alloc_rx_page(bp, rxr, prod, GFP_KERNEL) != 0) {
-			netdev_warn(dev, "init'ed rx ring %d with %d/%d pages only\n",
-				    ring_nr, i, bp->rx_ring_size);
-			break;
-		}
-		prod = NEXT_RX_AGG(prod);
-	}
-	rxr->rx_agg_prod = prod;
-
-	if (bp->flags & BNXT_FLAG_TPA) {
-		if (rxr->rx_tpa) {
-			u8 *data;
-			dma_addr_t mapping;
-
-			for (i = 0; i < bp->max_tpa; i++) {
-				data = __bnxt_alloc_rx_data(bp, &mapping,
-							    GFP_KERNEL);
-				if (!data)
-					return -ENOMEM;
-
-				rxr->rx_tpa[i].data = data;
-				rxr->rx_tpa[i].data_ptr = data + bp->rx_offset;
-				rxr->rx_tpa[i].mapping = mapping;
-			}
-		} else {
-			netdev_err(bp->dev, "No resource allocated for LRO/GRO\n");
-			return -ENOMEM;
-		}
+		bnxt_init_rxbd_pages(ring, type);
 	}
 
-	return 0;
+	return bnxt_alloc_one_rx_ring(bp, ring_nr);
 }
 
 static void bnxt_init_cp_rings(struct bnxt *bp)
