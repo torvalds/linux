@@ -945,8 +945,7 @@ void sd_int_dpc(struct adapter *adapter)
 	if (hal->sdio_hisr & SDIO_HISR_CPWM1) {
 		struct reportpwrstate_parm report;
 
-		u8 bcancelled;
-		_cancel_timer(&(pwrctl->pwr_rpwm_timer), &bcancelled);
+		del_timer_sync(&(pwrctl->pwr_rpwm_timer));
 
 		report.state = SdioLocalCmd52Read1Byte(adapter, SDIO_REG_HCPWM1_8723B);
 

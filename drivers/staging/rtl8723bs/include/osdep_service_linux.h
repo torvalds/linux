@@ -83,12 +83,6 @@ static inline void _set_timer(_timer *ptimer, u32 delay_time)
 	mod_timer(ptimer, (jiffies + (delay_time * HZ / 1000)));
 }
 
-static inline void _cancel_timer(_timer *ptimer, u8 *bcancelled)
-{
-	del_timer_sync(ptimer);
-	*bcancelled =  true;/* true == 1; false == 0 */
-}
-
 static inline void _init_workitem(_workitem *pwork, void *pfunc, void *cntx)
 {
 	INIT_WORK(pwork, pfunc);
