@@ -79,14 +79,13 @@ int main(void)
 	for (i = 0, test = tests; test->expected_segments; test++, i++) {
 		struct page *pages[MAX_PAGES];
 		struct sg_table st;
-		int ret;
+		struct scatterlist *sg;
 
 		set_pages(pages, test->pfn, test->num_pages);
 
-		ret = __sg_alloc_table_from_pages(&st, pages, test->num_pages,
-						  0, test->size, test->max_seg,
-						  GFP_KERNEL);
-		assert(ret == test->alloc_ret);
+		sg = __sg_alloc_table_from_pages(&st, pages, test->num_pages, 0,
+				test->size, test->max_seg, NULL, 0, GFP_KERNEL);
+		assert(PTR_ERR_OR_ZERO(sg) == test->alloc_ret);
 
 		if (test->alloc_ret)
 			continue;
