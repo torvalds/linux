@@ -106,8 +106,13 @@
 #endif
 
 #ifdef	compat_start_thread
-#undef	start_thread
-#define	start_thread		compat_start_thread
+#define COMPAT_START_THREAD(ex, regs, new_ip, new_sp)	\
+	compat_start_thread(regs, new_ip, new_sp)
+#endif
+
+#ifdef	COMPAT_START_THREAD
+#undef	START_THREAD
+#define START_THREAD		COMPAT_START_THREAD
 #endif
 
 #ifdef	compat_arch_setup_additional_pages

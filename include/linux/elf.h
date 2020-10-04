@@ -22,6 +22,11 @@
 	SET_PERSONALITY(ex)
 #endif
 
+#ifndef START_THREAD
+#define START_THREAD(elf_ex, regs, elf_entry, start_stack)	\
+	start_thread(regs, elf_entry, start_stack)
+#endif
+
 #define ELF32_GNU_PROPERTY_ALIGN	4
 #define ELF64_GNU_PROPERTY_ALIGN	8
 
