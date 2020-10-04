@@ -1398,6 +1398,8 @@ static int hist_trigger_elt_data_alloc(struct tracing_map_elt *elt)
 
 	n_str = hist_data->n_field_var_str + hist_data->n_save_var_str;
 
+	BUILD_BUG_ON(STR_VAR_LEN_MAX & (sizeof(u64) - 1));
+
 	size = STR_VAR_LEN_MAX;
 
 	for (i = 0; i < n_str; i++) {
