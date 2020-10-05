@@ -277,8 +277,15 @@ static int icl_max_source_rate(struct intel_dp *intel_dp)
 	enum phy phy = intel_port_to_phy(dev_priv, dig_port->base.port);
 
 	if (intel_phy_is_combo(dev_priv, phy) &&
-	    !IS_ELKHARTLAKE(dev_priv) &&
 	    !intel_dp_is_edp(intel_dp))
+		return 540000;
+
+	return 810000;
+}
+
+static int ehl_max_source_rate(struct intel_dp *intel_dp)
+{
+	if (intel_dp_is_edp(intel_dp))
 		return 540000;
 
 	return 810000;
@@ -318,6 +325,8 @@ intel_dp_set_source_rates(struct intel_dp *intel_dp)
 		size = ARRAY_SIZE(cnl_rates);
 		if (IS_GEN(dev_priv, 10))
 			max_rate = cnl_max_source_rate(intel_dp);
+		else if (IS_ELKHARTLAKE(dev_priv))
+			max_rate = ehl_max_source_rate(intel_dp);
 		else
 			max_rate = icl_max_source_rate(intel_dp);
 	} else if (IS_GEN9_LP(dev_priv)) {

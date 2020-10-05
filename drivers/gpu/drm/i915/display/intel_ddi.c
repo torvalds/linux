@@ -1142,13 +1142,8 @@ ehl_get_combo_buf_trans_edp(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
 	if (dev_priv->vbt.edp.low_vswing) {
-		if (crtc_state->port_clock > 540000) {
-			*n_entries = ARRAY_SIZE(icl_combo_phy_ddi_translations_edp_hbr3);
-			return icl_combo_phy_ddi_translations_edp_hbr3;
-		} else {
-			*n_entries = ARRAY_SIZE(icl_combo_phy_ddi_translations_edp_hbr2);
-			return icl_combo_phy_ddi_translations_edp_hbr2;
-		}
+		*n_entries = ARRAY_SIZE(icl_combo_phy_ddi_translations_edp_hbr2);
+		return icl_combo_phy_ddi_translations_edp_hbr2;
 	}
 
 	return ehl_get_combo_buf_trans_dp(encoder, crtc_state, n_entries);
