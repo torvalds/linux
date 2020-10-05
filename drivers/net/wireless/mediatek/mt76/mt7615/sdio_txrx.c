@@ -150,7 +150,7 @@ static int mt7663s_tx_pick_quota(struct mt76_sdio *sdio, enum mt76_txq_id qid,
 			return -EBUSY;
 	} else {
 		if (sdio->sched.pse_data_quota < *pse_size + pse_sz ||
-		    sdio->sched.ple_data_quota < *ple_size)
+		    sdio->sched.ple_data_quota < *ple_size + 1)
 			return -EBUSY;
 
 		*ple_size = *ple_size + 1;
