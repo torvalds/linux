@@ -155,11 +155,33 @@ err_reg_init:
 static void vfio_fsl_mc_release(void *device_data)
 {
 	struct vfio_fsl_mc_device *vdev = device_data;
+	int ret;
 
 	mutex_lock(&vdev->reflck->lock);
 
-	if (!(--vdev->refcnt))
+	if (!(--vdev->refcnt)) {
+		struct fsl_mc_device *mc_dev = vdev->mc_dev;
+		struct device *cont_dev = fsl_mc_cont_dev(&mc_dev->dev);
+		struct fsl_mc_device *mc_cont = to_fsl_mc_device(cont_dev);
+
 		vfio_fsl_mc_regions_cleanup(vdev);
+
+		/* reset the device before cleaning up the interrupts */
+		ret = dprc_reset_container(mc_cont->mc_io, 0,
+		      mc_cont->mc_handle,
+			  mc_cont->obj_desc.id,
+			  DPRC_RESET_OPTION_NON_RECURSIVE);
+
+		if (ret) {
+			dev_warn(&mc_cont->dev, "VFIO_FLS_MC: reset device has failed (%d)\n",
+				 ret);
+			WARN_ON(1);
+		}
+
+		vfio_fsl_mc_irqs_cleanup(vdev);
+
+		fsl_mc_cleanup_irq_pool(mc_cont);
+	}
 
 	mutex_unlock(&vdev->reflck->lock);
 
