@@ -5,6 +5,7 @@
  *
  * HPE UV MMR definitions
  *
+ * (C) Copyright 2020 Hewlett Packard Enterprise Development LP
  * Copyright (C) 2007-2016 Silicon Graphics, Inc. All rights reserved.
  */
 

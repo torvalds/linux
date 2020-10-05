@@ -2,6 +2,7 @@
 /*
  * BIOS run time interface routines.
  *
+ * (C) Copyright 2020 Hewlett Packard Enterprise Development LP
  * Copyright (C) 2007-2017 Silicon Graphics, Inc. All rights reserved.
  * Copyright (c) Russ Anderson <rja@sgi.com>
  */
