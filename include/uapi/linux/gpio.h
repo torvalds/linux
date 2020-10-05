@@ -98,7 +98,7 @@ struct gpio_v2_line_values {
  * identifying which field of the attribute union is in use.
  * @GPIO_V2_LINE_ATTR_ID_FLAGS: flags field is in use
  * @GPIO_V2_LINE_ATTR_ID_OUTPUT_VALUES: values field is in use
- * @GPIO_V2_LINE_ATTR_ID_DEBOUNCE: debounce_period_us is in use
+ * @GPIO_V2_LINE_ATTR_ID_DEBOUNCE: debounce_period_us field is in use
  */
 enum gpio_v2_line_attr_id {
 	GPIO_V2_LINE_ATTR_ID_FLAGS		= 1,
