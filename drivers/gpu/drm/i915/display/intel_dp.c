@@ -3703,6 +3703,33 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 	}
 }
 
+static bool
+intel_dp_get_dpcd(struct intel_dp *intel_dp);
+
+/**
+ * intel_dp_sync_state - sync the encoder state during init/resume
+ * @encoder: intel encoder to sync
+ * @crtc_state: state for the CRTC connected to the encoder
+ *
+ * Sync any state stored in the encoder wrt. HW state during driver init
+ * and system resume.
+ */
+void intel_dp_sync_state(struct intel_encoder *encoder,
+			 const struct intel_crtc_state *crtc_state)
+{
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+
+	/*
+	 * Don't clobber DPCD if it's been already read out during output
+	 * setup (eDP) or detect.
+	 */
+	if (intel_dp->dpcd[DP_DPCD_REV] == 0)
+		intel_dp_get_dpcd(intel_dp);
+
+	intel_dp->max_link_lane_count = intel_dp_max_common_lane_count(intel_dp);
+	intel_dp->max_link_rate = intel_dp_max_common_rate(intel_dp);
+}
+
 bool intel_dp_initial_fastset_check(struct intel_encoder *encoder,
 				    struct intel_crtc_state *crtc_state)
 {
@@ -8090,6 +8117,7 @@ bool intel_dp_init(struct drm_i915_private *dev_priv,
 	intel_encoder->compute_config = intel_dp_compute_config;
 	intel_encoder->get_hw_state = intel_dp_get_hw_state;
 	intel_encoder->get_config = intel_dp_get_config;
+	intel_encoder->sync_state = intel_dp_sync_state;
 	intel_encoder->initial_fastset_check = intel_dp_initial_fastset_check;
 	intel_encoder->update_pipe = intel_panel_update_backlight;
 	intel_encoder->suspend = intel_dp_encoder_suspend;

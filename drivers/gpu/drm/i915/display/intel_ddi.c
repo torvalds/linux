@@ -4564,6 +4564,13 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 	intel_read_dp_sdp(encoder, pipe_config, DP_SDP_VSC);
 }
 
+static void intel_ddi_sync_state(struct intel_encoder *encoder,
+				 const struct intel_crtc_state *crtc_state)
+{
+	if (intel_crtc_has_dp_encoder(crtc_state))
+		intel_dp_sync_state(encoder, crtc_state);
+}
+
 static bool intel_ddi_initial_fastset_check(struct intel_encoder *encoder,
 					    struct intel_crtc_state *crtc_state)
 {
@@ -5182,6 +5189,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	encoder->update_pipe = intel_ddi_update_pipe;
 	encoder->get_hw_state = intel_ddi_get_hw_state;
 	encoder->get_config = intel_ddi_get_config;
+	encoder->sync_state = intel_ddi_sync_state;
 	encoder->initial_fastset_check = intel_ddi_initial_fastset_check;
 	encoder->suspend = intel_dp_encoder_suspend;
 	encoder->get_power_domains = intel_ddi_get_power_domains;

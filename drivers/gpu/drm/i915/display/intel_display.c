@@ -18729,6 +18729,8 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 
 			encoder->base.crtc = &crtc->base;
 			encoder->get_config(encoder, crtc_state);
+			if (encoder->sync_state)
+				encoder->sync_state(encoder, crtc_state);
 		} else {
 			encoder->base.crtc = NULL;
 		}

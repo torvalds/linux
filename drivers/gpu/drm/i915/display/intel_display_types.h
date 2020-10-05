@@ -189,6 +189,13 @@ struct intel_encoder {
 			   struct intel_crtc_state *pipe_config);
 
 	/*
+	 * Optional hook called during init/resume to sync any state
+	 * stored in the encoder (eg. DP link parameters) wrt. the HW state.
+	 */
+	void (*sync_state)(struct intel_encoder *encoder,
+			   const struct intel_crtc_state *crtc_state);
+
+	/*
 	 * Optional hook, returning true if this encoder allows a fastset
 	 * during the initial commit, false otherwise.
 	 */
