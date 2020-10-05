@@ -263,6 +263,14 @@ send_attribute:
 		else
 			type = NL_ATTR_TYPE_U64;
 
+		if (pt->validation_type == NLA_VALIDATE_MASK) {
+			if (nla_put_u64_64bit(skb, NL_POLICY_TYPE_ATTR_MASK,
+					      pt->mask,
+					      NL_POLICY_TYPE_ATTR_PAD))
+				goto nla_put_failure;
+			break;
+		}
+
 		nla_get_range_unsigned(pt, &range);
 
 		if (nla_put_u64_64bit(skb, NL_POLICY_TYPE_ATTR_MIN_VALUE_U,
