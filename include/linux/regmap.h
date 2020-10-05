@@ -1355,6 +1355,7 @@ struct regmap_irq_sub_irq_map {
  * @mask_invert: Inverted mask register: cleared bits are masked out.
  * @use_ack:     Use @ack register even if it is zero.
  * @ack_invert:  Inverted ack register: cleared bits for ack.
+ * @clear_ack:  Use this to set 1 and 0 or vice-versa to clear interrupts.
  * @wake_invert: Inverted wake register: cleared bits are wake enabled.
  * @type_invert: Invert the type flags.
  * @type_in_mask: Use the mask registers for controlling irq type. For
@@ -1403,6 +1404,7 @@ struct regmap_irq_chip {
 	bool mask_invert:1;
 	bool use_ack:1;
 	bool ack_invert:1;
+	bool clear_ack:1;
 	bool wake_invert:1;
 	bool runtime_pm:1;
 	bool type_invert:1;
