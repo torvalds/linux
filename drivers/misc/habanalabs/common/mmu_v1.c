@@ -29,7 +29,7 @@ static void _free_hop(struct hl_ctx *ctx, struct pgt_info *pgt_info)
 {
 	struct hl_device *hdev = ctx->hdev;
 
-	gen_pool_free(hdev->mmu_priv.mmu_pgt_pool, pgt_info->phys_addr,
+	gen_pool_free(hdev->mmu_priv.dr.mmu_pgt_pool, pgt_info->phys_addr,
 			hdev->asic_prop.mmu_hop_table_size);
 	hash_del(&pgt_info->node);
 	kfree((u64 *) (uintptr_t) pgt_info->shadow_addr);
@@ -54,7 +54,7 @@ static u64 alloc_hop(struct hl_ctx *ctx)
 	if (!pgt_info)
 		return ULLONG_MAX;
 
-	phys_addr = (u64) gen_pool_alloc(hdev->mmu_priv.mmu_pgt_pool,
+	phys_addr = (u64) gen_pool_alloc(hdev->mmu_priv.dr.mmu_pgt_pool,
 					prop->mmu_hop_table_size);
 	if (!phys_addr) {
 		dev_err(hdev->dev, "failed to allocate page\n");
@@ -75,7 +75,7 @@ static u64 alloc_hop(struct hl_ctx *ctx)
 	return shadow_addr;
 
 shadow_err:
-	gen_pool_free(hdev->mmu_priv.mmu_pgt_pool, phys_addr,
+	gen_pool_free(hdev->mmu_priv.dr.mmu_pgt_pool, phys_addr,
 			prop->mmu_hop_table_size);
 pool_add_err:
 	kfree(pgt_info);
@@ -91,7 +91,7 @@ static inline u64 get_phys_hop0_addr(struct hl_ctx *ctx)
 
 static inline u64 get_hop0_addr(struct hl_ctx *ctx)
 {
-	return (u64) (uintptr_t) ctx->hdev->mmu_priv.mmu_shadow_hop0 +
+	return (u64) (uintptr_t) ctx->hdev->mmu_priv.dr.mmu_shadow_hop0 +
 			(ctx->asid * ctx->hdev->asic_prop.mmu_hop_table_size);
 }
 
@@ -419,15 +419,15 @@ static int hl_mmu_v1_init(struct hl_device *hdev)
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	int rc;
 
-	hdev->mmu_priv.mmu_pgt_pool =
+	hdev->mmu_priv.dr.mmu_pgt_pool =
 			gen_pool_create(__ffs(prop->mmu_hop_table_size), -1);
 
-	if (!hdev->mmu_priv.mmu_pgt_pool) {
+	if (!hdev->mmu_priv.dr.mmu_pgt_pool) {
 		dev_err(hdev->dev, "Failed to create page gen pool\n");
 		return -ENOMEM;
 	}
 
-	rc = gen_pool_add(hdev->mmu_priv.mmu_pgt_pool, prop->mmu_pgt_addr +
+	rc = gen_pool_add(hdev->mmu_priv.dr.mmu_pgt_pool, prop->mmu_pgt_addr +
 			prop->mmu_hop0_tables_total_size,
 			prop->mmu_pgt_size - prop->mmu_hop0_tables_total_size,
 			-1);
@@ -436,10 +436,10 @@ static int hl_mmu_v1_init(struct hl_device *hdev)
 		goto err_pool_add;
 	}
 
-	hdev->mmu_priv.mmu_shadow_hop0 = kvmalloc_array(prop->max_asid,
+	hdev->mmu_priv.dr.mmu_shadow_hop0 = kvmalloc_array(prop->max_asid,
 						prop->mmu_hop_table_size,
 						GFP_KERNEL | __GFP_ZERO);
-	if (ZERO_OR_NULL_PTR(hdev->mmu_priv.mmu_shadow_hop0)) {
+	if (ZERO_OR_NULL_PTR(hdev->mmu_priv.dr.mmu_shadow_hop0)) {
 		rc = -ENOMEM;
 		goto err_pool_add;
 	}
@@ -449,7 +449,7 @@ static int hl_mmu_v1_init(struct hl_device *hdev)
 	return 0;
 
 err_pool_add:
-	gen_pool_destroy(hdev->mmu_priv.mmu_pgt_pool);
+	gen_pool_destroy(hdev->mmu_priv.dr.mmu_pgt_pool);
 
 	return rc;
 }
@@ -468,8 +468,8 @@ static void hl_mmu_v1_fini(struct hl_device *hdev)
 {
 	/* MMU H/W fini was already done in device hw_fini() */
 
-	kvfree(hdev->mmu_priv.mmu_shadow_hop0);
-	gen_pool_destroy(hdev->mmu_priv.mmu_pgt_pool);
+	kvfree(hdev->mmu_priv.dr.mmu_shadow_hop0);
+	gen_pool_destroy(hdev->mmu_priv.dr.mmu_pgt_pool);
 }
 
 /**
@@ -847,10 +847,8 @@ static void hl_mmu_v1_swap_in(struct hl_ctx *ctx)
  *
  * @hdev: pointer to the device structure
  */
-void hl_mmu_v1_set_funcs(struct hl_device *hdev)
+void hl_mmu_v1_set_funcs(struct hl_device *hdev, struct hl_mmu_funcs *mmu)
 {
-	struct hl_mmu_funcs *mmu = &hdev->mmu_func;
-
 	mmu->init = hl_mmu_v1_init;
 	mmu->fini = hl_mmu_v1_fini;
 	mmu->ctx_init = hl_mmu_v1_ctx_init;

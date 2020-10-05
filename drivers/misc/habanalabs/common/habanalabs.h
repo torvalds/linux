@@ -61,6 +61,18 @@
 /* MMU */
 #define MMU_HASH_TABLE_BITS		7 /* 1 << 7 buckets */
 
+/**
+ * enum hl_mmu_page_table_locaion - mmu page table location
+ * @MMU_DR_PGT: page-table is located on device DRAM.
+ * @MMU_HR_PGT: page-table is located on host memory.
+ * @MMU_NUM_PGT_LOCATIONS: number of page-table locations currently supported.
+ */
+enum hl_mmu_page_table_location {
+	MMU_DR_PGT = 0,		/* device-dram-resident MMU PGT */
+	MMU_HR_PGT,		/* host resident MMU PGT */
+	MMU_NUM_PGT_LOCATIONS	/* num of PGT locations */
+};
+
 /*
  * HL_RSVD_SOBS 'sync stream' reserved sync objects per QMAN stream
  * HL_RSVD_MONS 'sync stream' reserved monitors per QMAN stream
@@ -303,6 +315,8 @@ enum hl_device_hw_state {
  * @hop5_mask: mask to get the PTE address in hop 5.
  * @page_size: default page size used to allocate memory.
  * @num_hops: The amount of hops supported by the translation table.
+ * @host_resident: Should the MMU page table reside in host memory or in the
+ *                 device DRAM.
  */
 struct hl_mmu_properties {
 	u64	start_addr;
@@ -321,6 +335,7 @@ struct hl_mmu_properties {
 	u64	hop5_mask;
 	u32	page_size;
 	u32	num_hops;
+	u8	host_resident;
 };
 
 /**
@@ -1572,15 +1587,49 @@ struct hl_device_idle_busy_ts {
 	ktime_t				busy_to_idle_ts;
 };
 
+/**
+ * struct hr_mmu_hop_addrs - used for holding per-device host-resident mmu hop
+ * information.
+ * @virt_addr: the virtual address of the hop.
+ * @phys-addr: the physical address of the hop (used by the device-mmu).
+ * @shadow_addr: The shadow of the hop used by the driver for walking the hops.
+ */
+struct hr_mmu_hop_addrs {
+	u64 virt_addr;
+	u64 phys_addr;
+	u64 shadow_addr;
+};
 
 /**
- * struct hl_mmu_priv - used for holding per-device mmu internal information.
+ * struct hl_mmu_hr_pgt_priv - used for holding per-device mmu host-resident
+ * page-table internal information.
  * @mmu_pgt_pool: pool of page tables used by MMU for allocating hops.
  * @mmu_shadow_hop0: shadow array of hop0 tables.
  */
-struct hl_mmu_priv {
+struct hl_mmu_hr_priv {
+	struct gen_pool *mmu_pgt_pool;
+	struct hr_mmu_hop_addrs *mmu_shadow_hop0;
+};
+
+/**
+ * struct hl_mmu_dr_pgt_priv - used for holding per-device mmu device-resident
+ * page-table internal information.
+ * @mmu_pgt_pool: pool of page tables used by MMU for allocating hops.
+ * @mmu_shadow_hop0: shadow array of hop0 tables.
+ */
+struct hl_mmu_dr_priv {
 	struct gen_pool *mmu_pgt_pool;
 	void *mmu_shadow_hop0;
+};
+
+/**
+ * struct hl_mmu_priv - used for holding per-device mmu internal information.
+ * @dr: information on the device-resident MMU, when exists.
+ * @hr: information on the host-resident MMU, when exists.
+ */
+struct hl_mmu_priv {
+	struct hl_mmu_dr_priv dr;
+	struct hl_mmu_hr_priv hr;
 };
 
 /**
@@ -1779,7 +1828,7 @@ struct hl_device {
 	struct hl_cs_counters_atomic	aggregated_cs_counters;
 
 	struct hl_mmu_priv		mmu_priv;
-	struct hl_mmu_funcs		mmu_func;
+	struct hl_mmu_funcs		mmu_func[MMU_NUM_PGT_LOCATIONS];
 
 	atomic64_t			dram_used_mem;
 	u64				timeout_jiffies;
@@ -2042,7 +2091,7 @@ int hl_mmu_unmap(struct hl_ctx *ctx, u64 virt_addr, u32 page_size,
 void hl_mmu_swap_out(struct hl_ctx *ctx);
 void hl_mmu_swap_in(struct hl_ctx *ctx);
 int hl_mmu_if_set_funcs(struct hl_device *hdev);
-void hl_mmu_v1_set_funcs(struct hl_device *hdev);
+void hl_mmu_v1_set_funcs(struct hl_device *hdev, struct hl_mmu_funcs *mmu);
 
 int hl_fw_load_fw_to_device(struct hl_device *hdev, const char *fw_name,
 				void __iomem *dst, u32 src_offset, u32 size);
