@@ -187,6 +187,14 @@ struct intel_encoder {
 	 * be set correctly before calling this function. */
 	void (*get_config)(struct intel_encoder *,
 			   struct intel_crtc_state *pipe_config);
+
+	/*
+	 * Optional hook, returning true if this encoder allows a fastset
+	 * during the initial commit, false otherwise.
+	 */
+	bool (*initial_fastset_check)(struct intel_encoder *encoder,
+				      struct intel_crtc_state *crtc_state);
+
 	/*
 	 * Acquires the power domains needed for an active encoder during
 	 * hardware state readout.

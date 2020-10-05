@@ -3703,6 +3703,27 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 	}
 }
 
+bool intel_dp_initial_fastset_check(struct intel_encoder *encoder,
+				    struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+
+	/*
+	 * FIXME hack to force full modeset when DSC is being used.
+	 *
+	 * As long as we do not have full state readout and config comparison
+	 * of crtc_state->dsc, we have no way to ensure reliable fastset.
+	 * Remove once we have readout for DSC.
+	 */
+	if (crtc_state->dsc.compression_enable) {
+		drm_dbg_kms(&i915->drm, "Forcing full modeset due to DSC being enabled\n");
+		crtc_state->uapi.mode_changed = true;
+		return false;
+	}
+
+	return true;
+}
+
 static void intel_disable_dp(struct intel_atomic_state *state,
 			     struct intel_encoder *encoder,
 			     const struct intel_crtc_state *old_crtc_state,
@@ -8057,6 +8078,7 @@ bool intel_dp_init(struct drm_i915_private *dev_priv,
 	intel_encoder->compute_config = intel_dp_compute_config;
 	intel_encoder->get_hw_state = intel_dp_get_hw_state;
 	intel_encoder->get_config = intel_dp_get_config;
+	intel_encoder->initial_fastset_check = intel_dp_initial_fastset_check;
 	intel_encoder->update_pipe = intel_panel_update_backlight;
 	intel_encoder->suspend = intel_dp_encoder_suspend;
 	if (IS_CHERRYVIEW(dev_priv)) {

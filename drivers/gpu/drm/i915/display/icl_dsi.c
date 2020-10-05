@@ -1668,6 +1668,19 @@ out:
 	return ret;
 }
 
+static bool gen11_dsi_initial_fastset_check(struct intel_encoder *encoder,
+					    struct intel_crtc_state *crtc_state)
+{
+	if (crtc_state->dsc.compression_enable) {
+		drm_dbg_kms(encoder->base.dev, "Forcing full modeset due to DSC being enabled\n");
+		crtc_state->uapi.mode_changed = true;
+
+		return false;
+	}
+
+	return true;
+}
+
 static void gen11_dsi_encoder_destroy(struct drm_encoder *encoder)
 {
 	intel_encoder_destroy(encoder);
@@ -1923,6 +1936,7 @@ void icl_dsi_init(struct drm_i915_private *dev_priv)
 	encoder->update_pipe = intel_panel_update_backlight;
 	encoder->compute_config = gen11_dsi_compute_config;
 	encoder->get_hw_state = gen11_dsi_get_hw_state;
+	encoder->initial_fastset_check = gen11_dsi_initial_fastset_check;
 	encoder->type = INTEL_OUTPUT_DSI;
 	encoder->cloneable = 0;
 	encoder->pipe_mask = ~0;
