@@ -69,9 +69,6 @@ static ssize_t show_time_in_state(struct cpufreq_policy *policy, char *buf)
 	ssize_t len = 0;
 	int i;
 
-	if (policy->fast_switch_enabled)
-		return 0;
-
 	for (i = 0; i < stats->state_num; i++) {
 		if (pending) {
 			if (i == stats->last_index)
@@ -114,9 +111,6 @@ static ssize_t show_trans_table(struct cpufreq_policy *policy, char *buf)
 	bool pending = READ_ONCE(stats->reset_pending);
 	ssize_t len = 0;
 	int i, j, count;
-
-	if (policy->fast_switch_enabled)
-		return 0;
 
 	len += scnprintf(buf + len, PAGE_SIZE - len, "   From  :    To\n");
 	len += scnprintf(buf + len, PAGE_SIZE - len, "         : ");
