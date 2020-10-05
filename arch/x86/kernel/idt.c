@@ -149,9 +149,6 @@ static const __initconst struct idt_data apic_idts[] = {
 # ifdef CONFIG_IRQ_WORK
 	INTG(IRQ_WORK_VECTOR,			asm_sysvec_irq_work),
 # endif
-# ifdef CONFIG_X86_UV
-	INTG(UV_BAU_MESSAGE,			asm_sysvec_uv_bau_message),
-# endif
 	INTG(SPURIOUS_APIC_VECTOR,		asm_sysvec_spurious_apic_interrupt),
 	INTG(ERROR_APIC_VECTOR,			asm_sysvec_error_interrupt),
 #endif
