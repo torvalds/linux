@@ -594,6 +594,7 @@ static ssize_t __iio_format_value(char *buf, size_t len, unsigned int type,
 {
 	unsigned long long tmp;
 	int tmp0, tmp1;
+	s64 tmp2;
 	bool scale_db = false;
 
 	switch (type) {
@@ -616,10 +617,13 @@ static ssize_t __iio_format_value(char *buf, size_t len, unsigned int type,
 		else
 			return scnprintf(buf, len, "%d.%09u", vals[0], vals[1]);
 	case IIO_VAL_FRACTIONAL:
-		tmp = div_s64((s64)vals[0] * 1000000000LL, vals[1]);
+		tmp2 = div_s64((s64)vals[0] * 1000000000LL, vals[1]);
 		tmp1 = vals[1];
-		tmp0 = (int)div_s64_rem(tmp, 1000000000, &tmp1);
-		return scnprintf(buf, len, "%d.%09u", tmp0, abs(tmp1));
+		tmp0 = (int)div_s64_rem(tmp2, 1000000000, &tmp1);
+		if ((tmp2 < 0) && (tmp0 == 0))
+			return snprintf(buf, len, "-0.%09u", abs(tmp1));
+		else
+			return snprintf(buf, len, "%d.%09u", tmp0, abs(tmp1));
 	case IIO_VAL_FRACTIONAL_LOG2:
 		tmp = shift_right((s64)vals[0] * 1000000000LL, vals[1]);
 		tmp0 = (int)div_s64_rem(tmp, 1000000000LL, &tmp1);
