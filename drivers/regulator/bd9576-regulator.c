@@ -275,7 +275,7 @@ static int bd957x_probe(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "Found BD9576MUF\n");
 		break;
 	case ROHM_CHIP_TYPE_BD9573:
-		pr_info(&pdev->dev, "Found BD9573MUF\n");
+		dev_dbg(&pdev->dev, "Found BD9573MUF\n");
 		break;
 	default:
 		dev_err(&pdev->dev, "Unsupported chip type\n");
