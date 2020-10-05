@@ -15,6 +15,11 @@
 #define VFIO_FSL_MC_INDEX_TO_OFFSET(index)	\
 	((u64)(index) << VFIO_FSL_MC_OFFSET_SHIFT)
 
+struct vfio_fsl_mc_reflck {
+	struct kref		kref;
+	struct mutex		lock;
+};
+
 struct vfio_fsl_mc_region {
 	u32			flags;
 	u32			type;
@@ -27,7 +32,7 @@ struct vfio_fsl_mc_device {
 	struct notifier_block        nb;
 	int				refcnt;
 	struct vfio_fsl_mc_region	*regions;
-	struct mutex driver_lock;
+	struct vfio_fsl_mc_reflck   *reflck;
 };
 
 #endif /* VFIO_FSL_MC_PRIVATE_H */
