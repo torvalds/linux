@@ -621,3 +621,80 @@ int rpmh_mode_solver_set(const struct device *dev, bool enable)
 	return ret;
 }
 EXPORT_SYMBOL(rpmh_mode_solver_set);
+
+
+/**
+ * RPMH Fast Path mode
+ *
+ * - Fast path mode is a lock-less request transmission to AOSS.
+ * - Requests may be sent from interrupt/scheduler context.
+ * - Dedicated fast-path TCS must be available in the RSC.
+ * - Error returned, when dedicated TCS is not available.
+ * - Only one client is expected to call RPMH fast path.
+ * - Serialization of requests is a responsibility of the client.
+ * - Only active state requests may be made through this mode.
+ * - Sleep/Wake requests for the nodes must be made through
+ *   the standard RPMH APIs (locking modes).
+ * - Fast path requests are not cached and sent immediately.
+ * - Fast path requests are all blocking requests.
+ * - Fast path requests do not use AMC completion interrupts,
+ *   therefore will not receive a tx_done callback.
+ */
+
+/**
+ * rpmh_init_fast_path: Initialize TCS request in fast-path TCS
+ *
+ * @dev: The device making the request
+ * @cmd: The {addr, data} to be initialized with.
+ * @n:   The number of @cmd
+ *
+ * Return:
+ * * 0          - Success
+ * * Error code - Otherwise
+ */
+int rpmh_init_fast_path(const struct device *dev,
+			struct tcs_cmd *cmd, int n)
+{
+	struct rpmh_ctrlr *ctrlr = get_rpmh_ctrlr(dev);
+	struct tcs_request req;
+
+	if (rpmh_standalone)
+		return 0;
+
+	req.cmds = cmd;
+	req.num_cmds = n;
+	req.wait_for_compl = 0;
+
+	return rpmh_rsc_init_fast_path(ctrlr_to_drv(ctrlr), &req);
+}
+EXPORT_SYMBOL(rpmh_init_fast_path);
+
+/**
+ * rpmh_update_fast_path: Initialize TCS request in fast-path TCS
+ *
+ * @dev:         The device making the request
+ * @cmd:         The data to be updated.
+ * @n:           The number of @cmd
+ * @update_mask: The elements in @cmd that only need to be updated
+ *
+ * Return:
+ * * 0          - Success
+ * * Error code - Otherwise
+ */
+int rpmh_update_fast_path(const struct device *dev,
+			  struct tcs_cmd *cmd, int n, u32 update_mask)
+{
+	struct rpmh_ctrlr *ctrlr = get_rpmh_ctrlr(dev);
+	struct tcs_request req;
+
+	if (rpmh_standalone)
+		return 0;
+
+	req.cmds = cmd;
+	req.num_cmds = n;
+	req.wait_for_compl = 0;
+
+	return rpmh_rsc_update_fast_path(ctrlr_to_drv(ctrlr), &req,
+					 update_mask);
+}
+EXPORT_SYMBOL(rpmh_update_fast_path);
