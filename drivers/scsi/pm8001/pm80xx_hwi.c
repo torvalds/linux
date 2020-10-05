@@ -720,7 +720,7 @@ static void read_inbnd_queue_table(struct pm8001_hba_info *pm8001_ha)
 {
 	int i;
 	void __iomem *address = pm8001_ha->inbnd_q_tbl_addr;
-	for (i = 0; i < PM8001_MAX_SPCV_INB_NUM; i++) {
+	for (i = 0; i < PM8001_MAX_INB_NUM; i++) {
 		u32 offset = i * 0x20;
 		pm8001_ha->inbnd_q_tbl[i].pi_pci_bar =
 			get_pci_bar_index(pm8001_mr32(address,
@@ -738,7 +738,7 @@ static void read_outbnd_queue_table(struct pm8001_hba_info *pm8001_ha)
 {
 	int i;
 	void __iomem *address = pm8001_ha->outbnd_q_tbl_addr;
-	for (i = 0; i < PM8001_MAX_SPCV_OUTB_NUM; i++) {
+	for (i = 0; i < PM8001_MAX_OUTB_NUM; i++) {
 		u32 offset = i * 0x24;
 		pm8001_ha->outbnd_q_tbl[i].ci_pci_bar =
 			get_pci_bar_index(pm8001_mr32(address,
@@ -758,6 +758,10 @@ static void init_default_table_values(struct pm8001_hba_info *pm8001_ha)
 	u32 offsetib, offsetob;
 	void __iomem *addressib = pm8001_ha->inbnd_q_tbl_addr;
 	void __iomem *addressob = pm8001_ha->outbnd_q_tbl_addr;
+	u32 ib_offset = pm8001_ha->ib_offset;
+	u32 ob_offset = pm8001_ha->ob_offset;
+	u32 ci_offset = pm8001_ha->ci_offset;
+	u32 pi_offset = pm8001_ha->pi_offset;
 
 	pm8001_ha->main_cfg_tbl.pm80xx_tbl.upper_event_log_addr		=
 		pm8001_ha->memoryMap.region[AAP1].phys_addr_hi;
@@ -778,23 +782,23 @@ static void init_default_table_values(struct pm8001_hba_info *pm8001_ha)
 	/* Disable end to end CRC checking */
 	pm8001_ha->main_cfg_tbl.pm80xx_tbl.crc_core_dump = (0x1 << 16);
 
-	for (i = 0; i < PM8001_MAX_SPCV_INB_NUM; i++) {
+	for (i = 0; i < pm8001_ha->max_q_num; i++) {
 		pm8001_ha->inbnd_q_tbl[i].element_pri_size_cnt	=
 			PM8001_MPI_QUEUE | (pm8001_ha->iomb_size << 16) | (0x00<<30);
 		pm8001_ha->inbnd_q_tbl[i].upper_base_addr	=
-			pm8001_ha->memoryMap.region[IB + i].phys_addr_hi;
+			pm8001_ha->memoryMap.region[ib_offset + i].phys_addr_hi;
 		pm8001_ha->inbnd_q_tbl[i].lower_base_addr	=
-		pm8001_ha->memoryMap.region[IB + i].phys_addr_lo;
+		pm8001_ha->memoryMap.region[ib_offset + i].phys_addr_lo;
 		pm8001_ha->inbnd_q_tbl[i].base_virt		=
-			(u8 *)pm8001_ha->memoryMap.region[IB + i].virt_ptr;
+		  (u8 *)pm8001_ha->memoryMap.region[ib_offset + i].virt_ptr;
 		pm8001_ha->inbnd_q_tbl[i].total_length		=
-			pm8001_ha->memoryMap.region[IB + i].total_len;
+			pm8001_ha->memoryMap.region[ib_offset + i].total_len;
 		pm8001_ha->inbnd_q_tbl[i].ci_upper_base_addr	=
-			pm8001_ha->memoryMap.region[CI + i].phys_addr_hi;
+			pm8001_ha->memoryMap.region[ci_offset + i].phys_addr_hi;
 		pm8001_ha->inbnd_q_tbl[i].ci_lower_base_addr	=
-			pm8001_ha->memoryMap.region[CI + i].phys_addr_lo;
+			pm8001_ha->memoryMap.region[ci_offset + i].phys_addr_lo;
 		pm8001_ha->inbnd_q_tbl[i].ci_virt		=
-			pm8001_ha->memoryMap.region[CI + i].virt_ptr;
+			pm8001_ha->memoryMap.region[ci_offset + i].virt_ptr;
 		offsetib = i * 0x20;
 		pm8001_ha->inbnd_q_tbl[i].pi_pci_bar		=
 			get_pci_bar_index(pm8001_mr32(addressib,
@@ -809,25 +813,25 @@ static void init_default_table_values(struct pm8001_hba_info *pm8001_ha)
 			pm8001_ha->inbnd_q_tbl[i].pi_pci_bar,
 			pm8001_ha->inbnd_q_tbl[i].pi_offset));
 	}
-	for (i = 0; i < PM8001_MAX_SPCV_OUTB_NUM; i++) {
+	for (i = 0; i < pm8001_ha->max_q_num; i++) {
 		pm8001_ha->outbnd_q_tbl[i].element_size_cnt	=
 			PM8001_MPI_QUEUE | (pm8001_ha->iomb_size << 16) | (0x01<<30);
 		pm8001_ha->outbnd_q_tbl[i].upper_base_addr	=
-			pm8001_ha->memoryMap.region[OB + i].phys_addr_hi;
+			pm8001_ha->memoryMap.region[ob_offset + i].phys_addr_hi;
 		pm8001_ha->outbnd_q_tbl[i].lower_base_addr	=
-			pm8001_ha->memoryMap.region[OB + i].phys_addr_lo;
+			pm8001_ha->memoryMap.region[ob_offset + i].phys_addr_lo;
 		pm8001_ha->outbnd_q_tbl[i].base_virt		=
-			(u8 *)pm8001_ha->memoryMap.region[OB + i].virt_ptr;
+		  (u8 *)pm8001_ha->memoryMap.region[ob_offset + i].virt_ptr;
 		pm8001_ha->outbnd_q_tbl[i].total_length		=
-			pm8001_ha->memoryMap.region[OB + i].total_len;
+			pm8001_ha->memoryMap.region[ob_offset + i].total_len;
 		pm8001_ha->outbnd_q_tbl[i].pi_upper_base_addr	=
-			pm8001_ha->memoryMap.region[PI + i].phys_addr_hi;
+			pm8001_ha->memoryMap.region[pi_offset + i].phys_addr_hi;
 		pm8001_ha->outbnd_q_tbl[i].pi_lower_base_addr	=
-			pm8001_ha->memoryMap.region[PI + i].phys_addr_lo;
+			pm8001_ha->memoryMap.region[pi_offset + i].phys_addr_lo;
 		/* interrupt vector based on oq */
 		pm8001_ha->outbnd_q_tbl[i].interrup_vec_cnt_delay = (i << 24);
 		pm8001_ha->outbnd_q_tbl[i].pi_virt		=
-			pm8001_ha->memoryMap.region[PI + i].virt_ptr;
+			pm8001_ha->memoryMap.region[pi_offset + i].virt_ptr;
 		offsetob = i * 0x24;
 		pm8001_ha->outbnd_q_tbl[i].ci_pci_bar		=
 			get_pci_bar_index(pm8001_mr32(addressob,
@@ -871,7 +875,7 @@ static void update_main_config_table(struct pm8001_hba_info *pm8001_ha)
 		pm8001_ha->main_cfg_tbl.pm80xx_tbl.pcs_event_log_severity);
 	/* Update Fatal error interrupt vector */
 	pm8001_ha->main_cfg_tbl.pm80xx_tbl.fatal_err_interrupt |=
-					((pm8001_ha->number_of_intr - 1) << 8);
+					((pm8001_ha->max_q_num - 1) << 8);
 	pm8001_mw32(address, MAIN_FATAL_ERROR_INTERRUPT,
 		pm8001_ha->main_cfg_tbl.pm80xx_tbl.fatal_err_interrupt);
 	PM8001_DEV_DBG(pm8001_ha, pm8001_printk(
@@ -1010,8 +1014,12 @@ static int mpi_init_check(struct pm8001_hba_info *pm8001_ha)
 		value &= SPCv_MSGU_CFG_TABLE_UPDATE;
 	} while ((value != 0) && (--max_wait_count));
 
-	if (!max_wait_count)
-		return -1;
+	if (!max_wait_count) {
+		/* additional check */
+		PM8001_FAIL_DBG(pm8001_ha, pm8001_printk(
+			"Inb doorbell clear not toggled[value:%x]\n", value));
+		return -EBUSY;
+	}
 	/* check the MPI-State for initialization upto 100ms*/
 	max_wait_count = 100 * 1000;/* 100 msec */
 	do {
@@ -1022,12 +1030,12 @@ static int mpi_init_check(struct pm8001_hba_info *pm8001_ha)
 	} while ((GST_MPI_STATE_INIT !=
 		(gst_len_mpistate & GST_MPI_STATE_MASK)) && (--max_wait_count));
 	if (!max_wait_count)
-		return -1;
+		return -EBUSY;
 
 	/* check MPI Initialization error */
 	gst_len_mpistate = gst_len_mpistate >> 16;
 	if (0x0000 != gst_len_mpistate)
-		return -1;
+		return -EBUSY;
 
 	return 0;
 }
@@ -1469,11 +1477,10 @@ static int pm80xx_chip_init(struct pm8001_hba_info *pm8001_ha)
 
 	/* update main config table ,inbound table and outbound table */
 	update_main_config_table(pm8001_ha);
-	for (i = 0; i < PM8001_MAX_SPCV_INB_NUM; i++)
+	for (i = 0; i < pm8001_ha->max_q_num; i++) {
 		update_inbnd_queue_table(pm8001_ha, i);
-	for (i = 0; i < PM8001_MAX_SPCV_OUTB_NUM; i++)
 		update_outbnd_queue_table(pm8001_ha, i);
-
+	}
 	/* notify firmware update finished and check initialization status */
 	if (0 == mpi_init_check(pm8001_ha)) {
 		PM8001_INIT_DBG(pm8001_ha,
@@ -4191,7 +4198,7 @@ static int process_oq(struct pm8001_hba_info *pm8001_ha, u8 vec)
 	unsigned long flags;
 	u32 regval;
 
-	if (vec == (pm8001_ha->number_of_intr - 1)) {
+	if (vec == (pm8001_ha->max_q_num - 1)) {
 		regval = pm8001_cr32(pm8001_ha, 0, MSGU_SCRATCH_PAD_1);
 		if ((regval & SCRATCH_PAD_MIPSALL_READY) !=
 					SCRATCH_PAD_MIPSALL_READY) {
@@ -4274,6 +4281,7 @@ static int pm80xx_chip_smp_req(struct pm8001_hba_info *pm8001_ha,
 	char *preq_dma_addr = NULL;
 	__le64 tmp_addr;
 	u32 i, length;
+	unsigned long flags;
 
 	memset(&smp_cmd, 0, sizeof(smp_cmd));
 	/*
@@ -4369,8 +4377,10 @@ static int pm80xx_chip_smp_req(struct pm8001_hba_info *pm8001_ha,
 
 	build_smp_cmd(pm8001_dev->device_id, smp_cmd.tag,
 				&smp_cmd, pm8001_ha->smp_exp_mode, length);
+	spin_lock_irqsave(&circularQ->iq_lock, flags);
 	rc = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &smp_cmd,
 			sizeof(smp_cmd), 0);
+	spin_unlock_irqrestore(&circularQ->iq_lock, flags);
 	if (rc)
 		goto err_out_2;
 	return 0;
@@ -4434,7 +4444,8 @@ static int pm80xx_chip_ssp_io_req(struct pm8001_hba_info *pm8001_ha,
 	u64 phys_addr, start_addr, end_addr;
 	u32 end_addr_high, end_addr_low;
 	struct inbound_queue_table *circularQ;
-	u32 q_index;
+	unsigned long flags;
+	u32 q_index, cpu_id;
 	u32 opc = OPC_INB_SSPINIIOSTART;
 	memset(&ssp_cmd, 0, sizeof(ssp_cmd));
 	memcpy(ssp_cmd.ssp_iu.lun, task->ssp_task.LUN, 8);
@@ -4453,7 +4464,8 @@ static int pm80xx_chip_ssp_io_req(struct pm8001_hba_info *pm8001_ha,
 	ssp_cmd.ssp_iu.efb_prio_attr |= (task->ssp_task.task_attr & 7);
 	memcpy(ssp_cmd.ssp_iu.cdb, task->ssp_task.cmd->cmnd,
 		       task->ssp_task.cmd->cmd_len);
-	q_index = (u32) (pm8001_dev->id & 0x00ffffff) % PM8001_MAX_INB_NUM;
+	cpu_id = smp_processor_id();
+	q_index = (u32) (cpu_id) % (pm8001_ha->max_q_num);
 	circularQ = &pm8001_ha->inbnd_q_tbl[q_index];
 
 	/* Check if encryption is set */
@@ -4576,9 +4588,10 @@ static int pm80xx_chip_ssp_io_req(struct pm8001_hba_info *pm8001_ha,
 			ssp_cmd.esgl = 0;
 		}
 	}
-	q_index = (u32) (pm8001_dev->id & 0x00ffffff) % PM8001_MAX_OUTB_NUM;
+	spin_lock_irqsave(&circularQ->iq_lock, flags);
 	ret = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc,
 			&ssp_cmd, sizeof(ssp_cmd), q_index);
+	spin_unlock_irqrestore(&circularQ->iq_lock, flags);
 	return ret;
 }
 
@@ -4590,7 +4603,7 @@ static int pm80xx_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 	struct pm8001_device *pm8001_ha_dev = dev->lldd_dev;
 	u32 tag = ccb->ccb_tag;
 	int ret;
-	u32 q_index;
+	u32 q_index, cpu_id;
 	struct sata_start_req sata_cmd;
 	u32 hdr_tag, ncg_tag = 0;
 	u64 phys_addr, start_addr, end_addr;
@@ -4601,7 +4614,8 @@ static int pm80xx_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 	unsigned long flags;
 	u32 opc = OPC_INB_SATA_HOST_OPSTART;
 	memset(&sata_cmd, 0, sizeof(sata_cmd));
-	q_index = (u32) (pm8001_ha_dev->id & 0x00ffffff) % PM8001_MAX_INB_NUM;
+	cpu_id = smp_processor_id();
+	q_index = (u32) (cpu_id) % (pm8001_ha->max_q_num);
 	circularQ = &pm8001_ha->inbnd_q_tbl[q_index];
 
 	if (task->data_dir == DMA_NONE) {
@@ -4817,9 +4831,10 @@ static int pm80xx_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 			}
 		}
 	}
-	q_index = (u32) (pm8001_ha_dev->id & 0x00ffffff) % PM8001_MAX_OUTB_NUM;
+	spin_lock_irqsave(&circularQ->iq_lock, flags);
 	ret = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc,
 			&sata_cmd, sizeof(sata_cmd), q_index);
+	spin_unlock_irqrestore(&circularQ->iq_lock, flags);
 	return ret;
 }
 

@@ -264,12 +264,36 @@ static u32 pm8001_request_irq(struct pm8001_hba_info *pm8001_ha);
 static int pm8001_alloc(struct pm8001_hba_info *pm8001_ha,
 			const struct pci_device_id *ent)
 {
-	int i;
+	int i, count = 0, rc = 0;
+	u32 ci_offset, ib_offset, ob_offset, pi_offset;
+	struct inbound_queue_table *circularQ;
+
 	spin_lock_init(&pm8001_ha->lock);
 	spin_lock_init(&pm8001_ha->bitmap_lock);
 	PM8001_INIT_DBG(pm8001_ha,
 		pm8001_printk("pm8001_alloc: PHY:%x\n",
 				pm8001_ha->chip->n_phy));
+
+	/* Setup Interrupt */
+	rc = pm8001_setup_irq(pm8001_ha);
+	if (rc) {
+		PM8001_FAIL_DBG(pm8001_ha, pm8001_printk(
+				"pm8001_setup_irq failed [ret: %d]\n", rc));
+		goto err_out_shost;
+	}
+	/* Request Interrupt */
+	rc = pm8001_request_irq(pm8001_ha);
+	if (rc)
+		goto err_out_shost;
+
+	count = pm8001_ha->max_q_num;
+	/* Queues are chosen based on the number of cores/msix availability */
+	ib_offset = pm8001_ha->ib_offset  = USI_MAX_MEMCNT_BASE + 1;
+	ci_offset = pm8001_ha->ci_offset  = ib_offset + count;
+	ob_offset = pm8001_ha->ob_offset  = ci_offset + count;
+	pi_offset = pm8001_ha->pi_offset  = ob_offset + count;
+	pm8001_ha->max_memcnt = pi_offset + count;
+
 	for (i = 0; i < pm8001_ha->chip->n_phy; i++) {
 		pm8001_phy_init(pm8001_ha, i);
 		pm8001_ha->port[i].wide_port_phymap = 0;
@@ -293,54 +317,62 @@ static int pm8001_alloc(struct pm8001_hba_info *pm8001_ha,
 	pm8001_ha->memoryMap.region[IOP].total_len = PM8001_EVENT_LOG_SIZE;
 	pm8001_ha->memoryMap.region[IOP].alignment = 32;
 
-	for (i = 0; i < PM8001_MAX_SPCV_INB_NUM; i++) {
+	for (i = 0; i < count; i++) {
+		circularQ = &pm8001_ha->inbnd_q_tbl[i];
+		spin_lock_init(&circularQ->iq_lock);
 		/* MPI Memory region 3 for consumer Index of inbound queues */
-		pm8001_ha->memoryMap.region[CI+i].num_elements = 1;
-		pm8001_ha->memoryMap.region[CI+i].element_size = 4;
-		pm8001_ha->memoryMap.region[CI+i].total_len = 4;
-		pm8001_ha->memoryMap.region[CI+i].alignment = 4;
+		pm8001_ha->memoryMap.region[ci_offset+i].num_elements = 1;
+		pm8001_ha->memoryMap.region[ci_offset+i].element_size = 4;
+		pm8001_ha->memoryMap.region[ci_offset+i].total_len = 4;
+		pm8001_ha->memoryMap.region[ci_offset+i].alignment = 4;
 
 		if ((ent->driver_data) != chip_8001) {
 			/* MPI Memory region 5 inbound queues */
-			pm8001_ha->memoryMap.region[IB+i].num_elements =
+			pm8001_ha->memoryMap.region[ib_offset+i].num_elements =
 						PM8001_MPI_QUEUE;
-			pm8001_ha->memoryMap.region[IB+i].element_size = 128;
-			pm8001_ha->memoryMap.region[IB+i].total_len =
+			pm8001_ha->memoryMap.region[ib_offset+i].element_size
+								= 128;
+			pm8001_ha->memoryMap.region[ib_offset+i].total_len =
 						PM8001_MPI_QUEUE * 128;
-			pm8001_ha->memoryMap.region[IB+i].alignment = 128;
+			pm8001_ha->memoryMap.region[ib_offset+i].alignment
+								= 128;
 		} else {
-			pm8001_ha->memoryMap.region[IB+i].num_elements =
+			pm8001_ha->memoryMap.region[ib_offset+i].num_elements =
 						PM8001_MPI_QUEUE;
-			pm8001_ha->memoryMap.region[IB+i].element_size = 64;
-			pm8001_ha->memoryMap.region[IB+i].total_len =
+			pm8001_ha->memoryMap.region[ib_offset+i].element_size
+								= 64;
+			pm8001_ha->memoryMap.region[ib_offset+i].total_len =
 						PM8001_MPI_QUEUE * 64;
-			pm8001_ha->memoryMap.region[IB+i].alignment = 64;
+			pm8001_ha->memoryMap.region[ib_offset+i].alignment = 64;
 		}
 	}
 
-	for (i = 0; i < PM8001_MAX_SPCV_OUTB_NUM; i++) {
+	for (i = 0; i < count; i++) {
 		/* MPI Memory region 4 for producer Index of outbound queues */
-		pm8001_ha->memoryMap.region[PI+i].num_elements = 1;
-		pm8001_ha->memoryMap.region[PI+i].element_size = 4;
-		pm8001_ha->memoryMap.region[PI+i].total_len = 4;
-		pm8001_ha->memoryMap.region[PI+i].alignment = 4;
+		pm8001_ha->memoryMap.region[pi_offset+i].num_elements = 1;
+		pm8001_ha->memoryMap.region[pi_offset+i].element_size = 4;
+		pm8001_ha->memoryMap.region[pi_offset+i].total_len = 4;
+		pm8001_ha->memoryMap.region[pi_offset+i].alignment = 4;
 
 		if (ent->driver_data != chip_8001) {
 			/* MPI Memory region 6 Outbound queues */
-			pm8001_ha->memoryMap.region[OB+i].num_elements =
+			pm8001_ha->memoryMap.region[ob_offset+i].num_elements =
 						PM8001_MPI_QUEUE;
-			pm8001_ha->memoryMap.region[OB+i].element_size = 128;
-			pm8001_ha->memoryMap.region[OB+i].total_len =
+			pm8001_ha->memoryMap.region[ob_offset+i].element_size
+								= 128;
+			pm8001_ha->memoryMap.region[ob_offset+i].total_len =
 						PM8001_MPI_QUEUE * 128;
-			pm8001_ha->memoryMap.region[OB+i].alignment = 128;
+			pm8001_ha->memoryMap.region[ob_offset+i].alignment
+								= 128;
 		} else {
 			/* MPI Memory region 6 Outbound queues */
-			pm8001_ha->memoryMap.region[OB+i].num_elements =
+			pm8001_ha->memoryMap.region[ob_offset+i].num_elements =
 						PM8001_MPI_QUEUE;
-			pm8001_ha->memoryMap.region[OB+i].element_size = 64;
-			pm8001_ha->memoryMap.region[OB+i].total_len =
+			pm8001_ha->memoryMap.region[ob_offset+i].element_size
+								= 64;
+			pm8001_ha->memoryMap.region[ob_offset+i].total_len =
 						PM8001_MPI_QUEUE * 64;
-			pm8001_ha->memoryMap.region[OB+i].alignment = 64;
+			pm8001_ha->memoryMap.region[ob_offset+i].alignment = 64;
 		}
 
 	}
@@ -369,7 +401,7 @@ static int pm8001_alloc(struct pm8001_hba_info *pm8001_ha,
 	pm8001_ha->memoryMap.region[FORENSIC_MEM].total_len = 0x10000;
 	pm8001_ha->memoryMap.region[FORENSIC_MEM].element_size = 0x10000;
 	pm8001_ha->memoryMap.region[FORENSIC_MEM].alignment = 0x10000;
-	for (i = 0; i < USI_MAX_MEMCNT; i++) {
+	for (i = 0; i < pm8001_ha->max_memcnt; i++) {
 		if (pm8001_mem_alloc(pm8001_ha->pdev,
 			&pm8001_ha->memoryMap.region[i].virt_ptr,
 			&pm8001_ha->memoryMap.region[i].phys_addr,
@@ -405,6 +437,8 @@ static int pm8001_alloc(struct pm8001_hba_info *pm8001_ha,
 	/* Initialize tags */
 	pm8001_tag_init(pm8001_ha);
 	return 0;
+err_out_shost:
+	scsi_remove_host(pm8001_ha->shost);
 err_out:
 	return 1;
 }
@@ -899,7 +933,8 @@ static int pm8001_configure_phy_settings(struct pm8001_hba_info *pm8001_ha)
 static u32 pm8001_setup_msix(struct pm8001_hba_info *pm8001_ha)
 {
 	u32 number_of_intr;
-	int rc;
+	int rc, cpu_online_count;
+	unsigned int allocated_irq_vectors;
 
 	/* SPCv controllers supports 64 msi-x */
 	if (pm8001_ha->chip_id == chip_8001) {
@@ -908,12 +943,20 @@ static u32 pm8001_setup_msix(struct pm8001_hba_info *pm8001_ha)
 		number_of_intr = PM8001_MAX_MSIX_VEC;
 	}
 
+	cpu_online_count = num_online_cpus();
+	number_of_intr = min_t(int, cpu_online_count, number_of_intr);
 	rc = pci_alloc_irq_vectors(pm8001_ha->pdev, number_of_intr,
 			number_of_intr, PCI_IRQ_MSIX);
-	number_of_intr = rc;
+	allocated_irq_vectors = rc;
 	if (rc < 0)
 		return rc;
+
+	/* Assigns the number of interrupts */
+	number_of_intr = min_t(int, allocated_irq_vectors, number_of_intr);
 	pm8001_ha->number_of_intr = number_of_intr;
+
+	/* Maximum queue number updating in HBA structure */
+	pm8001_ha->max_q_num = number_of_intr;
 
 	PM8001_INIT_DBG(pm8001_ha, pm8001_printk(
 		"pci_alloc_irq_vectors request ret:%d no of intr %d\n",
@@ -1069,13 +1112,6 @@ static int pm8001_pci_probe(struct pci_dev *pdev,
 		rc = -ENOMEM;
 		goto err_out_free;
 	}
-	/* Setup Interrupt */
-	rc = pm8001_setup_irq(pm8001_ha);
-	if (rc)	{
-		PM8001_FAIL_DBG(pm8001_ha, pm8001_printk(
-			"pm8001_setup_irq failed [ret: %d]\n", rc));
-		goto err_out_shost;
-	}
 
 	PM8001_CHIP_DISP->chip_soft_rst(pm8001_ha);
 	rc = PM8001_CHIP_DISP->chip_init(pm8001_ha);
@@ -1088,13 +1124,6 @@ static int pm8001_pci_probe(struct pci_dev *pdev,
 	rc = scsi_add_host(shost, &pdev->dev);
 	if (rc)
 		goto err_out_ha_free;
-	/* Request Interrupt */
-	rc = pm8001_request_irq(pm8001_ha);
-	if (rc)	{
-		PM8001_FAIL_DBG(pm8001_ha, pm8001_printk(
-			"pm8001_request_irq failed [ret: %d]\n", rc));
-		goto err_out_shost;
-	}
 
 	PM8001_CHIP_DISP->interrupt_enable(pm8001_ha, 0);
 	if (pm8001_ha->chip_id != chip_8001) {
