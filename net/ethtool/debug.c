@@ -78,8 +78,7 @@ const struct ethnl_request_ops ethnl_debug_request_ops = {
 
 /* DEBUG_SET */
 
-static const struct nla_policy
-debug_set_policy[ETHTOOL_A_DEBUG_MAX + 1] = {
+const struct nla_policy ethnl_debug_set_policy[ETHTOOL_A_DEBUG_MAX + 1] = {
 	[ETHTOOL_A_DEBUG_UNSPEC]	= { .type = NLA_REJECT },
 	[ETHTOOL_A_DEBUG_HEADER]	= { .type = NLA_NESTED },
 	[ETHTOOL_A_DEBUG_MSGMASK]	= { .type = NLA_NESTED },
@@ -87,18 +86,13 @@ debug_set_policy[ETHTOOL_A_DEBUG_MAX + 1] = {
 
 int ethnl_set_debug(struct sk_buff *skb, struct genl_info *info)
 {
-	struct nlattr *tb[ETHTOOL_A_DEBUG_MAX + 1];
 	struct ethnl_req_info req_info = {};
+	struct nlattr **tb = info->attrs;
 	struct net_device *dev;
 	bool mod = false;
 	u32 msg_mask;
 	int ret;
 
-	ret = nlmsg_parse(info->nlhdr, GENL_HDRLEN, tb,
-			  ETHTOOL_A_DEBUG_MAX, debug_set_policy,
-			  info->extack);
-	if (ret < 0)
-		return ret;
 	ret = ethnl_parse_header_dev_get(&req_info,
 					 tb[ETHTOOL_A_DEBUG_HEADER],
 					 genl_info_net(info), info->extack,

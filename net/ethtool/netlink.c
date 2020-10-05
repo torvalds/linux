@@ -700,6 +700,8 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.cmd	= ETHTOOL_MSG_LINKINFO_SET,
 		.flags	= GENL_UNS_ADMIN_PERM,
 		.doit	= ethnl_set_linkinfo,
+		.policy = ethnl_linkinfo_set_policy,
+		.maxattr = ARRAY_SIZE(ethnl_linkinfo_set_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_LINKMODES_GET,
@@ -714,6 +716,8 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.cmd	= ETHTOOL_MSG_LINKMODES_SET,
 		.flags	= GENL_UNS_ADMIN_PERM,
 		.doit	= ethnl_set_linkmodes,
+		.policy = ethnl_linkmodes_set_policy,
+		.maxattr = ARRAY_SIZE(ethnl_linkmodes_set_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_LINKSTATE_GET,
@@ -737,6 +741,8 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.cmd	= ETHTOOL_MSG_DEBUG_SET,
 		.flags	= GENL_UNS_ADMIN_PERM,
 		.doit	= ethnl_set_debug,
+		.policy = ethnl_debug_set_policy,
+		.maxattr = ARRAY_SIZE(ethnl_debug_set_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_WOL_GET,
@@ -752,6 +758,8 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.cmd	= ETHTOOL_MSG_WOL_SET,
 		.flags	= GENL_UNS_ADMIN_PERM,
 		.doit	= ethnl_set_wol,
+		.policy = ethnl_wol_set_policy,
+		.maxattr = ARRAY_SIZE(ethnl_wol_set_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_FEATURES_GET,
@@ -766,6 +774,8 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.cmd	= ETHTOOL_MSG_FEATURES_SET,
 		.flags	= GENL_UNS_ADMIN_PERM,
 		.doit	= ethnl_set_features,
+		.policy = ethnl_features_set_policy,
+		.maxattr = ARRAY_SIZE(ethnl_features_set_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_PRIVFLAGS_GET,
@@ -780,6 +790,8 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.cmd	= ETHTOOL_MSG_PRIVFLAGS_SET,
 		.flags	= GENL_UNS_ADMIN_PERM,
 		.doit	= ethnl_set_privflags,
+		.policy = ethnl_privflags_set_policy,
+		.maxattr = ARRAY_SIZE(ethnl_privflags_set_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_RINGS_GET,
@@ -794,6 +806,8 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.cmd	= ETHTOOL_MSG_RINGS_SET,
 		.flags	= GENL_UNS_ADMIN_PERM,
 		.doit	= ethnl_set_rings,
+		.policy = ethnl_rings_set_policy,
+		.maxattr = ARRAY_SIZE(ethnl_rings_set_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_CHANNELS_GET,
@@ -808,6 +822,8 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.cmd	= ETHTOOL_MSG_CHANNELS_SET,
 		.flags	= GENL_UNS_ADMIN_PERM,
 		.doit	= ethnl_set_channels,
+		.policy = ethnl_channels_get_policy,
+		.maxattr = ARRAY_SIZE(ethnl_channels_get_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_COALESCE_GET,
@@ -822,6 +838,8 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.cmd	= ETHTOOL_MSG_COALESCE_SET,
 		.flags	= GENL_UNS_ADMIN_PERM,
 		.doit	= ethnl_set_coalesce,
+		.policy = ethnl_coalesce_set_policy,
+		.maxattr = ARRAY_SIZE(ethnl_coalesce_set_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_PAUSE_GET,
@@ -836,6 +854,8 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.cmd	= ETHTOOL_MSG_PAUSE_SET,
 		.flags	= GENL_UNS_ADMIN_PERM,
 		.doit	= ethnl_set_pause,
+		.policy = ethnl_pause_set_policy,
+		.maxattr = ARRAY_SIZE(ethnl_pause_set_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_EEE_GET,
@@ -850,6 +870,8 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.cmd	= ETHTOOL_MSG_EEE_SET,
 		.flags	= GENL_UNS_ADMIN_PERM,
 		.doit	= ethnl_set_eee,
+		.policy = ethnl_eee_set_policy,
+		.maxattr = ARRAY_SIZE(ethnl_eee_set_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_TSINFO_GET,
@@ -864,11 +886,15 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.cmd	= ETHTOOL_MSG_CABLE_TEST_ACT,
 		.flags	= GENL_UNS_ADMIN_PERM,
 		.doit	= ethnl_act_cable_test,
+		.policy = ethnl_cable_test_act_policy,
+		.maxattr = ARRAY_SIZE(ethnl_cable_test_act_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_CABLE_TEST_TDR_ACT,
 		.flags	= GENL_UNS_ADMIN_PERM,
 		.doit	= ethnl_act_cable_test_tdr,
+		.policy = ethnl_cable_test_tdr_act_policy,
+		.maxattr = ARRAY_SIZE(ethnl_cable_test_tdr_act_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_TUNNEL_INFO_GET,

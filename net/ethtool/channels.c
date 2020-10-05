@@ -109,8 +109,8 @@ const struct ethnl_request_ops ethnl_channels_request_ops = {
 
 /* CHANNELS_SET */
 
-static const struct nla_policy
-channels_set_policy[ETHTOOL_A_CHANNELS_MAX + 1] = {
+const struct nla_policy
+ethnl_channels_set_policy[ETHTOOL_A_CHANNELS_MAX + 1] = {
 	[ETHTOOL_A_CHANNELS_UNSPEC]		= { .type = NLA_REJECT },
 	[ETHTOOL_A_CHANNELS_HEADER]		= { .type = NLA_NESTED },
 	[ETHTOOL_A_CHANNELS_RX_MAX]		= { .type = NLA_REJECT },
@@ -125,22 +125,17 @@ channels_set_policy[ETHTOOL_A_CHANNELS_MAX + 1] = {
 
 int ethnl_set_channels(struct sk_buff *skb, struct genl_info *info)
 {
-	struct nlattr *tb[ETHTOOL_A_CHANNELS_MAX + 1];
 	unsigned int from_channel, old_total, i;
 	bool mod = false, mod_combined = false;
 	struct ethtool_channels channels = {};
 	struct ethnl_req_info req_info = {};
+	struct nlattr **tb = info->attrs;
 	const struct nlattr *err_attr;
 	const struct ethtool_ops *ops;
 	struct net_device *dev;
 	u32 max_rx_in_use = 0;
 	int ret;
 
-	ret = nlmsg_parse(info->nlhdr, GENL_HDRLEN, tb,
-			  ETHTOOL_A_CHANNELS_MAX, channels_set_policy,
-			  info->extack);
-	if (ret < 0)
-		return ret;
 	ret = ethnl_parse_header_dev_get(&req_info,
 					 tb[ETHTOOL_A_CHANNELS_HEADER],
 					 genl_info_net(info), info->extack,

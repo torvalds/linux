@@ -130,8 +130,8 @@ const struct ethnl_request_ops ethnl_features_request_ops = {
 
 /* FEATURES_SET */
 
-static const struct nla_policy
-features_set_policy[ETHTOOL_A_FEATURES_MAX + 1] = {
+const struct nla_policy
+ethnl_features_set_policy[ETHTOOL_A_FEATURES_MAX + 1] = {
 	[ETHTOOL_A_FEATURES_UNSPEC]	= { .type = NLA_REJECT },
 	[ETHTOOL_A_FEATURES_HEADER]	= { .type = NLA_NESTED },
 	[ETHTOOL_A_FEATURES_HW]		= { .type = NLA_REJECT },
@@ -227,17 +227,12 @@ int ethnl_set_features(struct sk_buff *skb, struct genl_info *info)
 	DECLARE_BITMAP(new_wanted, NETDEV_FEATURE_COUNT);
 	DECLARE_BITMAP(req_wanted, NETDEV_FEATURE_COUNT);
 	DECLARE_BITMAP(req_mask, NETDEV_FEATURE_COUNT);
-	struct nlattr *tb[ETHTOOL_A_FEATURES_MAX + 1];
 	struct ethnl_req_info req_info = {};
+	struct nlattr **tb = info->attrs;
 	struct net_device *dev;
 	bool mod;
 	int ret;
 
-	ret = nlmsg_parse(info->nlhdr, GENL_HDRLEN, tb,
-			  ETHTOOL_A_FEATURES_MAX, features_set_policy,
-			  info->extack);
-	if (ret < 0)
-		return ret;
 	if (!tb[ETHTOOL_A_FEATURES_WANTED])
 		return -EINVAL;
 	ret = ethnl_parse_header_dev_get(&req_info,
