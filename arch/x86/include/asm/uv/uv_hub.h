@@ -144,6 +144,8 @@ struct uv_gam_range_s {
  * available in the L3 cache on the cpu socket for the node.
  */
 struct uv_hub_info_s {
+	unsigned int		hub_type;
+	unsigned char		hub_revision;
 	unsigned long		global_mmr_base;
 	unsigned long		global_mmr_shift;
 	unsigned long		gpa_mask;
@@ -156,7 +158,6 @@ struct uv_hub_info_s {
 	unsigned char		m_val;
 	unsigned char		n_val;
 	unsigned char		gr_table_len;
-	unsigned char		hub_revision;
 	unsigned char		apic_pnode_shift;
 	unsigned char		gpa_shift;
 	unsigned char		m_shift;
@@ -205,6 +206,17 @@ static inline struct uv_hub_info_s *uv_cpu_hub_info(int cpu)
 	return (struct uv_hub_info_s *)uv_cpu_info_per(cpu)->p_uv_hub_info;
 }
 
+static inline int uv_hub_type(void)
+{
+	return uv_hub_info->hub_type;
+}
+
+static inline __init void uv_hub_type_set(int uvmask)
+{
+	uv_hub_info->hub_type = uvmask;
+}
+
+
 /*
  * HUB revision ranges for each UV HUB architecture.
  * This is a software convention - NOT the hardware revision numbers in
@@ -215,38 +227,29 @@ static inline struct uv_hub_info_s *uv_cpu_hub_info(int cpu)
 #define UV4_HUB_REVISION_BASE		7
 #define UV4A_HUB_REVISION_BASE		8	/* UV4 (fixed) rev 2 */
 
-static inline int is_uv2_hub(void)
-{
-	return is_uv_hubbed(uv(2));
-}
+static inline int is_uv(int uvmask) { return uv_hub_type() & uvmask; }
+static inline int is_uv1_hub(void) { return 0; }
+static inline int is_uv2_hub(void) { return is_uv(UV2); }
+static inline int is_uv3_hub(void) { return is_uv(UV3); }
+static inline int is_uv4a_hub(void) { return is_uv(UV4A); }
+static inline int is_uv4_hub(void) { return is_uv(UV4); }
+static inline int is_uv5_hub(void) { return 0; }
 
-static inline int is_uv3_hub(void)
-{
-	return is_uv_hubbed(uv(3));
-}
+/*
+ * UV4A is a revision of UV4.  So on UV4A, both is_uv4_hub() and
+ * is_uv4a_hub() return true, While on UV4, only is_uv4_hub()
+ * returns true.  So to get true results, first test if is UV4A,
+ * then test if is UV4.
+ */
 
-/* First test "is UV4A", then "is UV4" */
-static inline int is_uv4a_hub(void)
-{
-	if (is_uv_hubbed(uv(4)))
-		return (uv_hub_info->hub_revision == UV4A_HUB_REVISION_BASE);
-	return 0;
-}
+/* UVX class: UV2,3,4 */
+static inline int is_uvx_hub(void) { return is_uv(UVX); }
 
-static inline int is_uv4_hub(void)
-{
-	return is_uv_hubbed(uv(4));
-}
+/* UVY class: UV5,..? */
+static inline int is_uvy_hub(void) { return 0; }
 
-static inline int is_uvx_hub(void)
-{
-	return (is_uv_hubbed(-2) >= uv(2));
-}
-
-static inline int is_uv_hub(void)
-{
-	return is_uvx_hub();
-}
+/* Any UV Hubbed System */
+static inline int is_uv_hub(void) { return is_uv(UV_ANY); }
 
 union uvh_apicid {
     unsigned long       v;

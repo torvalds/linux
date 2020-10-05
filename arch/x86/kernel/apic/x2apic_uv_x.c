@@ -29,6 +29,7 @@ static int			uv_hubbed_system;
 static int			uv_hubless_system;
 static u64			gru_start_paddr, gru_end_paddr;
 static union uvh_apicid		uvh_apicid;
+static int			uv_node_id;
 
 /* Unpack OEM/TABLE ID's to be NULL terminated strings */
 static u8 oem_id[ACPI_OEM_ID_SIZE + 1];
@@ -85,43 +86,73 @@ static bool uv_is_untracked_pat_range(u64 start, u64 end)
 	return is_ISA_range(start, end) || is_GRU_range(start, end);
 }
 
-static int __init early_get_pnodeid(void)
+static void __init early_get_pnodeid(void)
 {
-	union uvh_node_id_u node_id;
-	union uvh_rh_gam_config_mmr_u  m_n_config;
+	union uvh_rh_gam_addr_map_config_u  m_n_config;
 	int pnode;
 
-	/* Currently, all blades have same revision number */
-	node_id.v = uv_early_read_mmr(UVH_NODE_ID);
-	m_n_config.v = uv_early_read_mmr(UVH_RH_GAM_CONFIG_MMR);
-	uv_min_hub_revision_id = node_id.s.revision;
+	m_n_config.v = uv_early_read_mmr(UVH_RH_GAM_ADDR_MAP_CONFIG);
 
-	switch (node_id.s.part_number) {
-	case UV2_HUB_PART_NUMBER:
-	case UV2_HUB_PART_NUMBER_X:
-		uv_min_hub_revision_id += UV2_HUB_REVISION_BASE - 1;
-		break;
-	case UV3_HUB_PART_NUMBER:
-	case UV3_HUB_PART_NUMBER_X:
-		uv_min_hub_revision_id += UV3_HUB_REVISION_BASE;
-		break;
-
-	/* Update: UV4A has only a modified revision to indicate HUB fixes */
-	case UV4_HUB_PART_NUMBER:
-		uv_min_hub_revision_id += UV4_HUB_REVISION_BASE - 1;
+	if (is_uv4_hub())
 		uv_cpuid.gnode_shift = 2; /* min partition is 4 sockets */
-		break;
-	}
 
-	uv_hub_info->hub_revision = uv_min_hub_revision_id;
 	uv_cpuid.pnode_mask = (1 << m_n_config.s.n_skt) - 1;
-	pnode = (node_id.s.node_id >> 1) & uv_cpuid.pnode_mask;
+	pnode = (uv_node_id >> 1) & uv_cpuid.pnode_mask;
 	uv_cpuid.gpa_shift = 46;	/* Default unless changed */
 
-	pr_info("UV: rev:%d part#:%x nodeid:%04x n_skt:%d pnmsk:%x pn:%x\n",
-		node_id.s.revision, node_id.s.part_number, node_id.s.node_id,
+	pr_info("UV: n_skt:%d pnmsk:%x pn:%x\n",
 		m_n_config.s.n_skt, uv_cpuid.pnode_mask, pnode);
-	return pnode;
+}
+
+/* Running on a UV Hubbed system, determine which UV Hub Type it is */
+static int __init early_set_hub_type(void)
+{
+	union uvh_node_id_u node_id;
+
+	/*
+	 * The NODE_ID MMR is always at offset 0.
+	 * Contains the chip part # + revision.
+	 * Node_id field started with 15 bits,
+	 * ... now 7 but upper 8 are masked to 0.
+	 * All blades/nodes have the same part # and hub revision.
+	 */
+	node_id.v = uv_early_read_mmr(UVH_NODE_ID);
+	uv_node_id = node_id.sx.node_id;
+
+	switch (node_id.s.part_number) {
+
+	/* UV4/4A only have a revision difference */
+	case UV4_HUB_PART_NUMBER:
+		uv_min_hub_revision_id = node_id.s.revision
+					 + UV4_HUB_REVISION_BASE;
+		uv_hub_type_set(UV4);
+		if (uv_min_hub_revision_id == UV4A_HUB_REVISION_BASE)
+			uv_hub_type_set(UV4|UV4A);
+		break;
+
+	case UV3_HUB_PART_NUMBER:
+	case UV3_HUB_PART_NUMBER_X:
+		uv_min_hub_revision_id = node_id.s.revision
+					 + UV3_HUB_REVISION_BASE;
+		uv_hub_type_set(UV3);
+		break;
+
+	case UV2_HUB_PART_NUMBER:
+	case UV2_HUB_PART_NUMBER_X:
+		uv_min_hub_revision_id = node_id.s.revision
+					 + UV2_HUB_REVISION_BASE - 1;
+		uv_hub_type_set(UV2);
+		break;
+
+	default:
+		return 0;
+	}
+
+	pr_info("UV: part#:%x rev:%d rev_id:%d UVtype:0x%x\n",
+		node_id.s.part_number, node_id.s.revision,
+		uv_min_hub_revision_id, is_uv(~0));
+
+	return 1;
 }
 
 static void __init uv_tsc_check_sync(void)
@@ -221,29 +252,26 @@ static void __init uv_stringify(int len, char *to, char *from)
 	strncpy(to, from, len-1);
 }
 
-static int __init uv_acpi_madt_oem_check(char *_oem_id, char *_oem_table_id)
+static int __init uv_set_system_type(char *_oem_id)
 {
-	int pnodeid;
-	int uv_apic;
-
+	/* Save OEM ID */
 	uv_stringify(sizeof(oem_id), oem_id, _oem_id);
-	uv_stringify(sizeof(oem_table_id), oem_table_id, _oem_table_id);
 
+	/* Set hubless type if true */
 	if (strncmp(oem_id, "SGI", 3) != 0) {
 		if (strncmp(oem_id, "NSGI", 4) != 0)
 			return 0;
 
-		/* UV4 Hubless, CH, (0x11:UV4+Any) */
+		/* UV4 Hubless: CH */
 		if (strncmp(oem_id, "NSGI4", 5) == 0)
 			uv_hubless_system = 0x11;
 
-		/* UV3 Hubless, UV300/MC990X w/o hub (0x9:UV3+Any) */
+		/* UV3 Hubless: UV300/MC990X w/o hub */
 		else
 			uv_hubless_system = 0x9;
 
-		pr_info("UV: OEM IDs %s/%s, HUBLESS(0x%x)\n",
-			oem_id, oem_table_id, uv_hubless_system);
-
+		pr_info("UV: OEM IDs %s/%s, SystemType %d, HUBLESS ID %x\n",
+			oem_id, oem_table_id, uv_system_type, uv_hubless_system);
 		return 0;
 	}
 
@@ -252,60 +280,78 @@ static int __init uv_acpi_madt_oem_check(char *_oem_id, char *_oem_table_id)
 		return 0;
 	}
 
-	/* Set up early hub type field in uv_hub_info for Node 0 */
-	uv_cpu_info->p_uv_hub_info = &uv_hub_info_node0;
+	/* Set hubbed type if true */
+	uv_hub_info->hub_revision =
+		!strncmp(oem_id, "SGI4", 4) ? UV4_HUB_REVISION_BASE :
+		!strncmp(oem_id, "SGI3", 4) ? UV3_HUB_REVISION_BASE :
+		!strcmp(oem_id, "SGI2") ? UV2_HUB_REVISION_BASE : 0;
 
-	/*
-	 * Determine UV arch type.
-	 *   SGI2: UV2000/3000
-	 *   SGI3: UV300 (truncated to 4 chars because of different varieties)
-	 *   SGI4: UV400 (truncated to 4 chars because of different varieties)
-	 */
-	if (!strncmp(oem_id, "SGI4", 4)) {
-		uv_hub_info->hub_revision = UV4_HUB_REVISION_BASE;
+	switch (uv_hub_info->hub_revision) {
+	case UV4_HUB_REVISION_BASE:
 		uv_hubbed_system = 0x11;
+		uv_hub_type_set(UV4);
+		break;
 
-	} else if (!strncmp(oem_id, "SGI3", 4)) {
-		uv_hub_info->hub_revision = UV3_HUB_REVISION_BASE;
+	case UV3_HUB_REVISION_BASE:
 		uv_hubbed_system = 0x9;
+		uv_hub_type_set(UV3);
+		break;
 
-	} else if (!strcmp(oem_id, "SGI2")) {
-		uv_hub_info->hub_revision = UV2_HUB_REVISION_BASE;
+	case UV2_HUB_REVISION_BASE:
 		uv_hubbed_system = 0x5;
+		uv_hub_type_set(UV2);
+		break;
 
-	} else {
-		uv_hub_info->hub_revision = 0;
-		goto badbios;
+	default:
+		return 0;
 	}
 
-	pnodeid = early_get_pnodeid();
-	early_get_apic_socketid_shift();
+	/* Get UV hub chip part number & revision */
+	early_set_hub_type();
 
+	/* Other UV setup functions */
+	early_get_pnodeid();
+	early_get_apic_socketid_shift();
 	x86_platform.is_untracked_pat_range = uv_is_untracked_pat_range;
 	x86_platform.nmi_init = uv_nmi_init;
-
-	if (!strcmp(oem_table_id, "UVX")) {
-		/* This is the most common hardware variant: */
-		uv_system_type = UV_X2APIC;
-		uv_apic = 0;
-
-	} else if (!strcmp(oem_table_id, "UVL")) {
-		/* Only used for very small systems:  */
-		uv_system_type = UV_LEGACY_APIC;
-		uv_apic = 0;
-
-	} else {
-		goto badbios;
-	}
-
-	pr_info("UV: OEM IDs %s/%s, System/HUB Types %d/%d, uv_apic %d\n", oem_id, oem_table_id, uv_system_type, uv_min_hub_revision_id, uv_apic);
 	uv_tsc_check_sync();
 
-	return uv_apic;
+	return 1;
+}
+
+/* Called early to probe for the correct APIC driver */
+static int __init uv_acpi_madt_oem_check(char *_oem_id, char *_oem_table_id)
+{
+	/* Set up early hub info fields for Node 0 */
+	uv_cpu_info->p_uv_hub_info = &uv_hub_info_node0;
+
+	/* If not UV, return. */
+	if (likely(uv_set_system_type(_oem_id) == 0))
+		return 0;
+
+	/* Save and Decode OEM Table ID */
+	uv_stringify(sizeof(oem_table_id), oem_table_id, _oem_table_id);
+
+	/* This is the most common hardware variant, x2apic mode */
+	if (!strcmp(oem_table_id, "UVX"))
+		uv_system_type = UV_X2APIC;
+
+	/* Only used for very small systems, usually 1 chassis, legacy mode  */
+	else if (!strcmp(oem_table_id, "UVL"))
+		uv_system_type = UV_LEGACY_APIC;
+
+	else
+		goto badbios;
+
+	pr_info("UV: OEM IDs %s/%s, System/UVType %d/0x%x, HUB RevID %d\n",
+		oem_id, oem_table_id, uv_system_type, is_uv(UV_ANY),
+		uv_min_hub_revision_id);
+
+	return 0;
 
 badbios:
 	pr_err("UV: OEM_ID:%s OEM_TABLE_ID:%s\n", oem_id, oem_table_id);
-	pr_err("Current UV Type or BIOS not supported\n");
+	pr_err("UV: Current UV Type or BIOS not supported\n");
 	BUG();
 }
 
@@ -673,12 +719,12 @@ static struct apic apic_x2apic_uv_x __ro_after_init = {
 };
 
 #define	UVH_RH_GAM_ALIAS210_REDIRECT_CONFIG_LENGTH	3
-#define DEST_SHIFT UVH_RH_GAM_ALIAS210_REDIRECT_CONFIG_0_MMR_DEST_BASE_SHFT
+#define DEST_SHIFT UVXH_RH_GAM_ALIAS_0_REDIRECT_CONFIG_DEST_BASE_SHFT
 
 static __init void get_lowmem_redirect(unsigned long *base, unsigned long *size)
 {
-	union uvh_rh_gam_alias210_overlay_config_2_mmr_u alias;
-	union uvh_rh_gam_alias210_redirect_config_2_mmr_u redirect;
+	union uvh_rh_gam_alias_2_overlay_config_u alias;
+	union uvh_rh_gam_alias_2_redirect_config_u redirect;
 	unsigned long m_redirect;
 	unsigned long m_overlay;
 	int i;
@@ -686,16 +732,16 @@ static __init void get_lowmem_redirect(unsigned long *base, unsigned long *size)
 	for (i = 0; i < UVH_RH_GAM_ALIAS210_REDIRECT_CONFIG_LENGTH; i++) {
 		switch (i) {
 		case 0:
-			m_redirect = UVH_RH_GAM_ALIAS210_REDIRECT_CONFIG_0_MMR;
-			m_overlay  = UVH_RH_GAM_ALIAS210_OVERLAY_CONFIG_0_MMR;
+			m_redirect = UVH_RH_GAM_ALIAS_0_REDIRECT_CONFIG;
+			m_overlay  = UVH_RH_GAM_ALIAS_0_OVERLAY_CONFIG;
 			break;
 		case 1:
-			m_redirect = UVH_RH_GAM_ALIAS210_REDIRECT_CONFIG_1_MMR;
-			m_overlay  = UVH_RH_GAM_ALIAS210_OVERLAY_CONFIG_1_MMR;
+			m_redirect = UVH_RH_GAM_ALIAS_1_REDIRECT_CONFIG;
+			m_overlay  = UVH_RH_GAM_ALIAS_1_OVERLAY_CONFIG;
 			break;
 		case 2:
-			m_redirect = UVH_RH_GAM_ALIAS210_REDIRECT_CONFIG_2_MMR;
-			m_overlay  = UVH_RH_GAM_ALIAS210_OVERLAY_CONFIG_2_MMR;
+			m_redirect = UVH_RH_GAM_ALIAS_2_REDIRECT_CONFIG;
+			m_overlay  = UVH_RH_GAM_ALIAS_2_OVERLAY_CONFIG;
 			break;
 		}
 		alias.v = uv_read_local_mmr(m_overlay);
@@ -730,12 +776,12 @@ static __init void map_high(char *id, unsigned long base, int pshift, int bshift
 
 static __init void map_gru_high(int max_pnode)
 {
-	union uvh_rh_gam_gru_overlay_config_mmr_u gru;
-	int shift = UVH_RH_GAM_GRU_OVERLAY_CONFIG_MMR_BASE_SHFT;
-	unsigned long mask = UVH_RH_GAM_GRU_OVERLAY_CONFIG_MMR_BASE_MASK;
+	union uvh_rh_gam_gru_overlay_config_u gru;
+	int shift = UVH_RH_GAM_GRU_OVERLAY_CONFIG_BASE_SHFT;
+	unsigned long mask = UVH_RH_GAM_GRU_OVERLAY_CONFIG_BASE_MASK;
 	unsigned long base;
 
-	gru.v = uv_read_local_mmr(UVH_RH_GAM_GRU_OVERLAY_CONFIG_MMR);
+	gru.v = uv_read_local_mmr(UVH_RH_GAM_GRU_OVERLAY_CONFIG);
 	if (!gru.s.enable) {
 		pr_info("UV: GRU disabled\n");
 		return;
@@ -749,10 +795,10 @@ static __init void map_gru_high(int max_pnode)
 
 static __init void map_mmr_high(int max_pnode)
 {
-	union uvh_rh_gam_mmr_overlay_config_mmr_u mmr;
-	int shift = UVH_RH_GAM_MMR_OVERLAY_CONFIG_MMR_BASE_SHFT;
+	union uvh_rh_gam_mmr_overlay_config_u mmr;
+	int shift = UVH_RH_GAM_MMR_OVERLAY_CONFIG_BASE_SHFT;
 
-	mmr.v = uv_read_local_mmr(UVH_RH_GAM_MMR_OVERLAY_CONFIG_MMR);
+	mmr.v = uv_read_local_mmr(UVH_RH_GAM_MMR_OVERLAY_CONFIG);
 	if (mmr.s.enable)
 		map_high("MMR", mmr.s.base, shift, shift, max_pnode, map_uc);
 	else
@@ -773,29 +819,29 @@ static __init void map_mmioh_high_uv34(int index, int min_pnode, int max_pnode)
 
 	if (index == 0) {
 		id = "MMIOH0";
-		m_overlay = UVH_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR;
+		m_overlay = UVH_RH_GAM_MMIOH_OVERLAY_CONFIG0;
 		overlay = uv_read_local_mmr(m_overlay);
-		base = overlay & UVH_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR_BASE_MASK;
-		mmr = UVH_RH_GAM_MMIOH_REDIRECT_CONFIG0_MMR;
-		m_io = (overlay & UVH_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR_M_IO_MASK)
-			>> UVH_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR_M_IO_SHFT;
-		shift = UVH_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR_M_IO_SHFT;
-		n = UVH_RH_GAM_MMIOH_REDIRECT_CONFIG0_MMR_DEPTH;
-		nasid_mask = UVH_RH_GAM_MMIOH_REDIRECT_CONFIG0_MMR_NASID_MASK;
+		base = overlay & UV3H_RH_GAM_MMIOH_OVERLAY_CONFIG0_BASE_MASK;
+		mmr = UVH_RH_GAM_MMIOH_REDIRECT_CONFIG0;
+		m_io = (overlay & UV3H_RH_GAM_MMIOH_OVERLAY_CONFIG0_M_IO_MASK)
+			>> UV3H_RH_GAM_MMIOH_OVERLAY_CONFIG0_M_IO_SHFT;
+		shift = UV3H_RH_GAM_MMIOH_OVERLAY_CONFIG0_M_IO_SHFT;
+		n = UVH_RH_GAM_MMIOH_REDIRECT_CONFIG0_DEPTH;
+		nasid_mask = UV3H_RH_GAM_MMIOH_REDIRECT_CONFIG0_NASID_MASK;
 	} else {
 		id = "MMIOH1";
-		m_overlay = UVH_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR;
+		m_overlay = UVH_RH_GAM_MMIOH_OVERLAY_CONFIG1;
 		overlay = uv_read_local_mmr(m_overlay);
-		base = overlay & UVH_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR_BASE_MASK;
-		mmr = UVH_RH_GAM_MMIOH_REDIRECT_CONFIG1_MMR;
-		m_io = (overlay & UVH_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR_M_IO_MASK)
-			>> UVH_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR_M_IO_SHFT;
-		shift = UVH_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR_M_IO_SHFT;
-		n = UVH_RH_GAM_MMIOH_REDIRECT_CONFIG1_MMR_DEPTH;
-		nasid_mask = UVH_RH_GAM_MMIOH_REDIRECT_CONFIG1_MMR_NASID_MASK;
+		base = overlay & UV3H_RH_GAM_MMIOH_OVERLAY_CONFIG1_BASE_MASK;
+		mmr = UVH_RH_GAM_MMIOH_REDIRECT_CONFIG1;
+		m_io = (overlay & UV3H_RH_GAM_MMIOH_OVERLAY_CONFIG1_M_IO_MASK)
+			>> UV3H_RH_GAM_MMIOH_OVERLAY_CONFIG1_M_IO_SHFT;
+		shift = UV3H_RH_GAM_MMIOH_OVERLAY_CONFIG1_M_IO_SHFT;
+		n = UVH_RH_GAM_MMIOH_REDIRECT_CONFIG1_DEPTH;
+		nasid_mask = UV3H_RH_GAM_MMIOH_REDIRECT_CONFIG1_NASID_MASK;
 	}
 	pr_info("UV: %s overlay 0x%lx base:0x%lx m_io:%d\n", id, overlay, base, m_io);
-	if (!(overlay & UVH_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR_ENABLE_MASK)) {
+	if (!(overlay & UV3H_RH_GAM_MMIOH_OVERLAY_CONFIG0_ENABLE_MASK)) {
 		pr_info("UV: %s disabled\n", id);
 		return;
 	}
@@ -855,7 +901,7 @@ static __init void map_mmioh_high_uv34(int index, int min_pnode, int max_pnode)
 
 static __init void map_mmioh_high(int min_pnode, int max_pnode)
 {
-	union uvh_rh_gam_mmioh_overlay_config_mmr_u mmioh;
+	union uvh_rh_gam_mmioh_overlay_config_u mmioh;
 	unsigned long mmr, base;
 	int shift, enable, m_io, n_io;
 
@@ -867,8 +913,8 @@ static __init void map_mmioh_high(int min_pnode, int max_pnode)
 	}
 
 	if (is_uv2_hub()) {
-		mmr	= UV2H_RH_GAM_MMIOH_OVERLAY_CONFIG_MMR;
-		shift	= UV2H_RH_GAM_MMIOH_OVERLAY_CONFIG_MMR_BASE_SHFT;
+		mmr	= UVH_RH_GAM_MMIOH_OVERLAY_CONFIG;
+		shift	= UVH_RH_GAM_MMIOH_OVERLAY_CONFIG_BASE_SHFT;
 		mmioh.v	= uv_read_local_mmr(mmr);
 		enable	= !!mmioh.s2.enable;
 		base	= mmioh.s2.base;
@@ -950,13 +996,13 @@ struct mn {
 
 static void get_mn(struct mn *mnp)
 {
-	union uvh_rh_gam_config_mmr_u m_n_config;
-	union uv3h_gr0_gam_gr_config_u m_gr_config;
+	union uvh_rh_gam_addr_map_config_u m_n_config;
+	union uvyh_gr0_gam_gr_config_u m_gr_config;
 
 	/* Make sure the whole structure is well initialized: */
 	memset(mnp, 0, sizeof(*mnp));
 
-	m_n_config.v	= uv_read_local_mmr(UVH_RH_GAM_CONFIG_MMR);
+	m_n_config.v	= uv_read_local_mmr(UVH_RH_GAM_ADDR_MAP_CONFIG);
 	mnp->n_val	= m_n_config.s.n_skt;
 
 	if (is_uv4_hub()) {
@@ -964,7 +1010,7 @@ static void get_mn(struct mn *mnp)
 		mnp->n_lshift	= 0;
 	} else if (is_uv3_hub()) {
 		mnp->m_val	= m_n_config.s3.m_skt;
-		m_gr_config.v	= uv_read_local_mmr(UV3H_GR0_GAM_GR_CONFIG);
+		m_gr_config.v	= uv_read_local_mmr(UVH_GR0_GAM_GR_CONFIG);
 		mnp->n_lshift	= m_gr_config.s3.m_skt;
 	} else if (is_uv2_hub()) {
 		mnp->m_val	= m_n_config.s2.m_skt;
@@ -975,7 +1021,6 @@ static void get_mn(struct mn *mnp)
 
 static void __init uv_init_hub_info(struct uv_hub_info_s *hi)
 {
-	union uvh_node_id_u node_id;
 	struct mn mn;
 
 	get_mn(&mn);
@@ -988,6 +1033,7 @@ static void __init uv_init_hub_info(struct uv_hub_info_s *hi)
 	hi->m_shift		= mn.m_shift;
 	hi->n_lshift		= mn.n_lshift ? mn.n_lshift : 0;
 	hi->hub_revision	= uv_hub_info->hub_revision;
+	hi->hub_type		= uv_hub_info->hub_type;
 	hi->pnode_mask		= uv_cpuid.pnode_mask;
 	hi->min_pnode		= _min_pnode;
 	hi->min_socket		= _min_socket;
@@ -997,9 +1043,8 @@ static void __init uv_init_hub_info(struct uv_hub_info_s *hi)
 	hi->gr_table_len	= _gr_table_len;
 	hi->gr_table		= _gr_table;
 
-	node_id.v		= uv_read_local_mmr(UVH_NODE_ID);
 	uv_cpuid.gnode_shift	= max_t(unsigned int, uv_cpuid.gnode_shift, mn.n_val);
-	hi->gnode_extra		= (node_id.s.node_id & ~((1 << uv_cpuid.gnode_shift) - 1)) >> 1;
+	hi->gnode_extra		= (uv_node_id & ~((1 << uv_cpuid.gnode_shift) - 1)) >> 1;
 	if (mn.m_val)
 		hi->gnode_upper	= (u64)hi->gnode_extra << mn.m_val;
 
@@ -1011,7 +1056,9 @@ static void __init uv_init_hub_info(struct uv_hub_info_s *hi)
 		hi->gpa_shift		= uv_gp_table->gpa_shift;
 		hi->gpa_mask		= (1UL << hi->gpa_shift) - 1;
 	} else {
-		hi->global_mmr_base	= uv_read_local_mmr(UVH_RH_GAM_MMR_OVERLAY_CONFIG_MMR) & ~UV_MMR_ENABLE;
+		hi->global_mmr_base	=
+			uv_read_local_mmr(UVH_RH_GAM_MMR_OVERLAY_CONFIG) &
+			~UV_MMR_ENABLE;
 		hi->global_mmr_shift	= _UV_GLOBAL_MMR64_PNODE_SHIFT;
 	}
 
@@ -1135,11 +1182,7 @@ static int __init decode_uv_systab(void)
 	return 0;
 }
 
-/*
- * Set up physical blade translations from UVH_NODE_PRESENT_TABLE
- * .. NB: UVH_NODE_PRESENT_TABLE is going away,
- * .. being replaced by GAM Range Table
- */
+/* Set up physical blade translations from UVH_NODE_PRESENT_TABLE */
 static __init void boot_init_possible_blades(struct uv_hub_info_s *hub_info)
 {
 	int i, uv_pb = 0;
