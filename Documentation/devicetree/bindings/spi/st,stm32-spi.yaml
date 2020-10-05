@@ -76,6 +76,8 @@ required:
   - clocks
   - interrupts
 
+unevaluatedProperties: false
+
 examples:
   - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>

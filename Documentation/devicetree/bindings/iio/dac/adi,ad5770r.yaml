@@ -130,6 +130,8 @@ required:
   - channel@4
   - channel@5
 
+unevaluatedProperties: false
+
 examples:
   - |
         spi {

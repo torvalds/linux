@@ -108,6 +108,8 @@ patternProperties:
       - reg
       - diff-channels
 
+unevaluatedProperties: false
+
 examples:
   - |
     spi {

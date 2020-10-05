@@ -47,6 +47,8 @@ required:
   - compatible
   - reg
 
+unevaluatedProperties: false
+
 examples:
   - |
     spi {

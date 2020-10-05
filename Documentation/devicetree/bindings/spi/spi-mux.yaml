@@ -48,6 +48,8 @@ required:
   - spi-max-frequency
   - mux-controls
 
+unevaluatedProperties: false
+
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>

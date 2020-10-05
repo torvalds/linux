@@ -45,6 +45,8 @@ required:
   - vdd-supply
   - vref-supply
 
+unevaluatedProperties: false
+
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>

@@ -40,6 +40,8 @@ required:
   - compatible
   - reg
 
+unevaluatedProperties: false
+
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>

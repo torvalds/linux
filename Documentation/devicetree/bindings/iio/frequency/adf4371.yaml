@@ -46,6 +46,8 @@ required:
   - clocks
   - clock-names
 
+unevaluatedProperties: false
+
 examples:
   - |
     spi0 {

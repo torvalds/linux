@@ -102,6 +102,8 @@ required:
   - interrupts
   - adi,conversion-start-gpios
 
+unevaluatedProperties: false
+
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>

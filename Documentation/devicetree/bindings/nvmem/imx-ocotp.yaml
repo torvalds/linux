@@ -76,6 +76,8 @@ patternProperties:
 
     additionalProperties: false
 
+unevaluatedProperties: false
+
 examples:
   - |
     #include <dt-bindings/clock/imx6sx-clock.h>

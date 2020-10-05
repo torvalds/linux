@@ -92,6 +92,8 @@ required:
   - spi-cpol
   - spi-cpha
 
+unevaluatedProperties: false
+
 examples:
   - |
     spi0 {
