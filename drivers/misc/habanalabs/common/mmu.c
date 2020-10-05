@@ -216,7 +216,7 @@ int hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr, u32 page_size,
 		real_page_size = mmu_prop->page_size;
 	} else {
 		dev_err(hdev->dev,
-			"page size of %u is not %uKB aligned, can't unmap\n",
+			"page size of %u is not %uKB aligned, can't map\n",
 			page_size, mmu_prop->page_size >> 10);
 
 		return -EFAULT;
