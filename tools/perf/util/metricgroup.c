@@ -85,6 +85,7 @@ static void metric_event_delete(struct rblist *rblist __maybe_unused,
 
 	list_for_each_entry_safe(expr, tmp, &me->head, nd) {
 		free(expr->metric_refs);
+		free(expr->metric_events);
 		free(expr);
 	}
 
@@ -316,6 +317,7 @@ static int metricgroup__setup_events(struct list_head *groups,
 			if (!metric_refs) {
 				ret = -ENOMEM;
 				free(metric_events);
+				free(expr);
 				break;
 			}
 
@@ -530,6 +532,9 @@ void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 						continue;
 					strlist__add(me->metrics, s);
 				}
+
+				if (!raw)
+					free(s);
 			}
 			free(omg);
 		}
@@ -667,7 +672,6 @@ static int __add_metric(struct list_head *metric_list,
 		m->has_constraint = metric_no_group || metricgroup__has_constraint(pe);
 		INIT_LIST_HEAD(&m->metric_refs);
 		m->metric_refs_cnt = 0;
-		*mp = m;
 
 		parent = expr_ids__alloc(ids);
 		if (!parent) {
@@ -680,6 +684,7 @@ static int __add_metric(struct list_head *metric_list,
 			free(m);
 			return -ENOMEM;
 		}
+		*mp = m;
 	} else {
 		/*
 		 * We got here for the referenced metric, via the
@@ -714,8 +719,11 @@ static int __add_metric(struct list_head *metric_list,
 	 * all the metric's IDs and add it to the parent context.
 	 */
 	if (expr__find_other(pe->metric_expr, NULL, &m->pctx, runtime) < 0) {
-		expr__ctx_clear(&m->pctx);
-		free(m);
+		if (m->metric_refs_cnt == 0) {
+			expr__ctx_clear(&m->pctx);
+			free(m);
+			*mp = NULL;
+		}
 		return -EINVAL;
 	}
 
@@ -934,7 +942,7 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 
 		ret = add_metric(&list, pe, metric_no_group, &m, NULL, &ids);
 		if (ret)
-			return ret;
+			goto out;
 
 		/*
 		 * Process any possible referenced metrics
@@ -943,12 +951,14 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 		ret = resolve_metric(metric_no_group,
 				     &list, map, &ids);
 		if (ret)
-			return ret;
+			goto out;
 	}
 
 	/* End of pmu events. */
-	if (!has_match)
-		return -EINVAL;
+	if (!has_match) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	list_for_each_entry(m, &list, nd) {
 		if (events->len > 0)
@@ -963,9 +973,14 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 		}
 	}
 
+out:
+	/*
+	 * add to metric_list so that they can be released
+	 * even if it's failed
+	 */
 	list_splice(&list, metric_list);
 	expr_ids__exit(&ids);
-	return 0;
+	return ret;
 }
 
 static int metricgroup__add_metric_list(const char *list, bool metric_no_group,
@@ -1040,7 +1055,7 @@ static int parse_groups(struct evlist *perf_evlist, const char *str,
 	ret = metricgroup__add_metric_list(str, metric_no_group,
 					   &extra_events, &metric_list, map);
 	if (ret)
-		return ret;
+		goto out;
 	pr_debug("adding %s\n", extra_events.buf);
 	bzero(&parse_error, sizeof(parse_error));
 	ret = __parse_events(perf_evlist, extra_events.buf, &parse_error, fake_pmu);
@@ -1048,11 +1063,11 @@ static int parse_groups(struct evlist *perf_evlist, const char *str,
 		parse_events_print_error(&parse_error, extra_events.buf);
 		goto out;
 	}
-	strbuf_release(&extra_events);
 	ret = metricgroup__setup_events(&metric_list, metric_no_merge,
 					perf_evlist, metric_events);
 out:
 	metricgroup__free_metrics(&metric_list);
+	strbuf_release(&extra_events);
 	return ret;
 }
 

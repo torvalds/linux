@@ -332,8 +332,7 @@ static int qrtr_node_enqueue(struct qrtr_node *node, struct sk_buff *skb,
 {
 	struct qrtr_hdr_v1 *hdr;
 	size_t len = skb->len;
-	int rc = -ENODEV;
-	int confirm_rx;
+	int rc, confirm_rx;
 
 	confirm_rx = qrtr_tx_wait(node, to->sq_node, to->sq_port, type);
 	if (confirm_rx < 0) {
@@ -357,15 +356,17 @@ static int qrtr_node_enqueue(struct qrtr_node *node, struct sk_buff *skb,
 	hdr->size = cpu_to_le32(len);
 	hdr->confirm_rx = !!confirm_rx;
 
-	skb_put_padto(skb, ALIGN(len, 4) + sizeof(*hdr));
+	rc = skb_put_padto(skb, ALIGN(len, 4) + sizeof(*hdr));
 
-	mutex_lock(&node->ep_lock);
-	if (node->ep)
-		rc = node->ep->xmit(node->ep, skb);
-	else
-		kfree_skb(skb);
-	mutex_unlock(&node->ep_lock);
-
+	if (!rc) {
+		mutex_lock(&node->ep_lock);
+		rc = -ENODEV;
+		if (node->ep)
+			rc = node->ep->xmit(node->ep, skb);
+		else
+			kfree_skb(skb);
+		mutex_unlock(&node->ep_lock);
+	}
 	/* Need to ensure that a subsequent message carries the otherwise lost
 	 * confirm_rx flag if we dropped this one */
 	if (rc && confirm_rx)

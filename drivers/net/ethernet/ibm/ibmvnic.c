@@ -2032,16 +2032,18 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 
 		} else {
 			rc = reset_tx_pools(adapter);
-			if (rc)
+			if (rc) {
 				netdev_dbg(adapter->netdev, "reset tx pools failed (%d)\n",
 						rc);
 				goto out;
+			}
 
 			rc = reset_rx_pools(adapter);
-			if (rc)
+			if (rc) {
 				netdev_dbg(adapter->netdev, "reset rx pools failed (%d)\n",
 						rc);
 				goto out;
+			}
 		}
 		ibmvnic_disable_irqs(adapter);
 	}

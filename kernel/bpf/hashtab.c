@@ -1622,7 +1622,6 @@ struct bpf_iter_seq_hash_map_info {
 	struct bpf_map *map;
 	struct bpf_htab *htab;
 	void *percpu_value_buf; // non-zero means percpu hash
-	unsigned long flags;
 	u32 bucket_id;
 	u32 skip_elems;
 };
@@ -1632,7 +1631,6 @@ bpf_hash_map_seq_find_next(struct bpf_iter_seq_hash_map_info *info,
 			   struct htab_elem *prev_elem)
 {
 	const struct bpf_htab *htab = info->htab;
-	unsigned long flags = info->flags;
 	u32 skip_elems = info->skip_elems;
 	u32 bucket_id = info->bucket_id;
 	struct hlist_nulls_head *head;
@@ -1656,19 +1654,18 @@ bpf_hash_map_seq_find_next(struct bpf_iter_seq_hash_map_info *info,
 
 		/* not found, unlock and go to the next bucket */
 		b = &htab->buckets[bucket_id++];
-		htab_unlock_bucket(htab, b, flags);
+		rcu_read_unlock();
 		skip_elems = 0;
 	}
 
 	for (i = bucket_id; i < htab->n_buckets; i++) {
 		b = &htab->buckets[i];
-		flags = htab_lock_bucket(htab, b);
+		rcu_read_lock();
 
 		count = 0;
 		head = &b->head;
 		hlist_nulls_for_each_entry_rcu(elem, n, head, hash_node) {
 			if (count >= skip_elems) {
-				info->flags = flags;
 				info->bucket_id = i;
 				info->skip_elems = count;
 				return elem;
@@ -1676,7 +1673,7 @@ bpf_hash_map_seq_find_next(struct bpf_iter_seq_hash_map_info *info,
 			count++;
 		}
 
-		htab_unlock_bucket(htab, b, flags);
+		rcu_read_unlock();
 		skip_elems = 0;
 	}
 
@@ -1754,14 +1751,10 @@ static int bpf_hash_map_seq_show(struct seq_file *seq, void *v)
 
 static void bpf_hash_map_seq_stop(struct seq_file *seq, void *v)
 {
-	struct bpf_iter_seq_hash_map_info *info = seq->private;
-
 	if (!v)
 		(void)__bpf_hash_map_seq_show(seq, NULL);
 	else
-		htab_unlock_bucket(info->htab,
-				   &info->htab->buckets[info->bucket_id],
-				   info->flags);
+		rcu_read_unlock();
 }
 
 static int bpf_iter_init_hash_map(void *priv_data,

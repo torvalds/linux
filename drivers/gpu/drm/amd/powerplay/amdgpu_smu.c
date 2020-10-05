@@ -479,17 +479,6 @@ static int smu_late_init(void *handle)
 		return ret;
 	}
 
-	/*
-	 * Set initialized values (get from vbios) to dpm tables context such as
-	 * gfxclk, memclk, dcefclk, and etc. And enable the DPM feature for each
-	 * type of clks.
-	 */
-	ret = smu_set_default_dpm_table(smu);
-	if (ret) {
-		dev_err(adev->dev, "Failed to setup default dpm clock tables!\n");
-		return ret;
-	}
-
 	ret = smu_populate_umd_state_clk(smu);
 	if (ret) {
 		dev_err(adev->dev, "Failed to populate UMD state clocks!\n");
@@ -984,6 +973,17 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 		return ret;
 	}
 
+	/*
+	 * Set initialized values (get from vbios) to dpm tables context such as
+	 * gfxclk, memclk, dcefclk, and etc. And enable the DPM feature for each
+	 * type of clks.
+	 */
+	ret = smu_set_default_dpm_table(smu);
+	if (ret) {
+		dev_err(adev->dev, "Failed to setup default dpm clock tables!\n");
+		return ret;
+	}
+
 	ret = smu_notify_display_change(smu);
 	if (ret)
 		return ret;
@@ -1126,7 +1126,7 @@ static int smu_disable_dpms(struct smu_context *smu)
 	 */
 	if (smu->uploading_custom_pp_table &&
 	    (adev->asic_type >= CHIP_NAVI10) &&
-	    (adev->asic_type <= CHIP_NAVI12))
+	    (adev->asic_type <= CHIP_NAVY_FLOUNDER))
 		return 0;
 
 	/*
@@ -1211,7 +1211,9 @@ static int smu_hw_fini(void *handle)
 int smu_reset(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
-	int ret = 0;
+	int ret;
+
+	amdgpu_gfx_off_ctrl(smu->adev, false);
 
 	ret = smu_hw_fini(adev);
 	if (ret)
@@ -1222,8 +1224,12 @@ int smu_reset(struct smu_context *smu)
 		return ret;
 
 	ret = smu_late_init(adev);
+	if (ret)
+		return ret;
 
-	return ret;
+	amdgpu_gfx_off_ctrl(smu->adev, true);
+
+	return 0;
 }
 
 static int smu_suspend(void *handle)

@@ -384,7 +384,7 @@ fail_nomem:
 
 static int vboxsf_parse_monolithic(struct fs_context *fc, void *data)
 {
-	char *options = data;
+	unsigned char *options = data;
 
 	if (options && options[0] == VBSF_MOUNT_SIGNATURE_BYTE_0 &&
 		       options[1] == VBSF_MOUNT_SIGNATURE_BYTE_1 &&

@@ -259,6 +259,10 @@ bool mtk_is_virt_gpio(struct mtk_pinctrl *hw, unsigned int gpio_n)
 
 	desc = (const struct mtk_pin_desc *)&hw->soc->pins[gpio_n];
 
+	/* if the GPIO is not supported for eint mode */
+	if (desc->eint.eint_m == NO_EINT_SUPPORT)
+		return virt_gpio;
+
 	if (desc->funcs && !desc->funcs[desc->eint.eint_m].name)
 		virt_gpio = true;
 

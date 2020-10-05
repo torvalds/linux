@@ -1074,6 +1074,24 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 
 	src_page = pmd_page(pmd);
 	VM_BUG_ON_PAGE(!PageHead(src_page), src_page);
+
+	/*
+	 * If this page is a potentially pinned page, split and retry the fault
+	 * with smaller page size.  Normally this should not happen because the
+	 * userspace should use MADV_DONTFORK upon pinned regions.  This is a
+	 * best effort that the pinned pages won't be replaced by another
+	 * random page during the coming copy-on-write.
+	 */
+	if (unlikely(is_cow_mapping(vma->vm_flags) &&
+		     atomic_read(&src_mm->has_pinned) &&
+		     page_maybe_dma_pinned(src_page))) {
+		pte_free(dst_mm, pgtable);
+		spin_unlock(src_ptl);
+		spin_unlock(dst_ptl);
+		__split_huge_pmd(vma, src_pmd, addr, false, NULL);
+		return -EAGAIN;
+	}
+
 	get_page(src_page);
 	page_dup_rmap(src_page, true);
 	add_mm_counter(dst_mm, MM_ANONPAGES, HPAGE_PMD_NR);
@@ -1175,6 +1193,16 @@ int copy_huge_pud(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	 */
 	if (is_huge_zero_pud(pud)) {
 		/* No huge zero pud yet */
+	}
+
+	/* Please refer to comments in copy_huge_pmd() */
+	if (unlikely(is_cow_mapping(vma->vm_flags) &&
+		     atomic_read(&src_mm->has_pinned) &&
+		     page_maybe_dma_pinned(pud_page(pud)))) {
+		spin_unlock(src_ptl);
+		spin_unlock(dst_ptl);
+		__split_huge_pud(vma, src_pud, addr);
+		return -EAGAIN;
 	}
 
 	pudp_set_wrprotect(src_mm, addr, src_pud);
@@ -2022,7 +2050,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
 		put_page(page);
 		add_mm_counter(mm, mm_counter_file(page), -HPAGE_PMD_NR);
 		return;
-	} else if (is_huge_zero_pmd(*pmd)) {
+	} else if (pmd_trans_huge(*pmd) && is_huge_zero_pmd(*pmd)) {
 		/*
 		 * FIXME: Do we want to invalidate secondary mmu by calling
 		 * mmu_notifier_invalidate_range() see comments below inside
@@ -2116,30 +2144,34 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
 		pte = pte_offset_map(&_pmd, addr);
 		BUG_ON(!pte_none(*pte));
 		set_pte_at(mm, addr, pte, entry);
-		atomic_inc(&page[i]._mapcount);
+		if (!pmd_migration)
+			atomic_inc(&page[i]._mapcount);
 		pte_unmap(pte);
 	}
 
-	/*
-	 * Set PG_double_map before dropping compound_mapcount to avoid
-	 * false-negative page_mapped().
-	 */
-	if (compound_mapcount(page) > 1 && !TestSetPageDoubleMap(page)) {
-		for (i = 0; i < HPAGE_PMD_NR; i++)
-			atomic_inc(&page[i]._mapcount);
-	}
-
-	lock_page_memcg(page);
-	if (atomic_add_negative(-1, compound_mapcount_ptr(page))) {
-		/* Last compound_mapcount is gone. */
-		__dec_lruvec_page_state(page, NR_ANON_THPS);
-		if (TestClearPageDoubleMap(page)) {
-			/* No need in mapcount reference anymore */
+	if (!pmd_migration) {
+		/*
+		 * Set PG_double_map before dropping compound_mapcount to avoid
+		 * false-negative page_mapped().
+		 */
+		if (compound_mapcount(page) > 1 &&
+		    !TestSetPageDoubleMap(page)) {
 			for (i = 0; i < HPAGE_PMD_NR; i++)
-				atomic_dec(&page[i]._mapcount);
+				atomic_inc(&page[i]._mapcount);
 		}
+
+		lock_page_memcg(page);
+		if (atomic_add_negative(-1, compound_mapcount_ptr(page))) {
+			/* Last compound_mapcount is gone. */
+			__dec_lruvec_page_state(page, NR_ANON_THPS);
+			if (TestClearPageDoubleMap(page)) {
+				/* No need in mapcount reference anymore */
+				for (i = 0; i < HPAGE_PMD_NR; i++)
+					atomic_dec(&page[i]._mapcount);
+			}
+		}
+		unlock_page_memcg(page);
 	}
-	unlock_page_memcg(page);
 
 	smp_wmb(); /* make pte visible before pmd */
 	pmd_populate(mm, pmd, pgtable);
