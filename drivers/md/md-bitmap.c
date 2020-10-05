@@ -606,8 +606,8 @@ re_read:
 	if (bitmap->cluster_slot >= 0) {
 		sector_t bm_blocks = bitmap->mddev->resync_max_sectors;
 
-		sector_div(bm_blocks,
-			   bitmap->mddev->bitmap_info.chunksize >> 9);
+		bm_blocks = DIV_ROUND_UP_SECTOR_T(bm_blocks,
+			   (bitmap->mddev->bitmap_info.chunksize >> 9));
 		/* bits to bytes */
 		bm_blocks = ((bm_blocks+7) >> 3) + sizeof(bitmap_super_t);
 		/* to 4k blocks */
