@@ -70,7 +70,48 @@
 #define RV1126_OTP_NVM_PRSTART		0x44
 #define RV1126_OTP_NVM_PRSTATE		0x48
 
-#define ROCKCHIP_OTP_WR_MAGIC		(0x524F434B)
+/*
+ * +----------+------------------+--------------------------+
+ * | TYPE     | RANGE(byte)      | NOTE                     |
+ * +----------+------------------+--------------------------+
+ * | system   | 0x000 ~ 0x0ff    | system info, read only   |
+ * +----------+------------------+--------------------------+
+ * | oem      | 0x100 ~ 0x1ef    | for customized           |
+ * +----------+------------------+--------------------------+
+ * | reserved | 0x1f0 ~ 0x1f7    | future extension         |
+ * +----------+------------------+--------------------------+
+ * | wp       | 0x1f8 ~ 0x1ff    | write protection for oem |
+ * +----------+------------------+--------------------------+
+ *
+ * +-----+    +------------------+
+ * | wp  | -- | wp for oem range |
+ * +-----+    +------------------+
+ * | 1f8 |    | 0x100 ~ 0x11f    |
+ * +-----+    +------------------+
+ * | 1f9 |    | 0x120 ~ 0x13f    |
+ * +-----+    +------------------+
+ * | 1fa |    | 0x140 ~ 0x15f    |
+ * +-----+    +------------------+
+ * | 1fb |    | 0x160 ~ 0x17f    |
+ * +-----+    +------------------+
+ * | 1fc |    | 0x180 ~ 0x19f    |
+ * +-----+    +------------------+
+ * | 1fd |    | 0x1a0 ~ 0x1bf    |
+ * +-----+    +------------------+
+ * | 1fe |    | 0x1c0 ~ 0x1df    |
+ * +-----+    +------------------+
+ * | 1ff |    | 0x1e0 ~ 0x1ef    |
+ * +-----+    +------------------+
+ */
+#define RV1126_OTP_OEM_OFFSET		0x100
+#define RV1126_OTP_OEM_SIZE		0xf0
+#define RV1126_OTP_WP_OFFSET		0x1f8
+#define RV1126_OTP_WP_SIZE		0x8
+
+/* magic for enable otp write func */
+#define ROCKCHIP_OTP_WR_MAGIC		0x524F434B
+/* each bit mask 32 bits in OTP NVM */
+#define ROCKCHIP_OTP_WP_MASK_NBITS	64
 
 static unsigned int rockchip_otp_wr_magic;
 module_param(rockchip_otp_wr_magic, uint, 0644);
@@ -87,6 +128,7 @@ struct rockchip_otp {
 	struct nvmem_config *config;
 	const struct rockchip_data *data;
 	struct mutex mutex;
+	DECLARE_BITMAP(wp_mask, ROCKCHIP_OTP_WP_MASK_NBITS);
 };
 
 struct rockchip_data {
@@ -304,13 +346,35 @@ static int rv1126_otp_write(void *context, unsigned int offset, void *val,
 	return 0;
 }
 
+static int rv1126_otp_wp(void *context, unsigned int offset, size_t bytes)
+{
+	struct rockchip_otp *otp = context;
+
+	bitmap_set(otp->wp_mask, (offset - RV1126_OTP_OEM_OFFSET) / 4, bytes / 4);
+
+	return rv1126_otp_write(context, RV1126_OTP_WP_OFFSET, otp->wp_mask,
+				RV1126_OTP_WP_SIZE);
+}
+
 static int rv1126_otp_oem_write(void *context, unsigned int offset, void *val,
 				size_t bytes)
 {
-	if (offset < 256 || offset > 511 || bytes > 256 || offset + bytes > 512)
+	int ret = 0;
+
+	if (offset < RV1126_OTP_OEM_OFFSET ||
+	    offset > (RV1126_OTP_OEM_OFFSET + RV1126_OTP_OEM_SIZE - 1) ||
+	    bytes > RV1126_OTP_OEM_SIZE ||
+	    (offset + bytes) > (RV1126_OTP_OEM_OFFSET + RV1126_OTP_OEM_SIZE))
 		return -EINVAL;
 
-	return rv1126_otp_write(context, offset, val, bytes);
+	if (!IS_ALIGNED(offset, 4) || !IS_ALIGNED(bytes, 4))
+		return -EINVAL;
+
+	ret = rv1126_otp_write(context, offset, val, bytes);
+	if (!ret)
+		ret = rv1126_otp_wp(context, offset, bytes);
+
+	return ret;
 }
 
 static int rockchip_otp_read(void *context, unsigned int offset, void *val,
