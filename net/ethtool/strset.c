@@ -99,7 +99,7 @@ struct strset_reply_data {
 #define STRSET_REPDATA(__reply_base) \
 	container_of(__reply_base, struct strset_reply_data, base)
 
-static const struct nla_policy strset_get_policy[ETHTOOL_A_STRSET_MAX + 1] = {
+const struct nla_policy ethnl_strset_get_policy[ETHTOOL_A_STRSET_MAX + 1] = {
 	[ETHTOOL_A_STRSET_UNSPEC]	= { .type = NLA_REJECT },
 	[ETHTOOL_A_STRSET_HEADER]	= { .type = NLA_NESTED },
 	[ETHTOOL_A_STRSET_STRINGSETS]	= { .type = NLA_NESTED },
@@ -445,10 +445,8 @@ const struct ethnl_request_ops ethnl_strset_request_ops = {
 	.request_cmd		= ETHTOOL_MSG_STRSET_GET,
 	.reply_cmd		= ETHTOOL_MSG_STRSET_GET_REPLY,
 	.hdr_attr		= ETHTOOL_A_STRSET_HEADER,
-	.max_attr		= ETHTOOL_A_STRSET_MAX,
 	.req_info_size		= sizeof(struct strset_req_info),
 	.reply_data_size	= sizeof(struct strset_reply_data),
-	.request_policy		= strset_get_policy,
 	.allow_nodev_do		= true,
 
 	.parse_request		= strset_parse_request,

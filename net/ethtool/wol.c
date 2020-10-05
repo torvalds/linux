@@ -17,8 +17,7 @@ struct wol_reply_data {
 #define WOL_REPDATA(__reply_base) \
 	container_of(__reply_base, struct wol_reply_data, base)
 
-static const struct nla_policy
-wol_get_policy[ETHTOOL_A_WOL_MAX + 1] = {
+const struct nla_policy ethnl_wol_get_policy[ETHTOOL_A_WOL_MAX + 1] = {
 	[ETHTOOL_A_WOL_UNSPEC]		= { .type = NLA_REJECT },
 	[ETHTOOL_A_WOL_HEADER]		= { .type = NLA_NESTED },
 	[ETHTOOL_A_WOL_MODES]		= { .type = NLA_REJECT },
@@ -89,10 +88,8 @@ const struct ethnl_request_ops ethnl_wol_request_ops = {
 	.request_cmd		= ETHTOOL_MSG_WOL_GET,
 	.reply_cmd		= ETHTOOL_MSG_WOL_GET_REPLY,
 	.hdr_attr		= ETHTOOL_A_WOL_HEADER,
-	.max_attr		= ETHTOOL_A_WOL_MAX,
 	.req_info_size		= sizeof(struct wol_req_info),
 	.reply_data_size	= sizeof(struct wol_reply_data),
-	.request_policy		= wol_get_policy,
 
 	.prepare_data		= wol_prepare_data,
 	.reply_size		= wol_reply_size,

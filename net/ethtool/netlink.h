@@ -266,10 +266,8 @@ static inline void ethnl_ops_complete(struct net_device *dev)
  * @request_cmd:      command id for request (GET)
  * @reply_cmd:        command id for reply (GET_REPLY)
  * @hdr_attr:         attribute type for request header
- * @max_attr:         maximum (top level) attribute type
  * @req_info_size:    size of request info
  * @reply_data_size:  size of reply data
- * @request_policy:   netlink policy for message contents
  * @allow_nodev_do:   allow non-dump request with no device identification
  * @parse_request:
  *	Parse request except common header (struct ethnl_req_info). Common
@@ -312,10 +310,8 @@ struct ethnl_request_ops {
 	u8			request_cmd;
 	u8			reply_cmd;
 	u16			hdr_attr;
-	unsigned int		max_attr;
 	unsigned int		req_info_size;
 	unsigned int		reply_data_size;
-	const struct nla_policy *request_policy;
 	bool			allow_nodev_do;
 
 	int (*parse_request)(struct ethnl_req_info *req_info,
@@ -348,6 +344,22 @@ extern const struct ethnl_request_ops ethnl_coalesce_request_ops;
 extern const struct ethnl_request_ops ethnl_pause_request_ops;
 extern const struct ethnl_request_ops ethnl_eee_request_ops;
 extern const struct ethnl_request_ops ethnl_tsinfo_request_ops;
+
+extern const struct nla_policy ethnl_strset_get_policy[ETHTOOL_A_STRSET_MAX + 1];
+extern const struct nla_policy ethnl_linkinfo_get_policy[ETHTOOL_A_LINKINFO_MAX + 1];
+extern const struct nla_policy ethnl_linkmodes_get_policy[ETHTOOL_A_LINKMODES_MAX + 1];
+extern const struct nla_policy ethnl_linkstate_get_policy[ETHTOOL_A_LINKSTATE_MAX + 1];
+extern const struct nla_policy ethnl_debug_get_policy[ETHTOOL_A_DEBUG_MAX + 1];
+extern const struct nla_policy ethnl_wol_get_policy[ETHTOOL_A_WOL_MAX + 1];
+extern const struct nla_policy ethnl_features_get_policy[ETHTOOL_A_FEATURES_MAX + 1];
+extern const struct nla_policy ethnl_privflags_get_policy[ETHTOOL_A_PRIVFLAGS_MAX + 1];
+extern const struct nla_policy ethnl_rings_get_policy[ETHTOOL_A_RINGS_MAX + 1];
+extern const struct nla_policy ethnl_channels_get_policy[ETHTOOL_A_CHANNELS_MAX + 1];
+extern const struct nla_policy ethnl_coalesce_get_policy[ETHTOOL_A_COALESCE_MAX + 1];
+extern const struct nla_policy ethnl_pause_get_policy[ETHTOOL_A_PAUSE_MAX + 1];
+extern const struct nla_policy ethnl_eee_get_policy[ETHTOOL_A_EEE_MAX + 1];
+extern const struct nla_policy ethnl_tsinfo_get_policy[ETHTOOL_A_TSINFO_MAX + 1];
+extern const struct nla_policy ethnl_tunnel_info_get_policy[ETHTOOL_A_TUNNEL_INFO_MAX + 1];
 
 int ethnl_set_linkinfo(struct sk_buff *skb, struct genl_info *info);
 int ethnl_set_linkmodes(struct sk_buff *skb, struct genl_info *info);

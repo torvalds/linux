@@ -15,8 +15,7 @@ struct rings_reply_data {
 #define RINGS_REPDATA(__reply_base) \
 	container_of(__reply_base, struct rings_reply_data, base)
 
-static const struct nla_policy
-rings_get_policy[ETHTOOL_A_RINGS_MAX + 1] = {
+const struct nla_policy ethnl_rings_get_policy[ETHTOOL_A_RINGS_MAX + 1] = {
 	[ETHTOOL_A_RINGS_UNSPEC]		= { .type = NLA_REJECT },
 	[ETHTOOL_A_RINGS_HEADER]		= { .type = NLA_NESTED },
 	[ETHTOOL_A_RINGS_RX_MAX]		= { .type = NLA_REJECT },
@@ -97,10 +96,8 @@ const struct ethnl_request_ops ethnl_rings_request_ops = {
 	.request_cmd		= ETHTOOL_MSG_RINGS_GET,
 	.reply_cmd		= ETHTOOL_MSG_RINGS_GET_REPLY,
 	.hdr_attr		= ETHTOOL_A_RINGS_HEADER,
-	.max_attr		= ETHTOOL_A_RINGS_MAX,
 	.req_info_size		= sizeof(struct rings_req_info),
 	.reply_data_size	= sizeof(struct rings_reply_data),
-	.request_policy		= rings_get_policy,
 
 	.prepare_data		= rings_prepare_data,
 	.reply_size		= rings_reply_size,
