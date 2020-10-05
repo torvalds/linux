@@ -3,7 +3,9 @@
 #ifndef GPIOLIB_CDEV_H
 #define GPIOLIB_CDEV_H
 
-#include <linux/device.h>
+#include <linux/types.h>
+
+struct gpio_device;
 
 #ifdef CONFIG_GPIO_CDEV
 
