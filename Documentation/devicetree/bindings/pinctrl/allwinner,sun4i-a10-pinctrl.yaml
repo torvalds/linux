@@ -61,7 +61,7 @@ properties:
 
   interrupts:
     minItems: 1
-    maxItems: 5
+    maxItems: 7
     description:
       One interrupt per external interrupt bank supported on the
       controller, sorted by bank number ascending order.
