@@ -105,7 +105,7 @@ void __init paging_init(void)
 	S390_lowcore.user_asce = S390_lowcore.kernel_asce;
 	crst_table_init((unsigned long *) init_mm.pgd, pgd_type);
 	vmem_map_init();
-	kasan_copy_shadow(init_mm.pgd);
+	kasan_copy_shadow_mapping();
 
 	/* enable virtual mapping in kernel mode */
 	__ctl_load(S390_lowcore.kernel_asce, 1, 1);

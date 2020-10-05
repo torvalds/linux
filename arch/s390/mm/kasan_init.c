@@ -393,7 +393,7 @@ void __init kasan_early_init(void)
 	sclp_early_printk("KernelAddressSanitizer initialized\n");
 }
 
-void __init kasan_copy_shadow(pgd_t *pg_dir)
+void __init kasan_copy_shadow_mapping(void)
 {
 	/*
 	 * At this point we are still running on early pages setup early_pg_dir,
@@ -407,7 +407,7 @@ void __init kasan_copy_shadow(pgd_t *pg_dir)
 	p4d_t *p4_dir_dst;
 
 	pg_dir_src = pgd_offset_raw(early_pg_dir, KASAN_SHADOW_START);
-	pg_dir_dst = pgd_offset_raw(pg_dir, KASAN_SHADOW_START);
+	pg_dir_dst = pgd_offset_raw(init_mm.pgd, KASAN_SHADOW_START);
 	p4_dir_src = p4d_offset(pg_dir_src, KASAN_SHADOW_START);
 	p4_dir_dst = p4d_offset(pg_dir_dst, KASAN_SHADOW_START);
 	memcpy(p4_dir_dst, p4_dir_src,

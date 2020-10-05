@@ -12,12 +12,12 @@
 #define KASAN_SHADOW_END	(KASAN_SHADOW_START + KASAN_SHADOW_SIZE)
 
 extern void kasan_early_init(void);
-extern void kasan_copy_shadow(pgd_t *dst);
+extern void kasan_copy_shadow_mapping(void);
 extern void kasan_free_early_identity(void);
 extern unsigned long kasan_vmax;
 #else
 static inline void kasan_early_init(void) { }
-static inline void kasan_copy_shadow(pgd_t *dst) { }
+static inline void kasan_copy_shadow_mapping(void) { }
 static inline void kasan_free_early_identity(void) { }
 #endif
 
