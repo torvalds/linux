@@ -5190,8 +5190,10 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 		int shift = ieee80211_vif_get_shift(&sdata->vif);
 
 		/* TODO: S1G Basic Rate Set is expressed elsewhere */
-		if (cbss->channel->band == NL80211_BAND_S1GHZ)
+		if (cbss->channel->band == NL80211_BAND_S1GHZ) {
+			ieee80211_s1g_sta_rate_init(new_sta);
 			goto skip_rates;
+		}
 
 		ieee80211_get_rates(sband, bss->supp_rates,
 				    bss->supp_rates_len,
