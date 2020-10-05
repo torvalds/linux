@@ -734,19 +734,6 @@ extern void uv_nmi_setup_hubless(void);
 #define UVH_NMI_MMR_SHIFT	63
 #define UVH_NMI_MMR_TYPE	"SCRATCH5"
 
-/* Newer SMM NMI handler, not present in all systems */
-#define UVH_NMI_MMRX		UVH_EVENT_OCCURRED0
-#define UVH_NMI_MMRX_CLEAR	UVH_EVENT_OCCURRED0_ALIAS
-#define UVH_NMI_MMRX_SHIFT	UVH_EVENT_OCCURRED0_EXTIO_INT0_SHFT
-#define UVH_NMI_MMRX_TYPE	"EXTIO_INT0"
-
-/* Non-zero indicates newer SMM NMI handler present */
-#define UVH_NMI_MMRX_SUPPORTED	UVH_EXTIO_INT0_BROADCAST
-
-/* Indicates to BIOS that we want to use the newer SMM NMI handler */
-#define UVH_NMI_MMRX_REQ	UVH_BIOS_KERNEL_MMR_ALIAS_2
-#define UVH_NMI_MMRX_REQ_SHIFT	62
-
 struct uv_hub_nmi_s {
 	raw_spinlock_t	nmi_lock;
 	atomic_t	in_nmi;		/* flag this node in UV NMI IRQ */
