@@ -260,7 +260,7 @@ void cpufreq_stats_record_transition(struct cpufreq_policy *policy,
 	struct cpufreq_stats *stats = policy->stats;
 	int old_index, new_index;
 
-	if (!stats)
+	if (unlikely(!stats))
 		return;
 
 	if (unlikely(READ_ONCE(stats->reset_pending)))
@@ -270,7 +270,7 @@ void cpufreq_stats_record_transition(struct cpufreq_policy *policy,
 	new_index = freq_table_get_index(stats, new_freq);
 
 	/* We can't do stats->time_in_state[-1]= .. */
-	if (old_index == -1 || new_index == -1 || old_index == new_index)
+	if (unlikely(old_index == -1 || new_index == -1 || old_index == new_index))
 		return;
 
 	cpufreq_stats_update(stats, stats->last_time);
