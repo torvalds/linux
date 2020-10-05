@@ -2239,14 +2239,10 @@ static void rtl_pll_power_down(struct rtl8169_private *tp)
 	default:
 		break;
 	}
-
-	clk_disable_unprepare(tp->clk);
 }
 
 static void rtl_pll_power_up(struct rtl8169_private *tp)
 {
-	clk_prepare_enable(tp->clk);
-
 	switch (tp->mac_version) {
 	case RTL_GIGA_MAC_VER_25 ... RTL_GIGA_MAC_VER_33:
 	case RTL_GIGA_MAC_VER_37:
@@ -2904,7 +2900,7 @@ static void rtl_hw_start_8168f_1(struct rtl8169_private *tp)
 		{ 0x08, 0x0001,	0x0002 },
 		{ 0x09, 0x0000,	0x0080 },
 		{ 0x19, 0x0000,	0x0224 },
-		{ 0x00, 0x0000,	0x0004 },
+		{ 0x00, 0x0000,	0x0008 },
 		{ 0x0c, 0x3df0,	0x0200 },
 	};
 
@@ -2921,7 +2917,7 @@ static void rtl_hw_start_8411(struct rtl8169_private *tp)
 		{ 0x06, 0x00c0,	0x0020 },
 		{ 0x0f, 0xffff,	0x5200 },
 		{ 0x19, 0x0000,	0x0224 },
-		{ 0x00, 0x0000,	0x0004 },
+		{ 0x00, 0x0000,	0x0008 },
 		{ 0x0c, 0x3df0,	0x0200 },
 	};
 
@@ -4826,21 +4822,8 @@ static void rtl8169_net_suspend(struct rtl8169_private *tp)
 
 #ifdef CONFIG_PM
 
-static int __maybe_unused rtl8169_suspend(struct device *device)
+static int rtl8169_net_resume(struct rtl8169_private *tp)
 {
-	struct rtl8169_private *tp = dev_get_drvdata(device);
-
-	rtnl_lock();
-	rtl8169_net_suspend(tp);
-	rtnl_unlock();
-
-	return 0;
-}
-
-static int rtl8169_resume(struct device *device)
-{
-	struct rtl8169_private *tp = dev_get_drvdata(device);
-
 	rtl_rar_set(tp, tp->dev->dev_addr);
 
 	if (tp->TxDescArray)
@@ -4849,6 +4832,33 @@ static int rtl8169_resume(struct device *device)
 	netif_device_attach(tp->dev);
 
 	return 0;
+}
+
+static int __maybe_unused rtl8169_suspend(struct device *device)
+{
+	struct rtl8169_private *tp = dev_get_drvdata(device);
+
+	rtnl_lock();
+	rtl8169_net_suspend(tp);
+	if (!device_may_wakeup(tp_to_dev(tp)))
+		clk_disable_unprepare(tp->clk);
+	rtnl_unlock();
+
+	return 0;
+}
+
+static int __maybe_unused rtl8169_resume(struct device *device)
+{
+	struct rtl8169_private *tp = dev_get_drvdata(device);
+
+	if (!device_may_wakeup(tp_to_dev(tp)))
+		clk_prepare_enable(tp->clk);
+
+	/* Reportedly at least Asus X453MA truncates packets otherwise */
+	if (tp->mac_version == RTL_GIGA_MAC_VER_37)
+		rtl_init_rxcfg(tp);
+
+	return rtl8169_net_resume(tp);
 }
 
 static int rtl8169_runtime_suspend(struct device *device)
@@ -4874,7 +4884,7 @@ static int rtl8169_runtime_resume(struct device *device)
 
 	__rtl8169_set_wol(tp, tp->saved_wolopts);
 
-	return rtl8169_resume(device);
+	return rtl8169_net_resume(tp);
 }
 
 static int rtl8169_runtime_idle(struct device *device)

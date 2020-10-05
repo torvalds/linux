@@ -7351,9 +7351,10 @@ int mlxsw_sp_netdevice_vrf_event(struct net_device *l3_dev, unsigned long event,
 	return err;
 }
 
-static int __mlxsw_sp_rif_macvlan_flush(struct net_device *dev, void *data)
+static int __mlxsw_sp_rif_macvlan_flush(struct net_device *dev,
+					struct netdev_nested_priv *priv)
 {
-	struct mlxsw_sp_rif *rif = data;
+	struct mlxsw_sp_rif *rif = (struct mlxsw_sp_rif *)priv->data;
 
 	if (!netif_is_macvlan(dev))
 		return 0;
@@ -7364,12 +7365,16 @@ static int __mlxsw_sp_rif_macvlan_flush(struct net_device *dev, void *data)
 
 static int mlxsw_sp_rif_macvlan_flush(struct mlxsw_sp_rif *rif)
 {
+	struct netdev_nested_priv priv = {
+		.data = (void *)rif,
+	};
+
 	if (!netif_is_macvlan_port(rif->dev))
 		return 0;
 
 	netdev_warn(rif->dev, "Router interface is deleted. Upper macvlans will not work\n");
 	return netdev_walk_all_upper_dev_rcu(rif->dev,
-					     __mlxsw_sp_rif_macvlan_flush, rif);
+					     __mlxsw_sp_rif_macvlan_flush, &priv);
 }
 
 static void mlxsw_sp_rif_subport_setup(struct mlxsw_sp_rif *rif,

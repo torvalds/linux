@@ -432,7 +432,7 @@ static int reclaim_pages_cmd(struct mlx5_core_dev *dev,
 	u32 npages;
 	u32 i = 0;
 
-	if (dev->state != MLX5_DEVICE_STATE_INTERNAL_ERROR)
+	if (!mlx5_cmd_is_down(dev))
 		return mlx5_cmd_exec(dev, in, in_size, out, out_size);
 
 	/* No hard feelings, we want our pages back! */

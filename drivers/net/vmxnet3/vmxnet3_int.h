@@ -470,6 +470,10 @@ vmxnet3_rq_destroy_all(struct vmxnet3_adapter *adapter);
 netdev_features_t
 vmxnet3_fix_features(struct net_device *netdev, netdev_features_t features);
 
+netdev_features_t
+vmxnet3_features_check(struct sk_buff *skb,
+		       struct net_device *netdev, netdev_features_t features);
+
 int
 vmxnet3_set_features(struct net_device *netdev, netdev_features_t features);
 

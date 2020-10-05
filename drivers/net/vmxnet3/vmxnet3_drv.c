@@ -1032,7 +1032,6 @@ vmxnet3_tq_xmit(struct sk_buff *skb, struct vmxnet3_tx_queue *tq,
 	/* Use temporary descriptor to avoid touching bits multiple times */
 	union Vmxnet3_GenericDesc tempTxDesc;
 #endif
-	struct udphdr *udph;
 
 	count = txd_estimate(skb);
 
@@ -1135,8 +1134,7 @@ vmxnet3_tq_xmit(struct sk_buff *skb, struct vmxnet3_tx_queue *tq,
 			gdesc->txd.om = VMXNET3_OM_ENCAP;
 			gdesc->txd.msscof = ctx.mss;
 
-			udph = udp_hdr(skb);
-			if (udph->check)
+			if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_TUNNEL_CSUM)
 				gdesc->txd.oco = 1;
 		} else {
 			gdesc->txd.hlen = ctx.l4_offset + ctx.l4_hdr_size;
@@ -3371,6 +3369,7 @@ vmxnet3_probe_device(struct pci_dev *pdev,
 		.ndo_change_mtu = vmxnet3_change_mtu,
 		.ndo_fix_features = vmxnet3_fix_features,
 		.ndo_set_features = vmxnet3_set_features,
+		.ndo_features_check = vmxnet3_features_check,
 		.ndo_get_stats64 = vmxnet3_get_stats64,
 		.ndo_tx_timeout = vmxnet3_tx_timeout,
 		.ndo_set_rx_mode = vmxnet3_set_mc,

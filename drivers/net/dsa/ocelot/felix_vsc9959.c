@@ -685,12 +685,12 @@ static struct vcap_field vsc9959_vcap_is2_actions[] = {
 	[VCAP_IS2_ACT_POLICE_ENA]		= {  9,  1},
 	[VCAP_IS2_ACT_POLICE_IDX]		= { 10,  9},
 	[VCAP_IS2_ACT_POLICE_VCAP_ONLY]		= { 19,  1},
-	[VCAP_IS2_ACT_PORT_MASK]		= { 20, 11},
-	[VCAP_IS2_ACT_REW_OP]			= { 31,  9},
-	[VCAP_IS2_ACT_SMAC_REPLACE_ENA]		= { 40,  1},
-	[VCAP_IS2_ACT_RSV]			= { 41,  2},
-	[VCAP_IS2_ACT_ACL_ID]			= { 43,  6},
-	[VCAP_IS2_ACT_HIT_CNT]			= { 49, 32},
+	[VCAP_IS2_ACT_PORT_MASK]		= { 20,  6},
+	[VCAP_IS2_ACT_REW_OP]			= { 26,  9},
+	[VCAP_IS2_ACT_SMAC_REPLACE_ENA]		= { 35,  1},
+	[VCAP_IS2_ACT_RSV]			= { 36,  2},
+	[VCAP_IS2_ACT_ACL_ID]			= { 38,  6},
+	[VCAP_IS2_ACT_HIT_CNT]			= { 44, 32},
 };
 
 static const struct vcap_props vsc9959_vcap_props[] = {
@@ -1284,8 +1284,28 @@ void vsc9959_mdio_bus_free(struct ocelot *ocelot)
 static void vsc9959_sched_speed_set(struct ocelot *ocelot, int port,
 				    u32 speed)
 {
+	u8 tas_speed;
+
+	switch (speed) {
+	case SPEED_10:
+		tas_speed = OCELOT_SPEED_10;
+		break;
+	case SPEED_100:
+		tas_speed = OCELOT_SPEED_100;
+		break;
+	case SPEED_1000:
+		tas_speed = OCELOT_SPEED_1000;
+		break;
+	case SPEED_2500:
+		tas_speed = OCELOT_SPEED_2500;
+		break;
+	default:
+		tas_speed = OCELOT_SPEED_1000;
+		break;
+	}
+
 	ocelot_rmw_rix(ocelot,
-		       QSYS_TAG_CONFIG_LINK_SPEED(speed),
+		       QSYS_TAG_CONFIG_LINK_SPEED(tas_speed),
 		       QSYS_TAG_CONFIG_LINK_SPEED_M,
 		       QSYS_TAG_CONFIG, port);
 }

@@ -246,8 +246,10 @@ mlx5_tc_ct_rule_to_tuple_nat(struct mlx5_ct_tuple *tuple,
 		case FLOW_ACT_MANGLE_HDR_TYPE_IP6:
 			ip6_offset = (offset - offsetof(struct ipv6hdr, saddr));
 			ip6_offset /= 4;
-			if (ip6_offset < 8)
+			if (ip6_offset < 4)
 				tuple->ip.src_v6.s6_addr32[ip6_offset] = cpu_to_be32(val);
+			else if (ip6_offset < 8)
+				tuple->ip.dst_v6.s6_addr32[ip6_offset - 4] = cpu_to_be32(val);
 			else
 				return -EOPNOTSUPP;
 			break;

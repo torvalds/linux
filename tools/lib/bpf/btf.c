@@ -659,6 +659,12 @@ struct btf *btf__parse_raw(const char *path)
 		err = -EIO;
 		goto err_out;
 	}
+	if (magic == __bswap_16(BTF_MAGIC)) {
+		/* non-native endian raw BTF */
+		pr_warn("non-native BTF endianness is not supported\n");
+		err = -LIBBPF_ERRNO__ENDIAN;
+		goto err_out;
+	}
 	if (magic != BTF_MAGIC) {
 		/* definitely not a raw BTF */
 		err = -EPROTO;
