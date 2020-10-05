@@ -26,7 +26,7 @@
  * struct gpiochip_info - Information about a certain GPIO chip
  * @name: the Linux kernel name of this GPIO chip
  * @label: a functional name for this GPIO chip, such as a product
- * number, may be empty
+ * number, may be empty (i.e. label[0] == '\0')
  * @lines: number of GPIO lines on this chip
  */
 struct gpiochip_info {
@@ -203,7 +203,7 @@ struct gpio_v2_line_request {
  * struct gpio_v2_line_info - Information about a certain GPIO line
  * @name: the name of this GPIO line, such as the output pin of the line on
  * the chip, a rail or a pin header name on a board, as specified by the
- * GPIO chip, may be empty
+ * GPIO chip, may be empty (i.e. name[0] == '\0')
  * @consumer: a functional name for the consumer of this GPIO line as set
  * by whatever is using it, will be empty if there is no current user but
  * may also be empty if the consumer doesn't set this up
@@ -315,7 +315,7 @@ struct gpio_v2_line_event {
  * @flags: various flags for this line
  * @name: the name of this GPIO line, such as the output pin of the line on the
  * chip, a rail or a pin header name on a board, as specified by the gpio
- * chip, may be empty
+ * chip, may be empty (i.e. name[0] == '\0')
  * @consumer: a functional name for the consumer of this GPIO line as set by
  * whatever is using it, will be empty if there is no current user but may
  * also be empty if the consumer doesn't set this up
