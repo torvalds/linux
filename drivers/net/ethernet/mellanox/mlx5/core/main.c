@@ -1676,7 +1676,11 @@ static int __init init(void)
 		goto err_debug;
 
 #ifdef CONFIG_MLX5_CORE_EN
-	mlx5e_init();
+	err = mlx5e_init();
+	if (err) {
+		pci_unregister_driver(&mlx5_core_driver);
+		goto err_debug;
+	}
 #endif
 
 	return 0;

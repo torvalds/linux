@@ -217,7 +217,7 @@ int mlx5_firmware_flash(struct mlx5_core_dev *dev, const struct firmware *fw,
 int mlx5_fw_version_query(struct mlx5_core_dev *dev,
 			  u32 *running_ver, u32 *stored_ver);
 
-void mlx5e_init(void);
+int mlx5e_init(void);
 void mlx5e_cleanup(void);
 
 static inline bool mlx5_sriov_is_enabled(struct mlx5_core_dev *dev)

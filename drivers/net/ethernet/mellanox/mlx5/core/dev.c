@@ -31,6 +31,7 @@
  */
 
 #include <linux/mlx5/driver.h>
+#include <linux/mlx5/eswitch.h>
 #include <linux/mlx5/mlx5_ifc_vdpa.h>
 #include "mlx5_core.h"
 
@@ -51,6 +52,75 @@ enum {
 	MLX5_INTERFACE_ADDED,
 	MLX5_INTERFACE_ATTACHED,
 };
+
+static bool is_eth_rep_supported(struct mlx5_core_dev *dev)
+{
+	if (!IS_ENABLED(CONFIG_MLX5_ESWITCH))
+		return false;
+
+	if (!MLX5_ESWITCH_MANAGER(dev))
+		return false;
+
+	if (mlx5_eswitch_mode(dev->priv.eswitch) != MLX5_ESWITCH_OFFLOADS)
+		return false;
+
+	return true;
+}
+
+static bool is_eth_supported(struct mlx5_core_dev *dev)
+{
+	if (!IS_ENABLED(CONFIG_MLX5_CORE_EN))
+		return false;
+
+	if (is_eth_rep_supported(dev))
+		return false;
+
+	if (MLX5_CAP_GEN(dev, port_type) != MLX5_CAP_PORT_TYPE_ETH)
+		return false;
+
+	if (!MLX5_CAP_GEN(dev, eth_net_offloads)) {
+		mlx5_core_warn(dev, "Missing eth_net_offloads capability\n");
+		return false;
+	}
+
+	if (!MLX5_CAP_GEN(dev, nic_flow_table)) {
+		mlx5_core_warn(dev, "Missing nic_flow_table capability\n");
+		return false;
+	}
+
+	if (!MLX5_CAP_ETH(dev, csum_cap)) {
+		mlx5_core_warn(dev, "Missing csum_cap capability\n");
+		return false;
+	}
+
+	if (!MLX5_CAP_ETH(dev, max_lso_cap)) {
+		mlx5_core_warn(dev, "Missing max_lso_cap capability\n");
+		return false;
+	}
+
+	if (!MLX5_CAP_ETH(dev, vlan_cap)) {
+		mlx5_core_warn(dev, "Missing vlan_cap capability\n");
+		return false;
+	}
+
+	if (!MLX5_CAP_ETH(dev, rss_ind_tbl_cap)) {
+		mlx5_core_warn(dev, "Missing rss_ind_tbl_cap capability\n");
+		return false;
+	}
+
+	if (MLX5_CAP_FLOWTABLE(dev,
+			       flow_table_properties_nic_receive.max_ft_level) < 3) {
+		mlx5_core_warn(dev, "max_ft_level < 3\n");
+		return false;
+	}
+
+	if (!MLX5_CAP_ETH(dev, self_lb_en_modifiable))
+		mlx5_core_warn(dev, "Self loop back prevention is not supported\n");
+	if (!MLX5_CAP_GEN(dev, cq_moderation))
+		mlx5_core_warn(dev, "CQ moderation is not supported\n");
+
+	return true;
+}
 
 static bool is_vnet_supported(struct mlx5_core_dev *dev)
 {
@@ -80,6 +150,10 @@ static const struct mlx5_adev_device {
 } mlx5_adev_devices[] = {
 	[MLX5_INTERFACE_PROTOCOL_VDPA] = { .suffix = "vnet",
 					   .is_supported = &is_vnet_supported },
+	[MLX5_INTERFACE_PROTOCOL_ETH] = { .suffix = "eth",
+					  .is_supported = &is_eth_supported },
+	[MLX5_INTERFACE_PROTOCOL_ETH_REP] = { .suffix = "eth-rep",
+					   .is_supported = &is_eth_rep_supported },
 };
 
 int mlx5_adev_idx_alloc(void)

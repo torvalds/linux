@@ -1315,16 +1315,48 @@ static const struct mlx5_eswitch_rep_ops rep_ops = {
 	.get_proto_dev = mlx5e_vport_rep_get_proto_dev
 };
 
-void mlx5e_rep_register_vport_reps(struct mlx5_core_dev *mdev)
+static int mlx5e_rep_probe(struct auxiliary_device *adev,
+			   const struct auxiliary_device_id *id)
 {
-	struct mlx5_eswitch *esw = mdev->priv.eswitch;
+	struct mlx5_adev *edev = container_of(adev, struct mlx5_adev, adev);
+	struct mlx5_core_dev *mdev = edev->mdev;
+	struct mlx5_eswitch *esw;
 
+	esw = mdev->priv.eswitch;
 	mlx5_eswitch_register_vport_reps(esw, &rep_ops, REP_ETH);
+	return 0;
 }
 
-void mlx5e_rep_unregister_vport_reps(struct mlx5_core_dev *mdev)
+static void mlx5e_rep_remove(struct auxiliary_device *adev)
 {
-	struct mlx5_eswitch *esw = mdev->priv.eswitch;
+	struct mlx5_adev *vdev = container_of(adev, struct mlx5_adev, adev);
+	struct mlx5_core_dev *mdev = vdev->mdev;
+	struct mlx5_eswitch *esw;
 
+	esw = mdev->priv.eswitch;
 	mlx5_eswitch_unregister_vport_reps(esw, REP_ETH);
+}
+
+static const struct auxiliary_device_id mlx5e_rep_id_table[] = {
+	{ .name = MLX5_ADEV_NAME ".eth-rep", },
+	{},
+};
+
+MODULE_DEVICE_TABLE(auxiliary, mlx5e_rep_id_table);
+
+static struct auxiliary_driver mlx5e_rep_driver = {
+	.name = "eth-rep",
+	.probe = mlx5e_rep_probe,
+	.remove = mlx5e_rep_remove,
+	.id_table = mlx5e_rep_id_table,
+};
+
+int mlx5e_rep_init(void)
+{
+	return auxiliary_driver_register(&mlx5e_rep_driver);
+}
+
+void mlx5e_rep_cleanup(void)
+{
+	auxiliary_driver_unregister(&mlx5e_rep_driver);
 }
