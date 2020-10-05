@@ -1229,7 +1229,7 @@ static blk_status_t scsi_setup_cmnd(struct scsi_device *sdev,
 }
 
 static blk_status_t
-scsi_prep_state_check(struct scsi_device *sdev, struct request *req)
+scsi_device_state_check(struct scsi_device *sdev, struct request *req)
 {
 	switch (sdev->sdev_state) {
 	case SDEV_OFFLINE:
@@ -1662,7 +1662,7 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	 * commands.
 	 */
 	if (unlikely(sdev->sdev_state != SDEV_RUNNING)) {
-		ret = scsi_prep_state_check(sdev, req);
+		ret = scsi_device_state_check(sdev, req);
 		if (ret != BLK_STS_OK)
 			goto out_put_budget;
 	}
