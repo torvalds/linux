@@ -1968,7 +1968,6 @@ struct scsi_device *scsi_device_from_queue(struct request_queue *q)
 
 	return sdev;
 }
-EXPORT_SYMBOL_GPL(scsi_device_from_queue);
 
 /**
  * scsi_block_requests - Utility function used by low-level drivers to prevent
