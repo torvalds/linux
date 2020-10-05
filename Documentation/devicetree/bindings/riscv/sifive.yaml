@@ -22,4 +22,7 @@ properties:
           - sifive,hifive-unleashed-a00
       - const: sifive,fu540-c000
       - const: sifive,fu540
+
+additionalProperties: true
+
 ...

@@ -52,4 +52,7 @@ properties:
         items:
           - const: yna,cu2000-neo
           - const: ingenic,x2000e
+
+additionalProperties: true
+
 ...

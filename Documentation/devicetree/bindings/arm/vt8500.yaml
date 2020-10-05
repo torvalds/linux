@@ -21,3 +21,6 @@ properties:
           - wm,wm8650
           - wm,wm8750
           - wm,wm8850
+          
+additionalProperties: true
+
