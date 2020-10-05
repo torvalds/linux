@@ -17,7 +17,8 @@ description: |
   on the device tree.
 
   The valid names for BD9576 regulator nodes are
-  vd50, vd18, vdddr, vd10, voutl1, vouts1
+  regulator-vd50, regulator-vd18, regulator-vdddr, regulator-vd10,
+  regulator-voutl1, regulator-vouts1
 
 patternProperties:
   "regulator-.+":
