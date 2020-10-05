@@ -549,7 +549,8 @@ mt8183_da7219_max98357_headset_init(struct snd_soc_component *component)
 				    "Headset Jack",
 				    SND_JACK_HEADSET |
 				    SND_JACK_BTN_0 | SND_JACK_BTN_1 |
-				    SND_JACK_BTN_2 | SND_JACK_BTN_3,
+				    SND_JACK_BTN_2 | SND_JACK_BTN_3 |
+				    SND_JACK_LINEOUT,
 				    &priv->headset_jack,
 				    NULL, 0);
 	if (ret)
