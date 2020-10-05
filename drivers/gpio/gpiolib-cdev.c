@@ -307,11 +307,11 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
 	lh->gdev = gdev;
 	get_device(&gdev->dev);
 
-	/* Make sure this is terminated */
-	handlereq.consumer_label[sizeof(handlereq.consumer_label)-1] = '\0';
-	if (strlen(handlereq.consumer_label)) {
-		lh->label = kstrdup(handlereq.consumer_label,
-				    GFP_KERNEL);
+	if (handlereq.consumer_label[0] != '\0') {
+		/* label is only initialized if consumer_label is set */
+		lh->label = kstrndup(handlereq.consumer_label,
+				     sizeof(handlereq.consumer_label) - 1,
+				     GFP_KERNEL);
 		if (!lh->label) {
 			ret = -ENOMEM;
 			goto out_free_lh;
@@ -1322,11 +1322,10 @@ static int linereq_create(struct gpio_device *gdev, void __user *ip)
 		INIT_DELAYED_WORK(&lr->lines[i].work, debounce_work_func);
 	}
 
-	/* Make sure this is terminated */
-	ulr.consumer[sizeof(ulr.consumer)-1] = '\0';
-	if (strlen(ulr.consumer)) {
+	if (ulr.consumer[0] != '\0') {
 		/* label is only initialized if consumer is set */
-		lr->label = kstrdup(ulr.consumer, GFP_KERNEL);
+		lr->label = kstrndup(ulr.consumer, sizeof(ulr.consumer) - 1,
+				     GFP_KERNEL);
 		if (!lr->label) {
 			ret = -ENOMEM;
 			goto out_free_linereq;
@@ -1711,11 +1710,11 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
 	le->gdev = gdev;
 	get_device(&gdev->dev);
 
-	/* Make sure this is terminated */
-	eventreq.consumer_label[sizeof(eventreq.consumer_label)-1] = '\0';
-	if (strlen(eventreq.consumer_label)) {
-		le->label = kstrdup(eventreq.consumer_label,
-				    GFP_KERNEL);
+	if (eventreq.consumer_label[0] != '\0') {
+		/* label is only initialized if consumer_label is set */
+		le->label = kstrndup(eventreq.consumer_label,
+				     sizeof(eventreq.consumer_label) - 1,
+				     GFP_KERNEL);
 		if (!le->label) {
 			ret = -ENOMEM;
 			goto out_free_le;
