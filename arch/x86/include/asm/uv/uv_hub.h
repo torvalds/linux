@@ -129,17 +129,6 @@
  */
 #define UV_MAX_NASID_VALUE	(UV_MAX_NUMALINK_BLADES * 2)
 
-/* System Controller Interface Reg info */
-struct uv_scir_s {
-	struct timer_list timer;
-	unsigned long	offset;
-	unsigned long	last;
-	unsigned long	idle_on;
-	unsigned long	idle_off;
-	unsigned char	state;
-	unsigned char	enabled;
-};
-
 /* GAM (globally addressed memory) range table */
 struct uv_gam_range_s {
 	u32	limit;		/* PA bits 56:26 (GAM_RANGE_SHFT) */
@@ -191,15 +180,12 @@ struct uv_hub_info_s {
 struct uv_cpu_info_s {
 	void			*p_uv_hub_info;
 	unsigned char		blade_cpu_id;
-	struct uv_scir_s	scir;
+	void			*reserved;
 };
 DECLARE_PER_CPU(struct uv_cpu_info_s, __uv_cpu_info);
 
 #define uv_cpu_info		this_cpu_ptr(&__uv_cpu_info)
 #define uv_cpu_info_per(cpu)	(&per_cpu(__uv_cpu_info, cpu))
-
-#define	uv_scir_info		(&uv_cpu_info->scir)
-#define	uv_cpu_scir_info(cpu)	(&uv_cpu_info_per(cpu)->scir)
 
 /* Node specific hub common info struct */
 extern void **__uv_hub_info_list;
@@ -297,9 +283,9 @@ union uvh_apicid {
 #define UV3_GLOBAL_MMR32_SIZE		(32UL * 1024 * 1024)
 
 #define UV4_LOCAL_MMR_BASE		0xfa000000UL
-#define UV4_GLOBAL_MMR32_BASE		0xfc000000UL
+#define UV4_GLOBAL_MMR32_BASE		0
 #define UV4_LOCAL_MMR_SIZE		(32UL * 1024 * 1024)
-#define UV4_GLOBAL_MMR32_SIZE		(16UL * 1024 * 1024)
+#define UV4_GLOBAL_MMR32_SIZE		0
 
 #define UV_LOCAL_MMR_BASE		(				\
 					is_uv2_hub() ? UV2_LOCAL_MMR_BASE : \
@@ -771,29 +757,6 @@ DECLARE_PER_CPU(struct uv_cpu_nmi_s, uv_cpu_nmi);
 #define	UV_NMI_STATE_IN			1
 #define	UV_NMI_STATE_DUMP		2
 #define	UV_NMI_STATE_DUMP_DONE		3
-
-/* Update SCIR state */
-static inline void uv_set_scir_bits(unsigned char value)
-{
-	if (uv_scir_info->state != value) {
-		uv_scir_info->state = value;
-		uv_write_local_mmr8(uv_scir_info->offset, value);
-	}
-}
-
-static inline unsigned long uv_scir_offset(int apicid)
-{
-	return SCIR_LOCAL_MMR_BASE | (apicid & 0x3f);
-}
-
-static inline void uv_set_cpu_scir_bits(int cpu, unsigned char value)
-{
-	if (uv_cpu_scir_info(cpu)->state != value) {
-		uv_write_global_mmr8(uv_cpu_to_pnode(cpu),
-				uv_cpu_scir_info(cpu)->offset, value);
-		uv_cpu_scir_info(cpu)->state = value;
-	}
-}
 
 /*
  * Get the minimum revision number of the hub chips within the partition.
