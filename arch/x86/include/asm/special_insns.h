@@ -256,6 +256,48 @@ static inline void movdir64b(void *dst, const void *src)
 		     :  "m" (*__src), "a" (__dst), "d" (__src));
 }
 
+/**
+ * enqcmds - Enqueue a command in supervisor (CPL0) mode
+ * @dst: destination, in MMIO space (must be 512-bit aligned)
+ * @src: 512 bits memory operand
+ *
+ * The ENQCMDS instruction allows software to write a 512-bit command to
+ * a 512-bit-aligned special MMIO region that supports the instruction.
+ * A return status is loaded into the ZF flag in the RFLAGS register.
+ * ZF = 0 equates to success, and ZF = 1 indicates retry or error.
+ *
+ * This function issues the ENQCMDS instruction to submit data from
+ * kernel space to MMIO space, in a unit of 512 bits. Order of data access
+ * is not guaranteed, nor is a memory barrier performed afterwards. It
+ * returns 0 on success and -EAGAIN on failure.
+ *
+ * Warning: Do not use this helper unless your driver has checked that the
+ * ENQCMDS instruction is supported on the platform and the device accepts
+ * ENQCMDS.
+ */
+static inline int enqcmds(void __iomem *dst, const void *src)
+{
+	const struct { char _[64]; } *__src = src;
+	struct { char _[64]; } *__dst = dst;
+	int zf;
+
+	/*
+	 * ENQCMDS %(rdx), rax
+	 *
+	 * See movdir64b()'s comment on operand specification.
+	 */
+	asm volatile(".byte 0xf3, 0x0f, 0x38, 0xf8, 0x02, 0x66, 0x90"
+		     CC_SET(z)
+		     : CC_OUT(z) (zf), "+m" (*__dst)
+		     : "m" (*__src), "a" (__dst), "d" (__src));
+
+	/* Submission failure is indicated via EFLAGS.ZF=1 */
+	if (zf)
+		return -EAGAIN;
+
+	return 0;
+}
+
 #endif /* __KERNEL__ */
 
 #endif /* _ASM_X86_SPECIAL_INSNS_H */
