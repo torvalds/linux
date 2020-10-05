@@ -205,4 +205,6 @@ properties:
           required:
             - speed
 
+additionalProperties: true
+
 ...

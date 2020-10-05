@@ -71,7 +71,7 @@ required:
   - compatible
   - reg
 
-unevaluatedProperties: false
+additionalProperties: true
 
 examples:
   - |

@@ -69,6 +69,8 @@ properties:
 required:
   - "#power-domain-cells"
 
+additionalProperties: true
+
 examples:
   - |
     power: power-controller@12340000 {

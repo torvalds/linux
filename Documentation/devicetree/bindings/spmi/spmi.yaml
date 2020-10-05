@@ -55,6 +55,8 @@ patternProperties:
 required:
   - reg
 
+additionalProperties: true
+
 examples:
   - |
     #include <dt-bindings/spmi/spmi.h>

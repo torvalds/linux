@@ -21,4 +21,6 @@ properties:
       trigger sources (e.g. a specific USB port).
     enum: [ 0, 1 ]
 
+additionalProperties: true
+
 ...

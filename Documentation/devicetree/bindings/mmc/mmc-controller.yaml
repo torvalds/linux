@@ -349,6 +349,8 @@ dependencies:
   cd-debounce-delay-ms: [ cd-gpios ]
   fixed-emmc-driver-type: [ non-removable ]
 
+additionalProperties: true
+
 examples:
   - |
     mmc@ab000000 {

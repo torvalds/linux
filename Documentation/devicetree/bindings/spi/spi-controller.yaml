@@ -140,6 +140,8 @@ patternProperties:
       - compatible
       - reg
 
+additionalProperties: true
+
 examples:
   - |
     spi@f00 {

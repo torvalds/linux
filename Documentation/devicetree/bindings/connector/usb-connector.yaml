@@ -172,6 +172,8 @@ allOf:
         type:
           const: micro
 
+additionalProperties: true
+
 examples:
   # Micro-USB connector with HS lines routed via controller (MUIC).
   - |
