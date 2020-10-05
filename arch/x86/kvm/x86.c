@@ -1497,8 +1497,8 @@ bool kvm_msr_allowed(struct kvm_vcpu *vcpu, u32 index, u32 type)
 	bool r = kvm->arch.msr_filter.default_allow;
 	int idx;
 
-	/* MSR filtering not set up, allow everything */
-	if (!count)
+	/* MSR filtering not set up or x2APIC enabled, allow everything */
+	if (!count || (index >= 0x800 && index <= 0x8ff))
 		return true;
 
 	/* Prevent collision with set_msr_filter */

@@ -4735,37 +4735,37 @@ KVM_PV_VM_VERIFY
 	struct kvm_msr_filter_range ranges[KVM_MSR_FILTER_MAX_RANGES];
   };
 
-flags values for struct kvm_msr_filter_range:
+flags values for ``struct kvm_msr_filter_range``:
 
-KVM_MSR_FILTER_READ
+``KVM_MSR_FILTER_READ``
 
   Filter read accesses to MSRs using the given bitmap. A 0 in the bitmap
   indicates that a read should immediately fail, while a 1 indicates that
   a read for a particular MSR should be handled regardless of the default
   filter action.
 
-KVM_MSR_FILTER_WRITE
+``KVM_MSR_FILTER_WRITE``
 
   Filter write accesses to MSRs using the given bitmap. A 0 in the bitmap
   indicates that a write should immediately fail, while a 1 indicates that
   a write for a particular MSR should be handled regardless of the default
   filter action.
 
-KVM_MSR_FILTER_READ | KVM_MSR_FILTER_WRITE
+``KVM_MSR_FILTER_READ | KVM_MSR_FILTER_WRITE``
 
   Filter both read and write accesses to MSRs using the given bitmap. A 0
   in the bitmap indicates that both reads and writes should immediately fail,
   while a 1 indicates that reads and writes for a particular MSR are not
   filtered by this range.
 
-flags values for struct kvm_msr_filter:
+flags values for ``struct kvm_msr_filter``:
 
-KVM_MSR_FILTER_DEFAULT_ALLOW
+``KVM_MSR_FILTER_DEFAULT_ALLOW``
 
   If no filter range matches an MSR index that is getting accessed, KVM will
   fall back to allowing access to the MSR.
 
-KVM_MSR_FILTER_DEFAULT_DENY
+``KVM_MSR_FILTER_DEFAULT_DENY``
 
   If no filter range matches an MSR index that is getting accessed, KVM will
   fall back to rejecting access to the MSR. In this mode, all MSRs that should
@@ -4775,14 +4775,19 @@ This ioctl allows user space to define up to 16 bitmaps of MSR ranges to
 specify whether a certain MSR access should be explicitly filtered for or not.
 
 If this ioctl has never been invoked, MSR accesses are not guarded and the
-old KVM in-kernel emulation behavior is fully preserved.
+default KVM in-kernel emulation behavior is fully preserved.
 
 As soon as the filtering is in place, every MSR access is processed through
-the filtering. If a bit is within one of the defined ranges, read and write
+the filtering except for accesses to the x2APIC MSRs (from 0x800 to 0x8ff);
+x2APIC MSRs are always allowed, independent of the ``default_allow`` setting,
+and their behavior depends on the ``X2APIC_ENABLE`` bit of the APIC base
+register.
+
+If a bit is within one of the defined ranges, read and write
 accesses are guarded by the bitmap's value for the MSR index. If it is not
 defined in any range, whether MSR access is rejected is determined by the flags
-field in the kvm_msr_filter struct: KVM_MSR_FILTER_DEFAULT_ALLOW and
-KVM_MSR_FILTER_DEFAULT_DENY.
+field in the kvm_msr_filter struct: ``KVM_MSR_FILTER_DEFAULT_ALLOW`` and
+``KVM_MSR_FILTER_DEFAULT_DENY``.
 
 Calling this ioctl with an empty set of ranges (all nmsrs == 0) disables MSR
 filtering. In that mode, KVM_MSR_FILTER_DEFAULT_DENY no longer has any effect.
