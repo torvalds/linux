@@ -70,6 +70,12 @@
 #define RV1126_OTP_NVM_PRSTART		0x44
 #define RV1126_OTP_NVM_PRSTATE		0x48
 
+#define ROCKCHIP_OTP_WR_MAGIC		(0x524F434B)
+
+static unsigned int rockchip_otp_wr_magic;
+module_param(rockchip_otp_wr_magic, uint, 0644);
+MODULE_PARM_DESC(rockchip_otp_wr_magic, "magic for enable otp write func.");
+
 struct rockchip_data;
 
 struct rockchip_otp {
@@ -328,8 +334,11 @@ static int rockchip_otp_write(void *context, unsigned int offset, void *val,
 	int ret = -EINVAL;
 
 	mutex_lock(&otp->mutex);
-	if (otp->data && otp->data->reg_write)
+	if (rockchip_otp_wr_magic == ROCKCHIP_OTP_WR_MAGIC &&
+	    otp->data && otp->data->reg_write) {
 		ret = otp->data->reg_write(context, offset, val, bytes);
+		rockchip_otp_wr_magic = 0;
+	}
 	mutex_unlock(&otp->mutex);
 
 	return ret;
