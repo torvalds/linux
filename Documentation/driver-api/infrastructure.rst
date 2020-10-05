@@ -6,6 +6,7 @@ The Basic Device Driver-Model Structures
 
 .. kernel-doc:: include/linux/device.h
    :internal:
+   :no-identifiers: device_link_state
 
 Device Drivers Base
 -------------------
