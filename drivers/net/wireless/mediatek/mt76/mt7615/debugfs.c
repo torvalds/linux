@@ -467,6 +467,20 @@ static const struct file_operations fops_ext_mac_addr = {
 	.owner = THIS_MODULE,
 };
 
+static int
+mt7663s_sched_quota_read(struct seq_file *s, void *data)
+{
+	struct mt7615_dev *dev = dev_get_drvdata(s->private);
+	struct mt76_sdio *sdio = &dev->mt76.sdio;
+
+	seq_printf(s, "pse_data_quota\t%d\n", sdio->sched.pse_data_quota);
+	seq_printf(s, "ple_data_quota\t%d\n", sdio->sched.ple_data_quota);
+	seq_printf(s, "pse_mcu_quota\t%d\n", sdio->sched.pse_mcu_quota);
+	seq_printf(s, "sched_deficit\t%d\n", sdio->sched.deficit);
+
+	return 0;
+}
+
 int mt7615_init_debugfs(struct mt7615_dev *dev)
 {
 	struct dentry *dir;
@@ -514,6 +528,9 @@ int mt7615_init_debugfs(struct mt7615_dev *dev)
 	debugfs_create_u32("rf_regidx", 0600, dir, &dev->debugfs_rf_reg);
 	debugfs_create_file_unsafe("rf_regval", 0600, dir, dev,
 				   &fops_rf_reg);
+	if (mt76_is_sdio(&dev->mt76))
+		debugfs_create_devm_seqfile(dev->mt76.dev, "sched-quota", dir,
+					    mt7663s_sched_quota_read);
 
 	return 0;
 }
