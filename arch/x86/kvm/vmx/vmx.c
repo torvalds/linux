@@ -129,6 +129,9 @@ static bool __read_mostly enable_preemption_timer = 1;
 module_param_named(preemption_timer, enable_preemption_timer, bool, S_IRUGO);
 #endif
 
+extern bool __read_mostly allow_smaller_maxphyaddr;
+module_param(allow_smaller_maxphyaddr, bool, S_IRUGO);
+
 #define KVM_VM_CR0_ALWAYS_OFF (X86_CR0_NW | X86_CR0_CD)
 #define KVM_VM_CR0_ALWAYS_ON_UNRESTRICTED_GUEST X86_CR0_NE
 #define KVM_VM_CR0_ALWAYS_ON				\
@@ -791,6 +794,18 @@ void update_exception_bitmap(struct kvm_vcpu *vcpu)
 	 */
 	if (is_guest_mode(vcpu))
 		eb |= get_vmcs12(vcpu)->exception_bitmap;
+        else {
+		/*
+		 * If EPT is enabled, #PF is only trapped if MAXPHYADDR is mismatched
+		 * between guest and host.  In that case we only care about present
+		 * faults.  For vmcs02, however, PFEC_MASK and PFEC_MATCH are set in
+		 * prepare_vmcs02_rare.
+		 */
+		bool selective_pf_trap = enable_ept && (eb & (1u << PF_VECTOR));
+		int mask = selective_pf_trap ? PFERR_PRESENT_MASK : 0;
+		vmcs_write32(PAGE_FAULT_ERROR_CODE_MASK, mask);
+		vmcs_write32(PAGE_FAULT_ERROR_CODE_MATCH, mask);
+	}
 
 	vmcs_write32(EXCEPTION_BITMAP, eb);
 }
@@ -4352,16 +4367,6 @@ static void init_vmcs(struct vcpu_vmx *vmx)
 		vmx->pt_desc.guest.output_mask = 0x7F;
 		vmcs_write64(GUEST_IA32_RTIT_CTL, 0);
 	}
-
-	/*
-	 * If EPT is enabled, #PF is only trapped if MAXPHYADDR is mismatched
-	 * between guest and host.  In that case we only care about present
-	 * faults.
-	 */
-	if (enable_ept) {
-		vmcs_write32(PAGE_FAULT_ERROR_CODE_MASK, PFERR_PRESENT_MASK);
-		vmcs_write32(PAGE_FAULT_ERROR_CODE_MATCH, PFERR_PRESENT_MASK);
-	}
 }
 
 static void vmx_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
@@ -4803,6 +4808,7 @@ static int handle_exception_nmi(struct kvm_vcpu *vcpu)
 			 * EPT will cause page fault only if we need to
 			 * detect illegal GPAs.
 			 */
+			WARN_ON_ONCE(!allow_smaller_maxphyaddr);
 			kvm_fixup_and_inject_pf_error(vcpu, cr2, error_code);
 			return 1;
 		} else
@@ -5331,7 +5337,7 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu)
 	 * would also use advanced VM-exit information for EPT violations to
 	 * reconstruct the page fault error code.
 	 */
-	if (unlikely(kvm_mmu_is_illegal_gpa(vcpu, gpa)))
+	if (unlikely(allow_smaller_maxphyaddr && kvm_mmu_is_illegal_gpa(vcpu, gpa)))
 		return kvm_emulate_instruction(vcpu, 0);
 
 	return kvm_mmu_page_fault(vcpu, gpa, error_code, NULL, 0);
@@ -8305,11 +8311,12 @@ static int __init vmx_init(void)
 	vmx_check_vmcs12_offsets();
 
 	/*
-	 * Intel processors don't have problems with
-	 * GUEST_MAXPHYADDR < HOST_MAXPHYADDR so enable
-	 * it for VMX by default
+	 * Shadow paging doesn't have a (further) performance penalty
+	 * from GUEST_MAXPHYADDR < HOST_MAXPHYADDR so enable it
+	 * by default
 	 */
-	allow_smaller_maxphyaddr = true;
+	if (!enable_ept)
+		allow_smaller_maxphyaddr = true;
 
 	return 0;
 }

@@ -58,6 +58,7 @@
 #define CHV_PADCTRL1_CFGLOCK		BIT(31)
 #define CHV_PADCTRL1_INVRXTX_SHIFT	4
 #define CHV_PADCTRL1_INVRXTX_MASK	GENMASK(7, 4)
+#define CHV_PADCTRL1_INVRXTX_TXDATA	BIT(7)
 #define CHV_PADCTRL1_INVRXTX_RXDATA	BIT(6)
 #define CHV_PADCTRL1_INVRXTX_TXENABLE	BIT(5)
 #define CHV_PADCTRL1_ODEN		BIT(3)
@@ -792,11 +793,22 @@ static int chv_pinmux_set_mux(struct pinctrl_dev *pctldev,
 static void chv_gpio_clear_triggering(struct chv_pinctrl *pctrl,
 				      unsigned int offset)
 {
+	u32 invrxtx_mask = CHV_PADCTRL1_INVRXTX_MASK;
 	u32 value;
+
+	/*
+	 * One some devices the GPIO should output the inverted value from what
+	 * device-drivers / ACPI code expects (inverted external buffer?). The
+	 * BIOS makes this work by setting the CHV_PADCTRL1_INVRXTX_TXDATA flag,
+	 * preserve this flag if the pin is already setup as GPIO.
+	 */
+	value = chv_readl(pctrl, offset, CHV_PADCTRL0);
+	if (value & CHV_PADCTRL0_GPIOEN)
+		invrxtx_mask &= ~CHV_PADCTRL1_INVRXTX_TXDATA;
 
 	value = chv_readl(pctrl, offset, CHV_PADCTRL1);
 	value &= ~CHV_PADCTRL1_INTWAKECFG_MASK;
-	value &= ~CHV_PADCTRL1_INVRXTX_MASK;
+	value &= ~invrxtx_mask;
 	chv_writel(pctrl, offset, CHV_PADCTRL1, value);
 }
 

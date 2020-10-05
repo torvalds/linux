@@ -23,7 +23,7 @@ properties:
   compatible:
     items:
       - const: raspberrypi,bcm2835-firmware
-      - const: simple-bus
+      - const: simple-mfd
 
   mboxes:
     $ref: '/schemas/types.yaml#/definitions/phandle'
@@ -73,7 +73,7 @@ required:
 examples:
   - |
     firmware {
-        compatible = "raspberrypi,bcm2835-firmware", "simple-bus";
+        compatible = "raspberrypi,bcm2835-firmware", "simple-mfd";
         mboxes = <&mailbox>;
 
         firmware_clocks: clocks {

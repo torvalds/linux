@@ -269,8 +269,30 @@ static int usb_probe_device(struct device *dev)
 	if (error)
 		return error;
 
+	/* Probe the USB device with the driver in hand, but only
+	 * defer to a generic driver in case the current USB
+	 * device driver has an id_table or a match function; i.e.,
+	 * when the device driver was explicitly matched against
+	 * a device.
+	 *
+	 * If the device driver does not have either of these,
+	 * then we assume that it can bind to any device and is
+	 * not truly a more specialized/non-generic driver, so a
+	 * return value of -ENODEV should not force the device
+	 * to be handled by the generic USB driver, as there
+	 * can still be another, more specialized, device driver.
+	 *
+	 * This accommodates the usbip driver.
+	 *
+	 * TODO: What if, in the future, there are multiple
+	 * specialized USB device drivers for a particular device?
+	 * In such cases, there is a need to try all matching
+	 * specialised device drivers prior to setting the
+	 * use_generic_driver bit.
+	 */
 	error = udriver->probe(udev);
-	if (error == -ENODEV && udriver != &usb_generic_driver) {
+	if (error == -ENODEV && udriver != &usb_generic_driver &&
+	    (udriver->id_table || udriver->match)) {
 		udev->use_generic_driver = 1;
 		return -EPROBE_DEFER;
 	}
@@ -831,14 +853,17 @@ static int usb_device_match(struct device *dev, struct device_driver *drv)
 		udev = to_usb_device(dev);
 		udrv = to_usb_device_driver(drv);
 
-		if (udrv->id_table &&
-		    usb_device_match_id(udev, udrv->id_table) != NULL) {
-			return 1;
-		}
+		if (udrv->id_table)
+			return usb_device_match_id(udev, udrv->id_table) != NULL;
 
 		if (udrv->match)
 			return udrv->match(udev);
-		return 0;
+
+		/* If the device driver under consideration does not have a
+		 * id_table or a match function, then let the driver's probe
+		 * function decide.
+		 */
+		return 1;
 
 	} else if (is_usb_interface(dev)) {
 		struct usb_interface *intf;
@@ -905,26 +930,19 @@ static int usb_uevent(struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
-static bool is_dev_usb_generic_driver(struct device *dev)
-{
-	struct usb_device_driver *udd = dev->driver ?
-		to_usb_device_driver(dev->driver) : NULL;
-
-	return udd == &usb_generic_driver;
-}
-
 static int __usb_bus_reprobe_drivers(struct device *dev, void *data)
 {
 	struct usb_device_driver *new_udriver = data;
 	struct usb_device *udev;
 	int ret;
 
-	if (!is_dev_usb_generic_driver(dev))
+	/* Don't reprobe if current driver isn't usb_generic_driver */
+	if (dev->driver != &usb_generic_driver.drvwrap.driver)
 		return 0;
 
 	udev = to_usb_device(dev);
 	if (usb_device_match_id(udev, new_udriver->id_table) == NULL &&
-	    (!new_udriver->match || new_udriver->match(udev) != 0))
+	    (!new_udriver->match || new_udriver->match(udev) == 0))
 		return 0;
 
 	ret = device_reprobe(dev);
