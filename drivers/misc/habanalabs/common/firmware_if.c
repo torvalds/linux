@@ -448,6 +448,32 @@ int hl_fw_cpucp_total_energy_get(struct hl_device *hdev, u64 *total_energy)
 	return rc;
 }
 
+int hl_fw_cpucp_pll_info_get(struct hl_device *hdev,
+		enum cpucp_pll_type_attributes pll_type,
+		enum cpucp_pll_reg_attributes pll_reg,
+		u32 *pll_info)
+{
+	struct cpucp_packet pkt;
+	long result;
+	int rc;
+
+	memset(&pkt, 0, sizeof(pkt));
+
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_PLL_REG_GET <<
+				CPUCP_PKT_CTL_OPCODE_SHIFT);
+	pkt.pll_type = __cpu_to_le16(pll_type);
+	pkt.pll_reg = __cpu_to_le16(pll_reg);
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
+			HL_CPUCP_INFO_TIMEOUT_USEC, &result);
+	if (rc)
+		dev_err(hdev->dev, "Failed to read PLL info, error %d\n", rc);
+
+	*pll_info = result;
+
+	return rc;
+}
+
 static void fw_read_errors(struct hl_device *hdev, u32 boot_err0_reg,
 		u32 cpu_security_boot_status_reg)
 {

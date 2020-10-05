@@ -673,16 +673,33 @@ static int gaudi_early_fini(struct hl_device *hdev)
  * @hdev: pointer to hl_device structure
  *
  */
-static void gaudi_fetch_psoc_frequency(struct hl_device *hdev)
+static int gaudi_fetch_psoc_frequency(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	u32 trace_freq = 0;
-	u32 pll_clk = 0;
-	u32 div_fctr = RREG32(mmPSOC_CPU_PLL_DIV_FACTOR_2);
-	u32 div_sel = RREG32(mmPSOC_CPU_PLL_DIV_SEL_2);
-	u32 nr = RREG32(mmPSOC_CPU_PLL_NR);
-	u32 nf = RREG32(mmPSOC_CPU_PLL_NF);
-	u32 od = RREG32(mmPSOC_CPU_PLL_OD);
+	u32 trace_freq = 0, pll_clk = 0;
+	u32 div_fctr, div_sel, nr, nf, od;
+	int rc;
+
+	if (hdev->asic_prop.fw_security_disabled) {
+		div_fctr = RREG32(mmPSOC_CPU_PLL_DIV_FACTOR_2);
+		div_sel = RREG32(mmPSOC_CPU_PLL_DIV_SEL_2);
+		nr = RREG32(mmPSOC_CPU_PLL_NR);
+		nf = RREG32(mmPSOC_CPU_PLL_NF);
+		od = RREG32(mmPSOC_CPU_PLL_OD);
+	} else {
+		rc = hl_fw_cpucp_pll_info_get(hdev, cpucp_pll_cpu,
+				cpucp_pll_div_factor_reg, &div_fctr);
+		rc |= hl_fw_cpucp_pll_info_get(hdev, cpucp_pll_cpu,
+				cpucp_pll_div_sel_reg, &div_sel);
+		rc |= hl_fw_cpucp_pll_info_get(hdev, cpucp_pll_cpu,
+				cpucp_pll_nr_reg, &nr);
+		rc |= hl_fw_cpucp_pll_info_get(hdev, cpucp_pll_cpu,
+				cpucp_pll_nf_reg, &nf);
+		rc |= hl_fw_cpucp_pll_info_get(hdev, cpucp_pll_cpu,
+				cpucp_pll_od_reg, &od);
+		if (rc)
+			return rc;
+	}
 
 	if (div_sel == DIV_SEL_REF_CLK || div_sel == DIV_SEL_DIVIDED_REF) {
 		if (div_sel == DIV_SEL_REF_CLK)
@@ -706,6 +723,8 @@ static void gaudi_fetch_psoc_frequency(struct hl_device *hdev)
 	prop->psoc_pci_pll_nf = nf;
 	prop->psoc_pci_pll_od = od;
 	prop->psoc_pci_pll_div_factor = div_fctr;
+
+	return 0;
 }
 
 static int _gaudi_init_tpc_mem(struct hl_device *hdev,
@@ -1315,7 +1334,11 @@ static int gaudi_late_init(struct hl_device *hdev)
 
 	WREG32(mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR, GAUDI_EVENT_INTS_REGISTER);
 
-	gaudi_fetch_psoc_frequency(hdev);
+	rc = gaudi_fetch_psoc_frequency(hdev);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to fetch psoc frequency\n");
+		goto disable_pci_access;
+	}
 
 	rc = gaudi_mmu_clear_pgt_range(hdev);
 	if (rc) {
