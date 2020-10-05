@@ -217,11 +217,55 @@ static long vfio_fsl_mc_ioctl(void *device_data, unsigned int cmd,
 	}
 	case VFIO_DEVICE_GET_IRQ_INFO:
 	{
-		return -ENOTTY;
+		struct vfio_irq_info info;
+
+		minsz = offsetofend(struct vfio_irq_info, count);
+		if (copy_from_user(&info, (void __user *)arg, minsz))
+			return -EFAULT;
+
+		if (info.argsz < minsz)
+			return -EINVAL;
+
+		if (info.index >= mc_dev->obj_desc.irq_count)
+			return -EINVAL;
+
+		info.flags = VFIO_IRQ_INFO_EVENTFD;
+		info.count = 1;
+
+		return copy_to_user((void __user *)arg, &info, minsz);
 	}
 	case VFIO_DEVICE_SET_IRQS:
 	{
-		return -ENOTTY;
+		struct vfio_irq_set hdr;
+		u8 *data = NULL;
+		int ret = 0;
+		size_t data_size = 0;
+
+		minsz = offsetofend(struct vfio_irq_set, count);
+
+		if (copy_from_user(&hdr, (void __user *)arg, minsz))
+			return -EFAULT;
+
+		ret = vfio_set_irqs_validate_and_prepare(&hdr, mc_dev->obj_desc.irq_count,
+					mc_dev->obj_desc.irq_count, &data_size);
+		if (ret)
+			return ret;
+
+		if (data_size) {
+			data = memdup_user((void __user *)(arg + minsz),
+				   data_size);
+			if (IS_ERR(data))
+				return PTR_ERR(data);
+		}
+
+		mutex_lock(&vdev->igate);
+		ret = vfio_fsl_mc_set_irqs_ioctl(vdev, hdr.flags,
+						 hdr.index, hdr.start,
+						 hdr.count, data);
+		mutex_unlock(&vdev->igate);
+		kfree(data);
+
+		return ret;
 	}
 	case VFIO_DEVICE_RESET:
 	{
@@ -423,6 +467,8 @@ static int vfio_fsl_mc_probe(struct fsl_mc_device *mc_dev)
 	if (ret)
 		goto out_reflck;
 
+	mutex_init(&vdev->igate);
+
 	return 0;
 
 out_reflck:
@@ -442,6 +488,8 @@ static int vfio_fsl_mc_remove(struct fsl_mc_device *mc_dev)
 	vdev = vfio_del_group_dev(dev);
 	if (!vdev)
 		return -EINVAL;
+
+	mutex_destroy(&vdev->igate);
 
 	vfio_fsl_mc_reflck_put(vdev->reflck);
 

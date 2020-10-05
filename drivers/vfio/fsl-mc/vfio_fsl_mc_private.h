@@ -33,6 +33,12 @@ struct vfio_fsl_mc_device {
 	int				refcnt;
 	struct vfio_fsl_mc_region	*regions;
 	struct vfio_fsl_mc_reflck   *reflck;
+	struct mutex         igate;
 };
+
+extern int vfio_fsl_mc_set_irqs_ioctl(struct vfio_fsl_mc_device *vdev,
+			       u32 flags, unsigned int index,
+			       unsigned int start, unsigned int count,
+			       void *data);
 
 #endif /* VFIO_FSL_MC_PRIVATE_H */
