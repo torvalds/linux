@@ -124,7 +124,7 @@ void rn_update_clocks(struct clk_mgr *clk_mgr_base,
 	 * if it is safe to lower, but we are already in the lower state, we don't have to do anything
 	 * also if safe to lower is false, we just go in the higher state
 	 */
-	if (safe_to_lower) {
+	if (safe_to_lower && !dc->debug.disable_48mhz_pwrdwn) {
 		/* check that we're not already in lower */
 		if (clk_mgr_base->clks.pwr_state != DCN_PWR_STATE_LOW_POWER) {
 
