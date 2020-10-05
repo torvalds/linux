@@ -745,6 +745,8 @@ static int ocelot_reset(struct ocelot *ocelot)
  */
 static u16 ocelot_wm_enc(u16 value)
 {
+	WARN_ON(value >= 16 * BIT(8));
+
 	if (value >= BIT(8))
 		return BIT(8) | (value / 16);
 
