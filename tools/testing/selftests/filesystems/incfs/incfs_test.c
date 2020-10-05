@@ -42,6 +42,35 @@
 #error Big endian not supported!
 #endif
 
+struct {
+	int file;
+	int test;
+	bool verbose;
+} options;
+
+#define TESTCOND(condition)						\
+	do {								\
+		if (!(condition)) {					\
+			ksft_print_msg("%s failed %d\n",		\
+				       __func__, __LINE__);		\
+			goto out;					\
+		} else if (options.verbose)				\
+			ksft_print_msg("%s succeeded %d\n",		\
+				       __func__, __LINE__);		\
+	} while (false)
+
+#define TEST(statement, condition)					\
+	do {								\
+		statement;						\
+		TESTCOND(condition);					\
+	} while (false)
+
+#define TESTEQUAL(statement, res)					\
+	TESTCOND((statement) == (res))
+
+#define TESTNE(statement, res)					\
+	TESTCOND((statement) != (res))
+
 struct hash_block {
 	char data[INCFS_DATA_FILE_BLOCK_SIZE];
 };
@@ -112,6 +141,13 @@ struct test_files_set get_test_files_set(void)
 		  .size = 900 * INCFS_DATA_FILE_BLOCK_SIZE + 7 },
 		{ .index = 10, .name = "file_big", .size = 500 * 1024 * 1024 }
 	};
+
+	if (options.file)
+		return (struct test_files_set) {
+			.files = files + options.file - 1,
+			.files_count = 1,
+		};
+
 	return (struct test_files_set){ .files = files,
 					.files_count = ARRAY_SIZE(files) };
 }
@@ -2022,45 +2058,45 @@ enum expected_log { FULL_LOG, NO_LOG, PARTIAL_LOG };
 static int validate_logs(const char *mount_dir, int log_fd,
 			 struct test_file *file,
 			 enum expected_log expected_log,
-			 bool report_uid)
+			 bool report_uid, bool expect_data)
 {
+	int result = TEST_FAILURE;
 	uint8_t data[INCFS_DATA_FILE_BLOCK_SIZE];
 	struct incfs_pending_read_info prs[2048] = {};
 	struct incfs_pending_read_info2 prs2[2048] = {};
+	struct incfs_pending_read_info *previous_record = NULL;
 	int prs_size = ARRAY_SIZE(prs);
-	int block_cnt = 1 + (file->size - 1) / INCFS_DATA_FILE_BLOCK_SIZE;
-	int expected_read_block_cnt;
-	int res;
-	int read_count;
-	int i, j;
-	char *filename = concat_file_name(mount_dir, file->name);
-	int fd;
+	int block_count = 1 + (file->size - 1) / INCFS_DATA_FILE_BLOCK_SIZE;
+	int expected_read_count, read_count, block_index, read_index;
+	char *filename = NULL;
+	int fd = -1;
 
-	fd = open(filename, O_RDONLY | O_CLOEXEC);
-	free(filename);
-	if (fd <= 0)
-		return TEST_FAILURE;
+	TEST(filename = concat_file_name(mount_dir, file->name), filename);
+	TEST(fd = open(filename, O_RDONLY | O_CLOEXEC), fd != -1);
 
-	if (block_cnt > prs_size)
-		block_cnt = prs_size;
-	expected_read_block_cnt = block_cnt;
+	if (block_count > prs_size)
+		block_count = prs_size;
+	expected_read_count = block_count;
 
-	for (i = 0; i < block_cnt; i++) {
-		res = pread(fd, data, sizeof(data),
-			    INCFS_DATA_FILE_BLOCK_SIZE * i);
+	for (block_index = 0; block_index < block_count; block_index++) {
+		int result = pread(fd, data, sizeof(data),
+			    INCFS_DATA_FILE_BLOCK_SIZE * block_index);
 
 		/* Make some read logs of type SAME_FILE_NEXT_BLOCK */
-		if (i % 10 == 0)
+		if (block_index % 100 == 10)
 			usleep(20000);
 
 		/* Skip some blocks to make logs of type SAME_FILE */
-		if (i % 10 == 5) {
-			++i;
-			--expected_read_block_cnt;
+		if (block_index % 10 == 5) {
+			++block_index;
+			--expected_read_count;
 		}
 
-		if (res <= 0)
-			goto failure;
+		if (expect_data)
+			TESTCOND(result > 0);
+
+		if (!expect_data)
+			TESTEQUAL(result, -1);
 	}
 
 	if (report_uid)
@@ -2072,240 +2108,138 @@ static int validate_logs(const char *mount_dir, int log_fd,
 				expected_log == NO_LOG ? 10 : 0,
 				prs, prs_size);
 
-	if (expected_log == NO_LOG) {
-		if (read_count == 0)
-			goto success;
-		if (read_count < 0)
-			ksft_print_msg("Error reading logged reads %s.\n",
-				       strerror(-read_count));
-		else
-			ksft_print_msg("Somehow read empty logs.\n");
-		goto failure;
+	if (expected_log == NO_LOG)
+		TESTEQUAL(read_count, 0);
+
+	if (expected_log == PARTIAL_LOG)
+		TESTCOND(read_count > 0 &&
+			 read_count <= expected_read_count);
+
+	if (expected_log == FULL_LOG)
+		TESTEQUAL(read_count, expected_read_count);
+
+	/* If read less than expected, advance block_index appropriately */
+	for (block_index = 0, read_index = 0;
+	     read_index < expected_read_count - read_count;
+	     block_index++, read_index++)
+		if (block_index % 10 == 5)
+			++block_index;
+
+	for (read_index = 0; read_index < read_count;
+	     block_index++, read_index++) {
+		struct incfs_pending_read_info *record = report_uid ?
+			(struct incfs_pending_read_info *) &prs2[read_index] :
+			&prs[read_index];
+
+		TESTCOND(same_id(&record->file_id, &file->id));
+		TESTEQUAL(record->block_index, block_index);
+		TESTNE(record->timestamp_us, 0);
+		if (previous_record)
+			TESTEQUAL(record->serial_number,
+				  previous_record->serial_number + 1);
+
+		previous_record = record;
+		if (block_index % 10 == 5)
+			++block_index;
 	}
 
-	if (read_count < 0) {
-		ksft_print_msg("Error reading logged reads %s.\n",
-			       strerror(-read_count));
-		goto failure;
-	}
-
-	i = 0;
-	if (expected_log == PARTIAL_LOG) {
-		if (read_count == 0) {
-			ksft_print_msg("No logs %s.\n", file->name);
-			goto failure;
-		}
-
-		for (i = 0, j = 0; j < expected_read_block_cnt - read_count;
-		     i++, j++)
-			if (i % 10 == 5)
-				++i;
-
-	} else if (read_count != expected_read_block_cnt) {
-		ksft_print_msg("Bad log read count %s %d %d.\n", file->name,
-			       read_count, expected_read_block_cnt);
-		goto failure;
-	}
-
-	for (j = 0; j < read_count; i++, j++) {
-		struct incfs_pending_read_info *read = report_uid ?
-			(struct incfs_pending_read_info *) &prs2[j] :
-			&prs[j];
-
-		if (!same_id(&read->file_id, &file->id)) {
-			ksft_print_msg("Bad log read ino %s\n", file->name);
-			goto failure;
-		}
-
-		if (read->block_index != i) {
-			ksft_print_msg("Bad log read ino %s %d %d.\n",
-				       file->name, read->block_index, i);
-			goto failure;
-		}
-
-		if (j != 0) {
-			unsigned long psn = (report_uid) ?
-				prs2[j - 1].serial_number :
-				prs[j - 1].serial_number;
-
-			if (read->serial_number != psn + 1) {
-				ksft_print_msg("Bad log read sn %s %d %d.\n",
-					       file->name, read->serial_number,
-					       psn);
-				goto failure;
-			}
-		}
-
-		if (read->timestamp_us == 0) {
-			ksft_print_msg("Bad log read timestamp %s.\n",
-				       file->name);
-			goto failure;
-		}
-
-		if (i % 10 == 5)
-			++i;
-	}
-
-success:
+	result = TEST_SUCCESS;
+out:
 	close(fd);
-	return TEST_SUCCESS;
-
-failure:
-	close(fd);
-	return TEST_FAILURE;
+	free(filename);
+	return result;
 }
 
 static int read_log_test(const char *mount_dir)
 {
+	int result = TEST_FAILURE;
 	struct test_files_set test = get_test_files_set();
 	const int file_num = test.files_count;
 	int i = 0;
 	int cmd_fd = -1, log_fd = -1;
-	char *backing_dir;
+	char *backing_dir = NULL;
 
-	backing_dir = create_backing_dir(mount_dir);
-	if (!backing_dir)
-		goto failure;
-
-	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0,report_uid",
-				 false) != 0)
-		goto failure;
-
-	cmd_fd = open_commands_file(mount_dir);
-	if (cmd_fd < 0)
-		goto failure;
-
-	log_fd = open_log_file(mount_dir);
-	if (log_fd < 0)
-		ksft_print_msg("Can't open log file.\n");
-
-	/* Write data. */
+	/* Create files */
+	TEST(backing_dir = create_backing_dir(mount_dir), backing_dir);
+	TESTEQUAL(mount_fs_opt(mount_dir, backing_dir,
+			       "readahead=0,report_uid,read_timeout_ms=0",
+				 false), 0);
+	TEST(cmd_fd = open_commands_file(mount_dir), cmd_fd != -1);
 	for (i = 0; i < file_num; i++) {
 		struct test_file *file = &test.files[i];
 
-		if (emit_file(cmd_fd, NULL, file->name, &file->id,
-				     file->size, NULL))
-			goto failure;
-
-		if (emit_test_file_data(mount_dir, file))
-			goto failure;
+		TESTEQUAL(emit_file(cmd_fd, NULL, file->name, &file->id,
+				    file->size, NULL), 0);
 	}
-
-	/* Validate data */
-	for (i = 0; i < file_num; i++) {
-		struct test_file *file = &test.files[i];
-
-		if (validate_logs(mount_dir, log_fd, file, FULL_LOG, true))
-			goto failure;
-	}
-
-	/* Unmount and mount again, to see that logs work after remount. */
 	close(cmd_fd);
-	close(log_fd);
 	cmd_fd = -1;
-	if (umount(mount_dir) != 0) {
-		print_error("Can't unmout FS");
-		goto failure;
-	}
 
-	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0", false) != 0)
-		goto failure;
+	/* Validate logs */
+	TEST(log_fd = open_log_file(mount_dir), log_fd != -1);
+	for (i = 0; i < file_num; i++)
+		TESTEQUAL(validate_logs(mount_dir, log_fd, &test.files[i],
+					FULL_LOG, true, false), 0);
 
-	cmd_fd = open_commands_file(mount_dir);
-	if (cmd_fd < 0)
-		goto failure;
-
-	log_fd = open_log_file(mount_dir);
-	if (log_fd < 0)
-		ksft_print_msg("Can't open log file.\n");
-
-	/* Validate data again */
-	for (i = 0; i < file_num; i++) {
-		struct test_file *file = &test.files[i];
-
-		if (validate_logs(mount_dir, log_fd, file, FULL_LOG, false))
-			goto failure;
-	}
-
-	/*
-	 * Unmount and mount again with no read log to make sure poll
-	 * doesn't crash
-	 */
-	close(cmd_fd);
+	/* Unmount and mount again without report_uid */
 	close(log_fd);
-	if (umount(mount_dir) != 0) {
-		print_error("Can't unmout FS");
-		goto failure;
-	}
+	log_fd = -1;
+	TESTEQUAL(umount(mount_dir), 0);
+	TESTEQUAL(mount_fs_opt(mount_dir, backing_dir,
+			       "readahead=0,read_timeout_ms=0", false), 0);
 
-	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0,rlog_pages=0",
-			 false) != 0)
-		goto failure;
+	TEST(log_fd = open_log_file(mount_dir), log_fd != -1);
+	for (i = 0; i < file_num; i++)
+		TESTEQUAL(validate_logs(mount_dir, log_fd, &test.files[i],
+					FULL_LOG, false, false), 0);
 
-	log_fd = open_log_file(mount_dir);
-	if (log_fd < 0)
-		ksft_print_msg("Can't open log file.\n");
+	/* No read log to make sure poll doesn't crash */
+	close(log_fd);
+	log_fd = -1;
+	TESTEQUAL(umount(mount_dir), 0);
+	TESTEQUAL(mount_fs_opt(mount_dir, backing_dir,
+			       "readahead=0,rlog_pages=0,read_timeout_ms=0",
+			       false), 0);
 
-	/* Validate data again - note should fail this time */
+	TEST(log_fd = open_log_file(mount_dir), log_fd != -1);
+	for (i = 0; i < file_num; i++)
+		TESTEQUAL(validate_logs(mount_dir, log_fd, &test.files[i],
+					NO_LOG, false, false), 0);
+
+	/* Remount and check that logs start working again */
+	TESTEQUAL(mount_fs_opt(mount_dir, backing_dir,
+			       "readahead=0,rlog_pages=1,read_timeout_ms=0",
+			       true), 0);
+	for (i = 0; i < file_num; i++)
+		TESTEQUAL(validate_logs(mount_dir, log_fd, &test.files[i],
+					PARTIAL_LOG, false, false), 0);
+
+	/* Remount and check that logs continue working */
+	TESTEQUAL(mount_fs_opt(mount_dir, backing_dir,
+			       "readahead=0,rlog_pages=4,read_timeout_ms=0",
+			       true), 0);
+	for (i = 0; i < file_num; i++)
+		TESTEQUAL(validate_logs(mount_dir, log_fd, &test.files[i],
+					FULL_LOG, false, false), 0);
+
+	/* Check logs work with data */
 	for (i = 0; i < file_num; i++) {
-		struct test_file *file = &test.files[i];
-
-		if (validate_logs(mount_dir, log_fd, file, NO_LOG, false))
-			goto failure;
-	}
-
-	/*
-	 * Remount and check that logs start working again
-	 */
-	if (drop_caches())
-		goto failure;
-
-	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0,rlog_pages=1",
-			 true) != 0)
-		goto failure;
-
-	/* Validate data again */
-	for (i = 0; i < file_num; i++) {
-		struct test_file *file = &test.files[i];
-
-		if (validate_logs(mount_dir, log_fd, file, PARTIAL_LOG, false))
-			goto failure;
-	}
-
-	/*
-	 * Remount and check that logs start working again
-	 */
-	if (drop_caches())
-		goto failure;
-
-	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0,rlog_pages=4",
-			 true) != 0)
-		goto failure;
-
-	/* Validate data again */
-	for (i = 0; i < file_num; i++) {
-		struct test_file *file = &test.files[i];
-
-		if (validate_logs(mount_dir, log_fd, file, PARTIAL_LOG, false))
-			goto failure;
+		TESTEQUAL(emit_test_file_data(mount_dir, &test.files[i]), 0);
+		TESTEQUAL(validate_logs(mount_dir, log_fd, &test.files[i],
+					FULL_LOG, false, true), 0);
 	}
 
 	/* Final unmount */
 	close(log_fd);
-	free(backing_dir);
-	if (umount(mount_dir) != 0) {
-		print_error("Can't unmout FS");
-		goto failure;
-	}
+	log_fd = -1;
+	TESTEQUAL(umount(mount_dir), 0);
 
-	return TEST_SUCCESS;
-
-failure:
+	result = TEST_SUCCESS;
+out:
 	close(cmd_fd);
 	close(log_fd);
 	free(backing_dir);
 	umount(mount_dir);
-	return TEST_FAILURE;
+	return result;
 }
 
 static int emit_partial_test_file_data(const char *mount_dir,
@@ -3029,27 +2963,6 @@ static const char v1_file[] = {
 	0x01, 0x00, 0x00, 0x00,
 };
 
-#define TESTCOND(condition)						\
-	do {								\
-		if (!(condition)) {					\
-			ksft_print_msg("%s failed %d\n",		\
-				       __func__, __LINE__);		\
-			goto out;					\
-		}							\
-	} while (false)
-
-#define TEST(statement, condition)					\
-	do {								\
-		statement;						\
-		TESTCOND(condition);					\
-	} while (false)
-
-#define TESTEQUAL(statement, res)					\
-	TESTCOND((statement) == (res))
-
-#define TESTNE(statement, res)					\
-	TESTCOND((statement) != (res))
-
 static int compatibility_test(const char *mount_dir)
 {
 	static const char *name = "file";
@@ -3557,18 +3470,22 @@ static char *setup_mount_dir()
 	return mount_dir;
 }
 
-struct options {
-	int test;
-};
-
-int parse_options(int argc, char *const *argv, struct options *options)
+int parse_options(int argc, char *const *argv)
 {
 	signed char c;
 
-	while ((c = getopt(argc, argv, "t:")) != -1)
+	while ((c = getopt(argc, argv, "f:t:v")) != -1)
 		switch (c) {
+		case 'f':
+			options.file = strtol(optarg, NULL, 10);
+			break;
+
 		case 't':
-			options->test = strtol(optarg, NULL, 10);
+			options.test = strtol(optarg, NULL, 10);
+			break;
+
+		case 'v':
+			options.verbose = true;
 			break;
 
 		default:
@@ -3583,27 +3500,22 @@ struct test_case {
 	const char *name;
 };
 
-void run_one_test(const char *mount_dir, struct test_case *test_case,
-		  int *fails)
+void run_one_test(const char *mount_dir, struct test_case *test_case)
 {
 	ksft_print_msg("Running %s\n", test_case->name);
 	if (test_case->pfunc(mount_dir) == TEST_SUCCESS)
 		ksft_test_result_pass("%s\n", test_case->name);
-	else {
+	else
 		ksft_test_result_fail("%s\n", test_case->name);
-		fails++;
-	}
 }
 
 int main(int argc, char *argv[])
 {
 	char *mount_dir = NULL;
-	int fails = 0;
 	int i;
 	int fd, count;
-	struct options options = {};
 
-	if (parse_options(argc, argv, &options))
+	if (parse_options(argc, argv))
 		ksft_exit_fail_msg("Bad options\n");
 
 	// Seed randomness pool for testing on QEMU
@@ -3656,19 +3568,14 @@ int main(int argc, char *argv[])
 			ksft_exit_fail_msg("Invalid test\n");
 
 		ksft_set_plan(1);
-		run_one_test(mount_dir, &cases[options.test - 1], &fails);
+		run_one_test(mount_dir, &cases[options.test - 1]);
 	} else {
 		ksft_set_plan(ARRAY_SIZE(cases));
 		for (i = 0; i < ARRAY_SIZE(cases); ++i)
-			run_one_test(mount_dir, &cases[i], &fails);
+			run_one_test(mount_dir, &cases[i]);
 	}
 
 	umount2(mount_dir, MNT_FORCE);
 	rmdir(mount_dir);
-
-	if (fails > 0)
-		ksft_exit_fail();
-	else
-		ksft_exit_pass();
-	return 0;
+	return !ksft_get_fail_cnt() ? ksft_exit_pass() : ksft_exit_fail();
 }
