@@ -1571,7 +1571,7 @@ static unsigned int scsi_mq_inline_sgl_size(struct Scsi_Host *shost)
 		sizeof(struct scatterlist);
 }
 
-static blk_status_t scsi_mq_prep_fn(struct request *req)
+static blk_status_t scsi_prepare_cmd(struct request *req)
 {
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(req);
 	struct scsi_device *sdev = req->q->queuedata;
@@ -1674,7 +1674,7 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 		goto out_dec_target_busy;
 
 	if (!(req->rq_flags & RQF_DONTPREP)) {
-		ret = scsi_mq_prep_fn(req);
+		ret = scsi_prepare_cmd(req);
 		if (ret != BLK_STS_OK)
 			goto out_dec_host_busy;
 		req->rq_flags |= RQF_DONTPREP;
