@@ -1031,7 +1031,7 @@ static int reset_select_slave(struct w1_slave *sl)
  *
  * Return: 0 - OK, negative error - timeout
  */
-int w1_poll_completion(struct w1_master *dev_master, int tout_ms)
+static int w1_poll_completion(struct w1_master *dev_master, int tout_ms)
 {
 	int i;
 
