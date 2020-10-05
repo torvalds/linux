@@ -132,6 +132,10 @@ int sof_sdw_rt1308_init(const struct snd_soc_acpi_link_adr *link,
 			struct sof_sdw_codec_info *info,
 			bool playback)
 {
+	/* Count amp number and do init on playback link only. */
+	if (!playback)
+		return 0;
+
 	info->amp_num++;
 	if (info->amp_num == 1)
 		dai_links->init = first_spk_init;

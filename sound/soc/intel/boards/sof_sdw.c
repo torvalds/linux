@@ -295,12 +295,28 @@ static struct sof_sdw_codec_info codec_info_list[] = {
 	},
 	{
 		.part_id = 0x714,
+		.version_id = 3,
 		.direction = {false, true},
 		.dai_name = "rt715-aif2",
 		.init = sof_sdw_rt715_sdca_init,
 	},
 	{
 		.part_id = 0x715,
+		.version_id = 3,
+		.direction = {false, true},
+		.dai_name = "rt715-aif2",
+		.init = sof_sdw_rt715_sdca_init,
+	},
+	{
+		.part_id = 0x714,
+		.version_id = 2,
+		.direction = {false, true},
+		.dai_name = "rt715-aif2",
+		.init = sof_sdw_rt715_init,
+	},
+	{
+		.part_id = 0x715,
+		.version_id = 2,
 		.direction = {false, true},
 		.dai_name = "rt715-aif2",
 		.init = sof_sdw_rt715_init,
