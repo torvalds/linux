@@ -1056,7 +1056,8 @@ static int suspend_set_initial_state(struct regulator_dev *rdev)
 	return __suspend_set_state(rdev, rstate);
 }
 
-static void print_constraints(struct regulator_dev *rdev)
+#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
+static void print_constraints_debug(struct regulator_dev *rdev)
 {
 	struct regulation_constraints *constraints = rdev->constraints;
 	char buf[160] = "";
@@ -1124,6 +1125,16 @@ static void print_constraints(struct regulator_dev *rdev)
 		_regulator_is_enabled(rdev) ? "enabled" : "disabled");
 
 	rdev_dbg(rdev, "%s\n", buf);
+}
+#else /* !DEBUG && !CONFIG_DYNAMIC_DEBUG */
+static inline void print_constraints_debug(struct regulator_dev *rdev) {}
+#endif /* !DEBUG && !CONFIG_DYNAMIC_DEBUG */
+
+static void print_constraints(struct regulator_dev *rdev)
+{
+	struct regulation_constraints *constraints = rdev->constraints;
+
+	print_constraints_debug(rdev);
 
 	if ((constraints->min_uV != constraints->max_uV) &&
 	    !regulator_ops_is_valid(rdev, REGULATOR_CHANGE_VOLTAGE))
