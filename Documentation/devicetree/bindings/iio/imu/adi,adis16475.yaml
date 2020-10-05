@@ -116,7 +116,7 @@ allOf:
       dependencies:
         adi,sync-mode: [ clocks ]
 
-unevaluatedProperties: false
+additionalProperties: false
 
 examples:
   - |

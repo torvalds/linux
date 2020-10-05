@@ -36,11 +36,13 @@ properties:
   drive-open-drain:
     type: boolean
 
+  spi-max-frequency: true
+
 required:
   - compatible
   - reg
 
-unevaluatedProperties: false
+additionalProperties: false
 
 examples:
   - |

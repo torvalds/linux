@@ -30,6 +30,8 @@ properties:
 
   spi-cpha: true
 
+  spi-max-frequency: true
+
   '#address-cells':
     const: 1
 
@@ -63,7 +65,7 @@ patternProperties:
     required:
       - reg
 
-unevaluatedProperties: false
+additionalProperties: false
 
 examples:
   - |

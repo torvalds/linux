@@ -25,6 +25,8 @@ properties:
 
   spi-cpol: true
 
+  spi-max-frequency: true
+
   interrupts:
     maxItems: 1
 
@@ -33,7 +35,7 @@ required:
   - reg
   - interrupts
 
-unevaluatedProperties: false
+additionalProperties: false
 
 examples:
   - |

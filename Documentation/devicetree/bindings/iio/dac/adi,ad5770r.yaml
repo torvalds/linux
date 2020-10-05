@@ -49,6 +49,14 @@ properties:
       asserted during driver probe.
     maxItems: 1
 
+  spi-max-frequency: true
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
   channel@0:
     description: Represents an external channel which are
       connected to the DAC. Channel 0 can act both as a current
@@ -130,7 +138,7 @@ required:
   - channel@4
   - channel@5
 
-unevaluatedProperties: false
+additionalProperties: false
 
 examples:
   - |

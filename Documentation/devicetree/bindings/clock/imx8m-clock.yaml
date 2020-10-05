@@ -96,7 +96,7 @@ allOf:
             - const: clk_ext3
             - const: clk_ext4
 
-unevaluatedProperties: false
+additionalProperties: false
 
 examples:
   # Clock Control Module node:

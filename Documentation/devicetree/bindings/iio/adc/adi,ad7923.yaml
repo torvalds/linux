@@ -43,11 +43,13 @@ properties:
   '#size-cells':
     const: 0
 
+  spi-max-frequency: true
+
 required:
   - compatible
   - reg
 
-unevaluatedProperties: false
+additionalProperties: false
 
 examples:
   - |

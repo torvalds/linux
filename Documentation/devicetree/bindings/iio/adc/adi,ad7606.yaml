@@ -31,6 +31,10 @@ properties:
 
   spi-cpha: true
 
+  spi-cpol: true
+
+  spi-max-frequency: true
+
   avcc-supply: true
 
   interrupts:
@@ -102,7 +106,7 @@ required:
   - interrupts
   - adi,conversion-start-gpios
 
-unevaluatedProperties: false
+additionalProperties: false
 
 examples:
   - |
