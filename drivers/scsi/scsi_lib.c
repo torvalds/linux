@@ -1215,12 +1215,7 @@ static blk_status_t scsi_setup_cmnd(struct scsi_device *sdev,
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(req);
 	blk_status_t ret;
 
-	if (!blk_rq_bytes(req))
-		cmd->sc_data_direction = DMA_NONE;
-	else if (rq_data_dir(req) == WRITE)
-		cmd->sc_data_direction = DMA_TO_DEVICE;
-	else
-		cmd->sc_data_direction = DMA_FROM_DEVICE;
+	cmd->sc_data_direction = rq_dma_dir(req);
 
 	if (blk_rq_is_scsi(req))
 		ret = scsi_setup_scsi_cmnd(sdev, req);
