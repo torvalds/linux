@@ -9,6 +9,7 @@
 
 struct vfio_fsl_mc_device {
 	struct fsl_mc_device		*mc_dev;
+	struct notifier_block        nb;
 };
 
 #endif /* VFIO_FSL_MC_PRIVATE_H */
