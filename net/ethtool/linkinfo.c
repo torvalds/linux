@@ -16,15 +16,8 @@ struct linkinfo_reply_data {
 #define LINKINFO_REPDATA(__reply_base) \
 	container_of(__reply_base, struct linkinfo_reply_data, base)
 
-const struct nla_policy
-ethnl_linkinfo_get_policy[ETHTOOL_A_LINKINFO_MAX + 1] = {
-	[ETHTOOL_A_LINKINFO_UNSPEC]		= { .type = NLA_REJECT },
+const struct nla_policy ethnl_linkinfo_get_policy[] = {
 	[ETHTOOL_A_LINKINFO_HEADER]		= { .type = NLA_NESTED },
-	[ETHTOOL_A_LINKINFO_PORT]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_LINKINFO_PHYADDR]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_LINKINFO_TP_MDIX]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_LINKINFO_TP_MDIX_CTRL]	= { .type = NLA_REJECT },
-	[ETHTOOL_A_LINKINFO_TRANSCEIVER]	= { .type = NLA_REJECT },
 };
 
 static int linkinfo_prepare_data(const struct ethnl_req_info *req_base,
@@ -93,15 +86,11 @@ const struct ethnl_request_ops ethnl_linkinfo_request_ops = {
 
 /* LINKINFO_SET */
 
-const struct nla_policy
-ethnl_linkinfo_set_policy[ETHTOOL_A_LINKINFO_MAX + 1] = {
-	[ETHTOOL_A_LINKINFO_UNSPEC]		= { .type = NLA_REJECT },
+const struct nla_policy ethnl_linkinfo_set_policy[] = {
 	[ETHTOOL_A_LINKINFO_HEADER]		= { .type = NLA_NESTED },
 	[ETHTOOL_A_LINKINFO_PORT]		= { .type = NLA_U8 },
 	[ETHTOOL_A_LINKINFO_PHYADDR]		= { .type = NLA_U8 },
-	[ETHTOOL_A_LINKINFO_TP_MDIX]		= { .type = NLA_REJECT },
 	[ETHTOOL_A_LINKINFO_TP_MDIX_CTRL]	= { .type = NLA_U8 },
-	[ETHTOOL_A_LINKINFO_TRANSCEIVER]	= { .type = NLA_REJECT },
 };
 
 int ethnl_set_linkinfo(struct sk_buff *skb, struct genl_info *info)

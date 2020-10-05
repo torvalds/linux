@@ -16,13 +16,8 @@ struct pause_reply_data {
 #define PAUSE_REPDATA(__reply_base) \
 	container_of(__reply_base, struct pause_reply_data, base)
 
-const struct nla_policy ethnl_pause_get_policy[ETHTOOL_A_PAUSE_MAX + 1] = {
-	[ETHTOOL_A_PAUSE_UNSPEC]		= { .type = NLA_REJECT },
+const struct nla_policy ethnl_pause_get_policy[] = {
 	[ETHTOOL_A_PAUSE_HEADER]		= { .type = NLA_NESTED },
-	[ETHTOOL_A_PAUSE_AUTONEG]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_PAUSE_RX]			= { .type = NLA_REJECT },
-	[ETHTOOL_A_PAUSE_TX]			= { .type = NLA_REJECT },
-	[ETHTOOL_A_PAUSE_STATS]			= { .type = NLA_REJECT },
 };
 
 static void ethtool_stats_init(u64 *stats, unsigned int n)
@@ -139,13 +134,11 @@ const struct ethnl_request_ops ethnl_pause_request_ops = {
 
 /* PAUSE_SET */
 
-const struct nla_policy ethnl_pause_set_policy[ETHTOOL_A_PAUSE_MAX + 1] = {
-	[ETHTOOL_A_PAUSE_UNSPEC]		= { .type = NLA_REJECT },
+const struct nla_policy ethnl_pause_set_policy[] = {
 	[ETHTOOL_A_PAUSE_HEADER]		= { .type = NLA_NESTED },
 	[ETHTOOL_A_PAUSE_AUTONEG]		= { .type = NLA_U8 },
 	[ETHTOOL_A_PAUSE_RX]			= { .type = NLA_U8 },
 	[ETHTOOL_A_PAUSE_TX]			= { .type = NLA_U8 },
-	[ETHTOOL_A_PAUSE_STATS]			= { .type = NLA_REJECT },
 };
 
 int ethnl_set_pause(struct sk_buff *skb, struct genl_info *info)

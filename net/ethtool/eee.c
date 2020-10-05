@@ -19,15 +19,8 @@ struct eee_reply_data {
 #define EEE_REPDATA(__reply_base) \
 	container_of(__reply_base, struct eee_reply_data, base)
 
-const struct nla_policy ethnl_eee_get_policy[ETHTOOL_A_EEE_MAX + 1] = {
-	[ETHTOOL_A_EEE_UNSPEC]		= { .type = NLA_REJECT },
+const struct nla_policy ethnl_eee_get_policy[] = {
 	[ETHTOOL_A_EEE_HEADER]		= { .type = NLA_NESTED },
-	[ETHTOOL_A_EEE_MODES_OURS]	= { .type = NLA_REJECT },
-	[ETHTOOL_A_EEE_MODES_PEER]	= { .type = NLA_REJECT },
-	[ETHTOOL_A_EEE_ACTIVE]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_EEE_ENABLED]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_EEE_TX_LPI_ENABLED]	= { .type = NLA_REJECT },
-	[ETHTOOL_A_EEE_TX_LPI_TIMER]	= { .type = NLA_REJECT },
 };
 
 static int eee_prepare_data(const struct ethnl_req_info *req_base,
@@ -128,12 +121,9 @@ const struct ethnl_request_ops ethnl_eee_request_ops = {
 
 /* EEE_SET */
 
-const struct nla_policy ethnl_eee_set_policy[ETHTOOL_A_EEE_MAX + 1] = {
-	[ETHTOOL_A_EEE_UNSPEC]		= { .type = NLA_REJECT },
+const struct nla_policy ethnl_eee_set_policy[] = {
 	[ETHTOOL_A_EEE_HEADER]		= { .type = NLA_NESTED },
 	[ETHTOOL_A_EEE_MODES_OURS]	= { .type = NLA_NESTED },
-	[ETHTOOL_A_EEE_MODES_PEER]	= { .type = NLA_REJECT },
-	[ETHTOOL_A_EEE_ACTIVE]		= { .type = NLA_REJECT },
 	[ETHTOOL_A_EEE_ENABLED]		= { .type = NLA_U8 },
 	[ETHTOOL_A_EEE_TX_LPI_ENABLED]	= { .type = NLA_U8 },
 	[ETHTOOL_A_EEE_TX_LPI_TIMER]	= { .type = NLA_U32 },

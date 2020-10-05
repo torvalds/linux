@@ -18,17 +18,8 @@ struct linkmodes_reply_data {
 #define LINKMODES_REPDATA(__reply_base) \
 	container_of(__reply_base, struct linkmodes_reply_data, base)
 
-const struct nla_policy
-ethnl_linkmodes_get_policy[ETHTOOL_A_LINKMODES_MAX + 1] = {
-	[ETHTOOL_A_LINKMODES_UNSPEC]		= { .type = NLA_REJECT },
+const struct nla_policy ethnl_linkmodes_get_policy[] = {
 	[ETHTOOL_A_LINKMODES_HEADER]		= { .type = NLA_NESTED },
-	[ETHTOOL_A_LINKMODES_AUTONEG]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_LINKMODES_OURS]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_LINKMODES_PEER]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_LINKMODES_SPEED]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_LINKMODES_DUPLEX]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_LINKMODES_MASTER_SLAVE_CFG]	= { .type = NLA_REJECT },
-	[ETHTOOL_A_LINKMODES_MASTER_SLAVE_STATE]	= { .type = NLA_REJECT },
 };
 
 static int linkmodes_prepare_data(const struct ethnl_req_info *req_base,
@@ -274,17 +265,13 @@ static const struct link_mode_info link_mode_params[] = {
 	__DEFINE_LINK_MODE_PARAMS(100, FX, Full),
 };
 
-const struct nla_policy
-ethnl_linkmodes_set_policy[ETHTOOL_A_LINKMODES_MAX + 1] = {
-	[ETHTOOL_A_LINKMODES_UNSPEC]		= { .type = NLA_REJECT },
+const struct nla_policy ethnl_linkmodes_set_policy[] = {
 	[ETHTOOL_A_LINKMODES_HEADER]		= { .type = NLA_NESTED },
 	[ETHTOOL_A_LINKMODES_AUTONEG]		= { .type = NLA_U8 },
 	[ETHTOOL_A_LINKMODES_OURS]		= { .type = NLA_NESTED },
-	[ETHTOOL_A_LINKMODES_PEER]		= { .type = NLA_REJECT },
 	[ETHTOOL_A_LINKMODES_SPEED]		= { .type = NLA_U32 },
 	[ETHTOOL_A_LINKMODES_DUPLEX]		= { .type = NLA_U8 },
 	[ETHTOOL_A_LINKMODES_MASTER_SLAVE_CFG]	= { .type = NLA_U8 },
-	[ETHTOOL_A_LINKMODES_MASTER_SLAVE_STATE]	= { .type = NLA_REJECT },
 };
 
 /* Set advertised link modes to all supported modes matching requested speed

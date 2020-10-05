@@ -20,15 +20,8 @@ struct linkstate_reply_data {
 #define LINKSTATE_REPDATA(__reply_base) \
 	container_of(__reply_base, struct linkstate_reply_data, base)
 
-const struct nla_policy
-ethnl_linkstate_get_policy[ETHTOOL_A_LINKSTATE_MAX + 1] = {
-	[ETHTOOL_A_LINKSTATE_UNSPEC]		= { .type = NLA_REJECT },
+const struct nla_policy ethnl_linkstate_get_policy[] = {
 	[ETHTOOL_A_LINKSTATE_HEADER]		= { .type = NLA_NESTED },
-	[ETHTOOL_A_LINKSTATE_LINK]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_LINKSTATE_SQI]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_LINKSTATE_SQI_MAX]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_LINKSTATE_EXT_STATE]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_LINKSTATE_EXT_SUBSTATE]	= { .type = NLA_REJECT },
 };
 
 static int linkstate_get_sqi(struct net_device *dev)

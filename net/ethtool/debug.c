@@ -16,10 +16,8 @@ struct debug_reply_data {
 #define DEBUG_REPDATA(__reply_base) \
 	container_of(__reply_base, struct debug_reply_data, base)
 
-const struct nla_policy ethnl_debug_get_policy[ETHTOOL_A_DEBUG_MAX + 1] = {
-	[ETHTOOL_A_DEBUG_UNSPEC]	= { .type = NLA_REJECT },
+const struct nla_policy ethnl_debug_get_policy[] = {
 	[ETHTOOL_A_DEBUG_HEADER]	= { .type = NLA_NESTED },
-	[ETHTOOL_A_DEBUG_MSGMASK]	= { .type = NLA_REJECT },
 };
 
 static int debug_prepare_data(const struct ethnl_req_info *req_base,
@@ -78,8 +76,7 @@ const struct ethnl_request_ops ethnl_debug_request_ops = {
 
 /* DEBUG_SET */
 
-const struct nla_policy ethnl_debug_set_policy[ETHTOOL_A_DEBUG_MAX + 1] = {
-	[ETHTOOL_A_DEBUG_UNSPEC]	= { .type = NLA_REJECT },
+const struct nla_policy ethnl_debug_set_policy[] = {
 	[ETHTOOL_A_DEBUG_HEADER]	= { .type = NLA_NESTED },
 	[ETHTOOL_A_DEBUG_MSGMASK]	= { .type = NLA_NESTED },
 };

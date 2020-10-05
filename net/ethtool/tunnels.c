@@ -8,9 +8,7 @@
 #include "common.h"
 #include "netlink.h"
 
-const struct nla_policy
-ethnl_tunnel_info_get_policy[ETHTOOL_A_TUNNEL_INFO_MAX + 1] = {
-	[ETHTOOL_A_TUNNEL_INFO_UNSPEC]		= { .type = NLA_REJECT },
+const struct nla_policy ethnl_tunnel_info_get_policy[] = {
 	[ETHTOOL_A_TUNNEL_INFO_HEADER]		= { .type = NLA_NESTED },
 };
 

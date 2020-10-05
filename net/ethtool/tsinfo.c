@@ -18,13 +18,8 @@ struct tsinfo_reply_data {
 #define TSINFO_REPDATA(__reply_base) \
 	container_of(__reply_base, struct tsinfo_reply_data, base)
 
-const struct nla_policy ethnl_tsinfo_get_policy[ETHTOOL_A_TSINFO_MAX + 1] = {
-	[ETHTOOL_A_TSINFO_UNSPEC]		= { .type = NLA_REJECT },
+const struct nla_policy ethnl_tsinfo_get_policy[] = {
 	[ETHTOOL_A_TSINFO_HEADER]		= { .type = NLA_NESTED },
-	[ETHTOOL_A_TSINFO_TIMESTAMPING]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_TSINFO_TX_TYPES]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_TSINFO_RX_FILTERS]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_TSINFO_PHC_INDEX]		= { .type = NLA_REJECT },
 };
 
 static int tsinfo_prepare_data(const struct ethnl_req_info *req_base,

@@ -99,18 +99,13 @@ struct strset_reply_data {
 #define STRSET_REPDATA(__reply_base) \
 	container_of(__reply_base, struct strset_reply_data, base)
 
-const struct nla_policy ethnl_strset_get_policy[ETHTOOL_A_STRSET_MAX + 1] = {
-	[ETHTOOL_A_STRSET_UNSPEC]	= { .type = NLA_REJECT },
+const struct nla_policy ethnl_strset_get_policy[] = {
 	[ETHTOOL_A_STRSET_HEADER]	= { .type = NLA_NESTED },
 	[ETHTOOL_A_STRSET_STRINGSETS]	= { .type = NLA_NESTED },
 };
 
-static const struct nla_policy
-get_stringset_policy[ETHTOOL_A_STRINGSET_MAX + 1] = {
-	[ETHTOOL_A_STRINGSET_UNSPEC]	= { .type = NLA_REJECT },
+static const struct nla_policy get_stringset_policy[] = {
 	[ETHTOOL_A_STRINGSET_ID]	= { .type = NLA_U32 },
-	[ETHTOOL_A_STRINGSET_COUNT]	= { .type = NLA_REJECT },
-	[ETHTOOL_A_STRINGSET_STRINGS]	= { .type = NLA_REJECT },
 };
 
 /**
@@ -138,10 +133,10 @@ static bool strset_include(const struct strset_req_info *info,
 static int strset_get_id(const struct nlattr *nest, u32 *val,
 			 struct netlink_ext_ack *extack)
 {
-	struct nlattr *tb[ETHTOOL_A_STRINGSET_MAX + 1];
+	struct nlattr *tb[ARRAY_SIZE(get_stringset_policy)];
 	int ret;
 
-	ret = nla_parse_nested(tb, ETHTOOL_A_STRINGSET_MAX, nest,
+	ret = nla_parse_nested(tb, ARRAY_SIZE(get_stringset_policy) - 1, nest,
 			       get_stringset_policy, extack);
 	if (ret < 0)
 		return ret;
@@ -152,9 +147,7 @@ static int strset_get_id(const struct nlattr *nest, u32 *val,
 	return 0;
 }
 
-static const struct nla_policy
-strset_stringsets_policy[ETHTOOL_A_STRINGSETS_MAX + 1] = {
-	[ETHTOOL_A_STRINGSETS_UNSPEC]		= { .type = NLA_REJECT },
+static const struct nla_policy strset_stringsets_policy[] = {
 	[ETHTOOL_A_STRINGSETS_STRINGSET]	= { .type = NLA_NESTED },
 };
 
@@ -169,7 +162,8 @@ static int strset_parse_request(struct ethnl_req_info *req_base,
 
 	if (!nest)
 		return 0;
-	ret = nla_validate_nested(nest, ETHTOOL_A_STRINGSETS_MAX,
+	ret = nla_validate_nested(nest,
+				  ARRAY_SIZE(strset_stringsets_policy) - 1,
 				  strset_stringsets_policy, extack);
 	if (ret < 0)
 		return ret;

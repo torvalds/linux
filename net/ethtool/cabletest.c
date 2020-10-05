@@ -11,9 +11,7 @@
  */
 #define MAX_CABLE_LENGTH_CM (150 * 100)
 
-const struct nla_policy
-ethnl_cable_test_act_policy[ETHTOOL_A_CABLE_TEST_MAX + 1] = {
-	[ETHTOOL_A_CABLE_TEST_UNSPEC]		= { .type = NLA_REJECT },
+const struct nla_policy ethnl_cable_test_act_policy[] = {
 	[ETHTOOL_A_CABLE_TEST_HEADER]		= { .type = NLA_NESTED },
 };
 
@@ -212,17 +210,14 @@ struct cable_test_tdr_req_info {
 	struct ethnl_req_info		base;
 };
 
-static const struct nla_policy
-cable_test_tdr_act_cfg_policy[ETHTOOL_A_CABLE_TEST_TDR_CFG_MAX + 1] = {
+static const struct nla_policy cable_test_tdr_act_cfg_policy[] = {
 	[ETHTOOL_A_CABLE_TEST_TDR_CFG_FIRST]	= { .type = NLA_U32 },
 	[ETHTOOL_A_CABLE_TEST_TDR_CFG_LAST]	= { .type = NLA_U32 },
 	[ETHTOOL_A_CABLE_TEST_TDR_CFG_STEP]	= { .type = NLA_U32 },
 	[ETHTOOL_A_CABLE_TEST_TDR_CFG_PAIR]	= { .type = NLA_U8 },
 };
 
-const struct nla_policy
-ethnl_cable_test_tdr_act_policy[ETHTOOL_A_CABLE_TEST_TDR_MAX + 1] = {
-	[ETHTOOL_A_CABLE_TEST_TDR_UNSPEC]	= { .type = NLA_REJECT },
+const struct nla_policy ethnl_cable_test_tdr_act_policy[] = {
 	[ETHTOOL_A_CABLE_TEST_TDR_HEADER]	= { .type = NLA_NESTED },
 	[ETHTOOL_A_CABLE_TEST_TDR_CFG]		= { .type = NLA_NESTED },
 };
@@ -232,7 +227,7 @@ static int ethnl_act_cable_test_tdr_cfg(const struct nlattr *nest,
 					struct genl_info *info,
 					struct phy_tdr_config *cfg)
 {
-	struct nlattr *tb[ETHTOOL_A_CABLE_TEST_TDR_CFG_MAX + 1];
+	struct nlattr *tb[ARRAY_SIZE(cable_test_tdr_act_cfg_policy)];
 	int ret;
 
 	cfg->first = 100;
@@ -243,8 +238,10 @@ static int ethnl_act_cable_test_tdr_cfg(const struct nlattr *nest,
 	if (!nest)
 		return 0;
 
-	ret = nla_parse_nested(tb, ETHTOOL_A_CABLE_TEST_TDR_CFG_MAX, nest,
-			       cable_test_tdr_act_cfg_policy, info->extack);
+	ret = nla_parse_nested(tb,
+			       ARRAY_SIZE(cable_test_tdr_act_cfg_policy) - 1,
+			       nest, cable_test_tdr_act_cfg_policy,
+			       info->extack);
 	if (ret < 0)
 		return ret;
 
