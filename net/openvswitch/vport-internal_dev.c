@@ -225,7 +225,6 @@ static void internal_dev_destroy(struct vport *vport)
 static netdev_tx_t internal_dev_recv(struct sk_buff *skb)
 {
 	struct net_device *netdev = skb->dev;
-	struct pcpu_sw_netstats *stats;
 
 	if (unlikely(!(netdev->flags & IFF_UP))) {
 		kfree_skb(skb);
@@ -240,12 +239,7 @@ static netdev_tx_t internal_dev_recv(struct sk_buff *skb)
 	skb->pkt_type = PACKET_HOST;
 	skb->protocol = eth_type_trans(skb, netdev);
 	skb_postpull_rcsum(skb, eth_hdr(skb), ETH_HLEN);
-
-	stats = this_cpu_ptr(netdev->tstats);
-	u64_stats_update_begin(&stats->syncp);
-	stats->rx_packets++;
-	stats->rx_bytes += skb->len;
-	u64_stats_update_end(&stats->syncp);
+	dev_sw_netstats_rx_add(netdev, skb->len);
 
 	netif_rx(skb);
 	return NETDEV_TX_OK;
