@@ -56,6 +56,7 @@ MODULE_PARM_DESC(link_rate, "Enable link rate.\n"
 		" 8: Link rate 12.0G\n");
 
 static struct scsi_transport_template *pm8001_stt;
+static int pm8001_init_ccb_tag(struct pm8001_hba_info *, struct Scsi_Host *, struct pci_dev *);
 
 /*
  * chip info structure to identify chip key functionality as
@@ -302,9 +303,6 @@ static int pm8001_alloc(struct pm8001_hba_info *pm8001_ha,
 		INIT_LIST_HEAD(&pm8001_ha->port[i].list);
 	}
 
-	pm8001_ha->tags = kzalloc(PM8001_MAX_CCB, GFP_KERNEL);
-	if (!pm8001_ha->tags)
-		goto err_out;
 	/* MPI Memory region 1 for AAP Event Log for fw */
 	pm8001_ha->memoryMap.region[AAP1].num_elements = 1;
 	pm8001_ha->memoryMap.region[AAP1].element_size = PM8001_EVENT_LOG_SIZE;
@@ -416,29 +414,11 @@ static int pm8001_alloc(struct pm8001_hba_info *pm8001_ha,
 		pm8001_ha->devices[i].device_id = PM8001_MAX_DEVICES;
 		pm8001_ha->devices[i].running_req = 0;
 	}
-	/* Memory region for ccb_info*/
-	pm8001_ha->ccb_info = kzalloc(PM8001_MAX_CCB
-				* sizeof(struct pm8001_ccb_info), GFP_KERNEL);
-	if (!pm8001_ha->ccb_info) {
-		rc = -ENOMEM;
-		goto err_out_noccb;
-	}
-	for (i = 0; i < PM8001_MAX_CCB; i++) {
-		pm8001_ha->ccb_info[i].ccb_dma_handle =
-			virt_to_phys(pm8001_ha->ccb_info) +
-			(i * sizeof(struct pm8001_ccb_info));
-		pm8001_ha->ccb_info[i].task = NULL;
-		pm8001_ha->ccb_info[i].ccb_tag = 0xffffffff;
-		pm8001_ha->ccb_info[i].device = NULL;
-		++pm8001_ha->tags_num;
-	}
 	pm8001_ha->flags = PM8001F_INIT_TIME;
 	/* Initialize tags */
 	pm8001_tag_init(pm8001_ha);
 	return 0;
 
-err_out_noccb:
-	kfree(pm8001_ha->devices);
 err_out_shost:
 	scsi_remove_host(pm8001_ha->shost);
 err_out_nodev:
@@ -1133,6 +1113,10 @@ static int pm8001_pci_probe(struct pci_dev *pdev,
 		goto err_out_ha_free;
 	}
 
+	rc = pm8001_init_ccb_tag(pm8001_ha, shost, pdev);
+	if (rc)
+		goto err_out_enable;
+
 	rc = scsi_add_host(shost, &pdev->dev);
 	if (rc)
 		goto err_out_ha_free;
@@ -1176,6 +1160,60 @@ err_out_disable:
 	pci_disable_device(pdev);
 err_out_enable:
 	return rc;
+}
+
+/*
+ * pm8001_init_ccb_tag - allocate memory to CCB and tag.
+ * @pm8001_ha: our hba card information.
+ * @shost: scsi host which has been allocated outside.
+ */
+static int
+pm8001_init_ccb_tag(struct pm8001_hba_info *pm8001_ha, struct Scsi_Host *shost,
+			struct pci_dev *pdev)
+{
+	int i = 0;
+	u32 max_out_io, ccb_count;
+	u32 can_queue;
+
+	max_out_io = pm8001_ha->main_cfg_tbl.pm80xx_tbl.max_out_io;
+	ccb_count = min_t(int, PM8001_MAX_CCB, max_out_io);
+
+	/* Update to the scsi host*/
+	can_queue = ccb_count - PM8001_RESERVE_SLOT;
+	shost->can_queue = can_queue;
+
+	pm8001_ha->tags = kzalloc(ccb_count, GFP_KERNEL);
+	if (!pm8001_ha->tags)
+		goto err_out;
+
+	/* Memory region for ccb_info*/
+	pm8001_ha->ccb_info = (struct pm8001_ccb_info *)
+		kcalloc(ccb_count, sizeof(struct pm8001_ccb_info), GFP_KERNEL);
+	if (!pm8001_ha->ccb_info) {
+		PM8001_FAIL_DBG(pm8001_ha, pm8001_printk
+			("Unable to allocate memory for ccb\n"));
+		goto err_out_noccb;
+	}
+	for (i = 0; i < ccb_count; i++) {
+		pm8001_ha->ccb_info[i].buf_prd = pci_alloc_consistent(pdev,
+				sizeof(struct pm8001_prd) * PM8001_MAX_DMA_SG,
+				&pm8001_ha->ccb_info[i].ccb_dma_handle);
+		if (!pm8001_ha->ccb_info[i].buf_prd) {
+			PM8001_FAIL_DBG(pm8001_ha, pm8001_printk
+					("pm80xx: ccb prd memory allocation error\n"));
+			goto err_out;
+		}
+		pm8001_ha->ccb_info[i].task = NULL;
+		pm8001_ha->ccb_info[i].ccb_tag = 0xffffffff;
+		pm8001_ha->ccb_info[i].device = NULL;
+		++pm8001_ha->tags_num;
+	}
+	return 0;
+
+err_out_noccb:
+	kfree(pm8001_ha->devices);
+err_out:
+	return -ENOMEM;
 }
 
 static void pm8001_pci_remove(struct pci_dev *pdev)
