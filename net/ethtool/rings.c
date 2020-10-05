@@ -16,7 +16,8 @@ struct rings_reply_data {
 	container_of(__reply_base, struct rings_reply_data, base)
 
 const struct nla_policy ethnl_rings_get_policy[] = {
-	[ETHTOOL_A_RINGS_HEADER]		= { .type = NLA_NESTED },
+	[ETHTOOL_A_RINGS_HEADER]		=
+		NLA_POLICY_NESTED(ethnl_header_policy),
 };
 
 static int rings_prepare_data(const struct ethnl_req_info *req_base,
@@ -98,7 +99,8 @@ const struct ethnl_request_ops ethnl_rings_request_ops = {
 /* RINGS_SET */
 
 const struct nla_policy ethnl_rings_set_policy[] = {
-	[ETHTOOL_A_RINGS_HEADER]		= { .type = NLA_NESTED },
+	[ETHTOOL_A_RINGS_HEADER]		=
+		NLA_POLICY_NESTED(ethnl_header_policy),
 	[ETHTOOL_A_RINGS_RX]			= { .type = NLA_U32 },
 	[ETHTOOL_A_RINGS_RX_MINI]		= { .type = NLA_U32 },
 	[ETHTOOL_A_RINGS_RX_JUMBO]		= { .type = NLA_U32 },

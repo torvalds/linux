@@ -17,7 +17,8 @@ struct linkinfo_reply_data {
 	container_of(__reply_base, struct linkinfo_reply_data, base)
 
 const struct nla_policy ethnl_linkinfo_get_policy[] = {
-	[ETHTOOL_A_LINKINFO_HEADER]		= { .type = NLA_NESTED },
+	[ETHTOOL_A_LINKINFO_HEADER]		=
+		NLA_POLICY_NESTED(ethnl_header_policy),
 };
 
 static int linkinfo_prepare_data(const struct ethnl_req_info *req_base,
@@ -87,7 +88,8 @@ const struct ethnl_request_ops ethnl_linkinfo_request_ops = {
 /* LINKINFO_SET */
 
 const struct nla_policy ethnl_linkinfo_set_policy[] = {
-	[ETHTOOL_A_LINKINFO_HEADER]		= { .type = NLA_NESTED },
+	[ETHTOOL_A_LINKINFO_HEADER]		=
+		NLA_POLICY_NESTED(ethnl_header_policy),
 	[ETHTOOL_A_LINKINFO_PORT]		= { .type = NLA_U8 },
 	[ETHTOOL_A_LINKINFO_PHYADDR]		= { .type = NLA_U8 },
 	[ETHTOOL_A_LINKINFO_TP_MDIX_CTRL]	= { .type = NLA_U8 },

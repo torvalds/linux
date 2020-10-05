@@ -12,7 +12,8 @@
 #define MAX_CABLE_LENGTH_CM (150 * 100)
 
 const struct nla_policy ethnl_cable_test_act_policy[] = {
-	[ETHTOOL_A_CABLE_TEST_HEADER]		= { .type = NLA_NESTED },
+	[ETHTOOL_A_CABLE_TEST_HEADER]		=
+		NLA_POLICY_NESTED(ethnl_header_policy),
 };
 
 static int ethnl_cable_test_started(struct phy_device *phydev, u8 cmd)
@@ -218,7 +219,8 @@ static const struct nla_policy cable_test_tdr_act_cfg_policy[] = {
 };
 
 const struct nla_policy ethnl_cable_test_tdr_act_policy[] = {
-	[ETHTOOL_A_CABLE_TEST_TDR_HEADER]	= { .type = NLA_NESTED },
+	[ETHTOOL_A_CABLE_TEST_TDR_HEADER]	=
+		NLA_POLICY_NESTED(ethnl_header_policy),
 	[ETHTOOL_A_CABLE_TEST_TDR_CFG]		= { .type = NLA_NESTED },
 };
 

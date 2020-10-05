@@ -18,7 +18,8 @@ struct channels_reply_data {
 	container_of(__reply_base, struct channels_reply_data, base)
 
 const struct nla_policy ethnl_channels_get_policy[] = {
-	[ETHTOOL_A_CHANNELS_HEADER]		= { .type = NLA_NESTED },
+	[ETHTOOL_A_CHANNELS_HEADER]		=
+		NLA_POLICY_NESTED(ethnl_header_policy),
 };
 
 static int channels_prepare_data(const struct ethnl_req_info *req_base,
@@ -100,7 +101,8 @@ const struct ethnl_request_ops ethnl_channels_request_ops = {
 /* CHANNELS_SET */
 
 const struct nla_policy ethnl_channels_set_policy[] = {
-	[ETHTOOL_A_CHANNELS_HEADER]		= { .type = NLA_NESTED },
+	[ETHTOOL_A_CHANNELS_HEADER]		=
+		NLA_POLICY_NESTED(ethnl_header_policy),
 	[ETHTOOL_A_CHANNELS_RX_COUNT]		= { .type = NLA_U32 },
 	[ETHTOOL_A_CHANNELS_TX_COUNT]		= { .type = NLA_U32 },
 	[ETHTOOL_A_CHANNELS_OTHER_COUNT]	= { .type = NLA_U32 },

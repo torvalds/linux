@@ -21,7 +21,8 @@ struct linkstate_reply_data {
 	container_of(__reply_base, struct linkstate_reply_data, base)
 
 const struct nla_policy ethnl_linkstate_get_policy[] = {
-	[ETHTOOL_A_LINKSTATE_HEADER]		= { .type = NLA_NESTED },
+	[ETHTOOL_A_LINKSTATE_HEADER]		=
+		NLA_POLICY_NESTED(ethnl_header_policy),
 };
 
 static int linkstate_get_sqi(struct net_device *dev)

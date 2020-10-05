@@ -19,7 +19,8 @@ struct privflags_reply_data {
 	container_of(__reply_base, struct privflags_reply_data, base)
 
 const struct nla_policy ethnl_privflags_get_policy[] = {
-	[ETHTOOL_A_PRIVFLAGS_HEADER]		= { .type = NLA_NESTED },
+	[ETHTOOL_A_PRIVFLAGS_HEADER]		=
+		NLA_POLICY_NESTED(ethnl_header_policy),
 };
 
 static int ethnl_get_priv_flags_info(struct net_device *dev,
@@ -133,7 +134,8 @@ const struct ethnl_request_ops ethnl_privflags_request_ops = {
 /* PRIVFLAGS_SET */
 
 const struct nla_policy ethnl_privflags_set_policy[] = {
-	[ETHTOOL_A_PRIVFLAGS_HEADER]		= { .type = NLA_NESTED },
+	[ETHTOOL_A_PRIVFLAGS_HEADER]		=
+		NLA_POLICY_NESTED(ethnl_header_policy),
 	[ETHTOOL_A_PRIVFLAGS_FLAGS]		= { .type = NLA_NESTED },
 };
 

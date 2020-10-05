@@ -52,7 +52,8 @@ __CHECK_SUPPORTED_OFFSET(COALESCE_TX_MAX_FRAMES_HIGH);
 __CHECK_SUPPORTED_OFFSET(COALESCE_RATE_SAMPLE_INTERVAL);
 
 const struct nla_policy ethnl_coalesce_get_policy[] = {
-	[ETHTOOL_A_COALESCE_HEADER]		= { .type = NLA_NESTED },
+	[ETHTOOL_A_COALESCE_HEADER]		=
+		NLA_POLICY_NESTED(ethnl_header_policy),
 };
 
 static int coalesce_prepare_data(const struct ethnl_req_info *req_base,
@@ -190,7 +191,8 @@ const struct ethnl_request_ops ethnl_coalesce_request_ops = {
 /* COALESCE_SET */
 
 const struct nla_policy ethnl_coalesce_set_policy[] = {
-	[ETHTOOL_A_COALESCE_HEADER]		= { .type = NLA_NESTED },
+	[ETHTOOL_A_COALESCE_HEADER]		=
+		NLA_POLICY_NESTED(ethnl_header_policy),
 	[ETHTOOL_A_COALESCE_RX_USECS]		= { .type = NLA_U32 },
 	[ETHTOOL_A_COALESCE_RX_MAX_FRAMES]	= { .type = NLA_U32 },
 	[ETHTOOL_A_COALESCE_RX_USECS_IRQ]	= { .type = NLA_U32 },

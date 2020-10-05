@@ -9,7 +9,8 @@
 #include "netlink.h"
 
 const struct nla_policy ethnl_tunnel_info_get_policy[] = {
-	[ETHTOOL_A_TUNNEL_INFO_HEADER]		= { .type = NLA_NESTED },
+	[ETHTOOL_A_TUNNEL_INFO_HEADER]		=
+		NLA_POLICY_NESTED(ethnl_header_policy),
 };
 
 static_assert(ETHTOOL_UDP_TUNNEL_TYPE_VXLAN == ilog2(UDP_TUNNEL_TYPE_VXLAN));

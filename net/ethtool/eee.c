@@ -20,7 +20,8 @@ struct eee_reply_data {
 	container_of(__reply_base, struct eee_reply_data, base)
 
 const struct nla_policy ethnl_eee_get_policy[] = {
-	[ETHTOOL_A_EEE_HEADER]		= { .type = NLA_NESTED },
+	[ETHTOOL_A_EEE_HEADER]		=
+		NLA_POLICY_NESTED(ethnl_header_policy),
 };
 
 static int eee_prepare_data(const struct ethnl_req_info *req_base,
@@ -122,7 +123,8 @@ const struct ethnl_request_ops ethnl_eee_request_ops = {
 /* EEE_SET */
 
 const struct nla_policy ethnl_eee_set_policy[] = {
-	[ETHTOOL_A_EEE_HEADER]		= { .type = NLA_NESTED },
+	[ETHTOOL_A_EEE_HEADER]		=
+		NLA_POLICY_NESTED(ethnl_header_policy),
 	[ETHTOOL_A_EEE_MODES_OURS]	= { .type = NLA_NESTED },
 	[ETHTOOL_A_EEE_ENABLED]		= { .type = NLA_U8 },
 	[ETHTOOL_A_EEE_TX_LPI_ENABLED]	= { .type = NLA_U8 },

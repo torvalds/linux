@@ -100,7 +100,8 @@ struct strset_reply_data {
 	container_of(__reply_base, struct strset_reply_data, base)
 
 const struct nla_policy ethnl_strset_get_policy[] = {
-	[ETHTOOL_A_STRSET_HEADER]	= { .type = NLA_NESTED },
+	[ETHTOOL_A_STRSET_HEADER]	=
+		NLA_POLICY_NESTED(ethnl_header_policy),
 	[ETHTOOL_A_STRSET_STRINGSETS]	= { .type = NLA_NESTED },
 };
 

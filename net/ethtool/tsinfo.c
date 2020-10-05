@@ -19,7 +19,8 @@ struct tsinfo_reply_data {
 	container_of(__reply_base, struct tsinfo_reply_data, base)
 
 const struct nla_policy ethnl_tsinfo_get_policy[] = {
-	[ETHTOOL_A_TSINFO_HEADER]		= { .type = NLA_NESTED },
+	[ETHTOOL_A_TSINFO_HEADER]		=
+		NLA_POLICY_NESTED(ethnl_header_policy),
 };
 
 static int tsinfo_prepare_data(const struct ethnl_req_info *req_base,

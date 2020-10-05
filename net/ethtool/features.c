@@ -21,7 +21,8 @@ struct features_reply_data {
 	container_of(__reply_base, struct features_reply_data, base)
 
 const struct nla_policy ethnl_features_get_policy[] = {
-	[ETHTOOL_A_FEATURES_HEADER]	= { .type = NLA_NESTED },
+	[ETHTOOL_A_FEATURES_HEADER]	=
+		NLA_POLICY_NESTED(ethnl_header_policy),
 };
 
 static void ethnl_features_to_bitmap32(u32 *dest, netdev_features_t src)
@@ -125,7 +126,8 @@ const struct ethnl_request_ops ethnl_features_request_ops = {
 /* FEATURES_SET */
 
 const struct nla_policy ethnl_features_set_policy[] = {
-	[ETHTOOL_A_FEATURES_HEADER]	= { .type = NLA_NESTED },
+	[ETHTOOL_A_FEATURES_HEADER]	=
+		NLA_POLICY_NESTED(ethnl_header_policy),
 	[ETHTOOL_A_FEATURES_WANTED]	= { .type = NLA_NESTED },
 };
 
