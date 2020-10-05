@@ -3870,7 +3870,7 @@ static struct smack_known *smack_from_netlbl(struct sock *sk, u16 family,
 	struct netlbl_lsm_secattr secattr;
 	struct socket_smack *ssp = NULL;
 	struct smack_known *skp = NULL;
-	int rc = 0;
+	int rc;
 
 	netlbl_secattr_init(&secattr);
 
