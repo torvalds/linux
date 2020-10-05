@@ -1041,6 +1041,7 @@ static int add_nr_metric_event(struct cpu_hw_events *cpuc,
 		if (cpuc->n_metric == INTEL_TD_METRIC_NUM)
 			return -EINVAL;
 		cpuc->n_metric++;
+		cpuc->n_txn_metric++;
 	}
 
 	return 0;
@@ -2009,6 +2010,7 @@ static void x86_pmu_start_txn(struct pmu *pmu, unsigned int txn_flags)
 	perf_pmu_disable(pmu);
 	__this_cpu_write(cpu_hw_events.n_txn, 0);
 	__this_cpu_write(cpu_hw_events.n_txn_pair, 0);
+	__this_cpu_write(cpu_hw_events.n_txn_metric, 0);
 }
 
 /*
@@ -2035,6 +2037,7 @@ static void x86_pmu_cancel_txn(struct pmu *pmu)
 	__this_cpu_sub(cpu_hw_events.n_added, __this_cpu_read(cpu_hw_events.n_txn));
 	__this_cpu_sub(cpu_hw_events.n_events, __this_cpu_read(cpu_hw_events.n_txn));
 	__this_cpu_sub(cpu_hw_events.n_pair, __this_cpu_read(cpu_hw_events.n_txn_pair));
+	__this_cpu_sub(cpu_hw_events.n_metric, __this_cpu_read(cpu_hw_events.n_txn_metric));
 	perf_pmu_enable(pmu);
 }
 
