@@ -505,6 +505,10 @@ struct ethtool_ops {
 				      struct ethtool_fecparam *);
 	void	(*get_ethtool_phy_stats)(struct net_device *,
 					 struct ethtool_stats *, u64 *);
+	int	(*get_phy_tunable)(struct net_device *,
+				   const struct ethtool_tunable *, void *);
+	int	(*set_phy_tunable)(struct net_device *,
+				   const struct ethtool_tunable *, const void *);
 };
 
 int ethtool_check_ops(const struct ethtool_ops *ops);
