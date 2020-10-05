@@ -247,7 +247,7 @@ static int max17040_get_of_data(struct max17040_chip *chip)
 {
 	struct device *dev = &chip->client->dev;
 	struct chip_data *data = &max17040_family[
-		(enum chip_id) of_device_get_match_data(dev)];
+		(uintptr_t) of_device_get_match_data(dev)];
 	int rcomp_len;
 	u8 rcomp[2];
 
