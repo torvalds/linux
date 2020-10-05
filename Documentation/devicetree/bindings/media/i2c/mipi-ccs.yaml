@@ -37,8 +37,7 @@ properties:
     maxItems: 1
 
   vana-supply:
-    description: Analogue voltage supply (VANA), typically 2,8 volts (sensor
-      dependent).
+    description: Analogue voltage supply (VANA), sensor dependent.
     maxItems: 1
 
   clocks:
