@@ -430,7 +430,7 @@ static int __maybe_unused bu21029_suspend(struct device *dev)
 
 	if (!device_may_wakeup(dev)) {
 		mutex_lock(&bu21029->in_dev->mutex);
-		if (bu21029->in_dev->users)
+		if (input_device_enabled(bu21029->in_dev))
 			bu21029_stop_chip(bu21029->in_dev);
 		mutex_unlock(&bu21029->in_dev->mutex);
 	}
@@ -445,7 +445,7 @@ static int __maybe_unused bu21029_resume(struct device *dev)
 
 	if (!device_may_wakeup(dev)) {
 		mutex_lock(&bu21029->in_dev->mutex);
-		if (bu21029->in_dev->users)
+		if (input_device_enabled(bu21029->in_dev))
 			bu21029_start_chip(bu21029->in_dev);
 		mutex_unlock(&bu21029->in_dev->mutex);
 	}

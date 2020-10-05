@@ -580,7 +580,7 @@ static int __maybe_unused drv260x_suspend(struct device *dev)
 
 	mutex_lock(&haptics->input_dev->mutex);
 
-	if (haptics->input_dev->users) {
+	if (input_device_enabled(haptics->input_dev)) {
 		ret = regmap_update_bits(haptics->regmap,
 					 DRV260X_MODE,
 					 DRV260X_STANDBY_MASK,
@@ -612,7 +612,7 @@ static int __maybe_unused drv260x_resume(struct device *dev)
 
 	mutex_lock(&haptics->input_dev->mutex);
 
-	if (haptics->input_dev->users) {
+	if (input_device_enabled(haptics->input_dev)) {
 		ret = regulator_enable(haptics->regulator);
 		if (ret) {
 			dev_err(dev, "Failed to enable regulator\n");

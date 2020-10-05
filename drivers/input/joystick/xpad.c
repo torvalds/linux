@@ -1902,7 +1902,7 @@ static int xpad_suspend(struct usb_interface *intf, pm_message_t message)
 			xpad360w_poweroff_controller(xpad);
 	} else {
 		mutex_lock(&input->mutex);
-		if (input->users)
+		if (input_device_enabled(input))
 			xpad_stop_input(xpad);
 		mutex_unlock(&input->mutex);
 	}
@@ -1922,7 +1922,7 @@ static int xpad_resume(struct usb_interface *intf)
 		retval = xpad360w_start_input(xpad);
 	} else {
 		mutex_lock(&input->mutex);
-		if (input->users) {
+		if (input_device_enabled(input)) {
 			retval = xpad_start_input(xpad);
 		} else if (xpad->xtype == XTYPE_XBOXONE) {
 			/*

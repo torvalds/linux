@@ -536,7 +536,7 @@ static int samsung_keypad_suspend(struct device *dev)
 
 	mutex_lock(&input_dev->mutex);
 
-	if (input_dev->users)
+	if (input_device_enabled(input_dev))
 		samsung_keypad_stop(keypad);
 
 	samsung_keypad_toggle_wakeup(keypad, true);
@@ -556,7 +556,7 @@ static int samsung_keypad_resume(struct device *dev)
 
 	samsung_keypad_toggle_wakeup(keypad, false);
 
-	if (input_dev->users)
+	if (input_device_enabled(input_dev))
 		samsung_keypad_start(keypad);
 
 	mutex_unlock(&input_dev->mutex);

@@ -182,7 +182,7 @@ static int __maybe_unused ektf2127_suspend(struct device *dev)
 	struct ektf2127_ts *ts = i2c_get_clientdata(to_i2c_client(dev));
 
 	mutex_lock(&ts->input->mutex);
-	if (ts->input->users)
+	if (input_device_enabled(ts->input))
 		ektf2127_stop(ts->input);
 	mutex_unlock(&ts->input->mutex);
 
@@ -194,7 +194,7 @@ static int __maybe_unused ektf2127_resume(struct device *dev)
 	struct ektf2127_ts *ts = i2c_get_clientdata(to_i2c_client(dev));
 
 	mutex_lock(&ts->input->mutex);
-	if (ts->input->users)
+	if (input_device_enabled(ts->input))
 		ektf2127_start(ts->input);
 	mutex_unlock(&ts->input->mutex);
 

@@ -952,7 +952,8 @@ static int cyapa_gen3_set_power_mode(struct cyapa *cyapa, u8 power_mode,
 	 * doing so before issuing the next command may result in errors
 	 * depending on the command's content.
 	 */
-	if (cyapa->operational && input && input->users &&
+	if (cyapa->operational &&
+	    input && input_device_enabled(input) &&
 	    (pm_stage == CYAPA_PM_RUNTIME_SUSPEND ||
 	     pm_stage == CYAPA_PM_RUNTIME_RESUME)) {
 		/* Try to polling in 120Hz, read may fail, just ignore it. */

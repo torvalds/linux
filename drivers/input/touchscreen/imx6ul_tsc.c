@@ -520,7 +520,7 @@ static int __maybe_unused imx6ul_tsc_suspend(struct device *dev)
 
 	mutex_lock(&input_dev->mutex);
 
-	if (input_dev->users)
+	if (input_device_enabled(input_dev))
 		imx6ul_tsc_stop(tsc);
 
 	mutex_unlock(&input_dev->mutex);
@@ -537,7 +537,7 @@ static int __maybe_unused imx6ul_tsc_resume(struct device *dev)
 
 	mutex_lock(&input_dev->mutex);
 
-	if (input_dev->users)
+	if (input_device_enabled(input_dev))
 		retval = imx6ul_tsc_start(tsc);
 
 	mutex_unlock(&input_dev->mutex);

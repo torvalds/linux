@@ -518,7 +518,8 @@ int cyapa_empty_pip_output_data(struct cyapa *cyapa,
 			*len = length;
 			/* Response found, success. */
 			return 0;
-		} else if (cyapa->operational && input && input->users &&
+		} else if (cyapa->operational &&
+			   input && input_device_enabled(input) &&
 			   (pm_stage == CYAPA_PM_RUNTIME_RESUME ||
 			    pm_stage == CYAPA_PM_RUNTIME_SUSPEND)) {
 			/* Parse the data and report it if it's valid. */

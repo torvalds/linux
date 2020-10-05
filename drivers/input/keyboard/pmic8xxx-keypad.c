@@ -633,7 +633,7 @@ static int pmic8xxx_kp_suspend(struct device *dev)
 	} else {
 		mutex_lock(&input_dev->mutex);
 
-		if (input_dev->users)
+		if (input_device_enabled(input_dev))
 			pmic8xxx_kp_disable(kp);
 
 		mutex_unlock(&input_dev->mutex);
@@ -653,7 +653,7 @@ static int pmic8xxx_kp_resume(struct device *dev)
 	} else {
 		mutex_lock(&input_dev->mutex);
 
-		if (input_dev->users)
+		if (input_device_enabled(input_dev))
 			pmic8xxx_kp_enable(kp);
 
 		mutex_unlock(&input_dev->mutex);

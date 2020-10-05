@@ -407,7 +407,7 @@ static int __maybe_unused drv2667_suspend(struct device *dev)
 
 	mutex_lock(&haptics->input_dev->mutex);
 
-	if (haptics->input_dev->users) {
+	if (input_device_enabled(haptics->input_dev)) {
 		ret = regmap_update_bits(haptics->regmap, DRV2667_CTRL_2,
 					 DRV2667_STANDBY, DRV2667_STANDBY);
 		if (ret) {
@@ -436,7 +436,7 @@ static int __maybe_unused drv2667_resume(struct device *dev)
 
 	mutex_lock(&haptics->input_dev->mutex);
 
-	if (haptics->input_dev->users) {
+	if (input_device_enabled(haptics->input_dev)) {
 		ret = regulator_enable(haptics->regulator);
 		if (ret) {
 			dev_err(dev, "Failed to enable regulator\n");
