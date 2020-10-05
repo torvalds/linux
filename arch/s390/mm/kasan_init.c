@@ -87,7 +87,7 @@ enum populate_mode {
 	POPULATE_ZERO_SHADOW,
 	POPULATE_SHALLOW
 };
-static void __init kasan_early_vmemmap_populate(unsigned long address,
+static void __init kasan_early_pgtable_populate(unsigned long address,
 						unsigned long end,
 						enum populate_mode mode)
 {
@@ -367,26 +367,24 @@ void __init kasan_early_init(void)
 	 * +-----------------+	   +- shadow end ---+
 	 */
 	/* populate kasan shadow (for identity mapping and zero page mapping) */
-	kasan_early_vmemmap_populate(__sha(0), __sha(memsize), POPULATE_MAP);
+	kasan_early_pgtable_populate(__sha(0), __sha(memsize), POPULATE_MAP);
 	if (IS_ENABLED(CONFIG_MODULES))
 		untracked_mem_end = kasan_vmax - MODULES_LEN;
 	if (IS_ENABLED(CONFIG_KASAN_VMALLOC)) {
 		untracked_mem_end = kasan_vmax - vmalloc_size - MODULES_LEN;
 		/* shallowly populate kasan shadow for vmalloc and modules */
-		kasan_early_vmemmap_populate(__sha(untracked_mem_end),
-					     __sha(kasan_vmax), POPULATE_SHALLOW);
+		kasan_early_pgtable_populate(__sha(untracked_mem_end), __sha(kasan_vmax),
+					     POPULATE_SHALLOW);
 	}
 	/* populate kasan shadow for untracked memory */
-	kasan_early_vmemmap_populate(__sha(max_physmem_end),
-				     __sha(untracked_mem_end),
+	kasan_early_pgtable_populate(__sha(max_physmem_end), __sha(untracked_mem_end),
 				     POPULATE_ZERO_SHADOW);
-	kasan_early_vmemmap_populate(__sha(kasan_vmax),
-				     __sha(vmax_unlimited),
+	kasan_early_pgtable_populate(__sha(kasan_vmax), __sha(vmax_unlimited),
 				     POPULATE_ZERO_SHADOW);
 	/* memory allocated for identity mapping structs will be freed later */
 	pgalloc_freeable = pgalloc_pos;
 	/* populate identity mapping */
-	kasan_early_vmemmap_populate(0, memsize, POPULATE_ONE2ONE);
+	kasan_early_pgtable_populate(0, memsize, POPULATE_ONE2ONE);
 	kasan_set_pgd(early_pg_dir, _ASCE_TYPE_REGION2);
 	kasan_enable_dat();
 	/* enable kasan */
