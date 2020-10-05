@@ -749,7 +749,7 @@ static enum mapping_status get_mapping_status(struct sock *ssk,
 				return MAPPING_DATA_FIN;
 			}
 		} else {
-			u64 data_fin_seq = mpext->data_seq + data_len;
+			u64 data_fin_seq = mpext->data_seq + data_len - 1;
 
 			/* If mpext->data_seq is a 32-bit value, data_fin_seq
 			 * must also be limited to 32 bits.
