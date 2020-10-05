@@ -293,21 +293,6 @@ int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 }
 EXPORT_SYMBOL(__scsi_execute);
 
-/**
- * scsi_init_cmd_errh - Initialize cmd fields related to error handling.
- * @cmd:  command that is ready to be queued.
- *
- * This function has the job of initializing a number of fields related to error
- * handling. Typically this will be called once for each command, as required.
- */
-static void scsi_init_cmd_errh(struct scsi_cmnd *cmd)
-{
-	scsi_set_resid(cmd, 0);
-	memset(cmd->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
-	if (cmd->cmd_len == 0)
-		cmd->cmd_len = scsi_command_size(cmd->cmnd);
-}
-
 /*
  * Wake up the error handler if necessary. Avoid as follows that the error
  * handler is not woken up if host in-flight requests number ==
@@ -1707,7 +1692,10 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	if (bd->last)
 		cmd->flags |= SCMD_LAST;
 
-	scsi_init_cmd_errh(cmd);
+	scsi_set_resid(cmd, 0);
+	memset(cmd->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
+	if (cmd->cmd_len == 0)
+		cmd->cmd_len = scsi_command_size(cmd->cmnd);
 	cmd->scsi_done = scsi_mq_done;
 
 	reason = scsi_dispatch_cmd(cmd);
