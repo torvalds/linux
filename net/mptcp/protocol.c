@@ -454,10 +454,12 @@ static bool __mptcp_move_skbs_from_subflow(struct mptcp_sock *msk,
 	unsigned int moved = 0;
 	bool more_data_avail;
 	struct tcp_sock *tp;
+	u32 old_copied_seq;
 	bool done = false;
 
 	pr_debug("msk=%p ssk=%p", msk, ssk);
 	tp = tcp_sk(ssk);
+	old_copied_seq = tp->copied_seq;
 	do {
 		u32 map_remaining, offset;
 		u32 seq = tp->copied_seq;
@@ -516,8 +518,8 @@ static bool __mptcp_move_skbs_from_subflow(struct mptcp_sock *msk,
 	} while (more_data_avail);
 
 	*bytes += moved;
-	if (moved)
-		tcp_cleanup_rbuf(ssk, moved);
+	if (tp->copied_seq != old_copied_seq)
+		tcp_cleanup_rbuf(ssk, 1);
 
 	return done;
 }
