@@ -1119,7 +1119,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 
 	i915_ggtt_suspend(&dev_priv->ggtt);
 
-	i915_save_state(dev_priv);
+	i915_save_display(dev_priv);
 
 	opregion_target_state = suspend_to_idle(dev_priv) ? PCI_D1 : PCI_D3cold;
 	intel_opregion_suspend(dev_priv, opregion_target_state);
@@ -1232,7 +1232,7 @@ static int i915_drm_resume(struct drm_device *dev)
 
 	intel_csr_ucode_resume(dev_priv);
 
-	i915_restore_state(dev_priv);
+	i915_restore_display(dev_priv);
 	intel_pps_unlock_regs_wa(dev_priv);
 
 	intel_init_pch_refclk(dev_priv);
