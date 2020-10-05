@@ -3787,9 +3787,10 @@ static void vmx_update_msr_bitmap_x2apic(struct kvm_vcpu *vcpu, u8 mode)
 	int msr;
 
 	for (msr = 0x800; msr <= 0x8ff; msr++) {
-		bool intercepted = !!(mode & MSR_BITMAP_MODE_X2APIC_APICV);
+		bool apicv = !!(mode & MSR_BITMAP_MODE_X2APIC_APICV);
 
-		vmx_set_intercept_for_msr(vcpu, msr, MSR_TYPE_RW, intercepted);
+		vmx_set_intercept_for_msr(vcpu, msr, MSR_TYPE_R, !apicv);
+		vmx_set_intercept_for_msr(vcpu, msr, MSR_TYPE_W, true);
 	}
 
 	if (mode & MSR_BITMAP_MODE_X2APIC) {
