@@ -294,30 +294,6 @@ release:
 	return ret;
 }
 
-static int mt7663s_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
-			   struct ieee80211_sta *sta)
-{
-	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
-	struct mt76_sdio *sdio = &mdev->sdio;
-	u32 pse, ple;
-	int err;
-
-	err = mt7615_mac_sta_add(mdev, vif, sta);
-	if (err < 0)
-		return err;
-
-	/* init sched data quota */
-	pse = mt76_get_field(dev, MT_PSE_PG_HIF0_GROUP, MT_HIF0_MIN_QUOTA);
-	ple = mt76_get_field(dev, MT_PLE_PG_HIF0_GROUP, MT_HIF0_MIN_QUOTA);
-
-	mutex_lock(&sdio->sched.lock);
-	sdio->sched.pse_data_quota = pse;
-	sdio->sched.ple_data_quota = ple;
-	mutex_unlock(&sdio->sched.lock);
-
-	return 0;
-}
-
 static int mt7663s_probe(struct sdio_func *func,
 			 const struct sdio_device_id *id)
 {
@@ -329,7 +305,7 @@ static int mt7663s_probe(struct sdio_func *func,
 		.tx_status_data = mt7663_usb_sdio_tx_status_data,
 		.rx_skb = mt7615_queue_rx_skb,
 		.sta_ps = mt7615_sta_ps,
-		.sta_add = mt7663s_sta_add,
+		.sta_add = mt7615_mac_sta_add,
 		.sta_remove = mt7615_mac_sta_remove,
 		.update_survey = mt7615_update_channel,
 	};
