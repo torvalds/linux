@@ -9,6 +9,6 @@ config PINCTRL_VISCONTI
 config PINCTRL_TMPV7700
 	bool "Toshiba Visconti TMPV7700 series pinctrl driver"
 	depends on OF
-	depends on ARM64 || COMPILE_TEST
+	depends on ARCH_VISCONTI || COMPILE_TEST
 	select PINCTRL_VISCONTI
-	default ARM64 && ARCH_VISCONTI
+	default ARCH_VISCONTI
