@@ -292,7 +292,7 @@ struct gpio_v2_line_event {
 };
 
 /*
- *  ABI v1
+ * ABI v1
  *
  * This version of the ABI is deprecated.
  * Use the latest version of the ABI, defined above, instead.
