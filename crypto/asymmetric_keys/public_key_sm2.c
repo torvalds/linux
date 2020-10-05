@@ -36,8 +36,10 @@ int cert_sig_digest_update(const struct public_key_signature *sig,
 
 	desc_size = crypto_shash_descsize(tfm) + sizeof(*desc);
 	desc = kzalloc(desc_size, GFP_KERNEL);
-	if (!desc)
+	if (!desc) {
+		ret = -ENOMEM;
 		goto error_free_tfm;
+	}
 
 	desc->tfm = tfm;
 
