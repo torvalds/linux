@@ -2,8 +2,8 @@
 /*
  * BIOS run time interface routines.
  *
- *  Copyright (c) 2008-2009 Silicon Graphics, Inc.  All Rights Reserved.
- *  Copyright (c) Russ Anderson <rja@sgi.com>
+ * Copyright (C) 2007-2017 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (c) Russ Anderson <rja@sgi.com>
  */
 
 #include <linux/efi.h>
@@ -170,16 +170,27 @@ int uv_bios_set_legacy_vga_target(bool decode, int domain, int bus)
 				(u64)decode, (u64)domain, (u64)bus, 0, 0);
 }
 
-int uv_bios_init(void)
+unsigned long get_uv_systab_phys(bool msg)
 {
-	uv_systab = NULL;
 	if ((uv_systab_phys == EFI_INVALID_TABLE_ADDR) ||
 	    !uv_systab_phys || efi_runtime_disabled()) {
-		pr_crit("UV: UVsystab: missing\n");
-		return -EEXIST;
+		if (msg)
+			pr_crit("UV: UVsystab: missing\n");
+		return 0;
 	}
+	return uv_systab_phys;
+}
 
-	uv_systab = ioremap(uv_systab_phys, sizeof(struct uv_systab));
+int uv_bios_init(void)
+{
+	unsigned long uv_systab_phys_addr;
+
+	uv_systab = NULL;
+	uv_systab_phys_addr = get_uv_systab_phys(1);
+	if (!uv_systab_phys_addr)
+		return -EEXIST;
+
+	uv_systab = ioremap(uv_systab_phys_addr, sizeof(struct uv_systab));
 	if (!uv_systab || strncmp(uv_systab->signature, UV_SYSTAB_SIG, 4)) {
 		pr_err("UV: UVsystab: bad signature!\n");
 		iounmap(uv_systab);
@@ -191,7 +202,7 @@ int uv_bios_init(void)
 		int size = uv_systab->size;
 
 		iounmap(uv_systab);
-		uv_systab = ioremap(uv_systab_phys, size);
+		uv_systab = ioremap(uv_systab_phys_addr, size);
 		if (!uv_systab) {
 			pr_err("UV: UVsystab: ioremap(%d) failed!\n", size);
 			return -EFAULT;
