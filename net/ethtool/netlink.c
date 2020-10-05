@@ -9,11 +9,24 @@ static struct genl_family ethtool_genl_family;
 static bool ethnl_ok __read_mostly;
 static u32 ethnl_bcast_seq;
 
+#define ETHTOOL_FLAGS_BASIC (ETHTOOL_FLAG_COMPACT_BITSETS |	\
+			     ETHTOOL_FLAG_OMIT_REPLY)
+#define ETHTOOL_FLAGS_STATS (ETHTOOL_FLAGS_BASIC | ETHTOOL_FLAG_STATS)
+
 const struct nla_policy ethnl_header_policy[] = {
 	[ETHTOOL_A_HEADER_DEV_INDEX]	= { .type = NLA_U32 },
 	[ETHTOOL_A_HEADER_DEV_NAME]	= { .type = NLA_NUL_STRING,
 					    .len = ALTIFNAMSIZ - 1 },
-	[ETHTOOL_A_HEADER_FLAGS]	= { .type = NLA_U32 },
+	[ETHTOOL_A_HEADER_FLAGS]	= NLA_POLICY_MASK(NLA_U32,
+							  ETHTOOL_FLAGS_BASIC),
+};
+
+const struct nla_policy ethnl_header_policy_stats[] = {
+	[ETHTOOL_A_HEADER_DEV_INDEX]	= { .type = NLA_U32 },
+	[ETHTOOL_A_HEADER_DEV_NAME]	= { .type = NLA_NUL_STRING,
+					    .len = ALTIFNAMSIZ - 1 },
+	[ETHTOOL_A_HEADER_FLAGS]	= NLA_POLICY_MASK(NLA_U32,
+							  ETHTOOL_FLAGS_STATS),
 };
 
 /**
@@ -46,19 +59,15 @@ int ethnl_parse_header_dev_get(struct ethnl_req_info *req_info,
 		NL_SET_ERR_MSG(extack, "request header missing");
 		return -EINVAL;
 	}
+	/* No validation here, command policy should have a nested policy set
+	 * for the header, therefore validation should have already been done.
+	 */
 	ret = nla_parse_nested(tb, ARRAY_SIZE(ethnl_header_policy) - 1, header,
-			       ethnl_header_policy, extack);
+			       NULL, extack);
 	if (ret < 0)
 		return ret;
-	if (tb[ETHTOOL_A_HEADER_FLAGS]) {
+	if (tb[ETHTOOL_A_HEADER_FLAGS])
 		flags = nla_get_u32(tb[ETHTOOL_A_HEADER_FLAGS]);
-		if (flags & ~ETHTOOL_FLAG_ALL) {
-			NL_SET_ERR_MSG_ATTR(extack, tb[ETHTOOL_A_HEADER_FLAGS],
-					    "unrecognized request flags");
-			nl_set_extack_cookie_u32(extack, ETHTOOL_FLAG_ALL);
-			return -EOPNOTSUPP;
-		}
-	}
 
 	devname_attr = tb[ETHTOOL_A_HEADER_DEV_NAME];
 	if (tb[ETHTOOL_A_HEADER_DEV_INDEX]) {

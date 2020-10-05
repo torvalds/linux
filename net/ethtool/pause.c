@@ -18,7 +18,7 @@ struct pause_reply_data {
 
 const struct nla_policy ethnl_pause_get_policy[] = {
 	[ETHTOOL_A_PAUSE_HEADER]		=
-		NLA_POLICY_NESTED(ethnl_header_policy),
+		NLA_POLICY_NESTED(ethnl_header_policy_stats),
 };
 
 static void ethtool_stats_init(u64 *stats, unsigned int n)
