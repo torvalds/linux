@@ -288,7 +288,7 @@ static int pm8001_alloc(struct pm8001_hba_info *pm8001_ha,
 
 	count = pm8001_ha->max_q_num;
 	/* Queues are chosen based on the number of cores/msix availability */
-	ib_offset = pm8001_ha->ib_offset  = USI_MAX_MEMCNT_BASE + 1;
+	ib_offset = pm8001_ha->ib_offset  = USI_MAX_MEMCNT_BASE;
 	ci_offset = pm8001_ha->ci_offset  = ib_offset + count;
 	ob_offset = pm8001_ha->ob_offset  = ci_offset + count;
 	pi_offset = pm8001_ha->pi_offset  = ob_offset + count;
@@ -380,19 +380,6 @@ static int pm8001_alloc(struct pm8001_hba_info *pm8001_ha,
 	pm8001_ha->memoryMap.region[NVMD].num_elements = 1;
 	pm8001_ha->memoryMap.region[NVMD].element_size = 4096;
 	pm8001_ha->memoryMap.region[NVMD].total_len = 4096;
-	/* Memory region for devices*/
-	pm8001_ha->memoryMap.region[DEV_MEM].num_elements = 1;
-	pm8001_ha->memoryMap.region[DEV_MEM].element_size = PM8001_MAX_DEVICES *
-		sizeof(struct pm8001_device);
-	pm8001_ha->memoryMap.region[DEV_MEM].total_len = PM8001_MAX_DEVICES *
-		sizeof(struct pm8001_device);
-
-	/* Memory region for ccb_info*/
-	pm8001_ha->memoryMap.region[CCB_MEM].num_elements = 1;
-	pm8001_ha->memoryMap.region[CCB_MEM].element_size = PM8001_MAX_CCB *
-		sizeof(struct pm8001_ccb_info);
-	pm8001_ha->memoryMap.region[CCB_MEM].total_len = PM8001_MAX_CCB *
-		sizeof(struct pm8001_ccb_info);
 
 	/* Memory region for fw flash */
 	pm8001_ha->memoryMap.region[FW_FLASH].total_len = 4096;
@@ -416,18 +403,30 @@ static int pm8001_alloc(struct pm8001_hba_info *pm8001_ha,
 		}
 	}
 
-	pm8001_ha->devices = pm8001_ha->memoryMap.region[DEV_MEM].virt_ptr;
+	/* Memory region for devices*/
+	pm8001_ha->devices = kzalloc(PM8001_MAX_DEVICES
+				* sizeof(struct pm8001_device), GFP_KERNEL);
+	if (!pm8001_ha->devices) {
+		rc = -ENOMEM;
+		goto err_out_nodev;
+	}
 	for (i = 0; i < PM8001_MAX_DEVICES; i++) {
 		pm8001_ha->devices[i].dev_type = SAS_PHY_UNUSED;
 		pm8001_ha->devices[i].id = i;
 		pm8001_ha->devices[i].device_id = PM8001_MAX_DEVICES;
 		pm8001_ha->devices[i].running_req = 0;
 	}
-	pm8001_ha->ccb_info = pm8001_ha->memoryMap.region[CCB_MEM].virt_ptr;
+	/* Memory region for ccb_info*/
+	pm8001_ha->ccb_info = kzalloc(PM8001_MAX_CCB
+				* sizeof(struct pm8001_ccb_info), GFP_KERNEL);
+	if (!pm8001_ha->ccb_info) {
+		rc = -ENOMEM;
+		goto err_out_noccb;
+	}
 	for (i = 0; i < PM8001_MAX_CCB; i++) {
 		pm8001_ha->ccb_info[i].ccb_dma_handle =
-			pm8001_ha->memoryMap.region[CCB_MEM].phys_addr +
-			i * sizeof(struct pm8001_ccb_info);
+			virt_to_phys(pm8001_ha->ccb_info) +
+			(i * sizeof(struct pm8001_ccb_info));
 		pm8001_ha->ccb_info[i].task = NULL;
 		pm8001_ha->ccb_info[i].ccb_tag = 0xffffffff;
 		pm8001_ha->ccb_info[i].device = NULL;
@@ -437,8 +436,21 @@ static int pm8001_alloc(struct pm8001_hba_info *pm8001_ha,
 	/* Initialize tags */
 	pm8001_tag_init(pm8001_ha);
 	return 0;
+
+err_out_noccb:
+	kfree(pm8001_ha->devices);
 err_out_shost:
 	scsi_remove_host(pm8001_ha->shost);
+err_out_nodev:
+	for (i = 0; i < pm8001_ha->max_memcnt; i++) {
+		if (pm8001_ha->memoryMap.region[i].virt_ptr != NULL) {
+			pci_free_consistent(pm8001_ha->pdev,
+				(pm8001_ha->memoryMap.region[i].total_len +
+				pm8001_ha->memoryMap.region[i].alignment),
+				pm8001_ha->memoryMap.region[i].virt_ptr,
+				pm8001_ha->memoryMap.region[i].phys_addr);
+		}
+	}
 err_out:
 	return 1;
 }

@@ -91,17 +91,15 @@ enum port_type {
 #define	PM8001_MAX_DEVICES	 2048	/* max supported device */
 #define	PM8001_MAX_MSIX_VEC	 64	/* max msi-x int for spcv/ve */
 
-#define USI_MAX_MEMCNT_BASE	5
 #define	CONFIG_SCSI_PM8001_MAX_DMA_SG	528
 #define PM8001_MAX_DMA_SG	CONFIG_SCSI_PM8001_MAX_DMA_SG
 enum memory_region_num {
 	AAP1 = 0x0, /* application acceleration processor */
 	IOP,	    /* IO processor */
 	NVMD,	    /* NVM device */
-	DEV_MEM,    /* memory for devices */
-	CCB_MEM,    /* memory for command control block */
 	FW_FLASH,    /* memory for fw flash update */
-	FORENSIC_MEM  /* memory for fw forensic data */
+	FORENSIC_MEM,  /* memory for fw forensic data */
+	USI_MAX_MEMCNT_BASE
 };
 #define	PM8001_EVENT_LOG_SIZE	 (128 * 1024)
 
@@ -109,7 +107,7 @@ enum memory_region_num {
  * maximum DMA memory regions(number of IBQ + number of IBQ CI
  * + number of  OBQ + number of OBQ PI)
  */
-#define USI_MAX_MEMCNT	(USI_MAX_MEMCNT_BASE + 1 + ((2 * PM8001_MAX_INB_NUM) \
+#define USI_MAX_MEMCNT	(USI_MAX_MEMCNT_BASE + ((2 * PM8001_MAX_INB_NUM) \
 			+ (2 * PM8001_MAX_OUTB_NUM)))
 /*error code*/
 enum mpi_err {
