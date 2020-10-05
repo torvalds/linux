@@ -1190,38 +1190,6 @@ static blk_status_t scsi_setup_scsi_cmnd(struct scsi_device *sdev,
 	return BLK_STS_OK;
 }
 
-/*
- * Setup a normal block command.  These are simple request from filesystems
- * that still need to be translated to SCSI CDBs from the ULD.
- */
-static blk_status_t scsi_setup_fs_cmnd(struct scsi_device *sdev,
-		struct request *req)
-{
-	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(req);
-
-	if (unlikely(sdev->handler && sdev->handler->prep_fn)) {
-		blk_status_t ret = sdev->handler->prep_fn(sdev, req);
-		if (ret != BLK_STS_OK)
-			return ret;
-	}
-
-	cmd->cmnd = scsi_req(req)->cmd = scsi_req(req)->__cmd;
-	memset(cmd->cmnd, 0, BLK_MAX_CDB);
-	return scsi_cmd_to_driver(cmd)->init_command(cmd);
-}
-
-static blk_status_t scsi_setup_cmnd(struct scsi_device *sdev,
-		struct request *req)
-{
-	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(req);
-
-	cmd->sc_data_direction = rq_dma_dir(req);
-
-	if (blk_rq_is_scsi(req))
-		return scsi_setup_scsi_cmnd(sdev, req);
-	return scsi_setup_fs_cmnd(sdev, req);
-}
-
 static blk_status_t
 scsi_device_state_check(struct scsi_device *sdev, struct request *req)
 {
@@ -1577,6 +1545,7 @@ static blk_status_t scsi_prepare_cmd(struct request *req)
 	cmd->request = req;
 	cmd->tag = req->tag;
 	cmd->prot_op = SCSI_PROT_NORMAL;
+	cmd->sc_data_direction = rq_dma_dir(req);
 
 	sg = (void *)cmd + sizeof(struct scsi_cmnd) + shost->hostt->cmd_size;
 	cmd->sdb.table.sgl = sg;
@@ -1590,7 +1559,23 @@ static blk_status_t scsi_prepare_cmd(struct request *req)
 
 	blk_mq_start_request(req);
 
-	return scsi_setup_cmnd(sdev, req);
+	/*
+	 * Special handling for passthrough commands, which don't go to the ULP
+	 * at all:
+	 */
+	if (blk_rq_is_scsi(req))
+		return scsi_setup_scsi_cmnd(sdev, req);
+
+	if (sdev->handler && sdev->handler->prep_fn) {
+		blk_status_t ret = sdev->handler->prep_fn(sdev, req);
+
+		if (ret != BLK_STS_OK)
+			return ret;
+	}
+
+	cmd->cmnd = scsi_req(req)->cmd = scsi_req(req)->__cmd;
+	memset(cmd->cmnd, 0, BLK_MAX_CDB);
+	return scsi_cmd_to_driver(cmd)->init_command(cmd);
 }
 
 static void scsi_mq_done(struct scsi_cmnd *cmd)
