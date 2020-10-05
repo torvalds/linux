@@ -406,8 +406,10 @@ static int total_energy_consumption_info(struct hl_fpriv *hpriv,
 static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 				struct device *dev)
 {
+	enum hl_device_status status;
 	struct hl_info_args *args = data;
 	struct hl_device *hdev = hpriv->hdev;
+
 	int rc;
 
 	/*
@@ -428,10 +430,10 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 		break;
 	}
 
-	if (hl_device_disabled_or_in_reset(hdev)) {
+	if (!hl_device_operational(hdev, &status)) {
 		dev_warn_ratelimited(dev,
 			"Device is %s. Can't execute INFO IOCTL\n",
-			atomic_read(&hdev->in_reset) ? "in_reset" : "disabled");
+			hdev->status[status]);
 		return -EBUSY;
 	}
 
@@ -501,12 +503,14 @@ static int hl_debug_ioctl(struct hl_fpriv *hpriv, void *data)
 {
 	struct hl_debug_args *args = data;
 	struct hl_device *hdev = hpriv->hdev;
+	enum hl_device_status status;
+
 	int rc = 0;
 
-	if (hl_device_disabled_or_in_reset(hdev)) {
+	if (!hl_device_operational(hdev, &status)) {
 		dev_warn_ratelimited(hdev->dev,
 			"Device is %s. Can't execute DEBUG IOCTL\n",
-			atomic_read(&hdev->in_reset) ? "in_reset" : "disabled");
+			hdev->status[status]);
 		return -EBUSY;
 	}
 

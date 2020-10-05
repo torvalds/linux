@@ -1237,6 +1237,7 @@ out:
 
 int hl_mem_ioctl(struct hl_fpriv *hpriv, void *data)
 {
+	enum hl_device_status status;
 	union hl_mem_args *args = data;
 	struct hl_device *hdev = hpriv->hdev;
 	struct hl_ctx *ctx = hpriv->ctx;
@@ -1244,10 +1245,10 @@ int hl_mem_ioctl(struct hl_fpriv *hpriv, void *data)
 	u32 handle = 0;
 	int rc;
 
-	if (hl_device_disabled_or_in_reset(hdev)) {
+	if (!hl_device_operational(hdev, &status)) {
 		dev_warn_ratelimited(hdev->dev,
 			"Device is %s. Can't execute MEMORY IOCTL\n",
-			atomic_read(&hdev->in_reset) ? "in_reset" : "disabled");
+			hdev->status[status]);
 		return -EBUSY;
 	}
 

@@ -92,6 +92,7 @@ static enum hl_asic_type get_asic_type(u16 device)
  */
 int hl_device_open(struct inode *inode, struct file *filp)
 {
+	enum hl_device_status status;
 	struct hl_device *hdev;
 	struct hl_fpriv *hpriv;
 	int rc;
@@ -124,10 +125,10 @@ int hl_device_open(struct inode *inode, struct file *filp)
 
 	mutex_lock(&hdev->fpriv_list_lock);
 
-	if (hl_device_disabled_or_in_reset(hdev)) {
+	if (!hl_device_operational(hdev, &status)) {
 		dev_err_ratelimited(hdev->dev,
-			"Can't open %s because it is disabled or in reset\n",
-			dev_name(hdev->dev));
+			"Can't open %s because it is %s\n",
+			dev_name(hdev->dev), hdev->status[status]);
 		rc = -EPERM;
 		goto out_err;
 	}
@@ -204,7 +205,7 @@ int hl_device_open_ctrl(struct inode *inode, struct file *filp)
 
 	mutex_lock(&hdev->fpriv_list_lock);
 
-	if (hl_device_disabled_or_in_reset(hdev)) {
+	if (!hl_device_operational(hdev, NULL)) {
 		dev_err_ratelimited(hdev->dev_ctrl,
 			"Can't open %s because it is disabled or in reset\n",
 			dev_name(hdev->dev_ctrl));
@@ -286,6 +287,14 @@ int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 	} else {
 		hdev->asic_type = asic_type;
 	}
+
+	/* Assign status description string */
+	strncpy(hdev->status[HL_DEVICE_STATUS_MALFUNCTION],
+					"disabled", HL_STR_MAX);
+	strncpy(hdev->status[HL_DEVICE_STATUS_IN_RESET],
+					"in reset", HL_STR_MAX);
+	strncpy(hdev->status[HL_DEVICE_STATUS_NEEDS_RESET],
+					"needs reset", HL_STR_MAX);
 
 	hdev->major = hl_major;
 	hdev->reset_on_lockup = reset_on_lockup;

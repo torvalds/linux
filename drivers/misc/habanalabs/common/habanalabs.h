@@ -1432,6 +1432,10 @@ struct hl_dbg_device_entry {
  * DEVICES
  */
 
+#define HL_STR_MAX	32
+
+#define HL_DEV_STS_MAX (HL_DEVICE_STATUS_NEEDS_RESET + 1)
+
 /* Theoretical limit only. A single host can only contain up to 4 or 8 PCIe
  * x16 cards. In extreme cases, there are hosts that can accommodate 16 cards.
  */
@@ -1706,6 +1710,7 @@ struct hl_mmu_funcs {
  * @hwmon_dev: H/W monitor device.
  * @pm_mng_profile: current power management profile.
  * @hl_chip_info: ASIC's sensors information.
+ * @device_status_description: device status description.
  * @hl_debugfs: device's debugfs manager.
  * @cb_pool: list of preallocated CBs.
  * @cb_pool_lock: protects the CB pool.
@@ -1774,6 +1779,8 @@ struct hl_mmu_funcs {
  * @supports_coresight: is CoreSight supported.
  * @supports_soft_reset: is soft reset supported.
  * @supports_cb_mapping: is mapping a CB to the device's MMU supported.
+ * @needs_reset: true if reset_on_lockup is false and device should be reset
+ *               due to lockup.
  */
 struct hl_device {
 	struct pci_dev			*pdev;
@@ -1786,7 +1793,8 @@ struct hl_device {
 	struct device			*dev_ctrl;
 	struct delayed_work		work_freq;
 	struct delayed_work		work_heartbeat;
-	char				asic_name[32];
+	char				asic_name[HL_STR_MAX];
+	char				status[HL_DEV_STS_MAX][HL_STR_MAX];
 	enum hl_asic_type		asic_type;
 	struct hl_cq			*completion_queue;
 	struct workqueue_struct		**cq_wq;
@@ -1876,6 +1884,7 @@ struct hl_device {
 	u8				supports_coresight;
 	u8				supports_soft_reset;
 	u8				supports_cb_mapping;
+	u8				needs_reset;
 
 	/* Parameters for bring-up */
 	u64				nic_ports_mask;
@@ -1978,7 +1987,8 @@ static inline bool hl_mem_area_crosses_range(u64 address, u32 size,
 
 int hl_device_open(struct inode *inode, struct file *filp);
 int hl_device_open_ctrl(struct inode *inode, struct file *filp);
-bool hl_device_disabled_or_in_reset(struct hl_device *hdev);
+bool hl_device_operational(struct hl_device *hdev,
+		enum hl_device_status *status);
 enum hl_device_status hl_device_status(struct hl_device *hdev);
 int hl_device_set_debug_mode(struct hl_device *hdev, bool enable);
 int create_hdev(struct hl_device **dev, struct pci_dev *pdev,

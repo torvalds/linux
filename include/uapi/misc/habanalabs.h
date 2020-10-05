@@ -242,7 +242,8 @@ enum gaudi_engine_id {
 enum hl_device_status {
 	HL_DEVICE_STATUS_OPERATIONAL,
 	HL_DEVICE_STATUS_IN_RESET,
-	HL_DEVICE_STATUS_MALFUNCTION
+	HL_DEVICE_STATUS_MALFUNCTION,
+	HL_DEVICE_STATUS_NEEDS_RESET
 };
 
 /* Opcode for management ioctl

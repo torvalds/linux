@@ -427,6 +427,8 @@ static void cs_timedout(struct work_struct *work)
 
 	if (hdev->reset_on_lockup)
 		hl_device_reset(hdev, false, false);
+	else
+		hdev->needs_reset = true;
 }
 
 static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
@@ -689,12 +691,13 @@ static int hl_cs_sanity_checks(struct hl_fpriv *hpriv, union hl_cs_args *args)
 	struct hl_device *hdev = hpriv->hdev;
 	struct hl_ctx *ctx = hpriv->ctx;
 	u32 cs_type_flags, num_chunks;
+	enum hl_device_status status;
 	enum hl_cs_type cs_type;
 
-	if (hl_device_disabled_or_in_reset(hdev)) {
+	if (!hl_device_operational(hdev, &status)) {
 		dev_warn_ratelimited(hdev->dev,
 			"Device is %s. Can't submit new CS\n",
-			atomic_read(&hdev->in_reset) ? "in_reset" : "disabled");
+			hdev->status[status]);
 		return -EBUSY;
 	}
 

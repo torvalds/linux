@@ -515,6 +515,7 @@ static void init_signal_wait_cs(struct hl_cs *cs)
  */
 int hl_hw_queue_schedule_cs(struct hl_cs *cs)
 {
+	enum hl_device_status status;
 	struct hl_cs_counters_atomic *cntr;
 	struct hl_ctx *ctx = cs->ctx;
 	struct hl_device *hdev = ctx->hdev;
@@ -527,11 +528,10 @@ int hl_hw_queue_schedule_cs(struct hl_cs *cs)
 
 	hdev->asic_funcs->hw_queues_lock(hdev);
 
-	if (hl_device_disabled_or_in_reset(hdev)) {
+	if (!hl_device_operational(hdev, &status)) {
 		atomic64_inc(&ctx->cs_counters.device_in_reset_drop_cnt);
-		atomic64_inc(&cntr->device_in_reset_drop_cnt);
 		dev_err(hdev->dev,
-			"device is disabled or in reset, CS rejected!\n");
+			"device is %s, CS rejected!\n", hdev->status[status]);
 		rc = -EPERM;
 		goto out;
 	}

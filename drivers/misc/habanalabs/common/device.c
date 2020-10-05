@@ -15,14 +15,6 @@
 
 #define HL_PLDM_PENDING_RESET_PER_SEC	(HL_PENDING_RESET_PER_SEC * 10)
 
-bool hl_device_disabled_or_in_reset(struct hl_device *hdev)
-{
-	if ((hdev->disabled) || (atomic_read(&hdev->in_reset)))
-		return true;
-	else
-		return false;
-}
-
 enum hl_device_status hl_device_status(struct hl_device *hdev)
 {
 	enum hl_device_status status;
@@ -31,10 +23,32 @@ enum hl_device_status hl_device_status(struct hl_device *hdev)
 		status = HL_DEVICE_STATUS_MALFUNCTION;
 	else if (atomic_read(&hdev->in_reset))
 		status = HL_DEVICE_STATUS_IN_RESET;
+	else if (hdev->needs_reset)
+		status = HL_DEVICE_STATUS_NEEDS_RESET;
 	else
 		status = HL_DEVICE_STATUS_OPERATIONAL;
 
 	return status;
+}
+
+bool hl_device_operational(struct hl_device *hdev,
+		enum hl_device_status *status)
+{
+	enum hl_device_status current_status;
+
+	current_status = hl_device_status(hdev);
+	if (status)
+		*status = current_status;
+
+	switch (current_status) {
+	case HL_DEVICE_STATUS_IN_RESET:
+	case HL_DEVICE_STATUS_MALFUNCTION:
+	case HL_DEVICE_STATUS_NEEDS_RESET:
+		return false;
+	case HL_DEVICE_STATUS_OPERATIONAL:
+	default:
+		return true;
+	}
 }
 
 static void hpriv_release(struct kref *ref)
@@ -411,7 +425,7 @@ static void hl_device_heartbeat(struct work_struct *work)
 	struct hl_device *hdev = container_of(work, struct hl_device,
 						work_heartbeat.work);
 
-	if (hl_device_disabled_or_in_reset(hdev))
+	if (!hl_device_operational(hdev, NULL))
 		goto reschedule;
 
 	if (!hdev->asic_funcs->send_heartbeat(hdev))
@@ -1091,6 +1105,7 @@ again:
 	}
 
 	atomic_set(&hdev->in_reset, 0);
+	hdev->needs_reset = false;
 
 	if (hard_reset)
 		hdev->hard_reset_cnt++;
