@@ -1076,28 +1076,6 @@ enum {
 	MAX_MR_CACHE_ENTRIES
 };
 
-enum {
-	MLX5_INTERFACE_PROTOCOL_ETH_REP,
-	MLX5_INTERFACE_PROTOCOL_ETH,
-
-	MLX5_INTERFACE_PROTOCOL_IB_REP,
-	MLX5_INTERFACE_PROTOCOL_MPIB,
-	MLX5_INTERFACE_PROTOCOL_IB,
-
-	MLX5_INTERFACE_PROTOCOL_VDPA,
-};
-
-struct mlx5_interface {
-	void *			(*add)(struct mlx5_core_dev *dev);
-	void			(*remove)(struct mlx5_core_dev *dev, void *context);
-	int			(*attach)(struct mlx5_core_dev *dev, void *context);
-	void			(*detach)(struct mlx5_core_dev *dev, void *context);
-	int			protocol;
-	struct list_head	list;
-};
-
-int mlx5_register_interface(struct mlx5_interface *intf);
-void mlx5_unregister_interface(struct mlx5_interface *intf);
 int mlx5_notifier_register(struct mlx5_core_dev *dev, struct notifier_block *nb);
 int mlx5_notifier_unregister(struct mlx5_core_dev *dev, struct notifier_block *nb);
 int mlx5_eq_notifier_register(struct mlx5_core_dev *dev, struct mlx5_nb *nb);

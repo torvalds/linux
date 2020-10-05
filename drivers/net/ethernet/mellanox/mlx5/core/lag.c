@@ -749,24 +749,6 @@ unlock:
 }
 EXPORT_SYMBOL(mlx5_lag_get_slave_port);
 
-bool mlx5_lag_intf_add(struct mlx5_interface *intf, struct mlx5_priv *priv)
-{
-	struct mlx5_core_dev *dev = container_of(priv, struct mlx5_core_dev,
-						 priv);
-	struct mlx5_lag *ldev;
-
-	if (intf->protocol != MLX5_INTERFACE_PROTOCOL_IB)
-		return true;
-
-	ldev = mlx5_lag_dev_get(dev);
-	if (!ldev || !__mlx5_lag_is_roce(ldev) ||
-	    ldev->pf[MLX5_LAG_P1].dev == dev)
-		return true;
-
-	/* If bonded, we do not add an IB device for PF1. */
-	return false;
-}
-
 int mlx5_lag_query_cong_counters(struct mlx5_core_dev *dev,
 				 u64 *values,
 				 int num_counters,
