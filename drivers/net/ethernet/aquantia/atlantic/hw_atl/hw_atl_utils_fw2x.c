@@ -633,6 +633,20 @@ static int aq_fw2x_set_downshift(struct aq_hw_s *self, u32 counter)
 	return err;
 }
 
+static int aq_fw2x_set_media_detect(struct aq_hw_s *self, bool on)
+{
+	u32 enable;
+	u32 offset;
+
+	if (self->fw_ver_actual < HW_ATL_FW_VER_MEDIA_CONTROL)
+		return -EOPNOTSUPP;
+
+	offset = offsetof(struct hw_atl_utils_settings, media_detect);
+	enable = on;
+
+	return hw_atl_write_fwsettings_dwords(self, offset, &enable, 1);
+}
+
 static u32 aq_fw2x_get_link_capabilities(struct aq_hw_s *self)
 {
 	int err = 0;
@@ -714,6 +728,7 @@ const struct aq_fw_ops aq_fw_2x_ops = {
 	.led_control        = aq_fw2x_led_control,
 	.set_phyloopback    = aq_fw2x_set_phyloopback,
 	.set_downshift      = aq_fw2x_set_downshift,
+	.set_media_detect   = aq_fw2x_set_media_detect,
 	.adjust_ptp         = aq_fw3x_adjust_ptp,
 	.get_link_capabilities = aq_fw2x_get_link_capabilities,
 	.send_macsec_req    = aq_fw2x_send_macsec_req,

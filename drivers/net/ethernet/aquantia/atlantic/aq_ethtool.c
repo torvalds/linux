@@ -923,6 +923,12 @@ static int aq_ethtool_get_phy_tunable(struct net_device *ndev,
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
 
 	switch (tuna->id) {
+	case ETHTOOL_PHY_EDPD: {
+		u16 *val = data;
+
+		*val = aq_nic->aq_nic_cfg.is_media_detect ? AQ_HW_MEDIA_DETECT_CNT : 0;
+		break;
+	}
 	case ETHTOOL_PHY_DOWNSHIFT: {
 		u8 *val = data;
 
@@ -943,6 +949,12 @@ static int aq_ethtool_set_phy_tunable(struct net_device *ndev,
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
 
 	switch (tuna->id) {
+	case ETHTOOL_PHY_EDPD: {
+		const u16 *val = data;
+
+		err = aq_nic_set_media_detect(aq_nic, *val);
+		break;
+	}
 	case ETHTOOL_PHY_DOWNSHIFT: {
 		const u8 *val = data;
 
