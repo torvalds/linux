@@ -11,6 +11,37 @@
 #include <linux/types.h>
 #include <linux/if_ether.h>
 
+#define NUM_HBM_PSEUDO_CH				2
+#define NUM_HBM_CH_PER_DEV				8
+#define CPUCP_PKT_HBM_ECC_INFO_WR_PAR_SHIFT		0
+#define CPUCP_PKT_HBM_ECC_INFO_WR_PAR_MASK		0x00000001
+#define CPUCP_PKT_HBM_ECC_INFO_RD_PAR_SHIFT		1
+#define CPUCP_PKT_HBM_ECC_INFO_RD_PAR_MASK		0x00000002
+#define CPUCP_PKT_HBM_ECC_INFO_CA_PAR_SHIFT		2
+#define CPUCP_PKT_HBM_ECC_INFO_CA_PAR_MASK		0x00000004
+#define CPUCP_PKT_HBM_ECC_INFO_DERR_SHIFT		3
+#define CPUCP_PKT_HBM_ECC_INFO_DERR_MASK		0x00000008
+#define CPUCP_PKT_HBM_ECC_INFO_SERR_SHIFT		4
+#define CPUCP_PKT_HBM_ECC_INFO_SERR_MASK		0x00000010
+#define CPUCP_PKT_HBM_ECC_INFO_TYPE_SHIFT		5
+#define CPUCP_PKT_HBM_ECC_INFO_TYPE_MASK		0x00000020
+#define CPUCP_PKT_HBM_ECC_INFO_HBM_CH_SHIFT		6
+#define CPUCP_PKT_HBM_ECC_INFO_HBM_CH_MASK		0x000007C0
+
+struct hl_eq_hbm_ecc_data {
+	/* SERR counter */
+	__le32 sec_cnt;
+	/* DERR counter */
+	__le32 dec_cnt;
+	/* Supplemental Information according to the mask bits */
+	__le32 hbm_ecc_info;
+	/* Address in hbm where the ecc happened */
+	__le32 first_addr;
+	/* SERR continuous address counter */
+	__le32 sec_cont_cnt;
+	__le32 pad;
+};
+
 /*
  * EVENT QUEUE
  */
@@ -31,6 +62,7 @@ struct hl_eq_entry {
 	struct hl_eq_header hdr;
 	union {
 		struct hl_eq_ecc_data ecc_data;
+		struct hl_eq_hbm_ecc_data hbm_ecc_data;
 		__le64 data[7];
 	};
 };

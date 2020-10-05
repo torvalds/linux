@@ -6839,10 +6839,41 @@ static int gaudi_soft_reset_late_init(struct hl_device *hdev)
 	return hl_fw_unmask_irq_arr(hdev, gaudi->events, sizeof(gaudi->events));
 }
 
-static int gaudi_hbm_read_interrupts(struct hl_device *hdev, int device)
+static int gaudi_hbm_read_interrupts(struct hl_device *hdev, int device,
+			struct hl_eq_hbm_ecc_data *hbm_ecc_data)
 {
-	int ch, err = 0;
-	u32 base, val, val2;
+	u32 base, val, val2, wr_par, rd_par, ca_par, derr, serr, type, ch;
+	int err = 0;
+
+	if (!hdev->asic_prop.fw_security_disabled) {
+		if (!hbm_ecc_data) {
+			dev_err(hdev->dev, "No FW ECC data");
+			return 0;
+		}
+
+		wr_par = FIELD_GET(CPUCP_PKT_HBM_ECC_INFO_WR_PAR_MASK,
+				le32_to_cpu(hbm_ecc_data->hbm_ecc_info));
+		rd_par = FIELD_GET(CPUCP_PKT_HBM_ECC_INFO_RD_PAR_MASK,
+				le32_to_cpu(hbm_ecc_data->hbm_ecc_info));
+		ca_par = FIELD_GET(CPUCP_PKT_HBM_ECC_INFO_CA_PAR_MASK,
+				le32_to_cpu(hbm_ecc_data->hbm_ecc_info));
+		derr = FIELD_GET(CPUCP_PKT_HBM_ECC_INFO_DERR_MASK,
+				le32_to_cpu(hbm_ecc_data->hbm_ecc_info));
+		serr = FIELD_GET(CPUCP_PKT_HBM_ECC_INFO_SERR_MASK,
+				le32_to_cpu(hbm_ecc_data->hbm_ecc_info));
+		type = FIELD_GET(CPUCP_PKT_HBM_ECC_INFO_TYPE_MASK,
+				le32_to_cpu(hbm_ecc_data->hbm_ecc_info));
+		ch = FIELD_GET(CPUCP_PKT_HBM_ECC_INFO_HBM_CH_MASK,
+				le32_to_cpu(hbm_ecc_data->hbm_ecc_info));
+
+		dev_err(hdev->dev,
+			"HBM%d pc%d interrupts info: WR_PAR=%d, RD_PAR=%d, CA_PAR=%d, SERR=%d, DERR=%d\n",
+			device, ch, wr_par, rd_par, ca_par, serr, derr);
+
+		err = 1;
+
+		return 0;
+	}
 
 	base = GAUDI_HBM_CFG_BASE + device * GAUDI_HBM_CFG_OFFSET;
 	for (ch = 0 ; ch < GAUDI_HBM_CHANNELS ; ch++) {
@@ -6858,7 +6889,7 @@ static int gaudi_hbm_read_interrupts(struct hl_device *hdev, int device)
 
 			val2 = RREG32(base + ch * 0x1000 + 0x060);
 			dev_err(hdev->dev,
-				"HBM%d pc%d ECC info: 1ST_ERR_ADDR=0x%x, 1ST_ERR_TYPE=%d, SEC_CONT_CNT=%d, SEC_CNT=%d, DED_CNT=%d\n",
+				"HBM%d pc%d ECC info: 1ST_ERR_ADDR=0x%x, 1ST_ERR_TYPE=%d, SEC_CONT_CNT=%d, SEC_CNT=%d, DEC_CNT=%d\n",
 				device, ch * 2,
 				RREG32(base + ch * 0x1000 + 0x064),
 				(val2 & 0x200) >> 9, (val2 & 0xFC00) >> 10,
@@ -6878,7 +6909,7 @@ static int gaudi_hbm_read_interrupts(struct hl_device *hdev, int device)
 
 			val2 = RREG32(base + ch * 0x1000 + 0x070);
 			dev_err(hdev->dev,
-				"HBM%d pc%d ECC info: 1ST_ERR_ADDR=0x%x, 1ST_ERR_TYPE=%d, SEC_CONT_CNT=%d, SEC_CNT=%d, DED_CNT=%d\n",
+				"HBM%d pc%d ECC info: 1ST_ERR_ADDR=0x%x, 1ST_ERR_TYPE=%d, SEC_CONT_CNT=%d, SEC_CNT=%d, DEC_CNT=%d\n",
 				device, ch * 2 + 1,
 				RREG32(base + ch * 0x1000 + 0x074),
 				(val2 & 0x200) >> 9, (val2 & 0xFC00) >> 10,
@@ -7079,7 +7110,8 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 	case GAUDI_EVENT_HBM3_SPI_0:
 		gaudi_print_irq_info(hdev, event_type, false);
 		gaudi_hbm_read_interrupts(hdev,
-					  gaudi_hbm_event_to_dev(event_type));
+				gaudi_hbm_event_to_dev(event_type),
+				&eq_entry->hbm_ecc_data);
 		if (hdev->hard_reset_on_fw_events)
 			hl_device_reset(hdev, true, false);
 		break;
@@ -7090,7 +7122,8 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 	case GAUDI_EVENT_HBM3_SPI_1:
 		gaudi_print_irq_info(hdev, event_type, false);
 		gaudi_hbm_read_interrupts(hdev,
-					  gaudi_hbm_event_to_dev(event_type));
+				gaudi_hbm_event_to_dev(event_type),
+				&eq_entry->hbm_ecc_data);
 		break;
 
 	case GAUDI_EVENT_TPC0_DEC:
