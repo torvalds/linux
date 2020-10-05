@@ -346,6 +346,7 @@ enum {
  * @timestamp: estimate of time of status change occurrence, in nanoseconds
  * @event_type: one of GPIOLINE_CHANGED_REQUESTED, GPIOLINE_CHANGED_RELEASED
  * and GPIOLINE_CHANGED_CONFIG
+ * @padding: reserved for future use
  *
  * Note: struct gpioline_info embedded here has 32-bit alignment on its own,
  * but it works fine with 64-bit alignment too. With its 72 byte size, we can
@@ -469,7 +470,7 @@ struct gpioevent_request {
 	int fd;
 };
 
-/**
+/*
  * GPIO event types
  */
 #define GPIOEVENT_EVENT_RISING_EDGE 0x01
