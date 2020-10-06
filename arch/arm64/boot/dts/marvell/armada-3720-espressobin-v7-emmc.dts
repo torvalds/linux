@@ -39,3 +39,7 @@
 &sdhci0 {
 	status = "okay";
 };
+
+&led2 {
+	status = "okay";
+};

@@ -41,6 +41,19 @@
 			  3300000 0x0>;
 		enable-active-high;
 	};
+
+	led2: gpio-led2 {
+		/* led2 is working only on v7 board */
+		status = "disabled";
+
+		compatible = "gpio-leds";
+
+		led2 {
+			label = "led2";
+			gpios = <&gpionb 2 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+	};
 };
 
 /* J9 */

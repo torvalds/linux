@@ -34,3 +34,7 @@
 &switch0port3 {
 	label = "wan";
 };
+
+&led2 {
+	status = "okay";
+};
