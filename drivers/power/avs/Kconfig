@@ -27,11 +27,3 @@ config QCOM_CPR
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called qcom-cpr
-
-config ROCKCHIP_IODOMAIN
-	tristate "Rockchip IO domain support"
-	depends on POWER_AVS && ARCH_ROCKCHIP && OF
-	help
-	  Say y here to enable support io domains on Rockchip SoCs. It is
-	  necessary for the io domain setting of the SoC to match the
-	  voltage supplied by the regulators.
