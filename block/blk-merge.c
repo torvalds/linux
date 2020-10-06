@@ -580,7 +580,8 @@ int ll_back_merge_fn(struct request *req, struct bio *bio, unsigned int nr_segs)
 	return ll_new_hw_segment(req, bio, nr_segs);
 }
 
-int ll_front_merge_fn(struct request *req, struct bio *bio, unsigned int nr_segs)
+static int ll_front_merge_fn(struct request *req, struct bio *bio,
+		unsigned int nr_segs)
 {
 	if (req_gap_front_merge(req, bio))
 		return 0;
@@ -810,7 +811,8 @@ static struct request *attempt_merge(struct request_queue *q,
 	return next;
 }
 
-struct request *attempt_back_merge(struct request_queue *q, struct request *rq)
+static struct request *attempt_back_merge(struct request_queue *q,
+		struct request *rq)
 {
 	struct request *next = elv_latter_request(q, rq);
 
@@ -820,7 +822,8 @@ struct request *attempt_back_merge(struct request_queue *q, struct request *rq)
 	return NULL;
 }
 
-struct request *attempt_front_merge(struct request_queue *q, struct request *rq)
+static struct request *attempt_front_merge(struct request_queue *q,
+		struct request *rq)
 {
 	struct request *prev = elv_former_request(q, rq);
 
@@ -907,9 +910,14 @@ static void blk_account_io_merge_bio(struct request *req)
 	part_stat_unlock();
 }
 
-enum bio_merge_status bio_attempt_back_merge(struct request *req,
-					     struct bio *bio,
-					     unsigned int nr_segs)
+enum bio_merge_status {
+	BIO_MERGE_OK,
+	BIO_MERGE_NONE,
+	BIO_MERGE_FAILED,
+};
+
+static enum bio_merge_status bio_attempt_back_merge(struct request *req,
+		struct bio *bio, unsigned int nr_segs)
 {
 	const int ff = bio->bi_opf & REQ_FAILFAST_MASK;
 
@@ -932,9 +940,8 @@ enum bio_merge_status bio_attempt_back_merge(struct request *req,
 	return BIO_MERGE_OK;
 }
 
-enum bio_merge_status bio_attempt_front_merge(struct request *req,
-					      struct bio *bio,
-					      unsigned int nr_segs)
+static enum bio_merge_status bio_attempt_front_merge(struct request *req,
+		struct bio *bio, unsigned int nr_segs)
 {
 	const int ff = bio->bi_opf & REQ_FAILFAST_MASK;
 
@@ -959,9 +966,8 @@ enum bio_merge_status bio_attempt_front_merge(struct request *req,
 	return BIO_MERGE_OK;
 }
 
-enum bio_merge_status bio_attempt_discard_merge(struct request_queue *q,
-						struct request *req,
-						struct bio *bio)
+static enum bio_merge_status bio_attempt_discard_merge(struct request_queue *q,
+		struct request *req, struct bio *bio)
 {
 	unsigned short segments = blk_rq_nr_discard_segments(req);
 
@@ -1096,3 +1102,35 @@ bool blk_bio_list_merge(struct request_queue *q, struct list_head *list,
 	return false;
 }
 EXPORT_SYMBOL_GPL(blk_bio_list_merge);
+
+bool blk_mq_sched_try_merge(struct request_queue *q, struct bio *bio,
+		unsigned int nr_segs, struct request **merged_request)
+{
+	struct request *rq;
+
+	switch (elv_merge(q, &rq, bio)) {
+	case ELEVATOR_BACK_MERGE:
+		if (!blk_mq_sched_allow_merge(q, rq, bio))
+			return false;
+		if (bio_attempt_back_merge(rq, bio, nr_segs) != BIO_MERGE_OK)
+			return false;
+		*merged_request = attempt_back_merge(q, rq);
+		if (!*merged_request)
+			elv_merged_request(q, rq, ELEVATOR_BACK_MERGE);
+		return true;
+	case ELEVATOR_FRONT_MERGE:
+		if (!blk_mq_sched_allow_merge(q, rq, bio))
+			return false;
+		if (bio_attempt_front_merge(rq, bio, nr_segs) != BIO_MERGE_OK)
+			return false;
+		*merged_request = attempt_front_merge(q, rq);
+		if (!*merged_request)
+			elv_merged_request(q, rq, ELEVATOR_FRONT_MERGE);
+		return true;
+	case ELEVATOR_DISCARD_MERGE:
+		return bio_attempt_discard_merge(q, rq, bio) == BIO_MERGE_OK;
+	default:
+		return false;
+	}
+}
+EXPORT_SYMBOL_GPL(blk_mq_sched_try_merge);
