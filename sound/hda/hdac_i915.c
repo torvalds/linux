@@ -11,8 +11,6 @@
 #include <sound/hda_i915.h>
 #include <sound/hda_register.h>
 
-static struct completion bind_complete;
-
 #define IS_HSW_CONTROLLER(pci) (((pci)->device == 0x0a0c) || \
 				((pci)->device == 0x0c0c) || \
 				((pci)->device == 0x0d0c) || \
@@ -130,19 +128,6 @@ static bool i915_gfx_present(void)
 	return pci_dev_present(ids);
 }
 
-static int i915_master_bind(struct device *dev,
-			    struct drm_audio_component *acomp)
-{
-	complete_all(&bind_complete);
-	/* clear audio_ops here as it was needed only for completion call */
-	acomp->audio_ops = NULL;
-	return 0;
-}
-
-static const struct drm_audio_component_audio_ops i915_init_ops = {
-	.master_bind = i915_master_bind
-};
-
 /**
  * snd_hdac_i915_init - Initialize i915 audio component
  * @bus: HDA core bus
@@ -163,9 +148,7 @@ int snd_hdac_i915_init(struct hdac_bus *bus)
 	if (!i915_gfx_present())
 		return -ENODEV;
 
-	init_completion(&bind_complete);
-
-	err = snd_hdac_acomp_init(bus, &i915_init_ops,
+	err = snd_hdac_acomp_init(bus, NULL,
 				  i915_component_master_match,
 				  sizeof(struct i915_audio_component) - sizeof(*acomp));
 	if (err < 0)
@@ -177,8 +160,8 @@ int snd_hdac_i915_init(struct hdac_bus *bus)
 		if (!IS_ENABLED(CONFIG_MODULES) ||
 		    !request_module("i915")) {
 			/* 60s timeout */
-			wait_for_completion_timeout(&bind_complete,
-						   msecs_to_jiffies(60 * 1000));
+			wait_for_completion_timeout(&acomp->master_bind_complete,
+						    msecs_to_jiffies(60 * 1000));
 		}
 	}
 	if (!acomp->ops) {
