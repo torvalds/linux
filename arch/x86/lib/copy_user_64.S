@@ -15,6 +15,7 @@
 #include <asm/asm.h>
 #include <asm/smap.h>
 #include <asm/export.h>
+#include <asm/trapnr.h>
 
 .macro ALIGN_DESTINATION
 	/* check for bad alignment of destination */
@@ -221,6 +222,7 @@ EXPORT_SYMBOL(copy_user_enhanced_fast_string)
  * Try to copy last bytes and clear the rest if needed.
  * Since protection fault in copy_from/to_user is not a normal situation,
  * it is not necessary to optimize tail handling.
+ * Don't try to copy the tail if machine check happened
  *
  * Input:
  * rdi destination
@@ -232,8 +234,21 @@ EXPORT_SYMBOL(copy_user_enhanced_fast_string)
  */
 SYM_CODE_START_LOCAL(.Lcopy_user_handle_tail)
 	movl %edx,%ecx
+	cmp $X86_TRAP_MC,%eax		/* check if X86_TRAP_MC */
+	je 3f
 1:	rep movsb
 2:	mov %ecx,%eax
+	ASM_CLAC
+	ret
+
+	/*
+	 * Return zero to pretend that this copy succeeded. This
+	 * is counter-intuitive, but needed to prevent the code
+	 * in lib/iov_iter.c from retrying and running back into
+	 * the poison cache line again. The machine check handler
+	 * will ensure that a SIGBUS is sent to the task.
+	 */
+3:	xorl %eax,%eax
 	ASM_CLAC
 	ret
 
