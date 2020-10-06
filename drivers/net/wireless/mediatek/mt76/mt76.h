@@ -461,7 +461,6 @@ struct mt76_sdio {
 	void *intr_data;
 
 	struct {
-		struct mutex lock;
 		int pse_data_quota;
 		int ple_data_quota;
 		int pse_mcu_quota;

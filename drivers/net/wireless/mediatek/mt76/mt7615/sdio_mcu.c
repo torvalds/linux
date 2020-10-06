@@ -19,22 +19,17 @@
 static int mt7663s_mcu_init_sched(struct mt7615_dev *dev)
 {
 	struct mt76_sdio *sdio = &dev->mt76.sdio;
-	u32 pse0, ple, pse1, txdwcnt;
+	u32 txdwcnt;
 
-	pse0 = mt76_get_field(dev, MT_PSE_PG_HIF0_GROUP, MT_HIF0_MIN_QUOTA);
-	pse1 = mt76_get_field(dev, MT_PSE_PG_HIF1_GROUP, MT_HIF1_MIN_QUOTA);
-	ple = mt76_get_field(dev, MT_PLE_PG_HIF0_GROUP, MT_HIF0_MIN_QUOTA);
+	sdio->sched.pse_data_quota = mt76_get_field(dev, MT_PSE_PG_HIF0_GROUP,
+						    MT_HIF0_MIN_QUOTA);
+	sdio->sched.pse_mcu_quota = mt76_get_field(dev, MT_PSE_PG_HIF1_GROUP,
+						   MT_HIF1_MIN_QUOTA);
+	sdio->sched.ple_data_quota = mt76_get_field(dev, MT_PLE_PG_HIF0_GROUP,
+						    MT_HIF0_MIN_QUOTA);
 	txdwcnt = mt76_get_field(dev, MT_PP_TXDWCNT,
 				 MT_PP_TXDWCNT_TX1_ADD_DW_CNT);
-
-	mutex_lock(&sdio->sched.lock);
-
-	sdio->sched.pse_data_quota = pse0;
-	sdio->sched.ple_data_quota = ple;
-	sdio->sched.pse_mcu_quota = pse1;
 	sdio->sched.deficit = txdwcnt << 2;
-
-	mutex_unlock(&sdio->sched.lock);
 
 	return 0;
 }

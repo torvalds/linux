@@ -46,11 +46,9 @@ static int mt7663s_refill_sched_quota(struct mt76_dev *dev, u32 *data)
 	if (!pse_data_quota && !ple_data_quota && !pse_mcu_quota)
 		return 0;
 
-	mutex_lock(&sdio->sched.lock);
 	sdio->sched.pse_mcu_quota += pse_mcu_quota;
 	sdio->sched.pse_data_quota += pse_data_quota;
 	sdio->sched.ple_data_quota += ple_data_quota;
-	mutex_unlock(&sdio->sched.lock);
 
 	return pse_data_quota + ple_data_quota + pse_mcu_quota;
 }
@@ -193,14 +191,12 @@ static int mt7663s_tx_pick_quota(struct mt76_sdio *sdio, enum mt76_txq_id qid,
 static void mt7663s_tx_update_quota(struct mt76_sdio *sdio, enum mt76_txq_id qid,
 				    int pse_size, int ple_size)
 {
-	mutex_lock(&sdio->sched.lock);
 	if (qid == MT_TXQ_MCU) {
 		sdio->sched.pse_mcu_quota -= pse_size;
 	} else {
 		sdio->sched.pse_data_quota -= pse_size;
 		sdio->sched.ple_data_quota -= ple_size;
 	}
-	mutex_unlock(&sdio->sched.lock);
 }
 
 static int __mt7663s_xmit_queue(struct mt76_dev *dev, u8 *data, int len)
