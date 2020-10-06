@@ -30,7 +30,7 @@
 #define SPT_PMC_MPHY_CORE_STS_1			0x1142
 #define SPT_PMC_MPHY_COM_STS_0			0x1155
 #define SPT_PMC_MMIO_REG_LEN			0x1000
-#define SPT_PMC_SLP_S0_RES_COUNTER_STEP		0x64
+#define SPT_PMC_SLP_S0_RES_COUNTER_STEP		0x68
 #define PMC_BASE_ADDR_MASK			~(SPT_PMC_MMIO_REG_LEN - 1)
 #define MTPMC_MASK				0xffff0000
 #define PPFEAR_MAX_NUM_ENTRIES			12
@@ -185,8 +185,10 @@ enum ppfear_regs {
 #define ICL_PPFEAR_NUM_ENTRIES			9
 #define ICL_NUM_IP_IGN_ALLOWED			20
 #define ICL_PMC_LTR_WIGIG			0x1BFC
+#define ICL_PMC_SLP_S0_RES_COUNTER_STEP		0x64
 
 #define TGL_NUM_IP_IGN_ALLOWED			22
+#define TGL_PMC_SLP_S0_RES_COUNTER_STEP		0x7A
 
 /*
  * Tigerlake Power Management Controller register offsets
@@ -245,6 +247,7 @@ struct pmc_reg_map {
 	const struct pmc_bit_map *msr_sts;
 	const struct pmc_bit_map **lpm_sts;
 	const u32 slp_s0_offset;
+	const int slp_s0_res_counter_step;
 	const u32 ltr_ignore_offset;
 	const int regmap_length;
 	const u32 ppfear0_offset;

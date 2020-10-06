@@ -154,6 +154,7 @@ static const struct pmc_reg_map spt_reg_map = {
 	.ltr_show_sts = spt_ltr_show_map,
 	.msr_sts = msr_map,
 	.slp_s0_offset = SPT_PMC_SLP_S0_RES_COUNTER_OFFSET,
+	.slp_s0_res_counter_step = SPT_PMC_SLP_S0_RES_COUNTER_STEP,
 	.ltr_ignore_offset = SPT_PMC_LTR_IGNORE_OFFSET,
 	.regmap_length = SPT_PMC_MMIO_REG_LEN,
 	.ppfear0_offset = SPT_PMC_XRAM_PPFEAR0A,
@@ -380,6 +381,7 @@ static const struct pmc_bit_map cnp_ltr_show_map[] = {
 static const struct pmc_reg_map cnp_reg_map = {
 	.pfear_sts = ext_cnp_pfear_map,
 	.slp_s0_offset = CNP_PMC_SLP_S0_RES_COUNTER_OFFSET,
+	.slp_s0_res_counter_step = SPT_PMC_SLP_S0_RES_COUNTER_STEP,
 	.slps0_dbg_maps = cnp_slps0_dbg_maps,
 	.ltr_show_sts = cnp_ltr_show_map,
 	.msr_sts = msr_map,
@@ -396,6 +398,7 @@ static const struct pmc_reg_map cnp_reg_map = {
 static const struct pmc_reg_map icl_reg_map = {
 	.pfear_sts = ext_icl_pfear_map,
 	.slp_s0_offset = CNP_PMC_SLP_S0_RES_COUNTER_OFFSET,
+	.slp_s0_res_counter_step = ICL_PMC_SLP_S0_RES_COUNTER_STEP,
 	.slps0_dbg_maps = cnp_slps0_dbg_maps,
 	.ltr_show_sts = cnp_ltr_show_map,
 	.msr_sts = msr_map,
@@ -558,6 +561,7 @@ static const struct pmc_bit_map *tgl_lpm_maps[] = {
 static const struct pmc_reg_map tgl_reg_map = {
 	.pfear_sts = ext_tgl_pfear_map,
 	.slp_s0_offset = CNP_PMC_SLP_S0_RES_COUNTER_OFFSET,
+	.slp_s0_res_counter_step = TGL_PMC_SLP_S0_RES_COUNTER_STEP,
 	.ltr_show_sts = cnp_ltr_show_map,
 	.msr_sts = msr_map,
 	.ltr_ignore_offset = CNP_PMC_LTR_IGNORE_OFFSET,
@@ -586,9 +590,9 @@ static inline void pmc_core_reg_write(struct pmc_dev *pmcdev, int reg_offset,
 	writel(val, pmcdev->regbase + reg_offset);
 }
 
-static inline u64 pmc_core_adjust_slp_s0_step(u32 value)
+static inline u64 pmc_core_adjust_slp_s0_step(struct pmc_dev *pmcdev, u32 value)
 {
-	return (u64)value * SPT_PMC_SLP_S0_RES_COUNTER_STEP;
+	return (u64)value * pmcdev->map->slp_s0_res_counter_step;
 }
 
 static int pmc_core_dev_state_get(void *data, u64 *val)
@@ -598,7 +602,7 @@ static int pmc_core_dev_state_get(void *data, u64 *val)
 	u32 value;
 
 	value = pmc_core_reg_read(pmcdev, map->slp_s0_offset);
-	*val = pmc_core_adjust_slp_s0_step(value);
+	*val = pmc_core_adjust_slp_s0_step(pmcdev, value);
 
 	return 0;
 }
