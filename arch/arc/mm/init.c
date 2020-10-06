@@ -26,8 +26,8 @@ static unsigned long low_mem_sz;
 
 #ifdef CONFIG_HIGHMEM
 static unsigned long min_high_pfn, max_high_pfn;
-static u64 high_mem_start;
-static u64 high_mem_sz;
+static phys_addr_t high_mem_start;
+static phys_addr_t high_mem_sz;
 #endif
 
 #ifdef CONFIG_DISCONTIGMEM
@@ -69,6 +69,7 @@ void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 		high_mem_sz = size;
 		in_use = 1;
 		memblock_add_node(base, size, 1);
+		memblock_reserve(base, size);
 #endif
 	}
 
@@ -157,13 +158,24 @@ void __init setup_arch_memory(void)
 	min_high_pfn = PFN_DOWN(high_mem_start);
 	max_high_pfn = PFN_DOWN(high_mem_start + high_mem_sz);
 
-	max_zone_pfn[ZONE_HIGHMEM] = max_high_pfn;
+	max_zone_pfn[ZONE_HIGHMEM] = min_low_pfn;
 
 	high_memory = (void *)(min_high_pfn << PAGE_SHIFT);
 	kmap_init();
 #endif
 
 	free_area_init(max_zone_pfn);
+}
+
+static void __init highmem_init(void)
+{
+#ifdef CONFIG_HIGHMEM
+	unsigned long tmp;
+
+	memblock_free(high_mem_start, high_mem_sz);
+	for (tmp = min_high_pfn; tmp < max_high_pfn; tmp++)
+		free_highmem_page(pfn_to_page(tmp));
+#endif
 }
 
 /*
@@ -174,14 +186,7 @@ void __init setup_arch_memory(void)
  */
 void __init mem_init(void)
 {
-#ifdef CONFIG_HIGHMEM
-	unsigned long tmp;
-
-	reset_all_zones_managed_pages();
-	for (tmp = min_high_pfn; tmp < max_high_pfn; tmp++)
-		free_highmem_page(pfn_to_page(tmp));
-#endif
-
 	memblock_free_all();
+	highmem_init();
 	mem_init_print_info(NULL);
 }

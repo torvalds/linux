@@ -574,7 +574,7 @@ static bool memremap_should_map_decrypted(resource_size_t phys_addr,
 		/* For SEV, these areas are encrypted */
 		if (sev_active())
 			break;
-		/* Fallthrough */
+		fallthrough;
 
 	case E820_TYPE_PRAM:
 		return true;

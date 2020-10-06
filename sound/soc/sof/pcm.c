@@ -361,7 +361,7 @@ static int sof_pcm_trigger(struct snd_soc_component *component,
 			return ret;
 		}
 
-		/* fallthrough */
+		fallthrough;
 	case SNDRV_PCM_TRIGGER_START:
 		if (spcm->stream[substream->stream].suspend_ignored) {
 			/*
@@ -386,7 +386,7 @@ static int sof_pcm_trigger(struct snd_soc_component *component,
 			spcm->stream[substream->stream].suspend_ignored = true;
 			return 0;
 		}
-		/* fallthrough */
+		fallthrough;
 	case SNDRV_PCM_TRIGGER_STOP:
 		stream.hdr.cmd |= SOF_IPC_STREAM_TRIG_STOP;
 		ipc_first = true;

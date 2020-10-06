@@ -974,7 +974,7 @@ static void fjes_stop_req_irq(struct fjes_adapter *adapter, int src_epid)
 				FJES_RX_STOP_REQ_DONE;
 		spin_unlock_irqrestore(&hw->rx_status_lock, flags);
 		clear_bit(src_epid, &hw->txrx_stop_req_bit);
-		/* fall through */
+		fallthrough;
 	case EP_PARTNER_UNSHARE:
 	case EP_PARTNER_COMPLETE:
 	default:

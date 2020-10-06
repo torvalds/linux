@@ -165,19 +165,19 @@ struct __large_struct {
 
 #define __get_user_nocheck(x, ptr, size)			\
 ({								\
-	long __gu_err, __gu_val;				\
-	__get_user_size(__gu_val, (ptr), (size), __gu_err);	\
-	(x) = (__force __typeof__(*(ptr)))__gu_val;		\
+	long __gu_err;						\
+	__get_user_size((x), (ptr), (size), __gu_err);		\
 	__gu_err;						\
 })
 
 #define __get_user_check(x, ptr, size)					\
 ({									\
-	long __gu_err = -EFAULT, __gu_val = 0;				\
+	long __gu_err = -EFAULT;					\
 	const __typeof__(*(ptr)) __user *__gu_addr = (ptr);		\
-	if (access_ok(__gu_addr, size))			\
-		__get_user_size(__gu_val, __gu_addr, (size), __gu_err);	\
-	(x) = (__force __typeof__(*(ptr)))__gu_val;			\
+	if (access_ok(__gu_addr, size))					\
+		__get_user_size((x), __gu_addr, (size), __gu_err);	\
+	else								\
+		(x) = (__typeof__(*(ptr))) 0;				\
 	__gu_err;							\
 })
 
@@ -191,11 +191,13 @@ do {									\
 	case 2: __get_user_asm(x, ptr, retval, "l.lhz"); break;		\
 	case 4: __get_user_asm(x, ptr, retval, "l.lwz"); break;		\
 	case 8: __get_user_asm2(x, ptr, retval); break;			\
-	default: (x) = __get_user_bad();				\
+	default: (x) = (__typeof__(*(ptr)))__get_user_bad();		\
 	}								\
 } while (0)
 
 #define __get_user_asm(x, addr, err, op)		\
+{							\
+	unsigned long __gu_tmp;				\
 	__asm__ __volatile__(				\
 		"1:	"op" %1,0(%2)\n"		\
 		"2:\n"					\
@@ -209,10 +211,14 @@ do {									\
 		"	.align 2\n"			\
 		"	.long 1b,3b\n"			\
 		".previous"				\
-		: "=r"(err), "=r"(x)			\
-		: "r"(addr), "i"(-EFAULT), "0"(err))
+		: "=r"(err), "=r"(__gu_tmp)		\
+		: "r"(addr), "i"(-EFAULT), "0"(err));	\
+	(x) = (__typeof__(*(addr)))__gu_tmp;		\
+}
 
 #define __get_user_asm2(x, addr, err)			\
+{							\
+	unsigned long long __gu_tmp;			\
 	__asm__ __volatile__(				\
 		"1:	l.lwz %1,0(%2)\n"		\
 		"2:	l.lwz %H1,4(%2)\n"		\
@@ -229,8 +235,11 @@ do {									\
 		"	.long 1b,4b\n"			\
 		"	.long 2b,4b\n"			\
 		".previous"				\
-		: "=r"(err), "=&r"(x)			\
-		: "r"(addr), "i"(-EFAULT), "0"(err))
+		: "=r"(err), "=&r"(__gu_tmp)		\
+		: "r"(addr), "i"(-EFAULT), "0"(err));	\
+	(x) = (__typeof__(*(addr)))(			\
+		(__typeof__((x)-(x)))__gu_tmp);		\
+}
 
 /* more complex routines */
 

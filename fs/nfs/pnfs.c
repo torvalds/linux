@@ -1541,7 +1541,7 @@ void pnfs_roc_release(struct nfs4_layoutreturn_args *args,
 	case 0:
 		if (res->lrs_present)
 			res_stateid = &res->stateid;
-		/* Fallthrough */
+		fallthrough;
 	default:
 		arg_stateid = &args->stateid;
 	}

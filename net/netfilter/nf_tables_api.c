@@ -815,11 +815,11 @@ static int nf_tables_gettable(struct net *net, struct sock *nlsk,
 					nlh->nlmsg_seq, NFT_MSG_NEWTABLE, 0,
 					family, table);
 	if (err < 0)
-		goto err;
+		goto err_fill_table_info;
 
-	return nlmsg_unicast(nlsk, skb2, NETLINK_CB(skb).portid);
+	return nfnetlink_unicast(skb2, net, NETLINK_CB(skb).portid);
 
-err:
+err_fill_table_info:
 	kfree_skb(skb2);
 	return err;
 }
@@ -1563,11 +1563,11 @@ static int nf_tables_getchain(struct net *net, struct sock *nlsk,
 					nlh->nlmsg_seq, NFT_MSG_NEWCHAIN, 0,
 					family, table, chain);
 	if (err < 0)
-		goto err;
+		goto err_fill_chain_info;
 
-	return nlmsg_unicast(nlsk, skb2, NETLINK_CB(skb).portid);
+	return nfnetlink_unicast(skb2, net, NETLINK_CB(skb).portid);
 
-err:
+err_fill_chain_info:
 	kfree_skb(skb2);
 	return err;
 }
@@ -3008,11 +3008,11 @@ static int nf_tables_getrule(struct net *net, struct sock *nlsk,
 				       nlh->nlmsg_seq, NFT_MSG_NEWRULE, 0,
 				       family, table, chain, rule, NULL);
 	if (err < 0)
-		goto err;
+		goto err_fill_rule_info;
 
-	return nlmsg_unicast(nlsk, skb2, NETLINK_CB(skb).portid);
+	return nfnetlink_unicast(skb2, net, NETLINK_CB(skb).portid);
 
-err:
+err_fill_rule_info:
 	kfree_skb(skb2);
 	return err;
 }
@@ -3770,7 +3770,8 @@ static int nf_tables_fill_set(struct sk_buff *skb, const struct nft_ctx *ctx,
 			goto nla_put_failure;
 	}
 
-	if (nla_put(skb, NFTA_SET_USERDATA, set->udlen, set->udata))
+	if (set->udata &&
+	    nla_put(skb, NFTA_SET_USERDATA, set->udlen, set->udata))
 		goto nla_put_failure;
 
 	nest = nla_nest_start_noflag(skb, NFTA_SET_DESC);
@@ -3967,11 +3968,11 @@ static int nf_tables_getset(struct net *net, struct sock *nlsk,
 
 	err = nf_tables_fill_set(skb2, &ctx, set, NFT_MSG_NEWSET, 0);
 	if (err < 0)
-		goto err;
+		goto err_fill_set_info;
 
-	return nlmsg_unicast(nlsk, skb2, NETLINK_CB(skb).portid);
+	return nfnetlink_unicast(skb2, net, NETLINK_CB(skb).portid);
 
-err:
+err_fill_set_info:
 	kfree_skb(skb2);
 	return err;
 }
@@ -4859,24 +4860,18 @@ static int nft_get_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 	err = -ENOMEM;
 	skb = nlmsg_new(NLMSG_GOODSIZE, GFP_ATOMIC);
 	if (skb == NULL)
-		goto err1;
+		return err;
 
 	err = nf_tables_fill_setelem_info(skb, ctx, ctx->seq, ctx->portid,
 					  NFT_MSG_NEWSETELEM, 0, set, &elem);
 	if (err < 0)
-		goto err2;
+		goto err_fill_setelem;
 
-	err = nfnetlink_unicast(skb, ctx->net, ctx->portid, MSG_DONTWAIT);
-	/* This avoids a loop in nfnetlink. */
-	if (err < 0)
-		goto err1;
+	return nfnetlink_unicast(skb, ctx->net, ctx->portid);
 
-	return 0;
-err2:
+err_fill_setelem:
 	kfree_skb(skb);
-err1:
-	/* this avoids a loop in nfnetlink. */
-	return err == -EAGAIN ? -ENOBUFS : err;
+	return err;
 }
 
 /* called with rcu_read_lock held */
@@ -6181,10 +6176,11 @@ static int nf_tables_getobj(struct net *net, struct sock *nlsk,
 				      nlh->nlmsg_seq, NFT_MSG_NEWOBJ, 0,
 				      family, table, obj, reset);
 	if (err < 0)
-		goto err;
+		goto err_fill_obj_info;
 
-	return nlmsg_unicast(nlsk, skb2, NETLINK_CB(skb).portid);
-err:
+	return nfnetlink_unicast(skb2, net, NETLINK_CB(skb).portid);
+
+err_fill_obj_info:
 	kfree_skb(skb2);
 	return err;
 }
@@ -7044,10 +7040,11 @@ static int nf_tables_getflowtable(struct net *net, struct sock *nlsk,
 					    NFT_MSG_NEWFLOWTABLE, 0, family,
 					    flowtable, &flowtable->hook_list);
 	if (err < 0)
-		goto err;
+		goto err_fill_flowtable_info;
 
-	return nlmsg_unicast(nlsk, skb2, NETLINK_CB(skb).portid);
-err:
+	return nfnetlink_unicast(skb2, net, NETLINK_CB(skb).portid);
+
+err_fill_flowtable_info:
 	kfree_skb(skb2);
 	return err;
 }
@@ -7233,10 +7230,11 @@ static int nf_tables_getgen(struct net *net, struct sock *nlsk,
 	err = nf_tables_fill_gen_info(skb2, net, NETLINK_CB(skb).portid,
 				      nlh->nlmsg_seq);
 	if (err < 0)
-		goto err;
+		goto err_fill_gen_info;
 
-	return nlmsg_unicast(nlsk, skb2, NETLINK_CB(skb).portid);
-err:
+	return nfnetlink_unicast(skb2, net, NETLINK_CB(skb).portid);
+
+err_fill_gen_info:
 	kfree_skb(skb2);
 	return err;
 }

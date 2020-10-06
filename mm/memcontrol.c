@@ -6774,6 +6774,9 @@ static void uncharge_batch(const struct uncharge_gather *ug)
 	__this_cpu_add(ug->memcg->vmstats_percpu->nr_page_events, ug->nr_pages);
 	memcg_check_events(ug->memcg, ug->dummy_page);
 	local_irq_restore(flags);
+
+	/* drop reference from uncharge_page */
+	css_put(&ug->memcg->css);
 }
 
 static void uncharge_page(struct page *page, struct uncharge_gather *ug)
@@ -6797,6 +6800,9 @@ static void uncharge_page(struct page *page, struct uncharge_gather *ug)
 			uncharge_gather_clear(ug);
 		}
 		ug->memcg = page->mem_cgroup;
+
+		/* pairs with css_put in uncharge_batch */
+		css_get(&ug->memcg->css);
 	}
 
 	nr_pages = compound_nr(page);

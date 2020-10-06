@@ -207,7 +207,7 @@ repeat:
 					self_test_last_rcv = jiffies;
 					break;
 				}
-				/* FALL THROUGH */
+				fallthrough;
 
 			default:
 				break_flag = scancode & BREAK_MASK;

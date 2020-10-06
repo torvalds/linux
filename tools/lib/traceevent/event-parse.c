@@ -5259,7 +5259,7 @@ static int print_arg_pointer(struct trace_seq *s, const char *format, int plen,
 	default:
 		ret = 0;
 		val = eval_num_arg(data, size, event, arg);
-		trace_seq_printf(s, "%p", (void *)val);
+		trace_seq_printf(s, "%p", (void *)(intptr_t)val);
 		break;
 	}
 

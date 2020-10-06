@@ -1436,7 +1436,7 @@ static void skd_resolve_req_exception(struct skd_device *skdev,
 			blk_mq_requeue_request(req, true);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 
 	case SKD_CHECK_STATUS_REPORT_ERROR:
 	default:

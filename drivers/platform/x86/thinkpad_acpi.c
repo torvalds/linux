@@ -4060,7 +4060,7 @@ static bool hotkey_notify_6xxx(const u32 hkey,
 		 * AC status changed; can be triggered by plugging or
 		 * unplugging AC adapter, docking or undocking. */
 
-		/* fallthrough */
+		fallthrough;
 
 	case TP_HKEY_EV_KEY_NUMLOCK:
 	case TP_HKEY_EV_KEY_FN:
@@ -4176,7 +4176,7 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 				known_ev = true;
 				break;
 			}
-			/* fallthrough - to default */
+			fallthrough;	/* to default */
 		default:
 			known_ev = false;
 		}
@@ -6266,7 +6266,7 @@ static int thermal_get_sensor(int idx, s32 *value)
 			idx -= 8;
 		}
 #endif
-		/* fallthrough */
+		fallthrough;
 	case TPACPI_THERMAL_TPEC_8:
 		if (idx <= 7) {
 			if (!acpi_ec_read(t + idx, &tmp))

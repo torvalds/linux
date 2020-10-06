@@ -50,35 +50,35 @@ unsigned int ceph_str_hash_rjenkins(const char *str, unsigned int length)
 	switch (len) {
 	case 11:
 		c = c + ((__u32)k[10] << 24);
-		/* fall through */
+		fallthrough;
 	case 10:
 		c = c + ((__u32)k[9] << 16);
-		/* fall through */
+		fallthrough;
 	case 9:
 		c = c + ((__u32)k[8] << 8);
 		/* the first byte of c is reserved for the length */
-		/* fall through */
+		fallthrough;
 	case 8:
 		b = b + ((__u32)k[7] << 24);
-		/* fall through */
+		fallthrough;
 	case 7:
 		b = b + ((__u32)k[6] << 16);
-		/* fall through */
+		fallthrough;
 	case 6:
 		b = b + ((__u32)k[5] << 8);
-		/* fall through */
+		fallthrough;
 	case 5:
 		b = b + k[4];
-		/* fall through */
+		fallthrough;
 	case 4:
 		a = a + ((__u32)k[3] << 24);
-		/* fall through */
+		fallthrough;
 	case 3:
 		a = a + ((__u32)k[2] << 16);
-		/* fall through */
+		fallthrough;
 	case 2:
 		a = a + ((__u32)k[1] << 8);
-		/* fall through */
+		fallthrough;
 	case 1:
 		a = a + k[0];
 		/* case 0: nothing left to add */

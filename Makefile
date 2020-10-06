@@ -2,7 +2,7 @@
 VERSION = 5
 PATCHLEVEL = 9
 SUBLEVEL = 0
-EXTRAVERSION = -rc2
+EXTRAVERSION = -rc5
 NAME = Kleptomaniac Octopus
 
 # *DOCUMENTATION*
@@ -880,10 +880,6 @@ endif
 ifdef CONFIG_LD_DEAD_CODE_DATA_ELIMINATION
 KBUILD_CFLAGS_KERNEL += -ffunction-sections -fdata-sections
 LDFLAGS_vmlinux += --gc-sections
-endif
-
-ifdef CONFIG_LIVEPATCH
-KBUILD_CFLAGS += $(call cc-option, -flive-patching=inline-clone)
 endif
 
 ifdef CONFIG_SHADOW_CALL_STACK

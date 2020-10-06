@@ -772,7 +772,6 @@ static void sk_psock_verdict_apply(struct sk_psock *psock,
 		sk_psock_skb_redirect(skb);
 		break;
 	case __SK_DROP:
-		/* fall-through */
 	default:
 out_free:
 		kfree_skb(skb);

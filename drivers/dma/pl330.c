@@ -1061,16 +1061,16 @@ static bool _start(struct pl330_thread *thrd)
 
 		if (_state(thrd) == PL330_STATE_KILLING)
 			UNTIL(thrd, PL330_STATE_STOPPED)
-		/* fall through */
+		fallthrough;
 
 	case PL330_STATE_FAULTING:
 		_stop(thrd);
-		/* fall through */
+		fallthrough;
 
 	case PL330_STATE_KILLING:
 	case PL330_STATE_COMPLETING:
 		UNTIL(thrd, PL330_STATE_STOPPED)
-		/* fall through */
+		fallthrough;
 
 	case PL330_STATE_STOPPED:
 		return _trigger(thrd);
@@ -1121,7 +1121,6 @@ static u32 _emit_load(unsigned int dry_run, u8 buf[],
 
 	switch (direction) {
 	case DMA_MEM_TO_MEM:
-		/* fall through */
 	case DMA_MEM_TO_DEV:
 		off += _emit_LD(dry_run, &buf[off], cond);
 		break;
@@ -1155,7 +1154,6 @@ static inline u32 _emit_store(unsigned int dry_run, u8 buf[],
 
 	switch (direction) {
 	case DMA_MEM_TO_MEM:
-		/* fall through */
 	case DMA_DEV_TO_MEM:
 		off += _emit_ST(dry_run, &buf[off], cond);
 		break;
@@ -1216,7 +1214,6 @@ static int _bursts(struct pl330_dmac *pl330, unsigned dry_run, u8 buf[],
 
 	switch (pxs->desc->rqtype) {
 	case DMA_MEM_TO_DEV:
-		/* fall through */
 	case DMA_DEV_TO_MEM:
 		off += _ldst_peripheral(pl330, dry_run, &buf[off], pxs, cyc,
 			cond);
@@ -1266,7 +1263,6 @@ static int _dregs(struct pl330_dmac *pl330, unsigned int dry_run, u8 buf[],
 
 	switch (pxs->desc->rqtype) {
 	case DMA_MEM_TO_DEV:
-		/* fall through */
 	case DMA_DEV_TO_MEM:
 		off += _emit_MOV(dry_run, &buf[off], CCR, dregs_ccr);
 		off += _ldst_peripheral(pl330, dry_run, &buf[off], pxs, 1,
@@ -2801,6 +2797,7 @@ pl330_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dst,
 	while (burst != (1 << desc->rqcfg.brst_size))
 		desc->rqcfg.brst_size++;
 
+	desc->rqcfg.brst_len = get_burst_len(desc, len);
 	/*
 	 * If burst size is smaller than bus width then make sure we only
 	 * transfer one at a time to avoid a burst stradling an MFIFO entry.
@@ -2808,7 +2805,6 @@ pl330_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dst,
 	if (desc->rqcfg.brst_size * 8 < pl330->pcfg.data_bus_width)
 		desc->rqcfg.brst_len = 1;
 
-	desc->rqcfg.brst_len = get_burst_len(desc, len);
 	desc->bytes_requested = len;
 
 	desc->txd.flags = flags;

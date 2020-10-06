@@ -552,7 +552,7 @@ static umode_t sfp_hwmon_is_visible(const void *data,
 		case hwmon_temp_crit:
 			if (!(sfp->id.ext.enhopts & SFP_ENHOPTS_ALARMWARN))
 				return 0;
-			/* fall through */
+			fallthrough;
 		case hwmon_temp_input:
 		case hwmon_temp_label:
 			return 0444;
@@ -571,7 +571,7 @@ static umode_t sfp_hwmon_is_visible(const void *data,
 		case hwmon_in_crit:
 			if (!(sfp->id.ext.enhopts & SFP_ENHOPTS_ALARMWARN))
 				return 0;
-			/* fall through */
+			fallthrough;
 		case hwmon_in_input:
 		case hwmon_in_label:
 			return 0444;
@@ -590,7 +590,7 @@ static umode_t sfp_hwmon_is_visible(const void *data,
 		case hwmon_curr_crit:
 			if (!(sfp->id.ext.enhopts & SFP_ENHOPTS_ALARMWARN))
 				return 0;
-			/* fall through */
+			fallthrough;
 		case hwmon_curr_input:
 		case hwmon_curr_label:
 			return 0444;
@@ -618,7 +618,7 @@ static umode_t sfp_hwmon_is_visible(const void *data,
 		case hwmon_power_crit:
 			if (!(sfp->id.ext.enhopts & SFP_ENHOPTS_ALARMWARN))
 				return 0;
-			/* fall through */
+			fallthrough;
 		case hwmon_power_input:
 		case hwmon_power_label:
 			return 0444;
@@ -1872,7 +1872,7 @@ static void sfp_sm_module(struct sfp *sfp, unsigned int event)
 			dev_warn(sfp->dev, "hwmon probe failed: %d\n", err);
 
 		sfp_sm_mod_next(sfp, SFP_MOD_WAITDEV, 0);
-		/* fall through */
+		fallthrough;
 	case SFP_MOD_WAITDEV:
 		/* Ensure that the device is attached before proceeding */
 		if (sfp->sm_dev_state < SFP_DEV_DOWN)
@@ -1890,7 +1890,7 @@ static void sfp_sm_module(struct sfp *sfp, unsigned int event)
 			goto insert;
 
 		sfp_sm_mod_next(sfp, SFP_MOD_HPOWER, 0);
-		/* fall through */
+		fallthrough;
 	case SFP_MOD_HPOWER:
 		/* Enable high power mode */
 		err = sfp_sm_mod_hpower(sfp, true);

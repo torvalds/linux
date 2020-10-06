@@ -100,6 +100,12 @@ bool __generic_fsdax_supported(struct dax_device *dax_dev,
 		return false;
 	}
 
+	if (!dax_dev || !bdev_dax_supported(bdev, blocksize)) {
+		pr_debug("%s: error: dax unsupported by block device\n",
+				bdevname(bdev, buf));
+		return false;
+	}
+
 	id = dax_read_lock();
 	len = dax_direct_access(dax_dev, pgoff, 1, &kaddr, &pfn);
 	len2 = dax_direct_access(dax_dev, pgoff_end, 1, &end_kaddr, &end_pfn);

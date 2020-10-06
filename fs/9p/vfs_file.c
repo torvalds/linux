@@ -213,7 +213,7 @@ static int v9fs_file_do_lock(struct file *filp, int cmd, struct file_lock *fl)
 		break;
 	default:
 		WARN_ONCE(1, "unknown lock status code: %d\n", status);
-		/* fall through */
+		fallthrough;
 	case P9_LOCK_ERROR:
 	case P9_LOCK_GRACE:
 		res = -ENOLCK;

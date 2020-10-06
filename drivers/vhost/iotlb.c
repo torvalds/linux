@@ -159,8 +159,8 @@ vhost_iotlb_itree_first(struct vhost_iotlb *iotlb, u64 start, u64 last)
 EXPORT_SYMBOL_GPL(vhost_iotlb_itree_first);
 
 /**
- * vhost_iotlb_itree_first - return the next overlapped range
- * @iotlb: the IOTLB
+ * vhost_iotlb_itree_next - return the next overlapped range
+ * @map: the starting map node
  * @start: start of IOVA range
  * @end: end of IOVA range
  */

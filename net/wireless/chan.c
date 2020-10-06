@@ -10,6 +10,7 @@
  */
 
 #include <linux/export.h>
+#include <linux/bitfield.h>
 #include <net/cfg80211.h>
 #include "core.h"
 #include "rdev-ops.h"
@@ -912,6 +913,7 @@ bool cfg80211_chandef_usable(struct wiphy *wiphy,
 	struct ieee80211_sta_vht_cap *vht_cap;
 	struct ieee80211_edmg *edmg_cap;
 	u32 width, control_freq, cap;
+	bool support_80_80 = false;
 
 	if (WARN_ON(!cfg80211_chandef_valid(chandef)))
 		return false;
@@ -957,7 +959,7 @@ bool cfg80211_chandef_usable(struct wiphy *wiphy,
 		if (!ht_cap->ht_supported &&
 		    chandef->chan->band != NL80211_BAND_6GHZ)
 			return false;
-		/* fall through */
+		fallthrough;
 	case NL80211_CHAN_WIDTH_20_NOHT:
 		prohibited_flags |= IEEE80211_CHAN_NO_20MHZ;
 		width = 20;
@@ -979,11 +981,15 @@ bool cfg80211_chandef_usable(struct wiphy *wiphy,
 			return false;
 		break;
 	case NL80211_CHAN_WIDTH_80P80:
-		cap = vht_cap->cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK;
-		if (chandef->chan->band != NL80211_BAND_6GHZ &&
-		    cap != IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ)
+		cap = vht_cap->cap;
+		support_80_80 =
+			(cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ) ||
+			(cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ &&
+			 cap & IEEE80211_VHT_CAP_EXT_NSS_BW_MASK) ||
+			u32_get_bits(cap, IEEE80211_VHT_CAP_EXT_NSS_BW_MASK) > 1;
+		if (chandef->chan->band != NL80211_BAND_6GHZ && !support_80_80)
 			return false;
-		/* fall through */
+		fallthrough;
 	case NL80211_CHAN_WIDTH_80:
 		prohibited_flags |= IEEE80211_CHAN_NO_80MHZ;
 		width = 80;
@@ -1001,7 +1007,8 @@ bool cfg80211_chandef_usable(struct wiphy *wiphy,
 			return false;
 		cap = vht_cap->cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK;
 		if (cap != IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ &&
-		    cap != IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ)
+		    cap != IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ &&
+		    !(vht_cap->cap & IEEE80211_VHT_CAP_EXT_NSS_BW_MASK))
 			return false;
 		break;
 	default:

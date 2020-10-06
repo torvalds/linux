@@ -546,7 +546,7 @@ static int dvb_net_ule_new_payload(struct dvb_net_ule_handle *h)
 		h->priv->ule_sndu_type_1 = 1;
 		h->ts_remain -= 1;
 		h->from_where += 1;
-		/* fallthrough */
+		fallthrough;
 	case 0:
 		h->new_ts = 1;
 		h->ts += TS_SZ;

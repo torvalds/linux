@@ -566,7 +566,7 @@ static void mt7530_setup_port5(struct dsa_switch *ds, phy_interface_t interface)
 	case P5_INTF_SEL_PHY_P0:
 		/* MT7530_P5_MODE_GPHY_P0: 2nd GMAC -> P5 -> P0 */
 		val |= MHWTRAP_PHY0_SEL;
-		/* fall through */
+		fallthrough;
 	case P5_INTF_SEL_PHY_P4:
 		/* MT7530_P5_MODE_GPHY_P4: 2nd GMAC -> P5 -> P4 */
 		val &= ~MHWTRAP_P5_MAC_SEL & ~MHWTRAP_P5_DIS;
@@ -1326,14 +1326,17 @@ mt7530_setup(struct dsa_switch *ds)
 
 			if (phy_node->parent == priv->dev->of_node->parent) {
 				ret = of_get_phy_mode(mac_np, &interface);
-				if (ret && ret != -ENODEV)
+				if (ret && ret != -ENODEV) {
+					of_node_put(mac_np);
 					return ret;
+				}
 				id = of_mdio_parse_addr(ds->dev, phy_node);
 				if (id == 0)
 					priv->p5_intf_sel = P5_INTF_SEL_PHY_P0;
 				if (id == 4)
 					priv->p5_intf_sel = P5_INTF_SEL_PHY_P4;
 			}
+			of_node_put(mac_np);
 			of_node_put(phy_node);
 			break;
 		}
@@ -1501,7 +1504,7 @@ unsupported:
 		phylink_set(mask, 100baseT_Full);
 
 		if (state->interface != PHY_INTERFACE_MODE_MII) {
-			phylink_set(mask, 1000baseT_Half);
+			/* This switch only supports 1G full-duplex. */
 			phylink_set(mask, 1000baseT_Full);
 			if (port == 5)
 				phylink_set(mask, 1000baseX_Full);

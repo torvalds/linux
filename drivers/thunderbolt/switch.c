@@ -684,6 +684,7 @@ static int tb_init_port(struct tb_port *port)
 		if (res == -ENODEV) {
 			tb_dbg(port->sw->tb, " Port %d: not implemented\n",
 			       port->port);
+			port->disabled = true;
 			return 0;
 		}
 		return res;
@@ -2092,7 +2093,7 @@ static int tb_switch_add_dma_port(struct tb_switch *sw)
 		if (tb_route(sw))
 			return 0;
 
-		/* fallthrough */
+		fallthrough;
 	case 3:
 		ret = tb_switch_set_uuid(sw);
 		if (ret)

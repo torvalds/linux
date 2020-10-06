@@ -217,3 +217,8 @@ void __noreturn hyp_panic(struct kvm_cpu_context *host_ctxt)
 	__hyp_call_panic(spsr, elr, par, host_ctxt);
 	unreachable();
 }
+
+asmlinkage void kvm_unexpected_el2_exception(void)
+{
+	return __kvm_unexpected_el2_exception();
+}

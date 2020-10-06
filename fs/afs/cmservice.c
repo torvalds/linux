@@ -252,7 +252,7 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 		call->unmarshall++;
 
 		/* extract the FID array and its count in two steps */
-		/* fall through */
+		fallthrough;
 	case 1:
 		_debug("extract FID count");
 		ret = afs_extract_data(call, true);
@@ -271,7 +271,7 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 		afs_extract_to_buf(call, call->count * 3 * 4);
 		call->unmarshall++;
 
-		/* Fall through */
+		fallthrough;
 	case 2:
 		_debug("extract FID array");
 		ret = afs_extract_data(call, true);
@@ -297,7 +297,7 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 		call->unmarshall++;
 
 		/* extract the callback array and its count in two steps */
-		/* fall through */
+		fallthrough;
 	case 3:
 		_debug("extract CB count");
 		ret = afs_extract_data(call, true);
@@ -312,7 +312,7 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 		iov_iter_discard(&call->def_iter, READ, call->count2 * 3 * 4);
 		call->unmarshall++;
 
-		/* Fall through */
+		fallthrough;
 	case 4:
 		_debug("extract discard %zu/%u",
 		       iov_iter_count(call->iter), call->count2 * 3 * 4);
@@ -391,7 +391,7 @@ static int afs_deliver_cb_init_call_back_state3(struct afs_call *call)
 		afs_extract_to_buf(call, 11 * sizeof(__be32));
 		call->unmarshall++;
 
-		/* Fall through */
+		fallthrough;
 	case 1:
 		_debug("extract UUID");
 		ret = afs_extract_data(call, false);
@@ -503,7 +503,7 @@ static int afs_deliver_cb_probe_uuid(struct afs_call *call)
 		afs_extract_to_buf(call, 11 * sizeof(__be32));
 		call->unmarshall++;
 
-		/* Fall through */
+		fallthrough;
 	case 1:
 		_debug("extract UUID");
 		ret = afs_extract_data(call, false);
@@ -618,7 +618,7 @@ static int afs_deliver_yfs_cb_callback(struct afs_call *call)
 		call->unmarshall++;
 
 		/* extract the FID array and its count in two steps */
-		/* Fall through */
+		fallthrough;
 	case 1:
 		_debug("extract FID count");
 		ret = afs_extract_data(call, true);
@@ -637,7 +637,7 @@ static int afs_deliver_yfs_cb_callback(struct afs_call *call)
 		afs_extract_to_buf(call, size);
 		call->unmarshall++;
 
-		/* Fall through */
+		fallthrough;
 	case 2:
 		_debug("extract FID array");
 		ret = afs_extract_data(call, false);
