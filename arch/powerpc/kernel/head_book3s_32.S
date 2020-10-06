@@ -174,10 +174,8 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
 	bl	reloc_offset
 	li	r24,0			/* cpu# */
 	bl	call_setup_cpu		/* Call setup_cpu for this CPU */
-#ifdef CONFIG_PPC_BOOK3S_32
 	bl	reloc_offset
 	bl	init_idle_6xx
-#endif /* CONFIG_PPC_BOOK3S_32 */
 
 
 /*
@@ -878,10 +876,8 @@ __secondary_start:
 	lis	r3,-KERNELBASE@h
 	mr	r4,r24
 	bl	call_setup_cpu		/* Call setup_cpu for this CPU */
-#ifdef CONFIG_PPC_BOOK3S_32
 	lis	r3,-KERNELBASE@h
 	bl	init_idle_6xx
-#endif /* CONFIG_PPC_BOOK3S_32 */
 
 	/* get current's stack and current */
 	lis	r2,secondary_current@ha
@@ -920,17 +916,6 @@ __secondary_start:
 #ifdef CONFIG_KVM_BOOK3S_HANDLER
 #include "../kvm/book3s_rmhandlers.S"
 #endif
-
-/*
- * Those generic dummy functions are kept for CPUs not
- * included in CONFIG_PPC_BOOK3S_32
- */
-#if !defined(CONFIG_PPC_BOOK3S_32)
-_ENTRY(__save_cpu_setup)
-	blr
-_ENTRY(__restore_cpu_setup)
-	blr
-#endif /* !defined(CONFIG_PPC_BOOK3S_32) */
 
 /*
  * Load stuff into the MMU.  Intended to be called with
