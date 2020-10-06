@@ -114,12 +114,8 @@ static bool sugov_update_next_freq(struct sugov_policy *sg_policy, u64 time,
 static void sugov_fast_switch(struct sugov_policy *sg_policy, u64 time,
 			      unsigned int next_freq)
 {
-	struct cpufreq_policy *policy = sg_policy->policy;
-
-	if (!sugov_update_next_freq(sg_policy, time, next_freq))
-		return;
-
-	cpufreq_driver_fast_switch(policy, next_freq);
+	if (sugov_update_next_freq(sg_policy, time, next_freq))
+		cpufreq_driver_fast_switch(sg_policy->policy, next_freq);
 }
 
 static void sugov_deferred_update(struct sugov_policy *sg_policy, u64 time,
