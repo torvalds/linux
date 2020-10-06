@@ -306,15 +306,12 @@ static int mtk_mmsys_probe(struct platform_device *pdev)
 	struct platform_device *clks;
 	struct platform_device *drm;
 	void __iomem *config_regs;
-	struct resource *mem;
 	int ret;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	config_regs = devm_ioremap_resource(dev, mem);
+	config_regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(config_regs)) {
 		ret = PTR_ERR(config_regs);
-		dev_err(dev, "Failed to ioremap mmsys-config resource: %d\n",
-			ret);
+		dev_err(dev, "Failed to ioremap mmsys registers: %d\n", ret);
 		return ret;
 	}
 
