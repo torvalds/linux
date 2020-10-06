@@ -1043,7 +1043,7 @@ xpc_do_exit(enum xp_retval reason)
 
 	xpc_teardown_partitions();
 
-	if (is_uv())
+	if (is_uv_system())
 		xpc_exit_uv();
 }
 
@@ -1226,7 +1226,7 @@ xpc_init(void)
 	dev_set_name(xpc_part, "part");
 	dev_set_name(xpc_chan, "chan");
 
-	if (is_uv()) {
+	if (is_uv_system()) {
 		ret = xpc_init_uv();
 
 	} else {
@@ -1312,7 +1312,7 @@ out_2:
 
 	xpc_teardown_partitions();
 out_1:
-	if (is_uv())
+	if (is_uv_system())
 		xpc_exit_uv();
 	return ret;
 }

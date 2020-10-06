@@ -433,7 +433,7 @@ xpc_discovery(void)
 	 */
 	region_size = xp_region_size;
 
-	if (is_uv())
+	if (is_uv_system())
 		max_regions = 256;
 	else {
 		max_regions = 64;
