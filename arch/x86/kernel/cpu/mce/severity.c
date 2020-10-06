@@ -225,10 +225,13 @@ static struct severity {
  */
 static int error_context(struct mce *m, struct pt_regs *regs)
 {
+	enum handler_type t;
+
 	if ((m->cs & 3) == 3)
 		return IN_USER;
 
-	if (mc_recoverable(m->mcgstatus) && ex_has_fault_handler(m->ip)) {
+	t = ex_get_fault_handler_type(m->ip);
+	if (mc_recoverable(m->mcgstatus) && t == EX_HANDLER_FAULT) {
 		m->kflags |= MCE_IN_KERNEL_RECOV;
 		return IN_KERNEL_RECOV;
 	}

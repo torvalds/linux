@@ -125,17 +125,21 @@ __visible bool ex_handler_clear_fs(const struct exception_table_entry *fixup,
 }
 EXPORT_SYMBOL(ex_handler_clear_fs);
 
-__visible bool ex_has_fault_handler(unsigned long ip)
+enum handler_type ex_get_fault_handler_type(unsigned long ip)
 {
 	const struct exception_table_entry *e;
 	ex_handler_t handler;
 
 	e = search_exception_tables(ip);
 	if (!e)
-		return false;
+		return EX_HANDLER_NONE;
 	handler = ex_fixup_handler(e);
-
-	return handler == ex_handler_fault;
+	if (handler == ex_handler_fault)
+		return EX_HANDLER_FAULT;
+	else if (handler == ex_handler_uaccess)
+		return EX_HANDLER_UACCESS;
+	else
+		return EX_HANDLER_OTHER;
 }
 
 int fixup_exception(struct pt_regs *regs, int trapnr, unsigned long error_code,
