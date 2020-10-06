@@ -22,26 +22,9 @@
  * DSP Operations exported by platform Audio DSP driver.
  */
 struct sst_ops {
-	/* DSP core boot / reset */
-	void (*boot)(struct sst_dsp *);
-	void (*reset)(struct sst_dsp *);
-	int (*wake)(struct sst_dsp *);
-	void (*sleep)(struct sst_dsp *);
-	void (*stall)(struct sst_dsp *);
-
 	/* Shim IO */
 	void (*write)(void __iomem *addr, u32 offset, u32 value);
 	u32 (*read)(void __iomem *addr, u32 offset);
-	void (*write64)(void __iomem *addr, u32 offset, u64 value);
-	u64 (*read64)(void __iomem *addr, u32 offset);
-
-	/* DSP I/DRAM IO */
-	void (*ram_read)(struct sst_dsp *sst, void  *dest, void __iomem *src,
-		size_t bytes);
-	void (*ram_write)(struct sst_dsp *sst, void __iomem *dest, void *src,
-		size_t bytes);
-
-	void (*dump)(struct sst_dsp *);
 
 	/* IRQ handlers */
 	irqreturn_t (*irq_handler)(int irq, void *context);
@@ -55,20 +38,12 @@ struct sst_ops {
  * Audio DSP memory offsets and addresses.
  */
 struct sst_addr {
-	u32 lpe_base;
-	u32 shim_offset;
-	u32 iram_offset;
-	u32 dram_offset;
-	u32 dsp_iram_offset;
-	u32 dsp_dram_offset;
 	u32 sram0_base;
 	u32 sram1_base;
 	u32 w0_stat_sz;
 	u32 w0_up_sz;
 	void __iomem *lpe;
 	void __iomem *shim;
-	void __iomem *pci_cfg;
-	void __iomem *fw_ext;
 };
 
 /*
@@ -93,7 +68,6 @@ struct sst_dsp {
 	spinlock_t spinlock;	/* IPC locking */
 	struct mutex mutex;	/* DSP FW lock */
 	struct device *dev;
-	struct device *dma_dev;
 	void *thread_context;
 	int irq;
 	u32 id;
@@ -110,27 +84,8 @@ struct sst_dsp {
 	/* mailbox */
 	struct sst_mailbox mailbox;
 
-	/* HSW/Byt data */
-
-	/* list of free and used ADSP memory blocks */
-	struct list_head used_block_list;
-	struct list_head free_block_list;
-
 	/* SST FW files loaded and their modules */
 	struct list_head module_list;
-	struct list_head fw_list;
-
-	/* scratch buffer */
-	struct list_head scratch_block_list;
-	u32 scratch_offset;
-	u32 scratch_size;
-
-	/* platform data */
-	struct sst_pdata *pdata;
-
-	/* DMA FW loading */
-	struct sst_dma *dma;
-	bool fw_use_dma;
 
 	/* SKL data */
 
