@@ -67,7 +67,6 @@ static int ttm_global_init(void)
 	unsigned long num_pages;
 	struct sysinfo si;
 	int ret = 0;
-	unsigned i;
 
 	mutex_lock(&ttm_global_mutex);
 	if (++ttm_glob_use_count > 1)
@@ -90,8 +89,6 @@ static int ttm_global_init(void)
 		goto out;
 	}
 
-	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i)
-		INIT_LIST_HEAD(&glob->swap_lru[i]);
 	INIT_LIST_HEAD(&glob->device_list);
 	atomic_set(&glob->bo_count, 0);
 
@@ -109,27 +106,60 @@ out:
 int ttm_global_swapout(struct ttm_operation_ctx *ctx, gfp_t gfp_flags)
 {
 	struct ttm_global *glob = &ttm_glob;
+	struct ttm_device *bdev;
+	int ret = -EBUSY;
+
+	mutex_lock(&ttm_global_mutex);
+	list_for_each_entry(bdev, &glob->device_list, device_list) {
+		ret = ttm_device_swapout(bdev, ctx, gfp_flags);
+		if (ret > 0) {
+			list_move_tail(&bdev->device_list, &glob->device_list);
+			break;
+		}
+	}
+	mutex_unlock(&ttm_global_mutex);
+	return ret;
+}
+EXPORT_SYMBOL(ttm_global_swapout);
+
+int ttm_device_swapout(struct ttm_device *bdev, struct ttm_operation_ctx *ctx,
+		       gfp_t gfp_flags)
+{
+	struct ttm_global *glob = &ttm_glob;
+	struct ttm_resource_manager *man;
 	struct ttm_buffer_object *bo;
-	unsigned i;
+	unsigned i, j;
 	int ret;
 
 	spin_lock(&glob->lru_lock);
-	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
-		list_for_each_entry(bo, &glob->swap_lru[i], swap) {
-			uint32_t num_pages = bo->ttm->num_pages;
+	for (i = TTM_PL_SYSTEM; i < TTM_NUM_MEM_TYPES; ++i) {
+		man = ttm_manager_type(bdev, i);
+		if (!man || !man->use_tt)
+			continue;
 
-			ret = ttm_bo_swapout(bo, ctx, gfp_flags);
-			/* ttm_bo_swapout has dropped the lru_lock */
-			if (!ret)
-				return num_pages;
-			if (ret != -EBUSY)
-				return ret;
+		for (j = 0; j < TTM_MAX_BO_PRIORITY; ++j) {
+			list_for_each_entry(bo, &man->lru[j], lru) {
+				uint32_t num_pages;
+
+				if (!bo->ttm ||
+				    bo->ttm->page_flags & TTM_PAGE_FLAG_SG ||
+				    bo->ttm->page_flags & TTM_PAGE_FLAG_SWAPPED)
+					continue;
+
+				num_pages = bo->ttm->num_pages;
+				ret = ttm_bo_swapout(bo, ctx, gfp_flags);
+				/* ttm_bo_swapout has dropped the lru_lock */
+				if (!ret)
+					return num_pages;
+				if (ret != -EBUSY)
+					return ret;
+			}
 		}
 	}
 	spin_unlock(&glob->lru_lock);
 	return 0;
 }
-EXPORT_SYMBOL(ttm_global_swapout);
+EXPORT_SYMBOL(ttm_device_swapout);
 
 static void ttm_init_sysman(struct ttm_device *bdev)
 {

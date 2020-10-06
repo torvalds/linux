@@ -69,7 +69,6 @@ struct ttm_lru_bulk_move_pos {
 struct ttm_lru_bulk_move {
 	struct ttm_lru_bulk_move_pos tt[TTM_MAX_BO_PRIORITY];
 	struct ttm_lru_bulk_move_pos vram[TTM_MAX_BO_PRIORITY];
-	struct ttm_lru_bulk_move_pos swap[TTM_MAX_BO_PRIORITY];
 };
 
 /*

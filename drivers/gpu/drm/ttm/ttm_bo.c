@@ -73,7 +73,6 @@ static void ttm_bo_del_from_lru(struct ttm_buffer_object *bo)
 {
 	struct ttm_device *bdev = bo->bdev;
 
-	list_del_init(&bo->swap);
 	list_del_init(&bo->lru);
 
 	if (bdev->funcs->del_from_lru_notify)
@@ -105,16 +104,6 @@ void ttm_bo_move_to_lru_tail(struct ttm_buffer_object *bo,
 
 	man = ttm_manager_type(bdev, mem->mem_type);
 	list_move_tail(&bo->lru, &man->lru[bo->priority]);
-	if (man->use_tt && bo->ttm &&
-	    !(bo->ttm->page_flags & (TTM_PAGE_FLAG_SG |
-				     TTM_PAGE_FLAG_SWAPPED))) {
-		struct list_head *swap;
-
-		swap = &ttm_glob.swap_lru[bo->priority];
-		list_move_tail(&bo->swap, swap);
-	} else {
-		list_del_init(&bo->swap);
-	}
 
 	if (bdev->funcs->del_from_lru_notify)
 		bdev->funcs->del_from_lru_notify(bo);
@@ -129,9 +118,6 @@ void ttm_bo_move_to_lru_tail(struct ttm_buffer_object *bo,
 			ttm_bo_bulk_move_set_pos(&bulk->vram[bo->priority], bo);
 			break;
 		}
-		if (bo->ttm && !(bo->ttm->page_flags &
-				 (TTM_PAGE_FLAG_SG | TTM_PAGE_FLAG_SWAPPED)))
-			ttm_bo_bulk_move_set_pos(&bulk->swap[bo->priority], bo);
 	}
 }
 EXPORT_SYMBOL(ttm_bo_move_to_lru_tail);
@@ -168,20 +154,6 @@ void ttm_bo_bulk_move_lru_tail(struct ttm_lru_bulk_move *bulk)
 		man = ttm_manager_type(pos->first->bdev, TTM_PL_VRAM);
 		list_bulk_move_tail(&man->lru[i], &pos->first->lru,
 				    &pos->last->lru);
-	}
-
-	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
-		struct ttm_lru_bulk_move_pos *pos = &bulk->swap[i];
-		struct list_head *lru;
-
-		if (!pos->first)
-			continue;
-
-		dma_resv_assert_held(pos->first->base.resv);
-		dma_resv_assert_held(pos->last->base.resv);
-
-		lru = &ttm_glob.swap_lru[i];
-		list_bulk_move_tail(lru, &pos->first->swap, &pos->last->swap);
 	}
 }
 EXPORT_SYMBOL(ttm_bo_bulk_move_lru_tail);
@@ -1065,7 +1037,6 @@ int ttm_bo_init_reserved(struct ttm_device *bdev,
 	kref_init(&bo->kref);
 	INIT_LIST_HEAD(&bo->lru);
 	INIT_LIST_HEAD(&bo->ddestroy);
-	INIT_LIST_HEAD(&bo->swap);
 	bo->bdev = bdev;
 	bo->type = type;
 	bo->mem.mem_type = TTM_PL_SYSTEM;

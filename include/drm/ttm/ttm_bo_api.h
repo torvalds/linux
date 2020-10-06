@@ -144,7 +144,6 @@ struct ttm_buffer_object {
 
 	struct list_head lru;
 	struct list_head ddestroy;
-	struct list_head swap;
 
 	/**
 	 * Members protected by a bo reservation.

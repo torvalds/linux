@@ -64,11 +64,6 @@ extern struct ttm_global {
 	struct list_head device_list;
 
 	/**
-	 * Protected by the lru_lock.
-	 */
-	struct list_head swap_lru[TTM_MAX_BO_PRIORITY];
-
-	/**
 	 * Internal protection.
 	 */
 	atomic_t bo_count;
@@ -298,6 +293,8 @@ struct ttm_device {
 };
 
 int ttm_global_swapout(struct ttm_operation_ctx *ctx, gfp_t gfp_flags);
+int ttm_device_swapout(struct ttm_device *bdev, struct ttm_operation_ctx *ctx,
+		       gfp_t gfp_flags);
 
 static inline struct ttm_resource_manager *
 ttm_manager_type(struct ttm_device *bdev, int mem_type)
