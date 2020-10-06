@@ -174,6 +174,15 @@ extern void mce_unregister_decode_chain(struct notifier_block *nb);
 
 extern int mce_p5_enabled;
 
+#ifdef CONFIG_ARCH_HAS_COPY_MC
+extern void enable_copy_mc_fragile(void);
+unsigned long __must_check copy_mc_fragile(void *dst, const void *src, unsigned cnt);
+#else
+static inline void enable_copy_mc_fragile(void)
+{
+}
+#endif
+
 #ifdef CONFIG_X86_MCE
 int mcheck_init(void);
 void mcheck_cpu_init(struct cpuinfo_x86 *c);
