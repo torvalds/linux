@@ -31,21 +31,8 @@ config SND_SST_IPC_ACPI
 	# This option controls the ACPI-based IPC for HiFi2 platforms
 	# (Baytrail, Cherrytrail)
 
-config SND_SOC_INTEL_SST_ACPI
-	tristate
-	# This option controls ACPI-based probing on
-	# Haswell/Broadwell/Baytrail legacy and will be set
-	# when these platforms are enabled
-
 config SND_SOC_INTEL_SST
 	tristate
-
-config SND_SOC_INTEL_SST_FIRMWARE
-	tristate
-	select DW_DMAC_CORE
-	# This option controls firmware download on
-	# Haswell/Broadwell/Baytrail legacy and will be set
-	# when these platforms are enabled
 
 config SND_SOC_INTEL_CATPT
 	tristate "Haswell and Broadwell"
@@ -62,19 +49,6 @@ config SND_SOC_INTEL_CATPT
 config SND_SOC_INTEL_HASWELL
 	tristate
 	select SND_SOC_INTEL_CATPT
-
-config SND_SOC_INTEL_BAYTRAIL
-	tristate "Baytrail (legacy) Platforms"
-	depends on DMADEVICES && ACPI && SND_SST_ATOM_HIFI2_PLATFORM=n && SND_SOC_SOF_BAYTRAIL=n
-	select SND_SOC_INTEL_SST
-	select SND_SOC_INTEL_SST_ACPI
-	select SND_SOC_INTEL_SST_FIRMWARE
-	select SND_SOC_ACPI_INTEL_MATCH
-	help
-	  If you have a Intel Baytrail platform connected to an I2S codec,
-	  then enable this option by saying Y or m. This was typically used
-	  for Baytrail Chromebooks but this option is now deprecated and is
-	  not recommended, use SND_SST_ATOM_HIFI2_PLATFORM instead.
 
 config SND_SST_ATOM_HIFI2_PLATFORM
 	tristate
