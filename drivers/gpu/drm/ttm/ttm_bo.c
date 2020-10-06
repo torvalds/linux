@@ -270,18 +270,7 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 	if (bdev->driver->move_notify)
 		bdev->driver->move_notify(bo, evict, mem);
 
-	if (old_man->use_tt && new_man->use_tt) {
-		if (bo->mem.mem_type == TTM_PL_SYSTEM) {
-			ttm_bo_assign_mem(bo, mem);
-			ret = 0;
-		} else
-			ret = ttm_bo_move_ttm(bo, ctx, mem);
-	} else if (bdev->driver->move) {
-		ret = bdev->driver->move(bo, evict, ctx, mem);
-	} else {
-		ret = ttm_bo_move_memcpy(bo, ctx, mem);
-	}
-
+	ret = bdev->driver->move(bo, evict, ctx, mem);
 	if (ret) {
 		if (bdev->driver->move_notify) {
 			swap(*mem, bo->mem);
