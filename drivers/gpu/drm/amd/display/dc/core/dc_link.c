@@ -3831,10 +3831,13 @@ enum dc_status dc_link_reduce_mst_payload(struct pipe_ctx *pipe_ctx, uint32_t bw
 
 	for (i = 0; i < MAX_CONTROLLER_NUM; i++) {
 		DC_LOG_MST("stream_enc[%d]: %p      "
+				"stream[%d].hpo_dp_stream_enc: %p      "
 				"stream[%d].vcp_id: %d      "
 				"stream[%d].slot_count: %d\n",
 				i,
 				(void *) link->mst_stream_alloc_table.stream_allocations[i].stream_enc,
+				i,
+				(void *) link->mst_stream_alloc_table.stream_allocations[i].hpo_dp_stream_enc,
 				i,
 				link->mst_stream_alloc_table.stream_allocations[i].vcp_id,
 				i,
@@ -3896,10 +3899,13 @@ enum dc_status dc_link_increase_mst_payload(struct pipe_ctx *pipe_ctx, uint32_t 
 
 	for (i = 0; i < MAX_CONTROLLER_NUM; i++) {
 		DC_LOG_MST("stream_enc[%d]: %p      "
+				"stream[%d].hpo_dp_stream_enc: %p      "
 				"stream[%d].vcp_id: %d      "
 				"stream[%d].slot_count: %d\n",
 				i,
 				(void *) link->mst_stream_alloc_table.stream_allocations[i].stream_enc,
+				i,
+				(void *) link->mst_stream_alloc_table.stream_allocations[i].hpo_dp_stream_enc,
 				i,
 				link->mst_stream_alloc_table.stream_allocations[i].vcp_id,
 				i,
