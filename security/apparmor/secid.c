@@ -31,6 +31,8 @@
 
 static DEFINE_XARRAY_FLAGS(aa_secids, XA_FLAGS_LOCK_IRQ | XA_FLAGS_TRACK_FREE);
 
+int apparmor_display_secid_mode;
+
 /*
  * TODO: allow policy to reserve a secid range?
  * TODO: add secid pinning
@@ -64,6 +66,7 @@ int apparmor_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
 {
 	/* TODO: cache secctx and ref count so we don't have to recreate */
 	struct aa_label *label = aa_secid_to_label(secid);
+	int flags = FLAG_VIEW_SUBNS | FLAG_HIDDEN_UNCONFINED | FLAG_ABS_ROOT;
 	int len;
 
 	AA_BUG(!seclen);
@@ -71,15 +74,15 @@ int apparmor_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
 	if (!label)
 		return -EINVAL;
 
+	if (apparmor_display_secid_mode)
+		flags |= FLAG_SHOW_MODE;
+
 	if (secdata)
 		len = aa_label_asxprint(secdata, root_ns, label,
-					FLAG_SHOW_MODE | FLAG_VIEW_SUBNS |
-					FLAG_HIDDEN_UNCONFINED | FLAG_ABS_ROOT,
-					GFP_ATOMIC);
+					flags, GFP_ATOMIC);
 	else
-		len = aa_label_snxprint(NULL, 0, root_ns, label,
-					FLAG_SHOW_MODE | FLAG_VIEW_SUBNS |
-					FLAG_HIDDEN_UNCONFINED | FLAG_ABS_ROOT);
+		len = aa_label_snxprint(NULL, 0, root_ns, label, flags);
+
 	if (len < 0)
 		return -ENOMEM;
 
