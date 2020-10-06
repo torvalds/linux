@@ -2422,8 +2422,6 @@ static void sienna_cichlid_fill_i2c_req(SwI2cRequest_t  *req, bool write,
 {
 	int i;
 
-	BUG_ON(numbytes > MAX_SW_I2C_COMMANDS);
-
 	req->I2CcontrollerPort = 0;
 	req->I2CSpeed = 2;
 	req->SlaveAddress = address;
@@ -2461,6 +2459,12 @@ static int sienna_cichlid_i2c_read_data(struct i2c_adapter *control,
 	struct smu_table_context *smu_table = &adev->smu.smu_table;
 	struct smu_table *table = &smu_table->driver_table;
 
+	if (numbytes > MAX_SW_I2C_COMMANDS) {
+		dev_err(adev->dev, "numbytes requested %d is over max allowed %d\n",
+			numbytes, MAX_SW_I2C_COMMANDS);
+		return -EINVAL;
+	}
+
 	memset(&req, 0, sizeof(req));
 	sienna_cichlid_fill_i2c_req(&req, false, address, numbytes, data);
 
@@ -2496,6 +2500,12 @@ static int sienna_cichlid_i2c_write_data(struct i2c_adapter *control,
 	uint32_t ret;
 	SwI2cRequest_t req;
 	struct amdgpu_device *adev = to_amdgpu_device(control);
+
+	if (numbytes > MAX_SW_I2C_COMMANDS) {
+		dev_err(adev->dev, "numbytes requested %d is over max allowed %d\n",
+			numbytes, MAX_SW_I2C_COMMANDS);
+		return -EINVAL;
+	}
 
 	memset(&req, 0, sizeof(req));
 	sienna_cichlid_fill_i2c_req(&req, true, address, numbytes, data);
