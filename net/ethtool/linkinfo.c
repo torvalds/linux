@@ -16,15 +16,9 @@ struct linkinfo_reply_data {
 #define LINKINFO_REPDATA(__reply_base) \
 	container_of(__reply_base, struct linkinfo_reply_data, base)
 
-static const struct nla_policy
-linkinfo_get_policy[ETHTOOL_A_LINKINFO_MAX + 1] = {
-	[ETHTOOL_A_LINKINFO_UNSPEC]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_LINKINFO_HEADER]		= { .type = NLA_NESTED },
-	[ETHTOOL_A_LINKINFO_PORT]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_LINKINFO_PHYADDR]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_LINKINFO_TP_MDIX]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_LINKINFO_TP_MDIX_CTRL]	= { .type = NLA_REJECT },
-	[ETHTOOL_A_LINKINFO_TRANSCEIVER]	= { .type = NLA_REJECT },
+const struct nla_policy ethnl_linkinfo_get_policy[] = {
+	[ETHTOOL_A_LINKINFO_HEADER]		=
+		NLA_POLICY_NESTED(ethnl_header_policy),
 };
 
 static int linkinfo_prepare_data(const struct ethnl_req_info *req_base,
@@ -83,10 +77,8 @@ const struct ethnl_request_ops ethnl_linkinfo_request_ops = {
 	.request_cmd		= ETHTOOL_MSG_LINKINFO_GET,
 	.reply_cmd		= ETHTOOL_MSG_LINKINFO_GET_REPLY,
 	.hdr_attr		= ETHTOOL_A_LINKINFO_HEADER,
-	.max_attr		= ETHTOOL_A_LINKINFO_MAX,
 	.req_info_size		= sizeof(struct linkinfo_req_info),
 	.reply_data_size	= sizeof(struct linkinfo_reply_data),
-	.request_policy		= linkinfo_get_policy,
 
 	.prepare_data		= linkinfo_prepare_data,
 	.reply_size		= linkinfo_reply_size,
@@ -95,32 +87,24 @@ const struct ethnl_request_ops ethnl_linkinfo_request_ops = {
 
 /* LINKINFO_SET */
 
-static const struct nla_policy
-linkinfo_set_policy[ETHTOOL_A_LINKINFO_MAX + 1] = {
-	[ETHTOOL_A_LINKINFO_UNSPEC]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_LINKINFO_HEADER]		= { .type = NLA_NESTED },
+const struct nla_policy ethnl_linkinfo_set_policy[] = {
+	[ETHTOOL_A_LINKINFO_HEADER]		=
+		NLA_POLICY_NESTED(ethnl_header_policy),
 	[ETHTOOL_A_LINKINFO_PORT]		= { .type = NLA_U8 },
 	[ETHTOOL_A_LINKINFO_PHYADDR]		= { .type = NLA_U8 },
-	[ETHTOOL_A_LINKINFO_TP_MDIX]		= { .type = NLA_REJECT },
 	[ETHTOOL_A_LINKINFO_TP_MDIX_CTRL]	= { .type = NLA_U8 },
-	[ETHTOOL_A_LINKINFO_TRANSCEIVER]	= { .type = NLA_REJECT },
 };
 
 int ethnl_set_linkinfo(struct sk_buff *skb, struct genl_info *info)
 {
-	struct nlattr *tb[ETHTOOL_A_LINKINFO_MAX + 1];
 	struct ethtool_link_ksettings ksettings = {};
 	struct ethtool_link_settings *lsettings;
 	struct ethnl_req_info req_info = {};
+	struct nlattr **tb = info->attrs;
 	struct net_device *dev;
 	bool mod = false;
 	int ret;
 
-	ret = nlmsg_parse(info->nlhdr, GENL_HDRLEN, tb,
-			  ETHTOOL_A_LINKINFO_MAX, linkinfo_set_policy,
-			  info->extack);
-	if (ret < 0)
-		return ret;
 	ret = ethnl_parse_header_dev_get(&req_info,
 					 tb[ETHTOOL_A_LINKINFO_HEADER],
 					 genl_info_net(info), info->extack,

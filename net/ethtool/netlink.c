@@ -9,12 +9,24 @@ static struct genl_family ethtool_genl_family;
 static bool ethnl_ok __read_mostly;
 static u32 ethnl_bcast_seq;
 
-static const struct nla_policy ethnl_header_policy[ETHTOOL_A_HEADER_MAX + 1] = {
-	[ETHTOOL_A_HEADER_UNSPEC]	= { .type = NLA_REJECT },
+#define ETHTOOL_FLAGS_BASIC (ETHTOOL_FLAG_COMPACT_BITSETS |	\
+			     ETHTOOL_FLAG_OMIT_REPLY)
+#define ETHTOOL_FLAGS_STATS (ETHTOOL_FLAGS_BASIC | ETHTOOL_FLAG_STATS)
+
+const struct nla_policy ethnl_header_policy[] = {
 	[ETHTOOL_A_HEADER_DEV_INDEX]	= { .type = NLA_U32 },
 	[ETHTOOL_A_HEADER_DEV_NAME]	= { .type = NLA_NUL_STRING,
 					    .len = ALTIFNAMSIZ - 1 },
-	[ETHTOOL_A_HEADER_FLAGS]	= { .type = NLA_U32 },
+	[ETHTOOL_A_HEADER_FLAGS]	= NLA_POLICY_MASK(NLA_U32,
+							  ETHTOOL_FLAGS_BASIC),
+};
+
+const struct nla_policy ethnl_header_policy_stats[] = {
+	[ETHTOOL_A_HEADER_DEV_INDEX]	= { .type = NLA_U32 },
+	[ETHTOOL_A_HEADER_DEV_NAME]	= { .type = NLA_NUL_STRING,
+					    .len = ALTIFNAMSIZ - 1 },
+	[ETHTOOL_A_HEADER_FLAGS]	= NLA_POLICY_MASK(NLA_U32,
+							  ETHTOOL_FLAGS_STATS),
 };
 
 /**
@@ -37,7 +49,7 @@ int ethnl_parse_header_dev_get(struct ethnl_req_info *req_info,
 			       const struct nlattr *header, struct net *net,
 			       struct netlink_ext_ack *extack, bool require_dev)
 {
-	struct nlattr *tb[ETHTOOL_A_HEADER_MAX + 1];
+	struct nlattr *tb[ARRAY_SIZE(ethnl_header_policy)];
 	const struct nlattr *devname_attr;
 	struct net_device *dev = NULL;
 	u32 flags = 0;
@@ -47,19 +59,15 @@ int ethnl_parse_header_dev_get(struct ethnl_req_info *req_info,
 		NL_SET_ERR_MSG(extack, "request header missing");
 		return -EINVAL;
 	}
-	ret = nla_parse_nested(tb, ETHTOOL_A_HEADER_MAX, header,
-			       ethnl_header_policy, extack);
+	/* No validation here, command policy should have a nested policy set
+	 * for the header, therefore validation should have already been done.
+	 */
+	ret = nla_parse_nested(tb, ARRAY_SIZE(ethnl_header_policy) - 1, header,
+			       NULL, extack);
 	if (ret < 0)
 		return ret;
-	if (tb[ETHTOOL_A_HEADER_FLAGS]) {
+	if (tb[ETHTOOL_A_HEADER_FLAGS])
 		flags = nla_get_u32(tb[ETHTOOL_A_HEADER_FLAGS]);
-		if (flags & ~ETHTOOL_FLAG_ALL) {
-			NL_SET_ERR_MSG_ATTR(extack, tb[ETHTOOL_A_HEADER_FLAGS],
-					    "unrecognized request flags");
-			nl_set_extack_cookie_u32(extack, ETHTOOL_FLAG_ALL);
-			return -EOPNOTSUPP;
-		}
-	}
 
 	devname_attr = tb[ETHTOOL_A_HEADER_DEV_NAME];
 	if (tb[ETHTOOL_A_HEADER_DEV_INDEX]) {
@@ -247,7 +255,7 @@ static struct ethnl_dump_ctx *ethnl_dump_context(struct netlink_callback *cb)
 /**
  * ethnl_default_parse() - Parse request message
  * @req_info:    pointer to structure to put data into
- * @nlhdr:       pointer to request message header
+ * @tb:		 parsed attributes
  * @net:         request netns
  * @request_ops: struct request_ops for request type
  * @extack:      netlink extack for error reporting
@@ -259,37 +267,24 @@ static struct ethnl_dump_ctx *ethnl_dump_context(struct netlink_callback *cb)
  * Return: 0 on success or negative error code
  */
 static int ethnl_default_parse(struct ethnl_req_info *req_info,
-			       const struct nlmsghdr *nlhdr, struct net *net,
+			       struct nlattr **tb, struct net *net,
 			       const struct ethnl_request_ops *request_ops,
 			       struct netlink_ext_ack *extack, bool require_dev)
 {
-	struct nlattr **tb;
 	int ret;
 
-	tb = kmalloc_array(request_ops->max_attr + 1, sizeof(tb[0]),
-			   GFP_KERNEL);
-	if (!tb)
-		return -ENOMEM;
-
-	ret = nlmsg_parse(nlhdr, GENL_HDRLEN, tb, request_ops->max_attr,
-			  request_ops->request_policy, extack);
-	if (ret < 0)
-		goto out;
 	ret = ethnl_parse_header_dev_get(req_info, tb[request_ops->hdr_attr],
 					 net, extack, require_dev);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	if (request_ops->parse_request) {
 		ret = request_ops->parse_request(req_info, tb, extack);
 		if (ret < 0)
-			goto out;
+			return ret;
 	}
 
-	ret = 0;
-out:
-	kfree(tb);
-	return ret;
+	return 0;
 }
 
 /**
@@ -334,8 +329,8 @@ static int ethnl_default_doit(struct sk_buff *skb, struct genl_info *info)
 		return -ENOMEM;
 	}
 
-	ret = ethnl_default_parse(req_info, info->nlhdr, genl_info_net(info), ops,
-				  info->extack, !ops->allow_nodev_do);
+	ret = ethnl_default_parse(req_info, info->attrs, genl_info_net(info),
+				  ops, info->extack, !ops->allow_nodev_do);
 	if (ret < 0)
 		goto err_dev;
 	ethnl_init_reply_data(reply_data, ops, req_info->dev);
@@ -480,6 +475,7 @@ out:
 /* generic ->start() handler for GET requests */
 static int ethnl_default_start(struct netlink_callback *cb)
 {
+	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
 	struct ethnl_dump_ctx *ctx = ethnl_dump_context(cb);
 	struct ethnl_reply_data *reply_data;
 	const struct ethnl_request_ops *ops;
@@ -502,8 +498,8 @@ static int ethnl_default_start(struct netlink_callback *cb)
 		goto free_req_info;
 	}
 
-	ret = ethnl_default_parse(req_info, cb->nlh, sock_net(cb->skb->sk), ops,
-				  cb->extack, false);
+	ret = ethnl_default_parse(req_info, info->attrs, sock_net(cb->skb->sk),
+				  ops, cb->extack, false);
 	if (req_info->dev) {
 		/* We ignore device specification in dump requests but as the
 		 * same parser as for non-dump (doit) requests is used, it
@@ -696,6 +692,8 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.start	= ethnl_default_start,
 		.dumpit	= ethnl_default_dumpit,
 		.done	= ethnl_default_done,
+		.policy = ethnl_strset_get_policy,
+		.maxattr = ARRAY_SIZE(ethnl_strset_get_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_LINKINFO_GET,
@@ -703,11 +701,15 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.start	= ethnl_default_start,
 		.dumpit	= ethnl_default_dumpit,
 		.done	= ethnl_default_done,
+		.policy = ethnl_linkinfo_get_policy,
+		.maxattr = ARRAY_SIZE(ethnl_linkinfo_get_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_LINKINFO_SET,
 		.flags	= GENL_UNS_ADMIN_PERM,
 		.doit	= ethnl_set_linkinfo,
+		.policy = ethnl_linkinfo_set_policy,
+		.maxattr = ARRAY_SIZE(ethnl_linkinfo_set_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_LINKMODES_GET,
@@ -715,11 +717,15 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.start	= ethnl_default_start,
 		.dumpit	= ethnl_default_dumpit,
 		.done	= ethnl_default_done,
+		.policy = ethnl_linkmodes_get_policy,
+		.maxattr = ARRAY_SIZE(ethnl_linkmodes_get_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_LINKMODES_SET,
 		.flags	= GENL_UNS_ADMIN_PERM,
 		.doit	= ethnl_set_linkmodes,
+		.policy = ethnl_linkmodes_set_policy,
+		.maxattr = ARRAY_SIZE(ethnl_linkmodes_set_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_LINKSTATE_GET,
@@ -727,6 +733,8 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.start	= ethnl_default_start,
 		.dumpit	= ethnl_default_dumpit,
 		.done	= ethnl_default_done,
+		.policy = ethnl_linkstate_get_policy,
+		.maxattr = ARRAY_SIZE(ethnl_linkstate_get_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_DEBUG_GET,
@@ -734,11 +742,15 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.start	= ethnl_default_start,
 		.dumpit	= ethnl_default_dumpit,
 		.done	= ethnl_default_done,
+		.policy = ethnl_debug_get_policy,
+		.maxattr = ARRAY_SIZE(ethnl_debug_get_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_DEBUG_SET,
 		.flags	= GENL_UNS_ADMIN_PERM,
 		.doit	= ethnl_set_debug,
+		.policy = ethnl_debug_set_policy,
+		.maxattr = ARRAY_SIZE(ethnl_debug_set_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_WOL_GET,
@@ -747,11 +759,15 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.start	= ethnl_default_start,
 		.dumpit	= ethnl_default_dumpit,
 		.done	= ethnl_default_done,
+		.policy = ethnl_wol_get_policy,
+		.maxattr = ARRAY_SIZE(ethnl_wol_get_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_WOL_SET,
 		.flags	= GENL_UNS_ADMIN_PERM,
 		.doit	= ethnl_set_wol,
+		.policy = ethnl_wol_set_policy,
+		.maxattr = ARRAY_SIZE(ethnl_wol_set_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_FEATURES_GET,
@@ -759,11 +775,15 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.start	= ethnl_default_start,
 		.dumpit	= ethnl_default_dumpit,
 		.done	= ethnl_default_done,
+		.policy = ethnl_features_get_policy,
+		.maxattr = ARRAY_SIZE(ethnl_features_get_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_FEATURES_SET,
 		.flags	= GENL_UNS_ADMIN_PERM,
 		.doit	= ethnl_set_features,
+		.policy = ethnl_features_set_policy,
+		.maxattr = ARRAY_SIZE(ethnl_features_set_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_PRIVFLAGS_GET,
@@ -771,11 +791,15 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.start	= ethnl_default_start,
 		.dumpit	= ethnl_default_dumpit,
 		.done	= ethnl_default_done,
+		.policy = ethnl_privflags_get_policy,
+		.maxattr = ARRAY_SIZE(ethnl_privflags_get_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_PRIVFLAGS_SET,
 		.flags	= GENL_UNS_ADMIN_PERM,
 		.doit	= ethnl_set_privflags,
+		.policy = ethnl_privflags_set_policy,
+		.maxattr = ARRAY_SIZE(ethnl_privflags_set_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_RINGS_GET,
@@ -783,11 +807,15 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.start	= ethnl_default_start,
 		.dumpit	= ethnl_default_dumpit,
 		.done	= ethnl_default_done,
+		.policy = ethnl_rings_get_policy,
+		.maxattr = ARRAY_SIZE(ethnl_rings_get_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_RINGS_SET,
 		.flags	= GENL_UNS_ADMIN_PERM,
 		.doit	= ethnl_set_rings,
+		.policy = ethnl_rings_set_policy,
+		.maxattr = ARRAY_SIZE(ethnl_rings_set_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_CHANNELS_GET,
@@ -795,11 +823,15 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.start	= ethnl_default_start,
 		.dumpit	= ethnl_default_dumpit,
 		.done	= ethnl_default_done,
+		.policy = ethnl_channels_get_policy,
+		.maxattr = ARRAY_SIZE(ethnl_channels_get_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_CHANNELS_SET,
 		.flags	= GENL_UNS_ADMIN_PERM,
 		.doit	= ethnl_set_channels,
+		.policy = ethnl_channels_get_policy,
+		.maxattr = ARRAY_SIZE(ethnl_channels_get_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_COALESCE_GET,
@@ -807,11 +839,15 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.start	= ethnl_default_start,
 		.dumpit	= ethnl_default_dumpit,
 		.done	= ethnl_default_done,
+		.policy = ethnl_coalesce_get_policy,
+		.maxattr = ARRAY_SIZE(ethnl_coalesce_get_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_COALESCE_SET,
 		.flags	= GENL_UNS_ADMIN_PERM,
 		.doit	= ethnl_set_coalesce,
+		.policy = ethnl_coalesce_set_policy,
+		.maxattr = ARRAY_SIZE(ethnl_coalesce_set_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_PAUSE_GET,
@@ -819,11 +855,15 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.start	= ethnl_default_start,
 		.dumpit	= ethnl_default_dumpit,
 		.done	= ethnl_default_done,
+		.policy = ethnl_pause_get_policy,
+		.maxattr = ARRAY_SIZE(ethnl_pause_get_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_PAUSE_SET,
 		.flags	= GENL_UNS_ADMIN_PERM,
 		.doit	= ethnl_set_pause,
+		.policy = ethnl_pause_set_policy,
+		.maxattr = ARRAY_SIZE(ethnl_pause_set_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_EEE_GET,
@@ -831,11 +871,15 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.start	= ethnl_default_start,
 		.dumpit	= ethnl_default_dumpit,
 		.done	= ethnl_default_done,
+		.policy = ethnl_eee_get_policy,
+		.maxattr = ARRAY_SIZE(ethnl_eee_get_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_EEE_SET,
 		.flags	= GENL_UNS_ADMIN_PERM,
 		.doit	= ethnl_set_eee,
+		.policy = ethnl_eee_set_policy,
+		.maxattr = ARRAY_SIZE(ethnl_eee_set_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_TSINFO_GET,
@@ -843,22 +887,30 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.start	= ethnl_default_start,
 		.dumpit	= ethnl_default_dumpit,
 		.done	= ethnl_default_done,
+		.policy = ethnl_tsinfo_get_policy,
+		.maxattr = ARRAY_SIZE(ethnl_tsinfo_get_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_CABLE_TEST_ACT,
 		.flags	= GENL_UNS_ADMIN_PERM,
 		.doit	= ethnl_act_cable_test,
+		.policy = ethnl_cable_test_act_policy,
+		.maxattr = ARRAY_SIZE(ethnl_cable_test_act_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_CABLE_TEST_TDR_ACT,
 		.flags	= GENL_UNS_ADMIN_PERM,
 		.doit	= ethnl_act_cable_test_tdr,
+		.policy = ethnl_cable_test_tdr_act_policy,
+		.maxattr = ARRAY_SIZE(ethnl_cable_test_tdr_act_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_TUNNEL_INFO_GET,
 		.doit	= ethnl_tunnel_info_doit,
 		.start	= ethnl_tunnel_info_start,
 		.dumpit	= ethnl_tunnel_info_dumpit,
+		.policy = ethnl_tunnel_info_get_policy,
+		.maxattr = ARRAY_SIZE(ethnl_tunnel_info_get_policy) - 1,
 	},
 };
 
