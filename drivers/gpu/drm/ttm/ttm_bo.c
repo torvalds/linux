@@ -243,9 +243,9 @@ static int ttm_bo_individualize_resv(struct ttm_buffer_object *bo)
 		 * reference it any more. The only tricky case is the trylock on
 		 * the resv object while holding the lru_lock.
 		 */
-		spin_lock(&ttm_glob.lru_lock);
+		spin_lock(&bo->bdev->lru_lock);
 		bo->base.resv = &bo->base._resv;
-		spin_unlock(&ttm_glob.lru_lock);
+		spin_unlock(&bo->bdev->lru_lock);
 	}
 
 	return r;
@@ -304,7 +304,7 @@ static int ttm_bo_cleanup_refs(struct ttm_buffer_object *bo,
 
 		if (unlock_resv)
 			dma_resv_unlock(bo->base.resv);
-		spin_unlock(&ttm_glob.lru_lock);
+		spin_unlock(&bo->bdev->lru_lock);
 
 		lret = dma_resv_wait_timeout_rcu(resv, true, interruptible,
 						 30 * HZ);
@@ -314,7 +314,7 @@ static int ttm_bo_cleanup_refs(struct ttm_buffer_object *bo,
 		else if (lret == 0)
 			return -EBUSY;
 
-		spin_lock(&ttm_glob.lru_lock);
+		spin_lock(&bo->bdev->lru_lock);
 		if (unlock_resv && !dma_resv_trylock(bo->base.resv)) {
 			/*
 			 * We raced, and lost, someone else holds the reservation now,
@@ -324,7 +324,7 @@ static int ttm_bo_cleanup_refs(struct ttm_buffer_object *bo,
 			 * delayed destruction would succeed, so just return success
 			 * here.
 			 */
-			spin_unlock(&ttm_glob.lru_lock);
+			spin_unlock(&bo->bdev->lru_lock);
 			return 0;
 		}
 		ret = 0;
@@ -333,13 +333,13 @@ static int ttm_bo_cleanup_refs(struct ttm_buffer_object *bo,
 	if (ret || unlikely(list_empty(&bo->ddestroy))) {
 		if (unlock_resv)
 			dma_resv_unlock(bo->base.resv);
-		spin_unlock(&ttm_glob.lru_lock);
+		spin_unlock(&bo->bdev->lru_lock);
 		return ret;
 	}
 
 	ttm_bo_del_from_lru(bo);
 	list_del_init(&bo->ddestroy);
-	spin_unlock(&ttm_glob.lru_lock);
+	spin_unlock(&bo->bdev->lru_lock);
 	ttm_bo_cleanup_memtype_use(bo);
 
 	if (unlock_resv)
@@ -356,13 +356,12 @@ static int ttm_bo_cleanup_refs(struct ttm_buffer_object *bo,
  */
 bool ttm_bo_delayed_delete(struct ttm_device *bdev, bool remove_all)
 {
-	struct ttm_global *glob = &ttm_glob;
 	struct list_head removed;
 	bool empty;
 
 	INIT_LIST_HEAD(&removed);
 
-	spin_lock(&glob->lru_lock);
+	spin_lock(&bdev->lru_lock);
 	while (!list_empty(&bdev->ddestroy)) {
 		struct ttm_buffer_object *bo;
 
@@ -373,24 +372,24 @@ bool ttm_bo_delayed_delete(struct ttm_device *bdev, bool remove_all)
 			continue;
 
 		if (remove_all || bo->base.resv != &bo->base._resv) {
-			spin_unlock(&glob->lru_lock);
+			spin_unlock(&bdev->lru_lock);
 			dma_resv_lock(bo->base.resv, NULL);
 
-			spin_lock(&glob->lru_lock);
+			spin_lock(&bdev->lru_lock);
 			ttm_bo_cleanup_refs(bo, false, !remove_all, true);
 
 		} else if (dma_resv_trylock(bo->base.resv)) {
 			ttm_bo_cleanup_refs(bo, false, !remove_all, true);
 		} else {
-			spin_unlock(&glob->lru_lock);
+			spin_unlock(&bdev->lru_lock);
 		}
 
 		ttm_bo_put(bo);
-		spin_lock(&glob->lru_lock);
+		spin_lock(&bdev->lru_lock);
 	}
 	list_splice_tail(&removed, &bdev->ddestroy);
 	empty = list_empty(&bdev->ddestroy);
-	spin_unlock(&glob->lru_lock);
+	spin_unlock(&bdev->lru_lock);
 
 	return empty;
 }
@@ -425,7 +424,7 @@ static void ttm_bo_release(struct kref *kref)
 		ttm_bo_flush_all_fences(bo);
 		bo->deleted = true;
 
-		spin_lock(&ttm_glob.lru_lock);
+		spin_lock(&bo->bdev->lru_lock);
 
 		/*
 		 * Make pinned bos immediately available to
@@ -442,17 +441,17 @@ static void ttm_bo_release(struct kref *kref)
 
 		kref_init(&bo->kref);
 		list_add_tail(&bo->ddestroy, &bdev->ddestroy);
-		spin_unlock(&ttm_glob.lru_lock);
+		spin_unlock(&bo->bdev->lru_lock);
 
 		schedule_delayed_work(&bdev->wq,
 				      ((HZ / 100) < 1) ? 1 : HZ / 100);
 		return;
 	}
 
-	spin_lock(&ttm_glob.lru_lock);
+	spin_lock(&bo->bdev->lru_lock);
 	ttm_bo_del_from_lru(bo);
 	list_del(&bo->ddestroy);
-	spin_unlock(&ttm_glob.lru_lock);
+	spin_unlock(&bo->bdev->lru_lock);
 
 	ttm_bo_cleanup_memtype_use(bo);
 	dma_resv_unlock(bo->base.resv);
@@ -626,7 +625,7 @@ int ttm_mem_evict_first(struct ttm_device *bdev,
 	unsigned i;
 	int ret;
 
-	spin_lock(&ttm_glob.lru_lock);
+	spin_lock(&bo->bdev->lru_lock);
 	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
 		list_for_each_entry(bo, &man->lru[i], lru) {
 			bool busy;
@@ -663,7 +662,7 @@ int ttm_mem_evict_first(struct ttm_device *bdev,
 	if (!bo) {
 		if (busy_bo && !ttm_bo_get_unless_zero(busy_bo))
 			busy_bo = NULL;
-		spin_unlock(&ttm_glob.lru_lock);
+		spin_unlock(&bo->bdev->lru_lock);
 		ret = ttm_mem_evict_wait_busy(busy_bo, ctx, ticket);
 		if (busy_bo)
 			ttm_bo_put(busy_bo);
@@ -677,7 +676,7 @@ int ttm_mem_evict_first(struct ttm_device *bdev,
 		return ret;
 	}
 
-	spin_unlock(&ttm_glob.lru_lock);
+	spin_unlock(&bo->bdev->lru_lock);
 
 	ret = ttm_bo_evict(bo, ctx);
 	if (locked)
@@ -777,10 +776,9 @@ static int ttm_bo_mem_placement(struct ttm_buffer_object *bo,
 	mem->mem_type = place->mem_type;
 	mem->placement = place->flags;
 
-	spin_lock(&ttm_glob.lru_lock);
+	spin_lock(&bo->bdev->lru_lock);
 	ttm_bo_move_to_lru_tail(bo, mem, NULL);
-	spin_unlock(&ttm_glob.lru_lock);
-
+	spin_unlock(&bo->bdev->lru_lock);
 	return 0;
 }
 
@@ -1167,7 +1165,6 @@ EXPORT_SYMBOL(ttm_bo_wait);
 int ttm_bo_swapout(struct ttm_buffer_object *bo, struct ttm_operation_ctx *ctx,
 		   gfp_t gfp_flags)
 {
-	struct ttm_global *glob = &ttm_glob;
 	bool locked;
 	int ret;
 
@@ -1188,7 +1185,7 @@ int ttm_bo_swapout(struct ttm_buffer_object *bo, struct ttm_operation_ctx *ctx,
 
 	ttm_bo_del_from_lru(bo);
 	/* TODO: Cleanup the locking */
-	spin_unlock(&glob->lru_lock);
+	spin_unlock(&bo->bdev->lru_lock);
 
 	/*
 	 * Move to system cached

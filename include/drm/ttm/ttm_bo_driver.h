@@ -180,9 +180,9 @@ static inline int ttm_bo_reserve_slowpath(struct ttm_buffer_object *bo,
 static inline void
 ttm_bo_move_to_lru_tail_unlocked(struct ttm_buffer_object *bo)
 {
-	spin_lock(&ttm_glob.lru_lock);
+	spin_lock(&bo->bdev->lru_lock);
 	ttm_bo_move_to_lru_tail(bo, &bo->mem, NULL);
-	spin_unlock(&ttm_glob.lru_lock);
+	spin_unlock(&bo->bdev->lru_lock);
 }
 
 static inline void ttm_bo_assign_mem(struct ttm_buffer_object *bo,

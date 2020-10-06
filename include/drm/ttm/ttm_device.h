@@ -56,7 +56,6 @@ extern struct ttm_global {
 	 */
 
 	struct page *dummy_read_page;
-	spinlock_t lru_lock;
 
 	/**
 	 * Protected by ttm_global_mutex.
@@ -277,8 +276,9 @@ struct ttm_device {
 	struct ttm_pool pool;
 
 	/*
-	 * Protected by the global:lru lock.
+	 * Protection for the per manager LRU and ddestroy lists.
 	 */
+	spinlock_t lru_lock;
 	struct list_head ddestroy;
 
 	/*

@@ -426,16 +426,13 @@ void qxl_release_fence_buffer_objects(struct qxl_release *release)
 		       release->id | 0xf0000000, release->base.seqno);
 	trace_dma_fence_emit(&release->base);
 
-	spin_lock(&ttm_glob.lru_lock);
-
 	list_for_each_entry(entry, &release->bos, head) {
 		bo = entry->bo;
 
 		dma_resv_add_shared_fence(bo->base.resv, &release->base);
-		ttm_bo_move_to_lru_tail(bo, &bo->mem, NULL);
+		ttm_bo_move_to_lru_tail_unlocked(bo);
 		dma_resv_unlock(bo->base.resv);
 	}
-	spin_unlock(&ttm_glob.lru_lock);
 	ww_acquire_fini(&release->ticket);
 }
 
