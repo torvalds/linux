@@ -36,6 +36,8 @@ patternProperties:
   "^mode-.*$":
     $ref: /schemas/types.yaml#/definitions/uint32
 
+additionalProperties: false
+
 examples:
   - |
     reboot-mode {

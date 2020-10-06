@@ -186,6 +186,8 @@ required:
   - clock-names
   - ti,otap-del-sel-legacy
 
+unevaluatedProperties: false
+
 examples:
   - |
     #include <dt-bindings/interrupt-controller/irq.h>

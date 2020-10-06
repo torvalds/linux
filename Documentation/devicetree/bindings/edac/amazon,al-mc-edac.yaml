@@ -48,6 +48,7 @@ required:
   - "#address-cells"
   - "#size-cells"
 
+additionalProperties: false
 
 examples:
   - |

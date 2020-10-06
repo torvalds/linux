@@ -85,6 +85,8 @@ required:
   - reset-gpios
   - ports
 
+additionalProperties: false
+
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
