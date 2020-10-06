@@ -3129,7 +3129,8 @@ static int ftrace_update_code(struct module *mod, struct ftrace_page *new_pgs)
 static int ftrace_allocate_records(struct ftrace_page *pg, int count)
 {
 	int order;
-	int pages, cnt;
+	int pages;
+	int cnt;
 
 	if (WARN_ON(!count))
 		return -EINVAL;
