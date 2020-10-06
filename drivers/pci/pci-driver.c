@@ -193,7 +193,7 @@ static ssize_t new_id_store(struct device_driver *driver, const char *buf,
 	u32 vendor, device, subvendor = PCI_ANY_ID,
 		subdevice = PCI_ANY_ID, class = 0, class_mask = 0;
 	unsigned long driver_data = 0;
-	int fields = 0;
+	int fields;
 	int retval = 0;
 
 	fields = sscanf(buf, "%x %x %x %x %x %x %lx",
@@ -260,7 +260,7 @@ static ssize_t remove_id_store(struct device_driver *driver, const char *buf,
 	struct pci_driver *pdrv = to_pci_driver(driver);
 	u32 vendor, device, subvendor = PCI_ANY_ID,
 		subdevice = PCI_ANY_ID, class = 0, class_mask = 0;
-	int fields = 0;
+	int fields;
 	size_t retval = -ENODEV;
 
 	fields = sscanf(buf, "%x %x %x %x %x %x",
