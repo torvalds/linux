@@ -588,6 +588,14 @@ static void drm_gem_vram_bo_driver_move_notify(struct drm_gem_vram_object *gbo,
 	kmap->virtual = NULL;
 }
 
+static int drm_gem_vram_bo_driver_move(struct drm_gem_vram_object *gbo,
+				       bool evict,
+				       struct ttm_operation_ctx *ctx,
+				       struct ttm_resource *new_mem)
+{
+	return ttm_bo_move_memcpy(&gbo->bo, ctx, new_mem);
+}
+
 /*
  * Helpers for struct drm_gem_object_funcs
  */
@@ -950,6 +958,18 @@ static void bo_driver_move_notify(struct ttm_buffer_object *bo,
 	drm_gem_vram_bo_driver_move_notify(gbo, evict, new_mem);
 }
 
+static int bo_driver_move(struct ttm_buffer_object *bo,
+			  bool evict,
+			  struct ttm_operation_ctx *ctx,
+			  struct ttm_resource *new_mem)
+{
+	struct drm_gem_vram_object *gbo;
+
+	gbo = drm_gem_vram_of_bo(bo);
+
+	return drm_gem_vram_bo_driver_move(gbo, evict, ctx, new_mem);
+}
+
 static int bo_driver_io_mem_reserve(struct ttm_bo_device *bdev,
 				    struct ttm_resource *mem)
 {
@@ -974,6 +994,7 @@ static struct ttm_bo_driver bo_driver = {
 	.ttm_tt_destroy = bo_driver_ttm_tt_destroy,
 	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = bo_driver_evict_flags,
+	.move = bo_driver_move,
 	.move_notify = bo_driver_move_notify,
 	.io_mem_reserve = bo_driver_io_mem_reserve,
 };
