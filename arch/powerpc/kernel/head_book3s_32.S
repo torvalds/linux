@@ -50,7 +50,7 @@
 
 	__HEAD
 	.stabs	"arch/powerpc/kernel/",N_SO,0,0,0f
-	.stabs	"head_32.S",N_SO,0,0,0f
+	.stabs	"head_book3s_32.S",N_SO,0,0,0f
 0:
 _ENTRY(_stext);
 
