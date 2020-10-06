@@ -1018,18 +1018,37 @@ __releases(fiq->lock)
 	spin_unlock(&fiq->lock);
 }
 
+/* Count number of scatter-gather elements required */
+static unsigned int sg_count_fuse_pages(struct fuse_page_desc *page_descs,
+				       unsigned int num_pages,
+				       unsigned int total_len)
+{
+	unsigned int i;
+	unsigned int this_len;
+
+	for (i = 0; i < num_pages && total_len; i++) {
+		this_len =  min(page_descs[i].length, total_len);
+		total_len -= this_len;
+	}
+
+	return i;
+}
+
 /* Return the number of scatter-gather list elements required */
 static unsigned int sg_count_fuse_req(struct fuse_req *req)
 {
 	struct fuse_args *args = req->args;
 	struct fuse_args_pages *ap = container_of(args, typeof(*ap), args);
-	unsigned int total_sgs = 1 /* fuse_in_header */;
+	unsigned int size, total_sgs = 1 /* fuse_in_header */;
 
 	if (args->in_numargs - args->in_pages)
 		total_sgs += 1;
 
-	if (args->in_pages)
-		total_sgs += ap->num_pages;
+	if (args->in_pages) {
+		size = args->in_args[args->in_numargs - 1].size;
+		total_sgs += sg_count_fuse_pages(ap->descs, ap->num_pages,
+						 size);
+	}
 
 	if (!test_bit(FR_ISREPLY, &req->flags))
 		return total_sgs;
@@ -1039,8 +1058,11 @@ static unsigned int sg_count_fuse_req(struct fuse_req *req)
 	if (args->out_numargs - args->out_pages)
 		total_sgs += 1;
 
-	if (args->out_pages)
-		total_sgs += ap->num_pages;
+	if (args->out_pages) {
+		size = args->out_args[args->out_numargs - 1].size;
+		total_sgs += sg_count_fuse_pages(ap->descs, ap->num_pages,
+						 size);
+	}
 
 	return total_sgs;
 }
