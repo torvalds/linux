@@ -34,6 +34,13 @@
 #define MRFLD_FW_FEATURE_BASE_OFFSET 0x4
 #define MRFLD_FW_BSS_RESET_BIT 0
 
+/* SST Shim register map */
+#define SST_CSR			0x00
+#define SST_ISRX		0x18
+#define SST_IMRX		0x28
+#define SST_IPCX		0x38 /* IPC IA -> SST */
+#define SST_IPCD		0x40 /* IPC SST -> IA */
+
 extern const struct dev_pm_ops intel_sst_pm;
 enum sst_states {
 	SST_FW_LOADING = 1,

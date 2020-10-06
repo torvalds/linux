@@ -12,16 +12,6 @@
 #include <linux/types.h>
 #include <linux/interrupt.h>
 
-/* SST Shim register map
- * The register naming can differ between products. Some products also
- * contain extra functionality.
- */
-#define SST_CSR			0x00
-#define SST_ISRX		0x18
-#define SST_IMRX		0x28
-#define SST_IPCX		0x38 /* IPC IA -> SST */
-#define SST_IPCD		0x40 /* IPC SST -> IA */
-
 struct sst_dsp;
 
 /*
