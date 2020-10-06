@@ -27,7 +27,7 @@ volatile unsigned long mem_err;		/* So we know an error occurred */
 
 #define CHUNK_SIZE 0x400000
 
-static inline void pmax_setup_memory_region(void)
+static __init void pmax_setup_memory_region(void)
 {
 	volatile unsigned char *memory_page, dummy;
 	char old_handler[0x80];
@@ -56,7 +56,7 @@ static inline void pmax_setup_memory_region(void)
  * Use the REX prom calls to get hold of the memory bitmap, and thence
  * determine memory size.
  */
-static inline void rex_setup_memory_region(void)
+static __init void rex_setup_memory_region(void)
 {
 	int i, bitmap_size;
 	unsigned long mem_start = 0, mem_size = 0;
