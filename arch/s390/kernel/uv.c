@@ -52,7 +52,7 @@ void __init setup_uv(void)
 	unsigned long uv_stor_base;
 
 	/*
-	 * keep these conditions in line with kasan init code has_uv_sec_stor_limit()
+	 * keep these conditions in line with has_uv_sec_stor_limit()
 	 */
 	if (!is_prot_virt_host())
 		return;
@@ -89,12 +89,6 @@ void __init setup_uv(void)
 fail:
 	pr_info("Disabling support for protected virtualization");
 	prot_virt_host = 0;
-}
-
-void adjust_to_uv_max(unsigned long *vmax)
-{
-	if (uv_info.max_sec_stor_addr)
-		*vmax = min_t(unsigned long, *vmax, uv_info.max_sec_stor_addr);
 }
 
 /*

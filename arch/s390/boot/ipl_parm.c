@@ -12,13 +12,13 @@
 #include "boot.h"
 
 char __bootdata(early_command_line)[COMMAND_LINE_SIZE];
-struct ipl_parameter_block __bootdata_preserved(ipl_block);
-int __bootdata_preserved(ipl_block_valid);
-unsigned int __bootdata_preserved(zlib_dfltcc_support) = ZLIB_DFLTCC_FULL;
-
-unsigned long __bootdata(vmalloc_size) = VMALLOC_DEFAULT_SIZE;
 int __bootdata(noexec_disabled);
 
+unsigned int __bootdata_preserved(zlib_dfltcc_support) = ZLIB_DFLTCC_FULL;
+struct ipl_parameter_block __bootdata_preserved(ipl_block);
+int __bootdata_preserved(ipl_block_valid);
+
+unsigned long vmalloc_size = VMALLOC_DEFAULT_SIZE;
 unsigned long memory_limit;
 int vmalloc_size_set;
 int kaslr_enabled;

@@ -96,7 +96,6 @@ unsigned long int_hwcap = 0;
 
 int __bootdata(noexec_disabled);
 unsigned long __bootdata(ident_map_size);
-unsigned long __bootdata(vmalloc_size);
 struct mem_detect_info __bootdata(mem_detect);
 
 struct exception_table_entry *__bootdata_preserved(__start_dma_ex_table);
@@ -545,53 +544,10 @@ static void __init setup_resources(void)
 #endif
 }
 
-static void __init setup_ident_map_size(void)
+static void __init setup_memory_end(void)
 {
-	unsigned long vmax, tmp;
-
-	/* Choose kernel address space layout: 3 or 4 levels. */
-	tmp = ident_map_size / PAGE_SIZE;
-	tmp = tmp * (sizeof(struct page) + PAGE_SIZE);
-	if (tmp + vmalloc_size + MODULES_LEN <= _REGION2_SIZE)
-		vmax = _REGION2_SIZE; /* 3-level kernel page table */
-	else
-		vmax = _REGION1_SIZE; /* 4-level kernel page table */
-	/* module area is at the end of the kernel address space. */
-	MODULES_END = vmax;
-	if (is_prot_virt_host())
-		adjust_to_uv_max(&MODULES_END);
-#ifdef CONFIG_KASAN
-	vmax = _REGION1_SIZE;
-	MODULES_END = kasan_vmax;
-#endif
-	MODULES_VADDR = MODULES_END - MODULES_LEN;
-	VMALLOC_END = MODULES_VADDR;
-	VMALLOC_START = VMALLOC_END - vmalloc_size;
-
-	/* Split remaining virtual space between 1:1 mapping & vmemmap array */
-	tmp = VMALLOC_START / (PAGE_SIZE + sizeof(struct page));
-	/* vmemmap contains a multiple of PAGES_PER_SECTION struct pages */
-	tmp = SECTION_ALIGN_UP(tmp);
-	tmp = VMALLOC_START - tmp * sizeof(struct page);
-	tmp &= ~((vmax >> 11) - 1);	/* align to page table level */
-	tmp = min(tmp, 1UL << MAX_PHYSMEM_BITS);
-	vmemmap = (struct page *) tmp;
-
-	/* Take care that ident_map_size <= vmemmap */
-	ident_map_size = min(ident_map_size, (unsigned long)vmemmap);
-#ifdef CONFIG_KASAN
-	ident_map_size = min(ident_map_size, KASAN_SHADOW_START);
-#endif
-	vmemmap_size = SECTION_ALIGN_UP(ident_map_size / PAGE_SIZE) * sizeof(struct page);
-#ifdef CONFIG_KASAN
-	/* move vmemmap above kasan shadow only if stands in a way */
-	if (KASAN_SHADOW_END > (unsigned long)vmemmap &&
-	    (unsigned long)vmemmap + vmemmap_size > KASAN_SHADOW_START)
-		vmemmap = max(vmemmap, (struct page *)KASAN_SHADOW_END);
-#endif
-	max_pfn = max_low_pfn = PFN_DOWN(ident_map_size);
 	memblock_remove(ident_map_size, ULONG_MAX);
-
+	max_pfn = max_low_pfn = PFN_DOWN(ident_map_size);
 	pr_notice("The maximum memory size is %luMB\n", ident_map_size >> 20);
 }
 
@@ -1132,7 +1088,7 @@ void __init setup_arch(char **cmdline_p)
 	remove_oldmem();
 
 	setup_uv();
-	setup_ident_map_size();
+	setup_memory_end();
 	setup_memory();
 	dma_contiguous_reserve(ident_map_size);
 	vmcp_cma_reserve();
