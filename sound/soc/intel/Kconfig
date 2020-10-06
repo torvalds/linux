@@ -31,12 +31,6 @@ config SND_SST_IPC_ACPI
 	# This option controls the ACPI-based IPC for HiFi2 platforms
 	# (Baytrail, Cherrytrail)
 
-config SND_SOC_INTEL_SST_ACPI
-	tristate
-	# This option controls ACPI-based probing on
-	# Haswell/Broadwell/Baytrail legacy and will be set
-	# when these platforms are enabled
-
 config SND_SOC_INTEL_SST
 	tristate
 
