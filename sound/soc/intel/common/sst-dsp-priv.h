@@ -15,9 +15,6 @@
 
 #include "../skylake/skl-sst-dsp.h"
 
-/* do we need to remove or keep */
-#define DSP_DRAM_ADDR_OFFSET		0x400000
-
 /*
  * DSP Operations exported by platform Audio DSP driver.
  */
