@@ -2459,14 +2459,15 @@ static int ethtool_phy_tunable_valid(const struct ethtool_tunable *tuna)
 
 static int get_phy_tunable(struct net_device *dev, void __user *useraddr)
 {
-	int ret;
-	struct ethtool_tunable tuna;
 	struct phy_device *phydev = dev->phydev;
+	struct ethtool_tunable tuna;
+	bool phy_drv_tunable;
 	void *data;
+	int ret;
 
-	if (!(phydev && phydev->drv && phydev->drv->get_tunable))
+	phy_drv_tunable = phydev && phydev->drv && phydev->drv->get_tunable;
+	if (!phy_drv_tunable && !dev->ethtool_ops->get_phy_tunable)
 		return -EOPNOTSUPP;
-
 	if (copy_from_user(&tuna, useraddr, sizeof(tuna)))
 		return -EFAULT;
 	ret = ethtool_phy_tunable_valid(&tuna);
@@ -2475,9 +2476,13 @@ static int get_phy_tunable(struct net_device *dev, void __user *useraddr)
 	data = kmalloc(tuna.len, GFP_USER);
 	if (!data)
 		return -ENOMEM;
-	mutex_lock(&phydev->lock);
-	ret = phydev->drv->get_tunable(phydev, &tuna, data);
-	mutex_unlock(&phydev->lock);
+	if (phy_drv_tunable) {
+		mutex_lock(&phydev->lock);
+		ret = phydev->drv->get_tunable(phydev, &tuna, data);
+		mutex_unlock(&phydev->lock);
+	} else {
+		ret = dev->ethtool_ops->get_phy_tunable(dev, &tuna, data);
+	}
 	if (ret)
 		goto out;
 	useraddr += sizeof(tuna);
@@ -2493,12 +2498,14 @@ out:
 
 static int set_phy_tunable(struct net_device *dev, void __user *useraddr)
 {
-	int ret;
-	struct ethtool_tunable tuna;
 	struct phy_device *phydev = dev->phydev;
+	struct ethtool_tunable tuna;
+	bool phy_drv_tunable;
 	void *data;
+	int ret;
 
-	if (!(phydev && phydev->drv && phydev->drv->set_tunable))
+	phy_drv_tunable = phydev && phydev->drv && phydev->drv->get_tunable;
+	if (!phy_drv_tunable && !dev->ethtool_ops->set_phy_tunable)
 		return -EOPNOTSUPP;
 	if (copy_from_user(&tuna, useraddr, sizeof(tuna)))
 		return -EFAULT;
@@ -2509,9 +2516,13 @@ static int set_phy_tunable(struct net_device *dev, void __user *useraddr)
 	data = memdup_user(useraddr, tuna.len);
 	if (IS_ERR(data))
 		return PTR_ERR(data);
-	mutex_lock(&phydev->lock);
-	ret = phydev->drv->set_tunable(phydev, &tuna, data);
-	mutex_unlock(&phydev->lock);
+	if (phy_drv_tunable) {
+		mutex_lock(&phydev->lock);
+		ret = phydev->drv->set_tunable(phydev, &tuna, data);
+		mutex_unlock(&phydev->lock);
+	} else {
+		ret = dev->ethtool_ops->set_phy_tunable(dev, &tuna, data);
+	}
 
 	kfree(data);
 	return ret;

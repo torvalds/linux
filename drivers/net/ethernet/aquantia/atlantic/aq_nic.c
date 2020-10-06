@@ -405,6 +405,10 @@ int aq_nic_init(struct aq_nic_s *self)
 	mutex_unlock(&self->fwreq_mutex);
 	if (err < 0)
 		goto err_exit;
+	/* Restore default settings */
+	aq_nic_set_downshift(self, self->aq_nic_cfg.downshift_counter);
+	aq_nic_set_media_detect(self, self->aq_nic_cfg.is_media_detect ?
+				AQ_HW_MEDIA_DETECT_CNT : 0);
 
 	err = self->aq_hw_ops->hw_init(self->aq_hw,
 				       aq_nic_get_ndev(self)->dev_addr);
@@ -1396,6 +1400,52 @@ void aq_nic_release_filter(struct aq_nic_s *self, enum aq_rx_filter_type type,
 	default:
 		break;
 	}
+}
+
+int aq_nic_set_downshift(struct aq_nic_s *self, int val)
+{
+	int err = 0;
+	struct aq_nic_cfg_s *cfg = &self->aq_nic_cfg;
+
+	if (!self->aq_fw_ops->set_downshift)
+		return -EOPNOTSUPP;
+
+	if (val > 15) {
+		netdev_err(self->ndev, "downshift counter should be <= 15\n");
+		return -EINVAL;
+	}
+	cfg->downshift_counter = val;
+
+	mutex_lock(&self->fwreq_mutex);
+	err = self->aq_fw_ops->set_downshift(self->aq_hw, cfg->downshift_counter);
+	mutex_unlock(&self->fwreq_mutex);
+
+	return err;
+}
+
+int aq_nic_set_media_detect(struct aq_nic_s *self, int val)
+{
+	struct aq_nic_cfg_s *cfg = &self->aq_nic_cfg;
+	int err = 0;
+
+	if (!self->aq_fw_ops->set_media_detect)
+		return -EOPNOTSUPP;
+
+	if (val > 0 && val != AQ_HW_MEDIA_DETECT_CNT) {
+		netdev_err(self->ndev, "EDPD on this device could have only fixed value of %d\n",
+			   AQ_HW_MEDIA_DETECT_CNT);
+		return -EINVAL;
+	}
+
+	mutex_lock(&self->fwreq_mutex);
+	err = self->aq_fw_ops->set_media_detect(self->aq_hw, !!val);
+	mutex_unlock(&self->fwreq_mutex);
+
+	/* msecs plays no role - configuration is always fixed in PHY */
+	if (!err)
+		cfg->is_media_detect = !!val;
+
+	return err;
 }
 
 int aq_nic_setup_tc_mqprio(struct aq_nic_s *self, u32 tcs, u8 *prio_tc_map)
