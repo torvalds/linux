@@ -1458,15 +1458,15 @@ static void xilinx_dpdma_disable_irq(struct xilinx_dpdma_device *xdev)
 
 /**
  * xilinx_dpdma_chan_err_task - Per channel tasklet for error handling
- * @data: tasklet data to be casted to DPDMA channel structure
+ * @t: pointer to the tasklet associated with this handler
  *
  * Per channel error handling tasklet. This function waits for the outstanding
  * transaction to complete and triggers error handling. After error handling,
  * re-enable channel error interrupts, and restart the channel if needed.
  */
-static void xilinx_dpdma_chan_err_task(unsigned long data)
+static void xilinx_dpdma_chan_err_task(struct tasklet_struct *t)
 {
-	struct xilinx_dpdma_chan *chan = (struct xilinx_dpdma_chan *)data;
+	struct xilinx_dpdma_chan *chan = from_tasklet(chan, t, err_task);
 	struct xilinx_dpdma_device *xdev = chan->xdev;
 	unsigned long flags;
 
@@ -1555,8 +1555,7 @@ static int xilinx_dpdma_chan_init(struct xilinx_dpdma_device *xdev,
 	spin_lock_init(&chan->lock);
 	init_waitqueue_head(&chan->wait_to_stop);
 
-	tasklet_init(&chan->err_task, xilinx_dpdma_chan_err_task,
-		     (unsigned long)chan);
+	tasklet_setup(&chan->err_task, xilinx_dpdma_chan_err_task);
 
 	chan->vchan.desc_free = xilinx_dpdma_chan_free_tx_desc;
 	vchan_init(&chan->vchan, &xdev->common);
