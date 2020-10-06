@@ -1096,7 +1096,7 @@ static int bq25980_power_supply_init(struct bq25980_device *bq,
 static int bq25980_hw_init(struct bq25980_device *bq)
 {
 	struct power_supply_battery_info bat_info = { };
-	int wd_reg_val;
+	int wd_reg_val = 0;
 	int ret = 0;
 	int curr_val;
 	int volt_val;
