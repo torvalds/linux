@@ -707,6 +707,8 @@ static void vmw_move_notify(struct ttm_buffer_object *bo,
 			    bool evict,
 			    struct ttm_resource *mem)
 {
+	if (!mem)
+		return;
 	vmw_bo_move_notify(bo, mem);
 	vmw_query_move_notify(bo, mem);
 }

@@ -1192,9 +1192,6 @@ void vmw_bo_move_notify(struct ttm_buffer_object *bo,
 {
 	struct vmw_buffer_object *vbo;
 
-	if (mem == NULL)
-		return;
-
 	/* Make sure @bo is embedded in a struct vmw_buffer_object? */
 	if (bo->destroy != vmw_bo_bo_free &&
 	    bo->destroy != vmw_user_bo_destroy)
