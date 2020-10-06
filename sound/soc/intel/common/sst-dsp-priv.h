@@ -98,9 +98,4 @@ struct sst_dsp {
 	struct snd_dma_buffer dmab;
 };
 
-static inline void *sst_dsp_get_thread_context(struct sst_dsp *sst)
-{
-	return sst->thread_context;
-}
-
 #endif
