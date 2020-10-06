@@ -613,9 +613,6 @@ static int bq25980_set_battery_property(struct power_supply *psy,
 	struct bq25980_device *bq = power_supply_get_drvdata(psy);
 	int ret = 0;
 
-	if (ret)
-		return ret;
-
 	switch (psp) {
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:
 		ret = bq25980_set_const_charge_curr(bq, val->intval);
