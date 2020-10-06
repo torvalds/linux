@@ -372,19 +372,19 @@ gen8_ppgtt_insert_pte(struct i915_ppgtt *ppgtt,
 	pd = i915_pd_entry(pdp, gen8_pd_index(idx, 2));
 	vaddr = kmap_atomic_px(i915_pt_entry(pd, gen8_pd_index(idx, 1)));
 	do {
-		GEM_BUG_ON(iter->sg->length < I915_GTT_PAGE_SIZE);
+		GEM_BUG_ON(sg_dma_len(iter->sg) < I915_GTT_PAGE_SIZE);
 		vaddr[gen8_pd_index(idx, 0)] = pte_encode | iter->dma;
 
 		iter->dma += I915_GTT_PAGE_SIZE;
 		if (iter->dma >= iter->max) {
 			iter->sg = __sg_next(iter->sg);
-			if (!iter->sg) {
+			if (!iter->sg || sg_dma_len(iter->sg) == 0) {
 				idx = 0;
 				break;
 			}
 
 			iter->dma = sg_dma_address(iter->sg);
-			iter->max = iter->dma + iter->sg->length;
+			iter->max = iter->dma + sg_dma_len(iter->sg);
 		}
 
 		if (gen8_pd_index(++idx, 0) == 0) {
@@ -413,8 +413,8 @@ static void gen8_ppgtt_insert_huge(struct i915_vma *vma,
 				   u32 flags)
 {
 	const gen8_pte_t pte_encode = gen8_pte_encode(0, cache_level, flags);
+	unsigned int rem = sg_dma_len(iter->sg);
 	u64 start = vma->node.start;
-	dma_addr_t rem = iter->sg->length;
 
 	GEM_BUG_ON(!i915_vm_is_4lvl(vma->vm));
 
@@ -456,7 +456,7 @@ static void gen8_ppgtt_insert_huge(struct i915_vma *vma,
 		}
 
 		do {
-			GEM_BUG_ON(iter->sg->length < page_size);
+			GEM_BUG_ON(sg_dma_len(iter->sg) < page_size);
 			vaddr[index++] = encode | iter->dma;
 
 			start += page_size;
@@ -467,7 +467,10 @@ static void gen8_ppgtt_insert_huge(struct i915_vma *vma,
 				if (!iter->sg)
 					break;
 
-				rem = iter->sg->length;
+				rem = sg_dma_len(iter->sg);
+				if (!rem)
+					break;
+
 				iter->dma = sg_dma_address(iter->sg);
 				iter->max = iter->dma + rem;
 
@@ -525,7 +528,7 @@ static void gen8_ppgtt_insert_huge(struct i915_vma *vma,
 		}
 
 		vma->page_sizes.gtt |= page_size;
-	} while (iter->sg);
+	} while (iter->sg && sg_dma_len(iter->sg));
 }
 
 static void gen8_ppgtt_insert(struct i915_address_space *vm,

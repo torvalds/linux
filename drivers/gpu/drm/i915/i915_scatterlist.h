@@ -27,13 +27,17 @@ static __always_inline struct sgt_iter {
 } __sgt_iter(struct scatterlist *sgl, bool dma) {
 	struct sgt_iter s = { .sgp = sgl };
 
-	if (s.sgp) {
+	if (dma && s.sgp && sg_dma_len(s.sgp) == 0) {
+		s.sgp = NULL;
+	} else if (s.sgp) {
 		s.max = s.curr = s.sgp->offset;
-		s.max += s.sgp->length;
-		if (dma)
+		if (dma) {
 			s.dma = sg_dma_address(s.sgp);
-		else
+			s.max += sg_dma_len(s.sgp);
+		} else {
 			s.pfn = page_to_pfn(sg_page(s.sgp));
+			s.max += s.sgp->length;
+		}
 	}
 
 	return s;

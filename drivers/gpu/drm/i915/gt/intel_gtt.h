@@ -580,7 +580,7 @@ static inline struct sgt_dma {
 	struct scatterlist *sg = vma->pages->sgl;
 	dma_addr_t addr = sg_dma_address(sg);
 
-	return (struct sgt_dma){ sg, addr, addr + sg->length };
+	return (struct sgt_dma){ sg, addr, addr + sg_dma_len(sg) };
 }
 
 #endif
