@@ -1664,8 +1664,6 @@ extern int blk_integrity_compare(struct gendisk *, struct gendisk *);
 extern int blk_rq_map_integrity_sg(struct request_queue *, struct bio *,
 				   struct scatterlist *);
 extern int blk_rq_count_integrity_sg(struct request_queue *, struct bio *);
-extern bool blk_integrity_merge_rq(struct request_queue *, struct request *,
-				   struct request *);
 extern bool blk_integrity_merge_bio(struct request_queue *, struct request *,
 				    struct bio *);
 
@@ -1794,12 +1792,6 @@ static inline void blk_queue_max_integrity_segments(struct request_queue *q,
 static inline unsigned short queue_max_integrity_segments(const struct request_queue *q)
 {
 	return 0;
-}
-static inline bool blk_integrity_merge_rq(struct request_queue *rq,
-					  struct request *r1,
-					  struct request *r2)
-{
-	return true;
 }
 static inline bool blk_integrity_merge_bio(struct request_queue *rq,
 					   struct request *r,
