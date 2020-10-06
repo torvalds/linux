@@ -272,6 +272,26 @@ config FB_PM2_FIFO_DISCONNECT
 	help
 	  Support the Permedia2 FIFO disconnect feature.
 
+config FB_ARMCLCD
+	tristate "ARM PrimeCell PL110 support"
+	depends on ARM || ARM64 || COMPILE_TEST
+	depends on FB && ARM_AMBA && HAS_IOMEM
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	select FB_MODE_HELPERS if OF
+	select VIDEOMODE_HELPERS if OF
+	select BACKLIGHT_CLASS_DEVICE if OF
+	help
+	  This framebuffer device driver is for the ARM PrimeCell PL110
+	  Colour LCD controller.  ARM PrimeCells provide the building
+	  blocks for System on a Chip devices.
+
+	  If you want to compile this as a module (=code which can be
+	  inserted into and removed from the running kernel), say M
+	  here and read <file:Documentation/kbuild/modules.rst>.  The module
+	  will be called amba-clcd.
+
 config FB_ACORN
 	bool "Acorn VIDC support"
 	depends on (FB = y) && ARM && ARCH_ACORN
