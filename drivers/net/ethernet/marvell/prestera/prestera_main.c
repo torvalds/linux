@@ -482,9 +482,10 @@ bool prestera_netdev_check(const struct net_device *dev)
 	return dev->netdev_ops == &prestera_netdev_ops;
 }
 
-static int prestera_lower_dev_walk(struct net_device *dev, void *data)
+static int prestera_lower_dev_walk(struct net_device *dev,
+				   struct netdev_nested_priv *priv)
 {
-	struct prestera_port **pport = data;
+	struct prestera_port **pport = (struct prestera_port **)priv->data;
 
 	if (prestera_netdev_check(dev)) {
 		*pport = netdev_priv(dev);
@@ -497,11 +498,14 @@ static int prestera_lower_dev_walk(struct net_device *dev, void *data)
 struct prestera_port *prestera_port_dev_lower_find(struct net_device *dev)
 {
 	struct prestera_port *port = NULL;
+	struct netdev_nested_priv priv = {
+		.data = (void *)&port,
+	};
 
 	if (prestera_netdev_check(dev))
 		return netdev_priv(dev);
 
-	netdev_walk_all_lower_dev(dev, prestera_lower_dev_walk, &port);
+	netdev_walk_all_lower_dev(dev, prestera_lower_dev_walk, &priv);
 
 	return port;
 }

@@ -387,8 +387,8 @@ EXPORT_SYMBOL(ksz_switch_alloc);
 int ksz_switch_register(struct ksz_device *dev,
 			const struct ksz_dev_ops *ops)
 {
+	struct device_node *port, *ports;
 	phy_interface_t interface;
-	struct device_node *port;
 	unsigned int port_num;
 	int ret;
 
@@ -430,13 +430,17 @@ int ksz_switch_register(struct ksz_device *dev,
 		ret = of_get_phy_mode(dev->dev->of_node, &interface);
 		if (ret == 0)
 			dev->compat_interface = interface;
-		for_each_available_child_of_node(dev->dev->of_node, port) {
-			if (of_property_read_u32(port, "reg", &port_num))
-				continue;
-			if (port_num >= dev->port_cnt)
-				return -EINVAL;
-			of_get_phy_mode(port, &dev->ports[port_num].interface);
-		}
+		ports = of_get_child_by_name(dev->dev->of_node, "ports");
+		if (ports)
+			for_each_available_child_of_node(ports, port) {
+				if (of_property_read_u32(port, "reg",
+							 &port_num))
+					continue;
+				if (port_num >= dev->port_cnt)
+					return -EINVAL;
+				of_get_phy_mode(port,
+						&dev->ports[port_num].interface);
+			}
 		dev->synclko_125 = of_property_read_bool(dev->dev->of_node,
 							 "microchip,synclko-125");
 	}

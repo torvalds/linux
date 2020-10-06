@@ -110,9 +110,6 @@ static int tcf_csum_init(struct net *net, struct nlattr *nla,
 	if (params_new)
 		kfree_rcu(params_new, rcu);
 
-	if (ret == ACT_P_CREATED)
-		tcf_idr_insert(tn, *a);
-
 	return ret;
 put_chain:
 	if (goto_ch)

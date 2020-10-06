@@ -31,6 +31,7 @@ properties:
               - renesas,etheravb-r8a774a1     # RZ/G2M
               - renesas,etheravb-r8a774b1     # RZ/G2N
               - renesas,etheravb-r8a774c0     # RZ/G2E
+              - renesas,etheravb-r8a774e1     # RZ/G2H
               - renesas,etheravb-r8a7795      # R-Car H3
               - renesas,etheravb-r8a7796      # R-Car M3-W
               - renesas,etheravb-r8a77961     # R-Car M3-W+

@@ -1320,9 +1320,10 @@ struct net_device *rdma_read_gid_attr_ndev_rcu(const struct ib_gid_attr *attr)
 }
 EXPORT_SYMBOL(rdma_read_gid_attr_ndev_rcu);
 
-static int get_lower_dev_vlan(struct net_device *lower_dev, void *data)
+static int get_lower_dev_vlan(struct net_device *lower_dev,
+			      struct netdev_nested_priv *priv)
 {
-	u16 *vlan_id = data;
+	u16 *vlan_id = (u16 *)priv->data;
 
 	if (is_vlan_dev(lower_dev))
 		*vlan_id = vlan_dev_vlan_id(lower_dev);
@@ -1348,6 +1349,9 @@ static int get_lower_dev_vlan(struct net_device *lower_dev, void *data)
 int rdma_read_gid_l2_fields(const struct ib_gid_attr *attr,
 			    u16 *vlan_id, u8 *smac)
 {
+	struct netdev_nested_priv priv = {
+		.data = (void *)vlan_id,
+	};
 	struct net_device *ndev;
 
 	rcu_read_lock();
@@ -1368,7 +1372,7 @@ int rdma_read_gid_l2_fields(const struct ib_gid_attr *attr,
 			 * the lower vlan device for this gid entry.
 			 */
 			netdev_walk_all_lower_dev_rcu(attr->ndev,
-					get_lower_dev_vlan, vlan_id);
+					get_lower_dev_vlan, &priv);
 		}
 	}
 	rcu_read_unlock();

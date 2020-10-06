@@ -139,6 +139,7 @@ struct genl_small_ops {
  * @flags: flags
  * @maxattr: maximum number of attributes supported
  * @policy: netlink policy (takes precedence over family policy)
+ * @validate: validation flags from enum genl_validate_flags
  * @doit: standard command callback
  * @start: start callback for dumps
  * @dumpit: callback for dumpers

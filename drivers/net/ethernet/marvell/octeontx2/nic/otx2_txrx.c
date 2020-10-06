@@ -611,6 +611,7 @@ static void otx2_sqe_add_hdr(struct otx2_nic *pfvf, struct otx2_snd_queue *sq,
 			sqe_hdr->ol3type = NIX_SENDL3TYPE_IP4_CKSUM;
 		} else if (skb->protocol == htons(ETH_P_IPV6)) {
 			proto = ipv6_hdr(skb)->nexthdr;
+			sqe_hdr->ol3type = NIX_SENDL3TYPE_IP6;
 		}
 
 		if (proto == IPPROTO_TCP)

@@ -176,6 +176,7 @@ static void lapic_timer_propagate_broadcast(struct acpi_processor *pr) { }
 static bool lapic_timer_needs_broadcast(struct acpi_processor *pr,
 					struct acpi_processor_cx *cx)
 {
+	return false;
 }
 
 #endif

@@ -411,15 +411,30 @@ static int xsk_generic_xmit(struct sock *sk)
 		skb_shinfo(skb)->destructor_arg = (void *)(long)desc.addr;
 		skb->destructor = xsk_destruct_skb;
 
+		/* Hinder dev_direct_xmit from freeing the packet and
+		 * therefore completing it in the destructor
+		 */
+		refcount_inc(&skb->users);
 		err = dev_direct_xmit(skb, xs->queue_id);
+		if  (err == NETDEV_TX_BUSY) {
+			/* Tell user-space to retry the send */
+			skb->destructor = sock_wfree;
+			/* Free skb without triggering the perf drop trace */
+			consume_skb(skb);
+			err = -EAGAIN;
+			goto out;
+		}
+
 		xskq_cons_release(xs->tx);
 		/* Ignore NET_XMIT_CN as packet might have been sent */
-		if (err == NET_XMIT_DROP || err == NETDEV_TX_BUSY) {
+		if (err == NET_XMIT_DROP) {
 			/* SKB completed but not sent */
+			kfree_skb(skb);
 			err = -EBUSY;
 			goto out;
 		}
 
+		consume_skb(skb);
 		sent_frame = true;
 	}
 

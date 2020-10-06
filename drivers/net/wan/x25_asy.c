@@ -461,7 +461,6 @@ static int x25_asy_open(struct net_device *dev)
 {
 	struct x25_asy *sl = netdev_priv(dev);
 	unsigned long len;
-	int err;
 
 	if (sl->tty == NULL)
 		return -ENODEV;
@@ -487,14 +486,7 @@ static int x25_asy_open(struct net_device *dev)
 	sl->xleft    = 0;
 	sl->flags   &= (1 << SLF_INUSE);      /* Clear ESCAPE & ERROR flags */
 
-	netif_start_queue(dev);
-
-	/*
-	 *	Now attach LAPB
-	 */
-	err = lapb_register(dev, &x25_asy_callbacks);
-	if (err == LAPB_OK)
-		return 0;
+	return 0;
 
 	/* Cleanup */
 	kfree(sl->xbuff);
@@ -516,7 +508,6 @@ static int x25_asy_close(struct net_device *dev)
 	if (sl->tty)
 		clear_bit(TTY_DO_WRITE_WAKEUP, &sl->tty->flags);
 
-	netif_stop_queue(dev);
 	sl->rcount = 0;
 	sl->xleft  = 0;
 	spin_unlock(&sl->lock);
@@ -601,7 +592,6 @@ static int x25_asy_open_tty(struct tty_struct *tty)
 static void x25_asy_close_tty(struct tty_struct *tty)
 {
 	struct x25_asy *sl = tty->disc_data;
-	int err;
 
 	/* First make sure we're connected. */
 	if (!sl || sl->magic != X25_ASY_MAGIC)
@@ -611,11 +601,6 @@ static void x25_asy_close_tty(struct tty_struct *tty)
 	if (sl->dev->flags & IFF_UP)
 		dev_close(sl->dev);
 	rtnl_unlock();
-
-	err = lapb_unregister(sl->dev);
-	if (err != LAPB_OK)
-		pr_err("%s: lapb_unregister error: %d\n",
-		       __func__, err);
 
 	tty->disc_data = NULL;
 	sl->tty = NULL;
@@ -719,15 +704,39 @@ static int x25_asy_ioctl(struct tty_struct *tty, struct file *file,
 
 static int x25_asy_open_dev(struct net_device *dev)
 {
+	int err;
 	struct x25_asy *sl = netdev_priv(dev);
 	if (sl->tty == NULL)
 		return -ENODEV;
+
+	err = lapb_register(dev, &x25_asy_callbacks);
+	if (err != LAPB_OK)
+		return -ENOMEM;
+
+	netif_start_queue(dev);
+
+	return 0;
+}
+
+static int x25_asy_close_dev(struct net_device *dev)
+{
+	int err;
+
+	netif_stop_queue(dev);
+
+	err = lapb_unregister(dev);
+	if (err != LAPB_OK)
+		pr_err("%s: lapb_unregister error: %d\n",
+		       __func__, err);
+
+	x25_asy_close(dev);
+
 	return 0;
 }
 
 static const struct net_device_ops x25_asy_netdev_ops = {
 	.ndo_open	= x25_asy_open_dev,
-	.ndo_stop	= x25_asy_close,
+	.ndo_stop	= x25_asy_close_dev,
 	.ndo_start_xmit	= x25_asy_xmit,
 	.ndo_tx_timeout	= x25_asy_timeout,
 	.ndo_change_mtu	= x25_asy_change_mtu,

@@ -214,7 +214,7 @@ struct sock *tcp_get_cookie_sock(struct sock *sk, struct sk_buff *skb,
 		sock_rps_save_rxhash(child, skb);
 
 		if (rsk_drop_req(req)) {
-			refcount_set(&req->rsk_refcnt, 2);
+			reqsk_put(req);
 			return child;
 		}
 

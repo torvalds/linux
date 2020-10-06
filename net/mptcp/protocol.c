@@ -284,7 +284,7 @@ static bool __mptcp_move_skb(struct mptcp_sock *msk, struct sock *ssk,
 
 	if (MPTCP_SKB_CB(skb)->map_seq == msk->ack_seq) {
 		/* in sequence */
-		msk->ack_seq += copy_len;
+		WRITE_ONCE(msk->ack_seq, msk->ack_seq + copy_len);
 		tail = skb_peek_tail(&sk->sk_receive_queue);
 		if (tail && mptcp_try_coalesce(sk, tail, skb))
 			return true;
@@ -402,7 +402,7 @@ static void mptcp_check_data_fin(struct sock *sk)
 	if (mptcp_pending_data_fin(sk, &rcv_data_fin_seq)) {
 		struct mptcp_subflow_context *subflow;
 
-		msk->ack_seq++;
+		WRITE_ONCE(msk->ack_seq, msk->ack_seq + 1);
 		WRITE_ONCE(msk->rcv_data_fin, 0);
 
 		sk->sk_shutdown |= RCV_SHUTDOWN;
@@ -2039,7 +2039,7 @@ struct sock *mptcp_sk_clone(const struct sock *sk,
 		msk->remote_key = mp_opt->sndr_key;
 		mptcp_crypto_key_sha(msk->remote_key, NULL, &ack_seq);
 		ack_seq++;
-		msk->ack_seq = ack_seq;
+		WRITE_ONCE(msk->ack_seq, ack_seq);
 	}
 
 	sock_reset_flag(nsk, SOCK_RCU_FREE);
@@ -2398,7 +2398,7 @@ bool mptcp_finish_join(struct sock *sk)
 	parent_sock = READ_ONCE(parent->sk_socket);
 	if (parent_sock && !sk->sk_socket)
 		mptcp_sock_graft(sk, parent_sock);
-	subflow->map_seq = msk->ack_seq;
+	subflow->map_seq = READ_ONCE(msk->ack_seq);
 	return true;
 }
 

@@ -268,9 +268,6 @@ static int tcf_ctinfo_init(struct net *net, struct nlattr *nla,
 	if (cp_new)
 		kfree_rcu(cp_new, rcu);
 
-	if (ret == ACT_P_CREATED)
-		tcf_idr_insert(tn, *a);
-
 	return ret;
 
 put_chain:

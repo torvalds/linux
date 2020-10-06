@@ -690,7 +690,7 @@ which of the two parameters is added to the kernel command line.  In the
 instruction of the CPUs (which, as a rule, suspends the execution of the program
 and causes the hardware to attempt to enter the shallowest available idle state)
 for this purpose, and if ``idle=poll`` is used, idle CPUs will execute a
-more or less ``lightweight'' sequence of instructions in a tight loop.  [Note
+more or less "lightweight" sequence of instructions in a tight loop.  [Note
 that using ``idle=poll`` is somewhat drastic in many cases, as preventing idle
 CPUs from saving almost any energy at all may not be the only effect of it.
 For example, on Intel hardware it effectively prevents CPUs from using
