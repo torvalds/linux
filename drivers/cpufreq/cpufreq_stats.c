@@ -47,6 +47,11 @@ static void cpufreq_stats_reset_table(struct cpufreq_stats *stats)
 
 	/* Adjust for the time elapsed since reset was requested */
 	WRITE_ONCE(stats->reset_pending, 0);
+	/*
+	 * Prevent the reset_time read from being reordered before the
+	 * reset_pending accesses in cpufreq_stats_record_transition().
+	 */
+	smp_rmb();
 	cpufreq_stats_update(stats, READ_ONCE(stats->reset_time));
 }
 
@@ -71,10 +76,16 @@ static ssize_t show_time_in_state(struct cpufreq_policy *policy, char *buf)
 
 	for (i = 0; i < stats->state_num; i++) {
 		if (pending) {
-			if (i == stats->last_index)
+			if (i == stats->last_index) {
+				/*
+				 * Prevent the reset_time read from occurring
+				 * before the reset_pending read above.
+				 */
+				smp_rmb();
 				time = get_jiffies_64() - READ_ONCE(stats->reset_time);
-			else
+			} else {
 				time = 0;
+			}
 		} else {
 			time = stats->time_in_state[i];
 			if (i == stats->last_index)
@@ -99,6 +110,11 @@ static ssize_t store_reset(struct cpufreq_policy *policy, const char *buf,
 	 * avoid races.
 	 */
 	WRITE_ONCE(stats->reset_time, get_jiffies_64());
+	/*
+	 * The memory barrier below is to prevent the readers of reset_time from
+	 * seeing a stale or partially updated value.
+	 */
+	smp_wmb();
 	WRITE_ONCE(stats->reset_pending, 1);
 
 	return count;
