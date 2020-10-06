@@ -4,6 +4,7 @@
  */
 
 #include <linux/blkdev.h>
+#include <linux/compat.h>
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/fs_stack.h>
@@ -43,6 +44,11 @@ static int file_open(struct inode *inode, struct file *file);
 static int file_release(struct inode *inode, struct file *file);
 static int read_single_page(struct file *f, struct page *page);
 static long dispatch_ioctl(struct file *f, unsigned int req, unsigned long arg);
+
+#ifdef CONFIG_COMPAT
+static long incfs_compat_ioctl(struct file *file, unsigned int cmd,
+			 unsigned long arg);
+#endif
 
 static struct inode *alloc_inode(struct super_block *sb);
 static void free_inode(struct inode *inode);
@@ -109,7 +115,9 @@ const struct file_operations incfs_file_ops = {
 	.splice_read = generic_file_splice_read,
 	.llseek = generic_file_llseek,
 	.unlocked_ioctl = dispatch_ioctl,
-	.compat_ioctl = dispatch_ioctl
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = incfs_compat_ioctl,
+#endif
 };
 
 const struct inode_operations incfs_file_inode_ops = {
@@ -806,6 +814,13 @@ static long ioctl_get_block_count(struct file *f, void __user *arg)
 	return 0;
 }
 
+static int incfs_ioctl_get_flags(struct file *f, void __user *arg)
+{
+	u32 flags = IS_VERITY(file_inode(f)) ? FS_VERITY_FL : 0;
+
+	return put_user(flags, (int __user *) arg);
+}
+
 static long dispatch_ioctl(struct file *f, unsigned int req, unsigned long arg)
 {
 	switch (req) {
@@ -819,10 +834,33 @@ static long dispatch_ioctl(struct file *f, unsigned int req, unsigned long arg)
 		return ioctl_get_block_count(f, (void __user *)arg);
 	case FS_IOC_ENABLE_VERITY:
 		return incfs_ioctl_enable_verity(f, (const void __user *)arg);
+	case FS_IOC_GETFLAGS:
+		return incfs_ioctl_get_flags(f, (void __user *) arg);
 	default:
 		return -EINVAL;
 	}
 }
+
+#ifdef CONFIG_COMPAT
+static long incfs_compat_ioctl(struct file *file, unsigned int cmd,
+			       unsigned long arg)
+{
+	switch (cmd) {
+	case FS_IOC32_GETFLAGS:
+		cmd = FS_IOC_GETFLAGS;
+		break;
+	case INCFS_IOC_FILL_BLOCKS:
+	case INCFS_IOC_READ_FILE_SIGNATURE:
+	case INCFS_IOC_GET_FILLED_BLOCKS:
+	case INCFS_IOC_GET_BLOCK_COUNT:
+	case FS_IOC_ENABLE_VERITY:
+		break;
+	default:
+		return -ENOIOCTLCMD;
+	}
+	return dispatch_ioctl(file, cmd, (unsigned long) compat_ptr(arg));
+}
+#endif
 
 static struct dentry *dir_lookup(struct inode *dir_inode, struct dentry *dentry,
 				 unsigned int flags)

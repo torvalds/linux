@@ -35,6 +35,10 @@
 
 #include "utils.h"
 
+/* Can't include uapi/linux/fs.h because it clashes with mount.h */
+#define	FS_IOC_GETFLAGS			_IOR('f', 1, long)
+#define FS_VERITY_FL			0x00100000 /* Verity protected inode */
+
 #define TEST_FAILURE 1
 #define TEST_SUCCESS 0
 
@@ -3736,7 +3740,30 @@ out:
 	return result;
 }
 
-static int validate_verity(const char *mount_dir, struct test_file *file,
+static int verity_installed(const char *mount_dir, int cmd_fd, bool *installed)
+{
+	int result = TEST_FAILURE;
+	char *filename = NULL;
+	int fd = -1;
+	struct test_file *file = &get_test_files_set().files[0];
+
+	TESTEQUAL(emit_file(cmd_fd, NULL, file->name, &file->id, file->size,
+			    NULL), 0);
+	TEST(filename = concat_file_name(mount_dir, file->name), filename);
+	TEST(fd = open(filename, O_RDONLY | O_CLOEXEC), fd != -1);
+	TESTEQUAL(ioctl(fd, FS_IOC_ENABLE_VERITY, NULL), -1);
+	*installed = errno != EOPNOTSUPP;
+
+	result = TEST_SUCCESS;
+out:
+	close(fd);
+	if (filename)
+		remove(filename);
+	free(filename);
+	return result;
+}
+
+static int enable_verity(const char *mount_dir, struct test_file *file,
 			   EVP_PKEY *key, X509 *cert, bool use_signatures)
 {
 	int result = TEST_FAILURE;
@@ -3776,11 +3803,14 @@ static int validate_verity(const char *mount_dir, struct test_file *file,
 		.digest_algorithm = 1,
 		.digest_size = 32
 	};
+	uint64_t flags;
 
 	memcpy(fsverity_signed_digest.magic, "FSVerity", 8);
 
 	TEST(filename = concat_file_name(mount_dir, file->name), filename);
 	TEST(fd = open(filename, O_RDONLY | O_CLOEXEC), fd != -1);
+	TESTEQUAL(ioctl(fd, FS_IOC_GETFLAGS, &flags), 0);
+	TESTEQUAL(flags & FS_VERITY_FL, 0);
 
 	/* First try to enable verity with random digest */
 	TESTEQUAL(sign(key, cert, (void *)&fsverity_signed_digest,
@@ -3823,10 +3853,30 @@ out:
 	return result;
 }
 
+static int validate_verity(const char *mount_dir, struct test_file *file)
+{
+	int result = TEST_FAILURE;
+	char *filename = concat_file_name(mount_dir, file->name);
+	int fd = -1;
+	uint64_t flags;
+
+	TEST(filename = concat_file_name(mount_dir, file->name), filename);
+	TEST(fd = open(filename, O_RDONLY | O_CLOEXEC), fd != -1);
+	TESTEQUAL(ioctl(fd, FS_IOC_GETFLAGS, &flags), 0);
+	TESTEQUAL(flags & FS_VERITY_FL, FS_VERITY_FL);
+
+	result = TEST_SUCCESS;
+out:
+	close(fd);
+	free(filename);
+	return result;
+}
+
 static int verity_test_optional_sigs(const char *mount_dir, bool use_signatures)
 {
 	int result = TEST_FAILURE;
 	char *backing_dir = NULL;
+	bool installed;
 	int cmd_fd = -1;
 	int i;
 	struct test_files_set test = get_test_files_set();
@@ -3845,6 +3895,11 @@ static int verity_test_optional_sigs(const char *mount_dir, bool use_signatures)
 	TESTEQUAL(mount_fs_opt(mount_dir, backing_dir, "readahead=0", false),
 		  0);
 	TEST(cmd_fd = open_commands_file(mount_dir), cmd_fd != -1);
+	TESTEQUAL(verity_installed(mount_dir, cmd_fd, &installed), 0);
+	if (!installed) {
+		result = TEST_SUCCESS;
+		goto out;
+	}
 	TEST(key = create_key(), key);
 	TEST(cert = get_cert(key), cert);
 
@@ -3869,15 +3924,15 @@ static int verity_test_optional_sigs(const char *mount_dir, bool use_signatures)
 				     file->sig.add_data), 0);
 
 		TESTEQUAL(emit_partial_test_file_hash(mount_dir, file), 0);
+		TESTEQUAL(enable_verity(mount_dir, file, key, cert,
+					use_signatures),
+			  0);
 	}
 
 	for (i = 0; i < file_num; i++)
-		TESTEQUAL(validate_verity(mount_dir, &test.files[i], key, cert,
-					  use_signatures),
-			  0);
+		TESTEQUAL(validate_verity(mount_dir, &test.files[i]), 0);
 
 	result = TEST_SUCCESS;
-
 out:
 	free(line);
 	BIO_free(mem);
