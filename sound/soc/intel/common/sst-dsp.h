@@ -207,13 +207,6 @@ struct sst_pdata {
 	void *dsp;
 };
 
-#if IS_ENABLED(CONFIG_DW_DMAC_CORE)
-/* Initialization */
-struct sst_dsp *sst_dsp_new(struct device *dev,
-	struct sst_dsp_device *sst_dev, struct sst_pdata *pdata);
-void sst_dsp_free(struct sst_dsp *sst);
-#endif
-
 /* SHIM Read / Write */
 void sst_dsp_shim_write(struct sst_dsp *sst, u32 offset, u32 value);
 u32 sst_dsp_shim_read(struct sst_dsp *sst, u32 offset);
@@ -254,14 +247,6 @@ int sst_dsp_boot(struct sst_dsp *sst);
 int sst_dsp_wake(struct sst_dsp *sst);
 void sst_dsp_sleep(struct sst_dsp *sst);
 void sst_dsp_stall(struct sst_dsp *sst);
-
-/* DMA */
-int sst_dsp_dma_get_channel(struct sst_dsp *dsp, int chan_id);
-void sst_dsp_dma_put_channel(struct sst_dsp *dsp);
-int sst_dsp_dma_copyfrom(struct sst_dsp *sst, dma_addr_t dest_addr,
-	dma_addr_t src_addr, size_t size);
-int sst_dsp_dma_copyto(struct sst_dsp *sst, dma_addr_t dest_addr,
-	dma_addr_t src_addr, size_t size);
 
 /* Msg IO */
 void sst_dsp_ipc_msg_tx(struct sst_dsp *dsp, u32 msg);

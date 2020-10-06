@@ -34,13 +34,6 @@ config SND_SST_IPC_ACPI
 config SND_SOC_INTEL_SST
 	tristate
 
-config SND_SOC_INTEL_SST_FIRMWARE
-	tristate
-	select DW_DMAC_CORE
-	# This option controls firmware download on
-	# Haswell/Broadwell/Baytrail legacy and will be set
-	# when these platforms are enabled
-
 config SND_SOC_INTEL_CATPT
 	tristate "Haswell and Broadwell"
 	depends on ACPI || COMPILE_TEST
