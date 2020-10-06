@@ -409,7 +409,7 @@ static const struct pmc_reg_map icl_reg_map = {
 	.ltr_ignore_max = ICL_NUM_IP_IGN_ALLOWED,
 };
 
-static const struct pmc_bit_map tgl_lpm0_map[] = {
+static const struct pmc_bit_map tgl_clocksource_status_map[] = {
 	{"USB2PLL_OFF_STS",			BIT(18)},
 	{"PCIe/USB3.1_Gen2PLL_OFF_STS",		BIT(19)},
 	{"PCIe_Gen3PLL_OFF_STS",		BIT(20)},
@@ -425,7 +425,7 @@ static const struct pmc_bit_map tgl_lpm0_map[] = {
 	{}
 };
 
-static const struct pmc_bit_map tgl_lpm1_map[] = {
+static const struct pmc_bit_map tgl_power_gating_status_map[] = {
 	{"SPI_PG_STS",				BIT(2)},
 	{"xHCI_PG_STS",				BIT(3)},
 	{"PCIe_Ctrller_A_PG_STS",		BIT(4)},
@@ -453,7 +453,7 @@ static const struct pmc_bit_map tgl_lpm1_map[] = {
 	{}
 };
 
-static const struct pmc_bit_map tgl_lpm2_map[] = {
+static const struct pmc_bit_map tgl_d3_status_map[] = {
 	{"ADSP_D3_STS",				BIT(0)},
 	{"SATA_D3_STS",				BIT(1)},
 	{"xHCI0_D3_STS",			BIT(2)},
@@ -468,7 +468,7 @@ static const struct pmc_bit_map tgl_lpm2_map[] = {
 	{}
 };
 
-static const struct pmc_bit_map tgl_lpm3_map[] = {
+static const struct pmc_bit_map tgl_vnn_req_status_map[] = {
 	{"GPIO_COM0_VNN_REQ_STS",		BIT(1)},
 	{"GPIO_COM1_VNN_REQ_STS",		BIT(2)},
 	{"GPIO_COM2_VNN_REQ_STS",		BIT(3)},
@@ -493,7 +493,7 @@ static const struct pmc_bit_map tgl_lpm3_map[] = {
 	{}
 };
 
-static const struct pmc_bit_map tgl_lpm4_map[] = {
+static const struct pmc_bit_map tgl_vnn_misc_status_map[] = {
 	{"CPU_C10_REQ_STS_0",			BIT(0)},
 	{"PCIe_LPM_En_REQ_STS_3",		BIT(3)},
 	{"ITH_REQ_STS_5",			BIT(5)},
@@ -509,7 +509,7 @@ static const struct pmc_bit_map tgl_lpm4_map[] = {
 	{}
 };
 
-static const struct pmc_bit_map tgl_lpm5_map[] = {
+static const struct pmc_bit_map tgl_signal_status_map[] = {
 	{"LSX_Wake0_En_STS",			BIT(0)},
 	{"LSX_Wake0_Pol_STS",			BIT(1)},
 	{"LSX_Wake1_En_STS",			BIT(2)},
@@ -546,12 +546,12 @@ static const struct pmc_bit_map tgl_lpm5_map[] = {
 };
 
 static const struct pmc_bit_map *tgl_lpm_maps[] = {
-	tgl_lpm0_map,
-	tgl_lpm1_map,
-	tgl_lpm2_map,
-	tgl_lpm3_map,
-	tgl_lpm4_map,
-	tgl_lpm5_map,
+	tgl_clocksource_status_map,
+	tgl_power_gating_status_map,
+	tgl_d3_status_map,
+	tgl_vnn_req_status_map,
+	tgl_vnn_misc_status_map,
+	tgl_signal_status_map,
 	NULL
 };
 
