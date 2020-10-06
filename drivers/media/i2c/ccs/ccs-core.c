@@ -65,6 +65,8 @@ struct ccs_device {
 	unsigned char flags;
 };
 
+static const char * const ccs_regulators[] = { "vcore", "vio", "vana" };
+
 /*
  *
  * Dynamic Capability Identification
@@ -1304,7 +1306,8 @@ static int ccs_power_on(struct device *dev)
 	unsigned int sleep;
 	int rval;
 
-	rval = regulator_enable(sensor->vana);
+	rval = regulator_bulk_enable(ARRAY_SIZE(ccs_regulators),
+				     sensor->regulators);
 	if (rval) {
 		dev_err(dev, "failed to enable vana regulator\n");
 		return rval;
@@ -1416,7 +1419,8 @@ out_cci_addr_fail:
 	clk_disable_unprepare(sensor->ext_clk);
 
 out_xclk_fail:
-	regulator_disable(sensor->vana);
+	regulator_bulk_disable(ARRAY_SIZE(ccs_regulators),
+			       sensor->regulators);
 
 	return rval;
 }
@@ -1442,7 +1446,8 @@ static int ccs_power_off(struct device *dev)
 	gpiod_set_value(sensor->xshutdown, 0);
 	clk_disable_unprepare(sensor->ext_clk);
 	usleep_range(5000, 5000);
-	regulator_disable(sensor->vana);
+	regulator_bulk_disable(ARRAY_SIZE(ccs_regulators),
+			       sensor->regulators);
 	sensor->streaming = false;
 
 	return 0;
@@ -2981,10 +2986,21 @@ static int ccs_probe(struct i2c_client *client)
 	v4l2_i2c_subdev_init(&sensor->src->sd, client, &ccs_ops);
 	sensor->src->sd.internal_ops = &ccs_internal_src_ops;
 
-	sensor->vana = devm_regulator_get(&client->dev, "vana");
-	if (IS_ERR(sensor->vana)) {
-		dev_err(&client->dev, "could not get regulator for vana\n");
-		return PTR_ERR(sensor->vana);
+	sensor->regulators = devm_kcalloc(&client->dev,
+					  ARRAY_SIZE(ccs_regulators),
+					  sizeof(*sensor->regulators),
+					  GFP_KERNEL);
+	if (!sensor->regulators)
+		return -ENOMEM;
+
+	for (i = 0; i < ARRAY_SIZE(ccs_regulators); i++)
+		sensor->regulators[i].supply = ccs_regulators[i];
+
+	rval = devm_regulator_bulk_get(&client->dev, ARRAY_SIZE(ccs_regulators),
+				       sensor->regulators);
+	if (rval) {
+		dev_err(&client->dev, "could not get regulators\n");
+		return rval;
 	}
 
 	sensor->ext_clk = devm_clk_get(&client->dev, NULL);

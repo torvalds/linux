@@ -223,7 +223,7 @@ struct ccs_sensor {
 	struct ccs_subdev *scaler;
 	struct ccs_subdev *pixel_array;
 	struct ccs_hwconfig hwcfg;
-	struct regulator *vana;
+	struct regulator_bulk_data *regulators;
 	struct clk *ext_clk;
 	struct gpio_desc *xshutdown;
 	struct gpio_desc *reset;
