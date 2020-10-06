@@ -48,6 +48,11 @@ static inline int __sg_page_count(const struct scatterlist *sg)
 	return sg->length >> PAGE_SHIFT;
 }
 
+static inline int __sg_dma_page_count(const struct scatterlist *sg)
+{
+	return sg_dma_len(sg) >> PAGE_SHIFT;
+}
+
 static inline struct scatterlist *____sg_next(struct scatterlist *sg)
 {
 	++sg;

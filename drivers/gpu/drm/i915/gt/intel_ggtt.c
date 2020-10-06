@@ -1383,7 +1383,7 @@ intel_partial_pages(const struct i915_ggtt_view *view,
 	if (ret)
 		goto err_sg_alloc;
 
-	iter = i915_gem_object_get_sg(obj, view->partial.offset, &offset);
+	iter = i915_gem_object_get_sg_dma(obj, view->partial.offset, &offset);
 	GEM_BUG_ON(!iter);
 
 	sg = st->sgl;
@@ -1391,7 +1391,7 @@ intel_partial_pages(const struct i915_ggtt_view *view,
 	do {
 		unsigned int len;
 
-		len = min(iter->length - (offset << PAGE_SHIFT),
+		len = min(sg_dma_len(iter) - (offset << PAGE_SHIFT),
 			  count << PAGE_SHIFT);
 		sg_set_page(sg, NULL, len, 0);
 		sg_dma_address(sg) =

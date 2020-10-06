@@ -275,8 +275,26 @@ int i915_gem_object_set_tiling(struct drm_i915_gem_object *obj,
 			       unsigned int tiling, unsigned int stride);
 
 struct scatterlist *
+__i915_gem_object_get_sg(struct drm_i915_gem_object *obj,
+			 struct i915_gem_object_page_iter *iter,
+			 unsigned int n,
+			 unsigned int *offset);
+
+static inline struct scatterlist *
 i915_gem_object_get_sg(struct drm_i915_gem_object *obj,
-		       unsigned int n, unsigned int *offset);
+		       unsigned int n,
+		       unsigned int *offset)
+{
+	return __i915_gem_object_get_sg(obj, &obj->mm.get_page, n, offset);
+}
+
+static inline struct scatterlist *
+i915_gem_object_get_sg_dma(struct drm_i915_gem_object *obj,
+			   unsigned int n,
+			   unsigned int *offset)
+{
+	return __i915_gem_object_get_sg(obj, &obj->mm.get_dma_page, n, offset);
+}
 
 struct page *
 i915_gem_object_get_page(struct drm_i915_gem_object *obj,
