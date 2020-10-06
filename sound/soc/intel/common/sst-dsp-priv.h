@@ -146,19 +146,6 @@ struct sst_dsp {
 	struct snd_dma_buffer dmab;
 };
 
-/* Size optimised DRAM/IRAM memcpy */
-static inline void sst_dsp_write(struct sst_dsp *sst, void *src,
-	u32 dest_offset, size_t bytes)
-{
-	sst->ops->ram_write(sst, sst->addr.lpe + dest_offset, src, bytes);
-}
-
-static inline void sst_dsp_read(struct sst_dsp *sst, void *dest,
-	u32 src_offset, size_t bytes)
-{
-	sst->ops->ram_read(sst, dest, sst->addr.lpe + src_offset, bytes);
-}
-
 static inline void *sst_dsp_get_thread_context(struct sst_dsp *sst)
 {
 	return sst->thread_context;
