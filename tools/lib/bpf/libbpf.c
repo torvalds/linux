@@ -4256,29 +4256,28 @@ bpf_object__create_maps(struct bpf_object *obj)
 		if (map->fd >= 0) {
 			pr_debug("map '%s': skipping creation (preset fd=%d)\n",
 				 map->name, map->fd);
-			continue;
-		}
-
-		err = bpf_object__create_map(obj, map);
-		if (err)
-			goto err_out;
-
-		pr_debug("map '%s': created successfully, fd=%d\n", map->name,
-			 map->fd);
-
-		if (bpf_map__is_internal(map)) {
-			err = bpf_object__populate_internal_map(obj, map);
-			if (err < 0) {
-				zclose(map->fd);
+		} else {
+			err = bpf_object__create_map(obj, map);
+			if (err)
 				goto err_out;
+
+			pr_debug("map '%s': created successfully, fd=%d\n",
+				 map->name, map->fd);
+
+			if (bpf_map__is_internal(map)) {
+				err = bpf_object__populate_internal_map(obj, map);
+				if (err < 0) {
+					zclose(map->fd);
+					goto err_out;
+				}
 			}
-		}
 
-		if (map->init_slots_sz) {
-			err = init_map_slots(map);
-			if (err < 0) {
-				zclose(map->fd);
-				goto err_out;
+			if (map->init_slots_sz) {
+				err = init_map_slots(map);
+				if (err < 0) {
+					zclose(map->fd);
+					goto err_out;
+				}
 			}
 		}
 
