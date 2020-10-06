@@ -106,7 +106,7 @@ struct ceph_fs_client {
 	struct ceph_mount_options *mount_options;
 	struct ceph_client *client;
 
-	unsigned long mount_state;
+	int mount_state;
 
 	unsigned long last_auto_reconnect;
 	bool blocklisted;
