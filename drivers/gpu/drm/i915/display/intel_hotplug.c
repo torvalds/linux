@@ -213,6 +213,12 @@ intel_hpd_irq_storm_switch_to_polling(struct drm_i915_private *dev_priv)
 	}
 }
 
+static void intel_hpd_irq_setup(struct drm_i915_private *i915)
+{
+	if (i915->display_irqs_enabled && i915->display.hpd_irq_setup)
+		i915->display.hpd_irq_setup(i915);
+}
+
 static void intel_hpd_irq_storm_reenable_work(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
@@ -248,8 +254,7 @@ static void intel_hpd_irq_storm_reenable_work(struct work_struct *work)
 			dev_priv->hotplug.stats[pin].state = HPD_ENABLED;
 	}
 
-	if (dev_priv->display_irqs_enabled && dev_priv->display.hpd_irq_setup)
-		dev_priv->display.hpd_irq_setup(dev_priv);
+	intel_hpd_irq_setup(dev_priv);
 
 	spin_unlock_irq(&dev_priv->irq_lock);
 
@@ -556,8 +561,8 @@ void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
 	 * Disable any IRQs that storms were detected on. Polling enablement
 	 * happens later in our hotplug work.
 	 */
-	if (storm_detected && dev_priv->display_irqs_enabled)
-		dev_priv->display.hpd_irq_setup(dev_priv);
+	if (storm_detected)
+		intel_hpd_irq_setup(dev_priv);
 	spin_unlock(&dev_priv->irq_lock);
 
 	/*
@@ -599,12 +604,9 @@ void intel_hpd_init(struct drm_i915_private *dev_priv)
 	 * Interrupt setup is already guaranteed to be single-threaded, this is
 	 * just to make the assert_spin_locked checks happy.
 	 */
-	if (dev_priv->display_irqs_enabled && dev_priv->display.hpd_irq_setup) {
-		spin_lock_irq(&dev_priv->irq_lock);
-		if (dev_priv->display_irqs_enabled)
-			dev_priv->display.hpd_irq_setup(dev_priv);
-		spin_unlock_irq(&dev_priv->irq_lock);
-	}
+	spin_lock_irq(&dev_priv->irq_lock);
+	intel_hpd_irq_setup(dev_priv);
+	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
 static void i915_hpd_poll_init_work(struct work_struct *work)
