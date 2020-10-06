@@ -338,7 +338,7 @@ static irqreturn_t mchp_spdif_interrupt(int irq, void *dev_id)
 	}
 
 	if (pending & SPDIFRX_IR_OVERRUN) {
-		dev_warn(dev->dev, "Overrrun detected\n");
+		dev_warn(dev->dev, "Overrun detected\n");
 		ret = IRQ_HANDLED;
 	}
 
