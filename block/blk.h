@@ -122,6 +122,8 @@ static inline bool bio_integrity_endio(struct bio *bio)
 
 bool blk_integrity_merge_rq(struct request_queue *, struct request *,
 		struct request *);
+bool blk_integrity_merge_bio(struct request_queue *, struct request *,
+		struct bio *);
 
 static inline bool integrity_req_gap_back_merge(struct request *req,
 		struct bio *next)
@@ -148,6 +150,11 @@ void blk_integrity_del(struct gendisk *);
 #else /* CONFIG_BLK_DEV_INTEGRITY */
 static inline bool blk_integrity_merge_rq(struct request_queue *rq,
 		struct request *r1, struct request *r2)
+{
+	return true;
+}
+static inline bool blk_integrity_merge_bio(struct request_queue *rq,
+		struct request *r, struct bio *b)
 {
 	return true;
 }
