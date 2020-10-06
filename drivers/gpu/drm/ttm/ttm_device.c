@@ -102,6 +102,35 @@ out:
 	return ret;
 }
 
+/**
+ * A buffer object shrink method that tries to swap out the first
+ * buffer object on the global::swap_lru list.
+ */
+int ttm_global_swapout(struct ttm_operation_ctx *ctx, gfp_t gfp_flags)
+{
+	struct ttm_global *glob = &ttm_glob;
+	struct ttm_buffer_object *bo;
+	unsigned i;
+	int ret;
+
+	spin_lock(&glob->lru_lock);
+	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
+		list_for_each_entry(bo, &glob->swap_lru[i], swap) {
+			uint32_t num_pages = bo->ttm->num_pages;
+
+			ret = ttm_bo_swapout(bo, ctx, gfp_flags);
+			/* ttm_bo_swapout has dropped the lru_lock */
+			if (!ret)
+				return num_pages;
+			if (ret != -EBUSY)
+				return ret;
+		}
+	}
+	spin_unlock(&glob->lru_lock);
+	return 0;
+}
+EXPORT_SYMBOL(ttm_global_swapout);
+
 static void ttm_init_sysman(struct ttm_device *bdev)
 {
 	struct ttm_resource_manager *man = &bdev->sysman;

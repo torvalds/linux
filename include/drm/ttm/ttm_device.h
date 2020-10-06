@@ -297,6 +297,8 @@ struct ttm_device {
 	struct delayed_work wq;
 };
 
+int ttm_global_swapout(struct ttm_operation_ctx *ctx, gfp_t gfp_flags);
+
 static inline struct ttm_resource_manager *
 ttm_manager_type(struct ttm_device *bdev, int mem_type)
 {

@@ -1371,7 +1371,7 @@ static int vmw_pm_freeze(struct device *kdev)
 	vmw_execbuf_release_pinned_bo(dev_priv);
 	vmw_resource_evict_all(dev_priv);
 	vmw_release_device_early(dev_priv);
-	while (ttm_bo_swapout(&ctx, GFP_KERNEL) > 0);
+	while (ttm_global_swapout(&ctx, GFP_KERNEL) > 0);
 	if (dev_priv->enable_fb)
 		vmw_fifo_resource_dec(dev_priv);
 	if (atomic_read(&dev_priv->num_fifo_resources) != 0) {

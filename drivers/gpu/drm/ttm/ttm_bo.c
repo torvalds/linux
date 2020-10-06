@@ -1193,56 +1193,35 @@ int ttm_bo_wait(struct ttm_buffer_object *bo,
 }
 EXPORT_SYMBOL(ttm_bo_wait);
 
-/*
- * A buffer object shrink method that tries to swap out the first
- * buffer object on the bo_global::swap_lru list.
- */
-int ttm_bo_swapout(struct ttm_operation_ctx *ctx, gfp_t gfp_flags)
+int ttm_bo_swapout(struct ttm_buffer_object *bo, struct ttm_operation_ctx *ctx,
+		   gfp_t gfp_flags)
 {
 	struct ttm_global *glob = &ttm_glob;
-	struct ttm_buffer_object *bo;
-	int ret = -EBUSY;
 	bool locked;
-	unsigned i;
+	int ret;
 
-	spin_lock(&glob->lru_lock);
-	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
-		list_for_each_entry(bo, &glob->swap_lru[i], swap) {
-			if (!ttm_bo_evict_swapout_allowable(bo, ctx, &locked,
-							    NULL))
-				continue;
+	if (!ttm_bo_evict_swapout_allowable(bo, ctx, &locked, NULL))
+		return -EBUSY;
 
-			if (!ttm_bo_get_unless_zero(bo)) {
-				if (locked)
-					dma_resv_unlock(bo->base.resv);
-				continue;
-			}
-
-			ret = 0;
-			break;
-		}
-		if (!ret)
-			break;
-	}
-
-	if (ret) {
-		spin_unlock(&glob->lru_lock);
-		return ret;
+	if (!ttm_bo_get_unless_zero(bo)) {
+		if (locked)
+			dma_resv_unlock(bo->base.resv);
+		return -EBUSY;
 	}
 
 	if (bo->deleted) {
-		ret = ttm_bo_cleanup_refs(bo, false, false, locked);
+		ttm_bo_cleanup_refs(bo, false, false, locked);
 		ttm_bo_put(bo);
-		return ret;
+		return 0;
 	}
 
 	ttm_bo_del_from_lru(bo);
+	/* TODO: Cleanup the locking */
 	spin_unlock(&glob->lru_lock);
 
-	/**
+	/*
 	 * Move to system cached
 	 */
-
 	if (bo->mem.mem_type != TTM_PL_SYSTEM) {
 		struct ttm_operation_ctx ctx = { false, false };
 		struct ttm_resource evict_mem;
@@ -1262,29 +1241,26 @@ int ttm_bo_swapout(struct ttm_operation_ctx *ctx, gfp_t gfp_flags)
 		}
 	}
 
-	/**
+	/*
 	 * Make sure BO is idle.
 	 */
-
 	ret = ttm_bo_wait(bo, false, false);
 	if (unlikely(ret != 0))
 		goto out;
 
 	ttm_bo_unmap_virtual(bo);
 
-	/**
+	/*
 	 * Swap out. Buffer will be swapped in again as soon as
 	 * anyone tries to access a ttm page.
 	 */
-
 	if (bo->bdev->funcs->swap_notify)
 		bo->bdev->funcs->swap_notify(bo);
 
 	ret = ttm_tt_swapout(bo->bdev, bo->ttm, gfp_flags);
 out:
 
-	/**
-	 *
+	/*
 	 * Unreserve without putting on LRU to avoid swapping out an
 	 * already swapped buffer.
 	 */
@@ -1293,7 +1269,6 @@ out:
 	ttm_bo_put(bo);
 	return ret;
 }
-EXPORT_SYMBOL(ttm_bo_swapout);
 
 void ttm_bo_tt_destroy(struct ttm_buffer_object *bo)
 {

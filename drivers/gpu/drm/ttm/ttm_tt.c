@@ -369,7 +369,7 @@ static unsigned long ttm_tt_shrinker_scan(struct shrinker *shrink,
 	};
 	int ret;
 
-	ret = ttm_bo_swapout(&ctx, GFP_NOFS);
+	ret = ttm_global_swapout(&ctx, GFP_NOFS);
 	return ret < 0 ? SHRINK_EMPTY : ret;
 }
 

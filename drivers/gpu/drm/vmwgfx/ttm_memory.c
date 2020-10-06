@@ -38,6 +38,7 @@
 
 #include <drm/drm_device.h>
 #include <drm/drm_file.h>
+#include <drm/ttm/ttm_device.h>
 
 #include "ttm_memory.h"
 
@@ -277,7 +278,7 @@ static void ttm_shrink(struct ttm_mem_global *glob, bool from_wq,
 
 	while (ttm_zones_above_swap_target(glob, from_wq, extra)) {
 		spin_unlock(&glob->lock);
-		ret = ttm_bo_swapout(ctx, GFP_KERNEL);
+		ret = ttm_global_swapout(ctx, GFP_KERNEL);
 		spin_lock(&glob->lock);
 		if (unlikely(ret < 0))
 			break;
