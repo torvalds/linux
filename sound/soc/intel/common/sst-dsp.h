@@ -26,34 +26,6 @@ struct sst_dsp_device {
 	void *thread_context;
 };
 
-/*
- * SST Platform Data.
- */
-struct sst_pdata {
-	/* ACPI data */
-	u32 lpe_base;
-	u32 lpe_size;
-	u32 pcicfg_base;
-	u32 pcicfg_size;
-	u32 fw_base;
-	u32 fw_size;
-	int irq;
-
-	/* Firmware */
-	const struct firmware *fw;
-
-	/* DMA */
-	int resindex_dma_base; /* other fields invalid if equals to -1 */
-	u32 dma_base;
-	u32 dma_size;
-	int dma_engine;
-	struct device *dma_dev;
-
-	/* DSP */
-	u32 id;
-	void *dsp;
-};
-
 /* SHIM Read / Write */
 void sst_dsp_shim_write(struct sst_dsp *sst, u32 offset, u32 value);
 u32 sst_dsp_shim_read(struct sst_dsp *sst, u32 offset);
