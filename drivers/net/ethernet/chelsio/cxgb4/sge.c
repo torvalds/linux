@@ -3887,9 +3887,10 @@ static int napi_rx_handler(struct napi_struct *napi, int budget)
 	return work_done;
 }
 
-void cxgb4_ethofld_restart(unsigned long data)
+void cxgb4_ethofld_restart(struct tasklet_struct *t)
 {
-	struct sge_eosw_txq *eosw_txq = (struct sge_eosw_txq *)data;
+	struct sge_eosw_txq *eosw_txq = from_tasklet(eosw_txq, t,
+						     qresume_tsk);
 	int pktcount;
 
 	spin_lock(&eosw_txq->lock);
