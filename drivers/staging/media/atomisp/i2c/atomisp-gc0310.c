@@ -874,11 +874,12 @@ static int gc0310_s_power(struct v4l2_subdev *sd, int on)
 
 	if (on == 0)
 		return power_down(sd);
-	ret = power_up(sd);
-	if (!ret)
-		return gc0310_init(sd);
 
-	return ret;
+	ret = power_up(sd);
+	if (ret)
+		return ret;
+
+	return gc0310_init(sd);
 }
 
 /*
