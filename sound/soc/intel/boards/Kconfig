@@ -85,20 +85,6 @@ config SND_SOC_INTEL_BROADWELL_MACH
 	  If unsure select "N".
 endif ## SND_SOC_INTEL_CATPT || SND_SOC_SOF_BROADWELL
 
-if SND_SOC_INTEL_BAYTRAIL
-
-config SND_SOC_INTEL_BYT_RT5640_MACH
-	tristate "Baytrail with RT5640 codec"
-	depends on I2C
-	depends on X86_INTEL_LPSS || COMPILE_TEST
-	select SND_SOC_RT5640
-	help
-	  This adds audio driver for Intel Baytrail platform based boards
-	  with the RT5640 audio codec. This driver is deprecated, use
-	  SND_SOC_INTEL_BYTCR_RT5640_MACH instead for better functionality.
-
-endif ## SND_SOC_INTEL_BAYTRAIL
-
 if SND_SST_ATOM_HIFI2_PLATFORM || SND_SOC_SOF_BAYTRAIL
 
 config SND_SOC_INTEL_BYTCR_RT5640_MACH
