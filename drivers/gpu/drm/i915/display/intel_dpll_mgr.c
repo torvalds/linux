@@ -1602,9 +1602,19 @@ static int skl_ddi_wrpll_get_freq(struct drm_i915_private *i915,
 	case DPLL_CFGCR2_PDIV_3:
 		p0 = 3;
 		break;
+	case DPLL_CFGCR2_PDIV_7_INVALID:
+		/*
+		 * Incorrect ASUS-Z170M BIOS setting, the HW seems to ignore bit#0,
+		 * handling it the same way as PDIV_7.
+		 */
+		drm_dbg_kms(&i915->drm, "Invalid WRPLL PDIV divider value, fixing it.\n");
+		fallthrough;
 	case DPLL_CFGCR2_PDIV_7:
 		p0 = 7;
 		break;
+	default:
+		MISSING_CASE(p0);
+		return 0;
 	}
 
 	switch (p2) {
@@ -1620,6 +1630,9 @@ static int skl_ddi_wrpll_get_freq(struct drm_i915_private *i915,
 	case DPLL_CFGCR2_KDIV_1:
 		p2 = 1;
 		break;
+	default:
+		MISSING_CASE(p2);
+		return 0;
 	}
 
 	dco_freq = (pll_state->cfgcr1 & DPLL_CFGCR1_DCO_INTEGER_MASK) *
