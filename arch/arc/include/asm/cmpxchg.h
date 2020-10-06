@@ -20,7 +20,7 @@ __cmpxchg(volatile void *ptr, unsigned long expected, unsigned long new)
 
 	/*
 	 * Explicit full memory barrier needed before/after as
-	 * LLOCK/SCOND thmeselves don't provide any such semantics
+	 * LLOCK/SCOND themselves don't provide any such semantics
 	 */
 	smp_mb();
 
