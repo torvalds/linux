@@ -246,29 +246,51 @@ static bool nested_vmcb_check_controls(struct vmcb_control_area *control)
 	return true;
 }
 
-static bool nested_vmcb_checks(struct vcpu_svm *svm, struct vmcb *vmcb12)
+static bool nested_vmcb_check_cr3_cr4(struct vcpu_svm *svm,
+				      struct vmcb_save_area *save)
 {
 	struct kvm_vcpu *vcpu = &svm->vcpu;
-	bool vmcb12_lma;
 
-	if ((vmcb12->save.efer & EFER_SVME) == 0)
-		return false;
-
-	if (((vmcb12->save.cr0 & X86_CR0_CD) == 0) && (vmcb12->save.cr0 & X86_CR0_NW))
-		return false;
-
-	if (!kvm_dr6_valid(vmcb12->save.dr6) || !kvm_dr7_valid(vmcb12->save.dr7))
-		return false;
-
-	vmcb12_lma = (vmcb12->save.efer & EFER_LME) && (vmcb12->save.cr0 & X86_CR0_PG);
-
-	if (vmcb12_lma) {
-		if (!(vmcb12->save.cr4 & X86_CR4_PAE) ||
-		    !(vmcb12->save.cr0 & X86_CR0_PE) ||
-		    kvm_vcpu_is_illegal_gpa(vcpu, vmcb12->save.cr3))
+	/*
+	 * These checks are also performed by KVM_SET_SREGS,
+	 * except that EFER.LMA is not checked by SVM against
+	 * CR0.PG && EFER.LME.
+	 */
+	if ((save->efer & EFER_LME) && (save->cr0 & X86_CR0_PG)) {
+		if (!(save->cr4 & X86_CR4_PAE) || !(save->cr0 & X86_CR0_PE) ||
+		    kvm_vcpu_is_illegal_gpa(vcpu, save->cr3))
 			return false;
 	}
-	if (!kvm_is_valid_cr4(&svm->vcpu, vmcb12->save.cr4))
+
+	return kvm_is_valid_cr4(&svm->vcpu, save->cr4);
+}
+
+/* Common checks that apply to both L1 and L2 state.  */
+static bool nested_vmcb_valid_sregs(struct vcpu_svm *svm,
+				    struct vmcb_save_area *save)
+{
+	if (!(save->efer & EFER_SVME))
+		return false;
+
+	if (((save->cr0 & X86_CR0_CD) == 0 && (save->cr0 & X86_CR0_NW)) ||
+	    (save->cr0 & ~0xffffffffULL))
+		return false;
+
+	if (!kvm_dr6_valid(save->dr6) || !kvm_dr7_valid(save->dr7))
+		return false;
+
+	if (!nested_vmcb_check_cr3_cr4(svm, save))
+		return false;
+
+	if (!kvm_valid_efer(&svm->vcpu, save->efer))
+		return false;
+
+	return true;
+}
+
+static bool nested_vmcb_checks(struct vcpu_svm *svm, struct vmcb *vmcb12)
+{
+	if (!nested_vmcb_valid_sregs(svm, &vmcb12->save))
 		return false;
 
 	return nested_vmcb_check_controls(&vmcb12->control);
@@ -1234,9 +1256,11 @@ static int svm_set_nested_state(struct kvm_vcpu *vcpu,
 	/*
 	 * Validate host state saved from before VMRUN (see
 	 * nested_svm_check_permissions).
-	 * TODO: validate reserved bits for all saved state.
 	 */
-	if (!(save->cr0 & X86_CR0_PG))
+	if (!(save->cr0 & X86_CR0_PG) ||
+	    !(save->cr0 & X86_CR0_PE) ||
+	    (save->rflags & X86_EFLAGS_VM) ||
+	    !nested_vmcb_valid_sregs(svm, save))
 		goto out_free;
 
 	/*
