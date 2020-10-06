@@ -160,7 +160,8 @@ struct ceph_cap {
 			int issued;       /* latest, from the mds */
 			int implemented;  /* implemented superset of
 					     issued (for revocation) */
-			int mds, mds_wanted;
+			int mds;	  /* mds index for this cap */
+			int mds_wanted;   /* caps wanted from this mds */
 		};
 		/* caps to release */
 		struct {

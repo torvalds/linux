@@ -1922,12 +1922,24 @@ void ceph_check_caps(struct ceph_inode_info *ci, int flags,
 retry:
 	spin_lock(&ci->i_ceph_lock);
 retry_locked:
+	/* Caps wanted by virtue of active open files. */
 	file_wanted = __ceph_caps_file_wanted(ci);
+
+	/* Caps which have active references against them */
 	used = __ceph_caps_used(ci);
+
+	/*
+	 * "issued" represents the current caps that the MDS wants us to have.
+	 * "implemented" is the set that we have been granted, and includes the
+	 * ones that have not yet been returned to the MDS (the "revoking" set,
+	 * usually because they have outstanding references).
+	 */
 	issued = __ceph_caps_issued(ci, &implemented);
 	revoking = implemented & ~issued;
 
 	want = file_wanted;
+
+	/* The ones we currently want to retain (may be adjusted below) */
 	retain = file_wanted | used | CEPH_CAP_PIN;
 	if (!mdsc->stopping && inode->i_nlink > 0) {
 		if (file_wanted) {
@@ -2005,6 +2017,10 @@ retry_locked:
 
 		/* NOTE: no side-effects allowed, until we take s_mutex */
 
+		/*
+		 * If we have an auth cap, we don't need to consider any
+		 * overlapping caps as used.
+		 */
 		cap_used = used;
 		if (ci->i_auth_cap && cap != ci->i_auth_cap)
 			cap_used &= ~ci->i_auth_cap->issued;
