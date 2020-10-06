@@ -1165,6 +1165,23 @@ static u32 count_unlinked(struct gfs2_rgrpd *rgd)
 	return count;
 }
 
+static void rgrp_set_bitmap_flags(struct gfs2_rgrpd *rgd)
+{
+	struct gfs2_bitmap *bi;
+	int x;
+
+	if (rgd->rd_free) {
+		for (x = 0; x < rgd->rd_length; x++) {
+			bi = rgd->rd_bits + x;
+			clear_bit(GBF_FULL, &bi->bi_flags);
+		}
+	} else {
+		for (x = 0; x < rgd->rd_length; x++) {
+			bi = rgd->rd_bits + x;
+			set_bit(GBF_FULL, &bi->bi_flags);
+		}
+	}
+}
 
 /**
  * gfs2_rgrp_bh_get - Read in a RG's header and bitmaps
@@ -1208,9 +1225,8 @@ static int gfs2_rgrp_bh_get(struct gfs2_rgrpd *rgd)
 	}
 
 	if (!(rgd->rd_flags & GFS2_RDF_UPTODATE)) {
-		for (x = 0; x < length; x++)
-			clear_bit(GBF_FULL, &rgd->rd_bits[x].bi_flags);
 		gfs2_rgrp_in(rgd, (rgd->rd_bits[0].bi_bh)->b_data);
+		rgrp_set_bitmap_flags(rgd);
 		rgd->rd_flags |= (GFS2_RDF_UPTODATE | GFS2_RDF_CHECK);
 		rgd->rd_free_clone = rgd->rd_free;
 		/* max out the rgrp allocation failure point */
@@ -1260,6 +1276,7 @@ static int update_rgrp_lvb(struct gfs2_rgrpd *rgd)
 	if (rgd->rd_rgl->rl_unlinked == 0)
 		rgd->rd_flags &= ~GFS2_RDF_CHECK;
 	rgd->rd_free = be32_to_cpu(rgd->rd_rgl->rl_free);
+	rgrp_set_bitmap_flags(rgd);
 	rgd->rd_free_clone = rgd->rd_free;
 	rgd->rd_dinodes = be32_to_cpu(rgd->rd_rgl->rl_dinodes);
 	rgd->rd_igeneration = be64_to_cpu(rgd->rd_rgl->rl_igeneration);
