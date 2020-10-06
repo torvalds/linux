@@ -327,20 +327,6 @@ static bool gfs2_rbm_add(struct gfs2_rbm *rbm, u32 blocks)
 	}
 }
 
-static struct gfs2_bitmap *gfs2_block_to_bitmap(struct gfs2_rgrpd *rgd,
-						u64 block)
-{
-	unsigned int delta = (sizeof(struct gfs2_rgrp) -
-			      sizeof(struct gfs2_meta_header)) * GFS2_NBBY;
-	unsigned int rblock, bii;
-
-	if (!rgrp_contains_block(rgd, block))
-		return NULL;
-	rblock = block - rgd->rd_data0;
-	bii = (rblock + delta) / rgd->rd_sbd->sd_blocks_per_bitmap;
-	return rgd->rd_bits + bii;
-}
-
 /**
  * gfs2_unaligned_extlen - Look for free blocks which are not byte aligned
  * @rbm: Position to search (value/result)
@@ -660,25 +646,16 @@ static void __rs_deltree(struct gfs2_blkreserv *rs)
 	RB_CLEAR_NODE(&rs->rs_node);
 
 	if (rs->rs_free) {
-		u64 last_block = rs->rs_start + rs->rs_free - 1;
-		struct gfs2_bitmap *start, *last;
-
 		/* return reserved blocks to the rgrp */
 		BUG_ON(rs->rs_rgd->rd_reserved < rs->rs_free);
 		rs->rs_rgd->rd_reserved -= rs->rs_free;
+
 		/* The rgrp extent failure point is likely not to increase;
 		   it will only do so if the freed blocks are somehow
 		   contiguous with a span of free blocks that follows. Still,
 		   it will force the number to be recalculated later. */
 		rgd->rd_extfail_pt += rs->rs_free;
 		rs->rs_free = 0;
-		start = gfs2_block_to_bitmap(rgd, rs->rs_start);
-		last = gfs2_block_to_bitmap(rgd, last_block);
-		if (!start || !last)
-			return;
-		do
-			clear_bit(GBF_FULL, &start->bi_flags);
-		while (start++ != last);
 	}
 }
 
