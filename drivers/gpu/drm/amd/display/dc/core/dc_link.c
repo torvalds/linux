@@ -3283,8 +3283,9 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx)
 			dc_is_virtual_signal(pipe_ctx->stream->signal))
 		return;
 
-	if (dc_is_hdmi_signal(pipe_ctx->stream->signal)) {
-		core_link_set_avmute(pipe_ctx, true);
+	if (!pipe_ctx->stream->sink->edid_caps.panel_patch.skip_avmute) {
+		if (dc_is_hdmi_signal(pipe_ctx->stream->signal))
+			core_link_set_avmute(pipe_ctx, true);
 	}
 
 #if defined(CONFIG_DRM_AMD_DC_HDCP)
