@@ -252,6 +252,15 @@ struct amdgpu_vm_update_funcs {
 		      struct dma_fence **fence);
 };
 
+struct amdgpu_vm_fault_info {
+	/* fault address */
+	uint64_t	addr;
+	/* fault status register */
+	uint32_t	status;
+	/* which vmhub? gfxhub, mmhub, etc. */
+	unsigned int	vmhub;
+};
+
 struct amdgpu_vm {
 	/* tree of virtual addresses mapped */
 	struct rb_root_cached	va;
@@ -343,6 +352,9 @@ struct amdgpu_vm {
 
 	/* Memory partition number, -1 means any partition */
 	int8_t			mem_id;
+
+	/* cached fault info */
+	struct amdgpu_vm_fault_info fault_info;
 };
 
 struct amdgpu_vm_manager {
@@ -553,5 +565,11 @@ static inline void amdgpu_vm_eviction_unlock(struct amdgpu_vm *vm)
 	memalloc_noreclaim_restore(vm->saved_flags);
 	mutex_unlock(&vm->eviction_lock);
 }
+
+void amdgpu_vm_update_fault_cache(struct amdgpu_device *adev,
+				  unsigned int pasid,
+				  uint64_t addr,
+				  uint32_t status,
+				  unsigned int vmhub);
 
 #endif
