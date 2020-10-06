@@ -5387,11 +5387,11 @@ F:	include/linux/debugfs.h
 F:	include/linux/kobj*
 F:	lib/kobj*
 
-DRIVERS FOR ADAPTIVE VOLTAGE SCALING (AVS)
+DRIVERS FOR OMAP ADAPTIVE VOLTAGE SCALING (AVS)
 M:	Nishanth Menon <nm@ti.com>
 L:	linux-pm@vger.kernel.org
 S:	Maintained
-F:	drivers/power/avs/
+F:	drivers/soc/ti/smartreflex.c
 F:	include/linux/power/smartreflex.h
 
 DRM DRIVER FOR ALLWINNER DE2 AND DE3 ENGINE
