@@ -60,11 +60,16 @@ void wfx_tx_lock_flush(struct wfx_dev *wdev)
 
 void wfx_tx_queues_init(struct wfx_vif *wvif)
 {
+	// The device is in charge to respect the details of the QoS parameters.
+	// The driver just ensure that it roughtly respect the priorities to
+	// avoid any shortage.
+	const int priorities[IEEE80211_NUM_ACS] = { 1, 2, 64, 128 };
 	int i;
 
 	for (i = 0; i < IEEE80211_NUM_ACS; ++i) {
 		skb_queue_head_init(&wvif->tx_queue[i].normal);
 		skb_queue_head_init(&wvif->tx_queue[i].cab);
+		wvif->tx_queue[i].priority = priorities[i];
 	}
 }
 
@@ -219,6 +224,11 @@ bool wfx_tx_queues_has_cab(struct wfx_vif *wvif)
 	return false;
 }
 
+static int wfx_tx_queue_get_weight(struct wfx_queue *queue)
+{
+	return atomic_read(&queue->pending_frames) * queue->priority;
+}
+
 static struct sk_buff *wfx_tx_queues_get_skb(struct wfx_dev *wdev)
 {
 	struct wfx_queue *queues[IEEE80211_NUM_ACS * ARRAY_SIZE(wdev->vif)];
@@ -234,8 +244,8 @@ static struct sk_buff *wfx_tx_queues_get_skb(struct wfx_dev *wdev)
 			WARN_ON(num_queues >= ARRAY_SIZE(queues));
 			queues[num_queues] = &wvif->tx_queue[i];
 			for (j = num_queues; j > 0; j--)
-				if (atomic_read(&queues[j]->pending_frames) <
-				    atomic_read(&queues[j - 1]->pending_frames))
+				if (wfx_tx_queue_get_weight(queues[j]) <
+				    wfx_tx_queue_get_weight(queues[j - 1]))
 					swap(queues[j - 1], queues[j]);
 			num_queues++;
 		}
