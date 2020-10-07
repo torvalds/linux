@@ -587,8 +587,6 @@ static void tb_xdp_handle_request(struct work_struct *work)
 		break;
 
 	case PROPERTIES_CHANGED_REQUEST: {
-		const struct tb_xdp_properties_changed *xchg =
-			(const struct tb_xdp_properties_changed *)pkg;
 		struct tb_xdomain *xd;
 
 		ret = tb_xdp_properties_changed_response(ctl, route, sequence);
@@ -598,10 +596,12 @@ static void tb_xdp_handle_request(struct work_struct *work)
 		 * the xdomain related to this connection as well in
 		 * case there is a change in services it offers.
 		 */
-		xd = tb_xdomain_find_by_uuid_locked(tb, &xchg->src_uuid);
+		xd = tb_xdomain_find_by_route_locked(tb, route);
 		if (xd) {
-			queue_delayed_work(tb->wq, &xd->get_properties_work,
-					   msecs_to_jiffies(50));
+			if (device_is_registered(&xd->dev)) {
+				queue_delayed_work(tb->wq, &xd->get_properties_work,
+						   msecs_to_jiffies(50));
+			}
 			tb_xdomain_put(xd);
 		}
 
