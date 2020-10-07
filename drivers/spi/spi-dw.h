@@ -100,6 +100,8 @@
 #define SPI_DMA_RDMAE			(1 << 0)
 #define SPI_DMA_TDMAE			(1 << 1)
 
+#define SPI_WAIT_RETRIES		5
+
 enum dw_ssi_type {
 	SSI_MOTO_SPI = 0,
 	SSI_TI_SSP,

@@ -17,7 +17,6 @@
 
 #include "spi-dw.h"
 
-#define WAIT_RETRIES	5
 #define RX_BUSY		0
 #define RX_BURST_LEVEL	16
 #define TX_BUSY		1
@@ -240,7 +239,7 @@ static inline bool dw_spi_dma_tx_busy(struct dw_spi *dws)
 static int dw_spi_dma_wait_tx_done(struct dw_spi *dws,
 				   struct spi_transfer *xfer)
 {
-	int retry = WAIT_RETRIES;
+	int retry = SPI_WAIT_RETRIES;
 	struct spi_delay delay;
 	u32 nents;
 
@@ -324,7 +323,7 @@ static inline bool dw_spi_dma_rx_busy(struct dw_spi *dws)
 
 static int dw_spi_dma_wait_rx_done(struct dw_spi *dws)
 {
-	int retry = WAIT_RETRIES;
+	int retry = SPI_WAIT_RETRIES;
 	struct spi_delay delay;
 	unsigned long ns, us;
 	u32 nents;
