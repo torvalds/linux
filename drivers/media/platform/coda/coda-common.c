@@ -172,7 +172,7 @@ struct coda_video_device {
 };
 
 static const struct coda_video_device coda_bit_encoder = {
-	.name = "coda-encoder",
+	.name = "coda-video-encoder",
 	.type = CODA_INST_ENCODER,
 	.ops = &coda_bit_encode_ops,
 	.src_formats = {
@@ -202,7 +202,7 @@ static const struct coda_video_device coda_bit_jpeg_encoder = {
 };
 
 static const struct coda_video_device coda_bit_decoder = {
-	.name = "coda-decoder",
+	.name = "coda-video-decoder",
 	.type = CODA_INST_DECODER,
 	.ops = &coda_bit_decode_ops,
 	.src_formats = {
@@ -2851,12 +2851,12 @@ err_clk_per:
 static int coda_register_device(struct coda_dev *dev, int i)
 {
 	struct video_device *vfd = &dev->vfd[i];
-	enum coda_inst_type type;
+	const char *name;
 	int ret;
 
 	if (i >= dev->devtype->num_vdevs)
 		return -EINVAL;
-	type = dev->devtype->vdevs[i]->type;
+	name = dev->devtype->vdevs[i]->name;
 
 	strscpy(vfd->name, dev->devtype->vdevs[i]->name, sizeof(vfd->name));
 	vfd->fops	= &coda_fops;
@@ -2876,8 +2876,7 @@ static int coda_register_device(struct coda_dev *dev, int i)
 	ret = video_register_device(vfd, VFL_TYPE_VIDEO, 0);
 	if (!ret)
 		v4l2_info(&dev->v4l2_dev, "%s registered as %s\n",
-			  type == CODA_INST_ENCODER ? "encoder" : "decoder",
-			  video_device_node_name(vfd));
+			  name, video_device_node_name(vfd));
 	return ret;
 }
 
