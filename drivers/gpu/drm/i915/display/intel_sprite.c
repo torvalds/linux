@@ -731,6 +731,9 @@ skl_program_plane(struct intel_plane *plane,
 		intel_de_write_fw(dev_priv, PLANE_AUX_OFFSET(pipe, plane_id),
 				  (plane_state->color_plane[1].y << 16) | plane_state->color_plane[1].x);
 
+	if (!drm_atomic_crtc_needs_modeset(&crtc_state->uapi))
+		intel_psr2_program_plane_sel_fetch(plane, crtc_state, plane_state, color_plane);
+
 	/*
 	 * The control register self-arms if the plane was previously
 	 * disabled. Try to make the plane enable atomic by writing

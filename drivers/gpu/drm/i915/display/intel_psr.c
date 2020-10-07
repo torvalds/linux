@@ -1166,6 +1166,38 @@ static void psr_force_hw_tracking_exit(struct drm_i915_private *dev_priv)
 		intel_psr_exit(dev_priv);
 }
 
+void intel_psr2_program_plane_sel_fetch(struct intel_plane *plane,
+					const struct intel_crtc_state *crtc_state,
+					const struct intel_plane_state *plane_state,
+					int color_plane)
+{
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	enum pipe pipe = plane->pipe;
+	u32 val;
+
+	if (!crtc_state->enable_psr2_sel_fetch)
+		return;
+
+	val = plane_state ? plane_state->ctl : 0;
+	val &= plane->id == PLANE_CURSOR ? val : PLANE_SEL_FETCH_CTL_ENABLE;
+	intel_de_write_fw(dev_priv, PLANE_SEL_FETCH_CTL(pipe, plane->id), val);
+	if (!val || plane->id == PLANE_CURSOR)
+		return;
+
+	val = plane_state->uapi.dst.y1 << 16 | plane_state->uapi.dst.x1;
+	intel_de_write_fw(dev_priv, PLANE_SEL_FETCH_POS(pipe, plane->id), val);
+
+	val = plane_state->color_plane[color_plane].y << 16;
+	val |= plane_state->color_plane[color_plane].x;
+	intel_de_write_fw(dev_priv, PLANE_SEL_FETCH_OFFSET(pipe, plane->id),
+			  val);
+
+	/* Sizes are 0 based */
+	val = ((drm_rect_height(&plane_state->uapi.src) >> 16) - 1) << 16;
+	val |= (drm_rect_width(&plane_state->uapi.src) >> 16) - 1;
+	intel_de_write_fw(dev_priv, PLANE_SEL_FETCH_SIZE(pipe, plane->id), val);
+}
+
 void intel_psr2_program_trans_man_trk_ctl(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
@@ -1180,16 +1212,91 @@ void intel_psr2_program_trans_man_trk_ctl(const struct intel_crtc_state *crtc_st
 		       crtc_state->psr2_man_track_ctl);
 }
 
-void intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
-				 struct intel_crtc *crtc)
+static void psr2_man_trk_ctl_calc(struct intel_crtc_state *crtc_state,
+				  struct drm_rect *clip, bool full_update)
+{
+	u32 val = PSR2_MAN_TRK_CTL_ENABLE;
+
+	if (full_update) {
+		val |= PSR2_MAN_TRK_CTL_SF_SINGLE_FULL_FRAME;
+		goto exit;
+	}
+
+	if (clip->y1 == -1)
+		goto exit;
+
+	val |= PSR2_MAN_TRK_CTL_SF_PARTIAL_FRAME_UPDATE;
+	val |= PSR2_MAN_TRK_CTL_SU_REGION_START_ADDR(clip->y1 / 4 + 1);
+	val |= PSR2_MAN_TRK_CTL_SU_REGION_END_ADDR(DIV_ROUND_UP(clip->y2, 4) + 1);
+exit:
+	crtc_state->psr2_man_track_ctl = val;
+}
+
+static void clip_area_update(struct drm_rect *overlap_damage_area,
+			     struct drm_rect *damage_area)
+{
+	if (overlap_damage_area->y1 == -1) {
+		overlap_damage_area->y1 = damage_area->y1;
+		overlap_damage_area->y2 = damage_area->y2;
+		return;
+	}
+
+	if (damage_area->y1 < overlap_damage_area->y1)
+		overlap_damage_area->y1 = damage_area->y1;
+
+	if (damage_area->y2 > overlap_damage_area->y2)
+		overlap_damage_area->y2 = damage_area->y2;
+}
+
+int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
+				struct intel_crtc *crtc)
 {
 	struct intel_crtc_state *crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
+	struct intel_plane_state *new_plane_state, *old_plane_state;
+	struct drm_rect pipe_clip = { .y1 = -1 };
+	struct intel_plane *plane;
+	bool full_update = false;
+	int i, ret;
 
 	if (!crtc_state->enable_psr2_sel_fetch)
-		return;
+		return 0;
 
-	crtc_state->psr2_man_track_ctl = PSR2_MAN_TRK_CTL_ENABLE |
-					 PSR2_MAN_TRK_CTL_SF_SINGLE_FULL_FRAME;
+	ret = drm_atomic_add_affected_planes(&state->base, &crtc->base);
+	if (ret)
+		return ret;
+
+	for_each_oldnew_intel_plane_in_state(state, plane, old_plane_state,
+					     new_plane_state, i) {
+		struct drm_rect temp;
+
+		if (new_plane_state->uapi.crtc != crtc_state->uapi.crtc)
+			continue;
+
+		/*
+		 * TODO: Not clear how to handle planes with negative position,
+		 * also planes are not updated if they have a negative X
+		 * position so for now doing a full update in this cases
+		 */
+		if (new_plane_state->uapi.dst.y1 < 0 ||
+		    new_plane_state->uapi.dst.x1 < 0) {
+			full_update = true;
+			break;
+		}
+
+		if (!new_plane_state->uapi.visible)
+			continue;
+
+		/*
+		 * For now doing a selective fetch in the whole plane area,
+		 * optimizations will come in the future.
+		 */
+		temp.y1 = new_plane_state->uapi.dst.y1;
+		temp.y2 = new_plane_state->uapi.dst.y2;
+		clip_area_update(&pipe_clip, &temp);
+	}
+
+	psr2_man_trk_ctl_calc(crtc_state, &pipe_clip, full_update);
+	return 0;
 }
 
 /**

@@ -11869,6 +11869,9 @@ static void i9xx_update_cursor(struct intel_plane *plane,
 	if (INTEL_GEN(dev_priv) >= 9)
 		skl_write_cursor_wm(plane, crtc_state);
 
+	if (!needs_modeset(crtc_state))
+		intel_psr2_program_plane_sel_fetch(plane, crtc_state, plane_state, 0);
+
 	if (plane->cursor.base != base ||
 	    plane->cursor.size != fbc_ctl ||
 	    plane->cursor.cntl != cntl) {
@@ -12880,8 +12883,11 @@ static int intel_crtc_atomic_check(struct intel_atomic_state *state,
 
 	}
 
-	if (!mode_changed)
-		intel_psr2_sel_fetch_update(state, crtc);
+	if (!mode_changed) {
+		ret = intel_psr2_sel_fetch_update(state, crtc);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
