@@ -6,7 +6,7 @@
 #include "ice_devlink.h"
 #include "ice_fw_update.h"
 
-static int ice_info_get_dsn(struct ice_pf *pf, char *buf, size_t len)
+static void ice_info_get_dsn(struct ice_pf *pf, char *buf, size_t len)
 {
 	u8 dsn[8];
 
@@ -14,8 +14,6 @@ static int ice_info_get_dsn(struct ice_pf *pf, char *buf, size_t len)
 	put_unaligned_be64(pci_get_dsn(pf->pdev), dsn);
 
 	snprintf(buf, len, "%8phD", dsn);
-
-	return 0;
 }
 
 static int ice_info_pba(struct ice_pf *pf, char *buf, size_t len)
@@ -178,11 +176,7 @@ static int ice_devlink_info_get(struct devlink *devlink,
 		return err;
 	}
 
-	err = ice_info_get_dsn(pf, buf, sizeof(buf));
-	if (err) {
-		NL_SET_ERR_MSG_MOD(extack, "Unable to obtain serial number");
-		return err;
-	}
+	ice_info_get_dsn(pf, buf, sizeof(buf));
 
 	err = devlink_info_serial_number_put(req, buf);
 	if (err) {
