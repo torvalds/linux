@@ -206,7 +206,7 @@ static int nf_tables_register_hook(struct net *net,
 	if (basechain->type->ops_register)
 		return basechain->type->ops_register(net, ops);
 
-	if (table->family == NFPROTO_NETDEV)
+	if (nft_base_chain_netdev(table->family, basechain->ops.hooknum))
 		return nft_netdev_register_hooks(net, &basechain->hook_list);
 
 	return nf_register_net_hook(net, &basechain->ops);
@@ -228,7 +228,7 @@ static void nf_tables_unregister_hook(struct net *net,
 	if (basechain->type->ops_unregister)
 		return basechain->type->ops_unregister(net, ops);
 
-	if (table->family == NFPROTO_NETDEV)
+	if (nft_base_chain_netdev(table->family, basechain->ops.hooknum))
 		nft_netdev_unregister_hooks(net, &basechain->hook_list);
 	else
 		nf_unregister_net_hook(net, &basechain->ops);
@@ -1381,7 +1381,7 @@ static int nft_dump_basechain_hook(struct sk_buff *skb, int family,
 	if (nla_put_be32(skb, NFTA_HOOK_PRIORITY, htonl(ops->priority)))
 		goto nla_put_failure;
 
-	if (family == NFPROTO_NETDEV) {
+	if (nft_base_chain_netdev(family, ops->hooknum)) {
 		nest_devs = nla_nest_start_noflag(skb, NFTA_HOOK_DEVS);
 		list_for_each_entry(hook, &basechain->hook_list, list) {
 			if (!first)
@@ -1685,7 +1685,7 @@ void nf_tables_chain_destroy(struct nft_ctx *ctx)
 	if (nft_is_base_chain(chain)) {
 		struct nft_base_chain *basechain = nft_base_chain(chain);
 
-		if (ctx->family == NFPROTO_NETDEV) {
+		if (nft_base_chain_netdev(ctx->family, basechain->ops.hooknum)) {
 			list_for_each_entry_safe(hook, next,
 						 &basechain->hook_list, list) {
 				list_del_rcu(&hook->list);
@@ -1877,7 +1877,7 @@ static int nft_chain_parse_hook(struct net *net,
 	hook->type = type;
 
 	INIT_LIST_HEAD(&hook->list);
-	if (family == NFPROTO_NETDEV) {
+	if (nft_base_chain_netdev(family, hook->num)) {
 		err = nft_chain_parse_netdev(net, ha, &hook->list);
 		if (err < 0) {
 			module_put(type->owner);
@@ -1944,7 +1944,7 @@ static int nft_basechain_init(struct nft_base_chain *basechain, u8 family,
 	INIT_LIST_HEAD(&basechain->hook_list);
 	chain = &basechain->chain;
 
-	if (family == NFPROTO_NETDEV) {
+	if (nft_base_chain_netdev(family, hook->num)) {
 		list_splice_init(&hook->list, &basechain->hook_list);
 		list_for_each_entry(h, &basechain->hook_list, list)
 			nft_basechain_hook_init(&h->ops, family, hook, chain);
@@ -2168,7 +2168,7 @@ static int nf_tables_updchain(struct nft_ctx *ctx, u8 genmask, u8 policy,
 			return -EEXIST;
 		}
 
-		if (ctx->family == NFPROTO_NETDEV) {
+		if (nft_base_chain_netdev(ctx->family, hook.num)) {
 			if (!nft_hook_list_equal(&basechain->hook_list,
 						 &hook.list)) {
 				nft_chain_release_hook(&hook);
