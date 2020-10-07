@@ -2,7 +2,7 @@
 /*
  * Device probe and register.
  *
- * Copyright (c) 2017-2019, Silicon Laboratories, Inc.
+ * Copyright (c) 2017-2020, Silicon Laboratories, Inc.
  * Copyright (c) 2010, ST-Ericsson
  * Copyright (c) 2008, Johannes Berg <johannes@sipsolutions.net>
  * Copyright (c) 2008 Nokia Corporation and/or its subsidiary(-ies).

@@ -3,7 +3,7 @@
  * Implementation of host-to-chip commands (aka request/confirmation) of WFxxx
  * Split Mac (WSM) API.
  *
- * Copyright (c) 2017-2019, Silicon Laboratories, Inc.
+ * Copyright (c) 2017-2020, Silicon Laboratories, Inc.
  * Copyright (c) 2010, ST-Ericsson
  * Copyright (C) 2010, ST-Ericsson SA
  */

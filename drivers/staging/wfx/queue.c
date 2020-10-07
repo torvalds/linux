@@ -2,7 +2,7 @@
 /*
  * O(1) TX queue with built-in allocator.
  *
- * Copyright (c) 2017-2019, Silicon Laboratories, Inc.
+ * Copyright (c) 2017-2020, Silicon Laboratories, Inc.
  * Copyright (c) 2010, ST-Ericsson
  */
 #include <linux/sched.h>
