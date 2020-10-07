@@ -478,7 +478,7 @@ static int get_pcie_table(
 		PPTable_Generic_SubTable_Header const *ptable
 		)
 {
-	uint32_t table_size, i, pcie_count;
+	uint32_t i, pcie_count;
 	phm_ppt_v1_pcie_table *pcie_table;
 	struct phm_ppt_v1_information *pp_table_information =
 		(struct phm_ppt_v1_information *)(hwmgr->pptable);
@@ -491,12 +491,10 @@ static int get_pcie_table(
 		PP_ASSERT_WITH_CODE((atom_pcie_table->ucNumEntries != 0),
 			"Invalid PowerPlay Table!", return -1);
 
-		table_size = sizeof(uint32_t) +
-			sizeof(phm_ppt_v1_pcie_record) * atom_pcie_table->ucNumEntries;
-
-		pcie_table = kzalloc(table_size, GFP_KERNEL);
-
-		if (pcie_table == NULL)
+		pcie_table = kzalloc(struct_size(pcie_table, entries,
+						 atom_pcie_table->ucNumEntries),
+				     GFP_KERNEL);
+		if (!pcie_table)
 			return -ENOMEM;
 
 		/*
@@ -530,12 +528,10 @@ static int get_pcie_table(
 		PP_ASSERT_WITH_CODE((atom_pcie_table->ucNumEntries != 0),
 			"Invalid PowerPlay Table!", return -1);
 
-		table_size = sizeof(uint32_t) +
-			sizeof(phm_ppt_v1_pcie_record) * atom_pcie_table->ucNumEntries;
-
-		pcie_table = kzalloc(table_size, GFP_KERNEL);
-
-		if (pcie_table == NULL)
+		pcie_table = kzalloc(struct_size(pcie_table, entries,
+						 atom_pcie_table->ucNumEntries),
+				     GFP_KERNEL);
+		if (!pcie_table)
 			return -ENOMEM;
 
 		/*

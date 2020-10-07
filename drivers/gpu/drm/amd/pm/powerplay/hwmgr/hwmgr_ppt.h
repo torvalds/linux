@@ -103,7 +103,7 @@ typedef struct phm_ppt_v1_pcie_record phm_ppt_v1_pcie_record;
 
 struct phm_ppt_v1_pcie_table {
 	uint32_t count;                                            /* Number of entries. */
-	phm_ppt_v1_pcie_record entries[1];                         /* Dynamically allocate count entries. */
+	phm_ppt_v1_pcie_record entries[];			   /* Dynamically allocate count entries. */
 };
 typedef struct phm_ppt_v1_pcie_table phm_ppt_v1_pcie_table;
 

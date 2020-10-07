@@ -784,7 +784,7 @@ static int get_pcie_table(struct pp_hwmgr *hwmgr,
 		struct phm_ppt_v1_pcie_table **vega10_pcie_table,
 		const Vega10_PPTable_Generic_SubTable_Header *table)
 {
-	uint32_t table_size, i, pcie_count;
+	uint32_t i, pcie_count;
 	struct phm_ppt_v1_pcie_table *pcie_table;
 	struct phm_ppt_v2_information *table_info =
 			(struct phm_ppt_v2_information *)(hwmgr->pptable);
@@ -795,12 +795,8 @@ static int get_pcie_table(struct pp_hwmgr *hwmgr,
 			"Invalid PowerPlay Table!",
 			return 0);
 
-	table_size = sizeof(uint32_t) +
-			sizeof(struct phm_ppt_v1_pcie_record) *
-			atom_pcie_table->ucNumEntries;
-
-	pcie_table = kzalloc(table_size, GFP_KERNEL);
-
+	pcie_table = kzalloc(struct_size(pcie_table, entries, atom_pcie_table->ucNumEntries),
+			     GFP_KERNEL);
 	if (!pcie_table)
 		return -ENOMEM;
 
