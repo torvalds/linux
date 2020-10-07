@@ -324,7 +324,7 @@ static int dcmi_start_dma(struct stm32_dcmi *dcmi,
 	}
 
 	/*
-	 * Avoid call of dmaengine_terminate_all() between
+	 * Avoid call of dmaengine_terminate_sync() between
 	 * dmaengine_prep_slave_single() and dmaengine_submit()
 	 * by locking the whole DMA submission sequence
 	 */
@@ -438,7 +438,7 @@ static void dcmi_process_jpeg(struct stm32_dcmi *dcmi)
 	}
 
 	/* Abort DMA operation */
-	dmaengine_terminate_all(dcmi->dma_chan);
+	dmaengine_terminate_sync(dcmi->dma_chan);
 
 	/* Restart capture */
 	if (dcmi_restart_capture(dcmi))
@@ -882,7 +882,7 @@ static void dcmi_stop_streaming(struct vb2_queue *vq)
 
 	/* Stop all pending DMA operations */
 	mutex_lock(&dcmi->dma_lock);
-	dmaengine_terminate_all(dcmi->dma_chan);
+	dmaengine_terminate_sync(dcmi->dma_chan);
 	mutex_unlock(&dcmi->dma_lock);
 
 	pm_runtime_put(dcmi->dev);
