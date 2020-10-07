@@ -41,7 +41,7 @@ void wfx_rx_cb(struct wfx_vif *wvif,
 	memset(hdr, 0, sizeof(*hdr));
 
 	if (arg->status == HIF_STATUS_RX_FAIL_MIC)
-		hdr->flag |= RX_FLAG_MMIC_ERROR;
+		hdr->flag |= RX_FLAG_MMIC_ERROR | RX_FLAG_IV_STRIPPED;
 	else if (arg->status)
 		goto drop;
 
