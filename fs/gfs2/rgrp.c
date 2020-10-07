@@ -277,29 +277,38 @@ static int gfs2_rbm_from_block(struct gfs2_rbm *rbm, u64 block)
 }
 
 /**
- * gfs2_rbm_incr - increment an rbm structure
+ * gfs2_rbm_add - add a number of blocks to an rbm
  * @rbm: The rbm with rgd already set correctly
+ * @blocks: The number of blocks to add to rpm
  *
- * This function takes an existing rbm structure and increments it to the next
- * viable block offset.
+ * This function takes an existing rbm structure and adds a number of blocks to
+ * it.
  *
- * Returns: If incrementing the offset would cause the rbm to go past the
- *          end of the rgrp, true is returned, otherwise false.
- *
+ * Returns: True if the new rbm would point past the end of the rgrp.
  */
 
-static bool gfs2_rbm_incr(struct gfs2_rbm *rbm)
+static bool gfs2_rbm_add(struct gfs2_rbm *rbm, u32 blocks)
 {
-	if (rbm->offset + 1 < rbm_bi(rbm)->bi_blocks) { /* in the same bitmap */
-		rbm->offset++;
+	struct gfs2_rgrpd *rgd = rbm->rgd;
+	struct gfs2_bitmap *bi = rgd->rd_bits + rbm->bii;
+
+	if (rbm->offset + blocks < bi->bi_blocks) {
+		rbm->offset += blocks;
 		return false;
 	}
-	if (rbm->bii == rbm->rgd->rd_length - 1) /* at the last bitmap */
-		return true;
+	blocks -= bi->bi_blocks - rbm->offset;
 
-	rbm->offset = 0;
-	rbm->bii++;
-	return false;
+	for(;;) {
+		bi++;
+		if (bi == rgd->rd_bits + rgd->rd_length)
+			return true;
+		if (blocks < bi->bi_blocks) {
+			rbm->offset = blocks;
+			rbm->bii = bi - rgd->rd_bits;
+			return false;
+		}
+		blocks -= bi->bi_blocks;
+	}
 }
 
 /**
@@ -323,7 +332,7 @@ static bool gfs2_unaligned_extlen(struct gfs2_rbm *rbm, u32 n_unaligned, u32 *le
 		(*len)--;
 		if (*len == 0)
 			return true;
-		if (gfs2_rbm_incr(rbm))
+		if (gfs2_rbm_add(rbm, 1))
 			return true;
 	}
 
@@ -1639,7 +1648,6 @@ static int gfs2_reservation_check_and_update(struct gfs2_rbm *rbm,
 	u64 block = gfs2_rbm_to_block(rbm);
 	u32 extlen = 1;
 	u64 nblock;
-	int ret;
 
 	/*
 	 * If we have a minimum extent length, then skip over any extent
@@ -1664,12 +1672,15 @@ static int gfs2_reservation_check_and_update(struct gfs2_rbm *rbm,
 			maxext->len = extlen;
 			maxext->rbm = *rbm;
 		}
-fail:
-		nblock = block + extlen;
+	} else {
+		u64 len = nblock - block;
+		if (len >= (u64)1 << 32)
+			return -E2BIG;
+		extlen = len;
 	}
-	ret = gfs2_rbm_from_block(rbm, nblock);
-	if (ret < 0)
-		return ret;
+fail:
+	if (gfs2_rbm_add(rbm, extlen))
+		return -E2BIG;
 	return 1;
 }
 
@@ -2205,7 +2216,7 @@ static void rgblk_free(struct gfs2_sbd *sdp, struct gfs2_rgrpd *rgd,
 			bi_prev = bi;
 		}
 		gfs2_setbit(&rbm, false, new_state);
-		gfs2_rbm_incr(&rbm);
+		gfs2_rbm_add(&rbm, 1);
 	}
 }
 
