@@ -91,19 +91,14 @@ static bool psr_global_enabled(struct drm_i915_private *i915)
 	}
 }
 
-static bool intel_psr2_enabled(struct drm_i915_private *dev_priv,
-			       const struct intel_crtc_state *crtc_state)
+static bool psr2_global_enabled(struct drm_i915_private *dev_priv)
 {
-	/* Cannot enable DSC and PSR2 simultaneously */
-	drm_WARN_ON(&dev_priv->drm, crtc_state->dsc.compression_enable &&
-		    crtc_state->has_psr2);
-
 	switch (dev_priv->psr.debug & I915_PSR_DEBUG_MODE_MASK) {
 	case I915_PSR_DEBUG_DISABLE:
 	case I915_PSR_DEBUG_FORCE_PSR1:
 		return false;
 	default:
-		return crtc_state->has_psr2;
+		return true;
 	}
 }
 
@@ -729,6 +724,11 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 		return false;
 	}
 
+	if (!psr2_global_enabled(dev_priv)) {
+		drm_dbg_kms(&dev_priv->drm, "PSR2 disabled by flag\n");
+		return false;
+	}
+
 	/*
 	 * DSC and PSR2 cannot be enabled simultaneously. If a requested
 	 * resolution requires DSC to be enabled, priority is given to DSC
@@ -817,8 +817,11 @@ void intel_psr_compute_config(struct intel_dp *intel_dp,
 	if (intel_dp != dev_priv->psr.dp)
 		return;
 
-	if (!psr_global_enabled(dev_priv))
+	if (!psr_global_enabled(dev_priv)) {
+		drm_dbg_kms(&dev_priv->drm, "PSR disabled by flag\n");
 		return;
+	}
+
 	/*
 	 * HSW spec explicitly says PSR is tied to port A.
 	 * BDW+ platforms have a instance of PSR registers per transcoder but
@@ -959,7 +962,7 @@ static void intel_psr_enable_locked(struct drm_i915_private *dev_priv,
 
 	drm_WARN_ON(&dev_priv->drm, dev_priv->psr.enabled);
 
-	dev_priv->psr.psr2_enabled = intel_psr2_enabled(dev_priv, crtc_state);
+	dev_priv->psr.psr2_enabled = crtc_state->has_psr2;
 	dev_priv->psr.busy_frontbuffer_bits = 0;
 	dev_priv->psr.pipe = to_intel_crtc(crtc_state->uapi.crtc)->pipe;
 	dev_priv->psr.dc3co_enabled = !!crtc_state->dc3co_exitline;
@@ -1029,15 +1032,7 @@ void intel_psr_enable(struct intel_dp *intel_dp,
 	drm_WARN_ON(&dev_priv->drm, dev_priv->drrs.dp);
 
 	mutex_lock(&dev_priv->psr.lock);
-
-	if (!psr_global_enabled(dev_priv)) {
-		drm_dbg_kms(&dev_priv->drm, "PSR disabled by flag\n");
-		goto unlock;
-	}
-
 	intel_psr_enable_locked(dev_priv, crtc_state, conn_state);
-
-unlock:
 	mutex_unlock(&dev_priv->psr.lock);
 }
 
@@ -1222,8 +1217,8 @@ void intel_psr_update(struct intel_dp *intel_dp,
 
 	mutex_lock(&dev_priv->psr.lock);
 
-	enable = crtc_state->has_psr && psr_global_enabled(dev_priv);
-	psr2_enable = intel_psr2_enabled(dev_priv, crtc_state);
+	enable = crtc_state->has_psr;
+	psr2_enable = crtc_state->has_psr2;
 
 	if (enable == psr->enabled && psr2_enable == psr->psr2_enabled) {
 		/* Force a PSR exit when enabling CRC to avoid CRC timeouts */
@@ -1320,11 +1315,12 @@ static bool __psr_wait_for_idle_locked(struct drm_i915_private *dev_priv)
 
 static int intel_psr_fastset_force(struct drm_i915_private *dev_priv)
 {
+	struct drm_connector_list_iter conn_iter;
 	struct drm_device *dev = &dev_priv->drm;
 	struct drm_modeset_acquire_ctx ctx;
 	struct drm_atomic_state *state;
-	struct intel_crtc *crtc;
-	int err;
+	struct drm_connector *conn;
+	int err = 0;
 
 	state = drm_atomic_state_alloc(dev);
 	if (!state)
@@ -1334,25 +1330,38 @@ static int intel_psr_fastset_force(struct drm_i915_private *dev_priv)
 	state->acquire_ctx = &ctx;
 
 retry:
-	for_each_intel_crtc(dev, crtc) {
-		struct intel_crtc_state *crtc_state =
-			intel_atomic_get_crtc_state(state, crtc);
 
-		if (IS_ERR(crtc_state)) {
-			err = PTR_ERR(crtc_state);
-			goto error;
-		}
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(conn, &conn_iter) {
+		struct drm_connector_state *conn_state;
+		struct drm_crtc_state *crtc_state;
 
-		if (crtc_state->hw.active && crtc_state->has_psr) {
-			/* Mark mode as changed to trigger a pipe->update() */
-			crtc_state->uapi.mode_changed = true;
+		if (conn->connector_type != DRM_MODE_CONNECTOR_eDP)
+			continue;
+
+		conn_state = drm_atomic_get_connector_state(state, conn);
+		if (IS_ERR(conn_state)) {
+			err = PTR_ERR(conn_state);
 			break;
 		}
+
+		if (!conn_state->crtc)
+			continue;
+
+		crtc_state = drm_atomic_get_crtc_state(state, conn_state->crtc);
+		if (IS_ERR(crtc_state)) {
+			err = PTR_ERR(crtc_state);
+			break;
+		}
+
+		/* Mark mode as changed to trigger a pipe->update() */
+		crtc_state->mode_changed = true;
 	}
+	drm_connector_list_iter_end(&conn_iter);
 
-	err = drm_atomic_commit(state);
+	if (err == 0)
+		err = drm_atomic_commit(state);
 
-error:
 	if (err == -EDEADLK) {
 		drm_atomic_state_clear(state);
 		err = drm_modeset_backoff(&ctx);
