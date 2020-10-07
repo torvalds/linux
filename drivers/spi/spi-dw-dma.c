@@ -176,17 +176,10 @@ static void dw_spi_dma_exit(struct dw_spi *dws)
 
 static irqreturn_t dw_spi_dma_transfer_handler(struct dw_spi *dws)
 {
-	u16 irq_status = dw_readl(dws, DW_SPI_ISR);
+	dw_spi_check_status(dws, false);
 
-	if (!irq_status)
-		return IRQ_NONE;
-
-	dw_readl(dws, DW_SPI_ICR);
-	spi_reset_chip(dws);
-
-	dev_err(&dws->master->dev, "%s: FIFO overrun/underrun\n", __func__);
-	dws->master->cur_msg->status = -EIO;
 	complete(&dws->dma_completion);
+
 	return IRQ_HANDLED;
 }
 

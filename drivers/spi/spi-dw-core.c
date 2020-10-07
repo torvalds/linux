@@ -169,23 +169,48 @@ static void dw_reader(struct dw_spi *dws)
 	}
 }
 
-static void int_error_stop(struct dw_spi *dws, const char *msg)
+int dw_spi_check_status(struct dw_spi *dws, bool raw)
 {
-	spi_reset_chip(dws);
+	u32 irq_status;
+	int ret = 0;
 
-	dev_err(&dws->master->dev, "%s\n", msg);
-	dws->master->cur_msg->status = -EIO;
-	spi_finalize_current_transfer(dws->master);
+	if (raw)
+		irq_status = dw_readl(dws, DW_SPI_RISR);
+	else
+		irq_status = dw_readl(dws, DW_SPI_ISR);
+
+	if (irq_status & SPI_INT_RXOI) {
+		dev_err(&dws->master->dev, "RX FIFO overflow detected\n");
+		ret = -EIO;
+	}
+
+	if (irq_status & SPI_INT_RXUI) {
+		dev_err(&dws->master->dev, "RX FIFO underflow detected\n");
+		ret = -EIO;
+	}
+
+	if (irq_status & SPI_INT_TXOI) {
+		dev_err(&dws->master->dev, "TX FIFO overflow detected\n");
+		ret = -EIO;
+	}
+
+	/* Generically handle the erroneous situation */
+	if (ret) {
+		spi_reset_chip(dws);
+		if (dws->master->cur_msg)
+			dws->master->cur_msg->status = ret;
+	}
+
+	return ret;
 }
+EXPORT_SYMBOL_GPL(dw_spi_check_status);
 
 static irqreturn_t dw_spi_transfer_handler(struct dw_spi *dws)
 {
 	u16 irq_status = dw_readl(dws, DW_SPI_ISR);
 
-	/* Error handling */
-	if (irq_status & (SPI_INT_TXOI | SPI_INT_RXOI | SPI_INT_RXUI)) {
-		dw_readl(dws, DW_SPI_ICR);
-		int_error_stop(dws, "interrupt_transfer: fifo overrun/underrun");
+	if (dw_spi_check_status(dws, false)) {
+		spi_finalize_current_transfer(dws->master);
 		return IRQ_HANDLED;
 	}
 
