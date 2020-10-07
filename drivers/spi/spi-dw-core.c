@@ -20,10 +20,8 @@
 #include <linux/debugfs.h>
 #endif
 
-/* Slave spi_dev related */
+/* Slave spi_device related */
 struct chip_data {
-	u8 tmode;		/* TR/TO/RO/EEPROM */
-
 	u32 cr0;
 	u32 rx_sample_dly;	/* RX sample delay */
 };
@@ -266,8 +264,8 @@ static u32 dw_spi_prepare_cr0(struct dw_spi *dws, struct spi_device *spi)
 	return cr0;
 }
 
-static void dw_spi_update_config(struct dw_spi *dws, struct spi_device *spi,
-				 struct spi_transfer *transfer)
+void dw_spi_update_config(struct dw_spi *dws, struct spi_device *spi,
+			  struct dw_spi_cfg *cfg)
 {
 	struct chip_data *chip = spi_get_ctldata(spi);
 	u32 cr0 = chip->cr0;
@@ -275,19 +273,22 @@ static void dw_spi_update_config(struct dw_spi *dws, struct spi_device *spi,
 	u16 clk_div;
 
 	/* CTRLR0[ 4/3: 0] Data Frame Size */
-	cr0 |= (transfer->bits_per_word - 1);
+	cr0 |= (cfg->dfs - 1);
 
 	if (!(dws->caps & DW_SPI_CAP_DWC_SSI))
 		/* CTRLR0[ 9:8] Transfer Mode */
-		cr0 |= chip->tmode << SPI_TMOD_OFFSET;
+		cr0 |= cfg->tmode << SPI_TMOD_OFFSET;
 	else
 		/* CTRLR0[11:10] Transfer Mode */
-		cr0 |= chip->tmode << DWC_SSI_CTRLR0_TMOD_OFFSET;
+		cr0 |= cfg->tmode << DWC_SSI_CTRLR0_TMOD_OFFSET;
 
 	dw_writel(dws, DW_SPI_CTRLR0, cr0);
 
+	if (cfg->tmode == SPI_TMOD_EPROMREAD || cfg->tmode == SPI_TMOD_RO)
+		dw_writel(dws, DW_SPI_CTRLR1, cfg->ndf ? cfg->ndf - 1 : 0);
+
 	/* Note DW APB SSI clock divider doesn't support odd numbers */
-	clk_div = (DIV_ROUND_UP(dws->max_freq, transfer->speed_hz) + 1) & 0xfffe;
+	clk_div = (DIV_ROUND_UP(dws->max_freq, cfg->freq) + 1) & 0xfffe;
 	speed_hz = dws->max_freq / clk_div;
 
 	if (dws->current_freq != speed_hz) {
@@ -301,11 +302,17 @@ static void dw_spi_update_config(struct dw_spi *dws, struct spi_device *spi,
 		dws->cur_rx_sample_dly = chip->rx_sample_dly;
 	}
 }
+EXPORT_SYMBOL_GPL(dw_spi_update_config);
 
 static int dw_spi_transfer_one(struct spi_controller *master,
 		struct spi_device *spi, struct spi_transfer *transfer)
 {
 	struct dw_spi *dws = spi_controller_get_devdata(master);
+	struct dw_spi_cfg cfg = {
+		.tmode = SPI_TMOD_TR,
+		.dfs = transfer->bits_per_word,
+		.freq = transfer->speed_hz,
+	};
 	u8 imask = 0;
 	u16 txlevel = 0;
 	int ret;
@@ -323,7 +330,7 @@ static int dw_spi_transfer_one(struct spi_controller *master,
 
 	spi_enable_chip(dws, 0);
 
-	dw_spi_update_config(dws, spi, transfer);
+	dw_spi_update_config(dws, spi, &cfg);
 
 	transfer->effective_speed_hz = dws->current_freq;
 
@@ -408,8 +415,6 @@ static int dw_spi_setup(struct spi_device *spi)
 	 * the MMC SPI driver or something else.
 	 */
 	chip->cr0 = dw_spi_prepare_cr0(dws, spi);
-
-	chip->tmode = SPI_TMOD_TR;
 
 	return 0;
 }

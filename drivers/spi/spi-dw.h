@@ -111,6 +111,14 @@ enum dw_ssi_type {
 #define DW_SPI_CAP_KEEMBAY_MST		BIT(1)
 #define DW_SPI_CAP_DWC_SSI		BIT(2)
 
+/* Slave spi_transfer/spi_mem_op related */
+struct dw_spi_cfg {
+	u8 tmode;
+	u8 dfs;
+	u32 ndf;
+	u32 freq;
+};
+
 struct dw_spi;
 struct dw_spi_dma_ops {
 	int (*dma_init)(struct device *dev, struct dw_spi *dws);
@@ -250,6 +258,8 @@ static inline void spi_shutdown_chip(struct dw_spi *dws)
 }
 
 extern void dw_spi_set_cs(struct spi_device *spi, bool enable);
+extern void dw_spi_update_config(struct dw_spi *dws, struct spi_device *spi,
+				 struct dw_spi_cfg *cfg);
 extern int dw_spi_add_host(struct device *dev, struct dw_spi *dws);
 extern void dw_spi_remove_host(struct dw_spi *dws);
 extern int dw_spi_suspend_host(struct dw_spi *dws);
