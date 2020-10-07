@@ -161,7 +161,7 @@ struct phm_vce_clock_voltage_dependency_record {
 
 struct phm_phase_shedding_limits_table {
 	uint32_t                           count;
-	struct phm_phase_shedding_limits_record  entries[1];
+	struct phm_phase_shedding_limits_record  entries[];
 };
 
 struct phm_vceclock_voltage_dependency_table {

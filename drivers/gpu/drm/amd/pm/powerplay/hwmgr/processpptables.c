@@ -1530,16 +1530,12 @@ static int init_phase_shedding_table(struct pp_hwmgr *hwmgr,
 				(((unsigned long)powerplay_table4) +
 				le16_to_cpu(powerplay_table4->usVddcPhaseShedLimitsTableOffset));
 			struct phm_phase_shedding_limits_table *table;
-			unsigned long size, i;
+			unsigned long i;
 
 
-			size = sizeof(unsigned long) +
-				(sizeof(struct phm_phase_shedding_limits_table) *
-				ptable->ucNumEntries);
-
-			table = kzalloc(size, GFP_KERNEL);
-
-			if (table == NULL)
+			table = kzalloc(struct_size(table, entries, ptable->ucNumEntries),
+					GFP_KERNEL);
+			if (!table)
 				return -ENOMEM;
 
 			table->count = (unsigned long)ptable->ucNumEntries;
