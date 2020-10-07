@@ -367,7 +367,7 @@ static int get_mclk_voltage_dependency_table(
 		ATOM_Tonga_MCLK_Dependency_Table const *mclk_dep_table
 		)
 {
-	uint32_t table_size, i;
+	uint32_t i;
 	phm_ppt_v1_clock_voltage_dependency_table *mclk_table;
 	phm_ppt_v1_clock_voltage_dependency_record *mclk_table_record;
 	ATOM_Tonga_MCLK_Dependency_Record *mclk_dep_record;
@@ -375,12 +375,9 @@ static int get_mclk_voltage_dependency_table(
 	PP_ASSERT_WITH_CODE((0 != mclk_dep_table->ucNumEntries),
 		"Invalid PowerPlay Table!", return -1);
 
-	table_size = sizeof(uint32_t) + sizeof(phm_ppt_v1_clock_voltage_dependency_record)
-		* mclk_dep_table->ucNumEntries;
-
-	mclk_table = kzalloc(table_size, GFP_KERNEL);
-
-	if (NULL == mclk_table)
+	mclk_table = kzalloc(struct_size(mclk_table, entries, mclk_dep_table->ucNumEntries),
+			     GFP_KERNEL);
+	if (!mclk_table)
 		return -ENOMEM;
 
 	mclk_table->count = (uint32_t)mclk_dep_table->ucNumEntries;
@@ -410,7 +407,7 @@ static int get_sclk_voltage_dependency_table(
 		PPTable_Generic_SubTable_Header const  *sclk_dep_table
 		)
 {
-	uint32_t table_size, i;
+	uint32_t i;
 	phm_ppt_v1_clock_voltage_dependency_table *sclk_table;
 	phm_ppt_v1_clock_voltage_dependency_record *sclk_table_record;
 
@@ -422,12 +419,9 @@ static int get_sclk_voltage_dependency_table(
 		PP_ASSERT_WITH_CODE((0 != tonga_table->ucNumEntries),
 			"Invalid PowerPlay Table!", return -1);
 
-		table_size = sizeof(uint32_t) + sizeof(phm_ppt_v1_clock_voltage_dependency_record)
-			* tonga_table->ucNumEntries;
-
-		sclk_table = kzalloc(table_size, GFP_KERNEL);
-
-		if (NULL == sclk_table)
+		sclk_table = kzalloc(struct_size(sclk_table, entries, tonga_table->ucNumEntries),
+				     GFP_KERNEL);
+		if (!sclk_table)
 			return -ENOMEM;
 
 		sclk_table->count = (uint32_t)tonga_table->ucNumEntries;
@@ -454,12 +448,9 @@ static int get_sclk_voltage_dependency_table(
 		PP_ASSERT_WITH_CODE((0 != polaris_table->ucNumEntries),
 			"Invalid PowerPlay Table!", return -1);
 
-		table_size = sizeof(uint32_t) + sizeof(phm_ppt_v1_clock_voltage_dependency_record)
-			* polaris_table->ucNumEntries;
-
-		sclk_table = kzalloc(table_size, GFP_KERNEL);
-
-		if (NULL == sclk_table)
+		sclk_table = kzalloc(struct_size(sclk_table, entries, polaris_table->ucNumEntries),
+				     GFP_KERNEL);
+		if (!sclk_table)
 			return -ENOMEM;
 
 		sclk_table->count = (uint32_t)polaris_table->ucNumEntries;

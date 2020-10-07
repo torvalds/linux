@@ -571,18 +571,14 @@ static int get_socclk_voltage_dependency_table(
 		phm_ppt_v1_clock_voltage_dependency_table **pp_vega10_clk_dep_table,
 		const ATOM_Vega10_SOCCLK_Dependency_Table *clk_dep_table)
 {
-	uint32_t table_size, i;
+	uint32_t i;
 	phm_ppt_v1_clock_voltage_dependency_table *clk_table;
 
 	PP_ASSERT_WITH_CODE(clk_dep_table->ucNumEntries,
 		"Invalid PowerPlay Table!", return -1);
 
-	table_size = sizeof(uint32_t) +
-			sizeof(phm_ppt_v1_clock_voltage_dependency_record) *
-			clk_dep_table->ucNumEntries;
-
-	clk_table = kzalloc(table_size, GFP_KERNEL);
-
+	clk_table = kzalloc(struct_size(clk_table, entries, clk_dep_table->ucNumEntries),
+			    GFP_KERNEL);
 	if (!clk_table)
 		return -ENOMEM;
 
@@ -605,18 +601,14 @@ static int get_mclk_voltage_dependency_table(
 		phm_ppt_v1_clock_voltage_dependency_table **pp_vega10_mclk_dep_table,
 		const ATOM_Vega10_MCLK_Dependency_Table *mclk_dep_table)
 {
-	uint32_t table_size, i;
+	uint32_t i;
 	phm_ppt_v1_clock_voltage_dependency_table *mclk_table;
 
 	PP_ASSERT_WITH_CODE(mclk_dep_table->ucNumEntries,
 		"Invalid PowerPlay Table!", return -1);
 
-	table_size = sizeof(uint32_t) +
-			sizeof(phm_ppt_v1_clock_voltage_dependency_record) *
-			mclk_dep_table->ucNumEntries;
-
-	mclk_table = kzalloc(table_size, GFP_KERNEL);
-
+	mclk_table = kzalloc(struct_size(mclk_table, entries, mclk_dep_table->ucNumEntries),
+			    GFP_KERNEL);
 	if (!mclk_table)
 		return -ENOMEM;
 
@@ -644,7 +636,7 @@ static int get_gfxclk_voltage_dependency_table(
 			**pp_vega10_clk_dep_table,
 		const ATOM_Vega10_GFXCLK_Dependency_Table *clk_dep_table)
 {
-	uint32_t table_size, i;
+	uint32_t i;
 	struct phm_ppt_v1_clock_voltage_dependency_table
 				*clk_table;
 	ATOM_Vega10_GFXCLK_Dependency_Record_V2 *patom_record_v2;
@@ -652,12 +644,8 @@ static int get_gfxclk_voltage_dependency_table(
 	PP_ASSERT_WITH_CODE((clk_dep_table->ucNumEntries != 0),
 			"Invalid PowerPlay Table!", return -1);
 
-	table_size = sizeof(uint32_t) +
-			sizeof(phm_ppt_v1_clock_voltage_dependency_record) *
-			clk_dep_table->ucNumEntries;
-
-	clk_table = kzalloc(table_size, GFP_KERNEL);
-
+	clk_table = kzalloc(struct_size(clk_table, entries, clk_dep_table->ucNumEntries),
+			    GFP_KERNEL);
 	if (!clk_table)
 		return -ENOMEM;
 
@@ -711,19 +699,15 @@ static int get_pix_clk_voltage_dependency_table(
 			**pp_vega10_clk_dep_table,
 		const  ATOM_Vega10_PIXCLK_Dependency_Table *clk_dep_table)
 {
-	uint32_t table_size, i;
+	uint32_t i;
 	struct phm_ppt_v1_clock_voltage_dependency_table
 				*clk_table;
 
 	PP_ASSERT_WITH_CODE((clk_dep_table->ucNumEntries != 0),
 			"Invalid PowerPlay Table!", return -1);
 
-	table_size = sizeof(uint32_t) +
-			sizeof(phm_ppt_v1_clock_voltage_dependency_record) *
-			clk_dep_table->ucNumEntries;
-
-	clk_table = kzalloc(table_size, GFP_KERNEL);
-
+	clk_table = kzalloc(struct_size(clk_table, entries, clk_dep_table->ucNumEntries),
+			    GFP_KERNEL);
 	if (!clk_table)
 		return -ENOMEM;
 
@@ -747,7 +731,7 @@ static int get_dcefclk_voltage_dependency_table(
 			**pp_vega10_clk_dep_table,
 		const ATOM_Vega10_DCEFCLK_Dependency_Table *clk_dep_table)
 {
-	uint32_t table_size, i;
+	uint32_t i;
 	uint8_t num_entries;
 	struct phm_ppt_v1_clock_voltage_dependency_table
 				*clk_table;
@@ -775,12 +759,8 @@ static int get_dcefclk_voltage_dependency_table(
 		num_entries = clk_dep_table->ucNumEntries;
 
 
-	table_size = sizeof(uint32_t) +
-			sizeof(phm_ppt_v1_clock_voltage_dependency_record) *
-			num_entries;
-
-	clk_table = kzalloc(table_size, GFP_KERNEL);
-
+	clk_table = kzalloc(struct_size(clk_table, entries, num_entries),
+			    GFP_KERNEL);
 	if (!clk_table)
 		return -ENOMEM;
 
