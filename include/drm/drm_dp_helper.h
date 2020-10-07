@@ -1066,15 +1066,58 @@ struct drm_device;
 #define DP_MAX_LANE_COUNT_PHY_REPEATER			    0xf0004 /* 1.4a */
 #define DP_Repeater_FEC_CAPABILITY			    0xf0004 /* 1.4 */
 #define DP_PHY_REPEATER_EXTENDED_WAIT_TIMEOUT		    0xf0005 /* 1.4a */
+
+enum drm_dp_phy {
+	DP_PHY_DPRX,
+
+	DP_PHY_LTTPR1,
+	DP_PHY_LTTPR2,
+	DP_PHY_LTTPR3,
+	DP_PHY_LTTPR4,
+	DP_PHY_LTTPR5,
+	DP_PHY_LTTPR6,
+	DP_PHY_LTTPR7,
+	DP_PHY_LTTPR8,
+
+	DP_MAX_LTTPR_COUNT = DP_PHY_LTTPR8,
+};
+
+#define DP_PHY_LTTPR(i)					    (DP_PHY_LTTPR1 + (i))
+
+#define __DP_LTTPR1_BASE				    0xf0010 /* 1.3 */
+#define __DP_LTTPR2_BASE				    0xf0060 /* 1.3 */
+#define DP_LTTPR_BASE(dp_phy) \
+	(__DP_LTTPR1_BASE + (__DP_LTTPR2_BASE - __DP_LTTPR1_BASE) * \
+		((dp_phy) - DP_PHY_LTTPR1))
+
+#define DP_LTTPR_REG(dp_phy, lttpr1_reg) \
+	(DP_LTTPR_BASE(dp_phy) - DP_LTTPR_BASE(DP_PHY_LTTPR1) + (lttpr1_reg))
+
 #define DP_TRAINING_PATTERN_SET_PHY_REPEATER1		    0xf0010 /* 1.3 */
+#define DP_TRAINING_PATTERN_SET_PHY_REPEATER(dp_phy) \
+	DP_LTTPR_REG(dp_phy, DP_TRAINING_PATTERN_SET_PHY_REPEATER1)
+
 #define DP_TRAINING_LANE0_SET_PHY_REPEATER1		    0xf0011 /* 1.3 */
+#define DP_TRAINING_LANE0_SET_PHY_REPEATER(dp_phy) \
+	DP_LTTPR_REG(dp_phy, DP_TRAINING_LANE0_SET_PHY_REPEATER1)
+
 #define DP_TRAINING_LANE1_SET_PHY_REPEATER1		    0xf0012 /* 1.3 */
 #define DP_TRAINING_LANE2_SET_PHY_REPEATER1		    0xf0013 /* 1.3 */
 #define DP_TRAINING_LANE3_SET_PHY_REPEATER1		    0xf0014 /* 1.3 */
 #define DP_TRAINING_AUX_RD_INTERVAL_PHY_REPEATER1	    0xf0020 /* 1.4a */
+#define DP_TRAINING_AUX_RD_INTERVAL_PHY_REPEATER(dp_phy)	\
+	DP_LTTPR_REG(dp_phy, DP_TRAINING_AUX_RD_INTERVAL_PHY_REPEATER1)
+
 #define DP_TRANSMITTER_CAPABILITY_PHY_REPEATER1		    0xf0021 /* 1.4a */
+# define DP_VOLTAGE_SWING_LEVEL_3_SUPPORTED		    BIT(0)
+# define DP_PRE_EMPHASIS_LEVEL_3_SUPPORTED		    BIT(1)
+
 #define DP_LANE0_1_STATUS_PHY_REPEATER1			    0xf0030 /* 1.3 */
+#define DP_LANE0_1_STATUS_PHY_REPEATER(dp_phy) \
+	DP_LTTPR_REG(dp_phy, DP_LANE0_1_STATUS_PHY_REPEATER1)
+
 #define DP_LANE2_3_STATUS_PHY_REPEATER1			    0xf0031 /* 1.3 */
+
 #define DP_LANE_ALIGN_STATUS_UPDATED_PHY_REPEATER1	    0xf0032 /* 1.3 */
 #define DP_ADJUST_REQUEST_LANE0_1_PHY_REPEATER1		    0xf0033 /* 1.3 */
 #define DP_ADJUST_REQUEST_LANE2_3_PHY_REPEATER1		    0xf0034 /* 1.3 */
@@ -1184,9 +1227,13 @@ u8 drm_dp_get_adjust_request_post_cursor(const u8 link_status[DP_LINK_STATUS_SIZ
 #define DP_DSC_RECEIVER_CAP_SIZE        0xf
 #define EDP_PSR_RECEIVER_CAP_SIZE	2
 #define EDP_DISPLAY_CTL_CAP_SIZE	3
+#define DP_LTTPR_COMMON_CAP_SIZE	8
+#define DP_LTTPR_PHY_CAP_SIZE		3
 
 void drm_dp_link_train_clock_recovery_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE]);
+void drm_dp_lttpr_link_train_clock_recovery_delay(void);
 void drm_dp_link_train_channel_eq_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE]);
+void drm_dp_lttpr_link_train_channel_eq_delay(const u8 caps[DP_LTTPR_PHY_CAP_SIZE]);
 
 u8 drm_dp_link_rate_to_bw_code(int link_rate);
 int drm_dp_bw_code_to_link_rate(u8 link_bw);
@@ -1645,6 +1692,10 @@ int drm_dp_read_dpcd_caps(struct drm_dp_aux *aux,
 int drm_dp_dpcd_read_link_status(struct drm_dp_aux *aux,
 				 u8 status[DP_LINK_STATUS_SIZE]);
 
+int drm_dp_dpcd_read_phy_link_status(struct drm_dp_aux *aux,
+				     enum drm_dp_phy dp_phy,
+				     u8 link_status[DP_LINK_STATUS_SIZE]);
+
 bool drm_dp_send_real_edid_checksum(struct drm_dp_aux *aux,
 				    u8 real_edid_checksum);
 
@@ -1693,6 +1744,17 @@ bool drm_dp_read_sink_count_cap(struct drm_connector *connector,
 				const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 				const struct drm_dp_desc *desc);
 int drm_dp_read_sink_count(struct drm_dp_aux *aux);
+
+int drm_dp_read_lttpr_common_caps(struct drm_dp_aux *aux,
+				  u8 caps[DP_LTTPR_COMMON_CAP_SIZE]);
+int drm_dp_read_lttpr_phy_caps(struct drm_dp_aux *aux,
+			       enum drm_dp_phy dp_phy,
+			       u8 caps[DP_LTTPR_PHY_CAP_SIZE]);
+int drm_dp_lttpr_count(const u8 cap[DP_LTTPR_COMMON_CAP_SIZE]);
+int drm_dp_lttpr_max_link_rate(const u8 caps[DP_LTTPR_COMMON_CAP_SIZE]);
+int drm_dp_lttpr_max_lane_count(const u8 caps[DP_LTTPR_COMMON_CAP_SIZE]);
+bool drm_dp_lttpr_voltage_swing_level_3_supported(const u8 caps[DP_LTTPR_PHY_CAP_SIZE]);
+bool drm_dp_lttpr_pre_emphasis_level_3_supported(const u8 caps[DP_LTTPR_PHY_CAP_SIZE]);
 
 void drm_dp_remote_aux_init(struct drm_dp_aux *aux);
 void drm_dp_aux_init(struct drm_dp_aux *aux);

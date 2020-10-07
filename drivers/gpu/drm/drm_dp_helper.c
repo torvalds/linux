@@ -150,11 +150,8 @@ void drm_dp_link_train_clock_recovery_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 }
 EXPORT_SYMBOL(drm_dp_link_train_clock_recovery_delay);
 
-void drm_dp_link_train_channel_eq_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+static void __drm_dp_link_train_channel_eq_delay(unsigned long rd_interval)
 {
-	unsigned long rd_interval = dpcd[DP_TRAINING_AUX_RD_INTERVAL] &
-					 DP_TRAINING_AUX_RD_MASK;
-
 	if (rd_interval > 4)
 		DRM_DEBUG_KMS("AUX interval %lu, out of range (max 4)\n",
 			      rd_interval);
@@ -166,7 +163,34 @@ void drm_dp_link_train_channel_eq_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 
 	usleep_range(rd_interval, rd_interval * 2);
 }
+
+void drm_dp_link_train_channel_eq_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	__drm_dp_link_train_channel_eq_delay(dpcd[DP_TRAINING_AUX_RD_INTERVAL] &
+					     DP_TRAINING_AUX_RD_MASK);
+}
 EXPORT_SYMBOL(drm_dp_link_train_channel_eq_delay);
+
+void drm_dp_lttpr_link_train_clock_recovery_delay(void)
+{
+	usleep_range(100, 200);
+}
+EXPORT_SYMBOL(drm_dp_lttpr_link_train_clock_recovery_delay);
+
+static u8 dp_lttpr_phy_cap(const u8 phy_cap[DP_LTTPR_PHY_CAP_SIZE], int r)
+{
+	return phy_cap[r - DP_TRAINING_AUX_RD_INTERVAL_PHY_REPEATER1];
+}
+
+void drm_dp_lttpr_link_train_channel_eq_delay(const u8 phy_cap[DP_LTTPR_PHY_CAP_SIZE])
+{
+	u8 interval = dp_lttpr_phy_cap(phy_cap,
+				       DP_TRAINING_AUX_RD_INTERVAL_PHY_REPEATER1) &
+		      DP_TRAINING_AUX_RD_MASK;
+
+	__drm_dp_link_train_channel_eq_delay(interval);
+}
+EXPORT_SYMBOL(drm_dp_lttpr_link_train_channel_eq_delay);
 
 u8 drm_dp_link_rate_to_bw_code(int link_rate)
 {
@@ -362,6 +386,59 @@ int drm_dp_dpcd_read_link_status(struct drm_dp_aux *aux,
 				DP_LINK_STATUS_SIZE);
 }
 EXPORT_SYMBOL(drm_dp_dpcd_read_link_status);
+
+/**
+ * drm_dp_dpcd_read_phy_link_status - get the link status information for a DP PHY
+ * @aux: DisplayPort AUX channel
+ * @dp_phy: the DP PHY to get the link status for
+ * @link_status: buffer to return the status in
+ *
+ * Fetch the AUX DPCD registers for the DPRX or an LTTPR PHY link status. The
+ * layout of the returned @link_status matches the DPCD register layout of the
+ * DPRX PHY link status.
+ *
+ * Returns 0 if the information was read successfully or a negative error code
+ * on failure.
+ */
+int drm_dp_dpcd_read_phy_link_status(struct drm_dp_aux *aux,
+				     enum drm_dp_phy dp_phy,
+				     u8 link_status[DP_LINK_STATUS_SIZE])
+{
+	int ret;
+
+	if (dp_phy == DP_PHY_DPRX) {
+		ret = drm_dp_dpcd_read(aux,
+				       DP_LANE0_1_STATUS,
+				       link_status,
+				       DP_LINK_STATUS_SIZE);
+
+		if (ret < 0)
+			return ret;
+
+		WARN_ON(ret != DP_LINK_STATUS_SIZE);
+
+		return 0;
+	}
+
+	ret = drm_dp_dpcd_read(aux,
+			       DP_LANE0_1_STATUS_PHY_REPEATER(dp_phy),
+			       link_status,
+			       DP_LINK_STATUS_SIZE - 1);
+
+	if (ret < 0)
+		return ret;
+
+	WARN_ON(ret != DP_LINK_STATUS_SIZE - 1);
+
+	/* Convert the LTTPR to the sink PHY link status layout */
+	memmove(&link_status[DP_SINK_STATUS - DP_LANE0_1_STATUS + 1],
+		&link_status[DP_SINK_STATUS - DP_LANE0_1_STATUS],
+		DP_LINK_STATUS_SIZE - (DP_SINK_STATUS - DP_LANE0_1_STATUS) - 1);
+	link_status[DP_SINK_STATUS - DP_LANE0_1_STATUS] = 0;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_dpcd_read_phy_link_status);
 
 static bool is_edid_digital_input_dp(const struct edid *edid)
 {
@@ -2097,6 +2174,153 @@ int drm_dp_dsc_sink_supported_input_bpcs(const u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_S
 	return num_bpc;
 }
 EXPORT_SYMBOL(drm_dp_dsc_sink_supported_input_bpcs);
+
+/**
+ * drm_dp_read_lttpr_common_caps - read the LTTPR common capabilities
+ * @aux: DisplayPort AUX channel
+ * @caps: buffer to return the capability info in
+ *
+ * Read capabilities common to all LTTPRs.
+ *
+ * Returns 0 on success or a negative error code on failure.
+ */
+int drm_dp_read_lttpr_common_caps(struct drm_dp_aux *aux,
+				  u8 caps[DP_LTTPR_COMMON_CAP_SIZE])
+{
+	int ret;
+
+	ret = drm_dp_dpcd_read(aux,
+			       DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV,
+			       caps, DP_LTTPR_COMMON_CAP_SIZE);
+	if (ret < 0)
+		return ret;
+
+	WARN_ON(ret != DP_LTTPR_COMMON_CAP_SIZE);
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_read_lttpr_common_caps);
+
+/**
+ * drm_dp_read_lttpr_phy_caps - read the capabilities for a given LTTPR PHY
+ * @aux: DisplayPort AUX channel
+ * @dp_phy: LTTPR PHY to read the capabilities for
+ * @caps: buffer to return the capability info in
+ *
+ * Read the capabilities for the given LTTPR PHY.
+ *
+ * Returns 0 on success or a negative error code on failure.
+ */
+int drm_dp_read_lttpr_phy_caps(struct drm_dp_aux *aux,
+			       enum drm_dp_phy dp_phy,
+			       u8 caps[DP_LTTPR_PHY_CAP_SIZE])
+{
+	int ret;
+
+	ret = drm_dp_dpcd_read(aux,
+			       DP_TRAINING_AUX_RD_INTERVAL_PHY_REPEATER(dp_phy),
+			       caps, DP_LTTPR_PHY_CAP_SIZE);
+	if (ret < 0)
+		return ret;
+
+	WARN_ON(ret != DP_LTTPR_PHY_CAP_SIZE);
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_read_lttpr_phy_caps);
+
+static u8 dp_lttpr_common_cap(const u8 caps[DP_LTTPR_COMMON_CAP_SIZE], int r)
+{
+	return caps[r - DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
+}
+
+/**
+ * drm_dp_lttpr_count - get the number of detected LTTPRs
+ * @caps: LTTPR common capabilities
+ *
+ * Get the number of detected LTTPRs from the LTTPR common capabilities info.
+ *
+ * Returns:
+ *   -ERANGE if more than supported number (8) of LTTPRs are detected
+ *   -EINVAL if the DP_PHY_REPEATER_CNT register contains an invalid value
+ *   otherwise the number of detected LTTPRs
+ */
+int drm_dp_lttpr_count(const u8 caps[DP_LTTPR_COMMON_CAP_SIZE])
+{
+	u8 count = dp_lttpr_common_cap(caps, DP_PHY_REPEATER_CNT);
+
+	switch (hweight8(count)) {
+	case 0:
+		return 0;
+	case 1:
+		return 8 - ilog2(count);
+	case 8:
+		return -ERANGE;
+	default:
+		return -EINVAL;
+	}
+}
+EXPORT_SYMBOL(drm_dp_lttpr_count);
+
+/**
+ * drm_dp_lttpr_max_link_rate - get the maximum link rate supported by all LTTPRs
+ * @caps: LTTPR common capabilities
+ *
+ * Returns the maximum link rate supported by all detected LTTPRs.
+ */
+int drm_dp_lttpr_max_link_rate(const u8 caps[DP_LTTPR_COMMON_CAP_SIZE])
+{
+	u8 rate = dp_lttpr_common_cap(caps, DP_MAX_LINK_RATE_PHY_REPEATER);
+
+	return drm_dp_bw_code_to_link_rate(rate);
+}
+EXPORT_SYMBOL(drm_dp_lttpr_max_link_rate);
+
+/**
+ * drm_dp_lttpr_max_lane_count - get the maximum lane count supported by all LTTPRs
+ * @caps: LTTPR common capabilities
+ *
+ * Returns the maximum lane count supported by all detected LTTPRs.
+ */
+int drm_dp_lttpr_max_lane_count(const u8 caps[DP_LTTPR_COMMON_CAP_SIZE])
+{
+	u8 max_lanes = dp_lttpr_common_cap(caps, DP_MAX_LANE_COUNT_PHY_REPEATER);
+
+	return max_lanes & DP_MAX_LANE_COUNT_MASK;
+}
+EXPORT_SYMBOL(drm_dp_lttpr_max_lane_count);
+
+/**
+ * drm_dp_lttpr_voltage_swing_level_3_supported - check for LTTPR vswing3 support
+ * @caps: LTTPR PHY capabilities
+ *
+ * Returns true if the @caps for an LTTPR TX PHY indicate support for
+ * voltage swing level 3.
+ */
+bool
+drm_dp_lttpr_voltage_swing_level_3_supported(const u8 caps[DP_LTTPR_PHY_CAP_SIZE])
+{
+	u8 txcap = dp_lttpr_phy_cap(caps, DP_TRANSMITTER_CAPABILITY_PHY_REPEATER1);
+
+	return txcap & DP_VOLTAGE_SWING_LEVEL_3_SUPPORTED;
+}
+EXPORT_SYMBOL(drm_dp_lttpr_voltage_swing_level_3_supported);
+
+/**
+ * drm_dp_lttpr_pre_emphasis_level_3_supported - check for LTTPR preemph3 support
+ * @caps: LTTPR PHY capabilities
+ *
+ * Returns true if the @caps for an LTTPR TX PHY indicate support for
+ * pre-emphasis level 3.
+ */
+bool
+drm_dp_lttpr_pre_emphasis_level_3_supported(const u8 caps[DP_LTTPR_PHY_CAP_SIZE])
+{
+	u8 txcap = dp_lttpr_phy_cap(caps, DP_TRANSMITTER_CAPABILITY_PHY_REPEATER1);
+
+	return txcap & DP_PRE_EMPHASIS_LEVEL_3_SUPPORTED;
+}
+EXPORT_SYMBOL(drm_dp_lttpr_pre_emphasis_level_3_supported);
 
 /**
  * drm_dp_get_phy_test_pattern() - get the requested pattern from the sink.
