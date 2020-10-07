@@ -57,7 +57,7 @@ major.
 
 .. code-block:: bash
 
-   # ls -la /dev/hda? /dev/ttyS?
+   $ ls -la /dev/hda? /dev/ttyS?
    brw-rw----  1 root disk    3,  1 2004-09-18 14:51 /dev/hda1
    brw-rw----  1 root disk    3,  2 2004-09-18 14:51 /dev/hda2
    crw-rw----  1 root dialout 4, 64 2004-09-18 14:52 /dev/ttyS0
@@ -82,14 +82,14 @@ named ``mycdev`` with the major ``42`` and minor ``0``, use the command:
 
 .. code-block:: bash
 
-   $ mknod /dev/mycdev c 42 0
+   # mknod /dev/mycdev c 42 0
 
 To create the block device with the name ``mybdev`` with the major 240 and minor 0
 the command will be:
 
 .. code-block:: bash
 
-   $ # mknod /dev/mybdev b 240 0
+   # mknod /dev/mybdev b 240 0
 
 Next, we'll refer to character devices as drivers.
 
