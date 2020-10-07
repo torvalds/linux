@@ -742,7 +742,7 @@ static irqreturn_t zynqmp_dma_irq_handler(int irq, void *data)
 
 /**
  * zynqmp_dma_do_tasklet - Schedule completion tasklet
- * @data: Pointer to the ZynqMP DMA channel structure
+ * @t: Pointer to the ZynqMP DMA channel structure
  */
 static void zynqmp_dma_do_tasklet(struct tasklet_struct *t)
 {
