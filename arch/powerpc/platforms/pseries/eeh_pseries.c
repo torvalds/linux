@@ -363,7 +363,6 @@ void pseries_eeh_init_edev(struct pci_dn *pdn)
 {
 	struct eeh_pe pe, *parent;
 	struct eeh_dev *edev;
-	int addr;
 	u32 pcie_flags;
 	int ret;
 
@@ -422,8 +421,8 @@ void pseries_eeh_init_edev(struct pci_dn *pdn)
 	}
 
 	/* first up, find the pe_config_addr for the PE containing the device */
-	addr = pseries_eeh_get_pe_config_addr(pdn);
-	if (addr < 0) {
+	ret = pseries_eeh_get_pe_config_addr(pdn);
+	if (ret < 0) {
 		eeh_edev_dbg(edev, "Unable to find pe_config_addr\n");
 		goto err;
 	}
@@ -431,7 +430,7 @@ void pseries_eeh_init_edev(struct pci_dn *pdn)
 	/* Try enable EEH on the fake PE */
 	memset(&pe, 0, sizeof(struct eeh_pe));
 	pe.phb = pdn->phb;
-	pe.addr = addr;
+	pe.addr = ret;
 
 	eeh_edev_dbg(edev, "Enabling EEH on device\n");
 	ret = eeh_ops->set_option(&pe, EEH_OPT_ENABLE);
@@ -440,7 +439,7 @@ void pseries_eeh_init_edev(struct pci_dn *pdn)
 		goto err;
 	}
 
-	edev->pe_config_addr = addr;
+	edev->pe_config_addr = pe.addr;
 
 	eeh_add_flag(EEH_ENABLED);
 
