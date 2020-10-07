@@ -1851,7 +1851,9 @@ static int dcmi_probe(struct platform_device *pdev)
 
 	dcmi->rstc = devm_reset_control_get_exclusive(&pdev->dev, NULL);
 	if (IS_ERR(dcmi->rstc)) {
-		dev_err(&pdev->dev, "Could not get reset control\n");
+		if (PTR_ERR(dcmi->rstc) != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "Could not get reset control\n");
+
 		return PTR_ERR(dcmi->rstc);
 	}
 
