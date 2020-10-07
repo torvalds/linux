@@ -3090,7 +3090,8 @@ static int ccs_get_hwconfig(struct ccs_sensor *sensor, struct device *dev)
 	int i;
 	int rval;
 
-	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
+	ep = fwnode_graph_get_endpoint_by_id(fwnode, 0, 0,
+					     FWNODE_GRAPH_ENDPOINT_NEXT);
 	if (!ep)
 		return -ENODEV;
 
