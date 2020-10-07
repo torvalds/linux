@@ -364,6 +364,42 @@ static void dw_spi_irq_setup(struct dw_spi *dws)
 	dws->transfer_handler = dw_spi_transfer_handler;
 }
 
+/*
+ * The iterative procedure of the poll-based transfer is simple: write as much
+ * as possible to the Tx FIFO, wait until the pending to receive data is ready
+ * to be read, read it from the Rx FIFO and check whether the performed
+ * procedure has been successful.
+ *
+ * Note this method the same way as the IRQ-based transfer won't work well for
+ * the SPI devices connected to the controller with native CS due to the
+ * automatic CS assertion/de-assertion.
+ */
+static int dw_spi_poll_transfer(struct dw_spi *dws,
+				struct spi_transfer *transfer)
+{
+	struct spi_delay delay;
+	u16 nbits;
+	int ret;
+
+	delay.unit = SPI_DELAY_UNIT_SCK;
+	nbits = dws->n_bytes * BITS_PER_BYTE;
+
+	do {
+		dw_writer(dws);
+
+		delay.value = nbits * (dws->rx_len - dws->tx_len);
+		spi_delay_exec(&delay, transfer);
+
+		dw_reader(dws);
+
+		ret = dw_spi_check_status(dws, true);
+		if (ret)
+			return ret;
+	} while (dws->rx_len);
+
+	return 0;
+}
+
 static int dw_spi_transfer_one(struct spi_controller *master,
 		struct spi_device *spi, struct spi_transfer *transfer)
 {
@@ -408,6 +444,8 @@ static int dw_spi_transfer_one(struct spi_controller *master,
 
 	if (dws->dma_mapped)
 		return dws->dma_ops->dma_transfer(dws, transfer);
+	else if (dws->irq == IRQ_NOTCONNECTED)
+		return dw_spi_poll_transfer(dws, transfer);
 
 	dw_spi_irq_setup(dws);
 
@@ -817,7 +855,7 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 
 	ret = request_irq(dws->irq, dw_spi_irq, IRQF_SHARED, dev_name(dev),
 			  master);
-	if (ret < 0) {
+	if (ret < 0 && ret != -ENOTCONN) {
 		dev_err(dev, "can not get IRQ\n");
 		goto err_free_master;
 	}
