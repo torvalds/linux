@@ -367,6 +367,14 @@ static int devfreq_set_target(struct devfreq *devfreq, unsigned long new_freq,
 		return err;
 	}
 
+	/*
+	 * Print devfreq_frequency trace information between DEVFREQ_PRECHANGE
+	 * and DEVFREQ_POSTCHANGE because for showing the correct frequency
+	 * change order of between devfreq device and passive devfreq device.
+	 */
+	if (trace_devfreq_frequency_enabled() && new_freq != cur_freq)
+		trace_devfreq_frequency(devfreq, new_freq, cur_freq);
+
 	freqs.new = new_freq;
 	devfreq_notify_transition(devfreq, &freqs, DEVFREQ_POSTCHANGE);
 
