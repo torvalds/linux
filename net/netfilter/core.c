@@ -311,6 +311,20 @@ nf_hook_entry_head(struct net *net, int pf, unsigned int hooknum,
 	return NULL;
 }
 
+static void nf_static_key_inc(const struct nf_hook_ops *reg, int pf)
+{
+#ifdef CONFIG_JUMP_LABEL
+       static_key_slow_inc(&nf_hooks_needed[pf][reg->hooknum]);
+#endif
+}
+
+static void nf_static_key_dec(const struct nf_hook_ops *reg, int pf)
+{
+#ifdef CONFIG_JUMP_LABEL
+       static_key_slow_dec(&nf_hooks_needed[pf][reg->hooknum]);
+#endif
+}
+
 static int __nf_register_net_hook(struct net *net, int pf,
 				  const struct nf_hook_ops *reg)
 {
@@ -348,9 +362,8 @@ static int __nf_register_net_hook(struct net *net, int pf,
 	if (pf == NFPROTO_NETDEV && reg->hooknum == NF_NETDEV_INGRESS)
 		net_inc_ingress_queue();
 #endif
-#ifdef CONFIG_JUMP_LABEL
-	static_key_slow_inc(&nf_hooks_needed[pf][reg->hooknum]);
-#endif
+	nf_static_key_inc(reg, pf);
+
 	BUG_ON(p == new_hooks);
 	nf_hook_entries_free(p);
 	return 0;
@@ -406,9 +419,7 @@ static void __nf_unregister_net_hook(struct net *net, int pf,
 		if (pf == NFPROTO_NETDEV && reg->hooknum == NF_NETDEV_INGRESS)
 			net_dec_ingress_queue();
 #endif
-#ifdef CONFIG_JUMP_LABEL
-		static_key_slow_dec(&nf_hooks_needed[pf][reg->hooknum]);
-#endif
+		nf_static_key_dec(reg, pf);
 	} else {
 		WARN_ONCE(1, "hook not found, pf %d num %d", pf, reg->hooknum);
 	}
