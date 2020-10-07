@@ -1044,7 +1044,7 @@ static void xilinx_dma_chan_desc_cleanup(struct xilinx_dma_chan *chan)
 
 /**
  * xilinx_dma_do_tasklet - Schedule completion tasklet
- * @data: Pointer to the Xilinx DMA channel structure
+ * @t: Pointer to the Xilinx DMA channel structure
  */
 static void xilinx_dma_do_tasklet(struct tasklet_struct *t)
 {
