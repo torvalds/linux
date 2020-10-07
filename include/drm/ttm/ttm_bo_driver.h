@@ -450,15 +450,6 @@ int ttm_bo_device_init(struct ttm_bo_device *bdev,
 void ttm_bo_unmap_virtual(struct ttm_buffer_object *bo);
 
 /**
- * ttm_bo_unmap_virtual
- *
- * @bo: tear down the virtual mappings for this BO
- *
- * The caller must take ttm_mem_io_lock before calling this function.
- */
-void ttm_bo_unmap_virtual_locked(struct ttm_buffer_object *bo);
-
-/**
  * ttm_bo_reserve:
  *
  * @bo: A pointer to a struct ttm_buffer_object.
