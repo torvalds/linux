@@ -84,16 +84,4 @@ extern int verify_signature(const struct key *,
 int public_key_verify_signature(const struct public_key *pkey,
 				const struct public_key_signature *sig);
 
-#if IS_REACHABLE(CONFIG_CRYPTO_SM2)
-int cert_sig_digest_update(const struct public_key_signature *sig,
-				struct crypto_akcipher *tfm_pkey);
-#else
-static inline
-int cert_sig_digest_update(const struct public_key_signature *sig,
-				struct crypto_akcipher *tfm_pkey)
-{
-	return -ENOTSUPP;
-}
-#endif
-
 #endif /* _LINUX_PUBLIC_KEY_H */
