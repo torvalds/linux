@@ -68,6 +68,7 @@
 #define   SX9310_REG_PROX_CTRL7_AVGNEGFILT_2		(0x01 << 3)
 #define   SX9310_REG_PROX_CTRL7_AVGPOSFILT_512		0x05
 #define SX9310_REG_PROX_CTRL8				0x18
+#define   SX9310_REG_PROX_CTRL8_9_PTHRESH_MASK		GENMASK(7, 3)
 #define SX9310_REG_PROX_CTRL9				0x19
 #define   SX9310_REG_PROX_CTRL8_9_PTHRESH_28		(0x08 << 3)
 #define   SX9310_REG_PROX_CTRL8_9_PTHRESH_96		(0x11 << 3)
@@ -531,6 +532,117 @@ static int sx9310_read_avail(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
+static const unsigned int sx9310_pthresh_codes[] = {
+	2, 4, 6, 8, 12, 16, 20, 24, 28, 32, 40, 48, 56, 64, 72, 80, 88, 96, 112,
+	128, 144, 160, 192, 224, 256, 320, 384, 512, 640, 768, 1024, 1536
+};
+
+static int sx9310_get_thresh_reg(unsigned int channel)
+{
+	switch (channel) {
+	case 0:
+	case 3:
+		return SX9310_REG_PROX_CTRL8;
+	case 1:
+	case 2:
+		return SX9310_REG_PROX_CTRL9;
+	}
+
+	return -EINVAL;
+}
+
+static int sx9310_read_thresh(struct sx9310_data *data,
+			      const struct iio_chan_spec *chan, int *val)
+{
+	unsigned int reg;
+	unsigned int regval;
+	int ret;
+
+	reg = ret = sx9310_get_thresh_reg(chan->channel);
+	if (ret < 0)
+		return ret;
+
+	ret = regmap_read(data->regmap, reg, &regval);
+	if (ret)
+		return ret;
+
+	regval = FIELD_GET(SX9310_REG_PROX_CTRL8_9_PTHRESH_MASK, regval);
+	if (regval > ARRAY_SIZE(sx9310_pthresh_codes))
+		return -EINVAL;
+
+	*val = sx9310_pthresh_codes[regval];
+	return IIO_VAL_INT;
+}
+
+static int sx9310_read_event_val(struct iio_dev *indio_dev,
+				 const struct iio_chan_spec *chan,
+				 enum iio_event_type type,
+				 enum iio_event_direction dir,
+				 enum iio_event_info info, int *val, int *val2)
+{
+	struct sx9310_data *data = iio_priv(indio_dev);
+
+	if (chan->type != IIO_PROXIMITY)
+		return -EINVAL;
+
+	switch (info) {
+	case IIO_EV_INFO_VALUE:
+		return sx9310_read_thresh(data, chan, val);
+	default:
+		return -EINVAL;
+	}
+}
+
+static int sx9310_write_thresh(struct sx9310_data *data,
+			       const struct iio_chan_spec *chan, int val)
+{
+	unsigned int reg;
+	unsigned int regval;
+	int ret, i;
+
+	reg = ret = sx9310_get_thresh_reg(chan->channel);
+	if (ret < 0)
+		return ret;
+
+	for (i = 0; i < ARRAY_SIZE(sx9310_pthresh_codes); i++) {
+		if (sx9310_pthresh_codes[i] == val) {
+			regval = i;
+			break;
+		}
+	}
+
+	if (i == ARRAY_SIZE(sx9310_pthresh_codes))
+		return -EINVAL;
+
+	regval = FIELD_PREP(SX9310_REG_PROX_CTRL8_9_PTHRESH_MASK, regval);
+	mutex_lock(&data->mutex);
+	ret = regmap_update_bits(data->regmap, reg,
+				 SX9310_REG_PROX_CTRL8_9_PTHRESH_MASK, regval);
+	mutex_unlock(&data->mutex);
+
+	return ret;
+}
+
+
+static int sx9310_write_event_val(struct iio_dev *indio_dev,
+				  const struct iio_chan_spec *chan,
+				  enum iio_event_type type,
+				  enum iio_event_direction dir,
+				  enum iio_event_info info, int val, int val2)
+{
+	struct sx9310_data *data = iio_priv(indio_dev);
+
+	if (chan->type != IIO_PROXIMITY)
+		return -EINVAL;
+
+	switch (info) {
+	case IIO_EV_INFO_VALUE:
+		return sx9310_write_thresh(data, chan, val);
+	default:
+		return -EINVAL;
+	}
+}
+
 static int sx9310_set_samp_freq(struct sx9310_data *data, int val, int val2)
 {
 	int i, ret;
@@ -744,6 +856,8 @@ static const struct iio_info sx9310_info = {
 	.attrs = &sx9310_attribute_group,
 	.read_raw = sx9310_read_raw,
 	.read_avail = sx9310_read_avail,
+	.read_event_value = sx9310_read_event_val,
+	.write_event_value = sx9310_write_event_val,
 	.write_raw = sx9310_write_raw,
 	.read_event_config = sx9310_read_event_config,
 	.write_event_config = sx9310_write_event_config,
