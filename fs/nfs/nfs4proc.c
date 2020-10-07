@@ -63,6 +63,7 @@
 #include "callback.h"
 #include "pnfs.h"
 #include "netns.h"
+#include "sysfs.h"
 #include "nfs4idmap.h"
 #include "nfs4session.h"
 #include "fscache.h"
@@ -6094,11 +6095,23 @@ static void nfs4_init_boot_verifier(const struct nfs_client *clp,
 }
 
 static size_t
-nfs4_get_uniquifier(char *buf, size_t buflen)
+nfs4_get_uniquifier(struct nfs_client *clp, char *buf, size_t buflen)
 {
+	struct nfs_net *nn = net_generic(clp->cl_net, nfs_net_id);
+	struct nfs_netns_client *nn_clp = nn->nfs_client;
+	const char *id;
+
 	buf[0] = '\0';
 
-	if (nfs4_client_id_uniquifier[0] != '\0')
+	if (nn_clp) {
+		rcu_read_lock();
+		id = rcu_dereference(nn_clp->identifier);
+		if (id)
+			strscpy(buf, id, buflen);
+		rcu_read_unlock();
+	}
+
+	if (nfs4_client_id_uniquifier[0] != '\0' && buf[0] == '\0')
 		strscpy(buf, nfs4_client_id_uniquifier, buflen);
 
 	return strlen(buf);
@@ -6123,7 +6136,7 @@ nfs4_init_nonuniform_client_string(struct nfs_client *clp)
 		1;
 	rcu_read_unlock();
 
-	buflen = nfs4_get_uniquifier(buf, sizeof(buf));
+	buflen = nfs4_get_uniquifier(clp, buf, sizeof(buf));
 	if (buflen)
 		len += buflen + 1;
 
@@ -6170,7 +6183,7 @@ nfs4_init_uniform_client_string(struct nfs_client *clp)
 	len = 10 + 10 + 1 + 10 + 1 +
 		strlen(clp->cl_rpcclient->cl_nodename) + 1;
 
-	buflen = nfs4_get_uniquifier(buf, sizeof(buf));
+	buflen = nfs4_get_uniquifier(clp, buf, sizeof(buf));
 	if (buflen)
 		len += buflen + 1;
 
