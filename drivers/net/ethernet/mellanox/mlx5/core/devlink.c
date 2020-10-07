@@ -111,6 +111,25 @@ out:
 	return err;
 }
 
+static int mlx5_devlink_trigger_fw_live_patch(struct devlink *devlink,
+					      struct netlink_ext_ack *extack)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+	u8 reset_level;
+	int err;
+
+	err = mlx5_fw_reset_query(dev, &reset_level, NULL);
+	if (err)
+		return err;
+	if (!(reset_level & MLX5_MFRL_REG_RESET_LEVEL0)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "FW upgrade to the stored FW can't be done by FW live patching");
+		return -EINVAL;
+	}
+
+	return mlx5_fw_reset_set_live_patch(dev);
+}
+
 static int mlx5_devlink_reload_down(struct devlink *devlink, bool netns_change,
 				    enum devlink_reload_action action,
 				    enum devlink_reload_limit limit,
@@ -123,6 +142,8 @@ static int mlx5_devlink_reload_down(struct devlink *devlink, bool netns_change,
 		mlx5_unload_one(dev, false);
 		return 0;
 	case DEVLINK_RELOAD_ACTION_FW_ACTIVATE:
+		if (limit == DEVLINK_RELOAD_LIMIT_NO_RESET)
+			return mlx5_devlink_trigger_fw_live_patch(devlink, extack);
 		return mlx5_devlink_reload_fw_activate(devlink, extack);
 	default:
 		/* Unsupported action should not get to this function */
@@ -140,7 +161,10 @@ static int mlx5_devlink_reload_up(struct devlink *devlink, enum devlink_reload_a
 	*actions_performed = BIT(action);
 	switch (action) {
 	case DEVLINK_RELOAD_ACTION_DRIVER_REINIT:
+		return mlx5_load_one(dev, false);
 	case DEVLINK_RELOAD_ACTION_FW_ACTIVATE:
+		if (limit == DEVLINK_RELOAD_LIMIT_NO_RESET)
+			break;
 		/* On fw_activate action, also driver is reloaded and reinit performed */
 		*actions_performed |= BIT(DEVLINK_RELOAD_ACTION_DRIVER_REINIT);
 		return mlx5_load_one(dev, false);
@@ -168,6 +192,7 @@ static const struct devlink_ops mlx5_devlink_ops = {
 	.info_get = mlx5_devlink_info_get,
 	.reload_actions = BIT(DEVLINK_RELOAD_ACTION_DRIVER_REINIT) |
 			  BIT(DEVLINK_RELOAD_ACTION_FW_ACTIVATE),
+	.reload_limits = BIT(DEVLINK_RELOAD_LIMIT_NO_RESET),
 	.reload_down = mlx5_devlink_reload_down,
 	.reload_up = mlx5_devlink_reload_up,
 };
