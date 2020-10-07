@@ -90,8 +90,6 @@ Some properties are recognized either by SPI and SDIO versions:
    this property, driver will disable most of power saving features.
  - config-file: Use an alternative file as PDS. Default is `wf200.pds`. Only
    necessary for development/debug purpose.
- - slk_key: String representing hexadecimal value of secure link key to use.
-   Must contains 64 hexadecimal digits. Not supported in current version.
 
 WFx driver also supports `mac-address` and `local-mac-address` as described in
 Documentation/devicetree/bindings/net/ethernet.txt
