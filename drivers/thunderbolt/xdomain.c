@@ -961,10 +961,8 @@ static void tb_xdomain_get_uuid(struct work_struct *work)
 		return;
 	}
 
-	if (uuid_equal(&uuid, xd->local_uuid)) {
+	if (uuid_equal(&uuid, xd->local_uuid))
 		dev_dbg(&xd->dev, "intra-domain loop detected\n");
-		return;
-	}
 
 	/*
 	 * If the UUID is different, there is another domain connected
