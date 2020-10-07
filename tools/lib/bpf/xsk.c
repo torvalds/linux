@@ -705,7 +705,7 @@ int xsk_socket__create_shared(struct xsk_socket **xsk_ptr,
 	struct xsk_ctx *ctx;
 	int err, ifindex;
 
-	if (!umem || !xsk_ptr || !(rx || tx) || !fill || !comp)
+	if (!umem || !xsk_ptr || !(rx || tx))
 		return -EFAULT;
 
 	xsk = calloc(1, sizeof(*xsk));
@@ -735,6 +735,11 @@ int xsk_socket__create_shared(struct xsk_socket **xsk_ptr,
 
 	ctx = xsk_get_ctx(umem, ifindex, queue_id);
 	if (!ctx) {
+		if (!fill || !comp) {
+			err = -EFAULT;
+			goto out_socket;
+		}
+
 		ctx = xsk_create_ctx(xsk, umem, ifindex, ifname, queue_id,
 				     fill, comp);
 		if (!ctx) {
