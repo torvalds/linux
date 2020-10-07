@@ -13,9 +13,7 @@ static int ice_info_get_dsn(struct ice_pf *pf, char *buf, size_t len)
 	/* Copy the DSN into an array in Big Endian format */
 	put_unaligned_be64(pci_get_dsn(pf->pdev), dsn);
 
-	snprintf(buf, len, "%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x",
-		 dsn[0], dsn[1], dsn[2], dsn[3],
-		 dsn[4], dsn[5], dsn[6], dsn[7]);
+	snprintf(buf, len, "%8phD", dsn);
 
 	return 0;
 }
