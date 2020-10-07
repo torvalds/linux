@@ -364,50 +364,60 @@ void ice_devlink_unregister(struct ice_pf *pf)
 }
 
 /**
- * ice_devlink_create_port - Create a devlink port for this PF
- * @pf: the PF to create a port for
+ * ice_devlink_create_port - Create a devlink port for this VSI
+ * @vsi: the VSI to create a port for
  *
- * Create and register a devlink_port for this PF. Note that although each
- * physical function is connected to a separate devlink instance, the port
- * will still be numbered according to the physical function ID.
+ * Create and register a devlink_port for this VSI.
  *
  * Return: zero on success or an error code on failure.
  */
-int ice_devlink_create_port(struct ice_pf *pf)
+int ice_devlink_create_port(struct ice_vsi *vsi)
 {
-	struct devlink *devlink = priv_to_devlink(pf);
-	struct ice_vsi *vsi = ice_get_main_vsi(pf);
-	struct device *dev = ice_pf_to_dev(pf);
 	struct devlink_port_attrs attrs = {};
+	struct ice_port_info *pi;
+	struct devlink *devlink;
+	struct device *dev;
+	struct ice_pf *pf;
 	int err;
 
-	if (!vsi) {
-		dev_err(dev, "%s: unable to find main VSI\n", __func__);
-		return -EIO;
-	}
+	/* Currently we only create devlink_port instances for PF VSIs */
+	if (vsi->type != ICE_VSI_PF)
+		return -EINVAL;
+
+	pf = vsi->back;
+	devlink = priv_to_devlink(pf);
+	dev = ice_pf_to_dev(pf);
+	pi = pf->hw.port_info;
 
 	attrs.flavour = DEVLINK_PORT_FLAVOUR_PHYSICAL;
-	attrs.phys.port_number = pf->hw.pf_id;
-	devlink_port_attrs_set(&pf->devlink_port, &attrs);
-	err = devlink_port_register(devlink, &pf->devlink_port, pf->hw.pf_id);
+	attrs.phys.port_number = pi->lport;
+	devlink_port_attrs_set(&vsi->devlink_port, &attrs);
+	err = devlink_port_register(devlink, &vsi->devlink_port, vsi->idx);
 	if (err) {
 		dev_err(dev, "devlink_port_register failed: %d\n", err);
 		return err;
 	}
 
+	vsi->devlink_port_registered = true;
+
 	return 0;
 }
 
 /**
- * ice_devlink_destroy_port - Destroy the devlink_port for this PF
- * @pf: the PF to cleanup
+ * ice_devlink_destroy_port - Destroy the devlink_port for this VSI
+ * @vsi: the VSI to cleanup
  *
- * Unregisters the devlink_port structure associated with this PF.
+ * Unregisters the devlink_port structure associated with this VSI.
  */
-void ice_devlink_destroy_port(struct ice_pf *pf)
+void ice_devlink_destroy_port(struct ice_vsi *vsi)
 {
-	devlink_port_type_clear(&pf->devlink_port);
-	devlink_port_unregister(&pf->devlink_port);
+	if (!vsi->devlink_port_registered)
+		return;
+
+	devlink_port_type_clear(&vsi->devlink_port);
+	devlink_port_unregister(&vsi->devlink_port);
+
+	vsi->devlink_port_registered = false;
 }
 
 /**
