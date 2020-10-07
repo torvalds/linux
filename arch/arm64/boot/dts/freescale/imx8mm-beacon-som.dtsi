@@ -211,6 +211,7 @@
 		host-wakeup-gpios = <&gpio2 8 GPIO_ACTIVE_HIGH>;
 		device-wakeup-gpios = <&gpio2 7 GPIO_ACTIVE_HIGH>;
 		clocks = <&osc_32k>;
+		max-speed = <4000000>;
 		clock-names = "extclk";
 	};
 };
