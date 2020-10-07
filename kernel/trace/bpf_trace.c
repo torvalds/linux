@@ -1780,7 +1780,9 @@ const struct bpf_verifier_ops raw_tracepoint_verifier_ops = {
 };
 
 const struct bpf_prog_ops raw_tracepoint_prog_ops = {
+#ifdef CONFIG_NET
 	.test_run = bpf_prog_test_run_raw_tp,
+#endif
 };
 
 const struct bpf_verifier_ops tracing_verifier_ops = {
