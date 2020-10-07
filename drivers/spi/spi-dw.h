@@ -8,6 +8,7 @@
 #include <linux/irqreturn.h>
 #include <linux/io.h>
 #include <linux/scatterlist.h>
+#include <linux/spi/spi-mem.h>
 
 /* Register offsets */
 #define DW_SPI_CTRLR0			0x00
@@ -78,6 +79,9 @@
  */
 #define DWC_SSI_CTRLR0_KEEMBAY_MST	BIT(31)
 
+/* Bit fields in CTRLR1 */
+#define SPI_NDF_MASK			GENMASK(15, 0)
+
 /* Bit fields in SR, 7 bits */
 #define SR_MASK				0x7f		/* cover 7 bits */
 #define SR_BUSY				(1 << 0)
@@ -101,6 +105,11 @@
 #define SPI_DMA_TDMAE			(1 << 1)
 
 #define SPI_WAIT_RETRIES		5
+#define SPI_BUF_SIZE \
+	(sizeof_field(struct spi_mem_op, cmd.opcode) + \
+	 sizeof_field(struct spi_mem_op, addr.val) + 256)
+#define SPI_GET_BYTE(_val, _idx) \
+	((_val) >> (BITS_PER_BYTE * (_idx)) & 0xff)
 
 enum dw_ssi_type {
 	SSI_MOTO_SPI = 0,
@@ -153,12 +162,16 @@ struct dw_spi {
 	unsigned int		tx_len;
 	void			*rx;
 	unsigned int		rx_len;
+	u8			buf[SPI_BUF_SIZE];
 	int			dma_mapped;
 	u8			n_bytes;	/* current is a 1/2 bytes op */
 	irqreturn_t		(*transfer_handler)(struct dw_spi *dws);
 	u32			current_freq;	/* frequency in hz */
 	u32			cur_rx_sample_dly;
 	u32			def_rx_sample_dly_ns;
+
+	/* Custom memory operations */
+	struct spi_controller_mem_ops mem_ops;
 
 	/* DMA info */
 	struct dma_chan		*txchan;

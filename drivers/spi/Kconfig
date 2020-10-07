@@ -235,6 +235,7 @@ config SPI_DAVINCI
 
 config SPI_DESIGNWARE
 	tristate "DesignWare SPI controller core support"
+	imply SPI_MEM
 	help
 	  general driver for SPI controller core from DesignWare
 
