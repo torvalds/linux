@@ -94,26 +94,18 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 			u8 dp_train_pat)
 {
 	u8 buf[sizeof(intel_dp->train_set) + 1];
-	int ret, len;
+	int len;
 
 	intel_dp_program_link_training_pattern(intel_dp, crtc_state,
 					       dp_train_pat);
 
 	buf[0] = dp_train_pat;
-	if (intel_dp_training_pattern_symbol(dp_train_pat) ==
-	    DP_TRAINING_PATTERN_DISABLE) {
-		/* don't write DP_TRAINING_LANEx_SET on disable */
-		len = 1;
-	} else {
-		/* DP_TRAINING_LANEx_SET follow DP_TRAINING_PATTERN_SET */
-		memcpy(buf + 1, intel_dp->train_set, crtc_state->lane_count);
-		len = crtc_state->lane_count + 1;
-	}
+	/* DP_TRAINING_LANEx_SET follow DP_TRAINING_PATTERN_SET */
+	memcpy(buf + 1, intel_dp->train_set, crtc_state->lane_count);
+	len = crtc_state->lane_count + 1;
 
-	ret = drm_dp_dpcd_write(&intel_dp->aux, DP_TRAINING_PATTERN_SET,
-				buf, len);
-
-	return ret == len;
+	return drm_dp_dpcd_write(&intel_dp->aux, DP_TRAINING_PATTERN_SET,
+				 buf, len) == len;
 }
 
 static bool
@@ -406,6 +398,13 @@ intel_dp_link_training_channel_equalization(struct intel_dp *intel_dp,
 	return channel_eq;
 }
 
+static bool intel_dp_disable_dpcd_training_pattern(struct intel_dp *intel_dp)
+{
+	u8 val = DP_TRAINING_PATTERN_DISABLE;
+
+	return drm_dp_dpcd_write(&intel_dp->aux, DP_TRAINING_PATTERN_SET, &val, 1) == 1;
+}
+
 /**
  * intel_dp_stop_link_train - stop link training
  * @intel_dp: DP struct
@@ -427,8 +426,10 @@ void intel_dp_stop_link_train(struct intel_dp *intel_dp,
 {
 	intel_dp->link_trained = true;
 
-	intel_dp_set_link_train(intel_dp, crtc_state,
-				DP_TRAINING_PATTERN_DISABLE);
+	intel_dp_program_link_training_pattern(intel_dp,
+					       crtc_state,
+					       DP_TRAINING_PATTERN_DISABLE);
+	intel_dp_disable_dpcd_training_pattern(intel_dp);
 }
 
 static bool
