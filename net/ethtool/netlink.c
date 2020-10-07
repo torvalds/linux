@@ -830,8 +830,8 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.cmd	= ETHTOOL_MSG_CHANNELS_SET,
 		.flags	= GENL_UNS_ADMIN_PERM,
 		.doit	= ethnl_set_channels,
-		.policy = ethnl_channels_get_policy,
-		.maxattr = ARRAY_SIZE(ethnl_channels_get_policy) - 1,
+		.policy = ethnl_channels_set_policy,
+		.maxattr = ARRAY_SIZE(ethnl_channels_set_policy) - 1,
 	},
 	{
 		.cmd	= ETHTOOL_MSG_COALESCE_GET,
