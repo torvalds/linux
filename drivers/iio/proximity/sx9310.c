@@ -16,6 +16,7 @@
 #include <linux/i2c.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
+#include <linux/log2.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/pm.h>
@@ -51,7 +52,9 @@
 #define   SX9310_REG_PROX_CTRL2_COMBMODE_CS1_CS2	(0x02 << 6)
 #define   SX9310_REG_PROX_CTRL2_SHIELDEN_DYNAMIC	(0x01 << 2)
 #define SX9310_REG_PROX_CTRL3				0x13
+#define   SX9310_REG_PROX_CTRL3_GAIN0_MASK		GENMASK(3, 2)
 #define   SX9310_REG_PROX_CTRL3_GAIN0_X8		(0x03 << 2)
+#define   SX9310_REG_PROX_CTRL3_GAIN12_MASK		GENMASK(1, 0)
 #define   SX9310_REG_PROX_CTRL3_GAIN12_X4		0x02
 #define SX9310_REG_PROX_CTRL4				0x14
 #define   SX9310_REG_PROX_CTRL4_RESOLUTION_FINEST	0x07
@@ -145,15 +148,18 @@ static const struct iio_event_spec sx9310_events[] = {
 	{
 		.type = IIO_EV_TYPE_THRESH,
 		.dir = IIO_EV_DIR_EITHER,
-		.mask_separate = BIT(IIO_EV_INFO_ENABLE),
+		.mask_separate = BIT(IIO_EV_INFO_ENABLE) | BIT(IIO_EV_INFO_VALUE),
 	},
 };
 
 #define SX9310_NAMED_CHANNEL(idx, name)					 \
 	{								 \
 		.type = IIO_PROXIMITY,					 \
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),		 \
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |		 \
+				      BIT(IIO_CHAN_INFO_HARDWAREGAIN),   \
 		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ), \
+		.info_mask_separate_available =				 \
+			BIT(IIO_CHAN_INFO_HARDWAREGAIN),		 \
 		.indexed = 1,						 \
 		.channel = idx,						 \
 		.extend_name = name,					 \
@@ -426,6 +432,34 @@ out:
 	return ret;
 }
 
+static int sx9310_read_gain(struct sx9310_data *data,
+			    const struct iio_chan_spec *chan, int *val)
+{
+	unsigned int regval, gain;
+	int ret;
+
+	ret = regmap_read(data->regmap, SX9310_REG_PROX_CTRL3, &regval);
+	if (ret)
+		return ret;
+
+	switch (chan->channel) {
+	case 0:
+	case 3:
+		gain = FIELD_GET(SX9310_REG_PROX_CTRL3_GAIN0_MASK, regval);
+		break;
+	case 1:
+	case 2:
+		gain = FIELD_GET(SX9310_REG_PROX_CTRL3_GAIN12_MASK, regval);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	*val = 1 << gain;
+
+	return IIO_VAL_INT;
+}
+
 static int sx9310_read_samp_freq(struct sx9310_data *data, int *val, int *val2)
 {
 	unsigned int regval;
@@ -461,11 +495,40 @@ static int sx9310_read_raw(struct iio_dev *indio_dev,
 		ret = sx9310_read_proximity(data, chan, val);
 		iio_device_release_direct_mode(indio_dev);
 		return ret;
+	case IIO_CHAN_INFO_HARDWAREGAIN:
+		ret = iio_device_claim_direct_mode(indio_dev);
+		if (ret)
+			return ret;
+
+		ret = sx9310_read_gain(data, chan, val);
+		iio_device_release_direct_mode(indio_dev);
+		return ret;
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		return sx9310_read_samp_freq(data, val, val2);
 	default:
 		return -EINVAL;
 	}
+}
+
+static const int sx9310_gain_vals[] = { 1, 2, 4, 8 };
+
+static int sx9310_read_avail(struct iio_dev *indio_dev,
+			     struct iio_chan_spec const *chan,
+			     const int **vals, int *type, int *length,
+			     long mask)
+{
+	if (chan->type != IIO_PROXIMITY)
+		return -EINVAL;
+
+	switch (mask) {
+	case IIO_CHAN_INFO_HARDWAREGAIN:
+		*type = IIO_VAL_INT;
+		*length = ARRAY_SIZE(sx9310_gain_vals);
+		*vals = sx9310_gain_vals;
+		return IIO_AVAIL_LIST;
+	}
+
+	return -EINVAL;
 }
 
 static int sx9310_set_samp_freq(struct sx9310_data *data, int val, int val2)
@@ -492,6 +555,37 @@ static int sx9310_set_samp_freq(struct sx9310_data *data, int val, int val2)
 	return ret;
 }
 
+static int sx9310_write_gain(struct sx9310_data *data,
+			    const struct iio_chan_spec *chan, int val)
+{
+	unsigned int gain, mask;
+	int ret;
+
+	gain = ilog2(val);
+
+	switch (chan->channel) {
+	case 0:
+	case 3:
+		mask = SX9310_REG_PROX_CTRL3_GAIN0_MASK;
+		gain = FIELD_PREP(SX9310_REG_PROX_CTRL3_GAIN0_MASK, gain);
+		break;
+	case 1:
+	case 2:
+		mask = SX9310_REG_PROX_CTRL3_GAIN12_MASK;
+		gain = FIELD_PREP(SX9310_REG_PROX_CTRL3_GAIN12_MASK, gain);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	mutex_lock(&data->mutex);
+	ret = regmap_update_bits(data->regmap, SX9310_REG_PROX_CTRL3, mask,
+				 gain);
+	mutex_unlock(&data->mutex);
+
+	return ret;
+}
+
 static int sx9310_write_raw(struct iio_dev *indio_dev,
 			    const struct iio_chan_spec *chan, int val, int val2,
 			    long mask)
@@ -501,10 +595,14 @@ static int sx9310_write_raw(struct iio_dev *indio_dev,
 	if (chan->type != IIO_PROXIMITY)
 		return -EINVAL;
 
-	if (mask != IIO_CHAN_INFO_SAMP_FREQ)
-		return -EINVAL;
+	switch (mask) {
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		return sx9310_set_samp_freq(data, val, val2);
+	case IIO_CHAN_INFO_HARDWAREGAIN:
+		return sx9310_write_gain(data, chan, val);
+	}
 
-	return sx9310_set_samp_freq(data, val, val2);
+	return -EINVAL;
 }
 
 static irqreturn_t sx9310_irq_handler(int irq, void *private)
@@ -645,6 +743,7 @@ static const struct attribute_group sx9310_attribute_group = {
 static const struct iio_info sx9310_info = {
 	.attrs = &sx9310_attribute_group,
 	.read_raw = sx9310_read_raw,
+	.read_avail = sx9310_read_avail,
 	.write_raw = sx9310_write_raw,
 	.read_event_config = sx9310_read_event_config,
 	.write_event_config = sx9310_write_event_config,
