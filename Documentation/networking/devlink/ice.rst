@@ -69,6 +69,11 @@ The ``ice`` driver reports the following versions
       - The version of the DDP package that is active in the device. Note
         that both the name (as reported by ``fw.app.name``) and version are
         required to uniquely identify the package.
+    * - ``fw.app.bundle_id``
+      - 0xc0000001
+      - Unique identifier for the DDP package loaded in the device. Also
+        referred to as the DDP Track ID. Can be used to uniquely identify
+        the specific DDP package.
     * - ``fw.netlist``
       - running
       - 1.1.2000-6.7.0

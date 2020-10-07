@@ -102,6 +102,13 @@ static int ice_info_ddp_pkg_version(struct ice_pf *pf, char *buf, size_t len)
 	return 0;
 }
 
+static int ice_info_ddp_pkg_bundle_id(struct ice_pf *pf, char *buf, size_t len)
+{
+	snprintf(buf, len, "0x%08x", pf->hw.active_track_id);
+
+	return 0;
+}
+
 static int ice_info_netlist_ver(struct ice_pf *pf, char *buf, size_t len)
 {
 	struct ice_netlist_ver_info *netlist = &pf->hw.netlist_ver;
@@ -146,6 +153,7 @@ static const struct ice_devlink_version {
 	running(DEVLINK_INFO_VERSION_GENERIC_FW_BUNDLE_ID, ice_info_eetrack),
 	running("fw.app.name", ice_info_ddp_pkg_name),
 	running(DEVLINK_INFO_VERSION_GENERIC_FW_APP, ice_info_ddp_pkg_version),
+	running("fw.app.bundle_id", ice_info_ddp_pkg_bundle_id),
 	running("fw.netlist", ice_info_netlist_ver),
 	running("fw.netlist.build", ice_info_netlist_build),
 };
