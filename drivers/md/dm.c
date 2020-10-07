@@ -1633,18 +1633,6 @@ static blk_qc_t dm_submit_bio(struct bio *bio)
 	int srcu_idx;
 	struct dm_table *map;
 
-	if (dm_get_md_type(md) == DM_TYPE_REQUEST_BASED) {
-		/*
-		 * We are called with a live reference on q_usage_counter, but
-		 * that one will be released as soon as we return.  Grab an
-		 * extra one as blk_mq_submit_bio expects to be able to consume
-		 * a reference (which lives until the request is freed in case a
-		 * request is allocated).
-		 */
-		percpu_ref_get(&bio->bi_disk->queue->q_usage_counter);
-		return blk_mq_submit_bio(bio);
-	}
-
 	map = dm_get_live_table(md, &srcu_idx);
 	if (unlikely(!map)) {
 		DMERR_LIMIT("%s: mapping table unavailable, erroring io",
@@ -1727,6 +1715,7 @@ static int next_free_minor(int *minor)
 }
 
 static const struct block_device_operations dm_blk_dops;
+static const struct block_device_operations dm_rq_blk_dops;
 static const struct dax_operations dm_dax_ops;
 
 static void dm_wq_work(struct work_struct *work);
@@ -2113,9 +2102,10 @@ int dm_setup_md_queue(struct mapped_device *md, struct dm_table *t)
 
 	switch (type) {
 	case DM_TYPE_REQUEST_BASED:
+		md->disk->fops = &dm_rq_blk_dops;
 		r = dm_mq_init_request_queue(md, t);
 		if (r) {
-			DMERR("Cannot initialize queue for request-based dm-mq mapped device");
+			DMERR("Cannot initialize queue for request-based dm mapped device");
 			return r;
 		}
 		break;
@@ -3091,6 +3081,15 @@ static const struct block_device_operations dm_blk_dops = {
 	.ioctl = dm_blk_ioctl,
 	.getgeo = dm_blk_getgeo,
 	.report_zones = dm_blk_report_zones,
+	.pr_ops = &dm_pr_ops,
+	.owner = THIS_MODULE
+};
+
+static const struct block_device_operations dm_rq_blk_dops = {
+	.open = dm_blk_open,
+	.release = dm_blk_close,
+	.ioctl = dm_blk_ioctl,
+	.getgeo = dm_blk_getgeo,
 	.pr_ops = &dm_pr_ops,
 	.owner = THIS_MODULE
 };
