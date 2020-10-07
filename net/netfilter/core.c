@@ -282,6 +282,16 @@ nf_hook_entry_head(struct net *net, int pf, unsigned int hooknum,
 			return NULL;
 		return net->nf.hooks_bridge + hooknum;
 #endif
+#ifdef CONFIG_NETFILTER_INGRESS
+	case NFPROTO_INET:
+		if (WARN_ON_ONCE(hooknum != NF_INET_INGRESS))
+			return NULL;
+		if (!dev || dev_net(dev) != net) {
+			WARN_ON_ONCE(1);
+			return NULL;
+		}
+		return &dev->nf_hooks_ingress;
+#endif
 	case NFPROTO_IPV4:
 		if (WARN_ON_ONCE(ARRAY_SIZE(net->nf.hooks_ipv4) <= hooknum))
 			return NULL;
@@ -311,22 +321,56 @@ nf_hook_entry_head(struct net *net, int pf, unsigned int hooknum,
 	return NULL;
 }
 
+static int nf_ingress_check(struct net *net, const struct nf_hook_ops *reg,
+			    int hooknum)
+{
+#ifndef CONFIG_NETFILTER_INGRESS
+	if (reg->hooknum == hooknum)
+		return -EOPNOTSUPP;
+#endif
+	if (reg->hooknum != hooknum ||
+	    !reg->dev || dev_net(reg->dev) != net)
+		return -EINVAL;
+
+	return 0;
+}
+
 static inline bool nf_ingress_hook(const struct nf_hook_ops *reg, int pf)
 {
-	return pf == NFPROTO_NETDEV && reg->hooknum == NF_NETDEV_INGRESS;
+	if ((pf == NFPROTO_NETDEV && reg->hooknum == NF_NETDEV_INGRESS) ||
+	    (pf == NFPROTO_INET && reg->hooknum == NF_INET_INGRESS))
+		return true;
+
+	return false;
 }
 
 static void nf_static_key_inc(const struct nf_hook_ops *reg, int pf)
 {
 #ifdef CONFIG_JUMP_LABEL
-       static_key_slow_inc(&nf_hooks_needed[pf][reg->hooknum]);
+	int hooknum;
+
+	if (pf == NFPROTO_INET && reg->hooknum == NF_INET_INGRESS) {
+		pf = NFPROTO_NETDEV;
+		hooknum = NF_NETDEV_INGRESS;
+	} else {
+		hooknum = reg->hooknum;
+	}
+	static_key_slow_inc(&nf_hooks_needed[pf][hooknum]);
 #endif
 }
 
 static void nf_static_key_dec(const struct nf_hook_ops *reg, int pf)
 {
 #ifdef CONFIG_JUMP_LABEL
-       static_key_slow_dec(&nf_hooks_needed[pf][reg->hooknum]);
+	int hooknum;
+
+	if (pf == NFPROTO_INET && reg->hooknum == NF_INET_INGRESS) {
+		pf = NFPROTO_NETDEV;
+		hooknum = NF_NETDEV_INGRESS;
+	} else {
+		hooknum = reg->hooknum;
+	}
+	static_key_slow_dec(&nf_hooks_needed[pf][hooknum]);
 #endif
 }
 
@@ -335,15 +379,22 @@ static int __nf_register_net_hook(struct net *net, int pf,
 {
 	struct nf_hook_entries *p, *new_hooks;
 	struct nf_hook_entries __rcu **pp;
+	int err;
 
-	if (pf == NFPROTO_NETDEV) {
-#ifndef CONFIG_NETFILTER_INGRESS
-		if (reg->hooknum == NF_NETDEV_INGRESS)
-			return -EOPNOTSUPP;
-#endif
-		if (reg->hooknum != NF_NETDEV_INGRESS ||
-		    !reg->dev || dev_net(reg->dev) != net)
-			return -EINVAL;
+	switch (pf) {
+	case NFPROTO_NETDEV:
+		err = nf_ingress_check(net, reg, NF_NETDEV_INGRESS);
+		if (err < 0)
+			return err;
+		break;
+	case NFPROTO_INET:
+		if (reg->hooknum != NF_INET_INGRESS)
+			break;
+
+		err = nf_ingress_check(net, reg, NF_INET_INGRESS);
+		if (err < 0)
+			return err;
+		break;
 	}
 
 	pp = nf_hook_entry_head(net, pf, reg->hooknum, reg->dev);
@@ -441,8 +492,12 @@ static void __nf_unregister_net_hook(struct net *net, int pf,
 void nf_unregister_net_hook(struct net *net, const struct nf_hook_ops *reg)
 {
 	if (reg->pf == NFPROTO_INET) {
-		__nf_unregister_net_hook(net, NFPROTO_IPV4, reg);
-		__nf_unregister_net_hook(net, NFPROTO_IPV6, reg);
+		if (reg->hooknum == NF_INET_INGRESS) {
+			__nf_unregister_net_hook(net, NFPROTO_INET, reg);
+		} else {
+			__nf_unregister_net_hook(net, NFPROTO_IPV4, reg);
+			__nf_unregister_net_hook(net, NFPROTO_IPV6, reg);
+		}
 	} else {
 		__nf_unregister_net_hook(net, reg->pf, reg);
 	}
@@ -467,14 +522,20 @@ int nf_register_net_hook(struct net *net, const struct nf_hook_ops *reg)
 	int err;
 
 	if (reg->pf == NFPROTO_INET) {
-		err = __nf_register_net_hook(net, NFPROTO_IPV4, reg);
-		if (err < 0)
-			return err;
+		if (reg->hooknum == NF_INET_INGRESS) {
+			err = __nf_register_net_hook(net, NFPROTO_INET, reg);
+			if (err < 0)
+				return err;
+		} else {
+			err = __nf_register_net_hook(net, NFPROTO_IPV4, reg);
+			if (err < 0)
+				return err;
 
-		err = __nf_register_net_hook(net, NFPROTO_IPV6, reg);
-		if (err < 0) {
-			__nf_unregister_net_hook(net, NFPROTO_IPV4, reg);
-			return err;
+			err = __nf_register_net_hook(net, NFPROTO_IPV6, reg);
+			if (err < 0) {
+				__nf_unregister_net_hook(net, NFPROTO_IPV4, reg);
+				return err;
+			}
 		}
 	} else {
 		err = __nf_register_net_hook(net, reg->pf, reg);
