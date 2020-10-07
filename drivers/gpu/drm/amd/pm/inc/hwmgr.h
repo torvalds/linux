@@ -393,7 +393,7 @@ union phm_cac_leakage_record {
 
 struct phm_cac_leakage_table {
 	uint32_t count;
-	union phm_cac_leakage_record entries[1];
+	union phm_cac_leakage_record entries[];
 };
 
 struct phm_samu_clock_voltage_dependency_record {

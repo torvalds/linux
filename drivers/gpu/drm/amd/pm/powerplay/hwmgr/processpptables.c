@@ -1384,17 +1384,14 @@ static int get_cac_leakage_table(struct pp_hwmgr *hwmgr,
 				const ATOM_PPLIB_CAC_Leakage_Table *table)
 {
 	struct phm_cac_leakage_table  *cac_leakage_table;
-	unsigned long            table_size, i;
+	unsigned long i;
 
-	if (hwmgr == NULL || table == NULL || ptable == NULL)
+	if (!hwmgr || !table || !ptable)
 		return -EINVAL;
 
-	table_size = sizeof(ULONG) +
-		(sizeof(struct phm_cac_leakage_table) * table->ucNumEntries);
-
-	cac_leakage_table = kzalloc(table_size, GFP_KERNEL);
-
-	if (cac_leakage_table == NULL)
+	cac_leakage_table = kzalloc(struct_size(cac_leakage_table, entries, table->ucNumEntries),
+				    GFP_KERNEL);
+	if (!cac_leakage_table)
 		return -ENOMEM;
 
 	cac_leakage_table->count = (ULONG)table->ucNumEntries;
