@@ -27,6 +27,7 @@ struct chip_data {
 	u16 clk_div;		/* baud rate divider */
 	u32 speed_hz;		/* baud rate */
 
+	u32 cr0;
 	u32 rx_sample_dly;	/* RX sample delay */
 };
 
@@ -228,14 +229,9 @@ static irqreturn_t dw_spi_irq(int irq, void *dev_id)
 	return dws->transfer_handler(dws);
 }
 
-static void dw_spi_update_cr0(struct dw_spi *dws, struct spi_device *spi,
-			      struct spi_transfer *transfer)
+static u32 dw_spi_prepare_cr0(struct dw_spi *dws, struct spi_device *spi)
 {
-	struct chip_data *chip = spi_get_ctldata(spi);
-	u32 cr0;
-
-	/* CTRLR0[ 4/3: 0] Data Frame Size */
-	cr0 = (transfer->bits_per_word - 1);
+	u32 cr0 = 0;
 
 	if (!(dws->caps & DW_SPI_CAP_DWC_SSI)) {
 		/* CTRLR0[ 5: 4] Frame Format */
@@ -251,9 +247,6 @@ static void dw_spi_update_cr0(struct dw_spi *dws, struct spi_device *spi,
 
 		/* CTRLR0[11] Shift Register Loop */
 		cr0 |= ((spi->mode & SPI_LOOP) ? 1 : 0) << SPI_SRL_OFFSET;
-
-		/* CTRLR0[ 9:8] Transfer Mode */
-		cr0 |= chip->tmode << SPI_TMOD_OFFSET;
 	} else {
 		/* CTRLR0[ 7: 6] Frame Format */
 		cr0 |= SSI_MOTO_SPI << DWC_SSI_CTRLR0_FRF_OFFSET;
@@ -269,12 +262,28 @@ static void dw_spi_update_cr0(struct dw_spi *dws, struct spi_device *spi,
 		/* CTRLR0[13] Shift Register Loop */
 		cr0 |= ((spi->mode & SPI_LOOP) ? 1 : 0) << DWC_SSI_CTRLR0_SRL_OFFSET;
 
-		/* CTRLR0[11:10] Transfer Mode */
-		cr0 |= chip->tmode << DWC_SSI_CTRLR0_TMOD_OFFSET;
-
 		if (dws->caps & DW_SPI_CAP_KEEMBAY_MST)
 			cr0 |= DWC_SSI_CTRLR0_KEEMBAY_MST;
 	}
+
+	return cr0;
+}
+
+static void dw_spi_update_cr0(struct dw_spi *dws, struct spi_device *spi,
+			      struct spi_transfer *transfer)
+{
+	struct chip_data *chip = spi_get_ctldata(spi);
+	u32 cr0 = chip->cr0;
+
+	/* CTRLR0[ 4/3: 0] Data Frame Size */
+	cr0 |= (transfer->bits_per_word - 1);
+
+	if (!(dws->caps & DW_SPI_CAP_DWC_SSI))
+		/* CTRLR0[ 9:8] Transfer Mode */
+		cr0 |= chip->tmode << SPI_TMOD_OFFSET;
+	else
+		/* CTRLR0[11:10] Transfer Mode */
+		cr0 |= chip->tmode << DWC_SSI_CTRLR0_TMOD_OFFSET;
 
 	dw_writel(dws, DW_SPI_CTRLR0, cr0);
 }
@@ -373,6 +382,7 @@ static void dw_spi_handle_err(struct spi_controller *master,
 /* This may be called twice for each spi dev */
 static int dw_spi_setup(struct spi_device *spi)
 {
+	struct dw_spi *dws = spi_controller_get_devdata(spi->controller);
 	struct chip_data *chip;
 
 	/* Only alloc on first setup */
@@ -395,6 +405,13 @@ static int dw_spi_setup(struct spi_device *spi)
 							NSEC_PER_SEC /
 							dws->max_freq);
 	}
+
+	/*
+	 * Update CR0 data each time the setup callback is invoked since
+	 * the device parameters could have been changed, for instance, by
+	 * the MMC SPI driver or something else.
+	 */
+	chip->cr0 = dw_spi_prepare_cr0(dws, spi);
 
 	chip->tmode = SPI_TMOD_TR;
 
