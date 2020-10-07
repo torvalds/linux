@@ -4572,13 +4572,6 @@ intel_dp_program_link_training_pattern(struct intel_dp *intel_dp,
 	intel_dp->set_link_train(intel_dp, crtc_state, dp_train_pat);
 }
 
-void intel_dp_set_idle_link_train(struct intel_dp *intel_dp,
-				  const struct intel_crtc_state *crtc_state)
-{
-	if (intel_dp->set_idle_link_train)
-		intel_dp->set_idle_link_train(intel_dp, crtc_state);
-}
-
 static void
 intel_dp_link_down(struct intel_encoder *encoder,
 		   const struct intel_crtc_state *old_crtc_state)

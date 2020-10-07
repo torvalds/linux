@@ -98,8 +98,6 @@ intel_dp_program_link_training_pattern(struct intel_dp *intel_dp,
 void
 intel_dp_set_signal_levels(struct intel_dp *intel_dp,
 			   const struct intel_crtc_state *crtc_state);
-void intel_dp_set_idle_link_train(struct intel_dp *intel_dp,
-				  const struct intel_crtc_state *crtc_state);
 void intel_dp_compute_rate(struct intel_dp *intel_dp, int port_clock,
 			   u8 *link_bw, u8 *rate_select);
 bool intel_dp_source_supports_hbr2(struct intel_dp *intel_dp);
