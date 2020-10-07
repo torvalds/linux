@@ -86,7 +86,7 @@ typedef struct phm_ppt_v1_voltage_lookup_record phm_ppt_v1_voltage_lookup_record
 
 struct phm_ppt_v1_voltage_lookup_table {
 	uint32_t count;
-	phm_ppt_v1_voltage_lookup_record entries[1];    /* Dynamically allocate count entries. */
+	phm_ppt_v1_voltage_lookup_record entries[];    /* Dynamically allocate count entries. */
 };
 typedef struct phm_ppt_v1_voltage_lookup_table phm_ppt_v1_voltage_lookup_table;
 

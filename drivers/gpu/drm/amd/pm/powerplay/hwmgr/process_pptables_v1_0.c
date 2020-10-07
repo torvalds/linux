@@ -157,7 +157,7 @@ static int get_vddc_lookup_table(
 		uint32_t max_levels
 		)
 {
-	uint32_t table_size, i;
+	uint32_t i;
 	phm_ppt_v1_voltage_lookup_table *table;
 	phm_ppt_v1_voltage_lookup_record *record;
 	ATOM_Tonga_Voltage_Lookup_Record *atom_record;
@@ -165,12 +165,8 @@ static int get_vddc_lookup_table(
 	PP_ASSERT_WITH_CODE((0 != vddc_lookup_pp_tables->ucNumEntries),
 		"Invalid CAC Leakage PowerPlay Table!", return 1);
 
-	table_size = sizeof(uint32_t) +
-		sizeof(phm_ppt_v1_voltage_lookup_record) * max_levels;
-
-	table = kzalloc(table_size, GFP_KERNEL);
-
-	if (NULL == table)
+	table = kzalloc(struct_size(table, entries, max_levels), GFP_KERNEL);
+	if (!table)
 		return -ENOMEM;
 
 	table->count = vddc_lookup_pp_tables->ucNumEntries;

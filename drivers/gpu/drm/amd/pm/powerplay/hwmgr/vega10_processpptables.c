@@ -1040,18 +1040,14 @@ static int get_vddc_lookup_table(
 		const ATOM_Vega10_Voltage_Lookup_Table *vddc_lookup_pp_tables,
 		uint32_t max_levels)
 {
-	uint32_t table_size, i;
+	uint32_t i;
 	phm_ppt_v1_voltage_lookup_table *table;
 
 	PP_ASSERT_WITH_CODE((vddc_lookup_pp_tables->ucNumEntries != 0),
 			"Invalid SOC_VDDD Lookup Table!", return 1);
 
-	table_size = sizeof(uint32_t) +
-			sizeof(phm_ppt_v1_voltage_lookup_record) * max_levels;
-
-	table = kzalloc(table_size, GFP_KERNEL);
-
-	if (table == NULL)
+	table = kzalloc(struct_size(table, entries, max_levels), GFP_KERNEL);
+	if (!table)
 		return -ENOMEM;
 
 	table->count = vddc_lookup_pp_tables->ucNumEntries;
