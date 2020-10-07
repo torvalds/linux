@@ -1174,7 +1174,7 @@ error:
 	if (irq != NO_IRQ)
 		free_irq(irq, data);
 
-	kzfree(data);
+	kfree_sensitive(data);
 
 	if (pamu_regs)
 		iounmap(pamu_regs);
