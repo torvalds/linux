@@ -110,9 +110,6 @@ static int dw_spi_mscc_init(struct platform_device *pdev,
 	dwsmmio->dws.set_cs = dw_spi_mscc_set_cs;
 	dwsmmio->priv = dwsmscc;
 
-	/* Register hook to configure CTRLR0 */
-	dwsmmio->dws.update_cr0 = dw_spi_update_cr0;
-
 	return 0;
 }
 
@@ -188,9 +185,6 @@ static int dw_spi_mscc_sparx5_init(struct platform_device *pdev,
 	dwsmmio->dws.set_cs = dw_spi_sparx5_set_cs;
 	dwsmmio->priv = dwsmscc;
 
-	/* Register hook to configure CTRLR0 */
-	dwsmmio->dws.update_cr0 = dw_spi_update_cr0;
-
 	return 0;
 }
 
@@ -199,18 +193,12 @@ static int dw_spi_alpine_init(struct platform_device *pdev,
 {
 	dwsmmio->dws.caps = DW_SPI_CAP_CS_OVERRIDE;
 
-	/* Register hook to configure CTRLR0 */
-	dwsmmio->dws.update_cr0 = dw_spi_update_cr0;
-
 	return 0;
 }
 
 static int dw_spi_dw_apb_init(struct platform_device *pdev,
 			      struct dw_spi_mmio *dwsmmio)
 {
-	/* Register hook to configure CTRLR0 */
-	dwsmmio->dws.update_cr0 = dw_spi_update_cr0;
-
 	dw_spi_dma_setup_generic(&dwsmmio->dws);
 
 	return 0;
@@ -219,8 +207,7 @@ static int dw_spi_dw_apb_init(struct platform_device *pdev,
 static int dw_spi_dwc_ssi_init(struct platform_device *pdev,
 			       struct dw_spi_mmio *dwsmmio)
 {
-	/* Register hook to configure CTRLR0 */
-	dwsmmio->dws.update_cr0 = dw_spi_update_cr0_v1_01a;
+	dwsmmio->dws.caps = DW_SPI_CAP_DWC_SSI;
 
 	dw_spi_dma_setup_generic(&dwsmmio->dws);
 
@@ -230,10 +217,7 @@ static int dw_spi_dwc_ssi_init(struct platform_device *pdev,
 static int dw_spi_keembay_init(struct platform_device *pdev,
 			       struct dw_spi_mmio *dwsmmio)
 {
-	dwsmmio->dws.caps = DW_SPI_CAP_KEEMBAY_MST;
-
-	/* Register hook to configure CTRLR0 */
-	dwsmmio->dws.update_cr0 = dw_spi_update_cr0_v1_01a;
+	dwsmmio->dws.caps = DW_SPI_CAP_KEEMBAY_MST | DW_SPI_CAP_DWC_SSI;
 
 	return 0;
 }

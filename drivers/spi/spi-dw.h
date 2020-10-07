@@ -109,6 +109,7 @@ enum dw_ssi_type {
 /* DW SPI capabilities */
 #define DW_SPI_CAP_CS_OVERRIDE		BIT(0)
 #define DW_SPI_CAP_KEEMBAY_MST		BIT(1)
+#define DW_SPI_CAP_DWC_SSI		BIT(2)
 
 struct dw_spi;
 struct dw_spi_dma_ops {
@@ -136,8 +137,6 @@ struct dw_spi {
 	u16			bus_num;
 	u16			num_cs;		/* supported slave numbers */
 	void (*set_cs)(struct spi_device *spi, bool enable);
-	u32 (*update_cr0)(struct spi_controller *master, struct spi_device *spi,
-			  struct spi_transfer *transfer);
 
 	/* Current message transfer state info */
 	size_t			len;
@@ -255,12 +254,6 @@ extern int dw_spi_add_host(struct device *dev, struct dw_spi *dws);
 extern void dw_spi_remove_host(struct dw_spi *dws);
 extern int dw_spi_suspend_host(struct dw_spi *dws);
 extern int dw_spi_resume_host(struct dw_spi *dws);
-extern u32 dw_spi_update_cr0(struct spi_controller *master,
-			     struct spi_device *spi,
-			     struct spi_transfer *transfer);
-extern u32 dw_spi_update_cr0_v1_01a(struct spi_controller *master,
-				    struct spi_device *spi,
-				    struct spi_transfer *transfer);
 
 #ifdef CONFIG_SPI_DW_DMA
 

@@ -228,60 +228,56 @@ static irqreturn_t dw_spi_irq(int irq, void *dev_id)
 	return dws->transfer_handler(dws);
 }
 
-/* Configure CTRLR0 for DW_apb_ssi */
-u32 dw_spi_update_cr0(struct spi_controller *master, struct spi_device *spi,
-		      struct spi_transfer *transfer)
+static void dw_spi_update_cr0(struct dw_spi *dws, struct spi_device *spi,
+			      struct spi_transfer *transfer)
 {
 	struct chip_data *chip = spi_get_ctldata(spi);
 	u32 cr0;
 
-	/* Default SPI mode is SCPOL = 0, SCPH = 0 */
-	cr0 = (transfer->bits_per_word - 1)
-		| (SSI_MOTO_SPI << SPI_FRF_OFFSET)
-		| ((((spi->mode & SPI_CPOL) ? 1 : 0) << SPI_SCOL_OFFSET) |
-		   (((spi->mode & SPI_CPHA) ? 1 : 0) << SPI_SCPH_OFFSET) |
-		   (((spi->mode & SPI_LOOP) ? 1 : 0) << SPI_SRL_OFFSET))
-		| (chip->tmode << SPI_TMOD_OFFSET);
-
-	return cr0;
-}
-EXPORT_SYMBOL_GPL(dw_spi_update_cr0);
-
-/* Configure CTRLR0 for DWC_ssi */
-u32 dw_spi_update_cr0_v1_01a(struct spi_controller *master,
-			     struct spi_device *spi,
-			     struct spi_transfer *transfer)
-{
-	struct dw_spi *dws = spi_controller_get_devdata(master);
-	struct chip_data *chip = spi_get_ctldata(spi);
-	u32 cr0;
-
-	/* CTRLR0[ 4: 0] Data Frame Size */
+	/* CTRLR0[ 4/3: 0] Data Frame Size */
 	cr0 = (transfer->bits_per_word - 1);
 
-	/* CTRLR0[ 7: 6] Frame Format */
-	cr0 |= SSI_MOTO_SPI << DWC_SSI_CTRLR0_FRF_OFFSET;
+	if (!(dws->caps & DW_SPI_CAP_DWC_SSI)) {
+		/* CTRLR0[ 5: 4] Frame Format */
+		cr0 |= SSI_MOTO_SPI << SPI_FRF_OFFSET;
 
-	/*
-	 * SPI mode (SCPOL|SCPH)
-	 * CTRLR0[ 8] Serial Clock Phase
-	 * CTRLR0[ 9] Serial Clock Polarity
-	 */
-	cr0 |= ((spi->mode & SPI_CPOL) ? 1 : 0) << DWC_SSI_CTRLR0_SCPOL_OFFSET;
-	cr0 |= ((spi->mode & SPI_CPHA) ? 1 : 0) << DWC_SSI_CTRLR0_SCPH_OFFSET;
+		/*
+		 * SPI mode (SCPOL|SCPH)
+		 * CTRLR0[ 6] Serial Clock Phase
+		 * CTRLR0[ 7] Serial Clock Polarity
+		 */
+		cr0 |= ((spi->mode & SPI_CPOL) ? 1 : 0) << SPI_SCOL_OFFSET;
+		cr0 |= ((spi->mode & SPI_CPHA) ? 1 : 0) << SPI_SCPH_OFFSET;
 
-	/* CTRLR0[11:10] Transfer Mode */
-	cr0 |= chip->tmode << DWC_SSI_CTRLR0_TMOD_OFFSET;
+		/* CTRLR0[11] Shift Register Loop */
+		cr0 |= ((spi->mode & SPI_LOOP) ? 1 : 0) << SPI_SRL_OFFSET;
 
-	/* CTRLR0[13] Shift Register Loop */
-	cr0 |= ((spi->mode & SPI_LOOP) ? 1 : 0) << DWC_SSI_CTRLR0_SRL_OFFSET;
+		/* CTRLR0[ 9:8] Transfer Mode */
+		cr0 |= chip->tmode << SPI_TMOD_OFFSET;
+	} else {
+		/* CTRLR0[ 7: 6] Frame Format */
+		cr0 |= SSI_MOTO_SPI << DWC_SSI_CTRLR0_FRF_OFFSET;
 
-	if (dws->caps & DW_SPI_CAP_KEEMBAY_MST)
-		cr0 |= DWC_SSI_CTRLR0_KEEMBAY_MST;
+		/*
+		 * SPI mode (SCPOL|SCPH)
+		 * CTRLR0[ 8] Serial Clock Phase
+		 * CTRLR0[ 9] Serial Clock Polarity
+		 */
+		cr0 |= ((spi->mode & SPI_CPOL) ? 1 : 0) << DWC_SSI_CTRLR0_SCPOL_OFFSET;
+		cr0 |= ((spi->mode & SPI_CPHA) ? 1 : 0) << DWC_SSI_CTRLR0_SCPH_OFFSET;
 
-	return cr0;
+		/* CTRLR0[13] Shift Register Loop */
+		cr0 |= ((spi->mode & SPI_LOOP) ? 1 : 0) << DWC_SSI_CTRLR0_SRL_OFFSET;
+
+		/* CTRLR0[11:10] Transfer Mode */
+		cr0 |= chip->tmode << DWC_SSI_CTRLR0_TMOD_OFFSET;
+
+		if (dws->caps & DW_SPI_CAP_KEEMBAY_MST)
+			cr0 |= DWC_SSI_CTRLR0_KEEMBAY_MST;
+	}
+
+	dw_writel(dws, DW_SPI_CTRLR0, cr0);
 }
-EXPORT_SYMBOL_GPL(dw_spi_update_cr0_v1_01a);
 
 static int dw_spi_transfer_one(struct spi_controller *master,
 		struct spi_device *spi, struct spi_transfer *transfer)
@@ -290,7 +286,6 @@ static int dw_spi_transfer_one(struct spi_controller *master,
 	struct chip_data *chip = spi_get_ctldata(spi);
 	u8 imask = 0;
 	u16 txlevel = 0;
-	u32 cr0;
 	int ret;
 
 	dws->dma_mapped = 0;
@@ -319,8 +314,7 @@ static int dw_spi_transfer_one(struct spi_controller *master,
 
 	transfer->effective_speed_hz = dws->max_freq / chip->clk_div;
 
-	cr0 = dws->update_cr0(master, spi, transfer);
-	dw_writel(dws, DW_SPI_CTRLR0, cr0);
+	dw_spi_update_cr0(dws, spi, transfer);
 
 	/* Check if current transfer is a DMA transaction */
 	if (master->can_dma && master->can_dma(master, spi, transfer))
