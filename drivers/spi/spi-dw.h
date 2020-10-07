@@ -147,11 +147,10 @@ struct dw_spi {
 	void (*set_cs)(struct spi_device *spi, bool enable);
 
 	/* Current message transfer state info */
-	size_t			len;
 	void			*tx;
-	void			*tx_end;
+	unsigned int		tx_len;
 	void			*rx;
-	void			*rx_end;
+	unsigned int		rx_len;
 	int			dma_mapped;
 	u8			n_bytes;	/* current is a 1/2 bytes op */
 	irqreturn_t		(*transfer_handler)(struct dw_spi *dws);
