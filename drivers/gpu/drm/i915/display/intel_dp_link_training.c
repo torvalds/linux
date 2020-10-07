@@ -100,7 +100,7 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 					       dp_train_pat);
 
 	buf[0] = dp_train_pat;
-	if ((dp_train_pat & DP_TRAINING_PATTERN_MASK) ==
+	if (intel_dp_training_pattern_symbol(dp_train_pat) ==
 	    DP_TRAINING_PATTERN_DISABLE) {
 		/* don't write DP_TRAINING_LANEx_SET on disable */
 		len = 1;

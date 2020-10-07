@@ -3829,7 +3829,7 @@ cpt_set_link_train(struct intel_dp *intel_dp,
 
 	*DP &= ~DP_LINK_TRAIN_MASK_CPT;
 
-	switch (dp_train_pat & DP_TRAINING_PATTERN_MASK) {
+	switch (intel_dp_training_pattern_symbol(dp_train_pat)) {
 	case DP_TRAINING_PATTERN_DISABLE:
 		*DP |= DP_LINK_TRAIN_OFF_CPT;
 		break;
@@ -3860,7 +3860,7 @@ g4x_set_link_train(struct intel_dp *intel_dp,
 
 	*DP &= ~DP_LINK_TRAIN_MASK;
 
-	switch (dp_train_pat & DP_TRAINING_PATTERN_MASK) {
+	switch (intel_dp_training_pattern_symbol(dp_train_pat)) {
 	case DP_TRAINING_PATTERN_DISABLE:
 		*DP |= DP_LINK_TRAIN_OFF;
 		break;
@@ -4562,12 +4562,12 @@ intel_dp_program_link_training_pattern(struct intel_dp *intel_dp,
 				       u8 dp_train_pat)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	u8 train_pat_mask = drm_dp_training_pattern_mask(intel_dp->dpcd);
 
-	if (dp_train_pat & train_pat_mask)
+	if ((intel_dp_training_pattern_symbol(dp_train_pat)) !=
+	    DP_TRAINING_PATTERN_DISABLE)
 		drm_dbg_kms(&dev_priv->drm,
 			    "Using DP training pattern TPS%d\n",
-			    dp_train_pat & train_pat_mask);
+			    intel_dp_training_pattern_symbol(dp_train_pat));
 
 	intel_dp->set_link_train(intel_dp, crtc_state, dp_train_pat);
 }
