@@ -178,7 +178,7 @@ static void int_error_stop(struct dw_spi *dws, const char *msg)
 	spi_finalize_current_transfer(dws->master);
 }
 
-static irqreturn_t interrupt_transfer(struct dw_spi *dws)
+static irqreturn_t dw_spi_transfer_handler(struct dw_spi *dws)
 {
 	u16 irq_status = dw_readl(dws, DW_SPI_ISR);
 
@@ -315,6 +315,27 @@ void dw_spi_update_config(struct dw_spi *dws, struct spi_device *spi,
 }
 EXPORT_SYMBOL_GPL(dw_spi_update_config);
 
+static void dw_spi_irq_setup(struct dw_spi *dws)
+{
+	u16 level;
+	u8 imask;
+
+	/*
+	 * Originally Tx and Rx data lengths match. Rx FIFO Threshold level
+	 * will be adjusted at the final stage of the IRQ-based SPI transfer
+	 * execution so not to lose the leftover of the incoming data.
+	 */
+	level = min_t(u16, dws->fifo_len / 2, dws->tx_len);
+	dw_writel(dws, DW_SPI_TXFTLR, level);
+	dw_writel(dws, DW_SPI_RXFTLR, level - 1);
+
+	imask = SPI_INT_TXEI | SPI_INT_TXOI | SPI_INT_RXUI | SPI_INT_RXOI |
+		SPI_INT_RXFI;
+	spi_umask_intr(dws, imask);
+
+	dws->transfer_handler = dw_spi_transfer_handler;
+}
+
 static int dw_spi_transfer_one(struct spi_controller *master,
 		struct spi_device *spi, struct spi_transfer *transfer)
 {
@@ -324,8 +345,6 @@ static int dw_spi_transfer_one(struct spi_controller *master,
 		.dfs = transfer->bits_per_word,
 		.freq = transfer->speed_hz,
 	};
-	u8 imask = 0;
-	u16 txlevel = 0;
 	int ret;
 
 	dws->dma_mapped = 0;
@@ -358,21 +377,7 @@ static int dw_spi_transfer_one(struct spi_controller *master,
 			return ret;
 		}
 	} else {
-		/*
-		 * Originally Tx and Rx data lengths match. Rx FIFO Threshold level
-		 * will be adjusted at the final stage of the IRQ-based SPI transfer
-		 * execution so not to lose the leftover of the incoming data.
-		 */
-		txlevel = min_t(u16, dws->fifo_len / 2, dws->tx_len);
-		dw_writel(dws, DW_SPI_TXFTLR, txlevel);
-		dw_writel(dws, DW_SPI_RXFTLR, txlevel - 1);
-
-		/* Set the interrupt mask */
-		imask |= SPI_INT_TXEI | SPI_INT_TXOI |
-			 SPI_INT_RXUI | SPI_INT_RXOI | SPI_INT_RXFI;
-		spi_umask_intr(dws, imask);
-
-		dws->transfer_handler = interrupt_transfer;
+		dw_spi_irq_setup(dws);
 	}
 
 	spi_enable_chip(dws, 1);
