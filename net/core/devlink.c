@@ -538,28 +538,39 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-static int devlink_reload_stats_put(struct sk_buff *msg, struct devlink *devlink)
+static int devlink_reload_stats_put(struct sk_buff *msg, struct devlink *devlink, bool is_remote)
 {
 	struct nlattr *reload_stats_attr;
 	int i, j, stat_idx;
 	u32 value;
 
-	reload_stats_attr = nla_nest_start(msg, DEVLINK_ATTR_RELOAD_STATS);
+	if (!is_remote)
+		reload_stats_attr = nla_nest_start(msg, DEVLINK_ATTR_RELOAD_STATS);
+	else
+		reload_stats_attr = nla_nest_start(msg, DEVLINK_ATTR_REMOTE_RELOAD_STATS);
 
 	if (!reload_stats_attr)
 		return -EMSGSIZE;
 
 	for (j = 0; j <= DEVLINK_RELOAD_LIMIT_MAX; j++) {
-		if (j != DEVLINK_RELOAD_LIMIT_UNSPEC &&
+		/* Remote stats are shown even if not locally supported. Stats
+		 * of actions with unspecified limit are shown though drivers
+		 * don't need to register unspecified limit.
+		 */
+		if (!is_remote && j != DEVLINK_RELOAD_LIMIT_UNSPEC &&
 		    !devlink_reload_limit_is_supported(devlink, j))
 			continue;
 		for (i = 0; i <= DEVLINK_RELOAD_ACTION_MAX; i++) {
-			if (!devlink_reload_action_is_supported(devlink, i) ||
+			if ((!is_remote && !devlink_reload_action_is_supported(devlink, i)) ||
+			    i == DEVLINK_RELOAD_ACTION_UNSPEC ||
 			    devlink_reload_combination_is_invalid(i, j))
 				continue;
 
 			stat_idx = j * __DEVLINK_RELOAD_ACTION_MAX + i;
-			value = devlink->stats.reload_stats[stat_idx];
+			if (!is_remote)
+				value = devlink->stats.reload_stats[stat_idx];
+			else
+				value = devlink->stats.remote_reload_stats[stat_idx];
 			if (devlink_reload_stat_put(msg, i, j, value))
 				goto nla_put_failure;
 		}
@@ -592,7 +603,9 @@ static int devlink_nl_fill(struct sk_buff *msg, struct devlink *devlink,
 	if (!dev_stats)
 		goto nla_put_failure;
 
-	if (devlink_reload_stats_put(msg, devlink))
+	if (devlink_reload_stats_put(msg, devlink, false))
+		goto dev_stats_nest_cancel;
+	if (devlink_reload_stats_put(msg, devlink, true))
 		goto dev_stats_nest_cancel;
 
 	nla_nest_end(msg, dev_stats);
@@ -3110,15 +3123,47 @@ devlink_reload_stats_update(struct devlink *devlink, enum devlink_reload_limit l
 				      actions_performed);
 }
 
+/**
+ *	devlink_remote_reload_actions_performed - Update devlink on reload actions
+ *	  performed which are not a direct result of devlink reload call.
+ *
+ *	This should be called by a driver after performing reload actions in case it was not
+ *	a result of devlink reload call. For example fw_activate was performed as a result
+ *	of devlink reload triggered fw_activate on another host.
+ *	The motivation for this function is to keep data on reload actions performed on this
+ *	function whether it was done due to direct devlink reload call or not.
+ *
+ *	@devlink: devlink
+ *	@limit: reload limit
+ *	@actions_performed: bitmask of actions performed
+ */
+void devlink_remote_reload_actions_performed(struct devlink *devlink,
+					     enum devlink_reload_limit limit,
+					     u32 actions_performed)
+{
+	if (WARN_ON(!actions_performed ||
+		    actions_performed & BIT(DEVLINK_RELOAD_ACTION_UNSPEC) ||
+		    actions_performed >= BIT(__DEVLINK_RELOAD_ACTION_MAX) ||
+		    limit > DEVLINK_RELOAD_LIMIT_MAX))
+		return;
+
+	__devlink_reload_stats_update(devlink, devlink->stats.remote_reload_stats, limit,
+				      actions_performed);
+}
+EXPORT_SYMBOL_GPL(devlink_remote_reload_actions_performed);
+
 static int devlink_reload(struct devlink *devlink, struct net *dest_net,
 			  enum devlink_reload_action action, enum devlink_reload_limit limit,
 			  u32 *actions_performed, struct netlink_ext_ack *extack)
 {
+	u32 remote_reload_stats[DEVLINK_RELOAD_STATS_ARRAY_SIZE];
 	int err;
 
 	if (!devlink->reload_enabled)
 		return -EOPNOTSUPP;
 
+	memcpy(remote_reload_stats, devlink->stats.remote_reload_stats,
+	       sizeof(remote_reload_stats));
 	err = devlink->ops->reload_down(devlink, !!dest_net, action, limit, extack);
 	if (err)
 		return err;
@@ -3132,6 +3177,9 @@ static int devlink_reload(struct devlink *devlink, struct net *dest_net,
 		return err;
 
 	WARN_ON(!(*actions_performed & BIT(action)));
+	/* Catch driver on updating the remote action within devlink reload */
+	WARN_ON(memcmp(remote_reload_stats, devlink->stats.remote_reload_stats,
+		       sizeof(remote_reload_stats)));
 	devlink_reload_stats_update(devlink, limit, *actions_performed);
 	return 0;
 }
