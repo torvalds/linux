@@ -311,6 +311,11 @@ nf_hook_entry_head(struct net *net, int pf, unsigned int hooknum,
 	return NULL;
 }
 
+static inline bool nf_ingress_hook(const struct nf_hook_ops *reg, int pf)
+{
+	return pf == NFPROTO_NETDEV && reg->hooknum == NF_NETDEV_INGRESS;
+}
+
 static void nf_static_key_inc(const struct nf_hook_ops *reg, int pf)
 {
 #ifdef CONFIG_JUMP_LABEL
@@ -359,7 +364,7 @@ static int __nf_register_net_hook(struct net *net, int pf,
 
 	hooks_validate(new_hooks);
 #ifdef CONFIG_NETFILTER_INGRESS
-	if (pf == NFPROTO_NETDEV && reg->hooknum == NF_NETDEV_INGRESS)
+	if (nf_ingress_hook(reg, pf))
 		net_inc_ingress_queue();
 #endif
 	nf_static_key_inc(reg, pf);
@@ -416,7 +421,7 @@ static void __nf_unregister_net_hook(struct net *net, int pf,
 
 	if (nf_remove_net_hook(p, reg)) {
 #ifdef CONFIG_NETFILTER_INGRESS
-		if (pf == NFPROTO_NETDEV && reg->hooknum == NF_NETDEV_INGRESS)
+		if (nf_ingress_hook(reg, pf))
 			net_dec_ingress_queue();
 #endif
 		nf_static_key_dec(reg, pf);
