@@ -283,6 +283,8 @@ ice_devlink_flash_update(struct devlink *devlink,
 		return err;
 	}
 
+	dev_dbg(dev, "Beginning flash update with file '%s'\n", params->file_name);
+
 	devlink_flash_update_begin_notify(devlink);
 	devlink_flash_update_status_notify(devlink, "Preparing to flash", NULL, 0, 0);
 	err = ice_flash_pldm_image(pf, fw, preservation, extack);

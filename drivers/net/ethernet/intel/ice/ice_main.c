@@ -1056,7 +1056,9 @@ struct ice_aq_task {
 int ice_aq_wait_for_event(struct ice_pf *pf, u16 opcode, unsigned long timeout,
 			  struct ice_rq_event_info *event)
 {
+	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_aq_task *task;
+	unsigned long start;
 	long ret;
 	int err;
 
@@ -1072,6 +1074,8 @@ int ice_aq_wait_for_event(struct ice_pf *pf, u16 opcode, unsigned long timeout,
 	spin_lock_bh(&pf->aq_wait_lock);
 	hlist_add_head(&task->entry, &pf->aq_wait_list);
 	spin_unlock_bh(&pf->aq_wait_lock);
+
+	start = jiffies;
 
 	ret = wait_event_interruptible_timeout(pf->aq_wait_queue, task->state,
 					       timeout);
@@ -1090,6 +1094,11 @@ int ice_aq_wait_for_event(struct ice_pf *pf, u16 opcode, unsigned long timeout,
 		err = -EINVAL;
 		break;
 	}
+
+	dev_dbg(dev, "Waited %u msecs (max %u msecs) for firmware response to op 0x%04x\n",
+		jiffies_to_msecs(jiffies - start),
+		jiffies_to_msecs(timeout),
+		opcode);
 
 	spin_lock_bh(&pf->aq_wait_lock);
 	hlist_del(&task->entry);
