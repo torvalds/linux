@@ -24,9 +24,6 @@
 struct chip_data {
 	u8 tmode;		/* TR/TO/RO/EEPROM */
 
-	u16 clk_div;		/* baud rate divider */
-	u32 speed_hz;		/* baud rate */
-
 	u32 cr0;
 	u32 rx_sample_dly;	/* RX sample delay */
 };
@@ -274,6 +271,8 @@ static void dw_spi_update_config(struct dw_spi *dws, struct spi_device *spi,
 {
 	struct chip_data *chip = spi_get_ctldata(spi);
 	u32 cr0 = chip->cr0;
+	u32 speed_hz;
+	u16 clk_div;
 
 	/* CTRLR0[ 4/3: 0] Data Frame Size */
 	cr0 |= (transfer->bits_per_word - 1);
@@ -287,15 +286,13 @@ static void dw_spi_update_config(struct dw_spi *dws, struct spi_device *spi,
 
 	dw_writel(dws, DW_SPI_CTRLR0, cr0);
 
-	/* Handle per transfer options for bpw and speed */
-	if (transfer->speed_hz != dws->current_freq) {
-		if (transfer->speed_hz != chip->speed_hz) {
-			/* clk_div doesn't support odd number */
-			chip->clk_div = (DIV_ROUND_UP(dws->max_freq, transfer->speed_hz) + 1) & 0xfffe;
-			chip->speed_hz = transfer->speed_hz;
-		}
-		dws->current_freq = transfer->speed_hz;
-		spi_set_clk(dws, chip->clk_div);
+	/* Note DW APB SSI clock divider doesn't support odd numbers */
+	clk_div = (DIV_ROUND_UP(dws->max_freq, transfer->speed_hz) + 1) & 0xfffe;
+	speed_hz = dws->max_freq / clk_div;
+
+	if (dws->current_freq != speed_hz) {
+		spi_set_clk(dws, clk_div);
+		dws->current_freq = speed_hz;
 	}
 }
 
@@ -323,7 +320,7 @@ static int dw_spi_transfer_one(struct spi_controller *master,
 
 	dw_spi_update_config(dws, spi, transfer);
 
-	transfer->effective_speed_hz = dws->max_freq / chip->clk_div;
+	transfer->effective_speed_hz = dws->current_freq;
 
 	/* Check if current transfer is a DMA transaction */
 	if (master->can_dma && master->can_dma(master, spi, transfer))
