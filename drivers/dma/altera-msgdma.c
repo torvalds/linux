@@ -678,7 +678,7 @@ static int msgdma_alloc_chan_resources(struct dma_chan *dchan)
 
 /**
  * msgdma_tasklet - Schedule completion tasklet
- * @data: Pointer to the Altera sSGDMA channel structure
+ * @t: Pointer to the Altera sSGDMA channel structure
  */
 static void msgdma_tasklet(struct tasklet_struct *t)
 {
