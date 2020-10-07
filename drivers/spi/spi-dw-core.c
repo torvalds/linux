@@ -376,14 +376,14 @@ static int dw_spi_transfer_one(struct spi_controller *master,
 			spi_enable_chip(dws, 1);
 			return ret;
 		}
-	} else {
-		dw_spi_irq_setup(dws);
 	}
 
 	spi_enable_chip(dws, 1);
 
 	if (dws->dma_mapped)
 		return dws->dma_ops->dma_transfer(dws, transfer);
+
+	dw_spi_irq_setup(dws);
 
 	return 1;
 }
