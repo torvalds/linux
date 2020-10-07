@@ -3153,7 +3153,7 @@ static int coda_probe(struct platform_device *pdev)
 		return irq;
 
 	ret = devm_request_irq(&pdev->dev, irq, coda_irq_handler, 0,
-			       dev_name(&pdev->dev), dev);
+			       CODA_NAME "-video", dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to request irq: %d\n", ret);
 		return ret;
@@ -3167,7 +3167,7 @@ static int coda_probe(struct platform_device *pdev)
 
 		ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 						coda9_jpeg_irq_handler,
-						IRQF_ONESHOT, CODA_NAME " jpeg",
+						IRQF_ONESHOT, CODA_NAME "-jpeg",
 						dev);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "failed to request jpeg irq\n");
