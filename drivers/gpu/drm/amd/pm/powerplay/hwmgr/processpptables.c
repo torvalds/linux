@@ -1194,15 +1194,12 @@ static int get_acp_clock_voltage_limit_table(struct pp_hwmgr *hwmgr,
 		struct phm_acp_clock_voltage_dependency_table **ptable,
 		const ATOM_PPLIB_ACPClk_Voltage_Limit_Table *table)
 {
-	unsigned table_size, i;
+	unsigned long i;
 	struct phm_acp_clock_voltage_dependency_table *acp_table;
 
-	table_size = sizeof(unsigned long) +
-		sizeof(struct phm_acp_clock_voltage_dependency_table) *
-		table->numEntries;
-
-	acp_table = kzalloc(table_size, GFP_KERNEL);
-	if (NULL == acp_table)
+	acp_table = kzalloc(struct_size(acp_table, entries, table->numEntries),
+			    GFP_KERNEL);
+	if (!acp_table)
 		return -ENOMEM;
 
 	acp_table->count = (unsigned long)table->numEntries;

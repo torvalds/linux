@@ -150,7 +150,7 @@ struct phm_acp_clock_voltage_dependency_record {
 
 struct phm_acp_clock_voltage_dependency_table {
 	uint32_t count;
-	struct phm_acp_clock_voltage_dependency_record entries[1];
+	struct phm_acp_clock_voltage_dependency_record entries[];
 };
 
 struct phm_vce_clock_voltage_dependency_record {
