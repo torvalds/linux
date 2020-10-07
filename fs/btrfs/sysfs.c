@@ -854,6 +854,15 @@ static ssize_t btrfs_exclusive_operation_show(struct kobject *kobj,
 }
 BTRFS_ATTR(, exclusive_operation, btrfs_exclusive_operation_show);
 
+static ssize_t btrfs_generation_show(struct kobject *kobj,
+				     struct kobj_attribute *a, char *buf)
+{
+	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
+
+	return scnprintf(buf, PAGE_SIZE, "%llu\n", fs_info->generation);
+}
+BTRFS_ATTR(, generation, btrfs_generation_show);
+
 static const struct attribute *btrfs_attrs[] = {
 	BTRFS_ATTR_PTR(, label),
 	BTRFS_ATTR_PTR(, nodesize),
@@ -863,6 +872,7 @@ static const struct attribute *btrfs_attrs[] = {
 	BTRFS_ATTR_PTR(, metadata_uuid),
 	BTRFS_ATTR_PTR(, checksum),
 	BTRFS_ATTR_PTR(, exclusive_operation),
+	BTRFS_ATTR_PTR(, generation),
 	NULL,
 };
 
