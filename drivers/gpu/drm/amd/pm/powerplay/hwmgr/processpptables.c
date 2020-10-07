@@ -1163,15 +1163,12 @@ static int get_samu_clock_voltage_limit_table(struct pp_hwmgr *hwmgr,
 		 struct phm_samu_clock_voltage_dependency_table **ptable,
 		 const ATOM_PPLIB_SAMClk_Voltage_Limit_Table *table)
 {
-	unsigned long table_size, i;
+	unsigned long i;
 	struct phm_samu_clock_voltage_dependency_table *samu_table;
 
-	table_size = sizeof(unsigned long) +
-		sizeof(struct phm_samu_clock_voltage_dependency_table) *
-		table->numEntries;
-
-	samu_table = kzalloc(table_size, GFP_KERNEL);
-	if (NULL == samu_table)
+	samu_table = kzalloc(struct_size(samu_table, entries, table->numEntries),
+			     GFP_KERNEL);
+	if (!samu_table)
 		return -ENOMEM;
 
 	samu_table->count = table->numEntries;

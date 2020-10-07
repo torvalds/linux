@@ -404,7 +404,7 @@ struct phm_samu_clock_voltage_dependency_record {
 
 struct phm_samu_clock_voltage_dependency_table {
 	uint8_t count;
-	struct phm_samu_clock_voltage_dependency_record entries[1];
+	struct phm_samu_clock_voltage_dependency_record entries[];
 };
 
 struct phm_cac_tdp_table {
