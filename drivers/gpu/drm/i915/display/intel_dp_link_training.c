@@ -34,6 +34,55 @@ intel_dp_dump_link_status(const u8 link_status[DP_LINK_STATUS_SIZE])
 		      link_status[3], link_status[4], link_status[5]);
 }
 
+static bool intel_dp_read_lttpr_common_caps(struct intel_dp *intel_dp)
+{
+	if (drm_dp_read_lttpr_common_caps(&intel_dp->aux,
+					  intel_dp->lttpr_common_caps) < 0) {
+		memset(intel_dp->lttpr_common_caps, 0,
+		       sizeof(intel_dp->lttpr_common_caps));
+		return false;
+	}
+
+	drm_dbg_kms(&dp_to_i915(intel_dp)->drm,
+		    "LTTPR common capabilities: %*ph\n",
+		    (int)sizeof(intel_dp->lttpr_common_caps),
+		    intel_dp->lttpr_common_caps);
+
+	return true;
+}
+
+static bool
+intel_dp_set_lttpr_transparent_mode(struct intel_dp *intel_dp, bool enable)
+{
+	u8 val = enable ? DP_PHY_REPEATER_MODE_TRANSPARENT :
+			  DP_PHY_REPEATER_MODE_NON_TRANSPARENT;
+
+	return drm_dp_dpcd_write(&intel_dp->aux, DP_PHY_REPEATER_MODE, &val, 1) == 1;
+}
+
+/**
+ * intel_dp_lttpr_init - detect LTTPRs and init the LTTPR link training mode
+ * @intel_dp: Intel DP struct
+ *
+ * Read the LTTPR common capabilities and switch to transparent link training
+ * mode.
+ */
+int intel_dp_lttpr_init(struct intel_dp *intel_dp)
+{
+	if (intel_dp_is_edp(intel_dp))
+		return 0;
+
+	intel_dp_read_lttpr_common_caps(intel_dp);
+
+	/*
+	 * See DP Standard v2.0 3.6.6.1. about the explicit disabling of
+	 * non-transparent mode.
+	 */
+	intel_dp_set_lttpr_transparent_mode(intel_dp, true);
+
+	return 0;
+}
+
 static u8 dp_voltage_max(u8 preemph)
 {
 	switch (preemph & DP_TRAIN_PRE_EMPHASIS_MASK) {
@@ -492,6 +541,12 @@ static void intel_dp_schedule_fallback_link_training(struct intel_dp *intel_dp,
 void intel_dp_start_link_train(struct intel_dp *intel_dp,
 			       const struct intel_crtc_state *crtc_state)
 {
+	/*
+	 * TODO: Reiniting LTTPRs here won't be needed once proper connector
+	 * HW state readout is added.
+	 */
+	intel_dp_lttpr_init(intel_dp);
+
 	if (!intel_dp_link_train(intel_dp, crtc_state))
 		intel_dp_schedule_fallback_link_training(intel_dp, crtc_state);
 }

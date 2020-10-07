@@ -11,6 +11,8 @@
 struct intel_crtc_state;
 struct intel_dp;
 
+int intel_dp_lttpr_init(struct intel_dp *intel_dp);
+
 void intel_dp_get_adjust_train(struct intel_dp *intel_dp,
 			       const struct intel_crtc_state *crtc_state,
 			       const u8 link_status[DP_LINK_STATUS_SIZE]);
