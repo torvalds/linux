@@ -2005,21 +2005,13 @@ static void coda_dec_seq_init_work(struct work_struct *work)
 	struct coda_ctx *ctx = container_of(work,
 					    struct coda_ctx, seq_init_work);
 	struct coda_dev *dev = ctx->dev;
-	int ret;
 
 	mutex_lock(&ctx->buffer_mutex);
 	mutex_lock(&dev->coda_mutex);
 
-	if (ctx->initialized == 1)
-		goto out;
+	if (!ctx->initialized)
+		__coda_decoder_seq_init(ctx);
 
-	ret = __coda_decoder_seq_init(ctx);
-	if (ret < 0)
-		goto out;
-
-	ctx->initialized = 1;
-
-out:
 	mutex_unlock(&dev->coda_mutex);
 	mutex_unlock(&ctx->buffer_mutex);
 }
