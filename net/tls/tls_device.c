@@ -351,13 +351,13 @@ static int tls_push_data(struct sock *sk,
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_offload_context_tx *ctx = tls_offload_ctx_tx(tls_ctx);
 	int tls_push_record_flags = flags | MSG_SENDPAGE_NOTLAST;
-	int more = flags & (MSG_SENDPAGE_NOTLAST | MSG_MORE);
 	struct tls_record_info *record = ctx->open_record;
 	struct page_frag *pfrag;
 	size_t orig_size = size;
 	u32 max_open_record_len;
-	int copy, rc = 0;
+	bool more = false;
 	bool done = false;
+	int copy, rc = 0;
 	long timeo;
 
 	if (flags &
@@ -422,9 +422,8 @@ handle_error:
 		if (!size) {
 last_record:
 			tls_push_record_flags = flags;
-			if (more) {
-				tls_ctx->pending_open_record_frags =
-						record->num_frags;
+			if (flags & (MSG_SENDPAGE_NOTLAST | MSG_MORE)) {
+				more = true;
 				break;
 			}
 
@@ -444,6 +443,8 @@ last_record:
 				break;
 		}
 	} while (!done);
+
+	tls_ctx->pending_open_record_frags = more;
 
 	if (orig_size - size > 0)
 		rc = orig_size - size;
