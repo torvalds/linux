@@ -619,7 +619,7 @@ struct rb_entry {
 			unsigned int len;	/* length of the entry */
 		};
 		unsigned long long key;		/* 64-bits key */
-	};
+	} __packed;
 };
 
 struct extent_info {
