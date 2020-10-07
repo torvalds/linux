@@ -1664,7 +1664,6 @@ static void smc_listen_work(struct work_struct *work)
 						smc_listen_work);
 	u8 version = smc_ism_v2_capable ? SMC_V2 : SMC_V1;
 	struct socket *newclcsock = new_smc->clcsock;
-	struct smc_clc_msg_accept_confirm_v2 *cclc2;
 	struct smc_clc_msg_accept_confirm *cclc;
 	struct smc_clc_msg_proposal_area *buf;
 	struct smc_clc_msg_proposal *pclc;
@@ -1740,11 +1739,9 @@ static void smc_listen_work(struct work_struct *work)
 		mutex_unlock(&smc_server_lgr_pending);
 
 	/* receive SMC Confirm CLC message */
-	cclc2 = (struct smc_clc_msg_accept_confirm_v2 *)buf;
-	cclc = (struct smc_clc_msg_accept_confirm *)cclc2;
-	memset(buf, 0, sizeof(struct smc_clc_msg_proposal_area));
-	rc = smc_clc_wait_msg(new_smc, cclc2,
-			      sizeof(struct smc_clc_msg_proposal_area),
+	memset(buf, 0, sizeof(*buf));
+	cclc = (struct smc_clc_msg_accept_confirm *)buf;
+	rc = smc_clc_wait_msg(new_smc, cclc, sizeof(*buf),
 			      SMC_CLC_CONFIRM, CLC_WAIT_TIME);
 	if (rc) {
 		if (!ini->is_smcd)
