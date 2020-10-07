@@ -75,39 +75,6 @@ static bool dma_coherent_ok(struct device *dev, phys_addr_t phys, size_t size)
 		min_not_zero(dev->coherent_dma_mask, dev->bus_dma_limit);
 }
 
-/*
- * Decrypting memory is allowed to block, so if this device requires
- * unencrypted memory it must come from atomic pools.
- */
-static inline bool dma_should_alloc_from_pool(struct device *dev, gfp_t gfp,
-					      unsigned long attrs)
-{
-	if (!IS_ENABLED(CONFIG_DMA_COHERENT_POOL))
-		return false;
-	if (gfpflags_allow_blocking(gfp))
-		return false;
-	if (force_dma_unencrypted(dev))
-		return true;
-	if (!IS_ENABLED(CONFIG_DMA_DIRECT_REMAP))
-		return false;
-	if (dma_alloc_need_uncached(dev, attrs))
-		return true;
-	return false;
-}
-
-static inline bool dma_should_free_from_pool(struct device *dev,
-					     unsigned long attrs)
-{
-	if (IS_ENABLED(CONFIG_DMA_COHERENT_POOL))
-		return true;
-	if ((attrs & DMA_ATTR_NO_KERNEL_MAPPING) &&
-	    !force_dma_unencrypted(dev))
-		return false;
-	if (IS_ENABLED(CONFIG_DMA_DIRECT_REMAP))
-		return true;
-	return false;
-}
-
 static struct page *__dma_direct_alloc_pages(struct device *dev, size_t size,
 		gfp_t gfp)
 {
@@ -170,16 +137,36 @@ void *dma_direct_alloc(struct device *dev, size_t size,
 	void *ret;
 	int err;
 
-	if (!IS_ENABLED(CONFIG_ARCH_HAS_DMA_SET_UNCACHED) &&
-	    !IS_ENABLED(CONFIG_DMA_DIRECT_REMAP) &&
-	    dma_alloc_need_uncached(dev, attrs))
-		return arch_dma_alloc(dev, size, dma_handle, gfp, attrs);
-
 	size = PAGE_ALIGN(size);
 	if (attrs & DMA_ATTR_NO_WARN)
 		gfp |= __GFP_NOWARN;
 
-	if (dma_should_alloc_from_pool(dev, gfp, attrs))
+	if ((attrs & DMA_ATTR_NO_KERNEL_MAPPING) &&
+	    !force_dma_unencrypted(dev)) {
+		page = __dma_direct_alloc_pages(dev, size, gfp & ~__GFP_ZERO);
+		if (!page)
+			return NULL;
+		/* remove any dirty cache lines on the kernel alias */
+		if (!PageHighMem(page))
+			arch_dma_prep_coherent(page, size);
+		*dma_handle = phys_to_dma_direct(dev, page_to_phys(page));
+		/* return the page pointer as the opaque cookie */
+		return page;
+	}
+
+	if (!IS_ENABLED(CONFIG_ARCH_HAS_DMA_SET_UNCACHED) &&
+	    !IS_ENABLED(CONFIG_DMA_DIRECT_REMAP) &&
+	    !dev_is_dma_coherent(dev))
+		return arch_dma_alloc(dev, size, dma_handle, gfp, attrs);
+
+	/*
+	 * Remapping or decrypting memory may block. If either is required and
+	 * we can't block, allocate the memory from the atomic pools.
+	 */
+	if (IS_ENABLED(CONFIG_DMA_COHERENT_POOL) &&
+	    !gfpflags_allow_blocking(gfp) &&
+	    (force_dma_unencrypted(dev) ||
+	     (IS_ENABLED(CONFIG_DMA_DIRECT_REMAP) && !dev_is_dma_coherent(dev))))
 		return dma_direct_alloc_from_pool(dev, size, dma_handle, gfp);
 
 	/* we always manually zero the memory once we are done */
@@ -187,18 +174,8 @@ void *dma_direct_alloc(struct device *dev, size_t size,
 	if (!page)
 		return NULL;
 
-	if ((attrs & DMA_ATTR_NO_KERNEL_MAPPING) &&
-	    !force_dma_unencrypted(dev)) {
-		/* remove any dirty cache lines on the kernel alias */
-		if (!PageHighMem(page))
-			arch_dma_prep_coherent(page, size);
-		/* return the page pointer as the opaque cookie */
-		ret = page;
-		goto done;
-	}
-
 	if ((IS_ENABLED(CONFIG_DMA_DIRECT_REMAP) &&
-	     dma_alloc_need_uncached(dev, attrs)) ||
+	     !dev_is_dma_coherent(dev)) ||
 	    (IS_ENABLED(CONFIG_DMA_REMAP) && PageHighMem(page))) {
 		/* remove any dirty cache lines on the kernel alias */
 		arch_dma_prep_coherent(page, size);
@@ -241,7 +218,7 @@ void *dma_direct_alloc(struct device *dev, size_t size,
 	memset(ret, 0, size);
 
 	if (IS_ENABLED(CONFIG_ARCH_HAS_DMA_SET_UNCACHED) &&
-	    dma_alloc_need_uncached(dev, attrs)) {
+	    !dev_is_dma_coherent(dev)) {
 		arch_dma_prep_coherent(page, size);
 		ret = arch_dma_set_uncached(ret, size);
 		if (IS_ERR(ret))
@@ -269,24 +246,24 @@ void dma_direct_free(struct device *dev, size_t size,
 {
 	unsigned int page_order = get_order(size);
 
-	if (!IS_ENABLED(CONFIG_ARCH_HAS_DMA_SET_UNCACHED) &&
-	    !IS_ENABLED(CONFIG_DMA_DIRECT_REMAP) &&
-	    dma_alloc_need_uncached(dev, attrs)) {
-		arch_dma_free(dev, size, cpu_addr, dma_addr, attrs);
-		return;
-	}
-
-	/* If cpu_addr is not from an atomic pool, dma_free_from_pool() fails */
-	if (dma_should_free_from_pool(dev, attrs) &&
-	    dma_free_from_pool(dev, cpu_addr, PAGE_ALIGN(size)))
-		return;
-
 	if ((attrs & DMA_ATTR_NO_KERNEL_MAPPING) &&
 	    !force_dma_unencrypted(dev)) {
 		/* cpu_addr is a struct page cookie, not a kernel address */
 		dma_free_contiguous(dev, cpu_addr, size);
 		return;
 	}
+
+	if (!IS_ENABLED(CONFIG_ARCH_HAS_DMA_SET_UNCACHED) &&
+	    !IS_ENABLED(CONFIG_DMA_DIRECT_REMAP) &&
+	    !dev_is_dma_coherent(dev)) {
+		arch_dma_free(dev, size, cpu_addr, dma_addr, attrs);
+		return;
+	}
+
+	/* If cpu_addr is not from an atomic pool, dma_free_from_pool() fails */
+	if (IS_ENABLED(CONFIG_DMA_COHERENT_POOL) &&
+	    dma_free_from_pool(dev, cpu_addr, PAGE_ALIGN(size)))
+		return;
 
 	if (force_dma_unencrypted(dev))
 		set_memory_encrypted((unsigned long)cpu_addr, 1 << page_order);
@@ -305,7 +282,8 @@ struct page *dma_direct_alloc_pages(struct device *dev, size_t size,
 	struct page *page;
 	void *ret;
 
-	if (dma_should_alloc_from_pool(dev, gfp, 0))
+	if (IS_ENABLED(CONFIG_DMA_COHERENT_POOL) &&
+	    force_dma_unencrypted(dev) && !gfpflags_allow_blocking(gfp))
 		return dma_direct_alloc_from_pool(dev, size, dma_handle, gfp);
 
 	page = __dma_direct_alloc_pages(dev, size, gfp);
@@ -344,7 +322,7 @@ void dma_direct_free_pages(struct device *dev, size_t size,
 	void *vaddr = page_address(page);
 
 	/* If cpu_addr is not from an atomic pool, dma_free_from_pool() fails */
-	if (dma_should_free_from_pool(dev, 0) &&
+	if (IS_ENABLED(CONFIG_DMA_COHERENT_POOL) &&
 	    dma_free_from_pool(dev, vaddr, size))
 		return;
 

@@ -219,19 +219,6 @@ static inline bool dev_is_dma_coherent(struct device *dev)
 }
 #endif /* CONFIG_ARCH_HAS_DMA_COHERENCE_H */
 
-/*
- * Check if an allocation needs to be marked uncached to be coherent.
- */
-static __always_inline bool dma_alloc_need_uncached(struct device *dev,
-		unsigned long attrs)
-{
-	if (dev_is_dma_coherent(dev))
-		return false;
-	if (attrs & DMA_ATTR_NO_KERNEL_MAPPING)
-		return false;
-	return true;
-}
-
 void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 		gfp_t gfp, unsigned long attrs);
 void arch_dma_free(struct device *dev, size_t size, void *cpu_addr,
