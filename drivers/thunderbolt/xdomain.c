@@ -779,6 +779,7 @@ static void tb_service_release(struct device *dev)
 	struct tb_service *svc = container_of(dev, struct tb_service, dev);
 	struct tb_xdomain *xd = tb_service_parent(svc);
 
+	tb_service_debugfs_remove(svc);
 	ida_simple_remove(&xd->service_ids, svc->id);
 	kfree(svc->key);
 	kfree(svc);
@@ -891,6 +892,8 @@ static void enumerate_services(struct tb_xdomain *xd)
 		svc->dev.type = &tb_service_type;
 		svc->dev.parent = &xd->dev;
 		dev_set_name(&svc->dev, "%s.%d", dev_name(&xd->dev), svc->id);
+
+		tb_service_debugfs_init(svc);
 
 		if (device_register(&svc->dev)) {
 			put_device(&svc->dev);

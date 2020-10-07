@@ -350,6 +350,9 @@ void tb_unregister_protocol_handler(struct tb_protocol_handler *handler);
  * @prtcvers: Protocol version from the properties directory
  * @prtcrevs: Protocol software revision from the properties directory
  * @prtcstns: Protocol settings mask from the properties directory
+ * @debugfs_dir: Pointer to the service debugfs directory. Always created
+ *		 when debugfs is enabled. Can be used by service drivers to
+ *		 add their own entries under the service.
  *
  * Each domain exposes set of services it supports as collection of
  * properties. For each service there will be one corresponding
@@ -363,6 +366,7 @@ struct tb_service {
 	u32 prtcvers;
 	u32 prtcrevs;
 	u32 prtcstns;
+	struct dentry *debugfs_dir;
 };
 
 static inline struct tb_service *tb_service_get(struct tb_service *svc)

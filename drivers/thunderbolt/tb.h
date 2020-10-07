@@ -1027,11 +1027,15 @@ void tb_debugfs_init(void);
 void tb_debugfs_exit(void);
 void tb_switch_debugfs_init(struct tb_switch *sw);
 void tb_switch_debugfs_remove(struct tb_switch *sw);
+void tb_service_debugfs_init(struct tb_service *svc);
+void tb_service_debugfs_remove(struct tb_service *svc);
 #else
 static inline void tb_debugfs_init(void) { }
 static inline void tb_debugfs_exit(void) { }
 static inline void tb_switch_debugfs_init(struct tb_switch *sw) { }
 static inline void tb_switch_debugfs_remove(struct tb_switch *sw) { }
+static inline void tb_service_debugfs_init(struct tb_service *svc) { }
+static inline void tb_service_debugfs_remove(struct tb_service *svc) { }
 #endif
 
 #ifdef CONFIG_USB4_KUNIT_TEST
