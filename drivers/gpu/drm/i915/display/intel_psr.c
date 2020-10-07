@@ -942,7 +942,7 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 		intel_de_write(dev_priv, EXITLINE(cpu_transcoder), val);
 	}
 
-	if (HAS_PSR_HW_TRACKING(dev_priv))
+	if (HAS_PSR_HW_TRACKING(dev_priv) && HAS_PSR2_SEL_FETCH(dev_priv))
 		intel_de_rmw(dev_priv, CHICKEN_PAR1_1, IGNORE_PSR2_HW_TRACKING,
 			     dev_priv->psr.psr2_sel_fetch_enabled ?
 			     IGNORE_PSR2_HW_TRACKING : 0);
