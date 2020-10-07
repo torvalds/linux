@@ -1105,15 +1105,12 @@ static int get_uvd_clock_voltage_limit_table(struct pp_hwmgr *hwmgr,
 		const ATOM_PPLIB_UVD_Clock_Voltage_Limit_Table *table,
 		const UVDClockInfoArray *array)
 {
-	unsigned long table_size, i;
+	unsigned long i;
 	struct phm_uvd_clock_voltage_dependency_table *uvd_table;
 
-	table_size = sizeof(unsigned long) +
-		 sizeof(struct phm_uvd_clock_voltage_dependency_table) *
-		 table->numEntries;
-
-	uvd_table = kzalloc(table_size, GFP_KERNEL);
-	if (NULL == uvd_table)
+	uvd_table = kzalloc(struct_size(uvd_table, entries, table->numEntries),
+			    GFP_KERNEL);
+	if (!uvd_table)
 		return -ENOMEM;
 
 	uvd_table->count = table->numEntries;

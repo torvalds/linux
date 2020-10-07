@@ -140,7 +140,7 @@ struct phm_uvd_clock_voltage_dependency_record {
 
 struct phm_uvd_clock_voltage_dependency_table {
 	uint8_t count;
-	struct phm_uvd_clock_voltage_dependency_record entries[1];
+	struct phm_uvd_clock_voltage_dependency_record entries[];
 };
 
 struct phm_acp_clock_voltage_dependency_record {
