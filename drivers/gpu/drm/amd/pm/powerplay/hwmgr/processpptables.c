@@ -377,14 +377,11 @@ static int get_clock_voltage_dependency_table(struct pp_hwmgr *hwmgr,
 		const ATOM_PPLIB_Clock_Voltage_Dependency_Table *table)
 {
 
-	unsigned long table_size, i;
+	unsigned long i;
 	struct phm_clock_voltage_dependency_table *dep_table;
 
-	table_size = sizeof(unsigned long) +
-		sizeof(struct phm_clock_voltage_dependency_table)
-		* table->ucNumEntries;
-
-	dep_table = kzalloc(table_size, GFP_KERNEL);
+	dep_table = kzalloc(struct_size(dep_table, entries, table->ucNumEntries),
+			    GFP_KERNEL);
 	if (NULL == dep_table)
 		return -ENOMEM;
 

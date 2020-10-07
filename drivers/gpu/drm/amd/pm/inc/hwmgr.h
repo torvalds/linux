@@ -122,8 +122,8 @@ struct phm_acpclock_voltage_dependency_record {
 };
 
 struct phm_clock_voltage_dependency_table {
-	uint32_t count;										/* Number of entries. */
-	struct phm_clock_voltage_dependency_record entries[1];		/* Dynamically allocate count entries. */
+	uint32_t count;							/* Number of entries. */
+	struct phm_clock_voltage_dependency_record entries[];		/* Dynamically allocate count entries. */
 };
 
 struct phm_phase_shedding_limits_record {
