@@ -17,6 +17,8 @@
 #include "super-io.h"
 #include "trace.h"
 
+static inline struct journal_buf *journal_seq_to_buf(struct journal *, u64);
+
 static bool __journal_entry_is_open(union journal_res_state state)
 {
 	return state.cur_entry_offset < JOURNAL_ENTRY_CLOSED_VAL;
@@ -302,6 +304,19 @@ u64 bch2_inode_journal_seq(struct journal *j, u64 inode)
 	spin_unlock(&j->lock);
 
 	return seq;
+}
+
+void bch2_journal_set_has_inum(struct journal *j, u64 inode, u64 seq)
+{
+	size_t h = hash_64(inode, ilog2(sizeof(j->buf[0].has_inode) * 8));
+	struct journal_buf *buf;
+
+	spin_lock(&j->lock);
+
+	if ((buf = journal_seq_to_buf(j, seq)))
+		set_bit(h, buf->has_inode);
+
+	spin_unlock(&j->lock);
 }
 
 static int __journal_res_get(struct journal *j, struct journal_res *res,

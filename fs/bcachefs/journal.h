@@ -147,6 +147,7 @@ static inline u64 journal_cur_seq(struct journal *j)
 }
 
 u64 bch2_inode_journal_seq(struct journal *, u64);
+void bch2_journal_set_has_inum(struct journal *, u64, u64);
 
 static inline int journal_state_count(union journal_res_state s, int idx)
 {

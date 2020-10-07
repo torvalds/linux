@@ -40,7 +40,8 @@ static void bch2_vfs_inode_init(struct bch_fs *,
 				struct bch_inode_info *,
 				struct bch_inode_unpacked *);
 
-static void journal_seq_copy(struct bch_inode_info *dst,
+static void journal_seq_copy(struct bch_fs *c,
+			     struct bch_inode_info *dst,
 			     u64 journal_seq)
 {
 	u64 old, v = READ_ONCE(dst->ei_journal_seq);
@@ -51,6 +52,8 @@ static void journal_seq_copy(struct bch_inode_info *dst,
 		if (old >= journal_seq)
 			break;
 	} while ((v = cmpxchg(&dst->ei_journal_seq, old, journal_seq)) != old);
+
+	bch2_journal_set_has_inum(&c->journal, dst->v.i_ino, journal_seq);
 }
 
 static void __pagecache_lock_put(struct pagecache_lock *lock, long i)
@@ -294,12 +297,12 @@ err_before_quota:
 	if (!tmpfile) {
 		bch2_inode_update_after_write(c, dir, &dir_u,
 					      ATTR_MTIME|ATTR_CTIME);
-		journal_seq_copy(dir, journal_seq);
+		journal_seq_copy(c, dir, journal_seq);
 		mutex_unlock(&dir->ei_update_lock);
 	}
 
 	bch2_vfs_inode_init(c, inode, &inode_u);
-	journal_seq_copy(inode, journal_seq);
+	journal_seq_copy(c, inode, journal_seq);
 
 	set_cached_acl(&inode->v, ACL_TYPE_ACCESS, acl);
 	set_cached_acl(&inode->v, ACL_TYPE_DEFAULT, default_acl);
@@ -320,7 +323,7 @@ err_before_quota:
 		 * We raced, another process pulled the new inode into cache
 		 * before us:
 		 */
-		journal_seq_copy(old, journal_seq);
+		journal_seq_copy(c, old, journal_seq);
 		make_bad_inode(&inode->v);
 		iput(&inode->v);
 
@@ -416,7 +419,7 @@ static int __bch2_link(struct bch_fs *c,
 	if (likely(!ret)) {
 		BUG_ON(inode_u.bi_inum != inode->v.i_ino);
 
-		journal_seq_copy(inode, dir->ei_journal_seq);
+		journal_seq_copy(c, inode, dir->ei_journal_seq);
 		bch2_inode_update_after_write(c, dir, &dir_u,
 					      ATTR_MTIME|ATTR_CTIME);
 		bch2_inode_update_after_write(c, inode, &inode_u, ATTR_CTIME);
@@ -473,7 +476,7 @@ static int bch2_unlink(struct inode *vdir, struct dentry *dentry)
 	if (likely(!ret)) {
 		BUG_ON(inode_u.bi_inum != inode->v.i_ino);
 
-		journal_seq_copy(inode, dir->ei_journal_seq);
+		journal_seq_copy(c, inode, dir->ei_journal_seq);
 		bch2_inode_update_after_write(c, dir, &dir_u,
 					      ATTR_MTIME|ATTR_CTIME);
 		bch2_inode_update_after_write(c, inode, &inode_u,
@@ -509,7 +512,7 @@ static int bch2_symlink(struct mnt_idmap *idmap,
 	if (unlikely(ret))
 		goto err;
 
-	journal_seq_copy(dir, inode->ei_journal_seq);
+	journal_seq_copy(c, dir, inode->ei_journal_seq);
 
 	ret = __bch2_link(c, inode, dir, dentry);
 	if (unlikely(ret))
@@ -609,22 +612,22 @@ retry:
 
 	bch2_inode_update_after_write(c, src_dir, &src_dir_u,
 				      ATTR_MTIME|ATTR_CTIME);
-	journal_seq_copy(src_dir, journal_seq);
+	journal_seq_copy(c, src_dir, journal_seq);
 
 	if (src_dir != dst_dir) {
 		bch2_inode_update_after_write(c, dst_dir, &dst_dir_u,
 					      ATTR_MTIME|ATTR_CTIME);
-		journal_seq_copy(dst_dir, journal_seq);
+		journal_seq_copy(c, dst_dir, journal_seq);
 	}
 
 	bch2_inode_update_after_write(c, src_inode, &src_inode_u,
 				      ATTR_CTIME);
-	journal_seq_copy(src_inode, journal_seq);
+	journal_seq_copy(c, src_inode, journal_seq);
 
 	if (dst_inode) {
 		bch2_inode_update_after_write(c, dst_inode, &dst_inode_u,
 					      ATTR_CTIME);
-		journal_seq_copy(dst_inode, journal_seq);
+		journal_seq_copy(c, dst_inode, journal_seq);
 	}
 err:
 	bch2_trans_exit(&trans);
