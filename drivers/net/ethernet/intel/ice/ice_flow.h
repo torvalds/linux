@@ -194,8 +194,8 @@ struct ice_flow_entry {
 	u16 entry_sz;
 };
 
-#define ICE_FLOW_ENTRY_HNDL(e)	((u64)e)
-#define ICE_FLOW_ENTRY_PTR(h)	((struct ice_flow_entry *)(h))
+#define ICE_FLOW_ENTRY_HNDL(e)	((u64)(uintptr_t)e)
+#define ICE_FLOW_ENTRY_PTR(h)	((struct ice_flow_entry *)(uintptr_t)(h))
 
 struct ice_flow_prof {
 	struct list_head l_entry;
