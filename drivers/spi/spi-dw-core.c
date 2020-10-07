@@ -189,17 +189,30 @@ static irqreturn_t interrupt_transfer(struct dw_spi *dws)
 		return IRQ_HANDLED;
 	}
 
+	/*
+	 * Read data from the Rx FIFO every time we've got a chance executing
+	 * this method. If there is nothing left to receive, terminate the
+	 * procedure. Otherwise adjust the Rx FIFO Threshold level if it's a
+	 * final stage of the transfer. By doing so we'll get the next IRQ
+	 * right when the leftover incoming data is received.
+	 */
 	dw_reader(dws);
 	if (!dws->rx_len) {
 		spi_mask_intr(dws, 0xff);
 		spi_finalize_current_transfer(dws->master);
-		return IRQ_HANDLED;
+	} else if (dws->rx_len <= dw_readl(dws, DW_SPI_RXFTLR)) {
+		dw_writel(dws, DW_SPI_RXFTLR, dws->rx_len - 1);
 	}
+
+	/*
+	 * Send data out if Tx FIFO Empty IRQ is received. The IRQ will be
+	 * disabled after the data transmission is finished so not to
+	 * have the TXE IRQ flood at the final stage of the transfer.
+	 */
 	if (irq_status & SPI_INT_TXEI) {
-		spi_mask_intr(dws, SPI_INT_TXEI);
 		dw_writer(dws);
-		/* Enable TX irq always, it will be disabled when RX finished */
-		spi_umask_intr(dws, SPI_INT_TXEI);
+		if (!dws->tx_len)
+			spi_mask_intr(dws, SPI_INT_TXEI);
 	}
 
 	return IRQ_HANDLED;
@@ -338,10 +351,6 @@ static int dw_spi_transfer_one(struct spi_controller *master,
 	/* For poll mode just disable all interrupts */
 	spi_mask_intr(dws, 0xff);
 
-	/*
-	 * Interrupt mode
-	 * we only need set the TXEI IRQ, as TX/RX always happen syncronizely
-	 */
 	if (dws->dma_mapped) {
 		ret = dws->dma_ops->dma_setup(dws, transfer);
 		if (ret < 0) {
@@ -349,12 +358,18 @@ static int dw_spi_transfer_one(struct spi_controller *master,
 			return ret;
 		}
 	} else {
+		/*
+		 * Originally Tx and Rx data lengths match. Rx FIFO Threshold level
+		 * will be adjusted at the final stage of the IRQ-based SPI transfer
+		 * execution so not to lose the leftover of the incoming data.
+		 */
 		txlevel = min_t(u16, dws->fifo_len / 2, dws->tx_len);
 		dw_writel(dws, DW_SPI_TXFTLR, txlevel);
+		dw_writel(dws, DW_SPI_RXFTLR, txlevel - 1);
 
 		/* Set the interrupt mask */
 		imask |= SPI_INT_TXEI | SPI_INT_TXOI |
-			 SPI_INT_RXUI | SPI_INT_RXOI;
+			 SPI_INT_RXUI | SPI_INT_RXOI | SPI_INT_RXFI;
 		spi_umask_intr(dws, imask);
 
 		dws->transfer_handler = interrupt_transfer;
