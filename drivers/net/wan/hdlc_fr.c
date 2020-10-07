@@ -271,10 +271,8 @@ static inline struct net_device **get_dev_p(struct pvc_device *pvc,
 }
 
 
-static int fr_hard_header(struct sk_buff **skb_p, u16 dlci)
+static int fr_hard_header(struct sk_buff *skb, u16 dlci)
 {
-	struct sk_buff *skb = *skb_p;
-
 	if (!skb->dev) { /* Control packets */
 		switch (dlci) {
 		case LMI_CCITT_ANSI_DLCI:
@@ -316,13 +314,6 @@ static int fr_hard_header(struct sk_buff **skb_p, u16 dlci)
 		}
 
 	} else if (skb->dev->type == ARPHRD_ETHER) {
-		if (skb_headroom(skb) < 10) {
-			struct sk_buff *skb2 = skb_realloc_headroom(skb, 10);
-			if (!skb2)
-				return -ENOBUFS;
-			dev_kfree_skb(skb);
-			skb = *skb_p = skb2;
-		}
 		skb_push(skb, 10);
 		skb->data[3] = FR_PAD;
 		skb->data[4] = NLPID_SNAP;
@@ -429,8 +420,21 @@ static netdev_tx_t pvc_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 
+	/* We already requested the header space with dev->needed_headroom.
+	 * So this is just a protection in case the upper layer didn't take
+	 * dev->needed_headroom into consideration.
+	 */
+	if (skb_headroom(skb) < 10) {
+		struct sk_buff *skb2 = skb_realloc_headroom(skb, 10);
+
+		if (!skb2)
+			goto drop;
+		dev_kfree_skb(skb);
+		skb = skb2;
+	}
+
 	skb->dev = dev;
-	if (fr_hard_header(&skb, pvc->dlci))
+	if (fr_hard_header(skb, pvc->dlci))
 		goto drop;
 
 	dev->stats.tx_bytes += skb->len;
@@ -498,9 +502,9 @@ static void fr_lmi_send(struct net_device *dev, int fullrep)
 	memset(skb->data, 0, len);
 	skb_reserve(skb, 4);
 	if (lmi == LMI_CISCO) {
-		fr_hard_header(&skb, LMI_CISCO_DLCI);
+		fr_hard_header(skb, LMI_CISCO_DLCI);
 	} else {
-		fr_hard_header(&skb, LMI_CCITT_ANSI_DLCI);
+		fr_hard_header(skb, LMI_CCITT_ANSI_DLCI);
 	}
 	data = skb_tail_pointer(skb);
 	data[i++] = LMI_CALLREF;
