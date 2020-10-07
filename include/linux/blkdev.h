@@ -1407,7 +1407,10 @@ static inline unsigned int queue_max_segment_size(const struct request_queue *q)
 
 static inline unsigned int queue_max_zone_append_sectors(const struct request_queue *q)
 {
-	return q->limits.max_zone_append_sectors;
+
+	const struct queue_limits *l = &q->limits;
+
+	return min(l->max_zone_append_sectors, l->max_sectors);
 }
 
 static inline unsigned queue_logical_block_size(const struct request_queue *q)
