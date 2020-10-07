@@ -4,6 +4,7 @@
 #include <linux/console.h>
 #include <linux/init.h>
 #include <linux/kfifo.h>
+#include <linux/moduleparam.h>
 #include <linux/serial.h>
 #include <linux/serial_core.h>
 #include <linux/spinlock.h>
@@ -12,6 +13,13 @@
 #include <asm/processor.h>
 
 #include "hvc_console.h"
+
+/*
+ * Disable DCC driver at runtime. Want driver enabled for GKI, but some devices
+ * do not support the registers and crash when driver pokes the registers
+ */
+static bool enable;
+module_param(enable, bool, 0444);
 
 /* DCC Status Bits */
 #define DCC_STATUS_RX		(1 << 30)
@@ -244,7 +252,7 @@ static int __init hvc_dcc_console_init(void)
 {
 	int ret;
 
-	if (!hvc_dcc_check())
+	if (!enable || !hvc_dcc_check())
 		return -ENODEV;
 
 	/* Returns -1 if error */
@@ -258,7 +266,7 @@ static int __init hvc_dcc_init(void)
 {
 	struct hvc_struct *p;
 
-	if (!hvc_dcc_check())
+	if (!enable || !hvc_dcc_check())
 		return -ENODEV;
 
 	p = hvc_alloc(0, 0, &hvc_dcc_get_put_ops, 128);
