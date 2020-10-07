@@ -1135,15 +1135,12 @@ static int get_vce_clock_voltage_limit_table(struct pp_hwmgr *hwmgr,
 		const ATOM_PPLIB_VCE_Clock_Voltage_Limit_Table *table,
 		const VCEClockInfoArray    *array)
 {
-	unsigned long table_size, i;
+	unsigned long i;
 	struct phm_vce_clock_voltage_dependency_table *vce_table = NULL;
 
-	table_size = sizeof(unsigned long) +
-			sizeof(struct phm_vce_clock_voltage_dependency_table)
-			* table->numEntries;
-
-	vce_table = kzalloc(table_size, GFP_KERNEL);
-	if (NULL == vce_table)
+	vce_table = kzalloc(struct_size(vce_table, entries, table->numEntries),
+			    GFP_KERNEL);
+	if (!vce_table)
 		return -ENOMEM;
 
 	vce_table->count = table->numEntries;

@@ -186,7 +186,7 @@ struct phm_acpclock_voltage_dependency_table {
 
 struct phm_vce_clock_voltage_dependency_table {
 	uint8_t count;
-	struct phm_vce_clock_voltage_dependency_record entries[1];
+	struct phm_vce_clock_voltage_dependency_record entries[];
 };
 
 
