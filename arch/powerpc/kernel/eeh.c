@@ -466,7 +466,7 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 		return 0;
 	}
 
-	if (!pe->addr && !pe->config_addr) {
+	if (!pe->addr) {
 		eeh_stats.no_cfg_addr++;
 		return 0;
 	}

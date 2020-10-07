@@ -354,8 +354,8 @@ int eeh_pe_tree_insert(struct eeh_dev *edev, struct eeh_pe *new_pe_parent)
 		pr_err("%s: out of memory!\n", __func__);
 		return -ENOMEM;
 	}
-	pe->addr	= edev->pe_config_addr;
-	pe->config_addr	= edev->bdfn;
+
+	pe->addr = edev->pe_config_addr;
 
 	/*
 	 * Put the new EEH PE into hierarchy tree. If the parent
