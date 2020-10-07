@@ -3947,6 +3947,7 @@ static int mlx4_restart_one_up(struct pci_dev *pdev, bool reload,
 
 static int mlx4_devlink_reload_down(struct devlink *devlink, bool netns_change,
 				    enum devlink_reload_action action,
+				    enum devlink_reload_limit limit,
 				    struct netlink_ext_ack *extack)
 {
 	struct mlx4_priv *priv = devlink_priv(devlink);
@@ -3964,7 +3965,8 @@ static int mlx4_devlink_reload_down(struct devlink *devlink, bool netns_change,
 }
 
 static int mlx4_devlink_reload_up(struct devlink *devlink, enum devlink_reload_action action,
-				  u32 *actions_performed, struct netlink_ext_ack *extack)
+				  enum devlink_reload_limit limit, u32 *actions_performed,
+				  struct netlink_ext_ack *extack)
 {
 	struct mlx4_priv *priv = devlink_priv(devlink);
 	struct mlx4_dev *dev = &priv->dev;

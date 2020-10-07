@@ -701,7 +701,8 @@ static int nsim_dev_reload_create(struct nsim_dev *nsim_dev,
 static void nsim_dev_reload_destroy(struct nsim_dev *nsim_dev);
 
 static int nsim_dev_reload_down(struct devlink *devlink, bool netns_change,
-				enum devlink_reload_action action, struct netlink_ext_ack *extack)
+				enum devlink_reload_action action, enum devlink_reload_limit limit,
+				struct netlink_ext_ack *extack)
 {
 	struct nsim_dev *nsim_dev = devlink_priv(devlink);
 
@@ -718,7 +719,8 @@ static int nsim_dev_reload_down(struct devlink *devlink, bool netns_change,
 }
 
 static int nsim_dev_reload_up(struct devlink *devlink, enum devlink_reload_action action,
-			      u32 *actions_performed, struct netlink_ext_ack *extack)
+			      enum devlink_reload_limit limit, u32 *actions_performed,
+			      struct netlink_ext_ack *extack)
 {
 	struct nsim_dev *nsim_dev = devlink_priv(devlink);
 

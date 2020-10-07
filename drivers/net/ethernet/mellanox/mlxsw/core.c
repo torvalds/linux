@@ -1415,6 +1415,7 @@ mlxsw_devlink_info_get(struct devlink *devlink, struct devlink_info_req *req,
 static int
 mlxsw_devlink_core_bus_device_reload_down(struct devlink *devlink,
 					  bool netns_change, enum devlink_reload_action action,
+					  enum devlink_reload_limit limit,
 					  struct netlink_ext_ack *extack)
 {
 	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
@@ -1428,7 +1429,8 @@ mlxsw_devlink_core_bus_device_reload_down(struct devlink *devlink,
 
 static int
 mlxsw_devlink_core_bus_device_reload_up(struct devlink *devlink, enum devlink_reload_action action,
-					u32 *actions_performed,	struct netlink_ext_ack *extack)
+					enum devlink_reload_limit limit, u32 *actions_performed,
+					struct netlink_ext_ack *extack)
 {
 	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
 

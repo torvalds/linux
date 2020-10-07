@@ -479,10 +479,42 @@ static int devlink_nl_put_handle(struct sk_buff *msg, struct devlink *devlink)
 	return 0;
 }
 
+struct devlink_reload_combination {
+	enum devlink_reload_action action;
+	enum devlink_reload_limit limit;
+};
+
+static const struct devlink_reload_combination devlink_reload_invalid_combinations[] = {
+	{
+		/* can't reinitialize driver with no down time */
+		.action = DEVLINK_RELOAD_ACTION_DRIVER_REINIT,
+		.limit = DEVLINK_RELOAD_LIMIT_NO_RESET,
+	},
+};
+
+static bool
+devlink_reload_combination_is_invalid(enum devlink_reload_action action,
+				      enum devlink_reload_limit limit)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(devlink_reload_invalid_combinations); i++)
+		if (devlink_reload_invalid_combinations[i].action == action &&
+		    devlink_reload_invalid_combinations[i].limit == limit)
+			return true;
+	return false;
+}
+
 static bool
 devlink_reload_action_is_supported(struct devlink *devlink, enum devlink_reload_action action)
 {
 	return test_bit(action, &devlink->ops->reload_actions);
+}
+
+static bool
+devlink_reload_limit_is_supported(struct devlink *devlink, enum devlink_reload_limit limit)
+{
+	return test_bit(limit, &devlink->ops->reload_limits);
 }
 
 static int devlink_nl_fill(struct sk_buff *msg, struct devlink *devlink,
@@ -2990,22 +3022,22 @@ bool devlink_is_reload_failed(const struct devlink *devlink)
 EXPORT_SYMBOL_GPL(devlink_is_reload_failed);
 
 static int devlink_reload(struct devlink *devlink, struct net *dest_net,
-			  enum devlink_reload_action action, u32 *actions_performed,
-			  struct netlink_ext_ack *extack)
+			  enum devlink_reload_action action, enum devlink_reload_limit limit,
+			  u32 *actions_performed, struct netlink_ext_ack *extack)
 {
 	int err;
 
 	if (!devlink->reload_enabled)
 		return -EOPNOTSUPP;
 
-	err = devlink->ops->reload_down(devlink, !!dest_net, action, extack);
+	err = devlink->ops->reload_down(devlink, !!dest_net, action, limit, extack);
 	if (err)
 		return err;
 
 	if (dest_net && !net_eq(dest_net, devlink_net(devlink)))
 		devlink_reload_netns_change(devlink, dest_net);
 
-	err = devlink->ops->reload_up(devlink, action, actions_performed, extack);
+	err = devlink->ops->reload_up(devlink, action, limit, actions_performed, extack);
 	devlink_reload_failed_set(devlink, !!err);
 	if (err)
 		return err;
@@ -3050,6 +3082,7 @@ static int devlink_nl_cmd_reload(struct sk_buff *skb, struct genl_info *info)
 {
 	struct devlink *devlink = info->user_ptr[0];
 	enum devlink_reload_action action;
+	enum devlink_reload_limit limit;
 	struct net *dest_net = NULL;
 	u32 actions_performed;
 	int err;
@@ -3082,7 +3115,38 @@ static int devlink_nl_cmd_reload(struct sk_buff *skb, struct genl_info *info)
 		return -EOPNOTSUPP;
 	}
 
-	err = devlink_reload(devlink, dest_net, action, &actions_performed, info->extack);
+	limit = DEVLINK_RELOAD_LIMIT_UNSPEC;
+	if (info->attrs[DEVLINK_ATTR_RELOAD_LIMITS]) {
+		struct nla_bitfield32 limits;
+		u32 limits_selected;
+
+		limits = nla_get_bitfield32(info->attrs[DEVLINK_ATTR_RELOAD_LIMITS]);
+		limits_selected = limits.value & limits.selector;
+		if (!limits_selected) {
+			NL_SET_ERR_MSG_MOD(info->extack, "Invalid limit selected");
+			return -EINVAL;
+		}
+		for (limit = 0 ; limit <= DEVLINK_RELOAD_LIMIT_MAX ; limit++)
+			if (limits_selected & BIT(limit))
+				break;
+		/* UAPI enables multiselection, but currently it is not used */
+		if (limits_selected != BIT(limit)) {
+			NL_SET_ERR_MSG_MOD(info->extack,
+					   "Multiselection of limit is not supported");
+			return -EOPNOTSUPP;
+		}
+		if (!devlink_reload_limit_is_supported(devlink, limit)) {
+			NL_SET_ERR_MSG_MOD(info->extack,
+					   "Requested limit is not supported by the driver");
+			return -EOPNOTSUPP;
+		}
+		if (devlink_reload_combination_is_invalid(action, limit)) {
+			NL_SET_ERR_MSG_MOD(info->extack,
+					   "Requested limit is invalid for this action");
+			return -EINVAL;
+		}
+	}
+	err = devlink_reload(devlink, dest_net, action, limit, &actions_performed, info->extack);
 
 	if (dest_net)
 		put_net(dest_net);
@@ -3090,7 +3154,7 @@ static int devlink_nl_cmd_reload(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		return err;
 	/* For backward compatibility generate reply only if attributes used by user */
-	if (!info->attrs[DEVLINK_ATTR_RELOAD_ACTION])
+	if (!info->attrs[DEVLINK_ATTR_RELOAD_ACTION] && !info->attrs[DEVLINK_ATTR_RELOAD_LIMITS])
 		return 0;
 
 	return devlink_nl_reload_actions_performed_snd(devlink, actions_performed,
@@ -7347,6 +7411,7 @@ static const struct nla_policy devlink_nl_policy[DEVLINK_ATTR_MAX + 1] = {
 	[DEVLINK_ATTR_PORT_FUNCTION] = { .type = NLA_NESTED },
 	[DEVLINK_ATTR_RELOAD_ACTION] = NLA_POLICY_RANGE(NLA_U8, DEVLINK_RELOAD_ACTION_DRIVER_REINIT,
 							DEVLINK_RELOAD_ACTION_MAX),
+	[DEVLINK_ATTR_RELOAD_LIMITS] = NLA_POLICY_BITFIELD32(DEVLINK_RELOAD_LIMITS_VALID_MASK),
 };
 
 static const struct genl_small_ops devlink_nl_ops[] = {
@@ -7682,6 +7747,9 @@ static struct genl_family devlink_nl_family __ro_after_init = {
 
 static bool devlink_reload_actions_valid(const struct devlink_ops *ops)
 {
+	const struct devlink_reload_combination *comb;
+	int i;
+
 	if (!devlink_reload_supported(ops)) {
 		if (WARN_ON(ops->reload_actions))
 			return false;
@@ -7692,6 +7760,17 @@ static bool devlink_reload_actions_valid(const struct devlink_ops *ops)
 		    ops->reload_actions & BIT(DEVLINK_RELOAD_ACTION_UNSPEC) ||
 		    ops->reload_actions >= BIT(__DEVLINK_RELOAD_ACTION_MAX)))
 		return false;
+
+	if (WARN_ON(ops->reload_limits & BIT(DEVLINK_RELOAD_LIMIT_UNSPEC) ||
+		    ops->reload_limits >= BIT(__DEVLINK_RELOAD_LIMIT_MAX)))
+		return false;
+
+	for (i = 0; i < ARRAY_SIZE(devlink_reload_invalid_combinations); i++)  {
+		comb = &devlink_reload_invalid_combinations[i];
+		if (ops->reload_actions == BIT(comb->action) &&
+		    ops->reload_limits == BIT(comb->limit))
+			return false;
+	}
 	return true;
 }
 
@@ -10056,6 +10135,7 @@ static void __net_exit devlink_pernet_pre_exit(struct net *net)
 				continue;
 			err = devlink_reload(devlink, &init_net,
 					     DEVLINK_RELOAD_ACTION_DRIVER_REINIT,
+					     DEVLINK_RELOAD_LIMIT_UNSPEC,
 					     &actions_performed, NULL);
 			if (err && err != -EOPNOTSUPP)
 				pr_warn("Failed to reload devlink instance into init_net\n");

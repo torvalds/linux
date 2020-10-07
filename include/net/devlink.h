@@ -1151,10 +1151,14 @@ struct devlink_ops {
 	 */
 	u32 supported_flash_update_params;
 	unsigned long reload_actions;
+	unsigned long reload_limits;
 	int (*reload_down)(struct devlink *devlink, bool netns_change,
-			   enum devlink_reload_action action, struct netlink_ext_ack *extack);
+			   enum devlink_reload_action action,
+			   enum devlink_reload_limit limit,
+			   struct netlink_ext_ack *extack);
 	int (*reload_up)(struct devlink *devlink, enum devlink_reload_action action,
-			 u32 *actions_performed, struct netlink_ext_ack *extack);
+			 enum devlink_reload_limit limit, u32 *actions_performed,
+			 struct netlink_ext_ack *extack);
 	int (*port_type_set)(struct devlink_port *devlink_port,
 			     enum devlink_port_type port_type);
 	int (*port_split)(struct devlink *devlink, unsigned int port_index,
