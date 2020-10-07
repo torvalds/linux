@@ -204,11 +204,6 @@ static unsigned long qat_dh_fn_id(unsigned int len, bool g2)
 	};
 }
 
-static inline struct qat_dh_ctx *qat_dh_get_params(struct crypto_kpp *tfm)
-{
-	return kpp_tfm_ctx(tfm);
-}
-
 static int qat_dh_compute_value(struct kpp_request *req)
 {
 	struct crypto_kpp *tfm = crypto_kpp_reqtfm(req);
