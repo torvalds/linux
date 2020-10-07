@@ -3217,9 +3217,10 @@ int vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 		 * must first be able to turn on cr4.VMXE (see handle_vmon()).
 		 * So basically the check on whether to allow nested VMX
 		 * is here.  We operate under the default treatment of SMM,
-		 * so VMX cannot be enabled under SMM.
+		 * so VMX cannot be enabled under SMM.  Note, guest CPUID is
+		 * intentionally ignored, it's handled by cr4_guest_rsvd_bits.
 		 */
-		if (!nested_vmx_allowed(vcpu) || is_smm(vcpu))
+		if (!nested || is_smm(vcpu))
 			return 1;
 	}
 
