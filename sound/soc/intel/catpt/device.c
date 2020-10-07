@@ -81,10 +81,11 @@ static int __maybe_unused catpt_resume(struct device *dev)
 	if (ret)
 		return ret;
 
-	if (!module_is_live(dev->driver->owner)) {
+	if (!try_module_get(dev->driver->owner)) {
 		dev_info(dev, "module unloading, skipping fw boot\n");
 		return 0;
 	}
+	module_put(dev->driver->owner);
 
 	ret = catpt_boot_firmware(cdev, true);
 	if (ret) {
@@ -107,10 +108,12 @@ static int __maybe_unused catpt_resume(struct device *dev)
 
 static int __maybe_unused catpt_runtime_suspend(struct device *dev)
 {
-	if (!module_is_live(dev->driver->owner)) {
+	if (!try_module_get(dev->driver->owner)) {
 		dev_info(dev, "module unloading, skipping suspend\n");
 		return 0;
 	}
+	module_put(dev->driver->owner);
+
 	return catpt_suspend(dev);
 }
 
