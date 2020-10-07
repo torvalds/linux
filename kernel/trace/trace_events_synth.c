@@ -491,7 +491,7 @@ static int __set_synth_event_print_fmt(struct synth_event *event,
 	pos += snprintf(buf + pos, LEN_OR_ZERO, "\"");
 
 	for (i = 0; i < event->n_fields; i++) {
-		if (event->fields[i]->is_dynamic &&
+		if (event->fields[i]->is_string &&
 		    event->fields[i]->is_dynamic)
 			pos += snprintf(buf + pos, LEN_OR_ZERO,
 				", __get_str(%s)", event->fields[i]->name);
