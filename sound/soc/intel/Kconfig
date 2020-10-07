@@ -37,7 +37,7 @@ config SND_SOC_INTEL_SST
 config SND_SOC_INTEL_CATPT
 	tristate "Haswell and Broadwell"
 	depends on ACPI || COMPILE_TEST
-	depends on SND_DMA_SGBUF
+	depends on DMADEVICES && SND_DMA_SGBUF
 	select DW_DMAC_CORE
 	select SND_SOC_ACPI_INTEL_MATCH
 	help
