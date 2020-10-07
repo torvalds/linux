@@ -71,7 +71,7 @@ typedef struct phm_ppt_v1_mm_clock_voltage_dependency_record phm_ppt_v1_mm_clock
 
 struct phm_ppt_v1_mm_clock_voltage_dependency_table {
 	uint32_t count;													/* Number of entries. */
-	phm_ppt_v1_mm_clock_voltage_dependency_record entries[1];		/* Dynamically allocate count entries. */
+	phm_ppt_v1_mm_clock_voltage_dependency_record entries[];		/* Dynamically allocate count entries. */
 };
 typedef struct phm_ppt_v1_mm_clock_voltage_dependency_table phm_ppt_v1_mm_clock_voltage_dependency_table;
 

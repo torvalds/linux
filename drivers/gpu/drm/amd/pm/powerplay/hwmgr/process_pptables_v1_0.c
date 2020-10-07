@@ -678,19 +678,16 @@ static int get_mm_clock_voltage_table(
 		const ATOM_Tonga_MM_Dependency_Table * mm_dependency_table
 		)
 {
-	uint32_t table_size, i;
+	uint32_t i;
 	const ATOM_Tonga_MM_Dependency_Record *mm_dependency_record;
 	phm_ppt_v1_mm_clock_voltage_dependency_table *mm_table;
 	phm_ppt_v1_mm_clock_voltage_dependency_record *mm_table_record;
 
 	PP_ASSERT_WITH_CODE((0 != mm_dependency_table->ucNumEntries),
 		"Invalid PowerPlay Table!", return -1);
-	table_size = sizeof(uint32_t) +
-		sizeof(phm_ppt_v1_mm_clock_voltage_dependency_record)
-		* mm_dependency_table->ucNumEntries;
-	mm_table = kzalloc(table_size, GFP_KERNEL);
-
-	if (NULL == mm_table)
+	mm_table = kzalloc(struct_size(mm_table, entries, mm_dependency_table->ucNumEntries),
+			   GFP_KERNEL);
+	if (!mm_table)
 		return -ENOMEM;
 
 	mm_table->count = mm_dependency_table->ucNumEntries;
