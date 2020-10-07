@@ -482,8 +482,7 @@ static void enetc_port_si_configure(struct enetc_si *si)
 	enetc_port_wr(hw, ENETC_PSIVLANFMR, ENETC_PSIVLANFMR_VS);
 }
 
-static void enetc_configure_port_mac(struct enetc_hw *hw,
-				     phy_interface_t phy_mode)
+static void enetc_configure_port_mac(struct enetc_hw *hw)
 {
 	enetc_port_wr(hw, ENETC_PM0_MAXFRM,
 		      ENETC_SET_MAXFRM(ENETC_RX_MAXFRM_SIZE));
@@ -492,12 +491,16 @@ static void enetc_configure_port_mac(struct enetc_hw *hw,
 	enetc_port_wr(hw, ENETC_PTXMBAR, 2 * ENETC_MAC_MAXFRM_SIZE);
 
 	enetc_port_wr(hw, ENETC_PM0_CMD_CFG, ENETC_PM0_CMD_PHY_TX_EN |
-		      ENETC_PM0_CMD_TXP	| ENETC_PM0_PROMISC |
-		      ENETC_PM0_TX_EN | ENETC_PM0_RX_EN);
+		      ENETC_PM0_CMD_TXP	| ENETC_PM0_PROMISC);
 
 	enetc_port_wr(hw, ENETC_PM1_CMD_CFG, ENETC_PM0_CMD_PHY_TX_EN |
-		      ENETC_PM0_CMD_TXP	| ENETC_PM0_PROMISC |
-		      ENETC_PM0_TX_EN | ENETC_PM0_RX_EN);
+		      ENETC_PM0_CMD_TXP	| ENETC_PM0_PROMISC);
+}
+
+static void enetc_mac_config(struct enetc_hw *hw, phy_interface_t phy_mode)
+{
+	u32 val;
+
 	/* set auto-speed for RGMII */
 	if (enetc_port_rd(hw, ENETC_PM0_IF_MODE) & ENETC_PMO_IFM_RG ||
 	    phy_interface_mode_is_rgmii(phy_mode))
@@ -505,6 +508,14 @@ static void enetc_configure_port_mac(struct enetc_hw *hw,
 
 	if (phy_mode == PHY_INTERFACE_MODE_USXGMII)
 		enetc_port_wr(hw, ENETC_PM0_IF_MODE, ENETC_PM0_IFM_XGMII);
+
+	/* enable Rx and Tx */
+	val = enetc_port_rd(hw, ENETC_PM0_CMD_CFG);
+	enetc_port_wr(hw, ENETC_PM0_CMD_CFG,
+		      val | ENETC_PM0_TX_EN | ENETC_PM0_RX_EN);
+
+	enetc_port_wr(hw, ENETC_PM1_CMD_CFG,
+		      val | ENETC_PM0_TX_EN | ENETC_PM0_RX_EN);
 }
 
 static void enetc_configure_port_pmac(struct enetc_hw *hw)
@@ -527,7 +538,7 @@ static void enetc_configure_port(struct enetc_pf *pf)
 
 	enetc_configure_port_pmac(hw);
 
-	enetc_configure_port_mac(hw, pf->if_mode);
+	enetc_configure_port_mac(hw);
 
 	enetc_port_si_configure(pf->si);
 
@@ -733,11 +744,10 @@ static void enetc_pf_netdev_setup(struct enetc_si *si, struct net_device *ndev,
 	enetc_get_primary_mac_addr(&si->hw, ndev->dev_addr);
 }
 
-static int enetc_mdio_probe(struct enetc_pf *pf)
+static int enetc_mdio_probe(struct enetc_pf *pf, struct device_node *np)
 {
 	struct device *dev = &pf->si->pdev->dev;
 	struct enetc_mdio_priv *mdio_priv;
-	struct device_node *np;
 	struct mii_bus *bus;
 	int err;
 
@@ -754,26 +764,36 @@ static int enetc_mdio_probe(struct enetc_pf *pf)
 	mdio_priv->mdio_base = ENETC_EMDIO_BASE;
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%s", dev_name(dev));
 
-	np = of_get_child_by_name(dev->of_node, "mdio");
-	if (!np) {
-		dev_err(dev, "MDIO node missing\n");
-		return -EINVAL;
-	}
-
 	err = of_mdiobus_register(bus, np);
 	if (err) {
-		of_node_put(np);
 		dev_err(dev, "cannot register MDIO bus\n");
 		return err;
 	}
 
-	of_node_put(np);
 	pf->mdio = bus;
 
 	return 0;
 }
 
-static void enetc_mdio_remove(struct enetc_pf *pf)
+static int enetc_mdiobus_create(struct enetc_pf *pf)
+{
+	struct device *dev = &pf->si->pdev->dev;
+	struct device_node *mdio_np;
+	int err;
+
+	mdio_np = of_get_child_by_name(dev->of_node, "mdio");
+	if (mdio_np) {
+		err = enetc_mdio_probe(pf, mdio_np);
+
+		of_node_put(mdio_np);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static void enetc_mdiobus_destroy(struct enetc_pf *pf)
 {
 	if (pf->mdio)
 		mdiobus_unregister(pf->mdio);
@@ -783,14 +803,13 @@ static int enetc_of_get_phy(struct enetc_pf *pf)
 {
 	struct device *dev = &pf->si->pdev->dev;
 	struct device_node *np = dev->of_node;
-	struct device_node *mdio_np;
 	int err;
 
 	pf->phy_node = of_parse_phandle(np, "phy-handle", 0);
 	if (!pf->phy_node) {
 		if (!of_phy_is_fixed_link(np)) {
-			dev_err(dev, "PHY not specified\n");
-			return -ENODEV;
+			dev_dbg(dev, "PHY not specified\n");
+			return 0;
 		}
 
 		err = of_phy_register_fixed_link(np);
@@ -802,24 +821,12 @@ static int enetc_of_get_phy(struct enetc_pf *pf)
 		pf->phy_node = of_node_get(np);
 	}
 
-	mdio_np = of_get_child_by_name(np, "mdio");
-	if (mdio_np) {
-		of_node_put(mdio_np);
-		err = enetc_mdio_probe(pf);
-		if (err) {
-			of_node_put(pf->phy_node);
-			return err;
-		}
-	}
-
 	err = of_get_phy_mode(np, &pf->if_mode);
 	if (err) {
 		dev_err(dev, "missing phy type\n");
 		of_node_put(pf->phy_node);
 		if (of_phy_is_fixed_link(np))
 			of_phy_deregister_fixed_link(np);
-		else
-			enetc_mdio_remove(pf);
 
 		return -EINVAL;
 	}
@@ -1004,10 +1011,6 @@ static int enetc_pf_probe(struct pci_dev *pdev,
 	pf->si = si;
 	pf->total_vfs = pci_sriov_get_totalvfs(pdev);
 
-	err = enetc_of_get_phy(pf);
-	if (err)
-		dev_warn(&pdev->dev, "Fallback to PHY-less operation\n");
-
 	enetc_configure_port(pf);
 
 	enetc_get_si_caps(si);
@@ -1022,8 +1025,6 @@ static int enetc_pf_probe(struct pci_dev *pdev,
 	enetc_pf_netdev_setup(si, ndev, &enetc_ndev_ops);
 
 	priv = netdev_priv(ndev);
-	priv->phy_node = pf->phy_node;
-	priv->if_mode = pf->if_mode;
 
 	enetc_init_si_rings_params(priv);
 
@@ -1039,9 +1040,24 @@ static int enetc_pf_probe(struct pci_dev *pdev,
 		goto err_alloc_msix;
 	}
 
-	err = enetc_configure_serdes(priv);
+	err = enetc_of_get_phy(pf);
 	if (err)
-		dev_warn(&pdev->dev, "Attempted SerDes config but failed\n");
+		goto err_of_get_phy;
+
+	if (pf->phy_node) {
+		priv->phy_node = pf->phy_node;
+		priv->if_mode = pf->if_mode;
+
+		err = enetc_mdiobus_create(pf);
+		if (err)
+			goto err_mdiobus_create;
+
+		err = enetc_configure_serdes(priv);
+		if (err)
+			goto err_configure_serdes;
+
+		enetc_mac_config(&pf->si->hw, pf->if_mode);
+	}
 
 	err = register_netdev(ndev);
 	if (err)
@@ -1053,6 +1069,11 @@ static int enetc_pf_probe(struct pci_dev *pdev,
 
 err_reg_netdev:
 	enetc_teardown_serdes(priv);
+err_configure_serdes:
+	enetc_mdiobus_destroy(pf);
+err_mdiobus_create:
+	enetc_of_put_phy(pf);
+err_of_get_phy:
 	enetc_free_msix(priv);
 err_alloc_msix:
 	enetc_free_si_resources(priv);
@@ -1060,8 +1081,6 @@ err_alloc_si_res:
 	si->ndev = NULL;
 	free_netdev(ndev);
 err_alloc_netdev:
-	enetc_mdio_remove(pf);
-	enetc_of_put_phy(pf);
 err_map_pf_space:
 	enetc_pci_remove(pdev);
 
@@ -1074,15 +1093,15 @@ static void enetc_pf_remove(struct pci_dev *pdev)
 	struct enetc_pf *pf = enetc_si_priv(si);
 	struct enetc_ndev_priv *priv;
 
+	priv = netdev_priv(si->ndev);
+	enetc_teardown_serdes(priv);
+	enetc_mdiobus_destroy(pf);
+	enetc_of_put_phy(pf);
+
 	if (pf->num_vfs)
 		enetc_sriov_configure(pdev, 0);
 
-	priv = netdev_priv(si->ndev);
 	unregister_netdev(si->ndev);
-
-	enetc_teardown_serdes(priv);
-	enetc_mdio_remove(pf);
-	enetc_of_put_phy(pf);
 
 	enetc_free_msix(priv);
 
