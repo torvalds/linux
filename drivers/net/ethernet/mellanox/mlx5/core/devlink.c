@@ -278,6 +278,24 @@ static int mlx5_devlink_large_group_num_validate(struct devlink *devlink, u32 id
 }
 #endif
 
+static int mlx5_devlink_enable_remote_dev_reset_set(struct devlink *devlink, u32 id,
+						    struct devlink_param_gset_ctx *ctx)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+
+	mlx5_fw_reset_enable_remote_dev_reset_set(dev, ctx->val.vbool);
+	return 0;
+}
+
+static int mlx5_devlink_enable_remote_dev_reset_get(struct devlink *devlink, u32 id,
+						    struct devlink_param_gset_ctx *ctx)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+
+	ctx->val.vbool = mlx5_fw_reset_enable_remote_dev_reset_get(dev);
+	return 0;
+}
+
 static const struct devlink_param mlx5_devlink_params[] = {
 	DEVLINK_PARAM_DRIVER(MLX5_DEVLINK_PARAM_ID_FLOW_STEERING_MODE,
 			     "flow_steering_mode", DEVLINK_PARAM_TYPE_STRING,
@@ -293,6 +311,9 @@ static const struct devlink_param mlx5_devlink_params[] = {
 			     NULL, NULL,
 			     mlx5_devlink_large_group_num_validate),
 #endif
+	DEVLINK_PARAM_GENERIC(ENABLE_REMOTE_DEV_RESET, BIT(DEVLINK_PARAM_CMODE_RUNTIME),
+			      mlx5_devlink_enable_remote_dev_reset_get,
+			      mlx5_devlink_enable_remote_dev_reset_set, NULL),
 };
 
 static void mlx5_devlink_set_params_init_values(struct devlink *devlink)
