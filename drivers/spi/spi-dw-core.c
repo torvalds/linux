@@ -372,10 +372,8 @@ static int dw_spi_transfer_one(struct spi_controller *master,
 
 	if (dws->dma_mapped) {
 		ret = dws->dma_ops->dma_setup(dws, transfer);
-		if (ret < 0) {
-			spi_enable_chip(dws, 1);
+		if (ret)
 			return ret;
-		}
 	}
 
 	spi_enable_chip(dws, 1);
