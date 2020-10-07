@@ -70,7 +70,7 @@ extern unsigned int mmu_base_pid;
 /*
  * memory block size used with radix translation.
  */
-extern unsigned int __ro_after_init radix_mem_block_size;
+extern unsigned long __ro_after_init radix_mem_block_size;
 
 #define PRTB_SIZE_SHIFT	(mmu_pid_bits + 4)
 #define PRTB_ENTRIES	(1ul << mmu_pid_bits)
