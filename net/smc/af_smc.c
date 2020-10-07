@@ -1481,11 +1481,12 @@ static void smc_find_ism_v2_device_serv(struct smc_sock *new_smc,
 	struct smc_clc_v2_extension *smc_v2_ext;
 	struct smc_clc_msg_smcd *pclc_smcd;
 	unsigned int matches = 0;
+	u8 smcd_version;
 	u8 *eid = NULL;
 	int i;
 
 	if (!(ini->smcd_version & SMC_V2) || !smcd_indicated(ini->smc_type_v2))
-		return;
+		goto not_found;
 
 	pclc_smcd = smc_get_clc_msg_smcd(pclc);
 	smc_v2_ext = smc_get_clc_v2_ext(pclc);
@@ -1519,6 +1520,7 @@ static void smc_find_ism_v2_device_serv(struct smc_sock *new_smc,
 	}
 
 	/* separate - outside the smcd_dev_list.lock */
+	smcd_version = ini->smcd_version;
 	for (i = 0; i < matches; i++) {
 		ini->smcd_version = SMC_V2;
 		ini->is_smcd = true;
@@ -1528,6 +1530,8 @@ static void smc_find_ism_v2_device_serv(struct smc_sock *new_smc,
 			continue;
 		return; /* matching and usable V2 ISM device found */
 	}
+	/* no V2 ISM device could be initialized */
+	ini->smcd_version = smcd_version;	/* restore original value */
 
 not_found:
 	ini->smcd_version &= ~SMC_V2;
