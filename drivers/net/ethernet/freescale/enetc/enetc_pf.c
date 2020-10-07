@@ -775,25 +775,7 @@ static int enetc_mdio_probe(struct enetc_pf *pf, struct device_node *np)
 	return 0;
 }
 
-static int enetc_mdiobus_create(struct enetc_pf *pf)
-{
-	struct device *dev = &pf->si->pdev->dev;
-	struct device_node *mdio_np;
-	int err;
-
-	mdio_np = of_get_child_by_name(dev->of_node, "mdio");
-	if (mdio_np) {
-		err = enetc_mdio_probe(pf, mdio_np);
-
-		of_node_put(mdio_np);
-		if (err)
-			return err;
-	}
-
-	return 0;
-}
-
-static void enetc_mdiobus_destroy(struct enetc_pf *pf)
+static void enetc_mdio_remove(struct enetc_pf *pf)
 {
 	if (pf->mdio)
 		mdiobus_unregister(pf->mdio);
@@ -844,7 +826,7 @@ static void enetc_of_put_phy(struct enetc_pf *pf)
 		of_node_put(pf->phy_node);
 }
 
-static int enetc_imdio_init(struct enetc_pf *pf, bool is_c45)
+static int enetc_imdio_create(struct enetc_pf *pf)
 {
 	struct device *dev = &pf->si->pdev->dev;
 	struct enetc_mdio_priv *mdio_priv;
@@ -872,7 +854,7 @@ static int enetc_imdio_init(struct enetc_pf *pf, bool is_c45)
 		goto free_mdio_bus;
 	}
 
-	pcs = get_phy_device(bus, 0, is_c45);
+	pcs = get_phy_device(bus, 0, pf->if_mode == PHY_INTERFACE_MODE_USXGMII);
 	if (IS_ERR(pcs)) {
 		err = PTR_ERR(pcs);
 		dev_err(dev, "cannot get internal PCS PHY (%d)\n", err);
@@ -899,6 +881,45 @@ static void enetc_imdio_remove(struct enetc_pf *pf)
 		mdiobus_unregister(pf->imdio);
 		mdiobus_free(pf->imdio);
 	}
+}
+
+static bool enetc_port_has_pcs(struct enetc_pf *pf)
+{
+	return (pf->if_mode == PHY_INTERFACE_MODE_SGMII ||
+		pf->if_mode == PHY_INTERFACE_MODE_2500BASEX ||
+		pf->if_mode == PHY_INTERFACE_MODE_USXGMII);
+}
+
+static int enetc_mdiobus_create(struct enetc_pf *pf)
+{
+	struct device *dev = &pf->si->pdev->dev;
+	struct device_node *mdio_np;
+	int err;
+
+	mdio_np = of_get_child_by_name(dev->of_node, "mdio");
+	if (mdio_np) {
+		err = enetc_mdio_probe(pf, mdio_np);
+
+		of_node_put(mdio_np);
+		if (err)
+			return err;
+	}
+
+	if (enetc_port_has_pcs(pf)) {
+		err = enetc_imdio_create(pf);
+		if (err) {
+			enetc_mdio_remove(pf);
+			return err;
+		}
+	}
+
+	return 0;
+}
+
+static void enetc_mdiobus_destroy(struct enetc_pf *pf)
+{
+	enetc_mdio_remove(pf);
+	enetc_imdio_remove(pf);
 }
 
 static void enetc_configure_sgmii(struct phy_device *pcs)
@@ -940,22 +961,9 @@ static void enetc_configure_usxgmii(struct phy_device *pcs)
 		      BMCR_RESET | BMCR_ANENABLE | BMCR_ANRESTART);
 }
 
-static int enetc_configure_serdes(struct enetc_ndev_priv *priv)
+static void enetc_configure_serdes(struct enetc_pf *pf)
 {
-	bool is_c45 = priv->if_mode == PHY_INTERFACE_MODE_USXGMII;
-	struct enetc_pf *pf = enetc_si_priv(priv->si);
-	int err;
-
-	if (priv->if_mode != PHY_INTERFACE_MODE_SGMII &&
-	    priv->if_mode != PHY_INTERFACE_MODE_2500BASEX &&
-	    priv->if_mode != PHY_INTERFACE_MODE_USXGMII)
-		return 0;
-
-	err = enetc_imdio_init(pf, is_c45);
-	if (err)
-		return err;
-
-	switch (priv->if_mode) {
+	switch (pf->if_mode) {
 	case PHY_INTERFACE_MODE_SGMII:
 		enetc_configure_sgmii(pf->pcs);
 		break;
@@ -966,18 +974,9 @@ static int enetc_configure_serdes(struct enetc_ndev_priv *priv)
 		enetc_configure_usxgmii(pf->pcs);
 		break;
 	default:
-		dev_err(&pf->si->pdev->dev, "Unsupported link mode %s\n",
-			phy_modes(priv->if_mode));
+		dev_dbg(&pf->si->pdev->dev, "Unsupported link mode %s\n",
+			phy_modes(pf->if_mode));
 	}
-
-	return 0;
-}
-
-static void enetc_teardown_serdes(struct enetc_ndev_priv *priv)
-{
-	struct enetc_pf *pf = enetc_si_priv(priv->si);
-
-	enetc_imdio_remove(pf);
 }
 
 static int enetc_pf_probe(struct pci_dev *pdev,
@@ -1052,9 +1051,8 @@ static int enetc_pf_probe(struct pci_dev *pdev,
 		if (err)
 			goto err_mdiobus_create;
 
-		err = enetc_configure_serdes(priv);
-		if (err)
-			goto err_configure_serdes;
+		if (enetc_port_has_pcs(pf))
+			enetc_configure_serdes(pf);
 
 		enetc_mac_config(&pf->si->hw, pf->if_mode);
 	}
@@ -1068,8 +1066,6 @@ static int enetc_pf_probe(struct pci_dev *pdev,
 	return 0;
 
 err_reg_netdev:
-	enetc_teardown_serdes(priv);
-err_configure_serdes:
 	enetc_mdiobus_destroy(pf);
 err_mdiobus_create:
 	enetc_of_put_phy(pf);
@@ -1094,7 +1090,6 @@ static void enetc_pf_remove(struct pci_dev *pdev)
 	struct enetc_ndev_priv *priv;
 
 	priv = netdev_priv(si->ndev);
-	enetc_teardown_serdes(priv);
 	enetc_mdiobus_destroy(pf);
 	enetc_of_put_phy(pf);
 
