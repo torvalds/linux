@@ -91,7 +91,7 @@ struct phm_set_power_state_input {
 
 struct phm_clock_array {
 	uint32_t count;
-	uint32_t values[1];
+	uint32_t values[];
 };
 
 struct phm_clock_voltage_dependency_record {

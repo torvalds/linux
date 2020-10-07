@@ -404,12 +404,11 @@ static int get_valid_clk(struct pp_hwmgr *hwmgr,
 			struct phm_clock_array **ptable,
 			const struct phm_clock_voltage_dependency_table *table)
 {
-	unsigned long table_size, i;
+	unsigned long i;
 	struct phm_clock_array *clock_table;
 
-	table_size = sizeof(unsigned long) + sizeof(unsigned long) * table->count;
-	clock_table = kzalloc(table_size, GFP_KERNEL);
-	if (NULL == clock_table)
+	clock_table = kzalloc(struct_size(clock_table, values, table->count), GFP_KERNEL);
+	if (!clock_table)
 		return -ENOMEM;
 
 	clock_table->count = (unsigned long)table->count;

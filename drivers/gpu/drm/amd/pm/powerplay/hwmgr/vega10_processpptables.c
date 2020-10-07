@@ -875,17 +875,14 @@ static int get_valid_clk(
 		struct phm_clock_array **clk_table,
 		const phm_ppt_v1_clock_voltage_dependency_table *clk_volt_pp_table)
 {
-	uint32_t table_size, i;
+	uint32_t i;
 	struct phm_clock_array *table;
 
 	PP_ASSERT_WITH_CODE(clk_volt_pp_table->count,
 			"Invalid PowerPlay Table!", return -1);
 
-	table_size = sizeof(uint32_t) +
-			sizeof(uint32_t) * clk_volt_pp_table->count;
-
-	table = kzalloc(table_size, GFP_KERNEL);
-
+	table = kzalloc(struct_size(table, values, clk_volt_pp_table->count),
+			GFP_KERNEL);
 	if (!table)
 		return -ENOMEM;
 
