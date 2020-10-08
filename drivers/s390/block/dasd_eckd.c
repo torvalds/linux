@@ -1035,6 +1035,30 @@ static void dasd_eckd_clear_conf_data(struct dasd_device *device)
 		device->path[i].ssid = 0;
 		device->path[i].chpid = 0;
 		dasd_path_notoper(device, i);
+		dasd_path_remove_kobj(device, i);
+	}
+}
+
+static void dasd_eckd_read_fc_security(struct dasd_device *device)
+{
+	struct dasd_eckd_private *private = device->private;
+	u8 esm_valid;
+	u8 esm[8];
+	int chp;
+	int rc;
+
+	rc = chsc_scud(private->uid.ssid, (u64 *)esm, &esm_valid);
+	if (rc) {
+		for (chp = 0; chp < 8; chp++)
+			device->path[chp].fc_security = 0;
+		return;
+	}
+
+	for (chp = 0; chp < 8; chp++) {
+		if (esm_valid & (0x80 >> chp))
+			device->path[chp].fc_security = esm[chp];
+		else
+			device->path[chp].fc_security = 0;
 	}
 }
 
@@ -1163,6 +1187,8 @@ static int dasd_eckd_read_conf(struct dasd_device *device)
 			dasd_path_add_opm(device, lpm);
 		}
 	}
+
+	dasd_eckd_read_fc_security(device);
 
 	return path_err;
 }
@@ -1430,6 +1456,8 @@ static void do_path_verification_work(struct work_struct *work)
 		dasd_path_add_cablepm(device, cablepm);
 		dasd_path_add_nohpfpm(device, hpfpm);
 		spin_unlock_irqrestore(get_ccwdev_lock(device->cdev), flags);
+
+		dasd_path_create_kobj(device, pos);
 	}
 	clear_bit(DASD_FLAG_PATH_VERIFY, &device->flags);
 	dasd_put_device(device);
@@ -2068,6 +2096,8 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 	rc = dasd_eckd_read_conf(device);
 	if (rc)
 		goto out_err3;
+
+	dasd_path_create_kobjects(device);
 
 	/* Read Feature Codes */
 	dasd_eckd_read_features(device);

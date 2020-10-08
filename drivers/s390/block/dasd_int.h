@@ -426,6 +426,35 @@ extern struct dasd_discipline *dasd_diag_discipline_pointer;
 #define DASD_THRHLD_MAX		4294967295U
 #define DASD_INTERVAL_MAX	4294967295U
 
+/* FC Endpoint Security Capabilities */
+#define DASD_FC_SECURITY_UNSUP		0
+#define DASD_FC_SECURITY_AUTH		1
+#define DASD_FC_SECURITY_ENC_FCSP2	2
+#define DASD_FC_SECURITY_ENC_ERAS	3
+
+#define DASD_FC_SECURITY_ENC_STR	"Encryption"
+static const struct {
+	u8 value;
+	char *name;
+} dasd_path_fcs_mnemonics[] = {
+	{ DASD_FC_SECURITY_UNSUP,	"Unsupported" },
+	{ DASD_FC_SECURITY_AUTH,	"Authentication" },
+	{ DASD_FC_SECURITY_ENC_FCSP2,	DASD_FC_SECURITY_ENC_STR },
+	{ DASD_FC_SECURITY_ENC_ERAS,	DASD_FC_SECURITY_ENC_STR },
+};
+
+static inline char *dasd_path_get_fcs_str(int val)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(dasd_path_fcs_mnemonics); i++) {
+		if (dasd_path_fcs_mnemonics[i].value == val)
+			return dasd_path_fcs_mnemonics[i].name;
+	}
+
+	return dasd_path_fcs_mnemonics[0].name;
+}
+
 struct dasd_path {
 	unsigned long flags;
 	u8 cssid;
@@ -434,7 +463,17 @@ struct dasd_path {
 	struct dasd_conf_data *conf_data;
 	atomic_t error_count;
 	unsigned long errorclk;
+	u8 fc_security;
+	struct kobject kobj;
+	bool in_sysfs;
 };
+
+#define to_dasd_path(path) container_of(path, struct dasd_path, kobj)
+
+static inline void dasd_path_release(struct kobject *kobj)
+{
+/* Memory for the dasd_path kobject is freed when dasd_free_device() is called */
+}
 
 
 struct dasd_profile_info {
@@ -547,6 +586,7 @@ struct dasd_device {
 	struct dentry *hosts_dentry;
 	struct dasd_profile profile;
 	struct dasd_format_entry format_entry;
+	struct kset *paths_info;
 };
 
 struct dasd_block {
@@ -824,6 +864,9 @@ int dasd_set_feature(struct ccw_device *, int, int);
 
 int dasd_add_sysfs_files(struct ccw_device *);
 void dasd_remove_sysfs_files(struct ccw_device *);
+void dasd_path_create_kobj(struct dasd_device *, int);
+void dasd_path_create_kobjects(struct dasd_device *);
+void dasd_path_remove_kobj(struct dasd_device *, int);
 
 struct dasd_device *dasd_device_from_cdev(struct ccw_device *);
 struct dasd_device *dasd_device_from_cdev_locked(struct ccw_device *);
@@ -1112,6 +1155,31 @@ static inline __u8 dasd_path_get_hpfpm(struct dasd_device *device)
 		if (dasd_path_is_nohpf(device, chp))
 			hpfpm |= 0x80 >> chp;
 	return hpfpm;
+}
+
+static inline u8 dasd_path_get_fcs_path(struct dasd_device *device, int chp)
+{
+	return device->path[chp].fc_security;
+}
+
+static inline int dasd_path_get_fcs_device(struct dasd_device *device)
+{
+	u8 fc_sec = 0;
+	int chp;
+
+	for (chp = 0; chp < 8; chp++) {
+		if (device->opm & (0x80 >> chp)) {
+			fc_sec = device->path[chp].fc_security;
+			break;
+		}
+	}
+	for (; chp < 8; chp++) {
+		if (device->opm & (0x80 >> chp))
+			if (device->path[chp].fc_security != fc_sec)
+				return -EINVAL;
+	}
+
+	return fc_sec;
 }
 
 /*
