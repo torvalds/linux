@@ -1515,7 +1515,6 @@ static int ccs_power_on(struct device *dev)
 	struct ccs_sensor *sensor =
 		container_of(ssd, struct ccs_sensor, ssds[0]);
 	const struct ccs_device *ccsdev = device_get_match_data(dev);
-	unsigned int sleep;
 	int rval;
 
 	rval = regulator_bulk_enable(ARRAY_SIZE(ccs_regulators),
@@ -1525,21 +1524,25 @@ static int ccs_power_on(struct device *dev)
 		return rval;
 	}
 
-	rval = clk_prepare_enable(sensor->ext_clk);
-	if (rval < 0) {
-		dev_dbg(dev, "failed to enable xclk\n");
-		goto out_xclk_fail;
+	if (sensor->reset || sensor->xshutdown || sensor->ext_clk) {
+		unsigned int sleep;
+
+		rval = clk_prepare_enable(sensor->ext_clk);
+		if (rval < 0) {
+			dev_dbg(dev, "failed to enable xclk\n");
+			goto out_xclk_fail;
+		}
+
+		gpiod_set_value(sensor->reset, 0);
+		gpiod_set_value(sensor->xshutdown, 1);
+
+		if (ccsdev->flags & CCS_DEVICE_FLAG_IS_SMIA)
+			sleep = SMIAPP_RESET_DELAY(sensor->hwcfg.ext_clk);
+		else
+			sleep = 5000;
+
+		usleep_range(sleep, sleep);
 	}
-
-	gpiod_set_value(sensor->reset, 0);
-	gpiod_set_value(sensor->xshutdown, 1);
-
-	if (ccsdev->flags & CCS_DEVICE_FLAG_IS_SMIA)
-		sleep = SMIAPP_RESET_DELAY(sensor->hwcfg.ext_clk);
-	else
-		sleep = 5000;
-
-	usleep_range(sleep, sleep);
 
 	/*
 	 * Failures to respond to the address change command have been noticed.
