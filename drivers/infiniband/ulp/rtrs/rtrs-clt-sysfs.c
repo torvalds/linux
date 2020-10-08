@@ -188,20 +188,18 @@ static ssize_t rtrs_clt_state_show(struct kobject *kobj,
 
 	sess = container_of(kobj, struct rtrs_clt_sess, kobj);
 	if (sess->state == RTRS_CLT_CONNECTED)
-		return sprintf(page, "connected\n");
+		return sysfs_emit(page, "connected\n");
 
-	return sprintf(page, "disconnected\n");
+	return sysfs_emit(page, "disconnected\n");
 }
 
 static struct kobj_attribute rtrs_clt_state_attr =
 	__ATTR(state, 0444, rtrs_clt_state_show, NULL);
 
 static ssize_t rtrs_clt_reconnect_show(struct kobject *kobj,
-					struct kobj_attribute *attr,
-					char *page)
+				       struct kobj_attribute *attr, char *buf)
 {
-	return scnprintf(page, PAGE_SIZE, "Usage: echo 1 > %s\n",
-			 attr->attr.name);
+	return sysfs_emit(buf, "Usage: echo 1 > %s\n", attr->attr.name);
 }
 
 static ssize_t rtrs_clt_reconnect_store(struct kobject *kobj,
@@ -229,11 +227,9 @@ static struct kobj_attribute rtrs_clt_reconnect_attr =
 	       rtrs_clt_reconnect_store);
 
 static ssize_t rtrs_clt_disconnect_show(struct kobject *kobj,
-					 struct kobj_attribute *attr,
-					 char *page)
+					struct kobj_attribute *attr, char *buf)
 {
-	return scnprintf(page, PAGE_SIZE, "Usage: echo 1 > %s\n",
-			 attr->attr.name);
+	return sysfs_emit(buf, "Usage: echo 1 > %s\n", attr->attr.name);
 }
 
 static ssize_t rtrs_clt_disconnect_store(struct kobject *kobj,
@@ -261,11 +257,9 @@ static struct kobj_attribute rtrs_clt_disconnect_attr =
 	       rtrs_clt_disconnect_store);
 
 static ssize_t rtrs_clt_remove_path_show(struct kobject *kobj,
-					  struct kobj_attribute *attr,
-					  char *page)
+					 struct kobj_attribute *attr, char *buf)
 {
-	return scnprintf(page, PAGE_SIZE, "Usage: echo 1 > %s\n",
-			 attr->attr.name);
+	return sysfs_emit(buf, "Usage: echo 1 > %s\n", attr->attr.name);
 }
 
 static ssize_t rtrs_clt_remove_path_store(struct kobject *kobj,
@@ -328,7 +322,7 @@ static ssize_t rtrs_clt_hca_port_show(struct kobject *kobj,
 
 	sess = container_of(kobj, typeof(*sess), kobj);
 
-	return scnprintf(page, PAGE_SIZE, "%u\n", sess->hca_port);
+	return sysfs_emit(page, "%u\n", sess->hca_port);
 }
 
 static struct kobj_attribute rtrs_clt_hca_port_attr =
@@ -342,7 +336,7 @@ static ssize_t rtrs_clt_hca_name_show(struct kobject *kobj,
 
 	sess = container_of(kobj, struct rtrs_clt_sess, kobj);
 
-	return scnprintf(page, PAGE_SIZE, "%s\n", sess->hca_name);
+	return sysfs_emit(page, "%s\n", sess->hca_name);
 }
 
 static struct kobj_attribute rtrs_clt_hca_name_attr =

@@ -27,11 +27,9 @@ static struct kobj_type ktype = {
 };
 
 static ssize_t rtrs_srv_disconnect_show(struct kobject *kobj,
-					 struct kobj_attribute *attr,
-					 char *page)
+					struct kobj_attribute *attr, char *buf)
 {
-	return scnprintf(page, PAGE_SIZE, "Usage: echo 1 > %s\n",
-			 attr->attr.name);
+	return sysfs_emit(buf, "Usage: echo 1 > %s\n", attr->attr.name);
 }
 
 static ssize_t rtrs_srv_disconnect_store(struct kobject *kobj,
@@ -72,8 +70,7 @@ static ssize_t rtrs_srv_hca_port_show(struct kobject *kobj,
 	sess = container_of(kobj, typeof(*sess), kobj);
 	usr_con = sess->s.con[0];
 
-	return scnprintf(page, PAGE_SIZE, "%u\n",
-			 usr_con->cm_id->port_num);
+	return sysfs_emit(page, "%u\n", usr_con->cm_id->port_num);
 }
 
 static struct kobj_attribute rtrs_srv_hca_port_attr =
@@ -87,8 +84,7 @@ static ssize_t rtrs_srv_hca_name_show(struct kobject *kobj,
 
 	sess = container_of(kobj, struct rtrs_srv_sess, kobj);
 
-	return scnprintf(page, PAGE_SIZE, "%s\n",
-			 sess->s.dev->ib_dev->name);
+	return sysfs_emit(page, "%s\n", sess->s.dev->ib_dev->name);
 }
 
 static struct kobj_attribute rtrs_srv_hca_name_attr =
