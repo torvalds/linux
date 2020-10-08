@@ -1007,6 +1007,11 @@ static void dasd_eckd_store_conf_data(struct dasd_device *device,
 	struct subchannel_id sch_id;
 
 	ccw_device_get_schid(device->cdev, &sch_id);
+	/*
+	 * path handling and read_conf allocate data
+	 * free it before replacing the pointer
+	 */
+	kfree(device->path[chp].conf_data);
 	device->path[chp].conf_data = conf_data;
 	device->path[chp].cssid = sch_id.cssid;
 	device->path[chp].ssid = sch_id.ssid;
@@ -1263,9 +1268,10 @@ static void do_path_verification_work(struct work_struct *work)
 	struct dasd_uid *uid;
 	__u8 path_rcd_buf[DASD_ECKD_RCD_DATA_SIZE];
 	__u8 lpm, opm, npm, ppm, epm, hpfpm, cablepm;
+	struct dasd_conf_data *conf_data;
 	unsigned long flags;
 	char print_uid[60];
-	int rc;
+	int rc, pos;
 
 	data = container_of(work, struct path_verification_work_data, worker);
 	device = data->device;
@@ -1394,6 +1400,14 @@ static void do_path_verification_work(struct work_struct *work)
 				continue;
 			}
 		}
+
+		conf_data = kzalloc(DASD_ECKD_RCD_DATA_SIZE, GFP_KERNEL);
+		if (conf_data) {
+			memcpy(conf_data, data->rcd_buffer,
+			       DASD_ECKD_RCD_DATA_SIZE);
+		}
+		pos = pathmask_to_pos(lpm);
+		dasd_eckd_store_conf_data(device, conf_data, pos);
 
 		/*
 		 * There is a small chance that a path is lost again between
