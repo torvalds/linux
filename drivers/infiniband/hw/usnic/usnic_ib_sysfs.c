@@ -204,43 +204,36 @@ struct qpn_attribute qpn_attr_##NAME = __ATTR_RO(NAME)
 
 static ssize_t context_show(struct usnic_ib_qp_grp *qp_grp, char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "0x%p\n", qp_grp->ctx);
+	return sysfs_emit(buf, "0x%p\n", qp_grp->ctx);
 }
 
 static ssize_t summary_show(struct usnic_ib_qp_grp *qp_grp, char *buf)
 {
-	int i, j, n;
-	int left;
-	char *ptr;
+	int i, j;
 	struct usnic_vnic_res_chunk *res_chunk;
 	struct usnic_vnic_res *vnic_res;
+	int len;
 
-	left = PAGE_SIZE;
-	ptr = buf;
-
-	n = scnprintf(ptr, left,
-			"QPN: %d State: (%s) PID: %u VF Idx: %hu ",
-			qp_grp->ibqp.qp_num,
-			usnic_ib_qp_grp_state_to_string(qp_grp->state),
-			qp_grp->owner_pid,
-			usnic_vnic_get_index(qp_grp->vf->vnic));
-	UPDATE_PTR_LEFT(n, ptr, left);
+	len = sysfs_emit(buf, "QPN: %d State: (%s) PID: %u VF Idx: %hu ",
+			 qp_grp->ibqp.qp_num,
+			 usnic_ib_qp_grp_state_to_string(qp_grp->state),
+			 qp_grp->owner_pid,
+			 usnic_vnic_get_index(qp_grp->vf->vnic));
 
 	for (i = 0; qp_grp->res_chunk_list[i]; i++) {
 		res_chunk = qp_grp->res_chunk_list[i];
 		for (j = 0; j < res_chunk->cnt; j++) {
 			vnic_res = res_chunk->res[j];
-			n = scnprintf(ptr, left, "%s[%d] ",
+			len += sysfs_emit_at(
+				buf, len, "%s[%d] ",
 				usnic_vnic_res_type_to_str(vnic_res->type),
 				vnic_res->vnic_idx);
-			UPDATE_PTR_LEFT(n, ptr, left);
 		}
 	}
 
-	n = scnprintf(ptr, left, "\n");
-	UPDATE_PTR_LEFT(n, ptr, left);
+	len = sysfs_emit_at(buf, len, "\n");
 
-	return ptr - buf;
+	return len;
 }
 
 static QPN_ATTR_RO(context);

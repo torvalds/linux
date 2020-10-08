@@ -443,16 +443,12 @@ static ssize_t show_port_pkey(struct mlx4_port *p, struct port_attribute *attr,
 {
 	struct port_table_attribute *tab_attr =
 		container_of(attr, struct port_table_attribute, attr);
-	ssize_t ret = -ENODEV;
+	struct pkey_mgt *m = &p->dev->pkeys;
+	u8 key = m->virt2phys_pkey[p->slave][p->port_num - 1][tab_attr->index];
 
-	if (p->dev->pkeys.virt2phys_pkey[p->slave][p->port_num - 1][tab_attr->index] >=
-	    (p->dev->dev->caps.pkey_table_len[p->port_num]))
-		ret = sprintf(buf, "none\n");
-	else
-		ret = sprintf(buf, "%d\n",
-			      p->dev->pkeys.virt2phys_pkey[p->slave]
-			      [p->port_num - 1][tab_attr->index]);
-	return ret;
+	if (key >= p->dev->dev->caps.pkey_table_len[p->port_num])
+		return sysfs_emit(buf, "none\n");
+	return sysfs_emit(buf, "%d\n", key);
 }
 
 static ssize_t store_port_pkey(struct mlx4_port *p, struct port_attribute *attr,
@@ -490,7 +486,7 @@ static ssize_t store_port_pkey(struct mlx4_port *p, struct port_attribute *attr,
 static ssize_t show_port_gid_idx(struct mlx4_port *p,
 				 struct port_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", p->slave);
+	return sysfs_emit(buf, "%d\n", p->slave);
 }
 
 static struct attribute **

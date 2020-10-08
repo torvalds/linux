@@ -151,7 +151,7 @@ struct hfi1_port_attr {
 
 static ssize_t cc_prescan_show(struct hfi1_pportdata *ppd, char *buf)
 {
-	return sprintf(buf, "%s\n", ppd->cc_prescan ? "on" : "off");
+	return sysfs_emit(buf, "%s\n", ppd->cc_prescan ? "on" : "off");
 }
 
 static ssize_t cc_prescan_store(struct hfi1_pportdata *ppd, const char *buf,
@@ -296,7 +296,7 @@ static ssize_t sc2vl_attr_show(struct kobject *kobj, struct attribute *attr,
 		container_of(kobj, struct hfi1_pportdata, sc2vl_kobj);
 	struct hfi1_devdata *dd = ppd->dd;
 
-	return sprintf(buf, "%u\n", *((u8 *)dd->sc2vl + sattr->sc));
+	return sysfs_emit(buf, "%u\n", *((u8 *)dd->sc2vl + sattr->sc));
 }
 
 static const struct sysfs_ops hfi1_sc2vl_ops = {
@@ -401,7 +401,7 @@ static ssize_t sl2sc_attr_show(struct kobject *kobj, struct attribute *attr,
 		container_of(kobj, struct hfi1_pportdata, sl2sc_kobj);
 	struct hfi1_ibport *ibp = &ppd->ibport_data;
 
-	return sprintf(buf, "%u\n", ibp->sl_to_sc[sattr->sl]);
+	return sysfs_emit(buf, "%u\n", ibp->sl_to_sc[sattr->sl]);
 }
 
 static const struct sysfs_ops hfi1_sl2sc_ops = {
@@ -475,7 +475,7 @@ static ssize_t vl2mtu_attr_show(struct kobject *kobj, struct attribute *attr,
 		container_of(kobj, struct hfi1_pportdata, vl2mtu_kobj);
 	struct hfi1_devdata *dd = ppd->dd;
 
-	return sprintf(buf, "%u\n", dd->vld[vlattr->vl].mtu);
+	return sysfs_emit(buf, "%u\n", dd->vld[vlattr->vl].mtu);
 }
 
 static const struct sysfs_ops hfi1_vl2mtu_ops = {
@@ -813,7 +813,7 @@ static ssize_t sde_show_vl(struct sdma_engine *sde, char *buf)
 	if (vl < 0)
 		return vl;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", vl);
+	return sysfs_emit(buf, "%d\n", vl);
 }
 
 static SDE_ATTR(cpu_list, S_IWUSR | S_IRUGO,

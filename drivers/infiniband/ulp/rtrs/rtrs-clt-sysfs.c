@@ -347,12 +347,13 @@ static ssize_t rtrs_clt_src_addr_show(struct kobject *kobj,
 				       char *page)
 {
 	struct rtrs_clt_sess *sess;
-	int cnt;
+	int len;
 
 	sess = container_of(kobj, struct rtrs_clt_sess, kobj);
-	cnt = sockaddr_to_str((struct sockaddr *)&sess->s.src_addr,
-			      page, PAGE_SIZE);
-	return cnt + scnprintf(page + cnt, PAGE_SIZE - cnt, "\n");
+	len = sockaddr_to_str((struct sockaddr *)&sess->s.src_addr, page,
+			      PAGE_SIZE);
+	len += sysfs_emit_at(page, len, "\n");
+	return len;
 }
 
 static struct kobj_attribute rtrs_clt_src_addr_attr =
@@ -363,12 +364,13 @@ static ssize_t rtrs_clt_dst_addr_show(struct kobject *kobj,
 				       char *page)
 {
 	struct rtrs_clt_sess *sess;
-	int cnt;
+	int len;
 
 	sess = container_of(kobj, struct rtrs_clt_sess, kobj);
-	cnt = sockaddr_to_str((struct sockaddr *)&sess->s.dst_addr,
-			      page, PAGE_SIZE);
-	return cnt + scnprintf(page + cnt, PAGE_SIZE - cnt, "\n");
+	len = sockaddr_to_str((struct sockaddr *)&sess->s.dst_addr, page,
+			      PAGE_SIZE);
+	len += sysfs_emit_at(page, len, "\n");
+	return len;
 }
 
 static struct kobj_attribute rtrs_clt_dst_addr_attr =

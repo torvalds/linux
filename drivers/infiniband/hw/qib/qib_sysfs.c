@@ -43,11 +43,8 @@
 static ssize_t show_hrtbt_enb(struct qib_pportdata *ppd, char *buf)
 {
 	struct qib_devdata *dd = ppd->dd;
-	int ret;
 
-	ret = dd->f_get_ib_cfg(ppd, QIB_IB_CFG_HRTBT);
-	ret = scnprintf(buf, PAGE_SIZE, "%d\n", ret);
-	return ret;
+	return sysfs_emit(buf, "%d\n", dd->f_get_ib_cfg(ppd, QIB_IB_CFG_HRTBT));
 }
 
 static ssize_t store_hrtbt_enb(struct qib_pportdata *ppd, const char *buf,
@@ -106,14 +103,10 @@ static ssize_t store_led_override(struct qib_pportdata *ppd, const char *buf,
 
 static ssize_t show_status(struct qib_pportdata *ppd, char *buf)
 {
-	ssize_t ret;
-
 	if (!ppd->statusp)
-		ret = -EINVAL;
-	else
-		ret = scnprintf(buf, PAGE_SIZE, "0x%llx\n",
-				(unsigned long long) *(ppd->statusp));
-	return ret;
+		return -EINVAL;
+
+	return sysfs_emit(buf, "0x%llx\n", (unsigned long long)*(ppd->statusp));
 }
 
 /*
@@ -392,7 +385,7 @@ static ssize_t sl2vl_attr_show(struct kobject *kobj, struct attribute *attr,
 		container_of(kobj, struct qib_pportdata, sl2vl_kobj);
 	struct qib_ibport *qibp = &ppd->ibport_data;
 
-	return sprintf(buf, "%u\n", qibp->sl_to_vl[sattr->sl]);
+	return sysfs_emit(buf, "%u\n", qibp->sl_to_vl[sattr->sl]);
 }
 
 static const struct sysfs_ops qib_sl2vl_ops = {
@@ -501,17 +494,18 @@ static ssize_t diagc_attr_show(struct kobject *kobj, struct attribute *attr,
 	struct qib_pportdata *ppd =
 		container_of(kobj, struct qib_pportdata, diagc_kobj);
 	struct qib_ibport *qibp = &ppd->ibport_data;
+	u64 val;
 
 	if (!strncmp(dattr->attr.name, "rc_acks", 7))
-		return sprintf(buf, "%llu\n", READ_PER_CPU_CNTR(rc_acks));
+		val = READ_PER_CPU_CNTR(rc_acks);
 	else if (!strncmp(dattr->attr.name, "rc_qacks", 8))
-		return sprintf(buf, "%llu\n", READ_PER_CPU_CNTR(rc_qacks));
+		val = READ_PER_CPU_CNTR(rc_qacks);
 	else if (!strncmp(dattr->attr.name, "rc_delayed_comp", 15))
-		return sprintf(buf, "%llu\n",
-					READ_PER_CPU_CNTR(rc_delayed_comp));
+		val = READ_PER_CPU_CNTR(rc_delayed_comp);
 	else
-		return sprintf(buf, "%u\n",
-				*(u32 *)((char *)qibp + dattr->counter));
+		val = *(u32 *)((char *)qibp + dattr->counter);
+
+	return sysfs_emit(buf, "%llu\n", val);
 }
 
 static ssize_t diagc_attr_store(struct kobject *kobj, struct attribute *attr,
