@@ -5040,15 +5040,18 @@ static int bpf_core_spec_match(struct bpf_core_spec *local_spec,
 static int bpf_core_calc_field_relo(const struct bpf_program *prog,
 				    const struct bpf_core_relo *relo,
 				    const struct bpf_core_spec *spec,
-				    __u32 *val, bool *validate)
+				    __u32 *val, __u32 *field_sz, __u32 *type_id,
+				    bool *validate)
 {
 	const struct bpf_core_accessor *acc;
 	const struct btf_type *t;
-	__u32 byte_off, byte_sz, bit_off, bit_sz;
+	__u32 byte_off, byte_sz, bit_off, bit_sz, field_type_id;
 	const struct btf_member *m;
 	const struct btf_type *mt;
 	bool bitfield;
 	__s64 sz;
+
+	*field_sz = 0;
 
 	if (relo->kind == BPF_FIELD_EXISTS) {
 		*val = spec ? 1 : 0;
@@ -5065,6 +5068,12 @@ static int bpf_core_calc_field_relo(const struct bpf_program *prog,
 	if (!acc->name) {
 		if (relo->kind == BPF_FIELD_BYTE_OFFSET) {
 			*val = spec->bit_offset / 8;
+			/* remember field size for load/store mem size */
+			sz = btf__resolve_size(spec->btf, acc->type_id);
+			if (sz < 0)
+				return -EINVAL;
+			*field_sz = sz;
+			*type_id = acc->type_id;
 		} else if (relo->kind == BPF_FIELD_BYTE_SIZE) {
 			sz = btf__resolve_size(spec->btf, acc->type_id);
 			if (sz < 0)
@@ -5081,7 +5090,7 @@ static int bpf_core_calc_field_relo(const struct bpf_program *prog,
 	}
 
 	m = btf_members(t) + acc->idx;
-	mt = skip_mods_and_typedefs(spec->btf, m->type, NULL);
+	mt = skip_mods_and_typedefs(spec->btf, m->type, &field_type_id);
 	bit_off = spec->bit_offset;
 	bit_sz = btf_member_bitfield_size(t, acc->idx);
 
@@ -5101,7 +5110,7 @@ static int bpf_core_calc_field_relo(const struct bpf_program *prog,
 			byte_off = bit_off / 8 / byte_sz * byte_sz;
 		}
 	} else {
-		sz = btf__resolve_size(spec->btf, m->type);
+		sz = btf__resolve_size(spec->btf, field_type_id);
 		if (sz < 0)
 			return -EINVAL;
 		byte_sz = sz;
@@ -5119,6 +5128,10 @@ static int bpf_core_calc_field_relo(const struct bpf_program *prog,
 	switch (relo->kind) {
 	case BPF_FIELD_BYTE_OFFSET:
 		*val = byte_off;
+		if (!bitfield) {
+			*field_sz = byte_sz;
+			*type_id = field_type_id;
+		}
 		break;
 	case BPF_FIELD_BYTE_SIZE:
 		*val = byte_sz;
@@ -5219,6 +5232,19 @@ struct bpf_core_relo_res
 	bool poison;
 	/* some relocations can't be validated against orig_val */
 	bool validate;
+	/* for field byte offset relocations or the forms:
+	 *     *(T *)(rX + <off>) = rY
+	 *     rX = *(T *)(rY + <off>),
+	 * we remember original and resolved field size to adjust direct
+	 * memory loads of pointers and integers; this is necessary for 32-bit
+	 * host kernel architectures, but also allows to automatically
+	 * relocate fields that were resized from, e.g., u32 to u64, etc.
+	 */
+	bool fail_memsz_adjust;
+	__u32 orig_sz;
+	__u32 orig_type_id;
+	__u32 new_sz;
+	__u32 new_type_id;
 };
 
 /* Calculate original and target relocation values, given local and target
@@ -5240,10 +5266,56 @@ static int bpf_core_calc_relo(const struct bpf_program *prog,
 	res->new_val = 0;
 	res->poison = false;
 	res->validate = true;
+	res->fail_memsz_adjust = false;
+	res->orig_sz = res->new_sz = 0;
+	res->orig_type_id = res->new_type_id = 0;
 
 	if (core_relo_is_field_based(relo->kind)) {
-		err = bpf_core_calc_field_relo(prog, relo, local_spec, &res->orig_val, &res->validate);
-		err = err ?: bpf_core_calc_field_relo(prog, relo, targ_spec, &res->new_val, NULL);
+		err = bpf_core_calc_field_relo(prog, relo, local_spec,
+					       &res->orig_val, &res->orig_sz,
+					       &res->orig_type_id, &res->validate);
+		err = err ?: bpf_core_calc_field_relo(prog, relo, targ_spec,
+						      &res->new_val, &res->new_sz,
+						      &res->new_type_id, NULL);
+		if (err)
+			goto done;
+		/* Validate if it's safe to adjust load/store memory size.
+		 * Adjustments are performed only if original and new memory
+		 * sizes differ.
+		 */
+		res->fail_memsz_adjust = false;
+		if (res->orig_sz != res->new_sz) {
+			const struct btf_type *orig_t, *new_t;
+
+			orig_t = btf__type_by_id(local_spec->btf, res->orig_type_id);
+			new_t = btf__type_by_id(targ_spec->btf, res->new_type_id);
+
+			/* There are two use cases in which it's safe to
+			 * adjust load/store's mem size:
+			 *   - reading a 32-bit kernel pointer, while on BPF
+			 *   size pointers are always 64-bit; in this case
+			 *   it's safe to "downsize" instruction size due to
+			 *   pointer being treated as unsigned integer with
+			 *   zero-extended upper 32-bits;
+			 *   - reading unsigned integers, again due to
+			 *   zero-extension is preserving the value correctly.
+			 *
+			 * In all other cases it's incorrect to attempt to
+			 * load/store field because read value will be
+			 * incorrect, so we poison relocated instruction.
+			 */
+			if (btf_is_ptr(orig_t) && btf_is_ptr(new_t))
+				goto done;
+			if (btf_is_int(orig_t) && btf_is_int(new_t) &&
+			    btf_int_encoding(orig_t) != BTF_INT_SIGNED &&
+			    btf_int_encoding(new_t) != BTF_INT_SIGNED)
+				goto done;
+
+			/* mark as invalid mem size adjustment, but this will
+			 * only be checked for LDX/STX/ST insns
+			 */
+			res->fail_memsz_adjust = true;
+		}
 	} else if (core_relo_is_type_based(relo->kind)) {
 		err = bpf_core_calc_type_relo(relo, local_spec, &res->orig_val);
 		err = err ?: bpf_core_calc_type_relo(relo, targ_spec, &res->new_val);
@@ -5252,6 +5324,7 @@ static int bpf_core_calc_relo(const struct bpf_program *prog,
 		err = err ?: bpf_core_calc_enumval_relo(relo, targ_spec, &res->new_val);
 	}
 
+done:
 	if (err == -EUCLEAN) {
 		/* EUCLEAN is used to signal instruction poisoning request */
 		res->poison = true;
@@ -5291,6 +5364,28 @@ static bool is_ldimm64(struct bpf_insn *insn)
 	return insn->code == (BPF_LD | BPF_IMM | BPF_DW);
 }
 
+static int insn_bpf_size_to_bytes(struct bpf_insn *insn)
+{
+	switch (BPF_SIZE(insn->code)) {
+	case BPF_DW: return 8;
+	case BPF_W: return 4;
+	case BPF_H: return 2;
+	case BPF_B: return 1;
+	default: return -1;
+	}
+}
+
+static int insn_bytes_to_bpf_size(__u32 sz)
+{
+	switch (sz) {
+	case 8: return BPF_DW;
+	case 4: return BPF_W;
+	case 2: return BPF_H;
+	case 1: return BPF_B;
+	default: return -1;
+	}
+}
+
 /*
  * Patch relocatable BPF instruction.
  *
@@ -5300,10 +5395,13 @@ static bool is_ldimm64(struct bpf_insn *insn)
  * spec, and is checked before patching instruction. If actual insn->imm value
  * is wrong, bail out with error.
  *
- * Currently three kinds of BPF instructions are supported:
+ * Currently supported classes of BPF instruction are:
  * 1. rX = <imm> (assignment with immediate operand);
  * 2. rX += <imm> (arithmetic operations with immediate operand);
- * 3. rX = <imm64> (load with 64-bit immediate value).
+ * 3. rX = <imm64> (load with 64-bit immediate value);
+ * 4. rX = *(T *)(rY + <off>), where T is one of {u8, u16, u32, u64};
+ * 5. *(T *)(rX + <off>) = rY, where T is one of {u8, u16, u32, u64};
+ * 6. *(T *)(rX + <off>) = <imm>, where T is one of {u8, u16, u32, u64}.
  */
 static int bpf_core_patch_insn(struct bpf_program *prog,
 			       const struct bpf_core_relo *relo,
@@ -5327,6 +5425,7 @@ static int bpf_core_patch_insn(struct bpf_program *prog,
 	class = BPF_CLASS(insn->code);
 
 	if (res->poison) {
+poison:
 		/* poison second part of ldimm64 to avoid confusing error from
 		 * verifier about "unknown opcode 00"
 		 */
@@ -5369,10 +5468,39 @@ static int bpf_core_patch_insn(struct bpf_program *prog,
 				prog->name, relo_idx, insn_idx, new_val);
 			return -ERANGE;
 		}
+		if (res->fail_memsz_adjust) {
+			pr_warn("prog '%s': relo #%d: insn #%d (LDX/ST/STX) accesses field incorrectly. "
+				"Make sure you are accessing pointers, unsigned integers, or fields of matching type and size.\n",
+				prog->name, relo_idx, insn_idx);
+			goto poison;
+		}
+
 		orig_val = insn->off;
 		insn->off = new_val;
 		pr_debug("prog '%s': relo #%d: patched insn #%d (LDX/ST/STX) off %u -> %u\n",
 			 prog->name, relo_idx, insn_idx, orig_val, new_val);
+
+		if (res->new_sz != res->orig_sz) {
+			int insn_bytes_sz, insn_bpf_sz;
+
+			insn_bytes_sz = insn_bpf_size_to_bytes(insn);
+			if (insn_bytes_sz != res->orig_sz) {
+				pr_warn("prog '%s': relo #%d: insn #%d (LDX/ST/STX) unexpected mem size: got %d, exp %u\n",
+					prog->name, relo_idx, insn_idx, insn_bytes_sz, res->orig_sz);
+				return -EINVAL;
+			}
+
+			insn_bpf_sz = insn_bytes_to_bpf_size(res->new_sz);
+			if (insn_bpf_sz < 0) {
+				pr_warn("prog '%s': relo #%d: insn #%d (LDX/ST/STX) invalid new mem size: %u\n",
+					prog->name, relo_idx, insn_idx, res->new_sz);
+				return -EINVAL;
+			}
+
+			insn->code = BPF_MODE(insn->code) | insn_bpf_sz | BPF_CLASS(insn->code);
+			pr_debug("prog '%s': relo #%d: patched insn #%d (LDX/ST/STX) mem_sz %u -> %u\n",
+				 prog->name, relo_idx, insn_idx, res->orig_sz, res->new_sz);
+		}
 		break;
 	case BPF_LD: {
 		__u64 imm;
@@ -5714,7 +5842,7 @@ bpf_object__relocate_core(struct bpf_object *obj, const char *targ_btf_path)
 		return 0;
 
 	if (targ_btf_path)
-		targ_btf = btf__parse_elf(targ_btf_path, NULL);
+		targ_btf = btf__parse(targ_btf_path, NULL);
 	else
 		targ_btf = obj->btf_vmlinux;
 	if (IS_ERR_OR_NULL(targ_btf)) {
@@ -5765,6 +5893,11 @@ bpf_object__relocate_core(struct bpf_object *obj, const char *targ_btf_path)
 				err = -EINVAL;
 				goto out;
 			}
+			/* no need to apply CO-RE relocation if the program is
+			 * not going to be loaded
+			 */
+			if (!prog->load)
+				continue;
 
 			err = bpf_core_apply_relo(prog, rec, i, obj->btf,
 						  targ_btf, cand_cache);
