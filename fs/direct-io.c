@@ -1170,7 +1170,7 @@ do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 			blkbits = blksize_bits(bdev_logical_block_size(bdev));
 		blocksize_mask = (1 << blkbits) - 1;
 		if (align & blocksize_mask)
-			goto out;
+			return -EINVAL;
 	}
 
 	/* watch out for a 0 len io from a tricksy fs */
@@ -1178,9 +1178,8 @@ do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 		return 0;
 
 	dio = kmem_cache_alloc(dio_cache, GFP_KERNEL);
-	retval = -ENOMEM;
 	if (!dio)
-		goto out;
+		return -ENOMEM;
 	/*
 	 * Believe it or not, zeroing out the page array caused a .5%
 	 * performance regression in a database benchmark.  So, we take
@@ -1199,22 +1198,16 @@ do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 
 			retval = filemap_write_and_wait_range(mapping, offset,
 							      end - 1);
-			if (retval) {
-				inode_unlock(inode);
-				kmem_cache_free(dio_cache, dio);
-				goto out;
-			}
+			if (retval)
+				goto fail_dio;
 		}
 	}
 
 	/* Once we sampled i_size check for reads beyond EOF */
 	dio->i_size = i_size_read(inode);
 	if (iov_iter_rw(iter) == READ && offset >= dio->i_size) {
-		if (dio->flags & DIO_LOCKING)
-			inode_unlock(inode);
-		kmem_cache_free(dio_cache, dio);
 		retval = 0;
-		goto out;
+		goto fail_dio;
 	}
 
 	/*
@@ -1258,14 +1251,8 @@ do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 			 */
 			retval = sb_init_dio_done_wq(dio->inode->i_sb);
 		}
-		if (retval) {
-			/*
-			 * We grab i_mutex only for reads so we don't have
-			 * to release it here
-			 */
-			kmem_cache_free(dio_cache, dio);
-			goto out;
-		}
+		if (retval)
+			goto fail_dio;
 	}
 
 	/*
@@ -1368,7 +1355,13 @@ do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 	} else
 		BUG_ON(retval != -EIOCBQUEUED);
 
-out:
+	return retval;
+
+fail_dio:
+	if (dio->flags & DIO_LOCKING && iov_iter_rw(iter) == READ)
+		inode_unlock(inode);
+
+	kmem_cache_free(dio_cache, dio);
 	return retval;
 }
 
