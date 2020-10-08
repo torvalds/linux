@@ -1980,6 +1980,11 @@ void iwl_trans_pcie_free(struct iwl_trans *trans)
 
 	iwl_pcie_free_fw_monitor(trans);
 
+	if (trans_pcie->pnvm_dram.size)
+		dma_free_coherent(trans->dev, trans_pcie->pnvm_dram.size,
+				  trans_pcie->pnvm_dram.block,
+				  trans_pcie->pnvm_dram.physical);
+
 	mutex_destroy(&trans_pcie->mutex);
 	iwl_trans_free(trans);
 }

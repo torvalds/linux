@@ -73,6 +73,7 @@
 #include "iwl-config.h"
 #include "fw/img.h"
 #include "iwl-op-mode.h"
+#include <linux/firmware.h>
 #include "fw/api/cmdhdr.h"
 #include "fw/api/txq.h"
 #include "fw/api/dbg-tlv.h"
@@ -1004,6 +1005,7 @@ struct iwl_trans {
 
 	bool pm_support;
 	bool ltr_enabled;
+	u8 pnvm_loaded:1;
 
 	const struct iwl_hcmd_arr *command_groups;
 	int command_groups_size;
@@ -1455,8 +1457,14 @@ static inline void iwl_trans_sync_nmi(struct iwl_trans *trans)
 static inline int iwl_trans_set_pnvm(struct iwl_trans *trans,
 				     const void *data, u32 len)
 {
-	if (trans->ops->set_pnvm)
-		return trans->ops->set_pnvm(trans, data, len);
+	if (trans->ops->set_pnvm) {
+		int ret = trans->ops->set_pnvm(trans, data, len);
+
+		if (ret)
+			return ret;
+	}
+
+	trans->pnvm_loaded = true;
 
 	return 0;
 }

@@ -300,12 +300,6 @@ void iwl_pcie_ctxt_info_gen3_free(struct iwl_trans *trans)
 			  trans_pcie->prph_info_dma_addr);
 	trans_pcie->prph_info_dma_addr = 0;
 	trans_pcie->prph_info = NULL;
-	dma_free_coherent(trans->dev, trans_pcie->pnvm_dram.size,
-			  trans_pcie->pnvm_dram.block,
-			  trans_pcie->pnvm_dram.physical);
-	trans_pcie->pnvm_dram.size = 0;
-	trans_pcie->pnvm_dram.block = NULL;
-	trans_pcie->pnvm_dram.physical = 0;
 }
 
 int iwl_trans_pcie_ctx_info_gen3_set_pnvm(struct iwl_trans *trans,
