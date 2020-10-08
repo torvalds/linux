@@ -4769,7 +4769,7 @@ int ext4_convert_unwritten_extents(handle_t *handle, struct inode *inode,
 
 int ext4_convert_unwritten_io_end_vec(handle_t *handle, ext4_io_end_t *io_end)
 {
-	int ret, err = 0;
+	int ret = 0, err = 0;
 	struct ext4_io_end_vec *io_end_vec;
 
 	/*
