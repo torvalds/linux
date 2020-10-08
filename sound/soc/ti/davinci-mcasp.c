@@ -2155,7 +2155,7 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 
 	mem = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mpu");
 	if (!mem) {
-		dev_warn(mcasp->dev,
+		dev_warn(&pdev->dev,
 			 "\"mpu\" mem resource not found, using index 0\n");
 		mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		if (!mem) {
