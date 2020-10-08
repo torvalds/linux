@@ -514,7 +514,6 @@ enum rxrpc_call_state {
 	RXRPC_CALL_CLIENT_RECV_REPLY,	/* - client receiving reply phase */
 	RXRPC_CALL_SERVER_PREALLOC,	/* - service preallocation */
 	RXRPC_CALL_SERVER_SECURING,	/* - server securing request connection */
-	RXRPC_CALL_SERVER_ACCEPTING,	/* - server accepting request */
 	RXRPC_CALL_SERVER_RECV_REQUEST,	/* - server receiving request */
 	RXRPC_CALL_SERVER_ACK_REQUEST,	/* - server pending ACK of request */
 	RXRPC_CALL_SERVER_SEND_REPLY,	/* - server sending reply */
@@ -710,8 +709,8 @@ struct rxrpc_ack_summary {
 enum rxrpc_command {
 	RXRPC_CMD_SEND_DATA,		/* send data message */
 	RXRPC_CMD_SEND_ABORT,		/* request abort generation */
-	RXRPC_CMD_ACCEPT,		/* [server] accept incoming call */
 	RXRPC_CMD_REJECT_BUSY,		/* [server] reject a call as busy */
+	RXRPC_CMD_CHARGE_ACCEPT,	/* [server] charge accept preallocation */
 };
 
 struct rxrpc_call_params {
@@ -752,9 +751,7 @@ struct rxrpc_call *rxrpc_new_incoming_call(struct rxrpc_local *,
 					   struct rxrpc_sock *,
 					   struct sk_buff *);
 void rxrpc_accept_incoming_calls(struct rxrpc_local *);
-struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *, unsigned long,
-				     rxrpc_notify_rx_t);
-int rxrpc_reject_call(struct rxrpc_sock *);
+int rxrpc_user_charge_accept(struct rxrpc_sock *, unsigned long);
 
 /*
  * call_event.c

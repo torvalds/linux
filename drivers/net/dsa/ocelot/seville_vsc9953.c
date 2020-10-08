@@ -1049,6 +1049,8 @@ static int vsc9953_prevalidate_phy_mode(struct ocelot *ocelot, int port,
  */
 static u16 vsc9953_wm_enc(u16 value)
 {
+	WARN_ON(value >= 16 * BIT(9));
+
 	if (value >= BIT(9))
 		return BIT(9) | (value / 16);
 

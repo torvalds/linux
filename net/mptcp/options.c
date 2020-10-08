@@ -452,7 +452,10 @@ static bool mptcp_established_options_mp(struct sock *sk, struct sk_buff *skb,
 static void mptcp_write_data_fin(struct mptcp_subflow_context *subflow,
 				 struct sk_buff *skb, struct mptcp_ext *ext)
 {
-	u64 data_fin_tx_seq = READ_ONCE(mptcp_sk(subflow->conn)->write_seq);
+	/* The write_seq value has already been incremented, so the actual
+	 * sequence number for the DATA_FIN is one less.
+	 */
+	u64 data_fin_tx_seq = READ_ONCE(mptcp_sk(subflow->conn)->write_seq) - 1;
 
 	if (!ext->use_map || !skb->len) {
 		/* RFC6824 requires a DSS mapping with specific values
@@ -461,10 +464,7 @@ static void mptcp_write_data_fin(struct mptcp_subflow_context *subflow,
 		ext->data_fin = 1;
 		ext->use_map = 1;
 		ext->dsn64 = 1;
-		/* The write_seq value has already been incremented, so
-		 * the actual sequence number for the DATA_FIN is one less.
-		 */
-		ext->data_seq = data_fin_tx_seq - 1;
+		ext->data_seq = data_fin_tx_seq;
 		ext->subflow_seq = 0;
 		ext->data_len = 1;
 	} else if (ext->data_seq + ext->data_len == data_fin_tx_seq) {

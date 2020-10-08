@@ -806,8 +806,6 @@ copy_present_page(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 		return 1;
 
 	/*
-	 * The trick starts.
-	 *
 	 * What we want to do is to check whether this page may
 	 * have been pinned by the parent process.  If so,
 	 * instead of wrprotect the pte on both sides, we copy
@@ -815,46 +813,15 @@ copy_present_page(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	 * the pinned page won't be randomly replaced in the
 	 * future.
 	 *
-	 * To achieve this, we do the following:
-	 *
-	 * 1. Write-protect the pte if it's writable.  This is
-	 *    to protect concurrent write fast-gup with
-	 *    FOLL_PIN, so that we'll fail the fast-gup with
-	 *    the write bit removed.
-	 *
-	 * 2. Check page_maybe_dma_pinned() to see whether this
-	 *    page may have been pinned.
-	 *
-	 * The order of these steps is important to serialize
-	 * against the fast-gup code (gup_pte_range()) on the
-	 * pte check and try_grab_compound_head(), so that
-	 * we'll make sure either we'll capture that fast-gup
-	 * so we'll copy the pinned page here, or we'll fail
-	 * that fast-gup.
-	 *
-	 * NOTE! Even if we don't end up copying the page,
-	 * we won't undo this wrprotect(), because the normal
-	 * reference copy will need it anyway.
-	 */
-	if (pte_write(pte))
-		ptep_set_wrprotect(src_mm, addr, src_pte);
-
-	/*
-	 * These are the "normally we can just copy by reference"
-	 * checks.
+	 * The page pinning checks are just "has this mm ever
+	 * seen pinning", along with the (inexact) check of
+	 * the page count. That might give false positives for
+	 * for pinning, but it will work correctly.
 	 */
 	if (likely(!atomic_read(&src_mm->has_pinned)))
 		return 1;
 	if (likely(!page_maybe_dma_pinned(page)))
 		return 1;
-
-	/*
-	 * Uhhuh. It looks like the page might be a pinned page,
-	 * and we actually need to copy it. Now we can set the
-	 * source pte back to being writable.
-	 */
-	if (pte_write(pte))
-		set_pte_at(src_mm, addr, src_pte, pte);
 
 	new_page = *prealloc;
 	if (!new_page)

@@ -1270,7 +1270,7 @@ void ocelot_port_set_maxlen(struct ocelot *ocelot, int port, size_t sdu)
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	int maxlen = sdu + ETH_HLEN + ETH_FCS_LEN;
 	int pause_start, pause_stop;
-	int atop_wm;
+	int atop, atop_tot;
 
 	if (port == ocelot->npi) {
 		maxlen += OCELOT_TAG_LEN;
@@ -1291,12 +1291,12 @@ void ocelot_port_set_maxlen(struct ocelot *ocelot, int port, size_t sdu)
 	ocelot_fields_write(ocelot, port, SYS_PAUSE_CFG_PAUSE_STOP,
 			    pause_stop);
 
-	/* Tail dropping watermark */
-	atop_wm = (ocelot->shared_queue_sz - 9 * maxlen) /
+	/* Tail dropping watermarks */
+	atop_tot = (ocelot->shared_queue_sz - 9 * maxlen) /
 		   OCELOT_BUFFER_CELL_SZ;
-	ocelot_write_rix(ocelot, ocelot->ops->wm_enc(9 * maxlen),
-			 SYS_ATOP, port);
-	ocelot_write(ocelot, ocelot->ops->wm_enc(atop_wm), SYS_ATOP_TOT_CFG);
+	atop = (9 * maxlen) / OCELOT_BUFFER_CELL_SZ;
+	ocelot_write_rix(ocelot, ocelot->ops->wm_enc(atop), SYS_ATOP, port);
+	ocelot_write(ocelot, ocelot->ops->wm_enc(atop_tot), SYS_ATOP_TOT_CFG);
 }
 EXPORT_SYMBOL(ocelot_port_set_maxlen);
 
