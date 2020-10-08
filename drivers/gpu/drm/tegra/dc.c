@@ -1742,7 +1742,7 @@ static int tegra_dc_wait_idle(struct tegra_dc *dc, unsigned long timeout)
 }
 
 static void tegra_crtc_atomic_disable(struct drm_crtc *crtc,
-				      struct drm_crtc_state *old_state)
+				      struct drm_atomic_state *state)
 {
 	struct tegra_dc *dc = to_tegra_dc(crtc);
 	u32 value;
@@ -1799,10 +1799,10 @@ static void tegra_crtc_atomic_disable(struct drm_crtc *crtc,
 }
 
 static void tegra_crtc_atomic_enable(struct drm_crtc *crtc,
-				     struct drm_crtc_state *old_state)
+				     struct drm_atomic_state *state)
 {
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
-	struct tegra_dc_state *state = to_dc_state(crtc->state);
+	struct tegra_dc_state *crtc_state = to_dc_state(crtc->state);
 	struct tegra_dc *dc = to_tegra_dc(crtc);
 	u32 value;
 	int err;
@@ -1882,7 +1882,7 @@ static void tegra_crtc_atomic_enable(struct drm_crtc *crtc,
 		tegra_dc_writel(dc, 0, DC_DISP_BORDER_COLOR);
 
 	/* apply PLL and pixel clock changes */
-	tegra_dc_commit_state(dc, state);
+	tegra_dc_commit_state(dc, crtc_state);
 
 	/* program display mode */
 	tegra_dc_set_timings(dc, mode);

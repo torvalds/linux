@@ -99,7 +99,7 @@ static int drm_simple_kms_crtc_check(struct drm_crtc *crtc,
 }
 
 static void drm_simple_kms_crtc_enable(struct drm_crtc *crtc,
-				       struct drm_crtc_state *old_state)
+				       struct drm_atomic_state *state)
 {
 	struct drm_plane *plane;
 	struct drm_simple_display_pipe *pipe;
@@ -113,7 +113,7 @@ static void drm_simple_kms_crtc_enable(struct drm_crtc *crtc,
 }
 
 static void drm_simple_kms_crtc_disable(struct drm_crtc *crtc,
-					struct drm_crtc_state *old_state)
+					struct drm_atomic_state *state)
 {
 	struct drm_simple_display_pipe *pipe;
 

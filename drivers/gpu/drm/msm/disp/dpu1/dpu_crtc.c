@@ -11,6 +11,7 @@
 #include <linux/ktime.h>
 #include <linux/bits.h>
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_flip_work.h>
 #include <drm/drm_mode.h>
@@ -752,8 +753,10 @@ static struct drm_crtc_state *dpu_crtc_duplicate_state(struct drm_crtc *crtc)
 }
 
 static void dpu_crtc_disable(struct drm_crtc *crtc,
-			     struct drm_crtc_state *old_crtc_state)
+			     struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *old_crtc_state = drm_atomic_get_old_crtc_state(state,
+									      crtc);
 	struct dpu_crtc *dpu_crtc;
 	struct dpu_crtc_state *cstate;
 	struct drm_encoder *encoder;
@@ -823,7 +826,7 @@ static void dpu_crtc_disable(struct drm_crtc *crtc,
 }
 
 static void dpu_crtc_enable(struct drm_crtc *crtc,
-		struct drm_crtc_state *old_crtc_state)
+		struct drm_atomic_state *state)
 {
 	struct dpu_crtc *dpu_crtc;
 	struct drm_encoder *encoder;

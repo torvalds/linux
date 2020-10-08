@@ -279,7 +279,7 @@ static void vmw_sou_crtc_helper_prepare(struct drm_crtc *crtc)
  * This is called after a mode set has been completed.
  */
 static void vmw_sou_crtc_atomic_enable(struct drm_crtc *crtc,
-				       struct drm_crtc_state *old_state)
+				       struct drm_atomic_state *state)
 {
 }
 
@@ -289,7 +289,7 @@ static void vmw_sou_crtc_atomic_enable(struct drm_crtc *crtc,
  * @crtc: CRTC to be turned off
  */
 static void vmw_sou_crtc_atomic_disable(struct drm_crtc *crtc,
-					struct drm_crtc_state *old_state)
+					struct drm_atomic_state *state)
 {
 	struct vmw_private *dev_priv;
 	struct vmw_screen_object_unit *sou;

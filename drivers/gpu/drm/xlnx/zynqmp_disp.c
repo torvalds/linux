@@ -1449,7 +1449,7 @@ static int zynqmp_disp_crtc_setup_clock(struct drm_crtc *crtc,
 
 static void
 zynqmp_disp_crtc_atomic_enable(struct drm_crtc *crtc,
-			       struct drm_crtc_state *old_crtc_state)
+			       struct drm_atomic_state *state)
 {
 	struct zynqmp_disp *disp = crtc_to_disp(crtc);
 	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
@@ -1480,8 +1480,10 @@ zynqmp_disp_crtc_atomic_enable(struct drm_crtc *crtc,
 
 static void
 zynqmp_disp_crtc_atomic_disable(struct drm_crtc *crtc,
-				struct drm_crtc_state *old_crtc_state)
+				struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *old_crtc_state = drm_atomic_get_old_crtc_state(state,
+									      crtc);
 	struct zynqmp_disp *disp = crtc_to_disp(crtc);
 	struct drm_plane_state *old_plane_state;
 

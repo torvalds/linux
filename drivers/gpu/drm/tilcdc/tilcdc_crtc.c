@@ -484,7 +484,7 @@ static void tilcdc_crtc_enable(struct drm_crtc *crtc)
 }
 
 static void tilcdc_crtc_atomic_enable(struct drm_crtc *crtc,
-				      struct drm_crtc_state *old_state)
+				      struct drm_atomic_state *state)
 {
 	tilcdc_crtc_enable(crtc);
 }
@@ -532,7 +532,7 @@ static void tilcdc_crtc_disable(struct drm_crtc *crtc)
 }
 
 static void tilcdc_crtc_atomic_disable(struct drm_crtc *crtc,
-				       struct drm_crtc_state *old_state)
+				       struct drm_atomic_state *state)
 {
 	tilcdc_crtc_disable(crtc);
 }

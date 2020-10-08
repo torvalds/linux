@@ -793,7 +793,7 @@ ast_crtc_helper_atomic_flush(struct drm_crtc *crtc, struct drm_crtc_state *old_c
 
 static void
 ast_crtc_helper_atomic_enable(struct drm_crtc *crtc,
-			      struct drm_crtc_state *old_crtc_state)
+			      struct drm_atomic_state *state)
 {
 	struct drm_device *dev = crtc->dev;
 	struct ast_private *ast = to_ast_private(dev);
@@ -816,8 +816,10 @@ ast_crtc_helper_atomic_enable(struct drm_crtc *crtc,
 
 static void
 ast_crtc_helper_atomic_disable(struct drm_crtc *crtc,
-			       struct drm_crtc_state *old_crtc_state)
+			       struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *old_crtc_state = drm_atomic_get_old_crtc_state(state,
+									      crtc);
 	struct drm_device *dev = crtc->dev;
 	struct ast_private *ast = to_ast_private(dev);
 
