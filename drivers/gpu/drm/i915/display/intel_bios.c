@@ -1917,7 +1917,7 @@ parse_general_definitions(struct drm_i915_private *dev_priv,
 		expected_size = 37;
 	} else if (bdb->version <= 215) {
 		expected_size = 38;
-	} else if (bdb->version <= 229) {
+	} else if (bdb->version <= 237) {
 		expected_size = 39;
 	} else {
 		expected_size = sizeof(*child);
