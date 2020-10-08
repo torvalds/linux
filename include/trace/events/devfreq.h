@@ -29,7 +29,7 @@ TRACE_EVENT(devfreq_monitor,
 		__assign_str(dev_name, dev_name(&devfreq->dev));
 	),
 
-	TP_printk("dev_name=%s freq=%lu polling_ms=%u load=%lu",
+	TP_printk("dev_name=%-30s freq=%-12lu polling_ms=%-3u load=%-2lu",
 		__get_str(dev_name), __entry->freq, __entry->polling_ms,
 		__entry->total_time == 0 ? 0 :
 			(100 * __entry->busy_time) / __entry->total_time)
