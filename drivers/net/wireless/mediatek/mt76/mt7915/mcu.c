@@ -352,8 +352,8 @@ mt7915_mcu_rx_radar_detected(struct mt7915_dev *dev, struct sk_buff *skb)
 }
 
 static void
-mt7915_mcu_tx_rate_cal(struct mt76_phy *mphy, struct mt7915_mcu_ra_info *ra,
-		       struct rate_info *rate, u16 r)
+mt7915_mcu_tx_rate_parse(struct mt76_phy *mphy, struct mt7915_mcu_ra_info *ra,
+			 struct rate_info *rate, u16 r)
 {
 	struct ieee80211_supported_band *sband;
 	u16 ru_idx = le16_to_cpu(ra->ru_idx);
@@ -465,11 +465,11 @@ mt7915_mcu_tx_rate_report(struct mt7915_dev *dev, struct sk_buff *skb)
 		mphy = dev->mt76.phy2;
 
 	/* current rate */
-	mt7915_mcu_tx_rate_cal(mphy, ra, &rate, curr);
+	mt7915_mcu_tx_rate_parse(mphy, ra, &rate, curr);
 	stats->tx_rate = rate;
 
 	/* probing rate */
-	mt7915_mcu_tx_rate_cal(mphy, ra, &prob_rate, probe);
+	mt7915_mcu_tx_rate_parse(mphy, ra, &prob_rate, probe);
 	stats->prob_rate = prob_rate;
 
 	if (attempts) {
@@ -3260,7 +3260,7 @@ int mt7915_mcu_get_temperature(struct mt7915_dev *dev, int index)
 				 sizeof(req), true);
 }
 
-int mt7915_mcu_get_rate_info(struct mt7915_dev *dev, u32 cmd, u16 wlan_idx)
+int mt7915_mcu_get_tx_rate(struct mt7915_dev *dev, u32 cmd, u16 wlan_idx)
 {
 	struct {
 		__le32 cmd;

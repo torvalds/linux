@@ -1422,7 +1422,7 @@ mt7915_mac_sta_stats_work(struct mt7915_phy *phy)
 		spin_unlock_bh(&dev->sta_poll_lock);
 
 		/* use MT_TX_FREE_RATE to report Tx rate for further devices */
-		mt7915_mcu_get_rate_info(dev, RATE_CTRL_RU_INFO, msta->wcid.idx);
+		mt7915_mcu_get_tx_rate(dev, RATE_CTRL_RU_INFO, msta->wcid.idx);
 
 		spin_lock_bh(&dev->sta_poll_lock);
 	}
