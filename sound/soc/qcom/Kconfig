@@ -12,6 +12,10 @@ config SND_SOC_LPASS_CPU
 	tristate
 	select REGMAP_MMIO
 
+config SND_SOC_LPASS_HDMI
+	tristate
+	select REGMAP_MMIO
+
 config SND_SOC_LPASS_PLATFORM
 	tristate
 	select REGMAP_MMIO
@@ -30,6 +34,7 @@ config SND_SOC_LPASS_SC7180
 	tristate
 	select SND_SOC_LPASS_CPU
 	select SND_SOC_LPASS_PLATFORM
+	select SND_SOC_LPASS_HDMI
 
 config SND_SOC_STORM
 	tristate "ASoC I2S support for Storm boards"
