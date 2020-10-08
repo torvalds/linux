@@ -870,7 +870,6 @@ static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 		else
 			cmd_size = sizeof(struct iwl_wowlan_kek_kck_material_cmd_v2);
 
-		memset(&kek_kck_cmd, 0, sizeof(kek_kck_cmd));
 		memcpy(kek_kck_cmd.kck, mvmvif->rekey_data.kck,
 		       mvmvif->rekey_data.kck_len);
 		kek_kck_cmd.kck_len = cpu_to_le16(mvmvif->rekey_data.kck_len);
