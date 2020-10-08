@@ -569,7 +569,8 @@ struct iwl_mvm_stat_data {
 	__le32 flags;
 	__le32 mac_id;
 	u8 beacon_filter_average_energy;
-	void *general;
+	__le32 *beacon_counter;
+	u8 *beacon_average_energy;
 };
 
 static void iwl_mvm_stat_iterator(void *_data, u8 *mac,
@@ -589,23 +590,10 @@ static void iwl_mvm_stat_iterator(void *_data, u8 *mac,
 	 * data copied into the "data" struct, but rather the data from
 	 * the notification directly.
 	 */
-	if (iwl_mvm_has_new_rx_stats_api(mvm)) {
-		struct mvm_statistics_general *general =
-			data->general;
-
-		mvmvif->beacon_stats.num_beacons =
-			le32_to_cpu(general->beacon_counter[vif_id]);
-		mvmvif->beacon_stats.avg_signal =
-			-general->beacon_average_energy[vif_id];
-	} else {
-		struct mvm_statistics_general_v8 *general =
-			data->general;
-
-		mvmvif->beacon_stats.num_beacons =
-			le32_to_cpu(general->beacon_counter[vif_id]);
-		mvmvif->beacon_stats.avg_signal =
-			-general->beacon_average_energy[vif_id];
-	}
+	mvmvif->beacon_stats.num_beacons =
+		le32_to_cpu(data->beacon_counter[vif_id]);
+	mvmvif->beacon_stats.avg_signal =
+		-data->beacon_average_energy[vif_id];
 
 	/* make sure that beacon statistics don't go backwards with TCM
 	 * request to clear statistics
@@ -701,18 +689,136 @@ iwl_mvm_rx_stats_check_trigger(struct iwl_mvm *mvm, struct iwl_rx_packet *pkt)
 	iwl_fw_dbg_collect_trig(&mvm->fwrt, trig, NULL);
 }
 
+static void iwl_mvm_update_avg_energy(struct iwl_mvm *mvm,
+				      u8 energy[IWL_MVM_STATION_COUNT_MAX])
+{
+	int i;
+
+	if (WARN_ONCE(mvm->fw->ucode_capa.num_stations >
+		      IWL_MVM_STATION_COUNT_MAX,
+		      "Driver and FW station count mismatch %d\n",
+		      mvm->fw->ucode_capa.num_stations))
+		return;
+
+	rcu_read_lock();
+	for (i = 0; i < mvm->fw->ucode_capa.num_stations; i++) {
+		struct iwl_mvm_sta *sta;
+
+		if (!energy[i])
+			continue;
+
+		sta = iwl_mvm_sta_from_staid_rcu(mvm, i);
+		if (!sta)
+			continue;
+		sta->avg_energy = energy[i];
+	}
+	rcu_read_unlock();
+}
+
+static void
+iwl_mvm_update_tcm_from_stats(struct iwl_mvm *mvm, __le32 *air_time_le,
+			      __le32 *rx_bytes_le)
+{
+	int i;
+
+	spin_lock(&mvm->tcm.lock);
+	for (i = 0; i < NUM_MAC_INDEX_DRIVER; i++) {
+		struct iwl_mvm_tcm_mac *mdata = &mvm->tcm.data[i];
+		u32 rx_bytes = le32_to_cpu(rx_bytes_le[i]);
+		u32 airtime = le32_to_cpu(air_time_le[i]);
+
+		mdata->rx.airtime += airtime;
+		mdata->uapsd_nonagg_detect.rx_bytes += rx_bytes;
+		if (airtime) {
+			/* re-init every time to store rate from FW */
+			ewma_rate_init(&mdata->uapsd_nonagg_detect.rate);
+			ewma_rate_add(&mdata->uapsd_nonagg_detect.rate,
+				      rx_bytes * 8 / airtime);
+		}
+	}
+	spin_unlock(&mvm->tcm.lock);
+}
+
+static void
+iwl_mvm_handle_rx_statistics_tlv(struct iwl_mvm *mvm,
+				 struct iwl_rx_packet *pkt)
+{
+	struct iwl_mvm_stat_data data = {
+		.mvm = mvm,
+	};
+	u8 beacon_average_energy[MAC_INDEX_AUX];
+	u8 average_energy[IWL_MVM_STATION_COUNT_MAX];
+	struct iwl_statistics_operational_ntfy *stats;
+	int expected_size;
+	__le32 flags;
+	int i;
+
+	expected_size = sizeof(*stats);
+	if (WARN_ONCE(iwl_rx_packet_payload_len(pkt) < expected_size,
+		      "received invalid statistics size (%d)!, expected_size: %d\n",
+		      iwl_rx_packet_payload_len(pkt), expected_size))
+		return;
+
+	stats = (void *)&pkt->data;
+
+	if (WARN_ONCE(stats->hdr.type != FW_STATISTICS_OPERATIONAL ||
+		      stats->hdr.version != 1,
+		      "received unsupported hdr type %d, version %d\n",
+		      stats->hdr.type, stats->hdr.version))
+		return;
+
+	flags = stats->flags;
+	mvm->radio_stats.rx_time = le64_to_cpu(stats->rx_time);
+	mvm->radio_stats.tx_time = le64_to_cpu(stats->tx_time);
+	mvm->radio_stats.on_time_rf = le64_to_cpu(stats->on_time_rf);
+	mvm->radio_stats.on_time_scan = le64_to_cpu(stats->on_time_scan);
+
+	iwl_mvm_rx_stats_check_trigger(mvm, pkt);
+
+	data.mac_id = stats->mac_id;
+	data.beacon_filter_average_energy =
+		le32_to_cpu(stats->beacon_filter_average_energy);
+	data.flags = flags;
+	data.beacon_counter = stats->beacon_counter;
+	for (i = 0; i < ARRAY_SIZE(beacon_average_energy); i++)
+		beacon_average_energy[i] =
+			le32_to_cpu(stats->beacon_average_energy[i]);
+
+	data.beacon_average_energy = beacon_average_energy;
+
+	ieee80211_iterate_active_interfaces(mvm->hw,
+					    IEEE80211_IFACE_ITER_NORMAL,
+					    iwl_mvm_stat_iterator,
+					    &data);
+
+	for (i = 0; i < ARRAY_SIZE(average_energy); i++)
+		average_energy[i] = le32_to_cpu(stats->average_energy[i]);
+	iwl_mvm_update_avg_energy(mvm, average_energy);
+
+	/*
+	 * Don't update in case the statistics are not cleared, since
+	 * we will end up counting twice the same airtime, once in TCM
+	 * request and once in statistics notification.
+	 */
+	if (le32_to_cpu(flags) & IWL_STATISTICS_REPLY_FLG_CLEAR)
+		iwl_mvm_update_tcm_from_stats(mvm, stats->air_time,
+					      stats->rx_bytes);
+}
+
 void iwl_mvm_handle_rx_statistics(struct iwl_mvm *mvm,
 				  struct iwl_rx_packet *pkt)
 {
 	struct iwl_mvm_stat_data data = {
 		.mvm = mvm,
 	};
+	__le32 *bytes, *air_time, flags;
 	int expected_size;
-	int i;
 	u8 *energy;
-	__le32 *bytes;
-	__le32 *air_time;
-	__le32 flags;
+
+	/* From ver 14 and up we use TLV statistics format */
+	if (iwl_fw_lookup_notif_ver(mvm->fw, LONG_GROUP,
+				    STATISTICS_CMD, 0) >= 14)
+		return iwl_mvm_handle_rx_statistics_tlv(mvm, pkt);
 
 	if (!iwl_mvm_has_new_rx_stats_api(mvm)) {
 		if (iwl_mvm_has_new_rx_api(mvm))
@@ -746,8 +852,9 @@ void iwl_mvm_handle_rx_statistics(struct iwl_mvm *mvm,
 		mvm->radio_stats.on_time_scan =
 			le64_to_cpu(stats->general.common.on_time_scan);
 
-		data.general = &stats->general;
-
+		data.beacon_counter = stats->general.beacon_counter;
+		data.beacon_average_energy =
+			stats->general.beacon_average_energy;
 		flags = stats->flag;
 	} else {
 		struct iwl_notif_statistics *stats = (void *)&pkt->data;
@@ -767,8 +874,9 @@ void iwl_mvm_handle_rx_statistics(struct iwl_mvm *mvm,
 		mvm->radio_stats.on_time_scan =
 			le64_to_cpu(stats->general.common.on_time_scan);
 
-		data.general = &stats->general;
-
+		data.beacon_counter = stats->general.beacon_counter;
+		data.beacon_average_energy =
+			stats->general.beacon_average_energy;
 		flags = stats->flag;
 	}
 	data.flags = flags;
@@ -797,45 +905,16 @@ void iwl_mvm_handle_rx_statistics(struct iwl_mvm *mvm,
 		air_time = (void *)&stats->load_stats.air_time;
 	}
 
-	rcu_read_lock();
-	for (i = 0; i < mvm->fw->ucode_capa.num_stations; i++) {
-		struct iwl_mvm_sta *sta;
-
-		if (!energy[i])
-			continue;
-
-		sta = iwl_mvm_sta_from_staid_rcu(mvm, i);
-		if (!sta)
-			continue;
-		sta->avg_energy = energy[i];
-	}
-	rcu_read_unlock();
+	iwl_mvm_update_avg_energy(mvm, energy);
 
 	/*
 	 * Don't update in case the statistics are not cleared, since
 	 * we will end up counting twice the same airtime, once in TCM
 	 * request and once in statistics notification.
 	 */
-	if (!(le32_to_cpu(flags) & IWL_STATISTICS_REPLY_FLG_CLEAR))
-		return;
+	if (le32_to_cpu(flags) & IWL_STATISTICS_REPLY_FLG_CLEAR)
+		iwl_mvm_update_tcm_from_stats(mvm, air_time, bytes);
 
-	spin_lock(&mvm->tcm.lock);
-	for (i = 0; i < NUM_MAC_INDEX_DRIVER; i++) {
-		struct iwl_mvm_tcm_mac *mdata = &mvm->tcm.data[i];
-		u32 airtime = le32_to_cpu(air_time[i]);
-		u32 rx_bytes = le32_to_cpu(bytes[i]);
-
-		mdata->uapsd_nonagg_detect.rx_bytes += rx_bytes;
-		if (airtime) {
-			/* re-init every time to store rate from FW */
-			ewma_rate_init(&mdata->uapsd_nonagg_detect.rate);
-			ewma_rate_add(&mdata->uapsd_nonagg_detect.rate,
-				      rx_bytes * 8 / airtime);
-		}
-
-		mdata->rx.airtime += airtime;
-	}
-	spin_unlock(&mvm->tcm.lock);
 }
 
 void iwl_mvm_rx_statistics(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
