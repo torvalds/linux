@@ -568,6 +568,8 @@ struct iwl_trans_rxq_dma_data {
  *	Note that the transport must fill in the proper file headers.
  * @debugfs_cleanup: used in the driver unload flow to make a proper cleanup
  *	of the trans debugfs
+ * @set_pnvm: set the pnvm data in the prph scratch buffer, inside the
+ *	context info.
  */
 struct iwl_trans_ops {
 
@@ -640,6 +642,7 @@ struct iwl_trans_ops {
 						 u32 dump_mask);
 	void (*debugfs_cleanup)(struct iwl_trans *trans);
 	void (*sync_nmi)(struct iwl_trans *trans);
+	int (*set_pnvm)(struct iwl_trans *trans, const void *data, u32 len);
 };
 
 /**
@@ -1447,6 +1450,15 @@ static inline void iwl_trans_sync_nmi(struct iwl_trans *trans)
 {
 	if (trans->ops->sync_nmi)
 		trans->ops->sync_nmi(trans);
+}
+
+static inline int iwl_trans_set_pnvm(struct iwl_trans *trans,
+				     const void *data, u32 len)
+{
+	if (trans->ops->set_pnvm)
+		return trans->ops->set_pnvm(trans, data, len);
+
+	return 0;
 }
 
 static inline bool iwl_trans_dbg_ini_valid(struct iwl_trans *trans)
