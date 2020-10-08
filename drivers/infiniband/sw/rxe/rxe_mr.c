@@ -52,13 +52,8 @@ static void rxe_mem_init(int access, struct rxe_mem *mem)
 	u32 lkey = mem->pelem.index << 8 | rxe_get_key();
 	u32 rkey = (access & IB_ACCESS_REMOTE) ? lkey : 0;
 
-	if (mem->pelem.pool->type == RXE_TYPE_MR) {
-		mem->ibmr.lkey		= lkey;
-		mem->ibmr.rkey		= rkey;
-	}
-
-	mem->lkey		= lkey;
-	mem->rkey		= rkey;
+	mem->ibmr.lkey		= lkey;
+	mem->ibmr.rkey		= rkey;
 	mem->state		= RXE_MEM_STATE_INVALID;
 	mem->type		= RXE_MEM_TYPE_NONE;
 	mem->map_shift		= ilog2(RXE_BUF_PER_MAP);
@@ -122,7 +117,7 @@ void rxe_mem_init_dma(struct rxe_pd *pd,
 {
 	rxe_mem_init(access, mem);
 
-	mem->pd			= pd;
+	mem->ibmr.pd		= &pd->ibpd;
 	mem->access		= access;
 	mem->state		= RXE_MEM_STATE_VALID;
 	mem->type		= RXE_MEM_TYPE_DMA;
@@ -191,7 +186,7 @@ int rxe_mem_init_user(struct rxe_pd *pd, u64 start,
 		}
 	}
 
-	mem->pd			= pd;
+	mem->ibmr.pd		= &pd->ibpd;
 	mem->umem		= umem;
 	mem->access		= access;
 	mem->length		= length;
@@ -221,7 +216,7 @@ int rxe_mem_init_fast(struct rxe_pd *pd,
 	if (err)
 		goto err1;
 
-	mem->pd			= pd;
+	mem->ibmr.pd		= &pd->ibpd;
 	mem->max_buf		= max_pages;
 	mem->state		= RXE_MEM_STATE_FREE;
 	mem->type		= RXE_MEM_TYPE_MR;
@@ -341,7 +336,7 @@ int rxe_mem_copy(struct rxe_mem *mem, u64 iova, void *addr, int length,
 		memcpy(dest, src, length);
 
 		if (crcp)
-			*crcp = rxe_crc32(to_rdev(mem->pd->ibpd.device),
+			*crcp = rxe_crc32(to_rdev(mem->ibmr.device),
 					*crcp, dest, length);
 
 		return 0;
@@ -375,7 +370,7 @@ int rxe_mem_copy(struct rxe_mem *mem, u64 iova, void *addr, int length,
 		memcpy(dest, src, bytes);
 
 		if (crcp)
-			crc = rxe_crc32(to_rdev(mem->pd->ibpd.device),
+			crc = rxe_crc32(to_rdev(mem->ibmr.device),
 					crc, dest, bytes);
 
 		length	-= bytes;
@@ -548,9 +543,9 @@ struct rxe_mem *lookup_mem(struct rxe_pd *pd, int access, u32 key,
 	if (!mem)
 		return NULL;
 
-	if (unlikely((type == lookup_local && mem->lkey != key) ||
-		     (type == lookup_remote && mem->rkey != key) ||
-		     mem->pd != pd ||
+	if (unlikely((type == lookup_local && mr_lkey(mem) != key) ||
+		     (type == lookup_remote && mr_rkey(mem) != key) ||
+		     mr_pd(mem) != pd ||
 		     (access && !(access & mem->access)) ||
 		     mem->state != RXE_MEM_STATE_VALID)) {
 		rxe_drop_ref(mem);

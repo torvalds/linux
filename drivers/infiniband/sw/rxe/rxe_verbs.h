@@ -295,11 +295,7 @@ struct rxe_mem {
 		struct ib_mw		ibmw;
 	};
 
-	struct rxe_pd		*pd;
 	struct ib_umem		*umem;
-
-	u32			lkey;
-	u32			rkey;
 
 	enum rxe_mem_state	state;
 	enum rxe_mem_type	type;
@@ -436,6 +432,21 @@ static inline struct rxe_mem *to_rmr(struct ib_mr *mr)
 static inline struct rxe_mem *to_rmw(struct ib_mw *mw)
 {
 	return mw ? container_of(mw, struct rxe_mem, ibmw) : NULL;
+}
+
+static inline struct rxe_pd *mr_pd(struct rxe_mem *mr)
+{
+	return to_rpd(mr->ibmr.pd);
+}
+
+static inline u32 mr_lkey(struct rxe_mem *mr)
+{
+	return mr->ibmr.lkey;
+}
+
+static inline u32 mr_rkey(struct rxe_mem *mr)
+{
+	return mr->ibmr.rkey;
 }
 
 int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name);

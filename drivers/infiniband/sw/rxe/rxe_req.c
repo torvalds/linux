@@ -617,8 +617,8 @@ next_wqe:
 
 			rmr->state = RXE_MEM_STATE_VALID;
 			rmr->access = wqe->wr.wr.reg.access;
-			rmr->lkey = wqe->wr.wr.reg.key;
-			rmr->rkey = wqe->wr.wr.reg.key;
+			rmr->ibmr.lkey = wqe->wr.wr.reg.key;
+			rmr->ibmr.rkey = wqe->wr.wr.reg.key;
 			rmr->iova = wqe->wr.wr.reg.mr->iova;
 			wqe->state = wqe_state_done;
 			wqe->status = IB_WC_SUCCESS;
