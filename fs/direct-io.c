@@ -1188,19 +1188,9 @@ do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 	memset(dio, 0, offsetof(struct dio, pages));
 
 	dio->flags = flags;
-	if (dio->flags & DIO_LOCKING) {
-		if (iov_iter_rw(iter) == READ) {
-			struct address_space *mapping =
-					iocb->ki_filp->f_mapping;
-
-			/* will be released by direct_io_worker */
-			inode_lock(inode);
-
-			retval = filemap_write_and_wait_range(mapping, offset,
-							      end - 1);
-			if (retval)
-				goto fail_dio;
-		}
+	if (dio->flags & DIO_LOCKING && iov_iter_rw(iter) == READ) {
+		/* will be released by direct_io_worker */
+		inode_lock(inode);
 	}
 
 	/* Once we sampled i_size check for reads beyond EOF */
@@ -1208,6 +1198,14 @@ do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 	if (iov_iter_rw(iter) == READ && offset >= dio->i_size) {
 		retval = 0;
 		goto fail_dio;
+	}
+
+	if (dio->flags & DIO_LOCKING && iov_iter_rw(iter) == READ) {
+		struct address_space *mapping = iocb->ki_filp->f_mapping;
+
+		retval = filemap_write_and_wait_range(mapping, offset, end - 1);
+		if (retval)
+			goto fail_dio;
 	}
 
 	/*
