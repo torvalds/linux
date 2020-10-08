@@ -35,12 +35,11 @@ AArch64 Linux memory layout with 4KB pages + 4 levels (48-bit)::
 [ ffff600000000000	ffff7fffffffffff ]	  32TB		[ kasan shadow region ]
   ffff800000000000	ffff800007ffffff	 128MB		bpf jit region
   ffff800008000000	ffff80000fffffff	 128MB		modules
-  ffff800010000000	fffffbffbffeffff	 123TB		vmalloc
-  fffffbffbfff0000	fffffbfffe7f8fff	~998MB		[guard region]
-  fffffbfffe7f9000	fffffbfffebfffff	4124KB		fixed mappings
-  fffffbfffec00000	fffffbfffedfffff	   2MB		[guard region]
-  fffffbfffee00000	fffffbffffdfffff	  16MB		PCI I/O space
-  fffffbffffe00000	fffffbffffffffff	   2MB		[guard region]
+  ffff800010000000	fffffbffefffffff	 124TB		vmalloc
+  fffffbfff0000000	fffffbfffdffffff	 224MB		fixed mappings (top down)
+  fffffbfffe000000	fffffbfffe7fffff	   8MB		[guard region]
+  fffffbfffe800000	fffffbffff7fffff	  16MB		PCI I/O space
+  fffffbffff800000	fffffbffffffffff	   8MB		[guard region]
   fffffc0000000000	fffffdffffffffff	   2TB		vmemmap
   fffffe0000000000	ffffffffffffffff	   2TB		[guard region]
 
@@ -54,12 +53,11 @@ AArch64 Linux memory layout with 64KB pages + 3 levels (52-bit with HW support):
 [ fffd800000000000	ffff7fffffffffff ]	 512TB		[ kasan shadow region ]
   ffff800000000000	ffff800007ffffff	 128MB		bpf jit region
   ffff800008000000	ffff80000fffffff	 128MB		modules
-  ffff800010000000	fffff81ffffeffff	 120TB		vmalloc
-  fffff81fffff0000	fffffbfffe38ffff	  ~3TB		[guard region]
-  fffffbfffe390000	fffffbfffebfffff	4544KB		fixed mappings
-  fffffbfffec00000	fffffbfffedfffff	   2MB		[guard region]
-  fffffbfffee00000	fffffbffffdfffff	  16MB		PCI I/O space
-  fffffbffffe00000	fffffbffffffffff	   2MB		[guard region]
+  ffff800010000000	fffffbffefffffff	 124TB		vmalloc
+  fffffbfff0000000	fffffbfffdffffff	 224MB		fixed mappings (top down)
+  fffffbfffe000000	fffffbfffe7fffff	   8MB		[guard region]
+  fffffbfffe800000	fffffbffff7fffff	  16MB		PCI I/O space
+  fffffbffff800000	fffffbffffffffff	   8MB		[guard region]
   fffffc0000000000	ffffffdfffffffff	  ~4TB		vmemmap
   ffffffe000000000	ffffffffffffffff	 128GB		[guard region]
 
