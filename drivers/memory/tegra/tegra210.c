@@ -24,7 +24,7 @@ static const struct tegra_mc_client tegra210_mc_clients[] = {
 			.reg = 0x2e8,
 			.shift = 0,
 			.mask = 0xff,
-			.def = 0xc2,
+			.def = 0x1e,
 		},
 	}, {
 		.id = 0x02,
@@ -38,7 +38,7 @@ static const struct tegra_mc_client tegra210_mc_clients[] = {
 			.reg = 0x2f4,
 			.shift = 0,
 			.mask = 0xff,
-			.def = 0xc6,
+			.def = 0x1e,
 		},
 	}, {
 		.id = 0x03,
@@ -52,7 +52,7 @@ static const struct tegra_mc_client tegra210_mc_clients[] = {
 			.reg = 0x2e8,
 			.shift = 16,
 			.mask = 0xff,
-			.def = 0x50,
+			.def = 0x1e,
 		},
 	}, {
 		.id = 0x04,
@@ -66,7 +66,7 @@ static const struct tegra_mc_client tegra210_mc_clients[] = {
 			.reg = 0x2f4,
 			.shift = 16,
 			.mask = 0xff,
-			.def = 0x50,
+			.def = 0x1e,
 		},
 	}, {
 		.id = 0x05,
@@ -80,7 +80,7 @@ static const struct tegra_mc_client tegra210_mc_clients[] = {
 			.reg = 0x2ec,
 			.shift = 0,
 			.mask = 0xff,
-			.def = 0x50,
+			.def = 0x1e,
 		},
 	}, {
 		.id = 0x06,
@@ -94,7 +94,7 @@ static const struct tegra_mc_client tegra210_mc_clients[] = {
 			.reg = 0x2f8,
 			.shift = 0,
 			.mask = 0xff,
-			.def = 0x50,
+			.def = 0x1e,
 		},
 	}, {
 		.id = 0x0e,
@@ -108,7 +108,7 @@ static const struct tegra_mc_client tegra210_mc_clients[] = {
 			.reg = 0x2e0,
 			.shift = 0,
 			.mask = 0xff,
-			.def = 0x13,
+			.def = 0x2e,
 		},
 	}, {
 		.id = 0x0f,
@@ -136,7 +136,7 @@ static const struct tegra_mc_client tegra210_mc_clients[] = {
 			.reg = 0x2f0,
 			.shift = 0,
 			.mask = 0xff,
-			.def = 0x50,
+			.def = 0x1e,
 		},
 	}, {
 		.id = 0x11,
@@ -150,7 +150,7 @@ static const struct tegra_mc_client tegra210_mc_clients[] = {
 			.reg = 0x2fc,
 			.shift = 0,
 			.mask = 0xff,
-			.def = 0x50,
+			.def = 0x1e,
 		},
 	}, {
 		.id = 0x15,
@@ -380,7 +380,7 @@ static const struct tegra_mc_client tegra210_mc_clients[] = {
 			.reg = 0x350,
 			.shift = 16,
 			.mask = 0xff,
-			.def = 0x65,
+			.def = 0x80,
 		},
 	}, {
 		.id = 0x44,
@@ -620,7 +620,7 @@ static const struct tegra_mc_client tegra210_mc_clients[] = {
 			.reg = 0x2f0,
 			.shift = 16,
 			.mask = 0xff,
-			.def = 0x50,
+			.def = 0x1e,
 		},
 	}, {
 		.id = 0x60,
@@ -648,7 +648,7 @@ static const struct tegra_mc_client tegra210_mc_clients[] = {
 			.reg = 0x3bc,
 			.shift = 0,
 			.mask = 0xff,
-			.def = 0x49,
+			.def = 0x5a,
 		},
 	}, {
 		.id = 0x62,
@@ -676,7 +676,7 @@ static const struct tegra_mc_client tegra210_mc_clients[] = {
 			.reg = 0x3c4,
 			.shift = 0,
 			.mask = 0xff,
-			.def = 0x49,
+			.def = 0x5a,
 		},
 	}, {
 		.id = 0x64,
@@ -956,7 +956,7 @@ static const struct tegra_mc_client tegra210_mc_clients[] = {
 			.reg = 0x3ec,
 			.shift = 16,
 			.mask = 0xff,
-			.def = 0xff,
+			.def = 0x80,
 		},
 	}, {
 		.id = 0x86,
