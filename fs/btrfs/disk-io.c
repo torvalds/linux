@@ -1780,7 +1780,7 @@ static int transaction_kthread(void *arg)
 
 	do {
 		cannot_commit = false;
-		delay = HZ * fs_info->commit_interval;
+		delay = msecs_to_jiffies(fs_info->commit_interval * 1000);
 		mutex_lock(&fs_info->transaction_kthread_mutex);
 
 		spin_lock(&fs_info->trans_lock);
@@ -1795,7 +1795,7 @@ static int transaction_kthread(void *arg)
 		    (now < cur->start_time ||
 		     now - cur->start_time < fs_info->commit_interval)) {
 			spin_unlock(&fs_info->trans_lock);
-			delay = HZ * 5;
+			delay = msecs_to_jiffies(5000);
 			goto sleep;
 		}
 		transid = cur->transid;
