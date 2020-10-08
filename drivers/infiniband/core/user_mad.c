@@ -1191,7 +1191,7 @@ static ssize_t ibdev_show(struct device *dev, struct device_attribute *attr,
 	if (!port)
 		return -ENODEV;
 
-	return sprintf(buf, "%s\n", dev_name(&port->ib_dev->dev));
+	return sysfs_emit(buf, "%s\n", dev_name(&port->ib_dev->dev));
 }
 static DEVICE_ATTR_RO(ibdev);
 
@@ -1203,7 +1203,7 @@ static ssize_t port_show(struct device *dev, struct device_attribute *attr,
 	if (!port)
 		return -ENODEV;
 
-	return sprintf(buf, "%d\n", port->port_num);
+	return sysfs_emit(buf, "%d\n", port->port_num);
 }
 static DEVICE_ATTR_RO(port);
 

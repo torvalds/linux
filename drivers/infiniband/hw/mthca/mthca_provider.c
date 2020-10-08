@@ -961,7 +961,7 @@ static ssize_t hw_rev_show(struct device *device,
 	struct mthca_dev *dev =
 		rdma_device_to_drv_device(device, struct mthca_dev, ib_dev);
 
-	return sprintf(buf, "%x\n", dev->rev_id);
+	return sysfs_emit(buf, "%x\n", dev->rev_id);
 }
 static DEVICE_ATTR_RO(hw_rev);
 
@@ -973,16 +973,16 @@ static ssize_t hca_type_show(struct device *device,
 
 	switch (dev->pdev->device) {
 	case PCI_DEVICE_ID_MELLANOX_TAVOR:
-		return sprintf(buf, "MT23108\n");
+		return sysfs_emit(buf, "MT23108\n");
 	case PCI_DEVICE_ID_MELLANOX_ARBEL_COMPAT:
-		return sprintf(buf, "MT25208 (MT23108 compat mode)\n");
+		return sysfs_emit(buf, "MT25208 (MT23108 compat mode)\n");
 	case PCI_DEVICE_ID_MELLANOX_ARBEL:
-		return sprintf(buf, "MT25208\n");
+		return sysfs_emit(buf, "MT25208\n");
 	case PCI_DEVICE_ID_MELLANOX_SINAI:
 	case PCI_DEVICE_ID_MELLANOX_SINAI_OLD:
-		return sprintf(buf, "MT25204\n");
+		return sysfs_emit(buf, "MT25204\n");
 	default:
-		return sprintf(buf, "unknown\n");
+		return sysfs_emit(buf, "unknown\n");
 	}
 }
 static DEVICE_ATTR_RO(hca_type);
@@ -993,7 +993,7 @@ static ssize_t board_id_show(struct device *device,
 	struct mthca_dev *dev =
 		rdma_device_to_drv_device(device, struct mthca_dev, ib_dev);
 
-	return sprintf(buf, "%.*s\n", MTHCA_BOARD_ID_LEN, dev->board_id);
+	return sysfs_emit(buf, "%.*s\n", MTHCA_BOARD_ID_LEN, dev->board_id);
 }
 static DEVICE_ATTR_RO(board_id);
 

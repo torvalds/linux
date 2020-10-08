@@ -68,21 +68,21 @@ static int pvrdma_del_gid(const struct ib_gid_attr *attr, void **context);
 static ssize_t hca_type_show(struct device *device,
 			     struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "VMW_PVRDMA-%s\n", DRV_VERSION);
+	return sysfs_emit(buf, "VMW_PVRDMA-%s\n", DRV_VERSION);
 }
 static DEVICE_ATTR_RO(hca_type);
 
 static ssize_t hw_rev_show(struct device *device,
 			   struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", PVRDMA_REV_ID);
+	return sysfs_emit(buf, "%d\n", PVRDMA_REV_ID);
 }
 static DEVICE_ATTR_RO(hw_rev);
 
 static ssize_t board_id_show(struct device *device,
 			     struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", PVRDMA_BOARD_ID);
+	return sysfs_emit(buf, "%d\n", PVRDMA_BOARD_ID);
 }
 static DEVICE_ATTR_RO(board_id);
 

@@ -500,7 +500,7 @@ static ssize_t hw_rev_show(struct device *device, struct device_attribute *attr,
 	struct hfi1_ibdev *dev =
 		rdma_device_to_drv_device(device, struct hfi1_ibdev, rdi.ibdev);
 
-	return sprintf(buf, "%x\n", dd_from_dev(dev)->minrev);
+	return sysfs_emit(buf, "%x\n", dd_from_dev(dev)->minrev);
 }
 static DEVICE_ATTR_RO(hw_rev);
 
@@ -515,7 +515,7 @@ static ssize_t board_id_show(struct device *device,
 	if (!dd->boardname)
 		ret = -EINVAL;
 	else
-		ret = scnprintf(buf, PAGE_SIZE, "%s\n", dd->boardname);
+		ret = sysfs_emit(buf, "%s\n", dd->boardname);
 	return ret;
 }
 static DEVICE_ATTR_RO(board_id);
@@ -528,7 +528,7 @@ static ssize_t boardversion_show(struct device *device,
 	struct hfi1_devdata *dd = dd_from_dev(dev);
 
 	/* The string printed here is already newline-terminated. */
-	return scnprintf(buf, PAGE_SIZE, "%s", dd->boardversion);
+	return sysfs_emit(buf, "%s", dd->boardversion);
 }
 static DEVICE_ATTR_RO(boardversion);
 
@@ -545,9 +545,9 @@ static ssize_t nctxts_show(struct device *device,
 	 * and a receive context, so returning the smaller of the two counts
 	 * give a more accurate picture of total contexts available.
 	 */
-	return scnprintf(buf, PAGE_SIZE, "%u\n",
-			 min(dd->num_user_contexts,
-			     (u32)dd->sc_sizes[SC_USER].count));
+	return sysfs_emit(buf, "%u\n",
+			  min(dd->num_user_contexts,
+			      (u32)dd->sc_sizes[SC_USER].count));
 }
 static DEVICE_ATTR_RO(nctxts);
 
@@ -559,7 +559,7 @@ static ssize_t nfreectxts_show(struct device *device,
 	struct hfi1_devdata *dd = dd_from_dev(dev);
 
 	/* Return the number of free user ports (contexts) available. */
-	return scnprintf(buf, PAGE_SIZE, "%u\n", dd->freectxts);
+	return sysfs_emit(buf, "%u\n", dd->freectxts);
 }
 static DEVICE_ATTR_RO(nfreectxts);
 
@@ -570,7 +570,7 @@ static ssize_t serial_show(struct device *device,
 		rdma_device_to_drv_device(device, struct hfi1_ibdev, rdi.ibdev);
 	struct hfi1_devdata *dd = dd_from_dev(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%s", dd->serial);
+	return sysfs_emit(buf, "%s", dd->serial);
 }
 static DEVICE_ATTR_RO(serial);
 

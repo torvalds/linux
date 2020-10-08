@@ -565,7 +565,7 @@ static ssize_t hw_rev_show(struct device *device, struct device_attribute *attr,
 	struct qib_ibdev *dev =
 		rdma_device_to_drv_device(device, struct qib_ibdev, rdi.ibdev);
 
-	return sprintf(buf, "%x\n", dd_from_dev(dev)->minrev);
+	return sysfs_emit(buf, "%x\n", dd_from_dev(dev)->minrev);
 }
 static DEVICE_ATTR_RO(hw_rev);
 
@@ -580,7 +580,7 @@ static ssize_t hca_type_show(struct device *device,
 	if (!dd->boardname)
 		ret = -EINVAL;
 	else
-		ret = scnprintf(buf, PAGE_SIZE, "%s\n", dd->boardname);
+		ret = sysfs_emit(buf, "%s\n", dd->boardname);
 	return ret;
 }
 static DEVICE_ATTR_RO(hca_type);
@@ -590,7 +590,7 @@ static ssize_t version_show(struct device *device,
 			    struct device_attribute *attr, char *buf)
 {
 	/* The string printed here is already newline-terminated. */
-	return scnprintf(buf, PAGE_SIZE, "%s", (char *)ib_qib_version);
+	return sysfs_emit(buf, "%s", (char *)ib_qib_version);
 }
 static DEVICE_ATTR_RO(version);
 
@@ -602,7 +602,7 @@ static ssize_t boardversion_show(struct device *device,
 	struct qib_devdata *dd = dd_from_dev(dev);
 
 	/* The string printed here is already newline-terminated. */
-	return scnprintf(buf, PAGE_SIZE, "%s", dd->boardversion);
+	return sysfs_emit(buf, "%s", dd->boardversion);
 }
 static DEVICE_ATTR_RO(boardversion);
 
@@ -614,7 +614,7 @@ static ssize_t localbus_info_show(struct device *device,
 	struct qib_devdata *dd = dd_from_dev(dev);
 
 	/* The string printed here is already newline-terminated. */
-	return scnprintf(buf, PAGE_SIZE, "%s", dd->lbus_info);
+	return sysfs_emit(buf, "%s", dd->lbus_info);
 }
 static DEVICE_ATTR_RO(localbus_info);
 
@@ -628,9 +628,10 @@ static ssize_t nctxts_show(struct device *device,
 	/* Return the number of user ports (contexts) available. */
 	/* The calculation below deals with a special case where
 	 * cfgctxts is set to 1 on a single-port board. */
-	return scnprintf(buf, PAGE_SIZE, "%u\n",
-			(dd->first_user_ctxt > dd->cfgctxts) ? 0 :
-			(dd->cfgctxts - dd->first_user_ctxt));
+	return sysfs_emit(buf, "%u\n",
+			  (dd->first_user_ctxt > dd->cfgctxts) ?
+				  0 :
+				  (dd->cfgctxts - dd->first_user_ctxt));
 }
 static DEVICE_ATTR_RO(nctxts);
 
@@ -642,7 +643,7 @@ static ssize_t nfreectxts_show(struct device *device,
 	struct qib_devdata *dd = dd_from_dev(dev);
 
 	/* Return the number of free user ports (contexts) available. */
-	return scnprintf(buf, PAGE_SIZE, "%u\n", dd->freectxts);
+	return sysfs_emit(buf, "%u\n", dd->freectxts);
 }
 static DEVICE_ATTR_RO(nfreectxts);
 
@@ -703,12 +704,11 @@ static ssize_t tempsense_show(struct device *device,
 		regvals[idx] = ret;
 	}
 	if (idx == 8)
-		ret = scnprintf(buf, PAGE_SIZE, "%d %d %02X %02X %d %d\n",
-				*(signed char *)(regvals),
-				*(signed char *)(regvals + 1),
-				regvals[2], regvals[3],
-				*(signed char *)(regvals + 5),
-				*(signed char *)(regvals + 7));
+		ret = sysfs_emit(buf, "%d %d %02X %02X %d %d\n",
+				 *(signed char *)(regvals),
+				 *(signed char *)(regvals + 1), regvals[2],
+				 regvals[3], *(signed char *)(regvals + 5),
+				 *(signed char *)(regvals + 7));
 	return ret;
 }
 static DEVICE_ATTR_RO(tempsense);

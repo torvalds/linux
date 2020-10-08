@@ -52,7 +52,8 @@ static ssize_t max_reconnect_attempts_show(struct device *dev,
 {
 	struct rtrs_clt *clt = container_of(dev, struct rtrs_clt, dev);
 
-	return sprintf(page, "%d\n", rtrs_clt_get_max_reconnect_attempts(clt));
+	return sysfs_emit(page, "%d\n",
+			  rtrs_clt_get_max_reconnect_attempts(clt));
 }
 
 static ssize_t max_reconnect_attempts_store(struct device *dev,
@@ -95,11 +96,13 @@ static ssize_t mpath_policy_show(struct device *dev,
 
 	switch (clt->mp_policy) {
 	case MP_POLICY_RR:
-		return sprintf(page, "round-robin (RR: %d)\n", clt->mp_policy);
+		return sysfs_emit(page, "round-robin (RR: %d)\n",
+				  clt->mp_policy);
 	case MP_POLICY_MIN_INFLIGHT:
-		return sprintf(page, "min-inflight (MI: %d)\n", clt->mp_policy);
+		return sysfs_emit(page, "min-inflight (MI: %d)\n",
+				  clt->mp_policy);
 	default:
-		return sprintf(page, "Unknown (%d)\n", clt->mp_policy);
+		return sysfs_emit(page, "Unknown (%d)\n", clt->mp_policy);
 	}
 }
 
@@ -138,9 +141,10 @@ static DEVICE_ATTR_RW(mpath_policy);
 static ssize_t add_path_show(struct device *dev,
 			     struct device_attribute *attr, char *page)
 {
-	return scnprintf(page, PAGE_SIZE,
-			 "Usage: echo [<source addr>@]<destination addr> > %s\n\n*addr ::= [ ip:<ipv4|ipv6> | gid:<gid> ]\n",
-			 attr->attr.name);
+	return sysfs_emit(
+		page,
+		"Usage: echo [<source addr>@]<destination addr> > %s\n\n*addr ::= [ ip:<ipv4|ipv6> | gid:<gid> ]\n",
+		attr->attr.name);
 }
 
 static ssize_t add_path_store(struct device *dev,

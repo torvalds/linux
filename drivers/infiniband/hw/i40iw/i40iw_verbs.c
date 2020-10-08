@@ -2062,7 +2062,7 @@ static ssize_t hw_rev_show(struct device *dev,
 		rdma_device_to_drv_device(dev, struct i40iw_ib_device, ibdev);
 	u32 hw_rev = iwibdev->iwdev->sc_dev.hw_rev;
 
-	return sprintf(buf, "%x\n", hw_rev);
+	return sysfs_emit(buf, "%x\n", hw_rev);
 }
 static DEVICE_ATTR_RO(hw_rev);
 
@@ -2072,7 +2072,7 @@ static DEVICE_ATTR_RO(hw_rev);
 static ssize_t hca_type_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "I40IW\n");
+	return sysfs_emit(buf, "I40IW\n");
 }
 static DEVICE_ATTR_RO(hca_type);
 
@@ -2082,7 +2082,7 @@ static DEVICE_ATTR_RO(hca_type);
 static ssize_t board_id_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%.*s\n", 32, "I40IW Board ID");
+	return sysfs_emit(buf, "%.*s\n", 32, "I40IW Board ID");
 }
 static DEVICE_ATTR_RO(board_id);
 

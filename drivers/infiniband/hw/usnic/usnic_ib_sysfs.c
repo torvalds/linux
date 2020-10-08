@@ -57,7 +57,7 @@ static ssize_t board_id_show(struct device *device,
 	subsystem_device_id = us_ibdev->pdev->subsystem_device;
 	mutex_unlock(&us_ibdev->usdev_lock);
 
-	return scnprintf(buf, PAGE_SIZE, "%hu\n", subsystem_device_id);
+	return sysfs_emit(buf, "%hu\n", subsystem_device_id);
 }
 static DEVICE_ATTR_RO(board_id);
 
@@ -132,8 +132,7 @@ iface_show(struct device *device, struct device_attribute *attr, char *buf)
 	struct usnic_ib_dev *us_ibdev =
 		rdma_device_to_drv_device(device, struct usnic_ib_dev, ib_dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%s\n",
-			netdev_name(us_ibdev->netdev));
+	return sysfs_emit(buf, "%s\n", netdev_name(us_ibdev->netdev));
 }
 static DEVICE_ATTR_RO(iface);
 
@@ -143,8 +142,7 @@ max_vf_show(struct device *device, struct device_attribute *attr, char *buf)
 	struct usnic_ib_dev *us_ibdev =
 		rdma_device_to_drv_device(device, struct usnic_ib_dev, ib_dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n",
-			kref_read(&us_ibdev->vf_cnt));
+	return sysfs_emit(buf, "%u\n", kref_read(&us_ibdev->vf_cnt));
 }
 static DEVICE_ATTR_RO(max_vf);
 
@@ -158,8 +156,7 @@ qp_per_vf_show(struct device *device, struct device_attribute *attr, char *buf)
 	qp_per_vf = max(us_ibdev->vf_res_cnt[USNIC_VNIC_RES_TYPE_WQ],
 			us_ibdev->vf_res_cnt[USNIC_VNIC_RES_TYPE_RQ]);
 
-	return scnprintf(buf, PAGE_SIZE,
-				"%d\n", qp_per_vf);
+	return sysfs_emit(buf, "%d\n", qp_per_vf);
 }
 static DEVICE_ATTR_RO(qp_per_vf);
 
@@ -169,8 +166,8 @@ cq_per_vf_show(struct device *device, struct device_attribute *attr, char *buf)
 	struct usnic_ib_dev *us_ibdev =
 		rdma_device_to_drv_device(device, struct usnic_ib_dev, ib_dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n",
-			us_ibdev->vf_res_cnt[USNIC_VNIC_RES_TYPE_CQ]);
+	return sysfs_emit(buf, "%d\n",
+			  us_ibdev->vf_res_cnt[USNIC_VNIC_RES_TYPE_CQ]);
 }
 static DEVICE_ATTR_RO(cq_per_vf);
 

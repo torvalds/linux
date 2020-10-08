@@ -119,7 +119,7 @@ static ssize_t hw_rev_show(struct device *device,
 	struct ocrdma_dev *dev =
 		rdma_device_to_drv_device(device, struct ocrdma_dev, ibdev);
 
-	return scnprintf(buf, PAGE_SIZE, "0x%x\n", dev->nic_info.pdev->vendor);
+	return sysfs_emit(buf, "0x%x\n", dev->nic_info.pdev->vendor);
 }
 static DEVICE_ATTR_RO(hw_rev);
 
@@ -129,7 +129,7 @@ static ssize_t hca_type_show(struct device *device,
 	struct ocrdma_dev *dev =
 		rdma_device_to_drv_device(device, struct ocrdma_dev, ibdev);
 
-	return scnprintf(buf, PAGE_SIZE, "%s\n", &dev->model_number[0]);
+	return sysfs_emit(buf, "%s\n", &dev->model_number[0]);
 }
 static DEVICE_ATTR_RO(hca_type);
 

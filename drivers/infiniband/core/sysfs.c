@@ -1230,14 +1230,22 @@ static ssize_t node_type_show(struct device *device,
 	struct ib_device *dev = rdma_device_to_ibdev(device);
 
 	switch (dev->node_type) {
-	case RDMA_NODE_IB_CA:	  return sprintf(buf, "%d: CA\n", dev->node_type);
-	case RDMA_NODE_RNIC:	  return sprintf(buf, "%d: RNIC\n", dev->node_type);
-	case RDMA_NODE_USNIC:	  return sprintf(buf, "%d: usNIC\n", dev->node_type);
-	case RDMA_NODE_USNIC_UDP: return sprintf(buf, "%d: usNIC UDP\n", dev->node_type);
-	case RDMA_NODE_UNSPECIFIED: return sprintf(buf, "%d: unspecified\n", dev->node_type);
-	case RDMA_NODE_IB_SWITCH: return sprintf(buf, "%d: switch\n", dev->node_type);
-	case RDMA_NODE_IB_ROUTER: return sprintf(buf, "%d: router\n", dev->node_type);
-	default:		  return sprintf(buf, "%d: <unknown>\n", dev->node_type);
+	case RDMA_NODE_IB_CA:
+		return sysfs_emit(buf, "%d: CA\n", dev->node_type);
+	case RDMA_NODE_RNIC:
+		return sysfs_emit(buf, "%d: RNIC\n", dev->node_type);
+	case RDMA_NODE_USNIC:
+		return sysfs_emit(buf, "%d: usNIC\n", dev->node_type);
+	case RDMA_NODE_USNIC_UDP:
+		return sysfs_emit(buf, "%d: usNIC UDP\n", dev->node_type);
+	case RDMA_NODE_UNSPECIFIED:
+		return sysfs_emit(buf, "%d: unspecified\n", dev->node_type);
+	case RDMA_NODE_IB_SWITCH:
+		return sysfs_emit(buf, "%d: switch\n", dev->node_type);
+	case RDMA_NODE_IB_ROUTER:
+		return sysfs_emit(buf, "%d: router\n", dev->node_type);
+	default:
+		return sysfs_emit(buf, "%d: <unknown>\n", dev->node_type);
 	}
 }
 static DEVICE_ATTR_RO(node_type);
@@ -1247,11 +1255,12 @@ static ssize_t sys_image_guid_show(struct device *device,
 {
 	struct ib_device *dev = rdma_device_to_ibdev(device);
 
-	return sprintf(buf, "%04x:%04x:%04x:%04x\n",
-		       be16_to_cpu(((__be16 *) &dev->attrs.sys_image_guid)[0]),
-		       be16_to_cpu(((__be16 *) &dev->attrs.sys_image_guid)[1]),
-		       be16_to_cpu(((__be16 *) &dev->attrs.sys_image_guid)[2]),
-		       be16_to_cpu(((__be16 *) &dev->attrs.sys_image_guid)[3]));
+	return sysfs_emit(
+		buf, "%04x:%04x:%04x:%04x\n",
+		be16_to_cpu(((__be16 *)&dev->attrs.sys_image_guid)[0]),
+		be16_to_cpu(((__be16 *)&dev->attrs.sys_image_guid)[1]),
+		be16_to_cpu(((__be16 *)&dev->attrs.sys_image_guid)[2]),
+		be16_to_cpu(((__be16 *)&dev->attrs.sys_image_guid)[3]));
 }
 static DEVICE_ATTR_RO(sys_image_guid);
 
@@ -1260,11 +1269,11 @@ static ssize_t node_guid_show(struct device *device,
 {
 	struct ib_device *dev = rdma_device_to_ibdev(device);
 
-	return sprintf(buf, "%04x:%04x:%04x:%04x\n",
-		       be16_to_cpu(((__be16 *) &dev->node_guid)[0]),
-		       be16_to_cpu(((__be16 *) &dev->node_guid)[1]),
-		       be16_to_cpu(((__be16 *) &dev->node_guid)[2]),
-		       be16_to_cpu(((__be16 *) &dev->node_guid)[3]));
+	return sysfs_emit(buf, "%04x:%04x:%04x:%04x\n",
+			  be16_to_cpu(((__be16 *)&dev->node_guid)[0]),
+			  be16_to_cpu(((__be16 *)&dev->node_guid)[1]),
+			  be16_to_cpu(((__be16 *)&dev->node_guid)[2]),
+			  be16_to_cpu(((__be16 *)&dev->node_guid)[3]));
 }
 static DEVICE_ATTR_RO(node_guid);
 
@@ -1273,7 +1282,7 @@ static ssize_t node_desc_show(struct device *device,
 {
 	struct ib_device *dev = rdma_device_to_ibdev(device);
 
-	return sprintf(buf, "%.64s\n", dev->node_desc);
+	return sysfs_emit(buf, "%.64s\n", dev->node_desc);
 }
 
 static ssize_t node_desc_store(struct device *device,
