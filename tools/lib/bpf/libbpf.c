@@ -5842,7 +5842,7 @@ bpf_object__relocate_core(struct bpf_object *obj, const char *targ_btf_path)
 		return 0;
 
 	if (targ_btf_path)
-		targ_btf = btf__parse_elf(targ_btf_path, NULL);
+		targ_btf = btf__parse(targ_btf_path, NULL);
 	else
 		targ_btf = obj->btf_vmlinux;
 	if (IS_ERR_OR_NULL(targ_btf)) {
