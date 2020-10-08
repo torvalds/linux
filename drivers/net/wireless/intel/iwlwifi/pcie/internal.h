@@ -339,6 +339,7 @@ struct cont_rec {
  * @trans: pointer to the generic transport area
  * @scd_base_addr: scheduler sram base address in SRAM
  * @kw: keep warm address
+ * @pnvm_dram: DRAM area that contains the PNVM data
  * @pci_dev: basic pci-network driver stuff
  * @hw_base: pci hardware address support
  * @ucode_write_complete: indicates that the ucode has been copied.
@@ -409,6 +410,8 @@ struct iwl_trans_pcie {
 	u32 inta_mask;
 	u32 scd_base_addr;
 	struct iwl_dma_ptr kw;
+
+	struct iwl_dram_data pnvm_dram;
 
 	struct iwl_txq *txq_memory;
 
