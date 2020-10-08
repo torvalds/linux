@@ -586,30 +586,6 @@ static void __init reserve_above_ident_map(void)
 }
 
 /*
- * Make sure that oldmem, where the dump is stored, is protected
- */
-static void __init reserve_oldmem(void)
-{
-#ifdef CONFIG_CRASH_DUMP
-	if (OLDMEM_BASE)
-		/* Forget all memory above the running kdump system */
-		memblock_reserve(OLDMEM_SIZE, (phys_addr_t)ULONG_MAX);
-#endif
-}
-
-/*
- * Make sure that oldmem, where the dump is stored, is protected
- */
-static void __init remove_oldmem(void)
-{
-#ifdef CONFIG_CRASH_DUMP
-	if (OLDMEM_BASE)
-		/* Forget all memory above the running kdump system */
-		memblock_remove(OLDMEM_SIZE, (phys_addr_t)ULONG_MAX);
-#endif
-}
-
-/*
  * Reserve memory for kdump kernel to be loaded with kexec
  */
 static void __init reserve_crashkernel(void)
@@ -1074,7 +1050,6 @@ void __init setup_arch(char **cmdline_p)
 
 	/* Do some memory reservations *before* memory is added to memblock */
 	reserve_above_ident_map();
-	reserve_oldmem();
 	reserve_kernel();
 	reserve_initrd();
 	reserve_certificate_list();
@@ -1085,7 +1060,6 @@ void __init setup_arch(char **cmdline_p)
 	memblock_add_mem_detect_info();
 
 	free_mem_detect_info();
-	remove_oldmem();
 
 	setup_uv();
 	setup_memory_end();
