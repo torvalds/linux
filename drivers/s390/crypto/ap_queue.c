@@ -197,7 +197,7 @@ static enum ap_sm_wait ap_sm_read(struct ap_queue *aq)
 	default:
 		aq->dev_state = AP_DEV_STATE_ERROR;
 		aq->last_err_rc = status.response_code;
-		AP_DBF_WARN("%s RC 0x%02hhx on 0x%02x.%04x -> AP_DEV_STATE_ERROR\n",
+		AP_DBF_WARN("%s RC 0x%02x on 0x%02x.%04x -> AP_DEV_STATE_ERROR\n",
 			    __func__, status.response_code,
 			    AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
 		return AP_SM_WAIT_NONE;
@@ -262,7 +262,7 @@ static enum ap_sm_wait ap_sm_write(struct ap_queue *aq)
 	default:
 		aq->dev_state = AP_DEV_STATE_ERROR;
 		aq->last_err_rc = status.response_code;
-		AP_DBF_WARN("%s RC 0x%02hhx on 0x%02x.%04x -> AP_DEV_STATE_ERROR\n",
+		AP_DBF_WARN("%s RC 0x%02x on 0x%02x.%04x -> AP_DEV_STATE_ERROR\n",
 			    __func__, status.response_code,
 			    AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
 		return AP_SM_WAIT_NONE;
@@ -300,7 +300,7 @@ static enum ap_sm_wait ap_sm_reset(struct ap_queue *aq)
 	default:
 		aq->dev_state = AP_DEV_STATE_ERROR;
 		aq->last_err_rc = status.response_code;
-		AP_DBF_WARN("%s RC 0x%02hhx on 0x%02x.%04x -> AP_DEV_STATE_ERROR\n",
+		AP_DBF_WARN("%s RC 0x%02x on 0x%02x.%04x -> AP_DEV_STATE_ERROR\n",
 			    __func__, status.response_code,
 			    AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
 		return AP_SM_WAIT_NONE;
@@ -343,7 +343,7 @@ static enum ap_sm_wait ap_sm_reset_wait(struct ap_queue *aq)
 	default:
 		aq->dev_state = AP_DEV_STATE_ERROR;
 		aq->last_err_rc = status.response_code;
-		AP_DBF_WARN("%s RC 0x%02hhx on 0x%02x.%04x -> AP_DEV_STATE_ERROR\n",
+		AP_DBF_WARN("%s RC 0x%02x on 0x%02x.%04x -> AP_DEV_STATE_ERROR\n",
 			    __func__, status.response_code,
 			    AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
 		return AP_SM_WAIT_NONE;
@@ -384,7 +384,7 @@ static enum ap_sm_wait ap_sm_setirq_wait(struct ap_queue *aq)
 	default:
 		aq->dev_state = AP_DEV_STATE_ERROR;
 		aq->last_err_rc = status.response_code;
-		AP_DBF_WARN("%s RC 0x%02hhx on 0x%02x.%04x -> AP_DEV_STATE_ERROR\n",
+		AP_DBF_WARN("%s RC 0x%02x on 0x%02x.%04x -> AP_DEV_STATE_ERROR\n",
 			    __func__, status.response_code,
 			    AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
 		return AP_SM_WAIT_NONE;
