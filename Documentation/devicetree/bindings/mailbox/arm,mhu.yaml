@@ -18,20 +18,40 @@ description: |
   remote clears it after having read the data.  The last channel is specified to
   be a 'Secure' resource, hence can't be used by Linux running NS.
 
+  The MHU hardware also allows operations in doorbell mode. The MHU drives the
+  interrupt signal using a 32-bit register, with all 32-bits logically ORed
+  together. It provides a set of registers to enable software to set, clear and
+  check the status of each of the bits of this register independently. The use
+  of 32 bits per interrupt line enables software to provide more information
+  about the source of the interrupt. For example, each bit of the register can
+  be associated with a type of event that can contribute to raising the
+  interrupt. Each of the 32-bits can be used as "doorbell" to alert the remote
+  processor.
+
 # We need a select here so we don't match all nodes with 'arm,primecell'
 select:
   properties:
     compatible:
       contains:
-        const: arm,mhu
+        enum:
+          - arm,mhu
+          - arm,mhu-doorbell
   required:
     - compatible
 
 properties:
   compatible:
-    items:
-      - const: arm,mhu
-      - const: arm,primecell
+    oneOf:
+      - description: Data transfer mode
+        items:
+          - const: arm,mhu
+          - const: arm,primecell
+
+      - description: Doorbell mode
+        items:
+          - const: arm,mhu-doorbell
+          - const: arm,primecell
+
 
   reg:
     maxItems: 1
@@ -51,8 +71,11 @@ properties:
       - const: apb_pclk
 
   '#mbox-cells':
-    description: Index of the channel.
-    const: 1
+    description: |
+      Set to 1 in data transfer mode and represents index of the channel.
+      Set to 2 in doorbell mode and represents index of the channel and doorbell
+      number.
+    enum: [ 1, 2 ]
 
 required:
   - compatible
@@ -63,6 +86,7 @@ required:
 additionalProperties: false
 
 examples:
+  # Data transfer mode.
   - |
     soc {
         #address-cells = <2>;
@@ -83,5 +107,29 @@ examples:
             compatible = "fujitsu,mb86s70-scb-1.0";
             reg = <0 0x2e000000 0 0x4000>;
             mboxes = <&mhuA 1>; /* HP-NonSecure */
+        };
+    };
+
+  # Doorbell mode.
+  - |
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        mhuB: mailbox@2b2f0000 {
+            #mbox-cells = <2>;
+            compatible = "arm,mhu-doorbell", "arm,primecell";
+            reg = <0 0x2b2f0000 0 0x1000>;
+            interrupts = <0 36 4>, /* LP-NonSecure */
+                         <0 35 4>, /* HP-NonSecure */
+                         <0 37 4>; /* Secure */
+            clocks = <&clock 0 2 1>;
+            clock-names = "apb_pclk";
+        };
+
+        mhu_client_scpi: scpi@2f000000 {
+            compatible = "arm,scpi";
+            reg = <0 0x2f000000 0 0x200>;
+            mboxes = <&mhuB 1 4>; /* HP-NonSecure, 5th doorbell */
         };
     };
