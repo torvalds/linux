@@ -5,10 +5,9 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
+ * Copyright(c) 2012 - 2014, 2018, 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -28,9 +27,8 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright (C) 2018 Intel Corporation
+ * Copyright(c) 2012 - 2014, 2018, 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -383,14 +381,14 @@ struct mvm_statistics_load {
 	__le32 air_time[MAC_INDEX_AUX];
 	__le32 byte_count[MAC_INDEX_AUX];
 	__le32 pkt_count[MAC_INDEX_AUX];
-	u8 avg_energy[IWL_MVM_STATION_COUNT];
+	u8 avg_energy[IWL_MVM_STATION_COUNT_MAX];
 } __packed; /* STATISTICS_RX_MAC_STATION_S_VER_3 */
 
 struct mvm_statistics_load_v1 {
 	__le32 air_time[NUM_MAC_INDEX];
 	__le32 byte_count[NUM_MAC_INDEX];
 	__le32 pkt_count[NUM_MAC_INDEX];
-	u8 avg_energy[IWL_MVM_STATION_COUNT];
+	u8 avg_energy[IWL_MVM_STATION_COUNT_MAX];
 } __packed; /* STATISTICS_RX_MAC_STATION_S_VER_1 */
 
 struct mvm_statistics_rx {

@@ -85,7 +85,7 @@ static int iwl_mvm_find_free_sta_id(struct iwl_mvm *mvm,
 	int sta_id;
 	u32 reserved_ids = 0;
 
-	BUILD_BUG_ON(IWL_MVM_STATION_COUNT > 32);
+	BUILD_BUG_ON(IWL_MVM_STATION_COUNT_MAX > 32);
 	WARN_ON_ONCE(test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status));
 
 	lockdep_assert_held(&mvm->mutex);
@@ -95,7 +95,7 @@ static int iwl_mvm_find_free_sta_id(struct iwl_mvm *mvm,
 		reserved_ids = BIT(0);
 
 	/* Don't take rcu_read_lock() since we are protected by mvm->mutex */
-	for (sta_id = 0; sta_id < ARRAY_SIZE(mvm->fw_id_to_mac_id); sta_id++) {
+	for (sta_id = 0; sta_id < mvm->fw->ucode_capa.num_stations; sta_id++) {
 		if (BIT(sta_id) & reserved_ids)
 			continue;
 
@@ -3760,7 +3760,7 @@ void iwl_mvm_rx_eosp_notif(struct iwl_mvm *mvm,
 	struct ieee80211_sta *sta;
 	u32 sta_id = le32_to_cpu(notif->sta_id);
 
-	if (WARN_ON_ONCE(sta_id >= IWL_MVM_STATION_COUNT))
+	if (WARN_ON_ONCE(sta_id >= mvm->fw->ucode_capa.num_stations))
 		return;
 
 	rcu_read_lock();
@@ -3843,7 +3843,7 @@ void iwl_mvm_modify_all_sta_disable_tx(struct iwl_mvm *mvm,
 	lockdep_assert_held(&mvm->mutex);
 
 	/* Block/unblock all the stations of the given mvmvif */
-	for (i = 0; i < ARRAY_SIZE(mvm->fw_id_to_mac_id); i++) {
+	for (i = 0; i < mvm->fw->ucode_capa.num_stations; i++) {
 		sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[i],
 						lockdep_is_held(&mvm->mutex));
 		if (IS_ERR_OR_NULL(sta))

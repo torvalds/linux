@@ -70,7 +70,7 @@
 #include <linux/wait.h>
 
 #include "iwl-trans.h" /* for IWL_MAX_TID_COUNT */
-#include "fw-api.h" /* IWL_MVM_STATION_COUNT */
+#include "fw-api.h" /* IWL_MVM_STATION_COUNT_MAX */
 #include "rs.h"
 
 struct iwl_mvm;

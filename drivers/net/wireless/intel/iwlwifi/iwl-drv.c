@@ -76,6 +76,7 @@
 #include "iwl-config.h"
 #include "iwl-modparams.h"
 #include "fw/api/alive.h"
+#include "fw/api/mac.h"
 
 /******************************************************************************
  *
@@ -1127,6 +1128,19 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				 fseq_ver->version);
 			}
 			break;
+		case IWL_UCODE_TLV_FW_NUM_STATIONS:
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			if (le32_to_cpup((__le32 *)tlv_data) >
+			    IWL_MVM_STATION_COUNT_MAX) {
+				IWL_ERR(drv,
+					"%d is an invalid number of station\n",
+					le32_to_cpup((__le32 *)tlv_data));
+				goto tlv_error;
+			}
+			capa->num_stations =
+				le32_to_cpup((__le32 *)tlv_data);
+			break;
 		case IWL_UCODE_TLV_UMAC_DEBUG_ADDRS: {
 			struct iwl_umac_debug_addrs *dbg_ptrs =
 				(void *)tlv_data;
@@ -1348,6 +1362,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	fw->ucode_capa.standard_phy_calibration_size =
 			IWL_DEFAULT_STANDARD_PHY_CALIBRATE_TBL_SIZE;
 	fw->ucode_capa.n_scan_channels = IWL_DEFAULT_SCAN_CHANNELS;
+	fw->ucode_capa.num_stations = IWL_MVM_STATION_COUNT_MAX;
 	/* dump all fw memory areas by default */
 	fw->dbg.dump_mask = 0xffffffff;
 

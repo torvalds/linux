@@ -420,7 +420,7 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 
 		id >>= RX_MDPU_RES_STATUS_STA_ID_SHIFT;
 
-		if (!WARN_ON_ONCE(id >= ARRAY_SIZE(mvm->fw_id_to_mac_id))) {
+		if (!WARN_ON_ONCE(id >= mvm->fw->ucode_capa.num_stations)) {
 			sta = rcu_dereference(mvm->fw_id_to_mac_id[id]);
 			if (IS_ERR(sta))
 				sta = NULL;
@@ -798,7 +798,7 @@ void iwl_mvm_handle_rx_statistics(struct iwl_mvm *mvm,
 	}
 
 	rcu_read_lock();
-	for (i = 0; i < ARRAY_SIZE(mvm->fw_id_to_mac_id); i++) {
+	for (i = 0; i < mvm->fw->ucode_capa.num_stations; i++) {
 		struct iwl_mvm_sta *sta;
 
 		if (!energy[i])

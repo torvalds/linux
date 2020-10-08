@@ -1773,7 +1773,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	if (desc->status & cpu_to_le32(IWL_RX_MPDU_STATUS_SRC_STA_FOUND)) {
 		u8 id = le32_get_bits(desc->status, IWL_RX_MPDU_STATUS_STA_ID);
 
-		if (!WARN_ON_ONCE(id >= ARRAY_SIZE(mvm->fw_id_to_mac_id))) {
+		if (!WARN_ON_ONCE(id >= mvm->fw->ucode_capa.num_stations)) {
 			sta = rcu_dereference(mvm->fw_id_to_mac_id[id]);
 			if (IS_ERR(sta))
 				sta = NULL;

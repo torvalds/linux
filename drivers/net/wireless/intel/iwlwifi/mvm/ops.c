@@ -617,11 +617,12 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	enum iwl_amsdu_size rb_size_default;
 
 	/*
-	 * We use IWL_MVM_STATION_COUNT to check the validity of the station
+	 * We use IWL_MVM_STATION_COUNT_MAX to check the validity of the station
 	 * index all over the driver - check that its value corresponds to the
 	 * array size.
 	 */
-	BUILD_BUG_ON(ARRAY_SIZE(mvm->fw_id_to_mac_id) != IWL_MVM_STATION_COUNT);
+	BUILD_BUG_ON(ARRAY_SIZE(mvm->fw_id_to_mac_id) !=
+		     IWL_MVM_STATION_COUNT_MAX);
 
 	/********************************
 	 * 1. Allocating and configuring HW data
@@ -1109,7 +1110,7 @@ static void iwl_mvm_queue_state_change(struct iwl_op_mode *op_mode,
 		mvm->tvqm_info[hw_queue].sta_id :
 		mvm->queue_info[hw_queue].ra_sta_id;
 
-	if (WARN_ON_ONCE(sta_id >= ARRAY_SIZE(mvm->fw_id_to_mac_id)))
+	if (WARN_ON_ONCE(sta_id >= mvm->fw->ucode_capa.num_stations))
 		return;
 
 	rcu_read_lock();

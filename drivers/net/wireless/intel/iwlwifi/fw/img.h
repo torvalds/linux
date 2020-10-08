@@ -106,6 +106,7 @@ struct iwl_ucode_capabilities {
 	u32 flags;
 	u32 error_log_addr;
 	u32 error_log_size;
+	u32 num_stations;
 	unsigned long _api[BITS_TO_LONGS(NUM_IWL_UCODE_TLV_API)];
 	unsigned long _capa[BITS_TO_LONGS(NUM_IWL_UCODE_TLV_CAPA)];
 

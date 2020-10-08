@@ -826,7 +826,7 @@ static void iwl_mvm_mac_tx(struct ieee80211_hw *hw,
 			iwl_mvm_vif_from_mac80211(info->control.vif);
 		u8 ap_sta_id = READ_ONCE(mvmvif->ap_sta_id);
 
-		if (ap_sta_id < IWL_MVM_STATION_COUNT) {
+		if (ap_sta_id < mvm->fw->ucode_capa.num_stations) {
 			/* mac80211 holds rcu read lock */
 			sta = rcu_dereference(mvm->fw_id_to_mac_id[ap_sta_id]);
 			if (IS_ERR_OR_NULL(sta))
@@ -2886,7 +2886,7 @@ void iwl_mvm_sta_pm_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 	struct iwl_mvm_sta *mvmsta;
 	bool sleeping = (notif->type != IWL_MVM_PM_EVENT_AWAKE);
 
-	if (WARN_ON(notif->sta_id >= ARRAY_SIZE(mvm->fw_id_to_mac_id)))
+	if (WARN_ON(notif->sta_id >= mvm->fw->ucode_capa.num_stations))
 		return;
 
 	rcu_read_lock();
@@ -4686,7 +4686,7 @@ static void iwl_mvm_flush_no_vif(struct iwl_mvm *mvm, u32 queues, bool drop)
 	}
 
 	mutex_lock(&mvm->mutex);
-	for (i = 0; i < ARRAY_SIZE(mvm->fw_id_to_mac_id); i++) {
+	for (i = 0; i < mvm->fw->ucode_capa.num_stations; i++) {
 		struct ieee80211_sta *sta;
 
 		sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[i],
@@ -4728,7 +4728,7 @@ static void iwl_mvm_mac_flush(struct ieee80211_hw *hw,
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
 	/* flush the AP-station and all TDLS peers */
-	for (i = 0; i < ARRAY_SIZE(mvm->fw_id_to_mac_id); i++) {
+	for (i = 0; i < mvm->fw->ucode_capa.num_stations; i++) {
 		sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[i],
 						lockdep_is_held(&mvm->mutex));
 		if (IS_ERR_OR_NULL(sta))

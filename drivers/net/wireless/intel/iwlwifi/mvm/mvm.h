@@ -888,7 +888,7 @@ struct iwl_mvm {
 
 	/* data related to data path */
 	struct iwl_rx_phy_info last_phy_info;
-	struct ieee80211_sta __rcu *fw_id_to_mac_id[IWL_MVM_STATION_COUNT];
+	struct ieee80211_sta __rcu *fw_id_to_mac_id[IWL_MVM_STATION_COUNT_MAX];
 	u8 rx_ba_sessions;
 
 	/* configured by mac80211 */
@@ -1205,7 +1205,7 @@ iwl_mvm_sta_from_staid_rcu(struct iwl_mvm *mvm, u8 sta_id)
 {
 	struct ieee80211_sta *sta;
 
-	if (sta_id >= ARRAY_SIZE(mvm->fw_id_to_mac_id))
+	if (sta_id >= mvm->fw->ucode_capa.num_stations)
 		return NULL;
 
 	sta = rcu_dereference(mvm->fw_id_to_mac_id[sta_id]);
@@ -1222,7 +1222,7 @@ iwl_mvm_sta_from_staid_protected(struct iwl_mvm *mvm, u8 sta_id)
 {
 	struct ieee80211_sta *sta;
 
-	if (sta_id >= ARRAY_SIZE(mvm->fw_id_to_mac_id))
+	if (sta_id >= mvm->fw->ucode_capa.num_stations)
 		return NULL;
 
 	sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[sta_id],

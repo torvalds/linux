@@ -663,7 +663,7 @@ static int iwl_mvm_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 		 * allow multicast data frames only as long as the station is
 		 * authorized, i.e., GTK keys are already installed (if needed)
 		 */
-		if (ap_sta_id < IWL_MVM_STATION_COUNT) {
+		if (ap_sta_id < mvm->fw->ucode_capa.num_stations) {
 			struct ieee80211_sta *sta;
 
 			rcu_read_lock();

@@ -1774,7 +1774,7 @@ static void iwl_mvm_tx_reclaim(struct iwl_mvm *mvm, int sta_id, int tid,
 	struct sk_buff *skb;
 	int freed;
 
-	if (WARN_ONCE(sta_id >= IWL_MVM_STATION_COUNT ||
+	if (WARN_ONCE(sta_id >= mvm->fw->ucode_capa.num_stations ||
 		      tid > IWL_MAX_TID_COUNT,
 		      "sta_id %d tid %d", sta_id, tid))
 		return;

@@ -1400,7 +1400,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	}
 
 	/* init the fw <-> mac80211 STA mapping */
-	for (i = 0; i < ARRAY_SIZE(mvm->fw_id_to_mac_id); i++)
+	for (i = 0; i < mvm->fw->ucode_capa.num_stations; i++)
 		RCU_INIT_POINTER(mvm->fw_id_to_mac_id[i], NULL);
 
 	mvm->tdls_cs.peer.sta_id = IWL_MVM_INVALID_STA;
@@ -1563,7 +1563,7 @@ int iwl_mvm_load_d3_fw(struct iwl_mvm *mvm)
 		goto error;
 
 	/* init the fw <-> mac80211 STA mapping */
-	for (i = 0; i < ARRAY_SIZE(mvm->fw_id_to_mac_id); i++)
+	for (i = 0; i < mvm->fw->ucode_capa.num_stations; i++)
 		RCU_INIT_POINTER(mvm->fw_id_to_mac_id[i], NULL);
 
 	/* Add auxiliary station for scanning */
