@@ -327,8 +327,13 @@ static struct sk_buff *tipc_named_dequeue(struct sk_buff_head *namedq,
 	struct tipc_msg *hdr;
 	u16 seqno;
 
+	spin_lock_bh(&namedq->lock);
 	skb_queue_walk_safe(namedq, skb, tmp) {
-		skb_linearize(skb);
+		if (unlikely(skb_linearize(skb))) {
+			__skb_unlink(skb, namedq);
+			kfree_skb(skb);
+			continue;
+		}
 		hdr = buf_msg(skb);
 		seqno = msg_named_seqno(hdr);
 		if (msg_is_last_bulk(hdr)) {
@@ -338,12 +343,14 @@ static struct sk_buff *tipc_named_dequeue(struct sk_buff_head *namedq,
 
 		if (msg_is_bulk(hdr) || msg_is_legacy(hdr)) {
 			__skb_unlink(skb, namedq);
+			spin_unlock_bh(&namedq->lock);
 			return skb;
 		}
 
 		if (*open && (*rcv_nxt == seqno)) {
 			(*rcv_nxt)++;
 			__skb_unlink(skb, namedq);
+			spin_unlock_bh(&namedq->lock);
 			return skb;
 		}
 
@@ -353,6 +360,7 @@ static struct sk_buff *tipc_named_dequeue(struct sk_buff_head *namedq,
 			continue;
 		}
 	}
+	spin_unlock_bh(&namedq->lock);
 	return NULL;
 }
 
