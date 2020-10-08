@@ -58,7 +58,7 @@ static struct ccw_driver dasd_fba_driver; /* see below */
 static int
 dasd_fba_probe(struct ccw_device *cdev)
 {
-	return dasd_generic_probe(cdev, &dasd_fba_discipline);
+	return dasd_generic_probe(cdev);
 }
 
 static int
