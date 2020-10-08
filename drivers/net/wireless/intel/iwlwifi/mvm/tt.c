@@ -349,6 +349,8 @@ static void check_exit_ctkill(struct work_struct *work)
 
 	duration = tt->params.ct_kill_duration;
 
+	flush_work(&mvm->roc_done_wk);
+
 	mutex_lock(&mvm->mutex);
 
 	if (__iwl_mvm_mac_start(mvm))

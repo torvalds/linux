@@ -2059,7 +2059,7 @@ int iwl_mvm_flush_sta_tids(struct iwl_mvm *mvm, u32 sta_id,
 	return ret;
 }
 
-int iwl_mvm_flush_sta(struct iwl_mvm *mvm, void *sta, bool internal, u32 flags)
+int iwl_mvm_flush_sta(struct iwl_mvm *mvm, void *sta, bool internal)
 {
 	struct iwl_mvm_int_sta *int_sta = sta;
 	struct iwl_mvm_sta *mvm_sta = sta;
@@ -2068,12 +2068,10 @@ int iwl_mvm_flush_sta(struct iwl_mvm *mvm, void *sta, bool internal, u32 flags)
 		     offsetof(struct iwl_mvm_sta, sta_id));
 
 	if (iwl_mvm_has_new_tx_api(mvm))
-		return iwl_mvm_flush_sta_tids(mvm, mvm_sta->sta_id,
-					      0xffff, flags);
+		return iwl_mvm_flush_sta_tids(mvm, mvm_sta->sta_id, 0xffff, 0);
 
 	if (internal)
-		return iwl_mvm_flush_tx_path(mvm, int_sta->tfd_queue_msk,
-					     flags);
+		return iwl_mvm_flush_tx_path(mvm, int_sta->tfd_queue_msk, 0);
 
-	return iwl_mvm_flush_tx_path(mvm, mvm_sta->tfd_queue_msk, flags);
+	return iwl_mvm_flush_tx_path(mvm, mvm_sta->tfd_queue_msk, 0);
 }

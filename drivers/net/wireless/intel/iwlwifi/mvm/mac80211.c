@@ -1223,12 +1223,6 @@ void __iwl_mvm_mac_stop(struct iwl_mvm *mvm)
 
 	/* async_handlers_wk is now blocked */
 
-	/*
-	 * The work item could be running or queued if the
-	 * ROC time event stops just as we get here.
-	 */
-	flush_work(&mvm->roc_done_wk);
-
 	iwl_mvm_rm_aux_sta(mvm);
 
 	iwl_mvm_stop_device(mvm);
@@ -1283,6 +1277,12 @@ static void iwl_mvm_mac_stop(struct ieee80211_hw *hw)
 
 	cancel_delayed_work_sync(&mvm->cs_tx_unblock_dwork);
 	cancel_delayed_work_sync(&mvm->scan_timeout_dwork);
+
+	/*
+	 * The work item could be running or queued if the
+	 * ROC time event stops just as we get here.
+	 */
+	flush_work(&mvm->roc_done_wk);
 
 	mutex_lock(&mvm->mutex);
 	__iwl_mvm_mac_stop(mvm);
@@ -4738,7 +4738,7 @@ static void iwl_mvm_mac_flush(struct ieee80211_hw *hw,
 		WARN_ON(i != mvmvif->ap_sta_id && !sta->tdls);
 
 		if (drop) {
-			if (iwl_mvm_flush_sta(mvm, mvmsta, false, 0))
+			if (iwl_mvm_flush_sta(mvm, mvmsta, false))
 				IWL_ERR(mvm, "flush request fail\n");
 		} else {
 			msk |= mvmsta->tfd_queue_msk;
