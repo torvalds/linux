@@ -4026,8 +4026,8 @@ static int skl_check_nv12_aux_surface(struct intel_plane_state *plane_state)
 
 	if (is_ccs_modifier(fb->modifier)) {
 		int ccs_plane = main_to_ccs_plane(fb, uv_plane);
-		int aux_offset = plane_state->color_plane[ccs_plane].offset;
-		int alignment = intel_surf_alignment(fb, uv_plane);
+		u32 aux_offset = plane_state->color_plane[ccs_plane].offset;
+		u32 alignment = intel_surf_alignment(fb, uv_plane);
 
 		if (offset > aux_offset)
 			offset = intel_plane_adjust_aligned_offset(&x, &y,
