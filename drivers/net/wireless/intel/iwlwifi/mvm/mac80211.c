@@ -1409,10 +1409,14 @@ static void iwl_mvm_abort_channel_switch(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211(mvm, "Abort CSA on mac %d\n", mvmvif->id);
 
 	mutex_lock(&mvm->mutex);
-	WARN_ON(iwl_mvm_send_cmd_pdu(mvm,
-				     WIDE_ID(MAC_CONF_GROUP,
-					     CHANNEL_SWITCH_TIME_EVENT_CMD),
-				     0, sizeof(cmd), &cmd));
+	if (!fw_has_capa(&mvm->fw->ucode_capa,
+			 IWL_UCODE_TLV_CAPA_CHANNEL_SWITCH_CMD))
+		iwl_mvm_remove_csa_period(mvm, vif);
+	else
+		WARN_ON(iwl_mvm_send_cmd_pdu(mvm,
+					     WIDE_ID(MAC_CONF_GROUP,
+						     CHANNEL_SWITCH_TIME_EVENT_CMD),
+					     0, sizeof(cmd), &cmd));
 	mutex_unlock(&mvm->mutex);
 
 	WARN_ON(iwl_mvm_post_channel_switch(hw, vif));

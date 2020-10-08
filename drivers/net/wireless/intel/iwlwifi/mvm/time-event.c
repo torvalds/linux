@@ -1016,6 +1016,28 @@ void iwl_mvm_stop_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	iwl_mvm_roc_finished(mvm);
 }
 
+void iwl_mvm_remove_csa_period(struct iwl_mvm *mvm,
+			       struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_time_event_data *te_data = &mvmvif->time_event_data;
+	u32 id;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	if (!te_data->running)
+		return;
+
+	spin_lock_bh(&mvm->time_event_lock);
+	id = te_data->id;
+	spin_unlock_bh(&mvm->time_event_lock);
+
+	if (id != TE_CHANNEL_SWITCH_PERIOD)
+		return;
+
+	iwl_mvm_remove_time_event(mvm, mvmvif, te_data);
+}
+
 int iwl_mvm_schedule_csa_period(struct iwl_mvm *mvm,
 				struct ieee80211_vif *vif,
 				u32 duration, u32 apply_time)
