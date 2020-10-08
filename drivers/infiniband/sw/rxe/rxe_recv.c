@@ -287,7 +287,17 @@ err1:
 	kfree_skb(skb);
 }
 
-static int rxe_match_dgid(struct rxe_dev *rxe, struct sk_buff *skb)
+/**
+ * rxe_chk_dgid - validate destination IP address
+ * @rxe: rxe device that received packet
+ * @skb: the received packet buffer
+ *
+ * Accept any loopback packets
+ * Extract IP address from packet and
+ * Accept if multicast packet
+ * Accept if matches an SGID table entry
+ */
+static int rxe_chk_dgid(struct rxe_dev *rxe, struct sk_buff *skb)
 {
 	struct rxe_pkt_info *pkt = SKB_TO_PKT(skb);
 	const struct ib_gid_attr *gid_attr;
@@ -304,6 +314,9 @@ static int rxe_match_dgid(struct rxe_dev *rxe, struct sk_buff *skb)
 	} else {
 		pdgid = (union ib_gid *)&ipv6_hdr(skb)->daddr;
 	}
+
+	if (rdma_is_multicast_addr((struct in6_addr *)pdgid))
+		return 0;
 
 	gid_attr = rdma_find_gid_by_port(&rxe->ib_dev, pdgid,
 					 IB_GID_TYPE_ROCE_UDP_ENCAP,
@@ -329,8 +342,8 @@ void rxe_rcv(struct sk_buff *skb)
 	if (unlikely(skb->len < pkt->offset + RXE_BTH_BYTES))
 		goto drop;
 
-	if (rxe_match_dgid(rxe, skb) < 0) {
-		pr_warn_ratelimited("failed matching dgid\n");
+	if (rxe_chk_dgid(rxe, skb) < 0) {
+		pr_warn_ratelimited("failed checking dgid\n");
 		goto drop;
 	}
 
