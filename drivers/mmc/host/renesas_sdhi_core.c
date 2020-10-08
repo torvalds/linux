@@ -572,6 +572,17 @@ static void renesas_sdhi_reset(struct tmio_mmc_host *host)
 					     TMIO_MASK_INIT_RCAR2);
 }
 
+/*
+ * This is a temporary workaround! This driver used 'hw_reset' wrongly and the
+ * fix for that showed a regression. So, we mimic the old behaviour until the
+ * proper solution is found.
+ */
+static void renesas_sdhi_hw_reset(struct mmc_host *mmc)
+{
+	struct tmio_mmc_host *host = mmc_priv(mmc);
+	renesas_sdhi_reset(host);
+}
+
 #define SH_MOBILE_SDHI_MIN_TAP_ROW 3
 
 static int renesas_sdhi_select_tuning(struct tmio_mmc_host *host)
@@ -1009,6 +1020,8 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 		if (of_data && of_data->scc_offset) {
 			priv->scc_ctl = host->ctl + of_data->scc_offset;
 			host->reset = renesas_sdhi_reset;
+			host->ops.hw_reset = renesas_sdhi_hw_reset;
+			host->mmc->caps |= MMC_CAP_HW_RESET;
 		}
 	}
 
