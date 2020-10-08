@@ -918,8 +918,8 @@ static int amdgpu_ttm_tt_pin_userptr(struct ttm_bo_device *bdev,
 		goto release_sg;
 
 	/* convert SG to linear array of pages and dma addresses */
-	drm_prime_sg_to_page_addr_arrays(ttm->sg, ttm->pages,
-					 gtt->ttm.dma_address, ttm->num_pages);
+	drm_prime_sg_to_page_addr_arrays(ttm->sg, NULL, gtt->ttm.dma_address,
+					 ttm->num_pages);
 
 	return 0;
 
@@ -1264,7 +1264,7 @@ static int amdgpu_ttm_tt_populate(struct ttm_bo_device *bdev,
 			ttm->sg = sgt;
 		}
 
-		drm_prime_sg_to_page_addr_arrays(ttm->sg, ttm->pages,
+		drm_prime_sg_to_page_addr_arrays(ttm->sg, NULL,
 						 gtt->ttm.dma_address,
 						 ttm->num_pages);
 		return 0;
