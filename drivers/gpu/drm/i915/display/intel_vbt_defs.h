@@ -835,6 +835,7 @@ struct bdb_lfp_power {
 	u16 lace_enabled_status;
 	struct agressiveness_profile_entry aggressivenes[16];
 	u16 hobl; /* 232+ */
+	u16 vrr_feature_enabled; /* 233+ */
 } __packed;
 
 /*
