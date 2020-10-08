@@ -1191,7 +1191,7 @@ void dcn20_pipe_control_lock(
 	/* In flip immediate and pipe splitting case, we need to use GSL
 	 * for synchronization. Only do setup on locking and on flip type change.
 	 */
-	if (lock && pipe->bottom_pipe != NULL)
+	if (lock && (pipe->bottom_pipe != NULL || !flip_immediate))
 		if ((flip_immediate && pipe->stream_res.gsl_group == 0) ||
 		    (!flip_immediate && pipe->stream_res.gsl_group > 0))
 			dcn20_setup_gsl_group_as_lock(dc, pipe, flip_immediate);
