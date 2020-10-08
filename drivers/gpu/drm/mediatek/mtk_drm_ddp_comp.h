@@ -71,7 +71,6 @@ struct mtk_ddp_comp {
 	struct device *larb_dev;
 	enum mtk_ddp_comp_id id;
 	const struct mtk_ddp_comp_funcs *funcs;
-	struct cmdq_client_reg cmdq_reg;
 };
 
 static inline int mtk_ddp_comp_clk_enable(struct mtk_ddp_comp *comp)
@@ -195,12 +194,12 @@ void mtk_dither_set(struct mtk_ddp_comp *comp, unsigned int bpc,
 		    unsigned int CFG, struct cmdq_pkt *cmdq_pkt);
 enum mtk_ddp_comp_type mtk_ddp_comp_get_type(enum mtk_ddp_comp_id comp_id);
 void mtk_ddp_write(struct cmdq_pkt *cmdq_pkt, unsigned int value,
-		   struct mtk_ddp_comp *comp, void __iomem *regs,
+		   struct cmdq_client_reg *cmdq_reg, void __iomem *regs,
 		   unsigned int offset);
 void mtk_ddp_write_relaxed(struct cmdq_pkt *cmdq_pkt, unsigned int value,
-			   struct mtk_ddp_comp *comp, void __iomem *regs,
+			   struct cmdq_client_reg *cmdq_reg, void __iomem *regs,
 			   unsigned int offset);
 void mtk_ddp_write_mask(struct cmdq_pkt *cmdq_pkt, unsigned int value,
-			struct mtk_ddp_comp *comp, void __iomem *regs,
+			struct cmdq_client_reg *cmdq_reg, void __iomem *regs,
 			unsigned int offset, unsigned int mask);
 #endif /* MTK_DRM_DDP_COMP_H */

@@ -40,6 +40,7 @@ struct mtk_disp_color {
 	struct drm_crtc				*crtc;
 	struct clk				*clk;
 	void __iomem				*regs;
+	struct cmdq_client_reg			cmdq_reg;
 	const struct mtk_disp_color_data	*data;
 };
 
@@ -68,8 +69,8 @@ static void mtk_color_config(struct mtk_ddp_comp *comp, unsigned int w,
 {
 	struct mtk_disp_color *color = comp_to_color(comp);
 
-	mtk_ddp_write(cmdq_pkt, w, comp, color->regs, DISP_COLOR_WIDTH(color));
-	mtk_ddp_write(cmdq_pkt, h, comp, color->regs, DISP_COLOR_HEIGHT(color));
+	mtk_ddp_write(cmdq_pkt, w, &color->cmdq_reg, color->regs, DISP_COLOR_WIDTH(color));
+	mtk_ddp_write(cmdq_pkt, h, &color->cmdq_reg, color->regs, DISP_COLOR_HEIGHT(color));
 }
 
 static void mtk_color_start(struct mtk_ddp_comp *comp)
@@ -143,6 +144,11 @@ static int mtk_disp_color_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to ioremap color\n");
 		return PTR_ERR(priv->regs);
 	}
+#if IS_REACHABLE(CONFIG_MTK_CMDQ)
+	ret = cmdq_dev_get_client_reg(dev, &priv->cmdq_reg, 0);
+	if (ret)
+		dev_dbg(dev, "get mediatek,gce-client-reg fail!\n");
+#endif
 
 	comp_id = mtk_ddp_comp_get_id(dev->of_node, MTK_DISP_COLOR);
 	if (comp_id < 0) {

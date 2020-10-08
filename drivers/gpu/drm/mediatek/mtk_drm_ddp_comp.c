@@ -88,42 +88,43 @@
 struct mtk_ddp_comp_dev {
 	struct clk *clk;
 	void __iomem *regs;
+	struct cmdq_client_reg cmdq_reg;
 };
 
 void mtk_ddp_write(struct cmdq_pkt *cmdq_pkt, unsigned int value,
-		   struct mtk_ddp_comp *comp, void __iomem *regs,
+		   struct cmdq_client_reg *cmdq_reg, void __iomem *regs,
 		   unsigned int offset)
 {
 #if IS_REACHABLE(CONFIG_MTK_CMDQ)
 	if (cmdq_pkt)
-		cmdq_pkt_write(cmdq_pkt, comp->cmdq_reg.subsys,
-			       comp->cmdq_reg.offset + offset, value);
+		cmdq_pkt_write(cmdq_pkt, cmdq_reg->subsys,
+			       cmdq_reg->offset + offset, value);
 	else
 #endif
 		writel(value, regs + offset);
 }
 
 void mtk_ddp_write_relaxed(struct cmdq_pkt *cmdq_pkt, unsigned int value,
-			   struct mtk_ddp_comp *comp, void __iomem *regs,
+			   struct cmdq_client_reg *cmdq_reg, void __iomem *regs,
 			   unsigned int offset)
 {
 #if IS_REACHABLE(CONFIG_MTK_CMDQ)
 	if (cmdq_pkt)
-		cmdq_pkt_write(cmdq_pkt, comp->cmdq_reg.subsys,
-			       comp->cmdq_reg.offset + offset, value);
+		cmdq_pkt_write(cmdq_pkt, cmdq_reg->subsys,
+			       cmdq_reg->offset + offset, value);
 	else
 #endif
 		writel_relaxed(value, regs + offset);
 }
 
 void mtk_ddp_write_mask(struct cmdq_pkt *cmdq_pkt, unsigned int value,
-			struct mtk_ddp_comp *comp, void __iomem *regs,
+			struct cmdq_client_reg *cmdq_reg, void __iomem *regs,
 			unsigned int offset, unsigned int mask)
 {
 #if IS_REACHABLE(CONFIG_MTK_CMDQ)
 	if (cmdq_pkt) {
-		cmdq_pkt_write_mask(cmdq_pkt, comp->cmdq_reg.subsys,
-				    comp->cmdq_reg.offset + offset, value, mask);
+		cmdq_pkt_write_mask(cmdq_pkt, cmdq_reg->subsys,
+				    cmdq_reg->offset + offset, value, mask);
 	} else {
 #endif
 		u32 tmp = readl(regs + offset);
@@ -159,20 +160,20 @@ void mtk_dither_set(struct mtk_ddp_comp *comp, unsigned int bpc,
 		return;
 
 	if (bpc >= MTK_MIN_BPC) {
-		mtk_ddp_write(cmdq_pkt, 0, comp, priv->regs, DISP_DITHER_5);
-		mtk_ddp_write(cmdq_pkt, 0, comp, priv->regs, DISP_DITHER_7);
+		mtk_ddp_write(cmdq_pkt, 0, &priv->cmdq_reg, priv->regs, DISP_DITHER_5);
+		mtk_ddp_write(cmdq_pkt, 0, &priv->cmdq_reg, priv->regs, DISP_DITHER_7);
 		mtk_ddp_write(cmdq_pkt,
 			      DITHER_LSB_ERR_SHIFT_R(MTK_MAX_BPC - bpc) |
 			      DITHER_ADD_LSHIFT_R(MTK_MAX_BPC - bpc) |
 			      DITHER_NEW_BIT_MODE,
-			      comp, priv->regs, DISP_DITHER_15);
+			      &priv->cmdq_reg, priv->regs, DISP_DITHER_15);
 		mtk_ddp_write(cmdq_pkt,
 			      DITHER_LSB_ERR_SHIFT_B(MTK_MAX_BPC - bpc) |
 			      DITHER_ADD_LSHIFT_B(MTK_MAX_BPC - bpc) |
 			      DITHER_LSB_ERR_SHIFT_G(MTK_MAX_BPC - bpc) |
 			      DITHER_ADD_LSHIFT_G(MTK_MAX_BPC - bpc),
-			      comp, priv->regs, DISP_DITHER_16);
-		mtk_ddp_write(cmdq_pkt, DISP_DITHERING, comp, priv->regs, CFG);
+			      &priv->cmdq_reg, priv->regs, DISP_DITHER_16);
+		mtk_ddp_write(cmdq_pkt, DISP_DITHERING, &priv->cmdq_reg, priv->regs, CFG);
 	}
 }
 
@@ -182,8 +183,8 @@ static void mtk_od_config(struct mtk_ddp_comp *comp, unsigned int w,
 {
 	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
 
-	mtk_ddp_write(cmdq_pkt, w << 16 | h, comp, priv->regs, DISP_OD_SIZE);
-	mtk_ddp_write(cmdq_pkt, OD_RELAYMODE, comp, priv->regs, DISP_OD_CFG);
+	mtk_ddp_write(cmdq_pkt, w << 16 | h, &priv->cmdq_reg, priv->regs, DISP_OD_SIZE);
+	mtk_ddp_write(cmdq_pkt, OD_RELAYMODE, &priv->cmdq_reg, priv->regs, DISP_OD_CFG);
 	mtk_dither_set(comp, bpc, DISP_OD_CFG, cmdq_pkt);
 }
 
@@ -207,7 +208,7 @@ static void mtk_aal_config(struct mtk_ddp_comp *comp, unsigned int w,
 {
 	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
 
-	mtk_ddp_write(cmdq_pkt, h << 16 | w, comp, priv->regs, DISP_AAL_SIZE);
+	mtk_ddp_write(cmdq_pkt, h << 16 | w, &priv->cmdq_reg, priv->regs, DISP_AAL_SIZE);
 }
 
 static void mtk_aal_start(struct mtk_ddp_comp *comp)
@@ -230,8 +231,8 @@ static void mtk_ccorr_config(struct mtk_ddp_comp *comp, unsigned int w,
 {
 	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
 
-	mtk_ddp_write(cmdq_pkt, h << 16 | w, comp, priv->regs, DISP_CCORR_SIZE);
-	mtk_ddp_write(cmdq_pkt, CCORR_ENGINE_EN, comp, priv->regs, DISP_CCORR_CFG);
+	mtk_ddp_write(cmdq_pkt, h << 16 | w, &priv->cmdq_reg, priv->regs, DISP_CCORR_SIZE);
+	mtk_ddp_write(cmdq_pkt, CCORR_ENGINE_EN, &priv->cmdq_reg, priv->regs, DISP_CCORR_CFG);
 }
 
 static void mtk_ccorr_start(struct mtk_ddp_comp *comp)
@@ -289,15 +290,15 @@ static void mtk_ccorr_ctm_set(struct mtk_ddp_comp *comp,
 		coeffs[i] = mtk_ctm_s31_32_to_s1_10(input[i]);
 
 	mtk_ddp_write(cmdq_pkt, coeffs[0] << 16 | coeffs[1],
-		      comp, priv->regs, DISP_CCORR_COEF_0);
+		      &priv->cmdq_reg, priv->regs, DISP_CCORR_COEF_0);
 	mtk_ddp_write(cmdq_pkt, coeffs[2] << 16 | coeffs[3],
-		      comp, priv->regs, DISP_CCORR_COEF_1);
+		      &priv->cmdq_reg, priv->regs, DISP_CCORR_COEF_1);
 	mtk_ddp_write(cmdq_pkt, coeffs[4] << 16 | coeffs[5],
-		      comp, priv->regs, DISP_CCORR_COEF_2);
+		      &priv->cmdq_reg, priv->regs, DISP_CCORR_COEF_2);
 	mtk_ddp_write(cmdq_pkt, coeffs[6] << 16 | coeffs[7],
-		      comp, priv->regs, DISP_CCORR_COEF_3);
+		      &priv->cmdq_reg, priv->regs, DISP_CCORR_COEF_3);
 	mtk_ddp_write(cmdq_pkt, coeffs[8] << 16,
-		      comp, priv->regs, DISP_CCORR_COEF_4);
+		      &priv->cmdq_reg, priv->regs, DISP_CCORR_COEF_4);
 }
 
 static void mtk_dither_config(struct mtk_ddp_comp *comp, unsigned int w,
@@ -306,8 +307,8 @@ static void mtk_dither_config(struct mtk_ddp_comp *comp, unsigned int w,
 {
 	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
 
-	mtk_ddp_write(cmdq_pkt, h << 16 | w, comp, priv->regs, DISP_DITHER_SIZE);
-	mtk_ddp_write(cmdq_pkt, DITHER_RELAY_MODE, comp, priv->regs, DISP_DITHER_CFG);
+	mtk_ddp_write(cmdq_pkt, h << 16 | w, &priv->cmdq_reg, priv->regs, DISP_DITHER_SIZE);
+	mtk_ddp_write(cmdq_pkt, DITHER_RELAY_MODE, &priv->cmdq_reg, priv->regs, DISP_DITHER_CFG);
 }
 
 static void mtk_dither_start(struct mtk_ddp_comp *comp)
@@ -330,7 +331,7 @@ static void mtk_gamma_config(struct mtk_ddp_comp *comp, unsigned int w,
 {
 	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
 
-	mtk_ddp_write(cmdq_pkt, h << 16 | w, comp, priv->regs, DISP_GAMMA_SIZE);
+	mtk_ddp_write(cmdq_pkt, h << 16 | w, &priv->cmdq_reg, priv->regs, DISP_GAMMA_SIZE);
 	mtk_dither_set(comp, bpc, DISP_GAMMA_CFG, cmdq_pkt);
 }
 
@@ -586,12 +587,6 @@ int mtk_ddp_comp_init(struct device_node *node, struct mtk_ddp_comp *comp,
 	}
 	comp->dev = &comp_pdev->dev;
 
-#if IS_REACHABLE(CONFIG_MTK_CMDQ)
-	ret = cmdq_dev_get_client_reg(comp->dev, &comp->cmdq_reg, 0);
-	if (ret)
-		dev_dbg(comp->dev, "get mediatek,gce-client-reg fail!\n");
-#endif
-
 	/* Only DMA capable components need the LARB property */
 	if (type == MTK_DISP_OVL ||
 	    type == MTK_DISP_OVL_2L ||
@@ -616,6 +611,12 @@ int mtk_ddp_comp_init(struct device_node *node, struct mtk_ddp_comp *comp,
 	priv->clk = of_clk_get(node, 0);
 	if (IS_ERR(priv->clk))
 		return PTR_ERR(priv->clk);
+
+#if IS_REACHABLE(CONFIG_MTK_CMDQ)
+	ret = cmdq_dev_get_client_reg(comp->dev, &priv->cmdq_reg, 0);
+	if (ret)
+		dev_dbg(comp->dev, "get mediatek,gce-client-reg fail!\n");
+#endif
 
 	platform_set_drvdata(comp_pdev, priv);
 
