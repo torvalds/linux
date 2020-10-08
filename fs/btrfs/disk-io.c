@@ -1774,7 +1774,7 @@ static int transaction_kthread(void *arg)
 	struct btrfs_trans_handle *trans;
 	struct btrfs_transaction *cur;
 	u64 transid;
-	time64_t now;
+	time64_t delta;
 	unsigned long delay;
 	bool cannot_commit;
 
@@ -1790,9 +1790,9 @@ static int transaction_kthread(void *arg)
 			goto sleep;
 		}
 
-		now = ktime_get_seconds();
+		delta = ktime_get_seconds() - cur->start_time;
 		if (cur->state < TRANS_STATE_COMMIT_START &&
-		    now - cur->start_time < fs_info->commit_interval) {
+		    delta < fs_info->commit_interval) {
 			spin_unlock(&fs_info->trans_lock);
 			delay = msecs_to_jiffies(5000);
 			goto sleep;
