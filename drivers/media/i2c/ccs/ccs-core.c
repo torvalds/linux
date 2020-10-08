@@ -1553,11 +1553,26 @@ static int ccs_power_on(struct device *dev)
 	 */
 
 	if (!sensor->reset && !sensor->xshutdown) {
+		u8 retry = 100;
+		u32 reset;
+
 		rval = ccs_write(sensor, SOFTWARE_RESET, CCS_SOFTWARE_RESET_ON);
 		if (rval < 0) {
 			dev_err(dev, "software reset failed\n");
 			goto out_cci_addr_fail;
 		}
+
+		do {
+			rval = ccs_read(sensor, SOFTWARE_RESET, &reset);
+			reset = !rval && reset == CCS_SOFTWARE_RESET_OFF;
+			if (reset)
+				break;
+
+			usleep_range(1000, 2000);
+		} while (--retry);
+
+		if (!reset)
+			return -EIO;
 	}
 
 	if (sensor->hwcfg.i2c_addr_alt) {
