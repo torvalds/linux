@@ -126,6 +126,10 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 			dc_version = DCN_VERSION_1_01;
 		if (ASICREV_IS_RENOIR(asic_id.hw_internal_rev))
 			dc_version = DCN_VERSION_2_1;
+#if defined(CONFIG_DRM_AMD_DC_GREEN_SARDINE)
+		if (ASICREV_IS_GREEN_SARDINE(asic_id.hw_internal_rev))
+			dc_version = DCN_VERSION_2_1;
+#endif
 		break;
 #endif
 

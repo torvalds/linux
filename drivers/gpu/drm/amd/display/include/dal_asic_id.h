@@ -209,6 +209,12 @@ enum {
 #if defined(CONFIG_DRM_AMD_DC_DCN3_02)
 #define ASICREV_IS_DIMGREY_CAVEFISH_P(eChipRev)        ((eChipRev >= NV_DIMGREY_CAVEFISH_P_A0) && (eChipRev < NV_UNKNOWN))
 #endif
+#if defined(CONFIG_DRM_AMD_DC_GREEN_SARDINE)
+#define GREEN_SARDINE_A0 0xA1
+#ifndef ASICREV_IS_GREEN_SARDINE
+#define ASICREV_IS_GREEN_SARDINE(eChipRev) ((eChipRev >= GREEN_SARDINE_A0) && (eChipRev < 0xFF))
+#endif
+#endif
 #if defined(CONFIG_DRM_AMD_DC_DCN3_01)
 #define FAMILY_VGH 144
 #define DEVICE_ID_VGH_163F 0x163F
