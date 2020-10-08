@@ -505,20 +505,15 @@ static char *real_event(const char *name, char *event)
 }
 
 static int
-try_fixup(const char *fn, char *arch_std, unsigned long long eventcode,
-	  struct json_event *je)
+try_fixup(const char *fn, char *arch_std, struct json_event *je, char **event)
 {
 	/* try to find matching event from arch standard values */
 	struct event_struct *es;
 
 	list_for_each_entry(es, &arch_std_events, list) {
 		if (!strcmp(arch_std, es->name)) {
-			if (!eventcode && es->event) {
-				/* allow EventCode to be overridden */
-				free(je->event);
-				je->event = NULL;
-			}
 			FOR_ALL_EVENT_STRUCT_FIELDS(TRY_FIXUP_FIELD);
+			*event = je->event;
 			return 0;
 		}
 	}
@@ -678,7 +673,7 @@ static int json_events(const char *fn,
 			 * An arch standard event is referenced, so try to
 			 * fixup any unassigned values.
 			 */
-			err = try_fixup(fn, arch_std, eventcode, &je);
+			err = try_fixup(fn, arch_std, &je, &event);
 			if (err)
 				goto free_strings;
 		}
