@@ -691,29 +691,21 @@ static void tg_service_queue_add(struct throtl_grp *tg)
 			       leftmost);
 }
 
-static void __throtl_enqueue_tg(struct throtl_grp *tg)
-{
-	tg_service_queue_add(tg);
-	tg->flags |= THROTL_TG_PENDING;
-	tg->service_queue.parent_sq->nr_pending++;
-}
-
 static void throtl_enqueue_tg(struct throtl_grp *tg)
 {
-	if (!(tg->flags & THROTL_TG_PENDING))
-		__throtl_enqueue_tg(tg);
-}
-
-static void __throtl_dequeue_tg(struct throtl_grp *tg)
-{
-	throtl_rb_erase(&tg->rb_node, tg->service_queue.parent_sq);
-	tg->flags &= ~THROTL_TG_PENDING;
+	if (!(tg->flags & THROTL_TG_PENDING)) {
+		tg_service_queue_add(tg);
+		tg->flags |= THROTL_TG_PENDING;
+		tg->service_queue.parent_sq->nr_pending++;
+	}
 }
 
 static void throtl_dequeue_tg(struct throtl_grp *tg)
 {
-	if (tg->flags & THROTL_TG_PENDING)
-		__throtl_dequeue_tg(tg);
+	if (tg->flags & THROTL_TG_PENDING) {
+		throtl_rb_erase(&tg->rb_node, tg->service_queue.parent_sq);
+		tg->flags &= ~THROTL_TG_PENDING;
+	}
 }
 
 /* Call with queue lock held */
