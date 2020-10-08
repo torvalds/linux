@@ -897,7 +897,7 @@ static const struct tegra_mc_client tegra210_mc_clients[] = {
 			.bit = 1,
 		},
 		.la = {
-			.reg = 0xb98,
+			.reg = 0x3e0,
 			.shift = 16,
 			.mask = 0xff,
 			.def = 0x80,
