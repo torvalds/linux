@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2010-2011,2013-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2010-2011,2013-2015,2020 The Linux Foundation. All rights reserved.
  *
  * lpass.h - Definitions for the QTi LPASS
  */
@@ -12,10 +12,20 @@
 #include <linux/compiler.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
+#include <dt-bindings/sound/sc7180-lpass.h>
+#include "lpass-hdmi.h"
 
 #define LPASS_AHBIX_CLOCK_FREQUENCY		131072000
 #define LPASS_MAX_MI2S_PORTS			(8)
 #define LPASS_MAX_DMA_CHANNELS			(8)
+#define LPASS_MAX_HDMI_DMA_CHANNELS		(4)
+
+#define QCOM_REGMAP_FIELD_ALLOC(d, m, f, mf)    \
+	do { \
+		mf = devm_regmap_field_alloc(d, m, f);     \
+		if (IS_ERR(mf))                \
+			return -EINVAL;         \
+	} while (0)
 
 struct lpaif_i2sctl {
 	struct regmap_field *loopback;
@@ -37,6 +47,9 @@ struct lpaif_dmactl {
 	struct regmap_field *fifowm;
 	struct regmap_field *enable;
 	struct regmap_field *dyncclk;
+	struct regmap_field *burst8;
+	struct regmap_field *burst16;
+	struct regmap_field *dynburst;
 };
 
 /* Both the CPU DAI and platform drivers will access this data */
@@ -54,24 +67,29 @@ struct lpass_data {
 	/* MI2S SD lines to use for playback/capture */
 	unsigned int mi2s_playback_sd_mode[LPASS_MAX_MI2S_PORTS];
 	unsigned int mi2s_capture_sd_mode[LPASS_MAX_MI2S_PORTS];
+	int hdmi_port_enable;
 
 	/* low-power audio interface (LPAIF) registers */
 	void __iomem *lpaif;
+	void __iomem *hdmiif;
 
 	/* regmap backed by the low-power audio interface (LPAIF) registers */
 	struct regmap *lpaif_map;
+	struct regmap *hdmiif_map;
 
 	/* interrupts from the low-power audio interface (LPAIF) */
 	int lpaif_irq;
-
+	int hdmiif_irq;
 	/* SOC specific variations in the LPASS IP integration */
 	struct lpass_variant *variant;
 
 	/* bit map to keep track of static channel allocations */
 	unsigned long dma_ch_bit_map;
+	unsigned long hdmi_dma_ch_bit_map;
 
 	/* used it for handling interrupt per dma channel */
 	struct snd_pcm_substream *substream[LPASS_MAX_DMA_CHANNELS];
+	struct snd_pcm_substream *hdmi_substream[LPASS_MAX_HDMI_DMA_CHANNELS];
 
 	/* SOC specific clock list */
 	struct clk_bulk_data *clks;
@@ -81,22 +99,36 @@ struct lpass_data {
 	struct lpaif_i2sctl *i2sctl;
 	struct lpaif_dmactl *rd_dmactl;
 	struct lpaif_dmactl *wr_dmactl;
+	struct lpaif_dmactl *hdmi_rd_dmactl;
+	/* Regmap fields of HDMI_CTRL registers*/
+	struct regmap_field *hdmitx_legacy_en;
+	struct regmap_field *hdmitx_parity_calc_en;
+	struct regmap_field *hdmitx_ch_msb[LPASS_MAX_HDMI_DMA_CHANNELS];
+	struct regmap_field *hdmitx_ch_lsb[LPASS_MAX_HDMI_DMA_CHANNELS];
+	struct lpass_hdmi_tx_ctl *tx_ctl;
+	struct lpass_vbit_ctrl *vbit_ctl;
+	struct lpass_hdmitx_dmactl *hdmi_tx_dmactl[LPASS_MAX_HDMI_DMA_CHANNELS];
+	struct lpass_dp_metadata_ctl *meta_ctl;
+	struct lpass_sstream_ctl *sstream_ctl;
 };
 
 /* Vairant data per each SOC */
 struct lpass_variant {
-	u32	i2sctrl_reg_base;
-	u32	i2sctrl_reg_stride;
-	u32	i2s_ports;
 	u32	irq_reg_base;
 	u32	irq_reg_stride;
 	u32	irq_ports;
 	u32	rdma_reg_base;
 	u32	rdma_reg_stride;
 	u32	rdma_channels;
+	u32	hdmi_rdma_reg_base;
+	u32	hdmi_rdma_reg_stride;
+	u32	hdmi_rdma_channels;
 	u32	wrdma_reg_base;
 	u32	wrdma_reg_stride;
 	u32	wrdma_channels;
+	u32	i2sctrl_reg_base;
+	u32	i2sctrl_reg_stride;
+	u32	i2s_ports;
 
 	/* I2SCTL Register fields */
 	struct reg_field loopback;
@@ -108,6 +140,78 @@ struct lpass_variant {
 	struct reg_field micmono;
 	struct reg_field wssrc;
 	struct reg_field bitwidth;
+
+	u32	hdmi_irq_reg_base;
+	u32	hdmi_irq_reg_stride;
+	u32	hdmi_irq_ports;
+
+	/* HDMI specific controls */
+	u32	hdmi_tx_ctl_addr;
+	u32	hdmi_legacy_addr;
+	u32	hdmi_vbit_addr;
+	u32	hdmi_ch_lsb_addr;
+	u32	hdmi_ch_msb_addr;
+	u32	ch_stride;
+	u32	hdmi_parity_addr;
+	u32	hdmi_dmactl_addr;
+	u32	hdmi_dma_stride;
+	u32	hdmi_DP_addr;
+	u32	hdmi_sstream_addr;
+
+	/* HDMI SSTREAM CTRL fields  */
+	struct reg_field sstream_en;
+	struct reg_field dma_sel;
+	struct reg_field auto_bbit_en;
+	struct reg_field layout;
+	struct reg_field layout_sp;
+	struct reg_field set_sp_on_en;
+	struct reg_field dp_audio;
+	struct reg_field dp_staffing_en;
+	struct reg_field dp_sp_b_hw_en;
+
+	/* HDMI DP METADATA CTL fields */
+	struct reg_field mute;
+	struct reg_field as_sdp_cc;
+	struct reg_field as_sdp_ct;
+	struct reg_field aif_db4;
+	struct reg_field frequency;
+	struct reg_field mst_index;
+	struct reg_field dptx_index;
+
+	/* HDMI TX CTRL fields */
+	struct reg_field soft_reset;
+	struct reg_field force_reset;
+
+	/* HDMI TX DMA CTRL */
+	struct reg_field use_hw_chs;
+	struct reg_field use_hw_usr;
+	struct reg_field hw_chs_sel;
+	struct reg_field hw_usr_sel;
+
+	/* HDMI VBIT CTRL */
+	struct reg_field replace_vbit;
+	struct reg_field vbit_stream;
+
+	/* HDMI TX LEGACY */
+	struct reg_field legacy_en;
+
+	/* HDMI TX PARITY */
+	struct reg_field calc_en;
+
+	/* HDMI CH LSB */
+	struct reg_field lsb_bits;
+
+	/* HDMI CH MSB */
+	struct reg_field msb_bits;
+
+	struct reg_field hdmi_rdma_bursten;
+	struct reg_field hdmi_rdma_wpscnt;
+	struct reg_field hdmi_rdma_fifowm;
+	struct reg_field hdmi_rdma_enable;
+	struct reg_field hdmi_rdma_dyncclk;
+	struct reg_field hdmi_rdma_burst8;
+	struct reg_field hdmi_rdma_burst16;
+	struct reg_field hdmi_rdma_dynburst;
 
 	/* RD_DMA Register fields */
 	struct reg_field rdma_intf;
@@ -134,8 +238,8 @@ struct lpass_variant {
 	/* SOC specific initialization like clocks */
 	int (*init)(struct platform_device *pdev);
 	int (*exit)(struct platform_device *pdev);
-	int (*alloc_dma_channel)(struct lpass_data *data, int direction);
-	int (*free_dma_channel)(struct lpass_data *data, int ch);
+	int (*alloc_dma_channel)(struct lpass_data *data, int direction, unsigned int dai_id);
+	int (*free_dma_channel)(struct lpass_data *data, int ch, unsigned int dai_id);
 
 	/* SOC specific dais */
 	struct snd_soc_dai_driver *dai_driver;
