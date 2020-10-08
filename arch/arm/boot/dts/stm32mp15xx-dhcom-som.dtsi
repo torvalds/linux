@@ -127,6 +127,8 @@
 
 		phy0: ethernet-phy@1 {
 			reg = <1>;
+			interrupt-parent = <&gpioi>;
+			interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
 		};
 	};
 };
