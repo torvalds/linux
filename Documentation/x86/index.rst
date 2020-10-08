@@ -9,6 +9,7 @@ x86-specific Documentation
    :numbered:
 
    boot
+   booting-dt
    topology
    exception-tables
    kernel-stacks
