@@ -793,11 +793,7 @@ unsigned int iwl_mvm_max_amsdu_size(struct iwl_mvm *mvm,
 	enum nl80211_band band = mvmsta->vif->bss_conf.chandef.chan->band;
 	u8 ac = tid_to_mac80211_ac[tid];
 	unsigned int txf;
-	int lmac = IWL_LMAC_24G_INDEX;
-
-	if (iwl_mvm_is_cdb_supported(mvm) &&
-	    band == NL80211_BAND_5GHZ)
-		lmac = IWL_LMAC_5G_INDEX;
+	int lmac = iwl_mvm_get_lmac_id(mvm->fw, band);
 
 	/* For HE redirect to trigger based fifos */
 	if (sta->he_cap.has_he && !WARN_ON(!iwl_mvm_has_new_tx_api(mvm)))
