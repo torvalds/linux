@@ -70,6 +70,7 @@
 #include "iwl-io.h" /* for iwl_mvm_rx_card_state_notif */
 #include "iwl-prph.h"
 #include "fw/acpi.h"
+#include "fw/pnvm.h"
 
 #include "mvm.h"
 #include "fw/dbg.h"
@@ -77,9 +78,8 @@
 #include "iwl-modparams.h"
 #include "iwl-nvm-parse.h"
 
-#define MVM_UCODE_ALIVE_TIMEOUT	HZ
-#define MVM_UCODE_CALIB_TIMEOUT	(2*HZ)
-#define MVM_UCODE_PNVM_TIMEOUT	(HZ / 10)
+#define MVM_UCODE_ALIVE_TIMEOUT	(HZ)
+#define MVM_UCODE_CALIB_TIMEOUT	(2 * HZ)
 
 #define UCODE_VALID_OK	cpu_to_le32(0x1)
 
@@ -313,20 +313,6 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 	return true;
 }
 
-static bool iwl_pnvm_complete_fn(struct iwl_notif_wait_data *notif_wait,
-				 struct iwl_rx_packet *pkt, void *data)
-{
-	struct iwl_mvm *mvm =
-		container_of(notif_wait, struct iwl_mvm, notif_wait);
-	struct iwl_pnvm_init_complete_ntfy *pnvm_ntf = (void *)pkt->data;
-
-	IWL_DEBUG_FW(mvm,
-		     "PNVM complete notification received with status %d\n",
-		     le32_to_cpu(pnvm_ntf->status));
-
-	return true;
-}
-
 static bool iwl_wait_init_complete(struct iwl_notif_wait_data *notif_wait,
 				   struct iwl_rx_packet *pkt, void *data)
 {
@@ -348,35 +334,6 @@ static bool iwl_wait_phy_db_entry(struct iwl_notif_wait_data *notif_wait,
 	WARN_ON(iwl_phy_db_set_section(phy_db, pkt));
 
 	return false;
-}
-
-static int iwl_mvm_load_pnvm(struct iwl_mvm *mvm)
-{
-	struct iwl_notification_wait pnvm_wait;
-	static const u16 ntf_cmds[] = { WIDE_ID(REGULATORY_AND_NVM_GROUP,
-						PNVM_INIT_COMPLETE_NTFY) };
-
-	/* if the SKU_ID is empty, there's nothing to do */
-	if (!mvm->trans->sku_id[0] &&
-	    !mvm->trans->sku_id[1] &&
-	    !mvm->trans->sku_id[2])
-		return 0;
-
-	/*
-	 * TODO: phase 2: load the pnvm file, find the right section,
-	 * load it and set the right DMA pointer.
-	 */
-
-	iwl_init_notification_wait(&mvm->notif_wait, &pnvm_wait,
-				   ntf_cmds, ARRAY_SIZE(ntf_cmds),
-				   iwl_pnvm_complete_fn, NULL);
-
-	/* kick the doorbell */
-	iwl_write_umac_prph(mvm->trans, UREG_DOORBELL_TO_ISR6,
-			    UREG_DOORBELL_TO_ISR6_PNVM);
-
-	return iwl_wait_notification(&mvm->notif_wait, &pnvm_wait,
-				     MVM_UCODE_PNVM_TIMEOUT);
 }
 
 static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
@@ -467,7 +424,7 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 		return -EIO;
 	}
 
-	ret = iwl_mvm_load_pnvm(mvm);
+	ret = iwl_pnvm_load(mvm->trans, &mvm->notif_wait);
 	if (ret) {
 		IWL_ERR(mvm, "Timeout waiting for PNVM load!\n");
 		iwl_fw_set_current_image(&mvm->fwrt, old_type);
