@@ -19,6 +19,14 @@ config MDIO_BUS
 	  reflects whether the mdio_bus/mdio_device code is built as a
 	  loadable module or built-in.
 
+config OF_MDIO
+	def_tristate PHYLIB
+	depends on OF
+	depends on PHYLIB
+	select FIXED_PHY
+	help
+	  OpenFirmware MDIO bus (Ethernet PHY) accessors
+
 if MDIO_BUS
 
 config MDIO_DEVRES
