@@ -166,6 +166,9 @@ setup_prepare()
 	ip link add link $eth3 name $eth3.100 type vlan id 100
 	ip link set $eth3.100 up
 
+	ip link add link $eth3 name $eth3.200 type vlan id 200
+	ip link set $eth3.200 up
+
 	tc filter add dev $eth0 ingress chain $(IS1 1) pref 1 \
 		protocol 802.1Q flower skip_sw vlan_id 100 \
 		action vlan pop \
@@ -175,12 +178,12 @@ setup_prepare()
 		flower skip_sw indev $eth1 \
 		action vlan push protocol 802.1Q id 100
 
-	tc filter add dev $eth0 ingress chain $(IS1 0) \
+	tc filter add dev $eth0 ingress chain $(IS1 0) pref 2 \
 		protocol ipv4 flower skip_sw src_ip 10.1.1.2 \
 		action skbedit priority 7 \
 		action goto chain $(IS1 1)
 
-	tc filter add dev $eth0 ingress chain $(IS2 0 0) \
+	tc filter add dev $eth0 ingress chain $(IS2 0 0) pref 1 \
 		protocol ipv4 flower skip_sw ip_proto udp dst_port 5201 \
 		action police rate 50mbit burst 64k \
 		action goto chain $(IS2 1 0)
@@ -188,6 +191,7 @@ setup_prepare()
 
 cleanup()
 {
+	ip link del $eth3.200
 	ip link del $eth3.100
 	tc qdisc del dev $eth0 clsact
 	ip link del br0
@@ -238,6 +242,44 @@ test_vlan_push()
 	tcpdump_cleanup
 }
 
+test_vlan_modify()
+{
+	printf "Testing VLAN modification..		"
+
+	ip link set br0 type bridge vlan_filtering 1
+	bridge vlan add dev $eth0 vid 200
+	bridge vlan add dev $eth0 vid 300
+	bridge vlan add dev $eth1 vid 300
+
+	tc filter add dev $eth0 ingress chain $(IS1 2) pref 3 \
+		protocol 802.1Q flower skip_sw vlan_id 200 \
+		action vlan modify id 300 \
+		action goto chain $(IS2 0 0)
+
+	tcpdump_start $eth2
+
+	$MZ $eth3.200 -q -c 1 -p 64 -a $eth3_mac -b $eth2_mac -t ip
+
+	sleep 1
+
+	tcpdump_stop
+
+	if tcpdump_show | grep -q "$eth3_mac > $eth2_mac, .* vlan 300"; then
+		echo "OK"
+	else
+		echo "FAIL"
+	fi
+
+	tcpdump_cleanup
+
+	tc filter del dev $eth0 ingress chain $(IS1 2) pref 3
+
+	bridge vlan del dev $eth0 vid 200
+	bridge vlan del dev $eth0 vid 300
+	bridge vlan del dev $eth1 vid 300
+	ip link set br0 type bridge vlan_filtering 0
+}
+
 test_skbedit_priority()
 {
 	local num_pkts=100
@@ -262,6 +304,7 @@ trap cleanup EXIT
 ALL_TESTS="
 	test_vlan_pop
 	test_vlan_push
+	test_vlan_modify
 	test_skbedit_priority
 "
 
