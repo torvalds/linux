@@ -739,6 +739,7 @@ static const struct of_device_id sdhci_am654_of_match[] = {
 	},
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, sdhci_am654_of_match);
 
 static int sdhci_am654_probe(struct platform_device *pdev)
 {
