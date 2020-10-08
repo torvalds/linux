@@ -1428,3 +1428,86 @@ int chsc_sgib(u32 origin)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(chsc_sgib);
+
+#define SCUD_REQ_LEN	0x10 /* SCUD request block length */
+#define SCUD_REQ_CMD	0x4b /* SCUD Command Code */
+
+struct chse_cudb {
+	u16 flags:8;
+	u16 chp_valid:8;
+	u16 cu;
+	u32 esm_valid:8;
+	u32:24;
+	u8 chpid[8];
+	u32:32;
+	u32:32;
+	u8 esm[8];
+	u32 efla[8];
+} __packed;
+
+struct chsc_scud {
+	struct chsc_header request;
+	u16:4;
+	u16 fmt:4;
+	u16 cssid:8;
+	u16 first_cu;
+	u16:16;
+	u16 last_cu;
+	u32:32;
+	struct chsc_header response;
+	u16:4;
+	u16 fmt_resp:4;
+	u32:24;
+	struct chse_cudb cudb[];
+} __packed;
+
+/**
+ * chsc_scud() - Store control-unit description.
+ * @cu:		number of the control-unit
+ * @esm:	8 1-byte endpoint security mode values
+ * @esm_valid:	validity mask for @esm
+ *
+ * Interface to retrieve information about the endpoint security
+ * modes for up to 8 paths of a control unit.
+ *
+ * Returns 0 on success.
+ */
+int chsc_scud(u16 cu, u64 *esm, u8 *esm_valid)
+{
+	struct chsc_scud *scud = chsc_page;
+	int ret;
+
+	spin_lock_irq(&chsc_page_lock);
+	memset(chsc_page, 0, PAGE_SIZE);
+	scud->request.length = SCUD_REQ_LEN;
+	scud->request.code = SCUD_REQ_CMD;
+	scud->fmt = 0;
+	scud->cssid = 0;
+	scud->first_cu = cu;
+	scud->last_cu = cu;
+
+	ret = chsc(scud);
+	if (!ret)
+		ret = chsc_error_from_response(scud->response.code);
+
+	if (!ret && (scud->response.length <= 8 || scud->fmt_resp != 0
+			|| !(scud->cudb[0].flags & 0x80)
+			|| scud->cudb[0].cu != cu)) {
+
+		CIO_MSG_EVENT(2, "chsc: scud failed rc=%04x, L2=%04x "
+			"FMT=%04x, cudb.flags=%02x, cudb.cu=%04x",
+			scud->response.code, scud->response.length,
+			scud->fmt_resp, scud->cudb[0].flags, scud->cudb[0].cu);
+		ret = -EINVAL;
+	}
+
+	if (ret)
+		goto out;
+
+	memcpy(esm, scud->cudb[0].esm, sizeof(*esm));
+	*esm_valid = scud->cudb[0].esm_valid;
+out:
+	spin_unlock_irq(&chsc_page_lock);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(chsc_scud);
