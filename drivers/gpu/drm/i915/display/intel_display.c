@@ -4093,8 +4093,7 @@ static int skl_check_ccs_aux_surface(struct intel_plane_state *plane_state)
 int skl_check_plane_surface(struct intel_plane_state *plane_state)
 {
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
-	int ret;
-	bool needs_aux = false;
+	int ret, i;
 
 	ret = intel_plane_compute_gtt(plane_state);
 	if (ret)
@@ -4108,7 +4107,6 @@ int skl_check_plane_surface(struct intel_plane_state *plane_state)
 	 * it.
 	 */
 	if (is_ccs_modifier(fb->modifier)) {
-		needs_aux = true;
 		ret = skl_check_ccs_aux_surface(plane_state);
 		if (ret)
 			return ret;
@@ -4116,20 +4114,15 @@ int skl_check_plane_surface(struct intel_plane_state *plane_state)
 
 	if (intel_format_info_is_yuv_semiplanar(fb->format,
 						fb->modifier)) {
-		needs_aux = true;
 		ret = skl_check_nv12_aux_surface(plane_state);
 		if (ret)
 			return ret;
 	}
 
-	if (!needs_aux) {
-		int i;
-
-		for (i = 1; i < fb->format->num_planes; i++) {
-			plane_state->color_plane[i].offset = ~0xfff;
-			plane_state->color_plane[i].x = 0;
-			plane_state->color_plane[i].y = 0;
-		}
+	for (i = fb->format->num_planes; i < ARRAY_SIZE(plane_state->color_plane); i++) {
+		plane_state->color_plane[i].offset = ~0xfff;
+		plane_state->color_plane[i].x = 0;
+		plane_state->color_plane[i].y = 0;
 	}
 
 	ret = skl_check_main_surface(plane_state);
