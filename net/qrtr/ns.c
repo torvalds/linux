@@ -193,7 +193,7 @@ static int announce_servers(struct sockaddr_qrtr *sq)
 	struct qrtr_server *srv;
 	struct qrtr_node *node;
 	void __rcu **slot;
-	int ret = 0;
+	int ret;
 
 	node = node_get(qrtr_ns.local_node);
 	if (!node)
@@ -203,18 +203,27 @@ static int announce_servers(struct sockaddr_qrtr *sq)
 	/* Announce the list of servers registered in this node */
 	radix_tree_for_each_slot(slot, &node->servers, &iter, 0) {
 		srv = radix_tree_deref_slot(slot);
+		if (!srv)
+			continue;
+		if (radix_tree_deref_retry(srv)) {
+			slot = radix_tree_iter_retry(&iter);
+			continue;
+		}
+		slot = radix_tree_iter_resume(slot, &iter);
+		rcu_read_unlock();
 
 		ret = service_announce_new(sq, srv);
 		if (ret < 0) {
 			pr_err("failed to announce new service\n");
-			goto err_out;
+			return ret;
 		}
+
+		rcu_read_lock();
 	}
 
-err_out:
 	rcu_read_unlock();
 
-	return ret;
+	return 0;
 }
 
 static struct qrtr_server *server_add(unsigned int service,
@@ -339,7 +348,7 @@ static int ctrl_cmd_bye(struct sockaddr_qrtr *from)
 	struct qrtr_node *node;
 	void __rcu **slot;
 	struct kvec iv;
-	int ret = 0;
+	int ret;
 
 	iv.iov_base = &pkt;
 	iv.iov_len = sizeof(pkt);
@@ -352,7 +361,16 @@ static int ctrl_cmd_bye(struct sockaddr_qrtr *from)
 	/* Advertise removal of this client to all servers of remote node */
 	radix_tree_for_each_slot(slot, &node->servers, &iter, 0) {
 		srv = radix_tree_deref_slot(slot);
+		if (!srv)
+			continue;
+		if (radix_tree_deref_retry(srv)) {
+			slot = radix_tree_iter_retry(&iter);
+			continue;
+		}
+		slot = radix_tree_iter_resume(slot, &iter);
+		rcu_read_unlock();
 		server_del(node, srv->port);
+		rcu_read_lock();
 	}
 	rcu_read_unlock();
 
@@ -368,6 +386,14 @@ static int ctrl_cmd_bye(struct sockaddr_qrtr *from)
 	rcu_read_lock();
 	radix_tree_for_each_slot(slot, &local_node->servers, &iter, 0) {
 		srv = radix_tree_deref_slot(slot);
+		if (!srv)
+			continue;
+		if (radix_tree_deref_retry(srv)) {
+			slot = radix_tree_iter_retry(&iter);
+			continue;
+		}
+		slot = radix_tree_iter_resume(slot, &iter);
+		rcu_read_unlock();
 
 		sq.sq_family = AF_QIPCRTR;
 		sq.sq_node = srv->node;
@@ -379,14 +405,14 @@ static int ctrl_cmd_bye(struct sockaddr_qrtr *from)
 		ret = kernel_sendmsg(qrtr_ns.sock, &msg, &iv, 1, sizeof(pkt));
 		if (ret < 0) {
 			pr_err("failed to send bye cmd\n");
-			goto err_out;
+			return ret;
 		}
+		rcu_read_lock();
 	}
 
-err_out:
 	rcu_read_unlock();
 
-	return ret;
+	return 0;
 }
 
 static int ctrl_cmd_del_client(struct sockaddr_qrtr *from,
@@ -404,7 +430,7 @@ static int ctrl_cmd_del_client(struct sockaddr_qrtr *from,
 	struct list_head *li;
 	void __rcu **slot;
 	struct kvec iv;
-	int ret = 0;
+	int ret;
 
 	iv.iov_base = &pkt;
 	iv.iov_len = sizeof(pkt);
@@ -447,6 +473,14 @@ static int ctrl_cmd_del_client(struct sockaddr_qrtr *from,
 	rcu_read_lock();
 	radix_tree_for_each_slot(slot, &local_node->servers, &iter, 0) {
 		srv = radix_tree_deref_slot(slot);
+		if (!srv)
+			continue;
+		if (radix_tree_deref_retry(srv)) {
+			slot = radix_tree_iter_retry(&iter);
+			continue;
+		}
+		slot = radix_tree_iter_resume(slot, &iter);
+		rcu_read_unlock();
 
 		sq.sq_family = AF_QIPCRTR;
 		sq.sq_node = srv->node;
@@ -458,14 +492,14 @@ static int ctrl_cmd_del_client(struct sockaddr_qrtr *from,
 		ret = kernel_sendmsg(qrtr_ns.sock, &msg, &iv, 1, sizeof(pkt));
 		if (ret < 0) {
 			pr_err("failed to send del client cmd\n");
-			goto err_out;
+			return ret;
 		}
+		rcu_read_lock();
 	}
 
-err_out:
 	rcu_read_unlock();
 
-	return ret;
+	return 0;
 }
 
 static int ctrl_cmd_new_server(struct sockaddr_qrtr *from,
@@ -571,16 +605,34 @@ static int ctrl_cmd_new_lookup(struct sockaddr_qrtr *from,
 	rcu_read_lock();
 	radix_tree_for_each_slot(node_slot, &nodes, &node_iter, 0) {
 		node = radix_tree_deref_slot(node_slot);
+		if (!node)
+			continue;
+		if (radix_tree_deref_retry(node)) {
+			node_slot = radix_tree_iter_retry(&node_iter);
+			continue;
+		}
+		node_slot = radix_tree_iter_resume(node_slot, &node_iter);
 
 		radix_tree_for_each_slot(srv_slot, &node->servers,
 					 &srv_iter, 0) {
 			struct qrtr_server *srv;
 
 			srv = radix_tree_deref_slot(srv_slot);
+			if (!srv)
+				continue;
+			if (radix_tree_deref_retry(srv)) {
+				srv_slot = radix_tree_iter_retry(&srv_iter);
+				continue;
+			}
+
 			if (!server_match(srv, &filter))
 				continue;
 
+			srv_slot = radix_tree_iter_resume(srv_slot, &srv_iter);
+
+			rcu_read_unlock();
 			lookup_notify(from, srv, true);
+			rcu_read_lock();
 		}
 	}
 	rcu_read_unlock();
