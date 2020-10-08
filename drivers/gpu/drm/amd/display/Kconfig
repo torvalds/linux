@@ -17,6 +17,14 @@ config DRM_AMD_DC_DCN
 	help
 	  Raven, Navi and Renoir family support for display engine
 
+config DRM_AMD_DC_GREEN_SARDINE
+	bool "Green Sardine support"
+	default y
+	depends on DRM_AMD_DC_DCN
+        help
+            Choose this option if you want to have
+            Green Sardine support for display engine
+
 config DRM_AMD_DC_DCN3_0
         bool "DCN 3.0 family"
         depends on DRM_AMD_DC && X86
