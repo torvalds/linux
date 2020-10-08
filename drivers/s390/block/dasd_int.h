@@ -298,7 +298,7 @@ struct dasd_discipline {
 	 * configuration.
 	 */
 	int (*verify_path)(struct dasd_device *, __u8);
-	int (*pe_handler)(struct dasd_device *, __u8);
+	int (*pe_handler)(struct dasd_device *, __u8, __u8);
 
 	/*
 	 * Last things to do when a device is set online, and first things
@@ -423,6 +423,7 @@ extern struct dasd_discipline *dasd_diag_discipline_pointer;
 #define DASD_PATH_NOHPF        6
 #define DASD_PATH_CUIR	       7
 #define DASD_PATH_IFCC	       8
+#define DASD_PATH_FCSEC	       9
 
 #define DASD_THRHLD_MAX		4294967295U
 #define DASD_INTERVAL_MAX	4294967295U
@@ -966,6 +967,29 @@ static inline void dasd_path_clear_all_verify(struct dasd_device *device)
 		dasd_path_clear_verify(device, chp);
 }
 
+static inline void dasd_path_fcsec(struct dasd_device *device, int chp)
+{
+	__set_bit(DASD_PATH_FCSEC, &device->path[chp].flags);
+}
+
+static inline void dasd_path_clear_fcsec(struct dasd_device *device, int chp)
+{
+	__clear_bit(DASD_PATH_FCSEC, &device->path[chp].flags);
+}
+
+static inline int dasd_path_need_fcsec(struct dasd_device *device, int chp)
+{
+	return test_bit(DASD_PATH_FCSEC, &device->path[chp].flags);
+}
+
+static inline void dasd_path_clear_all_fcsec(struct dasd_device *device)
+{
+	int chp;
+
+	for (chp = 0; chp < 8; chp++)
+		dasd_path_clear_fcsec(device, chp);
+}
+
 static inline void dasd_path_operational(struct dasd_device *device, int chp)
 {
 	__set_bit(DASD_PATH_OPERATIONAL, &device->path[chp].flags);
@@ -1089,6 +1113,17 @@ static inline __u8 dasd_path_get_tbvpm(struct dasd_device *device)
 		if (dasd_path_need_verify(device, chp))
 			tbvpm |= 0x80 >> chp;
 	return tbvpm;
+}
+
+static inline int dasd_path_get_fcsecpm(struct dasd_device *device)
+{
+	int chp;
+
+	for (chp = 0; chp < 8; chp++)
+		if (dasd_path_need_fcsec(device, chp))
+			return 1;
+
+	return 0;
 }
 
 static inline __u8 dasd_path_get_nppm(struct dasd_device *device)
@@ -1346,6 +1381,11 @@ static inline void dasd_path_notoper(struct dasd_device *device, int chp)
 	dasd_path_clear_oper(device, chp);
 	dasd_path_clear_preferred(device, chp);
 	dasd_path_clear_nonpreferred(device, chp);
+}
+
+static inline void dasd_path_fcsec_update(struct dasd_device *device, int chp)
+{
+	dasd_path_fcsec(device, chp);
 }
 
 /*

@@ -111,6 +111,7 @@ struct pe_handler_work_data {
 	__u8 rcd_buffer[DASD_ECKD_RCD_DATA_SIZE];
 	int isglobal;
 	__u8 tbvpm;
+	__u8 fcsecpm;
 };
 static struct pe_handler_work_data *pe_handler_worker;
 static DEFINE_MUTEX(dasd_pe_handler_mutex);
@@ -1466,7 +1467,10 @@ static void do_pe_handler_work(struct work_struct *work)
 		return;
 	}
 
-	dasd_eckd_path_available_action(device, data);
+	if (data->tbvpm)
+		dasd_eckd_path_available_action(device, data);
+	if (data->fcsecpm)
+		dasd_eckd_read_fc_security(device);
 
 	clear_bit(DASD_FLAG_PATH_VERIFY, &device->flags);
 	dasd_put_device(device);
@@ -1476,7 +1480,8 @@ static void do_pe_handler_work(struct work_struct *work)
 		kfree(data);
 }
 
-static int dasd_eckd_pe_handler(struct dasd_device *device, __u8 lpm)
+static int dasd_eckd_pe_handler(struct dasd_device *device,
+				__u8 tbvpm, __u8 fcsecpm)
 {
 	struct pe_handler_work_data *data;
 
@@ -1495,7 +1500,8 @@ static int dasd_eckd_pe_handler(struct dasd_device *device, __u8 lpm)
 	INIT_WORK(&data->worker, do_pe_handler_work);
 	dasd_get_device(device);
 	data->device = device;
-	data->tbvpm = lpm;
+	data->tbvpm = tbvpm;
+	data->fcsecpm = fcsecpm;
 	schedule_work(&data->worker);
 	return 0;
 }
