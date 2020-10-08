@@ -220,8 +220,8 @@ xen_drm_front_gem_import_sg_table(struct drm_device *dev,
 
 	xen_obj->sgt_imported = sgt;
 
-	ret = drm_prime_sg_to_page_addr_arrays(sgt, xen_obj->pages,
-					       NULL, xen_obj->num_pages);
+	ret = drm_prime_sg_to_page_array(sgt, xen_obj->pages,
+					 xen_obj->num_pages);
 	if (ret < 0)
 		return ERR_PTR(ret);
 

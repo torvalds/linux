@@ -260,7 +260,7 @@ int mtk_drm_gem_prime_vmap(struct drm_gem_object *obj, struct dma_buf_map *map)
 		return -ENOMEM;
 	}
 
-	drm_prime_sg_to_page_addr_arrays(sgt, mtk_gem->pages, NULL, npages);
+	drm_prime_sg_to_page_array(sgt, mtk_gem->pages, npages);
 
 	mtk_gem->kvaddr = vmap(mtk_gem->pages, npages, VM_MAP,
 			       pgprot_writecombine(PAGE_KERNEL));
