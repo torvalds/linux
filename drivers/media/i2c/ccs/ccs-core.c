@@ -1552,10 +1552,12 @@ static int ccs_power_on(struct device *dev)
 	 * is found.
 	 */
 
-	rval = ccs_write(sensor, SOFTWARE_RESET, CCS_SOFTWARE_RESET_ON);
-	if (rval < 0) {
-		dev_err(dev, "software reset failed\n");
-		goto out_cci_addr_fail;
+	if (!sensor->reset && !sensor->xshutdown) {
+		rval = ccs_write(sensor, SOFTWARE_RESET, CCS_SOFTWARE_RESET_ON);
+		if (rval < 0) {
+			dev_err(dev, "software reset failed\n");
+			goto out_cci_addr_fail;
+		}
 	}
 
 	if (sensor->hwcfg.i2c_addr_alt) {
