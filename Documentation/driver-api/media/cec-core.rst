@@ -143,7 +143,7 @@ To enable/disable the 'monitor all' mode::
 	int (*adap_monitor_all_enable)(struct cec_adapter *adap, bool enable);
 
 If enabled, then the adapter should be put in a mode to also monitor messages
-that not for us. Not all hardware supports this and this function is only
+that are not for us. Not all hardware supports this and this function is only
 called if the CEC_CAP_MONITOR_ALL capability is set. This callback is optional
 (some hardware may always be in 'monitor all' mode).
 
