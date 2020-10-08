@@ -425,7 +425,8 @@ static void *usnic_ib_device_add(struct pci_dev *dev)
 	if (ret)
 		goto err_fwd_dealloc;
 
-	if (ib_register_device(&us_ibdev->ib_dev, "usnic_%d"))
+	dma_set_max_seg_size(&dev->dev, SZ_2G);
+	if (ib_register_device(&us_ibdev->ib_dev, "usnic_%d", &dev->dev))
 		goto err_fwd_dealloc;
 
 	usnic_fwd_set_mtu(us_ibdev->ufdev, us_ibdev->netdev->mtu);

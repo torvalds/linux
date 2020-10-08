@@ -1128,12 +1128,9 @@ int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name)
 	dev->local_dma_lkey = 0;
 	addrconf_addr_eui48((unsigned char *)&dev->node_guid,
 			    rxe->ndev->dev_addr);
-	dev->dev.dma_ops = &dma_virt_ops;
 	dev->dev.dma_parms = &rxe->dma_parms;
-	rxe->dma_parms = (struct device_dma_parameters)
-		{ .max_segment_size = SZ_2G };
-	dma_coerce_mask_and_coherent(&dev->dev,
-				     dma_get_required_mask(&dev->dev));
+	dma_set_max_seg_size(&dev->dev, UINT_MAX);
+	dma_set_coherent_mask(&dev->dev, dma_get_required_mask(&dev->dev));
 
 	dev->uverbs_cmd_mask = BIT_ULL(IB_USER_VERBS_CMD_GET_CONTEXT)
 	    | BIT_ULL(IB_USER_VERBS_CMD_CREATE_COMP_CHANNEL)
@@ -1182,7 +1179,7 @@ int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name)
 	rxe->tfm = tfm;
 
 	rdma_set_device_sysfs_group(dev, &rxe_attr_group);
-	err = ib_register_device(dev, ibdev_name);
+	err = ib_register_device(dev, ibdev_name, NULL);
 	if (err)
 		pr_warn("%s failed with error %d\n", __func__, err);
 

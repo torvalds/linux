@@ -570,7 +570,9 @@ void c4iw_register_device(struct work_struct *work)
 	ret = set_netdevs(&dev->ibdev, &dev->rdev);
 	if (ret)
 		goto err_dealloc_ctx;
-	ret = ib_register_device(&dev->ibdev, "cxgb4_%d");
+	dma_set_max_seg_size(&dev->rdev.lldi.pdev->dev, UINT_MAX);
+	ret = ib_register_device(&dev->ibdev, "cxgb4_%d",
+				 &dev->rdev.lldi.pdev->dev);
 	if (ret)
 		goto err_dealloc_ctx;
 	return;
