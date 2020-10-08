@@ -30,8 +30,8 @@
  * keep a constant PAGE_OFFSET and "fallback" to using the higher end
  * of the VMEMMAP where 52-bit support is not available in hardware.
  */
-#define VMEMMAP_SIZE ((_PAGE_END(VA_BITS_MIN) - PAGE_OFFSET) \
-			>> (PAGE_SHIFT - STRUCT_PAGE_MAX_SHIFT))
+#define VMEMMAP_SHIFT	(PAGE_SHIFT - STRUCT_PAGE_MAX_SHIFT)
+#define VMEMMAP_SIZE	((_PAGE_END(VA_BITS_MIN) - PAGE_OFFSET) >> VMEMMAP_SHIFT)
 
 /*
  * PAGE_OFFSET - the virtual address of the start of the linear map, at the
@@ -50,7 +50,7 @@
 #define MODULES_END		(MODULES_VADDR + MODULES_VSIZE)
 #define MODULES_VADDR		(BPF_JIT_REGION_END)
 #define MODULES_VSIZE		(SZ_128M)
-#define VMEMMAP_START		(-VMEMMAP_SIZE - SZ_2M)
+#define VMEMMAP_START		(-(UL(1) << (VA_BITS - VMEMMAP_SHIFT)))
 #define VMEMMAP_END		(VMEMMAP_START + VMEMMAP_SIZE)
 #define PCI_IO_END		(VMEMMAP_START - SZ_2M)
 #define PCI_IO_START		(PCI_IO_END - PCI_IO_SIZE)
@@ -308,15 +308,13 @@ static inline void *phys_to_virt(phys_addr_t x)
 #else
 #define page_to_virt(x)	({						\
 	__typeof__(x) __page = x;					\
-	u64 __idx = ((u64)__page - VMEMMAP_START) / sizeof(struct page);\
-	u64 __addr = PAGE_OFFSET + (__idx * PAGE_SIZE);			\
+	u64 __addr = (u64)__page << VMEMMAP_SHIFT;			\
 	(void *)__tag_set((const void *)__addr, page_kasan_tag(__page));\
 })
 
 #define virt_to_page(x)	({						\
-	u64 __idx = (__tag_reset((u64)x) - PAGE_OFFSET) / PAGE_SIZE;	\
-	u64 __addr = VMEMMAP_START + (__idx * sizeof(struct page));	\
-	(struct page *)__addr;						\
+	u64 __addr = __tag_reset((u64)(x)) & PAGE_MASK;			\
+	(struct page *)((s64)__addr >> VMEMMAP_SHIFT);			\
 })
 #endif /* !CONFIG_SPARSEMEM_VMEMMAP || CONFIG_DEBUG_VIRTUAL */
 
