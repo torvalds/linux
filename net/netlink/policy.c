@@ -196,12 +196,54 @@ bool netlink_policy_dump_loop(struct netlink_policy_dump_state *state)
 	return !netlink_policy_dump_finished(state);
 }
 
+int netlink_policy_dump_attr_size_estimate(const struct nla_policy *pt)
+{
+	/* nested + type */
+	int common = 2 * nla_attr_size(sizeof(u32));
+
+	switch (pt->type) {
+	case NLA_UNSPEC:
+	case NLA_REJECT:
+		/* these actually don't need any space */
+		return 0;
+	case NLA_NESTED:
+	case NLA_NESTED_ARRAY:
+		/* common, policy idx, policy maxattr */
+		return common + 2 * nla_attr_size(sizeof(u32));
+	case NLA_U8:
+	case NLA_U16:
+	case NLA_U32:
+	case NLA_U64:
+	case NLA_MSECS:
+	case NLA_S8:
+	case NLA_S16:
+	case NLA_S32:
+	case NLA_S64:
+		/* maximum is common, u64 min/max with padding */
+		return common +
+		       2 * (nla_attr_size(0) + nla_attr_size(sizeof(u64)));
+	case NLA_BITFIELD32:
+		return common + nla_attr_size(sizeof(u32));
+	case NLA_STRING:
+	case NLA_NUL_STRING:
+	case NLA_BINARY:
+		/* maximum is common, u32 min-length/max-length */
+		return common + 2 * nla_attr_size(sizeof(u32));
+	case NLA_FLAG:
+		return common;
+	}
+
+	/* this should then cause a warning later */
+	return 0;
+}
+
 static int
 __netlink_policy_dump_write_attr(struct netlink_policy_dump_state *state,
 				 struct sk_buff *skb,
 				 const struct nla_policy *pt,
 				 int nestattr)
 {
+	int estimate = netlink_policy_dump_attr_size_estimate(pt);
 	enum netlink_attribute_type type;
 	struct nlattr *attr;
 
@@ -334,10 +376,29 @@ __netlink_policy_dump_write_attr(struct netlink_policy_dump_state *state,
 		goto nla_put_failure;
 
 	nla_nest_end(skb, attr);
+	WARN_ON(attr->nla_len > estimate);
+
 	return 0;
 nla_put_failure:
 	nla_nest_cancel(skb, attr);
 	return -ENOBUFS;
+}
+
+/**
+ * netlink_policy_dump_write_attr - write a given attribute policy
+ * @skb: the message skb to write to
+ * @pt: the attribute's policy
+ * @nestattr: the nested attribute ID to use
+ *
+ * Returns: 0 on success, an error code otherwise; -%ENODATA is
+ *	    special, indicating that there's no policy data and
+ *	    the attribute is generally rejected.
+ */
+int netlink_policy_dump_write_attr(struct sk_buff *skb,
+				   const struct nla_policy *pt,
+				   int nestattr)
+{
+	return __netlink_policy_dump_write_attr(NULL, skb, pt, nestattr);
 }
 
 /**
