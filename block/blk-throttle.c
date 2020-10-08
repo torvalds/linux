@@ -638,9 +638,6 @@ static struct throtl_grp *
 throtl_rb_first(struct throtl_service_queue *parent_sq)
 {
 	struct rb_node *n;
-	/* Service tree is empty */
-	if (!parent_sq->nr_pending)
-		return NULL;
 
 	n = rb_first_cached(&parent_sq->pending_tree);
 	WARN_ON_ONCE(!n);
@@ -1224,9 +1221,13 @@ static int throtl_select_dispatch(struct throtl_service_queue *parent_sq)
 	unsigned int nr_disp = 0;
 
 	while (1) {
-		struct throtl_grp *tg = throtl_rb_first(parent_sq);
+		struct throtl_grp *tg;
 		struct throtl_service_queue *sq;
 
+		if (!parent_sq->nr_pending)
+			break;
+
+		tg = throtl_rb_first(parent_sq);
 		if (!tg)
 			break;
 
