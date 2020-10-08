@@ -503,6 +503,7 @@ static blk_status_t sr_init_command(struct scsi_cmnd *SCpnt)
 	SCpnt->transfersize = cd->device->sector_size;
 	SCpnt->underflow = this_count << 9;
 	SCpnt->allowed = MAX_RETRIES;
+	SCpnt->cmd_len = 10;
 
 	/*
 	 * This indicates that the command is ready from our end to be queued.
