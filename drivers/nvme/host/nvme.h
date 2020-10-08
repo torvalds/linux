@@ -758,10 +758,9 @@ static inline void nvme_mpath_start_freeze(struct nvme_subsystem *subsys)
 }
 #endif /* CONFIG_NVME_MULTIPATH */
 
+int nvme_revalidate_zones(struct nvme_ns *ns);
 #ifdef CONFIG_BLK_DEV_ZONED
-int nvme_update_zone_info(struct gendisk *disk, struct nvme_ns *ns,
-			  unsigned lbaf);
-
+int nvme_update_zone_info(struct nvme_ns *ns, unsigned lbaf);
 int nvme_report_zones(struct gendisk *disk, sector_t sector,
 		      unsigned int nr_zones, report_zones_cb cb, void *data);
 
@@ -778,9 +777,7 @@ static inline blk_status_t nvme_setup_zone_mgmt_send(struct nvme_ns *ns,
 	return BLK_STS_NOTSUPP;
 }
 
-static inline int nvme_update_zone_info(struct gendisk *disk,
-					struct nvme_ns *ns,
-					unsigned lbaf)
+static inline int nvme_update_zone_info(struct nvme_ns *ns, unsigned lbaf)
 {
 	dev_warn(ns->ctrl->device,
 		 "Please enable CONFIG_BLK_DEV_ZONED to support ZNS devices\n");
