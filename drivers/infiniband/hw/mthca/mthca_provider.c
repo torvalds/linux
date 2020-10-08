@@ -965,25 +965,30 @@ static ssize_t hw_rev_show(struct device *device,
 }
 static DEVICE_ATTR_RO(hw_rev);
 
+static const char *hca_type_string(int hca_type)
+{
+	switch (hca_type) {
+	case PCI_DEVICE_ID_MELLANOX_TAVOR:
+		return "MT23108";
+	case PCI_DEVICE_ID_MELLANOX_ARBEL_COMPAT:
+		return "MT25208 (MT23108 compat mode)";
+	case PCI_DEVICE_ID_MELLANOX_ARBEL:
+		return "MT25208";
+	case PCI_DEVICE_ID_MELLANOX_SINAI:
+	case PCI_DEVICE_ID_MELLANOX_SINAI_OLD:
+		return "MT25204";
+	}
+
+	return "unknown";
+}
+
 static ssize_t hca_type_show(struct device *device,
 			     struct device_attribute *attr, char *buf)
 {
 	struct mthca_dev *dev =
 		rdma_device_to_drv_device(device, struct mthca_dev, ib_dev);
 
-	switch (dev->pdev->device) {
-	case PCI_DEVICE_ID_MELLANOX_TAVOR:
-		return sysfs_emit(buf, "MT23108\n");
-	case PCI_DEVICE_ID_MELLANOX_ARBEL_COMPAT:
-		return sysfs_emit(buf, "MT25208 (MT23108 compat mode)\n");
-	case PCI_DEVICE_ID_MELLANOX_ARBEL:
-		return sysfs_emit(buf, "MT25208\n");
-	case PCI_DEVICE_ID_MELLANOX_SINAI:
-	case PCI_DEVICE_ID_MELLANOX_SINAI_OLD:
-		return sysfs_emit(buf, "MT25204\n");
-	default:
-		return sysfs_emit(buf, "unknown\n");
-	}
+	return sysfs_emit(buf, "%s\n", hca_type_string(dev->pdev->device));
 }
 static DEVICE_ATTR_RO(hca_type);
 

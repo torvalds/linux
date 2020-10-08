@@ -2024,6 +2024,7 @@ static ssize_t hca_type_show(struct device *device,
 {
 	struct mlx4_ib_dev *dev =
 		rdma_device_to_drv_device(device, struct mlx4_ib_dev, ib_dev);
+
 	return sysfs_emit(buf, "MT%d\n", dev->dev->persist->pdev->device);
 }
 static DEVICE_ATTR_RO(hca_type);
@@ -2033,6 +2034,7 @@ static ssize_t hw_rev_show(struct device *device,
 {
 	struct mlx4_ib_dev *dev =
 		rdma_device_to_drv_device(device, struct mlx4_ib_dev, ib_dev);
+
 	return sysfs_emit(buf, "%x\n", dev->dev->rev_id);
 }
 static DEVICE_ATTR_RO(hw_rev);

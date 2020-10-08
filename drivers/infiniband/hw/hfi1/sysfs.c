@@ -510,13 +510,11 @@ static ssize_t board_id_show(struct device *device,
 	struct hfi1_ibdev *dev =
 		rdma_device_to_drv_device(device, struct hfi1_ibdev, rdi.ibdev);
 	struct hfi1_devdata *dd = dd_from_dev(dev);
-	int ret;
 
 	if (!dd->boardname)
-		ret = -EINVAL;
-	else
-		ret = sysfs_emit(buf, "%s\n", dd->boardname);
-	return ret;
+		return -EINVAL;
+
+	return sysfs_emit(buf, "%s\n", dd->boardname);
 }
 static DEVICE_ATTR_RO(board_id);
 
@@ -570,6 +568,7 @@ static ssize_t serial_show(struct device *device,
 		rdma_device_to_drv_device(device, struct hfi1_ibdev, rdi.ibdev);
 	struct hfi1_devdata *dd = dd_from_dev(dev);
 
+	/* dd->serial is already newline terminated in chip.c */
 	return sysfs_emit(buf, "%s", dd->serial);
 }
 static DEVICE_ATTR_RO(serial);
@@ -598,9 +597,8 @@ static DEVICE_ATTR_WO(chip_reset);
  * Convert the reported temperature from an integer (reported in
  * units of 0.25C) to a floating point number.
  */
-#define temp2str(temp, buf, size, idx)					\
-	scnprintf((buf) + (idx), (size) - (idx), "%u.%02u ",		\
-			      ((temp) >> 2), ((temp) & 0x3) * 25)
+#define temp_d(t) ((t) >> 2)
+#define temp_f(t) (((t)&0x3) * 25u)
 
 /*
  * Dump tempsense values, in decimal, to ease shell-scripts.
@@ -615,19 +613,17 @@ static ssize_t tempsense_show(struct device *device,
 	int ret;
 
 	ret = hfi1_tempsense_rd(dd, &temp);
-	if (!ret) {
-		int idx = 0;
+	if (ret)
+		return ret;
 
-		idx += temp2str(temp.curr, buf, PAGE_SIZE, idx);
-		idx += temp2str(temp.lo_lim, buf, PAGE_SIZE, idx);
-		idx += temp2str(temp.hi_lim, buf, PAGE_SIZE, idx);
-		idx += temp2str(temp.crit_lim, buf, PAGE_SIZE, idx);
-		idx += scnprintf(buf + idx, PAGE_SIZE - idx,
-				"%u %u %u\n", temp.triggers & 0x1,
-				temp.triggers & 0x2, temp.triggers & 0x4);
-		ret = idx;
-	}
-	return ret;
+	return sysfs_emit(buf, "%u.%02u %u.%02u %u.%02u %u.%02u %u %u %u\n",
+			  temp_d(temp.curr), temp_f(temp.curr),
+			  temp_d(temp.lo_lim), temp_f(temp.lo_lim),
+			  temp_d(temp.hi_lim), temp_f(temp.hi_lim),
+			  temp_d(temp.crit_lim), temp_f(temp.crit_lim),
+			  temp.triggers & 0x1,
+			  temp.triggers & 0x2,
+			  temp.triggers & 0x4);
 }
 static DEVICE_ATTR_RO(tempsense);
 

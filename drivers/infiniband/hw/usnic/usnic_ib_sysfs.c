@@ -57,7 +57,7 @@ static ssize_t board_id_show(struct device *device,
 	subsystem_device_id = us_ibdev->pdev->subsystem_device;
 	mutex_unlock(&us_ibdev->usdev_lock);
 
-	return sysfs_emit(buf, "%hu\n", subsystem_device_id);
+	return sysfs_emit(buf, "%u\n", subsystem_device_id);
 }
 static DEVICE_ATTR_RO(board_id);
 
@@ -69,19 +69,13 @@ config_show(struct device *device, struct device_attribute *attr, char *buf)
 {
 	struct usnic_ib_dev *us_ibdev =
 		rdma_device_to_drv_device(device, struct usnic_ib_dev, ib_dev);
-	char *ptr;
-	unsigned left;
-	unsigned n;
 	enum usnic_vnic_res_type res_type;
-
-	/* Buffer space limit is 1 page */
-	ptr = buf;
-	left = PAGE_SIZE;
+	int len;
 
 	mutex_lock(&us_ibdev->usdev_lock);
 	if (kref_read(&us_ibdev->vf_cnt) > 0) {
 		char *busname;
-
+		char *sep = "";
 		/*
 		 * bus name seems to come with annoying prefix.
 		 * Remove it if it is predictable
@@ -90,39 +84,35 @@ config_show(struct device *device, struct device_attribute *attr, char *buf)
 		if (strncmp(busname, "PCI Bus ", 8) == 0)
 			busname += 8;
 
-		n = scnprintf(ptr, left,
-			"%s: %s:%d.%d, %s, %pM, %u VFs\n Per VF:",
-			dev_name(&us_ibdev->ib_dev.dev),
-			busname,
-			PCI_SLOT(us_ibdev->pdev->devfn),
-			PCI_FUNC(us_ibdev->pdev->devfn),
-			netdev_name(us_ibdev->netdev),
-			us_ibdev->ufdev->mac,
-			kref_read(&us_ibdev->vf_cnt));
-		UPDATE_PTR_LEFT(n, ptr, left);
+		len = sysfs_emit(buf, "%s: %s:%d.%d, %s, %pM, %u VFs\n",
+				 dev_name(&us_ibdev->ib_dev.dev),
+				 busname,
+				 PCI_SLOT(us_ibdev->pdev->devfn),
+				 PCI_FUNC(us_ibdev->pdev->devfn),
+				 netdev_name(us_ibdev->netdev),
+				 us_ibdev->ufdev->mac,
+				 kref_read(&us_ibdev->vf_cnt));
 
+		len += sysfs_emit_at(buf, len, " Per VF:");
 		for (res_type = USNIC_VNIC_RES_TYPE_EOL;
-				res_type < USNIC_VNIC_RES_TYPE_MAX;
-				res_type++) {
+		     res_type < USNIC_VNIC_RES_TYPE_MAX; res_type++) {
 			if (us_ibdev->vf_res_cnt[res_type] == 0)
 				continue;
-			n = scnprintf(ptr, left, " %d %s%s",
-				us_ibdev->vf_res_cnt[res_type],
-				usnic_vnic_res_type_to_str(res_type),
-				(res_type < (USNIC_VNIC_RES_TYPE_MAX - 1)) ?
-				 "," : "");
-			UPDATE_PTR_LEFT(n, ptr, left);
+			len += sysfs_emit_at(buf, len, "%s %d %s",
+					     sep,
+					     us_ibdev->vf_res_cnt[res_type],
+					     usnic_vnic_res_type_to_str(res_type));
+			sep = ",";
 		}
-		n = scnprintf(ptr, left, "\n");
-		UPDATE_PTR_LEFT(n, ptr, left);
+		len += sysfs_emit_at(buf, len, "\n");
 	} else {
-		n = scnprintf(ptr, left, "%s: no VFs\n",
-				dev_name(&us_ibdev->ib_dev.dev));
-		UPDATE_PTR_LEFT(n, ptr, left);
+		len = sysfs_emit(buf, "%s: no VFs\n",
+				 dev_name(&us_ibdev->ib_dev.dev));
 	}
+
 	mutex_unlock(&us_ibdev->usdev_lock);
 
-	return ptr - buf;
+	return len;
 }
 static DEVICE_ATTR_RO(config);
 

@@ -1224,29 +1224,34 @@ err_put:
 	return ret;
 }
 
+static const char *node_type_string(int node_type)
+{
+	switch (node_type) {
+	case RDMA_NODE_IB_CA:
+		return "CA";
+	case RDMA_NODE_IB_SWITCH:
+		return "switch";
+	case RDMA_NODE_IB_ROUTER:
+		return "router";
+	case RDMA_NODE_RNIC:
+		return "RNIC";
+	case RDMA_NODE_USNIC:
+		return "usNIC";
+	case RDMA_NODE_USNIC_UDP:
+		return "usNIC UDP";
+	case RDMA_NODE_UNSPECIFIED:
+		return "unspecified";
+	}
+	return "<unknown>";
+}
+
 static ssize_t node_type_show(struct device *device,
 			      struct device_attribute *attr, char *buf)
 {
 	struct ib_device *dev = rdma_device_to_ibdev(device);
 
-	switch (dev->node_type) {
-	case RDMA_NODE_IB_CA:
-		return sysfs_emit(buf, "%d: CA\n", dev->node_type);
-	case RDMA_NODE_RNIC:
-		return sysfs_emit(buf, "%d: RNIC\n", dev->node_type);
-	case RDMA_NODE_USNIC:
-		return sysfs_emit(buf, "%d: usNIC\n", dev->node_type);
-	case RDMA_NODE_USNIC_UDP:
-		return sysfs_emit(buf, "%d: usNIC UDP\n", dev->node_type);
-	case RDMA_NODE_UNSPECIFIED:
-		return sysfs_emit(buf, "%d: unspecified\n", dev->node_type);
-	case RDMA_NODE_IB_SWITCH:
-		return sysfs_emit(buf, "%d: switch\n", dev->node_type);
-	case RDMA_NODE_IB_ROUTER:
-		return sysfs_emit(buf, "%d: router\n", dev->node_type);
-	default:
-		return sysfs_emit(buf, "%d: <unknown>\n", dev->node_type);
-	}
+	return sysfs_emit(buf, "%d: %s\n", dev->node_type,
+			  node_type_string(dev->node_type));
 }
 static DEVICE_ATTR_RO(node_type);
 
@@ -1254,13 +1259,13 @@ static ssize_t sys_image_guid_show(struct device *device,
 				   struct device_attribute *dev_attr, char *buf)
 {
 	struct ib_device *dev = rdma_device_to_ibdev(device);
+	__be16 *guid = (__be16 *)&dev->attrs.sys_image_guid;
 
-	return sysfs_emit(
-		buf, "%04x:%04x:%04x:%04x\n",
-		be16_to_cpu(((__be16 *)&dev->attrs.sys_image_guid)[0]),
-		be16_to_cpu(((__be16 *)&dev->attrs.sys_image_guid)[1]),
-		be16_to_cpu(((__be16 *)&dev->attrs.sys_image_guid)[2]),
-		be16_to_cpu(((__be16 *)&dev->attrs.sys_image_guid)[3]));
+	return sysfs_emit(buf, "%04x:%04x:%04x:%04x\n",
+			  be16_to_cpu(guid[0]),
+			  be16_to_cpu(guid[1]),
+			  be16_to_cpu(guid[2]),
+			  be16_to_cpu(guid[3]));
 }
 static DEVICE_ATTR_RO(sys_image_guid);
 
@@ -1268,12 +1273,13 @@ static ssize_t node_guid_show(struct device *device,
 			      struct device_attribute *attr, char *buf)
 {
 	struct ib_device *dev = rdma_device_to_ibdev(device);
+	__be16 *node_guid = (__be16 *)&dev->node_guid;
 
 	return sysfs_emit(buf, "%04x:%04x:%04x:%04x\n",
-			  be16_to_cpu(((__be16 *)&dev->node_guid)[0]),
-			  be16_to_cpu(((__be16 *)&dev->node_guid)[1]),
-			  be16_to_cpu(((__be16 *)&dev->node_guid)[2]),
-			  be16_to_cpu(((__be16 *)&dev->node_guid)[3]));
+			  be16_to_cpu(node_guid[0]),
+			  be16_to_cpu(node_guid[1]),
+			  be16_to_cpu(node_guid[2]),
+			  be16_to_cpu(node_guid[3]));
 }
 static DEVICE_ATTR_RO(node_guid);
 
@@ -1309,10 +1315,11 @@ static ssize_t fw_ver_show(struct device *device, struct device_attribute *attr,
 			   char *buf)
 {
 	struct ib_device *dev = rdma_device_to_ibdev(device);
+	char version[IB_FW_VERSION_NAME_MAX] = {};
 
-	ib_get_device_fw_str(dev, buf);
-	strlcat(buf, "\n", IB_FW_VERSION_NAME_MAX);
-	return strlen(buf);
+	ib_get_device_fw_str(dev, version);
+
+	return sysfs_emit(buf, "%s\n", version);
 }
 static DEVICE_ATTR_RO(fw_ver);
 

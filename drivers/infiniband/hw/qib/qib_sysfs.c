@@ -575,13 +575,10 @@ static ssize_t hca_type_show(struct device *device,
 	struct qib_ibdev *dev =
 		rdma_device_to_drv_device(device, struct qib_ibdev, rdi.ibdev);
 	struct qib_devdata *dd = dd_from_dev(dev);
-	int ret;
 
 	if (!dd->boardname)
-		ret = -EINVAL;
-	else
-		ret = sysfs_emit(buf, "%s\n", dd->boardname);
-	return ret;
+		return -EINVAL;
+	return sysfs_emit(buf, "%s\n", dd->boardname);
 }
 static DEVICE_ATTR_RO(hca_type);
 static DEVICE_ATTR(board_id, 0444, hca_type_show, NULL);
@@ -647,17 +644,16 @@ static ssize_t nfreectxts_show(struct device *device,
 }
 static DEVICE_ATTR_RO(nfreectxts);
 
-static ssize_t serial_show(struct device *device,
-			   struct device_attribute *attr, char *buf)
+static ssize_t serial_show(struct device *device, struct device_attribute *attr,
+			   char *buf)
 {
 	struct qib_ibdev *dev =
 		rdma_device_to_drv_device(device, struct qib_ibdev, rdi.ibdev);
 	struct qib_devdata *dd = dd_from_dev(dev);
+	const u8 *end = memchr(dd->serial, 0, ARRAY_SIZE(dd->serial));
+	int size = end ? end - dd->serial : ARRAY_SIZE(dd->serial);
 
-	buf[sizeof(dd->serial)] = '\0';
-	memcpy(buf, dd->serial, sizeof(dd->serial));
-	strcat(buf, "\n");
-	return strlen(buf);
+	return sysfs_emit(buf, ".%*s\n", size, dd->serial);
 }
 static DEVICE_ATTR_RO(serial);
 
@@ -690,26 +686,26 @@ static ssize_t tempsense_show(struct device *device,
 	struct qib_ibdev *dev =
 		rdma_device_to_drv_device(device, struct qib_ibdev, rdi.ibdev);
 	struct qib_devdata *dd = dd_from_dev(dev);
-	int ret;
-	int idx;
+	int i;
 	u8 regvals[8];
 
-	ret = -ENXIO;
-	for (idx = 0; idx < 8; ++idx) {
-		if (idx == 6)
+	for (i = 0; i < 8; i++) {
+		int ret;
+
+		if (i == 6)
 			continue;
-		ret = dd->f_tempsense_rd(dd, idx);
+		ret = dd->f_tempsense_rd(dd, i);
 		if (ret < 0)
-			break;
-		regvals[idx] = ret;
+			return ret;	/* return error on bad read */
+		regvals[i] = ret;
 	}
-	if (idx == 8)
-		ret = sysfs_emit(buf, "%d %d %02X %02X %d %d\n",
-				 *(signed char *)(regvals),
-				 *(signed char *)(regvals + 1), regvals[2],
-				 regvals[3], *(signed char *)(regvals + 5),
-				 *(signed char *)(regvals + 7));
-	return ret;
+	return sysfs_emit(buf, "%d %d %02X %02X %d %d\n",
+			  (signed char)regvals[0],
+			  (signed char)regvals[1],
+			  regvals[2],
+			  regvals[3],
+			  (signed char)regvals[5],
+			  (signed char)regvals[7]);
 }
 static DEVICE_ATTR_RO(tempsense);
 
