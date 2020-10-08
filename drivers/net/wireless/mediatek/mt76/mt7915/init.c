@@ -357,35 +357,24 @@ mt7915_set_stream_he_txbf_caps(struct ieee80211_sta_he_cap *he_cap,
 }
 
 static void
-mt7915_gen_ppe_thresh(u8 *he_ppet)
+mt7915_gen_ppe_thresh(u8 *he_ppet, int nss)
 {
-	int ru, nss, max_nss = 1, max_ru = 3;
-	u8 bit = 7, ru_bit_mask = 0x7;
+	u8 i, ppet_bits, ppet_size, ru_bit_mask = 0x7; /* HE80 */
 	u8 ppet16_ppet8_ru3_ru0[] = {0x1c, 0xc7, 0x71};
 
-	he_ppet[0] = max_nss & IEEE80211_PPE_THRES_NSS_MASK;
-	he_ppet[0] |= (ru_bit_mask <<
-		       IEEE80211_PPE_THRES_RU_INDEX_BITMASK_POS) &
-			IEEE80211_PPE_THRES_RU_INDEX_BITMASK_MASK;
+	he_ppet[0] = FIELD_PREP(IEEE80211_PPE_THRES_NSS_MASK, nss - 1) |
+		     FIELD_PREP(IEEE80211_PPE_THRES_RU_INDEX_BITMASK_MASK,
+				ru_bit_mask);
 
-	for (nss = 0; nss <= max_nss; nss++) {
-		for (ru = 0; ru < max_ru; ru++) {
-			u8 val;
-			int i;
+	ppet_bits = IEEE80211_PPE_THRES_INFO_PPET_SIZE *
+		    nss * hweight8(ru_bit_mask) * 2;
+	ppet_size = DIV_ROUND_UP(ppet_bits, 8);
 
-			if (!(ru_bit_mask & BIT(ru)))
-				continue;
+	for (i = 0; i < ppet_size - 1; i++)
+		he_ppet[i + 1] = ppet16_ppet8_ru3_ru0[i % 3];
 
-			val = (ppet16_ppet8_ru3_ru0[nss] >> (ru * 6)) &
-			       0x3f;
-			val = ((val >> 3) & 0x7) | ((val & 0x7) << 3);
-			for (i = 5; i >= 0; i--) {
-				he_ppet[bit / 8] |=
-					((val >> i) & 0x1) << ((bit % 8));
-				bit++;
-			}
-		}
-	}
+	he_ppet[i + 1] = ppet16_ppet8_ru3_ru0[i % 3] &
+			 (0xff >> (8 - (ppet_bits - 1) % 8));
 }
 
 static int
@@ -516,7 +505,7 @@ mt7915_init_he_caps(struct mt7915_phy *phy, enum nl80211_band band,
 		memset(he_cap->ppe_thres, 0, sizeof(he_cap->ppe_thres));
 		if (he_cap_elem->phy_cap_info[6] &
 		    IEEE80211_HE_PHY_CAP6_PPE_THRESHOLD_PRESENT) {
-			mt7915_gen_ppe_thresh(he_cap->ppe_thres);
+			mt7915_gen_ppe_thresh(he_cap->ppe_thres, nss);
 		} else {
 			he_cap_elem->phy_cap_info[9] |=
 				IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_16US;
