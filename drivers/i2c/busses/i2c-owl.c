@@ -519,6 +519,7 @@ static struct platform_driver owl_i2c_driver = {
 	.driver		= {
 		.name	= "owl-i2c",
 		.of_match_table = of_match_ptr(owl_i2c_of_match),
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
 module_platform_driver(owl_i2c_driver);
