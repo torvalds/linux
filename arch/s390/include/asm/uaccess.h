@@ -188,7 +188,7 @@ static inline int __get_user_fn(void *x, const void __user *ptr, unsigned long s
 	default:						\
 		__put_user_bad();				\
 		break;						\
-	 }							\
+	}							\
 	__builtin_expect(__pu_err, 0);				\
 })
 
