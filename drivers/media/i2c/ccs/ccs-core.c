@@ -3275,6 +3275,11 @@ static int ccs_probe(struct i2c_client *client)
 		return -EINVAL;
 	}
 
+	if (!sensor->hwcfg.ext_clk) {
+		dev_err(&client->dev, "cannot work with xclk frequency 0\n");
+		return -EINVAL;
+	}
+
 	sensor->reset = devm_gpiod_get_optional(&client->dev, "reset",
 						GPIOD_OUT_HIGH);
 	if (IS_ERR(sensor->reset))
