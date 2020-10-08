@@ -15,6 +15,10 @@
 
 struct xdp_ring {
 	u32 producer ____cacheline_aligned_in_smp;
+	/* Hinder the adjacent cache prefetcher to prefetch the consumer
+	 * pointer if the producer pointer is touched and vice versa.
+	 */
+	u32 pad ____cacheline_aligned_in_smp;
 	u32 consumer ____cacheline_aligned_in_smp;
 	u32 flags;
 };
