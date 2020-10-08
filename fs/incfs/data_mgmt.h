@@ -41,7 +41,7 @@ struct same_file_record {
 	enum LOG_RECORD_TYPE type : 2; /* SAME_FILE */
 	u32 block_index : 30;
 	u32 relative_ts_us; /* max 2^32 us ~= 1 hour (1:11:30) */
-} __packed; /* 12 bytes */
+} __packed; /* 8 bytes */
 
 struct same_file_next_block {
 	enum LOG_RECORD_TYPE type : 2; /* SAME_FILE_NEXT_BLOCK */
@@ -102,8 +102,6 @@ struct mount_options {
 	unsigned int readahead_pages;
 	unsigned int read_log_pages;
 	unsigned int read_log_wakeup_count;
-	bool no_backing_file_cache;
-	bool no_backing_file_readahead;
 	bool report_uid;
 };
 
@@ -326,8 +324,6 @@ struct dentry *incfs_lookup_dentry(struct dentry *parent, const char *name);
 struct data_file *incfs_open_data_file(struct mount_info *mi, struct file *bf);
 void incfs_free_data_file(struct data_file *df);
 
-int incfs_scan_metadata_chain(struct data_file *df);
-
 struct dir_file *incfs_open_dir_file(struct mount_info *mi, struct file *bf);
 void incfs_free_dir_file(struct dir_file *dir);
 
@@ -447,7 +443,5 @@ static inline int get_blocks_count_for_size(u64 size)
 		return 0;
 	return 1 + (size - 1) / INCFS_DATA_FILE_BLOCK_SIZE;
 }
-
-bool incfs_equal_ranges(struct mem_range lhs, struct mem_range rhs);
 
 #endif /* _INCFS_DATA_MGMT_H */

@@ -336,6 +336,13 @@ retry_deleg:
 	return error;
 }
 
+static bool incfs_equal_ranges(struct mem_range lhs, struct mem_range rhs)
+{
+	if (lhs.len != rhs.len)
+		return false;
+	return memcmp(lhs.data, rhs.data, lhs.len) == 0;
+}
+
 static bool is_pseudo_filename(struct mem_range name)
 {
 	if (incfs_equal_ranges(pending_reads_file_name_range, name))
