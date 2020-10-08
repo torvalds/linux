@@ -174,8 +174,10 @@ static void dce_virtual_crtc_commit(struct drm_crtc *crtc)
 static void dce_virtual_crtc_disable(struct drm_crtc *crtc)
 {
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
+	struct drm_device *dev = crtc->dev;
 
-	drm_crtc_vblank_off(crtc);
+	if (dev->num_crtcs)
+		drm_crtc_vblank_off(crtc);
 
 	amdgpu_crtc->enabled = false;
 	amdgpu_crtc->pll_id = ATOM_PPLL_INVALID;
