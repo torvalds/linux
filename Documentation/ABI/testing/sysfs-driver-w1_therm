@@ -146,7 +146,7 @@ Date:		July 2020
 Contact:	Ivan Zaentsev <ivan.zaentsev@wirenboard.ru>
 Description:
 		(RW) Control optional driver settings.
-		Bit masks to read/write (logical OR):
+		Bit masks to read/write (bitwise OR):
 
                 1: Enable check for conversion success. If byte 6 of
                    scratchpad memory is 0xC after conversion, and
@@ -157,7 +157,7 @@ Description:
                    after the conversion start and wait for 1's. In parasite
                    power mode this feature is not available.
 
-		*read*:  Currently selected features, bitwise OR.
-		*write*: Select features, bitwise OR.
+		*read*:  Currently selected features.
+		*write*: Select features.
 
 Users:		An application using the w1_term device
