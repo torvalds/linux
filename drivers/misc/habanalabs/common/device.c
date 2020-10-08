@@ -13,8 +13,6 @@
 #include <linux/hwmon.h>
 #include <uapi/misc/habanalabs.h>
 
-#define HL_PLDM_PENDING_RESET_PER_SEC	(HL_PENDING_RESET_PER_SEC * 10)
-
 enum hl_device_status hl_device_status(struct hl_device *hdev)
 {
 	enum hl_device_status status;
@@ -256,6 +254,26 @@ static void device_cdev_sysfs_del(struct hl_device *hdev)
 	cdev_device_del(&hdev->cdev, hdev->dev);
 }
 
+static void device_hard_reset_pending(struct work_struct *work)
+{
+	struct hl_device_reset_work *device_reset_work =
+		container_of(work, struct hl_device_reset_work,
+				reset_work.work);
+	struct hl_device *hdev = device_reset_work->hdev;
+	int rc;
+
+	rc = hl_device_reset(hdev, true, true);
+	if ((rc == -EBUSY) && !hdev->device_fini_pending) {
+		dev_info(hdev->dev,
+			"Could not reset device. will try again in %u seconds",
+			HL_PENDING_RESET_PER_SEC);
+
+		queue_delayed_work(device_reset_work->wq,
+			&device_reset_work->reset_work,
+			msecs_to_jiffies(HL_PENDING_RESET_PER_SEC * 1000));
+	}
+}
+
 /*
  * device_early_init - do some early initialization for the habanalabs device
  *
@@ -340,6 +358,19 @@ static int device_early_init(struct hl_device *hdev)
 
 	hl_cb_mgr_init(&hdev->kernel_cb_mgr);
 
+	hdev->device_reset_work.wq =
+			create_singlethread_workqueue("hl_device_reset");
+	if (!hdev->device_reset_work.wq) {
+		rc = -ENOMEM;
+		dev_err(hdev->dev, "Failed to create device reset WQ\n");
+		goto free_cb_mgr;
+	}
+
+	INIT_DELAYED_WORK(&hdev->device_reset_work.reset_work,
+			device_hard_reset_pending);
+	hdev->device_reset_work.hdev = hdev;
+	hdev->device_fini_pending = 0;
+
 	mutex_init(&hdev->send_cpu_message_lock);
 	mutex_init(&hdev->debug_lock);
 	mutex_init(&hdev->mmu_cache_lock);
@@ -351,6 +382,8 @@ static int device_early_init(struct hl_device *hdev)
 
 	return 0;
 
+free_cb_mgr:
+	hl_cb_mgr_fini(hdev, &hdev->kernel_cb_mgr);
 free_idle_busy_ts_arr:
 	kfree(hdev->idle_busy_ts_arr);
 free_chip_info:
@@ -393,6 +426,7 @@ static void device_early_fini(struct hl_device *hdev)
 	kfree(hdev->hl_chip_info);
 
 	destroy_workqueue(hdev->eq_wq);
+	destroy_workqueue(hdev->device_reset_work.wq);
 
 	for (i = 0 ; i < hdev->asic_prop.completion_queues_count ; i++)
 		destroy_workqueue(hdev->cq_wq[i]);
@@ -771,22 +805,31 @@ disable_device:
 	return rc;
 }
 
-static int device_kill_open_processes(struct hl_device *hdev)
+static int device_kill_open_processes(struct hl_device *hdev, u32 timeout)
 {
-	u16 pending_total, pending_cnt;
 	struct hl_fpriv	*hpriv;
 	struct task_struct *task = NULL;
+	u32 pending_cnt;
 
-	if (hdev->pldm)
-		pending_total = HL_PLDM_PENDING_RESET_PER_SEC;
-	else
-		pending_total = HL_PENDING_RESET_PER_SEC;
 
 	/* Giving time for user to close FD, and for processes that are inside
 	 * hl_device_open to finish
 	 */
 	if (!list_empty(&hdev->fpriv_list))
 		ssleep(1);
+
+	if (timeout) {
+		pending_cnt = timeout;
+	} else {
+		if (hdev->process_kill_trial_cnt) {
+			/* Processes have been already killed */
+			pending_cnt = 1;
+			goto wait_for_processes;
+		} else {
+			/* Wait a small period after process kill */
+			pending_cnt = HL_PENDING_RESET_PER_SEC;
+		}
+	}
 
 	mutex_lock(&hdev->fpriv_list_lock);
 
@@ -816,29 +859,27 @@ static int device_kill_open_processes(struct hl_device *hdev)
 	 * continuing with the reset.
 	 */
 
-	pending_cnt = pending_total;
-
+wait_for_processes:
 	while ((!list_empty(&hdev->fpriv_list)) && (pending_cnt)) {
-		dev_info(hdev->dev,
-			"Waiting for all user contexts to get closed before hard reset\n");
+		dev_dbg(hdev->dev,
+			"Waiting for all unmap operations to finish before hard reset\n");
 
 		pending_cnt--;
 
 		ssleep(1);
 	}
 
-	return list_empty(&hdev->fpriv_list) ? 0 : -EBUSY;
-}
+	/* All processes exited successfully */
+	if (list_empty(&hdev->fpriv_list))
+		return 0;
 
-static void device_hard_reset_pending(struct work_struct *work)
-{
-	struct hl_device_reset_work *device_reset_work =
-		container_of(work, struct hl_device_reset_work, reset_work);
-	struct hl_device *hdev = device_reset_work->hdev;
+	/* Give up waiting for processes to exit */
+	if (hdev->process_kill_trial_cnt == HL_PENDING_RESET_MAX_TRIALS)
+		return -ETIME;
 
-	hl_device_reset(hdev, true, true);
+	hdev->process_kill_trial_cnt++;
 
-	kfree(device_reset_work);
+	return -EBUSY;
 }
 
 /*
@@ -874,6 +915,10 @@ int hl_device_reset(struct hl_device *hdev, bool hard_reset,
 		dev_dbg(hdev->dev, "Doing hard-reset instead of soft-reset\n");
 		hard_reset = true;
 	}
+
+	/* Re-entry of reset thread */
+	if (from_hard_reset_thread && hdev->process_kill_trial_cnt)
+		goto kill_processes;
 
 	/*
 	 * Prevent concurrency in this function - only one reset should be
@@ -920,26 +965,17 @@ int hl_device_reset(struct hl_device *hdev, bool hard_reset,
 
 again:
 	if ((hard_reset) && (!from_hard_reset_thread)) {
-		struct hl_device_reset_work *device_reset_work;
-
 		hdev->hard_reset_pending = true;
 
-		device_reset_work = kzalloc(sizeof(*device_reset_work),
-						GFP_ATOMIC);
-		if (!device_reset_work) {
-			rc = -ENOMEM;
-			goto out_err;
-		}
+		hdev->process_kill_trial_cnt = 0;
 
 		/*
 		 * Because the reset function can't run from interrupt or
 		 * from heartbeat work, we need to call the reset function
 		 * from a dedicated work
 		 */
-		INIT_WORK(&device_reset_work->reset_work,
-				device_hard_reset_pending);
-		device_reset_work->hdev = hdev;
-		schedule_work(&device_reset_work->reset_work);
+		queue_delayed_work(hdev->device_reset_work.wq,
+			&hdev->device_reset_work.reset_work, 0);
 
 		return 0;
 	}
@@ -965,12 +1001,25 @@ again:
 	/* Go over all the queues, release all CS and their jobs */
 	hl_cs_rollback_all(hdev);
 
+kill_processes:
 	if (hard_reset) {
 		/* Kill processes here after CS rollback. This is because the
 		 * process can't really exit until all its CSs are done, which
 		 * is what we do in cs rollback
 		 */
-		rc = device_kill_open_processes(hdev);
+		rc = device_kill_open_processes(hdev, 0);
+
+		if (rc == -EBUSY) {
+			if (hdev->device_fini_pending) {
+				dev_crit(hdev->dev,
+					"Failed to kill all open processes, stopping hard reset\n");
+				goto out_err;
+			}
+
+			/* signal reset thread to reschedule */
+			return rc;
+		}
+
 		if (rc) {
 			dev_crit(hdev->dev,
 				"Failed to kill all open processes, stopping hard reset\n");
@@ -1408,10 +1457,13 @@ out_disabled:
  */
 void hl_device_fini(struct hl_device *hdev)
 {
-	int i, rc;
 	ktime_t timeout;
+	int i, rc;
 
 	dev_info(hdev->dev, "Removing device\n");
+
+	hdev->device_fini_pending = 1;
+	flush_delayed_work(&hdev->device_reset_work.reset_work);
 
 	/*
 	 * This function is competing with the reset function, so try to
@@ -1468,7 +1520,11 @@ void hl_device_fini(struct hl_device *hdev)
 	 * can't really exit until all its CSs are done, which is what we
 	 * do in cs rollback
 	 */
-	rc = device_kill_open_processes(hdev);
+	dev_info(hdev->dev,
+		"Waiting for all processes to exit (timeout of %u seconds)",
+		HL_PENDING_RESET_LONG_SEC);
+
+	rc = device_kill_open_processes(hdev, HL_PENDING_RESET_LONG_SEC);
 	if (rc)
 		dev_crit(hdev->dev, "Failed to kill all open processes\n");
 

@@ -40,7 +40,9 @@
 #define HL_MMAP_OFFSET_VALUE_MASK	(0x3FFFFFFFFFFFull >> PAGE_SHIFT)
 #define HL_MMAP_OFFSET_VALUE_GET(off)	(off & HL_MMAP_OFFSET_VALUE_MASK)
 
-#define HL_PENDING_RESET_PER_SEC	30
+#define HL_PENDING_RESET_PER_SEC	10
+#define HL_PENDING_RESET_MAX_TRIALS	60 /* 10 minutes */
+#define HL_PENDING_RESET_LONG_SEC	60
 
 #define HL_HARD_RESET_MAX_TIMEOUT	120
 
@@ -1588,11 +1590,13 @@ struct hwmon_chip_info;
 
 /**
  * struct hl_device_reset_work - reset workqueue task wrapper.
+ * @wq: work queue for device reset procedure.
  * @reset_work: reset work to be done.
  * @hdev: habanalabs device structure.
  */
 struct hl_device_reset_work {
-	struct work_struct		reset_work;
+	struct workqueue_struct		*wq;
+	struct delayed_work		reset_work;
 	struct hl_device		*hdev;
 };
 
@@ -1691,6 +1695,7 @@ struct hl_mmu_funcs {
  * @dev_ctrl: related kernel device structure for the control device
  * @work_freq: delayed work to lower device frequency if possible.
  * @work_heartbeat: delayed work for CPU-CP is-alive check.
+ * @device_reset_work: delayed work which performs hard reset
  * @asic_name: ASIC specific name.
  * @asic_type: ASIC specific type.
  * @completion_queue: array of hl_cq.
@@ -1790,6 +1795,10 @@ struct hl_mmu_funcs {
  * @supports_cb_mapping: is mapping a CB to the device's MMU supported.
  * @needs_reset: true if reset_on_lockup is false and device should be reset
  *               due to lockup.
+ * @process_kill_trial_cnt: number of trials reset thread tried killing
+ *                          user processes
+ * @device_fini_pending: true if device_fini was called and might be
+ *                       waiting for the reset thread to finish
  */
 struct hl_device {
 	struct pci_dev			*pdev;
@@ -1802,6 +1811,7 @@ struct hl_device {
 	struct device			*dev_ctrl;
 	struct delayed_work		work_freq;
 	struct delayed_work		work_heartbeat;
+	struct hl_device_reset_work	device_reset_work;
 	char				asic_name[HL_STR_MAX];
 	char				status[HL_DEV_STS_MAX][HL_STR_MAX];
 	enum hl_asic_type		asic_type;
@@ -1894,6 +1904,8 @@ struct hl_device {
 	u8				supports_soft_reset;
 	u8				supports_cb_mapping;
 	u8				needs_reset;
+	u8				process_kill_trial_cnt;
+	u8				device_fini_pending;
 
 	/* Parameters for bring-up */
 	u64				nic_ports_mask;
