@@ -436,7 +436,7 @@ static void acpi_db_display_help(char *command)
 		acpi_os_printf("\n");
 
 	} else {
-		/* Display help for all commands that match the subtring */
+		/* Display help for all commands that match the substring */
 
 		acpi_db_display_command_info(command, TRUE);
 	}
