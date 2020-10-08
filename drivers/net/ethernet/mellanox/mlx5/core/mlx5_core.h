@@ -178,12 +178,17 @@ void mlx5_events_cleanup(struct mlx5_core_dev *dev);
 void mlx5_events_start(struct mlx5_core_dev *dev);
 void mlx5_events_stop(struct mlx5_core_dev *dev);
 
+int mlx5_adev_idx_alloc(void);
+void mlx5_adev_idx_free(int idx);
+void mlx5_adev_cleanup(struct mlx5_core_dev *dev);
+int mlx5_adev_init(struct mlx5_core_dev *dev);
+
 void mlx5_add_device(struct mlx5_interface *intf, struct mlx5_priv *priv);
 void mlx5_remove_device(struct mlx5_interface *intf, struct mlx5_priv *priv);
-void mlx5_attach_device(struct mlx5_core_dev *dev);
+int mlx5_attach_device(struct mlx5_core_dev *dev);
 void mlx5_detach_device(struct mlx5_core_dev *dev);
 bool mlx5_device_registered(struct mlx5_core_dev *dev);
-void mlx5_register_device(struct mlx5_core_dev *dev);
+int mlx5_register_device(struct mlx5_core_dev *dev);
 void mlx5_unregister_device(struct mlx5_core_dev *dev);
 void mlx5_add_dev_by_protocol(struct mlx5_core_dev *dev, int protocol);
 void mlx5_remove_dev_by_protocol(struct mlx5_core_dev *dev, int protocol);
@@ -230,6 +235,17 @@ static inline int mlx5_lag_is_lacp_owner(struct mlx5_core_dev *dev)
 	return  MLX5_CAP_GEN(dev, vport_group_manager) &&
 		   (MLX5_CAP_GEN(dev, num_lag_ports) > 1) &&
 		    MLX5_CAP_GEN(dev, lag_master);
+}
+
+int mlx5_rescan_drivers_locked(struct mlx5_core_dev *dev);
+static inline int mlx5_rescan_drivers(struct mlx5_core_dev *dev)
+{
+	int ret;
+
+	mlx5_dev_list_lock();
+	ret = mlx5_rescan_drivers_locked(dev);
+	mlx5_dev_list_unlock();
+	return ret;
 }
 
 void mlx5_reload_interface(struct mlx5_core_dev *mdev, int protocol);
