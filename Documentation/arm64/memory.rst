@@ -32,10 +32,10 @@ AArch64 Linux memory layout with 4KB pages + 4 levels (48-bit)::
   -----------------------------------------------------------------------
   0000000000000000	0000ffffffffffff	 256TB		user
   ffff000000000000	ffff7fffffffffff	 128TB		kernel logical memory map
-  ffff800000000000	ffff9fffffffffff	  32TB		kasan shadow region
-  ffffa00000000000	ffffa00007ffffff	 128MB		bpf jit region
-  ffffa00008000000	ffffa0000fffffff	 128MB		modules
-  ffffa00010000000	fffffdffbffeffff	 ~93TB		vmalloc
+[ ffff600000000000	ffff7fffffffffff ]	  32TB		[ kasan shadow region ]
+  ffff800000000000	ffff800007ffffff	 128MB		bpf jit region
+  ffff800008000000	ffff80000fffffff	 128MB		modules
+  ffff800010000000	fffffdffbffeffff	 125TB		vmalloc
   fffffdffbfff0000	fffffdfffe5f8fff	~998MB		[guard region]
   fffffdfffe5f9000	fffffdfffe9fffff	4124KB		fixed mappings
   fffffdfffea00000	fffffdfffebfffff	   2MB		[guard region]
@@ -50,12 +50,11 @@ AArch64 Linux memory layout with 64KB pages + 3 levels (52-bit with HW support):
   Start			End			Size		Use
   -----------------------------------------------------------------------
   0000000000000000	000fffffffffffff	   4PB		user
-  fff0000000000000	fff7ffffffffffff	   2PB		kernel logical memory map
-  fff8000000000000	fffd9fffffffffff	1440TB		[gap]
-  fffda00000000000	ffff9fffffffffff	 512TB		kasan shadow region
-  ffffa00000000000	ffffa00007ffffff	 128MB		bpf jit region
-  ffffa00008000000	ffffa0000fffffff	 128MB		modules
-  ffffa00010000000	fffff81ffffeffff	 ~88TB		vmalloc
+  fff0000000000000	ffff7fffffffffff	  ~4PB		kernel logical memory map
+[ fffd800000000000	ffff7fffffffffff ]	 512TB		[ kasan shadow region ]
+  ffff800000000000	ffff800007ffffff	 128MB		bpf jit region
+  ffff800008000000	ffff80000fffffff	 128MB		modules
+  ffff800010000000	fffff81ffffeffff	 120TB		vmalloc
   fffff81fffff0000	fffffc1ffe58ffff	  ~3TB		[guard region]
   fffffc1ffe590000	fffffc1ffe9fffff	4544KB		fixed mappings
   fffffc1ffea00000	fffffc1ffebfffff	   2MB		[guard region]
