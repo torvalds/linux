@@ -40,7 +40,7 @@ void incfs_free_bfc(struct backing_file_context *bfc)
 	kfree(bfc);
 }
 
-loff_t incfs_get_end_offset(struct file *f)
+static loff_t incfs_get_end_offset(struct file *f)
 {
 	/*
 	 * This function assumes that file size and the end-offset
@@ -503,29 +503,6 @@ int incfs_write_hash_block_to_backing_file(struct backing_file_context *bfc,
 	return write_to_bf(bfc, &bm_entry, sizeof(bm_entry), bm_entry_off);
 }
 
-/* Initialize a new image in a given backing file. */
-int incfs_make_empty_backing_file(struct backing_file_context *bfc,
-				  incfs_uuid_t *uuid, u64 file_size)
-{
-	int result = 0;
-
-	if (!bfc || !bfc->bc_file)
-		return -EFAULT;
-
-	result = mutex_lock_interruptible(&bfc->bc_mutex);
-	if (result)
-		goto out;
-
-	result = truncate_backing_file(bfc, 0);
-	if (result)
-		goto out;
-
-	result = incfs_write_fh_to_backing_file(bfc, uuid, file_size);
-out:
-	mutex_unlock(&bfc->bc_mutex);
-	return result;
-}
-
 int incfs_read_blockmap_entry(struct backing_file_context *bfc, int block_index,
 			loff_t bm_base_off,
 			struct incfs_blockmap_entry *bm_entry)
@@ -579,7 +556,6 @@ int incfs_read_file_header(struct backing_file_context *bfc,
 	if (!bfc || !first_md_off)
 		return -EFAULT;
 
-	LOCK_REQUIRED(bfc->bc_mutex);
 	bytes_read = incfs_kread(bfc->bc_file, &fh, sizeof(fh), 0);
 	if (bytes_read < 0)
 		return bytes_read;
@@ -626,8 +602,6 @@ int incfs_read_next_metadata_record(struct backing_file_context *bfc,
 
 	if (!bfc || !handler)
 		return -EFAULT;
-
-	LOCK_REQUIRED(bfc->bc_mutex);
 
 	if (handler->md_record_offset == 0)
 		return -EPERM;

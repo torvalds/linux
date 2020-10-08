@@ -19,6 +19,8 @@
 #include "format.h"
 #include "integrity.h"
 
+static int incfs_scan_metadata_chain(struct data_file *df);
+
 static void log_wake_up_all(struct work_struct *work)
 {
 	struct delayed_work *dw = container_of(work, struct delayed_work, work);
@@ -240,12 +242,8 @@ struct data_file *incfs_open_data_file(struct mount_info *mi, struct file *bf)
 	for (i = 0; i < ARRAY_SIZE(df->df_segments); i++)
 		data_file_segment_init(&df->df_segments[i]);
 
-	error = mutex_lock_interruptible(&bfc->bc_mutex);
-	if (error)
-		goto out;
 	error = incfs_read_file_header(bfc, &df->df_metadata_off, &df->df_id,
 				       &size, &df->df_header_flags);
-	mutex_unlock(&bfc->bc_mutex);
 
 	if (error)
 		goto out;
@@ -1373,7 +1371,7 @@ static int process_status_md(struct incfs_status *is,
 	return 0;
 }
 
-int incfs_scan_metadata_chain(struct data_file *df)
+static int incfs_scan_metadata_chain(struct data_file *df)
 {
 	struct metadata_handler *handler = NULL;
 	int result = 0;
@@ -1390,12 +1388,6 @@ int incfs_scan_metadata_chain(struct data_file *df)
 	if (!handler)
 		return -ENOMEM;
 
-	/* No writing to the backing file while it's being scanned. */
-	error = mutex_lock_interruptible(&bfc->bc_mutex);
-	if (error)
-		goto out;
-
-	/* Reading superblock */
 	handler->md_record_offset = df->df_metadata_off;
 	handler->context = df;
 	handler->handle_blockmap = process_blockmap_md;
@@ -1418,7 +1410,6 @@ int incfs_scan_metadata_chain(struct data_file *df)
 		result = error;
 	} else
 		result = records_count;
-	mutex_unlock(&bfc->bc_mutex);
 
 	if (df->df_hash_tree) {
 		int hash_block_count = get_blocks_count_for_size(
@@ -1430,7 +1421,6 @@ int incfs_scan_metadata_chain(struct data_file *df)
 	} else if (df->df_data_block_count != df->df_total_block_count)
 		result = -EINVAL;
 
-out:
 	kfree(handler);
 	return result;
 }
@@ -1443,10 +1433,6 @@ bool incfs_fresh_pending_reads_exist(struct mount_info *mi, int last_number)
 {
 	bool result = false;
 
-	/*
-	 * We could probably get away with spin locks here;
-	 * if we use atomic_read() on both these variables.
-	 */
 	spin_lock(&mi->pending_read_lock);
 	result = (mi->mi_last_pending_read_number > last_number) &&
 		(mi->mi_pending_reads_count > 0);
@@ -1461,7 +1447,6 @@ int incfs_collect_pending_reads(struct mount_info *mi, int sn_lowerbound,
 {
 	int reported_reads = 0;
 	struct pending_read *entry = NULL;
-	bool result = false;
 
 	if (!mi)
 		return -EFAULT;
@@ -1469,15 +1454,8 @@ int incfs_collect_pending_reads(struct mount_info *mi, int sn_lowerbound,
 	if (reads_size <= 0)
 		return 0;
 
-	spin_lock(&mi->pending_read_lock);
-
-	result = ((mi->mi_last_pending_read_number <= sn_lowerbound)
-		|| (mi->mi_pending_reads_count == 0));
-
-	spin_unlock(&mi->pending_read_lock);
-
-	if (result)
-		return reported_reads;
+	if (!incfs_fresh_pending_reads_exist(mi, sn_lowerbound))
+		return 0;
 
 	rcu_read_lock();
 
@@ -1609,9 +1587,3 @@ int incfs_collect_logged_reads(struct mount_info *mi,
 	return dst_idx;
 }
 
-bool incfs_equal_ranges(struct mem_range lhs, struct mem_range rhs)
-{
-	if (lhs.len != rhs.len)
-		return false;
-	return memcmp(lhs.data, rhs.data, lhs.len) == 0;
-}
