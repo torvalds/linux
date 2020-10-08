@@ -5765,6 +5765,11 @@ bpf_object__relocate_core(struct bpf_object *obj, const char *targ_btf_path)
 				err = -EINVAL;
 				goto out;
 			}
+			/* no need to apply CO-RE relocation if the program is
+			 * not going to be loaded
+			 */
+			if (!prog->load)
+				continue;
 
 			err = bpf_core_apply_relo(prog, rec, i, obj->btf,
 						  targ_btf, cand_cache);
