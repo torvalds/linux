@@ -1538,8 +1538,15 @@ static int iwl_mvm_add_int_sta_common(struct iwl_mvm *mvm,
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.sta_id = sta->sta_id;
-	cmd.mac_id_n_color = cpu_to_le32(FW_CMD_ID_AND_COLOR(mac_id,
-							     color));
+
+	if (iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP, ADD_STA,
+				  0) >= 12 &&
+	    sta->type == IWL_STA_AUX_ACTIVITY)
+		cmd.mac_id_n_color = cpu_to_le32(mac_id);
+	else
+		cmd.mac_id_n_color = cpu_to_le32(FW_CMD_ID_AND_COLOR(mac_id,
+								     color));
+
 	if (fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_STA_TYPE))
 		cmd.station_type = sta->type;
 
@@ -2032,7 +2039,7 @@ static int iwl_mvm_add_int_sta_with_queue(struct iwl_mvm *mvm, int macidx,
 	return 0;
 }
 
-int iwl_mvm_add_aux_sta(struct iwl_mvm *mvm)
+int iwl_mvm_add_aux_sta(struct iwl_mvm *mvm, u32 lmac_id)
 {
 	int ret;
 
@@ -2045,7 +2052,11 @@ int iwl_mvm_add_aux_sta(struct iwl_mvm *mvm)
 	if (ret)
 		return ret;
 
-	ret = iwl_mvm_add_int_sta_with_queue(mvm, MAC_INDEX_AUX, 0, NULL,
+	/*
+	 * In CDB NICs we need to specify which lmac to use for aux activity
+	 * using the mac_id argument place to send lmac_id to the function
+	 */
+	ret = iwl_mvm_add_int_sta_with_queue(mvm, lmac_id, 0, NULL,
 					     &mvm->aux_sta, &mvm->aux_queue,
 					     IWL_MVM_TX_FIFO_MCAST);
 	if (ret) {

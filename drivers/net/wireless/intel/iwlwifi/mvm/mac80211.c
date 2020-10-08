@@ -1223,7 +1223,8 @@ void __iwl_mvm_mac_stop(struct iwl_mvm *mvm)
 
 	/* async_handlers_wk is now blocked */
 
-	iwl_mvm_rm_aux_sta(mvm);
+	if (iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP, ADD_STA, 0) < 12)
+		iwl_mvm_rm_aux_sta(mvm);
 
 	iwl_mvm_stop_device(mvm);
 
@@ -3804,6 +3805,17 @@ static int iwl_mvm_roc(struct ieee80211_hw *hw,
 		if (fw_has_capa(&mvm->fw->ucode_capa,
 				IWL_UCODE_TLV_CAPA_HOTSPOT_SUPPORT)) {
 			/* Use aux roc framework (HS20) */
+			if (iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
+						  ADD_STA, 0) >= 12) {
+				u32 lmac_id;
+
+				lmac_id = iwl_mvm_get_lmac_id(mvm->fw,
+							      channel->band);
+				ret = iwl_mvm_add_aux_sta(mvm, lmac_id);
+				if (WARN(ret,
+					 "Failed to allocate aux station"))
+					goto out_unlock;
+			}
 			ret = iwl_mvm_send_aux_roc_cmd(mvm, channel,
 						       vif, duration);
 			goto out_unlock;
