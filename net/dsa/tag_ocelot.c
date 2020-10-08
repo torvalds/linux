@@ -184,9 +184,14 @@ static struct sk_buff *ocelot_rcv(struct sk_buff *skb,
 				  struct net_device *netdev,
 				  struct packet_type *pt)
 {
+	struct dsa_port *cpu_dp = netdev->dsa_ptr;
+	struct dsa_switch *ds = cpu_dp->ds;
+	struct ocelot *ocelot = ds->priv;
 	u64 src_port, qos_class;
+	u64 vlan_tci, tag_type;
 	u8 *start = skb->data;
 	u8 *extraction;
+	u16 vlan_tpid;
 
 	/* Revert skb->data by the amount consumed by the DSA master,
 	 * so it points to the beginning of the frame.
@@ -214,6 +219,8 @@ static struct sk_buff *ocelot_rcv(struct sk_buff *skb,
 
 	packing(extraction, &src_port,  46, 43, OCELOT_TAG_LEN, UNPACK, 0);
 	packing(extraction, &qos_class, 19, 17, OCELOT_TAG_LEN, UNPACK, 0);
+	packing(extraction, &tag_type,  16, 16, OCELOT_TAG_LEN, UNPACK, 0);
+	packing(extraction, &vlan_tci,  15,  0, OCELOT_TAG_LEN, UNPACK, 0);
 
 	skb->dev = dsa_master_find_slave(netdev, 0, src_port);
 	if (!skb->dev)
@@ -227,6 +234,33 @@ static struct sk_buff *ocelot_rcv(struct sk_buff *skb,
 
 	skb->offload_fwd_mark = 1;
 	skb->priority = qos_class;
+
+	/* Ocelot switches copy frames unmodified to the CPU. However, it is
+	 * possible for the user to request a VLAN modification through
+	 * VCAP_IS1_ACT_VID_REPLACE_ENA. In this case, what will happen is that
+	 * the VLAN ID field from the Extraction Header gets updated, but the
+	 * 802.1Q header does not (the classified VLAN only becomes visible on
+	 * egress through the "port tag" of front-panel ports).
+	 * So, for traffic extracted by the CPU, we want to pick up the
+	 * classified VLAN and manually replace the existing 802.1Q header from
+	 * the packet with it, so that the operating system is always up to
+	 * date with the result of tc-vlan actions.
+	 * NOTE: In VLAN-unaware mode, we don't want to do that, we want the
+	 * frame to remain unmodified, because the classified VLAN is always
+	 * equal to the pvid of the ingress port and should not be used for
+	 * processing.
+	 */
+	vlan_tpid = tag_type ? ETH_P_8021AD : ETH_P_8021Q;
+
+	if (ocelot->ports[src_port]->vlan_aware &&
+	    eth_hdr(skb)->h_proto == htons(vlan_tpid)) {
+		u16 dummy_vlan_tci;
+
+		skb_push_rcsum(skb, ETH_HLEN);
+		__skb_vlan_pop(skb, &dummy_vlan_tci);
+		skb_pull_rcsum(skb, ETH_HLEN);
+		__vlan_hwaccel_put_tag(skb, htons(vlan_tpid), vlan_tci);
+	}
 
 	return skb;
 }
