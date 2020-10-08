@@ -662,17 +662,25 @@ int iwl_sar_geo_init(struct iwl_fw_runtime *fwrt,
 	}
 
 	for (i = 0; i < ACPI_NUM_GEO_PROFILES; i++) {
-		struct iwl_per_chain_offset *chain =
-			(struct iwl_per_chain_offset *)&table[i];
-
 		for (j = 0; j < n_bands; j++) {
+			struct iwl_per_chain_offset *chain =
+				&table[i * n_bands + j];
 			u8 *value;
+
+			if (j * ACPI_GEO_PER_CHAIN_SIZE >=
+			    ARRAY_SIZE(fwrt->geo_profiles[0].values))
+				/*
+				 * Currently we only store lb an hb values, and
+				 * don't have any special ones for uhb. So leave
+				 * those empty for the time being
+				 */
+				break;
 
 			value = &fwrt->geo_profiles[i].values[j *
 				ACPI_GEO_PER_CHAIN_SIZE];
-			chain[j].max_tx_power = cpu_to_le16(value[0]);
-			chain[j].chain_a = value[1];
-			chain[j].chain_b = value[2];
+			chain->max_tx_power = cpu_to_le16(value[0]);
+			chain->chain_a = value[1];
+			chain->chain_b = value[2];
 			IWL_DEBUG_RADIO(fwrt,
 					"SAR geographic profile[%d] Band[%d]: chain A = %d chain B = %d max_tx_power = %d\n",
 					i, j, value[1], value[2], value[0]);
