@@ -118,6 +118,10 @@
 
 #define USE_NATIVE_ALLOCATE_ZEROED
 
+/* Use logical addresses for accessing GPE registers in system memory */
+
+#define ACPI_GPE_USE_LOGICAL_ADDRESSES
+
 /*
  * Overrides for in-kernel ACPICA
  */
