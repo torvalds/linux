@@ -425,6 +425,7 @@ parse_lfp_backlight(struct drm_i915_private *dev_priv,
 	const struct bdb_lfp_backlight_data *backlight_data;
 	const struct lfp_backlight_data_entry *entry;
 	int panel_type = dev_priv->vbt.panel_type;
+	u16 level;
 
 	backlight_data = find_section(bdb, BDB_LVDS_BACKLIGHT);
 	if (!backlight_data)
@@ -459,14 +460,39 @@ parse_lfp_backlight(struct drm_i915_private *dev_priv,
 
 	dev_priv->vbt.backlight.pwm_freq_hz = entry->pwm_freq_hz;
 	dev_priv->vbt.backlight.active_low_pwm = entry->active_low_pwm;
-	dev_priv->vbt.backlight.min_brightness = entry->min_brightness;
+
+	if (bdb->version >= 234) {
+		u16 min_level;
+		bool scale;
+
+		level = backlight_data->brightness_level[panel_type].level;
+		min_level = backlight_data->brightness_min_level[panel_type].level;
+
+		if (bdb->version >= 236)
+			scale = backlight_data->brightness_precision_bits[panel_type] == 16;
+		else
+			scale = level > 255;
+
+		if (scale)
+			min_level = min_level / 255;
+
+		if (min_level > 255) {
+			drm_warn(&dev_priv->drm, "Brightness min level > 255\n");
+			level = 255;
+		}
+		dev_priv->vbt.backlight.min_brightness = min_level;
+	} else {
+		level = backlight_data->level[panel_type];
+		dev_priv->vbt.backlight.min_brightness = entry->min_brightness;
+	}
+
 	drm_dbg_kms(&dev_priv->drm,
 		    "VBT backlight PWM modulation frequency %u Hz, "
 		    "active %s, min brightness %u, level %u, controller %u\n",
 		    dev_priv->vbt.backlight.pwm_freq_hz,
 		    dev_priv->vbt.backlight.active_low_pwm ? "low" : "high",
 		    dev_priv->vbt.backlight.min_brightness,
-		    backlight_data->level[panel_type],
+		    level,
 		    dev_priv->vbt.backlight.controller);
 }
 
