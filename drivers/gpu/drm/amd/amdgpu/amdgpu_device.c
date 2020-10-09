@@ -82,6 +82,7 @@ MODULE_FIRMWARE("amdgpu/navi14_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/navi12_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/vangogh_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/green_sardine_gpu_info.bin");
+MODULE_FIRMWARE("amdgpu/dimgrey_cavefish_gpu_info.bin");
 
 #define AMDGPU_RESUME_MS		2000
 
@@ -1823,6 +1824,9 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 		break;
 	case CHIP_VANGOGH:
 		chip_name = "vangogh";
+		break;
+	case CHIP_DIMGREY_CAVEFISH:
+		chip_name = "dimgrey_cavefish";
 		break;
 	}
 
