@@ -41,15 +41,15 @@ static void afs_set_cell_timer(struct afs_net *net, time64_t delay)
 }
 
 /*
- * Look up and get an activation reference on a cell record under RCU
- * conditions.  The caller must hold the RCU read lock.
+ * Look up and get an activation reference on a cell record.  The caller must
+ * hold net->cells_lock at least read-locked.
  */
-struct afs_cell *afs_lookup_cell_rcu(struct afs_net *net,
-				     const char *name, unsigned int namesz)
+static struct afs_cell *afs_find_cell_locked(struct afs_net *net,
+					     const char *name, unsigned int namesz)
 {
 	struct afs_cell *cell = NULL;
 	struct rb_node *p;
-	int n, seq = 0, ret = 0;
+	int n;
 
 	_enter("%*.*s", namesz, namesz, name);
 
@@ -58,61 +58,48 @@ struct afs_cell *afs_lookup_cell_rcu(struct afs_net *net,
 	if (namesz > AFS_MAXCELLNAME)
 		return ERR_PTR(-ENAMETOOLONG);
 
-	do {
-		/* Unfortunately, rbtree walking doesn't give reliable results
-		 * under just the RCU read lock, so we have to check for
-		 * changes.
-		 */
-		if (cell)
-			afs_put_cell(net, cell);
-		cell = NULL;
-		ret = -ENOENT;
+	if (!name) {
+		cell = net->ws_cell;
+		if (!cell)
+			return ERR_PTR(-EDESTADDRREQ);
+		afs_get_cell(cell);
+		return cell;
+	}
 
-		read_seqbegin_or_lock(&net->cells_lock, &seq);
+	p = net->cells.rb_node;
+	while (p) {
+		cell = rb_entry(p, struct afs_cell, net_node);
 
-		if (!name) {
-			cell = rcu_dereference_raw(net->ws_cell);
-			if (cell) {
-				afs_get_cell(cell);
-				ret = 0;
-				break;
-			}
-			ret = -EDESTADDRREQ;
-			continue;
-		}
+		n = strncasecmp(cell->name, name,
+				min_t(size_t, cell->name_len, namesz));
+		if (n == 0)
+			n = cell->name_len - namesz;
+		if (n < 0)
+			p = p->rb_left;
+		else if (n > 0)
+			p = p->rb_right;
+		else
+			goto found;
+	}
 
-		p = rcu_dereference_raw(net->cells.rb_node);
-		while (p) {
-			cell = rb_entry(p, struct afs_cell, net_node);
+	return ERR_PTR(-ENOENT);
 
-			n = strncasecmp(cell->name, name,
-					min_t(size_t, cell->name_len, namesz));
-			if (n == 0)
-				n = cell->name_len - namesz;
-			if (n < 0) {
-				p = rcu_dereference_raw(p->rb_left);
-			} else if (n > 0) {
-				p = rcu_dereference_raw(p->rb_right);
-			} else {
-				if (atomic_inc_not_zero(&cell->usage)) {
-					ret = 0;
-					break;
-				}
-				/* We want to repeat the search, this time with
-				 * the lock properly locked.
-				 */
-			}
-			cell = NULL;
-		}
+found:
+	if (!atomic_inc_not_zero(&cell->usage))
+		return ERR_PTR(-ENOENT);
 
-	} while (need_seqretry(&net->cells_lock, seq));
+	return cell;
+}
 
-	done_seqretry(&net->cells_lock, seq);
+struct afs_cell *afs_find_cell(struct afs_net *net,
+			       const char *name, unsigned int namesz)
+{
+	struct afs_cell *cell;
 
-	if (ret != 0 && cell)
-		afs_put_cell(net, cell);
-
-	return ret == 0 ? cell : ERR_PTR(ret);
+	down_read(&net->cells_lock);
+	cell = afs_find_cell_locked(net, name, namesz);
+	up_read(&net->cells_lock);
+	return cell;
 }
 
 /*
@@ -245,9 +232,7 @@ struct afs_cell *afs_lookup_cell(struct afs_net *net,
 	_enter("%s,%s", name, vllist);
 
 	if (!excl) {
-		rcu_read_lock();
-		cell = afs_lookup_cell_rcu(net, name, namesz);
-		rcu_read_unlock();
+		cell = afs_find_cell(net, name, namesz);
 		if (!IS_ERR(cell))
 			goto wait_for_cell;
 	}
@@ -268,7 +253,7 @@ struct afs_cell *afs_lookup_cell(struct afs_net *net,
 	/* Find the insertion point and check to see if someone else added a
 	 * cell whilst we were allocating.
 	 */
-	write_seqlock(&net->cells_lock);
+	down_write(&net->cells_lock);
 
 	pp = &net->cells.rb_node;
 	parent = NULL;
@@ -293,7 +278,7 @@ struct afs_cell *afs_lookup_cell(struct afs_net *net,
 	rb_link_node_rcu(&cell->net_node, parent, pp);
 	rb_insert_color(&cell->net_node, &net->cells);
 	atomic_inc(&net->cells_outstanding);
-	write_sequnlock(&net->cells_lock);
+	up_write(&net->cells_lock);
 
 	queue_work(afs_wq, &cell->manager);
 
@@ -323,7 +308,7 @@ cell_already_exists:
 		afs_get_cell(cursor);
 		ret = 0;
 	}
-	write_sequnlock(&net->cells_lock);
+	up_write(&net->cells_lock);
 	kfree(candidate);
 	if (ret == 0)
 		goto wait_for_cell;
@@ -377,10 +362,10 @@ int afs_cell_init(struct afs_net *net, const char *rootcell)
 		afs_get_cell(new_root);
 
 	/* install the new cell */
-	write_seqlock(&net->cells_lock);
-	old_root = rcu_access_pointer(net->ws_cell);
-	rcu_assign_pointer(net->ws_cell, new_root);
-	write_sequnlock(&net->cells_lock);
+	down_write(&net->cells_lock);
+	old_root = net->ws_cell;
+	net->ws_cell = new_root;
+	up_write(&net->cells_lock);
 
 	afs_put_cell(net, old_root);
 	_leave(" = 0");
@@ -674,12 +659,12 @@ again:
 	switch (cell->state) {
 	case AFS_CELL_INACTIVE:
 	case AFS_CELL_FAILED:
-		write_seqlock(&net->cells_lock);
+		down_write(&net->cells_lock);
 		usage = 1;
 		deleted = atomic_try_cmpxchg_relaxed(&cell->usage, &usage, 0);
 		if (deleted)
 			rb_erase(&cell->net_node, &net->cells);
-		write_sequnlock(&net->cells_lock);
+		up_write(&net->cells_lock);
 		if (deleted)
 			goto final_destruction;
 		if (cell->state == AFS_CELL_FAILED)
@@ -779,7 +764,7 @@ void afs_manage_cells(struct work_struct *work)
 	 * lack of use and cells whose DNS results have expired and dispatch
 	 * their managers.
 	 */
-	read_seqlock_excl(&net->cells_lock);
+	down_read(&net->cells_lock);
 
 	for (cursor = rb_first(&net->cells); cursor; cursor = rb_next(cursor)) {
 		struct afs_cell *cell =
@@ -824,7 +809,7 @@ void afs_manage_cells(struct work_struct *work)
 			queue_work(afs_wq, &cell->manager);
 	}
 
-	read_sequnlock_excl(&net->cells_lock);
+	up_read(&net->cells_lock);
 
 	/* Update the timer on the way out.  We have to pass an increment on
 	 * cells_outstanding in the namespace that we are in to the timer or
@@ -854,10 +839,10 @@ void afs_cell_purge(struct afs_net *net)
 
 	_enter("");
 
-	write_seqlock(&net->cells_lock);
-	ws = rcu_access_pointer(net->ws_cell);
-	RCU_INIT_POINTER(net->ws_cell, NULL);
-	write_sequnlock(&net->cells_lock);
+	down_write(&net->cells_lock);
+	ws = net->ws_cell;
+	net->ws_cell = NULL;
+	up_write(&net->cells_lock);
 	afs_put_cell(net, ws);
 
 	_debug("del timer");

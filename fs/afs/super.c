@@ -634,9 +634,7 @@ static int afs_init_fs_context(struct fs_context *fc)
 	ctx->net = afs_net(fc->net_ns);
 
 	/* Default to the workstation cell. */
-	rcu_read_lock();
-	cell = afs_lookup_cell_rcu(ctx->net, NULL, 0);
-	rcu_read_unlock();
+	cell = afs_find_cell(ctx->net, NULL, 0);
 	if (IS_ERR(cell))
 		cell = NULL;
 	ctx->cell = cell;

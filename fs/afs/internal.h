@@ -263,11 +263,11 @@ struct afs_net {
 
 	/* Cell database */
 	struct rb_root		cells;
-	struct afs_cell __rcu	*ws_cell;
+	struct afs_cell		*ws_cell;
 	struct work_struct	cells_manager;
 	struct timer_list	cells_timer;
 	atomic_t		cells_outstanding;
-	seqlock_t		cells_lock;
+	struct rw_semaphore	cells_lock;
 	struct mutex		cells_alias_lock;
 
 	struct mutex		proc_cells_lock;
@@ -917,7 +917,7 @@ static inline bool afs_cb_is_broken(unsigned int cb_break,
  * cell.c
  */
 extern int afs_cell_init(struct afs_net *, const char *);
-extern struct afs_cell *afs_lookup_cell_rcu(struct afs_net *, const char *, unsigned);
+extern struct afs_cell *afs_find_cell(struct afs_net *, const char *, unsigned);
 extern struct afs_cell *afs_lookup_cell(struct afs_net *, const char *, unsigned,
 					const char *, bool);
 extern struct afs_cell *afs_get_cell(struct afs_cell *);
