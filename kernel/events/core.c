@@ -7011,10 +7011,18 @@ static u64 perf_virt_to_phys(u64 virt)
 #ifdef CONFIG_MMU
 
 /*
- * Return the MMU page size of a given virtual address
+ * Return the MMU page size of a given virtual address.
+ *
+ * This generic implementation handles page-table aligned huge pages, as well
+ * as non-page-table aligned hugetlbfs compound pages.
+ *
+ * If an architecture supports and uses non-page-table aligned pages in their
+ * kernel mapping it will need to provide it's own implementation of this
+ * function.
  */
-static u64 __perf_get_page_size(struct mm_struct *mm, unsigned long addr)
+__weak u64 arch_perf_get_page_size(struct mm_struct *mm, unsigned long addr)
 {
+	struct page *page;
 	pgd_t *pgd;
 	p4d_t *p4d;
 	pud_t *pud;
@@ -7036,20 +7044,39 @@ static u64 __perf_get_page_size(struct mm_struct *mm, unsigned long addr)
 	if (!pud_present(*pud))
 		return 0;
 
-	if (pud_leaf(*pud))
+	if (pud_leaf(*pud)) {
+#ifdef pud_page
+		page = pud_page(*pud);
+		if (PageHuge(page))
+			return page_size(compound_head(page));
+#endif
 		return 1ULL << PUD_SHIFT;
+	}
 
 	pmd = pmd_offset(pud, addr);
 	if (!pmd_present(*pmd))
 		return 0;
 
-	if (pmd_leaf(*pmd))
+	if (pmd_leaf(*pmd)) {
+#ifdef pmd_page
+		page = pmd_page(*pmd);
+		if (PageHuge(page))
+			return page_size(compound_head(page));
+#endif
 		return 1ULL << PMD_SHIFT;
+	}
 
 	pte = pte_offset_map(pmd, addr);
 	if (!pte_present(*pte)) {
 		pte_unmap(pte);
 		return 0;
+	}
+
+	page = pte_page(*pte);
+	if (PageHuge(page)) {
+		u64 size = page_size(compound_head(page));
+		pte_unmap(pte);
+		return size;
 	}
 
 	pte_unmap(pte);
@@ -7058,7 +7085,7 @@ static u64 __perf_get_page_size(struct mm_struct *mm, unsigned long addr)
 
 #else
 
-static u64 __perf_get_page_size(struct mm_struct *mm, unsigned long addr)
+static u64 arch_perf_get_page_size(struct mm_struct *mm, unsigned long addr)
 {
 	return 0;
 }
@@ -7089,7 +7116,7 @@ static u64 perf_get_page_size(unsigned long addr)
 		mm = &init_mm;
 	}
 
-	size = __perf_get_page_size(mm, addr);
+	size = arch_perf_get_page_size(mm, addr);
 
 	local_irq_restore(flags);
 
