@@ -7,7 +7,7 @@
  */
 
 #include <linux/init.h>
-#include <asm/bootinfo.h>
+#include <linux/memblock.h>
 #include <asm/txx9/generic.h>
 #include <asm/txx9/rbtx4939.h>
 
@@ -23,7 +23,7 @@ void __init rbtx4939_prom_init(void)
 		win = ____raw_readq(&tx4939_ddrcptr->win[i]);
 		start = (unsigned long)(win >> 48);
 		size = (((unsigned long)(win >> 32) & 0xffff) + 1) - start;
-		add_memory_region(start << 20, size << 20, BOOT_MEM_RAM);
+		memblock_add(start << 20, size << 20);
 	}
 	txx9_sio_putchar_init(TX4939_SIO_REG(0) & 0xfffffffffULL);
 }

@@ -35,6 +35,7 @@
 
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/memblock.h>
 #include <linux/sizes.h>
 #include <linux/string.h>
 
@@ -93,7 +94,7 @@ void __init prom_init(void)
 	if (!memsize_str || kstrtoul(memsize_str, 0, &memsize))
 		memsize = SZ_64M; /* minimum memsize is 64MB RAM */
 
-	add_memory_region(0, memsize, BOOT_MEM_RAM);
+	memblock_add(0, memsize);
 }
 
 static inline unsigned char str2hexnum(unsigned char c)

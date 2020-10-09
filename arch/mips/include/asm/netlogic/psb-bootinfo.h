@@ -87,6 +87,7 @@ struct nlm_boot_mem_map {
 		uint32_t type;		/* type of memory segment */
 	} map[NLM_BOOT_MEM_MAP_MAX];
 };
+#define NLM_BOOT_MEM_RAM	1
 
 /* Pointer to saved boot loader info */
 extern struct psb_info nlm_prom_info;

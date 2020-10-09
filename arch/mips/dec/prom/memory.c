@@ -12,7 +12,6 @@
 #include <linux/types.h>
 
 #include <asm/addrspace.h>
-#include <asm/bootinfo.h>
 #include <asm/dec/machtype.h>
 #include <asm/dec/prom.h>
 #include <asm/page.h>
@@ -50,8 +49,7 @@ static inline void pmax_setup_memory_region(void)
 	}
 	memcpy((void *)(CKSEG0 + 0x80), &old_handler, 0x80);
 
-	add_memory_region(0, (unsigned long)memory_page - CKSEG1 - CHUNK_SIZE,
-			  BOOT_MEM_RAM);
+	memblock_add(0, (unsigned long)memory_page - CKSEG1 - CHUNK_SIZE);
 }
 
 /*
@@ -76,13 +74,13 @@ static inline void rex_setup_memory_region(void)
 		else if (!mem_size)
 			mem_start += (8 * bm->pagesize);
 		else {
-			add_memory_region(mem_start, mem_size, BOOT_MEM_RAM);
+			memblock_add(mem_start, mem_size);
 			mem_start += mem_size + (8 * bm->pagesize);
 			mem_size = 0;
 		}
 	}
 	if (mem_size)
-		add_memory_region(mem_start, mem_size, BOOT_MEM_RAM);
+		memblock_add(mem_start, mem_size);
 }
 
 void __init prom_meminit(u32 magic)
