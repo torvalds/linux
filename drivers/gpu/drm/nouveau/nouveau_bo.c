@@ -1235,9 +1235,9 @@ nouveau_ttm_tt_populate(struct ttm_bo_device *bdev,
 		return 0;
 
 	if (slave && ttm->sg) {
-		/* make userspace faulting work */
-		drm_prime_sg_to_page_addr_arrays(ttm->sg, ttm->pages,
-						 ttm_dma->dma_address, ttm->num_pages);
+		drm_prime_sg_to_page_addr_arrays(ttm->sg, NULL,
+						 ttm_dma->dma_address,
+						 ttm->num_pages);
 		return 0;
 	}
 
