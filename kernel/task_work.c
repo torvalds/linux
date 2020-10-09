@@ -5,34 +5,6 @@
 
 static struct callback_head work_exited; /* all we need is ->next == NULL */
 
-/*
- * TWA_SIGNAL signaling - use TIF_NOTIFY_SIGNAL, if available, as it's faster
- * than TIF_SIGPENDING as there's no dependency on ->sighand. The latter is
- * shared for threads, and can cause contention on sighand->lock. Even for
- * the non-threaded case TIF_NOTIFY_SIGNAL is more efficient, as no locking
- * or IRQ disabling is involved for notification (or running) purposes.
- */
-static void task_work_notify_signal(struct task_struct *task)
-{
-#if defined(TIF_NOTIFY_SIGNAL)
-	set_notify_signal(task);
-#else
-	unsigned long flags;
-
-	/*
-	 * Only grab the sighand lock if we don't already have some
-	 * task_work pending. This pairs with the smp_store_mb()
-	 * in get_signal(), see comment there.
-	 */
-	if (!(READ_ONCE(task->jobctl) & JOBCTL_TASK_WORK) &&
-	    lock_task_sighand(task, &flags)) {
-		task->jobctl |= JOBCTL_TASK_WORK;
-		signal_wake_up(task, 0);
-		unlock_task_sighand(task, &flags);
-	}
-#endif
-}
-
 /**
  * task_work_add - ask the @task to execute @work->func()
  * @task: the task which should run the callback
@@ -76,7 +48,7 @@ int task_work_add(struct task_struct *task, struct callback_head *work,
 		set_notify_resume(task);
 		break;
 	case TWA_SIGNAL:
-		task_work_notify_signal(task);
+		set_notify_signal(task);
 		break;
 	default:
 		WARN_ON_ONCE(1);
