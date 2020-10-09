@@ -7588,7 +7588,7 @@ static void gfx_v10_cntl_power_gating(struct amdgpu_device *adev, bool enable)
 {
 	u32 data = RREG32_SOC15(GC, 0, mmRLC_PG_CNTL);
 
-	if (enable && (adev->cg_flags & AMD_PG_SUPPORT_GFX_PG))
+	if (enable && (adev->pg_flags & AMD_PG_SUPPORT_GFX_PG))
 		data |= RLC_PG_CNTL__GFX_POWER_GATING_ENABLE_MASK;
 	else
 		data &= ~RLC_PG_CNTL__GFX_POWER_GATING_ENABLE_MASK;
