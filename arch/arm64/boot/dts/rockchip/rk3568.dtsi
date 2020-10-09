@@ -125,6 +125,15 @@
 		clock-output-names = "xin24m";
 	};
 
+	xin_osc0_edpphy: xin-osc0-edpphy {
+		compatible = "fixed-factor-clock";
+		clocks = <&xin24m>;
+		clock-mult = <1>;
+		clock-div = <1>;
+		clock-output-names = "xin_osc0_edpphy";
+		#clock-cells = <0>;
+	};
+
 	sata0: sata@fc000000 {
 		compatible = "snps,dwc-ahci";
 		reg = <0 0xfc300000 0 0x1000>;
@@ -332,6 +341,17 @@
 	usb2phy1_grf: syscon@fdca8000 {
 		compatible = "rockchip,rk3568-usb2phy-grf", "syscon";
 		reg = <0x0 0xfdca8000 0x0 0x8000>;
+	};
+
+	edp_phy: edp-phy@fdcb0000 {
+		compatible = "rockchip,rk3568-edp-phy";
+		reg = <0x0 0xfdcb0000 0x0 0x8000>;
+		clocks = <&pmucru XIN_OSC0_EDPPHY_G>, <&cru PCLK_EDPPHY_GRF>;
+		clock-names = "refclk", "pclk";
+		resets = <&cru SRST_P_EDPPHY_GRF>;
+		reset-names = "apb";
+		#phy-cells = <0>;
+		status = "disabled";
 	};
 
 	pcie30_phy_grf: syscon@fdcb8000 {
