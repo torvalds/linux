@@ -615,7 +615,7 @@ out:
 
 static inline bool elv_support_iosched(struct request_queue *q)
 {
-	if (!q->mq_ops ||
+	if (!queue_is_mq(q) ||
 	    (q->tag_set && (q->tag_set->flags & BLK_MQ_F_NO_SCHED)))
 		return false;
 	return true;
@@ -763,7 +763,7 @@ ssize_t elv_iosched_store(struct request_queue *q, const char *name,
 {
 	int ret;
 
-	if (!queue_is_mq(q) || !elv_support_iosched(q))
+	if (!elv_support_iosched(q))
 		return count;
 
 	ret = __elevator_change(q, name);
