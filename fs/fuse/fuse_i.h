@@ -636,6 +636,14 @@ struct fuse_conn {
 	unsigned int legacy_opts_show:1;
 
 	/*
+	 * fs kills suid/sgid/cap on write/chown/trunc. suid is killed on
+	 * write/trunc only if caller did not have CAP_FSETID.  sgid is killed
+	 * on write/truncate only if caller did not have CAP_FSETID as well as
+	 * file has group execute permission.
+	 */
+	unsigned handle_killpriv_v2:1;
+
+	/*
 	 * The following bitfields are only for optimization purposes
 	 * and hence races in setting them will not cause malfunction
 	 */
