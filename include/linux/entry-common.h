@@ -37,10 +37,6 @@
 # define _TIF_UPROBE			(0)
 #endif
 
-#ifndef _TIF_NOTIFY_SIGNAL
-# define _TIF_NOTIFY_SIGNAL		(0)
-#endif
-
 /*
  * TIF flags handled in syscall_enter_from_user_mode()
  */
