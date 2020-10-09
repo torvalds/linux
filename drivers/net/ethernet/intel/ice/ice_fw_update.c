@@ -43,6 +43,8 @@ ice_send_package_data(struct pldmfw *context, const u8 *data, u16 length)
 	enum ice_status status;
 	u8 *package_data;
 
+	dev_dbg(dev, "Sending PLDM record package data to firmware\n");
+
 	package_data = kmemdup(data, length, GFP_KERNEL);
 	if (!package_data)
 		return -ENOMEM;
@@ -229,6 +231,8 @@ ice_send_component_table(struct pldmfw *context, struct pldmfw_component *compon
 	comp_tbl->cvs_len = component->version_len;
 	memcpy(comp_tbl->cvs, component->version_string, component->version_len);
 
+	dev_dbg(dev, "Sending component table to firmware:\n");
+
 	status = ice_nvm_pass_component_tbl(hw, (u8 *)comp_tbl, length,
 					    transfer_flag, &comp_response,
 					    &comp_response_code, NULL);
@@ -279,11 +283,14 @@ ice_write_one_nvm_block(struct ice_pf *pf, u16 module, u32 offset,
 
 	memset(&event, 0, sizeof(event));
 
+	dev_dbg(dev, "Writing block of %u bytes for module 0x%02x at offset %u\n",
+		block_size, module, offset);
+
 	status = ice_aq_update_nvm(hw, module, offset, block_size, block,
 				   last_cmd, 0, NULL);
 	if (status) {
-		dev_err(dev, "Failed to program flash module 0x%02x at offset %u, err %s aq_err %s\n",
-			module, offset, ice_stat_str(status),
+		dev_err(dev, "Failed to flash module 0x%02x with block of size %u at offset %u, err %s aq_err %s\n",
+			module, block_size, offset, ice_stat_str(status),
 			ice_aq_str(hw->adminq.sq_last_status));
 		NL_SET_ERR_MSG_MOD(extack, "Failed to program flash module");
 		return -EIO;
@@ -297,8 +304,8 @@ ice_write_one_nvm_block(struct ice_pf *pf, u16 module, u32 offset,
 	 */
 	err = ice_aq_wait_for_event(pf, ice_aqc_opc_nvm_write, 15 * HZ, &event);
 	if (err) {
-		dev_err(dev, "Timed out waiting for firmware write completion for module 0x%02x, err %d\n",
-			module, err);
+		dev_err(dev, "Timed out while trying to flash module 0x%02x with block of size %u at offset %u, err %d\n",
+			module, block_size, offset, err);
 		NL_SET_ERR_MSG_MOD(extack, "Timed out waiting for firmware");
 		return -EIO;
 	}
@@ -324,8 +331,8 @@ ice_write_one_nvm_block(struct ice_pf *pf, u16 module, u32 offset,
 	}
 
 	if (completion_retval) {
-		dev_err(dev, "Firmware failed to program flash module 0x%02x at offset %u, completion err %s\n",
-			module, offset,
+		dev_err(dev, "Firmware failed to flash module 0x%02x with block of size %u at offset %u, err %s\n",
+			module, block_size, offset,
 			ice_aq_str((enum ice_aq_err)completion_retval));
 		NL_SET_ERR_MSG_MOD(extack, "Firmware failed to program flash module");
 		return -EIO;
@@ -356,11 +363,14 @@ ice_write_nvm_module(struct ice_pf *pf, u16 module, const char *component,
 		     const u8 *image, u32 length,
 		     struct netlink_ext_ack *extack)
 {
+	struct device *dev = ice_pf_to_dev(pf);
 	struct devlink *devlink;
 	u32 offset = 0;
 	bool last_cmd;
 	u8 *block;
 	int err;
+
+	dev_dbg(dev, "Beginning write of flash component '%s', module 0x%02x\n", component, module);
 
 	devlink = priv_to_devlink(pf);
 
@@ -393,6 +403,8 @@ ice_write_nvm_module(struct ice_pf *pf, u16 module, const char *component,
 		devlink_flash_update_status_notify(devlink, "Flashing",
 						   component, offset, length);
 	} while (!last_cmd);
+
+	dev_dbg(dev, "Completed write of flash component '%s', module 0x%02x\n", component, module);
 
 	if (err)
 		devlink_flash_update_status_notify(devlink, "Flashing failed",
@@ -430,6 +442,8 @@ ice_erase_nvm_module(struct ice_pf *pf, u16 module, const char *component,
 	struct devlink *devlink;
 	enum ice_status status;
 	int err;
+
+	dev_dbg(dev, "Beginning erase of flash component '%s', module 0x%02x\n", component, module);
 
 	memset(&event, 0, sizeof(event));
 
@@ -475,6 +489,8 @@ ice_erase_nvm_module(struct ice_pf *pf, u16 module, const char *component,
 		err = -EIO;
 		goto out_notify_devlink;
 	}
+
+	dev_dbg(dev, "Completed erase of flash component '%s', module 0x%02x\n", component, module);
 
 out_notify_devlink:
 	if (err)
