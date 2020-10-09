@@ -523,7 +523,7 @@ void sym_fw_bind_script(struct sym_hcb *np, u32 *start, int len)
 					new = old;
 					break;
 				}
-				/* fall through */
+				fallthrough;
 			default:
 				new = 0;
 				panic("sym_fw_bind_script: "

@@ -342,9 +342,10 @@ struct ipoib_walk_data {
 	struct net_device *result;
 };
 
-static int ipoib_upper_walk(struct net_device *upper, void *_data)
+static int ipoib_upper_walk(struct net_device *upper,
+			    struct netdev_nested_priv *priv)
 {
-	struct ipoib_walk_data *data = _data;
+	struct ipoib_walk_data *data = (struct ipoib_walk_data *)priv->data;
 	int ret = 0;
 
 	if (ipoib_is_dev_match_addr_rcu(data->addr, upper)) {
@@ -368,10 +369,12 @@ static int ipoib_upper_walk(struct net_device *upper, void *_data)
 static struct net_device *ipoib_get_net_dev_match_addr(
 		const struct sockaddr *addr, struct net_device *dev)
 {
+	struct netdev_nested_priv priv;
 	struct ipoib_walk_data data = {
 		.addr = addr,
 	};
 
+	priv.data = (void *)&data;
 	rcu_read_lock();
 	if (ipoib_is_dev_match_addr_rcu(addr, dev)) {
 		dev_hold(dev);
@@ -379,7 +382,7 @@ static struct net_device *ipoib_get_net_dev_match_addr(
 		goto out;
 	}
 
-	netdev_walk_all_upper_dev_rcu(dev, ipoib_upper_walk, &data);
+	netdev_walk_all_upper_dev_rcu(dev, ipoib_upper_walk, &priv);
 out:
 	rcu_read_unlock();
 	return data.result;
@@ -502,7 +505,7 @@ static struct net_device *ipoib_get_net_dev_by_params(
 	default:
 		dev_warn_ratelimited(&dev->dev,
 				     "duplicate IP address detected\n");
-		/* Fall through */
+		fallthrough;
 	case 1:
 		return net_dev;
 	}

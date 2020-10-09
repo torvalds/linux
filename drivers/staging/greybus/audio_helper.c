@@ -173,8 +173,7 @@ static int gbaudio_remove_controls(struct snd_card *card, struct device *dev,
 		id.index = control->index;
 		kctl = snd_ctl_find_id(card, &id);
 		if (!kctl) {
-			dev_err(dev, "%d: Failed to find %s\n", err,
-				control->name);
+			dev_err(dev, "Failed to find %s\n", control->name);
 			continue;
 		}
 		err = snd_ctl_remove(card, kctl);

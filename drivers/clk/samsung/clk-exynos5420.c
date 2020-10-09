@@ -1655,6 +1655,11 @@ static void __init exynos5x_clk_init(struct device_node *np,
 	 * main G3D clock enablement status.
 	 */
 	clk_prepare_enable(__clk_lookup("mout_sw_aclk_g3d"));
+	/*
+	 * Keep top BPLL mux enabled permanently to ensure that DRAM operates
+	 * properly.
+	 */
+	clk_prepare_enable(__clk_lookup("mout_bpll"));
 
 	samsung_clk_of_add_provider(np, ctx);
 }

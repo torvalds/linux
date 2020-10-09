@@ -147,12 +147,14 @@ int map__set_kallsyms_ref_reloc_sym(struct map *map, const char *symbol_name,
 bool __map__is_kernel(const struct map *map);
 bool __map__is_extra_kernel_map(const struct map *map);
 bool __map__is_bpf_prog(const struct map *map);
+bool __map__is_bpf_image(const struct map *map);
 bool __map__is_ool(const struct map *map);
 
 static inline bool __map__is_kmodule(const struct map *map)
 {
 	return !__map__is_kernel(map) && !__map__is_extra_kernel_map(map) &&
-	       !__map__is_bpf_prog(map) && !__map__is_ool(map);
+	       !__map__is_bpf_prog(map) && !__map__is_ool(map) &&
+	       !__map__is_bpf_image(map);
 }
 
 bool map__has_symbols(const struct map *map);
@@ -164,4 +166,9 @@ static inline bool is_entry_trampoline(const char *name)
 	return !strcmp(name, ENTRY_TRAMPOLINE_NAME);
 }
 
+static inline bool is_bpf_image(const char *name)
+{
+	return strncmp(name, "bpf_trampoline_", sizeof("bpf_trampoline_") - 1) == 0 ||
+	       strncmp(name, "bpf_dispatcher_", sizeof("bpf_dispatcher_") - 1) == 0;
+}
 #endif /* __PERF_MAP_H */

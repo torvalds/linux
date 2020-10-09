@@ -451,7 +451,10 @@ static bool mptcp_established_options_mp(struct sock *sk, struct sk_buff *skb,
 static void mptcp_write_data_fin(struct mptcp_subflow_context *subflow,
 				 struct sk_buff *skb, struct mptcp_ext *ext)
 {
-	u64 data_fin_tx_seq = READ_ONCE(mptcp_sk(subflow->conn)->write_seq);
+	/* The write_seq value has already been incremented, so the actual
+	 * sequence number for the DATA_FIN is one less.
+	 */
+	u64 data_fin_tx_seq = READ_ONCE(mptcp_sk(subflow->conn)->write_seq) - 1;
 
 	if (!ext->use_map || !skb->len) {
 		/* RFC6824 requires a DSS mapping with specific values
@@ -460,10 +463,7 @@ static void mptcp_write_data_fin(struct mptcp_subflow_context *subflow,
 		ext->data_fin = 1;
 		ext->use_map = 1;
 		ext->dsn64 = 1;
-		/* The write_seq value has already been incremented, so
-		 * the actual sequence number for the DATA_FIN is one less.
-		 */
-		ext->data_seq = data_fin_tx_seq - 1;
+		ext->data_seq = data_fin_tx_seq;
 		ext->subflow_seq = 0;
 		ext->data_len = 1;
 	} else if (ext->data_seq + ext->data_len == data_fin_tx_seq) {
@@ -518,11 +518,11 @@ static bool mptcp_established_options_dss(struct sock *sk, struct sk_buff *skb,
 
 	if (subflow->use_64bit_ack) {
 		ack_size = TCPOLEN_MPTCP_DSS_ACK64;
-		opts->ext_copy.data_ack = msk->ack_seq;
+		opts->ext_copy.data_ack = READ_ONCE(msk->ack_seq);
 		opts->ext_copy.ack64 = 1;
 	} else {
 		ack_size = TCPOLEN_MPTCP_DSS_ACK32;
-		opts->ext_copy.data_ack32 = (uint32_t)(msk->ack_seq);
+		opts->ext_copy.data_ack32 = (uint32_t)READ_ONCE(msk->ack_seq);
 		opts->ext_copy.ack64 = 0;
 	}
 	opts->ext_copy.use_ack = 1;
@@ -782,7 +782,7 @@ static void update_una(struct mptcp_sock *msk,
 	}
 }
 
-bool mptcp_update_rcv_data_fin(struct mptcp_sock *msk, u64 data_fin_seq)
+bool mptcp_update_rcv_data_fin(struct mptcp_sock *msk, u64 data_fin_seq, bool use_64bit)
 {
 	/* Skip if DATA_FIN was already received.
 	 * If updating simultaneously with the recvmsg loop, values
@@ -792,7 +792,8 @@ bool mptcp_update_rcv_data_fin(struct mptcp_sock *msk, u64 data_fin_seq)
 	if (READ_ONCE(msk->rcv_data_fin) || !READ_ONCE(msk->first))
 		return false;
 
-	WRITE_ONCE(msk->rcv_data_fin_seq, data_fin_seq);
+	WRITE_ONCE(msk->rcv_data_fin_seq,
+		   expand_ack(READ_ONCE(msk->ack_seq), data_fin_seq, use_64bit));
 	WRITE_ONCE(msk->rcv_data_fin, 1);
 
 	return true;
@@ -875,7 +876,7 @@ void mptcp_incoming_options(struct sock *sk, struct sk_buff *skb,
 	 */
 	if (TCP_SKB_CB(skb)->seq == TCP_SKB_CB(skb)->end_seq) {
 		if (mp_opt.data_fin && mp_opt.data_len == 1 &&
-		    mptcp_update_rcv_data_fin(msk, mp_opt.data_seq) &&
+		    mptcp_update_rcv_data_fin(msk, mp_opt.data_seq, mp_opt.dsn64) &&
 		    schedule_work(&msk->work))
 			sock_hold(subflow->conn);
 

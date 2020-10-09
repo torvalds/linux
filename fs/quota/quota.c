@@ -38,7 +38,7 @@ static int check_quotactl_permission(struct super_block *sb, int type, int cmd,
 		if ((type == USRQUOTA && uid_eq(current_euid(), make_kuid(current_user_ns(), id))) ||
 		    (type == GRPQUOTA && in_egroup_p(make_kgid(current_user_ns(), id))))
 			break;
-		/*FALLTHROUGH*/
+		fallthrough;
 	default:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;

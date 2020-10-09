@@ -2439,7 +2439,7 @@ static void *vfio_iommu_type1_open(unsigned long arg)
 		break;
 	case VFIO_TYPE1_NESTING_IOMMU:
 		iommu->nesting = true;
-		/* fall through */
+		fallthrough;
 	case VFIO_TYPE1v2_IOMMU:
 		iommu->v2 = true;
 		break;

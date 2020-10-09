@@ -81,6 +81,7 @@ struct sdhci_esdhc {
 	bool quirk_tuning_erratum_type2;
 	bool quirk_ignore_data_inhibit;
 	bool quirk_delay_before_data_reset;
+	bool quirk_trans_complete_erratum;
 	bool in_sw_tuning;
 	unsigned int peripheral_clock;
 	const struct esdhc_clk_fixup *clk_fixup;
@@ -1177,10 +1178,11 @@ static void esdhc_set_uhs_signaling(struct sdhci_host *host,
 
 static u32 esdhc_irq(struct sdhci_host *host, u32 intmask)
 {
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_esdhc *esdhc = sdhci_pltfm_priv(pltfm_host);
 	u32 command;
 
-	if (of_find_compatible_node(NULL, NULL,
-				"fsl,p2020-esdhc")) {
+	if (esdhc->quirk_trans_complete_erratum) {
 		command = SDHCI_GET_CMD(sdhci_readw(host,
 					SDHCI_COMMAND));
 		if (command == MMC_WRITE_MULTIPLE_BLOCK &&
@@ -1334,8 +1336,10 @@ static void esdhc_init(struct platform_device *pdev, struct sdhci_host *host)
 		esdhc->clk_fixup = match->data;
 	np = pdev->dev.of_node;
 
-	if (of_device_is_compatible(np, "fsl,p2020-esdhc"))
+	if (of_device_is_compatible(np, "fsl,p2020-esdhc")) {
 		esdhc->quirk_delay_before_data_reset = true;
+		esdhc->quirk_trans_complete_erratum = true;
+	}
 
 	clk = of_clk_get(np, 0);
 	if (!IS_ERR(clk)) {

@@ -38,8 +38,7 @@ static int hinic_set_mac(struct hinic_hwdev *hwdev, const u8 *mac_addr,
 	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_SET_MAC, &mac_info,
 				 sizeof(mac_info), &mac_info, &out_size);
 	if (err || out_size != sizeof(mac_info) ||
-	    (mac_info.status && mac_info.status != HINIC_PF_SET_VF_ALREADY &&
-	    mac_info.status != HINIC_MGMT_STATUS_EXIST)) {
+	    (mac_info.status && mac_info.status != HINIC_MGMT_STATUS_EXIST)) {
 		dev_err(&hwdev->func_to_io.hwif->pdev->dev, "Failed to set MAC, err: %d, status: 0x%x, out size: 0x%x\n",
 			err, mac_info.status, out_size);
 		return -EIO;
@@ -503,8 +502,7 @@ struct hinic_sriov_info *hinic_get_sriov_info_by_pcidev(struct pci_dev *pdev)
 
 static int hinic_check_mac_info(u8 status, u16 vlan_id)
 {
-	if ((status && status != HINIC_MGMT_STATUS_EXIST &&
-	     status != HINIC_PF_SET_VF_ALREADY) ||
+	if ((status && status != HINIC_MGMT_STATUS_EXIST) ||
 	    (vlan_id & CHECK_IPSU_15BIT &&
 	     status == HINIC_MGMT_STATUS_EXIST))
 		return -EINVAL;
@@ -544,12 +542,6 @@ static int hinic_update_mac(struct hinic_hwdev *hwdev, u8 *old_mac,
 			"Failed to update MAC, err: %d, status: 0x%x, out size: 0x%x\n",
 			err, mac_info.status, out_size);
 		return -EINVAL;
-	}
-
-	if (mac_info.status == HINIC_PF_SET_VF_ALREADY) {
-		dev_warn(&hwdev->hwif->pdev->dev,
-			 "PF has already set VF MAC. Ignore update operation\n");
-		return HINIC_PF_SET_VF_ALREADY;
 	}
 
 	if (mac_info.status == HINIC_MGMT_STATUS_EXIST)

@@ -353,7 +353,7 @@ static int pcf85063_load_capacitance(struct pcf85063 *pcf85063,
 	default:
 		dev_warn(&pcf85063->rtc->dev, "Unknown quartz-load-femtofarads value: %d. Assuming 7000",
 			 load);
-		/* fall through */
+		fallthrough;
 	case 7000:
 		break;
 	case 12500:

@@ -659,17 +659,17 @@ static struct vcap_field vsc9953_vcap_is2_keys[] = {
 	[VCAP_IS2_HK_DIP_EQ_SIP]		= {122,   1},
 	/* IP4_TCP_UDP (TYPE=100) */
 	[VCAP_IS2_HK_TCP]			= {123,   1},
-	[VCAP_IS2_HK_L4_SPORT]			= {124,  16},
-	[VCAP_IS2_HK_L4_DPORT]			= {140,  16},
+	[VCAP_IS2_HK_L4_DPORT]			= {124,  16},
+	[VCAP_IS2_HK_L4_SPORT]			= {140,  16},
 	[VCAP_IS2_HK_L4_RNG]			= {156,   8},
 	[VCAP_IS2_HK_L4_SPORT_EQ_DPORT]		= {164,   1},
 	[VCAP_IS2_HK_L4_SEQUENCE_EQ0]		= {165,   1},
-	[VCAP_IS2_HK_L4_URG]			= {166,   1},
-	[VCAP_IS2_HK_L4_ACK]			= {167,   1},
-	[VCAP_IS2_HK_L4_PSH]			= {168,   1},
-	[VCAP_IS2_HK_L4_RST]			= {169,   1},
-	[VCAP_IS2_HK_L4_SYN]			= {170,   1},
-	[VCAP_IS2_HK_L4_FIN]			= {171,   1},
+	[VCAP_IS2_HK_L4_FIN]			= {166,   1},
+	[VCAP_IS2_HK_L4_SYN]			= {167,   1},
+	[VCAP_IS2_HK_L4_RST]			= {168,   1},
+	[VCAP_IS2_HK_L4_PSH]			= {169,   1},
+	[VCAP_IS2_HK_L4_ACK]			= {170,   1},
+	[VCAP_IS2_HK_L4_URG]			= {171,   1},
 	/* IP4_OTHER (TYPE=101) */
 	[VCAP_IS2_HK_IP4_L3_PROTO]		= {123,   8},
 	[VCAP_IS2_HK_L3_PAYLOAD]		= {131,  56},
@@ -706,7 +706,7 @@ static const struct vcap_props vsc9953_vcap_props[] = {
 		.action_type_width = 1,
 		.action_table = {
 			[IS2_ACTION_TYPE_NORMAL] = {
-				.width = 44,
+				.width = 50, /* HIT_CNT not included */
 				.count = 2
 			},
 			[IS2_ACTION_TYPE_SMAC_SIP] = {
@@ -911,6 +911,8 @@ static int vsc9953_prevalidate_phy_mode(struct ocelot *ocelot, int port,
  */
 static u16 vsc9953_wm_enc(u16 value)
 {
+	WARN_ON(value >= 16 * BIT(9));
+
 	if (value >= BIT(9))
 		return BIT(9) | (value / 16);
 
@@ -1008,7 +1010,7 @@ static const struct felix_info seville_info_vsc9953 = {
 	.vcap_is2_keys		= vsc9953_vcap_is2_keys,
 	.vcap_is2_actions	= vsc9953_vcap_is2_actions,
 	.vcap			= vsc9953_vcap_props,
-	.shared_queue_sz	= 128 * 1024,
+	.shared_queue_sz	= 2048 * 1024,
 	.num_mact_rows		= 2048,
 	.num_ports		= 10,
 	.mdio_bus_alloc		= vsc9953_mdio_bus_alloc,

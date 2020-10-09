@@ -55,6 +55,7 @@ static void ifcvf_free_irq(struct ifcvf_adapter *adapter, int queues)
 		vf->vring[i].irq = -EINVAL;
 	}
 
+	devm_free_irq(&pdev->dev, vf->config_irq, vf);
 	ifcvf_free_irq_vectors(pdev);
 }
 
@@ -74,10 +75,14 @@ static int ifcvf_request_irq(struct ifcvf_adapter *adapter)
 	snprintf(vf->config_msix_name, 256, "ifcvf[%s]-config\n",
 		 pci_name(pdev));
 	vector = 0;
-	irq = pci_irq_vector(pdev, vector);
-	ret = devm_request_irq(&pdev->dev, irq,
+	vf->config_irq = pci_irq_vector(pdev, vector);
+	ret = devm_request_irq(&pdev->dev, vf->config_irq,
 			       ifcvf_config_changed, 0,
 			       vf->config_msix_name, vf);
+	if (ret) {
+		IFCVF_ERR(pdev, "Failed to request config irq\n");
+		return ret;
+	}
 
 	for (i = 0; i < IFCVF_MAX_QUEUE_PAIRS * 2; i++) {
 		snprintf(vf->vring[i].msix_name, 256, "ifcvf[%s]-%d\n",

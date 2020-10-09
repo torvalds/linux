@@ -618,7 +618,7 @@ int snd_soc_suspend(struct device *dev)
 						"ASoC: idle_bias_off CODEC on over suspend\n");
 					break;
 				}
-				/* fall through */
+				fallthrough;
 
 			case SND_SOC_BIAS_OFF:
 				snd_soc_component_suspend(component);
@@ -833,6 +833,19 @@ struct snd_soc_dai *snd_soc_find_dai(
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(snd_soc_find_dai);
+
+struct snd_soc_dai *snd_soc_find_dai_with_mutex(
+	const struct snd_soc_dai_link_component *dlc)
+{
+	struct snd_soc_dai *dai;
+
+	mutex_lock(&client_mutex);
+	dai = snd_soc_find_dai(dlc);
+	mutex_unlock(&client_mutex);
+
+	return dai;
+}
+EXPORT_SYMBOL_GPL(snd_soc_find_dai_with_mutex);
 
 static int soc_dai_link_sanity_check(struct snd_soc_card *card,
 				     struct snd_soc_dai_link *link)

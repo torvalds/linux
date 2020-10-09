@@ -1168,11 +1168,11 @@ static void qeth_l3_stop_card(struct qeth_card *card)
 	if (card->state == CARD_STATE_SOFTSETUP) {
 		qeth_l3_clear_ip_htable(card, 1);
 		qeth_clear_ipacmd_list(card);
-		qeth_drain_output_queues(card);
 		card->state = CARD_STATE_DOWN;
 	}
 
 	qeth_qdio_clear_card(card, 0);
+	qeth_drain_output_queues(card);
 	qeth_clear_working_pool_list(card);
 	flush_workqueue(card->event_wq);
 	qeth_flush_local_addrs(card);
@@ -1235,7 +1235,7 @@ static void qeth_l3_rx_mode_work(struct work_struct *work)
 					break;
 				}
 				addr->ref_counter = 1;
-				/* fall through */
+				fallthrough;
 			default:
 				/* for next call to set_rx_mode(): */
 				addr->disp_flag = QETH_DISP_ADDR_DELETE;

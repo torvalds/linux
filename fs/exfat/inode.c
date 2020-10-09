@@ -611,8 +611,6 @@ static int exfat_fill_inode(struct inode *inode, struct exfat_dir_entry *info)
 	ei->i_crtime = info->crtime;
 	inode->i_atime = info->atime;
 
-	exfat_cache_init_inode(inode);
-
 	return 0;
 }
 

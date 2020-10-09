@@ -526,6 +526,22 @@ static int splice_from_pipe_feed(struct pipe_inode_info *pipe, struct splice_des
 	return 1;
 }
 
+/* We know we have a pipe buffer, but maybe it's empty? */
+static inline bool eat_empty_buffer(struct pipe_inode_info *pipe)
+{
+	unsigned int tail = pipe->tail;
+	unsigned int mask = pipe->ring_size - 1;
+	struct pipe_buffer *buf = &pipe->bufs[tail & mask];
+
+	if (unlikely(!buf->len)) {
+		pipe_buf_release(pipe, buf);
+		pipe->tail = tail+1;
+		return true;
+	}
+
+	return false;
+}
+
 /**
  * splice_from_pipe_next - wait for some data to splice from
  * @pipe:	pipe to splice from
@@ -545,6 +561,7 @@ static int splice_from_pipe_next(struct pipe_inode_info *pipe, struct splice_des
 	if (signal_pending(current))
 		return -ERESTARTSYS;
 
+repeat:
 	while (pipe_empty(pipe->head, pipe->tail)) {
 		if (!pipe->writers)
 			return 0;
@@ -563,8 +580,11 @@ static int splice_from_pipe_next(struct pipe_inode_info *pipe, struct splice_des
 			sd->need_wakeup = false;
 		}
 
-		pipe_wait(pipe);
+		pipe_wait_readable(pipe);
 	}
+
+	if (eat_empty_buffer(pipe))
+		goto repeat;
 
 	return 1;
 }
@@ -1077,7 +1097,7 @@ static int wait_for_space(struct pipe_inode_info *pipe, unsigned flags)
 			return -EAGAIN;
 		if (signal_pending(current))
 			return -ERESTARTSYS;
-		pipe_wait(pipe);
+		pipe_wait_writable(pipe);
 	}
 }
 
@@ -1454,7 +1474,7 @@ static int ipipe_prep(struct pipe_inode_info *pipe, unsigned int flags)
 			ret = -EAGAIN;
 			break;
 		}
-		pipe_wait(pipe);
+		pipe_wait_readable(pipe);
 	}
 
 	pipe_unlock(pipe);
@@ -1493,7 +1513,7 @@ static int opipe_prep(struct pipe_inode_info *pipe, unsigned int flags)
 			ret = -ERESTARTSYS;
 			break;
 		}
-		pipe_wait(pipe);
+		pipe_wait_writable(pipe);
 	}
 
 	pipe_unlock(pipe);

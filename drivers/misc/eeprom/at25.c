@@ -90,10 +90,10 @@ static int at25_ee_read(void *priv, unsigned int offset,
 	switch (at25->addrlen) {
 	default:	/* case 3 */
 		*cp++ = offset >> 16;
-		/* fall through */
+		fallthrough;
 	case 2:
 		*cp++ = offset >> 8;
-		/* fall through */
+		fallthrough;
 	case 1:
 	case 0:	/* can't happen: for better codegen */
 		*cp++ = offset >> 0;
@@ -178,10 +178,10 @@ static int at25_ee_write(void *priv, unsigned int off, void *val, size_t count)
 		switch (at25->addrlen) {
 		default:	/* case 3 */
 			*cp++ = offset >> 16;
-			/* fall through */
+			fallthrough;
 		case 2:
 			*cp++ = offset >> 8;
-			/* fall through */
+			fallthrough;
 		case 1:
 		case 0:	/* can't happen: for better codegen */
 			*cp++ = offset >> 0;
@@ -278,7 +278,7 @@ static int at25_fw_to_chip(struct device *dev, struct spi_eeprom *chip)
 		switch (val) {
 		case 9:
 			chip->flags |= EE_INSTR_BIT3_IS_ADDR;
-			/* fall through */
+			fallthrough;
 		case 8:
 			chip->flags |= EE_ADDR1;
 			break;

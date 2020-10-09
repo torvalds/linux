@@ -314,7 +314,7 @@ nfsd_proc_create(struct svc_rqst *rqstp)
 					rdev = inode->i_rdev;
 					attr->ia_valid |= ATTR_SIZE;
 
-					/* FALLTHROUGH */
+					fallthrough;
 				case S_IFIFO:
 					/* this is probably a permission check..
 					 * at least IRIX implements perm checking on

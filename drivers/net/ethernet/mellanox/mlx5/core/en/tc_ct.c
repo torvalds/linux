@@ -246,8 +246,10 @@ mlx5_tc_ct_rule_to_tuple_nat(struct mlx5_ct_tuple *tuple,
 		case FLOW_ACT_MANGLE_HDR_TYPE_IP6:
 			ip6_offset = (offset - offsetof(struct ipv6hdr, saddr));
 			ip6_offset /= 4;
-			if (ip6_offset < 8)
+			if (ip6_offset < 4)
 				tuple->ip.src_v6.s6_addr32[ip6_offset] = cpu_to_be32(val);
+			else if (ip6_offset < 8)
+				tuple->ip.dst_v6.s6_addr32[ip6_offset - 4] = cpu_to_be32(val);
 			else
 				return -EOPNOTSUPP;
 			break;
@@ -699,6 +701,7 @@ mlx5_tc_ct_entry_add_rule(struct mlx5_tc_ct_priv *ct_priv,
 err_rule:
 	mlx5e_mod_hdr_detach(ct_priv->esw->dev,
 			     &esw->offloads.mod_hdr, zone_rule->mh);
+	mapping_remove(ct_priv->labels_mapping, attr->ct_attr.ct_labels_id);
 err_mod_hdr:
 	kfree(spec);
 	return err;
@@ -958,12 +961,22 @@ mlx5_tc_ct_add_no_trk_match(struct mlx5e_priv *priv,
 	return 0;
 }
 
+void mlx5_tc_ct_match_del(struct mlx5e_priv *priv, struct mlx5_ct_attr *ct_attr)
+{
+	struct mlx5_tc_ct_priv *ct_priv = mlx5_tc_ct_get_ct_priv(priv);
+
+	if (!ct_priv || !ct_attr->ct_labels_id)
+		return;
+
+	mapping_remove(ct_priv->labels_mapping, ct_attr->ct_labels_id);
+}
+
 int
-mlx5_tc_ct_parse_match(struct mlx5e_priv *priv,
-		       struct mlx5_flow_spec *spec,
-		       struct flow_cls_offload *f,
-		       struct mlx5_ct_attr *ct_attr,
-		       struct netlink_ext_ack *extack)
+mlx5_tc_ct_match_add(struct mlx5e_priv *priv,
+		     struct mlx5_flow_spec *spec,
+		     struct flow_cls_offload *f,
+		     struct mlx5_ct_attr *ct_attr,
+		     struct netlink_ext_ack *extack)
 {
 	struct mlx5_tc_ct_priv *ct_priv = mlx5_tc_ct_get_ct_priv(priv);
 	struct flow_rule *rule = flow_cls_offload_flow_rule(f);

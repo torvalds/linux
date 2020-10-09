@@ -339,7 +339,7 @@ void __kprobes disasm_instr(unsigned long addr, struct disasm_state *state,
 
 	case op_LDWX_S:	/* LDWX_S c, [b, u6] */
 		state->x = 1;
-		/* intentional fall-through */
+		fallthrough;
 
 	case op_LDW_S:	/* LDW_S c, [b, u6] */
 		state->zz = 2;
