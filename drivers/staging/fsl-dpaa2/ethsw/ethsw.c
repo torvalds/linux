@@ -1711,7 +1711,7 @@ static int ethsw_probe_port(struct ethsw_core *ethsw, u16 port_idx)
 
 	SET_NETDEV_DEV(port_netdev, dev);
 	port_netdev->netdev_ops = &ethsw_port_ops;
-	port_netdev->ethtool_ops = &ethsw_port_ethtool_ops;
+	port_netdev->ethtool_ops = &dpaa2_switch_port_ethtool_ops;
 
 	/* Set MTU limits */
 	port_netdev->min_mtu = ETH_MIN_MTU;
