@@ -1,0 +1,30 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+#ifndef __PERF_STREAM_H
+#define __PERF_STREAM_H
+
+#include "callchain.h"
+
+struct stream {
+	struct callchain_node	*cnode;
+};
+
+struct evsel_streams {
+	struct stream		*streams;
+	int			nr_streams_max;
+	int			nr_streams;
+	int			evsel_idx;
+};
+
+struct evlist_streams {
+	struct evsel_streams	*ev_streams;
+	int			nr_evsel;
+};
+
+struct evlist;
+
+void evlist_streams__delete(struct evlist_streams *els);
+
+struct evlist_streams *evlist__create_streams(struct evlist *evlist,
+					      int nr_streams_max);
+
+#endif /* __PERF_STREAM_H */
