@@ -3070,6 +3070,10 @@
 			and gids from such clients.  This is intended to ease
 			migration from NFSv2/v3.
 
+	nmi_backtrace.backtrace_idle [KNL]
+			Dump stacks even of idle CPUs in response to an
+			NMI stack-backtrace request.
+
 	nmi_debug=	[KNL,SH] Specify one or more actions to take
 			when a NMI is triggered.
 			Format: [state][,regs][,debounce][,die]
@@ -4149,46 +4153,55 @@
 			This wake_up() will be accompanied by a
 			WARN_ONCE() splat and an ftrace_dump().
 
+	rcutree.rcu_unlock_delay= [KNL]
+			In CONFIG_RCU_STRICT_GRACE_PERIOD=y kernels,
+			this specifies an rcu_read_unlock()-time delay
+			in microseconds.  This defaults to zero.
+			Larger delays increase the probability of
+			catching RCU pointer leaks, that is, buggy use
+			of RCU-protected pointers after the relevant
+			rcu_read_unlock() has completed.
+
 	rcutree.sysrq_rcu= [KNL]
 			Commandeer a sysrq key to dump out Tree RCU's
 			rcu_node tree with an eye towards determining
 			why a new grace period has not yet started.
 
-	rcuperf.gp_async= [KNL]
+	rcuscale.gp_async= [KNL]
 			Measure performance of asynchronous
 			grace-period primitives such as call_rcu().
 
-	rcuperf.gp_async_max= [KNL]
+	rcuscale.gp_async_max= [KNL]
 			Specify the maximum number of outstanding
 			callbacks per writer thread.  When a writer
 			thread exceeds this limit, it invokes the
 			corresponding flavor of rcu_barrier() to allow
 			previously posted callbacks to drain.
 
-	rcuperf.gp_exp= [KNL]
+	rcuscale.gp_exp= [KNL]
 			Measure performance of expedited synchronous
 			grace-period primitives.
 
-	rcuperf.holdoff= [KNL]
+	rcuscale.holdoff= [KNL]
 			Set test-start holdoff period.  The purpose of
 			this parameter is to delay the start of the
 			test until boot completes in order to avoid
 			interference.
 
-	rcuperf.kfree_rcu_test= [KNL]
+	rcuscale.kfree_rcu_test= [KNL]
 			Set to measure performance of kfree_rcu() flooding.
 
-	rcuperf.kfree_nthreads= [KNL]
+	rcuscale.kfree_nthreads= [KNL]
 			The number of threads running loops of kfree_rcu().
 
-	rcuperf.kfree_alloc_num= [KNL]
+	rcuscale.kfree_alloc_num= [KNL]
 			Number of allocations and frees done in an iteration.
 
-	rcuperf.kfree_loops= [KNL]
-			Number of loops doing rcuperf.kfree_alloc_num number
+	rcuscale.kfree_loops= [KNL]
+			Number of loops doing rcuscale.kfree_alloc_num number
 			of allocations and frees.
 
-	rcuperf.nreaders= [KNL]
+	rcuscale.nreaders= [KNL]
 			Set number of RCU readers.  The value -1 selects
 			N, where N is the number of CPUs.  A value
 			"n" less than -1 selects N-n+1, where N is again
@@ -4197,23 +4210,23 @@
 			A value of "n" less than or equal to -N selects
 			a single reader.
 
-	rcuperf.nwriters= [KNL]
+	rcuscale.nwriters= [KNL]
 			Set number of RCU writers.  The values operate
-			the same as for rcuperf.nreaders.
+			the same as for rcuscale.nreaders.
 			N, where N is the number of CPUs
 
-	rcuperf.perf_type= [KNL]
+	rcuscale.perf_type= [KNL]
 			Specify the RCU implementation to test.
 
-	rcuperf.shutdown= [KNL]
+	rcuscale.shutdown= [KNL]
 			Shut the system down after performance tests
 			complete.  This is useful for hands-off automated
 			testing.
 
-	rcuperf.verbose= [KNL]
+	rcuscale.verbose= [KNL]
 			Enable additional printk() statements.
 
-	rcuperf.writer_holdoff= [KNL]
+	rcuscale.writer_holdoff= [KNL]
 			Write-side holdoff between grace periods,
 			in microseconds.  The default of zero says
 			no holdoff.
@@ -4265,6 +4278,18 @@
 			rcutorture.gp_normal=, and rcutorture.gp_sync=
 			are zero, rcutorture acts as if is interpreted
 			they are all non-zero.
+
+	rcutorture.irqreader= [KNL]
+			Run RCU readers from irq handlers, or, more
+			accurately, from a timer handler.  Not all RCU
+			flavors take kindly to this sort of thing.
+
+	rcutorture.leakpointer= [KNL]
+			Leak an RCU-protected pointer out of the reader.
+			This can of course result in splats, and is
+			intended to test the ability of things like
+			CONFIG_RCU_STRICT_GRACE_PERIOD=y to detect
+			such leaks.
 
 	rcutorture.n_barrier_cbs= [KNL]
 			Set callbacks/threads for rcu_barrier() testing.
@@ -4487,8 +4512,8 @@
 	refscale.shutdown= [KNL]
 			Shut down the system at the end of the performance
 			test.  This defaults to 1 (shut it down) when
-			rcuperf is built into the kernel and to 0 (leave
-			it running) when rcuperf is built as a module.
+			refscale is built into the kernel and to 0 (leave
+			it running) when refscale is built as a module.
 
 	refscale.verbose= [KNL]
 			Enable additional printk() statements.
@@ -4633,6 +4658,98 @@
 			and so on.
 			Format: integer between 0 and 10
 			Default is 0.
+
+	scftorture.holdoff= [KNL]
+			Number of seconds to hold off before starting
+			test.  Defaults to zero for module insertion and
+			to 10 seconds for built-in smp_call_function()
+			tests.
+
+	scftorture.longwait= [KNL]
+			Request ridiculously long waits randomly selected
+			up to the chosen limit in seconds.  Zero (the
+			default) disables this feature.  Please note
+			that requesting even small non-zero numbers of
+			seconds can result in RCU CPU stall warnings,
+			softlockup complaints, and so on.
+
+	scftorture.nthreads= [KNL]
+			Number of kthreads to spawn to invoke the
+			smp_call_function() family of functions.
+			The default of -1 specifies a number of kthreads
+			equal to the number of CPUs.
+
+	scftorture.onoff_holdoff= [KNL]
+			Number seconds to wait after the start of the
+			test before initiating CPU-hotplug operations.
+
+	scftorture.onoff_interval= [KNL]
+			Number seconds to wait between successive
+			CPU-hotplug operations.  Specifying zero (which
+			is the default) disables CPU-hotplug operations.
+
+	scftorture.shutdown_secs= [KNL]
+			The number of seconds following the start of the
+			test after which to shut down the system.  The
+			default of zero avoids shutting down the system.
+			Non-zero values are useful for automated tests.
+
+	scftorture.stat_interval= [KNL]
+			The number of seconds between outputting the
+			current test statistics to the console.  A value
+			of zero disables statistics output.
+
+	scftorture.stutter_cpus= [KNL]
+			The number of jiffies to wait between each change
+			to the set of CPUs under test.
+
+	scftorture.use_cpus_read_lock= [KNL]
+			Use use_cpus_read_lock() instead of the default
+			preempt_disable() to disable CPU hotplug
+			while invoking one of the smp_call_function*()
+			functions.
+
+	scftorture.verbose= [KNL]
+			Enable additional printk() statements.
+
+	scftorture.weight_single= [KNL]
+			The probability weighting to use for the
+			smp_call_function_single() function with a zero
+			"wait" parameter.  A value of -1 selects the
+			default if all other weights are -1.  However,
+			if at least one weight has some other value, a
+			value of -1 will instead select a weight of zero.
+
+	scftorture.weight_single_wait= [KNL]
+			The probability weighting to use for the
+			smp_call_function_single() function with a
+			non-zero "wait" parameter.  See weight_single.
+
+	scftorture.weight_many= [KNL]
+			The probability weighting to use for the
+			smp_call_function_many() function with a zero
+			"wait" parameter.  See weight_single.
+			Note well that setting a high probability for
+			this weighting can place serious IPI load
+			on the system.
+
+	scftorture.weight_many_wait= [KNL]
+			The probability weighting to use for the
+			smp_call_function_many() function with a
+			non-zero "wait" parameter.  See weight_single
+			and weight_many.
+
+	scftorture.weight_all= [KNL]
+			The probability weighting to use for the
+			smp_call_function_all() function with a zero
+			"wait" parameter.  See weight_single and
+			weight_many.
+
+	scftorture.weight_all_wait= [KNL]
+			The probability weighting to use for the
+			smp_call_function_all() function with a
+			non-zero "wait" parameter.  See weight_single
+			and weight_many.
 
 	skew_tick=	[KNL] Offset the periodic timer tick per cpu to mitigate
 			xtime_lock contention on larger systems, and/or RCU lock

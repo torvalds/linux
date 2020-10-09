@@ -304,7 +304,7 @@ noinstr irqentry_state_t irqentry_enter(struct pt_regs *regs)
 	 * terminate a grace period, if and only if the timer interrupt is
 	 * not nested into another interrupt.
 	 *
-	 * Checking for __rcu_is_watching() here would prevent the nesting
+	 * Checking for rcu_is_watching() here would prevent the nesting
 	 * interrupt to invoke rcu_irq_enter(). If that nested interrupt is
 	 * the tick then rcu_flavor_sched_clock_irq() would wrongfully
 	 * assume that it is the first interupt and eventually claim
