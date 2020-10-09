@@ -270,6 +270,13 @@ static bool subflow_thmac_valid(struct mptcp_subflow_context *subflow)
 	return thmac == subflow->thmac;
 }
 
+void mptcp_subflow_reset(struct sock *ssk)
+{
+	tcp_set_state(ssk, TCP_CLOSE);
+	tcp_send_active_reset(ssk, GFP_ATOMIC);
+	tcp_done(ssk);
+}
+
 static void subflow_finish_connect(struct sock *sk, const struct sk_buff *skb)
 {
 	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
@@ -342,8 +349,7 @@ fallback:
 	return;
 
 do_reset:
-	tcp_send_active_reset(sk, GFP_ATOMIC);
-	tcp_done(sk);
+	mptcp_subflow_reset(sk);
 }
 
 struct request_sock_ops mptcp_subflow_request_sock_ops;
