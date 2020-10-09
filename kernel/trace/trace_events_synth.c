@@ -229,6 +229,8 @@ static int synth_field_size(char *type)
 		size = sizeof(long);
 	else if (strcmp(type, "unsigned long") == 0)
 		size = sizeof(unsigned long);
+	else if (strcmp(type, "bool") == 0)
+		size = sizeof(bool);
 	else if (strcmp(type, "pid_t") == 0)
 		size = sizeof(pid_t);
 	else if (strcmp(type, "gfp_t") == 0)
@@ -271,6 +273,8 @@ static const char *synth_field_fmt(char *type)
 		fmt = "%ld";
 	else if (strcmp(type, "unsigned long") == 0)
 		fmt = "%lu";
+	else if (strcmp(type, "bool") == 0)
+		fmt = "%d";
 	else if (strcmp(type, "pid_t") == 0)
 		fmt = "%d";
 	else if (strcmp(type, "gfp_t") == 0)
