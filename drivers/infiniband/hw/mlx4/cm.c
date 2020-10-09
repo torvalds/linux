@@ -58,9 +58,7 @@ struct rej_tmout_entry {
 	int slave;
 	u32 rem_pv_cm_id;
 	struct delayed_work timeout;
-	struct radix_tree_root *rej_tmout_root;
-	/* Points to the mutex protecting this radix-tree */
-	struct mutex *lock;
+	struct xarray *xa_rej_tmout;
 };
 
 struct cm_generic_msg {
@@ -350,9 +348,7 @@ static void rej_tmout_timeout(struct work_struct *work)
 	struct rej_tmout_entry *item = container_of(delay, struct rej_tmout_entry, timeout);
 	struct rej_tmout_entry *deleted;
 
-	mutex_lock(item->lock);
-	deleted = radix_tree_delete_item(item->rej_tmout_root, item->rem_pv_cm_id, NULL);
-	mutex_unlock(item->lock);
+	deleted = xa_cmpxchg(item->xa_rej_tmout, item->rem_pv_cm_id, item, NULL, 0);
 
 	if (deleted != item)
 		pr_debug("deleted(%p) != item(%p)\n", deleted, item);
@@ -363,18 +359,21 @@ static void rej_tmout_timeout(struct work_struct *work)
 static int alloc_rej_tmout(struct mlx4_ib_sriov *sriov, u32 rem_pv_cm_id, int slave)
 {
 	struct rej_tmout_entry *item;
-	int sts;
+	struct rej_tmout_entry *old;
+	int ret = 0;
 
-	mutex_lock(&sriov->rej_tmout_lock);
-	item = radix_tree_lookup(&sriov->rej_tmout_root, (unsigned long)rem_pv_cm_id);
-	mutex_unlock(&sriov->rej_tmout_lock);
+	xa_lock(&sriov->xa_rej_tmout);
+	item = xa_load(&sriov->xa_rej_tmout, (unsigned long)rem_pv_cm_id);
+
 	if (item) {
-		if (IS_ERR(item))
-			return PTR_ERR(item);
-		/* If a retry, adjust delayed work */
-		mod_delayed_work(system_wq, &item->timeout, CM_CLEANUP_CACHE_TIMEOUT);
-		return 0;
+		if (xa_err(item))
+			ret =  xa_err(item);
+		else
+			/* If a retry, adjust delayed work */
+			mod_delayed_work(system_wq, &item->timeout, CM_CLEANUP_CACHE_TIMEOUT);
+		goto err_or_exists;
 	}
+	xa_unlock(&sriov->xa_rej_tmout);
 
 	item = kmalloc(sizeof(*item), GFP_KERNEL);
 	if (!item)
@@ -383,39 +382,44 @@ static int alloc_rej_tmout(struct mlx4_ib_sriov *sriov, u32 rem_pv_cm_id, int sl
 	INIT_DELAYED_WORK(&item->timeout, rej_tmout_timeout);
 	item->slave = slave;
 	item->rem_pv_cm_id = rem_pv_cm_id;
-	item->rej_tmout_root = &sriov->rej_tmout_root;
-	item->lock = &sriov->rej_tmout_lock;
+	item->xa_rej_tmout = &sriov->xa_rej_tmout;
 
-	mutex_lock(&sriov->rej_tmout_lock);
-	sts = radix_tree_insert(&sriov->rej_tmout_root, (unsigned long)rem_pv_cm_id, item);
-	mutex_unlock(&sriov->rej_tmout_lock);
-	if (sts)
-		goto err_insert;
+	old = xa_cmpxchg(&sriov->xa_rej_tmout, (unsigned long)rem_pv_cm_id, NULL, item, GFP_KERNEL);
+	if (old) {
+		pr_debug(
+			"Non-null old entry (%p) or error (%d) when inserting\n",
+			old, xa_err(old));
+		kfree(item);
+		return xa_err(old);
+	}
 
 	schedule_delayed_work(&item->timeout, CM_CLEANUP_CACHE_TIMEOUT);
 
 	return 0;
 
-err_insert:
-	kfree(item);
-	return sts;
+err_or_exists:
+	xa_unlock(&sriov->xa_rej_tmout);
+	return ret;
 }
 
 static int lookup_rej_tmout_slave(struct mlx4_ib_sriov *sriov, u32 rem_pv_cm_id)
 {
 	struct rej_tmout_entry *item;
+	int slave;
 
-	mutex_lock(&sriov->rej_tmout_lock);
-	item = radix_tree_lookup(&sriov->rej_tmout_root, (unsigned long)rem_pv_cm_id);
-	mutex_unlock(&sriov->rej_tmout_lock);
+	xa_lock(&sriov->xa_rej_tmout);
+	item = xa_load(&sriov->xa_rej_tmout, (unsigned long)rem_pv_cm_id);
 
-	if (!item || IS_ERR(item)) {
+	if (!item || xa_err(item)) {
 		pr_debug("Could not find slave. rem_pv_cm_id 0x%x error: %d\n",
-			 rem_pv_cm_id, (int)PTR_ERR(item));
-		return !item ? -ENOENT : PTR_ERR(item);
+			 rem_pv_cm_id, xa_err(item));
+		slave = !item ? -ENOENT : xa_err(item);
+	} else {
+		slave = item->slave;
 	}
+	xa_unlock(&sriov->xa_rej_tmout);
 
-	return item->slave;
+	return slave;
 }
 
 int mlx4_ib_demux_cm_handler(struct ib_device *ibdev, int port, int *slave,
@@ -483,34 +487,34 @@ void mlx4_ib_cm_paravirt_init(struct mlx4_ib_dev *dev)
 	INIT_LIST_HEAD(&dev->sriov.cm_list);
 	dev->sriov.sl_id_map = RB_ROOT;
 	xa_init_flags(&dev->sriov.pv_id_table, XA_FLAGS_ALLOC);
-	mutex_init(&dev->sriov.rej_tmout_lock);
-	INIT_RADIX_TREE(&dev->sriov.rej_tmout_root, GFP_KERNEL);
+	xa_init(&dev->sriov.xa_rej_tmout);
 }
 
-static void rej_tmout_tree_cleanup(struct mlx4_ib_sriov *sriov, int slave)
+static void rej_tmout_xa_cleanup(struct mlx4_ib_sriov *sriov, int slave)
 {
-	struct radix_tree_iter iter;
+	struct rej_tmout_entry *item;
 	bool flush_needed = false;
-	__rcu void **slot;
+	unsigned long id;
 	int cnt = 0;
 
-	mutex_lock(&sriov->rej_tmout_lock);
-	radix_tree_for_each_slot(slot, &sriov->rej_tmout_root, &iter, 0) {
-		struct rej_tmout_entry *item = *slot;
-
+	xa_lock(&sriov->xa_rej_tmout);
+	xa_for_each(&sriov->xa_rej_tmout, id, item) {
 		if (slave < 0 || slave == item->slave) {
 			mod_delayed_work(system_wq, &item->timeout, 0);
 			flush_needed = true;
 			++cnt;
 		}
 	}
-	mutex_unlock(&sriov->rej_tmout_lock);
+	xa_unlock(&sriov->xa_rej_tmout);
 
 	if (flush_needed) {
 		flush_scheduled_work();
-		pr_debug("Deleted %d entries in radix_tree for slave %d during cleanup\n",
-			 slave, cnt);
+		pr_debug("Deleted %d entries in xarray for slave %d during cleanup\n",
+			 cnt, slave);
 	}
+
+	if (slave < 0)
+		WARN_ON(!xa_empty(&sriov->xa_rej_tmout));
 }
 
 /* slave = -1 ==> all slaves */
@@ -581,5 +585,5 @@ void mlx4_ib_cm_paravirt_clean(struct mlx4_ib_dev *dev, int slave)
 		kfree(map);
 	}
 
-	rej_tmout_tree_cleanup(sriov, slave);
+	rej_tmout_xa_cleanup(sriov, slave);
 }
