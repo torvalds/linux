@@ -197,25 +197,23 @@
 &i2c1 {
 	status = "okay";
 
-	ov2718: ov2718@10 {
-		compatible = "ovti,ov2718";
-		status = "okay";
-		reg = <0x10>;
+	sc210iot: sc210iot@32 {
+		compatible = "smartsens,sc210iot";
+		reg = <0x32>;
 		clocks = <&cru CLK_MIPICSI_OUT>;
 		clock-names = "xvclk";
 		power-domains = <&power RV1126_PD_VI>;
-		pinctrl-names = "rockchip,camera_default";
-		pinctrl-0 = <&mipicsi_clk0>;
 		avdd-supply = <&vcc2v8_avdd>;
 		dovdd-supply = <&vcc1v8_dovdd>;
 		dvdd-supply = <&vcc1v2_dvdd>;
-		pwd-gpios = <&gpio1 RK_PD4 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio1 RK_PD4 GPIO_ACTIVE_HIGH>;
 		reset-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_LOW>;
 		rockchip,camera-module-index = <1>;
 		rockchip,camera-module-facing = "front";
-		rockchip,camera-module-name = "YT-RV1109-3-V1";
-		rockchip,camera-module-lens-name = "M43-4IR-2MP-F2";
+		rockchip,camera-module-name = "YT-SC210-V2";
+		rockchip,camera-module-lens-name = "M12-30IRC-2MP-F18";
 		ir-cut = <&cam_ircut0>;
+
 		port {
 			ucam_out0: endpoint {
 				remote-endpoint = <&mipi_in_ucam0>;
