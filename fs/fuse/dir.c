@@ -1648,10 +1648,20 @@ int fuse_do_setattr(struct dentry *dentry, struct iattr *attr,
 		inarg.valid |= FATTR_FH;
 		inarg.fh = ff->fh;
 	}
+
+	/* Kill suid/sgid for non-directory chown unconditionally */
+	if (fc->handle_killpriv_v2 && !S_ISDIR(inode->i_mode) &&
+	    attr->ia_valid & (ATTR_UID | ATTR_GID))
+		inarg.valid |= FATTR_KILL_SUIDGID;
+
 	if (attr->ia_valid & ATTR_SIZE) {
 		/* For mandatory locking in truncate */
 		inarg.valid |= FATTR_LOCKOWNER;
 		inarg.lock_owner = fuse_lock_owner_id(fc, current->files);
+
+		/* Kill suid/sgid for truncate only if no CAP_FSETID */
+		if (fc->handle_killpriv_v2 && !capable(CAP_FSETID))
+			inarg.valid |= FATTR_KILL_SUIDGID;
 	}
 	fuse_setattr_fill(fc, &args, inode, &inarg, &outarg);
 	err = fuse_simple_request(fm, &args);
