@@ -669,7 +669,7 @@ static struct ioc *q_to_ioc(struct request_queue *q)
 
 static const char *q_name(struct request_queue *q)
 {
-	if (test_bit(QUEUE_FLAG_REGISTERED, &q->queue_flags))
+	if (blk_queue_registered(q))
 		return kobject_name(q->kobj.parent);
 	else
 		return "<unknown>";
