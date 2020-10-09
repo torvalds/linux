@@ -479,15 +479,12 @@ static struct kobj_type elv_ktype = {
 	.release	= elevator_release,
 };
 
-/*
- * elv_register_queue is called from either blk_register_queue or
- * elevator_switch, elevator switch is prevented from being happen
- * in the two paths, so it is safe to not hold q->sysfs_lock.
- */
 int elv_register_queue(struct request_queue *q, bool uevent)
 {
 	struct elevator_queue *e = q->elevator;
 	int error;
+
+	lockdep_assert_held(&q->sysfs_lock);
 
 	error = kobject_add(&e->kobj, &q->kobj, "%s", "iosched");
 	if (!error) {
@@ -507,13 +504,10 @@ int elv_register_queue(struct request_queue *q, bool uevent)
 	return error;
 }
 
-/*
- * elv_unregister_queue is called from either blk_unregister_queue or
- * elevator_switch, elevator switch is prevented from being happen
- * in the two paths, so it is safe to not hold q->sysfs_lock.
- */
 void elv_unregister_queue(struct request_queue *q)
 {
+	lockdep_assert_held(&q->sysfs_lock);
+
 	if (q) {
 		struct elevator_queue *e = q->elevator;
 
