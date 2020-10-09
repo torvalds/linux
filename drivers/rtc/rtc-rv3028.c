@@ -619,24 +619,23 @@ static int rv3028_clkout_set_rate(struct clk_hw *hw, unsigned long rate,
 				  unsigned long parent_rate)
 {
 	int i, ret;
+	u32 enabled;
 	struct rv3028_data *rv3028 = clkout_hw_to_rv3028(hw);
+
+	ret = regmap_read(rv3028->regmap, RV3028_CLKOUT, &enabled);
+	if (ret < 0)
+		return ret;
 
 	ret = regmap_write(rv3028->regmap, RV3028_CLKOUT, 0x0);
 	if (ret < 0)
 		return ret;
 
-	for (i = 0; i < ARRAY_SIZE(clkout_rates); i++) {
-		if (clkout_rates[i] == rate) {
-			ret = regmap_update_bits(rv3028->regmap,
-						 RV3028_CLKOUT,
-						 RV3028_CLKOUT_FD_MASK, i);
-			if (ret < 0)
-				return ret;
+	enabled &= RV3028_CLKOUT_CLKOE;
 
+	for (i = 0; i < ARRAY_SIZE(clkout_rates); i++)
+		if (clkout_rates[i] == rate)
 			return regmap_write(rv3028->regmap, RV3028_CLKOUT,
-				RV3028_CLKOUT_CLKSY | RV3028_CLKOUT_CLKOE);
-		}
-	}
+					    RV3028_CLKOUT_CLKSY | enabled | i);
 
 	return -EINVAL;
 }
