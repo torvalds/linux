@@ -246,7 +246,7 @@ static int hif_generic_indication(struct wfx_dev *wdev,
 		mutex_lock(&wdev->rx_stats_lock);
 		// Older firmware send a generic indication beside RxStats
 		if (!wfx_api_older_than(wdev, 1, 4))
-			dev_info(wdev->dev, "Rx test ongoing. Temperature: %d°C\n",
+			dev_info(wdev->dev, "Rx test ongoing. Temperature: %d degrees C\n",
 				 body->data.rx_stats.current_temp);
 		memcpy(&wdev->rx_stats, &body->data.rx_stats,
 		       sizeof(wdev->rx_stats));
