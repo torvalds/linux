@@ -786,11 +786,11 @@ btrfs_calc_reclaim_metadata_size(struct btrfs_fs_info *fs_info,
 }
 
 static bool need_preemptive_reclaim(struct btrfs_fs_info *fs_info,
-				    struct btrfs_space_info *space_info,
-				    u64 used)
+				    struct btrfs_space_info *space_info)
 {
+	u64 ordered, delalloc;
 	u64 thresh = div_factor_fine(space_info->total_bytes, 98);
-	u64 to_reclaim, expected;
+	u64 used;
 
 	/* If we're just plain full then async reclaim just slows us down. */
 	if ((space_info->bytes_used + space_info->bytes_reserved) >= thresh)
@@ -803,26 +803,52 @@ static bool need_preemptive_reclaim(struct btrfs_fs_info *fs_info,
 	if (space_info->reclaim_size)
 		return false;
 
-	to_reclaim = min_t(u64, num_online_cpus() * SZ_1M, SZ_16M);
-	if (btrfs_can_overcommit(fs_info, space_info, to_reclaim,
-				 BTRFS_RESERVE_FLUSH_ALL))
-		return false;
+	/*
+	 * If we have over half of the free space occupied by reservations or
+	 * pinned then we want to start flushing.
+	 *
+	 * We do not do the traditional thing here, which is to say
+	 *
+	 *   if (used >= ((total_bytes + avail) / 2))
+	 *     return 1;
+	 *
+	 * because this doesn't quite work how we want.  If we had more than 50%
+	 * of the space_info used by bytes_used and we had 0 available we'd just
+	 * constantly run the background flusher.  Instead we want it to kick in
+	 * if our reclaimable space exceeds 50% of our available free space.
+	 */
+	thresh = calc_available_free_space(fs_info, space_info,
+					   BTRFS_RESERVE_FLUSH_ALL);
+	thresh += (space_info->total_bytes - space_info->bytes_used -
+		   space_info->bytes_reserved - space_info->bytes_readonly);
+	thresh >>= 1;
 
-	used = btrfs_space_info_used(space_info, true);
-	if (btrfs_can_overcommit(fs_info, space_info, SZ_1M,
-				 BTRFS_RESERVE_FLUSH_ALL))
-		expected = div_factor_fine(space_info->total_bytes, 95);
-	else
-		expected = div_factor_fine(space_info->total_bytes, 90);
+	used = space_info->bytes_pinned;
 
-	if (used > expected)
-		to_reclaim = used - expected;
+	/*
+	 * If we have more ordered bytes than delalloc bytes then we're either
+	 * doing a lot of DIO, or we simply don't have a lot of delalloc waiting
+	 * around.  Preemptive flushing is only useful in that it can free up
+	 * space before tickets need to wait for things to finish.  In the case
+	 * of ordered extents, preemptively waiting on ordered extents gets us
+	 * nothing, if our reservations are tied up in ordered extents we'll
+	 * simply have to slow down writers by forcing them to wait on ordered
+	 * extents.
+	 *
+	 * In the case that ordered is larger than delalloc, only include the
+	 * block reserves that we would actually be able to directly reclaim
+	 * from.  In this case if we're heavy on metadata operations this will
+	 * clearly be heavy enough to warrant preemptive flushing.  In the case
+	 * of heavy DIO or ordered reservations, preemptive flushing will just
+	 * waste time and cause us to slow down.
+	 */
+	ordered = percpu_counter_sum_positive(&fs_info->ordered_bytes);
+	delalloc = percpu_counter_sum_positive(&fs_info->delalloc_bytes);
+	if (ordered >= delalloc)
+		used += fs_info->delayed_refs_rsv.reserved +
+			fs_info->delayed_block_rsv.reserved;
 	else
-		to_reclaim = 0;
-	to_reclaim = min(to_reclaim, space_info->bytes_may_use +
-				     space_info->bytes_reserved);
-	if (!to_reclaim)
-		return false;
+		used += space_info->bytes_may_use;
 
 	return (used >= thresh && !btrfs_fs_closing(fs_info) &&
 		!test_bit(BTRFS_FS_STATE_REMOUNTING, &fs_info->fs_state));
@@ -1019,7 +1045,6 @@ static void btrfs_preempt_reclaim_metadata_space(struct work_struct *work)
 	struct btrfs_block_rsv *delayed_refs_rsv;
 	struct btrfs_block_rsv *global_rsv;
 	struct btrfs_block_rsv *trans_rsv;
-	u64 used;
 
 	fs_info = container_of(work, struct btrfs_fs_info,
 			       preempt_reclaim_work);
@@ -1030,8 +1055,7 @@ static void btrfs_preempt_reclaim_metadata_space(struct work_struct *work)
 	trans_rsv = &fs_info->trans_block_rsv;
 
 	spin_lock(&space_info->lock);
-	used = btrfs_space_info_used(space_info, true);
-	while (need_preemptive_reclaim(fs_info, space_info, used)) {
+	while (need_preemptive_reclaim(fs_info, space_info)) {
 		enum btrfs_flush_state flush;
 		u64 delalloc_size = 0;
 		u64 to_reclaim, block_rsv_size;
@@ -1092,7 +1116,6 @@ static void btrfs_preempt_reclaim_metadata_space(struct work_struct *work)
 		flush_space(fs_info, space_info, to_reclaim, flush);
 		cond_resched();
 		spin_lock(&space_info->lock);
-		used = btrfs_space_info_used(space_info, true);
 	}
 	spin_unlock(&space_info->lock);
 }
@@ -1511,7 +1534,7 @@ static int __reserve_bytes(struct btrfs_fs_info *fs_info,
 		 * the async reclaim as we will panic.
 		 */
 		if (!test_bit(BTRFS_FS_LOG_RECOVERING, &fs_info->flags) &&
-		    need_preemptive_reclaim(fs_info, space_info, used) &&
+		    need_preemptive_reclaim(fs_info, space_info) &&
 		    !work_busy(&fs_info->preempt_reclaim_work)) {
 			trace_btrfs_trigger_flush(fs_info, space_info->flags,
 						  orig_bytes, flush, "preempt");
