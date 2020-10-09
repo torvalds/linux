@@ -541,6 +541,12 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry,
 	inarg.flags = flags;
 	inarg.mode = mode;
 	inarg.umask = current_umask();
+
+	if (fm->fc->handle_killpriv_v2 && (flags & O_TRUNC) &&
+	    !(flags & O_EXCL) && !capable(CAP_FSETID)) {
+		inarg.open_flags |= FUSE_OPEN_KILL_SUIDGID;
+	}
+
 	args.opcode = FUSE_CREATE;
 	args.nodeid = get_node_id(dir);
 	args.in_numargs = 2;
