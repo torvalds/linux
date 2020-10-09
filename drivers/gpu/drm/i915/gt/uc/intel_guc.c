@@ -312,18 +312,18 @@ void intel_guc_write_params(struct intel_guc *guc)
 	int i;
 
 	/*
-	 * All SOFT_SCRATCH registers are in FORCEWAKE_BLITTER domain and
+	 * All SOFT_SCRATCH registers are in FORCEWAKE_GT domain and
 	 * they are power context saved so it's ok to release forcewake
 	 * when we are done here and take it again at xfer time.
 	 */
-	intel_uncore_forcewake_get(uncore, FORCEWAKE_BLITTER);
+	intel_uncore_forcewake_get(uncore, FORCEWAKE_GT);
 
 	intel_uncore_write(uncore, SOFT_SCRATCH(0), 0);
 
 	for (i = 0; i < GUC_CTL_MAX_DWORDS; i++)
 		intel_uncore_write(uncore, SOFT_SCRATCH(1 + i), guc->params[i]);
 
-	intel_uncore_forcewake_put(uncore, FORCEWAKE_BLITTER);
+	intel_uncore_forcewake_put(uncore, FORCEWAKE_GT);
 }
 
 int intel_guc_init(struct intel_guc *guc)
