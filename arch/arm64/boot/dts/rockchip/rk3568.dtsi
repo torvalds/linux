@@ -447,6 +447,16 @@
 		reg = <0x0 0xfe1a8100 0x0 0x20>;
 	};
 
+	nandc0: nandc@fe330000 {
+		compatible = "rockchip,rk-nandc";
+		reg = <0x0 0xfe330000 0x0 0x4000>;
+		interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
+		nandc_id = <0>;
+		clocks = <&cru NCLK_NANDC>, <&cru HCLK_NANDC>;
+		clock-names = "clk_nandc", "hclk_nandc";
+		status = "disabled";
+	};
+
 	dmac0: dmac@fe530000 {
 		compatible = "arm,pl330", "arm,primecell";
 		reg = <0x0 0xfe530000 0x0 0x4000>;
