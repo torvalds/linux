@@ -818,6 +818,13 @@ static bool need_preemptive_reclaim(struct btrfs_fs_info *fs_info,
 	if ((space_info->bytes_used + space_info->bytes_reserved) >= thresh)
 		return false;
 
+	/*
+	 * We have tickets queued, bail so we don't compete with the async
+	 * flushers.
+	 */
+	if (space_info->reclaim_size)
+		return false;
+
 	if (!btrfs_calc_reclaim_metadata_size(fs_info, space_info))
 		return false;
 
