@@ -808,18 +808,18 @@ btrfs_calc_reclaim_metadata_size(struct btrfs_fs_info *fs_info,
 	return to_reclaim;
 }
 
-static inline int need_do_async_reclaim(struct btrfs_fs_info *fs_info,
-					struct btrfs_space_info *space_info,
-					u64 used)
+static bool need_preemptive_reclaim(struct btrfs_fs_info *fs_info,
+				    struct btrfs_space_info *space_info,
+				    u64 used)
 {
 	u64 thresh = div_factor_fine(space_info->total_bytes, 98);
 
 	/* If we're just plain full then async reclaim just slows us down. */
 	if ((space_info->bytes_used + space_info->bytes_reserved) >= thresh)
-		return 0;
+		return false;
 
 	if (!btrfs_calc_reclaim_metadata_size(fs_info, space_info))
-		return 0;
+		return false;
 
 	return (used >= thresh && !btrfs_fs_closing(fs_info) &&
 		!test_bit(BTRFS_FS_STATE_REMOUNTING, &fs_info->fs_state));
@@ -1028,7 +1028,7 @@ static void btrfs_preempt_reclaim_metadata_space(struct work_struct *work)
 
 	spin_lock(&space_info->lock);
 	used = btrfs_space_info_used(space_info, true);
-	while (need_do_async_reclaim(fs_info, space_info, used)) {
+	while (need_preemptive_reclaim(fs_info, space_info, used)) {
 		enum btrfs_flush_state flush;
 		u64 delalloc_size = 0;
 		u64 to_reclaim, block_rsv_size;
@@ -1508,7 +1508,7 @@ static int __reserve_bytes(struct btrfs_fs_info *fs_info,
 		 * the async reclaim as we will panic.
 		 */
 		if (!test_bit(BTRFS_FS_LOG_RECOVERING, &fs_info->flags) &&
-		    need_do_async_reclaim(fs_info, space_info, used) &&
+		    need_preemptive_reclaim(fs_info, space_info, used) &&
 		    !work_busy(&fs_info->preempt_reclaim_work)) {
 			trace_btrfs_trigger_flush(fs_info, space_info->flags,
 						  orig_bytes, flush, "preempt");
