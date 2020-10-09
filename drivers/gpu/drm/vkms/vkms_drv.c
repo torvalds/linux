@@ -166,6 +166,8 @@ static int __init vkms_init(void)
 	if (ret)
 		goto out_devres;
 
+	drm_fbdev_generic_setup(&vkms_device->drm, 0);
+
 	return 0;
 
 out_devres:
