@@ -85,14 +85,16 @@ type T;
 
 @script:python depends on report@
 p << r.p;
+m << r.m;
 @@
 
-coccilib.report.print_report(p[0],
-  "WARNING: opportunity for kfree_sensitive/kvfree_sensitive")
+msg = "WARNING opportunity for kfree_sensitive/kvfree_sensitive (memset at line %s)"
+coccilib.report.print_report(p[0], msg % (m[0].line))
 
 @script:python depends on org@
 p << r.p;
+m << r.m;
 @@
 
-coccilib.org.print_todo(p[0],
-  "WARNING: opportunity for kfree_sensitive/kvfree_sensitive")
+msg = "WARNING opportunity for kfree_sensitive/kvfree_sensitive (memset at line %s)"
+coccilib.org.print_todo(p[0], msg % (m[0].line))
