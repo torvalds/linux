@@ -431,7 +431,10 @@ static void wfx_skb_dtor(struct wfx_vif *wvif, struct sk_buff *skb)
 			      sizeof(struct hif_req_tx) +
 			      req->fc_offset;
 
-	WARN_ON(!wvif);
+	if (!wvif) {
+		pr_warn("%s: vif associated with the skb does not exist anymore\n", __func__);
+		return;
+	}
 	wfx_tx_policy_put(wvif, req->retry_policy_index);
 	skb_pull(skb, offset);
 	ieee80211_tx_status_irqsafe(wvif->wdev->hw, skb);

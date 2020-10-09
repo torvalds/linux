@@ -619,6 +619,10 @@ int wfx_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta, bool set)
 	struct wfx_sta_priv *sta_dev = (struct wfx_sta_priv *)&sta->drv_priv;
 	struct wfx_vif *wvif = wdev_to_wvif(wdev, sta_dev->vif_id);
 
+	if (!wvif) {
+		dev_warn(wdev->dev, "%s: received event for non-existent vif\n", __func__);
+		return -EIO;
+	}
 	schedule_work(&wvif->update_tim_work);
 	return 0;
 }
