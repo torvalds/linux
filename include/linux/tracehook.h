@@ -205,12 +205,10 @@ static inline void tracehook_notify_resume(struct pt_regs *regs)
  */
 static inline void tracehook_notify_signal(void)
 {
-#if defined(TIF_NOTIFY_SIGNAL)
 	clear_thread_flag(TIF_NOTIFY_SIGNAL);
 	smp_mb__after_atomic();
 	if (current->task_works)
 		task_work_run();
-#endif
 }
 
 /*
@@ -218,11 +216,9 @@ static inline void tracehook_notify_signal(void)
  */
 static inline void set_notify_signal(struct task_struct *task)
 {
-#if defined(TIF_NOTIFY_SIGNAL)
 	if (!test_and_set_tsk_thread_flag(task, TIF_NOTIFY_SIGNAL) &&
 	    !wake_up_state(task, TASK_INTERRUPTIBLE))
 		kick_process(task);
-#endif
 }
 
 #endif	/* <linux/tracehook.h> */
