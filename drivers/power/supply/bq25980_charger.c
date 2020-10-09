@@ -1096,28 +1096,29 @@ static int bq25980_power_supply_init(struct bq25980_device *bq,
 static int bq25980_hw_init(struct bq25980_device *bq)
 {
 	struct power_supply_battery_info bat_info = { };
-	int wd_reg_val = 0;
+	int wd_reg_val = BQ25980_WATCHDOG_DIS;
+	int wd_max_val = BQ25980_NUM_WD_VAL - 1;
 	int ret = 0;
 	int curr_val;
 	int volt_val;
 	int i;
 
-	if (!bq->watchdog_timer) {
-		ret = regmap_update_bits(bq->regmap, BQ25980_CHRGR_CTRL_3,
-					 BQ25980_WATCHDOG_DIS,
-					 BQ25980_WATCHDOG_DIS);
-	} else {
-		for (i = 0; i < BQ25980_NUM_WD_VAL; i++) {
-			if (bq->watchdog_timer > bq25980_watchdog_time[i] &&
-			    bq->watchdog_timer < bq25980_watchdog_time[i + 1]) {
-				wd_reg_val = i;
-				break;
+	if (bq->watchdog_timer) {
+		if (bq->watchdog_timer >= bq25980_watchdog_time[wd_max_val])
+			wd_reg_val = wd_max_val;
+		else {
+			for (i = 0; i < wd_max_val; i++) {
+				if (bq->watchdog_timer > bq25980_watchdog_time[i] &&
+				    bq->watchdog_timer < bq25980_watchdog_time[i + 1]) {
+					wd_reg_val = i;
+					break;
+				}
 			}
 		}
-
-		ret = regmap_update_bits(bq->regmap, BQ25980_CHRGR_CTRL_3,
-					BQ25980_WATCHDOG_MASK, wd_reg_val);
 	}
+
+	ret = regmap_update_bits(bq->regmap, BQ25980_CHRGR_CTRL_3,
+				 BQ25980_WATCHDOG_MASK, wd_reg_val);
 	if (ret)
 		return ret;
 
