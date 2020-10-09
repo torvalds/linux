@@ -72,7 +72,7 @@ the one running (B).
 Using only a spinlock can lead to a deadlock. The classic example of
 deadlock in this case is:
 
-1. We run a process process on the X processor, and we acquire the lock
+1. We run a process on the X processor, and we acquire the lock
 2. Before releasing the lock, an interrupt is generated on the X processor
 3. The interrupt handling routine will try to acquire the lock and it
    will go into an infinite loop
