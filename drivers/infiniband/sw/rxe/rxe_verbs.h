@@ -273,7 +273,6 @@ enum rxe_mem_type {
 	RXE_MEM_TYPE_NONE,
 	RXE_MEM_TYPE_DMA,
 	RXE_MEM_TYPE_MR,
-	RXE_MEM_TYPE_FMR,
 	RXE_MEM_TYPE_MW,
 };
 
