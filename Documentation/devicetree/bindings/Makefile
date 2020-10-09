@@ -3,6 +3,8 @@ DT_DOC_CHECKER ?= dt-doc-validate
 DT_EXTRACT_EX ?= dt-extract-example
 DT_MK_SCHEMA ?= dt-mk-schema
 
+DT_SCHEMA_LINT = $(shell which yamllint)
+
 DT_SCHEMA_MIN_VERSION = 2020.8.1
 
 PHONY += check_dtschema_version
@@ -24,6 +26,10 @@ find_cmd = find $(srctree)/$(src) \( -name '*.yaml' ! \
 		-name 'processed-schema*' ! \
 		-name '*.example.dt.yaml' \)
 
+quiet_cmd_yamllint = LINT    $(src)
+      cmd_yamllint = $(find_cmd) | \
+                     xargs $(DT_SCHEMA_LINT) -f parsable -c $(srctree)/$(src)/.yamllint
+
 quiet_cmd_chk_bindings = CHKDT   $@
       cmd_chk_bindings = $(find_cmd) | \
                          xargs -n200 -P$$(nproc) $(DT_DOC_CHECKER) -u $(srctree)/$(src)
@@ -37,6 +43,7 @@ quiet_cmd_mk_schema = SCHEMA  $@
 		      rm -f $$f
 
 define rule_chkdt
+	$(if $(DT_SCHEMA_LINT),$(call cmd,yamllint),)
 	$(call cmd,chk_bindings)
 	$(call cmd,mk_schema)
 endef
@@ -48,7 +55,7 @@ override DTC_FLAGS := \
 	-Wno-graph_child_address \
 	-Wno-interrupt_provider
 
-$(obj)/processed-schema-examples.json: $(DT_DOCS) check_dtschema_version FORCE
+$(obj)/processed-schema-examples.json: $(DT_DOCS) $(src)/.yamllint check_dtschema_version FORCE
 	$(call if_changed_rule,chkdt)
 
 ifeq ($(DT_SCHEMA_FILES),)
