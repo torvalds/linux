@@ -140,6 +140,12 @@
  *     be freed, plus any delayed work we may not have gotten rid of in the case
  *     of metadata.
  *
+ *   FORCE_COMMIT_TRANS
+ *     For use by the preemptive flusher.  We use this to bypass the ticketing
+ *     checks in may_commit_transaction, as we have more information about the
+ *     overall state of the system and may want to commit the transaction ahead
+ *     of actual ENOSPC conditions.
+ *
  * OVERCOMMIT
  *
  *   Because we hold so many reservations for metadata we will allow you to
@@ -734,6 +740,14 @@ static void flush_space(struct btrfs_fs_info *fs_info,
 		break;
 	case COMMIT_TRANS:
 		ret = may_commit_transaction(fs_info, space_info);
+		break;
+	case FORCE_COMMIT_TRANS:
+		trans = btrfs_join_transaction(root);
+		if (IS_ERR(trans)) {
+			ret = PTR_ERR(trans);
+			break;
+		}
+		ret = btrfs_commit_transaction(trans);
 		break;
 	default:
 		ret = -ENOSPC;
