@@ -79,7 +79,7 @@ static const char valid_change[16] = {
 };
 
 static int gfs2_rbm_find(struct gfs2_rbm *rbm, u8 state, u32 *minext,
-			 const struct gfs2_inode *ip, bool nowrap);
+			 struct gfs2_blkreserv *rs, bool nowrap);
 
 
 /**
@@ -1590,7 +1590,7 @@ static void rg_mblk_search(struct gfs2_rgrpd *rgd, struct gfs2_inode *ip,
 	if (WARN_ON(gfs2_rbm_from_block(&rbm, goal)))
 		return;
 
-	ret = gfs2_rbm_find(&rbm, GFS2_BLKST_FREE, &extlen, ip, true);
+	ret = gfs2_rbm_find(&rbm, GFS2_BLKST_FREE, &extlen, &ip->i_res, true);
 	if (ret == 0) {
 		rs->rs_start = gfs2_rbm_to_block(&rbm);
 		rs->rs_free = extlen;
@@ -1606,7 +1606,7 @@ static void rg_mblk_search(struct gfs2_rgrpd *rgd, struct gfs2_inode *ip,
  * @rgd: The resource group
  * @block: The starting block
  * @length: The required length
- * @ip: Ignore any reservations for this inode
+ * @ignore_rs: Reservation to ignore
  *
  * If the block does not appear in any reservation, then return the
  * block number unchanged. If it does appear in the reservation, then
@@ -1616,7 +1616,7 @@ static void rg_mblk_search(struct gfs2_rgrpd *rgd, struct gfs2_inode *ip,
 
 static u64 gfs2_next_unreserved_block(struct gfs2_rgrpd *rgd, u64 block,
 				      u32 length,
-				      const struct gfs2_inode *ip)
+				      struct gfs2_blkreserv *ignore_rs)
 {
 	struct gfs2_blkreserv *rs;
 	struct rb_node *n;
@@ -1636,7 +1636,7 @@ static u64 gfs2_next_unreserved_block(struct gfs2_rgrpd *rgd, u64 block,
 	}
 
 	if (n) {
-		while ((rs_cmp(block, length, rs) == 0) && (&ip->i_res != rs)) {
+		while (rs_cmp(block, length, rs) == 0 && rs != ignore_rs) {
 			block = rs->rs_start + rs->rs_free;
 			n = n->rb_right;
 			if (n == NULL)
@@ -1652,7 +1652,7 @@ static u64 gfs2_next_unreserved_block(struct gfs2_rgrpd *rgd, u64 block,
 /**
  * gfs2_reservation_check_and_update - Check for reservations during block alloc
  * @rbm: The current position in the resource group
- * @ip: The inode for which we are searching for blocks
+ * @rs: Our own reservation
  * @minext: The minimum extent length
  * @maxext: A pointer to the maximum extent structure
  *
@@ -1666,7 +1666,7 @@ static u64 gfs2_next_unreserved_block(struct gfs2_rgrpd *rgd, u64 block,
  */
 
 static int gfs2_reservation_check_and_update(struct gfs2_rbm *rbm,
-					     const struct gfs2_inode *ip,
+					     struct gfs2_blkreserv *rs,
 					     u32 minext,
 					     struct gfs2_extent *maxext)
 {
@@ -1688,7 +1688,7 @@ static int gfs2_reservation_check_and_update(struct gfs2_rbm *rbm,
 	 * Check the extent which has been found against the reservations
 	 * and skip if parts of it are already reserved
 	 */
-	nblock = gfs2_next_unreserved_block(rbm->rgd, block, extlen, ip);
+	nblock = gfs2_next_unreserved_block(rbm->rgd, block, extlen, rs);
 	if (nblock == block) {
 		if (!minext || extlen >= minext)
 			return 0;
@@ -1715,7 +1715,7 @@ fail:
  * @state: The state which we want to find
  * @minext: Pointer to the requested extent length
  *          This is updated to be the actual reservation size.
- * @ip: If set, check for reservations
+ * @rs: Our own reservation (NULL to skip checking for reservations)
  * @nowrap: Stop looking at the end of the rgrp, rather than wrapping
  *          around until we've reached the starting point.
  *
@@ -1729,7 +1729,7 @@ fail:
  */
 
 static int gfs2_rbm_find(struct gfs2_rbm *rbm, u8 state, u32 *minext,
-			 const struct gfs2_inode *ip, bool nowrap)
+			 struct gfs2_blkreserv *rs, bool nowrap)
 {
 	bool scan_from_start = rbm->bii == 0 && rbm->offset == 0;
 	struct buffer_head *bh;
@@ -1766,10 +1766,10 @@ static int gfs2_rbm_find(struct gfs2_rbm *rbm, u8 state, u32 *minext,
 			goto next_bitmap;
 		}
 		rbm->offset = offset;
-		if (ip == NULL)
+		if (!rs)
 			return 0;
 
-		ret = gfs2_reservation_check_and_update(rbm, ip, *minext,
+		ret = gfs2_reservation_check_and_update(rbm, rs, *minext,
 							&maxext);
 		if (ret == 0)
 			return 0;
@@ -2387,7 +2387,7 @@ int gfs2_alloc_blocks(struct gfs2_inode *ip, u64 *bn, unsigned int *nblocks,
 	int error;
 
 	gfs2_set_alloc_start(&rbm, ip, dinode);
-	error = gfs2_rbm_find(&rbm, GFS2_BLKST_FREE, &minext, ip, false);
+	error = gfs2_rbm_find(&rbm, GFS2_BLKST_FREE, &minext, &ip->i_res, false);
 
 	if (error == -ENOSPC) {
 		gfs2_set_alloc_start(&rbm, ip, dinode);
