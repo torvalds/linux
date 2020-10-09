@@ -737,6 +737,26 @@ static ssize_t radeon_hwmon_show_sclk(struct device *dev,
 static SENSOR_DEVICE_ATTR(freq1_input, S_IRUGO, radeon_hwmon_show_sclk, NULL,
 			  0);
 
+static ssize_t radeon_hwmon_show_vddc(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	struct radeon_device *rdev = dev_get_drvdata(dev);
+	struct drm_device *ddev = rdev->ddev;
+	u16 vddc = 0;
+
+	/* Can't get vddc when the card is off */
+	if ((rdev->flags & RADEON_IS_PX) &&
+		(ddev->switch_power_state != DRM_SWITCH_POWER_ON))
+		return -EINVAL;
+
+	if (rdev->asic->dpm.get_current_vddc)
+		vddc = rdev->asic->dpm.get_current_vddc(rdev);
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", vddc);
+}
+
+static SENSOR_DEVICE_ATTR(in0_input, S_IRUGO, radeon_hwmon_show_vddc, NULL,
+			  0);
 
 static struct attribute *hwmon_attributes[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
@@ -747,6 +767,7 @@ static struct attribute *hwmon_attributes[] = {
 	&sensor_dev_attr_pwm1_min.dev_attr.attr,
 	&sensor_dev_attr_pwm1_max.dev_attr.attr,
 	&sensor_dev_attr_freq1_input.dev_attr.attr,
+	&sensor_dev_attr_in0_input.dev_attr.attr,
 	NULL
 };
 
@@ -765,7 +786,13 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	     attr == &sensor_dev_attr_pwm1_enable.dev_attr.attr ||
 	     attr == &sensor_dev_attr_pwm1_max.dev_attr.attr ||
 	     attr == &sensor_dev_attr_pwm1_min.dev_attr.attr ||
-	     attr == &sensor_dev_attr_freq1_input.dev_attr.attr))
+	     attr == &sensor_dev_attr_freq1_input.dev_attr.attr ||
+	     attr == &sensor_dev_attr_in0_input.dev_attr.attr))
+		return 0;
+
+	/* Skip vddc attribute if get_current_vddc is not implemented */
+	if(attr == &sensor_dev_attr_in0_input.dev_attr.attr &&
+		!rdev->asic->dpm.get_current_vddc)
 		return 0;
 
 	/* Skip fan attributes if fan is not present */
