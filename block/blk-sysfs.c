@@ -740,7 +740,6 @@ static void blk_exit_queue(struct request_queue *q)
 	if (q->elevator) {
 		ioc_clear_queue(q);
 		__elevator_exit(q, q->elevator);
-		q->elevator = NULL;
 	}
 
 	/*
