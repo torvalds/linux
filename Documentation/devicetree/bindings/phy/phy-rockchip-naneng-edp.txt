@@ -1,0 +1,26 @@
+Rockchip Naneng eDP Transmitter PHY
+-----------------------
+
+Required properties:
+- compatible:	should be "rockchip,rk3568-edp-phy"
+- reg:		register range for the PHY.
+- clocks:	Must contain an entry in clock-names.
+		See ../clocks/clock-bindings.txt for details.
+- clock-names:	Must contain "refclk" and "pclk".
+- resets:	Must contain an entry for each in reset-names.
+		See ../reset/reset.txt for details.
+- reset-names:	Must contain "apb".
+- #phy-cells:	Must be 0
+
+Example:
+
+	edp_phy: edp-phy@fdcb0000 {
+		compatible = "rockchip,rk3568-edp-phy";
+		reg = <0x0 0xfdcb0000 0x0 0x8000>;
+		clocks = <&pmucru XIN_OSC0_EDPPHY_G>, <&cru PCLK_EDPPHY_GRF>;
+		clock-names = "refclk", "pclk";
+		resets = <&cru SRST_P_EDPPHY_GRF>;
+		reset-names = "apb";
+		#phy-cells = <0>;
+		status = "disabled";
+	};
