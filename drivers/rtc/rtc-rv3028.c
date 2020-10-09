@@ -95,7 +95,7 @@ struct rv3028_data {
 #endif
 };
 
-static u16 rv3028_trickle_resistors[] = {1000, 3000, 6000, 11000};
+static u16 rv3028_trickle_resistors[] = {3000, 5000, 9000, 15000};
 
 static ssize_t timestamp0_store(struct device *dev,
 				struct device_attribute *attr,
