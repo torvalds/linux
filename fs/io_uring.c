@@ -9511,15 +9511,15 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 			ret = wait_for_completion_interruptible(&ctx->ref_comp);
 			if (!ret)
 				break;
-			if (io_run_task_work_sig() > 0)
-				continue;
+			ret = io_run_task_work_sig();
+			if (ret < 0)
+				break;
 		} while (1);
 
 		mutex_lock(&ctx->uring_lock);
 
 		if (ret) {
 			percpu_ref_resurrect(&ctx->refs);
-			ret = -EINTR;
 			goto out_quiesce;
 		}
 	}
