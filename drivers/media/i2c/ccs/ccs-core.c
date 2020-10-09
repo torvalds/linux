@@ -383,15 +383,22 @@ static int ccs_pll_configure(struct ccs_sensor *sensor)
 	if (rval < 0)
 		return rval;
 
-	/* Lane op clock ratio does not apply here. */
-	rval = ccs_write(sensor, REQUESTED_LINK_RATE,
-			 DIV_ROUND_UP(pll->op_bk.sys_clk_freq_hz,
-				      1000000 / 256 / 256) *
-			 (pll->flags & CCS_PLL_FLAG_LANE_SPEED_MODEL ?
-			  sensor->pll.csi2.lanes : 1) <<
-			 (pll->flags & CCS_PLL_FLAG_OP_SYS_DDR ? 1 : 0));
-	if (rval < 0 || sensor->pll.flags & CCS_PLL_FLAG_NO_OP_CLOCKS)
-		return rval;
+	if (!(CCS_LIM(sensor, PHY_CTRL_CAPABILITY) &
+	      CCS_PHY_CTRL_CAPABILITY_AUTO_PHY_CTL)) {
+		/* Lane op clock ratio does not apply here. */
+		rval = ccs_write(sensor, REQUESTED_LINK_RATE,
+				 DIV_ROUND_UP(pll->op_bk.sys_clk_freq_hz,
+					      1000000 / 256 / 256) *
+				 (pll->flags & CCS_PLL_FLAG_LANE_SPEED_MODEL ?
+				  sensor->pll.csi2.lanes : 1) <<
+				 (pll->flags & CCS_PLL_FLAG_OP_SYS_DDR ?
+				  1 : 0));
+		if (rval < 0)
+			return rval;
+	}
+
+	if (sensor->pll.flags & CCS_PLL_FLAG_NO_OP_CLOCKS)
+		return 0;
 
 	rval = ccs_write(sensor, OP_PIX_CLK_DIV, pll->op_bk.pix_clk_div);
 	if (rval < 0)
@@ -1504,6 +1511,28 @@ static int ccs_write_msr_regs(struct ccs_sensor *sensor)
 				   sensor->mdata.num_module_manufacturer_regs);
 }
 
+static int ccs_update_phy_ctrl(struct ccs_sensor *sensor)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
+	u8 val;
+
+	if (!sensor->ccs_limits)
+		return 0;
+
+	if (CCS_LIM(sensor, PHY_CTRL_CAPABILITY) &
+	    CCS_PHY_CTRL_CAPABILITY_AUTO_PHY_CTL) {
+		val = CCS_PHY_CTRL_AUTO;
+	} else if (CCS_LIM(sensor, PHY_CTRL_CAPABILITY) &
+		   CCS_PHY_CTRL_CAPABILITY_UI_PHY_CTL) {
+		val = CCS_PHY_CTRL_UI;
+	} else {
+		dev_err(&client->dev, "manual PHY control not supported\n");
+		return -EINVAL;
+	}
+
+	return ccs_write(sensor, PHY_CTRL, val);
+}
+
 static int ccs_power_on(struct device *dev)
 {
 	struct v4l2_subdev *subdev = dev_get_drvdata(dev);
@@ -1620,8 +1649,7 @@ static int ccs_power_on(struct device *dev)
 		goto out_cci_addr_fail;
 	}
 
-	/* DPHY control done by sensor based on requested link rate */
-	rval = ccs_write(sensor, PHY_CTRL, CCS_PHY_CTRL_UI);
+	rval = ccs_update_phy_ctrl(sensor);
 	if (rval < 0)
 		goto out_cci_addr_fail;
 
@@ -3347,6 +3375,10 @@ static int ccs_probe(struct i2c_client *client)
 		rval = -ENODEV;
 		goto out_free_ccs_limits;
 	}
+
+	rval = ccs_update_phy_ctrl(sensor);
+	if (rval < 0)
+		goto out_free_ccs_limits;
 
 	/*
 	 * Handle Sensor Module orientation on the board.
