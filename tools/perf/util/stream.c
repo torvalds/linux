@@ -162,3 +162,16 @@ struct evlist_streams *evlist__create_streams(struct evlist *evlist,
 
 	return els;
 }
+
+struct evsel_streams *evsel_streams__entry(struct evlist_streams *els,
+					   int evsel_idx)
+{
+	struct evsel_streams *es = els->ev_streams;
+
+	for (int i = 0; i < els->nr_evsel; i++) {
+		if (es[i].evsel_idx == evsel_idx)
+			return &es[i];
+	}
+
+	return NULL;
+}

@@ -27,4 +27,7 @@ void evlist_streams__delete(struct evlist_streams *els);
 struct evlist_streams *evlist__create_streams(struct evlist *evlist,
 					      int nr_streams_max);
 
+struct evsel_streams *evsel_streams__entry(struct evlist_streams *els,
+					   int evsel_idx);
+
 #endif /* __PERF_STREAM_H */
