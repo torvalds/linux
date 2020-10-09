@@ -13,6 +13,7 @@ struct ip_callchain;
 struct map;
 struct perf_sample;
 struct thread;
+struct hists;
 
 #define HELP_PAD "\t\t\t\t"
 
@@ -301,5 +302,7 @@ void callchain_param_setup(u64 sample_type);
 
 bool callchain_cnode_matched(struct callchain_node *base_cnode,
 			     struct callchain_node *pair_cnode);
+
+u64 callchain_total_hits(struct hists *hists);
 
 #endif	/* __PERF_CALLCHAIN_H */
