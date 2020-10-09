@@ -1503,6 +1503,8 @@ static int spi_imx_transfer(struct spi_device *spi,
 {
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(spi->master);
 
+	transfer->effective_speed_hz = spi_imx->spi_bus_clk;
+
 	/* flush rxfifo before transfer */
 	while (spi_imx->devtype_data->rx_available(spi_imx))
 		readl(spi_imx->base + MXC_CSPIRXDATA);
@@ -1695,7 +1697,7 @@ static int spi_imx_probe(struct platform_device *pdev)
 			goto out_runtime_pm_put;
 
 		if (ret < 0)
-			dev_err(&pdev->dev, "dma setup error %d, use pio\n",
+			dev_dbg(&pdev->dev, "dma setup error %d, use pio\n",
 				ret);
 	}
 
@@ -1709,8 +1711,6 @@ static int spi_imx_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "bitbang start failed with %d\n", ret);
 		goto out_bitbang_start;
 	}
-
-	dev_info(&pdev->dev, "probed\n");
 
 	pm_runtime_mark_last_busy(spi_imx->dev);
 	pm_runtime_put_autosuspend(spi_imx->dev);
