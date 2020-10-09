@@ -28,7 +28,10 @@ esw_vport_tbl_create(struct mlx5_eswitch *esw, struct mlx5_flow_namespace *ns,
 	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5_flow_table *fdb;
 
-	ft_attr.autogroup.max_num_groups = vport_ns->max_num_groups;
+	if (vport_ns->max_num_groups)
+		ft_attr.autogroup.max_num_groups = vport_ns->max_num_groups;
+	else
+		ft_attr.autogroup.max_num_groups = esw->params.large_group_num;
 	ft_attr.max_fte = vport_ns->max_fte;
 	ft_attr.prio = FDB_PER_VPORT;
 	ft_attr.flags = vport_ns->flags;
