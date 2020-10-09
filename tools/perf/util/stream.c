@@ -217,3 +217,126 @@ void evsel_streams__match(struct evsel_streams *es_base,
 			stream__link(base_stream, pair_stream);
 	}
 }
+
+static void print_callchain_pair(struct stream *base_stream, int idx,
+				 struct evsel_streams *es_base,
+				 struct evsel_streams *es_pair)
+{
+	struct callchain_node *base_cnode = base_stream->cnode;
+	struct callchain_node *pair_cnode = base_stream->pair_cnode;
+	struct callchain_list *base_chain, *pair_chain;
+	char buf1[512], buf2[512], cbuf1[256], cbuf2[256];
+	char *s1, *s2;
+	double pct;
+
+	printf("\nhot chain pair %d:\n", idx);
+
+	pct = (double)base_cnode->hit / (double)es_base->streams_hits;
+	scnprintf(buf1, sizeof(buf1), "cycles: %ld, hits: %.2f%%",
+		  callchain_avg_cycles(base_cnode), pct * 100.0);
+
+	pct = (double)pair_cnode->hit / (double)es_pair->streams_hits;
+	scnprintf(buf2, sizeof(buf2), "cycles: %ld, hits: %.2f%%",
+		  callchain_avg_cycles(pair_cnode), pct * 100.0);
+
+	printf("%35s\t%35s\n", buf1, buf2);
+
+	printf("%35s\t%35s\n",
+	       "---------------------------",
+	       "--------------------------");
+
+	pair_chain = list_first_entry(&pair_cnode->val,
+				      struct callchain_list,
+				      list);
+
+	list_for_each_entry(base_chain, &base_cnode->val, list) {
+		if (&pair_chain->list == &pair_cnode->val)
+			return;
+
+		s1 = callchain_list__sym_name(base_chain, cbuf1, sizeof(cbuf1),
+					      false);
+		s2 = callchain_list__sym_name(pair_chain, cbuf2, sizeof(cbuf2),
+					      false);
+
+		scnprintf(buf1, sizeof(buf1), "%35s\t%35s", s1, s2);
+		printf("%s\n", buf1);
+		pair_chain = list_next_entry(pair_chain, list);
+	}
+}
+
+static void print_stream_callchain(struct stream *stream, int idx,
+				   struct evsel_streams *es, bool pair)
+{
+	struct callchain_node *cnode = stream->cnode;
+	struct callchain_list *chain;
+	char buf[512], cbuf[256], *s;
+	double pct;
+
+	printf("\nhot chain %d:\n", idx);
+
+	pct = (double)cnode->hit / (double)es->streams_hits;
+	scnprintf(buf, sizeof(buf), "cycles: %ld, hits: %.2f%%",
+		  callchain_avg_cycles(cnode), pct * 100.0);
+
+	if (pair) {
+		printf("%35s\t%35s\n", "", buf);
+		printf("%35s\t%35s\n",
+		       "", "--------------------------");
+	} else {
+		printf("%35s\n", buf);
+		printf("%35s\n", "--------------------------");
+	}
+
+	list_for_each_entry(chain, &cnode->val, list) {
+		s = callchain_list__sym_name(chain, cbuf, sizeof(cbuf), false);
+
+		if (pair)
+			scnprintf(buf, sizeof(buf), "%35s\t%35s", "", s);
+		else
+			scnprintf(buf, sizeof(buf), "%35s", s);
+
+		printf("%s\n", buf);
+	}
+}
+
+static void callchain_streams_report(struct evsel_streams *es_base,
+				     struct evsel_streams *es_pair)
+{
+	struct stream *base_stream;
+	int i, idx = 0;
+
+	printf("[ Matched hot streams ]\n");
+	for (i = 0; i < es_base->nr_streams; i++) {
+		base_stream = &es_base->streams[i];
+		if (base_stream->pair_cnode) {
+			print_callchain_pair(base_stream, ++idx,
+					     es_base, es_pair);
+		}
+	}
+
+	idx = 0;
+	printf("\n[ Hot streams in old perf data only ]\n");
+	for (i = 0; i < es_base->nr_streams; i++) {
+		base_stream = &es_base->streams[i];
+		if (!base_stream->pair_cnode) {
+			print_stream_callchain(base_stream, ++idx,
+					       es_base, false);
+		}
+	}
+
+	idx = 0;
+	printf("\n[ Hot streams in new perf data only ]\n");
+	for (i = 0; i < es_pair->nr_streams; i++) {
+		base_stream = &es_pair->streams[i];
+		if (!base_stream->pair_cnode) {
+			print_stream_callchain(base_stream, ++idx,
+					       es_pair, true);
+		}
+	}
+}
+
+void evsel_streams__report(struct evsel_streams *es_base,
+			   struct evsel_streams *es_pair)
+{
+	return callchain_streams_report(es_base, es_pair);
+}

@@ -305,4 +305,6 @@ bool callchain_cnode_matched(struct callchain_node *base_cnode,
 
 u64 callchain_total_hits(struct hists *hists);
 
+s64 callchain_avg_cycles(struct callchain_node *cnode);
+
 #endif	/* __PERF_CALLCHAIN_H */

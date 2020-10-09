@@ -35,4 +35,7 @@ struct evsel_streams *evsel_streams__entry(struct evlist_streams *els,
 void evsel_streams__match(struct evsel_streams *es_base,
 			  struct evsel_streams *es_pair);
 
+void evsel_streams__report(struct evsel_streams *es_base,
+			   struct evsel_streams *es_pair);
+
 #endif /* __PERF_STREAM_H */
