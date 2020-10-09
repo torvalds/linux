@@ -1469,7 +1469,7 @@ void btrfs_free_fs_info(struct btrfs_fs_info *fs_info)
 {
 	percpu_counter_destroy(&fs_info->dirty_metadata_bytes);
 	percpu_counter_destroy(&fs_info->delalloc_bytes);
-	percpu_counter_destroy(&fs_info->dio_bytes);
+	percpu_counter_destroy(&fs_info->ordered_bytes);
 	percpu_counter_destroy(&fs_info->dev_replace.bio_counter);
 	btrfs_free_csum_hash(fs_info);
 	btrfs_free_stripe_hash_table(fs_info);
@@ -2802,7 +2802,7 @@ static int init_mount_fs_info(struct btrfs_fs_info *fs_info, struct super_block 
 	sb->s_blocksize = BTRFS_BDEV_BLOCKSIZE;
 	sb->s_blocksize_bits = blksize_bits(BTRFS_BDEV_BLOCKSIZE);
 
-	ret = percpu_counter_init(&fs_info->dio_bytes, 0, GFP_KERNEL);
+	ret = percpu_counter_init(&fs_info->ordered_bytes, 0, GFP_KERNEL);
 	if (ret)
 		return ret;
 
@@ -4163,9 +4163,9 @@ void __cold close_ctree(struct btrfs_fs_info *fs_info)
 		       percpu_counter_sum(&fs_info->delalloc_bytes));
 	}
 
-	if (percpu_counter_sum(&fs_info->dio_bytes))
+	if (percpu_counter_sum(&fs_info->ordered_bytes))
 		btrfs_info(fs_info, "at unmount dio bytes count %lld",
-			   percpu_counter_sum(&fs_info->dio_bytes));
+			   percpu_counter_sum(&fs_info->ordered_bytes));
 
 	btrfs_sysfs_remove_mounted(fs_info);
 	btrfs_sysfs_remove_fsid(fs_info->fs_devices);

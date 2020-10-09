@@ -489,7 +489,7 @@ static void shrink_delalloc(struct btrfs_fs_info *fs_info,
 {
 	struct btrfs_trans_handle *trans;
 	u64 delalloc_bytes;
-	u64 dio_bytes;
+	u64 ordered_bytes;
 	u64 items;
 	long time_left;
 	int loops;
@@ -513,25 +513,20 @@ static void shrink_delalloc(struct btrfs_fs_info *fs_info,
 
 	delalloc_bytes = percpu_counter_sum_positive(
 						&fs_info->delalloc_bytes);
-	dio_bytes = percpu_counter_sum_positive(&fs_info->dio_bytes);
-	if (delalloc_bytes == 0 && dio_bytes == 0) {
-		if (trans)
-			return;
-		if (wait_ordered)
-			btrfs_wait_ordered_roots(fs_info, items, 0, (u64)-1);
+	ordered_bytes = percpu_counter_sum_positive(&fs_info->ordered_bytes);
+	if (delalloc_bytes == 0 && ordered_bytes == 0)
 		return;
-	}
 
 	/*
 	 * If we are doing more ordered than delalloc we need to just wait on
 	 * ordered extents, otherwise we'll waste time trying to flush delalloc
 	 * that likely won't give us the space back we need.
 	 */
-	if (dio_bytes > delalloc_bytes)
+	if (ordered_bytes > delalloc_bytes)
 		wait_ordered = true;
 
 	loops = 0;
-	while ((delalloc_bytes || dio_bytes) && loops < 3) {
+	while ((delalloc_bytes || ordered_bytes) && loops < 3) {
 		u64 temp = min(delalloc_bytes, to_reclaim) >> PAGE_SHIFT;
 		long nr_pages = min_t(u64, temp, LONG_MAX);
 
@@ -556,7 +551,8 @@ static void shrink_delalloc(struct btrfs_fs_info *fs_info,
 
 		delalloc_bytes = percpu_counter_sum_positive(
 						&fs_info->delalloc_bytes);
-		dio_bytes = percpu_counter_sum_positive(&fs_info->dio_bytes);
+		ordered_bytes = percpu_counter_sum_positive(
+						&fs_info->ordered_bytes);
 	}
 }
 

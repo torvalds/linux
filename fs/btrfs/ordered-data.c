@@ -206,11 +206,11 @@ static int __btrfs_add_ordered_extent(struct btrfs_inode *inode, u64 file_offset
 	       type == BTRFS_ORDERED_COMPRESSED);
 	set_bit(type, &entry->flags);
 
-	if (dio) {
-		percpu_counter_add_batch(&fs_info->dio_bytes, num_bytes,
-					 fs_info->delalloc_batch);
+	percpu_counter_add_batch(&fs_info->ordered_bytes, num_bytes,
+				 fs_info->delalloc_batch);
+
+	if (dio)
 		set_bit(BTRFS_ORDERED_DIRECT, &entry->flags);
-	}
 
 	/* one ref for the tree */
 	refcount_set(&entry->refs, 1);
@@ -503,9 +503,8 @@ void btrfs_remove_ordered_extent(struct btrfs_inode *btrfs_inode,
 		btrfs_delalloc_release_metadata(btrfs_inode, entry->num_bytes,
 						false);
 
-	if (test_bit(BTRFS_ORDERED_DIRECT, &entry->flags))
-		percpu_counter_add_batch(&fs_info->dio_bytes, -entry->num_bytes,
-					 fs_info->delalloc_batch);
+	percpu_counter_add_batch(&fs_info->ordered_bytes, -entry->num_bytes,
+				 fs_info->delalloc_batch);
 
 	tree = &btrfs_inode->ordered_tree;
 	spin_lock_irq(&tree->lock);
