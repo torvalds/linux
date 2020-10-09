@@ -2525,14 +2525,12 @@ bool get_signal(struct ksignal *ksig)
 	 * that the arch handlers don't all have to do it. If we get here
 	 * without TIF_SIGPENDING, just exit after running signal work.
 	 */
-#ifdef TIF_NOTIFY_SIGNAL
 	if (!IS_ENABLED(CONFIG_GENERIC_ENTRY)) {
 		if (test_thread_flag(TIF_NOTIFY_SIGNAL))
 			tracehook_notify_signal();
 		if (!task_sigpending(current))
 			return false;
 	}
-#endif
 
 	if (unlikely(uprobe_deny_signal()))
 		return false;
