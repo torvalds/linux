@@ -1843,6 +1843,9 @@ int hisi_qm_start_qp(struct hisi_qp *qp, unsigned long arg)
 EXPORT_SYMBOL_GPL(hisi_qm_start_qp);
 
 /**
+ * qm_drain_qp() - Drain a qp.
+ * @qp: The qp we want to drain.
+ *
  * Determine whether the queue is cleared by judging the tail pointers of
  * sq and cq.
  */
@@ -2486,6 +2489,12 @@ int hisi_qm_get_vft(struct hisi_qm *qm, u32 *base, u32 *number)
 EXPORT_SYMBOL_GPL(hisi_qm_get_vft);
 
 /**
+ * hisi_qm_set_vft() - Set vft to a qm.
+ * @qm: The qm we want to set its vft.
+ * @fun_num: The function number.
+ * @base: The base number of queue in vft.
+ * @number: The number of queues in vft.
+ *
  * This function is alway called in PF driver, it is used to assign queues
  * among PF and VFs.
  *
@@ -2690,7 +2699,11 @@ static int qm_stop_started_qp(struct hisi_qm *qm)
 	return 0;
 }
 
+
 /**
+ * qm_clear_queues() - Clear all queues memory in a qm.
+ * @qm: The qm in which the queues will be cleared.
+ *
  * This function clears all queues memory in a qm. Reset of accelerator can
  * use this to clear queues.
  */
