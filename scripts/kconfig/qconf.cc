@@ -1108,6 +1108,11 @@ void ConfigInfoView::menuInfo(void)
 		if (showDebug())
 			stream << debug_info(sym);
 
+		struct gstr help_gstr = str_new();
+
+		menu_get_ext_help(_menu, &help_gstr);
+		stream << print_filter(str_get(&help_gstr));
+		str_free(&help_gstr);
 	} else if (_menu->prompt) {
 		stream << "<big><b>";
 		stream << print_filter(_menu->prompt->text);
@@ -1119,11 +1124,11 @@ void ConfigInfoView::menuInfo(void)
 					   expr_print_help, &stream, E_NONE);
 				stream << "<br><br>";
 			}
+
+			stream << "defined at " << _menu->file->name << ":"
+			       << _menu->lineno << "<br><br>";
 		}
 	}
-	if (showDebug())
-		stream << "defined at " << _menu->file->name << ":"
-		       << _menu->lineno << "<br><br>";
 
 	setText(info);
 }
@@ -1276,7 +1281,7 @@ void ConfigInfoView::clicked(const QUrl &url)
 	}
 
 	free(result);
-	delete data;
+	delete[] data;
 }
 
 void ConfigInfoView::contextMenuEvent(QContextMenuEvent *event)

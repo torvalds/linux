@@ -53,7 +53,7 @@ static int autofs_write(struct autofs_sb_info *sbi,
 
 	mutex_lock(&sbi->pipe_mutex);
 	while (bytes) {
-		wr = kernel_write(file, data, bytes, &file->f_pos);
+		wr = __kernel_write(file, data, bytes, NULL);
 		if (wr <= 0)
 			break;
 		data += wr;

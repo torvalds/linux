@@ -419,6 +419,7 @@ static int vmw_ttm_map_dma(struct vmw_ttm_tt *vmw_tt)
 	int ret = 0;
 	static size_t sgl_size;
 	static size_t sgt_size;
+	struct scatterlist *sg;
 
 	if (vmw_tt->mapped)
 		return 0;
@@ -441,13 +442,15 @@ static int vmw_ttm_map_dma(struct vmw_ttm_tt *vmw_tt)
 		if (unlikely(ret != 0))
 			return ret;
 
-		ret = __sg_alloc_table_from_pages
-			(&vmw_tt->sgt, vsgt->pages, vsgt->num_pages, 0,
-			 (unsigned long) vsgt->num_pages << PAGE_SHIFT,
-			 dma_get_max_seg_size(dev_priv->dev->dev),
-			 GFP_KERNEL);
-		if (unlikely(ret != 0))
+		sg = __sg_alloc_table_from_pages(&vmw_tt->sgt, vsgt->pages,
+				vsgt->num_pages, 0,
+				(unsigned long) vsgt->num_pages << PAGE_SHIFT,
+				dma_get_max_seg_size(dev_priv->dev->dev),
+				NULL, 0, GFP_KERNEL);
+		if (IS_ERR(sg)) {
+			ret = PTR_ERR(sg);
 			goto out_sg_alloc_fail;
+		}
 
 		if (vsgt->num_pages > vmw_tt->sgt.nents) {
 			uint64_t over_alloc =

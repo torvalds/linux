@@ -365,6 +365,37 @@ int sg_alloc_table(struct sg_table *table, unsigned int nents, gfp_t gfp_mask)
 }
 EXPORT_SYMBOL(sg_alloc_table);
 
+static struct scatterlist *get_next_sg(struct sg_table *table,
+				       struct scatterlist *cur,
+				       unsigned long needed_sges,
+				       gfp_t gfp_mask)
+{
+	struct scatterlist *new_sg, *next_sg;
+	unsigned int alloc_size;
+
+	if (cur) {
+		next_sg = sg_next(cur);
+		/* Check if last entry should be keeped for chainning */
+		if (!sg_is_last(next_sg) || needed_sges == 1)
+			return next_sg;
+	}
+
+	alloc_size = min_t(unsigned long, needed_sges, SG_MAX_SINGLE_ALLOC);
+	new_sg = sg_kmalloc(alloc_size, gfp_mask);
+	if (!new_sg)
+		return ERR_PTR(-ENOMEM);
+	sg_init_table(new_sg, alloc_size);
+	if (cur) {
+		__sg_chain(next_sg, new_sg);
+		table->orig_nents += alloc_size - 1;
+	} else {
+		table->sgl = new_sg;
+		table->orig_nents = alloc_size;
+		table->nents = 0;
+	}
+	return new_sg;
+}
+
 /**
  * __sg_alloc_table_from_pages - Allocate and initialize an sg table from
  *			         an array of pages
@@ -374,29 +405,63 @@ EXPORT_SYMBOL(sg_alloc_table);
  * @offset:      Offset from start of the first page to the start of a buffer
  * @size:        Number of valid bytes in the buffer (after offset)
  * @max_segment: Maximum size of a scatterlist node in bytes (page aligned)
+ * @prv:	 Last populated sge in sgt
+ * @left_pages:  Left pages caller have to set after this call
  * @gfp_mask:	 GFP allocation mask
  *
- *  Description:
- *    Allocate and initialize an sg table from a list of pages. Contiguous
- *    ranges of the pages are squashed into a single scatterlist node up to the
- *    maximum size specified in @max_segment. An user may provide an offset at a
- *    start and a size of valid data in a buffer specified by the page array.
- *    The returned sg table is released by sg_free_table.
+ * Description:
+ *    If @prv is NULL, allocate and initialize an sg table from a list of pages,
+ *    else reuse the scatterlist passed in at @prv.
+ *    Contiguous ranges of the pages are squashed into a single scatterlist
+ *    entry up to the maximum size specified in @max_segment.  A user may
+ *    provide an offset at a start and a size of valid data in a buffer
+ *    specified by the page array.
  *
  * Returns:
- *   0 on success, negative error on failure
+ *   Last SGE in sgt on success, PTR_ERR on otherwise.
+ *   The allocation in @sgt must be released by sg_free_table.
+ *
+ * Notes:
+ *   If this function returns non-0 (eg failure), the caller must call
+ *   sg_free_table() to cleanup any leftover allocations.
  */
-int __sg_alloc_table_from_pages(struct sg_table *sgt, struct page **pages,
-				unsigned int n_pages, unsigned int offset,
-				unsigned long size, unsigned int max_segment,
-				gfp_t gfp_mask)
+struct scatterlist *__sg_alloc_table_from_pages(struct sg_table *sgt,
+		struct page **pages, unsigned int n_pages, unsigned int offset,
+		unsigned long size, unsigned int max_segment,
+		struct scatterlist *prv, unsigned int left_pages,
+		gfp_t gfp_mask)
 {
-	unsigned int chunks, cur_page, seg_len, i;
-	int ret;
-	struct scatterlist *s;
+	unsigned int chunks, cur_page, seg_len, i, prv_len = 0;
+	unsigned int added_nents = 0;
+	struct scatterlist *s = prv;
 
 	if (WARN_ON(!max_segment || offset_in_page(max_segment)))
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
+
+	if (IS_ENABLED(CONFIG_ARCH_NO_SG_CHAIN) && prv)
+		return ERR_PTR(-EOPNOTSUPP);
+
+	if (prv) {
+		unsigned long paddr = (page_to_pfn(sg_page(prv)) * PAGE_SIZE +
+				       prv->offset + prv->length) /
+				      PAGE_SIZE;
+
+		if (WARN_ON(offset))
+			return ERR_PTR(-EINVAL);
+
+		/* Merge contiguous pages into the last SG */
+		prv_len = prv->length;
+		while (n_pages && page_to_pfn(pages[0]) == paddr) {
+			if (prv->length + PAGE_SIZE > max_segment)
+				break;
+			prv->length += PAGE_SIZE;
+			paddr++;
+			pages++;
+			n_pages--;
+		}
+		if (!n_pages)
+			goto out;
+	}
 
 	/* compute number of contiguous chunks */
 	chunks = 1;
@@ -410,13 +475,9 @@ int __sg_alloc_table_from_pages(struct sg_table *sgt, struct page **pages,
 		}
 	}
 
-	ret = sg_alloc_table(sgt, chunks, gfp_mask);
-	if (unlikely(ret))
-		return ret;
-
 	/* merging chunks and putting them into the scatterlist */
 	cur_page = 0;
-	for_each_sg(sgt->sgl, s, sgt->orig_nents, i) {
+	for (i = 0; i < chunks; i++) {
 		unsigned int j, chunk_size;
 
 		/* look for the end of the current chunk */
@@ -429,15 +490,30 @@ int __sg_alloc_table_from_pages(struct sg_table *sgt, struct page **pages,
 				break;
 		}
 
+		/* Pass how many chunks might be left */
+		s = get_next_sg(sgt, s, chunks - i + left_pages, gfp_mask);
+		if (IS_ERR(s)) {
+			/*
+			 * Adjust entry length to be as before function was
+			 * called.
+			 */
+			if (prv)
+				prv->length = prv_len;
+			return s;
+		}
 		chunk_size = ((j - cur_page) << PAGE_SHIFT) - offset;
 		sg_set_page(s, pages[cur_page],
 			    min_t(unsigned long, size, chunk_size), offset);
+		added_nents++;
 		size -= chunk_size;
 		offset = 0;
 		cur_page = j;
 	}
-
-	return 0;
+	sgt->nents += added_nents;
+out:
+	if (!left_pages)
+		sg_mark_end(s);
+	return s;
 }
 EXPORT_SYMBOL(__sg_alloc_table_from_pages);
 
@@ -465,8 +541,9 @@ int sg_alloc_table_from_pages(struct sg_table *sgt, struct page **pages,
 			      unsigned int n_pages, unsigned int offset,
 			      unsigned long size, gfp_t gfp_mask)
 {
-	return __sg_alloc_table_from_pages(sgt, pages, n_pages, offset, size,
-					   SCATTERLIST_MAX_SEGMENT, gfp_mask);
+	return PTR_ERR_OR_ZERO(__sg_alloc_table_from_pages(sgt, pages, n_pages,
+			offset, size, SCATTERLIST_MAX_SEGMENT,
+			NULL, 0, gfp_mask));
 }
 EXPORT_SYMBOL(sg_alloc_table_from_pages);
 

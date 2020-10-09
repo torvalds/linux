@@ -2060,6 +2060,14 @@ static inline void clear_ports(struct i915_request **ports, int count)
 	memset_p((void **)ports, NULL, count);
 }
 
+static inline void
+copy_ports(struct i915_request **dst, struct i915_request **src, int count)
+{
+	/* A memcpy_p() would be very useful here! */
+	while (count--)
+		WRITE_ONCE(*dst++, *src++); /* avoid write tearing */
+}
+
 static void execlists_dequeue(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
@@ -2648,10 +2656,9 @@ static void process_csb(struct intel_engine_cs *engine)
 
 			/* switch pending to inflight */
 			GEM_BUG_ON(!assert_pending_valid(execlists, "promote"));
-			memcpy(execlists->inflight,
-			       execlists->pending,
-			       execlists_num_ports(execlists) *
-			       sizeof(*execlists->pending));
+			copy_ports(execlists->inflight,
+				   execlists->pending,
+				   execlists_num_ports(execlists));
 			smp_wmb(); /* complete the seqlock */
 			WRITE_ONCE(execlists->active, execlists->inflight);
 

@@ -67,7 +67,7 @@ examples:
 
     main_crypto: crypto@4e00000 {
         compatible = "ti,j721-sa2ul";
-        reg = <0x0 0x4e00000 0x0 0x1200>;
+        reg = <0x4e00000 0x1200>;
         power-domains = <&k3_pds 264 TI_SCI_PD_EXCLUSIVE>;
         dmas = <&main_udmap 0xc000>, <&main_udmap 0x4000>,
                <&main_udmap 0x4001>;

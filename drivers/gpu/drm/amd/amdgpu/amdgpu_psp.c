@@ -178,7 +178,7 @@ static int psp_sw_init(void *handle)
 		return ret;
 	}
 
-	if (adev->asic_type == CHIP_NAVI10) {
+	if (adev->asic_type == CHIP_NAVI10 || adev->asic_type == CHIP_SIENNA_CICHLID) {
 		ret= psp_sysfs_init(adev);
 		if (ret) {
 			return ret;

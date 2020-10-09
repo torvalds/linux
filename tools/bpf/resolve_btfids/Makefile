@@ -80,6 +80,7 @@ libbpf-clean:
 clean: libsubcmd-clean libbpf-clean fixdep-clean
 	$(call msg,CLEAN,$(BINARY))
 	$(Q)$(RM) -f $(BINARY); \
+	$(RM) -rf $(if $(OUTPUT),$(OUTPUT),.)/feature; \
 	find $(if $(OUTPUT),$(OUTPUT),.) -name \*.o -or -name \*.o.cmd -or -name \*.o.d | xargs $(RM)
 
 tags:

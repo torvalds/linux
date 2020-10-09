@@ -50,16 +50,19 @@ static u64 pv_steal_clock(int cpu)
 	struct pv_time_stolen_time_region *reg;
 
 	reg = per_cpu_ptr(&stolen_time_region, cpu);
-	if (!reg->kaddr) {
-		pr_warn_once("stolen time enabled but not configured for cpu %d\n",
-			     cpu);
+
+	/*
+	 * paravirt_steal_clock() may be called before the CPU
+	 * online notification callback runs. Until the callback
+	 * has run we just return zero.
+	 */
+	if (!reg->kaddr)
 		return 0;
-	}
 
 	return le64_to_cpu(READ_ONCE(reg->kaddr->stolen_time));
 }
 
-static int stolen_time_dying_cpu(unsigned int cpu)
+static int stolen_time_cpu_down_prepare(unsigned int cpu)
 {
 	struct pv_time_stolen_time_region *reg;
 
@@ -73,7 +76,7 @@ static int stolen_time_dying_cpu(unsigned int cpu)
 	return 0;
 }
 
-static int init_stolen_time_cpu(unsigned int cpu)
+static int stolen_time_cpu_online(unsigned int cpu)
 {
 	struct pv_time_stolen_time_region *reg;
 	struct arm_smccc_res res;
@@ -103,19 +106,20 @@ static int init_stolen_time_cpu(unsigned int cpu)
 	return 0;
 }
 
-static int pv_time_init_stolen_time(void)
+static int __init pv_time_init_stolen_time(void)
 {
 	int ret;
 
-	ret = cpuhp_setup_state(CPUHP_AP_ARM_KVMPV_STARTING,
-				"hypervisor/arm/pvtime:starting",
-				init_stolen_time_cpu, stolen_time_dying_cpu);
+	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN,
+				"hypervisor/arm/pvtime:online",
+				stolen_time_cpu_online,
+				stolen_time_cpu_down_prepare);
 	if (ret < 0)
 		return ret;
 	return 0;
 }
 
-static bool has_pv_steal_clock(void)
+static bool __init has_pv_steal_clock(void)
 {
 	struct arm_smccc_res res;
 
