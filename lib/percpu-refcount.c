@@ -109,7 +109,7 @@ static void __percpu_ref_exit(struct percpu_ref *ref)
 
 	if (percpu_count) {
 		/* non-NULL confirm_switch indicates switching in progress */
-		WARN_ON_ONCE(ref->data->confirm_switch);
+		WARN_ON_ONCE(ref->data && ref->data->confirm_switch);
 		free_percpu(percpu_count);
 		ref->percpu_count_ptr = __PERCPU_REF_ATOMIC_DEAD;
 	}
