@@ -1278,8 +1278,9 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 		c->options = MIPS_CPU_TLB | MIPS_CPU_4K_CACHE | MIPS_CPU_4KEX |
 			     MIPS_CPU_FPU | MIPS_CPU_32FPR |
 			     MIPS_CPU_COUNTER | MIPS_CPU_WATCH |
-			     MIPS_CPU_LLSC | MIPS_CPU_BP_GHIST;
+			     MIPS_CPU_LLSC;
 		c->tlbsize = 64;
+		write_c0_r10k_diag(read_c0_r10k_diag() | R10K_DIAG_E_GHIST);
 		break;
 	case PRID_IMP_R14000:
 		if (((c->processor_id >> 4) & 0x0f) > 2) {
@@ -1293,8 +1294,9 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 		c->options = MIPS_CPU_TLB | MIPS_CPU_4K_CACHE | MIPS_CPU_4KEX |
 			     MIPS_CPU_FPU | MIPS_CPU_32FPR |
 			     MIPS_CPU_COUNTER | MIPS_CPU_WATCH |
-			     MIPS_CPU_LLSC | MIPS_CPU_BP_GHIST;
+			     MIPS_CPU_LLSC;
 		c->tlbsize = 64;
+		write_c0_r10k_diag(read_c0_r10k_diag() | R10K_DIAG_E_GHIST);
 		break;
 	case PRID_IMP_LOONGSON_64C:  /* Loongson-2/3 */
 		switch (c->processor_id & PRID_REV_MASK) {
@@ -2053,10 +2055,6 @@ void cpu_probe(void)
 		cpu_set_fpu_opts(c);
 	else
 		cpu_set_nofpu_opts(c);
-
-	if (cpu_has_bp_ghist)
-		write_c0_r10k_diag(read_c0_r10k_diag() |
-				   R10K_DIAG_E_GHIST);
 
 	if (cpu_has_mips_r2_r6) {
 		c->srsets = ((read_c0_srsctl() >> 26) & 0x0f) + 1;
