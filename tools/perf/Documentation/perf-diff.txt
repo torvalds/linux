@@ -182,6 +182,10 @@ OPTIONS
 --tid=::
 	Only diff samples for given thread ID (comma separated list).
 
+--stream::
+	Enable hot streams comparison. Stream can be a callchain which is
+	aggregated by the branch records from samples.
+
 COMPARISON
 ----------
 The comparison is governed by the baseline file. The baseline perf.data
