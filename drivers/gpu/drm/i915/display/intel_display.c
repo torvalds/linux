@@ -2001,13 +2001,17 @@ static int ccs_to_main_plane(const struct drm_framebuffer *fb, int ccs_plane)
 	return ccs_plane - fb->format->num_planes / 2;
 }
 
-/* Return either the main plane's CCS or - if not a CCS FB - UV plane */
 int intel_main_to_aux_plane(const struct drm_framebuffer *fb, int main_plane)
 {
+	struct drm_i915_private *i915 = to_i915(fb->dev);
+
 	if (is_ccs_modifier(fb->modifier))
 		return main_to_ccs_plane(fb, main_plane);
-
-	return 1;
+	else if (INTEL_GEN(i915) < 11 &&
+		 intel_format_info_is_yuv_semiplanar(fb->format, fb->modifier))
+		return 1;
+	else
+		return 0;
 }
 
 bool
@@ -3933,7 +3937,7 @@ static int skl_check_main_surface(struct intel_plane_state *plane_state)
 	 * main surface offset, and it must be non-negative. Make
 	 * sure that is what we will get.
 	 */
-	if (offset > aux_offset)
+	if (aux_plane && offset > aux_offset)
 		offset = intel_plane_adjust_aligned_offset(&x, &y, plane_state, 0,
 							   offset, aux_offset & ~(alignment - 1));
 
@@ -4131,7 +4135,7 @@ int skl_check_plane_surface(struct intel_plane_state *plane_state)
 	}
 
 	for (i = fb->format->num_planes; i < ARRAY_SIZE(plane_state->color_plane); i++) {
-		plane_state->color_plane[i].offset = ~0xfff;
+		plane_state->color_plane[i].offset = 0;
 		plane_state->color_plane[i].x = 0;
 		plane_state->color_plane[i].y = 0;
 	}

@@ -655,8 +655,6 @@ skl_program_plane(struct intel_plane *plane,
 	u32 stride = skl_plane_stride(plane_state, color_plane);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	int aux_plane = intel_main_to_aux_plane(fb, color_plane);
-	u32 aux_dist = plane_state->color_plane[aux_plane].offset - surf_addr;
-	u32 aux_stride = skl_plane_stride(plane_state, aux_plane);
 	int crtc_x = plane_state->uapi.dst.x1;
 	int crtc_y = plane_state->uapi.dst.y1;
 	u32 x = plane_state->color_plane[color_plane].x;
@@ -664,7 +662,7 @@ skl_program_plane(struct intel_plane *plane,
 	u32 src_w = drm_rect_width(&plane_state->uapi.src) >> 16;
 	u32 src_h = drm_rect_height(&plane_state->uapi.src) >> 16;
 	u8 alpha = plane_state->hw.alpha >> 8;
-	u32 plane_color_ctl = 0;
+	u32 plane_color_ctl = 0, aux_dist = 0;
 	unsigned long irqflags;
 	u32 keymsk, keymax;
 	u32 plane_ctl = plane_state->ctl;
@@ -691,6 +689,13 @@ skl_program_plane(struct intel_plane *plane,
 		crtc_y = 0;
 	}
 
+	if (aux_plane) {
+		aux_dist = plane_state->color_plane[aux_plane].offset - surf_addr;
+
+		if (INTEL_GEN(dev_priv) < 12)
+			aux_dist |= skl_plane_stride(plane_state, aux_plane);
+	}
+
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
 	intel_de_write_fw(dev_priv, PLANE_STRIDE(pipe, plane_id), stride);
@@ -699,8 +704,6 @@ skl_program_plane(struct intel_plane *plane,
 	intel_de_write_fw(dev_priv, PLANE_SIZE(pipe, plane_id),
 			  (src_h << 16) | src_w);
 
-	if (INTEL_GEN(dev_priv) < 12)
-		aux_dist |= aux_stride;
 	intel_de_write_fw(dev_priv, PLANE_AUX_DIST(pipe, plane_id), aux_dist);
 
 	if (icl_is_hdr_plane(dev_priv, plane_id))
