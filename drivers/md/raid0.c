@@ -426,23 +426,6 @@ static void raid0_free(struct mddev *mddev, void *priv)
 	kfree(conf);
 }
 
-/*
- * Is io distribute over 1 or more chunks ?
-*/
-static inline int is_io_in_chunk_boundary(struct mddev *mddev,
-			unsigned int chunk_sects, struct bio *bio)
-{
-	if (likely(is_power_of_2(chunk_sects))) {
-		return chunk_sects >=
-			((bio->bi_iter.bi_sector & (chunk_sects-1))
-					+ bio_sectors(bio));
-	} else{
-		sector_t sector = bio->bi_iter.bi_sector;
-		return chunk_sects >= (sector_div(sector, chunk_sects)
-						+ bio_sectors(bio));
-	}
-}
-
 static void raid0_handle_discard(struct mddev *mddev, struct bio *bio)
 {
 	struct r0conf *conf = mddev->private;

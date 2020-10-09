@@ -9565,7 +9565,7 @@ static int __init md_init(void)
 		goto err_misc_wq;
 
 	md_rdev_misc_wq = alloc_workqueue("md_rdev_misc", 0, 0);
-	if (!md_misc_wq)
+	if (!md_rdev_misc_wq)
 		goto err_rdev_misc_wq;
 
 	if ((ret = register_blkdev(MD_MAJOR, "md")) < 0)
