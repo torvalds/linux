@@ -1124,44 +1124,113 @@ static const struct intel_forcewake_range __gen11_fw_ranges[] = {
 	GEN_FW_RANGE(0x1d4000, 0x1dbfff, 0)
 };
 
-/* *Must* be sorted by offset ranges! See intel_fw_table_check(). */
+/*
+ * *Must* be sorted by offset ranges! See intel_fw_table_check().
+ *
+ * Note that the spec lists several reserved/unused ranges that don't
+ * actually contain any registers.  In the table below we'll combine those
+ * reserved ranges with either the preceding or following range to keep the
+ * table small and lookups fast.
+ */
 static const struct intel_forcewake_range __gen12_fw_ranges[] = {
-	GEN_FW_RANGE(0x0, 0xaff, FORCEWAKE_GT),
-	GEN_FW_RANGE(0xb00, 0x1fff, 0), /* uncore range */
+	GEN_FW_RANGE(0x0, 0x1fff, 0), /*
+		0x0   -  0xaff: reserved
+		0xb00 - 0x1fff: always on */
 	GEN_FW_RANGE(0x2000, 0x26ff, FORCEWAKE_RENDER),
-	GEN_FW_RANGE(0x2700, 0x2fff, FORCEWAKE_GT),
+	GEN_FW_RANGE(0x2700, 0x27ff, FORCEWAKE_GT),
+	GEN_FW_RANGE(0x2800, 0x2aff, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0x2b00, 0x2fff, FORCEWAKE_GT),
 	GEN_FW_RANGE(0x3000, 0x3fff, FORCEWAKE_RENDER),
-	GEN_FW_RANGE(0x4000, 0x51ff, FORCEWAKE_GT),
-	GEN_FW_RANGE(0x5200, 0x7fff, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0x4000, 0x51ff, FORCEWAKE_GT), /*
+		0x4000 - 0x48ff: gt
+		0x4900 - 0x51ff: reserved */
+	GEN_FW_RANGE(0x5200, 0x7fff, FORCEWAKE_RENDER), /*
+		0x5200 - 0x53ff: render
+		0x5400 - 0x54ff: reserved
+		0x5500 - 0x7fff: render */
 	GEN_FW_RANGE(0x8000, 0x813f, FORCEWAKE_GT),
 	GEN_FW_RANGE(0x8140, 0x815f, FORCEWAKE_RENDER),
-	GEN_FW_RANGE(0x8160, 0x82ff, FORCEWAKE_GT),
+	GEN_FW_RANGE(0x8160, 0x81ff, 0), /*
+		0x8160 - 0x817f: reserved
+		0x8180 - 0x81ff: always on */
+	GEN_FW_RANGE(0x8200, 0x82ff, FORCEWAKE_GT),
 	GEN_FW_RANGE(0x8300, 0x84ff, FORCEWAKE_RENDER),
-	GEN_FW_RANGE(0x8500, 0x8bff, FORCEWAKE_GT),
-	GEN_FW_RANGE(0x8c00, 0x8cff, FORCEWAKE_RENDER),
-	GEN_FW_RANGE(0x8d00, 0x93ff, FORCEWAKE_GT),
-	GEN_FW_RANGE(0x9400, 0x97ff, FORCEWAKE_ALL),
+	GEN_FW_RANGE(0x8500, 0x94cf, FORCEWAKE_GT), /*
+		0x8500 - 0x87ff: gt
+		0x8800 - 0x8fff: reserved
+		0x9000 - 0x947f: gt
+		0x9480 - 0x94cf: reserved */
+	GEN_FW_RANGE(0x94d0, 0x955f, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0x9560, 0x97ff, 0), /*
+		0x9560 - 0x95ff: always on
+		0x9600 - 0x97ff: reserved */
 	GEN_FW_RANGE(0x9800, 0xafff, FORCEWAKE_GT),
-	GEN_FW_RANGE(0xb000, 0xb47f, FORCEWAKE_RENDER),
-	GEN_FW_RANGE(0xb480, 0xdfff, FORCEWAKE_GT),
-	GEN_FW_RANGE(0xe000, 0xe8ff, FORCEWAKE_RENDER),
-	GEN_FW_RANGE(0xe900, 0x147ff, FORCEWAKE_GT),
-	GEN_FW_RANGE(0x14800, 0x148ff, FORCEWAKE_RENDER),
-	GEN_FW_RANGE(0x14900, 0x19fff, FORCEWAKE_GT),
-	GEN_FW_RANGE(0x1a000, 0x1a7ff, FORCEWAKE_RENDER),
-	GEN_FW_RANGE(0x1a800, 0x1afff, FORCEWAKE_GT),
-	GEN_FW_RANGE(0x1b000, 0x1bfff, FORCEWAKE_RENDER),
-	GEN_FW_RANGE(0x1c000, 0x243ff, FORCEWAKE_GT),
-	GEN_FW_RANGE(0x24400, 0x247ff, FORCEWAKE_RENDER),
-	GEN_FW_RANGE(0x24800, 0x3ffff, FORCEWAKE_GT),
+	GEN_FW_RANGE(0xb000, 0xb3ff, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0xb400, 0xcfff, FORCEWAKE_GT), /*
+		0xb400 - 0xbf7f: gt
+		0xb480 - 0xbfff: reserved
+		0xc000 - 0xcfff: gt */
+	GEN_FW_RANGE(0xd000, 0xd7ff, 0),
+	GEN_FW_RANGE(0xd800, 0xd8ff, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0xd900, 0xdbff, FORCEWAKE_GT),
+	GEN_FW_RANGE(0xdc00, 0xefff, FORCEWAKE_RENDER), /*
+		0xdc00 - 0xddff: render
+		0xde00 - 0xde7f: reserved
+		0xde80 - 0xe8ff: render
+		0xe900 - 0xefff: reserved */
+	GEN_FW_RANGE(0xf000, 0x147ff, FORCEWAKE_GT), /*
+		 0xf000 - 0xffff: gt
+		0x10000 - 0x147ff: reserved */
+	GEN_FW_RANGE(0x14800, 0x1ffff, FORCEWAKE_RENDER), /*
+		0x14800 - 0x14fff: render
+		0x15000 - 0x16dff: reserved
+		0x16e00 - 0x1bfff: render
+		0x1c000 - 0x1ffff: reserved */
+	GEN_FW_RANGE(0x20000, 0x20fff, FORCEWAKE_MEDIA_VDBOX0),
+	GEN_FW_RANGE(0x21000, 0x21fff, FORCEWAKE_MEDIA_VDBOX2),
+	GEN_FW_RANGE(0x22000, 0x23fff, FORCEWAKE_GT),
+	GEN_FW_RANGE(0x24000, 0x2417f, 0), /*
+		0x24000 - 0x2407f: always on
+		0x24080 - 0x2417f: reserved */
+	GEN_FW_RANGE(0x24180, 0x249ff, FORCEWAKE_GT), /*
+		0x24180 - 0x241ff: gt
+		0x24200 - 0x249ff: reserved */
+	GEN_FW_RANGE(0x24a00, 0x251ff, FORCEWAKE_RENDER), /*
+		0x24a00 - 0x24a7f: render
+		0x24a80 - 0x251ff: reserved */
+	GEN_FW_RANGE(0x25200, 0x255ff, FORCEWAKE_GT), /*
+		0x25200 - 0x252ff: gt
+		0x25300 - 0x255ff: reserved */
+	GEN_FW_RANGE(0x25600, 0x2567f, FORCEWAKE_MEDIA_VDBOX0),
+	GEN_FW_RANGE(0x25680, 0x259ff, FORCEWAKE_MEDIA_VDBOX2), /*
+		0x25680 - 0x256ff: VD2
+		0x25700 - 0x259ff: reserved */
+	GEN_FW_RANGE(0x25a00, 0x25a7f, FORCEWAKE_MEDIA_VDBOX0),
+	GEN_FW_RANGE(0x25a80, 0x2ffff, FORCEWAKE_MEDIA_VDBOX2), /*
+		0x25a80 - 0x25aff: VD2
+		0x25b00 - 0x2ffff: reserved */
+	GEN_FW_RANGE(0x30000, 0x3ffff, FORCEWAKE_GT),
 	GEN_FW_RANGE(0x40000, 0x1bffff, 0),
-	GEN_FW_RANGE(0x1c0000, 0x1c3fff, FORCEWAKE_MEDIA_VDBOX0),
-	GEN_FW_RANGE(0x1c4000, 0x1c7fff, FORCEWAKE_MEDIA_VDBOX1),
-	GEN_FW_RANGE(0x1c8000, 0x1cbfff, FORCEWAKE_MEDIA_VEBOX0),
-	GEN_FW_RANGE(0x1cc000, 0x1cffff, FORCEWAKE_GT),
-	GEN_FW_RANGE(0x1d0000, 0x1d3fff, FORCEWAKE_MEDIA_VDBOX2),
-	GEN_FW_RANGE(0x1d4000, 0x1d7fff, FORCEWAKE_MEDIA_VDBOX3),
-	GEN_FW_RANGE(0x1d8000, 0x1dbfff, FORCEWAKE_MEDIA_VEBOX1)
+	GEN_FW_RANGE(0x1c0000, 0x1c3fff, FORCEWAKE_MEDIA_VDBOX0), /*
+		0x1c0000 - 0x1c2bff: VD0
+		0x1c2c00 - 0x1c2cff: reserved
+		0x1c2d00 - 0x1c2dff: VD0
+		0x1c2e00 - 0x1c3eff: reserved
+		0x1c3f00 - 0x1c3fff: VD0 */
+	GEN_FW_RANGE(0x1c4000, 0x1c7fff, 0),
+	GEN_FW_RANGE(0x1c8000, 0x1cbfff, FORCEWAKE_MEDIA_VEBOX0), /*
+		0x1c8000 - 0x1ca0ff: VE0
+		0x1ca100 - 0x1cbeff: reserved
+		0x1cbf00 - 0x1cbfff: VE0 */
+	GEN_FW_RANGE(0x1cc000, 0x1cffff, FORCEWAKE_MEDIA_VDBOX0), /*
+		0x1cc000 - 0x1ccfff: VD0
+		0x1cd000 - 0x1cffff: reserved */
+	GEN_FW_RANGE(0x1d0000, 0x1d3fff, FORCEWAKE_MEDIA_VDBOX2), /*
+		0x1d0000 - 0x1d2bff: VD2
+		0x1d2c00 - 0x1d2cff: reserved
+		0x1d2d00 - 0x1d2dff: VD2
+		0x1d2e00 - 0x1d3eff: reserved
+		0x1d3f00 - 0x1d3fff: VD2 */
 };
 
 static void
