@@ -212,6 +212,7 @@ static int create_space_info(struct btrfs_fs_info *info, u64 flags)
 	INIT_LIST_HEAD(&space_info->ro_bgs);
 	INIT_LIST_HEAD(&space_info->tickets);
 	INIT_LIST_HEAD(&space_info->priority_tickets);
+	space_info->clamp = 1;
 
 	ret = btrfs_sysfs_add_space_info_type(info, space_info);
 	if (ret)
@@ -815,13 +816,28 @@ static bool need_preemptive_reclaim(struct btrfs_fs_info *fs_info,
 	 * because this doesn't quite work how we want.  If we had more than 50%
 	 * of the space_info used by bytes_used and we had 0 available we'd just
 	 * constantly run the background flusher.  Instead we want it to kick in
-	 * if our reclaimable space exceeds 50% of our available free space.
+	 * if our reclaimable space exceeds our clamped free space.
+	 *
+	 * Our clamping range is 2^1 -> 2^8.  Practically speaking that means
+	 * the following:
+	 *
+	 * Amount of RAM        Minimum threshold       Maximum threshold
+	 *
+	 *        256GiB                     1GiB                  128GiB
+	 *        128GiB                   512MiB                   64GiB
+	 *         64GiB                   256MiB                   32GiB
+	 *         32GiB                   128MiB                   16GiB
+	 *         16GiB                    64MiB                    8GiB
+	 *
+	 * These are the range our thresholds will fall in, corresponding to how
+	 * much delalloc we need for the background flusher to kick in.
 	 */
+
 	thresh = calc_available_free_space(fs_info, space_info,
 					   BTRFS_RESERVE_FLUSH_ALL);
 	thresh += (space_info->total_bytes - space_info->bytes_used -
 		   space_info->bytes_reserved - space_info->bytes_readonly);
-	thresh >>= 1;
+	thresh >>= space_info->clamp;
 
 	used = space_info->bytes_pinned;
 
@@ -1045,6 +1061,7 @@ static void btrfs_preempt_reclaim_metadata_space(struct work_struct *work)
 	struct btrfs_block_rsv *delayed_refs_rsv;
 	struct btrfs_block_rsv *global_rsv;
 	struct btrfs_block_rsv *trans_rsv;
+	int loops = 0;
 
 	fs_info = container_of(work, struct btrfs_fs_info,
 			       preempt_reclaim_work);
@@ -1060,6 +1077,8 @@ static void btrfs_preempt_reclaim_metadata_space(struct work_struct *work)
 		u64 delalloc_size = 0;
 		u64 to_reclaim, block_rsv_size;
 		u64 global_rsv_size = global_rsv->reserved;
+
+		loops++;
 
 		/*
 		 * We don't have a precise counter for the metadata being
@@ -1117,6 +1136,10 @@ static void btrfs_preempt_reclaim_metadata_space(struct work_struct *work)
 		cond_resched();
 		spin_lock(&space_info->lock);
 	}
+
+	/* We only went through once, back off our clamping. */
+	if (loops == 1 && !space_info->reclaim_size)
+		space_info->clamp = max(1, space_info->clamp - 1);
 	spin_unlock(&space_info->lock);
 }
 
@@ -1433,6 +1456,24 @@ static inline bool is_normal_flushing(enum btrfs_reserve_flush_enum flush)
 		(flush == BTRFS_RESERVE_FLUSH_ALL_STEAL);
 }
 
+static inline void maybe_clamp_preempt(struct btrfs_fs_info *fs_info,
+				       struct btrfs_space_info *space_info)
+{
+	u64 ordered = percpu_counter_sum_positive(&fs_info->ordered_bytes);
+	u64 delalloc = percpu_counter_sum_positive(&fs_info->delalloc_bytes);
+
+	/*
+	 * If we're heavy on ordered operations then clamping won't help us.  We
+	 * need to clamp specifically to keep up with dirty'ing buffered
+	 * writers, because there's not a 1:1 correlation of writing delalloc
+	 * and freeing space, like there is with flushing delayed refs or
+	 * delayed nodes.  If we're already more ordered than delalloc then
+	 * we're keeping up, otherwise we aren't and should probably clamp.
+	 */
+	if (ordered < delalloc)
+		space_info->clamp = min(space_info->clamp + 1, 8);
+}
+
 /**
  * Try to reserve bytes from the block_rsv's space
  *
@@ -1526,6 +1567,14 @@ static int __reserve_bytes(struct btrfs_fs_info *fs_info,
 			list_add_tail(&ticket.list,
 				      &space_info->priority_tickets);
 		}
+
+		/*
+		 * We were forced to add a reserve ticket, so our preemptive
+		 * flushing is unable to keep up.  Clamp down on the threshold
+		 * for the preemptive flushing in order to keep up with the
+		 * workload.
+		 */
+		maybe_clamp_preempt(fs_info, space_info);
 	} else if (!ret && space_info->flags & BTRFS_BLOCK_GROUP_METADATA) {
 		used += orig_bytes;
 		/*
