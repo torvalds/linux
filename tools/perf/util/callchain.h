@@ -298,4 +298,8 @@ int callchain_branch_counts(struct callchain_root *root,
 			    u64 *abort_count, u64 *cycles_count);
 
 void callchain_param_setup(u64 sample_type);
+
+bool callchain_cnode_matched(struct callchain_node *base_cnode,
+			     struct callchain_node *pair_cnode);
+
 #endif	/* __PERF_CALLCHAIN_H */
