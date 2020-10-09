@@ -301,6 +301,29 @@ enum {
 	DEVLINK_ATTR_TRAP_METADATA_TYPE_FA_COOKIE,
 };
 
+enum devlink_reload_action {
+	DEVLINK_RELOAD_ACTION_UNSPEC,
+	DEVLINK_RELOAD_ACTION_DRIVER_REINIT,	/* Driver entities re-instantiation */
+	DEVLINK_RELOAD_ACTION_FW_ACTIVATE,	/* FW activate */
+
+	/* Add new reload actions above */
+	__DEVLINK_RELOAD_ACTION_MAX,
+	DEVLINK_RELOAD_ACTION_MAX = __DEVLINK_RELOAD_ACTION_MAX - 1
+};
+
+enum devlink_reload_limit {
+	DEVLINK_RELOAD_LIMIT_UNSPEC,	/* unspecified, no constraints */
+	DEVLINK_RELOAD_LIMIT_NO_RESET,	/* No reset allowed, no down time allowed,
+					 * no link flap and no configuration is lost.
+					 */
+
+	/* Add new reload limit above */
+	__DEVLINK_RELOAD_LIMIT_MAX,
+	DEVLINK_RELOAD_LIMIT_MAX = __DEVLINK_RELOAD_LIMIT_MAX - 1
+};
+
+#define DEVLINK_RELOAD_LIMITS_VALID_MASK (BIT(__DEVLINK_RELOAD_LIMIT_MAX) - 1)
+
 enum devlink_attr {
 	/* don't change the order or add anything between, this is ABI! */
 	DEVLINK_ATTR_UNSPEC,
@@ -492,6 +515,17 @@ enum devlink_attr {
 
 	DEVLINK_ATTR_FLASH_UPDATE_STATUS_TIMEOUT,	/* u64 */
 	DEVLINK_ATTR_FLASH_UPDATE_OVERWRITE_MASK,	/* bitfield32 */
+
+	DEVLINK_ATTR_RELOAD_ACTION,		/* u8 */
+	DEVLINK_ATTR_RELOAD_ACTIONS_PERFORMED,	/* bitfield32 */
+	DEVLINK_ATTR_RELOAD_LIMITS,		/* bitfield32 */
+
+	DEVLINK_ATTR_DEV_STATS,			/* nested */
+	DEVLINK_ATTR_RELOAD_STATS,		/* nested */
+	DEVLINK_ATTR_RELOAD_STATS_ENTRY,	/* nested */
+	DEVLINK_ATTR_RELOAD_STATS_LIMIT,	/* u8 */
+	DEVLINK_ATTR_RELOAD_STATS_VALUE,	/* u32 */
+	DEVLINK_ATTR_REMOTE_RELOAD_STATS,	/* nested */
 
 	/* add new attributes above here, update the policy in devlink.c */
 

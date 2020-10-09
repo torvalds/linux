@@ -57,6 +57,7 @@
 #include "lib/mpfs.h"
 #include "eswitch.h"
 #include "devlink.h"
+#include "fw_reset.h"
 #include "lib/mlx5.h"
 #include "fpga/core.h"
 #include "fpga/ipsec.h"
@@ -548,6 +549,9 @@ static int handle_hca_cap(struct mlx5_core_dev *dev, void *set_ctx)
 	if (MLX5_CAP_GEN_MAX(dev, dct))
 		MLX5_SET(cmd_hca_cap, set_hca_cap, dct, 1);
 
+	if (MLX5_CAP_GEN_MAX(dev, pci_sync_for_fw_update_event))
+		MLX5_SET(cmd_hca_cap, set_hca_cap, pci_sync_for_fw_update_event, 1);
+
 	if (MLX5_CAP_GEN_MAX(dev, num_vhca_ports))
 		MLX5_SET(cmd_hca_cap,
 			 set_hca_cap,
@@ -832,6 +836,12 @@ static int mlx5_init_once(struct mlx5_core_dev *dev)
 		goto err_eq_cleanup;
 	}
 
+	err = mlx5_fw_reset_init(dev);
+	if (err) {
+		mlx5_core_err(dev, "failed to initialize fw reset events\n");
+		goto err_events_cleanup;
+	}
+
 	mlx5_cq_debugfs_init(dev);
 
 	mlx5_init_reserved_gids(dev);
@@ -893,6 +903,8 @@ err_tables_cleanup:
 	mlx5_geneve_destroy(dev->geneve);
 	mlx5_vxlan_destroy(dev->vxlan);
 	mlx5_cq_debugfs_cleanup(dev);
+	mlx5_fw_reset_cleanup(dev);
+err_events_cleanup:
 	mlx5_events_cleanup(dev);
 err_eq_cleanup:
 	mlx5_eq_table_cleanup(dev);
@@ -920,6 +932,7 @@ static void mlx5_cleanup_once(struct mlx5_core_dev *dev)
 	mlx5_cleanup_clock(dev);
 	mlx5_cleanup_reserved_gids(dev);
 	mlx5_cq_debugfs_cleanup(dev);
+	mlx5_fw_reset_cleanup(dev);
 	mlx5_events_cleanup(dev);
 	mlx5_eq_table_cleanup(dev);
 	mlx5_irq_table_cleanup(dev);
@@ -1078,6 +1091,7 @@ static int mlx5_load(struct mlx5_core_dev *dev)
 		goto err_fw_tracer;
 	}
 
+	mlx5_fw_reset_events_start(dev);
 	mlx5_hv_vhca_init(dev->hv_vhca);
 
 	err = mlx5_rsc_dump_init(dev);
@@ -1139,6 +1153,7 @@ err_fpga_start:
 	mlx5_rsc_dump_cleanup(dev);
 err_rsc_dump:
 	mlx5_hv_vhca_cleanup(dev->hv_vhca);
+	mlx5_fw_reset_events_stop(dev);
 	mlx5_fw_tracer_cleanup(dev->tracer);
 err_fw_tracer:
 	mlx5_eq_table_destroy(dev);
@@ -1161,6 +1176,7 @@ static void mlx5_unload(struct mlx5_core_dev *dev)
 	mlx5_fpga_device_stop(dev);
 	mlx5_rsc_dump_cleanup(dev);
 	mlx5_hv_vhca_cleanup(dev->hv_vhca);
+	mlx5_fw_reset_events_stop(dev);
 	mlx5_fw_tracer_cleanup(dev->tracer);
 	mlx5_eq_table_destroy(dev);
 	mlx5_irq_table_destroy(dev);
