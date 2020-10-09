@@ -532,6 +532,8 @@ struct vc4_crtc_state {
 	} margins;
 };
 
+#define VC4_HVS_CHANNEL_DISABLED ((unsigned int)-1)
+
 static inline struct vc4_crtc_state *
 to_vc4_crtc_state(struct drm_crtc_state *crtc_state)
 {

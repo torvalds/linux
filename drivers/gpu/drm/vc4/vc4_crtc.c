@@ -852,11 +852,19 @@ void vc4_crtc_destroy_state(struct drm_crtc *crtc,
 
 void vc4_crtc_reset(struct drm_crtc *crtc)
 {
+	struct vc4_crtc_state *vc4_crtc_state;
+
 	if (crtc->state)
 		vc4_crtc_destroy_state(crtc, crtc->state);
-	crtc->state = kzalloc(sizeof(struct vc4_crtc_state), GFP_KERNEL);
-	if (crtc->state)
-		__drm_atomic_helper_crtc_reset(crtc, crtc->state);
+
+	vc4_crtc_state = kzalloc(sizeof(*vc4_crtc_state), GFP_KERNEL);
+	if (!vc4_crtc_state) {
+		crtc->state = NULL;
+		return;
+	}
+
+	vc4_crtc_state->assigned_channel = VC4_HVS_CHANNEL_DISABLED;
+	__drm_atomic_helper_crtc_reset(crtc, &vc4_crtc_state->base);
 }
 
 static const struct drm_crtc_funcs vc4_crtc_funcs = {
