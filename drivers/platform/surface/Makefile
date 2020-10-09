@@ -5,3 +5,4 @@
 #
 
 obj-$(CONFIG_SURFACE3_WMI)		+= surface3-wmi.o
+obj-$(CONFIG_SURFACE_3_BUTTON)		+= surface3_button.o
