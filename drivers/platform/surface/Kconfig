@@ -12,3 +12,19 @@ menuconfig SURFACE_PLATFORMS
 	  kernel code.
 
 	  If you say N, all options in this submenu will be skipped and disabled.
+
+if SURFACE_PLATFORMS
+
+config SURFACE3_WMI
+	tristate "Surface 3 WMI Driver"
+	depends on ACPI_WMI
+	depends on DMI
+	depends on INPUT
+	depends on SPI
+	help
+	  Say Y here if you have a Surface 3.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called surface3-wmi.
+
+endif # SURFACE_PLATFORMS

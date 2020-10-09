@@ -3,3 +3,5 @@
 # Makefile for linux/drivers/platform/surface
 # Microsoft Surface Platform-Specific Drivers
 #
+
+obj-$(CONFIG_SURFACE3_WMI)		+= surface3-wmi.o
