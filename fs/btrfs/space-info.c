@@ -1140,6 +1140,7 @@ static void btrfs_preempt_reclaim_metadata_space(struct work_struct *work)
 	/* We only went through once, back off our clamping. */
 	if (loops == 1 && !space_info->reclaim_size)
 		space_info->clamp = max(1, space_info->clamp - 1);
+	trace_btrfs_done_preemptive_reclaim(fs_info, space_info);
 	spin_unlock(&space_info->lock);
 }
 
