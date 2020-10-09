@@ -8615,27 +8615,17 @@ static int io_uring_add_task_file(struct file *file)
 static void io_uring_del_task_file(struct file *file)
 {
 	struct io_uring_task *tctx = current->io_uring;
-	XA_STATE(xas, &tctx->xa, (unsigned long) file);
 
 	if (tctx->last == file)
 		tctx->last = NULL;
-
-	xas_lock(&xas);
-	file = xas_store(&xas, NULL);
-	xas_unlock(&xas);
-
+	file = xa_erase(&tctx->xa, (unsigned long)file);
 	if (file)
 		fput(file);
 }
 
 static void __io_uring_attempt_task_drop(struct file *file)
 {
-	XA_STATE(xas, &current->io_uring->xa, (unsigned long) file);
-	struct file *old;
-
-	rcu_read_lock();
-	old = xas_load(&xas);
-	rcu_read_unlock();
+	struct file *old = xa_load(&current->io_uring->xa, (unsigned long)file);
 
 	if (old == file)
 		io_uring_del_task_file(file);
