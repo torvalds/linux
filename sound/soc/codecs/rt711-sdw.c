@@ -479,7 +479,7 @@ static int rt711_sdw_remove(struct sdw_slave *slave)
 }
 
 static const struct sdw_device_id rt711_id[] = {
-	SDW_SLAVE_ENTRY(0x025d, 0x711, 0),
+	SDW_SLAVE_ENTRY_EXT(0x025d, 0x711, 0x2, 0, 0),
 	{},
 };
 MODULE_DEVICE_TABLE(sdw, rt711_id);

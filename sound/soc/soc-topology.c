@@ -614,10 +614,11 @@ static int soc_tplg_kcontrol_bind_io(struct snd_soc_tplg_ctl_hdr *hdr,
 				sbe->get = ext_ops[i].get;
 		}
 
-		if (sbe->put && sbe->get)
-			return 0;
-		else
+		if ((k->access & SNDRV_CTL_ELEM_ACCESS_TLV_READ) && !sbe->get)
 			return -EINVAL;
+		if ((k->access & SNDRV_CTL_ELEM_ACCESS_TLV_WRITE) && !sbe->put)
+			return -EINVAL;
+		return 0;
 	}
 
 	/* try and map vendor specific kcontrol handlers first */

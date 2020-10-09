@@ -155,21 +155,12 @@ static int tegra_wm8753_driver_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = snd_soc_register_card(card);
+	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret) {
 		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n",
 			ret);
 		return ret;
 	}
-
-	return 0;
-}
-
-static int tegra_wm8753_driver_remove(struct platform_device *pdev)
-{
-	struct snd_soc_card *card = platform_get_drvdata(pdev);
-
-	snd_soc_unregister_card(card);
 
 	return 0;
 }
@@ -186,7 +177,6 @@ static struct platform_driver tegra_wm8753_driver = {
 		.of_match_table = tegra_wm8753_of_match,
 	},
 	.probe = tegra_wm8753_driver_probe,
-	.remove = tegra_wm8753_driver_remove,
 };
 module_platform_driver(tegra_wm8753_driver);
 
