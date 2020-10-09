@@ -383,14 +383,6 @@ void __init config_amiga(void)
 	mach_init_IRQ        = amiga_init_IRQ;
 	mach_get_model       = amiga_get_model;
 	mach_get_hardware_list = amiga_get_hardware_list;
-
-	/*
-	 * default MAX_DMA=0xffffffff on all machines. If we don't do so, the SCSI
-	 * code will not be able to allocate any mem for transfers, unless we are
-	 * dealing with a Z2 mem only system.                  /Jes
-	 */
-	mach_max_dma_address = 0xffffffff;
-
 	mach_reset           = amiga_reset;
 #if IS_ENABLED(CONFIG_INPUT_M68K_BEEP)
 	mach_beep            = amiga_mksound;

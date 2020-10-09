@@ -205,7 +205,6 @@ void __init config_atari(void)
 	mach_get_model	 = atari_get_model;
 	mach_get_hardware_list = atari_get_hardware_list;
 	mach_reset           = atari_reset;
-	mach_max_dma_address = 0xffffff;
 #if IS_ENABLED(CONFIG_INPUT_M68K_BEEP)
 	mach_beep          = atari_mksound;
 #endif

@@ -44,8 +44,6 @@ void __init config_sun3x(void)
 
 	sun3x_prom_init();
 
-	mach_max_dma_address = 0xffffffff; /* we can DMA anywhere, whee */
-
 	mach_sched_init      = sun3x_sched_init;
 	mach_init_IRQ        = sun3_init_IRQ;
 

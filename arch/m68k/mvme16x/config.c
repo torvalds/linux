@@ -268,7 +268,6 @@ void __init config_mvme16x(void)
     char id[40];
     uint16_t brdno = be16_to_cpu(p->brdno);
 
-    mach_max_dma_address = 0xffffffff;
     mach_sched_init      = mvme16x_sched_init;
     mach_init_IRQ        = mvme16x_init_IRQ;
     mach_hwclk           = mvme16x_hwclk;

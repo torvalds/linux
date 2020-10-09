@@ -185,11 +185,6 @@ void __init config_q40(void)
 
 	/* disable a few things that SMSQ might have left enabled */
 	q40_disable_irqs();
-
-	/* no DMA at all, but ide-scsi requires it.. make sure
-	 * all physical RAM fits into the boundary - otherwise
-	 * allocator may play costly and useless tricks */
-	mach_max_dma_address = 1024*1024*1024;
 }
 
 
