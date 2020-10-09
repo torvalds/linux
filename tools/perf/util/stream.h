@@ -6,6 +6,7 @@
 
 struct stream {
 	struct callchain_node	*cnode;
+	struct callchain_node	*pair_cnode;
 };
 
 struct evsel_streams {
@@ -29,5 +30,8 @@ struct evlist_streams *evlist__create_streams(struct evlist *evlist,
 
 struct evsel_streams *evsel_streams__entry(struct evlist_streams *els,
 					   int evsel_idx);
+
+void evsel_streams__match(struct evsel_streams *es_base,
+			  struct evsel_streams *es_pair);
 
 #endif /* __PERF_STREAM_H */

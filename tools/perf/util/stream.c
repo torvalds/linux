@@ -175,3 +175,43 @@ struct evsel_streams *evsel_streams__entry(struct evlist_streams *els,
 
 	return NULL;
 }
+
+static struct stream *stream__callchain_match(struct stream *base_stream,
+					      struct evsel_streams *es_pair)
+{
+	for (int i = 0; i < es_pair->nr_streams; i++) {
+		struct stream *pair_stream = &es_pair->streams[i];
+
+		if (callchain_cnode_matched(base_stream->cnode,
+					    pair_stream->cnode)) {
+			return pair_stream;
+		}
+	}
+
+	return NULL;
+}
+
+static struct stream *stream__match(struct stream *base_stream,
+				    struct evsel_streams *es_pair)
+{
+	return stream__callchain_match(base_stream, es_pair);
+}
+
+static void stream__link(struct stream *base_stream, struct stream *pair_stream)
+{
+	base_stream->pair_cnode = pair_stream->cnode;
+	pair_stream->pair_cnode = base_stream->cnode;
+}
+
+void evsel_streams__match(struct evsel_streams *es_base,
+			  struct evsel_streams *es_pair)
+{
+	for (int i = 0; i < es_base->nr_streams; i++) {
+		struct stream *base_stream = &es_base->streams[i];
+		struct stream *pair_stream;
+
+		pair_stream = stream__match(base_stream, es_pair);
+		if (pair_stream)
+			stream__link(base_stream, pair_stream);
+	}
+}
