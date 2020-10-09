@@ -2031,10 +2031,12 @@ err_obj:
 	return ERR_PTR(err);
 }
 
-static const struct {
+struct mcr_range {
 	u32 start;
 	u32 end;
-} mcr_ranges_gen8[] = {
+};
+
+static const struct mcr_range mcr_ranges_gen8[] = {
 	{ .start = 0x5500, .end = 0x55ff },
 	{ .start = 0x7000, .end = 0x7fff },
 	{ .start = 0x9400, .end = 0x97ff },
@@ -2043,11 +2045,25 @@ static const struct {
 	{},
 };
 
+static const struct mcr_range mcr_ranges_gen12[] = {
+	{ .start =  0x8150, .end =  0x815f },
+	{ .start =  0x9520, .end =  0x955f },
+	{ .start =  0xb100, .end =  0xb3ff },
+	{ .start =  0xde80, .end =  0xe8ff },
+	{ .start = 0x24a00, .end = 0x24a7f },
+	{},
+};
+
 static bool mcr_range(struct drm_i915_private *i915, u32 offset)
 {
+	const struct mcr_range *mcr_ranges;
 	int i;
 
-	if (INTEL_GEN(i915) < 8)
+	if (INTEL_GEN(i915) >= 12)
+		mcr_ranges = mcr_ranges_gen12;
+	else if (INTEL_GEN(i915) >= 8)
+		mcr_ranges = mcr_ranges_gen8;
+	else
 		return false;
 
 	/*
@@ -2055,9 +2071,9 @@ static bool mcr_range(struct drm_i915_private *i915, u32 offset)
 	 * which only controls CPU initiated MMIO. Routing does not
 	 * work for CS access so we cannot verify them on this path.
 	 */
-	for (i = 0; mcr_ranges_gen8[i].start; i++)
-		if (offset >= mcr_ranges_gen8[i].start &&
-		    offset <= mcr_ranges_gen8[i].end)
+	for (i = 0; mcr_ranges[i].start; i++)
+		if (offset >= mcr_ranges[i].start &&
+		    offset <= mcr_ranges[i].end)
 			return true;
 
 	return false;
