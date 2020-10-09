@@ -2,6 +2,7 @@
 #include <linux/string.h>
 #include <linux/elf.h>
 #include <asm/sections.h>
+#include <asm/cpu_mf.h>
 #include <asm/setup.h>
 #include <asm/kexec.h>
 #include <asm/sclp.h>
@@ -56,6 +57,14 @@ void error(char *x)
 	sclp_early_printk("\n\n -- System halted");
 
 	disabled_wait();
+}
+
+static void setup_lpp(void)
+{
+	S390_lowcore.current_pid = 0;
+	S390_lowcore.lpp = LPP_MAGIC;
+	if (test_facility(40))
+		lpp(&S390_lowcore.lpp);
 }
 
 #ifdef CONFIG_KERNEL_UNCOMPRESSED
@@ -147,6 +156,7 @@ void startup_kernel(void)
 	unsigned long safe_addr;
 	void *img;
 
+	setup_lpp();
 	store_ipl_parmblock();
 	safe_addr = mem_safe_offset();
 	safe_addr = read_ipl_report(safe_addr);
