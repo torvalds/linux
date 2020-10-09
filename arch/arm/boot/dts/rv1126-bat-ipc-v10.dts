@@ -57,6 +57,22 @@
 		};
 	};
 
+	leds {
+		compatible = "pwm-leds";
+		blue {
+			label = "blue";
+			pwms = <&pwm3 0 50000 0>;
+			max-brightness = <255>;
+		};
+
+		red {
+			label = "red";
+			pwms = <&pwm2 0 50000 0>;
+			max-brightness = <255>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
 	vcc1v2_dvdd: vcc1v8_dovdd: vcc2v8_avdd: vcc-camera {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_camera";
@@ -308,6 +324,18 @@
 	status = "okay";
 	pinctrl-names = "active";
 	pinctrl-0 = <&pwm1m0_pins_pull_down>;
+};
+
+&pwm2 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm2m1_pins_pull_down>;
+};
+
+&pwm3 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm3m1_pins_pull_down>;
 };
 
 &rkisp_thunderboot {
