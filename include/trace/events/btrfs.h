@@ -2026,6 +2026,35 @@ TRACE_EVENT(btrfs_convert_extent_bit,
 		  __print_flags(__entry->clear_bits, "|", EXTENT_FLAGS))
 );
 
+TRACE_EVENT(btrfs_reserve_ticket,
+	TP_PROTO(const struct btrfs_fs_info *fs_info, u64 flags, u64 bytes,
+		 u64 start_ns, int flush, int error),
+
+	TP_ARGS(fs_info, flags, bytes, start_ns, flush, error),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,	flags		)
+		__field(	u64,	bytes		)
+		__field(	u64,	start_ns	)
+		__field(	int,	flush		)
+		__field(	int,	error		)
+	),
+
+	TP_fast_assign_btrfs(fs_info,
+		__entry->flags		= flags;
+		__entry->bytes		= bytes;
+		__entry->start_ns	= start_ns;
+		__entry->flush		= flush;
+		__entry->error		= error;
+	),
+
+	TP_printk_btrfs("flags=%s bytes=%llu start_ns=%llu flush=%s error=%d",
+			__print_flags(__entry->flags, "|", BTRFS_GROUP_FLAGS),
+			__entry->bytes, __entry->start_ns,
+			__print_symbolic(__entry->flush, FLUSH_ACTIONS),
+			__entry->error)
+);
+
 DECLARE_EVENT_CLASS(btrfs_sleep_tree_lock,
 	TP_PROTO(const struct extent_buffer *eb, u64 start_ns),
 
