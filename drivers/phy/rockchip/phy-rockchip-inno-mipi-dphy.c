@@ -817,6 +817,7 @@ static int inno_mipi_dphy_remove(struct platform_device *pdev)
 
 static const struct of_device_id inno_mipi_dphy_of_match[] = {
 	{ .compatible = "rockchip,rk1808-mipi-dphy", },
+	{ .compatible = "rockchip,rk3568-mipi-dphy", },
 	{ .compatible = "rockchip,rv1126-mipi-dphy", },
 	{}
 };
