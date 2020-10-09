@@ -40,10 +40,10 @@ static int hif_generic_confirm(struct wfx_dev *wdev,
 	}
 
 	if (wdev->hif_cmd.buf_recv) {
-		if (wdev->hif_cmd.len_recv >= len)
+		if (wdev->hif_cmd.len_recv >= len && len > 0)
 			memcpy(wdev->hif_cmd.buf_recv, buf, len);
 		else
-			status = -ENOMEM;
+			status = -EIO;
 	}
 	wdev->hif_cmd.ret = status;
 
