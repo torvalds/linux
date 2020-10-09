@@ -222,12 +222,18 @@ static int wfx_send_pdata_pds(struct wfx_dev *wdev)
 	if (ret) {
 		dev_err(wdev->dev, "can't load PDS file %s\n",
 			wdev->pdata.file_pds);
-		return ret;
+		goto err1;
 	}
 	tmp_buf = kmemdup(pds->data, pds->size, GFP_KERNEL);
+	if (!tmp_buf) {
+		ret = -ENOMEM;
+		goto err2;
+	}
 	ret = wfx_send_pds(wdev, tmp_buf, pds->size);
 	kfree(tmp_buf);
+err2:
 	release_firmware(pds);
+err1:
 	return ret;
 }
 
