@@ -94,8 +94,8 @@ static int hif_startup_indication(struct wfx_dev *wdev,
 static int hif_wakeup_indication(struct wfx_dev *wdev,
 				 const struct hif_msg *hif, const void *buf)
 {
-	if (!wdev->pdata.gpio_wakeup
-	    || !gpiod_get_value(wdev->pdata.gpio_wakeup)) {
+	if (!wdev->pdata.gpio_wakeup ||
+	    gpiod_get_value(wdev->pdata.gpio_wakeup) == 0) {
 		dev_warn(wdev->dev, "unexpected wake-up indication\n");
 		return -EIO;
 	}
