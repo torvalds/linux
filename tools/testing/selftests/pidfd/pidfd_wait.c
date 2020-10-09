@@ -205,14 +205,14 @@ TEST(wait_nonblock)
 	ret = sys_waitid(P_PIDFD, pidfd, &info, WEXITED | WNOHANG, NULL);
 	ASSERT_EQ(ret, 0);
 
+	ASSERT_EQ(fcntl(pidfd, F_SETFL, (flags & ~O_NONBLOCK)), 0);
+
 	ASSERT_EQ(sys_waitid(P_PIDFD, pidfd, &info, WSTOPPED, NULL), 0);
 	ASSERT_EQ(info.si_signo, SIGCHLD);
 	ASSERT_EQ(info.si_code, CLD_STOPPED);
 	ASSERT_EQ(info.si_pid, parent_tid);
 
 	ASSERT_EQ(sys_pidfd_send_signal(pidfd, SIGCONT, NULL, 0), 0);
-
-	ASSERT_EQ(fcntl(pidfd, F_SETFL, (flags & ~O_NONBLOCK)), 0);
 
 	ASSERT_EQ(sys_waitid(P_PIDFD, pidfd, &info, WEXITED, NULL), 0);
 	ASSERT_EQ(info.si_signo, SIGCHLD);
