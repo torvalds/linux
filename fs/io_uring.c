@@ -6466,12 +6466,11 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
 				submitted = -EAGAIN;
 			break;
 		}
-
-		err = io_init_req(ctx, req, sqe, &state);
 		io_consume_sqe(ctx);
 		/* will complete beyond this point, count as submitted */
 		submitted++;
 
+		err = io_init_req(ctx, req, sqe, &state);
 		if (unlikely(err)) {
 fail_req:
 			io_put_req(req);
