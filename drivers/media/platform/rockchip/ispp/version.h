@@ -40,6 +40,12 @@
  * 1. fix cannot change some shadow bits by only config function
  * 2. fix scl0 format check error
  * 3. vb2 support cache hints
+ *
+ * v0.1.8:
+ * 1. add monitor to restart if abnormal
+ * 2. isp/ispp procfs add work info
+ * 3. scl add yuyv format
+ * 4. fix config err for tnr init off
  */
 
 #define RKISPP_DRIVER_VERSION ISPP_API_VERSION

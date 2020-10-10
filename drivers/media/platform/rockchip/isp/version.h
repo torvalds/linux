@@ -43,6 +43,14 @@
  * 1. fix rawaf is disabled in config function
  * 2. clear csi rdbk fifo when first open
  * 3. vb2 support cache hints
+ *
+ * v0.1.8:
+ * 1. add monitor to restart if abnormal
+ * 2. isp/ispp procfs add work info
+ * 3. fix scr clock is not disabled after app run
+ * 4. request buf to alloc dummy buf
+ * 5. set tmo bit in gain by tmo enable
+ * 6. only rx mode can use when link with cif
  */
 
 #define RKISP_DRIVER_VERSION RKISP_API_VERSION
