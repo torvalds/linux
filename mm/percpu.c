@@ -1103,7 +1103,7 @@ static struct pcpu_chunk * __init pcpu_alloc_first_chunk(unsigned long tmp_addr,
 
 	/* allocate chunk */
 	chunk = memblock_virt_alloc(sizeof(struct pcpu_chunk) +
-				    BITS_TO_LONGS(region_size >> PAGE_SHIFT),
+				    BITS_TO_LONGS(region_size >> PAGE_SHIFT) * sizeof(unsigned long),
 				    0);
 
 	INIT_LIST_HEAD(&chunk->list);

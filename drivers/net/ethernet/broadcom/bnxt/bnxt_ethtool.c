@@ -471,7 +471,7 @@ static void bnxt_get_channels(struct net_device *dev,
 	int max_tx_sch_inputs;
 
 	/* Get the most up-to-date max_tx_sch_inputs. */
-	if (BNXT_NEW_RM(bp))
+	if (netif_running(dev) && BNXT_NEW_RM(bp))
 		bnxt_hwrm_func_resc_qcaps(bp, false);
 	max_tx_sch_inputs = hw_resc->max_tx_sch_inputs;
 
@@ -1369,9 +1369,12 @@ static int bnxt_set_pauseparam(struct net_device *dev,
 	if (!BNXT_SINGLE_PF(bp))
 		return -EOPNOTSUPP;
 
+	mutex_lock(&bp->link_lock);
 	if (epause->autoneg) {
-		if (!(link_info->autoneg & BNXT_AUTONEG_SPEED))
-			return -EINVAL;
+		if (!(link_info->autoneg & BNXT_AUTONEG_SPEED)) {
+			rc = -EINVAL;
+			goto pause_exit;
+		}
 
 		link_info->autoneg |= BNXT_AUTONEG_FLOW_CTRL;
 		if (bp->hwrm_spec_code >= 0x10201)
@@ -1392,11 +1395,11 @@ static int bnxt_set_pauseparam(struct net_device *dev,
 	if (epause->tx_pause)
 		link_info->req_flow_ctrl |= BNXT_LINK_PAUSE_TX;
 
-	if (netif_running(dev)) {
-		mutex_lock(&bp->link_lock);
+	if (netif_running(dev))
 		rc = bnxt_hwrm_set_pause(bp);
-		mutex_unlock(&bp->link_lock);
-	}
+
+pause_exit:
+	mutex_unlock(&bp->link_lock);
 	return rc;
 }
 
@@ -1877,6 +1880,9 @@ static int bnxt_get_nvram_directory(struct net_device *dev, u32 len, u8 *data)
 	if (rc != 0)
 		return rc;
 
+	if (!dir_entries || !entry_length)
+		return -EIO;
+
 	/* Insert 2 bytes of directory info (count and size of entries) */
 	if (len < 2)
 		return -EINVAL;
@@ -2110,8 +2116,7 @@ static int bnxt_set_eee(struct net_device *dev, struct ethtool_eee *edata)
 	struct bnxt *bp = netdev_priv(dev);
 	struct ethtool_eee *eee = &bp->eee;
 	struct bnxt_link_info *link_info = &bp->link_info;
-	u32 advertising =
-		 _bnxt_fw_to_ethtool_adv_spds(link_info->advertising, 0);
+	u32 advertising;
 	int rc = 0;
 
 	if (!BNXT_SINGLE_PF(bp))
@@ -2120,19 +2125,23 @@ static int bnxt_set_eee(struct net_device *dev, struct ethtool_eee *edata)
 	if (!(bp->flags & BNXT_FLAG_EEE_CAP))
 		return -EOPNOTSUPP;
 
+	mutex_lock(&bp->link_lock);
+	advertising = _bnxt_fw_to_ethtool_adv_spds(link_info->advertising, 0);
 	if (!edata->eee_enabled)
 		goto eee_ok;
 
 	if (!(link_info->autoneg & BNXT_AUTONEG_SPEED)) {
 		netdev_warn(dev, "EEE requires autoneg\n");
-		return -EINVAL;
+		rc = -EINVAL;
+		goto eee_exit;
 	}
 	if (edata->tx_lpi_enabled) {
 		if (bp->lpi_tmr_hi && (edata->tx_lpi_timer > bp->lpi_tmr_hi ||
 				       edata->tx_lpi_timer < bp->lpi_tmr_lo)) {
 			netdev_warn(dev, "Valid LPI timer range is %d and %d microsecs\n",
 				    bp->lpi_tmr_lo, bp->lpi_tmr_hi);
-			return -EINVAL;
+			rc = -EINVAL;
+			goto eee_exit;
 		} else if (!bp->lpi_tmr_hi) {
 			edata->tx_lpi_timer = eee->tx_lpi_timer;
 		}
@@ -2142,7 +2151,8 @@ static int bnxt_set_eee(struct net_device *dev, struct ethtool_eee *edata)
 	} else if (edata->advertised & ~advertising) {
 		netdev_warn(dev, "EEE advertised %x must be a subset of autoneg advertised speeds %x\n",
 			    edata->advertised, advertising);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto eee_exit;
 	}
 
 	eee->advertised = edata->advertised;
@@ -2154,6 +2164,8 @@ eee_ok:
 	if (netif_running(dev))
 		rc = bnxt_hwrm_set_link_setting(bp, false, true);
 
+eee_exit:
+	mutex_unlock(&bp->link_lock);
 	return rc;
 }
 

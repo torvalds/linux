@@ -155,7 +155,7 @@ static int pdc_sata_scr_write(struct ata_link *link, unsigned int sc_reg, u32 va
 static int pdc_ata_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
 static int pdc_common_port_start(struct ata_port *ap);
 static int pdc_sata_port_start(struct ata_port *ap);
-static void pdc_qc_prep(struct ata_queued_cmd *qc);
+static enum ata_completion_errors pdc_qc_prep(struct ata_queued_cmd *qc);
 static void pdc_tf_load_mmio(struct ata_port *ap, const struct ata_taskfile *tf);
 static void pdc_exec_command_mmio(struct ata_port *ap, const struct ata_taskfile *tf);
 static int pdc_check_atapi_dma(struct ata_queued_cmd *qc);
@@ -649,7 +649,7 @@ static void pdc_fill_sg(struct ata_queued_cmd *qc)
 	prd[idx - 1].flags_len |= cpu_to_le32(ATA_PRD_EOT);
 }
 
-static void pdc_qc_prep(struct ata_queued_cmd *qc)
+static enum ata_completion_errors pdc_qc_prep(struct ata_queued_cmd *qc)
 {
 	struct pdc_port_priv *pp = qc->ap->private_data;
 	unsigned int i;
@@ -681,6 +681,8 @@ static void pdc_qc_prep(struct ata_queued_cmd *qc)
 	default:
 		break;
 	}
+
+	return AC_ERR_OK;
 }
 
 static int pdc_is_sataii_tx4(unsigned long flags)

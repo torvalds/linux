@@ -207,10 +207,12 @@ static void *map_seq_next(struct seq_file *m, void *v, loff_t *pos)
 	else
 		prev_key = key;
 
+	rcu_read_lock();
 	if (map->ops->map_get_next_key(map, prev_key, key)) {
 		map_iter(m)->done = true;
-		return NULL;
+		key = NULL;
 	}
+	rcu_read_unlock();
 	return key;
 }
 

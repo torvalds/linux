@@ -27,10 +27,12 @@
  * 0x01 was the original IBM trackpoint, others implement very limited
  * subset of trackpoint features.
  */
-#define TP_VARIANT_IBM		0x01
-#define TP_VARIANT_ALPS		0x02
-#define TP_VARIANT_ELAN		0x03
-#define TP_VARIANT_NXP		0x04
+#define TP_VARIANT_IBM			0x01
+#define TP_VARIANT_ALPS			0x02
+#define TP_VARIANT_ELAN			0x03
+#define TP_VARIANT_NXP			0x04
+#define TP_VARIANT_JYT_SYNAPTICS	0x05
+#define TP_VARIANT_SYNAPTICS		0x06
 
 /*
  * Commands

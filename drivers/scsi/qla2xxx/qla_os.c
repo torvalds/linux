@@ -2719,7 +2719,7 @@ static void qla2x00_iocb_work_fn(struct work_struct *work)
 		struct scsi_qla_host, iocb_work);
 	struct qla_hw_data *ha = vha->hw;
 	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
-	int i = 20;
+	int i = 2;
 	unsigned long flags;
 
 	if (test_bit(UNLOADING, &base_vha->dpc_flags))
@@ -4606,7 +4606,6 @@ struct scsi_qla_host *qla2x00_create_host(struct scsi_host_template *sht,
 
 	spin_lock_init(&vha->work_lock);
 	spin_lock_init(&vha->cmd_list_lock);
-	spin_lock_init(&vha->gnl.fcports_lock);
 	init_waitqueue_head(&vha->fcport_waitQ);
 	init_waitqueue_head(&vha->vref_waitq);
 
@@ -4792,16 +4791,25 @@ qlafx00_post_aenfx_work(struct scsi_qla_host *vha,  uint32_t evtcode,
 	return qla2x00_post_work(vha, e);
 }
 
-int qla24xx_post_upd_fcport_work(struct scsi_qla_host *vha, fc_port_t *fcport)
+void qla24xx_sched_upd_fcport(fc_port_t *fcport)
 {
-	struct qla_work_evt *e;
+	unsigned long flags;
 
-	e = qla2x00_alloc_work(vha, QLA_EVT_UPD_FCPORT);
-	if (!e)
-		return QLA_FUNCTION_FAILED;
+	if (IS_SW_RESV_ADDR(fcport->d_id))
+		return;
 
-	e->u.fcport.fcport = fcport;
-	return qla2x00_post_work(vha, e);
+	spin_lock_irqsave(&fcport->vha->work_lock, flags);
+	if (fcport->disc_state == DSC_UPD_FCPORT) {
+		spin_unlock_irqrestore(&fcport->vha->work_lock, flags);
+		return;
+	}
+	fcport->jiffies_at_registration = jiffies;
+	fcport->sec_since_registration = 0;
+	fcport->next_disc_state = DSC_DELETED;
+	fcport->disc_state = DSC_UPD_FCPORT;
+	spin_unlock_irqrestore(&fcport->vha->work_lock, flags);
+
+	queue_work(system_unbound_wq, &fcport->reg_work);
 }
 
 static
@@ -5056,9 +5064,6 @@ qla2x00_do_work(struct scsi_qla_host *vha)
 			break;
 		case QLA_EVT_GPSC:
 			qla24xx_async_gpsc(vha, e->u.fcport.fcport);
-			break;
-		case QLA_EVT_UPD_FCPORT:
-			qla2x00_update_fcport(vha, e->u.fcport.fcport);
 			break;
 		case QLA_EVT_GNL:
 			qla24xx_async_gnl(vha, e->u.fcport.fcport);

@@ -44,10 +44,13 @@ volatile long the_var;
 #if defined (__x86_64__)
 extern void __test_function(volatile long *ptr);
 asm (
+	".pushsection .text;"
 	".globl __test_function\n"
+	".type __test_function, @function;"
 	"__test_function:\n"
 	"incq (%rdi)\n"
-	"ret\n");
+	"ret\n"
+	".popsection\n");
 #else
 static void __test_function(volatile long *ptr)
 {

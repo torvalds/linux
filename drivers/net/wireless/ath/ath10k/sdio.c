@@ -1567,23 +1567,33 @@ static int ath10k_sdio_hif_diag_read(struct ath10k *ar, u32 address, void *buf,
 				     size_t buf_len)
 {
 	int ret;
+	void *mem;
+
+	mem = kzalloc(buf_len, GFP_KERNEL);
+	if (!mem)
+		return -ENOMEM;
 
 	/* set window register to start read cycle */
 	ret = ath10k_sdio_write32(ar, MBOX_WINDOW_READ_ADDR_ADDRESS, address);
 	if (ret) {
 		ath10k_warn(ar, "failed to set mbox window read address: %d", ret);
-		return ret;
+		goto out;
 	}
 
 	/* read the data */
-	ret = ath10k_sdio_read(ar, MBOX_WINDOW_DATA_ADDRESS, buf, buf_len);
+	ret = ath10k_sdio_read(ar, MBOX_WINDOW_DATA_ADDRESS, mem, buf_len);
 	if (ret) {
 		ath10k_warn(ar, "failed to read from mbox window data address: %d\n",
 			    ret);
-		return ret;
+		goto out;
 	}
 
-	return 0;
+	memcpy(buf, mem, buf_len);
+
+out:
+	kfree(mem);
+
+	return ret;
 }
 
 static int ath10k_sdio_hif_diag_read32(struct ath10k *ar, u32 address,
