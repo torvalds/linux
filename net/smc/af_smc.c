@@ -553,23 +553,12 @@ static int smc_connect_decline_fallback(struct smc_sock *smc, int reason_code,
 }
 
 /* abort connecting */
-static int smc_connect_abort(struct smc_sock *smc, int reason_code,
-			     int local_first)
+static void smc_connect_abort(struct smc_sock *smc, int local_first)
 {
-	bool is_smcd = smc->conn.lgr->is_smcd;
-
 	if (local_first)
 		smc_lgr_cleanup_early(&smc->conn);
 	else
 		smc_conn_free(&smc->conn);
-	if (is_smcd)
-		/* there is only one lgr role for SMC-D; use server lock */
-		mutex_unlock(&smc_server_lgr_pending);
-	else
-		mutex_unlock(&smc_client_lgr_pending);
-
-	smc->connect_nonblock = 0;
-	return reason_code;
 }
 
 /* check if there is a rdma device available for this connection. */
@@ -764,43 +753,47 @@ static int smc_connect_rdma(struct smc_sock *smc,
 				break;
 			}
 		}
-		if (!link)
-			return smc_connect_abort(smc, SMC_CLC_DECL_NOSRVLINK,
-						 ini->first_contact_local);
+		if (!link) {
+			reason_code = SMC_CLC_DECL_NOSRVLINK;
+			goto connect_abort;
+		}
 		smc->conn.lnk = link;
 	}
 
 	/* create send buffer and rmb */
-	if (smc_buf_create(smc, false))
-		return smc_connect_abort(smc, SMC_CLC_DECL_MEM,
-					 ini->first_contact_local);
+	if (smc_buf_create(smc, false)) {
+		reason_code = SMC_CLC_DECL_MEM;
+		goto connect_abort;
+	}
 
 	if (ini->first_contact_local)
 		smc_link_save_peer_info(link, aclc);
 
-	if (smc_rmb_rtoken_handling(&smc->conn, link, aclc))
-		return smc_connect_abort(smc, SMC_CLC_DECL_ERR_RTOK,
-					 ini->first_contact_local);
+	if (smc_rmb_rtoken_handling(&smc->conn, link, aclc)) {
+		reason_code = SMC_CLC_DECL_ERR_RTOK;
+		goto connect_abort;
+	}
 
 	smc_close_init(smc);
 	smc_rx_init(smc);
 
 	if (ini->first_contact_local) {
-		if (smc_ib_ready_link(link))
-			return smc_connect_abort(smc, SMC_CLC_DECL_ERR_RDYLNK,
-						 ini->first_contact_local);
+		if (smc_ib_ready_link(link)) {
+			reason_code = SMC_CLC_DECL_ERR_RDYLNK;
+			goto connect_abort;
+		}
 	} else {
-		if (smcr_lgr_reg_rmbs(link, smc->conn.rmb_desc))
-			return smc_connect_abort(smc, SMC_CLC_DECL_ERR_REGRMB,
-						 ini->first_contact_local);
+		if (smcr_lgr_reg_rmbs(link, smc->conn.rmb_desc)) {
+			reason_code = SMC_CLC_DECL_ERR_REGRMB;
+			goto connect_abort;
+		}
 	}
 	smc_rmb_sync_sg_for_device(&smc->conn);
 
 	reason_code = smc_clc_send_confirm(smc, ini->first_contact_local,
 					   SMC_V1);
 	if (reason_code)
-		return smc_connect_abort(smc, reason_code,
-					 ini->first_contact_local);
+		goto connect_abort;
 
 	smc_tx_init(smc);
 
@@ -810,8 +803,7 @@ static int smc_connect_rdma(struct smc_sock *smc,
 		reason_code = smcr_clnt_conf_first_link(smc);
 		smc_llc_flow_stop(link->lgr, &link->lgr->llc_flow_lcl);
 		if (reason_code)
-			return smc_connect_abort(smc, reason_code,
-						 ini->first_contact_local);
+			goto connect_abort;
 	}
 	mutex_unlock(&smc_client_lgr_pending);
 
@@ -821,6 +813,12 @@ static int smc_connect_rdma(struct smc_sock *smc,
 		smc->sk.sk_state = SMC_ACTIVE;
 
 	return 0;
+connect_abort:
+	smc_connect_abort(smc, ini->first_contact_local);
+	mutex_unlock(&smc_client_lgr_pending);
+	smc->connect_nonblock = 0;
+
+	return reason_code;
 }
 
 /* The server has chosen one of the proposed ISM devices for the communication.
@@ -872,11 +870,10 @@ static int smc_connect_ism(struct smc_sock *smc,
 
 	/* Create send and receive buffers */
 	rc = smc_buf_create(smc, true);
-	if (rc)
-		return smc_connect_abort(smc, (rc == -ENOSPC) ?
-					      SMC_CLC_DECL_MAX_DMB :
-					      SMC_CLC_DECL_MEM,
-					 ini->first_contact_local);
+	if (rc) {
+		rc = (rc == -ENOSPC) ? SMC_CLC_DECL_MAX_DMB : SMC_CLC_DECL_MEM;
+		goto connect_abort;
+	}
 
 	smc_conn_save_peer_info(smc, aclc);
 	smc_close_init(smc);
@@ -886,7 +883,7 @@ static int smc_connect_ism(struct smc_sock *smc,
 	rc = smc_clc_send_confirm(smc, ini->first_contact_local,
 				  aclc->hdr.version);
 	if (rc)
-		return smc_connect_abort(smc, rc, ini->first_contact_local);
+		goto connect_abort;
 	mutex_unlock(&smc_server_lgr_pending);
 
 	smc_copy_sock_settings_to_clc(smc);
@@ -895,6 +892,12 @@ static int smc_connect_ism(struct smc_sock *smc,
 		smc->sk.sk_state = SMC_ACTIVE;
 
 	return 0;
+connect_abort:
+	smc_connect_abort(smc, ini->first_contact_local);
+	mutex_unlock(&smc_server_lgr_pending);
+	smc->connect_nonblock = 0;
+
+	return rc;
 }
 
 /* check if received accept type and version matches a proposed one */
@@ -1478,11 +1481,12 @@ static void smc_find_ism_v2_device_serv(struct smc_sock *new_smc,
 	struct smc_clc_v2_extension *smc_v2_ext;
 	struct smc_clc_msg_smcd *pclc_smcd;
 	unsigned int matches = 0;
+	u8 smcd_version;
 	u8 *eid = NULL;
 	int i;
 
 	if (!(ini->smcd_version & SMC_V2) || !smcd_indicated(ini->smc_type_v2))
-		return;
+		goto not_found;
 
 	pclc_smcd = smc_get_clc_msg_smcd(pclc);
 	smc_v2_ext = smc_get_clc_v2_ext(pclc);
@@ -1516,6 +1520,7 @@ static void smc_find_ism_v2_device_serv(struct smc_sock *new_smc,
 	}
 
 	/* separate - outside the smcd_dev_list.lock */
+	smcd_version = ini->smcd_version;
 	for (i = 0; i < matches; i++) {
 		ini->smcd_version = SMC_V2;
 		ini->is_smcd = true;
@@ -1525,6 +1530,8 @@ static void smc_find_ism_v2_device_serv(struct smc_sock *new_smc,
 			continue;
 		return; /* matching and usable V2 ISM device found */
 	}
+	/* no V2 ISM device could be initialized */
+	ini->smcd_version = smcd_version;	/* restore original value */
 
 not_found:
 	ini->smcd_version &= ~SMC_V2;
@@ -1661,7 +1668,6 @@ static void smc_listen_work(struct work_struct *work)
 						smc_listen_work);
 	u8 version = smc_ism_v2_capable ? SMC_V2 : SMC_V1;
 	struct socket *newclcsock = new_smc->clcsock;
-	struct smc_clc_msg_accept_confirm_v2 *cclc2;
 	struct smc_clc_msg_accept_confirm *cclc;
 	struct smc_clc_msg_proposal_area *buf;
 	struct smc_clc_msg_proposal *pclc;
@@ -1737,11 +1743,9 @@ static void smc_listen_work(struct work_struct *work)
 		mutex_unlock(&smc_server_lgr_pending);
 
 	/* receive SMC Confirm CLC message */
-	cclc2 = (struct smc_clc_msg_accept_confirm_v2 *)buf;
-	cclc = (struct smc_clc_msg_accept_confirm *)cclc2;
-	memset(buf, 0, sizeof(struct smc_clc_msg_proposal_area));
-	rc = smc_clc_wait_msg(new_smc, cclc2,
-			      sizeof(struct smc_clc_msg_proposal_area),
+	memset(buf, 0, sizeof(*buf));
+	cclc = (struct smc_clc_msg_accept_confirm *)buf;
+	rc = smc_clc_wait_msg(new_smc, cclc, sizeof(*buf),
 			      SMC_CLC_CONFIRM, CLC_WAIT_TIME);
 	if (rc) {
 		if (!ini->is_smcd)
