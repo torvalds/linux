@@ -4,9 +4,10 @@
 # This test sets up 3 netns (src <-> fwd <-> dst). There is no direct veth link
 # between src and dst. The netns fwd has veth links to each src and dst. The
 # client is in src and server in dst. The test installs a TC BPF program to each
-# host facing veth in fwd which calls into bpf_redirect_peer() to perform the
-# neigh addr population and redirect; it also installs a dropper prog on the
-# egress side to drop skbs if neigh addrs were not populated.
+# host facing veth in fwd which calls into i) bpf_redirect_neigh() to perform the
+# neigh addr population and redirect or ii) bpf_redirect_peer() for namespace
+# switch from ingress side; it also installs a checker prog on the egress side
+# to drop unexpected traffic.
 
 if [[ $EUID -ne 0 ]]; then
 	echo "This script must be run as root"
@@ -166,15 +167,17 @@ hex_mem_str()
 	perl -e 'print join(" ", unpack("(H2)8", pack("L", @ARGV)))' $1
 }
 
-netns_setup_neigh()
+netns_setup_bpf()
 {
+	local obj=$1
+
 	ip netns exec ${NS_FWD} tc qdisc add dev veth_src_fwd clsact
-	ip netns exec ${NS_FWD} tc filter add dev veth_src_fwd ingress bpf da obj test_tc_neigh.o sec src_ingress
-	ip netns exec ${NS_FWD} tc filter add dev veth_src_fwd egress  bpf da obj test_tc_neigh.o sec chk_egress
+	ip netns exec ${NS_FWD} tc filter add dev veth_src_fwd ingress bpf da obj $obj sec src_ingress
+	ip netns exec ${NS_FWD} tc filter add dev veth_src_fwd egress  bpf da obj $obj sec chk_egress
 
 	ip netns exec ${NS_FWD} tc qdisc add dev veth_dst_fwd clsact
-	ip netns exec ${NS_FWD} tc filter add dev veth_dst_fwd ingress bpf da obj test_tc_neigh.o sec dst_ingress
-	ip netns exec ${NS_FWD} tc filter add dev veth_dst_fwd egress  bpf da obj test_tc_neigh.o sec chk_egress
+	ip netns exec ${NS_FWD} tc filter add dev veth_dst_fwd ingress bpf da obj $obj sec dst_ingress
+	ip netns exec ${NS_FWD} tc filter add dev veth_dst_fwd egress  bpf da obj $obj sec chk_egress
 
 	veth_src=$(ip netns exec ${NS_FWD} cat /sys/class/net/veth_src_fwd/ifindex)
 	veth_dst=$(ip netns exec ${NS_FWD} cat /sys/class/net/veth_dst_fwd/ifindex)
@@ -193,5 +196,9 @@ trap netns_cleanup EXIT
 set -e
 
 netns_setup
-netns_setup_neigh
+netns_setup_bpf test_tc_neigh.o
+netns_test_connectivity
+netns_cleanup
+netns_setup
+netns_setup_bpf test_tc_peer.o
 netns_test_connectivity
