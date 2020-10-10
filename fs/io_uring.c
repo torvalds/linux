@@ -967,7 +967,6 @@ static void io_queue_linked_timeout(struct io_kiocb *req);
 static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 				 struct io_uring_files_update *ip,
 				 unsigned nr_args);
-static int io_prep_work_files(struct io_kiocb *req);
 static void __io_clean_op(struct io_kiocb *req);
 static int io_file_get(struct io_submit_state *state, struct io_kiocb *req,
 		       int fd, struct file **out_file, bool fixed);
@@ -1222,15 +1221,27 @@ static bool io_req_clean_work(struct io_kiocb *req)
 static void io_prep_async_work(struct io_kiocb *req)
 {
 	const struct io_op_def *def = &io_op_defs[req->opcode];
+	struct io_ring_ctx *ctx = req->ctx;
 
 	io_req_init_async(req);
 
 	if (req->flags & REQ_F_ISREG) {
-		if (def->hash_reg_file || (req->ctx->flags & IORING_SETUP_IOPOLL))
+		if (def->hash_reg_file || (ctx->flags & IORING_SETUP_IOPOLL))
 			io_wq_hash_work(&req->work, file_inode(req->file));
 	} else {
 		if (def->unbound_nonreg_file)
 			req->work.flags |= IO_WQ_WORK_UNBOUND;
+	}
+	if (!req->work.files && io_op_defs[req->opcode].file_table &&
+	    !(req->flags & REQ_F_NO_FILE_TABLE)) {
+		req->work.files = get_files_struct(current);
+		get_nsproxy(current->nsproxy);
+		req->work.nsproxy = current->nsproxy;
+		req->flags |= REQ_F_INFLIGHT;
+
+		spin_lock_irq(&ctx->inflight_lock);
+		list_add(&req->inflight_entry, &ctx->inflight_list);
+		spin_unlock_irq(&ctx->inflight_lock);
 	}
 	if (!req->work.mm && def->needs_mm) {
 		mmgrab(current->mm);
@@ -5662,16 +5673,10 @@ static int io_req_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 static int io_req_defer_prep(struct io_kiocb *req,
 			     const struct io_uring_sqe *sqe)
 {
-	int ret;
-
 	if (!sqe)
 		return 0;
 	if (io_alloc_async_data(req))
 		return -EAGAIN;
-
-	ret = io_prep_work_files(req);
-	if (unlikely(ret))
-		return ret;
 	return io_req_prep(req, sqe);
 }
 
@@ -6015,33 +6020,6 @@ static int io_req_set_file(struct io_submit_state *state, struct io_kiocb *req,
 	return io_file_get(state, req, fd, &req->file, fixed);
 }
 
-static int io_grab_files(struct io_kiocb *req)
-{
-	struct io_ring_ctx *ctx = req->ctx;
-
-	io_req_init_async(req);
-
-	if (req->work.files || (req->flags & REQ_F_NO_FILE_TABLE))
-		return 0;
-
-	req->work.files = get_files_struct(current);
-	get_nsproxy(current->nsproxy);
-	req->work.nsproxy = current->nsproxy;
-	req->flags |= REQ_F_INFLIGHT;
-
-	spin_lock_irq(&ctx->inflight_lock);
-	list_add(&req->inflight_entry, &ctx->inflight_list);
-	spin_unlock_irq(&ctx->inflight_lock);
-	return 0;
-}
-
-static inline int io_prep_work_files(struct io_kiocb *req)
-{
-	if (!io_op_defs[req->opcode].file_table)
-		return 0;
-	return io_grab_files(req);
-}
-
 static enum hrtimer_restart io_link_timeout_fn(struct hrtimer *timer)
 {
 	struct io_timeout_data *data = container_of(timer,
@@ -6153,9 +6131,6 @@ again:
 	if (ret == -EAGAIN && !(req->flags & REQ_F_NOWAIT)) {
 		if (!io_arm_poll_handler(req)) {
 punt:
-			ret = io_prep_work_files(req);
-			if (unlikely(ret))
-				goto err;
 			/*
 			 * Queued up for async execution, worker will release
 			 * submit reference when the iocb is actually submitted.
@@ -6169,7 +6144,6 @@ punt:
 	}
 
 	if (unlikely(ret)) {
-err:
 		/* un-prep timeout, so it'll be killed as any other linked */
 		req->flags &= ~REQ_F_LINK_TIMEOUT;
 		req_set_fail_links(req);
