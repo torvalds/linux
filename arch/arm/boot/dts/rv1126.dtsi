@@ -2120,8 +2120,8 @@
 		clocks = <&cru ACLK_VENC>, <&cru HCLK_VENC>,
 			<&cru CLK_VENC_CORE>;
 		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core";
-		rockchip,normal-rates = <300000000>, <0>, <400000000>;
-		rockchip,advanced-rates = <300000000>, <0>, <600000000>;
+		rockchip,normal-rates = <300000000>, <0>, <396000000>;
+		rockchip,advanced-rates = <300000000>, <0>, <594000000>;
 		rockchip,default-max-load = <2088960>;
 		resets = <&cru SRST_VENC_A>, <&cru SRST_VENC_H>,
 			<&cru SRST_VENC_CORE>;
