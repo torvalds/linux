@@ -354,18 +354,16 @@ int iwl_mvm_ftm_respoder_add_pasn_sta(struct iwl_mvm *mvm,
 			kfree(sta);
 			return ret;
 		}
+
+		memcpy(sta->addr, addr, ETH_ALEN);
+		list_add_tail(&sta->list, &mvm->resp_pasn_list);
 	}
 
 	ret = iwl_mvm_ftm_responder_dyn_cfg_v3(mvm, vif, NULL, &hltk_data);
-	if (ret) {
-		if (sta)
-			iwl_mvm_resp_del_pasn_sta(mvm, vif, sta);
-		return ret;
-	}
+	if (ret && sta)
+		iwl_mvm_resp_del_pasn_sta(mvm, vif, sta);
 
-	memcpy(sta->addr, addr, ETH_ALEN);
-	list_add_tail(&sta->list, &mvm->resp_pasn_list);
-	return 0;
+	return ret;
 }
 
 int iwl_mvm_ftm_resp_remove_pasn_sta(struct iwl_mvm *mvm,

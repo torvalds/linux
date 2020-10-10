@@ -468,6 +468,12 @@ void rs_fw_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		.amsdu = iwl_mvm_is_csum_supported(mvm),
 	};
 	int ret;
+	u16 cmd_size = sizeof(cfg_cmd);
+
+	/* In old versions of the API the struct is 4 bytes smaller */
+	if (iwl_fw_lookup_cmd_ver(mvm->fw, DATA_PATH_GROUP,
+				  TLC_MNG_CONFIG_CMD, 0) < 3)
+		cmd_size -= 4;
 
 	memset(lq_sta, 0, offsetof(typeof(*lq_sta), pers));
 
@@ -482,7 +488,7 @@ void rs_fw_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	 */
 	sta->max_amsdu_len = max_amsdu_len;
 
-	ret = iwl_mvm_send_cmd_pdu(mvm, cmd_id, CMD_ASYNC, sizeof(cfg_cmd),
+	ret = iwl_mvm_send_cmd_pdu(mvm, cmd_id, CMD_ASYNC, cmd_size,
 				   &cfg_cmd);
 	if (ret)
 		IWL_ERR(mvm, "Failed to send rate scale config (%d)\n", ret);

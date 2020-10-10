@@ -93,17 +93,17 @@ static void *iwl_pcie_ctxt_info_dma_alloc_coherent(struct iwl_trans *trans,
 	return _iwl_pcie_ctxt_info_dma_alloc_coherent(trans, size, phys, 0);
 }
 
-static int iwl_pcie_ctxt_info_alloc_dma(struct iwl_trans *trans,
-					const struct fw_desc *sec,
-					struct iwl_dram_data *dram)
+int iwl_pcie_ctxt_info_alloc_dma(struct iwl_trans *trans,
+				 const void *data, u32 len,
+				 struct iwl_dram_data *dram)
 {
-	dram->block = iwl_pcie_ctxt_info_dma_alloc_coherent(trans, sec->len,
+	dram->block = iwl_pcie_ctxt_info_dma_alloc_coherent(trans, len,
 							    &dram->physical);
 	if (!dram->block)
 		return -ENOMEM;
 
-	dram->size = sec->len;
-	memcpy(dram->block, sec->data, sec->len);
+	dram->size = len;
+	memcpy(dram->block, data, len);
 
 	return 0;
 }
@@ -156,7 +156,8 @@ int iwl_pcie_init_fw_sec(struct iwl_trans *trans,
 
 	/* initialize lmac sections */
 	for (i = 0; i < lmac_cnt; i++) {
-		ret = iwl_pcie_ctxt_info_alloc_dma(trans, &fw->sec[i],
+		ret = iwl_pcie_ctxt_info_alloc_dma(trans, fw->sec[i].data,
+						   fw->sec[i].len,
 						   &dram->fw[dram->fw_cnt]);
 		if (ret)
 			return ret;
@@ -169,7 +170,8 @@ int iwl_pcie_init_fw_sec(struct iwl_trans *trans,
 	for (i = 0; i < umac_cnt; i++) {
 		/* access FW with +1 to make up for lmac separator */
 		ret = iwl_pcie_ctxt_info_alloc_dma(trans,
-						   &fw->sec[dram->fw_cnt + 1],
+						   fw->sec[dram->fw_cnt + 1].data,
+						   fw->sec[dram->fw_cnt + 1].len,
 						   &dram->fw[dram->fw_cnt]);
 		if (ret)
 			return ret;
@@ -192,7 +194,8 @@ int iwl_pcie_init_fw_sec(struct iwl_trans *trans,
 		/* access FW with +2 to make up for lmac & umac separators */
 		int fw_idx = dram->fw_cnt + i + 2;
 
-		ret = iwl_pcie_ctxt_info_alloc_dma(trans, &fw->sec[fw_idx],
+		ret = iwl_pcie_ctxt_info_alloc_dma(trans, fw->sec[fw_idx].data,
+						   fw->sec[fw_idx].len,
 						   &dram->paging[i]);
 		if (ret)
 			return ret;

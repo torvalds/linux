@@ -344,11 +344,12 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 			const u8 *pn;
 
 			mvmsta = iwl_mvm_sta_from_mac80211(sta);
-			ptk_pn = rcu_dereference_protected(
-						mvmsta->ptk_pn[key->keyidx],
-						lockdep_is_held(&mvm->mutex));
-			if (WARN_ON(!ptk_pn))
+			rcu_read_lock();
+			ptk_pn = rcu_dereference(mvmsta->ptk_pn[key->keyidx]);
+			if (WARN_ON(!ptk_pn)) {
+				rcu_read_unlock();
 				break;
+			}
 
 			for (i = 0; i < IWL_MAX_TID_COUNT; i++) {
 				pn = iwl_mvm_find_max_pn(key, ptk_pn, &seq, i,
@@ -360,6 +361,8 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 							   ((u64)pn[1] << 32) |
 							   ((u64)pn[0] << 40));
 			}
+
+			rcu_read_unlock();
 		} else {
 			for (i = 0; i < IWL_NUM_RSC; i++) {
 				u8 *pn = seq.ccmp.pn;
@@ -870,7 +873,6 @@ static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 		else
 			cmd_size = sizeof(struct iwl_wowlan_kek_kck_material_cmd_v2);
 
-		memset(&kek_kck_cmd, 0, sizeof(kek_kck_cmd));
 		memcpy(kek_kck_cmd.kck, mvmvif->rekey_data.kck,
 		       mvmvif->rekey_data.kck_len);
 		kek_kck_cmd.kck_len = cpu_to_le16(mvmvif->rekey_data.kck_len);
@@ -1364,10 +1366,12 @@ static void iwl_mvm_set_aes_rx_seq(struct iwl_mvm *mvm, struct aes_sc *scs,
 
 		mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
-		ptk_pn = rcu_dereference_protected(mvmsta->ptk_pn[key->keyidx],
-						   lockdep_is_held(&mvm->mutex));
-		if (WARN_ON(!ptk_pn))
+		rcu_read_lock();
+		ptk_pn = rcu_dereference(mvmsta->ptk_pn[key->keyidx]);
+		if (WARN_ON(!ptk_pn)) {
+			rcu_read_unlock();
 			return;
+		}
 
 		for (tid = 0; tid < IWL_MAX_TID_COUNT; tid++) {
 			struct ieee80211_key_seq seq = {};
@@ -1379,6 +1383,7 @@ static void iwl_mvm_set_aes_rx_seq(struct iwl_mvm *mvm, struct aes_sc *scs,
 				memcpy(ptk_pn->q[i].pn[tid],
 				       seq.ccmp.pn, IEEE80211_CCMP_PN_LEN);
 		}
+		rcu_read_unlock();
 	} else {
 		for (tid = 0; tid < IWL_NUM_RSC; tid++) {
 			struct ieee80211_key_seq seq = {};

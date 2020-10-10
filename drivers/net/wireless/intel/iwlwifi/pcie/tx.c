@@ -1180,6 +1180,11 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 	const u8 *cmddata[IWL_MAX_CMD_TBS_PER_TFD];
 	u16 cmdlen[IWL_MAX_CMD_TBS_PER_TFD];
 
+	if (WARN(!trans->wide_cmd_header &&
+		 group_id > IWL_ALWAYS_LONG_GROUP,
+		 "unsupported wide command %#x\n", cmd->id))
+		return -EINVAL;
+
 	if (group_id != 0) {
 		copy_size = sizeof(struct iwl_cmd_header_wide);
 		cmd_size = sizeof(struct iwl_cmd_header_wide);

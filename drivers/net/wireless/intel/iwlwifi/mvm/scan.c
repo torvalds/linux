@@ -698,14 +698,28 @@ static void iwl_mvm_scan_fill_tx_cmd(struct iwl_mvm *mvm,
 	tx_cmd[0].rate_n_flags = iwl_mvm_scan_rate_n_flags(mvm,
 							   NL80211_BAND_2GHZ,
 							   no_cck);
-	tx_cmd[0].sta_id = mvm->aux_sta.sta_id;
+
+	if (iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
+				  ADD_STA,
+				  0) < 12) {
+		tx_cmd[0].sta_id = mvm->aux_sta.sta_id;
+		tx_cmd[1].sta_id = mvm->aux_sta.sta_id;
+
+	/*
+	 * Fw doesn't use this sta anymore, pending deprecation via HOST API
+	 * change
+	 */
+	} else {
+		tx_cmd[0].sta_id = 0xff;
+		tx_cmd[1].sta_id = 0xff;
+	}
 
 	tx_cmd[1].tx_flags = cpu_to_le32(TX_CMD_FLG_SEQ_CTL |
 					 TX_CMD_FLG_BT_DIS);
+
 	tx_cmd[1].rate_n_flags = iwl_mvm_scan_rate_n_flags(mvm,
 							   NL80211_BAND_5GHZ,
 							   no_cck);
-	tx_cmd[1].sta_id = mvm->aux_sta.sta_id;
 }
 
 static void
@@ -1117,6 +1131,10 @@ static void iwl_mvm_fill_scan_config_v1(struct iwl_mvm *mvm, void *config,
 
 	memcpy(&cfg->mac_addr, &mvm->addresses[0].addr, ETH_ALEN);
 
+	/* This function should not be called when using ADD_STA ver >=12 */
+	WARN_ON_ONCE(iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
+					   ADD_STA, 0) >= 12);
+
 	cfg->bcast_sta_id = mvm->aux_sta.sta_id;
 	cfg->channel_flags = channel_flags;
 
@@ -1164,6 +1182,10 @@ static void iwl_mvm_fill_scan_config_v2(struct iwl_mvm *mvm, void *config,
 	iwl_mvm_fill_scan_dwell(mvm, &cfg->dwell);
 
 	memcpy(&cfg->mac_addr, &mvm->addresses[0].addr, ETH_ALEN);
+
+	/* This function should not be called when using ADD_STA ver >=12 */
+	WARN_ON_ONCE(iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
+					   ADD_STA, 0) >= 12);
 
 	cfg->bcast_sta_id = mvm->aux_sta.sta_id;
 	cfg->channel_flags = channel_flags;
@@ -1278,7 +1300,16 @@ int iwl_mvm_config_scan(struct iwl_mvm *mvm)
 
 	memset(&cfg, 0, sizeof(cfg));
 
-	cfg.bcast_sta_id = mvm->aux_sta.sta_id;
+	if (iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
+				  ADD_STA, 0) < 12)
+		cfg.bcast_sta_id = mvm->aux_sta.sta_id;
+	/*
+	 * Fw doesn't use this sta anymore, pending deprecation via HOST API
+	 * change.
+	 */
+	else
+		cfg.bcast_sta_id = 0xff;
+
 	cfg.tx_chains = cpu_to_le32(iwl_mvm_get_valid_tx_ant(mvm));
 	cfg.rx_chains = cpu_to_le32(iwl_mvm_scan_rx_ant(mvm));
 

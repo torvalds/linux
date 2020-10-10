@@ -5,10 +5,9 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
+ * Copyright(c) 2012 - 2014, 2018 - 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -28,10 +27,9 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
+ * Copyright(c) 2012 - 2014, 2018 - 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -116,14 +114,9 @@ void iwl_mvm_roc_done_wk(struct work_struct *wk)
 	 * event finishes or is canceled, so that frames queued for it
 	 * won't get stuck on the queue and be transmitted in the next
 	 * time event.
-	 * We have to send the command asynchronously since this cannot
-	 * be under the mutex for locking reasons, but that's not an
-	 * issue as it will have to complete before the next command is
-	 * executed, and a new time event means a new command.
 	 */
-	iwl_mvm_flush_sta(mvm, &mvm->aux_sta, true, CMD_ASYNC);
 
-	/* Do the same for the P2P device queue (STA) */
+	mutex_lock(&mvm->mutex);
 	if (test_and_clear_bit(IWL_MVM_STATUS_NEED_FLUSH_P2P, &mvm->status)) {
 		struct iwl_mvm_vif *mvmvif;
 
@@ -136,10 +129,20 @@ void iwl_mvm_roc_done_wk(struct work_struct *wk)
 
 		if (!WARN_ON(!mvm->p2p_device_vif)) {
 			mvmvif = iwl_mvm_vif_from_mac80211(mvm->p2p_device_vif);
-			iwl_mvm_flush_sta(mvm, &mvmvif->bcast_sta, true,
-					  CMD_ASYNC);
+			iwl_mvm_flush_sta(mvm, &mvmvif->bcast_sta, true);
 		}
+	} else {
+		/* do the same in case of hot spot 2.0 */
+		iwl_mvm_flush_sta(mvm, &mvm->aux_sta, true);
+		/* In newer version of this command an aux station is added only
+		 * in cases of dedicated tx queue and need to be removed in end
+		 * of use */
+		if (iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
+					  ADD_STA, 0) >= 12)
+			iwl_mvm_rm_aux_sta(mvm);
 	}
+
+	mutex_unlock(&mvm->mutex);
 }
 
 static void iwl_mvm_roc_finished(struct iwl_mvm *mvm)
@@ -1011,6 +1014,28 @@ void iwl_mvm_stop_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	}
 
 	iwl_mvm_roc_finished(mvm);
+}
+
+void iwl_mvm_remove_csa_period(struct iwl_mvm *mvm,
+			       struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_time_event_data *te_data = &mvmvif->time_event_data;
+	u32 id;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	if (!te_data->running)
+		return;
+
+	spin_lock_bh(&mvm->time_event_lock);
+	id = te_data->id;
+	spin_unlock_bh(&mvm->time_event_lock);
+
+	if (id != TE_CHANNEL_SWITCH_PERIOD)
+		return;
+
+	iwl_mvm_remove_time_event(mvm, mvmvif, te_data);
 }
 
 int iwl_mvm_schedule_csa_period(struct iwl_mvm *mvm,
