@@ -8,8 +8,6 @@
 #define _ASM_S390_SCLP_H
 
 #include <linux/types.h>
-#include <asm/chpid.h>
-#include <asm/cpu.h>
 
 #define SCLP_CHP_INFO_MASK_SIZE		32
 #define EARLY_SCCB_SIZE		PAGE_SIZE
@@ -18,6 +16,10 @@
 #define EXT_SCCB_READ_SCP	(3 * PAGE_SIZE)
 /* 24 + 16 * SCLP_MAX_CORES */
 #define EXT_SCCB_READ_CPU	(3 * PAGE_SIZE)
+
+#ifndef __ASSEMBLY__
+#include <asm/chpid.h>
+#include <asm/cpu.h>
 
 struct sclp_chp_info {
 	u8 recognized[SCLP_CHP_INFO_MASK_SIZE];
@@ -147,4 +149,5 @@ static inline int sclp_get_core_info(struct sclp_core_info *info, int early)
 	return _sclp_get_core_info(info);
 }
 
+#endif /* __ASSEMBLY__ */
 #endif /* _ASM_S390_SCLP_H */

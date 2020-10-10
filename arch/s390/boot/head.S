@@ -27,6 +27,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/page.h>
 #include <asm/ptrace.h>
+#include <asm/sclp.h>
 
 #define ARCH_OFFSET	4
 
@@ -410,6 +411,6 @@ SYM_DATA_START(parmarea)
 SYM_DATA_END(parmarea)
 
 	.org	EARLY_SCCB_OFFSET
-	.fill	4096
+	.fill	EXT_SCCB_READ_SCP
 
 	.org	HEAD_END

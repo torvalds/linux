@@ -7,6 +7,7 @@
 #define _ASM_S390_SETUP_H
 
 #include <linux/bits.h>
+#include <asm/sclp.h>
 #include <uapi/asm/setup.h>
 #include <linux/build_bug.h>
 
@@ -14,7 +15,7 @@
 #define EP_STRING		"S390EP"
 #define PARMAREA		0x10400
 #define EARLY_SCCB_OFFSET	0x11000
-#define HEAD_END		0x12000
+#define HEAD_END		(EARLY_SCCB_OFFSET + EXT_SCCB_READ_SCP)
 
 /*
  * Machine features detected in early.c
