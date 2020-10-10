@@ -1443,7 +1443,7 @@
 	};
 	pwm4 {
 		/omit-if-no-ref/
-		pwm4m4_pins: pwm4m4-pins {
+		pwm4_pins: pwm4-pins {
 			rockchip,pins =
 				/* pwm4 */
 				<0 RK_PC3 1 &pcfg_pull_none>;
@@ -1451,7 +1451,7 @@
 	};
 	pwm5 {
 		/omit-if-no-ref/
-		pwm5m5_pins: pwm5m5-pins {
+		pwm5_pins: pwm5-pins {
 			rockchip,pins =
 				/* pwm5 */
 				<0 RK_PC4 1 &pcfg_pull_none>;
@@ -1459,7 +1459,7 @@
 	};
 	pwm6 {
 		/omit-if-no-ref/
-		pwm6m6_pins: pwm6m6-pins {
+		pwm6_pins: pwm6-pins {
 			rockchip,pins =
 				/* pwm6 */
 				<0 RK_PC5 1 &pcfg_pull_none>;
