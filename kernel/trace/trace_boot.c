@@ -284,6 +284,12 @@ trace_boot_enable_tracer(struct trace_array *tr, struct xbc_node *node)
 		if (tracing_set_tracer(tr, p) < 0)
 			pr_err("Failed to set given tracer: %s\n", p);
 	}
+
+	/* Since tracer can free snapshot buffer, allocate snapshot here.*/
+	if (xbc_node_find_value(node, "alloc_snapshot", NULL)) {
+		if (tracing_alloc_snapshot_instance(tr) < 0)
+			pr_err("Failed to allocate snapshot buffer\n");
+	}
 }
 
 static void __init
