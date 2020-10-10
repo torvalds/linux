@@ -502,7 +502,7 @@ the :command:`QEMU_DISPLAY=sdl make boot`.
           it from the address http://elf.cs.pub.ro/so2/res/laboratoare/mydisk.img.
           The file must be placed in :file:`tools/labs`.
 
-In the :file:`~/src/linux/tools/labs/qemu` directory, you have a new virtual
+In the :file:`~/src/linux/tools/labs` directory, you have a new virtual
 machine disk, in the file :file:`mydisk.img`. We want to add the disk
 to the virtual machine and use it within the virtual machine.
 
