@@ -71,8 +71,8 @@ static int cx82310_cmd(struct usbnet *dev, enum cx82310_cmd cmd, bool reply,
 			   CMD_PACKET_SIZE, &actual_len, CMD_TIMEOUT);
 	if (ret < 0) {
 		if (cmd != CMD_GET_LINK_STATUS)
-			dev_err(&dev->udev->dev, "send command %#x: error %d\n",
-				cmd, ret);
+			netdev_err(dev->net, "send command %#x: error %d\n",
+				   cmd, ret);
 		goto end;
 	}
 
@@ -84,30 +84,27 @@ static int cx82310_cmd(struct usbnet *dev, enum cx82310_cmd cmd, bool reply,
 					   CMD_TIMEOUT);
 			if (ret < 0) {
 				if (cmd != CMD_GET_LINK_STATUS)
-					dev_err(&dev->udev->dev,
-						"reply receive error %d\n",
-						ret);
+					netdev_err(dev->net, "reply receive error %d\n",
+						   ret);
 				goto end;
 			}
 			if (actual_len > 0)
 				break;
 		}
 		if (actual_len == 0) {
-			dev_err(&dev->udev->dev, "no reply to command %#x\n",
-				cmd);
+			netdev_err(dev->net, "no reply to command %#x\n", cmd);
 			ret = -EIO;
 			goto end;
 		}
 		if (buf[0] != cmd) {
-			dev_err(&dev->udev->dev,
-				"got reply to command %#x, expected: %#x\n",
-				buf[0], cmd);
+			netdev_err(dev->net, "got reply to command %#x, expected: %#x\n",
+				   buf[0], cmd);
 			ret = -EIO;
 			goto end;
 		}
 		if (buf[1] != STATUS_SUCCESS) {
-			dev_err(&dev->udev->dev, "command %#x failed: %#x\n",
-				cmd, buf[1]);
+			netdev_err(dev->net, "command %#x failed: %#x\n", cmd,
+				   buf[1]);
 			ret = -EIO;
 			goto end;
 		}
@@ -194,7 +191,7 @@ static int cx82310_bind(struct usbnet *dev, struct usb_interface *intf)
 		msleep(500);
 	}
 	if (!timeout) {
-		dev_err(&udev->dev, "firmware not ready in time\n");
+		netdev_err(dev->net, "firmware not ready in time\n");
 		ret = -ETIMEDOUT;
 		goto err;
 	}
@@ -207,7 +204,7 @@ static int cx82310_bind(struct usbnet *dev, struct usb_interface *intf)
 	ret = cx82310_cmd(dev, CMD_GET_MAC_ADDR, true, NULL, 0,
 			  dev->net->dev_addr, ETH_ALEN);
 	if (ret) {
-		dev_err(&udev->dev, "unable to read MAC address: %d\n", ret);
+		netdev_err(dev->net, "unable to read MAC address: %d\n", ret);
 		goto err;
 	}
 
@@ -284,8 +281,7 @@ static int cx82310_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 			netdev_info(dev->net, "router was rebooted, re-enabling ethernet mode");
 			schedule_work(&priv->reenable_work);
 		} else if (len > CX82310_MTU) {
-			dev_err(&dev->udev->dev, "RX packet too long: %d B\n",
-				len);
+			netdev_err(dev->net, "RX packet too long: %d B\n", len);
 			return 0;
 		}
 
