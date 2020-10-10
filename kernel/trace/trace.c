@@ -9465,7 +9465,7 @@ __init static int tracer_alloc_buffers(void)
 	}
 
 	/*
-	 * Make sure we don't accidently add more trace options
+	 * Make sure we don't accidentally add more trace options
 	 * than we have bits for.
 	 */
 	BUILD_BUG_ON(TRACE_ITER_LAST_BIT > TRACE_FLAGS_MAX_SIZE);
@@ -9494,7 +9494,7 @@ __init static int tracer_alloc_buffers(void)
 
 	/*
 	 * The prepare callbacks allocates some memory for the ring buffer. We
-	 * don't free the buffer if the if the CPU goes down. If we were to free
+	 * don't free the buffer if the CPU goes down. If we were to free
 	 * the buffer, then the user would lose any trace that was in the
 	 * buffer. The memory will be removed once the "instance" is removed.
 	 */

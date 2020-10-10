@@ -246,7 +246,7 @@ typedef bool (*cond_update_fn_t)(struct trace_array *tr, void *cond_data);
  * tracing_snapshot_cond(tr, cond_data), the cond_data passed in is
  * passed in turn to the cond_snapshot.update() function.  That data
  * can be compared by the update() implementation with the cond_data
- * contained wihin the struct cond_snapshot instance associated with
+ * contained within the struct cond_snapshot instance associated with
  * the trace_array.  Because the tr->max_lock is held throughout the
  * update() call, the update() function can directly retrieve the
  * cond_snapshot and cond_data associated with the per-instance
@@ -271,7 +271,7 @@ typedef bool (*cond_update_fn_t)(struct trace_array *tr, void *cond_data);
  *	take the snapshot, by returning 'true' if so, 'false' if no
  *	snapshot should be taken.  Because the max_lock is held for
  *	the duration of update(), the implementation is safe to
- *	directly retrieven and save any implementation data it needs
+ *	directly retrieved and save any implementation data it needs
  *	to in association with the snapshot.
  */
 struct cond_snapshot {
@@ -573,7 +573,7 @@ struct tracer {
  *   The function callback, which can use the FTRACE bits to
  *    check for recursion.
  *
- * Now if the arch does not suppport a feature, and it calls
+ * Now if the arch does not support a feature, and it calls
  * the global list function which calls the ftrace callback
  * all three of these steps will do a recursion protection.
  * There's no reason to do one if the previous caller already
@@ -1479,7 +1479,7 @@ __trace_event_discard_commit(struct trace_buffer *buffer,
 /*
  * Helper function for event_trigger_unlock_commit{_regs}().
  * If there are event triggers attached to this event that requires
- * filtering against its fields, then they wil be called as the
+ * filtering against its fields, then they will be called as the
  * entry already holds the field information of the current event.
  *
  * It also checks if the event should be discarded or not.
