@@ -17,10 +17,18 @@
 
 #define RK_VIDIOC_VCM_TIMEINFO \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 0, struct rk_cam_vcm_tim)
+#define RK_VIDIOC_IRIS_TIMEINFO \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 1, struct rk_cam_vcm_tim)
+#define RK_VIDIOC_ZOOM_TIMEINFO \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 2, struct rk_cam_vcm_tim)
 
 #ifdef CONFIG_COMPAT
 #define RK_VIDIOC_COMPAT_VCM_TIMEINFO \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 0, struct rk_cam_compat_vcm_tim)
+#define RK_VIDIOC_COMPAT_IRIS_TIMEINFO \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 1, struct rk_cam_compat_vcm_tim)
+#define RK_VIDIOC_COMPAT_ZOOM_TIMEINFO \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 2, struct rk_cam_compat_vcm_tim)
 #endif
 
 struct rk_cam_vcm_tim {
