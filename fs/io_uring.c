@@ -5831,18 +5831,16 @@ static int io_issue_sqe(struct io_kiocb *req, bool force_nonblock,
 		ret = io_sync_file_range(req, force_nonblock);
 		break;
 	case IORING_OP_SENDMSG:
+		ret = io_sendmsg(req, force_nonblock, cs);
+		break;
 	case IORING_OP_SEND:
-		if (req->opcode == IORING_OP_SENDMSG)
-			ret = io_sendmsg(req, force_nonblock, cs);
-		else
-			ret = io_send(req, force_nonblock, cs);
+		ret = io_send(req, force_nonblock, cs);
 		break;
 	case IORING_OP_RECVMSG:
+		ret = io_recvmsg(req, force_nonblock, cs);
+		break;
 	case IORING_OP_RECV:
-		if (req->opcode == IORING_OP_RECVMSG)
-			ret = io_recvmsg(req, force_nonblock, cs);
-		else
-			ret = io_recv(req, force_nonblock, cs);
+		ret = io_recv(req, force_nonblock, cs);
 		break;
 	case IORING_OP_TIMEOUT:
 		ret = io_timeout(req);
