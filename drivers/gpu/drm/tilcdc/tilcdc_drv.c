@@ -105,7 +105,7 @@ static void modeset_init(struct drm_device *dev)
 
 	dev->mode_config.min_width = 0;
 	dev->mode_config.min_height = 0;
-	dev->mode_config.max_width = tilcdc_crtc_max_width(priv->crtc);
+	dev->mode_config.max_width = priv->max_width;
 	dev->mode_config.max_height = 2048;
 	dev->mode_config.funcs = &mode_config_funcs;
 }
@@ -218,22 +218,6 @@ static int tilcdc_init(struct drm_driver *ddrv, struct device *dev)
 		goto init_failed;
 	}
 
-	if (of_property_read_u32(node, "max-bandwidth", &priv->max_bandwidth))
-		priv->max_bandwidth = TILCDC_DEFAULT_MAX_BANDWIDTH;
-
-	DBG("Maximum Bandwidth Value %d", priv->max_bandwidth);
-
-	if (of_property_read_u32(node, "max-width", &priv->max_width))
-		priv->max_width = TILCDC_DEFAULT_MAX_WIDTH;
-
-	DBG("Maximum Horizontal Pixel Width Value %dpixels", priv->max_width);
-
-	if (of_property_read_u32(node, "max-pixelclock",
-					&priv->max_pixelclock))
-		priv->max_pixelclock = TILCDC_DEFAULT_MAX_PIXELCLOCK;
-
-	DBG("Maximum Pixel Clock Value %dKHz", priv->max_pixelclock);
-
 	pm_runtime_enable(dev);
 
 	/* Determine LCD IP Version */
@@ -286,6 +270,26 @@ static int tilcdc_init(struct drm_driver *ddrv, struct device *dev)
 			bpp = 16; /* This is just a guess */
 		}
 	}
+
+	if (of_property_read_u32(node, "max-bandwidth", &priv->max_bandwidth))
+		priv->max_bandwidth = TILCDC_DEFAULT_MAX_BANDWIDTH;
+
+	DBG("Maximum Bandwidth Value %d", priv->max_bandwidth);
+
+	if (of_property_read_u32(node, "max-width", &priv->max_width)) {
+		if (priv->rev == 1)
+			priv->max_width = TILCDC_DEFAULT_MAX_WIDTH_V1;
+		else
+			priv->max_width = TILCDC_DEFAULT_MAX_WIDTH_V2;
+	}
+
+	DBG("Maximum Horizontal Pixel Width Value %dpixels", priv->max_width);
+
+	if (of_property_read_u32(node, "max-pixelclock",
+				 &priv->max_pixelclock))
+		priv->max_pixelclock = TILCDC_DEFAULT_MAX_PIXELCLOCK;
+
+	DBG("Maximum Pixel Clock Value %dKHz", priv->max_pixelclock);
 
 	ret = tilcdc_crtc_create(ddev);
 	if (ret < 0) {

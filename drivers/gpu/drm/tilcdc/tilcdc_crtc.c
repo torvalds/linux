@@ -754,20 +754,6 @@ static const struct drm_crtc_funcs tilcdc_crtc_funcs = {
 	.disable_vblank	= tilcdc_crtc_disable_vblank,
 };
 
-int tilcdc_crtc_max_width(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct tilcdc_drm_private *priv = dev->dev_private;
-	int max_width = 0;
-
-	if (priv->rev == 1)
-		max_width = 1024;
-	else if (priv->rev == 2)
-		max_width = 2048;
-
-	return max_width;
-}
-
 static enum drm_mode_status
 tilcdc_crtc_mode_valid(struct drm_crtc *crtc,
 		       const struct drm_display_mode *mode)
@@ -780,7 +766,7 @@ tilcdc_crtc_mode_valid(struct drm_crtc *crtc,
 	 * check to see if the width is within the range that
 	 * the LCD Controller physically supports
 	 */
-	if (mode->hdisplay > tilcdc_crtc_max_width(crtc))
+	if (mode->hdisplay > priv->max_width)
 		return MODE_VIRTUAL_X;
 
 	/* width must be multiple of 16 */
