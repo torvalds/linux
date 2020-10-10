@@ -5987,8 +5987,7 @@ static int io_file_get(struct io_submit_state *state, struct io_kiocb *req,
 	struct file *file;
 
 	if (fixed) {
-		if (unlikely(!ctx->file_data ||
-		    (unsigned) fd >= ctx->nr_user_files))
+		if (unlikely((unsigned int)fd >= ctx->nr_user_files))
 			return -EBADF;
 		fd = array_index_nospec(fd, ctx->nr_user_files);
 		file = io_file_from_index(ctx, fd);
