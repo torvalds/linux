@@ -532,7 +532,7 @@ void __flush_dcache_icache(void *p)
 	 * space occurs, before returning to user space.
 	 */
 
-	if (cpu_has_feature(MMU_FTR_TYPE_44x))
+	if (mmu_has_feature(MMU_FTR_TYPE_44x))
 		return;
 
 	invalidate_icache_range(addr, addr + PAGE_SIZE);
