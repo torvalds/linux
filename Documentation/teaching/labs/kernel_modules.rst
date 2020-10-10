@@ -115,7 +115,7 @@ as instructed in this file.
 
           .. code-block:: bash
 
-              KDIR = /home/student/so2/linux
+              KDIR = /home/student/src/linux
               [...]
 
 A :file:`Kbuild` file contains one or more directives for compiling a kernel

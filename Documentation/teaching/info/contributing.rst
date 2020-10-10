@@ -70,7 +70,7 @@ Forking the repository
    .. code-block:: bash
 
      $ mkdir -p ~/so2
-     $ git clone git@github.com:linux-kernel-labs/linux.git ~/so2/linux
+     $ git clone git@github.com:linux-kernel-labs/linux.git ~/src/linux
 
 2. Go to https://github.com/linux-kernel-labs/linux, make sure you are logged
    in and click ``Fork`` in the top right of the page.
@@ -96,8 +96,8 @@ Creating a pull request
 
   .. code-block:: bash
 
-    student@eg106:~/so2/linux$ git checkout master
-    student@eg106:~/so2/linux$ git status
+    student@eg106:~/src/linux$ git checkout master
+    student@eg106:~/src/linux$ git status
     On branch master
     Your branch is up-to-date with 'origin/master'.
     nothing to commit, working directory clean
@@ -107,7 +107,7 @@ Creating a pull request
 
   .. code-block:: bash
 
-    student@eg106:~/so2/linux$ git pull origin master
+    student@eg106:~/src/linux$ git pull origin master
 
   .. note::
 
@@ -115,22 +115,22 @@ Creating a pull request
 
     .. code-block:: bash
 
-      student@eg106:~/so2/linux$ git push my_fork master
+      student@eg106:~/src/linux$ git push my_fork master
 
 3. Create a new branch for your change:
 
   .. code-block:: bash
 
-    student@eg106:~/so2/linux$ git checkout -b <your_branch_name>
+    student@eg106:~/src/linux$ git checkout -b <your_branch_name>
 
 4. Make some changes and commit them. In this example, we are going to change
    ``Documentation/teaching/index.rst``:
 
   .. code-block:: bash
 
-    student@eg106:~/so2/linux$ vim Documentation/teaching/index.rst
-    student@eg106:~/so2/linux$ git add Documentation/teaching/index.rst
-    student@eg106:~/so2/linux$ git commit -m "<commit message>"
+    student@eg106:~/src/linux$ vim Documentation/teaching/index.rst
+    student@eg106:~/src/linux$ git add Documentation/teaching/index.rst
+    student@eg106:~/src/linux$ git commit -m "<commit message>"
 
   .. warning::
 
@@ -146,7 +146,7 @@ Creating a pull request
 
   .. code-block:: bash
 
-    student@eg106:~/so2/linux$ git push my_fork <your_branch_name>
+    student@eg106:~/src/linux$ git push my_fork <your_branch_name>
 
 6. Open the Pull Pequest
 
@@ -170,8 +170,8 @@ Your goal is to do a new push on the same branch. For this, follow the next step
 
   .. code-block:: bash
 
-    student@eg106:~/so2/linux$ git fetch origin master
-    student@eg106:~/so2/linux$ git rebase FETCH_HEAD
+    student@eg106:~/src/linux$ git fetch origin master
+    student@eg106:~/src/linux$ git rebase FETCH_HEAD
 
   .. note::
 
@@ -191,14 +191,14 @@ Your goal is to do a new push on the same branch. For this, follow the next step
 
   .. code-block:: bash
 
-    student@eg106:~/so2/linux$ git add Documentation/teaching/index.rst
-    student@eg106:~/so2/linux$ git commit --amend
+    student@eg106:~/src/linux$ git add Documentation/teaching/index.rst
+    student@eg106:~/src/linux$ git commit --amend
 
 4. Force-push the updated commit:
 
   .. code-block:: bash
 
-    student@eg106:~/so2/linux$ git push my_fork <your_branch_name> -f
+    student@eg106:~/src/linux$ git push my_fork <your_branch_name> -f
 
   After this step, the Pull Request is updated. It is now up to the
   linux-kernel-labs team to review the pull request and integrate your

@@ -479,7 +479,7 @@ a console exposed by the virtual machine using :command:`minicom` or :command:`s
 
 .. code-block:: shell
 
-    student@eg106:~/so2/linux/tools/labs$ minicom -D serial.pts
+    student@eg106:~/src/linux/tools/labs$ minicom -D serial.pts
 
     <press enter>
 
@@ -684,7 +684,7 @@ The :code:`jiffies` variable holds the number of ticks (clock beats) since the s
 5. Cscope spelunking
 --------------------
 
-Use LXR or cscope in the :file:`~/so2/linux/` directory to discover
+Use LXR or cscope in the :file:`~/src/linux/` directory to discover
 the location of certain structures or functions.
 
 Cscope index files are already generated. Use :command:`vim` and other related commands

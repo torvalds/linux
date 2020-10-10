@@ -890,7 +890,7 @@ To do this, we compile the kernel module (``make build``) and copy the result to
 
   .. code-block:: console
 
-    student@eg106:~/so2/linux/tools/labs$ chmod +x skels/filesystems/minfs/user/test-minfs*.sh
+    student@eg106:~/src/linux/tools/labs$ chmod +x skels/filesystems/minfs/user/test-minfs*.sh
 
 After we start the virtual machine, we format the ``/dev/vdb`` disk, create the mount point and mount the file system:
 
