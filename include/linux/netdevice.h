@@ -1277,6 +1277,9 @@ struct netdev_net_notifier {
  * int (*ndo_tunnel_ctl)(struct net_device *dev, struct ip_tunnel_parm *p,
  *			 int cmd);
  *	Add, change, delete or get information on an IPv4 tunnel.
+ * struct net_device *(*ndo_get_peer_dev)(struct net_device *dev);
+ *	If a device is paired with a peer device, return the peer instance.
+ *	The caller must be under RCU read context.
  */
 struct net_device_ops {
 	int			(*ndo_init)(struct net_device *dev);
@@ -1484,6 +1487,7 @@ struct net_device_ops {
 	struct devlink_port *	(*ndo_get_devlink_port)(struct net_device *dev);
 	int			(*ndo_tunnel_ctl)(struct net_device *dev,
 						  struct ip_tunnel_parm *p, int cmd);
+	struct net_device *	(*ndo_get_peer_dev)(struct net_device *dev);
 };
 
 /**
