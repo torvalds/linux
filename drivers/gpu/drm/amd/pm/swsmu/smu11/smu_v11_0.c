@@ -603,6 +603,11 @@ int smu_v11_0_get_vbios_bootup_values(struct smu_context *smu)
 						 (uint8_t)SMU11_SYSPLL1_2_ID,
 						 &smu->smu_table.boot_values.fclk);
 
+	smu_v11_0_atom_get_smu_clockinfo(smu->adev,
+					 (uint8_t)SMU11_SYSPLL3_1_LCLK_ID,
+					 (uint8_t)SMU11_SYSPLL3_1_ID,
+					 &smu->smu_table.boot_values.lclk);
+
 	return 0;
 }
 
