@@ -94,6 +94,7 @@ enum {
 static const struct constant_table nfs_param_enums_local_lock[] = {
 	{ "all",		Opt_local_lock_all },
 	{ "flock",	Opt_local_lock_flock },
+	{ "posix",	Opt_local_lock_posix },
 	{ "none",		Opt_local_lock_none },
 	{}
 };
