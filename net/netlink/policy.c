@@ -196,49 +196,75 @@ bool netlink_policy_dump_loop(struct netlink_policy_dump_state *state)
 	return !netlink_policy_dump_finished(state);
 }
 
-/**
- * netlink_policy_dump_write - write current policy dump attributes
- * @skb: the message skb to write to
- * @state: the policy dump state
- *
- * Returns: 0 on success, an error code otherwise
- */
-int netlink_policy_dump_write(struct sk_buff *skb,
-			      struct netlink_policy_dump_state *state)
+int netlink_policy_dump_attr_size_estimate(const struct nla_policy *pt)
 {
-	const struct nla_policy *pt;
-	struct nlattr *policy, *attr;
+	/* nested + type */
+	int common = 2 * nla_attr_size(sizeof(u32));
+
+	switch (pt->type) {
+	case NLA_UNSPEC:
+	case NLA_REJECT:
+		/* these actually don't need any space */
+		return 0;
+	case NLA_NESTED:
+	case NLA_NESTED_ARRAY:
+		/* common, policy idx, policy maxattr */
+		return common + 2 * nla_attr_size(sizeof(u32));
+	case NLA_U8:
+	case NLA_U16:
+	case NLA_U32:
+	case NLA_U64:
+	case NLA_MSECS:
+	case NLA_S8:
+	case NLA_S16:
+	case NLA_S32:
+	case NLA_S64:
+		/* maximum is common, u64 min/max with padding */
+		return common +
+		       2 * (nla_attr_size(0) + nla_attr_size(sizeof(u64)));
+	case NLA_BITFIELD32:
+		return common + nla_attr_size(sizeof(u32));
+	case NLA_STRING:
+	case NLA_NUL_STRING:
+	case NLA_BINARY:
+		/* maximum is common, u32 min-length/max-length */
+		return common + 2 * nla_attr_size(sizeof(u32));
+	case NLA_FLAG:
+		return common;
+	}
+
+	/* this should then cause a warning later */
+	return 0;
+}
+
+static int
+__netlink_policy_dump_write_attr(struct netlink_policy_dump_state *state,
+				 struct sk_buff *skb,
+				 const struct nla_policy *pt,
+				 int nestattr)
+{
+	int estimate = netlink_policy_dump_attr_size_estimate(pt);
 	enum netlink_attribute_type type;
-	bool again;
+	struct nlattr *attr;
 
-send_attribute:
-	again = false;
-
-	pt = &state->policies[state->policy_idx].policy[state->attr_idx];
-
-	policy = nla_nest_start(skb, state->policy_idx);
-	if (!policy)
-		return -ENOBUFS;
-
-	attr = nla_nest_start(skb, state->attr_idx);
+	attr = nla_nest_start(skb, nestattr);
 	if (!attr)
-		goto nla_put_failure;
+		return -ENOBUFS;
 
 	switch (pt->type) {
 	default:
 	case NLA_UNSPEC:
 	case NLA_REJECT:
 		/* skip - use NLA_MIN_LEN to advertise such */
-		nla_nest_cancel(skb, policy);
-		again = true;
-		goto next;
+		nla_nest_cancel(skb, attr);
+		return -ENODATA;
 	case NLA_NESTED:
 		type = NL_ATTR_TYPE_NESTED;
 		fallthrough;
 	case NLA_NESTED_ARRAY:
 		if (pt->type == NLA_NESTED_ARRAY)
 			type = NL_ATTR_TYPE_NESTED_ARRAY;
-		if (pt->nested_policy && pt->len &&
+		if (state && pt->nested_policy && pt->len &&
 		    (nla_put_u32(skb, NL_POLICY_TYPE_ATTR_POLICY_IDX,
 				 netlink_policy_dump_get_policy_idx(state,
 								    pt->nested_policy,
@@ -349,8 +375,66 @@ send_attribute:
 	if (nla_put_u32(skb, NL_POLICY_TYPE_ATTR_TYPE, type))
 		goto nla_put_failure;
 
-	/* finish and move state to next attribute */
 	nla_nest_end(skb, attr);
+	WARN_ON(attr->nla_len > estimate);
+
+	return 0;
+nla_put_failure:
+	nla_nest_cancel(skb, attr);
+	return -ENOBUFS;
+}
+
+/**
+ * netlink_policy_dump_write_attr - write a given attribute policy
+ * @skb: the message skb to write to
+ * @pt: the attribute's policy
+ * @nestattr: the nested attribute ID to use
+ *
+ * Returns: 0 on success, an error code otherwise; -%ENODATA is
+ *	    special, indicating that there's no policy data and
+ *	    the attribute is generally rejected.
+ */
+int netlink_policy_dump_write_attr(struct sk_buff *skb,
+				   const struct nla_policy *pt,
+				   int nestattr)
+{
+	return __netlink_policy_dump_write_attr(NULL, skb, pt, nestattr);
+}
+
+/**
+ * netlink_policy_dump_write - write current policy dump attributes
+ * @skb: the message skb to write to
+ * @state: the policy dump state
+ *
+ * Returns: 0 on success, an error code otherwise
+ */
+int netlink_policy_dump_write(struct sk_buff *skb,
+			      struct netlink_policy_dump_state *state)
+{
+	const struct nla_policy *pt;
+	struct nlattr *policy;
+	bool again;
+	int err;
+
+send_attribute:
+	again = false;
+
+	pt = &state->policies[state->policy_idx].policy[state->attr_idx];
+
+	policy = nla_nest_start(skb, state->policy_idx);
+	if (!policy)
+		return -ENOBUFS;
+
+	err = __netlink_policy_dump_write_attr(state, skb, pt, state->attr_idx);
+	if (err == -ENODATA) {
+		nla_nest_cancel(skb, policy);
+		again = true;
+		goto next;
+	} else if (err) {
+		goto nla_put_failure;
+	}
+
+	/* finish and move state to next attribute */
 	nla_nest_end(skb, policy);
 
 next:

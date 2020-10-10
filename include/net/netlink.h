@@ -1957,6 +1957,10 @@ int netlink_policy_dump_get_policy_idx(struct netlink_policy_dump_state *state,
 bool netlink_policy_dump_loop(struct netlink_policy_dump_state *state);
 int netlink_policy_dump_write(struct sk_buff *skb,
 			      struct netlink_policy_dump_state *state);
+int netlink_policy_dump_attr_size_estimate(const struct nla_policy *pt);
+int netlink_policy_dump_write_attr(struct sk_buff *skb,
+				   const struct nla_policy *pt,
+				   int nestattr);
 void netlink_policy_dump_free(struct netlink_policy_dump_state *state);
 
 #endif
