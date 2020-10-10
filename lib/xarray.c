@@ -987,7 +987,7 @@ static void node_set_marks(struct xa_node *node, unsigned int offset,
  * xas_split_alloc() - Allocate memory for splitting an entry.
  * @xas: XArray operation state.
  * @entry: New entry which will be stored in the array.
- * @order: New entry order.
+ * @order: Current entry order.
  * @gfp: Memory allocation flags.
  *
  * This function should be called before calling xas_split().
@@ -1041,9 +1041,10 @@ EXPORT_SYMBOL_GPL(xas_split_alloc);
  * xas_split() - Split a multi-index entry into smaller entries.
  * @xas: XArray operation state.
  * @entry: New entry to store in the array.
- * @order: New entry order.
+ * @order: Current entry order.
  *
- * The value in the entry is copied to all the replacement entries.
+ * The size of the new entries is set in @xas.  The value in @entry is
+ * copied to all the replacement entries.
  *
  * Context: Any context.  The caller should hold the xa_lock.
  */
