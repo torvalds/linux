@@ -3265,7 +3265,7 @@ static int rk817_bat_sleep_dischrg(struct rk817_battery_device *battery)
 
 		DBG("calib1: rsoc=%d, dsoc=%d, intval=%d\n",
 		    battery->rsoc, battery->dsoc, sleep_soc);
-		if (gap_soc > sleep_soc) {
+		if (gap_soc / 1000 > sleep_soc) {
 			if ((gap_soc - 5000) > (sleep_soc * 2 * 1000))
 				battery->dsoc -= (sleep_soc * 2 * 1000);
 			else
