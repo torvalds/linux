@@ -968,8 +968,8 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 				 struct io_uring_files_update *ip,
 				 unsigned nr_args);
 static void __io_clean_op(struct io_kiocb *req);
-static int io_file_get(struct io_submit_state *state, struct io_kiocb *req,
-		       int fd, struct file **out_file, bool fixed);
+static struct file *io_file_get(struct io_submit_state *state,
+				struct io_kiocb *req, int fd, bool fixed);
 static void __io_queue_sqe(struct io_kiocb *req, struct io_comp_state *cs);
 static void io_file_put_work(struct work_struct *work);
 
@@ -3486,7 +3486,6 @@ static int __io_splice_prep(struct io_kiocb *req,
 {
 	struct io_splice* sp = &req->splice;
 	unsigned int valid_flags = SPLICE_F_FD_IN_FIXED | SPLICE_F_ALL;
-	int ret;
 
 	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
 		return -EINVAL;
@@ -3498,10 +3497,10 @@ static int __io_splice_prep(struct io_kiocb *req,
 	if (unlikely(sp->flags & ~valid_flags))
 		return -EINVAL;
 
-	ret = io_file_get(NULL, req, READ_ONCE(sqe->splice_fd_in), &sp->file_in,
-			  (sp->flags & SPLICE_F_FD_IN_FIXED));
-	if (ret)
-		return ret;
+	sp->file_in = io_file_get(NULL, req, READ_ONCE(sqe->splice_fd_in),
+				  (sp->flags & SPLICE_F_FD_IN_FIXED));
+	if (!sp->file_in)
+		return -EBADF;
 	req->flags |= REQ_F_NEED_CLEANUP;
 
 	if (!S_ISREG(file_inode(sp->file_in)->i_mode)) {
@@ -5980,15 +5979,15 @@ static inline struct file *io_file_from_index(struct io_ring_ctx *ctx,
 	return table->files[index & IORING_FILE_TABLE_MASK];
 }
 
-static int io_file_get(struct io_submit_state *state, struct io_kiocb *req,
-			int fd, struct file **out_file, bool fixed)
+static struct file *io_file_get(struct io_submit_state *state,
+				struct io_kiocb *req, int fd, bool fixed)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	struct file *file;
 
 	if (fixed) {
 		if (unlikely((unsigned int)fd >= ctx->nr_user_files))
-			return -EBADF;
+			return NULL;
 		fd = array_index_nospec(fd, ctx->nr_user_files);
 		file = io_file_from_index(ctx, fd);
 		if (file) {
@@ -6000,11 +5999,7 @@ static int io_file_get(struct io_submit_state *state, struct io_kiocb *req,
 		file = __io_file_get(state, fd);
 	}
 
-	if (file || io_op_defs[req->opcode].needs_file_no_error) {
-		*out_file = file;
-		return 0;
-	}
-	return -EBADF;
+	return file;
 }
 
 static int io_req_set_file(struct io_submit_state *state, struct io_kiocb *req,
@@ -6016,7 +6011,10 @@ static int io_req_set_file(struct io_submit_state *state, struct io_kiocb *req,
 	if (unlikely(!fixed && io_async_submit(req->ctx)))
 		return -EBADF;
 
-	return io_file_get(state, req, fd, &req->file, fixed);
+	req->file = io_file_get(state, req, fd, fixed);
+	if (req->file || io_op_defs[req->opcode].needs_file_no_error)
+		return 0;
+	return -EBADF;
 }
 
 static enum hrtimer_restart io_link_timeout_fn(struct hrtimer *timer)
