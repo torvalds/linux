@@ -203,9 +203,6 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 		err = psp_init_sos_microcode(psp, chip_name);
 		if (err)
 			return err;
-		err = psp_init_asd_microcode(psp, chip_name);
-		if (err)
-			return err;
 		break;
 	case CHIP_VANGOGH:
 		err = psp_init_asd_microcode(psp, chip_name);
