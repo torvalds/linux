@@ -49,8 +49,7 @@ and elsewhere regarding submitting Linux kernel patches.
 
 9) Check cleanly with sparse.
 
-10) Use ``make checkstack`` and ``make namespacecheck`` and fix any problems
-    that they find.
+10) Use ``make checkstack`` and fix any problems that it finds.
 
     .. note::
 
