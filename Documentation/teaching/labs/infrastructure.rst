@@ -13,7 +13,7 @@ in tools/labs/templates. To solve tasks you start by generating the
 skeleton drivers, running the **skels** target in *tools/labs*. To
 keep the workspace clean it is recommended to generate the skeletons
 for one lab only and clean the workspace before start working on a new
-lab. Labs can be selecting by using the **LABS** variable:
+lab. Labs can be selected by using the **LABS** variable:
 
 .. code-block:: shell
 
@@ -24,7 +24,7 @@ lab. Labs can be selecting by using the **LABS** variable:
    1-2-test-mod  3-error-mod  4-multi-mod  5-oops-mod  6-cmd-mod  \
    7-list-proc  8-kprobes  9-kdb
 
-You can also uses the same variable to generate skeletons for specific
+You can also use the same variable to generate skeletons for specific
 tasks:
 
 .. code-block:: shell
@@ -36,11 +36,11 @@ tasks:
 
 
 For each task you may have multiple steps to perform, usually
-incremental. These steps are marked in the code source as well as in
+incremental. These steps are marked in the source code as well as in
 the lab exercises with the keyword *TODO*. If we have multiple steps
-to perform they will be prefix by a number, like *TODO1*, *TODO2*,
+to perform they will be prefixed by a number, like *TODO1*, *TODO2*,
 etc. If no number is used it is assumed to be the one and only
-step. If you want to resume a tasks from a certain step, you can using
+step. If you want to resume a task from a certain step, you can using
 the **TODO** variable. The following example will generate the
 skeleton with the first *TODO* step resolved:
 
@@ -75,8 +75,8 @@ VM image directly using the **copy** target:
    ...
    'skels/kernel_modules/8-kprobes/kprobes.ko' -> '/tmp/tmp.4UMKcISmQM/home/root/skels/kernel_modules/8-kprobes/kprobes.ko'
 
-.. attention:: The **copy** target will faili if the VM is
-   running. This is intentional so that the we avoid corrupting the
+.. attention:: The **copy** target will fail if the VM is
+   running. This is intentional so that we avoid corrupting the
    filesystem.
 
 
