@@ -5301,15 +5301,9 @@ static enum hrtimer_restart io_timeout_fn(struct hrtimer *timer)
 	unsigned long flags;
 
 	spin_lock_irqsave(&ctx->completion_lock, flags);
+	list_del_init(&req->timeout.list);
 	atomic_set(&req->ctx->cq_timeouts,
 		atomic_read(&req->ctx->cq_timeouts) + 1);
-
-	/*
-	 * We could be racing with timeout deletion. If the list is empty,
-	 * then timeout lookup already found it and will be handling it.
-	 */
-	if (!list_empty(&req->timeout.list))
-		list_del_init(&req->timeout.list);
 
 	io_cqring_fill_event(req, -ETIME);
 	io_commit_cqring(ctx);
@@ -5326,11 +5320,10 @@ static int __io_timeout_cancel(struct io_kiocb *req)
 	struct io_timeout_data *io = req->async_data;
 	int ret;
 
-	list_del_init(&req->timeout.list);
-
 	ret = hrtimer_try_to_cancel(&io->timer);
 	if (ret == -1)
 		return -EALREADY;
+	list_del_init(&req->timeout.list);
 
 	req_set_fail_links(req);
 	req->flags |= REQ_F_COMP_LOCKED;
