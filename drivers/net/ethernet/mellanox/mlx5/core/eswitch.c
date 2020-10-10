@@ -2436,8 +2436,10 @@ free_out:
 	return err;
 }
 
-u8 mlx5_eswitch_mode(struct mlx5_eswitch *esw)
+u8 mlx5_eswitch_mode(struct mlx5_core_dev *dev)
 {
+	struct mlx5_eswitch *esw = dev->priv.eswitch;
+
 	return ESW_ALLOWED(esw) ? esw->mode : MLX5_ESWITCH_NONE;
 }
 EXPORT_SYMBOL_GPL(mlx5_eswitch_mode);

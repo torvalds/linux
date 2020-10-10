@@ -3135,7 +3135,7 @@ static void mlx5e_modify_admin_state(struct mlx5_core_dev *mdev,
 
 	mlx5_set_port_admin_status(mdev, state);
 
-	if (!MLX5_ESWITCH_MANAGER(mdev) ||  mlx5_eswitch_mode(esw) == MLX5_ESWITCH_OFFLOADS)
+	if (mlx5_eswitch_mode(mdev) != MLX5_ESWITCH_LEGACY)
 		return;
 
 	if (state == MLX5_PORT_UP)

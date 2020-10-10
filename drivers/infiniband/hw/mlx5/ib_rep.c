@@ -102,11 +102,6 @@ static const struct mlx5_eswitch_rep_ops rep_ops = {
 	.get_proto_dev = mlx5_ib_vport_get_proto_dev,
 };
 
-u8 mlx5_ib_eswitch_mode(struct mlx5_eswitch *esw)
-{
-	return mlx5_eswitch_mode(esw);
-}
-
 struct mlx5_ib_dev *mlx5_ib_get_rep_ibdev(struct mlx5_eswitch *esw,
 					  u16 vport_num)
 {
