@@ -7282,10 +7282,9 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 				 unsigned nr_args)
 {
 	__s32 __user *fds = (__s32 __user *) arg;
-	unsigned nr_tables;
+	unsigned nr_tables, i;
 	struct file *file;
-	int fd, ret = 0;
-	unsigned i;
+	int fd, ret = -ENOMEM;
 	struct fixed_file_ref_node *ref_node;
 	struct fixed_file_data *file_data;
 
@@ -7307,45 +7306,32 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 	nr_tables = DIV_ROUND_UP(nr_args, IORING_MAX_FILES_TABLE);
 	file_data->table = kcalloc(nr_tables, sizeof(file_data->table),
 				   GFP_KERNEL);
-	if (!file_data->table) {
-		kfree(file_data);
-		return -ENOMEM;
-	}
+	if (!file_data->table)
+		goto out_free;
 
 	if (percpu_ref_init(&file_data->refs, io_file_ref_kill,
-				PERCPU_REF_ALLOW_REINIT, GFP_KERNEL)) {
-		kfree(file_data->table);
-		kfree(file_data);
-		return -ENOMEM;
-	}
+				PERCPU_REF_ALLOW_REINIT, GFP_KERNEL))
+		goto out_free;
 
-	if (io_sqe_alloc_file_tables(file_data, nr_tables, nr_args)) {
-		percpu_ref_exit(&file_data->refs);
-		kfree(file_data->table);
-		kfree(file_data);
-		return -ENOMEM;
-	}
+	if (io_sqe_alloc_file_tables(file_data, nr_tables, nr_args))
+		goto out_ref;
 
 	for (i = 0; i < nr_args; i++, ctx->nr_user_files++) {
 		struct fixed_file_table *table;
 		unsigned index;
 
-		ret = -EFAULT;
-		if (copy_from_user(&fd, &fds[i], sizeof(fd)))
-			break;
-		/* allow sparse sets */
-		if (fd == -1) {
-			ret = 0;
-			continue;
+		if (copy_from_user(&fd, &fds[i], sizeof(fd))) {
+			ret = -EFAULT;
+			goto out_fput;
 		}
+		/* allow sparse sets */
+		if (fd == -1)
+			continue;
 
-		table = &file_data->table[i >> IORING_FILE_TABLE_SHIFT];
-		index = i & IORING_FILE_TABLE_MASK;
 		file = fget(fd);
-
 		ret = -EBADF;
 		if (!file)
-			break;
+			goto out_fput;
 
 		/*
 		 * Don't allow io_uring instances to be registered. If UNIX
@@ -7356,26 +7342,11 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 		 */
 		if (file->f_op == &io_uring_fops) {
 			fput(file);
-			break;
+			goto out_fput;
 		}
-		ret = 0;
+		table = &file_data->table[i >> IORING_FILE_TABLE_SHIFT];
+		index = i & IORING_FILE_TABLE_MASK;
 		table->files[index] = file;
-	}
-
-	if (ret) {
-		for (i = 0; i < ctx->nr_user_files; i++) {
-			file = io_file_from_index(ctx, i);
-			if (file)
-				fput(file);
-		}
-		for (i = 0; i < nr_tables; i++)
-			kfree(file_data->table[i].files);
-
-		percpu_ref_exit(&file_data->refs);
-		kfree(file_data->table);
-		kfree(file_data);
-		ctx->nr_user_files = 0;
-		return ret;
 	}
 
 	ctx->file_data = file_data;
@@ -7396,6 +7367,21 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 	list_add(&ref_node->node, &file_data->ref_list);
 	spin_unlock(&file_data->lock);
 	percpu_ref_get(&file_data->refs);
+	return ret;
+out_fput:
+	for (i = 0; i < ctx->nr_user_files; i++) {
+		file = io_file_from_index(ctx, i);
+		if (file)
+			fput(file);
+	}
+	for (i = 0; i < nr_tables; i++)
+		kfree(file_data->table[i].files);
+	ctx->nr_user_files = 0;
+out_ref:
+	percpu_ref_exit(&file_data->refs);
+out_free:
+	kfree(file_data->table);
+	kfree(file_data);
 	return ret;
 }
 
