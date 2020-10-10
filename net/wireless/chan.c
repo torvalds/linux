@@ -207,7 +207,6 @@ bool cfg80211_chandef_valid(const struct cfg80211_chan_def *chandef)
 	control_freq = chandef->chan->center_freq;
 
 	switch (chandef->width) {
-	case NL80211_CHAN_WIDTH_1:
 	case NL80211_CHAN_WIDTH_5:
 	case NL80211_CHAN_WIDTH_10:
 	case NL80211_CHAN_WIDTH_20:
@@ -218,10 +217,14 @@ bool cfg80211_chandef_valid(const struct cfg80211_chan_def *chandef)
 		if (chandef->center_freq2)
 			return false;
 		break;
+	case NL80211_CHAN_WIDTH_1:
 	case NL80211_CHAN_WIDTH_2:
 	case NL80211_CHAN_WIDTH_4:
 	case NL80211_CHAN_WIDTH_8:
 	case NL80211_CHAN_WIDTH_16:
+		if (chandef->chan->band != NL80211_BAND_S1GHZ)
+			return false;
+
 		control_freq = ieee80211_channel_to_khz(chandef->chan);
 		oper_freq = ieee80211_chandef_to_khz(chandef);
 		control_width = nl80211_chan_width_to_mhz(
