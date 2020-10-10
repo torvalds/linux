@@ -434,11 +434,14 @@ struct io_cancel {
 
 struct io_timeout {
 	struct file			*file;
-	u64				addr;
-	int				flags;
 	u32				off;
 	u32				target_seq;
 	struct list_head		list;
+};
+
+struct io_timeout_rem {
+	struct file			*file;
+	u64				addr;
 };
 
 struct io_rw {
@@ -644,6 +647,7 @@ struct io_kiocb {
 		struct io_sync		sync;
 		struct io_cancel	cancel;
 		struct io_timeout	timeout;
+		struct io_timeout_rem	timeout_rem;
 		struct io_connect	connect;
 		struct io_sr_msg	sr_msg;
 		struct io_open		open;
@@ -5360,14 +5364,10 @@ static int io_timeout_remove_prep(struct io_kiocb *req,
 		return -EINVAL;
 	if (unlikely(req->flags & (REQ_F_FIXED_FILE | REQ_F_BUFFER_SELECT)))
 		return -EINVAL;
-	if (sqe->ioprio || sqe->buf_index || sqe->len)
+	if (sqe->ioprio || sqe->buf_index || sqe->len || sqe->timeout_flags)
 		return -EINVAL;
 
-	req->timeout.addr = READ_ONCE(sqe->addr);
-	req->timeout.flags = READ_ONCE(sqe->timeout_flags);
-	if (req->timeout.flags)
-		return -EINVAL;
-
+	req->timeout_rem.addr = READ_ONCE(sqe->addr);
 	return 0;
 }
 
@@ -5380,7 +5380,7 @@ static int io_timeout_remove(struct io_kiocb *req)
 	int ret;
 
 	spin_lock_irq(&ctx->completion_lock);
-	ret = io_timeout_cancel(ctx, req->timeout.addr);
+	ret = io_timeout_cancel(ctx, req->timeout_rem.addr);
 
 	io_cqring_fill_event(req, ret);
 	io_commit_cqring(ctx);
