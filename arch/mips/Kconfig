@@ -488,6 +488,7 @@ config MACH_LOONGSON64
 	select SYS_SUPPORTS_ZBOOT
 	select ZONE_DMA32
 	select NUMA
+	select SMP
 	select COMMON_CLK
 	select USE_OF
 	select BUILTIN_DTB
