@@ -116,6 +116,12 @@ config ROCKCHIP_DEBUG
 	help
 	  Print dbgpcsr for every cpu when panic.
 
+config ROCKCHIP_LOW_PERFORMANCE
+	bool "Rockchip low performance support"
+	help
+	  Say y here to enable Rockchip low performance support.
+	  This option make the SoC low power.
+
 config ROCKCHIP_THUNDER_BOOT
 	bool "Rockchip Thunder Boot support"
 	help
