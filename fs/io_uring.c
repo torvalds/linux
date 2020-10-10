@@ -5672,9 +5672,6 @@ static int io_req_defer_prep(struct io_kiocb *req,
 	ret = io_prep_work_files(req);
 	if (unlikely(ret))
 		return ret;
-
-	io_prep_async_work(req);
-
 	return io_req_prep(req, sqe);
 }
 
