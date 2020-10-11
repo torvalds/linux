@@ -669,7 +669,8 @@ struct net_device *ocelot_port_to_netdev(struct ocelot *ocelot, int port)
 	return priv->dev;
 }
 
-static bool ocelot_port_dev_check(const struct net_device *dev)
+/* Checks if the net_device instance given to us originates from our driver */
+static bool ocelot_netdevice_dev_check(const struct net_device *dev)
 {
 	return dev->netdev_ops == &ocelot_port_netdev_ops;
 }
@@ -678,7 +679,7 @@ int ocelot_netdev_to_port(struct net_device *dev)
 {
 	struct ocelot_port_private *priv;
 
-	if (!dev || !ocelot_port_dev_check(dev))
+	if (!dev || !ocelot_netdevice_dev_check(dev))
 		return -EINVAL;
 
 	priv = netdev_priv(dev);
@@ -905,12 +906,6 @@ static int ocelot_port_obj_del(struct net_device *dev,
 	}
 
 	return ret;
-}
-
-/* Checks if the net_device instance given to us originate from our driver. */
-static bool ocelot_netdevice_dev_check(const struct net_device *dev)
-{
-	return dev->netdev_ops == &ocelot_port_netdev_ops;
 }
 
 static int ocelot_netdevice_port_event(struct net_device *dev,
