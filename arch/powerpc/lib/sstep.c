@@ -2757,6 +2757,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 			case 41:	/* plwa */
 				op->type = MKOP(LOAD, PREFIXED | SIGNEXT, 4);
 				break;
+#ifdef CONFIG_VSX
 			case 42:        /* plxsd */
 				op->reg = rd + 32;
 				op->type = MKOP(LOAD_VSX, PREFIXED, 8);
@@ -2797,13 +2798,14 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 				op->element_size = 16;
 				op->vsx_flags = VSX_CHECK_VEC;
 				break;
+#endif /* CONFIG_VSX */
 			case 56:        /* plq */
 				op->type = MKOP(LOAD, PREFIXED, 16);
 				break;
 			case 57:	/* pld */
 				op->type = MKOP(LOAD, PREFIXED, 8);
 				break;
-			case 60:        /* stq */
+			case 60:        /* pstq */
 				op->type = MKOP(STORE, PREFIXED, 16);
 				break;
 			case 61:	/* pstd */
