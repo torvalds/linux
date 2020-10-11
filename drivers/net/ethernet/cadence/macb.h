@@ -366,6 +366,8 @@
 #define MACB_ISR_RLE_SIZE	1
 #define MACB_TXERR_OFFSET	6 /* EN TX frame corrupt from error interrupt */
 #define MACB_TXERR_SIZE		1
+#define MACB_RM9200_TBRE_OFFSET	6 /* EN may send new frame interrupt (RM9200) */
+#define MACB_RM9200_TBRE_SIZE	1
 #define MACB_TCOMP_OFFSET	7 /* Enable transmit complete interrupt */
 #define MACB_TCOMP_SIZE		1
 #define MACB_ISR_LINK_OFFSET	9 /* Enable link change interrupt */
