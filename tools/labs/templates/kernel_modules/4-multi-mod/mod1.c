@@ -20,7 +20,7 @@ static int my_hello_init(void)
 
 static void hello_exit(void)
 {
-	pr_info("sum id %d\n", add(n1, n2));
+	pr_info("sum is %d\n", add(n1, n2));
 }
 
 module_init(my_hello_init);
