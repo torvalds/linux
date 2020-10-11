@@ -38,6 +38,7 @@
 #include <linux/stddef.h>
 #include <linux/string.h>
 #include <linux/types.h>
+#include <net/netlink.h>
 #include <uapi/linux/batadv_packet.h>
 #include <uapi/linux/batman_adv.h>
 
@@ -1074,6 +1075,37 @@ static void batadv_softif_init_early(struct net_device *dev)
 }
 
 /**
+ * batadv_softif_validate() - validate configuration of new batadv link
+ * @tb: IFLA_INFO_DATA netlink attributes
+ * @data: enum batadv_ifla_attrs attributes
+ * @extack: extended ACK report struct
+ *
+ * Return: 0 if successful or error otherwise.
+ */
+static int batadv_softif_validate(struct nlattr *tb[], struct nlattr *data[],
+				  struct netlink_ext_ack *extack)
+{
+	return 0;
+}
+
+/**
+ * batadv_softif_newlink() - pre-initialize and register new batadv link
+ * @src_net: the applicable net namespace
+ * @dev: network device to register
+ * @tb: IFLA_INFO_DATA netlink attributes
+ * @data: enum batadv_ifla_attrs attributes
+ * @extack: extended ACK report struct
+ *
+ * Return: 0 if successful or error otherwise.
+ */
+static int batadv_softif_newlink(struct net *src_net, struct net_device *dev,
+				 struct nlattr *tb[], struct nlattr *data[],
+				 struct netlink_ext_ack *extack)
+{
+	return register_netdevice(dev);
+}
+
+/**
  * batadv_softif_create() - Create and register soft interface
  * @net: the applicable net namespace
  * @name: name of the new soft interface
@@ -1171,9 +1203,16 @@ bool batadv_softif_is_valid(const struct net_device *net_dev)
 	return false;
 }
 
+static const struct nla_policy batadv_ifla_policy[IFLA_BATADV_MAX + 1] = {
+};
+
 struct rtnl_link_ops batadv_link_ops __read_mostly = {
 	.kind		= "batadv",
 	.priv_size	= sizeof(struct batadv_priv),
 	.setup		= batadv_softif_init_early,
+	.maxtype	= IFLA_BATADV_MAX,
+	.policy		= batadv_ifla_policy,
+	.validate	= batadv_softif_validate,
+	.newlink	= batadv_softif_newlink,
 	.dellink	= batadv_softif_destroy_netlink,
 };
