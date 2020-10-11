@@ -1472,11 +1472,28 @@ static void test_txmsg_skb(int cgrp, struct sockmap_options *opt)
 	txmsg_ktls_skb_drop = 0;
 	txmsg_ktls_skb_redir = 1;
 	test_exec(cgrp, opt);
+	txmsg_ktls_skb_redir = 0;
+
+	/* Tests that omit skb_parser */
+	txmsg_omit_skb_parser = 1;
+	ktls = 0;
+	txmsg_ktls_skb = 0;
+	test_exec(cgrp, opt);
+
+	txmsg_ktls_skb_drop = 1;
+	test_exec(cgrp, opt);
+	txmsg_ktls_skb_drop = 0;
+
+	txmsg_ktls_skb_redir = 1;
+	test_exec(cgrp, opt);
+
+	ktls = 1;
+	test_exec(cgrp, opt);
+	txmsg_omit_skb_parser = 0;
 
 	opt->data_test = data;
 	ktls = k;
 }
-
 
 /* Test cork with hung data. This tests poor usage patterns where
  * cork can leave data on the ring if user program is buggy and
