@@ -69,6 +69,7 @@
 #include <linux/nmi.h>
 #include <linux/psi.h>
 #include <linux/padata.h>
+#include <linux/khugepaged.h>
 
 #include <asm/sections.h>
 #include <asm/tlbflush.h>
@@ -7903,6 +7904,8 @@ int __meminit init_per_zone_wmark_min(void)
 	setup_min_unmapped_ratio();
 	setup_min_slab_ratio();
 #endif
+
+	khugepaged_min_free_kbytes_update();
 
 	return 0;
 }
