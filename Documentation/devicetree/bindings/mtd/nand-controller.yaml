@@ -55,6 +55,37 @@ patternProperties:
         $ref: /schemas/types.yaml#/definitions/string
         enum: [none, soft, hw, hw_syndrome, hw_oob_first, on-die]
 
+      nand-ecc-engine:
+        allOf:
+          - $ref: /schemas/types.yaml#/definitions/phandle
+        description: |
+          A phandle on the hardware ECC engine if any. There are
+          basically three possibilities:
+          1/ The ECC engine is part of the NAND controller, in this
+          case the phandle should reference the parent node.
+          2/ The ECC engine is part of the NAND part (on-die), in this
+          case the phandle should reference the node itself.
+          3/ The ECC engine is external, in this case the phandle should
+          reference the specific ECC engine node.
+
+      nand-use-soft-ecc-engine:
+        type: boolean
+        description: Use a software ECC engine.
+
+      nand-no-ecc-engine:
+        type: boolean
+        description: Do not use any ECC correction.
+
+      nand-ecc-placement:
+        allOf:
+          - $ref: /schemas/types.yaml#/definitions/string
+          - enum: [ oob, interleaved ]
+        description:
+          Location of the ECC bytes. This location is unknown by default
+          but can be explicitly set to "oob", if all ECC bytes are
+          known to be stored in the OOB area, or "interleaved" if ECC
+          bytes will be interleaved with regular data in the main area.
+
       nand-ecc-algo:
         description:
           Desired ECC algorithm.
