@@ -715,8 +715,11 @@ unsigned long efi_main(efi_handle_t handle,
 	    (IS_ENABLED(CONFIG_X86_32) && buffer_end > KERNEL_IMAGE_SIZE)    ||
 	    (IS_ENABLED(CONFIG_X86_64) && buffer_end > MAXMEM_X86_64_4LEVEL) ||
 	    (image_offset == 0)) {
+		extern char _bss[];
+
 		status = efi_relocate_kernel(&bzimage_addr,
-					     hdr->init_size, hdr->init_size,
+					     (unsigned long)_bss - bzimage_addr,
+					     hdr->init_size,
 					     hdr->pref_address,
 					     hdr->kernel_alignment,
 					     LOAD_PHYSICAL_ADDR);
