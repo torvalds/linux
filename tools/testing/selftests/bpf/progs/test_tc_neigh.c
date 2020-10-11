@@ -13,16 +13,9 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
 
-#ifndef barrier_data
-# define barrier_data(ptr)	asm volatile("": :"r"(ptr) :"memory")
-#endif
-
 #ifndef ctx_ptr
 # define ctx_ptr(field)		(void *)(long)(field)
 #endif
-
-#define dst_to_src_tmp		0xeeddddeeU
-#define src_to_dst_tmp		0xeeffffeeU
 
 #define ip4_src			0xac100164 /* 172.16.1.100 */
 #define ip4_dst			0xac100264 /* 172.16.2.100 */
@@ -38,6 +31,18 @@
 				 a.s6_addr32[2] == b.s6_addr32[2] && \
 				 a.s6_addr32[3] == b.s6_addr32[3])
 #endif
+
+enum {
+	dev_src,
+	dev_dst,
+};
+
+struct bpf_map_def SEC("maps") ifindex_map = {
+	.type		= BPF_MAP_TYPE_ARRAY,
+	.key_size	= sizeof(int),
+	.value_size	= sizeof(int),
+	.max_entries	= 2,
+};
 
 static __always_inline bool is_remote_ep_v4(struct __sk_buff *skb,
 					    __be32 addr)
@@ -73,7 +78,14 @@ static __always_inline bool is_remote_ep_v6(struct __sk_buff *skb,
 	return v6_equal(ip6h->daddr, addr);
 }
 
-SEC("chk_neigh") int tc_chk(struct __sk_buff *skb)
+static __always_inline int get_dev_ifindex(int which)
+{
+	int *ifindex = bpf_map_lookup_elem(&ifindex_map, &which);
+
+	return ifindex ? *ifindex : 0;
+}
+
+SEC("chk_egress") int tc_chk(struct __sk_buff *skb)
 {
 	void *data_end = ctx_ptr(skb->data_end);
 	void *data = ctx_ptr(skb->data);
@@ -87,7 +99,6 @@ SEC("chk_neigh") int tc_chk(struct __sk_buff *skb)
 
 SEC("dst_ingress") int tc_dst(struct __sk_buff *skb)
 {
-	int idx = dst_to_src_tmp;
 	__u8 zero[ETH_ALEN * 2];
 	bool redirect = false;
 
@@ -103,19 +114,15 @@ SEC("dst_ingress") int tc_dst(struct __sk_buff *skb)
 	if (!redirect)
 		return TC_ACT_OK;
 
-	barrier_data(&idx);
-	idx = bpf_ntohl(idx);
-
 	__builtin_memset(&zero, 0, sizeof(zero));
 	if (bpf_skb_store_bytes(skb, 0, &zero, sizeof(zero), 0) < 0)
 		return TC_ACT_SHOT;
 
-	return bpf_redirect_neigh(idx, 0);
+	return bpf_redirect_neigh(get_dev_ifindex(dev_src), 0);
 }
 
 SEC("src_ingress") int tc_src(struct __sk_buff *skb)
 {
-	int idx = src_to_dst_tmp;
 	__u8 zero[ETH_ALEN * 2];
 	bool redirect = false;
 
@@ -131,14 +138,11 @@ SEC("src_ingress") int tc_src(struct __sk_buff *skb)
 	if (!redirect)
 		return TC_ACT_OK;
 
-	barrier_data(&idx);
-	idx = bpf_ntohl(idx);
-
 	__builtin_memset(&zero, 0, sizeof(zero));
 	if (bpf_skb_store_bytes(skb, 0, &zero, sizeof(zero), 0) < 0)
 		return TC_ACT_SHOT;
 
-	return bpf_redirect_neigh(idx, 0);
+	return bpf_redirect_neigh(get_dev_ifindex(dev_dst), 0);
 }
 
 char __license[] SEC("license") = "GPL";
