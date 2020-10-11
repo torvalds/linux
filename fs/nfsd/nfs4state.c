@@ -5723,7 +5723,6 @@ nfs4_find_file(struct nfs4_stid *s, int flags)
 			return find_readable_file(s->sc_file);
 		else
 			return find_writeable_file(s->sc_file);
-		break;
 	}
 
 	return NULL;
