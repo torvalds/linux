@@ -2916,7 +2916,7 @@ static int perf_c2c__record(int argc, const char **argv)
 	bool event_set = false;
 	struct option options[] = {
 	OPT_CALLBACK('e', "event", &event_set, "event",
-		     "event selector. Use 'perf mem record -e list' to list available events",
+		     "event selector. Use 'perf c2c record -e list' to list available events",
 		     parse_record_events),
 	OPT_BOOLEAN('u', "all-user", &all_user, "collect only user level data"),
 	OPT_BOOLEAN('k', "all-kernel", &all_kernel, "collect only kernel level data"),
