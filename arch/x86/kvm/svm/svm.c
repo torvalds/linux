@@ -1215,6 +1215,7 @@ static void init_vmcb(struct vcpu_svm *svm)
 		save->cr4 = 0;
 	}
 	svm->asid_generation = 0;
+	svm->asid = 0;
 
 	svm->nested.vmcb12_gpa = 0;
 	svm->vcpu.arch.hflags = 0;
@@ -1755,12 +1756,11 @@ static void new_asid(struct vcpu_svm *svm, struct svm_cpu_data *sd)
 		++sd->asid_generation;
 		sd->next_asid = sd->min_asid;
 		svm->vmcb->control.tlb_ctl = TLB_CONTROL_FLUSH_ALL_ASID;
+		vmcb_mark_dirty(svm->vmcb, VMCB_ASID);
 	}
 
 	svm->asid_generation = sd->asid_generation;
-	svm->vmcb->control.asid = sd->next_asid++;
-
-	vmcb_mark_dirty(svm->vmcb, VMCB_ASID);
+	svm->asid = sd->next_asid++;
 }
 
 static void svm_set_dr6(struct vcpu_svm *svm, unsigned long value)
@@ -3570,6 +3570,10 @@ static __no_kcsan fastpath_t svm_vcpu_run(struct kvm_vcpu *vcpu)
 
 	sync_lapic_to_cr8(vcpu);
 
+	if (unlikely(svm->asid != svm->vmcb->control.asid)) {
+		svm->vmcb->control.asid = svm->asid;
+		vmcb_mark_dirty(svm->vmcb, VMCB_ASID);
+	}
 	svm->vmcb->save.cr2 = vcpu->arch.cr2;
 
 	/*
