@@ -426,6 +426,7 @@ static int adis16240_probe(struct spi_device *spi)
 
 	return devm_iio_device_register(&spi->dev, indio_dev);
 }
+
 static const struct of_device_id adis16240_of_match[] = {
 	{ .compatible = "adi,adis16240" },
 	{ },
