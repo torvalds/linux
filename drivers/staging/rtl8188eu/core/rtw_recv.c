@@ -944,7 +944,7 @@ static int validate_recv_ctrl_frame(struct adapter *padapter,
 
 					/* update BCN for TIM IE */
 					/* update_BCNTIM(padapter); */
-					update_beacon(padapter, _TIM_IE_, NULL, false);
+					update_beacon(padapter, WLAN_EID_TIM, NULL, false);
 				}
 			} else {
 				if (pstapriv->tim_bitmap & BIT(psta->aid)) {
@@ -962,7 +962,7 @@ static int validate_recv_ctrl_frame(struct adapter *padapter,
 
 					/* update BCN for TIM IE */
 					/* update_BCNTIM(padapter); */
-					update_beacon(padapter, _TIM_IE_, NULL, false);
+					update_beacon(padapter, WLAN_EID_TIM, NULL, false);
 				}
 			}
 
