@@ -723,11 +723,11 @@ use of the predefined constants :code:`__FILE__`, :code:`__LINE__` and
 
 .. note::
     :code:`__FILE__` and :code:`__LINE__` are part of the ANSI C specifications:
-    :code`__func__` is part of specification C99; :code:`__FUNCTION__` is a GNU
-    :codeC extension and is not portable; However, since we write code for the
-    :codeLinux kernel, we can use it without any problems.
+    :code:`__func__` is part of specification C99; :code:`__FUNCTION__` is a GNU
+    :code:`C` extension and is not portable; However, since we write code for the
+    :code:`Linux` kernel, we can use it without any problems.
 
-The following macrodefinition can be used in this case:
+The following macro definition can be used in this case:
 
 .. code-block:: c
 
@@ -841,7 +841,7 @@ Dyndbg Options
      $ echo 'file svcsock.c line -1605 +p' > /sys/kernel/debug/dynamic_debug/control
 
 In addition to the above options, a series of flags can be added, removed, or set
-with operators ``+`, ``-`` or ``=``:
+with operators ``+``, ``-`` or ``=``:
 
    * ``p`` activates the pr_debug() .
    * ``f`` includes the name of the function in the printed message.
@@ -854,11 +854,11 @@ KDB: Kernel debugger
 --------------------
 
 The kernel debugger has proven to be very useful to facilitate the development and
-debugging process. One of its main advantages it the possibility to perform live debugging.
+debugging process. One of its main advantages is the possibility to perform live debugging.
 This allows us to monitor, in real time, the accesses to memory or even modify the memory
 while debugging.
 The debugger has been integrated in the mainline kernel starting with version 2.6.26-rci.
-KDB is not a *source debugger", but for a complete analysis it can be used in parallel with
+KDB is not a *source debugger*, but for a complete analysis it can be used in parallel with
 gdb and symbol files -- see :ref:`the GDB debugging section <gdb_intro>`
 
 To use KDB, you have the following options:
@@ -1132,7 +1132,7 @@ Extra Exercises
 1. KDB
 ------
 
-Go to the **8-kdb** directory. Activate KDB the over serial port and enter KDB
+Go to the **8-kdb** directory. Activate KDB over the serial port and enter KDB
 mode using :command:`SysRq`. Connect to the pseudo-terminal linked to virtiocon0
 using :command:`minicom`, configure KDB to use the hvc0 serial port:
 
