@@ -86,6 +86,7 @@ int txmsg_ktls_skb_redir;
 int ktls;
 int peek_flag;
 int skb_use_parser;
+int txmsg_omit_skb_parser;
 
 static const struct option long_options[] = {
 	{"help",	no_argument,		NULL, 'h' },
@@ -111,6 +112,7 @@ static const struct option long_options[] = {
 	{"txmsg_redir_skb", no_argument,	&txmsg_redir_skb, 1 },
 	{"ktls", no_argument,			&ktls, 1 },
 	{"peek", no_argument,			&peek_flag, 1 },
+	{"txmsg_omit_skb_parser", no_argument,      &txmsg_omit_skb_parser, 1},
 	{"whitelist", required_argument,	NULL, 'n' },
 	{"blacklist", required_argument,	NULL, 'b' },
 	{0, 0, NULL, 0 }
@@ -175,6 +177,7 @@ static void test_reset(void)
 	txmsg_apply = txmsg_cork = 0;
 	txmsg_ingress = txmsg_redir_skb = 0;
 	txmsg_ktls_skb = txmsg_ktls_skb_drop = txmsg_ktls_skb_redir = 0;
+	txmsg_omit_skb_parser = 0;
 	skb_use_parser = 0;
 }
 
@@ -912,13 +915,15 @@ static int run_options(struct sockmap_options *options, int cg_fd,  int test)
 		goto run;
 
 	/* Attach programs to sockmap */
-	err = bpf_prog_attach(prog_fd[0], map_fd[0],
-				BPF_SK_SKB_STREAM_PARSER, 0);
-	if (err) {
-		fprintf(stderr,
-			"ERROR: bpf_prog_attach (sockmap %i->%i): %d (%s)\n",
-			prog_fd[0], map_fd[0], err, strerror(errno));
-		return err;
+	if (!txmsg_omit_skb_parser) {
+		err = bpf_prog_attach(prog_fd[0], map_fd[0],
+				      BPF_SK_SKB_STREAM_PARSER, 0);
+		if (err) {
+			fprintf(stderr,
+				"ERROR: bpf_prog_attach (sockmap %i->%i): %d (%s)\n",
+				prog_fd[0], map_fd[0], err, strerror(errno));
+			return err;
+		}
 	}
 
 	err = bpf_prog_attach(prog_fd[1], map_fd[0],
@@ -931,13 +936,15 @@ static int run_options(struct sockmap_options *options, int cg_fd,  int test)
 
 	/* Attach programs to TLS sockmap */
 	if (txmsg_ktls_skb) {
-		err = bpf_prog_attach(prog_fd[0], map_fd[8],
-					BPF_SK_SKB_STREAM_PARSER, 0);
-		if (err) {
-			fprintf(stderr,
-				"ERROR: bpf_prog_attach (TLS sockmap %i->%i): %d (%s)\n",
-				prog_fd[0], map_fd[8], err, strerror(errno));
-			return err;
+		if (!txmsg_omit_skb_parser) {
+			err = bpf_prog_attach(prog_fd[0], map_fd[8],
+					      BPF_SK_SKB_STREAM_PARSER, 0);
+			if (err) {
+				fprintf(stderr,
+					"ERROR: bpf_prog_attach (TLS sockmap %i->%i): %d (%s)\n",
+					prog_fd[0], map_fd[8], err, strerror(errno));
+				return err;
+			}
 		}
 
 		err = bpf_prog_attach(prog_fd[2], map_fd[8],
