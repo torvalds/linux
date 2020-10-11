@@ -2010,7 +2010,7 @@ int rtw_get_gpio(struct net_device *netdev, int gpio_num)
 {
 	u8 value;
 	u8 direction;
-	struct adapter *adapter = (struct adapter *)rtw_netdev_priv(netdev);
+	struct adapter *adapter = rtw_netdev_priv(netdev);
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(adapter);
 
 	rtw_ps_deny(adapter, PS_DENY_IOCTL);
@@ -2038,7 +2038,7 @@ int  rtw_set_gpio_output_value(struct net_device *netdev, int gpio_num, bool isH
 {
 	u8 direction = 0;
 	u8 res = -1;
-	struct adapter *adapter = (struct adapter *)rtw_netdev_priv(netdev);
+	struct adapter *adapter = rtw_netdev_priv(netdev);
 
 	/* Check GPIO is 4~7 */
 	if (gpio_num > 7 || gpio_num < 4) {
@@ -2074,7 +2074,7 @@ EXPORT_SYMBOL(rtw_set_gpio_output_value);
 
 int rtw_config_gpio(struct net_device *netdev, int gpio_num, bool isOutput)
 {
-	struct adapter *adapter = (struct adapter *)rtw_netdev_priv(netdev);
+	struct adapter *adapter = rtw_netdev_priv(netdev);
 
 	if (gpio_num > 7 || gpio_num < 4) {
 		DBG_871X("%s The gpio number does not included 4~7.\n", __func__);
