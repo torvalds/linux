@@ -3908,6 +3908,7 @@ static int at91ether_start(struct macb *lp)
 			     MACB_BIT(ISR_TUND)	|
 			     MACB_BIT(ISR_RLE)	|
 			     MACB_BIT(TCOMP)	|
+			     MACB_BIT(RM9200_TBRE)	|
 			     MACB_BIT(ISR_ROVR)	|
 			     MACB_BIT(HRESP));
 
@@ -3924,6 +3925,7 @@ static void at91ether_stop(struct macb *lp)
 			     MACB_BIT(ISR_TUND)	|
 			     MACB_BIT(ISR_RLE)	|
 			     MACB_BIT(TCOMP)	|
+			     MACB_BIT(RM9200_TBRE)	|
 			     MACB_BIT(ISR_ROVR) |
 			     MACB_BIT(HRESP));
 
@@ -3993,11 +3995,10 @@ static netdev_tx_t at91ether_start_xmit(struct sk_buff *skb,
 					struct net_device *dev)
 {
 	struct macb *lp = netdev_priv(dev);
+	unsigned long flags;
 
-	if (macb_readl(lp, TSR) & MACB_BIT(RM9200_BNQ)) {
-		int desc = 0;
-
-		netif_stop_queue(dev);
+	if (lp->rm9200_tx_len < 2) {
+		int desc = lp->rm9200_tx_tail;
 
 		/* Store packet information (to free when Tx completed) */
 		lp->rm9200_txq[desc].skb = skb;
@@ -4010,6 +4011,15 @@ static netdev_tx_t at91ether_start_xmit(struct sk_buff *skb,
 			netdev_err(dev, "%s: DMA mapping error\n", __func__);
 			return NETDEV_TX_OK;
 		}
+
+		spin_lock_irqsave(&lp->lock, flags);
+
+		lp->rm9200_tx_tail = (desc + 1) & 1;
+		lp->rm9200_tx_len++;
+		if (lp->rm9200_tx_len > 1)
+			netif_stop_queue(dev);
+
+		spin_unlock_irqrestore(&lp->lock, flags);
 
 		/* Set address of the data in the Transmit Address register */
 		macb_writel(lp, TAR, lp->rm9200_txq[desc].mapping);
@@ -4076,6 +4086,8 @@ static irqreturn_t at91ether_interrupt(int irq, void *dev_id)
 	struct macb *lp = netdev_priv(dev);
 	u32 intstatus, ctl;
 	unsigned int desc;
+	unsigned int qlen;
+	u32 tsr;
 
 	/* MAC Interrupt Status register indicates what interrupts are pending.
 	 * It is automatically cleared once read.
@@ -4087,21 +4099,39 @@ static irqreturn_t at91ether_interrupt(int irq, void *dev_id)
 		at91ether_rx(dev);
 
 	/* Transmit complete */
-	if (intstatus & MACB_BIT(TCOMP)) {
+	if (intstatus & (MACB_BIT(TCOMP) | MACB_BIT(RM9200_TBRE))) {
 		/* The TCOM bit is set even if the transmission failed */
 		if (intstatus & (MACB_BIT(ISR_TUND) | MACB_BIT(ISR_RLE)))
 			dev->stats.tx_errors++;
 
-		desc = 0;
-		if (lp->rm9200_txq[desc].skb) {
+		spin_lock(&lp->lock);
+
+		tsr = macb_readl(lp, TSR);
+
+		/* we have three possibilities here:
+		 *   - all pending packets transmitted (TGO, implies BNQ)
+		 *   - only first packet transmitted (!TGO && BNQ)
+		 *   - two frames pending (!TGO && !BNQ)
+		 * Note that TGO ("transmit go") is called "IDLE" on RM9200.
+		 */
+		qlen = (tsr & MACB_BIT(TGO)) ? 0 :
+			(tsr & MACB_BIT(RM9200_BNQ)) ? 1 : 2;
+
+		while (lp->rm9200_tx_len > qlen) {
+			desc = (lp->rm9200_tx_tail - lp->rm9200_tx_len) & 1;
 			dev_consume_skb_irq(lp->rm9200_txq[desc].skb);
 			lp->rm9200_txq[desc].skb = NULL;
 			dma_unmap_single(&lp->pdev->dev, lp->rm9200_txq[desc].mapping,
 					 lp->rm9200_txq[desc].size, DMA_TO_DEVICE);
 			dev->stats.tx_packets++;
 			dev->stats.tx_bytes += lp->rm9200_txq[desc].size;
+			lp->rm9200_tx_len--;
 		}
-		netif_wake_queue(dev);
+
+		if (lp->rm9200_tx_len < 2 && netif_queue_stopped(dev))
+			netif_wake_queue(dev);
+
+		spin_unlock(&lp->lock);
 	}
 
 	/* Work-around for EMAC Errata section 41.3.1 */
