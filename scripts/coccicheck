@@ -76,7 +76,7 @@ else
     fi
 
     # Use only one thread per core by default if hyperthreading is enabled
-    THREADS_PER_CORE=$(lscpu | grep "Thread(s) per core: " | tr -cd [:digit:])
+    THREADS_PER_CORE=$(lscpu | grep "Thread(s) per core: " | tr -cd "[:digit:]")
     if [ -z "$J" ]; then
         NPROC=$(getconf _NPROCESSORS_ONLN)
 	if [ $THREADS_PER_CORE -gt 1 -a $NPROC -gt 2 ] ; then
