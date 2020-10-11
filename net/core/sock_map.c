@@ -230,16 +230,16 @@ static int sock_map_link(struct bpf_map *map, struct sk_psock_progs *progs,
 {
 	struct bpf_prog *msg_parser, *skb_parser, *skb_verdict;
 	struct sk_psock *psock;
-	bool skb_progs;
 	int ret;
 
 	skb_verdict = READ_ONCE(progs->skb_verdict);
 	skb_parser = READ_ONCE(progs->skb_parser);
-	skb_progs = skb_parser && skb_verdict;
-	if (skb_progs) {
+	if (skb_verdict) {
 		skb_verdict = bpf_prog_inc_not_zero(skb_verdict);
 		if (IS_ERR(skb_verdict))
 			return PTR_ERR(skb_verdict);
+	}
+	if (skb_parser) {
 		skb_parser = bpf_prog_inc_not_zero(skb_parser);
 		if (IS_ERR(skb_parser)) {
 			bpf_prog_put(skb_verdict);
@@ -264,7 +264,8 @@ static int sock_map_link(struct bpf_map *map, struct sk_psock_progs *progs,
 
 	if (psock) {
 		if ((msg_parser && READ_ONCE(psock->progs.msg_parser)) ||
-		    (skb_progs  && READ_ONCE(psock->progs.skb_parser))) {
+		    (skb_parser  && READ_ONCE(psock->progs.skb_parser)) ||
+		    (skb_verdict && READ_ONCE(psock->progs.skb_verdict))) {
 			sk_psock_put(sk, psock);
 			ret = -EBUSY;
 			goto out_progs;
@@ -285,7 +286,7 @@ static int sock_map_link(struct bpf_map *map, struct sk_psock_progs *progs,
 		goto out_drop;
 
 	write_lock_bh(&sk->sk_callback_lock);
-	if (skb_progs && !psock->parser.enabled) {
+	if (skb_parser && skb_verdict && !psock->parser.enabled) {
 		ret = sk_psock_init_strp(sk, psock);
 		if (ret) {
 			write_unlock_bh(&sk->sk_callback_lock);
@@ -303,10 +304,10 @@ out_progs:
 	if (msg_parser)
 		bpf_prog_put(msg_parser);
 out:
-	if (skb_progs) {
+	if (skb_verdict)
 		bpf_prog_put(skb_verdict);
+	if (skb_parser)
 		bpf_prog_put(skb_parser);
-	}
 	return ret;
 }
 
