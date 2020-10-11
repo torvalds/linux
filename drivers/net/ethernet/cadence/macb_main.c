@@ -3995,14 +3995,16 @@ static netdev_tx_t at91ether_start_xmit(struct sk_buff *skb,
 	struct macb *lp = netdev_priv(dev);
 
 	if (macb_readl(lp, TSR) & MACB_BIT(RM9200_BNQ)) {
+		int desc = 0;
+
 		netif_stop_queue(dev);
 
 		/* Store packet information (to free when Tx completed) */
-		lp->skb = skb;
-		lp->skb_length = skb->len;
-		lp->skb_physaddr = dma_map_single(&lp->pdev->dev, skb->data,
-						  skb->len, DMA_TO_DEVICE);
-		if (dma_mapping_error(&lp->pdev->dev, lp->skb_physaddr)) {
+		lp->rm9200_txq[desc].skb = skb;
+		lp->rm9200_txq[desc].size = skb->len;
+		lp->rm9200_txq[desc].mapping = dma_map_single(&lp->pdev->dev, skb->data,
+							      skb->len, DMA_TO_DEVICE);
+		if (dma_mapping_error(&lp->pdev->dev, lp->rm9200_txq[desc].mapping)) {
 			dev_kfree_skb_any(skb);
 			dev->stats.tx_dropped++;
 			netdev_err(dev, "%s: DMA mapping error\n", __func__);
@@ -4010,7 +4012,7 @@ static netdev_tx_t at91ether_start_xmit(struct sk_buff *skb,
 		}
 
 		/* Set address of the data in the Transmit Address register */
-		macb_writel(lp, TAR, lp->skb_physaddr);
+		macb_writel(lp, TAR, lp->rm9200_txq[desc].mapping);
 		/* Set length of the packet in the Transmit Control register */
 		macb_writel(lp, TCR, skb->len);
 
@@ -4073,6 +4075,7 @@ static irqreturn_t at91ether_interrupt(int irq, void *dev_id)
 	struct net_device *dev = dev_id;
 	struct macb *lp = netdev_priv(dev);
 	u32 intstatus, ctl;
+	unsigned int desc;
 
 	/* MAC Interrupt Status register indicates what interrupts are pending.
 	 * It is automatically cleared once read.
@@ -4089,13 +4092,14 @@ static irqreturn_t at91ether_interrupt(int irq, void *dev_id)
 		if (intstatus & (MACB_BIT(ISR_TUND) | MACB_BIT(ISR_RLE)))
 			dev->stats.tx_errors++;
 
-		if (lp->skb) {
-			dev_consume_skb_irq(lp->skb);
-			lp->skb = NULL;
-			dma_unmap_single(&lp->pdev->dev, lp->skb_physaddr,
-					 lp->skb_length, DMA_TO_DEVICE);
+		desc = 0;
+		if (lp->rm9200_txq[desc].skb) {
+			dev_consume_skb_irq(lp->rm9200_txq[desc].skb);
+			lp->rm9200_txq[desc].skb = NULL;
+			dma_unmap_single(&lp->pdev->dev, lp->rm9200_txq[desc].mapping,
+					 lp->rm9200_txq[desc].size, DMA_TO_DEVICE);
 			dev->stats.tx_packets++;
-			dev->stats.tx_bytes += lp->skb_length;
+			dev->stats.tx_bytes += lp->rm9200_txq[desc].size;
 		}
 		netif_wake_queue(dev);
 	}
