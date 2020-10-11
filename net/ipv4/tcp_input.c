@@ -4430,7 +4430,8 @@ static void tcp_sack_maybe_coalesce(struct tcp_sock *tp)
 				sp[i] = sp[i + 1];
 			continue;
 		}
-		this_sack++, swalk++;
+		this_sack++;
+		swalk++;
 	}
 }
 
