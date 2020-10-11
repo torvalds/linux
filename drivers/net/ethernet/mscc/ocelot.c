@@ -205,8 +205,21 @@ int ocelot_port_vlan_filtering(struct ocelot *ocelot, int port,
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	u32 val;
 
-	if (switchdev_trans_ph_prepare(trans))
+	if (switchdev_trans_ph_prepare(trans)) {
+		struct ocelot_vcap_block *block = &ocelot->block[VCAP_IS1];
+		struct ocelot_vcap_filter *filter;
+
+		list_for_each_entry(filter, &block->rules, list) {
+			if (filter->ingress_port_mask & BIT(port) &&
+			    filter->action.vid_replace_ena) {
+				dev_err(ocelot->dev,
+					"Cannot change VLAN state with vlan modify rules active\n");
+				return -EBUSY;
+			}
+		}
+
 		return 0;
+	}
 
 	ocelot_port->vlan_aware = vlan_aware;
 

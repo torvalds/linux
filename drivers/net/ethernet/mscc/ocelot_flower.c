@@ -142,10 +142,11 @@ ocelot_find_vcap_filter_that_points_at(struct ocelot *ocelot, int chain)
 	return NULL;
 }
 
-static int ocelot_flower_parse_action(struct ocelot *ocelot, bool ingress,
-				      struct flow_cls_offload *f,
+static int ocelot_flower_parse_action(struct ocelot *ocelot, int port,
+				      bool ingress, struct flow_cls_offload *f,
 				      struct ocelot_vcap_filter *filter)
 {
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	struct netlink_ext_ack *extack = f->common.extack;
 	bool allow_missing_goto_target = false;
 	const struct flow_action_entry *a;
@@ -264,6 +265,28 @@ static int ocelot_flower_parse_action(struct ocelot *ocelot, bool ingress,
 						   "Cannot pop more than 2 VLAN headers");
 				return -EOPNOTSUPP;
 			}
+			filter->type = OCELOT_VCAP_FILTER_OFFLOAD;
+			break;
+		case FLOW_ACTION_VLAN_MANGLE:
+			if (filter->block_id != VCAP_IS1) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "VLAN modify action can only be offloaded to VCAP IS1");
+				return -EOPNOTSUPP;
+			}
+			if (filter->goto_target != -1) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Last action must be GOTO");
+				return -EOPNOTSUPP;
+			}
+			if (!ocelot_port->vlan_aware) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Can only modify VLAN under VLAN aware bridge");
+				return -EOPNOTSUPP;
+			}
+			filter->action.vid_replace_ena = true;
+			filter->action.pcp_dei_ena = true;
+			filter->action.vid = a->vlan.vid;
+			filter->action.pcp = a->vlan.prio;
 			filter->type = OCELOT_VCAP_FILTER_OFFLOAD;
 			break;
 		case FLOW_ACTION_PRIORITY:
@@ -601,7 +624,7 @@ static int ocelot_flower_parse(struct ocelot *ocelot, int port, bool ingress,
 	filter->prio = f->common.prio;
 	filter->id = f->cookie;
 
-	ret = ocelot_flower_parse_action(ocelot, ingress, f, filter);
+	ret = ocelot_flower_parse_action(ocelot, port, ingress, f, filter);
 	if (ret)
 		return ret;
 
