@@ -390,24 +390,6 @@ __context_engines_static(const struct i915_gem_context *ctx)
 	return rcu_dereference_protected(ctx->engines, true);
 }
 
-static bool __reset_engine(struct intel_engine_cs *engine)
-{
-	struct intel_gt *gt = engine->gt;
-	bool success = false;
-
-	if (!intel_has_reset_engine(gt))
-		return false;
-
-	if (!test_and_set_bit(I915_RESET_ENGINE + engine->id,
-			      &gt->reset.flags)) {
-		success = intel_engine_reset(engine, NULL) == 0;
-		clear_and_wake_up_bit(I915_RESET_ENGINE + engine->id,
-				      &gt->reset.flags);
-	}
-
-	return success;
-}
-
 static void __reset_context(struct i915_gem_context *ctx,
 			    struct intel_engine_cs *engine)
 {
@@ -431,12 +413,7 @@ static bool __cancel_engine(struct intel_engine_cs *engine)
 	 * kill the banned context, we fallback to doing a local reset
 	 * instead.
 	 */
-	if (IS_ACTIVE(CONFIG_DRM_I915_PREEMPT_TIMEOUT) &&
-	    !intel_engine_pulse(engine))
-		return true;
-
-	/* If we are unable to send a pulse, try resetting this engine. */
-	return __reset_engine(engine);
+	return intel_engine_pulse(engine) == 0;
 }
 
 static bool
@@ -460,8 +437,8 @@ __active_engine(struct i915_request *rq, struct intel_engine_cs **active)
 		spin_lock(&locked->active.lock);
 	}
 
-	if (!i915_request_completed(rq)) {
-		if (i915_request_is_active(rq) && rq->fence.error != -EIO)
+	if (i915_request_is_active(rq)) {
+		if (!i915_request_completed(rq))
 			*active = locked;
 		ret = true;
 	}
@@ -479,13 +456,26 @@ static struct intel_engine_cs *active_engine(struct intel_context *ce)
 	if (!ce->timeline)
 		return NULL;
 
+	/*
+	 * rq->link is only SLAB_TYPESAFE_BY_RCU, we need to hold a reference
+	 * to the request to prevent it being transferred to a new timeline
+	 * (and onto a new timeline->requests list).
+	 */
 	rcu_read_lock();
-	list_for_each_entry_rcu(rq, &ce->timeline->requests, link) {
-		if (i915_request_is_active(rq) && i915_request_completed(rq))
-			continue;
+	list_for_each_entry_reverse(rq, &ce->timeline->requests, link) {
+		bool found;
+
+		/* timeline is already completed upto this point? */
+		if (!i915_request_get_rcu(rq))
+			break;
 
 		/* Check with the backend if the request is inflight */
-		if (__active_engine(rq, &engine))
+		found = true;
+		if (likely(rcu_access_pointer(rq->timeline) == ce->timeline))
+			found = __active_engine(rq, &engine);
+
+		i915_request_put(rq);
+		if (found)
 			break;
 	}
 	rcu_read_unlock();
@@ -493,7 +483,7 @@ static struct intel_engine_cs *active_engine(struct intel_context *ce)
 	return engine;
 }
 
-static void kill_engines(struct i915_gem_engines *engines)
+static void kill_engines(struct i915_gem_engines *engines, bool ban)
 {
 	struct i915_gem_engines_iter it;
 	struct intel_context *ce;
@@ -508,7 +498,7 @@ static void kill_engines(struct i915_gem_engines *engines)
 	for_each_gem_engine(ce, engines, it) {
 		struct intel_engine_cs *engine;
 
-		if (intel_context_set_banned(ce))
+		if (ban && intel_context_set_banned(ce))
 			continue;
 
 		/*
@@ -521,7 +511,7 @@ static void kill_engines(struct i915_gem_engines *engines)
 		engine = active_engine(ce);
 
 		/* First attempt to gracefully cancel the context */
-		if (engine && !__cancel_engine(engine))
+		if (engine && !__cancel_engine(engine) && ban)
 			/*
 			 * If we are unable to send a preemptive pulse to bump
 			 * the context from the GPU, we have to resort to a full
@@ -531,8 +521,10 @@ static void kill_engines(struct i915_gem_engines *engines)
 	}
 }
 
-static void kill_stale_engines(struct i915_gem_context *ctx)
+static void kill_context(struct i915_gem_context *ctx)
 {
+	bool ban = (!i915_gem_context_is_persistent(ctx) ||
+		    !ctx->i915->params.enable_hangcheck);
 	struct i915_gem_engines *pos, *next;
 
 	spin_lock_irq(&ctx->stale.lock);
@@ -545,7 +537,7 @@ static void kill_stale_engines(struct i915_gem_context *ctx)
 
 		spin_unlock_irq(&ctx->stale.lock);
 
-		kill_engines(pos);
+		kill_engines(pos, ban);
 
 		spin_lock_irq(&ctx->stale.lock);
 		GEM_BUG_ON(i915_sw_fence_signaled(&pos->fence));
@@ -555,11 +547,6 @@ static void kill_stale_engines(struct i915_gem_context *ctx)
 		i915_sw_fence_complete(&pos->fence);
 	}
 	spin_unlock_irq(&ctx->stale.lock);
-}
-
-static void kill_context(struct i915_gem_context *ctx)
-{
-	kill_stale_engines(ctx);
 }
 
 static void engines_idle_release(struct i915_gem_context *ctx,
@@ -596,7 +583,7 @@ static void engines_idle_release(struct i915_gem_context *ctx,
 
 kill:
 	if (list_empty(&engines->link)) /* raced, already closed */
-		kill_engines(engines);
+		kill_engines(engines, true);
 
 	i915_sw_fence_commit(&engines->fence);
 }
@@ -654,9 +641,7 @@ static void context_close(struct i915_gem_context *ctx)
 	 * case we opt to forcibly kill off all remaining requests on
 	 * context close.
 	 */
-	if (!i915_gem_context_is_persistent(ctx) ||
-	    !ctx->i915->params.enable_hangcheck)
-		kill_context(ctx);
+	kill_context(ctx);
 
 	i915_gem_context_put(ctx);
 }

@@ -2267,8 +2267,8 @@ struct eb_parse_work {
 	struct i915_vma *batch;
 	struct i915_vma *shadow;
 	struct i915_vma *trampoline;
-	unsigned int batch_offset;
-	unsigned int batch_length;
+	unsigned long batch_offset;
+	unsigned long batch_length;
 };
 
 static int __eb_parse(struct dma_fence_work *work)
@@ -2337,6 +2337,9 @@ static int eb_parse_pipeline(struct i915_execbuffer *eb,
 {
 	struct eb_parse_work *pw;
 	int err;
+
+	GEM_BUG_ON(overflows_type(eb->batch_start_offset, pw->batch_offset));
+	GEM_BUG_ON(overflows_type(eb->batch_len, pw->batch_length));
 
 	pw = kzalloc(sizeof(*pw), GFP_KERNEL);
 	if (!pw)

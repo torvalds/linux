@@ -472,6 +472,7 @@ retry:
 		err = i915_gem_ww_ctx_backoff(&ww);
 		if (!err)
 			goto retry;
+		rq = ERR_PTR(err);
 	} else {
 		rq = ERR_PTR(err);
 	}
