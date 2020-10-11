@@ -2,8 +2,8 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 
-int write_address;
-EXPORT_SYMBOL(write_address);
+int kdb_write_address;
+EXPORT_SYMBOL(kdb_write_address);
 
 noinline void dummy_func18(void)
 {
@@ -90,7 +90,7 @@ static int hello_proc_open(struct inode *inode, struct  file *file) {
 static int edit_write(struct file *file, const char *buffer,
 		size_t count, loff_t *data)
 {
-	write_address = 1;
+	kdb_write_address += 1;
 	return count;
 }
 
