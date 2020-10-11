@@ -9,7 +9,7 @@
 #include <linux/skbuff.h>
 #include <linux/ethtool.h>
 #include <linux/if_vlan.h>
-#include <linux/phy.h>
+#include <linux/phylink.h>
 #include <linux/dim.h>
 
 #include "enetc_hw.h"
@@ -264,8 +264,7 @@ struct enetc_ndev_priv {
 
 	struct psfp_cap psfp_cap;
 
-	struct device_node *phy_node;
-	phy_interface_t if_mode;
+	struct phylink *phylink;
 	int ic_mode;
 	u32 tx_ictt;
 };
@@ -323,7 +322,7 @@ int enetc_send_cmd(struct enetc_si *si, struct enetc_cbd *cbd);
 
 #ifdef CONFIG_FSL_ENETC_QOS
 int enetc_setup_tc_taprio(struct net_device *ndev, void *type_data);
-void enetc_sched_speed_set(struct net_device *ndev);
+void enetc_sched_speed_set(struct enetc_ndev_priv *priv, int speed);
 int enetc_setup_tc_cbs(struct net_device *ndev, void *type_data);
 int enetc_setup_tc_txtime(struct net_device *ndev, void *type_data);
 int enetc_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
@@ -388,7 +387,7 @@ static inline int enetc_psfp_disable(struct enetc_ndev_priv *priv)
 
 #else
 #define enetc_setup_tc_taprio(ndev, type_data) -EOPNOTSUPP
-#define enetc_sched_speed_set(ndev) (void)0
+#define enetc_sched_speed_set(priv, speed) (void)0
 #define enetc_setup_tc_cbs(ndev, type_data) -EOPNOTSUPP
 #define enetc_setup_tc_txtime(ndev, type_data) -EOPNOTSUPP
 #define enetc_setup_tc_psfp(ndev, type_data) -EOPNOTSUPP
