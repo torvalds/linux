@@ -340,12 +340,12 @@ static int matching_bar(struct nfp_bar *bar, u32 tgt, u32 act, u32 tok,
 	switch (maptype) {
 	case NFP_PCIE_BAR_PCIE2CPP_MapType_TARGET:
 		bartok = -1;
-		/* FALLTHROUGH */
+		fallthrough;
 	case NFP_PCIE_BAR_PCIE2CPP_MapType_BULK:
 		baract = NFP_CPP_ACTION_RW;
 		if (act == 0)
 			act = NFP_CPP_ACTION_RW;
-		/* FALLTHROUGH */
+		fallthrough;
 	case NFP_PCIE_BAR_PCIE2CPP_MapType_FIXED:
 		break;
 	default:

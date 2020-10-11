@@ -380,7 +380,7 @@ static int lec_atm_send(struct atm_vcc *vcc, struct sk_buff *skb)
 
 		if (mesg->content.normal.no_source_le_narp)
 			break;
-		/* FALL THROUGH */
+		fallthrough;
 	case l_arp_update:
 		lec_arp_update(priv, mesg->content.normal.mac_addr,
 			       mesg->content.normal.atm_addr,

@@ -178,7 +178,7 @@ static int psp_sw_init(void *handle)
 		return ret;
 	}
 
-	if (adev->asic_type == CHIP_NAVI10) {
+	if (adev->asic_type == CHIP_NAVI10 || adev->asic_type == CHIP_SIENNA_CICHLID) {
 		ret= psp_sysfs_init(adev);
 		if (ret) {
 			return ret;
@@ -522,8 +522,7 @@ static int psp_asd_load(struct psp_context *psp)
 	 * add workaround to bypass it for sriov now.
 	 * TODO: add version check to make it common
 	 */
-	if (amdgpu_sriov_vf(psp->adev) ||
-	    (psp->adev->asic_type == CHIP_NAVY_FLOUNDER))
+	if (amdgpu_sriov_vf(psp->adev) || !psp->asd_fw)
 		return 0;
 
 	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);

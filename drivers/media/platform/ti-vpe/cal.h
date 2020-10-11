@@ -226,7 +226,7 @@ static inline void cal_write_field(struct cal_dev *cal, u32 offset, u32 value,
 	u32 val = cal_read(cal, offset);
 
 	val &= ~mask;
-	val |= FIELD_PREP(mask, value);
+	val |= (value << __ffs(mask)) & mask;
 	cal_write(cal, offset, val);
 }
 

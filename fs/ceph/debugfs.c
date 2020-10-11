@@ -202,7 +202,7 @@ static int caps_show_cb(struct inode *inode, struct ceph_cap *cap, void *p)
 {
 	struct seq_file *s = p;
 
-	seq_printf(s, "0x%-17lx%-17s%-17s\n", inode->i_ino,
+	seq_printf(s, "0x%-17llx%-17s%-17s\n", ceph_ino(inode),
 		   ceph_cap_string(cap->issued),
 		   ceph_cap_string(cap->implemented));
 	return 0;
@@ -247,7 +247,7 @@ static int caps_show(struct seq_file *s, void *p)
 
 	spin_lock(&mdsc->caps_list_lock);
 	list_for_each_entry(cw, &mdsc->cap_wait_list, list) {
-		seq_printf(s, "%-13d0x%-17lx%-17s%-17s\n", cw->tgid, cw->ino,
+		seq_printf(s, "%-13d0x%-17llx%-17s%-17s\n", cw->tgid, cw->ino,
 				ceph_cap_string(cw->need),
 				ceph_cap_string(cw->want));
 	}

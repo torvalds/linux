@@ -259,7 +259,7 @@ static int uverbs_process_attr(struct bundle_priv *pbundle,
 			return -EOPNOTSUPP;
 
 		e->ptr_attr.enum_id = uattr->attr_data.enum_data.elem_id;
-	/* fall through */
+		fallthrough;
 	case UVERBS_ATTR_TYPE_PTR_IN:
 		/* Ensure that any data provided by userspace beyond the known
 		 * struct is zero. Userspace that knows how to use some future
@@ -271,7 +271,7 @@ static int uverbs_process_attr(struct bundle_priv *pbundle,
 		    !uverbs_is_attr_cleared(uattr, val_spec->u.ptr.len))
 			return -EOPNOTSUPP;
 
-	/* fall through */
+		fallthrough;
 	case UVERBS_ATTR_TYPE_PTR_OUT:
 		if (uattr->len < val_spec->u.ptr.min_len ||
 		    (!val_spec->zero_trailing &&

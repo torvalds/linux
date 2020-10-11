@@ -1356,6 +1356,8 @@ create:
 	if (ini->is_smcd) {
 		conn->rx_off = sizeof(struct smcd_cdc_msg);
 		smcd_cdc_rx_init(conn); /* init tasklet for this conn */
+	} else {
+		conn->rx_off = 0;
 	}
 #ifndef KERNEL_HAS_ATOMIC64
 	spin_lock_init(&conn->acurs_lock);
@@ -1777,6 +1779,7 @@ int smc_buf_create(struct smc_sock *smc, bool is_smcd)
 		list_del(&smc->conn.sndbuf_desc->list);
 		mutex_unlock(&smc->conn.lgr->sndbufs_lock);
 		smc_buf_free(smc->conn.lgr, false, smc->conn.sndbuf_desc);
+		smc->conn.sndbuf_desc = NULL;
 	}
 	return rc;
 }

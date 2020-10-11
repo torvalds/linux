@@ -1159,7 +1159,7 @@ static void engine_record_registers(struct intel_engine_coredump *ee)
 			switch (engine->id) {
 			default:
 				MISSING_CASE(engine->id);
-				/* fall through */
+				fallthrough;
 			case RCS0:
 				mmio = RENDER_HWS_PGA_GEN7;
 				break;

@@ -657,7 +657,7 @@ int scif_unregister_window(struct scif_window *window)
 		window->unreg_state = OP_IN_PROGRESS;
 		send_msg = true;
 	}
-		/* fall through */
+		fallthrough;
 	case OP_IN_PROGRESS:
 	{
 		scif_get_window(window, 1);

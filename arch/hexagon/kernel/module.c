@@ -120,7 +120,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 		}
 		case R_HEXAGON_HI16:
 			value = (value>>16) & 0xffff;
-			/* fallthrough */
+			fallthrough;
 		case R_HEXAGON_LO16:
 			*location &= ~0x00c03fff;
 			*location |= value & 0x3fff;

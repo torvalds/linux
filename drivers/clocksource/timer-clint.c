@@ -19,6 +19,11 @@
 #include <linux/interrupt.h>
 #include <linux/of_irq.h>
 #include <linux/smp.h>
+#include <linux/timex.h>
+
+#ifndef CONFIG_RISCV_M_MODE
+#include <asm/clint.h>
+#endif
 
 #define CLINT_IPI_OFF		0
 #define CLINT_TIMER_CMP_OFF	0x4000
@@ -30,6 +35,10 @@ static u64 __iomem *clint_timer_cmp;
 static u64 __iomem *clint_timer_val;
 static unsigned long clint_timer_freq;
 static unsigned int clint_timer_irq;
+
+#ifdef CONFIG_RISCV_M_MODE
+u64 __iomem *clint_time_val;
+#endif
 
 static void clint_send_ipi(const struct cpumask *target)
 {
@@ -183,6 +192,14 @@ static int __init clint_timer_init_dt(struct device_node *np)
 	clint_timer_cmp = base + CLINT_TIMER_CMP_OFF;
 	clint_timer_val = base + CLINT_TIMER_VAL_OFF;
 	clint_timer_freq = riscv_timebase;
+
+#ifdef CONFIG_RISCV_M_MODE
+	/*
+	 * Yes, that's an odd naming scheme.  time_val is public, but hopefully
+	 * will die in favor of something cleaner.
+	 */
+	clint_time_val = clint_timer_val;
+#endif
 
 	pr_info("%pOFP: timer running at %ld Hz\n", np, clint_timer_freq);
 

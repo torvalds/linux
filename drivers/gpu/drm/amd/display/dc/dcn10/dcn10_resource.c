@@ -1213,6 +1213,7 @@ static enum dc_status dcn10_validate_global(struct dc *dc, struct dc_state *cont
 	bool video_large = false;
 	bool desktop_large = false;
 	bool dcc_disabled = false;
+	bool mpo_enabled = false;
 
 	for (i = 0; i < context->stream_count; i++) {
 		if (context->stream_status[i].plane_count == 0)
@@ -1220,6 +1221,9 @@ static enum dc_status dcn10_validate_global(struct dc *dc, struct dc_state *cont
 
 		if (context->stream_status[i].plane_count > 2)
 			return DC_FAIL_UNSUPPORTED_1;
+
+		if (context->stream_status[i].plane_count > 1)
+			mpo_enabled = true;
 
 		for (j = 0; j < context->stream_status[i].plane_count; j++) {
 			struct dc_plane_state *plane =
@@ -1243,6 +1247,10 @@ static enum dc_status dcn10_validate_global(struct dc *dc, struct dc_state *cont
 			}
 		}
 	}
+
+	/* Disable MPO in multi-display configurations. */
+	if (context->stream_count > 1 && mpo_enabled)
+		return DC_FAIL_UNSUPPORTED_1;
 
 	/*
 	 * Workaround: On DCN10 there is UMC issue that causes underflow when

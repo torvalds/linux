@@ -55,7 +55,7 @@ static int clock_board_calc_nslots(struct clock_board *p)
 			else
 				return 5;
 		}
-		/* Fallthrough */
+		fallthrough;
 	default:
 		return 4;
 	}

@@ -84,28 +84,28 @@ static void surface_button_notify(struct acpi_device *device, u32 event)
 	/* Power button press,release handle */
 	case SURFACE_BUTTON_NOTIFY_PRESS_POWER:
 		pressed = true;
-		/*fall through*/
+		fallthrough;
 	case SURFACE_BUTTON_NOTIFY_RELEASE_POWER:
 		key_code = KEY_POWER;
 		break;
 	/* Home button press,release handle */
 	case SURFACE_BUTTON_NOTIFY_PRESS_HOME:
 		pressed = true;
-		/*fall through*/
+		fallthrough;
 	case SURFACE_BUTTON_NOTIFY_RELEASE_HOME:
 		key_code = KEY_LEFTMETA;
 		break;
 	/* Volume up button press,release handle */
 	case SURFACE_BUTTON_NOTIFY_PRESS_VOLUME_UP:
 		pressed = true;
-		/*fall through*/
+		fallthrough;
 	case SURFACE_BUTTON_NOTIFY_RELEASE_VOLUME_UP:
 		key_code = KEY_VOLUMEUP;
 		break;
 	/* Volume down button press,release handle */
 	case SURFACE_BUTTON_NOTIFY_PRESS_VOLUME_DOWN:
 		pressed = true;
-		/*fall through*/
+		fallthrough;
 	case SURFACE_BUTTON_NOTIFY_RELEASE_VOLUME_DOWN:
 		key_code = KEY_VOLUMEDOWN;
 		break;
