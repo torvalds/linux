@@ -769,7 +769,6 @@ static void __sock_set_timestamps(struct sock *sk, bool val, bool new, bool ns)
 	} else {
 		sock_reset_flag(sk, SOCK_RCVTSTAMP);
 		sock_reset_flag(sk, SOCK_RCVTSTAMPNS);
-		sock_reset_flag(sk, SOCK_TSTAMP_NEW);
 	}
 }
 
