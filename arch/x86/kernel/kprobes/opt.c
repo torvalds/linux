@@ -18,6 +18,7 @@
 #include <linux/ftrace.h>
 #include <linux/frame.h>
 #include <linux/pgtable.h>
+#include <linux/static_call.h>
 
 #include <asm/text-patching.h>
 #include <asm/cacheflush.h>
@@ -210,7 +211,8 @@ static int copy_optimized_instructions(u8 *dest, u8 *src, u8 *real)
 	/* Check whether the address range is reserved */
 	if (ftrace_text_reserved(src, src + len - 1) ||
 	    alternatives_text_reserved(src, src + len - 1) ||
-	    jump_label_text_reserved(src, src + len - 1))
+	    jump_label_text_reserved(src, src + len - 1) ||
+	    static_call_text_reserved(src, src + len - 1))
 		return -EBUSY;
 
 	return len;
