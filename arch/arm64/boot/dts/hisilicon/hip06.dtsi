@@ -330,7 +330,7 @@
 	 *  when iommu-map entry is used along with the PCIe node.
 	 *  Refer:https://www.spinics.net/lists/arm-kernel/msg602812.html
 	 */
-	smmu0: smmu_pcie {
+	smmu0: iommu@a0040000 {
 		compatible = "arm,smmu-v3";
 		reg = <0x0 0xa0040000 0x0 0x20000>;
 		#iommu-cells = <1>;

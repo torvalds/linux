@@ -1161,7 +1161,7 @@
 	 *  when iommu-map entry is used along with the PCIe node.
 	 *  Refer:https://www.spinics.net/lists/arm-kernel/msg602812.html
 	 */
-	smmu0: smmu_pcie {
+	smmu0: iommu@a0040000 {
 		compatible = "arm,smmu-v3";
 		reg = <0x0 0xa0040000 0x0 0x20000>;
 		#iommu-cells = <1>;
@@ -1170,7 +1170,7 @@
 		hisilicon,broken-prefetch-cmd;
 		status = "disabled";
 	};
-	p0_smmu_alg_a: smmu_alg@d0040000 {
+	p0_smmu_alg_a: iommu@d0040000 {
 		compatible = "arm,smmu-v3";
 		reg = <0x0 0xd0040000 0x0 0x20000>;
 		interrupt-parent = <&p0_mbigen_smmu_alg_a>;
@@ -1183,7 +1183,7 @@
 		hisilicon,broken-prefetch-cmd;
 		/* smmu-cb-memtype = <0x0 0x1>;*/
 	};
-	p0_smmu_alg_b: smmu_alg@8,d0040000 {
+	p0_smmu_alg_b: iommu@8d0040000 {
 		compatible = "arm,smmu-v3";
 		reg = <0x8 0xd0040000 0x0 0x20000>;
 		interrupt-parent = <&p0_mbigen_smmu_alg_b>;
@@ -1196,7 +1196,7 @@
 		hisilicon,broken-prefetch-cmd;
 		/* smmu-cb-memtype = <0x0 0x1>;*/
 	};
-	p1_smmu_alg_a: smmu_alg@400,d0040000 {
+	p1_smmu_alg_a: iommu@400d0040000 {
 		compatible = "arm,smmu-v3";
 		reg = <0x400 0xd0040000 0x0 0x20000>;
 		interrupt-parent = <&p1_mbigen_smmu_alg_a>;
@@ -1209,7 +1209,7 @@
 		hisilicon,broken-prefetch-cmd;
 		/* smmu-cb-memtype = <0x0 0x1>;*/
 	};
-	p1_smmu_alg_b: smmu_alg@408,d0040000 {
+	p1_smmu_alg_b: iommu@408d0040000 {
 		compatible = "arm,smmu-v3";
 		reg = <0x408 0xd0040000 0x0 0x20000>;
 		interrupt-parent = <&p1_mbigen_smmu_alg_b>;
