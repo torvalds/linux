@@ -32,6 +32,10 @@
 #define ADF_C62X_PF2VF_OFFSET(i)	(0x3A000 + 0x280 + ((i) * 0x04))
 #define ADF_C62X_VINTMSK_OFFSET(i)	(0x3A000 + 0x200 + ((i) * 0x04))
 
+/* AE to function mapping */
+#define ADF_C62X_AE2FUNC_MAP_GRP_A_NUM_REGS 80
+#define ADF_C62X_AE2FUNC_MAP_GRP_B_NUM_REGS 10
+
 /* Firmware Binary */
 #define ADF_C62X_FW "qat_c62x.bin"
 #define ADF_C62X_MMP "qat_c62x_mmp.bin"

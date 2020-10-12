@@ -10,31 +10,6 @@
 
 static struct workqueue_struct *pf2vf_resp_wq;
 
-#define ME2FUNCTION_MAP_A_OFFSET	(0x3A400 + 0x190)
-#define ME2FUNCTION_MAP_A_NUM_REGS	96
-
-#define ME2FUNCTION_MAP_B_OFFSET	(0x3A400 + 0x310)
-#define ME2FUNCTION_MAP_B_NUM_REGS	12
-
-#define ME2FUNCTION_MAP_REG_SIZE	4
-#define ME2FUNCTION_MAP_VALID		BIT(7)
-
-#define READ_CSR_ME2FUNCTION_MAP_A(pmisc_bar_addr, index)		\
-	ADF_CSR_RD(pmisc_bar_addr, ME2FUNCTION_MAP_A_OFFSET +		\
-		   ME2FUNCTION_MAP_REG_SIZE * index)
-
-#define WRITE_CSR_ME2FUNCTION_MAP_A(pmisc_bar_addr, index, value)	\
-	ADF_CSR_WR(pmisc_bar_addr, ME2FUNCTION_MAP_A_OFFSET +		\
-		   ME2FUNCTION_MAP_REG_SIZE * index, value)
-
-#define READ_CSR_ME2FUNCTION_MAP_B(pmisc_bar_addr, index)		\
-	ADF_CSR_RD(pmisc_bar_addr, ME2FUNCTION_MAP_B_OFFSET +		\
-		   ME2FUNCTION_MAP_REG_SIZE * index)
-
-#define WRITE_CSR_ME2FUNCTION_MAP_B(pmisc_bar_addr, index, value)	\
-	ADF_CSR_WR(pmisc_bar_addr, ME2FUNCTION_MAP_B_OFFSET +		\
-		   ME2FUNCTION_MAP_REG_SIZE * index, value)
-
 struct adf_pf2vf_resp {
 	struct work_struct pf2vf_resp_work;
 	struct adf_accel_vf_info *vf_info;
@@ -68,12 +43,8 @@ static int adf_enable_sriov(struct adf_accel_dev *accel_dev)
 	struct pci_dev *pdev = accel_to_pci_dev(accel_dev);
 	int totalvfs = pci_sriov_get_totalvfs(pdev);
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
-	struct adf_bar *pmisc =
-			&GET_BARS(accel_dev)[hw_data->get_misc_bar_id(hw_data)];
-	void __iomem *pmisc_addr = pmisc->virt_addr;
 	struct adf_accel_vf_info *vf_info;
 	int i;
-	u32 reg;
 
 	for (i = 0, vf_info = accel_dev->pf.vf_info; i < totalvfs;
 	     i++, vf_info++) {
@@ -90,19 +61,8 @@ static int adf_enable_sriov(struct adf_accel_dev *accel_dev)
 				     DEFAULT_RATELIMIT_BURST);
 	}
 
-	/* Set Valid bits in ME Thread to PCIe Function Mapping Group A */
-	for (i = 0; i < ME2FUNCTION_MAP_A_NUM_REGS; i++) {
-		reg = READ_CSR_ME2FUNCTION_MAP_A(pmisc_addr, i);
-		reg |= ME2FUNCTION_MAP_VALID;
-		WRITE_CSR_ME2FUNCTION_MAP_A(pmisc_addr, i, reg);
-	}
-
-	/* Set Valid bits in ME Thread to PCIe Function Mapping Group B */
-	for (i = 0; i < ME2FUNCTION_MAP_B_NUM_REGS; i++) {
-		reg = READ_CSR_ME2FUNCTION_MAP_B(pmisc_addr, i);
-		reg |= ME2FUNCTION_MAP_VALID;
-		WRITE_CSR_ME2FUNCTION_MAP_B(pmisc_addr, i, reg);
-	}
+	/* Set Valid bits in AE Thread to PCIe Function Mapping */
+	hw_data->configure_iov_threads(accel_dev, true);
 
 	/* Enable VF to PF interrupts for all VFs */
 	adf_enable_vf2pf_interrupts(accel_dev, GENMASK_ULL(totalvfs - 1, 0));
@@ -127,12 +87,8 @@ static int adf_enable_sriov(struct adf_accel_dev *accel_dev)
 void adf_disable_sriov(struct adf_accel_dev *accel_dev)
 {
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
-	struct adf_bar *pmisc =
-			&GET_BARS(accel_dev)[hw_data->get_misc_bar_id(hw_data)];
-	void __iomem *pmisc_addr = pmisc->virt_addr;
 	int totalvfs = pci_sriov_get_totalvfs(accel_to_pci_dev(accel_dev));
 	struct adf_accel_vf_info *vf;
-	u32 reg;
 	int i;
 
 	if (!accel_dev->pf.vf_info)
@@ -145,19 +101,8 @@ void adf_disable_sriov(struct adf_accel_dev *accel_dev)
 	/* Disable VF to PF interrupts */
 	adf_disable_vf2pf_interrupts(accel_dev, 0xFFFFFFFF);
 
-	/* Clear Valid bits in ME Thread to PCIe Function Mapping Group A */
-	for (i = 0; i < ME2FUNCTION_MAP_A_NUM_REGS; i++) {
-		reg = READ_CSR_ME2FUNCTION_MAP_A(pmisc_addr, i);
-		reg &= ~ME2FUNCTION_MAP_VALID;
-		WRITE_CSR_ME2FUNCTION_MAP_A(pmisc_addr, i, reg);
-	}
-
-	/* Clear Valid bits in ME Thread to PCIe Function Mapping Group B */
-	for (i = 0; i < ME2FUNCTION_MAP_B_NUM_REGS; i++) {
-		reg = READ_CSR_ME2FUNCTION_MAP_B(pmisc_addr, i);
-		reg &= ~ME2FUNCTION_MAP_VALID;
-		WRITE_CSR_ME2FUNCTION_MAP_B(pmisc_addr, i, reg);
-	}
+	/* Clear Valid bits in AE Thread to PCIe Function Mapping */
+	hw_data->configure_iov_threads(accel_dev, false);
 
 	for (i = 0, vf = accel_dev->pf.vf_info; i < totalvfs; i++, vf++) {
 		tasklet_disable(&vf->vf2pf_bh_tasklet);

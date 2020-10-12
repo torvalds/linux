@@ -3,6 +3,7 @@
 #include <adf_accel_devices.h>
 #include <adf_pf2vf_msg.h>
 #include <adf_common_drv.h>
+#include <adf_gen2_hw_data.h>
 #include "adf_dh895xcc_hw_data.h"
 
 /* Worker thread to service arbiter mappings based on dev SKUs */
@@ -180,6 +181,13 @@ static int adf_pf_enable_vf2pf_comms(struct adf_accel_dev *accel_dev)
 	return 0;
 }
 
+static void configure_iov_threads(struct adf_accel_dev *accel_dev, bool enable)
+{
+	adf_gen2_cfg_iov_thds(accel_dev, enable,
+			      ADF_DH895XCC_AE2FUNC_MAP_GRP_A_NUM_REGS,
+			      ADF_DH895XCC_AE2FUNC_MAP_GRP_B_NUM_REGS);
+}
+
 void adf_init_hw_data_dh895xcc(struct adf_hw_device_data *hw_data)
 {
 	hw_data->dev_class = &dh895xcc_class;
@@ -208,6 +216,7 @@ void adf_init_hw_data_dh895xcc(struct adf_hw_device_data *hw_data)
 	hw_data->fw_mmp_name = ADF_DH895XCC_MMP;
 	hw_data->init_admin_comms = adf_init_admin_comms;
 	hw_data->exit_admin_comms = adf_exit_admin_comms;
+	hw_data->configure_iov_threads = configure_iov_threads;
 	hw_data->disable_iov = adf_disable_sriov;
 	hw_data->send_admin_init = adf_send_admin_init;
 	hw_data->init_arb = adf_init_arb;

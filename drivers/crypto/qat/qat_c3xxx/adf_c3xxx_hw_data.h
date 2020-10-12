@@ -31,6 +31,10 @@
 #define ADF_C3XXX_PF2VF_OFFSET(i)	(0x3A000 + 0x280 + ((i) * 0x04))
 #define ADF_C3XXX_VINTMSK_OFFSET(i)	(0x3A000 + 0x200 + ((i) * 0x04))
 
+/* AE to function mapping */
+#define ADF_C3XXX_AE2FUNC_MAP_GRP_A_NUM_REGS 48
+#define ADF_C3XXX_AE2FUNC_MAP_GRP_B_NUM_REGS 6
+
 /* Firmware Binary */
 #define ADF_C3XXX_FW "qat_c3xxx.bin"
 #define ADF_C3XXX_MMP "qat_c3xxx_mmp.bin"

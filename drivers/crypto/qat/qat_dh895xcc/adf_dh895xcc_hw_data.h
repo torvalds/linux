@@ -36,6 +36,11 @@
 
 #define ADF_DH895XCC_PF2VF_OFFSET(i)	(0x3A000 + 0x280 + ((i) * 0x04))
 #define ADF_DH895XCC_VINTMSK_OFFSET(i)	(0x3A000 + 0x200 + ((i) * 0x04))
+
+/* AE to function mapping */
+#define ADF_DH895XCC_AE2FUNC_MAP_GRP_A_NUM_REGS 96
+#define ADF_DH895XCC_AE2FUNC_MAP_GRP_B_NUM_REGS 12
+
 /* FW names */
 #define ADF_DH895XCC_FW "qat_895xcc.bin"
 #define ADF_DH895XCC_MMP "qat_895xcc_mmp.bin"
