@@ -348,14 +348,13 @@ static int __init sticonsole_init(void)
     if (!sticon_sti)
 	return -ENODEV;
 
-    if (conswitchp == &dummy_con) {
-	printk(KERN_INFO "sticon: Initializing STI text console.\n");
-	console_lock();
-	err = do_take_over_console(&sti_con, 0, MAX_NR_CONSOLES - 1, 1);
-	console_unlock();
-	return err;
-    }
-    return 0;
+    pr_info("sticon: Initializing STI text console.\n");
+    console_lock();
+    err = do_take_over_console(&sti_con, 0, MAX_NR_CONSOLES - 1,
+		PAGE0->mem_cons.cl_class != CL_DUPLEX);
+    console_unlock();
+
+    return err;
 }
 
 module_init(sticonsole_init);
