@@ -654,7 +654,7 @@ int amdgpu_pmu_init(struct amdgpu_device *adev)
 
 	default:
 		return 0;
-	};
+	}
 
 	return ret;
 }
