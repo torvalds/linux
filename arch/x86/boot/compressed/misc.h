@@ -70,8 +70,8 @@ int cmdline_find_option(const char *option, char *buffer, int bufsize);
 int cmdline_find_option_bool(const char *option);
 
 struct mem_vector {
-	unsigned long long start;
-	unsigned long long size;
+	u64 start;
+	u64 size;
 };
 
 #if CONFIG_RANDOMIZE_BASE
