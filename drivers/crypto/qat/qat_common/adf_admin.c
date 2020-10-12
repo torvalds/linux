@@ -182,7 +182,7 @@ static int adf_set_fw_constants(struct adf_accel_dev *accel_dev)
 	struct icp_qat_fw_init_admin_req req;
 	struct icp_qat_fw_init_admin_resp resp;
 	struct adf_hw_device_data *hw_device = accel_dev->hw_device;
-	u32 ae_mask = hw_device->ae_mask;
+	u32 ae_mask = hw_device->admin_ae_mask ?: hw_device->ae_mask;
 
 	memset(&req, 0, sizeof(req));
 	memset(&resp, 0, sizeof(resp));
