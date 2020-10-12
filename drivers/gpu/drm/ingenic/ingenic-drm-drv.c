@@ -440,20 +440,6 @@ void ingenic_drm_plane_config(struct device *dev,
 	}
 }
 
-static void ingenic_drm_update_palette(struct ingenic_drm *priv,
-				       const struct drm_color_lut *lut)
-{
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(priv->dma_hwdescs->palette); i++) {
-		u16 color = drm_color_lut_extract(lut[i].red, 5) << 11
-			| drm_color_lut_extract(lut[i].green, 6) << 5
-			| drm_color_lut_extract(lut[i].blue, 5);
-
-		priv->dma_hwdescs->palette[i] = color;
-	}
-}
-
 static void ingenic_drm_plane_atomic_update(struct drm_plane *plane,
 					    struct drm_plane_state *oldstate)
 {
@@ -464,8 +450,6 @@ static void ingenic_drm_plane_atomic_update(struct drm_plane *plane,
 	dma_addr_t addr;
 
 	if (state && state->fb) {
-		crtc_state = state->crtc->state;
-
 		addr = drm_fb_cma_get_gem_addr(state->fb, state, 0);
 		width = state->src_w >> 16;
 		height = state->src_h >> 16;
