@@ -181,7 +181,7 @@ struct adf_hw_device_data {
 	u32 accel_capabilities_mask;
 	u32 instance_id;
 	u16 accel_mask;
-	u16 ae_mask;
+	u32 ae_mask;
 	u32 admin_ae_mask;
 	u16 tx_rings_mask;
 	u8 tx_rx_gap;
