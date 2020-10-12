@@ -130,7 +130,7 @@ More detailed explanation for tainting
  5)  ``B`` If a page-release function has found a bad page reference or some
      unexpected page flags. This indicates a hardware problem or a kernel bug;
      there should be other information in the log indicating why this tainting
-     occured.
+     occurred.
 
  6)  ``U`` if a user or user application specifically requested that the
      Tainted flag be set, ``' '`` otherwise.
