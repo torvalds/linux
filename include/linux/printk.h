@@ -161,10 +161,12 @@ static inline void printk_nmi_direct_enter(void) { }
 static inline void printk_nmi_direct_exit(void) { }
 #endif /* PRINTK_NMI */
 
+struct dev_printk_info;
+
 #ifdef CONFIG_PRINTK
-asmlinkage __printf(5, 0)
+asmlinkage __printf(4, 0)
 int vprintk_emit(int facility, int level,
-		 const char *dict, size_t dictlen,
+		 const struct dev_printk_info *dev_info,
 		 const char *fmt, va_list args);
 
 asmlinkage __printf(1, 0)
