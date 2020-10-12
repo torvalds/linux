@@ -216,8 +216,8 @@
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0x8b00000 0x1000>;
 			interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&sysctrl HISTB_UART0_CLK>;
-			clock-names = "apb_pclk";
+			clocks = <&sysctrl HISTB_UART0_CLK>, <&sysctrl HISTB_UART0_CLK>;
+			clock-names = "uartclk", "apb_pclk";
 			status = "disabled";
 		};
 
@@ -225,8 +225,8 @@
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0x8b02000 0x1000>;
 			interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&crg HISTB_UART2_CLK>;
-			clock-names = "apb_pclk";
+			clocks = <&crg HISTB_UART2_CLK>, <&crg HISTB_UART2_CLK>;
+			clock-names = "uartclk", "apb_pclk";
 			status = "disabled";
 		};
 
