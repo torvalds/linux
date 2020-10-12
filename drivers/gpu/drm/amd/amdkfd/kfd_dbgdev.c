@@ -45,7 +45,7 @@ static void dbgdev_address_watch_disable_nodiq(struct kfd_dev *dev)
 }
 
 static int dbgdev_diq_submit_ib(struct kfd_dbgdev *dbgdev,
-				unsigned int pasid, uint64_t vmid0_address,
+				u32 pasid, uint64_t vmid0_address,
 				uint32_t *packet_buff, size_t size_in_bytes)
 {
 	struct pm4__release_mem *rm_packet;

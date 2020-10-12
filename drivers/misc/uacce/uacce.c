@@ -93,7 +93,7 @@ static long uacce_fops_compat_ioctl(struct file *filep,
 
 static int uacce_bind_queue(struct uacce_device *uacce, struct uacce_queue *q)
 {
-	int pasid;
+	u32 pasid;
 	struct iommu_sva *handle;
 
 	if (!(uacce->flags & UACCE_DEV_SVA))
