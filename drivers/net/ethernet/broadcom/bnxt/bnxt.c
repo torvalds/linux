@@ -1980,11 +1980,12 @@ static int bnxt_async_event_process(struct bnxt *bp,
 				    struct hwrm_async_event_cmpl *cmpl)
 {
 	u16 event_id = le16_to_cpu(cmpl->event_id);
+	u32 data1 = le32_to_cpu(cmpl->event_data1);
+	u32 data2 = le32_to_cpu(cmpl->event_data2);
 
 	/* TODO CHIMP_FW: Define event id's for link change, error etc */
 	switch (event_id) {
 	case ASYNC_EVENT_CMPL_EVENT_ID_LINK_SPEED_CFG_CHANGE: {
-		u32 data1 = le32_to_cpu(cmpl->event_data1);
 		struct bnxt_link_info *link_info = &bp->link_info;
 
 		if (BNXT_VF(bp))
@@ -2014,7 +2015,6 @@ static int bnxt_async_event_process(struct bnxt *bp,
 		set_bit(BNXT_HWRM_PF_UNLOAD_SP_EVENT, &bp->sp_event);
 		break;
 	case ASYNC_EVENT_CMPL_EVENT_ID_PORT_CONN_NOT_ALLOWED: {
-		u32 data1 = le32_to_cpu(cmpl->event_data1);
 		u16 port_id = BNXT_GET_EVENT_PORT(data1);
 
 		if (BNXT_VF(bp))
@@ -2031,9 +2031,7 @@ static int bnxt_async_event_process(struct bnxt *bp,
 			goto async_event_process_exit;
 		set_bit(BNXT_RESET_TASK_SILENT_SP_EVENT, &bp->sp_event);
 		break;
-	case ASYNC_EVENT_CMPL_EVENT_ID_RESET_NOTIFY: {
-		u32 data1 = le32_to_cpu(cmpl->event_data1);
-
+	case ASYNC_EVENT_CMPL_EVENT_ID_RESET_NOTIFY:
 		if (!bp->fw_health)
 			goto async_event_process_exit;
 
@@ -2053,10 +2051,8 @@ static int bnxt_async_event_process(struct bnxt *bp,
 		}
 		set_bit(BNXT_FW_RESET_NOTIFY_SP_EVENT, &bp->sp_event);
 		break;
-	}
 	case ASYNC_EVENT_CMPL_EVENT_ID_ERROR_RECOVERY: {
 		struct bnxt_fw_health *fw_health = bp->fw_health;
-		u32 data1 = le32_to_cpu(cmpl->event_data1);
 
 		if (!fw_health)
 			goto async_event_process_exit;
@@ -2084,8 +2080,6 @@ static int bnxt_async_event_process(struct bnxt *bp,
 		goto async_event_process_exit;
 	}
 	case ASYNC_EVENT_CMPL_EVENT_ID_RING_MONITOR_MSG: {
-		u32 data1 = le32_to_cpu(cmpl->event_data1);
-		u32 data2 = le32_to_cpu(cmpl->event_data2);
 		struct bnxt_rx_ring_info *rxr;
 		u16 grp_idx;
 
