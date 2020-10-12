@@ -423,7 +423,7 @@
 			interrupts = <0 35 4>;
 			clocks = <&clock HIX5HD2_MMC_CIU_RST>,
 				 <&clock HIX5HD2_MMC_BIU_CLK>;
-			clock-names = "ciu", "biu";
+			clock-names = "biu", "ciu";
 		};
 
 		sd: mmc@1820000 {
@@ -432,7 +432,7 @@
 			interrupts = <0 34 4>;
 			clocks = <&clock HIX5HD2_SD_CIU_RST>,
 				 <&clock HIX5HD2_SD_BIU_CLK>;
-			clock-names = "ciu","biu";
+			clock-names = "biu", "ciu";
 		};
 
 		gmac0: ethernet@1840000 {
