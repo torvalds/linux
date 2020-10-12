@@ -3084,17 +3084,21 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	key_end.offset = (u64)-1;
 	reada1 = btrfs_reada_add(root, &key, &key_end);
 
-	key.objectid = BTRFS_EXTENT_CSUM_OBJECTID;
-	key.type = BTRFS_EXTENT_CSUM_KEY;
-	key.offset = logical;
-	key_end.objectid = BTRFS_EXTENT_CSUM_OBJECTID;
-	key_end.type = BTRFS_EXTENT_CSUM_KEY;
-	key_end.offset = logic_end;
-	reada2 = btrfs_reada_add(csum_root, &key, &key_end);
+	if (cache->flags & BTRFS_BLOCK_GROUP_DATA) {
+		key.objectid = BTRFS_EXTENT_CSUM_OBJECTID;
+		key.type = BTRFS_EXTENT_CSUM_KEY;
+		key.offset = logical;
+		key_end.objectid = BTRFS_EXTENT_CSUM_OBJECTID;
+		key_end.type = BTRFS_EXTENT_CSUM_KEY;
+		key_end.offset = logic_end;
+		reada2 = btrfs_reada_add(csum_root, &key, &key_end);
+	} else {
+		reada2 = NULL;
+	}
 
 	if (!IS_ERR(reada1))
 		btrfs_reada_wait(reada1);
-	if (!IS_ERR(reada2))
+	if (!IS_ERR_OR_NULL(reada2))
 		btrfs_reada_wait(reada2);
 
 
