@@ -706,7 +706,7 @@ static const struct vcap_props vsc9953_vcap_props[] = {
 		.action_type_width = 1,
 		.action_table = {
 			[IS2_ACTION_TYPE_NORMAL] = {
-				.width = 44,
+				.width = 50, /* HIT_CNT not included */
 				.count = 2
 			},
 			[IS2_ACTION_TYPE_SMAC_SIP] = {
@@ -911,6 +911,8 @@ static int vsc9953_prevalidate_phy_mode(struct ocelot *ocelot, int port,
  */
 static u16 vsc9953_wm_enc(u16 value)
 {
+	WARN_ON(value >= 16 * BIT(9));
+
 	if (value >= BIT(9))
 		return BIT(9) | (value / 16);
 

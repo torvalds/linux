@@ -246,7 +246,7 @@ static int ice_get_free_slot(void *array, int size, int curr)
  * ice_vsi_delete - delete a VSI from the switch
  * @vsi: pointer to VSI being removed
  */
-void ice_vsi_delete(struct ice_vsi *vsi)
+static void ice_vsi_delete(struct ice_vsi *vsi)
 {
 	struct ice_pf *pf = vsi->back;
 	struct ice_vsi_ctx *ctxt;
@@ -313,7 +313,7 @@ static void ice_vsi_free_arrays(struct ice_vsi *vsi)
  *
  * Returns 0 on success, negative on failure
  */
-int ice_vsi_clear(struct ice_vsi *vsi)
+static int ice_vsi_clear(struct ice_vsi *vsi)
 {
 	struct ice_pf *pf = NULL;
 	struct device *dev;
@@ -563,7 +563,7 @@ static int ice_vsi_get_qs(struct ice_vsi *vsi)
  * ice_vsi_put_qs - Release queues from VSI to PF
  * @vsi: the VSI that is going to release queues
  */
-void ice_vsi_put_qs(struct ice_vsi *vsi)
+static void ice_vsi_put_qs(struct ice_vsi *vsi)
 {
 	struct ice_pf *pf = vsi->back;
 	int i;
@@ -1195,6 +1195,18 @@ static int ice_vsi_setup_vector_base(struct ice_vsi *vsi)
 static void ice_vsi_clear_rings(struct ice_vsi *vsi)
 {
 	int i;
+
+	/* Avoid stale references by clearing map from vector to ring */
+	if (vsi->q_vectors) {
+		ice_for_each_q_vector(vsi, i) {
+			struct ice_q_vector *q_vector = vsi->q_vectors[i];
+
+			if (q_vector) {
+				q_vector->tx.ring = NULL;
+				q_vector->rx.ring = NULL;
+			}
+		}
+	}
 
 	if (vsi->tx_rings) {
 		for (i = 0; i < vsi->alloc_txq; i++) {
@@ -2291,7 +2303,7 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 	if (status) {
 		dev_err(dev, "VSI %d failed lan queue config, error %s\n",
 			vsi->vsi_num, ice_stat_str(status));
-		goto unroll_vector_base;
+		goto unroll_clear_rings;
 	}
 
 	/* Add switch rule to drop all Tx Flow Control Frames, of look up

@@ -1409,7 +1409,7 @@ static int dm_late_init(void *handle)
 	if (dmcu)
 		ret = dmcu_load_iram(dmcu, params);
 	else if (adev->dm.dc->ctx->dmub_srv)
-		ret = dmub_init_abm_config(adev->dm.dc->res_pool->abm, params);
+		ret = dmub_init_abm_config(adev->dm.dc->res_pool, params);
 
 	if (!ret)
 		return -EINVAL;

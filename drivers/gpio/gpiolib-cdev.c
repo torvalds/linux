@@ -425,7 +425,7 @@ static __poll_t lineevent_poll(struct file *file,
 
 static ssize_t lineevent_get_size(void)
 {
-#ifdef __x86_64__
+#if defined(CONFIG_X86_64) && !defined(CONFIG_UML)
 	/* i386 has no padding after 'id' */
 	if (in_ia32_syscall()) {
 		struct compat_gpioeevent_data {

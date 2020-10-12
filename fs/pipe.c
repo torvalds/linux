@@ -894,19 +894,18 @@ int create_pipe_files(struct file **res, int flags)
 {
 	struct inode *inode = get_pipe_inode();
 	struct file *f;
+	int error;
 
 	if (!inode)
 		return -ENFILE;
 
 	if (flags & O_NOTIFICATION_PIPE) {
-#ifdef CONFIG_WATCH_QUEUE
-		if (watch_queue_init(inode->i_pipe) < 0) {
+		error = watch_queue_init(inode->i_pipe);
+		if (error) {
+			free_pipe_info(inode->i_pipe);
 			iput(inode);
-			return -ENOMEM;
+			return error;
 		}
-#else
-		return -ENOPKG;
-#endif
 	}
 
 	f = alloc_file_pseudo(inode, pipe_mnt, "",

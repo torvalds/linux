@@ -812,6 +812,7 @@ struct afs_operation {
 		} store;
 		struct {
 			struct iattr	*attr;
+			loff_t		old_i_size;
 		} setattr;
 		struct afs_acl	*acl;
 		struct yfs_acl	*yacl;

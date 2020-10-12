@@ -1133,15 +1133,17 @@ static void suspend_vq(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *m
 	if (!mvq->initialized)
 		return;
 
-	if (query_virtqueue(ndev, mvq, &attr)) {
-		mlx5_vdpa_warn(&ndev->mvdev, "failed to query virtqueue\n");
-		return;
-	}
 	if (mvq->fw_state != MLX5_VIRTIO_NET_Q_OBJECT_STATE_RDY)
 		return;
 
 	if (modify_virtqueue(ndev, mvq, MLX5_VIRTIO_NET_Q_OBJECT_STATE_SUSPEND))
 		mlx5_vdpa_warn(&ndev->mvdev, "modify to suspend failed\n");
+
+	if (query_virtqueue(ndev, mvq, &attr)) {
+		mlx5_vdpa_warn(&ndev->mvdev, "failed to query virtqueue\n");
+		return;
+	}
+	mvq->avail_idx = attr.available_index;
 }
 
 static void suspend_vqs(struct mlx5_vdpa_net *ndev)
@@ -1411,8 +1413,14 @@ static int mlx5_vdpa_get_vq_state(struct vdpa_device *vdev, u16 idx, struct vdpa
 	struct mlx5_virtq_attr attr;
 	int err;
 
-	if (!mvq->initialized)
-		return -EAGAIN;
+	/* If the virtq object was destroyed, use the value saved at
+	 * the last minute of suspend_vq. This caters for userspace
+	 * that cares about emulating the index after vq is stopped.
+	 */
+	if (!mvq->initialized) {
+		state->avail_index = mvq->avail_idx;
+		return 0;
+	}
 
 	err = query_virtqueue(ndev, mvq, &attr);
 	if (err) {
