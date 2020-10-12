@@ -3,6 +3,7 @@
 #ifndef _QAT_CRYPTO_INSTANCE_H_
 #define _QAT_CRYPTO_INSTANCE_H_
 
+#include <crypto/aes.h>
 #include <linux/list.h>
 #include <linux/slab.h>
 #include "adf_accel_devices.h"
@@ -44,8 +45,14 @@ struct qat_crypto_request {
 	struct qat_crypto_request_buffs buf;
 	void (*cb)(struct icp_qat_fw_la_resp *resp,
 		   struct qat_crypto_request *req);
-	void *iv;
-	dma_addr_t iv_paddr;
+	union {
+		struct {
+			__be64 iv_hi;
+			__be64 iv_lo;
+		};
+		u8 iv[AES_BLOCK_SIZE];
+	};
+	bool encryption;
 };
 
 #endif
