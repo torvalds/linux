@@ -127,6 +127,12 @@ static void write_csr_int_flag_and_col(void __iomem *csr_base_addr, u32 bank,
 	WRITE_CSR_INT_FLAG_AND_COL(csr_base_addr, bank, value);
 }
 
+static void write_csr_ring_srv_arb_en(void __iomem *csr_base_addr, u32 bank,
+				      u32 value)
+{
+	WRITE_CSR_RING_SRV_ARB_EN(csr_base_addr, bank, value);
+}
+
 void adf_gen2_init_hw_csr_ops(struct adf_hw_csr_ops *csr_ops)
 {
 	csr_ops->build_csr_ring_base_addr = build_csr_ring_base_addr;
@@ -142,6 +148,7 @@ void adf_gen2_init_hw_csr_ops(struct adf_hw_csr_ops *csr_ops)
 	csr_ops->write_csr_int_col_en = write_csr_int_col_en;
 	csr_ops->write_csr_int_col_ctl = write_csr_int_col_ctl;
 	csr_ops->write_csr_int_flag_and_col = write_csr_int_flag_and_col;
+	csr_ops->write_csr_ring_srv_arb_en = write_csr_ring_srv_arb_en;
 }
 EXPORT_SYMBOL_GPL(adf_gen2_init_hw_csr_ops);
 

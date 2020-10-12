@@ -6,12 +6,6 @@
 
 #define ADF_ARB_NUM 4
 #define ADF_ARB_REG_SIZE 0x4
-#define ADF_ARB_REG_SLOT 0x1000
-#define ADF_ARB_RINGSRVARBEN_OFFSET 0x19C
-
-#define WRITE_CSR_ARB_RINGSRVARBEN(csr_addr, index, value) \
-	ADF_CSR_WR(csr_addr, ADF_ARB_RINGSRVARBEN_OFFSET + \
-	(ADF_ARB_REG_SLOT * index), value)
 
 #define WRITE_CSR_ARB_SARCONFIG(csr_addr, arb_offset, index, value) \
 	ADF_CSR_WR(csr_addr, (arb_offset) + \
@@ -57,6 +51,7 @@ void adf_update_ring_arb(struct adf_etr_ring_data *ring)
 {
 	struct adf_accel_dev *accel_dev = ring->bank->accel_dev;
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	struct adf_hw_csr_ops *csr_ops = GET_CSR_OPS(accel_dev);
 	u32 tx_ring_mask = hw_data->tx_rings_mask;
 	u32 shift = hw_data->tx_rx_gap;
 	u32 arben, arben_tx, arben_rx;
@@ -73,14 +68,14 @@ void adf_update_ring_arb(struct adf_etr_ring_data *ring)
 	arben_rx = (ring->bank->ring_mask & rx_ring_mask) >> shift;
 	arben = arben_tx & arben_rx;
 
-	WRITE_CSR_ARB_RINGSRVARBEN(ring->bank->csr_addr,
-				   ring->bank->bank_number,
-				   arben);
+	csr_ops->write_csr_ring_srv_arb_en(ring->bank->csr_addr,
+					   ring->bank->bank_number, arben);
 }
 
 void adf_exit_arb(struct adf_accel_dev *accel_dev)
 {
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	struct adf_hw_csr_ops *csr_ops = GET_CSR_OPS(accel_dev);
 	u32 arb_off, wt_off;
 	struct arb_info info;
 	void __iomem *csr;
@@ -107,6 +102,6 @@ void adf_exit_arb(struct adf_accel_dev *accel_dev)
 
 	/* Disable arbitration on all rings */
 	for (i = 0; i < GET_MAX_BANKS(accel_dev); i++)
-		WRITE_CSR_ARB_RINGSRVARBEN(csr, i, 0);
+		csr_ops->write_csr_ring_srv_arb_en(csr, i, 0);
 }
 EXPORT_SYMBOL_GPL(adf_exit_arb);

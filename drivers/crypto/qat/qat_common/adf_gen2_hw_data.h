@@ -103,6 +103,12 @@ do { \
 #define ADF_ARB_OFFSET			0x30000
 #define ADF_ARB_WRK_2_SER_MAP_OFFSET	0x180
 #define ADF_ARB_CONFIG			(BIT(31) | BIT(6) | BIT(0))
+#define ADF_ARB_REG_SLOT		0x1000
+#define ADF_ARB_RINGSRVARBEN_OFFSET	0x19C
+
+#define WRITE_CSR_RING_SRV_ARB_EN(csr_addr, index, value) \
+	ADF_CSR_WR(csr_addr, ADF_ARB_RINGSRVARBEN_OFFSET + \
+	(ADF_ARB_REG_SLOT * (index)), value)
 
 /* Power gating */
 #define ADF_POWERGATE_PKE		BIT(24)

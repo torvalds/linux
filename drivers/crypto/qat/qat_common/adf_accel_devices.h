@@ -133,6 +133,8 @@ struct adf_hw_csr_ops {
 				      u32 value);
 	void (*write_csr_int_flag_and_col)(void __iomem *csr_base_addr,
 					   u32 bank, u32 value);
+	void (*write_csr_ring_srv_arb_en)(void __iomem *csr_base_addr, u32 bank,
+					  u32 value);
 };
 
 struct adf_cfg_device_data;
