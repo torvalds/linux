@@ -759,6 +759,9 @@ int f2fs_flush_device_cache(struct f2fs_sb_info *sbi)
 	if (!f2fs_is_multi_device(sbi))
 		return 0;
 
+	if (test_opt(sbi, NOBARRIER))
+		return 0;
+
 	for (i = 1; i < sbi->s_ndevs; i++) {
 		if (!f2fs_test_bit(i, (char *)&sbi->dirty_device))
 			continue;
