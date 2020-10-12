@@ -55,9 +55,27 @@ EXPORT_SYMBOL_GPL(adf_init_arb);
 
 void adf_update_ring_arb(struct adf_etr_ring_data *ring)
 {
+	struct adf_accel_dev *accel_dev = ring->bank->accel_dev;
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	u32 tx_ring_mask = hw_data->tx_rings_mask;
+	u32 shift = hw_data->tx_rx_gap;
+	u32 arben, arben_tx, arben_rx;
+	u32 rx_ring_mask;
+
+	/*
+	 * Enable arbitration on a ring only if the TX half of the ring mask
+	 * matches the RX part. This results in writes to CSR on both TX and
+	 * RX update - only one is necessary, but both are done for
+	 * simplicity.
+	 */
+	rx_ring_mask = tx_ring_mask << shift;
+	arben_tx = (ring->bank->ring_mask & tx_ring_mask) >> 0;
+	arben_rx = (ring->bank->ring_mask & rx_ring_mask) >> shift;
+	arben = arben_tx & arben_rx;
+
 	WRITE_CSR_ARB_RINGSRVARBEN(ring->bank->csr_addr,
 				   ring->bank->bank_number,
-				   ring->bank->ring_mask & 0xFF);
+				   arben);
 }
 
 void adf_exit_arb(struct adf_accel_dev *accel_dev)
