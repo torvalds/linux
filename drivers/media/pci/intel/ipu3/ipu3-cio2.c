@@ -1094,8 +1094,8 @@ static int cio2_v4l2_try_fmt(struct file *file, void *fh, struct v4l2_format *f)
 	/* Only supports up to 4224x3136 */
 	if (mpix->width > CIO2_IMAGE_MAX_WIDTH)
 		mpix->width = CIO2_IMAGE_MAX_WIDTH;
-	if (mpix->height > CIO2_IMAGE_MAX_LENGTH)
-		mpix->height = CIO2_IMAGE_MAX_LENGTH;
+	if (mpix->height > CIO2_IMAGE_MAX_HEIGHT)
+		mpix->height = CIO2_IMAGE_MAX_HEIGHT;
 
 	mpix->num_planes = 1;
 	mpix->pixelformat = fmt->fourcc;
@@ -1283,7 +1283,7 @@ static int cio2_subdev_set_fmt(struct v4l2_subdev *sd,
 	}
 
 	fmt->format.width = min(fmt->format.width, CIO2_IMAGE_MAX_WIDTH);
-	fmt->format.height = min(fmt->format.height, CIO2_IMAGE_MAX_LENGTH);
+	fmt->format.height = min(fmt->format.height, CIO2_IMAGE_MAX_HEIGHT);
 	fmt->format.field = V4L2_FIELD_NONE;
 
 	mutex_lock(&q->subdev_lock);

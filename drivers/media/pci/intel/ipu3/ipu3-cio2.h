@@ -14,7 +14,7 @@
 #define CIO2_DMA_MASK					DMA_BIT_MASK(39)
 
 #define CIO2_IMAGE_MAX_WIDTH				4224U
-#define CIO2_IMAGE_MAX_LENGTH				3136U
+#define CIO2_IMAGE_MAX_HEIGHT				3136U
 
 /* 32MB = 8xFBPT_entry */
 #define CIO2_MAX_LOPS					8
