@@ -300,8 +300,8 @@
 			compatible = "snps,dw-apb-uart";
 			reg = <0x0 0x80300000 0x0 0x10000>;
 			interrupts = <GIC_SPI 317 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&refclk200mhz>;
-			clock-names = "apb_pclk";
+			clocks = <&refclk200mhz>, <&refclk200mhz>;
+			clock-names = "baudclk", "apb_pclk";
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			status = "disabled";
@@ -311,8 +311,8 @@
 			compatible = "snps,dw-apb-uart";
 			reg = <0x0 0x80310000 0x0 0x10000>;
 			interrupts = <GIC_SPI 318 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&refclk200mhz>;
-			clock-names = "apb_pclk";
+			clocks = <&refclk200mhz>, <&refclk200mhz>;
+			clock-names = "baudclk", "apb_pclk";
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			status = "disabled";
