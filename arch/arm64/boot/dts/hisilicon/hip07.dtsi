@@ -924,56 +924,56 @@
 		      <0x0 0xfe020000 0x0 0x10000>;	/* GICV */
 		interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
 
-		p0_its_peri_a: interrupt-controller@4c000000 {
+		p0_its_peri_a: msi-controller@4c000000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			#msi-cells = <1>;
 			reg = <0x0 0x4c000000 0x0 0x40000>;
 		};
 
-		p0_its_peri_b: interrupt-controller@6c000000 {
+		p0_its_peri_b: msi-controller@6c000000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			#msi-cells = <1>;
 			reg = <0x0 0x6c000000 0x0 0x40000>;
 		};
 
-		p0_its_dsa_a: interrupt-controller@c6000000 {
+		p0_its_dsa_a: msi-controller@c6000000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			#msi-cells = <1>;
 			reg = <0x0 0xc6000000 0x0 0x40000>;
 		};
 
-		p0_its_dsa_b: interrupt-controller@8,c6000000 {
+		p0_its_dsa_b: msi-controller@8c6000000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			#msi-cells = <1>;
 			reg = <0x8 0xc6000000 0x0 0x40000>;
 		};
 
-		p1_its_peri_a: interrupt-controller@400,4c000000 {
+		p1_its_peri_a: msi-controller@4004c000000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			#msi-cells = <1>;
 			reg = <0x400 0x4c000000 0x0 0x40000>;
 		};
 
-		p1_its_peri_b: interrupt-controller@400,6c000000 {
+		p1_its_peri_b: msi-controller@4006c000000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			#msi-cells = <1>;
 			reg = <0x400 0x6c000000 0x0 0x40000>;
 		};
 
-		p1_its_dsa_a: interrupt-controller@400,c6000000 {
+		p1_its_dsa_a: msi-controller@400c6000000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			#msi-cells = <1>;
 			reg = <0x400 0xc6000000 0x0 0x40000>;
 		};
 
-		p1_its_dsa_b: interrupt-controller@408,c6000000 {
+		p1_its_dsa_b: msi-controller@408c6000000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			#msi-cells = <1>;
