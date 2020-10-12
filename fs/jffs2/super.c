@@ -202,12 +202,8 @@ static int jffs2_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	case Opt_rp_size:
 		if (result.uint_32 > UINT_MAX / 1024)
 			return invalf(fc, "jffs2: rp_size unrepresentable");
-		opt = result.uint_32 * 1024;
-		if (opt > c->mtd->size)
-			return invalf(fc, "jffs2: Too large reserve pool specified, max is %llu KB",
-				      c->mtd->size / 1024);
+		c->mount_opts.rp_size = result.uint_32 * 1024;
 		c->mount_opts.set_rp_size = true;
-		c->mount_opts.rp_size = opt;
 		break;
 	default:
 		return -EINVAL;
@@ -268,6 +264,10 @@ static int jffs2_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	c->mtd = sb->s_mtd;
 	c->os_priv = sb;
+
+	if (c->mount_opts.rp_size > c->mtd->size)
+		return invalf(fc, "jffs2: Too large reserve pool specified, max is %llu KB",
+			      c->mtd->size / 1024);
 
 	/* Initialize JFFS2 superblock locks, the further initialization will
 	 * be done later */
