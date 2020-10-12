@@ -9,6 +9,7 @@ x86-specific Documentation
    :numbered:
 
    boot
+   cpuinfo
    topology
    exception-tables
    kernel-stacks
