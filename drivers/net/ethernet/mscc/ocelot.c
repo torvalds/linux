@@ -421,10 +421,15 @@ int ocelot_port_add_txtstamp_skb(struct ocelot_port *ocelot_port,
 
 	if (ocelot->ptp && shinfo->tx_flags & SKBTX_HW_TSTAMP &&
 	    ocelot_port->ptp_cmd == IFH_REW_OP_TWO_STEP_PTP) {
+		spin_lock(&ocelot_port->ts_id_lock);
+
 		shinfo->tx_flags |= SKBTX_IN_PROGRESS;
 		/* Store timestamp ID in cb[0] of sk_buff */
-		skb->cb[0] = ocelot_port->ts_id % 4;
+		skb->cb[0] = ocelot_port->ts_id;
+		ocelot_port->ts_id = (ocelot_port->ts_id + 1) % 4;
 		skb_queue_tail(&ocelot_port->tx_skbs, skb);
+
+		spin_unlock(&ocelot_port->ts_id_lock);
 		return 0;
 	}
 	return -ENODATA;
@@ -859,7 +864,7 @@ void ocelot_bridge_stp_state_set(struct ocelot *ocelot, int port, u8 state)
 	switch (state) {
 	case BR_STATE_FORWARDING:
 		ocelot->bridge_fwd_mask |= BIT(port);
-		/* Fallthrough */
+		fallthrough;
 	case BR_STATE_LEARNING:
 		port_cfg |= ANA_PORT_PORT_CFG_LEARN_ENA;
 		break;
@@ -1300,6 +1305,7 @@ void ocelot_init_port(struct ocelot *ocelot, int port)
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 
 	skb_queue_head_init(&ocelot_port->tx_skbs);
+	spin_lock_init(&ocelot_port->ts_id_lock);
 
 	/* Basic L2 initialization */
 
@@ -1544,18 +1550,18 @@ EXPORT_SYMBOL(ocelot_init);
 
 void ocelot_deinit(struct ocelot *ocelot)
 {
-	struct ocelot_port *port;
-	int i;
-
 	cancel_delayed_work(&ocelot->stats_work);
 	destroy_workqueue(ocelot->stats_queue);
 	mutex_destroy(&ocelot->stats_lock);
-
-	for (i = 0; i < ocelot->num_phys_ports; i++) {
-		port = ocelot->ports[i];
-		skb_queue_purge(&port->tx_skbs);
-	}
 }
 EXPORT_SYMBOL(ocelot_deinit);
+
+void ocelot_deinit_port(struct ocelot *ocelot, int port)
+{
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
+
+	skb_queue_purge(&ocelot_port->tx_skbs);
+}
+EXPORT_SYMBOL(ocelot_deinit_port);
 
 MODULE_LICENSE("Dual MIT/GPL");

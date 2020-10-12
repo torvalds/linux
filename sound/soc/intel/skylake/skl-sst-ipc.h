@@ -107,12 +107,12 @@ struct skl_ipc_d0ix_msg {
 
 irqreturn_t skl_dsp_irq_thread_handler(int irq, void *context);
 
-int skl_ipc_create_pipeline(struct sst_generic_ipc *sst_ipc,
+int skl_ipc_create_pipeline(struct sst_generic_ipc *ipc,
 		u16 ppl_mem_size, u8 ppl_type, u8 instance_id, u8 lp_mode);
 
-int skl_ipc_delete_pipeline(struct sst_generic_ipc *sst_ipc, u8 instance_id);
+int skl_ipc_delete_pipeline(struct sst_generic_ipc *ipc, u8 instance_id);
 
-int skl_ipc_set_pipeline_state(struct sst_generic_ipc *sst_ipc,
+int skl_ipc_set_pipeline_state(struct sst_generic_ipc *ipc,
 		u8 instance_id,	enum skl_ipc_pipeline_state state);
 
 int skl_ipc_save_pipeline(struct sst_generic_ipc *ipc,
@@ -120,10 +120,10 @@ int skl_ipc_save_pipeline(struct sst_generic_ipc *ipc,
 
 int skl_ipc_restore_pipeline(struct sst_generic_ipc *ipc, u8 instance_id);
 
-int skl_ipc_init_instance(struct sst_generic_ipc *sst_ipc,
+int skl_ipc_init_instance(struct sst_generic_ipc *ipc,
 		struct skl_ipc_init_instance_msg *msg, void *param_data);
 
-int skl_ipc_bind_unbind(struct sst_generic_ipc *sst_ipc,
+int skl_ipc_bind_unbind(struct sst_generic_ipc *ipc,
 		struct skl_ipc_bind_unbind_msg *msg);
 
 int skl_ipc_load_modules(struct sst_generic_ipc *ipc,
@@ -150,12 +150,12 @@ int skl_ipc_set_d0ix(struct sst_generic_ipc *ipc,
 
 int skl_ipc_check_D0i0(struct sst_dsp *dsp, bool state);
 
-void skl_ipc_int_enable(struct sst_dsp *dsp);
+void skl_ipc_int_enable(struct sst_dsp *ctx);
 void skl_ipc_op_int_enable(struct sst_dsp *ctx);
 void skl_ipc_op_int_disable(struct sst_dsp *ctx);
-void skl_ipc_int_disable(struct sst_dsp *dsp);
+void skl_ipc_int_disable(struct sst_dsp *ctx);
 
-bool skl_ipc_int_status(struct sst_dsp *dsp);
+bool skl_ipc_int_status(struct sst_dsp *ctx);
 void skl_ipc_free(struct sst_generic_ipc *ipc);
 int skl_ipc_init(struct device *dev, struct skl_dev *skl);
 void skl_clear_module_cnt(struct sst_dsp *ctx);

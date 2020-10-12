@@ -3854,7 +3854,7 @@ static void scan_requests(struct ceph_osd *osd,
 			if (!force_resend && !force_resend_writes)
 				break;
 
-			/* fall through */
+			fallthrough;
 		case CALC_TARGET_NEED_RESEND:
 			cancel_linger_map_check(lreq);
 			/*
@@ -3891,7 +3891,7 @@ static void scan_requests(struct ceph_osd *osd,
 			     !force_resend_writes))
 				break;
 
-			/* fall through */
+			fallthrough;
 		case CALC_TARGET_NEED_RESEND:
 			cancel_map_check(req);
 			unlink_request(osd, req);

@@ -1150,7 +1150,7 @@ static void io_prep_async_work(struct io_kiocb *req)
 	io_req_init_async(req);
 
 	if (req->flags & REQ_F_ISREG) {
-		if (def->hash_reg_file)
+		if (def->hash_reg_file || (req->ctx->flags & IORING_SETUP_IOPOLL))
 			io_wq_hash_work(&req->work, file_inode(req->file));
 	} else {
 		if (def->unbound_nonreg_file)
@@ -1746,11 +1746,15 @@ static struct io_kiocb *io_req_find_next(struct io_kiocb *req)
 	return __io_req_find_next(req);
 }
 
-static int io_req_task_work_add(struct io_kiocb *req, struct callback_head *cb)
+static int io_req_task_work_add(struct io_kiocb *req, struct callback_head *cb,
+				bool twa_signal_ok)
 {
 	struct task_struct *tsk = req->task;
 	struct io_ring_ctx *ctx = req->ctx;
 	int ret, notify;
+
+	if (tsk->flags & PF_EXITING)
+		return -ESRCH;
 
 	/*
 	 * SQPOLL kernel thread doesn't need notification, just a wakeup. For
@@ -1759,7 +1763,7 @@ static int io_req_task_work_add(struct io_kiocb *req, struct callback_head *cb)
 	 * will do the job.
 	 */
 	notify = 0;
-	if (!(ctx->flags & IORING_SETUP_SQPOLL))
+	if (!(ctx->flags & IORING_SETUP_SQPOLL) && twa_signal_ok)
 		notify = TWA_SIGNAL;
 
 	ret = task_work_add(tsk, cb, notify);
@@ -1786,8 +1790,10 @@ static void __io_req_task_cancel(struct io_kiocb *req, int error)
 static void io_req_task_cancel(struct callback_head *cb)
 {
 	struct io_kiocb *req = container_of(cb, struct io_kiocb, task_work);
+	struct io_ring_ctx *ctx = req->ctx;
 
 	__io_req_task_cancel(req, -ECANCELED);
+	percpu_ref_put(&ctx->refs);
 }
 
 static void __io_req_task_submit(struct io_kiocb *req)
@@ -1819,7 +1825,7 @@ static void io_req_task_queue(struct io_kiocb *req)
 	init_task_work(&req->task_work, io_req_task_submit);
 	percpu_ref_get(&req->ctx->refs);
 
-	ret = io_req_task_work_add(req, &req->task_work);
+	ret = io_req_task_work_add(req, &req->task_work, true);
 	if (unlikely(ret)) {
 		struct task_struct *tsk;
 
@@ -2009,6 +2015,12 @@ static inline unsigned int io_put_rw_kbuf(struct io_kiocb *req)
 
 static inline bool io_run_task_work(void)
 {
+	/*
+	 * Not safe to run on exiting task, and the task_work handling will
+	 * not add work to such a task.
+	 */
+	if (unlikely(current->flags & PF_EXITING))
+		return false;
 	if (current->task_works) {
 		__set_current_state(TASK_RUNNING);
 		task_work_run();
@@ -2048,6 +2060,7 @@ static void io_iopoll_complete(struct io_ring_ctx *ctx, unsigned int *nr_events,
 
 		req = list_first_entry(done, struct io_kiocb, inflight_entry);
 		if (READ_ONCE(req->result) == -EAGAIN) {
+			req->result = 0;
 			req->iopoll_completed = 0;
 			list_move_tail(&req->inflight_entry, &again);
 			continue;
@@ -2281,50 +2294,43 @@ static bool io_resubmit_prep(struct io_kiocb *req, int error)
 		goto end_req;
 	}
 
-	ret = io_import_iovec(rw, req, &iovec, &iter, false);
-	if (ret < 0)
-		goto end_req;
-	ret = io_setup_async_rw(req, iovec, inline_vecs, &iter, false);
-	if (!ret)
+	if (!req->io) {
+		ret = io_import_iovec(rw, req, &iovec, &iter, false);
+		if (ret < 0)
+			goto end_req;
+		ret = io_setup_async_rw(req, iovec, inline_vecs, &iter, false);
+		if (!ret)
+			return true;
+		kfree(iovec);
+	} else {
 		return true;
-	kfree(iovec);
+	}
 end_req:
 	req_set_fail_links(req);
 	io_req_complete(req, ret);
 	return false;
-}
-
-static void io_rw_resubmit(struct callback_head *cb)
-{
-	struct io_kiocb *req = container_of(cb, struct io_kiocb, task_work);
-	struct io_ring_ctx *ctx = req->ctx;
-	int err;
-
-	err = io_sq_thread_acquire_mm(ctx, req);
-
-	if (io_resubmit_prep(req, err)) {
-		refcount_inc(&req->refs);
-		io_queue_async_work(req);
-	}
-
-	percpu_ref_put(&ctx->refs);
 }
 #endif
 
 static bool io_rw_reissue(struct io_kiocb *req, long res)
 {
 #ifdef CONFIG_BLOCK
+	umode_t mode = file_inode(req->file)->i_mode;
 	int ret;
 
+	if (!S_ISBLK(mode) && !S_ISREG(mode))
+		return false;
 	if ((res != -EAGAIN && res != -EOPNOTSUPP) || io_wq_current_is_worker())
 		return false;
 
-	init_task_work(&req->task_work, io_rw_resubmit);
-	percpu_ref_get(&req->ctx->refs);
+	ret = io_sq_thread_acquire_mm(req->ctx, req);
 
-	ret = io_req_task_work_add(req, &req->task_work);
-	if (!ret)
+	if (io_resubmit_prep(req, ret)) {
+		refcount_inc(&req->refs);
+		io_queue_async_work(req);
 		return true;
+	}
+
 #endif
 	return false;
 }
@@ -2563,7 +2569,7 @@ static inline void io_rw_done(struct kiocb *kiocb, ssize_t ret)
 		 * IO with EINTR.
 		 */
 		ret = -EINTR;
-		/* fall through */
+		fallthrough;
 	default:
 		kiocb->ki_complete(kiocb, ret, 0);
 	}
@@ -2865,6 +2871,11 @@ static ssize_t io_import_iovec(int rw, struct io_kiocb *req,
 	return iov_iter_count(&req->io->rw.iter);
 }
 
+static inline loff_t *io_kiocb_ppos(struct kiocb *kiocb)
+{
+	return kiocb->ki_filp->f_mode & FMODE_STREAM ? NULL : &kiocb->ki_pos;
+}
+
 /*
  * For files that don't have ->read_iter() and ->write_iter(), handle them
  * by looping over ->read() or ->write() manually.
@@ -2900,10 +2911,10 @@ static ssize_t loop_rw_iter(int rw, struct file *file, struct kiocb *kiocb,
 
 		if (rw == READ) {
 			nr = file->f_op->read(file, iovec.iov_base,
-					      iovec.iov_len, &kiocb->ki_pos);
+					      iovec.iov_len, io_kiocb_ppos(kiocb));
 		} else {
 			nr = file->f_op->write(file, iovec.iov_base,
-					       iovec.iov_len, &kiocb->ki_pos);
+					       iovec.iov_len, io_kiocb_ppos(kiocb));
 		}
 
 		if (iov_iter_is_bvec(iter))
@@ -2984,14 +2995,15 @@ static inline int io_rw_prep_async(struct io_kiocb *req, int rw,
 				   bool force_nonblock)
 {
 	struct io_async_rw *iorw = &req->io->rw;
+	struct iovec *iov;
 	ssize_t ret;
 
-	iorw->iter.iov = iorw->fast_iov;
-	ret = __io_import_iovec(rw, req, (struct iovec **) &iorw->iter.iov,
-				&iorw->iter, !force_nonblock);
+	iorw->iter.iov = iov = iorw->fast_iov;
+	ret = __io_import_iovec(rw, req, &iov, &iorw->iter, !force_nonblock);
 	if (unlikely(ret < 0))
 		return ret;
 
+	iorw->iter.iov = iov;
 	io_req_map_rw(req, iorw->iter.iov, iorw->fast_iov, &iorw->iter);
 	return 0;
 }
@@ -3037,6 +3049,7 @@ static int io_async_buf_func(struct wait_queue_entry *wait, unsigned mode,
 	if (!wake_page_match(wpq, key))
 		return 0;
 
+	req->rw.kiocb.ki_flags &= ~IOCB_WAITQ;
 	list_del_init(&wait->entry);
 
 	init_task_work(&req->task_work, io_req_task_submit);
@@ -3044,7 +3057,7 @@ static int io_async_buf_func(struct wait_queue_entry *wait, unsigned mode,
 
 	/* submit ref gets dropped, acquire a new one */
 	refcount_inc(&req->refs);
-	ret = io_req_task_work_add(req, &req->task_work);
+	ret = io_req_task_work_add(req, &req->task_work, true);
 	if (unlikely(ret)) {
 		struct task_struct *tsk;
 
@@ -3094,6 +3107,7 @@ static bool io_rw_should_retry(struct io_kiocb *req)
 	wait->wait.flags = 0;
 	INIT_LIST_HEAD(&wait->wait.entry);
 	kiocb->ki_flags |= IOCB_WAITQ;
+	kiocb->ki_flags &= ~IOCB_NOWAIT;
 	kiocb->ki_waitq = wait;
 
 	io_get_req_task(req);
@@ -3118,6 +3132,7 @@ static int io_read(struct io_kiocb *req, bool force_nonblock,
 	struct iov_iter __iter, *iter = &__iter;
 	ssize_t io_size, ret, ret2;
 	size_t iov_count;
+	bool no_async;
 
 	if (req->io)
 		iter = &req->io->rw.iter;
@@ -3125,6 +3140,7 @@ static int io_read(struct io_kiocb *req, bool force_nonblock,
 	ret = io_import_iovec(READ, req, &iovec, iter, !force_nonblock);
 	if (ret < 0)
 		return ret;
+	iov_count = iov_iter_count(iter);
 	io_size = ret;
 	req->result = io_size;
 	ret = 0;
@@ -3134,11 +3150,11 @@ static int io_read(struct io_kiocb *req, bool force_nonblock,
 		kiocb->ki_flags &= ~IOCB_NOWAIT;
 
 	/* If the file doesn't support async, just async punt */
-	if (force_nonblock && !io_file_supports_async(req->file, READ))
+	no_async = force_nonblock && !io_file_supports_async(req->file, READ);
+	if (no_async)
 		goto copy_iov;
 
-	iov_count = iov_iter_count(iter);
-	ret = rw_verify_area(READ, req->file, &kiocb->ki_pos, iov_count);
+	ret = rw_verify_area(READ, req->file, io_kiocb_ppos(kiocb), iov_count);
 	if (unlikely(ret))
 		goto out_free;
 
@@ -3150,14 +3166,19 @@ static int io_read(struct io_kiocb *req, bool force_nonblock,
 		ret = 0;
 		goto out_free;
 	} else if (ret == -EAGAIN) {
-		if (!force_nonblock)
+		/* IOPOLL retry should happen for io-wq threads */
+		if (!force_nonblock && !(req->ctx->flags & IORING_SETUP_IOPOLL))
 			goto done;
-		ret = io_setup_async_rw(req, iovec, inline_vecs, iter, false);
-		if (ret)
-			goto out_free;
-		return -EAGAIN;
+		/* no retry on NONBLOCK marked file */
+		if (req->file->f_flags & O_NONBLOCK)
+			goto done;
+		/* some cases will consume bytes even on error returns */
+		iov_iter_revert(iter, iov_count - iov_iter_count(iter));
+		ret = 0;
+		goto copy_iov;
 	} else if (ret < 0) {
-		goto out_free;
+		/* make sure -ERESTARTSYS -> -EINTR is done */
+		goto done;
 	}
 
 	/* read it all, or we did blocking attempt. no retry. */
@@ -3172,6 +3193,8 @@ copy_iov:
 		ret = ret2;
 		goto out_free;
 	}
+	if (no_async)
+		return -EAGAIN;
 	/* it's copied and will be cleaned with ->io */
 	iovec = NULL;
 	/* now use our persistent iterator, if we aren't already */
@@ -3241,6 +3264,7 @@ static int io_write(struct io_kiocb *req, bool force_nonblock,
 	ret = io_import_iovec(WRITE, req, &iovec, iter, !force_nonblock);
 	if (ret < 0)
 		return ret;
+	iov_count = iov_iter_count(iter);
 	io_size = ret;
 	req->result = io_size;
 
@@ -3257,8 +3281,7 @@ static int io_write(struct io_kiocb *req, bool force_nonblock,
 	    (req->flags & REQ_F_ISREG))
 		goto copy_iov;
 
-	iov_count = iov_iter_count(iter);
-	ret = rw_verify_area(WRITE, req->file, &kiocb->ki_pos, iov_count);
+	ret = rw_verify_area(WRITE, req->file, io_kiocb_ppos(kiocb), iov_count);
 	if (unlikely(ret))
 		goto out_free;
 
@@ -3290,10 +3313,19 @@ static int io_write(struct io_kiocb *req, bool force_nonblock,
 	 */
 	if (ret2 == -EOPNOTSUPP && (kiocb->ki_flags & IOCB_NOWAIT))
 		ret2 = -EAGAIN;
+	/* no retry on NONBLOCK marked file */
+	if (ret2 == -EAGAIN && (req->file->f_flags & O_NONBLOCK))
+		goto done;
 	if (!force_nonblock || ret2 != -EAGAIN) {
+		/* IOPOLL retry should happen for io-wq threads */
+		if ((req->ctx->flags & IORING_SETUP_IOPOLL) && ret2 == -EAGAIN)
+			goto copy_iov;
+done:
 		kiocb_done(kiocb, ret2, cs);
 	} else {
 copy_iov:
+		/* some cases will consume bytes even on error returns */
+		iov_iter_revert(iter, iov_count - iov_iter_count(iter));
 		ret = io_setup_async_rw(req, iovec, inline_vecs, iter, false);
 		if (!ret)
 			return -EAGAIN;
@@ -3495,8 +3527,6 @@ static int __io_openat_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe
 	const char __user *fname;
 	int ret;
 
-	if (unlikely(req->ctx->flags & (IORING_SETUP_IOPOLL|IORING_SETUP_SQPOLL)))
-		return -EINVAL;
 	if (unlikely(sqe->ioprio || sqe->buf_index))
 		return -EINVAL;
 	if (unlikely(req->flags & REQ_F_FIXED_FILE))
@@ -3523,6 +3553,8 @@ static int io_openat_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	u64 flags, mode;
 
+	if (unlikely(req->ctx->flags & (IORING_SETUP_IOPOLL|IORING_SETUP_SQPOLL)))
+		return -EINVAL;
 	if (req->flags & REQ_F_NEED_CLEANUP)
 		return 0;
 	mode = READ_ONCE(sqe->len);
@@ -3537,6 +3569,8 @@ static int io_openat2_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	size_t len;
 	int ret;
 
+	if (unlikely(req->ctx->flags & (IORING_SETUP_IOPOLL|IORING_SETUP_SQPOLL)))
+		return -EINVAL;
 	if (req->flags & REQ_F_NEED_CLEANUP)
 		return 0;
 	how = u64_to_user_ptr(READ_ONCE(sqe->addr2));
@@ -3754,7 +3788,7 @@ static int io_epoll_ctl_prep(struct io_kiocb *req,
 #if defined(CONFIG_EPOLL)
 	if (sqe->ioprio || sqe->buf_index)
 		return -EINVAL;
-	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
+	if (unlikely(req->ctx->flags & (IORING_SETUP_IOPOLL | IORING_SETUP_SQPOLL)))
 		return -EINVAL;
 
 	req->epoll.epfd = READ_ONCE(sqe->fd);
@@ -3869,7 +3903,7 @@ static int io_fadvise(struct io_kiocb *req, bool force_nonblock)
 
 static int io_statx_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
-	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
+	if (unlikely(req->ctx->flags & (IORING_SETUP_IOPOLL | IORING_SETUP_SQPOLL)))
 		return -EINVAL;
 	if (sqe->ioprio || sqe->buf_index)
 		return -EINVAL;
@@ -4566,6 +4600,7 @@ struct io_poll_table {
 static int __io_async_wake(struct io_kiocb *req, struct io_poll_iocb *poll,
 			   __poll_t mask, task_work_func_t func)
 {
+	bool twa_signal_ok;
 	int ret;
 
 	/* for instances that support it check for an event match first: */
@@ -4581,12 +4616,20 @@ static int __io_async_wake(struct io_kiocb *req, struct io_poll_iocb *poll,
 	percpu_ref_get(&req->ctx->refs);
 
 	/*
+	 * If we using the signalfd wait_queue_head for this wakeup, then
+	 * it's not safe to use TWA_SIGNAL as we could be recursing on the
+	 * tsk->sighand->siglock on doing the wakeup. Should not be needed
+	 * either, as the normal wakeup will suffice.
+	 */
+	twa_signal_ok = (poll->head != &req->task->sighand->signalfd_wqh);
+
+	/*
 	 * If this fails, then the task is exiting. When a task exits, the
 	 * work gets canceled, so just cancel this request as well instead
 	 * of executing it. We can't safely execute it anyway, as we may not
 	 * have the needed state needed for it anyway.
 	 */
-	ret = io_req_task_work_add(req, &req->task_work);
+	ret = io_req_task_work_add(req, &req->task_work, twa_signal_ok);
 	if (unlikely(ret)) {
 		struct task_struct *tsk;
 
@@ -4701,6 +4744,8 @@ static int io_poll_double_wake(struct wait_queue_entry *wait, unsigned mode,
 	/* for instances that support it check for an event match first: */
 	if (mask && !(mask & poll->events))
 		return 0;
+
+	list_del_init(&wait->entry);
 
 	if (poll && poll->head) {
 		bool done;
@@ -4875,12 +4920,20 @@ static bool io_arm_poll_handler(struct io_kiocb *req)
 	struct async_poll *apoll;
 	struct io_poll_table ipt;
 	__poll_t mask, ret;
+	int rw;
 
 	if (!req->file || !file_can_poll(req->file))
 		return false;
 	if (req->flags & REQ_F_POLLED)
 		return false;
-	if (!def->pollin && !def->pollout)
+	if (def->pollin)
+		rw = READ;
+	else if (def->pollout)
+		rw = WRITE;
+	else
+		return false;
+	/* if we can't nonblock try, then no point in arming a poll handler */
+	if (!io_file_supports_async(req->file, rw))
 		return false;
 
 	apoll = kmalloc(sizeof(*apoll), GFP_ATOMIC);
@@ -5369,6 +5422,8 @@ static int io_async_cancel(struct io_kiocb *req)
 static int io_files_update_prep(struct io_kiocb *req,
 				const struct io_uring_sqe *sqe)
 {
+	if (unlikely(req->ctx->flags & IORING_SETUP_SQPOLL))
+		return -EINVAL;
 	if (unlikely(req->flags & (REQ_F_FIXED_FILE | REQ_F_BUFFER_SELECT)))
 		return -EINVAL;
 	if (sqe->ioprio || sqe->rw_flags)
@@ -5418,6 +5473,8 @@ static int io_req_defer_prep(struct io_kiocb *req,
 	ret = io_prep_work_files(req);
 	if (unlikely(ret))
 		return ret;
+
+	io_prep_async_work(req);
 
 	switch (req->opcode) {
 	case IORING_OP_NOP:
@@ -5615,6 +5672,11 @@ static void __io_clean_op(struct io_kiocb *req)
 		case IORING_OP_TEE:
 			io_put_file(req, req->splice.file_in,
 				    (req->splice.flags & SPLICE_F_FD_IN_FIXED));
+			break;
+		case IORING_OP_OPENAT:
+		case IORING_OP_OPENAT2:
+			if (req->open.filename)
+				putname(req->open.filename);
 			break;
 		}
 		req->flags &= ~REQ_F_NEED_CLEANUP;
@@ -6293,9 +6355,6 @@ static void io_submit_state_start(struct io_submit_state *state,
 				  struct io_ring_ctx *ctx, unsigned int max_ios)
 {
 	blk_start_plug(&state->plug);
-#ifdef CONFIG_BLOCK
-	state->plug.nowait = true;
-#endif
 	state->comp.nr = 0;
 	INIT_LIST_HEAD(&state->comp.list);
 	state->comp.ctx = ctx;
@@ -7305,7 +7364,7 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 		table = &ctx->file_data->table[i >> IORING_FILE_TABLE_SHIFT];
 		index = i & IORING_FILE_TABLE_MASK;
 		if (table->files[index]) {
-			file = io_file_from_index(ctx, index);
+			file = table->files[index];
 			err = io_queue_file_removal(data, file);
 			if (err)
 				break;
@@ -7334,6 +7393,7 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 			table->files[index] = file;
 			err = io_sqe_file_register(ctx, file, i);
 			if (err) {
+				table->files[index] = NULL;
 				fput(file);
 				break;
 			}
@@ -7433,9 +7493,6 @@ static int io_sq_offload_start(struct io_ring_ctx *ctx,
 {
 	int ret;
 
-	mmgrab(current->mm);
-	ctx->sqo_mm = current->mm;
-
 	if (ctx->flags & IORING_SETUP_SQPOLL) {
 		ret = -EPERM;
 		if (!capable(CAP_SYS_ADMIN))
@@ -7480,10 +7537,6 @@ static int io_sq_offload_start(struct io_ring_ctx *ctx,
 	return 0;
 err:
 	io_finish_async(ctx);
-	if (ctx->sqo_mm) {
-		mmdrop(ctx->sqo_mm);
-		ctx->sqo_mm = NULL;
-	}
 	return ret;
 }
 
@@ -8000,6 +8053,28 @@ static bool io_match_link(struct io_kiocb *preq, struct io_kiocb *req)
 	return false;
 }
 
+static inline bool io_match_files(struct io_kiocb *req,
+				       struct files_struct *files)
+{
+	return (req->flags & REQ_F_WORK_INITIALIZED) && req->work.files == files;
+}
+
+static bool io_match_link_files(struct io_kiocb *req,
+				struct files_struct *files)
+{
+	struct io_kiocb *link;
+
+	if (io_match_files(req, files))
+		return true;
+	if (req->flags & REQ_F_LINK_HEAD) {
+		list_for_each_entry(link, &req->link_list, link_list) {
+			if (io_match_files(link, files))
+				return true;
+		}
+	}
+	return false;
+}
+
 /*
  * We're looking to cancel 'req' because it's holding on to our files, but
  * 'req' could be a link to another request. See if it is, and cancel that
@@ -8074,12 +8149,38 @@ static void io_attempt_cancel(struct io_ring_ctx *ctx, struct io_kiocb *req)
 	io_timeout_remove_link(ctx, req);
 }
 
+static void io_cancel_defer_files(struct io_ring_ctx *ctx,
+				  struct files_struct *files)
+{
+	struct io_defer_entry *de = NULL;
+	LIST_HEAD(list);
+
+	spin_lock_irq(&ctx->completion_lock);
+	list_for_each_entry_reverse(de, &ctx->defer_list, list) {
+		if (io_match_link_files(de->req, files)) {
+			list_cut_position(&list, &ctx->defer_list, &de->list);
+			break;
+		}
+	}
+	spin_unlock_irq(&ctx->completion_lock);
+
+	while (!list_empty(&list)) {
+		de = list_first_entry(&list, struct io_defer_entry, list);
+		list_del_init(&de->list);
+		req_set_fail_links(de->req);
+		io_put_req(de->req);
+		io_req_complete(de->req, -ECANCELED);
+		kfree(de);
+	}
+}
+
 static void io_uring_cancel_files(struct io_ring_ctx *ctx,
 				  struct files_struct *files)
 {
 	if (list_empty_careful(&ctx->inflight_list))
 		return;
 
+	io_cancel_defer_files(ctx, files);
 	/* cancel all at once, should be faster than doing it one by one*/
 	io_wq_cancel_cb(ctx->io_wq, io_wq_files_match, files, true);
 
@@ -8108,6 +8209,8 @@ static void io_uring_cancel_files(struct io_ring_ctx *ctx,
 		/* cancel this request, or head link requests */
 		io_attempt_cancel(ctx, cancel_req);
 		io_put_req(cancel_req);
+		/* cancellations _may_ trigger task work */
+		io_run_task_work();
 		schedule();
 		finish_wait(&ctx->inflight_wait, &wait);
 	}
@@ -8313,11 +8416,19 @@ static int io_uring_show_cred(int id, void *p, void *data)
 
 static void __io_uring_show_fdinfo(struct io_ring_ctx *ctx, struct seq_file *m)
 {
+	bool has_lock;
 	int i;
 
-	mutex_lock(&ctx->uring_lock);
+	/*
+	 * Avoid ABBA deadlock between the seq lock and the io_uring mutex,
+	 * since fdinfo case grabs it in the opposite direction of normal use
+	 * cases. If we fail to get the lock, we just don't iterate any
+	 * structures that could be going away outside the io_uring mutex.
+	 */
+	has_lock = mutex_trylock(&ctx->uring_lock);
+
 	seq_printf(m, "UserFiles:\t%u\n", ctx->nr_user_files);
-	for (i = 0; i < ctx->nr_user_files; i++) {
+	for (i = 0; has_lock && i < ctx->nr_user_files; i++) {
 		struct fixed_file_table *table;
 		struct file *f;
 
@@ -8329,13 +8440,13 @@ static void __io_uring_show_fdinfo(struct io_ring_ctx *ctx, struct seq_file *m)
 			seq_printf(m, "%5u: <none>\n", i);
 	}
 	seq_printf(m, "UserBufs:\t%u\n", ctx->nr_user_bufs);
-	for (i = 0; i < ctx->nr_user_bufs; i++) {
+	for (i = 0; has_lock && i < ctx->nr_user_bufs; i++) {
 		struct io_mapped_ubuf *buf = &ctx->user_bufs[i];
 
 		seq_printf(m, "%5u: 0x%llx/%u\n", i, buf->ubuf,
 						(unsigned int) buf->len);
 	}
-	if (!idr_is_empty(&ctx->personality_idr)) {
+	if (has_lock && !idr_is_empty(&ctx->personality_idr)) {
 		seq_printf(m, "Personalities:\n");
 		idr_for_each(&ctx->personality_idr, io_uring_show_cred, m);
 	}
@@ -8350,7 +8461,8 @@ static void __io_uring_show_fdinfo(struct io_ring_ctx *ctx, struct seq_file *m)
 					req->task->task_works != NULL);
 	}
 	spin_unlock_irq(&ctx->completion_lock);
-	mutex_unlock(&ctx->uring_lock);
+	if (has_lock)
+		mutex_unlock(&ctx->uring_lock);
 }
 
 static void io_uring_show_fdinfo(struct seq_file *m, struct file *f)
@@ -8532,6 +8644,9 @@ static int io_uring_create(unsigned entries, struct io_uring_params *p,
 	ctx->compat = in_compat_syscall();
 	ctx->user = user;
 	ctx->creds = get_current_cred();
+
+	mmgrab(current->mm);
+	ctx->sqo_mm = current->mm;
 
 	/*
 	 * Account memory _before_ installing the file descriptor. Once

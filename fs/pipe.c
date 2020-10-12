@@ -106,25 +106,6 @@ void pipe_double_lock(struct pipe_inode_info *pipe1,
 	}
 }
 
-/* Drop the inode semaphore and wait for a pipe event, atomically */
-void pipe_wait(struct pipe_inode_info *pipe)
-{
-	DEFINE_WAIT(rdwait);
-	DEFINE_WAIT(wrwait);
-
-	/*
-	 * Pipes are system-local resources, so sleeping on them
-	 * is considered a noninteractive wait:
-	 */
-	prepare_to_wait(&pipe->rd_wait, &rdwait, TASK_INTERRUPTIBLE);
-	prepare_to_wait(&pipe->wr_wait, &wrwait, TASK_INTERRUPTIBLE);
-	pipe_unlock(pipe);
-	schedule();
-	finish_wait(&pipe->rd_wait, &rdwait);
-	finish_wait(&pipe->wr_wait, &wrwait);
-	pipe_lock(pipe);
-}
-
 static void anon_pipe_buf_release(struct pipe_inode_info *pipe,
 				  struct pipe_buffer *buf)
 {
@@ -1035,12 +1016,52 @@ SYSCALL_DEFINE1(pipe, int __user *, fildes)
 	return do_pipe2(fildes, 0);
 }
 
+/*
+ * This is the stupid "wait for pipe to be readable or writable"
+ * model.
+ *
+ * See pipe_read/write() for the proper kind of exclusive wait,
+ * but that requires that we wake up any other readers/writers
+ * if we then do not end up reading everything (ie the whole
+ * "wake_next_reader/writer" logic in pipe_read/write()).
+ */
+void pipe_wait_readable(struct pipe_inode_info *pipe)
+{
+	pipe_unlock(pipe);
+	wait_event_interruptible(pipe->rd_wait, pipe_readable(pipe));
+	pipe_lock(pipe);
+}
+
+void pipe_wait_writable(struct pipe_inode_info *pipe)
+{
+	pipe_unlock(pipe);
+	wait_event_interruptible(pipe->wr_wait, pipe_writable(pipe));
+	pipe_lock(pipe);
+}
+
+/*
+ * This depends on both the wait (here) and the wakeup (wake_up_partner)
+ * holding the pipe lock, so "*cnt" is stable and we know a wakeup cannot
+ * race with the count check and waitqueue prep.
+ *
+ * Normally in order to avoid races, you'd do the prepare_to_wait() first,
+ * then check the condition you're waiting for, and only then sleep. But
+ * because of the pipe lock, we can check the condition before being on
+ * the wait queue.
+ *
+ * We use the 'rd_wait' waitqueue for pipe partner waiting.
+ */
 static int wait_for_partner(struct pipe_inode_info *pipe, unsigned int *cnt)
 {
+	DEFINE_WAIT(rdwait);
 	int cur = *cnt;
 
 	while (cur == *cnt) {
-		pipe_wait(pipe);
+		prepare_to_wait(&pipe->rd_wait, &rdwait, TASK_INTERRUPTIBLE);
+		pipe_unlock(pipe);
+		schedule();
+		finish_wait(&pipe->rd_wait, &rdwait);
+		pipe_lock(pipe);
 		if (signal_pending(current))
 			break;
 	}
@@ -1050,7 +1071,6 @@ static int wait_for_partner(struct pipe_inode_info *pipe, unsigned int *cnt)
 static void wake_up_partner(struct pipe_inode_info *pipe)
 {
 	wake_up_interruptible_all(&pipe->rd_wait);
-	wake_up_interruptible_all(&pipe->wr_wait);
 }
 
 static int fifo_open(struct inode *inode, struct file *filp)

@@ -450,7 +450,7 @@ int kgdb_arch_handle_exception(int e_vector, int signo, int err_code,
 		ptr = &remcomInBuffer[1];
 		if (kgdb_hex2long(&ptr, &addr))
 			linux_regs->ip = addr;
-		/* fall through */
+		fallthrough;
 	case 'D':
 	case 'k':
 		/* clear the trace bit */
@@ -539,7 +539,7 @@ static int __kgdb_notify(struct die_args *args, unsigned long cmd)
 			 * a system call which should be ignored
 			 */
 			return NOTIFY_DONE;
-		/* fall through */
+		fallthrough;
 	default:
 		if (user_mode(regs))
 			return NOTIFY_DONE;

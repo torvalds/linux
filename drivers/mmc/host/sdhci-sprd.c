@@ -470,7 +470,7 @@ static int sdhci_sprd_voltage_switch(struct mmc_host *mmc, struct mmc_ios *ios)
 		break;
 
 	default:
-		/* fall-through */
+		fallthrough;
 	case MMC_SIGNAL_VOLTAGE_330:
 		ret = pinctrl_select_state(sprd_host->pinctrl,
 					   sprd_host->pins_default);

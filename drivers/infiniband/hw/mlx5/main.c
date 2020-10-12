@@ -2872,7 +2872,7 @@ static void mlx5_ib_handle_event(struct work_struct *_work)
 		break;
 	case MLX5_EVENT_TYPE_GENERAL_EVENT:
 		handle_general_event(ibdev, work->param, &ibev);
-		/* fall through */
+		fallthrough;
 	default:
 		goto out;
 	}

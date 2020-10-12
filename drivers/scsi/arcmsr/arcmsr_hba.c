@@ -4470,7 +4470,7 @@ static const char *arcmsr_info(struct Scsi_Host *host)
 	case PCI_DEVICE_ID_ARECA_1202:
 	case PCI_DEVICE_ID_ARECA_1210:
 		raid6 = 0;
-		/*FALLTHRU*/
+		fallthrough;
 	case PCI_DEVICE_ID_ARECA_1120:
 	case PCI_DEVICE_ID_ARECA_1130:
 	case PCI_DEVICE_ID_ARECA_1160:

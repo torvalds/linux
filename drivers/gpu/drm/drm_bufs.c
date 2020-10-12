@@ -537,7 +537,7 @@ int drm_legacy_rmmap_locked(struct drm_device *dev, struct drm_local_map *map)
 	switch (map->type) {
 	case _DRM_REGISTERS:
 		iounmap(map->handle);
-		/* FALLTHROUGH */
+		fallthrough;
 	case _DRM_FRAME_BUFFER:
 		arch_phys_wc_del(map->mtrr);
 		break;

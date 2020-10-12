@@ -1412,6 +1412,11 @@ out:
 
 	hctx->dispatched[queued_to_index(queued)]++;
 
+	/* If we didn't flush the entire list, we could have told the driver
+	 * there was more coming, but that turned out to be a lie.
+	 */
+	if ((!list_empty(list) || errors) && q->mq_ops->commit_rqs && queued)
+		q->mq_ops->commit_rqs(hctx);
 	/*
 	 * Any items that need requeuing? Stuff them into hctx->dispatch,
 	 * that is where we will continue on next queue run.
@@ -1425,17 +1430,18 @@ out:
 
 		blk_mq_release_budgets(q, nr_budgets);
 
-		/*
-		 * If we didn't flush the entire list, we could have told
-		 * the driver there was more coming, but that turned out to
-		 * be a lie.
-		 */
-		if (q->mq_ops->commit_rqs && queued)
-			q->mq_ops->commit_rqs(hctx);
-
 		spin_lock(&hctx->lock);
 		list_splice_tail_init(list, &hctx->dispatch);
 		spin_unlock(&hctx->lock);
+
+		/*
+		 * Order adding requests to hctx->dispatch and checking
+		 * SCHED_RESTART flag. The pair of this smp_mb() is the one
+		 * in blk_mq_sched_restart(). Avoid restart code path to
+		 * miss the new added requests to hctx->dispatch, meantime
+		 * SCHED_RESTART is observed here.
+		 */
+		smp_mb();
 
 		/*
 		 * If SCHED_RESTART was set by the caller of this function and
@@ -1834,6 +1840,7 @@ void __blk_mq_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 /**
  * blk_mq_request_bypass_insert - Insert a request at dispatch list.
  * @rq: Pointer to request to be inserted.
+ * @at_head: true if the request should be inserted at the head of the list.
  * @run_queue: If we should run the hardware queue after inserting the request.
  *
  * Should only be used carefully, when the caller knows we want to
@@ -2016,7 +2023,8 @@ insert:
 	if (bypass_insert)
 		return BLK_STS_RESOURCE;
 
-	blk_mq_request_bypass_insert(rq, false, run_queue);
+	blk_mq_sched_insert_request(rq, false, run_queue, false);
+
 	return BLK_STS_OK;
 }
 
@@ -2068,6 +2076,7 @@ void blk_mq_try_issue_list_directly(struct blk_mq_hw_ctx *hctx,
 		struct list_head *list)
 {
 	int queued = 0;
+	int errors = 0;
 
 	while (!list_empty(list)) {
 		blk_status_t ret;
@@ -2084,6 +2093,7 @@ void blk_mq_try_issue_list_directly(struct blk_mq_hw_ctx *hctx,
 				break;
 			}
 			blk_mq_end_request(rq, ret);
+			errors++;
 		} else
 			queued++;
 	}
@@ -2093,7 +2103,8 @@ void blk_mq_try_issue_list_directly(struct blk_mq_hw_ctx *hctx,
 	 * the driver there was more coming, but that turned out to
 	 * be a lie.
 	 */
-	if (!list_empty(list) && hctx->queue->mq_ops->commit_rqs && queued)
+	if ((!list_empty(list) || errors) &&
+	     hctx->queue->mq_ops->commit_rqs && queued)
 		hctx->queue->mq_ops->commit_rqs(hctx);
 }
 

@@ -439,29 +439,36 @@ static bool __cancel_engine(struct intel_engine_cs *engine)
 	return __reset_engine(engine);
 }
 
-static struct intel_engine_cs *__active_engine(struct i915_request *rq)
+static bool
+__active_engine(struct i915_request *rq, struct intel_engine_cs **active)
 {
 	struct intel_engine_cs *engine, *locked;
+	bool ret = false;
 
 	/*
 	 * Serialise with __i915_request_submit() so that it sees
 	 * is-banned?, or we know the request is already inflight.
+	 *
+	 * Note that rq->engine is unstable, and so we double
+	 * check that we have acquired the lock on the final engine.
 	 */
 	locked = READ_ONCE(rq->engine);
 	spin_lock_irq(&locked->active.lock);
 	while (unlikely(locked != (engine = READ_ONCE(rq->engine)))) {
 		spin_unlock(&locked->active.lock);
-		spin_lock(&engine->active.lock);
 		locked = engine;
+		spin_lock(&locked->active.lock);
 	}
 
-	engine = NULL;
-	if (i915_request_is_active(rq) && rq->fence.error != -EIO)
-		engine = rq->engine;
+	if (!i915_request_completed(rq)) {
+		if (i915_request_is_active(rq) && rq->fence.error != -EIO)
+			*active = locked;
+		ret = true;
+	}
 
 	spin_unlock_irq(&locked->active.lock);
 
-	return engine;
+	return ret;
 }
 
 static struct intel_engine_cs *active_engine(struct intel_context *ce)
@@ -472,17 +479,16 @@ static struct intel_engine_cs *active_engine(struct intel_context *ce)
 	if (!ce->timeline)
 		return NULL;
 
-	mutex_lock(&ce->timeline->mutex);
-	list_for_each_entry_reverse(rq, &ce->timeline->requests, link) {
-		if (i915_request_completed(rq))
-			break;
+	rcu_read_lock();
+	list_for_each_entry_rcu(rq, &ce->timeline->requests, link) {
+		if (i915_request_is_active(rq) && i915_request_completed(rq))
+			continue;
 
 		/* Check with the backend if the request is inflight */
-		engine = __active_engine(rq);
-		if (engine)
+		if (__active_engine(rq, &engine))
 			break;
 	}
-	mutex_unlock(&ce->timeline->mutex);
+	rcu_read_unlock();
 
 	return engine;
 }
@@ -713,6 +719,7 @@ __create_context(struct drm_i915_private *i915)
 	ctx->i915 = i915;
 	ctx->sched.priority = I915_USER_PRIORITY(I915_PRIORITY_NORMAL);
 	mutex_init(&ctx->mutex);
+	INIT_LIST_HEAD(&ctx->link);
 
 	spin_lock_init(&ctx->stale.lock);
 	INIT_LIST_HEAD(&ctx->stale.engines);
@@ -739,10 +746,6 @@ __create_context(struct drm_i915_private *i915)
 
 	for (i = 0; i < ARRAY_SIZE(ctx->hang_timestamp); i++)
 		ctx->hang_timestamp[i] = jiffies - CONTEXT_FAST_HANG_JIFFIES;
-
-	spin_lock(&i915->gem.contexts.lock);
-	list_add_tail(&ctx->link, &i915->gem.contexts.list);
-	spin_unlock(&i915->gem.contexts.lock);
 
 	return ctx;
 
@@ -931,6 +934,7 @@ static int gem_context_register(struct i915_gem_context *ctx,
 				struct drm_i915_file_private *fpriv,
 				u32 *id)
 {
+	struct drm_i915_private *i915 = ctx->i915;
 	struct i915_address_space *vm;
 	int ret;
 
@@ -949,8 +953,16 @@ static int gem_context_register(struct i915_gem_context *ctx,
 	/* And finally expose ourselves to userspace via the idr */
 	ret = xa_alloc(&fpriv->context_xa, id, ctx, xa_limit_32b, GFP_KERNEL);
 	if (ret)
-		put_pid(fetch_and_zero(&ctx->pid));
+		goto err_pid;
 
+	spin_lock(&i915->gem.contexts.lock);
+	list_add_tail(&ctx->link, &i915->gem.contexts.list);
+	spin_unlock(&i915->gem.contexts.lock);
+
+	return 0;
+
+err_pid:
+	put_pid(fetch_and_zero(&ctx->pid));
 	return ret;
 }
 

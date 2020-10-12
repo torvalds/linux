@@ -483,7 +483,7 @@ int main(int argc, char **argv)
 					"Option -%c requires an argument.\n\n",
 					optopt);
 		case 'h':
-			// fallthrough
+			fallthrough;
 		default:
 			Usage();
 			return 0;

@@ -2615,6 +2615,14 @@ static void shrink_node_memcgs(pg_data_t *pgdat, struct scan_control *sc)
 		unsigned long reclaimed;
 		unsigned long scanned;
 
+		/*
+		 * This loop can become CPU-bound when target memcgs
+		 * aren't eligible for reclaim - either because they
+		 * don't have any reclaimable pages, or because their
+		 * memory is explicitly protected. Avoid soft lockups.
+		 */
+		cond_resched();
+
 		mem_cgroup_calculate_protection(target_memcg, memcg);
 
 		if (mem_cgroup_below_min(memcg)) {
@@ -4260,8 +4268,14 @@ void check_move_unevictable_pages(struct pagevec *pvec)
 	for (i = 0; i < pvec->nr; i++) {
 		struct page *page = pvec->pages[i];
 		struct pglist_data *pagepgdat = page_pgdat(page);
+		int nr_pages;
 
-		pgscanned++;
+		if (PageTransTail(page))
+			continue;
+
+		nr_pages = thp_nr_pages(page);
+		pgscanned += nr_pages;
+
 		if (pagepgdat != pgdat) {
 			if (pgdat)
 				spin_unlock_irq(&pgdat->lru_lock);
@@ -4280,7 +4294,7 @@ void check_move_unevictable_pages(struct pagevec *pvec)
 			ClearPageUnevictable(page);
 			del_page_from_lru_list(page, lruvec, LRU_UNEVICTABLE);
 			add_page_to_lru_list(page, lruvec, lru);
-			pgrescued++;
+			pgrescued += nr_pages;
 		}
 	}
 

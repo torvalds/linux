@@ -479,7 +479,7 @@ static int rt711_sdw_remove(struct sdw_slave *slave)
 }
 
 static const struct sdw_device_id rt711_id[] = {
-	SDW_SLAVE_ENTRY(0x025d, 0x711, 0),
+	SDW_SLAVE_ENTRY_EXT(0x025d, 0x711, 0x2, 0, 0),
 	{},
 };
 MODULE_DEVICE_TABLE(sdw, rt711_id);
@@ -490,6 +490,10 @@ static int __maybe_unused rt711_dev_suspend(struct device *dev)
 
 	if (!rt711->hw_init)
 		return 0;
+
+	cancel_delayed_work_sync(&rt711->jack_detect_work);
+	cancel_delayed_work_sync(&rt711->jack_btn_check_work);
+	cancel_work_sync(&rt711->calibration_work);
 
 	regcache_cache_only(rt711->regmap, true);
 

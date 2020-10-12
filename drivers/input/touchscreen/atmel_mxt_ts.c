@@ -477,7 +477,7 @@ static int mxt_lookup_bootloader_address(struct mxt_data *data, bool retry)
 			bootloader = appmode - 0x24;
 			break;
 		}
-		/* Fall through - for normal case */
+		fallthrough;	/* for normal case */
 	case 0x4c:
 	case 0x4d:
 	case 0x5a:

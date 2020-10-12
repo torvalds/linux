@@ -176,6 +176,7 @@ static int ingenic_usb_phy_init(struct usb_phy *phy)
 
 	/* Wait for PHY to reset */
 	usleep_range(30, 300);
+	reg = readl(priv->base + REG_USBPCR_OFFSET);
 	writel(reg & ~USBPCR_POR, priv->base + REG_USBPCR_OFFSET);
 	usleep_range(300, 1000);
 

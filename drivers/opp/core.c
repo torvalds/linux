@@ -1296,13 +1296,19 @@ void dev_pm_opp_remove(struct device *dev, unsigned long freq)
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_remove);
 
-void _opp_remove_all_static(struct opp_table *opp_table)
+bool _opp_remove_all_static(struct opp_table *opp_table)
 {
 	struct dev_pm_opp *opp, *tmp;
+	bool ret = true;
 
 	mutex_lock(&opp_table->lock);
 
-	if (!opp_table->parsed_static_opps || --opp_table->parsed_static_opps)
+	if (!opp_table->parsed_static_opps) {
+		ret = false;
+		goto unlock;
+	}
+
+	if (--opp_table->parsed_static_opps)
 		goto unlock;
 
 	list_for_each_entry_safe(opp, tmp, &opp_table->opp_list, node) {
@@ -1312,6 +1318,8 @@ void _opp_remove_all_static(struct opp_table *opp_table)
 
 unlock:
 	mutex_unlock(&opp_table->lock);
+
+	return ret;
 }
 
 /**
@@ -2414,12 +2422,14 @@ void _dev_pm_opp_find_and_remove_table(struct device *dev)
 		return;
 	}
 
-	_opp_remove_all_static(opp_table);
+	/*
+	 * Drop the extra reference only if the OPP table was successfully added
+	 * with dev_pm_opp_of_add_table() earlier.
+	 **/
+	if (_opp_remove_all_static(opp_table))
+		dev_pm_opp_put_opp_table(opp_table);
 
 	/* Drop reference taken by _find_opp_table() */
-	dev_pm_opp_put_opp_table(opp_table);
-
-	/* Drop reference taken while the OPP table was added */
 	dev_pm_opp_put_opp_table(opp_table);
 }
 

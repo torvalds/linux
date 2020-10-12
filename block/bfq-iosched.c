@@ -4980,7 +4980,7 @@ bfq_set_next_ioprio_data(struct bfq_queue *bfqq, struct bfq_io_cq *bic)
 		pr_err("bdi %s: bfq: bad prio class %d\n",
 				bdi_dev_name(bfqq->bfqd->queue->backing_dev_info),
 				ioprio_class);
-		/* fall through */
+		fallthrough;
 	case IOPRIO_CLASS_NONE:
 		/*
 		 * No prio set, inherit CPU scheduling settings.
@@ -5112,7 +5112,7 @@ static struct bfq_queue **bfq_async_queue_prio(struct bfq_data *bfqd,
 		return &bfqg->async_bfqq[0][ioprio];
 	case IOPRIO_CLASS_NONE:
 		ioprio = IOPRIO_NORM;
-		/* fall through */
+		fallthrough;
 	case IOPRIO_CLASS_BE:
 		return &bfqg->async_bfqq[1][ioprio];
 	case IOPRIO_CLASS_IDLE:
@@ -5894,18 +5894,6 @@ static void bfq_finish_requeue_request(struct request *rq)
 {
 	struct bfq_queue *bfqq = RQ_BFQQ(rq);
 	struct bfq_data *bfqd;
-
-	/*
-	 * Requeue and finish hooks are invoked in blk-mq without
-	 * checking whether the involved request is actually still
-	 * referenced in the scheduler. To handle this fact, the
-	 * following two checks make this function exit in case of
-	 * spurious invocations, for which there is nothing to do.
-	 *
-	 * First, check whether rq has nothing to do with an elevator.
-	 */
-	if (unlikely(!(rq->rq_flags & RQF_ELVPRIV)))
-		return;
 
 	/*
 	 * rq either is not associated with any icq, or is an already

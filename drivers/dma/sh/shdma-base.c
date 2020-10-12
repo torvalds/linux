@@ -383,7 +383,7 @@ static dma_async_tx_callback __ld_cleanup(struct shdma_chan *schan, bool all)
 			switch (desc->mark) {
 			case DESC_COMPLETED:
 				desc->mark = DESC_WAITING;
-				/* Fall through */
+				fallthrough;
 			case DESC_WAITING:
 				if (head_acked)
 					async_tx_ack(&desc->async_tx);

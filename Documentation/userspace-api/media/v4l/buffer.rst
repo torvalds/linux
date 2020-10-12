@@ -701,23 +701,6 @@ Memory Consistency Flags
     :stub-columns: 0
     :widths:       3 1 4
 
-    * .. _`V4L2-FLAG-MEMORY-NON-CONSISTENT`:
-
-      - ``V4L2_FLAG_MEMORY_NON_CONSISTENT``
-      - 0x00000001
-      - A buffer is allocated either in consistent (it will be automatically
-	coherent between the CPU and the bus) or non-consistent memory. The
-	latter can provide performance gains, for instance the CPU cache
-	sync/flush operations can be avoided if the buffer is accessed by the
-	corresponding device only and the CPU does not read/write to/from that
-	buffer. However, this requires extra care from the driver -- it must
-	guarantee memory consistency by issuing a cache flush/sync when
-	consistency is needed. If this flag is set V4L2 will attempt to
-	allocate the buffer in non-consistent memory. The flag takes effect
-	only if the buffer is used for :ref:`memory mapping <mmap>` I/O and the
-	queue reports the :ref:`V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS
-	<V4L2-BUF-CAP-SUPPORTS-MMAP-CACHE-HINTS>` capability.
-
 .. c:type:: v4l2_memory
 
 enum v4l2_memory

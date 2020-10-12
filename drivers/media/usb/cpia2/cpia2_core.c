@@ -165,7 +165,7 @@ int cpia2_do_command(struct camera_data *cam,
 		break;
 	case CPIA2_CMD_SET_VP_BRIGHTNESS:
 		cmd.buffer.block_data[0] = param;
-		/* fall through */
+		fallthrough;
 	case CPIA2_CMD_GET_VP_BRIGHTNESS:
 		cmd.req_mode = CAMERAACCESS_TYPE_BLOCK | CAMERAACCESS_VP;
 		cmd.reg_count = 1;
@@ -176,7 +176,7 @@ int cpia2_do_command(struct camera_data *cam,
 		break;
 	case CPIA2_CMD_SET_CONTRAST:
 		cmd.buffer.block_data[0] = param;
-		/* fall through */
+		fallthrough;
 	case CPIA2_CMD_GET_CONTRAST:
 		cmd.req_mode = CAMERAACCESS_TYPE_BLOCK | CAMERAACCESS_VP;
 		cmd.reg_count = 1;
@@ -184,7 +184,7 @@ int cpia2_do_command(struct camera_data *cam,
 		break;
 	case CPIA2_CMD_SET_VP_SATURATION:
 		cmd.buffer.block_data[0] = param;
-		/* fall through */
+		fallthrough;
 	case CPIA2_CMD_GET_VP_SATURATION:
 		cmd.req_mode = CAMERAACCESS_TYPE_BLOCK | CAMERAACCESS_VP;
 		cmd.reg_count = 1;
@@ -195,7 +195,7 @@ int cpia2_do_command(struct camera_data *cam,
 		break;
 	case CPIA2_CMD_SET_VP_GPIO_DATA:
 		cmd.buffer.block_data[0] = param;
-		/* fall through */
+		fallthrough;
 	case CPIA2_CMD_GET_VP_GPIO_DATA:
 		cmd.req_mode = CAMERAACCESS_TYPE_BLOCK | CAMERAACCESS_VP;
 		cmd.reg_count = 1;
@@ -203,7 +203,7 @@ int cpia2_do_command(struct camera_data *cam,
 		break;
 	case CPIA2_CMD_SET_VP_GPIO_DIRECTION:
 		cmd.buffer.block_data[0] = param;
-		/* fall through */
+		fallthrough;
 	case CPIA2_CMD_GET_VP_GPIO_DIRECTION:
 		cmd.req_mode = CAMERAACCESS_TYPE_BLOCK | CAMERAACCESS_VP;
 		cmd.reg_count = 1;
@@ -211,7 +211,7 @@ int cpia2_do_command(struct camera_data *cam,
 		break;
 	case CPIA2_CMD_SET_VC_MP_GPIO_DATA:
 		cmd.buffer.block_data[0] = param;
-		/* fall through */
+		fallthrough;
 	case CPIA2_CMD_GET_VC_MP_GPIO_DATA:
 		cmd.req_mode = CAMERAACCESS_TYPE_BLOCK | CAMERAACCESS_VC;
 		cmd.reg_count = 1;
@@ -219,7 +219,7 @@ int cpia2_do_command(struct camera_data *cam,
 		break;
 	case CPIA2_CMD_SET_VC_MP_GPIO_DIRECTION:
 		cmd.buffer.block_data[0] = param;
-		/*fall through */
+		fallthrough;
 	case CPIA2_CMD_GET_VC_MP_GPIO_DIRECTION:
 		cmd.req_mode = CAMERAACCESS_TYPE_BLOCK | CAMERAACCESS_VC;
 		cmd.reg_count = 1;
@@ -234,7 +234,7 @@ int cpia2_do_command(struct camera_data *cam,
 		break;
 	case CPIA2_CMD_SET_FLICKER_MODES:
 		cmd.buffer.block_data[0] = param;
-		/* fall through */
+		fallthrough;
 	case CPIA2_CMD_GET_FLICKER_MODES:
 		cmd.req_mode = CAMERAACCESS_TYPE_BLOCK | CAMERAACCESS_VP;
 		cmd.reg_count = 1;
@@ -281,7 +281,7 @@ int cpia2_do_command(struct camera_data *cam,
 		break;
 	case CPIA2_CMD_SET_USER_MODE:
 		cmd.buffer.block_data[0] = param;
-		/* fall through */
+		fallthrough;
 	case CPIA2_CMD_GET_USER_MODE:
 		cmd.req_mode = CAMERAACCESS_TYPE_BLOCK | CAMERAACCESS_VP;
 		cmd.reg_count = 1;
@@ -301,7 +301,7 @@ int cpia2_do_command(struct camera_data *cam,
 		break;
 	case CPIA2_CMD_SET_WAKEUP:
 		cmd.buffer.block_data[0] = param;
-		/* fall through */
+		fallthrough;
 	case CPIA2_CMD_GET_WAKEUP:
 		cmd.req_mode = CAMERAACCESS_TYPE_BLOCK | CAMERAACCESS_VC;
 		cmd.reg_count = 1;
@@ -309,7 +309,7 @@ int cpia2_do_command(struct camera_data *cam,
 		break;
 	case CPIA2_CMD_SET_PW_CONTROL:
 		cmd.buffer.block_data[0] = param;
-		/* fall through */
+		fallthrough;
 	case CPIA2_CMD_GET_PW_CONTROL:
 		cmd.req_mode = CAMERAACCESS_TYPE_BLOCK | CAMERAACCESS_VC;
 		cmd.reg_count = 1;
@@ -322,7 +322,7 @@ int cpia2_do_command(struct camera_data *cam,
 		break;
 	case CPIA2_CMD_SET_SYSTEM_CTRL:
 		cmd.buffer.block_data[0] = param;
-		/* fall through */
+		fallthrough;
 	case CPIA2_CMD_GET_SYSTEM_CTRL:
 		cmd.req_mode =
 		    CAMERAACCESS_TYPE_BLOCK | CAMERAACCESS_SYSTEM;
@@ -331,7 +331,7 @@ int cpia2_do_command(struct camera_data *cam,
 		break;
 	case CPIA2_CMD_SET_VP_SYSTEM_CTRL:
 		cmd.buffer.block_data[0] = param;
-		/* fall through */
+		fallthrough;
 	case CPIA2_CMD_GET_VP_SYSTEM_CTRL:
 		cmd.req_mode = CAMERAACCESS_TYPE_BLOCK | CAMERAACCESS_VP;
 		cmd.reg_count = 1;
@@ -339,7 +339,7 @@ int cpia2_do_command(struct camera_data *cam,
 		break;
 	case CPIA2_CMD_SET_VP_EXP_MODES:
 		cmd.buffer.block_data[0] = param;
-		/* fall through */
+		fallthrough;
 	case CPIA2_CMD_GET_VP_EXP_MODES:
 		cmd.req_mode = CAMERAACCESS_TYPE_BLOCK | CAMERAACCESS_VP;
 		cmd.reg_count = 1;
@@ -347,7 +347,7 @@ int cpia2_do_command(struct camera_data *cam,
 		break;
 	case CPIA2_CMD_SET_DEVICE_CONFIG:
 		cmd.buffer.block_data[0] = param;
-		/* fall through */
+		fallthrough;
 	case CPIA2_CMD_GET_DEVICE_CONFIG:
 		cmd.req_mode = CAMERAACCESS_TYPE_BLOCK | CAMERAACCESS_VP;
 		cmd.reg_count = 1;
@@ -368,7 +368,7 @@ int cpia2_do_command(struct camera_data *cam,
 		break;
 	case CPIA2_CMD_SET_VC_CONTROL:
 		cmd.buffer.block_data[0] = param;
-		/* fall through */
+		fallthrough;
 	case CPIA2_CMD_GET_VC_CONTROL:
 		cmd.req_mode = CAMERAACCESS_TYPE_BLOCK | CAMERAACCESS_VC;
 		cmd.reg_count = 1;
@@ -403,7 +403,7 @@ int cpia2_do_command(struct camera_data *cam,
 					     this register can also affect
 					     flicker modes */
 		cmd.buffer.block_data[0] = param;
-		/* fall through */
+		fallthrough;
 	case CPIA2_CMD_GET_USER_EFFECTS:
 		cmd.req_mode = CAMERAACCESS_TYPE_BLOCK | CAMERAACCESS_VP;
 		cmd.reg_count = 1;
@@ -1751,7 +1751,7 @@ int cpia2_set_fps(struct camera_data *cam, int framerate)
 						    CPIA2_VP_SENSOR_FLAGS_500) {
 				return -EINVAL;
 			}
-			/* Fall through */
+			fallthrough;
 		case CPIA2_VP_FRAMERATE_15:
 		case CPIA2_VP_FRAMERATE_12_5:
 		case CPIA2_VP_FRAMERATE_7_5:

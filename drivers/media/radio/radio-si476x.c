@@ -105,7 +105,8 @@ static inline enum phase_diversity_modes_idx
 si476x_phase_diversity_mode_to_idx(enum si476x_phase_diversity_mode mode)
 {
 	switch (mode) {
-	default:		/* FALLTHROUGH */
+	default:
+		fallthrough;
 	case SI476X_PHDIV_DISABLED:
 		return SI476X_IDX_PHDIV_DISABLED;
 	case SI476X_PHDIV_PRIMARY_COMBINING:

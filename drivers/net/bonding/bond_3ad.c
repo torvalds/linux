@@ -1149,7 +1149,7 @@ static void ad_rx_machine(struct lacpdu *lacpdu, struct port *port)
 			port->actor_oper_port_state &= ~LACP_STATE_EXPIRED;
 			port->sm_rx_state = AD_RX_PORT_DISABLED;
 
-			/* Fall Through */
+			fallthrough;
 		case AD_RX_PORT_DISABLED:
 			port->sm_vars &= ~AD_PORT_MATCHED;
 			break;
@@ -1588,7 +1588,7 @@ static struct aggregator *ad_agg_selection_test(struct aggregator *best,
 		if (__agg_active_ports(curr) < __agg_active_ports(best))
 			return best;
 
-		/*FALLTHROUGH*/
+		fallthrough;
 	case BOND_AD_STABLE:
 	case BOND_AD_BANDWIDTH:
 		if (__get_agg_bandwidth(curr) > __get_agg_bandwidth(best))

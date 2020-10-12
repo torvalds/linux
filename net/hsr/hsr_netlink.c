@@ -76,7 +76,7 @@ static int hsr_newlink(struct net *src_net, struct net_device *dev,
 		proto = nla_get_u8(data[IFLA_HSR_PROTOCOL]);
 
 	if (proto >= HSR_PROTOCOL_MAX) {
-		NL_SET_ERR_MSG_MOD(extack, "Unsupported protocol\n");
+		NL_SET_ERR_MSG_MOD(extack, "Unsupported protocol");
 		return -EINVAL;
 	}
 
@@ -84,14 +84,14 @@ static int hsr_newlink(struct net *src_net, struct net_device *dev,
 		proto_version = HSR_V0;
 	} else {
 		if (proto == HSR_PROTOCOL_PRP) {
-			NL_SET_ERR_MSG_MOD(extack, "PRP version unsupported\n");
+			NL_SET_ERR_MSG_MOD(extack, "PRP version unsupported");
 			return -EINVAL;
 		}
 
 		proto_version = nla_get_u8(data[IFLA_HSR_VERSION]);
 		if (proto_version > HSR_V1) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Only HSR version 0/1 supported\n");
+					   "Only HSR version 0/1 supported");
 			return -EINVAL;
 		}
 	}

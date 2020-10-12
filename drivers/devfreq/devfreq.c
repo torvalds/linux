@@ -1766,19 +1766,22 @@ static int devfreq_summary_show(struct seq_file *s, void *data)
 	struct devfreq *p_devfreq = NULL;
 	unsigned long cur_freq, min_freq, max_freq;
 	unsigned int polling_ms;
+	unsigned int timer;
 
-	seq_printf(s, "%-30s %-30s %-15s %10s %12s %12s %12s\n",
+	seq_printf(s, "%-30s %-30s %-15s %-10s %10s %12s %12s %12s\n",
 			"dev",
 			"parent_dev",
 			"governor",
+			"timer",
 			"polling_ms",
 			"cur_freq_Hz",
 			"min_freq_Hz",
 			"max_freq_Hz");
-	seq_printf(s, "%30s %30s %15s %10s %12s %12s %12s\n",
+	seq_printf(s, "%30s %30s %15s %10s %10s %12s %12s %12s\n",
 			"------------------------------",
 			"------------------------------",
 			"---------------",
+			"----------",
 			"----------",
 			"------------",
 			"------------",
@@ -1803,13 +1806,15 @@ static int devfreq_summary_show(struct seq_file *s, void *data)
 		cur_freq = devfreq->previous_freq;
 		get_freq_range(devfreq, &min_freq, &max_freq);
 		polling_ms = devfreq->profile->polling_ms;
+		timer = devfreq->profile->timer;
 		mutex_unlock(&devfreq->lock);
 
 		seq_printf(s,
-			"%-30s %-30s %-15s %10d %12ld %12ld %12ld\n",
+			"%-30s %-30s %-15s %-10s %10d %12ld %12ld %12ld\n",
 			dev_name(&devfreq->dev),
 			p_devfreq ? dev_name(&p_devfreq->dev) : "null",
 			devfreq->governor_name,
+			polling_ms ? timer_name[timer] : "null",
 			polling_ms,
 			cur_freq,
 			min_freq,

@@ -186,6 +186,10 @@
 #define SSIRF			0x48		/* RX FIFO trigger level */
 #define SSIRF_RxThresh(x)	((x) - 1)
 
+/* LPT/WPT SSP */
+#define SSCR2		(0x40)	/* SSP Command / Status 2 */
+#define SSPSP2		(0x44)	/* SSP Programmable Serial Protocol 2 */
+
 enum pxa_ssp_type {
 	SSP_UNDEFINED = 0,
 	PXA25x_SSP,  /* pxa 210, 250, 255, 26x */

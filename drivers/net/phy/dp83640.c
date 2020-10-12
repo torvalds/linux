@@ -766,13 +766,13 @@ static int decode_evnt(struct dp83640_private *dp83640,
 	switch (words) {
 	case 3:
 		dp83640->edata.sec_hi = phy_txts->sec_hi;
-		/* fall through */
+		fallthrough;
 	case 2:
 		dp83640->edata.sec_lo = phy_txts->sec_lo;
-		/* fall through */
+		fallthrough;
 	case 1:
 		dp83640->edata.ns_hi = phy_txts->ns_hi;
-		/* fall through */
+		fallthrough;
 	case 0:
 		dp83640->edata.ns_lo = phy_txts->ns_lo;
 	}
@@ -1409,7 +1409,7 @@ static void dp83640_txtstamp(struct mii_timestamper *mii_ts,
 			kfree_skb(skb);
 			return;
 		}
-		/* fall through */
+		fallthrough;
 	case HWTSTAMP_TX_ON:
 		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 		skb_info->tmo = jiffies + SKB_TIMESTAMP_TIMEOUT;

@@ -457,15 +457,7 @@ ceph_vino(const struct inode *inode)
 	return ceph_inode(inode)->i_vino;
 }
 
-/*
- * ino_t is <64 bits on many architectures, blech.
- *
- *               i_ino (kernel inode)   st_ino (userspace)
- * i386          32                     32
- * x86_64+ino32  64                     32
- * x86_64        64                     64
- */
-static inline u32 ceph_ino_to_ino32(__u64 vino)
+static inline u32 ceph_ino_to_ino32(u64 vino)
 {
 	u32 ino = vino & 0xffffffff;
 	ino ^= vino >> 32;
@@ -475,34 +467,17 @@ static inline u32 ceph_ino_to_ino32(__u64 vino)
 }
 
 /*
- * kernel i_ino value
+ * Inode numbers in cephfs are 64 bits, but inode->i_ino is 32-bits on
+ * some arches. We generally do not use this value inside the ceph driver, but
+ * we do want to set it to something, so that generic vfs code has an
+ * appropriate value for tracepoints and the like.
  */
-static inline ino_t ceph_vino_to_ino(struct ceph_vino vino)
+static inline ino_t ceph_vino_to_ino_t(struct ceph_vino vino)
 {
-#if BITS_PER_LONG == 32
-	return ceph_ino_to_ino32(vino.ino);
-#else
+	if (sizeof(ino_t) == sizeof(u32))
+		return ceph_ino_to_ino32(vino.ino);
 	return (ino_t)vino.ino;
-#endif
 }
-
-/*
- * user-visible ino (stat, filldir)
- */
-#if BITS_PER_LONG == 32
-static inline ino_t ceph_translate_ino(struct super_block *sb, ino_t ino)
-{
-	return ino;
-}
-#else
-static inline ino_t ceph_translate_ino(struct super_block *sb, ino_t ino)
-{
-	if (ceph_test_mount_opt(ceph_sb_to_client(sb), INO32))
-		ino = ceph_ino_to_ino32(ino);
-	return ino;
-}
-#endif
-
 
 /* for printf-style formatting */
 #define ceph_vinop(i) ceph_inode(i)->i_vino.ino, ceph_inode(i)->i_vino.snap
@@ -511,9 +486,32 @@ static inline u64 ceph_ino(struct inode *inode)
 {
 	return ceph_inode(inode)->i_vino.ino;
 }
+
 static inline u64 ceph_snap(struct inode *inode)
 {
 	return ceph_inode(inode)->i_vino.snap;
+}
+
+/**
+ * ceph_present_ino - format an inode number for presentation to userland
+ * @sb: superblock where the inode lives
+ * @ino: inode number to (possibly) convert
+ *
+ * If the user mounted with the ino32 option, then the 64-bit value needs
+ * to be converted to something that can fit inside 32 bits. Note that
+ * internal kernel code never uses this value, so this is entirely for
+ * userland consumption.
+ */
+static inline u64 ceph_present_ino(struct super_block *sb, u64 ino)
+{
+	if (unlikely(ceph_test_mount_opt(ceph_sb_to_client(sb), INO32)))
+		return ceph_ino_to_ino32(ino);
+	return ino;
+}
+
+static inline u64 ceph_present_inode(struct inode *inode)
+{
+	return ceph_present_ino(inode->i_sb, ceph_ino(inode));
 }
 
 static inline int ceph_ino_compare(struct inode *inode, void *data)
@@ -524,11 +522,16 @@ static inline int ceph_ino_compare(struct inode *inode, void *data)
 		ci->i_vino.snap == pvino->snap;
 }
 
+
 static inline struct inode *ceph_find_inode(struct super_block *sb,
 					    struct ceph_vino vino)
 {
-	ino_t t = ceph_vino_to_ino(vino);
-	return ilookup5(sb, t, ceph_ino_compare, &vino);
+	/*
+	 * NB: The hashval will be run through the fs/inode.c hash function
+	 * anyway, so there is no need to squash the inode number down to
+	 * 32-bits first. Just use low-order bits on arches with 32-bit long.
+	 */
+	return ilookup5(sb, (unsigned long)vino.ino, ceph_ino_compare, &vino);
 }
 
 

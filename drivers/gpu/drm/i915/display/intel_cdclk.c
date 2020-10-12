@@ -326,7 +326,7 @@ static void pnv_get_cdclk(struct drm_i915_private *dev_priv,
 	default:
 		drm_err(&dev_priv->drm,
 			"Unknown pnv display core clock 0x%04x\n", gcfgc);
-		/* fall through */
+		fallthrough;
 	case GC_DISPLAY_CLOCK_133_MHZ_PNV:
 		cdclk_config->cdclk = 133333;
 		break;
@@ -766,7 +766,7 @@ static void bdw_set_cdclk(struct drm_i915_private *dev_priv,
 	switch (cdclk) {
 	default:
 		MISSING_CASE(cdclk);
-		/* fall through */
+		fallthrough;
 	case 337500:
 		val |= LCPLL_CLK_FREQ_337_5_BDW;
 		break;
@@ -1042,7 +1042,7 @@ static void skl_set_cdclk(struct drm_i915_private *dev_priv,
 		drm_WARN_ON(&dev_priv->drm,
 			    cdclk != dev_priv->cdclk.hw.bypass);
 		drm_WARN_ON(&dev_priv->drm, vco != 0);
-		/* fall through */
+		fallthrough;
 	case 308571:
 	case 337500:
 		freq_select = CDCLK_FREQ_337_308;
@@ -1333,7 +1333,7 @@ static void icl_readout_refclk(struct drm_i915_private *dev_priv,
 	switch (dssm) {
 	default:
 		MISSING_CASE(dssm);
-		/* fall through */
+		fallthrough;
 	case ICL_DSSM_CDCLK_PLL_REFCLK_24MHz:
 		cdclk_config->ref = 24000;
 		break;
@@ -1561,7 +1561,7 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 		drm_WARN_ON(&dev_priv->drm,
 			    cdclk != dev_priv->cdclk.hw.bypass);
 		drm_WARN_ON(&dev_priv->drm, vco != 0);
-		/* fall through */
+		fallthrough;
 	case 2:
 		divider = BXT_CDCLK_CD2X_DIV_SEL_1;
 		break;

@@ -293,6 +293,7 @@ static int stm32_dfsdm_compute_osrs(struct stm32_dfsdm_filter *fl,
 					max >>= flo->rshift;
 				}
 				flo->max = (s32)max;
+				flo->bits = bits;
 
 				pr_debug("%s: fast %d, fosr %d, iosr %d, res 0x%llx/%d bits, rshift %d, lshift %d\n",
 					 __func__, fast, flo->fosr, flo->iosr,
@@ -475,6 +476,9 @@ static int stm32_dfsdm_channels_configure(struct iio_dev *indio_dev,
 
 	if (!flo->res)
 		return -EINVAL;
+
+	dev_dbg(&indio_dev->dev, "Samples actual resolution: %d bits",
+		min(flo->bits, (u32)DFSDM_DATA_RES - 1));
 
 	for_each_set_bit(bit, &adc->smask,
 			 sizeof(adc->smask) * BITS_PER_BYTE) {

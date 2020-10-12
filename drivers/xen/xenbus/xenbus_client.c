@@ -379,8 +379,14 @@ int xenbus_grant_ring(struct xenbus_device *dev, void *vaddr,
 	int i, j;
 
 	for (i = 0; i < nr_pages; i++) {
-		err = gnttab_grant_foreign_access(dev->otherend_id,
-						  virt_to_gfn(vaddr), 0);
+		unsigned long gfn;
+
+		if (is_vmalloc_addr(vaddr))
+			gfn = pfn_to_gfn(vmalloc_to_pfn(vaddr));
+		else
+			gfn = virt_to_gfn(vaddr);
+
+		err = gnttab_grant_foreign_access(dev->otherend_id, gfn, 0);
 		if (err < 0) {
 			xenbus_dev_fatal(dev, err,
 					 "granting access to ring page");
@@ -615,7 +621,7 @@ static int xenbus_map_ring_hvm(struct xenbus_device *dev,
 	bool leaked = false;
 	unsigned int nr_pages = XENBUS_PAGES(nr_grefs);
 
-	err = alloc_xenballooned_pages(nr_pages, node->hvm.pages);
+	err = xen_alloc_unpopulated_pages(nr_pages, node->hvm.pages);
 	if (err)
 		goto out_err;
 
@@ -656,7 +662,7 @@ static int xenbus_map_ring_hvm(struct xenbus_device *dev,
 			 addr, nr_pages);
  out_free_ballooned_pages:
 	if (!leaked)
-		free_xenballooned_pages(nr_pages, node->hvm.pages);
+		xen_free_unpopulated_pages(nr_pages, node->hvm.pages);
  out_err:
 	return err;
 }
@@ -852,7 +858,7 @@ static int xenbus_unmap_ring_hvm(struct xenbus_device *dev, void *vaddr)
 			       info.addrs);
 	if (!rv) {
 		vunmap(vaddr);
-		free_xenballooned_pages(nr_pages, node->hvm.pages);
+		xen_free_unpopulated_pages(nr_pages, node->hvm.pages);
 	}
 	else
 		WARN(1, "Leaking %p, size %u page(s)\n", vaddr, nr_pages);

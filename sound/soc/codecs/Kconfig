@@ -64,6 +64,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_CS42L52
 	imply SND_SOC_CS42L56
 	imply SND_SOC_CS42L73
+	imply SND_SOC_CS4234
 	imply SND_SOC_CS4265
 	imply SND_SOC_CS4270
 	imply SND_SOC_CS4271_I2C
@@ -127,6 +128,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_ML26124
 	imply SND_SOC_MT6351
 	imply SND_SOC_MT6358
+	imply SND_SOC_MT6359
 	imply SND_SOC_MT6660
 	imply SND_SOC_NAU8540
 	imply SND_SOC_NAU8810
@@ -154,6 +156,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_RT298
 	imply SND_SOC_RT1011
 	imply SND_SOC_RT1015
+	imply SND_SOC_RT1015P
 	imply SND_SOC_RT1305
 	imply SND_SOC_RT1308
 	imply SND_SOC_RT5514
@@ -192,6 +195,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_STI_SAS
 	imply SND_SOC_TAS2552
 	imply SND_SOC_TAS2562
+	imply SND_SOC_TAS2764
 	imply SND_SOC_TAS2770
 	imply SND_SOC_TAS5086
 	imply SND_SOC_TAS571X
@@ -540,6 +544,7 @@ config SND_SOC_CQ0093VC
 config SND_SOC_CROS_EC_CODEC
 	tristate "codec driver for ChromeOS EC"
 	depends on CROS_EC
+	select CRYPTO
 	select CRYPTO_LIB_SHA256
 	help
 	  If you say yes here you will get support for the
@@ -588,6 +593,11 @@ config SND_SOC_CS42L56
 config SND_SOC_CS42L73
 	tristate "Cirrus Logic CS42L73 CODEC"
 	depends on I2C
+
+config SND_SOC_CS4234
+	tristate "Cirrus Logic CS4234 CODEC"
+	depends on I2C
+	select REGMAP_I2C
 
 config SND_SOC_CS4265
 	tristate "Cirrus Logic CS4265 CODEC"
@@ -1031,6 +1041,7 @@ config SND_SOC_RL6231
 	default y if SND_SOC_RT5682=y
 	default y if SND_SOC_RT1011=y
 	default y if SND_SOC_RT1015=y
+	default y if SND_SOC_RT1015P=y
 	default y if SND_SOC_RT1305=y
 	default y if SND_SOC_RT1308=y
 	default m if SND_SOC_RT5514=m
@@ -1048,6 +1059,7 @@ config SND_SOC_RL6231
 	default m if SND_SOC_RT5682=m
 	default m if SND_SOC_RT1011=m
 	default m if SND_SOC_RT1015=m
+	default m if SND_SOC_RT1015P=m
 	default m if SND_SOC_RT1305=m
 	default m if SND_SOC_RT1308=m
 
@@ -1079,6 +1091,10 @@ config SND_SOC_RT1011
 config SND_SOC_RT1015
 	tristate
 	depends on I2C
+
+config SND_SOC_RT1015P
+	tristate
+	depends on GPIOLIB
 
 config SND_SOC_RT1305
 	tristate
@@ -1286,6 +1302,10 @@ config SND_SOC_TAS2552
 
 config SND_SOC_TAS2562
 	tristate "Texas Instruments TAS2562 Mono Audio amplifier"
+	depends on I2C
+
+config SND_SOC_TAS2764
+	tristate "Texas Instruments TAS2764 Mono Audio amplifier"
 	depends on I2C
 
 config SND_SOC_TAS2770
@@ -1722,6 +1742,13 @@ config SND_SOC_MT6358
 	tristate "MediaTek MT6358 Codec"
 	help
 	  Enable support for the platform which uses MT6358 as
+	  external codec device.
+
+config SND_SOC_MT6359
+	tristate "MediaTek MT6359 Codec"
+	depends on MTK_PMIC_WRAP
+	help
+	  Enable support for the platform which uses MT6359 as
 	  external codec device.
 
 config SND_SOC_MT6660

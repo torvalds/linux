@@ -45,7 +45,7 @@ void save_fpu(struct task_struct *tsk)
 			      :	/* no output */
 			      : "r" (&tsk->thread.fpu)
 			      : "memory");
-		/* fall through */
+		fallthrough;
 	case SP32_DP16_reg:
 		asm volatile ("fsdi $fd15, [%0+0x78]\n\t"
 			      "fsdi $fd14, [%0+0x70]\n\t"
@@ -58,7 +58,7 @@ void save_fpu(struct task_struct *tsk)
 			      :	/* no output */
 			      : "r" (&tsk->thread.fpu)
 			      : "memory");
-		/* fall through */
+		fallthrough;
 	case SP16_DP8_reg:
 		asm volatile ("fsdi $fd7,  [%0+0x38]\n\t"
 			      "fsdi $fd6,  [%0+0x30]\n\t"
@@ -67,7 +67,7 @@ void save_fpu(struct task_struct *tsk)
 			      :	/* no output */
 			      : "r" (&tsk->thread.fpu)
 			      : "memory");
-		/* fall through */
+		fallthrough;
 	case SP8_DP4_reg:
 		asm volatile ("fsdi $fd3,  [%1+0x18]\n\t"
 			      "fsdi $fd2,  [%1+0x10]\n\t"
@@ -108,7 +108,7 @@ void load_fpu(const struct fpu_struct *fpregs)
 			      "fldi $fd16, [%0+0x80]\n\t"
 			      :	/* no output */
 			      : "r" (fpregs));
-		/* fall through */
+		fallthrough;
 	case SP32_DP16_reg:
 		asm volatile ("fldi $fd15, [%0+0x78]\n\t"
 			      "fldi $fd14, [%0+0x70]\n\t"
@@ -120,7 +120,7 @@ void load_fpu(const struct fpu_struct *fpregs)
 			      "fldi $fd8,  [%0+0x40]\n\t"
 			      :	/* no output */
 			      : "r" (fpregs));
-		/* fall through */
+		fallthrough;
 	case SP16_DP8_reg:
 		asm volatile ("fldi $fd7,  [%0+0x38]\n\t"
 			      "fldi $fd6,  [%0+0x30]\n\t"
@@ -128,7 +128,7 @@ void load_fpu(const struct fpu_struct *fpregs)
 			      "fldi $fd4,  [%0+0x20]\n\t"
 			      :	/* no output */
 			      : "r" (fpregs));
-		/* fall through */
+		fallthrough;
 	case SP8_DP4_reg:
 		asm volatile ("fldi $fd3,  [%1+0x18]\n\t"
 			      "fldi $fd2,  [%1+0x10]\n\t"

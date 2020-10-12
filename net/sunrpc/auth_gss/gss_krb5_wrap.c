@@ -137,7 +137,7 @@ gss_krb5_make_confounder(char *p, u32 conflen)
 	switch (conflen) {
 	case 16:
 		*q++ = i++;
-		/* fall through */
+		fallthrough;
 	case 8:
 		*q++ = i++;
 		break;

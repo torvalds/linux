@@ -22,6 +22,7 @@
 #include <linux/module.h>
 #include <linux/suspend.h>
 #include <linux/tick.h>
+#include <linux/mmu_context.h>
 #include <trace/events/power.h>
 
 #include "cpuidle.h"
@@ -137,29 +138,25 @@ static void enter_s2idle_proper(struct cpuidle_driver *drv,
 				struct cpuidle_device *dev, int index)
 {
 	ktime_t time_start, time_end;
+	struct cpuidle_state *target_state = &drv->states[index];
 
 	time_start = ns_to_ktime(local_clock());
 
-	/*
-	 * trace_suspend_resume() called by tick_freeze() for the last CPU
-	 * executing it contains RCU usage regarded as invalid in the idle
-	 * context, so tell RCU about that.
-	 */
-	RCU_NONIDLE(tick_freeze());
+	tick_freeze();
 	/*
 	 * The state used here cannot be a "coupled" one, because the "coupled"
 	 * cpuidle mechanism enables interrupts and doing that with timekeeping
 	 * suspended is generally unsafe.
 	 */
 	stop_critical_timings();
-	drv->states[index].enter_s2idle(dev, drv, index);
-	WARN_ON(!irqs_disabled());
-	/*
-	 * timekeeping_resume() that will be called by tick_unfreeze() for the
-	 * first CPU executing it calls functions containing RCU read-side
-	 * critical sections, so tell RCU about that.
-	 */
-	RCU_NONIDLE(tick_unfreeze());
+	if (!(target_state->flags & CPUIDLE_FLAG_RCU_IDLE))
+		rcu_idle_enter();
+	target_state->enter_s2idle(dev, drv, index);
+	if (WARN_ON_ONCE(!irqs_disabled()))
+		local_irq_disable();
+	if (!(target_state->flags & CPUIDLE_FLAG_RCU_IDLE))
+		rcu_idle_exit();
+	tick_unfreeze();
 	start_critical_timings();
 
 	time_end = ns_to_ktime(local_clock());
@@ -225,19 +222,26 @@ int cpuidle_enter_state(struct cpuidle_device *dev, struct cpuidle_driver *drv,
 		broadcast = false;
 	}
 
+	if (target_state->flags & CPUIDLE_FLAG_TLB_FLUSHED)
+		leave_mm(dev->cpu);
+
 	/* Take note of the planned idle state. */
 	sched_idle_set_state(target_state);
 
-	trace_cpu_idle_rcuidle(index, dev->cpu);
+	trace_cpu_idle(index, dev->cpu);
 	time_start = ns_to_ktime(local_clock());
 
 	stop_critical_timings();
+	if (!(target_state->flags & CPUIDLE_FLAG_RCU_IDLE))
+		rcu_idle_enter();
 	entered_state = target_state->enter(dev, drv, index);
+	if (!(target_state->flags & CPUIDLE_FLAG_RCU_IDLE))
+		rcu_idle_exit();
 	start_critical_timings();
 
 	sched_clock_idle_wakeup_event();
 	time_end = ns_to_ktime(local_clock());
-	trace_cpu_idle_rcuidle(PWR_EVENT_EXIT, dev->cpu);
+	trace_cpu_idle(PWR_EVENT_EXIT, dev->cpu);
 
 	/* The cpu is no longer idle or about to enter idle. */
 	sched_idle_set_state(NULL);

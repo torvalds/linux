@@ -875,7 +875,7 @@ static uint64_t _mv88e6xxx_get_ethtool_stat(struct mv88e6xxx_chip *chip,
 		break;
 	case STATS_TYPE_BANK1:
 		reg = bank1_select;
-		/* fall through */
+		fallthrough;
 	case STATS_TYPE_BANK0:
 		reg |= s->reg | histogram;
 		mv88e6xxx_g1_stats_read(chip, reg, &low);

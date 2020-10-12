@@ -693,7 +693,7 @@ static int rt1308_sdw_probe(struct sdw_slave *slave,
 }
 
 static const struct sdw_device_id rt1308_id[] = {
-	SDW_SLAVE_ENTRY(0x025d, 0x1308, 0),
+	SDW_SLAVE_ENTRY_EXT(0x025d, 0x1308, 0x2, 0, 0),
 	{},
 };
 MODULE_DEVICE_TABLE(sdw, rt1308_id);
