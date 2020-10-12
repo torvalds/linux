@@ -785,15 +785,9 @@ static void ice_set_dflt_mib(struct ice_pf *pf)
 	u8 mib_type, *buf, *lldpmib = NULL;
 	u16 len, typelen, offset = 0;
 	struct ice_lldp_org_tlv *tlv;
-	struct ice_hw *hw;
+	struct ice_hw *hw = &pf->hw;
 	u32 ouisubtype;
 
-	if (!pf) {
-		dev_dbg(dev, "%s NULL pf pointer\n", __func__);
-		return;
-	}
-
-	hw = &pf->hw;
 	mib_type = SET_LOCAL_MIB_TYPE_LOCAL_MIB;
 	lldpmib = kzalloc(ICE_LLDPDU_SIZE, GFP_KERNEL);
 	if (!lldpmib) {
