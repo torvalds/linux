@@ -3298,7 +3298,7 @@ static void bnxt_self_test(struct net_device *dev, struct ethtool_test *etest,
 	u8 test_mask = 0;
 	int rc = 0, i;
 
-	if (!bp->num_tests || !BNXT_SINGLE_PF(bp))
+	if (!bp->num_tests || !BNXT_PF(bp))
 		return;
 	memset(buf, 0, sizeof(u64) * bp->num_tests);
 	if (!netif_running(dev)) {
@@ -3311,9 +3311,9 @@ static void bnxt_self_test(struct net_device *dev, struct ethtool_test *etest,
 		do_ext_lpbk = true;
 
 	if (etest->flags & ETH_TEST_FL_OFFLINE) {
-		if (bp->pf.active_vfs) {
+		if (bp->pf.active_vfs || !BNXT_SINGLE_PF(bp)) {
 			etest->flags |= ETH_TEST_FL_FAILED;
-			netdev_warn(dev, "Offline tests cannot be run with active VFs\n");
+			netdev_warn(dev, "Offline tests cannot be run with active VFs or on shared PF\n");
 			return;
 		}
 		offline = true;
@@ -3829,7 +3829,7 @@ void bnxt_ethtool_init(struct bnxt *bp)
 		bnxt_get_pkgver(dev);
 
 	bp->num_tests = 0;
-	if (bp->hwrm_spec_code < 0x10704 || !BNXT_SINGLE_PF(bp))
+	if (bp->hwrm_spec_code < 0x10704 || !BNXT_PF(bp))
 		return;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_SELFTEST_QLIST, -1, -1);
