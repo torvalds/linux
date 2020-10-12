@@ -458,9 +458,6 @@ static void state_change(struct gfs2_glock *gl, unsigned int new_state)
 		else
 			gl->gl_lockref.count--;
 	}
-	if (held1 && held2 && list_empty(&gl->gl_holders))
-		clear_bit(GLF_QUEUED, &gl->gl_flags);
-
 	if (new_state != gl->gl_target)
 		/* shorten our minimum hold time */
 		gl->gl_hold_time = max(gl->gl_hold_time - GL_GLOCK_HOLD_DECR,
@@ -1350,7 +1347,6 @@ fail:
 		if (unlikely((gh->gh_flags & LM_FLAG_PRIORITY) && !insert_pt))
 			insert_pt = &gh2->gh_list;
 	}
-	set_bit(GLF_QUEUED, &gl->gl_flags);
 	trace_gfs2_glock_queue(gh, 1);
 	gfs2_glstats_inc(gl, GFS2_LKS_QCOUNT);
 	gfs2_sbstats_inc(gl, GFS2_LKS_QCOUNT);
@@ -1651,16 +1647,15 @@ void gfs2_glock_cb(struct gfs2_glock *gl, unsigned int state)
 	unsigned long now = jiffies;
 
 	gfs2_glock_hold(gl);
+	spin_lock(&gl->gl_lockref.lock);
 	holdtime = gl->gl_tchange + gl->gl_hold_time;
-	if (test_bit(GLF_QUEUED, &gl->gl_flags) &&
+	if (!list_empty(&gl->gl_holders) &&
 	    gl->gl_name.ln_type == LM_TYPE_INODE) {
 		if (time_before(now, holdtime))
 			delay = holdtime - now;
 		if (test_bit(GLF_REPLY_PENDING, &gl->gl_flags))
 			delay = gl->gl_hold_time;
 	}
-
-	spin_lock(&gl->gl_lockref.lock);
 	handle_callback(gl, state, delay, true);
 	__gfs2_glock_queue_work(gl, delay);
 	spin_unlock(&gl->gl_lockref.lock);
@@ -2105,7 +2100,7 @@ static const char *gflags2str(char *buf, const struct gfs2_glock *gl)
 		*p++ = 'I';
 	if (test_bit(GLF_FROZEN, gflags))
 		*p++ = 'F';
-	if (test_bit(GLF_QUEUED, gflags))
+	if (!list_empty(&gl->gl_holders))
 		*p++ = 'q';
 	if (test_bit(GLF_LRU, gflags))
 		*p++ = 'L';
