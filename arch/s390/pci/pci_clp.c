@@ -102,6 +102,7 @@ static void clp_store_query_pci_fngrp(struct zpci_dev *zdev,
 	zdev->msi_addr = response->msia;
 	zdev->max_msi = response->noi;
 	zdev->fmb_update = response->mui;
+	zdev->version = response->version;
 
 	switch (response->version) {
 	case 1:
@@ -167,6 +168,7 @@ static int clp_store_query_pci_fn(struct zpci_dev *zdev,
 	if (response->util_str_avail) {
 		memcpy(zdev->util_str, response->util_str,
 		       sizeof(zdev->util_str));
+		zdev->util_str_avail = 1;
 	}
 	zdev->mio_capable = response->mio_addr_avail;
 	for (i = 0; i < PCI_STD_NUM_BARS; i++) {
