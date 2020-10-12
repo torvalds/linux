@@ -202,83 +202,97 @@ EXPORT_SYMBOL_GPL(qat_crypto_dev_config);
 
 static int qat_crypto_create_instances(struct adf_accel_dev *accel_dev)
 {
-	int i;
-	unsigned long bank;
-	unsigned long num_inst, num_msg_sym, num_msg_asym;
-	int msg_size;
-	struct qat_crypto_instance *inst;
+	unsigned long bank, num_inst, num_msg_sym, num_msg_asym;
 	char key[ADF_CFG_MAX_KEY_LEN_IN_BYTES];
 	char val[ADF_CFG_MAX_VAL_LEN_IN_BYTES];
+	struct qat_crypto_instance *inst;
+	int msg_size;
+	int ret;
+	int i;
 
 	INIT_LIST_HEAD(&accel_dev->crypto_list);
-	if (adf_cfg_get_param_value(accel_dev, SEC, ADF_NUM_CY, val))
-		return -EFAULT;
+	ret = adf_cfg_get_param_value(accel_dev, SEC, ADF_NUM_CY, val);
+	if (ret)
+		return ret;
 
-	if (kstrtoul(val, 0, &num_inst))
-		return -EFAULT;
+	ret = kstrtoul(val, 0, &num_inst);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < num_inst; i++) {
 		inst = kzalloc_node(sizeof(*inst), GFP_KERNEL,
 				    dev_to_node(&GET_DEV(accel_dev)));
-		if (!inst)
+		if (!inst) {
+			ret = -ENOMEM;
 			goto err;
+		}
 
 		list_add_tail(&inst->list, &accel_dev->crypto_list);
 		inst->id = i;
 		atomic_set(&inst->refctr, 0);
 		inst->accel_dev = accel_dev;
 		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_BANK_NUM, i);
-		if (adf_cfg_get_param_value(accel_dev, SEC, key, val))
+		ret = adf_cfg_get_param_value(accel_dev, SEC, key, val);
+		if (ret)
 			goto err;
 
-		if (kstrtoul(val, 10, &bank))
+		ret = kstrtoul(val, 10, &bank);
+		if (ret)
 			goto err;
 		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_SYM_SIZE, i);
-		if (adf_cfg_get_param_value(accel_dev, SEC, key, val))
+		ret = adf_cfg_get_param_value(accel_dev, SEC, key, val);
+		if (ret)
 			goto err;
 
-		if (kstrtoul(val, 10, &num_msg_sym))
+		ret = kstrtoul(val, 10, &num_msg_sym);
+		if (ret)
 			goto err;
 
 		num_msg_sym = num_msg_sym >> 1;
 
 		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_ASYM_SIZE, i);
-		if (adf_cfg_get_param_value(accel_dev, SEC, key, val))
+		ret = adf_cfg_get_param_value(accel_dev, SEC, key, val);
+		if (ret)
 			goto err;
 
-		if (kstrtoul(val, 10, &num_msg_asym))
+		ret = kstrtoul(val, 10, &num_msg_asym);
+		if (ret)
 			goto err;
 		num_msg_asym = num_msg_asym >> 1;
 
 		msg_size = ICP_QAT_FW_REQ_DEFAULT_SZ;
 		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_SYM_TX, i);
-		if (adf_create_ring(accel_dev, SEC, bank, num_msg_sym,
-				    msg_size, key, NULL, 0, &inst->sym_tx))
+		ret = adf_create_ring(accel_dev, SEC, bank, num_msg_sym,
+				      msg_size, key, NULL, 0, &inst->sym_tx);
+		if (ret)
 			goto err;
 
 		msg_size = msg_size >> 1;
 		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_ASYM_TX, i);
-		if (adf_create_ring(accel_dev, SEC, bank, num_msg_asym,
-				    msg_size, key, NULL, 0, &inst->pke_tx))
+		ret = adf_create_ring(accel_dev, SEC, bank, num_msg_asym,
+				      msg_size, key, NULL, 0, &inst->pke_tx);
+		if (ret)
 			goto err;
 
 		msg_size = ICP_QAT_FW_RESP_DEFAULT_SZ;
 		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_SYM_RX, i);
-		if (adf_create_ring(accel_dev, SEC, bank, num_msg_sym,
-				    msg_size, key, qat_alg_callback, 0,
-				    &inst->sym_rx))
+		ret = adf_create_ring(accel_dev, SEC, bank, num_msg_sym,
+				      msg_size, key, qat_alg_callback, 0,
+				      &inst->sym_rx);
+		if (ret)
 			goto err;
 
 		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_ASYM_RX, i);
-		if (adf_create_ring(accel_dev, SEC, bank, num_msg_asym,
-				    msg_size, key, qat_alg_asym_callback, 0,
-				    &inst->pke_rx))
+		ret = adf_create_ring(accel_dev, SEC, bank, num_msg_asym,
+				      msg_size, key, qat_alg_asym_callback, 0,
+				      &inst->pke_rx);
+		if (ret)
 			goto err;
 	}
 	return 0;
 err:
 	qat_crypto_free_instances(accel_dev);
-	return -ENOMEM;
+	return ret;
 }
 
 static int qat_crypto_init(struct adf_accel_dev *accel_dev)
