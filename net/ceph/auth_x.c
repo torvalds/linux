@@ -200,7 +200,7 @@ static int process_one_ticket(struct ceph_auth_client *ac,
 	dout(" decrypted %d bytes\n", ret);
 	dend = dp + ret;
 
-	tkt_struct_v = ceph_decode_8(&dp);
+	ceph_decode_8_safe(&dp, dend, tkt_struct_v, bad);
 	if (tkt_struct_v != 1)
 		goto bad;
 
@@ -208,6 +208,7 @@ static int process_one_ticket(struct ceph_auth_client *ac,
 	if (ret)
 		goto out;
 
+	ceph_decode_need(&dp, dend, sizeof(struct ceph_timespec), bad);
 	ceph_decode_timespec64(&validity, dp);
 	dp += sizeof(struct ceph_timespec);
 	new_expires = ktime_get_real_seconds() + validity.tv_sec;
@@ -491,6 +492,7 @@ static int ceph_x_build_request(struct ceph_auth_client *ac,
 	struct ceph_x_info *xi = ac->private;
 	int need;
 	struct ceph_x_request_header *head = buf;
+	void *p;
 	int ret;
 	struct ceph_x_ticket_handler *th =
 		get_ticket_handler(ac, CEPH_ENTITY_TYPE_AUTH);
@@ -504,12 +506,12 @@ static int ceph_x_build_request(struct ceph_auth_client *ac,
 
 	if (need & CEPH_ENTITY_TYPE_AUTH) {
 		struct ceph_x_authenticate *auth = (void *)(head + 1);
-		void *p = auth + 1;
 		void *enc_buf = xi->auth_authorizer.enc_buf;
 		struct ceph_x_challenge_blob *blob = enc_buf +
 							ceph_x_encrypt_offset();
 		u64 *u;
 
+		p = auth + 1;
 		if (p > end)
 			return -ERANGE;
 
@@ -542,35 +544,35 @@ static int ceph_x_build_request(struct ceph_auth_client *ac,
 	}
 
 	if (need) {
-		void *p = head + 1;
-		struct ceph_x_service_ticket_request *req;
-
-		if (p > end)
-			return -ERANGE;
-		head->op = cpu_to_le16(CEPHX_GET_PRINCIPAL_SESSION_KEY);
-
+		dout(" get_principal_session_key\n");
 		ret = ceph_x_build_authorizer(ac, th, &xi->auth_authorizer);
 		if (ret)
 			return ret;
-		ceph_encode_copy(&p, xi->auth_authorizer.buf->vec.iov_base,
-				 xi->auth_authorizer.buf->vec.iov_len);
 
-		req = p;
-		req->keys = cpu_to_le32(need);
-		p += sizeof(*req);
+		p = buf;
+		ceph_encode_16_safe(&p, end, CEPHX_GET_PRINCIPAL_SESSION_KEY,
+				    e_range);
+		ceph_encode_copy_safe(&p, end,
+			xi->auth_authorizer.buf->vec.iov_base,
+			xi->auth_authorizer.buf->vec.iov_len, e_range);
+		ceph_encode_8_safe(&p, end, 1, e_range);
+		ceph_encode_32_safe(&p, end, need, e_range);
 		return p - buf;
 	}
 
 	return 0;
+
+e_range:
+	return -ERANGE;
 }
 
 static int ceph_x_handle_reply(struct ceph_auth_client *ac, int result,
 			       void *buf, void *end)
 {
 	struct ceph_x_info *xi = ac->private;
-	struct ceph_x_reply_header *head = buf;
 	struct ceph_x_ticket_handler *th;
 	int len = end - buf;
+	void *p;
 	int op;
 	int ret;
 
@@ -591,22 +593,22 @@ static int ceph_x_handle_reply(struct ceph_auth_client *ac, int result,
 		return -EAGAIN;
 	}
 
-	op = le16_to_cpu(head->op);
-	result = le32_to_cpu(head->result);
+	p = buf;
+	ceph_decode_16_safe(&p, end, op, e_inval);
+	ceph_decode_32_safe(&p, end, result, e_inval);
 	dout("handle_reply op %d result %d\n", op, result);
 	switch (op) {
 	case CEPHX_GET_AUTH_SESSION_KEY:
 		/* verify auth key */
-		ret = ceph_x_proc_ticket_reply(ac, &xi->secret,
-					       buf + sizeof(*head), end);
+		ret = ceph_x_proc_ticket_reply(ac, &xi->secret, p, end);
 		break;
 
 	case CEPHX_GET_PRINCIPAL_SESSION_KEY:
 		th = get_ticket_handler(ac, CEPH_ENTITY_TYPE_AUTH);
 		if (IS_ERR(th))
 			return PTR_ERR(th);
-		ret = ceph_x_proc_ticket_reply(ac, &th->session_key,
-					       buf + sizeof(*head), end);
+
+		ret = ceph_x_proc_ticket_reply(ac, &th->session_key, p, end);
 		break;
 
 	default:
@@ -617,6 +619,9 @@ static int ceph_x_handle_reply(struct ceph_auth_client *ac, int result,
 	if (ac->want_keys == xi->have_keys)
 		return 0;
 	return -EAGAIN;
+
+e_inval:
+	return -EINVAL;
 }
 
 static void ceph_x_destroy_authorizer(struct ceph_authorizer *a)
