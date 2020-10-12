@@ -4325,6 +4325,8 @@ static int bnxt_hwrm_to_stderr(u32 hwrm_err)
 	switch (hwrm_err) {
 	case HWRM_ERR_CODE_SUCCESS:
 		return 0;
+	case HWRM_ERR_CODE_RESOURCE_LOCKED:
+		return -EROFS;
 	case HWRM_ERR_CODE_RESOURCE_ACCESS_DENIED:
 		return -EACCES;
 	case HWRM_ERR_CODE_RESOURCE_ALLOC_ERROR:
