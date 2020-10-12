@@ -27,6 +27,7 @@ struct amdgpu_mmhub_ras {
 
 struct amdgpu_mmhub_funcs {
 	u64 (*get_fb_location)(struct amdgpu_device *adev);
+	u64 (*get_mc_fb_offset)(struct amdgpu_device *adev);
 	void (*init)(struct amdgpu_device *adev);
 	int (*gart_enable)(struct amdgpu_device *adev);
 	void (*set_fault_enable_default)(struct amdgpu_device *adev,
