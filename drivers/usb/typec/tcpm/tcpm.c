@@ -2890,6 +2890,9 @@ static void tcpm_reset_port(struct tcpm_port *port)
 
 static void tcpm_detach(struct tcpm_port *port)
 {
+	if (tcpm_port_is_disconnected(port))
+		port->hard_reset_count = 0;
+
 	if (!port->attached)
 		return;
 
@@ -2897,9 +2900,6 @@ static void tcpm_detach(struct tcpm_port *port)
 		tcpm_log(port, "disable BIST MODE TESTDATA");
 		port->tcpc->set_bist_data(port->tcpc, false);
 	}
-
-	if (tcpm_port_is_disconnected(port))
-		port->hard_reset_count = 0;
 
 	tcpm_reset_port(port);
 }
