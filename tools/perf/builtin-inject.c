@@ -441,11 +441,10 @@ static int dso__inject_build_id(struct dso *dso, struct perf_tool *tool,
 	return 0;
 }
 
-static int perf_event__inject_buildid(struct perf_tool *tool,
-				      union perf_event *event,
-				      struct perf_sample *sample,
-				      struct evsel *evsel __maybe_unused,
-				      struct machine *machine)
+int perf_event__inject_buildid(struct perf_tool *tool, union perf_event *event,
+			       struct perf_sample *sample,
+			       struct evsel *evsel __maybe_unused,
+			       struct machine *machine)
 {
 	struct addr_location al;
 	struct thread *thread;
