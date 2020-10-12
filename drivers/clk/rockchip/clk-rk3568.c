@@ -575,9 +575,9 @@ static struct rockchip_clk_branch rk3568_clk_branches[] __initdata = {
 			RK3568_CLKGATE_CON(3), 3, GFLAGS),
 	GATE(ACLK_NPU_PRE, "aclk_npu_pre", "clk_npu", 0,
 			RK3568_CLKGATE_CON(3), 4, GFLAGS),
-	GATE(ACLK_RKNN, "aclk_rknn", "aclk_npu_pre", 0,
+	GATE(ACLK_NPU, "aclk_npu", "aclk_npu_pre", 0,
 			RK3568_CLKGATE_CON(3), 7, GFLAGS),
-	GATE(HCLK_RKNN, "hclk_rknn", "hclk_npu_pre", 0,
+	GATE(HCLK_NPU, "hclk_npu", "hclk_npu_pre", 0,
 			RK3568_CLKGATE_CON(3), 8, GFLAGS),
 
 	GATE(PCLK_NPU_PVTM, "pclk_npu_pvtm", "pclk_npu_pre", 0,

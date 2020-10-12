@@ -97,8 +97,8 @@
 #define HCLK_NPU_PRE		37
 #define PCLK_NPU_PRE		38
 #define ACLK_NPU_PRE		39
-#define ACLK_RKNN		40
-#define HCLK_RKNN		41
+#define ACLK_NPU		40
+#define HCLK_NPU		41
 #define PCLK_NPU_PVTM		42
 #define CLK_NPU_PVTM		43
 #define CLK_NPU_PVTM_CORE	44
@@ -523,8 +523,8 @@
 #define SRST_A_NPU_NIU		40
 #define SRST_H_NPU_NIU		41
 #define SRST_P_NPU_NIU		42
-#define SRST_A_RKNN		43
-#define SRST_H_RKNN		44
+#define SRST_A_NPU		43
+#define SRST_H_NPU		44
 #define SRST_P_NPU_PVTM		45
 #define SRST_NPU_PVTM		46
 #define SRST_NPU_PVTPLL		47
