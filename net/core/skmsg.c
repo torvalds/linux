@@ -433,10 +433,12 @@ static int sk_psock_skb_ingress(struct sk_psock *psock, struct sk_buff *skb)
 static int sk_psock_handle_skb(struct sk_psock *psock, struct sk_buff *skb,
 			       u32 off, u32 len, bool ingress)
 {
-	if (ingress)
-		return sk_psock_skb_ingress(psock, skb);
-	else
+	if (!ingress) {
+		if (!sock_writeable(psock->sk))
+			return -EAGAIN;
 		return skb_send_sock_locked(psock->sk, skb, off, len);
+	}
+	return sk_psock_skb_ingress(psock, skb);
 }
 
 static void sk_psock_backlog(struct work_struct *work)
@@ -682,19 +684,8 @@ EXPORT_SYMBOL_GPL(sk_psock_msg_verdict);
 static int sk_psock_bpf_run(struct sk_psock *psock, struct bpf_prog *prog,
 			    struct sk_buff *skb)
 {
-	int ret;
-
-	skb->sk = psock->sk;
 	bpf_compute_data_end_sk_skb(skb);
-	ret = bpf_prog_run_pin_on_cpu(prog, skb);
-	/* strparser clones the skb before handing it to a upper layer,
-	 * meaning skb_orphan has been called. We NULL sk on the way out
-	 * to ensure we don't trigger a BUG_ON() in skb/sk operations
-	 * later and because we are not charging the memory of this skb
-	 * to any socket yet.
-	 */
-	skb->sk = NULL;
-	return ret;
+	return bpf_prog_run_pin_on_cpu(prog, skb);
 }
 
 static struct sk_psock *sk_psock_from_strp(struct strparser *strp)
@@ -709,38 +700,35 @@ static void sk_psock_skb_redirect(struct sk_buff *skb)
 {
 	struct sk_psock *psock_other;
 	struct sock *sk_other;
-	bool ingress;
 
 	sk_other = tcp_skb_bpf_redirect_fetch(skb);
+	/* This error is a buggy BPF program, it returned a redirect
+	 * return code, but then didn't set a redirect interface.
+	 */
 	if (unlikely(!sk_other)) {
 		kfree_skb(skb);
 		return;
 	}
 	psock_other = sk_psock(sk_other);
+	/* This error indicates the socket is being torn down or had another
+	 * error that caused the pipe to break. We can't send a packet on
+	 * a socket that is in this state so we drop the skb.
+	 */
 	if (!psock_other || sock_flag(sk_other, SOCK_DEAD) ||
 	    !sk_psock_test_state(psock_other, SK_PSOCK_TX_ENABLED)) {
 		kfree_skb(skb);
 		return;
 	}
 
-	ingress = tcp_skb_bpf_ingress(skb);
-	if ((!ingress && sock_writeable(sk_other)) ||
-	    (ingress &&
-	     atomic_read(&sk_other->sk_rmem_alloc) <=
-	     sk_other->sk_rcvbuf)) {
-		if (!ingress)
-			skb_set_owner_w(skb, sk_other);
-		skb_queue_tail(&psock_other->ingress_skb, skb);
-		schedule_work(&psock_other->work);
-	} else {
-		kfree_skb(skb);
-	}
+	skb_queue_tail(&psock_other->ingress_skb, skb);
+	schedule_work(&psock_other->work);
 }
 
-static void sk_psock_tls_verdict_apply(struct sk_buff *skb, int verdict)
+static void sk_psock_tls_verdict_apply(struct sk_buff *skb, struct sock *sk, int verdict)
 {
 	switch (verdict) {
 	case __SK_REDIRECT:
+		skb_set_owner_r(skb, sk);
 		sk_psock_skb_redirect(skb);
 		break;
 	case __SK_PASS:
@@ -758,11 +746,17 @@ int sk_psock_tls_strp_read(struct sk_psock *psock, struct sk_buff *skb)
 	rcu_read_lock();
 	prog = READ_ONCE(psock->progs.skb_verdict);
 	if (likely(prog)) {
+		/* We skip full set_owner_r here because if we do a SK_PASS
+		 * or SK_DROP we can skip skb memory accounting and use the
+		 * TLS context.
+		 */
+		skb->sk = psock->sk;
 		tcp_skb_bpf_redirect_clear(skb);
 		ret = sk_psock_bpf_run(psock, prog, skb);
 		ret = sk_psock_map_verd(ret, tcp_skb_bpf_redirect_fetch(skb));
+		skb->sk = NULL;
 	}
-	sk_psock_tls_verdict_apply(skb, ret);
+	sk_psock_tls_verdict_apply(skb, psock->sk, ret);
 	rcu_read_unlock();
 	return ret;
 }
@@ -771,7 +765,9 @@ EXPORT_SYMBOL_GPL(sk_psock_tls_strp_read);
 static void sk_psock_verdict_apply(struct sk_psock *psock,
 				   struct sk_buff *skb, int verdict)
 {
+	struct tcp_skb_cb *tcp;
 	struct sock *sk_other;
+	int err = -EIO;
 
 	switch (verdict) {
 	case __SK_PASS:
@@ -780,16 +776,24 @@ static void sk_psock_verdict_apply(struct sk_psock *psock,
 		    !sk_psock_test_state(psock, SK_PSOCK_TX_ENABLED)) {
 			goto out_free;
 		}
-		if (atomic_read(&sk_other->sk_rmem_alloc) <=
-		    sk_other->sk_rcvbuf) {
-			struct tcp_skb_cb *tcp = TCP_SKB_CB(skb);
 
-			tcp->bpf.flags |= BPF_F_INGRESS;
+		tcp = TCP_SKB_CB(skb);
+		tcp->bpf.flags |= BPF_F_INGRESS;
+
+		/* If the queue is empty then we can submit directly
+		 * into the msg queue. If its not empty we have to
+		 * queue work otherwise we may get OOO data. Otherwise,
+		 * if sk_psock_skb_ingress errors will be handled by
+		 * retrying later from workqueue.
+		 */
+		if (skb_queue_empty(&psock->ingress_skb)) {
+			err = sk_psock_skb_ingress(psock, skb);
+		}
+		if (err < 0) {
 			skb_queue_tail(&psock->ingress_skb, skb);
 			schedule_work(&psock->work);
-			break;
 		}
-		goto out_free;
+		break;
 	case __SK_REDIRECT:
 		sk_psock_skb_redirect(skb);
 		break;
@@ -814,9 +818,9 @@ static void sk_psock_strp_read(struct strparser *strp, struct sk_buff *skb)
 		kfree_skb(skb);
 		goto out;
 	}
+	skb_set_owner_r(skb, sk);
 	prog = READ_ONCE(psock->progs.skb_verdict);
 	if (likely(prog)) {
-		skb_orphan(skb);
 		tcp_skb_bpf_redirect_clear(skb);
 		ret = sk_psock_bpf_run(psock, prog, skb);
 		ret = sk_psock_map_verd(ret, tcp_skb_bpf_redirect_fetch(skb));
@@ -839,8 +843,11 @@ static int sk_psock_strp_parse(struct strparser *strp, struct sk_buff *skb)
 
 	rcu_read_lock();
 	prog = READ_ONCE(psock->progs.skb_parser);
-	if (likely(prog))
+	if (likely(prog)) {
+		skb->sk = psock->sk;
 		ret = sk_psock_bpf_run(psock, prog, skb);
+		skb->sk = NULL;
+	}
 	rcu_read_unlock();
 	return ret;
 }
