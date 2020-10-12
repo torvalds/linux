@@ -36,10 +36,10 @@
 
 /* Firmware versioning. */
 #ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0x1893cb959
+#define DMUB_FW_VERSION_GIT_HASH 0x8aafc9acc
 #define DMUB_FW_VERSION_MAJOR 0
 #define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 37
+#define DMUB_FW_VERSION_REVISION 38
 #define DMUB_FW_VERSION_TEST 0
 #define DMUB_FW_VERSION_VBIOS 0
 #define DMUB_FW_VERSION_HOTFIX 0
@@ -189,7 +189,9 @@ union dmub_fw_boot_options {
 		uint32_t pemu_env : 1;
 		uint32_t fpga_env : 1;
 		uint32_t optimized_init : 1;
-		uint32_t reserved : 29;
+		uint32_t skip_phy_access : 1;
+		uint32_t disable_clk_gate: 1;
+		uint32_t reserved : 27;
 	} bits;
 	uint32_t all;
 };
@@ -490,6 +492,14 @@ enum dp_aux_request_action {
 	DP_AUX_REQ_ACTION_DPCD_READ		= 0x90
 };
 
+enum aux_return_code_type {
+	AUX_RET_SUCCESS = 0,
+	AUX_RET_ERROR_TIMEOUT,
+	AUX_RET_ERROR_NO_DATA,
+	AUX_RET_ERROR_INVALID_OPERATION,
+	AUX_RET_ERROR_PROTOCOL_ERROR,
+};
+
 /* DP AUX command */
 struct aux_transaction_parameters {
 	uint8_t is_i2c_over_aux;
@@ -537,6 +547,17 @@ struct dmub_rb_cmd_dp_aux_reply {
 	struct dmub_cmd_header header;
 	struct aux_reply_control_data control;
 	struct aux_reply_data reply_data;
+};
+
+/* DP HPD Notify command - OutBox Cmd */
+enum dp_hpd_type {
+	DP_HPD = 0,
+	DP_IRQ
+};
+
+enum dp_hpd_status {
+	DP_HPD_UNPLUG = 0,
+	DP_HPD_PLUG
 };
 
 struct dp_hpd_data {
