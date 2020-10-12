@@ -11,6 +11,7 @@
 #include <linux/platform_device.h>
 #include <linux/soc/mediatek/mtk-cmdq.h>
 
+#include "mtk_disp_drv.h"
 #include "mtk_drm_crtc.h"
 #include "mtk_drm_ddp_comp.h"
 
@@ -44,23 +45,23 @@ struct mtk_disp_color {
 	const struct mtk_disp_color_data	*data;
 };
 
-static int mtk_color_clk_enable(struct device *dev)
+int mtk_color_clk_enable(struct device *dev)
 {
 	struct mtk_disp_color *color = dev_get_drvdata(dev);
 
 	return clk_prepare_enable(color->clk);
 }
 
-static void mtk_color_clk_disable(struct device *dev)
+void mtk_color_clk_disable(struct device *dev)
 {
 	struct mtk_disp_color *color = dev_get_drvdata(dev);
 
 	clk_disable_unprepare(color->clk);
 }
 
-static void mtk_color_config(struct device *dev, unsigned int w,
-			     unsigned int h, unsigned int vrefresh,
-			     unsigned int bpc, struct cmdq_pkt *cmdq_pkt)
+void mtk_color_config(struct device *dev, unsigned int w,
+		      unsigned int h, unsigned int vrefresh,
+		      unsigned int bpc, struct cmdq_pkt *cmdq_pkt)
 {
 	struct mtk_disp_color *color = dev_get_drvdata(dev);
 
@@ -68,7 +69,7 @@ static void mtk_color_config(struct device *dev, unsigned int w,
 	mtk_ddp_write(cmdq_pkt, h, &color->cmdq_reg, color->regs, DISP_COLOR_HEIGHT(color));
 }
 
-static void mtk_color_start(struct device *dev)
+void mtk_color_start(struct device *dev)
 {
 	struct mtk_disp_color *color = dev_get_drvdata(dev);
 
@@ -76,13 +77,6 @@ static void mtk_color_start(struct device *dev)
 	       color->regs + DISP_COLOR_CFG_MAIN);
 	writel(0x1, color->regs + DISP_COLOR_START(color));
 }
-
-static const struct mtk_ddp_comp_funcs mtk_disp_color_funcs = {
-	.clk_enable = mtk_color_clk_enable,
-	.clk_disable = mtk_color_clk_disable,
-	.config = mtk_color_config,
-	.start = mtk_color_start,
-};
 
 static int mtk_disp_color_bind(struct device *dev, struct device *master,
 			       void *data)
@@ -151,8 +145,7 @@ static int mtk_disp_color_probe(struct platform_device *pdev)
 		return comp_id;
 	}
 
-	ret = mtk_ddp_comp_init(dev->of_node, &priv->ddp_comp, comp_id,
-				&mtk_disp_color_funcs);
+	ret = mtk_ddp_comp_init(dev->of_node, &priv->ddp_comp, comp_id);
 	if (ret) {
 		if (ret != -EPROBE_DEFER)
 			dev_err(dev, "Failed to initialize component: %d\n",

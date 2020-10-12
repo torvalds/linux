@@ -11,6 +11,7 @@
 #include <linux/platform_device.h>
 #include <linux/soc/mediatek/mtk-cmdq.h>
 
+#include "mtk_disp_drv.h"
 #include "mtk_drm_crtc.h"
 #include "mtk_drm_ddp_comp.h"
 
@@ -95,9 +96,9 @@ static void rdma_update_bits(struct device *dev, unsigned int reg,
 	writel(tmp, rdma->regs + reg);
 }
 
-static void mtk_rdma_enable_vblank(struct device *dev,
-				   void (*vblank_cb)(void *),
-				   void *vblank_cb_data)
+void mtk_rdma_enable_vblank(struct device *dev,
+			    void (*vblank_cb)(void *),
+			    void *vblank_cb_data)
 {
 	struct mtk_disp_rdma *rdma = dev_get_drvdata(dev);
 
@@ -107,7 +108,7 @@ static void mtk_rdma_enable_vblank(struct device *dev,
 			 RDMA_FRAME_END_INT);
 }
 
-static void mtk_rdma_disable_vblank(struct device *dev)
+void mtk_rdma_disable_vblank(struct device *dev)
 {
 	struct mtk_disp_rdma *rdma = dev_get_drvdata(dev);
 
@@ -116,34 +117,34 @@ static void mtk_rdma_disable_vblank(struct device *dev)
 	rdma_update_bits(dev, DISP_REG_RDMA_INT_ENABLE, RDMA_FRAME_END_INT, 0);
 }
 
-static int mtk_rdma_clk_enable(struct device *dev)
+int mtk_rdma_clk_enable(struct device *dev)
 {
 	struct mtk_disp_rdma *rdma = dev_get_drvdata(dev);
 
 	return clk_prepare_enable(rdma->clk);
 }
 
-static void mtk_rdma_clk_disable(struct device *dev)
+void mtk_rdma_clk_disable(struct device *dev)
 {
 	struct mtk_disp_rdma *rdma = dev_get_drvdata(dev);
 
 	clk_disable_unprepare(rdma->clk);
 }
 
-static void mtk_rdma_start(struct device *dev)
+void mtk_rdma_start(struct device *dev)
 {
 	rdma_update_bits(dev, DISP_REG_RDMA_GLOBAL_CON, RDMA_ENGINE_EN,
 			 RDMA_ENGINE_EN);
 }
 
-static void mtk_rdma_stop(struct device *dev)
+void mtk_rdma_stop(struct device *dev)
 {
 	rdma_update_bits(dev, DISP_REG_RDMA_GLOBAL_CON, RDMA_ENGINE_EN, 0);
 }
 
-static void mtk_rdma_config(struct device *dev, unsigned int width,
-			    unsigned int height, unsigned int vrefresh,
-			    unsigned int bpc, struct cmdq_pkt *cmdq_pkt)
+void mtk_rdma_config(struct device *dev, unsigned int width,
+		     unsigned int height, unsigned int vrefresh,
+		     unsigned int bpc, struct cmdq_pkt *cmdq_pkt)
 {
 	unsigned int threshold;
 	unsigned int reg;
@@ -204,14 +205,14 @@ static unsigned int rdma_fmt_convert(struct mtk_disp_rdma *rdma,
 	}
 }
 
-static unsigned int mtk_rdma_layer_nr(struct device *dev)
+unsigned int mtk_rdma_layer_nr(struct device *dev)
 {
 	return 1;
 }
 
-static void mtk_rdma_layer_config(struct device *dev, unsigned int idx,
-				  struct mtk_plane_state *state,
-				  struct cmdq_pkt *cmdq_pkt)
+void mtk_rdma_layer_config(struct device *dev, unsigned int idx,
+			   struct mtk_plane_state *state,
+			   struct cmdq_pkt *cmdq_pkt)
 {
 	struct mtk_disp_rdma *rdma = dev_get_drvdata(dev);
 	struct mtk_plane_pending_state *pending = &state->pending;
@@ -245,18 +246,6 @@ static void mtk_rdma_layer_config(struct device *dev, unsigned int idx,
 			   DISP_REG_RDMA_GLOBAL_CON, RDMA_MODE_MEMORY);
 
 }
-
-static const struct mtk_ddp_comp_funcs mtk_disp_rdma_funcs = {
-	.clk_enable = mtk_rdma_clk_enable,
-	.clk_disable = mtk_rdma_clk_disable,
-	.config = mtk_rdma_config,
-	.start = mtk_rdma_start,
-	.stop = mtk_rdma_stop,
-	.enable_vblank = mtk_rdma_enable_vblank,
-	.disable_vblank = mtk_rdma_disable_vblank,
-	.layer_nr = mtk_rdma_layer_nr,
-	.layer_config = mtk_rdma_layer_config,
-};
 
 static int mtk_disp_rdma_bind(struct device *dev, struct device *master,
 			      void *data)
@@ -331,8 +320,7 @@ static int mtk_disp_rdma_probe(struct platform_device *pdev)
 		return comp_id;
 	}
 
-	ret = mtk_ddp_comp_init(dev->of_node, &priv->ddp_comp, comp_id,
-				&mtk_disp_rdma_funcs);
+	ret = mtk_ddp_comp_init(dev->of_node, &priv->ddp_comp, comp_id);
 	if (ret) {
 		if (ret != -EPROBE_DEFER)
 			dev_err(dev, "Failed to initialize component: %d\n",

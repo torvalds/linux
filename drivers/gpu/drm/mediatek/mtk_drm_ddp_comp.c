@@ -14,6 +14,7 @@
 #include <linux/soc/mediatek/mtk-cmdq.h>
 #include <drm/drm_print.h>
 
+#include "mtk_disp_drv.h"
 #include "mtk_drm_drv.h"
 #include "mtk_drm_plane.h"
 #include "mtk_drm_ddp_comp.h"
@@ -391,12 +392,29 @@ static const struct mtk_ddp_comp_funcs ddp_ccorr = {
 	.ctm_set = mtk_ccorr_ctm_set,
 };
 
+static const struct mtk_ddp_comp_funcs ddp_color = {
+	.clk_enable = mtk_color_clk_enable,
+	.clk_disable = mtk_color_clk_disable,
+	.config = mtk_color_config,
+	.start = mtk_color_start,
+};
+
 static const struct mtk_ddp_comp_funcs ddp_dither = {
 	.clk_enable = mtk_ddp_clk_enable,
 	.clk_disable = mtk_ddp_clk_disable,
 	.config = mtk_dither_config,
 	.start = mtk_dither_start,
 	.stop = mtk_dither_stop,
+};
+
+static const struct mtk_ddp_comp_funcs ddp_dpi = {
+	.start = mtk_dpi_start,
+	.stop = mtk_dpi_stop,
+};
+
+static const struct mtk_ddp_comp_funcs ddp_dsi = {
+	.start = mtk_dsi_ddp_start,
+	.stop = mtk_dsi_ddp_stop,
 };
 
 static const struct mtk_ddp_comp_funcs ddp_gamma = {
@@ -413,6 +431,34 @@ static const struct mtk_ddp_comp_funcs ddp_od = {
 	.clk_disable = mtk_ddp_clk_disable,
 	.config = mtk_od_config,
 	.start = mtk_od_start,
+};
+
+static const struct mtk_ddp_comp_funcs ddp_ovl = {
+	.clk_enable = mtk_ovl_clk_enable,
+	.clk_disable = mtk_ovl_clk_disable,
+	.config = mtk_ovl_config,
+	.start = mtk_ovl_start,
+	.stop = mtk_ovl_stop,
+	.enable_vblank = mtk_ovl_enable_vblank,
+	.disable_vblank = mtk_ovl_disable_vblank,
+	.supported_rotations = mtk_ovl_supported_rotations,
+	.layer_nr = mtk_ovl_layer_nr,
+	.layer_check = mtk_ovl_layer_check,
+	.layer_config = mtk_ovl_layer_config,
+	.bgclr_in_on = mtk_ovl_bgclr_in_on,
+	.bgclr_in_off = mtk_ovl_bgclr_in_off,
+};
+
+static const struct mtk_ddp_comp_funcs ddp_rdma = {
+	.clk_enable = mtk_rdma_clk_enable,
+	.clk_disable = mtk_rdma_clk_disable,
+	.config = mtk_rdma_config,
+	.start = mtk_rdma_start,
+	.stop = mtk_rdma_stop,
+	.enable_vblank = mtk_rdma_enable_vblank,
+	.disable_vblank = mtk_rdma_disable_vblank,
+	.layer_nr = mtk_rdma_layer_nr,
+	.layer_config = mtk_rdma_layer_config,
 };
 
 static const struct mtk_ddp_comp_funcs ddp_ufoe = {
@@ -451,28 +497,28 @@ static const struct mtk_ddp_comp_match mtk_ddp_matches[DDP_COMPONENT_ID_MAX] = {
 	[DDP_COMPONENT_AAL1]	= { MTK_DISP_AAL,	1, &ddp_aal },
 	[DDP_COMPONENT_BLS]	= { MTK_DISP_BLS,	0, NULL },
 	[DDP_COMPONENT_CCORR]	= { MTK_DISP_CCORR,	0, &ddp_ccorr },
-	[DDP_COMPONENT_COLOR0]	= { MTK_DISP_COLOR,	0, NULL },
-	[DDP_COMPONENT_COLOR1]	= { MTK_DISP_COLOR,	1, NULL },
+	[DDP_COMPONENT_COLOR0]	= { MTK_DISP_COLOR,	0, &ddp_color },
+	[DDP_COMPONENT_COLOR1]	= { MTK_DISP_COLOR,	1, &ddp_color },
 	[DDP_COMPONENT_DITHER]	= { MTK_DISP_DITHER,	0, &ddp_dither },
-	[DDP_COMPONENT_DPI0]	= { MTK_DPI,		0, NULL },
-	[DDP_COMPONENT_DPI1]	= { MTK_DPI,		1, NULL },
-	[DDP_COMPONENT_DSI0]	= { MTK_DSI,		0, NULL },
-	[DDP_COMPONENT_DSI1]	= { MTK_DSI,		1, NULL },
-	[DDP_COMPONENT_DSI2]	= { MTK_DSI,		2, NULL },
-	[DDP_COMPONENT_DSI3]	= { MTK_DSI,		3, NULL },
+	[DDP_COMPONENT_DPI0]	= { MTK_DPI,		0, &ddp_dpi },
+	[DDP_COMPONENT_DPI1]	= { MTK_DPI,		1, &ddp_dpi },
+	[DDP_COMPONENT_DSI0]	= { MTK_DSI,		0, &ddp_dsi },
+	[DDP_COMPONENT_DSI1]	= { MTK_DSI,		1, &ddp_dsi },
+	[DDP_COMPONENT_DSI2]	= { MTK_DSI,		2, &ddp_dsi },
+	[DDP_COMPONENT_DSI3]	= { MTK_DSI,		3, &ddp_dsi },
 	[DDP_COMPONENT_GAMMA]	= { MTK_DISP_GAMMA,	0, &ddp_gamma },
 	[DDP_COMPONENT_OD0]	= { MTK_DISP_OD,	0, &ddp_od },
 	[DDP_COMPONENT_OD1]	= { MTK_DISP_OD,	1, &ddp_od },
-	[DDP_COMPONENT_OVL0]	= { MTK_DISP_OVL,	0, NULL },
-	[DDP_COMPONENT_OVL1]	= { MTK_DISP_OVL,	1, NULL },
-	[DDP_COMPONENT_OVL_2L0]	= { MTK_DISP_OVL_2L,	0, NULL },
-	[DDP_COMPONENT_OVL_2L1]	= { MTK_DISP_OVL_2L,	1, NULL },
+	[DDP_COMPONENT_OVL0]	= { MTK_DISP_OVL,	0, &ddp_ovl },
+	[DDP_COMPONENT_OVL1]	= { MTK_DISP_OVL,	1, &ddp_ovl },
+	[DDP_COMPONENT_OVL_2L0]	= { MTK_DISP_OVL_2L,	0, &ddp_ovl },
+	[DDP_COMPONENT_OVL_2L1]	= { MTK_DISP_OVL_2L,	1, &ddp_ovl },
 	[DDP_COMPONENT_PWM0]	= { MTK_DISP_PWM,	0, NULL },
 	[DDP_COMPONENT_PWM1]	= { MTK_DISP_PWM,	1, NULL },
 	[DDP_COMPONENT_PWM2]	= { MTK_DISP_PWM,	2, NULL },
-	[DDP_COMPONENT_RDMA0]	= { MTK_DISP_RDMA,	0, NULL },
-	[DDP_COMPONENT_RDMA1]	= { MTK_DISP_RDMA,	1, NULL },
-	[DDP_COMPONENT_RDMA2]	= { MTK_DISP_RDMA,	2, NULL },
+	[DDP_COMPONENT_RDMA0]	= { MTK_DISP_RDMA,	0, &ddp_rdma },
+	[DDP_COMPONENT_RDMA1]	= { MTK_DISP_RDMA,	1, &ddp_rdma },
+	[DDP_COMPONENT_RDMA2]	= { MTK_DISP_RDMA,	2, &ddp_rdma },
 	[DDP_COMPONENT_UFOE]	= { MTK_DISP_UFOE,	0, &ddp_ufoe },
 	[DDP_COMPONENT_WDMA0]	= { MTK_DISP_WDMA,	0, NULL },
 	[DDP_COMPONENT_WDMA1]	= { MTK_DISP_WDMA,	1, NULL },
@@ -554,7 +600,7 @@ static int mtk_ddp_get_larb_dev(struct device_node *node, struct mtk_ddp_comp *c
 }
 
 int mtk_ddp_comp_init(struct device_node *node, struct mtk_ddp_comp *comp,
-		      enum mtk_ddp_comp_id comp_id, const struct mtk_ddp_comp_funcs *funcs)
+		      enum mtk_ddp_comp_id comp_id)
 {
 	struct platform_device *comp_pdev;
 	enum mtk_ddp_comp_type type;
@@ -567,7 +613,7 @@ int mtk_ddp_comp_init(struct device_node *node, struct mtk_ddp_comp *comp,
 	type = mtk_ddp_matches[comp_id].type;
 
 	comp->id = comp_id;
-	comp->funcs = funcs ?: mtk_ddp_matches[comp_id].funcs;
+	comp->funcs = mtk_ddp_matches[comp_id].funcs;
 	comp_pdev = of_find_device_by_node(node);
 	if (!comp_pdev) {
 		DRM_INFO("Waiting for device %s\n", node->full_name);

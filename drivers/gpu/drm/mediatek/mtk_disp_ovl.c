@@ -13,6 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/soc/mediatek/mtk-cmdq.h>
 
+#include "mtk_disp_drv.h"
 #include "mtk_drm_crtc.h"
 #include "mtk_drm_ddp_comp.h"
 
@@ -95,9 +96,9 @@ static irqreturn_t mtk_disp_ovl_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void mtk_ovl_enable_vblank(struct device *dev,
-				  void (*vblank_cb)(void *),
-				  void *vblank_cb_data)
+void mtk_ovl_enable_vblank(struct device *dev,
+			   void (*vblank_cb)(void *),
+			   void *vblank_cb_data)
 {
 	struct mtk_disp_ovl *ovl = dev_get_drvdata(dev);
 
@@ -107,7 +108,7 @@ static void mtk_ovl_enable_vblank(struct device *dev,
 	writel_relaxed(OVL_FME_CPL_INT, ovl->regs + DISP_REG_OVL_INTEN);
 }
 
-static void mtk_ovl_disable_vblank(struct device *dev)
+void mtk_ovl_disable_vblank(struct device *dev)
 {
 	struct mtk_disp_ovl *ovl = dev_get_drvdata(dev);
 
@@ -116,37 +117,37 @@ static void mtk_ovl_disable_vblank(struct device *dev)
 	writel_relaxed(0x0, ovl->regs + DISP_REG_OVL_INTEN);
 }
 
-static int mtk_ovl_clk_enable(struct device *dev)
+int mtk_ovl_clk_enable(struct device *dev)
 {
 	struct mtk_disp_ovl *ovl = dev_get_drvdata(dev);
 
 	return clk_prepare_enable(ovl->clk);
 }
 
-static void mtk_ovl_clk_disable(struct device *dev)
+void mtk_ovl_clk_disable(struct device *dev)
 {
 	struct mtk_disp_ovl *ovl = dev_get_drvdata(dev);
 
 	clk_disable_unprepare(ovl->clk);
 }
 
-static void mtk_ovl_start(struct device *dev)
+void mtk_ovl_start(struct device *dev)
 {
 	struct mtk_disp_ovl *ovl = dev_get_drvdata(dev);
 
 	writel_relaxed(0x1, ovl->regs + DISP_REG_OVL_EN);
 }
 
-static void mtk_ovl_stop(struct device *dev)
+void mtk_ovl_stop(struct device *dev)
 {
 	struct mtk_disp_ovl *ovl = dev_get_drvdata(dev);
 
 	writel_relaxed(0x0, ovl->regs + DISP_REG_OVL_EN);
 }
 
-static void mtk_ovl_config(struct device *dev, unsigned int w,
-			   unsigned int h, unsigned int vrefresh,
-			   unsigned int bpc, struct cmdq_pkt *cmdq_pkt)
+void mtk_ovl_config(struct device *dev, unsigned int w,
+		    unsigned int h, unsigned int vrefresh,
+		    unsigned int bpc, struct cmdq_pkt *cmdq_pkt)
 {
 	struct mtk_disp_ovl *ovl = dev_get_drvdata(dev);
 
@@ -159,21 +160,21 @@ static void mtk_ovl_config(struct device *dev, unsigned int w,
 	mtk_ddp_write(cmdq_pkt, 0x0, &ovl->cmdq_reg, ovl->regs, DISP_REG_OVL_RST);
 }
 
-static unsigned int mtk_ovl_layer_nr(struct device *dev)
+unsigned int mtk_ovl_layer_nr(struct device *dev)
 {
 	struct mtk_disp_ovl *ovl = dev_get_drvdata(dev);
 
 	return ovl->data->layer_nr;
 }
 
-static unsigned int mtk_ovl_supported_rotations(struct device *dev)
+unsigned int mtk_ovl_supported_rotations(struct device *dev)
 {
 	return DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_180 |
 	       DRM_MODE_REFLECT_X | DRM_MODE_REFLECT_Y;
 }
 
-static int mtk_ovl_layer_check(struct device *dev, unsigned int idx,
-			       struct mtk_plane_state *mtk_state)
+int mtk_ovl_layer_check(struct device *dev, unsigned int idx,
+			struct mtk_plane_state *mtk_state)
 {
 	struct drm_plane_state *state = &mtk_state->base;
 	unsigned int rotation = 0;
@@ -200,8 +201,8 @@ static int mtk_ovl_layer_check(struct device *dev, unsigned int idx,
 	return 0;
 }
 
-static void mtk_ovl_layer_on(struct device *dev, unsigned int idx,
-			     struct cmdq_pkt *cmdq_pkt)
+void mtk_ovl_layer_on(struct device *dev, unsigned int idx,
+		      struct cmdq_pkt *cmdq_pkt)
 {
 	unsigned int gmc_thrshd_l;
 	unsigned int gmc_thrshd_h;
@@ -225,8 +226,8 @@ static void mtk_ovl_layer_on(struct device *dev, unsigned int idx,
 			   DISP_REG_OVL_SRC_CON, BIT(idx));
 }
 
-static void mtk_ovl_layer_off(struct device *dev, unsigned int idx,
-			      struct cmdq_pkt *cmdq_pkt)
+void mtk_ovl_layer_off(struct device *dev, unsigned int idx,
+		       struct cmdq_pkt *cmdq_pkt)
 {
 	struct mtk_disp_ovl *ovl = dev_get_drvdata(dev);
 
@@ -272,9 +273,9 @@ static unsigned int ovl_fmt_convert(struct mtk_disp_ovl *ovl, unsigned int fmt)
 	}
 }
 
-static void mtk_ovl_layer_config(struct device *dev, unsigned int idx,
-				 struct mtk_plane_state *state,
-				 struct cmdq_pkt *cmdq_pkt)
+void mtk_ovl_layer_config(struct device *dev, unsigned int idx,
+			  struct mtk_plane_state *state,
+			  struct cmdq_pkt *cmdq_pkt)
 {
 	struct mtk_disp_ovl *ovl = dev_get_drvdata(dev);
 	struct mtk_plane_pending_state *pending = &state->pending;
@@ -318,7 +319,7 @@ static void mtk_ovl_layer_config(struct device *dev, unsigned int idx,
 	mtk_ovl_layer_on(dev, idx, cmdq_pkt);
 }
 
-static void mtk_ovl_bgclr_in_on(struct device *dev)
+void mtk_ovl_bgclr_in_on(struct device *dev)
 {
 	struct mtk_disp_ovl *ovl = dev_get_drvdata(dev);
 	unsigned int reg;
@@ -328,7 +329,7 @@ static void mtk_ovl_bgclr_in_on(struct device *dev)
 	writel(reg, ovl->regs + DISP_REG_OVL_DATAPATH_CON);
 }
 
-static void mtk_ovl_bgclr_in_off(struct device *dev)
+void mtk_ovl_bgclr_in_off(struct device *dev)
 {
 	struct mtk_disp_ovl *ovl = dev_get_drvdata(dev);
 	unsigned int reg;
@@ -337,22 +338,6 @@ static void mtk_ovl_bgclr_in_off(struct device *dev)
 	reg = reg & ~OVL_BGCLR_SEL_IN;
 	writel(reg, ovl->regs + DISP_REG_OVL_DATAPATH_CON);
 }
-
-static const struct mtk_ddp_comp_funcs mtk_disp_ovl_funcs = {
-	.clk_enable = mtk_ovl_clk_enable,
-	.clk_disable = mtk_ovl_clk_disable,
-	.config = mtk_ovl_config,
-	.start = mtk_ovl_start,
-	.stop = mtk_ovl_stop,
-	.enable_vblank = mtk_ovl_enable_vblank,
-	.disable_vblank = mtk_ovl_disable_vblank,
-	.supported_rotations = mtk_ovl_supported_rotations,
-	.layer_nr = mtk_ovl_layer_nr,
-	.layer_check = mtk_ovl_layer_check,
-	.layer_config = mtk_ovl_layer_config,
-	.bgclr_in_on = mtk_ovl_bgclr_in_on,
-	.bgclr_in_off = mtk_ovl_bgclr_in_off,
-};
 
 static int mtk_disp_ovl_bind(struct device *dev, struct device *master,
 			     void *data)
@@ -431,8 +416,7 @@ static int mtk_disp_ovl_probe(struct platform_device *pdev)
 		return comp_id;
 	}
 
-	ret = mtk_ddp_comp_init(dev->of_node, &priv->ddp_comp, comp_id,
-				&mtk_disp_ovl_funcs);
+	ret = mtk_ddp_comp_init(dev->of_node, &priv->ddp_comp, comp_id);
 	if (ret) {
 		if (ret != -EPROBE_DEFER)
 			dev_err(dev, "Failed to initialize component: %d\n",
