@@ -176,7 +176,8 @@ amdgpu-y += \
 amdgpu-y += \
 	athub_v1_0.o \
 	athub_v2_0.o \
-	athub_v2_1.o
+	athub_v2_1.o \
+	athub_v3_0.o
 
 # add SMUIO block
 amdgpu-y += \
