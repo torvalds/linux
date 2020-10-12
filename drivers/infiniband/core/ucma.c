@@ -112,7 +112,7 @@ struct ucma_multicast {
 
 struct ucma_event {
 	struct ucma_context	*ctx;
-	struct ucma_context	*listen_ctx;
+	struct ucma_context	*conn_req_ctx;
 	struct ucma_multicast	*mc;
 	struct list_head	list;
 	struct rdma_ucm_event_resp resp;
@@ -308,7 +308,7 @@ static int ucma_connect_event_handler(struct rdma_cm_id *cm_id,
 	uevent = ucma_create_uevent(listen_ctx, event);
 	if (!uevent)
 		goto err_alloc;
-	uevent->listen_ctx = listen_ctx;
+	uevent->conn_req_ctx = ctx;
 	uevent->resp.id = ctx->id;
 
 	ctx->cm_id->context = ctx;
@@ -534,7 +534,7 @@ static int ucma_free_ctx(struct ucma_context *ctx)
 	/* Cleanup events not yet reported to the user. */
 	mutex_lock(&ctx->file->mut);
 	list_for_each_entry_safe(uevent, tmp, &ctx->file->event_list, list) {
-		if (uevent->ctx == ctx || uevent->listen_ctx == ctx)
+		if (uevent->ctx == ctx || uevent->conn_req_ctx == ctx)
 			list_move_tail(&uevent->list, &list);
 	}
 	list_del(&ctx->list);
@@ -548,8 +548,9 @@ static int ucma_free_ctx(struct ucma_context *ctx)
 	 */
 	list_for_each_entry_safe(uevent, tmp, &list, list) {
 		list_del(&uevent->list);
-		if (uevent->resp.event == RDMA_CM_EVENT_CONNECT_REQUEST)
-			__destroy_id(uevent->ctx);
+		if (uevent->resp.event == RDMA_CM_EVENT_CONNECT_REQUEST &&
+		    uevent->conn_req_ctx != ctx)
+			__destroy_id(uevent->conn_req_ctx);
 		kfree(uevent);
 	}
 
