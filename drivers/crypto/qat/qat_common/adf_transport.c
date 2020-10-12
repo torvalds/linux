@@ -180,7 +180,9 @@ static int adf_init_ring(struct adf_etr_ring_data *ring)
 	else
 		adf_configure_rx_ring(ring);
 
-	ring_base = BUILD_RING_BASE_ADDR(ring->dma_addr, ring->ring_size);
+	ring_base = csr_ops->build_csr_ring_base_addr(ring->dma_addr,
+						      ring->ring_size);
+
 	csr_ops->write_csr_ring_base(ring->bank->csr_addr,
 				     ring->bank->bank_number, ring->ring_number,
 				     ring_base);

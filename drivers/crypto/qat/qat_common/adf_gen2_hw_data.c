@@ -55,6 +55,11 @@ void adf_gen2_get_arb_info(struct arb_info *arb_info)
 }
 EXPORT_SYMBOL_GPL(adf_gen2_get_arb_info);
 
+static u64 build_csr_ring_base_addr(dma_addr_t addr, u32 size)
+{
+	return BUILD_RING_BASE_ADDR(addr, size);
+}
+
 static u32 read_csr_ring_head(void __iomem *csr_base_addr, u32 bank, u32 ring)
 {
 	return READ_CSR_RING_HEAD(csr_base_addr, bank, ring);
@@ -124,6 +129,7 @@ static void write_csr_int_flag_and_col(void __iomem *csr_base_addr, u32 bank,
 
 void adf_gen2_init_hw_csr_ops(struct adf_hw_csr_ops *csr_ops)
 {
+	csr_ops->build_csr_ring_base_addr = build_csr_ring_base_addr;
 	csr_ops->read_csr_ring_head = read_csr_ring_head;
 	csr_ops->write_csr_ring_head = write_csr_ring_head;
 	csr_ops->read_csr_ring_tail = read_csr_ring_tail;

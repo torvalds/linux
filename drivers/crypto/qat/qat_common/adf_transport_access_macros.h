@@ -56,6 +56,4 @@
 	((watermark_nf << ADF_RING_CONFIG_NEAR_FULL_WM)	\
 	| (watermark_ne << ADF_RING_CONFIG_NEAR_EMPTY_WM) \
 	| size)
-#define BUILD_RING_BASE_ADDR(addr, size) \
-	((addr >> 6) & (0xFFFFFFFFFFFFFFFFULL << size))
 #endif

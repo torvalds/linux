@@ -23,6 +23,8 @@
 #define ADF_RING_CSR_INT_COL_CTL_ENABLE	0x80000000
 #define ADF_RING_BUNDLE_SIZE		0x1000
 
+#define BUILD_RING_BASE_ADDR(addr, size) \
+	(((addr) >> 6) & (0xFFFFFFFFFFFFFFFFULL << (size)))
 #define READ_CSR_RING_HEAD(csr_base_addr, bank, ring) \
 	ADF_CSR_RD(csr_base_addr, (ADF_RING_BUNDLE_SIZE * (bank)) + \
 		   ADF_RING_CSR_RING_HEAD + ((ring) << 2))

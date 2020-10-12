@@ -110,6 +110,7 @@ struct admin_info {
 };
 
 struct adf_hw_csr_ops {
+	u64 (*build_csr_ring_base_addr)(dma_addr_t addr, u32 size);
 	u32 (*read_csr_ring_head)(void __iomem *csr_base_addr, u32 bank,
 				  u32 ring);
 	void (*write_csr_ring_head)(void __iomem *csr_base_addr, u32 bank,
