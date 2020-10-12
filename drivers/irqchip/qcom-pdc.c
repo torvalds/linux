@@ -11,11 +11,9 @@
 #include <linux/irqdomain.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
-#include <linux/of_irq.h>
 #include <linux/soc/qcom/irq.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
@@ -432,8 +430,4 @@ fail:
 	return ret;
 }
 
-IRQCHIP_PLATFORM_DRIVER_BEGIN(qcom_pdc)
-IRQCHIP_MATCH("qcom,pdc", qcom_pdc_init)
-IRQCHIP_PLATFORM_DRIVER_END(qcom_pdc)
-MODULE_DESCRIPTION("Qualcomm Technologies, Inc. Power Domain Controller");
-MODULE_LICENSE("GPL v2");
+IRQCHIP_DECLARE(qcom_pdc, "qcom,pdc", qcom_pdc_init);

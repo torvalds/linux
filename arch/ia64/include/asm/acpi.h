@@ -74,8 +74,6 @@ static inline void arch_acpi_set_pdc_bits(u32 *buf)
 	buf[2] |= ACPI_PDC_EST_CAPABILITY_SMP;
 }
 
-#define acpi_unlazy_tlb(x)
-
 #ifdef CONFIG_ACPI_NUMA
 extern cpumask_t early_cpu_possible_map;
 #define for_each_possible_early_cpu(cpu)  \

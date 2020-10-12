@@ -721,38 +721,13 @@ int vb2_verify_memory_type(struct vb2_queue *q,
 }
 EXPORT_SYMBOL(vb2_verify_memory_type);
 
-static void set_queue_consistency(struct vb2_queue *q, bool consistent_mem)
-{
-	q->dma_attrs &= ~DMA_ATTR_NON_CONSISTENT;
-
-	if (!vb2_queue_allows_cache_hints(q))
-		return;
-	if (!consistent_mem)
-		q->dma_attrs |= DMA_ATTR_NON_CONSISTENT;
-}
-
-static bool verify_consistency_attr(struct vb2_queue *q, bool consistent_mem)
-{
-	bool queue_is_consistent = !(q->dma_attrs & DMA_ATTR_NON_CONSISTENT);
-
-	if (consistent_mem != queue_is_consistent) {
-		dprintk(q, 1, "memory consistency model mismatch\n");
-		return false;
-	}
-	return true;
-}
-
 int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
-		     unsigned int flags, unsigned int *count)
+		     unsigned int *count)
 {
 	unsigned int num_buffers, allocated_buffers, num_planes = 0;
 	unsigned plane_sizes[VB2_MAX_PLANES] = { };
-	bool consistent_mem = true;
 	unsigned int i;
 	int ret;
-
-	if (flags & V4L2_FLAG_MEMORY_NON_CONSISTENT)
-		consistent_mem = false;
 
 	if (q->streaming) {
 		dprintk(q, 1, "streaming active\n");
@@ -765,8 +740,7 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
 	}
 
 	if (*count == 0 || q->num_buffers != 0 ||
-	    (q->memory != VB2_MEMORY_UNKNOWN && q->memory != memory) ||
-	    !verify_consistency_attr(q, consistent_mem)) {
+	    (q->memory != VB2_MEMORY_UNKNOWN && q->memory != memory)) {
 		/*
 		 * We already have buffers allocated, so first check if they
 		 * are not in use and can be freed.
@@ -803,7 +777,6 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
 	num_buffers = min_t(unsigned int, num_buffers, VB2_MAX_FRAME);
 	memset(q->alloc_devs, 0, sizeof(q->alloc_devs));
 	q->memory = memory;
-	set_queue_consistency(q, consistent_mem);
 
 	/*
 	 * Ask the driver how many buffers and planes per buffer it requires.
@@ -888,17 +861,13 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
 EXPORT_SYMBOL_GPL(vb2_core_reqbufs);
 
 int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
-			 unsigned int flags, unsigned int *count,
+			 unsigned int *count,
 			 unsigned int requested_planes,
 			 const unsigned int requested_sizes[])
 {
 	unsigned int num_planes = 0, num_buffers, allocated_buffers;
 	unsigned plane_sizes[VB2_MAX_PLANES] = { };
-	bool consistent_mem = true;
 	int ret;
-
-	if (flags & V4L2_FLAG_MEMORY_NON_CONSISTENT)
-		consistent_mem = false;
 
 	if (q->num_buffers == VB2_MAX_FRAME) {
 		dprintk(q, 1, "maximum number of buffers already allocated\n");
@@ -912,15 +881,12 @@ int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
 		}
 		memset(q->alloc_devs, 0, sizeof(q->alloc_devs));
 		q->memory = memory;
-		set_queue_consistency(q, consistent_mem);
 		q->waiting_for_buffers = !q->is_output;
 	} else {
 		if (q->memory != memory) {
 			dprintk(q, 1, "memory model mismatch\n");
 			return -EINVAL;
 		}
-		if (!verify_consistency_attr(q, consistent_mem))
-			return -EINVAL;
 	}
 
 	num_buffers = min(*count, VB2_MAX_FRAME - q->num_buffers);
@@ -2581,7 +2547,7 @@ static int __vb2_init_fileio(struct vb2_queue *q, int read)
 	fileio->memory = VB2_MEMORY_MMAP;
 	fileio->type = q->type;
 	q->fileio = fileio;
-	ret = vb2_core_reqbufs(q, fileio->memory, 0, &fileio->count);
+	ret = vb2_core_reqbufs(q, fileio->memory, &fileio->count);
 	if (ret)
 		goto err_kfree;
 
@@ -2638,7 +2604,7 @@ static int __vb2_init_fileio(struct vb2_queue *q, int read)
 
 err_reqbufs:
 	fileio->count = 0;
-	vb2_core_reqbufs(q, fileio->memory, 0, &fileio->count);
+	vb2_core_reqbufs(q, fileio->memory, &fileio->count);
 
 err_kfree:
 	q->fileio = NULL;
@@ -2658,7 +2624,7 @@ static int __vb2_cleanup_fileio(struct vb2_queue *q)
 		vb2_core_streamoff(q, q->type);
 		q->fileio = NULL;
 		fileio->count = 0;
-		vb2_core_reqbufs(q, fileio->memory, 0, &fileio->count);
+		vb2_core_reqbufs(q, fileio->memory, &fileio->count);
 		kfree(fileio);
 		dprintk(q, 3, "file io emulator closed\n");
 	}

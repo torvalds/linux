@@ -999,7 +999,7 @@ stifb_blank(int blank_mode, struct fb_info *info)
 	case S9000_ID_HCRX:
 		HYPER_ENABLE_DISABLE_DISPLAY(fb, enable);
 		break;
-	case S9000_ID_A1659A:	/* fall through */
+	case S9000_ID_A1659A:
 	case S9000_ID_TIMBER:
 	case CRX24_OVERLAY_PLANES:
 	default:
@@ -1157,7 +1157,7 @@ static int __init stifb_init_fb(struct sti_struct *sti, int bpp_pref)
 			dev_name);
 		   goto out_err0;
 		}
-		/* fall through */
+		fallthrough;
 	case S9000_ID_ARTIST:
 	case S9000_ID_HCRX:
 	case S9000_ID_TIMBER:

@@ -355,7 +355,7 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 	switch (cmd) {
 	case SIOCGMIIPHY:
 		mii_data->phy_id = phydev->mdio.addr;
-		/* fall through */
+		fallthrough;
 
 	case SIOCGMIIREG:
 		if (mdio_phy_id_is_c45(mii_data->phy_id)) {
@@ -433,7 +433,7 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 	case SIOCSHWTSTAMP:
 		if (phydev->mii_ts && phydev->mii_ts->hwtstamp)
 			return phydev->mii_ts->hwtstamp(phydev->mii_ts, ifr);
-		/* fall through */
+		fallthrough;
 
 	default:
 		return -EOPNOTSUPP;
@@ -996,7 +996,7 @@ void phy_stop(struct phy_device *phydev)
 {
 	struct net_device *dev = phydev->attached_dev;
 
-	if (!phy_is_started(phydev)) {
+	if (!phy_is_started(phydev) && phydev->state != PHY_DOWN) {
 		WARN(1, "called from state %s\n",
 		     phy_state_to_str(phydev->state));
 		return;

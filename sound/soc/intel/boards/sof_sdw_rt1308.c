@@ -7,8 +7,10 @@
 
 #include <linux/device.h>
 #include <linux/errno.h>
+#include <sound/control.h>
 #include <sound/soc.h>
 #include <sound/soc-acpi.h>
+#include <sound/soc-dapm.h>
 #include "sof_sdw_common.h"
 #include "../../codecs/rt1308.h"
 
@@ -130,6 +132,10 @@ int sof_sdw_rt1308_init(const struct snd_soc_acpi_link_adr *link,
 			struct sof_sdw_codec_info *info,
 			bool playback)
 {
+	/* Count amp number and do init on playback link only. */
+	if (!playback)
+		return 0;
+
 	info->amp_num++;
 	if (info->amp_num == 1)
 		dai_links->init = first_spk_init;

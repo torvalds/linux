@@ -470,7 +470,7 @@ static int brcm_ahci_probe(struct platform_device *pdev)
 	switch (priv->version) {
 	case BRCM_SATA_BCM7425:
 		hpriv->flags |= AHCI_HFLAG_DELAY_ENGINE;
-		/* fall through */
+		fallthrough;
 	case BRCM_SATA_NSP:
 		hpriv->flags |= AHCI_HFLAG_NO_NCQ;
 		priv->quirks |= BRCM_AHCI_QUIRK_SKIP_PHY_ENABLE;

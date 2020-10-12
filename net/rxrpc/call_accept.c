@@ -622,7 +622,7 @@ int rxrpc_reject_call(struct rxrpc_sock *rx)
 	case RXRPC_CALL_SERVER_ACCEPTING:
 		__rxrpc_abort_call("REJ", call, 1, RX_USER_ABORT, -ECONNABORTED);
 		abort = true;
-		/* fall through */
+		fallthrough;
 	case RXRPC_CALL_COMPLETE:
 		ret = call->error;
 		goto out_discard;

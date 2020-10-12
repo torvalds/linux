@@ -64,7 +64,7 @@ static enum rc6_mode rc6_mode(struct rc6_dec *data)
 	case 6:
 		if (!data->toggle)
 			return RC6_MODE_6A;
-		/* fall through */
+		fallthrough;
 	default:
 		return RC6_MODE_UNKNOWN;
 	}

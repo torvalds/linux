@@ -519,7 +519,7 @@ int nilfs_bmap_read(struct nilfs_bmap *bmap, struct nilfs_inode *raw_inode)
 		break;
 	case NILFS_IFILE_INO:
 		lockdep_set_class(&bmap->b_sem, &nilfs_bmap_mdt_lock_key);
-		/* Fall through */
+		fallthrough;
 	default:
 		bmap->b_ptr_type = NILFS_BMAP_PTR_VM;
 		bmap->b_last_allocated_key = 0;

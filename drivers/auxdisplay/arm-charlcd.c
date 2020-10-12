@@ -2,7 +2,7 @@
 /*
  * Driver for the on-board character LCD found on some ARM reference boards
  * This is basically an Hitachi HD44780 LCD with a custom IP block to drive it
- * http://en.wikipedia.org/wiki/HD44780_Character_LCD
+ * https://en.wikipedia.org/wiki/HD44780_Character_LCD
  * Currently it will just display the text "ARM Linux" and the linux version
  *
  * Author: Linus Walleij <triad@df.lth.se>

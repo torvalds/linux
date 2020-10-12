@@ -192,7 +192,7 @@ int bcmgenet_mii_config(struct net_device *dev, bool init)
 	switch (priv->phy_interface) {
 	case PHY_INTERFACE_MODE_INTERNAL:
 		phy_name = "internal PHY";
-		/* fall through */
+		fallthrough;
 	case PHY_INTERFACE_MODE_MOCA:
 		/* Irrespective of the actually configured PHY speed (100 or
 		 * 1000) GENETv4 only has an internal GPHY so we will just end

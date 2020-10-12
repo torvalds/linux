@@ -800,7 +800,7 @@ static int irq_polarity(int idx)
 		return IOAPIC_POL_HIGH;
 	case MP_IRQPOL_RESERVED:
 		pr_warn("IOAPIC: Invalid polarity: 2, defaulting to low\n");
-		/* fall through */
+		fallthrough;
 	case MP_IRQPOL_ACTIVE_LOW:
 	default: /* Pointless default required due to do gcc stupidity */
 		return IOAPIC_POL_LOW;
@@ -848,7 +848,7 @@ static int irq_trigger(int idx)
 		return IOAPIC_EDGE;
 	case MP_IRQTRIG_RESERVED:
 		pr_warn("IOAPIC: Invalid trigger mode 2 defaulting to level\n");
-		/* fall through */
+		fallthrough;
 	case MP_IRQTRIG_LEVEL:
 	default: /* Pointless default required due to do gcc stupidity */
 		return IOAPIC_LEVEL;
@@ -2243,6 +2243,7 @@ static inline void __init check_timer(void)
 	legacy_pic->init(0);
 	legacy_pic->make_irq(0);
 	apic_write(APIC_LVT0, APIC_DM_EXTINT);
+	legacy_pic->unmask(0);
 
 	unlock_ExtINT_logic();
 

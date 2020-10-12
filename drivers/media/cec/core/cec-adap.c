@@ -1199,7 +1199,7 @@ void cec_received_msg_ts(struct cec_adapter *adap,
 			/* Cancel the pending timeout work */
 			if (!cancel_delayed_work(&data->work)) {
 				mutex_unlock(&adap->lock);
-				flush_scheduled_work();
+				cancel_delayed_work_sync(&data->work);
 				mutex_lock(&adap->lock);
 			}
 			/*

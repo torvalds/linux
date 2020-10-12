@@ -1264,7 +1264,7 @@ static int acpi_gpio_package_count(const union acpi_object *obj)
 		switch (element->type) {
 		case ACPI_TYPE_LOCAL_REFERENCE:
 			element += 3;
-			/* Fallthrough */
+			fallthrough;
 		case ACPI_TYPE_INTEGER:
 			element++;
 			count++;

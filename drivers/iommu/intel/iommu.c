@@ -123,29 +123,29 @@ static inline unsigned int level_to_offset_bits(int level)
 	return (level - 1) * LEVEL_STRIDE;
 }
 
-static inline int pfn_level_offset(unsigned long pfn, int level)
+static inline int pfn_level_offset(u64 pfn, int level)
 {
 	return (pfn >> level_to_offset_bits(level)) & LEVEL_MASK;
 }
 
-static inline unsigned long level_mask(int level)
+static inline u64 level_mask(int level)
 {
-	return -1UL << level_to_offset_bits(level);
+	return -1ULL << level_to_offset_bits(level);
 }
 
-static inline unsigned long level_size(int level)
+static inline u64 level_size(int level)
 {
-	return 1UL << level_to_offset_bits(level);
+	return 1ULL << level_to_offset_bits(level);
 }
 
-static inline unsigned long align_to_level(unsigned long pfn, int level)
+static inline u64 align_to_level(u64 pfn, int level)
 {
 	return (pfn + level_size(level) - 1) & level_mask(level);
 }
 
 static inline unsigned long lvl_to_nr_pages(unsigned int lvl)
 {
-	return  1 << min_t(int, (lvl - 1) * LEVEL_STRIDE, MAX_AGAW_PFN_WIDTH);
+	return 1UL << min_t(int, (lvl - 1) * LEVEL_STRIDE, MAX_AGAW_PFN_WIDTH);
 }
 
 /* VT-d pages must always be _smaller_ than MM pages. Otherwise things
@@ -364,7 +364,6 @@ static int iommu_skip_te_disable;
 int intel_iommu_gfx_mapped;
 EXPORT_SYMBOL_GPL(intel_iommu_gfx_mapped);
 
-#define DUMMY_DEVICE_DOMAIN_INFO ((struct device_domain_info *)(-1))
 #define DEFER_DEVICE_DOMAIN_INFO ((struct device_domain_info *)(-2))
 struct device_domain_info *get_domain_info(struct device *dev)
 {
@@ -374,8 +373,7 @@ struct device_domain_info *get_domain_info(struct device *dev)
 		return NULL;
 
 	info = dev_iommu_priv_get(dev);
-	if (unlikely(info == DUMMY_DEVICE_DOMAIN_INFO ||
-		     info == DEFER_DEVICE_DOMAIN_INFO))
+	if (unlikely(info == DEFER_DEVICE_DOMAIN_INFO))
 		return NULL;
 
 	return info;
@@ -742,11 +740,6 @@ struct context_entry *iommu_context_addr(struct intel_iommu *iommu, u8 bus,
 	return &context[devfn];
 }
 
-static int iommu_dummy(struct device *dev)
-{
-	return dev_iommu_priv_get(dev) == DUMMY_DEVICE_DOMAIN_INFO;
-}
-
 static bool attach_deferred(struct device *dev)
 {
 	return dev_iommu_priv_get(dev) == DEFER_DEVICE_DOMAIN_INFO;
@@ -779,6 +772,53 @@ is_downstream_to_pci_bridge(struct device *dev, struct device *bridge)
 	return false;
 }
 
+static bool quirk_ioat_snb_local_iommu(struct pci_dev *pdev)
+{
+	struct dmar_drhd_unit *drhd;
+	u32 vtbar;
+	int rc;
+
+	/* We know that this device on this chipset has its own IOMMU.
+	 * If we find it under a different IOMMU, then the BIOS is lying
+	 * to us. Hope that the IOMMU for this device is actually
+	 * disabled, and it needs no translation...
+	 */
+	rc = pci_bus_read_config_dword(pdev->bus, PCI_DEVFN(0, 0), 0xb0, &vtbar);
+	if (rc) {
+		/* "can't" happen */
+		dev_info(&pdev->dev, "failed to run vt-d quirk\n");
+		return false;
+	}
+	vtbar &= 0xffff0000;
+
+	/* we know that the this iommu should be at offset 0xa000 from vtbar */
+	drhd = dmar_find_matched_drhd_unit(pdev);
+	if (!drhd || drhd->reg_base_addr - vtbar != 0xa000) {
+		pr_warn_once(FW_BUG "BIOS assigned incorrect VT-d unit for Intel(R) QuickData Technology device\n");
+		add_taint(TAINT_FIRMWARE_WORKAROUND, LOCKDEP_STILL_OK);
+		return true;
+	}
+
+	return false;
+}
+
+static bool iommu_is_dummy(struct intel_iommu *iommu, struct device *dev)
+{
+	if (!iommu || iommu->drhd->ignored)
+		return true;
+
+	if (dev_is_pci(dev)) {
+		struct pci_dev *pdev = to_pci_dev(dev);
+
+		if (pdev->vendor == PCI_VENDOR_ID_INTEL &&
+		    pdev->device == PCI_DEVICE_ID_INTEL_IOAT_SNB &&
+		    quirk_ioat_snb_local_iommu(pdev))
+			return true;
+	}
+
+	return false;
+}
+
 struct intel_iommu *device_to_iommu(struct device *dev, u8 *bus, u8 *devfn)
 {
 	struct dmar_drhd_unit *drhd = NULL;
@@ -788,7 +828,7 @@ struct intel_iommu *device_to_iommu(struct device *dev, u8 *bus, u8 *devfn)
 	u16 segment = 0;
 	int i;
 
-	if (!dev || iommu_dummy(dev))
+	if (!dev)
 		return NULL;
 
 	if (dev_is_pci(dev)) {
@@ -805,7 +845,7 @@ struct intel_iommu *device_to_iommu(struct device *dev, u8 *bus, u8 *devfn)
 		dev = &ACPI_COMPANION(dev)->dev;
 
 	rcu_read_lock();
-	for_each_active_iommu(iommu, drhd) {
+	for_each_iommu(iommu, drhd) {
 		if (pdev && segment != drhd->segment)
 			continue;
 
@@ -841,6 +881,9 @@ struct intel_iommu *device_to_iommu(struct device *dev, u8 *bus, u8 *devfn)
 	}
 	iommu = NULL;
  out:
+	if (iommu_is_dummy(iommu, dev))
+		iommu = NULL;
+
 	rcu_read_unlock();
 
 	return iommu;
@@ -2447,7 +2490,7 @@ struct dmar_domain *find_domain(struct device *dev)
 {
 	struct device_domain_info *info;
 
-	if (unlikely(attach_deferred(dev) || iommu_dummy(dev)))
+	if (unlikely(attach_deferred(dev)))
 		return NULL;
 
 	/* No lock here, assumes no domain exit in normal case */
@@ -2621,7 +2664,7 @@ static struct dmar_domain *dmar_insert_one_dev_info(struct intel_iommu *iommu,
 		}
 
 		/* Setup the PASID entry for requests without PASID: */
-		spin_lock(&iommu->lock);
+		spin_lock_irqsave(&iommu->lock, flags);
 		if (hw_pass_through && domain_type_is_si(domain))
 			ret = intel_pasid_setup_pass_through(iommu, domain,
 					dev, PASID_RID2PASID);
@@ -2631,7 +2674,7 @@ static struct dmar_domain *dmar_insert_one_dev_info(struct intel_iommu *iommu,
 		else
 			ret = intel_pasid_setup_second_level(iommu, domain,
 					dev, PASID_RID2PASID);
-		spin_unlock(&iommu->lock);
+		spin_unlock_irqrestore(&iommu->lock, flags);
 		if (ret) {
 			dev_err(dev, "Setup RID2PASID failed\n");
 			dmar_remove_one_dev_info(dev);
@@ -3989,35 +4032,6 @@ static void __init iommu_exit_mempool(void)
 	iova_cache_put();
 }
 
-static void quirk_ioat_snb_local_iommu(struct pci_dev *pdev)
-{
-	struct dmar_drhd_unit *drhd;
-	u32 vtbar;
-	int rc;
-
-	/* We know that this device on this chipset has its own IOMMU.
-	 * If we find it under a different IOMMU, then the BIOS is lying
-	 * to us. Hope that the IOMMU for this device is actually
-	 * disabled, and it needs no translation...
-	 */
-	rc = pci_bus_read_config_dword(pdev->bus, PCI_DEVFN(0, 0), 0xb0, &vtbar);
-	if (rc) {
-		/* "can't" happen */
-		dev_info(&pdev->dev, "failed to run vt-d quirk\n");
-		return;
-	}
-	vtbar &= 0xffff0000;
-
-	/* we know that the this iommu should be at offset 0xa000 from vtbar */
-	drhd = dmar_find_matched_drhd_unit(pdev);
-	if (!drhd || drhd->reg_base_addr - vtbar != 0xa000) {
-		pr_warn_once(FW_BUG "BIOS assigned incorrect VT-d unit for Intel(R) QuickData Technology device\n");
-		add_taint(TAINT_FIRMWARE_WORKAROUND, LOCKDEP_STILL_OK);
-		dev_iommu_priv_set(&pdev->dev, DUMMY_DEVICE_DOMAIN_INFO);
-	}
-}
-DECLARE_PCI_FIXUP_ENABLE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_IOAT_SNB, quirk_ioat_snb_local_iommu);
-
 static void __init init_no_remapping_devices(void)
 {
 	struct dmar_drhd_unit *drhd;
@@ -4049,12 +4063,8 @@ static void __init init_no_remapping_devices(void)
 		/* This IOMMU has *only* gfx devices. Either bypass it or
 		   set the gfx_mapped flag, as appropriate */
 		drhd->gfx_dedicated = 1;
-		if (!dmar_map_gfx) {
+		if (!dmar_map_gfx)
 			drhd->ignored = 1;
-			for_each_active_dev_scope(drhd->devices,
-						  drhd->devices_cnt, i, dev)
-				dev_iommu_priv_set(dev, DUMMY_DEVICE_DOMAIN_INFO);
-		}
 	}
 }
 
@@ -5070,7 +5080,6 @@ static struct iommu_domain *intel_iommu_domain_alloc(unsigned type)
 
 	switch (type) {
 	case IOMMU_DOMAIN_DMA:
-	/* fallthrough */
 	case IOMMU_DOMAIN_UNMANAGED:
 		dmar_domain = alloc_domain(0);
 		if (!dmar_domain) {

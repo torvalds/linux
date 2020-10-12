@@ -748,7 +748,7 @@ static int ab8500_charger_max_usb_curr(struct ab8500_charger *di,
 						USB_CH_IP_CUR_LVL_1P5;
 			break;
 		}
-		/* else, fall through */
+		fallthrough;
 	case USB_STAT_HM_IDGND:
 		dev_err(di->dev, "USB Type - Charging not allowed\n");
 		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P05;
@@ -2410,7 +2410,7 @@ static void ab8500_charger_usb_state_changed_work(struct work_struct *work)
 		 * of 1sec for enabling charging
 		 */
 		msleep(1000);
-		/* Intentional fall through */
+		fallthrough;
 	case AB8500_BM_USB_STATE_CONFIGURED:
 		/*
 		 * USB is configured, enable charging with the charging

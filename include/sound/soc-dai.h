@@ -153,7 +153,7 @@ void snd_soc_dai_hw_free(struct snd_soc_dai *dai,
 int snd_soc_dai_startup(struct snd_soc_dai *dai,
 			struct snd_pcm_substream *substream);
 void snd_soc_dai_shutdown(struct snd_soc_dai *dai,
-			  struct snd_pcm_substream *substream);
+			  struct snd_pcm_substream *substream, int rollback);
 snd_pcm_sframes_t snd_soc_dai_delay(struct snd_soc_dai *dai,
 				    struct snd_pcm_substream *substream);
 void snd_soc_dai_suspend(struct snd_soc_dai *dai);
@@ -388,6 +388,9 @@ struct snd_soc_dai {
 
 	struct list_head list;
 
+	/* function mark */
+	struct snd_pcm_substream *mark_startup;
+
 	/* bit field */
 	unsigned int probed:1;
 };
@@ -471,7 +474,8 @@ static inline int snd_soc_dai_set_sdw_stream(struct snd_soc_dai *dai,
  * This routine only retrieves that was previously configured
  * with snd_soc_dai_get_sdw_stream()
  *
- * Returns pointer to stream or -ENOTSUPP if callback is not supported;
+ * Returns pointer to stream or an ERR_PTR value, e.g.
+ * ERR_PTR(-ENOTSUPP) if callback is not supported;
  */
 static inline void *snd_soc_dai_get_sdw_stream(struct snd_soc_dai *dai,
 					       int direction)

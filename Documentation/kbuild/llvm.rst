@@ -23,8 +23,8 @@ supports C and the GNU C extensions required by the kernel, and is pronounced
 Clang
 -----
 
-The compiler used can be swapped out via `CC=` command line argument to `make`.
-`CC=` should be set when selecting a config and during a build.
+The compiler used can be swapped out via ``CC=`` command line argument to ``make``.
+``CC=`` should be set when selecting a config and during a build. ::
 
 	make CC=clang defconfig
 
@@ -34,33 +34,33 @@ Cross Compiling
 ---------------
 
 A single Clang compiler binary will typically contain all supported backends,
-which can help simplify cross compiling.
+which can help simplify cross compiling. ::
 
 	ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- make CC=clang
 
-`CROSS_COMPILE` is not used to prefix the Clang compiler binary, instead
-`CROSS_COMPILE` is used to set a command line flag: `--target <triple>`. For
-example:
+``CROSS_COMPILE`` is not used to prefix the Clang compiler binary, instead
+``CROSS_COMPILE`` is used to set a command line flag: ``--target=<triple>``. For
+example: ::
 
-	clang --target aarch64-linux-gnu foo.c
+	clang --target=aarch64-linux-gnu foo.c
 
 LLVM Utilities
 --------------
 
-LLVM has substitutes for GNU binutils utilities. Kbuild supports `LLVM=1`
-to enable them.
+LLVM has substitutes for GNU binutils utilities. Kbuild supports ``LLVM=1``
+to enable them. ::
 
 	make LLVM=1
 
-They can be enabled individually. The full list of the parameters:
+They can be enabled individually. The full list of the parameters: ::
 
-	make CC=clang LD=ld.lld AR=llvm-ar NM=llvm-nm STRIP=llvm-strip \\
-	  OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump OBJSIZE=llvm-size \\
-	  READELF=llvm-readelf HOSTCC=clang HOSTCXX=clang++ HOSTAR=llvm-ar \\
+	make CC=clang LD=ld.lld AR=llvm-ar NM=llvm-nm STRIP=llvm-strip \
+	  OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump OBJSIZE=llvm-size \
+	  READELF=llvm-readelf HOSTCC=clang HOSTCXX=clang++ HOSTAR=llvm-ar \
 	  HOSTLD=ld.lld
 
 Currently, the integrated assembler is disabled by default. You can pass
-`LLVM_IAS=1` to enable it.
+``LLVM_IAS=1`` to enable it.
 
 Getting Help
 ------------

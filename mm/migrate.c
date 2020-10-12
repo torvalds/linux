@@ -246,13 +246,13 @@ static bool remove_migration_pte(struct page *page, struct vm_area_struct *vma,
 		else if (pte_swp_uffd_wp(*pvmw.pte))
 			pte = pte_mkuffd_wp(pte);
 
-		if (unlikely(is_zone_device_page(new))) {
-			if (is_device_private_page(new)) {
-				entry = make_device_private_entry(new, pte_write(pte));
-				pte = swp_entry_to_pte(entry);
-				if (pte_swp_uffd_wp(*pvmw.pte))
-					pte = pte_mkuffd_wp(pte);
-			}
+		if (unlikely(is_device_private_page(new))) {
+			entry = make_device_private_entry(new, pte_write(pte));
+			pte = swp_entry_to_pte(entry);
+			if (pte_swp_soft_dirty(*pvmw.pte))
+				pte = pte_swp_mksoft_dirty(pte);
+			if (pte_swp_uffd_wp(*pvmw.pte))
+				pte = pte_swp_mkuffd_wp(pte);
 		}
 
 #ifdef CONFIG_HUGETLB_PAGE
@@ -668,7 +668,8 @@ void migrate_page_states(struct page *newpage, struct page *page)
 
 	copy_page_owner(page, newpage);
 
-	mem_cgroup_migrate(page, newpage);
+	if (!PageHuge(page))
+		mem_cgroup_migrate(page, newpage);
 }
 EXPORT_SYMBOL(migrate_page_states);
 
@@ -1445,7 +1446,7 @@ retry:
 			 * Capture required information that might get lost
 			 * during migration.
 			 */
-			is_thp = PageTransHuge(page);
+			is_thp = PageTransHuge(page) && !PageHuge(page);
 			nr_subpages = thp_nr_pages(page);
 			cond_resched();
 
@@ -1471,7 +1472,7 @@ retry:
 				 * we encounter them after the rest of the list
 				 * is processed.
 				 */
-				if (PageTransHuge(page) && !PageHuge(page)) {
+				if (is_thp) {
 					lock_page(page);
 					rc = split_huge_page_to_list(page, from);
 					unlock_page(page);
@@ -1480,8 +1481,7 @@ retry:
 						nr_thp_split++;
 						goto retry;
 					}
-				}
-				if (is_thp) {
+
 					nr_thp_failed++;
 					nr_failed += nr_subpages;
 					goto out;
@@ -2427,10 +2427,17 @@ again:
 			entry = make_migration_entry(page, mpfn &
 						     MIGRATE_PFN_WRITE);
 			swp_pte = swp_entry_to_pte(entry);
-			if (pte_soft_dirty(pte))
-				swp_pte = pte_swp_mksoft_dirty(swp_pte);
-			if (pte_uffd_wp(pte))
-				swp_pte = pte_swp_mkuffd_wp(swp_pte);
+			if (pte_present(pte)) {
+				if (pte_soft_dirty(pte))
+					swp_pte = pte_swp_mksoft_dirty(swp_pte);
+				if (pte_uffd_wp(pte))
+					swp_pte = pte_swp_mkuffd_wp(swp_pte);
+			} else {
+				if (pte_swp_soft_dirty(pte))
+					swp_pte = pte_swp_mksoft_dirty(swp_pte);
+				if (pte_swp_uffd_wp(pte))
+					swp_pte = pte_swp_mkuffd_wp(swp_pte);
+			}
 			set_pte_at(mm, addr, ptep, swp_pte);
 
 			/*

@@ -447,7 +447,7 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 		if (fb->pitches[1] != fb->pitches[2])
 			return -EINVAL;
 
-		/* fall-through */
+		fallthrough;
 	case DRM_FORMAT_NV12:
 	case DRM_FORMAT_NV16:
 		ubo = drm_plane_state_to_ubo(state);

@@ -75,12 +75,14 @@ struct cpuidle_state {
 };
 
 /* Idle State Flags */
-#define CPUIDLE_FLAG_NONE       (0x00)
-#define CPUIDLE_FLAG_POLLING	BIT(0) /* polling state */
-#define CPUIDLE_FLAG_COUPLED	BIT(1) /* state applies to multiple cpus */
-#define CPUIDLE_FLAG_TIMER_STOP BIT(2) /* timer is stopped on this state */
-#define CPUIDLE_FLAG_UNUSABLE	BIT(3) /* avoid using this state */
-#define CPUIDLE_FLAG_OFF	BIT(4) /* disable this state by default */
+#define CPUIDLE_FLAG_NONE       	(0x00)
+#define CPUIDLE_FLAG_POLLING		BIT(0) /* polling state */
+#define CPUIDLE_FLAG_COUPLED		BIT(1) /* state applies to multiple cpus */
+#define CPUIDLE_FLAG_TIMER_STOP 	BIT(2) /* timer is stopped on this state */
+#define CPUIDLE_FLAG_UNUSABLE		BIT(3) /* avoid using this state */
+#define CPUIDLE_FLAG_OFF		BIT(4) /* disable this state by default */
+#define CPUIDLE_FLAG_TLB_FLUSHED	BIT(5) /* idle-state flushes TLBs */
+#define CPUIDLE_FLAG_RCU_IDLE		BIT(6) /* idle-state takes care of RCU */
 
 struct cpuidle_device_kobj;
 struct cpuidle_state_kobj;

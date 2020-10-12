@@ -54,6 +54,18 @@ unsigned int mlx5e_stats_total_num(struct mlx5e_priv *priv)
 	return total;
 }
 
+void mlx5e_stats_update_ndo_stats(struct mlx5e_priv *priv)
+{
+	mlx5e_stats_grp_t *stats_grps = priv->profile->stats_grps;
+	const unsigned int num_stats_grps = stats_grps_num(priv);
+	int i;
+
+	for (i = num_stats_grps - 1; i >= 0; i--)
+		if (stats_grps[i]->update_stats &&
+		    stats_grps[i]->update_stats_mask & MLX5E_NDO_UPDATE_STATS)
+			stats_grps[i]->update_stats(priv);
+}
+
 void mlx5e_stats_update(struct mlx5e_priv *priv)
 {
 	mlx5e_stats_grp_t *stats_grps = priv->profile->stats_grps;

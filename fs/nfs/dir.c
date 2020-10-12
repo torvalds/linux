@@ -579,6 +579,9 @@ int nfs_readdir_page_filler(nfs_readdir_descriptor_t *desc, struct nfs_entry *en
 	xdr_set_scratch_buffer(&stream, page_address(scratch), PAGE_SIZE);
 
 	do {
+		if (entry->label)
+			entry->label->len = NFS4_MAXLABELLEN;
+
 		status = xdr_decode(desc, entry, &stream);
 		if (status != 0) {
 			if (status == -EAGAIN)
@@ -1181,7 +1184,7 @@ int nfs_lookup_verify_inode(struct inode *inode, unsigned int flags)
 			/* A NFSv4 OPEN will revalidate later */
 			if (server->caps & NFS_CAP_ATOMIC_OPEN)
 				goto out;
-			/* Fallthrough */
+			fallthrough;
 		case S_IFDIR:
 			if (server->flags & NFS_MOUNT_NOCTO)
 				break;

@@ -297,7 +297,7 @@ static int adjust_tp(struct atm_trafprm *tp, unsigned char aal)
 		break;
 	default:
 		pr_warn("AAL problems ... (%d)\n", aal);
-		/* fall through */
+		fallthrough;
 	case ATM_AAL5:
 		max_sdu = ATM_MAX_AAL5_PDU;
 	}
@@ -417,7 +417,7 @@ static int __vcc_connect(struct atm_vcc *vcc, struct atm_dev *dev, short vpi,
 	case ATM_NO_AAL:
 		/* ATM_AAL5 is also used in the "0 for default" case */
 		vcc->qos.aal = ATM_AAL5;
-		/* fall through */
+		fallthrough;
 	case ATM_AAL5:
 		error = atm_init_aal5(vcc);
 		vcc->stats = &dev->stats.aal5;
