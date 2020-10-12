@@ -10,11 +10,7 @@
 #include "adf_common_drv.h"
 #include "icp_qat_fw_init_admin.h"
 
-/* Admin Messages Registers */
-#define ADF_DH895XCC_ADMINMSGUR_OFFSET (0x3A000 + 0x574)
-#define ADF_DH895XCC_ADMINMSGLR_OFFSET (0x3A000 + 0x578)
-#define ADF_DH895XCC_MAILBOX_BASE_OFFSET 0x20970
-#define ADF_DH895XCC_MAILBOX_STRIDE 0x1000
+#define ADF_ADMIN_MAILBOX_STRIDE 0x1000
 #define ADF_ADMINMSG_LEN 32
 #define ADF_CONST_TABLE_SIZE 1024
 #define ADF_ADMIN_POLL_DELAY_US 20
@@ -118,7 +114,7 @@ static int adf_put_admin_msg_sync(struct adf_accel_dev *accel_dev, u32 ae,
 	struct adf_admin_comms *admin = accel_dev->admin;
 	int offset = ae * ADF_ADMINMSG_LEN * 2;
 	void __iomem *mailbox = admin->mailbox_addr;
-	int mb_offset = ae * ADF_DH895XCC_MAILBOX_STRIDE;
+	int mb_offset = ae * ADF_ADMIN_MAILBOX_STRIDE;
 	struct icp_qat_fw_init_admin_req *request = in;
 
 	mutex_lock(&admin->lock);
@@ -225,8 +221,9 @@ int adf_init_admin_comms(struct adf_accel_dev *accel_dev)
 	struct adf_bar *pmisc =
 		&GET_BARS(accel_dev)[hw_data->get_misc_bar_id(hw_data)];
 	void __iomem *csr = pmisc->virt_addr;
-	void __iomem *mailbox = (void __iomem *)((uintptr_t)csr +
-				 ADF_DH895XCC_MAILBOX_BASE_OFFSET);
+	struct admin_info admin_csrs_info;
+	u32 mailbox_offset, adminmsg_u, adminmsg_l;
+	void __iomem *mailbox;
 	u64 reg_val;
 
 	admin = kzalloc_node(sizeof(*accel_dev->admin), GFP_KERNEL,
@@ -254,9 +251,17 @@ int adf_init_admin_comms(struct adf_accel_dev *accel_dev)
 	}
 
 	memcpy(admin->virt_tbl_addr, const_tab, sizeof(const_tab));
+	hw_data->get_admin_info(&admin_csrs_info);
+
+	mailbox_offset = admin_csrs_info.mailbox_offset;
+	mailbox = (void __iomem *)((uintptr_t)csr + mailbox_offset);
+	adminmsg_u = admin_csrs_info.admin_msg_ur;
+	adminmsg_l = admin_csrs_info.admin_msg_lr;
+
 	reg_val = (u64)admin->phy_addr;
-	ADF_CSR_WR(csr, ADF_DH895XCC_ADMINMSGUR_OFFSET, reg_val >> 32);
-	ADF_CSR_WR(csr, ADF_DH895XCC_ADMINMSGLR_OFFSET, reg_val);
+	ADF_CSR_WR(csr, adminmsg_u, upper_32_bits(reg_val));
+	ADF_CSR_WR(csr, adminmsg_l, lower_32_bits(reg_val));
+
 	mutex_init(&admin->lock);
 	admin->mailbox_addr = mailbox;
 	accel_dev->admin = admin;

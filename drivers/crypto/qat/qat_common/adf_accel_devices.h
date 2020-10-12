@@ -97,6 +97,12 @@ struct adf_hw_device_class {
 	u32 instances;
 } __packed;
 
+struct admin_info {
+	u32 admin_msg_ur;
+	u32 admin_msg_lr;
+	u32 mailbox_offset;
+};
+
 struct adf_hw_csr_ops {
 	u32 (*read_csr_ring_head)(void __iomem *csr_base_addr, u32 bank,
 				  u32 ring);
@@ -138,6 +144,7 @@ struct adf_hw_device_data {
 	u32 (*get_num_accels)(struct adf_hw_device_data *self);
 	u32 (*get_pf2vf_offset)(u32 i);
 	u32 (*get_vintmsk_offset)(u32 i);
+	void (*get_admin_info)(struct admin_info *admin_csrs_info);
 	enum dev_sku_info (*get_sku)(struct adf_hw_device_data *self);
 	int (*alloc_irq)(struct adf_accel_dev *accel_dev);
 	void (*free_irq)(struct adf_accel_dev *accel_dev);

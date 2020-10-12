@@ -92,8 +92,14 @@ do { \
 	ADF_CSR_WR(pmisc_bar_addr, AE2FUNCTION_MAP_B_OFFSET + \
 		   AE2FUNCTION_MAP_REG_SIZE * (index), value)
 
+/* Admin Interface Offsets */
+#define ADF_ADMINMSGUR_OFFSET	(0x3A000 + 0x574)
+#define ADF_ADMINMSGLR_OFFSET	(0x3A000 + 0x578)
+#define ADF_MAILBOX_BASE_OFFSET	0x20970
+
 void adf_gen2_cfg_iov_thds(struct adf_accel_dev *accel_dev, bool enable,
 			   int num_a_regs, int num_b_regs);
 void adf_gen2_init_hw_csr_ops(struct adf_hw_csr_ops *csr_ops);
+void adf_gen2_get_admin_info(struct admin_info *admin_csrs_info);
 
 #endif

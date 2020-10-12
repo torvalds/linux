@@ -37,6 +37,14 @@ void adf_gen2_cfg_iov_thds(struct adf_accel_dev *accel_dev, bool enable,
 }
 EXPORT_SYMBOL_GPL(adf_gen2_cfg_iov_thds);
 
+void adf_gen2_get_admin_info(struct admin_info *admin_csrs_info)
+{
+	admin_csrs_info->mailbox_offset = ADF_MAILBOX_BASE_OFFSET;
+	admin_csrs_info->admin_msg_ur = ADF_ADMINMSGUR_OFFSET;
+	admin_csrs_info->admin_msg_lr = ADF_ADMINMSGLR_OFFSET;
+}
+EXPORT_SYMBOL_GPL(adf_gen2_get_admin_info);
+
 static u32 read_csr_ring_head(void __iomem *csr_base_addr, u32 bank, u32 ring)
 {
 	return READ_CSR_RING_HEAD(csr_base_addr, bank, ring);
