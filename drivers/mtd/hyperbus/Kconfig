@@ -24,7 +24,7 @@ config HBMC_AM654
 
 config RPCIF_HYPERBUS
 	tristate "Renesas RPC-IF HyperBus driver"
-	depends on RENESAS_RPCIF || COMPILE_TEST
+	depends on RENESAS_RPCIF
 	depends on MTD_CFI_BE_BYTE_SWAP
 	help
 	  This option includes Renesas RPC-IF HyperBus support.
