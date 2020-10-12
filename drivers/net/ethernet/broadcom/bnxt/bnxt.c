@@ -2032,6 +2032,9 @@ static int bnxt_async_event_process(struct bnxt *bp,
 		set_bit(BNXT_RESET_TASK_SILENT_SP_EVENT, &bp->sp_event);
 		break;
 	case ASYNC_EVENT_CMPL_EVENT_ID_RESET_NOTIFY:
+		if (netif_msg_hw(bp))
+			netdev_warn(bp->dev, "Received RESET_NOTIFY event, data1: 0x%x, data2: 0x%x\n",
+				    data1, data2);
 		if (!bp->fw_health)
 			goto async_event_process_exit;
 
