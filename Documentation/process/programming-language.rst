@@ -6,14 +6,15 @@ Programming Language
 The kernel is written in the C programming language [c-language]_.
 More precisely, the kernel is typically compiled with ``gcc`` [gcc]_
 under ``-std=gnu89`` [gcc-c-dialect-options]_: the GNU dialect of ISO C90
-(including some C99 features).
+(including some C99 features). ``clang`` [clang]_ is also supported, see
+docs on :ref:`Building Linux with Clang/LLVM <kbuild_llvm>`.
 
 This dialect contains many extensions to the language [gnu-extensions]_,
 and many of them are used within the kernel as a matter of course.
 
-There is some support for compiling the kernel with ``clang`` [clang]_
-and ``icc`` [icc]_ for several of the architectures, although at the time
-of writing it is not completed, requiring third-party patches.
+There is some support for compiling the kernel with ``icc`` [icc]_ for several
+of the architectures, although at the time of writing it is not completed,
+requiring third-party patches.
 
 Attributes
 ----------

@@ -85,7 +85,7 @@ consider though:
 - Memory mapping the contents of the DMA buffer is also supported. See the
   discussion below on `CPU Access to DMA Buffer Objects`_ for the full details.
 
-- The DMA buffer FD is also pollable, see `Fence Poll Support`_ below for
+- The DMA buffer FD is also pollable, see `Implicit Fence Poll Support`_ below for
   details.
 
 Basic Operation and Device DMA Access
