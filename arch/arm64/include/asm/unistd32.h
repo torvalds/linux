@@ -301,9 +301,9 @@ __SYSCALL(__NR_flock, sys_flock)
 #define __NR_msync 144
 __SYSCALL(__NR_msync, sys_msync)
 #define __NR_readv 145
-__SYSCALL(__NR_readv, compat_sys_readv)
+__SYSCALL(__NR_readv, sys_readv)
 #define __NR_writev 146
-__SYSCALL(__NR_writev, compat_sys_writev)
+__SYSCALL(__NR_writev, sys_writev)
 #define __NR_getsid 147
 __SYSCALL(__NR_getsid, sys_getsid)
 #define __NR_fdatasync 148
@@ -697,7 +697,7 @@ __SYSCALL(__NR_sync_file_range2, compat_sys_aarch32_sync_file_range2)
 #define __NR_tee 342
 __SYSCALL(__NR_tee, sys_tee)
 #define __NR_vmsplice 343
-__SYSCALL(__NR_vmsplice, compat_sys_vmsplice)
+__SYSCALL(__NR_vmsplice, sys_vmsplice)
 #define __NR_move_pages 344
 __SYSCALL(__NR_move_pages, compat_sys_move_pages)
 #define __NR_getcpu 345
@@ -763,9 +763,9 @@ __SYSCALL(__NR_sendmmsg, compat_sys_sendmmsg)
 #define __NR_setns 375
 __SYSCALL(__NR_setns, sys_setns)
 #define __NR_process_vm_readv 376
-__SYSCALL(__NR_process_vm_readv, compat_sys_process_vm_readv)
+__SYSCALL(__NR_process_vm_readv, sys_process_vm_readv)
 #define __NR_process_vm_writev 377
-__SYSCALL(__NR_process_vm_writev, compat_sys_process_vm_writev)
+__SYSCALL(__NR_process_vm_writev, sys_process_vm_writev)
 #define __NR_kcmp 378
 __SYSCALL(__NR_kcmp, sys_kcmp)
 #define __NR_finit_module 379
