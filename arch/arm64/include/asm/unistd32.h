@@ -53,7 +53,7 @@ __SYSCALL(__NR_lseek, compat_sys_lseek)
 #define __NR_getpid 20
 __SYSCALL(__NR_getpid, sys_getpid)
 #define __NR_mount 21
-__SYSCALL(__NR_mount, compat_sys_mount)
+__SYSCALL(__NR_mount, sys_mount)
 			/* 22 was sys_umount */
 __SYSCALL(22, sys_ni_syscall)
 #define __NR_setuid 23

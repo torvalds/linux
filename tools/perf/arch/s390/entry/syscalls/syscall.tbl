@@ -26,7 +26,7 @@
 16   32		lchown			-				compat_sys_s390_lchown16
 19   common	lseek			sys_lseek			compat_sys_lseek
 20   common	getpid			sys_getpid			sys_getpid
-21   common	mount			sys_mount			compat_sys_mount
+21   common	mount			sys_mount
 22   common	umount			sys_oldumount			compat_sys_oldumount
 23   32		setuid			-				compat_sys_s390_setuid16
 24   32		getuid			-				compat_sys_s390_getuid16
