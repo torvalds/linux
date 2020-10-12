@@ -21,9 +21,34 @@ properties:
   reg:
     maxItems: 1
 
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 1
+
+  ranges: true
+
 required:
   - compatible
   - reg
 
-additionalProperties: false
+additionalProperties:
+  type: object
+
+examples:
+  - |
+    cpuctrl@a22000 {
+        compatible = "hisilicon,cpuctrl";
+        #address-cells = <1>;
+        #size-cells = <1>;
+        reg = <0x00a22000 0x2000>;
+        ranges = <0 0x00a22000 0x2000>;
+
+        clock: clock@0 {
+            compatible = "hisilicon,hix5hd2-clock";
+            reg = <0 0x2000>;
+            #clock-cells = <1>;
+        };
+    };
 ...
