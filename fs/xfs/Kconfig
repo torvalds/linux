@@ -24,6 +24,7 @@ config XFS_FS
 
 config XFS_SUPPORT_V4
 	bool "Support deprecated V4 (crc=0) format"
+	depends on XFS_FS
 	default y
 	help
 	  The V4 filesystem format lacks certain features that are supported
