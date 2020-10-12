@@ -117,10 +117,15 @@ int qat_crypto_dev_config(struct adf_accel_dev *accel_dev)
 {
 	int cpus = num_online_cpus();
 	int banks = GET_MAX_BANKS(accel_dev);
-	int instances = min(cpus, banks);
 	char key[ADF_CFG_MAX_KEY_LEN_IN_BYTES];
 	int i;
 	unsigned long val;
+	int instances;
+
+	if (adf_hw_dev_has_crypto(accel_dev))
+		instances = min(cpus, banks);
+	else
+		instances = 0;
 
 	if (adf_cfg_section_add(accel_dev, ADF_KERNEL_SEC))
 		goto err;
