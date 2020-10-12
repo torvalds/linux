@@ -291,8 +291,8 @@
 			interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
 			num-cs = <1>;
 			cs-gpios = <&gpio7 1 0>;
-			clocks = <&crg HISTB_SPI0_CLK>;
-			clock-names = "apb_pclk";
+			clocks = <&crg HISTB_SPI0_CLK>, <&crg HISTB_SPI0_CLK>;
+			clock-names = "sspclk", "apb_pclk";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
