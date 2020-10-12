@@ -384,6 +384,7 @@ static int __init efisubsys_init(void)
 	efi_kobj = kobject_create_and_add("efi", firmware_kobj);
 	if (!efi_kobj) {
 		pr_err("efi: Firmware registration failed.\n");
+		destroy_workqueue(efi_rts_wq);
 		return -ENOMEM;
 	}
 
@@ -427,6 +428,7 @@ err_unregister:
 		generic_ops_unregister();
 err_put:
 	kobject_put(efi_kobj);
+	destroy_workqueue(efi_rts_wq);
 	return error;
 }
 
@@ -718,7 +720,7 @@ void __init efi_systab_report_header(const efi_table_hdr_t *systab_hdr,
 		vendor);
 }
 
-static __initdata char memory_type_name[][20] = {
+static __initdata char memory_type_name[][13] = {
 	"Reserved",
 	"Loader Code",
 	"Loader Data",
@@ -726,14 +728,14 @@ static __initdata char memory_type_name[][20] = {
 	"Boot Data",
 	"Runtime Code",
 	"Runtime Data",
-	"Conventional Memory",
-	"Unusable Memory",
-	"ACPI Reclaim Memory",
-	"ACPI Memory NVS",
-	"Memory Mapped I/O",
-	"MMIO Port Space",
+	"Conventional",
+	"Unusable",
+	"ACPI Reclaim",
+	"ACPI Mem NVS",
+	"MMIO",
+	"MMIO Port",
 	"PAL Code",
-	"Persistent Memory",
+	"Persistent",
 };
 
 char * __init efi_md_typeattr_format(char *buf, size_t size,
@@ -760,26 +762,27 @@ char * __init efi_md_typeattr_format(char *buf, size_t size,
 	if (attr & ~(EFI_MEMORY_UC | EFI_MEMORY_WC | EFI_MEMORY_WT |
 		     EFI_MEMORY_WB | EFI_MEMORY_UCE | EFI_MEMORY_RO |
 		     EFI_MEMORY_WP | EFI_MEMORY_RP | EFI_MEMORY_XP |
-		     EFI_MEMORY_NV | EFI_MEMORY_SP |
+		     EFI_MEMORY_NV | EFI_MEMORY_SP | EFI_MEMORY_CPU_CRYPTO |
 		     EFI_MEMORY_RUNTIME | EFI_MEMORY_MORE_RELIABLE))
 		snprintf(pos, size, "|attr=0x%016llx]",
 			 (unsigned long long)attr);
 	else
 		snprintf(pos, size,
-			 "|%3s|%2s|%2s|%2s|%2s|%2s|%2s|%2s|%3s|%2s|%2s|%2s|%2s]",
-			 attr & EFI_MEMORY_RUNTIME ? "RUN" : "",
-			 attr & EFI_MEMORY_MORE_RELIABLE ? "MR" : "",
-			 attr & EFI_MEMORY_SP      ? "SP"  : "",
-			 attr & EFI_MEMORY_NV      ? "NV"  : "",
-			 attr & EFI_MEMORY_XP      ? "XP"  : "",
-			 attr & EFI_MEMORY_RP      ? "RP"  : "",
-			 attr & EFI_MEMORY_WP      ? "WP"  : "",
-			 attr & EFI_MEMORY_RO      ? "RO"  : "",
-			 attr & EFI_MEMORY_UCE     ? "UCE" : "",
-			 attr & EFI_MEMORY_WB      ? "WB"  : "",
-			 attr & EFI_MEMORY_WT      ? "WT"  : "",
-			 attr & EFI_MEMORY_WC      ? "WC"  : "",
-			 attr & EFI_MEMORY_UC      ? "UC"  : "");
+			 "|%3s|%2s|%2s|%2s|%2s|%2s|%2s|%2s|%2s|%3s|%2s|%2s|%2s|%2s]",
+			 attr & EFI_MEMORY_RUNTIME		? "RUN" : "",
+			 attr & EFI_MEMORY_MORE_RELIABLE	? "MR"  : "",
+			 attr & EFI_MEMORY_CPU_CRYPTO   	? "CC"  : "",
+			 attr & EFI_MEMORY_SP			? "SP"  : "",
+			 attr & EFI_MEMORY_NV			? "NV"  : "",
+			 attr & EFI_MEMORY_XP			? "XP"  : "",
+			 attr & EFI_MEMORY_RP			? "RP"  : "",
+			 attr & EFI_MEMORY_WP			? "WP"  : "",
+			 attr & EFI_MEMORY_RO			? "RO"  : "",
+			 attr & EFI_MEMORY_UCE			? "UCE" : "",
+			 attr & EFI_MEMORY_WB			? "WB"  : "",
+			 attr & EFI_MEMORY_WT			? "WT"  : "",
+			 attr & EFI_MEMORY_WC			? "WC"  : "",
+			 attr & EFI_MEMORY_UC			? "UC"  : "");
 	return buf;
 }
 
