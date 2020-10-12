@@ -3,6 +3,7 @@
 #include <adf_accel_devices.h>
 #include <adf_pf2vf_msg.h>
 #include <adf_common_drv.h>
+#include <adf_gen2_hw_data.h>
 #include "adf_c62xvf_hw_data.h"
 
 static struct adf_hw_device_class c62xiov_class = {
@@ -98,6 +99,7 @@ void adf_init_hw_data_c62xiov(struct adf_hw_device_data *hw_data)
 	hw_data->min_iov_compat_ver = ADF_PFVF_COMPATIBILITY_VERSION;
 	hw_data->dev_class->instances++;
 	adf_devmgr_update_class_index(hw_data);
+	adf_gen2_init_hw_csr_ops(&hw_data->csr_ops);
 }
 
 void adf_clean_hw_data_c62xiov(struct adf_hw_device_data *hw_data)

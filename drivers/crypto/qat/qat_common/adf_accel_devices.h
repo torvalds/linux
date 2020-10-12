@@ -97,6 +97,31 @@ struct adf_hw_device_class {
 	u32 instances;
 } __packed;
 
+struct adf_hw_csr_ops {
+	u32 (*read_csr_ring_head)(void __iomem *csr_base_addr, u32 bank,
+				  u32 ring);
+	void (*write_csr_ring_head)(void __iomem *csr_base_addr, u32 bank,
+				    u32 ring, u32 value);
+	u32 (*read_csr_ring_tail)(void __iomem *csr_base_addr, u32 bank,
+				  u32 ring);
+	void (*write_csr_ring_tail)(void __iomem *csr_base_addr, u32 bank,
+				    u32 ring, u32 value);
+	u32 (*read_csr_e_stat)(void __iomem *csr_base_addr, u32 bank);
+	void (*write_csr_ring_config)(void __iomem *csr_base_addr, u32 bank,
+				      u32 ring, u32 value);
+	void (*write_csr_ring_base)(void __iomem *csr_base_addr, u32 bank,
+				    u32 ring, dma_addr_t addr);
+	void (*write_csr_int_flag)(void __iomem *csr_base_addr, u32 bank,
+				   u32 value);
+	void (*write_csr_int_srcsel)(void __iomem *csr_base_addr, u32 bank);
+	void (*write_csr_int_col_en)(void __iomem *csr_base_addr, u32 bank,
+				     u32 value);
+	void (*write_csr_int_col_ctl)(void __iomem *csr_base_addr, u32 bank,
+				      u32 value);
+	void (*write_csr_int_flag_and_col)(void __iomem *csr_base_addr,
+					   u32 bank, u32 value);
+};
+
 struct adf_cfg_device_data;
 struct adf_accel_dev;
 struct adf_etr_data;
@@ -130,6 +155,7 @@ struct adf_hw_device_data {
 	void (*enable_ints)(struct adf_accel_dev *accel_dev);
 	int (*enable_vf2pf_comms)(struct adf_accel_dev *accel_dev);
 	void (*reset_device)(struct adf_accel_dev *accel_dev);
+	struct adf_hw_csr_ops csr_ops;
 	const char *fw_name;
 	const char *fw_mmp_name;
 	u32 fuses;
@@ -162,6 +188,7 @@ struct adf_hw_device_data {
 #define GET_NUM_RINGS_PER_BANK(accel_dev) \
 	GET_HW_DATA(accel_dev)->num_rings_per_bank
 #define GET_MAX_ACCELENGINES(accel_dev) (GET_HW_DATA(accel_dev)->num_engines)
+#define GET_CSR_OPS(accel_dev) (&(accel_dev)->hw_device->csr_ops)
 #define accel_to_pci_dev(accel_ptr) accel_ptr->accel_pci_dev.pci_dev
 
 struct adf_admin_comms;

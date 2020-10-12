@@ -26,5 +26,6 @@
 
 void adf_gen2_cfg_iov_thds(struct adf_accel_dev *accel_dev, bool enable,
 			   int num_a_regs, int num_b_regs);
+void adf_gen2_init_hw_csr_ops(struct adf_hw_csr_ops *csr_ops);
 
 #endif

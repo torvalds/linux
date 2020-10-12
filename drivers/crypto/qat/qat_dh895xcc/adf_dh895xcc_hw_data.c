@@ -226,6 +226,7 @@ void adf_init_hw_data_dh895xcc(struct adf_hw_device_data *hw_data)
 	hw_data->enable_vf2pf_comms = adf_pf_enable_vf2pf_comms;
 	hw_data->reset_device = adf_reset_sbr;
 	hw_data->min_iov_compat_ver = ADF_PFVF_COMPATIBILITY_VERSION;
+	adf_gen2_init_hw_csr_ops(&hw_data->csr_ops);
 }
 
 void adf_clean_hw_data_dh895xcc(struct adf_hw_device_data *hw_data)
