@@ -238,17 +238,18 @@ static int sock_map_link(struct bpf_map *map, struct sk_psock_progs *progs,
 	int ret;
 
 	skb_verdict = READ_ONCE(progs->skb_verdict);
-	skb_parser = READ_ONCE(progs->skb_parser);
 	if (skb_verdict) {
 		skb_verdict = bpf_prog_inc_not_zero(skb_verdict);
 		if (IS_ERR(skb_verdict))
 			return PTR_ERR(skb_verdict);
 	}
+
+	skb_parser = READ_ONCE(progs->skb_parser);
 	if (skb_parser) {
 		skb_parser = bpf_prog_inc_not_zero(skb_parser);
 		if (IS_ERR(skb_parser)) {
-			bpf_prog_put(skb_verdict);
-			return PTR_ERR(skb_parser);
+			ret = PTR_ERR(skb_parser);
+			goto out_put_skb_verdict;
 		}
 	}
 
@@ -257,7 +258,7 @@ static int sock_map_link(struct bpf_map *map, struct sk_psock_progs *progs,
 		msg_parser = bpf_prog_inc_not_zero(msg_parser);
 		if (IS_ERR(msg_parser)) {
 			ret = PTR_ERR(msg_parser);
-			goto out;
+			goto out_put_skb_parser;
 		}
 	}
 
@@ -311,11 +312,12 @@ out_drop:
 out_progs:
 	if (msg_parser)
 		bpf_prog_put(msg_parser);
-out:
-	if (skb_verdict)
-		bpf_prog_put(skb_verdict);
+out_put_skb_parser:
 	if (skb_parser)
 		bpf_prog_put(skb_parser);
+out_put_skb_verdict:
+	if (skb_verdict)
+		bpf_prog_put(skb_verdict);
 	return ret;
 }
 
