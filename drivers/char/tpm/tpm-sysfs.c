@@ -56,31 +56,20 @@ static ssize_t pubek_show(struct device *dev, struct device_attribute *attr,
 	out = (struct tpm_readpubek_out *)&tpm_buf.data[10];
 	str +=
 	    sprintf(str,
-		    "Algorithm: %02X %02X %02X %02X\n"
-		    "Encscheme: %02X %02X\n"
-		    "Sigscheme: %02X %02X\n"
-		    "Parameters: %02X %02X %02X %02X "
-		    "%02X %02X %02X %02X "
-		    "%02X %02X %02X %02X\n"
+		    "Algorithm: %4ph\n"
+		    "Encscheme: %2ph\n"
+		    "Sigscheme: %2ph\n"
+		    "Parameters: %12ph\n"
 		    "Modulus length: %d\n"
 		    "Modulus:\n",
-		    out->algorithm[0], out->algorithm[1], out->algorithm[2],
-		    out->algorithm[3],
-		    out->encscheme[0], out->encscheme[1],
-		    out->sigscheme[0], out->sigscheme[1],
-		    out->parameters[0], out->parameters[1],
-		    out->parameters[2], out->parameters[3],
-		    out->parameters[4], out->parameters[5],
-		    out->parameters[6], out->parameters[7],
-		    out->parameters[8], out->parameters[9],
-		    out->parameters[10], out->parameters[11],
+		    out->algorithm,
+		    out->encscheme,
+		    out->sigscheme,
+		    out->parameters,
 		    be32_to_cpu(out->keysize));
 
-	for (i = 0; i < 256; i++) {
-		str += sprintf(str, "%02X ", out->modulus[i]);
-		if ((i + 1) % 16 == 0)
-			str += sprintf(str, "\n");
-	}
+	for (i = 0; i < 256; i += 16)
+		str += sprintf(str, "%16ph\n", &out->modulus[i]);
 
 out_buf:
 	tpm_buf_destroy(&tpm_buf);
