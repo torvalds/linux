@@ -382,6 +382,31 @@ static int bnxt_hwrm_get_nvm_cfg_ver(struct bnxt *bp,
 	return rc;
 }
 
+static int bnxt_dl_info_put(struct bnxt *bp, struct devlink_info_req *req,
+			    enum bnxt_dl_version_type type, const char *key,
+			    char *buf)
+{
+	if (!strlen(buf))
+		return 0;
+
+	if ((bp->flags & BNXT_FLAG_CHIP_P5) &&
+	    (!strcmp(key, DEVLINK_INFO_VERSION_GENERIC_FW_NCSI) ||
+	     !strcmp(key, DEVLINK_INFO_VERSION_GENERIC_FW_ROCE)))
+		return 0;
+
+	switch (type) {
+	case BNXT_VERSION_FIXED:
+		return devlink_info_version_fixed_put(req, key, buf);
+	case BNXT_VERSION_RUNNING:
+		return devlink_info_version_running_put(req, key, buf);
+	case BNXT_VERSION_STORED:
+		return devlink_info_version_stored_put(req, key, buf);
+	}
+	return 0;
+}
+
+#define HWRM_FW_VER_STR_LEN	16
+
 static int bnxt_dl_info_get(struct devlink *dl, struct devlink_info_req *req,
 			    struct netlink_ext_ack *extack)
 {
@@ -390,7 +415,7 @@ static int bnxt_dl_info_get(struct devlink *dl, struct devlink_info_req *req,
 	struct hwrm_ver_get_output *ver_resp;
 	char mgmt_ver[FW_VER_STR_LEN];
 	char roce_ver[FW_VER_STR_LEN];
-	char fw_ver[FW_VER_STR_LEN];
+	char ncsi_ver[FW_VER_STR_LEN];
 	char buf[32];
 	int rc;
 
@@ -398,10 +423,11 @@ static int bnxt_dl_info_get(struct devlink *dl, struct devlink_info_req *req,
 	if (rc)
 		return rc;
 
-	if (strlen(bp->board_partno)) {
-		rc = devlink_info_version_fixed_put(req,
-			DEVLINK_INFO_VERSION_GENERIC_BOARD_ID,
-			bp->board_partno);
+	if (BNXT_PF(bp) && (bp->flags & BNXT_FLAG_DSN_VALID)) {
+		sprintf(buf, "%02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X",
+			bp->dsn[7], bp->dsn[6], bp->dsn[5], bp->dsn[4],
+			bp->dsn[3], bp->dsn[2], bp->dsn[1], bp->dsn[0]);
+		rc = devlink_info_serial_number_put(req, buf);
 		if (rc)
 			return rc;
 	}
@@ -412,54 +438,50 @@ static int bnxt_dl_info_get(struct devlink *dl, struct devlink_info_req *req,
 			return rc;
 	}
 
+	rc = bnxt_dl_info_put(bp, req, BNXT_VERSION_FIXED,
+			      DEVLINK_INFO_VERSION_GENERIC_BOARD_ID,
+			      bp->board_partno);
+	if (rc)
+		return rc;
+
 	sprintf(buf, "%X", bp->chip_num);
-	rc = devlink_info_version_fixed_put(req,
-			DEVLINK_INFO_VERSION_GENERIC_ASIC_ID, buf);
+	rc = bnxt_dl_info_put(bp, req, BNXT_VERSION_FIXED,
+			      DEVLINK_INFO_VERSION_GENERIC_ASIC_ID, buf);
 	if (rc)
 		return rc;
 
 	ver_resp = &bp->ver_resp;
 	sprintf(buf, "%X", ver_resp->chip_rev);
-	rc = devlink_info_version_fixed_put(req,
-			DEVLINK_INFO_VERSION_GENERIC_ASIC_REV, buf);
+	rc = bnxt_dl_info_put(bp, req, BNXT_VERSION_FIXED,
+			      DEVLINK_INFO_VERSION_GENERIC_ASIC_REV, buf);
 	if (rc)
 		return rc;
 
-	if (BNXT_PF(bp)) {
-		sprintf(buf, "%02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X",
-			bp->dsn[7], bp->dsn[6], bp->dsn[5], bp->dsn[4],
-			bp->dsn[3], bp->dsn[2], bp->dsn[1], bp->dsn[0]);
-		rc = devlink_info_serial_number_put(req, buf);
-		if (rc)
-			return rc;
-	}
-
-	if (strlen(ver_resp->active_pkg_name)) {
-		rc =
-		    devlink_info_version_running_put(req,
-					DEVLINK_INFO_VERSION_GENERIC_FW,
-					ver_resp->active_pkg_name);
-		if (rc)
-			return rc;
-	}
+	buf[0] = 0;
+	strncat(buf, ver_resp->active_pkg_name, HWRM_FW_VER_STR_LEN);
+	rc = bnxt_dl_info_put(bp, req, BNXT_VERSION_RUNNING,
+			      DEVLINK_INFO_VERSION_GENERIC_FW, buf);
+	if (rc)
+		return rc;
 
 	if (BNXT_PF(bp) && !bnxt_hwrm_get_nvm_cfg_ver(bp, &nvm_cfg_ver)) {
 		u32 ver = nvm_cfg_ver.vu32;
 
 		sprintf(buf, "%X.%X.%X", (ver >> 16) & 0xF, (ver >> 8) & 0xF,
 			ver & 0xF);
-		rc = devlink_info_version_running_put(req,
-				DEVLINK_INFO_VERSION_GENERIC_FW_PSID, buf);
+		rc = bnxt_dl_info_put(bp, req, BNXT_VERSION_RUNNING,
+				      DEVLINK_INFO_VERSION_GENERIC_FW_PSID,
+				      buf);
 		if (rc)
 			return rc;
 	}
 
 	if (ver_resp->flags & VER_GET_RESP_FLAGS_EXT_VER_AVAIL) {
-		snprintf(fw_ver, FW_VER_STR_LEN, "%d.%d.%d.%d",
+		snprintf(mgmt_ver, FW_VER_STR_LEN, "%d.%d.%d.%d",
 			 ver_resp->hwrm_fw_major, ver_resp->hwrm_fw_minor,
 			 ver_resp->hwrm_fw_build, ver_resp->hwrm_fw_patch);
 
-		snprintf(mgmt_ver, FW_VER_STR_LEN, "%d.%d.%d.%d",
+		snprintf(ncsi_ver, FW_VER_STR_LEN, "%d.%d.%d.%d",
 			 ver_resp->mgmt_fw_major, ver_resp->mgmt_fw_minor,
 			 ver_resp->mgmt_fw_build, ver_resp->mgmt_fw_patch);
 
@@ -467,11 +489,11 @@ static int bnxt_dl_info_get(struct devlink *dl, struct devlink_info_req *req,
 			 ver_resp->roce_fw_major, ver_resp->roce_fw_minor,
 			 ver_resp->roce_fw_build, ver_resp->roce_fw_patch);
 	} else {
-		snprintf(fw_ver, FW_VER_STR_LEN, "%d.%d.%d.%d",
+		snprintf(mgmt_ver, FW_VER_STR_LEN, "%d.%d.%d.%d",
 			 ver_resp->hwrm_fw_maj_8b, ver_resp->hwrm_fw_min_8b,
 			 ver_resp->hwrm_fw_bld_8b, ver_resp->hwrm_fw_rsvd_8b);
 
-		snprintf(mgmt_ver, FW_VER_STR_LEN, "%d.%d.%d.%d",
+		snprintf(ncsi_ver, FW_VER_STR_LEN, "%d.%d.%d.%d",
 			 ver_resp->mgmt_fw_maj_8b, ver_resp->mgmt_fw_min_8b,
 			 ver_resp->mgmt_fw_bld_8b, ver_resp->mgmt_fw_rsvd_8b);
 
@@ -479,29 +501,24 @@ static int bnxt_dl_info_get(struct devlink *dl, struct devlink_info_req *req,
 			 ver_resp->roce_fw_maj_8b, ver_resp->roce_fw_min_8b,
 			 ver_resp->roce_fw_bld_8b, ver_resp->roce_fw_rsvd_8b);
 	}
-	rc = devlink_info_version_running_put(req,
-			DEVLINK_INFO_VERSION_GENERIC_FW_MGMT, fw_ver);
+	rc = bnxt_dl_info_put(bp, req, BNXT_VERSION_RUNNING,
+			      DEVLINK_INFO_VERSION_GENERIC_FW_MGMT, mgmt_ver);
 	if (rc)
 		return rc;
 
-	rc = devlink_info_version_running_put(req,
-				DEVLINK_INFO_VERSION_GENERIC_FW_MGMT_API,
-				bp->hwrm_ver_supp);
+	rc = bnxt_dl_info_put(bp, req, BNXT_VERSION_RUNNING,
+			      DEVLINK_INFO_VERSION_GENERIC_FW_MGMT_API,
+			      bp->hwrm_ver_supp);
 	if (rc)
 		return rc;
 
-	if (!(bp->flags & BNXT_FLAG_CHIP_P5)) {
-		rc = devlink_info_version_running_put(req,
-			DEVLINK_INFO_VERSION_GENERIC_FW_NCSI, mgmt_ver);
-		if (rc)
-			return rc;
+	rc = bnxt_dl_info_put(bp, req, BNXT_VERSION_RUNNING,
+			      DEVLINK_INFO_VERSION_GENERIC_FW_NCSI, ncsi_ver);
+	if (rc)
+		return rc;
 
-		rc = devlink_info_version_running_put(req,
-			DEVLINK_INFO_VERSION_GENERIC_FW_ROCE, roce_ver);
-		if (rc)
-			return rc;
-	}
-	return 0;
+	return bnxt_dl_info_put(bp, req, BNXT_VERSION_RUNNING,
+				DEVLINK_INFO_VERSION_GENERIC_FW_ROCE, roce_ver);
 }
 
 static int bnxt_hwrm_nvm_req(struct bnxt *bp, u32 param_id, void *msg,
