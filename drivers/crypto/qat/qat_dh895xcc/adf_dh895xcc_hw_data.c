@@ -195,7 +195,7 @@ static void adf_enable_ints(struct adf_accel_dev *accel_dev)
 	/* Enable bundle and misc interrupts */
 	ADF_CSR_WR(addr, ADF_DH895XCC_SMIAPF0_MASK_OFFSET,
 		   accel_dev->pf.vf_info ? 0 :
-			GENMASK_ULL(GET_MAX_BANKS(accel_dev) - 1, 0));
+			BIT_ULL(GET_MAX_BANKS(accel_dev)) - 1);
 	ADF_CSR_WR(addr, ADF_DH895XCC_SMIAPF1_MASK_OFFSET,
 		   ADF_DH895XCC_SMIA1_MASK);
 }
