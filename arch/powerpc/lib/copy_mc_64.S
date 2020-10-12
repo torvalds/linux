@@ -50,7 +50,7 @@ err3;	stb	r0,0(r3)
 	blr
 
 
-_GLOBAL(memcpy_mcsafe)
+_GLOBAL(copy_mc_generic)
 	mr	r7,r5
 	cmpldi	r5,16
 	blt	.Lshort_copy
@@ -239,4 +239,4 @@ err1;	stb	r0,0(r3)
 15:	li	r3,0
 	blr
 
-EXPORT_SYMBOL_GPL(memcpy_mcsafe);
+EXPORT_SYMBOL_GPL(copy_mc_generic);

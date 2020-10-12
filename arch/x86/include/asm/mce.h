@@ -136,7 +136,22 @@
 #define	MCE_HANDLED_NFIT	BIT_ULL(3)
 #define	MCE_HANDLED_EDAC	BIT_ULL(4)
 #define	MCE_HANDLED_MCELOG	BIT_ULL(5)
+
+/*
+ * Indicates an MCE which has happened in kernel space but from
+ * which the kernel can recover simply by executing fixup_exception()
+ * so that an error is returned to the caller of the function that
+ * hit the machine check.
+ */
 #define MCE_IN_KERNEL_RECOV	BIT_ULL(6)
+
+/*
+ * Indicates an MCE that happened in kernel space while copying data
+ * from user. In this case fixup_exception() gets the kernel to the
+ * error exit for the copy function. Machine check handler can then
+ * treat it like a fault taken in user mode.
+ */
+#define MCE_IN_KERNEL_COPYIN	BIT_ULL(7)
 
 /*
  * This structure contains all data related to the MCE log.  Also
@@ -174,6 +189,15 @@ extern void mce_unregister_decode_chain(struct notifier_block *nb);
 
 extern int mce_p5_enabled;
 
+#ifdef CONFIG_ARCH_HAS_COPY_MC
+extern void enable_copy_mc_fragile(void);
+unsigned long __must_check copy_mc_fragile(void *dst, const void *src, unsigned cnt);
+#else
+static inline void enable_copy_mc_fragile(void)
+{
+}
+#endif
+
 #ifdef CONFIG_X86_MCE
 int mcheck_init(void);
 void mcheck_cpu_init(struct cpuinfo_x86 *c);
@@ -200,12 +224,8 @@ void mce_setup(struct mce *m);
 void mce_log(struct mce *m);
 DECLARE_PER_CPU(struct device *, mce_device);
 
-/*
- * Maximum banks number.
- * This is the limit of the current register layout on
- * Intel CPUs.
- */
-#define MAX_NR_BANKS 32
+/* Maximum number of MCA banks per CPU. */
+#define MAX_NR_BANKS 64
 
 #ifdef CONFIG_X86_MCE_INTEL
 void mce_intel_feature_init(struct cpuinfo_x86 *c);
@@ -328,7 +348,6 @@ enum smca_bank_types {
 struct smca_hwid {
 	unsigned int bank_type;	/* Use with smca_bank_types for easy indexing. */
 	u32 hwid_mcatype;	/* (hwid,mcatype) tuple */
-	u32 xec_bitmap;		/* Bitmap of valid ExtErrorCodes; current max is 21. */
 	u8 count;		/* Number of instances. */
 };
 
