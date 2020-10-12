@@ -315,7 +315,7 @@ static int clk_throttle_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 static int cs_counters_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 {
 	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
-	struct hl_info_cs_counters cs_counters = { {0} };
+	struct hl_info_cs_counters cs_counters = {0};
 	struct hl_device *hdev = hpriv->hdev;
 	struct hl_cs_counters_atomic *cntr;
 	u32 max_size = args->return_size;
@@ -325,23 +325,34 @@ static int cs_counters_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 	if ((!max_size) || (!out))
 		return -EINVAL;
 
-	memcpy(&cs_counters.cs_counters, &hdev->aggregated_cs_counters,
-			sizeof(struct hl_cs_counters));
-
-	cs_counters.cs_counters.out_of_mem_drop_cnt =
+	cs_counters.total_out_of_mem_drop_cnt =
 			atomic64_read(&cntr->out_of_mem_drop_cnt);
-	cs_counters.cs_counters.parsing_drop_cnt =
+	cs_counters.total_parsing_drop_cnt =
 			atomic64_read(&cntr->parsing_drop_cnt);
-	cs_counters.cs_counters.queue_full_drop_cnt =
+	cs_counters.total_queue_full_drop_cnt =
 			atomic64_read(&cntr->queue_full_drop_cnt);
-	cs_counters.cs_counters.device_in_reset_drop_cnt =
+	cs_counters.total_device_in_reset_drop_cnt =
 			atomic64_read(&cntr->device_in_reset_drop_cnt);
-	cs_counters.cs_counters.max_cs_in_flight_drop_cnt =
+	cs_counters.total_max_cs_in_flight_drop_cnt =
 			atomic64_read(&cntr->max_cs_in_flight_drop_cnt);
 
-	if (hpriv->ctx)
-		memcpy(&cs_counters.ctx_cs_counters, &hpriv->ctx->cs_counters,
-				sizeof(struct hl_cs_counters));
+	if (hpriv->ctx) {
+		cs_counters.ctx_out_of_mem_drop_cnt =
+				atomic64_read(
+				&hpriv->ctx->cs_counters.out_of_mem_drop_cnt);
+		cs_counters.ctx_parsing_drop_cnt =
+				atomic64_read(
+				&hpriv->ctx->cs_counters.parsing_drop_cnt);
+		cs_counters.ctx_queue_full_drop_cnt =
+				atomic64_read(
+				&hpriv->ctx->cs_counters.queue_full_drop_cnt);
+		cs_counters.ctx_device_in_reset_drop_cnt =
+				atomic64_read(
+			&hpriv->ctx->cs_counters.device_in_reset_drop_cnt);
+		cs_counters.ctx_max_cs_in_flight_drop_cnt =
+				atomic64_read(
+			&hpriv->ctx->cs_counters.max_cs_in_flight_drop_cnt);
+	}
 
 	return copy_to_user(out, &cs_counters,
 		min((size_t) max_size, sizeof(cs_counters))) ? -EFAULT : 0;

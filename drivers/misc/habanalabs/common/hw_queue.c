@@ -523,7 +523,7 @@ int hl_hw_queue_schedule_cs(struct hl_cs *cs)
 	hdev->asic_funcs->hw_queues_lock(hdev);
 
 	if (hl_device_disabled_or_in_reset(hdev)) {
-		ctx->cs_counters.device_in_reset_drop_cnt++;
+		atomic64_inc(&ctx->cs_counters.device_in_reset_drop_cnt);
 		atomic64_inc(&cntr->device_in_reset_drop_cnt);
 		dev_err(hdev->dev,
 			"device is disabled or in reset, CS rejected!\n");
@@ -557,7 +557,8 @@ int hl_hw_queue_schedule_cs(struct hl_cs *cs)
 			}
 
 			if (rc) {
-				ctx->cs_counters.queue_full_drop_cnt++;
+				atomic64_inc(
+					&ctx->cs_counters.queue_full_drop_cnt);
 				atomic64_inc(&cntr->queue_full_drop_cnt);
 				goto unroll_cq_resv;
 			}

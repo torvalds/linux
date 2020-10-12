@@ -1137,7 +1137,7 @@ static int gaudi_collective_wait_create_job(struct hl_device *hdev,
 	hw_queue_prop = &hdev->asic_prop.hw_queues_props[queue_id];
 	job = hl_cs_allocate_job(hdev, hw_queue_prop->type, true);
 	if (!job) {
-		ctx->cs_counters.out_of_mem_drop_cnt++;
+		atomic64_inc(&ctx->cs_counters.out_of_mem_drop_cnt);
 		atomic64_inc(&cntr->out_of_mem_drop_cnt);
 		dev_err(hdev->dev, "Failed to allocate a new job\n");
 		return -ENOMEM;
@@ -1147,7 +1147,7 @@ static int gaudi_collective_wait_create_job(struct hl_device *hdev,
 	cb = hl_cb_kernel_create(hdev, cb_size,
 			hdev->mmu_enable && !patched_cb);
 	if (!cb) {
-		ctx->cs_counters.out_of_mem_drop_cnt++;
+		atomic64_inc(&ctx->cs_counters.out_of_mem_drop_cnt);
 		atomic64_inc(&cntr->out_of_mem_drop_cnt);
 		kfree(job);
 		return -EFAULT;

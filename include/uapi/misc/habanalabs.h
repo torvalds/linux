@@ -407,23 +407,28 @@ struct hl_info_sync_manager {
 
 /**
  * struct hl_info_cs_counters - command submission counters
- * @out_of_mem_drop_cnt: dropped due to memory allocation issue
- * @parsing_drop_cnt: dropped due to error in packet parsing
- * @queue_full_drop_cnt: dropped due to queue full
- * @device_in_reset_drop_cnt: dropped due to device in reset
- * @max_cs_in_flight_drop_cnt: dropped due to maximum CS in-flight
+ * @total_out_of_mem_drop_cnt: total dropped due to memory allocation issue
+ * @ctx_out_of_mem_drop_cnt: context dropped due to memory allocation issue
+ * @total_parsing_drop_cnt: total dropped due to error in packet parsing
+ * @ctx_parsing_drop_cnt: context dropped due to error in packet parsing
+ * @total_queue_full_drop_cnt: total dropped due to queue full
+ * @ctx_queue_full_drop_cnt: context dropped due to queue full
+ * @total_device_in_reset_drop_cnt: total dropped due to device in reset
+ * @ctx_device_in_reset_drop_cnt: context dropped due to device in reset
+ * @total_max_cs_in_flight_drop_cnt: total dropped due to maximum CS in-flight
+ * @ctx_max_cs_in_flight_drop_cnt: context dropped due to maximum CS in-flight
  */
-struct hl_cs_counters {
-	__u64 out_of_mem_drop_cnt;
-	__u64 parsing_drop_cnt;
-	__u64 queue_full_drop_cnt;
-	__u64 device_in_reset_drop_cnt;
-	__u64 max_cs_in_flight_drop_cnt;
-};
-
 struct hl_info_cs_counters {
-	struct hl_cs_counters cs_counters;
-	struct hl_cs_counters ctx_cs_counters;
+	__u64 total_out_of_mem_drop_cnt;
+	__u64 ctx_out_of_mem_drop_cnt;
+	__u64 total_parsing_drop_cnt;
+	__u64 ctx_parsing_drop_cnt;
+	__u64 total_queue_full_drop_cnt;
+	__u64 ctx_queue_full_drop_cnt;
+	__u64 total_device_in_reset_drop_cnt;
+	__u64 ctx_device_in_reset_drop_cnt;
+	__u64 total_max_cs_in_flight_drop_cnt;
+	__u64 ctx_max_cs_in_flight_drop_cnt;
 };
 
 enum gaudi_dcores {

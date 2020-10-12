@@ -462,7 +462,7 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 	if (other && !completion_done(&other->completion)) {
 		dev_dbg_ratelimited(hdev->dev,
 			"Rejecting CS because of too many in-flights CS\n");
-		ctx->cs_counters.max_cs_in_flight_drop_cnt++;
+		atomic64_inc(&ctx->cs_counters.max_cs_in_flight_drop_cnt);
 		atomic64_inc(&cntr->max_cs_in_flight_drop_cnt);
 		rc = -EAGAIN;
 		goto free_fence;
@@ -720,7 +720,7 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 		rc = validate_queue_index(hdev, chunk, &queue_type,
 						&is_kernel_allocated_cb);
 		if (rc) {
-			hpriv->ctx->cs_counters.parsing_drop_cnt++;
+			atomic64_inc(&hpriv->ctx->cs_counters.parsing_drop_cnt);
 			atomic64_inc(&cntr->parsing_drop_cnt);
 			goto free_cs_object;
 		}
@@ -728,7 +728,8 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 		if (is_kernel_allocated_cb) {
 			cb = get_cb_from_cs_chunk(hdev, &hpriv->cb_mgr, chunk);
 			if (!cb) {
-				hpriv->ctx->cs_counters.parsing_drop_cnt++;
+				atomic64_inc(
+				&hpriv->ctx->cs_counters.parsing_drop_cnt);
 				atomic64_inc(&cntr->parsing_drop_cnt);
 				rc = -EINVAL;
 				goto free_cs_object;
@@ -743,7 +744,8 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 		job = hl_cs_allocate_job(hdev, queue_type,
 						is_kernel_allocated_cb);
 		if (!job) {
-			hpriv->ctx->cs_counters.out_of_mem_drop_cnt++;
+			atomic64_inc(
+			&hpriv->ctx->cs_counters.out_of_mem_drop_cnt);
 			atomic64_inc(&cntr->out_of_mem_drop_cnt);
 			dev_err(hdev->dev, "Failed to allocate a new job\n");
 			rc = -ENOMEM;
@@ -777,7 +779,7 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 
 		rc = cs_parser(hpriv, job);
 		if (rc) {
-			hpriv->ctx->cs_counters.parsing_drop_cnt++;
+			atomic64_inc(&hpriv->ctx->cs_counters.parsing_drop_cnt);
 			atomic64_inc(&cntr->parsing_drop_cnt);
 			dev_err(hdev->dev,
 				"Failed to parse JOB %d.%llu.%d, err %d, rejecting the CS\n",
@@ -787,7 +789,7 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 	}
 
 	if (int_queues_only) {
-		hpriv->ctx->cs_counters.parsing_drop_cnt++;
+		atomic64_inc(&hpriv->ctx->cs_counters.parsing_drop_cnt);
 		atomic64_inc(&cntr->parsing_drop_cnt);
 		dev_err(hdev->dev,
 			"Reject CS %d.%llu because only internal queues jobs are present\n",
@@ -880,7 +882,7 @@ static int cs_ioctl_signal_wait_create_jobs(struct hl_device *hdev,
 
 	job = hl_cs_allocate_job(hdev, q_type, true);
 	if (!job) {
-		ctx->cs_counters.out_of_mem_drop_cnt++;
+		atomic64_inc(&ctx->cs_counters.out_of_mem_drop_cnt);
 		atomic64_inc(&cntr->out_of_mem_drop_cnt);
 		dev_err(hdev->dev, "Failed to allocate a new job\n");
 		return -ENOMEM;
@@ -894,7 +896,7 @@ static int cs_ioctl_signal_wait_create_jobs(struct hl_device *hdev,
 	cb = hl_cb_kernel_create(hdev, cb_size,
 				q_type == QUEUE_TYPE_HW && hdev->mmu_enable);
 	if (!cb) {
-		ctx->cs_counters.out_of_mem_drop_cnt++;
+		atomic64_inc(&ctx->cs_counters.out_of_mem_drop_cnt);
 		atomic64_inc(&cntr->out_of_mem_drop_cnt);
 		kfree(job);
 		return -EFAULT;

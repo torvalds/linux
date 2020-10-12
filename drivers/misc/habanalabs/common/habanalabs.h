@@ -937,6 +937,22 @@ struct hl_va_range {
 };
 
 /**
+ * struct hl_cs_counters_atomic - command submission counters
+ * @out_of_mem_drop_cnt: dropped due to memory allocation issue
+ * @parsing_drop_cnt: dropped due to error in packet parsing
+ * @queue_full_drop_cnt: dropped due to queue full
+ * @device_in_reset_drop_cnt: dropped due to device in reset
+ * @max_cs_in_flight_drop_cnt: dropped due to maximum CS in-flight
+ */
+struct hl_cs_counters_atomic {
+	atomic64_t out_of_mem_drop_cnt;
+	atomic64_t parsing_drop_cnt;
+	atomic64_t queue_full_drop_cnt;
+	atomic64_t device_in_reset_drop_cnt;
+	atomic64_t max_cs_in_flight_drop_cnt;
+};
+
+/**
  * struct hl_ctx - user/kernel context.
  * @mem_hash: holds mapping from virtual address to virtual memory area
  *		descriptor (hl_vm_phys_pg_list or hl_userptr).
@@ -954,6 +970,7 @@ struct hl_va_range {
  * @mmu_lock: protects the MMU page tables. Any change to the PGT, modifying the
  *            MMU hash or walking the PGT requires talking this lock.
  * @debugfs_list: node in debugfs list of contexts.
+ * @cs_counters: context command submission counters.
  * @cb_va_pool: device VA pool for command buffers which are mapped to the
  *              device's MMU.
  * @cs_sequence: sequence number for CS. Value is assigned to a CS and passed
@@ -976,26 +993,26 @@ struct hl_va_range {
 struct hl_ctx {
 	DECLARE_HASHTABLE(mem_hash, MEM_HASH_TABLE_BITS);
 	DECLARE_HASHTABLE(mmu_shadow_hash, MMU_HASH_TABLE_BITS);
-	struct hl_fpriv		*hpriv;
-	struct hl_device	*hdev;
-	struct kref		refcount;
-	struct hl_fence		**cs_pending;
-	struct hl_va_range	*host_va_range;
-	struct hl_va_range	*host_huge_va_range;
-	struct hl_va_range	*dram_va_range;
-	struct mutex		mem_hash_lock;
-	struct mutex		mmu_lock;
-	struct list_head	debugfs_list;
-	struct hl_cs_counters	cs_counters;
-	struct gen_pool		*cb_va_pool;
-	u64			cs_sequence;
-	u64			*dram_default_hops;
-	spinlock_t		cs_lock;
-	atomic64_t		dram_phys_mem;
-	atomic_t		thread_ctx_switch_token;
-	u32			thread_ctx_switch_wait_token;
-	u32			asid;
-	u32			handle;
+	struct hl_fpriv			*hpriv;
+	struct hl_device		*hdev;
+	struct kref			refcount;
+	struct hl_fence			**cs_pending;
+	struct hl_va_range		*host_va_range;
+	struct hl_va_range		*host_huge_va_range;
+	struct hl_va_range		*dram_va_range;
+	struct mutex			mem_hash_lock;
+	struct mutex			mmu_lock;
+	struct list_head		debugfs_list;
+	struct hl_cs_counters_atomic	cs_counters;
+	struct gen_pool			*cb_va_pool;
+	u64				cs_sequence;
+	u64				*dram_default_hops;
+	spinlock_t			cs_lock;
+	atomic64_t			dram_phys_mem;
+	atomic_t			thread_ctx_switch_token;
+	u32				thread_ctx_switch_wait_token;
+	u32				asid;
+	u32				handle;
 };
 
 /**
@@ -1162,22 +1179,6 @@ struct hl_cs_parser {
 	u8			job_id;
 	u8			is_kernel_allocated_cb;
 	u8			contains_dma_pkt;
-};
-
-/**
- * struct hl_info_cs_counters - command submission counters
- * @out_of_mem_drop_cnt: dropped due to memory allocation issue
- * @parsing_drop_cnt: dropped due to error in packet parsing
- * @queue_full_drop_cnt: dropped due to queue full
- * @device_in_reset_drop_cnt: dropped due to device in reset
- * @max_cs_in_flight_drop_cnt: dropped due to maximum CS in-flight
- */
-struct hl_cs_counters_atomic {
-	atomic64_t out_of_mem_drop_cnt;
-	atomic64_t parsing_drop_cnt;
-	atomic64_t queue_full_drop_cnt;
-	atomic64_t device_in_reset_drop_cnt;
-	atomic64_t max_cs_in_flight_drop_cnt;
 };
 
 /*
