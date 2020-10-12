@@ -374,6 +374,7 @@ static int adf_init_bank(struct adf_accel_dev *accel_dev,
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	u8 num_rings_per_bank = hw_data->num_rings_per_bank;
 	struct adf_hw_csr_ops *csr_ops = &hw_data->csr_ops;
+	u32 irq_mask = BIT(num_rings_per_bank) - 1;
 	struct adf_etr_ring_data *ring;
 	struct adf_etr_ring_data *tx_ring;
 	u32 i, coalesc_enabled = 0;
@@ -431,8 +432,7 @@ static int adf_init_bank(struct adf_accel_dev *accel_dev,
 		goto err;
 	}
 
-	csr_ops->write_csr_int_flag(csr_addr, bank_num,
-				    ADF_BANK_INT_FLAG_CLEAR_MASK);
+	csr_ops->write_csr_int_flag(csr_addr, bank_num, irq_mask);
 	csr_ops->write_csr_int_srcsel(csr_addr, bank_num);
 
 	return 0;
