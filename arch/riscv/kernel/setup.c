@@ -4,6 +4,8 @@
  *  Chen Liqin <liqin.chen@sunplusct.com>
  *  Lennox Wu <lennox.wu@sunplusct.com>
  * Copyright (C) 2012 Regents of the University of California
+ * Copyright (C) 2020 FORTH-ICS/CARV
+ *  Nick Kossifidis <mick@ics.forth.gr>
  */
 
 #include <linux/init.h>
@@ -51,6 +53,163 @@ atomic_t hart_lottery __section(".sdata");
 unsigned long boot_cpu_hartid;
 static DEFINE_PER_CPU(struct cpu, cpu_devices);
 
+/*
+ * Place kernel memory regions on the resource tree so that
+ * kexec-tools can retrieve them from /proc/iomem. While there
+ * also add "System RAM" regions for compatibility with other
+ * archs, and the rest of the known regions for completeness.
+ */
+static struct resource code_res = { .name = "Kernel code", };
+static struct resource data_res = { .name = "Kernel data", };
+static struct resource rodata_res = { .name = "Kernel rodata", };
+static struct resource bss_res = { .name = "Kernel bss", };
+
+static int __init add_resource(struct resource *parent,
+				struct resource *res)
+{
+	int ret = 0;
+
+	ret = insert_resource(parent, res);
+	if (ret < 0) {
+		pr_err("Failed to add a %s resource at %llx\n",
+			res->name, (unsigned long long) res->start);
+		return ret;
+	}
+
+	return 1;
+}
+
+static int __init add_kernel_resources(struct resource *res)
+{
+	int ret = 0;
+
+	/*
+	 * The memory region of the kernel image is continuous and
+	 * was reserved on setup_bootmem, find it here and register
+	 * it as a resource, then register the various segments of
+	 * the image as child nodes
+	 */
+	if (!(res->start <= code_res.start && res->end >= data_res.end))
+		return 0;
+
+	res->name = "Kernel image";
+	res->flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
+
+	/*
+	 * We removed a part of this region on setup_bootmem so
+	 * we need to expand the resource for the bss to fit in.
+	 */
+	res->end = bss_res.end;
+
+	ret = add_resource(&iomem_resource, res);
+	if (ret < 0)
+		return ret;
+
+	ret = add_resource(res, &code_res);
+	if (ret < 0)
+		return ret;
+
+	ret = add_resource(res, &rodata_res);
+	if (ret < 0)
+		return ret;
+
+	ret = add_resource(res, &data_res);
+	if (ret < 0)
+		return ret;
+
+	ret = add_resource(res, &bss_res);
+
+	return ret;
+}
+
+static void __init init_resources(void)
+{
+	struct memblock_region *region = NULL;
+	struct resource *res = NULL;
+	int ret = 0;
+
+	code_res.start = __pa_symbol(_text);
+	code_res.end = __pa_symbol(_etext) - 1;
+	code_res.flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
+
+	rodata_res.start = __pa_symbol(__start_rodata);
+	rodata_res.end = __pa_symbol(__end_rodata) - 1;
+	rodata_res.flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
+
+	data_res.start = __pa_symbol(_data);
+	data_res.end = __pa_symbol(_edata) - 1;
+	data_res.flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
+
+	bss_res.start = __pa_symbol(__bss_start);
+	bss_res.end = __pa_symbol(__bss_stop) - 1;
+	bss_res.flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
+
+	/*
+	 * Start by adding the reserved regions, if they overlap
+	 * with /memory regions, insert_resource later on will take
+	 * care of it.
+	 */
+	for_each_reserved_mem_region(region) {
+		res = memblock_alloc(sizeof(struct resource), SMP_CACHE_BYTES);
+		if (!res)
+			panic("%s: Failed to allocate %zu bytes\n", __func__,
+			      sizeof(struct resource));
+
+		res->name = "Reserved";
+		res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
+		res->start = __pfn_to_phys(memblock_region_reserved_base_pfn(region));
+		res->end = __pfn_to_phys(memblock_region_reserved_end_pfn(region)) - 1;
+
+		ret = add_kernel_resources(res);
+		if (ret < 0)
+			goto error;
+		else if (ret)
+			continue;
+
+		/*
+		 * Ignore any other reserved regions within
+		 * system memory.
+		 */
+		if (memblock_is_memory(res->start))
+			continue;
+
+		ret = add_resource(&iomem_resource, res);
+		if (ret < 0)
+			goto error;
+	}
+
+	/* Add /memory regions to the resource tree */
+	for_each_mem_region(region) {
+		res = memblock_alloc(sizeof(struct resource), SMP_CACHE_BYTES);
+		if (!res)
+			panic("%s: Failed to allocate %zu bytes\n", __func__,
+			      sizeof(struct resource));
+
+		if (unlikely(memblock_is_nomap(region))) {
+			res->name = "Reserved";
+			res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
+		} else {
+			res->name = "System RAM";
+			res->flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
+		}
+
+		res->start = __pfn_to_phys(memblock_region_memory_base_pfn(region));
+		res->end = __pfn_to_phys(memblock_region_memory_end_pfn(region)) - 1;
+
+		ret = add_resource(&iomem_resource, res);
+		if (ret < 0)
+			goto error;
+	}
+
+	return;
+
+ error:
+	memblock_free((phys_addr_t) res, sizeof(struct resource));
+	/* Better an empty resource tree than an inconsistent one */
+	release_child_resources(&iomem_resource);
+}
+
+
 static void __init parse_dtb(void)
 {
 	/* Early scan of device tree from init memory */
@@ -80,6 +239,7 @@ void __init setup_arch(char **cmdline_p)
 	efi_init();
 	setup_bootmem();
 	paging_init();
+	init_resources();
 #if IS_ENABLED(CONFIG_BUILTIN_DTB)
 	unflatten_and_copy_device_tree();
 #else
