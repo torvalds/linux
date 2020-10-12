@@ -24,15 +24,19 @@ static struct adf_hw_device_class dh895xcc_class = {
 	.instances = 0
 };
 
-static u32 get_accel_mask(u32 fuse)
+static u32 get_accel_mask(struct adf_hw_device_data *self)
 {
-	return (~fuse) >> ADF_DH895XCC_ACCELERATORS_REG_OFFSET &
-			  ADF_DH895XCC_ACCELERATORS_MASK;
+	u32 fuses = self->fuses;
+
+	return ~fuses >> ADF_DH895XCC_ACCELERATORS_REG_OFFSET &
+			 ADF_DH895XCC_ACCELERATORS_MASK;
 }
 
-static u32 get_ae_mask(u32 fuse)
+static u32 get_ae_mask(struct adf_hw_device_data *self)
 {
-	return (~fuse) & ADF_DH895XCC_ACCELENGINES_MASK;
+	u32 fuses = self->fuses;
+
+	return ~fuses & ADF_DH895XCC_ACCELENGINES_MASK;
 }
 
 static u32 get_num_accels(struct adf_hw_device_data *self)
@@ -131,11 +135,13 @@ static void adf_enable_error_correction(struct adf_accel_dev *accel_dev)
 {
 	struct adf_hw_device_data *hw_device = accel_dev->hw_device;
 	struct adf_bar *misc_bar = &GET_BARS(accel_dev)[ADF_DH895XCC_PMISC_BAR];
+	unsigned long accel_mask = hw_device->accel_mask;
+	unsigned long ae_mask = hw_device->ae_mask;
 	void __iomem *csr = misc_bar->virt_addr;
 	unsigned int val, i;
 
 	/* Enable Accel Engine error detection & correction */
-	for (i = 0; i < hw_device->get_num_aes(hw_device); i++) {
+	for_each_set_bit(i, &ae_mask, GET_MAX_ACCELENGINES(accel_dev)) {
 		val = ADF_CSR_RD(csr, ADF_DH895XCC_AE_CTX_ENABLES(i));
 		val |= ADF_DH895XCC_ENABLE_AE_ECC_ERR;
 		ADF_CSR_WR(csr, ADF_DH895XCC_AE_CTX_ENABLES(i), val);
@@ -145,7 +151,7 @@ static void adf_enable_error_correction(struct adf_accel_dev *accel_dev)
 	}
 
 	/* Enable shared memory error detection & correction */
-	for (i = 0; i < hw_device->get_num_accels(hw_device); i++) {
+	for_each_set_bit(i, &accel_mask, ADF_DH895XCC_MAX_ACCELERATORS) {
 		val = ADF_CSR_RD(csr, ADF_DH895XCC_UERRSSMSH(i));
 		val |= ADF_DH895XCC_ERRSSMSH_EN;
 		ADF_CSR_WR(csr, ADF_DH895XCC_UERRSSMSH(i), val);

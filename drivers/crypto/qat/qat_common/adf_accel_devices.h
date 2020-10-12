@@ -104,8 +104,8 @@ struct adf_etr_ring_data;
 
 struct adf_hw_device_data {
 	struct adf_hw_device_class *dev_class;
-	u32 (*get_accel_mask)(u32 fuse);
-	u32 (*get_ae_mask)(u32 fuse);
+	u32 (*get_accel_mask)(struct adf_hw_device_data *self);
+	u32 (*get_ae_mask)(struct adf_hw_device_data *self);
 	u32 (*get_sram_bar_id)(struct adf_hw_device_data *self);
 	u32 (*get_misc_bar_id)(struct adf_hw_device_data *self);
 	u32 (*get_etr_bar_id)(struct adf_hw_device_data *self);
@@ -131,6 +131,7 @@ struct adf_hw_device_data {
 	const char *fw_name;
 	const char *fw_mmp_name;
 	u32 fuses;
+	u32 straps;
 	u32 accel_capabilities_mask;
 	u32 instance_id;
 	u16 accel_mask;

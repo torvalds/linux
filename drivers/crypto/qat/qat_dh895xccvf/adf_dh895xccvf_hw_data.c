@@ -11,12 +11,12 @@ static struct adf_hw_device_class dh895xcciov_class = {
 	.instances = 0
 };
 
-static u32 get_accel_mask(u32 fuse)
+static u32 get_accel_mask(struct adf_hw_device_data *self)
 {
 	return ADF_DH895XCCIOV_ACCELERATORS_MASK;
 }
 
-static u32 get_ae_mask(u32 fuse)
+static u32 get_ae_mask(struct adf_hw_device_data *self)
 {
 	return ADF_DH895XCCIOV_ACCELENGINES_MASK;
 }

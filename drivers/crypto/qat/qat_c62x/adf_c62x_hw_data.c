@@ -22,15 +22,33 @@ static struct adf_hw_device_class c62x_class = {
 	.instances = 0
 };
 
-static u32 get_accel_mask(u32 fuse)
+static u32 get_accel_mask(struct adf_hw_device_data *self)
 {
-	return (~fuse) >> ADF_C62X_ACCELERATORS_REG_OFFSET &
-			  ADF_C62X_ACCELERATORS_MASK;
+	u32 straps = self->straps;
+	u32 fuses = self->fuses;
+	u32 accel;
+
+	accel = ~(fuses | straps) >> ADF_C62X_ACCELERATORS_REG_OFFSET;
+	accel &= ADF_C62X_ACCELERATORS_MASK;
+
+	return accel;
 }
 
-static u32 get_ae_mask(u32 fuse)
+static u32 get_ae_mask(struct adf_hw_device_data *self)
 {
-	return (~fuse) & ADF_C62X_ACCELENGINES_MASK;
+	u32 straps = self->straps;
+	u32 fuses = self->fuses;
+	unsigned long disabled;
+	u32 ae_disable;
+	int accel;
+
+	/* If an accel is disabled, then disable the corresponding two AEs */
+	disabled = ~get_accel_mask(self) & ADF_C62X_ACCELERATORS_MASK;
+	ae_disable = BIT(1) | BIT(0);
+	for_each_set_bit(accel, &disabled, ADF_C62X_MAX_ACCELERATORS)
+		straps |= ae_disable << (accel << 1);
+
+	return ~(fuses | straps) & ADF_C62X_ACCELENGINES_MASK;
 }
 
 static u32 get_num_accels(struct adf_hw_device_data *self)
@@ -119,11 +137,13 @@ static void adf_enable_error_correction(struct adf_accel_dev *accel_dev)
 {
 	struct adf_hw_device_data *hw_device = accel_dev->hw_device;
 	struct adf_bar *misc_bar = &GET_BARS(accel_dev)[ADF_C62X_PMISC_BAR];
+	unsigned long accel_mask = hw_device->accel_mask;
+	unsigned long ae_mask = hw_device->ae_mask;
 	void __iomem *csr = misc_bar->virt_addr;
 	unsigned int val, i;
 
 	/* Enable Accel Engine error detection & correction */
-	for (i = 0; i < hw_device->get_num_aes(hw_device); i++) {
+	for_each_set_bit(i, &ae_mask, GET_MAX_ACCELENGINES(accel_dev)) {
 		val = ADF_CSR_RD(csr, ADF_C62X_AE_CTX_ENABLES(i));
 		val |= ADF_C62X_ENABLE_AE_ECC_ERR;
 		ADF_CSR_WR(csr, ADF_C62X_AE_CTX_ENABLES(i), val);
@@ -133,7 +153,7 @@ static void adf_enable_error_correction(struct adf_accel_dev *accel_dev)
 	}
 
 	/* Enable shared memory error detection & correction */
-	for (i = 0; i < hw_device->get_num_accels(hw_device); i++) {
+	for_each_set_bit(i, &accel_mask, ADF_C62X_MAX_ACCELERATORS) {
 		val = ADF_CSR_RD(csr, ADF_C62X_UERRSSMSH(i));
 		val |= ADF_C62X_ERRSSMSH_EN;
 		ADF_CSR_WR(csr, ADF_C62X_UERRSSMSH(i), val);

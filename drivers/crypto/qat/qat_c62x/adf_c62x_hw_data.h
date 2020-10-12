@@ -19,6 +19,7 @@
 #define ADF_C62X_SMIAPF1_MASK_OFFSET (0x3A000 + 0x30)
 #define ADF_C62X_SMIA0_MASK 0xFFFF
 #define ADF_C62X_SMIA1_MASK 0x1
+#define ADF_C62X_SOFTSTRAP_CSR_OFFSET 0x2EC
 /* Error detection and correction */
 #define ADF_C62X_AE_CTX_ENABLES(i) (i * 0x1000 + 0x20818)
 #define ADF_C62X_AE_MISC_CONTROL(i) (i * 0x1000 + 0x20960)
