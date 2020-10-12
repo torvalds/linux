@@ -468,7 +468,7 @@
 		};
 
 		peripheral_ctrl: syscon@a20000 {
-			compatible = "syscon";
+			compatible = "hisilicon,peri-subctrl", "syscon";
 			reg = <0xa20000 0x1000>;
 		};
 
