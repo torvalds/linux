@@ -11,7 +11,6 @@
 #define ADF_ARB_REG_SLOT 0x1000
 #define ADF_ARB_WTR_OFFSET 0x010
 #define ADF_ARB_RO_EN_OFFSET 0x090
-#define ADF_ARB_WQCFG_OFFSET 0x100
 #define ADF_ARB_WRK_2_SER_MAP_OFFSET 0x180
 #define ADF_ARB_RINGSRVARBEN_OFFSET 0x19C
 
@@ -28,10 +27,6 @@
 	ADF_ARB_WRK_2_SER_MAP_OFFSET) + \
 	(ADF_ARB_REG_SIZE * index), value)
 
-#define WRITE_CSR_ARB_WQCFG(csr_addr, index, value) \
-	ADF_CSR_WR(csr_addr, (ADF_ARB_OFFSET + \
-	ADF_ARB_WQCFG_OFFSET) + (ADF_ARB_REG_SIZE * index), value)
-
 int adf_init_arb(struct adf_accel_dev *accel_dev)
 {
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
@@ -44,10 +39,6 @@ int adf_init_arb(struct adf_accel_dev *accel_dev)
 	 * ring flow control check enabled. */
 	for (arb = 0; arb < ADF_ARB_NUM; arb++)
 		WRITE_CSR_ARB_SARCONFIG(csr, arb, arb_cfg);
-
-	/* Setup worker queue registers */
-	for (i = 0; i < hw_data->num_engines; i++)
-		WRITE_CSR_ARB_WQCFG(csr, i, i);
 
 	/* Map worker threads to service arbiters */
 	hw_data->get_arb_mapping(accel_dev, &thd_2_arb_cfg);
@@ -83,10 +74,6 @@ void adf_exit_arb(struct adf_accel_dev *accel_dev)
 	/* Reset arbiter configuration */
 	for (i = 0; i < ADF_ARB_NUM; i++)
 		WRITE_CSR_ARB_SARCONFIG(csr, i, 0);
-
-	/* Shutdown work queue */
-	for (i = 0; i < hw_data->num_engines; i++)
-		WRITE_CSR_ARB_WQCFG(csr, i, 0);
 
 	/* Unmap worker threads to service arbiters */
 	for (i = 0; i < hw_data->num_engines; i++)
