@@ -5,6 +5,7 @@
 #include <adf_common_drv.h>
 #include <adf_gen2_hw_data.h>
 #include "adf_dh895xcc_hw_data.h"
+#include "icp_qat_hw.h"
 
 /* Worker thread to service arbiter mappings based on dev SKUs */
 static const u32 thrd_to_arb_map_sku4[] = {
@@ -81,6 +82,29 @@ static u32 get_etr_bar_id(struct adf_hw_device_data *self)
 static u32 get_sram_bar_id(struct adf_hw_device_data *self)
 {
 	return ADF_DH895XCC_SRAM_BAR;
+}
+
+static u32 get_accel_cap(struct adf_accel_dev *accel_dev)
+{
+	struct pci_dev *pdev = accel_dev->accel_pci_dev.pci_dev;
+	u32 capabilities;
+	u32 legfuses;
+
+	capabilities = ICP_ACCEL_CAPABILITIES_CRYPTO_SYMMETRIC |
+		       ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC |
+		       ICP_ACCEL_CAPABILITIES_AUTHENTICATION;
+
+	/* Read accelerator capabilities mask */
+	pci_read_config_dword(pdev, ADF_DEVICE_LEGFUSE_OFFSET, &legfuses);
+
+	if (legfuses & ICP_ACCEL_MASK_CIPHER_SLICE)
+		capabilities &= ~ICP_ACCEL_CAPABILITIES_CRYPTO_SYMMETRIC;
+	if (legfuses & ICP_ACCEL_MASK_PKE_SLICE)
+		capabilities &= ~ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC;
+	if (legfuses & ICP_ACCEL_MASK_AUTH_SLICE)
+		capabilities &= ~ICP_ACCEL_CAPABILITIES_AUTHENTICATION;
+
+	return capabilities;
 }
 
 static enum dev_sku_info get_sku(struct adf_hw_device_data *self)
@@ -204,6 +228,7 @@ void adf_init_hw_data_dh895xcc(struct adf_hw_device_data *hw_data)
 	hw_data->enable_error_correction = adf_enable_error_correction;
 	hw_data->get_accel_mask = get_accel_mask;
 	hw_data->get_ae_mask = get_ae_mask;
+	hw_data->get_accel_cap = get_accel_cap;
 	hw_data->get_num_accels = get_num_accels;
 	hw_data->get_num_aes = get_num_aes;
 	hw_data->get_etr_bar_id = get_etr_bar_id;

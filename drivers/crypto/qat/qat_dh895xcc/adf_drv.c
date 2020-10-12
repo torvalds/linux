@@ -177,9 +177,8 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_err_disable;
 	}
 
-	/* Read accelerator capabilities mask */
-	pci_read_config_dword(pdev, ADF_DEVICE_LEGFUSE_OFFSET,
-			      &hw_data->accel_capabilities_mask);
+	/* Get accelerator capabilities mask */
+	hw_data->accel_capabilities_mask = hw_data->get_accel_cap(accel_dev);
 
 	/* Find and map all the device's BARS */
 	i = 0;

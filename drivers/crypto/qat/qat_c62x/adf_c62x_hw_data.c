@@ -5,6 +5,7 @@
 #include <adf_pf2vf_msg.h>
 #include <adf_gen2_hw_data.h>
 #include "adf_c62x_hw_data.h"
+#include "icp_qat_hw.h"
 
 /* Worker thread to service arbiter mappings based on dev SKUs */
 static const u32 thrd_to_arb_map_8_me_sku[] = {
@@ -205,6 +206,7 @@ void adf_init_hw_data_c62x(struct adf_hw_device_data *hw_data)
 	hw_data->enable_error_correction = adf_enable_error_correction;
 	hw_data->get_accel_mask = get_accel_mask;
 	hw_data->get_ae_mask = get_ae_mask;
+	hw_data->get_accel_cap = adf_gen2_get_accel_cap;
 	hw_data->get_num_accels = get_num_accels;
 	hw_data->get_num_aes = get_num_aes;
 	hw_data->get_sram_bar_id = get_sram_bar_id;

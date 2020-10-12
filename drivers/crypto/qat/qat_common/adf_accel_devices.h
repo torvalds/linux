@@ -143,6 +143,7 @@ struct adf_hw_device_data {
 	struct adf_hw_device_class *dev_class;
 	u32 (*get_accel_mask)(struct adf_hw_device_data *self);
 	u32 (*get_ae_mask)(struct adf_hw_device_data *self);
+	u32 (*get_accel_cap)(struct adf_accel_dev *accel_dev);
 	u32 (*get_sram_bar_id)(struct adf_hw_device_data *self);
 	u32 (*get_misc_bar_id)(struct adf_hw_device_data *self);
 	u32 (*get_etr_bar_id)(struct adf_hw_device_data *self);

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only)
 /* Copyright(c) 2020 Intel Corporation */
 #include "adf_gen2_hw_data.h"
+#include "icp_qat_hw.h"
+#include <linux/pci.h>
 
 void adf_gen2_cfg_iov_thds(struct adf_accel_dev *accel_dev, bool enable,
 			   int num_a_regs, int num_b_regs)
@@ -136,3 +138,31 @@ void adf_gen2_init_hw_csr_ops(struct adf_hw_csr_ops *csr_ops)
 	csr_ops->write_csr_int_flag_and_col = write_csr_int_flag_and_col;
 }
 EXPORT_SYMBOL_GPL(adf_gen2_init_hw_csr_ops);
+
+u32 adf_gen2_get_accel_cap(struct adf_accel_dev *accel_dev)
+{
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	struct pci_dev *pdev = accel_dev->accel_pci_dev.pci_dev;
+	u32 straps = hw_data->straps;
+	u32 fuses = hw_data->fuses;
+	u32 legfuses;
+	u32 capabilities = ICP_ACCEL_CAPABILITIES_CRYPTO_SYMMETRIC |
+			   ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC |
+			   ICP_ACCEL_CAPABILITIES_AUTHENTICATION;
+
+	/* Read accelerator capabilities mask */
+	pci_read_config_dword(pdev, ADF_DEVICE_LEGFUSE_OFFSET, &legfuses);
+
+	if (legfuses & ICP_ACCEL_MASK_CIPHER_SLICE)
+		capabilities &= ~ICP_ACCEL_CAPABILITIES_CRYPTO_SYMMETRIC;
+	if (legfuses & ICP_ACCEL_MASK_PKE_SLICE)
+		capabilities &= ~ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC;
+	if (legfuses & ICP_ACCEL_MASK_AUTH_SLICE)
+		capabilities &= ~ICP_ACCEL_CAPABILITIES_AUTHENTICATION;
+
+	if ((straps | fuses) & ADF_POWERGATE_PKE)
+		capabilities &= ~ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC;
+
+	return capabilities;
+}
+EXPORT_SYMBOL_GPL(adf_gen2_get_accel_cap);
