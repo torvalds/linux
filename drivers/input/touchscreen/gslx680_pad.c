@@ -115,6 +115,7 @@ struct gsl_ts {
     struct  tp_device  tp;
     int screen_max_x;
     int screen_max_y;
+    struct gsl_touch_chip_info *gsl_chip_info;
 };
 
 #ifdef GSL_DEBUG
@@ -135,6 +136,10 @@ static u16 y_old[MAX_CONTACTS+1] = {0};
 static u16 x_new = 0;
 static u16 y_new = 0;
 
+static struct gsl_touch_chip_info gsl_chip_info[] = {
+   {GSL680,GSLX680_FW,ARRAY_SIZE(GSLX680_FW),gsl_config_data_id,ARRAY_SIZE(gsl_config_data_id)},
+   {GSL3676,GSL3675B_FW_HK,ARRAY_SIZE(GSL3675B_FW_HK),gsl3678_config_data_id,ARRAY_SIZE(gsl3678_config_data_id)},
+};
 
 
 static int gslX680_init(void)
@@ -182,7 +187,7 @@ static u32 gsl_write_interface(struct i2c_client *client, const u8 reg, u8 *buf,
     xfer_msg[0].len = num + 1;
     xfer_msg[0].flags = client->flags & I2C_M_TEN;
     xfer_msg[0].buf = buf;
-    //xfer_msg[0].scl_rate = 400*1000; //RK3066 RK2926 I2C±¨´íÊ±´ò¿ªÕâ¸ö
+    //xfer_msg[0].scl_rate = 400*1000; //RK3066 RK2926 I2CÂ±Â¨Â´Ã­ÃŠÂ±Â´Ã²Â¿ÂªÃ•Ã¢Â¸Ã¶
 
     return i2c_transfer(client->adapter, xfer_msg, 1) == 1 ? 0 : -EFAULT;
 }
@@ -244,10 +249,12 @@ static void gsl_load_fw(struct i2c_client *client)
     u8 *cur = buf + 1;
     u32 source_line = 0;
     u32 source_len;
+    struct gsl_ts *ts = i2c_get_clientdata(gsl_client);
     struct fw_data *ptr_fw;
 
-    ptr_fw = GSLX680_FW;
-    source_len = ARRAY_SIZE(GSLX680_FW);
+    ptr_fw = ts->gsl_chip_info->ptr_fw;
+
+    source_len = ts->gsl_chip_info->ptr_fw_len;
 
     for (source_line = 0; source_line < source_len; source_line++)
     {
@@ -312,7 +319,8 @@ static void startup_chip(struct i2c_client *client)
     u8 tmp = 0x00;
 
 #ifdef GSL_NOID_VERSION
-    gsl_DataInit(gsl_config_data_id);
+    struct gsl_ts *ts = i2c_get_clientdata(client);
+    gsl_DataInit(ts->gsl_chip_info->conf_in);
 #endif
     gsl_ts_write(client, 0xe0, &tmp, 1);
 }
@@ -362,12 +370,12 @@ static void init_chip(struct i2c_client *client)
         dev_err(&client->dev, "------gslX680 test_i2c error------\n");
         return;
     }
-	clr_reg(client);
-	reset_chip(client);
-	gsl_load_fw(client);
-	startup_chip(client);
-	reset_chip(client);
-	startup_chip(client);
+    clr_reg(client);
+    reset_chip(client);
+    gsl_load_fw(client);
+    startup_chip(client);
+    reset_chip(client);
+    startup_chip(client);
 }
 
 static void check_mem_data(struct i2c_client *client)
@@ -460,6 +468,8 @@ ssize_t gsl_config_write_proc(struct file *file, const char *buffer, size_t coun
     char *path_buf;
     int tmp = 0;
     int tmp1 = 0;
+    struct gsl_ts *ts = i2c_get_clientdata(gsl_client);
+
     print_info("[tp-gsl][%s] \n",__func__);
     if(count > 512)
     {
@@ -517,9 +527,9 @@ ssize_t gsl_config_write_proc(struct file *file, const char *buffer, size_t coun
     {
         tmp1=(buf[7]<<24)|(buf[6]<<16)|(buf[5]<<8)|buf[4];
         tmp=(buf[3]<<24)|(buf[2]<<16)|(buf[1]<<8)|buf[0];
-        if(tmp1>=0 && tmp1<ARRAY_SIZE(gsl_config_data_id))
+        if(tmp1>=0 && tmp1<ts->gsl_chip_info->conf_in_len)
         {
-            gsl_config_data_id[tmp1] = tmp;
+            ts->gsl_chip_info->conf_in[tmp1] = tmp;
         }
     }
 #endif
@@ -598,7 +608,7 @@ static void record_point(u16 x, u16 y , u8 id)
 {
     u16 x_err =0;
     u16 y_err =0;
-
+    return;
     id_sign[id]=id_sign[id]+1;
 
     if(id_sign[id]==1){
@@ -650,6 +660,7 @@ static void record_point(u16 x, u16 y , u8 id)
 
 static void report_data(struct gsl_ts *ts, u16 x, u16 y, u8 pressure, u8 id)
 {
+
     if(revert_xy)
         swap(x, y);
 
@@ -659,9 +670,11 @@ static void report_data(struct gsl_ts *ts, u16 x, u16 y, u8 pressure, u8 id)
     }
 
     if(revert_x)
-        x = ts->screen_max_x-x-1;
-    if(revert_y)
-        y = ts->screen_max_y-y-1;
+        x = ts->screen_max_x-x;
+    if(revert_y) {
+        y = ts->screen_max_y-y;
+    }
+
 #ifdef REPORT_DATA_ANDROID_4_0
     input_mt_slot(ts->input, id);
     input_report_abs(ts->input, ABS_MT_TRACKING_ID, id);
@@ -756,7 +769,6 @@ static void gslX680_ts_worker(struct work_struct *work)
             id = ts->touch_data[ts->dd->id_index + 4 * i] >> 4;
         }
 #endif
-
         if(1 <=id && id <= MAX_CONTACTS)
         {
 #ifdef FILTER_POINT
@@ -764,7 +776,9 @@ static void gslX680_ts_worker(struct work_struct *work)
 #else
             record_point(x, y , id);
 #endif
-            report_data(ts, x_new, y_new, 10, id);
+            //report_data(ts, x_new, y_new, 10, id);
+            report_data(ts, x, y, 10, id);
+
             id_state_flag[id] = 1;
         }
     }
@@ -952,6 +966,10 @@ static int  gsl_ts_probe(struct i2c_client *client,
     enum of_gpio_flags wake_flags, irq_flags;
     struct gsl_ts *ts;
     int rc;
+    int gsl_chip_id = 0;
+    int i,ret;
+
+    printk("GSLX680 Enter %s\n", __func__);
 
     if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
         dev_err(&client->dev, "I2C functionality not supported\n");
@@ -973,8 +991,28 @@ static int  gsl_ts_probe(struct i2c_client *client,
     dev_info(&ts->client->dev, "[tp-gsl] screen_max_x =[%d] \n",ts->screen_max_x);
     dev_info(&ts->client->dev, "[tp-gsl] screen_max_y =[%d] \n",ts->screen_max_y);
 
+    of_property_read_u32(np, "revert_x", &revert_x);
+    of_property_read_u32(np, "revert_y", &revert_y);
+    of_property_read_u32(np, "revert_xy", &revert_xy);
+
+    dev_info(&ts->client->dev, "[tp-gsl] revert_x =[%d] \n",revert_x);
+    dev_info(&ts->client->dev, "[tp-gsl] revert_y =[%d] \n",revert_y);
+    dev_info(&ts->client->dev, "[tp-gsl] revert_xy =[%d] \n",revert_xy);
+
     ts->irq_pin=of_get_named_gpio_flags(np, "touch-gpio", 0, &irq_flags);
     ts->wake_pin=of_get_named_gpio_flags(np, "reset-gpio", 0, &wake_flags);
+
+    ret = of_property_read_u32(np, "chip_id", &gsl_chip_id);
+    if(ret)
+       gsl_chip_id = GSL680;
+
+       dev_info(&ts->client->dev, "[tp-gsl] gsl_chip_id =[%d] \n",gsl_chip_id);
+       for(i=0; i<ARRAY_SIZE(gsl_chip_info); i++) {
+           if (gsl_chip_info[i].chip_id == gsl_chip_id) {
+               ts->gsl_chip_info =  &gsl_chip_info[i];
+               break;
+           }
+    }
 
     if (gpio_is_valid(ts->wake_pin)) {
         rc = devm_gpio_request_one(&ts->client->dev, ts->wake_pin, (wake_flags & OF_GPIO_ACTIVE_LOW) ? GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH, "gslX680 wake pin");
@@ -1073,8 +1111,8 @@ static const struct i2c_device_id gsl_ts_id[] = {
 MODULE_DEVICE_TABLE(i2c, gsl_ts_id);
 
 static const struct dev_pm_ops gsl_pm_ops = {
-	.suspend    = gsl_ts_suspend,
-	.resume     = gsl_ts_resume,
+     .suspend    = gsl_ts_suspend,
+     .resume     = gsl_ts_resume,
 };
 
 static struct i2c_driver gsl_ts_driver = {
