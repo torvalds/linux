@@ -6,36 +6,39 @@
 
 #define ADF_ARB_NUM 4
 #define ADF_ARB_REG_SIZE 0x4
-#define ADF_ARB_OFFSET 0x30000
 #define ADF_ARB_REG_SLOT 0x1000
-#define ADF_ARB_WRK_2_SER_MAP_OFFSET 0x180
 #define ADF_ARB_RINGSRVARBEN_OFFSET 0x19C
 
 #define WRITE_CSR_ARB_RINGSRVARBEN(csr_addr, index, value) \
 	ADF_CSR_WR(csr_addr, ADF_ARB_RINGSRVARBEN_OFFSET + \
 	(ADF_ARB_REG_SLOT * index), value)
 
-#define WRITE_CSR_ARB_SARCONFIG(csr_addr, index, value) \
-	ADF_CSR_WR(csr_addr, ADF_ARB_OFFSET + \
-	(ADF_ARB_REG_SIZE * index), value)
+#define WRITE_CSR_ARB_SARCONFIG(csr_addr, arb_offset, index, value) \
+	ADF_CSR_WR(csr_addr, (arb_offset) + \
+	(ADF_ARB_REG_SIZE * (index)), value)
 
-#define WRITE_CSR_ARB_WRK_2_SER_MAP(csr_addr, index, value) \
-	ADF_CSR_WR(csr_addr, (ADF_ARB_OFFSET + \
-	ADF_ARB_WRK_2_SER_MAP_OFFSET) + \
-	(ADF_ARB_REG_SIZE * index), value)
+#define WRITE_CSR_ARB_WT2SAM(csr_addr, arb_offset, wt_offset, index, value) \
+	ADF_CSR_WR(csr_addr, ((arb_offset) + (wt_offset)) + \
+	(ADF_ARB_REG_SIZE * (index)), value)
 
 int adf_init_arb(struct adf_accel_dev *accel_dev)
 {
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	void __iomem *csr = accel_dev->transport->banks[0].csr_addr;
-	u32 arb_cfg = 0x1 << 31 | 0x4 << 4 | 0x1;
-	u32 arb, i;
+	u32 arb_off, wt_off, arb_cfg;
 	const u32 *thd_2_arb_cfg;
+	struct arb_info info;
+	int arb, i;
+
+	hw_data->get_arb_info(&info);
+	arb_cfg = info.arb_cfg;
+	arb_off = info.arb_offset;
+	wt_off = info.wt2sam_offset;
 
 	/* Service arb configured for 32 bytes responses and
 	 * ring flow control check enabled. */
 	for (arb = 0; arb < ADF_ARB_NUM; arb++)
-		WRITE_CSR_ARB_SARCONFIG(csr, arb, arb_cfg);
+		WRITE_CSR_ARB_SARCONFIG(csr, arb_off, arb, arb_cfg);
 
 	/* Map worker threads to service arbiters */
 	hw_data->get_arb_mapping(accel_dev, &thd_2_arb_cfg);
@@ -44,7 +47,7 @@ int adf_init_arb(struct adf_accel_dev *accel_dev)
 		return -EFAULT;
 
 	for (i = 0; i < hw_data->num_engines; i++)
-		WRITE_CSR_ARB_WRK_2_SER_MAP(csr, i, *(thd_2_arb_cfg + i));
+		WRITE_CSR_ARB_WT2SAM(csr, arb_off, wt_off, i, thd_2_arb_cfg[i]);
 
 	return 0;
 }
@@ -60,21 +63,29 @@ void adf_update_ring_arb(struct adf_etr_ring_data *ring)
 void adf_exit_arb(struct adf_accel_dev *accel_dev)
 {
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	u32 arb_off, wt_off;
+	struct arb_info info;
 	void __iomem *csr;
 	unsigned int i;
+
+	hw_data->get_arb_info(&info);
+	arb_off = info.arb_offset;
+	wt_off = info.wt2sam_offset;
 
 	if (!accel_dev->transport)
 		return;
 
 	csr = accel_dev->transport->banks[0].csr_addr;
 
+	hw_data->get_arb_info(&info);
+
 	/* Reset arbiter configuration */
 	for (i = 0; i < ADF_ARB_NUM; i++)
-		WRITE_CSR_ARB_SARCONFIG(csr, i, 0);
+		WRITE_CSR_ARB_SARCONFIG(csr, arb_off, i, 0);
 
 	/* Unmap worker threads to service arbiters */
 	for (i = 0; i < hw_data->num_engines; i++)
-		WRITE_CSR_ARB_WRK_2_SER_MAP(csr, i, 0);
+		WRITE_CSR_ARB_WT2SAM(csr, arb_off, wt_off, i, 0);
 
 	/* Disable arbitration on all rings */
 	for (i = 0; i < GET_MAX_BANKS(accel_dev); i++)

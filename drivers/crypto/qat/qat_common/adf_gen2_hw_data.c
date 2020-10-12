@@ -45,6 +45,14 @@ void adf_gen2_get_admin_info(struct admin_info *admin_csrs_info)
 }
 EXPORT_SYMBOL_GPL(adf_gen2_get_admin_info);
 
+void adf_gen2_get_arb_info(struct arb_info *arb_info)
+{
+	arb_info->arb_cfg = ADF_ARB_CONFIG;
+	arb_info->arb_offset = ADF_ARB_OFFSET;
+	arb_info->wt2sam_offset = ADF_ARB_WRK_2_SER_MAP_OFFSET;
+}
+EXPORT_SYMBOL_GPL(adf_gen2_get_arb_info);
+
 static u32 read_csr_ring_head(void __iomem *csr_base_addr, u32 bank, u32 ring)
 {
 	return READ_CSR_RING_HEAD(csr_base_addr, bank, ring);

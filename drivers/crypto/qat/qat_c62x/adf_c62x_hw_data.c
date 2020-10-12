@@ -213,6 +213,7 @@ void adf_init_hw_data_c62x(struct adf_hw_device_data *hw_data)
 	hw_data->get_pf2vf_offset = get_pf2vf_offset;
 	hw_data->get_vintmsk_offset = get_vintmsk_offset;
 	hw_data->get_admin_info = adf_gen2_get_admin_info;
+	hw_data->get_arb_info = adf_gen2_get_arb_info;
 	hw_data->get_sku = get_sku;
 	hw_data->fw_name = ADF_C62X_FW;
 	hw_data->fw_mmp_name = ADF_C62X_MMP;
