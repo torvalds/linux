@@ -39,7 +39,7 @@ struct icp_qat_fw_init_admin_req {
 	};
 
 	__u32 resrvd4;
-};
+} __packed;
 
 struct icp_qat_fw_init_admin_resp {
 	__u8 flags;
@@ -92,7 +92,7 @@ struct icp_qat_fw_init_admin_resp {
 			__u64 resrvd8;
 		};
 	};
-};
+} __packed;
 
 #define ICP_QAT_FW_COMN_HEARTBEAT_OK 0
 #define ICP_QAT_FW_COMN_HEARTBEAT_BLOCKED 1
