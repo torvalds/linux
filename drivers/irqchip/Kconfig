@@ -148,7 +148,7 @@ config DAVINCI_CP_INTC
 config DW_APB_ICTL
 	bool
 	select GENERIC_IRQ_CHIP
-	select IRQ_DOMAIN
+	select IRQ_DOMAIN_HIERARCHY
 
 config FARADAY_FTINTC010
 	bool
@@ -232,12 +232,12 @@ config RENESAS_INTC_IRQPIN
 	  interrupt pins, as found on SH/R-Mobile and R-Car Gen1 SoCs.
 
 config RENESAS_IRQC
-	bool "Renesas R-Mobile APE6 and R-Car IRQC support" if COMPILE_TEST
+	bool "Renesas R-Mobile APE6, R-Car Gen{2,3} and RZ/G{1,2} IRQC support" if COMPILE_TEST
 	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN
 	help
 	  Enable support for the Renesas Interrupt Controller for external
-	  devices, as found on R-Mobile APE6, R-Car Gen2, and R-Car Gen3 SoCs.
+	  devices, as found on R-Mobile APE6, R-Car Gen{2,3} and RZ/G{1,2} SoCs.
 
 config RENESAS_RZA1_IRQC
 	bool "Renesas RZ/A1 IRQC support" if COMPILE_TEST
@@ -493,6 +493,16 @@ config TI_SCI_INTA_IRQCHIP
 	  If you wish to use interrupt aggregator irq resources managed by the
 	  TI System Controller, say Y here. Otherwise, say N.
 
+config TI_PRUSS_INTC
+	tristate "TI PRU-ICSS Interrupt Controller"
+	depends on ARCH_DAVINCI || SOC_AM33XX || SOC_AM43XX || SOC_DRA7XX || ARCH_KEYSTONE || ARCH_K3
+	select IRQ_DOMAIN
+	help
+	  This enables support for the PRU-ICSS Local Interrupt Controller
+	  present within a PRU-ICSS subsystem present on various TI SoCs.
+	  The PRUSS INTC enables various interrupts to be routed to multiple
+	  different processors within the SoC.
+
 config RISCV_INTC
 	bool "RISC-V Local Interrupt Controller"
 	depends on RISCV
@@ -570,5 +580,13 @@ config LOONGSON_PCH_MSI
 	select PCI_MSI
 	help
 	  Support for the Loongson PCH MSI Controller.
+
+config MST_IRQ
+	bool "MStar Interrupt Controller"
+	default ARCH_MEDIATEK
+	select IRQ_DOMAIN
+	select IRQ_DOMAIN_HIERARCHY
+	help
+	  Support MStar Interrupt Controller.
 
 endmenu
