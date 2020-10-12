@@ -103,14 +103,8 @@ void ksz_init_mib_timer(struct ksz_device *dev)
 
 	INIT_DELAYED_WORK(&dev->mib_read, ksz_mib_read_work);
 
-	/* Read MIB counters every 30 seconds to avoid overflow. */
-	dev->mib_read_interval = msecs_to_jiffies(30000);
-
 	for (i = 0; i < dev->mib_port_cnt; i++)
 		dev->dev_ops->port_init_cnt(dev, i);
-
-	/* Start the timer 2 seconds later. */
-	schedule_delayed_work(&dev->mib_read, msecs_to_jiffies(2000));
 }
 EXPORT_SYMBOL_GPL(ksz_init_mib_timer);
 
@@ -143,7 +137,9 @@ void ksz_mac_link_down(struct dsa_switch *ds, int port, unsigned int mode,
 
 	/* Read all MIB counters when the link is going down. */
 	p->read = true;
-	schedule_delayed_work(&dev->mib_read, 0);
+	/* timer started */
+	if (dev->mib_read_interval)
+		schedule_delayed_work(&dev->mib_read, 0);
 }
 EXPORT_SYMBOL_GPL(ksz_mac_link_down);
 
@@ -449,6 +445,12 @@ int ksz_switch_register(struct ksz_device *dev,
 		dev->dev_ops->exit(dev);
 		return ret;
 	}
+
+	/* Read MIB counters every 30 seconds to avoid overflow. */
+	dev->mib_read_interval = msecs_to_jiffies(30000);
+
+	/* Start the MIB timer. */
+	schedule_delayed_work(&dev->mib_read, 0);
 
 	return 0;
 }
