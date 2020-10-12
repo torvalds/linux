@@ -1842,10 +1842,9 @@ static struct shrinker glock_shrinker = {
 };
 
 /**
- * examine_bucket - Call a function for glock in a hash bucket
+ * glock_hash_walk - Call a function for glock in a hash bucket
  * @examiner: the function
  * @sdp: the filesystem
- * @bucket: the bucket
  *
  * Note that the function can be called multiple times on the same
  * object.  So the user must ensure that the function can cope with
