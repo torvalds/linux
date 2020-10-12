@@ -31,13 +31,13 @@
 #define ARM64_HAS_DCPOP				21
 #define ARM64_SVE				22
 #define ARM64_UNMAP_KERNEL_AT_EL0		23
-#define ARM64_HARDEN_BRANCH_PREDICTOR		24
+#define ARM64_SPECTRE_V2			24
 #define ARM64_HAS_RAS_EXTN			25
 #define ARM64_WORKAROUND_843419			26
 #define ARM64_HAS_CACHE_IDC			27
 #define ARM64_HAS_CACHE_DIC			28
 #define ARM64_HW_DBM				29
-#define ARM64_SSBD				30
+#define ARM64_SPECTRE_V4			30
 #define ARM64_MISMATCHED_CACHE_TYPE		31
 #define ARM64_HAS_STAGE2_FWB			32
 #define ARM64_HAS_CRC32				33
@@ -64,7 +64,8 @@
 #define ARM64_BTI				54
 #define ARM64_HAS_ARMv8_4_TTL			55
 #define ARM64_HAS_TLB_RANGE			56
+#define ARM64_MTE				57
 
-#define ARM64_NCAPS				57
+#define ARM64_NCAPS				58
 
 #endif /* __ASM_CPUCAPS_H */
