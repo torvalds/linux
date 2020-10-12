@@ -18,13 +18,6 @@
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 
-#define CAN_VERSION "20170425"
-
-/* increment this number each time you change some user-space interface */
-#define CAN_ABI_VERSION "9"
-
-#define CAN_VERSION_STRING "rev " CAN_VERSION " abi " CAN_ABI_VERSION
-
 #define DNAME(dev) ((dev) ? (dev)->name : "any")
 
 /**
