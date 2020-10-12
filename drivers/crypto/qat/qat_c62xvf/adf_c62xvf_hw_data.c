@@ -69,6 +69,7 @@ void adf_init_hw_data_c62xiov(struct adf_hw_device_data *hw_data)
 {
 	hw_data->dev_class = &c62xiov_class;
 	hw_data->num_banks = ADF_C62XIOV_ETR_MAX_BANKS;
+	hw_data->num_rings_per_bank = ADF_ETR_MAX_RINGS_PER_BANK;
 	hw_data->num_accel = ADF_C62XIOV_MAX_ACCELERATORS;
 	hw_data->num_logical_accel = 1;
 	hw_data->num_engines = ADF_C62XIOV_MAX_ACCELENGINES;

@@ -69,6 +69,7 @@ void adf_init_hw_data_dh895xcciov(struct adf_hw_device_data *hw_data)
 {
 	hw_data->dev_class = &dh895xcciov_class;
 	hw_data->num_banks = ADF_DH895XCCIOV_ETR_MAX_BANKS;
+	hw_data->num_rings_per_bank = ADF_ETR_MAX_RINGS_PER_BANK;
 	hw_data->num_accel = ADF_DH895XCCIOV_MAX_ACCELERATORS;
 	hw_data->num_logical_accel = 1;
 	hw_data->num_engines = ADF_DH895XCCIOV_MAX_ACCELENGINES;

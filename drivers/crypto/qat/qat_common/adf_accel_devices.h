@@ -139,6 +139,7 @@ struct adf_hw_device_data {
 	u16 tx_rings_mask;
 	u8 tx_rx_gap;
 	u8 num_banks;
+	u8 num_rings_per_bank;
 	u8 num_accel;
 	u8 num_logical_accel;
 	u8 num_engines;
@@ -156,6 +157,8 @@ struct adf_hw_device_data {
 #define GET_BARS(accel_dev) ((accel_dev)->accel_pci_dev.pci_bars)
 #define GET_HW_DATA(accel_dev) (accel_dev->hw_device)
 #define GET_MAX_BANKS(accel_dev) (GET_HW_DATA(accel_dev)->num_banks)
+#define GET_NUM_RINGS_PER_BANK(accel_dev) \
+	GET_HW_DATA(accel_dev)->num_rings_per_bank
 #define GET_MAX_ACCELENGINES(accel_dev) (GET_HW_DATA(accel_dev)->num_engines)
 #define accel_to_pci_dev(accel_ptr) accel_ptr->accel_pci_dev.pci_dev
 

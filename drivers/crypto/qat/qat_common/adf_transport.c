@@ -190,6 +190,7 @@ int adf_create_ring(struct adf_accel_dev *accel_dev, const char *section,
 		    struct adf_etr_ring_data **ring_ptr)
 {
 	struct adf_etr_data *transport_data = accel_dev->transport;
+	u8 num_rings_per_bank = GET_NUM_RINGS_PER_BANK(accel_dev);
 	struct adf_etr_bank_data *bank;
 	struct adf_etr_ring_data *ring;
 	char val[ADF_CFG_MAX_VAL_LEN_IN_BYTES];
@@ -219,7 +220,7 @@ int adf_create_ring(struct adf_accel_dev *accel_dev, const char *section,
 		dev_err(&GET_DEV(accel_dev), "Can't get ring number\n");
 		return -EFAULT;
 	}
-	if (ring_num >= ADF_ETR_MAX_RINGS_PER_BANK) {
+	if (ring_num >= num_rings_per_bank) {
 		dev_err(&GET_DEV(accel_dev), "Invalid ring number\n");
 		return -EFAULT;
 	}
@@ -286,15 +287,15 @@ void adf_remove_ring(struct adf_etr_ring_data *ring)
 
 static void adf_ring_response_handler(struct adf_etr_bank_data *bank)
 {
-	u32 empty_rings, i;
+	u8 num_rings_per_bank = GET_NUM_RINGS_PER_BANK(bank->accel_dev);
+	unsigned long empty_rings;
+	int i;
 
 	empty_rings = READ_CSR_E_STAT(bank->csr_addr, bank->bank_number);
 	empty_rings = ~empty_rings & bank->irq_mask;
 
-	for (i = 0; i < ADF_ETR_MAX_RINGS_PER_BANK; ++i) {
-		if (empty_rings & (1 << i))
-			adf_handle_response(&bank->rings[i]);
-	}
+	for_each_set_bit(i, &empty_rings, num_rings_per_bank)
+		adf_handle_response(&bank->rings[i]);
 }
 
 void adf_response_handler(uintptr_t bank_addr)
@@ -343,15 +344,25 @@ static int adf_init_bank(struct adf_accel_dev *accel_dev,
 			 u32 bank_num, void __iomem *csr_addr)
 {
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	u8 num_rings_per_bank = hw_data->num_rings_per_bank;
 	struct adf_etr_ring_data *ring;
 	struct adf_etr_ring_data *tx_ring;
 	u32 i, coalesc_enabled = 0;
+	unsigned long ring_mask;
+	int size;
 
 	memset(bank, 0, sizeof(*bank));
 	bank->bank_number = bank_num;
 	bank->csr_addr = csr_addr;
 	bank->accel_dev = accel_dev;
 	spin_lock_init(&bank->lock);
+
+	/* Allocate the rings in the bank */
+	size = num_rings_per_bank * sizeof(struct adf_etr_ring_data);
+	bank->rings = kzalloc_node(size, GFP_KERNEL,
+				   dev_to_node(&GET_DEV(accel_dev)));
+	if (!bank->rings)
+		return -ENOMEM;
 
 	/* Enable IRQ coalescing always. This will allow to use
 	 * the optimised flag and coalesc register.
@@ -363,7 +374,7 @@ static int adf_init_bank(struct adf_accel_dev *accel_dev,
 	else
 		bank->irq_coalesc_timer = ADF_COALESCING_MIN_TIME;
 
-	for (i = 0; i < ADF_ETR_MAX_RINGS_PER_BANK; i++) {
+	for (i = 0; i < num_rings_per_bank; i++) {
 		WRITE_CSR_RING_CONFIG(csr_addr, bank_num, i, 0);
 		WRITE_CSR_RING_BASE(csr_addr, bank_num, i, 0);
 		ring = &bank->rings[i];
@@ -394,11 +405,13 @@ static int adf_init_bank(struct adf_accel_dev *accel_dev,
 	WRITE_CSR_INT_SRCSEL(csr_addr, bank_num);
 	return 0;
 err:
-	for (i = 0; i < ADF_ETR_MAX_RINGS_PER_BANK; i++) {
+	ring_mask = hw_data->tx_rings_mask;
+	for_each_set_bit(i, &ring_mask, num_rings_per_bank) {
 		ring = &bank->rings[i];
-		if (hw_data->tx_rings_mask & (1 << i))
-			kfree(ring->inflights);
+		kfree(ring->inflights);
+		ring->inflights = NULL;
 	}
+	kfree(bank->rings);
 	return -ENOMEM;
 }
 
@@ -464,11 +477,12 @@ EXPORT_SYMBOL_GPL(adf_init_etr_data);
 
 static void cleanup_bank(struct adf_etr_bank_data *bank)
 {
+	struct adf_accel_dev *accel_dev = bank->accel_dev;
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	u8 num_rings_per_bank = hw_data->num_rings_per_bank;
 	u32 i;
 
-	for (i = 0; i < ADF_ETR_MAX_RINGS_PER_BANK; i++) {
-		struct adf_accel_dev *accel_dev = bank->accel_dev;
-		struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	for (i = 0; i < num_rings_per_bank; i++) {
 		struct adf_etr_ring_data *ring = &bank->rings[i];
 
 		if (bank->ring_mask & (1 << i))
@@ -477,6 +491,7 @@ static void cleanup_bank(struct adf_etr_bank_data *bank)
 		if (hw_data->tx_rings_mask & (1 << i))
 			kfree(ring->inflights);
 	}
+	kfree(bank->rings);
 	adf_bank_debugfs_rm(bank);
 	memset(bank, 0, sizeof(*bank));
 }
@@ -507,6 +522,7 @@ void adf_cleanup_etr_data(struct adf_accel_dev *accel_dev)
 	if (etr_data) {
 		adf_cleanup_etr_handles(accel_dev);
 		debugfs_remove(etr_data->debug);
+		kfree(etr_data->banks->rings);
 		kfree(etr_data->banks);
 		kfree(etr_data);
 		accel_dev->transport = NULL;
