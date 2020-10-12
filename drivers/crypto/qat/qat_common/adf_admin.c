@@ -206,11 +206,11 @@ int adf_send_admin_init(struct adf_accel_dev *accel_dev)
 {
 	int ret;
 
-	ret = adf_init_ae(accel_dev);
+	ret = adf_set_fw_constants(accel_dev);
 	if (ret)
 		return ret;
 
-	return adf_set_fw_constants(accel_dev);
+	return adf_init_ae(accel_dev);
 }
 EXPORT_SYMBOL_GPL(adf_send_admin_init);
 
