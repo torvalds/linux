@@ -1081,6 +1081,12 @@ struct nft_table {
 	u8				*udata;
 };
 
+static inline bool nft_base_chain_netdev(int family, u32 hooknum)
+{
+	return family == NFPROTO_NETDEV ||
+	       (family == NFPROTO_INET && hooknum == NF_INET_INGRESS);
+}
+
 void nft_register_chain_type(const struct nft_chain_type *);
 void nft_unregister_chain_type(const struct nft_chain_type *);
 
