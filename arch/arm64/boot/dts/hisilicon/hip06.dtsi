@@ -359,7 +359,7 @@
 				status = "disabled";
 			};
 
-			uart0: lpc-uart@2f8 {
+			uart0: serial@2f8 {
 				compatible = "ns16550a";
 				clock-frequency = <1843200>;
 				reg = <0x01 0x2f8 0x08>;

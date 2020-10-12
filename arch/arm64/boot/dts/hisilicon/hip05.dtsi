@@ -296,7 +296,7 @@
 			clock-frequency = <200000000>;
 		};
 
-		uart0: uart@80300000 {
+		uart0: serial@80300000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x0 0x80300000 0x0 0x10000>;
 			interrupts = <GIC_SPI 317 IRQ_TYPE_LEVEL_HIGH>;
@@ -307,7 +307,7 @@
 			status = "disabled";
 		};
 
-		uart1: uart@80310000 {
+		uart1: serial@80310000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x0 0x80310000 0x0 0x10000>;
 			interrupts = <GIC_SPI 318 IRQ_TYPE_LEVEL_HIGH>;
