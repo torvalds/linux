@@ -745,6 +745,7 @@ static void *sock_map_seq_lookup_elem(struct sock_map_seq_info *info)
 }
 
 static void *sock_map_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(rcu)
 {
 	struct sock_map_seq_info *info = seq->private;
 
@@ -757,6 +758,7 @@ static void *sock_map_seq_start(struct seq_file *seq, loff_t *pos)
 }
 
 static void *sock_map_seq_next(struct seq_file *seq, void *v, loff_t *pos)
+	__must_hold(rcu)
 {
 	struct sock_map_seq_info *info = seq->private;
 
@@ -767,6 +769,7 @@ static void *sock_map_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static int sock_map_seq_show(struct seq_file *seq, void *v)
+	__must_hold(rcu)
 {
 	struct sock_map_seq_info *info = seq->private;
 	struct bpf_iter__sockmap ctx = {};
@@ -789,6 +792,7 @@ static int sock_map_seq_show(struct seq_file *seq, void *v)
 }
 
 static void sock_map_seq_stop(struct seq_file *seq, void *v)
+	__releases(rcu)
 {
 	if (!v)
 		(void)sock_map_seq_show(seq, NULL);
@@ -1353,6 +1357,7 @@ static void *sock_hash_seq_find_next(struct sock_hash_seq_info *info,
 }
 
 static void *sock_hash_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(rcu)
 {
 	struct sock_hash_seq_info *info = seq->private;
 
@@ -1365,6 +1370,7 @@ static void *sock_hash_seq_start(struct seq_file *seq, loff_t *pos)
 }
 
 static void *sock_hash_seq_next(struct seq_file *seq, void *v, loff_t *pos)
+	__must_hold(rcu)
 {
 	struct sock_hash_seq_info *info = seq->private;
 
@@ -1373,6 +1379,7 @@ static void *sock_hash_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static int sock_hash_seq_show(struct seq_file *seq, void *v)
+	__must_hold(rcu)
 {
 	struct sock_hash_seq_info *info = seq->private;
 	struct bpf_iter__sockmap ctx = {};
@@ -1396,6 +1403,7 @@ static int sock_hash_seq_show(struct seq_file *seq, void *v)
 }
 
 static void sock_hash_seq_stop(struct seq_file *seq, void *v)
+	__releases(rcu)
 {
 	if (!v)
 		(void)sock_hash_seq_show(seq, NULL);
