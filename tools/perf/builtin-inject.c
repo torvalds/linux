@@ -10,6 +10,7 @@
 
 #include "util/color.h"
 #include "util/dso.h"
+#include "util/vdso.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
 #include "util/map.h"
@@ -37,6 +38,7 @@ struct perf_inject {
 	struct perf_tool	tool;
 	struct perf_session	*session;
 	bool			build_ids;
+	bool			build_id_all;
 	bool			sched_stat;
 	bool			have_auxtrace;
 	bool			strip;
@@ -55,6 +57,9 @@ struct event_entry {
 	u32		 tid;
 	union perf_event event[];
 };
+
+static int dso__inject_build_id(struct dso *dso, struct perf_tool *tool,
+				struct machine *machine, u8 cpumode, u32 flags);
 
 static int output_bytes(struct perf_inject *inject, void *buf, size_t sz)
 {
@@ -319,6 +324,68 @@ static int perf_event__jit_repipe_mmap(struct perf_tool *tool,
 }
 #endif
 
+static struct dso *findnew_dso(int pid, int tid, const char *filename,
+			       struct dso_id *id, struct machine *machine)
+{
+	struct thread *thread;
+	struct nsinfo *nsi = NULL;
+	struct nsinfo *nnsi;
+	struct dso *dso;
+	bool vdso;
+
+	thread = machine__findnew_thread(machine, pid, tid);
+	if (thread == NULL) {
+		pr_err("cannot find or create a task %d/%d.\n", tid, pid);
+		return NULL;
+	}
+
+	vdso = is_vdso_map(filename);
+	nsi = nsinfo__get(thread->nsinfo);
+
+	if (vdso) {
+		/* The vdso maps are always on the host and not the
+		 * container.  Ensure that we don't use setns to look
+		 * them up.
+		 */
+		nnsi = nsinfo__copy(nsi);
+		if (nnsi) {
+			nsinfo__put(nsi);
+			nnsi->need_setns = false;
+			nsi = nnsi;
+		}
+		dso = machine__findnew_vdso(machine, thread);
+	} else {
+		dso = machine__findnew_dso_id(machine, filename, id);
+	}
+
+	if (dso)
+		dso->nsinfo = nsi;
+	else
+		nsinfo__put(nsi);
+
+	thread__put(thread);
+	return dso;
+}
+
+static int perf_event__repipe_buildid_mmap(struct perf_tool *tool,
+					   union perf_event *event,
+					   struct perf_sample *sample,
+					   struct machine *machine)
+{
+	struct dso *dso;
+
+	dso = findnew_dso(event->mmap.pid, event->mmap.tid,
+			  event->mmap.filename, NULL, machine);
+
+	if (dso && !dso->hit) {
+		dso->hit = 1;
+		dso__inject_build_id(dso, tool, machine, sample->cpumode, 0);
+		dso__put(dso);
+	}
+
+	return perf_event__repipe(tool, event, sample, machine);
+}
+
 static int perf_event__repipe_mmap2(struct perf_tool *tool,
 				   union perf_event *event,
 				   struct perf_sample *sample,
@@ -356,6 +423,34 @@ static int perf_event__jit_repipe_mmap2(struct perf_tool *tool,
 	return perf_event__repipe_mmap2(tool, event, sample, machine);
 }
 #endif
+
+static int perf_event__repipe_buildid_mmap2(struct perf_tool *tool,
+					    union perf_event *event,
+					    struct perf_sample *sample,
+					    struct machine *machine)
+{
+	struct dso_id dso_id = {
+		.maj = event->mmap2.maj,
+		.min = event->mmap2.min,
+		.ino = event->mmap2.ino,
+		.ino_generation = event->mmap2.ino_generation,
+	};
+	struct dso *dso;
+
+	dso = findnew_dso(event->mmap2.pid, event->mmap2.tid,
+			  event->mmap2.filename, &dso_id, machine);
+
+	if (dso && !dso->hit) {
+		dso->hit = 1;
+		dso__inject_build_id(dso, tool, machine, sample->cpumode,
+				     event->mmap2.flags);
+		dso__put(dso);
+	}
+
+	perf_event__repipe(tool, event, sample, machine);
+
+	return 0;
+}
 
 static int perf_event__repipe_fork(struct perf_tool *tool,
 				   union perf_event *event,
@@ -614,7 +709,7 @@ static int __cmd_inject(struct perf_inject *inject)
 	signal(SIGINT, sig_handler);
 
 	if (inject->build_ids || inject->sched_stat ||
-	    inject->itrace_synth_opts.set) {
+	    inject->itrace_synth_opts.set || inject->build_id_all) {
 		inject->tool.mmap	  = perf_event__repipe_mmap;
 		inject->tool.mmap2	  = perf_event__repipe_mmap2;
 		inject->tool.fork	  = perf_event__repipe_fork;
@@ -623,7 +718,10 @@ static int __cmd_inject(struct perf_inject *inject)
 
 	output_data_offset = session->header.data_offset;
 
-	if (inject->build_ids) {
+	if (inject->build_id_all) {
+		inject->tool.mmap	  = perf_event__repipe_buildid_mmap;
+		inject->tool.mmap2	  = perf_event__repipe_buildid_mmap2;
+	} else if (inject->build_ids) {
 		inject->tool.sample = perf_event__inject_buildid;
 	} else if (inject->sched_stat) {
 		struct evsel *evsel;
@@ -767,6 +865,8 @@ int cmd_inject(int argc, const char **argv)
 	struct option options[] = {
 		OPT_BOOLEAN('b', "build-ids", &inject.build_ids,
 			    "Inject build-ids into the output stream"),
+		OPT_BOOLEAN(0, "buildid-all", &inject.build_id_all,
+			    "Inject build-ids of all DSOs into the output stream"),
 		OPT_STRING('i', "input", &inject.input_name, "file",
 			   "input file name"),
 		OPT_STRING('o', "output", &inject.output.path, "file",
@@ -815,8 +915,6 @@ int cmd_inject(int argc, const char **argv)
 		return -1;
 	}
 
-	inject.tool.ordered_events = inject.sched_stat;
-
 	data.path = inject.input_name;
 	inject.session = perf_session__new(&data, true, &inject.tool);
 	if (IS_ERR(inject.session))
@@ -825,7 +923,7 @@ int cmd_inject(int argc, const char **argv)
 	if (zstd_init(&(inject.session->zstd_data), 0) < 0)
 		pr_warning("Decompression initialization failed.\n");
 
-	if (inject.build_ids) {
+	if (inject.build_ids && !inject.build_id_all) {
 		/*
 		 * to make sure the mmap records are ordered correctly
 		 * and so that the correct especially due to jitted code
@@ -835,6 +933,11 @@ int cmd_inject(int argc, const char **argv)
 		inject.tool.ordered_events = true;
 		inject.tool.ordering_requires_timestamps = true;
 	}
+
+	if (inject.sched_stat) {
+		inject.tool.ordered_events = true;
+	}
+
 #ifdef HAVE_JITDUMP
 	if (inject.jit_mode) {
 		inject.tool.mmap2	   = perf_event__jit_repipe_mmap2;
