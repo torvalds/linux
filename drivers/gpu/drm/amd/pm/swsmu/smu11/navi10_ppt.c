@@ -316,6 +316,18 @@ navi10_get_allowed_feature_mask(struct smu_context *smu,
 	if (smu->dc_controlled_by_gpio)
 		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_ACDC_BIT);
 
+	if (adev->pm.pp_feature & PP_SOCCLK_DPM_MASK)
+		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_SOCCLK_BIT);
+
+	/* DPM UCLK enablement should be skipped for navi10 A0 secure board */
+	if (!(is_asic_secure(smu) &&
+	     (adev->asic_type == CHIP_NAVI10) &&
+	     (adev->rev_id == 0)) &&
+	    (adev->pm.pp_feature & PP_MCLK_DPM_MASK))
+		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_UCLK_BIT)
+				| FEATURE_MASK(FEATURE_MEM_VDDCI_SCALING_BIT)
+				| FEATURE_MASK(FEATURE_MEM_MVDD_SCALING_BIT);
+
 	/* DS SOCCLK enablement should be skipped for navi10 A0 secure board */
 	if (is_asic_secure(smu) &&
 	    (adev->asic_type == CHIP_NAVI10) &&
@@ -2279,13 +2291,14 @@ static int navi10_run_umc_cdr_workaround(struct smu_context *smu)
 	}
 
 	/*
-	 * The messages below are only supported by 42.53.0 and later
-	 * PMFWs.
+	 * The messages below are only supported by Navi10 42.53.0 and later
+	 * PMFWs and Navi14 53.29.0 and later PMFWs.
 	 * - PPSMC_MSG_SetDriverDummyTableDramAddrHigh
 	 * - PPSMC_MSG_SetDriverDummyTableDramAddrLow
 	 * - PPSMC_MSG_GetUMCFWWA
 	 */
-	if (pmfw_version >= 0x2a3500) {
+	if (((adev->asic_type == CHIP_NAVI10) && (pmfw_version >= 0x2a3500)) ||
+	    ((adev->asic_type == CHIP_NAVI14) && (pmfw_version >= 0x351D00))) {
 		ret = smu_cmn_send_smc_msg_with_param(smu,
 						      SMU_MSG_GET_UMC_FW_WA,
 						      0,
@@ -2322,8 +2335,6 @@ static void navi10_fill_i2c_req(SwI2cRequest_t  *req, bool write,
 				  uint8_t *data)
 {
 	int i;
-
-	BUG_ON(numbytes > MAX_SW_I2C_COMMANDS);
 
 	req->I2CcontrollerPort = 0;
 	req->I2CSpeed = 2;
@@ -2362,6 +2373,12 @@ static int navi10_i2c_read_data(struct i2c_adapter *control,
 	struct smu_table_context *smu_table = &adev->smu.smu_table;
 	struct smu_table *table = &smu_table->driver_table;
 
+	if (numbytes > MAX_SW_I2C_COMMANDS) {
+		dev_err(adev->dev, "numbytes requested %d is over max allowed %d\n",
+			numbytes, MAX_SW_I2C_COMMANDS);
+		return -EINVAL;
+	}
+
 	memset(&req, 0, sizeof(req));
 	navi10_fill_i2c_req(&req, false, address, numbytes, data);
 
@@ -2397,6 +2414,12 @@ static int navi10_i2c_write_data(struct i2c_adapter *control,
 	uint32_t ret;
 	SwI2cRequest_t req;
 	struct amdgpu_device *adev = to_amdgpu_device(control);
+
+	if (numbytes > MAX_SW_I2C_COMMANDS) {
+		dev_err(adev->dev, "numbytes requested %d is over max allowed %d\n",
+			numbytes, MAX_SW_I2C_COMMANDS);
+		return -EINVAL;
+	}
 
 	memset(&req, 0, sizeof(req));
 	navi10_fill_i2c_req(&req, true, address, numbytes, data);
@@ -2628,42 +2651,11 @@ static int navi10_enable_mgpu_fan_boost(struct smu_context *smu)
 
 static int navi10_post_smu_init(struct smu_context *smu)
 {
-	struct smu_feature *feature = &smu->smu_feature;
 	struct amdgpu_device *adev = smu->adev;
-	uint64_t feature_mask = 0;
 	int ret = 0;
 
 	if (amdgpu_sriov_vf(adev))
 		return 0;
-
-	/* For Naiv1x, enable these features only after DAL initialization */
-	if (adev->pm.pp_feature & PP_SOCCLK_DPM_MASK)
-		feature_mask |= FEATURE_MASK(FEATURE_DPM_SOCCLK_BIT);
-
-	/* DPM UCLK enablement should be skipped for navi10 A0 secure board */
-	if (!(is_asic_secure(smu) &&
-	     (adev->asic_type == CHIP_NAVI10) &&
-	     (adev->rev_id == 0)) &&
-	    (adev->pm.pp_feature & PP_MCLK_DPM_MASK))
-		feature_mask |= FEATURE_MASK(FEATURE_DPM_UCLK_BIT)
-				| FEATURE_MASK(FEATURE_MEM_VDDCI_SCALING_BIT)
-				| FEATURE_MASK(FEATURE_MEM_MVDD_SCALING_BIT);
-
-	if (!feature_mask)
-		return 0;
-
-	bitmap_or(feature->allowed,
-		  feature->allowed,
-		  (unsigned long *)(&feature_mask),
-		  SMU_FEATURE_MAX);
-
-	ret = smu_cmn_feature_update_enable_state(smu,
-						  feature_mask,
-						  true);
-	if (ret) {
-		dev_err(adev->dev, "Failed to post uclk/socclk dpm enablement!\n");
-		return ret;
-	}
 
 	ret = navi10_run_umc_cdr_workaround(smu);
 	if (ret) {
@@ -2773,6 +2765,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.deep_sleep_control = smu_v11_0_deep_sleep_control,
 	.get_fan_parameters = navi10_get_fan_parameters,
 	.post_init = navi10_post_smu_init,
+	.interrupt_work = smu_v11_0_interrupt_work,
 };
 
 void navi10_set_ppt_funcs(struct smu_context *smu)

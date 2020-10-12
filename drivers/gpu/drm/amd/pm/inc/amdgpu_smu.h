@@ -453,6 +453,7 @@ struct smu_context
 
 	struct work_struct throttling_logging_work;
 	atomic64_t throttle_int_counter;
+	struct work_struct interrupt_work;
 
 	unsigned fan_max_rpm;
 	unsigned manual_fan_speed_rpm;
@@ -601,6 +602,7 @@ struct pptable_funcs {
 	int (*deep_sleep_control)(struct smu_context *smu, bool enablement);
 	int (*get_fan_parameters)(struct smu_context *smu);
 	int (*post_init)(struct smu_context *smu);
+	void (*interrupt_work)(struct smu_context *smu);
 };
 
 typedef enum {

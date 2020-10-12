@@ -101,7 +101,7 @@ struct resource_funcs {
 					struct dc *dc,
 					struct dc_state *context,
 					bool fast_validate);
-	void (*calculate_wm)(
+	void (*calculate_wm_and_dlg)(
 				struct dc *dc, struct dc_state *context,
 				display_e2e_pipe_params_st *pipes,
 				int pipe_cnt,

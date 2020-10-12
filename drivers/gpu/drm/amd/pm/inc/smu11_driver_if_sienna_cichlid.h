@@ -27,7 +27,7 @@
 // *** IMPORTANT ***
 // SMU TEAM: Always increment the interface version if 
 // any structure is changed in this file
-#define SMU11_DRIVER_IF_VERSION 0x37
+#define SMU11_DRIVER_IF_VERSION 0x39
 
 #define PPTABLE_Sienna_Cichlid_SMU_VERSION 6
 
@@ -962,7 +962,7 @@ typedef struct {
   uint8_t                FanLinearPwmPoints[NUM_OD_FAN_MAX_POINTS];
   uint8_t                FanLinearTempPoints[NUM_OD_FAN_MAX_POINTS];
   uint16_t               MaxOpTemp;            // Degree Celcius
-  uint16_t               Padding_16[1];
+  int16_t                VddGfxOffset;         // in mV
   uint8_t                FanZeroRpmEnable;
   uint8_t                FanZeroRpmStopTemp;
   uint8_t                FanMode;

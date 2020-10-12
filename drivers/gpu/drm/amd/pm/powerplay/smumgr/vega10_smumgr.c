@@ -209,11 +209,13 @@ static int vega10_smu_init(struct pp_hwmgr *hwmgr)
 	int ret;
 	struct cgs_firmware_info info = {0};
 
-	ret = cgs_get_firmware_info(hwmgr->device,
-				    CGS_UCODE_ID_SMU,
-				    &info);
-	if (ret || !info.kptr)
-		return -EINVAL;
+	if (!amdgpu_sriov_vf((struct amdgpu_device *)hwmgr->adev)) {
+		ret = cgs_get_firmware_info(hwmgr->device,
+						CGS_UCODE_ID_SMU,
+						&info);
+		if (ret || !info.kptr)
+			return -EINVAL;
+	}
 
 	priv = kzalloc(sizeof(struct vega10_smumgr), GFP_KERNEL);
 

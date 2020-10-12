@@ -481,17 +481,6 @@ static int smu_late_init(void *handle)
 		return ret;
 	}
 
-	/*
-	 * Set initialized values (get from vbios) to dpm tables context such as
-	 * gfxclk, memclk, dcefclk, and etc. And enable the DPM feature for each
-	 * type of clks.
-	 */
-	ret = smu_set_default_dpm_table(smu);
-	if (ret) {
-		dev_err(adev->dev, "Failed to setup default dpm clock tables!\n");
-		return ret;
-	}
-
 	ret = smu_populate_umd_state_clk(smu);
 	if (ret) {
 		dev_err(adev->dev, "Failed to populate UMD state clocks!\n");
@@ -780,6 +769,19 @@ static void smu_throttling_logging_work_fn(struct work_struct *work)
 	smu_log_thermal_throttling(smu);
 }
 
+static void smu_interrupt_work_fn(struct work_struct *work)
+{
+	struct smu_context *smu = container_of(work, struct smu_context,
+					       interrupt_work);
+
+	mutex_lock(&smu->mutex);
+
+	if (smu->ppt_funcs && smu->ppt_funcs->interrupt_work)
+		smu->ppt_funcs->interrupt_work(smu);
+
+	mutex_unlock(&smu->mutex);
+}
+
 static int smu_sw_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -802,6 +804,7 @@ static int smu_sw_init(void *handle)
 	mutex_init(&smu->message_lock);
 
 	INIT_WORK(&smu->throttling_logging_work, smu_throttling_logging_work_fn);
+	INIT_WORK(&smu->interrupt_work, smu_interrupt_work_fn);
 	atomic64_set(&smu->throttle_int_counter, 0);
 	smu->watermarks_bitmap = 0;
 	smu->power_profile_mode = PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT;
@@ -832,10 +835,13 @@ static int smu_sw_init(void *handle)
 
 	smu->smu_dpm.dpm_level = AMD_DPM_FORCED_LEVEL_AUTO;
 	smu->smu_dpm.requested_dpm_level = AMD_DPM_FORCED_LEVEL_AUTO;
-	ret = smu_init_microcode(smu);
-	if (ret) {
-		dev_err(adev->dev, "Failed to load smu firmware!\n");
-		return ret;
+
+	if (!amdgpu_sriov_vf(adev)) {
+		ret = smu_init_microcode(smu);
+		if (ret) {
+			dev_err(adev->dev, "Failed to load smu firmware!\n");
+			return ret;
+		}
 	}
 
 	ret = smu_smc_table_sw_init(smu);
@@ -1010,6 +1016,17 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 	ret = smu_enable_thermal_alert(smu);
 	if (ret) {
 		dev_err(adev->dev, "Failed to enable thermal alert!\n");
+		return ret;
+	}
+
+	/*
+	 * Set initialized values (get from vbios) to dpm tables context such as
+	 * gfxclk, memclk, dcefclk, and etc. And enable the DPM feature for each
+	 * type of clks.
+	 */
+	ret = smu_set_default_dpm_table(smu);
+	if (ret) {
+		dev_err(adev->dev, "Failed to setup default dpm clock tables!\n");
 		return ret;
 	}
 
@@ -1194,6 +1211,7 @@ static int smu_smc_hw_cleanup(struct smu_context *smu)
 	int ret = 0;
 
 	cancel_work_sync(&smu->throttling_logging_work);
+	cancel_work_sync(&smu->interrupt_work);
 
 	ret = smu_disable_thermal_alert(smu);
 	if (ret) {
@@ -1214,7 +1232,6 @@ static int smu_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct smu_context *smu = &adev->smu;
-	int ret = 0;
 
 	if (amdgpu_sriov_vf(adev)&& !amdgpu_sriov_is_pp_one_vf(adev))
 		return 0;
@@ -1230,11 +1247,7 @@ static int smu_hw_fini(void *handle)
 
 	adev->pm.dpm_enabled = false;
 
-	ret = smu_smc_hw_cleanup(smu);
-	if (ret)
-		return ret;
-
-	return 0;
+	return smu_smc_hw_cleanup(smu);
 }
 
 int smu_reset(struct smu_context *smu)
@@ -1823,18 +1836,12 @@ int smu_set_watermarks_for_clock_ranges(struct smu_context *smu,
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
+	if (smu->disable_watermark)
+		return 0;
+
 	mutex_lock(&smu->mutex);
 
-	if (!smu->disable_watermark &&
-			smu_feature_is_enabled(smu, SMU_FEATURE_DPM_DCEFCLK_BIT) &&
-			smu_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT)) {
-		ret = smu_set_watermarks_table(smu, clock_ranges);
-
-		if (!(smu->watermarks_bitmap & WATERMARKS_EXIST)) {
-			smu->watermarks_bitmap |= WATERMARKS_EXIST;
-			smu->watermarks_bitmap &= ~WATERMARKS_LOADED;
-		}
-	}
+	ret = smu_set_watermarks_table(smu, clock_ranges);
 
 	mutex_unlock(&smu->mutex);
 

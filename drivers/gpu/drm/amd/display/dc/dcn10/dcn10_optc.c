@@ -288,6 +288,17 @@ void optc1_program_timing(
 	if (optc1_is_two_pixels_per_containter(&patched_crtc_timing) || optc1->opp_count == 2)
 		h_div = H_TIMING_DIV_BY2;
 
+	if (REG(OPTC_DATA_FORMAT_CONTROL)) {
+		uint32_t data_fmt = 0;
+
+		if (patched_crtc_timing.pixel_encoding == PIXEL_ENCODING_YCBCR422)
+			data_fmt = 1;
+		else if (patched_crtc_timing.pixel_encoding == PIXEL_ENCODING_YCBCR420)
+			data_fmt = 2;
+
+		REG_UPDATE(OPTC_DATA_FORMAT_CONTROL, OPTC_DATA_FORMAT, data_fmt);
+	}
+
 #if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	if (optc1->tg_mask->OTG_H_TIMING_DIV_MODE != 0) {
 		if (optc1->opp_count == 4)

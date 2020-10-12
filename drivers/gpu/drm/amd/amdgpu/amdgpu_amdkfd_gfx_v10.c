@@ -32,7 +32,6 @@
 #include "v10_structs.h"
 #include "nv.h"
 #include "nvd.h"
-#include "gfxhub_v2_0.h"
 
 enum hqd_dequeue_request_type {
 	NO_ACTION = 0,
@@ -753,7 +752,7 @@ static void set_vm_context_page_table_base(struct kgd_dev *kgd, uint32_t vmid,
 	}
 
 	/* SDMA is on gfxhub as well for Navi1* series */
-	gfxhub_v2_0_setup_vm_pt_regs(adev, vmid, page_table_base);
+	adev->gfxhub.funcs->setup_vm_pt_regs(adev, vmid, page_table_base);
 }
 
 const struct kfd2kgd_calls gfx_v10_kfd2kgd = {

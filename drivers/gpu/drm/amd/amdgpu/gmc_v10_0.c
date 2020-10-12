@@ -634,11 +634,26 @@ static void gmc_v10_0_set_mmhub_funcs(struct amdgpu_device *adev)
 	adev->mmhub.funcs = &mmhub_v2_0_funcs;
 }
 
+static void gmc_v10_0_set_gfxhub_funcs(struct amdgpu_device *adev)
+{
+	switch (adev->asic_type) {
+	case CHIP_SIENNA_CICHLID:
+	case CHIP_NAVY_FLOUNDER:
+		adev->gfxhub.funcs = &gfxhub_v2_1_funcs;
+		break;
+	default:
+		adev->gfxhub.funcs = &gfxhub_v2_0_funcs;
+		break;
+	}
+}
+
+
 static int gmc_v10_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	gmc_v10_0_set_mmhub_funcs(adev);
+	gmc_v10_0_set_gfxhub_funcs(adev);
 	gmc_v10_0_set_gmc_funcs(adev);
 	gmc_v10_0_set_irq_funcs(adev);
 	gmc_v10_0_set_umc_funcs(adev);
@@ -676,11 +691,7 @@ static void gmc_v10_0_vram_gtt_location(struct amdgpu_device *adev,
 {
 	u64 base = 0;
 
-	if (adev->asic_type == CHIP_SIENNA_CICHLID ||
-	    adev->asic_type == CHIP_NAVY_FLOUNDER)
-		base = gfxhub_v2_1_get_fb_location(adev);
-	else
-		base = gfxhub_v2_0_get_fb_location(adev);
+	base = adev->gfxhub.funcs->get_fb_location(adev);
 
 	/* add the xgmi offset of the physical node */
 	base += adev->gmc.xgmi.physical_node_id * adev->gmc.xgmi.node_segment_size;
@@ -689,11 +700,7 @@ static void gmc_v10_0_vram_gtt_location(struct amdgpu_device *adev,
 	amdgpu_gmc_gart_location(adev, mc);
 
 	/* base offset of vram pages */
-	if (adev->asic_type == CHIP_SIENNA_CICHLID ||
-	    adev->asic_type == CHIP_NAVY_FLOUNDER)
-		adev->vm_manager.vram_base_offset = gfxhub_v2_1_get_mc_fb_offset(adev);
-	else
-		adev->vm_manager.vram_base_offset = gfxhub_v2_0_get_mc_fb_offset(adev);
+	adev->vm_manager.vram_base_offset = adev->gfxhub.funcs->get_mc_fb_offset(adev);
 
 	/* add the xgmi offset of the physical node */
 	adev->vm_manager.vram_base_offset +=
@@ -777,11 +784,7 @@ static int gmc_v10_0_sw_init(void *handle)
 	int r, vram_width = 0, vram_type = 0, vram_vendor = 0;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (adev->asic_type == CHIP_SIENNA_CICHLID ||
-	    adev->asic_type == CHIP_NAVY_FLOUNDER)
-		gfxhub_v2_1_init(adev);
-	else
-		gfxhub_v2_0_init(adev);
+	adev->gfxhub.funcs->init(adev);
 
 	adev->mmhub.funcs->init(adev);
 
@@ -852,7 +855,7 @@ static int gmc_v10_0_sw_init(void *handle)
 	}
 
 	if (adev->gmc.xgmi.supported) {
-		r = gfxhub_v2_1_get_xgmi_info(adev);
+		r = adev->gfxhub.funcs->get_xgmi_info(adev);
 		if (r)
 			return r;
 	}
@@ -944,11 +947,7 @@ static int gmc_v10_0_gart_enable(struct amdgpu_device *adev)
 	if (r)
 		return r;
 
-	if (adev->asic_type == CHIP_SIENNA_CICHLID ||
-	    adev->asic_type == CHIP_NAVY_FLOUNDER)
-		r = gfxhub_v2_1_gart_enable(adev);
-	else
-		r = gfxhub_v2_0_gart_enable(adev);
+	r = adev->gfxhub.funcs->gart_enable(adev);
 	if (r)
 		return r;
 
@@ -969,11 +968,7 @@ static int gmc_v10_0_gart_enable(struct amdgpu_device *adev)
 	value = (amdgpu_vm_fault_stop == AMDGPU_VM_FAULT_STOP_ALWAYS) ?
 		false : true;
 
-	if (adev->asic_type == CHIP_SIENNA_CICHLID ||
-	    adev->asic_type == CHIP_NAVY_FLOUNDER)
-		gfxhub_v2_1_set_fault_enable_default(adev, value);
-	else
-		gfxhub_v2_0_set_fault_enable_default(adev, value);
+	adev->gfxhub.funcs->set_fault_enable_default(adev, value);
 	adev->mmhub.funcs->set_fault_enable_default(adev, value);
 	gmc_v10_0_flush_gpu_tlb(adev, 0, AMDGPU_MMHUB_0, 0);
 	gmc_v10_0_flush_gpu_tlb(adev, 0, AMDGPU_GFXHUB_0, 0);
@@ -1014,11 +1009,7 @@ static int gmc_v10_0_hw_init(void *handle)
  */
 static void gmc_v10_0_gart_disable(struct amdgpu_device *adev)
 {
-	if (adev->asic_type == CHIP_SIENNA_CICHLID ||
-	    adev->asic_type == CHIP_NAVY_FLOUNDER)
-		gfxhub_v2_1_gart_disable(adev);
-	else
-		gfxhub_v2_0_gart_disable(adev);
+	adev->gfxhub.funcs->gart_disable(adev);
 	adev->mmhub.funcs->gart_disable(adev);
 	amdgpu_gart_table_vram_unpin(adev);
 }

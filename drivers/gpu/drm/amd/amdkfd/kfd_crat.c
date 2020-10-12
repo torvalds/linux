@@ -797,7 +797,8 @@ int kfd_create_crat_image_acpi(void **crat_image, size_t *size)
 		return -ENODATA;
 	}
 
-	pcrat_image = kmemdup(crat_table, crat_table->length, GFP_KERNEL);
+	pcrat_image = kvmalloc(crat_table->length, GFP_KERNEL);
+	memcpy(pcrat_image, crat_table, crat_table->length);
 	if (!pcrat_image)
 		return -ENOMEM;
 
@@ -809,11 +810,10 @@ int kfd_create_crat_image_acpi(void **crat_image, size_t *size)
 
 /* Memory required to create Virtual CRAT.
  * Since there is no easy way to predict the amount of memory required, the
- * following amount are allocated for CPU and GPU Virtual CRAT. This is
+ * following amount is allocated for GPU Virtual CRAT. This is
  * expected to cover all known conditions. But to be safe additional check
  * is put in the code to ensure we don't overwrite.
  */
-#define VCRAT_SIZE_FOR_CPU	(2 * PAGE_SIZE)
 #define VCRAT_SIZE_FOR_GPU	(4 * PAGE_SIZE)
 
 /* kfd_fill_cu_for_cpu - Fill in Compute info for the given CPU NUMA node
@@ -964,7 +964,7 @@ static int kfd_create_vcrat_image_cpu(void *pcrat_image, size_t *size)
 #endif
 	int ret = 0;
 
-	if (!pcrat_image || avail_size < VCRAT_SIZE_FOR_CPU)
+	if (!pcrat_image)
 		return -EINVAL;
 
 	/* Fill in CRAT Header.
@@ -1364,30 +1364,37 @@ int kfd_create_crat_image_virtual(void **crat_image, size_t *size,
 				  uint32_t proximity_domain)
 {
 	void *pcrat_image = NULL;
-	int ret = 0;
+	int ret = 0, num_nodes;
+	size_t dyn_size;
 
 	if (!crat_image)
 		return -EINVAL;
 
 	*crat_image = NULL;
 
-	/* Allocate one VCRAT_SIZE_FOR_CPU for CPU virtual CRAT image and
-	 * VCRAT_SIZE_FOR_GPU for GPU virtual CRAT image. This should cover
-	 * all the current conditions. A check is put not to overwrite beyond
-	 * allocated size
+	/* Allocate the CPU Virtual CRAT size based on the number of online
+	 * nodes. Allocate VCRAT_SIZE_FOR_GPU for GPU virtual CRAT image.
+	 * This should cover all the current conditions. A check is put not
+	 * to overwrite beyond allocated size for GPUs
 	 */
 	switch (flags) {
 	case COMPUTE_UNIT_CPU:
-		pcrat_image = kmalloc(VCRAT_SIZE_FOR_CPU, GFP_KERNEL);
+		num_nodes = num_online_nodes();
+		dyn_size = sizeof(struct crat_header) +
+			num_nodes * (sizeof(struct crat_subtype_computeunit) +
+			sizeof(struct crat_subtype_memory) +
+			(num_nodes - 1) * sizeof(struct crat_subtype_iolink));
+		pcrat_image = kvmalloc(dyn_size, GFP_KERNEL);
 		if (!pcrat_image)
 			return -ENOMEM;
-		*size = VCRAT_SIZE_FOR_CPU;
+		*size = dyn_size;
+		pr_debug("CRAT size is %ld", dyn_size);
 		ret = kfd_create_vcrat_image_cpu(pcrat_image, size);
 		break;
 	case COMPUTE_UNIT_GPU:
 		if (!kdev)
 			return -EINVAL;
-		pcrat_image = kmalloc(VCRAT_SIZE_FOR_GPU, GFP_KERNEL);
+		pcrat_image = kvmalloc(VCRAT_SIZE_FOR_GPU, GFP_KERNEL);
 		if (!pcrat_image)
 			return -ENOMEM;
 		*size = VCRAT_SIZE_FOR_GPU;
@@ -1406,7 +1413,7 @@ int kfd_create_crat_image_virtual(void **crat_image, size_t *size,
 	if (!ret)
 		*crat_image = pcrat_image;
 	else
-		kfree(pcrat_image);
+		kvfree(pcrat_image);
 
 	return ret;
 }

@@ -1027,58 +1027,6 @@ static ssize_t amdgpu_ras_sysfs_features_read(struct device *dev,
 	return scnprintf(buf, PAGE_SIZE, "feature mask: 0x%x\n", con->features);
 }
 
-static void amdgpu_ras_sysfs_add_bad_page_node(struct amdgpu_device *adev)
-{
-	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
-	struct attribute_group group;
-	struct bin_attribute *bin_attrs[] = {
-		&con->badpages_attr,
-		NULL,
-	};
-
-	con->badpages_attr = (struct bin_attribute) {
-		.attr = {
-			.name = "gpu_vram_bad_pages",
-			.mode = S_IRUGO,
-		},
-		.size = 0,
-		.private = NULL,
-		.read = amdgpu_ras_sysfs_badpages_read,
-	};
-
-	group.name = RAS_FS_NAME;
-	group.bin_attrs = bin_attrs;
-
-	sysfs_bin_attr_init(bin_attrs[0]);
-
-	sysfs_update_group(&adev->dev->kobj, &group);
-}
-
-static int amdgpu_ras_sysfs_create_feature_node(struct amdgpu_device *adev)
-{
-	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
-	struct attribute *attrs[] = {
-		&con->features_attr.attr,
-		NULL
-	};
-	struct attribute_group group = {
-		.name = RAS_FS_NAME,
-		.attrs = attrs,
-	};
-
-	con->features_attr = (struct device_attribute) {
-		.attr = {
-			.name = "features",
-			.mode = S_IRUGO,
-		},
-			.show = amdgpu_ras_sysfs_features_read,
-	};
-
-	sysfs_attr_init(attrs[0]);
-
-	return sysfs_create_group(&adev->dev->kobj, &group);
-}
-
 static void amdgpu_ras_sysfs_remove_bad_page_node(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
@@ -1300,13 +1248,43 @@ static void amdgpu_ras_debugfs_remove_all(struct amdgpu_device *adev)
 /* debugfs end */
 
 /* ras fs */
-
+static BIN_ATTR(gpu_vram_bad_pages, S_IRUGO,
+		amdgpu_ras_sysfs_badpages_read, NULL, 0);
+static DEVICE_ATTR(features, S_IRUGO,
+		amdgpu_ras_sysfs_features_read, NULL);
 static int amdgpu_ras_fs_init(struct amdgpu_device *adev)
 {
-	amdgpu_ras_sysfs_create_feature_node(adev);
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	struct attribute_group group = {
+		.name = RAS_FS_NAME,
+	};
+	struct attribute *attrs[] = {
+		&con->features_attr.attr,
+		NULL
+	};
+	struct bin_attribute *bin_attrs[] = {
+		NULL,
+		NULL,
+	};
+	int r;
 
-	if (amdgpu_bad_page_threshold != 0)
-		amdgpu_ras_sysfs_add_bad_page_node(adev);
+	/* add features entry */
+	con->features_attr = dev_attr_features;
+	group.attrs = attrs;
+	sysfs_attr_init(attrs[0]);
+
+	if (amdgpu_bad_page_threshold != 0) {
+		/* add bad_page_features entry */
+		bin_attr_gpu_vram_bad_pages.private = NULL;
+		con->badpages_attr = bin_attr_gpu_vram_bad_pages;
+		bin_attrs[0] = &con->badpages_attr;
+		group.bin_attrs = bin_attrs;
+		sysfs_bin_attr_init(bin_attrs[0]);
+	}
+
+	r = sysfs_create_group(&adev->dev->kobj, &group);
+	if (r)
+		dev_err(adev->dev, "Failed to create RAS sysfs group!");
 
 	return 0;
 }
@@ -1498,6 +1476,45 @@ static void amdgpu_ras_log_on_err_counter(struct amdgpu_device *adev)
 	}
 }
 
+/* Parse RdRspStatus and WrRspStatus */
+void amdgpu_ras_error_status_query(struct amdgpu_device *adev,
+		struct ras_query_if *info)
+{
+	/*
+	 * Only two block need to query read/write
+	 * RspStatus at current state
+	 */
+	switch (info->head.block) {
+	case AMDGPU_RAS_BLOCK__GFX:
+		if (adev->gfx.funcs->query_ras_error_status)
+			adev->gfx.funcs->query_ras_error_status(adev);
+		break;
+	case AMDGPU_RAS_BLOCK__MMHUB:
+		if (adev->mmhub.funcs->query_ras_error_status)
+			adev->mmhub.funcs->query_ras_error_status(adev);
+		break;
+	default:
+		break;
+	}
+}
+
+static void amdgpu_ras_query_err_status(struct amdgpu_device *adev)
+{
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	struct ras_manager *obj;
+
+	if (!con)
+		return;
+
+	list_for_each_entry(obj, &con->head, node) {
+		struct ras_query_if info = {
+			.head = obj->head,
+		};
+
+		amdgpu_ras_error_status_query(adev, &info);
+	}
+}
+
 /* recovery begin */
 
 /* return 0 on success.
@@ -1568,8 +1585,10 @@ static void amdgpu_ras_do_recovery(struct work_struct *work)
 		}
 
 		list_for_each_entry(remote_adev,
-				device_list_handle, gmc.xgmi.head)
+				device_list_handle, gmc.xgmi.head) {
+			amdgpu_ras_query_err_status(remote_adev);
 			amdgpu_ras_log_on_err_counter(remote_adev);
+		}
 
 		amdgpu_put_xgmi_hive(hive);
 	}
@@ -1967,8 +1986,7 @@ static int amdgpu_ras_check_asic_type(struct amdgpu_device *adev)
 {
 	if (adev->asic_type != CHIP_VEGA10 &&
 		adev->asic_type != CHIP_VEGA20 &&
-		adev->asic_type != CHIP_ARCTURUS &&
-		adev->asic_type != CHIP_SIENNA_CICHLID)
+		adev->asic_type != CHIP_ARCTURUS)
 		return 1;
 	else
 		return 0;
@@ -2012,6 +2030,7 @@ static void amdgpu_ras_check_supported(struct amdgpu_device *adev,
 
 	*supported = amdgpu_ras_enable == 0 ?
 			0 : *hw_supported & amdgpu_ras_mask;
+
 	adev->ras_features = *supported;
 }
 

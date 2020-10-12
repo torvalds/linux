@@ -314,6 +314,11 @@ struct kfd_dev {
 	spinlock_t smi_lock;
 
 	uint32_t reset_seq_num;
+
+	struct ida doorbell_ida;
+	unsigned int max_doorbell_slices;
+
+	int noretry;
 };
 
 enum kfd_mempool {
@@ -699,6 +704,32 @@ struct kfd_process_device {
 	struct attribute attr_evict;
 
 	struct kobject *kobj_stats;
+	unsigned int doorbell_index;
+
+	/*
+	 * @cu_occupancy: Reports occupancy of Compute Units (CU) of a process
+	 * that is associated with device encoded by "this" struct instance. The
+	 * value reflects CU usage by all of the waves launched by this process
+	 * on this device. A very important property of occupancy parameter is
+	 * that its value is a snapshot of current use.
+	 *
+	 * Following is to be noted regarding how this parameter is reported:
+	 *
+	 *  The number of waves that a CU can launch is limited by couple of
+	 *  parameters. These are encoded by struct amdgpu_cu_info instance
+	 *  that is part of every device definition. For GFX9 devices this
+	 *  translates to 40 waves (simd_per_cu * max_waves_per_simd) when waves
+	 *  do not use scratch memory and 32 waves (max_scratch_slots_per_cu)
+	 *  when they do use scratch memory. This could change for future
+	 *  devices and therefore this example should be considered as a guide.
+	 *
+	 *  All CU's of a device are available for the process. This may not be true
+	 *  under certain conditions - e.g. CU masking.
+	 *
+	 *  Finally number of CU's that are occupied by a process is affected by both
+	 *  number of CU's a device has along with number of other competing processes
+	 */
+	struct attribute attr_cu_occupancy;
 };
 
 #define qpd_to_pdd(x) container_of(x, struct kfd_process_device, qpd)
@@ -736,7 +767,6 @@ struct kfd_process {
 	struct mmu_notifier mmu_notifier;
 
 	uint16_t pasid;
-	unsigned int doorbell_index;
 
 	/*
 	 * List of kfd_process_device structures,
@@ -869,13 +899,13 @@ u32 read_kernel_doorbell(u32 __iomem *db);
 void write_kernel_doorbell(void __iomem *db, u32 value);
 void write_kernel_doorbell64(void __iomem *db, u64 value);
 unsigned int kfd_get_doorbell_dw_offset_in_bar(struct kfd_dev *kfd,
-					struct kfd_process *process,
+					struct kfd_process_device *pdd,
 					unsigned int doorbell_id);
-phys_addr_t kfd_get_process_doorbells(struct kfd_dev *dev,
-					struct kfd_process *process);
-int kfd_alloc_process_doorbells(struct kfd_process *process);
-void kfd_free_process_doorbells(struct kfd_process *process);
-
+phys_addr_t kfd_get_process_doorbells(struct kfd_process_device *pdd);
+int kfd_alloc_process_doorbells(struct kfd_dev *kfd,
+				unsigned int *doorbell_index);
+void kfd_free_process_doorbells(struct kfd_dev *kfd,
+				unsigned int doorbell_index);
 /* GTT Sub-Allocator */
 
 int kfd_gtt_sa_allocate(struct kfd_dev *kfd, unsigned int size,

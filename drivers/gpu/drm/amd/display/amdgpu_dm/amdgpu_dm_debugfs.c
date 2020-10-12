@@ -908,7 +908,7 @@ static ssize_t dp_dpcd_address_write(struct file *f, const char __user *buf,
 	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
 
 	if (size < sizeof(connector->debugfs_dpcd_address))
-		return 0;
+		return -EINVAL;
 
 	r = copy_from_user(&connector->debugfs_dpcd_address,
 			buf, sizeof(connector->debugfs_dpcd_address));
@@ -923,7 +923,7 @@ static ssize_t dp_dpcd_size_write(struct file *f, const char __user *buf,
 	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
 
 	if (size < sizeof(connector->debugfs_dpcd_size))
-		return 0;
+		return -EINVAL;
 
 	r = copy_from_user(&connector->debugfs_dpcd_size,
 			buf, sizeof(connector->debugfs_dpcd_size));
@@ -943,8 +943,8 @@ static ssize_t dp_dpcd_data_write(struct file *f, const char __user *buf,
 	struct dc_link *link = connector->dc_link;
 	uint32_t write_size = connector->debugfs_dpcd_size;
 
-	if (size < write_size)
-		return 0;
+	if (!write_size || size < write_size)
+		return -EINVAL;
 
 	data = kzalloc(write_size, GFP_KERNEL);
 	if (!data)
@@ -967,7 +967,7 @@ static ssize_t dp_dpcd_data_read(struct file *f, char __user *buf,
 	struct dc_link *link = connector->dc_link;
 	uint32_t read_size = connector->debugfs_dpcd_size;
 
-	if (size < read_size)
+	if (!read_size || size < read_size)
 		return 0;
 
 	data = kzalloc(read_size, GFP_KERNEL);

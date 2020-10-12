@@ -31,7 +31,6 @@
 #include "v10_structs.h"
 #include "nv.h"
 #include "nvd.h"
-#include "gfxhub_v2_1.h"
 
 enum hqd_dequeue_request_type {
 	NO_ACTION = 0,
@@ -657,7 +656,7 @@ static void set_vm_context_page_table_base_v10_3(struct kgd_dev *kgd, uint32_t v
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 
 	/* SDMA is on gfxhub as well for Navi1* series */
-	gfxhub_v2_1_setup_vm_pt_regs(adev, vmid, page_table_base);
+	adev->gfxhub.funcs->setup_vm_pt_regs(adev, vmid, page_table_base);
 }
 
 #if 0

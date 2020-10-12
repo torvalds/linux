@@ -36,10 +36,10 @@
 
 /* Firmware versioning. */
 #ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0x82f998da6
+#define DMUB_FW_VERSION_GIT_HASH 0x9cf8f05fe
 #define DMUB_FW_VERSION_MAJOR 0
 #define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 32
+#define DMUB_FW_VERSION_REVISION 35
 #define DMUB_FW_VERSION_TEST 0
 #define DMUB_FW_VERSION_VBIOS 0
 #define DMUB_FW_VERSION_HOTFIX 0
@@ -57,6 +57,7 @@
 
 #define SET_ABM_PIPE_GRADUALLY_DISABLE           0
 #define SET_ABM_PIPE_IMMEDIATELY_DISABLE         255
+#define SET_ABM_PIPE_IMMEDIATE_KEEP_GAIN_DISABLE 254
 #define SET_ABM_PIPE_NORMAL                      1
 
 /* Maximum number of streams on any ASIC. */
@@ -69,16 +70,16 @@
 #define PHYSICAL_ADDRESS_LOC union large_integer
 #endif
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
 #ifndef dmub_memcpy
 #define dmub_memcpy(dest, source, bytes) memcpy((dest), (source), (bytes))
 #endif
 
 #ifndef dmub_memset
 #define dmub_memset(dest, val, bytes) memset((dest), (val), (bytes))
+#endif
+
+#if defined(__cplusplus)
+extern "C" {
 #endif
 
 #ifndef dmub_udelay
@@ -170,7 +171,7 @@ union dmub_fw_boot_status {
 		uint32_t dal_fw : 1;
 		uint32_t mailbox_rdy : 1;
 		uint32_t optimized_init_done : 1;
-		uint32_t reserved : 29;
+		uint32_t restore_required : 1;
 	} bits;
 	uint32_t all;
 };
@@ -179,6 +180,7 @@ enum dmub_fw_boot_status_bit {
 	DMUB_FW_BOOT_STATUS_BIT_DAL_FIRMWARE = (1 << 0),
 	DMUB_FW_BOOT_STATUS_BIT_MAILBOX_READY = (1 << 1),
 	DMUB_FW_BOOT_STATUS_BIT_OPTIMIZED_INIT_DONE = (1 << 2),
+	DMUB_FW_BOOT_STATUS_BIT_RESTORE_REQUIRED = (1 << 3),
 };
 
 /* Register bit definition for SCRATCH15 */
@@ -298,7 +300,15 @@ enum dmub_cmd_type {
 	DMUB_CMD__PSR = 64,
 	DMUB_CMD__ABM = 66,
 	DMUB_CMD__HW_LOCK = 69,
+	DMUB_CMD__DP_AUX_ACCESS = 70,
+	DMUB_CMD__OUTBOX1_ENABLE = 71,
 	DMUB_CMD__VBIOS = 128,
+};
+
+enum dmub_out_cmd_type {
+	DMUB_OUT_CMD__NULL = 0,
+	DMUB_OUT_CMD__DP_AUX_REPLY = 1,
+	DMUB_OUT_CMD__DP_HPD_NOTIFY = 2,
 };
 
 #pragma pack(push, 1)
@@ -454,6 +464,78 @@ struct dmub_rb_cmd_dig1_transmitter_control {
 struct dmub_rb_cmd_dpphy_init {
 	struct dmub_cmd_header header;
 	uint8_t reserved[60];
+};
+
+enum dp_aux_request_action {
+	DP_AUX_REQ_ACTION_I2C_WRITE		= 0x00,
+	DP_AUX_REQ_ACTION_I2C_READ		= 0x10,
+	DP_AUX_REQ_ACTION_I2C_STATUS_REQ	= 0x20,
+	DP_AUX_REQ_ACTION_I2C_WRITE_MOT		= 0x40,
+	DP_AUX_REQ_ACTION_I2C_READ_MOT		= 0x50,
+	DP_AUX_REQ_ACTION_I2C_STATUS_REQ_MOT	= 0x60,
+	DP_AUX_REQ_ACTION_DPCD_WRITE		= 0x80,
+	DP_AUX_REQ_ACTION_DPCD_READ		= 0x90
+};
+
+/* DP AUX command */
+struct aux_transaction_parameters {
+	uint8_t is_i2c_over_aux;
+	uint8_t action;
+	uint8_t length;
+	uint8_t pad;
+	uint32_t address;
+	uint8_t data[16];
+};
+
+struct dmub_cmd_dp_aux_control_data {
+	uint32_t handle;
+	uint8_t port_index;
+	uint8_t sw_crc_enabled;
+	uint16_t timeout;
+	struct aux_transaction_parameters dpaux;
+};
+
+struct dmub_rb_cmd_dp_aux_access {
+	struct dmub_cmd_header header;
+	struct dmub_cmd_dp_aux_control_data aux_control;
+};
+
+struct dmub_rb_cmd_outbox1_enable {
+	struct dmub_cmd_header header;
+	uint32_t enable;
+};
+
+/* DP AUX Reply command - OutBox Cmd */
+struct aux_reply_data {
+	uint8_t command;
+	uint8_t length;
+	uint8_t pad[2];
+	uint8_t data[16];
+};
+
+struct aux_reply_control_data {
+	uint32_t handle;
+	uint8_t phy_port_index;
+	uint8_t result;
+	uint16_t pad;
+};
+
+struct dmub_rb_cmd_dp_aux_reply {
+	struct dmub_cmd_header header;
+	struct aux_reply_control_data control;
+	struct aux_reply_data reply_data;
+};
+
+struct dp_hpd_data {
+	uint8_t phy_port_index;
+	uint8_t hpd_type;
+	uint8_t hpd_status;
+	uint8_t pad;
+};
+
+struct dmub_rb_cmd_dp_hpd_notify {
+	struct dmub_cmd_header header;
+	struct dp_hpd_data hpd_data;
 };
 
 /*
@@ -685,8 +767,15 @@ union dmub_rb_cmd {
 	struct dmub_rb_cmd_abm_set_ambient_level abm_set_ambient_level;
 	struct dmub_rb_cmd_abm_set_pwm_frac abm_set_pwm_frac;
 	struct dmub_rb_cmd_abm_init_config abm_init_config;
+	struct dmub_rb_cmd_dp_aux_access dp_aux_access;
+	struct dmub_rb_cmd_outbox1_enable outbox1_enable;
 };
 
+union dmub_rb_out_cmd {
+	struct dmub_rb_cmd_common cmd_common;
+	struct dmub_rb_cmd_dp_aux_reply dp_aux_reply;
+	struct dmub_rb_cmd_dp_hpd_notify dp_hpd_notify;
+};
 #pragma pack(pop)
 
 
@@ -759,6 +848,25 @@ static inline bool dmub_rb_push_front(struct dmub_rb *rb,
 	return true;
 }
 
+static inline bool dmub_rb_out_push_front(struct dmub_rb *rb,
+				      const union dmub_rb_out_cmd *cmd)
+{
+	uint8_t *dst = (uint8_t *)(rb->base_address) + rb->wrpt;
+	const uint8_t *src = (uint8_t *)cmd;
+
+	if (dmub_rb_full(rb))
+		return false;
+
+	dmub_memcpy(dst, src, DMUB_RB_CMD_SIZE);
+
+	rb->wrpt += DMUB_RB_CMD_SIZE;
+
+	if (rb->wrpt >= rb->capacity)
+		rb->wrpt %= rb->capacity;
+
+	return true;
+}
+
 static inline bool dmub_rb_front(struct dmub_rb *rb,
 				 union dmub_rb_cmd  *cmd)
 {
@@ -768,6 +876,23 @@ static inline bool dmub_rb_front(struct dmub_rb *rb,
 		return false;
 
 	dmub_memcpy(cmd, rd_ptr, DMUB_RB_CMD_SIZE);
+
+	return true;
+}
+
+static inline bool dmub_rb_out_front(struct dmub_rb *rb,
+				 union dmub_rb_out_cmd  *cmd)
+{
+	const uint64_t volatile *src = (const uint64_t volatile *)(rb->base_address) + rb->rptr / sizeof(uint64_t);
+	uint64_t *dst = (uint64_t *)cmd;
+	int i;
+
+	if (dmub_rb_empty(rb))
+		return false;
+
+	// copying data
+	for (i = 0; i < DMUB_RB_CMD_SIZE / sizeof(uint64_t); i++)
+		*dst++ = *src++;
 
 	return true;
 }

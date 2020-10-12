@@ -735,6 +735,8 @@ static bool dc_construct(struct dc *dc,
 	dc->clk_mgr->force_smu_not_present = init_params->force_smu_not_present;
 #endif
 
+	dc->debug.force_ignore_link_settings = init_params->force_ignore_link_settings;
+
 	if (dc->res_pool->funcs->update_bw_bounding_box)
 		dc->res_pool->funcs->update_bw_bounding_box(dc, dc->clk_mgr->bw_params);
 
@@ -840,6 +842,60 @@ static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
 	current_ctx = dc->current_state;
 	dc->current_state = dangling_context;
 	dc_release_state(current_ctx);
+}
+
+static void disable_vbios_mode_if_required(
+		struct dc *dc,
+		struct dc_state *context)
+{
+	unsigned int i;
+
+	/* check if timing_changed, disable stream*/
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct dc_stream_state *stream = NULL;
+		struct dc_link *link = NULL;
+		struct pipe_ctx *pipe = NULL;
+
+		pipe = &context->res_ctx.pipe_ctx[i];
+		stream = pipe->stream;
+		if (stream == NULL)
+			continue;
+
+		if (stream->link->local_sink &&
+			stream->link->local_sink->sink_signal == SIGNAL_TYPE_EDP) {
+			link = stream->link;
+		}
+
+		if (link != NULL) {
+			unsigned int enc_inst, tg_inst = 0;
+			unsigned int pix_clk_100hz;
+
+			enc_inst = link->link_enc->funcs->get_dig_frontend(link->link_enc);
+			if (enc_inst != ENGINE_ID_UNKNOWN) {
+				for (i = 0; i < dc->res_pool->stream_enc_count; i++) {
+					if (dc->res_pool->stream_enc[i]->id == enc_inst) {
+						tg_inst = dc->res_pool->stream_enc[i]->funcs->dig_source_otg(
+							dc->res_pool->stream_enc[i]);
+						break;
+					}
+				}
+
+				dc->res_pool->dp_clock_source->funcs->get_pixel_clk_frequency_100hz(
+					dc->res_pool->dp_clock_source,
+					tg_inst, &pix_clk_100hz);
+
+				if (link->link_status.link_active) {
+					uint32_t requested_pix_clk_100hz =
+						pipe->stream_res.pix_clk_params.requested_pix_clk_100hz;
+
+					if (pix_clk_100hz != requested_pix_clk_100hz) {
+						core_link_disable_stream(pipe);
+						pipe->stream->dpms_off = false;
+					}
+				}
+			}
+		}
+	}
 }
 
 static void wait_for_no_pipes_pending(struct dc *dc, struct dc_state *context)
@@ -1278,15 +1334,17 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	for (i = 0; i < context->stream_count; i++)
 		dc_streams[i] =  context->streams[i];
 
-	if (!dcb->funcs->is_accelerated_mode(dcb))
+	if (!dcb->funcs->is_accelerated_mode(dcb)) {
+		disable_vbios_mode_if_required(dc, context);
 		dc->hwss.enable_accelerated_mode(dc, context);
-
-	for (i = 0; i < context->stream_count; i++) {
-		if (context->streams[i]->apply_seamless_boot_optimization)
-			dc->optimize_seamless_boot_streams++;
 	}
 
-	if (context->stream_count > dc->optimize_seamless_boot_streams)
+	for (i = 0; i < context->stream_count; i++)
+		if (context->streams[i]->apply_seamless_boot_optimization)
+			dc->optimize_seamless_boot_streams++;
+
+	if (context->stream_count > dc->optimize_seamless_boot_streams ||
+		context->stream_count == 0)
 		dc->hwss.prepare_bandwidth(dc, context);
 
 	disable_dangling_plane(dc, context);
@@ -1368,7 +1426,8 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 
 	dc_enable_stereo(dc, context, dc_streams, context->stream_count);
 
-	if (context->stream_count > dc->optimize_seamless_boot_streams) {
+	if (context->stream_count > dc->optimize_seamless_boot_streams ||
+		context->stream_count == 0) {
 		/* Must wait for no flips to be pending before doing optimize bw */
 		wait_for_no_pipes_pending(dc, context);
 		/* pplib is notified if disp_num changed */
