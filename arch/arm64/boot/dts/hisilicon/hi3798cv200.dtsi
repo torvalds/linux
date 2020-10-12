@@ -304,7 +304,7 @@
 			interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&crg HISTB_SDIO0_CIU_CLK>,
 				 <&crg HISTB_SDIO0_BIU_CLK>;
-			clock-names = "ciu", "biu";
+			clock-names = "biu", "ciu";
 			resets = <&crg 0x9c 4>;
 			reset-names = "reset";
 			status = "disabled";
