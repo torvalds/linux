@@ -584,7 +584,7 @@
 			status = "disabled";
 		};
 
-		ohci: ohci@9880000 {
+		ohci: usb@9880000 {
 			compatible = "generic-ohci";
 			reg = <0x9880000 0x10000>;
 			interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
@@ -599,7 +599,7 @@
 			status = "disabled";
 		};
 
-		ehci: ehci@9890000 {
+		ehci: usb@9890000 {
 			compatible = "generic-ehci";
 			reg = <0x9890000 0x10000>;
 			interrupts = <GIC_SPI 66 IRQ_TYPE_LEVEL_HIGH>;
