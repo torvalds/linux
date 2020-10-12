@@ -427,7 +427,7 @@ static void show_pwq(struct pool_workqueue *pwq);
 
 #ifdef CONFIG_DEBUG_OBJECTS_WORK
 
-static struct debug_obj_descr work_debug_descr;
+static const struct debug_obj_descr work_debug_descr;
 
 static void *work_debug_hint(void *addr)
 {
@@ -477,7 +477,7 @@ static bool work_fixup_free(void *addr, enum debug_obj_state state)
 	}
 }
 
-static struct debug_obj_descr work_debug_descr = {
+static const struct debug_obj_descr work_debug_descr = {
 	.name		= "work_struct",
 	.debug_hint	= work_debug_hint,
 	.is_static_object = work_is_static_object,
