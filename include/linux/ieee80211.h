@@ -3417,6 +3417,8 @@ struct ieee80211_multiple_bssid_configuration {
 #define WLAN_AKM_SUITE_FT_PSK_SHA384		SUITE(0x000FAC, 19)
 #define WLAN_AKM_SUITE_PSK_SHA384		SUITE(0x000FAC, 20)
 
+#define WLAN_AKM_SUITE_WFA_DPP			SUITE(WLAN_OUI_WFA, 2)
+
 #define WLAN_MAX_KEY_LEN		32
 
 #define WLAN_PMK_NAME_LEN		16
@@ -3427,6 +3429,7 @@ struct ieee80211_multiple_bssid_configuration {
 
 #define WLAN_OUI_WFA			0x506f9a
 #define WLAN_OUI_TYPE_WFA_P2P		9
+#define WLAN_OUI_TYPE_WFA_DPP		0x1A
 #define WLAN_OUI_MICROSOFT		0x0050f2
 #define WLAN_OUI_TYPE_MICROSOFT_WPA	1
 #define WLAN_OUI_TYPE_MICROSOFT_WMM	2
