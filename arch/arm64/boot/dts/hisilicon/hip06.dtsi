@@ -434,8 +434,8 @@
 			#size-cells = <0>;
 			compatible = "hisilicon,hns-dsaf-v2";
 			mode = "6port-16rss";
-			reg = <0x0 0xc5000000 0x0 0x890000
-			       0x0 0xc7000000 0x0 0x600000>;
+			reg = <0x0 0xc5000000 0x0 0x890000>,
+			      <0x0 0xc7000000 0x0 0x600000>;
 			reg-names = "ppe-base", "dsaf-base";
 			interrupt-parent = <&mbigen_dsaf0>;
 			subctrl-syscon = <&dsa_subctrl>;
