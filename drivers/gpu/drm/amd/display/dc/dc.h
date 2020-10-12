@@ -963,7 +963,7 @@ struct dc_flip_addrs {
 	bool triplebuffer_flips;
 };
 
-bool dc_post_update_surfaces_to_stream(
+void dc_post_update_surfaces_to_stream(
 		struct dc *dc);
 
 #include "dc_stream.h"
