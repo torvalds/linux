@@ -946,9 +946,10 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 	hw_queue_prop = &hdev->asic_prop.hw_queues_props[q_idx];
 	q_type = hw_queue_prop->type;
 
-	if ((q_idx >= hdev->asic_prop.max_queues) ||
-			(!hw_queue_prop->supports_sync_stream)) {
-		dev_err(hdev->dev, "Queue index %d is invalid\n", q_idx);
+	if (!hw_queue_prop->supports_sync_stream) {
+		dev_err(hdev->dev,
+			"Queue index %d does not support sync stream operations\n",
+			q_idx);
 		rc = -EINVAL;
 		goto free_cs_chunk_array;
 	}
