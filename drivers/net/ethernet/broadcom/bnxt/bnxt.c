@@ -69,6 +69,7 @@
 #include "bnxt_debugfs.h"
 
 #define BNXT_TX_TIMEOUT		(5 * HZ)
+#define BNXT_DEF_MSG_ENABLE	(NETIF_MSG_DRV | NETIF_MSG_HW)
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Broadcom BCM573xx network driver");
@@ -1979,11 +1980,12 @@ static int bnxt_async_event_process(struct bnxt *bp,
 				    struct hwrm_async_event_cmpl *cmpl)
 {
 	u16 event_id = le16_to_cpu(cmpl->event_id);
+	u32 data1 = le32_to_cpu(cmpl->event_data1);
+	u32 data2 = le32_to_cpu(cmpl->event_data2);
 
 	/* TODO CHIMP_FW: Define event id's for link change, error etc */
 	switch (event_id) {
 	case ASYNC_EVENT_CMPL_EVENT_ID_LINK_SPEED_CFG_CHANGE: {
-		u32 data1 = le32_to_cpu(cmpl->event_data1);
 		struct bnxt_link_info *link_info = &bp->link_info;
 
 		if (BNXT_VF(bp))
@@ -2013,7 +2015,6 @@ static int bnxt_async_event_process(struct bnxt *bp,
 		set_bit(BNXT_HWRM_PF_UNLOAD_SP_EVENT, &bp->sp_event);
 		break;
 	case ASYNC_EVENT_CMPL_EVENT_ID_PORT_CONN_NOT_ALLOWED: {
-		u32 data1 = le32_to_cpu(cmpl->event_data1);
 		u16 port_id = BNXT_GET_EVENT_PORT(data1);
 
 		if (BNXT_VF(bp))
@@ -2030,9 +2031,10 @@ static int bnxt_async_event_process(struct bnxt *bp,
 			goto async_event_process_exit;
 		set_bit(BNXT_RESET_TASK_SILENT_SP_EVENT, &bp->sp_event);
 		break;
-	case ASYNC_EVENT_CMPL_EVENT_ID_RESET_NOTIFY: {
-		u32 data1 = le32_to_cpu(cmpl->event_data1);
-
+	case ASYNC_EVENT_CMPL_EVENT_ID_RESET_NOTIFY:
+		if (netif_msg_hw(bp))
+			netdev_warn(bp->dev, "Received RESET_NOTIFY event, data1: 0x%x, data2: 0x%x\n",
+				    data1, data2);
 		if (!bp->fw_health)
 			goto async_event_process_exit;
 
@@ -2052,10 +2054,8 @@ static int bnxt_async_event_process(struct bnxt *bp,
 		}
 		set_bit(BNXT_FW_RESET_NOTIFY_SP_EVENT, &bp->sp_event);
 		break;
-	}
 	case ASYNC_EVENT_CMPL_EVENT_ID_ERROR_RECOVERY: {
 		struct bnxt_fw_health *fw_health = bp->fw_health;
-		u32 data1 = le32_to_cpu(cmpl->event_data1);
 
 		if (!fw_health)
 			goto async_event_process_exit;
@@ -2083,8 +2083,6 @@ static int bnxt_async_event_process(struct bnxt *bp,
 		goto async_event_process_exit;
 	}
 	case ASYNC_EVENT_CMPL_EVENT_ID_RING_MONITOR_MSG: {
-		u32 data1 = le32_to_cpu(cmpl->event_data1);
-		u32 data2 = le32_to_cpu(cmpl->event_data2);
 		struct bnxt_rx_ring_info *rxr;
 		u16 grp_idx;
 
@@ -4325,6 +4323,8 @@ static int bnxt_hwrm_to_stderr(u32 hwrm_err)
 	switch (hwrm_err) {
 	case HWRM_ERR_CODE_SUCCESS:
 		return 0;
+	case HWRM_ERR_CODE_RESOURCE_LOCKED:
+		return -EROFS;
 	case HWRM_ERR_CODE_RESOURCE_ACCESS_DENIED:
 		return -EACCES;
 	case HWRM_ERR_CODE_RESOURCE_ALLOC_ERROR:
@@ -7562,6 +7562,16 @@ static int bnxt_hwrm_func_reset(struct bnxt *bp)
 	return hwrm_send_message(bp, &req, sizeof(req), HWRM_RESET_TIMEOUT);
 }
 
+static void bnxt_nvm_cfg_ver_get(struct bnxt *bp)
+{
+	struct hwrm_nvm_get_dev_info_output nvm_info;
+
+	if (!bnxt_hwrm_nvm_get_dev_info(bp, &nvm_info))
+		snprintf(bp->nvm_cfg_ver, FW_VER_STR_LEN, "%d.%d.%d",
+			 nvm_info.nvm_cfg_ver_maj, nvm_info.nvm_cfg_ver_min,
+			 nvm_info.nvm_cfg_ver_upd);
+}
+
 static int bnxt_hwrm_queue_qportcfg(struct bnxt *bp)
 {
 	int rc = 0;
@@ -8902,6 +8912,11 @@ static void bnxt_report_link(struct bnxt *bp)
 		u16 fec;
 
 		netif_carrier_on(bp->dev);
+		speed = bnxt_fw_to_ethtool_speed(bp->link_info.link_speed);
+		if (speed == SPEED_UNKNOWN) {
+			netdev_info(bp->dev, "NIC Link is Up, speed unknown\n");
+			return;
+		}
 		if (bp->link_info.duplex == BNXT_LINK_DUPLEX_FULL)
 			duplex = "full";
 		else
@@ -8914,7 +8929,6 @@ static void bnxt_report_link(struct bnxt *bp)
 			flow_ctrl = "ON - receive";
 		else
 			flow_ctrl = "none";
-		speed = bnxt_fw_to_ethtool_speed(bp->link_info.link_speed);
 		netdev_info(bp->dev, "NIC Link is Up, %u Mbps %s duplex, Flow control: %s\n",
 			    speed, duplex, flow_ctrl);
 		if (bp->flags & BNXT_FLAG_EEE_CAP)
@@ -10751,7 +10765,7 @@ static void bnxt_rx_ring_reset(struct bnxt *bp)
 			else
 				netdev_warn(bp->dev, "RX ring reset failed, rc = %d, falling back to global reset\n",
 					    rc);
-			bnxt_reset_task(bp, false);
+			bnxt_reset_task(bp, true);
 			break;
 		}
 		bnxt_free_one_rx_ring_skbs(bp, i);
@@ -11219,6 +11233,8 @@ static int bnxt_fw_init_one_p1(struct bnxt *bp)
 		if (rc)
 			return rc;
 	}
+	bnxt_nvm_cfg_ver_get(bp);
+
 	rc = bnxt_hwrm_func_reset(bp);
 	if (rc)
 		return -ENODEV;
@@ -12508,6 +12524,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENOMEM;
 
 	bp = netdev_priv(dev);
+	bp->msg_enable = BNXT_DEF_MSG_ENABLE;
 	bnxt_set_max_func_irqs(bp, max_irqs);
 
 	if (bnxt_vf_pciid(ent->driver_data))
