@@ -71,21 +71,43 @@ properties:
   '#clock-cells':
     const: 1
 
+  '#reset-cells':
+    const: 1
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 1
+
+  ranges: true
+
 required:
   - compatible
   - reg
 
-additionalProperties: false
+additionalProperties:
+  type: object
 
 examples:
   - |
     /* Hisilicon system controller */
-    system-controller@fc802000 {
+    system-controller@802000 {
         compatible = "hisilicon,sysctrl", "syscon";
-        reg = <0xfc802000 0x1000>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges = <0 0x802000 0x1000>;
+        reg = <0x802000 0x1000>;
+
         smp-offset = <0x31c>;
         resume-offset = <0x308>;
         reboot-offset = <0x4>;
+
+        clock: clock@0 {
+            compatible = "hisilicon,hi3620-clock";
+            reg = <0 0x10000>;
+            #clock-cells = <1>;
+        };
     };
 
     /* HiP01 system controller */
