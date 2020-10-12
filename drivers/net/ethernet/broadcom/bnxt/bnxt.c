@@ -7562,6 +7562,16 @@ static int bnxt_hwrm_func_reset(struct bnxt *bp)
 	return hwrm_send_message(bp, &req, sizeof(req), HWRM_RESET_TIMEOUT);
 }
 
+static void bnxt_nvm_cfg_ver_get(struct bnxt *bp)
+{
+	struct hwrm_nvm_get_dev_info_output nvm_info;
+
+	if (!bnxt_hwrm_nvm_get_dev_info(bp, &nvm_info))
+		snprintf(bp->nvm_cfg_ver, FW_VER_STR_LEN, "%d.%d.%d",
+			 nvm_info.nvm_cfg_ver_maj, nvm_info.nvm_cfg_ver_min,
+			 nvm_info.nvm_cfg_ver_upd);
+}
+
 static int bnxt_hwrm_queue_qportcfg(struct bnxt *bp)
 {
 	int rc = 0;
@@ -11223,6 +11233,8 @@ static int bnxt_fw_init_one_p1(struct bnxt *bp)
 		if (rc)
 			return rc;
 	}
+	bnxt_nvm_cfg_ver_get(bp);
+
 	rc = bnxt_hwrm_func_reset(bp);
 	if (rc)
 		return -ENODEV;
