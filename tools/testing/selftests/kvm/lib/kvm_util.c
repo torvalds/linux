@@ -1204,6 +1204,9 @@ int _vcpu_run(struct kvm_vm *vm, uint32_t vcpuid)
 	do {
 		rc = ioctl(vcpu->fd, KVM_RUN, NULL);
 	} while (rc == -1 && errno == EINTR);
+
+	assert_on_unhandled_exception(vm, vcpuid);
+
 	return rc;
 }
 

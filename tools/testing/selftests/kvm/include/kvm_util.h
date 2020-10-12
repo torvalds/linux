@@ -294,6 +294,8 @@ int vm_create_device(struct kvm_vm *vm, struct kvm_create_device *cd);
 	memcpy(&(g), _p, sizeof(g));				\
 })
 
+void assert_on_unhandled_exception(struct kvm_vm *vm, uint32_t vcpuid);
+
 /* Common ucalls */
 enum {
 	UCALL_NONE,

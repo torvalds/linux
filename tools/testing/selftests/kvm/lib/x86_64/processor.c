@@ -12,8 +12,17 @@
 #include "../kvm_util_internal.h"
 #include "processor.h"
 
+#ifndef NUM_INTERRUPTS
+#define NUM_INTERRUPTS 256
+#endif
+
+#define DEFAULT_CODE_SELECTOR 0x8
+#define DEFAULT_DATA_SELECTOR 0x10
+
 /* Minimum physical address used for virtual translation tables. */
 #define KVM_GUEST_PAGE_TABLE_MIN_PADDR 0x180000
+
+vm_vaddr_t exception_handlers;
 
 /* Virtual translation table structure declarations */
 struct pageMapL4Entry {
@@ -557,9 +566,9 @@ static void vcpu_setup(struct kvm_vm *vm, int vcpuid, int pgd_memslot, int gdt_m
 		sregs.efer |= (EFER_LME | EFER_LMA | EFER_NX);
 
 		kvm_seg_set_unusable(&sregs.ldt);
-		kvm_seg_set_kernel_code_64bit(vm, 0x8, &sregs.cs);
-		kvm_seg_set_kernel_data_64bit(vm, 0x10, &sregs.ds);
-		kvm_seg_set_kernel_data_64bit(vm, 0x10, &sregs.es);
+		kvm_seg_set_kernel_code_64bit(vm, DEFAULT_CODE_SELECTOR, &sregs.cs);
+		kvm_seg_set_kernel_data_64bit(vm, DEFAULT_DATA_SELECTOR, &sregs.ds);
+		kvm_seg_set_kernel_data_64bit(vm, DEFAULT_DATA_SELECTOR, &sregs.es);
 		kvm_setup_tss_64bit(vm, &sregs.tr, 0x18, gdt_memslot, pgd_memslot);
 		break;
 
@@ -1117,5 +1126,104 @@ void kvm_get_cpu_address_width(unsigned int *pa_bits, unsigned int *va_bits)
 		entry = kvm_get_supported_cpuid_entry(0x80000008);
 		*pa_bits = entry->eax & 0xff;
 		*va_bits = (entry->eax >> 8) & 0xff;
+	}
+}
+
+struct idt_entry {
+	uint16_t offset0;
+	uint16_t selector;
+	uint16_t ist : 3;
+	uint16_t : 5;
+	uint16_t type : 4;
+	uint16_t : 1;
+	uint16_t dpl : 2;
+	uint16_t p : 1;
+	uint16_t offset1;
+	uint32_t offset2; uint32_t reserved;
+};
+
+static void set_idt_entry(struct kvm_vm *vm, int vector, unsigned long addr,
+			  int dpl, unsigned short selector)
+{
+	struct idt_entry *base =
+		(struct idt_entry *)addr_gva2hva(vm, vm->idt);
+	struct idt_entry *e = &base[vector];
+
+	memset(e, 0, sizeof(*e));
+	e->offset0 = addr;
+	e->selector = selector;
+	e->ist = 0;
+	e->type = 14;
+	e->dpl = dpl;
+	e->p = 1;
+	e->offset1 = addr >> 16;
+	e->offset2 = addr >> 32;
+}
+
+void kvm_exit_unexpected_vector(uint32_t value)
+{
+	outl(UNEXPECTED_VECTOR_PORT, value);
+}
+
+void route_exception(struct ex_regs *regs)
+{
+	typedef void(*handler)(struct ex_regs *);
+	handler *handlers = (handler *)exception_handlers;
+
+	if (handlers && handlers[regs->vector]) {
+		handlers[regs->vector](regs);
+		return;
+	}
+
+	kvm_exit_unexpected_vector(regs->vector);
+}
+
+void vm_init_descriptor_tables(struct kvm_vm *vm)
+{
+	extern void *idt_handlers;
+	int i;
+
+	vm->idt = vm_vaddr_alloc(vm, getpagesize(), 0x2000, 0, 0);
+	vm->handlers = vm_vaddr_alloc(vm, 256 * sizeof(void *), 0x2000, 0, 0);
+	/* Handlers have the same address in both address spaces.*/
+	for (i = 0; i < NUM_INTERRUPTS; i++)
+		set_idt_entry(vm, i, (unsigned long)(&idt_handlers)[i], 0,
+			DEFAULT_CODE_SELECTOR);
+}
+
+void vcpu_init_descriptor_tables(struct kvm_vm *vm, uint32_t vcpuid)
+{
+	struct kvm_sregs sregs;
+
+	vcpu_sregs_get(vm, vcpuid, &sregs);
+	sregs.idt.base = vm->idt;
+	sregs.idt.limit = NUM_INTERRUPTS * sizeof(struct idt_entry) - 1;
+	sregs.gdt.base = vm->gdt;
+	sregs.gdt.limit = getpagesize() - 1;
+	kvm_seg_set_kernel_data_64bit(NULL, DEFAULT_DATA_SELECTOR, &sregs.gs);
+	vcpu_sregs_set(vm, vcpuid, &sregs);
+	*(vm_vaddr_t *)addr_gva2hva(vm, (vm_vaddr_t)(&exception_handlers)) = vm->handlers;
+}
+
+void vm_handle_exception(struct kvm_vm *vm, int vector,
+			 void (*handler)(struct ex_regs *))
+{
+	vm_vaddr_t *handlers = (vm_vaddr_t *)addr_gva2hva(vm, vm->handlers);
+
+	handlers[vector] = (vm_vaddr_t)handler;
+}
+
+void assert_on_unhandled_exception(struct kvm_vm *vm, uint32_t vcpuid)
+{
+	if (vcpu_state(vm, vcpuid)->exit_reason == KVM_EXIT_IO
+		&& vcpu_state(vm, vcpuid)->io.port == UNEXPECTED_VECTOR_PORT
+		&& vcpu_state(vm, vcpuid)->io.size == 4) {
+		/* Grab pointer to io data */
+		uint32_t *data = (void *)vcpu_state(vm, vcpuid)
+			+ vcpu_state(vm, vcpuid)->io.data_offset;
+
+		TEST_ASSERT(false,
+			    "Unexpected vectored event in guest (vector:0x%x)",
+			    *data);
 	}
 }
