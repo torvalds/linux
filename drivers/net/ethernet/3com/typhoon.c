@@ -1419,8 +1419,7 @@ typhoon_download_firmware(struct typhoon *tp)
 			 * the checksum, we can do this once, at the end.
 			 */
 			csum = csum_fold(csum_partial_copy_nocheck(image_data,
-								   dpage, len,
-								   0));
+								   dpage, len));
 
 			iowrite32(len, ioaddr + TYPHOON_REG_BOOT_LENGTH);
 			iowrite32(le16_to_cpu((__force __le16)csum),
