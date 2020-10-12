@@ -62,7 +62,7 @@ static ssize_t show_total_trans(struct cpufreq_policy *policy, char *buf)
 	if (READ_ONCE(stats->reset_pending))
 		return sprintf(buf, "%d\n", 0);
 	else
-		return sprintf(buf, "%d\n", stats->total_trans);
+		return sprintf(buf, "%u\n", stats->total_trans);
 }
 cpufreq_freq_attr_ro(total_trans);
 
