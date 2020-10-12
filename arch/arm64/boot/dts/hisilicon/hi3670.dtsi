@@ -213,7 +213,6 @@
 			clocks = <&crg_ctrl HI3670_CLK_GATE_UART1>,
 				 <&crg_ctrl HI3670_PCLK>;
 			clock-names = "uartclk", "apb_pclk";
-			pinctrl-names = "default";
 			status = "disabled";
 		};
 
@@ -260,7 +259,6 @@
 			clocks = <&crg_ctrl HI3670_CLK_GATE_UART5>,
 				 <&crg_ctrl HI3670_PCLK>;
 			clock-names = "uartclk", "apb_pclk";
-			pinctrl-names = "default";
 			status = "disabled";
 		};
 
