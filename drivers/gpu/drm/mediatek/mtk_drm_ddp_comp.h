@@ -47,7 +47,9 @@ struct mtk_ddp_comp_funcs {
 		       unsigned int bpc, struct cmdq_pkt *cmdq_pkt);
 	void (*start)(struct device *dev);
 	void (*stop)(struct device *dev);
-	void (*enable_vblank)(struct device *dev, struct drm_crtc *crtc);
+	void (*enable_vblank)(struct device *dev,
+			      void (*vblank_cb)(void *),
+			      void *vblank_cb_data);
 	void (*disable_vblank)(struct device *dev);
 	unsigned int (*supported_rotations)(struct device *dev);
 	unsigned int (*layer_nr)(struct device *dev);
@@ -109,10 +111,11 @@ static inline void mtk_ddp_comp_stop(struct mtk_ddp_comp *comp)
 }
 
 static inline void mtk_ddp_comp_enable_vblank(struct mtk_ddp_comp *comp,
-					      struct drm_crtc *crtc)
+					      void (*vblank_cb)(void *),
+					      void *vblank_cb_data)
 {
 	if (comp->funcs && comp->funcs->enable_vblank)
-		comp->funcs->enable_vblank(comp->dev, crtc);
+		comp->funcs->enable_vblank(comp->dev, vblank_cb, vblank_cb_data);
 }
 
 static inline void mtk_ddp_comp_disable_vblank(struct mtk_ddp_comp *comp)
