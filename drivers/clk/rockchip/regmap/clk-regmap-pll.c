@@ -152,6 +152,9 @@ static long clk_pll_round_rate(unsigned long fin, unsigned long fout,
 				break;
 		}
 
+		if (_postdiv2 > 7)
+			return -EINVAL;
+
 		fout *= _postdiv1 * _postdiv2;
 	} else {
 		_postdiv1 = 1;
