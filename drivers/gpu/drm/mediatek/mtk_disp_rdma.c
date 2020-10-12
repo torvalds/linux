@@ -69,11 +69,6 @@ struct mtk_disp_rdma {
 	const struct mtk_disp_rdma_data	*data;
 };
 
-static inline struct mtk_disp_rdma *comp_to_rdma(struct mtk_ddp_comp *comp)
-{
-	return container_of(comp, struct mtk_disp_rdma, ddp_comp);
-}
-
 static irqreturn_t mtk_disp_rdma_irq_handler(int irq, void *dev_id)
 {
 	struct mtk_disp_rdma *priv = dev_id;
@@ -90,32 +85,32 @@ static irqreturn_t mtk_disp_rdma_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void rdma_update_bits(struct mtk_ddp_comp *comp, unsigned int reg,
+static void rdma_update_bits(struct device *dev, unsigned int reg,
 			     unsigned int mask, unsigned int val)
 {
-	struct mtk_disp_rdma *rdma = dev_get_drvdata(comp->dev);
+	struct mtk_disp_rdma *rdma = dev_get_drvdata(dev);
 	unsigned int tmp = readl(rdma->regs + reg);
 
 	tmp = (tmp & ~mask) | (val & mask);
 	writel(tmp, rdma->regs + reg);
 }
 
-static void mtk_rdma_enable_vblank(struct mtk_ddp_comp *comp,
+static void mtk_rdma_enable_vblank(struct device *dev,
 				   struct drm_crtc *crtc)
 {
-	struct mtk_disp_rdma *rdma = comp_to_rdma(comp);
+	struct mtk_disp_rdma *rdma = dev_get_drvdata(dev);
 
 	rdma->crtc = crtc;
-	rdma_update_bits(comp, DISP_REG_RDMA_INT_ENABLE, RDMA_FRAME_END_INT,
+	rdma_update_bits(dev, DISP_REG_RDMA_INT_ENABLE, RDMA_FRAME_END_INT,
 			 RDMA_FRAME_END_INT);
 }
 
-static void mtk_rdma_disable_vblank(struct mtk_ddp_comp *comp)
+static void mtk_rdma_disable_vblank(struct device *dev)
 {
-	struct mtk_disp_rdma *rdma = comp_to_rdma(comp);
+	struct mtk_disp_rdma *rdma = dev_get_drvdata(dev);
 
 	rdma->crtc = NULL;
-	rdma_update_bits(comp, DISP_REG_RDMA_INT_ENABLE, RDMA_FRAME_END_INT, 0);
+	rdma_update_bits(dev, DISP_REG_RDMA_INT_ENABLE, RDMA_FRAME_END_INT, 0);
 }
 
 static int mtk_rdma_clk_enable(struct device *dev)
@@ -132,24 +127,24 @@ static void mtk_rdma_clk_disable(struct device *dev)
 	clk_disable_unprepare(rdma->clk);
 }
 
-static void mtk_rdma_start(struct mtk_ddp_comp *comp)
+static void mtk_rdma_start(struct device *dev)
 {
-	rdma_update_bits(comp, DISP_REG_RDMA_GLOBAL_CON, RDMA_ENGINE_EN,
+	rdma_update_bits(dev, DISP_REG_RDMA_GLOBAL_CON, RDMA_ENGINE_EN,
 			 RDMA_ENGINE_EN);
 }
 
-static void mtk_rdma_stop(struct mtk_ddp_comp *comp)
+static void mtk_rdma_stop(struct device *dev)
 {
-	rdma_update_bits(comp, DISP_REG_RDMA_GLOBAL_CON, RDMA_ENGINE_EN, 0);
+	rdma_update_bits(dev, DISP_REG_RDMA_GLOBAL_CON, RDMA_ENGINE_EN, 0);
 }
 
-static void mtk_rdma_config(struct mtk_ddp_comp *comp, unsigned int width,
+static void mtk_rdma_config(struct device *dev, unsigned int width,
 			    unsigned int height, unsigned int vrefresh,
 			    unsigned int bpc, struct cmdq_pkt *cmdq_pkt)
 {
 	unsigned int threshold;
 	unsigned int reg;
-	struct mtk_disp_rdma *rdma = comp_to_rdma(comp);
+	struct mtk_disp_rdma *rdma = dev_get_drvdata(dev);
 
 	mtk_ddp_write_mask(cmdq_pkt, width, &rdma->cmdq_reg, rdma->regs,
 			   DISP_REG_RDMA_SIZE_CON_0, 0xfff);
@@ -206,16 +201,16 @@ static unsigned int rdma_fmt_convert(struct mtk_disp_rdma *rdma,
 	}
 }
 
-static unsigned int mtk_rdma_layer_nr(struct mtk_ddp_comp *comp)
+static unsigned int mtk_rdma_layer_nr(struct device *dev)
 {
 	return 1;
 }
 
-static void mtk_rdma_layer_config(struct mtk_ddp_comp *comp, unsigned int idx,
+static void mtk_rdma_layer_config(struct device *dev, unsigned int idx,
 				  struct mtk_plane_state *state,
 				  struct cmdq_pkt *cmdq_pkt)
 {
-	struct mtk_disp_rdma *rdma = comp_to_rdma(comp);
+	struct mtk_disp_rdma *rdma = dev_get_drvdata(dev);
 	struct mtk_plane_pending_state *pending = &state->pending;
 	unsigned int addr = pending->addr;
 	unsigned int pitch = pending->pitch & 0xffff;

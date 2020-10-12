@@ -767,16 +767,16 @@ static const struct drm_bridge_funcs mtk_dsi_bridge_funcs = {
 	.mode_set = mtk_dsi_bridge_mode_set,
 };
 
-static void mtk_dsi_ddp_start(struct mtk_ddp_comp *comp)
+static void mtk_dsi_ddp_start(struct device *dev)
 {
-	struct mtk_dsi *dsi = container_of(comp, struct mtk_dsi, ddp_comp);
+	struct mtk_dsi *dsi = dev_get_drvdata(dev);
 
 	mtk_dsi_poweron(dsi);
 }
 
-static void mtk_dsi_ddp_stop(struct mtk_ddp_comp *comp)
+static void mtk_dsi_ddp_stop(struct device *dev)
 {
-	struct mtk_dsi *dsi = container_of(comp, struct mtk_dsi, ddp_comp);
+	struct mtk_dsi *dsi = dev_get_drvdata(dev);
 
 	mtk_dsi_poweroff(dsi);
 }

@@ -44,11 +44,6 @@ struct mtk_disp_color {
 	const struct mtk_disp_color_data	*data;
 };
 
-static inline struct mtk_disp_color *comp_to_color(struct mtk_ddp_comp *comp)
-{
-	return container_of(comp, struct mtk_disp_color, ddp_comp);
-}
-
 static int mtk_color_clk_enable(struct device *dev)
 {
 	struct mtk_disp_color *color = dev_get_drvdata(dev);
@@ -63,19 +58,19 @@ static void mtk_color_clk_disable(struct device *dev)
 	clk_disable_unprepare(color->clk);
 }
 
-static void mtk_color_config(struct mtk_ddp_comp *comp, unsigned int w,
+static void mtk_color_config(struct device *dev, unsigned int w,
 			     unsigned int h, unsigned int vrefresh,
 			     unsigned int bpc, struct cmdq_pkt *cmdq_pkt)
 {
-	struct mtk_disp_color *color = comp_to_color(comp);
+	struct mtk_disp_color *color = dev_get_drvdata(dev);
 
 	mtk_ddp_write(cmdq_pkt, w, &color->cmdq_reg, color->regs, DISP_COLOR_WIDTH(color));
 	mtk_ddp_write(cmdq_pkt, h, &color->cmdq_reg, color->regs, DISP_COLOR_HEIGHT(color));
 }
 
-static void mtk_color_start(struct mtk_ddp_comp *comp)
+static void mtk_color_start(struct device *dev)
 {
-	struct mtk_disp_color *color = comp_to_color(comp);
+	struct mtk_disp_color *color = dev_get_drvdata(dev);
 
 	writel(COLOR_BYPASS_ALL | COLOR_SEQ_SEL,
 	       color->regs + DISP_COLOR_CFG_MAIN);

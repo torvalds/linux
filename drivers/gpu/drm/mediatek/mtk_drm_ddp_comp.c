@@ -150,10 +150,10 @@ static void mtk_ddp_clk_disable(struct device *dev)
 	clk_disable_unprepare(priv->clk);
 }
 
-void mtk_dither_set(struct mtk_ddp_comp *comp, unsigned int bpc,
+static void mtk_dither_set(struct device *dev, unsigned int bpc,
 		    unsigned int CFG, struct cmdq_pkt *cmdq_pkt)
 {
-	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(dev);
 
 	/* If bpc equal to 0, the dithering function didn't be enabled */
 	if (bpc == 0)
@@ -177,74 +177,74 @@ void mtk_dither_set(struct mtk_ddp_comp *comp, unsigned int bpc,
 	}
 }
 
-static void mtk_od_config(struct mtk_ddp_comp *comp, unsigned int w,
+static void mtk_od_config(struct device *dev, unsigned int w,
 			  unsigned int h, unsigned int vrefresh,
 			  unsigned int bpc, struct cmdq_pkt *cmdq_pkt)
 {
-	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(dev);
 
 	mtk_ddp_write(cmdq_pkt, w << 16 | h, &priv->cmdq_reg, priv->regs, DISP_OD_SIZE);
 	mtk_ddp_write(cmdq_pkt, OD_RELAYMODE, &priv->cmdq_reg, priv->regs, DISP_OD_CFG);
-	mtk_dither_set(comp, bpc, DISP_OD_CFG, cmdq_pkt);
+	mtk_dither_set(dev, bpc, DISP_OD_CFG, cmdq_pkt);
 }
 
-static void mtk_od_start(struct mtk_ddp_comp *comp)
+static void mtk_od_start(struct device *dev)
 {
-	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(dev);
 
 	writel(1, priv->regs + DISP_OD_EN);
 }
 
-static void mtk_ufoe_start(struct mtk_ddp_comp *comp)
+static void mtk_ufoe_start(struct device *dev)
 {
-	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(dev);
 
 	writel(UFO_BYPASS, priv->regs + DISP_REG_UFO_START);
 }
 
-static void mtk_aal_config(struct mtk_ddp_comp *comp, unsigned int w,
+static void mtk_aal_config(struct device *dev, unsigned int w,
 			   unsigned int h, unsigned int vrefresh,
 			   unsigned int bpc, struct cmdq_pkt *cmdq_pkt)
 {
-	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(dev);
 
 	mtk_ddp_write(cmdq_pkt, h << 16 | w, &priv->cmdq_reg, priv->regs, DISP_AAL_SIZE);
 }
 
-static void mtk_aal_start(struct mtk_ddp_comp *comp)
+static void mtk_aal_start(struct device *dev)
 {
-	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(dev);
 
 	writel(AAL_EN, priv->regs + DISP_AAL_EN);
 }
 
-static void mtk_aal_stop(struct mtk_ddp_comp *comp)
+static void mtk_aal_stop(struct device *dev)
 {
-	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(dev);
 
 	writel_relaxed(0x0, priv->regs + DISP_AAL_EN);
 }
 
-static void mtk_ccorr_config(struct mtk_ddp_comp *comp, unsigned int w,
+static void mtk_ccorr_config(struct device *dev, unsigned int w,
 			     unsigned int h, unsigned int vrefresh,
 			     unsigned int bpc, struct cmdq_pkt *cmdq_pkt)
 {
-	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(dev);
 
 	mtk_ddp_write(cmdq_pkt, h << 16 | w, &priv->cmdq_reg, priv->regs, DISP_CCORR_SIZE);
 	mtk_ddp_write(cmdq_pkt, CCORR_ENGINE_EN, &priv->cmdq_reg, priv->regs, DISP_CCORR_CFG);
 }
 
-static void mtk_ccorr_start(struct mtk_ddp_comp *comp)
+static void mtk_ccorr_start(struct device *dev)
 {
-	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(dev);
 
 	writel(CCORR_EN, priv->regs + DISP_CCORR_EN);
 }
 
-static void mtk_ccorr_stop(struct mtk_ddp_comp *comp)
+static void mtk_ccorr_stop(struct device *dev)
 {
-	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(dev);
 
 	writel_relaxed(0x0, priv->regs + DISP_CCORR_EN);
 }
@@ -269,10 +269,10 @@ static u16 mtk_ctm_s31_32_to_s1_10(u64 in)
 	return r;
 }
 
-static void mtk_ccorr_ctm_set(struct mtk_ddp_comp *comp,
+static void mtk_ccorr_ctm_set(struct device *dev,
 			      struct drm_crtc_state *state)
 {
-	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(dev);
 	struct drm_property_blob *blob = state->ctm;
 	struct drm_color_ctm *ctm;
 	const u64 *input;
@@ -301,58 +301,58 @@ static void mtk_ccorr_ctm_set(struct mtk_ddp_comp *comp,
 		      &priv->cmdq_reg, priv->regs, DISP_CCORR_COEF_4);
 }
 
-static void mtk_dither_config(struct mtk_ddp_comp *comp, unsigned int w,
+static void mtk_dither_config(struct device *dev, unsigned int w,
 			      unsigned int h, unsigned int vrefresh,
 			      unsigned int bpc, struct cmdq_pkt *cmdq_pkt)
 {
-	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(dev);
 
 	mtk_ddp_write(cmdq_pkt, h << 16 | w, &priv->cmdq_reg, priv->regs, DISP_DITHER_SIZE);
 	mtk_ddp_write(cmdq_pkt, DITHER_RELAY_MODE, &priv->cmdq_reg, priv->regs, DISP_DITHER_CFG);
 }
 
-static void mtk_dither_start(struct mtk_ddp_comp *comp)
+static void mtk_dither_start(struct device *dev)
 {
-	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(dev);
 
 	writel(DITHER_EN, priv->regs + DISP_DITHER_EN);
 }
 
-static void mtk_dither_stop(struct mtk_ddp_comp *comp)
+static void mtk_dither_stop(struct device *dev)
 {
-	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(dev);
 
 	writel_relaxed(0x0, priv->regs + DISP_DITHER_EN);
 }
 
-static void mtk_gamma_config(struct mtk_ddp_comp *comp, unsigned int w,
+static void mtk_gamma_config(struct device *dev, unsigned int w,
 			     unsigned int h, unsigned int vrefresh,
 			     unsigned int bpc, struct cmdq_pkt *cmdq_pkt)
 {
-	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(dev);
 
 	mtk_ddp_write(cmdq_pkt, h << 16 | w, &priv->cmdq_reg, priv->regs, DISP_GAMMA_SIZE);
-	mtk_dither_set(comp, bpc, DISP_GAMMA_CFG, cmdq_pkt);
+	mtk_dither_set(dev, bpc, DISP_GAMMA_CFG, cmdq_pkt);
 }
 
-static void mtk_gamma_start(struct mtk_ddp_comp *comp)
+static void mtk_gamma_start(struct device *dev)
 {
-	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(dev);
 
 	writel(GAMMA_EN, priv->regs  + DISP_GAMMA_EN);
 }
 
-static void mtk_gamma_stop(struct mtk_ddp_comp *comp)
+static void mtk_gamma_stop(struct device *dev)
 {
-	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(dev);
 
 	writel_relaxed(0x0, priv->regs  + DISP_GAMMA_EN);
 }
 
-static void mtk_gamma_set(struct mtk_ddp_comp *comp,
+static void mtk_gamma_set(struct device *dev,
 			  struct drm_crtc_state *state)
 {
-	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(comp->dev);
+	struct mtk_ddp_comp_dev *priv = dev_get_drvdata(dev);
 	unsigned int i, reg;
 	struct drm_color_lut *lut;
 	void __iomem *lut_base;
@@ -568,18 +568,6 @@ int mtk_ddp_comp_init(struct device_node *node, struct mtk_ddp_comp *comp,
 
 	comp->id = comp_id;
 	comp->funcs = funcs ?: mtk_ddp_matches[comp_id].funcs;
-
-	if (comp_id == DDP_COMPONENT_BLS ||
-	    comp_id == DDP_COMPONENT_DPI0 ||
-	    comp_id == DDP_COMPONENT_DPI1 ||
-	    comp_id == DDP_COMPONENT_DSI0 ||
-	    comp_id == DDP_COMPONENT_DSI1 ||
-	    comp_id == DDP_COMPONENT_DSI2 ||
-	    comp_id == DDP_COMPONENT_DSI3 ||
-	    comp_id == DDP_COMPONENT_PWM0) {
-		return 0;
-	}
-
 	comp_pdev = of_find_device_by_node(node);
 	if (!comp_pdev) {
 		DRM_INFO("Waiting for device %s\n", node->full_name);
@@ -597,9 +585,13 @@ int mtk_ddp_comp_init(struct device_node *node, struct mtk_ddp_comp *comp,
 			return ret;
 	}
 
-	if (type == MTK_DISP_COLOR ||
+	if (type == MTK_DISP_BLS ||
+	    type == MTK_DISP_COLOR ||
+	    type == MTK_DPI ||
+	    type == MTK_DSI ||
 	    type == MTK_DISP_OVL ||
 	    type == MTK_DISP_OVL_2L ||
+	    type == MTK_DISP_PWM ||
 	    type == MTK_DISP_RDMA)
 		return 0;
 

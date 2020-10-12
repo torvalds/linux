@@ -78,11 +78,6 @@ struct mtk_disp_ovl {
 	const struct mtk_disp_ovl_data	*data;
 };
 
-static inline struct mtk_disp_ovl *comp_to_ovl(struct mtk_ddp_comp *comp)
-{
-	return container_of(comp, struct mtk_disp_ovl, ddp_comp);
-}
-
 static irqreturn_t mtk_disp_ovl_irq_handler(int irq, void *dev_id)
 {
 	struct mtk_disp_ovl *priv = dev_id;
@@ -99,19 +94,19 @@ static irqreturn_t mtk_disp_ovl_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void mtk_ovl_enable_vblank(struct mtk_ddp_comp *comp,
+static void mtk_ovl_enable_vblank(struct device *dev,
 				  struct drm_crtc *crtc)
 {
-	struct mtk_disp_ovl *ovl = comp_to_ovl(comp);
+	struct mtk_disp_ovl *ovl = dev_get_drvdata(dev);
 
 	ovl->crtc = crtc;
 	writel(0x0, ovl->regs + DISP_REG_OVL_INTSTA);
 	writel_relaxed(OVL_FME_CPL_INT, ovl->regs + DISP_REG_OVL_INTEN);
 }
 
-static void mtk_ovl_disable_vblank(struct mtk_ddp_comp *comp)
+static void mtk_ovl_disable_vblank(struct device *dev)
 {
-	struct mtk_disp_ovl *ovl = comp_to_ovl(comp);
+	struct mtk_disp_ovl *ovl = dev_get_drvdata(dev);
 
 	ovl->crtc = NULL;
 	writel_relaxed(0x0, ovl->regs + DISP_REG_OVL_INTEN);
@@ -131,25 +126,25 @@ static void mtk_ovl_clk_disable(struct device *dev)
 	clk_disable_unprepare(ovl->clk);
 }
 
-static void mtk_ovl_start(struct mtk_ddp_comp *comp)
+static void mtk_ovl_start(struct device *dev)
 {
-	struct mtk_disp_ovl *ovl = dev_get_drvdata(comp->dev);
+	struct mtk_disp_ovl *ovl = dev_get_drvdata(dev);
 
 	writel_relaxed(0x1, ovl->regs + DISP_REG_OVL_EN);
 }
 
-static void mtk_ovl_stop(struct mtk_ddp_comp *comp)
+static void mtk_ovl_stop(struct device *dev)
 {
-	struct mtk_disp_ovl *ovl = dev_get_drvdata(comp->dev);
+	struct mtk_disp_ovl *ovl = dev_get_drvdata(dev);
 
 	writel_relaxed(0x0, ovl->regs + DISP_REG_OVL_EN);
 }
 
-static void mtk_ovl_config(struct mtk_ddp_comp *comp, unsigned int w,
+static void mtk_ovl_config(struct device *dev, unsigned int w,
 			   unsigned int h, unsigned int vrefresh,
 			   unsigned int bpc, struct cmdq_pkt *cmdq_pkt)
 {
-	struct mtk_disp_ovl *ovl = dev_get_drvdata(comp->dev);
+	struct mtk_disp_ovl *ovl = dev_get_drvdata(dev);
 
 	if (w != 0 && h != 0)
 		mtk_ddp_write_relaxed(cmdq_pkt, h << 16 | w, &ovl->cmdq_reg, ovl->regs,
@@ -160,20 +155,20 @@ static void mtk_ovl_config(struct mtk_ddp_comp *comp, unsigned int w,
 	mtk_ddp_write(cmdq_pkt, 0x0, &ovl->cmdq_reg, ovl->regs, DISP_REG_OVL_RST);
 }
 
-static unsigned int mtk_ovl_layer_nr(struct mtk_ddp_comp *comp)
+static unsigned int mtk_ovl_layer_nr(struct device *dev)
 {
-	struct mtk_disp_ovl *ovl = comp_to_ovl(comp);
+	struct mtk_disp_ovl *ovl = dev_get_drvdata(dev);
 
 	return ovl->data->layer_nr;
 }
 
-static unsigned int mtk_ovl_supported_rotations(struct mtk_ddp_comp *comp)
+static unsigned int mtk_ovl_supported_rotations(struct device *dev)
 {
 	return DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_180 |
 	       DRM_MODE_REFLECT_X | DRM_MODE_REFLECT_Y;
 }
 
-static int mtk_ovl_layer_check(struct mtk_ddp_comp *comp, unsigned int idx,
+static int mtk_ovl_layer_check(struct device *dev, unsigned int idx,
 			       struct mtk_plane_state *mtk_state)
 {
 	struct drm_plane_state *state = &mtk_state->base;
@@ -201,13 +196,13 @@ static int mtk_ovl_layer_check(struct mtk_ddp_comp *comp, unsigned int idx,
 	return 0;
 }
 
-static void mtk_ovl_layer_on(struct mtk_ddp_comp *comp, unsigned int idx,
+static void mtk_ovl_layer_on(struct device *dev, unsigned int idx,
 			     struct cmdq_pkt *cmdq_pkt)
 {
 	unsigned int gmc_thrshd_l;
 	unsigned int gmc_thrshd_h;
 	unsigned int gmc_value;
-	struct mtk_disp_ovl *ovl = comp_to_ovl(comp);
+	struct mtk_disp_ovl *ovl = dev_get_drvdata(dev);
 
 	mtk_ddp_write(cmdq_pkt, 0x1, &ovl->cmdq_reg, ovl->regs,
 		      DISP_REG_OVL_RDMA_CTRL(idx));
@@ -226,10 +221,10 @@ static void mtk_ovl_layer_on(struct mtk_ddp_comp *comp, unsigned int idx,
 			   DISP_REG_OVL_SRC_CON, BIT(idx));
 }
 
-static void mtk_ovl_layer_off(struct mtk_ddp_comp *comp, unsigned int idx,
+static void mtk_ovl_layer_off(struct device *dev, unsigned int idx,
 			      struct cmdq_pkt *cmdq_pkt)
 {
-	struct mtk_disp_ovl *ovl = dev_get_drvdata(comp->dev);
+	struct mtk_disp_ovl *ovl = dev_get_drvdata(dev);
 
 	mtk_ddp_write_mask(cmdq_pkt, 0, &ovl->cmdq_reg, ovl->regs,
 			   DISP_REG_OVL_SRC_CON, BIT(idx));
@@ -273,11 +268,11 @@ static unsigned int ovl_fmt_convert(struct mtk_disp_ovl *ovl, unsigned int fmt)
 	}
 }
 
-static void mtk_ovl_layer_config(struct mtk_ddp_comp *comp, unsigned int idx,
+static void mtk_ovl_layer_config(struct device *dev, unsigned int idx,
 				 struct mtk_plane_state *state,
 				 struct cmdq_pkt *cmdq_pkt)
 {
-	struct mtk_disp_ovl *ovl = comp_to_ovl(comp);
+	struct mtk_disp_ovl *ovl = dev_get_drvdata(dev);
 	struct mtk_plane_pending_state *pending = &state->pending;
 	unsigned int addr = pending->addr;
 	unsigned int pitch = pending->pitch & 0xffff;
@@ -287,7 +282,7 @@ static void mtk_ovl_layer_config(struct mtk_ddp_comp *comp, unsigned int idx,
 	unsigned int con;
 
 	if (!pending->enable) {
-		mtk_ovl_layer_off(comp, idx, cmdq_pkt);
+		mtk_ovl_layer_off(dev, idx, cmdq_pkt);
 		return;
 	}
 
@@ -316,12 +311,12 @@ static void mtk_ovl_layer_config(struct mtk_ddp_comp *comp, unsigned int idx,
 	mtk_ddp_write_relaxed(cmdq_pkt, addr, &ovl->cmdq_reg, ovl->regs,
 			      DISP_REG_OVL_ADDR(ovl, idx));
 
-	mtk_ovl_layer_on(comp, idx, cmdq_pkt);
+	mtk_ovl_layer_on(dev, idx, cmdq_pkt);
 }
 
-static void mtk_ovl_bgclr_in_on(struct mtk_ddp_comp *comp)
+static void mtk_ovl_bgclr_in_on(struct device *dev)
 {
-	struct mtk_disp_ovl *ovl = comp_to_ovl(comp);
+	struct mtk_disp_ovl *ovl = dev_get_drvdata(dev);
 	unsigned int reg;
 
 	reg = readl(ovl->regs + DISP_REG_OVL_DATAPATH_CON);
@@ -329,9 +324,9 @@ static void mtk_ovl_bgclr_in_on(struct mtk_ddp_comp *comp)
 	writel(reg, ovl->regs + DISP_REG_OVL_DATAPATH_CON);
 }
 
-static void mtk_ovl_bgclr_in_off(struct mtk_ddp_comp *comp)
+static void mtk_ovl_bgclr_in_off(struct device *dev)
 {
-	struct mtk_disp_ovl *ovl = comp_to_ovl(comp);
+	struct mtk_disp_ovl *ovl = dev_get_drvdata(dev);
 	unsigned int reg;
 
 	reg = readl(ovl->regs + DISP_REG_OVL_DATAPATH_CON);

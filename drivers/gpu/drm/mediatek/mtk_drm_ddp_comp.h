@@ -42,26 +42,26 @@ struct cmdq_pkt;
 struct mtk_ddp_comp_funcs {
 	int (*clk_enable)(struct device *dev);
 	void (*clk_disable)(struct device *dev);
-	void (*config)(struct mtk_ddp_comp *comp, unsigned int w,
+	void (*config)(struct device *dev, unsigned int w,
 		       unsigned int h, unsigned int vrefresh,
 		       unsigned int bpc, struct cmdq_pkt *cmdq_pkt);
-	void (*start)(struct mtk_ddp_comp *comp);
-	void (*stop)(struct mtk_ddp_comp *comp);
-	void (*enable_vblank)(struct mtk_ddp_comp *comp, struct drm_crtc *crtc);
-	void (*disable_vblank)(struct mtk_ddp_comp *comp);
-	unsigned int (*supported_rotations)(struct mtk_ddp_comp *comp);
-	unsigned int (*layer_nr)(struct mtk_ddp_comp *comp);
-	int (*layer_check)(struct mtk_ddp_comp *comp,
+	void (*start)(struct device *dev);
+	void (*stop)(struct device *dev);
+	void (*enable_vblank)(struct device *dev, struct drm_crtc *crtc);
+	void (*disable_vblank)(struct device *dev);
+	unsigned int (*supported_rotations)(struct device *dev);
+	unsigned int (*layer_nr)(struct device *dev);
+	int (*layer_check)(struct device *dev,
 			   unsigned int idx,
 			   struct mtk_plane_state *state);
-	void (*layer_config)(struct mtk_ddp_comp *comp, unsigned int idx,
+	void (*layer_config)(struct device *dev, unsigned int idx,
 			     struct mtk_plane_state *state,
 			     struct cmdq_pkt *cmdq_pkt);
-	void (*gamma_set)(struct mtk_ddp_comp *comp,
+	void (*gamma_set)(struct device *dev,
 			  struct drm_crtc_state *state);
-	void (*bgclr_in_on)(struct mtk_ddp_comp *comp);
-	void (*bgclr_in_off)(struct mtk_ddp_comp *comp);
-	void (*ctm_set)(struct mtk_ddp_comp *comp,
+	void (*bgclr_in_on)(struct device *dev);
+	void (*bgclr_in_off)(struct device *dev);
+	void (*ctm_set)(struct device *dev,
 			struct drm_crtc_state *state);
 };
 
@@ -93,39 +93,39 @@ static inline void mtk_ddp_comp_config(struct mtk_ddp_comp *comp,
 				       struct cmdq_pkt *cmdq_pkt)
 {
 	if (comp->funcs && comp->funcs->config)
-		comp->funcs->config(comp, w, h, vrefresh, bpc, cmdq_pkt);
+		comp->funcs->config(comp->dev, w, h, vrefresh, bpc, cmdq_pkt);
 }
 
 static inline void mtk_ddp_comp_start(struct mtk_ddp_comp *comp)
 {
 	if (comp->funcs && comp->funcs->start)
-		comp->funcs->start(comp);
+		comp->funcs->start(comp->dev);
 }
 
 static inline void mtk_ddp_comp_stop(struct mtk_ddp_comp *comp)
 {
 	if (comp->funcs && comp->funcs->stop)
-		comp->funcs->stop(comp);
+		comp->funcs->stop(comp->dev);
 }
 
 static inline void mtk_ddp_comp_enable_vblank(struct mtk_ddp_comp *comp,
 					      struct drm_crtc *crtc)
 {
 	if (comp->funcs && comp->funcs->enable_vblank)
-		comp->funcs->enable_vblank(comp, crtc);
+		comp->funcs->enable_vblank(comp->dev, crtc);
 }
 
 static inline void mtk_ddp_comp_disable_vblank(struct mtk_ddp_comp *comp)
 {
 	if (comp->funcs && comp->funcs->disable_vblank)
-		comp->funcs->disable_vblank(comp);
+		comp->funcs->disable_vblank(comp->dev);
 }
 
 static inline
 unsigned int mtk_ddp_comp_supported_rotations(struct mtk_ddp_comp *comp)
 {
 	if (comp->funcs && comp->funcs->supported_rotations)
-		return comp->funcs->supported_rotations(comp);
+		return comp->funcs->supported_rotations(comp->dev);
 
 	return 0;
 }
@@ -133,7 +133,7 @@ unsigned int mtk_ddp_comp_supported_rotations(struct mtk_ddp_comp *comp)
 static inline unsigned int mtk_ddp_comp_layer_nr(struct mtk_ddp_comp *comp)
 {
 	if (comp->funcs && comp->funcs->layer_nr)
-		return comp->funcs->layer_nr(comp);
+		return comp->funcs->layer_nr(comp->dev);
 
 	return 0;
 }
@@ -143,7 +143,7 @@ static inline int mtk_ddp_comp_layer_check(struct mtk_ddp_comp *comp,
 					   struct mtk_plane_state *state)
 {
 	if (comp->funcs && comp->funcs->layer_check)
-		return comp->funcs->layer_check(comp, idx, state);
+		return comp->funcs->layer_check(comp->dev, idx, state);
 	return 0;
 }
 
@@ -153,33 +153,33 @@ static inline void mtk_ddp_comp_layer_config(struct mtk_ddp_comp *comp,
 					     struct cmdq_pkt *cmdq_pkt)
 {
 	if (comp->funcs && comp->funcs->layer_config)
-		comp->funcs->layer_config(comp, idx, state, cmdq_pkt);
+		comp->funcs->layer_config(comp->dev, idx, state, cmdq_pkt);
 }
 
 static inline void mtk_ddp_gamma_set(struct mtk_ddp_comp *comp,
 				     struct drm_crtc_state *state)
 {
 	if (comp->funcs && comp->funcs->gamma_set)
-		comp->funcs->gamma_set(comp, state);
+		comp->funcs->gamma_set(comp->dev, state);
 }
 
 static inline void mtk_ddp_comp_bgclr_in_on(struct mtk_ddp_comp *comp)
 {
 	if (comp->funcs && comp->funcs->bgclr_in_on)
-		comp->funcs->bgclr_in_on(comp);
+		comp->funcs->bgclr_in_on(comp->dev);
 }
 
 static inline void mtk_ddp_comp_bgclr_in_off(struct mtk_ddp_comp *comp)
 {
 	if (comp->funcs && comp->funcs->bgclr_in_off)
-		comp->funcs->bgclr_in_off(comp);
+		comp->funcs->bgclr_in_off(comp->dev);
 }
 
 static inline void mtk_ddp_ctm_set(struct mtk_ddp_comp *comp,
 				   struct drm_crtc_state *state)
 {
 	if (comp->funcs && comp->funcs->ctm_set)
-		comp->funcs->ctm_set(comp, state);
+		comp->funcs->ctm_set(comp->dev, state);
 }
 
 int mtk_ddp_comp_get_id(struct device_node *node,
@@ -190,8 +190,6 @@ int mtk_ddp_comp_init(struct device_node *comp_node, struct mtk_ddp_comp *comp,
 		      enum mtk_ddp_comp_id comp_id, const struct mtk_ddp_comp_funcs *funcs);
 int mtk_ddp_comp_register(struct drm_device *drm, struct mtk_ddp_comp *comp);
 void mtk_ddp_comp_unregister(struct drm_device *drm, struct mtk_ddp_comp *comp);
-void mtk_dither_set(struct mtk_ddp_comp *comp, unsigned int bpc,
-		    unsigned int CFG, struct cmdq_pkt *cmdq_pkt);
 enum mtk_ddp_comp_type mtk_ddp_comp_get_type(enum mtk_ddp_comp_id comp_id);
 void mtk_ddp_write(struct cmdq_pkt *cmdq_pkt, unsigned int value,
 		   struct cmdq_client_reg *cmdq_reg, void __iomem *regs,
