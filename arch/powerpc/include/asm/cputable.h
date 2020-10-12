@@ -221,8 +221,6 @@ static inline void cpu_feature_keys_init(void) { }
 
 #define CPU_FTR_PPCAS_ARCH_V2	(CPU_FTR_NOEXECUTE | CPU_FTR_NODSISRALIGN)
 
-#define MMU_FTR_PPCAS_ARCH_V2 	(MMU_FTR_TLBIEL | MMU_FTR_16M_PAGE)
-
 /* We only set the altivec features if the kernel was compiled with altivec
  * support
  */
