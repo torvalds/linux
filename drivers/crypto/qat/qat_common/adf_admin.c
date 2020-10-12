@@ -163,7 +163,7 @@ static int adf_send_admin(struct adf_accel_dev *accel_dev,
 	return 0;
 }
 
-static int adf_init_me(struct adf_accel_dev *accel_dev)
+static int adf_init_ae(struct adf_accel_dev *accel_dev)
 {
 	struct icp_qat_fw_init_admin_req req;
 	struct icp_qat_fw_init_admin_resp resp;
@@ -172,7 +172,7 @@ static int adf_init_me(struct adf_accel_dev *accel_dev)
 
 	memset(&req, 0, sizeof(req));
 	memset(&resp, 0, sizeof(resp));
-	req.cmd_id = ICP_QAT_FW_INIT_ME;
+	req.cmd_id = ICP_QAT_FW_INIT_AE;
 
 	return adf_send_admin(accel_dev, &req, &resp, ae_mask);
 }
@@ -206,7 +206,7 @@ int adf_send_admin_init(struct adf_accel_dev *accel_dev)
 {
 	int ret;
 
-	ret = adf_init_me(accel_dev);
+	ret = adf_init_ae(accel_dev);
 	if (ret)
 		return ret;
 

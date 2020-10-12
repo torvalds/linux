@@ -6,7 +6,7 @@
 #include "icp_qat_fw.h"
 
 enum icp_qat_fw_init_admin_cmd_id {
-	ICP_QAT_FW_INIT_ME = 0,
+	ICP_QAT_FW_INIT_AE = 0,
 	ICP_QAT_FW_TRNG_ENABLE = 1,
 	ICP_QAT_FW_TRNG_DISABLE = 2,
 	ICP_QAT_FW_CONSTANTS_CFG = 3,
