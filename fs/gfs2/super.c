@@ -744,6 +744,7 @@ restart:
 
 	/*  At this point, we're through participating in the lockspace  */
 	gfs2_sys_fs_del(sdp);
+	free_sbd(sdp);
 }
 
 /**
