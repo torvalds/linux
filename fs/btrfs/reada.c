@@ -531,6 +531,8 @@ static void reada_zone_release(struct kref *kref)
 {
 	struct reada_zone *zone = container_of(kref, struct reada_zone, refcnt);
 
+	lockdep_assert_held(&zone->device->fs_info->reada_lock);
+
 	radix_tree_delete(&zone->device->reada_zones,
 			  zone->end >> PAGE_SHIFT);
 
