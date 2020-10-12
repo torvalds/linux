@@ -98,8 +98,8 @@ test_map_in_map-objs := test_map_in_map_user.o
 per_socket_stats_example-objs := cookie_uid_helper_example.o
 xdp_redirect-objs := xdp_redirect_user.o
 xdp_redirect_map-objs := xdp_redirect_map_user.o
-xdp_redirect_cpu-objs := bpf_load.o xdp_redirect_cpu_user.o
-xdp_monitor-objs := bpf_load.o xdp_monitor_user.o
+xdp_redirect_cpu-objs := xdp_redirect_cpu_user.o
+xdp_monitor-objs := xdp_monitor_user.o
 xdp_rxq_info-objs := xdp_rxq_info_user.o
 syscall_tp-objs := syscall_tp_user.o
 cpustat-objs := cpustat_user.o
@@ -211,6 +211,8 @@ TPROGLDLIBS_xsk_fwd		+= -pthread
 #  make M=samples/bpf/ LLC=~/git/llvm/build/bin/llc CLANG=~/git/llvm/build/bin/clang
 LLC ?= llc
 CLANG ?= clang
+OPT ?= opt
+LLVM_DIS ?= llvm-dis
 LLVM_OBJCOPY ?= llvm-objcopy
 BTF_PAHOLE ?= pahole
 
@@ -303,6 +305,11 @@ $(obj)/hbm_edt_kern.o: $(src)/hbm.h $(src)/hbm_kern.h
 # asm/sysreg.h - inline assembly used by it is incompatible with llvm.
 # But, there is no easy way to fix it, so just exclude it since it is
 # useless for BPF samples.
+# below we use long chain of commands, clang | opt | llvm-dis | llc,
+# to generate final object file. 'clang' compiles the source into IR
+# with native target, e.g., x64, arm64, etc. 'opt' does bpf CORE IR builtin
+# processing (llvm12) and IR optimizations. 'llvm-dis' converts
+# 'opt' output to IR, and finally 'llc' generates bpf byte code.
 $(obj)/%.o: $(src)/%.c
 	@echo "  CLANG-bpf " $@
 	$(Q)$(CLANG) $(NOSTDINC_FLAGS) $(LINUXINCLUDE) $(BPF_EXTRA_CFLAGS) \
@@ -314,7 +321,9 @@ $(obj)/%.o: $(src)/%.c
 		-Wno-address-of-packed-member -Wno-tautological-compare \
 		-Wno-unknown-warning-option $(CLANG_ARCH_ARGS) \
 		-I$(srctree)/samples/bpf/ -include asm_goto_workaround.h \
-		-O2 -emit-llvm -c $< -o -| $(LLC) -march=bpf $(LLC_FLAGS) -filetype=obj -o $@
+		-O2 -emit-llvm -Xclang -disable-llvm-passes -c $< -o - | \
+		$(OPT) -O2 -mtriple=bpf-pc-linux | $(LLVM_DIS) | \
+		$(LLC) -march=bpf $(LLC_FLAGS) -filetype=obj -o $@
 ifeq ($(DWARF2BTF),y)
 	$(BTF_PAHOLE) -J $@
 endif

@@ -76,6 +76,7 @@
 #include <net/bpf_sk_storage.h>
 #include <net/transp_v6.h>
 #include <linux/btf_ids.h>
+#include <net/tls.h>
 
 static const struct bpf_func_proto *
 bpf_sk_base_func_proto(enum bpf_func_id func_id);
@@ -2379,8 +2380,9 @@ out:
 
 /* Internal, non-exposed redirect flags. */
 enum {
-	BPF_F_NEIGH = (1ULL << 1),
-#define BPF_F_REDIRECT_INTERNAL	(BPF_F_NEIGH)
+	BPF_F_NEIGH	= (1ULL << 1),
+	BPF_F_PEER	= (1ULL << 2),
+#define BPF_F_REDIRECT_INTERNAL	(BPF_F_NEIGH | BPF_F_PEER)
 };
 
 BPF_CALL_3(bpf_clone_redirect, struct sk_buff *, skb, u32, ifindex, u64, flags)
@@ -2429,19 +2431,35 @@ EXPORT_PER_CPU_SYMBOL_GPL(bpf_redirect_info);
 int skb_do_redirect(struct sk_buff *skb)
 {
 	struct bpf_redirect_info *ri = this_cpu_ptr(&bpf_redirect_info);
+	struct net *net = dev_net(skb->dev);
 	struct net_device *dev;
 	u32 flags = ri->flags;
 
-	dev = dev_get_by_index_rcu(dev_net(skb->dev), ri->tgt_index);
+	dev = dev_get_by_index_rcu(net, ri->tgt_index);
 	ri->tgt_index = 0;
-	if (unlikely(!dev)) {
-		kfree_skb(skb);
-		return -EINVAL;
-	}
+	ri->flags = 0;
+	if (unlikely(!dev))
+		goto out_drop;
+	if (flags & BPF_F_PEER) {
+		const struct net_device_ops *ops = dev->netdev_ops;
 
+		if (unlikely(!ops->ndo_get_peer_dev ||
+			     !skb_at_tc_ingress(skb)))
+			goto out_drop;
+		dev = ops->ndo_get_peer_dev(dev);
+		if (unlikely(!dev ||
+			     !is_skb_forwardable(dev, skb) ||
+			     net_eq(net, dev_net(dev))))
+			goto out_drop;
+		skb->dev = dev;
+		return -EAGAIN;
+	}
 	return flags & BPF_F_NEIGH ?
 	       __bpf_redirect_neigh(skb, dev) :
 	       __bpf_redirect(skb, dev, flags);
+out_drop:
+	kfree_skb(skb);
+	return -EINVAL;
 }
 
 BPF_CALL_2(bpf_redirect, u32, ifindex, u64, flags)
@@ -2459,6 +2477,27 @@ BPF_CALL_2(bpf_redirect, u32, ifindex, u64, flags)
 
 static const struct bpf_func_proto bpf_redirect_proto = {
 	.func           = bpf_redirect,
+	.gpl_only       = false,
+	.ret_type       = RET_INTEGER,
+	.arg1_type      = ARG_ANYTHING,
+	.arg2_type      = ARG_ANYTHING,
+};
+
+BPF_CALL_2(bpf_redirect_peer, u32, ifindex, u64, flags)
+{
+	struct bpf_redirect_info *ri = this_cpu_ptr(&bpf_redirect_info);
+
+	if (unlikely(flags))
+		return TC_ACT_SHOT;
+
+	ri->flags = BPF_F_PEER;
+	ri->tgt_index = ifindex;
+
+	return TC_ACT_REDIRECT;
+}
+
+static const struct bpf_func_proto bpf_redirect_peer_proto = {
+	.func           = bpf_redirect_peer,
 	.gpl_only       = false,
 	.ret_type       = RET_INTEGER,
 	.arg1_type      = ARG_ANYTHING,
@@ -3478,6 +3517,48 @@ static u32 __bpf_skb_max_len(const struct sk_buff *skb)
 	return skb->dev ? skb->dev->mtu + skb->dev->hard_header_len :
 			  SKB_MAX_ALLOC;
 }
+
+BPF_CALL_4(sk_skb_adjust_room, struct sk_buff *, skb, s32, len_diff,
+	   u32, mode, u64, flags)
+{
+	u32 len_diff_abs = abs(len_diff);
+	bool shrink = len_diff < 0;
+	int ret = 0;
+
+	if (unlikely(flags || mode))
+		return -EINVAL;
+	if (unlikely(len_diff_abs > 0xfffU))
+		return -EFAULT;
+
+	if (!shrink) {
+		ret = skb_cow(skb, len_diff);
+		if (unlikely(ret < 0))
+			return ret;
+		__skb_push(skb, len_diff_abs);
+		memset(skb->data, 0, len_diff_abs);
+	} else {
+		if (unlikely(!pskb_may_pull(skb, len_diff_abs)))
+			return -ENOMEM;
+		__skb_pull(skb, len_diff_abs);
+	}
+	bpf_compute_data_end_sk_skb(skb);
+	if (tls_sw_has_ctx_rx(skb->sk)) {
+		struct strp_msg *rxm = strp_msg(skb);
+
+		rxm->full_len += len_diff;
+	}
+	return ret;
+}
+
+static const struct bpf_func_proto sk_skb_adjust_room_proto = {
+	.func		= sk_skb_adjust_room,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_ANYTHING,
+	.arg3_type	= ARG_ANYTHING,
+	.arg4_type	= ARG_ANYTHING,
+};
 
 BPF_CALL_4(bpf_skb_adjust_room, struct sk_buff *, skb, s32, len_diff,
 	   u32, mode, u64, flags)
@@ -4784,6 +4865,10 @@ static int _bpf_setsockopt(struct sock *sk, int level, int optname,
 				else
 					icsk->icsk_user_timeout = val;
 				break;
+			case TCP_NOTSENT_LOWAT:
+				tp->notsent_lowat = val;
+				sk->sk_write_space(sk);
+				break;
 			default:
 				ret = -EINVAL;
 			}
@@ -5149,7 +5234,6 @@ static int bpf_fib_set_fwd_params(struct bpf_fib_lookup *params,
 	memcpy(params->smac, dev->dev_addr, ETH_ALEN);
 	params->h_vlan_TCI = 0;
 	params->h_vlan_proto = 0;
-	params->ifindex = dev->ifindex;
 
 	return 0;
 }
@@ -5246,6 +5330,7 @@ static int bpf_ipv4_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
 	dev = nhc->nhc_dev;
 
 	params->rt_metric = res.fi->fib_priority;
+	params->ifindex = dev->ifindex;
 
 	/* xdp and cls_bpf programs are run in RCU-bh so
 	 * rcu_read_lock_bh is not needed here
@@ -5371,6 +5456,7 @@ static int bpf_ipv6_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
 
 	dev = res.nh->fib_nh_dev;
 	params->rt_metric = res.f6i->fib6_metric;
+	params->ifindex = dev->ifindex;
 
 	/* xdp and cls_bpf programs are run in RCU-bh so rcu_read_lock_bh is
 	 * not needed here.
@@ -6745,6 +6831,7 @@ bool bpf_helper_changes_pkt_data(void *func)
 	    func == bpf_skb_change_tail ||
 	    func == sk_skb_change_tail ||
 	    func == bpf_skb_adjust_room ||
+	    func == sk_skb_adjust_room ||
 	    func == bpf_skb_pull_data ||
 	    func == sk_skb_pull_data ||
 	    func == bpf_clone_redirect ||
@@ -7005,6 +7092,8 @@ tc_cls_act_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_redirect_proto;
 	case BPF_FUNC_redirect_neigh:
 		return &bpf_redirect_neigh_proto;
+	case BPF_FUNC_redirect_peer:
+		return &bpf_redirect_peer_proto;
 	case BPF_FUNC_get_route_realm:
 		return &bpf_get_route_realm_proto;
 	case BPF_FUNC_get_hash_recalc:
@@ -7218,6 +7307,8 @@ sk_skb_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &sk_skb_change_tail_proto;
 	case BPF_FUNC_skb_change_head:
 		return &sk_skb_change_head_proto;
+	case BPF_FUNC_skb_adjust_room:
+		return &sk_skb_adjust_room_proto;
 	case BPF_FUNC_get_socket_cookie:
 		return &bpf_get_socket_cookie_proto;
 	case BPF_FUNC_get_socket_uid:

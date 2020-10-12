@@ -188,11 +188,6 @@
 	     i < btf_type_vlen(struct_type);				\
 	     i++, member++)
 
-#define for_each_vsi(i, struct_type, member)			\
-	for (i = 0, member = btf_type_var_secinfo(struct_type);	\
-	     i < btf_type_vlen(struct_type);			\
-	     i++, member++)
-
 #define for_each_vsi_from(i, from, struct_type, member)				\
 	for (i = from, member = btf_type_var_secinfo(struct_type) + from;	\
 	     i < btf_type_vlen(struct_type);					\
@@ -440,16 +435,6 @@ static bool btf_type_nosize_or_null(const struct btf_type *t)
 	return !t || btf_type_nosize(t);
 }
 
-/* union is only a special case of struct:
- * all its offsetof(member) == 0
- */
-static bool btf_type_is_struct(const struct btf_type *t)
-{
-	u8 kind = BTF_INFO_KIND(t->info);
-
-	return kind == BTF_KIND_STRUCT || kind == BTF_KIND_UNION;
-}
-
 static bool __btf_type_is_struct(const struct btf_type *t)
 {
 	return BTF_INFO_KIND(t->info) == BTF_KIND_STRUCT;
@@ -458,11 +443,6 @@ static bool __btf_type_is_struct(const struct btf_type *t)
 static bool btf_type_is_array(const struct btf_type *t)
 {
 	return BTF_INFO_KIND(t->info) == BTF_KIND_ARRAY;
-}
-
-static bool btf_type_is_var(const struct btf_type *t)
-{
-	return BTF_INFO_KIND(t->info) == BTF_KIND_VAR;
 }
 
 static bool btf_type_is_datasec(const struct btf_type *t)
@@ -611,11 +591,6 @@ static const struct btf_enum *btf_type_enum(const struct btf_type *t)
 static const struct btf_var *btf_type_var(const struct btf_type *t)
 {
 	return (const struct btf_var *)(t + 1);
-}
-
-static const struct btf_var_secinfo *btf_type_var_secinfo(const struct btf_type *t)
-{
-	return (const struct btf_var_secinfo *)(t + 1);
 }
 
 static const struct btf_kind_operations *btf_type_ops(const struct btf_type *t)

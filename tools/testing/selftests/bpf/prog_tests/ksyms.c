@@ -7,39 +7,27 @@
 
 static int duration;
 
-static __u64 kallsyms_find(const char *sym)
-{
-	char type, name[500];
-	__u64 addr, res = 0;
-	FILE *f;
-
-	f = fopen("/proc/kallsyms", "r");
-	if (CHECK(!f, "kallsyms_fopen", "failed to open: %d\n", errno))
-		return 0;
-
-	while (fscanf(f, "%llx %c %499s%*[^\n]\n", &addr, &type, name) > 0) {
-		if (strcmp(name, sym) == 0) {
-			res = addr;
-			goto out;
-		}
-	}
-
-	CHECK(false, "not_found", "symbol %s not found\n", sym);
-out:
-	fclose(f);
-	return res;
-}
-
 void test_ksyms(void)
 {
-	__u64 per_cpu_start_addr = kallsyms_find("__per_cpu_start");
-	__u64 link_fops_addr = kallsyms_find("bpf_link_fops");
 	const char *btf_path = "/sys/kernel/btf/vmlinux";
 	struct test_ksyms *skel;
 	struct test_ksyms__data *data;
+	__u64 link_fops_addr, per_cpu_start_addr;
 	struct stat st;
 	__u64 btf_size;
 	int err;
+
+	err = kallsyms_find("bpf_link_fops", &link_fops_addr);
+	if (CHECK(err == -EINVAL, "kallsyms_fopen", "failed to open: %d\n", errno))
+		return;
+	if (CHECK(err == -ENOENT, "ksym_find", "symbol 'bpf_link_fops' not found\n"))
+		return;
+
+	err = kallsyms_find("__per_cpu_start", &per_cpu_start_addr);
+	if (CHECK(err == -EINVAL, "kallsyms_fopen", "failed to open: %d\n", errno))
+		return;
+	if (CHECK(err == -ENOENT, "ksym_find", "symbol 'per_cpu_start' not found\n"))
+		return;
 
 	if (CHECK(stat(btf_path, &st), "stat_btf", "err %d\n", errno))
 		return;

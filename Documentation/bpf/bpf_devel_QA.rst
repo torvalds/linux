@@ -60,13 +60,13 @@ Q: Where can I find patches currently under discussion for BPF subsystem?
 A: All patches that are Cc'ed to netdev are queued for review under netdev
 patchwork project:
 
-  http://patchwork.ozlabs.org/project/netdev/list/
+  https://patchwork.kernel.org/project/netdevbpf/list/
 
 Those patches which target BPF, are assigned to a 'bpf' delegate for
 further processing from BPF maintainers. The current queue with
 patches under review can be found at:
 
-  https://patchwork.ozlabs.org/project/netdev/list/?delegate=77147
+  https://patchwork.kernel.org/project/netdevbpf/list/?delegate=121173
 
 Once the patches have been reviewed by the BPF community as a whole
 and approved by the BPF maintainers, their status in patchwork will be

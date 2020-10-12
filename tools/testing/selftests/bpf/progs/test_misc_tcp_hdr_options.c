@@ -304,10 +304,10 @@ int misc_estab(struct bpf_sock_ops *skops)
 		passive_lport_n = __bpf_htons(passive_lport_h);
 		bpf_setsockopt(skops, SOL_TCP, TCP_SAVE_SYN,
 			       &true_val, sizeof(true_val));
-		set_hdr_cb_flags(skops);
+		set_hdr_cb_flags(skops, 0);
 		break;
 	case BPF_SOCK_OPS_TCP_CONNECT_CB:
-		set_hdr_cb_flags(skops);
+		set_hdr_cb_flags(skops, 0);
 		break;
 	case BPF_SOCK_OPS_PARSE_HDR_OPT_CB:
 		return handle_parse_hdr(skops);

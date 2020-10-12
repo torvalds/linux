@@ -390,6 +390,12 @@ struct extern_desc {
 		} kcfg;
 		struct {
 			unsigned long long addr;
+
+			/* target btf_id of the corresponding kernel var. */
+			int vmlinux_btf_id;
+
+			/* local btf_id of the ksym extern's type. */
+			__u32 type_id;
 		} ksym;
 	};
 };
@@ -2522,11 +2528,22 @@ static int bpf_object__load_vmlinux_btf(struct bpf_object *obj)
 {
 	bool need_vmlinux_btf = false;
 	struct bpf_program *prog;
-	int err;
+	int i, err;
 
 	/* CO-RE relocations need kernel BTF */
 	if (obj->btf_ext && obj->btf_ext->core_relo_info.len)
 		need_vmlinux_btf = true;
+
+	/* Support for typed ksyms needs kernel BTF */
+	for (i = 0; i < obj->nr_extern; i++) {
+		const struct extern_desc *ext;
+
+		ext = &obj->externs[i];
+		if (ext->type == EXT_KSYM && ext->ksym.type_id) {
+			need_vmlinux_btf = true;
+			break;
+		}
+	}
 
 	bpf_object__for_each_program(prog, obj) {
 		if (!prog->load)
@@ -3156,16 +3173,10 @@ static int bpf_object__collect_externs(struct bpf_object *obj)
 				return -ENOTSUP;
 			}
 		} else if (strcmp(sec_name, KSYMS_SEC) == 0) {
-			const struct btf_type *vt;
-
 			ksym_sec = sec;
 			ext->type = EXT_KSYM;
-
-			vt = skip_mods_and_typedefs(obj->btf, t->type, NULL);
-			if (!btf_is_void(vt)) {
-				pr_warn("extern (ksym) '%s' is not typeless (void)\n", ext_name);
-				return -ENOTSUP;
-			}
+			skip_mods_and_typedefs(obj->btf, t->type,
+					       &ext->ksym.type_id);
 		} else {
 			pr_warn("unrecognized extern section '%s'\n", sec_name);
 			return -ENOTSUP;
@@ -4192,6 +4203,36 @@ static int bpf_object__create_map(struct bpf_object *obj, struct bpf_map *map)
 	return 0;
 }
 
+static int init_map_slots(struct bpf_map *map)
+{
+	const struct bpf_map *targ_map;
+	unsigned int i;
+	int fd, err;
+
+	for (i = 0; i < map->init_slots_sz; i++) {
+		if (!map->init_slots[i])
+			continue;
+
+		targ_map = map->init_slots[i];
+		fd = bpf_map__fd(targ_map);
+		err = bpf_map_update_elem(map->fd, &i, &fd, 0);
+		if (err) {
+			err = -errno;
+			pr_warn("map '%s': failed to initialize slot [%d] to map '%s' fd=%d: %d\n",
+				map->name, i, targ_map->name,
+				fd, err);
+			return err;
+		}
+		pr_debug("map '%s': slot [%d] set to map '%s' fd=%d\n",
+			 map->name, i, targ_map->name, fd);
+	}
+
+	zfree(&map->init_slots);
+	map->init_slots_sz = 0;
+
+	return 0;
+}
+
 static int
 bpf_object__create_maps(struct bpf_object *obj)
 {
@@ -4215,47 +4256,29 @@ bpf_object__create_maps(struct bpf_object *obj)
 		if (map->fd >= 0) {
 			pr_debug("map '%s': skipping creation (preset fd=%d)\n",
 				 map->name, map->fd);
-			continue;
-		}
-
-		err = bpf_object__create_map(obj, map);
-		if (err)
-			goto err_out;
-
-		pr_debug("map '%s': created successfully, fd=%d\n", map->name,
-			 map->fd);
-
-		if (bpf_map__is_internal(map)) {
-			err = bpf_object__populate_internal_map(obj, map);
-			if (err < 0) {
-				zclose(map->fd);
+		} else {
+			err = bpf_object__create_map(obj, map);
+			if (err)
 				goto err_out;
-			}
-		}
 
-		if (map->init_slots_sz) {
-			for (j = 0; j < map->init_slots_sz; j++) {
-				const struct bpf_map *targ_map;
-				int fd;
+			pr_debug("map '%s': created successfully, fd=%d\n",
+				 map->name, map->fd);
 
-				if (!map->init_slots[j])
-					continue;
-
-				targ_map = map->init_slots[j];
-				fd = bpf_map__fd(targ_map);
-				err = bpf_map_update_elem(map->fd, &j, &fd, 0);
-				if (err) {
-					err = -errno;
-					pr_warn("map '%s': failed to initialize slot [%d] to map '%s' fd=%d: %d\n",
-						map->name, j, targ_map->name,
-						fd, err);
+			if (bpf_map__is_internal(map)) {
+				err = bpf_object__populate_internal_map(obj, map);
+				if (err < 0) {
+					zclose(map->fd);
 					goto err_out;
 				}
-				pr_debug("map '%s': slot [%d] set to map '%s' fd=%d\n",
-					 map->name, j, targ_map->name, fd);
 			}
-			zfree(&map->init_slots);
-			map->init_slots_sz = 0;
+
+			if (map->init_slots_sz) {
+				err = init_map_slots(map);
+				if (err < 0) {
+					zclose(map->fd);
+					goto err_out;
+				}
+			}
 		}
 
 		if (map->pin_path && !map->pinned) {
@@ -5017,15 +5040,18 @@ static int bpf_core_spec_match(struct bpf_core_spec *local_spec,
 static int bpf_core_calc_field_relo(const struct bpf_program *prog,
 				    const struct bpf_core_relo *relo,
 				    const struct bpf_core_spec *spec,
-				    __u32 *val, bool *validate)
+				    __u32 *val, __u32 *field_sz, __u32 *type_id,
+				    bool *validate)
 {
 	const struct bpf_core_accessor *acc;
 	const struct btf_type *t;
-	__u32 byte_off, byte_sz, bit_off, bit_sz;
+	__u32 byte_off, byte_sz, bit_off, bit_sz, field_type_id;
 	const struct btf_member *m;
 	const struct btf_type *mt;
 	bool bitfield;
 	__s64 sz;
+
+	*field_sz = 0;
 
 	if (relo->kind == BPF_FIELD_EXISTS) {
 		*val = spec ? 1 : 0;
@@ -5042,6 +5068,12 @@ static int bpf_core_calc_field_relo(const struct bpf_program *prog,
 	if (!acc->name) {
 		if (relo->kind == BPF_FIELD_BYTE_OFFSET) {
 			*val = spec->bit_offset / 8;
+			/* remember field size for load/store mem size */
+			sz = btf__resolve_size(spec->btf, acc->type_id);
+			if (sz < 0)
+				return -EINVAL;
+			*field_sz = sz;
+			*type_id = acc->type_id;
 		} else if (relo->kind == BPF_FIELD_BYTE_SIZE) {
 			sz = btf__resolve_size(spec->btf, acc->type_id);
 			if (sz < 0)
@@ -5058,7 +5090,7 @@ static int bpf_core_calc_field_relo(const struct bpf_program *prog,
 	}
 
 	m = btf_members(t) + acc->idx;
-	mt = skip_mods_and_typedefs(spec->btf, m->type, NULL);
+	mt = skip_mods_and_typedefs(spec->btf, m->type, &field_type_id);
 	bit_off = spec->bit_offset;
 	bit_sz = btf_member_bitfield_size(t, acc->idx);
 
@@ -5078,7 +5110,7 @@ static int bpf_core_calc_field_relo(const struct bpf_program *prog,
 			byte_off = bit_off / 8 / byte_sz * byte_sz;
 		}
 	} else {
-		sz = btf__resolve_size(spec->btf, m->type);
+		sz = btf__resolve_size(spec->btf, field_type_id);
 		if (sz < 0)
 			return -EINVAL;
 		byte_sz = sz;
@@ -5096,6 +5128,10 @@ static int bpf_core_calc_field_relo(const struct bpf_program *prog,
 	switch (relo->kind) {
 	case BPF_FIELD_BYTE_OFFSET:
 		*val = byte_off;
+		if (!bitfield) {
+			*field_sz = byte_sz;
+			*type_id = field_type_id;
+		}
 		break;
 	case BPF_FIELD_BYTE_SIZE:
 		*val = byte_sz;
@@ -5196,6 +5232,19 @@ struct bpf_core_relo_res
 	bool poison;
 	/* some relocations can't be validated against orig_val */
 	bool validate;
+	/* for field byte offset relocations or the forms:
+	 *     *(T *)(rX + <off>) = rY
+	 *     rX = *(T *)(rY + <off>),
+	 * we remember original and resolved field size to adjust direct
+	 * memory loads of pointers and integers; this is necessary for 32-bit
+	 * host kernel architectures, but also allows to automatically
+	 * relocate fields that were resized from, e.g., u32 to u64, etc.
+	 */
+	bool fail_memsz_adjust;
+	__u32 orig_sz;
+	__u32 orig_type_id;
+	__u32 new_sz;
+	__u32 new_type_id;
 };
 
 /* Calculate original and target relocation values, given local and target
@@ -5217,10 +5266,56 @@ static int bpf_core_calc_relo(const struct bpf_program *prog,
 	res->new_val = 0;
 	res->poison = false;
 	res->validate = true;
+	res->fail_memsz_adjust = false;
+	res->orig_sz = res->new_sz = 0;
+	res->orig_type_id = res->new_type_id = 0;
 
 	if (core_relo_is_field_based(relo->kind)) {
-		err = bpf_core_calc_field_relo(prog, relo, local_spec, &res->orig_val, &res->validate);
-		err = err ?: bpf_core_calc_field_relo(prog, relo, targ_spec, &res->new_val, NULL);
+		err = bpf_core_calc_field_relo(prog, relo, local_spec,
+					       &res->orig_val, &res->orig_sz,
+					       &res->orig_type_id, &res->validate);
+		err = err ?: bpf_core_calc_field_relo(prog, relo, targ_spec,
+						      &res->new_val, &res->new_sz,
+						      &res->new_type_id, NULL);
+		if (err)
+			goto done;
+		/* Validate if it's safe to adjust load/store memory size.
+		 * Adjustments are performed only if original and new memory
+		 * sizes differ.
+		 */
+		res->fail_memsz_adjust = false;
+		if (res->orig_sz != res->new_sz) {
+			const struct btf_type *orig_t, *new_t;
+
+			orig_t = btf__type_by_id(local_spec->btf, res->orig_type_id);
+			new_t = btf__type_by_id(targ_spec->btf, res->new_type_id);
+
+			/* There are two use cases in which it's safe to
+			 * adjust load/store's mem size:
+			 *   - reading a 32-bit kernel pointer, while on BPF
+			 *   size pointers are always 64-bit; in this case
+			 *   it's safe to "downsize" instruction size due to
+			 *   pointer being treated as unsigned integer with
+			 *   zero-extended upper 32-bits;
+			 *   - reading unsigned integers, again due to
+			 *   zero-extension is preserving the value correctly.
+			 *
+			 * In all other cases it's incorrect to attempt to
+			 * load/store field because read value will be
+			 * incorrect, so we poison relocated instruction.
+			 */
+			if (btf_is_ptr(orig_t) && btf_is_ptr(new_t))
+				goto done;
+			if (btf_is_int(orig_t) && btf_is_int(new_t) &&
+			    btf_int_encoding(orig_t) != BTF_INT_SIGNED &&
+			    btf_int_encoding(new_t) != BTF_INT_SIGNED)
+				goto done;
+
+			/* mark as invalid mem size adjustment, but this will
+			 * only be checked for LDX/STX/ST insns
+			 */
+			res->fail_memsz_adjust = true;
+		}
 	} else if (core_relo_is_type_based(relo->kind)) {
 		err = bpf_core_calc_type_relo(relo, local_spec, &res->orig_val);
 		err = err ?: bpf_core_calc_type_relo(relo, targ_spec, &res->new_val);
@@ -5229,6 +5324,7 @@ static int bpf_core_calc_relo(const struct bpf_program *prog,
 		err = err ?: bpf_core_calc_enumval_relo(relo, targ_spec, &res->new_val);
 	}
 
+done:
 	if (err == -EUCLEAN) {
 		/* EUCLEAN is used to signal instruction poisoning request */
 		res->poison = true;
@@ -5268,6 +5364,28 @@ static bool is_ldimm64(struct bpf_insn *insn)
 	return insn->code == (BPF_LD | BPF_IMM | BPF_DW);
 }
 
+static int insn_bpf_size_to_bytes(struct bpf_insn *insn)
+{
+	switch (BPF_SIZE(insn->code)) {
+	case BPF_DW: return 8;
+	case BPF_W: return 4;
+	case BPF_H: return 2;
+	case BPF_B: return 1;
+	default: return -1;
+	}
+}
+
+static int insn_bytes_to_bpf_size(__u32 sz)
+{
+	switch (sz) {
+	case 8: return BPF_DW;
+	case 4: return BPF_W;
+	case 2: return BPF_H;
+	case 1: return BPF_B;
+	default: return -1;
+	}
+}
+
 /*
  * Patch relocatable BPF instruction.
  *
@@ -5277,10 +5395,13 @@ static bool is_ldimm64(struct bpf_insn *insn)
  * spec, and is checked before patching instruction. If actual insn->imm value
  * is wrong, bail out with error.
  *
- * Currently three kinds of BPF instructions are supported:
+ * Currently supported classes of BPF instruction are:
  * 1. rX = <imm> (assignment with immediate operand);
  * 2. rX += <imm> (arithmetic operations with immediate operand);
- * 3. rX = <imm64> (load with 64-bit immediate value).
+ * 3. rX = <imm64> (load with 64-bit immediate value);
+ * 4. rX = *(T *)(rY + <off>), where T is one of {u8, u16, u32, u64};
+ * 5. *(T *)(rX + <off>) = rY, where T is one of {u8, u16, u32, u64};
+ * 6. *(T *)(rX + <off>) = <imm>, where T is one of {u8, u16, u32, u64}.
  */
 static int bpf_core_patch_insn(struct bpf_program *prog,
 			       const struct bpf_core_relo *relo,
@@ -5304,6 +5425,7 @@ static int bpf_core_patch_insn(struct bpf_program *prog,
 	class = BPF_CLASS(insn->code);
 
 	if (res->poison) {
+poison:
 		/* poison second part of ldimm64 to avoid confusing error from
 		 * verifier about "unknown opcode 00"
 		 */
@@ -5346,10 +5468,39 @@ static int bpf_core_patch_insn(struct bpf_program *prog,
 				prog->name, relo_idx, insn_idx, new_val);
 			return -ERANGE;
 		}
+		if (res->fail_memsz_adjust) {
+			pr_warn("prog '%s': relo #%d: insn #%d (LDX/ST/STX) accesses field incorrectly. "
+				"Make sure you are accessing pointers, unsigned integers, or fields of matching type and size.\n",
+				prog->name, relo_idx, insn_idx);
+			goto poison;
+		}
+
 		orig_val = insn->off;
 		insn->off = new_val;
 		pr_debug("prog '%s': relo #%d: patched insn #%d (LDX/ST/STX) off %u -> %u\n",
 			 prog->name, relo_idx, insn_idx, orig_val, new_val);
+
+		if (res->new_sz != res->orig_sz) {
+			int insn_bytes_sz, insn_bpf_sz;
+
+			insn_bytes_sz = insn_bpf_size_to_bytes(insn);
+			if (insn_bytes_sz != res->orig_sz) {
+				pr_warn("prog '%s': relo #%d: insn #%d (LDX/ST/STX) unexpected mem size: got %d, exp %u\n",
+					prog->name, relo_idx, insn_idx, insn_bytes_sz, res->orig_sz);
+				return -EINVAL;
+			}
+
+			insn_bpf_sz = insn_bytes_to_bpf_size(res->new_sz);
+			if (insn_bpf_sz < 0) {
+				pr_warn("prog '%s': relo #%d: insn #%d (LDX/ST/STX) invalid new mem size: %u\n",
+					prog->name, relo_idx, insn_idx, res->new_sz);
+				return -EINVAL;
+			}
+
+			insn->code = BPF_MODE(insn->code) | insn_bpf_sz | BPF_CLASS(insn->code);
+			pr_debug("prog '%s': relo #%d: patched insn #%d (LDX/ST/STX) mem_sz %u -> %u\n",
+				 prog->name, relo_idx, insn_idx, res->orig_sz, res->new_sz);
+		}
 		break;
 	case BPF_LD: {
 		__u64 imm;
@@ -5691,7 +5842,7 @@ bpf_object__relocate_core(struct bpf_object *obj, const char *targ_btf_path)
 		return 0;
 
 	if (targ_btf_path)
-		targ_btf = btf__parse_elf(targ_btf_path, NULL);
+		targ_btf = btf__parse(targ_btf_path, NULL);
 	else
 		targ_btf = obj->btf_vmlinux;
 	if (IS_ERR_OR_NULL(targ_btf)) {
@@ -5742,6 +5893,11 @@ bpf_object__relocate_core(struct bpf_object *obj, const char *targ_btf_path)
 				err = -EINVAL;
 				goto out;
 			}
+			/* no need to apply CO-RE relocation if the program is
+			 * not going to be loaded
+			 */
+			if (!prog->load)
+				continue;
 
 			err = bpf_core_apply_relo(prog, rec, i, obj->btf,
 						  targ_btf, cand_cache);
@@ -5800,8 +5956,13 @@ bpf_object__relocate_data(struct bpf_object *obj, struct bpf_program *prog)
 				insn[0].imm = obj->maps[obj->kconfig_map_idx].fd;
 				insn[1].imm = ext->kcfg.data_off;
 			} else /* EXT_KSYM */ {
-				insn[0].imm = (__u32)ext->ksym.addr;
-				insn[1].imm = ext->ksym.addr >> 32;
+				if (ext->ksym.type_id) { /* typed ksyms */
+					insn[0].src_reg = BPF_PSEUDO_BTF_ID;
+					insn[0].imm = ext->ksym.vmlinux_btf_id;
+				} else { /* typeless ksyms */
+					insn[0].imm = (__u32)ext->ksym.addr;
+					insn[1].imm = ext->ksym.addr >> 32;
+				}
 			}
 			relo->processed = true;
 			break;
@@ -6933,10 +7094,72 @@ out:
 	return err;
 }
 
+static int bpf_object__resolve_ksyms_btf_id(struct bpf_object *obj)
+{
+	struct extern_desc *ext;
+	int i, id;
+
+	for (i = 0; i < obj->nr_extern; i++) {
+		const struct btf_type *targ_var, *targ_type;
+		__u32 targ_type_id, local_type_id;
+		const char *targ_var_name;
+		int ret;
+
+		ext = &obj->externs[i];
+		if (ext->type != EXT_KSYM || !ext->ksym.type_id)
+			continue;
+
+		id = btf__find_by_name_kind(obj->btf_vmlinux, ext->name,
+					    BTF_KIND_VAR);
+		if (id <= 0) {
+			pr_warn("extern (ksym) '%s': failed to find BTF ID in vmlinux BTF.\n",
+				ext->name);
+			return -ESRCH;
+		}
+
+		/* find local type_id */
+		local_type_id = ext->ksym.type_id;
+
+		/* find target type_id */
+		targ_var = btf__type_by_id(obj->btf_vmlinux, id);
+		targ_var_name = btf__name_by_offset(obj->btf_vmlinux,
+						    targ_var->name_off);
+		targ_type = skip_mods_and_typedefs(obj->btf_vmlinux,
+						   targ_var->type,
+						   &targ_type_id);
+
+		ret = bpf_core_types_are_compat(obj->btf, local_type_id,
+						obj->btf_vmlinux, targ_type_id);
+		if (ret <= 0) {
+			const struct btf_type *local_type;
+			const char *targ_name, *local_name;
+
+			local_type = btf__type_by_id(obj->btf, local_type_id);
+			local_name = btf__name_by_offset(obj->btf,
+							 local_type->name_off);
+			targ_name = btf__name_by_offset(obj->btf_vmlinux,
+							targ_type->name_off);
+
+			pr_warn("extern (ksym) '%s': incompatible types, expected [%d] %s %s, but kernel has [%d] %s %s\n",
+				ext->name, local_type_id,
+				btf_kind_str(local_type), local_name, targ_type_id,
+				btf_kind_str(targ_type), targ_name);
+			return -EINVAL;
+		}
+
+		ext->is_set = true;
+		ext->ksym.vmlinux_btf_id = id;
+		pr_debug("extern (ksym) '%s': resolved to [%d] %s %s\n",
+			 ext->name, id, btf_kind_str(targ_var), targ_var_name);
+	}
+	return 0;
+}
+
 static int bpf_object__resolve_externs(struct bpf_object *obj,
 				       const char *extra_kconfig)
 {
 	bool need_config = false, need_kallsyms = false;
+	bool need_vmlinux_btf = false;
 	struct extern_desc *ext;
 	void *kcfg_data = NULL;
 	int err, i;
@@ -6967,7 +7190,10 @@ static int bpf_object__resolve_externs(struct bpf_object *obj,
 			   strncmp(ext->name, "CONFIG_", 7) == 0) {
 			need_config = true;
 		} else if (ext->type == EXT_KSYM) {
-			need_kallsyms = true;
+			if (ext->ksym.type_id)
+				need_vmlinux_btf = true;
+			else
+				need_kallsyms = true;
 		} else {
 			pr_warn("unrecognized extern '%s'\n", ext->name);
 			return -EINVAL;
@@ -6993,6 +7219,11 @@ static int bpf_object__resolve_externs(struct bpf_object *obj,
 	}
 	if (need_kallsyms) {
 		err = bpf_object__read_kallsyms_file(obj);
+		if (err)
+			return -EINVAL;
+	}
+	if (need_vmlinux_btf) {
+		err = bpf_object__resolve_ksyms_btf_id(obj);
 		if (err)
 			return -EINVAL;
 	}
@@ -7028,10 +7259,10 @@ int bpf_object__load_xattr(struct bpf_object_load_attr *attr)
 	}
 
 	err = bpf_object__probe_loading(obj);
+	err = err ? : bpf_object__load_vmlinux_btf(obj);
 	err = err ? : bpf_object__resolve_externs(obj, obj->kconfig);
 	err = err ? : bpf_object__sanitize_and_load_btf(obj);
 	err = err ? : bpf_object__sanitize_maps(obj);
-	err = err ? : bpf_object__load_vmlinux_btf(obj);
 	err = err ? : bpf_object__init_kern_struct_ops_maps(obj);
 	err = err ? : bpf_object__create_maps(obj);
 	err = err ? : bpf_object__relocate(obj, attr->target_btf_path);
@@ -10353,9 +10584,8 @@ int bpf_program__set_attach_target(struct bpf_program *prog,
 		btf_id = libbpf_find_prog_btf_id(attach_func_name,
 						 attach_prog_fd);
 	else
-		btf_id = __find_vmlinux_btf_id(prog->obj->btf_vmlinux,
-					       attach_func_name,
-					       prog->expected_attach_type);
+		btf_id = libbpf_find_vmlinux_btf_id(attach_func_name,
+						    prog->expected_attach_type);
 
 	if (btf_id < 0)
 		return btf_id;

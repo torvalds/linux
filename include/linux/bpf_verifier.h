@@ -308,6 +308,13 @@ struct bpf_insn_aux_data {
 			u32 map_index;		/* index into used_maps[] */
 			u32 map_off;		/* offset from value base address */
 		};
+		struct {
+			enum bpf_reg_type reg_type;	/* type of pseudo_btf_id */
+			union {
+				u32 btf_id;	/* btf_id for struct typed var */
+				u32 mem_size;	/* mem_size for non-struct typed var */
+			};
+		} btf_var;
 	};
 	u64 map_key_state; /* constant (32 bit) key tracking for maps */
 	int ctx_field_size; /* the ctx field size for load insn, maybe 0 */

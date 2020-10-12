@@ -198,7 +198,7 @@ static void test_sockmap_copy(enum bpf_map_type map_type)
 {
 	DECLARE_LIBBPF_OPTS(bpf_iter_attach_opts, opts);
 	int err, len, src_fd, iter_fd, duration = 0;
-	union bpf_iter_link_info linfo = {0};
+	union bpf_iter_link_info linfo = {};
 	__u32 i, num_sockets, num_elems;
 	struct bpf_iter_sockmap *skel;
 	__s64 *sock_fd = NULL;

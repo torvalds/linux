@@ -356,18 +356,36 @@ enum bpf_link_type {
 #define BPF_F_SLEEPABLE		(1U << 4)
 
 /* When BPF ldimm64's insn[0].src_reg != 0 then this can have
- * two extensions:
+ * the following extensions:
  *
- * insn[0].src_reg:  BPF_PSEUDO_MAP_FD   BPF_PSEUDO_MAP_VALUE
- * insn[0].imm:      map fd              map fd
- * insn[1].imm:      0                   offset into value
- * insn[0].off:      0                   0
- * insn[1].off:      0                   0
- * ldimm64 rewrite:  address of map      address of map[0]+offset
- * verifier type:    CONST_PTR_TO_MAP    PTR_TO_MAP_VALUE
+ * insn[0].src_reg:  BPF_PSEUDO_MAP_FD
+ * insn[0].imm:      map fd
+ * insn[1].imm:      0
+ * insn[0].off:      0
+ * insn[1].off:      0
+ * ldimm64 rewrite:  address of map
+ * verifier type:    CONST_PTR_TO_MAP
  */
 #define BPF_PSEUDO_MAP_FD	1
+/* insn[0].src_reg:  BPF_PSEUDO_MAP_VALUE
+ * insn[0].imm:      map fd
+ * insn[1].imm:      offset into value
+ * insn[0].off:      0
+ * insn[1].off:      0
+ * ldimm64 rewrite:  address of map[0]+offset
+ * verifier type:    PTR_TO_MAP_VALUE
+ */
 #define BPF_PSEUDO_MAP_VALUE	2
+/* insn[0].src_reg:  BPF_PSEUDO_BTF_ID
+ * insn[0].imm:      kernel btd id of VAR
+ * insn[1].imm:      0
+ * insn[0].off:      0
+ * insn[1].off:      0
+ * ldimm64 rewrite:  address of the kernel variable
+ * verifier type:    PTR_TO_BTF_ID or PTR_TO_MEM, depending on whether the var
+ *                   is struct/union.
+ */
+#define BPF_PSEUDO_BTF_ID	3
 
 /* when bpf_call->src_reg == BPF_PSEUDO_CALL, bpf_call->imm == pc-relative
  * offset to another bpf function
@@ -417,6 +435,9 @@ enum {
 
 /* Share perf_event among processes */
 	BPF_F_PRESERVE_ELEMS	= (1U << 11),
+
+/* Create a map that is suitable to be an inner map with dynamic max entries */
+	BPF_F_INNER_MAP		= (1U << 12),
 };
 
 /* Flags for BPF_PROG_QUERY. */
@@ -1680,7 +1701,7 @@ union bpf_attr {
  * 		  **TCP_CONGESTION**, **TCP_BPF_IW**,
  * 		  **TCP_BPF_SNDCWND_CLAMP**, **TCP_SAVE_SYN**,
  * 		  **TCP_KEEPIDLE**, **TCP_KEEPINTVL**, **TCP_KEEPCNT**,
- * 		  **TCP_SYNCNT**, **TCP_USER_TIMEOUT**.
+ *		  **TCP_SYNCNT**, **TCP_USER_TIMEOUT**, **TCP_NOTSENT_LOWAT**.
  * 		* **IPPROTO_IP**, which supports *optname* **IP_TOS**.
  * 		* **IPPROTO_IPV6**, which supports *optname* **IPV6_TCLASS**.
  * 	Return
@@ -2235,7 +2256,7 @@ union bpf_attr {
  *	Description
  *		This helper is used in programs implementing policies at the
  *		skb socket level. If the sk_buff *skb* is allowed to pass (i.e.
- *		if the verdeict eBPF program returns **SK_PASS**), redirect it
+ *		if the verdict eBPF program returns **SK_PASS**), redirect it
  *		to the socket referenced by *map* (of type
  *		**BPF_MAP_TYPE_SOCKHASH**) using hash *key*. Both ingress and
  *		egress interfaces can be used for redirection. The
@@ -3661,10 +3682,59 @@ union bpf_attr {
  * 		Redirect the packet to another net device of index *ifindex*
  * 		and fill in L2 addresses from neighboring subsystem. This helper
  * 		is somewhat similar to **bpf_redirect**\ (), except that it
- * 		fills in e.g. MAC addresses based on the L3 information from
- * 		the packet. This helper is supported for IPv4 and IPv6 protocols.
+ * 		populates L2 addresses as well, meaning, internally, the helper
+ * 		performs a FIB lookup based on the skb's networking header to
+ * 		get the address of the next hop and then relies on the neighbor
+ * 		lookup for the L2 address of the nexthop.
+ *
  * 		The *flags* argument is reserved and must be 0. The helper is
- * 		currently only supported for tc BPF program types.
+ * 		currently only supported for tc BPF program types, and enabled
+ * 		for IPv4 and IPv6 protocols.
+ * 	Return
+ * 		The helper returns **TC_ACT_REDIRECT** on success or
+ * 		**TC_ACT_SHOT** on error.
+ *
+ * void *bpf_per_cpu_ptr(const void *percpu_ptr, u32 cpu)
+ *     Description
+ *             Take a pointer to a percpu ksym, *percpu_ptr*, and return a
+ *             pointer to the percpu kernel variable on *cpu*. A ksym is an
+ *             extern variable decorated with '__ksym'. For ksym, there is a
+ *             global var (either static or global) defined of the same name
+ *             in the kernel. The ksym is percpu if the global var is percpu.
+ *             The returned pointer points to the global percpu var on *cpu*.
+ *
+ *             bpf_per_cpu_ptr() has the same semantic as per_cpu_ptr() in the
+ *             kernel, except that bpf_per_cpu_ptr() may return NULL. This
+ *             happens if *cpu* is larger than nr_cpu_ids. The caller of
+ *             bpf_per_cpu_ptr() must check the returned value.
+ *     Return
+ *             A pointer pointing to the kernel percpu variable on *cpu*, or
+ *             NULL, if *cpu* is invalid.
+ *
+ * void *bpf_this_cpu_ptr(const void *percpu_ptr)
+ *	Description
+ *		Take a pointer to a percpu ksym, *percpu_ptr*, and return a
+ *		pointer to the percpu kernel variable on this cpu. See the
+ *		description of 'ksym' in **bpf_per_cpu_ptr**\ ().
+ *
+ *		bpf_this_cpu_ptr() has the same semantic as this_cpu_ptr() in
+ *		the kernel. Different from **bpf_per_cpu_ptr**\ (), it would
+ *		never return NULL.
+ *	Return
+ *		A pointer pointing to the kernel percpu variable on this cpu.
+ *
+ * long bpf_redirect_peer(u32 ifindex, u64 flags)
+ * 	Description
+ * 		Redirect the packet to another net device of index *ifindex*.
+ * 		This helper is somewhat similar to **bpf_redirect**\ (), except
+ * 		that the redirection happens to the *ifindex*' peer device and
+ * 		the netns switch takes place from ingress to ingress without
+ * 		going through the CPU's backlog queue.
+ *
+ * 		The *flags* argument is reserved and must be 0. The helper is
+ * 		currently only supported for tc BPF program types at the ingress
+ * 		hook and for veth device types. The peer device must reside in a
+ * 		different network namespace.
  * 	Return
  * 		The helper returns **TC_ACT_REDIRECT** on success or
  * 		**TC_ACT_SHOT** on error.
@@ -3823,6 +3893,9 @@ union bpf_attr {
 	FN(seq_printf_btf),		\
 	FN(skb_cgroup_classid),		\
 	FN(redirect_neigh),		\
+	FN(bpf_per_cpu_ptr),            \
+	FN(bpf_this_cpu_ptr),		\
+	FN(redirect_peer),		\
 	/* */
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper

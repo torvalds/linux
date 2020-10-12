@@ -110,12 +110,13 @@ static inline void clear_hdr_cb_flags(struct bpf_sock_ops *skops)
 				    BPF_SOCK_OPS_WRITE_HDR_OPT_CB_FLAG));
 }
 
-static inline void set_hdr_cb_flags(struct bpf_sock_ops *skops)
+static inline void set_hdr_cb_flags(struct bpf_sock_ops *skops, __u32 extra)
 {
 	bpf_sock_ops_cb_flags_set(skops,
 				  skops->bpf_sock_ops_cb_flags |
 				  BPF_SOCK_OPS_PARSE_UNKNOWN_HDR_OPT_CB_FLAG |
-				  BPF_SOCK_OPS_WRITE_HDR_OPT_CB_FLAG);
+				  BPF_SOCK_OPS_WRITE_HDR_OPT_CB_FLAG |
+				  extra);
 }
 static inline void
 clear_parse_all_hdr_cb_flags(struct bpf_sock_ops *skops)
