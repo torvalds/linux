@@ -222,8 +222,8 @@ static int isotp_send_fc(struct sock *sk, int ae, u8 flowstatus)
 
 	can_send_ret = can_send(nskb, 1);
 	if (can_send_ret)
-		printk_once(KERN_NOTICE "can-isotp: %s: can_send_ret %d\n",
-			    __func__, can_send_ret);
+		pr_notice_once("can-isotp: %s: can_send_ret %d\n",
+			       __func__, can_send_ret);
 
 	dev_put(dev);
 
@@ -769,7 +769,7 @@ static enum hrtimer_restart isotp_tx_timer_handler(struct hrtimer *hrtimer)
 
 isotp_tx_burst:
 		skb = alloc_skb(so->ll.mtu + sizeof(struct can_skb_priv),
-				gfp_any());
+				GFP_ATOMIC);
 		if (!skb) {
 			dev_put(dev);
 			break;
@@ -798,8 +798,8 @@ isotp_tx_burst:
 
 		can_send_ret = can_send(skb, 1);
 		if (can_send_ret)
-			printk_once(KERN_NOTICE "can-isotp: %s: can_send_ret %d\n",
-				    __func__, can_send_ret);
+			pr_notice_once("can-isotp: %s: can_send_ret %d\n",
+				       __func__, can_send_ret);
 
 		if (so->tx.idx >= so->tx.len) {
 			/* we are done */
@@ -942,8 +942,8 @@ static int isotp_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 	err = can_send(skb, 1);
 	dev_put(dev);
 	if (err) {
-		printk_once(KERN_NOTICE "can-isotp: %s: can_send_ret %d\n",
-			    __func__, err);
+		pr_notice_once("can-isotp: %s: can_send_ret %d\n",
+			       __func__, err);
 		return err;
 	}
 

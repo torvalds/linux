@@ -57,7 +57,6 @@ source "net/can/j1939/Kconfig"
 
 config CAN_ISOTP
 	tristate "ISO 15765-2:2016 CAN transport protocol"
-	default y
 	help
 	  CAN Transport Protocols offer support for segmented Point-to-Point
 	  communication between CAN nodes via two defined CAN Identifiers.
@@ -67,6 +66,8 @@ config CAN_ISOTP
 	  vehicle diagnosis (UDS, ISO 14229) or IP-over-CAN traffic.
 	  This protocol driver implements data transfers according to
 	  ISO 15765-2:2016 for 'classic' CAN and CAN FD frame types.
+	  If you want to perform automotive vehicle diagnostic services (UDS),
+	  say 'y'.
 
 source "drivers/net/can/Kconfig"
 
