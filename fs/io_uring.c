@@ -7306,7 +7306,7 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 	spin_lock_init(&file_data->lock);
 
 	nr_tables = DIV_ROUND_UP(nr_args, IORING_MAX_FILES_TABLE);
-	file_data->table = kcalloc(nr_tables, sizeof(file_data->table),
+	file_data->table = kcalloc(nr_tables, sizeof(*file_data->table),
 				   GFP_KERNEL);
 	if (!file_data->table)
 		goto out_free;
