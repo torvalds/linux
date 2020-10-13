@@ -2793,42 +2793,42 @@ void filemap_map_pages(struct vm_fault *vmf,
 	pgoff_t last_pgoff = start_pgoff;
 	unsigned long max_idx;
 	XA_STATE(xas, &mapping->i_pages, start_pgoff);
-	struct page *page;
+	struct page *head, *page;
 	unsigned int mmap_miss = READ_ONCE(file->f_ra.mmap_miss);
 
 	rcu_read_lock();
-	xas_for_each(&xas, page, end_pgoff) {
-		if (xas_retry(&xas, page))
+	xas_for_each(&xas, head, end_pgoff) {
+		if (xas_retry(&xas, head))
 			continue;
-		if (xa_is_value(page))
+		if (xa_is_value(head))
 			goto next;
 
 		/*
 		 * Check for a locked page first, as a speculative
 		 * reference may adversely influence page migration.
 		 */
-		if (PageLocked(page))
+		if (PageLocked(head))
 			goto next;
-		if (!page_cache_get_speculative(page))
+		if (!page_cache_get_speculative(head))
 			goto next;
 
 		/* Has the page moved or been split? */
-		if (unlikely(page != xas_reload(&xas)))
+		if (unlikely(head != xas_reload(&xas)))
 			goto skip;
-		page = find_subpage(page, xas.xa_index);
+		page = find_subpage(head, xas.xa_index);
 
-		if (!PageUptodate(page) ||
+		if (!PageUptodate(head) ||
 				PageReadahead(page) ||
 				PageHWPoison(page))
 			goto skip;
-		if (!trylock_page(page))
+		if (!trylock_page(head))
 			goto skip;
 
-		if (page->mapping != mapping || !PageUptodate(page))
+		if (head->mapping != mapping || !PageUptodate(head))
 			goto unlock;
 
 		max_idx = DIV_ROUND_UP(i_size_read(mapping->host), PAGE_SIZE);
-		if (page->index >= max_idx)
+		if (xas.xa_index >= max_idx)
 			goto unlock;
 
 		if (mmap_miss > 0)
@@ -2840,12 +2840,12 @@ void filemap_map_pages(struct vm_fault *vmf,
 		last_pgoff = xas.xa_index;
 		if (alloc_set_pte(vmf, page))
 			goto unlock;
-		unlock_page(page);
+		unlock_page(head);
 		goto next;
 unlock:
-		unlock_page(page);
+		unlock_page(head);
 skip:
-		put_page(page);
+		put_page(head);
 next:
 		/* Huge page is mapped? No need to proceed. */
 		if (pmd_trans_huge(*vmf->pmd))
