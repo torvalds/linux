@@ -138,15 +138,13 @@ out:
  */
 static int get_crash_memory_ranges(struct crash_mem **mem_ranges)
 {
-	struct memblock_region *reg;
+	phys_addr_t base, end;
 	struct crash_mem *tmem;
+	u64 i;
 	int ret;
 
-	for_each_memblock(memory, reg) {
-		u64 base, size;
-
-		base = (u64)reg->base;
-		size = (u64)reg->size;
+	for_each_mem_range(i, &base, &end) {
+		u64 size = end - base;
 
 		/* Skip backup memory region, which needs a separate entry */
 		if (base == BACKUP_SRC_START) {

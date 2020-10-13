@@ -145,21 +145,21 @@ static phys_addr_t dtb_early_pa __initdata;
 
 void __init setup_bootmem(void)
 {
-	struct memblock_region *reg;
 	phys_addr_t mem_size = 0;
 	phys_addr_t total_mem = 0;
-	phys_addr_t mem_start, end = 0;
+	phys_addr_t mem_start, start, end = 0;
 	phys_addr_t vmlinux_end = __pa_symbol(&_end);
 	phys_addr_t vmlinux_start = __pa_symbol(&_start);
+	u64 i;
 
 	/* Find the memory region containing the kernel */
-	for_each_memblock(memory, reg) {
-		end = reg->base + reg->size;
+	for_each_mem_range(i, &start, &end) {
+		phys_addr_t size = end - start;
 		if (!total_mem)
-			mem_start = reg->base;
-		if (reg->base <= vmlinux_start && vmlinux_end <= end)
-			BUG_ON(reg->size == 0);
-		total_mem = total_mem + reg->size;
+			mem_start = start;
+		if (start <= vmlinux_start && vmlinux_end <= end)
+			BUG_ON(size == 0);
+		total_mem = total_mem + size;
 	}
 
 	/*
@@ -455,7 +455,7 @@ static void __init setup_vm_final(void)
 {
 	uintptr_t va, map_size;
 	phys_addr_t pa, start, end;
-	struct memblock_region *reg;
+	u64 i;
 
 	/* Set mmu_enabled flag */
 	mmu_enabled = true;
@@ -466,14 +466,9 @@ static void __init setup_vm_final(void)
 			   PGDIR_SIZE, PAGE_TABLE);
 
 	/* Map all memory banks */
-	for_each_memblock(memory, reg) {
-		start = reg->base;
-		end = start + reg->size;
-
+	for_each_mem_range(i, &start, &end) {
 		if (start >= end)
 			break;
-		if (memblock_is_nomap(reg))
-			continue;
 		if (start <= __pa(PAGE_OFFSET) &&
 		    __pa(PAGE_OFFSET) < end)
 			start = __pa(PAGE_OFFSET);

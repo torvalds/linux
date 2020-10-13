@@ -109,13 +109,14 @@ static void __init paging_init(void)
 void __init setup_memory(void)
 {
 #ifndef CONFIG_MMU
-	struct memblock_region *reg;
 	u32 kernel_align_start, kernel_align_size;
+	phys_addr_t start, end;
+	u64 i;
 
 	/* Find main memory where is the kernel */
-	for_each_memblock(memory, reg) {
-		memory_start = (u32)reg->base;
-		lowmem_size = reg->size;
+	for_each_mem_range(i, &start, &end) {
+		memory_start = start;
+		lowmem_size = end - start;
 		if ((memory_start <= (u32)_text) &&
 			((u32)_text <= (memory_start + lowmem_size - 1))) {
 			memory_size = lowmem_size;

@@ -190,25 +190,25 @@ char *octeon_swiotlb;
 
 void __init plat_swiotlb_setup(void)
 {
-	struct memblock_region *mem;
+	phys_addr_t start, end;
 	phys_addr_t max_addr;
 	phys_addr_t addr_size;
 	size_t swiotlbsize;
 	unsigned long swiotlb_nslabs;
+	u64 i;
 
 	max_addr = 0;
 	addr_size = 0;
 
-	for_each_memblock(memory, mem) {
+	for_each_mem_range(i, &start, &end) {
 		/* These addresses map low for PCI. */
-		if (mem->base > 0x410000000ull && !OCTEON_IS_OCTEON2())
+		if (start > 0x410000000ull && !OCTEON_IS_OCTEON2())
 			continue;
 
-		addr_size += mem->size;
+		addr_size += (end - start);
 
-		if (max_addr < mem->base + mem->size)
-			max_addr = mem->base + mem->size;
-
+		if (max_addr < end)
+			max_addr = end;
 	}
 
 	swiotlbsize = PAGE_SIZE;
