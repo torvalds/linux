@@ -32,55 +32,77 @@
 #define PPSMC_Result_CmdRejectedBusy 0xFC
 
 // Message Definitions:
-#define PPSMC_MSG_TestMessage 0x1
-#define PPSMC_MSG_GetSmuVersion 0x2
-#define PPSMC_MSG_GetDriverIfVersion 0x3
-#define PPSMC_MSG_EnableGfxOff 0x4
-#define PPSMC_MSG_DisableGfxOff 0x5
-#define PPSMC_MSG_PowerDownIspByTile 0x6 // ISP is power gated by default
-#define PPSMC_MSG_PowerUpIspByTile 0x7
-#define PPSMC_MSG_PowerDownVcn 0x8 // VCN is power gated by default
-#define PPSMC_MSG_PowerUpVcn 0x9
-#define PPSMC_MSG_spare 0xA
-#define PPSMC_MSG_SetHardMinVcn 0xB // For wireless display
-#define PPSMC_MSG_SetMinVideoGfxclkFreq	0xC //Sets SoftMin for GFXCLK. Arg is in MHz
-#define PPSMC_MSG_ActiveProcessNotify 0xD
-#define PPSMC_MSG_SetHardMinIspiclkByFreq 0xE
-#define PPSMC_MSG_SetHardMinIspxclkByFreq 0xF
-#define PPSMC_MSG_SetDriverDramAddrHigh 0x10
-#define PPSMC_MSG_SetDriverDramAddrLow 0x11
-#define PPSMC_MSG_TransferTableSmu2Dram 0x12
-#define PPSMC_MSG_TransferTableDram2Smu 0x13
-#define PPSMC_MSG_GfxDeviceDriverReset 0x14 //mode 2 reset during TDR
-#define PPSMC_MSG_GetEnabledSmuFeatures 0x15
-#define PPSMC_MSG_spare1 0x16
-#define PPSMC_MSG_SetHardMinSocclkByFreq 0x17
-#define PPSMC_MSG_SetMinVideoFclkFreq 0x18
-#define PPSMC_MSG_SetSoftMinVcn 0x19
-#define PPSMC_MSG_EnablePostCode 0x1A
-#define PPSMC_MSG_GetGfxclkFrequency 0x1B
-#define PPSMC_MSG_GetFclkFrequency 0x1C
-#define PPSMC_MSG_AllowGfxOff 0x1D
-#define PPSMC_MSG_DisallowGfxOff 0x1E
-#define PPSMC_MSG_SetSoftMaxGfxClk 0x1F
-#define PPSMC_MSG_SetHardMinGfxClk 0x20
-#define PPSMC_MSG_SetSoftMaxSocclkByFreq 0x21
-#define PPSMC_MSG_SetSoftMaxFclkByFreq 0x22
-#define PPSMC_MSG_SetSoftMaxVcn 0x23
-#define PPSMC_MSG_GpuChangeState 0x24 //FIXME AHOLLA - check how to do for VGM
-#define PPSMC_MSG_SetPowerLimitPercentage 0x25
-#define PPSMC_MSG_PowerDownJpeg 0x26
-#define PPSMC_MSG_PowerUpJpeg 0x27
-#define PPSMC_MSG_SetHardMinFclkByFreq 0x28
-#define PPSMC_MSG_SetSoftMinSocclkByFreq 0x29
-#define PPSMC_MSG_PowerUpCvip 0x2A
-#define PPSMC_MSG_PowerDownCvip 0x2B
-#define PPSMC_Message_Count 0x2C
+#define PPSMC_MSG_TestMessage                          0x1
+#define PPSMC_MSG_GetSmuVersion                        0x2
+#define PPSMC_MSG_GetDriverIfVersion                   0x3
+#define PPSMC_MSG_EnableGfxOff                         0x4
+#define PPSMC_MSG_DisableGfxOff                        0x5
+#define PPSMC_MSG_PowerDownIspByTile                   0x6 // ISP is power gated by default
+#define PPSMC_MSG_PowerUpIspByTile                     0x7
+#define PPSMC_MSG_PowerDownVcn                         0x8 // VCN is power gated by default
+#define PPSMC_MSG_PowerUpVcn                           0x9
+#define PPSMC_MSG_spare                                0xA
+#define PPSMC_MSG_SetHardMinVcn                        0xB // For wireless display
+#define PPSMC_MSG_SetSoftMinGfxclk                     0xC //Sets SoftMin for GFXCLK. Arg is in MHz
+#define PPSMC_MSG_ActiveProcessNotify                  0xD
+#define PPSMC_MSG_SetHardMinIspiclkByFreq              0xE
+#define PPSMC_MSG_SetHardMinIspxclkByFreq              0xF
+#define PPSMC_MSG_SetDriverDramAddrHigh                0x10
+#define PPSMC_MSG_SetDriverDramAddrLow                 0x11
+#define PPSMC_MSG_TransferTableSmu2Dram                0x12
+#define PPSMC_MSG_TransferTableDram2Smu                0x13
+#define PPSMC_MSG_GfxDeviceDriverReset                 0x14 //mode 2 reset during TDR
+#define PPSMC_MSG_GetEnabledSmuFeatures                0x15
+#define PPSMC_MSG_spare1                               0x16
+#define PPSMC_MSG_SetHardMinSocclkByFreq               0x17
+#define PPSMC_MSG_SetSoftMinFclk                       0x18 //Used to be PPSMC_MSG_SetMinVideoFclkFreq
+#define PPSMC_MSG_SetSoftMinVcn                        0x19
+#define PPSMC_MSG_EnablePostCode                       0x1A
+#define PPSMC_MSG_GetGfxclkFrequency                   0x1B
+#define PPSMC_MSG_GetFclkFrequency                     0x1C
+#define PPSMC_MSG_AllowGfxOff                          0x1D
+#define PPSMC_MSG_DisallowGfxOff                       0x1E
+#define PPSMC_MSG_SetSoftMaxGfxClk                     0x1F
+#define PPSMC_MSG_SetHardMinGfxClk                     0x20
+#define PPSMC_MSG_SetSoftMaxSocclkByFreq               0x21
+#define PPSMC_MSG_SetSoftMaxFclkByFreq                 0x22
+#define PPSMC_MSG_SetSoftMaxVcn                        0x23
+#define PPSMC_MSG_spare2                               0x24
+#define PPSMC_MSG_SetPowerLimitPercentage              0x25
+#define PPSMC_MSG_PowerDownJpeg                        0x26
+#define PPSMC_MSG_PowerUpJpeg                          0x27
+#define PPSMC_MSG_SetHardMinFclkByFreq                 0x28
+#define PPSMC_MSG_SetSoftMinSocclkByFreq               0x29
+#define PPSMC_MSG_PowerUpCvip                          0x2A
+#define PPSMC_MSG_PowerDownCvip                        0x2B
+#define PPSMC_MSG_GetPptLimit                          0x2C
+#define PPSMC_MSG_GetThermalLimit                      0x2D
+#define PPSMC_MSG_GetCurrentTemperature                0x2E
+#define PPSMC_MSG_GetCurrentPower                      0x2F
+#define PPSMC_MSG_GetCurrentVoltage                    0x30
+#define PPSMC_MSG_GetCurrentCurrent                    0x31
+#define PPSMC_MSG_GetAverageCpuActivity                0x32
+#define PPSMC_MSG_GetAverageGfxActivity                0x33
+#define PPSMC_MSG_GetAveragePower                      0x34
+#define PPSMC_MSG_GetAverageTemperature                0x35
+#define PPSMC_MSG_SetAveragePowerTimeConstant          0x36
+#define PPSMC_MSG_SetAverageActivityTimeConstant       0x37
+#define PPSMC_MSG_SetAverageTemperatureTimeConstant    0x38
+#define PPSMC_MSG_SetMitigationEndHysteresis           0x39
+#define PPSMC_MSG_GetCurrentFreq                       0x3A
+#define PPSMC_MSG_SetReducedPptLimit                   0x3B
+#define PPSMC_MSG_SetReducedThermalLimit               0x3C
+#define PPSMC_MSG_DramLogSetDramAddr                   0x3D
+#define PPSMC_MSG_StartDramLogging                     0x3E
+#define PPSMC_MSG_StopDramLogging                      0x3F
+#define PPSMC_MSG_SetSoftMinCclk                       0x40
+#define PPSMC_MSG_SetSoftMaxCclk                       0x41
+#define PPSMC_Message_Count                            0x42
 
 //Argument for  PPSMC_MSG_GpuChangeState
 enum {
-  GpuChangeState_D0Entry = 1,
-  GpuChangeState_D3Entry,
+  MODE1_RESET = 1,
+  MODE2_RESET = 2
 };
 
 #endif
