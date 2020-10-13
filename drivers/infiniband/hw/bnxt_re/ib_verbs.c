@@ -1657,8 +1657,8 @@ int bnxt_re_create_srq(struct ib_srq *ib_srq,
 	srq->qplib_srq.max_wqe = entries;
 
 	srq->qplib_srq.max_sge = srq_init_attr->attr.max_sge;
-	srq->qplib_srq.wqe_size =
-			bnxt_re_get_rwqe_size(srq->qplib_srq.max_sge);
+	 /* 128 byte wqe size for SRQ . So use max sges */
+	srq->qplib_srq.wqe_size = bnxt_re_get_rwqe_size(dev_attr->max_srq_sges);
 	srq->qplib_srq.threshold = srq_init_attr->attr.srq_limit;
 	srq->srq_limit = srq_init_attr->attr.srq_limit;
 	srq->qplib_srq.eventq_hw_ring_id = rdev->nq[0].ring_id;
