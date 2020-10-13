@@ -570,7 +570,7 @@ process context. Kernel threads are the basis of the workqueue
 mechanism. Essentially, a thread kernel is a thread that only runs in
 kernel mode and has no user address space or other user attributes.
 
-To create a thread kernel, use :c:func:`kthread_create`:
+To create a kernel thread, use :c:func:`kthread_create`:
 
 .. code-block:: c
 
