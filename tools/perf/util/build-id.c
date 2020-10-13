@@ -130,16 +130,14 @@ int sysfs__sprintf_build_id(const char *root_dir, char *sbuild_id)
 
 int filename__sprintf_build_id(const char *pathname, char *sbuild_id)
 {
-	u8 build_id[BUILD_ID_SIZE];
+	struct build_id bid;
 	int ret;
 
-	ret = filename__read_build_id(pathname, build_id, sizeof(build_id));
+	ret = filename__read_build_id(pathname, &bid);
 	if (ret < 0)
 		return ret;
-	else if (ret != sizeof(build_id))
-		return -EINVAL;
 
-	return build_id__sprintf(build_id, sizeof(build_id), sbuild_id);
+	return build_id__sprintf(bid.data, sizeof(bid.data), sbuild_id);
 }
 
 /* asnprintf consolidates asprintf and snprintf */

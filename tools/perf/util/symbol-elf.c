@@ -534,8 +534,9 @@ out:
 
 #ifdef HAVE_LIBBFD_BUILDID_SUPPORT
 
-int filename__read_build_id(const char *filename, void *bf, size_t size)
+int filename__read_build_id(const char *filename, struct build_id *bid)
 {
+	size_t size = sizeof(bid->data);
 	int err = -1;
 	bfd *abfd;
 
@@ -551,9 +552,9 @@ int filename__read_build_id(const char *filename, void *bf, size_t size)
 	if (!abfd->build_id || abfd->build_id->size > size)
 		goto out_close;
 
-	memcpy(bf, abfd->build_id->data, abfd->build_id->size);
-	memset(bf + abfd->build_id->size, 0, size - abfd->build_id->size);
-	err = abfd->build_id->size;
+	memcpy(bid->data, abfd->build_id->data, abfd->build_id->size);
+	memset(bid->data + abfd->build_id->size, 0, size - abfd->build_id->size);
+	err = bid->size = abfd->build_id->size;
 
 out_close:
 	bfd_close(abfd);
@@ -562,8 +563,9 @@ out_close:
 
 #else // HAVE_LIBBFD_BUILDID_SUPPORT
 
-int filename__read_build_id(const char *filename, void *bf, size_t size)
+int filename__read_build_id(const char *filename, struct build_id *bid)
 {
+	size_t size = sizeof(bid->data);
 	int fd, err = -1;
 	Elf *elf;
 
@@ -580,7 +582,9 @@ int filename__read_build_id(const char *filename, void *bf, size_t size)
 		goto out_close;
 	}
 
-	err = elf_read_build_id(elf, bf, size);
+	err = elf_read_build_id(elf, bid->data, size);
+	if (err > 0)
+		bid->size = err;
 
 	elf_end(elf);
 out_close:

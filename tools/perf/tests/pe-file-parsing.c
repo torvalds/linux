@@ -24,7 +24,7 @@ static int run_dir(const char *d)
 {
 	char filename[PATH_MAX];
 	char debugfile[PATH_MAX];
-	char build_id[BUILD_ID_SIZE];
+	struct build_id bid;
 	char debuglink[PATH_MAX];
 	char expect_build_id[] = {
 		0x5a, 0x0f, 0xd8, 0x82, 0xb5, 0x30, 0x84, 0x22,
@@ -36,10 +36,10 @@ static int run_dir(const char *d)
 	int ret;
 
 	scnprintf(filename, PATH_MAX, "%s/pe-file.exe", d);
-	ret = filename__read_build_id(filename, build_id, BUILD_ID_SIZE);
+	ret = filename__read_build_id(filename, &bid);
 	TEST_ASSERT_VAL("Failed to read build_id",
 			ret == sizeof(expect_build_id));
-	TEST_ASSERT_VAL("Wrong build_id", !memcmp(build_id, expect_build_id,
+	TEST_ASSERT_VAL("Wrong build_id", !memcmp(bid.data, expect_build_id,
 						  sizeof(expect_build_id)));
 
 	ret = filename__read_debuglink(filename, debuglink, PATH_MAX);
@@ -48,10 +48,10 @@ static int run_dir(const char *d)
 			!strcmp(debuglink, expect_debuglink));
 
 	scnprintf(debugfile, PATH_MAX, "%s/%s", d, debuglink);
-	ret = filename__read_build_id(debugfile, build_id, BUILD_ID_SIZE);
+	ret = filename__read_build_id(debugfile, &bid);
 	TEST_ASSERT_VAL("Failed to read debug file build_id",
 			ret == sizeof(expect_build_id));
-	TEST_ASSERT_VAL("Wrong build_id", !memcmp(build_id, expect_build_id,
+	TEST_ASSERT_VAL("Wrong build_id", !memcmp(bid.data, expect_build_id,
 						  sizeof(expect_build_id)));
 
 	dso = dso__new(filename);

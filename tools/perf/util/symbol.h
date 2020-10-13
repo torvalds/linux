@@ -23,6 +23,7 @@ struct dso;
 struct map;
 struct maps;
 struct option;
+struct build_id;
 
 /*
  * libelf 0.8.x and earlier do not support ELF_C_READ_MMAP;
@@ -142,7 +143,7 @@ struct symbol *dso__next_symbol(struct symbol *sym);
 
 enum dso_type dso__type_fd(int fd);
 
-int filename__read_build_id(const char *filename, void *bf, size_t size);
+int filename__read_build_id(const char *filename, struct build_id *id);
 int sysfs__read_build_id(const char *filename, void *bf, size_t size);
 int modules__parse(const char *filename, void *arg,
 		   int (*process_module)(void *arg, const char *name,

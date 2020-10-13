@@ -1755,7 +1755,7 @@ int dso__load(struct dso *dso, struct map *map)
 	struct symsrc *syms_ss = NULL, *runtime_ss = NULL;
 	bool kmod;
 	bool perfmap;
-	unsigned char build_id[BUILD_ID_SIZE];
+	struct build_id bid;
 	struct nscookie nsc;
 	char newmapname[PATH_MAX];
 	const char *map_path = dso->long_name;
@@ -1817,8 +1817,8 @@ int dso__load(struct dso *dso, struct map *map)
 	if (!dso->has_build_id &&
 	    is_regular_file(dso->long_name)) {
 	    __symbol__join_symfs(name, PATH_MAX, dso->long_name);
-	    if (filename__read_build_id(name, build_id, BUILD_ID_SIZE) > 0)
-		dso__set_build_id(dso, build_id);
+		if (filename__read_build_id(name, &bid) > 0)
+			dso__set_build_id(dso, bid.data);
 	}
 
 	/*
