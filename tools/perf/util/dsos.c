@@ -287,10 +287,12 @@ size_t __dsos__fprintf_buildid(struct list_head *head, FILE *fp,
 	size_t ret = 0;
 
 	list_for_each_entry(pos, head, node) {
+		char sbuild_id[SBUILD_ID_SIZE];
+
 		if (skip && skip(pos, parm))
 			continue;
-		ret += dso__fprintf_buildid(pos, fp);
-		ret += fprintf(fp, " %s\n", pos->long_name);
+		build_id__sprintf(&pos->bid, sbuild_id);
+		ret += fprintf(fp, "%-40s %s\n", sbuild_id, pos->long_name);
 	}
 	return ret;
 }

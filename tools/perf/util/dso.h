@@ -362,7 +362,6 @@ struct dso *machine__findnew_kernel(struct machine *machine, const char *name,
 
 void dso__reset_find_symbol_cache(struct dso *dso);
 
-size_t dso__fprintf_buildid(struct dso *dso, FILE *fp);
 size_t dso__fprintf_symbols_by_name(struct dso *dso, FILE *fp);
 size_t dso__fprintf(struct dso *dso, FILE *fp);
 

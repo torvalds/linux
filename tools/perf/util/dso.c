@@ -1369,7 +1369,7 @@ int dso__kernel_module_get_build_id(struct dso *dso,
 	return 0;
 }
 
-size_t dso__fprintf_buildid(struct dso *dso, FILE *fp)
+static size_t dso__fprintf_buildid(struct dso *dso, FILE *fp)
 {
 	char sbuild_id[SBUILD_ID_SIZE];
 
