@@ -211,9 +211,7 @@ static void erofs_default_options(struct erofs_fs_context *ctx)
 
 enum {
 	Opt_user_xattr,
-	Opt_nouser_xattr,
 	Opt_acl,
-	Opt_noacl,
 	Opt_cache_strategy,
 	Opt_err
 };
