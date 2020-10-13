@@ -778,6 +778,9 @@ legacy_init:
 	case CHIP_DIMGREY_CAVEFISH:
 		dimgrey_cavefish_reg_base_init(adev);
 		break;
+	case CHIP_BEIGE_GOBY:
+		beige_goby_reg_base_init(adev);
+		break;
 	default:
 		return -EINVAL;
 	}
