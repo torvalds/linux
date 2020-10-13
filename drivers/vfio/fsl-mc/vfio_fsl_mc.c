@@ -13,6 +13,7 @@
 #include <linux/vfio.h>
 #include <linux/fsl/mc.h>
 #include <linux/delay.h>
+#include <linux/io-64-nonatomic-hi-lo.h>
 
 #include "vfio_fsl_mc_private.h"
 
