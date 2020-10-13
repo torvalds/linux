@@ -563,6 +563,11 @@ This verification may cause significant overhead in some cases.
 Note: the mount options index=off,nfs_export=on are conflicting for a
 read-write mount and will result in an error.
 
+Note: the mount option uuid=off can be used to replace UUID of the underlying
+filesystem in file handles with null, and effectively disable UUID checks. This
+can be useful in case the underlying disk is copied and the UUID of this copy
+is changed. This is only applicable if all lower/upper/work directories are on
+the same filesystem, otherwise it will fallback to normal behaviour.
 
 Volatile mount
 --------------

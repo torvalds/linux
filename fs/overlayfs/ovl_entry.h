@@ -14,6 +14,7 @@ struct ovl_config {
 	bool redirect_follow;
 	const char *redirect_mode;
 	bool index;
+	bool uuid;
 	bool nfs_export;
 	int xino;
 	bool metacopy;

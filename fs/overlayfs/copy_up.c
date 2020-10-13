@@ -320,7 +320,8 @@ struct ovl_fh *ovl_encode_real_fh(struct ovl_fs *ofs, struct dentry *real,
 	if (is_upper)
 		fh->fb.flags |= OVL_FH_FLAG_PATH_UPPER;
 	fh->fb.len = sizeof(fh->fb) + buflen;
-	fh->fb.uuid = *uuid;
+	if (ofs->config.uuid)
+		fh->fb.uuid = *uuid;
 
 	return fh;
 
