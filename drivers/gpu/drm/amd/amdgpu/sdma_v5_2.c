@@ -47,6 +47,7 @@
 MODULE_FIRMWARE("amdgpu/sienna_cichlid_sdma.bin");
 MODULE_FIRMWARE("amdgpu/navy_flounder_sdma.bin");
 MODULE_FIRMWARE("amdgpu/dimgrey_cavefish_sdma.bin");
+MODULE_FIRMWARE("amdgpu/beige_goby_sdma.bin");
 
 MODULE_FIRMWARE("amdgpu/vangogh_sdma.bin");
 
@@ -92,6 +93,7 @@ static void sdma_v5_2_init_golden_registers(struct amdgpu_device *adev)
 	case CHIP_NAVY_FLOUNDER:
 	case CHIP_VANGOGH:
 	case CHIP_DIMGREY_CAVEFISH:
+	case CHIP_BEIGE_GOBY:
 		break;
 	default:
 		break;
@@ -162,6 +164,9 @@ static int sdma_v5_2_init_microcode(struct amdgpu_device *adev)
 		break;
 	case CHIP_DIMGREY_CAVEFISH:
 		chip_name = "dimgrey_cavefish";
+		break;
+	case CHIP_BEIGE_GOBY:
+		chip_name = "beige_goby";
 		break;
 	default:
 		BUG();
@@ -1228,6 +1233,7 @@ static int sdma_v5_2_early_init(void *handle)
 		adev->sdma.num_instances = 2;
 		break;
 	case CHIP_VANGOGH:
+	case CHIP_BEIGE_GOBY:
 		adev->sdma.num_instances = 1;
 		break;
 	default:
@@ -1628,6 +1634,7 @@ static int sdma_v5_2_set_clockgating_state(void *handle,
 	case CHIP_NAVY_FLOUNDER:
 	case CHIP_VANGOGH:
 	case CHIP_DIMGREY_CAVEFISH:
+	case CHIP_BEIGE_GOBY:
 		sdma_v5_2_update_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE);
 		sdma_v5_2_update_medium_grain_light_sleep(adev,
