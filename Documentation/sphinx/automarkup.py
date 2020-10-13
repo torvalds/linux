@@ -23,7 +23,21 @@ from itertools import chain
 # bit tries to restrict matches to things that won't create trouble.
 #
 RE_function = re.compile(r'(([\w_][\w\d_]+)\(\))')
-RE_type = re.compile(r'(struct|union|enum|typedef)\s+([\w_][\w\d_]+)')
+
+#
+# Sphinx 2 uses the same :c:type role for struct, union, enum and typedef
+#
+RE_generic_type = re.compile(r'(struct|union|enum|typedef)\s+([\w_][\w\d_]+)')
+
+#
+# Sphinx 3 uses a different C role for each one of struct, union, enum and
+# typedef
+#
+RE_struct = re.compile(r'\b(struct)\s+([a-zA-Z_]\w+)', flags=re.ASCII)
+RE_union = re.compile(r'\b(union)\s+([a-zA-Z_]\w+)', flags=re.ASCII)
+RE_enum = re.compile(r'\b(enum)\s+([a-zA-Z_]\w+)', flags=re.ASCII)
+RE_typedef = re.compile(r'\b(typedef)\s+([a-zA-Z_]\w+)', flags=re.ASCII)
+
 #
 # Detects a reference to a documentation page of the form Documentation/... with
 # an optional extension
@@ -48,9 +62,22 @@ def markup_refs(docname, app, node):
     #
     # Associate each regex with the function that will markup its matches
     #
-    markup_func = {RE_type: markup_c_ref,
-                   RE_function: markup_c_ref,
-                   RE_doc: markup_doc_ref}
+    markup_func_sphinx2 = {RE_doc: markup_doc_ref,
+                           RE_function: markup_c_ref,
+                           RE_generic_type: markup_c_ref}
+
+    markup_func_sphinx3 = {RE_doc: markup_doc_ref,
+                           RE_function: markup_c_ref,
+                           RE_struct: markup_c_ref,
+                           RE_union: markup_c_ref,
+                           RE_enum: markup_c_ref,
+                           RE_typedef: markup_c_ref}
+
+    if sphinx.version_info[0] >= 3:
+        markup_func = markup_func_sphinx3
+    else:
+        markup_func = markup_func_sphinx2
+
     match_iterators = [regex.finditer(t) for regex in markup_func]
     #
     # Sort all references by the starting position in text
@@ -79,8 +106,24 @@ def markup_refs(docname, app, node):
 # type_name) with an appropriate cross reference.
 #
 def markup_c_ref(docname, app, match):
-    class_str = {RE_function: 'c-func', RE_type: 'c-type'}
-    reftype_str = {RE_function: 'function', RE_type: 'type'}
+    class_str = {RE_function: 'c-func',
+                 # Sphinx 2 only
+                 RE_generic_type: 'c-type',
+                 # Sphinx 3+ only
+                 RE_struct: 'c-struct',
+                 RE_union: 'c-union',
+                 RE_enum: 'c-enum',
+                 RE_typedef: 'c-type',
+                 }
+    reftype_str = {RE_function: 'function',
+                   # Sphinx 2 only
+                   RE_generic_type: 'type',
+                   # Sphinx 3+ only
+                   RE_struct: 'struct',
+                   RE_union: 'union',
+                   RE_enum: 'enum',
+                   RE_typedef: 'type',
+                   }
 
     cdom = app.env.domains['c']
     #
