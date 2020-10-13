@@ -179,7 +179,6 @@ struct mtk_dsi_driver_data {
 };
 
 struct mtk_dsi {
-	struct mtk_ddp_comp ddp_comp;
 	struct device *dev;
 	struct mipi_dsi_host host;
 	struct drm_encoder encoder;
@@ -948,7 +947,7 @@ static int mtk_dsi_encoder_init(struct drm_device *drm, struct mtk_dsi *dsi)
 		return ret;
 	}
 
-	dsi->encoder.possible_crtcs = mtk_drm_find_possible_crtc_by_comp(drm, dsi->ddp_comp);
+	dsi->encoder.possible_crtcs = mtk_drm_find_possible_crtc_by_comp(drm, dsi->host.dev);
 
 	ret = drm_bridge_attach(&dsi->encoder, &dsi->bridge, NULL,
 				DRM_BRIDGE_ATTACH_NO_CONNECTOR);
@@ -976,32 +975,17 @@ static int mtk_dsi_bind(struct device *dev, struct device *master, void *data)
 	struct drm_device *drm = data;
 	struct mtk_dsi *dsi = dev_get_drvdata(dev);
 
-	ret = mtk_ddp_comp_register(drm, &dsi->ddp_comp);
-	if (ret < 0) {
-		dev_err(dev, "Failed to register component %pOF: %d\n",
-			dev->of_node, ret);
-		return ret;
-	}
-
 	ret = mtk_dsi_encoder_init(drm, dsi);
-	if (ret)
-		goto err_unregister;
 
-	return 0;
-
-err_unregister:
-	mtk_ddp_comp_unregister(drm, &dsi->ddp_comp);
 	return ret;
 }
 
 static void mtk_dsi_unbind(struct device *dev, struct device *master,
 			   void *data)
 {
-	struct drm_device *drm = data;
 	struct mtk_dsi *dsi = dev_get_drvdata(dev);
 
 	drm_encoder_cleanup(&dsi->encoder);
-	mtk_ddp_comp_unregister(drm, &dsi->ddp_comp);
 }
 
 static const struct component_ops mtk_dsi_component_ops = {
@@ -1016,7 +1000,6 @@ static int mtk_dsi_probe(struct platform_device *pdev)
 	struct drm_panel *panel;
 	struct resource *regs;
 	int irq_num;
-	int comp_id;
 	int ret;
 
 	dsi = devm_kzalloc(dev, sizeof(*dsi), GFP_KERNEL);
@@ -1083,19 +1066,6 @@ static int mtk_dsi_probe(struct platform_device *pdev)
 	if (IS_ERR(dsi->phy)) {
 		ret = PTR_ERR(dsi->phy);
 		dev_err(dev, "Failed to get MIPI-DPHY: %d\n", ret);
-		goto err_unregister_host;
-	}
-
-	comp_id = mtk_ddp_comp_get_id(dev->of_node, MTK_DSI);
-	if (comp_id < 0) {
-		dev_err(dev, "Failed to identify by alias: %d\n", comp_id);
-		ret = comp_id;
-		goto err_unregister_host;
-	}
-
-	ret = mtk_ddp_comp_init(dev->of_node, &dsi->ddp_comp, comp_id);
-	if (ret) {
-		dev_err(dev, "Failed to initialize component: %d\n", ret);
 		goto err_unregister_host;
 	}
 

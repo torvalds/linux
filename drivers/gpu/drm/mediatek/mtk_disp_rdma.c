@@ -62,7 +62,6 @@ struct mtk_disp_rdma_data {
  * @data: local driver data
  */
 struct mtk_disp_rdma {
-	struct mtk_ddp_comp		ddp_comp;
 	struct clk			*clk;
 	void __iomem			*regs;
 	struct cmdq_client_reg		cmdq_reg;
@@ -250,17 +249,6 @@ void mtk_rdma_layer_config(struct device *dev, unsigned int idx,
 static int mtk_disp_rdma_bind(struct device *dev, struct device *master,
 			      void *data)
 {
-	struct mtk_disp_rdma *priv = dev_get_drvdata(dev);
-	struct drm_device *drm_dev = data;
-	int ret;
-
-	ret = mtk_ddp_comp_register(drm_dev, &priv->ddp_comp);
-	if (ret < 0) {
-		dev_err(dev, "Failed to register component %pOF: %d\n",
-			dev->of_node, ret);
-		return ret;
-	}
-
 	return 0;
 
 }
@@ -268,10 +256,6 @@ static int mtk_disp_rdma_bind(struct device *dev, struct device *master,
 static void mtk_disp_rdma_unbind(struct device *dev, struct device *master,
 				 void *data)
 {
-	struct mtk_disp_rdma *priv = dev_get_drvdata(dev);
-	struct drm_device *drm_dev = data;
-
-	mtk_ddp_comp_unregister(drm_dev, &priv->ddp_comp);
 }
 
 static const struct component_ops mtk_disp_rdma_component_ops = {
@@ -284,7 +268,6 @@ static int mtk_disp_rdma_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct mtk_disp_rdma *priv;
 	struct resource *res;
-	int comp_id;
 	int irq;
 	int ret;
 
@@ -313,21 +296,6 @@ static int mtk_disp_rdma_probe(struct platform_device *pdev)
 	if (ret)
 		dev_dbg(dev, "get mediatek,gce-client-reg fail!\n");
 #endif
-
-	comp_id = mtk_ddp_comp_get_id(dev->of_node, MTK_DISP_RDMA);
-	if (comp_id < 0) {
-		dev_err(dev, "Failed to identify by alias: %d\n", comp_id);
-		return comp_id;
-	}
-
-	ret = mtk_ddp_comp_init(dev->of_node, &priv->ddp_comp, comp_id);
-	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "Failed to initialize component: %d\n",
-				ret);
-
-		return ret;
-	}
 
 	/* Disable and clear pending interrupts */
 	writel(0x0, priv->regs + DISP_REG_RDMA_INT_ENABLE);

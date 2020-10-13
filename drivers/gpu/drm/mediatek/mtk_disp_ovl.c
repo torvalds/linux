@@ -71,7 +71,6 @@ struct mtk_disp_ovl_data {
  * @data: platform data
  */
 struct mtk_disp_ovl {
-	struct mtk_ddp_comp		ddp_comp;
 	struct drm_crtc			*crtc;
 	struct clk			*clk;
 	void __iomem			*regs;
@@ -342,27 +341,12 @@ void mtk_ovl_bgclr_in_off(struct device *dev)
 static int mtk_disp_ovl_bind(struct device *dev, struct device *master,
 			     void *data)
 {
-	struct mtk_disp_ovl *priv = dev_get_drvdata(dev);
-	struct drm_device *drm_dev = data;
-	int ret;
-
-	ret = mtk_ddp_comp_register(drm_dev, &priv->ddp_comp);
-	if (ret < 0) {
-		dev_err(dev, "Failed to register component %pOF: %d\n",
-			dev->of_node, ret);
-		return ret;
-	}
-
 	return 0;
 }
 
 static void mtk_disp_ovl_unbind(struct device *dev, struct device *master,
 				void *data)
 {
-	struct mtk_disp_ovl *priv = dev_get_drvdata(dev);
-	struct drm_device *drm_dev = data;
-
-	mtk_ddp_comp_unregister(drm_dev, &priv->ddp_comp);
 }
 
 static const struct component_ops mtk_disp_ovl_component_ops = {
@@ -375,7 +359,6 @@ static int mtk_disp_ovl_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct mtk_disp_ovl *priv;
 	struct resource *res;
-	int comp_id;
 	int irq;
 	int ret;
 
@@ -406,25 +389,6 @@ static int mtk_disp_ovl_probe(struct platform_device *pdev)
 #endif
 
 	priv->data = of_device_get_match_data(dev);
-
-	comp_id = mtk_ddp_comp_get_id(dev->of_node,
-				      priv->data->layer_nr == 4 ?
-				      MTK_DISP_OVL :
-				      MTK_DISP_OVL_2L);
-	if (comp_id < 0) {
-		dev_err(dev, "Failed to identify by alias: %d\n", comp_id);
-		return comp_id;
-	}
-
-	ret = mtk_ddp_comp_init(dev->of_node, &priv->ddp_comp, comp_id);
-	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "Failed to initialize component: %d\n",
-				ret);
-
-		return ret;
-	}
-
 	platform_set_drvdata(pdev, priv);
 
 	ret = devm_request_irq(dev, irq, mtk_disp_ovl_irq_handler,
@@ -443,8 +407,6 @@ static int mtk_disp_ovl_probe(struct platform_device *pdev)
 
 static int mtk_disp_ovl_remove(struct platform_device *pdev)
 {
-	component_del(&pdev->dev, &mtk_disp_ovl_component_ops);
-
 	return 0;
 }
 

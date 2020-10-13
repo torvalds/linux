@@ -786,7 +786,7 @@ int mtk_drm_crtc_create(struct drm_device *drm_dev,
 		struct device_node *node;
 
 		node = priv->comp_node[comp_id];
-		comp = priv->ddp_comp[comp_id];
+		comp = &priv->ddp_comp[comp_id];
 		if (!comp) {
 			dev_err(dev, "Component %pOF not initialized\n", node);
 			ret = -ENODEV;

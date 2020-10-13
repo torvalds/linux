@@ -524,9 +524,10 @@ static const struct mtk_ddp_comp_match mtk_ddp_matches[DDP_COMPONENT_ID_MAX] = {
 	[DDP_COMPONENT_WDMA1]	= { MTK_DISP_WDMA,	1, NULL },
 };
 
-static bool mtk_drm_find_comp_in_ddp(struct mtk_ddp_comp ddp_comp,
+static bool mtk_drm_find_comp_in_ddp(struct device *dev,
 				     const enum mtk_ddp_comp_id *path,
-				     unsigned int path_len)
+				     unsigned int path_len,
+				     struct mtk_ddp_comp *ddp_comp)
 {
 	unsigned int i;
 
@@ -534,7 +535,7 @@ static bool mtk_drm_find_comp_in_ddp(struct mtk_ddp_comp ddp_comp,
 		return false;
 
 	for (i = 0U; i < path_len; i++)
-		if (ddp_comp.id == path[i])
+		if (dev == ddp_comp[path[i]].dev)
 			return true;
 
 	return false;
@@ -556,18 +557,19 @@ int mtk_ddp_comp_get_id(struct device_node *node,
 }
 
 unsigned int mtk_drm_find_possible_crtc_by_comp(struct drm_device *drm,
-						struct mtk_ddp_comp ddp_comp)
+						struct device *dev)
 {
 	struct mtk_drm_private *private = drm->dev_private;
 	unsigned int ret = 0;
 
-	if (mtk_drm_find_comp_in_ddp(ddp_comp, private->data->main_path, private->data->main_len))
+	if (mtk_drm_find_comp_in_ddp(dev, private->data->main_path, private->data->main_len,
+				     private->ddp_comp))
 		ret = BIT(0);
-	else if (mtk_drm_find_comp_in_ddp(ddp_comp, private->data->ext_path,
-					  private->data->ext_len))
+	else if (mtk_drm_find_comp_in_ddp(dev, private->data->ext_path,
+					  private->data->ext_len, private->ddp_comp))
 		ret = BIT(1);
-	else if (mtk_drm_find_comp_in_ddp(ddp_comp, private->data->third_path,
-					  private->data->third_len))
+	else if (mtk_drm_find_comp_in_ddp(dev, private->data->third_path,
+					  private->data->third_len, private->ddp_comp))
 		ret = BIT(2);
 	else
 		DRM_INFO("Failed to find comp in ddp table\n");
@@ -659,22 +661,4 @@ int mtk_ddp_comp_init(struct device_node *node, struct mtk_ddp_comp *comp,
 	platform_set_drvdata(comp_pdev, priv);
 
 	return 0;
-}
-
-int mtk_ddp_comp_register(struct drm_device *drm, struct mtk_ddp_comp *comp)
-{
-	struct mtk_drm_private *private = drm->dev_private;
-
-	if (private->ddp_comp[comp->id])
-		return -EBUSY;
-
-	private->ddp_comp[comp->id] = comp;
-	return 0;
-}
-
-void mtk_ddp_comp_unregister(struct drm_device *drm, struct mtk_ddp_comp *comp)
-{
-	struct mtk_drm_private *private = drm->dev_private;
-
-	private->ddp_comp[comp->id] = NULL;
 }
