@@ -3,7 +3,7 @@
 #include <linux/memregion.h>
 #include <linux/module.h>
 #include <linux/pfn_t.h>
-#include "bus.h"
+#include "../bus.h"
 
 static int dax_hmem_probe(struct platform_device *pdev)
 {
