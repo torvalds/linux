@@ -42,6 +42,8 @@ examples:
 
     spi {
       spi-slave;
+      #address-cells = <0>;
+      #size-cells = <0>;
       ready-gpios = <&gpio 125 GPIO_ACTIVE_HIGH>;
 
       slave {
