@@ -8234,6 +8234,7 @@ struct page *has_unmovable_pages(struct zone *zone, struct page *page,
 {
 	unsigned long iter = 0;
 	unsigned long pfn = page_to_pfn(page);
+	unsigned long offset = pfn % pageblock_nr_pages;
 
 	if (is_migrate_cma_page(page)) {
 		/*
@@ -8247,7 +8248,7 @@ struct page *has_unmovable_pages(struct zone *zone, struct page *page,
 		return page;
 	}
 
-	for (; iter < pageblock_nr_pages; iter++) {
+	for (; iter < pageblock_nr_pages - offset; iter++) {
 		if (!pfn_valid_within(pfn + iter))
 			continue;
 
