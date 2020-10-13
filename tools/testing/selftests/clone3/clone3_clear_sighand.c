@@ -47,7 +47,7 @@ static void test_clone3_clear_sighand(void)
 {
 	int ret;
 	pid_t pid;
-	struct clone_args args = {};
+	struct __clone_args args = {};
 	struct sigaction act;
 
 	/*
