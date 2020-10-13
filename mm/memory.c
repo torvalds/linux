@@ -3764,7 +3764,7 @@ static vm_fault_t do_set_pmd(struct vm_fault *vmf, struct page *page)
 
 /**
  * alloc_set_pte - setup new PTE entry for given page and add reverse page
- * mapping. If needed, the fucntion allocates page table or use pre-allocated.
+ * mapping. If needed, the function allocates page table or use pre-allocated.
  *
  * @vmf: fault environment
  * @page: page to map
