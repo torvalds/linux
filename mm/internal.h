@@ -65,6 +65,9 @@ static inline void ra_submit(struct file_ra_state *ra,
 			ra->start, ra->size, ra->async_size);
 }
 
+struct page *find_get_entry(struct address_space *mapping, pgoff_t index);
+struct page *find_lock_entry(struct address_space *mapping, pgoff_t index);
+
 /**
  * page_evictable - test whether a page is evictable
  * @page: the page to test
