@@ -22,13 +22,6 @@
 #define ACPI_MEMORY_DEVICE_HID			"PNP0C80"
 #define ACPI_MEMORY_DEVICE_NAME			"Hotplug Mem Device"
 
-#define _COMPONENT		ACPI_MEMORY_DEVICE_COMPONENT
-
-#undef PREFIX
-#define 	PREFIX		"ACPI:memory_hp:"
-
-ACPI_MODULE_NAME("acpi_memhotplug");
-
 static const struct acpi_device_id memory_device_ids[] = {
 	{ACPI_MEMORY_DEVICE_HID, 0},
 	{"", 0},

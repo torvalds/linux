@@ -865,7 +865,7 @@ static inline bool acpi_driver_match_device(struct device *dev,
 
 static inline union acpi_object *acpi_evaluate_dsm(acpi_handle handle,
 						   const guid_t *guid,
-						   int rev, int func,
+						   u64 rev, u64 func,
 						   union acpi_object *argv4)
 {
 	return NULL;
@@ -977,8 +977,6 @@ int acpi_subsys_runtime_suspend(struct device *dev);
 int acpi_subsys_runtime_resume(struct device *dev);
 int acpi_dev_pm_attach(struct device *dev, bool power_on);
 #else
-static inline int acpi_dev_runtime_suspend(struct device *dev) { return 0; }
-static inline int acpi_dev_runtime_resume(struct device *dev) { return 0; }
 static inline int acpi_subsys_runtime_suspend(struct device *dev) { return 0; }
 static inline int acpi_subsys_runtime_resume(struct device *dev) { return 0; }
 static inline int acpi_dev_pm_attach(struct device *dev, bool power_on)
@@ -1212,13 +1210,6 @@ acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 static inline int acpi_node_prop_get(const struct fwnode_handle *fwnode,
 				     const char *propname,
 				     void **valptr)
-{
-	return -ENXIO;
-}
-
-static inline int acpi_dev_prop_get(const struct acpi_device *adev,
-				    const char *propname,
-				    void **valptr)
 {
 	return -ENXIO;
 }
