@@ -1212,7 +1212,7 @@ icl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 
 	/* Wa_1607087056:icl,ehl,jsl */
 	if (IS_ICELAKE(i915) ||
-	    IS_EHL_REVID(i915, EHL_REVID_A0, EHL_REVID_A0)) {
+		IS_JSL_EHL_REVID(i915, EHL_REVID_A0, EHL_REVID_A0)) {
 		wa_write_or(wal,
 			    SLICE_UNIT_LEVEL_CLKGATE,
 			    L3_CLKGATE_DIS | L3_CR2X_CLKGATE_DIS);
@@ -1839,7 +1839,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 			    GEN12_FF_TESSELATION_DOP_GATE_DISABLE);
 
 		/* Wa_22010271021:ehl */
-		if (IS_ELKHARTLAKE(i915))
+		if (IS_JSL_EHL(i915))
 			wa_masked_en(wal,
 				     GEN9_CS_DEBUG_MODE1,
 				     FF_DOP_CLOCK_GATE_DISABLE);
