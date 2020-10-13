@@ -3066,6 +3066,10 @@ static const struct of_device_id qcom_nandc_of_match[] = {
 		.data = &ipq4019_nandc_props,
 	},
 	{
+		.compatible = "qcom,ipq6018-nand",
+		.data = &ipq8074_nandc_props,
+	},
+	{
 		.compatible = "qcom,ipq8074-nand",
 		.data = &ipq8074_nandc_props,
 	},
