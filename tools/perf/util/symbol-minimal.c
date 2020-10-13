@@ -222,9 +222,8 @@ out:
 	return ret;
 }
 
-int sysfs__read_build_id(const char *filename, void *build_id, size_t size __maybe_unused)
+int sysfs__read_build_id(const char *filename, struct build_id *bid)
 {
-	struct build_id bid;
 	int fd;
 	int ret = -1;
 	struct stat stbuf;
@@ -246,9 +245,7 @@ int sysfs__read_build_id(const char *filename, void *build_id, size_t size __may
 	if (read(fd, buf, buf_size) != (ssize_t) buf_size)
 		goto out_free;
 
-	ret = read_build_id(buf, buf_size, &bid, false);
-	if (ret > 0)
-		memcpy(build_id, bid.data, bid.size);
+	ret = read_build_id(buf, buf_size, bid, false);
 out_free:
 	free(buf);
 out:

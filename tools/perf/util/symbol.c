@@ -2122,7 +2122,7 @@ static bool filename__readable(const char *file)
 
 static char *dso__find_kallsyms(struct dso *dso, struct map *map)
 {
-	u8 host_build_id[BUILD_ID_SIZE];
+	struct build_id bid;
 	char sbuild_id[SBUILD_ID_SIZE];
 	bool is_host = false;
 	char path[PATH_MAX];
@@ -2135,9 +2135,8 @@ static char *dso__find_kallsyms(struct dso *dso, struct map *map)
 		goto proc_kallsyms;
 	}
 
-	if (sysfs__read_build_id("/sys/kernel/notes", host_build_id,
-				 sizeof(host_build_id)) == 0)
-		is_host = dso__build_id_equal(dso, host_build_id);
+	if (sysfs__read_build_id("/sys/kernel/notes", &bid) == 0)
+		is_host = dso__build_id_equal(dso, bid.data);
 
 	/* Try a fast path for /proc/kallsyms if possible */
 	if (is_host) {

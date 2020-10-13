@@ -595,12 +595,10 @@ out:
 
 #endif // HAVE_LIBBFD_BUILDID_SUPPORT
 
-int sysfs__read_build_id(const char *filename, void *build_id, size_t size)
+int sysfs__read_build_id(const char *filename, struct build_id *bid)
 {
+	size_t size = sizeof(bid->data);
 	int fd, err = -1;
-
-	if (size < BUILD_ID_SIZE)
-		goto out;
 
 	fd = open(filename, O_RDONLY);
 	if (fd < 0)
@@ -622,8 +620,9 @@ int sysfs__read_build_id(const char *filename, void *build_id, size_t size)
 				break;
 			if (memcmp(bf, "GNU", sizeof("GNU")) == 0) {
 				size_t sz = min(descsz, size);
-				if (read(fd, build_id, sz) == (ssize_t)sz) {
-					memset(build_id + sz, 0, size - sz);
+				if (read(fd, bid->data, sz) == (ssize_t)sz) {
+					memset(bid->data + sz, 0, size - sz);
+					bid->size = sz;
 					err = 0;
 					break;
 				}

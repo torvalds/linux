@@ -1346,8 +1346,7 @@ void dso__read_running_kernel_build_id(struct dso *dso, struct machine *machine)
 	if (machine__is_default_guest(machine))
 		return;
 	sprintf(path, "%s/sys/kernel/notes", machine->root_dir);
-	if (sysfs__read_build_id(path, dso->bid.data,
-				 sizeof(dso->bid.data)) == 0)
+	if (sysfs__read_build_id(path, &dso->bid) == 0)
 		dso->has_build_id = true;
 }
 
@@ -1365,8 +1364,7 @@ int dso__kernel_module_get_build_id(struct dso *dso,
 		 "%s/sys/module/%.*s/notes/.note.gnu.build-id",
 		 root_dir, (int)strlen(name) - 1, name);
 
-	if (sysfs__read_build_id(filename, dso->bid.data,
-				 sizeof(dso->bid.data)) == 0)
+	if (sysfs__read_build_id(filename, &dso->bid) == 0)
 		dso->has_build_id = true;
 
 	return 0;

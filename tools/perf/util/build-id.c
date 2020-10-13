@@ -113,7 +113,7 @@ int build_id__sprintf(const u8 *build_id, int len, char *bf)
 int sysfs__sprintf_build_id(const char *root_dir, char *sbuild_id)
 {
 	char notes[PATH_MAX];
-	u8 build_id[BUILD_ID_SIZE];
+	struct build_id bid;
 	int ret;
 
 	if (!root_dir)
@@ -121,11 +121,11 @@ int sysfs__sprintf_build_id(const char *root_dir, char *sbuild_id)
 
 	scnprintf(notes, sizeof(notes), "%s/sys/kernel/notes", root_dir);
 
-	ret = sysfs__read_build_id(notes, build_id, sizeof(build_id));
+	ret = sysfs__read_build_id(notes, &bid);
 	if (ret < 0)
 		return ret;
 
-	return build_id__sprintf(build_id, sizeof(build_id), sbuild_id);
+	return build_id__sprintf(bid.data, sizeof(bid.data), sbuild_id);
 }
 
 int filename__sprintf_build_id(const char *pathname, char *sbuild_id)
