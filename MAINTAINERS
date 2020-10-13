@@ -10178,6 +10178,7 @@ M:	Mateusz Holenko <mholenko@antmicro.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/*/litex,*.yaml
 F:	drivers/soc/litex/litex_soc_ctrl.c
+F:	drivers/tty/serial/liteuart.c
 F:	include/linux/litex.h
 
 LIVE PATCHING
