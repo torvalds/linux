@@ -100,7 +100,12 @@ struct socket_smack {
 	struct smack_known	*smk_out;	/* outbound label */
 	struct smack_known	*smk_in;	/* inbound label */
 	struct smack_known	*smk_packet;	/* TCP peer label */
+	int			smk_state;	/* netlabel socket states */
 };
+#define	SMK_NETLBL_UNSET	0
+#define	SMK_NETLBL_UNLABELED	1
+#define	SMK_NETLBL_LABELED	2
+#define	SMK_NETLBL_REQSKB	3
 
 /*
  * Inode smack data
@@ -195,19 +200,6 @@ enum {
 
 #define SMACK_DELETE_OPTION	"-DELETE"
 #define SMACK_CIPSO_OPTION 	"-CIPSO"
-
-/*
- * How communications on this socket are treated.
- * Usually it's determined by the underlying netlabel code
- * but there are certain cases, including single label hosts
- * and potentially single label interfaces for which the
- * treatment can not be known in advance.
- *
- * The possibility of additional labeling schemes being
- * introduced in the future exists as well.
- */
-#define SMACK_UNLABELED_SOCKET	0
-#define SMACK_CIPSO_SOCKET	1
 
 /*
  * CIPSO defaults.
@@ -305,6 +297,7 @@ struct smack_known *smk_find_entry(const char *);
 bool smack_privileged(int cap);
 bool smack_privileged_cred(int cap, const struct cred *cred);
 void smk_destroy_label_list(struct list_head *list);
+int smack_populate_secattr(struct smack_known *skp);
 
 /*
  * Shared data.
