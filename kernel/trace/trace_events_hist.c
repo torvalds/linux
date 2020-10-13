@@ -3687,7 +3687,7 @@ static int create_var_field(struct hist_trigger_data *hist_data,
 
 	ret = __create_val_field(hist_data, val_idx, file, var_name, expr_str, flags);
 
-	if (hist_data->fields[val_idx]->flags & HIST_FIELD_FL_STRING)
+	if (!ret && hist_data->fields[val_idx]->flags & HIST_FIELD_FL_STRING)
 		hist_data->fields[val_idx]->var_str_idx = hist_data->n_var_str++;
 
 	return ret;
