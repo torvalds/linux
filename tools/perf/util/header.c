@@ -2082,8 +2082,10 @@ static int __event_process_build_id(struct perf_record_header_build_id *bev,
 	dso = machine__findnew_dso(machine, filename);
 	if (dso != NULL) {
 		char sbuild_id[SBUILD_ID_SIZE];
+		struct build_id bid;
 
-		dso__set_build_id(dso, &bev->build_id);
+		build_id__init(&bid, bev->build_id, BUILD_ID_SIZE);
+		dso__set_build_id(dso, &bid);
 
 		if (dso_space != DSO_SPACE__USER) {
 			struct kmod_path m = { .name = NULL, };

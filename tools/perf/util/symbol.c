@@ -1818,7 +1818,7 @@ int dso__load(struct dso *dso, struct map *map)
 	    is_regular_file(dso->long_name)) {
 	    __symbol__join_symfs(name, PATH_MAX, dso->long_name);
 		if (filename__read_build_id(name, &bid) > 0)
-			dso__set_build_id(dso, bid.data);
+			dso__set_build_id(dso, &bid);
 	}
 
 	/*

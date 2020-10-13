@@ -349,7 +349,7 @@ int dso__load_sym(struct dso *dso, struct map *map __maybe_unused,
 		dso->is_64_bit = ret;
 
 	if (filename__read_build_id(ss->name, &bid) > 0)
-		dso__set_build_id(dso, bid.data);
+		dso__set_build_id(dso, &bid);
 	return 0;
 }
 

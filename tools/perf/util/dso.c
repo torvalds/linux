@@ -1326,9 +1326,9 @@ void dso__put(struct dso *dso)
 		dso__delete(dso);
 }
 
-void dso__set_build_id(struct dso *dso, void *build_id)
+void dso__set_build_id(struct dso *dso, struct build_id *bid)
 {
-	memcpy(dso->bid.data, build_id, sizeof(dso->bid.data));
+	dso->bid = *bid;
 	dso->has_build_id = 1;
 }
 
