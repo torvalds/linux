@@ -1332,9 +1332,10 @@ void dso__set_build_id(struct dso *dso, struct build_id *bid)
 	dso->has_build_id = 1;
 }
 
-bool dso__build_id_equal(const struct dso *dso, u8 *build_id)
+bool dso__build_id_equal(const struct dso *dso, struct build_id *bid)
 {
-	return memcmp(dso->bid.data, build_id, sizeof(dso->bid.data)) == 0;
+	return dso->bid.size == bid->size &&
+	       memcmp(dso->bid.data, bid->data, dso->bid.size) == 0;
 }
 
 void dso__read_running_kernel_build_id(struct dso *dso, struct machine *machine)

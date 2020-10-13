@@ -261,7 +261,7 @@ void dso__set_sorted_by_name(struct dso *dso);
 void dso__sort_by_name(struct dso *dso);
 
 void dso__set_build_id(struct dso *dso, struct build_id *bid);
-bool dso__build_id_equal(const struct dso *dso, u8 *build_id);
+bool dso__build_id_equal(const struct dso *dso, struct build_id *bid);
 void dso__read_running_kernel_build_id(struct dso *dso,
 				       struct machine *machine);
 int dso__kernel_module_get_build_id(struct dso *dso, const char *root_dir);

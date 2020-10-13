@@ -834,13 +834,17 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 	/* Always reject images with a mismatched build-id: */
 	if (dso->has_build_id && !symbol_conf.ignore_vmlinux_buildid) {
 		u8 build_id[BUILD_ID_SIZE];
+		struct build_id bid;
+		int size;
 
-		if (elf_read_build_id(elf, build_id, BUILD_ID_SIZE) < 0) {
+		size = elf_read_build_id(elf, build_id, BUILD_ID_SIZE);
+		if (size <= 0) {
 			dso->load_errno = DSO_LOAD_ERRNO__CANNOT_READ_BUILDID;
 			goto out_elf_end;
 		}
 
-		if (!dso__build_id_equal(dso, build_id)) {
+		build_id__init(&bid, build_id, size);
+		if (!dso__build_id_equal(dso, &bid)) {
 			pr_debug("%s: build id mismatch for %s.\n", __func__, name);
 			dso->load_errno = DSO_LOAD_ERRNO__MISMATCHING_BUILDID;
 			goto out_elf_end;

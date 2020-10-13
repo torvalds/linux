@@ -2136,7 +2136,7 @@ static char *dso__find_kallsyms(struct dso *dso, struct map *map)
 	}
 
 	if (sysfs__read_build_id("/sys/kernel/notes", &bid) == 0)
-		is_host = dso__build_id_equal(dso, bid.data);
+		is_host = dso__build_id_equal(dso, &bid);
 
 	/* Try a fast path for /proc/kallsyms if possible */
 	if (is_host) {
