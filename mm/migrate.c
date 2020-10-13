@@ -381,7 +381,7 @@ static int expected_page_refs(struct address_space *mapping, struct page *page)
 	int expected_count = 1;
 
 	/*
-	 * Device public or private pages have an extra refcount as they are
+	 * Device private pages have an extra refcount as they are
 	 * ZONE_DEVICE pages.
 	 */
 	expected_count += is_device_private_page(page);
