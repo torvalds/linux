@@ -8,6 +8,7 @@
 #include "alloc_background.h"
 #include "alloc_foreground.h"
 #include "bkey_methods.h"
+#include "bkey_on_stack.h"
 #include "btree_locking.h"
 #include "btree_update_interior.h"
 #include "btree_io.h"
@@ -890,40 +891,77 @@ out:
 	return ret;
 }
 
+static bool gc_btree_gens_key(struct bch_fs *c, struct bkey_s_c k)
+{
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+	const struct bch_extent_ptr *ptr;
+
+	percpu_down_read(&c->mark_lock);
+	bkey_for_each_ptr(ptrs, ptr) {
+		struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
+		struct bucket *g = PTR_BUCKET(ca, ptr, false);
+
+		if (gen_after(g->mark.gen, ptr->gen) > 16) {
+			percpu_up_read(&c->mark_lock);
+			return true;
+		}
+	}
+
+	bkey_for_each_ptr(ptrs, ptr) {
+		struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
+		struct bucket *g = PTR_BUCKET(ca, ptr, false);
+
+		if (gen_after(g->gc_gen, ptr->gen))
+			g->gc_gen = ptr->gen;
+	}
+	percpu_up_read(&c->mark_lock);
+
+	return false;
+}
+
 /*
  * For recalculating oldest gen, we only need to walk keys in leaf nodes; btree
  * node pointers currently never have cached pointers that can become stale:
  */
-static int bch2_gc_btree_gens(struct bch_fs *c, enum btree_id id)
+static int bch2_gc_btree_gens(struct bch_fs *c, enum btree_id btree_id)
 {
 	struct btree_trans trans;
 	struct btree_iter *iter;
 	struct bkey_s_c k;
-	int ret;
+	struct bkey_on_stack sk;
+	int ret = 0;
 
+	bkey_on_stack_init(&sk);
 	bch2_trans_init(&trans, c, 0, 0);
 
-	for_each_btree_key(&trans, iter, id, POS_MIN, BTREE_ITER_PREFETCH, k, ret) {
-		struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
-		const struct bch_extent_ptr *ptr;
+	iter = bch2_trans_get_iter(&trans, btree_id, POS_MIN,
+				   BTREE_ITER_PREFETCH);
 
-		percpu_down_read(&c->mark_lock);
-		bkey_for_each_ptr(ptrs, ptr) {
-			struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
-			struct bucket *g = PTR_BUCKET(ca, ptr, false);
+	while ((k = bch2_btree_iter_peek(iter)).k &&
+	       !(ret = bkey_err(k))) {
+		if (gc_btree_gens_key(c, k)) {
+			bkey_on_stack_reassemble(&sk, c, k);
+			bch2_extent_normalize(c, bkey_i_to_s(sk.k));
 
-			if (gen_after(g->gc_gen, ptr->gen))
-				g->gc_gen = ptr->gen;
+			bch2_btree_iter_set_pos(iter, bkey_start_pos(&sk.k->k));
 
-			if (gen_after(g->mark.gen, ptr->gen) > 32) {
-				/* rewrite btree node */
+			bch2_trans_update(&trans, iter, sk.k, 0);
 
+			ret = bch2_trans_commit(&trans, NULL, NULL,
+						BTREE_INSERT_NOFAIL);
+			if (ret == -EINTR)
+				continue;
+			if (ret) {
+				break;
 			}
 		}
-		percpu_up_read(&c->mark_lock);
+
+		bch2_btree_iter_next(iter);
 	}
 
 	bch2_trans_exit(&trans);
+	bkey_on_stack_exit(&sk, c);
+
 	return ret;
 }
 
