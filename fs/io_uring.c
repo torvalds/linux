@@ -760,7 +760,7 @@ struct io_op_def {
 	unsigned short		async_size;
 };
 
-static const struct io_op_def io_op_defs[] __read_mostly = {
+static const struct io_op_def io_op_defs[] = {
 	[IORING_OP_NOP] = {},
 	[IORING_OP_READV] = {
 		.needs_mm		= 1,
@@ -983,7 +983,7 @@ static int io_setup_async_rw(struct io_kiocb *req, const struct iovec *iovec,
 
 static struct kmem_cache *req_cachep;
 
-static const struct file_operations io_uring_fops __read_mostly;
+static const struct file_operations io_uring_fops;
 
 struct sock *io_uring_get_socket(struct file *file)
 {
