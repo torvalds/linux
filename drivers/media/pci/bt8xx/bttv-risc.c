@@ -572,7 +572,6 @@ bttv_dma_free(struct videobuf_queue *q,struct bttv *btv, struct bttv_buffer *buf
 {
 	struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
 
-	BUG_ON(in_interrupt());
 	videobuf_waiton(q, &buf->vb, 0, 0);
 	videobuf_dma_unmap(q->dev, dma);
 	videobuf_dma_free(dma);

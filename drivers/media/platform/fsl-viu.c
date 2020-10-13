@@ -381,8 +381,6 @@ static void free_buffer(struct videobuf_queue *vq, struct viu_buf *buf)
 	struct videobuf_buffer *vb = &buf->vb;
 	void *vaddr = NULL;
 
-	BUG_ON(in_interrupt());
-
 	videobuf_waiton(vq, &buf->vb, 0, 0);
 
 	if (vq->int_ops && vq->int_ops->vaddr)
