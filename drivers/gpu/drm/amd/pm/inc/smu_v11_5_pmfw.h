@@ -89,7 +89,7 @@
 #define FEATURE_SOC_VOLTAGE_MON_BIT   55
 #define FEATURE_ATHUB_PG_BIT          56
 #define FEATURE_ECO_DEEPCSTATE_BIT    57
-#define FEATURE_CC6                   58
+#define FEATURE_CC6_BIT               58
 #define NUM_FEATURES                  59
 
 typedef struct {
