@@ -100,13 +100,13 @@ typedef struct {
   DpmActivityMonitorCoeffExt_t DpmActivityMonitorCoeff[CUSTOM_DPM_SETTING_COUNT];
 } CustomDpmSettings_t;
 
-#define NUM_DCFCLK_DPM_LEVELS 6
-#define NUM_DISPCLK_DPM_LEVELS 6
-#define NUM_DPPCLK_DPM_LEVELS 6
-#define NUM_SOCCLK_DPM_LEVELS 8
-#define NUM_ISPICLK_DPM_LEVELS 6
-#define NUM_ISPXCLK_DPM_LEVELS 6
-#define NUM_VCN_DPM_LEVELS 8
+#define NUM_DCFCLK_DPM_LEVELS 7
+#define NUM_DISPCLK_DPM_LEVELS 7
+#define NUM_DPPCLK_DPM_LEVELS 7
+#define NUM_SOCCLK_DPM_LEVELS 7
+#define NUM_ISPICLK_DPM_LEVELS 7
+#define NUM_ISPXCLK_DPM_LEVELS 7
+#define NUM_VCN_DPM_LEVELS 5
 #define NUM_FCLK_DPM_LEVELS 4
 #define NUM_SOC_VOLTAGE_LEVELS 8
 
@@ -160,30 +160,30 @@ typedef struct {
 #define THROTTLER_STATUS_BIT_TDC_CVIP 10
 
 typedef struct {
-  uint16_t AverageGfxclkFrequency; //[MHz]
-  uint16_t AverageSocclkFrequency; //[MHz]
-  uint16_t AverageVclkFrequency;   //[MHz]
-  uint16_t AverageDclkFrequency;   //[MHz]
-  uint16_t AverageMemclkFrequency; //[MHz]
+  uint16_t GfxclkFrequency;      //[MHz]
+  uint16_t SocclkFrequency;      //[MHz]
+  uint16_t VclkFrequency;        //[MHz]
+  uint16_t DclkFrequency;        //[MHz]
+  uint16_t MemclkFrequency;      //[MHz]
   uint16_t spare;
 
-  uint16_t AverageGfxActivity; //[centi]
-  uint16_t AverageUvdActivity; //[centi]
+  uint16_t GfxActivity;          //[centi]
+  uint16_t UvdActivity;          //[centi]
 
-  uint16_t Voltage[3];         //[mV] indices: VDDCR_VDD, VDDCR_SOC, VDDCR_GFX
-  uint16_t Current[3];         //[mA] indices: VDDCR_VDD, VDDCR_SOC, VDDCR_GFX
-  uint16_t Power[3];           //[mW] indices: VDDCR_VDD, VDDCR_SOC, VDDCR_GFX
-  uint16_t CurrentSocketPower; //[mW]
+  uint16_t Voltage[3];           //[mV] indices: VDDCR_VDD, VDDCR_SOC, VDDCR_GFX
+  uint16_t Current[3];           //[mA] indices: VDDCR_VDD, VDDCR_SOC, VDDCR_GFX
+  uint16_t Power[3];             //[mW] indices: VDDCR_VDD, VDDCR_SOC, VDDCR_GFX
+  uint16_t CurrentSocketPower;   //[mW]
 
-  //3rd party tools in Windows need this info in the case of APUs
-  uint16_t CoreFrequency[8];   //[MHz]
-  uint16_t CorePower[8];       //[mW]
-  uint16_t CoreTemperature[8]; //[centi-Celsius]
-  uint16_t L3Frequency[2];     //[MHz]
-  uint16_t L3Temperature[2];   //[centi-Celsius]
+  //3rd party tools in Windows need info in the case of APUs
+  uint16_t CoreFrequency[8];     //[MHz]
+  uint16_t CorePower[8];         //[mW]
+  uint16_t CoreTemperature[8];   //[centi-Celsius]
+  uint16_t L3Frequency[2];       //[MHz]
+  uint16_t L3Temperature[2];     //[centi-Celsius]
 
-  uint16_t GfxTemperature; //[centi-Celsius]
-  uint16_t SocTemperature; //[centi-Celsius]
+  uint16_t GfxTemperature;       //[centi-Celsius]
+  uint16_t SocTemperature;       //[centi-Celsius]
   uint16_t EdgeTemperature;
   uint16_t ThrottlerStatus;
 } SmuMetrics_t;
@@ -197,15 +197,15 @@ typedef struct {
 #define WORKLOAD_PPLIB_CUSTOM_BIT 5
 #define WORKLOAD_PPLIB_COUNT 6
 
-#define TABLE_BIOS_IF 0    // Called by BIOS
-#define TABLE_WATERMARKS 1 // Called by DAL through VBIOS
-#define TABLE_CUSTOM_DPM 2 // Called by Driver
-#define TABLE_SPARE1 3
-#define TABLE_DPMCLOCKS 4    // Called by Driver
-#define TABLE_MOMENTARY_PM 5 // Called by Tools
-#define TABLE_MODERN_STDBY 6 // Called by Tools for Modern Standby Log
-#define TABLE_SMU_METRICS 7  // Called by Driver
-#define TABLE_COUNT 8
+#define TABLE_BIOS_IF            0 // Called by BIOS
+#define TABLE_WATERMARKS         1 // Called by DAL through VBIOS
+#define TABLE_CUSTOM_DPM         2 // Called by Driver
+#define TABLE_SPARE1             3
+#define TABLE_DPMCLOCKS          4 // Called by Driver
+#define TABLE_SPARE2             5 // Called by Tools
+#define TABLE_MODERN_STDBY       6 // Called by Tools for Modern Standby Log
+#define TABLE_SMU_METRICS        7 // Called by Driver
+#define TABLE_COUNT              8
 
 //ISP tile definitions
 typedef enum {
