@@ -572,6 +572,10 @@ static struct synth_field *parse_synth_field(int argc, const char **argv,
 		ret = -ENOMEM;
 		goto free;
 	}
+	if (!is_good_name(field->name)) {
+		ret = -EINVAL;
+		goto free;
+	}
 
 	if (field_type[0] == ';')
 		field_type++;
@@ -1111,6 +1115,11 @@ static int __create_synth_event(int argc, const char *name, const char **argv)
 		return -EINVAL;
 
 	mutex_lock(&event_mutex);
+
+	if (!is_good_name(name)) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	event = find_synth_event(name);
 	if (event) {
