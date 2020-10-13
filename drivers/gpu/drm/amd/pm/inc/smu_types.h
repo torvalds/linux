@@ -184,6 +184,30 @@
 	__SMU_DUMMY_MAP(SetSoftMinSocclkByFreq),         \
 	__SMU_DUMMY_MAP(PowerUpCvip),                    \
 	__SMU_DUMMY_MAP(PowerDownCvip),                  \
+       __SMU_DUMMY_MAP(EnableGfxOff),                   \
+       __SMU_DUMMY_MAP(SetSoftMinGfxclk),               \
+       __SMU_DUMMY_MAP(SetSoftMinFclk),                 \
+       __SMU_DUMMY_MAP(GetThermalLimit),                \
+       __SMU_DUMMY_MAP(GetCurrentTemperature),          \
+       __SMU_DUMMY_MAP(GetCurrentPower),                \
+       __SMU_DUMMY_MAP(GetCurrentVoltage),              \
+       __SMU_DUMMY_MAP(GetCurrentCurrent),              \
+       __SMU_DUMMY_MAP(GetAverageCpuActivity),          \
+       __SMU_DUMMY_MAP(GetAverageGfxActivity),          \
+       __SMU_DUMMY_MAP(GetAveragePower),                \
+       __SMU_DUMMY_MAP(GetAverageTemperature),          \
+       __SMU_DUMMY_MAP(SetAveragePowerTimeConstant),        \
+       __SMU_DUMMY_MAP(SetAverageActivityTimeConstant),     \
+       __SMU_DUMMY_MAP(SetAverageTemperatureTimeConstant),  \
+       __SMU_DUMMY_MAP(SetMitigationEndHysteresis),         \
+       __SMU_DUMMY_MAP(GetCurrentFreq),                     \
+       __SMU_DUMMY_MAP(SetReducedPptLimit),                 \
+       __SMU_DUMMY_MAP(SetReducedThermalLimit),             \
+       __SMU_DUMMY_MAP(DramLogSetDramAddr),                 \
+       __SMU_DUMMY_MAP(StartDramLogging),                   \
+       __SMU_DUMMY_MAP(StopDramLogging),                    \
+       __SMU_DUMMY_MAP(SetSoftMinCclk),                     \
+       __SMU_DUMMY_MAP(SetSoftMaxCclk),                     \
 	__SMU_DUMMY_MAP(SetGpoFeaturePMask),             \
 
 #undef __SMU_DUMMY_MAP
