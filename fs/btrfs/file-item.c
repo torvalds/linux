@@ -318,8 +318,8 @@ blk_status_t btrfs_lookup_bio_sums(struct inode *inode, struct bio *bio,
 
 		if (page_offsets)
 			offset = page_offset(bvec.bv_page) + bvec.bv_offset;
-		count = btrfs_find_ordered_sum(inode, offset, disk_bytenr,
-					       csum, nblocks);
+		count = btrfs_find_ordered_sum(BTRFS_I(inode), offset,
+					       disk_bytenr, csum, nblocks);
 		if (count)
 			goto found;
 
