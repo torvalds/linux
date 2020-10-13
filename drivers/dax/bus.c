@@ -136,15 +136,27 @@ static bool is_static(struct dax_region *dax_region)
 	return (dax_region->res.flags & IORESOURCE_DAX_STATIC) != 0;
 }
 
+static u64 dev_dax_size(struct dev_dax *dev_dax)
+{
+	u64 size = 0;
+	int i;
+
+	device_lock_assert(&dev_dax->dev);
+
+	for (i = 0; i < dev_dax->nr_range; i++)
+		size += range_len(&dev_dax->ranges[i].range);
+
+	return size;
+}
+
 static int dax_bus_probe(struct device *dev)
 {
 	struct dax_device_driver *dax_drv = to_dax_drv(dev->driver);
 	struct dev_dax *dev_dax = to_dev_dax(dev);
 	struct dax_region *dax_region = dev_dax->region;
-	struct range *range = &dev_dax->range;
 	int rc;
 
-	if (range_len(range) == 0 || dev_dax->id < 0)
+	if (dev_dax_size(dev_dax) == 0 || dev_dax->id < 0)
 		return -ENXIO;
 
 	rc = dax_drv->probe(dev_dax);
@@ -354,15 +366,19 @@ void kill_dev_dax(struct dev_dax *dev_dax)
 }
 EXPORT_SYMBOL_GPL(kill_dev_dax);
 
-static void free_dev_dax_range(struct dev_dax *dev_dax)
+static void free_dev_dax_ranges(struct dev_dax *dev_dax)
 {
 	struct dax_region *dax_region = dev_dax->region;
-	struct range *range = &dev_dax->range;
+	int i;
 
 	device_lock_assert(dax_region->dev);
-	if (range_len(range))
+	for (i = 0; i < dev_dax->nr_range; i++) {
+		struct range *range = &dev_dax->ranges[i].range;
+
 		__release_region(&dax_region->res, range->start,
 				range_len(range));
+	}
+	dev_dax->nr_range = 0;
 }
 
 static void unregister_dev_dax(void *dev)
@@ -372,7 +388,7 @@ static void unregister_dev_dax(void *dev)
 	dev_dbg(dev, "%s\n", __func__);
 
 	kill_dev_dax(dev_dax);
-	free_dev_dax_range(dev_dax);
+	free_dev_dax_ranges(dev_dax);
 	device_del(dev);
 	put_device(dev);
 }
@@ -423,7 +439,7 @@ static ssize_t delete_store(struct device *dev, struct device_attribute *attr,
 	device_lock(dev);
 	device_lock(victim);
 	dev_dax = to_dev_dax(victim);
-	if (victim->driver || range_len(&dev_dax->range))
+	if (victim->driver || dev_dax_size(dev_dax))
 		rc = -EBUSY;
 	else {
 		/*
@@ -569,50 +585,85 @@ static int alloc_dev_dax_range(struct dev_dax *dev_dax, u64 start,
 	struct dax_region *dax_region = dev_dax->region;
 	struct resource *res = &dax_region->res;
 	struct device *dev = &dev_dax->dev;
+	struct dev_dax_range *ranges;
+	unsigned long pgoff = 0;
 	struct resource *alloc;
+	int i;
 
 	device_lock_assert(dax_region->dev);
 
 	/* handle the seed alloc special case */
 	if (!size) {
-		dev_dax->range = (struct range) {
-			.start = res->start,
-			.end = res->start - 1,
-		};
+		if (dev_WARN_ONCE(dev, dev_dax->nr_range,
+					"0-size allocation must be first\n"))
+			return -EBUSY;
+		/* nr_range == 0 is elsewhere special cased as 0-size device */
 		return 0;
 	}
 
-	alloc = __request_region(res, start, size, dev_name(dev), 0);
-	if (!alloc)
+	ranges = krealloc(dev_dax->ranges, sizeof(*ranges)
+			* (dev_dax->nr_range + 1), GFP_KERNEL);
+	if (!ranges)
 		return -ENOMEM;
 
-	dev_dax->range = (struct range) {
-		.start = alloc->start,
-		.end = alloc->end,
+	alloc = __request_region(res, start, size, dev_name(dev), 0);
+	if (!alloc) {
+		/*
+		 * If this was an empty set of ranges nothing else
+		 * will release @ranges, so do it now.
+		 */
+		if (!dev_dax->nr_range) {
+			kfree(ranges);
+			ranges = NULL;
+		}
+		dev_dax->ranges = ranges;
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < dev_dax->nr_range; i++)
+		pgoff += PHYS_PFN(range_len(&ranges[i].range));
+	dev_dax->ranges = ranges;
+	ranges[dev_dax->nr_range++] = (struct dev_dax_range) {
+		.pgoff = pgoff,
+		.range = {
+			.start = alloc->start,
+			.end = alloc->end,
+		},
 	};
+
+	dev_dbg(dev, "alloc range[%d]: %pa:%pa\n", dev_dax->nr_range - 1,
+			&alloc->start, &alloc->end);
 
 	return 0;
 }
 
 static int adjust_dev_dax_range(struct dev_dax *dev_dax, struct resource *res, resource_size_t size)
 {
+	int last_range = dev_dax->nr_range - 1;
+	struct dev_dax_range *dax_range = &dev_dax->ranges[last_range];
 	struct dax_region *dax_region = dev_dax->region;
-	struct range *range = &dev_dax->range;
-	int rc = 0;
+	bool is_shrink = resource_size(res) > size;
+	struct range *range = &dax_range->range;
+	struct device *dev = &dev_dax->dev;
+	int rc;
 
 	device_lock_assert(dax_region->dev);
 
-	if (size)
-		rc = adjust_resource(res, range->start, size);
-	else
-		__release_region(&dax_region->res, range->start, range_len(range));
+	if (dev_WARN_ONCE(dev, !size, "deletion is handled by dev_dax_shrink\n"))
+		return -EINVAL;
+
+	rc = adjust_resource(res, range->start, size);
 	if (rc)
 		return rc;
 
-	dev_dax->range = (struct range) {
+	*range = (struct range) {
 		.start = range->start,
 		.end = range->start + size - 1,
 	};
+
+	dev_dbg(dev, "%s range[%d]: %#llx:%#llx\n", is_shrink ? "shrink" : "extend",
+			last_range, (unsigned long long) range->start,
+			(unsigned long long) range->end);
 
 	return 0;
 }
@@ -621,7 +672,11 @@ static ssize_t size_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct dev_dax *dev_dax = to_dev_dax(dev);
-	unsigned long long size = range_len(&dev_dax->range);
+	unsigned long long size;
+
+	device_lock(dev);
+	size = dev_dax_size(dev_dax);
+	device_unlock(dev);
 
 	return sprintf(buf, "%llu\n", size);
 }
@@ -639,32 +694,82 @@ static bool alloc_is_aligned(struct dax_region *dax_region,
 
 static int dev_dax_shrink(struct dev_dax *dev_dax, resource_size_t size)
 {
+	resource_size_t to_shrink = dev_dax_size(dev_dax) - size;
 	struct dax_region *dax_region = dev_dax->region;
-	struct range *range = &dev_dax->range;
-	struct resource *res, *adjust = NULL;
 	struct device *dev = &dev_dax->dev;
+	int i;
 
-	for_each_dax_region_resource(dax_region, res)
-		if (strcmp(res->name, dev_name(dev)) == 0
-				&& res->start == range->start) {
-			adjust = res;
-			break;
+	for (i = dev_dax->nr_range - 1; i >= 0; i--) {
+		struct range *range = &dev_dax->ranges[i].range;
+		struct resource *adjust = NULL, *res;
+		resource_size_t shrink;
+
+		shrink = min_t(u64, to_shrink, range_len(range));
+		if (shrink >= range_len(range)) {
+			__release_region(&dax_region->res, range->start,
+					range_len(range));
+			dev_dax->nr_range--;
+			dev_dbg(dev, "delete range[%d]: %#llx:%#llx\n", i,
+					(unsigned long long) range->start,
+					(unsigned long long) range->end);
+			to_shrink -= shrink;
+			if (!to_shrink)
+				break;
+			continue;
 		}
 
-	if (dev_WARN_ONCE(dev, !adjust, "failed to find matching resource\n"))
-		return -ENXIO;
-	return adjust_dev_dax_range(dev_dax, adjust, size);
+		for_each_dax_region_resource(dax_region, res)
+			if (strcmp(res->name, dev_name(dev)) == 0
+					&& res->start == range->start) {
+				adjust = res;
+				break;
+			}
+
+		if (dev_WARN_ONCE(dev, !adjust || i != dev_dax->nr_range - 1,
+					"failed to find matching resource\n"))
+			return -ENXIO;
+		return adjust_dev_dax_range(dev_dax, adjust, range_len(range)
+				- shrink);
+	}
+	return 0;
+}
+
+/*
+ * Only allow adjustments that preserve the relative pgoff of existing
+ * allocations. I.e. the dev_dax->ranges array is ordered by increasing pgoff.
+ */
+static bool adjust_ok(struct dev_dax *dev_dax, struct resource *res)
+{
+	struct dev_dax_range *last;
+	int i;
+
+	if (dev_dax->nr_range == 0)
+		return false;
+	if (strcmp(res->name, dev_name(&dev_dax->dev)) != 0)
+		return false;
+	last = &dev_dax->ranges[dev_dax->nr_range - 1];
+	if (last->range.start != res->start || last->range.end != res->end)
+		return false;
+	for (i = 0; i < dev_dax->nr_range - 1; i++) {
+		struct dev_dax_range *dax_range = &dev_dax->ranges[i];
+
+		if (dax_range->pgoff > last->pgoff)
+			return false;
+	}
+
+	return true;
 }
 
 static ssize_t dev_dax_resize(struct dax_region *dax_region,
 		struct dev_dax *dev_dax, resource_size_t size)
 {
 	resource_size_t avail = dax_region_avail_size(dax_region), to_alloc;
-	resource_size_t dev_size = range_len(&dev_dax->range);
+	resource_size_t dev_size = dev_dax_size(dev_dax);
 	struct resource *region_res = &dax_region->res;
 	struct device *dev = &dev_dax->dev;
-	const char *name = dev_name(dev);
 	struct resource *res, *first;
+	resource_size_t alloc = 0;
+	int rc;
 
 	if (dev->driver)
 		return -EBUSY;
@@ -685,35 +790,47 @@ static ssize_t dev_dax_resize(struct dax_region *dax_region,
 	 * may involve adjusting the end of an existing resource, or
 	 * allocating a new resource.
 	 */
+retry:
 	first = region_res->child;
 	if (!first)
 		return alloc_dev_dax_range(dev_dax, dax_region->res.start, to_alloc);
-	for (res = first; to_alloc && res; res = res->sibling) {
+
+	rc = -ENOSPC;
+	for (res = first; res; res = res->sibling) {
 		struct resource *next = res->sibling;
-		resource_size_t free;
 
 		/* space at the beginning of the region */
-		free = 0;
-		if (res == first && res->start > dax_region->res.start)
-			free = res->start - dax_region->res.start;
-		if (free >= to_alloc && dev_size == 0)
-			return alloc_dev_dax_range(dev_dax, dax_region->res.start, to_alloc);
+		if (res == first && res->start > dax_region->res.start) {
+			alloc = min(res->start - dax_region->res.start, to_alloc);
+			rc = alloc_dev_dax_range(dev_dax, dax_region->res.start, alloc);
+			break;
+		}
 
-		free = 0;
+		alloc = 0;
 		/* space between allocations */
 		if (next && next->start > res->end + 1)
-			free = next->start - res->end + 1;
+			alloc = min(next->start - (res->end + 1), to_alloc);
 
 		/* space at the end of the region */
-		if (free < to_alloc && !next && res->end < region_res->end)
-			free = region_res->end - res->end;
+		if (!alloc && !next && res->end < region_res->end)
+			alloc = min(region_res->end - res->end, to_alloc);
 
-		if (free >= to_alloc && strcmp(name, res->name) == 0)
-			return adjust_dev_dax_range(dev_dax, res, resource_size(res) + to_alloc);
-		else if (free >= to_alloc && dev_size == 0)
-			return alloc_dev_dax_range(dev_dax, res->end + 1, to_alloc);
+		if (!alloc)
+			continue;
+
+		if (adjust_ok(dev_dax, res)) {
+			rc = adjust_dev_dax_range(dev_dax, res, resource_size(res) + alloc);
+			break;
+		}
+		rc = alloc_dev_dax_range(dev_dax, res->end + 1, alloc);
+		break;
 	}
-	return -ENOSPC;
+	if (rc)
+		return rc;
+	to_alloc -= alloc;
+	if (to_alloc)
+		goto retry;
+	return 0;
 }
 
 static ssize_t size_store(struct device *dev, struct device_attribute *attr,
@@ -767,8 +884,15 @@ static ssize_t resource_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct dev_dax *dev_dax = to_dev_dax(dev);
+	struct dax_region *dax_region = dev_dax->region;
+	unsigned long long start;
 
-	return sprintf(buf, "%#llx\n", dev_dax->range.start);
+	if (dev_dax->nr_range < 1)
+		start = dax_region->res.start;
+	else
+		start = dev_dax->ranges[0].range.start;
+
+	return sprintf(buf, "%#llx\n", start);
 }
 static DEVICE_ATTR(resource, 0400, resource_show, NULL);
 
@@ -833,6 +957,7 @@ static void dev_dax_release(struct device *dev)
 	put_dax(dax_dev);
 	free_dev_dax_id(dev_dax);
 	dax_region_put(dax_region);
+	kfree(dev_dax->ranges);
 	kfree(dev_dax->pgmap);
 	kfree(dev_dax);
 }
@@ -941,7 +1066,7 @@ struct dev_dax *devm_create_dev_dax(struct dev_dax_data *data)
 err_alloc_dax:
 	kfree(dev_dax->pgmap);
 err_pgmap:
-	free_dev_dax_range(dev_dax);
+	free_dev_dax_ranges(dev_dax);
 err_range:
 	free_dev_dax_id(dev_dax);
 err_id:
