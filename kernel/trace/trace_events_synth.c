@@ -174,7 +174,7 @@ static int synth_field_string_size(char *type)
 	start += sizeof("char[") - 1;
 
 	end = strchr(type, ']');
-	if (!end || end < start)
+	if (!end || end < start || type + strlen(type) > end + 1)
 		return -EINVAL;
 
 	len = end - start;
@@ -625,8 +625,14 @@ static struct synth_field *parse_synth_field(int argc, const char **argv,
 	if (field_type[0] == ';')
 		field_type++;
 	len = strlen(field_type) + 1;
-	if (array)
-		len += strlen(array);
+
+        if (array) {
+                int l = strlen(array);
+
+                if (l && array[l - 1] == ';')
+                        l--;
+                len += l;
+        }
 	if (prefix)
 		len += strlen(prefix);
 
