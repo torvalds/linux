@@ -204,7 +204,7 @@ static int mantix_get_modes(struct drm_panel *panel,
 	if (!mode) {
 		dev_err(ctx->dev, "Failed to add mode %ux%u@%u\n",
 			default_mode.hdisplay, default_mode.vdisplay,
-			drm_mode_vrefresh(mode));
+			drm_mode_vrefresh(&default_mode));
 		return -ENOMEM;
 	}
 
