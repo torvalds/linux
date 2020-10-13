@@ -473,7 +473,7 @@ static struct debuginfo *open_from_debuginfod(struct dso *dso, struct nsinfo *ns
 	if (!c)
 		return NULL;
 
-	build_id__sprintf(dso->bid.data, BUILD_ID_SIZE, sbuild_id);
+	build_id__sprintf(&dso->bid, sbuild_id);
 	fd = debuginfod_find_debuginfo(c, (const unsigned char *)sbuild_id,
 					0, &path);
 	if (fd >= 0)
@@ -1005,6 +1005,7 @@ static int _show_one_line(FILE *fp, int l, bool skip, bool show_num)
 static int __show_line_range(struct line_range *lr, const char *module,
 			     bool user)
 {
+	struct build_id bid;
 	int l = 1;
 	struct int_node *ln;
 	struct debuginfo *dinfo;
@@ -1025,8 +1026,10 @@ static int __show_line_range(struct line_range *lr, const char *module,
 		if (!ret)
 			ret = debuginfo__find_line_range(dinfo, lr);
 	}
-	if (dinfo->build_id)
-		build_id__sprintf(dinfo->build_id, BUILD_ID_SIZE, sbuild_id);
+	if (dinfo->build_id) {
+		build_id__init(&bid, dinfo->build_id, BUILD_ID_SIZE);
+		build_id__sprintf(&bid, sbuild_id);
+	}
 	debuginfo__delete(dinfo);
 	if (ret == 0 || ret == -ENOENT) {
 		pr_warning("Specified source line is not found.\n");

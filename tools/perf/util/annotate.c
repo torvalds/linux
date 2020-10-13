@@ -1578,8 +1578,7 @@ int symbol__strerror_disassemble(struct map_symbol *ms, int errnum, char *buf, s
 		char *build_id_msg = NULL;
 
 		if (dso->has_build_id) {
-			build_id__sprintf(dso->bid.data,
-					  sizeof(dso->bid.data), bf + 15);
+			build_id__sprintf(&dso->bid, bf + 15);
 			build_id_msg = bf;
 		}
 		scnprintf(buf, buflen,

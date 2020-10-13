@@ -19,7 +19,8 @@ extern struct perf_tool build_id__mark_dso_hit_ops;
 struct dso;
 struct feat_fd;
 
-int build_id__sprintf(const u8 *build_id, int len, char *bf);
+void build_id__init(struct build_id *bid, const u8 *data, size_t size);
+int build_id__sprintf(const struct build_id *build_id, char *bf);
 int sysfs__sprintf_build_id(const char *root_dir, char *sbuild_id);
 int filename__sprintf_build_id(const char *pathname, char *sbuild_id);
 char *build_id_cache__kallsyms_path(const char *sbuild_id, char *bf,

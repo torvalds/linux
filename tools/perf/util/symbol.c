@@ -2152,7 +2152,7 @@ static char *dso__find_kallsyms(struct dso *dso, struct map *map)
 			goto proc_kallsyms;
 	}
 
-	build_id__sprintf(dso->bid.data, sizeof(dso->bid.data), sbuild_id);
+	build_id__sprintf(&dso->bid, sbuild_id);
 
 	/* Find kallsyms in build-id cache with kcore */
 	scnprintf(path, sizeof(path), "%s/%s/%s",

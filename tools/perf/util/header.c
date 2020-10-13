@@ -2095,8 +2095,7 @@ static int __event_process_build_id(struct perf_record_header_build_id *bev,
 			free(m.name);
 		}
 
-		build_id__sprintf(dso->bid.data, sizeof(dso->bid.data),
-				  sbuild_id);
+		build_id__sprintf(&dso->bid, sbuild_id);
 		pr_debug("build id event received for %s: %s\n",
 			 dso->long_name, sbuild_id);
 		dso__put(dso);
