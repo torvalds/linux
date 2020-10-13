@@ -148,7 +148,7 @@ static void chcr_dev_init(struct uld_ctx *u_ctx)
 
 static int chcr_dev_move(struct uld_ctx *u_ctx)
 {
-	 mutex_lock(&drv_data.drv_mutex);
+	mutex_lock(&drv_data.drv_mutex);
 	if (drv_data.last_dev == u_ctx) {
 		if (list_is_last(&drv_data.last_dev->entry, &drv_data.act_dev))
 			drv_data.last_dev = list_first_entry(&drv_data.act_dev,

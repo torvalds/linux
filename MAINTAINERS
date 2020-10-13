@@ -13068,7 +13068,9 @@ F:	lib/packing.c
 
 PADATA PARALLEL EXECUTION MECHANISM
 M:	Steffen Klassert <steffen.klassert@secunet.com>
+M:	Daniel Jordan <daniel.m.jordan@oracle.com>
 L:	linux-crypto@vger.kernel.org
+L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	Documentation/core-api/padata.rst
 F:	include/linux/padata.h

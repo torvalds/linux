@@ -59,6 +59,32 @@ config CRYPTO_DEV_SUN8I_CE_DEBUG
 	  This will create /sys/kernel/debug/sun8i-ce/stats for displaying
 	  the number of requests per flow and per algorithm.
 
+config CRYPTO_DEV_SUN8I_CE_HASH
+	bool "Enable support for hash on sun8i-ce"
+	depends on CRYPTO_DEV_SUN8I_CE
+	select MD5
+	select SHA1
+	select SHA256
+	select SHA512
+	help
+	  Say y to enable support for hash algorithms.
+
+config CRYPTO_DEV_SUN8I_CE_PRNG
+	bool "Support for Allwinner Crypto Engine PRNG"
+	depends on CRYPTO_DEV_SUN8I_CE
+	select CRYPTO_RNG
+	help
+	  Select this option if you want to provide kernel-side support for
+	  the Pseudo-Random Number Generator found in the Crypto Engine.
+
+config CRYPTO_DEV_SUN8I_CE_TRNG
+	bool "Support for Allwinner Crypto Engine TRNG"
+	depends on CRYPTO_DEV_SUN8I_CE
+	select HW_RANDOM
+	help
+	  Select this option if you want to provide kernel-side support for
+	  the True Random Number Generator found in the Crypto Engine.
+
 config CRYPTO_DEV_SUN8I_SS
 	tristate "Support for Allwinner Security System cryptographic offloader"
 	select CRYPTO_SKCIPHER
@@ -85,3 +111,20 @@ config CRYPTO_DEV_SUN8I_SS_DEBUG
 	  Say y to enable sun8i-ss debug stats.
 	  This will create /sys/kernel/debug/sun8i-ss/stats for displaying
 	  the number of requests per flow and per algorithm.
+
+config CRYPTO_DEV_SUN8I_SS_PRNG
+	bool "Support for Allwinner Security System PRNG"
+	depends on CRYPTO_DEV_SUN8I_SS
+	select CRYPTO_RNG
+	help
+	  Select this option if you want to provide kernel-side support for
+	  the Pseudo-Random Number Generator found in the Security System.
+
+config CRYPTO_DEV_SUN8I_SS_HASH
+	bool "Enable support for hash on sun8i-ss"
+	depends on CRYPTO_DEV_SUN8I_SS
+	select MD5
+	select SHA1
+	select SHA256
+	help
+	  Say y to enable support for hash algorithms.
