@@ -701,7 +701,7 @@ static void rs_set_capacity(struct raid_set *rs)
 	struct gendisk *gendisk = dm_disk(dm_table_get_md(rs->ti->table));
 
 	set_capacity(gendisk, rs->md.array_sectors);
-	revalidate_disk(gendisk);
+	revalidate_disk_size(gendisk, true);
 }
 
 /*
