@@ -128,11 +128,21 @@
 	pmugrf: syscon@fdc20000 {
 		compatible = "rockchip,rk3568-grf", "syscon", "simple-mfd";
 		reg = <0x0 0xfdc20000 0x0 0x10000>;
+
+		pmu_io_domains: io-domains {
+			compatible = "rockchip,rk3568-pmu-io-voltage-domain";
+			status = "disabled";
+		};
 	};
 
 	grf: syscon@fdc60000 {
 		compatible = "rockchip,rk3568-grf", "syscon", "simple-mfd";
 		reg = <0x0 0xfdc60000 0x0 0x10000>;
+
+		io_domains: io-domains {
+			compatible = "rockchip,rk3568-io-voltage-domain";
+			status = "disabled";
+		};
 	};
 
 	pmucru: clock-controller@fdd00000 {
