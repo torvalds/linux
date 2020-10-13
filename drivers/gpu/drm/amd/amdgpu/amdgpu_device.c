@@ -2034,6 +2034,7 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 	case  CHIP_SIENNA_CICHLID:
 	case  CHIP_NAVY_FLOUNDER:
 	case  CHIP_DIMGREY_CAVEFISH:
+	case  CHIP_BEIGE_GOBY:
 	case CHIP_VANGOGH:
 		if (adev->asic_type == CHIP_VANGOGH)
 			adev->family = AMDGPU_FAMILY_VGH;
