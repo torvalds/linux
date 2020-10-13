@@ -34,7 +34,7 @@ int dev_dax_kmem_probe(struct device *dev)
 	struct dev_dax *dev_dax = to_dev_dax(dev);
 	struct range range = dax_kmem_range(dev_dax);
 	struct resource *new_res;
-	const char *new_res_name;
+	char *res_name;
 	int numa_node;
 	int rc;
 
@@ -51,15 +51,15 @@ int dev_dax_kmem_probe(struct device *dev)
 		return -EINVAL;
 	}
 
-	new_res_name = kstrdup(dev_name(dev), GFP_KERNEL);
-	if (!new_res_name)
+	res_name = kstrdup(dev_name(dev), GFP_KERNEL);
+	if (!res_name)
 		return -ENOMEM;
 
 	/* Region is permanently reserved if hotremove fails. */
-	new_res = request_mem_region(range.start, range_len(&range), new_res_name);
+	new_res = request_mem_region(range.start, range_len(&range), res_name);
 	if (!new_res) {
 		dev_warn(dev, "could not reserve region [%#llx-%#llx]\n", range.start, range.end);
-		kfree(new_res_name);
+		kfree(res_name);
 		return -EBUSY;
 	}
 
@@ -80,9 +80,11 @@ int dev_dax_kmem_probe(struct device *dev)
 	if (rc) {
 		release_resource(new_res);
 		kfree(new_res);
-		kfree(new_res_name);
+		kfree(res_name);
 		return rc;
 	}
+
+	dev_set_drvdata(dev, res_name);
 	dev_dax->dax_kmem_res = new_res;
 
 	return 0;
@@ -94,7 +96,7 @@ static int dev_dax_kmem_remove(struct device *dev)
 	struct dev_dax *dev_dax = to_dev_dax(dev);
 	struct range range = dax_kmem_range(dev_dax);
 	struct resource *res = dev_dax->dax_kmem_res;
-	const char *res_name = res->name;
+	const char *res_name = dev_get_drvdata(dev);
 	int rc;
 
 	/*
