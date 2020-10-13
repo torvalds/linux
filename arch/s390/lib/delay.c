@@ -13,10 +13,18 @@
 #include <linux/export.h>
 #include <linux/irqflags.h>
 #include <linux/interrupt.h>
+#include <linux/jump_label.h>
 #include <linux/irq.h>
 #include <asm/vtimer.h>
 #include <asm/div64.h>
 #include <asm/idle.h>
+
+static DEFINE_STATIC_KEY_FALSE(udelay_ready);
+
+void __init udelay_enable(void)
+{
+	static_branch_enable(&udelay_ready);
+}
 
 void __delay(unsigned long loops)
 {
@@ -76,6 +84,11 @@ static void __udelay_enabled(unsigned long long usecs)
 void __udelay(unsigned long long usecs)
 {
 	unsigned long flags;
+
+	if (!static_branch_likely(&udelay_ready)) {
+		udelay_simple(usecs);
+		return;
+	}
 
 	preempt_disable();
 	local_irq_save(flags);
