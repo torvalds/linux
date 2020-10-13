@@ -24,4 +24,6 @@ mtk-vcodec-enc-y := venc/venc_vp8_if.o \
 
 mtk-vcodec-common-y := mtk_vcodec_intr.o \
 		mtk_vcodec_util.o \
-		mtk_vcodec_fw.o
+		mtk_vcodec_fw.o \
+		mtk_vcodec_fw_vpu.o \
+		mtk_vcodec_fw_scp.o
