@@ -62,8 +62,12 @@ __HEAD
 
 	.org	__LC_RST_NEW_PSW		# 0x1a0
 	.quad	0,iplstart
+	.org	__LC_EXT_NEW_PSW		# 0x1b0
+	.quad	0x0002000180000000,0x1b0	# disabled wait
 	.org	__LC_PGM_NEW_PSW		# 0x1d0
 	.quad	0x0000000180000000,startup_pgm_check_handler
+	.org	__LC_IO_NEW_PSW			# 0x1f0
+	.quad	0x0002000180000000,0x1f0	# disabled wait
 
 	.org	0x200
 
@@ -303,6 +307,9 @@ ENTRY(startup_kdump)
 	sam64				# switch to 64 bit addressing mode
 	basr	%r13,0			# get base
 .LPG0:
+	mvc	__LC_EXT_NEW_PSW(16),.Lext_new_psw-.LPG0(%r13)
+	mvc	__LC_PGM_NEW_PSW(16),.Lpgm_new_psw-.LPG0(%r13)
+	mvc	__LC_IO_NEW_PSW(16),.Lio_new_psw-.LPG0(%r13)
 	xc	0x200(256),0x200	# partially clear lowcore
 	xc	0x300(256),0x300
 	xc	0xe00(256),0xe00
@@ -320,7 +327,12 @@ ENTRY(startup_kdump)
 	.long	0x8000 + (1<<(PAGE_SHIFT+BOOT_STACK_ORDER)) - STACK_FRAME_OVERHEAD
 	.align	8
 6:	.long	0x7fffffff,0xffffffff
-
+.Lext_new_psw:
+	.quad	0x0002000180000000,0x1b0	# disabled wait
+.Lpgm_new_psw:
+	.quad	0x0000000180000000,startup_pgm_check_handler
+.Lio_new_psw:
+	.quad	0x0002000180000000,0x1f0	# disabled wait
 .Lctl:	.quad	0x04040000		# cr0: AFP registers & secondary space
 	.quad	0			# cr1: primary space segment table
 	.quad	.Lduct			# cr2: dispatchable unit control table
