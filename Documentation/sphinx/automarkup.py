@@ -22,12 +22,13 @@ from itertools import chain
 # :c:func: block (i.e. ":c:func:`mmap()`s" flakes out), so the last
 # bit tries to restrict matches to things that won't create trouble.
 #
-RE_function = re.compile(r'(([\w_][\w\d_]+)\(\))')
+RE_function = re.compile(r'\b(([a-zA-Z_]\w+)\(\))', flags=re.ASCII)
 
 #
 # Sphinx 2 uses the same :c:type role for struct, union, enum and typedef
 #
-RE_generic_type = re.compile(r'(struct|union|enum|typedef)\s+([\w_][\w\d_]+)')
+RE_generic_type = re.compile(r'\b(struct|union|enum|typedef)\s+([a-zA-Z_]\w+)',
+                             flags=re.ASCII)
 
 #
 # Sphinx 3 uses a different C role for each one of struct, union, enum and
@@ -42,7 +43,7 @@ RE_typedef = re.compile(r'\b(typedef)\s+([a-zA-Z_]\w+)', flags=re.ASCII)
 # Detects a reference to a documentation page of the form Documentation/... with
 # an optional extension
 #
-RE_doc = re.compile(r'Documentation(/[\w\-_/]+)(\.\w+)*')
+RE_doc = re.compile(r'\bDocumentation(/[\w\-_/]+)(\.\w+)*')
 
 #
 # Many places in the docs refer to common system calls.  It is
