@@ -1461,7 +1461,9 @@ static void mlx5e_shampo_complete_rx_cqe(struct mlx5e_rq *rq,
 	struct mlx5e_rq_stats *stats = rq->stats;
 
 	stats->packets++;
+	stats->gro_packets++;
 	stats->bytes += cqe_bcnt;
+	stats->gro_bytes += cqe_bcnt;
 	if (NAPI_GRO_CB(skb)->count != 1)
 		return;
 	mlx5e_build_rx_skb(cqe, cqe_bcnt, rq, skb);
@@ -1914,6 +1916,7 @@ mlx5e_skb_from_cqe_shampo(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
 
 	} else {
 		/* allocate SKB and copy header for large header */
+		rq->stats->gro_large_hds++;
 		skb = napi_alloc_skb(rq->cq.napi,
 				     ALIGN(head_size, sizeof(long)));
 		if (unlikely(!skb)) {
@@ -1949,7 +1952,9 @@ static void
 mlx5e_shampo_flush_skb(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe, bool match)
 {
 	struct sk_buff *skb = rq->hw_gro_data->skb;
+	struct mlx5e_rq_stats *stats = rq->stats;
 
+	stats->gro_skbs++;
 	if (likely(skb_shinfo(skb)->nr_frags))
 		mlx5e_shampo_align_fragment(skb, rq->mpwqe.log_stride_sz);
 	if (NAPI_GRO_CB(skb)->count > 1)
@@ -1992,6 +1997,7 @@ static void mlx5e_handle_rx_cqe_mpwrq_shampo(struct mlx5e_rq *rq, struct mlx5_cq
 	struct sk_buff **skb	= &rq->hw_gro_data->skb;
 	bool flush		= cqe->shampo.flush;
 	bool match		= cqe->shampo.match;
+	struct mlx5e_rq_stats *stats = rq->stats;
 	struct mlx5e_rx_wqe_ll *wqe;
 	struct mlx5e_dma_info *di;
 	struct mlx5e_mpw_info *wi;
@@ -2002,17 +2008,17 @@ static void mlx5e_handle_rx_cqe_mpwrq_shampo(struct mlx5e_rq *rq, struct mlx5_cq
 
 	if (unlikely(MLX5E_RX_ERR_CQE(cqe))) {
 		trigger_report(rq, cqe);
-		rq->stats->wqe_err++;
+		stats->wqe_err++;
 		goto mpwrq_cqe_out;
 	}
 
 	if (unlikely(mpwrq_is_filler_cqe(cqe))) {
-		struct mlx5e_rq_stats *stats = rq->stats;
-
 		stats->mpwqe_filler_cqes++;
 		stats->mpwqe_filler_strides += cstrides;
 		goto mpwrq_cqe_out;
 	}
+
+	stats->gro_match_packets += match;
 
 	if (*skb && (!match || !(mlx5e_hw_gro_skb_has_enough_space(*skb, data_bcnt)))) {
 		match = false;
