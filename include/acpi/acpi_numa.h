@@ -22,5 +22,10 @@ extern int acpi_numa __initdata;
 extern void bad_srat(void);
 extern int srat_disabled(void);
 
+#else				/* CONFIG_ACPI_NUMA */
+static inline int pxm_to_node(int pxm)
+{
+	return 0;
+}
 #endif				/* CONFIG_ACPI_NUMA */
 #endif				/* __ACP_NUMA_H */
