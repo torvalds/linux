@@ -7,8 +7,13 @@
 #include <linux/cpumask.h>
 #include <linux/arch_topology.h>
 
+/* big.LITTLE switcher is incompatible with frequency invariance */
+#ifndef CONFIG_BL_SWITCHER
 /* Replace task scheduler's default frequency-invariant accounting */
+#define arch_set_freq_scale topology_set_freq_scale
 #define arch_scale_freq_capacity topology_get_freq_scale
+#define arch_scale_freq_invariant topology_scale_freq_invariant
+#endif
 
 /* Replace task scheduler's default cpu-invariant accounting */
 #define arch_scale_cpu_capacity topology_get_cpu_scale
