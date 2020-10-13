@@ -331,8 +331,8 @@ int map__load(struct map *map)
 		if (map->dso->has_build_id) {
 			char sbuild_id[SBUILD_ID_SIZE];
 
-			build_id__sprintf(map->dso->build_id,
-					  sizeof(map->dso->build_id),
+			build_id__sprintf(map->dso->bid.data,
+					  sizeof(map->dso->bid.data),
 					  sbuild_id);
 			pr_debug("%s with build id %s not found", name, sbuild_id);
 		} else

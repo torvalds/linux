@@ -522,8 +522,8 @@ static int dso__read_build_id(struct dso *dso)
 		return 0;
 
 	nsinfo__mountns_enter(dso->nsinfo, &nsc);
-	if (filename__read_build_id(dso->long_name, dso->build_id,
-				    sizeof(dso->build_id)) > 0) {
+	if (filename__read_build_id(dso->long_name, dso->bid.data,
+				    sizeof(dso->bid.data)) > 0) {
 		dso->has_build_id = true;
 	}
 	nsinfo__mountns_exit(&nsc);

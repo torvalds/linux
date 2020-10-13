@@ -8,6 +8,11 @@
 #include "tool.h"
 #include <linux/types.h>
 
+struct build_id {
+	u8	data[BUILD_ID_SIZE];
+	size_t	size;
+};
+
 struct nsinfo;
 
 extern struct perf_tool build_id__mark_dso_hit_ops;

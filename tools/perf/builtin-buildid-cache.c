@@ -284,7 +284,7 @@ static bool dso__missing_buildid_cache(struct dso *dso, int parm __maybe_unused)
 
 		pr_warning("Problems with %s file, consider removing it from the cache\n",
 			   filename);
-	} else if (memcmp(dso->build_id, build_id, sizeof(dso->build_id))) {
+	} else if (memcmp(dso->bid.data, build_id, sizeof(dso->bid.data))) {
 		pr_warning("Problems with %s file, consider removing it from the cache\n",
 			   filename);
 	}

@@ -272,7 +272,7 @@ char *dso__build_id_filename(const struct dso *dso, char *bf, size_t size,
 	if (!dso->has_build_id)
 		return NULL;
 
-	build_id__sprintf(dso->build_id, sizeof(dso->build_id), sbuild_id);
+	build_id__sprintf(dso->bid.data, sizeof(dso->bid.data), sbuild_id);
 	linkname = build_id_cache__linkname(sbuild_id, NULL, 0);
 	if (!linkname)
 		return NULL;
@@ -355,7 +355,7 @@ static int machine__write_buildid_table(struct machine *machine,
 		in_kernel = pos->kernel ||
 				is_kernel_module(name,
 					PERF_RECORD_MISC_CPUMODE_UNKNOWN);
-		err = write_buildid(name, name_len, pos->build_id, machine->pid,
+		err = write_buildid(name, name_len, pos->bid.data, machine->pid,
 				    in_kernel ? kmisc : umisc, fd);
 		if (err)
 			break;
@@ -841,7 +841,7 @@ static int dso__cache_build_id(struct dso *dso, struct machine *machine)
 		is_kallsyms = true;
 		name = machine->mmap_name;
 	}
-	return build_id_cache__add_b(dso->build_id, sizeof(dso->build_id), name,
+	return build_id_cache__add_b(dso->bid.data, sizeof(dso->bid.data), name,
 				     dso->nsinfo, is_kallsyms, is_vdso);
 }
 

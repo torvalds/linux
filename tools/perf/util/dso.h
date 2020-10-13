@@ -176,7 +176,7 @@ struct dso {
 	bool		 sorted_by_name;
 	bool		 loaded;
 	u8		 rel;
-	u8		 build_id[BUILD_ID_SIZE];
+	struct build_id	 bid;
 	u64		 text_offset;
 	const char	 *short_name;
 	const char	 *long_name;

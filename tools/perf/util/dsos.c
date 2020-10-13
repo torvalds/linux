@@ -73,8 +73,8 @@ bool __dsos__read_build_ids(struct list_head *head, bool with_hits)
 			continue;
 		}
 		nsinfo__mountns_enter(pos->nsinfo, &nsc);
-		if (filename__read_build_id(pos->long_name, pos->build_id,
-					    sizeof(pos->build_id)) > 0) {
+		if (filename__read_build_id(pos->long_name, pos->bid.data,
+					    sizeof(pos->bid.data)) > 0) {
 			have_build_id	  = true;
 			pos->has_build_id = true;
 		}

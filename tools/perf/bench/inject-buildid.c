@@ -79,12 +79,12 @@ static int add_dso(const char *fpath, const struct stat *sb __maybe_unused,
 		   int typeflag, struct FTW *ftwbuf __maybe_unused)
 {
 	struct bench_dso *dso = &dsos[nr_dsos];
-	unsigned char build_id[BUILD_ID_SIZE];
+	struct build_id bid;
 
 	if (typeflag == FTW_D || typeflag == FTW_SL)
 		return 0;
 
-	if (filename__read_build_id(fpath, build_id, BUILD_ID_SIZE) < 0)
+	if (filename__read_build_id(fpath, bid.data, sizeof(bid.data)) < 0)
 		return 0;
 
 	dso->name = realpath(fpath, NULL);
