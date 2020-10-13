@@ -19,6 +19,7 @@
 #include <linux/glob.h>
 #include <linux/irq_work.h>
 #include <linux/workqueue.h>
+#include <linux/ctype.h>
 
 #ifdef CONFIG_FTRACE_SYSCALLS
 #include <asm/unistd.h>		/* For NR_SYSCALLS	     */
@@ -2088,6 +2089,18 @@ static __always_inline void trace_iterator_reset(struct trace_iterator *iter)
 	memset((char *)iter + offset, 0, sizeof(struct trace_iterator) - offset);
 
 	iter->pos = -1;
+}
+
+/* Check the name is good for event/group/fields */
+static inline bool is_good_name(const char *name)
+{
+	if (!isalpha(*name) && *name != '_')
+		return false;
+	while (*++name != '\0') {
+		if (!isalpha(*name) && !isdigit(*name) && *name != '_')
+			return false;
+	}
+	return true;
 }
 
 #endif /* _LINUX_KERNEL_TRACE_H */
