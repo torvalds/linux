@@ -207,8 +207,10 @@ EOF
 done
 
 if [ "$ARCH" != "um" ]; then
-	deploy_kernel_headers debian/linux-headers
-	create_package linux-headers-$version debian/linux-headers
+	if is_enabled CONFIG_MODULES; then
+		deploy_kernel_headers debian/linux-headers
+		create_package linux-headers-$version debian/linux-headers
+	fi
 
 	deploy_libc_headers debian/linux-libc-dev
 	create_package linux-libc-dev debian/linux-libc-dev
