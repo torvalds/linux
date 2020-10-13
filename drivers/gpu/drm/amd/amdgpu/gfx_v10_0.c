@@ -7049,7 +7049,7 @@ static int gfx_v10_0_hw_init(void *handle)
 		 * loaded firstly, so in direct type, it has to load smc ucode
 		 * here before rlc.
 		 */
-		if (adev->smu.ppt_funcs != NULL) {
+		if (adev->smu.ppt_funcs != NULL && !(adev->flags & AMD_IS_APU)) {
 			r = smu_load_microcode(&adev->smu);
 			if (r)
 				return r;
