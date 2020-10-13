@@ -2279,7 +2279,6 @@ static void process_ack(struct ceph_connection *con)
 			break;
 		dout("got ack for seq %llu type %d at %p\n", seq,
 		     le16_to_cpu(m->hdr.type), m);
-		m->ack_stamp = jiffies;
 		ceph_msg_remove(m);
 	}
 

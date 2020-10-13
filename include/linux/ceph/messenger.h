@@ -235,7 +235,6 @@ struct ceph_msg {
 	bool more_to_follow;
 	bool needs_out_seq;
 	int front_alloc_len;
-	unsigned long ack_stamp;        /* tx: when we were acked */
 
 	struct ceph_msgpool *pool;
 };
