@@ -59,7 +59,6 @@ DEFINE_PER_CPU(struct uv_cpu_nmi_s, uv_cpu_nmi);
 static unsigned long uvh_nmi_mmrx;		/* UVH_EVENT_OCCURRED0/1 */
 static unsigned long uvh_nmi_mmrx_clear;	/* UVH_EVENT_OCCURRED0/1_ALIAS */
 static int uvh_nmi_mmrx_shift;			/* UVH_EVENT_OCCURRED0/1_EXTIO_INT0_SHFT */
-static int uvh_nmi_mmrx_mask;			/* UVH_EVENT_OCCURRED0/1_EXTIO_INT0_MASK */
 static char *uvh_nmi_mmrx_type;			/* "EXTIO_INT0" */
 
 /* Non-zero indicates newer SMM NMI handler present */
@@ -247,7 +246,6 @@ static void uv_nmi_setup_mmrs(void)
 		uvh_nmi_mmrx = UVH_EVENT_OCCURRED0;
 		uvh_nmi_mmrx_clear = UVH_EVENT_OCCURRED0_ALIAS;
 		uvh_nmi_mmrx_shift = UVH_EVENT_OCCURRED0_EXTIO_INT0_SHFT;
-		uvh_nmi_mmrx_mask = UVH_EVENT_OCCURRED0_EXTIO_INT0_MASK;
 		uvh_nmi_mmrx_type = "OCRD0-EXTIO_INT0";
 
 		uvh_nmi_mmrx_supported = UVH_EXTIO_INT0_BROADCAST;
@@ -258,7 +256,6 @@ static void uv_nmi_setup_mmrs(void)
 		uvh_nmi_mmrx = UVH_EVENT_OCCURRED1;
 		uvh_nmi_mmrx_clear = UVH_EVENT_OCCURRED1_ALIAS;
 		uvh_nmi_mmrx_shift = UVH_EVENT_OCCURRED1_EXTIO_INT0_SHFT;
-		uvh_nmi_mmrx_mask = UVH_EVENT_OCCURRED1_EXTIO_INT0_MASK;
 		uvh_nmi_mmrx_type = "OCRD1-EXTIO_INT0";
 
 		uvh_nmi_mmrx_supported = UVH_EXTIO_INT0_BROADCAST;
