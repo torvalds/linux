@@ -1255,25 +1255,14 @@ static int i915_drm_resume(struct drm_device *dev)
 
 	intel_modeset_init_hw(dev_priv);
 	intel_init_clock_gating(dev_priv);
+	intel_hpd_init(dev_priv);
 
-	spin_lock_irq(&dev_priv->irq_lock);
-	if (dev_priv->display.hpd_irq_setup)
-		dev_priv->display.hpd_irq_setup(dev_priv);
-	spin_unlock_irq(&dev_priv->irq_lock);
-
+	/* MST sideband requires HPD interrupts enabled */
 	intel_dp_mst_resume(dev_priv);
-
 	intel_display_resume(dev);
 
+	intel_hpd_poll_disable(dev_priv);
 	drm_kms_helper_poll_enable(dev);
-
-	/*
-	 * ... but also need to make sure that hotplug processing
-	 * doesn't cause havoc. Like in the driver load code we don't
-	 * bother with the tiny race here where we might lose hotplug
-	 * notifications.
-	 * */
-	intel_hpd_init(dev_priv);
 
 	intel_opregion_resume(dev_priv);
 
@@ -1586,7 +1575,7 @@ static int intel_runtime_suspend(struct device *kdev)
 	assert_forcewakes_inactive(&dev_priv->uncore);
 
 	if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv))
-		intel_hpd_poll_init(dev_priv);
+		intel_hpd_poll_enable(dev_priv);
 
 	drm_dbg_kms(&dev_priv->drm, "Device suspended\n");
 	return 0;
@@ -1631,8 +1620,10 @@ static int intel_runtime_resume(struct device *kdev)
 	 * power well, so hpd is reinitialized from there. For
 	 * everyone else do it here.
 	 */
-	if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv))
+	if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv)) {
 		intel_hpd_init(dev_priv);
+		intel_hpd_poll_disable(dev_priv);
+	}
 
 	intel_enable_ipc(dev_priv);
 
