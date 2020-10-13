@@ -27,4 +27,9 @@
 
 extern void vangogh_set_ppt_funcs(struct smu_context *smu);
 
+/* UMD PState Vangogh Msg Parameters in MHz */
+#define VANGOGH_UMD_PSTATE_GFXCLK       700
+#define VANGOGH_UMD_PSTATE_SOCCLK       678
+#define VANGOGH_UMD_PSTATE_FCLK         800
+
 #endif
