@@ -1172,6 +1172,7 @@ int kvmppc_uvmem_init(void)
 	kvmppc_uvmem_pgmap.type = MEMORY_DEVICE_PRIVATE;
 	kvmppc_uvmem_pgmap.range.start = res->start;
 	kvmppc_uvmem_pgmap.range.end = res->end;
+	kvmppc_uvmem_pgmap.nr_range = 1;
 	kvmppc_uvmem_pgmap.ops = &kvmppc_uvmem_ops;
 	/* just one global instance: */
 	kvmppc_uvmem_pgmap.owner = &kvmppc_uvmem_pgmap;

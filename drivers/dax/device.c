@@ -417,6 +417,7 @@ int dev_dax_probe(struct dev_dax *dev_dax)
 		if (!pgmap)
 			return -ENOMEM;
 		pgmap->range = *range;
+		pgmap->nr_range = 1;
 	}
 	pgmap->type = MEMORY_DEVICE_GENERIC;
 	addr = devm_memremap_pages(dev, pgmap);

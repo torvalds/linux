@@ -693,6 +693,7 @@ static int __nvdimm_setup_pfn(struct nd_pfn *nd_pfn, struct dev_pagemap *pgmap)
 		.start = nsio->res.start + start_pad,
 		.end = nsio->res.end - end_trunc,
 	};
+	pgmap->nr_range = 1;
 	if (nd_pfn->mode == PFN_MODE_RAM) {
 		if (offset < reserve)
 			return -EINVAL;

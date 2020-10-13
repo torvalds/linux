@@ -47,6 +47,7 @@ static int fill_list(unsigned int nr_pages)
 		.start = res->start,
 		.end = res->end,
 	};
+	pgmap->nr_range = 1;
 	pgmap->owner = res;
 
 #ifdef CONFIG_XEN_HAVE_PVMMU

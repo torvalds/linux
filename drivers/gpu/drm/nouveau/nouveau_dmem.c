@@ -251,6 +251,7 @@ nouveau_dmem_chunk_alloc(struct nouveau_drm *drm, struct page **ppage)
 	chunk->pagemap.type = MEMORY_DEVICE_PRIVATE;
 	chunk->pagemap.range.start = res->start;
 	chunk->pagemap.range.end = res->end;
+	chunk->pagemap.nr_range = 1;
 	chunk->pagemap.ops = &nouveau_dmem_pagemap_ops;
 	chunk->pagemap.owner = drm->dev;
 
