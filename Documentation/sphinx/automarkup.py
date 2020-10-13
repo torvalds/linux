@@ -74,7 +74,7 @@ def markup_refs(docname, app, node):
                            RE_generic_type: markup_c_ref}
 
     markup_func_sphinx3 = {RE_doc: markup_doc_ref,
-                           RE_function: markup_c_ref,
+                           RE_function: markup_func_ref_sphinx3,
                            RE_struct: markup_c_ref,
                            RE_union: markup_c_ref,
                            RE_enum: markup_c_ref,
@@ -109,12 +109,47 @@ def markup_refs(docname, app, node):
     return repl
 
 #
-# Try to replace a C reference (function() or struct/union/enum/typedef
-# type_name) with an appropriate cross reference.
+# In sphinx3 we can cross-reference to C macro and function, each one with its
+# own C role, but both match the same regex, so we try both.
 #
+def markup_func_ref_sphinx3(docname, app, match):
+    class_str = ['c-func', 'c-macro']
+    reftype_str = ['function', 'macro']
+
+    cdom = app.env.domains['c']
+    #
+    # Go through the dance of getting an xref out of the C domain
+    #
+    target = match.group(2)
+    target_text = nodes.Text(match.group(0))
+    xref = None
+    if not (target in Skipfuncs or target in Skipnames):
+        for class_s, reftype_s in zip(class_str, reftype_str):
+            lit_text = nodes.literal(classes=['xref', 'c', class_s])
+            lit_text += target_text
+            pxref = addnodes.pending_xref('', refdomain = 'c',
+                                          reftype = reftype_s,
+                                          reftarget = target, modname = None,
+                                          classname = None)
+            #
+            # XXX The Latex builder will throw NoUri exceptions here,
+            # work around that by ignoring them.
+            #
+            try:
+                xref = cdom.resolve_xref(app.env, docname, app.builder,
+                                         reftype_s, target, pxref,
+                                         lit_text)
+            except NoUri:
+                xref = None
+
+            if xref:
+                return xref
+
+    return target_text
+
 def markup_c_ref(docname, app, match):
-    class_str = {RE_function: 'c-func',
-                 # Sphinx 2 only
+    class_str = {# Sphinx 2 only
+                 RE_function: 'c-func',
                  RE_generic_type: 'c-type',
                  # Sphinx 3+ only
                  RE_struct: 'c-struct',
@@ -122,8 +157,8 @@ def markup_c_ref(docname, app, match):
                  RE_enum: 'c-enum',
                  RE_typedef: 'c-type',
                  }
-    reftype_str = {RE_function: 'function',
-                   # Sphinx 2 only
+    reftype_str = {# Sphinx 2 only
+                   RE_function: 'function',
                    RE_generic_type: 'type',
                    # Sphinx 3+ only
                    RE_struct: 'struct',
