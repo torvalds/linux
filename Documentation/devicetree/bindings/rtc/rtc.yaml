@@ -52,6 +52,12 @@ properties:
       Selected resistor for trickle charger. Should be given
       if trickle charger should be enabled.
 
+  trickle-voltage-millivolt:
+    description:
+      Selected voltage for trickle charger. Should be given
+      if trickle charger should be enabled and the trickle voltage is different
+      from the RTC main power supply.
+
   wakeup-source:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
