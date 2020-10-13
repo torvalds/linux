@@ -214,6 +214,7 @@ MODULE_DEVICE_TABLE(of, sdhci_dwcmshc_dt_ids);
 static struct platform_driver sdhci_dwcmshc_driver = {
 	.driver	= {
 		.name	= "sdhci-dwcmshc",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = sdhci_dwcmshc_dt_ids,
 		.pm = &dwcmshc_pmops,
 	},

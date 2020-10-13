@@ -1178,6 +1178,7 @@ static struct platform_driver alcor_pci_sdmmc_driver = {
 	.id_table	= alcor_pci_sdmmc_ids,
 	.driver		= {
 		.name	= DRV_NAME_ALCOR_PCI_SDMMC,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.pm	= &alcor_mmc_pm_ops
 	},
 };

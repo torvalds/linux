@@ -1471,6 +1471,7 @@ static struct platform_driver rtsx_pci_sdmmc_driver = {
 	.id_table       = rtsx_pci_sdmmc_ids,
 	.driver		= {
 		.name	= DRV_NAME_RTSX_PCI_SDMMC,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
 module_platform_driver(rtsx_pci_sdmmc_driver);

@@ -463,6 +463,7 @@ static const struct dev_pm_ops renesas_sdhi_sys_dmac_dev_pm_ops = {
 static struct platform_driver renesas_sys_dmac_sdhi_driver = {
 	.driver		= {
 		.name	= "sh_mobile_sdhi",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.pm	= &renesas_sdhi_sys_dmac_dev_pm_ops,
 		.of_match_table = renesas_sdhi_sys_dmac_of_match,
 	},

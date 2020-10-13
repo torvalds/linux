@@ -150,8 +150,8 @@ static void s3cmci_reset(struct s3cmci_host *host);
 
 static void dbg_dumpregs(struct s3cmci_host *host, char *prefix)
 {
-	u32 con, pre, cmdarg, cmdcon, cmdsta, r0, r1, r2, r3, timer, bsize;
-	u32 datcon, datcnt, datsta, fsta, imask;
+	u32 con, pre, cmdarg, cmdcon, cmdsta, r0, r1, r2, r3, timer;
+	u32 datcon, datcnt, datsta, fsta;
 
 	con 	= readl(host->base + S3C2410_SDICON);
 	pre 	= readl(host->base + S3C2410_SDIPRE);
@@ -163,12 +163,10 @@ static void dbg_dumpregs(struct s3cmci_host *host, char *prefix)
 	r2 	= readl(host->base + S3C2410_SDIRSP2);
 	r3 	= readl(host->base + S3C2410_SDIRSP3);
 	timer 	= readl(host->base + S3C2410_SDITIMER);
-	bsize 	= readl(host->base + S3C2410_SDIBSIZE);
 	datcon 	= readl(host->base + S3C2410_SDIDCON);
 	datcnt 	= readl(host->base + S3C2410_SDIDCNT);
 	datsta 	= readl(host->base + S3C2410_SDIDSTA);
 	fsta 	= readl(host->base + S3C2410_SDIFSTA);
-	imask   = readl(host->base + host->sdiimsk);
 
 	dbg(host, dbg_debug, "%s  CON:[%08x]  PRE:[%08x]  TMR:[%08x]\n",
 				prefix, con, pre, timer);
@@ -396,9 +394,6 @@ static void s3cmci_enable_irq(struct s3cmci_host *host, bool more)
 	local_irq_restore(flags);
 }
 
-/**
- *
- */
 static void s3cmci_disable_irq(struct s3cmci_host *host, bool transfer)
 {
 	unsigned long flags;
@@ -1379,7 +1374,7 @@ static int s3cmci_state_show(struct seq_file *seq, void *v)
 {
 	struct s3cmci_host *host = seq->private;
 
-	seq_printf(seq, "Register base = 0x%08x\n", (u32)host->base);
+	seq_printf(seq, "Register base = 0x%p\n", host->base);
 	seq_printf(seq, "Clock rate = %ld\n", host->clk_rate);
 	seq_printf(seq, "Prescale = %d\n", host->prescaler);
 	seq_printf(seq, "is2440 = %d\n", host->is2440);
@@ -1522,7 +1517,7 @@ static int s3cmci_probe_dt(struct s3cmci_host *host)
 	struct mmc_host *mmc = host->mmc;
 	int ret;
 
-	host->is2440 = (int) of_device_get_match_data(&pdev->dev);
+	host->is2440 = (long) of_device_get_match_data(&pdev->dev);
 
 	ret = mmc_of_parse(mmc);
 	if (ret)
@@ -1809,6 +1804,7 @@ MODULE_DEVICE_TABLE(platform, s3cmci_driver_ids);
 static struct platform_driver s3cmci_driver = {
 	.driver	= {
 		.name	= "s3c-sdi",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = s3cmci_dt_match,
 	},
 	.id_table	= s3cmci_driver_ids,
