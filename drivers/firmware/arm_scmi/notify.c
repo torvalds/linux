@@ -1403,15 +1403,21 @@ static void scmi_protocols_late_init(struct work_struct *work)
 				"finalized PENDING handler - key:%X\n",
 				hndl->key);
 			ret = scmi_event_handler_enable_events(hndl);
+			if (ret) {
+				dev_dbg(ni->handle->dev,
+					"purging INVALID handler - key:%X\n",
+					hndl->key);
+				scmi_put_active_handler(ni, hndl);
+			}
 		} else {
 			ret = scmi_valid_pending_handler(ni, hndl);
-		}
-		if (ret) {
-			dev_dbg(ni->handle->dev,
-				"purging PENDING handler - key:%X\n",
-				hndl->key);
-			/* this hndl can be only a pending one */
-			scmi_put_handler_unlocked(ni, hndl);
+			if (ret) {
+				dev_dbg(ni->handle->dev,
+					"purging PENDING handler - key:%X\n",
+					hndl->key);
+				/* this hndl can be only a pending one */
+				scmi_put_handler_unlocked(ni, hndl);
+			}
 		}
 	}
 	mutex_unlock(&ni->pending_mtx);
