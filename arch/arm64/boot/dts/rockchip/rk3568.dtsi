@@ -447,6 +447,19 @@
 		reg = <0x0 0xfe1a8100 0x0 0x20>;
 	};
 
+	sdhci: sdhci@fe310000 {
+		compatible = "rockchip,dwcmshc-sdhci", "snps,dwcmshc-sdhci";
+		reg = <0x0 0xfe310000 0x0 0x10000>;
+		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
+		assigned-clocks = <&cru CCLK_EMMC>, <&cru BCLK_EMMC>, <&cru TCLK_EMMC>;
+		assigned-clock-rates = <200000000>, <200000000>, <24000000>;
+		clocks = <&cru CCLK_EMMC>, <&cru HCLK_EMMC>,
+			 <&cru ACLK_EMMC>, <&cru BCLK_EMMC>,
+			 <&cru TCLK_EMMC>;
+		clock-names = "core", "bus", "axi", "block", "timer";
+		status = "disabled";
+	};
+
 	nandc0: nandc@fe330000 {
 		compatible = "rockchip,rk-nandc";
 		reg = <0x0 0xfe330000 0x0 0x4000>;
