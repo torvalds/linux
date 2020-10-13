@@ -123,9 +123,9 @@ static int afs_probe_cell_name(struct dentry *dentry)
 		len--;
 	}
 
-	cell = afs_find_cell(net, name, len);
+	cell = afs_find_cell(net, name, len, afs_cell_trace_use_probe);
 	if (!IS_ERR(cell)) {
-		afs_unuse_cell(net, cell);
+		afs_unuse_cell(net, cell, afs_cell_trace_unuse_probe);
 		return 0;
 	}
 
