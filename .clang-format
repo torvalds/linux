@@ -273,7 +273,7 @@ ForEachMacros:
   - 'for_each_registered_fb'
   - 'for_each_requested_gpio'
   - 'for_each_requested_gpio_in_range'
-  - 'for_each_reserved_mem_region'
+  - 'for_each_reserved_mem_range'
   - 'for_each_rtd_codec_dais'
   - 'for_each_rtd_codec_dais_rollback'
   - 'for_each_rtd_components'
