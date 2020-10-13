@@ -1852,7 +1852,6 @@ static void __io_fail_links(struct io_kiocb *req)
 		io_cqring_fill_event(link, -ECANCELED);
 		link->flags |= REQ_F_COMP_LOCKED;
 		__io_double_put_req(link);
-		req->flags &= ~REQ_F_LINK_TIMEOUT;
 	}
 
 	io_commit_cqring(ctx);
