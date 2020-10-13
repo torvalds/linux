@@ -515,7 +515,7 @@ static void dax_region_unregister(void *region)
 }
 
 struct dax_region *alloc_dax_region(struct device *parent, int region_id,
-		struct resource *res, int target_node, unsigned int align,
+		struct range *range, int target_node, unsigned int align,
 		unsigned long flags)
 {
 	struct dax_region *dax_region;
@@ -530,8 +530,8 @@ struct dax_region *alloc_dax_region(struct device *parent, int region_id,
 		return NULL;
 	}
 
-	if (!IS_ALIGNED(res->start, align)
-			|| !IS_ALIGNED(resource_size(res), align))
+	if (!IS_ALIGNED(range->start, align)
+			|| !IS_ALIGNED(range_len(range), align))
 		return NULL;
 
 	dax_region = kzalloc(sizeof(*dax_region), GFP_KERNEL);
@@ -546,8 +546,8 @@ struct dax_region *alloc_dax_region(struct device *parent, int region_id,
 	dax_region->target_node = target_node;
 	ida_init(&dax_region->ida);
 	dax_region->res = (struct resource) {
-		.start = res->start,
-		.end = res->end,
+		.start = range->start,
+		.end = range->end,
 		.flags = IORESOURCE_MEM | flags,
 	};
 

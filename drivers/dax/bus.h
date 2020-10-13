@@ -13,7 +13,7 @@ void dax_region_put(struct dax_region *dax_region);
 
 #define IORESOURCE_DAX_STATIC (1UL << 0)
 struct dax_region *alloc_dax_region(struct device *parent, int region_id,
-		struct resource *res, int target_node, unsigned int align,
+		struct range *range, int target_node, unsigned int align,
 		unsigned long flags);
 
 enum dev_dax_subsys {

@@ -416,8 +416,7 @@ int dev_dax_probe(struct dev_dax *dev_dax)
 		pgmap = devm_kzalloc(dev, sizeof(*pgmap), GFP_KERNEL);
 		if (!pgmap)
 			return -ENOMEM;
-		pgmap->res.start = range->start;
-		pgmap->res.end = range->end;
+		pgmap->range = *range;
 	}
 	pgmap->type = MEMORY_DEVICE_GENERIC;
 	addr = devm_memremap_pages(dev, pgmap);

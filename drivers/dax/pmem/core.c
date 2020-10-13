@@ -9,7 +9,7 @@
 
 struct dev_dax *__dax_pmem_probe(struct device *dev, enum dev_dax_subsys subsys)
 {
-	struct resource res;
+	struct range range;
 	int rc, id, region_id;
 	resource_size_t offset;
 	struct nd_pfn_sb *pfn_sb;
@@ -50,10 +50,10 @@ struct dev_dax *__dax_pmem_probe(struct device *dev, enum dev_dax_subsys subsys)
 	if (rc != 2)
 		return ERR_PTR(-EINVAL);
 
-	/* adjust the dax_region resource to the start of data */
-	memcpy(&res, &pgmap.res, sizeof(res));
-	res.start += offset;
-	dax_region = alloc_dax_region(dev, region_id, &res,
+	/* adjust the dax_region range to the start of data */
+	range = pgmap.range;
+	range.start += offset,
+	dax_region = alloc_dax_region(dev, region_id, &range,
 			nd_region->target_node, le32_to_cpu(pfn_sb->align),
 			IORESOURCE_DAX_STATIC);
 	if (!dax_region)
@@ -64,7 +64,7 @@ struct dev_dax *__dax_pmem_probe(struct device *dev, enum dev_dax_subsys subsys)
 		.id = id,
 		.pgmap = &pgmap,
 		.subsys = subsys,
-		.size = resource_size(&res),
+		.size = range_len(&range),
 	};
 	dev_dax = devm_create_dev_dax(&data);
 
