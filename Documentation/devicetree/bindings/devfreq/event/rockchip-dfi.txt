@@ -10,6 +10,7 @@ Required properties:
   - "rockchip,rk3328-dfi" - for RK3328 SoCs.
   - "rockchip,rk3368-dfi" - for RK3368 SoCs.
   - "rockchip,rk3399-dfi" - for RK3399 SoCs.
+  - "rockchip,rk3568-dfi" - for RK3568 SoCs.
   - "rockchip,rv1126-dfi" - for RV1126 SoCs.
 
 Required properties for RK3368:
