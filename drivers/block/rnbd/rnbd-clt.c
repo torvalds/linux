@@ -1509,7 +1509,7 @@ struct rnbd_clt_dev *rnbd_clt_map_device(const char *sessname,
 			      "map_device: Failed to configure device, err: %d\n",
 			      ret);
 		mutex_unlock(&dev->lock);
-		goto del_dev;
+		goto send_close;
 	}
 
 	rnbd_clt_info(dev,
@@ -1528,6 +1528,8 @@ struct rnbd_clt_dev *rnbd_clt_map_device(const char *sessname,
 
 	return dev;
 
+send_close:
+	send_msg_close(dev, dev->device_id, WAIT);
 del_dev:
 	delete_dev(dev);
 put_dev:
