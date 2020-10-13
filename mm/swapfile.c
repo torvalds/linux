@@ -1184,7 +1184,6 @@ static struct swap_info_struct *_swap_info_get(swp_entry_t entry)
 
 bad_free:
 	pr_err("swap_info_get: %s%08lx\n", Unused_offset, entry.val);
-	goto out;
 out:
 	return NULL;
 }
