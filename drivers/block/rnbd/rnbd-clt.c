@@ -91,11 +91,6 @@ static int rnbd_clt_set_dev_attr(struct rnbd_clt_dev *dev,
 	dev->max_hw_sectors = sess->max_io_size / SECTOR_SIZE;
 	dev->max_segments = BMAX_SEGMENTS;
 
-	dev->max_hw_sectors = min_t(u32, dev->max_hw_sectors,
-				    le32_to_cpu(rsp->max_hw_sectors));
-	dev->max_segments = min_t(u16, dev->max_segments,
-				  le16_to_cpu(rsp->max_segments));
-
 	return 0;
 }
 
