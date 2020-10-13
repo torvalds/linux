@@ -1228,7 +1228,7 @@ static int rapl_check_domain(int cpu, int domain, struct rapl_package *rp)
 	 * values, otherwise skip it.
 	 */
 
-	ra.mask = ~0;
+	ra.mask = ENERGY_STATUS_MASK;
 	if (rp->priv->read_raw(cpu, &ra) || !ra.value)
 		return -ENODEV;
 
