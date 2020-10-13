@@ -3464,7 +3464,7 @@ void amdgpu_pm_sysfs_fini(struct amdgpu_device *adev)
 static int amdgpu_debugfs_pm_info_pp(struct seq_file *m, struct amdgpu_device *adev)
 {
 	uint32_t value;
-	uint64_t value64;
+	uint64_t value64 = 0;
 	uint32_t query = 0;
 	int size;
 
