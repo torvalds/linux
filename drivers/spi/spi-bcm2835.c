@@ -1319,11 +1319,8 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 
 	bs->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(bs->clk)) {
-		err = PTR_ERR(bs->clk);
-		if (err == -EPROBE_DEFER)
-			dev_dbg(&pdev->dev, "could not get clk: %d\n", err);
-		else
-			dev_err(&pdev->dev, "could not get clk: %d\n", err);
+		err = dev_err_probe(&pdev->dev, PTR_ERR(bs->clk),
+				    "could not get clk\n");
 		goto out_controller_put;
 	}
 

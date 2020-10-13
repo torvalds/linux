@@ -731,7 +731,7 @@ static int fsl_espi_probe(struct device *dev, struct resource *mem,
 	if (ret < 0)
 		goto err_pm;
 
-	dev_info(dev, "at 0x%p (irq = %u)\n", espi->reg_base, irq);
+	dev_info(dev, "irq = %u\n", irq);
 
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);

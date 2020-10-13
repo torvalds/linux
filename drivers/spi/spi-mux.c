@@ -139,9 +139,8 @@ static int spi_mux_probe(struct spi_device *spi)
 
 	priv->mux = devm_mux_control_get(&spi->dev, NULL);
 	if (IS_ERR(priv->mux)) {
-		ret = PTR_ERR(priv->mux);
-		if (ret != -EPROBE_DEFER)
-			dev_err(&spi->dev, "failed to get control-mux\n");
+		ret = dev_err_probe(&spi->dev, PTR_ERR(priv->mux),
+				    "failed to get control-mux\n");
 		goto err_put_ctlr;
 	}
 
