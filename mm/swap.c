@@ -889,6 +889,7 @@ void release_pages(struct page **pages, int nr)
 			locked_pgdat = NULL;
 		}
 
+		page = compound_head(page);
 		if (is_huge_zero_page(page))
 			continue;
 
@@ -910,7 +911,6 @@ void release_pages(struct page **pages, int nr)
 			}
 		}
 
-		page = compound_head(page);
 		if (!put_page_testzero(page))
 			continue;
 
