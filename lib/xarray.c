@@ -703,7 +703,7 @@ void xas_create_range(struct xa_state *xas)
 	unsigned char shift = xas->xa_shift;
 	unsigned char sibs = xas->xa_sibs;
 
-	xas->xa_index |= ((sibs + 1) << shift) - 1;
+	xas->xa_index |= ((sibs + 1UL) << shift) - 1;
 	if (xas_is_node(xas) && xas->xa_node->shift == xas->xa_shift)
 		xas->xa_offset |= sibs;
 	xas->xa_shift = 0;
