@@ -102,12 +102,12 @@ void __dump_page(struct page *page, const char *reason)
 		if (hpage_pincount_available(page)) {
 			pr_warn("head:%p order:%u compound_mapcount:%d compound_pincount:%d\n",
 					head, compound_order(head),
-					head_mapcount(head),
-					head_pincount(head));
+					head_compound_mapcount(head),
+					head_compound_pincount(head));
 		} else {
 			pr_warn("head:%p order:%u compound_mapcount:%d\n",
 					head, compound_order(head),
-					head_mapcount(head));
+					head_compound_mapcount(head));
 		}
 	}
 	if (PageKsm(page))
