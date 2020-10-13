@@ -1311,13 +1311,14 @@ static int genpd_restore_noirq(struct device *dev)
 	 * first time for the given domain in the present cycle.
 	 */
 	genpd_lock(genpd);
-	if (genpd->suspended_count++ == 0)
+	if (genpd->suspended_count++ == 0) {
 		/*
 		 * The boot kernel might put the domain into arbitrary state,
 		 * so make it appear as powered off to genpd_sync_power_on(),
 		 * so that it tries to power it on in case it was really off.
 		 */
 		genpd->status = GENPD_STATE_OFF;
+	}
 
 	genpd_sync_power_on(genpd, true, 0);
 	genpd_unlock(genpd);
