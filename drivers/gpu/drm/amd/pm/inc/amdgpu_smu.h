@@ -575,6 +575,7 @@ struct pptable_funcs {
 	int (*get_fan_parameters)(struct smu_context *smu);
 	int (*post_init)(struct smu_context *smu);
 	void (*interrupt_work)(struct smu_context *smu);
+	int (*gpo_control)(struct smu_context *smu, bool enablement);
 };
 
 typedef enum {

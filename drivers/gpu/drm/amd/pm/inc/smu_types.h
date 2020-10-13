@@ -184,6 +184,7 @@
 	__SMU_DUMMY_MAP(SetSoftMinSocclkByFreq),         \
 	__SMU_DUMMY_MAP(PowerUpCvip),                    \
 	__SMU_DUMMY_MAP(PowerDownCvip),                  \
+	__SMU_DUMMY_MAP(SetGpoFeaturePMask),             \
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(type)	SMU_MSG_##type

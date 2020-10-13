@@ -89,6 +89,7 @@
 #define smu_deep_sleep_control(smu, enablement)				smu_ppt_funcs(deep_sleep_control, 0, smu, enablement)
 #define smu_get_fan_parameters(smu)					smu_ppt_funcs(get_fan_parameters, 0, smu)
 #define smu_post_init(smu)						smu_ppt_funcs(post_init, 0, smu)
+#define smu_gpo_control(smu, enablement)				smu_ppt_funcs(gpo_control, 0, smu, enablement)
 
 #endif
 #endif
