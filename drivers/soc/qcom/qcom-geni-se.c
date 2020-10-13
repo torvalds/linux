@@ -266,49 +266,63 @@ EXPORT_SYMBOL(geni_se_init);
 static void geni_se_select_fifo_mode(struct geni_se *se)
 {
 	u32 proto = geni_se_read_proto(se);
-	u32 val;
+	u32 val, val_old;
 
 	geni_se_irq_clear(se);
 
-	val = readl_relaxed(se->base + SE_GENI_M_IRQ_EN);
+	/*
+	 * The RX path for the UART is asynchronous and so needs more
+	 * complex logic for enabling / disabling its interrupts.
+	 *
+	 * Specific notes:
+	 * - The done and TX-related interrupts are managed manually.
+	 * - We don't RX from the main sequencer (we use the secondary) so
+	 *   we don't need the RX-related interrupts enabled in the main
+	 *   sequencer for UART.
+	 */
 	if (proto != GENI_SE_UART) {
+		val_old = val = readl_relaxed(se->base + SE_GENI_M_IRQ_EN);
 		val |= M_CMD_DONE_EN | M_TX_FIFO_WATERMARK_EN;
 		val |= M_RX_FIFO_WATERMARK_EN | M_RX_FIFO_LAST_EN;
-	}
-	writel_relaxed(val, se->base + SE_GENI_M_IRQ_EN);
+		if (val != val_old)
+			writel_relaxed(val, se->base + SE_GENI_M_IRQ_EN);
 
-	val = readl_relaxed(se->base + SE_GENI_S_IRQ_EN);
-	if (proto != GENI_SE_UART)
+		val_old = val = readl_relaxed(se->base + SE_GENI_S_IRQ_EN);
 		val |= S_CMD_DONE_EN;
-	writel_relaxed(val, se->base + SE_GENI_S_IRQ_EN);
+		if (val != val_old)
+			writel_relaxed(val, se->base + SE_GENI_S_IRQ_EN);
+	}
 
-	val = readl_relaxed(se->base + SE_GENI_DMA_MODE_EN);
+	val_old = val = readl_relaxed(se->base + SE_GENI_DMA_MODE_EN);
 	val &= ~GENI_DMA_MODE_EN;
-	writel_relaxed(val, se->base + SE_GENI_DMA_MODE_EN);
+	if (val != val_old)
+		writel_relaxed(val, se->base + SE_GENI_DMA_MODE_EN);
 }
 
 static void geni_se_select_dma_mode(struct geni_se *se)
 {
 	u32 proto = geni_se_read_proto(se);
-	u32 val;
+	u32 val, val_old;
 
 	geni_se_irq_clear(se);
 
-	val = readl_relaxed(se->base + SE_GENI_M_IRQ_EN);
 	if (proto != GENI_SE_UART) {
+		val_old = val = readl_relaxed(se->base + SE_GENI_M_IRQ_EN);
 		val &= ~(M_CMD_DONE_EN | M_TX_FIFO_WATERMARK_EN);
 		val &= ~(M_RX_FIFO_WATERMARK_EN | M_RX_FIFO_LAST_EN);
-	}
-	writel_relaxed(val, se->base + SE_GENI_M_IRQ_EN);
+		if (val != val_old)
+			writel_relaxed(val, se->base + SE_GENI_M_IRQ_EN);
 
-	val = readl_relaxed(se->base + SE_GENI_S_IRQ_EN);
-	if (proto != GENI_SE_UART)
+		val_old = val = readl_relaxed(se->base + SE_GENI_S_IRQ_EN);
 		val &= ~S_CMD_DONE_EN;
-	writel_relaxed(val, se->base + SE_GENI_S_IRQ_EN);
+		if (val != val_old)
+			writel_relaxed(val, se->base + SE_GENI_S_IRQ_EN);
+	}
 
-	val = readl_relaxed(se->base + SE_GENI_DMA_MODE_EN);
+	val_old = val = readl_relaxed(se->base + SE_GENI_DMA_MODE_EN);
 	val |= GENI_DMA_MODE_EN;
-	writel_relaxed(val, se->base + SE_GENI_DMA_MODE_EN);
+	if (val != val_old)
+		writel_relaxed(val, se->base + SE_GENI_DMA_MODE_EN);
 }
 
 /**
