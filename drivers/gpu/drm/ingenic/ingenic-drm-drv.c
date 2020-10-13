@@ -9,8 +9,6 @@
 #include <linux/component.h>
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
-#include <linux/dma-noncoherent.h>
-#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
@@ -21,7 +19,6 @@
 #include <drm/drm_bridge.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
-#include <drm/drm_damage_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_fb_cma_helper.h>
@@ -78,11 +75,6 @@ static const u32 ingenic_drm_primary_formats[] = {
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_XRGB8888,
 };
-
-static bool ingenic_drm_cached_gem_buf;
-module_param_named(cached_gem_buffers, ingenic_drm_cached_gem_buf, bool, 0400);
-MODULE_PARM_DESC(cached_gem_buffers,
-		 "Enable fully cached GEM buffers [default=false]");
 
 static bool ingenic_drm_writeable_reg(struct device *dev, unsigned int reg)
 {
@@ -346,8 +338,6 @@ static int ingenic_drm_plane_atomic_check(struct drm_plane *plane,
 	     plane->state->fb->format->format != state->fb->format->format))
 		crtc_state->mode_changed = true;
 
-	drm_atomic_helper_check_plane_damage(state->state, state);
-
 	return 0;
 }
 
@@ -450,38 +440,6 @@ void ingenic_drm_plane_config(struct device *dev,
 	}
 }
 
-void ingenic_drm_sync_data(struct device *dev,
-			   struct drm_plane_state *old_state,
-			   struct drm_plane_state *state)
-{
-	const struct drm_format_info *finfo = state->fb->format;
-	struct ingenic_drm *priv = dev_get_drvdata(dev);
-	struct drm_atomic_helper_damage_iter iter;
-	unsigned int offset, i;
-	struct drm_rect clip;
-	dma_addr_t paddr;
-	void *addr;
-
-	if (!ingenic_drm_cached_gem_buf)
-		return;
-
-	drm_atomic_helper_damage_iter_init(&iter, old_state, state);
-
-	drm_atomic_for_each_plane_damage(&iter, &clip) {
-		for (i = 0; i < finfo->num_planes; i++) {
-			paddr = drm_fb_cma_get_gem_addr(state->fb, state, i);
-			addr = phys_to_virt(paddr);
-
-			/* Ignore x1/x2 values, invalidate complete lines */
-			offset = clip.y1 * state->fb->pitches[i];
-
-			dma_cache_sync(priv->dev, addr + offset,
-				       (clip.y2 - clip.y1) * state->fb->pitches[i],
-				       DMA_TO_DEVICE);
-		}
-	}
-}
-
 static void ingenic_drm_plane_atomic_update(struct drm_plane *plane,
 					    struct drm_plane_state *oldstate)
 {
@@ -492,8 +450,6 @@ static void ingenic_drm_plane_atomic_update(struct drm_plane *plane,
 	dma_addr_t addr;
 
 	if (state && state->fb) {
-		ingenic_drm_sync_data(priv->dev, oldstate, state);
-
 		addr = drm_fb_cma_get_gem_addr(state->fb, state, 0);
 		width = state->src_w >> 16;
 		height = state->src_h >> 16;
@@ -649,69 +605,7 @@ static void ingenic_drm_disable_vblank(struct drm_crtc *crtc)
 	regmap_update_bits(priv->map, JZ_REG_LCD_CTRL, JZ_LCD_CTRL_EOF_IRQ, 0);
 }
 
-static struct drm_framebuffer *
-ingenic_drm_gem_fb_create(struct drm_device *dev, struct drm_file *file,
-			  const struct drm_mode_fb_cmd2 *mode_cmd)
-{
-	if (ingenic_drm_cached_gem_buf)
-		return drm_gem_fb_create_with_dirty(dev, file, mode_cmd);
-
-	return drm_gem_fb_create(dev, file, mode_cmd);
-}
-
-static int ingenic_drm_gem_mmap(struct drm_gem_object *obj,
-				struct vm_area_struct *vma)
-{
-	struct drm_gem_cma_object *cma_obj = to_drm_gem_cma_obj(obj);
-	struct device *dev = cma_obj->base.dev->dev;
-	unsigned long attrs;
-	int ret;
-
-	if (ingenic_drm_cached_gem_buf)
-		attrs = DMA_ATTR_NON_CONSISTENT;
-	else
-		attrs = DMA_ATTR_WRITE_COMBINE;
-
-	/*
-	 * Clear the VM_PFNMAP flag that was set by drm_gem_mmap(), and set the
-	 * vm_pgoff (used as a fake buffer offset by DRM) to 0 as we want to map
-	 * the whole buffer.
-	 */
-	vma->vm_flags &= ~VM_PFNMAP;
-	vma->vm_pgoff = 0;
-	vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
-
-	ret = dma_mmap_attrs(dev, vma, cma_obj->vaddr, cma_obj->paddr,
-			     vma->vm_end - vma->vm_start, attrs);
-	if (ret)
-		drm_gem_vm_close(vma);
-
-	return ret;
-}
-
-static int ingenic_drm_gem_cma_mmap(struct file *filp,
-				    struct vm_area_struct *vma)
-{
-	int ret;
-
-	ret = drm_gem_mmap(filp, vma);
-	if (ret)
-		return ret;
-
-	return ingenic_drm_gem_mmap(vma->vm_private_data, vma);
-}
-
-static const struct file_operations ingenic_drm_fops = {
-	.owner		= THIS_MODULE,
-	.open		= drm_open,
-	.release	= drm_release,
-	.unlocked_ioctl	= drm_ioctl,
-	.compat_ioctl	= drm_compat_ioctl,
-	.poll		= drm_poll,
-	.read		= drm_read,
-	.llseek		= noop_llseek,
-	.mmap		= ingenic_drm_gem_cma_mmap,
-};
+DEFINE_DRM_GEM_CMA_FOPS(ingenic_drm_fops);
 
 static struct drm_driver ingenic_drm_driver_data = {
 	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
@@ -775,7 +669,7 @@ static const struct drm_encoder_helper_funcs ingenic_drm_encoder_helper_funcs = 
 };
 
 static const struct drm_mode_config_funcs ingenic_drm_mode_config_funcs = {
-	.fb_create		= ingenic_drm_gem_fb_create,
+	.fb_create		= drm_gem_fb_create,
 	.output_poll_changed	= drm_fb_helper_output_poll_changed,
 	.atomic_check		= drm_atomic_helper_check,
 	.atomic_commit		= drm_atomic_helper_commit,
@@ -902,8 +796,6 @@ static int ingenic_drm_bind(struct device *dev, bool has_components)
 		return ret;
 	}
 
-	drm_plane_enable_fb_damage_clips(&priv->f1);
-
 	drm_crtc_helper_add(&priv->crtc, &ingenic_drm_crtc_helper_funcs);
 
 	ret = drm_crtc_init_with_planes(drm, &priv->crtc, &priv->f1,
@@ -928,8 +820,6 @@ static int ingenic_drm_bind(struct device *dev, bool has_components)
 				ret);
 			return ret;
 		}
-
-		drm_plane_enable_fb_damage_clips(&priv->f0);
 
 		if (IS_ENABLED(CONFIG_DRM_INGENIC_IPU) && has_components) {
 			ret = component_bind_all(dev, drm);
