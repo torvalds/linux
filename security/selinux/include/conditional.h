@@ -13,7 +13,7 @@
 
 #include "security.h"
 
-int security_get_bools(struct selinux_state *state,
+int security_get_bools(struct selinux_policy *policy,
 		       u32 *len, char ***names, int **values);
 
 int security_set_bools(struct selinux_state *state, u32 len, int *values);
