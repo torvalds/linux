@@ -1867,14 +1867,22 @@ static int __synth_event_show(struct seq_file *m, struct synth_event *event)
 {
 	struct synth_field *field;
 	unsigned int i;
+	char *type, *t;
 
 	seq_printf(m, "%s\t", event->name);
 
 	for (i = 0; i < event->n_fields; i++) {
 		field = event->fields[i];
 
+		type = field->type;
+		t = strstr(type, "__data_loc");
+		if (t) { /* __data_loc belongs in format but not event desc */
+			t += sizeof("__data_loc");
+			type = t;
+		}
+
 		/* parameter values */
-		seq_printf(m, "%s %s%s", field->type, field->name,
+		seq_printf(m, "%s %s%s", type, field->name,
 			   i == event->n_fields - 1 ? "" : "; ");
 	}
 
