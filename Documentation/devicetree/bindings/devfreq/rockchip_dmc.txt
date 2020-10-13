@@ -11,6 +11,7 @@ Required properties:
   - "rockchip,rk3328-dmc" - for RK3328 SoCs.
   - "rockchip,rk3368-dmc" - for RK3368 SoCs.
   - "rockchip,rk3399-dmc" - for RK3399 SoCs.
+  - "rockchip,rk3568-dmc" - for RK3568 SoCs.
   - "rockchip,rv1126-dmc" - for RV1126 SoCs.
 - devfreq-events: Node to get DDR loading, Refer to
 		  Documentation/devicetree/bindings/devfreq/rockchip-dfi.txt
