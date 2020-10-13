@@ -36,7 +36,6 @@
 static const struct dev_pagemap_ops dmirror_devmem_ops;
 static const struct mmu_interval_notifier_ops dmirror_min_ops;
 static dev_t dmirror_dev;
-static struct page *dmirror_zero_page;
 
 struct dmirror_device;
 
@@ -1127,17 +1126,6 @@ static int __init hmm_dmirror_init(void)
 			goto err_chrdev;
 	}
 
-	/*
-	 * Allocate a zero page to simulate a reserved page of device private
-	 * memory which is always zero. The zero_pfn page isn't used just to
-	 * make the code here simpler (i.e., we need a struct page for it).
-	 */
-	dmirror_zero_page = alloc_page(GFP_HIGHUSER | __GFP_ZERO);
-	if (!dmirror_zero_page) {
-		ret = -ENOMEM;
-		goto err_chrdev;
-	}
-
 	pr_info("HMM test module loaded. This is only for testing HMM.\n");
 	return 0;
 
@@ -1153,8 +1141,6 @@ static void __exit hmm_dmirror_exit(void)
 {
 	int id;
 
-	if (dmirror_zero_page)
-		__free_page(dmirror_zero_page);
 	for (id = 0; id < DMIRROR_NDEVICES; id++)
 		dmirror_device_remove(dmirror_devices + id);
 	unregister_chrdev_region(dmirror_dev, DMIRROR_NDEVICES);
