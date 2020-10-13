@@ -197,7 +197,7 @@ To be used, a timer must first be initialized by calling :c:func:`timer_setup`:
 
 .. code-block:: c
 
-   #include <linux / sched.h>
+   #include <linux/sched.h>
 
    void timer_setup(struct timer_list * timer,
 		    void (*function)(struct timer_list *),
