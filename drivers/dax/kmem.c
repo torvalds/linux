@@ -33,7 +33,7 @@ int dev_dax_kmem_probe(struct device *dev)
 {
 	struct dev_dax *dev_dax = to_dev_dax(dev);
 	struct range range = dax_kmem_range(dev_dax);
-	struct resource *new_res;
+	struct resource *res;
 	char *res_name;
 	int numa_node;
 	int rc;
@@ -56,8 +56,8 @@ int dev_dax_kmem_probe(struct device *dev)
 		return -ENOMEM;
 
 	/* Region is permanently reserved if hotremove fails. */
-	new_res = request_mem_region(range.start, range_len(&range), res_name);
-	if (!new_res) {
+	res = request_mem_region(range.start, range_len(&range), res_name);
+	if (!res) {
 		dev_warn(dev, "could not reserve region [%#llx-%#llx]\n", range.start, range.end);
 		kfree(res_name);
 		return -EBUSY;
@@ -69,23 +69,20 @@ int dev_dax_kmem_probe(struct device *dev)
 	 * inherit flags from the parent since it may set new flags
 	 * unknown to us that will break add_memory() below.
 	 */
-	new_res->flags = IORESOURCE_SYSTEM_RAM;
+	res->flags = IORESOURCE_SYSTEM_RAM;
 
 	/*
 	 * Ensure that future kexec'd kernels will not treat this as RAM
 	 * automatically.
 	 */
-	rc = add_memory_driver_managed(numa_node, new_res->start,
-				       resource_size(new_res), kmem_name);
+	rc = add_memory_driver_managed(numa_node, range.start, range_len(&range), kmem_name);
 	if (rc) {
-		release_resource(new_res);
-		kfree(new_res);
+		release_mem_region(range.start, range_len(&range));
 		kfree(res_name);
 		return rc;
 	}
 
 	dev_set_drvdata(dev, res_name);
-	dev_dax->dax_kmem_res = new_res;
 
 	return 0;
 }
@@ -95,7 +92,6 @@ static int dev_dax_kmem_remove(struct device *dev)
 {
 	struct dev_dax *dev_dax = to_dev_dax(dev);
 	struct range range = dax_kmem_range(dev_dax);
-	struct resource *res = dev_dax->dax_kmem_res;
 	const char *res_name = dev_get_drvdata(dev);
 	int rc;
 
@@ -114,10 +110,8 @@ static int dev_dax_kmem_remove(struct device *dev)
 	}
 
 	/* Release and free dax resources */
-	release_resource(res);
-	kfree(res);
+	release_mem_region(range.start, range_len(&range));
 	kfree(res_name);
-	dev_dax->dax_kmem_res = NULL;
 
 	return 0;
 }
