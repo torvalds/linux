@@ -46,6 +46,12 @@ RE_typedef = re.compile(r'\b(typedef)\s+([a-zA-Z_]\w+)', flags=re.ASCII)
 RE_doc = re.compile(r'\bDocumentation(/[\w\-_/]+)(\.\w+)*')
 
 #
+# Reserved C words that we should skip when cross-referencing
+#
+Skipnames = [ 'for', 'if', 'register', 'sizeof', 'struct', 'unsigned' ]
+
+
+#
 # Many places in the docs refer to common system calls.  It is
 # pointless to try to cross-reference them and, as has been known
 # to happen, somebody defining a function by these names can lead
@@ -133,7 +139,8 @@ def markup_c_ref(docname, app, match):
     target = match.group(2)
     target_text = nodes.Text(match.group(0))
     xref = None
-    if not (match.re == RE_function and target in Skipfuncs):
+    if not ((match.re == RE_function and target in Skipfuncs)
+            or (target in Skipnames)):
         lit_text = nodes.literal(classes=['xref', 'c', class_str[match.re]])
         lit_text += target_text
         pxref = addnodes.pending_xref('', refdomain = 'c',
