@@ -24,6 +24,7 @@ properties:
     oneOf:
       - items:
           - enum:
+              - renesas,vin-r8a7742  # RZ/G1H
               - renesas,vin-r8a7743  # RZ/G1M
               - renesas,vin-r8a7744  # RZ/G1N
               - renesas,vin-r8a7745  # RZ/G1E
@@ -40,6 +41,7 @@ properties:
               - renesas,vin-r8a774a1 # RZ/G2M
               - renesas,vin-r8a774b1 # RZ/G2N
               - renesas,vin-r8a774c0 # RZ/G2E
+              - renesas,vin-r8a774e1 # RZ/G2H
               - renesas,vin-r8a7778  # R-Car M1
               - renesas,vin-r8a7779  # R-Car H1
               - renesas,vin-r8a7795  # R-Car H3

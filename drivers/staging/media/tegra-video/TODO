@@ -1,10 +1,4 @@
 TODO list
-* Currently driver supports Tegra build-in TPG only with direct media links
-  from CSI to VI. Add kernel config CONFIG_VIDEO_TEGRA_TPG and update the
-  driver to do TPG Vs Sensor media links based on CONFIG_VIDEO_TEGRA_TPG.
-* Add real camera sensor capture support.
-* Add Tegra CSI MIPI pads calibration.
-* Add MIPI clock Settle time computation based on the data rate.
 * Add support for Ganged mode.
 * Add RAW10 packed video format support to Tegra210 video formats.
 * Add support for suspend and resume.

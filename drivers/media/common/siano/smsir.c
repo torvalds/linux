@@ -27,7 +27,7 @@ void sms_ir_event(struct smscore_device_t *coredev, const char *buf, int len)
 
 	for (i = 0; i < len >> 2; i++) {
 		struct ir_raw_event ev = {
-			.duration = abs(samples[i]) * 1000, /* Convert to ns */
+			.duration = abs(samples[i]),
 			.pulse = (samples[i] > 0) ? false : true
 		};
 
@@ -48,7 +48,7 @@ int sms_ir_init(struct smscore_device_t *coredev)
 		return -ENOMEM;
 
 	coredev->ir.controller = 0;	/* Todo: vega/nova SPI number */
-	coredev->ir.timeout = IR_DEFAULT_TIMEOUT;
+	coredev->ir.timeout = US_TO_NS(IR_DEFAULT_TIMEOUT);
 	pr_debug("IR port %d, timeout %d ms\n",
 			coredev->ir.controller, coredev->ir.timeout);
 

@@ -64,11 +64,7 @@ bool sh_css_hrt_system_is_idle(void)
 
 int sh_css_hrt_sp_wait(void)
 {
-#if defined(HAS_IRQ_MAP_VERSION_2)
 	irq_sw_channel_id_t	irq_id = IRQ_SW_CHANNEL0_ID;
-#else
-	irq_sw_channel_id_t	irq_id = IRQ_SW_CHANNEL2_ID;
-#endif
 	/*
 	 * Wait till SP is idle or till there is a SW2 interrupt
 	 * The SW2 interrupt will be used when frameloop runs on SP

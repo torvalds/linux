@@ -1,11 +1,4 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
 
 ******************************
 Single-planar format structure
@@ -116,7 +109,14 @@ Single-planar format structure
       - Image colorspace, from enum :c:type:`v4l2_colorspace`.
         This information supplements the ``pixelformat`` and must be set
 	by the driver for capture streams and by the application for
-	output streams, see :ref:`colorspaces`.
+	output streams, see :ref:`colorspaces`. If the application sets the
+	flag ``V4L2_PIX_FMT_FLAG_SET_CSC`` then the application can set
+	this field for a capture stream to request a specific colorspace
+	for the captured image data. If the driver cannot handle requested
+	conversion, it will return another supported colorspace.
+	The driver indicates that colorspace conversion is supported by setting
+	the flag V4L2_FMT_FLAG_CSC_COLORSPACE in the corresponding struct
+	:c:type:`v4l2_fmtdesc` during enumeration. See :ref:`fmtdesc-flags`.
     * - __u32
       - ``priv``
       - This field indicates whether the remaining fields of the
@@ -153,13 +153,29 @@ Single-planar format structure
       - Y'CbCr encoding, from enum :c:type:`v4l2_ycbcr_encoding`.
         This information supplements the ``colorspace`` and must be set by
 	the driver for capture streams and by the application for output
-	streams, see :ref:`colorspaces`.
+	streams, see :ref:`colorspaces`. If the application sets the
+	flag ``V4L2_PIX_FMT_FLAG_SET_CSC`` then the application can set
+	this field for a capture stream to request a specific Y'CbCr encoding
+	for the captured image data. If the driver cannot handle requested
+	conversion, it will return another supported encoding.
+	This field is ignored for HSV pixelformats. The driver indicates that
+	ycbcr_enc conversion is supported by setting the flag
+	V4L2_FMT_FLAG_CSC_YCBCR_ENC in the corresponding struct
+	:c:type:`v4l2_fmtdesc` during enumeration. See :ref:`fmtdesc-flags`.
     * - __u32
       - ``hsv_enc``
       - HSV encoding, from enum :c:type:`v4l2_hsv_encoding`.
         This information supplements the ``colorspace`` and must be set by
 	the driver for capture streams and by the application for output
-	streams, see :ref:`colorspaces`.
+	streams, see :ref:`colorspaces`. If the application sets the flag
+	``V4L2_PIX_FMT_FLAG_SET_CSC`` then the application can set this
+	field for a capture stream to request a specific HSV encoding for the
+	captured image data. If the driver cannot handle requested
+	conversion, it will return another supported encoding.
+	This field is ignored for non-HSV pixelformats. The driver indicates
+	that hsv_enc conversion is supported by setting the flag
+	V4L2_FMT_FLAG_CSC_HSV_ENC in the corresponding struct
+	:c:type:`v4l2_fmtdesc` during enumeration. See :ref:`fmtdesc-flags`.
     * - }
       -
     * - __u32
@@ -167,10 +183,58 @@ Single-planar format structure
       - Quantization range, from enum :c:type:`v4l2_quantization`.
         This information supplements the ``colorspace`` and must be set by
 	the driver for capture streams and by the application for output
-	streams, see :ref:`colorspaces`.
+	streams, see :ref:`colorspaces`. If the application sets the flag
+	``V4L2_PIX_FMT_FLAG_SET_CSC`` then the application can set
+	this field for a capture stream to request a specific quantization
+	range for the captured image data. If the driver cannot handle requested
+	conversion, it will return another supported quantization.
+	The driver indicates that quantization conversion is supported by setting
+	the flag V4L2_FMT_FLAG_CSC_QUANTIZATION in the corresponding struct
+	:c:type:`v4l2_fmtdesc` during enumeration. See :ref:`fmtdesc-flags`.
     * - __u32
       - ``xfer_func``
       - Transfer function, from enum :c:type:`v4l2_xfer_func`.
         This information supplements the ``colorspace`` and must be set by
 	the driver for capture streams and by the application for output
-	streams, see :ref:`colorspaces`.
+	streams, see :ref:`colorspaces`. If the application sets the flag
+	``V4L2_PIX_FMT_FLAG_SET_CSC`` then the application can set
+	this field for a capture stream to request a specific transfer function
+	for the captured image data. If the driver cannot handle requested
+	conversion, it will return another supported transfer function.
+	The driver indicates that xfer_func conversion is supported by setting
+	the flag V4L2_FMT_FLAG_CSC_XFER_FUNC in the corresponding struct
+	:c:type:`v4l2_fmtdesc` during enumeration. See :ref:`fmtdesc-flags`.
+
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+
+.. _format-flags:
+
+.. flat-table:: Format Flags
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       3 1 4
+
+    * - ``V4L2_PIX_FMT_FLAG_PREMUL_ALPHA``
+      - 0x00000001
+      - The color values are premultiplied by the alpha channel value. For
+        example, if a light blue pixel with 50% transparency was described
+	by RGBA values (128, 192, 255, 128), the same pixel described with
+	premultiplied colors would be described by RGBA values (64, 96,
+	128, 128)
+    * .. _`v4l2-pix-fmt-flag-set-csc`:
+
+      - ``V4L2_PIX_FMT_FLAG_SET_CSC``
+      - 0x00000002
+      - Set by the application. It is only used for capture and is
+        ignored for output streams. If set, then request the device to do
+	colorspace conversion from the received colorspace to the requested
+	colorspace values. If the colorimetry field (``colorspace``, ``xfer_func``,
+	``ycbcr_enc``, ``hsv_enc`` or ``quantization``) is set to ``*_DEFAULT``,
+	then that colorimetry setting will remain unchanged from what was received.
+	So in order to change the quantization, only the ``quantization`` field shall
+	be set to non default value (``V4L2_QUANTIZATION_FULL_RANGE`` or
+	``V4L2_QUANTIZATION_LIM_RANGE``) and all other colorimetry fields shall
+	be set to ``*_DEFAULT``.
+
+	To check which conversions are supported by the hardware for the current
+	pixel format, see :ref:`fmtdesc-flags`.

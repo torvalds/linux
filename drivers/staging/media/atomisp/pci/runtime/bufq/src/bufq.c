@@ -47,13 +47,11 @@ struct sh_css_queues {
 	/* SP2Host event queue */
 	ia_css_queue_t sp2host_psys_event_queue_handle;
 
-#if !defined(HAS_NO_INPUT_SYSTEM)
 	/* Host2SP ISYS event queue */
 	ia_css_queue_t host2sp_isys_event_queue_handle;
 
 	/* SP2Host ISYS event queue */
 	ia_css_queue_t sp2host_isys_event_queue_handle;
-#endif
 	/* Tagger command queue */
 	ia_css_queue_t host2sp_tag_cmd_queue_handle;
 };
@@ -231,14 +229,12 @@ static ia_css_queue_t *bufq_get_qhandle(
 	case sh_css_sp2host_psys_event_queue:
 		q = &css_queues.sp2host_psys_event_queue_handle;
 		break;
-#if !defined(HAS_NO_INPUT_SYSTEM)
 	case sh_css_host2sp_isys_event_queue:
 		q = &css_queues.host2sp_isys_event_queue_handle;
 		break;
 	case sh_css_sp2host_isys_event_queue:
 		q = &css_queues.sp2host_isys_event_queue_handle;
 		break;
-#endif
 	case sh_css_host2sp_tag_cmd_queue:
 		q = &css_queues.host2sp_tag_cmd_queue_handle;
 		break;
@@ -307,7 +303,6 @@ void ia_css_bufq_init(void)
 		  (uint32_t)offsetof(struct host_sp_queues, sp2host_psys_event_queue_elems),
 		  &css_queues.sp2host_psys_event_queue_handle);
 
-#if !defined(HAS_NO_INPUT_SYSTEM)
 	/* Host2SP ISYS event queue */
 	init_bufq((uint32_t)offsetof(struct host_sp_queues,
 				     host2sp_isys_event_queue_desc),
@@ -324,7 +319,6 @@ void ia_css_bufq_init(void)
 	init_bufq((uint32_t)offsetof(struct host_sp_queues, host2sp_tag_cmd_queue_desc),
 		  (uint32_t)offsetof(struct host_sp_queues, host2sp_tag_cmd_queue_elems),
 		  &css_queues.host2sp_tag_cmd_queue_handle);
-#endif
 
 	IA_CSS_LEAVE_PRIVATE("");
 }
@@ -391,8 +385,7 @@ int ia_css_bufq_enqueue_psys_event(
     u8 evt_payload_1,
     uint8_t evt_payload_2)
 {
-
-    int error = 0;
+	int error = 0;
 	ia_css_queue_t *q;
 
 	IA_CSS_ENTER_PRIVATE("evt_id=%d", evt_id);
@@ -434,7 +427,6 @@ int ia_css_bufq_dequeue_psys_event(
 int ia_css_bufq_dequeue_isys_event(
     u8 item[BUFQ_EVENT_SIZE])
 {
-#if !defined(HAS_NO_INPUT_SYSTEM)
 	int error = 0;
 	ia_css_queue_t *q;
 
@@ -451,15 +443,10 @@ int ia_css_bufq_dequeue_isys_event(
 	}
 	error = ia_css_eventq_recv(q, item);
 	return error;
-#else
-	(void)item;
-	return -EBUSY;
-#endif
 }
 
 int ia_css_bufq_enqueue_isys_event(uint8_t evt_id)
 {
-#if !defined(HAS_NO_INPUT_SYSTEM)
 	int error = 0;
 	ia_css_queue_t *q;
 
@@ -474,16 +461,11 @@ int ia_css_bufq_enqueue_isys_event(uint8_t evt_id)
 
 	IA_CSS_LEAVE_ERR_PRIVATE(error);
 	return error;
-#else
-	(void)evt_id;
-	return -EBUSY;
-#endif
 }
 
 int ia_css_bufq_enqueue_tag_cmd(
     uint32_t item)
 {
-#if !defined(HAS_NO_INPUT_SYSTEM)
 	int error;
 	ia_css_queue_t *q;
 
@@ -497,10 +479,6 @@ int ia_css_bufq_enqueue_tag_cmd(
 
 	IA_CSS_LEAVE_ERR_PRIVATE(error);
 	return error;
-#else
-	(void)item;
-	return -EBUSY;
-#endif
 }
 
 int ia_css_bufq_deinit(void)
@@ -545,12 +523,10 @@ void ia_css_bufq_dump_queue_info(void)
 	bufq_dump_queue_info("sp2host_psys_event",
 			     &css_queues.sp2host_psys_event_queue_handle);
 
-#if !defined(HAS_NO_INPUT_SYSTEM)
 	bufq_dump_queue_info("host2sp_isys_event",
 			     &css_queues.host2sp_isys_event_queue_handle);
 	bufq_dump_queue_info("sp2host_isys_event",
 			     &css_queues.sp2host_isys_event_queue_handle);
 	bufq_dump_queue_info("host2sp_tag_cmd",
 			     &css_queues.host2sp_tag_cmd_queue_handle);
-#endif
 }

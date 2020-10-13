@@ -154,8 +154,9 @@ void v4l2_async_notifier_init(struct v4l2_async_notifier *notifier);
  * @notifier: pointer to &struct v4l2_async_notifier
  * @asd: pointer to &struct v4l2_async_subdev
  *
- * Call this function before registering a notifier to link the
- * provided asd to the notifiers master @asd_list.
+ * Call this function before registering a notifier to link the provided @asd to
+ * the notifiers master @asd_list. The @asd must be allocated with k*alloc() as
+ * it will be freed by the framework when the notifier is destroyed.
  */
 int v4l2_async_notifier_add_subdev(struct v4l2_async_notifier *notifier,
 				   struct v4l2_async_subdev *asd);
