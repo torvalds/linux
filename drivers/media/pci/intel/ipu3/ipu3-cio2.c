@@ -33,6 +33,7 @@ struct ipu3_cio2_fmt {
 	u32 mbus_code;
 	u32 fourcc;
 	u8 mipicode;
+	u8 bpp;
 };
 
 /*
@@ -46,18 +47,22 @@ static const struct ipu3_cio2_fmt formats[] = {
 		.mbus_code	= MEDIA_BUS_FMT_SGRBG10_1X10,
 		.fourcc		= V4L2_PIX_FMT_IPU3_SGRBG10,
 		.mipicode	= 0x2b,
+		.bpp		= 10,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_SGBRG10_1X10,
 		.fourcc		= V4L2_PIX_FMT_IPU3_SGBRG10,
 		.mipicode	= 0x2b,
+		.bpp		= 10,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_SBGGR10_1X10,
 		.fourcc		= V4L2_PIX_FMT_IPU3_SBGGR10,
 		.mipicode	= 0x2b,
+		.bpp		= 10,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_SRGGB10_1X10,
 		.fourcc		= V4L2_PIX_FMT_IPU3_SRGGB10,
 		.mipicode	= 0x2b,
+		.bpp		= 10,
 	},
 };
 
@@ -288,35 +293,20 @@ static s32 cio2_rx_timing(s32 a, s32 b, s64 freq, int def)
 
 /* Calculate the the delay value for termination enable of clock lane HS Rx */
 static int cio2_csi2_calc_timing(struct cio2_device *cio2, struct cio2_queue *q,
-				 struct cio2_csi2_timing *timing)
+				 struct cio2_csi2_timing *timing,
+				 unsigned int bpp, unsigned int lanes)
 {
 	struct device *dev = &cio2->pci_dev->dev;
-	struct v4l2_querymenu qm = { .id = V4L2_CID_LINK_FREQ };
-	struct v4l2_ctrl *link_freq;
 	s64 freq;
-	int r;
 
 	if (!q->sensor)
 		return -ENODEV;
 
-	link_freq = v4l2_ctrl_find(q->sensor->ctrl_handler, V4L2_CID_LINK_FREQ);
-	if (!link_freq) {
-		dev_err(dev, "failed to find LINK_FREQ\n");
-		return -EPIPE;
+	freq = v4l2_get_link_rate(q->sensor->ctrl_handler, bpp, lanes);
+	if (freq < 0) {
+		dev_err(dev, "error %lld, invalid link_freq\n", freq);
+		return freq;
 	}
-
-	qm.index = v4l2_ctrl_g_ctrl(link_freq);
-	r = v4l2_querymenu(q->sensor->ctrl_handler, &qm);
-	if (r) {
-		dev_err(dev, "failed to get menu item\n");
-		return r;
-	}
-
-	if (!qm.value) {
-		dev_err(dev, "error invalid link_freq\n");
-		return -EINVAL;
-	}
-	freq = qm.value;
 
 	timing->clk_termen = cio2_rx_timing(CIO2_CSIRX_DLY_CNT_TERMEN_CLANE_A,
 					    CIO2_CSIRX_DLY_CNT_TERMEN_CLANE_B,
@@ -364,7 +354,7 @@ static int cio2_hw_init(struct cio2_device *cio2, struct cio2_queue *q)
 
 	lanes = q->csi2.lanes;
 
-	r = cio2_csi2_calc_timing(cio2, q, &timing);
+	r = cio2_csi2_calc_timing(cio2, q, &timing, fmt->bpp, lanes);
 	if (r)
 		return r;
 
