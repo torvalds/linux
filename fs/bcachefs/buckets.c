@@ -950,7 +950,7 @@ static int __mark_pointer(struct bch_fs *c, struct bkey_s_c k,
 		return -EIO;
 	}
 
-	if (gen_cmp(bucket_gen, p.ptr.gen) >= 96U) {
+	if (gen_cmp(bucket_gen, p.ptr.gen) > 96U) {
 		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
 			"bucket %u:%zu gen %u data type %s: ptr gen %u too stale\n"
 			"while marking %s",
