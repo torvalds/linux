@@ -201,10 +201,20 @@ struct perf_record_header_tracing_data {
 	__u32			 size;
 };
 
+#define PERF_RECORD_MISC_BUILD_ID_SIZE (1 << 15)
+
 struct perf_record_header_build_id {
 	struct perf_event_header header;
 	pid_t			 pid;
-	__u8			 build_id[24];
+	union {
+		__u8		 build_id[24];
+		struct {
+			__u8	 data[20];
+			__u8	 size;
+			__u8	 reserved1__;
+			__u16	 reserved2__;
+		};
+	};
 	char			 filename[];
 };
 

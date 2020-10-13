@@ -296,7 +296,7 @@ char *dso__build_id_filename(const struct dso *dso, char *bf, size_t size,
 			continue;		\
 		else
 
-static int write_buildid(const char *name, size_t name_len, u8 *build_id,
+static int write_buildid(const char *name, size_t name_len, struct build_id *bid,
 			 pid_t pid, u16 misc, struct feat_fd *fd)
 {
 	int err;
@@ -307,7 +307,9 @@ static int write_buildid(const char *name, size_t name_len, u8 *build_id,
 	len = PERF_ALIGN(len, NAME_ALIGN);
 
 	memset(&b, 0, sizeof(b));
-	memcpy(&b.build_id, build_id, BUILD_ID_SIZE);
+	memcpy(&b.data, bid->data, bid->size);
+	b.size = (u8) bid->size;
+	misc |= PERF_RECORD_MISC_BUILD_ID_SIZE;
 	b.pid = pid;
 	b.header.misc = misc;
 	b.header.size = sizeof(b) + len;
@@ -354,7 +356,7 @@ static int machine__write_buildid_table(struct machine *machine,
 		in_kernel = pos->kernel ||
 				is_kernel_module(name,
 					PERF_RECORD_MISC_CPUMODE_UNKNOWN);
-		err = write_buildid(name, name_len, pos->bid.data, machine->pid,
+		err = write_buildid(name, name_len, &pos->bid, machine->pid,
 				    in_kernel ? kmisc : umisc, fd);
 		if (err)
 			break;

@@ -2083,8 +2083,12 @@ static int __event_process_build_id(struct perf_record_header_build_id *bev,
 	if (dso != NULL) {
 		char sbuild_id[SBUILD_ID_SIZE];
 		struct build_id bid;
+		size_t size = BUILD_ID_SIZE;
 
-		build_id__init(&bid, bev->build_id, BUILD_ID_SIZE);
+		if (bev->header.misc & PERF_RECORD_MISC_BUILD_ID_SIZE)
+			size = bev->size;
+
+		build_id__init(&bid, bev->data, size);
 		dso__set_build_id(dso, &bid);
 
 		if (dso_space != DSO_SPACE__USER) {
@@ -2098,8 +2102,8 @@ static int __event_process_build_id(struct perf_record_header_build_id *bev,
 		}
 
 		build_id__sprintf(&dso->bid, sbuild_id);
-		pr_debug("build id event received for %s: %s\n",
-			 dso->long_name, sbuild_id);
+		pr_debug("build id event received for %s: %s [%zu]\n",
+			 dso->long_name, sbuild_id, size);
 		dso__put(dso);
 	}
 
