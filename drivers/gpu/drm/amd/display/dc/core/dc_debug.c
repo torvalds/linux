@@ -420,6 +420,8 @@ char *dc_status_to_str(enum dc_status status)
 		return "Fail clk below required CFG (hard_min in PPLIB)";
 	case DC_NOT_SUPPORTED:
 		return "The operation is not supported.";
+	case DC_UNSUPPORTED_VALUE:
+		return "The value specified is not supported.";
 	case DC_ERROR_UNEXPECTED:
 		return "Unexpected error";
 	}
