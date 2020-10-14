@@ -1497,7 +1497,14 @@ static int kvm_handle_hva(struct kvm *kvm, unsigned long hva,
 int kvm_unmap_hva_range(struct kvm *kvm, unsigned long start, unsigned long end,
 			unsigned flags)
 {
-	return kvm_handle_hva_range(kvm, start, end, 0, kvm_unmap_rmapp);
+	int r;
+
+	r = kvm_handle_hva_range(kvm, start, end, 0, kvm_unmap_rmapp);
+
+	if (kvm->arch.tdp_mmu_enabled)
+		r |= kvm_tdp_mmu_zap_hva_range(kvm, start, end);
+
+	return r;
 }
 
 int kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte)
