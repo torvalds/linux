@@ -22,6 +22,7 @@
  */
 #include "amdgpu.h"
 #include "gfxhub_v1_0.h"
+#include "gfxhub_v1_1.h"
 
 #include "gc/gc_9_0_offset.h"
 #include "gc/gc_9_0_sh_mask.h"
@@ -412,4 +413,5 @@ const struct amdgpu_gfxhub_funcs gfxhub_v1_0_funcs = {
 	.gart_disable = gfxhub_v1_0_gart_disable,
 	.set_fault_enable_default = gfxhub_v1_0_set_fault_enable_default,
 	.init = gfxhub_v1_0_init,
+	.get_xgmi_info = gfxhub_v1_1_get_xgmi_info,
 };
