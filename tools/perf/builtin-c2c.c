@@ -2846,13 +2846,13 @@ static int perf_c2c__report(int argc, const char **argv)
 			"dcacheline,"
 			"dcacheline_node,"
 			"dcacheline_count,"
-			"tot_recs,"
 			"percent_hitm,"
 			"tot_hitm,lcl_hitm,rmt_hitm,"
+			"tot_recs,"
+			"tot_loads,"
 			"stores,stores_l1hit,stores_l1miss,"
 			"dram_lcl,dram_rmt,"
 			"ld_llcmiss,"
-			"tot_loads,"
 			"ld_fbhit,ld_l1hit,ld_l2hit,"
 			"ld_lclhit,ld_rmthit",
 			c2c.display == DISPLAY_TOT ? "tot_hitm" :
