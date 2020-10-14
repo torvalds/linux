@@ -2,6 +2,7 @@
 
 #include "mmu.h"
 #include "mmu_internal.h"
+#include "mmutrace.h"
 #include "tdp_iter.h"
 #include "tdp_mmu.h"
 #include "spte.h"
@@ -271,6 +272,10 @@ static inline void tdp_mmu_set_spte(struct kvm *kvm, struct tdp_iter *iter,
 #define tdp_root_for_each_pte(_iter, _root, _start, _end) \
 	for_each_tdp_pte(_iter, _root->spt, _root->role.level, _start, _end)
 
+#define tdp_mmu_for_each_pte(_iter, _mmu, _start, _end)		\
+	for_each_tdp_pte(_iter, __va(_mmu->root_hpa),		\
+			 _mmu->shadow_root_level, _start, _end)
+
 /*
  * Flush the TLB if the process should drop kvm->mmu_lock.
  * Return whether the caller still needs to flush the tlb.
@@ -354,4 +359,133 @@ void kvm_tdp_mmu_zap_all(struct kvm *kvm)
 	flush = kvm_tdp_mmu_zap_gfn_range(kvm, 0, max_gfn);
 	if (flush)
 		kvm_flush_remote_tlbs(kvm);
+}
+
+/*
+ * Installs a last-level SPTE to handle a TDP page fault.
+ * (NPT/EPT violation/misconfiguration)
+ */
+static int tdp_mmu_map_handle_target_level(struct kvm_vcpu *vcpu, int write,
+					  int map_writable,
+					  struct tdp_iter *iter,
+					  kvm_pfn_t pfn, bool prefault)
+{
+	u64 new_spte;
+	int ret = 0;
+	int make_spte_ret = 0;
+
+	if (unlikely(is_noslot_pfn(pfn))) {
+		new_spte = make_mmio_spte(vcpu, iter->gfn, ACC_ALL);
+		trace_mark_mmio_spte(iter->sptep, iter->gfn, new_spte);
+	} else
+		make_spte_ret = make_spte(vcpu, ACC_ALL, iter->level, iter->gfn,
+					 pfn, iter->old_spte, prefault, true,
+					 map_writable, !shadow_accessed_mask,
+					 &new_spte);
+
+	if (new_spte == iter->old_spte)
+		ret = RET_PF_SPURIOUS;
+	else
+		tdp_mmu_set_spte(vcpu->kvm, iter, new_spte);
+
+	/*
+	 * If the page fault was caused by a write but the page is write
+	 * protected, emulation is needed. If the emulation was skipped,
+	 * the vCPU would have the same fault again.
+	 */
+	if (make_spte_ret & SET_SPTE_WRITE_PROTECTED_PT) {
+		if (write)
+			ret = RET_PF_EMULATE;
+		kvm_make_request(KVM_REQ_TLB_FLUSH_CURRENT, vcpu);
+	}
+
+	/* If a MMIO SPTE is installed, the MMIO will need to be emulated. */
+	if (unlikely(is_mmio_spte(new_spte)))
+		ret = RET_PF_EMULATE;
+
+	trace_kvm_mmu_set_spte(iter->level, iter->gfn, iter->sptep);
+	if (!prefault)
+		vcpu->stat.pf_fixed++;
+
+	return ret;
+}
+
+/*
+ * Handle a TDP page fault (NPT/EPT violation/misconfiguration) by installing
+ * page tables and SPTEs to translate the faulting guest physical address.
+ */
+int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
+		    int map_writable, int max_level, kvm_pfn_t pfn,
+		    bool prefault)
+{
+	bool nx_huge_page_workaround_enabled = is_nx_huge_page_enabled();
+	bool write = error_code & PFERR_WRITE_MASK;
+	bool exec = error_code & PFERR_FETCH_MASK;
+	bool huge_page_disallowed = exec && nx_huge_page_workaround_enabled;
+	struct kvm_mmu *mmu = vcpu->arch.mmu;
+	struct tdp_iter iter;
+	struct kvm_mmu_memory_cache *pf_pt_cache =
+			&vcpu->arch.mmu_shadow_page_cache;
+	u64 *child_pt;
+	u64 new_spte;
+	int ret;
+	gfn_t gfn = gpa >> PAGE_SHIFT;
+	int level;
+	int req_level;
+
+	if (WARN_ON(!VALID_PAGE(vcpu->arch.mmu->root_hpa)))
+		return RET_PF_RETRY;
+	if (WARN_ON(!is_tdp_mmu_root(vcpu->kvm, vcpu->arch.mmu->root_hpa)))
+		return RET_PF_RETRY;
+
+	level = kvm_mmu_hugepage_adjust(vcpu, gfn, max_level, &pfn,
+					huge_page_disallowed, &req_level);
+
+	trace_kvm_mmu_spte_requested(gpa, level, pfn);
+	tdp_mmu_for_each_pte(iter, mmu, gfn, gfn + 1) {
+		if (nx_huge_page_workaround_enabled)
+			disallowed_hugepage_adjust(iter.old_spte, gfn,
+						   iter.level, &pfn, &level);
+
+		if (iter.level == level)
+			break;
+
+		/*
+		 * If there is an SPTE mapping a large page at a higher level
+		 * than the target, that SPTE must be cleared and replaced
+		 * with a non-leaf SPTE.
+		 */
+		if (is_shadow_present_pte(iter.old_spte) &&
+		    is_large_pte(iter.old_spte)) {
+			tdp_mmu_set_spte(vcpu->kvm, &iter, 0);
+
+			kvm_flush_remote_tlbs_with_address(vcpu->kvm, iter.gfn,
+					KVM_PAGES_PER_HPAGE(iter.level));
+
+			/*
+			 * The iter must explicitly re-read the spte here
+			 * because the new value informs the !present
+			 * path below.
+			 */
+			iter.old_spte = READ_ONCE(*iter.sptep);
+		}
+
+		if (!is_shadow_present_pte(iter.old_spte)) {
+			child_pt = kvm_mmu_memory_cache_alloc(pf_pt_cache);
+			clear_page(child_pt);
+			new_spte = make_nonleaf_spte(child_pt,
+						     !shadow_accessed_mask);
+
+			trace_kvm_mmu_get_page(sp, true);
+			tdp_mmu_set_spte(vcpu->kvm, &iter, new_spte);
+		}
+	}
+
+	if (WARN_ON(iter.level != level))
+		return RET_PF_RETRY;
+
+	ret = tdp_mmu_map_handle_target_level(vcpu, write, map_writable, &iter,
+					      pfn, prefault);
+
+	return ret;
 }

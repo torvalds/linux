@@ -137,23 +137,6 @@ module_param(dbg, bool, 0644);
 /* make pte_list_desc fit well in cache line */
 #define PTE_LIST_EXT 3
 
-/*
- * Return values of handle_mmio_page_fault, mmu.page_fault, and fast_page_fault().
- *
- * RET_PF_RETRY: let CPU fault again on the address.
- * RET_PF_EMULATE: mmio page fault, emulate the instruction directly.
- * RET_PF_INVALID: the spte is invalid, let the real page fault path update it.
- * RET_PF_FIXED: The faulting entry has been fixed.
- * RET_PF_SPURIOUS: The faulting entry was already fixed, e.g. by another vCPU.
- */
-enum {
-	RET_PF_RETRY = 0,
-	RET_PF_EMULATE,
-	RET_PF_INVALID,
-	RET_PF_FIXED,
-	RET_PF_SPURIOUS,
-};
-
 struct pte_list_desc {
 	u64 *sptes[PTE_LIST_EXT];
 	struct pte_list_desc *more;
@@ -233,11 +216,8 @@ static void mark_mmio_spte(struct kvm_vcpu *vcpu, u64 *sptep, u64 gfn,
 			   unsigned int access)
 {
 	u64 mask = make_mmio_spte(vcpu, gfn, access);
-	unsigned int gen = get_mmio_spte_generation(mask);
 
-	access = mask & ACC_ALL;
-
-	trace_mark_mmio_spte(sptep, gfn, access, gen);
+	trace_mark_mmio_spte(sptep, gfn, mask);
 	mmu_spte_set(sptep, mask);
 }
 
@@ -2762,9 +2742,9 @@ static int host_pfn_mapping_level(struct kvm_vcpu *vcpu, gfn_t gfn,
 	return level;
 }
 
-static int kvm_mmu_hugepage_adjust(struct kvm_vcpu *vcpu, gfn_t gfn,
-				   int max_level, kvm_pfn_t *pfnp,
-				   bool huge_page_disallowed, int *req_level)
+int kvm_mmu_hugepage_adjust(struct kvm_vcpu *vcpu, gfn_t gfn,
+			    int max_level, kvm_pfn_t *pfnp,
+			    bool huge_page_disallowed, int *req_level)
 {
 	struct kvm_memory_slot *slot;
 	struct kvm_lpage_info *linfo;
@@ -2818,10 +2798,10 @@ static int kvm_mmu_hugepage_adjust(struct kvm_vcpu *vcpu, gfn_t gfn,
 	return level;
 }
 
-static void disallowed_hugepage_adjust(u64 spte, gfn_t gfn, int cur_level,
-				       kvm_pfn_t *pfnp, int *levelp)
+void disallowed_hugepage_adjust(u64 spte, gfn_t gfn, int cur_level,
+				kvm_pfn_t *pfnp, int *goal_levelp)
 {
-	int level = *levelp;
+	int level = *goal_levelp;
 
 	if (cur_level == level && level > PG_LEVEL_4K &&
 	    is_shadow_present_pte(spte) &&
@@ -2836,7 +2816,7 @@ static void disallowed_hugepage_adjust(u64 spte, gfn_t gfn, int cur_level,
 		u64 page_mask = KVM_PAGES_PER_HPAGE(level) -
 				KVM_PAGES_PER_HPAGE(level - 1);
 		*pfnp |= gfn & page_mask;
-		(*levelp)--;
+		(*goal_levelp)--;
 	}
 }
 
@@ -3643,9 +3623,11 @@ static int direct_page_fault(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 	if (page_fault_handle_page_track(vcpu, error_code, gfn))
 		return RET_PF_EMULATE;
 
-	r = fast_page_fault(vcpu, gpa, error_code);
-	if (r != RET_PF_INVALID)
-		return r;
+	if (!is_tdp_mmu_root(vcpu->kvm, vcpu->arch.mmu->root_hpa)) {
+		r = fast_page_fault(vcpu, gpa, error_code);
+		if (r != RET_PF_INVALID)
+			return r;
+	}
 
 	r = mmu_topup_memory_caches(vcpu, false);
 	if (r)
@@ -3667,8 +3649,13 @@ static int direct_page_fault(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 	r = make_mmu_pages_available(vcpu);
 	if (r)
 		goto out_unlock;
-	r = __direct_map(vcpu, gpa, error_code, map_writable, max_level, pfn,
-			 prefault, is_tdp);
+
+	if (is_tdp_mmu_root(vcpu->kvm, vcpu->arch.mmu->root_hpa))
+		r = kvm_tdp_mmu_map(vcpu, gpa, error_code, map_writable, max_level,
+				    pfn, prefault);
+	else
+		r = __direct_map(vcpu, gpa, error_code, map_writable, max_level, pfn,
+				 prefault, is_tdp);
 
 out_unlock:
 	spin_unlock(&vcpu->kvm->mmu_lock);

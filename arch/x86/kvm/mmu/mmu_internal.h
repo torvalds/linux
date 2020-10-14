@@ -111,4 +111,36 @@ static inline bool kvm_mmu_put_root(struct kvm *kvm, struct kvm_mmu_page *sp)
 	return !sp->root_count;
 }
 
+/*
+ * Return values of handle_mmio_page_fault, mmu.page_fault, and fast_page_fault().
+ *
+ * RET_PF_RETRY: let CPU fault again on the address.
+ * RET_PF_EMULATE: mmio page fault, emulate the instruction directly.
+ * RET_PF_INVALID: the spte is invalid, let the real page fault path update it.
+ * RET_PF_FIXED: The faulting entry has been fixed.
+ * RET_PF_SPURIOUS: The faulting entry was already fixed, e.g. by another vCPU.
+ */
+enum {
+	RET_PF_RETRY = 0,
+	RET_PF_EMULATE,
+	RET_PF_INVALID,
+	RET_PF_FIXED,
+	RET_PF_SPURIOUS,
+};
+
+/* Bits which may be returned by set_spte() */
+#define SET_SPTE_WRITE_PROTECTED_PT	BIT(0)
+#define SET_SPTE_NEED_REMOTE_TLB_FLUSH	BIT(1)
+#define SET_SPTE_SPURIOUS		BIT(2)
+
+int kvm_mmu_hugepage_adjust(struct kvm_vcpu *vcpu, gfn_t gfn,
+			    int max_level, kvm_pfn_t *pfnp,
+			    bool huge_page_disallowed, int *req_level);
+void disallowed_hugepage_adjust(u64 spte, gfn_t gfn, int cur_level,
+				kvm_pfn_t *pfnp, int *goal_levelp);
+
+bool is_nx_huge_page_enabled(void);
+
+void *mmu_memory_cache_alloc(struct kvm_mmu_memory_cache *mc);
+
 #endif /* __KVM_X86_MMU_INTERNAL_H */
