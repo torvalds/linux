@@ -1733,12 +1733,20 @@ static bool has_modified_stack_frame(struct instruction *insn, struct insn_state
 	return false;
 }
 
+static bool check_reg_frame_pos(const struct cfi_reg *reg,
+				int expected_offset)
+{
+	return reg->base == CFI_CFA &&
+	       reg->offset == expected_offset;
+}
+
 static bool has_valid_stack_frame(struct insn_state *state)
 {
 	struct cfi_state *cfi = &state->cfi;
 
-	if (cfi->cfa.base == CFI_BP && cfi->regs[CFI_BP].base == CFI_CFA &&
-	    cfi->regs[CFI_BP].offset == -16)
+	if (cfi->cfa.base == CFI_BP &&
+	    check_reg_frame_pos(&cfi->regs[CFI_BP], -cfi->cfa.offset) &&
+	    check_reg_frame_pos(&cfi->regs[CFI_RA], -cfi->cfa.offset + 8))
 		return true;
 
 	if (cfi->drap && cfi->regs[CFI_BP].base == CFI_BP)
@@ -1867,8 +1875,7 @@ static int update_cfi_state(struct instruction *insn, struct cfi_state *cfi,
 		case OP_SRC_REG:
 			if (op->src.reg == CFI_SP && op->dest.reg == CFI_BP &&
 			    cfa->base == CFI_SP &&
-			    regs[CFI_BP].base == CFI_CFA &&
-			    regs[CFI_BP].offset == -cfa->offset) {
+			    check_reg_frame_pos(&regs[CFI_BP], -cfa->offset)) {
 
 				/* mov %rsp, %rbp */
 				cfa->base = op->dest.reg;
