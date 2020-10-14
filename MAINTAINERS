@@ -8940,8 +8940,8 @@ F:	arch/x86/include/asm/intel_punit_ipc.h
 F:	drivers/platform/x86/intel_punit_ipc.c
 
 INTEL PMC CORE DRIVER
-M:	Rajneesh Bhardwaj <rajneesh.bhardwaj@intel.com>
-M:	Vishwanath Somayaji <vishwanath.somayaji@intel.com>
+M:	Rajneesh Bhardwaj <irenic.rajneesh@gmail.com>
+M:	David E Box <david.e.box@intel.com>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/intel_pmc_core*
@@ -18921,7 +18921,7 @@ M:	Hans de Goede <hdegoede@redhat.com>
 M:	Mark Gross <mgross@linux.intel.com>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
-T:	git git://git.infradead.org/linux-platform-drivers-x86.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/pdx86/platform-drivers-x86.git
 F:	drivers/platform/olpc/
 F:	drivers/platform/x86/
 
