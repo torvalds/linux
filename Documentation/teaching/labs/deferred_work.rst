@@ -476,7 +476,7 @@ use :c:func:`container_of`:
    }
 
 Scheduling work items with the functions above will run the handler in
-the context of a thread kernel called *events/x*, where x is the
+the context of a kernel thread called *events/x*, where x is the
 processor number. The kernel will initialize a kernel thread (or a
 pool of workers) for each processor present in the system:
 
@@ -559,7 +559,7 @@ And the next code sample shows how to remove the workqueue:
    destroy_workqueue(my_workqueue);
 
 The work items planned with these functions will run in the context of
-a new thread kernel called *my_workqueue*, the name passed to
+a new kernel thread called *my_workqueue*, the name passed to
 :c:func:`create_singlethread_workqueue`.
 
 Kernel threads
@@ -567,7 +567,7 @@ Kernel threads
 
 Kernel threads have emerged from the need to run kernel code in
 process context. Kernel threads are the basis of the workqueue
-mechanism. Essentially, a thread kernel is a thread that only runs in
+mechanism. Essentially, a kernel thread is a thread that only runs in
 kernel mode and has no user address space or other user attributes.
 
 To create a kernel thread, use :c:func:`kthread_create`:
@@ -591,7 +591,7 @@ For example, the following call:
 
    kthread_create (f, NULL, "%skthread%d", "my", 0);
 
-Will create a thread kernel with the name mykthread0.
+Will create a kernel thread with the name mykthread0.
 
 The kernel thread created with this function will be stopped (in the
 *TASK_INTERRUPTIBLE* state). To start the kernel thread, call the
@@ -615,10 +615,10 @@ Even if the programming restrictions for the function running within
 the kernel thread are more relaxed and scheduling is closer to
 scheduling in userspace, there are, however, some limitations to be
 taken into account. We will list below the actions that can or can not
-be made from a thread kernel:
+be made from a kernel thread:
 
 * can't access the user address space (even with copy_from_user,
-  copy_to_user) because a thread kernel does not have a user address
+  copy_to_user) because a kernel thread does not have a user address
   space
 * can't implement busy wait code that runs for a long time; if the
   kernel is compiled without the preemptive option, that code will run
@@ -628,8 +628,8 @@ be made from a thread kernel:
 * can use spinlocks, but if the hold time of the lock is significant,
   it is recommended to use mutexes
 
-The termination of a thread kernel is done voluntarily, within the
-function running in the thread kernel, by calling :c:func:`do_exit`:
+The termination of a kernel thread is done voluntarily, within the
+function running in the kernel thread, by calling :c:func:`do_exit`:
 
 .. code-block:: c
 
