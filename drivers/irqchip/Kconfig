@@ -583,6 +583,7 @@ config LOONGSON_PCH_MSI
 
 config MST_IRQ
 	bool "MStar Interrupt Controller"
+	depends on ARCH_MEDIATEK || ARCH_MSTARV7 || COMPILE_TEST
 	default ARCH_MEDIATEK
 	select IRQ_DOMAIN
 	select IRQ_DOMAIN_HIERARCHY
