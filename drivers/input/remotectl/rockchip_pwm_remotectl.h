@@ -54,7 +54,7 @@
 #define PWM_CH0_INT_ENABLE              (1 << 0)
 #define PWM_CH0_INT_DISABLE             (0 << 0)
 
-#define PWM_CH1_INT_ENABLE              (1 << 0)
+#define PWM_CH1_INT_ENABLE              (1 << 1)
 #define PWM_CH1_INT_DISABLE             (0 << 1)
 
 #define PWM_CH2_INT_ENABLE              (1 << 2)
