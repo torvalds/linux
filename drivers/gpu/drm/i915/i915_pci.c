@@ -918,6 +918,8 @@ static const struct intel_device_info dg1_info __maybe_unused = {
 	.platform_engine_mask =
 		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) |
 		BIT(VCS0) | BIT(VCS2),
+	/* Wa_16011227922 */
+	.ppgtt_size = 47,
 };
 
 #undef GEN

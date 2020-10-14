@@ -7116,24 +7116,25 @@ static void icl_init_clock_gating(struct drm_i915_private *dev_priv)
 			 0, CNL_DELAY_PMRSP);
 }
 
+static void gen12_init_clock_gating(struct drm_i915_private *i915)
+{
+	unsigned int i;
+
+	/* This is not a WA. Enable VD HCP & MFX_ENC powergate */
+	for (i = 0; i < I915_MAX_VCS; i++)
+		if (HAS_ENGINE(&i915->gt, _VCS(i)))
+			intel_uncore_rmw(&i915->uncore, POWERGATE_ENABLE, 0,
+					 VDN_HCP_POWERGATE_ENABLE(i) |
+					 VDN_MFX_POWERGATE_ENABLE(i));
+}
+
 static void tgl_init_clock_gating(struct drm_i915_private *dev_priv)
 {
-	u32 vd_pg_enable = 0;
-	unsigned int i;
+	gen12_init_clock_gating(dev_priv);
 
 	/* Wa_1409120013:tgl */
 	I915_WRITE(ILK_DPFC_CHICKEN,
 		   ILK_DPFC_CHICKEN_COMP_DUMMY_PIXEL);
-
-	/* This is not a WA. Enable VD HCP & MFX_ENC powergate */
-	for (i = 0; i < I915_MAX_VCS; i++) {
-		if (HAS_ENGINE(&dev_priv->gt, _VCS(i)))
-			vd_pg_enable |= VDN_HCP_POWERGATE_ENABLE(i) |
-					VDN_MFX_POWERGATE_ENABLE(i);
-	}
-
-	I915_WRITE(POWERGATE_ENABLE,
-		   I915_READ(POWERGATE_ENABLE) | vd_pg_enable);
 
 	/* Wa_1409825376:tgl (pre-prod)*/
 	if (IS_TGL_DISP_REVID(dev_priv, TGL_REVID_A0, TGL_REVID_B1))
@@ -7143,6 +7144,16 @@ static void tgl_init_clock_gating(struct drm_i915_private *dev_priv)
 	/* Wa_14011059788:tgl */
 	intel_uncore_rmw(&dev_priv->uncore, GEN10_DFR_RATIO_EN_AND_CHICKEN,
 			 0, DFR_DISABLE);
+}
+
+static void dg1_init_clock_gating(struct drm_i915_private *dev_priv)
+{
+	gen12_init_clock_gating(dev_priv);
+
+	/* Wa_1409836686:dg1[a0] */
+	if (IS_DG1_REVID(dev_priv, DG1_REVID_A0, DG1_REVID_A0))
+		I915_WRITE(GEN9_CLKGATE_DIS_3, I915_READ(GEN9_CLKGATE_DIS_3) |
+			   DPT_GATING_DIS);
 }
 
 static void cnp_init_clock_gating(struct drm_i915_private *dev_priv)
@@ -7590,7 +7601,9 @@ static void nop_init_clock_gating(struct drm_i915_private *dev_priv)
  */
 void intel_init_clock_gating_hooks(struct drm_i915_private *dev_priv)
 {
-	if (IS_GEN(dev_priv, 12))
+	if (IS_DG1(dev_priv))
+		dev_priv->display.init_clock_gating = dg1_init_clock_gating;
+	else if (IS_GEN(dev_priv, 12))
 		dev_priv->display.init_clock_gating = tgl_init_clock_gating;
 	else if (IS_GEN(dev_priv, 11))
 		dev_priv->display.init_clock_gating = icl_init_clock_gating;

@@ -2886,8 +2886,8 @@ static bool skl_plane_format_mod_supported(struct drm_plane *_plane,
 static bool gen12_plane_supports_mc_ccs(struct drm_i915_private *dev_priv,
 					enum plane_id plane_id)
 {
-	/* Wa_14010477008:tgl[a0..c0],rkl[all] */
-	if (IS_ROCKETLAKE(dev_priv) ||
+	/* Wa_14010477008:tgl[a0..c0],rkl[all],dg1[all] */
+	if (IS_DG1(dev_priv) || IS_ROCKETLAKE(dev_priv) ||
 	    IS_TGL_DISP_REVID(dev_priv, TGL_REVID_A0, TGL_REVID_C0))
 		return false;
 
