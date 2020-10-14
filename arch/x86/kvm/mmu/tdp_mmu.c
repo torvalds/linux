@@ -2,6 +2,7 @@
 
 #include "mmu.h"
 #include "mmu_internal.h"
+#include "tdp_iter.h"
 #include "tdp_mmu.h"
 #include "spte.h"
 
@@ -129,4 +130,115 @@ hpa_t kvm_tdp_mmu_get_vcpu_root_hpa(struct kvm_vcpu *vcpu)
 		return INVALID_PAGE;
 
 	return __pa(root->spt);
+}
+
+static void handle_changed_spte(struct kvm *kvm, int as_id, gfn_t gfn,
+				u64 old_spte, u64 new_spte, int level);
+
+/**
+ * handle_changed_spte - handle bookkeeping associated with an SPTE change
+ * @kvm: kvm instance
+ * @as_id: the address space of the paging structure the SPTE was a part of
+ * @gfn: the base GFN that was mapped by the SPTE
+ * @old_spte: The value of the SPTE before the change
+ * @new_spte: The value of the SPTE after the change
+ * @level: the level of the PT the SPTE is part of in the paging structure
+ *
+ * Handle bookkeeping that might result from the modification of a SPTE.
+ * This function must be called for all TDP SPTE modifications.
+ */
+static void __handle_changed_spte(struct kvm *kvm, int as_id, gfn_t gfn,
+				u64 old_spte, u64 new_spte, int level)
+{
+	bool was_present = is_shadow_present_pte(old_spte);
+	bool is_present = is_shadow_present_pte(new_spte);
+	bool was_leaf = was_present && is_last_spte(old_spte, level);
+	bool is_leaf = is_present && is_last_spte(new_spte, level);
+	bool pfn_changed = spte_to_pfn(old_spte) != spte_to_pfn(new_spte);
+	u64 *pt;
+	u64 old_child_spte;
+	int i;
+
+	WARN_ON(level > PT64_ROOT_MAX_LEVEL);
+	WARN_ON(level < PG_LEVEL_4K);
+	WARN_ON(gfn % KVM_PAGES_PER_HPAGE(level));
+
+	/*
+	 * If this warning were to trigger it would indicate that there was a
+	 * missing MMU notifier or a race with some notifier handler.
+	 * A present, leaf SPTE should never be directly replaced with another
+	 * present leaf SPTE pointing to a differnt PFN. A notifier handler
+	 * should be zapping the SPTE before the main MM's page table is
+	 * changed, or the SPTE should be zeroed, and the TLBs flushed by the
+	 * thread before replacement.
+	 */
+	if (was_leaf && is_leaf && pfn_changed) {
+		pr_err("Invalid SPTE change: cannot replace a present leaf\n"
+		       "SPTE with another present leaf SPTE mapping a\n"
+		       "different PFN!\n"
+		       "as_id: %d gfn: %llx old_spte: %llx new_spte: %llx level: %d",
+		       as_id, gfn, old_spte, new_spte, level);
+
+		/*
+		 * Crash the host to prevent error propagation and guest data
+		 * courruption.
+		 */
+		BUG();
+	}
+
+	if (old_spte == new_spte)
+		return;
+
+	/*
+	 * The only times a SPTE should be changed from a non-present to
+	 * non-present state is when an MMIO entry is installed/modified/
+	 * removed. In that case, there is nothing to do here.
+	 */
+	if (!was_present && !is_present) {
+		/*
+		 * If this change does not involve a MMIO SPTE, it is
+		 * unexpected. Log the change, though it should not impact the
+		 * guest since both the former and current SPTEs are nonpresent.
+		 */
+		if (WARN_ON(!is_mmio_spte(old_spte) && !is_mmio_spte(new_spte)))
+			pr_err("Unexpected SPTE change! Nonpresent SPTEs\n"
+			       "should not be replaced with another,\n"
+			       "different nonpresent SPTE, unless one or both\n"
+			       "are MMIO SPTEs.\n"
+			       "as_id: %d gfn: %llx old_spte: %llx new_spte: %llx level: %d",
+			       as_id, gfn, old_spte, new_spte, level);
+		return;
+	}
+
+
+	if (was_leaf && is_dirty_spte(old_spte) &&
+	    (!is_dirty_spte(new_spte) || pfn_changed))
+		kvm_set_pfn_dirty(spte_to_pfn(old_spte));
+
+	/*
+	 * Recursively handle child PTs if the change removed a subtree from
+	 * the paging structure.
+	 */
+	if (was_present && !was_leaf && (pfn_changed || !is_present)) {
+		pt = spte_to_child_pt(old_spte, level);
+
+		for (i = 0; i < PT64_ENT_PER_PAGE; i++) {
+			old_child_spte = READ_ONCE(*(pt + i));
+			WRITE_ONCE(*(pt + i), 0);
+			handle_changed_spte(kvm, as_id,
+				gfn + (i * KVM_PAGES_PER_HPAGE(level - 1)),
+				old_child_spte, 0, level - 1);
+		}
+
+		kvm_flush_remote_tlbs_with_address(kvm, gfn,
+						   KVM_PAGES_PER_HPAGE(level));
+
+		free_page((unsigned long)pt);
+	}
+}
+
+static void handle_changed_spte(struct kvm *kvm, int as_id, gfn_t gfn,
+				u64 old_spte, u64 new_spte, int level)
+{
+	__handle_changed_spte(kvm, as_id, gfn, old_spte, new_spte, level);
 }
