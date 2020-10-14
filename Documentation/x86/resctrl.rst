@@ -1209,3 +1209,96 @@ View the llc occupancy snapshot::
 
   # cat /sys/fs/resctrl/p1/mon_data/mon_L3_00/llc_occupancy
   11234000
+
+Intel RDT Errata
+================
+
+Intel MBM Counters May Report System Memory Bandwidth Incorrectly
+-----------------------------------------------------------------
+
+Errata SKX99 for Skylake server and BDF102 for Broadwell server.
+
+Problem: Intel Memory Bandwidth Monitoring (MBM) counters track metrics
+according to the assigned Resource Monitor ID (RMID) for that logical
+core. The IA32_QM_CTR register (MSR 0xC8E), used to report these
+metrics, may report incorrect system bandwidth for certain RMID values.
+
+Implication: Due to the errata, system memory bandwidth may not match
+what is reported.
+
+Workaround: MBM total and local readings are corrected according to the
+following correction factor table:
+
++---------------+---------------+---------------+-----------------+
+|core count	|rmid count	|rmid threshold	|correction factor|
++---------------+---------------+---------------+-----------------+
+|1		|8		|0		|1.000000	  |
++---------------+---------------+---------------+-----------------+
+|2		|16		|0		|1.000000	  |
++---------------+---------------+---------------+-----------------+
+|3		|24		|15		|0.969650	  |
++---------------+---------------+---------------+-----------------+
+|4		|32		|0		|1.000000	  |
++---------------+---------------+---------------+-----------------+
+|6		|48		|31		|0.969650	  |
++---------------+---------------+---------------+-----------------+
+|7		|56		|47		|1.142857	  |
++---------------+---------------+---------------+-----------------+
+|8		|64		|0		|1.000000	  |
++---------------+---------------+---------------+-----------------+
+|9		|72		|63		|1.185115	  |
++---------------+---------------+---------------+-----------------+
+|10		|80		|63		|1.066553	  |
++---------------+---------------+---------------+-----------------+
+|11		|88		|79		|1.454545	  |
++---------------+---------------+---------------+-----------------+
+|12		|96		|0		|1.000000	  |
++---------------+---------------+---------------+-----------------+
+|13		|104		|95		|1.230769	  |
++---------------+---------------+---------------+-----------------+
+|14		|112		|95		|1.142857	  |
++---------------+---------------+---------------+-----------------+
+|15		|120		|95		|1.066667	  |
++---------------+---------------+---------------+-----------------+
+|16		|128		|0		|1.000000	  |
++---------------+---------------+---------------+-----------------+
+|17		|136		|127		|1.254863	  |
++---------------+---------------+---------------+-----------------+
+|18		|144		|127		|1.185255	  |
++---------------+---------------+---------------+-----------------+
+|19		|152		|0		|1.000000	  |
++---------------+---------------+---------------+-----------------+
+|20		|160		|127		|1.066667	  |
++---------------+---------------+---------------+-----------------+
+|21		|168		|0		|1.000000	  |
++---------------+---------------+---------------+-----------------+
+|22		|176		|159		|1.454334	  |
++---------------+---------------+---------------+-----------------+
+|23		|184		|0		|1.000000	  |
++---------------+---------------+---------------+-----------------+
+|24		|192		|127		|0.969744	  |
++---------------+---------------+---------------+-----------------+
+|25		|200		|191		|1.280246	  |
++---------------+---------------+---------------+-----------------+
+|26		|208		|191		|1.230921	  |
++---------------+---------------+---------------+-----------------+
+|27		|216		|0		|1.000000	  |
++---------------+---------------+---------------+-----------------+
+|28		|224		|191		|1.143118	  |
++---------------+---------------+---------------+-----------------+
+
+If rmid > rmid threshold, MBM total and local values should be multiplied
+by the correction factor.
+
+See:
+
+1. Erratum SKX99 in Intel Xeon Processor Scalable Family Specification Update:
+http://web.archive.org/web/20200716124958/https://www.intel.com/content/www/us/en/processors/xeon/scalable/xeon-scalable-spec-update.html
+
+2. Erratum BDF102 in Intel Xeon E5-2600 v4 Processor Product Family Specification Update:
+http://web.archive.org/web/20191125200531/https://www.intel.com/content/dam/www/public/us/en/documents/specification-updates/xeon-e5-v4-spec-update.pdf
+
+3. The errata in Intel Resource Director Technology (Intel RDT) on 2nd Generation Intel Xeon Scalable Processors Reference Manual:
+https://software.intel.com/content/www/us/en/develop/articles/intel-resource-director-technology-rdt-reference-manual.html
+
+for further information.
