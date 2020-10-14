@@ -1259,18 +1259,6 @@ static int bcm2835_spi_setup(struct spi_device *spi)
 	if (!chip)
 		return 0;
 
-	/*
-	 * Retrieve the corresponding GPIO line used for CS.
-	 * The inversion semantics will be handled by the GPIO core
-	 * code, so we pass GPIOD_OUT_LOW for "unasserted" and
-	 * the correct flag for inversion semantics. The SPI_CS_HIGH
-	 * on spi->mode cannot be checked for polarity in this case
-	 * as the flag use_gpio_descriptors enforces SPI_CS_HIGH.
-	 */
-	if (of_property_read_bool(spi->dev.of_node, "spi-cs-high"))
-		lflags = GPIO_ACTIVE_HIGH;
-	else
-		lflags = GPIO_ACTIVE_LOW;
 	spi->cs_gpiod = gpiochip_request_own_desc(chip, 8 - spi->chip_select,
 						  DRV_NAME,
 						  lflags,
