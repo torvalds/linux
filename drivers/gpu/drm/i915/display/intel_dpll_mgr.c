@@ -151,14 +151,14 @@ static i915_reg_t
 intel_combo_pll_enable_reg(struct drm_i915_private *i915,
 			   struct intel_shared_dpll *pll)
 {
-
-	if (IS_JSL_EHL(i915) && (pll->info->id == DPLL_ID_EHL_DPLL4))
+	if (IS_DG1(i915))
+		return DG1_DPLL_ENABLE(pll->info->id);
+	else if (IS_JSL_EHL(i915) && (pll->info->id == DPLL_ID_EHL_DPLL4))
 		return MG_PLL_ENABLE(0);
 
 	return CNL_DPLL_ENABLE(pll->info->id);
-
-
 }
+
 /**
  * intel_prepare_shared_dpll - call a dpll's prepare hook
  * @crtc_state: CRTC, and its state, which has a shared dpll
