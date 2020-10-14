@@ -1004,7 +1004,11 @@ struct kvm_arch {
 	 * operations.
 	 */
 	bool tdp_mmu_enabled;
+
+	/* List of struct tdp_mmu_pages being used as roots */
 	struct list_head tdp_mmu_roots;
+	/* List of struct tdp_mmu_pages not being used as roots */
+	struct list_head tdp_mmu_pages;
 };
 
 struct kvm_vm_stat {
