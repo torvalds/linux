@@ -26,6 +26,10 @@ extern int srat_disabled(void);
 static inline void disable_srat(void)
 {
 }
+static inline int pxm_to_node(int pxm)
+{
+	return 0;
+}
 #endif				/* CONFIG_ACPI_NUMA */
 
 #ifdef CONFIG_ACPI_HMAT
