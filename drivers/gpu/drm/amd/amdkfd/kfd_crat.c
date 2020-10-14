@@ -1432,5 +1432,5 @@ int kfd_create_crat_image_virtual(void **crat_image, size_t *size,
  */
 void kfd_destroy_crat_image(void *crat_image)
 {
-	kfree(crat_image);
+	kvfree(crat_image);
 }
