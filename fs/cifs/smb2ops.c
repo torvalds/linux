@@ -950,7 +950,7 @@ smb2_set_ea(const unsigned int xid, struct cifs_tcon *tcon,
 		return rc;
 	}
 
-	len = sizeof(ea) + ea_name_len + ea_value_len + 1;
+	len = sizeof(*ea) + ea_name_len + ea_value_len + 1;
 	ea = kzalloc(len, GFP_KERNEL);
 	if (ea == NULL) {
 		SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
