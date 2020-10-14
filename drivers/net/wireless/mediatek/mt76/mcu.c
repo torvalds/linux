@@ -105,3 +105,26 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(mt76_mcu_skb_send_and_get_msg);
+
+int mt76_mcu_send_firmware(struct mt76_dev *dev, int cmd, const void *data,
+			   int len)
+{
+	int err, cur_len;
+
+	while (len > 0) {
+		cur_len = min_t(int, 4096 - dev->mcu_ops->headroom, len);
+
+		err = mt76_mcu_send_msg(dev, cmd, data, cur_len, false);
+		if (err)
+			return err;
+
+		data += cur_len;
+		len -= cur_len;
+
+		if (dev->queue_ops->tx_cleanup)
+			dev->queue_ops->tx_cleanup(dev, MT_TXQ_FWDL, false);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mt76_mcu_send_firmware);

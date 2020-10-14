@@ -1872,29 +1872,6 @@ static const struct mt7615_mcu_ops uni_update_ops = {
 	.set_fw_ctrl = mt7615_mcu_fw_pmctrl,
 };
 
-static int mt7615_mcu_send_firmware(struct mt7615_dev *dev, const void *data,
-				    int len)
-{
-	int ret = 0, cur_len;
-
-	while (len > 0) {
-		cur_len = min_t(int, 4096 - dev->mt76.mcu_ops->headroom, len);
-
-		ret = mt76_mcu_send_msg(&dev->mt76, MCU_CMD_FW_SCATTER, data,
-					cur_len, false);
-		if (ret)
-			break;
-
-		data += cur_len;
-		len -= cur_len;
-
-		if (mt76_is_mmio(&dev->mt76))
-			mt76_queue_tx_cleanup(dev, MT_TXQ_FWDL, false);
-	}
-
-	return ret;
-}
-
 static int mt7615_mcu_start_firmware(struct mt7615_dev *dev, u32 addr,
 				     u32 option)
 {
@@ -1981,7 +1958,8 @@ static int mt7615_load_patch(struct mt7615_dev *dev, u32 addr, const char *name)
 		goto out;
 	}
 
-	ret = mt7615_mcu_send_firmware(dev, fw->data + sizeof(*hdr), len);
+	ret = mt76_mcu_send_firmware(&dev->mt76, MCU_CMD_FW_SCATTER,
+				     fw->data + sizeof(*hdr), len);
 	if (ret) {
 		dev_err(dev->mt76.dev, "Failed to send firmware to device\n");
 		goto out;
@@ -2041,7 +2019,8 @@ mt7615_mcu_send_ram_firmware(struct mt7615_dev *dev,
 			return err;
 		}
 
-		err = mt7615_mcu_send_firmware(dev, data + offset, len);
+		err = mt76_mcu_send_firmware(&dev->mt76, MCU_CMD_FW_SCATTER,
+					     data + offset, len);
 		if (err) {
 			dev_err(dev->mt76.dev, "Failed to send firmware to device\n");
 			return err;
@@ -2282,7 +2261,8 @@ static int mt7663_load_n9(struct mt7615_dev *dev, const char *name)
 			goto out;
 		}
 
-		ret = mt7615_mcu_send_firmware(dev, fw->data + offset, len);
+		ret = mt76_mcu_send_firmware(&dev->mt76, MCU_CMD_FW_SCATTER,
+					     fw->data + offset, len);
 		if (ret) {
 			dev_err(dev->mt76.dev, "Failed to send firmware\n");
 			goto out;

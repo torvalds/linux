@@ -2486,28 +2486,6 @@ int mt7915_mcu_add_beacon(struct ieee80211_hw *hw,
 				     MCU_EXT_CMD_BSS_INFO_UPDATE, true);
 }
 
-static int mt7915_mcu_send_firmware(struct mt7915_dev *dev, const void *data,
-				    int len)
-{
-	int ret = 0, cur_len;
-
-	while (len > 0) {
-		cur_len = min_t(int, 4096 - sizeof(struct mt7915_mcu_txd),
-				len);
-
-		ret = mt76_mcu_send_msg(&dev->mt76, -MCU_CMD_FW_SCATTER, data,
-					cur_len, false);
-		if (ret)
-			break;
-
-		data += cur_len;
-		len -= cur_len;
-		mt76_queue_tx_cleanup(dev, MT_TXQ_FWDL, false);
-	}
-
-	return ret;
-}
-
 static int mt7915_mcu_start_firmware(struct mt7915_dev *dev, u32 addr,
 				     u32 option)
 {
@@ -2653,7 +2631,8 @@ static int mt7915_load_patch(struct mt7915_dev *dev)
 			goto out;
 		}
 
-		ret = mt7915_mcu_send_firmware(dev, dl, len);
+		ret = mt76_mcu_send_firmware(&dev->mt76, -MCU_CMD_FW_SCATTER,
+					     dl, len);
 		if (ret) {
 			dev_err(dev->mt76.dev, "Failed to send patch\n");
 			goto out;
@@ -2721,7 +2700,8 @@ mt7915_mcu_send_ram_firmware(struct mt7915_dev *dev,
 			return err;
 		}
 
-		err = mt7915_mcu_send_firmware(dev, data + offset, len);
+		err = mt76_mcu_send_firmware(&dev->mt76, -MCU_CMD_FW_SCATTER,
+					     data + offset, len);
 		if (err) {
 			dev_err(dev->mt76.dev, "Failed to send firmware.\n");
 			return err;

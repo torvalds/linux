@@ -94,27 +94,6 @@ mt7603_mcu_init_download(struct mt7603_dev *dev, u32 addr, u32 len)
 }
 
 static int
-mt7603_mcu_send_firmware(struct mt7603_dev *dev, const void *data, int len)
-{
-	int cur_len, ret = 0;
-
-	while (len > 0) {
-		cur_len = min_t(int, 4096 - sizeof(struct mt7603_mcu_txd),
-				len);
-
-		ret = mt76_mcu_send_msg(&dev->mt76, -MCU_CMD_FW_SCATTER, data,
-					cur_len, false);
-		if (ret)
-			break;
-
-		data += cur_len;
-		len -= cur_len;
-	}
-
-	return ret;
-}
-
-static int
 mt7603_mcu_start_firmware(struct mt7603_dev *dev, u32 addr)
 {
 	struct {
@@ -200,7 +179,8 @@ static int mt7603_load_firmware(struct mt7603_dev *dev)
 		goto out;
 	}
 
-	ret = mt7603_mcu_send_firmware(dev, fw->data, dl_len);
+	ret = mt76_mcu_send_firmware(&dev->mt76, -MCU_CMD_FW_SCATTER,
+				     fw->data, dl_len);
 	if (ret) {
 		dev_err(dev->mt76.dev, "Failed to send firmware to device\n");
 		goto out;
