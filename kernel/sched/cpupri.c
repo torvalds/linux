@@ -11,7 +11,7 @@
  *  This code tracks the priority of each CPU so that global migration
  *  decisions are easy to calculate.  Each CPU can be in a state as follows:
  *
- *                 (INVALID), NORMAL, RT1, ... RT99
+ *                 (INVALID), NORMAL, RT1, ... RT99, HIGHER
  *
  *  going from the lowest priority to the highest.  CPUs in the INVALID state
  *  are not eligible for routing.  The system maintains this state with
@@ -19,7 +19,7 @@
  *  in that class).  Therefore a typical application without affinity
  *  restrictions can find a suitable CPU with O(1) complexity (e.g. two bit
  *  searches).  For tasks with affinity restrictions, the algorithm has a
- *  worst case complexity of O(min(100, nr_domcpus)), though the scenario that
+ *  worst case complexity of O(min(101, nr_domcpus)), though the scenario that
  *  yields the worst case search is fairly contrived.
  */
 #include "sched.h"
@@ -37,6 +37,8 @@
  *	       50        49       49       50
  *	      ...
  *	       99         0        0       99
+ *
+ *				 100	  100 (CPUPRI_HIGHER)
  */
 static int convert_prio(int prio)
 {
@@ -53,6 +55,10 @@ static int convert_prio(int prio)
 
 	case MAX_RT_PRIO-1:
 		cpupri = CPUPRI_NORMAL;		/*  0 */
+		break;
+
+	case MAX_RT_PRIO:
+		cpupri = CPUPRI_HIGHER;		/* 100 */
 		break;
 	}
 
@@ -195,7 +201,7 @@ int cpupri_find_fitness(struct cpupri *cp, struct task_struct *p,
  * cpupri_set - update the CPU priority setting
  * @cp: The cpupri context
  * @cpu: The target CPU
- * @newpri: The priority (INVALID-RT99) to assign to this CPU
+ * @newpri: The priority (INVALID,NORMAL,RT1-RT99,HIGHER) to assign to this CPU
  *
  * Note: Assumes cpu_rq(cpu)->lock is locked
  *
