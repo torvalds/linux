@@ -1004,6 +1004,7 @@ struct kvm_arch {
 	 * operations.
 	 */
 	bool tdp_mmu_enabled;
+	struct list_head tdp_mmu_roots;
 };
 
 struct kvm_vm_stat {

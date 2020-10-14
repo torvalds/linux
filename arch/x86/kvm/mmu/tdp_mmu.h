@@ -7,4 +7,9 @@
 
 void kvm_mmu_init_tdp_mmu(struct kvm *kvm);
 void kvm_mmu_uninit_tdp_mmu(struct kvm *kvm);
+
+bool is_tdp_mmu_root(struct kvm *kvm, hpa_t root);
+hpa_t kvm_tdp_mmu_get_vcpu_root_hpa(struct kvm_vcpu *vcpu);
+void kvm_tdp_mmu_free_root(struct kvm *kvm, struct kvm_mmu_page *root);
+
 #endif /* __KVM_X86_MMU_TDP_MMU_H */

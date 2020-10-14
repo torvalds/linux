@@ -55,7 +55,11 @@ struct kvm_mmu_page {
 
 	/* Number of writes since the last time traversal visited this page.  */
 	atomic_t write_flooding_count;
+
+	bool tdp_mmu_page;
 };
+
+extern struct kmem_cache *mmu_page_header_cache;
 
 static inline struct kvm_mmu_page *to_shadow_page(hpa_t shadow_page)
 {
@@ -88,5 +92,21 @@ void kvm_mmu_gfn_disallow_lpage(struct kvm_memory_slot *slot, gfn_t gfn);
 void kvm_mmu_gfn_allow_lpage(struct kvm_memory_slot *slot, gfn_t gfn);
 bool kvm_mmu_slot_gfn_write_protect(struct kvm *kvm,
 				    struct kvm_memory_slot *slot, u64 gfn);
+
+static inline void kvm_mmu_get_root(struct kvm *kvm, struct kvm_mmu_page *sp)
+{
+	BUG_ON(!sp->root_count);
+	lockdep_assert_held(&kvm->mmu_lock);
+
+	++sp->root_count;
+}
+
+static inline bool kvm_mmu_put_root(struct kvm *kvm, struct kvm_mmu_page *sp)
+{
+	lockdep_assert_held(&kvm->mmu_lock);
+	--sp->root_count;
+
+	return !sp->root_count;
+}
 
 #endif /* __KVM_X86_MMU_INTERNAL_H */
