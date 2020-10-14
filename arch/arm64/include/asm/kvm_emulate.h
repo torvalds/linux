@@ -472,32 +472,9 @@ static inline unsigned long vcpu_data_host_to_guest(struct kvm_vcpu *vcpu,
 	return data;		/* Leave LE untouched */
 }
 
-static __always_inline void kvm_skip_instr(struct kvm_vcpu *vcpu)
+static __always_inline void kvm_incr_pc(struct kvm_vcpu *vcpu)
 {
-	if (vcpu_mode_is_32bit(vcpu)) {
-		kvm_skip_instr32(vcpu);
-	} else {
-		*vcpu_pc(vcpu) += 4;
-		*vcpu_cpsr(vcpu) &= ~PSR_BTYPE_MASK;
-	}
-
-	/* advance the singlestep state machine */
-	*vcpu_cpsr(vcpu) &= ~DBG_SPSR_SS;
-}
-
-/*
- * Skip an instruction which has been emulated at hyp while most guest sysregs
- * are live.
- */
-static __always_inline void __kvm_skip_instr(struct kvm_vcpu *vcpu)
-{
-	*vcpu_pc(vcpu) = read_sysreg_el2(SYS_ELR);
-	vcpu_gp_regs(vcpu)->pstate = read_sysreg_el2(SYS_SPSR);
-
-	kvm_skip_instr(vcpu);
-
-	write_sysreg_el2(vcpu_gp_regs(vcpu)->pstate, SYS_SPSR);
-	write_sysreg_el2(*vcpu_pc(vcpu), SYS_ELR);
+	vcpu->arch.flags |= KVM_ARM64_INCREMENT_PC;
 }
 
 #endif /* __ARM64_KVM_EMULATE_H__ */
