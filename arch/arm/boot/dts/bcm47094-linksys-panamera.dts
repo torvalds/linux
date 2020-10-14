@@ -242,6 +242,30 @@
 			label = "wan";
 		};
 
+		port@5 {
+			reg = <5>;
+			ethernet = <&gmac0>;
+			label = "cpu";
+			status = "disabled";
+
+			fixed-link {
+				speed = <1000>;
+				full-duplex;
+			};
+		};
+
+		port@7 {
+			reg = <7>;
+			ethernet = <&gmac1>;
+			label = "cpu";
+			status = "disabled";
+
+			fixed-link {
+				speed = <1000>;
+				full-duplex;
+			};
+		};
+
 		port@8 {
 			reg = <8>;
 			ethernet = <&gmac2>;
