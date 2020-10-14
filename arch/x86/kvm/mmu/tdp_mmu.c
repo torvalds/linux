@@ -273,6 +273,9 @@ static void __handle_changed_spte(struct kvm *kvm, int as_id, gfn_t gfn,
 
 		list_del(&sp->link);
 
+		if (sp->lpage_disallowed)
+			unaccount_huge_nx_page(kvm, sp);
+
 		for (i = 0; i < PT64_ENT_PER_PAGE; i++) {
 			old_child_spte = READ_ONCE(*(pt + i));
 			WRITE_ONCE(*(pt + i), 0);
@@ -571,6 +574,9 @@ int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 						     !shadow_accessed_mask);
 
 			trace_kvm_mmu_get_page(sp, true);
+			if (huge_page_disallowed && req_level >= iter.level)
+				account_huge_nx_page(vcpu->kvm, sp);
+
 			tdp_mmu_set_spte(vcpu->kvm, &iter, new_spte);
 		}
 	}

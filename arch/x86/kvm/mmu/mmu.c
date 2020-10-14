@@ -776,7 +776,7 @@ static void account_shadowed(struct kvm *kvm, struct kvm_mmu_page *sp)
 	kvm_mmu_gfn_disallow_lpage(slot, gfn);
 }
 
-static void account_huge_nx_page(struct kvm *kvm, struct kvm_mmu_page *sp)
+void account_huge_nx_page(struct kvm *kvm, struct kvm_mmu_page *sp)
 {
 	if (sp->lpage_disallowed)
 		return;
@@ -804,7 +804,7 @@ static void unaccount_shadowed(struct kvm *kvm, struct kvm_mmu_page *sp)
 	kvm_mmu_gfn_allow_lpage(slot, gfn);
 }
 
-static void unaccount_huge_nx_page(struct kvm *kvm, struct kvm_mmu_page *sp)
+void unaccount_huge_nx_page(struct kvm *kvm, struct kvm_mmu_page *sp)
 {
 	--kvm->stat.nx_lpage_splits;
 	sp->lpage_disallowed = false;
@@ -5988,8 +5988,13 @@ static void kvm_recover_nx_lpages(struct kvm *kvm)
 				      struct kvm_mmu_page,
 				      lpage_disallowed_link);
 		WARN_ON_ONCE(!sp->lpage_disallowed);
-		kvm_mmu_prepare_zap_page(kvm, sp, &invalid_list);
-		WARN_ON_ONCE(sp->lpage_disallowed);
+		if (sp->tdp_mmu_page)
+			kvm_tdp_mmu_zap_gfn_range(kvm, sp->gfn,
+				sp->gfn + KVM_PAGES_PER_HPAGE(sp->role.level));
+		else {
+			kvm_mmu_prepare_zap_page(kvm, sp, &invalid_list);
+			WARN_ON_ONCE(sp->lpage_disallowed);
+		}
 
 		if (need_resched() || spin_needbreak(&kvm->mmu_lock)) {
 			kvm_mmu_commit_zap_page(kvm, &invalid_list);
