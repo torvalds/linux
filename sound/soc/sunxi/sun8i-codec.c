@@ -94,6 +94,13 @@
 #define SUN8I_AIF1CLK_CTRL_AIF1_WORD_SIZ_MASK	GENMASK(5, 4)
 #define SUN8I_AIF1CLK_CTRL_AIF1_DATA_FMT_MASK	GENMASK(3, 2)
 
+#define SUN8I_CODEC_PCM_RATES	(SNDRV_PCM_RATE_8000_48000|\
+				 SNDRV_PCM_RATE_88200     |\
+				 SNDRV_PCM_RATE_96000     |\
+				 SNDRV_PCM_RATE_176400    |\
+				 SNDRV_PCM_RATE_192000    |\
+				 SNDRV_PCM_RATE_KNOT)
+
 enum {
 	SUN8I_CODEC_AIF1,
 	SUN8I_CODEC_NAIFS
@@ -147,27 +154,31 @@ static int sun8i_codec_get_hw_rate(struct snd_pcm_hw_params *params)
 	unsigned int rate = params_rate(params);
 
 	switch (rate) {
-	case 8000:
 	case 7350:
+	case 8000:
 		return 0x0;
 	case 11025:
 		return 0x1;
 	case 12000:
 		return 0x2;
+	case 14700:
 	case 16000:
 		return 0x3;
 	case 22050:
 		return 0x4;
 	case 24000:
 		return 0x5;
+	case 29400:
 	case 32000:
 		return 0x6;
 	case 44100:
 		return 0x7;
 	case 48000:
 		return 0x8;
+	case 88200:
 	case 96000:
 		return 0x9;
+	case 176400:
 	case 192000:
 		return 0xa;
 	default:
@@ -413,7 +424,7 @@ static struct snd_soc_dai_driver sun8i_codec_dais[] = {
 			.stream_name	= "AIF1 Capture",
 			.channels_min	= 1,
 			.channels_max	= 2,
-			.rates		= SNDRV_PCM_RATE_8000_192000,
+			.rates		= SUN8I_CODEC_PCM_RATES,
 			.formats	= SNDRV_PCM_FMTBIT_S16_LE,
 			.sig_bits	= 24,
 		},
@@ -422,7 +433,7 @@ static struct snd_soc_dai_driver sun8i_codec_dais[] = {
 			.stream_name	= "AIF1 Playback",
 			.channels_min	= 1,
 			.channels_max	= 2,
-			.rates		= SNDRV_PCM_RATE_8000_192000,
+			.rates		= SUN8I_CODEC_PCM_RATES,
 			.formats	= SNDRV_PCM_FMTBIT_S16_LE,
 		},
 		.symmetric_rates	= true,
