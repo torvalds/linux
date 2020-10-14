@@ -2,6 +2,7 @@ config INCREMENTAL_FS
 	tristate "Incremental file system support"
 	depends on BLOCK
 	select DECOMPRESS_LZ4
+	select DECOMPRESS_ZSTD
 	select CRYPTO_SHA256
 	help
 	  Incremental FS is a read-only virtual file system that facilitates execution

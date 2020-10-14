@@ -28,6 +28,19 @@ static void log_wake_up_all(struct work_struct *work)
 	wake_up_all(&rl->ml_notif_wq);
 }
 
+static void zstd_free_workspace(struct work_struct *work)
+{
+	struct delayed_work *dw = container_of(work, struct delayed_work, work);
+	struct mount_info *mi =
+		container_of(dw, struct mount_info, mi_zstd_cleanup_work);
+
+	mutex_lock(&mi->mi_zstd_workspace_mutex);
+	kvfree(mi->mi_zstd_workspace);
+	mi->mi_zstd_workspace = NULL;
+	mi->mi_zstd_stream = NULL;
+	mutex_unlock(&mi->mi_zstd_workspace_mutex);
+}
+
 struct mount_info *incfs_alloc_mount_info(struct super_block *sb,
 					  struct mount_options *options,
 					  struct path *backing_dir_path)
@@ -53,6 +66,8 @@ struct mount_info *incfs_alloc_mount_info(struct super_block *sb,
 	spin_lock_init(&mi->pending_read_lock);
 	INIT_LIST_HEAD(&mi->mi_reads_list_head);
 	spin_lock_init(&mi->mi_per_uid_read_timeouts_lock);
+	mutex_init(&mi->mi_zstd_workspace_mutex);
+	INIT_DELAYED_WORK(&mi->mi_zstd_cleanup_work, zstd_free_workspace);
 
 	error = incfs_realloc_mount_info(mi, options);
 	if (error)
@@ -112,11 +127,13 @@ void incfs_free_mount_info(struct mount_info *mi)
 		return;
 
 	flush_delayed_work(&mi->mi_log.ml_wakeup_work);
+	flush_delayed_work(&mi->mi_zstd_cleanup_work);
 
 	dput(mi->mi_index_dir);
 	dput(mi->mi_incomplete_dir);
 	path_put(&mi->mi_backing_dir_path);
 	mutex_destroy(&mi->mi_dir_struct_mutex);
+	mutex_destroy(&mi->mi_zstd_workspace_mutex);
 	put_cred(mi->mi_owner);
 	kfree(mi->mi_log.rl_ring_buf);
 	kfree(mi->log_xattr);
@@ -357,14 +374,71 @@ void incfs_free_dir_file(struct dir_file *dir)
 	kfree(dir);
 }
 
-static ssize_t decompress(struct mem_range src, struct mem_range dst)
+static ssize_t zstd_decompress_safe(struct mount_info *mi,
+				    struct mem_range src, struct mem_range dst)
 {
-	int result = LZ4_decompress_safe(src.data, dst.data, src.len, dst.len);
+	ssize_t result;
+	ZSTD_inBuffer inbuf = {.src = src.data,	.size = src.len};
+	ZSTD_outBuffer outbuf = {.dst = dst.data, .size = dst.len};
 
-	if (result < 0)
-		return -EBADMSG;
+	result = mutex_lock_interruptible(&mi->mi_zstd_workspace_mutex);
+	if (result)
+		return result;
 
+	if (!mi->mi_zstd_stream) {
+		unsigned int workspace_size = ZSTD_DStreamWorkspaceBound(
+						INCFS_DATA_FILE_BLOCK_SIZE);
+		void *workspace = kvmalloc(workspace_size, GFP_NOFS);
+		ZSTD_DStream *stream;
+
+		if (!workspace) {
+			result = -ENOMEM;
+			goto out;
+		}
+
+		stream = ZSTD_initDStream(INCFS_DATA_FILE_BLOCK_SIZE, workspace,
+				  workspace_size);
+		if (!stream) {
+			kvfree(workspace);
+			result = -EIO;
+			goto out;
+		}
+
+		mi->mi_zstd_workspace = workspace;
+		mi->mi_zstd_stream = stream;
+	}
+
+	result = ZSTD_decompressStream(mi->mi_zstd_stream, &outbuf, &inbuf) ?
+		-EBADMSG : outbuf.pos;
+
+	mod_delayed_work(system_wq, &mi->mi_zstd_cleanup_work,
+			 msecs_to_jiffies(5000));
+
+out:
+	mutex_unlock(&mi->mi_zstd_workspace_mutex);
 	return result;
+}
+
+static ssize_t decompress(struct mount_info *mi,
+			  struct mem_range src, struct mem_range dst, int alg)
+{
+	int result;
+
+	switch (alg) {
+	case INCFS_BLOCK_COMPRESSED_LZ4:
+		result = LZ4_decompress_safe(src.data, dst.data, src.len,
+					     dst.len);
+		if (result < 0)
+			return -EBADMSG;
+		return result;
+
+	case INCFS_BLOCK_COMPRESSED_ZSTD:
+		return zstd_decompress_safe(mi, src, dst);
+
+	default:
+		WARN_ON(true);
+		return -EOPNOTSUPP;
+	}
 }
 
 static void log_read_one_record(struct read_log *rl, struct read_log_state *rs)
@@ -636,9 +710,7 @@ static void convert_data_file_block(struct incfs_blockmap_entry *bme,
 	res_block->db_backing_file_data_offset |=
 		le32_to_cpu(bme->me_data_offset_lo);
 	res_block->db_stored_size = le16_to_cpu(bme->me_data_size);
-	res_block->db_comp_alg = (flags & INCFS_BLOCK_COMPRESSED_LZ4) ?
-					 COMPRESSION_LZ4 :
-					 COMPRESSION_NONE;
+	res_block->db_comp_alg = flags & INCFS_BLOCK_COMPRESSED_MASK;
 }
 
 static int get_data_file_block(struct data_file *df, int index,
@@ -1089,7 +1161,8 @@ ssize_t incfs_read_data_file_block(struct mem_range dst, struct file *f,
 		result = incfs_kread(bf, tmp.data, bytes_to_read, pos);
 		if (result == bytes_to_read) {
 			result =
-				decompress(range(tmp.data, bytes_to_read), dst);
+				decompress(mi, range(tmp.data, bytes_to_read),
+					   dst, block.db_comp_alg);
 			if (result < 0) {
 				const char *name =
 					bf->f_path.dentry->d_name.name;
@@ -1139,8 +1212,13 @@ int incfs_process_new_data_block(struct data_file *df,
 	segment = get_file_segment(df, block->block_index);
 	if (!segment)
 		return -EFAULT;
+
 	if (block->compression == COMPRESSION_LZ4)
 		flags |= INCFS_BLOCK_COMPRESSED_LZ4;
+	else if (block->compression == COMPRESSION_ZSTD)
+		flags |= INCFS_BLOCK_COMPRESSED_ZSTD;
+	else if (block->compression)
+		return -EINVAL;
 
 	error = down_read_killable(&segment->rwsem);
 	if (error)
