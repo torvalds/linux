@@ -462,7 +462,7 @@ static void btrfs_drop_pages(struct page **pages, size_t num_pages)
  */
 int btrfs_dirty_pages(struct btrfs_inode *inode, struct page **pages,
 		      size_t num_pages, loff_t pos, size_t write_bytes,
-		      struct extent_state **cached)
+		      struct extent_state **cached, bool noreserve)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	int err = 0;
@@ -473,6 +473,12 @@ int btrfs_dirty_pages(struct btrfs_inode *inode, struct page **pages,
 	u64 end_pos = pos + write_bytes;
 	loff_t isize = i_size_read(&inode->vfs_inode);
 	unsigned int extra_bits = 0;
+
+	if (write_bytes == 0)
+		return 0;
+
+	if (noreserve)
+		extra_bits |= EXTENT_NORESERVE;
 
 	start_pos = round_down(pos, fs_info->sectorsize);
 	num_bytes = round_up(write_bytes + pos - start_pos,
@@ -1720,10 +1726,9 @@ again:
 		release_bytes = round_up(copied + sector_offset,
 					fs_info->sectorsize);
 
-		if (copied > 0)
-			ret = btrfs_dirty_pages(BTRFS_I(inode), pages,
-						dirty_pages, pos, copied,
-						&cached_state);
+		ret = btrfs_dirty_pages(BTRFS_I(inode), pages,
+					dirty_pages, pos, copied,
+					&cached_state, only_release_metadata);
 
 		/*
 		 * If we have not locked the extent range, because the range's
@@ -1747,17 +1752,6 @@ again:
 		release_bytes = 0;
 		if (only_release_metadata)
 			btrfs_check_nocow_unlock(BTRFS_I(inode));
-
-		if (only_release_metadata && copied > 0) {
-			lockstart = round_down(pos,
-					       fs_info->sectorsize);
-			lockend = round_up(pos + copied,
-					   fs_info->sectorsize) - 1;
-
-			set_extent_bit(&BTRFS_I(inode)->io_tree, lockstart,
-				       lockend, EXTENT_NORESERVE, NULL,
-				       NULL, GFP_NOFS);
-		}
 
 		btrfs_drop_pages(pages, num_pages);
 
