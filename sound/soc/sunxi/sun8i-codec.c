@@ -94,6 +94,8 @@
 #define SUN8I_AIF1CLK_CTRL_AIF1_WORD_SIZ_MASK	GENMASK(5, 4)
 #define SUN8I_AIF1CLK_CTRL_AIF1_DATA_FMT_MASK	GENMASK(3, 2)
 
+#define SUN8I_CODEC_PASSTHROUGH_SAMPLE_RATE 48000
+
 #define SUN8I_CODEC_PCM_RATES	(SNDRV_PCM_RATE_8000_48000|\
 				 SNDRV_PCM_RATE_88200     |\
 				 SNDRV_PCM_RATE_96000     |\
@@ -107,8 +109,11 @@ enum {
 };
 
 struct sun8i_codec_aif {
+	unsigned int	sample_rate;
 	unsigned int	slots;
 	unsigned int	slot_width;
+	unsigned int	active_streams	: 2;
+	unsigned int	open_streams	: 2;
 };
 
 struct sun8i_codec_quirks {
@@ -149,11 +154,9 @@ static int sun8i_codec_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int sun8i_codec_get_hw_rate(struct snd_pcm_hw_params *params)
+static int sun8i_codec_get_hw_rate(unsigned int sample_rate)
 {
-	unsigned int rate = params_rate(params);
-
-	switch (rate) {
+	switch (sample_rate) {
 	case 7350:
 	case 8000:
 		return 0x0;
@@ -184,6 +187,33 @@ static int sun8i_codec_get_hw_rate(struct snd_pcm_hw_params *params)
 	default:
 		return -EINVAL;
 	}
+}
+
+static int sun8i_codec_update_sample_rate(struct sun8i_codec *scodec)
+{
+	unsigned int max_rate = 0;
+	int hw_rate, i;
+
+	for (i = SUN8I_CODEC_AIF1; i < SUN8I_CODEC_NAIFS; ++i) {
+		struct sun8i_codec_aif *aif = &scodec->aifs[i];
+
+		if (aif->active_streams)
+			max_rate = max(max_rate, aif->sample_rate);
+	}
+
+	/* Set the sample rate for ADC->DAC passthrough when no AIF is active. */
+	if (!max_rate)
+		max_rate = SUN8I_CODEC_PASSTHROUGH_SAMPLE_RATE;
+
+	hw_rate = sun8i_codec_get_hw_rate(max_rate);
+	if (hw_rate < 0)
+		return hw_rate;
+
+	regmap_update_bits(scodec->regmap, SUN8I_SYS_SR_CTRL,
+			   SUN8I_SYS_SR_CTRL_AIF1_FS_MASK,
+			   hw_rate << SUN8I_SYS_SR_CTRL_AIF1_FS);
+
+	return 0;
 }
 
 static int sun8i_codec_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
@@ -355,9 +385,10 @@ static int sun8i_codec_hw_params(struct snd_pcm_substream *substream,
 {
 	struct sun8i_codec *scodec = snd_soc_dai_get_drvdata(dai);
 	struct sun8i_codec_aif *aif = &scodec->aifs[dai->id];
+	unsigned int sample_rate = params_rate(params);
 	unsigned int slots = aif->slots ?: params_channels(params);
 	unsigned int slot_width = aif->slot_width ?: params_width(params);
-	int lrck_div_order, sample_rate, word_size;
+	int lrck_div_order, word_size;
 	u8 bclk_div;
 
 	/* word size */
@@ -392,19 +423,30 @@ static int sun8i_codec_hw_params(struct snd_pcm_substream *substream,
 			   (lrck_div_order - 4) << SUN8I_AIF1CLK_CTRL_AIF1_LRCK_DIV);
 
 	/* BCLK divider (SYSCLK/BCLK ratio) */
-	bclk_div = sun8i_codec_get_bclk_div(scodec, lrck_div_order, params_rate(params));
+	bclk_div = sun8i_codec_get_bclk_div(scodec, lrck_div_order, sample_rate);
 	regmap_update_bits(scodec->regmap, SUN8I_AIF1CLK_CTRL,
 			   SUN8I_AIF1CLK_CTRL_AIF1_BCLK_DIV_MASK,
 			   bclk_div << SUN8I_AIF1CLK_CTRL_AIF1_BCLK_DIV);
 
-	sample_rate = sun8i_codec_get_hw_rate(params);
-	if (sample_rate < 0)
-		return sample_rate;
+	aif->sample_rate = sample_rate;
+	aif->open_streams |= BIT(substream->stream);
 
-	regmap_update_bits(scodec->regmap, SUN8I_SYS_SR_CTRL,
-			   SUN8I_SYS_SR_CTRL_AIF1_FS_MASK,
-			   sample_rate << SUN8I_SYS_SR_CTRL_AIF1_FS);
+	return sun8i_codec_update_sample_rate(scodec);
+}
 
+static int sun8i_codec_hw_free(struct snd_pcm_substream *substream,
+			       struct snd_soc_dai *dai)
+{
+	struct sun8i_codec *scodec = snd_soc_dai_get_drvdata(dai);
+	struct sun8i_codec_aif *aif = &scodec->aifs[dai->id];
+
+	if (aif->open_streams != BIT(substream->stream))
+		goto done;
+
+	aif->sample_rate = 0;
+
+done:
+	aif->open_streams &= ~BIT(substream->stream);
 	return 0;
 }
 
@@ -412,6 +454,7 @@ static const struct snd_soc_dai_ops sun8i_codec_dai_ops = {
 	.set_fmt	= sun8i_codec_set_fmt,
 	.set_tdm_slot	= sun8i_codec_set_tdm_slot,
 	.hw_params	= sun8i_codec_hw_params,
+	.hw_free	= sun8i_codec_hw_free,
 };
 
 static struct snd_soc_dai_driver sun8i_codec_dais[] = {
@@ -441,6 +484,22 @@ static struct snd_soc_dai_driver sun8i_codec_dais[] = {
 		.symmetric_samplebits	= true,
 	},
 };
+
+static int sun8i_codec_aif_event(struct snd_soc_dapm_widget *w,
+				 struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct sun8i_codec *scodec = snd_soc_component_get_drvdata(component);
+	struct sun8i_codec_aif *aif = &scodec->aifs[w->sname[3] - '1'];
+	int stream = w->id == snd_soc_dapm_aif_out;
+
+	if (SND_SOC_DAPM_EVENT_ON(event))
+		aif->active_streams |= BIT(stream);
+	else
+		aif->active_streams &= ~BIT(stream);
+
+	return sun8i_codec_update_sample_rate(scodec);
+}
 
 static const char *const sun8i_aif_stereo_mux_enum_values[] = {
 	"Stereo", "Reverse Stereo", "Sum Mono", "Mix Mono"
@@ -544,9 +603,11 @@ static const struct snd_soc_dapm_widget sun8i_codec_dapm_widgets[] = {
 			    SUN8I_DAC_DIG_CTRL_ENDA, 0, NULL, 0),
 
 	/* AIF "ADC" Outputs */
-	SND_SOC_DAPM_AIF_OUT("AIF1 AD0L", "AIF1 Capture", 0,
-			     SUN8I_AIF1_ADCDAT_CTRL,
-			     SUN8I_AIF1_ADCDAT_CTRL_AIF1_AD0L_ENA, 0),
+	SND_SOC_DAPM_AIF_OUT_E("AIF1 AD0L", "AIF1 Capture", 0,
+			       SUN8I_AIF1_ADCDAT_CTRL,
+			       SUN8I_AIF1_ADCDAT_CTRL_AIF1_AD0L_ENA, 0,
+			       sun8i_codec_aif_event,
+			       SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_AIF_OUT("AIF1 AD0R", "AIF1 Capture", 1,
 			     SUN8I_AIF1_ADCDAT_CTRL,
 			     SUN8I_AIF1_ADCDAT_CTRL_AIF1_AD0R_ENA, 0),
@@ -570,9 +631,11 @@ static const struct snd_soc_dapm_widget sun8i_codec_dapm_widgets[] = {
 			 &sun8i_aif1_da0_stereo_mux_control),
 
 	/* AIF "DAC" Inputs */
-	SND_SOC_DAPM_AIF_IN("AIF1 DA0L", "AIF1 Playback", 0,
-			    SUN8I_AIF1_DACDAT_CTRL,
-			    SUN8I_AIF1_DACDAT_CTRL_AIF1_DA0L_ENA, 0),
+	SND_SOC_DAPM_AIF_IN_E("AIF1 DA0L", "AIF1 Playback", 0,
+			      SUN8I_AIF1_DACDAT_CTRL,
+			      SUN8I_AIF1_DACDAT_CTRL_AIF1_DA0L_ENA, 0,
+			      sun8i_codec_aif_event,
+			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_AIF_IN("AIF1 DA0R", "AIF1 Playback", 1,
 			    SUN8I_AIF1_DACDAT_CTRL,
 			    SUN8I_AIF1_DACDAT_CTRL_AIF1_DA0R_ENA, 0),
@@ -727,6 +790,9 @@ static int sun8i_codec_component_probe(struct snd_soc_component *component)
 			   BIT(SUN8I_SYSCLK_CTL_SYSCLK_SRC),
 			   SUN8I_SYSCLK_CTL_SYSCLK_SRC_AIF1CLK);
 
+	/* Program the default sample rate. */
+	sun8i_codec_update_sample_rate(scodec);
+
 	return 0;
 }
 
@@ -737,7 +803,6 @@ static const struct snd_soc_component_driver sun8i_soc_component = {
 	.num_dapm_routes	= ARRAY_SIZE(sun8i_codec_dapm_routes),
 	.probe			= sun8i_codec_component_probe,
 	.idle_bias_on		= 1,
-	.use_pmdown_time	= 1,
 	.endianness		= 1,
 	.non_legacy_dai_naming	= 1,
 };
