@@ -1194,30 +1194,22 @@ static void finish_hunting(struct ceph_mon_client *monc)
 	}
 }
 
-static void handle_auth_reply(struct ceph_mon_client *monc,
-			      struct ceph_msg *msg)
+static void finish_auth(struct ceph_mon_client *monc, int auth_err,
+			bool was_authed)
 {
-	int ret;
-	int was_auth = 0;
+	dout("%s auth_err %d was_authed %d\n", __func__, auth_err, was_authed);
+	WARN_ON(auth_err > 0);
 
-	mutex_lock(&monc->mutex);
-	was_auth = ceph_auth_is_authenticated(monc->auth);
 	monc->pending_auth = 0;
-	ret = ceph_handle_auth_reply(monc->auth, msg->front.iov_base,
-				     msg->front.iov_len,
-				     monc->m_auth->front.iov_base,
-				     monc->m_auth->front_alloc_len);
-	if (ret > 0) {
-		__send_prepared_auth_request(monc, ret);
-		goto out;
+	if (auth_err) {
+		monc->client->auth_err = auth_err;
+		wake_up_all(&monc->client->auth_wq);
+		return;
 	}
 
-	finish_hunting(monc);
-
-	if (ret < 0) {
-		monc->client->auth_err = ret;
-	} else if (!was_auth && ceph_auth_is_authenticated(monc->auth)) {
-		dout("authenticated, starting session\n");
+	if (!was_authed && ceph_auth_is_authenticated(monc->auth)) {
+		dout("%s authenticated, starting session global_id %llu\n",
+		     __func__, monc->auth->global_id);
 
 		monc->client->msgr.inst.name.type = CEPH_ENTITY_TYPE_CLIENT;
 		monc->client->msgr.inst.name.num =
@@ -1229,11 +1221,27 @@ static void handle_auth_reply(struct ceph_mon_client *monc,
 		pr_info("mon%d %s session established\n", monc->cur_mon,
 			ceph_pr_addr(&monc->con.peer_addr));
 	}
+}
 
-out:
+static void handle_auth_reply(struct ceph_mon_client *monc,
+			      struct ceph_msg *msg)
+{
+	bool was_authed;
+	int ret;
+
+	mutex_lock(&monc->mutex);
+	was_authed = ceph_auth_is_authenticated(monc->auth);
+	ret = ceph_handle_auth_reply(monc->auth, msg->front.iov_base,
+				     msg->front.iov_len,
+				     monc->m_auth->front.iov_base,
+				     monc->m_auth->front_alloc_len);
+	if (ret > 0) {
+		__send_prepared_auth_request(monc, ret);
+	} else {
+		finish_auth(monc, ret, was_authed);
+		finish_hunting(monc);
+	}
 	mutex_unlock(&monc->mutex);
-	if (monc->client->auth_err < 0)
-		wake_up_all(&monc->client->auth_wq);
 }
 
 static int __validate_auth(struct ceph_mon_client *monc)
