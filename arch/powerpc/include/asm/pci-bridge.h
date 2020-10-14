@@ -48,9 +48,6 @@ struct pci_controller_ops {
 
 /*
  * Structure of a PCI controller (host bridge)
- *
- * @irq_count: number of interrupt mappings
- * @irq_map: interrupt mappings
  */
 struct pci_controller {
 	struct pci_bus *bus;
@@ -130,9 +127,6 @@ struct pci_controller {
 
 	void *private_data;
 	struct npu *npu;
-
-	unsigned int irq_count;
-	unsigned int *irq_map;
 };
 
 /* These are used for config access before all the PCI probing
