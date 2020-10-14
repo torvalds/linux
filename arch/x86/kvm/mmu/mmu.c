@@ -5371,6 +5371,10 @@ static void kvm_mmu_zap_all_fast(struct kvm *kvm)
 	kvm_reload_remote_mmus(kvm);
 
 	kvm_zap_obsolete_pages(kvm);
+
+	if (kvm->arch.tdp_mmu_enabled)
+		kvm_tdp_mmu_zap_all(kvm);
+
 	spin_unlock(&kvm->mmu_lock);
 }
 
@@ -5411,6 +5415,7 @@ void kvm_zap_gfn_range(struct kvm *kvm, gfn_t gfn_start, gfn_t gfn_end)
 	struct kvm_memslots *slots;
 	struct kvm_memory_slot *memslot;
 	int i;
+	bool flush;
 
 	spin_lock(&kvm->mmu_lock);
 	for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++) {
@@ -5428,6 +5433,12 @@ void kvm_zap_gfn_range(struct kvm *kvm, gfn_t gfn_start, gfn_t gfn_end)
 						KVM_MAX_HUGEPAGE_LEVEL,
 						start, end - 1, true);
 		}
+	}
+
+	if (kvm->arch.tdp_mmu_enabled) {
+		flush = kvm_tdp_mmu_zap_gfn_range(kvm, gfn_start, gfn_end);
+		if (flush)
+			kvm_flush_remote_tlbs(kvm);
 	}
 
 	spin_unlock(&kvm->mmu_lock);
@@ -5596,6 +5607,10 @@ restart:
 	}
 
 	kvm_mmu_commit_zap_page(kvm, &invalid_list);
+
+	if (kvm->arch.tdp_mmu_enabled)
+		kvm_tdp_mmu_zap_all(kvm);
+
 	spin_unlock(&kvm->mmu_lock);
 }
 

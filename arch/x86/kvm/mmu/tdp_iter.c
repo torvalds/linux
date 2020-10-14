@@ -175,3 +175,8 @@ void tdp_iter_refresh_walk(struct tdp_iter *iter)
 		       iter->root_level, iter->min_level, goal_gfn);
 }
 
+u64 *tdp_iter_root_pt(struct tdp_iter *iter)
+{
+	return iter->pt_path[iter->root_level - 1];
+}
+

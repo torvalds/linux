@@ -49,14 +49,21 @@ bool is_tdp_mmu_root(struct kvm *kvm, hpa_t hpa)
 	return sp->tdp_mmu_page && sp->root_count;
 }
 
+static bool zap_gfn_range(struct kvm *kvm, struct kvm_mmu_page *root,
+			  gfn_t start, gfn_t end);
+
 void kvm_tdp_mmu_free_root(struct kvm *kvm, struct kvm_mmu_page *root)
 {
+	gfn_t max_gfn = 1ULL << (boot_cpu_data.x86_phys_bits - PAGE_SHIFT);
+
 	lockdep_assert_held(&kvm->mmu_lock);
 
 	WARN_ON(root->root_count);
 	WARN_ON(!root->tdp_mmu_page);
 
 	list_del(&root->link);
+
+	zap_gfn_range(kvm, root, 0, max_gfn);
 
 	free_page((unsigned long)root->spt);
 	kmem_cache_free(mmu_page_header_cache, root);
@@ -134,6 +141,11 @@ hpa_t kvm_tdp_mmu_get_vcpu_root_hpa(struct kvm_vcpu *vcpu)
 
 static void handle_changed_spte(struct kvm *kvm, int as_id, gfn_t gfn,
 				u64 old_spte, u64 new_spte, int level);
+
+static int kvm_mmu_page_as_id(struct kvm_mmu_page *sp)
+{
+	return sp->role.smm ? 1 : 0;
+}
 
 /**
  * handle_changed_spte - handle bookkeeping associated with an SPTE change
@@ -241,4 +253,105 @@ static void handle_changed_spte(struct kvm *kvm, int as_id, gfn_t gfn,
 				u64 old_spte, u64 new_spte, int level)
 {
 	__handle_changed_spte(kvm, as_id, gfn, old_spte, new_spte, level);
+}
+
+static inline void tdp_mmu_set_spte(struct kvm *kvm, struct tdp_iter *iter,
+				    u64 new_spte)
+{
+	u64 *root_pt = tdp_iter_root_pt(iter);
+	struct kvm_mmu_page *root = sptep_to_sp(root_pt);
+	int as_id = kvm_mmu_page_as_id(root);
+
+	*iter->sptep = new_spte;
+
+	handle_changed_spte(kvm, as_id, iter->gfn, iter->old_spte, new_spte,
+			    iter->level);
+}
+
+#define tdp_root_for_each_pte(_iter, _root, _start, _end) \
+	for_each_tdp_pte(_iter, _root->spt, _root->role.level, _start, _end)
+
+/*
+ * Flush the TLB if the process should drop kvm->mmu_lock.
+ * Return whether the caller still needs to flush the tlb.
+ */
+static bool tdp_mmu_iter_flush_cond_resched(struct kvm *kvm, struct tdp_iter *iter)
+{
+	if (need_resched() || spin_needbreak(&kvm->mmu_lock)) {
+		kvm_flush_remote_tlbs(kvm);
+		cond_resched_lock(&kvm->mmu_lock);
+		tdp_iter_refresh_walk(iter);
+		return false;
+	} else {
+		return true;
+	}
+}
+
+/*
+ * Tears down the mappings for the range of gfns, [start, end), and frees the
+ * non-root pages mapping GFNs strictly within that range. Returns true if
+ * SPTEs have been cleared and a TLB flush is needed before releasing the
+ * MMU lock.
+ */
+static bool zap_gfn_range(struct kvm *kvm, struct kvm_mmu_page *root,
+			  gfn_t start, gfn_t end)
+{
+	struct tdp_iter iter;
+	bool flush_needed = false;
+
+	tdp_root_for_each_pte(iter, root, start, end) {
+		if (!is_shadow_present_pte(iter.old_spte))
+			continue;
+
+		/*
+		 * If this is a non-last-level SPTE that covers a larger range
+		 * than should be zapped, continue, and zap the mappings at a
+		 * lower level.
+		 */
+		if ((iter.gfn < start ||
+		     iter.gfn + KVM_PAGES_PER_HPAGE(iter.level) > end) &&
+		    !is_last_spte(iter.old_spte, iter.level))
+			continue;
+
+		tdp_mmu_set_spte(kvm, &iter, 0);
+
+		flush_needed = tdp_mmu_iter_flush_cond_resched(kvm, &iter);
+	}
+	return flush_needed;
+}
+
+/*
+ * Tears down the mappings for the range of gfns, [start, end), and frees the
+ * non-root pages mapping GFNs strictly within that range. Returns true if
+ * SPTEs have been cleared and a TLB flush is needed before releasing the
+ * MMU lock.
+ */
+bool kvm_tdp_mmu_zap_gfn_range(struct kvm *kvm, gfn_t start, gfn_t end)
+{
+	struct kvm_mmu_page *root;
+	bool flush = false;
+
+	for_each_tdp_mmu_root(kvm, root) {
+		/*
+		 * Take a reference on the root so that it cannot be freed if
+		 * this thread releases the MMU lock and yields in this loop.
+		 */
+		kvm_mmu_get_root(kvm, root);
+
+		flush |= zap_gfn_range(kvm, root, start, end);
+
+		kvm_mmu_put_root(kvm, root);
+	}
+
+	return flush;
+}
+
+void kvm_tdp_mmu_zap_all(struct kvm *kvm)
+{
+	gfn_t max_gfn = 1ULL << (boot_cpu_data.x86_phys_bits - PAGE_SHIFT);
+	bool flush;
+
+	flush = kvm_tdp_mmu_zap_gfn_range(kvm, 0, max_gfn);
+	if (flush)
+		kvm_flush_remote_tlbs(kvm);
 }
