@@ -729,8 +729,6 @@ struct io_submit_state {
 };
 
 struct io_op_def {
-	/* needs current->mm setup, does mm access */
-	unsigned		needs_mm : 1;
 	/* needs req->file assigned */
 	unsigned		needs_file : 1;
 	/* don't fail if file grab fails */
@@ -741,10 +739,6 @@ struct io_op_def {
 	unsigned		unbound_nonreg_file : 1;
 	/* opcode is not supported by this kernel */
 	unsigned		not_supported : 1;
-	/* needs file table */
-	unsigned		file_table : 1;
-	/* needs ->fs */
-	unsigned		needs_fs : 1;
 	/* set if opcode supports polled "wait" */
 	unsigned		pollin : 1;
 	unsigned		pollout : 1;
@@ -754,45 +748,42 @@ struct io_op_def {
 	unsigned		needs_fsize : 1;
 	/* must always have async data allocated */
 	unsigned		needs_async_data : 1;
-	/* needs blkcg context, issues async io potentially */
-	unsigned		needs_blkcg : 1;
 	/* size of async data needed, if any */
 	unsigned short		async_size;
+	unsigned		work_flags;
 };
 
 static const struct io_op_def io_op_defs[] = {
 	[IORING_OP_NOP] = {},
 	[IORING_OP_READV] = {
-		.needs_mm		= 1,
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollin			= 1,
 		.buffer_select		= 1,
 		.needs_async_data	= 1,
-		.needs_blkcg		= 1,
 		.async_size		= sizeof(struct io_async_rw),
+		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_WRITEV] = {
-		.needs_mm		= 1,
 		.needs_file		= 1,
 		.hash_reg_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
 		.needs_fsize		= 1,
 		.needs_async_data	= 1,
-		.needs_blkcg		= 1,
 		.async_size		= sizeof(struct io_async_rw),
+		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_FSYNC] = {
 		.needs_file		= 1,
-		.needs_blkcg		= 1,
+		.work_flags		= IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_READ_FIXED] = {
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollin			= 1,
-		.needs_blkcg		= 1,
 		.async_size		= sizeof(struct io_async_rw),
+		.work_flags		= IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_WRITE_FIXED] = {
 		.needs_file		= 1,
@@ -800,8 +791,8 @@ static const struct io_op_def io_op_defs[] = {
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
 		.needs_fsize		= 1,
-		.needs_blkcg		= 1,
 		.async_size		= sizeof(struct io_async_rw),
+		.work_flags		= IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_POLL_ADD] = {
 		.needs_file		= 1,
@@ -810,137 +801,123 @@ static const struct io_op_def io_op_defs[] = {
 	[IORING_OP_POLL_REMOVE] = {},
 	[IORING_OP_SYNC_FILE_RANGE] = {
 		.needs_file		= 1,
-		.needs_blkcg		= 1,
+		.work_flags		= IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_SENDMSG] = {
-		.needs_mm		= 1,
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
-		.needs_fs		= 1,
 		.pollout		= 1,
 		.needs_async_data	= 1,
-		.needs_blkcg		= 1,
 		.async_size		= sizeof(struct io_async_msghdr),
+		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG |
+						IO_WQ_WORK_FS,
 	},
 	[IORING_OP_RECVMSG] = {
-		.needs_mm		= 1,
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
-		.needs_fs		= 1,
 		.pollin			= 1,
 		.buffer_select		= 1,
 		.needs_async_data	= 1,
-		.needs_blkcg		= 1,
 		.async_size		= sizeof(struct io_async_msghdr),
+		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG |
+						IO_WQ_WORK_FS,
 	},
 	[IORING_OP_TIMEOUT] = {
-		.needs_mm		= 1,
 		.needs_async_data	= 1,
 		.async_size		= sizeof(struct io_timeout_data),
+		.work_flags		= IO_WQ_WORK_MM,
 	},
 	[IORING_OP_TIMEOUT_REMOVE] = {},
 	[IORING_OP_ACCEPT] = {
-		.needs_mm		= 1,
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
-		.file_table		= 1,
 		.pollin			= 1,
+		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_FILES,
 	},
 	[IORING_OP_ASYNC_CANCEL] = {},
 	[IORING_OP_LINK_TIMEOUT] = {
-		.needs_mm		= 1,
 		.needs_async_data	= 1,
 		.async_size		= sizeof(struct io_timeout_data),
+		.work_flags		= IO_WQ_WORK_MM,
 	},
 	[IORING_OP_CONNECT] = {
-		.needs_mm		= 1,
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
 		.needs_async_data	= 1,
 		.async_size		= sizeof(struct io_async_connect),
+		.work_flags		= IO_WQ_WORK_MM,
 	},
 	[IORING_OP_FALLOCATE] = {
 		.needs_file		= 1,
 		.needs_fsize		= 1,
-		.needs_blkcg		= 1,
+		.work_flags		= IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_OPENAT] = {
-		.file_table		= 1,
-		.needs_fs		= 1,
-		.needs_blkcg		= 1,
+		.work_flags		= IO_WQ_WORK_FILES | IO_WQ_WORK_BLKCG |
+						IO_WQ_WORK_FS,
 	},
 	[IORING_OP_CLOSE] = {
 		.needs_file		= 1,
 		.needs_file_no_error	= 1,
-		.file_table		= 1,
-		.needs_blkcg		= 1,
+		.work_flags		= IO_WQ_WORK_FILES | IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_FILES_UPDATE] = {
-		.needs_mm		= 1,
-		.file_table		= 1,
+		.work_flags		= IO_WQ_WORK_FILES | IO_WQ_WORK_MM,
 	},
 	[IORING_OP_STATX] = {
-		.needs_mm		= 1,
-		.needs_fs		= 1,
-		.file_table		= 1,
-		.needs_blkcg		= 1,
+		.work_flags		= IO_WQ_WORK_FILES | IO_WQ_WORK_MM |
+						IO_WQ_WORK_FS | IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_READ] = {
-		.needs_mm		= 1,
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollin			= 1,
 		.buffer_select		= 1,
-		.needs_blkcg		= 1,
 		.async_size		= sizeof(struct io_async_rw),
+		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_WRITE] = {
-		.needs_mm		= 1,
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
 		.needs_fsize		= 1,
-		.needs_blkcg		= 1,
 		.async_size		= sizeof(struct io_async_rw),
+		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_FADVISE] = {
 		.needs_file		= 1,
-		.needs_blkcg		= 1,
+		.work_flags		= IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_MADVISE] = {
-		.needs_mm		= 1,
-		.needs_blkcg		= 1,
+		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_SEND] = {
-		.needs_mm		= 1,
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
-		.needs_blkcg		= 1,
+		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_RECV] = {
-		.needs_mm		= 1,
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollin			= 1,
 		.buffer_select		= 1,
-		.needs_blkcg		= 1,
+		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_OPENAT2] = {
-		.file_table		= 1,
-		.needs_fs		= 1,
-		.needs_blkcg		= 1,
+		.work_flags		= IO_WQ_WORK_FILES | IO_WQ_WORK_FS |
+						IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_EPOLL_CTL] = {
 		.unbound_nonreg_file	= 1,
-		.file_table		= 1,
+		.work_flags		= IO_WQ_WORK_FILES,
 	},
 	[IORING_OP_SPLICE] = {
 		.needs_file		= 1,
 		.hash_reg_file		= 1,
 		.unbound_nonreg_file	= 1,
-		.needs_blkcg		= 1,
+		.work_flags		= IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_PROVIDE_BUFFERS] = {},
 	[IORING_OP_REMOVE_BUFFERS] = {},
@@ -1031,7 +1008,7 @@ static int __io_sq_thread_acquire_mm(struct io_ring_ctx *ctx)
 static int io_sq_thread_acquire_mm(struct io_ring_ctx *ctx,
 				   struct io_kiocb *req)
 {
-	if (!io_op_defs[req->opcode].needs_mm)
+	if (!(io_op_defs[req->opcode].work_flags & IO_WQ_WORK_MM))
 		return 0;
 	return __io_sq_thread_acquire_mm(ctx);
 }
@@ -1224,7 +1201,8 @@ static void io_prep_async_work(struct io_kiocb *req)
 		if (def->unbound_nonreg_file)
 			req->work.flags |= IO_WQ_WORK_UNBOUND;
 	}
-	if (!req->work.files && io_op_defs[req->opcode].file_table &&
+	if (!req->work.files &&
+	    (io_op_defs[req->opcode].work_flags & IO_WQ_WORK_FILES) &&
 	    !(req->flags & REQ_F_NO_FILE_TABLE)) {
 		req->work.files = get_files_struct(current);
 		get_nsproxy(current->nsproxy);
@@ -1235,12 +1213,12 @@ static void io_prep_async_work(struct io_kiocb *req)
 		list_add(&req->inflight_entry, &ctx->inflight_list);
 		spin_unlock_irq(&ctx->inflight_lock);
 	}
-	if (!req->work.mm && def->needs_mm) {
+	if (!req->work.mm && (def->work_flags & IO_WQ_WORK_MM)) {
 		mmgrab(current->mm);
 		req->work.mm = current->mm;
 	}
 #ifdef CONFIG_BLK_CGROUP
-	if (!req->work.blkcg_css && def->needs_blkcg) {
+	if (!req->work.blkcg_css && (def->work_flags & IO_WQ_WORK_BLKCG)) {
 		rcu_read_lock();
 		req->work.blkcg_css = blkcg_css();
 		/*
@@ -1254,7 +1232,7 @@ static void io_prep_async_work(struct io_kiocb *req)
 #endif
 	if (!req->work.creds)
 		req->work.creds = get_current_cred();
-	if (!req->work.fs && def->needs_fs) {
+	if (!req->work.fs && (def->work_flags & IO_WQ_WORK_FS)) {
 		spin_lock(&current->fs->lock);
 		if (!current->fs->in_exec) {
 			req->work.fs = current->fs;
@@ -1268,6 +1246,8 @@ static void io_prep_async_work(struct io_kiocb *req)
 		req->work.fsize = rlimit(RLIMIT_FSIZE);
 	else
 		req->work.fsize = RLIM_INFINITY;
+
+	req->work.flags |= def->work_flags;
 }
 
 static void io_prep_async_link(struct io_kiocb *req)

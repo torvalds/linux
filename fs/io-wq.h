@@ -10,6 +10,12 @@ enum {
 	IO_WQ_WORK_NO_CANCEL	= 8,
 	IO_WQ_WORK_CONCURRENT	= 16,
 
+	IO_WQ_WORK_FILES	= 32,
+	IO_WQ_WORK_FS		= 64,
+	IO_WQ_WORK_MM		= 128,
+	IO_WQ_WORK_CREDS	= 256,
+	IO_WQ_WORK_BLKCG	= 512,
+
 	IO_WQ_HASH_SHIFT	= 24,	/* upper 8 bits are used for hash key */
 };
 

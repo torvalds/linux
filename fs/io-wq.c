@@ -448,6 +448,8 @@ static inline void io_wq_switch_blkcg(struct io_worker *worker,
 				      struct io_wq_work *work)
 {
 #ifdef CONFIG_BLK_CGROUP
+	if (!(work->flags & IO_WQ_WORK_BLKCG))
+		return;
 	if (work->blkcg_css != worker->blkcg_css) {
 		kthread_associate_blkcg(work->blkcg_css);
 		worker->blkcg_css = work->blkcg_css;
@@ -470,17 +472,17 @@ static void io_wq_switch_creds(struct io_worker *worker,
 static void io_impersonate_work(struct io_worker *worker,
 				struct io_wq_work *work)
 {
-	if (work->files && current->files != work->files) {
+	if ((work->flags & IO_WQ_WORK_FILES) && current->files != work->files) {
 		task_lock(current);
 		current->files = work->files;
 		current->nsproxy = work->nsproxy;
 		task_unlock(current);
 	}
-	if (work->fs && current->fs != work->fs)
+	if ((work->flags & IO_WQ_WORK_FS) && current->fs != work->fs)
 		current->fs = work->fs;
-	if (work->mm != worker->mm)
+	if ((work->flags & IO_WQ_WORK_MM) && work->mm != worker->mm)
 		io_wq_switch_mm(worker, work);
-	if (worker->cur_creds != work->creds)
+	if ((work->flags & IO_WQ_WORK_CREDS) && worker->cur_creds != work->creds)
 		io_wq_switch_creds(worker, work);
 	current->signal->rlim[RLIMIT_FSIZE].rlim_cur = work->fsize;
 	io_wq_switch_blkcg(worker, work);
