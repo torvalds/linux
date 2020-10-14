@@ -180,9 +180,61 @@ static unsigned int tegra194_get_speed_common(u32 cpu, u32 delay)
 	return (rate_mhz * KHZ); /* in KHz */
 }
 
+static void get_cpu_ndiv(void *ndiv)
+{
+	u64 ndiv_val;
+
+	asm volatile("mrs %0, s3_0_c15_c0_4" : "=r" (ndiv_val) : );
+
+	*(u64 *)ndiv = ndiv_val;
+}
+
+static void set_cpu_ndiv(void *data)
+{
+	struct cpufreq_frequency_table *tbl = data;
+	u64 ndiv_val = (u64)tbl->driver_data;
+
+	asm volatile("msr s3_0_c15_c0_4, %0" : : "r" (ndiv_val));
+}
+
 static unsigned int tegra194_get_speed(u32 cpu)
 {
-	return tegra194_get_speed_common(cpu, US_DELAY);
+	struct tegra194_cpufreq_data *data = cpufreq_get_driver_data();
+	struct cpufreq_frequency_table *pos;
+	unsigned int rate;
+	u64 ndiv;
+	int ret;
+	u32 cl;
+
+	smp_call_function_single(cpu, get_cpu_cluster, &cl, true);
+
+	/* reconstruct actual cpu freq using counters */
+	rate = tegra194_get_speed_common(cpu, US_DELAY);
+
+	/* get last written ndiv value */
+	ret = smp_call_function_single(cpu, get_cpu_ndiv, &ndiv, true);
+	if (WARN_ON_ONCE(ret))
+		return rate;
+
+	/*
+	 * If the reconstructed frequency has acceptable delta from
+	 * the last written value, then return freq corresponding
+	 * to the last written ndiv value from freq_table. This is
+	 * done to return consistent value.
+	 */
+	cpufreq_for_each_valid_entry(pos, data->tables[cl]) {
+		if (pos->driver_data != ndiv)
+			continue;
+
+		if (abs(pos->frequency - rate) > 115200) {
+			pr_warn("cpufreq: cpu%d,cur:%u,set:%u,set ndiv:%llu\n",
+				cpu, rate, pos->frequency, ndiv);
+		} else {
+			rate = pos->frequency;
+		}
+		break;
+	}
+	return rate;
 }
 
 static int tegra194_cpufreq_init(struct cpufreq_policy *policy)
@@ -207,14 +259,6 @@ static int tegra194_cpufreq_init(struct cpufreq_policy *policy)
 	policy->cpuinfo.transition_latency = TEGRA_CPUFREQ_TRANSITION_LATENCY;
 
 	return 0;
-}
-
-static void set_cpu_ndiv(void *data)
-{
-	struct cpufreq_frequency_table *tbl = data;
-	u64 ndiv_val = (u64)tbl->driver_data;
-
-	asm volatile("msr s3_0_c15_c0_4, %0" : : "r" (ndiv_val));
 }
 
 static int tegra194_cpufreq_set_target(struct cpufreq_policy *policy,
