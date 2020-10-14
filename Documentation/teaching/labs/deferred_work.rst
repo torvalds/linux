@@ -883,7 +883,7 @@ TODOs from the skeleton.
 	       * The thread should finish when the module in unloaded
 
 	       * Wait for the kernel thread to exit before continuing
-		 with with unloading
+		 with unloading
 
 
 .. hint:: For synchronization use two wait queues and two flags.
