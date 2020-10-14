@@ -3479,54 +3479,82 @@ static bool mmio_info_in_cache(struct kvm_vcpu *vcpu, u64 addr, bool direct)
 	return vcpu_match_mmio_gva(vcpu, addr);
 }
 
-/* return true if reserved bit is detected on spte. */
-static bool
-walk_shadow_page_get_mmio_spte(struct kvm_vcpu *vcpu, u64 addr, u64 *sptep)
+/*
+ * Return the level of the lowest level SPTE added to sptes.
+ * That SPTE may be non-present.
+ */
+static int get_walk(struct kvm_vcpu *vcpu, u64 addr, u64 *sptes)
 {
 	struct kvm_shadow_walk_iterator iterator;
-	u64 sptes[PT64_ROOT_MAX_LEVEL], spte = 0ull;
-	struct rsvd_bits_validate *rsvd_check;
-	int root, leaf;
-	bool reserved = false;
+	int leaf = vcpu->arch.mmu->root_level;
+	u64 spte;
 
-	rsvd_check = &vcpu->arch.mmu->shadow_zero_check;
 
 	walk_shadow_page_lockless_begin(vcpu);
 
-	for (shadow_walk_init(&iterator, vcpu, addr),
-		 leaf = root = iterator.level;
+	for (shadow_walk_init(&iterator, vcpu, addr);
 	     shadow_walk_okay(&iterator);
 	     __shadow_walk_next(&iterator, spte)) {
+		leaf = iterator.level;
 		spte = mmu_spte_get_lockless(iterator.sptep);
 
 		sptes[leaf - 1] = spte;
-		leaf--;
 
 		if (!is_shadow_present_pte(spte))
 			break;
 
+	}
+
+	walk_shadow_page_lockless_end(vcpu);
+
+	return leaf;
+}
+
+/* return true if reserved bit is detected on spte. */
+static bool get_mmio_spte(struct kvm_vcpu *vcpu, u64 addr, u64 *sptep)
+{
+	u64 sptes[PT64_ROOT_MAX_LEVEL];
+	struct rsvd_bits_validate *rsvd_check;
+	int root = vcpu->arch.mmu->root_level;
+	int leaf;
+	int level;
+	bool reserved = false;
+
+	if (!VALID_PAGE(vcpu->arch.mmu->root_hpa)) {
+		*sptep = 0ull;
+		return reserved;
+	}
+
+	if (is_tdp_mmu_root(vcpu->kvm, vcpu->arch.mmu->root_hpa))
+		leaf = kvm_tdp_mmu_get_walk(vcpu, addr, sptes);
+	else
+		leaf = get_walk(vcpu, addr, sptes);
+
+	rsvd_check = &vcpu->arch.mmu->shadow_zero_check;
+
+	for (level = root; level >= leaf; level--) {
+		if (!is_shadow_present_pte(sptes[level - 1]))
+			break;
 		/*
 		 * Use a bitwise-OR instead of a logical-OR to aggregate the
 		 * reserved bit and EPT's invalid memtype/XWR checks to avoid
 		 * adding a Jcc in the loop.
 		 */
-		reserved |= __is_bad_mt_xwr(rsvd_check, spte) |
-			    __is_rsvd_bits_set(rsvd_check, spte, iterator.level);
+		reserved |= __is_bad_mt_xwr(rsvd_check, sptes[level - 1]) |
+			    __is_rsvd_bits_set(rsvd_check, sptes[level - 1],
+					       level);
 	}
-
-	walk_shadow_page_lockless_end(vcpu);
 
 	if (reserved) {
 		pr_err("%s: detect reserved bits on spte, addr 0x%llx, dump hierarchy:\n",
 		       __func__, addr);
-		while (root > leaf) {
+		for (level = root; level >= leaf; level--)
 			pr_err("------ spte 0x%llx level %d.\n",
-			       sptes[root - 1], root);
-			root--;
-		}
+			       sptes[level - 1], level);
 	}
 
-	*sptep = spte;
+	*sptep = sptes[leaf - 1];
+
 	return reserved;
 }
 
@@ -3538,7 +3566,7 @@ static int handle_mmio_page_fault(struct kvm_vcpu *vcpu, u64 addr, bool direct)
 	if (mmio_info_in_cache(vcpu, addr, direct))
 		return RET_PF_EMULATE;
 
-	reserved = walk_shadow_page_get_mmio_spte(vcpu, addr, &spte);
+	reserved = get_mmio_spte(vcpu, addr, &spte);
 	if (WARN_ON(reserved))
 		return -EINVAL;
 
