@@ -1737,7 +1737,8 @@ static bool map_regamma_hw_to_x_user(
 
 bool calculate_user_regamma_coeff(struct dc_transfer_func *output_tf,
 		const struct regamma_lut *regamma,
-		struct calculate_buffer *cal_buffer)
+		struct calculate_buffer *cal_buffer,
+		const struct dc_gamma *ramp)
 {
 	struct gamma_coefficients coeff;
 	const struct hw_x_point *coord_x = coordinates_x;
@@ -1778,6 +1779,9 @@ bool calculate_user_regamma_coeff(struct dc_transfer_func *output_tf,
 		++i;
 	}
 
+	if (ramp && ramp->type == GAMMA_CS_TFM_1D)
+		apply_lut_1d(ramp, MAX_HW_POINTS, &output_tf->tf_pts);
+
 	// this function just clamps output to 0-1
 	build_new_custom_resulted_curve(MAX_HW_POINTS, &output_tf->tf_pts);
 	output_tf->type = TF_TYPE_DISTRIBUTED_POINTS;
@@ -1787,7 +1791,8 @@ bool calculate_user_regamma_coeff(struct dc_transfer_func *output_tf,
 
 bool calculate_user_regamma_ramp(struct dc_transfer_func *output_tf,
 		const struct regamma_lut *regamma,
-		struct calculate_buffer *cal_buffer)
+		struct calculate_buffer *cal_buffer,
+		const struct dc_gamma *ramp)
 {
 	struct dc_transfer_func_distributed_points *tf_pts = &output_tf->tf_pts;
 	struct dividers dividers;
@@ -1833,6 +1838,9 @@ bool calculate_user_regamma_ramp(struct dc_transfer_func *output_tf,
 	tf_pts->x_point_at_y1_red = 1;
 	tf_pts->x_point_at_y1_green = 1;
 	tf_pts->x_point_at_y1_blue = 1;
+
+	if (ramp && ramp->type == GAMMA_CS_TFM_1D)
+		apply_lut_1d(ramp, MAX_HW_POINTS, &output_tf->tf_pts);
 
 	// this function just clamps output to 0-1
 	build_new_custom_resulted_curve(MAX_HW_POINTS, tf_pts);
