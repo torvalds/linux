@@ -7,6 +7,8 @@
 #ifndef __ARM64_KVM_HYP_SWITCH_H__
 #define __ARM64_KVM_HYP_SWITCH_H__
 
+#include <hyp/adjust_pc.h>
+
 #include <linux/arm-smccc.h>
 #include <linux/kvm_host.h>
 #include <linux/types.h>
