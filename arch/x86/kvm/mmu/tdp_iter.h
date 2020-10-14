@@ -41,10 +41,13 @@ struct tdp_iter {
  * Iterates over every SPTE mapping the GFN range [start, end) in a
  * preorder traversal.
  */
-#define for_each_tdp_pte(iter, root, root_level, start, end) \
-	for (tdp_iter_start(&iter, root, root_level, PG_LEVEL_4K, start); \
+#define for_each_tdp_pte_min_level(iter, root, root_level, min_level, start, end) \
+	for (tdp_iter_start(&iter, root, root_level, min_level, start); \
 	     iter.valid && iter.gfn < end;		     \
 	     tdp_iter_next(&iter))
+
+#define for_each_tdp_pte(iter, root, root_level, start, end) \
+	for_each_tdp_pte_min_level(iter, root, root_level, PG_LEVEL_4K, start, end)
 
 u64 *spte_to_child_pt(u64 pte, int level);
 

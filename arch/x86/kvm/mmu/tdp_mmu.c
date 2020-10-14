@@ -161,6 +161,24 @@ static void handle_changed_spte_acc_track(u64 old_spte, u64 new_spte, int level)
 		kvm_set_pfn_accessed(spte_to_pfn(old_spte));
 }
 
+static void handle_changed_spte_dirty_log(struct kvm *kvm, int as_id, gfn_t gfn,
+					  u64 old_spte, u64 new_spte, int level)
+{
+	bool pfn_changed;
+	struct kvm_memory_slot *slot;
+
+	if (level > PG_LEVEL_4K)
+		return;
+
+	pfn_changed = spte_to_pfn(old_spte) != spte_to_pfn(new_spte);
+
+	if ((!is_writable_pte(old_spte) || pfn_changed) &&
+	    is_writable_pte(new_spte)) {
+		slot = __gfn_to_memslot(__kvm_memslots(kvm, as_id), gfn);
+		mark_page_dirty_in_slot(slot, gfn);
+	}
+}
+
 /**
  * handle_changed_spte - handle bookkeeping associated with an SPTE change
  * @kvm: kvm instance
@@ -273,10 +291,13 @@ static void handle_changed_spte(struct kvm *kvm, int as_id, gfn_t gfn,
 {
 	__handle_changed_spte(kvm, as_id, gfn, old_spte, new_spte, level);
 	handle_changed_spte_acc_track(old_spte, new_spte, level);
+	handle_changed_spte_dirty_log(kvm, as_id, gfn, old_spte,
+				      new_spte, level);
 }
 
 static inline void __tdp_mmu_set_spte(struct kvm *kvm, struct tdp_iter *iter,
-				      u64 new_spte, bool record_acc_track)
+				      u64 new_spte, bool record_acc_track,
+				      bool record_dirty_log)
 {
 	u64 *root_pt = tdp_iter_root_pt(iter);
 	struct kvm_mmu_page *root = sptep_to_sp(root_pt);
@@ -289,19 +310,30 @@ static inline void __tdp_mmu_set_spte(struct kvm *kvm, struct tdp_iter *iter,
 	if (record_acc_track)
 		handle_changed_spte_acc_track(iter->old_spte, new_spte,
 					      iter->level);
+	if (record_dirty_log)
+		handle_changed_spte_dirty_log(kvm, as_id, iter->gfn,
+					      iter->old_spte, new_spte,
+					      iter->level);
 }
 
 static inline void tdp_mmu_set_spte(struct kvm *kvm, struct tdp_iter *iter,
 				    u64 new_spte)
 {
-	__tdp_mmu_set_spte(kvm, iter, new_spte, true);
+	__tdp_mmu_set_spte(kvm, iter, new_spte, true, true);
 }
 
 static inline void tdp_mmu_set_spte_no_acc_track(struct kvm *kvm,
 						 struct tdp_iter *iter,
 						 u64 new_spte)
 {
-	__tdp_mmu_set_spte(kvm, iter, new_spte, false);
+	__tdp_mmu_set_spte(kvm, iter, new_spte, false, true);
+}
+
+static inline void tdp_mmu_set_spte_no_dirty_log(struct kvm *kvm,
+						 struct tdp_iter *iter,
+						 u64 new_spte)
+{
+	__tdp_mmu_set_spte(kvm, iter, new_spte, true, false);
 }
 
 #define tdp_root_for_each_pte(_iter, _root, _start, _end) \
@@ -331,6 +363,14 @@ static bool tdp_mmu_iter_flush_cond_resched(struct kvm *kvm, struct tdp_iter *it
 		return false;
 	} else {
 		return true;
+	}
+}
+
+static void tdp_mmu_iter_cond_resched(struct kvm *kvm, struct tdp_iter *iter)
+{
+	if (need_resched() || spin_needbreak(&kvm->mmu_lock)) {
+		cond_resched_lock(&kvm->mmu_lock);
+		tdp_iter_refresh_walk(iter);
 	}
 }
 
@@ -638,6 +678,7 @@ static int age_gfn_range(struct kvm *kvm, struct kvm_memory_slot *slot,
 
 			new_spte = mark_spte_for_access_track(new_spte);
 		}
+		new_spte &= ~shadow_dirty_mask;
 
 		tdp_mmu_set_spte_no_acc_track(kvm, &iter, new_spte);
 		young = 1;
@@ -725,5 +766,257 @@ int kvm_tdp_mmu_set_spte_hva(struct kvm *kvm, unsigned long address,
 	return kvm_tdp_mmu_handle_hva_range(kvm, address, address + 1,
 					    (unsigned long)host_ptep,
 					    set_tdp_spte);
+}
+
+/*
+ * Remove write access from all the SPTEs mapping GFNs [start, end). If
+ * skip_4k is set, SPTEs that map 4k pages, will not be write-protected.
+ * Returns true if an SPTE has been changed and the TLBs need to be flushed.
+ */
+static bool wrprot_gfn_range(struct kvm *kvm, struct kvm_mmu_page *root,
+			     gfn_t start, gfn_t end, int min_level)
+{
+	struct tdp_iter iter;
+	u64 new_spte;
+	bool spte_set = false;
+
+	BUG_ON(min_level > KVM_MAX_HUGEPAGE_LEVEL);
+
+	for_each_tdp_pte_min_level(iter, root->spt, root->role.level,
+				   min_level, start, end) {
+		if (!is_shadow_present_pte(iter.old_spte) ||
+		    !is_last_spte(iter.old_spte, iter.level))
+			continue;
+
+		new_spte = iter.old_spte & ~PT_WRITABLE_MASK;
+
+		tdp_mmu_set_spte_no_dirty_log(kvm, &iter, new_spte);
+		spte_set = true;
+
+		tdp_mmu_iter_cond_resched(kvm, &iter);
+	}
+	return spte_set;
+}
+
+/*
+ * Remove write access from all the SPTEs mapping GFNs in the memslot. Will
+ * only affect leaf SPTEs down to min_level.
+ * Returns true if an SPTE has been changed and the TLBs need to be flushed.
+ */
+bool kvm_tdp_mmu_wrprot_slot(struct kvm *kvm, struct kvm_memory_slot *slot,
+			     int min_level)
+{
+	struct kvm_mmu_page *root;
+	int root_as_id;
+	bool spte_set = false;
+
+	for_each_tdp_mmu_root(kvm, root) {
+		root_as_id = kvm_mmu_page_as_id(root);
+		if (root_as_id != slot->as_id)
+			continue;
+
+		/*
+		 * Take a reference on the root so that it cannot be freed if
+		 * this thread releases the MMU lock and yields in this loop.
+		 */
+		kvm_mmu_get_root(kvm, root);
+
+		spte_set |= wrprot_gfn_range(kvm, root, slot->base_gfn,
+			     slot->base_gfn + slot->npages, min_level);
+
+		kvm_mmu_put_root(kvm, root);
+	}
+
+	return spte_set;
+}
+
+/*
+ * Clear the dirty status of all the SPTEs mapping GFNs in the memslot. If
+ * AD bits are enabled, this will involve clearing the dirty bit on each SPTE.
+ * If AD bits are not enabled, this will require clearing the writable bit on
+ * each SPTE. Returns true if an SPTE has been changed and the TLBs need to
+ * be flushed.
+ */
+static bool clear_dirty_gfn_range(struct kvm *kvm, struct kvm_mmu_page *root,
+			   gfn_t start, gfn_t end)
+{
+	struct tdp_iter iter;
+	u64 new_spte;
+	bool spte_set = false;
+
+	tdp_root_for_each_leaf_pte(iter, root, start, end) {
+		if (spte_ad_need_write_protect(iter.old_spte)) {
+			if (is_writable_pte(iter.old_spte))
+				new_spte = iter.old_spte & ~PT_WRITABLE_MASK;
+			else
+				continue;
+		} else {
+			if (iter.old_spte & shadow_dirty_mask)
+				new_spte = iter.old_spte & ~shadow_dirty_mask;
+			else
+				continue;
+		}
+
+		tdp_mmu_set_spte_no_dirty_log(kvm, &iter, new_spte);
+		spte_set = true;
+
+		tdp_mmu_iter_cond_resched(kvm, &iter);
+	}
+	return spte_set;
+}
+
+/*
+ * Clear the dirty status of all the SPTEs mapping GFNs in the memslot. If
+ * AD bits are enabled, this will involve clearing the dirty bit on each SPTE.
+ * If AD bits are not enabled, this will require clearing the writable bit on
+ * each SPTE. Returns true if an SPTE has been changed and the TLBs need to
+ * be flushed.
+ */
+bool kvm_tdp_mmu_clear_dirty_slot(struct kvm *kvm, struct kvm_memory_slot *slot)
+{
+	struct kvm_mmu_page *root;
+	int root_as_id;
+	bool spte_set = false;
+
+	for_each_tdp_mmu_root(kvm, root) {
+		root_as_id = kvm_mmu_page_as_id(root);
+		if (root_as_id != slot->as_id)
+			continue;
+
+		/*
+		 * Take a reference on the root so that it cannot be freed if
+		 * this thread releases the MMU lock and yields in this loop.
+		 */
+		kvm_mmu_get_root(kvm, root);
+
+		spte_set |= clear_dirty_gfn_range(kvm, root, slot->base_gfn,
+				slot->base_gfn + slot->npages);
+
+		kvm_mmu_put_root(kvm, root);
+	}
+
+	return spte_set;
+}
+
+/*
+ * Clears the dirty status of all the 4k SPTEs mapping GFNs for which a bit is
+ * set in mask, starting at gfn. The given memslot is expected to contain all
+ * the GFNs represented by set bits in the mask. If AD bits are enabled,
+ * clearing the dirty status will involve clearing the dirty bit on each SPTE
+ * or, if AD bits are not enabled, clearing the writable bit on each SPTE.
+ */
+static void clear_dirty_pt_masked(struct kvm *kvm, struct kvm_mmu_page *root,
+				  gfn_t gfn, unsigned long mask, bool wrprot)
+{
+	struct tdp_iter iter;
+	u64 new_spte;
+
+	tdp_root_for_each_leaf_pte(iter, root, gfn + __ffs(mask),
+				    gfn + BITS_PER_LONG) {
+		if (!mask)
+			break;
+
+		if (iter.level > PG_LEVEL_4K ||
+		    !(mask & (1UL << (iter.gfn - gfn))))
+			continue;
+
+		if (wrprot || spte_ad_need_write_protect(iter.old_spte)) {
+			if (is_writable_pte(iter.old_spte))
+				new_spte = iter.old_spte & ~PT_WRITABLE_MASK;
+			else
+				continue;
+		} else {
+			if (iter.old_spte & shadow_dirty_mask)
+				new_spte = iter.old_spte & ~shadow_dirty_mask;
+			else
+				continue;
+		}
+
+		tdp_mmu_set_spte_no_dirty_log(kvm, &iter, new_spte);
+
+		mask &= ~(1UL << (iter.gfn - gfn));
+	}
+}
+
+/*
+ * Clears the dirty status of all the 4k SPTEs mapping GFNs for which a bit is
+ * set in mask, starting at gfn. The given memslot is expected to contain all
+ * the GFNs represented by set bits in the mask. If AD bits are enabled,
+ * clearing the dirty status will involve clearing the dirty bit on each SPTE
+ * or, if AD bits are not enabled, clearing the writable bit on each SPTE.
+ */
+void kvm_tdp_mmu_clear_dirty_pt_masked(struct kvm *kvm,
+				       struct kvm_memory_slot *slot,
+				       gfn_t gfn, unsigned long mask,
+				       bool wrprot)
+{
+	struct kvm_mmu_page *root;
+	int root_as_id;
+
+	lockdep_assert_held(&kvm->mmu_lock);
+	for_each_tdp_mmu_root(kvm, root) {
+		root_as_id = kvm_mmu_page_as_id(root);
+		if (root_as_id != slot->as_id)
+			continue;
+
+		clear_dirty_pt_masked(kvm, root, gfn, mask, wrprot);
+	}
+}
+
+/*
+ * Set the dirty status of all the SPTEs mapping GFNs in the memslot. This is
+ * only used for PML, and so will involve setting the dirty bit on each SPTE.
+ * Returns true if an SPTE has been changed and the TLBs need to be flushed.
+ */
+static bool set_dirty_gfn_range(struct kvm *kvm, struct kvm_mmu_page *root,
+				gfn_t start, gfn_t end)
+{
+	struct tdp_iter iter;
+	u64 new_spte;
+	bool spte_set = false;
+
+	tdp_root_for_each_pte(iter, root, start, end) {
+		if (!is_shadow_present_pte(iter.old_spte))
+			continue;
+
+		new_spte = iter.old_spte | shadow_dirty_mask;
+
+		tdp_mmu_set_spte(kvm, &iter, new_spte);
+		spte_set = true;
+
+		tdp_mmu_iter_cond_resched(kvm, &iter);
+	}
+
+	return spte_set;
+}
+
+/*
+ * Set the dirty status of all the SPTEs mapping GFNs in the memslot. This is
+ * only used for PML, and so will involve setting the dirty bit on each SPTE.
+ * Returns true if an SPTE has been changed and the TLBs need to be flushed.
+ */
+bool kvm_tdp_mmu_slot_set_dirty(struct kvm *kvm, struct kvm_memory_slot *slot)
+{
+	struct kvm_mmu_page *root;
+	int root_as_id;
+	bool spte_set = false;
+
+	for_each_tdp_mmu_root(kvm, root) {
+		root_as_id = kvm_mmu_page_as_id(root);
+		if (root_as_id != slot->as_id)
+			continue;
+
+		/*
+		 * Take a reference on the root so that it cannot be freed if
+		 * this thread releases the MMU lock and yields in this loop.
+		 */
+		kvm_mmu_get_root(kvm, root);
+
+		spte_set |= set_dirty_gfn_range(kvm, root, slot->base_gfn,
+				slot->base_gfn + slot->npages);
+
+		kvm_mmu_put_root(kvm, root);
+	}
+	return spte_set;
 }
 
