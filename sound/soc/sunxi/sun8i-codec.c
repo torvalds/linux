@@ -44,8 +44,7 @@
 #define SUN8I_SYS_SR_CTRL_AIF2_FS			8
 #define SUN8I_AIF1CLK_CTRL				0x040
 #define SUN8I_AIF1CLK_CTRL_AIF1_MSTR_MOD		15
-#define SUN8I_AIF1CLK_CTRL_AIF1_BCLK_INV		14
-#define SUN8I_AIF1CLK_CTRL_AIF1_LRCK_INV		13
+#define SUN8I_AIF1CLK_CTRL_AIF1_CLK_INV			13
 #define SUN8I_AIF1CLK_CTRL_AIF1_BCLK_DIV		9
 #define SUN8I_AIF1CLK_CTRL_AIF1_LRCK_DIV		6
 #define SUN8I_AIF1CLK_CTRL_AIF1_WORD_SIZ		4
@@ -90,6 +89,7 @@
 #define SUN8I_SYSCLK_CTL_AIF2CLK_SRC_MASK	GENMASK(5, 4)
 #define SUN8I_SYS_SR_CTRL_AIF1_FS_MASK		GENMASK(15, 12)
 #define SUN8I_SYS_SR_CTRL_AIF2_FS_MASK		GENMASK(11, 8)
+#define SUN8I_AIF1CLK_CTRL_AIF1_CLK_INV_MASK	GENMASK(14, 13)
 #define SUN8I_AIF1CLK_CTRL_AIF1_BCLK_DIV_MASK	GENMASK(12, 9)
 #define SUN8I_AIF1CLK_CTRL_AIF1_LRCK_DIV_MASK	GENMASK(8, 6)
 #define SUN8I_AIF1CLK_CTRL_AIF1_WORD_SIZ_MASK	GENMASK(5, 4)
@@ -173,7 +173,7 @@ static int sun8i_codec_get_hw_rate(struct snd_pcm_hw_params *params)
 static int sun8i_codec_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct sun8i_codec *scodec = snd_soc_dai_get_drvdata(dai);
-	u32 format, value;
+	u32 dsp_format, format, invert, value;
 
 	/* clock masters */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
@@ -202,8 +202,12 @@ static int sun8i_codec_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		format = 0x2;
 		break;
 	case SND_SOC_DAIFMT_DSP_A:
+		format = 0x3;
+		dsp_format = 0x0; /* Set LRCK_INV to 0 */
+		break;
 	case SND_SOC_DAIFMT_DSP_B:
 		format = 0x3;
+		dsp_format = 0x1; /* Set LRCK_INV to 1 */
 		break;
 	default:
 		return -EINVAL;
@@ -215,32 +219,45 @@ static int sun8i_codec_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	/* clock inversion */
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_NF: /* Normal */
-		value = 0x0;
+		invert = 0x0;
 		break;
-	case SND_SOC_DAIFMT_IB_IF: /* Inversion */
-		value = 0x1;
+	case SND_SOC_DAIFMT_NB_IF: /* Inverted LRCK */
+		invert = 0x1;
+		break;
+	case SND_SOC_DAIFMT_IB_NF: /* Inverted BCLK */
+		invert = 0x2;
+		break;
+	case SND_SOC_DAIFMT_IB_IF: /* Both inverted */
+		invert = 0x3;
 		break;
 	default:
 		return -EINVAL;
 	}
-	regmap_update_bits(scodec->regmap, SUN8I_AIF1CLK_CTRL,
-			   BIT(SUN8I_AIF1CLK_CTRL_AIF1_BCLK_INV),
-			   value << SUN8I_AIF1CLK_CTRL_AIF1_BCLK_INV);
 
-	/*
-	 * It appears that the DAI and the codec in the A33 SoC don't
-	 * share the same polarity for the LRCK signal when they mean
-	 * 'normal' and 'inverted' in the datasheet.
-	 *
-	 * Since the DAI here is our regular i2s driver that have been
-	 * tested with way more codecs than just this one, it means
-	 * that the codec probably gets it backward, and we have to
-	 * invert the value here.
-	 */
-	value ^= scodec->quirks->lrck_inversion;
+	if (format == 0x3) {
+		/* Inverted LRCK is not available in DSP mode. */
+		if (invert & BIT(0))
+			return -EINVAL;
+
+		/* Instead, the bit selects between DSP A/B formats. */
+		invert |= dsp_format;
+	} else {
+		/*
+		 * It appears that the DAI and the codec in the A33 SoC don't
+		 * share the same polarity for the LRCK signal when they mean
+		 * 'normal' and 'inverted' in the datasheet.
+		 *
+		 * Since the DAI here is our regular i2s driver that have been
+		 * tested with way more codecs than just this one, it means
+		 * that the codec probably gets it backward, and we have to
+		 * invert the value here.
+		 */
+		invert ^= scodec->quirks->lrck_inversion;
+	}
+
 	regmap_update_bits(scodec->regmap, SUN8I_AIF1CLK_CTRL,
-			   BIT(SUN8I_AIF1CLK_CTRL_AIF1_LRCK_INV),
-			   value << SUN8I_AIF1CLK_CTRL_AIF1_LRCK_INV);
+			   SUN8I_AIF1CLK_CTRL_AIF1_CLK_INV_MASK,
+			   invert << SUN8I_AIF1CLK_CTRL_AIF1_CLK_INV);
 
 	return 0;
 }
