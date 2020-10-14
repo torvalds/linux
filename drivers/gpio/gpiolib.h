@@ -116,6 +116,7 @@ struct gpio_desc {
 #define FLAG_BIAS_DISABLE    15	/* GPIO has pull disabled */
 #define FLAG_EDGE_RISING     16	/* GPIO CDEV detects rising edge events */
 #define FLAG_EDGE_FALLING    17	/* GPIO CDEV detects falling edge events */
+#define FLAG_EVENT_CLOCK_REALTIME	18 /* GPIO CDEV reports REALTIME timestamps in events */
 
 	/* Connection label */
 	const char		*label;
