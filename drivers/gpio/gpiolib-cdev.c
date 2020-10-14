@@ -1479,21 +1479,10 @@ static __poll_t lineevent_poll(struct file *file,
 	return events;
 }
 
-static ssize_t lineevent_get_size(void)
-{
-#if defined(CONFIG_X86_64) && !defined(CONFIG_UML)
-	/* i386 has no padding after 'id' */
-	if (in_ia32_syscall()) {
-		struct compat_gpioeevent_data {
-			compat_u64	timestamp;
-			u32		id;
-		};
-
-		return sizeof(struct compat_gpioeevent_data);
-	}
-#endif
-	return sizeof(struct gpioevent_data);
-}
+struct compat_gpioeevent_data {
+	compat_u64	timestamp;
+	u32		id;
+};
 
 static ssize_t lineevent_read(struct file *file,
 			      char __user *buf,
@@ -1515,7 +1504,10 @@ static ssize_t lineevent_read(struct file *file,
 	 * actual sizeof() and pass this as an argument to copy_to_user() to
 	 * drop unneeded bytes from the output.
 	 */
-	ge_size = lineevent_get_size();
+	if (compat_need_64bit_alignment_fixup())
+		ge_size = sizeof(struct compat_gpioeevent_data);
+	else
+		ge_size = sizeof(struct gpioevent_data);
 	if (count < ge_size)
 		return -EINVAL;
 
