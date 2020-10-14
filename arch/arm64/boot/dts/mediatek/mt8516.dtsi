@@ -455,7 +455,7 @@
 			status = "disabled";
 		};
 
-		usb0_phy: usb@11110000 {
+		usb_phy: usb@11110000 {
 			compatible = "mediatek,generic-tphy-v1";
 			reg = <0 0x11110000 0 0x800>;
 			#address-cells = <2>;

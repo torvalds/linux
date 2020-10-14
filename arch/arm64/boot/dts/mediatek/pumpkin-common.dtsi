@@ -195,7 +195,7 @@
 	};
 };
 
-&usb0_phy {
+&usb_phy {
 	status = "okay";
 };
 
