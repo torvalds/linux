@@ -64,8 +64,8 @@
 #define GENPD_FLAG_RPM_ALWAYS_ON (1U << 5)
 
 enum gpd_status {
-	GPD_STATE_ACTIVE = 0,	/* PM domain is active */
-	GPD_STATE_POWER_OFF,	/* PM domain is off */
+	GENPD_STATE_ON = 0,	/* PM domain is on */
+	GENPD_STATE_OFF,	/* PM domain is off */
 };
 
 struct dev_power_governor {
