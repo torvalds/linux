@@ -1328,7 +1328,7 @@ static struct c2c_dimension dim_iaddr = {
 };
 
 static struct c2c_dimension dim_tot_hitm = {
-	.header		= HEADER_SPAN("----- LLC Load Hitm -----", "Total", 2),
+	.header		= HEADER_SPAN("------- Load Hitm -------", "Total", 2),
 	.name		= "tot_hitm",
 	.cmp		= tot_hitm_cmp,
 	.entry		= tot_hitm_entry,
