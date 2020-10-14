@@ -893,6 +893,10 @@ static __init void __check_quirks_intel(void)
 			set_rdt_options("!cmt,!mbmtotal,!mbmlocal,!l3cat");
 		else
 			set_rdt_options("!l3cat");
+		fallthrough;
+	case INTEL_FAM6_BROADWELL_X:
+		intel_rdt_mbm_apply_quirk();
+		break;
 	}
 }
 
