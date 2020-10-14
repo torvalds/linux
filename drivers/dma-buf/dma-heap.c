@@ -40,7 +40,6 @@ struct dma_heap {
 	dev_t heap_devt;
 	struct list_head list;
 	struct cdev heap_cdev;
-	int minor;
 	struct kref refcount;
 };
 
@@ -241,13 +240,14 @@ void *dma_heap_get_drvdata(struct dma_heap *heap)
 static void dma_heap_release(struct kref *ref)
 {
 	struct dma_heap *heap = container_of(ref, struct dma_heap, refcount);
+	int minor = MINOR(heap->heap_devt);
 
 	/* Note, we already holding the heap_list_lock here */
 	list_del(&heap->list);
 
 	device_destroy(dma_heap_class, heap->heap_devt);
 	cdev_del(&heap->heap_cdev);
-	xa_erase(&dma_heap_minors, heap->minor);
+	xa_erase(&dma_heap_minors, minor);
 
 	kfree(heap);
 }
@@ -267,6 +267,7 @@ struct dma_heap *dma_heap_add(const struct dma_heap_export_info *exp_info)
 {
 	struct dma_heap *heap, *err_ret;
 	struct device *dev_ret;
+	int minor;
 	int ret;
 
 	if (!exp_info->name || !strcmp(exp_info->name, "")) {
@@ -298,7 +299,7 @@ struct dma_heap *dma_heap_add(const struct dma_heap_export_info *exp_info)
 	heap->priv = exp_info->priv;
 
 	/* Find unused minor number */
-	ret = xa_alloc(&dma_heap_minors, &heap->minor, heap,
+	ret = xa_alloc(&dma_heap_minors, &minor, heap,
 		       XA_LIMIT(0, NUM_HEAP_MINORS - 1), GFP_KERNEL);
 	if (ret < 0) {
 		pr_err("dma_heap: Unable to get minor number for heap\n");
@@ -307,7 +308,7 @@ struct dma_heap *dma_heap_add(const struct dma_heap_export_info *exp_info)
 	}
 
 	/* Create device */
-	heap->heap_devt = MKDEV(MAJOR(dma_heap_devt), heap->minor);
+	heap->heap_devt = MKDEV(MAJOR(dma_heap_devt), minor);
 
 	cdev_init(&heap->heap_cdev, &dma_heap_fops);
 	ret = cdev_add(&heap->heap_cdev, heap->heap_devt, 1);
@@ -337,7 +338,7 @@ struct dma_heap *dma_heap_add(const struct dma_heap_export_info *exp_info)
 err2:
 	cdev_del(&heap->heap_cdev);
 err1:
-	xa_erase(&dma_heap_minors, heap->minor);
+	xa_erase(&dma_heap_minors, minor);
 err0:
 	kfree(heap);
 	return err_ret;
