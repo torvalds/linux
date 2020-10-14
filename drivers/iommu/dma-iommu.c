@@ -343,8 +343,11 @@ static int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base,
 
 	if (!cookie->fq_domain && !iommu_domain_get_attr(domain,
 			DOMAIN_ATTR_DMA_USE_FLUSH_QUEUE, &attr) && attr) {
-		cookie->fq_domain = domain;
-		init_iova_flush_queue(iovad, iommu_dma_flush_iotlb_all, NULL);
+		if (init_iova_flush_queue(iovad, iommu_dma_flush_iotlb_all,
+					NULL))
+			pr_warn("iova flush queue initialization failed\n");
+		else
+			cookie->fq_domain = domain;
 	}
 
 	if (!dev)
@@ -471,7 +474,7 @@ static void __iommu_dma_unmap(struct device *dev, dma_addr_t dma_addr,
 	WARN_ON(unmapped != size);
 
 	if (!cookie->fq_domain)
-		iommu_tlb_sync(domain, &iotlb_gather);
+		iommu_iotlb_sync(domain, &iotlb_gather);
 	iommu_dma_free_iova(cookie, dma_addr, size);
 }
 
@@ -524,6 +527,9 @@ static struct page **__iommu_dma_alloc_pages(struct device *dev,
 	/* IOMMU can map any pages, so himem can also be used here */
 	gfp |= __GFP_NOWARN | __GFP_HIGHMEM;
 
+	/* It makes no sense to muck about with huge pages */
+	gfp &= ~__GFP_COMP;
+
 	while (count) {
 		struct page *page = NULL;
 		unsigned int order_size;
@@ -544,15 +550,9 @@ static struct page **__iommu_dma_alloc_pages(struct device *dev,
 			page = alloc_pages_node(nid, alloc_flags, order);
 			if (!page)
 				continue;
-			if (!order)
-				break;
-			if (!PageCompound(page)) {
+			if (order)
 				split_page(page, order);
-				break;
-			} else if (!split_huge_page(page)) {
-				break;
-			}
-			__free_pages(page, order);
+			break;
 		}
 		if (!page) {
 			__iommu_dma_free_pages(pages, i);
