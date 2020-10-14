@@ -927,7 +927,7 @@ struct hl_asic_funcs {
 	void (*ctx_fini)(struct hl_ctx *ctx);
 	int (*get_clk_rate)(struct hl_device *hdev, u32 *cur_clk, u32 *max_clk);
 	u32 (*get_queue_id_for_cq)(struct hl_device *hdev, u32 cq_idx);
-	void (*read_device_fw_version)(struct hl_device *hdev,
+	int (*read_device_fw_version)(struct hl_device *hdev,
 					enum hl_fw_component fwc);
 	int (*load_firmware_to_device)(struct hl_device *hdev);
 	int (*load_boot_fit_to_device)(struct hl_device *hdev);

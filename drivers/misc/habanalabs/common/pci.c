@@ -390,8 +390,11 @@ int hl_pci_init(struct hl_device *hdev, u32 cpu_boot_status_reg,
 	rc = hl_fw_read_preboot_status(hdev, cpu_boot_status_reg,
 			cpu_security_boot_status_reg, boot_err0_reg,
 			preboot_ver_timeout);
-	if (rc)
+	if (rc) {
+		dev_err(hdev->dev, "Failed to read preboot version\n");
+		hdev->asic_funcs->hw_fini(hdev, true);
 		goto unmap_pci_bars;
+	}
 
 	return 0;
 

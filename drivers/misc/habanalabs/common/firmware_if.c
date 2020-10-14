@@ -607,7 +607,9 @@ int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
 		return -EIO;
 	}
 
-	hdev->asic_funcs->read_device_fw_version(hdev, FW_COMP_PREBOOT);
+	rc = hdev->asic_funcs->read_device_fw_version(hdev, FW_COMP_PREBOOT);
+	if (rc)
+		return rc;
 
 	security_status = RREG32(cpu_security_boot_status_reg);
 

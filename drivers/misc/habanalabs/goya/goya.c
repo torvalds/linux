@@ -2341,7 +2341,7 @@ static int goya_load_boot_fit_to_device(struct hl_device *hdev)
  * FW component passes an offset from SRAM_BASE_ADDR in SCRATCHPAD_xx.
  * The version string should be located by that offset.
  */
-static void goya_read_device_fw_version(struct hl_device *hdev,
+static int goya_read_device_fw_version(struct hl_device *hdev,
 					enum hl_fw_component fwc)
 {
 	const char *name;
@@ -2361,7 +2361,7 @@ static void goya_read_device_fw_version(struct hl_device *hdev,
 		break;
 	default:
 		dev_warn(hdev->dev, "Undefined FW component: %d\n", fwc);
-		return;
+		return -EIO;
 	}
 
 	ver_off &= ~((u32)SRAM_BASE_ADDR);
@@ -2373,7 +2373,11 @@ static void goya_read_device_fw_version(struct hl_device *hdev,
 		dev_err(hdev->dev, "%s version offset (0x%x) is above SRAM\n",
 								name, ver_off);
 		strcpy(dest, "unavailable");
+
+		return -EIO;
 	}
+
+	return 0;
 }
 
 static int goya_init_cpu(struct hl_device *hdev)
@@ -2644,12 +2648,14 @@ static void goya_hw_fini(struct hl_device *hdev, bool hard_reset)
 	WREG32(mmPSOC_GLOBAL_CONF_SW_BTM_FSM,
 			0xA << PSOC_GLOBAL_CONF_SW_BTM_FSM_CTRL_SHIFT);
 
-	goya->hw_cap_initialized &= ~(HW_CAP_CPU | HW_CAP_CPU_Q |
-					HW_CAP_DDR_0 | HW_CAP_DDR_1 |
-					HW_CAP_DMA | HW_CAP_MME |
-					HW_CAP_MMU | HW_CAP_TPC_MBIST |
-					HW_CAP_GOLDEN | HW_CAP_TPC);
-	memset(goya->events_stat, 0, sizeof(goya->events_stat));
+	if (goya) {
+		goya->hw_cap_initialized &= ~(HW_CAP_CPU | HW_CAP_CPU_Q |
+				HW_CAP_DDR_0 | HW_CAP_DDR_1 |
+				HW_CAP_DMA | HW_CAP_MME |
+				HW_CAP_MMU | HW_CAP_TPC_MBIST |
+				HW_CAP_GOLDEN | HW_CAP_TPC);
+		memset(goya->events_stat, 0, sizeof(goya->events_stat));
+	}
 }
 
 int goya_suspend(struct hl_device *hdev)

@@ -3603,7 +3603,7 @@ static int gaudi_load_boot_fit_to_device(struct hl_device *hdev)
 	return hl_fw_load_fw_to_device(hdev, GAUDI_BOOT_FIT_FILE, dst, 0, 0);
 }
 
-static void gaudi_read_device_fw_version(struct hl_device *hdev,
+static int gaudi_read_device_fw_version(struct hl_device *hdev,
 					enum hl_fw_component fwc)
 {
 	const char *name;
@@ -3623,7 +3623,7 @@ static void gaudi_read_device_fw_version(struct hl_device *hdev,
 		break;
 	default:
 		dev_warn(hdev->dev, "Undefined FW component: %d\n", fwc);
-		return;
+		return -EIO;
 	}
 
 	ver_off &= ~((u32)SRAM_BASE_ADDR);
@@ -3635,7 +3635,10 @@ static void gaudi_read_device_fw_version(struct hl_device *hdev,
 		dev_err(hdev->dev, "%s version offset (0x%x) is above SRAM\n",
 								name, ver_off);
 		strcpy(dest, "unavailable");
+		return -EIO;
 	}
+
+	return 0;
 }
 
 static int gaudi_init_cpu(struct hl_device *hdev)
@@ -3925,16 +3928,18 @@ static void gaudi_hw_fini(struct hl_device *hdev, bool hard_reset)
 
 	WREG32(mmPSOC_GLOBAL_CONF_BOOT_STRAP_PINS, boot_strap);
 
-	gaudi->hw_cap_initialized &= ~(HW_CAP_CPU | HW_CAP_CPU_Q |
-					HW_CAP_HBM | HW_CAP_PCI_DMA |
-					HW_CAP_MME | HW_CAP_TPC_MASK |
-					HW_CAP_HBM_DMA | HW_CAP_PLL |
-					HW_CAP_NIC_MASK | HW_CAP_MMU |
-					HW_CAP_SRAM_SCRAMBLER |
-					HW_CAP_HBM_SCRAMBLER |
-					HW_CAP_CLK_GATE);
+	if (gaudi) {
+		gaudi->hw_cap_initialized &= ~(HW_CAP_CPU | HW_CAP_CPU_Q |
+				HW_CAP_HBM | HW_CAP_PCI_DMA |
+				HW_CAP_MME | HW_CAP_TPC_MASK |
+				HW_CAP_HBM_DMA | HW_CAP_PLL |
+				HW_CAP_NIC_MASK | HW_CAP_MMU |
+				HW_CAP_SRAM_SCRAMBLER |
+				HW_CAP_HBM_SCRAMBLER |
+				HW_CAP_CLK_GATE);
 
-	memset(gaudi->events_stat, 0, sizeof(gaudi->events_stat));
+		memset(gaudi->events_stat, 0, sizeof(gaudi->events_stat));
+	}
 }
 
 static int gaudi_suspend(struct hl_device *hdev)
