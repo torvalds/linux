@@ -447,6 +447,51 @@
 		reg = <0x0 0xfe1a8100 0x0 0x20>;
 	};
 
+	sdmmc2: dwmmc@fe000000 {
+		compatible = "rockchip,rk3568-dw-mshc",
+			     "rockchip,rk3288-dw-mshc";
+		reg = <0x0 0xfe000000 0x0 0x4000>;
+		interrupts = <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>;
+		max-frequency = <150000000>;
+		clocks = <&cru HCLK_SDMMC2>, <&cru CLK_SDMMC2>,
+			 <&cru SCLK_SDMMC2_DRV>, <&cru SCLK_SDMMC2_SAMPLE>;
+		clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
+		fifo-depth = <0x100>;
+		resets = <&cru SRST_SDMMC2>;
+		reset-names = "reset";
+		status = "disabled";
+	};
+
+	sdmmc0: dwmmc@fe2b0000 {
+		compatible = "rockchip,rk3568-dw-mshc",
+			     "rockchip,rk3288-dw-mshc";
+		reg = <0x0 0xfe2b0000 0x0 0x4000>;
+		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
+		max-frequency = <150000000>;
+		clocks = <&cru HCLK_SDMMC0>, <&cru CLK_SDMMC0>,
+			 <&cru SCLK_SDMMC0_DRV>, <&cru SCLK_SDMMC0_SAMPLE>;
+		clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
+		fifo-depth = <0x100>;
+		resets = <&cru SRST_SDMMC0>;
+		reset-names = "reset";
+		status = "disabled";
+	};
+
+	sdmmc1: dwmmc@fe2c0000 {
+		compatible = "rockchip,rk3568-dw-mshc",
+			     "rockchip,rk3288-dw-mshc";
+		reg = <0x0 0xfe2c0000 0x0 0x4000>;
+		interrupts = <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>;
+		max-frequency = <150000000>;
+		clocks = <&cru HCLK_SDMMC1>, <&cru CLK_SDMMC1>,
+			 <&cru SCLK_SDMMC1_DRV>, <&cru SCLK_SDMMC1_SAMPLE>;
+		clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
+		fifo-depth = <0x100>;
+		resets = <&cru SRST_SDMMC1>;
+		reset-names = "reset";
+		status = "disabled";
+	};
+
 	sdhci: sdhci@fe310000 {
 		compatible = "rockchip,dwcmshc-sdhci", "snps,dwcmshc-sdhci";
 		reg = <0x0 0xfe310000 0x0 0x10000>;
