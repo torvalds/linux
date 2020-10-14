@@ -17,9 +17,9 @@
 #include <linux/pinctrl/pinmux.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include "core.h"
-#include "pinconf.h"
-#include "pinctrl-utils.h"
+#include "../core.h"
+#include "../pinconf.h"
+#include "../pinctrl-utils.h"
 
 /* Field positions and masks in the pinmux registers */
 #define RZN1_L1_PIN_DRIVE_STRENGTH	10

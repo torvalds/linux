@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
-obj-$(CONFIG_PINCTRL_SH_PFC)	+= core.o pinctrl.o
+obj-$(CONFIG_PINCTRL_SH_PFC)		+= core.o pinctrl.o
 obj-$(CONFIG_PINCTRL_SH_PFC_GPIO)	+= gpio.o
-obj-$(CONFIG_PINCTRL_PFC_EMEV2)	+= pfc-emev2.o
+obj-$(CONFIG_PINCTRL_PFC_EMEV2)		+= pfc-emev2.o
 obj-$(CONFIG_PINCTRL_PFC_R8A73A4)	+= pfc-r8a73a4.o
 obj-$(CONFIG_PINCTRL_PFC_R8A7740)	+= pfc-r8a7740.o
 obj-$(CONFIG_PINCTRL_PFC_R8A7742)	+= pfc-r8a7790.o
@@ -42,6 +42,10 @@ obj-$(CONFIG_PINCTRL_PFC_SH7757)	+= pfc-sh7757.o
 obj-$(CONFIG_PINCTRL_PFC_SH7785)	+= pfc-sh7785.o
 obj-$(CONFIG_PINCTRL_PFC_SH7786)	+= pfc-sh7786.o
 obj-$(CONFIG_PINCTRL_PFC_SHX3)		+= pfc-shx3.o
+
+obj-$(CONFIG_PINCTRL_RZA1)	+= pinctrl-rza1.o
+obj-$(CONFIG_PINCTRL_RZA2)	+= pinctrl-rza2.o
+obj-$(CONFIG_PINCTRL_RZN1)	+= pinctrl-rzn1.o
 
 ifeq ($(CONFIG_COMPILE_TEST),y)
 CFLAGS_pfc-sh7203.o	+= -I$(srctree)/arch/sh/include/cpu-sh2a
