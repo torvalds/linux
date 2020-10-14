@@ -2,13 +2,13 @@
 /*
  * NOTE: This example is works on x86 and powerpc.
  * Here's a sample kernel module showing the use of kprobes to dump a
- * stack trace and selected registers when _do_fork() is called.
+ * stack trace and selected registers when kernel_clone() is called.
  *
  * For more information on theory of operation of kprobes, see
  * Documentation/trace/kprobes.rst
  *
  * You will see the trace data in /var/log/messages and on the console
- * whenever _do_fork() is invoked to create a new process.
+ * whenever kernel_clone() is invoked to create a new process.
  */
 
 #include <linux/kernel.h>
@@ -16,7 +16,7 @@
 #include <linux/kprobes.h>
 
 #define MAX_SYMBOL_LEN	64
-static char symbol[MAX_SYMBOL_LEN] = "_do_fork";
+static char symbol[MAX_SYMBOL_LEN] = "kernel_clone";
 module_param_string(symbol, symbol, sizeof(symbol), 0644);
 
 /* For each probe you need to allocate a kprobe structure */
