@@ -474,7 +474,7 @@ int btrfs_dirty_pages(struct btrfs_inode *inode, struct page **pages,
 	loff_t isize = i_size_read(&inode->vfs_inode);
 	unsigned int extra_bits = 0;
 
-	start_pos = pos & ~((u64) fs_info->sectorsize - 1);
+	start_pos = round_down(pos, fs_info->sectorsize);
 	num_bytes = round_up(write_bytes + pos - start_pos,
 			     fs_info->sectorsize);
 
