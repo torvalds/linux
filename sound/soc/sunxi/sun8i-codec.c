@@ -389,25 +389,21 @@ static const struct sun8i_codec_clk_div sun8i_codec_bclk_div[] = {
 	{ .div = 192,	.val = 13 },
 };
 
-static u8 sun8i_codec_get_bclk_div(unsigned int sysclk_rate,
-				   unsigned int lrck_div_order,
-				   unsigned int sample_rate)
+static int sun8i_codec_get_bclk_div(unsigned int sysclk_rate,
+				    unsigned int lrck_div_order,
+				    unsigned int sample_rate)
 {
 	unsigned int div = sysclk_rate / sample_rate >> lrck_div_order;
-	unsigned int best_val = 0, best_diff = ~0;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(sun8i_codec_bclk_div); i++) {
 		const struct sun8i_codec_clk_div *bdiv = &sun8i_codec_bclk_div[i];
-		unsigned int diff = abs(bdiv->div - div);
 
-		if (diff < best_diff) {
-			best_diff = diff;
-			best_val = bdiv->val;
-		}
+		if (bdiv->div == div)
+			return bdiv->val;
 	}
 
-	return best_val;
+	return -EINVAL;
 }
 
 static int sun8i_codec_get_lrck_div_order(unsigned int slots,
@@ -436,8 +432,7 @@ static int sun8i_codec_hw_params(struct snd_pcm_substream *substream,
 	unsigned int slots = aif->slots ?: params_channels(params);
 	unsigned int slot_width = aif->slot_width ?: params_width(params);
 	unsigned int sysclk_rate = sun8i_codec_get_sysclk_rate(sample_rate);
-	int lrck_div_order, ret, word_size;
-	u8 bclk_div;
+	int bclk_div, lrck_div_order, ret, word_size;
 
 	/* word size */
 	switch (params_width(params)) {
@@ -472,6 +467,9 @@ static int sun8i_codec_hw_params(struct snd_pcm_substream *substream,
 
 	/* BCLK divider (SYSCLK/BCLK ratio) */
 	bclk_div = sun8i_codec_get_bclk_div(sysclk_rate, lrck_div_order, sample_rate);
+	if (bclk_div < 0)
+		return bclk_div;
+
 	regmap_update_bits(scodec->regmap, SUN8I_AIF1CLK_CTRL,
 			   SUN8I_AIF1CLK_CTRL_AIF1_BCLK_DIV_MASK,
 			   bclk_div << SUN8I_AIF1CLK_CTRL_AIF1_BCLK_DIV);
