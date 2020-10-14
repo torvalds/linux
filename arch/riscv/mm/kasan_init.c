@@ -85,16 +85,16 @@ static void __init populate(void *start, void *end)
 
 void __init kasan_init(void)
 {
-	struct memblock_region *reg;
-	unsigned long i;
+	phys_addr_t _start, _end;
+	u64 i;
 
 	kasan_populate_early_shadow((void *)KASAN_SHADOW_START,
 				    (void *)kasan_mem_to_shadow((void *)
 								VMALLOC_END));
 
-	for_each_memblock(memory, reg) {
-		void *start = (void *)__va(reg->base);
-		void *end = (void *)__va(reg->base + reg->size);
+	for_each_mem_range(i, &_start, &_end) {
+		void *start = (void *)_start;
+		void *end = (void *)_end;
 
 		if (start >= end)
 			break;

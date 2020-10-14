@@ -35,6 +35,7 @@ config DEV_DAX_PMEM
 config DEV_DAX_HMEM
 	tristate "HMEM DAX: direct access to 'specific purpose' memory"
 	depends on EFI_SOFT_RESERVE
+	select NUMA_KEEP_MEMINFO if (NUMA && X86)
 	default DEV_DAX
 	help
 	  EFI 2.8 platforms, and others, may advertise 'specific purpose'
@@ -47,6 +48,11 @@ config DEV_DAX_HMEM
 	  "System RAM" pool.
 
 	  Say M if unsure.
+
+config DEV_DAX_HMEM_DEVICES
+	depends on NUMA_KEEP_MEMINFO # for phys_to_target_node()
+	depends on DEV_DAX_HMEM && DAX=y
+	def_bool y
 
 config DEV_DAX_KMEM
 	tristate "KMEM DAX: volatile-use of persistent memory"

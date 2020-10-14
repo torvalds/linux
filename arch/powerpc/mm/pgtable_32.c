@@ -123,11 +123,11 @@ static void __init __mapin_ram_chunk(unsigned long offset, unsigned long top)
 
 void __init mapin_ram(void)
 {
-	struct memblock_region *reg;
+	phys_addr_t base, end;
+	u64 i;
 
-	for_each_memblock(memory, reg) {
-		phys_addr_t base = reg->base;
-		phys_addr_t top = min(base + reg->size, total_lowmem);
+	for_each_mem_range(i, &base, &end) {
+		phys_addr_t top = min(end, total_lowmem);
 
 		if (base >= top)
 			continue;

@@ -138,11 +138,11 @@ void __init kasan_mmu_init(void)
 
 void __init kasan_init(void)
 {
-	struct memblock_region *reg;
+	phys_addr_t base, end;
+	u64 i;
 
-	for_each_memblock(memory, reg) {
-		phys_addr_t base = reg->base;
-		phys_addr_t top = min(base + reg->size, total_lowmem);
+	for_each_mem_range(i, &base, &end) {
+		phys_addr_t top = min(end, total_lowmem);
 		int ret;
 
 		if (base >= top)

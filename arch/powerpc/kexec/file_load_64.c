@@ -138,15 +138,13 @@ out:
  */
 static int get_crash_memory_ranges(struct crash_mem **mem_ranges)
 {
-	struct memblock_region *reg;
+	phys_addr_t base, end;
 	struct crash_mem *tmem;
+	u64 i;
 	int ret;
 
-	for_each_memblock(memory, reg) {
-		u64 base, size;
-
-		base = (u64)reg->base;
-		size = (u64)reg->size;
+	for_each_mem_range(i, &base, &end) {
+		u64 size = end - base;
 
 		/* Skip backup memory region, which needs a separate entry */
 		if (base == BACKUP_SRC_START) {
@@ -250,8 +248,7 @@ static int __locate_mem_hole_top_down(struct kexec_buf *kbuf,
 	phys_addr_t start, end;
 	u64 i;
 
-	for_each_mem_range_rev(i, &memblock.memory, NULL, NUMA_NO_NODE,
-			       MEMBLOCK_NONE, &start, &end, NULL) {
+	for_each_mem_range_rev(i, &start, &end) {
 		/*
 		 * memblock uses [start, end) convention while it is
 		 * [start, end] here. Fix the off-by-one to have the
@@ -350,8 +347,7 @@ static int __locate_mem_hole_bottom_up(struct kexec_buf *kbuf,
 	phys_addr_t start, end;
 	u64 i;
 
-	for_each_mem_range(i, &memblock.memory, NULL, NUMA_NO_NODE,
-			   MEMBLOCK_NONE, &start, &end, NULL) {
+	for_each_mem_range(i, &start, &end) {
 		/*
 		 * memblock uses [start, end) convention while it is
 		 * [start, end] here. Fix the off-by-one to have the
