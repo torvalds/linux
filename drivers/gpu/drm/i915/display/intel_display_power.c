@@ -3650,7 +3650,7 @@ static const struct i915_power_well_desc cnl_power_wells[] = {
 		.name = "DDI F IO power well",
 		.domains = CNL_DISPLAY_DDI_F_IO_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = DISP_PW_ID_NONE,
+		.id = CNL_DISP_PW_DDI_F_IO,
 		{
 			.hsw.regs = &hsw_power_well_regs,
 			.hsw.idx = CNL_PW_CTL_IDX_DDI_F,
@@ -3660,7 +3660,7 @@ static const struct i915_power_well_desc cnl_power_wells[] = {
 		.name = "AUX F",
 		.domains = CNL_DISPLAY_AUX_F_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
-		.id = DISP_PW_ID_NONE,
+		.id = CNL_DISP_PW_DDI_F_AUX,
 		{
 			.hsw.regs = &hsw_power_well_regs,
 			.hsw.idx = CNL_PW_CTL_IDX_AUX_F,
@@ -4640,17 +4640,12 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
 		err = set_power_wells(power_domains, tgl_power_wells);
 	} else if (IS_GEN(dev_priv, 11)) {
 		err = set_power_wells(power_domains, icl_power_wells);
-	} else if (IS_CANNONLAKE(dev_priv)) {
+	} else if (IS_CNL_WITH_PORT_F(dev_priv)) {
 		err = set_power_wells(power_domains, cnl_power_wells);
-
-		/*
-		 * DDI and Aux IO are getting enabled for all ports
-		 * regardless the presence or use. So, in order to avoid
-		 * timeouts, lets remove them from the list
-		 * for the SKUs without port F.
-		 */
-		if (!IS_CNL_WITH_PORT_F(dev_priv))
-			power_domains->power_well_count -= 2;
+	} else if (IS_CANNONLAKE(dev_priv)) {
+		err = set_power_wells_mask(power_domains, cnl_power_wells,
+					   BIT_ULL(CNL_DISP_PW_DDI_F_IO) |
+					   BIT_ULL(CNL_DISP_PW_DDI_F_AUX));
 	} else if (IS_GEMINILAKE(dev_priv)) {
 		err = set_power_wells(power_domains, glk_power_wells);
 	} else if (IS_BROXTON(dev_priv)) {
