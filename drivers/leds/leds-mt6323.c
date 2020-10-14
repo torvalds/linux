@@ -249,15 +249,6 @@ static int mt6323_led_set_blink(struct led_classdev *cdev,
 	int ret;
 
 	/*
-	 * Units are in ms, if over the hardware able
-	 * to support, fallback into software blink
-	 */
-	period = *delay_on + *delay_off;
-
-	if (period > MT6323_MAX_PERIOD)
-		return -EINVAL;
-
-	/*
 	 * LED subsystem requires a default user
 	 * friendly blink pattern for the LED so using
 	 * 1Hz duty cycle 50% here if without specific
@@ -267,6 +258,15 @@ static int mt6323_led_set_blink(struct led_classdev *cdev,
 		*delay_on = 500;
 		*delay_off = 500;
 	}
+
+	/*
+	 * Units are in ms, if over the hardware able
+	 * to support, fallback into software blink
+	 */
+	period = *delay_on + *delay_off;
+
+	if (period > MT6323_MAX_PERIOD)
+		return -EINVAL;
 
 	/*
 	 * Calculate duty_hw based on the percentage of period during
@@ -342,11 +342,6 @@ static int mt6323_led_set_dt_default(struct led_classdev *cdev,
 	const char *state;
 	int ret = 0;
 
-	led->cdev.name = of_get_property(np, "label", NULL) ? : np->name;
-	led->cdev.default_trigger = of_get_property(np,
-						    "linux,default-trigger",
-						    NULL);
-
 	state = of_get_property(np, "default-state", NULL);
 	if (state) {
 		if (!strcmp(state, "keep")) {
@@ -369,9 +364,9 @@ static int mt6323_led_set_dt_default(struct led_classdev *cdev,
 static int mt6323_led_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_node *np = dev_of_node(dev);
 	struct device_node *child;
-	struct mt6397_chip *hw = dev_get_drvdata(pdev->dev.parent);
+	struct mt6397_chip *hw = dev_get_drvdata(dev->parent);
 	struct mt6323_leds *leds;
 	struct mt6323_led *led;
 	int ret;
@@ -402,6 +397,8 @@ static int mt6323_led_probe(struct platform_device *pdev)
 	}
 
 	for_each_available_child_of_node(np, child) {
+		struct led_init_data init_data = {};
+
 		ret = of_property_read_u32(child, "reg", &reg);
 		if (ret) {
 			dev_err(dev, "Failed to read led 'reg' property\n");
@@ -437,13 +434,14 @@ static int mt6323_led_probe(struct platform_device *pdev)
 			goto put_child_node;
 		}
 
-		ret = devm_led_classdev_register(dev, &leds->led[reg]->cdev);
+		init_data.fwnode = of_fwnode_handle(child);
+
+		ret = devm_led_classdev_register_ext(dev, &leds->led[reg]->cdev,
+						     &init_data);
 		if (ret) {
-			dev_err(&pdev->dev, "Failed to register LED: %d\n",
-				ret);
+			dev_err(dev, "Failed to register LED: %d\n", ret);
 			goto put_child_node;
 		}
-		leds->led[reg]->cdev.dev->of_node = child;
 	}
 
 	return 0;

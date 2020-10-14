@@ -195,30 +195,21 @@ static int sgm3140_probe(struct platform_device *pdev)
 
 	priv->flash_gpio = devm_gpiod_get(&pdev->dev, "flash", GPIOD_OUT_LOW);
 	ret = PTR_ERR_OR_ZERO(priv->flash_gpio);
-	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev,
-				"Failed to request flash gpio: %d\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret,
+				     "Failed to request flash gpio\n");
 
 	priv->enable_gpio = devm_gpiod_get(&pdev->dev, "enable", GPIOD_OUT_LOW);
 	ret = PTR_ERR_OR_ZERO(priv->enable_gpio);
-	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev,
-				"Failed to request enable gpio: %d\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret,
+				     "Failed to request enable gpio\n");
 
 	priv->vin_regulator = devm_regulator_get(&pdev->dev, "vin");
 	ret = PTR_ERR_OR_ZERO(priv->vin_regulator);
-	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev,
-				"Failed to request regulator: %d\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret,
+				     "Failed to request regulator\n");
 
 	child_node = fwnode_get_next_available_child_node(pdev->dev.fwnode,
 							  NULL);
@@ -316,5 +307,5 @@ static struct platform_driver sgm3140_driver = {
 module_platform_driver(sgm3140_driver);
 
 MODULE_AUTHOR("Luca Weiss <luca@z3ntu.xyz>");
-MODULE_DESCRIPTION("SG Micro SGM3140 charge pump led driver");
+MODULE_DESCRIPTION("SG Micro SGM3140 charge pump LED driver");
 MODULE_LICENSE("GPL v2");
