@@ -129,6 +129,13 @@
 #define mmCP_HYP_ME_UCODE_DATA			0x5817
 #define mmCP_HYP_ME_UCODE_DATA_BASE_IDX		1
 
+#define mmCPG_PSP_DEBUG				0x5c10
+#define mmCPG_PSP_DEBUG_BASE_IDX		1
+#define mmCPC_PSP_DEBUG				0x5c11
+#define mmCPC_PSP_DEBUG_BASE_IDX		1
+#define CPC_PSP_DEBUG__GPA_OVERRIDE_MASK	0x00000008L
+#define CPG_PSP_DEBUG__GPA_OVERRIDE_MASK	0x00000008L
+
 MODULE_FIRMWARE("amdgpu/navi10_ce.bin");
 MODULE_FIRMWARE("amdgpu/navi10_pfp.bin");
 MODULE_FIRMWARE("amdgpu/navi10_me.bin");
@@ -7035,6 +7042,18 @@ static void gfx_v10_0_setup_grbm_cam_remapping(struct amdgpu_device *adev)
 	WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA, data);
 }
 
+static void gfx_v10_0_disable_gpa_mode(struct amdgpu_device *adev)
+{
+	uint32_t data;
+	data = RREG32_SOC15(GC, 0, mmCPC_PSP_DEBUG);
+	data |= CPC_PSP_DEBUG__GPA_OVERRIDE_MASK;
+	WREG32_SOC15(GC, 0, mmCPC_PSP_DEBUG, data);
+
+	data = RREG32_SOC15(GC, 0, mmCPG_PSP_DEBUG);
+	data |= CPG_PSP_DEBUG__GPA_OVERRIDE_MASK;
+	WREG32_SOC15(GC, 0, mmCPG_PSP_DEBUG, data);
+}
+
 static int gfx_v10_0_hw_init(void *handle)
 {
 	int r;
@@ -7060,6 +7079,7 @@ static int gfx_v10_0_hw_init(void *handle)
 				return r;
 			}
 		}
+		gfx_v10_0_disable_gpa_mode(adev);
 	}
 
 	/* if GRBM CAM not remapped, set up the remapping */
