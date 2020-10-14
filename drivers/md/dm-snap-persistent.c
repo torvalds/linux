@@ -284,16 +284,9 @@ static void skip_metadata(struct pstore *ps)
  */
 static int area_io(struct pstore *ps, int op, int op_flags)
 {
-	int r;
-	chunk_t chunk;
+	chunk_t chunk = area_location(ps, ps->current_area);
 
-	chunk = area_location(ps, ps->current_area);
-
-	r = chunk_io(ps, ps->area, chunk, op, op_flags, 0);
-	if (r)
-		return r;
-
-	return 0;
+	return chunk_io(ps, ps->area, chunk, op, op_flags, 0);
 }
 
 static void zero_memory_area(struct pstore *ps)
