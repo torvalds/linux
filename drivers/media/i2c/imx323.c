@@ -409,6 +409,7 @@ static long imx323_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	case RKMODULE_GET_MODULE_INFO:
 		imx323_get_module_inf(imx323, (struct rkmodule_inf *)arg);
 		break;
+
 	case RKMODULE_SET_QUICK_STREAM:
 
 		stream = *((u32 *)arg);
@@ -420,6 +421,11 @@ static long imx323_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			imx323_write_reg(imx323->client, IMX323_REG_CTRL_MODE,
 				IMX323_REG_VALUE_08BIT, IMX323_MODE_SW_STANDBY);
 		break;
+
+	case RKMODULE_GET_BT656_INTF_TYPE:
+		*(__u32 *)arg = BT656_SONY_RAW;
+		break;
+
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -435,6 +441,7 @@ static long imx323_compat_ioctl32(struct v4l2_subdev *sd,
 	void __user *up = compat_ptr(arg);
 	struct rkmodule_inf *inf;
 	struct rkmodule_awb_cfg *cfg;
+	__u32 intf;
 	long ret;
 	u32 stream = 0;
 
@@ -463,10 +470,17 @@ static long imx323_compat_ioctl32(struct v4l2_subdev *sd,
 			ret = imx323_ioctl(sd, cmd, cfg);
 		kfree(cfg);
 		break;
+
 	case RKMODULE_SET_QUICK_STREAM:
 		ret = copy_from_user(&stream, up, sizeof(u32));
 		if (!ret)
 			ret = imx323_ioctl(sd, cmd, &stream);
+		break;
+
+	case RKMODULE_GET_BT656_INTF_TYPE:
+		intf = BT656_SONY_RAW;
+
+		ret = copy_to_user(up, &intf, sizeof(intf));
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
