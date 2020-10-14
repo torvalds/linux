@@ -246,7 +246,7 @@
 			bus-id = <11>;
 			cfg-val = <0x00300020>;
 			enable-msk = <0x7000>;
-			status = "okey";
+			status = "disabled";
 		};
 	};
 
