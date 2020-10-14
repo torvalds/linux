@@ -137,6 +137,4 @@ int chcr_uld_rx_handler(void *handle, const __be64 *rsp,
 int chcr_uld_tx_handler(struct sk_buff *skb, struct net_device *dev);
 int chcr_handle_resp(struct crypto_async_request *req, unsigned char *input,
 		     int err);
-int chcr_ipsec_xmit(struct sk_buff *skb, struct net_device *dev);
-void chcr_add_xfrmops(const struct cxgb4_lld_info *lld);
 #endif /* __CHCR_CORE_H__ */
