@@ -429,14 +429,10 @@ static void io_wq_switch_mm(struct io_worker *worker, struct io_wq_work *work)
 		mmput(worker->mm);
 		worker->mm = NULL;
 	}
-	if (!work->mm)
-		return;
 
 	if (mmget_not_zero(work->mm)) {
 		kthread_use_mm(work->mm);
 		worker->mm = work->mm;
-		/* hang on to this mm */
-		work->mm = NULL;
 		return;
 	}
 

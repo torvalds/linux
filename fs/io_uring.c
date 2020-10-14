@@ -1162,19 +1162,21 @@ static void io_req_clean_work(struct io_kiocb *req)
 
 	req->flags &= ~REQ_F_WORK_INITIALIZED;
 
-	if (req->work.mm) {
+	if (req->work.flags & IO_WQ_WORK_MM) {
 		mmdrop(req->work.mm);
-		req->work.mm = NULL;
+		req->work.flags &= ~IO_WQ_WORK_MM;
 	}
 #ifdef CONFIG_BLK_CGROUP
-	if (req->work.blkcg_css)
+	if (req->work.flags & IO_WQ_WORK_BLKCG) {
 		css_put(req->work.blkcg_css);
-#endif
-	if (req->work.creds) {
-		put_cred(req->work.creds);
-		req->work.creds = NULL;
+		req->work.flags &= ~IO_WQ_WORK_BLKCG;
 	}
-	if (req->work.fs) {
+#endif
+	if (req->work.flags & IO_WQ_WORK_CREDS) {
+		put_cred(req->work.creds);
+		req->work.flags &= ~IO_WQ_WORK_CREDS;
+	}
+	if (req->work.flags & IO_WQ_WORK_FS) {
 		struct fs_struct *fs = req->work.fs;
 
 		spin_lock(&req->work.fs->lock);
@@ -1183,7 +1185,7 @@ static void io_req_clean_work(struct io_kiocb *req)
 		spin_unlock(&req->work.fs->lock);
 		if (fs)
 			free_fs_struct(fs);
-		req->work.fs = NULL;
+		req->work.flags &= ~IO_WQ_WORK_FS;
 	}
 }
 
@@ -1201,7 +1203,7 @@ static void io_prep_async_work(struct io_kiocb *req)
 		if (def->unbound_nonreg_file)
 			req->work.flags |= IO_WQ_WORK_UNBOUND;
 	}
-	if (!req->work.files &&
+	if (!(req->work.flags & IO_WQ_WORK_FILES) &&
 	    (io_op_defs[req->opcode].work_flags & IO_WQ_WORK_FILES) &&
 	    !(req->flags & REQ_F_NO_FILE_TABLE)) {
 		req->work.files = get_files_struct(current);
@@ -1212,13 +1214,17 @@ static void io_prep_async_work(struct io_kiocb *req)
 		spin_lock_irq(&ctx->inflight_lock);
 		list_add(&req->inflight_entry, &ctx->inflight_list);
 		spin_unlock_irq(&ctx->inflight_lock);
+		req->work.flags |= IO_WQ_WORK_FILES;
 	}
-	if (!req->work.mm && (def->work_flags & IO_WQ_WORK_MM)) {
+	if (!(req->work.flags & IO_WQ_WORK_MM) &&
+	    (def->work_flags & IO_WQ_WORK_MM)) {
 		mmgrab(current->mm);
 		req->work.mm = current->mm;
+		req->work.flags |= IO_WQ_WORK_MM;
 	}
 #ifdef CONFIG_BLK_CGROUP
-	if (!req->work.blkcg_css && (def->work_flags & IO_WQ_WORK_BLKCG)) {
+	if (!(req->work.flags & IO_WQ_WORK_BLKCG) &&
+	    (def->work_flags & IO_WQ_WORK_BLKCG)) {
 		rcu_read_lock();
 		req->work.blkcg_css = blkcg_css();
 		/*
@@ -1227,16 +1233,22 @@ static void io_prep_async_work(struct io_kiocb *req)
 		 */
 		if (!css_tryget_online(req->work.blkcg_css))
 			req->work.blkcg_css = NULL;
+		else
+			req->work.flags |= IO_WQ_WORK_BLKCG;
 		rcu_read_unlock();
 	}
 #endif
-	if (!req->work.creds)
+	if (!(req->work.flags & IO_WQ_WORK_CREDS)) {
 		req->work.creds = get_current_cred();
-	if (!req->work.fs && (def->work_flags & IO_WQ_WORK_FS)) {
+		req->work.flags |= IO_WQ_WORK_CREDS;
+	}
+	if (!(req->work.flags & IO_WQ_WORK_FS) &&
+	    (def->work_flags & IO_WQ_WORK_FS)) {
 		spin_lock(&current->fs->lock);
 		if (!current->fs->in_exec) {
 			req->work.fs = current->fs;
 			req->work.fs->users++;
+			req->work.flags |= IO_WQ_WORK_FS;
 		} else {
 			req->work.flags |= IO_WQ_WORK_CANCEL;
 		}
@@ -1246,8 +1258,6 @@ static void io_prep_async_work(struct io_kiocb *req)
 		req->work.fsize = rlimit(RLIMIT_FSIZE);
 	else
 		req->work.fsize = RLIM_INFINITY;
-
-	req->work.flags |= def->work_flags;
 }
 
 static void io_prep_async_link(struct io_kiocb *req)
@@ -1437,7 +1447,8 @@ static inline bool io_match_files(struct io_kiocb *req,
 {
 	if (!files)
 		return true;
-	if (req->flags & REQ_F_WORK_INITIALIZED)
+	if ((req->flags & REQ_F_WORK_INITIALIZED) &&
+	    (req->work.flags & IO_WQ_WORK_FILES))
 		return req->work.files == files;
 	return false;
 }
@@ -5694,7 +5705,7 @@ static void io_req_drop_files(struct io_kiocb *req)
 	req->flags &= ~REQ_F_INFLIGHT;
 	put_files_struct(req->work.files);
 	put_nsproxy(req->work.nsproxy);
-	req->work.files = NULL;
+	req->work.flags &= ~IO_WQ_WORK_FILES;
 }
 
 static void __io_clean_op(struct io_kiocb *req)
@@ -6060,6 +6071,7 @@ again:
 			old_creds = NULL; /* restored original creds */
 		else
 			old_creds = override_creds(req->work.creds);
+		req->work.flags |= IO_WQ_WORK_CREDS;
 	}
 
 	ret = io_issue_sqe(req, true, cs);
@@ -6367,6 +6379,7 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		if (unlikely(!req->work.creds))
 			return -EINVAL;
 		get_cred(req->work.creds);
+		req->work.flags |= IO_WQ_WORK_CREDS;
 	}
 
 	/* same numerical values with corresponding REQ_F_*, safe to copy */
@@ -8234,7 +8247,8 @@ static bool io_wq_files_match(struct io_wq_work *work, void *data)
 {
 	struct files_struct *files = data;
 
-	return !files || work->files == files;
+	return !files || ((work->flags & IO_WQ_WORK_FILES) &&
+				work->files == files);
 }
 
 /*
@@ -8389,7 +8403,8 @@ static bool io_uring_cancel_files(struct io_ring_ctx *ctx,
 
 		spin_lock_irq(&ctx->inflight_lock);
 		list_for_each_entry(req, &ctx->inflight_list, inflight_entry) {
-			if (files && req->work.files != files)
+			if (files && (req->work.flags & IO_WQ_WORK_FILES) &&
+			    req->work.files != files)
 				continue;
 			/* req is being completed, ignore */
 			if (!refcount_inc_not_zero(&req->refs))
