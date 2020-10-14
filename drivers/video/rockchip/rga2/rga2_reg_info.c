@@ -1155,10 +1155,7 @@ void RGA_MSG_2_RGA2_MSG(struct rga_req *req_rga, struct rga2_req *req)
     memcpy(&req->gr_color, &req_rga->gr_color, sizeof(req_rga->gr_color));
 
     req->palette_mode = req_rga->palette_mode;
-    if ((req_rga->yuv2rgb_mode & 0x3) != 0)
-        req->yuv2rgb_mode = req_rga->yuv2rgb_mode + 1;
-    else
-        req->yuv2rgb_mode = req_rga->yuv2rgb_mode;
+    req->yuv2rgb_mode = req_rga->yuv2rgb_mode;
     req->endian_mode = req_rga->endian_mode;
     req->rgb2yuv_mode = 0;
 
@@ -1379,10 +1376,7 @@ void RGA_MSG_2_RGA2_MSG_32(struct rga_req_32 *req_rga, struct rga2_req *req)
     req->bg_color = req_rga->bg_color;
     memcpy(&req->gr_color, &req_rga->gr_color, sizeof(req_rga->gr_color));
     req->palette_mode = req_rga->palette_mode;
-    if ((req_rga->yuv2rgb_mode & 0x3) != 0)
-        req->yuv2rgb_mode = req_rga->yuv2rgb_mode + 1;
-    else
-        req->yuv2rgb_mode = req_rga->yuv2rgb_mode;
+    req->yuv2rgb_mode = req_rga->yuv2rgb_mode;
     req->endian_mode = req_rga->endian_mode;
     req->rgb2yuv_mode = 0;
     req->fading_alpha_value = 0;
