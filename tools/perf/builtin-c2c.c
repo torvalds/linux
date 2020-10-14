@@ -1336,7 +1336,7 @@ static struct c2c_dimension dim_tot_hitm = {
 };
 
 static struct c2c_dimension dim_lcl_hitm = {
-	.header		= HEADER_SPAN_LOW("Lcl"),
+	.header		= HEADER_SPAN_LOW("LclHitm"),
 	.name		= "lcl_hitm",
 	.cmp		= lcl_hitm_cmp,
 	.entry		= lcl_hitm_entry,
@@ -1344,7 +1344,7 @@ static struct c2c_dimension dim_lcl_hitm = {
 };
 
 static struct c2c_dimension dim_rmt_hitm = {
-	.header		= HEADER_SPAN_LOW("Rmt"),
+	.header		= HEADER_SPAN_LOW("RmtHitm"),
 	.name		= "rmt_hitm",
 	.cmp		= rmt_hitm_cmp,
 	.entry		= rmt_hitm_entry,
@@ -1486,7 +1486,7 @@ static struct c2c_dimension dim_percent_hitm = {
 };
 
 static struct c2c_dimension dim_percent_rmt_hitm = {
-	.header		= HEADER_SPAN("----- HITM -----", "Rmt", 1),
+	.header		= HEADER_SPAN("----- HITM -----", "RmtHitm", 1),
 	.name		= "percent_rmt_hitm",
 	.cmp		= percent_rmt_hitm_cmp,
 	.entry		= percent_rmt_hitm_entry,
@@ -1495,7 +1495,7 @@ static struct c2c_dimension dim_percent_rmt_hitm = {
 };
 
 static struct c2c_dimension dim_percent_lcl_hitm = {
-	.header		= HEADER_SPAN_LOW("Lcl"),
+	.header		= HEADER_SPAN_LOW("LclHitm"),
 	.name		= "percent_lcl_hitm",
 	.cmp		= percent_lcl_hitm_cmp,
 	.entry		= percent_lcl_hitm_entry,
