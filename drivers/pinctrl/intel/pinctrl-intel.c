@@ -62,10 +62,10 @@
 #define PADCFG1_TERM_UP			BIT(13)
 #define PADCFG1_TERM_SHIFT		10
 #define PADCFG1_TERM_MASK		GENMASK(12, 10)
-#define PADCFG1_TERM_20K		4
-#define PADCFG1_TERM_2K			3
-#define PADCFG1_TERM_5K			2
-#define PADCFG1_TERM_1K			1
+#define PADCFG1_TERM_20K		BIT(2)
+#define PADCFG1_TERM_5K			BIT(1)
+#define PADCFG1_TERM_1K			BIT(0)
+#define PADCFG1_TERM_833		(BIT(1) | BIT(0))
 
 #define PADCFG2				0x008
 #define PADCFG2_DEBEN			BIT(0)
@@ -549,11 +549,11 @@ static int intel_config_get_pull(struct intel_pinctrl *pctrl, unsigned int pin,
 			return -EINVAL;
 
 		switch (term) {
+		case PADCFG1_TERM_833:
+			*arg = 833;
+			break;
 		case PADCFG1_TERM_1K:
 			*arg = 1000;
-			break;
-		case PADCFG1_TERM_2K:
-			*arg = 2000;
 			break;
 		case PADCFG1_TERM_5K:
 			*arg = 5000;
@@ -570,6 +570,11 @@ static int intel_config_get_pull(struct intel_pinctrl *pctrl, unsigned int pin,
 			return -EINVAL;
 
 		switch (term) {
+		case PADCFG1_TERM_833:
+			if (!(community->features & PINCTRL_FEATURE_1K_PD))
+				return -EINVAL;
+			*arg = 833;
+			break;
 		case PADCFG1_TERM_1K:
 			if (!(community->features & PINCTRL_FEATURE_1K_PD))
 				return -EINVAL;
@@ -685,11 +690,11 @@ static int intel_config_set_pull(struct intel_pinctrl *pctrl, unsigned int pin,
 		case 5000:
 			value |= PADCFG1_TERM_5K << PADCFG1_TERM_SHIFT;
 			break;
-		case 2000:
-			value |= PADCFG1_TERM_2K << PADCFG1_TERM_SHIFT;
-			break;
 		case 1000:
 			value |= PADCFG1_TERM_1K << PADCFG1_TERM_SHIFT;
+			break;
+		case 833:
+			value |= PADCFG1_TERM_833 << PADCFG1_TERM_SHIFT;
 			break;
 		default:
 			ret = -EINVAL;
@@ -713,6 +718,13 @@ static int intel_config_set_pull(struct intel_pinctrl *pctrl, unsigned int pin,
 				break;
 			}
 			value |= PADCFG1_TERM_1K << PADCFG1_TERM_SHIFT;
+			break;
+		case 833:
+			if (!(community->features & PINCTRL_FEATURE_1K_PD)) {
+				ret = -EINVAL;
+				break;
+			}
+			value |= PADCFG1_TERM_833 << PADCFG1_TERM_SHIFT;
 			break;
 		default:
 			ret = -EINVAL;
