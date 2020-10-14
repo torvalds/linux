@@ -1367,16 +1367,16 @@ static struct c2c_dimension dim_cl_lcl_hitm = {
 	.width		= 7,
 };
 
-static struct c2c_dimension dim_stores = {
-	.header		= HEADER_SPAN("---- Store Reference ----", "Total", 2),
-	.name		= "stores",
+static struct c2c_dimension dim_tot_stores = {
+	.header		= HEADER_BOTH("Total", "Stores"),
+	.name		= "tot_stores",
 	.cmp		= store_cmp,
 	.entry		= store_entry,
 	.width		= 7,
 };
 
 static struct c2c_dimension dim_stores_l1hit = {
-	.header		= HEADER_SPAN_LOW("L1Hit"),
+	.header		= HEADER_SPAN("---- Stores ----", "L1Hit", 1),
 	.name		= "stores_l1hit",
 	.cmp		= st_l1hit_cmp,
 	.entry		= st_l1hit_entry,
@@ -1648,7 +1648,7 @@ static struct c2c_dimension *dimensions[] = {
 	&dim_rmt_hitm,
 	&dim_cl_lcl_hitm,
 	&dim_cl_rmt_hitm,
-	&dim_stores,
+	&dim_tot_stores,
 	&dim_stores_l1hit,
 	&dim_stores_l1miss,
 	&dim_cl_stores_l1hit,
@@ -2850,7 +2850,8 @@ static int perf_c2c__report(int argc, const char **argv)
 			"tot_hitm,lcl_hitm,rmt_hitm,"
 			"tot_recs,"
 			"tot_loads,"
-			"stores,stores_l1hit,stores_l1miss,"
+			"tot_stores,"
+			"stores_l1hit,stores_l1miss,"
 			"dram_lcl,dram_rmt,"
 			"ld_llcmiss,"
 			"ld_fbhit,ld_l1hit,ld_l2hit,"
