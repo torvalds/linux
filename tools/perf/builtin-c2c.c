@@ -2852,10 +2852,10 @@ static int perf_c2c__report(int argc, const char **argv)
 			"tot_loads,"
 			"tot_stores,"
 			"stores_l1hit,stores_l1miss,"
-			"dram_lcl,dram_rmt,"
-			"ld_llcmiss,"
 			"ld_fbhit,ld_l1hit,ld_l2hit,"
-			"ld_lclhit,ld_rmthit",
+			"ld_lclhit,ld_rmthit,"
+			"ld_llcmiss,"
+			"dram_lcl,dram_rmt",
 			c2c.display == DISPLAY_TOT ? "tot_hitm" :
 			c2c.display == DISPLAY_LCL ? "lcl_hitm" : "rmt_hitm"
 			);
