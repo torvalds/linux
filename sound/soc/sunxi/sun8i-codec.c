@@ -126,6 +126,8 @@ struct sun8i_codec {
 	struct clk			*clk_module;
 	const struct sun8i_codec_quirks	*quirks;
 	struct sun8i_codec_aif		aifs[SUN8I_CODEC_NAIFS];
+	unsigned int			sysclk_rate;
+	int				sysclk_refcnt;
 };
 
 static int sun8i_codec_runtime_resume(struct device *dev)
@@ -324,6 +326,47 @@ static int sun8i_codec_set_tdm_slot(struct snd_soc_dai *dai,
 	return 0;
 }
 
+static const unsigned int sun8i_codec_rates[] = {
+	  7350,   8000,  11025,  12000,  14700,  16000,  22050,  24000,
+	 29400,  32000,  44100,  48000,  88200,  96000, 176400, 192000,
+};
+
+static const struct snd_pcm_hw_constraint_list sun8i_codec_all_rates = {
+	.list	= sun8i_codec_rates,
+	.count	= ARRAY_SIZE(sun8i_codec_rates),
+};
+
+static const struct snd_pcm_hw_constraint_list sun8i_codec_22M_rates = {
+	.list	= sun8i_codec_rates,
+	.count	= ARRAY_SIZE(sun8i_codec_rates),
+	.mask	= 0x5555,
+};
+
+static const struct snd_pcm_hw_constraint_list sun8i_codec_24M_rates = {
+	.list	= sun8i_codec_rates,
+	.count	= ARRAY_SIZE(sun8i_codec_rates),
+	.mask	= 0xaaaa,
+};
+
+static int sun8i_codec_startup(struct snd_pcm_substream *substream,
+			       struct snd_soc_dai *dai)
+{
+	struct sun8i_codec *scodec = snd_soc_dai_get_drvdata(dai);
+	const struct snd_pcm_hw_constraint_list *list;
+
+	if (!scodec->sysclk_refcnt)
+		list = &sun8i_codec_all_rates;
+	else if (scodec->sysclk_rate == 22579200)
+		list = &sun8i_codec_22M_rates;
+	else if (scodec->sysclk_rate == 24576000)
+		list = &sun8i_codec_24M_rates;
+	else
+		return -EINVAL;
+
+	return snd_pcm_hw_constraint_list(substream->runtime, 0,
+					  SNDRV_PCM_HW_PARAM_RATE, list);
+}
+
 struct sun8i_codec_clk_div {
 	u8	div;
 	u8	val;
@@ -346,12 +389,11 @@ static const struct sun8i_codec_clk_div sun8i_codec_bclk_div[] = {
 	{ .div = 192,	.val = 13 },
 };
 
-static u8 sun8i_codec_get_bclk_div(struct sun8i_codec *scodec,
+static u8 sun8i_codec_get_bclk_div(unsigned int sysclk_rate,
 				   unsigned int lrck_div_order,
 				   unsigned int sample_rate)
 {
-	unsigned long clk_rate = clk_get_rate(scodec->clk_module);
-	unsigned int div = clk_rate / sample_rate >> lrck_div_order;
+	unsigned int div = sysclk_rate / sample_rate >> lrck_div_order;
 	unsigned int best_val = 0, best_diff = ~0;
 	int i;
 
@@ -388,6 +430,7 @@ static int sun8i_codec_hw_params(struct snd_pcm_substream *substream,
 	unsigned int sample_rate = params_rate(params);
 	unsigned int slots = aif->slots ?: params_channels(params);
 	unsigned int slot_width = aif->slot_width ?: params_width(params);
+	unsigned int sysclk_rate = clk_get_rate(scodec->clk_module);
 	int lrck_div_order, word_size;
 	u8 bclk_div;
 
@@ -423,10 +466,14 @@ static int sun8i_codec_hw_params(struct snd_pcm_substream *substream,
 			   (lrck_div_order - 4) << SUN8I_AIF1CLK_CTRL_AIF1_LRCK_DIV);
 
 	/* BCLK divider (SYSCLK/BCLK ratio) */
-	bclk_div = sun8i_codec_get_bclk_div(scodec, lrck_div_order, sample_rate);
+	bclk_div = sun8i_codec_get_bclk_div(sysclk_rate, lrck_div_order, sample_rate);
 	regmap_update_bits(scodec->regmap, SUN8I_AIF1CLK_CTRL,
 			   SUN8I_AIF1CLK_CTRL_AIF1_BCLK_DIV_MASK,
 			   bclk_div << SUN8I_AIF1CLK_CTRL_AIF1_BCLK_DIV);
+
+	if (!aif->open_streams)
+		scodec->sysclk_refcnt++;
+	scodec->sysclk_rate = sysclk_rate;
 
 	aif->sample_rate = sample_rate;
 	aif->open_streams |= BIT(substream->stream);
@@ -443,6 +490,7 @@ static int sun8i_codec_hw_free(struct snd_pcm_substream *substream,
 	if (aif->open_streams != BIT(substream->stream))
 		goto done;
 
+	scodec->sysclk_refcnt--;
 	aif->sample_rate = 0;
 
 done:
@@ -453,6 +501,7 @@ done:
 static const struct snd_soc_dai_ops sun8i_codec_dai_ops = {
 	.set_fmt	= sun8i_codec_set_fmt,
 	.set_tdm_slot	= sun8i_codec_set_tdm_slot,
+	.startup	= sun8i_codec_startup,
 	.hw_params	= sun8i_codec_hw_params,
 	.hw_free	= sun8i_codec_hw_free,
 };
