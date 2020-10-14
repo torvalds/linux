@@ -96,6 +96,19 @@ properties:
         3rd cell: register bitmask for the deep sleep bit
     maxItems: 1
 
+  st,syscfg-m4-state:
+    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    description: |
+      Reference to the tamp register which exposes the Cortex-M4 state.
+    maxItems: 1
+
+  st,syscfg-rsc-tbl:
+    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    description: |
+      Reference to the tamp register which references the Cortex-M4
+      resource table address.
+    maxItems: 1
+
   st,auto-boot:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
@@ -122,6 +135,8 @@ examples:
       resets = <&rcc MCU_R>;
       st,syscfg-holdboot = <&rcc 0x10C 0x1>;
       st,syscfg-tz = <&rcc 0x000 0x1>;
+      st,syscfg-rsc-tbl = <&tamp 0x144 0xFFFFFFFF>;
+      st,syscfg-m4-state = <&tamp 0x148 0xFFFFFFFF>;
     };
 
 ...
