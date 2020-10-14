@@ -47,6 +47,8 @@ required:
   - dmas
   - dma-names
 
+unevaluatedProperties: false
+
 examples:
   - |
     mmc0: mmc@e0330000 {

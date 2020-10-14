@@ -45,6 +45,9 @@ properties:
   reg:
     maxItems: 1
 
+  assigned-clock-parents: true
+  assigned-clocks: true
+
   '#clock-cells':
     const: 1
 

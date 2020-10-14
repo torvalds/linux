@@ -46,6 +46,8 @@ properties:
   "#io-channel-cells":
     const: 1
 
+  io-channel-ranges: true
+
   vdd-supply: true
 
   samsung,syscon-phandle:
@@ -67,6 +69,9 @@ required:
   - interrupts
   - "#io-channel-cells"
   - vdd-supply
+
+additionalProperties:
+  type: object
 
 allOf:
   - if:

@@ -73,6 +73,8 @@ description: |
   foundry 2.
 
 properties:
+  $nodename:
+    const: "/"
   compatible:
     oneOf:
       - items:

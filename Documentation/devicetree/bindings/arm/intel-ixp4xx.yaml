@@ -10,6 +10,8 @@ maintainers:
   - Linus Walleij <linus.walleij@linaro.org>
 
 properties:
+  $nodename:
+    const: "/"
   compatible:
     oneOf:
       - items:

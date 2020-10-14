@@ -59,6 +59,8 @@ properties:
       regulator to VDDIO.
     $ref: /schemas/regulator/regulator.yaml
 
+unevaluatedProperties: false
+
 examples:
   - |
     #include <dt-bindings/net/qca-ar803x.h>

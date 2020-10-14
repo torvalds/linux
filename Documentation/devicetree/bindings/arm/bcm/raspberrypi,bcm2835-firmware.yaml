@@ -54,6 +54,8 @@ required:
   - compatible
   - mboxes
 
+additionalProperties: false
+
 examples:
   - |
     firmware {

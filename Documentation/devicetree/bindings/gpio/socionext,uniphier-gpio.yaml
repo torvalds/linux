@@ -64,6 +64,8 @@ required:
   - gpio-ranges
   - socionext,interrupt-ranges
 
+additionalProperties: false
+
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>

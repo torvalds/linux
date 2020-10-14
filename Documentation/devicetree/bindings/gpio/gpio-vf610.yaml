@@ -1,0 +1,83 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/gpio/gpio-vf610.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale VF610 PORT/GPIO module
+
+maintainers:
+  - Stefan Agner <stefan@agner.ch>
+
+description: |
+  The Freescale PORT/GPIO modules are two adjacent modules providing GPIO
+  functionality. Each pair serves 32 GPIOs. The VF610 has 5 instances of
+  each, and each PORT module has its own interrupt.
+
+  Note: Each GPIO port should have an alias correctly numbered in "aliases"
+  node.
+
+properties:
+  compatible:
+    oneOf:
+      - const: fsl,vf610-gpio
+      - items:
+          - const: fsl,imx7ulp-gpio
+          - const: fsl,vf610-gpio
+
+  reg:
+    description: The first reg tuple represents the PORT module, the second tuple
+      represents the GPIO module.
+    maxItems: 2
+
+  interrupts:
+    maxItems: 1
+
+  interrupt-controller: true
+
+  "#interrupt-cells":
+    const: 2
+
+  "#gpio-cells":
+    const: 2
+
+  gpio-controller: true
+
+  clocks:
+    items:
+      - description: SoC GPIO clock
+      - description: SoC PORT clock
+
+  clock-names:
+    items:
+      - const: gpio
+      - const: port
+
+  gpio-ranges:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - interrupt-controller
+  - "#interrupt-cells"
+  - "#gpio-cells"
+  - gpio-controller
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    gpio1: gpio@40049000 {
+        compatible = "fsl,vf610-gpio";
+        reg = <0x40049000 0x1000>, <0x400ff000 0x40>;
+        interrupts = <0 107 IRQ_TYPE_LEVEL_HIGH>;
+        gpio-controller;
+        #gpio-cells = <2>;
+        interrupt-controller;
+        #interrupt-cells = <2>;
+        gpio-ranges = <&iomuxc 0 0 32>;
+    };

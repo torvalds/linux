@@ -42,6 +42,8 @@ required:
   - clocks
   - clock-names
 
+unevaluatedProperties: false
+
 examples:
   - |
     mmc@12200000 {

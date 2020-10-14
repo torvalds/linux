@@ -25,6 +25,8 @@ required:
   - compatible
   - reg
 
+additionalProperties: false
+
 examples:
   - |
     imem@146bf000 {
