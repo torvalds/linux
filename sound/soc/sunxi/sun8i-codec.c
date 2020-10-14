@@ -421,6 +421,11 @@ static int sun8i_codec_get_lrck_div_order(unsigned int slots,
 	return order_base_2(div);
 }
 
+static unsigned int sun8i_codec_get_sysclk_rate(unsigned int sample_rate)
+{
+	return sample_rate % 4000 ? 22579200 : 24576000;
+}
+
 static int sun8i_codec_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *params,
 				 struct snd_soc_dai *dai)
@@ -430,8 +435,8 @@ static int sun8i_codec_hw_params(struct snd_pcm_substream *substream,
 	unsigned int sample_rate = params_rate(params);
 	unsigned int slots = aif->slots ?: params_channels(params);
 	unsigned int slot_width = aif->slot_width ?: params_width(params);
-	unsigned int sysclk_rate = clk_get_rate(scodec->clk_module);
-	int lrck_div_order, word_size;
+	unsigned int sysclk_rate = sun8i_codec_get_sysclk_rate(sample_rate);
+	int lrck_div_order, ret, word_size;
 	u8 bclk_div;
 
 	/* word size */
@@ -471,6 +476,24 @@ static int sun8i_codec_hw_params(struct snd_pcm_substream *substream,
 			   SUN8I_AIF1CLK_CTRL_AIF1_BCLK_DIV_MASK,
 			   bclk_div << SUN8I_AIF1CLK_CTRL_AIF1_BCLK_DIV);
 
+	/*
+	 * SYSCLK rate
+	 *
+	 * Clock rate protection is reference counted; but hw_params may be
+	 * called many times per substream, without matching calls to hw_free.
+	 * Protect the clock rate once per AIF, on the first hw_params call
+	 * for the first substream. clk_set_rate() will allow clock rate
+	 * changes on subsequent calls if only one AIF has open streams.
+	 */
+	ret = (aif->open_streams ? clk_set_rate : clk_set_rate_exclusive)(scodec->clk_module,
+									  sysclk_rate);
+	if (ret == -EBUSY)
+		dev_err(dai->dev,
+			"%s sample rate (%u Hz) conflicts with other audio streams\n",
+			dai->name, sample_rate);
+	if (ret < 0)
+		return ret;
+
 	if (!aif->open_streams)
 		scodec->sysclk_refcnt++;
 	scodec->sysclk_rate = sysclk_rate;
@@ -487,9 +510,11 @@ static int sun8i_codec_hw_free(struct snd_pcm_substream *substream,
 	struct sun8i_codec *scodec = snd_soc_dai_get_drvdata(dai);
 	struct sun8i_codec_aif *aif = &scodec->aifs[dai->id];
 
+	/* Drop references when the last substream for the AIF is freed. */
 	if (aif->open_streams != BIT(substream->stream))
 		goto done;
 
+	clk_rate_exclusive_put(scodec->clk_module);
 	scodec->sysclk_refcnt--;
 	aif->sample_rate = 0;
 
