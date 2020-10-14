@@ -129,8 +129,6 @@ _base_wait_on_iocstate(struct MPT3SAS_ADAPTER *ioc,
 static int
 _base_get_ioc_facts(struct MPT3SAS_ADAPTER *ioc);
 static void
-_base_mask_interrupts(struct MPT3SAS_ADAPTER *ioc);
-static void
 _base_clear_outstanding_commands(struct MPT3SAS_ADAPTER *ioc);
 
 /**
@@ -680,7 +678,7 @@ _base_fault_reset_work(struct work_struct *work)
 			ioc->shost_recovery = 1;
 			spin_unlock_irqrestore(
 			    &ioc->ioc_reset_in_progress_lock, flags);
-			_base_mask_interrupts(ioc);
+			mpt3sas_base_mask_interrupts(ioc);
 			_base_clear_outstanding_commands(ioc);
 		}
 
@@ -1466,13 +1464,13 @@ _base_get_cb_idx(struct MPT3SAS_ADAPTER *ioc, u16 smid)
 }
 
 /**
- * _base_mask_interrupts - disable interrupts
+ * mpt3sas_base_mask_interrupts - disable interrupts
  * @ioc: per adapter object
  *
  * Disabling ResetIRQ, Reply and Doorbell Interrupts
  */
-static void
-_base_mask_interrupts(struct MPT3SAS_ADAPTER *ioc)
+void
+mpt3sas_base_mask_interrupts(struct MPT3SAS_ADAPTER *ioc)
 {
 	u32 him_register;
 
@@ -1484,13 +1482,13 @@ _base_mask_interrupts(struct MPT3SAS_ADAPTER *ioc)
 }
 
 /**
- * _base_unmask_interrupts - enable interrupts
+ * mpt3sas_base_unmask_interrupts - enable interrupts
  * @ioc: per adapter object
  *
  * Enabling only Reply Interrupts
  */
-static void
-_base_unmask_interrupts(struct MPT3SAS_ADAPTER *ioc)
+void
+mpt3sas_base_unmask_interrupts(struct MPT3SAS_ADAPTER *ioc)
 {
 	u32 him_register;
 
@@ -1628,7 +1626,7 @@ _base_process_reply_queue(struct adapter_reply_queue *reply_q)
 		 * So that FW can find enough entries to post the Reply
 		 * Descriptors in the reply descriptor post queue.
 		 */
-		if (!base_mod64(completed_cmds, ioc->thresh_hold)) {
+		if (completed_cmds >= ioc->thresh_hold) {
 			if (ioc->combined_reply_queue) {
 				writel(reply_q->reply_post_host_index |
 						((msix_index  & 7) <<
@@ -1787,12 +1785,14 @@ _base_is_controller_msix_enabled(struct MPT3SAS_ADAPTER *ioc)
 /**
  * mpt3sas_base_sync_reply_irqs - flush pending MSIX interrupts
  * @ioc: per adapter object
+ * @poll: poll over reply descriptor pools incase interrupt for
+ *		timed-out SCSI command got delayed
  * Context: non ISR conext
  *
  * Called when a Task Management request has completed.
  */
 void
-mpt3sas_base_sync_reply_irqs(struct MPT3SAS_ADAPTER *ioc)
+mpt3sas_base_sync_reply_irqs(struct MPT3SAS_ADAPTER *ioc, u8 poll)
 {
 	struct adapter_reply_queue *reply_q;
 
@@ -1809,19 +1809,25 @@ mpt3sas_base_sync_reply_irqs(struct MPT3SAS_ADAPTER *ioc)
 		/* TMs are on msix_index == 0 */
 		if (reply_q->msix_index == 0)
 			continue;
+		synchronize_irq(pci_irq_vector(ioc->pdev, reply_q->msix_index));
 		if (reply_q->irq_poll_scheduled) {
 			/* Calling irq_poll_disable will wait for any pending
 			 * callbacks to have completed.
 			 */
 			irq_poll_disable(&reply_q->irqpoll);
 			irq_poll_enable(&reply_q->irqpoll);
-			reply_q->irq_poll_scheduled = false;
-			reply_q->irq_line_enable = true;
-			enable_irq(reply_q->os_irq);
-			continue;
+			/* check how the scheduled poll has ended,
+			 * clean up only if necessary
+			 */
+			if (reply_q->irq_poll_scheduled) {
+				reply_q->irq_poll_scheduled = false;
+				reply_q->irq_line_enable = true;
+				enable_irq(reply_q->os_irq);
+			}
 		}
-		synchronize_irq(pci_irq_vector(ioc->pdev, reply_q->msix_index));
 	}
+	if (poll)
+		_base_process_reply_queue(reply_q);
 }
 
 /**
@@ -3372,7 +3378,7 @@ mpt3sas_base_map_resources(struct MPT3SAS_ADAPTER *ioc)
 		goto out_fail;
 	}
 
-	_base_mask_interrupts(ioc);
+	mpt3sas_base_mask_interrupts(ioc);
 
 	r = _base_get_ioc_facts(ioc);
 	if (r) {
@@ -5257,7 +5263,6 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 		_base_release_memory_pools(ioc);
 		goto retry_allocation;
 	}
-	memset(ioc->request, 0, sz);
 
 	if (retry_sz)
 		ioc_err(ioc, "request pool: dma_alloc_coherent succeed: hba_depth(%d), chains_per_io(%d), frame_sz(%d), total(%d kb)\n",
@@ -5616,6 +5621,23 @@ _base_wait_on_iocstate(struct MPT3SAS_ADAPTER *ioc, u32 ioc_state, int timeout)
 	} while (--cntdn);
 
 	return current_state;
+}
+
+/**
+ * _base_dump_reg_set -	This function will print hexdump of register set.
+ * @ioc: per adapter object
+ *
+ * Returns nothing.
+ */
+static inline void
+_base_dump_reg_set(struct MPT3SAS_ADAPTER *ioc)
+{
+	unsigned int i, sz = 256;
+	u32 __iomem *reg = (u32 __iomem *)ioc->chip;
+
+	ioc_info(ioc, "System Register set:\n");
+	for (i = 0; i < (sz / sizeof(u32)); i++)
+		pr_info("%08x: %08x\n", (i * 4), readl(&reg[i]));
 }
 
 /**
@@ -6797,6 +6819,7 @@ _base_diag_reset(struct MPT3SAS_ADAPTER *ioc)
 		if (count++ > 20) {
 			ioc_info(ioc,
 			    "Stop writing magic sequence after 20 retries\n");
+			_base_dump_reg_set(ioc);
 			goto out;
 		}
 
@@ -6825,6 +6848,7 @@ _base_diag_reset(struct MPT3SAS_ADAPTER *ioc)
 		if (host_diagnostic == 0xFFFFFFFF) {
 			ioc_info(ioc,
 			    "Invalid host diagnostic register value\n");
+			_base_dump_reg_set(ioc);
 			goto out;
 		}
 		if (!(host_diagnostic & MPI2_DIAG_RESET_ADAPTER))
@@ -6859,6 +6883,7 @@ _base_diag_reset(struct MPT3SAS_ADAPTER *ioc)
 	if (ioc_state) {
 		ioc_err(ioc, "%s: failed going to ready state (ioc_state=0x%x)\n",
 			__func__, ioc_state);
+		_base_dump_reg_set(ioc);
 		goto out;
 	}
 
@@ -7101,7 +7126,7 @@ _base_make_ioc_operational(struct MPT3SAS_ADAPTER *ioc)
 
  skip_init_reply_post_host_index:
 
-	_base_unmask_interrupts(ioc);
+	mpt3sas_base_unmask_interrupts(ioc);
 
 	if (ioc->hba_mpi_version_belonged != MPI2_VERSION) {
 		r = _base_display_fwpkg_version(ioc);
@@ -7150,7 +7175,7 @@ mpt3sas_base_free_resources(struct MPT3SAS_ADAPTER *ioc)
 	/* synchronizing freeing resource with pci_access_mutex lock */
 	mutex_lock(&ioc->pci_access_mutex);
 	if (ioc->chip_phys && ioc->chip) {
-		_base_mask_interrupts(ioc);
+		mpt3sas_base_mask_interrupts(ioc);
 		ioc->shost_recovery = 1;
 		_base_make_ioc_ready(ioc, SOFT_RESET);
 		ioc->shost_recovery = 0;
@@ -7716,7 +7741,7 @@ mpt3sas_base_hard_reset_handler(struct MPT3SAS_ADAPTER *ioc,
 	}
 	_base_pre_reset_handler(ioc);
 	mpt3sas_wait_for_commands_to_complete(ioc);
-	_base_mask_interrupts(ioc);
+	mpt3sas_base_mask_interrupts(ioc);
 	r = _base_make_ioc_ready(ioc, type);
 	if (r)
 		goto out;

@@ -205,6 +205,9 @@ enum {
 	UNCHANGED	= 7,
 };
 
+#define PWRMODE_MASK		0xF
+#define PWRMODE_RX_OFFSET	4
+
 /* PA TX/RX Frequency Series */
 enum {
 	PA_HS_MODE_A	= 1,

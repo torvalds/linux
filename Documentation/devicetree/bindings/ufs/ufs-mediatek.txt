@@ -9,7 +9,9 @@ contain a phandle reference to UFS M-PHY node.
 Required properties for UFS nodes:
 - compatible         : Compatible list, contains the following controller:
                        "mediatek,mt8183-ufshci" for MediaTek UFS host controller
-                       present on MT81xx chipsets.
+                       present on MT8183 chipsets.
+                       "mediatek,mt8192-ufshci" for MediaTek UFS host controller
+                       present on MT8192 chipsets.
 - reg                : Address and length of the UFS register set.
 - phys               : phandle to m-phy.
 - clocks             : List of phandle and clock specifier pairs.

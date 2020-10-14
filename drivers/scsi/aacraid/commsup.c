@@ -1551,6 +1551,7 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 	aac_fib_map_free(aac);
 	dma_free_coherent(&aac->pdev->dev, aac->comm_size, aac->comm_addr,
 			  aac->comm_phys);
+	aac_adapter_ioremap(aac, 0);
 	aac->comm_addr = NULL;
 	aac->comm_phys = 0;
 	kfree(aac->queues);
@@ -1561,15 +1562,15 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 	dmamask = DMA_BIT_MASK(32);
 	quirks = aac_get_driver_ident(index)->quirks;
 	if (quirks & AAC_QUIRK_31BIT)
-		retval = pci_set_dma_mask(aac->pdev, dmamask);
+		retval = dma_set_mask(&aac->pdev->dev, dmamask);
 	else if (!(quirks & AAC_QUIRK_SRC))
-		retval = pci_set_dma_mask(aac->pdev, dmamask);
+		retval = dma_set_mask(&aac->pdev->dev, dmamask);
 	else
-		retval = pci_set_consistent_dma_mask(aac->pdev, dmamask);
+		retval = dma_set_coherent_mask(&aac->pdev->dev, dmamask);
 
 	if (quirks & AAC_QUIRK_31BIT && !retval) {
 		dmamask = DMA_BIT_MASK(31);
-		retval = pci_set_consistent_dma_mask(aac->pdev, dmamask);
+		retval = dma_set_coherent_mask(&aac->pdev->dev, dmamask);
 	}
 
 	if (retval)

@@ -1529,7 +1529,7 @@ static struct device_attribute *myrs_shost_attrs[] = {
 /*
  * SCSI midlayer interface
  */
-int myrs_host_reset(struct scsi_cmnd *scmd)
+static int myrs_host_reset(struct scsi_cmnd *scmd)
 {
 	struct Scsi_Host *shost = scmd->device->host;
 	struct myrs_hba *cs = shost_priv(shost);
@@ -1919,7 +1919,7 @@ static void myrs_slave_destroy(struct scsi_device *sdev)
 	kfree(sdev->hostdata);
 }
 
-struct scsi_host_template myrs_template = {
+static struct scsi_host_template myrs_template = {
 	.module			= THIS_MODULE,
 	.name			= "DAC960",
 	.proc_name		= "myrs",
@@ -2033,7 +2033,7 @@ myrs_get_state(struct device *dev)
 	raid_set_state(myrs_raid_template, dev, state);
 }
 
-struct raid_function_template myrs_raid_functions = {
+static struct raid_function_template myrs_raid_functions = {
 	.cookie		= &myrs_template,
 	.is_raid	= myrs_is_raid,
 	.get_resync	= myrs_get_resync,
@@ -2043,7 +2043,7 @@ struct raid_function_template myrs_raid_functions = {
 /*
  * PCI interface functions
  */
-void myrs_flush_cache(struct myrs_hba *cs)
+static void myrs_flush_cache(struct myrs_hba *cs)
 {
 	myrs_dev_op(cs, MYRS_IOCTL_FLUSH_DEVICE_DATA, MYRS_RAID_CONTROLLER);
 }
