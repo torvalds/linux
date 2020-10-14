@@ -652,45 +652,6 @@ STAT_FN(ld_l2hit)
 STAT_FN(ld_llchit)
 STAT_FN(rmt_hit)
 
-static uint64_t llc_miss(struct c2c_stats *stats)
-{
-	uint64_t llcmiss;
-
-	llcmiss = stats->lcl_dram +
-		  stats->rmt_dram +
-		  stats->rmt_hitm +
-		  stats->rmt_hit;
-
-	return llcmiss;
-}
-
-static int
-ld_llcmiss_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
-		 struct hist_entry *he)
-{
-	struct c2c_hist_entry *c2c_he;
-	int width = c2c_width(fmt, hpp, he->hists);
-
-	c2c_he = container_of(he, struct c2c_hist_entry, he);
-
-	return scnprintf(hpp->buf, hpp->size, "%*lu", width,
-			 llc_miss(&c2c_he->stats));
-}
-
-static int64_t
-ld_llcmiss_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
-	       struct hist_entry *left, struct hist_entry *right)
-{
-	struct c2c_hist_entry *c2c_left;
-	struct c2c_hist_entry *c2c_right;
-
-	c2c_left  = container_of(left, struct c2c_hist_entry, he);
-	c2c_right = container_of(right, struct c2c_hist_entry, he);
-
-	return (uint64_t) llc_miss(&c2c_left->stats) -
-	       (uint64_t) llc_miss(&c2c_right->stats);
-}
-
 static uint64_t total_records(struct c2c_stats *stats)
 {
 	uint64_t lclmiss, ldcnt, total;
@@ -1440,19 +1401,11 @@ static struct c2c_dimension dim_ld_llchit = {
 };
 
 static struct c2c_dimension dim_ld_rmthit = {
-	.header		= HEADER_SPAN_LOW("Rmt"),
+	.header		= HEADER_SPAN("- RMT Load Hit --", "RmtHit", 1),
 	.name		= "ld_rmthit",
 	.cmp		= rmt_hit_cmp,
 	.entry		= rmt_hit_entry,
 	.width		= 8,
-};
-
-static struct c2c_dimension dim_ld_llcmiss = {
-	.header		= HEADER_BOTH("LLC", "Ld Miss"),
-	.name		= "ld_llcmiss",
-	.cmp		= ld_llcmiss_cmp,
-	.entry		= ld_llcmiss_entry,
-	.width		= 7,
 };
 
 static struct c2c_dimension dim_tot_recs = {
@@ -1658,7 +1611,6 @@ static struct c2c_dimension *dimensions[] = {
 	&dim_ld_l2hit,
 	&dim_ld_llchit,
 	&dim_ld_rmthit,
-	&dim_ld_llcmiss,
 	&dim_tot_recs,
 	&dim_tot_loads,
 	&dim_percent_hitm,
@@ -2854,7 +2806,7 @@ static int perf_c2c__report(int argc, const char **argv)
 			"stores_l1hit,stores_l1miss,"
 			"ld_fbhit,ld_l1hit,ld_l2hit,"
 			"ld_lclhit,lcl_hitm,"
-			"ld_llcmiss,"
+			"ld_rmthit,rmt_hitm,"
 			"dram_lcl,dram_rmt",
 			c2c.display == DISPLAY_TOT ? "tot_hitm" :
 			c2c.display == DISPLAY_LCL ? "lcl_hitm" : "rmt_hitm"
