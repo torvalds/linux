@@ -351,7 +351,7 @@ static int rkispp_sd_s_power(struct v4l2_subdev *sd, int on)
 	} else {
 		if (ispp_dev->inp == INP_ISP)
 			v4l2_subdev_call(ispp_sdev->remote_sd, core, s_power, 0);
-		ret = pm_runtime_put(ispp_dev->dev);
+		ret = pm_runtime_put_sync(ispp_dev->dev);
 		if (ret < 0)
 			v4l2_err(&ispp_dev->v4l2_dev,
 				 "%s runtime put failed:%d\n",

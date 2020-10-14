@@ -1619,8 +1619,11 @@ static int rkisp_isp_sd_s_power(struct v4l2_subdev *sd, int on)
 			kfifo_reset(&isp_dev->csi_dev.rdbk_kfifo);
 		ret = pm_runtime_get_sync(isp_dev->dev);
 	} else {
-		ret = pm_runtime_put(isp_dev->dev);
+		ret = pm_runtime_put_sync(isp_dev->dev);
 	}
+
+	if (ret < 0)
+		v4l2_err(sd, "%s on:%d failed:%d\n", __func__, on, ret);
 	return ret;
 }
 

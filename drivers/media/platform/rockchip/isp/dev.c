@@ -793,7 +793,7 @@ static int __maybe_unused rkisp_runtime_suspend(struct device *dev)
 
 	if (atomic_dec_return(&isp_dev->hw_dev->power_cnt))
 		return 0;
-	return pm_runtime_put(isp_dev->hw_dev->dev);
+	return pm_runtime_put_sync(isp_dev->hw_dev->dev);
 }
 
 static int __maybe_unused rkisp_runtime_resume(struct device *dev)
