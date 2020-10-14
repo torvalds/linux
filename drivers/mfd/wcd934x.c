@@ -219,12 +219,9 @@ static int wcd934x_slim_probe(struct slim_device *sdev)
 		return	-ENOMEM;
 
 	ddata->irq = of_irq_get(np, 0);
-	if (ddata->irq < 0) {
-		if (ddata->irq != -EPROBE_DEFER)
-			dev_err(ddata->dev, "Failed to get IRQ: err = %d\n",
-				ddata->irq);
-		return ddata->irq;
-	}
+	if (ddata->irq < 0)
+		return dev_err_probe(ddata->dev, ddata->irq,
+				     "Failed to get IRQ\n");
 
 	reset_gpio = of_get_named_gpio(np, "reset-gpios", 0);
 	if (reset_gpio < 0) {
