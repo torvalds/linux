@@ -1299,6 +1299,10 @@ bool kvm_mmu_slot_gfn_write_protect(struct kvm *kvm,
 		write_protected |= __rmap_write_protect(kvm, rmap_head, true);
 	}
 
+	if (kvm->arch.tdp_mmu_enabled)
+		write_protected |=
+			kvm_tdp_mmu_write_protect_gfn(kvm, slot, gfn);
+
 	return write_protected;
 }
 
