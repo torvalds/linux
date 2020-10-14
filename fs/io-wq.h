@@ -1,6 +1,8 @@
 #ifndef INTERNAL_IO_WQ_H
 #define INTERNAL_IO_WQ_H
 
+#include <linux/io_uring.h>
+
 struct io_wq;
 
 enum {
@@ -91,15 +93,7 @@ static inline void wq_list_del(struct io_wq_work_list *list,
 
 struct io_wq_work {
 	struct io_wq_work_node list;
-	struct files_struct *files;
-	struct mm_struct *mm;
-#ifdef CONFIG_BLK_CGROUP
-	struct cgroup_subsys_state *blkcg_css;
-#endif
-	const struct cred *creds;
-	struct nsproxy *nsproxy;
-	struct fs_struct *fs;
-	unsigned long fsize;
+	struct io_identity *identity;
 	unsigned flags;
 };
 

@@ -430,9 +430,9 @@ static void io_wq_switch_mm(struct io_worker *worker, struct io_wq_work *work)
 		worker->mm = NULL;
 	}
 
-	if (mmget_not_zero(work->mm)) {
-		kthread_use_mm(work->mm);
-		worker->mm = work->mm;
+	if (mmget_not_zero(work->identity->mm)) {
+		kthread_use_mm(work->identity->mm);
+		worker->mm = work->identity->mm;
 		return;
 	}
 
@@ -446,9 +446,9 @@ static inline void io_wq_switch_blkcg(struct io_worker *worker,
 #ifdef CONFIG_BLK_CGROUP
 	if (!(work->flags & IO_WQ_WORK_BLKCG))
 		return;
-	if (work->blkcg_css != worker->blkcg_css) {
-		kthread_associate_blkcg(work->blkcg_css);
-		worker->blkcg_css = work->blkcg_css;
+	if (work->identity->blkcg_css != worker->blkcg_css) {
+		kthread_associate_blkcg(work->identity->blkcg_css);
+		worker->blkcg_css = work->identity->blkcg_css;
 	}
 #endif
 }
@@ -456,9 +456,9 @@ static inline void io_wq_switch_blkcg(struct io_worker *worker,
 static void io_wq_switch_creds(struct io_worker *worker,
 			       struct io_wq_work *work)
 {
-	const struct cred *old_creds = override_creds(work->creds);
+	const struct cred *old_creds = override_creds(work->identity->creds);
 
-	worker->cur_creds = work->creds;
+	worker->cur_creds = work->identity->creds;
 	if (worker->saved_creds)
 		put_cred(old_creds); /* creds set by previous switch */
 	else
@@ -468,19 +468,21 @@ static void io_wq_switch_creds(struct io_worker *worker,
 static void io_impersonate_work(struct io_worker *worker,
 				struct io_wq_work *work)
 {
-	if ((work->flags & IO_WQ_WORK_FILES) && current->files != work->files) {
+	if ((work->flags & IO_WQ_WORK_FILES) &&
+	    current->files != work->identity->files) {
 		task_lock(current);
-		current->files = work->files;
-		current->nsproxy = work->nsproxy;
+		current->files = work->identity->files;
+		current->nsproxy = work->identity->nsproxy;
 		task_unlock(current);
 	}
-	if ((work->flags & IO_WQ_WORK_FS) && current->fs != work->fs)
-		current->fs = work->fs;
-	if ((work->flags & IO_WQ_WORK_MM) && work->mm != worker->mm)
+	if ((work->flags & IO_WQ_WORK_FS) && current->fs != work->identity->fs)
+		current->fs = work->identity->fs;
+	if ((work->flags & IO_WQ_WORK_MM) && work->identity->mm != worker->mm)
 		io_wq_switch_mm(worker, work);
-	if ((work->flags & IO_WQ_WORK_CREDS) && worker->cur_creds != work->creds)
+	if ((work->flags & IO_WQ_WORK_CREDS) &&
+	    worker->cur_creds != work->identity->creds)
 		io_wq_switch_creds(worker, work);
-	current->signal->rlim[RLIMIT_FSIZE].rlim_cur = work->fsize;
+	current->signal->rlim[RLIMIT_FSIZE].rlim_cur = work->identity->fsize;
 	io_wq_switch_blkcg(worker, work);
 }
 
