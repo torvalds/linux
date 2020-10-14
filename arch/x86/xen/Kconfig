@@ -26,6 +26,19 @@ config XEN_PV
 	help
 	  Support running as a Xen PV guest.
 
+config XEN_512GB
+	bool "Limit Xen pv-domain memory to 512GB"
+	depends on XEN_PV && X86_64
+	default y
+	help
+	  Limit paravirtualized user domains to 512GB of RAM.
+
+	  The Xen tools and crash dump analysis tools might not support
+	  pv-domains with more than 512 GB of RAM. This option controls the
+	  default setting of the kernel to use only up to 512 GB or more.
+	  It is always possible to change the default via specifying the
+	  boot parameter "xen_512gb_limit".
+
 config XEN_PV_SMP
 	def_bool y
 	depends on XEN_PV && SMP
@@ -52,19 +65,6 @@ config XEN_PVHVM_GUEST
 	depends on XEN_PVHVM && PCI
 	help
 	  Support running as a Xen PVHVM guest.
-
-config XEN_512GB
-	bool "Limit Xen pv-domain memory to 512GB"
-	depends on XEN_PV
-	default y
-	help
-	  Limit paravirtualized user domains to 512GB of RAM.
-
-	  The Xen tools and crash dump analysis tools might not support
-	  pv-domains with more than 512 GB of RAM. This option controls the
-	  default setting of the kernel to use only up to 512 GB or more.
-	  It is always possible to change the default via specifying the
-	  boot parameter "xen_512gb_limit".
 
 config XEN_SAVE_RESTORE
 	bool
