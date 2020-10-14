@@ -15,6 +15,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <zstd.h>
 
 #include <sys/mount.h>
 #include <sys/stat.h>
@@ -321,6 +322,12 @@ static bool same_id(incfs_uuid_t *id1, incfs_uuid_t *id2)
 	return !memcmp(id1->bytes, id2->bytes, sizeof(id1->bytes));
 }
 
+ssize_t ZSTD_compress_default(char *data, char *comp_data, size_t data_size,
+					size_t comp_size)
+{
+	return ZSTD_compress(comp_data, comp_size, data, data_size, 1);
+}
+
 static int emit_test_blocks(const char *mnt_dir, struct test_file *file,
 			int blocks[], int count)
 {
@@ -345,7 +352,8 @@ static int emit_test_blocks(const char *mnt_dir, struct test_file *file,
 
 	for (i = 0; i < block_count; i++) {
 		int block_index = blocks[i];
-		bool compress = (file->index + block_index) % 2 == 0;
+		bool compress_zstd = (file->index + block_index) % 4 == 2;
+		bool compress_lz4 = (file->index + block_index) % 4 == 0;
 		int seed = get_file_block_seed(file->index, block_index);
 		off_t block_offset =
 			((off_t)block_index) * INCFS_DATA_FILE_BLOCK_SIZE;
@@ -362,10 +370,10 @@ static int emit_test_blocks(const char *mnt_dir, struct test_file *file,
 			block_size = file->size - block_offset;
 
 		rnd_buf(data, block_size, seed);
-		if (compress) {
-			size_t comp_size = LZ4_compress_default(
-				(char *)data, (char *)comp_data, block_size,
-				ARRAY_SIZE(comp_data));
+		if (compress_lz4) {
+			size_t comp_size = LZ4_compress_default((char *)data,
+					(char *)comp_data, block_size,
+					ARRAY_SIZE(comp_data));
 
 			if (comp_size <= 0) {
 				error = -EBADMSG;
@@ -378,6 +386,22 @@ static int emit_test_blocks(const char *mnt_dir, struct test_file *file,
 			memcpy(current_data, comp_data, comp_size);
 			block_size = comp_size;
 			block_buf[i].compression = COMPRESSION_LZ4;
+		} else if (compress_zstd) {
+			size_t comp_size = ZSTD_compress(comp_data,
+					ARRAY_SIZE(comp_data), data, block_size,
+					1);
+
+			if (comp_size <= 0) {
+				error = -EBADMSG;
+				break;
+			}
+			if (current_data + comp_size > data_end) {
+				error = -ENOMEM;
+				break;
+			}
+			memcpy(current_data, comp_data, comp_size);
+			block_size = comp_size;
+			block_buf[i].compression = COMPRESSION_ZSTD;
 		} else {
 			if (current_data + block_size > data_end) {
 				error = -ENOMEM;
