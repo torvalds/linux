@@ -45,6 +45,7 @@ config DRM_AMD_DC_DCN3_01
 config DRM_AMD_DC_DCN3_02
         bool "DCN 3.02 family"
         depends on DRM_AMD_DC_DCN3_0
+        depends on DRM_AMD_DC_DCN3_01
         help
             Choose this option if you want to have
             Dimgrey_cavefish support for display engine
