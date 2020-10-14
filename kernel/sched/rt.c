@@ -89,8 +89,8 @@ void init_rt_rq(struct rt_rq *rt_rq)
 	__set_bit(MAX_RT_PRIO, array->bitmap);
 
 #if defined CONFIG_SMP
-	rt_rq->highest_prio.curr = MAX_RT_PRIO;
-	rt_rq->highest_prio.next = MAX_RT_PRIO;
+	rt_rq->highest_prio.curr = MAX_RT_PRIO-1;
+	rt_rq->highest_prio.next = MAX_RT_PRIO-1;
 	rt_rq->rt_nr_migratory = 0;
 	rt_rq->overloaded = 0;
 	plist_head_init(&rt_rq->pushable_tasks);
@@ -161,7 +161,7 @@ void init_tg_rt_entry(struct task_group *tg, struct rt_rq *rt_rq,
 {
 	struct rq *rq = cpu_rq(cpu);
 
-	rt_rq->highest_prio.curr = MAX_RT_PRIO;
+	rt_rq->highest_prio.curr = MAX_RT_PRIO-1;
 	rt_rq->rt_nr_boosted = 0;
 	rt_rq->rq = rq;
 	rt_rq->tg = tg;
@@ -393,8 +393,9 @@ static void dequeue_pushable_task(struct rq *rq, struct task_struct *p)
 		p = plist_first_entry(&rq->rt.pushable_tasks,
 				      struct task_struct, pushable_tasks);
 		rq->rt.highest_prio.next = p->prio;
-	} else
-		rq->rt.highest_prio.next = MAX_RT_PRIO;
+	} else {
+		rq->rt.highest_prio.next = MAX_RT_PRIO-1;
+	}
 }
 
 #else
@@ -1147,8 +1148,9 @@ dec_rt_prio(struct rt_rq *rt_rq, int prio)
 				sched_find_first_bit(array->bitmap);
 		}
 
-	} else
-		rt_rq->highest_prio.curr = MAX_RT_PRIO;
+	} else {
+		rt_rq->highest_prio.curr = MAX_RT_PRIO-1;
+	}
 
 	dec_rt_prio_smp(rt_rq, prio, prev_prio);
 }

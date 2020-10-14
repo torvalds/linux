@@ -24,17 +24,37 @@
  */
 #include "sched.h"
 
-/* Convert between a 140 based task->prio, and our 100 based cpupri */
+/*
+ * p->rt_priority   p->prio   newpri   cpupri
+ *
+ *				  -1       -1 (CPUPRI_INVALID)
+ *
+ *				  99        0 (CPUPRI_NORMAL)
+ *
+ *		1        98       98        1
+ *	      ...
+ *	       49        50       50       49
+ *	       50        49       49       50
+ *	      ...
+ *	       99         0        0       99
+ */
 static int convert_prio(int prio)
 {
 	int cpupri;
 
-	if (prio == CPUPRI_INVALID)
-		cpupri = CPUPRI_INVALID;
-	else if (prio >= MAX_RT_PRIO)
-		cpupri = CPUPRI_NORMAL;
-	else
-		cpupri = MAX_RT_PRIO - prio - 1;
+	switch (prio) {
+	case CPUPRI_INVALID:
+		cpupri = CPUPRI_INVALID;	/* -1 */
+		break;
+
+	case 0 ... 98:
+		cpupri = MAX_RT_PRIO-1 - prio;	/* 1 ... 99 */
+		break;
+
+	case MAX_RT_PRIO-1:
+		cpupri = CPUPRI_NORMAL;		/*  0 */
+		break;
+	}
 
 	return cpupri;
 }
