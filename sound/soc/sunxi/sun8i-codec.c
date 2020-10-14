@@ -305,15 +305,15 @@ static u8 sun8i_codec_get_bclk_div(struct sun8i_codec *scodec,
 	return best_val;
 }
 
-static int sun8i_codec_get_lrck_div(unsigned int channels,
-				    unsigned int word_size)
+static int sun8i_codec_get_lrck_div_order(unsigned int slots,
+					  unsigned int slot_width)
 {
-	unsigned int div = word_size * channels;
+	unsigned int div = slots * slot_width;
 
 	if (div < 16 || div > 256)
 		return -EINVAL;
 
-	return ilog2(div) - 4;
+	return order_base_2(div);
 }
 
 static int sun8i_codec_hw_params(struct snd_pcm_substream *substream,
@@ -321,7 +321,9 @@ static int sun8i_codec_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_soc_dai *dai)
 {
 	struct sun8i_codec *scodec = snd_soc_dai_get_drvdata(dai);
-	int lrck_div, sample_rate, word_size;
+	unsigned int slots = params_channels(params);
+	unsigned int slot_width = params_width(params);
+	int lrck_div_order, sample_rate, word_size;
 	u8 bclk_div;
 
 	/* word size */
@@ -351,14 +353,14 @@ static int sun8i_codec_hw_params(struct snd_pcm_substream *substream,
 			   SUN8I_AIF1CLK_CTRL_AIF1_BCLK_DIV_MASK,
 			   bclk_div << SUN8I_AIF1CLK_CTRL_AIF1_BCLK_DIV);
 
-	lrck_div = sun8i_codec_get_lrck_div(params_channels(params),
-					    params_physical_width(params));
-	if (lrck_div < 0)
-		return lrck_div;
+	/* LRCK divider (BCLK/LRCK ratio) */
+	lrck_div_order = sun8i_codec_get_lrck_div_order(slots, slot_width);
+	if (lrck_div_order < 0)
+		return lrck_div_order;
 
 	regmap_update_bits(scodec->regmap, SUN8I_AIF1CLK_CTRL,
 			   SUN8I_AIF1CLK_CTRL_AIF1_LRCK_DIV_MASK,
-			   lrck_div << SUN8I_AIF1CLK_CTRL_AIF1_LRCK_DIV);
+			   (lrck_div_order - 4) << SUN8I_AIF1CLK_CTRL_AIF1_LRCK_DIV);
 
 	sample_rate = sun8i_codec_get_hw_rate(params);
 	if (sample_rate < 0)
