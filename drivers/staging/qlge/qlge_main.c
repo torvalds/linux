@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * QLogic qlge NIC HBA Driver
  * Copyright (c)  2003-2008 QLogic Corporation
- * See LICENSE.qlge for copyright and licensing details.
  * Author:     Linux qlge network device driver by
  *                      Ron Mercer <ron.mercer@qlogic.com>
  */
