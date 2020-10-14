@@ -38,9 +38,6 @@ properties:
   st,syscfg-tz:
     description:
       Reference to the system configuration which holds the RCC trust zone mode
-      - Phandle of syscon block.
-      - The offset of the RCC trust zone mode register.
-      - The field mask of the RCC trust zone mode.
     $ref: "/schemas/types.yaml#/definitions/phandle-array"
     maxItems: 1
 
@@ -91,9 +88,6 @@ properties:
     $ref: "/schemas/types.yaml#/definitions/phandle-array"
     description: |
       Reference to the system configuration which holds the remote
-        1st cell: phandle to syscon block
-        2nd cell: register offset containing the deep sleep setting
-        3rd cell: register bitmask for the deep sleep bit
     maxItems: 1
 
   st,syscfg-m4-state:
