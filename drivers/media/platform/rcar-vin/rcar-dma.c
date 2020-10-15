@@ -1051,27 +1051,10 @@ done:
 }
 
 /* Need to hold qlock before calling */
-static void return_all_buffers(struct rvin_dev *vin,
-			       enum vb2_buffer_state state)
+static void return_unused_buffers(struct rvin_dev *vin,
+				  enum vb2_buffer_state state)
 {
 	struct rvin_buffer *buf, *node;
-	struct vb2_v4l2_buffer *freed[HW_BUFFER_NUM];
-	unsigned int i, n;
-
-	for (i = 0; i < HW_BUFFER_NUM; i++) {
-		freed[i] = vin->buf_hw[i].buffer;
-		vin->buf_hw[i].buffer = NULL;
-
-		for (n = 0; n < i; n++) {
-			if (freed[i] == freed[n]) {
-				freed[i] = NULL;
-				break;
-			}
-		}
-
-		if (freed[i])
-			vb2_buffer_done(&freed[i]->vb2_buf, state);
-	}
 
 	list_for_each_entry_safe(buf, node, &vin->buf_list, list) {
 		vb2_buffer_done(&buf->vb.vb2_buf, state);
@@ -1271,7 +1254,7 @@ static int rvin_start_streaming(struct vb2_queue *vq, unsigned int count)
 					  &vin->scratch_phys, GFP_KERNEL);
 	if (!vin->scratch) {
 		spin_lock_irqsave(&vin->qlock, flags);
-		return_all_buffers(vin, VB2_BUF_STATE_QUEUED);
+		return_unused_buffers(vin, VB2_BUF_STATE_QUEUED);
 		spin_unlock_irqrestore(&vin->qlock, flags);
 		vin_err(vin, "Failed to allocate scratch buffer\n");
 		return -ENOMEM;
@@ -1280,7 +1263,7 @@ static int rvin_start_streaming(struct vb2_queue *vq, unsigned int count)
 	ret = rvin_set_stream(vin, 1);
 	if (ret) {
 		spin_lock_irqsave(&vin->qlock, flags);
-		return_all_buffers(vin, VB2_BUF_STATE_QUEUED);
+		return_unused_buffers(vin, VB2_BUF_STATE_QUEUED);
 		spin_unlock_irqrestore(&vin->qlock, flags);
 		goto out;
 	}
@@ -1291,7 +1274,7 @@ static int rvin_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	ret = rvin_capture_start(vin);
 	if (ret) {
-		return_all_buffers(vin, VB2_BUF_STATE_QUEUED);
+		return_unused_buffers(vin, VB2_BUF_STATE_QUEUED);
 		rvin_set_stream(vin, 0);
 	}
 
@@ -1358,8 +1341,8 @@ static void rvin_stop_streaming(struct vb2_queue *vq)
 		vin->state = STOPPED;
 	}
 
-	/* Release all active buffers */
-	return_all_buffers(vin, VB2_BUF_STATE_ERROR);
+	/* Return all unused buffers. */
+	return_unused_buffers(vin, VB2_BUF_STATE_ERROR);
 
 	spin_unlock_irqrestore(&vin->qlock, flags);
 
