@@ -1793,6 +1793,7 @@ static int ath11k_qmi_request_target_cap(struct ath11k_base *ab)
 	struct qmi_wlanfw_cap_resp_msg_v01 resp;
 	struct qmi_txn txn = {};
 	int ret = 0;
+	int r;
 
 	memset(&req, 0, sizeof(req));
 	memset(&resp, 0, sizeof(resp));
@@ -1857,6 +1858,10 @@ static int ath11k_qmi_request_target_cap(struct ath11k_base *ab)
 		    ab->qmi.target.fw_version,
 		    ab->qmi.target.fw_build_timestamp,
 		    ab->qmi.target.fw_build_id);
+
+	r = ath11k_core_check_dt(ab);
+	if (r)
+		ath11k_dbg(ab, ATH11K_DBG_QMI, "DT bdf variant name not set.\n");
 
 out:
 	return ret;

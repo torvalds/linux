@@ -24,6 +24,7 @@
 #define ATH11K_QMI_RESP_LEN_MAX			8192
 #define ATH11K_QMI_WLANFW_MAX_NUM_MEM_SEG_V01	32
 #define ATH11K_QMI_CALDB_SIZE			0x480000
+#define ATH11K_QMI_BDF_EXT_STR_LENGTH		0x20
 
 #define QMI_WLFW_REQUEST_MEM_IND_V01		0x0035
 #define QMI_WLFW_FW_MEM_READY_IND_V01		0x0037
@@ -101,6 +102,7 @@ struct target_info {
 	u32 fw_version;
 	char fw_build_timestamp[ATH11K_QMI_WLANFW_MAX_TIMESTAMP_LEN_V01 + 1];
 	char fw_build_id[ATH11K_QMI_WLANFW_MAX_BUILD_ID_LEN_V01 + 1];
+	char bdf_ext[ATH11K_QMI_BDF_EXT_STR_LENGTH];
 };
 
 struct m3_mem_region {

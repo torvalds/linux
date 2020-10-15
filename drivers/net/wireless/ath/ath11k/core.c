@@ -7,6 +7,7 @@
 #include <linux/slab.h>
 #include <linux/remoteproc.h>
 #include <linux/firmware.h>
+#include <linux/of.h>
 #include "core.h"
 #include "dp_tx.h"
 #include "dp_rx.h"
@@ -141,14 +142,44 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 	},
 };
 
+int ath11k_core_check_dt(struct ath11k_base *ab)
+{
+	size_t max_len = sizeof(ab->qmi.target.bdf_ext);
+	const char *variant = NULL;
+	struct device_node *node;
+
+	node = ab->dev->of_node;
+	if (!node)
+		return -ENOENT;
+
+	of_property_read_string(node, "qcom,ath11k-calibration-variant",
+				&variant);
+	if (!variant)
+		return -ENODATA;
+
+	if (strscpy(ab->qmi.target.bdf_ext, variant, max_len) < 0)
+		ath11k_dbg(ab, ATH11K_DBG_BOOT,
+			   "bdf variant string is longer than the buffer can accommodate (variant: %s)\n",
+			    variant);
+
+	return 0;
+}
+
 static int ath11k_core_create_board_name(struct ath11k_base *ab, char *name,
 					 size_t name_len)
 {
+	/* strlen(',variant=') + strlen(ab->qmi.target.bdf_ext) */
+	char variant[9 + ATH11K_QMI_BDF_EXT_STR_LENGTH] = { 0 };
+
+	if (ab->qmi.target.bdf_ext[0] != '\0')
+		scnprintf(variant, sizeof(variant), ",variant=%s",
+			  ab->qmi.target.bdf_ext);
+
 	scnprintf(name, name_len,
-		  "bus=%s,qmi-chip-id=%d,qmi-board-id=%d",
+		  "bus=%s,qmi-chip-id=%d,qmi-board-id=%d%s",
 		  ath11k_bus_str(ab->hif.bus),
 		  ab->qmi.target.chip_id,
-		  ab->qmi.target.board_id);
+		  ab->qmi.target.board_id, variant);
 
 	ath11k_dbg(ab, ATH11K_DBG_BOOT, "boot using board name '%s'\n", name);
 
