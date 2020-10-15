@@ -397,7 +397,7 @@ abort:
 /*
  * Process delayed final ACKs that we haven't subsumed into a subsequent call.
  */
-static void rxrpc_process_delayed_final_acks(struct rxrpc_connection *conn)
+void rxrpc_process_delayed_final_acks(struct rxrpc_connection *conn, bool force)
 {
 	unsigned long j = jiffies, next_j;
 	unsigned int channel;
@@ -416,7 +416,7 @@ again:
 		smp_rmb(); /* vs rxrpc_disconnect_client_call */
 		ack_at = READ_ONCE(chan->final_ack_at);
 
-		if (time_before(j, ack_at)) {
+		if (time_before(j, ack_at) && !force) {
 			if (time_before(ack_at, next_j)) {
 				next_j = ack_at;
 				set = true;
@@ -450,7 +450,7 @@ static void rxrpc_do_process_connection(struct rxrpc_connection *conn)
 
 	/* Process delayed ACKs whose time has come. */
 	if (conn->flags & RXRPC_CONN_FINAL_ACK_MASK)
-		rxrpc_process_delayed_final_acks(conn);
+		rxrpc_process_delayed_final_acks(conn, false);
 
 	/* go through the conn-level event packets, releasing the ref on this
 	 * connection that each one has when we've finished with it */

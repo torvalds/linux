@@ -901,10 +901,13 @@ static void rxrpc_unbundle_conn(struct rxrpc_connection *conn)
 	struct rxrpc_bundle *bundle = conn->bundle;
 	struct rxrpc_local *local = bundle->params.local;
 	unsigned int bindex;
-	bool need_drop = false;
+	bool need_drop = false, need_put = false;
 	int i;
 
 	_enter("C=%x", conn->debug_id);
+
+	if (conn->flags & RXRPC_CONN_FINAL_ACK_MASK)
+		rxrpc_process_delayed_final_acks(conn, true);
 
 	spin_lock(&bundle->channel_lock);
 	bindex = conn->bundle_shift / RXRPC_MAXCALLS;
@@ -928,10 +931,11 @@ static void rxrpc_unbundle_conn(struct rxrpc_connection *conn)
 		if (i == ARRAY_SIZE(bundle->conns) && !bundle->params.exclusive) {
 			_debug("erase bundle");
 			rb_erase(&bundle->local_node, &local->client_bundles);
+			need_put = true;
 		}
 
 		spin_unlock(&local->client_bundles_lock);
-		if (i == ARRAY_SIZE(bundle->conns))
+		if (need_put)
 			rxrpc_put_bundle(bundle);
 	}
 

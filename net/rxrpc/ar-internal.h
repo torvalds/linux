@@ -831,6 +831,7 @@ void rxrpc_clean_up_local_conns(struct rxrpc_local *);
  * conn_event.c
  */
 void rxrpc_process_connection(struct work_struct *);
+void rxrpc_process_delayed_final_acks(struct rxrpc_connection *, bool);
 
 /*
  * conn_object.c
