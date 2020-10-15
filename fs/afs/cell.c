@@ -19,6 +19,7 @@ static unsigned __read_mostly afs_cell_gc_delay = 10;
 static unsigned __read_mostly afs_cell_min_ttl = 10 * 60;
 static unsigned __read_mostly afs_cell_max_ttl = 24 * 60 * 60;
 
+static void afs_queue_cell_manager(struct afs_net *);
 static void afs_manage_cell_work(struct work_struct *);
 
 static void afs_dec_cells_outstanding(struct afs_net *net)
@@ -37,6 +38,8 @@ static void afs_set_cell_timer(struct afs_net *net, time64_t delay)
 		atomic_inc(&net->cells_outstanding);
 		if (timer_reduce(&net->cells_timer, jiffies + delay * HZ))
 			afs_dec_cells_outstanding(net);
+	} else {
+		afs_queue_cell_manager(net);
 	}
 }
 
