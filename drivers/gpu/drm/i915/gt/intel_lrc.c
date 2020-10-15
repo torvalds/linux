@@ -1215,7 +1215,8 @@ static void intel_engine_context_out(struct intel_engine_cs *engine)
 
 static void
 execlists_check_context(const struct intel_context *ce,
-			const struct intel_engine_cs *engine)
+			const struct intel_engine_cs *engine,
+			const char *when)
 {
 	const struct intel_ring *ring = ce->ring;
 	u32 *regs = ce->lrc_reg_state;
@@ -1250,7 +1251,7 @@ execlists_check_context(const struct intel_context *ce,
 		valid = false;
 	}
 
-	WARN_ONCE(!valid, "Invalid lrc state found before submission\n");
+	WARN_ONCE(!valid, "Invalid lrc state found %s submission\n", when);
 }
 
 static void restore_default_state(struct intel_context *ce,
@@ -1346,7 +1347,7 @@ __execlists_schedule_in(struct i915_request *rq)
 		reset_active(rq, engine);
 
 	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
-		execlists_check_context(ce, engine);
+		execlists_check_context(ce, engine, "before");
 
 	if (ce->tag) {
 		/* Use a fixed tag for OA and friends */
@@ -1416,6 +1417,9 @@ __execlists_schedule_out(struct i915_request *rq,
 	 * schedule_out can race with schedule_in meaning that we should
 	 * refrain from doing non-trivial work here.
 	 */
+
+	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
+		execlists_check_context(ce, engine, "after");
 
 	/*
 	 * If we have just completed this context, the engine may now be
@@ -4080,6 +4084,8 @@ static void reset_csb_pointers(struct intel_engine_cs *engine)
 
 static void execlists_sanitize(struct intel_engine_cs *engine)
 {
+	GEM_BUG_ON(execlists_active(&engine->execlists));
+
 	/*
 	 * Poison residual state on resume, in case the suspend didn't!
 	 *
