@@ -905,7 +905,7 @@ static void rvin_fill_hw_slot(struct rvin_dev *vin, int slot)
 				vin->format.sizeimage / 2;
 			break;
 		}
-	} else if (list_empty(&vin->buf_list)) {
+	} else if (vin->state != RUNNING || list_empty(&vin->buf_list)) {
 		vin->buf_hw[slot].buffer = NULL;
 		vin->buf_hw[slot].type = FULL;
 		phys_addr = vin->scratch_phys;
@@ -995,12 +995,6 @@ static irqreturn_t rvin_irq(int irq, void *data)
 	/* Nothing to do if capture status is 'STOPPED' */
 	if (vin->state == STOPPED) {
 		vin_dbg(vin, "IRQ while state stopped\n");
-		goto done;
-	}
-
-	/* Nothing to do if capture status is 'STOPPING' */
-	if (vin->state == STOPPING) {
-		vin_dbg(vin, "IRQ while state stopping\n");
 		goto done;
 	}
 
@@ -1313,14 +1307,32 @@ out:
 static void rvin_stop_streaming(struct vb2_queue *vq)
 {
 	struct rvin_dev *vin = vb2_get_drv_priv(vq);
+	unsigned int i, retries;
 	unsigned long flags;
-	int retries = 0;
+	bool buffersFreed;
 
 	spin_lock_irqsave(&vin->qlock, flags);
 
 	vin->state = STOPPING;
 
+	/* Wait until only scratch buffer is used, max 3 interrupts. */
+	retries = 0;
+	while (retries++ < RVIN_RETRIES) {
+		buffersFreed = true;
+		for (i = 0; i < HW_BUFFER_NUM; i++)
+			if (vin->buf_hw[i].buffer)
+				buffersFreed = false;
+
+		if (buffersFreed)
+			break;
+
+		spin_unlock_irqrestore(&vin->qlock, flags);
+		msleep(RVIN_TIMEOUT_MS);
+		spin_lock_irqsave(&vin->qlock, flags);
+	}
+
 	/* Wait for streaming to stop */
+	retries = 0;
 	while (retries++ < RVIN_RETRIES) {
 
 		rvin_capture_stop(vin);
@@ -1336,7 +1348,7 @@ static void rvin_stop_streaming(struct vb2_queue *vq)
 		spin_lock_irqsave(&vin->qlock, flags);
 	}
 
-	if (vin->state != STOPPED) {
+	if (!buffersFreed || vin->state != STOPPED) {
 		/*
 		 * If this happens something have gone horribly wrong.
 		 * Set state to stopped to prevent the interrupt handler
