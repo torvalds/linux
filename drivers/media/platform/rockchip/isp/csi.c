@@ -474,6 +474,7 @@ void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm, u32 mode)
 	u32 val, cur_frame_id, tmp;
 	bool is_upd = false;
 
+	hw->cur_dev_id = dev->dev_id;
 	rkisp_dmarx_get_frame(dev, &cur_frame_id, NULL, true);
 	if (dma2frm > 2)
 		dma2frm = 2;
