@@ -414,6 +414,14 @@ struct dc_bw_validation_profile {
 			} \
 		}
 
+union mem_low_power_enable_options {
+	struct {
+		bool mpc: 1;
+		bool optc: 1;
+	} bits;
+	uint32_t u32All;
+};
+
 struct dc_debug_options {
 	enum visual_confirm visual_confirm;
 	bool sanity_checks;
@@ -506,7 +514,7 @@ struct dc_debug_options {
 	bool disable_dsc;
 	bool enable_dram_clock_change_one_display_vactive;
 	bool force_ignore_link_settings;
-	bool enable_mpc_mem_powerdown: 1;
+	union mem_low_power_enable_options enable_mem_low_power;
 };
 
 struct dc_debug_data {

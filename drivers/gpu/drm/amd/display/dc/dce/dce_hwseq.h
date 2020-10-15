@@ -607,6 +607,10 @@ struct dce_hwseq_registers {
 	uint32_t MC_VM_XGMI_LFB_CNTL;
 	uint32_t AZALIA_AUDIO_DTO;
 	uint32_t AZALIA_CONTROLLER_CLOCK_GATING;
+ #if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	uint32_t HPO_TOP_CLOCK_CONTROL;
+	uint32_t ODM_MEM_PWR_CTRL3;
+ #endif
 };
  /* set field name */
 #define HWS_SF(blk_name, reg_name, field_name, post_fix)\
@@ -845,7 +849,9 @@ struct dce_hwseq_registers {
 #if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 #define HWSEQ_DCN30_MASK_SH_LIST(mask_sh)\
 	HWSEQ_DCN2_MASK_SH_LIST(mask_sh), \
-	HWS_SF(, AZALIA_AUDIO_DTO, AZALIA_AUDIO_DTO_MODULE, mask_sh)
+	HWS_SF(, AZALIA_AUDIO_DTO, AZALIA_AUDIO_DTO_MODULE, mask_sh), \
+	HWS_SF(, ODM_MEM_PWR_CTRL3, ODM_MEM_UNASSIGNED_PWR_MODE, mask_sh), \
+	HWS_SF(, ODM_MEM_PWR_CTRL3, ODM_MEM_VBLANK_PWR_MODE, mask_sh)
 #endif
 
 #if defined(CONFIG_DRM_AMD_DC_DCN3_01)
@@ -1059,7 +1065,9 @@ struct dce_hwseq_registers {
 	type D2VGA_MODE_ENABLE; \
 	type D3VGA_MODE_ENABLE; \
 	type D4VGA_MODE_ENABLE; \
-	type AZALIA_AUDIO_DTO_MODULE;
+	type AZALIA_AUDIO_DTO_MODULE; \
+	type ODM_MEM_UNASSIGNED_PWR_MODE; \
+	type ODM_MEM_VBLANK_PWR_MODE;
 
 #if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 #define HWSEQ_DCN3_REG_FIELD_LIST(type) \
