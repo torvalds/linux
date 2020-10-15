@@ -77,8 +77,6 @@ struct pcie_link_state {
 
 	/* L1 PM Substate info */
 	struct {
-		u32 up_cap_ptr;		/* L1SS cap ptr in upstream dev */
-		u32 dw_cap_ptr;		/* L1SS cap ptr in downstream dev */
 		u32 ctl1;		/* value to be programmed in ctl1 */
 		u32 ctl2;		/* value to be programmed in ctl2 */
 	} l1ss;
@@ -386,7 +384,6 @@ static void encode_l12_threshold(u32 threshold_us, u32 *scale, u32 *value)
 
 struct aspm_register_info {
 	/* L1 substates */
-	u32 l1ss_cap_ptr;
 	u32 l1ss_cap;
 	u32 l1ss_ctl1;
 	u32 l1ss_ctl2;
@@ -397,19 +394,20 @@ static void pcie_get_aspm_reg(struct pci_dev *pdev,
 {
 	/* Read L1 PM substate capabilities */
 	info->l1ss_cap = info->l1ss_ctl1 = info->l1ss_ctl2 = 0;
-	info->l1ss_cap_ptr = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_L1SS);
-	if (!info->l1ss_cap_ptr)
+
+	if (!pdev->l1ss)
 		return;
-	pci_read_config_dword(pdev, info->l1ss_cap_ptr + PCI_L1SS_CAP,
+
+	pci_read_config_dword(pdev, pdev->l1ss + PCI_L1SS_CAP,
 			      &info->l1ss_cap);
 	if (!(info->l1ss_cap & PCI_L1SS_CAP_L1_PM_SS)) {
 		info->l1ss_cap = 0;
 		return;
 	}
 
-	pci_read_config_dword(pdev, info->l1ss_cap_ptr + PCI_L1SS_CTL1,
+	pci_read_config_dword(pdev, pdev->l1ss + PCI_L1SS_CTL1,
 			      &info->l1ss_ctl1);
-	pci_read_config_dword(pdev, info->l1ss_cap_ptr + PCI_L1SS_CTL2,
+	pci_read_config_dword(pdev, pdev->l1ss + PCI_L1SS_CTL2,
 			      &info->l1ss_ctl2);
 }
 
@@ -494,8 +492,6 @@ static void aspm_calc_l1ss_info(struct pcie_link_state *link,
 	u32 val1, val2, scale1, scale2;
 	u32 t_common_mode, t_power_on, l1_2_threshold, scale, value;
 
-	link->l1ss.up_cap_ptr = upreg->l1ss_cap_ptr;
-	link->l1ss.dw_cap_ptr = dwreg->l1ss_cap_ptr;
 	link->l1ss.ctl1 = link->l1ss.ctl2 = 0;
 
 	if (!(link->aspm_support & ASPM_STATE_L1_2_MASK))
@@ -664,8 +660,6 @@ static void pcie_config_aspm_l1ss(struct pcie_link_state *link, u32 state)
 {
 	u32 val, enable_req;
 	struct pci_dev *child = link->downstream, *parent = link->pdev;
-	u32 up_cap_ptr = link->l1ss.up_cap_ptr;
-	u32 dw_cap_ptr = link->l1ss.dw_cap_ptr;
 
 	enable_req = (link->aspm_enabled ^ state) & state;
 
@@ -683,9 +677,9 @@ static void pcie_config_aspm_l1ss(struct pcie_link_state *link, u32 state)
 	 */
 
 	/* Disable all L1 substates */
-	pci_clear_and_set_dword(child, dw_cap_ptr + PCI_L1SS_CTL1,
+	pci_clear_and_set_dword(child, child->l1ss + PCI_L1SS_CTL1,
 				PCI_L1SS_CTL1_L1SS_MASK, 0);
-	pci_clear_and_set_dword(parent, up_cap_ptr + PCI_L1SS_CTL1,
+	pci_clear_and_set_dword(parent, parent->l1ss + PCI_L1SS_CTL1,
 				PCI_L1SS_CTL1_L1SS_MASK, 0);
 	/*
 	 * If needed, disable L1, and it gets enabled later
@@ -701,22 +695,22 @@ static void pcie_config_aspm_l1ss(struct pcie_link_state *link, u32 state)
 	if (enable_req & ASPM_STATE_L1_2_MASK) {
 
 		/* Program T_POWER_ON times in both ports */
-		pci_write_config_dword(parent, up_cap_ptr + PCI_L1SS_CTL2,
+		pci_write_config_dword(parent, parent->l1ss + PCI_L1SS_CTL2,
 				       link->l1ss.ctl2);
-		pci_write_config_dword(child, dw_cap_ptr + PCI_L1SS_CTL2,
+		pci_write_config_dword(child, child->l1ss + PCI_L1SS_CTL2,
 				       link->l1ss.ctl2);
 
 		/* Program Common_Mode_Restore_Time in upstream device */
-		pci_clear_and_set_dword(parent, up_cap_ptr + PCI_L1SS_CTL1,
+		pci_clear_and_set_dword(parent, parent->l1ss + PCI_L1SS_CTL1,
 					PCI_L1SS_CTL1_CM_RESTORE_TIME,
 					link->l1ss.ctl1);
 
 		/* Program LTR_L1.2_THRESHOLD time in both ports */
-		pci_clear_and_set_dword(parent,	up_cap_ptr + PCI_L1SS_CTL1,
+		pci_clear_and_set_dword(parent,	parent->l1ss + PCI_L1SS_CTL1,
 					PCI_L1SS_CTL1_LTR_L12_TH_VALUE |
 					PCI_L1SS_CTL1_LTR_L12_TH_SCALE,
 					link->l1ss.ctl1);
-		pci_clear_and_set_dword(child, dw_cap_ptr + PCI_L1SS_CTL1,
+		pci_clear_and_set_dword(child, child->l1ss + PCI_L1SS_CTL1,
 					PCI_L1SS_CTL1_LTR_L12_TH_VALUE |
 					PCI_L1SS_CTL1_LTR_L12_TH_SCALE,
 					link->l1ss.ctl1);
@@ -733,9 +727,9 @@ static void pcie_config_aspm_l1ss(struct pcie_link_state *link, u32 state)
 		val |= PCI_L1SS_CTL1_PCIPM_L1_2;
 
 	/* Enable what we need to enable */
-	pci_clear_and_set_dword(parent, up_cap_ptr + PCI_L1SS_CTL1,
+	pci_clear_and_set_dword(parent, parent->l1ss + PCI_L1SS_CTL1,
 				PCI_L1SS_CTL1_L1SS_MASK, val);
-	pci_clear_and_set_dword(child, dw_cap_ptr + PCI_L1SS_CTL1,
+	pci_clear_and_set_dword(child, child->l1ss + PCI_L1SS_CTL1,
 				PCI_L1SS_CTL1_L1SS_MASK, val);
 }
 

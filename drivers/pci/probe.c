@@ -2106,6 +2106,9 @@ static void pci_configure_ltr(struct pci_dev *dev)
 	if (!pci_is_pcie(dev))
 		return;
 
+	/* Read L1 PM substate capabilities */
+	dev->l1ss = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_L1SS);
+
 	pcie_capability_read_dword(dev, PCI_EXP_DEVCAP2, &cap);
 	if (!(cap & PCI_EXP_DEVCAP2_LTR))
 		return;
