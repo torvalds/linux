@@ -16,7 +16,7 @@
 #define BPF_PROG_TEST_TCP_HDR_OPTIONS
 #include "test_tcp_hdr_options.h"
 
-__u16 last_addr16_n = __bpf_htons(0xeB9F);
+__u16 last_addr16_n = __bpf_htons(1);
 __u16 active_lport_n = 0;
 __u16 active_lport_h = 0;
 __u16 passive_lport_n = 0;
