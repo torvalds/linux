@@ -209,5 +209,6 @@ struct rkisp_device {
 	phys_addr_t resmem_pa;
 	size_t resmem_size;
 	int dev_id;
+	unsigned int skip_frame;
 };
 #endif

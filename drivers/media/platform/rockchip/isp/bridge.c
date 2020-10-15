@@ -63,6 +63,11 @@ static int frame_end(struct rkisp_bridge_device *dev, bool en)
 			spin_lock_irqsave(&hw->buf_lock, lock_flags);
 			list_add_tail(&hw->cur_buf->list, &hw->list);
 			spin_unlock_irqrestore(&hw->buf_lock, lock_flags);
+		} else if (dev->ispdev->skip_frame > 0) {
+			dev->ispdev->skip_frame--;
+			spin_lock_irqsave(&hw->buf_lock, lock_flags);
+			list_add_tail(&hw->cur_buf->list, &hw->list);
+			spin_unlock_irqrestore(&hw->buf_lock, lock_flags);
 		} else {
 			ns = 0;
 			rkisp_dmarx_get_frame(dev->ispdev,
@@ -458,6 +463,7 @@ static int bridge_start(struct rkisp_bridge_device *dev)
 		if (!(dev->work_mode & ISP_ISPP_QUICK))
 			update_mi(dev);
 	}
+	dev->ispdev->skip_frame = 0;
 	dev->en = true;
 	return 0;
 }

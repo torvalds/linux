@@ -501,6 +501,7 @@ void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm, u32 mode)
 	tmp = rkisp_read(dev, ISP_HDRMGE_BASE, false) & 0xf;
 	if (val != tmp) {
 		rkisp_write(dev, ISP_HDRMGE_BASE, val, false);
+		dev->skip_frame = 2;
 		is_upd = true;
 	}
 
