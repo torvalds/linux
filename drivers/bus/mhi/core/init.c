@@ -1276,10 +1276,8 @@ static int mhi_driver_remove(struct device *dev)
 		mutex_unlock(&mhi_chan->mutex);
 	}
 
-	read_lock_bh(&mhi_cntrl->pm_lock);
 	while (mhi_dev->dev_wake)
 		mhi_device_put(mhi_dev);
-	read_unlock_bh(&mhi_cntrl->pm_lock);
 
 	return 0;
 }
