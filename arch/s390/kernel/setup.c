@@ -568,13 +568,14 @@ static void __init setup_memory_end(void)
 		vmax = _REGION2_SIZE; /* 3-level kernel page table */
 	else
 		vmax = _REGION1_SIZE; /* 4-level kernel page table */
-	if (is_prot_virt_host())
-		adjust_to_uv_max(&vmax);
-#ifdef CONFIG_KASAN
-	vmax = kasan_vmax;
-#endif
 	/* module area is at the end of the kernel address space. */
 	MODULES_END = vmax;
+	if (is_prot_virt_host())
+		adjust_to_uv_max(&MODULES_END);
+#ifdef CONFIG_KASAN
+	vmax = _REGION1_SIZE;
+	MODULES_END = kasan_vmax;
+#endif
 	MODULES_VADDR = MODULES_END - MODULES_LEN;
 	VMALLOC_END = MODULES_VADDR;
 	VMALLOC_START = VMALLOC_END - vmalloc_size;
