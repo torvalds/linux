@@ -171,8 +171,7 @@ static void rtl_rfreg_delay(struct adapter *adapt, enum rf_radio_path rfpath, u3
 	}
 }
 
-static void rtl8188e_config_rf_reg(struct adapter *adapt,
-	u32 addr, u32 data)
+static void rtl8188e_config_rf_reg(struct adapter *adapt, u32 addr, u32 data)
 {
 	u32 content = 0x1000; /*RF Content: radio_a_txt*/
 	u32 maskforphyset = content & 0xE000;
@@ -206,8 +205,8 @@ static bool rtl88e_phy_config_rf_with_headerfile(struct adapter *adapt)
 				READ_NEXT_PAIR(v1, v2, i);
 				while (v2 != 0xDEAD && v2 != 0xCDEF &&
 				       v2 != 0xCDCD && i < array_len - 2) {
-						rtl8188e_config_rf_reg(adapt, v1, v2);
-						READ_NEXT_PAIR(v1, v2, i);
+					rtl8188e_config_rf_reg(adapt, v1, v2);
+					READ_NEXT_PAIR(v1, v2, i);
 				}
 
 				while (v2 != 0xDEAD && i < array_len - 2)

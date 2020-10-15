@@ -566,7 +566,7 @@ static int gp2ap002_probe(struct i2c_client *client,
 
 	/*
 	 * Initialize the device and signal to runtime PM that now we are
-	 * definately up and using power.
+	 * definitely up and using power.
 	 */
 	ret = gp2ap002_init(gp2ap002);
 	if (ret) {

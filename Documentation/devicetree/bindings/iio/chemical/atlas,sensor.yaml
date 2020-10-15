@@ -19,6 +19,8 @@ description: |
     http://www.atlas-scientific.com/_files/_datasheets/_oem/pH_oem_datasheet.pdf
     http://www.atlas-scientific.com/_files/_datasheets/_oem/RTD_oem_datasheet.pdf
     http://www.atlas-scientific.com/_files/_datasheets/_probe/EZO_CO2_Datasheet.pdf
+    https://www.atlas-scientific.com/files/EZO_O2_datasheet.pdf
+    https://www.atlas-scientific.com/files/EZO_HUM_Datasheet.pdf
 
 properties:
   compatible:
@@ -29,6 +31,8 @@ properties:
       - atlas,ph-sm
       - atlas,rtd-sm
       - atlas,co2-ezo
+      - atlas,o2-ezo
+      - atlas,hum-ezo
 
   reg:
     maxItems: 1

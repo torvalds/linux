@@ -18,8 +18,6 @@ menuconfig MOST_COMPONENTS
 
 if MOST_COMPONENTS
 
-source "drivers/staging/most/cdev/Kconfig"
-
 source "drivers/staging/most/net/Kconfig"
 
 source "drivers/staging/most/sound/Kconfig"

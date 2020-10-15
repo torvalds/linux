@@ -132,6 +132,22 @@ properties:
           - mcube,mc3230
             # MEMSIC 2-axis 8-bit digital accelerometer
           - memsic,mxc6225
+            # Microchip differential I2C ADC, 1 Channel, 18 bit
+          - microchip,mcp3421
+            # Microchip differential I2C ADC, 2 Channel, 18 bit
+          - microchip,mcp3422
+            # Microchip differential I2C ADC, 2 Channel, 18 bit
+          - microchip,mcp3423
+            # Microchip differential I2C ADC, 4 Channel, 18 bit
+          - microchip,mcp3424
+            # Microchip differential I2C ADC, 1 Channel, 16 bit
+          - microchip,mcp3425
+            # Microchip differential I2C ADC, 2 Channel, 16 bit
+          - microchip,mcp3426
+            # Microchip differential I2C ADC, 2 Channel, 16 bit
+          - microchip,mcp3427
+            # Microchip differential I2C ADC, 4 Channel, 16 bit
+          - microchip,mcp3428
             # Microchip 7-bit Single I2C Digital POT (5k)
           - microchip,mcp4017-502
             # Microchip 7-bit Single I2C Digital POT (10k)
