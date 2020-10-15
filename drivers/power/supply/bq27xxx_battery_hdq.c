@@ -104,7 +104,7 @@ static void bq27xxx_battery_hdq_remove_slave(struct w1_slave *sl)
 	bq27xxx_battery_teardown(di);
 }
 
-static struct w1_family_ops bq27xxx_battery_hdq_fops = {
+static const struct w1_family_ops bq27xxx_battery_hdq_fops = {
 	.add_slave	= bq27xxx_battery_hdq_add_slave,
 	.remove_slave	= bq27xxx_battery_hdq_remove_slave,
 };

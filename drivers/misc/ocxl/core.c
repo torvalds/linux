@@ -327,14 +327,9 @@ static void free_function_dev(struct device *dev)
 
 static int set_function_device(struct ocxl_fn *fn, struct pci_dev *dev)
 {
-	int rc;
-
 	fn->dev.parent = &dev->dev;
 	fn->dev.release = free_function_dev;
-	rc = dev_set_name(&fn->dev, "ocxlfn.%s", dev_name(&dev->dev));
-	if (rc)
-		return rc;
-	return 0;
+	return dev_set_name(&fn->dev, "ocxlfn.%s", dev_name(&dev->dev));
 }
 
 static int assign_function_actag(struct ocxl_fn *fn)

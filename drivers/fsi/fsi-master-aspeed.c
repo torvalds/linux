@@ -13,6 +13,7 @@
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/iopoll.h>
+#include <linux/gpio/consumer.h>
 
 #include "fsi-master.h"
 
@@ -21,6 +22,7 @@ struct fsi_master_aspeed {
 	struct device		*dev;
 	void __iomem		*base;
 	struct clk		*clk;
+	struct gpio_desc	*cfam_reset_gpio;
 };
 
 #define to_fsi_master_aspeed(m) \
@@ -82,7 +84,12 @@ static const u32 fsi_base = 0xa0000000;
 
 #define FSI_LINK_ENABLE_SETUP_TIME	10	/* in mS */
 
-#define DEFAULT_DIVISOR			14
+/* Run the bus at maximum speed by default */
+#define FSI_DIVISOR_DEFAULT            1
+#define FSI_DIVISOR_CABLED             2
+static u16 aspeed_fsi_divisor = FSI_DIVISOR_DEFAULT;
+module_param_named(bus_div,aspeed_fsi_divisor, ushort, 0);
+
 #define OPB_POLL_TIMEOUT		10000
 
 static int __opb_write(struct fsi_master_aspeed *aspeed, u32 addr,
@@ -241,9 +248,10 @@ static int aspeed_master_read(struct fsi_master *master, int link,
 	struct fsi_master_aspeed *aspeed = to_fsi_master_aspeed(master);
 	int ret;
 
-	if (id != 0)
+	if (id > 0x3)
 		return -EINVAL;
 
+	addr |= id << 21;
 	addr += link * FSI_HUB_LINK_SIZE;
 
 	switch (size) {
@@ -273,9 +281,10 @@ static int aspeed_master_write(struct fsi_master *master, int link,
 	struct fsi_master_aspeed *aspeed = to_fsi_master_aspeed(master);
 	int ret;
 
-	if (id != 0)
+	if (id > 0x3)
 		return -EINVAL;
 
+	addr |= id << 21;
 	addr += link * FSI_HUB_LINK_SIZE;
 
 	switch (size) {
@@ -299,31 +308,27 @@ static int aspeed_master_write(struct fsi_master *master, int link,
 	return 0;
 }
 
-static int aspeed_master_link_enable(struct fsi_master *master, int link)
+static int aspeed_master_link_enable(struct fsi_master *master, int link,
+				     bool enable)
 {
 	struct fsi_master_aspeed *aspeed = to_fsi_master_aspeed(master);
 	int idx, bit, ret;
-	__be32 reg, result;
+	__be32 reg;
 
 	idx = link / 32;
 	bit = link % 32;
 
 	reg = cpu_to_be32(0x80000000 >> bit);
 
+	if (!enable)
+		return opb_writel(aspeed, ctrl_base + FSI_MCENP0 + (4 * idx),
+				  reg);
+
 	ret = opb_writel(aspeed, ctrl_base + FSI_MSENP0 + (4 * idx), reg);
 	if (ret)
 		return ret;
 
 	mdelay(FSI_LINK_ENABLE_SETUP_TIME);
-
-	ret = opb_readl(aspeed, ctrl_base + FSI_MENP0 + (4 * idx), &result);
-	if (ret)
-		return ret;
-
-	if (result != reg) {
-		dev_err(aspeed->dev, "%s failed: %08x\n", __func__, result);
-		return -EIO;
-	}
 
 	return 0;
 }
@@ -386,9 +391,11 @@ static int aspeed_master_init(struct fsi_master_aspeed *aspeed)
 	opb_writel(aspeed, ctrl_base + FSI_MECTRL, reg);
 
 	reg = cpu_to_be32(FSI_MMODE_ECRC | FSI_MMODE_EPC | FSI_MMODE_RELA
-			| fsi_mmode_crs0(DEFAULT_DIVISOR)
-			| fsi_mmode_crs1(DEFAULT_DIVISOR)
+			| fsi_mmode_crs0(aspeed_fsi_divisor)
+			| fsi_mmode_crs1(aspeed_fsi_divisor)
 			| FSI_MMODE_P8_TO_LSB);
+	dev_info(aspeed->dev, "mmode set to %08x (divisor %d)\n",
+			be32_to_cpu(reg), aspeed_fsi_divisor);
 	opb_writel(aspeed, ctrl_base + FSI_MMODE, reg);
 
 	reg = cpu_to_be32(0xffff0000);
@@ -419,12 +426,102 @@ static int aspeed_master_init(struct fsi_master_aspeed *aspeed)
 	return 0;
 }
 
+static ssize_t cfam_reset_store(struct device *dev, struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct fsi_master_aspeed *aspeed = dev_get_drvdata(dev);
+
+	gpiod_set_value(aspeed->cfam_reset_gpio, 1);
+	usleep_range(900, 1000);
+	gpiod_set_value(aspeed->cfam_reset_gpio, 0);
+
+	return count;
+}
+
+static DEVICE_ATTR(cfam_reset, 0200, NULL, cfam_reset_store);
+
+static int setup_cfam_reset(struct fsi_master_aspeed *aspeed)
+{
+	struct device *dev = aspeed->dev;
+	struct gpio_desc *gpio;
+	int rc;
+
+	gpio = devm_gpiod_get_optional(dev, "cfam-reset", GPIOD_OUT_LOW);
+	if (IS_ERR(gpio))
+		return PTR_ERR(gpio);
+	if (!gpio)
+		return 0;
+
+	aspeed->cfam_reset_gpio = gpio;
+
+	rc = device_create_file(dev, &dev_attr_cfam_reset);
+	if (rc) {
+		devm_gpiod_put(dev, gpio);
+		return rc;
+	}
+
+	return 0;
+}
+
+static int tacoma_cabled_fsi_fixup(struct device *dev)
+{
+	struct gpio_desc *routing_gpio, *mux_gpio;
+	int gpio;
+
+	/*
+	 * The routing GPIO is a jumper indicating we should mux for the
+	 * externally connected FSI cable.
+	 */
+	routing_gpio = devm_gpiod_get_optional(dev, "fsi-routing",
+			GPIOD_IN | GPIOD_FLAGS_BIT_NONEXCLUSIVE);
+	if (IS_ERR(routing_gpio))
+		return PTR_ERR(routing_gpio);
+	if (!routing_gpio)
+		return 0;
+
+	mux_gpio = devm_gpiod_get_optional(dev, "fsi-mux", GPIOD_ASIS);
+	if (IS_ERR(mux_gpio))
+		return PTR_ERR(mux_gpio);
+	if (!mux_gpio)
+		return 0;
+
+	gpio = gpiod_get_value(routing_gpio);
+	if (gpio < 0)
+		return gpio;
+
+	/* If the routing GPIO is high we should set the mux to low. */
+	if (gpio) {
+		/*
+		 * Cable signal integrity means we should run the bus
+		 * slightly slower. Do not override if a kernel param
+		 * has already overridden.
+		 */
+		if (aspeed_fsi_divisor == FSI_DIVISOR_DEFAULT)
+			aspeed_fsi_divisor = FSI_DIVISOR_CABLED;
+
+		gpiod_direction_output(mux_gpio, 0);
+		dev_info(dev, "FSI configured for external cable\n");
+	} else {
+		gpiod_direction_output(mux_gpio, 1);
+	}
+
+	devm_gpiod_put(dev, routing_gpio);
+
+	return 0;
+}
+
 static int fsi_master_aspeed_probe(struct platform_device *pdev)
 {
 	struct fsi_master_aspeed *aspeed;
 	struct resource *res;
 	int rc, links, reg;
 	__be32 raw;
+
+	rc = tacoma_cabled_fsi_fixup(&pdev->dev);
+	if (rc) {
+		dev_err(&pdev->dev, "Tacoma FSI cable fixup failed\n");
+		return rc;
+	}
 
 	aspeed = devm_kzalloc(&pdev->dev, sizeof(*aspeed), GFP_KERNEL);
 	if (!aspeed)
@@ -446,6 +543,11 @@ static int fsi_master_aspeed_probe(struct platform_device *pdev)
 	if (rc) {
 		dev_err(aspeed->dev, "couldn't enable clock\n");
 		return rc;
+	}
+
+	rc = setup_cfam_reset(aspeed);
+	if (rc) {
+		dev_err(&pdev->dev, "CFAM reset GPIO setup failed\n");
 	}
 
 	writel(0x1, aspeed->base + OPB_CLK_SYNC);
