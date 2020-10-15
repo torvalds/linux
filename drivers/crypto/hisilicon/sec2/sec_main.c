@@ -660,12 +660,10 @@ static int sec_debugfs_init(struct hisi_qm *qm)
 	if (ret)
 		goto failed_to_create;
 
-
 	return 0;
 
 failed_to_create:
 	debugfs_remove_recursive(sec_debugfs_root);
-
 	return ret;
 }
 
@@ -683,13 +681,13 @@ static void sec_log_hw_error(struct hisi_qm *qm, u32 err_sts)
 	while (errs->msg) {
 		if (errs->int_msk & err_sts) {
 			dev_err(dev, "%s [error status=0x%x] found\n",
-				errs->msg, errs->int_msk);
+					errs->msg, errs->int_msk);
 
 			if (SEC_CORE_INT_STATUS_M_ECC & errs->int_msk) {
 				err_val = readl(qm->io_base +
 						SEC_CORE_SRAM_ECC_ERR_INFO);
 				dev_err(dev, "multi ecc sram num=0x%x\n",
-					SEC_ECC_NUM(err_val));
+						SEC_ECC_NUM(err_val));
 			}
 		}
 		errs++;
@@ -724,13 +722,13 @@ static const struct hisi_qm_err_ini sec_err_ini = {
 	.log_dev_hw_err		= sec_log_hw_error,
 	.open_axi_master_ooo	= sec_open_axi_master_ooo,
 	.err_info		= {
-		.ce			= QM_BASE_CE,
-		.nfe			= QM_BASE_NFE | QM_ACC_DO_TASK_TIMEOUT |
-					  QM_ACC_WB_NOT_READY_TIMEOUT,
-		.fe			= 0,
-		.ecc_2bits_mask		= SEC_CORE_INT_STATUS_M_ECC,
-		.msi_wr_port		= BIT(0),
-		.acpi_rst		= "SRST",
+		.ce		= QM_BASE_CE,
+		.nfe		= QM_BASE_NFE | QM_ACC_DO_TASK_TIMEOUT |
+				  QM_ACC_WB_NOT_READY_TIMEOUT,
+		.fe		= 0,
+		.ecc_2bits_mask	= SEC_CORE_INT_STATUS_M_ECC,
+		.msi_wr_port	= BIT(0),
+		.acpi_rst	= "SRST",
 	}
 };
 
@@ -899,17 +897,13 @@ static int sec_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 err_alg_unregister:
 	hisi_qm_alg_unregister(qm, &sec_devices);
-
 err_qm_stop:
 	sec_debugfs_exit(qm);
 	hisi_qm_stop(qm, QM_NORMAL);
-
 err_probe_uninit:
 	sec_probe_uninit(qm);
-
 err_qm_uninit:
 	sec_qm_uninit(qm);
-
 	return ret;
 }
 
@@ -936,9 +930,9 @@ static void sec_remove(struct pci_dev *pdev)
 
 static const struct pci_error_handlers sec_err_handler = {
 	.error_detected = hisi_qm_dev_err_detected,
-	.slot_reset =  hisi_qm_dev_slot_reset,
-	.reset_prepare		= hisi_qm_reset_prepare,
-	.reset_done		= hisi_qm_reset_done,
+	.slot_reset	= hisi_qm_dev_slot_reset,
+	.reset_prepare	= hisi_qm_reset_prepare,
+	.reset_done	= hisi_qm_reset_done,
 };
 
 static struct pci_driver sec_pci_driver = {
