@@ -610,8 +610,19 @@ static int decode_encrypt_ctx(struct TCP_Server_Info *server,
 		return -EINVAL;
 	}
 	cifs_dbg(FYI, "SMB311 cipher type:%d\n", le16_to_cpu(ctxt->Ciphers[0]));
-	if ((ctxt->Ciphers[0] != SMB2_ENCRYPTION_AES128_CCM) &&
-	    (ctxt->Ciphers[0] != SMB2_ENCRYPTION_AES128_GCM)) {
+	if (require_gcm_256) {
+		if (ctxt->Ciphers[0] != SMB2_ENCRYPTION_AES256_GCM) {
+			cifs_dbg(VFS, "Server does not support requested encryption type (AES256 GCM)\n");
+			return -EOPNOTSUPP;
+		}
+	} else if (ctxt->Ciphers[0] == 0) {
+		/* e.g. if server only supported AES256_CCM (very unlikely) */
+		cifs_dbg(VFS, "Server does not support requested encryption types\n");
+		return -EOPNOTSUPP;
+	} else if ((ctxt->Ciphers[0] != SMB2_ENCRYPTION_AES128_CCM) &&
+		   (ctxt->Ciphers[0] != SMB2_ENCRYPTION_AES128_GCM) &&
+		   (ctxt->Ciphers[0] != SMB2_ENCRYPTION_AES256_GCM)) {
+		/* server returned a cipher we didn't ask for */
 		pr_warn_once("Invalid SMB3.11 cipher returned\n");
 		return -EINVAL;
 	}
