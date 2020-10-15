@@ -299,4 +299,7 @@ void rvin_crop_scale_comp(struct rvin_dev *vin);
 int rvin_set_channel_routing(struct rvin_dev *vin, u8 chsel);
 void rvin_set_alpha(struct rvin_dev *vin, unsigned int alpha);
 
+int rvin_start_streaming(struct rvin_dev *vin);
+void rvin_stop_streaming(struct rvin_dev *vin);
+
 #endif
