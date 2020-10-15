@@ -116,10 +116,11 @@ static int hda_codec_probe(struct snd_sof_dev *sdev, int address,
 {
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
 	struct hdac_hda_priv *hda_priv;
+	struct hda_codec *codec;
+	int type = HDA_DEV_LEGACY;
 #endif
 	struct hda_bus *hbus = sof_to_hbus(sdev);
 	struct hdac_device *hdev;
-	struct hda_codec *codec;
 	u32 hda_cmd = (address << 28) | (AC_NODE_ROOT << 20) |
 		(AC_VERB_PARAMETERS << 8) | AC_PAR_VENDOR_ID;
 	u32 resp = -1;
@@ -143,7 +144,11 @@ static int hda_codec_probe(struct snd_sof_dev *sdev, int address,
 	hdev = &hda_priv->codec.core;
 	codec = &hda_priv->codec;
 
-	ret = snd_hdac_ext_bus_device_init(&hbus->core, address, hdev);
+	/* only probe ASoC codec drivers for HDAC-HDMI */
+	if (!hda_codec_use_common_hdmi && (resp & 0xFFFF0000) == IDISP_VID_INTEL)
+		type = HDA_DEV_ASOC;
+
+	ret = snd_hdac_ext_bus_device_init(&hbus->core, address, hdev, type);
 	if (ret < 0)
 		return ret;
 
@@ -151,7 +156,7 @@ static int hda_codec_probe(struct snd_sof_dev *sdev, int address,
 		if (!hdev->bus->audio_component) {
 			dev_dbg(sdev->dev,
 				"iDisp hw present but no driver\n");
-			return -ENOENT;
+			goto error;
 		}
 		hda_priv->need_display_power = true;
 	}
@@ -161,29 +166,28 @@ static int hda_codec_probe(struct snd_sof_dev *sdev, int address,
 	else
 		codec->probe_id = 0;
 
-	/*
-	 * if common HDMI codec driver is not used, codec load
-	 * is skipped here and hdac_hdmi is used instead
-	 */
-	if (hda_codec_use_common_hdmi ||
-	    (resp & 0xFFFF0000) != IDISP_VID_INTEL) {
-		hdev->type = HDA_DEV_LEGACY;
+	if (type == HDA_DEV_LEGACY) {
 		ret = hda_codec_load_module(codec);
 		/*
 		 * handle ret==0 (no driver bound) as an error, but pass
 		 * other return codes without modification
 		 */
 		if (ret == 0)
-			ret = -ENOENT;
+			goto error;
 	}
 
 	return ret;
+
+error:
+	snd_hdac_ext_bus_device_exit(hdev);
+	return -ENOENT;
+
 #else
 	hdev = devm_kzalloc(sdev->dev, sizeof(*hdev), GFP_KERNEL);
 	if (!hdev)
 		return -ENOMEM;
 
-	ret = snd_hdac_ext_bus_device_init(&hbus->core, address, hdev);
+	ret = snd_hdac_ext_bus_device_init(&hbus->core, address, hdev, HDA_DEV_ASOC);
 
 	return ret;
 #endif

@@ -246,21 +246,12 @@ static int tegra_max98090_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = snd_soc_register_card(card);
+	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret) {
 		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n",
 			ret);
 		return ret;
 	}
-
-	return 0;
-}
-
-static int tegra_max98090_remove(struct platform_device *pdev)
-{
-	struct snd_soc_card *card = platform_get_drvdata(pdev);
-
-	snd_soc_unregister_card(card);
 
 	return 0;
 }
@@ -277,7 +268,6 @@ static struct platform_driver tegra_max98090_driver = {
 		.of_match_table = tegra_max98090_of_match,
 	},
 	.probe = tegra_max98090_probe,
-	.remove = tegra_max98090_remove,
 };
 module_platform_driver(tegra_max98090_driver);
 

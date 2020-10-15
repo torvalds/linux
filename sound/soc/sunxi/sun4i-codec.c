@@ -335,7 +335,7 @@ static int sun4i_codec_prepare_capture(struct snd_pcm_substream *substream,
 
 	/*
 	 * FIXME: Undocumented in the datasheet, but
-	 *        Allwinner's code mentions that it is related
+	 *        Allwinner's code mentions that it is
 	 *        related to microphone gain
 	 */
 	if (of_device_is_compatible(scodec->dev->of_node,

@@ -386,6 +386,11 @@ static int dmaengine_pcm_request_chan_of(struct dmaengine_pcm *pcm,
 			name = config->chan_names[i];
 		chan = dma_request_chan(dev, name);
 		if (IS_ERR(chan)) {
+			/*
+			 * Only report probe deferral errors, channels
+			 * might not be present for devices that
+			 * support only TX or only RX.
+			 */
 			if (PTR_ERR(chan) == -EPROBE_DEFER)
 				return -EPROBE_DEFER;
 			pcm->chan[i] = NULL;

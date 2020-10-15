@@ -54,6 +54,7 @@ static void ipc_log_header(struct device *dev, u8 *text, u32 cmd)
 	u8 *str2 = NULL;
 	u32 glb;
 	u32 type;
+	bool vdbg = false;
 
 	glb = cmd & SOF_GLB_TYPE_MASK;
 	type = cmd & SOF_CMD_TYPE_MASK;
@@ -146,6 +147,7 @@ static void ipc_log_header(struct device *dev, u8 *text, u32 cmd)
 		case SOF_IPC_STREAM_TRIG_XRUN:
 			str2 = "TRIG_XRUN"; break;
 		case SOF_IPC_STREAM_POSITION:
+			vdbg = true;
 			str2 = "POSITION"; break;
 		case SOF_IPC_STREAM_VORBIS_PARAMS:
 			str2 = "VORBIS_PARAMS"; break;
@@ -183,10 +185,14 @@ static void ipc_log_header(struct device *dev, u8 *text, u32 cmd)
 		str = "unknown GLB command"; break;
 	}
 
-	if (str2)
-		dev_dbg(dev, "%s: 0x%x: %s: %s\n", text, cmd, str, str2);
-	else
+	if (str2) {
+		if (vdbg)
+			dev_vdbg(dev, "%s: 0x%x: %s: %s\n", text, cmd, str, str2);
+		else
+			dev_dbg(dev, "%s: 0x%x: %s: %s\n", text, cmd, str, str2);
+	} else {
 		dev_dbg(dev, "%s: 0x%x: %s\n", text, cmd, str);
+	}
 }
 #else
 static inline void ipc_log_header(struct device *dev, u8 *text, u32 cmd)
@@ -449,8 +455,8 @@ static void ipc_period_elapsed(struct snd_sof_dev *sdev, u32 msg_id)
 	stream = &spcm->stream[direction];
 	snd_sof_ipc_msg_data(sdev, stream->substream, &posn, sizeof(posn));
 
-	dev_dbg(sdev->dev, "posn : host 0x%llx dai 0x%llx wall 0x%llx\n",
-		posn.host_posn, posn.dai_posn, posn.wallclock);
+	dev_vdbg(sdev->dev, "posn : host 0x%llx dai 0x%llx wall 0x%llx\n",
+		 posn.host_posn, posn.dai_posn, posn.wallclock);
 
 	memcpy(&stream->posn, &posn, sizeof(posn));
 

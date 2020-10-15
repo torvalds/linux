@@ -8,6 +8,8 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
@@ -17,7 +19,7 @@
 #define PERIODS_MAX		48
 #define PERIOD_BYTES_MIN	4096
 #define BUFFER_BYTES_MAX	(PERIODS_MAX * PERIOD_BYTES_MIN)
-#define TDM_OPERATION		1
+#define TDM_OPERATION		5
 #define I2S_OPERATION		0
 #define DATA_WIDTH_CONFIG_BIT	6
 #define TDM_CHANNEL_CONFIG_BIT	3
@@ -82,19 +84,25 @@ static unsigned int kmb_pcm_rx_fn(struct kmb_i2s_info *kmb_i2s,
 {
 	unsigned int period_pos = rx_ptr % runtime->period_size;
 	void __iomem *i2s_base = kmb_i2s->i2s_base;
+	int chan = kmb_i2s->config.chan_nr;
 	void *buf = runtime->dma_area;
-	int i;
+	int i, j;
 
 	/* KMB i2s uses two separate L/R FIFO */
 	for (i = 0; i < kmb_i2s->fifo_th; i++) {
-		if (kmb_i2s->config.data_width == 16) {
-			((u16(*)[2])buf)[rx_ptr][0] = readl(i2s_base + LRBR_LTHR(0));
-			((u16(*)[2])buf)[rx_ptr][1] = readl(i2s_base + RRBR_RTHR(0));
-		} else {
-			((u32(*)[2])buf)[rx_ptr][0] = readl(i2s_base + LRBR_LTHR(0));
-			((u32(*)[2])buf)[rx_ptr][1] = readl(i2s_base + RRBR_RTHR(0));
+		for (j = 0; j < chan / 2; j++) {
+			if (kmb_i2s->config.data_width == 16) {
+				((u16 *)buf)[rx_ptr * chan + (j * 2)] =
+						readl(i2s_base + LRBR_LTHR(j));
+				((u16 *)buf)[rx_ptr * chan + ((j * 2) + 1)] =
+						readl(i2s_base + RRBR_RTHR(j));
+			} else {
+				((u32 *)buf)[rx_ptr * chan + (j * 2)] =
+						readl(i2s_base + LRBR_LTHR(j));
+				((u32 *)buf)[rx_ptr * chan + ((j * 2) + 1)] =
+						readl(i2s_base + RRBR_RTHR(j));
+			}
 		}
-
 		period_pos++;
 
 		if (++rx_ptr >= runtime->buffer_size)
@@ -238,6 +246,7 @@ static irqreturn_t kmb_i2s_irq_handler(int irq, void *dev_id)
 	struct kmb_i2s_info *kmb_i2s = dev_id;
 	struct i2s_clk_config_data *config = &kmb_i2s->config;
 	irqreturn_t ret = IRQ_NONE;
+	u32 tx_enabled = 0;
 	u32 isr[4];
 	int i;
 
@@ -246,22 +255,45 @@ static irqreturn_t kmb_i2s_irq_handler(int irq, void *dev_id)
 
 	kmb_i2s_clear_irqs(kmb_i2s, SNDRV_PCM_STREAM_PLAYBACK);
 	kmb_i2s_clear_irqs(kmb_i2s, SNDRV_PCM_STREAM_CAPTURE);
+	/* Only check TX interrupt if TX is active */
+	tx_enabled = readl(kmb_i2s->i2s_base + ITER);
+
+	/*
+	 * Data available. Retrieve samples from FIFO
+	 */
+
+	/*
+	 * 8 channel audio will have isr[0..2] triggered,
+	 * reading the specific isr based on the audio configuration,
+	 * to avoid reading the buffers too early.
+	 */
+	switch (config->chan_nr) {
+	case 2:
+		if (isr[0] & ISR_RXDA)
+			kmb_pcm_operation(kmb_i2s, false);
+		ret = IRQ_HANDLED;
+		break;
+	case 4:
+		if (isr[1] & ISR_RXDA)
+			kmb_pcm_operation(kmb_i2s, false);
+		ret = IRQ_HANDLED;
+		break;
+	case 8:
+		if (isr[3] & ISR_RXDA)
+			kmb_pcm_operation(kmb_i2s, false);
+		ret = IRQ_HANDLED;
+		break;
+	}
 
 	for (i = 0; i < config->chan_nr / 2; i++) {
 		/*
 		 * Check if TX fifo is empty. If empty fill FIFO with samples
 		 */
-		if ((isr[i] & ISR_TXFE)) {
+		if ((isr[i] & ISR_TXFE) && tx_enabled) {
 			kmb_pcm_operation(kmb_i2s, true);
 			ret = IRQ_HANDLED;
 		}
-		/*
-		 * Data available. Retrieve samples from FIFO
-		 */
-		if ((isr[i] & ISR_RXDA)) {
-			kmb_pcm_operation(kmb_i2s, false);
-			ret = IRQ_HANDLED;
-		}
+
 		/* Error Handling: TX */
 		if (isr[i] & ISR_TXFO) {
 			dev_dbg(kmb_i2s->dev, "TX overrun (ch_id=%d)\n", i);
@@ -445,7 +477,7 @@ static int kmb_dai_hw_params(struct snd_pcm_substream *substream,
 {
 	struct kmb_i2s_info *kmb_i2s = snd_soc_dai_get_drvdata(cpu_dai);
 	struct i2s_clk_config_data *config = &kmb_i2s->config;
-	u32 register_val, write_val;
+	u32 write_val;
 	int ret;
 
 	switch (params_format(hw_params)) {
@@ -472,16 +504,34 @@ static int kmb_dai_hw_params(struct snd_pcm_substream *substream,
 	config->chan_nr = params_channels(hw_params);
 
 	switch (config->chan_nr) {
-	/* TODO: This switch case will handle up to TDM8 in the near future */
-	case TWO_CHANNEL_SUPPORT:
+	case 8:
+	case 4:
+		/*
+		 * Platform is not capable of providing clocks for
+		 * multi channel audio
+		 */
+		if (kmb_i2s->master)
+			return -EINVAL;
+
+		write_val = ((config->chan_nr / 2) << TDM_CHANNEL_CONFIG_BIT) |
+				(config->data_width << DATA_WIDTH_CONFIG_BIT) |
+				TDM_OPERATION;
+
+		writel(write_val, kmb_i2s->pss_base + I2S_GEN_CFG_0);
+		break;
+	case 2:
+		/*
+		 * Platform is only capable of providing clocks need for
+		 * 2 channel master mode
+		 */
+		if (!(kmb_i2s->master))
+			return -EINVAL;
+
 		write_val = ((config->chan_nr / 2) << TDM_CHANNEL_CONFIG_BIT) |
 				(config->data_width << DATA_WIDTH_CONFIG_BIT) |
 				MASTER_MODE | I2S_OPERATION;
 
 		writel(write_val, kmb_i2s->pss_base + I2S_GEN_CFG_0);
-
-		register_val = readl(kmb_i2s->pss_base + I2S_GEN_CFG_0);
-		dev_dbg(kmb_i2s->dev, "pss register = 0x%X", register_val);
 		break;
 	default:
 		dev_dbg(kmb_i2s->dev, "channel not supported\n");
@@ -529,9 +579,9 @@ static struct snd_soc_dai_ops kmb_dai_ops = {
 	.set_fmt	= kmb_set_dai_fmt,
 };
 
-static struct snd_soc_dai_driver intel_kmb_platform_dai[] = {
+static struct snd_soc_dai_driver intel_kmb_i2s_dai[] = {
 	{
-		.name = "kmb-plat-dai",
+		.name = "intel_kmb_i2s",
 		.playback = {
 			.channels_min = 2,
 			.channels_max = 2,
@@ -547,10 +597,6 @@ static struct snd_soc_dai_driver intel_kmb_platform_dai[] = {
 		.capture = {
 			.channels_min = 2,
 			.channels_max = 2,
-			/*
-			 * .channels_max will be overwritten
-			 * if provided by Device Tree
-			 */
 			.rates = SNDRV_PCM_RATE_8000 |
 				 SNDRV_PCM_RATE_16000 |
 				 SNDRV_PCM_RATE_48000,
@@ -564,9 +610,35 @@ static struct snd_soc_dai_driver intel_kmb_platform_dai[] = {
 	},
 };
 
+static struct snd_soc_dai_driver intel_kmb_tdm_dai[] = {
+	{
+		.name = "intel_kmb_tdm",
+		.capture = {
+			.channels_min = 4,
+			.channels_max = 8,
+			.rates = SNDRV_PCM_RATE_8000 |
+				 SNDRV_PCM_RATE_16000 |
+				 SNDRV_PCM_RATE_48000,
+			.rate_min = 8000,
+			.rate_max = 48000,
+			.formats = (SNDRV_PCM_FMTBIT_S32_LE |
+				    SNDRV_PCM_FMTBIT_S24_LE |
+				    SNDRV_PCM_FMTBIT_S16_LE),
+		},
+		.ops = &kmb_dai_ops,
+	},
+};
+
+static const struct of_device_id kmb_plat_of_match[] = {
+	{ .compatible = "intel,keembay-i2s", .data = &intel_kmb_i2s_dai},
+	{ .compatible = "intel,keembay-tdm", .data = &intel_kmb_tdm_dai},
+	{}
+};
+
 static int kmb_plat_dai_probe(struct platform_device *pdev)
 {
 	struct snd_soc_dai_driver *kmb_i2s_dai;
+	const struct of_device_id *match;
 	struct device *dev = &pdev->dev;
 	struct kmb_i2s_info *kmb_i2s;
 	int ret, irq;
@@ -580,7 +652,12 @@ static int kmb_plat_dai_probe(struct platform_device *pdev)
 	if (!kmb_i2s_dai)
 		return -ENOMEM;
 
-	kmb_i2s_dai->ops = &kmb_dai_ops;
+	match = of_match_device(kmb_plat_of_match, &pdev->dev);
+	if (!match) {
+		dev_err(&pdev->dev, "Error: No device match found\n");
+		return -ENODEV;
+	}
+	kmb_i2s_dai = (struct snd_soc_dai_driver *) match->data;
 
 	/* Prepare the related clocks */
 	kmb_i2s->clk_apb = devm_clk_get(dev, "apb_clk");
@@ -630,8 +707,7 @@ static int kmb_plat_dai_probe(struct platform_device *pdev)
 	kmb_i2s->fifo_th = (1 << COMP1_FIFO_DEPTH(comp1_reg)) / 2;
 
 	ret = devm_snd_soc_register_component(dev, &kmb_component,
-					      intel_kmb_platform_dai,
-				ARRAY_SIZE(intel_kmb_platform_dai));
+					      kmb_i2s_dai, 1);
 	if (ret) {
 		dev_err(dev, "not able to register dai\n");
 		return ret;
@@ -645,11 +721,6 @@ static int kmb_plat_dai_probe(struct platform_device *pdev)
 
 	return ret;
 }
-
-static const struct of_device_id kmb_plat_of_match[] = {
-	{ .compatible = "intel,keembay-i2s", },
-	{}
-};
 
 static struct platform_driver kmb_plat_dai_driver = {
 	.driver		= {

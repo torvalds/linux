@@ -21,13 +21,13 @@
 #define SNDRV_TIMER_HW_STOP	0x00000002	/* call stop before start */
 #define SNDRV_TIMER_HW_SLAVE	0x00000004	/* only slave timer (variable resolution) */
 #define SNDRV_TIMER_HW_FIRST	0x00000008	/* first tick can be incomplete */
-#define SNDRV_TIMER_HW_TASKLET	0x00000010	/* timer is called from tasklet */
+#define SNDRV_TIMER_HW_WORK	0x00000010	/* timer is called from work */
 
 #define SNDRV_TIMER_IFLG_SLAVE	  0x00000001
 #define SNDRV_TIMER_IFLG_RUNNING  0x00000002
 #define SNDRV_TIMER_IFLG_START	  0x00000004
 #define SNDRV_TIMER_IFLG_AUTO	  0x00000008	/* auto restart */
-#define SNDRV_TIMER_IFLG_FAST	  0x00000010	/* fast callback (do not use tasklet) */
+#define SNDRV_TIMER_IFLG_FAST	  0x00000010	/* fast callback (do not use work) */
 #define SNDRV_TIMER_IFLG_CALLBACK 0x00000020	/* timer callback is active */
 #define SNDRV_TIMER_IFLG_EXCLUSIVE 0x00000040	/* exclusive owner - no more instances */
 #define SNDRV_TIMER_IFLG_EARLY_EVENT 0x00000080	/* write early event to the poll queue */
@@ -74,7 +74,7 @@ struct snd_timer {
 	struct list_head active_list_head;
 	struct list_head ack_list_head;
 	struct list_head sack_list_head; /* slow ack list head */
-	struct tasklet_struct task_queue;
+	struct work_struct task_work;
 	int max_instances;	/* upper limit of timer instances */
 	int num_instances;	/* current number of timer instances */
 };
@@ -96,7 +96,7 @@ struct snd_timer_instance {
 	unsigned long ticks;		/* auto-load ticks when expired */
 	unsigned long cticks;		/* current ticks */
 	unsigned long pticks;		/* accumulated ticks for callback */
-	unsigned long resolution;	/* current resolution for tasklet */
+	unsigned long resolution;	/* current resolution for work */
 	unsigned long lost;		/* lost ticks */
 	int slave_class;
 	unsigned int slave_id;
