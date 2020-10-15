@@ -749,10 +749,12 @@ enum nft_payload_bases {
  *
  * @NFT_PAYLOAD_CSUM_NONE: no checksumming
  * @NFT_PAYLOAD_CSUM_INET: internet checksum (RFC 791)
+ * @NFT_PAYLOAD_CSUM_SCTP: CRC-32c, for use in SCTP header (RFC 3309)
  */
 enum nft_payload_csum_types {
 	NFT_PAYLOAD_CSUM_NONE,
 	NFT_PAYLOAD_CSUM_INET,
+	NFT_PAYLOAD_CSUM_SCTP,
 };
 
 enum nft_payload_csum_flags {
