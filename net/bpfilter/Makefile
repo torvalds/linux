@@ -5,7 +5,7 @@
 
 userprogs := bpfilter_umh
 bpfilter_umh-objs := main.o
-userccflags += -I $(srctree)/tools/include/ -I $(srctree)/tools/include/uapi -I usr/include/
+userccflags += -I $(srctree)/tools/include/ -I $(srctree)/tools/include/uapi
 
 ifeq ($(CONFIG_BPFILTER_UMH), y)
 # builtin bpfilter_umh should be linked with -static
