@@ -75,8 +75,6 @@ static int r9701_get_datetime(struct device *dev, struct rtc_time *dt)
 	if (ret)
 		return ret;
 
-	memset(dt, 0, sizeof(*dt));
-
 	dt->tm_sec = bcd2bin(buf[0]); /* RSECCNT */
 	dt->tm_min = bcd2bin(buf[1]); /* RMINCNT */
 	dt->tm_hour = bcd2bin(buf[2]); /* RHRCNT */
