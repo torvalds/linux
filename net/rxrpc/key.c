@@ -5,7 +5,7 @@
  * Written by David Howells (dhowells@redhat.com)
  *
  * RxRPC keys should have a description of describing their purpose:
- *	"afs@CAMBRIDGE.REDHAT.COM>
+ *	"afs@example.com"
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
