@@ -1907,7 +1907,7 @@ static bool dcn301_resource_construct(
 	/* ABM (or ABMs for NV2x) */
 	/* TODO: */
 	for (i = 0; i < pool->base.res_cap->num_timing_generator; i++) {
-		pool->base.multiple_abms[i] = dce_abm_create(ctx,
+		pool->base.multiple_abms[i] = dmub_abm_create(ctx,
 				&abm_regs[i],
 				&abm_shift,
 				&abm_mask);
