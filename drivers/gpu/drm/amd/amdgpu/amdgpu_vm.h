@@ -274,6 +274,9 @@ struct amdgpu_vm {
 	/* BO mappings freed, but not yet updated in the PT */
 	struct list_head	freed;
 
+	/* BOs which are invalidated, has been updated in the PTs */
+	struct list_head        done;
+
 	/* contains the page directory */
 	struct amdgpu_vm_pt     root;
 	struct dma_fence	*last_update;

@@ -300,7 +300,7 @@ static void amdgpu_vm_bo_relocated(struct amdgpu_vm_bo_base *vm_bo)
 static void amdgpu_vm_bo_done(struct amdgpu_vm_bo_base *vm_bo)
 {
 	spin_lock(&vm_bo->vm->invalidated_lock);
-	list_del_init(&vm_bo->vm_status);
+	list_move(&vm_bo->vm_status, &vm_bo->vm->done);
 	spin_unlock(&vm_bo->vm->invalidated_lock);
 }
 
@@ -2823,7 +2823,7 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	INIT_LIST_HEAD(&vm->invalidated);
 	spin_lock_init(&vm->invalidated_lock);
 	INIT_LIST_HEAD(&vm->freed);
-
+	INIT_LIST_HEAD(&vm->done);
 
 	/* create scheduler entities for page table updates */
 	r = drm_sched_entity_init(&vm->immediate, DRM_SCHED_PRIORITY_NORMAL,
@@ -3410,11 +3410,13 @@ void amdgpu_debugfs_vm_bo_info(struct amdgpu_vm *vm, struct seq_file *m)
 	u64 total_relocated = 0;
 	u64 total_moved = 0;
 	u64 total_invalidated = 0;
+	u64 total_done = 0;
 	unsigned int total_idle_objs = 0;
 	unsigned int total_evicted_objs = 0;
 	unsigned int total_relocated_objs = 0;
 	unsigned int total_moved_objs = 0;
 	unsigned int total_invalidated_objs = 0;
+	unsigned int total_done_objs = 0;
 	unsigned int id = 0;
 
 	seq_puts(m, "\tIdle BOs:\n");
@@ -3460,8 +3462,17 @@ void amdgpu_debugfs_vm_bo_info(struct amdgpu_vm *vm, struct seq_file *m)
 			continue;
 		total_invalidated += amdgpu_bo_print_info(id++,	bo_va->base.bo, m);
 	}
-	spin_unlock(&vm->invalidated_lock);
 	total_invalidated_objs = id;
+	id = 0;
+
+	seq_puts(m, "\tDone BOs:\n");
+	list_for_each_entry_safe(bo_va, tmp, &vm->done, base.vm_status) {
+		if (!bo_va->base.bo)
+			continue;
+		total_done += amdgpu_bo_print_info(id++, bo_va->base.bo, m);
+	}
+	spin_unlock(&vm->invalidated_lock);
+	total_done_objs = id;
 
 	seq_printf(m, "\tTotal idle size:        %12lld\tobjs:\t%d\n", total_idle,
 		   total_idle_objs);
@@ -3473,5 +3484,7 @@ void amdgpu_debugfs_vm_bo_info(struct amdgpu_vm *vm, struct seq_file *m)
 		   total_moved_objs);
 	seq_printf(m, "\tTotal invalidated size: %12lld\tobjs:\t%d\n", total_invalidated,
 		   total_invalidated_objs);
+	seq_printf(m, "\tTotal done size:        %12lld\tobjs:\t%d\n", total_done,
+		   total_done_objs);
 }
 #endif
