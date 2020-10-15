@@ -100,7 +100,6 @@ static int r9701_set_datetime(struct device *dev, struct rtc_time *dt)
 	ret = ret ? ret : write_reg(dev, RDAYCNT, bin2bcd(dt->tm_mday));
 	ret = ret ? ret : write_reg(dev, RMONCNT, bin2bcd(dt->tm_mon + 1));
 	ret = ret ? ret : write_reg(dev, RYRCNT, bin2bcd(dt->tm_year - 100));
-	ret = ret ? ret : write_reg(dev, RWKCNT, 1 << dt->tm_wday);
 
 	return ret;
 }
