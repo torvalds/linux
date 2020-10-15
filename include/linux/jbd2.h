@@ -538,6 +538,7 @@ struct transaction_chp_stats_s {
  * The transaction keeps track of all of the buffers modified by a
  * running transaction, and all of the buffers committed but not yet
  * flushed to home for finished transactions.
+ * (Locking Documentation improved by LockDoc)
  */
 
 /*
@@ -658,12 +659,12 @@ struct transaction_s
 	unsigned long		t_start;
 
 	/*
-	 * When commit was requested
+	 * When commit was requested [j_state_lock]
 	 */
 	unsigned long		t_requested;
 
 	/*
-	 * Checkpointing stats [j_checkpoint_sem]
+	 * Checkpointing stats [j_list_lock]
 	 */
 	struct transaction_chp_stats_s t_chp_stats;
 
