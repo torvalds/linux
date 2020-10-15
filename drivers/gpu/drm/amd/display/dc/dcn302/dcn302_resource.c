@@ -65,65 +65,9 @@
 #include "dcn/dpcs_3_0_0_offset.h"
 #include "dcn/dpcs_3_0_0_sh_mask.h"
 #include "nbio/nbio_7_4_offset.h"
+#include "amdgpu_socbb.h"
 
 #define DC_LOGGER_INIT(logger)
-
-struct gpu_info_voltage_scaling_v1_0 {
-	int state;
-	uint32_t dscclk_mhz;
-	uint32_t dcfclk_mhz;
-	uint32_t socclk_mhz;
-	uint32_t dram_speed_mts;
-	uint32_t fabricclk_mhz;
-	uint32_t dispclk_mhz;
-	uint32_t phyclk_mhz;
-	uint32_t dppclk_mhz;
-};
-
-struct gpu_info_soc_bounding_box_v1_0 {
-	uint32_t sr_exit_time_us;
-	uint32_t sr_enter_plus_exit_time_us;
-	uint32_t urgent_latency_us;
-	uint32_t urgent_latency_pixel_data_only_us;
-	uint32_t urgent_latency_pixel_mixed_with_vm_data_us;
-	uint32_t urgent_latency_vm_data_only_us;
-	uint32_t writeback_latency_us;
-	uint32_t ideal_dram_bw_after_urgent_percent;
-	// PercentOfIdealDRAMFabricAndSDPPortBWReceivedAfterUrgLatencyPixelDataOnly
-	uint32_t pct_ideal_dram_sdp_bw_after_urgent_pixel_only;
-	uint32_t pct_ideal_dram_sdp_bw_after_urgent_pixel_and_vm;
-	uint32_t pct_ideal_dram_sdp_bw_after_urgent_vm_only;
-	uint32_t max_avg_sdp_bw_use_normal_percent;
-	uint32_t max_avg_dram_bw_use_normal_percent;
-	unsigned int max_request_size_bytes;
-	uint32_t downspread_percent;
-	uint32_t dram_page_open_time_ns;
-	uint32_t dram_rw_turnaround_time_ns;
-	uint32_t dram_return_buffer_per_channel_bytes;
-	uint32_t dram_channel_width_bytes;
-	uint32_t fabric_datapath_to_dcn_data_return_bytes;
-	uint32_t dcn_downspread_percent;
-	uint32_t dispclk_dppclk_vco_speed_mhz;
-	uint32_t dfs_vco_period_ps;
-	unsigned int urgent_out_of_order_return_per_channel_pixel_only_bytes;
-	unsigned int urgent_out_of_order_return_per_channel_pixel_and_vm_bytes;
-	unsigned int urgent_out_of_order_return_per_channel_vm_only_bytes;
-	unsigned int round_trip_ping_latency_dcfclk_cycles;
-	unsigned int urgent_out_of_order_return_per_channel_bytes;
-	unsigned int channel_interleave_bytes;
-	unsigned int num_banks;
-	unsigned int num_chans;
-	unsigned int vmm_page_size_bytes;
-	uint32_t dram_clock_change_latency_us;
-	uint32_t writeback_dram_clock_change_latency_us;
-	unsigned int return_bus_width_bytes;
-	unsigned int voltage_override;
-	uint32_t xfc_bus_transport_time_us;
-	uint32_t xfc_xbuf_latency_tolerance_us;
-	int use_urgent_burst_bw;
-	unsigned int num_states;
-	struct gpu_info_voltage_scaling_v1_0 clock_limits[8];
-};
 
 struct _vcs_dpi_ip_params_st dcn3_02_ip = {
 		.use_min_dcfclk = 0,
