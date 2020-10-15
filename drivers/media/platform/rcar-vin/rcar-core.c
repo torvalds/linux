@@ -919,6 +919,54 @@ static int rvin_mc_init(struct rvin_dev *vin)
 }
 
 /* -----------------------------------------------------------------------------
+ * Suspend / Resume
+ */
+
+static int __maybe_unused rvin_suspend(struct device *dev)
+{
+	struct rvin_dev *vin = dev_get_drvdata(dev);
+
+	if (vin->state != RUNNING)
+		return 0;
+
+	rvin_stop_streaming(vin);
+
+	vin->state = SUSPENDED;
+
+	return 0;
+}
+
+static int __maybe_unused rvin_resume(struct device *dev)
+{
+	struct rvin_dev *vin = dev_get_drvdata(dev);
+
+	if (vin->state != SUSPENDED)
+		return 0;
+
+	/*
+	 * Restore group master CHSEL setting.
+	 *
+	 * This needs to be done by every VIN resuming not only the master
+	 * as we don't know if and in which order the master VINs will
+	 * be resumed.
+	 */
+	if (vin->info->use_mc) {
+		unsigned int master_id = rvin_group_id_to_master(vin->id);
+		struct rvin_dev *master = vin->group->vin[master_id];
+		int ret;
+
+		if (WARN_ON(!master))
+			return -ENODEV;
+
+		ret = rvin_set_channel_routing(master, master->chsel);
+		if (ret)
+			return ret;
+	}
+
+	return rvin_start_streaming(vin);
+}
+
+/* -----------------------------------------------------------------------------
  * Platform Device Driver
  */
 
@@ -1405,9 +1453,12 @@ static int rcar_vin_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static SIMPLE_DEV_PM_OPS(rvin_pm_ops, rvin_suspend, rvin_resume);
+
 static struct platform_driver rcar_vin_driver = {
 	.driver = {
 		.name = "rcar-vin",
+		.pm = &rvin_pm_ops,
 		.of_match_table = rvin_of_id_table,
 	},
 	.probe = rcar_vin_probe,
