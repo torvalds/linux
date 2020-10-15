@@ -101,8 +101,8 @@ static int ext4_inode_csum_verify(struct inode *inode, struct ext4_inode *raw,
 	return provided == calculated;
 }
 
-static void ext4_inode_csum_set(struct inode *inode, struct ext4_inode *raw,
-				struct ext4_inode_info *ei)
+void ext4_inode_csum_set(struct inode *inode, struct ext4_inode *raw,
+			 struct ext4_inode_info *ei)
 {
 	__u32 csum;
 
@@ -514,7 +514,8 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 		return -EFSCORRUPTED;
 
 	/* Lookup extent status tree firstly */
-	if (ext4_es_lookup_extent(inode, map->m_lblk, NULL, &es)) {
+	if (!(EXT4_SB(inode->i_sb)->s_mount_state & EXT4_FC_REPLAY) &&
+	    ext4_es_lookup_extent(inode, map->m_lblk, NULL, &es)) {
 		if (ext4_es_is_written(&es) || ext4_es_is_unwritten(&es)) {
 			map->m_pblk = ext4_es_pblock(&es) +
 					map->m_lblk - es.es_lblk;
@@ -827,7 +828,8 @@ struct buffer_head *ext4_getblk(handle_t *handle, struct inode *inode,
 	int create = map_flags & EXT4_GET_BLOCKS_CREATE;
 	int err;
 
-	J_ASSERT(handle != NULL || create == 0);
+	J_ASSERT((EXT4_SB(inode->i_sb)->s_mount_state & EXT4_FC_REPLAY)
+		 || handle != NULL || create == 0);
 
 	map.m_lblk = block;
 	map.m_len = 1;
@@ -843,7 +845,8 @@ struct buffer_head *ext4_getblk(handle_t *handle, struct inode *inode,
 		return ERR_PTR(-ENOMEM);
 	if (map.m_flags & EXT4_MAP_NEW) {
 		J_ASSERT(create != 0);
-		J_ASSERT(handle != NULL);
+		J_ASSERT((EXT4_SB(inode->i_sb)->s_mount_state & EXT4_FC_REPLAY)
+			 || (handle != NULL));
 
 		/*
 		 * Now that we do not always journal data, we should
@@ -4284,22 +4287,22 @@ out_trace:
  * data in memory that is needed to recreate the on-disk version of this
  * inode.
  */
-static int __ext4_get_inode_loc(struct inode *inode,
-				struct ext4_iloc *iloc, int in_mem)
+static int __ext4_get_inode_loc(struct super_block *sb, unsigned long ino,
+				struct ext4_iloc *iloc, int in_mem,
+				ext4_fsblk_t *ret_block)
 {
 	struct ext4_group_desc	*gdp;
 	struct buffer_head	*bh;
-	struct super_block	*sb = inode->i_sb;
 	ext4_fsblk_t		block;
 	struct blk_plug		plug;
 	int			inodes_per_block, inode_offset;
 
 	iloc->bh = NULL;
-	if (inode->i_ino < EXT4_ROOT_INO ||
-	    inode->i_ino > le32_to_cpu(EXT4_SB(sb)->s_es->s_inodes_count))
+	if (ino < EXT4_ROOT_INO ||
+	    ino > le32_to_cpu(EXT4_SB(sb)->s_es->s_inodes_count))
 		return -EFSCORRUPTED;
 
-	iloc->block_group = (inode->i_ino - 1) / EXT4_INODES_PER_GROUP(sb);
+	iloc->block_group = (ino - 1) / EXT4_INODES_PER_GROUP(sb);
 	gdp = ext4_get_group_desc(sb, iloc->block_group, NULL);
 	if (!gdp)
 		return -EIO;
@@ -4308,7 +4311,7 @@ static int __ext4_get_inode_loc(struct inode *inode,
 	 * Figure out the offset within the block group inode table
 	 */
 	inodes_per_block = EXT4_SB(sb)->s_inodes_per_block;
-	inode_offset = ((inode->i_ino - 1) %
+	inode_offset = ((ino - 1) %
 			EXT4_INODES_PER_GROUP(sb));
 	block = ext4_inode_table(sb, gdp) + (inode_offset / inodes_per_block);
 	iloc->offset = (inode_offset % inodes_per_block) * EXT4_INODE_SIZE(sb);
@@ -4400,14 +4403,14 @@ make_io:
 		 * has in-inode xattrs, or we don't have this inode in memory.
 		 * Read the block from disk.
 		 */
-		trace_ext4_load_inode(inode);
+		trace_ext4_load_inode(sb, ino);
 		ext4_read_bh_nowait(bh, REQ_META | REQ_PRIO, NULL);
 		blk_finish_plug(&plug);
 		wait_on_buffer(bh);
 		if (!buffer_uptodate(bh)) {
 		simulate_eio:
-			ext4_error_inode_block(inode, block, EIO,
-					       "unable to read itable block");
+			if (ret_block)
+				*ret_block = block;
 			brelse(bh);
 			return -EIO;
 		}
@@ -4417,11 +4420,43 @@ has_buffer:
 	return 0;
 }
 
+static int __ext4_get_inode_loc_noinmem(struct inode *inode,
+					struct ext4_iloc *iloc)
+{
+	ext4_fsblk_t err_blk;
+	int ret;
+
+	ret = __ext4_get_inode_loc(inode->i_sb, inode->i_ino, iloc, 0,
+					&err_blk);
+
+	if (ret == -EIO)
+		ext4_error_inode_block(inode, err_blk, EIO,
+					"unable to read itable block");
+
+	return ret;
+}
+
 int ext4_get_inode_loc(struct inode *inode, struct ext4_iloc *iloc)
 {
+	ext4_fsblk_t err_blk;
+	int ret;
+
 	/* We have all inode data except xattrs in memory here. */
-	return __ext4_get_inode_loc(inode, iloc,
-		!ext4_test_inode_state(inode, EXT4_STATE_XATTR));
+	ret = __ext4_get_inode_loc(inode->i_sb, inode->i_ino, iloc,
+		!ext4_test_inode_state(inode, EXT4_STATE_XATTR), &err_blk);
+
+	if (ret == -EIO)
+		ext4_error_inode_block(inode, err_blk, EIO,
+					"unable to read itable block");
+
+	return ret;
+}
+
+
+int ext4_get_fc_inode_loc(struct super_block *sb, unsigned long ino,
+			  struct ext4_iloc *iloc)
+{
+	return __ext4_get_inode_loc(sb, ino, iloc, 0, NULL);
 }
 
 static bool ext4_should_enable_dax(struct inode *inode)
@@ -4587,7 +4622,7 @@ struct inode *__ext4_iget(struct super_block *sb, unsigned long ino,
 	ei = EXT4_I(inode);
 	iloc.bh = NULL;
 
-	ret = __ext4_get_inode_loc(inode, &iloc, 0);
+	ret = __ext4_get_inode_loc_noinmem(inode, &iloc);
 	if (ret < 0)
 		goto bad_inode;
 	raw_inode = ext4_raw_inode(&iloc);
@@ -4633,10 +4668,11 @@ struct inode *__ext4_iget(struct super_block *sb, unsigned long ino,
 					      sizeof(gen));
 	}
 
-	if (!ext4_inode_csum_verify(inode, raw_inode, ei) ||
-	    ext4_simulate_fail(sb, EXT4_SIM_INODE_CRC)) {
-		ext4_error_inode_err(inode, function, line, 0, EFSBADCRC,
-				     "iget: checksum invalid");
+	if ((!ext4_inode_csum_verify(inode, raw_inode, ei) ||
+	    ext4_simulate_fail(sb, EXT4_SIM_INODE_CRC)) &&
+	     (!(EXT4_SB(sb)->s_mount_state & EXT4_FC_REPLAY))) {
+		ext4_error_inode_err(inode, function, line, 0,
+				EFSBADCRC, "iget: checksum invalid");
 		ret = -EFSBADCRC;
 		goto bad_inode;
 	}
@@ -4790,9 +4826,10 @@ struct inode *__ext4_iget(struct super_block *sb, unsigned long ino,
 		goto bad_inode;
 	} else if (!ext4_has_inline_data(inode)) {
 		/* validate the block references in the inode */
-		if (S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
-		   (S_ISLNK(inode->i_mode) &&
-		    !ext4_inode_is_fast_symlink(inode))) {
+		if (!(EXT4_SB(sb)->s_mount_state & EXT4_FC_REPLAY) &&
+			(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
+			(S_ISLNK(inode->i_mode) &&
+			!ext4_inode_is_fast_symlink(inode)))) {
 			if (ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))
 				ret = ext4_ext_check_inode(inode);
 			else
@@ -5176,7 +5213,7 @@ int ext4_write_inode(struct inode *inode, struct writeback_control *wbc)
 	} else {
 		struct ext4_iloc iloc;
 
-		err = __ext4_get_inode_loc(inode, &iloc, 0);
+		err = __ext4_get_inode_loc_noinmem(inode, &iloc);
 		if (err)
 			return err;
 		/*

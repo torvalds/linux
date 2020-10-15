@@ -5804,3 +5804,264 @@ out:
 
 	return err ? err : mapped;
 }
+
+/*
+ * Updates physical block address and unwritten status of extent
+ * starting at lblk start and of len. If such an extent doesn't exist,
+ * this function splits the extent tree appropriately to create an
+ * extent like this.  This function is called in the fast commit
+ * replay path.  Returns 0 on success and error on failure.
+ */
+int ext4_ext_replay_update_ex(struct inode *inode, ext4_lblk_t start,
+			      int len, int unwritten, ext4_fsblk_t pblk)
+{
+	struct ext4_ext_path *path = NULL, *ppath;
+	struct ext4_extent *ex;
+	int ret;
+
+	path = ext4_find_extent(inode, start, NULL, 0);
+	if (!path)
+		return -EINVAL;
+	ex = path[path->p_depth].p_ext;
+	if (!ex) {
+		ret = -EFSCORRUPTED;
+		goto out;
+	}
+
+	if (le32_to_cpu(ex->ee_block) != start ||
+		ext4_ext_get_actual_len(ex) != len) {
+		/* We need to split this extent to match our extent first */
+		ppath = path;
+		down_write(&EXT4_I(inode)->i_data_sem);
+		ret = ext4_force_split_extent_at(NULL, inode, &ppath, start, 1);
+		up_write(&EXT4_I(inode)->i_data_sem);
+		if (ret)
+			goto out;
+		kfree(path);
+		path = ext4_find_extent(inode, start, NULL, 0);
+		if (IS_ERR(path))
+			return -1;
+		ppath = path;
+		ex = path[path->p_depth].p_ext;
+		WARN_ON(le32_to_cpu(ex->ee_block) != start);
+		if (ext4_ext_get_actual_len(ex) != len) {
+			down_write(&EXT4_I(inode)->i_data_sem);
+			ret = ext4_force_split_extent_at(NULL, inode, &ppath,
+							 start + len, 1);
+			up_write(&EXT4_I(inode)->i_data_sem);
+			if (ret)
+				goto out;
+			kfree(path);
+			path = ext4_find_extent(inode, start, NULL, 0);
+			if (IS_ERR(path))
+				return -EINVAL;
+			ex = path[path->p_depth].p_ext;
+		}
+	}
+	if (unwritten)
+		ext4_ext_mark_unwritten(ex);
+	else
+		ext4_ext_mark_initialized(ex);
+	ext4_ext_store_pblock(ex, pblk);
+	down_write(&EXT4_I(inode)->i_data_sem);
+	ret = ext4_ext_dirty(NULL, inode, &path[path->p_depth]);
+	up_write(&EXT4_I(inode)->i_data_sem);
+out:
+	ext4_ext_drop_refs(path);
+	kfree(path);
+	ext4_mark_inode_dirty(NULL, inode);
+	return ret;
+}
+
+/* Try to shrink the extent tree */
+void ext4_ext_replay_shrink_inode(struct inode *inode, ext4_lblk_t end)
+{
+	struct ext4_ext_path *path = NULL;
+	struct ext4_extent *ex;
+	ext4_lblk_t old_cur, cur = 0;
+
+	while (cur < end) {
+		path = ext4_find_extent(inode, cur, NULL, 0);
+		if (IS_ERR(path))
+			return;
+		ex = path[path->p_depth].p_ext;
+		if (!ex) {
+			ext4_ext_drop_refs(path);
+			kfree(path);
+			ext4_mark_inode_dirty(NULL, inode);
+			return;
+		}
+		old_cur = cur;
+		cur = le32_to_cpu(ex->ee_block) + ext4_ext_get_actual_len(ex);
+		if (cur <= old_cur)
+			cur = old_cur + 1;
+		ext4_ext_try_to_merge(NULL, inode, path, ex);
+		down_write(&EXT4_I(inode)->i_data_sem);
+		ext4_ext_dirty(NULL, inode, &path[path->p_depth]);
+		up_write(&EXT4_I(inode)->i_data_sem);
+		ext4_mark_inode_dirty(NULL, inode);
+		ext4_ext_drop_refs(path);
+		kfree(path);
+	}
+}
+
+/* Check if *cur is a hole and if it is, skip it */
+static void skip_hole(struct inode *inode, ext4_lblk_t *cur)
+{
+	int ret;
+	struct ext4_map_blocks map;
+
+	map.m_lblk = *cur;
+	map.m_len = ((inode->i_size) >> inode->i_sb->s_blocksize_bits) - *cur;
+
+	ret = ext4_map_blocks(NULL, inode, &map, 0);
+	if (ret != 0)
+		return;
+	*cur = *cur + map.m_len;
+}
+
+/* Count number of blocks used by this inode and update i_blocks */
+int ext4_ext_replay_set_iblocks(struct inode *inode)
+{
+	struct ext4_ext_path *path = NULL, *path2 = NULL;
+	struct ext4_extent *ex;
+	ext4_lblk_t cur = 0, end;
+	int numblks = 0, i, ret = 0;
+	ext4_fsblk_t cmp1, cmp2;
+	struct ext4_map_blocks map;
+
+	/* Determin the size of the file first */
+	path = ext4_find_extent(inode, EXT_MAX_BLOCKS - 1, NULL,
+					EXT4_EX_NOCACHE);
+	if (IS_ERR(path))
+		return PTR_ERR(path);
+	ex = path[path->p_depth].p_ext;
+	if (!ex) {
+		ext4_ext_drop_refs(path);
+		kfree(path);
+		goto out;
+	}
+	end = le32_to_cpu(ex->ee_block) + ext4_ext_get_actual_len(ex);
+	ext4_ext_drop_refs(path);
+	kfree(path);
+
+	/* Count the number of data blocks */
+	cur = 0;
+	while (cur < end) {
+		map.m_lblk = cur;
+		map.m_len = end - cur;
+		ret = ext4_map_blocks(NULL, inode, &map, 0);
+		if (ret < 0)
+			break;
+		if (ret > 0)
+			numblks += ret;
+		cur = cur + map.m_len;
+	}
+
+	/*
+	 * Count the number of extent tree blocks. We do it by looking up
+	 * two successive extents and determining the difference between
+	 * their paths. When path is different for 2 successive extents
+	 * we compare the blocks in the path at each level and increment
+	 * iblocks by total number of differences found.
+	 */
+	cur = 0;
+	skip_hole(inode, &cur);
+	path = ext4_find_extent(inode, cur, NULL, 0);
+	if (IS_ERR(path))
+		goto out;
+	numblks += path->p_depth;
+	ext4_ext_drop_refs(path);
+	kfree(path);
+	while (cur < end) {
+		path = ext4_find_extent(inode, cur, NULL, 0);
+		if (IS_ERR(path))
+			break;
+		ex = path[path->p_depth].p_ext;
+		if (!ex) {
+			ext4_ext_drop_refs(path);
+			kfree(path);
+			return 0;
+		}
+		cur = max(cur + 1, le32_to_cpu(ex->ee_block) +
+					ext4_ext_get_actual_len(ex));
+		skip_hole(inode, &cur);
+
+		path2 = ext4_find_extent(inode, cur, NULL, 0);
+		if (IS_ERR(path2)) {
+			ext4_ext_drop_refs(path);
+			kfree(path);
+			break;
+		}
+		ex = path2[path2->p_depth].p_ext;
+		for (i = 0; i <= max(path->p_depth, path2->p_depth); i++) {
+			cmp1 = cmp2 = 0;
+			if (i <= path->p_depth)
+				cmp1 = path[i].p_bh ?
+					path[i].p_bh->b_blocknr : 0;
+			if (i <= path2->p_depth)
+				cmp2 = path2[i].p_bh ?
+					path2[i].p_bh->b_blocknr : 0;
+			if (cmp1 != cmp2 && cmp2 != 0)
+				numblks++;
+		}
+		ext4_ext_drop_refs(path);
+		ext4_ext_drop_refs(path2);
+		kfree(path);
+		kfree(path2);
+	}
+
+out:
+	inode->i_blocks = numblks << (inode->i_sb->s_blocksize_bits - 9);
+	ext4_mark_inode_dirty(NULL, inode);
+	return 0;
+}
+
+int ext4_ext_clear_bb(struct inode *inode)
+{
+	struct ext4_ext_path *path = NULL;
+	struct ext4_extent *ex;
+	ext4_lblk_t cur = 0, end;
+	int j, ret = 0;
+	struct ext4_map_blocks map;
+
+	/* Determin the size of the file first */
+	path = ext4_find_extent(inode, EXT_MAX_BLOCKS - 1, NULL,
+					EXT4_EX_NOCACHE);
+	if (IS_ERR(path))
+		return PTR_ERR(path);
+	ex = path[path->p_depth].p_ext;
+	if (!ex) {
+		ext4_ext_drop_refs(path);
+		kfree(path);
+		return 0;
+	}
+	end = le32_to_cpu(ex->ee_block) + ext4_ext_get_actual_len(ex);
+	ext4_ext_drop_refs(path);
+	kfree(path);
+
+	cur = 0;
+	while (cur < end) {
+		map.m_lblk = cur;
+		map.m_len = end - cur;
+		ret = ext4_map_blocks(NULL, inode, &map, 0);
+		if (ret < 0)
+			break;
+		if (ret > 0) {
+			path = ext4_find_extent(inode, map.m_lblk, NULL, 0);
+			if (!IS_ERR_OR_NULL(path)) {
+				for (j = 0; j < path->p_depth; j++) {
+
+					ext4_mb_mark_bb(inode->i_sb,
+							path[j].p_block, 1, 0);
+				}
+				ext4_ext_drop_refs(path);
+				kfree(path);
+			}
+			ext4_mb_mark_bb(inode->i_sb, map.m_pblk, map.m_len, 0);
+		}
+		cur = cur + map.m_len;
+	}
+
+	return 0;
+}

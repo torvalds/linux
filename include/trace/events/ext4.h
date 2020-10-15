@@ -1776,9 +1776,9 @@ TRACE_EVENT(ext4_ext_load_extent,
 );
 
 TRACE_EVENT(ext4_load_inode,
-	TP_PROTO(struct inode *inode),
+	TP_PROTO(struct super_block *sb, unsigned long ino),
 
-	TP_ARGS(inode),
+	TP_ARGS(sb, ino),
 
 	TP_STRUCT__entry(
 		__field(	dev_t,	dev		)
@@ -1786,8 +1786,8 @@ TRACE_EVENT(ext4_load_inode,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= inode->i_sb->s_dev;
-		__entry->ino		= inode->i_ino;
+		__entry->dev		= sb->s_dev;
+		__entry->ino		= ino;
 	),
 
 	TP_printk("dev %d,%d ino %ld",
@@ -2799,6 +2799,54 @@ TRACE_EVENT(ext4_lazy_itable_init,
 
 	TP_printk("dev %d,%d group %u",
 		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->group)
+);
+
+TRACE_EVENT(ext4_fc_replay_scan,
+	TP_PROTO(struct super_block *sb, int error, int off),
+
+	TP_ARGS(sb, error, off),
+
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(int, error)
+		__field(int, off)
+	),
+
+	TP_fast_assign(
+		__entry->dev = sb->s_dev;
+		__entry->error = error;
+		__entry->off = off;
+	),
+
+	TP_printk("FC scan pass on dev %d,%d: error %d, off %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->error, __entry->off)
+);
+
+TRACE_EVENT(ext4_fc_replay,
+	TP_PROTO(struct super_block *sb, int tag, int ino, int priv1, int priv2),
+
+	TP_ARGS(sb, tag, ino, priv1, priv2),
+
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(int, tag)
+		__field(int, ino)
+		__field(int, priv1)
+		__field(int, priv2)
+	),
+
+	TP_fast_assign(
+		__entry->dev = sb->s_dev;
+		__entry->tag = tag;
+		__entry->ino = ino;
+		__entry->priv1 = priv1;
+		__entry->priv2 = priv2;
+	),
+
+	TP_printk("FC Replay %d,%d: tag %d, ino %d, data1 %d, data2 %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->tag, __entry->ino, __entry->priv1, __entry->priv2)
 );
 
 TRACE_EVENT(ext4_fc_commit_start,

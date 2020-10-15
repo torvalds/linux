@@ -116,4 +116,44 @@ struct ext4_fc_stats {
 	unsigned long fc_numblks;
 };
 
+#define EXT4_FC_REPLAY_REALLOC_INCREMENT	4
+
+/*
+ * Physical block regions added to different inodes due to fast commit
+ * recovery. These are set during the SCAN phase. During the replay phase,
+ * our allocator excludes these from its allocation. This ensures that
+ * we don't accidentally allocating a block that is going to be used by
+ * another inode.
+ */
+struct ext4_fc_alloc_region {
+	ext4_lblk_t lblk;
+	ext4_fsblk_t pblk;
+	int ino, len;
+};
+
+/*
+ * Fast commit replay state.
+ */
+struct ext4_fc_replay_state {
+	int fc_replay_num_tags;
+	int fc_replay_expected_off;
+	int fc_current_pass;
+	int fc_cur_tag;
+	int fc_crc;
+	struct ext4_fc_alloc_region *fc_regions;
+	int fc_regions_size, fc_regions_used, fc_regions_valid;
+	int *fc_modified_inodes;
+	int fc_modified_inodes_used, fc_modified_inodes_size;
+};
+
+#define region_last(__region) (((__region)->lblk) + ((__region)->len) - 1)
+
+#define fc_for_each_tl(__start, __end, __tl)				\
+	for (tl = (struct ext4_fc_tl *)start;				\
+		(u8 *)tl < (u8 *)end;					\
+		tl = (struct ext4_fc_tl *)((u8 *)tl +			\
+					sizeof(struct ext4_fc_tl) +	\
+					+ le16_to_cpu(tl->fc_len)))
+
+
 #endif /* __FAST_COMMIT_H__ */
