@@ -24,6 +24,7 @@ struct io_uring_task {
 	struct wait_queue_head	wait;
 	struct file		*last;
 	atomic_long_t		req_issue;
+	struct io_identity	identity;
 
 	/* completion side */
 	bool			in_idle ____cacheline_aligned_in_smp;

@@ -689,7 +689,6 @@ struct io_kiocb {
 	struct hlist_node		hash_node;
 	struct async_poll		*apoll;
 	struct io_wq_work		work;
-	struct io_identity		identity;
 };
 
 struct io_defer_entry {
@@ -1072,8 +1071,7 @@ static inline void io_req_init_async(struct io_kiocb *req)
 
 	memset(&req->work, 0, sizeof(req->work));
 	req->flags |= REQ_F_WORK_INITIALIZED;
-	io_init_identity(&req->identity);
-	req->work.identity = &req->identity;
+	req->work.identity = &current->io_uring->identity;
 }
 
 static inline bool io_async_submit(struct io_ring_ctx *ctx)
@@ -1179,9 +1177,9 @@ static void __io_commit_cqring(struct io_ring_ctx *ctx)
 	}
 }
 
-static void io_put_identity(struct io_kiocb *req)
+static void io_put_identity(struct io_uring_task *tctx, struct io_kiocb *req)
 {
-	if (req->work.identity == &req->identity)
+	if (req->work.identity == &tctx->identity)
 		return;
 	if (refcount_dec_and_test(&req->work.identity->count))
 		kfree(req->work.identity);
@@ -1220,7 +1218,7 @@ static void io_req_clean_work(struct io_kiocb *req)
 		req->work.flags &= ~IO_WQ_WORK_FS;
 	}
 
-	io_put_identity(req);
+	io_put_identity(req->task->io_uring, req);
 }
 
 /*
@@ -1229,6 +1227,7 @@ static void io_req_clean_work(struct io_kiocb *req)
  */
 static bool io_identity_cow(struct io_kiocb *req)
 {
+	struct io_uring_task *tctx = current->io_uring;
 	const struct cred *creds = NULL;
 	struct io_identity *id;
 
@@ -1255,7 +1254,7 @@ static bool io_identity_cow(struct io_kiocb *req)
 	refcount_inc(&id->count);
 
 	/* drop old identity, assign new one. one ref for req, one for tctx */
-	if (req->work.identity != &req->identity &&
+	if (req->work.identity != &tctx->identity &&
 	    refcount_sub_and_test(2, &req->work.identity->count))
 		kfree(req->work.identity);
 
@@ -1266,7 +1265,7 @@ static bool io_identity_cow(struct io_kiocb *req)
 static bool io_grab_identity(struct io_kiocb *req)
 {
 	const struct io_op_def *def = &io_op_defs[req->opcode];
-	struct io_identity *id = &req->identity;
+	struct io_identity *id = req->work.identity;
 	struct io_ring_ctx *ctx = req->ctx;
 
 	if (def->needs_fsize && id->fsize != rlimit(RLIMIT_FSIZE))
@@ -1330,10 +1329,11 @@ static bool io_grab_identity(struct io_kiocb *req)
 static void io_prep_async_work(struct io_kiocb *req)
 {
 	const struct io_op_def *def = &io_op_defs[req->opcode];
-	struct io_identity *id = &req->identity;
 	struct io_ring_ctx *ctx = req->ctx;
+	struct io_identity *id;
 
 	io_req_init_async(req);
+	id = req->work.identity;
 
 	if (req->flags & REQ_F_ISREG) {
 		if (def->hash_reg_file || (ctx->flags & IORING_SETUP_IOPOLL))
@@ -6481,7 +6481,7 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		if (unlikely(!iod))
 			return -EINVAL;
 		refcount_inc(&iod->count);
-		io_put_identity(req);
+		io_put_identity(current->io_uring, req);
 		get_cred(iod->creds);
 		req->work.identity = iod;
 		req->work.flags |= IO_WQ_WORK_CREDS;
@@ -7691,6 +7691,7 @@ static int io_uring_alloc_task_context(struct task_struct *task)
 	tctx->in_idle = 0;
 	atomic_long_set(&tctx->req_issue, 0);
 	atomic_long_set(&tctx->req_complete, 0);
+	io_init_identity(&tctx->identity);
 	task->io_uring = tctx;
 	return 0;
 }
