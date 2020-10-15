@@ -2856,10 +2856,6 @@ static int ath11k_dp_rx_reap_mon_status_ring(struct ath11k_base *ab, int mac_id,
 
 			rxcb = ATH11K_SKB_RXCB(skb);
 
-			dma_sync_single_for_cpu(ab->dev, rxcb->paddr,
-						skb->len + skb_tailroom(skb),
-						DMA_FROM_DEVICE);
-
 			dma_unmap_single(ab->dev, rxcb->paddr,
 					 skb->len + skb_tailroom(skb),
 					 DMA_BIDIRECTIONAL);
