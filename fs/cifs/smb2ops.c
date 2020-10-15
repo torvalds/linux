@@ -3821,9 +3821,9 @@ fill_transform_hdr(struct smb2_transform_hdr *tr_hdr, unsigned int orig_len,
 	tr_hdr->OriginalMessageSize = cpu_to_le32(orig_len);
 	tr_hdr->Flags = cpu_to_le16(0x01);
 	if (cipher_type == SMB2_ENCRYPTION_AES128_GCM)
-		get_random_bytes(&tr_hdr->Nonce, SMB3_AES128GCM_NONCE);
+		get_random_bytes(&tr_hdr->Nonce, SMB3_AES_GCM_NONCE);
 	else
-		get_random_bytes(&tr_hdr->Nonce, SMB3_AES128CCM_NONCE);
+		get_random_bytes(&tr_hdr->Nonce, SMB3_AES_CCM_NONCE);
 	memcpy(&tr_hdr->SessionId, &shdr->SessionId, 8);
 }
 
@@ -3993,10 +3993,10 @@ crypt_message(struct TCP_Server_Info *server, int num_rqst,
 	}
 
 	if (server->cipher_type == SMB2_ENCRYPTION_AES128_GCM)
-		memcpy(iv, (char *)tr_hdr->Nonce, SMB3_AES128GCM_NONCE);
+		memcpy(iv, (char *)tr_hdr->Nonce, SMB3_AES_GCM_NONCE);
 	else {
 		iv[0] = 3;
-		memcpy(iv + 1, (char *)tr_hdr->Nonce, SMB3_AES128CCM_NONCE);
+		memcpy(iv + 1, (char *)tr_hdr->Nonce, SMB3_AES_CCM_NONCE);
 	}
 
 	aead_request_set_crypt(req, sg, sg, crypt_len, iv);

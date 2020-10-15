@@ -128,8 +128,8 @@ struct smb2_sync_pdu {
 	__le16 StructureSize2; /* size of wct area (varies, request specific) */
 } __packed;
 
-#define SMB3_AES128CCM_NONCE 11
-#define SMB3_AES128GCM_NONCE 12
+#define SMB3_AES_CCM_NONCE 11
+#define SMB3_AES_GCM_NONCE 12
 
 /* Transform flags (for 3.0 dialect this flag indicates CCM */
 #define TRANSFORM_FLAG_ENCRYPTED	0x0001
