@@ -114,6 +114,9 @@ static int vfio_fsl_mc_set_irq_trigger(struct vfio_fsl_mc_device *vdev,
 	struct device *cont_dev = fsl_mc_cont_dev(&mc_dev->dev);
 	struct fsl_mc_device *mc_cont = to_fsl_mc_device(cont_dev);
 
+	if (!count && (flags & VFIO_IRQ_SET_DATA_NONE))
+		return vfio_set_trigger(vdev, index, -1);
+
 	if (start != 0 || count != 1)
 		return -EINVAL;
 
@@ -127,9 +130,6 @@ static int vfio_fsl_mc_set_irq_trigger(struct vfio_fsl_mc_device *vdev,
 	if (ret)
 		goto unlock;
 	mutex_unlock(&vdev->reflck->lock);
-
-	if (!count && (flags & VFIO_IRQ_SET_DATA_NONE))
-		return vfio_set_trigger(vdev, index, -1);
 
 	if (flags & VFIO_IRQ_SET_DATA_EVENTFD) {
 		s32 fd = *(s32 *)data;
