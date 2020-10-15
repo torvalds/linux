@@ -85,8 +85,8 @@ patternProperties:
 
 oneOf:
   - required:
-    - ports
+      - ports
   - required:
-    - ethernet-ports
+      - ethernet-ports
 
 ...

@@ -288,7 +288,7 @@ static int edt_ft5x06_register_write(struct edt_ft5x06_ts_data *tsdata,
 		wrbuf[3] = wrbuf[0] ^ wrbuf[1] ^ wrbuf[2];
 		return edt_ft5x06_ts_readwrite(tsdata->client, 4,
 					wrbuf, 0, NULL);
-	/* fallthrough */
+
 	case EDT_M09:
 	case EDT_M12:
 	case EV_FT:
@@ -330,7 +330,6 @@ static int edt_ft5x06_register_read(struct edt_ft5x06_ts_data *tsdata,
 		}
 		break;
 
-	/* fallthrough */
 	case EDT_M09:
 	case EDT_M12:
 	case EV_FT:

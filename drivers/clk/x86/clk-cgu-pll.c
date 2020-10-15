@@ -128,7 +128,7 @@ lgm_clk_register_pll(struct lgm_clk_provider *ctx,
 	pll->hw.init = &init;
 
 	hw = &pll->hw;
-	ret = clk_hw_register(dev, hw);
+	ret = devm_clk_hw_register(dev, hw);
 	if (ret)
 		return ERR_PTR(ret);
 

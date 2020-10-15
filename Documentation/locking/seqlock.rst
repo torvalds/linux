@@ -87,6 +87,58 @@ Read path::
 	} while (read_seqcount_retry(&foo_seqcount, seq));
 
 
+.. _seqcount_locktype_t:
+
+Sequence counters with associated locks (``seqcount_LOCKTYPE_t``)
+-----------------------------------------------------------------
+
+As discussed at :ref:`seqcount_t`, sequence count write side critical
+sections must be serialized and non-preemptible. This variant of
+sequence counters associate the lock used for writer serialization at
+initialization time, which enables lockdep to validate that the write
+side critical sections are properly serialized.
+
+This lock association is a NOOP if lockdep is disabled and has neither
+storage nor runtime overhead. If lockdep is enabled, the lock pointer is
+stored in struct seqcount and lockdep's "lock is held" assertions are
+injected at the beginning of the write side critical section to validate
+that it is properly protected.
+
+For lock types which do not implicitly disable preemption, preemption
+protection is enforced in the write side function.
+
+The following sequence counters with associated locks are defined:
+
+  - ``seqcount_spinlock_t``
+  - ``seqcount_raw_spinlock_t``
+  - ``seqcount_rwlock_t``
+  - ``seqcount_mutex_t``
+  - ``seqcount_ww_mutex_t``
+
+The plain seqcount read and write APIs branch out to the specific
+seqcount_LOCKTYPE_t implementation at compile-time. This avoids kernel
+API explosion per each new seqcount LOCKTYPE.
+
+Initialization (replace "LOCKTYPE" with one of the supported locks)::
+
+	/* dynamic */
+	seqcount_LOCKTYPE_t foo_seqcount;
+	seqcount_LOCKTYPE_init(&foo_seqcount, &lock);
+
+	/* static */
+	static seqcount_LOCKTYPE_t foo_seqcount =
+		SEQCNT_LOCKTYPE_ZERO(foo_seqcount, &lock);
+
+	/* C99 struct init */
+	struct {
+		.seq   = SEQCNT_LOCKTYPE_ZERO(foo.seq, &lock),
+	} foo;
+
+Write path: same as in :ref:`seqcount_t`, while running from a context
+with the associated LOCKTYPE lock acquired.
+
+Read path: same as in :ref:`seqcount_t`.
+
 .. _seqlock_t:
 
 Sequential locks (``seqlock_t``)

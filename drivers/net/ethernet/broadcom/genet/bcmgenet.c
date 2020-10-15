@@ -1185,10 +1185,10 @@ static void bcmgenet_update_mib_counters(struct bcmgenet_priv *priv)
 			continue;
 		case BCMGENET_STAT_RUNT:
 			offset += BCMGENET_STAT_OFFSET;
-			/* fall through */
+			fallthrough;
 		case BCMGENET_STAT_MIB_TX:
 			offset += BCMGENET_STAT_OFFSET;
-			/* fall through */
+			fallthrough;
 		case BCMGENET_STAT_MIB_RX:
 			val = bcmgenet_umac_readl(priv,
 						  UMAC_MIB_START + j + offset);

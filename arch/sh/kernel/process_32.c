@@ -30,34 +30,30 @@
 
 void show_regs(struct pt_regs * regs)
 {
-	printk("\n");
+	pr_info("\n");
 	show_regs_print_info(KERN_DEFAULT);
 
-	printk("PC is at %pS\n", (void *)instruction_pointer(regs));
-	printk("PR is at %pS\n", (void *)regs->pr);
+	pr_info("PC is at %pS\n", (void *)instruction_pointer(regs));
+	pr_info("PR is at %pS\n", (void *)regs->pr);
 
-	printk("PC  : %08lx SP  : %08lx SR  : %08lx ",
-	       regs->pc, regs->regs[15], regs->sr);
+	pr_info("PC  : %08lx SP  : %08lx SR  : %08lx ", regs->pc,
+		regs->regs[15], regs->sr);
 #ifdef CONFIG_MMU
-	printk("TEA : %08x\n", __raw_readl(MMU_TEA));
+	pr_cont("TEA : %08x\n", __raw_readl(MMU_TEA));
 #else
-	printk("\n");
+	pr_cont("\n");
 #endif
 
-	printk("R0  : %08lx R1  : %08lx R2  : %08lx R3  : %08lx\n",
-	       regs->regs[0],regs->regs[1],
-	       regs->regs[2],regs->regs[3]);
-	printk("R4  : %08lx R5  : %08lx R6  : %08lx R7  : %08lx\n",
-	       regs->regs[4],regs->regs[5],
-	       regs->regs[6],regs->regs[7]);
-	printk("R8  : %08lx R9  : %08lx R10 : %08lx R11 : %08lx\n",
-	       regs->regs[8],regs->regs[9],
-	       regs->regs[10],regs->regs[11]);
-	printk("R12 : %08lx R13 : %08lx R14 : %08lx\n",
-	       regs->regs[12],regs->regs[13],
-	       regs->regs[14]);
-	printk("MACH: %08lx MACL: %08lx GBR : %08lx PR  : %08lx\n",
-	       regs->mach, regs->macl, regs->gbr, regs->pr);
+	pr_info("R0  : %08lx R1  : %08lx R2  : %08lx R3  : %08lx\n",
+		regs->regs[0], regs->regs[1], regs->regs[2], regs->regs[3]);
+	pr_info("R4  : %08lx R5  : %08lx R6  : %08lx R7  : %08lx\n",
+		regs->regs[4], regs->regs[5], regs->regs[6], regs->regs[7]);
+	pr_info("R8  : %08lx R9  : %08lx R10 : %08lx R11 : %08lx\n",
+		regs->regs[8], regs->regs[9], regs->regs[10], regs->regs[11]);
+	pr_info("R12 : %08lx R13 : %08lx R14 : %08lx\n",
+		regs->regs[12], regs->regs[13], regs->regs[14]);
+	pr_info("MACH: %08lx MACL: %08lx GBR : %08lx PR  : %08lx\n",
+		regs->mach, regs->macl, regs->gbr, regs->pr);
 
 	show_trace(NULL, (unsigned long *)regs->regs[15], regs, KERN_DEFAULT);
 	show_code(regs);

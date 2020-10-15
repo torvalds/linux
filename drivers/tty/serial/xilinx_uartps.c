@@ -544,7 +544,7 @@ static int cdns_uart_clk_notifier_cb(struct notifier_block *nb,
 
 		cdns_uart->baud = cdns_uart_set_baud_rate(cdns_uart->port,
 				cdns_uart->baud);
-		/* fall through */
+		fallthrough;
 	case ABORT_RATE_CHANGE:
 		if (!locked)
 			spin_lock_irqsave(&cdns_uart->port->lock, flags);

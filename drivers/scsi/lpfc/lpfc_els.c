@@ -3937,10 +3937,14 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		case LSRJT_UNABLE_TPC:
 			/* The driver has a VALID PLOGI but the rport has
 			 * rejected the PRLI - can't do it now.  Delay
-			 * for 1 second and try again - don't care about
-			 * the explanation.
+			 * for 1 second and try again.
+			 *
+			 * However, if explanation is REQ_UNSUPPORTED there's
+			 * no point to retry PRLI.
 			 */
-			if (cmd == ELS_CMD_PRLI || cmd == ELS_CMD_NVMEPRLI) {
+			if ((cmd == ELS_CMD_PRLI || cmd == ELS_CMD_NVMEPRLI) &&
+			    stat.un.b.lsRjtRsnCodeExp !=
+			    LSEXP_REQ_UNSUPPORTED) {
 				delay = 1000;
 				maxretry = lpfc_max_els_tries + 1;
 				retry = 1;
@@ -9130,7 +9134,7 @@ lpfc_cmpl_reg_new_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 				lpfc_nlp_put(ndlp);
 				return;
 			}
-			/* fall through */
+			fallthrough;
 		default:
 			/* Try to recover from this error */
 			if (phba->sli_rev == LPFC_SLI_REV4)

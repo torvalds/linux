@@ -9,7 +9,7 @@ config NET_DSA_MSCC_FELIX
 	select NET_DSA_TAG_OCELOT
 	select FSL_ENETC_MDIO
 	help
-	  This driver supports network switches from the the Vitesse /
+	  This driver supports network switches from the Vitesse /
 	  Microsemi / Microchip Ocelot family of switching cores that are
 	  connected to their host CPU via Ethernet.
 	  The following switches are supported:

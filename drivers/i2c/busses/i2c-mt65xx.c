@@ -48,11 +48,13 @@
 
 #define I2C_DMA_CON_TX			0x0000
 #define I2C_DMA_CON_RX			0x0001
+#define I2C_DMA_ASYNC_MODE		0x0004
+#define I2C_DMA_SKIP_CONFIG		0x0010
+#define I2C_DMA_DIR_CHANGE		0x0200
 #define I2C_DMA_START_EN		0x0001
 #define I2C_DMA_INT_FLAG_NONE		0x0000
 #define I2C_DMA_CLR_FLAG		0x0000
 #define I2C_DMA_HARD_RST		0x0002
-#define I2C_DMA_4G_MODE			0x0001
 
 #define MAX_SAMPLE_CNT_DIV		8
 #define MAX_STEP_CNT_DIV		64
@@ -201,10 +203,11 @@ struct mtk_i2c_compatible {
 	unsigned char dcm: 1;
 	unsigned char auto_restart: 1;
 	unsigned char aux_len_reg: 1;
-	unsigned char support_33bits: 1;
 	unsigned char timing_adjust: 1;
 	unsigned char dma_sync: 1;
 	unsigned char ltiming_adjust: 1;
+	unsigned char apdma_sync: 1;
+	unsigned char max_dma_support;
 };
 
 struct mtk_i2c_ac_timing {
@@ -250,14 +253,13 @@ struct mtk_i2c {
 
 /**
  * struct i2c_spec_values:
- * min_low_ns: min LOW period of the SCL clock
- * min_su_sta_ns: min set-up time for a repeated START condition
- * max_hd_dat_ns: max data hold time
- * min_su_dat_ns: min data set-up time
+ * @min_low_ns: min LOW period of the SCL clock
+ * @min_su_sta_ns: min set-up time for a repeated START condition
+ * @max_hd_dat_ns: max data hold time
+ * @min_su_dat_ns: min data set-up time
  */
 struct i2c_spec_values {
 	unsigned int min_low_ns;
-	unsigned int min_high_ns;
 	unsigned int min_su_sta_ns;
 	unsigned int max_hd_dat_ns;
 	unsigned int min_su_dat_ns;
@@ -307,10 +309,11 @@ static const struct mtk_i2c_compatible mt2712_compat = {
 	.dcm = 1,
 	.auto_restart = 1,
 	.aux_len_reg = 1,
-	.support_33bits = 1,
 	.timing_adjust = 1,
 	.dma_sync = 0,
 	.ltiming_adjust = 0,
+	.apdma_sync = 0,
+	.max_dma_support = 33,
 };
 
 static const struct mtk_i2c_compatible mt6577_compat = {
@@ -320,10 +323,11 @@ static const struct mtk_i2c_compatible mt6577_compat = {
 	.dcm = 1,
 	.auto_restart = 0,
 	.aux_len_reg = 0,
-	.support_33bits = 0,
 	.timing_adjust = 0,
 	.dma_sync = 0,
 	.ltiming_adjust = 0,
+	.apdma_sync = 0,
+	.max_dma_support = 32,
 };
 
 static const struct mtk_i2c_compatible mt6589_compat = {
@@ -333,10 +337,11 @@ static const struct mtk_i2c_compatible mt6589_compat = {
 	.dcm = 0,
 	.auto_restart = 0,
 	.aux_len_reg = 0,
-	.support_33bits = 0,
 	.timing_adjust = 0,
 	.dma_sync = 0,
 	.ltiming_adjust = 0,
+	.apdma_sync = 0,
+	.max_dma_support = 32,
 };
 
 static const struct mtk_i2c_compatible mt7622_compat = {
@@ -346,10 +351,11 @@ static const struct mtk_i2c_compatible mt7622_compat = {
 	.dcm = 1,
 	.auto_restart = 1,
 	.aux_len_reg = 1,
-	.support_33bits = 0,
 	.timing_adjust = 0,
 	.dma_sync = 0,
 	.ltiming_adjust = 0,
+	.apdma_sync = 0,
+	.max_dma_support = 32,
 };
 
 static const struct mtk_i2c_compatible mt8173_compat = {
@@ -358,10 +364,11 @@ static const struct mtk_i2c_compatible mt8173_compat = {
 	.dcm = 1,
 	.auto_restart = 1,
 	.aux_len_reg = 1,
-	.support_33bits = 1,
 	.timing_adjust = 0,
 	.dma_sync = 0,
 	.ltiming_adjust = 0,
+	.apdma_sync = 0,
+	.max_dma_support = 33,
 };
 
 static const struct mtk_i2c_compatible mt8183_compat = {
@@ -371,10 +378,25 @@ static const struct mtk_i2c_compatible mt8183_compat = {
 	.dcm = 0,
 	.auto_restart = 1,
 	.aux_len_reg = 1,
-	.support_33bits = 1,
 	.timing_adjust = 1,
 	.dma_sync = 1,
 	.ltiming_adjust = 1,
+	.apdma_sync = 0,
+	.max_dma_support = 33,
+};
+
+static const struct mtk_i2c_compatible mt8192_compat = {
+	.quirks = &mt8183_i2c_quirks,
+	.regs = mt_i2c_regs_v2,
+	.pmic_i2c = 0,
+	.dcm = 0,
+	.auto_restart = 1,
+	.aux_len_reg = 1,
+	.timing_adjust = 1,
+	.dma_sync = 1,
+	.ltiming_adjust = 1,
+	.apdma_sync = 1,
+	.max_dma_support = 36,
 };
 
 static const struct of_device_id mtk_i2c_of_match[] = {
@@ -384,6 +406,7 @@ static const struct of_device_id mtk_i2c_of_match[] = {
 	{ .compatible = "mediatek,mt7622-i2c", .data = &mt7622_compat },
 	{ .compatible = "mediatek,mt8173-i2c", .data = &mt8173_compat },
 	{ .compatible = "mediatek,mt8183-i2c", .data = &mt8183_compat },
+	{ .compatible = "mediatek,mt8192-i2c", .data = &mt8192_compat },
 	{}
 };
 MODULE_DEVICE_TABLE(of, mtk_i2c_of_match);
@@ -786,11 +809,6 @@ static int mtk_i2c_set_speed(struct mtk_i2c *i2c, unsigned int parent_clk)
 	return 0;
 }
 
-static inline u32 mtk_i2c_set_4g_mode(dma_addr_t addr)
-{
-	return (addr & BIT_ULL(32)) ? I2C_DMA_4G_MODE : I2C_DMA_CLR_FLAG;
-}
-
 static int mtk_i2c_do_transfer(struct mtk_i2c *i2c, struct i2c_msg *msgs,
 			       int num, int left_num)
 {
@@ -798,6 +816,7 @@ static int mtk_i2c_do_transfer(struct mtk_i2c *i2c, struct i2c_msg *msgs,
 	u16 start_reg;
 	u16 control_reg;
 	u16 restart_flag = 0;
+	u16 dma_sync = 0;
 	u32 reg_4g_mode;
 	u8 *dma_rd_buf = NULL;
 	u8 *dma_wr_buf = NULL;
@@ -851,10 +870,16 @@ static int mtk_i2c_do_transfer(struct mtk_i2c *i2c, struct i2c_msg *msgs,
 		mtk_i2c_writew(i2c, num, OFFSET_TRANSAC_LEN);
 	}
 
+	if (i2c->dev_comp->apdma_sync) {
+		dma_sync = I2C_DMA_SKIP_CONFIG | I2C_DMA_ASYNC_MODE;
+		if (i2c->op == I2C_MASTER_WRRD)
+			dma_sync |= I2C_DMA_DIR_CHANGE;
+	}
+
 	/* Prepare buffer data to start transfer */
 	if (i2c->op == I2C_MASTER_RD) {
 		writel(I2C_DMA_INT_FLAG_NONE, i2c->pdmabase + OFFSET_INT_FLAG);
-		writel(I2C_DMA_CON_RX, i2c->pdmabase + OFFSET_CON);
+		writel(I2C_DMA_CON_RX | dma_sync, i2c->pdmabase + OFFSET_CON);
 
 		dma_rd_buf = i2c_get_dma_safe_msg_buf(msgs, 1);
 		if (!dma_rd_buf)
@@ -868,8 +893,8 @@ static int mtk_i2c_do_transfer(struct mtk_i2c *i2c, struct i2c_msg *msgs,
 			return -ENOMEM;
 		}
 
-		if (i2c->dev_comp->support_33bits) {
-			reg_4g_mode = mtk_i2c_set_4g_mode(rpaddr);
+		if (i2c->dev_comp->max_dma_support > 32) {
+			reg_4g_mode = upper_32_bits(rpaddr);
 			writel(reg_4g_mode, i2c->pdmabase + OFFSET_RX_4G_MODE);
 		}
 
@@ -877,7 +902,7 @@ static int mtk_i2c_do_transfer(struct mtk_i2c *i2c, struct i2c_msg *msgs,
 		writel(msgs->len, i2c->pdmabase + OFFSET_RX_LEN);
 	} else if (i2c->op == I2C_MASTER_WR) {
 		writel(I2C_DMA_INT_FLAG_NONE, i2c->pdmabase + OFFSET_INT_FLAG);
-		writel(I2C_DMA_CON_TX, i2c->pdmabase + OFFSET_CON);
+		writel(I2C_DMA_CON_TX | dma_sync, i2c->pdmabase + OFFSET_CON);
 
 		dma_wr_buf = i2c_get_dma_safe_msg_buf(msgs, 1);
 		if (!dma_wr_buf)
@@ -891,8 +916,8 @@ static int mtk_i2c_do_transfer(struct mtk_i2c *i2c, struct i2c_msg *msgs,
 			return -ENOMEM;
 		}
 
-		if (i2c->dev_comp->support_33bits) {
-			reg_4g_mode = mtk_i2c_set_4g_mode(wpaddr);
+		if (i2c->dev_comp->max_dma_support > 32) {
+			reg_4g_mode = upper_32_bits(wpaddr);
 			writel(reg_4g_mode, i2c->pdmabase + OFFSET_TX_4G_MODE);
 		}
 
@@ -900,7 +925,7 @@ static int mtk_i2c_do_transfer(struct mtk_i2c *i2c, struct i2c_msg *msgs,
 		writel(msgs->len, i2c->pdmabase + OFFSET_TX_LEN);
 	} else {
 		writel(I2C_DMA_CLR_FLAG, i2c->pdmabase + OFFSET_INT_FLAG);
-		writel(I2C_DMA_CLR_FLAG, i2c->pdmabase + OFFSET_CON);
+		writel(I2C_DMA_CLR_FLAG | dma_sync, i2c->pdmabase + OFFSET_CON);
 
 		dma_wr_buf = i2c_get_dma_safe_msg_buf(msgs, 1);
 		if (!dma_wr_buf)
@@ -937,11 +962,11 @@ static int mtk_i2c_do_transfer(struct mtk_i2c *i2c, struct i2c_msg *msgs,
 			return -ENOMEM;
 		}
 
-		if (i2c->dev_comp->support_33bits) {
-			reg_4g_mode = mtk_i2c_set_4g_mode(wpaddr);
+		if (i2c->dev_comp->max_dma_support > 32) {
+			reg_4g_mode = upper_32_bits(wpaddr);
 			writel(reg_4g_mode, i2c->pdmabase + OFFSET_TX_4G_MODE);
 
-			reg_4g_mode = mtk_i2c_set_4g_mode(rpaddr);
+			reg_4g_mode = upper_32_bits(rpaddr);
 			writel(reg_4g_mode, i2c->pdmabase + OFFSET_RX_4G_MODE);
 		}
 
@@ -1215,8 +1240,9 @@ static int mtk_i2c_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	if (i2c->dev_comp->support_33bits) {
-		ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(33));
+	if (i2c->dev_comp->max_dma_support > 32) {
+		ret = dma_set_mask(&pdev->dev,
+				DMA_BIT_MASK(i2c->dev_comp->max_dma_support));
 		if (ret) {
 			dev_err(&pdev->dev, "dma_set_mask return error.\n");
 			return ret;

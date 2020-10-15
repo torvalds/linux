@@ -1565,9 +1565,11 @@ void btrfs_sysfs_del_qgroups(struct btrfs_fs_info *fs_info)
 	rbtree_postorder_for_each_entry_safe(qgroup, next,
 					     &fs_info->qgroup_tree, node)
 		btrfs_sysfs_del_one_qgroup(fs_info, qgroup);
-	kobject_del(fs_info->qgroups_kobj);
-	kobject_put(fs_info->qgroups_kobj);
-	fs_info->qgroups_kobj = NULL;
+	if (fs_info->qgroups_kobj) {
+		kobject_del(fs_info->qgroups_kobj);
+		kobject_put(fs_info->qgroups_kobj);
+		fs_info->qgroups_kobj = NULL;
+	}
 }
 
 /* Called when qgroups get initialized, thus there is no need for locking */

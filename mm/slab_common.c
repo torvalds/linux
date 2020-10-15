@@ -419,7 +419,7 @@ static void slab_caches_to_rcu_destroy_workfn(struct work_struct *work)
 	/*
 	 * On destruction, SLAB_TYPESAFE_BY_RCU kmem_caches are put on the
 	 * @slab_caches_to_rcu_destroy list.  The slab pages are freed
-	 * through RCU and and the associated kmem_cache are dereferenced
+	 * through RCU and the associated kmem_cache are dereferenced
 	 * while freeing the pages, so the kmem_caches should be freed only
 	 * after the pending RCU operations are finished.  As rcu_barrier()
 	 * is a pretty slow operation, we batch all pending destructions

@@ -1008,7 +1008,7 @@ set_sndbuf:
 		break;
 	case SO_TIMESTAMPING_NEW:
 		sock_set_flag(sk, SOCK_TSTAMP_NEW);
-		/* fall through */
+		fallthrough;
 	case SO_TIMESTAMPING_OLD:
 		if (val & ~SOF_TIMESTAMPING_MASK) {
 			ret = -EINVAL;
@@ -3414,6 +3414,16 @@ static void sock_inuse_add(struct net *net, int val)
 }
 #endif
 
+static void tw_prot_cleanup(struct timewait_sock_ops *twsk_prot)
+{
+	if (!twsk_prot)
+		return;
+	kfree(twsk_prot->twsk_slab_name);
+	twsk_prot->twsk_slab_name = NULL;
+	kmem_cache_destroy(twsk_prot->twsk_slab);
+	twsk_prot->twsk_slab = NULL;
+}
+
 static void req_prot_cleanup(struct request_sock_ops *rsk_prot)
 {
 	if (!rsk_prot)
@@ -3484,7 +3494,7 @@ int proto_register(struct proto *prot, int alloc_slab)
 						  prot->slab_flags,
 						  NULL);
 			if (prot->twsk_prot->twsk_slab == NULL)
-				goto out_free_timewait_sock_slab_name;
+				goto out_free_timewait_sock_slab;
 		}
 	}
 
@@ -3492,15 +3502,15 @@ int proto_register(struct proto *prot, int alloc_slab)
 	ret = assign_proto_idx(prot);
 	if (ret) {
 		mutex_unlock(&proto_list_mutex);
-		goto out_free_timewait_sock_slab_name;
+		goto out_free_timewait_sock_slab;
 	}
 	list_add(&prot->node, &proto_list);
 	mutex_unlock(&proto_list_mutex);
 	return ret;
 
-out_free_timewait_sock_slab_name:
+out_free_timewait_sock_slab:
 	if (alloc_slab && prot->twsk_prot)
-		kfree(prot->twsk_prot->twsk_slab_name);
+		tw_prot_cleanup(prot->twsk_prot);
 out_free_request_sock_slab:
 	if (alloc_slab) {
 		req_prot_cleanup(prot->rsk_prot);
@@ -3524,12 +3534,7 @@ void proto_unregister(struct proto *prot)
 	prot->slab = NULL;
 
 	req_prot_cleanup(prot->rsk_prot);
-
-	if (prot->twsk_prot != NULL && prot->twsk_prot->twsk_slab != NULL) {
-		kmem_cache_destroy(prot->twsk_prot->twsk_slab);
-		kfree(prot->twsk_prot->twsk_slab_name);
-		prot->twsk_prot->twsk_slab = NULL;
-	}
+	tw_prot_cleanup(prot->twsk_prot);
 }
 EXPORT_SYMBOL(proto_unregister);
 

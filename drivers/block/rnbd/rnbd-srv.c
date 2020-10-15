@@ -124,6 +124,9 @@ static int process_rdma(struct rtrs_srv *sess,
 	struct rnbd_srv_sess_dev *sess_dev;
 	u32 dev_id;
 	int err;
+	struct rnbd_dev_blk_io *io;
+	struct bio *bio;
+	short prio;
 
 	priv = kmalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -142,17 +145,29 @@ static int process_rdma(struct rtrs_srv *sess,
 	priv->sess_dev = sess_dev;
 	priv->id = id;
 
-	err = rnbd_dev_submit_io(sess_dev->rnbd_dev, le64_to_cpu(msg->sector),
-				  data, datalen, le32_to_cpu(msg->bi_size),
-				  le32_to_cpu(msg->rw),
-				  srv_sess->ver < RNBD_PROTO_VER_MAJOR ||
-				  usrlen < sizeof(*msg) ?
-				  0 : le16_to_cpu(msg->prio), priv);
-	if (unlikely(err)) {
-		rnbd_srv_err(sess_dev, "Submitting I/O to device failed, err: %d\n",
-			      err);
+	/* Generate bio with pages pointing to the rdma buffer */
+	bio = rnbd_bio_map_kern(data, sess_dev->rnbd_dev->ibd_bio_set, datalen, GFP_KERNEL);
+	if (IS_ERR(bio)) {
+		err = PTR_ERR(bio);
+		rnbd_srv_err(sess_dev, "Failed to generate bio, err: %d\n", err);
 		goto sess_dev_put;
 	}
+
+	io = container_of(bio, struct rnbd_dev_blk_io, bio);
+	io->dev = sess_dev->rnbd_dev;
+	io->priv = priv;
+
+	bio->bi_end_io = rnbd_dev_bi_end_io;
+	bio->bi_private = io;
+	bio->bi_opf = rnbd_to_bio_flags(le32_to_cpu(msg->rw));
+	bio->bi_iter.bi_sector = le64_to_cpu(msg->sector);
+	bio->bi_iter.bi_size = le32_to_cpu(msg->bi_size);
+	prio = srv_sess->ver < RNBD_PROTO_VER_MAJOR ||
+	       usrlen < sizeof(*msg) ? 0 : le16_to_cpu(msg->prio);
+	bio_set_prio(bio, prio);
+	bio_set_dev(bio, sess_dev->rnbd_dev->bdev);
+
+	submit_bio(bio);
 
 	return 0;
 

@@ -25,6 +25,7 @@
 #include <xen/xen.h>
 
 #include <asm/apic.h>
+#include <asm/numa.h>
 #include <asm/bios_ebda.h>
 #include <asm/bugs.h>
 #include <asm/cpu.h>

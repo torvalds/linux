@@ -18,6 +18,7 @@
 #include <asm/page.h>
 #include <asm/sal.h>
 #include <asm/pal.h>
+#include <asm/xtp.h>
 
  __cacheline_aligned DEFINE_SPINLOCK(sal_lock);
 unsigned long sal_platform_features;

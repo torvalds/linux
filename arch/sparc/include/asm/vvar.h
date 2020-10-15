@@ -6,7 +6,8 @@
 #define _ASM_SPARC_VVAR_DATA_H
 
 #include <asm/clocksource.h>
-#include <linux/seqlock.h>
+#include <asm/processor.h>
+#include <asm/barrier.h>
 #include <linux/time.h>
 #include <linux/types.h>
 

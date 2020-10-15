@@ -633,7 +633,7 @@ static int hns_roce_v2_post_recv(struct ib_qp *ibqp,
 
 		wqe_idx = (hr_qp->rq.head + nreq) & (hr_qp->rq.wqe_cnt - 1);
 
-		if (unlikely(wr->num_sge >= hr_qp->rq.max_gs)) {
+		if (unlikely(wr->num_sge > hr_qp->rq.max_gs)) {
 			ibdev_err(ibdev, "rq:num_sge=%d >= qp->sq.max_gs=%d\n",
 				  wr->num_sge, hr_qp->rq.max_gs);
 			ret = -EINVAL;
@@ -653,7 +653,6 @@ static int hns_roce_v2_post_recv(struct ib_qp *ibqp,
 		if (wr->num_sge < hr_qp->rq.max_gs) {
 			dseg->lkey = cpu_to_le32(HNS_ROCE_INVALID_LKEY);
 			dseg->addr = 0;
-			dseg->len = cpu_to_le32(HNS_ROCE_INVALID_SGE_LENGTH);
 		}
 
 		/* rq support inline data */
@@ -787,8 +786,8 @@ static int hns_roce_v2_post_srq_recv(struct ib_srq *ibsrq,
 		}
 
 		if (wr->num_sge < srq->max_gs) {
-			dseg[i].len = cpu_to_le32(HNS_ROCE_INVALID_SGE_LENGTH);
-			dseg[i].lkey = cpu_to_le32(HNS_ROCE_INVALID_LKEY);
+			dseg[i].len = 0;
+			dseg[i].lkey = cpu_to_le32(0x100);
 			dseg[i].addr = 0;
 		}
 
@@ -5070,7 +5069,7 @@ static int hns_roce_v2_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr)
 
 	attr->srq_limit = limit_wl;
 	attr->max_wr = srq->wqe_cnt - 1;
-	attr->max_sge = srq->max_gs - HNS_ROCE_RESERVED_SGE;
+	attr->max_sge = srq->max_gs;
 
 out:
 	hns_roce_free_cmd_mailbox(hr_dev, mailbox);

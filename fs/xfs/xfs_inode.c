@@ -451,7 +451,7 @@ xfs_lock_inodes(
 	/*
 	 * Currently supports between 2 and 5 inodes with exclusive locking.  We
 	 * support an arbitrary depth of locking here, but absolute limits on
-	 * inodes depend on the the type of locking and the limits placed by
+	 * inodes depend on the type of locking and the limits placed by
 	 * lockdep annotations in xfs_lock_inumorder.  These are all checked by
 	 * the asserts.
 	 */
@@ -3105,7 +3105,7 @@ out_trans_abort:
 /*
  * xfs_rename_alloc_whiteout()
  *
- * Return a referenced, unlinked, unlocked inode that that can be used as a
+ * Return a referenced, unlinked, unlocked inode that can be used as a
  * whiteout in a rename transaction. We use a tmpfile inode here so that if we
  * crash between allocating the inode and linking it into the rename transaction
  * recovery will free the inode and we won't leak it.

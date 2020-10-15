@@ -1243,7 +1243,6 @@ void amdgpu_ras_debugfs_remove(struct amdgpu_device *adev,
 	if (!obj || !obj->ent)
 		return;
 
-	debugfs_remove(obj->ent);
 	obj->ent = NULL;
 	put_obj(obj);
 }
@@ -1257,7 +1256,6 @@ static void amdgpu_ras_debugfs_remove_all(struct amdgpu_device *adev)
 		amdgpu_ras_debugfs_remove(adev, &obj->head);
 	}
 
-	debugfs_remove_recursive(con->dir);
 	con->dir = NULL;
 }
 /* debugfs end */
@@ -1618,7 +1616,7 @@ static int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev)
 	data = con->eh_data;
 	save_count = data->count - control->num_recs;
 	/* only new entries are saved */
-	if (save_count > 0)
+	if (save_count > 0) {
 		if (amdgpu_ras_eeprom_process_recods(control,
 							&data->bps[control->num_recs],
 							true,
@@ -1626,6 +1624,9 @@ static int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev)
 			dev_err(adev->dev, "Failed to save EEPROM table data!");
 			return -EIO;
 		}
+
+		dev_info(adev->dev, "Saved %d pages to EEPROM table.\n", save_count);
+	}
 
 	return 0;
 }

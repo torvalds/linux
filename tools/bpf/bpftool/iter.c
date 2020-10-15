@@ -11,6 +11,7 @@
 static int do_pin(int argc, char **argv)
 {
 	DECLARE_LIBBPF_OPTS(bpf_iter_attach_opts, iter_opts);
+	union bpf_iter_link_info linfo;
 	const char *objfile, *path;
 	struct bpf_program *prog;
 	struct bpf_object *obj;
@@ -36,6 +37,11 @@ static int do_pin(int argc, char **argv)
 			map_fd = map_parse_fd(&argc, &argv);
 			if (map_fd < 0)
 				return -1;
+
+			memset(&linfo, 0, sizeof(linfo));
+			linfo.map.map_fd = map_fd;
+			iter_opts.link_info = &linfo;
+			iter_opts.link_info_len = sizeof(linfo);
 		}
 	}
 
@@ -56,9 +62,6 @@ static int do_pin(int argc, char **argv)
 		p_err("can't find bpf program in objfile %s", objfile);
 		goto close_obj;
 	}
-
-	if (map_fd >= 0)
-		iter_opts.map_fd = map_fd;
 
 	link = bpf_program__attach_iter(prog, &iter_opts);
 	if (IS_ERR(link)) {

@@ -29,12 +29,12 @@ properties:
       - const: fsl,imx8-mu-scu
       - items:
           - enum:
-            - fsl,imx7s-mu
-            - fsl,imx8mq-mu
-            - fsl,imx8mm-mu
-            - fsl,imx8mn-mu
-            - fsl,imx8mp-mu
-            - fsl,imx8qxp-mu
+              - fsl,imx7s-mu
+              - fsl,imx8mq-mu
+              - fsl,imx8mm-mu
+              - fsl,imx8mn-mu
+              - fsl,imx8mp-mu
+              - fsl,imx8qxp-mu
           - const: fsl,imx6sx-mu
       - description: To communicate with i.MX8 SCU with fast IPC
         items:

@@ -606,8 +606,8 @@ static int virtio_fs_setup_vqs(struct virtio_device *vdev,
 	unsigned int i;
 	int ret = 0;
 
-	virtio_cread(vdev, struct virtio_fs_config, num_request_queues,
-		     &fs->num_request_queues);
+	virtio_cread_le(vdev, struct virtio_fs_config, num_request_queues,
+			&fs->num_request_queues);
 	if (fs->num_request_queues == 0)
 		return -EINVAL;
 

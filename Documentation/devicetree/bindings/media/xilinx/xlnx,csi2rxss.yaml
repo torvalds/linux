@@ -25,7 +25,7 @@ properties:
   compatible:
     items:
       - enum:
-        - xlnx,mipi-csi2-rx-subsystem-5.0
+          - xlnx,mipi-csi2-rx-subsystem-5.0
 
   reg:
     maxItems: 1
@@ -65,13 +65,12 @@ properties:
       0x2d - RAW14
       0x2e - RAW16
       0x2f - RAW20
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - anyOf:
-        - minimum: 0x1e
-        - maximum: 0x24
-        - minimum: 0x28
-        - maximum: 0x2f
+    $ref: /schemas/types.yaml#/definitions/uint32
+    oneOf:
+      - minimum: 0x1e
+        maximum: 0x24
+      - minimum: 0x28
+        maximum: 0x2f
 
   xlnx,vfb:
     type: boolean

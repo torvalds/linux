@@ -60,6 +60,10 @@ module_param(enable_sriov, bool, 0644);
 MODULE_PARM_DESC(enable_sriov, "Enable support for SR-IOV configuration.  Enabling SR-IOV on a PF typically requires support of the userspace PF driver, enabling VFs without such support may result in non-functional VFs or PF.");
 #endif
 
+static bool disable_denylist;
+module_param(disable_denylist, bool, 0444);
+MODULE_PARM_DESC(disable_denylist, "Disable use of device denylist. Disabling the denylist allows binding to devices with known errata that may lead to exploitable stability or security issues when accessed by untrusted users.");
+
 static inline bool vfio_vga_disabled(void)
 {
 #ifdef CONFIG_VFIO_PCI_VGA
@@ -67,6 +71,44 @@ static inline bool vfio_vga_disabled(void)
 #else
 	return true;
 #endif
+}
+
+static bool vfio_pci_dev_in_denylist(struct pci_dev *pdev)
+{
+	switch (pdev->vendor) {
+	case PCI_VENDOR_ID_INTEL:
+		switch (pdev->device) {
+		case PCI_DEVICE_ID_INTEL_QAT_C3XXX:
+		case PCI_DEVICE_ID_INTEL_QAT_C3XXX_VF:
+		case PCI_DEVICE_ID_INTEL_QAT_C62X:
+		case PCI_DEVICE_ID_INTEL_QAT_C62X_VF:
+		case PCI_DEVICE_ID_INTEL_QAT_DH895XCC:
+		case PCI_DEVICE_ID_INTEL_QAT_DH895XCC_VF:
+			return true;
+		default:
+			return false;
+		}
+	}
+
+	return false;
+}
+
+static bool vfio_pci_is_denylisted(struct pci_dev *pdev)
+{
+	if (!vfio_pci_dev_in_denylist(pdev))
+		return false;
+
+	if (disable_denylist) {
+		pci_warn(pdev,
+			 "device denylist disabled - allowing device %04x:%04x.\n",
+			 pdev->vendor, pdev->device);
+		return false;
+	}
+
+	pci_warn(pdev, "%04x:%04x exists in vfio-pci device denylist, driver probing disallowed.\n",
+		 pdev->vendor, pdev->device);
+
+	return true;
 }
 
 /*
@@ -207,6 +249,8 @@ static bool vfio_pci_nointx(struct pci_dev *pdev)
 		case 0x1580 ... 0x1581:
 		case 0x1583 ... 0x158b:
 		case 0x37d0 ... 0x37d2:
+		/* X550 */
+		case 0x1563:
 			return true;
 		default:
 			return false;
@@ -521,14 +565,12 @@ static void vfio_pci_release(void *device_data)
 		vfio_pci_vf_token_user_add(vdev, -1);
 		vfio_spapr_pci_eeh_release(vdev->pdev);
 		vfio_pci_disable(vdev);
+
 		mutex_lock(&vdev->igate);
 		if (vdev->err_trigger) {
 			eventfd_ctx_put(vdev->err_trigger);
 			vdev->err_trigger = NULL;
 		}
-		mutex_unlock(&vdev->igate);
-
-		mutex_lock(&vdev->igate);
 		if (vdev->req_trigger) {
 			eventfd_ctx_put(vdev->req_trigger);
 			vdev->req_trigger = NULL;
@@ -948,7 +990,7 @@ static long vfio_pci_ioctl(void *device_data,
 		case VFIO_PCI_ERR_IRQ_INDEX:
 			if (pci_is_pcie(vdev->pdev))
 				break;
-		/* fall through */
+			fallthrough;
 		default:
 			return -EINVAL;
 		}
@@ -1856,6 +1898,9 @@ static int vfio_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct iommu_group *group;
 	int ret;
 
+	if (vfio_pci_is_denylisted(pdev))
+		return -EINVAL;
+
 	if (pdev->hdr_type != PCI_HEADER_TYPE_NORMAL)
 		return -EINVAL;
 
@@ -2344,6 +2389,9 @@ static int __init vfio_pci_init(void)
 		goto out_driver;
 
 	vfio_pci_fill_ids();
+
+	if (disable_denylist)
+		pr_warn("device denylist disabled.\n");
 
 	return 0;
 

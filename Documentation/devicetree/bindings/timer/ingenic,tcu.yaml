@@ -49,16 +49,16 @@ properties:
   compatible:
     oneOf:
       - items:
-        - enum:
-          - ingenic,jz4740-tcu
-          - ingenic,jz4725b-tcu
-          - ingenic,jz4770-tcu
-          - ingenic,x1000-tcu
-        - const: simple-mfd
+          - enum:
+              - ingenic,jz4740-tcu
+              - ingenic,jz4725b-tcu
+              - ingenic,jz4770-tcu
+              - ingenic,x1000-tcu
+          - const: simple-mfd
       - items:
-        - const: ingenic,jz4780-tcu
-        - const: ingenic,jz4770-tcu
-        - const: simple-mfd
+          - const: ingenic,jz4780-tcu
+          - const: ingenic,jz4770-tcu
+          - const: simple-mfd
 
   reg:
     maxItems: 1
@@ -113,13 +113,13 @@ patternProperties:
       compatible:
         oneOf:
           - enum:
-            - ingenic,jz4740-watchdog
-            - ingenic,jz4780-watchdog
+              - ingenic,jz4740-watchdog
+              - ingenic,jz4780-watchdog
           - items:
-            - enum:
-              - ingenic,jz4770-watchdog
-              - ingenic,jz4725b-watchdog
-            - const: ingenic,jz4740-watchdog
+              - enum:
+                  - ingenic,jz4770-watchdog
+                  - ingenic,jz4725b-watchdog
+              - const: ingenic,jz4740-watchdog
 
       reg:
         maxItems: 1
@@ -143,13 +143,13 @@ patternProperties:
       compatible:
         oneOf:
           - enum:
-            - ingenic,jz4740-pwm
-            - ingenic,jz4725b-pwm
+              - ingenic,jz4740-pwm
+              - ingenic,jz4725b-pwm
           - items:
-            - enum:
-              - ingenic,jz4770-pwm
-              - ingenic,jz4780-pwm
-            - const: ingenic,jz4740-pwm
+              - enum:
+                  - ingenic,jz4770-pwm
+                  - ingenic,jz4780-pwm
+              - const: ingenic,jz4740-pwm
 
       reg:
         maxItems: 1
@@ -182,11 +182,11 @@ patternProperties:
       compatible:
         oneOf:
           - enum:
-            - ingenic,jz4725b-ost
-            - ingenic,jz4770-ost
+              - ingenic,jz4725b-ost
+              - ingenic,jz4770-ost
           - items:
-            - const: ingenic,jz4780-ost
-            - const: ingenic,jz4770-ost
+              - const: ingenic,jz4780-ost
+              - const: ingenic,jz4770-ost
 
       reg:
         maxItems: 1

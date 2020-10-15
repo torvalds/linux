@@ -58,13 +58,13 @@ properties:
 
   power-domains:
     description:
-       A phandle and PM domain specifier as defined by bindings of the power
-       controller specified by phandle. Some power domains might be powered
-       from another power domain (or have other hardware specific
-       dependencies). For representing such dependency a standard PM domain
-       consumer binding is used. When provided, all domains created
-       by the given provider should be subdomains of the domain specified
-       by this binding.
+      A phandle and PM domain specifier as defined by bindings of the power
+      controller specified by phandle. Some power domains might be powered
+      from another power domain (or have other hardware specific
+      dependencies). For representing such dependency a standard PM domain
+      consumer binding is used. When provided, all domains created
+      by the given provider should be subdomains of the domain specified
+      by this binding.
 
 required:
   - "#power-domain-cells"

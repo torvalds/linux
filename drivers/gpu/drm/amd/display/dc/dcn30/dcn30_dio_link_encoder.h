@@ -61,7 +61,10 @@
 	DPCS_DCN2_MASK_SH_LIST(mask_sh),\
 	LE_SF(DPCSTX0_DPCSTX_TX_CNTL, DPCS_TX_DATA_ORDER_INVERT_18_BIT, mask_sh),\
 	LE_SF(RDPCSTX0_RDPCSTX_PHY_CNTL0, RDPCS_PHY_TX_VBOOST_LVL, mask_sh),\
-	LE_SF(RDPCSTX0_RDPCSTX_CLOCK_CNTL, RDPCS_TX_CLK_EN, mask_sh)
+	LE_SF(RDPCSTX0_RDPCSTX_CLOCK_CNTL, RDPCS_TX_CLK_EN, mask_sh),\
+	LE_SF(RDPCSTX0_RDPCSTX_PHY_CNTL6, RDPCS_PHY_DPALT_DP4, mask_sh),\
+	LE_SF(RDPCSTX0_RDPCSTX_PHY_CNTL6, RDPCS_PHY_DPALT_DISABLE, mask_sh)
+
 
 void dcn30_link_encoder_construct(
 	struct dcn20_link_encoder *enc20,
@@ -72,5 +75,7 @@ void dcn30_link_encoder_construct(
 	const struct dcn10_link_enc_hpd_registers *hpd_regs,
 	const struct dcn10_link_enc_shift *link_shift,
 	const struct dcn10_link_enc_mask *link_mask);
+
+void enc3_hw_init(struct link_encoder *enc);
 
 #endif /* __DC_LINK_ENCODER__DCN30_H__ */

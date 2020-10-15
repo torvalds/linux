@@ -148,7 +148,7 @@ static irqreturn_t sh7780_pci_serr_irq(int irq, void *dev_id)
 
 	printk(KERN_DEBUG "PCI: system error received: ");
 	pcibios_report_status(PCI_STATUS_SIG_SYSTEM_ERROR, 1);
-	printk("\n");
+	pr_cont("\n");
 
 	/* Deassert SERR */
 	__raw_writel(SH4_PCIINTM_SDIM, hose->reg_base + SH4_PCIINTM);
@@ -179,7 +179,7 @@ static int __init sh7780_pci_setup_irqs(struct pci_channel *hose)
 	ret = request_irq(hose->serr_irq, sh7780_pci_serr_irq, 0,
 			  "PCI SERR interrupt", hose);
 	if (unlikely(ret)) {
-		printk(KERN_ERR "PCI: Failed hooking SERR IRQ\n");
+		pr_err("PCI: Failed hooking SERR IRQ\n");
 		return ret;
 	}
 
@@ -250,7 +250,7 @@ static int __init sh7780_pci_init(void)
 	const char *type;
 	int ret, i;
 
-	printk(KERN_NOTICE "PCI: Starting initialization.\n");
+	pr_notice("PCI: Starting initialization.\n");
 
 	chan->reg_base = 0xfe040000;
 
@@ -270,7 +270,7 @@ static int __init sh7780_pci_init(void)
 
 	id = __raw_readw(chan->reg_base + PCI_VENDOR_ID);
 	if (id != PCI_VENDOR_ID_RENESAS) {
-		printk(KERN_ERR "PCI: Unknown vendor ID 0x%04x.\n", id);
+		pr_err("PCI: Unknown vendor ID 0x%04x.\n", id);
 		return -ENODEV;
 	}
 
@@ -281,14 +281,13 @@ static int __init sh7780_pci_init(void)
 	       (id == PCI_DEVICE_ID_RENESAS_SH7785) ? "SH7785" :
 					  NULL;
 	if (unlikely(!type)) {
-		printk(KERN_ERR "PCI: Found an unsupported Renesas host "
-		       "controller, device id 0x%04x.\n", id);
+		pr_err("PCI: Found an unsupported Renesas host controller, device id 0x%04x.\n",
+		       id);
 		return -EINVAL;
 	}
 
-	printk(KERN_NOTICE "PCI: Found a Renesas %s host "
-	       "controller, revision %d.\n", type,
-	       __raw_readb(chan->reg_base + PCI_REVISION_ID));
+	pr_notice("PCI: Found a Renesas %s host controller, revision %d.\n",
+		  type, __raw_readb(chan->reg_base + PCI_REVISION_ID));
 
 	/*
 	 * Now throw it in to register initialization mode and
@@ -395,9 +394,9 @@ static int __init sh7780_pci_init(void)
 
 	sh7780_pci66_init(chan);
 
-	printk(KERN_NOTICE "PCI: Running at %dMHz.\n",
-	       (__raw_readw(chan->reg_base + PCI_STATUS) & PCI_STATUS_66MHZ) ?
-	       66 : 33);
+	pr_notice("PCI: Running at %dMHz.\n",
+		  (__raw_readw(chan->reg_base + PCI_STATUS) & PCI_STATUS_66MHZ)
+		  ? 66 : 33);
 
 	return 0;
 

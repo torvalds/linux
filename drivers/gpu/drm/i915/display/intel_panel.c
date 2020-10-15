@@ -229,7 +229,7 @@ int intel_pch_panel_fitting(struct intel_crtc_state *crtc_state,
 	case DRM_MODE_SCALE_NONE:
 		WARN_ON(adjusted_mode->crtc_hdisplay != crtc_state->pipe_src_w);
 		WARN_ON(adjusted_mode->crtc_vdisplay != crtc_state->pipe_src_h);
-		/* fall through */
+		fallthrough;
 	case DRM_MODE_SCALE_FULLSCREEN:
 		x = y = 0;
 		width = adjusted_mode->crtc_hdisplay;
@@ -1929,7 +1929,7 @@ static int pwm_setup_backlight(struct intel_connector *connector,
 		return retval;
 	}
 
-	level = DIV_ROUND_UP(pwm_get_duty_cycle(panel->backlight.pwm) * 100,
+	level = DIV_ROUND_UP_ULL(pwm_get_duty_cycle(panel->backlight.pwm) * 100,
 			     CRC_PMIC_PWM_PERIOD_NS);
 	panel->backlight.level =
 		intel_panel_compute_brightness(connector, level);

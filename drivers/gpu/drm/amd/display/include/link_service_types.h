@@ -66,6 +66,8 @@ enum link_training_result {
 	/* other failure during EQ step */
 	LINK_TRAINING_EQ_FAIL_EQ,
 	LINK_TRAINING_LQA_FAIL,
+	/* one of the CR,EQ or symbol lock is dropped */
+	LINK_TRAINING_LINK_LOSS,
 };
 
 struct link_training_settings {

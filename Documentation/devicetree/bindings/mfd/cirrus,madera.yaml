@@ -98,11 +98,11 @@ allOf:
           description:
             Databus power supply.
   - if:
-     properties:
-       compatible:
-         contains:
-           enum:
-             - cirrus,cs47l15
+      properties:
+        compatible:
+          contains:
+            enum:
+              - cirrus,cs47l15
     then:
       required:
         - MICVDD-supply
@@ -174,24 +174,24 @@ properties:
         "mclk3" For the clock supplied on MCLK3.
     oneOf:
       - items:
-        - const: mclk1
+          - const: mclk1
       - items:
-        - const: mclk2
+          - const: mclk2
       - items:
-        - const: mclk3
+          - const: mclk3
       - items:
-        - const: mclk1
-        - const: mclk2
+          - const: mclk1
+          - const: mclk2
       - items:
-        - const: mclk1
-        - const: mclk3
+          - const: mclk1
+          - const: mclk3
       - items:
-        - const: mclk2
-        - const: mclk3
+          - const: mclk2
+          - const: mclk3
       - items:
-        - const: mclk1
-        - const: mclk2
-        - const: mclk3
+          - const: mclk1
+          - const: mclk2
+          - const: mclk3
 
   AVDD-supply:
     description:

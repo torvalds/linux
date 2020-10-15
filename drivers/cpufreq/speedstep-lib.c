@@ -366,7 +366,7 @@ enum speedstep_processor speedstep_detect_processor(void)
 			} else
 				return SPEEDSTEP_CPU_PIII_C;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		return 0;
 	}

@@ -306,27 +306,6 @@ exit_unlock:
 	return err;
 }
 
-static int f71862fg_pin_configure(unsigned short ioaddr)
-{
-	/* When ioaddr is non-zero the calling function has to take care of
-	   mutex handling and superio preparation! */
-
-	if (f71862fg_pin == 63) {
-		if (ioaddr) {
-			/* SPI must be disabled first to use this pin! */
-			superio_clear_bit(ioaddr, SIO_REG_ROM_ADDR_SEL, 6);
-			superio_set_bit(ioaddr, SIO_REG_MFUNCT3, 4);
-		}
-	} else if (f71862fg_pin == 56) {
-		if (ioaddr)
-			superio_set_bit(ioaddr, SIO_REG_MFUNCT1, 1);
-	} else {
-		pr_err("Invalid argument f71862fg_pin=%d\n", f71862fg_pin);
-		return -EINVAL;
-	}
-	return 0;
-}
-
 static int watchdog_start(void)
 {
 	int err;
@@ -352,9 +331,13 @@ static int watchdog_start(void)
 		break;
 
 	case f71862fg:
-		err = f71862fg_pin_configure(watchdog.sioaddr);
-		if (err)
-			goto exit_superio;
+		if (f71862fg_pin == 63) {
+			/* SPI must be disabled first to use this pin! */
+			superio_clear_bit(watchdog.sioaddr, SIO_REG_ROM_ADDR_SEL, 6);
+			superio_set_bit(watchdog.sioaddr, SIO_REG_MFUNCT3, 4);
+		} else if (f71862fg_pin == 56) {
+			superio_set_bit(watchdog.sioaddr, SIO_REG_MFUNCT1, 1);
+		}
 		break;
 
 	case f71868:
@@ -629,7 +612,7 @@ static long watchdog_ioctl(struct file *file, unsigned int cmd,
 
 		if (new_options & WDIOS_ENABLECARD)
 			return watchdog_start();
-		/* fall through */
+		fallthrough;
 
 	case WDIOC_KEEPALIVE:
 		watchdog_keepalive();
@@ -643,7 +626,7 @@ static long watchdog_ioctl(struct file *file, unsigned int cmd,
 			return -EINVAL;
 
 		watchdog_keepalive();
-		/* fall through */
+		fallthrough;
 
 	case WDIOC_GETTIMEOUT:
 		return put_user(watchdog.timeout, uarg.i);
@@ -690,9 +673,9 @@ static int __init watchdog_init(int sioaddr)
 	 * into the module have been registered yet.
 	 */
 	watchdog.sioaddr = sioaddr;
-	watchdog.ident.options = WDIOC_SETTIMEOUT
-				| WDIOF_MAGICCLOSE
-				| WDIOF_KEEPALIVEPING;
+	watchdog.ident.options = WDIOF_MAGICCLOSE
+				| WDIOF_KEEPALIVEPING
+				| WDIOF_CARDRESET;
 
 	snprintf(watchdog.ident.identity,
 		sizeof(watchdog.ident.identity), "%s watchdog",
@@ -705,6 +688,13 @@ static int __init watchdog_init(int sioaddr)
 
 	wdt_conf = superio_inb(sioaddr, F71808FG_REG_WDT_CONF);
 	watchdog.caused_reboot = wdt_conf & BIT(F71808FG_FLAG_WDTMOUT_STS);
+
+	/*
+	 * We don't want WDTMOUT_STS to stick around till regular reboot.
+	 * Write 1 to the bit to clear it to zero.
+	 */
+	superio_outb(sioaddr, F71808FG_REG_WDT_CONF,
+		     wdt_conf | BIT(F71808FG_FLAG_WDTMOUT_STS));
 
 	superio_exit(sioaddr);
 
@@ -803,7 +793,6 @@ static int __init f71808e_find(int sioaddr)
 		break;
 	case SIO_F71862_ID:
 		watchdog.type = f71862fg;
-		err = f71862fg_pin_configure(0); /* validate module parameter */
 		break;
 	case SIO_F71868_ID:
 		watchdog.type = f71868;
@@ -851,6 +840,11 @@ static int __init f71808e_init(void)
 	static const unsigned short addrs[] = { 0x2e, 0x4e };
 	int err = -ENODEV;
 	int i;
+
+	if (f71862fg_pin != 63 && f71862fg_pin != 56) {
+		pr_err("Invalid argument f71862fg_pin=%d\n", f71862fg_pin);
+		return -EINVAL;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(addrs); i++) {
 		err = f71808e_find(addrs[i]);

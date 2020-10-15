@@ -316,7 +316,7 @@ driver as a loadable kernel module kgdbwait will not do anything.
 Kernel parameter: ``kgdbcon``
 -----------------------------
 
-The ``kgdbcon`` feature allows you to see :c:func:`printk` messages inside gdb
+The ``kgdbcon`` feature allows you to see printk() messages inside gdb
 while gdb is connected to the kernel. Kdb does not make use of the kgdbcon
 feature.
 
@@ -432,7 +432,7 @@ This is a quick example of how to use kdb.
    ``ps``      Displays only the active processes
    ``ps A``    Shows all the processes
    ``summary`` Shows kernel version info and memory usage
-   ``bt``      Get a backtrace of the current process using :c:func:`dump_stack`
+   ``bt``      Get a backtrace of the current process using dump_stack()
    ``dmesg``   View the kernel syslog buffer
    ``go``      Continue the system
    =========== =================================================================
@@ -724,7 +724,7 @@ The kernel debugger is organized into a number of components:
    The arch-specific portion implements:
 
    -  contains an arch-specific trap catcher which invokes
-      :c:func:`kgdb_handle_exception` to start kgdb about doing its work
+      kgdb_handle_exception() to start kgdb about doing its work
 
    -  translation to and from gdb specific packet format to :c:type:`pt_regs`
 
@@ -769,7 +769,7 @@ The kernel debugger is organized into a number of components:
          config. Later run ``modprobe kdb_hello`` and the next time you
          enter the kdb shell, you can run the ``hello`` command.
 
-   -  The implementation for :c:func:`kdb_printf` which emits messages directly
+   -  The implementation for kdb_printf() which emits messages directly
       to I/O drivers, bypassing the kernel log.
 
    -  SW / HW breakpoint management for the kdb shell
@@ -875,7 +875,7 @@ kernel when ``CONFIG_KDB_KEYBOARD=y`` is set in the kernel configuration.
 The core polled keyboard driver for PS/2 type keyboards is in
 ``drivers/char/kdb_keyboard.c``. This driver is hooked into the debug core
 when kgdboc populates the callback in the array called
-:c:type:`kdb_poll_funcs[]`. The :c:func:`kdb_get_kbd_char` is the top-level
+:c:type:`kdb_poll_funcs[]`. The kdb_get_kbd_char() is the top-level
 function which polls hardware for single character input.
 
 kgdboc and kms
@@ -887,10 +887,10 @@ that you have a video driver which has a frame buffer console and atomic
 kernel mode setting support.
 
 Every time the kernel debugger is entered it calls
-:c:func:`kgdboc_pre_exp_handler` which in turn calls :c:func:`con_debug_enter`
+kgdboc_pre_exp_handler() which in turn calls con_debug_enter()
 in the virtual console layer. On resuming kernel execution, the kernel
-debugger calls :c:func:`kgdboc_post_exp_handler` which in turn calls
-:c:func:`con_debug_leave`.
+debugger calls kgdboc_post_exp_handler() which in turn calls
+con_debug_leave().
 
 Any video driver that wants to be compatible with the kernel debugger
 and the atomic kms callbacks must implement the ``mode_set_base_atomic``,

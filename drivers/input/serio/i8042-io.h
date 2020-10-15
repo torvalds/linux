@@ -21,8 +21,6 @@
 #elif defined(__arm__)
 /* defined in include/asm-arm/arch-xxx/irqs.h */
 #include <asm/irq.h>
-#elif defined(CONFIG_SH_CAYMAN)
-#include <asm/irq.h>
 #elif defined(CONFIG_PPC)
 extern int of_i8042_kbd_irq;
 extern int of_i8042_aux_irq;

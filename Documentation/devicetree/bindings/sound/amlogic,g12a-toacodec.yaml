@@ -19,13 +19,11 @@ properties:
   compatible:
     oneOf:
       - items:
-        - const:
-            amlogic,g12a-toacodec
+          - const: amlogic,g12a-toacodec
       - items:
-        - enum:
-          - amlogic,sm1-toacodec
-        - const:
-            amlogic,g12a-toacodec
+          - enum:
+              - amlogic,sm1-toacodec
+          - const: amlogic,g12a-toacodec
 
   reg:
     maxItems: 1

@@ -239,15 +239,15 @@ const char *zpool_get_type(struct zpool *zpool)
 }
 
 /**
- * zpool_malloc_support_movable() - Check if the zpool support
- * allocate movable memory
+ * zpool_malloc_support_movable() - Check if the zpool supports
+ *	allocating movable memory
  * @zpool:	The zpool to check
  *
- * This returns if the zpool support allocate movable memory.
+ * This returns if the zpool supports allocating movable memory.
  *
  * Implementations must guarantee this to be thread-safe.
  *
- * Returns: true if if the zpool support allocate movable memory, false if not
+ * Returns: true if the zpool supports allocating movable memory, false if not
  */
 bool zpool_malloc_support_movable(struct zpool *zpool)
 {

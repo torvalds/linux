@@ -307,7 +307,7 @@ patternProperties:
           mode.
         $ref: /schemas/types.yaml#/definitions/uint32
         enum: [0, 250, 500, 1000, 5000, 10000, 25000, 50000, 100000, 250000,
-          500000, 1000000]
+               500000, 1000000]
 
       adi,custom-thermistor:
         description:

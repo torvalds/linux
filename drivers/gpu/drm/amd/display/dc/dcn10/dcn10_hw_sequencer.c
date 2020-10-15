@@ -390,6 +390,8 @@ void dcn10_log_hw_state(struct dc *dc,
 	}
 	DTN_INFO("\n");
 
+	// dcn_dsc_state struct field bytes_per_pixel was renamed to bits_per_pixel
+	// TODO: Update golden log header to reflect this name change
 	DTN_INFO("DSC: CLOCK_EN  SLICE_WIDTH  Bytes_pp\n");
 	for (i = 0; i < pool->res_cap->num_dsc; i++) {
 		struct display_stream_compressor *dsc = pool->dscs[i];
@@ -400,7 +402,7 @@ void dcn10_log_hw_state(struct dc *dc,
 		dsc->inst,
 			s.dsc_clock_en,
 			s.dsc_slice_width,
-			s.dsc_bytes_per_pixel);
+			s.dsc_bits_per_pixel);
 		DTN_INFO("\n");
 	}
 	DTN_INFO("\n");
@@ -1448,33 +1450,42 @@ void dcn10_init_hw(struct dc *dc)
 void dcn10_power_down_on_boot(struct dc *dc)
 {
 	int i = 0;
+	struct dc_link *edp_link;
 
-	if (dc->config.power_down_display_on_boot) {
-		struct dc_link *edp_link = get_edp_link(dc);
+	if (!dc->config.power_down_display_on_boot)
+		return;
 
-		if (edp_link &&
-				edp_link->link_enc->funcs->is_dig_enabled &&
-				edp_link->link_enc->funcs->is_dig_enabled(edp_link->link_enc) &&
-				dc->hwseq->funcs.edp_backlight_control &&
-				dc->hwss.power_down &&
-				dc->hwss.edp_power_control) {
-			dc->hwseq->funcs.edp_backlight_control(edp_link, false);
-			dc->hwss.power_down(dc);
-			dc->hwss.edp_power_control(edp_link, false);
-		} else {
-			for (i = 0; i < dc->link_count; i++) {
-				struct dc_link *link = dc->links[i];
+	edp_link = get_edp_link(dc);
+	if (edp_link &&
+			edp_link->link_enc->funcs->is_dig_enabled &&
+			edp_link->link_enc->funcs->is_dig_enabled(edp_link->link_enc) &&
+			dc->hwseq->funcs.edp_backlight_control &&
+			dc->hwss.power_down &&
+			dc->hwss.edp_power_control) {
+		dc->hwseq->funcs.edp_backlight_control(edp_link, false);
+		dc->hwss.power_down(dc);
+		dc->hwss.edp_power_control(edp_link, false);
+	} else {
+		for (i = 0; i < dc->link_count; i++) {
+			struct dc_link *link = dc->links[i];
 
-				if (link->link_enc->funcs->is_dig_enabled &&
-						link->link_enc->funcs->is_dig_enabled(link->link_enc) &&
-						dc->hwss.power_down) {
-					dc->hwss.power_down(dc);
-					break;
-				}
-
+			if (link->link_enc->funcs->is_dig_enabled &&
+					link->link_enc->funcs->is_dig_enabled(link->link_enc) &&
+					dc->hwss.power_down) {
+				dc->hwss.power_down(dc);
+				break;
 			}
+
 		}
 	}
+
+	/*
+	 * Call update_clocks with empty context
+	 * to send DISPLAY_OFF
+	 * Otherwise DISPLAY_OFF may not be asserted
+	 */
+	if (dc->clk_mgr->funcs->set_low_power_state)
+		dc->clk_mgr->funcs->set_low_power_state(dc->clk_mgr);
 }
 
 void dcn10_reset_hw_ctx_wrap(

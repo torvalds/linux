@@ -134,6 +134,8 @@ int build_obj_refs_table(struct obj_refs_table *table, enum bpf_obj_type type)
 	while (true) {
 		ret = read(fd, buf, sizeof(buf));
 		if (ret < 0) {
+			if (errno == EAGAIN)
+				continue;
 			err = -errno;
 			p_err("failed to read PID iterator output: %d", err);
 			goto out;

@@ -615,7 +615,9 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, u32 phy_id,
 	if (c45_ids)
 		dev->c45_ids = *c45_ids;
 	dev->irq = bus->irq[addr];
+
 	dev_set_name(&mdiodev->dev, PHY_ID_FMT, bus->id, addr);
+	device_initialize(&mdiodev->dev);
 
 	dev->state = PHY_DOWN;
 
@@ -649,10 +651,8 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, u32 phy_id,
 		ret = phy_request_driver_module(dev, phy_id);
 	}
 
-	if (!ret) {
-		device_initialize(&mdiodev->dev);
-	} else {
-		kfree(dev);
+	if (ret) {
+		put_device(&mdiodev->dev);
 		dev = ERR_PTR(ret);
 	}
 
@@ -1979,7 +1979,7 @@ static int genphy_setup_master_slave(struct phy_device *phydev)
 		break;
 	case MASTER_SLAVE_CFG_MASTER_FORCE:
 		ctl |= CTL1000_AS_MASTER;
-		/* fallthrough */
+		fallthrough;
 	case MASTER_SLAVE_CFG_SLAVE_FORCE:
 		ctl |= CTL1000_ENABLE_MASTER;
 		break;

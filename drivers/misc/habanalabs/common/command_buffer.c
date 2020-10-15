@@ -10,6 +10,7 @@
 
 #include <linux/mm.h>
 #include <linux/slab.h>
+#include <linux/uaccess.h>
 #include <linux/genalloc.h>
 
 static void cb_fini(struct hl_device *hdev, struct hl_cb *cb)
@@ -300,7 +301,7 @@ int hl_cb_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma)
 	struct hl_device *hdev = hpriv->hdev;
 	struct hl_cb *cb;
 	phys_addr_t address;
-	u32 handle;
+	u32 handle, user_cb_size;
 	int rc;
 
 	handle = vma->vm_pgoff;
@@ -314,10 +315,21 @@ int hl_cb_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma)
 	}
 
 	/* Validation check */
-	if ((vma->vm_end - vma->vm_start) != ALIGN(cb->size, PAGE_SIZE)) {
+	user_cb_size = vma->vm_end - vma->vm_start;
+	if (user_cb_size != ALIGN(cb->size, PAGE_SIZE)) {
 		dev_err(hdev->dev,
 			"CB mmap failed, mmap size 0x%lx != 0x%x cb size\n",
 			vma->vm_end - vma->vm_start, cb->size);
+		rc = -EINVAL;
+		goto put_cb;
+	}
+
+	if (!access_ok((void __user *) (uintptr_t) vma->vm_start,
+							user_cb_size)) {
+		dev_err(hdev->dev,
+			"user pointer is invalid - 0x%lx\n",
+			vma->vm_start);
+
 		rc = -EINVAL;
 		goto put_cb;
 	}

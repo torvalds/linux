@@ -43,6 +43,7 @@ Supported adapters:
   * Intel Elkhart Lake (PCH)
   * Intel Tiger Lake (PCH)
   * Intel Jasper Lake (SOC)
+  * Intel Emmitsburg (PCH)
 
    Datasheets: Publicly available at the Intel website
 

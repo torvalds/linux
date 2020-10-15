@@ -1,0 +1,2 @@
+The libnvdimm sub-system implements a common sysfs interface for
+platform nvdimm resources. See Documentation/driver-api/nvdimm/.

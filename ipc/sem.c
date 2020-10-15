@@ -585,8 +585,7 @@ static int newary(struct ipc_namespace *ns, struct ipc_params *params)
 /*
  * Called with sem_ids.rwsem and ipcp locked.
  */
-static inline int sem_more_checks(struct kern_ipc_perm *ipcp,
-				struct ipc_params *params)
+static int sem_more_checks(struct kern_ipc_perm *ipcp, struct ipc_params *params)
 {
 	struct sem_array *sma;
 
@@ -1692,7 +1691,7 @@ static long ksys_semctl(int semid, int semnum, int cmd, unsigned long arg, int v
 	case IPC_SET:
 		if (copy_semid_from_user(&semid64, p, version))
 			return -EFAULT;
-		/* fall through */
+		fallthrough;
 	case IPC_RMID:
 		return semctl_down(ns, semid, cmd, &semid64);
 	default:
@@ -1806,7 +1805,7 @@ static long compat_ksys_semctl(int semid, int semnum, int cmd, int arg, int vers
 	case IPC_SET:
 		if (copy_compat_semid_from_user(&semid64, p, version))
 			return -EFAULT;
-		/* fallthru */
+		fallthrough;
 	case IPC_RMID:
 		return semctl_down(ns, semid, cmd, &semid64);
 	default:

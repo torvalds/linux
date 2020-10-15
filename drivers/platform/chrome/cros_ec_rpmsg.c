@@ -38,6 +38,9 @@ struct cros_ec_rpmsg_response {
  * @rpdev:	rpmsg device we are connected to
  * @xfer_ack:	completion for host command transfer.
  * @host_event_work:	Work struct for pending host event.
+ * @ept: The rpmsg endpoint of this channel.
+ * @has_pending_host_event: Boolean used to check if there is a pending event.
+ * @probe_done: Flag to indicate that probe is done.
  */
 struct cros_ec_rpmsg {
 	struct rpmsg_device *rpdev;

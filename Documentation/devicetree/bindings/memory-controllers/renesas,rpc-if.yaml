@@ -26,10 +26,10 @@ properties:
   compatible:
     items:
       - enum:
-        - renesas,r8a77970-rpc-if       # R-Car V3M
-        - renesas,r8a77980-rpc-if       # R-Car V3H
-        - renesas,r8a77995-rpc-if       # R-Car D3
-      - const: renesas,rcar-gen3-rpc-if # a generic R-Car gen3 device
+          - renesas,r8a77970-rpc-if       # R-Car V3M
+          - renesas,r8a77980-rpc-if       # R-Car V3H
+          - renesas,r8a77995-rpc-if       # R-Car D3
+      - const: renesas,rcar-gen3-rpc-if   # a generic R-Car gen3 device
 
   reg:
     items:

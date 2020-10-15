@@ -3917,8 +3917,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	}
 
 	if (trace->sched &&
-	    perf_evlist__add_newtp(evlist, "sched", "sched_stat_runtime",
-				   trace__sched_stat_runtime))
+	    evlist__add_newtp(evlist, "sched", "sched_stat_runtime", trace__sched_stat_runtime))
 		goto out_error_sched_stat_runtime;
 	/*
 	 * If a global cgroup was set, apply it to all the events without an
@@ -4150,11 +4149,11 @@ out_error_raw_syscalls:
 	goto out_error;
 
 out_error_mmap:
-	perf_evlist__strerror_mmap(evlist, errno, errbuf, sizeof(errbuf));
+	evlist__strerror_mmap(evlist, errno, errbuf, sizeof(errbuf));
 	goto out_error;
 
 out_error_open:
-	perf_evlist__strerror_open(evlist, errno, errbuf, sizeof(errbuf));
+	evlist__strerror_open(evlist, errno, errbuf, sizeof(errbuf));
 
 out_error:
 	fprintf(trace->output, "%s\n", errbuf);
@@ -4813,7 +4812,7 @@ int cmd_trace(int argc, const char **argv)
 			"per thread proc mmap processing timeout in ms"),
 	OPT_CALLBACK('G', "cgroup", &trace, "name", "monitor event in cgroup name only",
 		     trace__parse_cgroups),
-	OPT_UINTEGER('D', "delay", &trace.opts.initial_delay,
+	OPT_INTEGER('D', "delay", &trace.opts.initial_delay,
 		     "ms to wait before starting measurement after program "
 		     "start"),
 	OPTS_EVSWITCH(&trace.evswitch),

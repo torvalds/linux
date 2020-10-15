@@ -15,7 +15,7 @@ properties:
   compatible:
     items:
       - enum:
-        - brcm,bcm23550-sparrow
+          - brcm,bcm23550-sparrow
       - const: brcm,bcm23550
 
 ...

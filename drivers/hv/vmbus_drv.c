@@ -86,6 +86,10 @@ static int hyperv_die_event(struct notifier_block *nb, unsigned long val,
 	struct die_args *die = (struct die_args *)args;
 	struct pt_regs *regs = die->regs;
 
+	/* Don't notify Hyper-V if the die event is other than oops */
+	if (val != DIE_OOPS)
+		return NOTIFY_DONE;
+
 	/*
 	 * Hyper-V should be notified only once about a panic.  If we will be
 	 * doing hyperv_report_panic_msg() later with kmsg data, don't do

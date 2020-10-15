@@ -10,6 +10,7 @@
 #include <linux/device.h>
 #include <linux/notifier.h>
 #include <linux/pm_wakeup.h>
+#include <linux/notifier.h>
 
 #include "ipa_version.h"
 #include "gsi.h"
@@ -73,6 +74,8 @@ struct ipa {
 	enum ipa_version version;
 	struct platform_device *pdev;
 	struct rproc *modem_rproc;
+	struct notifier_block nb;
+	void *notifier;
 	struct ipa_smp2p *smp2p;
 	struct ipa_clock *clock;
 	atomic_t suspend_ref;

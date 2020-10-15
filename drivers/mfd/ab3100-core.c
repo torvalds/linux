@@ -498,7 +498,7 @@ static ssize_t ab3100_get_set_reg(struct file *file,
 	int i = 0;
 
 	/* Get userspace string and assure termination */
-	buf_size = min(count, (sizeof(buf)-1));
+	buf_size = min((ssize_t)count, (ssize_t)(sizeof(buf)-1));
 	if (copy_from_user(buf, user_buf, buf_size))
 		return -EFAULT;
 	buf[buf_size] = 0;

@@ -1923,7 +1923,7 @@ u32 bnxt_fw_health_readl(struct bnxt *bp, int reg_idx)
 		break;
 	case BNXT_FW_HEALTH_REG_TYPE_GRC:
 		reg_off = fw_health->mapped_regs[reg_idx];
-		/* fall through */
+		fallthrough;
 	case BNXT_FW_HEALTH_REG_TYPE_BAR0:
 		val = readl(bp->bar0 + reg_off);
 		break;
@@ -1966,11 +1966,11 @@ static int bnxt_async_event_process(struct bnxt *bp,
 		}
 		set_bit(BNXT_LINK_SPEED_CHNG_SP_EVENT, &bp->sp_event);
 	}
-	/* fall through */
+		fallthrough;
 	case ASYNC_EVENT_CMPL_EVENT_ID_LINK_SPEED_CHANGE:
 	case ASYNC_EVENT_CMPL_EVENT_ID_PORT_PHY_CFG_CHANGE:
 		set_bit(BNXT_LINK_CFG_CHANGE_SP_EVENT, &bp->sp_event);
-		/* fall through */
+		fallthrough;
 	case ASYNC_EVENT_CMPL_EVENT_ID_LINK_STATUS_CHANGE:
 		set_bit(BNXT_LINK_CHNG_SP_EVENT, &bp->sp_event);
 		break;
@@ -9765,7 +9765,7 @@ static int bnxt_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	case SIOCGMIIPHY:
 		mdio->phy_id = bp->link_info.phy_addr;
 
-		/* fallthru */
+		fallthrough;
 	case SIOCGMIIREG: {
 		u16 mii_regval = 0;
 
@@ -11022,7 +11022,7 @@ static void bnxt_fw_reset_writel(struct bnxt *bp, int reg_idx)
 		writel(reg_off & BNXT_GRC_BASE_MASK,
 		       bp->bar0 + BNXT_GRCPF_REG_WINDOW_BASE_OUT + 4);
 		reg_off = (reg_off & BNXT_GRC_OFFSET_MASK) + 0x2000;
-		/* fall through */
+		fallthrough;
 	case BNXT_FW_HEALTH_REG_TYPE_BAR0:
 		writel(val, bp->bar0 + reg_off);
 		break;
@@ -11135,7 +11135,7 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 		}
 		bp->fw_reset_state = BNXT_FW_RESET_STATE_RESET_FW;
 	}
-	/* fall through */
+		fallthrough;
 	case BNXT_FW_RESET_STATE_RESET_FW:
 		bnxt_reset_all(bp);
 		bp->fw_reset_state = BNXT_FW_RESET_STATE_ENABLE_DEV;
@@ -11158,7 +11158,7 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 		}
 		pci_set_master(bp->pdev);
 		bp->fw_reset_state = BNXT_FW_RESET_STATE_POLL_FW;
-		/* fall through */
+		fallthrough;
 	case BNXT_FW_RESET_STATE_POLL_FW:
 		bp->hwrm_cmd_timeout = SHORT_HWRM_CMD_TIMEOUT;
 		rc = __bnxt_hwrm_ver_get(bp, true);
@@ -11173,7 +11173,7 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 		}
 		bp->hwrm_cmd_timeout = DFLT_HWRM_CMD_TIMEOUT;
 		bp->fw_reset_state = BNXT_FW_RESET_STATE_OPENING;
-		/* fall through */
+		fallthrough;
 	case BNXT_FW_RESET_STATE_OPENING:
 		while (!rtnl_trylock()) {
 			bnxt_queue_fw_reset_work(bp, HZ / 10);

@@ -18,29 +18,28 @@ description: |
   This binding describes the thermal idle node.
 
 properties:
-   $nodename:
-     const: thermal-idle
-     description: |
-        A thermal-idle node describes the idle cooling device properties to
-        cool down efficiently the attached thermal zone.
+  $nodename:
+    const: thermal-idle
+    description: |
+      A thermal-idle node describes the idle cooling device properties to
+      cool down efficiently the attached thermal zone.
 
-   '#cooling-cells':
-      const: 2
-      description: |
-         Must be 2, in order to specify minimum and maximum cooling state used in
-         the cooling-maps reference. The first cell is the minimum cooling state
-         and the second cell is the maximum cooling state requested.
+  '#cooling-cells':
+    const: 2
+    description: |
+      Must be 2, in order to specify minimum and maximum cooling state used in
+      the cooling-maps reference. The first cell is the minimum cooling state
+      and the second cell is the maximum cooling state requested.
 
-   duration-us:
-      description: |
-         The idle duration in microsecond the device should cool down.
+  duration-us:
+    description: |
+      The idle duration in microsecond the device should cool down.
 
-   exit-latency-us:
-      description: |
-         The exit latency constraint in microsecond for the injected
-         idle state for the device. It is the latency constraint to
-         apply when selecting an idle state from among all the present
-         ones.
+  exit-latency-us:
+    description: |
+      The exit latency constraint in microsecond for the injected idle state 
+      for the device. It is the latency constraint to apply when selecting an 
+      idle state from among all the present ones.
 
 required:
   - '#cooling-cells'

@@ -1101,7 +1101,7 @@ smb2_select_sectype(struct TCP_Server_Info *server, enum securityEnum requested)
 		if ((server->sec_kerberos || server->sec_mskerberos) &&
 			(global_secflags & CIFSSEC_MAY_KRB5))
 			return Kerberos;
-		/* Fallthrough */
+		fallthrough;
 	default:
 		return Unspecified;
 	}
@@ -3913,7 +3913,7 @@ smb2_readv_callback(struct mid_q_entry *mid)
 	case MID_RESPONSE_MALFORMED:
 		credits.value = le16_to_cpu(shdr->CreditRequest);
 		credits.instance = server->reconnect_instance;
-		/* fall through */
+		fallthrough;
 	default:
 		rdata->result = -EIO;
 	}
@@ -4146,7 +4146,7 @@ smb2_writev_callback(struct mid_q_entry *mid)
 	case MID_RESPONSE_MALFORMED:
 		credits.value = le16_to_cpu(rsp->sync_hdr.CreditRequest);
 		credits.instance = server->reconnect_instance;
-		/* fall through */
+		fallthrough;
 	default:
 		wdata->result = -EIO;
 		break;

@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Freescale MXS MMC controller
 
 maintainers:
-  - Shawn Guo <shawn.guo@linaro.org>
+  - Shawn Guo <shawnguo@kernel.org>
 
 description: |
   The Freescale MXS Synchronous Serial Ports (SSP) can act as a MMC controller

@@ -15,11 +15,7 @@ ifneq ($(SUBARCH),$(ARCH))
   endif
 endif
 
-ifeq ($(ARCH),sh)
 KBUILD_DEFCONFIG	:= shx3_defconfig
-else
-KBUILD_DEFCONFIG	:= cayman_defconfig
-endif
 
 isa-y					:= any
 isa-$(CONFIG_SH_DSP)			:= sh
@@ -143,7 +139,6 @@ machdir-$(CONFIG_SH_SH7763RDP)			+= mach-sh7763rdp
 machdir-$(CONFIG_SH_SH4202_MICRODEV)		+= mach-microdev
 machdir-$(CONFIG_SH_LANDISK)			+= mach-landisk
 machdir-$(CONFIG_SH_LBOX_RE2)			+= mach-lboxre2
-machdir-$(CONFIG_SH_CAYMAN)			+= mach-cayman
 machdir-$(CONFIG_SH_RSK)			+= mach-rsk
 
 ifneq ($(machdir-y),)

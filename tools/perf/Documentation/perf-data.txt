@@ -27,6 +27,9 @@ OPTIONS for 'convert'
 --to-ctf::
 	Triggers the CTF conversion, specify the path of CTF data directory.
 
+--tod::
+	Convert time to wall clock time.
+
 -i::
 	Specify input perf data file path.
 

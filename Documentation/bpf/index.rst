@@ -36,6 +36,12 @@ Two sets of Questions and Answers (Q&A) are maintained.
    bpf_devel_QA
 
 
+Helper functions
+================
+
+* `bpf-helpers(7)`_ maintains a list of helpers available to eBPF programs.
+
+
 Program types
 =============
 
@@ -79,4 +85,5 @@ Other
 .. _networking-filter: ../networking/filter.rst
 .. _man-pages: https://www.kernel.org/doc/man-pages/
 .. _bpf(2): https://man7.org/linux/man-pages/man2/bpf.2.html
+.. _bpf-helpers(7): https://man7.org/linux/man-pages/man7/bpf-helpers.7.html
 .. _BPF and XDP Reference Guide: https://docs.cilium.io/en/latest/bpf/

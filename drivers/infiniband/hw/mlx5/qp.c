@@ -416,7 +416,7 @@ static int sq_overhead(struct ib_qp_init_attr *attr)
 	switch (attr->qp_type) {
 	case IB_QPT_XRC_INI:
 		size += sizeof(struct mlx5_wqe_xrc_seg);
-		/* fall through */
+		fallthrough;
 	case IB_QPT_RC:
 		size += sizeof(struct mlx5_wqe_ctrl_seg) +
 			max(sizeof(struct mlx5_wqe_atomic_seg) +
@@ -441,7 +441,7 @@ static int sq_overhead(struct ib_qp_init_attr *attr)
 		if (attr->create_flags & IB_QP_CREATE_IPOIB_UD_LSO)
 			size += sizeof(struct mlx5_wqe_eth_pad) +
 				sizeof(struct mlx5_wqe_eth_seg);
-		/* fall through */
+		fallthrough;
 	case IB_QPT_SMI:
 	case MLX5_IB_QPT_HW_GSI:
 		size += sizeof(struct mlx5_wqe_ctrl_seg) +

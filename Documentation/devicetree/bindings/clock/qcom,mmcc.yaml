@@ -65,7 +65,7 @@ properties:
 
   protected-clocks:
     description:
-       Protected clock specifier list as per common clock binding
+      Protected clock specifier list as per common clock binding
 
   vdd-gfx-supply:
     description:

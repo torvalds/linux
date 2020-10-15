@@ -42,8 +42,8 @@ properties:
       - items:
           - const: arm,gic-400
           - enum:
-             - arm,cortex-a15-gic
-             - arm,cortex-a7-gic
+              - arm,cortex-a15-gic
+              - arm,cortex-a7-gic
 
       - items:
           - const: arm,arm1176jzf-devchip-gic

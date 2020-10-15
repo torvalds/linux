@@ -13,6 +13,8 @@
 #include <linux/reboot.h>
 #include <linux/serial_8250.h>
 #include <asm/apic.h>
+#include <asm/io_apic.h>
+#include <asm/acpi.h>
 #include <asm/cpu.h>
 #include <asm/hypervisor.h>
 #include <asm/i8259.h>

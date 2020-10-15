@@ -470,6 +470,6 @@ static struct platform_driver i2c_sirfsoc_driver = {
 module_platform_driver(i2c_sirfsoc_driver);
 
 MODULE_DESCRIPTION("SiRF SoC I2C master controller driver");
-MODULE_AUTHOR("Zhiwu Song <Zhiwu.Song@csr.com>, "
-	"Xiangzhen Ye <Xiangzhen.Ye@csr.com>");
+MODULE_AUTHOR("Zhiwu Song <Zhiwu.Song@csr.com>");
+MODULE_AUTHOR("Xiangzhen Ye <Xiangzhen.Ye@csr.com>");
 MODULE_LICENSE("GPL v2");

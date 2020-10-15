@@ -487,7 +487,7 @@ static int r600_cs_track_validate_cb(struct radeon_cs_parser *p, int i)
 				return -EINVAL;
 			}
 		}
-		/* fall through */
+		fallthrough;
 	case V_0280A0_CLEAR_ENABLE:
 	{
 		uint32_t block_max = G_028100_CMASK_BLOCK_MAX(track->cb_color_mask[i]);
@@ -1535,7 +1535,7 @@ static int r600_check_texture_resource(struct radeon_cs_parser *p,  u32 idx,
 		break;
 	case V_038000_SQ_TEX_DIM_2D_ARRAY_MSAA:
 		is_array = true;
-		/* fall through */
+		fallthrough;
 	case V_038000_SQ_TEX_DIM_2D_MSAA:
 		array_check.nsamples = 1 << llevel;
 		llevel = 0;

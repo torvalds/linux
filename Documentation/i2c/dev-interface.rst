@@ -159,6 +159,8 @@ for details) through the following functions::
   __s32 i2c_smbus_read_word_data(int file, __u8 command);
   __s32 i2c_smbus_write_word_data(int file, __u8 command, __u16 value);
   __s32 i2c_smbus_process_call(int file, __u8 command, __u16 value);
+  __s32 i2c_smbus_block_process_call(int file, __u8 command, __u8 length,
+                                     __u8 *values);
   __s32 i2c_smbus_read_block_data(int file, __u8 command, __u8 *values);
   __s32 i2c_smbus_write_block_data(int file, __u8 command, __u8 length,
                                    __u8 *values);

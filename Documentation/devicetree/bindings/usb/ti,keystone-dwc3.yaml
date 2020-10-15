@@ -13,8 +13,8 @@ properties:
   compatible:
     items:
       - enum:
-        - ti,keystone-dwc3
-        - ti,am654-dwc3
+          - ti,keystone-dwc3
+          - ti,am654-dwc3
 
   reg:
     maxItems: 1

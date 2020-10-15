@@ -222,7 +222,7 @@
 204	common	quotactl			sys_quotactl
 # 205 was old nfsservctl
 205	common	nfsservctl			sys_ni_syscall
-206	common	_sysctl				sys_sysctl
+206	common	_sysctl				sys_ni_syscall
 207	common	bdflush				sys_bdflush
 208	common	uname				sys_newuname
 209	common	sysinfo				sys_sysinfo

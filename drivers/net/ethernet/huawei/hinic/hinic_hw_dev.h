@@ -504,8 +504,6 @@ enum hinic_fault_type {
 	FAULT_TYPE_MAX,
 };
 
-#define FAULT_SHOW_STR_LEN 16
-
 enum hinic_fault_err_level {
 	FAULT_LEVEL_FATAL,
 	FAULT_LEVEL_SERIOUS_RESET,

@@ -314,6 +314,7 @@ struct bcm2835_cprman {
 	struct device *dev;
 	void __iomem *regs;
 	spinlock_t regs_lock; /* spinlock for all clocks */
+	unsigned int soc;
 
 	/*
 	 * Real names of cprman clock parents looked up through
@@ -526,6 +527,20 @@ static int bcm2835_pll_is_on(struct clk_hw *hw)
 		A2W_PLL_CTRL_PRST_DISABLE;
 }
 
+static u32 bcm2835_pll_get_prediv_mask(struct bcm2835_cprman *cprman,
+				       const struct bcm2835_pll_data *data)
+{
+	/*
+	 * On BCM2711 there isn't a pre-divisor available in the PLL feedback
+	 * loop. Bits 13:14 of ANA1 (PLLA,PLLB,PLLC,PLLD) have been re-purposed
+	 * for to for VCO RANGE bits.
+	 */
+	if (cprman->soc & SOC_BCM2711)
+		return 0;
+
+	return data->ana->fb_prediv_mask;
+}
+
 static void bcm2835_pll_choose_ndiv_and_fdiv(unsigned long rate,
 					     unsigned long parent_rate,
 					     u32 *ndiv, u32 *fdiv)
@@ -583,7 +598,7 @@ static unsigned long bcm2835_pll_get_rate(struct clk_hw *hw,
 	ndiv = (a2wctrl & A2W_PLL_CTRL_NDIV_MASK) >> A2W_PLL_CTRL_NDIV_SHIFT;
 	pdiv = (a2wctrl & A2W_PLL_CTRL_PDIV_MASK) >> A2W_PLL_CTRL_PDIV_SHIFT;
 	using_prediv = cprman_read(cprman, data->ana_reg_base + 4) &
-		data->ana->fb_prediv_mask;
+		       bcm2835_pll_get_prediv_mask(cprman, data);
 
 	if (using_prediv) {
 		ndiv *= 2;
@@ -666,6 +681,7 @@ static int bcm2835_pll_set_rate(struct clk_hw *hw,
 	struct bcm2835_pll *pll = container_of(hw, struct bcm2835_pll, hw);
 	struct bcm2835_cprman *cprman = pll->cprman;
 	const struct bcm2835_pll_data *data = pll->data;
+	u32 prediv_mask = bcm2835_pll_get_prediv_mask(cprman, data);
 	bool was_using_prediv, use_fb_prediv, do_ana_setup_first;
 	u32 ndiv, fdiv, a2w_ctl;
 	u32 ana[4];
@@ -683,7 +699,7 @@ static int bcm2835_pll_set_rate(struct clk_hw *hw,
 	for (i = 3; i >= 0; i--)
 		ana[i] = cprman_read(cprman, data->ana_reg_base + i * 4);
 
-	was_using_prediv = ana[1] & data->ana->fb_prediv_mask;
+	was_using_prediv = ana[1] & prediv_mask;
 
 	ana[0] &= ~data->ana->mask0;
 	ana[0] |= data->ana->set0;
@@ -693,10 +709,10 @@ static int bcm2835_pll_set_rate(struct clk_hw *hw,
 	ana[3] |= data->ana->set3;
 
 	if (was_using_prediv && !use_fb_prediv) {
-		ana[1] &= ~data->ana->fb_prediv_mask;
+		ana[1] &= ~prediv_mask;
 		do_ana_setup_first = true;
 	} else if (!was_using_prediv && use_fb_prediv) {
-		ana[1] |= data->ana->fb_prediv_mask;
+		ana[1] |= prediv_mask;
 		do_ana_setup_first = false;
 	} else {
 		do_ana_setup_first = true;
@@ -2262,6 +2278,7 @@ static int bcm2835_clk_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, cprman);
 
 	cprman->onecell.num = asize;
+	cprman->soc = pdata->soc;
 	hws = cprman->onecell.hws;
 
 	for (i = 0; i < asize; i++) {

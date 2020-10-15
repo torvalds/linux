@@ -10,7 +10,7 @@
 /*
  * Return code to denote that requested number of
  * frontswap pages are unused(moved to page cache).
- * Used in in shmem_unuse and try_to_unuse.
+ * Used in shmem_unuse and try_to_unuse.
  */
 #define FRONTSWAP_PAGES_UNUSED	2
 

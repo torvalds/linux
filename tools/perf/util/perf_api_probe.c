@@ -93,6 +93,11 @@ static void perf_probe_context_switch(struct evsel *evsel)
 	evsel->core.attr.context_switch = 1;
 }
 
+static void perf_probe_text_poke(struct evsel *evsel)
+{
+	evsel->core.attr.text_poke = 1;
+}
+
 bool perf_can_sample_identifier(void)
 {
 	return perf_probe_api(perf_probe_sample_identifier);
@@ -106,6 +111,11 @@ bool perf_can_comm_exec(void)
 bool perf_can_record_switch_events(void)
 {
 	return perf_probe_api(perf_probe_context_switch);
+}
+
+bool perf_can_record_text_poke_events(void)
+{
+	return perf_probe_api(perf_probe_text_poke);
 }
 
 bool perf_can_record_cpu_wide(void)

@@ -672,6 +672,19 @@ int zpci_disable_device(struct zpci_dev *zdev)
 }
 EXPORT_SYMBOL_GPL(zpci_disable_device);
 
+void zpci_remove_device(struct zpci_dev *zdev)
+{
+	struct zpci_bus *zbus = zdev->zbus;
+	struct pci_dev *pdev;
+
+	pdev = pci_get_slot(zbus->bus, zdev->devfn);
+	if (pdev) {
+		if (pdev->is_virtfn)
+			return zpci_remove_virtfn(pdev, zdev->vfn);
+		pci_stop_and_remove_bus_device_locked(pdev);
+	}
+}
+
 int zpci_create_device(struct zpci_dev *zdev)
 {
 	int rc;
@@ -716,13 +729,8 @@ void zpci_release_device(struct kref *kref)
 {
 	struct zpci_dev *zdev = container_of(kref, struct zpci_dev, kref);
 
-	if (zdev->zbus->bus) {
-		struct pci_dev *pdev;
-
-		pdev = pci_get_slot(zdev->zbus->bus, zdev->devfn);
-		if (pdev)
-			pci_stop_and_remove_bus_device_locked(pdev);
-	}
+	if (zdev->zbus->bus)
+		zpci_remove_device(zdev);
 
 	switch (zdev->state) {
 	case ZPCI_FN_STATE_ONLINE:

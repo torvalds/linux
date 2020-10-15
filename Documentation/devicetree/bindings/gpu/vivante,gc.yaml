@@ -26,7 +26,8 @@ properties:
       - description: AXI/master interface clock
       - description: GPU core clock
       - description: Shader clock (only required if GPU has feature PIPE_3D)
-      - description: AHB/slave interface clock (only required if GPU can gate slave interface independently)
+      - description: AHB/slave interface clock (only required if GPU can gate 
+          slave interface independently)
     minItems: 1
     maxItems: 4
 

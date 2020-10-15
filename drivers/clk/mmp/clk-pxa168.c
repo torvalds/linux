@@ -10,6 +10,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/clk/mmp.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/spinlock.h>

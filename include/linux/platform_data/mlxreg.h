@@ -43,10 +43,13 @@
  *
  * TYPE1 HW watchdog implementation exist in old systems.
  * All new systems have TYPE2 HW watchdog.
+ * TYPE3 HW watchdog can exist on all systems with new CPLD.
+ * TYPE3 is selected by WD capability bit.
  */
 enum mlxreg_wdt_type {
 	MLX_WDT_TYPE1,
 	MLX_WDT_TYPE2,
+	MLX_WDT_TYPE3,
 };
 
 /**
@@ -93,7 +96,7 @@ struct mlxreg_core_data {
 	umode_t	mode;
 	struct device_node *np;
 	struct mlxreg_hotplug_device hpdev;
-	u8 health_cntr;
+	u32 health_cntr;
 	bool attached;
 	u8 regnum;
 };

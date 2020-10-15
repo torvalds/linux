@@ -711,7 +711,7 @@ static void process_txdone_queue (struct fs_dev *dev, struct queue *q)
 
 		switch (STATUS_CODE (qe)) {
 		case 0x01: /* This is for AAL0 where we put the chip in streaming mode */
-			/* Fall through */
+			fallthrough;
 		case 0x02:
 			/* Process a real txdone entry. */
 			tmp = qe->p0;

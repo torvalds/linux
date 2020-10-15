@@ -364,7 +364,6 @@ COND_SYSCALL(socketcall);
 COND_SYSCALL_COMPAT(socketcall);
 
 /* compat syscalls for arm64, x86, ... */
-COND_SYSCALL_COMPAT(sysctl);
 COND_SYSCALL_COMPAT(fanotify_mark);
 
 /* x86 */

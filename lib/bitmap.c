@@ -212,12 +212,12 @@ void bitmap_cut(unsigned long *dst, const unsigned long *src,
 	unsigned long keep = 0, carry;
 	int i;
 
-	memmove(dst, src, len * sizeof(*dst));
-
 	if (first % BITS_PER_LONG) {
 		keep = src[first / BITS_PER_LONG] &
 		       (~0UL >> (BITS_PER_LONG - first % BITS_PER_LONG));
 	}
+
+	memmove(dst, src, len * sizeof(*dst));
 
 	while (cut--) {
 		for (i = first / BITS_PER_LONG; i < len; i++) {

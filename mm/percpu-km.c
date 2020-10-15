@@ -44,7 +44,8 @@ static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk,
 	/* nada */
 }
 
-static struct pcpu_chunk *pcpu_create_chunk(gfp_t gfp)
+static struct pcpu_chunk *pcpu_create_chunk(enum pcpu_chunk_type type,
+					    gfp_t gfp)
 {
 	const int nr_pages = pcpu_group_sizes[0] >> PAGE_SHIFT;
 	struct pcpu_chunk *chunk;
@@ -52,7 +53,7 @@ static struct pcpu_chunk *pcpu_create_chunk(gfp_t gfp)
 	unsigned long flags;
 	int i;
 
-	chunk = pcpu_alloc_chunk(gfp);
+	chunk = pcpu_alloc_chunk(type, gfp);
 	if (!chunk)
 		return NULL;
 

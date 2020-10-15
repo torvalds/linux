@@ -209,7 +209,6 @@ static inline void jcopy(u8 *dest, const u8 *src, u32 n)
 		fallthrough;
 	case 1:
 		*dest++ = *src++;
-		/* fall through */
 	}
 }
 

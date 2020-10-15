@@ -232,6 +232,8 @@ unsigned long htab_convert_pte_flags(unsigned long pteflags)
 		rflags |= HPTE_R_I;
 	else if ((pteflags & _PAGE_CACHE_CTL) == _PAGE_NON_IDEMPOTENT)
 		rflags |= (HPTE_R_I | HPTE_R_G);
+	else if ((pteflags & _PAGE_CACHE_CTL) == _PAGE_SAO)
+		rflags |= (HPTE_R_W | HPTE_R_I | HPTE_R_M);
 	else
 		/*
 		 * Add memory coherence if cache inhibited is not set
@@ -1116,7 +1118,8 @@ void hash__early_init_mmu_secondary(void)
 		tlbiel_all();
 
 #ifdef CONFIG_PPC_MEM_KEYS
-	mtspr(SPRN_UAMOR, default_uamor);
+	if (mmu_has_feature(MMU_FTR_PKEY))
+		mtspr(SPRN_UAMOR, default_uamor);
 #endif
 }
 #endif /* CONFIG_SMP */

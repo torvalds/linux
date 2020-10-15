@@ -1136,15 +1136,14 @@ int sdei_event_handler(struct pt_regs *regs,
 	 * access kernel memory.
 	 * Do the same here because this doesn't come via the same entry code.
 	*/
-	orig_addr_limit = get_fs();
-	set_fs(USER_DS);
+	orig_addr_limit = force_uaccess_begin();
 
 	err = arg->callback(event_num, regs, arg->callback_arg);
 	if (err)
 		pr_err_ratelimited("event %u on CPU %u failed with error: %d\n",
 				   event_num, smp_processor_id(), err);
 
-	set_fs(orig_addr_limit);
+	force_uaccess_end(orig_addr_limit);
 
 	return err;
 }

@@ -162,14 +162,13 @@ required:
 additionalProperties: false
 
 examples:
- - |
+  - |
+    #include <dt-bindings/clock/imx8mq-clock.h>
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/reset/imx8mq-reset.h>
 
-   #include <dt-bindings/clock/imx8mq-clock.h>
-   #include <dt-bindings/gpio/gpio.h>
-   #include <dt-bindings/interrupt-controller/arm-gic.h>
-   #include <dt-bindings/reset/imx8mq-reset.h>
-
-   mipi_dsi: mipi_dsi@30a00000 {
+    mipi_dsi: mipi_dsi@30a00000 {
               #address-cells = <1>;
               #size-cells = <0>;
               compatible = "fsl,imx8mq-nwl-dsi";
@@ -224,4 +223,4 @@ examples:
                            };
                     };
               };
-      };
+    };

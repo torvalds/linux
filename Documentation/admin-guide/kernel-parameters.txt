@@ -724,7 +724,7 @@
 			memory region [offset, offset + size] for that kernel
 			image. If '@offset' is omitted, then a suitable offset
 			is selected automatically.
-			[KNL, x86_64] select a region under 4G first, and
+			[KNL, X86-64] Select a region under 4G first, and
 			fall back to reserve region above 4G when '@offset'
 			hasn't been specified.
 			See Documentation/admin-guide/kdump/kdump.rst for further details.
@@ -737,14 +737,14 @@
 			Documentation/admin-guide/kdump/kdump.rst for an example.
 
 	crashkernel=size[KMG],high
-			[KNL, x86_64] range could be above 4G. Allow kernel
+			[KNL, X86-64] range could be above 4G. Allow kernel
 			to allocate physical memory region from top, so could
 			be above 4G if system have more than 4G ram installed.
 			Otherwise memory region will be allocated below 4G, if
 			available.
 			It will be ignored if crashkernel=X is specified.
 	crashkernel=size[KMG],low
-			[KNL, x86_64] range under 4G. When crashkernel=X,high
+			[KNL, X86-64] range under 4G. When crashkernel=X,high
 			is passed, kernel could allocate physical memory region
 			above 4G, that cause second kernel crash on system
 			that require some amount of low memory, e.g. swiotlb
@@ -1233,8 +1233,7 @@
 	efi=		[EFI]
 			Format: { "debug", "disable_early_pci_dma",
 				  "nochunk", "noruntime", "nosoftreserve",
-				  "novamap", "no_disable_early_pci_dma",
-				  "old_map" }
+				  "novamap", "no_disable_early_pci_dma" }
 			debug: enable misc debug output.
 			disable_early_pci_dma: disable the busmaster bit on all
 			PCI bridges while in the EFI boot stub.
@@ -1251,8 +1250,6 @@
 			novamap: do not call SetVirtualAddressMap().
 			no_disable_early_pci_dma: Leave the busmaster bit set
 			on all PCI bridges while in the EFI boot stub
-			old_map [X86-64]: switch to the old ioremap-based EFI
-			runtime services mapping. [Needs CONFIG_X86_UV=y]
 
 	efi_no_storage_paranoia [EFI; X86]
 			Using this parameter you can use more than 50% of
@@ -1427,7 +1424,7 @@
 
 	gamma=		[HW,DRM]
 
-	gart_fix_e820=	[X86_64] disable the fix e820 for K8 GART
+	gart_fix_e820=	[X86-64] disable the fix e820 for K8 GART
 			Format: off | on
 			default: on
 
@@ -1814,7 +1811,7 @@
 			Format: 0 | 1
 			Default set by CONFIG_INIT_ON_FREE_DEFAULT_ON.
 
-	init_pkru=	[x86] Specify the default memory protection keys rights
+	init_pkru=	[X86] Specify the default memory protection keys rights
 			register contents for all processes.  0x55555554 by
 			default (disallow access to all but pkey 0).  Can
 			override in debugfs after boot.
@@ -1822,7 +1819,7 @@
 	inport.irq=	[HW] Inport (ATI XL and Microsoft) busmouse driver
 			Format: <irq>
 
-	int_pln_enable	[x86] Enable power limit notification interrupt
+	int_pln_enable	[X86] Enable power limit notification interrupt
 
 	integrity_audit=[IMA]
 			Format: { "0" | "1" }
@@ -1840,7 +1837,7 @@
 			bypassed by not enabling DMAR with this option. In
 			this case, gfx device will use physical address for
 			DMA.
-		forcedac [x86_64]
+		forcedac [X86-64]
 			With this option iommu will not optimize to look
 			for io virtual address below 32-bit forcing dual
 			address cycle on pci bus for cards supporting greater
@@ -1925,7 +1922,7 @@
 		strict	regions from userspace.
 		relaxed
 
-	iommu=		[x86]
+	iommu=		[X86]
 		off
 		force
 		noforce
@@ -1935,8 +1932,8 @@
 		merge
 		nomerge
 		soft
-		pt		[x86]
-		nopt		[x86]
+		pt		[X86]
+		nopt		[X86]
 		nobypass	[PPC/POWERNV]
 			Disable IOMMU bypass, using IOMMU for PCI devices.
 
@@ -2079,21 +2076,21 @@
 
 	iucv=		[HW,NET]
 
-	ivrs_ioapic	[HW,X86_64]
+	ivrs_ioapic	[HW,X86-64]
 			Provide an override to the IOAPIC-ID<->DEVICE-ID
 			mapping provided in the IVRS ACPI table. For
 			example, to map IOAPIC-ID decimal 10 to
 			PCI device 00:14.0 write the parameter as:
 				ivrs_ioapic[10]=00:14.0
 
-	ivrs_hpet	[HW,X86_64]
+	ivrs_hpet	[HW,X86-64]
 			Provide an override to the HPET-ID<->DEVICE-ID
 			mapping provided in the IVRS ACPI table. For
 			example, to map HPET-ID decimal 0 to
 			PCI device 00:14.0 write the parameter as:
 				ivrs_hpet[0]=00:14.0
 
-	ivrs_acpihid	[HW,X86_64]
+	ivrs_acpihid	[HW,X86-64]
 			Provide an override to the ACPI-HID:UID<->DEVICE-ID
 			mapping provided in the IVRS ACPI table. For
 			example, to map UART-HID:UID AMD0020:0 to
@@ -2370,7 +2367,7 @@
 	lapic		[X86-32,APIC] Enable the local APIC even if BIOS
 			disabled it.
 
-	lapic=		[x86,APIC] "notscdeadline" Do not use TSC deadline
+	lapic=		[X86,APIC] "notscdeadline" Do not use TSC deadline
 			value for LAPIC timer one-shot implementation. Default
 			back to the programmable timer unit in the LAPIC.
 
@@ -3188,12 +3185,12 @@
 			register save and restore. The kernel will only save
 			legacy floating-point registers on task switch.
 
-	nohugeiomap	[KNL,x86,PPC] Disable kernel huge I/O mappings.
+	nohugeiomap	[KNL,X86,PPC] Disable kernel huge I/O mappings.
 
 	nosmt		[KNL,S390] Disable symmetric multithreading (SMT).
 			Equivalent to smt=1.
 
-			[KNL,x86] Disable symmetric multithreading (SMT).
+			[KNL,X86] Disable symmetric multithreading (SMT).
 			nosmt=force: Force disable SMT, cannot be undone
 				     via the sysfs control file.
 
@@ -3955,7 +3952,7 @@
 	pt.		[PARIDE]
 			See Documentation/admin-guide/blockdev/paride.rst.
 
-	pti=		[X86_64] Control Page Table Isolation of user and
+	pti=		[X86-64] Control Page Table Isolation of user and
 			kernel address spaces.  Disabling this feature
 			removes hardening, but improves performance of
 			system calls and interrupts.
@@ -3967,7 +3964,7 @@
 
 			Not specifying this option is equivalent to pti=auto.
 
-	nopti		[X86_64]
+	nopti		[X86-64]
 			Equivalent to pti=off
 
 	pty.legacy_count=

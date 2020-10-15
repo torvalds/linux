@@ -10,8 +10,8 @@ maintainers:
   - Philippe CORNU <philippe.cornu@st.com>
 
 description: |
-             The Raydium Semiconductor Corporation RM68200 is a 5.5" 720x1280 TFT LCD
-             panel connected using a MIPI-DSI video interface.
+  The Raydium Semiconductor Corporation RM68200 is a 5.5" 720x1280 TFT LCD
+  panel connected using a MIPI-DSI video interface.
 
 allOf:
   - $ref: panel-common.yaml#

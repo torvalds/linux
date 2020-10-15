@@ -500,7 +500,7 @@ static struct socket *sockfd_lookup_light(int fd, int *err, int *fput_needed)
 	if (f.file) {
 		sock = sock_from_file(f.file, err);
 		if (likely(sock)) {
-			*fput_needed = f.flags;
+			*fput_needed = f.flags & FDPUT_FPUT;
 			return sock;
 		}
 		fdput(f);
@@ -1325,7 +1325,7 @@ int sock_wake_async(struct socket_wq *wq, int how, int band)
 	case SOCK_WAKE_SPACE:
 		if (!test_and_clear_bit(SOCKWQ_ASYNC_NOSPACE, &wq->flags))
 			break;
-		/* fall through */
+		fallthrough;
 	case SOCK_WAKE_IO:
 call_kill:
 		kill_fasync(&wq->fasync_list, SIGIO, band);
@@ -1804,8 +1804,7 @@ int __sys_accept4(int fd, struct sockaddr __user *upeer_sockaddr,
 		ret = __sys_accept4_file(f.file, 0, upeer_sockaddr,
 						upeer_addrlen, flags,
 						rlimit(RLIMIT_NOFILE));
-		if (f.flags)
-			fput(f.file);
+		fdput(f);
 	}
 
 	return ret;
@@ -1868,8 +1867,7 @@ int __sys_connect(int fd, struct sockaddr __user *uservaddr, int addrlen)
 		ret = move_addr_to_kernel(uservaddr, addrlen, &address);
 		if (!ret)
 			ret = __sys_connect_file(f.file, &address, addrlen, 0);
-		if (f.flags)
-			fput(f.file);
+		fdput(f);
 	}
 
 	return ret;
@@ -2097,17 +2095,13 @@ static bool sock_use_custom_sol_socket(const struct socket *sock)
 int __sys_setsockopt(int fd, int level, int optname, char __user *user_optval,
 		int optlen)
 {
-	sockptr_t optval;
+	sockptr_t optval = USER_SOCKPTR(user_optval);
 	char *kernel_optval = NULL;
 	int err, fput_needed;
 	struct socket *sock;
 
 	if (optlen < 0)
 		return -EINVAL;
-
-	err = init_user_sockptr(&optval, user_optval, optlen);
-	if (err)
-		return err;
 
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
 	if (!sock)
@@ -3065,7 +3059,7 @@ static int __init sock_init(void)
 
 	err = register_filesystem(&sock_fs_type);
 	if (err)
-		goto out_fs;
+		goto out;
 	sock_mnt = kern_mount(&sock_fs_type);
 	if (IS_ERR(sock_mnt)) {
 		err = PTR_ERR(sock_mnt);
@@ -3088,7 +3082,6 @@ out:
 
 out_mount:
 	unregister_filesystem(&sock_fs_type);
-out_fs:
 	goto out;
 }
 
@@ -3161,13 +3154,13 @@ static int ethtool_ioctl(struct net *net, struct compat_ifreq __user *ifr32)
 		if (rule_cnt > KMALLOC_MAX_SIZE / sizeof(u32))
 			return -ENOMEM;
 		buf_size += rule_cnt * sizeof(u32);
-		/* fall through */
+		fallthrough;
 	case ETHTOOL_GRXRINGS:
 	case ETHTOOL_GRXCLSRLCNT:
 	case ETHTOOL_GRXCLSRULE:
 	case ETHTOOL_SRXCLSRLINS:
 		convert_out = true;
-		/* fall through */
+		fallthrough;
 	case ETHTOOL_SRXCLSRLDEL:
 		buf_size += sizeof(struct ethtool_rxnfc);
 		convert_in = true;

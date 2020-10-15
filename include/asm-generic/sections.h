@@ -60,8 +60,8 @@ extern __visible const void __nosave_begin, __nosave_end;
 
 /* Function descriptor handling (if any).  Override in asm/sections.h */
 #ifndef dereference_function_descriptor
-#define dereference_function_descriptor(p) (p)
-#define dereference_kernel_function_descriptor(p) (p)
+#define dereference_function_descriptor(p) ((void *)(p))
+#define dereference_kernel_function_descriptor(p) ((void *)(p))
 #endif
 
 /* random extra sections (if any).  Override

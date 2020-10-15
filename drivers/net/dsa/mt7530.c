@@ -566,7 +566,7 @@ static void mt7530_setup_port5(struct dsa_switch *ds, phy_interface_t interface)
 	case P5_INTF_SEL_PHY_P0:
 		/* MT7530_P5_MODE_GPHY_P0: 2nd GMAC -> P5 -> P0 */
 		val |= MHWTRAP_PHY0_SEL;
-		/* fall through */
+		fallthrough;
 	case P5_INTF_SEL_PHY_P4:
 		/* MT7530_P5_MODE_GPHY_P4: 2nd GMAC -> P5 -> P4 */
 		val &= ~MHWTRAP_P5_MAC_SEL & ~MHWTRAP_P5_DIS;

@@ -100,7 +100,6 @@ available subsections can be seen below.
    rfkill
    serial/index
    sm501
-   smsc_ece1099
    switchtec
    sync_file
    vfio-mediated-device

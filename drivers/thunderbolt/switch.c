@@ -2092,7 +2092,7 @@ static int tb_switch_add_dma_port(struct tb_switch *sw)
 		if (tb_route(sw))
 			return 0;
 
-		/* fallthrough */
+		fallthrough;
 	case 3:
 		ret = tb_switch_set_uuid(sw);
 		if (ret)

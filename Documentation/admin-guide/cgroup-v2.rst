@@ -1274,6 +1274,10 @@ PAGE_SIZE multiple when read back.
 		Amount of memory used for storing in-kernel data
 		structures.
 
+	  percpu
+		Amount of memory used for storing per-cpu kernel
+		data structures.
+
 	  sock
 		Amount of memory used in network transmission buffers
 

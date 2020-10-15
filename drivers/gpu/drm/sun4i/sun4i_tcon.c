@@ -195,7 +195,7 @@ void sun4i_tcon_set_status(struct sun4i_tcon *tcon,
 	switch (encoder->encoder_type) {
 	case DRM_MODE_ENCODER_LVDS:
 		is_lvds = true;
-		/* Fallthrough */
+		fallthrough;
 	case DRM_MODE_ENCODER_DSI:
 	case DRM_MODE_ENCODER_NONE:
 		channel = 0;
@@ -342,7 +342,7 @@ static void sun4i_tcon0_mode_set_dithering(struct sun4i_tcon *tcon,
 		/* R and B components are only 5 bits deep */
 		val |= SUN4I_TCON0_FRM_CTL_MODE_R;
 		val |= SUN4I_TCON0_FRM_CTL_MODE_B;
-		/* Fall through */
+		fallthrough;
 	case MEDIA_BUS_FMT_RGB666_1X18:
 	case MEDIA_BUS_FMT_RGB666_1X7X3_SPWG:
 		/* Fall through: enable dithering */

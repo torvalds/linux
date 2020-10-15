@@ -115,6 +115,7 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 	vars->oparms.fid = &fid;
 	vars->oparms.reconnect = false;
 	vars->oparms.mode = mode;
+	vars->oparms.cifs_sb = cifs_sb;
 
 	rqst[num_rqst].rq_iov = &vars->open_iov[0];
 	rqst[num_rqst].rq_nvec = SMB2_CREATE_IOV_SIZE;

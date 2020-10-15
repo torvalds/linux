@@ -1084,7 +1084,7 @@ static void rxrpc_input_implicit_end_call(struct rxrpc_sock *rx,
 	switch (READ_ONCE(call->state)) {
 	case RXRPC_CALL_SERVER_AWAIT_ACK:
 		rxrpc_call_completed(call);
-		/* Fall through */
+		fallthrough;
 	case RXRPC_CALL_COMPLETE:
 		break;
 	default:
@@ -1243,12 +1243,12 @@ int rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 	case RXRPC_PACKET_TYPE_BUSY:
 		if (rxrpc_to_server(sp))
 			goto discard;
-		/* Fall through */
+		fallthrough;
 	case RXRPC_PACKET_TYPE_ACK:
 	case RXRPC_PACKET_TYPE_ACKALL:
 		if (sp->hdr.callNumber == 0)
 			goto bad_message;
-		/* Fall through */
+		fallthrough;
 	case RXRPC_PACKET_TYPE_ABORT:
 		break;
 

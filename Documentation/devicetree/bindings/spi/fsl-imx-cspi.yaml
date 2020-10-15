@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Freescale (Enhanced) Configurable Serial Peripheral Interface (CSPI/eCSPI) for i.MX
 
 maintainers:
-  - Shawn Guo <shawn.guo@linaro.org>
+  - Shawn Guo <shawnguo@kernel.org>
 
 allOf:
   - $ref: "/schemas/spi/spi-controller.yaml#"
@@ -23,19 +23,19 @@ properties:
       - const: fsl,imx51-ecspi
       - const: fsl,imx53-ecspi
       - items:
-        - enum:
-          - fsl,imx50-ecspi
-          - fsl,imx6q-ecspi
-          - fsl,imx6sx-ecspi
-          - fsl,imx6sl-ecspi
-          - fsl,imx6sll-ecspi
-          - fsl,imx6ul-ecspi
-          - fsl,imx7d-ecspi
-          - fsl,imx8mq-ecspi
-          - fsl,imx8mm-ecspi
-          - fsl,imx8mn-ecspi
-          - fsl,imx8mp-ecspi
-        - const: fsl,imx51-ecspi
+          - enum:
+              - fsl,imx50-ecspi
+              - fsl,imx6q-ecspi
+              - fsl,imx6sx-ecspi
+              - fsl,imx6sl-ecspi
+              - fsl,imx6sll-ecspi
+              - fsl,imx6ul-ecspi
+              - fsl,imx7d-ecspi
+              - fsl,imx8mq-ecspi
+              - fsl,imx8mm-ecspi
+              - fsl,imx8mn-ecspi
+              - fsl,imx8mp-ecspi
+          - const: fsl,imx51-ecspi
 
   reg:
     maxItems: 1

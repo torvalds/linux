@@ -20,6 +20,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_irq.h>
 #include <linux/regmap.h>
 #include <linux/watchdog.h>
 
@@ -28,8 +29,11 @@
 #define PCF2127_BIT_CTRL1_TSF1			BIT(4)
 /* Control register 2 */
 #define PCF2127_REG_CTRL2		0x01
+#define PCF2127_BIT_CTRL2_AIE			BIT(1)
 #define PCF2127_BIT_CTRL2_TSIE			BIT(2)
+#define PCF2127_BIT_CTRL2_AF			BIT(4)
 #define PCF2127_BIT_CTRL2_TSF2			BIT(5)
+#define PCF2127_BIT_CTRL2_WDTF			BIT(6)
 /* Control register 3 */
 #define PCF2127_REG_CTRL3		0x02
 #define PCF2127_BIT_CTRL3_BLIE			BIT(0)
@@ -46,6 +50,13 @@
 #define PCF2127_REG_DW			0x07
 #define PCF2127_REG_MO			0x08
 #define PCF2127_REG_YR			0x09
+/* Alarm registers */
+#define PCF2127_REG_ALARM_SC		0x0A
+#define PCF2127_REG_ALARM_MN		0x0B
+#define PCF2127_REG_ALARM_HR		0x0C
+#define PCF2127_REG_ALARM_DM		0x0D
+#define PCF2127_REG_ALARM_DW		0x0E
+#define PCF2127_BIT_ALARM_AE			BIT(7)
 /* Watchdog registers */
 #define PCF2127_REG_WD_CTL		0x10
 #define PCF2127_BIT_WD_CTL_TF0			BIT(0)
@@ -324,6 +335,112 @@ static const struct watchdog_ops pcf2127_watchdog_ops = {
 	.set_timeout = pcf2127_wdt_set_timeout,
 };
 
+/* Alarm */
+static int pcf2127_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
+{
+	struct pcf2127 *pcf2127 = dev_get_drvdata(dev);
+	unsigned int buf[5], ctrl2;
+	int ret;
+
+	ret = regmap_read(pcf2127->regmap, PCF2127_REG_CTRL2, &ctrl2);
+	if (ret)
+		return ret;
+
+	ret = pcf2127_wdt_active_ping(&pcf2127->wdd);
+	if (ret)
+		return ret;
+
+	ret = regmap_bulk_read(pcf2127->regmap, PCF2127_REG_ALARM_SC, buf,
+			       sizeof(buf));
+	if (ret)
+		return ret;
+
+	alrm->enabled = ctrl2 & PCF2127_BIT_CTRL2_AIE;
+	alrm->pending = ctrl2 & PCF2127_BIT_CTRL2_AF;
+
+	alrm->time.tm_sec = bcd2bin(buf[0] & 0x7F);
+	alrm->time.tm_min = bcd2bin(buf[1] & 0x7F);
+	alrm->time.tm_hour = bcd2bin(buf[2] & 0x3F);
+	alrm->time.tm_mday = bcd2bin(buf[3] & 0x3F);
+
+	return 0;
+}
+
+static int pcf2127_rtc_alarm_irq_enable(struct device *dev, u32 enable)
+{
+	struct pcf2127 *pcf2127 = dev_get_drvdata(dev);
+	int ret;
+
+	ret = regmap_update_bits(pcf2127->regmap, PCF2127_REG_CTRL2,
+				 PCF2127_BIT_CTRL2_AIE,
+				 enable ? PCF2127_BIT_CTRL2_AIE : 0);
+	if (ret)
+		return ret;
+
+	return pcf2127_wdt_active_ping(&pcf2127->wdd);
+}
+
+static int pcf2127_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
+{
+	struct pcf2127 *pcf2127 = dev_get_drvdata(dev);
+	uint8_t buf[5];
+	int ret;
+
+	ret = regmap_update_bits(pcf2127->regmap, PCF2127_REG_CTRL2,
+				 PCF2127_BIT_CTRL2_AF, 0);
+	if (ret)
+		return ret;
+
+	ret = pcf2127_wdt_active_ping(&pcf2127->wdd);
+	if (ret)
+		return ret;
+
+	buf[0] = bin2bcd(alrm->time.tm_sec);
+	buf[1] = bin2bcd(alrm->time.tm_min);
+	buf[2] = bin2bcd(alrm->time.tm_hour);
+	buf[3] = bin2bcd(alrm->time.tm_mday);
+	buf[4] = PCF2127_BIT_ALARM_AE; /* Do not match on week day */
+
+	ret = regmap_bulk_write(pcf2127->regmap, PCF2127_REG_ALARM_SC, buf,
+				sizeof(buf));
+	if (ret)
+		return ret;
+
+	return pcf2127_rtc_alarm_irq_enable(dev, alrm->enabled);
+}
+
+static irqreturn_t pcf2127_rtc_irq(int irq, void *dev)
+{
+	struct pcf2127 *pcf2127 = dev_get_drvdata(dev);
+	unsigned int ctrl2 = 0;
+	int ret = 0;
+
+	ret = regmap_read(pcf2127->regmap, PCF2127_REG_CTRL2, &ctrl2);
+	if (ret)
+		return IRQ_NONE;
+
+	if (!(ctrl2 & PCF2127_BIT_CTRL2_AF))
+		return IRQ_NONE;
+
+	regmap_write(pcf2127->regmap, PCF2127_REG_CTRL2,
+		     ctrl2 & ~(PCF2127_BIT_CTRL2_AF | PCF2127_BIT_CTRL2_WDTF));
+
+	rtc_update_irq(pcf2127->rtc, 1, RTC_IRQF | RTC_AF);
+
+	pcf2127_wdt_active_ping(&pcf2127->wdd);
+
+	return IRQ_HANDLED;
+}
+
+static const struct rtc_class_ops pcf2127_rtc_alrm_ops = {
+	.ioctl            = pcf2127_rtc_ioctl,
+	.read_time        = pcf2127_rtc_read_time,
+	.set_time         = pcf2127_rtc_set_time,
+	.read_alarm       = pcf2127_rtc_read_alarm,
+	.set_alarm        = pcf2127_rtc_set_alarm,
+	.alarm_irq_enable = pcf2127_rtc_alarm_irq_enable,
+};
+
 /* sysfs interface */
 
 static ssize_t timestamp0_store(struct device *dev,
@@ -416,7 +533,7 @@ static const struct attribute_group pcf2127_attr_group = {
 };
 
 static int pcf2127_probe(struct device *dev, struct regmap *regmap,
-			const char *name, bool has_nvmem)
+			 int alarm_irq, const char *name, bool has_nvmem)
 {
 	struct pcf2127 *pcf2127;
 	u32 wdd_timeout;
@@ -440,6 +557,23 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 	pcf2127->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	pcf2127->rtc->range_max = RTC_TIMESTAMP_END_2099;
 	pcf2127->rtc->set_start_time = true; /* Sets actual start to 1970 */
+	pcf2127->rtc->uie_unsupported = 1;
+
+	if (alarm_irq >= 0) {
+		ret = devm_request_threaded_irq(dev, alarm_irq, NULL,
+						pcf2127_rtc_irq,
+						IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+						dev_name(dev), dev);
+		if (ret) {
+			dev_err(dev, "failed to request alarm irq\n");
+			return ret;
+		}
+	}
+
+	if (alarm_irq >= 0 || device_property_read_bool(dev, "wakeup-source")) {
+		device_init_wakeup(dev, true);
+		pcf2127->rtc->ops = &pcf2127_rtc_alrm_ops;
+	}
 
 	pcf2127->wdd.parent = dev;
 	pcf2127->wdd.info = &pcf2127_wdt_info;
@@ -553,6 +687,7 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 static const struct of_device_id pcf2127_of_match[] = {
 	{ .compatible = "nxp,pcf2127" },
 	{ .compatible = "nxp,pcf2129" },
+	{ .compatible = "nxp,pca2129" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, pcf2127_of_match);
@@ -657,13 +792,14 @@ static int pcf2127_i2c_probe(struct i2c_client *client,
 		return PTR_ERR(regmap);
 	}
 
-	return pcf2127_probe(&client->dev, regmap,
+	return pcf2127_probe(&client->dev, regmap, client->irq,
 			     pcf2127_i2c_driver.driver.name, id->driver_data);
 }
 
 static const struct i2c_device_id pcf2127_i2c_id[] = {
 	{ "pcf2127", 1 },
 	{ "pcf2129", 0 },
+	{ "pca2129", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pcf2127_i2c_id);
@@ -722,13 +858,15 @@ static int pcf2127_spi_probe(struct spi_device *spi)
 		return PTR_ERR(regmap);
 	}
 
-	return pcf2127_probe(&spi->dev, regmap, pcf2127_spi_driver.driver.name,
+	return pcf2127_probe(&spi->dev, regmap, spi->irq,
+			     pcf2127_spi_driver.driver.name,
 			     spi_get_device_id(spi)->driver_data);
 }
 
 static const struct spi_device_id pcf2127_spi_id[] = {
 	{ "pcf2127", 1 },
 	{ "pcf2129", 0 },
+	{ "pca2129", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, pcf2127_spi_id);

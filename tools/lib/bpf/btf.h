@@ -76,6 +76,8 @@ LIBBPF_API __s32 btf__find_by_name_kind(const struct btf *btf,
 LIBBPF_API __u32 btf__get_nr_types(const struct btf *btf);
 LIBBPF_API const struct btf_type *btf__type_by_id(const struct btf *btf,
 						  __u32 id);
+LIBBPF_API size_t btf__pointer_size(const struct btf *btf);
+LIBBPF_API int btf__set_pointer_size(struct btf *btf, size_t ptr_sz);
 LIBBPF_API __s64 btf__resolve_size(const struct btf *btf, __u32 type_id);
 LIBBPF_API int btf__resolve_type(const struct btf *btf, __u32 type_id);
 LIBBPF_API int btf__align_of(const struct btf *btf, __u32 id);

@@ -217,10 +217,9 @@ get_perf_callchain(struct pt_regs *regs, u32 init_nr, bool kernel, bool user,
 			if (add_mark)
 				perf_callchain_store_context(&ctx, PERF_CONTEXT_USER);
 
-			fs = get_fs();
-			set_fs(USER_DS);
+			fs = force_uaccess_begin();
 			perf_callchain_user(&ctx, regs);
-			set_fs(fs);
+			force_uaccess_end(fs);
 		}
 	}
 

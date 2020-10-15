@@ -24,9 +24,9 @@ properties:
   reg: true
   reset-gpios: true
   vdd-supply:
-     description: core voltage supply
+    description: core voltage supply
   vddio-supply:
-     description: vddio supply
+    description: vddio supply
 
 required:
   - compatible

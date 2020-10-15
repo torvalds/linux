@@ -54,7 +54,8 @@ properties:
 
   phy-connection-type:
     description:
-      Operation mode of the PHY interface
+      Specifies interface type between the Ethernet device and a physical
+      layer (PHY) device.
     enum:
       # There is not a standard bus between the MAC and the PHY,
       # something proprietary is being used to embed the PHY in the

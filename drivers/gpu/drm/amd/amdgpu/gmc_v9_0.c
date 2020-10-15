@@ -1297,7 +1297,7 @@ static void gmc_v9_0_init_golden_registers(struct amdgpu_device *adev)
 	case CHIP_VEGA10:
 		if (amdgpu_sriov_vf(adev))
 			break;
-		/* fall through */
+		fallthrough;
 	case CHIP_VEGA20:
 		soc15_program_register_sequence(adev,
 						golden_settings_mmhub_1_0_0,

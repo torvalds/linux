@@ -42,7 +42,7 @@ patternProperties:
         const: 512
 
       nand-ecc-strength:
-        enum: [1, 4 ,8 ]
+        enum: [1, 4, 8]
 
 allOf:
   - $ref: "nand-controller.yaml#"

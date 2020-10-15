@@ -14,12 +14,10 @@ maintainers:
 
 properties:
   compatible:
-    oneOf:
-      - items:
-        - enum:
+    items:
+      - enum:
           - xlnx,zynqmp-nand-controller
-        - enum:
-          - arasan,nfc-v3p10
+      - const: arasan,nfc-v3p10
 
   reg:
     maxItems: 1

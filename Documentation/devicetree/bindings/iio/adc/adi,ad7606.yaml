@@ -53,10 +53,10 @@ properties:
 
   standby-gpios:
     description:
-       Must be the device tree identifier of the STBY pin. This pin is used
-       to place the AD7606 into one of two power-down modes, Standby mode or
-       Shutdown mode. As the line is active low, it should be marked
-       GPIO_ACTIVE_LOW.
+      Must be the device tree identifier of the STBY pin. This pin is used
+      to place the AD7606 into one of two power-down modes, Standby mode or
+      Shutdown mode. As the line is active low, it should be marked
+      GPIO_ACTIVE_LOW.
     maxItems: 1
 
   adi,first-data-gpios:

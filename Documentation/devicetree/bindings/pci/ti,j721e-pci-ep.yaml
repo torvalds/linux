@@ -31,8 +31,7 @@ properties:
   ti,syscon-pcie-ctrl:
     description: Phandle to the SYSCON entry required for configuring PCIe mode
                  and link speed.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
 
   power-domains:
     maxItems: 1

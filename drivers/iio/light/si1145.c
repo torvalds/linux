@@ -1042,7 +1042,7 @@ static int si1145_initialize(struct si1145_data *data)
 						SI1145_LED_CURRENT_45mA);
 		if (ret < 0)
 			return ret;
-		/* fallthrough */
+		fallthrough;
 	case 2:
 		ret = i2c_smbus_write_byte_data(client,
 						SI1145_REG_PS_LED21,

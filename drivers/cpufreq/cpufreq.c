@@ -73,8 +73,6 @@ static inline bool has_target(void)
 static unsigned int __cpufreq_get(struct cpufreq_policy *policy);
 static int cpufreq_init_governor(struct cpufreq_policy *policy);
 static void cpufreq_exit_governor(struct cpufreq_policy *policy);
-static int cpufreq_start_governor(struct cpufreq_policy *policy);
-static void cpufreq_stop_governor(struct cpufreq_policy *policy);
 static void cpufreq_governor_limits(struct cpufreq_policy *policy);
 static int cpufreq_set_policy(struct cpufreq_policy *policy,
 			      struct cpufreq_governor *new_gov,
@@ -705,8 +703,7 @@ static ssize_t show_scaling_cur_freq(struct cpufreq_policy *policy, char *buf)
 	freq = arch_freq_get_on_cpu(policy->cpu);
 	if (freq)
 		ret = sprintf(buf, "%u\n", freq);
-	else if (cpufreq_driver && cpufreq_driver->setpolicy &&
-			cpufreq_driver->get)
+	else if (cpufreq_driver->setpolicy && cpufreq_driver->get)
 		ret = sprintf(buf, "%u\n", cpufreq_driver->get(policy->cpu));
 	else
 		ret = sprintf(buf, "%u\n", policy->cur);
@@ -2266,7 +2263,7 @@ static void cpufreq_exit_governor(struct cpufreq_policy *policy)
 	module_put(policy->governor->owner);
 }
 
-static int cpufreq_start_governor(struct cpufreq_policy *policy)
+int cpufreq_start_governor(struct cpufreq_policy *policy)
 {
 	int ret;
 
@@ -2293,7 +2290,7 @@ static int cpufreq_start_governor(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static void cpufreq_stop_governor(struct cpufreq_policy *policy)
+void cpufreq_stop_governor(struct cpufreq_policy *policy)
 {
 	if (cpufreq_suspended || !policy->governor)
 		return;

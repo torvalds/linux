@@ -20,22 +20,22 @@ properties:
           - const: fsl,imx1-i2c
       - items:
           - enum:
-            - fsl,imx25-i2c
-            - fsl,imx27-i2c
-            - fsl,imx31-i2c
-            - fsl,imx50-i2c
-            - fsl,imx51-i2c
-            - fsl,imx53-i2c
-            - fsl,imx6q-i2c
-            - fsl,imx6sl-i2c
-            - fsl,imx6sx-i2c
-            - fsl,imx6sll-i2c
-            - fsl,imx6ul-i2c
-            - fsl,imx7s-i2c
-            - fsl,imx8mq-i2c
-            - fsl,imx8mm-i2c
-            - fsl,imx8mn-i2c
-            - fsl,imx8mp-i2c
+              - fsl,imx25-i2c
+              - fsl,imx27-i2c
+              - fsl,imx31-i2c
+              - fsl,imx50-i2c
+              - fsl,imx51-i2c
+              - fsl,imx53-i2c
+              - fsl,imx6q-i2c
+              - fsl,imx6sl-i2c
+              - fsl,imx6sx-i2c
+              - fsl,imx6sll-i2c
+              - fsl,imx6ul-i2c
+              - fsl,imx7s-i2c
+              - fsl,imx8mq-i2c
+              - fsl,imx8mm-i2c
+              - fsl,imx8mn-i2c
+              - fsl,imx8mp-i2c
           - const: fsl,imx21-i2c
 
   reg:

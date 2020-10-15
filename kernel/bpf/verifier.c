@@ -5236,7 +5236,7 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 				off_reg == dst_reg ? dst : src);
 			return -EACCES;
 		}
-		/* fall-through */
+		fallthrough;
 	default:
 		break;
 	}
@@ -8294,7 +8294,7 @@ static bool stacksafe(struct bpf_func_state *old,
 		if (old->stack[spi].slot_type[i % BPF_REG_SIZE] !=
 		    cur->stack[spi].slot_type[i % BPF_REG_SIZE])
 			/* Ex: old explored (safe) state has STACK_SPILL in
-			 * this stack slot, but current has has STACK_MISC ->
+			 * this stack slot, but current has STACK_MISC ->
 			 * this verifier states are not equivalent,
 			 * return false to continue verification of this path
 			 */
@@ -10988,7 +10988,7 @@ static int check_attach_btf_id(struct bpf_verifier_env *env)
 	default:
 		if (!prog_extension)
 			return -EINVAL;
-		/* fallthrough */
+		fallthrough;
 	case BPF_MODIFY_RETURN:
 	case BPF_LSM_MAC:
 	case BPF_TRACE_FENTRY:

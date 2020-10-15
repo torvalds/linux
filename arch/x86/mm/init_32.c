@@ -52,6 +52,7 @@
 #include <asm/cpu_entry_area.h>
 #include <asm/init.h>
 #include <asm/pgtable_areas.h>
+#include <asm/numa.h>
 
 #include "mm_internal.h"
 

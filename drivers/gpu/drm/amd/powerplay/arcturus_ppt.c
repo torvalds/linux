@@ -1849,8 +1849,6 @@ static bool arcturus_is_dpm_running(struct smu_context *smu)
 
 static int arcturus_dpm_set_vcn_enable(struct smu_context *smu, bool enable)
 {
-	struct smu_power_context *smu_power = &smu->smu_power;
-	struct smu_power_gate *power_gate = &smu_power->power_gate;
 	int ret = 0;
 
 	if (enable) {
@@ -1861,7 +1859,6 @@ static int arcturus_dpm_set_vcn_enable(struct smu_context *smu, bool enable)
 				return ret;
 			}
 		}
-		power_gate->vcn_gated = false;
 	} else {
 		if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT)) {
 			ret = smu_cmn_feature_set_enabled(smu, SMU_FEATURE_VCN_PG_BIT, 0);
@@ -1870,7 +1867,6 @@ static int arcturus_dpm_set_vcn_enable(struct smu_context *smu, bool enable)
 				return ret;
 			}
 		}
-		power_gate->vcn_gated = true;
 	}
 
 	return ret;
@@ -2080,21 +2076,10 @@ static const struct i2c_algorithm arcturus_i2c_algo = {
 	.functionality = arcturus_i2c_func,
 };
 
-static bool arcturus_i2c_adapter_is_added(struct i2c_adapter *control)
-{
-	struct amdgpu_device *adev = to_amdgpu_device(control);
-
-	return control->dev.parent == &adev->pdev->dev;
-}
-
 static int arcturus_i2c_control_init(struct smu_context *smu, struct i2c_adapter *control)
 {
 	struct amdgpu_device *adev = to_amdgpu_device(control);
 	int res;
-
-	/* smu_i2c_eeprom_init may be called twice in sriov */
-	if (arcturus_i2c_adapter_is_added(control))
-		return 0;
 
 	control->owner = THIS_MODULE;
 	control->class = I2C_CLASS_SPD;
@@ -2111,9 +2096,6 @@ static int arcturus_i2c_control_init(struct smu_context *smu, struct i2c_adapter
 
 static void arcturus_i2c_control_fini(struct smu_context *smu, struct i2c_adapter *control)
 {
-	if (!arcturus_i2c_adapter_is_added(control))
-		return;
-
 	i2c_del_adapter(control);
 }
 
@@ -2222,14 +2204,17 @@ static const struct throttling_logging_label {
 };
 static void arcturus_log_thermal_throttling_event(struct smu_context *smu)
 {
+	int ret;
 	int throttler_idx, throtting_events = 0, buf_idx = 0;
 	struct amdgpu_device *adev = smu->adev;
 	uint32_t throttler_status;
 	char log_buf[256];
 
-	arcturus_get_smu_metrics_data(smu,
-				      METRICS_THROTTLER_STATUS,
-				      &throttler_status);
+	ret = arcturus_get_smu_metrics_data(smu,
+					    METRICS_THROTTLER_STATUS,
+					    &throttler_status);
+	if (ret)
+		return;
 
 	memset(log_buf, 0, sizeof(log_buf));
 	for (throttler_idx = 0; throttler_idx < ARRAY_SIZE(logging_label);

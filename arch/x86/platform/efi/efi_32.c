@@ -29,8 +29,34 @@
 #include <asm/io.h>
 #include <asm/desc.h>
 #include <asm/page.h>
+#include <asm/set_memory.h>
 #include <asm/tlbflush.h>
 #include <asm/efi.h>
+
+void __init efi_map_region(efi_memory_desc_t *md)
+{
+	u64 start_pfn, end_pfn, end;
+	unsigned long size;
+	void *va;
+
+	start_pfn	= PFN_DOWN(md->phys_addr);
+	size		= md->num_pages << PAGE_SHIFT;
+	end		= md->phys_addr + size;
+	end_pfn 	= PFN_UP(end);
+
+	if (pfn_range_is_mapped(start_pfn, end_pfn)) {
+		va = __va(md->phys_addr);
+
+		if (!(md->attribute & EFI_MEMORY_WB))
+			set_memory_uc((unsigned long)va, md->num_pages);
+	} else {
+		va = ioremap_cache(md->phys_addr, size);
+	}
+
+	md->virt_addr = (unsigned long)va;
+	if (!va)
+		pr_err("ioremap of 0x%llX failed!\n", md->phys_addr);
+}
 
 /*
  * To make EFI call EFI runtime service in physical addressing mode we need
@@ -56,11 +82,6 @@ void __init efi_dump_pagetable(void)
 int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
 {
 	return 0;
-}
-
-void __init efi_map_region(efi_memory_desc_t *md)
-{
-	old_map_region(md);
 }
 
 void __init efi_map_region_fixed(efi_memory_desc_t *md) {}
@@ -107,6 +128,15 @@ efi_status_t __init efi_set_virtual_address_map(unsigned long memory_map_size,
 
 void __init efi_runtime_update_mappings(void)
 {
-	if (__supported_pte_mask & _PAGE_NX)
-		runtime_code_page_mkexec();
+	if (__supported_pte_mask & _PAGE_NX) {
+		efi_memory_desc_t *md;
+
+		/* Make EFI runtime service code area executable */
+		for_each_efi_memory_desc(md) {
+			if (md->type != EFI_RUNTIME_SERVICES_CODE)
+				continue;
+
+			set_memory_x(md->virt_addr, md->num_pages);
+		}
+	}
 }

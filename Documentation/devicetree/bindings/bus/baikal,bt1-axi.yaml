@@ -23,7 +23,7 @@ description: |
   accessible by means of the Baikal-T1 System Controller.
 
 allOf:
- - $ref: /schemas/simple-bus.yaml#
+  - $ref: /schemas/simple-bus.yaml#
 
 properties:
   compatible:

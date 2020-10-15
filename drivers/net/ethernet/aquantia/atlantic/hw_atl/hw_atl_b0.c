@@ -1631,8 +1631,8 @@ static int hw_atl_b0_get_mac_temp(struct aq_hw_s *self, u32 *temp)
 		hw_atl_ts_reset_set(self, 0);
 	}
 
-	err = readx_poll_timeout_atomic(hw_atl_b0_ts_ready_and_latch_high_get,
-					self, val, val == 1, 10000U, 500000U);
+	err = readx_poll_timeout(hw_atl_b0_ts_ready_and_latch_high_get, self,
+				 val, val == 1, 10000U, 500000U);
 	if (err)
 		return err;
 

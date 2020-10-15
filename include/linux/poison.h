@@ -24,10 +24,6 @@
 #define LIST_POISON2  ((void *) 0x122 + POISON_POINTER_DELTA)
 
 /********** include/linux/timer.h **********/
-/*
- * Magic number "tsta" to indicate a static timer initializer
- * for the object debugging code.
- */
 #define TIMER_ENTRY_STATIC	((void *) 0x300 + POISON_POINTER_DELTA)
 
 /********** mm/page_poison.c **********/

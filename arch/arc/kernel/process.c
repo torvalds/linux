@@ -91,7 +91,7 @@ fault:
 		 goto fail;
 
 	mmap_read_lock(current->mm);
-	ret = fixup_user_fault(current, current->mm, (unsigned long) uaddr,
+	ret = fixup_user_fault(current->mm, (unsigned long) uaddr,
 			       FAULT_FLAG_WRITE, NULL);
 	mmap_read_unlock(current->mm);
 
