@@ -1620,8 +1620,7 @@ extern const struct i915_rev_steppings kbl_revids[];
 #define HAS_SNOOP(dev_priv)	(INTEL_INFO(dev_priv)->has_snoop)
 #define HAS_EDRAM(dev_priv)	((dev_priv)->edram_size_mb)
 #define HAS_SECURE_BATCHES(dev_priv) (INTEL_GEN(dev_priv) < 6)
-#define HAS_WT(dev_priv)	((IS_HASWELL(dev_priv) || \
-				 IS_BROADWELL(dev_priv)) && HAS_EDRAM(dev_priv))
+#define HAS_WT(dev_priv)	HAS_EDRAM(dev_priv)
 
 #define HWS_NEEDS_PHYSICAL(dev_priv)	(INTEL_INFO(dev_priv)->hws_needs_physical)
 
