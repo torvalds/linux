@@ -1021,6 +1021,31 @@ struct ext4_inode_info {
 
 	struct list_head i_orphan;	/* unlinked but open inodes */
 
+	/* Fast commit related info */
+
+	struct list_head i_fc_list;	/*
+					 * inodes that need fast commit
+					 * protected by sbi->s_fc_lock.
+					 */
+
+	/* Fast commit subtid when this inode was committed */
+	unsigned int i_fc_committed_subtid;
+
+	/* Start of lblk range that needs to be committed in this fast commit */
+	ext4_lblk_t i_fc_lblk_start;
+
+	/* End of lblk range that needs to be committed in this fast commit */
+	ext4_lblk_t i_fc_lblk_len;
+
+	/* Number of ongoing updates on this inode */
+	atomic_t  i_fc_updates;
+
+	/* Fast commit wait queue for this inode */
+	wait_queue_head_t i_fc_wait;
+
+	/* Protect concurrent accesses on i_fc_lblk_start, i_fc_lblk_len */
+	struct mutex i_fc_lock;
+
 	/*
 	 * i_disksize keeps track of what the inode size is ON DISK, not
 	 * in memory.  During truncate, i_size is set to the new size by
@@ -1141,6 +1166,10 @@ struct ext4_inode_info {
 #define	EXT4_VALID_FS			0x0001	/* Unmounted cleanly */
 #define	EXT4_ERROR_FS			0x0002	/* Errors detected */
 #define	EXT4_ORPHAN_FS			0x0004	/* Orphans being recovered */
+#define EXT4_FC_INELIGIBLE		0x0008	/* Fast commit ineligible */
+#define EXT4_FC_COMMITTING		0x0010	/* File system underoing a fast
+						 * commit.
+						 */
 
 /*
  * Misc. filesystem flags
@@ -1613,6 +1642,30 @@ struct ext4_sb_info {
 	/* Record the errseq of the backing block device */
 	errseq_t s_bdev_wb_err;
 	spinlock_t s_bdev_wb_lock;
+
+	/* Ext4 fast commit stuff */
+	atomic_t s_fc_subtid;
+	atomic_t s_fc_ineligible_updates;
+	/*
+	 * After commit starts, the main queue gets locked, and the further
+	 * updates get added in the staging queue.
+	 */
+#define FC_Q_MAIN	0
+#define FC_Q_STAGING	1
+	struct list_head s_fc_q[2];	/* Inodes staged for fast commit
+					 * that have data changes in them.
+					 */
+	struct list_head s_fc_dentry_q[2];	/* directory entry updates */
+	unsigned int s_fc_bytes;
+	/*
+	 * Main fast commit lock. This lock protects accesses to the
+	 * following fields:
+	 * ei->i_fc_list, s_fc_dentry_q, s_fc_q, s_fc_bytes, s_fc_bh.
+	 */
+	spinlock_t s_fc_lock;
+	struct buffer_head *s_fc_bh;
+	struct ext4_fc_stats s_fc_stats;
+	u64 s_fc_avg_commit_time;
 };
 
 static inline struct ext4_sb_info *EXT4_SB(struct super_block *sb)
@@ -1723,6 +1776,7 @@ enum {
 	EXT4_STATE_EXT_PRECACHED,	/* extents have been precached */
 	EXT4_STATE_LUSTRE_EA_INODE,	/* Lustre-style ea_inode */
 	EXT4_STATE_VERITY_IN_PROGRESS,	/* building fs-verity Merkle tree */
+	EXT4_STATE_FC_COMMITTING,	/* Fast commit ongoing */
 };
 
 #define EXT4_INODE_BIT_FNS(name, field, offset)				\
@@ -2682,6 +2736,22 @@ extern void ext4_end_bitmap_read(struct buffer_head *bh, int uptodate);
 /* fast_commit.c */
 
 void ext4_fc_init(struct super_block *sb, journal_t *journal);
+void ext4_fc_init_inode(struct inode *inode);
+void ext4_fc_track_range(struct inode *inode, ext4_lblk_t start,
+			 ext4_lblk_t end);
+void ext4_fc_track_unlink(struct inode *inode, struct dentry *dentry);
+void ext4_fc_track_link(struct inode *inode, struct dentry *dentry);
+void ext4_fc_track_create(struct inode *inode, struct dentry *dentry);
+void ext4_fc_track_inode(struct inode *inode);
+void ext4_fc_mark_ineligible(struct super_block *sb, int reason);
+void ext4_fc_start_ineligible(struct super_block *sb, int reason);
+void ext4_fc_stop_ineligible(struct super_block *sb);
+void ext4_fc_start_update(struct inode *inode);
+void ext4_fc_stop_update(struct inode *inode);
+void ext4_fc_del(struct inode *inode);
+int ext4_fc_commit(journal_t *journal, tid_t commit_tid);
+int __init ext4_fc_init_dentry_cache(void);
+
 /* mballoc.c */
 extern const struct seq_operations ext4_mb_seq_groups_ops;
 extern long ext4_mb_stats;

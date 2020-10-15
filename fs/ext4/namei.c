@@ -2611,7 +2611,7 @@ static int ext4_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 		       bool excl)
 {
 	handle_t *handle;
-	struct inode *inode;
+	struct inode *inode, *inode_save;
 	int err, credits, retries = 0;
 
 	err = dquot_initialize(dir);
@@ -2629,7 +2629,11 @@ retry:
 		inode->i_op = &ext4_file_inode_operations;
 		inode->i_fop = &ext4_file_operations;
 		ext4_set_aops(inode);
+		inode_save = inode;
+		ihold(inode_save);
 		err = ext4_add_nondir(handle, dentry, &inode);
+		ext4_fc_track_create(inode_save, dentry);
+		iput(inode_save);
 	}
 	if (handle)
 		ext4_journal_stop(handle);
@@ -2644,7 +2648,7 @@ static int ext4_mknod(struct inode *dir, struct dentry *dentry,
 		      umode_t mode, dev_t rdev)
 {
 	handle_t *handle;
-	struct inode *inode;
+	struct inode *inode, *inode_save;
 	int err, credits, retries = 0;
 
 	err = dquot_initialize(dir);
@@ -2661,7 +2665,12 @@ retry:
 	if (!IS_ERR(inode)) {
 		init_special_inode(inode, inode->i_mode, rdev);
 		inode->i_op = &ext4_special_inode_operations;
+		inode_save = inode;
+		ihold(inode_save);
 		err = ext4_add_nondir(handle, dentry, &inode);
+		if (!err)
+			ext4_fc_track_create(inode_save, dentry);
+		iput(inode_save);
 	}
 	if (handle)
 		ext4_journal_stop(handle);
@@ -2825,7 +2834,9 @@ out_clear_inode:
 		iput(inode);
 		goto out_retry;
 	}
+	ext4_fc_track_create(inode, dentry);
 	ext4_inc_count(dir);
+
 	ext4_update_dx_flag(dir);
 	err = ext4_mark_inode_dirty(handle, dir);
 	if (err)
@@ -3165,6 +3176,7 @@ static int ext4_rmdir(struct inode *dir, struct dentry *dentry)
 		goto end_rmdir;
 	ext4_dec_count(dir);
 	ext4_update_dx_flag(dir);
+	ext4_fc_track_unlink(inode, dentry);
 	retval = ext4_mark_inode_dirty(handle, dir);
 
 #ifdef CONFIG_UNICODE
@@ -3251,6 +3263,8 @@ static int ext4_unlink(struct inode *dir, struct dentry *dentry)
 	inode->i_ctime = current_time(inode);
 	retval = ext4_mark_inode_dirty(handle, inode);
 
+	if (!retval)
+		ext4_fc_track_unlink(d_inode(dentry), dentry);
 #ifdef CONFIG_UNICODE
 	/* VFS negative dentries are incompatible with Encoding and
 	 * Case-insensitiveness. Eventually we'll want avoid
@@ -3872,6 +3886,22 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 	retval = ext4_mark_inode_dirty(handle, old.dir);
 	if (unlikely(retval))
 		goto end_rename;
+
+	if (S_ISDIR(old.inode->i_mode)) {
+		/*
+		 * We disable fast commits here that's because the
+		 * replay code is not yet capable of changing dot dot
+		 * dirents in directories.
+		 */
+		ext4_fc_mark_ineligible(old.inode->i_sb,
+			EXT4_FC_REASON_RENAME_DIR);
+	} else {
+		if (new.inode)
+			ext4_fc_track_unlink(new.inode, new.dentry);
+		ext4_fc_track_link(old.inode, new.dentry);
+		ext4_fc_track_unlink(old.inode, old.dentry);
+	}
+
 	if (new.inode) {
 		retval = ext4_mark_inode_dirty(handle, new.inode);
 		if (unlikely(retval))
@@ -4015,7 +4045,8 @@ static int ext4_cross_rename(struct inode *old_dir, struct dentry *old_dentry,
 	retval = ext4_mark_inode_dirty(handle, new.inode);
 	if (unlikely(retval))
 		goto end_rename;
-
+	ext4_fc_mark_ineligible(new.inode->i_sb,
+				EXT4_FC_REASON_CROSS_RENAME);
 	if (old.dir_bh) {
 		retval = ext4_rename_dir_finish(handle, &old, new.dir->i_ino);
 		if (retval)

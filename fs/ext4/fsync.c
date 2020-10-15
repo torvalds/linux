@@ -112,7 +112,7 @@ static int ext4_fsync_journal(struct inode *inode, bool datasync,
 	    !jbd2_trans_will_send_data_barrier(journal, commit_tid))
 		*needs_barrier = true;
 
-	return jbd2_complete_transaction(journal, commit_tid);
+	return ext4_fc_commit(journal, commit_tid);
 }
 
 /*
