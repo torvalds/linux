@@ -3558,6 +3558,9 @@ const char *trace_event_format(struct trace_iterator *iter, const char *fmt)
 	if (WARN_ON_ONCE(!fmt))
 		return fmt;
 
+	if (iter->tr->trace_flags & TRACE_ITER_HASH_PTR)
+		return fmt;
+
 	p = fmt;
 	new_fmt = q = iter->fmt;
 	while (*p) {
