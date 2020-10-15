@@ -1456,6 +1456,8 @@ int rvin_set_channel_routing(struct rvin_dev *vin, u8 chsel)
 
 	vin_dbg(vin, "Set IFMD 0x%x\n", ifmd);
 
+	vin->chsel = chsel;
+
 	/* Restore VNMC. */
 	rvin_write(vin, vnmc, VNMC_REG);
 
