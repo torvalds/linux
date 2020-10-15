@@ -591,11 +591,14 @@ static int genpd_power_off(struct generic_pm_domain *genpd, bool one_dev_on,
 		return -EBUSY;
 
 	ret = _genpd_power_off(genpd, true);
-	if (ret)
+	if (ret) {
+		genpd->states[genpd->state_idx].rejected++;
 		return ret;
+	}
 
 	genpd->status = GENPD_STATE_OFF;
 	genpd_update_accounting(genpd);
+	genpd->states[genpd->state_idx].usage++;
 
 	list_for_each_entry(link, &genpd->child_links, child_node) {
 		genpd_sd_counter_dec(link->parent);
@@ -3061,7 +3064,7 @@ static int idle_states_show(struct seq_file *s, void *data)
 	if (ret)
 		return -ERESTARTSYS;
 
-	seq_puts(s, "State          Time Spent(ms)\n");
+	seq_puts(s, "State          Time Spent(ms) Usage          Rejected\n");
 
 	for (i = 0; i < genpd->state_count; i++) {
 		ktime_t delta = 0;
@@ -3073,7 +3076,8 @@ static int idle_states_show(struct seq_file *s, void *data)
 
 		msecs = ktime_to_ms(
 			ktime_add(genpd->states[i].idle_time, delta));
-		seq_printf(s, "S%-13i %lld\n", i, msecs);
+		seq_printf(s, "S%-13i %-14lld %-14llu %llu\n", i, msecs,
+			      genpd->states[i].usage, genpd->states[i].rejected);
 	}
 
 	genpd_unlock(genpd);
