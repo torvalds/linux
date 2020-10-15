@@ -51,18 +51,23 @@ static int __init hash_setup(char *str)
 		return 1;
 
 	if (strcmp(template_desc->name, IMA_TEMPLATE_IMA_NAME) == 0) {
-		if (strncmp(str, "sha1", 4) == 0)
+		if (strncmp(str, "sha1", 4) == 0) {
 			ima_hash_algo = HASH_ALGO_SHA1;
-		else if (strncmp(str, "md5", 3) == 0)
+		} else if (strncmp(str, "md5", 3) == 0) {
 			ima_hash_algo = HASH_ALGO_MD5;
-		else
+		} else {
+			pr_err("invalid hash algorithm \"%s\" for template \"%s\"",
+				str, IMA_TEMPLATE_IMA_NAME);
 			return 1;
+		}
 		goto out;
 	}
 
 	i = match_string(hash_algo_name, HASH_ALGO__LAST, str);
-	if (i < 0)
+	if (i < 0) {
+		pr_err("invalid hash algorithm \"%s\"", str);
 		return 1;
+	}
 
 	ima_hash_algo = i;
 out:
@@ -532,6 +537,16 @@ int ima_file_hash(struct file *file, char *buf, size_t buf_size)
 		return -EOPNOTSUPP;
 
 	mutex_lock(&iint->mutex);
+
+	/*
+	 * ima_file_hash can be called when ima_collect_measurement has still
+	 * not been called, we might not always have a hash.
+	 */
+	if (!iint->ima_hash) {
+		mutex_unlock(&iint->mutex);
+		return -EOPNOTSUPP;
+	}
+
 	if (buf) {
 		size_t copied_size;
 
