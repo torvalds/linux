@@ -255,6 +255,38 @@ static u32 pid_controller(struct thermal_zone_device *tz,
 }
 
 /**
+ * power_actor_set_power() - limit the maximum power a cooling device consumes
+ * @cdev:	pointer to &thermal_cooling_device
+ * @instance:	thermal instance to update
+ * @power:	the power in milliwatts
+ *
+ * Set the cooling device to consume at most @power milliwatts. The limit is
+ * expected to be a cap at the maximum power consumption.
+ *
+ * Return: 0 on success, -EINVAL if the cooling device does not
+ * implement the power actor API or -E* for other failures.
+ */
+static int
+power_actor_set_power(struct thermal_cooling_device *cdev,
+		      struct thermal_instance *instance, u32 power)
+{
+	unsigned long state;
+	int ret;
+
+	ret = cdev->ops->power2state(cdev, power, &state);
+	if (ret)
+		return ret;
+
+	instance->target = clamp_val(state, instance->lower, instance->upper);
+	mutex_lock(&cdev->lock);
+	cdev->updated = false;
+	mutex_unlock(&cdev->lock);
+	thermal_cdev_update(cdev);
+
+	return 0;
+}
+
+/**
  * divvy_up_power() - divvy the allocated power between the actors
  * @req_power:	each actor's requested power
  * @max_power:	each actor's maximum available power
