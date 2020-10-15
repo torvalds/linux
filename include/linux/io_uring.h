@@ -23,13 +23,10 @@ struct io_uring_task {
 	struct xarray		xa;
 	struct wait_queue_head	wait;
 	struct file		*last;
-	atomic_long_t		req_issue;
+	struct percpu_counter	inflight;
 	struct io_identity	__identity;
 	struct io_identity	*identity;
-
-	/* completion side */
-	bool			in_idle ____cacheline_aligned_in_smp;
-	atomic_long_t		req_complete;
+	bool			in_idle;
 };
 
 #if defined(CONFIG_IO_URING)
