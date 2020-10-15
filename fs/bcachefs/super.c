@@ -654,6 +654,14 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 
 	__module_get(THIS_MODULE);
 
+	closure_init(&c->cl, NULL);
+
+	c->kobj.kset = bcachefs_kset;
+	kobject_init(&c->kobj, &bch2_fs_ktype);
+	kobject_init(&c->internal, &bch2_fs_internal_ktype);
+	kobject_init(&c->opts_dir, &bch2_fs_opts_dir_ktype);
+	kobject_init(&c->time_stats, &bch2_fs_time_stats_ktype);
+
 	c->minor		= -1;
 	c->disk_sb.fs_sb	= true;
 
@@ -784,18 +792,6 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 		if (bch2_dev_exists(c->disk_sb.sb, mi, i) &&
 		    bch2_dev_alloc(c, i))
 			goto err;
-
-	/*
-	 * Now that all allocations have succeeded, init various refcounty
-	 * things that let us shutdown:
-	 */
-	closure_init(&c->cl, NULL);
-
-	c->kobj.kset = bcachefs_kset;
-	kobject_init(&c->kobj, &bch2_fs_ktype);
-	kobject_init(&c->internal, &bch2_fs_internal_ktype);
-	kobject_init(&c->opts_dir, &bch2_fs_opts_dir_ktype);
-	kobject_init(&c->time_stats, &bch2_fs_time_stats_ktype);
 
 	mutex_lock(&bch_fs_list_lock);
 	err = bch2_fs_online(c);
