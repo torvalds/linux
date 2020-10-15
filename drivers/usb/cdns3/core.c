@@ -466,11 +466,8 @@ static int cdns3_probe(struct platform_device *pdev)
 	cdns->xhci_res[1] = *res;
 
 	cdns->dev_irq = platform_get_irq_byname(pdev, "peripheral");
-	if (cdns->dev_irq == -EPROBE_DEFER)
-		return cdns->dev_irq;
-
 	if (cdns->dev_irq < 0)
-		dev_err(dev, "couldn't get peripheral irq\n");
+		return cdns->dev_irq;
 
 	regs = devm_platform_ioremap_resource_byname(pdev, "dev");
 	if (IS_ERR(regs))
@@ -478,13 +475,8 @@ static int cdns3_probe(struct platform_device *pdev)
 	cdns->dev_regs	= regs;
 
 	cdns->otg_irq = platform_get_irq_byname(pdev, "otg");
-	if (cdns->otg_irq == -EPROBE_DEFER)
+	if (cdns->otg_irq < 0)
 		return cdns->otg_irq;
-
-	if (cdns->otg_irq < 0) {
-		dev_err(dev, "couldn't get otg irq\n");
-		return cdns->otg_irq;
-	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "otg");
 	if (!res) {
