@@ -15,6 +15,10 @@ struct io_identity {
 	struct nsproxy			*nsproxy;
 	struct fs_struct		*fs;
 	unsigned long			fsize;
+#ifdef CONFIG_AUDIT
+	kuid_t				loginuid;
+	unsigned int			sessionid;
+#endif
 	refcount_t			count;
 };
 

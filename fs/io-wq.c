@@ -18,6 +18,7 @@
 #include <linux/fs_struct.h>
 #include <linux/task_work.h>
 #include <linux/blk-cgroup.h>
+#include <linux/audit.h>
 
 #include "io-wq.h"
 
@@ -484,6 +485,10 @@ static void io_impersonate_work(struct io_worker *worker,
 		io_wq_switch_creds(worker, work);
 	current->signal->rlim[RLIMIT_FSIZE].rlim_cur = work->identity->fsize;
 	io_wq_switch_blkcg(worker, work);
+#ifdef CONFIG_AUDIT
+	current->loginuid = work->identity->loginuid;
+	current->sessionid = work->identity->sessionid;
+#endif
 }
 
 static void io_assign_current_work(struct io_worker *worker,
@@ -495,6 +500,11 @@ static void io_assign_current_work(struct io_worker *worker,
 			flush_signals(current);
 		cond_resched();
 	}
+
+#ifdef CONFIG_AUDIT
+	current->loginuid = KUIDT_INIT(AUDIT_UID_UNSET);
+	current->sessionid = AUDIT_SID_UNSET;
+#endif
 
 	spin_lock_irq(&worker->lock);
 	worker->cur_work = work;

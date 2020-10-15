@@ -1268,6 +1268,10 @@ static ssize_t proc_loginuid_write(struct file * file, const char __user * buf,
 	kuid_t kloginuid;
 	int rv;
 
+	/* Don't let kthreads write their own loginuid */
+	if (current->flags & PF_KTHREAD)
+		return -EPERM;
+
 	rcu_read_lock();
 	if (current != pid_task(proc_pid(inode), PIDTYPE_PID)) {
 		rcu_read_unlock();

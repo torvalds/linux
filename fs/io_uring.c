@@ -81,6 +81,7 @@
 #include <linux/pagemap.h>
 #include <linux/io_uring.h>
 #include <linux/blk-cgroup.h>
+#include <linux/audit.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/io_uring.h>
@@ -326,6 +327,11 @@ struct io_ring_ctx {
 	struct user_struct	*user;
 
 	const struct cred	*creds;
+
+#ifdef CONFIG_AUDIT
+	kuid_t			loginuid;
+	unsigned int		sessionid;
+#endif
 
 	struct completion	ref_comp;
 	struct completion	sq_thread_comp;
@@ -1057,6 +1063,10 @@ static void io_init_identity(struct io_identity *id)
 	id->nsproxy = current->nsproxy;
 	id->fs = current->fs;
 	id->fsize = rlimit(RLIMIT_FSIZE);
+#ifdef CONFIG_AUDIT
+	id->loginuid = current->loginuid;
+	id->sessionid = current->sessionid;
+#endif
 	refcount_set(&id->count, 1);
 }
 
@@ -1316,6 +1326,11 @@ static bool io_grab_identity(struct io_kiocb *req)
 		get_cred(id->creds);
 		req->work.flags |= IO_WQ_WORK_CREDS;
 	}
+#ifdef CONFIG_AUDIT
+	if (!uid_eq(current->loginuid, id->loginuid) ||
+	    current->sessionid != id->sessionid)
+		return false;
+#endif
 	if (!(req->work.flags & IO_WQ_WORK_FS) &&
 	    (def->work_flags & IO_WQ_WORK_FS)) {
 		if (current->fs != id->fs)
@@ -6755,6 +6770,10 @@ static int io_sq_thread(void *data)
 				old_cred = override_creds(ctx->creds);
 			}
 			io_sq_thread_associate_blkcg(ctx, &cur_css);
+#ifdef CONFIG_AUDIT
+			current->loginuid = ctx->loginuid;
+			current->sessionid = ctx->sessionid;
+#endif
 
 			ret |= __io_sq_thread(ctx, start_jiffies, cap_entries);
 
@@ -9203,7 +9222,10 @@ static int io_uring_create(unsigned entries, struct io_uring_params *p,
 	ctx->compat = in_compat_syscall();
 	ctx->user = user;
 	ctx->creds = get_current_cred();
-
+#ifdef CONFIG_AUDIT
+	ctx->loginuid = current->loginuid;
+	ctx->sessionid = current->sessionid;
+#endif
 	ctx->sqo_task = get_task_struct(current);
 
 	/*
