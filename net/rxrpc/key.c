@@ -139,7 +139,7 @@ static int rxrpc_preparse_xdr(struct key_preparsed_payload *prep)
 	const char *cp;
 	unsigned int len, paddedlen, loop, ntoken, toklen, sec_ix;
 	size_t datalen = prep->datalen;
-	int ret;
+	int ret, ret2;
 
 	_enter(",{%x,%x,%x,%x},%zu",
 	       ntohl(xdr[0]), ntohl(xdr[1]), ntohl(xdr[2]), ntohl(xdr[3]),
@@ -213,6 +213,7 @@ static int rxrpc_preparse_xdr(struct key_preparsed_payload *prep)
 	/* okay: we're going to assume it's valid XDR format
 	 * - we ignore the cellname, relying on the key to be correctly named
 	 */
+	ret = -EPROTONOSUPPORT;
 	do {
 		toklen = ntohl(*xdr++);
 		token = xdr;
@@ -225,27 +226,37 @@ static int rxrpc_preparse_xdr(struct key_preparsed_payload *prep)
 
 		switch (sec_ix) {
 		case RXRPC_SECURITY_RXKAD:
-			ret = rxrpc_preparse_xdr_rxkad(prep, datalen, token, toklen);
-			if (ret != 0)
-				goto error;
+			ret2 = rxrpc_preparse_xdr_rxkad(prep, datalen, token, toklen);
 			break;
-
 		default:
-			ret = -EPROTONOSUPPORT;
+			ret2 = -EPROTONOSUPPORT;
+			break;
+		}
+
+		switch (ret2) {
+		case 0:
+			ret = 0;
+			break;
+		case -EPROTONOSUPPORT:
+			break;
+		case -ENOPKG:
+			if (ret != 0)
+				ret = -ENOPKG;
+			break;
+		default:
+			ret = ret2;
 			goto error;
 		}
 
 	} while (--ntoken > 0);
 
-	_leave(" = 0");
-	return 0;
+error:
+	_leave(" = %d", ret);
+	return ret;
 
 not_xdr:
 	_leave(" = -EPROTO");
 	return -EPROTO;
-error:
-	_leave(" = %d", ret);
-	return ret;
 }
 
 /*
