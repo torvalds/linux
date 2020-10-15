@@ -116,23 +116,24 @@ static struct clk_bulk_data meson_a1_clocks[] = {
 	{ .id = "xtal_usb_ctrl" },
 };
 
-static const char *meson_gxm_phy_names[] = {
+static const char * const meson_gxm_phy_names[] = {
 	"usb2-phy0", "usb2-phy1", "usb2-phy2",
 };
 
-static const char *meson_g12a_phy_names[] = {
+static const char * const meson_g12a_phy_names[] = {
 	"usb2-phy0", "usb2-phy1", "usb3-phy0",
 };
 
 /*
  * Amlogic A1 has a single physical PHY, in slot 1, but still has the
  * two U2 PHY controls register blocks like G12A.
+ * AXG has the similar scheme, thus needs the same tweak.
  * Handling the first PHY on slot 1 would need a large amount of code
  * changes, and the current management is generic enough to handle it
  * correctly when only the "usb2-phy1" phy is specified on-par with the
  * DT bindings.
  */
-static const char *meson_a1_phy_names[] = {
+static const char * const meson_a1_phy_names[] = {
 	"usb2-phy0", "usb2-phy1"
 };
 
@@ -143,7 +144,7 @@ struct dwc3_meson_g12a_drvdata {
 	bool otg_phy_host_port_disable;
 	struct clk_bulk_data *clks;
 	int num_clks;
-	const char **phy_names;
+	const char * const *phy_names;
 	int num_phys;
 	int (*setup_regmaps)(struct dwc3_meson_g12a *priv, void __iomem *base);
 	int (*usb2_init_phy)(struct dwc3_meson_g12a *priv, int i,
@@ -212,6 +213,19 @@ static struct dwc3_meson_g12a_drvdata gxm_drvdata = {
 	.usb2_init_phy = dwc3_meson_gxl_usb2_init_phy,
 	.set_phy_mode = dwc3_meson_gxl_set_phy_mode,
 	.usb_init = dwc3_meson_gxl_usb_init,
+	.usb_post_init = dwc3_meson_gxl_usb_post_init,
+};
+
+static struct dwc3_meson_g12a_drvdata axg_drvdata = {
+	.otg_switch_supported = true,
+	.clks = meson_gxl_clocks,
+	.num_clks = ARRAY_SIZE(meson_gxl_clocks),
+	.phy_names = meson_a1_phy_names,
+	.num_phys = ARRAY_SIZE(meson_a1_phy_names),
+	.setup_regmaps = dwc3_meson_gxl_setup_regmaps,
+	.usb2_init_phy = dwc3_meson_gxl_usb2_init_phy,
+	.set_phy_mode = dwc3_meson_gxl_set_phy_mode,
+	.usb_init = dwc3_meson_g12a_usb_init,
 	.usb_post_init = dwc3_meson_gxl_usb_post_init,
 };
 
@@ -520,11 +534,7 @@ static int dwc3_meson_g12a_role_set(struct usb_role_switch *sw,
 		return 0;
 
 	if (priv->drvdata->otg_phy_host_port_disable)
-		dev_warn_once(priv->dev, "Manual OTG switch is broken on this "\
-					 "SoC, when manual switching from "\
-					 "Host to device, DWC3 controller "\
-					 "will need to be resetted in order "\
-					 "to recover usage of the Host port");
+		dev_warn_once(priv->dev, "Broken manual OTG switch\n");
 
 	return dwc3_meson_g12a_otg_mode_set(priv, mode);
 }
@@ -626,10 +636,7 @@ static int dwc3_meson_gxl_setup_regmaps(struct dwc3_meson_g12a *priv,
 	/* GXL controls the PHY mode in the PHY registers unlike G12A */
 	priv->usb_glue_regmap = devm_regmap_init_mmio(priv->dev, base,
 					&phy_meson_g12a_usb_glue_regmap_conf);
-	if (IS_ERR(priv->usb_glue_regmap))
-		return PTR_ERR(priv->usb_glue_regmap);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(priv->usb_glue_regmap);
 }
 
 static int dwc3_meson_g12a_setup_regmaps(struct dwc3_meson_g12a *priv,
@@ -906,8 +913,8 @@ static int __maybe_unused dwc3_meson_g12a_resume(struct device *dev)
 			return ret;
 	}
 
-       if (priv->vbus && priv->otg_phy_mode == PHY_MODE_USB_HOST) {
-               ret = regulator_enable(priv->vbus);
+	if (priv->vbus && priv->otg_phy_mode == PHY_MODE_USB_HOST) {
+		ret = regulator_enable(priv->vbus);
 		if (ret)
 			return ret;
 	}
@@ -929,6 +936,10 @@ static const struct of_device_id dwc3_meson_g12a_match[] = {
 	{
 		.compatible = "amlogic,meson-gxm-usb-ctrl",
 		.data = &gxm_drvdata,
+	},
+	{
+		.compatible = "amlogic,meson-axg-usb-ctrl",
+		.data = &axg_drvdata,
 	},
 	{
 		.compatible = "amlogic,meson-g12a-usb-ctrl",

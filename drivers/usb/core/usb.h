@@ -191,7 +191,6 @@ extern const struct attribute_group *usb_interface_groups[];
 extern struct usb_driver usbfs_driver;
 extern const struct file_operations usbfs_devices_fops;
 extern const struct file_operations usbdev_file_operations;
-extern void usbfs_conn_disc_event(void);
 
 extern int usb_devio_init(void);
 extern void usb_devio_cleanup(void);

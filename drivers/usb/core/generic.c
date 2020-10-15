@@ -195,7 +195,7 @@ int usb_choose_configuration(struct usb_device *udev)
 }
 EXPORT_SYMBOL_GPL(usb_choose_configuration);
 
-static int __check_usb_generic(struct device_driver *drv, void *data)
+static int __check_for_non_generic_match(struct device_driver *drv, void *data)
 {
 	struct usb_device *udev = data;
 	struct usb_device_driver *udrv;
@@ -219,7 +219,7 @@ static bool usb_generic_driver_match(struct usb_device *udev)
 	 * If any other driver wants the device, leave the device to this other
 	 * driver.
 	 */
-	if (bus_for_each_drv(&usb_bus_type, NULL, udev, __check_usb_generic))
+	if (bus_for_each_drv(&usb_bus_type, NULL, udev, __check_for_non_generic_match))
 		return false;
 
 	return true;

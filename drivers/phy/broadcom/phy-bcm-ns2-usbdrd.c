@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/irq.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
@@ -87,17 +88,11 @@ static const unsigned int usb_extcon_cable[] = {
 static inline int pll_lock_stat(u32 usb_reg, int reg_mask,
 				struct ns2_phy_driver *driver)
 {
-	int retry = PLL_LOCK_RETRY;
 	u32 val;
 
-	do {
-		udelay(1);
-		val = readl(driver->icfgdrd_regs + usb_reg);
-		if (val & reg_mask)
-			return 0;
-	} while (--retry > 0);
-
-	return -EBUSY;
+	return readl_poll_timeout_atomic(driver->icfgdrd_regs + usb_reg,
+					 val, (val & reg_mask), 1,
+					 PLL_LOCK_RETRY);
 }
 
 static int ns2_drd_phy_init(struct phy *phy)

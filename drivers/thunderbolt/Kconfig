@@ -16,7 +16,19 @@ menuconfig USB4
 	  To compile this driver a module, choose M here. The module will be
 	  called thunderbolt.
 
+if USB4
+
+config USB4_DEBUGFS_WRITE
+	bool "Enable write by debugfs to configuration spaces (DANGEROUS)"
+	help
+	  Enables writing to device configuration registers through
+	  debugfs interface.
+
+	  Only enable this if you know what you are doing! Never enable
+	  this for production systems or distro kernels.
+
 config USB4_KUNIT_TEST
 	bool "KUnit tests"
 	depends on KUNIT=y
-	depends on USB4=y
+
+endif # USB4
