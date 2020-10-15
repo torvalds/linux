@@ -85,10 +85,6 @@ static int r9701_get_datetime(struct device *dev, struct rtc_time *dt)
 	dt->tm_mon = bcd2bin(buf[4]) - 1; /* RMONCNT */
 	dt->tm_year = bcd2bin(buf[5]) + 100; /* RYRCNT */
 
-	/* the rtc device may contain illegal values on power up
-	 * according to the data sheet. make sure they are valid.
-	 */
-
 	return 0;
 }
 
