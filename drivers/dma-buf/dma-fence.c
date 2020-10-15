@@ -283,6 +283,7 @@ EXPORT_SYMBOL(dma_fence_begin_signalling);
 
 /**
  * dma_fence_end_signalling - end a critical DMA fence signalling section
+ * @cookie: opaque cookie from dma_fence_begin_signalling()
  *
  * Closes a critical section annotation opened by dma_fence_begin_signalling().
  */

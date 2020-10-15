@@ -181,6 +181,7 @@ uint64_t amdgpu_amdkfd_get_unique_id(struct kgd_dev *kgd);
 uint64_t amdgpu_amdkfd_get_mmio_remap_phys_addr(struct kgd_dev *kgd);
 uint32_t amdgpu_amdkfd_get_num_gws(struct kgd_dev *kgd);
 uint32_t amdgpu_amdkfd_get_asic_rev_id(struct kgd_dev *kgd);
+int amdgpu_amdkfd_get_noretry(struct kgd_dev *kgd);
 uint8_t amdgpu_amdkfd_get_xgmi_hops_count(struct kgd_dev *dst, struct kgd_dev *src);
 
 /* Read user wptr from a specified user address space with page fault
@@ -270,5 +271,6 @@ int kgd2kfd_resume_mm(struct mm_struct *mm);
 int kgd2kfd_schedule_evict_and_restore_process(struct mm_struct *mm,
 					       struct dma_fence *fence);
 void kgd2kfd_set_sram_ecc_flag(struct kfd_dev *kfd);
+void kgd2kfd_smi_event_throttle(struct kfd_dev *kfd, uint32_t throttle_bitmask);
 
 #endif /* AMDGPU_AMDKFD_H_INCLUDED */

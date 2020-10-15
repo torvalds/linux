@@ -256,12 +256,12 @@ nouveau_dmem_chunk_alloc(struct nouveau_drm *drm, struct page **ppage)
 	chunk->pagemap.owner = drm->dev;
 
 	ret = nouveau_bo_new(&drm->client, DMEM_CHUNK_SIZE, 0,
-			     TTM_PL_FLAG_VRAM, 0, 0, NULL, NULL,
+			     NOUVEAU_GEM_DOMAIN_VRAM, 0, 0, NULL, NULL,
 			     &chunk->bo);
 	if (ret)
 		goto out_release;
 
-	ret = nouveau_bo_pin(chunk->bo, TTM_PL_FLAG_VRAM, false);
+	ret = nouveau_bo_pin(chunk->bo, NOUVEAU_GEM_DOMAIN_VRAM, false);
 	if (ret)
 		goto out_bo_free;
 
@@ -347,7 +347,7 @@ nouveau_dmem_resume(struct nouveau_drm *drm)
 
 	mutex_lock(&drm->dmem->mutex);
 	list_for_each_entry(chunk, &drm->dmem->chunks, list) {
-		ret = nouveau_bo_pin(chunk->bo, TTM_PL_FLAG_VRAM, false);
+		ret = nouveau_bo_pin(chunk->bo, NOUVEAU_GEM_DOMAIN_VRAM, false);
 		/* FIXME handle pin failure */
 		WARN_ON(ret);
 	}

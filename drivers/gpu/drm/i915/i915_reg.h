@@ -1382,7 +1382,6 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define  DPIO_CMNRST			(1 << 0)
 
 #define DPIO_PHY(pipe)			((pipe) >> 1)
-#define DPIO_PHY_IOSF_PORT(phy)		(dev_priv->dpio_phy_iosf_port[phy])
 
 /*
  * Per pipe/PLL DPIO regs
@@ -1898,6 +1897,8 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define  PWR_DOWN_LN_3_1_0		(0xb << 4)
 #define  PWR_DOWN_LN_MASK		(0xf << 4)
 #define  PWR_DOWN_LN_SHIFT		4
+#define  EDP4K2K_MODE_OVRD_EN		(1 << 3)
+#define  EDP4K2K_MODE_OVRD_OPTIMIZED	(1 << 2)
 
 #define ICL_PORT_CL_DW12(phy)		_MMIO(_ICL_PORT_CL_DW(12, phy))
 #define   ICL_LANE_ENABLE_AUX		(1 << 0)
@@ -2918,6 +2919,12 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define MBUS_UBOX_CTL			_MMIO(0x4503C)
 #define MBUS_BBOX_CTL_S1		_MMIO(0x45040)
 #define MBUS_BBOX_CTL_S2		_MMIO(0x45044)
+
+#define HDPORT_STATE			_MMIO(0x45050)
+#define   HDPORT_DPLL_USED_MASK		REG_GENMASK(14, 12)
+#define   HDPORT_PHY_USED_DP(phy)	REG_BIT(2 * (phy) + 2)
+#define   HDPORT_PHY_USED_HDMI(phy)	REG_BIT(2 * (phy) + 1)
+#define   HDPORT_ENABLED		REG_BIT(0)
 
 /* Make render/texture TLB fetches lower priorty than associated data
  *   fetches. This is not turned on by default
@@ -7752,32 +7759,20 @@ enum {
 #define GEN11_DE_HPD_IMR		_MMIO(0x44474)
 #define GEN11_DE_HPD_IIR		_MMIO(0x44478)
 #define GEN11_DE_HPD_IER		_MMIO(0x4447c)
-#define  GEN12_TC6_HOTPLUG			(1 << 21)
-#define  GEN12_TC5_HOTPLUG			(1 << 20)
-#define  GEN11_TC4_HOTPLUG			(1 << 19)
-#define  GEN11_TC3_HOTPLUG			(1 << 18)
-#define  GEN11_TC2_HOTPLUG			(1 << 17)
-#define  GEN11_TC1_HOTPLUG			(1 << 16)
 #define  GEN11_TC_HOTPLUG(tc_port)		(1 << ((tc_port) + 16))
-#define  GEN11_DE_TC_HOTPLUG_MASK		(GEN12_TC6_HOTPLUG | \
-						 GEN12_TC5_HOTPLUG | \
-						 GEN11_TC4_HOTPLUG | \
-						 GEN11_TC3_HOTPLUG | \
-						 GEN11_TC2_HOTPLUG | \
-						 GEN11_TC1_HOTPLUG)
-#define  GEN12_TBT6_HOTPLUG			(1 << 5)
-#define  GEN12_TBT5_HOTPLUG			(1 << 4)
-#define  GEN11_TBT4_HOTPLUG			(1 << 3)
-#define  GEN11_TBT3_HOTPLUG			(1 << 2)
-#define  GEN11_TBT2_HOTPLUG			(1 << 1)
-#define  GEN11_TBT1_HOTPLUG			(1 << 0)
+#define  GEN11_DE_TC_HOTPLUG_MASK		(GEN11_TC_HOTPLUG(PORT_TC6) | \
+						 GEN11_TC_HOTPLUG(PORT_TC5) | \
+						 GEN11_TC_HOTPLUG(PORT_TC4) | \
+						 GEN11_TC_HOTPLUG(PORT_TC3) | \
+						 GEN11_TC_HOTPLUG(PORT_TC2) | \
+						 GEN11_TC_HOTPLUG(PORT_TC1))
 #define  GEN11_TBT_HOTPLUG(tc_port)		(1 << (tc_port))
-#define  GEN11_DE_TBT_HOTPLUG_MASK		(GEN12_TBT6_HOTPLUG | \
-						 GEN12_TBT5_HOTPLUG | \
-						 GEN11_TBT4_HOTPLUG | \
-						 GEN11_TBT3_HOTPLUG | \
-						 GEN11_TBT2_HOTPLUG | \
-						 GEN11_TBT1_HOTPLUG)
+#define  GEN11_DE_TBT_HOTPLUG_MASK		(GEN11_TBT_HOTPLUG(PORT_TC6) | \
+						 GEN11_TBT_HOTPLUG(PORT_TC5) | \
+						 GEN11_TBT_HOTPLUG(PORT_TC4) | \
+						 GEN11_TBT_HOTPLUG(PORT_TC3) | \
+						 GEN11_TBT_HOTPLUG(PORT_TC2) | \
+						 GEN11_TBT_HOTPLUG(PORT_TC1))
 
 #define GEN11_TBT_HOTPLUG_CTL				_MMIO(0x44030)
 #define GEN11_TC_HOTPLUG_CTL				_MMIO(0x44038)
@@ -7870,6 +7865,7 @@ enum {
 # define CHICKEN3_DGMG_DONE_FIX_DISABLE		(1 << 2)
 
 #define CHICKEN_PAR1_1			_MMIO(0x42080)
+#define  DIS_RAM_BYPASS_PSR2_MAN_TRACK	(1 << 16)
 #define  SKL_DE_COMPRESSED_HASH_MODE	(1 << 15)
 #define  DPA_MASK_VBLANK_SRD		(1 << 15)
 #define  FORCE_ARB_IDLE_PLANES		(1 << 14)
@@ -8711,6 +8707,7 @@ enum {
 #define  PCH_GMBUSUNIT_CLOCK_GATE_DISABLE (1 << 31)
 #define  PCH_DPLUNIT_CLOCK_GATE_DISABLE (1 << 30)
 #define  PCH_DPLSUNIT_CLOCK_GATE_DISABLE (1 << 29)
+#define  PCH_DPMGUNIT_CLOCK_GATE_DISABLE (1 << 15)
 #define  PCH_CPUNIT_CLOCK_GATE_DISABLE (1 << 14)
 #define  CNP_PWM_CGE_GATING_DISABLE (1 << 13)
 #define  PCH_LP_PARTITION_LEVEL_DISABLE  (1 << 12)
@@ -9217,8 +9214,8 @@ enum {
 #define   DISPLAY_IPS_CONTROL			0x19
 #define   TGL_PCODE_TCCOLD			0x26
 #define     TGL_PCODE_EXIT_TCCOLD_DATA_L_EXIT_FAILED	REG_BIT(0)
-#define     TGL_PCODE_EXIT_TCCOLD_DATA_H_BLOCK_REQ	0
-#define     TGL_PCODE_EXIT_TCCOLD_DATA_H_UNBLOCK_REQ	REG_BIT(0)
+#define     TGL_PCODE_EXIT_TCCOLD_DATA_L_BLOCK_REQ	0
+#define     TGL_PCODE_EXIT_TCCOLD_DATA_L_UNBLOCK_REQ	REG_BIT(0)
             /* See also IPS_CTL */
 #define     IPS_PCODE_CONTROL			(1 << 30)
 #define   HSW_PCODE_DYNAMIC_DUTY_CYCLE_CONTROL	0x1A
@@ -9305,6 +9302,7 @@ enum {
 #define   GEN11_LSN_UNSLCVC_GAFS_HALF_SF_MAXALLOC	(1 << 7)
 
 #define GEN10_SAMPLER_MODE		_MMIO(0xE18C)
+#define   ENABLE_SMALLPL			REG_BIT(15)
 #define   GEN11_SAMPLER_ENABLE_HEADLESS_MSG	REG_BIT(5)
 
 /* IVYBRIDGE DPF */
@@ -10277,12 +10275,18 @@ enum skl_power_gate {
 
 #define ICL_DPCLKA_CFGCR0			_MMIO(0x164280)
 #define  ICL_DPCLKA_CFGCR0_DDI_CLK_OFF(phy)	(1 << _PICK(phy, 10, 11, 24))
+#define  RKL_DPCLKA_CFGCR0_DDI_CLK_OFF(phy)	REG_BIT((phy) + 10)
 #define  ICL_DPCLKA_CFGCR0_TC_CLK_OFF(tc_port)	(1 << ((tc_port) < PORT_TC4 ? \
 						       (tc_port) + 12 : \
 						       (tc_port) - PORT_TC4 + 21))
 #define  ICL_DPCLKA_CFGCR0_DDI_CLK_SEL_SHIFT(phy)	((phy) * 2)
 #define  ICL_DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(phy)	(3 << ICL_DPCLKA_CFGCR0_DDI_CLK_SEL_SHIFT(phy))
 #define  ICL_DPCLKA_CFGCR0_DDI_CLK_SEL(pll, phy)	((pll) << ICL_DPCLKA_CFGCR0_DDI_CLK_SEL_SHIFT(phy))
+#define  RKL_DPCLKA_CFGCR0_DDI_CLK_SEL_SHIFT(phy)	_PICK(phy, 0, 2, 4, 27)
+#define  RKL_DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(phy) \
+	(3 << RKL_DPCLKA_CFGCR0_DDI_CLK_SEL_SHIFT(phy))
+#define  RKL_DPCLKA_CFGCR0_DDI_CLK_SEL(pll, phy) \
+	((pll) << RKL_DPCLKA_CFGCR0_DDI_CLK_SEL_SHIFT(phy))
 
 /* CNL PLL */
 #define DPLL0_ENABLE		0x46010
@@ -10503,19 +10507,21 @@ enum skl_power_gate {
 
 #define _TGL_DPLL0_CFGCR0		0x164284
 #define _TGL_DPLL1_CFGCR0		0x16428C
-/* TODO: add DPLL4 */
 #define _TGL_TBTPLL_CFGCR0		0x16429C
 #define TGL_DPLL_CFGCR0(pll)		_MMIO_PLL3(pll, _TGL_DPLL0_CFGCR0, \
 						  _TGL_DPLL1_CFGCR0, \
 						  _TGL_TBTPLL_CFGCR0)
+#define RKL_DPLL_CFGCR0(pll)		_MMIO_PLL(pll, _TGL_DPLL0_CFGCR0, \
+						  _TGL_DPLL1_CFGCR0)
 
 #define _TGL_DPLL0_CFGCR1		0x164288
 #define _TGL_DPLL1_CFGCR1		0x164290
-/* TODO: add DPLL4 */
 #define _TGL_TBTPLL_CFGCR1		0x1642A0
 #define TGL_DPLL_CFGCR1(pll)		_MMIO_PLL3(pll, _TGL_DPLL0_CFGCR1, \
 						   _TGL_DPLL1_CFGCR1, \
 						   _TGL_TBTPLL_CFGCR1)
+#define RKL_DPLL_CFGCR1(pll)		_MMIO_PLL(pll, _TGL_DPLL0_CFGCR1, \
+						  _TGL_DPLL1_CFGCR1)
 
 #define _DKL_PHY1_BASE			0x168000
 #define _DKL_PHY2_BASE			0x169000
@@ -12335,5 +12341,11 @@ enum skl_power_gate {
 #define DSB_CTRL(pipe, id)		_MMIO(DSBSL_INSTANCE(pipe, id) + 0x8)
 #define   DSB_ENABLE			(1 << 31)
 #define   DSB_STATUS			(1 << 0)
+
+#define TGL_ROOT_DEVICE_ID		0x9A00
+#define TGL_ROOT_DEVICE_MASK		0xFF00
+#define TGL_ROOT_DEVICE_SKU_MASK	0xF
+#define TGL_ROOT_DEVICE_SKU_ULX		0x2
+#define TGL_ROOT_DEVICE_SKU_ULT		0x4
 
 #endif /* _I915_REG_H_ */

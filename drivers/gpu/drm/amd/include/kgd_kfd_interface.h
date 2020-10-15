@@ -212,10 +212,15 @@ struct tile_config {
  * IH ring entry. This function allows the KFD ISR to get the VMID
  * from the fault status register as early as possible.
  *
- * @get_hive_id: Returns hive id of current  device,  0 if xgmi is not enabled
+ * @get_cu_occupancy: Function pointer that returns to caller the number
+ * of wave fronts that are in flight for all of the queues of a process
+ * as identified by its pasid. It is important to note that the value
+ * returned by this function is a snapshot of current moment and cannot
+ * guarantee any minimum for the number of waves in-flight. This function
+ * is defined for devices that belong to GFX9 and later GFX families. Care
+ * must be taken in calling this function as it is not defined for devices
+ * that belong to GFX8 and below GFX families.
  *
- * @get_unique_id: Returns uuid id of current  device
- * 
  * This structure contains function pointers to services that the kgd driver
  * provides to amdkfd driver.
  *
@@ -290,9 +295,9 @@ struct kfd2kgd_calls {
 	void (*set_vm_context_page_table_base)(struct kgd_dev *kgd,
 			uint32_t vmid, uint64_t page_table_base);
 	uint32_t (*read_vmid_from_vmfault_reg)(struct kgd_dev *kgd);
-	uint64_t (*get_hive_id)(struct kgd_dev *kgd);
-	uint64_t (*get_unique_id)(struct kgd_dev *kgd);
 
+	void (*get_cu_occupancy)(struct kgd_dev *kgd, int pasid, int *wave_cnt,
+			int *max_waves_per_cu);
 };
 
 #endif	/* KGD_KFD_INTERFACE_H_INCLUDED */

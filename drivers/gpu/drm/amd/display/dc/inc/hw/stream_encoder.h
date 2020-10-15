@@ -143,7 +143,7 @@ struct stream_encoder_funcs {
 		struct stream_encoder *enc,
 		struct dc_crtc_timing *crtc_timing);
 
-	void (*set_mst_bandwidth)(
+	void (*set_throttled_vcp_size)(
 		struct stream_encoder *enc,
 		struct fixed31_32 avg_time_slots_per_mtp);
 

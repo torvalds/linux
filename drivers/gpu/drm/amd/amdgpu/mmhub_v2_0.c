@@ -36,7 +36,130 @@
 #define mmDAGB0_CNTL_MISC2_Sienna_Cichlid                       0x0070
 #define mmDAGB0_CNTL_MISC2_Sienna_Cichlid_BASE_IDX              0
 
-void mmhub_v2_0_setup_vm_pt_regs(struct amdgpu_device *adev, uint32_t vmid,
+static const char *mmhub_client_ids_navi1x[][2] = {
+	[3][0] = "DCEDMC",
+	[4][0] = "DCEVGA",
+	[5][0] = "MP0",
+	[6][0] = "MP1",
+	[13][0] = "VMC",
+	[14][0] = "HDP",
+	[15][0] = "OSS",
+	[16][0] = "VCNU",
+	[17][0] = "JPEG",
+	[18][0] = "VCN",
+	[3][1] = "DCEDMC",
+	[4][1] = "DCEXFC",
+	[5][1] = "DCEVGA",
+	[6][1] = "DCEDWB",
+	[7][1] = "MP0",
+	[8][1] = "MP1",
+	[9][1] = "DBGU1",
+	[10][1] = "DBGU0",
+	[11][1] = "XDP",
+	[14][1] = "HDP",
+	[15][1] = "OSS",
+	[16][1] = "VCNU",
+	[17][1] = "JPEG",
+	[18][1] = "VCN",
+};
+
+static const char *mmhub_client_ids_sienna_cichlid[][2] = {
+	[3][0] = "DCEDMC",
+	[4][0] = "DCEVGA",
+	[5][0] = "MP0",
+	[6][0] = "MP1",
+	[8][0] = "VMC",
+	[9][0] = "VCNU0",
+	[10][0] = "JPEG",
+	[12][0] = "VCNU1",
+	[13][0] = "VCN1",
+	[14][0] = "HDP",
+	[15][0] = "OSS",
+	[32+11][0] = "VCN0",
+	[0][1] = "DBGU0",
+	[1][1] = "DBGU1",
+	[2][1] = "DCEDWB",
+	[3][1] = "DCEDMC",
+	[4][1] = "DCEVGA",
+	[5][1] = "MP0",
+	[6][1] = "MP1",
+	[7][1] = "XDP",
+	[9][1] = "VCNU0",
+	[10][1] = "JPEG",
+	[11][1] = "VCN0",
+	[12][1] = "VCNU1",
+	[13][1] = "VCN1",
+	[14][1] = "HDP",
+	[15][1] = "OSS",
+};
+
+static uint32_t mmhub_v2_0_get_invalidate_req(unsigned int vmid,
+					      uint32_t flush_type)
+{
+	u32 req = 0;
+
+	/* invalidate using legacy mode on vmid*/
+	req = REG_SET_FIELD(req, MMVM_INVALIDATE_ENG0_REQ,
+			    PER_VMID_INVALIDATE_REQ, 1 << vmid);
+	req = REG_SET_FIELD(req, MMVM_INVALIDATE_ENG0_REQ, FLUSH_TYPE, flush_type);
+	req = REG_SET_FIELD(req, MMVM_INVALIDATE_ENG0_REQ, INVALIDATE_L2_PTES, 1);
+	req = REG_SET_FIELD(req, MMVM_INVALIDATE_ENG0_REQ, INVALIDATE_L2_PDE0, 1);
+	req = REG_SET_FIELD(req, MMVM_INVALIDATE_ENG0_REQ, INVALIDATE_L2_PDE1, 1);
+	req = REG_SET_FIELD(req, MMVM_INVALIDATE_ENG0_REQ, INVALIDATE_L2_PDE2, 1);
+	req = REG_SET_FIELD(req, MMVM_INVALIDATE_ENG0_REQ, INVALIDATE_L1_PTES, 1);
+	req = REG_SET_FIELD(req, MMVM_INVALIDATE_ENG0_REQ,
+			    CLEAR_PROTECTION_FAULT_STATUS_ADDR,	0);
+
+	return req;
+}
+
+static void
+mmhub_v2_0_print_l2_protection_fault_status(struct amdgpu_device *adev,
+					     uint32_t status)
+{
+	uint32_t cid, rw;
+	const char *mmhub_cid = NULL;
+
+	cid = REG_GET_FIELD(status,
+			    MMVM_L2_PROTECTION_FAULT_STATUS, CID);
+	rw = REG_GET_FIELD(status,
+			   MMVM_L2_PROTECTION_FAULT_STATUS, RW);
+
+	dev_err(adev->dev,
+		"MMVM_L2_PROTECTION_FAULT_STATUS:0x%08X\n",
+		status);
+	switch (adev->asic_type) {
+	case CHIP_NAVI10:
+	case CHIP_NAVI12:
+	case CHIP_NAVI14:
+		mmhub_cid = mmhub_client_ids_navi1x[cid][rw];
+		break;
+	case CHIP_SIENNA_CICHLID:
+	case CHIP_NAVY_FLOUNDER:
+		mmhub_cid = mmhub_client_ids_sienna_cichlid[cid][rw];
+		break;
+	default:
+		mmhub_cid = NULL;
+		break;
+	}
+	dev_err(adev->dev, "\t Faulty UTCL2 client ID: %s (0x%x)\n",
+		mmhub_cid ? mmhub_cid : "unknown", cid);
+	dev_err(adev->dev, "\t MORE_FAULTS: 0x%lx\n",
+		REG_GET_FIELD(status,
+		MMVM_L2_PROTECTION_FAULT_STATUS, MORE_FAULTS));
+	dev_err(adev->dev, "\t WALKER_ERROR: 0x%lx\n",
+		REG_GET_FIELD(status,
+		MMVM_L2_PROTECTION_FAULT_STATUS, WALKER_ERROR));
+	dev_err(adev->dev, "\t PERMISSION_FAULTS: 0x%lx\n",
+		REG_GET_FIELD(status,
+		MMVM_L2_PROTECTION_FAULT_STATUS, PERMISSION_FAULTS));
+	dev_err(adev->dev, "\t MAPPING_ERROR: 0x%lx\n",
+		REG_GET_FIELD(status,
+		MMVM_L2_PROTECTION_FAULT_STATUS, MAPPING_ERROR));
+	dev_err(adev->dev, "\t RW: 0x%x\n", rw);
+}
+
+static void mmhub_v2_0_setup_vm_pt_regs(struct amdgpu_device *adev, uint32_t vmid,
 				uint64_t page_table_base)
 {
 	struct amdgpu_vmhub *hub = &adev->vmhub[AMDGPU_MMHUB_0];
@@ -78,11 +201,6 @@ static void mmhub_v2_0_init_system_aperture_regs(struct amdgpu_device *adev)
 	WREG32_SOC15(MMHUB, 0, mmMMMC_VM_AGP_BOT, 0x00FFFFFF);
 
 	if (!amdgpu_sriov_vf(adev)) {
-		/*
-		 * the new L1 policy will block SRIOV guest from writing
-		 * these regs, and they will be programed at host.
-		 * so skip programing these regs.
-		 */
 		/* Program the system aperture low logical page number. */
 		WREG32_SOC15(MMHUB, 0, mmMMMC_VM_SYSTEM_APERTURE_LOW_ADDR,
 			     adev->gmc.vram_start >> 18);
@@ -251,7 +369,7 @@ static void mmhub_v2_0_setup_vmid_config(struct amdgpu_device *adev)
 		/* Send no-retry XNACK on fault to suppress VM fault storm. */
 		tmp = REG_SET_FIELD(tmp, MMVM_CONTEXT1_CNTL,
 				    RETRY_PERMISSION_OR_INVALID_PAGE_FAULT,
-				    !amdgpu_noretry);
+				    !adev->gmc.noretry);
 		WREG32_SOC15_OFFSET(MMHUB, 0, mmMMVM_CONTEXT1_CNTL,
 				    i * hub->ctx_distance, tmp);
 		WREG32_SOC15_OFFSET(MMHUB, 0, mmMMVM_CONTEXT1_PAGE_TABLE_START_ADDR_LO32,
@@ -280,7 +398,7 @@ static void mmhub_v2_0_program_invalidation(struct amdgpu_device *adev)
 	}
 }
 
-int mmhub_v2_0_gart_enable(struct amdgpu_device *adev)
+static int mmhub_v2_0_gart_enable(struct amdgpu_device *adev)
 {
 	/* GART Enable. */
 	mmhub_v2_0_init_gart_aperture_regs(adev);
@@ -296,7 +414,7 @@ int mmhub_v2_0_gart_enable(struct amdgpu_device *adev)
 	return 0;
 }
 
-void mmhub_v2_0_gart_disable(struct amdgpu_device *adev)
+static void mmhub_v2_0_gart_disable(struct amdgpu_device *adev)
 {
 	struct amdgpu_vmhub *hub = &adev->vmhub[AMDGPU_MMHUB_0];
 	u32 tmp;
@@ -327,7 +445,7 @@ void mmhub_v2_0_gart_disable(struct amdgpu_device *adev)
  * @adev: amdgpu_device pointer
  * @value: true redirects VM faults to the default page
  */
-void mmhub_v2_0_set_fault_enable_default(struct amdgpu_device *adev, bool value)
+static void mmhub_v2_0_set_fault_enable_default(struct amdgpu_device *adev, bool value)
 {
 	u32 tmp;
 
@@ -370,7 +488,12 @@ void mmhub_v2_0_set_fault_enable_default(struct amdgpu_device *adev, bool value)
 	WREG32_SOC15(MMHUB, 0, mmMMVM_L2_PROTECTION_FAULT_CNTL, tmp);
 }
 
-void mmhub_v2_0_init(struct amdgpu_device *adev)
+static const struct amdgpu_vmhub_funcs mmhub_v2_0_vmhub_funcs = {
+	.print_l2_protection_fault_status = mmhub_v2_0_print_l2_protection_fault_status,
+	.get_invalidate_req = mmhub_v2_0_get_invalidate_req,
+};
+
+static void mmhub_v2_0_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_vmhub *hub = &adev->vmhub[AMDGPU_MMHUB_0];
 
@@ -400,6 +523,16 @@ void mmhub_v2_0_init(struct amdgpu_device *adev)
 		mmMMVM_INVALIDATE_ENG0_REQ;
 	hub->eng_addr_distance = mmMMVM_INVALIDATE_ENG1_ADDR_RANGE_LO32 -
 		mmMMVM_INVALIDATE_ENG0_ADDR_RANGE_LO32;
+
+	hub->vm_cntx_cntl_vm_fault = MMVM_CONTEXT1_CNTL__RANGE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
+		MMVM_CONTEXT1_CNTL__DUMMY_PAGE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
+		MMVM_CONTEXT1_CNTL__PDE0_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
+		MMVM_CONTEXT1_CNTL__VALID_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
+		MMVM_CONTEXT1_CNTL__READ_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
+		MMVM_CONTEXT1_CNTL__WRITE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
+		MMVM_CONTEXT1_CNTL__EXECUTE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK;
+
+	hub->vmhub_funcs = &mmhub_v2_0_vmhub_funcs;
 }
 
 static void mmhub_v2_0_update_medium_grain_clock_gating(struct amdgpu_device *adev,
@@ -490,7 +623,7 @@ static void mmhub_v2_0_update_medium_grain_light_sleep(struct amdgpu_device *ade
 	}
 }
 
-int mmhub_v2_0_set_clockgating(struct amdgpu_device *adev,
+static int mmhub_v2_0_set_clockgating(struct amdgpu_device *adev,
 			       enum amd_clockgating_state state)
 {
 	if (amdgpu_sriov_vf(adev))
@@ -514,7 +647,7 @@ int mmhub_v2_0_set_clockgating(struct amdgpu_device *adev,
 	return 0;
 }
 
-void mmhub_v2_0_get_clockgating(struct amdgpu_device *adev, u32 *flags)
+static void mmhub_v2_0_get_clockgating(struct amdgpu_device *adev, u32 *flags)
 {
 	int data, data1;
 
@@ -547,3 +680,14 @@ void mmhub_v2_0_get_clockgating(struct amdgpu_device *adev, u32 *flags)
 	if (data & MM_ATC_L2_MISC_CG__MEM_LS_ENABLE_MASK)
 		*flags |= AMD_CG_SUPPORT_MC_LS;
 }
+
+const struct amdgpu_mmhub_funcs mmhub_v2_0_funcs = {
+	.ras_late_init = amdgpu_mmhub_ras_late_init,
+	.init = mmhub_v2_0_init,
+	.gart_enable = mmhub_v2_0_gart_enable,
+	.set_fault_enable_default = mmhub_v2_0_set_fault_enable_default,
+	.gart_disable = mmhub_v2_0_gart_disable,
+	.set_clockgating = mmhub_v2_0_set_clockgating,
+	.get_clockgating = mmhub_v2_0_get_clockgating,
+	.setup_vm_pt_regs = mmhub_v2_0_setup_vm_pt_regs,
+};

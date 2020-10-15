@@ -138,16 +138,13 @@ out:
 	return MODE_OK;
 }
 
-static struct drm_connector_helper_funcs sun4i_rgb_con_helper_funcs = {
+static const struct drm_connector_helper_funcs sun4i_rgb_con_helper_funcs = {
 	.get_modes	= sun4i_rgb_get_modes,
 };
 
 static void
 sun4i_rgb_connector_destroy(struct drm_connector *connector)
 {
-	struct sun4i_rgb *rgb = drm_connector_to_sun4i_rgb(connector);
-
-	drm_panel_detach(rgb->panel);
 	drm_connector_cleanup(connector);
 }
 
@@ -183,7 +180,7 @@ static void sun4i_rgb_encoder_disable(struct drm_encoder *encoder)
 	}
 }
 
-static struct drm_encoder_helper_funcs sun4i_rgb_enc_helper_funcs = {
+static const struct drm_encoder_helper_funcs sun4i_rgb_enc_helper_funcs = {
 	.disable	= sun4i_rgb_encoder_disable,
 	.enable		= sun4i_rgb_encoder_enable,
 	.mode_valid	= sun4i_rgb_mode_valid,
@@ -233,12 +230,6 @@ int sun4i_rgb_init(struct drm_device *drm, struct sun4i_tcon *tcon)
 
 		drm_connector_attach_encoder(&rgb->connector,
 						  &rgb->encoder);
-
-		ret = drm_panel_attach(rgb->panel, &rgb->connector);
-		if (ret) {
-			dev_err(drm->dev, "Couldn't attach our panel\n");
-			goto err_cleanup_connector;
-		}
 	}
 
 	if (rgb->bridge) {

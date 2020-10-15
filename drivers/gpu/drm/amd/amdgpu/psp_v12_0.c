@@ -38,6 +38,8 @@
 #include "oss/osssys_4_0_sh_mask.h"
 
 MODULE_FIRMWARE("amdgpu/renoir_asd.bin");
+MODULE_FIRMWARE("amdgpu/renoir_ta.bin");
+
 /* address block */
 #define smnMP1_FIRMWARE_FLAGS		0x3010024
 
@@ -45,7 +47,10 @@ static int psp_v12_0_init_microcode(struct psp_context *psp)
 {
 	struct amdgpu_device *adev = psp->adev;
 	const char *chip_name;
+	char fw_name[30];
 	int err = 0;
+	const struct ta_firmware_header_v1_0 *ta_hdr;
+	DRM_DEBUG("\n");
 
 	switch (adev->asic_type) {
 	case CHIP_RENOIR:
@@ -56,6 +61,55 @@ static int psp_v12_0_init_microcode(struct psp_context *psp)
 	}
 
 	err = psp_init_asd_microcode(psp, chip_name);
+	if (err)
+		goto out;
+
+	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_ta.bin", chip_name);
+	err = request_firmware(&adev->psp.ta_fw, fw_name, adev->dev);
+	if (err) {
+		release_firmware(adev->psp.ta_fw);
+		adev->psp.ta_fw = NULL;
+		dev_info(adev->dev,
+			 "psp v12.0: Failed to load firmware \"%s\"\n",
+			 fw_name);
+	} else {
+		err = amdgpu_ucode_validate(adev->psp.ta_fw);
+		if (err)
+			goto out2;
+
+		ta_hdr = (const struct ta_firmware_header_v1_0 *)
+				 adev->psp.ta_fw->data;
+		adev->psp.ta_hdcp_ucode_version =
+			le32_to_cpu(ta_hdr->ta_hdcp_ucode_version);
+		adev->psp.ta_hdcp_ucode_size =
+			le32_to_cpu(ta_hdr->ta_hdcp_size_bytes);
+		adev->psp.ta_hdcp_start_addr =
+			(uint8_t *)ta_hdr +
+			le32_to_cpu(ta_hdr->header.ucode_array_offset_bytes);
+
+		adev->psp.ta_fw_version = le32_to_cpu(ta_hdr->header.ucode_version);
+
+		adev->psp.ta_dtm_ucode_version =
+			le32_to_cpu(ta_hdr->ta_dtm_ucode_version);
+		adev->psp.ta_dtm_ucode_size =
+			le32_to_cpu(ta_hdr->ta_dtm_size_bytes);
+		adev->psp.ta_dtm_start_addr =
+			(uint8_t *)adev->psp.ta_hdcp_start_addr +
+			le32_to_cpu(ta_hdr->ta_dtm_offset_bytes);
+	}
+
+	return 0;
+
+out2:
+	release_firmware(adev->psp.ta_fw);
+	adev->psp.ta_fw = NULL;
+out:
+	if (err) {
+		dev_err(adev->dev,
+			"psp v12.0: Failed to load firmware \"%s\"\n",
+			fw_name);
+	}
+
 	return err;
 }
 

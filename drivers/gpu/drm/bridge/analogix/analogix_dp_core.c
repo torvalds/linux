@@ -1265,14 +1265,6 @@ static int analogix_dp_bridge_attach(struct drm_bridge *bridge,
 		}
 	}
 
-	if (dp->plat_data->panel) {
-		ret = drm_panel_attach(dp->plat_data->panel, &dp->connector);
-		if (ret) {
-			DRM_ERROR("Failed to attach panel\n");
-			return ret;
-		}
-	}
-
 	return 0;
 }
 
@@ -1803,7 +1795,6 @@ void analogix_dp_unbind(struct analogix_dp_device *dp)
 	if (dp->plat_data->panel) {
 		if (drm_panel_unprepare(dp->plat_data->panel))
 			DRM_ERROR("failed to turnoff the panel\n");
-		drm_panel_detach(dp->plat_data->panel);
 	}
 
 	drm_dp_aux_unregister(&dp->aux);

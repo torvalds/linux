@@ -92,7 +92,7 @@ nouveau_mem_fini(struct nouveau_mem *mem)
 }
 
 int
-nouveau_mem_host(struct ttm_mem_reg *reg, struct ttm_dma_tt *tt)
+nouveau_mem_host(struct ttm_resource *reg, struct ttm_dma_tt *tt)
 {
 	struct nouveau_mem *mem = nouveau_mem(reg);
 	struct nouveau_cli *cli = mem->cli;
@@ -130,7 +130,7 @@ nouveau_mem_host(struct ttm_mem_reg *reg, struct ttm_dma_tt *tt)
 }
 
 int
-nouveau_mem_vram(struct ttm_mem_reg *reg, bool contig, u8 page)
+nouveau_mem_vram(struct ttm_resource *reg, bool contig, u8 page)
 {
 	struct nouveau_mem *mem = nouveau_mem(reg);
 	struct nouveau_cli *cli = mem->cli;
@@ -173,7 +173,7 @@ nouveau_mem_vram(struct ttm_mem_reg *reg, bool contig, u8 page)
 }
 
 void
-nouveau_mem_del(struct ttm_mem_reg *reg)
+nouveau_mem_del(struct ttm_resource *reg)
 {
 	struct nouveau_mem *mem = nouveau_mem(reg);
 	if (!mem)
@@ -185,7 +185,7 @@ nouveau_mem_del(struct ttm_mem_reg *reg)
 
 int
 nouveau_mem_new(struct nouveau_cli *cli, u8 kind, u8 comp,
-		struct ttm_mem_reg *reg)
+		struct ttm_resource *reg)
 {
 	struct nouveau_mem *mem;
 

@@ -397,11 +397,13 @@ static void vbox_cursor_atomic_update(struct drm_plane *plane,
 
 	vbox_crtc->cursor_enabled = true;
 
-	/* pinning is done in prepare/cleanup framebuffer */
-	src = drm_gem_vram_kmap(gbo, true, NULL);
+	src = drm_gem_vram_vmap(gbo);
 	if (IS_ERR(src)) {
+		/*
+		 * BUG: we should have pinned the BO in prepare_fb().
+		 */
 		mutex_unlock(&vbox->hw_mutex);
-		DRM_WARN("Could not kmap cursor bo, skipping update\n");
+		DRM_WARN("Could not map cursor bo, skipping update\n");
 		return;
 	}
 
@@ -414,7 +416,7 @@ static void vbox_cursor_atomic_update(struct drm_plane *plane,
 	data_size = width * height * 4 + mask_size;
 
 	copy_cursor_image(src, vbox->cursor_data, width, height, mask_size);
-	drm_gem_vram_kunmap(gbo);
+	drm_gem_vram_vunmap(gbo, src);
 
 	flags = VBOX_MOUSE_POINTER_VISIBLE | VBOX_MOUSE_POINTER_SHAPE |
 		VBOX_MOUSE_POINTER_ALPHA;

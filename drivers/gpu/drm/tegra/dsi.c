@@ -1498,10 +1498,8 @@ static int tegra_dsi_host_attach(struct mipi_dsi_host *host,
 		if (IS_ERR(output->panel))
 			output->panel = NULL;
 
-		if (output->panel && output->connector.dev) {
-			drm_panel_attach(output->panel, &output->connector);
+		if (output->panel && output->connector.dev)
 			drm_helper_hpd_irq_event(output->connector.dev);
-		}
 	}
 
 	return 0;

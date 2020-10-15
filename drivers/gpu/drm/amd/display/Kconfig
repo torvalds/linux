@@ -6,7 +6,7 @@ config DRM_AMD_DC
 	bool "AMD DC - Enable new display engine"
 	default y
 	select SND_HDA_COMPONENT if SND_HDA_CORE
-	select DRM_AMD_DC_DCN if (X86 || PPC64) && !(KCOV_INSTRUMENT_ALL && KCOV_ENABLE_COMPARISONS)
+	select DRM_AMD_DC_DCN if (X86 || PPC64 || (ARM64 && KERNEL_MODE_NEON)) && !(KCOV_INSTRUMENT_ALL && KCOV_ENABLE_COMPARISONS)
 	help
 	  Choose this option if you want to use the new display engine
 	  support for AMDGPU. This adds required support for Vega and
@@ -30,6 +30,14 @@ config DRM_AMD_DC_HDCP
 	depends on DRM_AMD_DC
 	help
 	  Choose this option if you want to support HDCP authentication.
+
+config DRM_AMD_DC_SI
+	bool "AMD DC support for Southern Islands ASICs"
+	default n
+	help
+	  Choose this option to enable new AMD DC support for SI asics
+	  by default. This includes Tahiti, Pitcairn, Cape Verde, Oland.
+	  Hainan is not supported by AMD DC and it has no physical DCE6.
 
 config DEBUG_KERNEL_DC
 	bool "Enable kgdb break in DC"

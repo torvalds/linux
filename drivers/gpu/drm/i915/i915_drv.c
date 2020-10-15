@@ -58,7 +58,6 @@
 #include "display/intel_hotplug.h"
 #include "display/intel_overlay.h"
 #include "display/intel_pipe_crc.h"
-#include "display/intel_psr.h"
 #include "display/intel_sprite.h"
 #include "display/intel_vga.h"
 
@@ -216,125 +215,6 @@ intel_teardown_mchbar(struct drm_i915_private *dev_priv)
 		release_resource(&dev_priv->mch_res);
 }
 
-/* part #1: call before irq install */
-static int i915_driver_modeset_probe_noirq(struct drm_i915_private *i915)
-{
-	int ret;
-
-	if (i915_inject_probe_failure(i915))
-		return -ENODEV;
-
-	if (HAS_DISPLAY(i915) && INTEL_DISPLAY_ENABLED(i915)) {
-		ret = drm_vblank_init(&i915->drm,
-				      INTEL_NUM_PIPES(i915));
-		if (ret)
-			return ret;
-	}
-
-	intel_bios_init(i915);
-
-	ret = intel_vga_register(i915);
-	if (ret)
-		goto cleanup_bios;
-
-	intel_power_domains_init_hw(i915, false);
-
-	intel_csr_ucode_init(i915);
-
-	ret = intel_modeset_init_noirq(i915);
-	if (ret)
-		goto cleanup_vga_client_pw_domain_csr;
-
-	return 0;
-
-cleanup_vga_client_pw_domain_csr:
-	intel_csr_ucode_fini(i915);
-	intel_power_domains_driver_remove(i915);
-	intel_vga_unregister(i915);
-cleanup_bios:
-	intel_bios_driver_remove(i915);
-	return ret;
-}
-
-/* part #2: call after irq install */
-static int i915_driver_modeset_probe(struct drm_i915_private *i915)
-{
-	int ret;
-
-	/* Important: The output setup functions called by modeset_init need
-	 * working irqs for e.g. gmbus and dp aux transfers. */
-	ret = intel_modeset_init(i915);
-	if (ret)
-		goto out;
-
-	ret = i915_gem_init(i915);
-	if (ret)
-		goto cleanup_modeset;
-
-	intel_overlay_setup(i915);
-
-	if (!HAS_DISPLAY(i915) || !INTEL_DISPLAY_ENABLED(i915))
-		return 0;
-
-	ret = intel_fbdev_init(&i915->drm);
-	if (ret)
-		goto cleanup_gem;
-
-	/* Only enable hotplug handling once the fbdev is fully set up. */
-	intel_hpd_init(i915);
-
-	intel_init_ipc(i915);
-
-	intel_psr_set_force_mode_changed(i915->psr.dp);
-
-	return 0;
-
-cleanup_gem:
-	i915_gem_suspend(i915);
-	i915_gem_driver_remove(i915);
-	i915_gem_driver_release(i915);
-cleanup_modeset:
-	/* FIXME */
-	intel_modeset_driver_remove(i915);
-	intel_irq_uninstall(i915);
-	intel_modeset_driver_remove_noirq(i915);
-out:
-	return ret;
-}
-
-/* part #1: call before irq uninstall */
-static void i915_driver_modeset_remove(struct drm_i915_private *i915)
-{
-	intel_modeset_driver_remove(i915);
-}
-
-/* part #2: call after irq uninstall */
-static void i915_driver_modeset_remove_noirq(struct drm_i915_private *i915)
-{
-	intel_csr_ucode_fini(i915);
-
-	intel_power_domains_driver_remove(i915);
-
-	intel_vga_unregister(i915);
-
-	intel_bios_driver_remove(i915);
-}
-
-static void intel_init_dpio(struct drm_i915_private *dev_priv)
-{
-	/*
-	 * IOSF_PORT_DPIO is used for VLV x2 PHY (DP/HDMI B and C),
-	 * CHV x1 PHY (DP/HDMI D)
-	 * IOSF_PORT_DPIO_2 is used for CHV x2 PHY (DP/HDMI B and C)
-	 */
-	if (IS_CHERRYVIEW(dev_priv)) {
-		DPIO_PHY_IOSF_PORT(DPIO_PHY0) = IOSF_PORT_DPIO_2;
-		DPIO_PHY_IOSF_PORT(DPIO_PHY1) = IOSF_PORT_DPIO;
-	} else if (IS_VALLEYVIEW(dev_priv)) {
-		DPIO_PHY_IOSF_PORT(DPIO_PHY0) = IOSF_PORT_DPIO;
-	}
-}
-
 static int i915_workqueues_init(struct drm_i915_private *dev_priv)
 {
 	/*
@@ -392,7 +272,7 @@ static void intel_detect_preproduction_hw(struct drm_i915_private *dev_priv)
 	pre |= IS_HSW_EARLY_SDV(dev_priv);
 	pre |= IS_SKL_REVID(dev_priv, 0, SKL_REVID_F0);
 	pre |= IS_BXT_REVID(dev_priv, 0, BXT_REVID_B_LAST);
-	pre |= IS_KBL_REVID(dev_priv, 0, KBL_REVID_A0);
+	pre |= IS_KBL_GT_REVID(dev_priv, 0, KBL_REVID_A0);
 	pre |= IS_GLK_REVID(dev_priv, 0, GLK_REVID_A2);
 
 	if (pre) {
@@ -463,7 +343,6 @@ static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 	intel_detect_pch(dev_priv);
 
 	intel_pm_setup(dev_priv);
-	intel_init_dpio(dev_priv);
 	ret = intel_power_domains_init(dev_priv);
 	if (ret < 0)
 		goto err_gem;
@@ -798,7 +677,7 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 		drm_err(&dev_priv->drm,
 			"Failed to register driver for userspace access!\n");
 
-	if (HAS_DISPLAY(dev_priv) && INTEL_DISPLAY_ENABLED(dev_priv)) {
+	if (HAS_DISPLAY(dev_priv)) {
 		/* Must be done after probing outputs */
 		intel_opregion_register(dev_priv);
 		acpi_video_register();
@@ -821,7 +700,7 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 	 * We need to coordinate the hotplugs with the asynchronous fbdev
 	 * configuration, for which we use the fbdev->async_cookie.
 	 */
-	if (HAS_DISPLAY(dev_priv) && INTEL_DISPLAY_ENABLED(dev_priv))
+	if (HAS_DISPLAY(dev_priv))
 		drm_kms_helper_poll_init(dev);
 
 	intel_power_domains_enable(dev_priv);
@@ -988,7 +867,7 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret < 0)
 		goto out_cleanup_mmio;
 
-	ret = i915_driver_modeset_probe_noirq(i915);
+	ret = intel_modeset_init_noirq(i915);
 	if (ret < 0)
 		goto out_cleanup_hw;
 
@@ -996,9 +875,17 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		goto out_cleanup_modeset;
 
-	ret = i915_driver_modeset_probe(i915);
-	if (ret < 0)
+	ret = intel_modeset_init_nogem(i915);
+	if (ret)
 		goto out_cleanup_irq;
+
+	ret = i915_gem_init(i915);
+	if (ret)
+		goto out_cleanup_modeset2;
+
+	ret = intel_modeset_init(i915);
+	if (ret)
+		goto out_cleanup_gem;
 
 	i915_driver_register(i915);
 
@@ -1010,10 +897,20 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	return 0;
 
+out_cleanup_gem:
+	i915_gem_suspend(i915);
+	i915_gem_driver_remove(i915);
+	i915_gem_driver_release(i915);
+out_cleanup_modeset2:
+	/* FIXME clean up the error path */
+	intel_modeset_driver_remove(i915);
+	intel_irq_uninstall(i915);
+	intel_modeset_driver_remove_noirq(i915);
+	goto out_cleanup_modeset;
 out_cleanup_irq:
 	intel_irq_uninstall(i915);
 out_cleanup_modeset:
-	i915_driver_modeset_remove_noirq(i915);
+	intel_modeset_driver_remove_nogem(i915);
 out_cleanup_hw:
 	i915_driver_hw_remove(i915);
 	intel_memory_regions_driver_release(i915);
@@ -1045,7 +942,7 @@ void i915_driver_remove(struct drm_i915_private *i915)
 
 	intel_gvt_driver_remove(i915);
 
-	i915_driver_modeset_remove(i915);
+	intel_modeset_driver_remove(i915);
 
 	intel_irq_uninstall(i915);
 
@@ -1054,7 +951,7 @@ void i915_driver_remove(struct drm_i915_private *i915)
 	i915_reset_error_state(i915);
 	i915_gem_driver_remove(i915);
 
-	i915_driver_modeset_remove_noirq(i915);
+	intel_modeset_driver_remove_nogem(i915);
 
 	i915_driver_hw_remove(i915);
 
@@ -1075,6 +972,7 @@ static void i915_driver_release(struct drm_device *dev)
 
 	intel_memory_regions_driver_release(dev_priv);
 	i915_ggtt_driver_release(dev_priv);
+	i915_gem_drain_freed_objects(dev_priv);
 
 	i915_driver_mmio_release(dev_priv);
 
@@ -1119,7 +1017,6 @@ static void i915_driver_postclose(struct drm_device *dev, struct drm_file *file)
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 
 	i915_gem_context_close(file);
-	i915_gem_release(dev, file);
 
 	kfree_rcu(file_priv, rcu);
 
@@ -1846,7 +1743,8 @@ static struct drm_driver driver = {
 	 */
 	.driver_features =
 	    DRIVER_GEM |
-	    DRIVER_RENDER | DRIVER_MODESET | DRIVER_ATOMIC | DRIVER_SYNCOBJ,
+	    DRIVER_RENDER | DRIVER_MODESET | DRIVER_ATOMIC | DRIVER_SYNCOBJ |
+	    DRIVER_SYNCOBJ_TIMELINE,
 	.release = i915_driver_release,
 	.open = i915_driver_open,
 	.lastclose = i915_driver_lastclose,

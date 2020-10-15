@@ -197,6 +197,8 @@ patternProperties:
     description: Ceva, Inc.
   "^checkpoint,.*":
     description: Check Point Software Technologies Ltd.
+  "^chefree,.*":
+    description: Chefree Technology Corp.
   "^chipidea,.*":
     description: Chipidea, Inc
   "^chipone,.*":
@@ -605,6 +607,8 @@ patternProperties:
     description: Logic Technologies Limited
   "^longcheer,.*":
     description: Longcheer Technology (Shanghai) Co., Ltd.
+  "^lontium,.*":
+    description: Lontium Semiconductor Corporation
   "^loongson,.*":
     description: Loongson Technology Corporation Limited
   "^lsi,.*":
@@ -615,6 +619,8 @@ patternProperties:
     description: Linux Automation GmbH
   "^macnica,.*":
     description: Macnica Americas
+  "^mantix,.*":
+    description: Mantix Display Technology Co.,Ltd.
   "^mapleboard,.*":
     description: Mapleboard.org
   "^marvell,.*":
@@ -836,6 +842,8 @@ patternProperties:
     description: Poslab Technology Co., Ltd.
   "^pov,.*":
     description: Point of View International B.V.
+  "^powertip,.*":
+    description: Powertip Tech. Corp.
   "^powervr,.*":
     description: PowerVR (deprecated, use img)
   "^primux,.*":

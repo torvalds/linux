@@ -151,6 +151,8 @@
 #define mmUVD_LMI_CTRL2_BASE_IDX                                                                       1
 #define mmUVD_MASTINT_EN                                                                               0x0540
 #define mmUVD_MASTINT_EN_BASE_IDX                                                                      1
+#define mmUVD_FW_STATUS                                                                                0x0557
+#define mmUVD_FW_STATUS_BASE_IDX                                                                       1
 #define mmJPEG_CGC_CTRL                                                                                0x0565
 #define mmJPEG_CGC_CTRL_BASE_IDX                                                                       1
 #define mmUVD_LMI_CTRL                                                                                 0x0566
@@ -217,6 +219,7 @@
 #define mmUVD_CONTEXT_ID_BASE_IDX                                                                      1
 #define mmUVD_CONTEXT_ID2                                                                              0x05bf
 #define mmUVD_CONTEXT_ID2_BASE_IDX                                                                     1
+
 
 
 #endif
