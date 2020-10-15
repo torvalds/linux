@@ -2650,7 +2650,7 @@ void trace_buffered_event_enable(void)
 
 		preempt_disable();
 		if (cpu == smp_processor_id() &&
-		    this_cpu_read(trace_buffered_event) !=
+		    __this_cpu_read(trace_buffered_event) !=
 		    per_cpu(trace_buffered_event, cpu))
 			WARN_ON_ONCE(1);
 		preempt_enable();
@@ -5142,10 +5142,10 @@ static const char readme_msg[] =
 	"\t           -:[<group>/]<event>\n"
 #ifdef CONFIG_KPROBE_EVENTS
 	"\t    place: [<module>:]<symbol>[+<offset>]|<memaddr>\n"
-  "place (kretprobe): [<module>:]<symbol>[+<offset>]|<memaddr>\n"
+  "place (kretprobe): [<module>:]<symbol>[+<offset>]%return|<memaddr>\n"
 #endif
 #ifdef CONFIG_UPROBE_EVENTS
-  "   place (uprobe): <path>:<offset>[(ref_ctr_offset)]\n"
+  "   place (uprobe): <path>:<offset>[%return][(ref_ctr_offset)]\n"
 #endif
 	"\t     args: <name>=fetcharg[:type]\n"
 	"\t fetcharg: %<register>, @<address>, @<symbol>[+|-<offset>],\n"
@@ -5269,7 +5269,12 @@ static const char readme_msg[] =
 	"\t        trace(<synthetic_event>,param list)  - generate synthetic event\n"
 	"\t        save(field,...)                      - save current event fields\n"
 #ifdef CONFIG_TRACER_SNAPSHOT
-	"\t        snapshot()                           - snapshot the trace buffer\n"
+	"\t        snapshot()                           - snapshot the trace buffer\n\n"
+#endif
+#ifdef CONFIG_SYNTH_EVENTS
+	"  events/synthetic_events\t- Create/append/remove/show synthetic events\n"
+	"\t  Write into this file to define/undefine new synthetic events.\n"
+	"\t     example: echo 'myevent u64 lat; char name[]' >> synthetic_events\n"
 #endif
 #endif
 ;
@@ -6682,7 +6687,6 @@ tracing_mark_write(struct file *filp, const char __user *ubuf,
 		written = -EFAULT;
 	} else
 		written = cnt;
-	len = cnt;
 
 	if (tr->trace_marker_file && !list_empty(&tr->trace_marker_file->triggers)) {
 		/* do not add \n before testing triggers, but add \0 */
@@ -8658,6 +8662,24 @@ struct trace_array *trace_array_find_get(const char *instance)
 	return tr;
 }
 
+static int trace_array_create_dir(struct trace_array *tr)
+{
+	int ret;
+
+	tr->dir = tracefs_create_dir(tr->name, trace_instance_dir);
+	if (!tr->dir)
+		return -EINVAL;
+
+	ret = event_trace_add_tracer(tr->dir, tr);
+	if (ret)
+		tracefs_remove(tr->dir);
+
+	init_tracer_tracefs(tr, tr->dir);
+	__update_tracer_options(tr);
+
+	return ret;
+}
+
 static struct trace_array *trace_array_create(const char *name)
 {
 	struct trace_array *tr;
@@ -8693,30 +8715,28 @@ static struct trace_array *trace_array_create(const char *name)
 	if (allocate_trace_buffers(tr, trace_buf_size) < 0)
 		goto out_free_tr;
 
-	tr->dir = tracefs_create_dir(name, trace_instance_dir);
-	if (!tr->dir)
+	if (ftrace_allocate_ftrace_ops(tr) < 0)
 		goto out_free_tr;
-
-	ret = event_trace_add_tracer(tr->dir, tr);
-	if (ret) {
-		tracefs_remove(tr->dir);
-		goto out_free_tr;
-	}
 
 	ftrace_init_trace_array(tr);
 
-	init_tracer_tracefs(tr, tr->dir);
 	init_trace_flags_index(tr);
-	__update_tracer_options(tr);
+
+	if (trace_instance_dir) {
+		ret = trace_array_create_dir(tr);
+		if (ret)
+			goto out_free_tr;
+	} else
+		__trace_early_add_events(tr);
 
 	list_add(&tr->list, &ftrace_trace_arrays);
 
 	tr->ref++;
 
-
 	return tr;
 
  out_free_tr:
+	ftrace_free_ftrace_ops(tr);
 	free_trace_buffers(tr);
 	free_cpumask_var(tr->tracing_cpumask);
 	kfree(tr->name);
@@ -8821,7 +8841,6 @@ static int __remove_instance(struct trace_array *tr)
 	free_cpumask_var(tr->tracing_cpumask);
 	kfree(tr->name);
 	kfree(tr);
-	tr = NULL;
 
 	return 0;
 }
@@ -8875,11 +8894,27 @@ static int instance_rmdir(const char *name)
 
 static __init void create_trace_instances(struct dentry *d_tracer)
 {
+	struct trace_array *tr;
+
 	trace_instance_dir = tracefs_create_instance_dir("instances", d_tracer,
 							 instance_mkdir,
 							 instance_rmdir);
 	if (MEM_FAIL(!trace_instance_dir, "Failed to create instances directory\n"))
 		return;
+
+	mutex_lock(&event_mutex);
+	mutex_lock(&trace_types_lock);
+
+	list_for_each_entry(tr, &ftrace_trace_arrays, list) {
+		if (!tr->name)
+			continue;
+		if (MEM_FAIL(trace_array_create_dir(tr) < 0,
+			     "Failed to create instance directory\n"))
+			break;
+	}
+
+	mutex_unlock(&trace_types_lock);
+	mutex_unlock(&event_mutex);
 }
 
 static void
@@ -8993,21 +9028,21 @@ static struct vfsmount *trace_automount(struct dentry *mntpt, void *ingore)
  * directory. It is called via fs_initcall() by any of the boot up code
  * and expects to return the dentry of the top level tracing directory.
  */
-struct dentry *tracing_init_dentry(void)
+int tracing_init_dentry(void)
 {
 	struct trace_array *tr = &global_trace;
 
 	if (security_locked_down(LOCKDOWN_TRACEFS)) {
 		pr_warn("Tracing disabled due to lockdown\n");
-		return ERR_PTR(-EPERM);
+		return -EPERM;
 	}
 
 	/* The top level trace array uses  NULL as parent */
 	if (tr->dir)
-		return NULL;
+		return 0;
 
 	if (WARN_ON(!tracefs_initialized()))
-		return ERR_PTR(-ENODEV);
+		return -ENODEV;
 
 	/*
 	 * As there may still be users that expect the tracing
@@ -9018,7 +9053,7 @@ struct dentry *tracing_init_dentry(void)
 	tr->dir = debugfs_create_automount("tracing", NULL,
 					   trace_automount, NULL);
 
-	return NULL;
+	return 0;
 }
 
 extern struct trace_eval_map *__start_ftrace_eval_maps[];
@@ -9105,48 +9140,48 @@ static struct notifier_block trace_module_nb = {
 
 static __init int tracer_init_tracefs(void)
 {
-	struct dentry *d_tracer;
+	int ret;
 
 	trace_access_lock_init();
 
-	d_tracer = tracing_init_dentry();
-	if (IS_ERR(d_tracer))
+	ret = tracing_init_dentry();
+	if (ret)
 		return 0;
 
 	event_trace_init();
 
-	init_tracer_tracefs(&global_trace, d_tracer);
-	ftrace_init_tracefs_toplevel(&global_trace, d_tracer);
+	init_tracer_tracefs(&global_trace, NULL);
+	ftrace_init_tracefs_toplevel(&global_trace, NULL);
 
-	trace_create_file("tracing_thresh", 0644, d_tracer,
+	trace_create_file("tracing_thresh", 0644, NULL,
 			&global_trace, &tracing_thresh_fops);
 
-	trace_create_file("README", 0444, d_tracer,
+	trace_create_file("README", 0444, NULL,
 			NULL, &tracing_readme_fops);
 
-	trace_create_file("saved_cmdlines", 0444, d_tracer,
+	trace_create_file("saved_cmdlines", 0444, NULL,
 			NULL, &tracing_saved_cmdlines_fops);
 
-	trace_create_file("saved_cmdlines_size", 0644, d_tracer,
+	trace_create_file("saved_cmdlines_size", 0644, NULL,
 			  NULL, &tracing_saved_cmdlines_size_fops);
 
-	trace_create_file("saved_tgids", 0444, d_tracer,
+	trace_create_file("saved_tgids", 0444, NULL,
 			NULL, &tracing_saved_tgids_fops);
 
 	trace_eval_init();
 
-	trace_create_eval_file(d_tracer);
+	trace_create_eval_file(NULL);
 
 #ifdef CONFIG_MODULES
 	register_module_notifier(&trace_module_nb);
 #endif
 
 #ifdef CONFIG_DYNAMIC_FTRACE
-	trace_create_file("dyn_ftrace_total_info", 0444, d_tracer,
+	trace_create_file("dyn_ftrace_total_info", 0444, NULL,
 			NULL, &tracing_dyn_info_fops);
 #endif
 
-	create_trace_instances(d_tracer);
+	create_trace_instances(NULL);
 
 	update_tracer_options(&global_trace);
 
@@ -9309,7 +9344,7 @@ void ftrace_dump(enum ftrace_dump_mode oops_dump_mode)
 	}
 
 	/*
-	 * We need to stop all tracing on all CPUS to read the
+	 * We need to stop all tracing on all CPUS to read
 	 * the next buffer. This is a bit expensive, but is
 	 * not done often. We fill all what we can read,
 	 * and then release the locks again.
@@ -9452,7 +9487,7 @@ __init static int tracer_alloc_buffers(void)
 	}
 
 	/*
-	 * Make sure we don't accidently add more trace options
+	 * Make sure we don't accidentally add more trace options
 	 * than we have bits for.
 	 */
 	BUILD_BUG_ON(TRACE_ITER_LAST_BIT > TRACE_FLAGS_MAX_SIZE);
@@ -9481,7 +9516,7 @@ __init static int tracer_alloc_buffers(void)
 
 	/*
 	 * The prepare callbacks allocates some memory for the ring buffer. We
-	 * don't free the buffer if the if the CPU goes down. If we were to free
+	 * don't free the buffer if the CPU goes down. If we were to free
 	 * the buffer, then the user would lose any trace that was in the
 	 * buffer. The memory will be removed once the "instance" is removed.
 	 */

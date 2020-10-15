@@ -6626,6 +6626,7 @@ F:	fs/proc/bootconfig.c
 F:	include/linux/bootconfig.h
 F:	lib/bootconfig.c
 F:	tools/bootconfig/*
+F:	tools/bootconfig/scripts/*
 
 EXYNOS DP DRIVER
 M:	Jingoo Han <jingoohan1@gmail.com>

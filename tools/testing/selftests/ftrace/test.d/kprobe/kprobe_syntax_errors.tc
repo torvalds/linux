@@ -97,4 +97,10 @@ check_error 'p:kprobes/testevent kernel_clone ^abcd=\"foo"'	# DIFF_ARG_TYPE
 check_error '^p:kprobes/testevent kernel_clone abcd=\1'	# SAME_PROBE
 fi
 
+# %return suffix errors
+if grep -q "place (kretprobe): .*%return.*" README; then
+check_error 'p vfs_read^%hoge'		# BAD_ADDR_SUFFIX
+check_error 'p ^vfs_read+10%return'	# BAD_RETPROBE
+fi
+
 exit 0
