@@ -15,6 +15,7 @@ struct io_identity {
 	struct nsproxy			*nsproxy;
 	struct fs_struct		*fs;
 	unsigned long			fsize;
+	refcount_t			count;
 };
 
 struct io_uring_task {
