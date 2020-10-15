@@ -119,12 +119,6 @@ static void sm2_ec_ctx_deinit(struct mpi_ec_ctx *ec)
 	memset(ec, 0, sizeof(*ec));
 }
 
-static int sm2_ec_ctx_reset(struct mpi_ec_ctx *ec)
-{
-	sm2_ec_ctx_deinit(ec);
-	return sm2_ec_ctx_init(ec);
-}
-
 /* RESULT must have been initialized and is set on success to the
  * point given by VALUE.
  */
@@ -132,55 +126,48 @@ static int sm2_ecc_os2ec(MPI_POINT result, MPI value)
 {
 	int rc;
 	size_t n;
-	const unsigned char *buf;
-	unsigned char *buf_memory;
+	unsigned char *buf;
 	MPI x, y;
 
-	n = (mpi_get_nbits(value)+7)/8;
-	buf_memory = kmalloc(n, GFP_KERNEL);
-	rc = mpi_print(GCRYMPI_FMT_USG, buf_memory, n, &n, value);
-	if (rc) {
-		kfree(buf_memory);
-		return rc;
-	}
-	buf = buf_memory;
+	n = MPI_NBYTES(value);
+	buf = kmalloc(n, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
 
-	if (n < 1) {
-		kfree(buf_memory);
-		return -EINVAL;
-	}
-	if (*buf != 4) {
-		kfree(buf_memory);
-		return -EINVAL; /* No support for point compression.  */
-	}
-	if (((n-1)%2)) {
-		kfree(buf_memory);
-		return -EINVAL;
-	}
-	n = (n-1)/2;
+	rc = mpi_print(GCRYMPI_FMT_USG, buf, n, &n, value);
+	if (rc)
+		goto err_freebuf;
+
+	rc = -EINVAL;
+	if (n < 1 || ((n - 1) % 2))
+		goto err_freebuf;
+	/* No support for point compression */
+	if (*buf != 0x4)
+		goto err_freebuf;
+
+	rc = -ENOMEM;
+	n = (n - 1) / 2;
 	x = mpi_read_raw_data(buf + 1, n);
-	if (!x) {
-		kfree(buf_memory);
-		return -ENOMEM;
-	}
+	if (!x)
+		goto err_freebuf;
 	y = mpi_read_raw_data(buf + 1 + n, n);
-	kfree(buf_memory);
-	if (!y) {
-		mpi_free(x);
-		return -ENOMEM;
-	}
+	if (!y)
+		goto err_freex;
 
 	mpi_normalize(x);
 	mpi_normalize(y);
-
 	mpi_set(result->x, x);
 	mpi_set(result->y, y);
 	mpi_set_ui(result->z, 1);
 
-	mpi_free(x);
-	mpi_free(y);
+	rc = 0;
 
-	return 0;
+	mpi_free(y);
+err_freex:
+	mpi_free(x);
+err_freebuf:
+	kfree(buf);
+	return rc;
 }
 
 struct sm2_signature_ctx {
@@ -398,10 +385,6 @@ static int sm2_set_pub_key(struct crypto_akcipher *tfm,
 	struct mpi_ec_ctx *ec = akcipher_tfm_ctx(tfm);
 	MPI a;
 	int rc;
-
-	rc = sm2_ec_ctx_reset(ec);
-	if (rc)
-		return rc;
 
 	ec->Q = mpi_point_new(0);
 	if (!ec->Q)
