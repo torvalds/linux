@@ -919,6 +919,30 @@ struct journal_s
 	unsigned long		j_last;
 
 	/**
+	 * @j_fc_first:
+	 *
+	 * The block number of the first fast commit block in the journal
+	 * [j_state_lock].
+	 */
+	unsigned long		j_fc_first;
+
+	/**
+	 * @j_fc_off:
+	 *
+	 * Number of fast commit blocks currently allocated.
+	 * [j_state_lock].
+	 */
+	unsigned long		j_fc_off;
+
+	/**
+	 * @j_fc_last:
+	 *
+	 * The block number one beyond the last fast commit block in the journal
+	 * [j_state_lock].
+	 */
+	unsigned long		j_fc_last;
+
+	/**
 	 * @j_dev: Device where we store the journal.
 	 */
 	struct block_device	*j_dev;
@@ -1069,11 +1093,24 @@ struct journal_s
 	struct buffer_head	**j_wbuf;
 
 	/**
+	 * @j_fc_wbuf: Array of fast commit bhs for
+	 * jbd2_journal_commit_transaction.
+	 */
+	struct buffer_head	**j_fc_wbuf;
+
+	/**
 	 * @j_wbufsize:
 	 *
 	 * Size of @j_wbuf array.
 	 */
 	int			j_wbufsize;
+
+	/**
+	 * @j_fc_wbufsize:
+	 *
+	 * Size of @j_fc_wbuf array.
+	 */
+	int			j_fc_wbufsize;
 
 	/**
 	 * @j_last_sync_writer:
@@ -1535,6 +1572,8 @@ void __jbd2_log_wait_for_space(journal_t *journal);
 extern void __jbd2_journal_drop_transaction(journal_t *, transaction_t *);
 extern int jbd2_cleanup_journal_tail(journal_t *);
 
+/* Fast commit related APIs */
+int jbd2_fc_init(journal_t *journal, int num_fc_blks);
 /*
  * is_journal_abort
  *
