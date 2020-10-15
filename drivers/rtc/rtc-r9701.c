@@ -88,11 +88,7 @@ static int r9701_get_datetime(struct device *dev, struct rtc_time *dt)
 
 static int r9701_set_datetime(struct device *dev, struct rtc_time *dt)
 {
-	int ret, year;
-
-	year = dt->tm_year + 1900;
-	if (year >= 2100 || year < 2000)
-		return -EINVAL;
+	int ret;
 
 	ret = write_reg(dev, RHRCNT, bin2bcd(dt->tm_hour));
 	ret = ret ? ret : write_reg(dev, RMINCNT, bin2bcd(dt->tm_min));
@@ -128,6 +124,8 @@ static int r9701_probe(struct spi_device *spi)
 
 	spi_set_drvdata(spi, rtc);
 	rtc->ops = &r9701_rtc_ops;
+	rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
+	rtc->range_max = RTC_TIMESTAMP_END_2099;
 
 	return rtc_register_device(rtc);
 }
