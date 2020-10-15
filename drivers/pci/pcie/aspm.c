@@ -501,6 +501,7 @@ static void aspm_calc_l1ss_info(struct pcie_link_state *link,
 				struct aspm_register_info *upreg,
 				struct aspm_register_info *dwreg)
 {
+	struct pci_dev *child = link->downstream, *parent = link->pdev;
 	u32 val1, val2, scale1, scale2;
 	u32 t_common_mode, t_power_on, l1_2_threshold, scale, value;
 
@@ -522,13 +523,13 @@ static void aspm_calc_l1ss_info(struct pcie_link_state *link,
 	val2   = (dwreg->l1ss_cap & PCI_L1SS_CAP_P_PWR_ON_VALUE) >> 19;
 	scale2 = (dwreg->l1ss_cap & PCI_L1SS_CAP_P_PWR_ON_SCALE) >> 16;
 
-	if (calc_l1ss_pwron(link->pdev, scale1, val1) >
-	    calc_l1ss_pwron(link->downstream, scale2, val2)) {
+	if (calc_l1ss_pwron(parent, scale1, val1) >
+	    calc_l1ss_pwron(child, scale2, val2)) {
 		link->l1ss.ctl2 |= scale1 | (val1 << 3);
-		t_power_on = calc_l1ss_pwron(link->pdev, scale1, val1);
+		t_power_on = calc_l1ss_pwron(parent, scale1, val1);
 	} else {
 		link->l1ss.ctl2 |= scale2 | (val2 << 3);
-		t_power_on = calc_l1ss_pwron(link->downstream, scale2, val2);
+		t_power_on = calc_l1ss_pwron(child, scale2, val2);
 	}
 
 	/*
