@@ -1590,7 +1590,7 @@ static int imx335_enum_frame_interval(struct v4l2_subdev *sd,
 	if (fie->index >= imx335->cfg_num)
 		return -EINVAL;
 
-	fie->code = supported_modes[fie->index].bus_fmt
+	fie->code = supported_modes[fie->index].bus_fmt;
 	fie->width = supported_modes[fie->index].width;
 	fie->height = supported_modes[fie->index].height;
 	fie->interval = supported_modes[fie->index].max_fps;
