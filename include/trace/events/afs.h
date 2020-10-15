@@ -40,6 +40,7 @@ enum afs_server_trace {
 	afs_server_trace_get_new_cbi,
 	afs_server_trace_get_probe,
 	afs_server_trace_give_up_cb,
+	afs_server_trace_purging,
 	afs_server_trace_put_call,
 	afs_server_trace_put_cbi,
 	afs_server_trace_put_find_rsq,
@@ -311,6 +312,7 @@ enum afs_cb_break_reason {
 	EM(afs_server_trace_get_new_cbi,	"GET cbi  ") \
 	EM(afs_server_trace_get_probe,		"GET probe") \
 	EM(afs_server_trace_give_up_cb,		"giveup-cb") \
+	EM(afs_server_trace_purging,		"PURGE    ") \
 	EM(afs_server_trace_put_call,		"PUT call ") \
 	EM(afs_server_trace_put_cbi,		"PUT cbi  ") \
 	EM(afs_server_trace_put_find_rsq,	"PUT f-rsq") \
