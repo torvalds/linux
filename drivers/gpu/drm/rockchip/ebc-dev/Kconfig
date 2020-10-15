@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: GPL-2.0
+
+menuconfig ROCKCHIP_EBC_DEV
+	bool "Rockchip eBook Device Driver"
+	help
+	Rockchip eBook Device Dirver could help to driver the electronic ink screen.
+
+choice
+	prompt "eink pmic sensor"
+	depends on ROCKCHIP_EBC_DEV
+	default EPD_TPS65185_SENSOR
+config EPD_TPS65185_SENSOR
+	bool "Tps65185"
+endchoice
