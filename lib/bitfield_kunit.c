@@ -125,7 +125,7 @@ static void __init test_bitfields_variables(struct kunit *context)
 	CHECK(u64, 0x0000001f8000000ull);
 }
 
-
+#ifdef TEST_BITFIELD_COMPILE
 static void __init test_bitfields_compile(struct kunit *context)
 {
 	/* these should fail compilation */
@@ -135,13 +135,11 @@ static void __init test_bitfields_compile(struct kunit *context)
 	/* this should at least give a warning */
 	u16_encode_bits(0, 0x60000);
 }
+#endif
 
 static struct kunit_case __refdata bitfields_test_cases[] = {
 	KUNIT_CASE(test_bitfields_constants),
 	KUNIT_CASE(test_bitfields_variables),
-#ifdef TEST_BITFIELD_COMPILE
-	KUNIT_CASE(test_bitfields_compile),
-#endif
 	{}
 };
 
