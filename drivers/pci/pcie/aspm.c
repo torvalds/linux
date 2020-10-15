@@ -386,14 +386,13 @@ struct aspm_register_info {
 	/* L1 substates */
 	u32 l1ss_cap;
 	u32 l1ss_ctl1;
-	u32 l1ss_ctl2;
 };
 
 static void pcie_get_aspm_reg(struct pci_dev *pdev,
 			      struct aspm_register_info *info)
 {
 	/* Read L1 PM substate capabilities */
-	info->l1ss_cap = info->l1ss_ctl1 = info->l1ss_ctl2 = 0;
+	info->l1ss_cap = info->l1ss_ctl1 = 0;
 
 	if (!pdev->l1ss)
 		return;
@@ -407,8 +406,6 @@ static void pcie_get_aspm_reg(struct pci_dev *pdev,
 
 	pci_read_config_dword(pdev, pdev->l1ss + PCI_L1SS_CTL1,
 			      &info->l1ss_ctl1);
-	pci_read_config_dword(pdev, pdev->l1ss + PCI_L1SS_CTL2,
-			      &info->l1ss_ctl2);
 }
 
 static void pcie_aspm_check_latency(struct pci_dev *endpoint)
