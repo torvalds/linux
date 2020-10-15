@@ -24,7 +24,7 @@
 #include <linux/kexec.h>
 #include <linux/sizes.h>
 #include <linux/device.h>
-#include <linux/dma-contiguous.h>
+#include <linux/dma-map-ops.h>
 #include <linux/decompress/generic.h>
 #include <linux/of_fdt.h>
 #include <linux/of_reserved_mem.h>

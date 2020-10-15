@@ -728,11 +728,6 @@ arm_lpae_alloc_pgtable(struct io_pgtable_cfg *cfg)
 	if (cfg->oas > ARM_LPAE_MAX_ADDR_BITS)
 		return NULL;
 
-	if (!selftest_running && cfg->iommu_dev->dma_pfn_offset) {
-		dev_err(cfg->iommu_dev, "Cannot accommodate DMA offset for IOMMU page tables\n");
-		return NULL;
-	}
-
 	data = kmalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return NULL;

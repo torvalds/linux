@@ -12,7 +12,6 @@
 #include <linux/device.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
-#include <linux/dma-contiguous.h>
 #include <linux/errno.h>
 #include <linux/firmware.h>
 #include <linux/interrupt.h>

@@ -899,8 +899,15 @@ static int sun6i_csi_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	sdev->dev = &pdev->dev;
-	/* The DMA bus has the memory mapped at 0 */
-	sdev->dev->dma_pfn_offset = PHYS_OFFSET >> PAGE_SHIFT;
+	/*
+	 * The DMA bus has the memory mapped at 0.
+	 *
+	 * XXX(hch): this has no business in a driver and needs to move
+	 * to the device tree.
+	 */
+	ret = dma_direct_set_offset(sdev->dev, PHYS_OFFSET, 0, SZ_4G);
+	if (ret)
+		return ret;
 
 	ret = sun6i_csi_resource_request(sdev, pdev);
 	if (ret)

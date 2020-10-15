@@ -7,7 +7,7 @@
  * for more details.
  */
 
-#include <linux/dma-contiguous.h>
+#include <linux/dma-map-ops.h>
 #include <linux/memblock.h>
 #include <linux/init.h>
 #include <linux/kernel.h>

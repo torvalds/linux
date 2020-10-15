@@ -5,7 +5,7 @@
 // Author: Andrzej Hajda <a.hajda@samsung.com>
 
 #include <linux/dma-iommu.h>
-#include <linux/dma-mapping.h>
+#include <linux/dma-map-ops.h>
 #include <linux/iommu.h>
 #include <linux/platform_device.h>
 

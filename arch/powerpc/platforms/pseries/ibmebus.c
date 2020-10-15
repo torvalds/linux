@@ -40,7 +40,7 @@
 #include <linux/export.h>
 #include <linux/console.h>
 #include <linux/kobject.h>
-#include <linux/dma-mapping.h>
+#include <linux/dma-map-ops.h>
 #include <linux/interrupt.h>
 #include <linux/of.h>
 #include <linux/slab.h>

@@ -16,7 +16,6 @@ mandatory-y += current.h
 mandatory-y += delay.h
 mandatory-y += device.h
 mandatory-y += div64.h
-mandatory-y += dma-contiguous.h
 mandatory-y += dma-mapping.h
 mandatory-y += dma.h
 mandatory-y += emergency-restart.h
