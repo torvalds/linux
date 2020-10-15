@@ -2138,7 +2138,8 @@ static bool nft_hook_list_equal(struct list_head *hook_list1,
 }
 
 static int nf_tables_updchain(struct nft_ctx *ctx, u8 genmask, u8 policy,
-			      u32 flags)
+			      u32 flags, const struct nlattr *attr,
+			      struct netlink_ext_ack *extack)
 {
 	const struct nlattr * const *nla = ctx->nla;
 	struct nft_table *table = ctx->table;
@@ -2154,9 +2155,10 @@ static int nf_tables_updchain(struct nft_ctx *ctx, u8 genmask, u8 policy,
 		return -EOPNOTSUPP;
 
 	if (nla[NFTA_CHAIN_HOOK]) {
-		if (!nft_is_base_chain(chain))
+		if (!nft_is_base_chain(chain)) {
+			NL_SET_BAD_ATTR(extack, attr);
 			return -EEXIST;
-
+		}
 		err = nft_chain_parse_hook(ctx->net, nla, &hook, ctx->family,
 					   false);
 		if (err < 0)
@@ -2165,6 +2167,7 @@ static int nf_tables_updchain(struct nft_ctx *ctx, u8 genmask, u8 policy,
 		basechain = nft_base_chain(chain);
 		if (basechain->type != hook.type) {
 			nft_chain_release_hook(&hook);
+			NL_SET_BAD_ATTR(extack, attr);
 			return -EEXIST;
 		}
 
@@ -2172,6 +2175,7 @@ static int nf_tables_updchain(struct nft_ctx *ctx, u8 genmask, u8 policy,
 			if (!nft_hook_list_equal(&basechain->hook_list,
 						 &hook.list)) {
 				nft_chain_release_hook(&hook);
+				NL_SET_BAD_ATTR(extack, attr);
 				return -EEXIST;
 			}
 		} else {
@@ -2179,6 +2183,7 @@ static int nf_tables_updchain(struct nft_ctx *ctx, u8 genmask, u8 policy,
 			if (ops->hooknum != hook.num ||
 			    ops->priority != hook.priority) {
 				nft_chain_release_hook(&hook);
+				NL_SET_BAD_ATTR(extack, attr);
 				return -EEXIST;
 			}
 		}
@@ -2191,8 +2196,10 @@ static int nf_tables_updchain(struct nft_ctx *ctx, u8 genmask, u8 policy,
 
 		chain2 = nft_chain_lookup(ctx->net, table,
 					  nla[NFTA_CHAIN_NAME], genmask);
-		if (!IS_ERR(chain2))
+		if (!IS_ERR(chain2)) {
+			NL_SET_BAD_ATTR(extack, nla[NFTA_CHAIN_NAME]);
 			return -EEXIST;
+		}
 	}
 
 	if (nla[NFTA_CHAIN_COUNTERS]) {
@@ -2235,6 +2242,7 @@ static int nf_tables_updchain(struct nft_ctx *ctx, u8 genmask, u8 policy,
 			    nft_trans_chain_update(tmp) &&
 			    nft_trans_chain_name(tmp) &&
 			    strcmp(name, nft_trans_chain_name(tmp)) == 0) {
+				NL_SET_BAD_ATTR(extack, nla[NFTA_CHAIN_NAME]);
 				kfree(name);
 				goto err;
 			}
@@ -2357,7 +2365,8 @@ static int nf_tables_newchain(struct net *net, struct sock *nlsk,
 			return -EOPNOTSUPP;
 
 		flags |= chain->flags & NFT_CHAIN_BASE;
-		return nf_tables_updchain(&ctx, genmask, policy, flags);
+		return nf_tables_updchain(&ctx, genmask, policy, flags, attr,
+					  extack);
 	}
 
 	return nf_tables_addchain(&ctx, family, genmask, policy, flags);

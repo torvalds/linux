@@ -350,7 +350,7 @@ u32 mlx4_en_recycle_tx_desc(struct mlx4_en_priv *priv,
 		.dma = tx_info->map0_dma,
 	};
 
-	if (!mlx4_en_rx_recycle(ring->recycle_ring, &frame)) {
+	if (!napi_mode || !mlx4_en_rx_recycle(ring->recycle_ring, &frame)) {
 		dma_unmap_page(priv->ddev, tx_info->map0_dma,
 			       PAGE_SIZE, priv->dma_dir);
 		put_page(tx_info->page);

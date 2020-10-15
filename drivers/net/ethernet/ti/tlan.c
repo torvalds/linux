@@ -2504,7 +2504,7 @@ static void tlan_phy_power_down(struct net_device *dev)
 	}
 
 	/* Wait for 50 ms and powerup
-	 * This is abitrary.  It is intended to make sure the
+	 * This is arbitrary.  It is intended to make sure the
 	 * transceiver settles.
 	 */
 	tlan_set_timer(dev, msecs_to_jiffies(50), TLAN_TIMER_PHY_PUP);
