@@ -1051,7 +1051,8 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 	gl->gl_object = NULL;
 	gl->gl_hold_time = GL_GLOCK_DFT_HOLD;
 	INIT_DELAYED_WORK(&gl->gl_work, glock_work_func);
-	INIT_DELAYED_WORK(&gl->gl_delete, delete_work_func);
+	if (gl->gl_name.ln_type == LM_TYPE_IOPEN)
+		INIT_DELAYED_WORK(&gl->gl_delete, delete_work_func);
 
 	mapping = gfs2_glock2aspace(gl);
 	if (mapping) {
@@ -1900,9 +1901,11 @@ bool gfs2_delete_work_queued(const struct gfs2_glock *gl)
 
 static void flush_delete_work(struct gfs2_glock *gl)
 {
-	if (cancel_delayed_work(&gl->gl_delete)) {
-		queue_delayed_work(gfs2_delete_workqueue,
-				   &gl->gl_delete, 0);
+	if (gl->gl_name.ln_type == LM_TYPE_IOPEN) {
+		if (cancel_delayed_work(&gl->gl_delete)) {
+			queue_delayed_work(gfs2_delete_workqueue,
+					   &gl->gl_delete, 0);
+		}
 	}
 	gfs2_glock_queue_work(gl, 0);
 }
