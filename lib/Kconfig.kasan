@@ -136,15 +136,6 @@ config KASAN_STACK
 	default 1 if KASAN_STACK_ENABLE || CC_IS_GCC
 	default 0
 
-config KASAN_S390_4_LEVEL_PAGING
-	bool "KASan: use 4-level paging"
-	depends on S390
-	help
-	  Compiling the kernel with KASan disables automatic 3-level vs
-	  4-level paging selection. 3-level paging is used by default (up
-	  to 3TB of RAM with KASan enabled). This options allows to force
-	  4-level paging instead.
-
 config KASAN_SW_TAGS_IDENTIFY
 	bool "Enable memory corruption identification"
 	depends on KASAN_SW_TAGS

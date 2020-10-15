@@ -123,8 +123,7 @@ static void __init kasan_early_vmemmap_populate(unsigned long address,
 			pgd_populate(&init_mm, pg_dir, p4_dir);
 		}
 
-		if (IS_ENABLED(CONFIG_KASAN_S390_4_LEVEL_PAGING) &&
-		    mode == POPULATE_SHALLOW) {
+		if (mode == POPULATE_SHALLOW) {
 			address = (address + P4D_SIZE) & P4D_MASK;
 			continue;
 		}
@@ -141,12 +140,6 @@ static void __init kasan_early_vmemmap_populate(unsigned long address,
 			}
 			pu_dir = kasan_early_crst_alloc(_REGION3_ENTRY_EMPTY);
 			p4d_populate(&init_mm, p4_dir, pu_dir);
-		}
-
-		if (!IS_ENABLED(CONFIG_KASAN_S390_4_LEVEL_PAGING) &&
-		    mode == POPULATE_SHALLOW) {
-			address = (address + PUD_SIZE) & PUD_MASK;
-			continue;
 		}
 
 		pu_dir = pud_offset(p4_dir, address);
@@ -281,7 +274,6 @@ void __init kasan_early_init(void)
 	unsigned long shadow_alloc_size;
 	unsigned long vmax_unlimited;
 	unsigned long initrd_end;
-	unsigned long asce_type;
 	unsigned long memsize;
 	unsigned long pgt_prot = pgprot_val(PAGE_KERNEL_RO);
 	pte_t pte_z;
@@ -304,25 +296,12 @@ void __init kasan_early_init(void)
 		memsize = min(memsize, OLDMEM_SIZE);
 	memsize = min(memsize, KASAN_SHADOW_START);
 
-	if (IS_ENABLED(CONFIG_KASAN_S390_4_LEVEL_PAGING)) {
-		/* 4 level paging */
-		BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_START, P4D_SIZE));
-		BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_END, P4D_SIZE));
-		crst_table_init((unsigned long *)early_pg_dir,
-				_REGION2_ENTRY_EMPTY);
-		untracked_mem_end = kasan_vmax = vmax_unlimited = _REGION1_SIZE;
-		if (has_uv_sec_stor_limit())
-			kasan_vmax = min(vmax_unlimited, uv_info.max_sec_stor_addr);
-		asce_type = _ASCE_TYPE_REGION2;
-	} else {
-		/* 3 level paging */
-		BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_START, PUD_SIZE));
-		BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_END, PUD_SIZE));
-		crst_table_init((unsigned long *)early_pg_dir,
-				_REGION3_ENTRY_EMPTY);
-		untracked_mem_end = kasan_vmax = vmax_unlimited = _REGION2_SIZE;
-		asce_type = _ASCE_TYPE_REGION3;
-	}
+	BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_START, P4D_SIZE));
+	BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_END, P4D_SIZE));
+	crst_table_init((unsigned long *)early_pg_dir, _REGION2_ENTRY_EMPTY);
+	untracked_mem_end = kasan_vmax = vmax_unlimited = _REGION1_SIZE;
+	if (has_uv_sec_stor_limit())
+		kasan_vmax = min(vmax_unlimited, uv_info.max_sec_stor_addr);
 
 	/* init kasan zero shadow */
 	crst_table_init((unsigned long *)kasan_early_shadow_p4d,
@@ -408,7 +387,7 @@ void __init kasan_early_init(void)
 	pgalloc_freeable = pgalloc_pos;
 	/* populate identity mapping */
 	kasan_early_vmemmap_populate(0, memsize, POPULATE_ONE2ONE);
-	kasan_set_pgd(early_pg_dir, asce_type);
+	kasan_set_pgd(early_pg_dir, _ASCE_TYPE_REGION2);
 	kasan_enable_dat();
 	/* enable kasan */
 	init_task.kasan_depth = 0;
@@ -428,24 +407,13 @@ void __init kasan_copy_shadow(pgd_t *pg_dir)
 	pgd_t *pg_dir_dst;
 	p4d_t *p4_dir_src;
 	p4d_t *p4_dir_dst;
-	pud_t *pu_dir_src;
-	pud_t *pu_dir_dst;
 
 	pg_dir_src = pgd_offset_raw(early_pg_dir, KASAN_SHADOW_START);
 	pg_dir_dst = pgd_offset_raw(pg_dir, KASAN_SHADOW_START);
 	p4_dir_src = p4d_offset(pg_dir_src, KASAN_SHADOW_START);
 	p4_dir_dst = p4d_offset(pg_dir_dst, KASAN_SHADOW_START);
-	if (!p4d_folded(*p4_dir_src)) {
-		/* 4 level paging */
-		memcpy(p4_dir_dst, p4_dir_src,
-		       (KASAN_SHADOW_SIZE >> P4D_SHIFT) * sizeof(p4d_t));
-		return;
-	}
-	/* 3 level paging */
-	pu_dir_src = pud_offset(p4_dir_src, KASAN_SHADOW_START);
-	pu_dir_dst = pud_offset(p4_dir_dst, KASAN_SHADOW_START);
-	memcpy(pu_dir_dst, pu_dir_src,
-	       (KASAN_SHADOW_SIZE >> PUD_SHIFT) * sizeof(pud_t));
+	memcpy(p4_dir_dst, p4_dir_src,
+	       (KASAN_SHADOW_SIZE >> P4D_SHIFT) * sizeof(p4d_t));
 }
 
 void __init kasan_free_early_identity(void)
