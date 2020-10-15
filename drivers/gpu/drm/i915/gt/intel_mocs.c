@@ -243,8 +243,9 @@ static const struct drm_i915_mocs_entry tgl_mocs_table[] = {
 	 * only, __init_mocs_table() take care to program unused index with
 	 * this entry.
 	 */
-	MOCS_ENTRY(1, LE_3_WB | LE_TC_1_LLC | LE_LRUM(3),
-		   L3_3_WB),
+	MOCS_ENTRY(I915_MOCS_PTE,
+		   LE_0_PAGETABLE | LE_TC_0_PAGETABLE,
+		   L3_1_UC),
 	GEN11_MOCS_ENTRIES,
 
 	/* Implicitly enable L1 - HDC:L1 + L3 + LLC */
