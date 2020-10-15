@@ -2093,6 +2093,40 @@ void ext4_fc_init(struct super_block *sb, journal_t *journal)
 	}
 }
 
+const char *fc_ineligible_reasons[] = {
+	"Extended attributes changed",
+	"Cross rename",
+	"Journal flag changed",
+	"Insufficient memory",
+	"Swap boot",
+	"Resize",
+	"Dir renamed",
+	"Falloc range op",
+	"FC Commit Failed"
+};
+
+int ext4_fc_info_show(struct seq_file *seq, void *v)
+{
+	struct ext4_sb_info *sbi = EXT4_SB((struct super_block *)seq->private);
+	struct ext4_fc_stats *stats = &sbi->s_fc_stats;
+	int i;
+
+	if (v != SEQ_START_TOKEN)
+		return 0;
+
+	seq_printf(seq,
+		"fc stats:\n%ld commits\n%ld ineligible\n%ld numblks\n%lluus avg_commit_time\n",
+		   stats->fc_num_commits, stats->fc_ineligible_commits,
+		   stats->fc_numblks,
+		   div_u64(sbi->s_fc_avg_commit_time, 1000));
+	seq_puts(seq, "Ineligible reasons:\n");
+	for (i = 0; i < EXT4_FC_REASON_MAX; i++)
+		seq_printf(seq, "\"%s\":\t%d\n", fc_ineligible_reasons[i],
+			stats->fc_ineligible_reason_count[i]);
+
+	return 0;
+}
+
 int __init ext4_fc_init_dentry_cache(void)
 {
 	ext4_fc_dentry_cachep = KMEM_CACHE(ext4_fc_dentry_update,
