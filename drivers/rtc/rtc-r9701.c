@@ -122,14 +122,14 @@ static int r9701_probe(struct spi_device *spi)
 		return -ENODEV;
 	}
 
-	rtc = devm_rtc_device_register(&spi->dev, "r9701",
-				&r9701_rtc_ops, THIS_MODULE);
+	rtc = devm_rtc_allocate_device(&spi->dev);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 
 	spi_set_drvdata(spi, rtc);
+	rtc->ops = &r9701_rtc_ops;
 
-	return 0;
+	return rtc_register_device(rtc);
 }
 
 static struct spi_driver r9701_driver = {
