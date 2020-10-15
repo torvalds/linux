@@ -176,7 +176,7 @@ static inline struct nvme_request *nvme_req(struct request *req)
 
 static inline u16 nvme_req_qid(struct request *req)
 {
-	if (!req->rq_disk)
+	if (!req->q->queuedata)
 		return 0;
 	return blk_mq_unique_tag_to_hwq(blk_mq_unique_tag(req)) + 1;
 }
