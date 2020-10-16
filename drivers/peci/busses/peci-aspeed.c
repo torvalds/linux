@@ -168,6 +168,7 @@ struct aspeed_peci {
 	/* 0: older 32 bytes, 1 : 64bytes mode */
 	int			xfer_mode;
 };
+static int aspeed_peci_init_ctrl(struct aspeed_peci *priv);
 
 static inline int aspeed_peci_check_idle(struct aspeed_peci *priv)
 {
@@ -244,6 +245,9 @@ static int aspeed_peci_xfer(struct peci_adapter *adapter,
 			goto err_irqrestore;
 		} else if (err == 0) {
 			dev_dbg(priv->dev, "Timeout waiting for a response!\n");
+			reset_control_assert(priv->rst);
+			reset_control_deassert(priv->rst);
+			aspeed_peci_init_ctrl(priv);
 			ret = -ETIMEDOUT;
 			goto err_irqrestore;
 		}
