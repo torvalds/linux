@@ -477,6 +477,12 @@ struct mt7615_bss_qos_tlv {
 	u8 pad[3];
 } __packed;
 
+enum {
+	WOW_USB = 1,
+	WOW_PCIE = 2,
+	WOW_GPIO = 3,
+};
+
 struct mt7615_wow_ctrl_tlv {
 	__le16 tag;
 	__le16 len;
@@ -498,6 +504,16 @@ struct mt7615_wow_ctrl_tlv {
 			* 0x3: HIF_GPIO
 			*/
 	u8 pad;
+	u8 rsv[4];
+} __packed;
+
+struct mt7615_wow_gpio_param_tlv {
+	__le16 tag;
+	__le16 len;
+	u8 gpio_pin;
+	u8 trigger_lvl;
+	u8 pad[2];
+	__le32 gpio_interval;
 	u8 rsv[4];
 } __packed;
 
