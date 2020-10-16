@@ -306,6 +306,7 @@ int __update_load_avg_blocked_se(u64 now, struct sched_entity *se)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(__update_load_avg_blocked_se);
 
 int __update_load_avg_se(u64 now, struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
