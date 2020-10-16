@@ -159,6 +159,7 @@ struct aspeed_peci {
 	struct device		*dev;
 	void __iomem		*base;
 	struct clk		*clk;
+	struct clk		*hclk;
 	struct reset_control	*rst;
 	int			irq;
 	spinlock_t		lock; /* to sync completion status handling */
@@ -167,6 +168,8 @@ struct aspeed_peci {
 	u32			cmd_timeout_ms;
 	/* 0: older 32 bytes, 1 : 64bytes mode */
 	int			xfer_mode;
+	/* 0: reference clock, 1 : HCLK */
+	int			bus_clk_sel;
 };
 static int aspeed_peci_init_ctrl(struct aspeed_peci *priv);
 
@@ -337,6 +340,14 @@ static int aspeed_peci_init_ctrl(struct aspeed_peci *priv)
 	u32 msg_timing_idx, clk_div_val_idx;
 	int delta_value, delta_tmp, clk_divisor, clk_divisor_tmp;
 	int ret;
+	unsigned long bus_clk_rate;
+
+	/* peci bus clk selection */
+	if (priv->bus_clk_sel)
+		bus_clk_rate = clk_get_rate(priv->hclk);
+	else
+		bus_clk_rate = clk_get_rate(priv->clk);
+	dev_dbg(priv->dev, "Bus source clock: %lu", bus_clk_rate);
 
 	ret = device_property_read_u32(priv->dev, "clock-frequency", &clk_freq);
 	if (ret ||
@@ -349,12 +360,12 @@ static int aspeed_peci_init_ctrl(struct aspeed_peci *priv)
 		clk_freq = ASPEED_PECI_BUS_FREQ_DEFAULT;
 	}
 	/*
-	 * PECI bus clock = (Ref. clk) / (1 << PECI00[10:8])
+	 * PECI bus clock = (Bus clk rate) / (1 << PECI00[10:8])
 	 * PECI operation clock = (PECI bus clock)/ 4*(PECI04[15:8]*4+1)
 	 * (1 << PECI00[10:8]) * (PECI04[15:8]*4+1) =
-	 * (Ref. clk) / (4 * PECI operation clock)
+	 * (Bus clk rate) / (4 * PECI operation clock)
 	 */
-	clk_divisor = clk_get_rate(priv->clk) / (4*clk_freq);
+	clk_divisor = bus_clk_rate / (4*clk_freq);
 	delta_value = clk_divisor;
 	/* Find the closest divisor for clock-frequency */
 	for (msg_timing_idx = 1; msg_timing_idx <= 255; msg_timing_idx++)
@@ -372,7 +383,7 @@ static int aspeed_peci_init_ctrl(struct aspeed_peci *priv)
 	addr_timing = msg_timing;
 	dev_info(priv->dev, "Expect frequency: %d Real frequency is about: %lu",
 		clk_freq,
-		clk_get_rate(priv->clk) /
+		bus_clk_rate /
 		(4 * (1 << clk_div_val) * (msg_timing * 4 + 1)));
 
 	ret = device_property_read_u32(priv->dev, "rd-sampling-point",
@@ -420,6 +431,7 @@ static int aspeed_peci_init_ctrl(struct aspeed_peci *priv)
 	/* Read sampling point and clock speed setting */
 	writel(FIELD_PREP(ASPEED_PECI_CTRL_SAMPLING_MASK, rd_sampling_point) |
 	       FIELD_PREP(ASPEED_PECI_CTRL_CLK_DIV_MASK, clk_div_val) |
+	       FIELD_PREP(ASPEED_PECI_CTRL_CLK_SOURCE_MASK, priv->bus_clk_sel) |
 	       (priv->xfer_mode ? ASPEED_PECI_CTRL_64BYTE_MODE_EN : 0) |
 	       ASPEED_PECI_CTRL_PECI_EN | ASPEED_PECI_CTRL_PECI_CLK_EN,
 	       priv->base + ASPEED_PECI_CTRL);
@@ -479,7 +491,23 @@ static int aspeed_peci_probe(struct platform_device *pdev)
 		dev_err(priv->dev, "Failed to enable clock.\n");
 		return ret;
 	}
+	/* peci bus clk selection */
+	if (of_property_read_bool(priv->dev->of_node, "clock-sel-hclk")) {
+		priv->bus_clk_sel = 1;
+		priv->hclk = devm_clk_get(priv->dev, "hclk");
+		if (IS_ERR(priv->hclk)) {
+			dev_err(priv->dev, "Failed to get hclk source.\n");
+			return PTR_ERR(priv->hclk);
+		}
 
+		ret = clk_prepare_enable(priv->hclk);
+		if (ret) {
+			dev_err(priv->dev, "Failed to enable clock.\n");
+			return ret;
+		}
+	} else {
+		priv->bus_clk_sel = 0;
+	}
 	priv->rst = devm_reset_control_get(&pdev->dev, NULL);
 	if (IS_ERR(priv->rst)) {
 		dev_err(&pdev->dev,
