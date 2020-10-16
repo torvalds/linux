@@ -323,10 +323,6 @@ static int mt8192_scp_before_load(struct mtk_scp *scp)
 
 	writel(1, scp->reg_base + MT8192_CORE0_SW_RSTN_SET);
 
-	dsb(sy);
-
-	readl(scp->reg_base + MT8192_CORE0_SW_RSTN_SET);
-
 	/* enable SRAM clock */
 	mt8192_power_on_sram(scp->reg_base + MT8192_L2TCM_SRAM_PD_0);
 	mt8192_power_on_sram(scp->reg_base + MT8192_L2TCM_SRAM_PD_1);
