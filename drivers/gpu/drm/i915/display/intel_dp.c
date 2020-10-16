@@ -3490,6 +3490,8 @@ void intel_dp_sink_dpms(struct intel_dp *intel_dp, int mode)
 	} else {
 		struct intel_lspcon *lspcon = dp_to_lspcon(intel_dp);
 
+		lspcon_resume(dp_to_dig_port(intel_dp));
+
 		/*
 		 * When turning on, we need to retry for 1ms to give the sink
 		 * time to wake up.
@@ -6782,13 +6784,10 @@ void intel_dp_encoder_reset(struct drm_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(to_intel_encoder(encoder));
-	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	intel_wakeref_t wakeref;
 
 	if (!HAS_DDI(dev_priv))
 		intel_dp->DP = intel_de_read(dev_priv, intel_dp->output_reg);
-
-	lspcon_resume(dig_port);
 
 	intel_dp->reset_link_params = true;
 
