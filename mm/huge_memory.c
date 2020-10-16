@@ -2454,7 +2454,7 @@ static void __split_huge_page(struct page *page, struct list_head *list,
 
 	ClearPageCompound(head);
 
-	split_page_owner(head, HPAGE_PMD_ORDER);
+	split_page_owner(head, HPAGE_PMD_NR);
 
 	/* See comment in __split_huge_page_tail() */
 	if (PageAnon(head)) {
