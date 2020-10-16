@@ -2,8 +2,8 @@
  *
  * mcp251xfd - Microchip MCP251xFD Family CAN controller driver
  *
- * Copyright (c) 2019 Pengutronix,
- *                    Marc Kleine-Budde <kernel@pengutronix.de>
+ * Copyright (c) 2019, 2020 Pengutronix,
+ *               Marc Kleine-Budde <kernel@pengutronix.de>
  * Copyright (c) 2019 Martin Sperl <kernel@martin.sperl.org>
  */
 
@@ -592,6 +592,8 @@ struct mcp251xfd_priv {
 
 	struct spi_device *spi;
 	u32 spi_max_speed_hz_orig;
+	u32 spi_max_speed_hz_fast;
+	u32 spi_max_speed_hz_slow;
 
 	struct mcp251xfd_tef_ring tef[1];
 	struct mcp251xfd_tx_ring tx[1];
@@ -608,6 +610,7 @@ struct mcp251xfd_priv {
 
 	struct gpio_desc *rx_int;
 	struct clk *clk;
+	bool pll_enable;
 	struct regulator *reg_vdd;
 	struct regulator *reg_xceiver;
 
