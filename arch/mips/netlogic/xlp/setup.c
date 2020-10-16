@@ -89,7 +89,7 @@ static void __init xlp_init_mem_from_bars(void)
 		if (map[i] > 0x10000000 && map[i] < 0x20000000)
 			map[i] = 0x20000000;
 
-		add_memory_region(map[i], map[i+1] - map[i], BOOT_MEM_RAM);
+		memblock_add(map[i], map[i+1] - map[i]);
 	}
 }
 
