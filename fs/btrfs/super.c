@@ -360,6 +360,7 @@ enum {
 	Opt_rescue,
 	Opt_usebackuproot,
 	Opt_nologreplay,
+	Opt_ignorebadroots,
 
 	/* Deprecated options */
 	Opt_recovery,
@@ -455,6 +456,8 @@ static const match_table_t tokens = {
 static const match_table_t rescue_tokens = {
 	{Opt_usebackuproot, "usebackuproot"},
 	{Opt_nologreplay, "nologreplay"},
+	{Opt_ignorebadroots, "ignorebadroots"},
+	{Opt_ignorebadroots, "ibadroots"},
 	{Opt_err, NULL},
 };
 
@@ -497,6 +500,10 @@ static int parse_rescue_options(struct btrfs_fs_info *info, const char *options)
 		case Opt_nologreplay:
 			btrfs_set_and_info(info, NOLOGREPLAY,
 					   "disabling log replay at mount time");
+			break;
+		case Opt_ignorebadroots:
+			btrfs_set_and_info(info, IGNOREBADROOTS,
+					   "ignoring bad roots");
 			break;
 		case Opt_err:
 			btrfs_info(info, "unrecognized rescue option '%s'", p);
@@ -983,7 +990,8 @@ check:
 	if (new_flags & SB_RDONLY)
 		goto out;
 
-	if (check_ro_option(info, BTRFS_MOUNT_NOLOGREPLAY, "nologreplay"))
+	if (check_ro_option(info, BTRFS_MOUNT_NOLOGREPLAY, "nologreplay") ||
+	    check_ro_option(info, BTRFS_MOUNT_IGNOREBADROOTS, "ignorebadroots"))
 		ret = -EINVAL;
 out:
 	if (btrfs_fs_compat_ro(info, FREE_SPACE_TREE) &&
@@ -1439,6 +1447,8 @@ static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
 		print_rescue_option(seq, "nologreplay", &printed);
 	if (btrfs_test_opt(info, USEBACKUPROOT))
 		print_rescue_option(seq, "usebackuproot", &printed);
+	if (btrfs_test_opt(info, IGNOREBADROOTS))
+		print_rescue_option(seq, "ignorebadroots", &printed);
 	if (btrfs_test_opt(info, FLUSHONCOMMIT))
 		seq_puts(seq, ",flushoncommit");
 	if (btrfs_test_opt(info, DISCARD_SYNC))

@@ -272,7 +272,7 @@ blk_status_t btrfs_lookup_bio_sums(struct inode *inode, struct bio *bio,
 	int count = 0;
 	u16 csum_size = btrfs_super_csum_size(fs_info->super_copy);
 
-	if (BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM)
+	if (!fs_info->csum_root || (BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM))
 		return BLK_STS_OK;
 
 	path = btrfs_alloc_path();

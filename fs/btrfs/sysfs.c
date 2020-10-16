@@ -332,6 +332,7 @@ BTRFS_ATTR(static_feature, send_stream_version, send_stream_version_show);
 static const char *rescue_opts[] = {
 	"usebackuproot",
 	"nologreplay",
+	"ignorebadroots",
 };
 
 static ssize_t supported_rescue_options_show(struct kobject *kobj,
