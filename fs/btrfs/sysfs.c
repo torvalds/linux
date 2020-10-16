@@ -329,10 +329,32 @@ static ssize_t send_stream_version_show(struct kobject *kobj,
 }
 BTRFS_ATTR(static_feature, send_stream_version, send_stream_version_show);
 
+static const char *rescue_opts[] = {
+	"usebackuproot",
+	"nologreplay",
+};
+
+static ssize_t supported_rescue_options_show(struct kobject *kobj,
+					     struct kobj_attribute *a,
+					     char *buf)
+{
+	ssize_t ret = 0;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(rescue_opts); i++)
+		ret += scnprintf(buf + ret, PAGE_SIZE - ret, "%s%s",
+				 (i ? " " : ""), rescue_opts[i]);
+	ret += scnprintf(buf + ret, PAGE_SIZE - ret, "\n");
+	return ret;
+}
+BTRFS_ATTR(static_feature, supported_rescue_options,
+	   supported_rescue_options_show);
+
 static struct attribute *btrfs_supported_static_feature_attrs[] = {
 	BTRFS_ATTR_PTR(static_feature, rmdir_subvol),
 	BTRFS_ATTR_PTR(static_feature, supported_checksums),
 	BTRFS_ATTR_PTR(static_feature, send_stream_version),
+	BTRFS_ATTR_PTR(static_feature, supported_rescue_options),
 	NULL
 };
 
