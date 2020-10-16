@@ -14,6 +14,17 @@ config ASHMEM
 	  It is, in theory, a good memory allocator for low-memory devices,
 	  because it can discard shared memory units when under memory pressure.
 
+config DEBUG_KINFO
+	bool "Debug Kernel Information Support"
+	depends on KALLSYMS
+	help
+	  This supports kernel information backup for bootloader usage.
+	  Specifics:
+	   - The kallsyms symbols for unwind_backtrace
+	   - Page directory pointer
+	   - UTS_RELEASE
+	   - BUILD_INFO(ro.build.fingerprint)
+
 source "drivers/staging/android/ion/Kconfig"
 
 endif # if ANDROID
