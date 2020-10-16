@@ -207,6 +207,13 @@ static int wait_for_pll(struct clk_alpha_pll *pll, u32 mask, bool inverse,
 #define wait_for_pll_update_ack_clear(pll) \
 	wait_for_pll(pll, ALPHA_PLL_ACK_LATCH, 1, "update_ack_clear")
 
+static void clk_alpha_pll_write_config(struct regmap *regmap, unsigned int reg,
+					unsigned int val)
+{
+	if (val)
+		regmap_write(regmap, reg, val);
+}
+
 void clk_alpha_pll_configure(struct clk_alpha_pll *pll, struct regmap *regmap,
 			     const struct alpha_pll_config *config)
 {
@@ -1004,33 +1011,19 @@ void clk_fabia_pll_configure(struct clk_alpha_pll *pll, struct regmap *regmap,
 {
 	u32 val, mask;
 
-	if (config->l)
-		regmap_write(regmap, PLL_L_VAL(pll), config->l);
-
-	if (config->alpha)
-		regmap_write(regmap, PLL_FRAC(pll), config->alpha);
-
-	if (config->config_ctl_val)
-		regmap_write(regmap, PLL_CONFIG_CTL(pll),
+	clk_alpha_pll_write_config(regmap, PLL_L_VAL(pll), config->l);
+	clk_alpha_pll_write_config(regmap, PLL_FRAC(pll), config->alpha);
+	clk_alpha_pll_write_config(regmap, PLL_CONFIG_CTL(pll),
 						config->config_ctl_val);
-
-	if (config->config_ctl_hi_val)
-		regmap_write(regmap, PLL_CONFIG_CTL_U(pll),
+	clk_alpha_pll_write_config(regmap, PLL_CONFIG_CTL_U(pll),
 						config->config_ctl_hi_val);
-
-	if (config->user_ctl_val)
-		regmap_write(regmap, PLL_USER_CTL(pll), config->user_ctl_val);
-
-	if (config->user_ctl_hi_val)
-		regmap_write(regmap, PLL_USER_CTL_U(pll),
+	clk_alpha_pll_write_config(regmap, PLL_USER_CTL(pll),
+						config->user_ctl_val);
+	clk_alpha_pll_write_config(regmap, PLL_USER_CTL_U(pll),
 						config->user_ctl_hi_val);
-
-	if (config->test_ctl_val)
-		regmap_write(regmap, PLL_TEST_CTL(pll),
+	clk_alpha_pll_write_config(regmap, PLL_TEST_CTL(pll),
 						config->test_ctl_val);
-
-	if (config->test_ctl_hi_val)
-		regmap_write(regmap, PLL_TEST_CTL_U(pll),
+	clk_alpha_pll_write_config(regmap, PLL_TEST_CTL_U(pll),
 						config->test_ctl_hi_val);
 
 	if (config->post_div_mask) {
@@ -1145,25 +1138,38 @@ static unsigned long alpha_pll_fabia_recalc_rate(struct clk_hw *hw,
 	return alpha_pll_calc_rate(parent_rate, l, frac, alpha_width);
 }
 
+/*
+ * Due to limited number of bits for fractional rate programming, the
+ * rounded up rate could be marginally higher than the requested rate.
+ */
+static int alpha_pll_check_rate_margin(struct clk_hw *hw,
+			unsigned long rrate, unsigned long rate)
+{
+	unsigned long rate_margin = rate + PLL_RATE_MARGIN;
+
+	if (rrate > rate_margin || rrate < rate) {
+		pr_err("%s: Rounded rate %lu not within range [%lu, %lu)\n",
+		       clk_hw_get_name(hw), rrate, rate, rate_margin);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int alpha_pll_fabia_set_rate(struct clk_hw *hw, unsigned long rate,
 						unsigned long prate)
 {
 	struct clk_alpha_pll *pll = to_clk_alpha_pll(hw);
 	u32 l, alpha_width = pll_alpha_width(pll);
+	unsigned long rrate;
+	int ret;
 	u64 a;
-	unsigned long rrate, max = rate + PLL_RATE_MARGIN;
 
 	rrate = alpha_pll_round_rate(rate, prate, &l, &a, alpha_width);
 
-	/*
-	 * Due to limited number of bits for fractional rate programming, the
-	 * rounded up rate could be marginally higher than the requested rate.
-	 */
-	if (rrate > (rate + PLL_RATE_MARGIN) || rrate < rate) {
-		pr_err("%s: Rounded rate %lu not within range [%lu, %lu)\n",
-		       clk_hw_get_name(hw), rrate, rate, max);
-		return -EINVAL;
-	}
+	ret = alpha_pll_check_rate_margin(hw, rrate, rate);
+	if (ret < 0)
+		return ret;
 
 	regmap_write(pll->clkr.regmap, PLL_L_VAL(pll), l);
 	regmap_write(pll->clkr.regmap, PLL_FRAC(pll), a);
@@ -1206,12 +1212,10 @@ static int alpha_pll_fabia_prepare(struct clk_hw *hw)
 
 	rrate = alpha_pll_round_rate(cal_freq, clk_hw_get_rate(parent_hw),
 					&cal_l, &a, alpha_width);
-	/*
-	 * Due to a limited number of bits for fractional rate programming, the
-	 * rounded up rate could be marginally higher than the requested rate.
-	 */
-	if (rrate > (cal_freq + PLL_RATE_MARGIN) || rrate < cal_freq)
-		return -EINVAL;
+
+	ret = alpha_pll_check_rate_margin(hw, rrate, cal_freq);
+	if (ret < 0)
+		return ret;
 
 	/* Setup PLL for calibration frequency */
 	regmap_write(pll->clkr.regmap, PLL_ALPHA_VAL(pll), cal_l);
@@ -1388,49 +1392,27 @@ EXPORT_SYMBOL_GPL(clk_alpha_pll_postdiv_fabia_ops);
 void clk_trion_pll_configure(struct clk_alpha_pll *pll, struct regmap *regmap,
 			     const struct alpha_pll_config *config)
 {
-	if (config->l)
-		regmap_write(regmap, PLL_L_VAL(pll), config->l);
-
+	clk_alpha_pll_write_config(regmap, PLL_L_VAL(pll), config->l);
 	regmap_write(regmap, PLL_CAL_L_VAL(pll), TRION_PLL_CAL_VAL);
-
-	if (config->alpha)
-		regmap_write(regmap, PLL_ALPHA_VAL(pll), config->alpha);
-
-	if (config->config_ctl_val)
-		regmap_write(regmap, PLL_CONFIG_CTL(pll),
-			     config->config_ctl_val);
-
-	if (config->config_ctl_hi_val)
-		regmap_write(regmap, PLL_CONFIG_CTL_U(pll),
-			     config->config_ctl_hi_val);
-
-	if (config->config_ctl_hi1_val)
-		regmap_write(regmap, PLL_CONFIG_CTL_U1(pll),
-			     config->config_ctl_hi1_val);
-
-	if (config->user_ctl_val)
-		regmap_write(regmap, PLL_USER_CTL(pll),
-			     config->user_ctl_val);
-
-	if (config->user_ctl_hi_val)
-		regmap_write(regmap, PLL_USER_CTL_U(pll),
-			     config->user_ctl_hi_val);
-
-	if (config->user_ctl_hi1_val)
-		regmap_write(regmap, PLL_USER_CTL_U1(pll),
-			     config->user_ctl_hi1_val);
-
-	if (config->test_ctl_val)
-		regmap_write(regmap, PLL_TEST_CTL(pll),
-			     config->test_ctl_val);
-
-	if (config->test_ctl_hi_val)
-		regmap_write(regmap, PLL_TEST_CTL_U(pll),
-			     config->test_ctl_hi_val);
-
-	if (config->test_ctl_hi1_val)
-		regmap_write(regmap, PLL_TEST_CTL_U1(pll),
-			     config->test_ctl_hi1_val);
+	clk_alpha_pll_write_config(regmap, PLL_ALPHA_VAL(pll), config->alpha);
+	clk_alpha_pll_write_config(regmap, PLL_CONFIG_CTL(pll),
+				     config->config_ctl_val);
+	clk_alpha_pll_write_config(regmap, PLL_CONFIG_CTL_U(pll),
+				     config->config_ctl_hi_val);
+	clk_alpha_pll_write_config(regmap, PLL_CONFIG_CTL_U1(pll),
+				     config->config_ctl_hi1_val);
+	clk_alpha_pll_write_config(regmap, PLL_USER_CTL(pll),
+					config->user_ctl_val);
+	clk_alpha_pll_write_config(regmap, PLL_USER_CTL_U(pll),
+					config->user_ctl_hi_val);
+	clk_alpha_pll_write_config(regmap, PLL_USER_CTL_U1(pll),
+					config->user_ctl_hi1_val);
+	clk_alpha_pll_write_config(regmap, PLL_TEST_CTL(pll),
+					config->test_ctl_val);
+	clk_alpha_pll_write_config(regmap, PLL_TEST_CTL_U(pll),
+					config->test_ctl_hi_val);
+	clk_alpha_pll_write_config(regmap, PLL_TEST_CTL_U1(pll),
+					config->test_ctl_hi1_val);
 
 	regmap_update_bits(regmap, PLL_MODE(pll), PLL_UPDATE_BYPASS,
 			   PLL_UPDATE_BYPASS);
@@ -1490,14 +1472,9 @@ static int alpha_pll_trion_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	rrate = alpha_pll_round_rate(rate, prate, &l, &a, alpha_width);
 
-	/*
-	 * Due to a limited number of bits for fractional rate programming, the
-	 * rounded up rate could be marginally higher than the requested rate.
-	 */
-	if (rrate > (rate + PLL_RATE_MARGIN) || rrate < rate) {
-		pr_err("Call set rate on the PLL with rounded rates!\n");
-		return -EINVAL;
-	}
+	ret = alpha_pll_check_rate_margin(hw, rrate, rate);
+	if (ret < 0)
+		return ret;
 
 	regmap_write(pll->clkr.regmap, PLL_L_VAL(pll), l);
 	regmap_write(pll->clkr.regmap, PLL_ALPHA_VAL(pll), a);
