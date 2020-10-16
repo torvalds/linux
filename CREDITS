@@ -2849,6 +2849,10 @@ D: IPX development and support
 N: Venkatesh Pallipadi (Venki)
 D: x86/HPET
 
+N: Kyungmin Park
+E: kyungmin.park@samsung.com
+D: Samsung S5Pv210 and Exynos4210 mobile platforms
+
 N: David Parsons
 E: orc@pell.chi.il.us
 D: improved memory detection code.
