@@ -73,6 +73,7 @@
 #include "jpeg_v2_5.h"
 #include "smuio_v9_0.h"
 #include "smuio_v11_0.h"
+#include "smuio_v13_0.h"
 #include "dce_virtual.h"
 #include "mxgpu_ai.h"
 #include "amdgpu_smu.h"
@@ -943,6 +944,8 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 	if (adev->asic_type == CHIP_VEGA20 ||
 	    adev->asic_type == CHIP_ARCTURUS)
 		adev->smuio.funcs = &smuio_v11_0_funcs;
+	else if (adev->asic_type == CHIP_ALDEBARAN)
+		adev->smuio.funcs = &smuio_v13_0_funcs;
 	else
 		adev->smuio.funcs = &smuio_v9_0_funcs;
 
