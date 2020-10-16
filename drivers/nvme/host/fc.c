@@ -2317,7 +2317,7 @@ nvme_fc_create_hw_io_queues(struct nvme_fc_ctrl *ctrl, u16 qsize)
 	return 0;
 
 delete_queues:
-	for (; i >= 0; i--)
+	for (; i > 0; i--)
 		__nvme_fc_delete_hw_queue(ctrl, &ctrl->queues[i], i);
 	return ret;
 }
@@ -2436,7 +2436,7 @@ nvme_fc_error_recovery(struct nvme_fc_ctrl *ctrl, char *errmsg)
 		return;
 
 	dev_warn(ctrl->ctrl.device,
-		"NVME-FC{%d}: transport association error detected: %s\n",
+		"NVME-FC{%d}: transport association event: %s\n",
 		ctrl->cnum, errmsg);
 	dev_warn(ctrl->ctrl.device,
 		"NVME-FC{%d}: resetting controller\n", ctrl->cnum);
