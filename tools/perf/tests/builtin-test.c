@@ -142,6 +142,7 @@ static struct test generic_tests[] = {
 			.skip_if_fail	= false,
 			.get_nr		= test__wp_subtest_get_nr,
 			.get_desc	= test__wp_subtest_get_desc,
+			.skip_reason    = test__wp_subtest_skip_reason,
 		},
 	},
 	{
