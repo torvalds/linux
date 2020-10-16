@@ -161,6 +161,7 @@ struct ath11k_hw_params {
 	bool supports_monitor;
 	bool supports_shadow_regs;
 	bool idle_ps;
+	bool cold_boot_calib;
 };
 
 struct ath11k_hw_ops {
