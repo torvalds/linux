@@ -25,7 +25,7 @@
  *  Now we silently close acct_file on attempt to reopen. Cleaned sys_acct().
  *  XTerms and EMACS are manifestations of pure evil. 21/10/98, AV.
  *
- *  Fixed a nasty interaction with with sys_umount(). If the accointing
+ *  Fixed a nasty interaction with sys_umount(). If the accounting
  *  was suspeneded we failed to stop it on umount(). Messy.
  *  Another one: remount to readonly didn't stop accounting.
  *	Question: what should we do if we have CAP_SYS_ADMIN but not

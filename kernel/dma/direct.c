@@ -16,7 +16,7 @@
 #include "direct.h"
 
 /*
- * Most architectures use ZONE_DMA for the first 16 Megabytes, but some use it
+ * Most architectures use ZONE_DMA for the first 16 Megabytes, but some use
  * it for entirely different regions. In that case the arch code needs to
  * override the variable below for dma-direct to work properly.
  */
