@@ -92,7 +92,7 @@ page_reporting_drain(struct page_reporting_dev_info *prdev,
 		 * report on the new larger page when we make our way
 		 * up to that higher order.
 		 */
-		if (PageBuddy(page) && page_order(page) == order)
+		if (PageBuddy(page) && buddy_order(page) == order)
 			__SetPageReported(page);
 	} while ((sg = sg_next(sg)));
 
