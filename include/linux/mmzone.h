@@ -1420,7 +1420,6 @@ static inline unsigned long next_present_section_nr(unsigned long section_nr)
 #define pfn_to_nid(pfn)		(0)
 #endif
 
-#define early_pfn_valid(pfn)	pfn_valid(pfn)
 void sparse_init(void);
 #else
 #define sparse_init()	do {} while (0)
@@ -1439,10 +1438,6 @@ struct mminit_pfnnid_cache {
 	unsigned long last_end;
 	int last_nid;
 };
-
-#ifndef early_pfn_valid
-#define early_pfn_valid(pfn)	(1)
-#endif
 
 /*
  * If it is possible to have holes within a MAX_ORDER_NR_PAGES, then we
