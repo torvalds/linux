@@ -618,6 +618,13 @@
 				status = "disabled";
 			};
 
+			peci: bus@1e78b000 {
+				compatible = "simple-bus";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x0 0x1e78b000 0x100>;
+			};
+
 			vuart1: serial@1e787000 {
 				compatible = "aspeed,ast2600-uart";
 				reg = <0x1e787000 0x40>;
@@ -955,6 +962,22 @@
 };
 
 #include "aspeed-g6-pinctrl.dtsi"
+
+&peci {
+	peci0: peci-bus@0 {
+		compatible = "aspeed,ast2600-peci";
+		reg = <0x0 0x100>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&syscon ASPEED_CLK_GATE_REF0CLK>;
+		resets = <&syscon ASPEED_RESET_PECI>;
+		clock-frequency = <12000>;
+		rd-sampling-point = <8>;
+		cmd-timeout-ms = <1000>;
+		status = "disabled";
+	};
+};
 
 &i2c {
 
