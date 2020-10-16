@@ -244,6 +244,7 @@ error:
 	return rc;
 }
 
+static int clp_refresh_fh(u32 fid);
 /*
  * Enable/Disable a given PCI function and update its function handle if
  * necessary
@@ -286,7 +287,41 @@ static int clp_set_pci_fn(struct zpci_dev *zdev, u8 nr_dma_as, u8 command)
 	} else if (!rc && rrb->response.hdr.rsp == CLP_RC_SETPCIFN_ALRDY &&
 			rrb->response.fh == 0) {
 		/* Function is already in desired state - update handle */
-		rc = clp_rescan_pci_devices_simple(&fid);
+		rc = clp_refresh_fh(fid);
+	}
+	clp_free_block(rrb);
+	return rc;
+}
+
+int clp_setup_writeback_mio(void)
+{
+	struct clp_req_rsp_slpc_pci *rrb;
+	u8  wb_bit_pos;
+	int rc;
+
+	rrb = clp_alloc_block(GFP_KERNEL);
+	if (!rrb)
+		return -ENOMEM;
+
+	memset(rrb, 0, sizeof(*rrb));
+	rrb->request.hdr.len = sizeof(rrb->request);
+	rrb->request.hdr.cmd = CLP_SLPC;
+	rrb->response.hdr.len = sizeof(rrb->response);
+
+	rc = clp_req(rrb, CLP_LPS_PCI);
+	if (!rc && rrb->response.hdr.rsp == CLP_RC_OK) {
+		if (rrb->response.vwb) {
+			wb_bit_pos = rrb->response.mio_wb;
+			set_bit_inv(wb_bit_pos, &mio_wb_bit_mask);
+			zpci_dbg(3, "wb bit: %d\n", wb_bit_pos);
+		} else {
+			zpci_dbg(3, "wb bit: n.a.\n");
+		}
+
+	} else {
+		zpci_err("SLPC PCI:\n");
+		zpci_err_clp(rrb->response.hdr.rsp, rc);
+		rc = -EIO;
 	}
 	clp_free_block(rrb);
 	return rc;
@@ -374,24 +409,6 @@ static void __clp_add(struct clp_fh_list_entry *entry, void *data)
 		clp_add_pci_device(entry->fid, entry->fh, entry->config_state);
 }
 
-static void __clp_update(struct clp_fh_list_entry *entry, void *data)
-{
-	struct zpci_dev *zdev;
-	u32 *fid = data;
-
-	if (!entry->vendor_id)
-		return;
-
-	if (fid && *fid != entry->fid)
-		return;
-
-	zdev = get_zdev_by_fid(entry->fid);
-	if (!zdev)
-		return;
-
-	zdev->fh = entry->fh;
-}
-
 int clp_scan_pci_devices(void)
 {
 	struct clp_req_rsp_list_pci *rrb;
@@ -407,27 +424,25 @@ int clp_scan_pci_devices(void)
 	return rc;
 }
 
-int clp_rescan_pci_devices(void)
+static void __clp_refresh_fh(struct clp_fh_list_entry *entry, void *data)
 {
-	struct clp_req_rsp_list_pci *rrb;
-	int rc;
+	struct zpci_dev *zdev;
+	u32 fid = *((u32 *)data);
 
-	zpci_remove_reserved_devices();
+	if (!entry->vendor_id || fid != entry->fid)
+		return;
 
-	rrb = clp_alloc_block(GFP_KERNEL);
-	if (!rrb)
-		return -ENOMEM;
+	zdev = get_zdev_by_fid(fid);
+	if (!zdev)
+		return;
 
-	rc = clp_list_pci(rrb, NULL, __clp_add);
-
-	clp_free_block(rrb);
-	return rc;
+	zdev->fh = entry->fh;
 }
 
-/* Rescan PCI functions and refresh function handles. If fid is non-NULL only
- * refresh the handle of the function matching @fid
+/*
+ * Refresh the function handle of the function matching @fid
  */
-int clp_rescan_pci_devices_simple(u32 *fid)
+static int clp_refresh_fh(u32 fid)
 {
 	struct clp_req_rsp_list_pci *rrb;
 	int rc;
@@ -436,7 +451,7 @@ int clp_rescan_pci_devices_simple(u32 *fid)
 	if (!rrb)
 		return -ENOMEM;
 
-	rc = clp_list_pci(rrb, fid, __clp_update);
+	rc = clp_list_pci(rrb, &fid, __clp_refresh_fh);
 
 	clp_free_block(rrb);
 	return rc;
@@ -495,7 +510,7 @@ static int clp_base_command(struct clp_req *req, struct clp_req_hdr *lpcb)
 	}
 }
 
-static int clp_pci_slpc(struct clp_req *req, struct clp_req_rsp_slpc *lpcb)
+static int clp_pci_slpc(struct clp_req *req, struct clp_req_rsp_slpc_pci *lpcb)
 {
 	unsigned long limit = PAGE_SIZE - sizeof(lpcb->request);
 

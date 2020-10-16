@@ -5,6 +5,9 @@
 /* CLP common request & response block size */
 #define CLP_BLK_SIZE			PAGE_SIZE
 
+/* Call Logical Processor - Command Code */
+#define CLP_SLPC		0x0001
+
 #define CLP_LPS_BASE	0
 #define CLP_LPS_PCI	2
 

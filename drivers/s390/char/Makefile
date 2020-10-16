@@ -34,6 +34,8 @@ obj-$(CONFIG_SCLP_VT220_TTY) += sclp_vt220.o
 
 obj-$(CONFIG_PCI) += sclp_pci.o
 
+obj-$(subst m,y,$(CONFIG_ZCRYPT)) += sclp_ap.o
+
 obj-$(CONFIG_VMLOGRDR) += vmlogrdr.o
 obj-$(CONFIG_VMCP) += vmcp.o
 
