@@ -3559,12 +3559,16 @@ static int rkcif_csi_g_mipi_id(struct v4l2_device *v4l2_dev,
 static void rkcif_monitor_reset_event(struct rkcif_device *dev)
 {
 	struct rkcif_sensor_info *sensor = &dev->terminal_sensor;
+	struct rkcif_stream *stream = &dev->stream[RKCIF_STREAM_MIPI_ID0];
 	struct rkcif_timer *timer = &dev->reset_watchdog_timer;
 	unsigned long lock_flags = 0;
 	u32 denominator = 0, numerator = 0, interval = 0;
 	u32 time = 60ul;
 
 	if (timer->reset_src == RKCIF_RESET_SRC_NON)
+		return;
+
+	if (stream->state != RKCIF_STATE_STREAMING)
 		return;
 
 	if (timer->is_running)
