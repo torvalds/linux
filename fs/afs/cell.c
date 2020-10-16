@@ -291,11 +291,11 @@ wait_for_cell:
 	wait_var_event(&cell->state,
 		       ({
 			       state = smp_load_acquire(&cell->state); /* vs error */
-			       state == AFS_CELL_ACTIVE || state == AFS_CELL_FAILED;
+			       state == AFS_CELL_ACTIVE || state == AFS_CELL_REMOVED;
 		       }));
 
 	/* Check the state obtained from the wait check. */
-	if (state == AFS_CELL_FAILED) {
+	if (state == AFS_CELL_REMOVED) {
 		ret = cell->error;
 		goto error;
 	}
@@ -700,7 +700,6 @@ static void afs_deactivate_cell(struct afs_net *net, struct afs_cell *cell)
 static void afs_manage_cell(struct afs_cell *cell)
 {
 	struct afs_net *net = cell->net;
-	bool deleted;
 	int ret, active;
 
 	_enter("%s", cell->name);
@@ -712,13 +711,15 @@ again:
 	case AFS_CELL_FAILED:
 		down_write(&net->cells_lock);
 		active = 1;
-		deleted = atomic_try_cmpxchg_relaxed(&cell->active, &active, 0);
-		if (deleted) {
+		if (atomic_try_cmpxchg_relaxed(&cell->active, &active, 0)) {
 			rb_erase(&cell->net_node, &net->cells);
+			smp_store_release(&cell->state, AFS_CELL_REMOVED);
 		}
 		up_write(&net->cells_lock);
-		if (deleted)
+		if (cell->state == AFS_CELL_REMOVED) {
+			wake_up_var(&cell->state);
 			goto final_destruction;
+		}
 		if (cell->state == AFS_CELL_FAILED)
 			goto done;
 		smp_store_release(&cell->state, AFS_CELL_UNSET);
@@ -759,6 +760,9 @@ again:
 		smp_store_release(&cell->state, AFS_CELL_INACTIVE);
 		wake_up_var(&cell->state);
 		goto again;
+
+	case AFS_CELL_REMOVED:
+		goto done;
 
 	default:
 		break;
