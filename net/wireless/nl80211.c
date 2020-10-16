@@ -4683,6 +4683,7 @@ static int nl80211_parse_tx_bitrate_mask(struct genl_info *info,
 					mask->control[band].ht_mcs))
 				return -EINVAL;
 		}
+
 		if (tb[NL80211_TXRATE_VHT]) {
 			if (!vht_set_mcs_mask(
 					sband,
@@ -4690,6 +4691,7 @@ static int nl80211_parse_tx_bitrate_mask(struct genl_info *info,
 					mask->control[band].vht_mcs))
 				return -EINVAL;
 		}
+
 		if (tb[NL80211_TXRATE_GI]) {
 			mask->control[band].gi =
 				nla_get_u8(tb[NL80211_TXRATE_GI]);
@@ -4701,6 +4703,7 @@ static int nl80211_parse_tx_bitrate_mask(struct genl_info *info,
 				     nla_data(tb[NL80211_TXRATE_HE]),
 				     mask->control[band].he_mcs))
 			return -EINVAL;
+
 		if (tb[NL80211_TXRATE_HE_GI])
 			mask->control[band].he_gi =
 				nla_get_u8(tb[NL80211_TXRATE_HE_GI]);
@@ -4742,7 +4745,7 @@ static int validate_beacon_tx_rate(struct cfg80211_registered_device *rdev,
 				   enum nl80211_band band,
 				   struct cfg80211_bitrate_mask *beacon_rate)
 {
-	u32 count_ht, count_vht, i;
+	u32 count_ht, count_vht, count_he, i;
 	u32 rate = beacon_rate->control[band].legacy;
 
 	/* Allow only one rate */
@@ -4775,7 +4778,21 @@ static int validate_beacon_tx_rate(struct cfg80211_registered_device *rdev,
 			return -EINVAL;
 	}
 
-	if ((count_ht && count_vht) || (!rate && !count_ht && !count_vht))
+	count_he = 0;
+	for (i = 0; i < NL80211_HE_NSS_MAX; i++) {
+		if (hweight16(beacon_rate->control[band].he_mcs[i]) > 1) {
+			return -EINVAL;
+		} else if (beacon_rate->control[band].he_mcs[i]) {
+			count_he++;
+			if (count_he > 1)
+				return -EINVAL;
+		}
+		if (count_he && rate)
+			return -EINVAL;
+	}
+
+	if ((count_ht && count_vht && count_he) ||
+	    (!rate && !count_ht && !count_vht && !count_he))
 		return -EINVAL;
 
 	if (rate &&
@@ -4789,6 +4806,10 @@ static int validate_beacon_tx_rate(struct cfg80211_registered_device *rdev,
 	if (count_vht &&
 	    !wiphy_ext_feature_isset(&rdev->wiphy,
 				     NL80211_EXT_FEATURE_BEACON_RATE_VHT))
+		return -EINVAL;
+	if (count_he &&
+	    !wiphy_ext_feature_isset(&rdev->wiphy,
+				     NL80211_EXT_FEATURE_BEACON_RATE_HE))
 		return -EINVAL;
 
 	return 0;

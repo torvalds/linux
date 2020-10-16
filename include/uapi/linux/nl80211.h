@@ -1750,8 +1750,9 @@ enum nl80211_commands {
  *	specify just a single bitrate, which is to be used for the beacon.
  *	The driver must also specify support for this with the extended
  *	features NL80211_EXT_FEATURE_BEACON_RATE_LEGACY,
- *	NL80211_EXT_FEATURE_BEACON_RATE_HT and
- *	NL80211_EXT_FEATURE_BEACON_RATE_VHT.
+ *	NL80211_EXT_FEATURE_BEACON_RATE_HT,
+ *	NL80211_EXT_FEATURE_BEACON_RATE_VHT and
+ *	NL80211_EXT_FEATURE_BEACON_RATE_HE.
  *
  * @NL80211_ATTR_FRAME_MATCH: A binary attribute which typically must contain
  *	at least one byte, currently used with @NL80211_CMD_REGISTER_FRAME.
@@ -5903,6 +5904,9 @@ enum nl80211_feature_flags {
  * @NL80211_EXT_FEATURE_UNSOL_BCAST_PROBE_RESP: Driver/device supports
  *	unsolicited broadcast probe response transmission
  *
+ * @NL80211_EXT_FEATURE_BEACON_RATE_HE: Driver supports beacon rate
+ *	configuration (AP/mesh) with HE rates.
+ *
  * @NUM_NL80211_EXT_FEATURES: number of extended features.
  * @MAX_NL80211_EXT_FEATURES: highest extended feature index.
  */
@@ -5963,6 +5967,7 @@ enum nl80211_ext_feature_index {
 	NL80211_EXT_FEATURE_SAE_OFFLOAD_AP,
 	NL80211_EXT_FEATURE_FILS_DISCOVERY,
 	NL80211_EXT_FEATURE_UNSOL_BCAST_PROBE_RESP,
+	NL80211_EXT_FEATURE_BEACON_RATE_HE,
 
 	/* add new features before the definition below */
 	NUM_NL80211_EXT_FEATURES,
