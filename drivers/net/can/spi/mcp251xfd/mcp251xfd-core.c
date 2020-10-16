@@ -596,11 +596,9 @@ static int mcp251xfd_chip_clock_enable(const struct mcp251xfd_priv *priv)
 			   "Timeout waiting for Oscillator Ready (osc=0x%08x, osc_reference=0x%08x)\n",
 			   osc, osc_reference);
 		return -ETIMEDOUT;
-	} else if (err) {
-		return err;
 	}
 
-	return 0;
+	return err;
 }
 
 static int mcp251xfd_chip_softreset_do(const struct mcp251xfd_priv *priv)
