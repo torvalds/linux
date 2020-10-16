@@ -1646,9 +1646,16 @@ static void __usb_hcd_giveback_urb(struct urb *urb)
 
 	/* pass ownership to the completion handler */
 	urb->status = status;
-	kcov_remote_start_usb((u64)urb->dev->bus->busnum);
+	/*
+	 * This function can be called in task context inside another remote
+	 * coverage collection section, but KCOV doesn't support that kind of
+	 * recursion yet. Only collect coverage in softirq context for now.
+	 */
+	if (in_serving_softirq())
+		kcov_remote_start_usb((u64)urb->dev->bus->busnum);
 	urb->complete(urb);
-	kcov_remote_stop();
+	if (in_serving_softirq())
+		kcov_remote_stop();
 
 	usb_anchor_resume_wakeups(anchor);
 	atomic_dec(&urb->use_count);
