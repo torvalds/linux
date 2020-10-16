@@ -301,10 +301,7 @@ msm_geni_serial_earlycon_setup(struct earlycon_device *dev,
 	int ret = 0;
 	u32 tx_trans_cfg = 0;
 	u32 tx_parity_cfg = 0;
-	u32 rx_trans_cfg = 0;
-	u32 rx_parity_cfg = 0;
 	u32 stop_bit = 0;
-	u32 rx_stale = 0;
 	u32 bits_per_char = 0;
 	unsigned long cfg0, cfg1;
 	struct uart_port *uport = &dev->port;
@@ -330,11 +327,8 @@ msm_geni_serial_earlycon_setup(struct earlycon_device *dev,
 	 */
 	tx_trans_cfg |= UART_CTS_MASK;
 	tx_parity_cfg = 0;
-	rx_trans_cfg = 0;
-	rx_parity_cfg = 0;
 	bits_per_char = 0x8;
 	stop_bit = 0;
-	rx_stale = 0x18;
 
 	msm_geni_serial_poll_abort_tx(uport);
 
