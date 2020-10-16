@@ -1216,14 +1216,13 @@ static bool __init intel_idle_acpi_cst_extract(void)
 		if (!intel_idle_cst_usable())
 			continue;
 
-		if (!acpi_processor_claim_cst_control()) {
-			acpi_state_table.count = 0;
-			return false;
-		}
+		if (!acpi_processor_claim_cst_control())
+			break;
 
 		return true;
 	}
 
+	acpi_state_table.count = 0;
 	pr_debug("ACPI _CST not found or not usable\n");
 	return false;
 }
