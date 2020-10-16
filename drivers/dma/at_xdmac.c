@@ -30,7 +30,24 @@
 #define		AT_XDMAC_FIFO_SZ(i)	(((i) >> 5) & 0x7FF)		/* Number of Bytes */
 #define		AT_XDMAC_NB_REQ(i)	((((i) >> 16) & 0x3F) + 1)	/* Number of Peripheral Requests Minus One */
 #define AT_XDMAC_GCFG		0x04	/* Global Configuration Register */
+#define		AT_XDMAC_WRHP(i)		(((i) & 0xF) << 4)
+#define		AT_XDMAC_WRMP(i)		(((i) & 0xF) << 8)
+#define		AT_XDMAC_WRLP(i)		(((i) & 0xF) << 12)
+#define		AT_XDMAC_RDHP(i)		(((i) & 0xF) << 16)
+#define		AT_XDMAC_RDMP(i)		(((i) & 0xF) << 20)
+#define		AT_XDMAC_RDLP(i)		(((i) & 0xF) << 24)
+#define		AT_XDMAC_RDSG(i)		(((i) & 0xF) << 28)
+#define AT_XDMAC_GCFG_M2M	(AT_XDMAC_RDLP(0xF) | AT_XDMAC_WRLP(0xF))
+#define AT_XDMAC_GCFG_P2M	(AT_XDMAC_RDSG(0x1) | AT_XDMAC_RDHP(0x3) | \
+				AT_XDMAC_WRHP(0x5))
 #define AT_XDMAC_GWAC		0x08	/* Global Weighted Arbiter Configuration Register */
+#define		AT_XDMAC_PW0(i)		(((i) & 0xF) << 0)
+#define		AT_XDMAC_PW1(i)		(((i) & 0xF) << 4)
+#define		AT_XDMAC_PW2(i)		(((i) & 0xF) << 8)
+#define		AT_XDMAC_PW3(i)		(((i) & 0xF) << 12)
+#define AT_XDMAC_GWAC_M2M	0
+#define AT_XDMAC_GWAC_P2M	(AT_XDMAC_PW0(0xF) | AT_XDMAC_PW2(0xF))
+
 #define AT_XDMAC_GIE		0x0C	/* Global Interrupt Enable Register */
 #define AT_XDMAC_GID		0x10	/* Global Interrupt Disable Register */
 #define AT_XDMAC_GIM		0x14	/* Global Interrupt Mask Register */
@@ -189,6 +206,8 @@ struct at_xdmac_layout {
 	u8				chan_cc_reg_base;
 	/* Source/Destination Interface must be specified or not */
 	bool				sdif;
+	/* AXI queue priority configuration supported */
+	bool				axi_config;
 };
 
 /* ----- Channels ----- */
@@ -267,6 +286,7 @@ static const struct at_xdmac_layout at_xdmac_sama5d4_layout = {
 	.gswf = 0x40,
 	.chan_cc_reg_base = 0x50,
 	.sdif = true,
+	.axi_config = false,
 };
 
 static const struct at_xdmac_layout at_xdmac_sama7g5_layout = {
@@ -279,6 +299,7 @@ static const struct at_xdmac_layout at_xdmac_sama7g5_layout = {
 	.gswf = 0x50,
 	.chan_cc_reg_base = 0x60,
 	.sdif = false,
+	.axi_config = true,
 };
 
 static inline void __iomem *at_xdmac_chan_reg_base(struct at_xdmac *atxdmac, unsigned int chan_nb)
@@ -1997,6 +2018,30 @@ static int atmel_xdmac_resume(struct device *dev)
 }
 #endif /* CONFIG_PM_SLEEP */
 
+static void at_xdmac_axi_config(struct platform_device *pdev)
+{
+	struct at_xdmac	*atxdmac = (struct at_xdmac *)platform_get_drvdata(pdev);
+	bool dev_m2m = false;
+	u32 dma_requests;
+
+	if (!atxdmac->layout->axi_config)
+		return; /* Not supported */
+
+	if (!of_property_read_u32(pdev->dev.of_node, "dma-requests",
+				  &dma_requests)) {
+		dev_info(&pdev->dev, "controller in mem2mem mode.\n");
+		dev_m2m = true;
+	}
+
+	if (dev_m2m) {
+		at_xdmac_write(atxdmac, AT_XDMAC_GCFG, AT_XDMAC_GCFG_M2M);
+		at_xdmac_write(atxdmac, AT_XDMAC_GWAC, AT_XDMAC_GWAC_M2M);
+	} else {
+		at_xdmac_write(atxdmac, AT_XDMAC_GCFG, AT_XDMAC_GCFG_P2M);
+		at_xdmac_write(atxdmac, AT_XDMAC_GWAC, AT_XDMAC_GWAC_P2M);
+	}
+}
+
 static int at_xdmac_probe(struct platform_device *pdev)
 {
 	struct at_xdmac	*atxdmac;
@@ -2140,6 +2185,8 @@ static int at_xdmac_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "%d channels, mapped at 0x%p\n",
 		 nr_channels, atxdmac->regs);
+
+	at_xdmac_axi_config(pdev);
 
 	return 0;
 
