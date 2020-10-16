@@ -1707,6 +1707,9 @@ static int __get_any_page(struct page *p, unsigned long pfn, int flags)
 		} else if (is_free_buddy_page(p)) {
 			pr_info("%s: %#lx free buddy page\n", __func__, pfn);
 			ret = 0;
+		} else if (page_count(p)) {
+			/* raced with allocation */
+			ret = -EBUSY;
 		} else {
 			pr_info("%s: %#lx: unknown zero refcount page type %lx\n",
 				__func__, pfn, p->flags);
@@ -1722,6 +1725,9 @@ static int __get_any_page(struct page *p, unsigned long pfn, int flags)
 static int get_any_page(struct page *page, unsigned long pfn, int flags)
 {
 	int ret = __get_any_page(page, pfn, flags);
+
+	if (ret == -EBUSY)
+		ret = __get_any_page(page, pfn, flags);
 
 	if (ret == 1 && !PageHuge(page) &&
 	    !PageLRU(page) && !__PageMovable(page)) {
