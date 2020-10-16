@@ -3902,13 +3902,21 @@ generic_ip_connect(struct TCP_Server_Info *server)
 	saddr = (struct sockaddr *) &server->dstaddr;
 
 	if (server->dstaddr.ss_family == AF_INET6) {
-		sport = ((struct sockaddr_in6 *) saddr)->sin6_port;
+		struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)&server->dstaddr;
+
+		sport = ipv6->sin6_port;
 		slen = sizeof(struct sockaddr_in6);
 		sfamily = AF_INET6;
+		cifs_dbg(FYI, "%s: connecting to [%pI6]:%d\n", __func__, &ipv6->sin6_addr,
+				ntohs(sport));
 	} else {
-		sport = ((struct sockaddr_in *) saddr)->sin_port;
+		struct sockaddr_in *ipv4 = (struct sockaddr_in *)&server->dstaddr;
+
+		sport = ipv4->sin_port;
 		slen = sizeof(struct sockaddr_in);
 		sfamily = AF_INET;
+		cifs_dbg(FYI, "%s: connecting to %pI4:%d\n", __func__, &ipv4->sin_addr,
+				ntohs(sport));
 	}
 
 	if (socket == NULL) {
