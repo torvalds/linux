@@ -1976,7 +1976,8 @@ static int io_req_task_work_add(struct io_kiocb *req, bool twa_signal_ok)
 {
 	struct task_struct *tsk = req->task;
 	struct io_ring_ctx *ctx = req->ctx;
-	int ret, notify;
+	enum task_work_notify_mode notify;
+	int ret;
 
 	if (tsk->flags & PF_EXITING)
 		return -ESRCH;
@@ -1987,7 +1988,7 @@ static int io_req_task_work_add(struct io_kiocb *req, bool twa_signal_ok)
 	 * processing task_work. There's no reliable way to tell if TWA_RESUME
 	 * will do the job.
 	 */
-	notify = 0;
+	notify = TWA_NONE;
 	if (!(ctx->flags & IORING_SETUP_SQPOLL) && twa_signal_ok)
 		notify = TWA_SIGNAL;
 
@@ -2056,7 +2057,7 @@ static void io_req_task_queue(struct io_kiocb *req)
 
 		init_task_work(&req->task_work, io_req_task_cancel);
 		tsk = io_wq_get_task(req->ctx->io_wq);
-		task_work_add(tsk, &req->task_work, 0);
+		task_work_add(tsk, &req->task_work, TWA_NONE);
 		wake_up_process(tsk);
 	}
 }
@@ -2177,7 +2178,7 @@ static void io_free_req_deferred(struct io_kiocb *req)
 		struct task_struct *tsk;
 
 		tsk = io_wq_get_task(req->ctx->io_wq);
-		task_work_add(tsk, &req->task_work, 0);
+		task_work_add(tsk, &req->task_work, TWA_NONE);
 		wake_up_process(tsk);
 	}
 }
@@ -3291,7 +3292,7 @@ static int io_async_buf_func(struct wait_queue_entry *wait, unsigned mode,
 		/* queue just for cancelation */
 		init_task_work(&req->task_work, io_req_task_cancel);
 		tsk = io_wq_get_task(req->ctx->io_wq);
-		task_work_add(tsk, &req->task_work, 0);
+		task_work_add(tsk, &req->task_work, TWA_NONE);
 		wake_up_process(tsk);
 	}
 	return 1;
@@ -4857,7 +4858,7 @@ static int __io_async_wake(struct io_kiocb *req, struct io_poll_iocb *poll,
 
 		WRITE_ONCE(poll->canceled, true);
 		tsk = io_wq_get_task(req->ctx->io_wq);
-		task_work_add(tsk, &req->task_work, 0);
+		task_work_add(tsk, &req->task_work, TWA_NONE);
 		wake_up_process(tsk);
 	}
 	return 1;
