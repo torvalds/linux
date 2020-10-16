@@ -867,7 +867,7 @@ at_xdmac_interleaved_queue_desc(struct dma_chan *chan,
 	 * match the one of another channel. If not, it could lead to spurious
 	 * flag status.
 	 */
-	u32			chan_cc = AT_XDMAC_CC_PERID(0x3f)
+	u32			chan_cc = AT_XDMAC_CC_PERID(0x7f)
 					| AT_XDMAC_CC_DIF(0)
 					| AT_XDMAC_CC_SIF(0)
 					| AT_XDMAC_CC_MBSIZE_SIXTEEN
@@ -1049,7 +1049,7 @@ at_xdmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	 * match the one of another channel. If not, it could lead to spurious
 	 * flag status.
 	 */
-	u32			chan_cc = AT_XDMAC_CC_PERID(0x3f)
+	u32			chan_cc = AT_XDMAC_CC_PERID(0x7f)
 					| AT_XDMAC_CC_DAM_INCREMENTED_AM
 					| AT_XDMAC_CC_SAM_INCREMENTED_AM
 					| AT_XDMAC_CC_DIF(0)
@@ -1155,7 +1155,7 @@ static struct at_xdmac_desc *at_xdmac_memset_create_desc(struct dma_chan *chan,
 	 * match the one of another channel. If not, it could lead to spurious
 	 * flag status.
 	 */
-	u32			chan_cc = AT_XDMAC_CC_PERID(0x3f)
+	u32			chan_cc = AT_XDMAC_CC_PERID(0x7f)
 					| AT_XDMAC_CC_DAM_UBS_AM
 					| AT_XDMAC_CC_SAM_INCREMENTED_AM
 					| AT_XDMAC_CC_DIF(0)
