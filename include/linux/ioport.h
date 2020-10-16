@@ -60,6 +60,7 @@ struct resource {
 
 /* IORESOURCE_SYSRAM specific bits. */
 #define IORESOURCE_SYSRAM_DRIVER_MANAGED	0x02000000 /* Always detected via a driver. */
+#define IORESOURCE_SYSRAM_MERGEABLE		0x04000000 /* Resource can be merged. */
 
 #define IORESOURCE_EXCLUSIVE	0x08000000	/* Userland may not map this resource */
 
@@ -252,6 +253,9 @@ extern void __release_region(struct resource *, resource_size_t,
 #ifdef CONFIG_MEMORY_HOTREMOVE
 extern void release_mem_region_adjustable(struct resource *, resource_size_t,
 					  resource_size_t);
+#endif
+#ifdef CONFIG_MEMORY_HOTPLUG
+extern void merge_system_ram_resource(struct resource *res);
 #endif
 
 /* Wrappers for managed devices */
