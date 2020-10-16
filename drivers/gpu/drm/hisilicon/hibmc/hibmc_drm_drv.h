@@ -33,8 +33,8 @@ struct hibmc_drm_private {
 	/* hw */
 	void __iomem   *mmio;
 	void __iomem   *fb_map;
-	unsigned long  fb_base;
-	unsigned long  fb_size;
+	resource_size_t  fb_base;
+	resource_size_t  fb_size;
 
 	/* drm */
 	struct drm_device  *dev;
@@ -56,9 +56,9 @@ static inline struct hibmc_drm_private *to_hibmc_drm_private(struct drm_device *
 }
 
 void hibmc_set_power_mode(struct hibmc_drm_private *priv,
-			  unsigned int power_mode);
+			  u32 power_mode);
 void hibmc_set_current_gate(struct hibmc_drm_private *priv,
-			    unsigned int gate);
+			    u32 gate);
 
 int hibmc_de_init(struct hibmc_drm_private *priv);
 int hibmc_vdac_init(struct hibmc_drm_private *priv);
