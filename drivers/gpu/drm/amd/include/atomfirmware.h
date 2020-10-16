@@ -1309,9 +1309,6 @@ struct atom_integrated_system_info_v1_12
   uint32_t  reserved[63];
 };
 
-
-#if defined(CONFIG_DRM_AMD_DC_DCN3_01)
-
 struct edp_info_table
 {
         uint16_t edp_backlight_pwm_hz;
@@ -1367,7 +1364,6 @@ struct atom_integrated_system_info_v2_1
         uint32_t reserved7[32];
 
 };
-#endif
 
 // system_config
 enum atom_system_vbiosmisc_def{
