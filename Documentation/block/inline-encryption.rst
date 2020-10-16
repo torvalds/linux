@@ -52,7 +52,7 @@ Constraints and notes
 Design
 ======
 
-We add a :c:type:`struct bio_crypt_ctx` to :c:type:`struct bio` that can
+We add a struct bio_crypt_ctx to struct bio that can
 represent an encryption context, because we need to be able to pass this
 encryption context from the upper layers (like the fs layer) to the
 device driver to act upon.
@@ -85,7 +85,7 @@ blk-mq changes, other block layer changes and blk-crypto-fallback
 =================================================================
 
 We add a pointer to a ``bi_crypt_context`` and ``keyslot`` to
-:c:type:`struct request`. These will be referred to as the ``crypto fields``
+struct request. These will be referred to as the ``crypto fields``
 for the request. This ``keyslot`` is the keyslot into which the
 ``bi_crypt_context`` has been programmed in the KSM of the ``request_queue``
 that this request is being sent to.
@@ -118,7 +118,7 @@ of the algorithm being used adheres to spec and functions correctly).
 If a ``request queue``'s inline encryption hardware claimed to support the
 encryption context specified with a bio, then it will not be handled by the
 ``blk-crypto-fallback``. We will eventually reach a point in blk-mq when a
-:c:type:`struct request` needs to be allocated for that bio. At that point,
+struct request needs to be allocated for that bio. At that point,
 blk-mq tries to program the encryption context into the ``request_queue``'s
 keyslot_manager, and obtain a keyslot, which it stores in its newly added
 ``keyslot`` field. This keyslot is released when the request is completed.
@@ -188,7 +188,7 @@ keyslots supported by the hardware.
 The device driver also needs to tell the KSM how to actually manipulate the
 IE hardware in the device to do things like programming the crypto key into
 the IE hardware into a particular keyslot. All this is achieved through the
-:c:type:`struct blk_ksm_ll_ops` field in the KSM that the device driver
+struct blk_ksm_ll_ops field in the KSM that the device driver
 must fill up after initing the ``blk_keyslot_manager``.
 
 The KSM also handles runtime power management for the device when applicable

@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.audio
 
 .. _AUDIO_CONTINUE:
 
@@ -16,9 +17,9 @@ AUDIO_CONTINUE
 Synopsis
 --------
 
-.. c:function:: int  ioctl(int fd, AUDIO_CONTINUE)
-    :name: AUDIO_CONTINUE
+.. c:macro:: AUDIO_CONTINUE
 
+``int ioctl(int fd, AUDIO_CONTINUE)``
 
 Arguments
 ---------
@@ -26,7 +27,6 @@ Arguments
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -  .. row 1
 
@@ -39,7 +39,6 @@ Description
 
 This ioctl restarts the decoding and playing process previously paused
 with AUDIO_PAUSE command.
-
 
 Return Value
 ------------

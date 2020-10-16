@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: CEC
 
 .. _CEC_DQEVENT:
 
@@ -11,21 +12,20 @@ Name
 
 CEC_DQEVENT - Dequeue a CEC event
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, CEC_DQEVENT, struct cec_event *argp )
-    :name: CEC_DQEVENT
+.. c:macro:: CEC_DQEVENT
+
+``int ioctl(int fd, CEC_DQEVENT, struct cec_event *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :c:func:`open() <cec-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
-
 
 Description
 ===========
@@ -72,7 +72,6 @@ it is guaranteed that the state did change in between the two events.
         the HDMI driver is still configuring the device or because the HDMI
         device was unbound.
 
-
 .. c:type:: cec_event_lost_msgs
 
 .. tabularcolumns:: |p{1.0cm}|p{2.0cm}|p{14.5cm}|
@@ -93,7 +92,6 @@ it is guaranteed that the state did change in between the two events.
 	the last two seconds will be stored. Since messages should be
 	replied to within a second according to the CEC specification,
 	this is more than enough.
-
 
 .. tabularcolumns:: |p{1.0cm}|p{4.4cm}|p{2.5cm}|p{9.6cm}|
 
@@ -129,7 +127,6 @@ it is guaranteed that the state did change in between the two events.
 	event.
     * - }
       -
-
 
 .. tabularcolumns:: |p{5.6cm}|p{0.9cm}|p{11.0cm}|
 
@@ -204,7 +201,6 @@ it is guaranteed that the state did change in between the two events.
 	if the 5V is high, then an initial event will be generated for that
 	filehandle.
 
-
 .. tabularcolumns:: |p{6.0cm}|p{0.6cm}|p{10.9cm}|
 
 .. _cec-event-flags:
@@ -228,7 +224,6 @@ it is guaranteed that the state did change in between the two events.
       - 2
       - Set if one or more events of the given event type have been dropped.
         This is an indication that the application cannot keep up.
-
 
 
 Return Value

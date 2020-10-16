@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_PREPARE_BUF:
 
@@ -11,23 +12,21 @@ Name
 
 VIDIOC_PREPARE_BUF - Prepare a buffer for I/O
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_PREPARE_BUF, struct v4l2_buffer *argp )
-    :name: VIDIOC_PREPARE_BUF
+.. c:macro:: VIDIOC_PREPARE_BUF
 
+``int ioctl(int fd, VIDIOC_PREPARE_BUF, struct v4l2_buffer *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`v4l2_buffer`.
-
 
 Description
 ===========
@@ -40,7 +39,6 @@ in advance saves time during the actual I/O.
 
 The struct :c:type:`v4l2_buffer` structure is specified in
 :ref:`buffer`.
-
 
 Return Value
 ============

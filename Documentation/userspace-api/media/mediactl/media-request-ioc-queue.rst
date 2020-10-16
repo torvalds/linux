@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-no-invariants-or-later
+.. c:namespace:: MC
 
 .. _media_request_ioc_queue:
 
@@ -11,20 +12,18 @@ Name
 
 MEDIA_REQUEST_IOC_QUEUE - Queue a request
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int request_fd, MEDIA_REQUEST_IOC_QUEUE )
-    :name: MEDIA_REQUEST_IOC_QUEUE
+.. c:macro:: MEDIA_REQUEST_IOC_QUEUE
 
+``int ioctl(int request_fd, MEDIA_REQUEST_IOC_QUEUE)``
 
 Arguments
 =========
 
 ``request_fd``
     File descriptor returned by :ref:`MEDIA_IOC_REQUEST_ALLOC`.
-
 
 Description
 ===========

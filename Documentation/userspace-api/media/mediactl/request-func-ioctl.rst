@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-no-invariants-or-later
+.. c:namespace:: MC
 
 .. _request-func-ioctl:
 
@@ -11,7 +12,6 @@ Name
 
 request-ioctl - Control a request file descriptor
 
-
 Synopsis
 ========
 
@@ -19,9 +19,7 @@ Synopsis
 
     #include <sys/ioctl.h>
 
-
-.. c:function:: int ioctl( int fd, int cmd, void *argp )
-    :name: req-ioctl
+``int ioctl(int fd, int cmd, void *argp)``
 
 Arguments
 =========
@@ -35,7 +33,6 @@ Arguments
 
 ``argp``
     Pointer to a request-specific structure.
-
 
 Description
 ===========
@@ -51,7 +48,6 @@ Macros and structures definitions specifying request ioctl commands and
 their parameters are located in the media.h header file. All request ioctl
 commands, their respective function and parameters are specified in
 :ref:`media-user-func`.
-
 
 Return Value
 ============

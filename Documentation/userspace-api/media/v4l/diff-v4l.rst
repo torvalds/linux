@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _diff-v4l:
 
@@ -12,7 +13,6 @@ independently by driver writers in prior years. Starting with Linux 2.5
 the much improved V4L2 API replaces the V4L API. The support for the old
 V4L calls were removed from Kernel, but the library :ref:`libv4l`
 supports the conversion of a V4L API system call into a V4L2 one.
-
 
 Opening and Closing Devices
 ===========================
@@ -31,7 +31,6 @@ drivers in load order, depending on the registered device type. We
 recommend that V4L2 drivers by default register devices with the same
 numbers, but the system administrator can assign arbitrary minor numbers
 using driver module options. The major device number remains 81.
-
 
 .. _v4l-dev:
 
@@ -53,13 +52,11 @@ using driver module options. The major device number remains 81.
       - ``/dev/vbi``, ``/dev/vbi0`` to ``/dev/vbi31``
       - 224-255
 
-
 V4L prohibits (or used to prohibit) multiple opens of a device file.
 V4L2 drivers *may* support multiple opens, see :ref:`open` for details
 and consequences.
 
 V4L drivers respond to V4L2 ioctls with an ``EINVAL`` error code.
-
 
 Querying Capabilities
 =====================
@@ -151,7 +148,6 @@ introduction.
       - ``-``
       - See above.
 
-
 The ``audios`` field was replaced by ``capabilities`` flag
 ``V4L2_CAP_AUDIO``, indicating *if* the device has any audio inputs or
 outputs. To determine their number applications can enumerate audio
@@ -163,7 +159,6 @@ were removed. Calling the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` or
 :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` ioctl with the desired
 dimensions returns the closest size possible, taking into account the
 current video standard, cropping and scaling limitations.
-
 
 Video Sources
 =============
@@ -180,7 +175,6 @@ The ``channel`` field counting inputs was renamed to ``index``, the
 video input types were renamed as follows:
 
 
-
 .. flat-table::
     :header-rows:  1
     :stub-columns: 0
@@ -191,7 +185,6 @@ video input types were renamed as follows:
       - ``V4L2_INPUT_TYPE_TUNER``
     * - ``VIDEO_TYPE_CAMERA``
       - ``V4L2_INPUT_TYPE_CAMERA``
-
 
 Unlike the ``tuners`` field expressing the number of tuners of this
 input, V4L2 assumes each video input is connected to at most one tuner.
@@ -215,7 +208,6 @@ indicating whether the standard can be changed. This flag was a later
 addition together with the ``norm`` field and has been removed in the
 meantime. V4L2 has a similar, albeit more comprehensive approach to
 video standards, see :ref:`standard` for more information.
-
 
 Tuning
 ======
@@ -260,7 +252,6 @@ frequency where renamed to
 to a struct :c:type:`v4l2_frequency` instead of an
 unsigned long integer.
 
-
 .. _v4l-image-properties:
 
 Image Properties
@@ -272,7 +263,6 @@ replaced by V4L2 controls accessible with the
 :ref:`VIDIOC_QUERYCTRL`,
 :ref:`VIDIOC_G_CTRL <VIDIOC_G_CTRL>` and
 :ref:`VIDIOC_S_CTRL <VIDIOC_G_CTRL>` ioctls:
-
 
 
 .. flat-table::
@@ -292,7 +282,6 @@ replaced by V4L2 controls accessible with the
     * - ``whiteness``
       - ``V4L2_CID_WHITENESS``
 
-
 The V4L picture controls are assumed to range from 0 to 65535 with no
 particular reset value. The V4L2 API permits arbitrary limits and
 defaults which can be queried with the
@@ -304,7 +293,6 @@ implied by the selected image format. V4L2 does not explicitly provide
 such information assuming applications recognizing the format are aware
 of the image depth and others need not know. The ``palette`` field moved
 into the struct :c:type:`v4l2_pix_format`:
-
 
 
 .. flat-table::
@@ -346,10 +334,8 @@ into the struct :c:type:`v4l2_pix_format`:
     * - ``VIDEO_PALETTE_YUV410P``
       - :ref:`V4L2_PIX_FMT_YVU410 <V4L2-PIX-FMT-YVU410>`
 
-
 V4L2 image formats are defined in :ref:`pixfmt`. The image format can
 be selected with the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl.
-
 
 Audio
 =====
@@ -384,7 +370,6 @@ The following fields where replaced by V4L2 controls accessible with the
 :ref:`VIDIOC_S_CTRL <VIDIOC_G_CTRL>` ioctls:
 
 
-
 .. flat-table::
     :header-rows:  1
     :stub-columns: 0
@@ -400,7 +385,6 @@ The following fields where replaced by V4L2 controls accessible with the
     * - ``balance``
       - ``V4L2_CID_AUDIO_BALANCE``
 
-
 To determine which of these controls are supported by a driver V4L
 provides the ``flags`` ``VIDEO_AUDIO_VOLUME``, ``VIDEO_AUDIO_BASS``,
 ``VIDEO_AUDIO_TREBLE`` and ``VIDEO_AUDIO_BALANCE``. In the V4L2 API the
@@ -415,7 +399,6 @@ are assumed to range from 0 to 65535 with no particular reset value. The
 V4L2 API permits arbitrary limits and defaults which can be queried with
 the :ref:`VIDIOC_QUERYCTRL` ioctl. For general
 information about controls see :ref:`control`.
-
 
 Frame Buffer Overlay
 ====================
@@ -463,7 +446,6 @@ size is determined by ``w.width`` and ``w.height``.
 The ``VIDIOCCAPTURE`` ioctl to enable or disable overlay was renamed to
 :ref:`VIDIOC_OVERLAY`.
 
-
 Cropping
 ========
 
@@ -490,21 +472,19 @@ struct :c:type:`v4l2_window`. These structures are used to
 select a capture or overlay format with the
 :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl.
 
-
 Reading Images, Memory Mapping
 ==============================
-
 
 Capturing using the read method
 -------------------------------
 
 There is no essential difference between reading images from a V4L or
-V4L2 device using the :ref:`read() <func-read>` function, however V4L2
+V4L2 device using the :c:func:`read()` function, however V4L2
 drivers are not required to support this I/O method. Applications can
 determine if the function is available with the
 :ref:`VIDIOC_QUERYCAP` ioctl. All V4L2 devices
 exchanging data with applications must support the
-:ref:`select() <func-select>` and :ref:`poll() <func-poll>`
+:c:func:`select()` and :c:func:`poll()`
 functions.
 
 To select an image format and size, V4L provides the ``VIDIOCSPICT`` and
@@ -517,7 +497,6 @@ negotiation ioctls :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` and
 
 For more information about the V4L2 read interface see :ref:`rw`.
 
-
 Capturing using memory mapping
 ------------------------------
 
@@ -526,7 +505,6 @@ memory, or more often just buffers allocated in DMA-able system memory,
 into their address space. This avoids the data copying overhead of the
 read method. V4L2 supports memory mapping as well, with a few
 differences.
-
 
 
 .. flat-table::
@@ -550,7 +528,7 @@ differences.
 	``VIDIOCGMBUF`` ioctl is available to query the number of buffers,
 	the offset of each buffer from the start of the virtual file, and
 	the overall amount of memory used, which can be used as arguments
-	for the :ref:`mmap() <func-mmap>` function.
+	for the :c:func:`mmap()` function.
       - Buffers are individually mapped. The offset and size of each
 	buffer can be determined with the
 	:ref:`VIDIOC_QUERYBUF` ioctl.
@@ -568,7 +546,7 @@ differences.
 	the incoming queue. Filled buffers are dequeued from the outgoing
 	queue with the :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl. To wait
 	until filled buffers become available this function,
-	:ref:`select() <func-select>` or :ref:`poll() <func-poll>` can
+	:c:func:`select()` or :c:func:`poll()` can
 	be used. The :ref:`VIDIOC_STREAMON` ioctl
 	must be called once after enqueuing one or more buffers to start
 	capturing. Its counterpart
@@ -577,10 +555,8 @@ differences.
 	signal status, if known, with the
 	:ref:`VIDIOC_ENUMINPUT` ioctl.
 
-
 For a more in-depth discussion of memory mapping and examples, see
 :ref:`mmap`.
-
 
 Reading Raw VBI Data
 ====================
@@ -590,7 +566,6 @@ the device file ``/dev/vbi`` was reserved for this purpose. The only
 driver supporting this interface was the BTTV driver, de-facto defining
 the V4L VBI interface. Reading from the device yields a raw VBI image
 with the following parameters:
-
 
 
 .. flat-table::
@@ -616,7 +591,6 @@ with the following parameters:
     * - flags
       - 0
 
-
 Undocumented in the V4L specification, in Linux 2.3 the
 ``VIDIOCGVBIFMT`` and ``VIDIOCSVBIFMT`` ioctls using struct
 ``vbi_format`` were added to determine the VBI image
@@ -630,10 +604,9 @@ remaining fields are probably equivalent to struct
 
 Apparently only the Zoran (ZR 36120) driver implements these ioctls. The
 semantics differ from those specified for V4L2 in two ways. The
-parameters are reset on :ref:`open() <func-open>` and
+parameters are reset on :c:func:`open()` and
 ``VIDIOCSVBIFMT`` always returns an ``EINVAL`` error code if the parameters
 are invalid.
-
 
 Miscellaneous
 =============

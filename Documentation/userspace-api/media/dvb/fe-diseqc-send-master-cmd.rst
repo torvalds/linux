@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.fe
 
 .. _FE_DISEQC_SEND_MASTER_CMD:
 
@@ -11,24 +12,22 @@ Name
 
 FE_DISEQC_SEND_MASTER_CMD - Sends a DiSEqC command
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, FE_DISEQC_SEND_MASTER_CMD, struct dvb_diseqc_master_cmd *argp )
-    :name: FE_DISEQC_SEND_MASTER_CMD
+.. c:macro:: FE_DISEQC_SEND_MASTER_CMD
 
+``int ioctl(int fd, FE_DISEQC_SEND_MASTER_CMD, struct dvb_diseqc_master_cmd *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <frontend_f_open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     pointer to struct
     :c:type:`dvb_diseqc_master_cmd`
-
 
 Description
 ===========

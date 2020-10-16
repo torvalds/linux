@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-no-invariants-or-later
+.. c:namespace:: MC
 
 .. _media_ioc_request_alloc:
 
@@ -11,23 +12,21 @@ Name
 
 MEDIA_IOC_REQUEST_ALLOC - Allocate a request
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, MEDIA_IOC_REQUEST_ALLOC, int *argp )
-    :name: MEDIA_IOC_REQUEST_ALLOC
+.. c:macro:: MEDIA_IOC_REQUEST_ALLOC
 
+``int ioctl(int fd, MEDIA_IOC_REQUEST_ALLOC, int *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <media-func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to an integer.
-
 
 Description
 ===========
@@ -51,7 +50,7 @@ Finally, the file descriptor can be :ref:`polled <request-func-poll>` to wait
 for the request to complete.
 
 The request will remain allocated until all the file descriptors associated
-with it are closed by :ref:`close() <request-func-close>` and the driver no
+with it are closed by :c:func:`close()` and the driver no
 longer uses the request internally. See also
 :ref:`here <media-request-life-time>` for more information.
 

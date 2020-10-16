@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.video
 
 .. _video_fopen:
 
@@ -18,14 +19,12 @@ Synopsis
 
 .. c:function:: int open(const char *deviceName, int flags)
 
-
 Arguments
 ---------
 
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -  .. row 1
 
@@ -59,7 +58,6 @@ Arguments
        -
        -  (blocking mode is the default)
 
-
 Description
 -----------
 
@@ -79,7 +77,6 @@ returned. If the Video Device is opened in O_RDONLY mode, the only
 ioctl call that can be used is VIDEO_GET_STATUS. All other call will
 return an error code.
 
-
 Return Value
 ------------
 
@@ -88,7 +85,6 @@ Return Value
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -  .. row 1
 

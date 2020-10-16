@@ -56,7 +56,7 @@ Optional Connector Properties:
                   instead of using the autodetection mechnism. Please look at
                   [1] for more information.
 
-[1] Documentation/devicetree/bindings/display/connector/analog-tv-connector.txt.
+[1] Documentation/devicetree/bindings/display/connector/analog-tv-connector.yaml.
 
 Example - three input sources:
 #include <dt-bindings/display/sdtv-standards.h>

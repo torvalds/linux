@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _buffer:
 
@@ -32,7 +33,6 @@ stream. Changes in these flags may take place as a side effect of
 mem-to-mem devices is an exception to the rule: the timestamp source
 flags are copied from the OUTPUT video buffer to the CAPTURE video
 buffer.
-
 
 Interactions between formats, controls and buffers
 ==================================================
@@ -152,7 +152,6 @@ based on the queried sizes (for instance by allocating a set of buffers large
 enough for all the desired formats and controls, or by allocating separate set
 of appropriately sized buffers for each use case).
 
-
 .. c:type:: v4l2_buffer
 
 struct v4l2_buffer
@@ -257,7 +256,7 @@ struct v4l2_buffer
 	``V4L2_MEMORY_MMAP`` this is the offset of the buffer from the
 	start of the device memory. The value is returned by the driver
 	and apart of serving as parameter to the
-	:ref:`mmap() <func-mmap>` function not useful for applications.
+	:c:func:`mmap()` function not useful for applications.
 	See :ref:`mmap` for details
     * - unsigned long
       - ``userptr``
@@ -310,7 +309,6 @@ struct v4l2_buffer
 	given, then ``EINVAL`` will be returned.
 
 
-
 .. c:type:: v4l2_plane
 
 struct v4l2_plane
@@ -350,7 +348,7 @@ struct v4l2_plane
       - ``mem_offset``
       - When the memory type in the containing struct
 	:c:type:`v4l2_buffer` is ``V4L2_MEMORY_MMAP``, this
-	is the value that should be passed to :ref:`mmap() <func-mmap>`,
+	is the value that should be passed to :c:func:`mmap()`,
 	similar to the ``offset`` field in struct
 	:c:type:`v4l2_buffer`.
     * - unsigned long
@@ -382,7 +380,6 @@ struct v4l2_plane
       - ``reserved[11]``
       - Reserved for future use. Should be zeroed by drivers and
 	applications.
-
 
 
 .. c:type:: v4l2_buf_type
@@ -446,7 +443,6 @@ enum v4l2_buf_type
     * - ``V4L2_BUF_TYPE_META_OUTPUT``
       - 14
       - Buffer for metadata output, see :ref:`metadata`.
-
 
 
 .. _buffer-flags:
@@ -682,20 +678,6 @@ Buffer Flags
 
 .. _memory-flags:
 
-Memory Consistency Flags
-========================
-
-.. tabularcolumns:: |p{7.0cm}|p{2.2cm}|p{8.3cm}|
-
-.. cssclass:: longtable
-
-.. flat-table::
-    :header-rows:  0
-    :stub-columns: 0
-    :widths:       3 1 4
-
-.. c:type:: v4l2_memory
-
 enum v4l2_memory
 ================
 
@@ -720,7 +702,6 @@ enum v4l2_memory
       - The buffer is used for :ref:`DMA shared buffer <dmabuf>` I/O.
 
 
-
 Timecodes
 =========
 
@@ -728,7 +709,6 @@ The :c:type:`v4l2_buffer_timecode` structure is designed to hold a
 :ref:`smpte12m` or similar timecode.
 (struct :c:type:`timeval` timestamps are stored in the struct
 :c:type:`v4l2_buffer` ``timestamp`` field.)
-
 
 .. c:type:: v4l2_timecode
 
@@ -766,7 +746,6 @@ struct v4l2_timecode
       - The "user group" bits from the timecode.
 
 
-
 .. _timecode-type:
 
 Timecode Types
@@ -794,7 +773,6 @@ Timecode Types
     * - ``V4L2_TC_TYPE_60FPS``
       - 5
       -
-
 
 
 .. _timecode-flags:

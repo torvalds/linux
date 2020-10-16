@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_CREATE_BUFS:
 
@@ -11,23 +12,21 @@ Name
 
 VIDIOC_CREATE_BUFS - Create buffers for Memory Mapped or User Pointer or DMA Buffer I/O
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_CREATE_BUFS, struct v4l2_create_buffers *argp )
-    :name: VIDIOC_CREATE_BUFS
+.. c:macro:: VIDIOC_CREATE_BUFS
 
+``int ioctl(int fd, VIDIOC_CREATE_BUFS, struct v4l2_create_buffers *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`v4l2_create_buffers`.
-
 
 Description
 ===========
@@ -70,7 +69,6 @@ will attempt to allocate up to the requested number of buffers and store
 the actual number allocated and the starting index in the ``count`` and
 the ``index`` fields respectively. On return ``count`` can be smaller
 than the number requested.
-
 
 .. c:type:: v4l2_create_buffers
 
@@ -118,7 +116,6 @@ than the number requested.
       - ``reserved``\ [7]
       - A place holder for future extensions. Drivers and applications
 	must set the array to zero.
-
 
 Return Value
 ============

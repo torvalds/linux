@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_SUBDEV_G_SELECTION:
 
@@ -11,26 +12,25 @@ Name
 
 VIDIOC_SUBDEV_G_SELECTION - VIDIOC_SUBDEV_S_SELECTION - Get or set selection rectangles on a subdev pad
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_G_SELECTION, struct v4l2_subdev_selection *argp )
-    :name: VIDIOC_SUBDEV_G_SELECTION
+.. c:macro:: VIDIOC_SUBDEV_G_SELECTION
 
-.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_S_SELECTION, struct v4l2_subdev_selection *argp )
-    :name: VIDIOC_SUBDEV_S_SELECTION
+``int ioctl(int fd, VIDIOC_SUBDEV_G_SELECTION, struct v4l2_subdev_selection *argp)``
 
+.. c:macro:: VIDIOC_SUBDEV_S_SELECTION
+
+``int ioctl(int fd, VIDIOC_SUBDEV_S_SELECTION, struct v4l2_subdev_selection *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`v4l2_subdev_selection`.
-
 
 Description
 ===========
@@ -58,7 +58,6 @@ There are two types of selection targets: actual and bounds. The actual
 targets are the targets which configure the hardware. The BOUNDS target
 will return a rectangle that contain all possible actual rectangles.
 
-
 Discovering supported features
 ------------------------------
 
@@ -68,7 +67,6 @@ return ``EINVAL``.
 
 Selection targets and flags are documented in
 :ref:`v4l2-selections-common`.
-
 
 .. c:type:: v4l2_subdev_selection
 
@@ -99,7 +97,6 @@ Selection targets and flags are documented in
       - ``reserved``\ [8]
       - Reserved for future extensions. Applications and drivers must set
 	the array to zero.
-
 
 Return Value
 ============

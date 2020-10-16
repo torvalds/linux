@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _io:
 
@@ -9,8 +10,8 @@ The V4L2 API defines several different methods to read from or write to
 a device. All drivers exchanging data with applications must support at
 least one of them.
 
-The classic I/O method using the :ref:`read() <func-read>` and
-:ref:`write() <func-write>` function is automatically selected after opening a
+The classic I/O method using the :c:func:`read()` and
+:c:func:`write()` function is automatically selected after opening a
 V4L2 device. When the driver does not support this method attempts to
 read or write will fail at any time.
 
@@ -37,7 +38,6 @@ method (after first switching away from read/write) other than by
 closing and reopening the device.
 
 The following sections describe the various I/O methods in more detail.
-
 
 .. toctree::
     :maxdepth: 1

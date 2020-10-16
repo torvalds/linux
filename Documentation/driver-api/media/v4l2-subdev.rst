@@ -110,7 +110,7 @@ pads:
 	err = media_entity_pads_init(&sd->entity, npads, pads);
 
 The pads array must have been previously initialized. There is no need to
-manually set the struct :c:type:`media_entity` function and name fields, but the
+manually set the struct media_entity function and name fields, but the
 revision field must be initialized if needed.
 
 A reference to the entity will be automatically acquired/released when the

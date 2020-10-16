@@ -44,18 +44,18 @@ such objects.
 
 So to summarize:
 
-- struct :c:type:`v4l2_fh` has two lists: one of the ``subscribed`` events,
+- struct v4l2_fh has two lists: one of the ``subscribed`` events,
   and one of the ``available`` events.
 
-- struct :c:type:`v4l2_subscribed_event` has a ringbuffer of raised
+- struct v4l2_subscribed_event has a ringbuffer of raised
   (pending) events of that particular type.
 
-- If struct :c:type:`v4l2_subscribed_event` is associated with a specific
+- If struct v4l2_subscribed_event is associated with a specific
   object, then that object will have an internal list of
-  struct :c:type:`v4l2_subscribed_event` so it knows who subscribed an
+  struct v4l2_subscribed_event so it knows who subscribed an
   event to that object.
 
-Furthermore, the internal struct :c:type:`v4l2_subscribed_event` has
+Furthermore, the internal struct v4l2_subscribed_event has
 ``merge()`` and ``replace()`` callbacks which drivers can set. These
 callbacks are called when a new event is raised and there is no more room.
 

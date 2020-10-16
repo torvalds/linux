@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.ca
 
 .. _CA_GET_CAP:
 
@@ -11,19 +12,18 @@ Name
 
 CA_GET_CAP
 
-
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, CA_GET_CAP, struct ca_caps *caps)
-    :name: CA_GET_CAP
+.. c:macro:: CA_GET_CAP
 
+``int ioctl(fd, CA_GET_CAP, struct ca_caps *caps)``
 
 Arguments
 ---------
 
 ``fd``
-  File descriptor returned by a previous call to :c:func:`open() <dvb-ca-open>`.
+  File descriptor returned by a previous call to :c:func:`open()`.
 
 ``caps``
   Pointer to struct :c:type:`ca_caps`.

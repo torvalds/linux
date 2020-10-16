@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _open:
 
@@ -140,7 +141,6 @@ means applications cannot *reliably* scan for loaded or installed
 drivers. The user must enter a device name, or the application can try
 the conventional device names.
 
-
 .. _related:
 
 Related Devices
@@ -157,7 +157,7 @@ support all functions. However, in practice this never worked: this
 support it and if they did it was certainly never tested. In addition,
 switching a device node between different functions only works when
 using the streaming I/O API, not with the
-:ref:`read() <func-read>`/\ :ref:`write() <func-write>` API.
+:c:func:`read()`/\ :c:func:`write()` API.
 
 Today each V4L2 device node supports just one function.
 
@@ -178,7 +178,6 @@ the Media Controller. If you want to work on this please write to the
 linux-media mailing list:
 `https://linuxtv.org/lists.php <https://linuxtv.org/lists.php>`__.
 
-
 Multiple Opens
 ==============
 
@@ -192,8 +191,8 @@ device should not change the state of the device. [#f2]_
 Once an application has allocated the memory buffers needed for
 streaming data (by calling the :ref:`VIDIOC_REQBUFS`
 or :ref:`VIDIOC_CREATE_BUFS` ioctls, or
-implicitly by calling the :ref:`read() <func-read>` or
-:ref:`write() <func-write>` functions) that application (filehandle)
+implicitly by calling the :c:func:`read()` or
+:c:func:`write()` functions) that application (filehandle)
 becomes the owner of the device. It is no longer allowed to make changes
 that would affect the buffer sizes (e.g. by calling the
 :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl) and other applications are
@@ -206,7 +205,6 @@ requested type of data, and to change related properties, to this file
 descriptor. Applications can request additional access privileges using
 the priority mechanism described in :ref:`app-pri`.
 
-
 Shared Data Streams
 ===================
 
@@ -215,12 +213,11 @@ the same data stream on a device by copying buffers, time multiplexing
 or similar means. This is better handled by a proxy application in user
 space.
 
-
 Functions
 =========
 
 To open and close V4L2 devices applications use the
-:ref:`open() <func-open>` and :ref:`close() <func-close>` function,
+:c:func:`open()` and :c:func:`close()` function,
 respectively. Devices are programmed using the
 :ref:`ioctl() <func-ioctl>` function as explained in the following
 sections.
@@ -228,7 +225,7 @@ sections.
 .. [#f1]
    There are still some old and obscure drivers that have not been
    updated to allow for multiple opens. This implies that for such
-   drivers :ref:`open() <func-open>` can return an ``EBUSY`` error code
+   drivers :c:func:`open()` can return an ``EBUSY`` error code
    when the device is already in use.
 
 .. [#f2]

@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_SUBDEV_QUERYCAP:
 
@@ -11,23 +12,21 @@ Name
 
 VIDIOC_SUBDEV_QUERYCAP - Query sub-device capabilities
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_QUERYCAP, struct v4l2_subdev_capability *argp )
-    :name: VIDIOC_SUBDEV_QUERYCAP
+.. c:macro:: VIDIOC_SUBDEV_QUERYCAP
 
+``int ioctl(int fd, VIDIOC_SUBDEV_QUERYCAP, struct v4l2_subdev_capability *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`v4l2_subdev_capability`.
-
 
 Description
 ===========

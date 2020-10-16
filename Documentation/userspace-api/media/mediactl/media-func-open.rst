@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: MC
 
 .. _media-func-open:
 
@@ -11,7 +12,6 @@ Name
 
 media-open - Open a media device
 
-
 Synopsis
 ========
 
@@ -19,9 +19,7 @@ Synopsis
 
     #include <fcntl.h>
 
-
 .. c:function:: int open( const char *device_name, int flags )
-    :name: mc-open
 
 Arguments
 =========
@@ -33,11 +31,10 @@ Arguments
     Open flags. Access mode must be either ``O_RDONLY`` or ``O_RDWR``.
     Other flags have no effect.
 
-
 Description
 ===========
 
-To open a media device applications call :ref:`open() <media-func-open>` with the
+To open a media device applications call :c:func:`open()` with the
 desired device name. The function has no side effects; the device
 configuration remain unchanged.
 
@@ -45,11 +42,10 @@ When the device is opened in read-only mode, attempts to modify its
 configuration will result in an error, and ``errno`` will be set to
 EBADF.
 
-
 Return Value
 ============
 
-:ref:`open() <func-open>` returns the new file descriptor on success. On error,
+:c:func:`open()` returns the new file descriptor on success. On error,
 -1 is returned, and ``errno`` is set appropriately. Possible error codes
 are:
 

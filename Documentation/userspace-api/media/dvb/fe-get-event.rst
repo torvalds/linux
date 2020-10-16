@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.fe
 
 .. _FE_GET_EVENT:
 
@@ -13,23 +14,21 @@ FE_GET_EVENT
 
 .. attention:: This ioctl is deprecated.
 
-
 Synopsis
 ========
 
-.. c:function:: int  ioctl(int fd, FE_GET_EVENT, struct dvb_frontend_event *ev)
-    :name: FE_GET_EVENT
+.. c:macro:: FE_GET_EVENT
 
+``int ioctl(int fd, FE_GET_EVENT, struct dvb_frontend_event *ev)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :c:func:`open() <dvb-fe-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``ev``
     Points to the location where the event, if any, is to be stored.
-
 
 Description
 ===========
@@ -40,7 +39,6 @@ or non-blocking mode. In the latter case, the call fails immediately
 with errno set to ``EWOULDBLOCK``. In the former case, the call blocks until
 an event becomes available.
 
-
 Return Value
 ============
 
@@ -49,11 +47,9 @@ On success 0 is returned.
 On error -1 is returned, and the ``errno`` variable is set
 appropriately.
 
-
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -  .. row 1
 

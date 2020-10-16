@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.dmx
 
 .. _DMX_REQBUFS:
 
@@ -13,19 +14,18 @@ DMX_REQBUFS - Initiate Memory Mapping and/or DMA buffer I/O
 
 .. warning:: this API is still experimental
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, DMX_REQBUFS, struct dmx_requestbuffers *argp )
-    :name: DMX_REQBUFS
+.. c:macro:: DMX_REQBUFS
 
+``int ioctl(int fd, DMX_REQBUFS, struct dmx_requestbuffers *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <dmx_fopen>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`dmx_requestbuffers`.
@@ -63,7 +63,6 @@ Applications can call :ref:`DMX_REQBUFS` again to change the number of
 buffers, however this cannot succeed when any buffers are still mapped.
 A ``count`` value of zero frees all buffers, after aborting or finishing
 any DMA in progress.
-
 
 Return Value
 ============

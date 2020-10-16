@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.video
 
 .. _VIDEO_SELECT_SOURCE:
 
@@ -16,9 +17,9 @@ VIDEO_SELECT_SOURCE
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, VIDEO_SELECT_SOURCE, video_stream_source_t source)
-    :name: VIDEO_SELECT_SOURCE
+.. c:macro:: VIDEO_SELECT_SOURCE
 
+``int ioctl(fd, VIDEO_SELECT_SOURCE, video_stream_source_t source)``
 
 Arguments
 ---------
@@ -26,7 +27,6 @@ Arguments
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -  .. row 1
 
@@ -45,7 +45,6 @@ Arguments
        -  video_stream_source_t source
 
        -  Indicates which source shall be used for the Video stream.
-
 
 Description
 -----------

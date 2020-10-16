@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.fe
 
 .. _FE_DISHNETWORK_SEND_LEGACY_CMD:
 
@@ -11,23 +12,21 @@ Name
 
 FE_DISHNETWORK_SEND_LEGACY_CMD
 
-
 Synopsis
 ========
 
-.. c:function:: int  ioctl(int fd, FE_DISHNETWORK_SEND_LEGACY_CMD, unsigned long cmd)
-    :name: FE_DISHNETWORK_SEND_LEGACY_CMD
+.. c:macro:: FE_DISHNETWORK_SEND_LEGACY_CMD
 
+``int ioctl(int fd, FE_DISHNETWORK_SEND_LEGACY_CMD, unsigned long cmd)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :c:func:`open() <dvb-fe-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``cmd``
     Sends the specified raw cmd to the dish via DISEqC.
-
 
 Description
 ===========
@@ -41,7 +40,6 @@ frontend, for Dish Network legacy switches.
 
 As support for this ioctl were added in 2004, this means that such
 dishes were already legacy in 2004.
-
 
 Return Value
 ============

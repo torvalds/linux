@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.dmx
 
 .. _DMX_EXPBUF:
 
@@ -13,23 +14,21 @@ DMX_EXPBUF - Export a buffer as a DMABUF file descriptor.
 
 .. warning:: this API is still experimental
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, DMX_EXPBUF, struct dmx_exportbuffer *argp )
-    :name: DMX_EXPBUF
+.. c:macro:: DMX_EXPBUF
 
+``int ioctl(int fd, DMX_EXPBUF, struct dmx_exportbuffer *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <dmx_fopen>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`dmx_exportbuffer`.
-
 
 Description
 ===========
@@ -54,10 +53,8 @@ driver, on success. This is a DMABUF file descriptor. The application may
 pass it to other DMABUF-aware devices. It is recommended to close a DMABUF
 file when it is no longer used to allow the associated memory to be reclaimed.
 
-
 Examples
 ========
-
 
 .. code-block:: c
 

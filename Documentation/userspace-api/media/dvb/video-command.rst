@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.video
 
 .. _VIDEO_COMMAND:
 
@@ -16,9 +17,9 @@ VIDEO_COMMAND
 Synopsis
 --------
 
-.. c:function:: int ioctl(int fd, VIDEO_COMMAND, struct video_command *cmd)
-    :name: VIDEO_COMMAND
+.. c:macro:: VIDEO_COMMAND
 
+``int ioctl(int fd, VIDEO_COMMAND, struct video_command *cmd)``
 
 Arguments
 ---------
@@ -26,7 +27,6 @@ Arguments
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -  .. row 1
 
@@ -46,7 +46,6 @@ Arguments
 
        -  Commands the decoder.
 
-
 Description
 -----------
 
@@ -59,7 +58,7 @@ subset of the ``v4l2_decoder_cmd`` struct, so refer to the
 :ref:`VIDIOC_DECODER_CMD` documentation for
 more information.
 
-.. c:type:: struct video_command
+.. c:type:: video_command
 
 .. code-block:: c
 
@@ -88,7 +87,6 @@ more information.
 			} raw;
 		};
 	};
-
 
 Return Value
 ------------

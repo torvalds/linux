@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.dmx
 
 .. _DMX_GET_PES_PIDS:
 
@@ -11,22 +12,21 @@ Name
 
 DMX_GET_PES_PIDS
 
-
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, DMX_GET_PES_PIDS, __u16 pids[5])
-    :name: DMX_GET_PES_PIDS
+.. c:macro:: DMX_GET_PES_PIDS
+
+``int ioctl(fd, DMX_GET_PES_PIDS, __u16 pids[5])``
 
 Arguments
 ---------
 
 ``fd``
-    File descriptor returned by :c:func:`open() <dvb-dmx-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``pids``
     Array used to store 5 Program IDs.
-
 
 Description
 -----------
@@ -45,12 +45,10 @@ pids[DMX_PES_SUBTITLE]	3		first subtitle PID
 pids[DMX_PES_PCR]	4		first Program Clock Reference PID
 =======================	========	=======================================
 
-
 .. note::
 
 	A value equal to 0xffff means that the PID was not filled by the
 	Kernel.
-
 
 Return Value
 ------------

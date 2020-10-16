@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.fe
 
 .. _FE_READ_UNCORRECTED_BLOCKS:
 
@@ -16,19 +17,18 @@ FE_READ_UNCORRECTED_BLOCKS
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, FE_READ_UNCORRECTED_BLOCKS, uint32_t *ublocks)
-    :name: FE_READ_UNCORRECTED_BLOCKS
+.. c:macro:: FE_READ_UNCORRECTED_BLOCKS
 
+``int ioctl(int fd, FE_READ_UNCORRECTED_BLOCKS, uint32_t *ublocks)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :c:func:`open() <dvb-fe-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``ublocks``
     The total number of uncorrected blocks seen by the driver so far.
-
 
 Description
 ===========
@@ -38,7 +38,6 @@ device driver during its lifetime. For meaningful measurements, the
 increment in block count during a specific time interval should be
 calculated. For this command, read-only access to the device is
 sufficient.
-
 
 Return Value
 ============

@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_DECODER_CMD:
 
@@ -11,27 +12,25 @@ Name
 
 VIDIOC_DECODER_CMD - VIDIOC_TRY_DECODER_CMD - Execute an decoder command
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_DECODER_CMD, struct v4l2_decoder_cmd *argp )
-    :name: VIDIOC_DECODER_CMD
+.. c:macro:: VIDIOC_DECODER_CMD
 
+``int ioctl(int fd, VIDIOC_DECODER_CMD, struct v4l2_decoder_cmd *argp)``
 
-.. c:function:: int ioctl( int fd, VIDIOC_TRY_DECODER_CMD, struct v4l2_decoder_cmd *argp )
-    :name: VIDIOC_TRY_DECODER_CMD
+.. c:macro:: VIDIOC_TRY_DECODER_CMD
 
+``int ioctl(int fd, VIDIOC_TRY_DECODER_CMD, struct v4l2_decoder_cmd *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     pointer to struct :c:type:`v4l2_decoder_cmd`.
-
 
 Description
 ===========
@@ -47,11 +46,11 @@ this structure.
 The ``cmd`` field must contain the command code. Some commands use the
 ``flags`` field for additional information.
 
-A :ref:`write() <func-write>` or :ref:`VIDIOC_STREAMON`
+A :c:func:`write()` or :ref:`VIDIOC_STREAMON`
 call sends an implicit START command to the decoder if it has not been
 started yet. Applies to both queues of mem2mem decoders.
 
-A :ref:`close() <func-close>` or :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>`
+A :c:func:`close()` or :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>`
 call of a streaming file descriptor sends an implicit immediate STOP
 command to the decoder, and all buffered data is discarded. Applies to both
 queues of mem2mem decoders.
@@ -59,7 +58,6 @@ queues of mem2mem decoders.
 In principle, these ioctls are optional, not all drivers may support them. They were
 introduced in Linux 3.3. They are, however, mandatory for stateful mem2mem decoders
 (as further documented in :ref:`decoder`).
-
 
 .. tabularcolumns:: |p{1.1cm}|p{2.4cm}|p{1.2cm}|p{1.6cm}|p{10.6cm}|
 
@@ -129,7 +127,6 @@ introduced in Linux 3.3. They are, however, mandatory for stateful mem2mem decod
 	the array to zero.
     * - }
       -
-
 
 
 .. tabularcolumns:: |p{5.6cm}|p{0.6cm}|p{11.3cm}|
