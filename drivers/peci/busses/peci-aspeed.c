@@ -370,7 +370,7 @@ static int aspeed_peci_init_ctrl(struct aspeed_peci *priv)
 			}
 		}
 	addr_timing = msg_timing;
-	dev_info(priv->dev, "Expect frequency: %d Real frequency is about: %d",
+	dev_info(priv->dev, "Expect frequency: %d Real frequency is about: %lu",
 		clk_freq,
 		clk_get_rate(priv->clk) /
 		(4 * (1 << clk_div_val) * (msg_timing * 4 + 1)));
