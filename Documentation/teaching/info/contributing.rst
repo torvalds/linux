@@ -69,7 +69,7 @@ Forking the repository
 
    .. code-block:: bash
 
-     $ mkdir -p ~/so2
+     $ mkdir -p ~/src
      $ git clone git@github.com:linux-kernel-labs/linux.git ~/src/linux
 
 2. Go to https://github.com/linux-kernel-labs/linux, make sure you are logged
