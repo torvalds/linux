@@ -901,14 +901,12 @@ static bool ixgbe_x550em_a_has_mii(struct ixgbe_hw *hw)
  **/
 s32 ixgbe_mii_bus_init(struct ixgbe_hw *hw)
 {
+	s32 (*write)(struct mii_bus *bus, int addr, int regnum, u16 val);
+	s32 (*read)(struct mii_bus *bus, int addr, int regnum);
 	struct ixgbe_adapter *adapter = hw->back;
 	struct pci_dev *pdev = adapter->pdev;
 	struct device *dev = &adapter->netdev->dev;
 	struct mii_bus *bus;
-
-	bus = devm_mdiobus_alloc(dev);
-	if (!bus)
-		return -ENOMEM;
 
 	switch (hw->device_id) {
 	/* C3000 SoCs */
@@ -922,15 +920,22 @@ s32 ixgbe_mii_bus_init(struct ixgbe_hw *hw)
 	case IXGBE_DEV_ID_X550EM_A_1G_T:
 	case IXGBE_DEV_ID_X550EM_A_1G_T_L:
 		if (!ixgbe_x550em_a_has_mii(hw))
-			return -ENODEV;
-		bus->read = &ixgbe_x550em_a_mii_bus_read;
-		bus->write = &ixgbe_x550em_a_mii_bus_write;
+			return 0;
+		read = &ixgbe_x550em_a_mii_bus_read;
+		write = &ixgbe_x550em_a_mii_bus_write;
 		break;
 	default:
-		bus->read = &ixgbe_mii_bus_read;
-		bus->write = &ixgbe_mii_bus_write;
+		read = &ixgbe_mii_bus_read;
+		write = &ixgbe_mii_bus_write;
 		break;
 	}
+
+	bus = devm_mdiobus_alloc(dev);
+	if (!bus)
+		return -ENOMEM;
+
+	bus->read = read;
+	bus->write = write;
 
 	/* Use the position of the device in the PCI hierarchy as the id */
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%s-mdio-%s", ixgbe_driver_name,
