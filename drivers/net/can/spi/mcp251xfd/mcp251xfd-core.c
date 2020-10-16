@@ -421,6 +421,11 @@ static int mcp251xfd_chip_clock_init(const struct mcp251xfd_priv *priv)
 	if (err)
 		return err;
 
+	return 0;
+}
+
+static int mcp251xfd_chip_timestamp_init(const struct mcp251xfd_priv *priv)
+{
 	/* Set Time Base Counter Prescaler to 1.
 	 *
 	 * This means an overflow of the 32 bit Time Base Counter
@@ -680,6 +685,10 @@ static int mcp251xfd_chip_start(struct mcp251xfd_priv *priv)
 		goto out_chip_stop;
 
 	err = mcp251xfd_chip_clock_init(priv);
+	if (err)
+		goto out_chip_stop;
+
+	err = mcp251xfd_chip_timestamp_init(priv);
 	if (err)
 		goto out_chip_stop;
 
