@@ -292,22 +292,23 @@ mcp251xfd_chip_wait_for_osc_ready(const struct mcp251xfd_priv *priv,
 	return -ETIMEDOUT;
 }
 
-static int mcp251xfd_chip_clock_enable(const struct mcp251xfd_priv *priv)
+static int mcp251xfd_chip_wake(const struct mcp251xfd_priv *priv)
 {
 	u32 osc, osc_reference, osc_mask;
 	int err;
 
-	/* Set Power On Defaults for "Clock Output Divisor" and remove
-	 * "Oscillator Disable" bit.
+	/* For normal sleep on MCP2517FD and MCP2518FD, clearing
+	 * "Oscillator Disable" will wake the chip. For low power mode
+	 * on MCP2518FD, asserting the chip select will wake the
+	 * chip. Writing to the Oscillator register will wake it in
+	 * both cases.
 	 */
 	osc = FIELD_PREP(MCP251XFD_REG_OSC_CLKODIV_MASK,
 			 MCP251XFD_REG_OSC_CLKODIV_10);
 	osc_reference = MCP251XFD_REG_OSC_OSCRDY;
 	osc_mask = MCP251XFD_REG_OSC_OSCRDY | MCP251XFD_REG_OSC_PLLRDY;
 
-	/* Note:
-	 *
-	 * If the controller is in Sleep Mode the following write only
+	/* If the controller is in Sleep Mode the following write only
 	 * removes the "Oscillator Disable" bit and powers it up. All
 	 * other bits are unaffected.
 	 */
@@ -332,10 +333,10 @@ static int mcp251xfd_chip_softreset_do(const struct mcp251xfd_priv *priv)
 	const __be16 cmd = mcp251xfd_cmd_reset();
 	int err;
 
-	/* The Set Mode and SPI Reset command only seems to works if
-	 * the controller is not in Sleep Mode.
+	/* The Set Mode and SPI Reset command only works if the
+	 * controller is not in Sleep Mode.
 	 */
-	err = mcp251xfd_chip_clock_enable(priv);
+	err = mcp251xfd_chip_wake(priv);
 	if (err)
 		return err;
 
