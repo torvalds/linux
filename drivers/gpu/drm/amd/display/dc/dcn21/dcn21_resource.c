@@ -301,7 +301,9 @@ struct _vcs_dpi_soc_bounding_box_st dcn2_1_soc = {
 	.xfc_bus_transport_time_us = 4,
 	.xfc_xbuf_latency_tolerance_us = 4,
 	.use_urgent_burst_bw = 1,
-	.num_states = 8
+	.num_states = 8,
+	.allow_dram_self_refresh_or_dram_clock_change_in_vblank
+			= dm_allow_self_refresh_and_mclk_switch
 };
 
 #ifndef MAX
