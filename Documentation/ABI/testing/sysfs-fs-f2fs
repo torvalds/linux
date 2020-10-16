@@ -22,7 +22,8 @@ Contact:	"Namjae Jeon" <namjae.jeon@samsung.com>
 Description:	Controls the victim selection policy for garbage collection.
 		Setting gc_idle = 0(default) will disable this option. Setting
 		gc_idle = 1 will select the Cost Benefit approach & setting
-		gc_idle = 2 will select the greedy approach.
+		gc_idle = 2 will select the greedy approach & setting
+		gc_idle = 3 will select the age-threshold based approach.
 
 What:		/sys/fs/f2fs/<disk>/reclaim_segments
 Date:		October 2013
