@@ -849,6 +849,12 @@ D: trivial hack to add variable address length routing to Rose.
 D: AX25-HOWTO, HAM-HOWTO, IPX-HOWTO, NET-2-HOWTO
 D: ax25-utils maintainer.
 
+N: Kamil Debski
+E: kamil@wypas.org
+D: Samsung S5P 2D graphics acceleration and Multi Format Codec drivers
+D: Samsung USB2 phy drivers
+D: PWM fan driver
+
 N: Helge Deller
 E: deller@gmx.de
 W: http://www.parisc-linux.org/
