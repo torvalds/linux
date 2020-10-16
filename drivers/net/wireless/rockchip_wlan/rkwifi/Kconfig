@@ -28,16 +28,29 @@ config AP6XXX_WIFI6
 
 	  If you choose to build a module, it'll be called dhd. Say M if
 	  unsure.
-if AP6XXX_WIFI6
-source "drivers/net/wireless/rockchip_wlan/rkwifi/bcmdhd_wifi6/Kconfig"
-endif
 
 config AP6XXX_INDEP_POWER
 	tristate "support WiFi keepalive during host shutdown"
 	select CFG80211
 	select MAC80211
-if AP6XXX_INDEP_POWER
-source "drivers/net/wireless/rockchip_wlan/rkwifi/bcmdhd_indep_power/Kconfig"
-endif
 
 endchoice
+
+config BCMDHD_FW_PATH
+	depends on BCMDHD
+	string "Firmware path"
+	default "/vendor/etc/firmware/fw_bcmdhd.bin"
+	---help---
+	  Path to the firmware file.
+
+config BCMDHD_NVRAM_PATH
+	depends on BCMDHD
+	string "NVRAM path"
+	default "/vendor/etc/firmware/nvram.txt"
+	---help---
+	  Path to the calibration file.a
+
+config BCMDHD_STATIC_IF
+	bool "Enable wlan1 support"
+	---help---
+	  default to add wlan1 interface
