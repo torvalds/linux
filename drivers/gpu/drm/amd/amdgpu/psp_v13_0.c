@@ -26,6 +26,9 @@
 #include "soc15_common.h"
 #include "psp_v13_0.h"
 
+#include "mp/mp_13_0_2_offset.h"
+#include "mp/mp_13_0_2_sh_mask.h"
+
 MODULE_FIRMWARE("amdgpu/aldebaran_sos.bin");
 
 static int psp_v13_0_init_microcode(struct psp_context *psp)
@@ -47,8 +50,75 @@ static int psp_v13_0_init_microcode(struct psp_context *psp)
 	return err;
 }
 
+static bool psp_v13_0_is_sos_alive(struct psp_context *psp)
+{
+	struct amdgpu_device *adev = psp->adev;
+	uint32_t sol_reg;
+
+	sol_reg = RREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_81);
+
+	return sol_reg != 0x0;
+}
+
+static int psp_v13_0_wait_for_bootloader(struct psp_context *psp)
+{
+	struct amdgpu_device *adev = psp->adev;
+
+	int ret;
+	int retry_loop;
+
+	for (retry_loop = 0; retry_loop < 10; retry_loop++) {
+		/* Wait for bootloader to signify that is
+		    ready having bit 31 of C2PMSG_35 set to 1 */
+		ret = psp_wait_for(psp,
+				   SOC15_REG_OFFSET(MP0, 0, regMP0_SMN_C2PMSG_35),
+				   0x80000000,
+				   0x80000000,
+				   false);
+
+		if (ret == 0)
+			return 0;
+	}
+
+	return ret;
+}
+
+static int psp_v13_0_bootloader_load_kdb(struct psp_context *psp)
+{
+	int ret;
+	uint32_t psp_gfxdrv_command_reg = 0;
+	struct amdgpu_device *adev = psp->adev;
+
+	/* Check tOS sign of life register to confirm sys driver and sOS
+	 * are already been loaded.
+	 */
+	if (psp_v13_0_is_sos_alive(psp))
+		return 0;
+
+	ret = psp_v13_0_wait_for_bootloader(psp);
+	if (ret)
+		return ret;
+
+	memset(psp->fw_pri_buf, 0, PSP_1_MEG);
+
+	/* Copy PSP KDB binary to memory */
+	memcpy(psp->fw_pri_buf, psp->kdb_start_addr, psp->kdb_bin_size);
+
+	/* Provide the PSP KDB to bootloader */
+	WREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_36,
+	       (uint32_t)(psp->fw_pri_mc_addr >> 20));
+	psp_gfxdrv_command_reg = PSP_BL__LOAD_KEY_DATABASE;
+	WREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_35,
+	       psp_gfxdrv_command_reg);
+
+	ret = psp_v13_0_wait_for_bootloader(psp);
+
+	return ret;
+}
+
 static const struct psp_funcs psp_v13_0_funcs = {
 	.init_microcode = psp_v13_0_init_microcode,
+	.bootloader_load_kdb = psp_v13_0_bootloader_load_kdb,
 };
 
 void psp_v13_0_set_psp_funcs(struct psp_context *psp)
