@@ -123,9 +123,9 @@ static int afs_probe_cell_name(struct dentry *dentry)
 		len--;
 	}
 
-	cell = afs_lookup_cell_rcu(net, name, len);
+	cell = afs_find_cell(net, name, len, afs_cell_trace_use_probe);
 	if (!IS_ERR(cell)) {
-		afs_put_cell(net, cell);
+		afs_unuse_cell(net, cell, afs_cell_trace_unuse_probe);
 		return 0;
 	}
 
@@ -179,7 +179,6 @@ static struct dentry *afs_lookup_atcell(struct dentry *dentry)
 	struct afs_cell *cell;
 	struct afs_net *net = afs_d2net(dentry);
 	struct dentry *ret;
-	unsigned int seq = 0;
 	char *name;
 	int len;
 
@@ -191,17 +190,13 @@ static struct dentry *afs_lookup_atcell(struct dentry *dentry)
 	if (!name)
 		goto out_p;
 
-	rcu_read_lock();
-	do {
-		read_seqbegin_or_lock(&net->cells_lock, &seq);
-		cell = rcu_dereference_raw(net->ws_cell);
-		if (cell) {
-			len = cell->name_len;
-			memcpy(name, cell->name, len + 1);
-		}
-	} while (need_seqretry(&net->cells_lock, seq));
-	done_seqretry(&net->cells_lock, seq);
-	rcu_read_unlock();
+	down_read(&net->cells_lock);
+	cell = net->ws_cell;
+	if (cell) {
+		len = cell->name_len;
+		memcpy(name, cell->name, len + 1);
+	}
+	up_read(&net->cells_lock);
 
 	ret = ERR_PTR(-ENOENT);
 	if (!cell)

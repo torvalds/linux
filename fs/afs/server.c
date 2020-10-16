@@ -550,7 +550,12 @@ void afs_manage_servers(struct work_struct *work)
 
 		_debug("manage %pU %u", &server->uuid, active);
 
-		ASSERTIFCMP(purging, active, ==, 0);
+		if (purging) {
+			trace_afs_server(server, atomic_read(&server->ref),
+					 active, afs_server_trace_purging);
+			if (active != 0)
+				pr_notice("Can't purge s=%08x\n", server->debug_id);
+		}
 
 		if (active == 0) {
 			time64_t expire_at = server->unuse_time;
