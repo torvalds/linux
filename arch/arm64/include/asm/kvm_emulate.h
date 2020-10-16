@@ -33,8 +33,6 @@ enum exception_type {
 	except_type_serror	= 0x180,
 };
 
-unsigned long *vcpu_reg32(const struct kvm_vcpu *vcpu, u8 reg_num);
-
 bool kvm_condition_valid32(const struct kvm_vcpu *vcpu);
 void kvm_skip_instr32(struct kvm_vcpu *vcpu);
 
