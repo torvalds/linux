@@ -1341,7 +1341,10 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&syscon ASPEED_CLK_GATE_REF0CLK>;
+		clocks = <&syscon ASPEED_CLK_GATE_REF0CLK>,
+			<&syscon ASPEED_CLK_AHB>;
+		clock-names = "ref-clk", "hclk";
+		clock-sel-hclk;
 		resets = <&syscon ASPEED_RESET_PECI>;
 		clock-frequency = <12000>;
 		rd-sampling-point = <8>;
