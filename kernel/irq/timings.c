@@ -604,7 +604,7 @@ int irq_timings_alloc(int irq)
 
 	/*
 	 * Some platforms can have the same private interrupt per cpu,
-	 * so this function may be be called several times with the
+	 * so this function may be called several times with the
 	 * same interrupt number. Just bail out in case the per cpu
 	 * stat structure is already allocated.
 	 */
