@@ -296,14 +296,14 @@ int bch2_migrate_write_init(struct bch_fs *c, struct migrate_write *m,
 		unsigned compressed_sectors = 0;
 
 		bkey_for_each_ptr_decode(k.k, ptrs, p, entry)
-			if (!p.ptr.cached &&
-			    crc_is_compressed(p.crc) &&
-			    bch2_dev_in_target(c, p.ptr.dev, data_opts.target))
+			if (p.ptr.dev == data_opts.rewrite_dev &&
+			    !p.ptr.cached &&
+			    crc_is_compressed(p.crc))
 				compressed_sectors += p.crc.compressed_size;
 
 		if (compressed_sectors) {
 			ret = bch2_disk_reservation_add(c, &m->op.res,
-					compressed_sectors,
+					k.k->size * m->op.nr_replicas,
 					BCH_DISK_RESERVATION_NOFAIL);
 			if (ret)
 				return ret;
