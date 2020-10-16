@@ -804,3 +804,14 @@ failed_undo:
 failed_kiq_write:
 	dev_err(adev->dev, "failed to write reg:%x\n", reg);
 }
+
+int amdgpu_gfx_get_num_kcq(struct amdgpu_device *adev)
+{
+	if (amdgpu_num_kcq == -1) {
+		return 8;
+	} else if (amdgpu_num_kcq > 8 || amdgpu_num_kcq < 0) {
+		dev_warn(adev->dev, "set kernel compute queue number to 8 due to invalid parameter provided by user\n");
+		return 8;
+	}
+	return amdgpu_num_kcq;
+}

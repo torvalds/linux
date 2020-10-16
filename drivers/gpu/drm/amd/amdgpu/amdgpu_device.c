@@ -1374,13 +1374,6 @@ static int amdgpu_device_check_arguments(struct amdgpu_device *adev)
 
 	amdgpu_gmc_tmz_set(adev);
 
-	if (amdgpu_num_kcq == -1) {
-		amdgpu_num_kcq = 8;
-	} else if (amdgpu_num_kcq > 8 || amdgpu_num_kcq < 0) {
-		amdgpu_num_kcq = 8;
-		dev_warn(adev->dev, "set kernel compute queue number to 8 due to invalid parameter provided by user\n");
-	}
-
 	amdgpu_gmc_noretry_set(adev);
 
 	return 0;

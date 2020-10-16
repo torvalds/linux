@@ -3064,7 +3064,8 @@ static int gfx_v6_0_early_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	adev->gfx.num_gfx_rings = GFX6_NUM_GFX_RINGS;
-	adev->gfx.num_compute_rings = GFX6_NUM_COMPUTE_RINGS;
+	adev->gfx.num_compute_rings = min(amdgpu_gfx_get_num_kcq(adev),
+					  GFX6_NUM_COMPUTE_RINGS);
 	adev->gfx.funcs = &gfx_v6_0_gfx_funcs;
 	adev->gfx.rlc.funcs = &gfx_v6_0_rlc_funcs;
 	gfx_v6_0_set_ring_funcs(adev);
