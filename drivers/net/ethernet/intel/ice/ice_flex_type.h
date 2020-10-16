@@ -298,6 +298,7 @@ struct ice_pkg_enum {
 enum ice_tunnel_type {
 	TNL_VXLAN = 0,
 	TNL_GENEVE,
+	__TNL_TYPE_CNT,
 	TNL_LAST = 0xFF,
 	TNL_ALL = 0xFF,
 };
@@ -311,11 +312,8 @@ struct ice_tunnel_entry {
 	enum ice_tunnel_type type;
 	u16 boost_addr;
 	u16 port;
-	u16 ref;
 	struct ice_boost_tcam_entry *boost_entry;
 	u8 valid;
-	u8 in_use;
-	u8 marked;
 };
 
 #define ICE_TUNNEL_MAX_ENTRIES	16
@@ -323,6 +321,7 @@ struct ice_tunnel_entry {
 struct ice_tunnel_table {
 	struct ice_tunnel_entry tbl[ICE_TUNNEL_MAX_ENTRIES];
 	u16 count;
+	u16 valid_count[__TNL_TYPE_CNT];
 };
 
 struct ice_pkg_es {

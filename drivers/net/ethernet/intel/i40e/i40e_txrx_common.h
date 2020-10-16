@@ -21,9 +21,9 @@ void i40e_release_rx_desc(struct i40e_ring *rx_ring, u32 val);
 #define I40E_XDP_TX		BIT(1)
 #define I40E_XDP_REDIR		BIT(2)
 
-/**
+/*
  * build_ctob - Builds the Tx descriptor (cmd, offset and type) qword
- **/
+ */
 static inline __le64 build_ctob(u32 td_cmd, u32 td_offset, unsigned int size,
 				u32 td_tag)
 {
@@ -37,7 +37,7 @@ static inline __le64 build_ctob(u32 td_cmd, u32 td_offset, unsigned int size,
 /**
  * i40e_update_tx_stats - Update the egress statistics for the Tx ring
  * @tx_ring: Tx ring to update
- * @total_packet: total packets sent
+ * @total_packets: total packets sent
  * @total_bytes: total bytes sent
  **/
 static inline void i40e_update_tx_stats(struct i40e_ring *tx_ring,
@@ -97,19 +97,6 @@ static inline bool i40e_rx_is_programming_status(u64 qword1)
 	 * programming status descriptor.
 	 */
 	return qword1 & I40E_RXD_QW1_LENGTH_SPH_MASK;
-}
-
-/**
- * i40e_inc_ntc: Advance the next_to_clean index
- * @rx_ring: Rx ring
- **/
-static inline void i40e_inc_ntc(struct i40e_ring *rx_ring)
-{
-	u32 ntc = rx_ring->next_to_clean + 1;
-
-	ntc = (ntc < rx_ring->count) ? ntc : 0;
-	rx_ring->next_to_clean = ntc;
-	prefetch(I40E_RX_DESC(rx_ring, ntc));
 }
 
 void i40e_xsk_clean_rx_ring(struct i40e_ring *rx_ring);

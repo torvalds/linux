@@ -358,13 +358,10 @@ static void rtw_ops_bss_info_changed(struct ieee80211_hw *hw,
 	rtw_leave_lps_deep(rtwdev);
 
 	if (changed & BSS_CHANGED_ASSOC) {
-		enum rtw_net_type net_type;
-
+		rtw_vif_assoc_changed(rtwvif, conf);
 		if (conf->assoc) {
 			rtw_coex_connect_notify(rtwdev, COEX_ASSOCIATE_FINISH);
-			net_type = RTW_NET_MGD_LINKED;
 
-			rtwvif->aid = conf->aid;
 			rtw_fw_download_rsvd_page(rtwdev);
 			rtw_send_rsvd_page_h2c(rtwdev);
 			rtw_coex_media_status_notify(rtwdev, conf->assoc);
@@ -372,12 +369,9 @@ static void rtw_ops_bss_info_changed(struct ieee80211_hw *hw,
 				rtw_bf_assoc(rtwdev, vif, conf);
 		} else {
 			rtw_leave_lps(rtwdev);
-			net_type = RTW_NET_NO_LINK;
-			rtwvif->aid = 0;
 			rtw_bf_disassoc(rtwdev, vif, conf);
 		}
 
-		rtwvif->net_type = net_type;
 		config |= PORT_SET_NET_TYPE;
 		config |= PORT_SET_AID;
 	}
@@ -429,56 +423,17 @@ static int rtw_ops_conf_tx(struct ieee80211_hw *hw,
 	return 0;
 }
 
-static u8 rtw_acquire_macid(struct rtw_dev *rtwdev)
-{
-	unsigned long mac_id;
-
-	mac_id = find_first_zero_bit(rtwdev->mac_id_map, RTW_MAX_MAC_ID_NUM);
-	if (mac_id < RTW_MAX_MAC_ID_NUM)
-		set_bit(mac_id, rtwdev->mac_id_map);
-
-	return mac_id;
-}
-
-static void rtw_release_macid(struct rtw_dev *rtwdev, u8 mac_id)
-{
-	clear_bit(mac_id, rtwdev->mac_id_map);
-}
-
 static int rtw_ops_sta_add(struct ieee80211_hw *hw,
 			   struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta)
 {
 	struct rtw_dev *rtwdev = hw->priv;
-	struct rtw_sta_info *si = (struct rtw_sta_info *)sta->drv_priv;
-	int i;
 	int ret = 0;
 
 	mutex_lock(&rtwdev->mutex);
-
-	si->mac_id = rtw_acquire_macid(rtwdev);
-	if (si->mac_id >= RTW_MAX_MAC_ID_NUM) {
-		ret = -ENOSPC;
-		goto out;
-	}
-
-	si->sta = sta;
-	si->vif = vif;
-	si->init_ra_lv = 1;
-	ewma_rssi_init(&si->avg_rssi);
-	for (i = 0; i < ARRAY_SIZE(sta->txq); i++)
-		rtw_txq_init(rtwdev, sta->txq[i]);
-
-	rtw_update_sta_info(rtwdev, si);
-	rtw_fw_media_status_report(rtwdev, si->mac_id, true);
-
-	rtwdev->sta_cnt++;
-
-	rtw_info(rtwdev, "sta %pM joined with macid %d\n",
-		 sta->addr, si->mac_id);
-
-out:
+	ret = rtw_sta_add(rtwdev, sta, vif);
 	mutex_unlock(&rtwdev->mutex);
+
 	return ret;
 }
 
@@ -487,25 +442,11 @@ static int rtw_ops_sta_remove(struct ieee80211_hw *hw,
 			      struct ieee80211_sta *sta)
 {
 	struct rtw_dev *rtwdev = hw->priv;
-	struct rtw_sta_info *si = (struct rtw_sta_info *)sta->drv_priv;
-	int i;
 
 	mutex_lock(&rtwdev->mutex);
-
-	rtw_release_macid(rtwdev, si->mac_id);
-	rtw_fw_media_status_report(rtwdev, si->mac_id, false);
-
-	for (i = 0; i < ARRAY_SIZE(sta->txq); i++)
-		rtw_txq_cleanup(rtwdev, sta->txq[i]);
-
-	kfree(si->mask);
-
-	rtwdev->sta_cnt--;
-
-	rtw_info(rtwdev, "sta %pM with macid %d left\n",
-		 sta->addr, si->mac_id);
-
+	rtw_sta_remove(rtwdev, sta, true);
 	mutex_unlock(&rtwdev->mutex);
+
 	return 0;
 }
 
@@ -845,6 +786,17 @@ static void rtw_ops_set_wakeup(struct ieee80211_hw *hw, bool enabled)
 }
 #endif
 
+static void rtw_reconfig_complete(struct ieee80211_hw *hw,
+				  enum ieee80211_reconfig_type reconfig_type)
+{
+	struct rtw_dev *rtwdev = hw->priv;
+
+	mutex_lock(&rtwdev->mutex);
+	if (reconfig_type == IEEE80211_RECONFIG_TYPE_RESTART)
+		clear_bit(RTW_FLAG_RESTARTING, rtwdev->flags);
+	mutex_unlock(&rtwdev->mutex);
+}
+
 const struct ieee80211_ops rtw_ops = {
 	.tx			= rtw_ops_tx,
 	.wake_tx_queue		= rtw_ops_wake_tx_queue,
@@ -871,6 +823,7 @@ const struct ieee80211_ops rtw_ops = {
 	.set_bitrate_mask	= rtw_ops_set_bitrate_mask,
 	.set_antenna		= rtw_ops_set_antenna,
 	.get_antenna		= rtw_ops_get_antenna,
+	.reconfig_complete	= rtw_reconfig_complete,
 #ifdef CONFIG_PM
 	.suspend		= rtw_ops_suspend,
 	.resume			= rtw_ops_resume,

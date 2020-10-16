@@ -714,6 +714,7 @@ EXPORT_SYMBOL_GPL(ccw_device_get_schid);
  * ccw_device_pnso() - Perform Network-Subchannel Operation
  * @cdev:		device on which PNSO is performed
  * @pnso_area:		request and response block for the operation
+ * @oc:			Operation Code
  * @resume_token:	resume token for multiblock response
  * @cnc:		Boolean change-notification control
  *
@@ -722,16 +723,100 @@ EXPORT_SYMBOL_GPL(ccw_device_get_schid);
  * Returns 0 on success.
  */
 int ccw_device_pnso(struct ccw_device *cdev,
-		    struct chsc_pnso_area *pnso_area,
-		    struct chsc_pnso_resume_token resume_token,
-		    int cnc)
+		    struct chsc_pnso_area *pnso_area, u8 oc,
+		    struct chsc_pnso_resume_token resume_token, int cnc)
 {
 	struct subchannel_id schid;
 
 	ccw_device_get_schid(cdev, &schid);
-	return chsc_pnso(schid, pnso_area, resume_token, cnc);
+	return chsc_pnso(schid, pnso_area, oc, resume_token, cnc);
 }
 EXPORT_SYMBOL_GPL(ccw_device_pnso);
+
+/**
+ * ccw_device_get_cssid() - obtain Channel Subsystem ID
+ * @cdev: device to obtain the CSSID for
+ * @cssid: The resulting Channel Subsystem ID
+ */
+int ccw_device_get_cssid(struct ccw_device *cdev, u8 *cssid)
+{
+	struct device *sch_dev = cdev->dev.parent;
+	struct channel_subsystem *css = to_css(sch_dev->parent);
+
+	if (css->id_valid)
+		*cssid = css->cssid;
+	return css->id_valid ? 0 : -ENODEV;
+}
+EXPORT_SYMBOL_GPL(ccw_device_get_cssid);
+
+/**
+ * ccw_device_get_iid() - obtain MIF-image ID
+ * @cdev: device to obtain the MIF-image ID for
+ * @iid: The resulting MIF-image ID
+ */
+int ccw_device_get_iid(struct ccw_device *cdev, u8 *iid)
+{
+	struct device *sch_dev = cdev->dev.parent;
+	struct channel_subsystem *css = to_css(sch_dev->parent);
+
+	if (css->id_valid)
+		*iid = css->iid;
+	return css->id_valid ? 0 : -ENODEV;
+}
+EXPORT_SYMBOL_GPL(ccw_device_get_iid);
+
+/**
+ * ccw_device_get_chpid() - obtain Channel Path ID
+ * @cdev: device to obtain the Channel Path ID for
+ * @chp_idx: Index of the channel path
+ * @chpid: The resulting Channel Path ID
+ */
+int ccw_device_get_chpid(struct ccw_device *cdev, int chp_idx, u8 *chpid)
+{
+	struct subchannel *sch = to_subchannel(cdev->dev.parent);
+	int mask;
+
+	if ((chp_idx < 0) || (chp_idx > 7))
+		return -EINVAL;
+	mask = 0x80 >> chp_idx;
+	if (!(sch->schib.pmcw.pim & mask))
+		return -ENODEV;
+
+	*chpid = sch->schib.pmcw.chpid[chp_idx];
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ccw_device_get_chpid);
+
+/**
+ * ccw_device_get_chid() - obtain Channel ID associated with specified CHPID
+ * @cdev: device to obtain the Channel ID for
+ * @chp_idx: Index of the channel path
+ * @chid: The resulting Channel ID
+ */
+int ccw_device_get_chid(struct ccw_device *cdev, int chp_idx, u16 *chid)
+{
+	struct chp_id cssid_chpid;
+	struct channel_path *chp;
+	int rc;
+
+	chp_id_init(&cssid_chpid);
+	rc = ccw_device_get_chpid(cdev, chp_idx, &cssid_chpid.id);
+	if (rc)
+		return rc;
+	chp = chpid_to_chp(cssid_chpid);
+	if (!chp)
+		return -ENODEV;
+
+	mutex_lock(&chp->lock);
+	if (chp->desc_fmt1.flags & 0x10)
+		*chid = chp->desc_fmt1.chid;
+	else
+		rc = -ENODEV;
+	mutex_unlock(&chp->lock);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(ccw_device_get_chid);
 
 /*
  * Allocate zeroed dma coherent 31 bit addressable memory using

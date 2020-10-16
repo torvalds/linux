@@ -1,21 +1,22 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <stdio.h>
 #include <assert.h>
-#include <linux/bpf.h>
 #include <unistd.h>
 #include <bpf/bpf.h>
-#include "bpf_load.h"
+#include <bpf/libbpf.h>
 #include <sys/socket.h>
-#include <string.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
 int main(int ac, char **argv)
 {
-	int serverfd, serverconnfd, clientfd;
-	socklen_t sockaddr_len;
-	struct sockaddr serv_addr, mapped_addr, tmp_addr;
 	struct sockaddr_in *serv_addr_in, *mapped_addr_in, *tmp_addr_in;
+	struct sockaddr serv_addr, mapped_addr, tmp_addr;
+	int serverfd, serverconnfd, clientfd, map_fd;
+	struct bpf_link *link = NULL;
+	struct bpf_program *prog;
+	struct bpf_object *obj;
+	socklen_t sockaddr_len;
 	char filename[256];
 	char *ip;
 
@@ -24,10 +25,35 @@ int main(int ac, char **argv)
 	tmp_addr_in = (struct sockaddr_in *)&tmp_addr;
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
+	obj = bpf_object__open_file(filename, NULL);
+	if (libbpf_get_error(obj)) {
+		fprintf(stderr, "ERROR: opening BPF object file failed\n");
+		return 0;
+	}
 
-	if (load_bpf_file(filename)) {
-		printf("%s", bpf_log_buf);
-		return 1;
+	prog = bpf_object__find_program_by_name(obj, "bpf_prog1");
+	if (libbpf_get_error(prog)) {
+		fprintf(stderr, "ERROR: finding a prog in obj file failed\n");
+		goto cleanup;
+	}
+
+	/* load BPF program */
+	if (bpf_object__load(obj)) {
+		fprintf(stderr, "ERROR: loading BPF object file failed\n");
+		goto cleanup;
+	}
+
+	map_fd = bpf_object__find_map_fd_by_name(obj, "dnat_map");
+	if (map_fd < 0) {
+		fprintf(stderr, "ERROR: finding a map in obj file failed\n");
+		goto cleanup;
+	}
+
+	link = bpf_program__attach(prog);
+	if (libbpf_get_error(link)) {
+		fprintf(stderr, "ERROR: bpf_program__attach failed\n");
+		link = NULL;
+		goto cleanup;
 	}
 
 	assert((serverfd = socket(AF_INET, SOCK_STREAM, 0)) > 0);
@@ -51,7 +77,7 @@ int main(int ac, char **argv)
 	mapped_addr_in->sin_port = htons(5555);
 	mapped_addr_in->sin_addr.s_addr = inet_addr("255.255.255.255");
 
-	assert(!bpf_map_update_elem(map_fd[0], &mapped_addr, &serv_addr, BPF_ANY));
+	assert(!bpf_map_update_elem(map_fd, &mapped_addr, &serv_addr, BPF_ANY));
 
 	assert(listen(serverfd, 5) == 0);
 
@@ -75,5 +101,8 @@ int main(int ac, char **argv)
 	/* Is the server's getsockname = the socket getpeername */
 	assert(memcmp(&serv_addr, &tmp_addr, sizeof(struct sockaddr_in)) == 0);
 
+cleanup:
+	bpf_link__destroy(link);
+	bpf_object__close(obj);
 	return 0;
 }

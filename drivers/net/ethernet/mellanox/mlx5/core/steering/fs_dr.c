@@ -487,7 +487,8 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 	rule = mlx5dr_rule_create(group->fs_dr_matcher.dr_matcher,
 				  &params,
 				  num_actions,
-				  actions);
+				  actions,
+				  fte->flow_context.flow_source);
 	if (!rule) {
 		err = -EINVAL;
 		goto free_actions;

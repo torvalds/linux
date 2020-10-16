@@ -18,17 +18,9 @@ struct linkmodes_reply_data {
 #define LINKMODES_REPDATA(__reply_base) \
 	container_of(__reply_base, struct linkmodes_reply_data, base)
 
-static const struct nla_policy
-linkmodes_get_policy[ETHTOOL_A_LINKMODES_MAX + 1] = {
-	[ETHTOOL_A_LINKMODES_UNSPEC]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_LINKMODES_HEADER]		= { .type = NLA_NESTED },
-	[ETHTOOL_A_LINKMODES_AUTONEG]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_LINKMODES_OURS]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_LINKMODES_PEER]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_LINKMODES_SPEED]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_LINKMODES_DUPLEX]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_LINKMODES_MASTER_SLAVE_CFG]	= { .type = NLA_REJECT },
-	[ETHTOOL_A_LINKMODES_MASTER_SLAVE_STATE]	= { .type = NLA_REJECT },
+const struct nla_policy ethnl_linkmodes_get_policy[] = {
+	[ETHTOOL_A_LINKMODES_HEADER]		=
+		NLA_POLICY_NESTED(ethnl_header_policy),
 };
 
 static int linkmodes_prepare_data(const struct ethnl_req_info *req_base,
@@ -148,10 +140,8 @@ const struct ethnl_request_ops ethnl_linkmodes_request_ops = {
 	.request_cmd		= ETHTOOL_MSG_LINKMODES_GET,
 	.reply_cmd		= ETHTOOL_MSG_LINKMODES_GET_REPLY,
 	.hdr_attr		= ETHTOOL_A_LINKMODES_HEADER,
-	.max_attr		= ETHTOOL_A_LINKMODES_MAX,
 	.req_info_size		= sizeof(struct linkmodes_req_info),
 	.reply_data_size	= sizeof(struct linkmodes_reply_data),
-	.request_policy		= linkmodes_get_policy,
 
 	.prepare_data		= linkmodes_prepare_data,
 	.reply_size		= linkmodes_reply_size,
@@ -272,19 +262,18 @@ static const struct link_mode_info link_mode_params[] = {
 	__DEFINE_LINK_MODE_PARAMS(400000, LR4_ER4_FR4, Full),
 	__DEFINE_LINK_MODE_PARAMS(400000, DR4, Full),
 	__DEFINE_LINK_MODE_PARAMS(400000, CR4, Full),
+	__DEFINE_LINK_MODE_PARAMS(100, FX, Half),
+	__DEFINE_LINK_MODE_PARAMS(100, FX, Full),
 };
 
-static const struct nla_policy
-linkmodes_set_policy[ETHTOOL_A_LINKMODES_MAX + 1] = {
-	[ETHTOOL_A_LINKMODES_UNSPEC]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_LINKMODES_HEADER]		= { .type = NLA_NESTED },
+const struct nla_policy ethnl_linkmodes_set_policy[] = {
+	[ETHTOOL_A_LINKMODES_HEADER]		=
+		NLA_POLICY_NESTED(ethnl_header_policy),
 	[ETHTOOL_A_LINKMODES_AUTONEG]		= { .type = NLA_U8 },
 	[ETHTOOL_A_LINKMODES_OURS]		= { .type = NLA_NESTED },
-	[ETHTOOL_A_LINKMODES_PEER]		= { .type = NLA_REJECT },
 	[ETHTOOL_A_LINKMODES_SPEED]		= { .type = NLA_U32 },
 	[ETHTOOL_A_LINKMODES_DUPLEX]		= { .type = NLA_U8 },
 	[ETHTOOL_A_LINKMODES_MASTER_SLAVE_CFG]	= { .type = NLA_U8 },
-	[ETHTOOL_A_LINKMODES_MASTER_SLAVE_STATE]	= { .type = NLA_REJECT },
 };
 
 /* Set advertised link modes to all supported modes matching requested speed
@@ -390,18 +379,13 @@ static int ethnl_update_linkmodes(struct genl_info *info, struct nlattr **tb,
 
 int ethnl_set_linkmodes(struct sk_buff *skb, struct genl_info *info)
 {
-	struct nlattr *tb[ETHTOOL_A_LINKMODES_MAX + 1];
 	struct ethtool_link_ksettings ksettings = {};
 	struct ethnl_req_info req_info = {};
+	struct nlattr **tb = info->attrs;
 	struct net_device *dev;
 	bool mod = false;
 	int ret;
 
-	ret = nlmsg_parse(info->nlhdr, GENL_HDRLEN, tb,
-			  ETHTOOL_A_LINKMODES_MAX, linkmodes_set_policy,
-			  info->extack);
-	if (ret < 0)
-		return ret;
 	ret = ethnl_parse_header_dev_get(&req_info,
 					 tb[ETHTOOL_A_LINKMODES_HEADER],
 					 genl_info_net(info), info->extack,

@@ -59,7 +59,7 @@ struct nvram_parser {
 	bool boardrev_found;
 };
 
-/**
+/*
  * is_nvram_char() - check if char is a valid one for NVRAM entry
  *
  * It accepts all printable ASCII chars except for '#' which opens a comment.

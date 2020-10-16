@@ -1028,14 +1028,12 @@ static int wsm_find_complete_indication(struct cw1200_common *priv,
 static int wsm_ba_timeout_indication(struct cw1200_common *priv,
 				     struct wsm_buf *buf)
 {
-	u32 dummy;
 	u8 tid;
-	u8 dummy2;
 	u8 addr[ETH_ALEN];
 
-	dummy = WSM_GET32(buf);
+	WSM_GET32(buf);
 	tid = WSM_GET8(buf);
-	dummy2 = WSM_GET8(buf);
+	WSM_GET8(buf);
 	WSM_GET(buf, addr, ETH_ALEN);
 
 	pr_info("BlockACK timeout, tid %d, addr %pM\n",

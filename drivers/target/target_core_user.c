@@ -439,7 +439,7 @@ static int tcmu_genl_set_features(struct sk_buff *skb, struct genl_info *info)
 	return 0;
 }
 
-static const struct genl_ops tcmu_genl_ops[] = {
+static const struct genl_small_ops tcmu_genl_ops[] = {
 	{
 		.cmd	= TCMU_CMD_SET_FEATURES,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
@@ -477,8 +477,8 @@ static struct genl_family tcmu_genl_family __ro_after_init = {
 	.mcgrps = tcmu_mcgrps,
 	.n_mcgrps = ARRAY_SIZE(tcmu_mcgrps),
 	.netnsok = true,
-	.ops = tcmu_genl_ops,
-	.n_ops = ARRAY_SIZE(tcmu_genl_ops),
+	.small_ops = tcmu_genl_ops,
+	.n_small_ops = ARRAY_SIZE(tcmu_genl_ops),
 };
 
 #define tcmu_cmd_set_dbi_cur(cmd, index) ((cmd)->dbi_cur = (index))

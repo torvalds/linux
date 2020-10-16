@@ -12,6 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
+#include <linux/net_tstamp.h>
 #include <linux/phy.h>
 #include <linux/phylink.h>
 #include <net/flow_offload.h>
@@ -461,8 +462,12 @@
 #define     MVPP22_CTRL4_DP_CLK_SEL		BIT(5)
 #define     MVPP22_CTRL4_SYNC_BYPASS_DIS	BIT(6)
 #define     MVPP22_CTRL4_QSGMII_BYPASS_ACTIVE	BIT(7)
+#define MVPP22_GMAC_INT_SUM_STAT		0xa0
+#define	    MVPP22_GMAC_INT_SUM_STAT_INTERNAL	BIT(1)
+#define	    MVPP22_GMAC_INT_SUM_STAT_PTP	BIT(2)
 #define MVPP22_GMAC_INT_SUM_MASK		0xa4
 #define     MVPP22_GMAC_INT_SUM_MASK_LINK_STAT	BIT(1)
+#define	    MVPP22_GMAC_INT_SUM_MASK_PTP	BIT(2)
 
 /* Per-port XGMAC registers. PPv2.2 only, only for GOP port 0,
  * relative to port->base.
@@ -488,9 +493,13 @@
 #define     MVPP22_XLG_CTRL3_MACMODESELECT_MASK	(7 << 13)
 #define     MVPP22_XLG_CTRL3_MACMODESELECT_GMAC	(0 << 13)
 #define     MVPP22_XLG_CTRL3_MACMODESELECT_10G	(1 << 13)
+#define MVPP22_XLG_EXT_INT_STAT			0x158
+#define     MVPP22_XLG_EXT_INT_STAT_XLG		BIT(1)
+#define     MVPP22_XLG_EXT_INT_STAT_PTP		BIT(7)
 #define MVPP22_XLG_EXT_INT_MASK			0x15c
 #define     MVPP22_XLG_EXT_INT_MASK_XLG		BIT(1)
 #define     MVPP22_XLG_EXT_INT_MASK_GIG		BIT(2)
+#define     MVPP22_XLG_EXT_INT_MASK_PTP		BIT(7)
 #define MVPP22_XLG_CTRL4_REG			0x184
 #define     MVPP22_XLG_CTRL4_FWD_FC		BIT(5)
 #define     MVPP22_XLG_CTRL4_FWD_PFC		BIT(6)
@@ -500,6 +509,70 @@
 /* SMI registers. PPv2.2 only, relative to priv->iface_base. */
 #define MVPP22_SMI_MISC_CFG_REG			0x1204
 #define     MVPP22_SMI_POLLING_EN		BIT(10)
+
+/* TAI registers, PPv2.2 only, relative to priv->iface_base */
+#define MVPP22_TAI_INT_CAUSE			0x1400
+#define MVPP22_TAI_INT_MASK			0x1404
+#define MVPP22_TAI_CR0				0x1408
+#define MVPP22_TAI_CR1				0x140c
+#define MVPP22_TAI_TCFCR0			0x1410
+#define MVPP22_TAI_TCFCR1			0x1414
+#define MVPP22_TAI_TCFCR2			0x1418
+#define MVPP22_TAI_FATWR			0x141c
+#define MVPP22_TAI_TOD_STEP_NANO_CR		0x1420
+#define MVPP22_TAI_TOD_STEP_FRAC_HIGH		0x1424
+#define MVPP22_TAI_TOD_STEP_FRAC_LOW		0x1428
+#define MVPP22_TAI_TAPDC_HIGH			0x142c
+#define MVPP22_TAI_TAPDC_LOW			0x1430
+#define MVPP22_TAI_TGTOD_SEC_HIGH		0x1434
+#define MVPP22_TAI_TGTOD_SEC_MED		0x1438
+#define MVPP22_TAI_TGTOD_SEC_LOW		0x143c
+#define MVPP22_TAI_TGTOD_NANO_HIGH		0x1440
+#define MVPP22_TAI_TGTOD_NANO_LOW		0x1444
+#define MVPP22_TAI_TGTOD_FRAC_HIGH		0x1448
+#define MVPP22_TAI_TGTOD_FRAC_LOW		0x144c
+#define MVPP22_TAI_TLV_SEC_HIGH			0x1450
+#define MVPP22_TAI_TLV_SEC_MED			0x1454
+#define MVPP22_TAI_TLV_SEC_LOW			0x1458
+#define MVPP22_TAI_TLV_NANO_HIGH		0x145c
+#define MVPP22_TAI_TLV_NANO_LOW			0x1460
+#define MVPP22_TAI_TLV_FRAC_HIGH		0x1464
+#define MVPP22_TAI_TLV_FRAC_LOW			0x1468
+#define MVPP22_TAI_TCV0_SEC_HIGH		0x146c
+#define MVPP22_TAI_TCV0_SEC_MED			0x1470
+#define MVPP22_TAI_TCV0_SEC_LOW			0x1474
+#define MVPP22_TAI_TCV0_NANO_HIGH		0x1478
+#define MVPP22_TAI_TCV0_NANO_LOW		0x147c
+#define MVPP22_TAI_TCV0_FRAC_HIGH		0x1480
+#define MVPP22_TAI_TCV0_FRAC_LOW		0x1484
+#define MVPP22_TAI_TCV1_SEC_HIGH		0x1488
+#define MVPP22_TAI_TCV1_SEC_MED			0x148c
+#define MVPP22_TAI_TCV1_SEC_LOW			0x1490
+#define MVPP22_TAI_TCV1_NANO_HIGH		0x1494
+#define MVPP22_TAI_TCV1_NANO_LOW		0x1498
+#define MVPP22_TAI_TCV1_FRAC_HIGH		0x149c
+#define MVPP22_TAI_TCV1_FRAC_LOW		0x14a0
+#define MVPP22_TAI_TCSR				0x14a4
+#define MVPP22_TAI_TUC_LSB			0x14a8
+#define MVPP22_TAI_GFM_SEC_HIGH			0x14ac
+#define MVPP22_TAI_GFM_SEC_MED			0x14b0
+#define MVPP22_TAI_GFM_SEC_LOW			0x14b4
+#define MVPP22_TAI_GFM_NANO_HIGH		0x14b8
+#define MVPP22_TAI_GFM_NANO_LOW			0x14bc
+#define MVPP22_TAI_GFM_FRAC_HIGH		0x14c0
+#define MVPP22_TAI_GFM_FRAC_LOW			0x14c4
+#define MVPP22_TAI_PCLK_DA_HIGH			0x14c8
+#define MVPP22_TAI_PCLK_DA_LOW			0x14cc
+#define MVPP22_TAI_CTCR				0x14d0
+#define MVPP22_TAI_PCLK_CCC_HIGH		0x14d4
+#define MVPP22_TAI_PCLK_CCC_LOW			0x14d8
+#define MVPP22_TAI_DTC_HIGH			0x14dc
+#define MVPP22_TAI_DTC_LOW			0x14e0
+#define MVPP22_TAI_CCC_HIGH			0x14e4
+#define MVPP22_TAI_CCC_LOW			0x14e8
+#define MVPP22_TAI_ICICE			0x14f4
+#define MVPP22_TAI_ICICC_LOW			0x14f8
+#define MVPP22_TAI_TUC_MSB			0x14fc
 
 #define MVPP22_GMAC_BASE(port)		(0x7000 + (port) * 0x1000 + 0xe00)
 
@@ -526,6 +599,46 @@
 #define     MVPP22_XPCS_CFG0_RESET_DIS		BIT(0)
 #define     MVPP22_XPCS_CFG0_PCS_MODE(n)	((n) << 3)
 #define     MVPP22_XPCS_CFG0_ACTIVE_LANE(n)	((n) << 5)
+
+/* PTP registers. PPv2.2 only */
+#define MVPP22_PTP_BASE(port)			(0x7800 + (port * 0x1000))
+#define MVPP22_PTP_INT_CAUSE			0x00
+#define     MVPP22_PTP_INT_CAUSE_QUEUE1		BIT(6)
+#define     MVPP22_PTP_INT_CAUSE_QUEUE0		BIT(5)
+#define MVPP22_PTP_INT_MASK			0x04
+#define     MVPP22_PTP_INT_MASK_QUEUE1		BIT(6)
+#define     MVPP22_PTP_INT_MASK_QUEUE0		BIT(5)
+#define MVPP22_PTP_GCR				0x08
+#define     MVPP22_PTP_GCR_RX_RESET		BIT(13)
+#define     MVPP22_PTP_GCR_TX_RESET		BIT(1)
+#define     MVPP22_PTP_GCR_TSU_ENABLE		BIT(0)
+#define MVPP22_PTP_TX_Q0_R0			0x0c
+#define MVPP22_PTP_TX_Q0_R1			0x10
+#define MVPP22_PTP_TX_Q0_R2			0x14
+#define MVPP22_PTP_TX_Q1_R0			0x18
+#define MVPP22_PTP_TX_Q1_R1			0x1c
+#define MVPP22_PTP_TX_Q1_R2			0x20
+#define MVPP22_PTP_TPCR				0x24
+#define MVPP22_PTP_V1PCR			0x28
+#define MVPP22_PTP_V2PCR			0x2c
+#define MVPP22_PTP_Y1731PCR			0x30
+#define MVPP22_PTP_NTPTSPCR			0x34
+#define MVPP22_PTP_NTPRXPCR			0x38
+#define MVPP22_PTP_NTPTXPCR			0x3c
+#define MVPP22_PTP_WAMPPCR			0x40
+#define MVPP22_PTP_NAPCR			0x44
+#define MVPP22_PTP_FAPCR			0x48
+#define MVPP22_PTP_CAPCR			0x50
+#define MVPP22_PTP_ATAPCR			0x54
+#define MVPP22_PTP_ACTAPCR			0x58
+#define MVPP22_PTP_CATAPCR			0x5c
+#define MVPP22_PTP_CACTAPCR			0x60
+#define MVPP22_PTP_AITAPCR			0x64
+#define MVPP22_PTP_CAITAPCR			0x68
+#define MVPP22_PTP_CITAPCR			0x6c
+#define MVPP22_PTP_NTP_OFF_HIGH			0x70
+#define MVPP22_PTP_NTP_OFF_LOW			0x74
+#define MVPP22_PTP_TX_PIPE_STATUS_DELAY		0x78
 
 /* System controller registers. Accessed through a regmap. */
 #define GENCONF_SOFT_RESET1				0x1108
@@ -692,6 +805,43 @@ enum mvpp2_prs_l3_cast {
 	MVPP2_PRS_L3_BROAD_CAST
 };
 
+/* PTP descriptor constants. The low bits of the descriptor are stored
+ * separately from the high bits.
+ */
+#define MVPP22_PTP_DESC_MASK_LOW	0xfff
+
+/* PTPAction */
+enum mvpp22_ptp_action {
+	MVPP22_PTP_ACTION_NONE = 0,
+	MVPP22_PTP_ACTION_FORWARD = 1,
+	MVPP22_PTP_ACTION_CAPTURE = 3,
+	/* The following have not been verified */
+	MVPP22_PTP_ACTION_ADDTIME = 4,
+	MVPP22_PTP_ACTION_ADDCORRECTEDTIME = 5,
+	MVPP22_PTP_ACTION_CAPTUREADDTIME = 6,
+	MVPP22_PTP_ACTION_CAPTUREADDCORRECTEDTIME = 7,
+	MVPP22_PTP_ACTION_ADDINGRESSTIME = 8,
+	MVPP22_PTP_ACTION_CAPTUREADDINGRESSTIME = 9,
+	MVPP22_PTP_ACTION_CAPTUREINGRESSTIME = 10,
+};
+
+/* PTPPacketFormat */
+enum mvpp22_ptp_packet_format {
+	MVPP22_PTP_PKT_FMT_PTPV2 = 0,
+	MVPP22_PTP_PKT_FMT_PTPV1 = 1,
+	MVPP22_PTP_PKT_FMT_Y1731 = 2,
+	MVPP22_PTP_PKT_FMT_NTPTS = 3,
+	MVPP22_PTP_PKT_FMT_NTPRX = 4,
+	MVPP22_PTP_PKT_FMT_NTPTX = 5,
+	MVPP22_PTP_PKT_FMT_TWAMP = 6,
+};
+
+#define MVPP22_PTP_ACTION(x)		(((x) & 15) << 0)
+#define MVPP22_PTP_PACKETFORMAT(x)	(((x) & 7) << 4)
+#define MVPP22_PTP_MACTIMESTAMPINGEN	BIT(11)
+#define MVPP22_PTP_TIMESTAMPENTRYID(x)	(((x) & 31) << 12)
+#define MVPP22_PTP_TIMESTAMPQUEUESELECT	BIT(18)
+
 /* BM constants */
 #define MVPP2_BM_JUMBO_BUF_NUM		512
 #define MVPP2_BM_LONG_BUF_NUM		1024
@@ -759,6 +909,8 @@ enum mvpp2_prs_l3_cast {
 
 #define MVPP2_DESC_DMA_MASK	DMA_BIT_MASK(40)
 
+struct mvpp2_tai;
+
 /* Definitions */
 struct mvpp2_dbgfs_entries;
 
@@ -794,6 +946,7 @@ struct mvpp2 {
 	/* List of pointers to port structures */
 	int port_count;
 	struct mvpp2_port *port_list[MVPP2_MAX_PORTS];
+	struct mvpp2_tai *tai;
 
 	/* Number of Tx threads used */
 	unsigned int nthreads;
@@ -907,6 +1060,11 @@ struct mvpp2_ethtool_fs {
 	struct ethtool_rxnfc rxnfc;
 };
 
+struct mvpp2_hwtstamp_queue {
+	struct sk_buff *skb[32];
+	u8 next;
+};
+
 struct mvpp2_port {
 	u8 id;
 
@@ -915,7 +1073,7 @@ struct mvpp2_port {
 	 */
 	int gop_id;
 
-	int link_irq;
+	int port_irq;
 
 	struct mvpp2 *priv;
 
@@ -967,6 +1125,7 @@ struct mvpp2_port {
 	phy_interface_t phy_interface;
 	struct phylink *phylink;
 	struct phylink_config phylink_config;
+	struct phylink_pcs phylink_pcs;
 	struct phy *comphy;
 
 	struct mvpp2_bm_pool *pool_long;
@@ -989,6 +1148,11 @@ struct mvpp2_port {
 	 * them from 0
 	 */
 	int rss_ctx[MVPP22_N_RSS_TABLES];
+
+	bool hwtstamp;
+	bool rx_hwtstamp;
+	enum hwtstamp_tx_types tx_hwtstamp_type;
+	struct mvpp2_hwtstamp_queue tx_hwtstamp_queue[2];
 };
 
 /* The mvpp2_tx_desc and mvpp2_rx_desc structures describe the
@@ -1057,7 +1221,8 @@ struct mvpp22_tx_desc {
 	u8  packet_offset;
 	u8  phys_txq;
 	__le16 data_size;
-	__le64 reserved1;
+	__le32 ptp_descriptor;
+	__le32 reserved2;
 	__le64 buf_dma_addr_ptp;
 	__le64 buf_cookie_misc;
 };
@@ -1068,7 +1233,7 @@ struct mvpp22_rx_desc {
 	__le16 reserved1;
 	__le16 data_size;
 	__le32 reserved2;
-	__le32 reserved3;
+	__le32 timestamp;
 	__le64 buf_dma_addr_key_hash;
 	__le64 buf_cookie_misc;
 };
@@ -1248,4 +1413,36 @@ void mvpp2_dbgfs_init(struct mvpp2 *priv, const char *name);
 
 void mvpp2_dbgfs_cleanup(struct mvpp2 *priv);
 
+#ifdef CONFIG_MVPP2_PTP
+int mvpp22_tai_probe(struct device *dev, struct mvpp2 *priv);
+void mvpp22_tai_tstamp(struct mvpp2_tai *tai, u32 tstamp,
+		       struct skb_shared_hwtstamps *hwtstamp);
+void mvpp22_tai_start(struct mvpp2_tai *tai);
+void mvpp22_tai_stop(struct mvpp2_tai *tai);
+int mvpp22_tai_ptp_clock_index(struct mvpp2_tai *tai);
+#else
+static inline int mvpp22_tai_probe(struct device *dev, struct mvpp2 *priv)
+{
+	return 0;
+}
+static inline void mvpp22_tai_tstamp(struct mvpp2_tai *tai, u32 tstamp,
+				     struct skb_shared_hwtstamps *hwtstamp)
+{
+}
+static inline void mvpp22_tai_start(struct mvpp2_tai *tai)
+{
+}
+static inline void mvpp22_tai_stop(struct mvpp2_tai *tai)
+{
+}
+static inline int mvpp22_tai_ptp_clock_index(struct mvpp2_tai *tai)
+{
+	return -1;
+}
+#endif
+
+static inline bool mvpp22_rx_hwtstamping(struct mvpp2_port *port)
+{
+	return IS_ENABLED(CONFIG_MVPP2_PTP) && port->rx_hwtstamp;
+}
 #endif

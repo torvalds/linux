@@ -2019,8 +2019,8 @@ static void ath10k_mac_vif_ap_csa_count_down(struct ath10k_vif *arvif)
 	if (!arvif->is_up)
 		return;
 
-	if (!ieee80211_csa_is_complete(vif)) {
-		ieee80211_csa_update_counter(vif);
+	if (!ieee80211_beacon_cntdwn_is_complete(vif)) {
+		ieee80211_beacon_update_cntdwn(vif);
 
 		ret = ath10k_mac_setup_bcn_tmpl(arvif);
 		if (ret)
@@ -2468,17 +2468,17 @@ ath10k_peer_assoc_h_vht_limit(u16 tx_mcs_set,
 			idx_limit = -1;
 
 		switch (idx_limit) {
-		case 0: /* fall through */
-		case 1: /* fall through */
-		case 2: /* fall through */
-		case 3: /* fall through */
-		case 4: /* fall through */
-		case 5: /* fall through */
-		case 6: /* fall through */
+		case 0:
+		case 1:
+		case 2:
+		case 3:
+		case 4:
+		case 5:
+		case 6:
 		default:
 			/* see ath10k_mac_can_set_bitrate_mask() */
 			WARN_ON(1);
-			/* fall through */
+			fallthrough;
 		case -1:
 			mcs = IEEE80211_VHT_MCS_NOT_SUPPORTED;
 			break;
@@ -3013,6 +3013,69 @@ static void ath10k_bss_disassoc(struct ieee80211_hw *hw,
 	cancel_delayed_work_sync(&arvif->connection_loss_work);
 }
 
+static int ath10k_new_peer_tid_config(struct ath10k *ar,
+				      struct ieee80211_sta *sta,
+				      struct ath10k_vif *arvif)
+{
+	struct wmi_per_peer_per_tid_cfg_arg arg = {};
+	struct ath10k_sta *arsta = (struct ath10k_sta *)sta->drv_priv;
+	bool config_apply;
+	int ret, i;
+
+	for (i = 0; i < ATH10K_TID_MAX; i++) {
+		config_apply = false;
+		if (arvif->retry_long[i] || arvif->ampdu[i] ||
+		    arvif->rate_ctrl[i] || arvif->rtscts[i]) {
+			config_apply = true;
+			arg.tid = i;
+			arg.vdev_id = arvif->vdev_id;
+			arg.retry_count = arvif->retry_long[i];
+			arg.aggr_control = arvif->ampdu[i];
+			arg.rate_ctrl = arvif->rate_ctrl[i];
+			arg.rcode_flags = arvif->rate_code[i];
+
+			if (arvif->rtscts[i])
+				arg.ext_tid_cfg_bitmap =
+					WMI_EXT_TID_RTS_CTS_CONFIG;
+			else
+				arg.ext_tid_cfg_bitmap = 0;
+
+			arg.rtscts_ctrl = arvif->rtscts[i];
+		}
+
+		if (arvif->noack[i]) {
+			arg.ack_policy = arvif->noack[i];
+			arg.rate_ctrl = WMI_TID_CONFIG_RATE_CONTROL_DEFAULT_LOWEST_RATE;
+			arg.aggr_control = WMI_TID_CONFIG_AGGR_CONTROL_DISABLE;
+			config_apply = true;
+		}
+
+		/* Assign default value(-1) to newly connected station.
+		 * This is to identify station specific tid configuration not
+		 * configured for the station.
+		 */
+		arsta->retry_long[i] = -1;
+		arsta->noack[i] = -1;
+		arsta->ampdu[i] = -1;
+
+		if (!config_apply)
+			continue;
+
+		ether_addr_copy(arg.peer_macaddr.addr, sta->addr);
+
+		ret = ath10k_wmi_set_per_peer_per_tid_cfg(ar, &arg);
+		if (ret) {
+			ath10k_warn(ar, "failed to set per tid retry/aggr config for sta %pM: %d\n",
+				    sta->addr, ret);
+			return ret;
+		}
+
+		memset(&arg, 0, sizeof(arg));
+	}
+
+	return 0;
+}
+
 static int ath10k_station_assoc(struct ath10k *ar,
 				struct ieee80211_vif *vif,
 				struct ieee80211_sta *sta,
@@ -3078,7 +3141,10 @@ static int ath10k_station_assoc(struct ath10k *ar,
 		}
 	}
 
-	return ret;
+	if (!test_bit(WMI_SERVICE_PEER_TID_CONFIGS_SUPPORT, ar->wmi.svc_map))
+		return ret;
+
+	return ath10k_new_peer_tid_config(ar, sta, arvif);
 }
 
 static int ath10k_station_disassoc(struct ath10k *ar,
@@ -3626,7 +3692,10 @@ static void ath10k_mac_tx_h_fill_cb(struct ath10k *ar,
 	const struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	bool is_data = ieee80211_is_data(hdr->frame_control) ||
 			ieee80211_is_data_qos(hdr->frame_control);
+	struct ath10k_vif *arvif = (void *)vif->drv_priv;
 	struct ath10k_sta *arsta;
+	u8 tid, *qos_ctl;
+	bool noack = false;
 
 	cb->flags = 0;
 	if (!ath10k_tx_h_use_hwcrypto(vif, skb))
@@ -3635,8 +3704,27 @@ static void ath10k_mac_tx_h_fill_cb(struct ath10k *ar,
 	if (ieee80211_is_mgmt(hdr->frame_control))
 		cb->flags |= ATH10K_SKB_F_MGMT;
 
-	if (ieee80211_is_data_qos(hdr->frame_control))
+	if (ieee80211_is_data_qos(hdr->frame_control)) {
 		cb->flags |= ATH10K_SKB_F_QOS;
+		qos_ctl = ieee80211_get_qos_ctl(hdr);
+		tid = (*qos_ctl) & IEEE80211_QOS_CTL_TID_MASK;
+
+		if (arvif->noack[tid] == WMI_PEER_TID_CONFIG_NOACK)
+			noack = true;
+
+		if (sta) {
+			arsta = (struct ath10k_sta *)sta->drv_priv;
+
+			if (arsta->noack[tid] == WMI_PEER_TID_CONFIG_NOACK)
+				noack = true;
+
+			if (arsta->noack[tid] == WMI_PEER_TID_CONFIG_ACK)
+				noack = false;
+		}
+
+		if (noack)
+			cb->flags |= ATH10K_SKB_F_NOACK_TID;
+	}
 
 	/* Data frames encrypted in software will be posted to firmware
 	 * with tx encap mode set to RAW. Ex: Multicast traffic generated
@@ -4238,7 +4326,7 @@ void __ath10k_scan_finish(struct ath10k *ar)
 		} else if (ar->scan.roc_notify) {
 			ieee80211_remain_on_channel_expired(ar->hw);
 		}
-		/* fall through */
+		fallthrough;
 	case ATH10K_SCAN_STARTING:
 		ar->scan.state = ATH10K_SCAN_IDLE;
 		ar->scan_channel = NULL;
@@ -6597,6 +6685,581 @@ out:
 	return ret;
 }
 
+struct ath10k_mac_iter_tid_conf_data {
+	struct ieee80211_vif *curr_vif;
+	struct ath10k *ar;
+	bool reset_config;
+};
+
+static bool
+ath10k_mac_bitrate_mask_has_single_rate(struct ath10k *ar,
+					enum nl80211_band band,
+					const struct cfg80211_bitrate_mask *mask,
+					int *vht_num_rates)
+{
+	int num_rates = 0;
+	int i, tmp;
+
+	num_rates += hweight32(mask->control[band].legacy);
+
+	for (i = 0; i < ARRAY_SIZE(mask->control[band].ht_mcs); i++)
+		num_rates += hweight8(mask->control[band].ht_mcs[i]);
+
+	*vht_num_rates = 0;
+	for (i = 0; i < ARRAY_SIZE(mask->control[band].vht_mcs); i++) {
+		tmp = hweight16(mask->control[band].vht_mcs[i]);
+		num_rates += tmp;
+		*vht_num_rates += tmp;
+	}
+
+	return num_rates == 1;
+}
+
+static int
+ath10k_mac_bitrate_mask_get_single_rate(struct ath10k *ar,
+					enum nl80211_band band,
+					const struct cfg80211_bitrate_mask *mask,
+					u8 *rate, u8 *nss, bool vht_only)
+{
+	int rate_idx;
+	int i;
+	u16 bitrate;
+	u8 preamble;
+	u8 hw_rate;
+
+	if (vht_only)
+		goto next;
+
+	if (hweight32(mask->control[band].legacy) == 1) {
+		rate_idx = ffs(mask->control[band].legacy) - 1;
+
+		if (ar->phy_capability & WHAL_WLAN_11A_CAPABILITY)
+			rate_idx += ATH10K_MAC_FIRST_OFDM_RATE_IDX;
+
+		hw_rate = ath10k_wmi_legacy_rates[rate_idx].hw_value;
+		bitrate = ath10k_wmi_legacy_rates[rate_idx].bitrate;
+
+		if (ath10k_mac_bitrate_is_cck(bitrate))
+			preamble = WMI_RATE_PREAMBLE_CCK;
+		else
+			preamble = WMI_RATE_PREAMBLE_OFDM;
+
+		*nss = 1;
+		*rate = preamble << 6 |
+			(*nss - 1) << 4 |
+			hw_rate << 0;
+
+		return 0;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(mask->control[band].ht_mcs); i++) {
+		if (hweight8(mask->control[band].ht_mcs[i]) == 1) {
+			*nss = i + 1;
+			*rate = WMI_RATE_PREAMBLE_HT << 6 |
+				(*nss - 1) << 4 |
+				(ffs(mask->control[band].ht_mcs[i]) - 1);
+
+			return 0;
+		}
+	}
+
+next:
+	for (i = 0; i < ARRAY_SIZE(mask->control[band].vht_mcs); i++) {
+		if (hweight16(mask->control[band].vht_mcs[i]) == 1) {
+			*nss = i + 1;
+			*rate = WMI_RATE_PREAMBLE_VHT << 6 |
+				(*nss - 1) << 4 |
+				(ffs(mask->control[band].vht_mcs[i]) - 1);
+
+			return 0;
+		}
+	}
+
+	return -EINVAL;
+}
+
+static int ath10k_mac_validate_rate_mask(struct ath10k *ar,
+					 struct ieee80211_sta *sta,
+					 u32 rate_ctrl_flag, u8 nss)
+{
+	if (nss > sta->rx_nss) {
+		ath10k_warn(ar, "Invalid nss field, configured %u limit %u\n",
+			    nss, sta->rx_nss);
+		return -EINVAL;
+	}
+
+	if (ATH10K_HW_PREAMBLE(rate_ctrl_flag) == WMI_RATE_PREAMBLE_VHT) {
+		if (!sta->vht_cap.vht_supported) {
+			ath10k_warn(ar, "Invalid VHT rate for sta %pM\n",
+				    sta->addr);
+			return -EINVAL;
+		}
+	} else if (ATH10K_HW_PREAMBLE(rate_ctrl_flag) == WMI_RATE_PREAMBLE_HT) {
+		if (!sta->ht_cap.ht_supported || sta->vht_cap.vht_supported) {
+			ath10k_warn(ar, "Invalid HT rate for sta %pM\n",
+				    sta->addr);
+			return -EINVAL;
+		}
+	} else {
+		if (sta->ht_cap.ht_supported || sta->vht_cap.vht_supported)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int
+ath10k_mac_tid_bitrate_config(struct ath10k *ar,
+			      struct ieee80211_vif *vif,
+			      struct ieee80211_sta *sta,
+			      u32 *rate_ctrl_flag, u8 *rate_ctrl,
+			      enum nl80211_tx_rate_setting txrate_type,
+			      const struct cfg80211_bitrate_mask *mask)
+{
+	struct cfg80211_chan_def def;
+	enum nl80211_band band;
+	u8 nss, rate;
+	int vht_num_rates, ret;
+
+	if (WARN_ON(ath10k_mac_vif_chan(vif, &def)))
+		return -EINVAL;
+
+	if (txrate_type == NL80211_TX_RATE_AUTOMATIC) {
+		*rate_ctrl = WMI_TID_CONFIG_RATE_CONTROL_AUTO;
+		*rate_ctrl_flag = 0;
+		return 0;
+	}
+
+	band = def.chan->band;
+
+	if (!ath10k_mac_bitrate_mask_has_single_rate(ar, band, mask,
+						     &vht_num_rates)) {
+		return -EINVAL;
+	}
+
+	ret = ath10k_mac_bitrate_mask_get_single_rate(ar, band, mask,
+						      &rate, &nss, false);
+	if (ret) {
+		ath10k_warn(ar, "failed to get single rate: %d\n",
+			    ret);
+		return ret;
+	}
+
+	*rate_ctrl_flag = rate;
+
+	if (sta && ath10k_mac_validate_rate_mask(ar, sta, *rate_ctrl_flag, nss))
+		return -EINVAL;
+
+	if (txrate_type == NL80211_TX_RATE_FIXED)
+		*rate_ctrl = WMI_TID_CONFIG_RATE_CONTROL_FIXED_RATE;
+	else if (txrate_type == NL80211_TX_RATE_LIMITED &&
+		 (test_bit(WMI_SERVICE_EXT_PEER_TID_CONFIGS_SUPPORT,
+			   ar->wmi.svc_map)))
+		*rate_ctrl = WMI_PEER_TID_CONFIG_RATE_UPPER_CAP;
+	else
+		return -EOPNOTSUPP;
+
+	return 0;
+}
+
+static int ath10k_mac_set_tid_config(struct ath10k *ar, struct ieee80211_sta *sta,
+				     struct ieee80211_vif *vif, u32 changed,
+				     struct wmi_per_peer_per_tid_cfg_arg *arg)
+{
+	struct ath10k_vif *arvif = (void *)vif->drv_priv;
+	struct ath10k_sta *arsta;
+	int ret;
+
+	if (sta) {
+		if (!sta->wme)
+			return -ENOTSUPP;
+
+		arsta = (struct ath10k_sta *)sta->drv_priv;
+
+		if (changed & BIT(NL80211_TID_CONFIG_ATTR_NOACK)) {
+			if ((arsta->retry_long[arg->tid] > 0 ||
+			     arsta->rate_code[arg->tid] > 0 ||
+			     arsta->ampdu[arg->tid] ==
+					WMI_TID_CONFIG_AGGR_CONTROL_ENABLE) &&
+			     arg->ack_policy == WMI_PEER_TID_CONFIG_NOACK) {
+				changed &= ~BIT(NL80211_TID_CONFIG_ATTR_NOACK);
+				arg->ack_policy = 0;
+				arg->aggr_control = 0;
+				arg->rate_ctrl = 0;
+				arg->rcode_flags = 0;
+			}
+		}
+
+		if (changed & BIT(NL80211_TID_CONFIG_ATTR_AMPDU_CTRL)) {
+			if (arsta->noack[arg->tid] == WMI_PEER_TID_CONFIG_NOACK ||
+			    arvif->noack[arg->tid] == WMI_PEER_TID_CONFIG_NOACK) {
+				arg->aggr_control = 0;
+				changed &= ~BIT(NL80211_TID_CONFIG_ATTR_RETRY_LONG);
+			}
+		}
+
+		if (changed & (BIT(NL80211_TID_CONFIG_ATTR_TX_RATE) |
+		    BIT(NL80211_TID_CONFIG_ATTR_TX_RATE_TYPE))) {
+			if (arsta->noack[arg->tid] == WMI_PEER_TID_CONFIG_NOACK ||
+			    arvif->noack[arg->tid] == WMI_PEER_TID_CONFIG_NOACK) {
+				arg->rate_ctrl = 0;
+				arg->rcode_flags = 0;
+			}
+		}
+
+		ether_addr_copy(arg->peer_macaddr.addr, sta->addr);
+
+		ret = ath10k_wmi_set_per_peer_per_tid_cfg(ar, arg);
+		if (ret)
+			return ret;
+
+		/* Store the configured parameters in success case */
+		if (changed & BIT(NL80211_TID_CONFIG_ATTR_NOACK)) {
+			arsta->noack[arg->tid] = arg->ack_policy;
+			arg->ack_policy = 0;
+			arg->aggr_control = 0;
+			arg->rate_ctrl = 0;
+			arg->rcode_flags = 0;
+		}
+
+		if (changed & BIT(NL80211_TID_CONFIG_ATTR_RETRY_LONG)) {
+			arsta->retry_long[arg->tid] = arg->retry_count;
+			arg->retry_count = 0;
+		}
+
+		if (changed & BIT(NL80211_TID_CONFIG_ATTR_AMPDU_CTRL)) {
+			arsta->ampdu[arg->tid] = arg->aggr_control;
+			arg->aggr_control = 0;
+		}
+
+		if (changed & (BIT(NL80211_TID_CONFIG_ATTR_TX_RATE) |
+		    BIT(NL80211_TID_CONFIG_ATTR_TX_RATE_TYPE))) {
+			arsta->rate_ctrl[arg->tid] = arg->rate_ctrl;
+			arg->rate_ctrl = 0;
+			arg->rcode_flags = 0;
+		}
+
+		if (changed & BIT(NL80211_TID_CONFIG_ATTR_RTSCTS_CTRL)) {
+			arsta->rtscts[arg->tid] = arg->rtscts_ctrl;
+			arg->ext_tid_cfg_bitmap = 0;
+		}
+	} else {
+		if (changed & BIT(NL80211_TID_CONFIG_ATTR_NOACK)) {
+			if ((arvif->retry_long[arg->tid] ||
+			     arvif->rate_code[arg->tid] ||
+			     arvif->ampdu[arg->tid] ==
+					WMI_TID_CONFIG_AGGR_CONTROL_ENABLE) &&
+			     arg->ack_policy == WMI_PEER_TID_CONFIG_NOACK) {
+				changed &= ~BIT(NL80211_TID_CONFIG_ATTR_NOACK);
+			} else {
+				arvif->noack[arg->tid] = arg->ack_policy;
+				arvif->ampdu[arg->tid] = arg->aggr_control;
+				arvif->rate_ctrl[arg->tid] = arg->rate_ctrl;
+			}
+		}
+
+		if (changed & BIT(NL80211_TID_CONFIG_ATTR_RETRY_LONG)) {
+			if (arvif->noack[arg->tid] == WMI_PEER_TID_CONFIG_NOACK)
+				changed &= ~BIT(NL80211_TID_CONFIG_ATTR_RETRY_LONG);
+			else
+				arvif->retry_long[arg->tid] = arg->retry_count;
+		}
+
+		if (changed & BIT(NL80211_TID_CONFIG_ATTR_AMPDU_CTRL)) {
+			if (arvif->noack[arg->tid] == WMI_PEER_TID_CONFIG_NOACK)
+				changed &= ~BIT(NL80211_TID_CONFIG_ATTR_AMPDU_CTRL);
+			else
+				arvif->ampdu[arg->tid] = arg->aggr_control;
+		}
+
+		if (changed & (BIT(NL80211_TID_CONFIG_ATTR_TX_RATE) |
+		    BIT(NL80211_TID_CONFIG_ATTR_TX_RATE_TYPE))) {
+			if (arvif->noack[arg->tid] == WMI_PEER_TID_CONFIG_NOACK) {
+				changed &= ~(BIT(NL80211_TID_CONFIG_ATTR_TX_RATE) |
+					     BIT(NL80211_TID_CONFIG_ATTR_TX_RATE_TYPE));
+			} else {
+				arvif->rate_ctrl[arg->tid] = arg->rate_ctrl;
+				arvif->rate_code[arg->tid] = arg->rcode_flags;
+			}
+		}
+
+		if (changed & BIT(NL80211_TID_CONFIG_ATTR_RTSCTS_CTRL)) {
+			arvif->rtscts[arg->tid] = arg->rtscts_ctrl;
+			arg->ext_tid_cfg_bitmap = 0;
+		}
+
+		if (changed)
+			arvif->tid_conf_changed[arg->tid] |= changed;
+	}
+
+	return 0;
+}
+
+static int
+ath10k_mac_parse_tid_config(struct ath10k *ar,
+			    struct ieee80211_sta *sta,
+			    struct ieee80211_vif *vif,
+			    struct cfg80211_tid_cfg *tid_conf,
+			    struct wmi_per_peer_per_tid_cfg_arg *arg)
+{
+	u32 changed = tid_conf->mask;
+	int ret = 0, i = 0;
+
+	if (!changed)
+		return -EINVAL;
+
+	while (i < ATH10K_TID_MAX) {
+		if (!(tid_conf->tids & BIT(i))) {
+			i++;
+			continue;
+		}
+
+		arg->tid = i;
+
+		if (changed & BIT(NL80211_TID_CONFIG_ATTR_NOACK)) {
+			if (tid_conf->noack == NL80211_TID_CONFIG_ENABLE) {
+				arg->ack_policy = WMI_PEER_TID_CONFIG_NOACK;
+				arg->rate_ctrl =
+				WMI_TID_CONFIG_RATE_CONTROL_DEFAULT_LOWEST_RATE;
+				arg->aggr_control =
+					WMI_TID_CONFIG_AGGR_CONTROL_DISABLE;
+			} else {
+				arg->ack_policy =
+					WMI_PEER_TID_CONFIG_ACK;
+				arg->rate_ctrl =
+					WMI_TID_CONFIG_RATE_CONTROL_AUTO;
+				arg->aggr_control =
+					WMI_TID_CONFIG_AGGR_CONTROL_ENABLE;
+			}
+		}
+
+		if (changed & BIT(NL80211_TID_CONFIG_ATTR_RETRY_LONG))
+			arg->retry_count = tid_conf->retry_long;
+
+		if (changed & BIT(NL80211_TID_CONFIG_ATTR_AMPDU_CTRL)) {
+			if (tid_conf->noack == NL80211_TID_CONFIG_ENABLE)
+				arg->aggr_control = WMI_TID_CONFIG_AGGR_CONTROL_ENABLE;
+			else
+				arg->aggr_control = WMI_TID_CONFIG_AGGR_CONTROL_DISABLE;
+		}
+
+		if (changed & (BIT(NL80211_TID_CONFIG_ATTR_TX_RATE) |
+		    BIT(NL80211_TID_CONFIG_ATTR_TX_RATE_TYPE))) {
+			ret = ath10k_mac_tid_bitrate_config(ar, vif, sta,
+							    &arg->rcode_flags,
+							    &arg->rate_ctrl,
+							    tid_conf->txrate_type,
+							&tid_conf->txrate_mask);
+			if (ret) {
+				ath10k_warn(ar, "failed to configure bitrate mask %d\n",
+					    ret);
+				arg->rcode_flags = 0;
+				arg->rate_ctrl = 0;
+			}
+		}
+
+		if (changed & BIT(NL80211_TID_CONFIG_ATTR_RTSCTS_CTRL)) {
+			if (tid_conf->rtscts)
+				arg->rtscts_ctrl = tid_conf->rtscts;
+
+			arg->ext_tid_cfg_bitmap = WMI_EXT_TID_RTS_CTS_CONFIG;
+		}
+
+		ret = ath10k_mac_set_tid_config(ar, sta, vif, changed, arg);
+		if (ret)
+			return ret;
+		i++;
+	}
+
+	return ret;
+}
+
+static int ath10k_mac_reset_tid_config(struct ath10k *ar,
+				       struct ieee80211_sta *sta,
+				       struct ath10k_vif *arvif,
+				       u8 tids)
+{
+	struct ath10k_sta *arsta = (struct ath10k_sta *)sta->drv_priv;
+	struct wmi_per_peer_per_tid_cfg_arg arg;
+	int ret = 0, i = 0;
+
+	arg.vdev_id = arvif->vdev_id;
+	while (i < ATH10K_TID_MAX) {
+		if (!(tids & BIT(i))) {
+			i++;
+			continue;
+		}
+
+		arg.tid = i;
+		arg.ack_policy = WMI_PEER_TID_CONFIG_ACK;
+		arg.retry_count = ATH10K_MAX_RETRY_COUNT;
+		arg.rate_ctrl = WMI_TID_CONFIG_RATE_CONTROL_AUTO;
+		arg.aggr_control = WMI_TID_CONFIG_AGGR_CONTROL_ENABLE;
+		arg.rtscts_ctrl = WMI_TID_CONFIG_RTSCTS_CONTROL_ENABLE;
+		arg.ext_tid_cfg_bitmap = WMI_EXT_TID_RTS_CTS_CONFIG;
+
+		ether_addr_copy(arg.peer_macaddr.addr, sta->addr);
+
+		ret = ath10k_wmi_set_per_peer_per_tid_cfg(ar, &arg);
+		if (ret)
+			return ret;
+
+		if (!arvif->tids_rst) {
+			arsta->retry_long[i] = -1;
+			arsta->noack[i] = -1;
+			arsta->ampdu[i] = -1;
+			arsta->rate_code[i] = -1;
+			arsta->rate_ctrl[i] = 0;
+			arsta->rtscts[i] = -1;
+		} else {
+			arvif->retry_long[i] = 0;
+			arvif->noack[i] = 0;
+			arvif->ampdu[i] = 0;
+			arvif->rate_code[i] = 0;
+			arvif->rate_ctrl[i] = 0;
+			arvif->rtscts[i] = 0;
+		}
+
+		i++;
+	}
+
+	return ret;
+}
+
+static void ath10k_sta_tid_cfg_wk(struct work_struct *wk)
+{
+	struct wmi_per_peer_per_tid_cfg_arg arg = {};
+	struct ieee80211_sta *sta;
+	struct ath10k_sta *arsta;
+	struct ath10k_vif *arvif;
+	struct ath10k *ar;
+	bool config_apply;
+	int ret, i;
+	u32 changed;
+	u8 nss;
+
+	arsta = container_of(wk, struct ath10k_sta, tid_config_wk);
+	sta = container_of((void *)arsta, struct ieee80211_sta, drv_priv);
+	arvif = arsta->arvif;
+	ar = arvif->ar;
+
+	mutex_lock(&ar->conf_mutex);
+
+	if (arvif->tids_rst) {
+		ret = ath10k_mac_reset_tid_config(ar, sta, arvif,
+						  arvif->tids_rst);
+		goto exit;
+	}
+
+	ether_addr_copy(arg.peer_macaddr.addr, sta->addr);
+
+	for (i = 0; i < ATH10K_TID_MAX; i++) {
+		config_apply = false;
+		changed = arvif->tid_conf_changed[i];
+
+		if (changed & BIT(NL80211_TID_CONFIG_ATTR_NOACK)) {
+			if (arsta->noack[i] != -1) {
+				arg.ack_policy  = 0;
+			} else {
+				config_apply = true;
+				arg.ack_policy = arvif->noack[i];
+				arg.aggr_control = arvif->ampdu[i];
+				arg.rate_ctrl = arvif->rate_ctrl[i];
+			}
+		}
+
+		if (changed & BIT(NL80211_TID_CONFIG_ATTR_RETRY_LONG)) {
+			if (arsta->retry_long[i] != -1 ||
+			    arsta->noack[i] == WMI_PEER_TID_CONFIG_NOACK ||
+			    arvif->noack[i] == WMI_PEER_TID_CONFIG_NOACK) {
+				arg.retry_count = 0;
+			} else {
+				arg.retry_count = arvif->retry_long[i];
+				config_apply = true;
+			}
+		}
+
+		if (changed & BIT(NL80211_TID_CONFIG_ATTR_AMPDU_CTRL)) {
+			if (arsta->ampdu[i] != -1 ||
+			    arsta->noack[i] == WMI_PEER_TID_CONFIG_NOACK ||
+			    arvif->noack[i] == WMI_PEER_TID_CONFIG_NOACK) {
+				arg.aggr_control = 0;
+			} else {
+				arg.aggr_control = arvif->ampdu[i];
+				config_apply = true;
+			}
+		}
+
+		if (changed & (BIT(NL80211_TID_CONFIG_ATTR_TX_RATE) |
+		    BIT(NL80211_TID_CONFIG_ATTR_TX_RATE_TYPE))) {
+			nss = ATH10K_HW_NSS(arvif->rate_code[i]);
+			ret = ath10k_mac_validate_rate_mask(ar, sta,
+							    arvif->rate_code[i],
+							    nss);
+			if (ret &&
+			    arvif->rate_ctrl[i] > WMI_TID_CONFIG_RATE_CONTROL_AUTO) {
+				arg.rate_ctrl = 0;
+				arg.rcode_flags = 0;
+			}
+
+			if (arsta->rate_ctrl[i] >
+			    WMI_TID_CONFIG_RATE_CONTROL_AUTO ||
+			    arsta->noack[i] == WMI_PEER_TID_CONFIG_NOACK ||
+			    arvif->noack[i] == WMI_PEER_TID_CONFIG_NOACK) {
+				arg.rate_ctrl = 0;
+				arg.rcode_flags = 0;
+			} else {
+				arg.rate_ctrl = arvif->rate_ctrl[i];
+				arg.rcode_flags = arvif->rate_code[i];
+				config_apply = true;
+			}
+		}
+
+		if (changed & BIT(NL80211_TID_CONFIG_ATTR_RTSCTS_CTRL)) {
+			if (arsta->rtscts[i]) {
+				arg.rtscts_ctrl = 0;
+				arg.ext_tid_cfg_bitmap = 0;
+			} else {
+				arg.rtscts_ctrl = arvif->rtscts[i] - 1;
+				arg.ext_tid_cfg_bitmap =
+					WMI_EXT_TID_RTS_CTS_CONFIG;
+				config_apply = true;
+			}
+		}
+
+		arg.tid = i;
+
+		if (config_apply) {
+			ret = ath10k_wmi_set_per_peer_per_tid_cfg(ar, &arg);
+			if (ret)
+				ath10k_warn(ar, "failed to set per tid config for sta %pM: %d\n",
+					    sta->addr, ret);
+		}
+
+		arg.ack_policy  = 0;
+		arg.retry_count  = 0;
+		arg.aggr_control  = 0;
+		arg.rate_ctrl = 0;
+		arg.rcode_flags = 0;
+	}
+
+exit:
+	mutex_unlock(&ar->conf_mutex);
+}
+
+static void ath10k_mac_vif_stations_tid_conf(void *data,
+					     struct ieee80211_sta *sta)
+{
+	struct ath10k_sta *arsta = (struct ath10k_sta *)sta->drv_priv;
+	struct ath10k_mac_iter_tid_conf_data *iter_data = data;
+	struct ieee80211_vif *sta_vif = arsta->arvif->vif;
+
+	if (sta_vif != iter_data->curr_vif || !sta->wme)
+		return;
+
+	ieee80211_queue_work(iter_data->ar->hw, &arsta->tid_config_wk);
+}
+
 static int ath10k_sta_state(struct ieee80211_hw *hw,
 			    struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta,
@@ -6616,6 +7279,7 @@ static int ath10k_sta_state(struct ieee80211_hw *hw,
 		arsta->arvif = arvif;
 		arsta->peer_ps_state = WMI_PEER_PS_STATE_DISABLED;
 		INIT_WORK(&arsta->update_wk, ath10k_sta_rc_update_wk);
+		INIT_WORK(&arsta->tid_config_wk, ath10k_sta_tid_cfg_wk);
 
 		for (i = 0; i < ARRAY_SIZE(sta->txq); i++)
 			ath10k_mac_txq_init(sta->txq[i]);
@@ -6623,8 +7287,10 @@ static int ath10k_sta_state(struct ieee80211_hw *hw,
 
 	/* cancel must be done outside the mutex to avoid deadlock */
 	if ((old_state == IEEE80211_STA_NONE &&
-	     new_state == IEEE80211_STA_NOTEXIST))
+	     new_state == IEEE80211_STA_NOTEXIST)) {
 		cancel_work_sync(&arsta->update_wk);
+		cancel_work_sync(&arsta->tid_config_wk);
+	}
 
 	mutex_lock(&ar->conf_mutex);
 
@@ -7033,8 +7699,6 @@ exit:
 	return ret;
 }
 
-#define ATH10K_ROC_TIMEOUT_HZ (2 * HZ)
-
 static int ath10k_remain_on_channel(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
 				    struct ieee80211_channel *chan,
@@ -7278,7 +7942,7 @@ ath10k_mac_update_bss_chan_survey(struct ath10k *ar,
 				  struct ieee80211_channel *channel)
 {
 	int ret;
-	enum wmi_bss_survey_req_type type = WMI_BSS_SURVEY_REQ_TYPE_READ_CLEAR;
+	enum wmi_bss_survey_req_type type = WMI_BSS_SURVEY_REQ_TYPE_READ;
 
 	lockdep_assert_held(&ar->conf_mutex);
 
@@ -7347,30 +8011,6 @@ exit:
 }
 
 static bool
-ath10k_mac_bitrate_mask_has_single_rate(struct ath10k *ar,
-					enum nl80211_band band,
-					const struct cfg80211_bitrate_mask *mask,
-					int *vht_num_rates)
-{
-	int num_rates = 0;
-	int i, tmp;
-
-	num_rates += hweight32(mask->control[band].legacy);
-
-	for (i = 0; i < ARRAY_SIZE(mask->control[band].ht_mcs); i++)
-		num_rates += hweight8(mask->control[band].ht_mcs[i]);
-
-	*vht_num_rates = 0;
-	for (i = 0; i < ARRAY_SIZE(mask->control[band].vht_mcs); i++) {
-		tmp = hweight16(mask->control[band].vht_mcs[i]);
-		num_rates += tmp;
-		*vht_num_rates += tmp;
-	}
-
-	return num_rates == 1;
-}
-
-static bool
 ath10k_mac_bitrate_mask_get_single_nss(struct ath10k *ar,
 				       enum nl80211_band band,
 				       const struct cfg80211_bitrate_mask *mask,
@@ -7417,69 +8057,6 @@ ath10k_mac_bitrate_mask_get_single_nss(struct ath10k *ar,
 	*nss = fls(ht_nss_mask);
 
 	return true;
-}
-
-static int
-ath10k_mac_bitrate_mask_get_single_rate(struct ath10k *ar,
-					enum nl80211_band band,
-					const struct cfg80211_bitrate_mask *mask,
-					u8 *rate, u8 *nss, bool vht_only)
-{
-	int rate_idx;
-	int i;
-	u16 bitrate;
-	u8 preamble;
-	u8 hw_rate;
-
-	if (vht_only)
-		goto next;
-
-	if (hweight32(mask->control[band].legacy) == 1) {
-		rate_idx = ffs(mask->control[band].legacy) - 1;
-
-		if (ar->phy_capability & WHAL_WLAN_11A_CAPABILITY)
-			rate_idx += ATH10K_MAC_FIRST_OFDM_RATE_IDX;
-
-		hw_rate = ath10k_wmi_legacy_rates[rate_idx].hw_value;
-		bitrate = ath10k_wmi_legacy_rates[rate_idx].bitrate;
-
-		if (ath10k_mac_bitrate_is_cck(bitrate))
-			preamble = WMI_RATE_PREAMBLE_CCK;
-		else
-			preamble = WMI_RATE_PREAMBLE_OFDM;
-
-		*nss = 1;
-		*rate = preamble << 6 |
-			(*nss - 1) << 4 |
-			hw_rate << 0;
-
-		return 0;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(mask->control[band].ht_mcs); i++) {
-		if (hweight8(mask->control[band].ht_mcs[i]) == 1) {
-			*nss = i + 1;
-			*rate = WMI_RATE_PREAMBLE_HT << 6 |
-				(*nss - 1) << 4 |
-				(ffs(mask->control[band].ht_mcs[i]) - 1);
-
-			return 0;
-		}
-	}
-
-next:
-	for (i = 0; i < ARRAY_SIZE(mask->control[band].vht_mcs); i++) {
-		if (hweight16(mask->control[band].vht_mcs[i]) == 1) {
-			*nss = i + 1;
-			*rate = WMI_RATE_PREAMBLE_VHT << 6 |
-				(*nss - 1) << 4 |
-				(ffs(mask->control[band].vht_mcs[i]) - 1);
-
-			return 0;
-		}
-	}
-
-	return -EINVAL;
 }
 
 static int ath10k_mac_set_fixed_rate_params(struct ath10k_vif *arvif,
@@ -8363,19 +8940,32 @@ static void ath10k_mac_get_rate_flags_ht(struct ath10k *ar, u32 rate, u8 nss, u8
 					 u8 *flags, u8 *bw)
 {
 	struct ath10k_index_ht_data_rate_type *mcs_rate;
+	u8 index;
+	size_t len_nss1 = ARRAY_SIZE(supported_ht_mcs_rate_nss1);
+	size_t len_nss2 = ARRAY_SIZE(supported_ht_mcs_rate_nss2);
+
+	if (mcs >= (len_nss1 + len_nss2)) {
+		ath10k_warn(ar, "not supported mcs %d in current rate table", mcs);
+		return;
+	}
 
 	mcs_rate = (struct ath10k_index_ht_data_rate_type *)
 		   ((nss == 1) ? &supported_ht_mcs_rate_nss1 :
 		   &supported_ht_mcs_rate_nss2);
 
-	if (rate == mcs_rate[mcs].supported_rate[0]) {
+	if (mcs >= len_nss1)
+		index = mcs - len_nss1;
+	else
+		index = mcs;
+
+	if (rate == mcs_rate[index].supported_rate[0]) {
 		*bw = RATE_INFO_BW_20;
-	} else if (rate == mcs_rate[mcs].supported_rate[1]) {
+	} else if (rate == mcs_rate[index].supported_rate[1]) {
 		*bw |= RATE_INFO_BW_40;
-	} else if (rate == mcs_rate[mcs].supported_rate[2]) {
+	} else if (rate == mcs_rate[index].supported_rate[2]) {
 		*bw |= RATE_INFO_BW_20;
 		*flags |= RATE_INFO_FLAGS_SHORT_GI;
-	} else if (rate == mcs_rate[mcs].supported_rate[3]) {
+	} else if (rate == mcs_rate[index].supported_rate[3]) {
 		*bw |= RATE_INFO_BW_40;
 		*flags |= RATE_INFO_FLAGS_SHORT_GI;
 	} else {
@@ -8435,6 +9025,9 @@ static void ath10k_mac_parse_bitrate(struct ath10k *ar, u32 rate_code,
 	u8 nss = WMI_TLV_GET_HW_RC_NSS_V1(rate_code) + 1;
 	u8 mcs = WMI_TLV_GET_HW_RC_RATE_V1(rate_code);
 	u8 flags = 0, bw = 0;
+
+	ath10k_dbg(ar, ATH10K_DBG_MAC, "mac parse rate code 0x%x bitrate %d kbps\n",
+		   rate_code, bitrate_kbps);
 
 	if (preamble == WMI_RATE_PREAMBLE_HT)
 		mode = ATH10K_PHY_MODE_HT;
@@ -8528,27 +9121,97 @@ static void ath10k_sta_statistics(struct ieee80211_hw *hw,
 	sinfo->rx_duration = arsta->rx_duration;
 	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_RX_DURATION);
 
-	if (!arsta->txrate.legacy && !arsta->txrate.nss)
-		return;
-
-	if (arsta->txrate.legacy) {
-		sinfo->txrate.legacy = arsta->txrate.legacy;
-	} else {
-		sinfo->txrate.mcs = arsta->txrate.mcs;
-		sinfo->txrate.nss = arsta->txrate.nss;
-		sinfo->txrate.bw = arsta->txrate.bw;
+	if (arsta->txrate.legacy || arsta->txrate.nss) {
+		if (arsta->txrate.legacy) {
+			sinfo->txrate.legacy = arsta->txrate.legacy;
+		} else {
+			sinfo->txrate.mcs = arsta->txrate.mcs;
+			sinfo->txrate.nss = arsta->txrate.nss;
+			sinfo->txrate.bw = arsta->txrate.bw;
+		}
+		sinfo->txrate.flags = arsta->txrate.flags;
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BITRATE);
 	}
-	sinfo->txrate.flags = arsta->txrate.flags;
-	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BITRATE);
 
 	if (ar->htt.disable_tx_comp) {
-		sinfo->tx_retries = arsta->tx_retries;
-		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_RETRIES);
 		sinfo->tx_failed = arsta->tx_failed;
 		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_FAILED);
 	}
 
+	sinfo->tx_retries = arsta->tx_retries;
+	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_RETRIES);
+
 	ath10k_mac_sta_get_peer_stats_info(ar, sta, sinfo);
+}
+
+static int ath10k_mac_op_set_tid_config(struct ieee80211_hw *hw,
+					struct ieee80211_vif *vif,
+					struct ieee80211_sta *sta,
+					struct cfg80211_tid_config *tid_config)
+{
+	struct ath10k *ar = hw->priv;
+	struct ath10k_vif *arvif = (void *)vif->drv_priv;
+	struct ath10k_mac_iter_tid_conf_data data = {};
+	struct wmi_per_peer_per_tid_cfg_arg arg = {};
+	int ret, i;
+
+	mutex_lock(&ar->conf_mutex);
+	arg.vdev_id = arvif->vdev_id;
+
+	arvif->tids_rst = 0;
+	memset(arvif->tid_conf_changed, 0, sizeof(arvif->tid_conf_changed));
+
+	for (i = 0; i < tid_config->n_tid_conf; i++) {
+		ret = ath10k_mac_parse_tid_config(ar, sta, vif,
+						  &tid_config->tid_conf[i],
+						  &arg);
+		if (ret)
+			goto exit;
+	}
+
+	if (sta)
+		goto exit;
+
+	ret = 0;
+	arvif->tids_rst = 0;
+	data.curr_vif = vif;
+	data.ar = ar;
+
+	ieee80211_iterate_stations_atomic(hw, ath10k_mac_vif_stations_tid_conf,
+					  &data);
+
+exit:
+	mutex_unlock(&ar->conf_mutex);
+	return ret;
+}
+
+static int ath10k_mac_op_reset_tid_config(struct ieee80211_hw *hw,
+					  struct ieee80211_vif *vif,
+					  struct ieee80211_sta *sta,
+					  u8 tids)
+{
+	struct ath10k_vif *arvif = (void *)vif->drv_priv;
+	struct ath10k_mac_iter_tid_conf_data data = {};
+	struct ath10k *ar = hw->priv;
+	int ret = 0;
+
+	mutex_lock(&ar->conf_mutex);
+
+	if (sta) {
+		arvif->tids_rst = 0;
+		ret = ath10k_mac_reset_tid_config(ar, sta, arvif, tids);
+		goto exit;
+	}
+
+	arvif->tids_rst = tids;
+	data.curr_vif = vif;
+	data.ar = ar;
+	ieee80211_iterate_stations_atomic(hw, ath10k_mac_vif_stations_tid_conf,
+					  &data);
+
+exit:
+	mutex_unlock(&ar->conf_mutex);
+	return ret;
 }
 
 static const struct ieee80211_ops ath10k_ops = {
@@ -8594,6 +9257,8 @@ static const struct ieee80211_ops ath10k_ops = {
 	.switch_vif_chanctx		= ath10k_mac_op_switch_vif_chanctx,
 	.sta_pre_rcu_remove		= ath10k_mac_op_sta_pre_rcu_remove,
 	.sta_statistics			= ath10k_sta_statistics,
+	.set_tid_config			= ath10k_mac_op_set_tid_config,
+	.reset_tid_config		= ath10k_mac_op_reset_tid_config,
 
 	CFG80211_TESTMODE_CMD(ath10k_tm_cmd)
 
@@ -9264,6 +9929,28 @@ int ath10k_mac_register(struct ath10k *ar)
 	if (test_bit(WMI_SERVICE_TX_PWR_PER_PEER, ar->wmi.svc_map))
 		wiphy_ext_feature_set(ar->hw->wiphy,
 				      NL80211_EXT_FEATURE_STA_TX_PWR);
+
+	if (test_bit(WMI_SERVICE_PEER_TID_CONFIGS_SUPPORT, ar->wmi.svc_map)) {
+		ar->hw->wiphy->tid_config_support.vif |=
+				BIT(NL80211_TID_CONFIG_ATTR_NOACK) |
+				BIT(NL80211_TID_CONFIG_ATTR_RETRY_SHORT) |
+				BIT(NL80211_TID_CONFIG_ATTR_RETRY_LONG) |
+				BIT(NL80211_TID_CONFIG_ATTR_AMPDU_CTRL) |
+				BIT(NL80211_TID_CONFIG_ATTR_TX_RATE) |
+				BIT(NL80211_TID_CONFIG_ATTR_TX_RATE_TYPE);
+
+		if (test_bit(WMI_SERVICE_EXT_PEER_TID_CONFIGS_SUPPORT,
+			     ar->wmi.svc_map)) {
+			ar->hw->wiphy->tid_config_support.vif |=
+				BIT(NL80211_TID_CONFIG_ATTR_RTSCTS_CTRL);
+		}
+
+		ar->hw->wiphy->tid_config_support.peer =
+				ar->hw->wiphy->tid_config_support.vif;
+		ar->hw->wiphy->max_data_retry_count = ATH10K_MAX_RETRY_COUNT;
+	} else {
+		ar->ops->set_tid_config = NULL;
+	}
 	/*
 	 * on LL hardware queues are managed entirely by the FW
 	 * so we only advertise to mac we can do the queues thing

@@ -41,8 +41,6 @@ struct rxrpc_connection *rxrpc_alloc_connection(gfp_t gfp)
 	conn = kzalloc(sizeof(struct rxrpc_connection), gfp);
 	if (conn) {
 		INIT_LIST_HEAD(&conn->cache_link);
-		spin_lock_init(&conn->channel_lock);
-		INIT_LIST_HEAD(&conn->waiting_calls);
 		timer_setup(&conn->timer, &rxrpc_connection_timer, 0);
 		INIT_WORK(&conn->processor, &rxrpc_process_connection);
 		INIT_LIST_HEAD(&conn->proc_link);
@@ -219,11 +217,11 @@ void rxrpc_disconnect_call(struct rxrpc_call *call)
 	}
 
 	if (rxrpc_is_client_call(call))
-		return rxrpc_disconnect_client_call(call);
+		return rxrpc_disconnect_client_call(conn->bundle, call);
 
-	spin_lock(&conn->channel_lock);
+	spin_lock(&conn->bundle->channel_lock);
 	__rxrpc_disconnect_call(conn, call);
-	spin_unlock(&conn->channel_lock);
+	spin_unlock(&conn->bundle->channel_lock);
 
 	set_bit(RXRPC_CALL_DISCONNECTED, &call->flags);
 	conn->idle_timestamp = jiffies;
@@ -292,12 +290,13 @@ void rxrpc_see_connection(struct rxrpc_connection *conn)
 /*
  * Get a ref on a connection.
  */
-void rxrpc_get_connection(struct rxrpc_connection *conn)
+struct rxrpc_connection *rxrpc_get_connection(struct rxrpc_connection *conn)
 {
 	const void *here = __builtin_return_address(0);
 	int n = atomic_inc_return(&conn->usage);
 
 	trace_rxrpc_conn(conn->debug_id, rxrpc_conn_got, n, here);
+	return conn;
 }
 
 /*
@@ -365,6 +364,7 @@ static void rxrpc_destroy_connection(struct rcu_head *rcu)
 	conn->security->clear(conn);
 	key_put(conn->params.key);
 	key_put(conn->server_key);
+	rxrpc_put_bundle(conn->bundle);
 	rxrpc_put_peer(conn->params.peer);
 
 	if (atomic_dec_and_test(&conn->params.local->rxnet->nr_conns))

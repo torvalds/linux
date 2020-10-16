@@ -6,21 +6,26 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 #include <net/if.h>
 #include <linux/if.h>
 #include <linux/rtnetlink.h>
+#include <linux/socket.h>
 #include <linux/tc_act/tc_bpf.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 
 #include "bpf/nlattr.h"
-#include "bpf/libbpf_internal.h"
 #include "main.h"
 #include "netlink_dumper.h"
+
+#ifndef SOL_NETLINK
+#define SOL_NETLINK 270
+#endif
 
 struct ip_devname_ifindex {
 	char	devname[64];
@@ -83,6 +88,266 @@ static enum net_attach_type parse_attach_type(const char *str)
 	}
 
 	return net_attach_type_size;
+}
+
+typedef int (*dump_nlmsg_t)(void *cookie, void *msg, struct nlattr **tb);
+
+typedef int (*__dump_nlmsg_t)(struct nlmsghdr *nlmsg, dump_nlmsg_t, void *cookie);
+
+static int netlink_open(__u32 *nl_pid)
+{
+	struct sockaddr_nl sa;
+	socklen_t addrlen;
+	int one = 1, ret;
+	int sock;
+
+	memset(&sa, 0, sizeof(sa));
+	sa.nl_family = AF_NETLINK;
+
+	sock = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
+	if (sock < 0)
+		return -errno;
+
+	if (setsockopt(sock, SOL_NETLINK, NETLINK_EXT_ACK,
+		       &one, sizeof(one)) < 0) {
+		p_err("Netlink error reporting not supported");
+	}
+
+	if (bind(sock, (struct sockaddr *)&sa, sizeof(sa)) < 0) {
+		ret = -errno;
+		goto cleanup;
+	}
+
+	addrlen = sizeof(sa);
+	if (getsockname(sock, (struct sockaddr *)&sa, &addrlen) < 0) {
+		ret = -errno;
+		goto cleanup;
+	}
+
+	if (addrlen != sizeof(sa)) {
+		ret = -LIBBPF_ERRNO__INTERNAL;
+		goto cleanup;
+	}
+
+	*nl_pid = sa.nl_pid;
+	return sock;
+
+cleanup:
+	close(sock);
+	return ret;
+}
+
+static int netlink_recv(int sock, __u32 nl_pid, __u32 seq,
+			    __dump_nlmsg_t _fn, dump_nlmsg_t fn,
+			    void *cookie)
+{
+	bool multipart = true;
+	struct nlmsgerr *err;
+	struct nlmsghdr *nh;
+	char buf[4096];
+	int len, ret;
+
+	while (multipart) {
+		multipart = false;
+		len = recv(sock, buf, sizeof(buf), 0);
+		if (len < 0) {
+			ret = -errno;
+			goto done;
+		}
+
+		if (len == 0)
+			break;
+
+		for (nh = (struct nlmsghdr *)buf; NLMSG_OK(nh, len);
+		     nh = NLMSG_NEXT(nh, len)) {
+			if (nh->nlmsg_pid != nl_pid) {
+				ret = -LIBBPF_ERRNO__WRNGPID;
+				goto done;
+			}
+			if (nh->nlmsg_seq != seq) {
+				ret = -LIBBPF_ERRNO__INVSEQ;
+				goto done;
+			}
+			if (nh->nlmsg_flags & NLM_F_MULTI)
+				multipart = true;
+			switch (nh->nlmsg_type) {
+			case NLMSG_ERROR:
+				err = (struct nlmsgerr *)NLMSG_DATA(nh);
+				if (!err->error)
+					continue;
+				ret = err->error;
+				libbpf_nla_dump_errormsg(nh);
+				goto done;
+			case NLMSG_DONE:
+				return 0;
+			default:
+				break;
+			}
+			if (_fn) {
+				ret = _fn(nh, fn, cookie);
+				if (ret)
+					return ret;
+			}
+		}
+	}
+	ret = 0;
+done:
+	return ret;
+}
+
+static int __dump_class_nlmsg(struct nlmsghdr *nlh,
+			      dump_nlmsg_t dump_class_nlmsg,
+			      void *cookie)
+{
+	struct nlattr *tb[TCA_MAX + 1], *attr;
+	struct tcmsg *t = NLMSG_DATA(nlh);
+	int len;
+
+	len = nlh->nlmsg_len - NLMSG_LENGTH(sizeof(*t));
+	attr = (struct nlattr *) ((void *) t + NLMSG_ALIGN(sizeof(*t)));
+	if (libbpf_nla_parse(tb, TCA_MAX, attr, len, NULL) != 0)
+		return -LIBBPF_ERRNO__NLPARSE;
+
+	return dump_class_nlmsg(cookie, t, tb);
+}
+
+static int netlink_get_class(int sock, unsigned int nl_pid, int ifindex,
+			     dump_nlmsg_t dump_class_nlmsg, void *cookie)
+{
+	struct {
+		struct nlmsghdr nlh;
+		struct tcmsg t;
+	} req = {
+		.nlh.nlmsg_len = NLMSG_LENGTH(sizeof(struct tcmsg)),
+		.nlh.nlmsg_type = RTM_GETTCLASS,
+		.nlh.nlmsg_flags = NLM_F_DUMP | NLM_F_REQUEST,
+		.t.tcm_family = AF_UNSPEC,
+		.t.tcm_ifindex = ifindex,
+	};
+	int seq = time(NULL);
+
+	req.nlh.nlmsg_seq = seq;
+	if (send(sock, &req, req.nlh.nlmsg_len, 0) < 0)
+		return -errno;
+
+	return netlink_recv(sock, nl_pid, seq, __dump_class_nlmsg,
+			    dump_class_nlmsg, cookie);
+}
+
+static int __dump_qdisc_nlmsg(struct nlmsghdr *nlh,
+			      dump_nlmsg_t dump_qdisc_nlmsg,
+			      void *cookie)
+{
+	struct nlattr *tb[TCA_MAX + 1], *attr;
+	struct tcmsg *t = NLMSG_DATA(nlh);
+	int len;
+
+	len = nlh->nlmsg_len - NLMSG_LENGTH(sizeof(*t));
+	attr = (struct nlattr *) ((void *) t + NLMSG_ALIGN(sizeof(*t)));
+	if (libbpf_nla_parse(tb, TCA_MAX, attr, len, NULL) != 0)
+		return -LIBBPF_ERRNO__NLPARSE;
+
+	return dump_qdisc_nlmsg(cookie, t, tb);
+}
+
+static int netlink_get_qdisc(int sock, unsigned int nl_pid, int ifindex,
+			     dump_nlmsg_t dump_qdisc_nlmsg, void *cookie)
+{
+	struct {
+		struct nlmsghdr nlh;
+		struct tcmsg t;
+	} req = {
+		.nlh.nlmsg_len = NLMSG_LENGTH(sizeof(struct tcmsg)),
+		.nlh.nlmsg_type = RTM_GETQDISC,
+		.nlh.nlmsg_flags = NLM_F_DUMP | NLM_F_REQUEST,
+		.t.tcm_family = AF_UNSPEC,
+		.t.tcm_ifindex = ifindex,
+	};
+	int seq = time(NULL);
+
+	req.nlh.nlmsg_seq = seq;
+	if (send(sock, &req, req.nlh.nlmsg_len, 0) < 0)
+		return -errno;
+
+	return netlink_recv(sock, nl_pid, seq, __dump_qdisc_nlmsg,
+			    dump_qdisc_nlmsg, cookie);
+}
+
+static int __dump_filter_nlmsg(struct nlmsghdr *nlh,
+			       dump_nlmsg_t dump_filter_nlmsg,
+			       void *cookie)
+{
+	struct nlattr *tb[TCA_MAX + 1], *attr;
+	struct tcmsg *t = NLMSG_DATA(nlh);
+	int len;
+
+	len = nlh->nlmsg_len - NLMSG_LENGTH(sizeof(*t));
+	attr = (struct nlattr *) ((void *) t + NLMSG_ALIGN(sizeof(*t)));
+	if (libbpf_nla_parse(tb, TCA_MAX, attr, len, NULL) != 0)
+		return -LIBBPF_ERRNO__NLPARSE;
+
+	return dump_filter_nlmsg(cookie, t, tb);
+}
+
+static int netlink_get_filter(int sock, unsigned int nl_pid, int ifindex, int handle,
+			      dump_nlmsg_t dump_filter_nlmsg, void *cookie)
+{
+	struct {
+		struct nlmsghdr nlh;
+		struct tcmsg t;
+	} req = {
+		.nlh.nlmsg_len = NLMSG_LENGTH(sizeof(struct tcmsg)),
+		.nlh.nlmsg_type = RTM_GETTFILTER,
+		.nlh.nlmsg_flags = NLM_F_DUMP | NLM_F_REQUEST,
+		.t.tcm_family = AF_UNSPEC,
+		.t.tcm_ifindex = ifindex,
+		.t.tcm_parent = handle,
+	};
+	int seq = time(NULL);
+
+	req.nlh.nlmsg_seq = seq;
+	if (send(sock, &req, req.nlh.nlmsg_len, 0) < 0)
+		return -errno;
+
+	return netlink_recv(sock, nl_pid, seq, __dump_filter_nlmsg,
+			    dump_filter_nlmsg, cookie);
+}
+
+static int __dump_link_nlmsg(struct nlmsghdr *nlh,
+			     dump_nlmsg_t dump_link_nlmsg, void *cookie)
+{
+	struct nlattr *tb[IFLA_MAX + 1], *attr;
+	struct ifinfomsg *ifi = NLMSG_DATA(nlh);
+	int len;
+
+	len = nlh->nlmsg_len - NLMSG_LENGTH(sizeof(*ifi));
+	attr = (struct nlattr *) ((void *) ifi + NLMSG_ALIGN(sizeof(*ifi)));
+	if (libbpf_nla_parse(tb, IFLA_MAX, attr, len, NULL) != 0)
+		return -LIBBPF_ERRNO__NLPARSE;
+
+	return dump_link_nlmsg(cookie, ifi, tb);
+}
+
+static int netlink_get_link(int sock, unsigned int nl_pid,
+			    dump_nlmsg_t dump_link_nlmsg, void *cookie)
+{
+	struct {
+		struct nlmsghdr nlh;
+		struct ifinfomsg ifm;
+	} req = {
+		.nlh.nlmsg_len = NLMSG_LENGTH(sizeof(struct ifinfomsg)),
+		.nlh.nlmsg_type = RTM_GETLINK,
+		.nlh.nlmsg_flags = NLM_F_DUMP | NLM_F_REQUEST,
+		.ifm.ifi_family = AF_PACKET,
+	};
+	int seq = time(NULL);
+
+	req.nlh.nlmsg_seq = seq;
+	if (send(sock, &req, req.nlh.nlmsg_len, 0) < 0)
+		return -errno;
+
+	return netlink_recv(sock, nl_pid, seq, __dump_link_nlmsg,
+			    dump_link_nlmsg, cookie);
 }
 
 static int dump_link_nlmsg(void *cookie, void *msg, struct nlattr **tb)
@@ -168,14 +433,14 @@ static int show_dev_tc_bpf(int sock, unsigned int nl_pid,
 	tcinfo.array_len = 0;
 
 	tcinfo.is_qdisc = false;
-	ret = libbpf_nl_get_class(sock, nl_pid, dev->ifindex,
-				  dump_class_qdisc_nlmsg, &tcinfo);
+	ret = netlink_get_class(sock, nl_pid, dev->ifindex,
+				dump_class_qdisc_nlmsg, &tcinfo);
 	if (ret)
 		goto out;
 
 	tcinfo.is_qdisc = true;
-	ret = libbpf_nl_get_qdisc(sock, nl_pid, dev->ifindex,
-				  dump_class_qdisc_nlmsg, &tcinfo);
+	ret = netlink_get_qdisc(sock, nl_pid, dev->ifindex,
+				dump_class_qdisc_nlmsg, &tcinfo);
 	if (ret)
 		goto out;
 
@@ -183,9 +448,9 @@ static int show_dev_tc_bpf(int sock, unsigned int nl_pid,
 	filter_info.ifindex = dev->ifindex;
 	for (i = 0; i < tcinfo.used_len; i++) {
 		filter_info.kind = tcinfo.handle_array[i].kind;
-		ret = libbpf_nl_get_filter(sock, nl_pid, dev->ifindex,
-					   tcinfo.handle_array[i].handle,
-					   dump_filter_nlmsg, &filter_info);
+		ret = netlink_get_filter(sock, nl_pid, dev->ifindex,
+					 tcinfo.handle_array[i].handle,
+					 dump_filter_nlmsg, &filter_info);
 		if (ret)
 			goto out;
 	}
@@ -193,22 +458,22 @@ static int show_dev_tc_bpf(int sock, unsigned int nl_pid,
 	/* root, ingress and egress handle */
 	handle = TC_H_ROOT;
 	filter_info.kind = "root";
-	ret = libbpf_nl_get_filter(sock, nl_pid, dev->ifindex, handle,
-				   dump_filter_nlmsg, &filter_info);
+	ret = netlink_get_filter(sock, nl_pid, dev->ifindex, handle,
+				 dump_filter_nlmsg, &filter_info);
 	if (ret)
 		goto out;
 
 	handle = TC_H_MAKE(TC_H_CLSACT, TC_H_MIN_INGRESS);
 	filter_info.kind = "clsact/ingress";
-	ret = libbpf_nl_get_filter(sock, nl_pid, dev->ifindex, handle,
-				   dump_filter_nlmsg, &filter_info);
+	ret = netlink_get_filter(sock, nl_pid, dev->ifindex, handle,
+				 dump_filter_nlmsg, &filter_info);
 	if (ret)
 		goto out;
 
 	handle = TC_H_MAKE(TC_H_CLSACT, TC_H_MIN_EGRESS);
 	filter_info.kind = "clsact/egress";
-	ret = libbpf_nl_get_filter(sock, nl_pid, dev->ifindex, handle,
-				   dump_filter_nlmsg, &filter_info);
+	ret = netlink_get_filter(sock, nl_pid, dev->ifindex, handle,
+				 dump_filter_nlmsg, &filter_info);
 	if (ret)
 		goto out;
 
@@ -386,7 +651,7 @@ static int do_show(int argc, char **argv)
 	struct bpf_attach_info attach_info = {};
 	int i, sock, ret, filter_idx = -1;
 	struct bpf_netdev_t dev_array;
-	unsigned int nl_pid;
+	unsigned int nl_pid = 0;
 	char err_buf[256];
 
 	if (argc == 2) {
@@ -401,7 +666,7 @@ static int do_show(int argc, char **argv)
 	if (ret)
 		return -1;
 
-	sock = libbpf_netlink_open(&nl_pid);
+	sock = netlink_open(&nl_pid);
 	if (sock < 0) {
 		fprintf(stderr, "failed to open netlink sock\n");
 		return -1;
@@ -416,7 +681,7 @@ static int do_show(int argc, char **argv)
 		jsonw_start_array(json_wtr);
 	NET_START_OBJECT;
 	NET_START_ARRAY("xdp", "%s:\n");
-	ret = libbpf_nl_get_link(sock, nl_pid, dump_link_nlmsg, &dev_array);
+	ret = netlink_get_link(sock, nl_pid, dump_link_nlmsg, &dev_array);
 	NET_END_ARRAY("\n");
 
 	if (!ret) {

@@ -11,6 +11,7 @@
 #include <net/tcp.h>
 #include <net/mptcp.h>
 #include "protocol.h"
+#include "mib.h"
 
 static bool mptcp_cap_flag_sha256(u8 flags)
 {
@@ -242,7 +243,7 @@ static void mptcp_parse_option(const struct sk_buff *skb,
 		mp_opt->add_addr = 1;
 		mp_opt->port = 0;
 		mp_opt->addr_id = *ptr++;
-		pr_debug("ADD_ADDR: id=%d", mp_opt->addr_id);
+		pr_debug("ADD_ADDR: id=%d, echo=%d", mp_opt->addr_id, mp_opt->echo);
 		if (mp_opt->family == MPTCP_ADDR_IPVERSION_4) {
 			memcpy((u8 *)&mp_opt->addr.s_addr, (u8 *)ptr, 4);
 			ptr += 4;
@@ -516,7 +517,7 @@ static bool mptcp_established_options_dss(struct sock *sk, struct sk_buff *skb,
 		return ret;
 	}
 
-	if (subflow->use_64bit_ack) {
+	if (READ_ONCE(msk->use_64bit_ack)) {
 		ack_size = TCPOLEN_MPTCP_DSS_ACK64;
 		opts->ext_copy.data_ack = READ_ONCE(msk->ack_seq);
 		opts->ext_copy.ack64 = 1;
@@ -571,21 +572,22 @@ static u64 add_addr6_generate_hmac(u64 key1, u64 key2, u8 addr_id,
 }
 #endif
 
-static bool mptcp_established_options_addr(struct sock *sk,
-					   unsigned int *size,
-					   unsigned int remaining,
-					   struct mptcp_out_options *opts)
+static bool mptcp_established_options_add_addr(struct sock *sk,
+					       unsigned int *size,
+					       unsigned int remaining,
+					       struct mptcp_out_options *opts)
 {
 	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
 	struct mptcp_sock *msk = mptcp_sk(subflow->conn);
 	struct mptcp_addr_info saddr;
+	bool echo;
 	int len;
 
-	if (!mptcp_pm_should_signal(msk) ||
-	    !(mptcp_pm_addr_signal(msk, remaining, &saddr)))
+	if (!mptcp_pm_should_add_signal(msk) ||
+	    !(mptcp_pm_add_addr_signal(msk, remaining, &saddr, &echo)))
 		return false;
 
-	len = mptcp_add_addr_len(saddr.family);
+	len = mptcp_add_addr_len(saddr.family, echo);
 	if (remaining < len)
 		return false;
 
@@ -594,22 +596,51 @@ static bool mptcp_established_options_addr(struct sock *sk,
 	if (saddr.family == AF_INET) {
 		opts->suboptions |= OPTION_MPTCP_ADD_ADDR;
 		opts->addr = saddr.addr;
-		opts->ahmac = add_addr_generate_hmac(msk->local_key,
-						     msk->remote_key,
-						     opts->addr_id,
-						     &opts->addr);
+		if (!echo) {
+			opts->ahmac = add_addr_generate_hmac(msk->local_key,
+							     msk->remote_key,
+							     opts->addr_id,
+							     &opts->addr);
+		}
 	}
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
 	else if (saddr.family == AF_INET6) {
 		opts->suboptions |= OPTION_MPTCP_ADD_ADDR6;
 		opts->addr6 = saddr.addr6;
-		opts->ahmac = add_addr6_generate_hmac(msk->local_key,
-						      msk->remote_key,
-						      opts->addr_id,
-						      &opts->addr6);
+		if (!echo) {
+			opts->ahmac = add_addr6_generate_hmac(msk->local_key,
+							      msk->remote_key,
+							      opts->addr_id,
+							      &opts->addr6);
+		}
 	}
 #endif
-	pr_debug("addr_id=%d, ahmac=%llu", opts->addr_id, opts->ahmac);
+	pr_debug("addr_id=%d, ahmac=%llu, echo=%d", opts->addr_id, opts->ahmac, echo);
+
+	return true;
+}
+
+static bool mptcp_established_options_rm_addr(struct sock *sk,
+					      unsigned int *size,
+					      unsigned int remaining,
+					      struct mptcp_out_options *opts)
+{
+	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
+	struct mptcp_sock *msk = mptcp_sk(subflow->conn);
+	u8 rm_id;
+
+	if (!mptcp_pm_should_rm_signal(msk) ||
+	    !(mptcp_pm_rm_addr_signal(msk, remaining, &rm_id)))
+		return false;
+
+	if (remaining < TCPOLEN_MPTCP_RM_ADDR_BASE)
+		return false;
+
+	*size = TCPOLEN_MPTCP_RM_ADDR_BASE;
+	opts->suboptions |= OPTION_MPTCP_RM_ADDR;
+	opts->rm_id = rm_id;
+
+	pr_debug("rm_id=%d", opts->rm_id);
 
 	return true;
 }
@@ -626,6 +657,12 @@ bool mptcp_established_options(struct sock *sk, struct sk_buff *skb,
 	if (unlikely(mptcp_check_fallback(sk)))
 		return false;
 
+	/* prevent adding of any MPTCP related options on reset packet
+	 * until we support MP_TCPRST/MP_FASTCLOSE
+	 */
+	if (unlikely(skb && TCP_SKB_CB(skb)->tcp_flags & TCPHDR_RST))
+		return false;
+
 	if (mptcp_established_options_mp(sk, skb, &opt_size, remaining, opts))
 		ret = true;
 	else if (mptcp_established_options_dss(sk, skb, &opt_size, remaining,
@@ -640,7 +677,11 @@ bool mptcp_established_options(struct sock *sk, struct sk_buff *skb,
 
 	*size += opt_size;
 	remaining -= opt_size;
-	if (mptcp_established_options_addr(sk, &opt_size, remaining, opts)) {
+	if (mptcp_established_options_add_addr(sk, &opt_size, remaining, opts)) {
+		*size += opt_size;
+		remaining -= opt_size;
+		ret = true;
+	} else if (mptcp_established_options_rm_addr(sk, &opt_size, remaining, opts)) {
 		*size += opt_size;
 		remaining -= opt_size;
 		ret = true;
@@ -676,7 +717,7 @@ bool mptcp_synack_options(const struct request_sock *req, unsigned int *size,
 	return false;
 }
 
-static bool check_fully_established(struct mptcp_sock *msk, struct sock *sk,
+static bool check_fully_established(struct mptcp_sock *msk, struct sock *ssk,
 				    struct mptcp_subflow_context *subflow,
 				    struct sk_buff *skb,
 				    struct mptcp_options_received *mp_opt)
@@ -693,15 +734,20 @@ static bool check_fully_established(struct mptcp_sock *msk, struct sock *sk,
 		    TCP_SKB_CB(skb)->end_seq == TCP_SKB_CB(skb)->seq &&
 		    subflow->mp_join && mp_opt->mp_join &&
 		    READ_ONCE(msk->pm.server_side))
-			tcp_send_ack(sk);
+			tcp_send_ack(ssk);
 		goto fully_established;
 	}
 
-	/* we should process OoO packets before the first subflow is fully
-	 * established, but not expected for MP_JOIN subflows
+	/* we must process OoO packets before the first subflow is fully
+	 * established. OoO packets are instead a protocol violation
+	 * for MP_JOIN subflows as the peer must not send any data
+	 * before receiving the forth ack - cfr. RFC 8684 section 3.2.
 	 */
-	if (TCP_SKB_CB(skb)->seq != subflow->ssn_offset + 1)
+	if (TCP_SKB_CB(skb)->seq != subflow->ssn_offset + 1) {
+		if (subflow->mp_join)
+			goto reset;
 		return subflow->mp_capable;
+	}
 
 	if (mp_opt->dss && mp_opt->use_ack) {
 		/* subflows are fully established as soon as we get any
@@ -713,9 +759,12 @@ static bool check_fully_established(struct mptcp_sock *msk, struct sock *sk,
 	}
 
 	/* If the first established packet does not contain MP_CAPABLE + data
-	 * then fallback to TCP
+	 * then fallback to TCP. Fallback scenarios requires a reset for
+	 * MP_JOIN subflows.
 	 */
 	if (!mp_opt->mp_capable) {
+		if (subflow->mp_join)
+			goto reset;
 		subflow->mp_capable = 0;
 		pr_fallback(msk);
 		__mptcp_do_fallback(msk);
@@ -732,12 +781,16 @@ fully_established:
 
 	subflow->pm_notified = 1;
 	if (subflow->mp_join) {
-		clear_3rdack_retransmission(sk);
+		clear_3rdack_retransmission(ssk);
 		mptcp_pm_subflow_established(msk, subflow);
 	} else {
 		mptcp_pm_fully_established(msk);
 	}
 	return true;
+
+reset:
+	mptcp_subflow_reset(ssk);
+	return false;
 }
 
 static u64 expand_ack(u64 old_ack, u64 cur_ack, bool use_64bit)
@@ -825,8 +878,7 @@ static bool add_addr_hmac_valid(struct mptcp_sock *msk,
 	return hmac == mp_opt->ahmac;
 }
 
-void mptcp_incoming_options(struct sock *sk, struct sk_buff *skb,
-			    struct tcp_options_received *opt_rx)
+void mptcp_incoming_options(struct sock *sk, struct sk_buff *skb)
 {
 	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
 	struct mptcp_sock *msk = mptcp_sk(subflow->conn);
@@ -855,9 +907,19 @@ void mptcp_incoming_options(struct sock *sk, struct sk_buff *skb,
 			addr.addr6 = mp_opt.addr6;
 		}
 #endif
-		if (!mp_opt.echo)
+		if (!mp_opt.echo) {
 			mptcp_pm_add_addr_received(msk, &addr);
+			MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_ADDADDR);
+		} else {
+			mptcp_pm_del_add_timer(msk, &addr);
+			MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_ECHOADD);
+		}
 		mp_opt.add_addr = 0;
+	}
+
+	if (mp_opt.rm_addr) {
+		mptcp_pm_rm_addr_received(msk, mp_opt.rm_id);
+		mp_opt.rm_addr = 0;
 	}
 
 	if (!mp_opt.dss)

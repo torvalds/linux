@@ -8,6 +8,8 @@
 
 #include "hal_rx.h"
 
+#define MAX_RXDMA_PER_PDEV     2
+
 struct ath11k_base;
 struct ath11k_peer;
 struct ath11k_dp;
@@ -38,6 +40,7 @@ struct dp_rx_tid {
 
 #define DP_REO_DESC_FREE_THRESHOLD  64
 #define DP_REO_DESC_FREE_TIMEOUT_MS 1000
+#define DP_MON_SERVICE_BUDGET       128
 
 struct dp_reo_cache_flush_elem {
 	struct list_head list;
@@ -142,12 +145,13 @@ struct ath11k_pdev_dp {
 	atomic_t num_tx_pending;
 	wait_queue_head_t tx_empty_waitq;
 	struct dp_rxdma_ring rx_refill_buf_ring;
-	struct dp_srng rxdma_err_dst_ring;
+	struct dp_srng rx_mac_buf_ring[MAX_RXDMA_PER_PDEV];
+	struct dp_srng rxdma_err_dst_ring[MAX_RXDMA_PER_PDEV];
 	struct dp_srng rxdma_mon_dst_ring;
 	struct dp_srng rxdma_mon_desc_ring;
 
 	struct dp_rxdma_ring rxdma_mon_buf_ring;
-	struct dp_rxdma_ring rx_mon_status_refill_ring;
+	struct dp_rxdma_ring rx_mon_status_refill_ring[MAX_RXDMA_PER_PDEV];
 	struct ieee80211_rx_status rx_status;
 	struct ath11k_mon_data mon_data;
 };
@@ -202,6 +206,20 @@ struct ath11k_pdev_dp {
 #define DP_TX_DESC_ID_MSDU_ID GENMASK(18, 2)
 #define DP_TX_DESC_ID_POOL_ID GENMASK(20, 19)
 
+#define ATH11K_SHADOW_DP_TIMER_INTERVAL 20
+#define ATH11K_SHADOW_CTRL_TIMER_INTERVAL 10
+
+struct ath11k_hp_update_timer {
+	struct timer_list timer;
+	bool started;
+	bool init;
+	u32 tx_num;
+	u32 timer_tx_num;
+	u32 ring_id;
+	u32 interval;
+	struct ath11k_base *ab;
+};
+
 struct ath11k_dp {
 	struct ath11k_base *ab;
 	enum ath11k_htc_ep_id eid;
@@ -231,6 +249,8 @@ struct ath11k_dp {
 	 * - reo_cmd_cache_flush_count
 	 */
 	spinlock_t reo_cmd_lock;
+	struct ath11k_hp_update_timer reo_cmd_timer;
+	struct ath11k_hp_update_timer tx_ring_timer[DP_TCL_NUM_RING_MAX];
 };
 
 /* HTT definitions */
@@ -494,7 +514,7 @@ struct htt_ppdu_stats_cfg_cmd {
 } __packed;
 
 #define HTT_PPDU_STATS_CFG_MSG_TYPE		GENMASK(7, 0)
-#define HTT_PPDU_STATS_CFG_PDEV_ID		GENMASK(16, 9)
+#define HTT_PPDU_STATS_CFG_PDEV_ID		GENMASK(15, 8)
 #define HTT_PPDU_STATS_CFG_TLV_TYPE_BITMASK	GENMASK(31, 16)
 
 enum htt_ppdu_stats_tag_type {
@@ -936,11 +956,13 @@ struct htt_rx_ring_tlv_filter {
 
 enum htt_t2h_msg_type {
 	HTT_T2H_MSG_TYPE_VERSION_CONF,
+	HTT_T2H_MSG_TYPE_PEER_MAP	= 0x3,
+	HTT_T2H_MSG_TYPE_PEER_UNMAP	= 0x4,
 	HTT_T2H_MSG_TYPE_RX_ADDBA	= 0x5,
 	HTT_T2H_MSG_TYPE_PKTLOG		= 0x8,
 	HTT_T2H_MSG_TYPE_SEC_IND	= 0xb,
-	HTT_T2H_MSG_TYPE_PEER_MAP	= 0x1e,
-	HTT_T2H_MSG_TYPE_PEER_UNMAP	= 0x1f,
+	HTT_T2H_MSG_TYPE_PEER_MAP2	= 0x1e,
+	HTT_T2H_MSG_TYPE_PEER_UNMAP2	= 0x1f,
 	HTT_T2H_MSG_TYPE_PPDU_STATS_IND = 0x1d,
 	HTT_T2H_MSG_TYPE_EXT_STATS_CONF = 0x1c,
 	HTT_T2H_MSG_TYPE_BKPRESSURE_EVENT_IND = 0x24,
@@ -1610,5 +1632,13 @@ int ath11k_dp_link_desc_setup(struct ath11k_base *ab,
 			      struct dp_link_desc_bank *link_desc_banks,
 			      u32 ring_type, struct hal_srng *srng,
 			      u32 n_link_desc);
+void ath11k_dp_shadow_start_timer(struct ath11k_base *ab,
+				  struct hal_srng	*srng,
+				  struct ath11k_hp_update_timer *update_timer);
+void ath11k_dp_shadow_stop_timer(struct ath11k_base *ab,
+				 struct ath11k_hp_update_timer *update_timer);
+void ath11k_dp_shadow_init_timer(struct ath11k_base *ab,
+				 struct ath11k_hp_update_timer *update_timer,
+				 u32 interval, u32 ring_id);
 
 #endif

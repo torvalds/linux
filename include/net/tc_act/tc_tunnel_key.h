@@ -56,7 +56,10 @@ static inline struct ip_tunnel_info *tcf_tunnel_info(const struct tc_action *a)
 {
 #ifdef CONFIG_NET_CLS_ACT
 	struct tcf_tunnel_key *t = to_tunnel_key(a);
-	struct tcf_tunnel_key_params *params = rtnl_dereference(t->params);
+	struct tcf_tunnel_key_params *params;
+
+	params = rcu_dereference_protected(t->params,
+					   lockdep_is_held(&a->tcfa_lock));
 
 	return &params->tcft_enc_metadata->u.tun_info;
 #else

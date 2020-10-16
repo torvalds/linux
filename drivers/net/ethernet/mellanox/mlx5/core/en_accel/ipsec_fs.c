@@ -34,6 +34,12 @@ struct mlx5e_accel_fs_esp {
 	struct mlx5e_accel_fs_esp_prot fs_prot[ACCEL_FS_ESP_NUM_TYPES];
 };
 
+struct mlx5e_ipsec_tx {
+	struct mlx5_flow_table *ft;
+	struct mutex mutex; /* Protect IPsec TX steering */
+	u32 refcnt;
+};
+
 /* IPsec RX flow steering */
 static enum mlx5e_traffic_types fs_esp2tt(enum accel_fs_esp_type i)
 {
@@ -228,8 +234,8 @@ static int rx_fs_create(struct mlx5e_priv *priv,
 	fs_prot->miss_rule = miss_rule;
 
 out:
-	kfree(flow_group_in);
-	kfree(spec);
+	kvfree(flow_group_in);
+	kvfree(spec);
 	return err;
 }
 
@@ -321,6 +327,77 @@ static void rx_ft_put(struct mlx5e_priv *priv, enum accel_fs_esp_type type)
 
 out:
 	mutex_unlock(&fs_prot->prot_mutex);
+}
+
+/* IPsec TX flow steering */
+static int tx_create(struct mlx5e_priv *priv)
+{
+	struct mlx5_flow_table_attr ft_attr = {};
+	struct mlx5e_ipsec *ipsec = priv->ipsec;
+	struct mlx5_flow_table *ft;
+	int err;
+
+	priv->fs.egress_ns =
+		mlx5_get_flow_namespace(priv->mdev,
+					MLX5_FLOW_NAMESPACE_EGRESS_KERNEL);
+	if (!priv->fs.egress_ns)
+		return -EOPNOTSUPP;
+
+	ft_attr.max_fte = NUM_IPSEC_FTE;
+	ft_attr.autogroup.max_num_groups = 1;
+	ft = mlx5_create_auto_grouped_flow_table(priv->fs.egress_ns, &ft_attr);
+	if (IS_ERR(ft)) {
+		err = PTR_ERR(ft);
+		netdev_err(priv->netdev, "fail to create ipsec tx ft err=%d\n", err);
+		return err;
+	}
+	ipsec->tx_fs->ft = ft;
+	return 0;
+}
+
+static void tx_destroy(struct mlx5e_priv *priv)
+{
+	struct mlx5e_ipsec *ipsec = priv->ipsec;
+
+	if (IS_ERR_OR_NULL(ipsec->tx_fs->ft))
+		return;
+
+	mlx5_destroy_flow_table(ipsec->tx_fs->ft);
+	ipsec->tx_fs->ft = NULL;
+}
+
+static int tx_ft_get(struct mlx5e_priv *priv)
+{
+	struct mlx5e_ipsec_tx *tx_fs = priv->ipsec->tx_fs;
+	int err = 0;
+
+	mutex_lock(&tx_fs->mutex);
+	if (tx_fs->refcnt++)
+		goto out;
+
+	err = tx_create(priv);
+	if (err) {
+		tx_fs->refcnt--;
+		goto out;
+	}
+
+out:
+	mutex_unlock(&tx_fs->mutex);
+	return err;
+}
+
+static void tx_ft_put(struct mlx5e_priv *priv)
+{
+	struct mlx5e_ipsec_tx *tx_fs = priv->ipsec->tx_fs;
+
+	mutex_lock(&tx_fs->mutex);
+	if (--tx_fs->refcnt)
+		goto out;
+
+	tx_destroy(priv);
+
+out:
+	mutex_unlock(&tx_fs->mutex);
 }
 
 static void setup_fte_common(struct mlx5_accel_esp_xfrm_attrs *attrs,
@@ -457,6 +534,54 @@ out:
 	return err;
 }
 
+static int tx_add_rule(struct mlx5e_priv *priv,
+		       struct mlx5_accel_esp_xfrm_attrs *attrs,
+		       u32 ipsec_obj_id,
+		       struct mlx5e_ipsec_rule *ipsec_rule)
+{
+	struct mlx5_flow_act flow_act = {};
+	struct mlx5_flow_handle *rule;
+	struct mlx5_flow_spec *spec;
+	int err = 0;
+
+	err = tx_ft_get(priv);
+	if (err)
+		return err;
+
+	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	if (!spec) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	setup_fte_common(attrs, ipsec_obj_id, spec, &flow_act);
+
+	/* Add IPsec indicator in metadata_reg_a */
+	spec->match_criteria_enable |= MLX5_MATCH_MISC_PARAMETERS_2;
+	MLX5_SET(fte_match_param, spec->match_criteria, misc_parameters_2.metadata_reg_a,
+		 MLX5_ETH_WQE_FT_META_IPSEC);
+	MLX5_SET(fte_match_param, spec->match_value, misc_parameters_2.metadata_reg_a,
+		 MLX5_ETH_WQE_FT_META_IPSEC);
+
+	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_ALLOW |
+			  MLX5_FLOW_CONTEXT_ACTION_IPSEC_ENCRYPT;
+	rule = mlx5_add_flow_rules(priv->ipsec->tx_fs->ft, spec, &flow_act, NULL, 0);
+	if (IS_ERR(rule)) {
+		err = PTR_ERR(rule);
+		netdev_err(priv->netdev, "fail to add ipsec rule attrs->action=0x%x, err=%d\n",
+			   attrs->action, err);
+		goto out;
+	}
+
+	ipsec_rule->rule = rule;
+
+out:
+	kvfree(spec);
+	if (err)
+		tx_ft_put(priv);
+	return err;
+}
+
 static void rx_del_rule(struct mlx5e_priv *priv,
 			struct mlx5_accel_esp_xfrm_attrs *attrs,
 			struct mlx5e_ipsec_rule *ipsec_rule)
@@ -470,15 +595,27 @@ static void rx_del_rule(struct mlx5e_priv *priv,
 	rx_ft_put(priv, attrs->is_ipv6 ? ACCEL_FS_ESP6 : ACCEL_FS_ESP4);
 }
 
+static void tx_del_rule(struct mlx5e_priv *priv,
+			struct mlx5e_ipsec_rule *ipsec_rule)
+{
+	mlx5_del_flow_rules(ipsec_rule->rule);
+	ipsec_rule->rule = NULL;
+
+	tx_ft_put(priv);
+}
+
 int mlx5e_accel_ipsec_fs_add_rule(struct mlx5e_priv *priv,
 				  struct mlx5_accel_esp_xfrm_attrs *attrs,
 				  u32 ipsec_obj_id,
 				  struct mlx5e_ipsec_rule *ipsec_rule)
 {
-	if (!priv->ipsec->rx_fs || attrs->action != MLX5_ACCEL_ESP_ACTION_DECRYPT)
+	if (!priv->ipsec->rx_fs)
 		return -EOPNOTSUPP;
 
-	return rx_add_rule(priv, attrs, ipsec_obj_id, ipsec_rule);
+	if (attrs->action == MLX5_ACCEL_ESP_ACTION_DECRYPT)
+		return rx_add_rule(priv, attrs, ipsec_obj_id, ipsec_rule);
+	else
+		return tx_add_rule(priv, attrs, ipsec_obj_id, ipsec_rule);
 }
 
 void mlx5e_accel_ipsec_fs_del_rule(struct mlx5e_priv *priv,
@@ -488,7 +625,18 @@ void mlx5e_accel_ipsec_fs_del_rule(struct mlx5e_priv *priv,
 	if (!priv->ipsec->rx_fs)
 		return;
 
-	rx_del_rule(priv, attrs, ipsec_rule);
+	if (attrs->action == MLX5_ACCEL_ESP_ACTION_DECRYPT)
+		rx_del_rule(priv, attrs, ipsec_rule);
+	else
+		tx_del_rule(priv, ipsec_rule);
+}
+
+static void fs_cleanup_tx(struct mlx5e_priv *priv)
+{
+	mutex_destroy(&priv->ipsec->tx_fs->mutex);
+	WARN_ON(priv->ipsec->tx_fs->refcnt);
+	kfree(priv->ipsec->tx_fs);
+	priv->ipsec->tx_fs = NULL;
 }
 
 static void fs_cleanup_rx(struct mlx5e_priv *priv)
@@ -505,6 +653,17 @@ static void fs_cleanup_rx(struct mlx5e_priv *priv)
 	}
 	kfree(priv->ipsec->rx_fs);
 	priv->ipsec->rx_fs = NULL;
+}
+
+static int fs_init_tx(struct mlx5e_priv *priv)
+{
+	priv->ipsec->tx_fs =
+		kzalloc(sizeof(struct mlx5e_ipsec_tx), GFP_KERNEL);
+	if (!priv->ipsec->tx_fs)
+		return -ENOMEM;
+
+	mutex_init(&priv->ipsec->tx_fs->mutex);
+	return 0;
 }
 
 static int fs_init_rx(struct mlx5e_priv *priv)
@@ -532,13 +691,24 @@ void mlx5e_accel_ipsec_fs_cleanup(struct mlx5e_priv *priv)
 	if (!priv->ipsec->rx_fs)
 		return;
 
+	fs_cleanup_tx(priv);
 	fs_cleanup_rx(priv);
 }
 
 int mlx5e_accel_ipsec_fs_init(struct mlx5e_priv *priv)
 {
+	int err;
+
 	if (!mlx5_is_ipsec_device(priv->mdev) || !priv->ipsec)
 		return -EOPNOTSUPP;
 
-	return fs_init_rx(priv);
+	err = fs_init_tx(priv);
+	if (err)
+		return err;
+
+	err = fs_init_rx(priv);
+	if (err)
+		fs_cleanup_tx(priv);
+
+	return err;
 }

@@ -437,6 +437,8 @@ static int get_base_qpn(struct hinic_hwdev *hwdev, u16 *base_qpn)
 /**
  * hinic_hwdev_ifup - Preparing the HW for passing IO
  * @hwdev: the NIC HW device
+ * @sq_depth: the send queue depth
+ * @rq_depth: the receive queue depth
  *
  * Return 0 - Success, negative - Failure
  **/
@@ -465,6 +467,7 @@ int hinic_hwdev_ifup(struct hinic_hwdev *hwdev, u16 sq_depth, u16 rq_depth)
 	func_to_io->hwdev = hwdev;
 	func_to_io->sq_depth = sq_depth;
 	func_to_io->rq_depth = rq_depth;
+	func_to_io->global_qpn = base_qpn;
 
 	err = hinic_io_init(func_to_io, hwif, nic_cap->max_qps, num_ceqs,
 			    ceq_msix_entries);
@@ -581,6 +584,7 @@ void hinic_hwdev_cb_unregister(struct hinic_hwdev *hwdev,
 /**
  * nic_mgmt_msg_handler - nic mgmt event handler
  * @handle: private data for the handler
+ * @cmd: message command
  * @buf_in: input buffer
  * @in_size: input size
  * @buf_out: output buffer
@@ -908,6 +912,7 @@ int hinic_set_interrupt_cfg(struct hinic_hwdev *hwdev,
 /**
  * hinic_init_hwdev - Initialize the NIC HW
  * @pdev: the NIC pci device
+ * @devlink: the poniter of hinic devlink
  *
  * Return initialized NIC HW device
  *
@@ -1120,7 +1125,7 @@ int hinic_hwdev_msix_cnt_set(struct hinic_hwdev *hwdev, u16 msix_index)
  * @msix_index: msix_index
  * @pending_limit: the maximum pending interrupt events (unit 8)
  * @coalesc_timer: coalesc period for interrupt (unit 8 us)
- * @lli_timer: replenishing period for low latency credit (unit 8 us)
+ * @lli_timer_cfg: replenishing period for low latency credit (unit 8 us)
  * @lli_credit_limit: maximum credits for low latency msix messages (unit 8)
  * @resend_timer: maximum wait for resending msix (unit coalesc period)
  *

@@ -7,31 +7,17 @@
 #include <soc/mscc/ocelot_sys.h>
 #include <soc/mscc/ocelot.h>
 #include <linux/of_platform.h>
+#include <linux/pcs-lynx.h>
 #include <linux/packing.h>
 #include <linux/iopoll.h>
 #include "felix.h"
 
-#define VSC9953_VCAP_IS2_CNT			1024
-#define VSC9953_VCAP_IS2_ENTRY_WIDTH		376
-#define VSC9953_VCAP_PORT_CNT			10
-
-#define MSCC_MIIM_REG_STATUS			0x0
-#define		MSCC_MIIM_STATUS_STAT_BUSY	BIT(3)
-#define MSCC_MIIM_REG_CMD			0x8
-#define		MSCC_MIIM_CMD_OPR_WRITE		BIT(1)
-#define		MSCC_MIIM_CMD_OPR_READ		BIT(2)
-#define		MSCC_MIIM_CMD_WRDATA_SHIFT	4
-#define		MSCC_MIIM_CMD_REGAD_SHIFT	20
-#define		MSCC_MIIM_CMD_PHYAD_SHIFT	25
-#define		MSCC_MIIM_CMD_VLD		BIT(31)
-#define MSCC_MIIM_REG_DATA			0xC
-#define		MSCC_MIIM_DATA_ERROR		(BIT(16) | BIT(17))
-
-#define MSCC_PHY_REG_PHY_CFG		0x0
-#define		PHY_CFG_PHY_ENA		(BIT(0) | BIT(1) | BIT(2) | BIT(3))
-#define		PHY_CFG_PHY_COMMON_RESET BIT(4)
-#define		PHY_CFG_PHY_RESET	(BIT(5) | BIT(6) | BIT(7) | BIT(8))
-#define MSCC_PHY_REG_PHY_STATUS		0x4
+#define MSCC_MIIM_CMD_OPR_WRITE			BIT(1)
+#define MSCC_MIIM_CMD_OPR_READ			BIT(2)
+#define MSCC_MIIM_CMD_WRDATA_SHIFT		4
+#define MSCC_MIIM_CMD_REGAD_SHIFT		20
+#define MSCC_MIIM_CMD_PHYAD_SHIFT		25
+#define MSCC_MIIM_CMD_VLD			BIT(31)
 
 static const u32 vsc9953_ana_regmap[] = {
 	REG(ANA_ADVLEARN,			0x00b500),
@@ -150,14 +136,27 @@ static const u32 vsc9953_qs_regmap[] = {
 	REG_RESERVED(QS_INH_DBG),
 };
 
-static const u32 vsc9953_s2_regmap[] = {
-	REG(S2_CORE_UPDATE_CTRL,		0x000000),
-	REG(S2_CORE_MV_CFG,			0x000004),
-	REG(S2_CACHE_ENTRY_DAT,			0x000008),
-	REG(S2_CACHE_MASK_DAT,			0x000108),
-	REG(S2_CACHE_ACTION_DAT,		0x000208),
-	REG(S2_CACHE_CNT_DAT,			0x000308),
-	REG(S2_CACHE_TG_DAT,			0x000388),
+static const u32 vsc9953_vcap_regmap[] = {
+	/* VCAP_CORE_CFG */
+	REG(VCAP_CORE_UPDATE_CTRL,		0x000000),
+	REG(VCAP_CORE_MV_CFG,			0x000004),
+	/* VCAP_CORE_CACHE */
+	REG(VCAP_CACHE_ENTRY_DAT,		0x000008),
+	REG(VCAP_CACHE_MASK_DAT,		0x000108),
+	REG(VCAP_CACHE_ACTION_DAT,		0x000208),
+	REG(VCAP_CACHE_CNT_DAT,			0x000308),
+	REG(VCAP_CACHE_TG_DAT,			0x000388),
+	/* VCAP_CONST */
+	REG(VCAP_CONST_VCAP_VER,		0x000398),
+	REG(VCAP_CONST_ENTRY_WIDTH,		0x00039c),
+	REG(VCAP_CONST_ENTRY_CNT,		0x0003a0),
+	REG(VCAP_CONST_ENTRY_SWCNT,		0x0003a4),
+	REG(VCAP_CONST_ENTRY_TG_WIDTH,		0x0003a8),
+	REG(VCAP_CONST_ACTION_DEF_CNT,		0x0003ac),
+	REG(VCAP_CONST_ACTION_WIDTH,		0x0003b0),
+	REG(VCAP_CONST_CNT_WIDTH,		0x0003b4),
+	REG_RESERVED(VCAP_CONST_CORE_CNT),
+	REG_RESERVED(VCAP_CONST_IF_CNT),
 };
 
 static const u32 vsc9953_qsys_regmap[] = {
@@ -362,7 +361,9 @@ static const u32 *vsc9953_regmap[TARGET_MAX] = {
 	[QSYS]		= vsc9953_qsys_regmap,
 	[REW]		= vsc9953_rew_regmap,
 	[SYS]		= vsc9953_sys_regmap,
-	[S2]		= vsc9953_s2_regmap,
+	[S0]		= vsc9953_vcap_regmap,
+	[S1]		= vsc9953_vcap_regmap,
+	[S2]		= vsc9953_vcap_regmap,
 	[GCB]		= vsc9953_gcb_regmap,
 	[DEV_GMII]	= vsc9953_dev_gmii_regmap,
 };
@@ -393,6 +394,16 @@ static const struct resource vsc9953_target_io_res[TARGET_MAX] = {
 		.start	= 0x0010000,
 		.end	= 0x001ffff,
 		.name	= "sys",
+	},
+	[S0] = {
+		.start	= 0x0040000,
+		.end	= 0x00403ff,
+		.name	= "s0",
+	},
+	[S1] = {
+		.start	= 0x0050000,
+		.end	= 0x00503ff,
+		.name	= "s1",
 	},
 	[S2] = {
 		.start	= 0x0060000,
@@ -609,6 +620,112 @@ static const struct ocelot_stat_layout vsc9953_stats_layout[] = {
 	{ .offset = 0x91,	.name = "drop_green_prio_7", },
 };
 
+static const struct vcap_field vsc9953_vcap_es0_keys[] = {
+	[VCAP_ES0_EGR_PORT]			= {  0,  4},
+	[VCAP_ES0_IGR_PORT]			= {  4,  4},
+	[VCAP_ES0_RSV]				= {  8,  2},
+	[VCAP_ES0_L2_MC]			= { 10,  1},
+	[VCAP_ES0_L2_BC]			= { 11,  1},
+	[VCAP_ES0_VID]				= { 12, 12},
+	[VCAP_ES0_DP]				= { 24,  1},
+	[VCAP_ES0_PCP]				= { 25,  3},
+};
+
+static const struct vcap_field vsc9953_vcap_es0_actions[] = {
+	[VCAP_ES0_ACT_PUSH_OUTER_TAG]		= {  0,  2},
+	[VCAP_ES0_ACT_PUSH_INNER_TAG]		= {  2,  1},
+	[VCAP_ES0_ACT_TAG_A_TPID_SEL]		= {  3,  2},
+	[VCAP_ES0_ACT_TAG_A_VID_SEL]		= {  5,  1},
+	[VCAP_ES0_ACT_TAG_A_PCP_SEL]		= {  6,  2},
+	[VCAP_ES0_ACT_TAG_A_DEI_SEL]		= {  8,  2},
+	[VCAP_ES0_ACT_TAG_B_TPID_SEL]		= { 10,  2},
+	[VCAP_ES0_ACT_TAG_B_VID_SEL]		= { 12,  1},
+	[VCAP_ES0_ACT_TAG_B_PCP_SEL]		= { 13,  2},
+	[VCAP_ES0_ACT_TAG_B_DEI_SEL]		= { 15,  2},
+	[VCAP_ES0_ACT_VID_A_VAL]		= { 17, 12},
+	[VCAP_ES0_ACT_PCP_A_VAL]		= { 29,  3},
+	[VCAP_ES0_ACT_DEI_A_VAL]		= { 32,  1},
+	[VCAP_ES0_ACT_VID_B_VAL]		= { 33, 12},
+	[VCAP_ES0_ACT_PCP_B_VAL]		= { 45,  3},
+	[VCAP_ES0_ACT_DEI_B_VAL]		= { 48,  1},
+	[VCAP_ES0_ACT_RSV]			= { 49, 24},
+	[VCAP_ES0_ACT_HIT_STICKY]		= { 73,  1},
+};
+
+static const struct vcap_field vsc9953_vcap_is1_keys[] = {
+	[VCAP_IS1_HK_TYPE]			= {  0,   1},
+	[VCAP_IS1_HK_LOOKUP]			= {  1,   2},
+	[VCAP_IS1_HK_IGR_PORT_MASK]		= {  3,  11},
+	[VCAP_IS1_HK_RSV]			= { 14,  10},
+	/* VCAP_IS1_HK_OAM_Y1731 not supported */
+	[VCAP_IS1_HK_L2_MC]			= { 24,   1},
+	[VCAP_IS1_HK_L2_BC]			= { 25,   1},
+	[VCAP_IS1_HK_IP_MC]			= { 26,   1},
+	[VCAP_IS1_HK_VLAN_TAGGED]		= { 27,   1},
+	[VCAP_IS1_HK_VLAN_DBL_TAGGED]		= { 28,   1},
+	[VCAP_IS1_HK_TPID]			= { 29,   1},
+	[VCAP_IS1_HK_VID]			= { 30,  12},
+	[VCAP_IS1_HK_DEI]			= { 42,   1},
+	[VCAP_IS1_HK_PCP]			= { 43,   3},
+	/* Specific Fields for IS1 Half Key S1_NORMAL */
+	[VCAP_IS1_HK_L2_SMAC]			= { 46,  48},
+	[VCAP_IS1_HK_ETYPE_LEN]			= { 94,   1},
+	[VCAP_IS1_HK_ETYPE]			= { 95,  16},
+	[VCAP_IS1_HK_IP_SNAP]			= {111,   1},
+	[VCAP_IS1_HK_IP4]			= {112,   1},
+	/* Layer-3 Information */
+	[VCAP_IS1_HK_L3_FRAGMENT]		= {113,   1},
+	[VCAP_IS1_HK_L3_FRAG_OFS_GT0]		= {114,   1},
+	[VCAP_IS1_HK_L3_OPTIONS]		= {115,   1},
+	[VCAP_IS1_HK_L3_DSCP]			= {116,   6},
+	[VCAP_IS1_HK_L3_IP4_SIP]		= {122,  32},
+	/* Layer-4 Information */
+	[VCAP_IS1_HK_TCP_UDP]			= {154,   1},
+	[VCAP_IS1_HK_TCP]			= {155,   1},
+	[VCAP_IS1_HK_L4_SPORT]			= {156,  16},
+	[VCAP_IS1_HK_L4_RNG]			= {172,   8},
+	/* Specific Fields for IS1 Half Key S1_5TUPLE_IP4 */
+	[VCAP_IS1_HK_IP4_INNER_TPID]            = { 46,   1},
+	[VCAP_IS1_HK_IP4_INNER_VID]		= { 47,  12},
+	[VCAP_IS1_HK_IP4_INNER_DEI]		= { 59,   1},
+	[VCAP_IS1_HK_IP4_INNER_PCP]		= { 60,   3},
+	[VCAP_IS1_HK_IP4_IP4]			= { 63,   1},
+	[VCAP_IS1_HK_IP4_L3_FRAGMENT]		= { 64,   1},
+	[VCAP_IS1_HK_IP4_L3_FRAG_OFS_GT0]	= { 65,   1},
+	[VCAP_IS1_HK_IP4_L3_OPTIONS]		= { 66,   1},
+	[VCAP_IS1_HK_IP4_L3_DSCP]		= { 67,   6},
+	[VCAP_IS1_HK_IP4_L3_IP4_DIP]		= { 73,  32},
+	[VCAP_IS1_HK_IP4_L3_IP4_SIP]		= {105,  32},
+	[VCAP_IS1_HK_IP4_L3_PROTO]		= {137,   8},
+	[VCAP_IS1_HK_IP4_TCP_UDP]		= {145,   1},
+	[VCAP_IS1_HK_IP4_TCP]			= {146,   1},
+	[VCAP_IS1_HK_IP4_L4_RNG]		= {147,   8},
+	[VCAP_IS1_HK_IP4_IP_PAYLOAD_S1_5TUPLE]	= {155,  32},
+};
+
+static const struct vcap_field vsc9953_vcap_is1_actions[] = {
+	[VCAP_IS1_ACT_DSCP_ENA]			= {  0,  1},
+	[VCAP_IS1_ACT_DSCP_VAL]			= {  1,  6},
+	[VCAP_IS1_ACT_QOS_ENA]			= {  7,  1},
+	[VCAP_IS1_ACT_QOS_VAL]			= {  8,  3},
+	[VCAP_IS1_ACT_DP_ENA]			= { 11,  1},
+	[VCAP_IS1_ACT_DP_VAL]			= { 12,  1},
+	[VCAP_IS1_ACT_PAG_OVERRIDE_MASK]	= { 13,  8},
+	[VCAP_IS1_ACT_PAG_VAL]			= { 21,  8},
+	[VCAP_IS1_ACT_RSV]			= { 29, 11},
+	[VCAP_IS1_ACT_VID_REPLACE_ENA]		= { 40,  1},
+	[VCAP_IS1_ACT_VID_ADD_VAL]		= { 41, 12},
+	[VCAP_IS1_ACT_FID_SEL]			= { 53,  2},
+	[VCAP_IS1_ACT_FID_VAL]			= { 55, 13},
+	[VCAP_IS1_ACT_PCP_DEI_ENA]		= { 68,  1},
+	[VCAP_IS1_ACT_PCP_VAL]			= { 69,  3},
+	[VCAP_IS1_ACT_DEI_VAL]			= { 72,  1},
+	[VCAP_IS1_ACT_VLAN_POP_CNT_ENA]		= { 73,  1},
+	[VCAP_IS1_ACT_VLAN_POP_CNT]		= { 74,  2},
+	[VCAP_IS1_ACT_CUSTOM_ACE_TYPE_ENA]	= { 76,  4},
+	[VCAP_IS1_ACT_HIT_STICKY]		= { 80,  1},
+};
+
 static struct vcap_field vsc9953_vcap_is2_keys[] = {
 	/* Common: 41 bits */
 	[VCAP_IS2_TYPE]				= {  0,   4},
@@ -694,15 +811,32 @@ static struct vcap_field vsc9953_vcap_is2_actions[] = {
 	[VCAP_IS2_ACT_HIT_CNT]			= { 50, 32},
 };
 
-static const struct vcap_props vsc9953_vcap_props[] = {
+static struct vcap_props vsc9953_vcap_props[] = {
+	[VCAP_ES0] = {
+		.action_type_width = 0,
+		.action_table = {
+			[ES0_ACTION_TYPE_NORMAL] = {
+				.width = 73, /* HIT_STICKY not included */
+				.count = 1,
+			},
+		},
+		.target = S0,
+		.keys = vsc9953_vcap_es0_keys,
+		.actions = vsc9953_vcap_es0_actions,
+	},
+	[VCAP_IS1] = {
+		.action_type_width = 0,
+		.action_table = {
+			[IS1_ACTION_TYPE_NORMAL] = {
+				.width = 80, /* HIT_STICKY not included */
+				.count = 4,
+			},
+		},
+		.target = S1,
+		.keys = vsc9953_vcap_is1_keys,
+		.actions = vsc9953_vcap_is1_actions,
+	},
 	[VCAP_IS2] = {
-		.tg_width = 2,
-		.sw_count = 4,
-		.entry_count = VSC9953_VCAP_IS2_CNT,
-		.entry_width = VSC9953_VCAP_IS2_ENTRY_WIDTH,
-		.action_count = VSC9953_VCAP_IS2_CNT +
-				VSC9953_VCAP_PORT_CNT + 2,
-		.action_width = 101,
 		.action_type_width = 1,
 		.action_table = {
 			[IS2_ACTION_TYPE_NORMAL] = {
@@ -714,8 +848,9 @@ static const struct vcap_props vsc9953_vcap_props[] = {
 				.count = 4
 			},
 		},
-		.counter_words = 4,
-		.counter_width = 32,
+		.target = S2,
+		.keys = vsc9953_vcap_is2_keys,
+		.actions = vsc9953_vcap_is2_actions,
 	},
 };
 
@@ -819,6 +954,10 @@ out:
 	return err;
 }
 
+/* CORE_ENA is in SYS:SYSTEM:RESET_CFG
+ * MEM_INIT is in SYS:SYSTEM:RESET_CFG
+ * MEM_ENA is in SYS:SYSTEM:RESET_CFG
+ */
 static int vsc9953_reset(struct ocelot *ocelot)
 {
 	int val, err;
@@ -834,8 +973,8 @@ static int vsc9953_reset(struct ocelot *ocelot)
 	}
 
 	/* initialize switch mem ~40us */
-	ocelot_field_write(ocelot, SYS_RESET_CFG_MEM_INIT, 1);
 	ocelot_field_write(ocelot, SYS_RESET_CFG_MEM_ENA, 1);
+	ocelot_field_write(ocelot, SYS_RESET_CFG_MEM_INIT, 1);
 
 	err = readx_poll_timeout(vsc9953_sys_ram_init_status, ocelot, val, !val,
 				 VSC9953_SYS_RAMINIT_SLEEP,
@@ -846,7 +985,6 @@ static int vsc9953_reset(struct ocelot *ocelot)
 	}
 
 	/* enable switch core */
-	ocelot_field_write(ocelot, SYS_RESET_CFG_MEM_ENA, 1);
 	ocelot_field_write(ocelot, SYS_RESET_CFG_CORE_ENA, 1);
 
 	return 0;
@@ -922,6 +1060,8 @@ static u16 vsc9953_wm_enc(u16 value)
 static const struct ocelot_ops vsc9953_ops = {
 	.reset			= vsc9953_reset,
 	.wm_enc			= vsc9953_wm_enc,
+	.port_to_netdev		= felix_port_to_netdev,
+	.netdev_to_port		= felix_netdev_to_port,
 };
 
 static int vsc9953_mdio_bus_alloc(struct ocelot *ocelot)
@@ -962,18 +1102,27 @@ static int vsc9953_mdio_bus_alloc(struct ocelot *ocelot)
 
 	for (port = 0; port < felix->info->num_ports; port++) {
 		struct ocelot_port *ocelot_port = ocelot->ports[port];
-		struct phy_device *pcs;
 		int addr = port + 4;
+		struct mdio_device *pcs;
+		struct lynx_pcs *lynx;
+
+		if (dsa_is_unused_port(felix->ds, port))
+			continue;
 
 		if (ocelot_port->phy_mode == PHY_INTERFACE_MODE_INTERNAL)
 			continue;
 
-		pcs = get_phy_device(felix->imdio, addr, false);
+		pcs = mdio_device_create(felix->imdio, addr);
 		if (IS_ERR(pcs))
 			continue;
 
-		pcs->interface = ocelot_port->phy_mode;
-		felix->pcs[port] = pcs;
+		lynx = lynx_pcs_create(pcs);
+		if (!lynx) {
+			mdio_device_free(pcs);
+			continue;
+		}
+
+		felix->pcs[port] = lynx;
 
 		dev_info(dev, "Found PCS at internal MDIO address %d\n", addr);
 	}
@@ -981,11 +1130,30 @@ static int vsc9953_mdio_bus_alloc(struct ocelot *ocelot)
 	return 0;
 }
 
+static void vsc9953_mdio_bus_free(struct ocelot *ocelot)
+{
+	struct felix *felix = ocelot_to_felix(ocelot);
+	int port;
+
+	for (port = 0; port < ocelot->num_phys_ports; port++) {
+		struct lynx_pcs *pcs = felix->pcs[port];
+
+		if (!pcs)
+			continue;
+
+		mdio_device_free(pcs->mdio);
+		lynx_pcs_destroy(pcs);
+	}
+	mdiobus_unregister(felix->imdio);
+}
+
 static void vsc9953_xmit_template_populate(struct ocelot *ocelot, int port)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	u8 *template = ocelot_port->xmit_template;
 	u64 bypass, dest, src;
+	__be32 *prefix;
+	u8 *injection;
 
 	/* Set the source port as the CPU port module and not the
 	 * NPI port
@@ -994,9 +1162,14 @@ static void vsc9953_xmit_template_populate(struct ocelot *ocelot, int port)
 	dest = BIT(port);
 	bypass = true;
 
-	packing(template, &bypass, 127, 127, OCELOT_TAG_LEN, PACK, 0);
-	packing(template, &dest,    67,  57, OCELOT_TAG_LEN, PACK, 0);
-	packing(template, &src,     46,  43, OCELOT_TAG_LEN, PACK, 0);
+	injection = template + OCELOT_SHORT_PREFIX_LEN;
+	prefix = (__be32 *)template;
+
+	packing(injection, &bypass, 127, 127, OCELOT_TAG_LEN, PACK, 0);
+	packing(injection, &dest,    67,  57, OCELOT_TAG_LEN, PACK, 0);
+	packing(injection, &src,     46,  43, OCELOT_TAG_LEN, PACK, 0);
+
+	*prefix = cpu_to_be32(0x88800005);
 }
 
 static const struct felix_info seville_info_vsc9953 = {
@@ -1007,17 +1180,12 @@ static const struct felix_info seville_info_vsc9953 = {
 	.ops			= &vsc9953_ops,
 	.stats_layout		= vsc9953_stats_layout,
 	.num_stats		= ARRAY_SIZE(vsc9953_stats_layout),
-	.vcap_is2_keys		= vsc9953_vcap_is2_keys,
-	.vcap_is2_actions	= vsc9953_vcap_is2_actions,
 	.vcap			= vsc9953_vcap_props,
 	.shared_queue_sz	= 2048 * 1024,
 	.num_mact_rows		= 2048,
 	.num_ports		= 10,
 	.mdio_bus_alloc		= vsc9953_mdio_bus_alloc,
-	.mdio_bus_free		= vsc9959_mdio_bus_free,
-	.pcs_config		= vsc9959_pcs_config,
-	.pcs_link_up		= vsc9959_pcs_link_up,
-	.pcs_link_state		= vsc9959_pcs_link_state,
+	.mdio_bus_free		= vsc9953_mdio_bus_free,
 	.phylink_validate	= vsc9953_phylink_validate,
 	.prevalidate_phy_mode	= vsc9953_prevalidate_phy_mode,
 	.xmit_template_populate	= vsc9953_xmit_template_populate,
@@ -1096,7 +1264,7 @@ static const struct of_device_id seville_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, seville_of_match);
 
-struct platform_driver seville_vsc9953_driver = {
+static struct platform_driver seville_vsc9953_driver = {
 	.probe		= seville_probe,
 	.remove		= seville_remove,
 	.driver = {
@@ -1104,3 +1272,7 @@ struct platform_driver seville_vsc9953_driver = {
 		.of_match_table	= of_match_ptr(seville_of_match),
 	},
 };
+module_platform_driver(seville_vsc9953_driver);
+
+MODULE_DESCRIPTION("Seville Switch driver");
+MODULE_LICENSE("GPL v2");

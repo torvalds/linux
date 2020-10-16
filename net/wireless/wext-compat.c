@@ -497,7 +497,7 @@ static int __cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
 
 	/*
 	 * We only need to store WEP keys, since they're the only keys that
-	 * can be be set before a connection is established and persist after
+	 * can be set before a connection is established and persist after
 	 * disconnecting.
 	 */
 	if (!addr && (params->cipher == WLAN_CIPHER_SUITE_WEP40 ||

@@ -25,7 +25,6 @@ FILES=                                          \
          test-libelf-getphdrnum.bin             \
          test-libelf-gelf_getnote.bin           \
          test-libelf-getshdrstrndx.bin          \
-         test-libelf-mmap.bin                   \
          test-libdebuginfod.bin                 \
          test-libnuma.bin                       \
          test-numa_num_possible_cpus.bin        \
@@ -145,9 +144,6 @@ $(OUTPUT)test-dwarf.bin:
 
 $(OUTPUT)test-dwarf_getlocations.bin:
 	$(BUILD) $(DWARFLIBS)
-
-$(OUTPUT)test-libelf-mmap.bin:
-	$(BUILD) -lelf
 
 $(OUTPUT)test-libelf-getphdrnum.bin:
 	$(BUILD) -lelf
