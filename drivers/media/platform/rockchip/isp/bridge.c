@@ -296,6 +296,7 @@ static int init_buf(struct rkisp_bridge_device *dev, u32 pic_size, u32 gain_size
 	v4l2_dbg(1, rkisp_debug, &dev->ispdev->v4l2_dev,
 		 "%s pic size:%d gain size:%d\n",
 		 __func__, pic_size, gain_size);
+	INIT_LIST_HEAD(&hw->list);
 	for (i = 0; i < dev->buf_num; i++) {
 		buf = &hw->bufs[i];
 		for (j = 0; j < GROUP_BUF_MAX; j++) {

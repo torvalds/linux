@@ -185,6 +185,7 @@ static int rkispp_init_pool(struct rkispp_hw_dev *hw, struct rkisp_ispp_buf *dbu
 	int i, ret = 0;
 	void *mem;
 
+	INIT_LIST_HEAD(&hw->list);
 	/* init dma buf pool */
 	for (i = 0; i < RKISPP_BUF_POOL_MAX; i++) {
 		pool = &hw->pool[i];

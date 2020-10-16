@@ -2622,8 +2622,18 @@ void rkispp_module_work_event(struct rkispp_device *dev,
 		rkispp_event_handle(dev, CMD_QUEUE_DMABUF, NULL);
 	}
 
-	if (dev->ispp_sdev.state == ISPP_STOP)
+	if (dev->ispp_sdev.state == ISPP_STOP) {
+		if ((module & (ISPP_MODULE_TNR | ISPP_MODULE_NR)) && buf_rd) {
+			struct rkisp_ispp_buf *buf = buf_rd;
+
+			if (buf->is_isp)
+				v4l2_subdev_call(dev->ispp_sdev.remote_sd,
+						 video, s_rx_buffer, buf, NULL);
+		}
+		if (!dev->hw_dev->is_idle)
+			dev->hw_dev->is_idle = true;
 		return;
+	}
 
 	if (module & ISPP_MODULE_TNR)
 		tnr_work_event(dev, buf_rd, buf_wr, is_isr);
