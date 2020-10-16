@@ -58,7 +58,7 @@ static struct vfio_fsl_mc_reflck *vfio_fsl_mc_reflck_alloc(void)
 
 static int vfio_fsl_mc_reflck_attach(struct vfio_fsl_mc_device *vdev)
 {
-	int ret;
+	int ret = 0;
 
 	mutex_lock(&reflck_lock);
 	if (is_fsl_mc_bus_dprc(vdev->mc_dev)) {
