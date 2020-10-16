@@ -26,6 +26,10 @@ enum nvme_fc_queue_flags {
 };
 
 #define NVME_FC_DEFAULT_DEV_LOSS_TMO	60	/* seconds */
+#define NVME_FC_DEFAULT_RECONNECT_TMO	2	/* delay between reconnects
+						 * when connected and a
+						 * connection failure.
+						 */
 
 struct nvme_fc_queue {
 	struct nvme_fc_ctrl	*ctrl;
@@ -3436,7 +3440,7 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 {
 	struct nvme_fc_ctrl *ctrl;
 	unsigned long flags;
-	int ret, idx;
+	int ret, idx, ctrl_loss_tmo;
 
 	if (!(rport->remoteport.port_role &
 	    (FC_PORT_ROLE_NVME_DISCOVERY | FC_PORT_ROLE_NVME_TARGET))) {
@@ -3460,6 +3464,19 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 	if (idx < 0) {
 		ret = -ENOSPC;
 		goto out_free_ctrl;
+	}
+
+	/*
+	 * if ctrl_loss_tmo is being enforced and the default reconnect delay
+	 * is being used, change to a shorter reconnect delay for FC.
+	 */
+	if (opts->max_reconnects != -1 &&
+	    opts->reconnect_delay == NVMF_DEF_RECONNECT_DELAY &&
+	    opts->reconnect_delay > NVME_FC_DEFAULT_RECONNECT_TMO) {
+		ctrl_loss_tmo = opts->max_reconnects * opts->reconnect_delay;
+		opts->reconnect_delay = NVME_FC_DEFAULT_RECONNECT_TMO;
+		opts->max_reconnects = DIV_ROUND_UP(ctrl_loss_tmo,
+						opts->reconnect_delay);
 	}
 
 	ctrl->ctrl.opts = opts;
