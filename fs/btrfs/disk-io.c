@@ -3384,12 +3384,6 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	}
 	set_bit(BTRFS_FS_OPEN, &fs_info->flags);
 
-	/*
-	 * backuproot only affect mount behavior, and if open_ctree succeeded,
-	 * no need to keep the flag
-	 */
-	btrfs_clear_opt(fs_info->mount_opt, USEBACKUPROOT);
-
 	return 0;
 
 fail_qgroup:
