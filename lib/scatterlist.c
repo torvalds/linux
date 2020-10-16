@@ -404,7 +404,7 @@ static struct scatterlist *get_next_sg(struct sg_table *table,
  * @n_pages:	 Number of pages in the pages array
  * @offset:      Offset from start of the first page to the start of a buffer
  * @size:        Number of valid bytes in the buffer (after offset)
- * @max_segment: Maximum size of a scatterlist node in bytes (page aligned)
+ * @max_segment: Maximum size of a scatterlist element in bytes
  * @prv:	 Last populated sge in sgt
  * @left_pages:  Left pages caller have to set after this call
  * @gfp_mask:	 GFP allocation mask
@@ -435,7 +435,12 @@ struct scatterlist *__sg_alloc_table_from_pages(struct sg_table *sgt,
 	unsigned int added_nents = 0;
 	struct scatterlist *s = prv;
 
-	if (WARN_ON(!max_segment || offset_in_page(max_segment)))
+	/*
+	 * The algorithm below requires max_segment to be aligned to PAGE_SIZE
+	 * otherwise it can overshoot.
+	 */
+	max_segment = ALIGN_DOWN(max_segment, PAGE_SIZE);
+	if (WARN_ON(max_segment < PAGE_SIZE))
 		return ERR_PTR(-EINVAL);
 
 	if (IS_ENABLED(CONFIG_ARCH_NO_SG_CHAIN) && prv)
@@ -542,8 +547,7 @@ int sg_alloc_table_from_pages(struct sg_table *sgt, struct page **pages,
 			      unsigned long size, gfp_t gfp_mask)
 {
 	return PTR_ERR_OR_ZERO(__sg_alloc_table_from_pages(sgt, pages, n_pages,
-			offset, size, SCATTERLIST_MAX_SEGMENT,
-			NULL, 0, gfp_mask));
+			offset, size, UINT_MAX, NULL, 0, gfp_mask));
 }
 EXPORT_SYMBOL(sg_alloc_table_from_pages);
 
