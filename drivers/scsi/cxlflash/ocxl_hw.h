@@ -13,7 +13,6 @@
 struct ocxlflash_irqs {
 	int hwirq;
 	u32 virq;
-	u64 ptrig;
 	void __iomem *vtrig;
 };
 

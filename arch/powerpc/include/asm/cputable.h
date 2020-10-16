@@ -9,11 +9,6 @@
 
 #ifndef __ASSEMBLY__
 
-/*
- * Added to include __machine_check_early_realmode_* functions
- */
-#include <asm/mce.h>
-
 /* This structure can grow, it's real size is used by head.S code
  * via the mkdefs mechanism.
  */
@@ -170,6 +165,7 @@ static inline void cpu_feature_keys_init(void) { }
 #else	/* CONFIG_PPC32 */
 /* Define these to 0 for the sake of tests in common code */
 #define CPU_FTR_PPC_LE			(0)
+#define CPU_FTR_SPE			(0)
 #endif
 
 /*
@@ -299,8 +295,6 @@ static inline void cpu_feature_keys_init(void) { }
 #define CPU_FTR_MAYBE_CAN_NAP	0
 #endif
 
-#define CPU_FTRS_PPC601	(CPU_FTR_COMMON | \
-	CPU_FTR_COHERENT_ICACHE)
 #define CPU_FTRS_603	(CPU_FTR_COMMON | CPU_FTR_MAYBE_CAN_DOZE | \
 	    CPU_FTR_MAYBE_CAN_NAP | CPU_FTR_PPC_LE | CPU_FTR_NOEXECUTE)
 #define CPU_FTRS_604	(CPU_FTR_COMMON | CPU_FTR_PPC_LE)
@@ -516,10 +510,8 @@ static inline void cpu_feature_keys_init(void) { }
 #else
 enum {
 	CPU_FTRS_POSSIBLE =
-#ifdef CONFIG_PPC_BOOK3S_601
-	    CPU_FTRS_PPC601 |
-#elif defined(CONFIG_PPC_BOOK3S_32)
-	    CPU_FTRS_PPC601 | CPU_FTRS_603 | CPU_FTRS_604 | CPU_FTRS_740_NOTAU |
+#ifdef CONFIG_PPC_BOOK3S_32
+	    CPU_FTRS_603 | CPU_FTRS_604 | CPU_FTRS_740_NOTAU |
 	    CPU_FTRS_740 | CPU_FTRS_750 | CPU_FTRS_750FX1 |
 	    CPU_FTRS_750FX2 | CPU_FTRS_750FX | CPU_FTRS_750GX |
 	    CPU_FTRS_7400_NOTAU | CPU_FTRS_7400 | CPU_FTRS_7450_20 |
@@ -594,9 +586,7 @@ enum {
 #else
 enum {
 	CPU_FTRS_ALWAYS =
-#ifdef CONFIG_PPC_BOOK3S_601
-	    CPU_FTRS_PPC601 &
-#elif defined(CONFIG_PPC_BOOK3S_32)
+#ifdef CONFIG_PPC_BOOK3S_32
 	    CPU_FTRS_603 & CPU_FTRS_604 & CPU_FTRS_740_NOTAU &
 	    CPU_FTRS_740 & CPU_FTRS_750 & CPU_FTRS_750FX1 &
 	    CPU_FTRS_750FX2 & CPU_FTRS_750FX & CPU_FTRS_750GX &

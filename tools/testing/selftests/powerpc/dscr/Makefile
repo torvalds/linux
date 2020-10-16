@@ -10,4 +10,4 @@ include ../../lib.mk
 
 $(OUTPUT)/dscr_default_test: LDLIBS += -lpthread
 
-$(TEST_GEN_PROGS): ../harness.c
+$(TEST_GEN_PROGS): ../harness.c ../utils.c

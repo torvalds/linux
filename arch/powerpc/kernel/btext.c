@@ -95,19 +95,10 @@ void __init btext_prepare_BAT(void)
 		boot_text_mapped = 0;
 		return;
 	}
-	if (PVR_VER(mfspr(SPRN_PVR)) != 1) {
-		/* 603, 604, G3, G4, ... */
-		lowbits = addr & ~0xFF000000UL;
-		addr &= 0xFF000000UL;
-		disp_BAT[0] = vaddr | (BL_16M<<2) | 2;
-		disp_BAT[1] = addr | (_PAGE_NO_CACHE | _PAGE_GUARDED | BPP_RW);	
-	} else {
-		/* 601 */
-		lowbits = addr & ~0xFF800000UL;
-		addr &= 0xFF800000UL;
-		disp_BAT[0] = vaddr | (_PAGE_NO_CACHE | PP_RWXX) | 4;
-		disp_BAT[1] = addr | BL_8M | 0x40;
-	}
+	lowbits = addr & ~0xFF000000UL;
+	addr &= 0xFF000000UL;
+	disp_BAT[0] = vaddr | (BL_16M<<2) | 2;
+	disp_BAT[1] = addr | (_PAGE_NO_CACHE | _PAGE_GUARDED | BPP_RW);
 	logicalDisplayBase = (void *) (vaddr + lowbits);
 }
 #endif

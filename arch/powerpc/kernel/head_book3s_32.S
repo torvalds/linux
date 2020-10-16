@@ -34,16 +34,6 @@
 
 #include "head_32.h"
 
-/* 601 only have IBAT */
-#ifdef CONFIG_PPC_BOOK3S_601
-#define LOAD_BAT(n, reg, RA, RB)	\
-	li	RA,0;			\
-	mtspr	SPRN_IBAT##n##U,RA;	\
-	lwz	RA,(n*16)+0(reg);	\
-	lwz	RB,(n*16)+4(reg);	\
-	mtspr	SPRN_IBAT##n##U,RA;	\
-	mtspr	SPRN_IBAT##n##L,RB
-#else
 #define LOAD_BAT(n, reg, RA, RB)	\
 	/* see the comment for clear_bats() -- Cort */ \
 	li	RA,0;			\
@@ -57,11 +47,10 @@
 	lwz	RB,(n*16)+12(reg);	\
 	mtspr	SPRN_DBAT##n##U,RA;	\
 	mtspr	SPRN_DBAT##n##L,RB
-#endif
 
 	__HEAD
 	.stabs	"arch/powerpc/kernel/",N_SO,0,0,0f
-	.stabs	"head_32.S",N_SO,0,0,0f
+	.stabs	"head_book3s_32.S",N_SO,0,0,0f
 0:
 _ENTRY(_stext);
 
@@ -166,9 +155,9 @@ __after_mmu_off:
 
 	bl	initial_bats
 	bl	load_segment_registers
-#ifdef CONFIG_KASAN
+BEGIN_MMU_FTR_SECTION
 	bl	early_hash_table
-#endif
+END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
 #if defined(CONFIG_BOOTX_TEXT)
 	bl	setup_disp_bat
 #endif
@@ -185,10 +174,8 @@ __after_mmu_off:
 	bl	reloc_offset
 	li	r24,0			/* cpu# */
 	bl	call_setup_cpu		/* Call setup_cpu for this CPU */
-#ifdef CONFIG_PPC_BOOK3S_32
 	bl	reloc_offset
 	bl	init_idle_6xx
-#endif /* CONFIG_PPC_BOOK3S_32 */
 
 
 /*
@@ -219,7 +206,6 @@ turn_on_mmu:
 	lis	r0,start_here@h
 	ori	r0,r0,start_here@l
 	mtspr	SPRN_SRR0,r0
-	SYNC
 	RFI				/* enables MMU */
 
 /*
@@ -274,14 +260,8 @@ __secondary_hold_acknowledge:
 	DO_KVM  0x200
 MachineCheck:
 	EXCEPTION_PROLOG_0
-#ifdef CONFIG_VMAP_STACK
-	li	r11, MSR_KERNEL & ~(MSR_IR | MSR_RI) /* can take DTLB miss */
-	mtmsr	r11
-	isync
-#endif
 #ifdef CONFIG_PPC_CHRP
 	mfspr	r11, SPRN_SPRG_THREAD
-	tovirt_vmstack r11, r11
 	lwz	r11, RTAS_SP(r11)
 	cmpwi	cr1, r11, 0
 	bne	cr1, 7f
@@ -439,7 +419,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_FPU_UNAVAILABLE)
 SystemCall:
 	SYSCALL_ENTRY	0xc00
 
-/* Single step - not used on 601 */
 	EXCEPTION(0xd00, SingleStep, single_step_exception, EXC_XFER_STD)
 	EXCEPTION(0xe00, Trap_0e, unknown_exception, EXC_XFER_STD)
 
@@ -790,14 +769,12 @@ fast_hash_page_return:
 	mtcr	r11
 	lwz	r11, THR11(r10)
 	mfspr	r10, SPRN_SPRG_SCRATCH0
-	SYNC
 	RFI
 
 1:	/* ISI */
 	mtcr	r11
 	mfspr	r11, SPRN_SPRG_SCRATCH1
 	mfspr	r10, SPRN_SPRG_SCRATCH0
-	SYNC
 	RFI
 
 stack_overflow:
@@ -888,7 +865,6 @@ __secondary_start_pmac_0:
 	   set to map the 0xf0000000 - 0xffffffff region */
 	mfmsr	r0
 	rlwinm	r0,r0,0,28,26		/* clear DR (0x10) */
-	SYNC
 	mtmsr	r0
 	isync
 
@@ -900,10 +876,8 @@ __secondary_start:
 	lis	r3,-KERNELBASE@h
 	mr	r4,r24
 	bl	call_setup_cpu		/* Call setup_cpu for this CPU */
-#ifdef CONFIG_PPC_BOOK3S_32
 	lis	r3,-KERNELBASE@h
 	bl	init_idle_6xx
-#endif /* CONFIG_PPC_BOOK3S_32 */
 
 	/* get current's stack and current */
 	lis	r2,secondary_current@ha
@@ -936,7 +910,6 @@ __secondary_start:
 	ori	r3,r3,start_secondary@l
 	mtspr	SPRN_SRR0,r3
 	mtspr	SPRN_SRR1,r4
-	SYNC
 	RFI
 #endif /* CONFIG_SMP */
 
@@ -945,21 +918,9 @@ __secondary_start:
 #endif
 
 /*
- * Those generic dummy functions are kept for CPUs not
- * included in CONFIG_PPC_BOOK3S_32
- */
-#if !defined(CONFIG_PPC_BOOK3S_32)
-_ENTRY(__save_cpu_setup)
-	blr
-_ENTRY(__restore_cpu_setup)
-	blr
-#endif /* !defined(CONFIG_PPC_BOOK3S_32) */
-
-/*
  * Load stuff into the MMU.  Intended to be called with
  * IR=0 and DR=0.
  */
-#ifdef CONFIG_KASAN
 early_hash_table:
 	sync			/* Force all PTE updates to finish */
 	isync
@@ -970,8 +931,10 @@ early_hash_table:
 	lis	r6, early_hash - PAGE_OFFSET@h
 	ori	r6, r6, 3	/* 256kB table */
 	mtspr	SPRN_SDR1, r6
+	lis	r6, early_hash@h
+	lis	r3, Hash@ha
+	stw	r6, Hash@l(r3)
 	blr
-#endif
 
 load_up_mmu:
 	sync			/* Force all PTE updates to finish */
@@ -985,8 +948,7 @@ load_up_mmu:
 	lwz	r6,_SDR1@l(r6)
 	mtspr	SPRN_SDR1,r6
 
-/* Load the BAT registers with the values set up by MMU_init.
-   MMU_init takes care of whether we're on a 601 or not. */
+/* Load the BAT registers with the values set up by MMU_init. */
 	lis	r3,BATS@ha
 	addi	r3,r3,BATS@l
 	tophys(r3,r3)
@@ -1002,7 +964,7 @@ BEGIN_MMU_FTR_SECTION
 END_MMU_FTR_SECTION_IFSET(MMU_FTR_USE_HIGH_BATS)
 	blr
 
-load_segment_registers:
+_GLOBAL(load_segment_registers)
 	li	r0, NUM_USER_SEGMENTS /* load up user segment register values */
 	mtctr	r0		/* for context 0 */
 	li	r3, 0		/* Kp = 0, Ks = 0, VSID = 0 */
@@ -1061,11 +1023,7 @@ start_here:
 	bl	machine_init
 	bl	__save_cpu_setup
 	bl	MMU_init
-#ifdef CONFIG_KASAN
-BEGIN_MMU_FTR_SECTION
 	bl	MMU_init_hw_patch
-END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
-#endif
 
 /*
  * Go back to running unmapped so we can load up new values
@@ -1080,7 +1038,6 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
 	.align	4
 	mtspr	SPRN_SRR0,r4
 	mtspr	SPRN_SRR1,r3
-	SYNC
 	RFI
 /* Load up the kernel context */
 2:	bl	load_up_mmu
@@ -1092,7 +1049,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
 	 */
 	lis	r5, abatron_pteptrs@h
 	ori	r5, r5, abatron_pteptrs@l
-	stw	r5, 0xf0(r0)	/* This much match your Abatron config */
+	stw	r5, 0xf0(0)	/* This much match your Abatron config */
 	lis	r6, swapper_pg_dir@h
 	ori	r6, r6, swapper_pg_dir@l
 	tophys(r5, r5)
@@ -1105,7 +1062,6 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
 	ori	r3,r3,start_kernel@l
 	mtspr	SPRN_SRR0,r3
 	mtspr	SPRN_SRR1,r4
-	SYNC
 	RFI
 
 /*
@@ -1165,7 +1121,6 @@ EXPORT_SYMBOL(switch_mmu_context)
 clear_bats:
 	li	r10,0
 
-#ifndef CONFIG_PPC_BOOK3S_601
 	mtspr	SPRN_DBAT0U,r10
 	mtspr	SPRN_DBAT0L,r10
 	mtspr	SPRN_DBAT1U,r10
@@ -1174,7 +1129,6 @@ clear_bats:
 	mtspr	SPRN_DBAT2L,r10
 	mtspr	SPRN_DBAT3U,r10
 	mtspr	SPRN_DBAT3L,r10
-#endif
 	mtspr	SPRN_IBAT0U,r10
 	mtspr	SPRN_IBAT0L,r10
 	mtspr	SPRN_IBAT1U,r10
@@ -1223,7 +1177,6 @@ _ENTRY(update_bats)
 	.align	4
 	mtspr	SPRN_SRR0, r4
 	mtspr	SPRN_SRR1, r3
-	SYNC
 	RFI
 1:	bl	clear_bats
 	lis	r3, BATS@ha
@@ -1243,7 +1196,6 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_USE_HIGH_BATS)
 	mtmsr	r3
 	mtspr	SPRN_SRR0, r7
 	mtspr	SPRN_SRR1, r6
-	SYNC
 	RFI
 
 flush_tlbs:
@@ -1267,26 +1219,9 @@ mmu_off:
 	sync
 	RFI
 
-/*
- * On 601, we use 3 BATs to map up to 24M of RAM at _PAGE_OFFSET
- * (we keep one for debugging) and on others, we use one 256M BAT.
- */
+/* We use one BAT to map up to 256M of RAM at _PAGE_OFFSET */
 initial_bats:
 	lis	r11,PAGE_OFFSET@h
-#ifdef CONFIG_PPC_BOOK3S_601
-	ori	r11,r11,4		/* set up BAT registers for 601 */
-	li	r8,0x7f			/* valid, block length = 8MB */
-	mtspr	SPRN_IBAT0U,r11		/* N.B. 601 has valid bit in */
-	mtspr	SPRN_IBAT0L,r8		/* lower BAT register */
-	addis	r11,r11,0x800000@h
-	addis	r8,r8,0x800000@h
-	mtspr	SPRN_IBAT1U,r11
-	mtspr	SPRN_IBAT1L,r8
-	addis	r11,r11,0x800000@h
-	addis	r8,r8,0x800000@h
-	mtspr	SPRN_IBAT2U,r11
-	mtspr	SPRN_IBAT2L,r8
-#else
 	tophys(r8,r11)
 #ifdef CONFIG_SMP
 	ori	r8,r8,0x12		/* R/W access, M=1 */
@@ -1295,11 +1230,10 @@ initial_bats:
 #endif /* CONFIG_SMP */
 	ori	r11,r11,BL_256M<<2|0x2	/* set up BAT registers for 604 */
 
-	mtspr	SPRN_DBAT0L,r8		/* N.B. 6xx (not 601) have valid */
+	mtspr	SPRN_DBAT0L,r8		/* N.B. 6xx have valid */
 	mtspr	SPRN_DBAT0U,r11		/* bit in upper BAT register */
 	mtspr	SPRN_IBAT0L,r8
 	mtspr	SPRN_IBAT0U,r11
-#endif
 	isync
 	blr
 
@@ -1317,13 +1251,8 @@ setup_disp_bat:
 	beqlr
 	lwz	r11,0(r8)
 	lwz	r8,4(r8)
-#ifndef CONFIG_PPC_BOOK3S_601
 	mtspr	SPRN_DBAT3L,r8
 	mtspr	SPRN_DBAT3U,r11
-#else
-	mtspr	SPRN_IBAT3L,r8
-	mtspr	SPRN_IBAT3U,r11
-#endif
 	blr
 #endif /* CONFIG_BOOTX_TEXT */
 
