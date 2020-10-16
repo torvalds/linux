@@ -38,13 +38,6 @@
 #define AT_XDMAC_GE		0x1C	/* Global Channel Enable Register */
 #define AT_XDMAC_GD		0x20	/* Global Channel Disable Register */
 #define AT_XDMAC_GS		0x24	/* Global Channel Status Register */
-#define AT_XDMAC_GRS		0x28	/* Global Channel Read Suspend Register */
-#define AT_XDMAC_GWS		0x2C	/* Global Write Suspend Register */
-#define AT_XDMAC_GRWS		0x30	/* Global Channel Read Write Suspend Register */
-#define AT_XDMAC_GRWR		0x34	/* Global Channel Read Write Resume Register */
-#define AT_XDMAC_GSWR		0x38	/* Global Channel Software Request Register */
-#define AT_XDMAC_GSWS		0x3C	/* Global channel Software Request Status Register */
-#define AT_XDMAC_GSWF		0x40	/* Global Channel Software Flush Request Register */
 #define AT_XDMAC_VERSION	0xFFC	/* XDMAC Version Register */
 
 /* Channel relative registers offsets */
@@ -150,8 +143,6 @@
 #define AT_XDMAC_CSUS		0x30	/* Channel Source Microblock Stride */
 #define AT_XDMAC_CDUS		0x34	/* Channel Destination Microblock Stride */
 
-#define AT_XDMAC_CHAN_REG_BASE	0x50	/* Channel registers base address */
-
 /* Microblock control members */
 #define AT_XDMAC_MBR_UBC_UBLEN_MAX	0xFFFFFFUL	/* Maximum Microblock Length */
 #define AT_XDMAC_MBR_UBC_NDE		(0x1 << 24)	/* Next Descriptor Enable */
@@ -177,6 +168,27 @@
 enum atc_status {
 	AT_XDMAC_CHAN_IS_CYCLIC = 0,
 	AT_XDMAC_CHAN_IS_PAUSED,
+};
+
+struct at_xdmac_layout {
+	/* Global Channel Read Suspend Register */
+	u8				grs;
+	/* Global Write Suspend Register */
+	u8				gws;
+	/* Global Channel Read Write Suspend Register */
+	u8				grws;
+	/* Global Channel Read Write Resume Register */
+	u8				grwr;
+	/* Global Channel Software Request Register */
+	u8				gswr;
+	/* Global channel Software Request Status Register */
+	u8				gsws;
+	/* Global Channel Software Flush Request Register */
+	u8				gswf;
+	/* Channel reg base */
+	u8				chan_cc_reg_base;
+	/* Source/Destination Interface must be specified or not */
+	bool				sdif;
 };
 
 /* ----- Channels ----- */
@@ -212,6 +224,7 @@ struct at_xdmac {
 	struct clk		*clk;
 	u32			save_gim;
 	struct dma_pool		*at_xdmac_desc_pool;
+	const struct at_xdmac_layout	*layout;
 	struct at_xdmac_chan	chan[];
 };
 
@@ -244,9 +257,33 @@ struct at_xdmac_desc {
 	struct list_head		xfer_node;
 } __aligned(sizeof(u64));
 
+static const struct at_xdmac_layout at_xdmac_sama5d4_layout = {
+	.grs = 0x28,
+	.gws = 0x2C,
+	.grws = 0x30,
+	.grwr = 0x34,
+	.gswr = 0x38,
+	.gsws = 0x3C,
+	.gswf = 0x40,
+	.chan_cc_reg_base = 0x50,
+	.sdif = true,
+};
+
+static const struct at_xdmac_layout at_xdmac_sama7g5_layout = {
+	.grs = 0x30,
+	.gws = 0x38,
+	.grws = 0x40,
+	.grwr = 0x44,
+	.gswr = 0x48,
+	.gsws = 0x4C,
+	.gswf = 0x50,
+	.chan_cc_reg_base = 0x60,
+	.sdif = false,
+};
+
 static inline void __iomem *at_xdmac_chan_reg_base(struct at_xdmac *atxdmac, unsigned int chan_nb)
 {
-	return atxdmac->regs + (AT_XDMAC_CHAN_REG_BASE + chan_nb * 0x40);
+	return atxdmac->regs + (atxdmac->layout->chan_cc_reg_base + chan_nb * 0x40);
 }
 
 #define at_xdmac_read(atxdmac, reg) readl_relaxed((atxdmac)->regs + (reg))
@@ -345,8 +382,10 @@ static void at_xdmac_start_xfer(struct at_xdmac_chan *atchan,
 	first->active_xfer = true;
 
 	/* Tell xdmac where to get the first descriptor. */
-	reg = AT_XDMAC_CNDA_NDA(first->tx_dma_desc.phys)
-	      | AT_XDMAC_CNDA_NDAIF(atchan->memif);
+	reg = AT_XDMAC_CNDA_NDA(first->tx_dma_desc.phys);
+	if (atxdmac->layout->sdif)
+		reg |= AT_XDMAC_CNDA_NDAIF(atchan->memif);
+
 	at_xdmac_chan_write(atchan, AT_XDMAC_CNDA, reg);
 
 	/*
@@ -541,6 +580,7 @@ static int at_xdmac_compute_chan_conf(struct dma_chan *chan,
 				      enum dma_transfer_direction direction)
 {
 	struct at_xdmac_chan	*atchan = to_at_xdmac_chan(chan);
+	struct at_xdmac		*atxdmac = to_at_xdmac(atchan->chan.device);
 	int			csize, dwidth;
 
 	if (direction == DMA_DEV_TO_MEM) {
@@ -548,12 +588,14 @@ static int at_xdmac_compute_chan_conf(struct dma_chan *chan,
 			AT91_XDMAC_DT_PERID(atchan->perid)
 			| AT_XDMAC_CC_DAM_INCREMENTED_AM
 			| AT_XDMAC_CC_SAM_FIXED_AM
-			| AT_XDMAC_CC_DIF(atchan->memif)
-			| AT_XDMAC_CC_SIF(atchan->perif)
 			| AT_XDMAC_CC_SWREQ_HWR_CONNECTED
 			| AT_XDMAC_CC_DSYNC_PER2MEM
 			| AT_XDMAC_CC_MBSIZE_SIXTEEN
 			| AT_XDMAC_CC_TYPE_PER_TRAN;
+		if (atxdmac->layout->sdif)
+			atchan->cfg |= AT_XDMAC_CC_DIF(atchan->memif) |
+				       AT_XDMAC_CC_SIF(atchan->perif);
+
 		csize = ffs(atchan->sconfig.src_maxburst) - 1;
 		if (csize < 0) {
 			dev_err(chan2dev(chan), "invalid src maxburst value\n");
@@ -571,12 +613,14 @@ static int at_xdmac_compute_chan_conf(struct dma_chan *chan,
 			AT91_XDMAC_DT_PERID(atchan->perid)
 			| AT_XDMAC_CC_DAM_FIXED_AM
 			| AT_XDMAC_CC_SAM_INCREMENTED_AM
-			| AT_XDMAC_CC_DIF(atchan->perif)
-			| AT_XDMAC_CC_SIF(atchan->memif)
 			| AT_XDMAC_CC_SWREQ_HWR_CONNECTED
 			| AT_XDMAC_CC_DSYNC_MEM2PER
 			| AT_XDMAC_CC_MBSIZE_SIXTEEN
 			| AT_XDMAC_CC_TYPE_PER_TRAN;
+		if (atxdmac->layout->sdif)
+			atchan->cfg |= AT_XDMAC_CC_DIF(atchan->perif) |
+				       AT_XDMAC_CC_SIF(atchan->memif);
+
 		csize = ffs(atchan->sconfig.dst_maxburst) - 1;
 		if (csize < 0) {
 			dev_err(chan2dev(chan), "invalid src maxburst value\n");
@@ -866,10 +910,12 @@ at_xdmac_interleaved_queue_desc(struct dma_chan *chan,
 	 * ERRATA: Even if useless for memory transfers, the PERID has to not
 	 * match the one of another channel. If not, it could lead to spurious
 	 * flag status.
+	 * For SAMA7G5x case, the SIF and DIF fields are no longer used.
+	 * Thus, no need to have the SIF/DIF interfaces here.
+	 * For SAMA5D4x and SAMA5D2x the SIF and DIF are already configured as
+	 * zero.
 	 */
 	u32			chan_cc = AT_XDMAC_CC_PERID(0x7f)
-					| AT_XDMAC_CC_DIF(0)
-					| AT_XDMAC_CC_SIF(0)
 					| AT_XDMAC_CC_MBSIZE_SIXTEEN
 					| AT_XDMAC_CC_TYPE_MEM_TRAN;
 
@@ -1048,12 +1094,14 @@ at_xdmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	 * ERRATA: Even if useless for memory transfers, the PERID has to not
 	 * match the one of another channel. If not, it could lead to spurious
 	 * flag status.
+	 * For SAMA7G5x case, the SIF and DIF fields are no longer used.
+	 * Thus, no need to have the SIF/DIF interfaces here.
+	 * For SAMA5D4x and SAMA5D2x the SIF and DIF are already configured as
+	 * zero.
 	 */
 	u32			chan_cc = AT_XDMAC_CC_PERID(0x7f)
 					| AT_XDMAC_CC_DAM_INCREMENTED_AM
 					| AT_XDMAC_CC_SAM_INCREMENTED_AM
-					| AT_XDMAC_CC_DIF(0)
-					| AT_XDMAC_CC_SIF(0)
 					| AT_XDMAC_CC_MBSIZE_SIXTEEN
 					| AT_XDMAC_CC_TYPE_MEM_TRAN;
 	unsigned long		irqflags;
@@ -1154,12 +1202,14 @@ static struct at_xdmac_desc *at_xdmac_memset_create_desc(struct dma_chan *chan,
 	 * ERRATA: Even if useless for memory transfers, the PERID has to not
 	 * match the one of another channel. If not, it could lead to spurious
 	 * flag status.
+	 * For SAMA7G5x case, the SIF and DIF fields are no longer used.
+	 * Thus, no need to have the SIF/DIF interfaces here.
+	 * For SAMA5D4x and SAMA5D2x the SIF and DIF are already configured as
+	 * zero.
 	 */
 	u32			chan_cc = AT_XDMAC_CC_PERID(0x7f)
 					| AT_XDMAC_CC_DAM_UBS_AM
 					| AT_XDMAC_CC_SAM_INCREMENTED_AM
-					| AT_XDMAC_CC_DIF(0)
-					| AT_XDMAC_CC_SIF(0)
 					| AT_XDMAC_CC_MBSIZE_SIXTEEN
 					| AT_XDMAC_CC_MEMSET_HW_MODE
 					| AT_XDMAC_CC_TYPE_MEM_TRAN;
@@ -1438,7 +1488,7 @@ at_xdmac_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	mask = AT_XDMAC_CC_TYPE | AT_XDMAC_CC_DSYNC;
 	value = AT_XDMAC_CC_TYPE_PER_TRAN | AT_XDMAC_CC_DSYNC_PER2MEM;
 	if ((desc->lld.mbr_cfg & mask) == value) {
-		at_xdmac_write(atxdmac, AT_XDMAC_GSWF, atchan->mask);
+		at_xdmac_write(atxdmac, atxdmac->layout->gswf, atchan->mask);
 		while (!(at_xdmac_chan_read(atchan, AT_XDMAC_CIS) & AT_XDMAC_CIS_FIS))
 			cpu_relax();
 	}
@@ -1496,7 +1546,7 @@ at_xdmac_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	 * FIFO flush ensures that data are really written.
 	 */
 	if ((desc->lld.mbr_cfg & mask) == value) {
-		at_xdmac_write(atxdmac, AT_XDMAC_GSWF, atchan->mask);
+		at_xdmac_write(atxdmac, atxdmac->layout->gswf, atchan->mask);
 		while (!(at_xdmac_chan_read(atchan, AT_XDMAC_CIS) & AT_XDMAC_CIS_FIS))
 			cpu_relax();
 	}
@@ -1761,7 +1811,7 @@ static int at_xdmac_device_pause(struct dma_chan *chan)
 		return 0;
 
 	spin_lock_irqsave(&atchan->lock, flags);
-	at_xdmac_write(atxdmac, AT_XDMAC_GRWS, atchan->mask);
+	at_xdmac_write(atxdmac, atxdmac->layout->grws, atchan->mask);
 	while (at_xdmac_chan_read(atchan, AT_XDMAC_CC)
 	       & (AT_XDMAC_CC_WRIP | AT_XDMAC_CC_RDIP))
 		cpu_relax();
@@ -1784,7 +1834,7 @@ static int at_xdmac_device_resume(struct dma_chan *chan)
 		return 0;
 	}
 
-	at_xdmac_write(atxdmac, AT_XDMAC_GRWR, atchan->mask);
+	at_xdmac_write(atxdmac, atxdmac->layout->grwr, atchan->mask);
 	clear_bit(AT_XDMAC_CHAN_IS_PAUSED, &atchan->status);
 	spin_unlock_irqrestore(&atchan->lock, flags);
 
@@ -1986,6 +2036,10 @@ static int at_xdmac_probe(struct platform_device *pdev)
 	atxdmac->regs = base;
 	atxdmac->irq = irq;
 
+	atxdmac->layout = of_device_get_match_data(&pdev->dev);
+	if (!atxdmac->layout)
+		return -ENODEV;
+
 	atxdmac->clk = devm_clk_get(&pdev->dev, "dma_clk");
 	if (IS_ERR(atxdmac->clk)) {
 		dev_err(&pdev->dev, "can't get dma_clk\n");
@@ -2128,6 +2182,10 @@ static const struct dev_pm_ops atmel_xdmac_dev_pm_ops = {
 static const struct of_device_id atmel_xdmac_dt_ids[] = {
 	{
 		.compatible = "atmel,sama5d4-dma",
+		.data = &at_xdmac_sama5d4_layout,
+	}, {
+		.compatible = "microchip,sama7g5-dma",
+		.data = &at_xdmac_sama7g5_layout,
 	}, {
 		/* sentinel */
 	}
