@@ -362,6 +362,7 @@ enum {
 	Opt_nologreplay,
 	Opt_ignorebadroots,
 	Opt_ignoredatacsums,
+	Opt_rescue_all,
 
 	/* Deprecated options */
 	Opt_recovery,
@@ -461,6 +462,7 @@ static const match_table_t rescue_tokens = {
 	{Opt_ignorebadroots, "ibadroots"},
 	{Opt_ignoredatacsums, "ignoredatacsums"},
 	{Opt_ignoredatacsums, "idatacsums"},
+	{Opt_rescue_all, "all"},
 	{Opt_err, NULL},
 };
 
@@ -511,6 +513,15 @@ static int parse_rescue_options(struct btrfs_fs_info *info, const char *options)
 		case Opt_ignoredatacsums:
 			btrfs_set_and_info(info, IGNOREDATACSUMS,
 					   "ignoring data csums");
+			break;
+		case Opt_rescue_all:
+			btrfs_info(info, "enabling all of the rescue options");
+			btrfs_set_and_info(info, IGNOREDATACSUMS,
+					   "ignoring data csums");
+			btrfs_set_and_info(info, IGNOREBADROOTS,
+					   "ignoring bad roots");
+			btrfs_set_and_info(info, NOLOGREPLAY,
+					   "disabling log replay at mount time");
 			break;
 		case Opt_err:
 			btrfs_info(info, "unrecognized rescue option '%s'", p);

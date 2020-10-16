@@ -334,6 +334,7 @@ static const char *rescue_opts[] = {
 	"nologreplay",
 	"ignorebadroots",
 	"ignoredatacsums",
+	"all",
 };
 
 static ssize_t supported_rescue_options_show(struct kobject *kobj,
