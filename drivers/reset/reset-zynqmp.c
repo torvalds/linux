@@ -83,8 +83,8 @@ static const struct zynqmp_reset_soc_data zynqmp_reset_data = {
 };
 
 static const struct zynqmp_reset_soc_data versal_reset_data = {
-        .reset_id = 0,
-        .num_resets = VERSAL_NR_RESETS,
+	.reset_id = 0,
+	.num_resets = VERSAL_NR_RESETS,
 };
 
 static const struct reset_control_ops zynqmp_reset_ops = {
