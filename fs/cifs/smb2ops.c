@@ -3820,7 +3820,8 @@ fill_transform_hdr(struct smb2_transform_hdr *tr_hdr, unsigned int orig_len,
 	tr_hdr->ProtocolId = SMB2_TRANSFORM_PROTO_NUM;
 	tr_hdr->OriginalMessageSize = cpu_to_le32(orig_len);
 	tr_hdr->Flags = cpu_to_le16(0x01);
-	if (cipher_type == SMB2_ENCRYPTION_AES128_GCM)
+	if ((cipher_type == SMB2_ENCRYPTION_AES128_GCM) ||
+	    (cipher_type == SMB2_ENCRYPTION_AES256_GCM))
 		get_random_bytes(&tr_hdr->Nonce, SMB3_AES_GCM_NONCE);
 	else
 		get_random_bytes(&tr_hdr->Nonce, SMB3_AES_CCM_NONCE);
@@ -3954,7 +3955,12 @@ crypt_message(struct TCP_Server_Info *server, int num_rqst,
 
 	tfm = enc ? server->secmech.ccmaesencrypt :
 						server->secmech.ccmaesdecrypt;
-	rc = crypto_aead_setkey(tfm, key, SMB3_SIGN_KEY_SIZE);
+
+	if (server->cipher_type == SMB2_ENCRYPTION_AES256_GCM)
+		rc = crypto_aead_setkey(tfm, key, SMB3_GCM256_CRYPTKEY_SIZE);
+	else
+		rc = crypto_aead_setkey(tfm, key, SMB3_SIGN_KEY_SIZE);
+
 	if (rc) {
 		cifs_server_dbg(VFS, "%s: Failed to set aead key %d\n", __func__, rc);
 		return rc;
@@ -3992,7 +3998,8 @@ crypt_message(struct TCP_Server_Info *server, int num_rqst,
 		goto free_sg;
 	}
 
-	if (server->cipher_type == SMB2_ENCRYPTION_AES128_GCM)
+	if ((server->cipher_type == SMB2_ENCRYPTION_AES128_GCM) ||
+	    (server->cipher_type == SMB2_ENCRYPTION_AES256_GCM))
 		memcpy(iv, (char *)tr_hdr->Nonce, SMB3_AES_GCM_NONCE);
 	else {
 		iv[0] = 3;
