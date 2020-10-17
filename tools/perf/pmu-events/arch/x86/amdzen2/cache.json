@@ -48,6 +48,11 @@
     "UMask": "0x1"
   },
   {
+    "EventName": "l2_request_g1.all_no_prefetch",
+    "EventCode": "0x60",
+    "UMask": "0xf9"
+  },
+  {
     "EventName": "l2_request_g2.group1",
     "EventCode": "0x61",
     "BriefDescription": "Miscellaneous events covered in more detail by l2_request_g1 (PMCx060).",
@@ -172,6 +177,24 @@
     "EventCode": "0x64",
     "BriefDescription": "Core to L2 cacheable request access status (not including L2 Prefetch). Instruction cache request miss in L2.",
     "UMask": "0x1"
+  },
+  {
+    "EventName": "l2_cache_req_stat.ic_access_in_l2",
+    "EventCode": "0x64",
+    "BriefDescription": "Core to L2 cacheable request access status (not including L2 Prefetch). Instruction cache requests in L2.",
+    "UMask": "0x7"
+  },
+  {
+    "EventName": "l2_cache_req_stat.ic_dc_miss_in_l2",
+    "EventCode": "0x64",
+    "BriefDescription": "Core to L2 cacheable request access status (not including L2 Prefetch). Instruction cache request miss in L2 and Data cache request miss in L2 (all types).",
+    "UMask": "0x9"
+  },
+  {
+    "EventName": "l2_cache_req_stat.ic_dc_hit_in_l2",
+    "EventCode": "0x64",
+    "BriefDescription": "Core to L2 cacheable request access status (not including L2 Prefetch). Instruction cache request hit in L2 and Data cache request hit in L2 (all types).",
+    "UMask": "0xf6"
   },
   {
     "EventName": "l2_fill_pending.l2_fill_busy",

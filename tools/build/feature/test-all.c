@@ -74,16 +74,12 @@
 # include "test-libslang.c"
 #undef main
 
-#define main main_test_gtk2
-# include "test-gtk2.c"
-#undef main
-
-#define main main_test_gtk2_infobar
-# include "test-gtk2-infobar.c"
-#undef main
-
 #define main main_test_libbfd
 # include "test-libbfd.c"
+#undef main
+
+#define main main_test_libbfd_buildid
+# include "test-libbfd-buildid.c"
 #undef main
 
 #define main main_test_backtrace
@@ -201,9 +197,8 @@ int main(int argc, char *argv[])
 	main_test_libelf_getshdrstrndx();
 	main_test_libunwind();
 	main_test_libslang();
-	main_test_gtk2(argc, argv);
-	main_test_gtk2_infobar(argc, argv);
 	main_test_libbfd();
+	main_test_libbfd_buildid();
 	main_test_backtrace();
 	main_test_libnuma();
 	main_test_numa_num_possible_cpus();

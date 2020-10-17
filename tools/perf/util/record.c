@@ -14,6 +14,7 @@
 #include "util/perf_api_probe.h"
 #include "record.h"
 #include "../perf-sys.h"
+#include "topdown.h"
 
 /*
  * evsel__config_leader_sampling() uses special rules for leader sampling.
@@ -24,7 +25,7 @@ static struct evsel *evsel__read_sampler(struct evsel *evsel, struct evlist *evl
 {
 	struct evsel *leader = evsel->leader;
 
-	if (evsel__is_aux_event(leader)) {
+	if (evsel__is_aux_event(leader) || arch_topdown_sample_read(leader)) {
 		evlist__for_each_entry(evlist, evsel) {
 			if (evsel->leader == leader && evsel != evsel->leader)
 				return evsel;
