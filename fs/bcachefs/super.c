@@ -176,9 +176,7 @@ struct bch_fs *bch2_uuid_to_fs(__uuid_t uuid)
 static void __bch2_fs_read_only(struct bch_fs *c)
 {
 	struct bch_dev *ca;
-	bool wrote = false;
 	unsigned i, clean_passes = 0;
-	int ret;
 
 	bch2_rebalance_stop(c);
 	bch2_copygc_stop(c);
@@ -195,20 +193,6 @@ static void __bch2_fs_read_only(struct bch_fs *c)
 	 * write out alloc info aren't going to work:
 	 */
 	if (!test_bit(BCH_FS_ALLOCATOR_RUNNING, &c->flags))
-		goto nowrote_alloc;
-
-	bch_verbose(c, "writing alloc info");
-	/*
-	 * This should normally just be writing the bucket read/write clocks:
-	 */
-	ret = bch2_stripes_write(c, BTREE_INSERT_NOCHECK_RW, &wrote) ?:
-		bch2_alloc_write(c, BTREE_INSERT_NOCHECK_RW, &wrote);
-	bch_verbose(c, "writing alloc info complete");
-
-	if (ret && !test_bit(BCH_FS_EMERGENCY_RO, &c->flags))
-		bch2_fs_inconsistent(c, "error writing out alloc info %i", ret);
-
-	if (ret)
 		goto nowrote_alloc;
 
 	bch_verbose(c, "flushing journal and stopping allocators");
@@ -1665,6 +1649,11 @@ have_slot:
 
 	bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
+
+	err = "alloc write failed";
+	ret = bch2_dev_alloc_write(c, ca, 0);
+	if (ret)
+		goto err;
 
 	if (ca->mi.state == BCH_MEMBER_STATE_RW) {
 		err = __bch2_dev_read_write(c, ca);

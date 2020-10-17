@@ -1448,7 +1448,7 @@ static int __bch2_stripe_write_key(struct btree_trans *trans,
 	return 0;
 }
 
-int bch2_stripes_write(struct bch_fs *c, unsigned flags, bool *wrote)
+int bch2_stripes_write(struct bch_fs *c, unsigned flags)
 {
 	struct btree_trans trans;
 	struct btree_iter *iter;
@@ -1476,8 +1476,6 @@ int bch2_stripes_write(struct bch_fs *c, unsigned flags, bool *wrote)
 
 		if (ret)
 			break;
-
-		*wrote = true;
 	}
 
 	bch2_trans_exit(&trans);

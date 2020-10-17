@@ -271,12 +271,6 @@ int bch2_alloc_read(struct bch_fs *c, struct journal_keys *journal_keys)
 	return 0;
 }
 
-enum alloc_write_ret {
-	ALLOC_WROTE,
-	ALLOC_NOWROTE,
-	ALLOC_END,
-};
-
 static int bch2_alloc_write_key(struct btree_trans *trans,
 				struct btree_iter *iter,
 				unsigned flags)
@@ -306,18 +300,9 @@ retry:
 
 	old_u = bch2_alloc_unpack(k);
 
-	if (iter->pos.inode >= c->sb.nr_devices ||
-	    !c->devs[iter->pos.inode])
-		return ALLOC_END;
-
 	percpu_down_read(&c->mark_lock);
 	ca	= bch_dev_bkey_exists(c, iter->pos.inode);
 	ba	= bucket_array(ca);
-
-	if (iter->pos.offset >= ba->nbuckets) {
-		percpu_up_read(&c->mark_lock);
-		return ALLOC_END;
-	}
 
 	g	= &ba->b[iter->pos.offset];
 	m	= READ_ONCE(g->mark);
@@ -325,7 +310,7 @@ retry:
 	percpu_up_read(&c->mark_lock);
 
 	if (!bkey_alloc_unpacked_cmp(old_u, new_u))
-		return ALLOC_NOWROTE;
+		return 0;
 
 	a = bkey_alloc_init(&alloc_key.k);
 	a->k.p = iter->pos;
@@ -343,50 +328,55 @@ err:
 	return ret;
 }
 
-int bch2_alloc_write(struct bch_fs *c, unsigned flags, bool *wrote)
+int bch2_dev_alloc_write(struct bch_fs *c, struct bch_dev *ca, unsigned flags)
 {
 	struct btree_trans trans;
 	struct btree_iter *iter;
-	struct bch_dev *ca;
-	unsigned i;
+	u64 first_bucket, nbuckets;
 	int ret = 0;
+
+	percpu_down_read(&c->mark_lock);
+	first_bucket	= bucket_array(ca)->first_bucket;
+	nbuckets	= bucket_array(ca)->nbuckets;
+	percpu_up_read(&c->mark_lock);
 
 	BUG_ON(BKEY_ALLOC_VAL_U64s_MAX > 8);
 
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_ALLOC, POS_MIN,
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_ALLOC,
+				   POS(ca->dev_idx, first_bucket),
 				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
 
+	while (iter->pos.offset < nbuckets) {
+		bch2_trans_cond_resched(&trans);
+
+		ret = bch2_alloc_write_key(&trans, iter, flags);
+		if (ret)
+			break;
+		bch2_btree_iter_next_slot(iter);
+	}
+
+	bch2_trans_exit(&trans);
+
+	return ret;
+}
+
+int bch2_alloc_write(struct bch_fs *c, unsigned flags)
+{
+	struct bch_dev *ca;
+	unsigned i;
+	int ret = 0;
+
 	for_each_rw_member(ca, c, i) {
-		unsigned first_bucket;
-
-		percpu_down_read(&c->mark_lock);
-		first_bucket = bucket_array(ca)->first_bucket;
-		percpu_up_read(&c->mark_lock);
-
-		bch2_btree_iter_set_pos(iter, POS(i, first_bucket));
-
-		while (1) {
-			bch2_trans_cond_resched(&trans);
-
-			ret = bch2_alloc_write_key(&trans, iter, flags);
-			if (ret < 0 || ret == ALLOC_END)
-				break;
-			if (ret == ALLOC_WROTE)
-				*wrote = true;
-			bch2_btree_iter_next_slot(iter);
-		}
-
-		if (ret < 0) {
+		bch2_dev_alloc_write(c, ca, flags);
+		if (ret) {
 			percpu_ref_put(&ca->io_ref);
 			break;
 		}
 	}
 
-	bch2_trans_exit(&trans);
-
-	return ret < 0 ? ret : 0;
+	return ret;
 }
 
 /* Bucket IO clocks: */

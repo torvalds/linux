@@ -570,6 +570,7 @@ static int bch2_gc_done(struct bch_fs *c,
 			fsck_err(c, _msg ": got %llu, should be %llu"	\
 				, ##__VA_ARGS__, dst->_f, src->_f);	\
 		dst->_f = src->_f;					\
+		ret = 1;						\
 	}
 #define copy_stripe_field(_f, _msg, ...)				\
 	if (dst->_f != src->_f) {					\
@@ -580,6 +581,7 @@ static int bch2_gc_done(struct bch_fs *c,
 				dst->_f, src->_f);			\
 		dst->_f = src->_f;					\
 		dst->dirty = true;					\
+		ret = 1;						\
 	}
 #define copy_bucket_field(_f)						\
 	if (dst->b[b].mark._f != src->b[b].mark._f) {			\
@@ -590,6 +592,7 @@ static int bch2_gc_done(struct bch_fs *c,
 				bch2_data_types[dst->b[b].mark.data_type],\
 				dst->b[b].mark._f, src->b[b].mark._f);	\
 		dst->b[b]._mark._f = src->b[b].mark._f;			\
+		ret = 1;						\
 	}
 #define copy_dev_field(_f, _msg, ...)					\
 	copy_field(_f, "dev %u has wrong " _msg, i, ##__VA_ARGS__)
@@ -1396,7 +1399,7 @@ static int bch2_gc_thread(void *arg)
 #else
 		ret = bch2_gc_gens(c);
 #endif
-		if (ret)
+		if (ret < 0)
 			bch_err(c, "btree gc failed: %i", ret);
 
 		debug_check_no_locks_held();
