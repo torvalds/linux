@@ -826,7 +826,7 @@ retry:
 		if (bkey_extent_is_allocation(k.k))
 			bch2_add_page_sectors(&rbio->bio, k);
 
-		bch2_read_extent(c, rbio, k, offset_into_extent, flags);
+		bch2_read_extent(trans, rbio, k, offset_into_extent, flags);
 
 		if (flags & BCH_READ_LAST_FRAGMENT)
 			break;

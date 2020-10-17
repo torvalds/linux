@@ -414,7 +414,7 @@ static void bch2_move_ctxt_wait_for_io(struct moving_context *ctxt)
 		atomic_read(&ctxt->write_sectors) != sectors_pending);
 }
 
-static int bch2_move_extent(struct bch_fs *c,
+static int bch2_move_extent(struct btree_trans *trans,
 			    struct moving_context *ctxt,
 			    struct write_point_specifier wp,
 			    struct bch_io_opts io_opts,
@@ -423,6 +423,7 @@ static int bch2_move_extent(struct bch_fs *c,
 			    enum data_cmd data_cmd,
 			    struct data_opts data_opts)
 {
+	struct bch_fs *c = trans->c;
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	struct moving_io *io;
 	const union bch_extent_entry *entry;
@@ -489,7 +490,7 @@ static int bch2_move_extent(struct bch_fs *c,
 	 * ctxt when doing wakeup
 	 */
 	closure_get(&ctxt->cl);
-	bch2_read_extent(c, &io->rbio, k, 0,
+	bch2_read_extent(trans, &io->rbio, k, 0,
 			 BCH_READ_NODECODE|
 			 BCH_READ_LAST_FRAGMENT);
 	return 0;
@@ -607,7 +608,7 @@ peek:
 		k = bkey_i_to_s_c(sk.k);
 		bch2_trans_unlock(&trans);
 
-		ret2 = bch2_move_extent(c, ctxt, wp, io_opts, btree_id, k,
+		ret2 = bch2_move_extent(&trans, ctxt, wp, io_opts, btree_id, k,
 					data_cmd, data_opts);
 		if (ret2) {
 			if (ret2 == -ENOMEM) {

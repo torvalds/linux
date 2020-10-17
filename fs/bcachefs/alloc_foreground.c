@@ -309,8 +309,6 @@ out:
 		.dev	= ca->dev_idx,
 	};
 
-	bucket_io_clock_reset(c, ca, bucket, READ);
-	bucket_io_clock_reset(c, ca, bucket, WRITE);
 	spin_unlock(&ob->lock);
 
 	if (c->blocked_allocate_open_bucket) {

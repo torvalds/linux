@@ -140,17 +140,17 @@ enum bch_read_flags {
 	BCH_READ_IN_RETRY		= 1 << 7,
 };
 
-int __bch2_read_extent(struct bch_fs *, struct bch_read_bio *,
+int __bch2_read_extent(struct btree_trans *, struct bch_read_bio *,
 		       struct bvec_iter, struct bkey_s_c, unsigned,
 		       struct bch_io_failures *, unsigned);
 
-static inline void bch2_read_extent(struct bch_fs *c,
+static inline void bch2_read_extent(struct btree_trans *trans,
 				    struct bch_read_bio *rbio,
 				    struct bkey_s_c k,
 				    unsigned offset_into_extent,
 				    unsigned flags)
 {
-	__bch2_read_extent(c, rbio, rbio->bio.bi_iter, k,
+	__bch2_read_extent(trans, rbio, rbio->bio.bi_iter, k,
 			   offset_into_extent, NULL, flags);
 }
 

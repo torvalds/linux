@@ -31,6 +31,8 @@ struct bkey_alloc_unpacked bch2_alloc_unpack(struct bkey_s_c);
 void bch2_alloc_pack(struct bkey_i_alloc *,
 		     const struct bkey_alloc_unpacked);
 
+int bch2_bucket_io_time_reset(struct btree_trans *, unsigned, size_t, int);
+
 static inline struct bkey_alloc_unpacked
 alloc_mem_to_key(struct bucket *g, struct bucket_mark m)
 {

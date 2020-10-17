@@ -489,6 +489,54 @@ static void bch2_bucket_clock_init(struct bch_fs *c, int rw)
 	mutex_init(&clock->lock);
 }
 
+int bch2_bucket_io_time_reset(struct btree_trans *trans, unsigned dev,
+			      size_t bucket_nr, int rw)
+{
+	struct bch_fs *c = trans->c;
+	struct bch_dev *ca = bch_dev_bkey_exists(c, dev);
+	struct btree_iter *iter;
+	struct bucket *g;
+	struct bkey_i_alloc *a;
+	struct bkey_alloc_unpacked u;
+	u16 *time;
+	int ret = 0;
+
+	iter = bch2_trans_get_iter(trans, BTREE_ID_ALLOC, POS(dev, bucket_nr),
+				   BTREE_ITER_CACHED|
+				   BTREE_ITER_CACHED_NOFILL|
+				   BTREE_ITER_INTENT);
+	ret = bch2_btree_iter_traverse(iter);
+	if (ret)
+		goto out;
+
+	a = bch2_trans_kmalloc(trans, BKEY_ALLOC_U64s_MAX * 8);
+	ret = PTR_ERR_OR_ZERO(a);
+	if (ret)
+		goto out;
+
+	percpu_down_read(&c->mark_lock);
+	g = bucket(ca, bucket_nr);
+	u = alloc_mem_to_key(g, READ_ONCE(g->mark));
+	percpu_up_read(&c->mark_lock);
+
+	bkey_alloc_init(&a->k_i);
+	a->k.p = iter->pos;
+
+	time = rw == READ ? &u.read_time : &u.write_time;
+	if (*time == c->bucket_clock[rw].hand)
+		goto out;
+
+	*time = c->bucket_clock[rw].hand;
+
+	bch2_alloc_pack(a, u);
+
+	ret   = bch2_trans_update(trans, iter, &a->k_i, 0) ?:
+		bch2_trans_commit(trans, NULL, NULL, 0);
+out:
+	bch2_trans_iter_put(trans, iter);
+	return ret;
+}
+
 /* Background allocator thread: */
 
 /*
