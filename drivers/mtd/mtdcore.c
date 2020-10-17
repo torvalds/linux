@@ -335,7 +335,7 @@ static const struct device_type mtd_devtype = {
 	.release	= mtd_release,
 };
 
-static int mtd_partid_show(struct seq_file *s, void *p)
+static int mtd_partid_debug_show(struct seq_file *s, void *p)
 {
 	struct mtd_info *mtd = s->private;
 
@@ -344,19 +344,9 @@ static int mtd_partid_show(struct seq_file *s, void *p)
 	return 0;
 }
 
-static int mtd_partid_debugfs_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, mtd_partid_show, inode->i_private);
-}
+DEFINE_SHOW_ATTRIBUTE(mtd_partid_debug);
 
-static const struct file_operations mtd_partid_debug_fops = {
-	.open           = mtd_partid_debugfs_open,
-	.read           = seq_read,
-	.llseek         = seq_lseek,
-	.release        = single_release,
-};
-
-static int mtd_partname_show(struct seq_file *s, void *p)
+static int mtd_partname_debug_show(struct seq_file *s, void *p)
 {
 	struct mtd_info *mtd = s->private;
 
@@ -365,17 +355,7 @@ static int mtd_partname_show(struct seq_file *s, void *p)
 	return 0;
 }
 
-static int mtd_partname_debugfs_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, mtd_partname_show, inode->i_private);
-}
-
-static const struct file_operations mtd_partname_debug_fops = {
-	.open           = mtd_partname_debugfs_open,
-	.read           = seq_read,
-	.llseek         = seq_lseek,
-	.release        = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(mtd_partname_debug);
 
 static struct dentry *dfs_dir_mtd;
 

@@ -620,7 +620,7 @@ static struct s3c2410_platform_nand rx1950_nand_info = {
 	.twrph1 = 15,
 	.nr_sets = ARRAY_SIZE(rx1950_nand_sets),
 	.sets = rx1950_nand_sets,
-	.ecc_mode = NAND_ECC_SOFT,
+	.engine_type = NAND_ECC_ENGINE_TYPE_SOFT,
 };
 
 static struct s3c2410_udc_mach_info rx1950_udc_cfg __initdata = {
