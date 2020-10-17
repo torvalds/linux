@@ -318,15 +318,14 @@ static ssize_t dump_attr_read(struct file *filep, struct kobject *kobj,
 	return count;
 }
 
-static struct dump_obj *create_dump_obj(uint32_t id, size_t size,
-					uint32_t type)
+static void create_dump_obj(uint32_t id, size_t size, uint32_t type)
 {
 	struct dump_obj *dump;
 	int rc;
 
 	dump = kzalloc(sizeof(*dump), GFP_KERNEL);
 	if (!dump)
-		return NULL;
+		return;
 
 	dump->kobj.kset = dump_kset;
 
@@ -346,21 +345,39 @@ static struct dump_obj *create_dump_obj(uint32_t id, size_t size,
 	rc = kobject_add(&dump->kobj, NULL, "0x%x-0x%x", type, id);
 	if (rc) {
 		kobject_put(&dump->kobj);
-		return NULL;
+		return;
 	}
 
+	/*
+	 * As soon as the sysfs file for this dump is created/activated there is
+	 * a chance the opal_errd daemon (or any userspace) might read and
+	 * acknowledge the dump before kobject_uevent() is called. If that
+	 * happens then there is a potential race between
+	 * dump_ack_store->kobject_put() and kobject_uevent() which leads to a
+	 * use-after-free of a kernfs object resulting in a kernel crash.
+	 *
+	 * To avoid that, we need to take a reference on behalf of the bin file,
+	 * so that our reference remains valid while we call kobject_uevent().
+	 * We then drop our reference before exiting the function, leaving the
+	 * bin file to drop the last reference (if it hasn't already).
+	 */
+
+	/* Take a reference for the bin file */
+	kobject_get(&dump->kobj);
 	rc = sysfs_create_bin_file(&dump->kobj, &dump->dump_attr);
-	if (rc) {
+	if (rc == 0) {
+		kobject_uevent(&dump->kobj, KOBJ_ADD);
+
+		pr_info("%s: New platform dump. ID = 0x%x Size %u\n",
+			__func__, dump->id, dump->size);
+	} else {
+		/* Drop reference count taken for bin file */
 		kobject_put(&dump->kobj);
-		return NULL;
 	}
 
-	pr_info("%s: New platform dump. ID = 0x%x Size %u\n",
-		__func__, dump->id, dump->size);
-
-	kobject_uevent(&dump->kobj, KOBJ_ADD);
-
-	return dump;
+	/* Drop our reference */
+	kobject_put(&dump->kobj);
+	return;
 }
 
 static irqreturn_t process_dump(int irq, void *data)
