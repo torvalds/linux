@@ -616,9 +616,19 @@ static int decode_encrypt_ctx(struct TCP_Server_Info *server,
 			return -EOPNOTSUPP;
 		}
 	} else if (ctxt->Ciphers[0] == 0) {
-		/* e.g. if server only supported AES256_CCM (very unlikely) */
-		cifs_dbg(VFS, "Server does not support requested encryption types\n");
-		return -EOPNOTSUPP;
+		/*
+		 * e.g. if server only supported AES256_CCM (very unlikely)
+		 * or server supported no encryption types or had all disabled.
+		 * Since GLOBAL_CAP_ENCRYPTION will be not set, in the case
+		 * in which mount requested encryption ("seal") checks later
+		 * on during tree connection will return proper rc, but if
+		 * seal not requested by client, since server is allowed to
+		 * return 0 to indicate no supported cipher, we can't fail here
+		 */
+		server->cipher_type = 0;
+		server->capabilities &= ~SMB2_GLOBAL_CAP_ENCRYPTION;
+		pr_warn_once("Server does not support requested encryption types\n");
+		return 0;
 	} else if ((ctxt->Ciphers[0] != SMB2_ENCRYPTION_AES128_CCM) &&
 		   (ctxt->Ciphers[0] != SMB2_ENCRYPTION_AES128_GCM) &&
 		   (ctxt->Ciphers[0] != SMB2_ENCRYPTION_AES256_GCM)) {
