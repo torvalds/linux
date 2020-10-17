@@ -5407,27 +5407,12 @@ static int atomisp_set_fmt_to_isp(struct video_device *vdev,
 		return -EINVAL;
 	}
 
-	if (asd->continuous_mode->val &&
-	    (configure_pp_input == atomisp_css_preview_configure_pp_input ||
-	     configure_pp_input == atomisp_css_video_configure_pp_input)) {
-		/* for isp 2.2, configure pp input is available for continuous
-		 * mode */
-		ret = configure_pp_input(asd, isp_sink_crop->width,
-					 isp_sink_crop->height);
-		if (ret) {
-			dev_err(isp->dev, "configure_pp_input %ux%u\n",
-				isp_sink_crop->width,
-				isp_sink_crop->height);
-			return -EINVAL;
-		}
-	} else {
-		ret = configure_pp_input(asd, isp_sink_crop->width,
-					 isp_sink_crop->height);
-		if (ret) {
-			dev_err(isp->dev, "configure_pp_input %ux%u\n",
-				isp_sink_crop->width, isp_sink_crop->height);
-			return -EINVAL;
-		}
+	ret = configure_pp_input(asd, isp_sink_crop->width, isp_sink_crop->height);
+	if (ret) {
+		dev_err(isp->dev, "configure_pp_input %ux%u\n",
+			isp_sink_crop->width,
+			isp_sink_crop->height);
+		return -EINVAL;
 	}
 	if (asd->copy_mode)
 		ret = atomisp_css_copy_get_output_frame_info(asd, stream_index,
