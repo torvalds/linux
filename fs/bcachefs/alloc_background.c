@@ -1267,18 +1267,6 @@ void bch2_recalc_capacity(struct bch_fs *c)
 
 	c->bucket_size_max = bucket_size_max;
 
-	if (c->capacity) {
-		bch2_io_timer_add(&c->io_clock[READ],
-				 &c->bucket_clock[READ].rescale);
-		bch2_io_timer_add(&c->io_clock[WRITE],
-				 &c->bucket_clock[WRITE].rescale);
-	} else {
-		bch2_io_timer_del(&c->io_clock[READ],
-				 &c->bucket_clock[READ].rescale);
-		bch2_io_timer_del(&c->io_clock[WRITE],
-				 &c->bucket_clock[WRITE].rescale);
-	}
-
 	/* Wake up case someone was waiting for buckets */
 	closure_wake_up(&c->freelist_wait);
 }
