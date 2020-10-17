@@ -13,39 +13,67 @@
 
 #ifdef TRACE_HEADER_MULTI_READ
 
+#define DEFINE_HOOK_FN(_name, _reg, _unreg, proto, args)		\
+	static const char __tpstrtab_##_name[]				\
+	__section(__tracepoints_strings) = #_name;			\
+	extern struct static_call_key STATIC_CALL_KEY(tp_func_##_name);	\
+	int __traceiter_##_name(void *__data, proto);			\
+	struct tracepoint __tracepoint_##_name	__used			\
+	__section(__tracepoints) = {					\
+		.name = __tpstrtab_##_name,				\
+		.key = STATIC_KEY_INIT_FALSE,				\
+		.static_call_key = &STATIC_CALL_KEY(tp_func_##_name),	\
+		.static_call_tramp = STATIC_CALL_TRAMP_ADDR(tp_func_##_name), \
+		.iterator = &__traceiter_##_name,			\
+		.regfunc = _reg,					\
+		.unregfunc = _unreg,					\
+		.funcs = NULL };					\
+	__TRACEPOINT_ENTRY(_name);					\
+	int __traceiter_##_name(void *__data, proto)			\
+	{								\
+		struct tracepoint_func *it_func_ptr;			\
+		void *it_func;						\
+									\
+		it_func_ptr = (&__tracepoint_##_name)->funcs;		\
+		it_func = (it_func_ptr)->func;				\
+		__data = (it_func_ptr)->data;				\
+		((void(*)(void *, proto))(it_func))(__data, args);	\
+		WARN_ON(((++it_func_ptr)->func));			\
+		return 0;						\
+	}								\
+	DEFINE_STATIC_CALL(tp_func_##_name, __traceiter_##_name);
+
 #undef DECLARE_RESTRICTED_HOOK
 #define DECLARE_RESTRICTED_HOOK(name, proto, args, cond) \
-	DEFINE_TRACE(name)
-
+	DEFINE_HOOK_FN(name, NULL, NULL, PARAMS(proto), PARAMS(args))
 
 /* prevent additional recursion */
 #undef TRACE_HEADER_MULTI_READ
 #else /* TRACE_HEADER_MULTI_READ */
 
-#define DO_HOOK(tp, proto, args, cond)					\
+#define DO_HOOK(name, proto, args, cond)				\
 	do {								\
 		struct tracepoint_func *it_func_ptr;			\
-		void *it_func;						\
 		void *__data;						\
 									\
 		if (!(cond))						\
 			return;						\
 									\
-		it_func_ptr = (tp)->funcs;				\
+		it_func_ptr = (&__tracepoint_##name)->funcs;		\
 		if (it_func_ptr) {					\
-			it_func = (it_func_ptr)->func;			\
 			__data = (it_func_ptr)->data;			\
-			((void(*)(proto))(it_func))(args);		\
-			WARN_ON(((++it_func_ptr)->func));		\
+			__DO_TRACE_CALL(name)(args);			\
 		}							\
 	} while (0)
 
 #define __DECLARE_HOOK(name, proto, args, cond, data_proto, data_args)	\
+	extern int __traceiter_##name(data_proto);			\
+	DECLARE_STATIC_CALL(tp_func_##name, __traceiter_##name);	\
 	extern struct tracepoint __tracepoint_##name;			\
 	static inline void trace_##name(proto)				\
 	{								\
 		if (static_key_false(&__tracepoint_##name.key))		\
-			DO_HOOK(&__tracepoint_##name,			\
+			DO_HOOK(name,					\
 				TP_PROTO(data_proto),			\
 				TP_ARGS(data_args),			\
 				TP_CONDITION(cond));			\
