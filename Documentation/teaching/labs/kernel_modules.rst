@@ -823,7 +823,7 @@ Dyndbg Options
 
   .. code-block:: bash
 
-     Modules sunrpc
+     module sunrpc
 
 * ``format`` - only messages whose display format contains the specified string.
 
@@ -1035,8 +1035,8 @@ the module.
 Inspect the C source files ``mod1.c`` and ``mod2.c`` in :file:`4-multi-mod/`.
 Module 2 contains only the definition of a function used by module 1.
 
-Change the :file:`Kbuild` file to create the ``multi_mod.ko`` module from
-from the two C source files.
+Change the :file:`Kbuild` file to create the ``multi_mod.ko`` module from the
+two C source files.
 
 .. hint:: Read the `Compiling kernel modules`_ section of the lab.
 
