@@ -28,6 +28,6 @@ void idle_inject_get_duration(struct idle_inject_device *ii_dev,
 				 unsigned int *idle_duration_us);
 
 void idle_inject_set_latency(struct idle_inject_device *ii_dev,
-			     unsigned int latency_ns);
+			     unsigned int latency_us);
 
 #endif /* __IDLE_INJECT_H__ */

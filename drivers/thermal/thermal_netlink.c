@@ -78,7 +78,7 @@ int thermal_genl_sampling_temp(int id, int temp)
 	hdr = genlmsg_put(skb, 0, 0, &thermal_gnl_family, 0,
 			  THERMAL_GENL_SAMPLING_TEMP);
 	if (!hdr)
-		return -EMSGSIZE;
+		goto out_free;
 
 	if (nla_put_u32(skb, THERMAL_GENL_ATTR_TZ_ID, id))
 		goto out_cancel;
@@ -93,6 +93,7 @@ int thermal_genl_sampling_temp(int id, int temp)
 	return 0;
 out_cancel:
 	genlmsg_cancel(skb, hdr);
+out_free:
 	nlmsg_free(skb);
 
 	return -EMSGSIZE;
