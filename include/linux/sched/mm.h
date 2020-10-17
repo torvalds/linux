@@ -279,6 +279,7 @@ static inline void memalloc_nocma_restore(unsigned int flags)
 #endif
 
 #ifdef CONFIG_MEMCG
+DECLARE_PER_CPU(struct mem_cgroup *, int_active_memcg);
 /**
  * set_active_memcg - Starts the remote memcg charging scope.
  * @memcg: memcg to charge.
@@ -293,8 +294,16 @@ static inline void memalloc_nocma_restore(unsigned int flags)
 static inline struct mem_cgroup *
 set_active_memcg(struct mem_cgroup *memcg)
 {
-	struct mem_cgroup *old = current->active_memcg;
-	current->active_memcg = memcg;
+	struct mem_cgroup *old;
+
+	if (in_interrupt()) {
+		old = this_cpu_read(int_active_memcg);
+		this_cpu_write(int_active_memcg, memcg);
+	} else {
+		old = current->active_memcg;
+		current->active_memcg = memcg;
+	}
+
 	return old;
 }
 #else
