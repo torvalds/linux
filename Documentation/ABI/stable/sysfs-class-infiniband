@@ -258,23 +258,6 @@ Description:
 		userspace ABI compatibility of umad & issm devices.
 
 
-What:		/sys/class/infiniband_cm/ucmN/ibdev
-Date:		Oct, 2005
-KernelVersion:	v2.6.14
-Contact:	linux-rdma@vger.kernel.org
-Description:
-		(RO) Display Infiniband (IB) device name
-
-
-What:		/sys/class/infiniband_cm/abi_version
-Date:		Oct, 2005
-KernelVersion:	v2.6.14
-Contact:	linux-rdma@vger.kernel.org
-Description:
-		(RO) Value is incremented if any changes are made that break
-		userspace ABI compatibility of ucm devices.
-
-
 What:		/sys/class/infiniband_verbs/uverbsN/ibdev
 What:		/sys/class/infiniband_verbs/uverbsN/abi_version
 Date:		Sept, 2005

@@ -232,11 +232,11 @@ static const struct sdma_set_state_action sdma_action_table[] = {
 static void sdma_complete(struct kref *);
 static void sdma_finalput(struct sdma_state *);
 static void sdma_get(struct sdma_state *);
-static void sdma_hw_clean_up_task(unsigned long);
+static void sdma_hw_clean_up_task(struct tasklet_struct *);
 static void sdma_put(struct sdma_state *);
 static void sdma_set_state(struct sdma_engine *, enum sdma_states);
 static void sdma_start_hw_clean_up(struct sdma_engine *);
-static void sdma_sw_clean_up_task(unsigned long);
+static void sdma_sw_clean_up_task(struct tasklet_struct *);
 static void sdma_sendctrl(struct sdma_engine *, unsigned);
 static void init_sdma_regs(struct sdma_engine *, u32, uint);
 static void sdma_process_event(
@@ -545,9 +545,10 @@ static void sdma_err_progress_check(struct timer_list *t)
 	schedule_work(&sde->err_halt_worker);
 }
 
-static void sdma_hw_clean_up_task(unsigned long opaque)
+static void sdma_hw_clean_up_task(struct tasklet_struct *t)
 {
-	struct sdma_engine *sde = (struct sdma_engine *)opaque;
+	struct sdma_engine *sde = from_tasklet(sde, t,
+					       sdma_hw_clean_up_task);
 	u64 statuscsr;
 
 	while (1) {
@@ -604,9 +605,9 @@ static void sdma_flush_descq(struct sdma_engine *sde)
 		sdma_desc_avail(sde, sdma_descq_freecnt(sde));
 }
 
-static void sdma_sw_clean_up_task(unsigned long opaque)
+static void sdma_sw_clean_up_task(struct tasklet_struct *t)
 {
-	struct sdma_engine *sde = (struct sdma_engine *)opaque;
+	struct sdma_engine *sde = from_tasklet(sde, t, sdma_sw_clean_up_task);
 	unsigned long flags;
 
 	spin_lock_irqsave(&sde->tail_lock, flags);
@@ -1454,11 +1455,10 @@ int sdma_init(struct hfi1_devdata *dd, u8 port)
 		sde->tail_csr =
 			get_kctxt_csr_addr(dd, this_idx, SD(TAIL));
 
-		tasklet_init(&sde->sdma_hw_clean_up_task, sdma_hw_clean_up_task,
-			     (unsigned long)sde);
-
-		tasklet_init(&sde->sdma_sw_clean_up_task, sdma_sw_clean_up_task,
-			     (unsigned long)sde);
+		tasklet_setup(&sde->sdma_hw_clean_up_task,
+			      sdma_hw_clean_up_task);
+		tasklet_setup(&sde->sdma_sw_clean_up_task,
+			      sdma_sw_clean_up_task);
 		INIT_WORK(&sde->err_halt_worker, sdma_err_halt_wait);
 		INIT_WORK(&sde->flush_worker, sdma_field_flush);
 

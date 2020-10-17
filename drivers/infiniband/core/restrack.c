@@ -123,32 +123,6 @@ int rdma_restrack_count(struct ib_device *dev, enum rdma_restrack_type type)
 }
 EXPORT_SYMBOL(rdma_restrack_count);
 
-static void set_kern_name(struct rdma_restrack_entry *res)
-{
-	struct ib_pd *pd;
-
-	switch (res->type) {
-	case RDMA_RESTRACK_QP:
-		pd = container_of(res, struct ib_qp, res)->pd;
-		if (!pd) {
-			WARN_ONCE(true, "XRC QPs are not supported\n");
-			/* Survive, despite the programmer's error */
-			res->kern_name = " ";
-		}
-		break;
-	case RDMA_RESTRACK_MR:
-		pd = container_of(res, struct ib_mr, res)->pd;
-		break;
-	default:
-		/* Other types set kern_name directly */
-		pd = NULL;
-		break;
-	}
-
-	if (pd)
-		res->kern_name = pd->res.kern_name;
-}
-
 static struct ib_device *res_to_dev(struct rdma_restrack_entry *res)
 {
 	switch (res->type) {
@@ -173,36 +147,77 @@ static struct ib_device *res_to_dev(struct rdma_restrack_entry *res)
 	}
 }
 
-void rdma_restrack_set_task(struct rdma_restrack_entry *res,
-			    const char *caller)
+/**
+ * rdma_restrack_attach_task() - attach the task onto this resource,
+ * valid for user space restrack entries.
+ * @res:  resource entry
+ * @task: the task to attach
+ */
+static void rdma_restrack_attach_task(struct rdma_restrack_entry *res,
+				      struct task_struct *task)
+{
+	if (WARN_ON_ONCE(!task))
+		return;
+
+	if (res->task)
+		put_task_struct(res->task);
+	get_task_struct(task);
+	res->task = task;
+	res->user = true;
+}
+
+/**
+ * rdma_restrack_set_name() - set the task for this resource
+ * @res:  resource entry
+ * @caller: kernel name, the current task will be used if the caller is NULL.
+ */
+void rdma_restrack_set_name(struct rdma_restrack_entry *res, const char *caller)
 {
 	if (caller) {
 		res->kern_name = caller;
 		return;
 	}
 
-	if (res->task)
-		put_task_struct(res->task);
-	get_task_struct(current);
-	res->task = current;
+	rdma_restrack_attach_task(res, current);
 }
-EXPORT_SYMBOL(rdma_restrack_set_task);
+EXPORT_SYMBOL(rdma_restrack_set_name);
 
 /**
- * rdma_restrack_attach_task() - attach the task onto this resource
- * @res:  resource entry
- * @task: the task to attach, the current task will be used if it is NULL.
+ * rdma_restrack_parent_name() - set the restrack name properties based
+ * on parent restrack
+ * @dst: destination resource entry
+ * @parent: parent resource entry
  */
-void rdma_restrack_attach_task(struct rdma_restrack_entry *res,
-			       struct task_struct *task)
+void rdma_restrack_parent_name(struct rdma_restrack_entry *dst,
+			       const struct rdma_restrack_entry *parent)
 {
-	if (res->task)
-		put_task_struct(res->task);
-	get_task_struct(task);
-	res->task = task;
+	if (rdma_is_kernel_res(parent))
+		dst->kern_name = parent->kern_name;
+	else
+		rdma_restrack_attach_task(dst, parent->task);
 }
+EXPORT_SYMBOL(rdma_restrack_parent_name);
 
-static void rdma_restrack_add(struct rdma_restrack_entry *res)
+/**
+ * rdma_restrack_new() - Initializes new restrack entry to allow _put() interface
+ * to release memory in fully automatic way.
+ * @res - Entry to initialize
+ * @type - REstrack type
+ */
+void rdma_restrack_new(struct rdma_restrack_entry *res,
+		       enum rdma_restrack_type type)
+{
+	kref_init(&res->kref);
+	init_completion(&res->comp);
+	res->type = type;
+}
+EXPORT_SYMBOL(rdma_restrack_new);
+
+/**
+ * rdma_restrack_add() - add object to the reource tracking database
+ * @res:  resource entry
+ */
+void rdma_restrack_add(struct rdma_restrack_entry *res)
 {
 	struct ib_device *dev = res_to_dev(res);
 	struct rdma_restrack_root *rt;
@@ -213,8 +228,6 @@ static void rdma_restrack_add(struct rdma_restrack_entry *res)
 
 	rt = &dev->res[res->type];
 
-	kref_init(&res->kref);
-	init_completion(&res->comp);
 	if (res->type == RDMA_RESTRACK_QP) {
 		/* Special case to ensure that LQPN points to right QP */
 		struct ib_qp *qp = container_of(res, struct ib_qp, res);
@@ -236,38 +249,7 @@ static void rdma_restrack_add(struct rdma_restrack_entry *res)
 	if (!ret)
 		res->valid = true;
 }
-
-/**
- * rdma_restrack_kadd() - add kernel object to the reource tracking database
- * @res:  resource entry
- */
-void rdma_restrack_kadd(struct rdma_restrack_entry *res)
-{
-	res->task = NULL;
-	set_kern_name(res);
-	res->user = false;
-	rdma_restrack_add(res);
-}
-EXPORT_SYMBOL(rdma_restrack_kadd);
-
-/**
- * rdma_restrack_uadd() - add user object to the reource tracking database
- * @res:  resource entry
- */
-void rdma_restrack_uadd(struct rdma_restrack_entry *res)
-{
-	if ((res->type != RDMA_RESTRACK_CM_ID) &&
-	    (res->type != RDMA_RESTRACK_COUNTER))
-		res->task = NULL;
-
-	if (!res->task)
-		rdma_restrack_set_task(res, NULL);
-	res->kern_name = NULL;
-
-	res->user = true;
-	rdma_restrack_add(res);
-}
-EXPORT_SYMBOL(rdma_restrack_uadd);
+EXPORT_SYMBOL(rdma_restrack_add);
 
 int __must_check rdma_restrack_get(struct rdma_restrack_entry *res)
 {
@@ -305,6 +287,10 @@ static void restrack_release(struct kref *kref)
 	struct rdma_restrack_entry *res;
 
 	res = container_of(kref, struct rdma_restrack_entry, kref);
+	if (res->task) {
+		put_task_struct(res->task);
+		res->task = NULL;
+	}
 	complete(&res->comp);
 }
 
@@ -314,14 +300,23 @@ int rdma_restrack_put(struct rdma_restrack_entry *res)
 }
 EXPORT_SYMBOL(rdma_restrack_put);
 
+/**
+ * rdma_restrack_del() - delete object from the reource tracking database
+ * @res:  resource entry
+ */
 void rdma_restrack_del(struct rdma_restrack_entry *res)
 {
 	struct rdma_restrack_entry *old;
 	struct rdma_restrack_root *rt;
 	struct ib_device *dev;
 
-	if (!res->valid)
-		goto out;
+	if (!res->valid) {
+		if (res->task) {
+			put_task_struct(res->task);
+			res->task = NULL;
+		}
+		return;
+	}
 
 	dev = res_to_dev(res);
 	if (WARN_ON(!dev))
@@ -330,16 +325,12 @@ void rdma_restrack_del(struct rdma_restrack_entry *res)
 	rt = &dev->res[res->type];
 
 	old = xa_erase(&rt->xa, res->id);
+	if (res->type == RDMA_RESTRACK_MR || res->type == RDMA_RESTRACK_QP)
+		return;
 	WARN_ON(old != res);
 	res->valid = false;
 
 	rdma_restrack_put(res);
 	wait_for_completion(&res->comp);
-
-out:
-	if (res->task) {
-		put_task_struct(res->task);
-		res->task = NULL;
-	}
 }
 EXPORT_SYMBOL(rdma_restrack_del);

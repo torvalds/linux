@@ -4256,7 +4256,6 @@ F:	drivers/net/ethernet/cisco/enic/
 CISCO VIC LOW LATENCY NIC DRIVER
 M:	Christian Benvenuti <benve@cisco.com>
 M:	Nelson Escobar <neescoba@cisco.com>
-M:	Parvi Kaustubhi <pkaustub@cisco.com>
 S:	Supported
 F:	drivers/infiniband/hw/usnic/
 
@@ -7793,8 +7792,8 @@ F:	include/linux/cciss*.h
 F:	include/uapi/linux/cciss*.h
 
 HFI1 DRIVER
-M:	Mike Marciniszyn <mike.marciniszyn@intel.com>
-M:	Dennis Dalessandro <dennis.dalessandro@intel.com>
+M:	Mike Marciniszyn <mike.marciniszyn@cornelisnetworks.com>
+M:	Dennis Dalessandro <dennis.dalessandro@cornelisnetworks.com>
 L:	linux-rdma@vger.kernel.org
 S:	Supported
 F:	drivers/infiniband/hw/hfi1
@@ -12999,8 +12998,8 @@ S:	Maintained
 F:	drivers/char/hw_random/optee-rng.c
 
 OPA-VNIC DRIVER
-M:	Dennis Dalessandro <dennis.dalessandro@intel.com>
-M:	Niranjana Vishwanathapura <niranjana.vishwanathapura@intel.com>
+M:	Dennis Dalessandro <dennis.dalessandro@cornelisnetworks.com>
+M:	Mike Marciniszyn <mike.marciniszyn@cornelisnetworks.com>
 L:	linux-rdma@vger.kernel.org
 S:	Supported
 F:	drivers/infiniband/ulp/opa_vnic
@@ -14301,8 +14300,8 @@ F:	drivers/firmware/qemu_fw_cfg.c
 F:	include/uapi/linux/qemu_fw_cfg.h
 
 QIB DRIVER
-M:	Dennis Dalessandro <dennis.dalessandro@intel.com>
-M:	Mike Marciniszyn <mike.marciniszyn@intel.com>
+M:	Dennis Dalessandro <dennis.dalessandro@cornelisnetworks.com>
+M:	Mike Marciniszyn <mike.marciniszyn@cornelisnetworks.com>
 L:	linux-rdma@vger.kernel.org
 S:	Supported
 F:	drivers/infiniband/hw/qib/
@@ -14727,8 +14726,8 @@ S:	Maintained
 F:	drivers/net/ethernet/rdc/r6040.c
 
 RDMAVT - RDMA verbs software
-M:	Dennis Dalessandro <dennis.dalessandro@intel.com>
-M:	Mike Marciniszyn <mike.marciniszyn@intel.com>
+M:	Dennis Dalessandro <dennis.dalessandro@cornelisnetworks.com>
+M:	Mike Marciniszyn <mike.marciniszyn@cornelisnetworks.com>
 L:	linux-rdma@vger.kernel.org
 S:	Supported
 F:	drivers/infiniband/sw/rdmavt

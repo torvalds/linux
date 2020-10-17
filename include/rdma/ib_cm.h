@@ -14,9 +14,6 @@
 #include <rdma/ib_sa.h>
 #include <rdma/rdma_cm.h>
 
-/* ib_cm and ib_user_cm modules share /sys/class/infiniband_cm */
-extern struct class cm_class;
-
 enum ib_cm_state {
 	IB_CM_IDLE,
 	IB_CM_LISTEN,

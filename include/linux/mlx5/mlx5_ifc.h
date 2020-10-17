@@ -420,7 +420,8 @@ struct mlx5_ifc_flow_table_prop_layout_bits {
 	u8         reserved_at_1a[0x2];
 	u8         ipsec_encrypt[0x1];
 	u8         ipsec_decrypt[0x1];
-	u8         reserved_at_1e[0x2];
+	u8         sw_owner_v2[0x1];
+	u8         reserved_at_1f[0x1];
 
 	u8         termination_table_raw_traffic[0x1];
 	u8         reserved_at_21[0x1];
@@ -1430,7 +1431,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 
 	u8         log_bf_reg_size[0x5];
 
-	u8         reserved_at_270[0x8];
+	u8         reserved_at_270[0x6];
+	u8         lag_dct[0x2];
 	u8         lag_tx_port_affinity[0x1];
 	u8         reserved_at_279[0x2];
 	u8         lag_master[0x1];

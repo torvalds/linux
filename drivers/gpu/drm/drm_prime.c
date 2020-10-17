@@ -806,30 +806,27 @@ static const struct dma_buf_ops drm_gem_prime_dmabuf_ops =  {
 struct sg_table *drm_prime_pages_to_sg(struct drm_device *dev,
 				       struct page **pages, unsigned int nr_pages)
 {
-	struct sg_table *sg = NULL;
+	struct sg_table *sg;
+	struct scatterlist *sge;
 	size_t max_segment = 0;
-	int ret;
 
 	sg = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
-	if (!sg) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!sg)
+		return ERR_PTR(-ENOMEM);
 
 	if (dev)
 		max_segment = dma_max_mapping_size(dev->dev);
 	if (max_segment == 0 || max_segment > SCATTERLIST_MAX_SEGMENT)
 		max_segment = SCATTERLIST_MAX_SEGMENT;
-	ret = __sg_alloc_table_from_pages(sg, pages, nr_pages, 0,
+	sge = __sg_alloc_table_from_pages(sg, pages, nr_pages, 0,
 					  nr_pages << PAGE_SHIFT,
-					  max_segment, GFP_KERNEL);
-	if (ret)
-		goto out;
-
+					  max_segment,
+					  NULL, 0, GFP_KERNEL);
+	if (IS_ERR(sge)) {
+		kfree(sg);
+		sg = ERR_CAST(sge);
+	}
 	return sg;
-out:
-	kfree(sg);
-	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL(drm_prime_pages_to_sg);
 
