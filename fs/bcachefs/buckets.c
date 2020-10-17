@@ -482,6 +482,7 @@ static void bch2_dev_usage_update(struct bch_fs *c, struct bch_dev *ca,
 		bch2_wake_allocator(ca);
 }
 
+__flatten
 void bch2_dev_usage_from_buckets(struct bch_fs *c)
 {
 	struct bch_dev *ca;
@@ -756,8 +757,7 @@ static int bch2_mark_alloc(struct bch_fs *c,
 		}
 	}));
 
-	if (!(flags & BTREE_TRIGGER_ALLOC_READ))
-		bch2_dev_usage_update(c, ca, fs_usage, old_m, m, gc);
+	bch2_dev_usage_update(c, ca, fs_usage, old_m, m, gc);
 
 	g->io_time[READ]	= u.read_time;
 	g->io_time[WRITE]	= u.write_time;

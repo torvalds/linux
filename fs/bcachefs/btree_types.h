@@ -602,7 +602,6 @@ enum btree_trigger_flags {
 
 	__BTREE_TRIGGER_GC,
 	__BTREE_TRIGGER_BUCKET_INVALIDATE,
-	__BTREE_TRIGGER_ALLOC_READ,
 	__BTREE_TRIGGER_NOATOMIC,
 };
 
@@ -614,7 +613,6 @@ enum btree_trigger_flags {
 
 #define BTREE_TRIGGER_GC		(1U << __BTREE_TRIGGER_GC)
 #define BTREE_TRIGGER_BUCKET_INVALIDATE	(1U << __BTREE_TRIGGER_BUCKET_INVALIDATE)
-#define BTREE_TRIGGER_ALLOC_READ	(1U << __BTREE_TRIGGER_ALLOC_READ)
 #define BTREE_TRIGGER_NOATOMIC		(1U << __BTREE_TRIGGER_NOATOMIC)
 
 static inline bool btree_node_type_needs_gc(enum btree_node_type type)

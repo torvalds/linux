@@ -209,10 +209,25 @@ void bch2_alloc_to_text(struct printbuf *out, struct bch_fs *c,
 static int bch2_alloc_read_fn(struct bch_fs *c, enum btree_id id,
 			      unsigned level, struct bkey_s_c k)
 {
-	if (!level)
-		bch2_mark_key(c, k, 0, 0, NULL, 0,
-			      BTREE_TRIGGER_ALLOC_READ|
-			      BTREE_TRIGGER_NOATOMIC);
+	struct bch_dev *ca;
+	struct bucket *g;
+	struct bkey_alloc_unpacked u;
+
+	if (level || k.k->type != KEY_TYPE_alloc)
+		return 0;
+
+	ca = bch_dev_bkey_exists(c, k.k->p.inode);
+	g = __bucket(ca, k.k->p.offset, 0);
+	u = bch2_alloc_unpack(k);
+
+	g->_mark.gen		= u.gen;
+	g->_mark.data_type	= u.data_type;
+	g->_mark.dirty_sectors	= u.dirty_sectors;
+	g->_mark.cached_sectors	= u.cached_sectors;
+	g->io_time[READ]	= u.read_time;
+	g->io_time[WRITE]	= u.write_time;
+	g->oldest_gen		= u.oldest_gen;
+	g->gen_valid		= 1;
 
 	return 0;
 }
@@ -223,8 +238,11 @@ int bch2_alloc_read(struct bch_fs *c, struct journal_keys *journal_keys)
 	unsigned i;
 	int ret = 0;
 
+	down_read(&c->gc_lock);
 	ret = bch2_btree_and_journal_walk(c, journal_keys, BTREE_ID_ALLOC,
 					  NULL, bch2_alloc_read_fn);
+	up_read(&c->gc_lock);
+
 	if (ret) {
 		bch_err(c, "error reading alloc info: %i", ret);
 		return ret;
