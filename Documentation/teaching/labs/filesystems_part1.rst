@@ -92,7 +92,7 @@ Each inode is generally identified by a number. On Linux, the ``-i`` argument of
 file
 ----
 
-File is the component of the file system model that is closest the user.
+File is the component of the file system model that is closest to the user.
 The structure exists only as a VFS entity in memory and has no physical correspondent on disk.
 
 While the inode abstracts a file on the disk, the file structure abstracts an open file.
