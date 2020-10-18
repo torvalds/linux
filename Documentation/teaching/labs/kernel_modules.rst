@@ -831,7 +831,7 @@ Dyndbg Options
 
      format "nfsd: SETATTR"
 
-* line - the line or lines for which we want to enable debug calls.
+* ``line`` - the line or lines for which we want to enable debug calls.
 
   .. code-block:: bash
 
