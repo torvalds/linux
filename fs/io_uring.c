@@ -1070,6 +1070,12 @@ static void io_init_identity(struct io_identity *id)
 	refcount_set(&id->count, 1);
 }
 
+static inline void __io_req_init_async(struct io_kiocb *req)
+{
+	memset(&req->work, 0, sizeof(req->work));
+	req->flags |= REQ_F_WORK_INITIALIZED;
+}
+
 /*
  * Note: must call io_req_init_async() for the first time you
  * touch any members of io_wq_work.
@@ -1081,8 +1087,7 @@ static inline void io_req_init_async(struct io_kiocb *req)
 	if (req->flags & REQ_F_WORK_INITIALIZED)
 		return;
 
-	memset(&req->work, 0, sizeof(req->work));
-	req->flags |= REQ_F_WORK_INITIALIZED;
+	__io_req_init_async(req);
 
 	/* Grab a ref if this isn't our static identity */
 	req->work.identity = tctx->identity;
@@ -6504,12 +6509,12 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	if (id) {
 		struct io_identity *iod;
 
-		io_req_init_async(req);
 		iod = idr_find(&ctx->personality_idr, id);
 		if (unlikely(!iod))
 			return -EINVAL;
 		refcount_inc(&iod->count);
-		io_put_identity(current->io_uring, req);
+
+		__io_req_init_async(req);
 		get_cred(iod->creds);
 		req->work.identity = iod;
 		req->work.flags |= IO_WQ_WORK_CREDS;
