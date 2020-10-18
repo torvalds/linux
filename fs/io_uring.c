@@ -6191,7 +6191,8 @@ static void __io_queue_sqe(struct io_kiocb *req, struct io_comp_state *cs)
 again:
 	linked_timeout = io_prep_linked_timeout(req);
 
-	if ((req->flags & REQ_F_WORK_INITIALIZED) && req->work.identity->creds &&
+	if ((req->flags & REQ_F_WORK_INITIALIZED) &&
+	    (req->work.flags & IO_WQ_WORK_CREDS) &&
 	    req->work.identity->creds != current_cred()) {
 		if (old_creds)
 			revert_creds(old_creds);
@@ -6199,7 +6200,6 @@ again:
 			old_creds = NULL; /* restored original creds */
 		else
 			old_creds = override_creds(req->work.identity->creds);
-		req->work.flags |= IO_WQ_WORK_CREDS;
 	}
 
 	ret = io_issue_sqe(req, true, cs);
