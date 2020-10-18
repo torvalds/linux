@@ -30,7 +30,9 @@ Optional properties: (See ethernet.txt file in the same directory)
 - max-frame-size: See ethernet.txt in the same directory.
 
 The MAC address will be determined using the optional properties
-defined in ethernet.txt.
+defined in ethernet.txt. The 'phy-mode' property is required, but may
+be set to the empty string if the PHY configuration is programmed by
+the firmware or set by hardware straps, and needs to be preserved.
 
 Example:
 	eth0: ethernet@522d0000 {
