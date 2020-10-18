@@ -845,9 +845,9 @@ with operators ``+``, ``-`` or ``=``:
 
    * ``p`` activates the pr_debug() .
    * ``f`` includes the name of the function in the printed message.
-   * ``I`` includes the line number in the printed message.
-   * ``M`` includes the module name in the printed message.
-   * ``T`` includes the thread id if it is not called from interrupt context
+   * ``l`` includes the line number in the printed message.
+   * ``m`` includes the module name in the printed message.
+   * ``t`` includes the thread id if it is not called from interrupt context
    * ``_`` no flag is set.
 
 KDB: Kernel debugger
