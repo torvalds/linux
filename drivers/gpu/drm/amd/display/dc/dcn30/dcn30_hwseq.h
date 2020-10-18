@@ -69,4 +69,6 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable);
 
 void dcn30_hardware_release(struct dc *dc);
 
+void dcn30_blank_pixel_data(struct dc *dc, struct pipe_ctx *pipe_ctx, bool blank);
+
 #endif /* __DC_HWSS_DCN30_H__ */
