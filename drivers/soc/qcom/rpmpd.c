@@ -220,11 +220,44 @@ static const struct rpmpd_desc qcs404_desc = {
 	.max_state = RPM_SMD_LEVEL_BINNING,
 };
 
+/* sdm660 RPM Power domains */
+DEFINE_RPMPD_PAIR(sdm660, vddcx, vddcx_ao, RWCX, LEVEL, 0);
+DEFINE_RPMPD_VFL(sdm660, vddcx_vfl, RWCX, 0);
+
+DEFINE_RPMPD_PAIR(sdm660, vddmx, vddmx_ao, RWMX, LEVEL, 0);
+DEFINE_RPMPD_VFL(sdm660, vddmx_vfl, RWMX, 0);
+
+DEFINE_RPMPD_LEVEL(sdm660, vdd_ssccx, RWLC, 0);
+DEFINE_RPMPD_VFL(sdm660, vdd_ssccx_vfl, RWLC, 0);
+
+DEFINE_RPMPD_LEVEL(sdm660, vdd_sscmx, RWLM, 0);
+DEFINE_RPMPD_VFL(sdm660, vdd_sscmx_vfl, RWLM, 0);
+
+static struct rpmpd *sdm660_rpmpds[] = {
+	[SDM660_VDDCX] =		&sdm660_vddcx,
+	[SDM660_VDDCX_AO] =		&sdm660_vddcx_ao,
+	[SDM660_VDDCX_VFL] =		&sdm660_vddcx_vfl,
+	[SDM660_VDDMX] =		&sdm660_vddmx,
+	[SDM660_VDDMX_AO] =		&sdm660_vddmx_ao,
+	[SDM660_VDDMX_VFL] =		&sdm660_vddmx_vfl,
+	[SDM660_SSCCX] =		&sdm660_vdd_ssccx,
+	[SDM660_SSCCX_VFL] =		&sdm660_vdd_ssccx_vfl,
+	[SDM660_SSCMX] =		&sdm660_vdd_sscmx,
+	[SDM660_SSCMX_VFL] =		&sdm660_vdd_sscmx_vfl,
+};
+
+static const struct rpmpd_desc sdm660_desc = {
+	.rpmpds = sdm660_rpmpds,
+	.num_pds = ARRAY_SIZE(sdm660_rpmpds),
+	.max_state = RPM_SMD_LEVEL_TURBO,
+};
+
 static const struct of_device_id rpmpd_match_table[] = {
 	{ .compatible = "qcom,msm8976-rpmpd", .data = &msm8976_desc },
 	{ .compatible = "qcom,msm8996-rpmpd", .data = &msm8996_desc },
 	{ .compatible = "qcom,msm8998-rpmpd", .data = &msm8998_desc },
 	{ .compatible = "qcom,qcs404-rpmpd", .data = &qcs404_desc },
+	{ .compatible = "qcom,sdm660-rpmpd", .data = &sdm660_desc },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, rpmpd_match_table);
