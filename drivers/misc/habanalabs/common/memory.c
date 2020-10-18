@@ -1236,18 +1236,35 @@ int hl_mem_ioctl(struct hl_fpriv *hpriv, void *data)
 
 	switch (args->in.op) {
 	case HL_MEM_OP_ALLOC:
-		if (!hdev->dram_supports_virtual_memory) {
-			dev_err(hdev->dev, "DRAM alloc is not supported\n");
-			rc = -EINVAL;
-			goto out;
-		}
-
 		if (args->in.alloc.mem_size == 0) {
 			dev_err(hdev->dev,
 				"alloc size must be larger than 0\n");
 			rc = -EINVAL;
 			goto out;
 		}
+
+		/* If DRAM does not support virtual memory the driver won't
+		 * handle the allocation/freeing of that memory. However, for
+		 * system administration/monitoring purposes, the driver will
+		 * keep track of the amount of DRAM memory that is allocated
+		 * and freed by the user. Because this code totally relies on
+		 * the user's input, the driver can't ensure the validity
+		 * of this accounting.
+		 */
+		if (!hdev->dram_supports_virtual_memory) {
+			atomic64_add(args->in.alloc.mem_size,
+					&ctx->dram_phys_mem);
+			atomic64_add(args->in.alloc.mem_size,
+					&hdev->dram_used_mem);
+
+			dev_dbg(hdev->dev, "DRAM alloc is not supported\n");
+			rc = 0;
+
+			memset(args, 0, sizeof(*args));
+			args->out.handle = 0;
+			goto out;
+		}
+
 		rc = alloc_device_memory(ctx, &args->in, &handle);
 
 		memset(args, 0, sizeof(*args));
@@ -1255,6 +1272,26 @@ int hl_mem_ioctl(struct hl_fpriv *hpriv, void *data)
 		break;
 
 	case HL_MEM_OP_FREE:
+		/* If DRAM does not support virtual memory the driver won't
+		 * handle the allocation/freeing of that memory. However, for
+		 * system administration/monitoring purposes, the driver will
+		 * keep track of the amount of DRAM memory that is allocated
+		 * and freed by the user. Because this code totally relies on
+		 * the user's input, the driver can't ensure the validity
+		 * of this accounting.
+		 */
+		if (!hdev->dram_supports_virtual_memory) {
+			atomic64_sub(args->in.alloc.mem_size,
+					&ctx->dram_phys_mem);
+			atomic64_sub(args->in.alloc.mem_size,
+					&hdev->dram_used_mem);
+
+			dev_dbg(hdev->dev, "DRAM alloc is not supported\n");
+			rc = 0;
+
+			goto out;
+		}
+
 		rc = free_device_memory(ctx, args->in.free.handle);
 		break;
 
@@ -1773,6 +1810,13 @@ void hl_vm_ctx_fini(struct hl_ctx *ctx)
 
 	mutex_destroy(&ctx->mem_hash_lock);
 	hl_mmu_ctx_fini(ctx);
+
+	/* In this case we need to clear the global accounting of DRAM usage
+	 * because the user notifies us on allocations. If the user is no more,
+	 * all DRAM is available
+	 */
+	if (!ctx->hdev->dram_supports_virtual_memory)
+		atomic64_set(&ctx->hdev->dram_used_mem, 0);
 }
 
 /*
