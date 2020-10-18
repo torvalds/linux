@@ -22,6 +22,7 @@
 #include <sound/tlv.h>
 #include "rk_codec_digital.h"
 
+#define RK3568_GRF_SOC_CON2 (0x0508)
 #define RV1126_GRF_SOC_CON2 (0x0008)
 
 struct rk_codec_digital_soc_data {
@@ -544,6 +545,33 @@ static const struct regmap_config rcd_regmap_config = {
 	.cache_type = REGCACHE_FLAT,
 };
 
+static int rk3568_soc_init(struct device *dev)
+{
+	struct rk_codec_digital_priv *rcd = dev_get_drvdata(dev);
+
+	if (IS_ERR(rcd->grf))
+		return PTR_ERR(rcd->grf);
+
+	/* enable internal codec to i2s3 */
+	return regmap_write(rcd->grf, RK3568_GRF_SOC_CON2,
+			    (BIT(13) << 16 | BIT(13)));
+}
+
+static void rk3568_soc_deinit(struct device *dev)
+{
+	struct rk_codec_digital_priv *rcd = dev_get_drvdata(dev);
+
+	if (IS_ERR(rcd->grf))
+		return;
+
+	regmap_write(rcd->grf, RK3568_GRF_SOC_CON2, (BIT(13) << 16));
+}
+
+static const struct rk_codec_digital_soc_data rk3568_data = {
+	.init = rk3568_soc_init,
+	.deinit = rk3568_soc_deinit,
+};
+
 static int rv1126_soc_init(struct device *dev)
 {
 	struct rk_codec_digital_priv *rcd = dev_get_drvdata(dev);
@@ -574,6 +602,7 @@ static const struct rk_codec_digital_soc_data rv1126_data = {
 #ifdef CONFIG_OF
 static const struct of_device_id rcd_of_match[] = {
 	{ .compatible = "rockchip,codec-digital-v1", },
+	{ .compatible = "rockchip,rk3568-codec-digital", .data = &rk3568_data },
 	{ .compatible = "rockchip,rv1126-codec-digital", .data = &rv1126_data },
 	{},
 };
