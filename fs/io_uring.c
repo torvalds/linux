@@ -1913,10 +1913,12 @@ static struct io_kiocb *io_req_link_next(struct io_kiocb *req)
 /*
  * Called if REQ_F_LINK_HEAD is set, and we fail the head request
  */
-static void __io_fail_links(struct io_kiocb *req)
+static void io_fail_links(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
+	unsigned long flags;
 
+	spin_lock_irqsave(&ctx->completion_lock, flags);
 	while (!list_empty(&req->link_list)) {
 		struct io_kiocb *link = list_first_entry(&req->link_list,
 						struct io_kiocb, link_list);
@@ -1938,15 +1940,6 @@ static void __io_fail_links(struct io_kiocb *req)
 	}
 
 	io_commit_cqring(ctx);
-}
-
-static void io_fail_links(struct io_kiocb *req)
-{
-	struct io_ring_ctx *ctx = req->ctx;
-	unsigned long flags;
-
-	spin_lock_irqsave(&ctx->completion_lock, flags);
-	__io_fail_links(req);
 	spin_unlock_irqrestore(&ctx->completion_lock, flags);
 
 	io_cqring_ev_posted(ctx);
