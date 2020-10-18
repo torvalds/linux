@@ -277,7 +277,7 @@ struct io_ring_ctx {
 		unsigned		sq_mask;
 		unsigned		sq_thread_idle;
 		unsigned		cached_sq_dropped;
-		atomic_t		cached_cq_overflow;
+		unsigned		cached_cq_overflow;
 		unsigned long		sq_check_overflow;
 
 		struct list_head	defer_list;
@@ -1179,7 +1179,7 @@ static bool req_need_defer(struct io_kiocb *req, u32 seq)
 		struct io_ring_ctx *ctx = req->ctx;
 
 		return seq != ctx->cached_cq_tail
-				+ atomic_read(&ctx->cached_cq_overflow);
+				+ READ_ONCE(ctx->cached_cq_overflow);
 	}
 
 	return false;
@@ -1624,8 +1624,9 @@ static bool io_cqring_overflow_flush(struct io_ring_ctx *ctx, bool force,
 			WRITE_ONCE(cqe->res, req->result);
 			WRITE_ONCE(cqe->flags, req->compl.cflags);
 		} else {
+			ctx->cached_cq_overflow++;
 			WRITE_ONCE(ctx->rings->cq_overflow,
-				atomic_inc_return(&ctx->cached_cq_overflow));
+				   ctx->cached_cq_overflow);
 		}
 	}
 
@@ -1667,8 +1668,8 @@ static void __io_cqring_fill_event(struct io_kiocb *req, long res, long cflags)
 		 * then we cannot store the request for later flushing, we need
 		 * to drop it on the floor.
 		 */
-		WRITE_ONCE(ctx->rings->cq_overflow,
-				atomic_inc_return(&ctx->cached_cq_overflow));
+		ctx->cached_cq_overflow++;
+		WRITE_ONCE(ctx->rings->cq_overflow, ctx->cached_cq_overflow);
 	} else {
 		if (list_empty(&ctx->cq_overflow_list)) {
 			set_bit(0, &ctx->sq_check_overflow);
