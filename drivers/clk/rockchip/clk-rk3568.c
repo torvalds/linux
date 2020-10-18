@@ -746,7 +746,7 @@ static struct rockchip_clk_branch rk3568_clk_branches[] __initdata = {
 			RK3568_CLKGATE_CON(8), 2, GFLAGS,
 			&rk3568_audpwm_fracmux, RK3568_FRAC_MAX_PRATE),
 
-	GATE(HCLK_ACDCDIG_I2C, "hclk_acdcdig_i2c", "hclk_gic_audio", 0,
+	GATE(HCLK_ACDCDIG, "hclk_acdcdig", "hclk_gic_audio", 0,
 			RK3568_CLKGATE_CON(8), 3, GFLAGS),
 	COMPOSITE_NODIV(CLK_ACDCDIG_I2C, "clk_acdcdig_i2c", clk_i2c_p, 0,
 			RK3568_CLKSEL_CON(23), 10, 2, MFLAGS,
