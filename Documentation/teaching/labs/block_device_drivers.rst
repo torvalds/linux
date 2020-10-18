@@ -743,7 +743,6 @@ A typical example of use is:
 
    static int my_xfer_bio(struct my_block_dev *dev, struct bio *bio)
    {
-       int i;
        struct bio_vec bvec;
        struct bvec_iter i;
        int dir = bio_data_dir(bio);
