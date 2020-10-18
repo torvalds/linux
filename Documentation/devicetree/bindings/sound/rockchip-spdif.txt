@@ -15,6 +15,7 @@ Required properties:
    - "rockchip,rk3366-spdif"
    - "rockchip,rk3368-spdif"
    - "rockchip,rk3399-spdif"
+   - "rockchip,rk3568-spdif"
 - reg: physical base address of the controller and length of memory mapped
   region.
 - interrupts: should contain the SPDIF interrupt.
