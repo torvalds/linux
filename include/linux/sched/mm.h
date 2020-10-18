@@ -279,39 +279,38 @@ static inline void memalloc_nocma_restore(unsigned int flags)
 #endif
 
 #ifdef CONFIG_MEMCG
+DECLARE_PER_CPU(struct mem_cgroup *, int_active_memcg);
 /**
- * memalloc_use_memcg - Starts the remote memcg charging scope.
+ * set_active_memcg - Starts the remote memcg charging scope.
  * @memcg: memcg to charge.
  *
  * This function marks the beginning of the remote memcg charging scope. All the
  * __GFP_ACCOUNT allocations till the end of the scope will be charged to the
  * given memcg.
  *
- * NOTE: This function is not nesting safe.
+ * NOTE: This function can nest. Users must save the return value and
+ * reset the previous value after their own charging scope is over.
  */
-static inline void memalloc_use_memcg(struct mem_cgroup *memcg)
+static inline struct mem_cgroup *
+set_active_memcg(struct mem_cgroup *memcg)
 {
-	WARN_ON_ONCE(current->active_memcg);
-	current->active_memcg = memcg;
-}
+	struct mem_cgroup *old;
 
-/**
- * memalloc_unuse_memcg - Ends the remote memcg charging scope.
- *
- * This function marks the end of the remote memcg charging scope started by
- * memalloc_use_memcg().
- */
-static inline void memalloc_unuse_memcg(void)
-{
-	current->active_memcg = NULL;
+	if (in_interrupt()) {
+		old = this_cpu_read(int_active_memcg);
+		this_cpu_write(int_active_memcg, memcg);
+	} else {
+		old = current->active_memcg;
+		current->active_memcg = memcg;
+	}
+
+	return old;
 }
 #else
-static inline void memalloc_use_memcg(struct mem_cgroup *memcg)
+static inline struct mem_cgroup *
+set_active_memcg(struct mem_cgroup *memcg)
 {
-}
-
-static inline void memalloc_unuse_memcg(void)
-{
+	return NULL;
 }
 #endif
 
