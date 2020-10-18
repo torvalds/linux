@@ -827,9 +827,9 @@ Dyndbg Options
 
 * ``format`` - only messages whose display format contains the specified string.
 
-   .. code-block:: bash
+  .. code-block:: bash
 
-      format "nfsd: SETATTR"
+     format "nfsd: SETATTR"
 
 * line - the line or lines for which we want to enable debug calls.
 
