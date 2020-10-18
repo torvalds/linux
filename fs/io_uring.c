@@ -4925,32 +4925,25 @@ static void io_poll_complete(struct io_kiocb *req, __poll_t mask, int error)
 	io_commit_cqring(ctx);
 }
 
-static void io_poll_task_handler(struct io_kiocb *req, struct io_kiocb **nxt)
-{
-	struct io_ring_ctx *ctx = req->ctx;
-
-	if (io_poll_rewait(req, &req->poll)) {
-		spin_unlock_irq(&ctx->completion_lock);
-		return;
-	}
-
-	hash_del(&req->hash_node);
-	io_poll_complete(req, req->result, 0);
-	spin_unlock_irq(&ctx->completion_lock);
-
-	*nxt = io_put_req_find_next(req);
-	io_cqring_ev_posted(ctx);
-}
-
 static void io_poll_task_func(struct callback_head *cb)
 {
 	struct io_kiocb *req = container_of(cb, struct io_kiocb, task_work);
 	struct io_ring_ctx *ctx = req->ctx;
-	struct io_kiocb *nxt = NULL;
+	struct io_kiocb *nxt;
 
-	io_poll_task_handler(req, &nxt);
-	if (nxt)
-		__io_req_task_submit(nxt);
+	if (io_poll_rewait(req, &req->poll)) {
+		spin_unlock_irq(&ctx->completion_lock);
+	} else {
+		hash_del(&req->hash_node);
+		io_poll_complete(req, req->result, 0);
+		spin_unlock_irq(&ctx->completion_lock);
+
+		nxt = io_put_req_find_next(req);
+		io_cqring_ev_posted(ctx);
+		if (nxt)
+			__io_req_task_submit(nxt);
+	}
+
 	percpu_ref_put(&ctx->refs);
 }
 
