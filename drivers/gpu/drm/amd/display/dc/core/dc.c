@@ -346,7 +346,7 @@ bool dc_stream_get_crtc_position(struct dc *dc,
  * calculate the crc.
  */
 bool dc_stream_configure_crc(struct dc *dc, struct dc_stream_state *stream,
-			     bool enable, bool continuous)
+			     struct crc_params *crc_window, bool enable, bool continuous)
 {
 	int i;
 	struct pipe_ctx *pipe;
@@ -362,7 +362,7 @@ bool dc_stream_configure_crc(struct dc *dc, struct dc_stream_state *stream,
 	if (i == MAX_PIPES)
 		return false;
 
-	/* Always capture the full frame */
+	/* By default, capture the full frame */
 	param.windowa_x_start = 0;
 	param.windowa_y_start = 0;
 	param.windowa_x_end = pipe->stream->timing.h_addressable;
@@ -371,6 +371,17 @@ bool dc_stream_configure_crc(struct dc *dc, struct dc_stream_state *stream,
 	param.windowb_y_start = 0;
 	param.windowb_x_end = pipe->stream->timing.h_addressable;
 	param.windowb_y_end = pipe->stream->timing.v_addressable;
+
+	if (crc_window) {
+		param.windowa_x_start = crc_window->windowa_x_start;
+		param.windowa_y_start = crc_window->windowa_y_start;
+		param.windowa_x_end = crc_window->windowa_x_end;
+		param.windowa_y_end = crc_window->windowa_y_end;
+		param.windowb_x_start = crc_window->windowb_x_start;
+		param.windowb_y_start = crc_window->windowb_y_start;
+		param.windowb_x_end = crc_window->windowb_x_end;
+		param.windowb_y_end = crc_window->windowb_y_end;
+	}
 
 	param.dsc_mode = pipe->stream->timing.flags.DSC ? 1:0;
 	param.odm_mode = pipe->next_odm_pipe ? 1:0;

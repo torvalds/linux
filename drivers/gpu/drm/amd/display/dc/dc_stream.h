@@ -457,6 +457,7 @@ bool dc_stream_get_crtc_position(struct dc *dc,
 
 bool dc_stream_configure_crc(struct dc *dc,
 			     struct dc_stream_state *stream,
+			     struct crc_params *crc_window,
 			     bool enable,
 			     bool continuous);
 

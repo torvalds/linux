@@ -115,7 +115,7 @@ int amdgpu_dm_crtc_configure_crc_source(struct drm_crtc *crtc,
 	/* Enable CRTC CRC generation if necessary. */
 	if (dm_is_crc_source_crtc(source)) {
 		if (!dc_stream_configure_crc(stream_state->ctx->dc,
-					     stream_state, enable, enable)) {
+					     stream_state, NULL, enable, enable)) {
 			ret = -EINVAL;
 			goto unlock;
 		}
