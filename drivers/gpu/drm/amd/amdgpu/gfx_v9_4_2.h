@@ -26,5 +26,6 @@
 
 void gfx_v9_4_2_debug_trap_config_init(struct amdgpu_device *adev,
 				uint32_t first_vmid, uint32_t last_vmid);
-
+void gfx_v9_4_2_init_golden_registers(struct amdgpu_device *adev,
+				      uint32_t die_id);
 #endif /* __GFX_V9_4_2_H__ */
