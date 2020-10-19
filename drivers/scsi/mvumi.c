@@ -2296,7 +2296,6 @@ static int mvumi_cfg_hw_reg(struct mvumi_hba *mhba)
 		break;
 	default:
 		return -1;
-		break;
 	}
 
 	return 0;

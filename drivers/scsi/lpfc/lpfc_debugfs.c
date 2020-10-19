@@ -3341,7 +3341,6 @@ lpfc_idiag_pcicfg_read(struct file *file, char __user *buf, size_t nbytes,
 		break;
 	case LPFC_PCI_CFG_BROWSE: /* browse all */
 		goto pcicfg_browse;
-		break;
 	default:
 		/* illegal count */
 		len = 0;
@@ -4381,7 +4380,7 @@ lpfc_idiag_queacc_write(struct file *file, const char __user *buf,
 			}
 		}
 		goto error_out;
-		break;
+
 	case LPFC_IDIAG_CQ:
 		/* MBX complete queue */
 		if (phba->sli4_hba.mbx_cq &&
@@ -4433,7 +4432,7 @@ lpfc_idiag_queacc_write(struct file *file, const char __user *buf,
 			}
 		}
 		goto error_out;
-		break;
+
 	case LPFC_IDIAG_MQ:
 		/* MBX work queue */
 		if (phba->sli4_hba.mbx_wq &&
@@ -4447,7 +4446,7 @@ lpfc_idiag_queacc_write(struct file *file, const char __user *buf,
 			goto pass_check;
 		}
 		goto error_out;
-		break;
+
 	case LPFC_IDIAG_WQ:
 		/* ELS work queue */
 		if (phba->sli4_hba.els_wq &&
@@ -4487,9 +4486,8 @@ lpfc_idiag_queacc_write(struct file *file, const char __user *buf,
 				}
 			}
 		}
-
 		goto error_out;
-		break;
+
 	case LPFC_IDIAG_RQ:
 		/* HDR queue */
 		if (phba->sli4_hba.hdr_rq &&
@@ -4514,10 +4512,8 @@ lpfc_idiag_queacc_write(struct file *file, const char __user *buf,
 			goto pass_check;
 		}
 		goto error_out;
-		break;
 	default:
 		goto error_out;
-		break;
 	}
 
 pass_check:

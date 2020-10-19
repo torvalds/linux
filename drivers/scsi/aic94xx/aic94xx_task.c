@@ -269,7 +269,6 @@ Again:
 	case TA_I_T_NEXUS_LOSS:
 		opcode = dl->status_block[0];
 		goto Again;
-		break;
 	case TF_INV_CONN_HANDLE:
 		ts->resp = SAS_TASK_UNDELIVERED;
 		ts->stat = SAS_DEVICE_UNKNOWN;
