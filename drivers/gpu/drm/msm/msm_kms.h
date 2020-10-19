@@ -160,7 +160,7 @@ struct msm_kms {
 	struct msm_pending_timer pending_timers[MAX_CRTCS];
 };
 
-static inline void msm_kms_init(struct msm_kms *kms,
+static inline int msm_kms_init(struct msm_kms *kms,
 		const struct msm_kms_funcs *funcs)
 {
 	unsigned i;
@@ -172,6 +172,12 @@ static inline void msm_kms_init(struct msm_kms *kms,
 
 	for (i = 0; i < ARRAY_SIZE(kms->pending_timers); i++)
 		msm_atomic_init_pending_timer(&kms->pending_timers[i], kms, i);
+
+	return 0;
+}
+
+static inline void msm_kms_destroy(struct msm_kms *kms)
+{
 }
 
 struct msm_kms *mdp4_kms_init(struct drm_device *dev);

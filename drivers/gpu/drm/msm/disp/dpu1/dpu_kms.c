@@ -718,6 +718,8 @@ static void dpu_kms_destroy(struct msm_kms *kms)
 	dpu_kms = to_dpu_kms(kms);
 
 	_dpu_kms_hw_destroy(dpu_kms);
+
+	msm_kms_destroy(&dpu_kms->base);
 }
 
 static void _dpu_kms_set_encoder_mode(struct msm_kms *kms,
@@ -1108,7 +1110,11 @@ static int dpu_bind(struct device *dev, struct device *master, void *data)
 
 	platform_set_drvdata(pdev, dpu_kms);
 
-	msm_kms_init(&dpu_kms->base, &kms_funcs);
+	ret = msm_kms_init(&dpu_kms->base, &kms_funcs);
+	if (ret) {
+		DPU_ERROR("failed to init kms, ret=%d\n", ret);
+		goto err;
+	}
 	dpu_kms->dev = ddev;
 	dpu_kms->pdev = pdev;
 
