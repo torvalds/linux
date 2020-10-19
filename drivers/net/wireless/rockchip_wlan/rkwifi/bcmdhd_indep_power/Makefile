@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 # bcmdhd
 
-MODULE_NAME := bcmdhd
+MODULE_NAME := bcmdhd_indep_power
 #CONFIG_BCMDHD := m
 CONFIG_BCMDHD_SDIO := y
 #CONFIG_BCMDHD_PCIE := y
@@ -26,7 +26,7 @@ DHDCFLAGS = -Wall -Wstrict-prototypes -Dlinux -DBCMDRIVER                 \
 	-DDHD_DONOT_FORWARD_BCMEVENT_AS_NETWORK_PKT                           \
 	-DMULTIPLE_SUPPLICANT -DTSQ_MULTIPLIER -DMFP -DDHD_8021X_DUMP         \
 	-DWL_EXT_IAPSTA -DWL_ESCAN -DCCODE_LIST                               \
-	-DDHD_UNSUPPORT_IF_CNTS                    \
+	-DDHD_UNSUPPORT_IF_CNTS -DENABLE_INSMOD_NO_FW_LOAD                    \
 	-Idrivers/net/wireless/rockchip_wlan/rkwifi/bcmdhd_indep_power \
 	-Idrivers/net/wireless/rockchip_wlan/rkwifi/bcmdhd_indep_power/include
 
@@ -148,7 +148,7 @@ ifeq ($(CONFIG_LOAD_CHIPALIVE),y)
 endif
 
 #obj-$(CONFIG_RKWIFI) += $(MODULE_NAME).o
-obj-$(CONFIG_AP6XXX_INDEP_POWER) += bcmdhd.o
+obj-$(CONFIG_AP6XXX_INDEP_POWER) += bcmdhd_indep_power.o
 $(MODULE_NAME)-objs += $(DHDOFILES)
 
 ifeq ($(CONFIG_MACH_PLATFORM),y)

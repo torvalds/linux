@@ -13702,7 +13702,6 @@ static int tcp_param_show(struct seq_file *s, void *data)
 {
 	seq_printf(s, "dhd_priv wl tcpka_conn_add 1 %s %s %s 1 %d %d 1 1 1 1 1 2 0xc000\n",
 			deabuf, sabuf, dabuf, source, dest);
-	pr_err("haha\n");
 
 	return 0;
 }
@@ -19172,15 +19171,15 @@ dhd_tcp_dump(char *ifname, uint8 *pktdata, bool tx)
 			switch (opt) {
 			case 0x00:
 				/* End of options. */
-				pr_err("rk tcp_parseopt: EOL\n");
+				pr_debug("rk tcp_parseopt: EOL\n");
 				return;
 			case 0x01:
 				/* NOP option. */
 				++c;
-				pr_err("rk tcp_parseopt: NOP\n");
+				pr_debug("rk tcp_parseopt: NOP\n");
 				break;
 			case 0x02:
-				pr_err("rk tcp_parseopt: MSS\n");
+				pr_debug("rk tcp_parseopt: MSS\n");
 				if (opts[c + 1] != 0x04 || c + 0x04 > max_c) {
 					/* Bad length */
 					pr_err("rk tcp_parseopt: bad length\n");
@@ -19190,7 +19189,7 @@ dhd_tcp_dump(char *ifname, uint8 *pktdata, bool tx)
 				c += 0x04;
 				break;
 			case 0x08:
-				pr_err("rk tcp_parseopt: TS\n");
+				pr_debug("rk tcp_parseopt: TS\n");
 				if (opts[c + 1] != 0x0A || c + 0x0A > max_c) {
 				  /* Bad length */
 				  pr_err("rk tcp_parseopt: bad length\n");
@@ -19213,7 +19212,7 @@ dhd_tcp_dump(char *ifname, uint8 *pktdata, bool tx)
 				c += 0x0A;
 				break;
 			default:
-				pr_err("rk tcp_parseopt: other\n");
+				pr_debug("rk tcp_parseopt: other\n");
 				if (opts[c + 1] == 0) {
 				  pr_err("rk tcp_parseopt: bad length\n");
 				  /* If the length field is zero, the options are malformed
@@ -19228,9 +19227,9 @@ dhd_tcp_dump(char *ifname, uint8 *pktdata, bool tx)
 	}
 
 	if (tx)
-		DHD_ERROR(("[%s-%s] %s %s %s %s %d, %d, %d, %8u, %8u, %d, %d, %d, %8u, %8u\n", ifname, tx ? "tx" : "rx",
+		pr_debug("[%s-%s] %s %s %s %s %d, %d, %d, %8u, %8u, %d, %d, %d, %8u, %8u\n", ifname, tx ? "tx" : "rx",
 					sabuf, dabuf, seabuf, deabuf, ip_id, source, dest, seq, seq_ack, window,
-					tcp_option_len, tcp_data_len, tsval, tsecr));
+					tcp_option_len, tcp_data_len, tsval, tsecr);
 }
 
 #ifdef DHD_DHCP_DUMP
