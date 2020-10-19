@@ -15441,6 +15441,13 @@ F:	Documentation/fb/sisfb.rst
 F:	drivers/video/fbdev/sis/
 F:	include/video/sisfb.h
 
+SIS I2C TOUCHSCREEN DRIVER
+M:	Mika Penttilä <mika.penttila@nextfour.com>
+L:	linux-input@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/input/touchscreen/sis_i2c.txt
+F:	drivers/input/touchscreen/sis_i2c.c
+
 SIS USB2VGA DRIVER
 M:	Thomas Winischhofer <thomas@winischhofer.net>
 S:	Maintained
