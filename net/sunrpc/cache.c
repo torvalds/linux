@@ -909,7 +909,7 @@ static ssize_t cache_do_downcall(char *kaddr, const char __user *buf,
 static ssize_t cache_slow_downcall(const char __user *buf,
 				   size_t count, struct cache_detail *cd)
 {
-	static char write_buf[8192]; /* protected by queue_io_mutex */
+	static char write_buf[32768]; /* protected by queue_io_mutex */
 	ssize_t ret = -EINVAL;
 
 	if (count >= sizeof(write_buf))
