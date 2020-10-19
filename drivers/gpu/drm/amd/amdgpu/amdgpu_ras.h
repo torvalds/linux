@@ -33,7 +33,6 @@
 
 #define AMDGPU_RAS_FLAG_INIT_BY_VBIOS		(0x1 << 0)
 #define AMDGPU_RAS_FLAG_INIT_NEED_RESET		(0x1 << 1)
-#define AMDGPU_RAS_FLAG_SKIP_BAD_PAGE_RESV	(0x1 << 2)
 
 enum amdgpu_ras_block {
 	AMDGPU_RAS_BLOCK__UMC = 0,
@@ -513,14 +512,7 @@ static inline int amdgpu_ras_reset_gpu(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
-	/*
-	 * Save bad page to eeprom before gpu reset, i2c may be unstable
-	 * in gpu reset.
-	 *
-	 * Also, exclude the case when ras recovery issuer is
-	 * eeprom page write itself.
-	 */
-	if (!(ras->flags & AMDGPU_RAS_FLAG_SKIP_BAD_PAGE_RESV) && in_task())
+	if (in_task())
 		amdgpu_ras_reserve_bad_pages(adev);
 
 	if (atomic_cmpxchg(&ras->in_recovery, 0, 1) == 0)

@@ -479,7 +479,6 @@ int amdgpu_ras_eeprom_process_recods(struct amdgpu_ras_eeprom_control *control,
 	int i, ret = 0;
 	struct i2c_msg *msgs, *msg;
 	unsigned char *buffs, *buff;
-	bool sched_ras_recovery = false;
 	struct eeprom_table_record *record;
 	struct amdgpu_device *adev = to_amdgpu_device(control);
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
@@ -517,7 +516,6 @@ int amdgpu_ras_eeprom_process_recods(struct amdgpu_ras_eeprom_control *control,
 			"Saved bad pages(%d) reaches threshold value(%d).\n",
 			control->num_recs + num, ras->bad_page_cnt_threshold);
 		control->tbl_hdr.header = EEPROM_TABLE_HDR_BAD;
-		sched_ras_recovery = true;
 	}
 
 	/* In case of overflow just start from beginning to not lose newest records */
@@ -603,20 +601,6 @@ int amdgpu_ras_eeprom_process_recods(struct amdgpu_ras_eeprom_control *control,
 		__update_tbl_checksum(control, records, num, old_hdr_byte_sum);
 
 		__update_table_header(control, buffs);
-
-		if (sched_ras_recovery) {
-			/*
-			 * Before scheduling ras recovery, assert the related
-			 * flag first, which shall bypass common bad page
-			 * reservation execution in amdgpu_ras_reset_gpu.
-			 */
-			amdgpu_ras_get_context(adev)->flags |=
-				AMDGPU_RAS_FLAG_SKIP_BAD_PAGE_RESV;
-
-			dev_warn(adev->dev, "Conduct ras recovery due to bad "
-				"page threshold reached.\n");
-			amdgpu_ras_reset_gpu(adev);
-		}
 	} else if (!__validate_tbl_checksum(control, records, num)) {
 		DRM_WARN("EEPROM Table checksum mismatch!");
 		/* TODO Uncomment when EEPROM read/write is relliable */
