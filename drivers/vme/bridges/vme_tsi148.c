@@ -506,7 +506,6 @@ static int tsi148_slave_set(struct vme_slave_resource *image, int enabled,
 	default:
 		dev_err(tsi148_bridge->parent, "Invalid address space\n");
 		return -EINVAL;
-		break;
 	}
 
 	/* Convert 64-bit variables to 2x 32-bit variables */
@@ -995,7 +994,6 @@ static int tsi148_master_set(struct vme_master_resource *image, int enabled,
 		dev_err(tsi148_bridge->parent, "Invalid address space\n");
 		retval = -EINVAL;
 		goto err_aspace;
-		break;
 	}
 
 	temp_ctl &= ~(3<<4);
@@ -1503,7 +1501,6 @@ static int tsi148_dma_set_vme_src_attributes(struct device *dev, __be32 *attr,
 	default:
 		dev_err(dev, "Invalid address space\n");
 		return -EINVAL;
-		break;
 	}
 
 	if (cycle & VME_SUPER)
@@ -1603,7 +1600,6 @@ static int tsi148_dma_set_vme_dest_attributes(struct device *dev, __be32 *attr,
 	default:
 		dev_err(dev, "Invalid address space\n");
 		return -EINVAL;
-		break;
 	}
 
 	if (cycle & VME_SUPER)
@@ -1701,7 +1697,6 @@ static int tsi148_dma_list_add(struct vme_dma_list *list,
 		dev_err(tsi148_bridge->parent, "Invalid source type\n");
 		retval = -EINVAL;
 		goto err_source;
-		break;
 	}
 
 	/* Assume last link - this will be over-written by adding another */
@@ -1738,7 +1733,6 @@ static int tsi148_dma_list_add(struct vme_dma_list *list,
 		dev_err(tsi148_bridge->parent, "Invalid destination type\n");
 		retval = -EINVAL;
 		goto err_dest;
-		break;
 	}
 
 	/* Fill out count */
@@ -1964,7 +1958,6 @@ static int tsi148_lm_set(struct vme_lm_resource *lm, unsigned long long lm_base,
 		mutex_unlock(&lm->mtx);
 		dev_err(tsi148_bridge->parent, "Invalid address space\n");
 		return -EINVAL;
-		break;
 	}
 
 	if (cycle & VME_SUPER)

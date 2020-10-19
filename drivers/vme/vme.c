@@ -52,23 +52,18 @@ static struct vme_bridge *find_bridge(struct vme_resource *resource)
 	case VME_MASTER:
 		return list_entry(resource->entry, struct vme_master_resource,
 			list)->parent;
-		break;
 	case VME_SLAVE:
 		return list_entry(resource->entry, struct vme_slave_resource,
 			list)->parent;
-		break;
 	case VME_DMA:
 		return list_entry(resource->entry, struct vme_dma_resource,
 			list)->parent;
-		break;
 	case VME_LM:
 		return list_entry(resource->entry, struct vme_lm_resource,
 			list)->parent;
-		break;
 	default:
 		printk(KERN_ERR "Unknown resource type\n");
 		return NULL;
-		break;
 	}
 }
 
@@ -179,7 +174,6 @@ size_t vme_get_size(struct vme_resource *resource)
 			return 0;
 
 		return size;
-		break;
 	case VME_SLAVE:
 		retval = vme_slave_get(resource, &enabled, &base, &size,
 			&buf_base, &aspace, &cycle);
@@ -187,14 +181,11 @@ size_t vme_get_size(struct vme_resource *resource)
 			return 0;
 
 		return size;
-		break;
 	case VME_DMA:
 		return 0;
-		break;
 	default:
 		printk(KERN_ERR "Unknown resource type\n");
 		return 0;
-		break;
 	}
 }
 EXPORT_SYMBOL(vme_get_size);
