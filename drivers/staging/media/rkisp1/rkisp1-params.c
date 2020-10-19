@@ -896,7 +896,7 @@ rkisp1_isp_isr_other_config(struct rkisp1_params *params,
 					   &new_params->others.dpcc_config);
 
 		if (module_en_update & RKISP1_CIF_ISP_MODULE_DPCC) {
-			if (!!(module_ens & RKISP1_CIF_ISP_MODULE_DPCC))
+			if (module_ens & RKISP1_CIF_ISP_MODULE_DPCC)
 				rkisp1_param_set_bits(params,
 						      RKISP1_CIF_ISP_DPCC_MODE,
 						      RKISP1_CIF_ISP_DPCC_ENA);
@@ -915,7 +915,7 @@ rkisp1_isp_isr_other_config(struct rkisp1_params *params,
 					  &new_params->others.bls_config);
 
 		if (module_en_update & RKISP1_CIF_ISP_MODULE_BLS) {
-			if (!!(module_ens & RKISP1_CIF_ISP_MODULE_BLS))
+			if (module_ens & RKISP1_CIF_ISP_MODULE_BLS)
 				rkisp1_param_set_bits(params,
 						      RKISP1_CIF_ISP_BLS_CTRL,
 						      RKISP1_CIF_ISP_BLS_ENA);
@@ -934,7 +934,7 @@ rkisp1_isp_isr_other_config(struct rkisp1_params *params,
 					  &new_params->others.sdg_config);
 
 		if (module_en_update & RKISP1_CIF_ISP_MODULE_SDG) {
-			if (!!(module_ens & RKISP1_CIF_ISP_MODULE_SDG))
+			if (module_ens & RKISP1_CIF_ISP_MODULE_SDG)
 				rkisp1_param_set_bits(params,
 					RKISP1_CIF_ISP_CTRL,
 					RKISP1_CIF_ISP_CTRL_ISP_GAMMA_IN_ENA);
@@ -953,7 +953,7 @@ rkisp1_isp_isr_other_config(struct rkisp1_params *params,
 					  &new_params->others.lsc_config);
 
 		if (module_en_update & RKISP1_CIF_ISP_MODULE_LSC) {
-			if (!!(module_ens & RKISP1_CIF_ISP_MODULE_LSC))
+			if (module_ens & RKISP1_CIF_ISP_MODULE_LSC)
 				rkisp1_param_set_bits(params,
 						RKISP1_CIF_ISP_LSC_CTRL,
 						RKISP1_CIF_ISP_LSC_CTRL_ENA);
@@ -972,7 +972,7 @@ rkisp1_isp_isr_other_config(struct rkisp1_params *params,
 					&new_params->others.awb_gain_config);
 
 		if (module_en_update & RKISP1_CIF_ISP_MODULE_AWB_GAIN) {
-			if (!!(module_ens & RKISP1_CIF_ISP_MODULE_AWB_GAIN))
+			if (module_ens & RKISP1_CIF_ISP_MODULE_AWB_GAIN)
 				rkisp1_param_set_bits(params,
 					RKISP1_CIF_ISP_CTRL,
 					RKISP1_CIF_ISP_CTRL_ISP_AWB_ENA);
@@ -991,7 +991,7 @@ rkisp1_isp_isr_other_config(struct rkisp1_params *params,
 					  &new_params->others.bdm_config);
 
 		if (module_en_update & RKISP1_CIF_ISP_MODULE_BDM) {
-			if (!!(module_ens & RKISP1_CIF_ISP_MODULE_BDM))
+			if (module_ens & RKISP1_CIF_ISP_MODULE_BDM)
 				rkisp1_param_set_bits(params,
 						RKISP1_CIF_ISP_DEMOSAIC,
 						RKISP1_CIF_ISP_DEMOSAIC_BYPASS);
@@ -1010,7 +1010,7 @@ rkisp1_isp_isr_other_config(struct rkisp1_params *params,
 					  &new_params->others.flt_config);
 
 		if (module_en_update & RKISP1_CIF_ISP_MODULE_FLT) {
-			if (!!(module_ens & RKISP1_CIF_ISP_MODULE_FLT))
+			if (module_ens & RKISP1_CIF_ISP_MODULE_FLT)
 				rkisp1_param_set_bits(params,
 						      RKISP1_CIF_ISP_FILT_MODE,
 						      RKISP1_CIF_ISP_FLT_ENA);
@@ -1041,7 +1041,7 @@ rkisp1_isp_isr_other_config(struct rkisp1_params *params,
 					  &new_params->others.goc_config);
 
 		if (module_en_update & RKISP1_CIF_ISP_MODULE_GOC) {
-			if (!!(module_ens & RKISP1_CIF_ISP_MODULE_GOC))
+			if (module_ens & RKISP1_CIF_ISP_MODULE_GOC)
 				rkisp1_param_set_bits(params,
 					RKISP1_CIF_ISP_CTRL,
 					RKISP1_CIF_ISP_CTRL_ISP_GAMMA_OUT_ENA);
@@ -1061,7 +1061,7 @@ rkisp1_isp_isr_other_config(struct rkisp1_params *params,
 		}
 
 		if (module_en_update & RKISP1_CIF_ISP_MODULE_CPROC) {
-			if (!!(module_ens & RKISP1_CIF_ISP_MODULE_CPROC))
+			if (module_ens & RKISP1_CIF_ISP_MODULE_CPROC)
 				rkisp1_param_set_bits(params,
 						RKISP1_CIF_C_PROC_CTRL,
 						RKISP1_CIF_C_PROC_CTR_ENABLE);
@@ -1092,7 +1092,7 @@ rkisp1_isp_isr_other_config(struct rkisp1_params *params,
 					  &new_params->others.dpf_config);
 
 		if (module_en_update & RKISP1_CIF_ISP_MODULE_DPF) {
-			if (!!(module_ens & RKISP1_CIF_ISP_MODULE_DPF))
+			if (module_ens & RKISP1_CIF_ISP_MODULE_DPF)
 				rkisp1_param_set_bits(params,
 						   RKISP1_CIF_ISP_DPF_MODE,
 						   RKISP1_CIF_ISP_DPF_MODE_EN);
@@ -1141,7 +1141,7 @@ static void rkisp1_isp_isr_meas_config(struct rkisp1_params *params,
 					  &new_params->meas.afc_config);
 
 		if (module_en_update & RKISP1_CIF_ISP_MODULE_AFC) {
-			if (!!(module_ens & RKISP1_CIF_ISP_MODULE_AFC))
+			if (module_ens & RKISP1_CIF_ISP_MODULE_AFC)
 				rkisp1_param_set_bits(params,
 						      RKISP1_CIF_ISP_AFM_CTRL,
 						      RKISP1_CIF_ISP_AFM_ENA);
@@ -1173,7 +1173,7 @@ static void rkisp1_isp_isr_meas_config(struct rkisp1_params *params,
 					  &new_params->meas.aec_config);
 
 		if (module_en_update & RKISP1_CIF_ISP_MODULE_AEC) {
-			if (!!(module_ens & RKISP1_CIF_ISP_MODULE_AEC))
+			if (module_ens & RKISP1_CIF_ISP_MODULE_AEC)
 				rkisp1_param_set_bits(params,
 						      RKISP1_CIF_ISP_EXP_CTRL,
 						      RKISP1_CIF_ISP_EXP_ENA);
