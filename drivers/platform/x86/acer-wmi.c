@@ -302,9 +302,6 @@ static struct quirk_entry *quirks;
 
 static void __init set_quirks(void)
 {
-	if (!interface)
-		return;
-
 	if (quirks->mailled)
 		interface->capability |= ACER_CAP_MAILLED;
 
@@ -648,8 +645,6 @@ static void __init find_quirks(void)
 
 	if (quirks == NULL)
 		quirks = &quirk_unknown;
-
-	set_quirks();
 }
 
 /*
