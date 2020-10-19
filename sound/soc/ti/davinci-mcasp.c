@@ -2385,7 +2385,6 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "No DMA controller found (%d)\n", ret);
 	case -EPROBE_DEFER:
 		goto err;
-		break;
 	}
 
 	if (ret) {
