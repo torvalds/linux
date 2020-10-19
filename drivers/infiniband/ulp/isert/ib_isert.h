@@ -65,6 +65,12 @@
  */
 #define ISER_RX_SIZE		(ISCSI_DEF_MAX_RECV_SEG_LEN + 1024)
 
+/* Default I/O size is 1MB */
+#define ISCSI_ISER_DEF_SG_TABLESIZE 256
+
+/* Minimum I/O size is 512KB */
+#define ISCSI_ISER_MIN_SG_TABLESIZE 128
+
 /* Maximum support is 16MB I/O size */
 #define ISCSI_ISER_MAX_SG_TABLESIZE	4096
 
