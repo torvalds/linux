@@ -1668,7 +1668,7 @@ out:
  * write error record array to eeprom, the function should be
  * protected by recovery_lock
  */
-static int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev)
+int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_err_handler_data *data;
@@ -1841,9 +1841,6 @@ int amdgpu_ras_reserve_bad_pages(struct amdgpu_device *adev)
 		data->last_reserved = i + 1;
 		bo = NULL;
 	}
-
-	/* continue to save bad pages to eeprom even reesrve_vram fails */
-	ret = amdgpu_ras_save_bad_pages(adev);
 out:
 	mutex_unlock(&con->recovery_lock);
 	return ret;

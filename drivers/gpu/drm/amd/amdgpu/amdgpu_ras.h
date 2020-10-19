@@ -506,6 +506,7 @@ bool amdgpu_ras_check_err_threshold(struct amdgpu_device *adev);
 int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
 		struct eeprom_table_record *bps, int pages);
 
+int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev);
 int amdgpu_ras_reserve_bad_pages(struct amdgpu_device *adev);
 
 static inline int amdgpu_ras_reset_gpu(struct amdgpu_device *adev)
