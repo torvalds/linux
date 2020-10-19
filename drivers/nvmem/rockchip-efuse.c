@@ -107,6 +107,7 @@ struct rockchip_efuse_chip {
 	struct clk_bulk_data *clks;
 	int num_clks;
 	phys_addr_t phys;
+	struct mutex mutex;
 };
 
 static void rk1808_efuse_timing_init(void __iomem *base)
@@ -156,10 +157,12 @@ static int rockchip_rk1808_efuse_read(void *context, unsigned int offset,
 	u8 *buf;
 	int ret, i = 0;
 
+	mutex_lock(&efuse->mutex);
+
 	ret = clk_bulk_prepare_enable(efuse->num_clks, efuse->clks);
 	if (ret < 0) {
 		dev_err(efuse->dev, "failed to prepare/enable efuse clk\n");
-		return ret;
+		goto out;
 	}
 
 	addr_start = rounddown(offset, RK1808_NBYTES) / RK1808_NBYTES;
@@ -198,6 +201,8 @@ err:
 nomem:
 	rk1808_efuse_timing_deinit(efuse->base);
 	clk_bulk_disable_unprepare(efuse->num_clks, efuse->clks);
+out:
+	mutex_unlock(&efuse->mutex);
 
 	return ret;
 }
@@ -570,6 +575,8 @@ static int __init rockchip_efuse_probe(struct platform_device *pdev)
 	efuse->num_clks = devm_clk_bulk_get_all(dev, &efuse->clks);
 	if (efuse->num_clks < 1)
 		return -ENODEV;
+
+	mutex_init(&efuse->mutex);
 
 	efuse->dev = dev;
 	if (of_property_read_u32(dev->of_node, "rockchip,efuse-size",
