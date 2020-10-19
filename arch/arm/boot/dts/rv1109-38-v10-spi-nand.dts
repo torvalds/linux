@@ -56,6 +56,19 @@
 		regulator-max-microvolt = <3300000>;
 	};
 
+	vcc_sd: vcc-sd {
+		compatible = "regulator-fixed";
+		gpio = <&gpio0 RK_PA4 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&sdmmc_pwr>;
+		pinctrl-names = "default";
+		regulator-name = "vcc_sd";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		startup-delay-us = <100000>;
+		vin-supply = <&vcc3v3_sys>;
+		enable-active-high;
+	};
+
 	vdd_arm: vdd-arm {
 		compatible = "pwm-regulator";
 		pwms = <&pwm0 0 5000 1>;
@@ -198,6 +211,13 @@
 					<3 RK_PB1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
+
+	sdmmc-pwr {
+		/omit-if-no-ref/
+		sdmmc_pwr: sdmmc-pwr {
+			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
 };
 
 &pmu_io_domains {
@@ -243,6 +263,41 @@
 		| RKPM_SLP_PMU_DIS_OSC
 		)
 	>;
+};
+
+&sdmmc0_bus4 {
+	rockchip,pins =
+		/* sdmmc0_d0 */
+		<1 RK_PA4 1 &pcfg_pull_up_drv_level_0>,
+		/* sdmmc0_d1 */
+		<1 RK_PA5 1 &pcfg_pull_up_drv_level_0>,
+		/* sdmmc0_d2 */
+		<1 RK_PA6 1 &pcfg_pull_up_drv_level_0>,
+		/* sdmmc0_d3 */
+		<1 RK_PA7 1 &pcfg_pull_up_drv_level_0>;
+};
+
+&sdmmc0_clk {
+	rockchip,pins =
+		/* sdmmc0_clk */
+		<1 RK_PB0 1 &pcfg_pull_up_drv_level_3>;
+};
+
+&sdmmc0_cmd {
+	rockchip,pins =
+		/* sdmmc0_cmd */
+		<1 RK_PB1 1 &pcfg_pull_up_drv_level_0>;
+};
+
+&sdmmc {
+	bus-width = <4>;
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
+	card-detect-delay = <200>;
+	rockchip,default-sample-phase = <90>;
+	supports-sd;
+	status = "okay";
+	vmmc-supply = <&vcc_sd>;
 };
 
 &sfc {
