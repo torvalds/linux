@@ -89,25 +89,6 @@ int ttm_bo_move_to_system(struct ttm_buffer_object *bo,
 }
 EXPORT_SYMBOL(ttm_bo_move_to_system);
 
-int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
-		   struct ttm_operation_ctx *ctx,
-		    struct ttm_resource *new_mem)
-{
-	int ret;
-
-	ret = ttm_bo_move_to_system(bo, ctx);
-	if (unlikely(ret != 0))
-		return ret;
-
-	ret = ttm_bo_move_to_new_tt_mem(bo, ctx, new_mem);
-	if (unlikely(ret != 0))
-		return ret;
-
-	ttm_bo_assign_mem(bo, new_mem);
-	return 0;
-}
-EXPORT_SYMBOL(ttm_bo_move_ttm);
-
 int ttm_mem_io_reserve(struct ttm_bo_device *bdev,
 		       struct ttm_resource *mem)
 {

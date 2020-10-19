@@ -566,32 +566,10 @@ static inline void ttm_bo_unreserve(struct ttm_buffer_object *bo)
 /*
  * ttm_bo_util.c
  */
-
 int ttm_mem_io_reserve(struct ttm_bo_device *bdev,
 		       struct ttm_resource *mem);
 void ttm_mem_io_free(struct ttm_bo_device *bdev,
 		     struct ttm_resource *mem);
-/**
- * ttm_bo_move_ttm
- *
- * @bo: A pointer to a struct ttm_buffer_object.
- * @interruptible: Sleep interruptible if waiting.
- * @no_wait_gpu: Return immediately if the GPU is busy.
- * @new_mem: struct ttm_resource indicating where to move.
- *
- * Optimized move function for a buffer object with both old and
- * new placement backed by a TTM. The function will, if successful,
- * free any old aperture space, and set (@new_mem)->mm_node to NULL,
- * and update the (@bo)->mem placement flags. If unsuccessful, the old
- * data remains untouched, and it's up to the caller to free the
- * memory space indicated by @new_mem.
- * Returns:
- * !0: Failure.
- */
-
-int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
-		    struct ttm_operation_ctx *ctx,
-		    struct ttm_resource *new_mem);
 
 int ttm_bo_move_to_new_tt_mem(struct ttm_buffer_object *bo,
 			      struct ttm_operation_ctx *ctx,
