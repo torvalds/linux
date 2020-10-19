@@ -65,26 +65,37 @@ int ttm_bo_move_to_new_tt_mem(struct ttm_buffer_object *bo,
 	return 0;
 }
 
-int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
-		   struct ttm_operation_ctx *ctx,
-		    struct ttm_resource *new_mem)
+static int ttm_bo_move_to_system(struct ttm_buffer_object *bo,
+				 struct ttm_operation_ctx *ctx)
 {
 	struct ttm_resource *old_mem = &bo->mem;
 	int ret;
 
-	if (old_mem->mem_type != TTM_PL_SYSTEM) {
-		ret = ttm_bo_wait_ctx(bo, ctx);
+	if (old_mem->mem_type == TTM_PL_SYSTEM)
+		return 0;
 
-		if (unlikely(ret != 0)) {
-			if (ret != -ERESTARTSYS)
-				pr_err("Failed to expire sync object before unbinding TTM\n");
-			return ret;
-		}
-
-		ttm_bo_tt_unbind(bo);
-		ttm_resource_free(bo, &bo->mem);
-		old_mem->mem_type = TTM_PL_SYSTEM;
+	ret = ttm_bo_wait_ctx(bo, ctx);
+	if (unlikely(ret != 0)) {
+		if (ret != -ERESTARTSYS)
+			pr_err("Failed to expire sync object before unbinding TTM\n");
+		return ret;
 	}
+
+	ttm_bo_tt_unbind(bo);
+	ttm_resource_free(bo, &bo->mem);
+	old_mem->mem_type = TTM_PL_SYSTEM;
+	return 0;
+}
+
+int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
+		   struct ttm_operation_ctx *ctx,
+		    struct ttm_resource *new_mem)
+{
+	int ret;
+
+	ret = ttm_bo_move_to_system(bo, ctx);
+	if (unlikely(ret != 0))
+		return ret;
 
 	ret = ttm_bo_move_to_new_tt_mem(bo, ctx, new_mem);
 	if (unlikely(ret != 0))
