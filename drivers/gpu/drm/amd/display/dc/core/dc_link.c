@@ -3259,6 +3259,9 @@ void core_link_enable_stream(
 			}
 		}
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+#endif
+
 		dc->hwss.enable_audio_stream(pipe_ctx);
 
 		/* turn off otg test pattern if enable */
