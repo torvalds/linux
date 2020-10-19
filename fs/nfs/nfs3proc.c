@@ -209,6 +209,20 @@ nfs3_proc_lookup(struct inode *dir, struct dentry *dentry,
 				  task_flags);
 }
 
+static int nfs3_proc_lookupp(struct inode *inode, struct nfs_fh *fhandle,
+			     struct nfs_fattr *fattr, struct nfs4_label *label)
+{
+	const char dotdot[] = "..";
+	const size_t len = strlen(dotdot);
+	unsigned short task_flags = 0;
+
+	if (NFS_SERVER(inode)->flags & NFS_MOUNT_SOFTREVAL)
+		task_flags |= RPC_TASK_TIMEOUT;
+
+	return __nfs3_proc_lookup(inode, dotdot, len, fhandle, fattr,
+				  task_flags);
+}
+
 static int nfs3_proc_access(struct inode *inode, struct nfs_access_entry *entry)
 {
 	struct nfs3_accessargs	arg = {
@@ -1015,6 +1029,7 @@ const struct nfs_rpc_ops nfs_v3_clientops = {
 	.getattr	= nfs3_proc_getattr,
 	.setattr	= nfs3_proc_setattr,
 	.lookup		= nfs3_proc_lookup,
+	.lookupp	= nfs3_proc_lookupp,
 	.access		= nfs3_proc_access,
 	.readlink	= nfs3_proc_readlink,
 	.create		= nfs3_proc_create,
