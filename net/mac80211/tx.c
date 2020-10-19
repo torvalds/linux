@@ -3619,13 +3619,14 @@ begin:
 	tx.skb = skb;
 	tx.sdata = vif_to_sdata(info->control.vif);
 
-	if (txq->sta && !(info->flags & IEEE80211_TX_CTL_INJECTED)) {
+	if (txq->sta) {
 		tx.sta = container_of(txq->sta, struct sta_info, sta);
 		/*
 		 * Drop unicast frames to unauthorised stations unless they are
-		 * EAPOL frames from the local station.
+		 * injected frames or EAPOL frames from the local station.
 		 */
-		if (unlikely(ieee80211_is_data(hdr->frame_control) &&
+		if (unlikely(!(info->flags & IEEE80211_TX_CTL_INJECTED) &&
+			     ieee80211_is_data(hdr->frame_control) &&
 			     !ieee80211_vif_is_mesh(&tx.sdata->vif) &&
 			     tx.sdata->vif.type != NL80211_IFTYPE_OCB &&
 			     !is_multicast_ether_addr(hdr->addr1) &&
