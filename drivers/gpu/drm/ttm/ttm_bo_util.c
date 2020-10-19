@@ -66,8 +66,8 @@ int ttm_bo_move_to_new_tt_mem(struct ttm_buffer_object *bo,
 }
 EXPORT_SYMBOL(ttm_bo_move_to_new_tt_mem);
 
-static int ttm_bo_move_to_system(struct ttm_buffer_object *bo,
-				 struct ttm_operation_ctx *ctx)
+int ttm_bo_move_to_system(struct ttm_buffer_object *bo,
+			  struct ttm_operation_ctx *ctx)
 {
 	struct ttm_resource *old_mem = &bo->mem;
 	int ret;
@@ -87,6 +87,7 @@ static int ttm_bo_move_to_system(struct ttm_buffer_object *bo,
 	old_mem->mem_type = TTM_PL_SYSTEM;
 	return 0;
 }
+EXPORT_SYMBOL(ttm_bo_move_to_system);
 
 int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
 		   struct ttm_operation_ctx *ctx,

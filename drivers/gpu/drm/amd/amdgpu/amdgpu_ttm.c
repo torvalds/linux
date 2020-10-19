@@ -562,7 +562,11 @@ static int amdgpu_move_vram_ram(struct ttm_buffer_object *bo, bool evict,
 	}
 
 	/* move BO (in tmp_mem) to new_mem */
-	r = ttm_bo_move_ttm(bo, ctx, new_mem);
+	r = ttm_bo_move_to_system(bo, ctx);
+	if (unlikely(r))
+		goto out_cleanup;
+
+	ttm_bo_assign_mem(bo, new_mem);
 out_cleanup:
 	ttm_resource_free(bo, &tmp_mem);
 	return r;
@@ -672,8 +676,13 @@ static int amdgpu_bo_move(struct ttm_buffer_object *bo, bool evict,
 	}
 
 	if (old_mem->mem_type == TTM_PL_TT &&
-	    new_mem->mem_type == TTM_PL_SYSTEM)
-		return ttm_bo_move_ttm(bo, ctx, new_mem);
+	    new_mem->mem_type == TTM_PL_SYSTEM) {
+		r = ttm_bo_move_to_system(bo, ctx);
+		if (r)
+			return r;
+		ttm_bo_assign_mem(bo, new_mem);
+		return 0;
+	}
 
 	if (old_mem->mem_type == AMDGPU_PL_GDS ||
 	    old_mem->mem_type == AMDGPU_PL_GWS ||

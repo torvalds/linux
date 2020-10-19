@@ -735,13 +735,18 @@ static int vmw_move(struct ttm_buffer_object *bo,
 {
 	struct ttm_resource_manager *old_man = ttm_manager_type(bo->bdev, bo->mem.mem_type);
 	struct ttm_resource_manager *new_man = ttm_manager_type(bo->bdev, new_mem->mem_type);
+	int ret;
 
 	if (old_man->use_tt && new_man->use_tt) {
 		if (bo->mem.mem_type == TTM_PL_SYSTEM) {
 			ttm_bo_assign_mem(bo, new_mem);
 			return 0;
 		}
-		return ttm_bo_move_ttm(bo, ctx, new_mem);
+		ret = ttm_bo_move_to_system(bo, ctx);
+		if (ret)
+			return ret;
+		ttm_bo_assign_mem(bo, new_mem);
+		return 0;
 	} else {
 		return ttm_bo_move_memcpy(bo, ctx, new_mem);
 	}
