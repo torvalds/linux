@@ -26,18 +26,6 @@ static u32	nfs_ftypes[] = {
  * Basic NFSv2 data types (RFC 1094 Section 2.3)
  */
 
-static __be32 *
-decode_fh(__be32 *p, struct svc_fh *fhp)
-{
-	fh_init(fhp, NFS_FHSIZE);
-	memcpy(&fhp->fh_handle.fh_base, p, NFS_FHSIZE);
-	fhp->fh_handle.fh_size = NFS_FHSIZE;
-
-	/* FIXME: Look up export pointer here and verify
-	 * Sun Secure RPC if requested */
-	return p + (NFS_FHSIZE >> 2);
-}
-
 /**
  * svcxdr_decode_fhandle - Decode an NFSv2 file handle
  * @xdr: XDR stream positioned at an encoded NFSv2 FH
@@ -60,12 +48,6 @@ svcxdr_decode_fhandle(struct xdr_stream *xdr, struct svc_fh *fhp)
 	fhp->fh_handle.fh_size = NFS_FHSIZE;
 
 	return true;
-}
-
-/* Helper function for NFSv2 ACL code */
-__be32 *nfs2svc_decode_fh(__be32 *p, struct svc_fh *fhp)
-{
-	return decode_fh(p, fhp);
 }
 
 static __be32 *
