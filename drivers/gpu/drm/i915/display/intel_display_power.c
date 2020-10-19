@@ -4771,6 +4771,17 @@ static void gen9_dbuf_disable(struct drm_i915_private *dev_priv)
 	gen9_dbuf_slices_update(dev_priv, 0);
 }
 
+static void gen12_dbuf_slices_config(struct drm_i915_private *dev_priv)
+{
+	const int num_slices = INTEL_INFO(dev_priv)->num_supported_dbuf_slices;
+	enum dbuf_slice slice;
+
+	for (slice = DBUF_S1; slice < (DBUF_S1 + num_slices); slice++)
+		intel_de_rmw(dev_priv, DBUF_CTL_S(slice),
+			     DBUF_TRACKER_STATE_SERVICE_MASK,
+			     DBUF_TRACKER_STATE_SERVICE(8));
+}
+
 static void icl_mbus_init(struct drm_i915_private *dev_priv)
 {
 	unsigned long abox_regs = INTEL_INFO(dev_priv)->abox_mask;
@@ -5339,6 +5350,9 @@ static void icl_display_core_init(struct drm_i915_private *dev_priv,
 
 	/* 4. Enable CDCLK. */
 	intel_cdclk_init_hw(dev_priv);
+
+	if (INTEL_GEN(dev_priv) >= 12)
+		gen12_dbuf_slices_config(dev_priv);
 
 	/* 5. Enable DBUF. */
 	gen9_dbuf_enable(dev_priv);
