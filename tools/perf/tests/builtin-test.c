@@ -350,6 +350,10 @@ static struct test generic_tests[] = {
 		.func = test__expand_cgroup_events,
 	},
 	{
+		.desc = "Convert perf time to TSC",
+		.func = test__perf_time_to_tsc,
+	},
+	{
 		.func = NULL,
 	},
 };

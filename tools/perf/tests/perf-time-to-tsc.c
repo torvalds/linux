@@ -18,10 +18,8 @@
 #include "thread_map.h"
 #include "record.h"
 #include "tsc.h"
-#include "util/mmap.h"
-#include "tests/tests.h"
-
-#include "arch-tests.h"
+#include "mmap.h"
+#include "tests.h"
 
 #define CHECK__(x) {				\
 	while ((x) < 0) {			\
