@@ -136,7 +136,8 @@ struct msm_kms;
  */
 struct msm_pending_timer {
 	struct hrtimer timer;
-	struct work_struct work;
+	struct kthread_work work;
+	struct kthread_worker *worker;
 	struct msm_kms *kms;
 	unsigned crtc_idx;
 };
@@ -163,21 +164,29 @@ struct msm_kms {
 static inline int msm_kms_init(struct msm_kms *kms,
 		const struct msm_kms_funcs *funcs)
 {
-	unsigned i;
+	unsigned i, ret;
 
 	for (i = 0; i < ARRAY_SIZE(kms->commit_lock); i++)
 		mutex_init(&kms->commit_lock[i]);
 
 	kms->funcs = funcs;
 
-	for (i = 0; i < ARRAY_SIZE(kms->pending_timers); i++)
-		msm_atomic_init_pending_timer(&kms->pending_timers[i], kms, i);
+	for (i = 0; i < ARRAY_SIZE(kms->pending_timers); i++) {
+		ret = msm_atomic_init_pending_timer(&kms->pending_timers[i], kms, i);
+		if (ret) {
+			return ret;
+		}
+	}
 
 	return 0;
 }
 
 static inline void msm_kms_destroy(struct msm_kms *kms)
 {
+	unsigned i;
+
+	for (i = 0; i < ARRAY_SIZE(kms->pending_timers); i++)
+		msm_atomic_destroy_pending_timer(&kms->pending_timers[i]);
 }
 
 struct msm_kms *mdp4_kms_init(struct drm_device *dev);
