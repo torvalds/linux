@@ -585,6 +585,7 @@ enum {
 	REQ_F_BUFFER_SELECTED_BIT,
 	REQ_F_NO_FILE_TABLE_BIT,
 	REQ_F_WORK_INITIALIZED_BIT,
+	REQ_F_LTIMEOUT_ACTIVE_BIT,
 
 	/* not a real bit, just to check we're not overflowing the space */
 	__REQ_F_LAST_BIT,
@@ -614,7 +615,7 @@ enum {
 	REQ_F_CUR_POS		= BIT(REQ_F_CUR_POS_BIT),
 	/* must not punt to workers */
 	REQ_F_NOWAIT		= BIT(REQ_F_NOWAIT_BIT),
-	/* has linked timeout */
+	/* has or had linked timeout */
 	REQ_F_LINK_TIMEOUT	= BIT(REQ_F_LINK_TIMEOUT_BIT),
 	/* regular file */
 	REQ_F_ISREG		= BIT(REQ_F_ISREG_BIT),
@@ -628,6 +629,8 @@ enum {
 	REQ_F_NO_FILE_TABLE	= BIT(REQ_F_NO_FILE_TABLE_BIT),
 	/* io_wq_work is initialized */
 	REQ_F_WORK_INITIALIZED	= BIT(REQ_F_WORK_INITIALIZED_BIT),
+	/* linked timeout is active, i.e. prepared by link's head */
+	REQ_F_LTIMEOUT_ACTIVE	= BIT(REQ_F_LTIMEOUT_ACTIVE_BIT),
 };
 
 struct async_poll {
@@ -1870,6 +1873,12 @@ static bool __io_kill_linked_timeout(struct io_kiocb *req)
 		return false;
 	link = list_first_entry(&req->link_list, struct io_kiocb, link_list);
 	if (link->opcode != IORING_OP_LINK_TIMEOUT)
+		return false;
+	/*
+	 * Can happen if a linked timeout fired and link had been like
+	 * req -> link t-out -> link t-out [-> ...]
+	 */
+	if (!(link->flags & REQ_F_LTIMEOUT_ACTIVE))
 		return false;
 
 	list_del_init(&link->link_list);
@@ -6106,10 +6115,9 @@ static enum hrtimer_restart io_link_timeout_fn(struct hrtimer *timer)
 	if (!list_empty(&req->link_list)) {
 		prev = list_entry(req->link_list.prev, struct io_kiocb,
 				  link_list);
-		if (refcount_inc_not_zero(&prev->refs)) {
+		if (refcount_inc_not_zero(&prev->refs))
 			list_del_init(&req->link_list);
-			prev->flags &= ~REQ_F_LINK_TIMEOUT;
-		} else
+		else
 			prev = NULL;
 	}
 
@@ -6166,6 +6174,7 @@ static struct io_kiocb *io_prep_linked_timeout(struct io_kiocb *req)
 	if (!nxt || nxt->opcode != IORING_OP_LINK_TIMEOUT)
 		return NULL;
 
+	nxt->flags |= REQ_F_LTIMEOUT_ACTIVE;
 	req->flags |= REQ_F_LINK_TIMEOUT;
 	return nxt;
 }
