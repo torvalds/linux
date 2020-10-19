@@ -385,10 +385,10 @@ operations associated with a spinlock are :c:func:`spin_lock_init`,
 In Linux, you can use reader-writer spinlocks, useful for readers-writers
 problems.
 These types of locks are identified by :c:type:`rwlock_t`, and the functions
-that can work on a reader-writer spinlock are:
-* :c:func:`rwlock_init`
-* :c:func:`read_lock`
-* :c:func:`write_lock`
+that can work on a reader-writer spinlock are
+:c:func:`rwlock_init`,
+:c:func:`read_lock`,
+:c:func:`write_lock`.
 An example of use:
 
 
