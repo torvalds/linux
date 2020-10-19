@@ -29,6 +29,8 @@
 #include "netns.h"
 #include "filecache.h"
 
+#include "trace.h"
+
 #define NFSDDBG_FACILITY	NFSDDBG_SVC
 
 bool inter_copy_offload_enable;
@@ -1009,11 +1011,8 @@ int nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 	struct kvec *resv = &rqstp->rq_res.head[0];
 	__be32 *p;
 
-	dprintk("nfsd_dispatch: vers %d proc %d\n",
-				rqstp->rq_vers, rqstp->rq_proc);
-
 	if (nfs_request_too_big(rqstp, proc))
-		goto out_too_large;
+		goto out_decode_err;
 
 	/*
 	 * Give the xdr decoder a chance to change this if it wants
@@ -1052,24 +1051,18 @@ int nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 out_cached_reply:
 	return 1;
 
-out_too_large:
-	dprintk("nfsd: NFSv%d argument too large\n", rqstp->rq_vers);
-	*statp = rpc_garbage_args;
-	return 1;
-
 out_decode_err:
-	dprintk("nfsd: failed to decode arguments!\n");
+	trace_nfsd_garbage_args_err(rqstp);
 	*statp = rpc_garbage_args;
 	return 1;
 
 out_update_drop:
-	dprintk("nfsd: Dropping request; may be revisited later\n");
 	nfsd_cache_update(rqstp, RC_NOCACHE, NULL);
 out_dropit:
 	return 0;
 
 out_encode_err:
-	dprintk("nfsd: failed to encode result!\n");
+	trace_nfsd_cant_encode_err(rqstp);
 	nfsd_cache_update(rqstp, RC_NOCACHE, NULL);
 	*statp = rpc_system_err;
 	return 1;

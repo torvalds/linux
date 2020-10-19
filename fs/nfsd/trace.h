@@ -12,6 +12,66 @@
 #include "export.h"
 #include "nfsfh.h"
 
+#define NFSD_TRACE_PROC_ARG_FIELDS \
+		__field(unsigned int, netns_ino) \
+		__field(u32, xid) \
+		__array(unsigned char, server, sizeof(struct sockaddr_in6)) \
+		__array(unsigned char, client, sizeof(struct sockaddr_in6))
+
+#define NFSD_TRACE_PROC_ARG_ASSIGNMENTS \
+		do { \
+			__entry->netns_ino = SVC_NET(rqstp)->ns.inum; \
+			__entry->xid = be32_to_cpu(rqstp->rq_xid); \
+			memcpy(__entry->server, &rqstp->rq_xprt->xpt_local, \
+			       rqstp->rq_xprt->xpt_locallen); \
+			memcpy(__entry->client, &rqstp->rq_xprt->xpt_remote, \
+			       rqstp->rq_xprt->xpt_remotelen); \
+		} while (0);
+
+TRACE_EVENT(nfsd_garbage_args_err,
+	TP_PROTO(
+		const struct svc_rqst *rqstp
+	),
+	TP_ARGS(rqstp),
+	TP_STRUCT__entry(
+		NFSD_TRACE_PROC_ARG_FIELDS
+
+		__field(u32, vers)
+		__field(u32, proc)
+	),
+	TP_fast_assign(
+		NFSD_TRACE_PROC_ARG_ASSIGNMENTS
+
+		__entry->vers = rqstp->rq_vers;
+		__entry->proc = rqstp->rq_proc;
+	),
+	TP_printk("xid=0x%08x vers=%u proc=%u",
+		__entry->xid, __entry->vers, __entry->proc
+	)
+);
+
+TRACE_EVENT(nfsd_cant_encode_err,
+	TP_PROTO(
+		const struct svc_rqst *rqstp
+	),
+	TP_ARGS(rqstp),
+	TP_STRUCT__entry(
+		NFSD_TRACE_PROC_ARG_FIELDS
+
+		__field(u32, vers)
+		__field(u32, proc)
+	),
+	TP_fast_assign(
+		NFSD_TRACE_PROC_ARG_ASSIGNMENTS
+
+		__entry->vers = rqstp->rq_vers;
+		__entry->proc = rqstp->rq_proc;
+	),
+	TP_printk("xid=0x%08x vers=%u proc=%u",
+		__entry->xid, __entry->vers, __entry->proc
+	)
+);
+
 #define show_nfsd_may_flags(x)						\
 	__print_flags(x, "|",						\
 		{ NFSD_MAY_EXEC,		"EXEC" },		\
