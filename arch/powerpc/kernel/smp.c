@@ -1247,18 +1247,16 @@ static bool update_mask_by_l2(int cpu)
 	cpumask_var_t mask;
 	int i;
 
+	if (has_big_cores)
+		submask_fn = cpu_smallcore_mask;
+
 	l2_cache = cpu_to_l2cache(cpu);
 	if (!l2_cache) {
-		struct cpumask *(*sibling_mask)(int) = cpu_sibling_mask;
-
 		/*
 		 * If no l2cache for this CPU, assume all siblings to share
 		 * cache with this CPU.
 		 */
-		if (has_big_cores)
-			sibling_mask = cpu_smallcore_mask;
-
-		for_each_cpu(i, sibling_mask(cpu))
+		for_each_cpu(i, submask_fn(cpu))
 			set_cpus_related(cpu, i, cpu_l2_cache_mask);
 
 		return false;
@@ -1266,9 +1264,6 @@ static bool update_mask_by_l2(int cpu)
 
 	alloc_cpumask_var_node(&mask, GFP_KERNEL, cpu_to_node(cpu));
 	cpumask_and(mask, cpu_online_mask, cpu_cpu_mask(cpu));
-
-	if (has_big_cores)
-		submask_fn = cpu_smallcore_mask;
 
 	/* Update l2-cache mask with all the CPUs that are part of submask */
 	or_cpumasks_related(cpu, cpu, submask_fn, cpu_l2_cache_mask);
