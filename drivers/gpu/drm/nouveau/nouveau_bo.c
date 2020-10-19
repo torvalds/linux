@@ -1321,7 +1321,6 @@ nouveau_ttm_tt_populate(struct ttm_bo_device *bdev,
 		/* make userspace faulting work */
 		drm_prime_sg_to_page_addr_arrays(ttm->sg, ttm->pages,
 						 ttm_dma->dma_address, ttm->num_pages);
-		ttm_tt_set_populated(ttm);
 		return 0;
 	}
 

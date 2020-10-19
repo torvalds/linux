@@ -72,16 +72,6 @@ static inline bool ttm_tt_is_populated(struct ttm_tt *tt)
 	return tt->page_flags & TTM_PAGE_FLAG_PRIV_POPULATED;
 }
 
-static inline void ttm_tt_set_unpopulated(struct ttm_tt *tt)
-{
-	tt->page_flags &= ~TTM_PAGE_FLAG_PRIV_POPULATED;
-}
-
-static inline void ttm_tt_set_populated(struct ttm_tt *tt)
-{
-	tt->page_flags |= TTM_PAGE_FLAG_PRIV_POPULATED;
-}
-
 /**
  * struct ttm_dma_tt
  *

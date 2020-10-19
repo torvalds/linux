@@ -138,7 +138,6 @@ static void ttm_tt_init_fields(struct ttm_tt *ttm,
 	ttm->num_pages = bo->num_pages;
 	ttm->caching = ttm_cached;
 	ttm->page_flags = page_flags;
-	ttm_tt_set_unpopulated(ttm);
 	ttm->swap_storage = NULL;
 	ttm->sg = bo->sg;
 	ttm->caching = caching;
@@ -334,9 +333,12 @@ int ttm_tt_populate(struct ttm_bo_device *bdev,
 		ret = bdev->driver->ttm_tt_populate(bdev, ttm, ctx);
 	else
 		ret = ttm_pool_populate(ttm, ctx);
-	if (!ret)
-		ttm_tt_add_mapping(bdev, ttm);
-	return ret;
+	if (ret)
+		return ret;
+
+	ttm_tt_add_mapping(bdev, ttm);
+	ttm->page_flags |= TTM_PAGE_FLAG_PRIV_POPULATED;
+	return 0;
 }
 EXPORT_SYMBOL(ttm_tt_populate);
 
@@ -365,4 +367,5 @@ void ttm_tt_unpopulate(struct ttm_bo_device *bdev,
 		bdev->driver->ttm_tt_unpopulate(bdev, ttm);
 	else
 		ttm_pool_unpopulate(ttm);
+	ttm->page_flags &= ~TTM_PAGE_FLAG_PRIV_POPULATED;
 }
