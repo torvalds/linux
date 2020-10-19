@@ -38,6 +38,7 @@
 #include <linux/slab.h>
 #include <linux/kthread.h>
 #include <linux/sunrpc/addr.h>
+#include <linux/nfs_ssc.h>
 
 #include "idmap.h"
 #include "cache.h"
@@ -1247,7 +1248,7 @@ out_err:
 static void
 nfsd4_interssc_disconnect(struct vfsmount *ss_mnt)
 {
-	nfs_sb_deactive(ss_mnt->mnt_sb);
+	nfs_do_sb_deactive(ss_mnt->mnt_sb);
 	mntput(ss_mnt);
 }
 
