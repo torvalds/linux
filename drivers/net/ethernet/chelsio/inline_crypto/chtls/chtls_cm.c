@@ -92,11 +92,13 @@ static void chtls_sock_release(struct kref *ref)
 static struct net_device *chtls_find_netdev(struct chtls_dev *cdev,
 					    struct sock *sk)
 {
+	struct adapter *adap = pci_get_drvdata(cdev->pdev);
 	struct net_device *ndev = cdev->ports[0];
 #if IS_ENABLED(CONFIG_IPV6)
 	struct net_device *temp;
 	int addr_type;
 #endif
+	int i;
 
 	switch (sk->sk_family) {
 	case PF_INET:
@@ -127,8 +129,12 @@ static struct net_device *chtls_find_netdev(struct chtls_dev *cdev,
 		return NULL;
 
 	if (is_vlan_dev(ndev))
-		return vlan_dev_real_dev(ndev);
-	return ndev;
+		ndev = vlan_dev_real_dev(ndev);
+
+	for_each_port(adap, i)
+		if (cdev->ports[i] == ndev)
+			return ndev;
+	return NULL;
 }
 
 static void assign_rxopt(struct sock *sk, unsigned int opt)
