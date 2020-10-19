@@ -559,7 +559,6 @@ static void ppc440spe_desc_set_src_mult(struct ppc440spe_adma_desc_slot *desc,
 			int sg_index, unsigned char mult_value)
 {
 	struct dma_cdb *dma_hw_desc;
-	struct xor_cb *xor_hw_desc;
 	u32 *psgu;
 
 	switch (chan->device->id) {
@@ -590,7 +589,6 @@ static void ppc440spe_desc_set_src_mult(struct ppc440spe_adma_desc_slot *desc,
 		*psgu |= cpu_to_le32(mult_value << mult_index);
 		break;
 	case PPC440SPE_XOR_ID:
-		xor_hw_desc = desc->hw_desc;
 		break;
 	default:
 		BUG();
