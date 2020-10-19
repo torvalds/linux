@@ -223,6 +223,14 @@ struct hw_sequencer_funcs {
 
 	bool (*is_abm_supported)(struct dc *dc,
 			struct dc_state *context, struct dc_stream_state *stream);
+
+	void (*set_disp_pattern_generator)(const struct dc *dc,
+			struct pipe_ctx *pipe_ctx,
+			enum controller_dp_test_pattern test_pattern,
+			enum controller_dp_color_space color_space,
+			enum dc_color_depth color_depth,
+			const struct tg_color *solid_color,
+			int width, int height, int offset);
 };
 
 void color_space_to_black_color(

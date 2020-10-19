@@ -1030,8 +1030,8 @@ void dcn20_blank_pixel_data(
 		test_pattern = CONTROLLER_DP_TEST_PATTERN_VIDEOMODE;
 	}
 
-	stream_res->opp->funcs->opp_set_disp_pattern_generator(
-			stream_res->opp,
+	dc->hwss.set_disp_pattern_generator(dc,
+			pipe_ctx,
 			test_pattern,
 			test_pattern_color_space,
 			stream->timing.display_color_depth,
@@ -1041,8 +1041,8 @@ void dcn20_blank_pixel_data(
 			0);
 
 	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
-		odm_pipe->stream_res.opp->funcs->opp_set_disp_pattern_generator(
-				odm_pipe->stream_res.opp,
+		dc->hwss.set_disp_pattern_generator(dc,
+				odm_pipe,
 				dc->debug.visual_confirm != VISUAL_CONFIRM_DISABLE && blank ?
 						CONTROLLER_DP_TEST_PATTERN_COLORRAMP : test_pattern,
 				test_pattern_color_space,
@@ -2569,3 +2569,15 @@ bool dcn20_optimize_timing_for_fsft(struct dc *dc,
 	return true;
 }
 #endif
+
+void dcn20_set_disp_pattern_generator(const struct dc *dc,
+		struct pipe_ctx *pipe_ctx,
+		enum controller_dp_test_pattern test_pattern,
+		enum controller_dp_color_space color_space,
+		enum dc_color_depth color_depth,
+		const struct tg_color *solid_color,
+		int width, int height, int offset)
+{
+	pipe_ctx->stream_res.opp->funcs->opp_set_disp_pattern_generator(pipe_ctx->stream_res.opp, test_pattern,
+			color_space, color_depth, solid_color, width, height, offset);
+}

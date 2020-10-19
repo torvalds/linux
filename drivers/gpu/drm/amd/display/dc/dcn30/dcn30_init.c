@@ -95,6 +95,7 @@ static const struct hw_sequencer_funcs dcn30_funcs = {
 	.set_abm_immediate_disable = dcn21_set_abm_immediate_disable,
 	.hardware_release = dcn30_hardware_release,
 	.set_pipe = dcn21_set_pipe,
+	.set_disp_pattern_generator = dcn30_set_disp_pattern_generator,
 };
 
 static const struct hwseq_private_funcs dcn30_private_funcs = {
@@ -106,7 +107,7 @@ static const struct hwseq_private_funcs dcn30_private_funcs = {
 	.set_output_transfer_func = dcn30_set_output_transfer_func,
 	.power_down = dce110_power_down,
 	.enable_display_power_gating = dcn10_dummy_display_power_gating,
-	.blank_pixel_data = dcn30_blank_pixel_data,
+	.blank_pixel_data = dcn20_blank_pixel_data,
 	.reset_hw_ctx_wrap = dcn20_reset_hw_ctx_wrap,
 	.enable_stream_timing = dcn20_enable_stream_timing,
 	.edp_backlight_control = dce110_edp_backlight_control,

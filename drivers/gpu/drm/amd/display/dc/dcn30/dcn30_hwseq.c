@@ -816,85 +816,37 @@ void dcn30_hardware_release(struct dc *dc)
 				dc->res_pool->hubbub, true, true);
 }
 
-void dcn30_blank_pixel_data(struct dc *dc, struct pipe_ctx *pipe_ctx, bool blank)
+void dcn30_set_disp_pattern_generator(const struct dc *dc,
+		struct pipe_ctx *pipe_ctx,
+		enum controller_dp_test_pattern test_pattern,
+		enum controller_dp_color_space color_space,
+		enum dc_color_depth color_depth,
+		const struct tg_color *solid_color,
+		int width, int height, int offset)
 {
-	struct tg_color black_color = {0};
 	struct stream_resource *stream_res = &pipe_ctx->stream_res;
-	struct dc_stream_state *stream = pipe_ctx->stream;
-	enum dc_color_space color_space = stream->output_color_space;
-	enum controller_dp_test_pattern test_pattern = CONTROLLER_DP_TEST_PATTERN_SOLID_COLOR;
-	enum controller_dp_color_space test_pattern_color_space = CONTROLLER_DP_COLOR_SPACE_UDEFINED;
-	struct pipe_ctx *odm_pipe;
 	struct pipe_ctx *mpcc_pipe;
-	int odm_cnt = 1;
 
-	int width = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right;
-	int height = stream->timing.v_addressable + stream->timing.v_border_bottom + stream->timing.v_border_top;
+	if (test_pattern != CONTROLLER_DP_TEST_PATTERN_VIDEOMODE) {
+		/* turning on DPG */
+		stream_res->opp->funcs->opp_set_disp_pattern_generator(stream_res->opp, test_pattern, color_space,
+				color_depth, solid_color, width, height, 0);
 
-	if (stream->link->test_pattern_enabled)
-		return;
+		/* wait for the next frame when enabling DPG */
+		if (stream_res->tg->funcs->is_tg_enabled(stream_res->tg))
+			dc->hwseq->funcs.wait_for_blank_complete(stream_res->opp);
 
-	/* get opp dpg blank color */
-	color_space_to_black_color(dc, color_space, &black_color);
-
-	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
-		odm_cnt++;
-
-	width = width / odm_cnt;
-
-	if (blank) {
-		dc->hwss.set_abm_immediate_disable(pipe_ctx);
-
-		if (dc->debug.visual_confirm != VISUAL_CONFIRM_DISABLE) {
-			test_pattern = CONTROLLER_DP_TEST_PATTERN_COLORSQUARES;
-			test_pattern_color_space = CONTROLLER_DP_COLOR_SPACE_RGB;
-		}
+		/* Blank HUBP to allow p-state during blank on all timings */
+		pipe_ctx->plane_res.hubp->funcs->set_blank(pipe_ctx->plane_res.hubp, true);
+		for (mpcc_pipe = pipe_ctx->bottom_pipe; mpcc_pipe; mpcc_pipe = mpcc_pipe->bottom_pipe)
+			mpcc_pipe->plane_res.hubp->funcs->set_blank(mpcc_pipe->plane_res.hubp, true);
 	} else {
-		test_pattern = CONTROLLER_DP_TEST_PATTERN_VIDEOMODE;
+		/* turning off DPG */
+		pipe_ctx->plane_res.hubp->funcs->set_blank(pipe_ctx->plane_res.hubp, false);
+		for (mpcc_pipe = pipe_ctx->bottom_pipe; mpcc_pipe; mpcc_pipe = mpcc_pipe->bottom_pipe)
+			mpcc_pipe->plane_res.hubp->funcs->set_blank(mpcc_pipe->plane_res.hubp, false);
+
+		stream_res->opp->funcs->opp_set_disp_pattern_generator(stream_res->opp, test_pattern, color_space,
+				color_depth, solid_color, width, height, 0);
 	}
-
-	stream_res->opp->funcs->opp_set_disp_pattern_generator(
-			stream_res->opp,
-			test_pattern,
-			test_pattern_color_space,
-			stream->timing.display_color_depth,
-			&black_color,
-			width,
-			height,
-			0);
-
-	/* wait for the next frame when enabling DPG */
-	if (blank && stream_res->tg->funcs->is_tg_enabled(stream_res->tg))
-		dc->hwseq->funcs.wait_for_blank_complete(pipe_ctx->stream_res.opp);
-
-	/* Blank HUBP to allow p-state during blank on all timings */
-	pipe_ctx->plane_res.hubp->funcs->set_blank(pipe_ctx->plane_res.hubp, blank);
-	for (mpcc_pipe = pipe_ctx->bottom_pipe; mpcc_pipe; mpcc_pipe = mpcc_pipe->bottom_pipe)
-		mpcc_pipe->plane_res.hubp->funcs->set_blank(mpcc_pipe->plane_res.hubp, blank);
-
-	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
-		odm_pipe->stream_res.opp->funcs->opp_set_disp_pattern_generator(
-				odm_pipe->stream_res.opp,
-				dc->debug.visual_confirm != VISUAL_CONFIRM_DISABLE && blank ?
-						CONTROLLER_DP_TEST_PATTERN_COLORRAMP : test_pattern,
-				test_pattern_color_space,
-				stream->timing.display_color_depth,
-				&black_color,
-				width,
-				height,
-				0);
-
-		if (blank && stream_res->tg->funcs->is_tg_enabled(stream_res->tg))
-			dc->hwseq->funcs.wait_for_blank_complete(pipe_ctx->stream_res.opp);
-
-		odm_pipe->plane_res.hubp->funcs->set_blank(odm_pipe->plane_res.hubp, blank);
-		for (mpcc_pipe = odm_pipe->bottom_pipe; mpcc_pipe; mpcc_pipe = mpcc_pipe->bottom_pipe)
-			mpcc_pipe->plane_res.hubp->funcs->set_blank(mpcc_pipe->plane_res.hubp, blank);
-	}
-
-	if (!blank)
-		if (stream_res->abm) {
-			dc->hwss.set_pipe(pipe_ctx);
-			stream_res->abm->funcs->set_abm_level(stream_res->abm, stream->abm_level);
-		}
 }

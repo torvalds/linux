@@ -3848,7 +3848,7 @@ static void set_crtc_test_pattern(struct dc_link *link,
 		if (pipe_ctx->stream_res.tg->funcs->set_test_pattern)
 			pipe_ctx->stream_res.tg->funcs->set_test_pattern(pipe_ctx->stream_res.tg,
 				controller_test_pattern, color_depth);
-		else if (opp->funcs->opp_set_disp_pattern_generator) {
+		else if (link->dc->hwss.set_disp_pattern_generator) {
 			struct pipe_ctx *odm_pipe;
 			enum controller_dp_color_space controller_color_space;
 			int opp_cnt = 1;
@@ -3878,26 +3878,29 @@ static void set_crtc_test_pattern(struct dc_link *link,
 			dpg_width = width / opp_cnt;
 			offset = dpg_width;
 
-			opp->funcs->opp_set_disp_pattern_generator(opp,
-				controller_test_pattern,
-				controller_color_space,
-				color_depth,
-				NULL,
-				dpg_width,
-				height,
-				0);
-
-			for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
-				struct output_pixel_processor *odm_opp = odm_pipe->stream_res.opp;
-				odm_opp->funcs->opp_program_bit_depth_reduction(odm_opp, &params);
-				odm_opp->funcs->opp_set_disp_pattern_generator(odm_opp,
+			link->dc->hwss.set_disp_pattern_generator(link->dc,
+					pipe_ctx,
 					controller_test_pattern,
 					controller_color_space,
 					color_depth,
 					NULL,
 					dpg_width,
 					height,
-					offset);
+					0);
+
+			for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
+				struct output_pixel_processor *odm_opp = odm_pipe->stream_res.opp;
+
+				odm_opp->funcs->opp_program_bit_depth_reduction(odm_opp, &params);
+				link->dc->hwss.set_disp_pattern_generator(link->dc,
+						odm_pipe,
+						controller_test_pattern,
+						controller_color_space,
+						color_depth,
+						NULL,
+						dpg_width,
+						height,
+						offset);
 				offset += offset;
 			}
 		}
@@ -3913,7 +3916,7 @@ static void set_crtc_test_pattern(struct dc_link *link,
 			pipe_ctx->stream_res.tg->funcs->set_test_pattern(pipe_ctx->stream_res.tg,
 				CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,
 				color_depth);
-		else if (opp->funcs->opp_set_disp_pattern_generator) {
+		else if (link->dc->hwss.set_disp_pattern_generator) {
 			struct pipe_ctx *odm_pipe;
 			int opp_cnt = 1;
 			int dpg_width = width;
@@ -3926,7 +3929,18 @@ static void set_crtc_test_pattern(struct dc_link *link,
 				struct output_pixel_processor *odm_opp = odm_pipe->stream_res.opp;
 
 				odm_opp->funcs->opp_program_bit_depth_reduction(odm_opp, &params);
-				odm_opp->funcs->opp_set_disp_pattern_generator(odm_opp,
+				link->dc->hwss.set_disp_pattern_generator(link->dc,
+						odm_pipe,
+						CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,
+						CONTROLLER_DP_COLOR_SPACE_UDEFINED,
+						color_depth,
+						NULL,
+						dpg_width,
+						height,
+						0);
+			}
+			link->dc->hwss.set_disp_pattern_generator(link->dc,
+					pipe_ctx,
 					CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,
 					CONTROLLER_DP_COLOR_SPACE_UDEFINED,
 					color_depth,
@@ -3934,15 +3948,6 @@ static void set_crtc_test_pattern(struct dc_link *link,
 					dpg_width,
 					height,
 					0);
-			}
-			opp->funcs->opp_set_disp_pattern_generator(opp,
-				CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,
-				CONTROLLER_DP_COLOR_SPACE_UDEFINED,
-				color_depth,
-				NULL,
-				dpg_width,
-				height,
-				0);
 		}
 	}
 	break;
@@ -3977,10 +3982,7 @@ bool dc_link_dp_set_test_pattern(
 		}
 	}
 
-	/* Reset CRTC Test Pattern if it is currently running and request
-	 * is VideoMode Reset DP Phy Test Pattern if it is currently running
-	 * and request is VideoMode
-	 */
+	/* Reset CRTC Test Pattern if it is currently running and request is VideoMode */
 	if (link->test_pattern_enabled && test_pattern ==
 			DP_TEST_PATTERN_VIDEO_MODE) {
 		/* Set CRTC Test Pattern */

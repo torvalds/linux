@@ -98,6 +98,7 @@ static const struct hw_sequencer_funcs dcn21_funcs = {
 	.optimize_timing_for_fsft = dcn20_optimize_timing_for_fsft,
 #endif
 	.is_abm_supported = dcn21_is_abm_supported,
+	.set_disp_pattern_generator = dcn20_set_disp_pattern_generator,
 };
 
 static const struct hwseq_private_funcs dcn21_private_funcs = {
