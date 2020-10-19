@@ -90,7 +90,6 @@ struct nfsd3_symlinkargs {
 struct nfsd3_readdirargs {
 	struct svc_fh		fh;
 	__u64			cookie;
-	__u32			dircount;
 	__u32			count;
 	__be32 *		verf;
 };

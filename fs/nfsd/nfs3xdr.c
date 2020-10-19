@@ -559,33 +559,43 @@ nfs3svc_decode_linkargs(struct svc_rqst *rqstp, __be32 *p)
 int
 nfs3svc_decode_readdirargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	struct nfsd3_readdirargs *args = rqstp->rq_argp;
 
-	p = decode_fh(p, &args->fh);
-	if (!p)
+	if (!svcxdr_decode_nfs_fh3(xdr, &args->fh))
 		return 0;
-	p = xdr_decode_hyper(p, &args->cookie);
-	args->verf   = p; p += 2;
-	args->dircount = ~0;
-	args->count  = ntohl(*p++);
+	if (xdr_stream_decode_u64(xdr, &args->cookie) < 0)
+		return 0;
+	args->verf = xdr_inline_decode(xdr, NFS3_COOKIEVERFSIZE);
+	if (!args->verf)
+		return 0;
+	if (xdr_stream_decode_u32(xdr, &args->count) < 0)
+		return 0;
 
-	return xdr_argsize_check(rqstp, p);
+	return 1;
 }
 
 int
 nfs3svc_decode_readdirplusargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	struct nfsd3_readdirargs *args = rqstp->rq_argp;
+	u32 dircount;
 
-	p = decode_fh(p, &args->fh);
-	if (!p)
+	if (!svcxdr_decode_nfs_fh3(xdr, &args->fh))
 		return 0;
-	p = xdr_decode_hyper(p, &args->cookie);
-	args->verf     = p; p += 2;
-	args->dircount = ntohl(*p++);
-	args->count    = ntohl(*p++);
+	if (xdr_stream_decode_u64(xdr, &args->cookie) < 0)
+		return 0;
+	args->verf = xdr_inline_decode(xdr, NFS3_COOKIEVERFSIZE);
+	if (!args->verf)
+		return 0;
+	/* dircount is ignored */
+	if (xdr_stream_decode_u32(xdr, &dircount) < 0)
+		return 0;
+	if (xdr_stream_decode_u32(xdr, &args->count) < 0)
+		return 0;
 
-	return xdr_argsize_check(rqstp, p);
+	return 1;
 }
 
 int
