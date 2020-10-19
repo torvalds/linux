@@ -1,8 +1,5 @@
 * Fix pad format size for statistics and parameters entities.
 * Fix checkpatch errors.
-* streaming paths (mainpath and selfpath) check if the other path is streaming
-in several places of the code, review this, specially that it doesn't seem it
-supports streaming from both paths at the same time.
 
 NOTES:
 * All v4l2-compliance test must pass.

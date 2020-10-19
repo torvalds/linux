@@ -830,124 +830,12 @@ static void rkisp1_return_all_buffers(struct rkisp1_capture *cap,
 }
 
 /*
- * rkisp1_pipeline_sink_walk - Walk through the pipeline and call cb
- * @from: entity at which to start pipeline walk
- * @until: entity at which to stop pipeline walk
- *
- * Walk the entities chain starting at the pipeline video node and stop
- * all subdevices in the chain.
- *
- * If the until argument isn't NULL, stop the pipeline walk when reaching the
- * until entity. This is used to disable a partially started pipeline due to a
- * subdev start error.
- */
-static int rkisp1_pipeline_sink_walk(struct media_entity *from,
-				     struct media_entity *until,
-				     int (*cb)(struct media_entity *from,
-					       struct media_entity *curr))
-{
-	struct media_entity *entity = from;
-	struct media_pad *pad;
-	unsigned int i;
-	int ret;
-
-	while (1) {
-		pad = NULL;
-		/* Find remote source pad */
-		for (i = 0; i < entity->num_pads; i++) {
-			struct media_pad *spad = &entity->pads[i];
-
-			if (!(spad->flags & MEDIA_PAD_FL_SINK))
-				continue;
-			pad = media_entity_remote_pad(spad);
-			if (pad && is_media_entity_v4l2_subdev(pad->entity))
-				break;
-		}
-		if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
-			break;
-
-		entity = pad->entity;
-		if (entity == until)
-			break;
-
-		ret = cb(from, entity);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
-static int rkisp1_pipeline_disable_cb(struct media_entity *from,
-				      struct media_entity *curr)
-{
-	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(curr);
-
-	return v4l2_subdev_call(sd, video, s_stream, false);
-}
-
-static int rkisp1_pipeline_enable_cb(struct media_entity *from,
-				     struct media_entity *curr)
-{
-	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(curr);
-
-	return v4l2_subdev_call(sd, video, s_stream, true);
-}
-
-static void rkisp1_stream_stop(struct rkisp1_capture *cap)
-{
-	int ret;
-
-	/* Stream should stop in interrupt. If it dosn't, stop it by force. */
-	cap->is_stopping = true;
-	ret = wait_event_timeout(cap->done,
-				 !cap->is_streaming,
-				 msecs_to_jiffies(1000));
-	if (!ret) {
-		cap->rkisp1->debug.stop_timeout[cap->id]++;
-		cap->ops->stop(cap);
-		cap->is_stopping = false;
-		cap->is_streaming = false;
-	}
-}
-
-static void rkisp1_vb2_stop_streaming(struct vb2_queue *queue)
-{
-	struct rkisp1_capture *cap = queue->drv_priv;
-	struct rkisp1_vdev_node *node = &cap->vnode;
-	struct rkisp1_device *rkisp1 = cap->rkisp1;
-	int ret;
-
-	mutex_lock(&cap->rkisp1->stream_lock);
-
-	rkisp1_stream_stop(cap);
-	ret = rkisp1_pipeline_sink_walk(&node->vdev.entity, NULL,
-					rkisp1_pipeline_disable_cb);
-	if (ret)
-		dev_err(rkisp1->dev,
-			"pipeline stream-off failed error:%d\n", ret);
-
-	rkisp1_return_all_buffers(cap, VB2_BUF_STATE_ERROR);
-
-	v4l2_pipeline_pm_put(&node->vdev.entity);
-	ret = pm_runtime_put(rkisp1->dev);
-	if (ret < 0)
-		dev_err(rkisp1->dev, "power down failed error:%d\n", ret);
-
-	rkisp1_dummy_buf_destroy(cap);
-
-	media_pipeline_stop(&node->vdev.entity);
-
-	mutex_unlock(&cap->rkisp1->stream_lock);
-}
-
-/*
  * Most of registers inside rockchip ISP1 have shadow register since
  * they must be not be changed during processing a frame.
  * Usually, each sub-module updates its shadow register after
  * processing the last pixel of a frame.
  */
-static void rkisp1_stream_start(struct rkisp1_capture *cap)
+static void rkisp1_cap_stream_enable(struct rkisp1_capture *cap)
 {
 	struct rkisp1_device *rkisp1 = cap->rkisp1;
 	struct rkisp1_capture *other = &rkisp1->capture_devs[cap->id ^ 1];
@@ -976,6 +864,124 @@ static void rkisp1_stream_start(struct rkisp1_capture *cap)
 	}
 	spin_unlock_irq(&cap->buf.lock);
 	cap->is_streaming = true;
+}
+
+static void rkisp1_cap_stream_disable(struct rkisp1_capture *cap)
+{
+	int ret;
+
+	/* Stream should stop in interrupt. If it dosn't, stop it by force. */
+	cap->is_stopping = true;
+	ret = wait_event_timeout(cap->done,
+				 !cap->is_streaming,
+				 msecs_to_jiffies(1000));
+	if (!ret) {
+		cap->rkisp1->debug.stop_timeout[cap->id]++;
+		cap->ops->stop(cap);
+		cap->is_stopping = false;
+		cap->is_streaming = false;
+	}
+}
+
+/*
+ * rkisp1_pipeline_stream_disable - disable nodes in the pipeline
+ *
+ * Call s_stream(false) in the reverse order from
+ * rkisp1_pipeline_stream_enable() and disable the DMA engine.
+ * Should be called before media_pipeline_stop()
+ */
+static void rkisp1_pipeline_stream_disable(struct rkisp1_capture *cap)
+	__must_hold(&cap->rkisp1->stream_lock)
+{
+	struct rkisp1_device *rkisp1 = cap->rkisp1;
+
+	/*
+	 * If the other capture is streaming, isp and sensor nodes shouldn't
+	 * be disabled, skip them.
+	 */
+	if (rkisp1->pipe.streaming_count < 2) {
+		v4l2_subdev_call(rkisp1->active_sensor->sd, video, s_stream,
+				 false);
+		v4l2_subdev_call(&rkisp1->isp.sd, video, s_stream, false);
+	}
+
+	v4l2_subdev_call(&rkisp1->resizer_devs[cap->id].sd, video, s_stream,
+			 false);
+
+	rkisp1_cap_stream_disable(cap);
+}
+
+/*
+ * rkisp1_pipeline_stream_enable - enable nodes in the pipeline
+ *
+ * Enable the DMA Engine and call s_stream(true) through the pipeline.
+ * Should be called after media_pipeline_start()
+ */
+static int rkisp1_pipeline_stream_enable(struct rkisp1_capture *cap)
+	__must_hold(&cap->rkisp1->stream_lock)
+{
+	struct rkisp1_device *rkisp1 = cap->rkisp1;
+	int ret;
+
+	rkisp1_cap_stream_enable(cap);
+
+	ret = v4l2_subdev_call(&rkisp1->resizer_devs[cap->id].sd, video,
+			       s_stream, true);
+	if (ret)
+		goto err_disable_cap;
+
+	/*
+	 * If the other capture is streaming, isp and sensor nodes are already
+	 * enabled, skip them.
+	 */
+	if (rkisp1->pipe.streaming_count > 1)
+		return 0;
+
+	ret = v4l2_subdev_call(&rkisp1->isp.sd, video, s_stream, true);
+	if (ret)
+		goto err_disable_rsz;
+
+	ret = v4l2_subdev_call(rkisp1->active_sensor->sd, video, s_stream,
+			       true);
+	if (ret)
+		goto err_disable_isp;
+
+	return 0;
+
+err_disable_isp:
+	v4l2_subdev_call(&rkisp1->isp.sd, video, s_stream, false);
+err_disable_rsz:
+	v4l2_subdev_call(&rkisp1->resizer_devs[cap->id].sd, video, s_stream,
+			 false);
+err_disable_cap:
+	rkisp1_cap_stream_disable(cap);
+
+	return ret;
+}
+
+static void rkisp1_vb2_stop_streaming(struct vb2_queue *queue)
+{
+	struct rkisp1_capture *cap = queue->drv_priv;
+	struct rkisp1_vdev_node *node = &cap->vnode;
+	struct rkisp1_device *rkisp1 = cap->rkisp1;
+	int ret;
+
+	mutex_lock(&cap->rkisp1->stream_lock);
+
+	rkisp1_pipeline_stream_disable(cap);
+
+	rkisp1_return_all_buffers(cap, VB2_BUF_STATE_ERROR);
+
+	v4l2_pipeline_pm_put(&node->vdev.entity);
+	ret = pm_runtime_put(rkisp1->dev);
+	if (ret < 0)
+		dev_err(rkisp1->dev, "power down failed error:%d\n", ret);
+
+	rkisp1_dummy_buf_destroy(cap);
+
+	media_pipeline_stop(&node->vdev.entity);
+
+	mutex_unlock(&cap->rkisp1->stream_lock);
 }
 
 static int
@@ -1008,20 +1014,15 @@ rkisp1_vb2_start_streaming(struct vb2_queue *queue, unsigned int count)
 		goto err_pipe_pm_put;
 	}
 
-	rkisp1_stream_start(cap);
-
-	/* start sub-devices */
-	ret = rkisp1_pipeline_sink_walk(entity, NULL,
-					rkisp1_pipeline_enable_cb);
+	ret = rkisp1_pipeline_stream_enable(cap);
 	if (ret)
-		goto err_stop_stream;
+		goto err_v4l2_pm_put;
 
 	mutex_unlock(&cap->rkisp1->stream_lock);
 
 	return 0;
 
-err_stop_stream:
-	rkisp1_stream_stop(cap);
+err_v4l2_pm_put:
 	v4l2_pipeline_pm_put(entity);
 err_pipe_pm_put:
 	pm_runtime_put(cap->rkisp1->dev);
