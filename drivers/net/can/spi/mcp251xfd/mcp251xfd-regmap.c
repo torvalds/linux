@@ -173,7 +173,7 @@ mcp251xfd_regmap_nocrc_read(void *context,
 		memcpy(&buf_tx->cmd, reg, sizeof(buf_tx->cmd));
 		if (MCP251XFD_SANITIZE_SPI)
 			memset(buf_tx->data, 0x0, val_len);
-	};
+	}
 
 	err = spi_sync(spi, &msg);
 	if (err)
