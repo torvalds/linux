@@ -566,7 +566,7 @@ We check myfs file system statistics using the following command:
 
 .. code-block:: console
 
-  stat -f / mnt / myfs
+  stat -f /mnt/myfs
 
 We want to see what the mount point ``/mnt/myfs`` contains and if we can create files.
 For this we run the commands:
