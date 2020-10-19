@@ -441,7 +441,7 @@ find_submit(struct msm_ringbuffer *ring, uint32_t fence)
 
 static void retire_submits(struct msm_gpu *gpu);
 
-static void recover_worker(struct work_struct *work)
+static void recover_worker(struct kthread_work *work)
 {
 	struct msm_gpu *gpu = container_of(work, struct msm_gpu, recover_work);
 	struct drm_device *dev = gpu->dev;
@@ -544,7 +544,6 @@ static void hangcheck_handler(struct timer_list *t)
 {
 	struct msm_gpu *gpu = from_timer(gpu, t, hangcheck_timer);
 	struct drm_device *dev = gpu->dev;
-	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_ringbuffer *ring = gpu->funcs->active_ring(gpu);
 	uint32_t fence = ring->memptrs->fence;
 
@@ -561,7 +560,7 @@ static void hangcheck_handler(struct timer_list *t)
 		DRM_DEV_ERROR(dev->dev, "%s:     submitted fence: %u\n",
 				gpu->name, ring->seqno);
 
-		queue_work(priv->wq, &gpu->recover_work);
+		kthread_queue_work(gpu->worker, &gpu->recover_work);
 	}
 
 	/* if still more pending work, reset the hangcheck timer: */
@@ -569,7 +568,7 @@ static void hangcheck_handler(struct timer_list *t)
 		hangcheck_timer_reset(gpu);
 
 	/* workaround for missing irq: */
-	queue_work(priv->wq, &gpu->retire_work);
+	kthread_queue_work(gpu->worker, &gpu->retire_work);
 }
 
 /*
@@ -728,7 +727,7 @@ static void retire_submits(struct msm_gpu *gpu)
 	}
 }
 
-static void retire_worker(struct work_struct *work)
+static void retire_worker(struct kthread_work *work)
 {
 	struct msm_gpu *gpu = container_of(work, struct msm_gpu, retire_work);
 	struct drm_device *dev = gpu->dev;
@@ -745,8 +744,7 @@ static void retire_worker(struct work_struct *work)
 /* call from irq handler to schedule work to retire bo's */
 void msm_gpu_retire(struct msm_gpu *gpu)
 {
-	struct msm_drm_private *priv = gpu->dev->dev_private;
-	queue_work(priv->wq, &gpu->retire_work);
+	kthread_queue_work(gpu->worker, &gpu->retire_work);
 	update_sw_cntrs(gpu);
 }
 
@@ -869,10 +867,18 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	gpu->funcs = funcs;
 	gpu->name = name;
 
-	INIT_LIST_HEAD(&gpu->active_list);
-	INIT_WORK(&gpu->retire_work, retire_worker);
-	INIT_WORK(&gpu->recover_work, recover_worker);
+	gpu->worker = kthread_create_worker(0, "%s-worker", gpu->name);
+	if (IS_ERR(gpu->worker)) {
+		ret = PTR_ERR(gpu->worker);
+		gpu->worker = NULL;
+		goto fail;
+	}
 
+	sched_set_fifo_low(gpu->worker->task);
+
+	INIT_LIST_HEAD(&gpu->active_list);
+	kthread_init_work(&gpu->retire_work, retire_worker);
+	kthread_init_work(&gpu->recover_work, recover_worker);
 
 	timer_setup(&gpu->hangcheck_timer, hangcheck_handler, 0);
 
@@ -1004,5 +1010,9 @@ void msm_gpu_cleanup(struct msm_gpu *gpu)
 	if (!IS_ERR_OR_NULL(gpu->aspace)) {
 		gpu->aspace->mmu->funcs->detach(gpu->aspace->mmu);
 		msm_gem_address_space_put(gpu->aspace);
+	}
+
+	if (gpu->worker) {
+		kthread_destroy_worker(gpu->worker);
 	}
 }
