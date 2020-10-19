@@ -297,6 +297,7 @@ void mptcp_get_options(const struct sk_buff *skb,
 	mp_opt->mp_capable = 0;
 	mp_opt->mp_join = 0;
 	mp_opt->add_addr = 0;
+	mp_opt->ahmac = 0;
 	mp_opt->rm_addr = 0;
 	mp_opt->dss = 0;
 
