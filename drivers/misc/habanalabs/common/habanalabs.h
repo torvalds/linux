@@ -917,7 +917,6 @@ struct hl_asic_funcs {
 				size_t max_size);
 	int (*send_cpu_message)(struct hl_device *hdev, u32 *msg,
 				u16 len, u32 timeout, long *result);
-	enum hl_device_hw_state (*get_hw_state)(struct hl_device *hdev);
 	int (*pci_bars_map)(struct hl_device *hdev);
 	int (*init_iatu)(struct hl_device *hdev);
 	u32 (*rreg)(struct hl_device *hdev, u32 reg);
@@ -1901,6 +1900,7 @@ struct hl_device {
 	u8				hard_reset_on_fw_events;
 	u8				bmc_enable;
 	u8				rl_enable;
+	u8				reset_on_preboot_fail;
 };
 
 
@@ -2148,9 +2148,7 @@ int hl_pci_set_inbound_region(struct hl_device *hdev, u8 region,
 		struct hl_inbound_pci_region *pci_region);
 int hl_pci_set_outbound_region(struct hl_device *hdev,
 		struct hl_outbound_pci_region *pci_region);
-int hl_pci_init(struct hl_device *hdev, u32 cpu_boot_status_reg,
-		u32 cpu_security_boot_status_reg, u32 boot_err0_reg,
-		u32 preboot_ver_timeout);
+int hl_pci_init(struct hl_device *hdev);
 void hl_pci_fini(struct hl_device *hdev);
 
 long hl_get_frequency(struct hl_device *hdev, u32 pll_index, bool curr);

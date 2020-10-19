@@ -553,6 +553,11 @@ done:
 	return rc;
 }
 
+static enum hl_device_hw_state goya_get_hw_state(struct hl_device *hdev)
+{
+	return RREG32(mmHW_STATE);
+}
+
 /*
  * goya_early_init - GOYA early initialization code
  *
@@ -602,11 +607,27 @@ static int goya_early_init(struct hl_device *hdev)
 
 	prop->dram_pci_bar_size = pci_resource_len(pdev, DDR_BAR_ID);
 
-	rc = hl_pci_init(hdev, mmPSOC_GLOBAL_CONF_CPU_BOOT_STATUS,
-			mmCPU_BOOT_DEV_STS0, mmCPU_BOOT_ERR0,
-			GOYA_BOOT_FIT_REQ_TIMEOUT_USEC);
+	rc = hl_pci_init(hdev);
 	if (rc)
 		goto free_queue_props;
+
+	if (goya_get_hw_state(hdev) == HL_DEVICE_HW_STATE_DIRTY) {
+		dev_info(hdev->dev,
+			"H/W state is dirty, must reset before initializing\n");
+		hdev->asic_funcs->hw_fini(hdev, true);
+	}
+
+	/* Before continuing in the initialization, we need to read the preboot
+	 * version to determine whether we run with a security-enabled firmware
+	 */
+	rc = hl_fw_read_preboot_status(hdev, mmPSOC_GLOBAL_CONF_CPU_BOOT_STATUS,
+			mmCPU_BOOT_DEV_STS0, mmCPU_BOOT_ERR0,
+			GOYA_BOOT_FIT_REQ_TIMEOUT_USEC);
+	if (rc) {
+		if (hdev->reset_on_preboot_fail)
+			hdev->asic_funcs->hw_fini(hdev, true);
+		goto pci_fini;
+	}
 
 	if (!hdev->pldm) {
 		val = RREG32(mmPSOC_GLOBAL_CONF_BOOT_STRAP_PINS);
@@ -617,6 +638,8 @@ static int goya_early_init(struct hl_device *hdev)
 
 	return 0;
 
+pci_fini:
+	hl_pci_fini(hdev);
 free_queue_props:
 	kfree(hdev->asic_prop.hw_queues_props);
 	return rc;
@@ -2630,7 +2653,7 @@ static void goya_hw_fini(struct hl_device *hdev, bool hard_reset)
 			"Timeout while waiting for device to reset 0x%x\n",
 			status);
 
-	if (!hard_reset) {
+	if (!hard_reset && goya) {
 		goya->hw_cap_initialized &= ~(HW_CAP_DMA | HW_CAP_MME |
 						HW_CAP_GOLDEN | HW_CAP_TPC);
 		WREG32(mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR,
@@ -2651,6 +2674,7 @@ static void goya_hw_fini(struct hl_device *hdev, bool hard_reset)
 				HW_CAP_DMA | HW_CAP_MME |
 				HW_CAP_MMU | HW_CAP_TPC_MBIST |
 				HW_CAP_GOLDEN | HW_CAP_TPC);
+
 		memset(goya->events_stat, 0, sizeof(goya->events_stat));
 	}
 }
@@ -5274,11 +5298,6 @@ static int goya_get_eeprom_data(struct hl_device *hdev, void *data,
 	return hl_fw_get_eeprom_data(hdev, data, max_size);
 }
 
-static enum hl_device_hw_state goya_get_hw_state(struct hl_device *hdev)
-{
-	return RREG32(mmHW_STATE);
-}
-
 static int goya_ctx_init(struct hl_ctx *ctx)
 {
 	return 0;
@@ -5414,7 +5433,6 @@ static const struct hl_asic_funcs goya_funcs = {
 	.get_pci_id = goya_get_pci_id,
 	.get_eeprom_data = goya_get_eeprom_data,
 	.send_cpu_message = goya_send_cpu_message,
-	.get_hw_state = goya_get_hw_state,
 	.pci_bars_map = goya_pci_bars_map,
 	.init_iatu = goya_init_iatu,
 	.rreg = hl_rreg,

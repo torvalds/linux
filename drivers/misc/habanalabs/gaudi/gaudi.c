@@ -604,6 +604,11 @@ done:
 	return rc;
 }
 
+static enum hl_device_hw_state gaudi_get_hw_state(struct hl_device *hdev)
+{
+	return RREG32(mmHW_STATE);
+}
+
 static int gaudi_early_init(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
@@ -641,14 +646,32 @@ static int gaudi_early_init(struct hl_device *hdev)
 
 	prop->dram_pci_bar_size = pci_resource_len(pdev, HBM_BAR_ID);
 
-	rc = hl_pci_init(hdev, mmPSOC_GLOBAL_CONF_CPU_BOOT_STATUS,
-			mmCPU_BOOT_DEV_STS0, mmCPU_BOOT_ERR0,
-			GAUDI_BOOT_FIT_REQ_TIMEOUT_USEC);
+	rc = hl_pci_init(hdev);
 	if (rc)
 		goto free_queue_props;
 
+	if (gaudi_get_hw_state(hdev) == HL_DEVICE_HW_STATE_DIRTY) {
+		dev_info(hdev->dev,
+			"H/W state is dirty, must reset before initializing\n");
+		hdev->asic_funcs->hw_fini(hdev, true);
+	}
+
+	/* Before continuing in the initialization, we need to read the preboot
+	 * version to determine whether we run with a security-enabled firmware
+	 */
+	rc = hl_fw_read_preboot_status(hdev, mmPSOC_GLOBAL_CONF_CPU_BOOT_STATUS,
+			mmCPU_BOOT_DEV_STS0, mmCPU_BOOT_ERR0,
+			GAUDI_BOOT_FIT_REQ_TIMEOUT_USEC);
+	if (rc) {
+		if (hdev->reset_on_preboot_fail)
+			hdev->asic_funcs->hw_fini(hdev, true);
+		goto pci_fini;
+	}
+
 	return 0;
 
+pci_fini:
+	hl_pci_fini(hdev);
 free_queue_props:
 	kfree(hdev->asic_prop.hw_queues_props);
 	return rc;
@@ -7691,11 +7714,6 @@ static int gaudi_run_tpc_kernel(struct hl_device *hdev, u64 tpc_kernel,
 	return 0;
 }
 
-static enum hl_device_hw_state gaudi_get_hw_state(struct hl_device *hdev)
-{
-	return RREG32(mmHW_STATE);
-}
-
 static int gaudi_internal_cb_pool_init(struct hl_device *hdev,
 		struct hl_ctx *ctx)
 {
@@ -8252,7 +8270,6 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.get_pci_id = gaudi_get_pci_id,
 	.get_eeprom_data = gaudi_get_eeprom_data,
 	.send_cpu_message = gaudi_send_cpu_message,
-	.get_hw_state = gaudi_get_hw_state,
 	.pci_bars_map = gaudi_pci_bars_map,
 	.init_iatu = gaudi_init_iatu,
 	.rreg = hl_rreg,

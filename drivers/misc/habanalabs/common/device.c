@@ -1278,13 +1278,6 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 
 	hl_debugfs_add_device(hdev);
 
-	if (hdev->asic_funcs->get_hw_state(hdev) == HL_DEVICE_HW_STATE_DIRTY) {
-		dev_info(hdev->dev,
-			"H/W state is dirty, must reset before initializing\n");
-		hdev->asic_funcs->halt_engines(hdev, true);
-		hdev->asic_funcs->hw_fini(hdev, true);
-	}
-
 	/*
 	 * From this point, in case of an error, add char devices and create
 	 * sysfs nodes as part of the error flow, to allow debugging.

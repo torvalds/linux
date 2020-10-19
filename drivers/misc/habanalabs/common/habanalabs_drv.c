@@ -234,20 +234,20 @@ out_err:
 
 static void set_driver_behavior_per_device(struct hl_device *hdev)
 {
-	hdev->mmu_enable = 1;
 	hdev->cpu_enable = 1;
-	hdev->fw_loading = 1;
+	hdev->fw_loading = FW_TYPE_ALL_TYPES;
 	hdev->cpu_queues_enable = 1;
 	hdev->heartbeat = 1;
+	hdev->mmu_enable = 1;
 	hdev->clock_gating_mask = ULONG_MAX;
-
-	hdev->reset_pcilink = 0;
-	hdev->axi_drain = 0;
 	hdev->sram_scrambler_enable = 1;
 	hdev->dram_scrambler_enable = 1;
 	hdev->bmc_enable = 1;
 	hdev->hard_reset_on_fw_events = 1;
-	hdev->fw_loading = FW_TYPE_ALL_TYPES;
+	hdev->reset_on_preboot_fail = 1;
+
+	hdev->reset_pcilink = 0;
+	hdev->axi_drain = 0;
 }
 
 /*
