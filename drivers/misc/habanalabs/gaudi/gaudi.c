@@ -1220,10 +1220,8 @@ static int gaudi_collective_wait_create_jobs(struct hl_device *hdev,
 
 	if (collective_engine_id == GAUDI_ENGINE_ID_DMA_5)
 		collective_queue = GAUDI_QUEUE_ID_DMA_5_0 + stream;
-	else if (collective_engine_id == GAUDI_ENGINE_ID_TPC_7)
-		collective_queue = GAUDI_QUEUE_ID_TPC_7_0 + stream;
 	else
-		return -EINVAL;
+		collective_queue = GAUDI_QUEUE_ID_TPC_7_0 + stream;
 
 	num_jobs = NUMBER_OF_SOBS_IN_GRP + 1;
 	nic_queue = GAUDI_QUEUE_ID_NIC_0_0 + stream;
