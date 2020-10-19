@@ -236,7 +236,7 @@ err1:
  * may be called without controller electrically present
  * may be called with controller, bus, and devices active
  */
-void usb_hcd_msp_remove(struct usb_hcd *hcd, struct platform_device *dev)
+static void usb_hcd_msp_remove(struct usb_hcd *hcd)
 {
 	usb_remove_hcd(hcd);
 	iounmap(hcd->regs);
@@ -309,7 +309,7 @@ static int ehci_hcd_msp_drv_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 
-	usb_hcd_msp_remove(hcd, pdev);
+	usb_hcd_msp_remove(hcd);
 
 	/* free TWI GPIO USB_HOST_DEV pin */
 	gpio_free(MSP_PIN_USB0_HOST_DEV);
