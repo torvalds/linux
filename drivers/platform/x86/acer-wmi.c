@@ -792,7 +792,6 @@ static acpi_status AMW0_set_u32(u32 value, u32 cap)
 		switch (quirks->brightness) {
 		default:
 			return ec_write(0x83, value);
-			break;
 		}
 	default:
 		return AE_ERROR;

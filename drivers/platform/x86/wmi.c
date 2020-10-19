@@ -1260,13 +1260,10 @@ acpi_wmi_ec_space_handler(u32 function, acpi_physical_address address,
 	switch (result) {
 	case -EINVAL:
 		return AE_BAD_PARAMETER;
-		break;
 	case -ENODEV:
 		return AE_NOT_FOUND;
-		break;
 	case -ETIME:
 		return AE_TIME;
-		break;
 	default:
 		return AE_OK;
 	}
