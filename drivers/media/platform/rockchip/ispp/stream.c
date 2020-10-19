@@ -666,9 +666,6 @@ static int nr_init_buf(struct rkispp_device *dev, u32 size)
 
 	if (vdev->module_ens & ISPP_MODULE_FEC)
 		cnt = RKISPP_BUF_MAX;
-	else if (dev->inp == INP_ISP &&
-		 !(dev->isp_mode & ISP_ISPP_QUICK))
-		cnt = 0;
 	for (i = 0; i < cnt; i++) {
 		buf = &vdev->nr.buf.wr[i];
 		buf->size = size;
@@ -790,7 +787,15 @@ static int config_nr_shp(struct rkispp_device *dev)
 		rkispp_write(dev, RKISPP_SHARP_WR_VIR_STRIDE, ALIGN(width * mult, 16) >> 2);
 		rkispp_set_bits(dev, RKISPP_SHARP_CTRL,
 				SW_SHP_WR_FORMAT_MASK, fmt & (~FMT_FBC));
-		rkispp_clear_bits(dev, RKISPP_SHARP_CORE_CTRL, SW_SHP_DMA_DIS);
+	} else {
+		stream = &vdev->stream[STREAM_MB];
+		if (!stream->streaming) {
+			val = vdev->nr.buf.wr[0].dma_addr;
+			rkispp_write(dev, RKISPP_SHARP_WR_Y_BASE, val);
+			rkispp_write(dev, RKISPP_SHARP_WR_UV_BASE, val);
+			rkispp_write(dev, RKISPP_SHARP_WR_VIR_STRIDE, ALIGN(width * mult, 16) >> 2);
+			rkispp_set_bits(dev, RKISPP_SHARP_CTRL, SW_SHP_WR_FORMAT_MASK, FMT_FBC);
+		}
 	}
 
 	val = vdev->nr.buf.tmp_yuv.dma_addr;
@@ -1089,7 +1094,6 @@ static int is_stopped_mb(struct rkispp_stream *stream)
 {
 	struct rkispp_device *dev = stream->isppdev;
 	struct rkispp_stream_vdev *vdev = &dev->stream_vdev;
-	void __iomem *base = dev->hw_dev->base_addr;
 	bool is_stopped = true;
 	u32 val;
 
@@ -1100,16 +1104,10 @@ static int is_stopped_mb(struct rkispp_stream *stream)
 				0, SW_FEC2DDR_DIS);
 	} else if (vdev->module_ens &
 		   (ISPP_MODULE_NR | ISPP_MODULE_SHP)) {
-		val = readl(base + RKISPP_CTRL_QUICK);
-		if (val & GLB_QUICK_EN) {
-			val = dev->stream_vdev.nr.buf.wr[0].dma_addr;
-			writel(val, base + RKISPP_SHARP_WR_Y_BASE);
-			writel(val, base + RKISPP_SHARP_WR_UV_BASE);
-		} else {
-			rkispp_clear_bits(dev, RKISPP_SHARP_CTRL, FMT_FBC);
-			rkispp_set_bits(dev, RKISPP_SHARP_CORE_CTRL,
-					0, SW_SHP_DMA_DIS);
-		}
+		val = dev->stream_vdev.nr.buf.wr[0].dma_addr;
+		rkispp_write(dev, RKISPP_SHARP_WR_Y_BASE, val);
+		rkispp_write(dev, RKISPP_SHARP_WR_UV_BASE, val);
+		rkispp_set_bits(dev, RKISPP_SHARP_CTRL, SW_SHP_WR_FORMAT_MASK, FMT_FBC);
 	}
 
 	/* for wait last frame */

@@ -323,7 +323,6 @@ static int __maybe_unused rkispp_runtime_resume(struct device *dev)
 	writel(SW_SCL_BYPASS, base + RKISPP_SCL2_CTRL);
 	writel(OTHER_FORCE_UPD, base + RKISPP_CTRL_UPDATE);
 	writel(GATE_DIS_ALL, base + RKISPP_CTRL_CLKGATE);
-	writel(SW_SHP_DMA_DIS, base + RKISPP_SHARP_CORE_CTRL);
 	writel(SW_FEC2DDR_DIS, base + RKISPP_FEC_CORE_CTRL);
 	writel(0xfffffff, base + RKISPP_CTRL_INT_MSK);
 	writel(GATE_DIS_NR, base + RKISPP_CTRL_CLKGATE);
