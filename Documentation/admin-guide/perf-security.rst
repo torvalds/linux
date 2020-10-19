@@ -84,11 +84,14 @@ capabilities then providing the process with CAP_PERFMON capability singly
 is recommended as the preferred secure approach to resolve double access
 denial logging related to usage of performance monitoring and observability.
 
-Unprivileged processes using perf_events system call are also subject
-for PTRACE_MODE_READ_REALCREDS ptrace access mode check [7]_ , whose
-outcome determines whether monitoring is permitted. So unprivileged
-processes provided with CAP_SYS_PTRACE capability are effectively
-permitted to pass the check.
+Prior Linux v5.9 unprivileged processes using perf_events system call
+are also subject for PTRACE_MODE_READ_REALCREDS ptrace access mode check
+[7]_ , whose outcome determines whether monitoring is permitted.
+So unprivileged processes provided with CAP_SYS_PTRACE capability are
+effectively permitted to pass the check. Starting from Linux v5.9
+CAP_SYS_PTRACE capability is not required and CAP_PERFMON is enough to
+be provided for processes to make performance monitoring and observability
+operations.
 
 Other capabilities being granted to unprivileged processes can
 effectively enable capturing of additional data required for later
