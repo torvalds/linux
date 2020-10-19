@@ -574,14 +574,12 @@ nfs3svc_decode_renameargs(struct svc_rqst *rqstp, __be32 *p)
 int
 nfs3svc_decode_linkargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	struct nfsd3_linkargs *args = rqstp->rq_argp;
 
-	if (!(p = decode_fh(p, &args->ffh))
-	 || !(p = decode_fh(p, &args->tfh))
-	 || !(p = decode_filename(p, &args->tname, &args->tlen)))
-		return 0;
-
-	return xdr_argsize_check(rqstp, p);
+	return svcxdr_decode_nfs_fh3(xdr, &args->ffh) &&
+		svcxdr_decode_diropargs3(xdr, &args->tfh,
+					 &args->tname, &args->tlen);
 }
 
 int
