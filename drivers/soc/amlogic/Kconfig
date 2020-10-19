@@ -19,7 +19,7 @@ config MESON_CLK_MEASURE
 
 config MESON_GX_SOCINFO
 	bool "Amlogic Meson GX SoC Information driver"
-	depends on ARCH_MESON || COMPILE_TEST
+	depends on (ARM64 && ARCH_MESON) || COMPILE_TEST
 	default ARCH_MESON
 	select SOC_BUS
 	help
@@ -63,7 +63,7 @@ config MESON_SECURE_PM_DOMAINS
 
 config MESON_MX_SOCINFO
 	bool "Amlogic Meson MX SoC Information driver"
-	depends on ARCH_MESON || COMPILE_TEST
+	depends on (ARM && ARCH_MESON) || COMPILE_TEST
 	default ARCH_MESON
 	select SOC_BUS
 	help
