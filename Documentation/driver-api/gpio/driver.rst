@@ -416,7 +416,8 @@ The preferred way to set up the helpers is to fill in the
 struct gpio_irq_chip inside struct gpio_chip before adding the gpio_chip.
 If you do this, the additional irq_chip will be set up by gpiolib at the
 same time as setting up the rest of the GPIO functionality. The following
-is a typical example of a cascaded interrupt handler using gpio_irq_chip:
+is a typical example of a chained cascaded interrupt handler using
+the gpio_irq_chip:
 
 .. code-block:: c
 
@@ -452,7 +453,46 @@ is a typical example of a cascaded interrupt handler using gpio_irq_chip:
 
   return devm_gpiochip_add_data(dev, &g->gc, g);
 
-The helper support using hierarchical interrupt controllers as well.
+The helper supports using threaded interrupts as well. Then you just request
+the interrupt separately and go with it:
+
+.. code-block:: c
+
+  /* Typical state container with dynamic irqchip */
+  struct my_gpio {
+      struct gpio_chip gc;
+      struct irq_chip irq;
+  };
+
+  int irq; /* from platform etc */
+  struct my_gpio *g;
+  struct gpio_irq_chip *girq;
+
+  /* Set up the irqchip dynamically */
+  g->irq.name = "my_gpio_irq";
+  g->irq.irq_ack = my_gpio_ack_irq;
+  g->irq.irq_mask = my_gpio_mask_irq;
+  g->irq.irq_unmask = my_gpio_unmask_irq;
+  g->irq.irq_set_type = my_gpio_set_irq_type;
+
+  ret = devm_request_threaded_irq(dev, irq, NULL,
+		irq_thread_fn, IRQF_ONESHOT, "my-chip", g);
+  if (ret < 0)
+	return ret;
+
+  /* Get a pointer to the gpio_irq_chip */
+  girq = &g->gc.irq;
+  girq->chip = &g->irq;
+  /* This will let us handle the parent IRQ in the driver */
+  girq->parent_handler = NULL;
+  girq->num_parents = 0;
+  girq->parents = NULL;
+  girq->default_type = IRQ_TYPE_NONE;
+  girq->handler = handle_bad_irq;
+
+  return devm_gpiochip_add_data(dev, &g->gc, g);
+
+The helper supports using hierarchical interrupt controllers as well.
 In this case the typical set-up will look like this:
 
 .. code-block:: c
@@ -492,25 +532,6 @@ a funcion .child_to_parent_hwirq() that has the purpose of looking up
 the parent hardware irq from a child (i.e. this gpio chip) hardware irq.
 As always it is good to look at examples in the kernel tree for advice
 on how to find the required pieces.
-
-The old way of adding irqchips to gpiochips after registration is also still
-available but we try to move away from this:
-
-- DEPRECATED: gpiochip_irqchip_add(): adds a chained cascaded irqchip to a
-  gpiochip. It will pass the struct gpio_chip* for the chip to all IRQ
-  callbacks, so the callbacks need to embed the gpio_chip in its state
-  container and obtain a pointer to the container using container_of().
-  (See Documentation/driver-api/driver-model/design-patterns.rst)
-
-- gpiochip_irqchip_add_nested(): adds a nested cascaded irqchip to a gpiochip,
-  as discussed above regarding different types of cascaded irqchips. The
-  cascaded irq has to be handled by a threaded interrupt handler.
-  Apart from that it works exactly like the chained irqchip.
-
-- gpiochip_set_nested_irqchip(): sets up a nested cascaded irq handler for a
-  gpio_chip from a parent IRQ. As the parent IRQ has usually been
-  explicitly requested by the driver, this does very little more than
-  mark all the child IRQs as having the other IRQ as parent.
 
 If there is a need to exclude certain GPIO lines from the IRQ domain handled by
 these helpers, we can set .irq.need_valid_mask of the gpiochip before
