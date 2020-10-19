@@ -593,6 +593,10 @@ int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
 		    struct ttm_operation_ctx *ctx,
 		    struct ttm_resource *new_mem);
 
+int ttm_bo_move_to_new_tt_mem(struct ttm_buffer_object *bo,
+			      struct ttm_operation_ctx *ctx,
+			      struct ttm_resource *new_mem);
+
 /**
  * ttm_bo_move_memcpy
  *
