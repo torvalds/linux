@@ -1071,14 +1071,6 @@ int ttm_pool_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 		}
 	}
 
-	if (unlikely(ttm->page_flags & TTM_PAGE_FLAG_SWAPPED)) {
-		ret = ttm_tt_swapin(ttm);
-		if (unlikely(ret != 0)) {
-			ttm_pool_unpopulate(ttm);
-			return ret;
-		}
-	}
-
 	return 0;
 }
 EXPORT_SYMBOL(ttm_pool_populate);

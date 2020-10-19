@@ -338,6 +338,14 @@ int ttm_tt_populate(struct ttm_bo_device *bdev,
 
 	ttm_tt_add_mapping(bdev, ttm);
 	ttm->page_flags |= TTM_PAGE_FLAG_PRIV_POPULATED;
+	if (unlikely(ttm->page_flags & TTM_PAGE_FLAG_SWAPPED)) {
+		ret = ttm_tt_swapin(ttm);
+		if (unlikely(ret != 0)) {
+			ttm_tt_unpopulate(bdev, ttm);
+			return ret;
+		}
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL(ttm_tt_populate);

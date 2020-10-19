@@ -975,14 +975,6 @@ skip_huge:
 		--num_pages;
 	}
 
-	if (unlikely(ttm->page_flags & TTM_PAGE_FLAG_SWAPPED)) {
-		ret = ttm_tt_swapin(ttm);
-		if (unlikely(ret != 0)) {
-			ttm_dma_unpopulate(ttm_dma, dev);
-			return ret;
-		}
-	}
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ttm_dma_populate);
