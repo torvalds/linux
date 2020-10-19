@@ -284,6 +284,8 @@ EXPORT_SYMBOL_GPL(drm_of_find_panel_or_bridge);
 enum drm_of_lvds_pixels {
 	DRM_OF_LVDS_EVEN = BIT(0),
 	DRM_OF_LVDS_ODD = BIT(1),
+	DRM_OF_LVDS_LEFT = BIT(2),
+	DRM_OF_LVDS_RIGHT = BIT(3),
 };
 
 static int drm_of_lvds_get_port_pixels_type(struct device_node *port_node)
@@ -292,9 +294,15 @@ static int drm_of_lvds_get_port_pixels_type(struct device_node *port_node)
 		of_property_read_bool(port_node, "dual-lvds-even-pixels");
 	bool odd_pixels =
 		of_property_read_bool(port_node, "dual-lvds-odd-pixels");
+	bool left_pixels =
+		of_property_read_bool(port_node, "dual-lvds-left-pixels");
+	bool right_pixels =
+		of_property_read_bool(port_node, "dual-lvds-right-pixels");
 
 	return (even_pixels ? DRM_OF_LVDS_EVEN : 0) |
-	       (odd_pixels ? DRM_OF_LVDS_ODD : 0);
+	       (odd_pixels ? DRM_OF_LVDS_ODD : 0) |
+	       (left_pixels ? DRM_OF_LVDS_LEFT : 0) |
+	       (right_pixels ? DRM_OF_LVDS_RIGHT : 0);
 }
 
 static int drm_of_lvds_get_remote_pixels_type(
@@ -340,13 +348,15 @@ static int drm_of_lvds_get_remote_pixels_type(
  * @port1: First DT port node of the Dual-link LVDS source
  * @port2: Second DT port node of the Dual-link LVDS source
  *
- * An LVDS dual-link connection is made of two links, with even pixels
- * transitting on one link, and odd pixels on the other link. This function
- * returns, for two ports of an LVDS dual-link source, which port shall transmit
- * the even and odd pixels, based on the requirements of the connected sink.
+ * An LVDS dual-link connection is made of two links, the two link can transmit
+ * odd pixels and even pixels independently, or the two link can also transmit
+ * left pixels and right pixels independently. This function returns for two
+ * ports of an LVDS dual-link source, based on the requirements of the connected
+ * sink.
  *
- * The pixel order is determined from the dual-lvds-even-pixels and
- * dual-lvds-odd-pixels properties in the sink's DT port nodes. If those
+ * The pixel order is determined from the dual-lvds-even-pixels +
+ * dual-lvds-odd-pixels or dual-lvds-left-pixels + dual-lvds-right-pixels
+ * properties in the sink's DT port nodes. If those
  * properties are not present, or if their usage is not valid, this function
  * returns -EINVAL.
  *
@@ -361,6 +371,11 @@ static int drm_of_lvds_get_remote_pixels_type(
  *   carries odd pixels
  * * DRM_LVDS_DUAL_LINK_ODD_EVEN_PIXELS - @port1 carries odd pixels and @port2
  *   carries even pixels
+ * * DRM_LVDS_DUAL_LINK_LEFT_RIGHT_PIXELS - @port1 carries left pixels and
+ *   @port2 carries right pixels
+ * * DRM_LVDS_DUAL_LINK_RIGHT_LEFT_PIXELS - @port1 carries right pixels and
+ *   @port2 carries left pixels
+
  * * -EINVAL - @port1 and @port2 are not connected to a dual-link LVDS sink, or
  *   the sink configuration is invalid
  * * -EPIPE - when @port1 or @port2 are not connected
@@ -383,14 +398,21 @@ int drm_of_lvds_get_dual_link_pixel_order(const struct device_node *port1,
 
 	/*
 	 * A valid dual-lVDS bus is found when one remote port is marked with
-	 * "dual-lvds-even-pixels", and the other remote port is marked with
-	 * "dual-lvds-odd-pixels", bail out if the markers are not right.
+	 * "dual-lvds-even-pixels" or "dual-lvds-left-pixels", and the other
+	 * remote port is marked with "dual-lvds-odd-pixels"or
+	 * "dual-lvds-right-pixels", bail out if the markers are not right.
 	 */
-	if (remote_p1_pt + remote_p2_pt != DRM_OF_LVDS_EVEN + DRM_OF_LVDS_ODD)
+	if ((remote_p1_pt + remote_p2_pt != DRM_OF_LVDS_EVEN + DRM_OF_LVDS_ODD) &&
+	    (remote_p1_pt + remote_p2_pt != DRM_OF_LVDS_LEFT + DRM_OF_LVDS_RIGHT))
 		return -EINVAL;
 
-	return remote_p1_pt == DRM_OF_LVDS_EVEN ?
-		DRM_LVDS_DUAL_LINK_EVEN_ODD_PIXELS :
-		DRM_LVDS_DUAL_LINK_ODD_EVEN_PIXELS;
+	if (remote_p1_pt == DRM_OF_LVDS_EVEN)
+		return DRM_LVDS_DUAL_LINK_EVEN_ODD_PIXELS;
+	else if (remote_p1_pt == DRM_OF_LVDS_ODD)
+		return DRM_LVDS_DUAL_LINK_ODD_EVEN_PIXELS;
+	else if (remote_p1_pt == DRM_OF_LVDS_LEFT)
+		return DRM_LVDS_DUAL_LINK_LEFT_RIGHT_PIXELS;
+	else
+		return DRM_LVDS_DUAL_LINK_RIGHT_LEFT_PIXELS;
 }
 EXPORT_SYMBOL_GPL(drm_of_lvds_get_dual_link_pixel_order);
