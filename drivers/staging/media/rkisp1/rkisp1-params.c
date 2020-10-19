@@ -891,7 +891,7 @@ rkisp1_isp_isr_other_config(struct rkisp1_params *params,
 	if ((module_en_update & RKISP1_CIF_ISP_MODULE_DPCC) ||
 	    (module_cfg_update & RKISP1_CIF_ISP_MODULE_DPCC)) {
 		/*update dpc config */
-		if ((module_cfg_update & RKISP1_CIF_ISP_MODULE_DPCC))
+		if (module_cfg_update & RKISP1_CIF_ISP_MODULE_DPCC)
 			rkisp1_dpcc_config(params,
 					   &new_params->others.dpcc_config);
 
@@ -910,7 +910,7 @@ rkisp1_isp_isr_other_config(struct rkisp1_params *params,
 	if ((module_en_update & RKISP1_CIF_ISP_MODULE_BLS) ||
 	    (module_cfg_update & RKISP1_CIF_ISP_MODULE_BLS)) {
 		/* update bls config */
-		if ((module_cfg_update & RKISP1_CIF_ISP_MODULE_BLS))
+		if (module_cfg_update & RKISP1_CIF_ISP_MODULE_BLS)
 			rkisp1_bls_config(params,
 					  &new_params->others.bls_config);
 
@@ -929,7 +929,7 @@ rkisp1_isp_isr_other_config(struct rkisp1_params *params,
 	if ((module_en_update & RKISP1_CIF_ISP_MODULE_SDG) ||
 	    (module_cfg_update & RKISP1_CIF_ISP_MODULE_SDG)) {
 		/* update sdg config */
-		if ((module_cfg_update & RKISP1_CIF_ISP_MODULE_SDG))
+		if (module_cfg_update & RKISP1_CIF_ISP_MODULE_SDG)
 			rkisp1_sdg_config(params,
 					  &new_params->others.sdg_config);
 
@@ -948,7 +948,7 @@ rkisp1_isp_isr_other_config(struct rkisp1_params *params,
 	if ((module_en_update & RKISP1_CIF_ISP_MODULE_LSC) ||
 	    (module_cfg_update & RKISP1_CIF_ISP_MODULE_LSC)) {
 		/* update lsc config */
-		if ((module_cfg_update & RKISP1_CIF_ISP_MODULE_LSC))
+		if (module_cfg_update & RKISP1_CIF_ISP_MODULE_LSC)
 			rkisp1_lsc_config(params,
 					  &new_params->others.lsc_config);
 
@@ -967,7 +967,7 @@ rkisp1_isp_isr_other_config(struct rkisp1_params *params,
 	if ((module_en_update & RKISP1_CIF_ISP_MODULE_AWB_GAIN) ||
 	    (module_cfg_update & RKISP1_CIF_ISP_MODULE_AWB_GAIN)) {
 		/* update awb gains */
-		if ((module_cfg_update & RKISP1_CIF_ISP_MODULE_AWB_GAIN))
+		if (module_cfg_update & RKISP1_CIF_ISP_MODULE_AWB_GAIN)
 			rkisp1_awb_gain_config(params,
 					&new_params->others.awb_gain_config);
 
@@ -986,7 +986,7 @@ rkisp1_isp_isr_other_config(struct rkisp1_params *params,
 	if ((module_en_update & RKISP1_CIF_ISP_MODULE_BDM) ||
 	    (module_cfg_update & RKISP1_CIF_ISP_MODULE_BDM)) {
 		/* update bdm config */
-		if ((module_cfg_update & RKISP1_CIF_ISP_MODULE_BDM))
+		if (module_cfg_update & RKISP1_CIF_ISP_MODULE_BDM)
 			rkisp1_bdm_config(params,
 					  &new_params->others.bdm_config);
 
@@ -1005,7 +1005,7 @@ rkisp1_isp_isr_other_config(struct rkisp1_params *params,
 	if ((module_en_update & RKISP1_CIF_ISP_MODULE_FLT) ||
 	    (module_cfg_update & RKISP1_CIF_ISP_MODULE_FLT)) {
 		/* update filter config */
-		if ((module_cfg_update & RKISP1_CIF_ISP_MODULE_FLT))
+		if (module_cfg_update & RKISP1_CIF_ISP_MODULE_FLT)
 			rkisp1_flt_config(params,
 					  &new_params->others.flt_config);
 
@@ -1024,7 +1024,7 @@ rkisp1_isp_isr_other_config(struct rkisp1_params *params,
 	if ((module_en_update & RKISP1_CIF_ISP_MODULE_CTK) ||
 	    (module_cfg_update & RKISP1_CIF_ISP_MODULE_CTK)) {
 		/* update ctk config */
-		if ((module_cfg_update & RKISP1_CIF_ISP_MODULE_CTK))
+		if (module_cfg_update & RKISP1_CIF_ISP_MODULE_CTK)
 			rkisp1_ctk_config(params,
 					  &new_params->others.ctk_config);
 
@@ -1036,7 +1036,7 @@ rkisp1_isp_isr_other_config(struct rkisp1_params *params,
 	if ((module_en_update & RKISP1_CIF_ISP_MODULE_GOC) ||
 	    (module_cfg_update & RKISP1_CIF_ISP_MODULE_GOC)) {
 		/* update goc config */
-		if ((module_cfg_update & RKISP1_CIF_ISP_MODULE_GOC))
+		if (module_cfg_update & RKISP1_CIF_ISP_MODULE_GOC)
 			rkisp1_goc_config(params,
 					  &new_params->others.goc_config);
 
@@ -1055,7 +1055,7 @@ rkisp1_isp_isr_other_config(struct rkisp1_params *params,
 	if ((module_en_update & RKISP1_CIF_ISP_MODULE_CPROC) ||
 	    (module_cfg_update & RKISP1_CIF_ISP_MODULE_CPROC)) {
 		/* update cproc config */
-		if ((module_cfg_update & RKISP1_CIF_ISP_MODULE_CPROC)) {
+		if (module_cfg_update & RKISP1_CIF_ISP_MODULE_CPROC) {
 			rkisp1_cproc_config(params,
 					    &new_params->others.cproc_config);
 		}
@@ -1075,7 +1075,7 @@ rkisp1_isp_isr_other_config(struct rkisp1_params *params,
 	if ((module_en_update & RKISP1_CIF_ISP_MODULE_IE) ||
 	    (module_cfg_update & RKISP1_CIF_ISP_MODULE_IE)) {
 		/* update ie config */
-		if ((module_cfg_update & RKISP1_CIF_ISP_MODULE_IE))
+		if (module_cfg_update & RKISP1_CIF_ISP_MODULE_IE)
 			rkisp1_ie_config(params,
 					 &new_params->others.ie_config);
 
@@ -1087,7 +1087,7 @@ rkisp1_isp_isr_other_config(struct rkisp1_params *params,
 	if ((module_en_update & RKISP1_CIF_ISP_MODULE_DPF) ||
 	    (module_cfg_update & RKISP1_CIF_ISP_MODULE_DPF)) {
 		/* update dpf  config */
-		if ((module_cfg_update & RKISP1_CIF_ISP_MODULE_DPF))
+		if (module_cfg_update & RKISP1_CIF_ISP_MODULE_DPF)
 			rkisp1_dpf_config(params,
 					  &new_params->others.dpf_config);
 
@@ -1123,7 +1123,7 @@ static void rkisp1_isp_isr_meas_config(struct rkisp1_params *params,
 	if ((module_en_update & RKISP1_CIF_ISP_MODULE_AWB) ||
 	    (module_cfg_update & RKISP1_CIF_ISP_MODULE_AWB)) {
 		/* update awb config */
-		if ((module_cfg_update & RKISP1_CIF_ISP_MODULE_AWB))
+		if (module_cfg_update & RKISP1_CIF_ISP_MODULE_AWB)
 			rkisp1_awb_meas_config(params,
 					&new_params->meas.awb_meas_config);
 
@@ -1136,7 +1136,7 @@ static void rkisp1_isp_isr_meas_config(struct rkisp1_params *params,
 	if ((module_en_update & RKISP1_CIF_ISP_MODULE_AFC) ||
 	    (module_cfg_update & RKISP1_CIF_ISP_MODULE_AFC)) {
 		/* update afc config */
-		if ((module_cfg_update & RKISP1_CIF_ISP_MODULE_AFC))
+		if (module_cfg_update & RKISP1_CIF_ISP_MODULE_AFC)
 			rkisp1_afm_config(params,
 					  &new_params->meas.afc_config);
 
@@ -1155,7 +1155,7 @@ static void rkisp1_isp_isr_meas_config(struct rkisp1_params *params,
 	if ((module_en_update & RKISP1_CIF_ISP_MODULE_HST) ||
 	    (module_cfg_update & RKISP1_CIF_ISP_MODULE_HST)) {
 		/* update hst config */
-		if ((module_cfg_update & RKISP1_CIF_ISP_MODULE_HST))
+		if (module_cfg_update & RKISP1_CIF_ISP_MODULE_HST)
 			rkisp1_hst_config(params,
 					  &new_params->meas.hst_config);
 
@@ -1168,7 +1168,7 @@ static void rkisp1_isp_isr_meas_config(struct rkisp1_params *params,
 	if ((module_en_update & RKISP1_CIF_ISP_MODULE_AEC) ||
 	    (module_cfg_update & RKISP1_CIF_ISP_MODULE_AEC)) {
 		/* update aec config */
-		if ((module_cfg_update & RKISP1_CIF_ISP_MODULE_AEC))
+		if (module_cfg_update & RKISP1_CIF_ISP_MODULE_AEC)
 			rkisp1_aec_config(params,
 					  &new_params->meas.aec_config);
 
