@@ -147,12 +147,14 @@ err1:
 
 /**
  * usb_hcd_msp_probe - initialize PMC MSP-based HCDs
- * Context: !in_interrupt()
+ * @driver:	Pointer to hc driver instance
+ * @dev:	USB controller to probe
+ *
+ * Context: task context, might sleep
  *
  * Allocates basic resources for this USB host controller, and
  * then invokes the start() method for the HCD associated with it
  * through the hotplug entry's driver_data.
- *
  */
 int usb_hcd_msp_probe(const struct hc_driver *driver,
 			  struct platform_device *dev)
@@ -223,8 +225,9 @@ err1:
 
 /**
  * usb_hcd_msp_remove - shutdown processing for PMC MSP-based HCDs
- * @dev: USB Host Controller being removed
- * Context: !in_interrupt()
+ * @hcd: USB Host Controller being removed
+ *
+ * Context: task context, might sleep
  *
  * Reverses the effect of usb_hcd_msp_probe(), first invoking
  * the HCD's stop() method.  It is always called from a thread
