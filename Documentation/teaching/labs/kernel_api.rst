@@ -500,7 +500,7 @@ Such an usage is shown schematically in the code below:
 	int initial_flag;
 
 	/*
-	 * Check if flag is UNLOCKED; if not, lock it and do it atomically.
+	 * Check if flag is UNLOCKED; if so, lock it and do it atomically.
 	 *
 	 * This is the atomic equivalent of
 	 *	if (flag == UNLOCKED)
