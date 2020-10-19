@@ -2393,6 +2393,8 @@ static const unsigned int intc_irq3_pins[] = {
 static const unsigned int intc_irq3_mux[] = {
 	IRQ3_MARK,
 };
+
+#ifdef CONFIG_PINCTRL_PFC_R8A7790
 /* - MLB+ ------------------------------------------------------------------- */
 static const unsigned int mlb_3pin_pins[] = {
 	RCAR_GP_PIN(4, 0), RCAR_GP_PIN(4, 1), RCAR_GP_PIN(4, 2),
@@ -2400,6 +2402,8 @@ static const unsigned int mlb_3pin_pins[] = {
 static const unsigned int mlb_3pin_mux[] = {
 	MLB_CLK_MARK, MLB_SIG_MARK, MLB_DAT_MARK,
 };
+#endif /* CONFIG_PINCTRL_PFC_R8A7790 */
+
 /* - MMCIF0 ----------------------------------------------------------------- */
 static const unsigned int mmc0_data1_pins[] = {
 	/* D[0] */
@@ -4131,7 +4135,9 @@ static const unsigned int vin3_clk_mux[] = {
 
 static const struct {
 	struct sh_pfc_pin_group common[311];
+#ifdef CONFIG_PINCTRL_PFC_R8A7790
 	struct sh_pfc_pin_group automotive[1];
+#endif
 } pinmux_groups = {
 	.common = {
 		SH_PFC_PIN_GROUP(audio_clk_a),
@@ -4446,9 +4452,11 @@ static const struct {
 		SH_PFC_PIN_GROUP(vin3_clkenb),
 		SH_PFC_PIN_GROUP(vin3_clk),
 	},
+#ifdef CONFIG_PINCTRL_PFC_R8A7790
 	.automotive = {
 		SH_PFC_PIN_GROUP(mlb_3pin),
 	}
+#endif /* CONFIG_PINCTRL_PFC_R8A7790 */
 };
 
 static const char * const audio_clk_groups[] = {
@@ -4592,9 +4600,11 @@ static const char * const intc_groups[] = {
 	"intc_irq3",
 };
 
+#ifdef CONFIG_PINCTRL_PFC_R8A7790
 static const char * const mlb_groups[] = {
 	"mlb_3pin",
 };
+#endif /* CONFIG_PINCTRL_PFC_R8A7790 */
 
 static const char * const mmc0_groups[] = {
 	"mmc0_data1",
@@ -4942,7 +4952,9 @@ static const char * const vin3_groups[] = {
 
 static const struct {
 	struct sh_pfc_function common[58];
+#ifdef CONFIG_PINCTRL_PFC_R8A7790
 	struct sh_pfc_function automotive[1];
+#endif
 } pinmux_functions = {
 	.common = {
 		SH_PFC_FUNCTION(audio_clk),
@@ -5004,9 +5016,11 @@ static const struct {
 		SH_PFC_FUNCTION(vin2),
 		SH_PFC_FUNCTION(vin3),
 	},
+#ifdef CONFIG_PINCTRL_PFC_R8A7790
 	.automotive = {
 		SH_PFC_FUNCTION(mlb),
 	}
+#endif /* CONFIG_PINCTRL_PFC_R8A7790 */
 };
 
 static const struct pinmux_cfg_reg pinmux_config_regs[] = {
