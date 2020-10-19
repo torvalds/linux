@@ -262,7 +262,6 @@ static int rkispp_sd_s_stream(struct v4l2_subdev *sd, int on)
 		    dev->stream_vdev.monitor.is_restart)
 			complete(&dev->stream_vdev.monitor.cmpl);
 		rkispp_event_handle(dev, CMD_STREAM, &ispp_sdev->state);
-		rkispp_event_handle(dev, CMD_FREE_POOL, NULL);
 	}
 	return ret;
 }

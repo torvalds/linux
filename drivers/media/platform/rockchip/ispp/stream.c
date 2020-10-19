@@ -1090,6 +1090,7 @@ static int is_stopped_mb(struct rkispp_stream *stream)
 	struct rkispp_device *dev = stream->isppdev;
 	struct rkispp_stream_vdev *vdev = &dev->stream_vdev;
 	void __iomem *base = dev->hw_dev->base_addr;
+	bool is_stopped = true;
 	u32 val;
 
 	if (vdev->module_ens & ISPP_MODULE_FEC) {
@@ -1112,10 +1113,12 @@ static int is_stopped_mb(struct rkispp_stream *stream)
 	}
 
 	/* for wait last frame */
-	if (atomic_read(&dev->stream_vdev.refcnt) == 1)
-		return false;
+	if (atomic_read(&dev->stream_vdev.refcnt) == 1) {
+		val = readl(dev->hw_dev->base_addr + RKISPP_CTRL_SYS_STATUS);
+		is_stopped = (val & 0x8f) ? false : true;
+	}
 
-	return true;
+	return is_stopped;
 }
 
 static int limit_check_mb(struct rkispp_stream *stream,
@@ -1189,11 +1192,18 @@ static void stop_scl(struct rkispp_stream *stream)
 static int is_stopped_scl(struct rkispp_stream *stream)
 {
 	struct rkispp_device *dev = stream->isppdev;
-	u32 val = SW_SCL_ENABLE;
+	u32 scl_en, other_en = 0, val = SW_SCL_ENABLE;
+	bool is_stopped;
 
 	if (dev->hw_dev->is_single)
 		val = SW_SCL_ENABLE_SHD;
-	return !(rkispp_read(dev, stream->config->reg.ctrl) & val);
+	scl_en = rkispp_read(dev, stream->config->reg.ctrl) & val;
+	if (atomic_read(&dev->stream_vdev.refcnt) == 1) {
+		val = readl(dev->hw_dev->base_addr + RKISPP_CTRL_SYS_STATUS);
+		other_en = val & 0x8f;
+	}
+	is_stopped = (scl_en | other_en) ? false : true;
+	return is_stopped;
 }
 
 static int limit_check_scl(struct rkispp_stream *stream,
@@ -1380,6 +1390,7 @@ static void rkispp_destroy_dummy_buf(struct rkispp_stream *stream)
 		tnr_free_buf(dev);
 		nr_free_buf(dev);
 		fec_free_buf(dev);
+		rkispp_event_handle(dev, CMD_FREE_POOL, NULL);
 	}
 }
 
@@ -1394,10 +1405,13 @@ static void rkispp_stream_stop(struct rkispp_stream *stream)
 	    atomic_read(&dev->stream_vdev.refcnt) == 1) {
 		v4l2_subdev_call(&dev->ispp_sdev.sd,
 				 video, s_stream, false);
-		if (!(dev->isp_mode & ISP_ISPP_QUICK))
-			is_wait = false;
 		rkispp_stop_3a_run(dev);
+		ret = readl(dev->hw_dev->base_addr + RKISPP_CTRL_SYS_STATUS);
+		ret &= 0xff;
+		if (!ret && (dev->dev_id == dev->hw_dev->cur_dev_id))
+			is_wait = false;
 	}
+	ret = 0;
 	if (is_wait) {
 		ret = wait_event_timeout(stream->done,
 					 !stream->streaming,
@@ -1405,7 +1419,8 @@ static void rkispp_stream_stop(struct rkispp_stream *stream)
 		if (!ret)
 			v4l2_warn(&dev->v4l2_dev,
 				  "stream:%d stop timeout\n", stream->id);
-	} else {
+	}
+	if (!ret) {
 		/* scl stream close dma write */
 		if (stream->ops->stop)
 			stream->ops->stop(stream);
@@ -1455,9 +1470,11 @@ static void rkispp_stop_streaming(struct vb2_queue *queue)
 	if (!stream->streaming)
 		return;
 
+	mutex_lock(&dev->hw_dev->dev_lock);
 	rkispp_stream_stop(stream);
 	destroy_buf_queue(stream, VB2_BUF_STATE_ERROR);
 	rkispp_destroy_dummy_buf(stream);
+	mutex_unlock(&dev->hw_dev->dev_lock);
 	atomic_dec(&dev->stream_vdev.refcnt);
 
 	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
