@@ -486,7 +486,6 @@ static int bmi160_write_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		return bmi160_set_scale(data,
 					bmi160_to_sensor(chan->type), val2);
-		break;
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		return bmi160_set_odr(data, bmi160_to_sensor(chan->type),
 				      val, val2);
