@@ -401,10 +401,10 @@ static void __init add_memory_merged(u16 rn)
 		goto skip_add;
 	if (start + size > VMEM_MAX_PHYS)
 		size = VMEM_MAX_PHYS - start;
-	if (memory_end_set && (start >= memory_end))
+	if (start >= ident_map_size)
 		goto skip_add;
-	if (memory_end_set && (start + size > memory_end))
-		size = memory_end - start;
+	if (start + size > ident_map_size)
+		size = ident_map_size - start;
 	block_size = memory_block_size_bytes();
 	align_to_block_size(&start, &size, block_size);
 	if (!size)

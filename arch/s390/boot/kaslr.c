@@ -177,8 +177,7 @@ unsigned long get_random_base(unsigned long safe_addr)
 	unsigned long kasan_needs;
 	int i;
 
-	if (memory_end_set)
-		memory_limit = min(memory_limit, memory_end);
+	memory_limit = min(memory_limit, ident_map_size);
 
 	/*
 	 * Avoid putting kernel in the end of physical memory

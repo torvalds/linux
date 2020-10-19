@@ -289,12 +289,19 @@ void __init kasan_early_init(void)
 	memsize = get_mem_detect_end();
 	if (!memsize)
 		kasan_early_panic("cannot detect physical memory size\n");
-	/* respect mem= cmdline parameter */
-	if (memory_end_set && memsize > memory_end)
-		memsize = memory_end;
-	if (IS_ENABLED(CONFIG_CRASH_DUMP) && OLDMEM_BASE)
-		memsize = min(memsize, OLDMEM_SIZE);
-	memsize = min(memsize, KASAN_SHADOW_START);
+	/*
+	 * Kasan currently supports standby memory but only if it follows
+	 * online memory (default allocation), i.e. no memory holes.
+	 * - memsize represents end of online memory
+	 * - ident_map_size represents online + standby and memory limits
+	 *   accounted.
+	 * Kasan maps "memsize" right away.
+	 * [0, memsize]			- as identity mapping
+	 * [__sha(0), __sha(memsize)]	- shadow memory for identity mapping
+	 * The rest [memsize, ident_map_size] if memsize < ident_map_size
+	 * could be mapped/unmapped dynamically later during memory hotplug.
+	 */
+	memsize = min(memsize, ident_map_size);
 
 	BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_START, P4D_SIZE));
 	BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_END, P4D_SIZE));
@@ -377,7 +384,7 @@ void __init kasan_early_init(void)
 					     POPULATE_SHALLOW);
 	}
 	/* populate kasan shadow for untracked memory */
-	kasan_early_pgtable_populate(__sha(max_physmem_end), __sha(untracked_mem_end),
+	kasan_early_pgtable_populate(__sha(ident_map_size), __sha(untracked_mem_end),
 				     POPULATE_ZERO_SHADOW);
 	kasan_early_pgtable_populate(__sha(kasan_vmax), __sha(vmax_unlimited),
 				     POPULATE_ZERO_SHADOW);
