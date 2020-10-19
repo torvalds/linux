@@ -1082,10 +1082,10 @@ static int common_soc_init(struct device *dev, u32 addr)
 			val = configs[i].txonly;
 		else
 			val = configs[i].rxonly;
-	}
 
-	if (reg)
-		regmap_write(i2s_tdm->grf, reg, val);
+		if (reg)
+			regmap_write(i2s_tdm->grf, reg, val);
+	}
 
 	return 0;
 }
