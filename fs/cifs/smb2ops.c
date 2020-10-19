@@ -72,7 +72,7 @@ smb2_add_credits(struct TCP_Server_Info *server,
 	/* eg found case where write overlapping reconnect messed up credits */
 	if (((optype & CIFS_OP_MASK) == CIFS_NEG_OP) && (*val != 0))
 		trace_smb3_reconnect_with_invalid_credits(server->CurrentMid,
-			server->hostname, *val);
+			server->hostname, *val, add);
 	if ((instance == 0) || (instance == server->reconnect_instance))
 		*val += add;
 	else
@@ -121,6 +121,8 @@ smb2_add_credits(struct TCP_Server_Info *server,
 		cifs_dbg(FYI, "disabling oplocks\n");
 		break;
 	default:
+		trace_smb3_add_credits(server->CurrentMid,
+			server->hostname, rc, add);
 		cifs_dbg(FYI, "add %u credits total=%d\n", add, rc);
 	}
 }
