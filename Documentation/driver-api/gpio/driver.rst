@@ -538,8 +538,8 @@ these helpers, we can set .irq.need_valid_mask of the gpiochip before
 devm_gpiochip_add_data() or gpiochip_add_data() is called. This allocates an
 .irq.valid_mask with as many bits set as there are GPIO lines in the chip, each
 bit representing line 0..n-1. Drivers can exclude GPIO lines by clearing bits
-from this mask. The mask must be filled in before gpiochip_irqchip_add() or
-gpiochip_irqchip_add_nested() is called.
+from this mask. The mask can be filled in the init_valid_mask() callback
+that is part of the struct gpio_irq_chip.
 
 To use the helpers please keep the following in mind:
 

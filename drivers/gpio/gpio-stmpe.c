@@ -474,15 +474,6 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 	stmpe_gpio->chip.parent = &pdev->dev;
 	stmpe_gpio->chip.of_node = np;
 	stmpe_gpio->chip.base = -1;
-	/*
-	 * REVISIT: this makes sure the valid mask gets allocated and
-	 * filled in when adding the gpio_chip, but the rest of the
-	 * gpio_irqchip is still filled in using the old method
-	 * in gpiochip_irqchip_add_nested() so clean this up once we
-	 * get the gpio_irqchip to initialize while adding the
-	 * gpio_chip also for threaded irqchips.
-	 */
-	stmpe_gpio->chip.irq.init_valid_mask = stmpe_init_irq_valid_mask;
 
 	if (IS_ENABLED(CONFIG_DEBUG_FS))
                 stmpe_gpio->chip.dbg_show = stmpe_dbg_show;
@@ -520,6 +511,7 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 		girq->default_type = IRQ_TYPE_NONE;
 		girq->handler = handle_simple_irq;
 		girq->threaded = true;
+		girq->init_valid_mask = stmpe_init_irq_valid_mask;
 	}
 
 	ret = gpiochip_add_data(&stmpe_gpio->chip, stmpe_gpio);
