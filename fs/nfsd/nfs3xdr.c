@@ -39,12 +39,18 @@ encode_time3(__be32 *p, struct timespec64 *time)
 	return p;
 }
 
-static __be32 *
-decode_time3(__be32 *p, struct timespec64 *time)
+static bool
+svcxdr_decode_nfstime3(struct xdr_stream *xdr, struct timespec64 *timep)
 {
-	time->tv_sec = ntohl(*p++);
-	time->tv_nsec = ntohl(*p++);
-	return p;
+	__be32 *p;
+
+	p = xdr_inline_decode(xdr, XDR_UNIT * 2);
+	if (!p)
+		return false;
+	timep->tv_sec = be32_to_cpup(p++);
+	timep->tv_nsec = be32_to_cpup(p);
+
+	return true;
 }
 
 static bool
@@ -148,6 +154,112 @@ svcxdr_decode_diropargs3(struct xdr_stream *xdr, struct svc_fh *fhp,
 {
 	return svcxdr_decode_nfs_fh3(xdr, fhp) &&
 		svcxdr_decode_filename3(xdr, name, len);
+}
+
+static bool
+svcxdr_decode_sattr3(struct svc_rqst *rqstp, struct xdr_stream *xdr,
+		     struct iattr *iap)
+{
+	u32 set_it;
+
+	iap->ia_valid = 0;
+
+	if (xdr_stream_decode_bool(xdr, &set_it) < 0)
+		return false;
+	if (set_it) {
+		u32 mode;
+
+		if (xdr_stream_decode_u32(xdr, &mode) < 0)
+			return false;
+		iap->ia_valid |= ATTR_MODE;
+		iap->ia_mode = mode;
+	}
+	if (xdr_stream_decode_bool(xdr, &set_it) < 0)
+		return false;
+	if (set_it) {
+		u32 uid;
+
+		if (xdr_stream_decode_u32(xdr, &uid) < 0)
+			return false;
+		iap->ia_uid = make_kuid(nfsd_user_namespace(rqstp), uid);
+		if (uid_valid(iap->ia_uid))
+			iap->ia_valid |= ATTR_UID;
+	}
+	if (xdr_stream_decode_bool(xdr, &set_it) < 0)
+		return false;
+	if (set_it) {
+		u32 gid;
+
+		if (xdr_stream_decode_u32(xdr, &gid) < 0)
+			return false;
+		iap->ia_gid = make_kgid(nfsd_user_namespace(rqstp), gid);
+		if (gid_valid(iap->ia_gid))
+			iap->ia_valid |= ATTR_GID;
+	}
+	if (xdr_stream_decode_bool(xdr, &set_it) < 0)
+		return false;
+	if (set_it) {
+		u64 newsize;
+
+		if (xdr_stream_decode_u64(xdr, &newsize) < 0)
+			return false;
+		iap->ia_valid |= ATTR_SIZE;
+		iap->ia_size = min_t(u64, newsize, NFS_OFFSET_MAX);
+	}
+	if (xdr_stream_decode_u32(xdr, &set_it) < 0)
+		return false;
+	switch (set_it) {
+	case DONT_CHANGE:
+		break;
+	case SET_TO_SERVER_TIME:
+		iap->ia_valid |= ATTR_ATIME;
+		break;
+	case SET_TO_CLIENT_TIME:
+		if (!svcxdr_decode_nfstime3(xdr, &iap->ia_atime))
+			return false;
+		iap->ia_valid |= ATTR_ATIME | ATTR_ATIME_SET;
+		break;
+	default:
+		return false;
+	}
+	if (xdr_stream_decode_u32(xdr, &set_it) < 0)
+		return false;
+	switch (set_it) {
+	case DONT_CHANGE:
+		break;
+	case SET_TO_SERVER_TIME:
+		iap->ia_valid |= ATTR_MTIME;
+		break;
+	case SET_TO_CLIENT_TIME:
+		if (!svcxdr_decode_nfstime3(xdr, &iap->ia_mtime))
+			return false;
+		iap->ia_valid |= ATTR_MTIME | ATTR_MTIME_SET;
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
+static bool
+svcxdr_decode_sattrguard3(struct xdr_stream *xdr, struct nfsd3_sattrargs *args)
+{
+	__be32 *p;
+	u32 check;
+
+	if (xdr_stream_decode_bool(xdr, &check) < 0)
+		return false;
+	if (check) {
+		p = xdr_inline_decode(xdr, XDR_UNIT * 2);
+		if (!p)
+			return false;
+		args->check_guard = 1;
+		args->guardtime = be32_to_cpup(p);
+	} else
+		args->check_guard = 0;
+
+	return true;
 }
 
 static __be32 *
@@ -377,20 +489,12 @@ nfs3svc_decode_fhandleargs(struct svc_rqst *rqstp, __be32 *p)
 int
 nfs3svc_decode_sattrargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	struct nfsd3_sattrargs *args = rqstp->rq_argp;
 
-	p = decode_fh(p, &args->fh);
-	if (!p)
-		return 0;
-	p = decode_sattr3(p, &args->attrs, nfsd_user_namespace(rqstp));
-
-	if ((args->check_guard = ntohl(*p++)) != 0) { 
-		struct timespec64 time;
-		p = decode_time3(p, &time);
-		args->guardtime = time.tv_sec;
-	}
-
-	return xdr_argsize_check(rqstp, p);
+	return svcxdr_decode_nfs_fh3(xdr, &args->fh) &&
+		svcxdr_decode_sattr3(rqstp, xdr, &args->attrs) &&
+		svcxdr_decode_sattrguard3(xdr, args);
 }
 
 int
