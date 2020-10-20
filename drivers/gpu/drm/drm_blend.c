@@ -194,6 +194,19 @@
  * Note that all the property extensions described here apply either to the
  * plane or the CRTC (e.g. for the background color, which currently is not
  * exposed and assumed to be black).
+ *
+ * SCALING_FILTER:
+ *
+ *     Indicates scaling filter to be used for plane scaler
+ *
+ *     The value of this property can be one of the following:
+ *     Default:
+ *             Driver's default scaling filter
+ *     Nearest Neighbor:
+ *             Nearest Neighbor scaling filter
+ *
+ * Drivers can set up this property for a plane by calling
+ * drm_plane_create_scaling_filter_property
  */
 
 /**
