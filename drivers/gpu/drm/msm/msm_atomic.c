@@ -67,7 +67,7 @@ static void unlock_crtcs(struct msm_kms *kms, unsigned int crtc_mask)
 {
 	struct drm_crtc *crtc;
 
-	for_each_crtc_mask(kms->dev, crtc, crtc_mask)
+	for_each_crtc_mask_reverse(kms->dev, crtc, crtc_mask)
 		mutex_unlock(&kms->commit_lock[drm_crtc_index(crtc)]);
 }
 

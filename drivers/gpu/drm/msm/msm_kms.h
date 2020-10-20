@@ -196,4 +196,8 @@ int dpu_mdss_init(struct drm_device *dev);
 	drm_for_each_crtc(crtc, dev) \
 		for_each_if (drm_crtc_mask(crtc) & (crtc_mask))
 
+#define for_each_crtc_mask_reverse(dev, crtc, crtc_mask) \
+	drm_for_each_crtc_reverse(crtc, dev) \
+		for_each_if (drm_crtc_mask(crtc) & (crtc_mask))
+
 #endif /* __MSM_KMS_H__ */
