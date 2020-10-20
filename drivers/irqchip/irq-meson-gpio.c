@@ -15,6 +15,7 @@
 #include <linux/irqchip.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_irq.h>
 
 #define NUM_CHANNEL 8
 #define MAX_INPUT_MUX 256
@@ -136,6 +137,7 @@ static const struct of_device_id meson_irq_gpio_matches[] = {
 struct meson_gpio_irq_controller {
 	const struct meson_gpio_irq_params *params;
 	void __iomem *base;
+	struct irq_domain *domain;
 	u32 channel_irqs[NUM_CHANNEL];
 	DECLARE_BITMAP(channel_map, NUM_CHANNEL);
 	spinlock_t lock;
@@ -436,8 +438,8 @@ static const struct irq_domain_ops meson_gpio_irq_domain_ops = {
 	.translate	= meson_gpio_irq_domain_translate,
 };
 
-static int __init meson_gpio_irq_parse_dt(struct device_node *node,
-					  struct meson_gpio_irq_controller *ctl)
+static int meson_gpio_irq_parse_dt(struct device_node *node,
+				   struct meson_gpio_irq_controller *ctl)
 {
 	const struct of_device_id *match;
 	int ret;
@@ -463,63 +465,84 @@ static int __init meson_gpio_irq_parse_dt(struct device_node *node,
 	return 0;
 }
 
-static int __init meson_gpio_irq_of_init(struct device_node *node,
-					 struct device_node *parent)
+static int meson_gpio_intc_probe(struct platform_device *pdev)
 {
-	struct irq_domain *domain, *parent_domain;
+	struct device_node *node = pdev->dev.of_node, *parent;
 	struct meson_gpio_irq_controller *ctl;
+	struct irq_domain *parent_domain;
+	struct resource *res;
 	int ret;
 
+	parent = of_irq_find_parent(node);
 	if (!parent) {
-		pr_err("missing parent interrupt node\n");
+		dev_err(&pdev->dev, "missing parent interrupt node\n");
 		return -ENODEV;
 	}
 
 	parent_domain = irq_find_host(parent);
 	if (!parent_domain) {
-		pr_err("unable to obtain parent domain\n");
+		dev_err(&pdev->dev, "unable to obtain parent domain\n");
 		return -ENXIO;
 	}
 
-	ctl = kzalloc(sizeof(*ctl), GFP_KERNEL);
+	ctl = devm_kzalloc(&pdev->dev, sizeof(*ctl), GFP_KERNEL);
 	if (!ctl)
 		return -ENOMEM;
 
 	spin_lock_init(&ctl->lock);
 
-	ctl->base = of_iomap(node, 0);
-	if (!ctl->base) {
-		ret = -ENOMEM;
-		goto free_ctl;
-	}
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	ctl->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(ctl->base))
+		return PTR_ERR(ctl->base);
 
 	ret = meson_gpio_irq_parse_dt(node, ctl);
 	if (ret)
-		goto free_channel_irqs;
+		return ret;
 
-	domain = irq_domain_create_hierarchy(parent_domain, 0,
-					     ctl->params->nr_hwirq,
-					     of_node_to_fwnode(node),
-					     &meson_gpio_irq_domain_ops,
-					     ctl);
-	if (!domain) {
-		pr_err("failed to add domain\n");
-		ret = -ENODEV;
-		goto free_channel_irqs;
+	ctl->domain = irq_domain_create_hierarchy(parent_domain, 0,
+						  ctl->params->nr_hwirq,
+						  of_node_to_fwnode(node),
+						  &meson_gpio_irq_domain_ops,
+						  ctl);
+	if (!ctl->domain) {
+		dev_err(&pdev->dev, "failed to add domain\n");
+		return -ENODEV;
 	}
 
-	pr_info("%d to %d gpio interrupt mux initialized\n",
-		ctl->params->nr_hwirq, NUM_CHANNEL);
+	platform_set_drvdata(pdev, ctl);
+
+	dev_info(&pdev->dev, "%d to %d gpio interrupt mux initialized\n",
+		 ctl->params->nr_hwirq, NUM_CHANNEL);
 
 	return 0;
-
-free_channel_irqs:
-	iounmap(ctl->base);
-free_ctl:
-	kfree(ctl);
-
-	return ret;
 }
 
-IRQCHIP_DECLARE(meson_gpio_intc, "amlogic,meson-gpio-intc",
-		meson_gpio_irq_of_init);
+static int meson_gpio_intc_remove(struct platform_device *pdev)
+{
+	struct meson_gpio_irq_controller *ctl = platform_get_drvdata(pdev);
+
+	irq_domain_remove(ctl->domain);
+
+	return 0;
+}
+
+static const struct of_device_id meson_gpio_intc_of_match[] = {
+	{ .compatible = "amlogic,meson-gpio-intc", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, meson_gpio_intc_of_match);
+
+static struct platform_driver meson_gpio_intc_driver = {
+	.probe  = meson_gpio_intc_probe,
+	.remove = meson_gpio_intc_remove,
+	.driver = {
+		.name = "meson-gpio-intc",
+		.of_match_table = meson_gpio_intc_of_match,
+	},
+};
+module_platform_driver(meson_gpio_intc_driver);
+
+MODULE_AUTHOR("Jerome Brunet <jbrunet@baylibre.com>");
+MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("platform:meson-gpio-intc");
