@@ -27,7 +27,7 @@
 // *** IMPORTANT ***
 // SMU TEAM: Always increment the interface version if 
 // any structure is changed in this file
-#define SMU11_DRIVER_IF_VERSION 0x39
+#define SMU11_DRIVER_IF_VERSION 0x3A
 
 #define PPTABLE_Sienna_Cichlid_SMU_VERSION 6
 
@@ -226,6 +226,8 @@ typedef enum {
 #define FW_DSTATE_MEM_PLL_PWRDN_BIT         9   
 #define FW_DSTATE_OPTIMIZE_MALL_REFRESH_BIT 10
 #define FW_DSTATE_MEM_PSI_BIT               11
+#define FW_DSTATE_HSR_NON_STROBE_BIT        12
+#define FW_DSTATE_MP0_ENTER_WFI_BIT         13
 
 #define FW_DSTATE_SOC_ULV_MASK                    (1 << FW_DSTATE_SOC_ULV_BIT          )
 #define FW_DSTATE_G6_HSR_MASK                     (1 << FW_DSTATE_G6_HSR_BIT           )
@@ -239,6 +241,8 @@ typedef enum {
 #define FW_DSTATE_MEM_PLL_PWRDN_MASK              (1 << FW_DSTATE_MEM_PLL_PWRDN_BIT    )
 #define FW_DSTATE_OPTIMIZE_MALL_REFRESH_MASK      (1 << FW_DSTATE_OPTIMIZE_MALL_REFRESH_BIT    )
 #define FW_DSTATE_MEM_PSI_MASK                    (1 << FW_DSTATE_MEM_PSI_BIT    )
+#define FW_DSTATE_HSR_NON_STROBE_MASK             (1 << FW_DSTATE_HSR_NON_STROBE_BIT    )
+#define FW_DSTATE_MP0_ENTER_WFI_MASK              (1 << FW_DSTATE_MP0_ENTER_WFI_BIT    )
 
 // GFX GPO Feature Contains PACE and DEM sub features
 #define GFX_GPO_PACE_BIT                   0
@@ -804,7 +808,11 @@ typedef struct {
   uint32_t         VcBtcVminA;                  // A_VMIN
   uint32_t         VcBtcVminB;                  // B_VMIN  
   
-  uint32_t         SkuReserved[9];
+  //GPIO Board feature
+  uint16_t         LedGpio;            //GeneriA GPIO flag used to control the radeon LEDs
+  uint16_t         GfxPowerStagesGpio; //Genlk_vsync GPIO flag used to control gfx power stages 
+  
+  uint32_t         SkuReserved[8];
 
 
   // MAJOR SECTION: BOARD PARAMETERS
@@ -1026,6 +1034,8 @@ typedef struct {
   uint16_t VcnActivityPercentage  ; //place holder, David N. to provide full sequence
   uint8_t  PcieRate               ;
   uint8_t  PcieWidth              ;
+  uint16_t AverageGfxclkFrequencyTarget;
+  uint16_t Padding16_2;
 
 } SmuMetrics_t;
 
