@@ -729,7 +729,7 @@ restart:
 			gfs2_glock_dq_uninit(&sdp->sd_jinode_gh);
 		gfs2_glock_dq_uninit(&sdp->sd_sc_gh);
 		gfs2_glock_dq_uninit(&sdp->sd_qc_gh);
-		iput(sdp->sd_sc_inode);
+		free_local_statfs_inodes(sdp);
 		iput(sdp->sd_qc_inode);
 	}
 
@@ -1559,6 +1559,35 @@ static struct inode *gfs2_alloc_inode(struct super_block *sb)
 static void gfs2_free_inode(struct inode *inode)
 {
 	kmem_cache_free(gfs2_inode_cachep, GFS2_I(inode));
+}
+
+extern void free_local_statfs_inodes(struct gfs2_sbd *sdp)
+{
+	struct local_statfs_inode *lsi, *safe;
+
+	/* Run through the statfs inodes list to iput and free memory */
+	list_for_each_entry_safe(lsi, safe, &sdp->sd_sc_inodes_list, si_list) {
+		if (lsi->si_jid == sdp->sd_jdesc->jd_jid)
+			sdp->sd_sc_inode = NULL; /* belongs to this node */
+		if (lsi->si_sc_inode)
+			iput(lsi->si_sc_inode);
+		list_del(&lsi->si_list);
+		kfree(lsi);
+	}
+}
+
+extern struct inode *find_local_statfs_inode(struct gfs2_sbd *sdp,
+					     unsigned int index)
+{
+	struct local_statfs_inode *lsi;
+
+	/* Return the local (per node) statfs inode in the
+	 * sdp->sd_sc_inodes_list corresponding to the 'index'. */
+	list_for_each_entry(lsi, &sdp->sd_sc_inodes_list, si_list) {
+		if (lsi->si_jid == index)
+			return lsi->si_sc_inode;
+	}
+	return NULL;
 }
 
 const struct super_operations gfs2_super_ops = {

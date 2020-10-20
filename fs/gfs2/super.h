@@ -44,6 +44,9 @@ extern void update_statfs(struct gfs2_sbd *sdp, struct buffer_head *m_bh,
 extern int gfs2_statfs_sync(struct super_block *sb, int type);
 extern void gfs2_freeze_func(struct work_struct *work);
 
+extern void free_local_statfs_inodes(struct gfs2_sbd *sdp);
+extern struct inode *find_local_statfs_inode(struct gfs2_sbd *sdp,
+					     unsigned int index);
 extern void free_sbd(struct gfs2_sbd *sdp);
 
 extern struct file_system_type gfs2_fs_type;
