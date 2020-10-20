@@ -1930,7 +1930,7 @@ struct opp_table *dev_pm_opp_register_set_opp_helper(struct device *dev,
 		return ERR_PTR(-EINVAL);
 
 	opp_table = dev_pm_opp_get_opp_table(dev);
-	if (!IS_ERR(opp_table))
+	if (IS_ERR(opp_table))
 		return opp_table;
 
 	/* This should be called before OPPs are initialized */
