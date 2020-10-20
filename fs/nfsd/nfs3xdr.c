@@ -117,6 +117,39 @@ decode_filename(__be32 *p, char **namp, unsigned int *lenp)
 	return p;
 }
 
+static bool
+svcxdr_decode_filename3(struct xdr_stream *xdr, char **name, unsigned int *len)
+{
+	u32 size, i;
+	__be32 *p;
+	char *c;
+
+	if (xdr_stream_decode_u32(xdr, &size) < 0)
+		return false;
+	if (size == 0 || size > NFS3_MAXNAMLEN)
+		return false;
+	p = xdr_inline_decode(xdr, size);
+	if (!p)
+		return false;
+
+	*len = size;
+	*name = (char *)p;
+	for (i = 0, c = *name; i < size; i++, c++) {
+		if (*c == '\0' || *c == '/')
+			return false;
+	}
+
+	return true;
+}
+
+static bool
+svcxdr_decode_diropargs3(struct xdr_stream *xdr, struct svc_fh *fhp,
+			 char **name, unsigned int *len)
+{
+	return svcxdr_decode_nfs_fh3(xdr, fhp) &&
+		svcxdr_decode_filename3(xdr, name, len);
+}
+
 static __be32 *
 decode_sattr3(__be32 *p, struct iattr *iap, struct user_namespace *userns)
 {
@@ -363,13 +396,10 @@ nfs3svc_decode_sattrargs(struct svc_rqst *rqstp, __be32 *p)
 int
 nfs3svc_decode_diropargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	struct nfsd3_diropargs *args = rqstp->rq_argp;
 
-	if (!(p = decode_fh(p, &args->fh))
-	 || !(p = decode_filename(p, &args->name, &args->len)))
-		return 0;
-
-	return xdr_argsize_check(rqstp, p);
+	return svcxdr_decode_diropargs3(xdr, &args->fh, &args->name, &args->len);
 }
 
 int
