@@ -9,12 +9,10 @@
 #include <util/util.h>
 #include <util/bpf-loader.h>
 #include <util/evlist.h>
-#include <linux/bpf.h>
 #include <linux/filter.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <api/fs/fs.h>
-#include <bpf/bpf.h>
 #include <perf/mmap.h>
 #include "tests.h"
 #include "llvm.h"
@@ -25,6 +23,8 @@
 #define PERF_TEST_BPF_PATH "/sys/fs/bpf/perf_test"
 
 #ifdef HAVE_LIBBPF_SUPPORT
+#include <linux/bpf.h>
+#include <bpf/bpf.h>
 
 static int epoll_pwait_loop(void)
 {
