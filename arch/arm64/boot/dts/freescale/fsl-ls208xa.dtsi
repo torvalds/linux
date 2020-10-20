@@ -860,7 +860,7 @@
 			dma-coherent;
 		};
 
-		usb0: usb3@3100000 {
+		usb0: usb@3100000 {
 			status = "disabled";
 			compatible = "snps,dwc3";
 			reg = <0x0 0x3100000 0x0 0x10000>;
@@ -871,7 +871,7 @@
 			snps,incr-burst-type-adjustment = <1>, <4>, <8>, <16>;
 		};
 
-		usb1: usb3@3110000 {
+		usb1: usb@3110000 {
 			status = "disabled";
 			compatible = "snps,dwc3";
 			reg = <0x0 0x3110000 0x0 0x10000>;

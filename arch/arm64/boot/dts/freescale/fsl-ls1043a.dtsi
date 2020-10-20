@@ -750,7 +750,7 @@
 				 <&clockgen 4 0>;
 		};
 
-		usb0: usb3@2f00000 {
+		usb0: usb@2f00000 {
 			compatible = "snps,dwc3";
 			reg = <0x0 0x2f00000 0x0 0x10000>;
 			interrupts = <0 60 0x4>;
@@ -761,7 +761,7 @@
 			status = "disabled";
 		};
 
-		usb1: usb3@3000000 {
+		usb1: usb@3000000 {
 			compatible = "snps,dwc3";
 			reg = <0x0 0x3000000 0x0 0x10000>;
 			interrupts = <0 61 0x4>;
@@ -772,7 +772,7 @@
 			status = "disabled";
 		};
 
-		usb2: usb3@3100000 {
+		usb2: usb@3100000 {
 			compatible = "snps,dwc3";
 			reg = <0x0 0x3100000 0x0 0x10000>;
 			interrupts = <0 63 0x4>;

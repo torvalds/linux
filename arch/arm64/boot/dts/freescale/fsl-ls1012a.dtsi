@@ -454,7 +454,7 @@
 				 <&clockgen 4 3>;
 		};
 
-		usb0: usb3@2f00000 {
+		usb0: usb@2f00000 {
 			compatible = "snps,dwc3";
 			reg = <0x0 0x2f00000 0x0 0x10000>;
 			interrupts = <0 60 0x4>;
@@ -475,7 +475,7 @@
 			status = "disabled";
 		};
 
-		usb1: usb2@8600000 {
+		usb1: usb@8600000 {
 			compatible = "fsl-usb2-dr-v2.5", "fsl-usb2-dr";
 			reg = <0x0 0x8600000 0x0 0x1000>;
 			interrupts = <0 139 0x4>;
