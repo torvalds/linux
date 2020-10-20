@@ -34,6 +34,7 @@ struct quirk_entry {
 	bool wmi_backlight_set_devstate;
 	bool wmi_force_als_set;
 	bool use_kbd_dock_devid;
+	bool use_lid_flip_devid;
 	int wapf;
 	/*
 	 * For machines with AMD graphic chips, it will send out WMI event
