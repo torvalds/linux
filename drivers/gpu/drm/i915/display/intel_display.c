@@ -6408,6 +6408,7 @@ static void skl_pfit_enable(const struct intel_crtc_state *crtc_state)
 	int hscale, vscale;
 	unsigned long irqflags;
 	int id;
+	u32 ps_ctrl;
 
 	if (!crtc_state->pch_pfit.enabled)
 		return;
@@ -6424,10 +6425,16 @@ static void skl_pfit_enable(const struct intel_crtc_state *crtc_state)
 
 	id = scaler_state->scaler_id;
 
+	ps_ctrl = skl_scaler_get_filter_select(crtc_state->hw.scaling_filter, 0);
+	ps_ctrl |=  PS_SCALER_EN | scaler_state->scalers[id].mode;
+
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
-	intel_de_write_fw(dev_priv, SKL_PS_CTRL(pipe, id), PS_SCALER_EN |
-			  PS_FILTER_MEDIUM | scaler_state->scalers[id].mode);
+	skl_scaler_setup_filter(dev_priv, pipe, id, 0,
+				crtc_state->hw.scaling_filter);
+
+	intel_de_write_fw(dev_priv, SKL_PS_CTRL(pipe, id), ps_ctrl);
+
 	intel_de_write_fw(dev_priv, SKL_PS_VPHASE(pipe, id),
 			  PS_Y_PHASE(0) | PS_UV_RGB_PHASE(uv_rgb_vphase));
 	intel_de_write_fw(dev_priv, SKL_PS_HPHASE(pipe, id),
@@ -13449,6 +13456,7 @@ intel_crtc_copy_uapi_to_hw_state(struct intel_crtc_state *crtc_state)
 	crtc_state->hw.active = crtc_state->uapi.active;
 	crtc_state->hw.mode = crtc_state->uapi.mode;
 	crtc_state->hw.adjusted_mode = crtc_state->uapi.adjusted_mode;
+	crtc_state->hw.scaling_filter = crtc_state->uapi.scaling_filter;
 	intel_crtc_copy_uapi_to_hw_state_nomodeset(crtc_state);
 }
 
@@ -13460,6 +13468,7 @@ static void intel_crtc_copy_hw_to_uapi_state(struct intel_crtc_state *crtc_state
 		    drm_atomic_set_mode_for_crtc(&crtc_state->uapi, &crtc_state->hw.mode) < 0);
 
 	crtc_state->uapi.adjusted_mode = crtc_state->hw.adjusted_mode;
+	crtc_state->uapi.scaling_filter = crtc_state->hw.scaling_filter;
 
 	/* copy color blobs to uapi */
 	drm_property_replace_blob(&crtc_state->uapi.degamma_lut,
@@ -17059,6 +17068,11 @@ static int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 		       dev_priv->plane_to_crtc_mapping[i9xx_plane] != NULL);
 		dev_priv->plane_to_crtc_mapping[i9xx_plane] = crtc;
 	}
+
+	if (INTEL_GEN(dev_priv) >= 10)
+		drm_crtc_create_scaling_filter_property(&crtc->base,
+						BIT(DRM_SCALING_FILTER_DEFAULT) |
+						BIT(DRM_SCALING_FILTER_NEAREST_NEIGHBOR));
 
 	intel_color_init(crtc);
 
