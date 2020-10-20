@@ -191,7 +191,7 @@ static int rgrp_go_sync(struct gfs2_glock *gl)
 		       GFS2_LFC_RGRP_GO_SYNC);
 	filemap_fdatawrite_range(mapping, start, end);
 	error = filemap_fdatawait_range(mapping, start, end);
-	WARN_ON_ONCE(error);
+	WARN_ON_ONCE(error && !gfs2_withdrawn(sdp));
 	mapping_set_error(mapping, error);
 	if (!error)
 		error = gfs2_ail_empty_gl(gl);
