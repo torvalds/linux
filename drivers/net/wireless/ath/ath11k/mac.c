@@ -1969,8 +1969,24 @@ static void ath11k_mac_op_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_BSSID && !is_zero_ether_addr(info->bssid))
 		ether_addr_copy(arvif->bssid, info->bssid);
 
-	if (changed & BSS_CHANGED_BEACON_ENABLED)
+	if (changed & BSS_CHANGED_BEACON_ENABLED) {
 		ath11k_control_beaconing(arvif, info);
+
+		if (arvif->is_up && vif->bss_conf.he_support &&
+		    vif->bss_conf.he_oper.params) {
+			param_id = WMI_VDEV_PARAM_HEOPS_0_31;
+			param_value = vif->bss_conf.he_oper.params;
+			ret = ath11k_wmi_vdev_set_param_cmd(ar, arvif->vdev_id,
+							    param_id, param_value);
+			ath11k_dbg(ar->ab, ATH11K_DBG_MAC,
+				   "he oper param: %x set for VDEV: %d\n",
+				   param_value, arvif->vdev_id);
+
+			if (ret)
+				ath11k_warn(ar->ab, "Failed to set he oper params %x for VDEV %d: %i\n",
+					    param_value, arvif->vdev_id, ret);
+		}
+	}
 
 	if (changed & BSS_CHANGED_ERP_CTS_PROT) {
 		u32 cts_prot;
