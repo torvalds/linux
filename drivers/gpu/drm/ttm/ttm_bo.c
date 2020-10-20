@@ -256,10 +256,6 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 			ret = ttm_tt_populate(bo->bdev, bo->ttm, ctx);
 			if (ret)
 				goto out_err;
-
-			ret = bdev->driver->ttm_tt_bind(bo->bdev, bo->ttm, mem);
-			if (ret)
-				goto out_err;
 		}
 	}
 

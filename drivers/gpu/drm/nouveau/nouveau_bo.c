@@ -1032,6 +1032,12 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict,
 	struct nouveau_drm_tile *new_tile = NULL;
 	int ret = 0;
 
+	if (new_reg->mem_type == TTM_PL_TT) {
+		ret = nouveau_ttm_tt_bind(bo->bdev, bo->ttm, new_reg);
+		if (ret)
+			return ret;
+	}
+
 	nouveau_bo_move_ntfy(bo, evict, new_reg);
 	ret = ttm_bo_wait_ctx(bo, ctx);
 	if (ret)
@@ -1399,7 +1405,6 @@ struct ttm_bo_driver nouveau_bo_driver = {
 	.ttm_tt_create = &nouveau_ttm_tt_create,
 	.ttm_tt_populate = &nouveau_ttm_tt_populate,
 	.ttm_tt_unpopulate = &nouveau_ttm_tt_unpopulate,
-	.ttm_tt_bind = &nouveau_ttm_tt_bind,
 	.ttm_tt_destroy = &nouveau_ttm_tt_destroy,
 	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = nouveau_bo_evict_flags,

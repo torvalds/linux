@@ -91,20 +91,6 @@ struct ttm_bo_driver {
 	void (*ttm_tt_unpopulate)(struct ttm_bo_device *bdev, struct ttm_tt *ttm);
 
 	/**
-	 * ttm_tt_bind
-	 *
-	 * @bdev: Pointer to a ttm device
-	 * @ttm: Pointer to a struct ttm_tt.
-	 * @bo_mem: Pointer to a struct ttm_resource describing the
-	 * memory type and location for binding.
-	 *
-	 * Bind the backend pages into the aperture in the location
-	 * indicated by @bo_mem. This function should be able to handle
-	 * differences between aperture and system page sizes.
-	 */
-	int (*ttm_tt_bind)(struct ttm_bo_device *bdev, struct ttm_tt *ttm, struct ttm_resource *bo_mem);
-
-	/**
 	 * ttm_tt_destroy
 	 *
 	 * @bdev: Pointer to a ttm device
