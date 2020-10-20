@@ -1129,9 +1129,13 @@ static int __init i915_init(void)
 		return 0;
 	}
 
+	i915_pmu_init();
+
 	err = pci_register_driver(&i915_pci_driver);
-	if (err)
+	if (err) {
+		i915_pmu_exit();
 		return err;
+	}
 
 	i915_perf_sysctl_register();
 	return 0;
@@ -1145,6 +1149,7 @@ static void __exit i915_exit(void)
 	i915_perf_sysctl_unregister();
 	pci_unregister_driver(&i915_pci_driver);
 	i915_globals_exit();
+	i915_pmu_exit();
 }
 
 module_init(i915_init);

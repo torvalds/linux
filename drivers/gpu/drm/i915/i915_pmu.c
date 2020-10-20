@@ -30,6 +30,7 @@
 #define ENGINE_SAMPLE_BITS (1 << I915_PMU_SAMPLE_BITS)
 
 static cpumask_t i915_pmu_cpumask;
+static unsigned int i915_pmu_target_cpu = -1;
 
 static u8 engine_config_sample(u64 config)
 {
@@ -1049,25 +1050,39 @@ static int i915_pmu_cpu_online(unsigned int cpu, struct hlist_node *node)
 static int i915_pmu_cpu_offline(unsigned int cpu, struct hlist_node *node)
 {
 	struct i915_pmu *pmu = hlist_entry_safe(node, typeof(*pmu), cpuhp.node);
-	unsigned int target;
+	unsigned int target = i915_pmu_target_cpu;
 
 	GEM_BUG_ON(!pmu->base.event_init);
 
+	/*
+	 * Unregistering an instance generates a CPU offline event which we must
+	 * ignore to avoid incorrectly modifying the shared i915_pmu_cpumask.
+	 */
+	if (pmu->closed)
+		return 0;
+
 	if (cpumask_test_and_clear_cpu(cpu, &i915_pmu_cpumask)) {
 		target = cpumask_any_but(topology_sibling_cpumask(cpu), cpu);
+
 		/* Migrate events if there is a valid target */
 		if (target < nr_cpu_ids) {
 			cpumask_set_cpu(target, &i915_pmu_cpumask);
-			perf_pmu_migrate_context(&pmu->base, cpu, target);
+			i915_pmu_target_cpu = target;
 		}
+	}
+
+	if (target < nr_cpu_ids && target != pmu->cpuhp.cpu) {
+		perf_pmu_migrate_context(&pmu->base, cpu, target);
+		pmu->cpuhp.cpu = target;
 	}
 
 	return 0;
 }
 
-static int i915_pmu_register_cpuhp_state(struct i915_pmu *pmu)
+static enum cpuhp_state cpuhp_slot = CPUHP_INVALID;
+
+void i915_pmu_init(void)
 {
-	enum cpuhp_state slot;
 	int ret;
 
 	ret = cpuhp_setup_state_multi(CPUHP_AP_ONLINE_DYN,
@@ -1075,27 +1090,29 @@ static int i915_pmu_register_cpuhp_state(struct i915_pmu *pmu)
 				      i915_pmu_cpu_online,
 				      i915_pmu_cpu_offline);
 	if (ret < 0)
-		return ret;
+		pr_notice("Failed to setup cpuhp state for i915 PMU! (%d)\n",
+			  ret);
+	else
+		cpuhp_slot = ret;
+}
 
-	slot = ret;
-	ret = cpuhp_state_add_instance(slot, &pmu->cpuhp.node);
-	if (ret) {
-		cpuhp_remove_multi_state(slot);
-		return ret;
-	}
+void i915_pmu_exit(void)
+{
+	if (cpuhp_slot != CPUHP_INVALID)
+		cpuhp_remove_multi_state(cpuhp_slot);
+}
 
-	pmu->cpuhp.slot = slot;
-	return 0;
+static int i915_pmu_register_cpuhp_state(struct i915_pmu *pmu)
+{
+	if (cpuhp_slot == CPUHP_INVALID)
+		return -EINVAL;
+
+	return cpuhp_state_add_instance(cpuhp_slot, &pmu->cpuhp.node);
 }
 
 static void i915_pmu_unregister_cpuhp_state(struct i915_pmu *pmu)
 {
-	struct drm_i915_private *i915 = container_of(pmu, typeof(*i915), pmu);
-
-	drm_WARN_ON(&i915->drm, pmu->cpuhp.slot == CPUHP_INVALID);
-	drm_WARN_ON(&i915->drm, cpuhp_state_remove_instance(pmu->cpuhp.slot, &pmu->cpuhp.node));
-	cpuhp_remove_multi_state(pmu->cpuhp.slot);
-	pmu->cpuhp.slot = CPUHP_INVALID;
+	cpuhp_state_remove_instance(cpuhp_slot, &pmu->cpuhp.node);
 }
 
 static bool is_igp(struct drm_i915_private *i915)
@@ -1129,7 +1146,7 @@ void i915_pmu_register(struct drm_i915_private *i915)
 	spin_lock_init(&pmu->lock);
 	hrtimer_init(&pmu->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	pmu->timer.function = i915_sample;
-	pmu->cpuhp.slot = CPUHP_INVALID;
+	pmu->cpuhp.cpu = -1;
 
 	if (!is_igp(i915)) {
 		pmu->name = kasprintf(GFP_KERNEL,
