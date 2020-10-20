@@ -67,6 +67,22 @@
 #define RK3368_LVDS_MSBSEL(x)		HIWORD_UPDATE(x, 11, 11)
 #define RK3368_LVDS_P2S_EN(x)		HIWORD_UPDATE(x,  6,  6)
 
+#define RK3568_GRF_VO_CON0		0x0360
+#define RK3568_LVDS1_SELECT(x)		HIWORD_UPDATE(x, 13, 12)
+#define RK3568_LVDS1_MSBSEL(x)		HIWORD_UPDATE(x, 11, 11)
+#define RK3568_LVDS0_SELECT(x)		HIWORD_UPDATE(x,  5,  4)
+#define RK3568_LVDS0_MSBSEL(x)		HIWORD_UPDATE(x,  3,  3)
+#define RK3568_GRF_VO_CON2		0x0368
+#define RK3568_LVDS0_DCLK_INV_SEL(x)	HIWORD_UPDATE(x,  9,  9)
+#define RK3568_LVDS0_DCLK_DIV2_SEL(x)	HIWORD_UPDATE(x,  8,  8)
+#define RK3568_LVDS0_MODE_EN(x)		HIWORD_UPDATE(x,  1,  1)
+#define RK3568_LVDS0_P2S_EN(x)		HIWORD_UPDATE(x,  0,  0)
+#define RK3568_GRF_VO_CON3		0x036c
+#define RK3568_LVDS1_DCLK_INV_SEL(x)	HIWORD_UPDATE(x,  9,  9)
+#define RK3568_LVDS1_DCLK_DIV2_SEL(x)	HIWORD_UPDATE(x,  8,  8)
+#define RK3568_LVDS1_MODE_EN(x)		HIWORD_UPDATE(x,  1,  1)
+#define RK3568_LVDS1_P2S_EN(x)		HIWORD_UPDATE(x,  0,  0)
+
 enum lvds_format {
 	LVDS_8BIT_MODE_FORMAT_1,
 	LVDS_8BIT_MODE_FORMAT_2,
@@ -79,11 +95,13 @@ enum lvds_format {
 struct rockchip_lvds;
 
 struct rockchip_lvds_funcs {
+	int (*probe)(struct rockchip_lvds *lvds);
 	void (*enable)(struct rockchip_lvds *lvds);
 	void (*disable)(struct rockchip_lvds *lvds);
 };
 
 struct rockchip_lvds {
+	int id;
 	struct device *dev;
 	struct phy *phy;
 	struct regmap *grf;
@@ -91,6 +109,10 @@ struct rockchip_lvds {
 	enum lvds_format format;
 	bool data_swap;
 	bool dual_channel;
+	enum drm_lvds_dual_link_pixels pixel_order;
+
+	struct rockchip_lvds *primary;
+	struct rockchip_lvds *secondary;
 
 	struct drm_panel *panel;
 	struct drm_bridge *bridge;
@@ -166,6 +188,9 @@ rockchip_lvds_encoder_atomic_mode_set(struct drm_encoder *encoder,
 		break;
 	}
 
+	if (lvds->secondary)
+		lvds->secondary->format = lvds->format;
+
 	drm_mode_copy(&lvds->mode, &crtc_state->adjusted_mode);
 }
 
@@ -175,6 +200,7 @@ rockchip_lvds_encoder_atomic_check(struct drm_encoder *encoder,
 				   struct drm_connector_state *conn_state)
 {
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
+	struct rockchip_lvds *lvds = encoder_to_lvds(encoder);
 	struct drm_connector *connector = conn_state->connector;
 	struct drm_display_info *info = &connector->display_info;
 
@@ -195,16 +221,39 @@ rockchip_lvds_encoder_atomic_check(struct drm_encoder *encoder,
 	s->eotf = TRADITIONAL_GAMMA_SDR;
 	s->color_space = V4L2_COLORSPACE_DEFAULT;
 
+	switch (lvds->pixel_order) {
+	case DRM_LVDS_DUAL_LINK_ODD_EVEN_PIXELS:
+		s->output_flags |= ROCKCHIP_OUTPUT_DUAL_CHANNEL_ODD_EVEN_MODE;
+		s->output_if |= VOP_OUTPUT_IF_LVDS1 | VOP_OUTPUT_IF_LVDS0;
+		break;
+	case DRM_LVDS_DUAL_LINK_EVEN_ODD_PIXELS:
+		s->output_flags |= ROCKCHIP_OUTPUT_DUAL_CHANNEL_ODD_EVEN_MODE;
+		s->output_flags |= ROCKCHIP_OUTPUT_DATA_SWAP;
+		s->output_if |= VOP_OUTPUT_IF_LVDS1 | VOP_OUTPUT_IF_LVDS0;
+		break;
+	case DRM_LVDS_DUAL_LINK_LEFT_RIGHT_PIXELS:
+		s->output_flags |= ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE;
+		s->output_if |= VOP_OUTPUT_IF_LVDS1 | VOP_OUTPUT_IF_LVDS0;
+		break;
+	case DRM_LVDS_DUAL_LINK_RIGHT_LEFT_PIXELS:
+		s->output_flags |= ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE;
+		s->output_flags |= ROCKCHIP_OUTPUT_DATA_SWAP;
+		s->output_if |= VOP_OUTPUT_IF_LVDS1 | VOP_OUTPUT_IF_LVDS0;
+		break;
+	default:
+		if (lvds->id)
+			s->output_if |= VOP_OUTPUT_IF_LVDS1;
+		else
+			s->output_if |= VOP_OUTPUT_IF_LVDS0;
+		break;
+	}
+
 	return 0;
 }
 
-static void rockchip_lvds_encoder_enable(struct drm_encoder *encoder)
+static void rockchip_lvds_enable(struct rockchip_lvds *lvds)
 {
-	struct rockchip_lvds *lvds = encoder_to_lvds(encoder);
 	int ret;
-
-	if (lvds->panel)
-		drm_panel_prepare(lvds->panel);
 
 	if (lvds->funcs->enable)
 		lvds->funcs->enable(lvds);
@@ -217,6 +266,28 @@ static void rockchip_lvds_encoder_enable(struct drm_encoder *encoder)
 
 	phy_power_on(lvds->phy);
 
+	if (lvds->secondary)
+		rockchip_lvds_enable(lvds->secondary);
+}
+
+static void rockchip_lvds_disable(struct rockchip_lvds *lvds)
+{
+	if (lvds->funcs->disable)
+		lvds->funcs->disable(lvds);
+
+	phy_power_off(lvds->phy);
+
+	if (lvds->secondary)
+		rockchip_lvds_disable(lvds->secondary);
+}
+
+static void rockchip_lvds_encoder_enable(struct drm_encoder *encoder)
+{
+	struct rockchip_lvds *lvds = encoder_to_lvds(encoder);
+
+	if (lvds->panel)
+		drm_panel_prepare(lvds->panel);
+	rockchip_lvds_enable(lvds);
 	if (lvds->panel)
 		drm_panel_enable(lvds->panel);
 }
@@ -227,12 +298,7 @@ static void rockchip_lvds_encoder_disable(struct drm_encoder *encoder)
 
 	if (lvds->panel)
 		drm_panel_disable(lvds->panel);
-
-	if (lvds->funcs->disable)
-		lvds->funcs->disable(lvds);
-
-	phy_power_off(lvds->phy);
-
+	rockchip_lvds_disable(lvds);
 	if (lvds->panel)
 		drm_panel_unprepare(lvds->panel);
 }
@@ -261,6 +327,26 @@ static const struct drm_encoder_funcs rockchip_lvds_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
+static int rockchip_lvds_match_by_id(struct device *dev, void *data)
+{
+	struct rockchip_lvds *lvds = dev_get_drvdata(dev);
+	unsigned int *id = data;
+
+	return lvds->id == *id;
+}
+
+static struct rockchip_lvds *rockchip_lvds_find_by_id(struct device_driver *drv,
+						  unsigned int id)
+{
+	struct device *dev;
+
+	dev = driver_find_device(drv, NULL, &id, rockchip_lvds_match_by_id);
+	if (!dev)
+		return NULL;
+
+	return dev_get_drvdata(dev);
+}
+
 static int rockchip_lvds_bind(struct device *dev, struct device *master,
 			      void *data)
 {
@@ -269,6 +355,12 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 	struct drm_encoder *encoder = &lvds->encoder;
 	struct drm_connector *connector = &lvds->connector;
 	int ret;
+
+	/*
+	 * dual channel lvds mode only need to register one connector.
+	 */
+	if (lvds->primary)
+		return 0;
 
 	ret = drm_of_find_panel_or_bridge(dev->of_node, 1, -1,
 					  &lvds->panel, &lvds->bridge);
@@ -347,7 +439,8 @@ static void rockchip_lvds_unbind(struct device *dev, struct device *master,
 		drm_connector_cleanup(&lvds->connector);
 	}
 
-	drm_encoder_cleanup(&lvds->encoder);
+	if (lvds->encoder.dev)
+		drm_encoder_cleanup(&lvds->encoder);
 }
 
 static const struct component_ops rockchip_lvds_component_ops = {
@@ -367,6 +460,10 @@ static int rockchip_lvds_probe(struct platform_device *pdev)
 	lvds = devm_kzalloc(dev, sizeof(*lvds), GFP_KERNEL);
 	if (!lvds)
 		return -ENOMEM;
+
+	lvds->id = of_alias_get_id(dev->of_node, "lvds");
+	if (lvds->id < 0)
+		lvds->id = 0;
 
 	lvds->dev = dev;
 	lvds->funcs = of_device_get_match_data(dev);
@@ -389,6 +486,13 @@ static int rockchip_lvds_probe(struct platform_device *pdev)
 		ret = PTR_ERR(lvds->grf);
 		DRM_DEV_ERROR(dev, "Unable to get grf: %d\n", ret);
 		return ret;
+	}
+
+	lvds->pixel_order = -1;
+	if (lvds->funcs->probe) {
+		ret = lvds->funcs->probe(lvds);
+		if (ret)
+			return ret;
 	}
 
 	return component_add(dev, &rockchip_lvds_component_ops);
@@ -507,11 +611,72 @@ static const struct rockchip_lvds_funcs rk3368_lvds_funcs = {
 	.disable = rk3368_lvds_disable,
 };
 
+static int rk3568_lvds_probe(struct rockchip_lvds *lvds)
+{
+	if (lvds->dual_channel) {
+		struct rockchip_lvds *secondary = NULL;
+		struct device_node *port0, *port1;
+		int pixel_order;
+
+		secondary = rockchip_lvds_find_by_id(lvds->dev->driver, 1);
+		if (!secondary)
+			return -EPROBE_DEFER;
+
+		port0 = of_graph_get_port_by_id(lvds->dev->of_node, 1);
+		port1 = of_graph_get_port_by_id(secondary->dev->of_node, 1);
+		pixel_order = drm_of_lvds_get_dual_link_pixel_order(port0, port1);
+		of_node_put(port1);
+		of_node_put(port0);
+
+		secondary->primary = lvds;
+		lvds->secondary = secondary;
+		lvds->pixel_order = pixel_order >= 0 ? pixel_order : 0;
+	}
+
+	return 0;
+}
+
+static void rk3568_lvds_enable(struct rockchip_lvds *lvds)
+{
+	if (lvds->id) {
+		regmap_write(lvds->grf, RK3568_GRF_VO_CON3,
+			     RK3568_LVDS1_MODE_EN(1) |
+			     RK3568_LVDS1_P2S_EN(1));
+		regmap_write(lvds->grf, RK3568_GRF_VO_CON0,
+			     RK3568_LVDS1_SELECT(lvds->format) |
+			     RK3568_LVDS1_MSBSEL(1));
+	} else {
+		regmap_write(lvds->grf, RK3568_GRF_VO_CON2,
+			     RK3568_LVDS0_MODE_EN(1) |
+			     RK3568_LVDS0_P2S_EN(1));
+		regmap_write(lvds->grf, RK3568_GRF_VO_CON0,
+			     RK3568_LVDS0_SELECT(lvds->format) |
+			     RK3568_LVDS0_MSBSEL(1));
+	}
+}
+
+static void rk3568_lvds_disable(struct rockchip_lvds *lvds)
+{
+	if (lvds->id)
+		regmap_write(lvds->grf, RK3568_GRF_VO_CON3,
+			     RK3568_LVDS1_MODE_EN(0));
+	else
+		regmap_write(lvds->grf, RK3568_GRF_VO_CON2,
+			     RK3568_LVDS0_MODE_EN(0));
+}
+
+static const struct rockchip_lvds_funcs rk3568_lvds_funcs = {
+	.probe = rk3568_lvds_probe,
+	.enable = rk3568_lvds_enable,
+	.disable = rk3568_lvds_disable,
+};
+
 static const struct of_device_id rockchip_lvds_dt_ids[] = {
 	{ .compatible = "rockchip,px30-lvds", .data = &px30_lvds_funcs },
 	{ .compatible = "rockchip,rk3126-lvds", .data = &rk3126_lvds_funcs },
 	{ .compatible = "rockchip,rk3288-lvds", .data = &rk3288_lvds_funcs },
 	{ .compatible = "rockchip,rk3368-lvds", .data = &rk3368_lvds_funcs },
+	{ .compatible = "rockchip,rk3568-lvds", .data = &rk3568_lvds_funcs },
 	{}
 };
 MODULE_DEVICE_TABLE(of, rockchip_lvds_dt_ids);
