@@ -17,6 +17,7 @@
 #include <linux/sched.h>
 #include <linux/module.h>
 #include <trace/events/power.h>
+#include <trace/hooks/sched.h>
 
 #include <asm/irq_regs.h>
 
@@ -94,6 +95,7 @@ static void tick_periodic(int cpu)
 		write_seqcount_end(&jiffies_seq);
 		raw_spin_unlock(&jiffies_lock);
 		update_wall_time();
+		trace_android_vh_jiffies_update(NULL);
 	}
 
 	update_process_times(user_mode(get_irq_regs()));

@@ -66,3 +66,4 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ipi_stop);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_sysrq_crash);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_dump_throttled_rt_tasks);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_printk_hotplug);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_jiffies_update);
