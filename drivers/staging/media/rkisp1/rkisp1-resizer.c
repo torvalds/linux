@@ -763,8 +763,10 @@ static void rkisp1_rsz_unregister(struct rkisp1_resizer *rsz)
 
 static int rkisp1_rsz_register(struct rkisp1_resizer *rsz)
 {
-	const char * const dev_names[] = {RKISP1_RSZ_MP_DEV_NAME,
-					  RKISP1_RSZ_SP_DEV_NAME};
+	static const char * const dev_names[] = {
+		RKISP1_RSZ_MP_DEV_NAME,
+		RKISP1_RSZ_SP_DEV_NAME
+	};
 	struct media_pad *pads = rsz->pads;
 	struct v4l2_subdev *sd = &rsz->sd;
 	int ret;
