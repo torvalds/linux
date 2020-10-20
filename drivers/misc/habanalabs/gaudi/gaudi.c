@@ -3529,7 +3529,7 @@ static int gaudi_load_firmware_to_device(struct hl_device *hdev)
 
 	dst = hdev->pcie_bar[HBM_BAR_ID] + LINUX_FW_OFFSET;
 
-	return hl_fw_load_fw_to_device(hdev, GAUDI_LINUX_FW_FILE, dst);
+	return hl_fw_load_fw_to_device(hdev, GAUDI_LINUX_FW_FILE, dst, 0, 0);
 }
 
 static int gaudi_load_boot_fit_to_device(struct hl_device *hdev)
@@ -3538,7 +3538,7 @@ static int gaudi_load_boot_fit_to_device(struct hl_device *hdev)
 
 	dst = hdev->pcie_bar[SRAM_BAR_ID] + BOOT_FIT_SRAM_OFFSET;
 
-	return hl_fw_load_fw_to_device(hdev, GAUDI_BOOT_FIT_FILE, dst);
+	return hl_fw_load_fw_to_device(hdev, GAUDI_BOOT_FIT_FILE, dst, 0, 0);
 }
 
 static void gaudi_read_device_fw_version(struct hl_device *hdev,

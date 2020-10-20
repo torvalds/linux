@@ -2315,7 +2315,7 @@ static int goya_load_firmware_to_device(struct hl_device *hdev)
 
 	dst = hdev->pcie_bar[DDR_BAR_ID] + LINUX_FW_OFFSET;
 
-	return hl_fw_load_fw_to_device(hdev, GOYA_LINUX_FW_FILE, dst);
+	return hl_fw_load_fw_to_device(hdev, GOYA_LINUX_FW_FILE, dst, 0, 0);
 }
 
 /*
@@ -2332,7 +2332,7 @@ static int goya_load_boot_fit_to_device(struct hl_device *hdev)
 
 	dst = hdev->pcie_bar[SRAM_CFG_BAR_ID] + BOOT_FIT_SRAM_OFFSET;
 
-	return hl_fw_load_fw_to_device(hdev, GOYA_BOOT_FIT_FILE, dst);
+	return hl_fw_load_fw_to_device(hdev, GOYA_BOOT_FIT_FILE, dst, 0, 0);
 }
 
 /*

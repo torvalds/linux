@@ -20,16 +20,18 @@
  * @hdev: pointer to hl_device structure.
  * @fw_name: the firmware image name
  * @dst: IO memory mapped address space to copy firmware to
+ * @src_offset: offset in src FW to copy from
+ * @size: amount of bytes to copy (0 to copy the whole binary)
  *
  * Copy fw code from firmware file to device memory.
  *
  * Return: 0 on success, non-zero for failure.
  */
 int hl_fw_load_fw_to_device(struct hl_device *hdev, const char *fw_name,
-				void __iomem *dst)
+				void __iomem *dst, u32 src_offset, u32 size)
 {
 	const struct firmware *fw;
-	const u64 *fw_data;
+	const void *fw_data;
 	size_t fw_size;
 	int rc;
 
@@ -57,9 +59,20 @@ int hl_fw_load_fw_to_device(struct hl_device *hdev, const char *fw_name,
 		goto out;
 	}
 
-	fw_data = (const u64 *) fw->data;
+	if (size - src_offset > fw_size) {
+		dev_err(hdev->dev,
+			"size to copy(%u) and offset(%u) are invalid\n",
+			size, src_offset);
+		rc = -EINVAL;
+		goto out;
+	}
 
-	memcpy_toio(dst, fw_data, fw_size);
+	if (size)
+		fw_size = size;
+
+	fw_data = (const void *) fw->data;
+
+	memcpy_toio(dst, fw_data + src_offset, fw_size);
 
 out:
 	release_firmware(fw);
