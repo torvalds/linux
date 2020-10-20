@@ -299,7 +299,7 @@ static void update_mi(struct rkispp_stream *stream)
 
 	if (stream->type == STREAM_OUTPUT &&
 	    !stream->curr_buf) {
-		dummy_buf = &stream->dummy_buf;
+		dummy_buf = &dev->hw_dev->dummy_buf;
 		set_y_addr(stream, dummy_buf->dma_addr);
 		set_uv_addr(stream, dummy_buf->dma_addr);
 	}
@@ -662,7 +662,7 @@ static int nr_init_buf(struct rkispp_device *dev, u32 size)
 {
 	struct rkispp_stream_vdev *vdev = &dev->stream_vdev;
 	struct rkispp_dummy_buffer *buf;
-	int i, ret, cnt = 1;
+	int i, ret, cnt = 0;
 
 	if (vdev->module_ens & ISPP_MODULE_FEC)
 		cnt = RKISPP_BUF_MAX;
@@ -674,11 +674,6 @@ static int nr_init_buf(struct rkispp_device *dev, u32 size)
 			goto err;
 		list_add_tail(&buf->list, &vdev->nr.list_wr);
 	}
-
-	if (vdev->module_ens & ISPP_MODULE_FEC)
-		vdev->nr.cur_wr = get_list_buf(&vdev->nr.list_wr, false);
-	else
-		get_list_buf(&vdev->nr.list_wr, false);
 
 	buf = &vdev->nr.buf.tmp_yuv;
 	buf->size = size >> 2;
@@ -790,7 +785,7 @@ static int config_nr_shp(struct rkispp_device *dev)
 	} else {
 		stream = &vdev->stream[STREAM_MB];
 		if (!stream->streaming) {
-			val = vdev->nr.buf.wr[0].dma_addr;
+			val = hw->dummy_buf.dma_addr;
 			rkispp_write(dev, RKISPP_SHARP_WR_Y_BASE, val);
 			rkispp_write(dev, RKISPP_SHARP_WR_UV_BASE, val);
 			rkispp_write(dev, RKISPP_SHARP_WR_VIR_STRIDE, ALIGN(width * mult, 16) >> 2);
@@ -1102,9 +1097,8 @@ static int is_stopped_mb(struct rkispp_stream *stream)
 		rkispp_clear_bits(dev, RKISPP_FEC_CTRL, FMT_FBC << 4);
 		rkispp_set_bits(dev, RKISPP_FEC_CORE_CTRL,
 				0, SW_FEC2DDR_DIS);
-	} else if (vdev->module_ens &
-		   (ISPP_MODULE_NR | ISPP_MODULE_SHP)) {
-		val = dev->stream_vdev.nr.buf.wr[0].dma_addr;
+	} else if (vdev->module_ens & (ISPP_MODULE_NR | ISPP_MODULE_SHP)) {
+		val = dev->hw_dev->dummy_buf.dma_addr;
 		rkispp_write(dev, RKISPP_SHARP_WR_Y_BASE, val);
 		rkispp_write(dev, RKISPP_SHARP_WR_UV_BASE, val);
 		rkispp_set_bits(dev, RKISPP_SHARP_CTRL, SW_SHP_WR_FORMAT_MASK, FMT_FBC);
@@ -1361,27 +1355,17 @@ static void rkispp_buf_queue(struct vb2_buffer *vb)
 
 static int rkispp_create_dummy_buf(struct rkispp_stream *stream)
 {
-	struct rkispp_dummy_buffer *buf = &stream->dummy_buf;
 	struct rkispp_device *dev = stream->isppdev;
 
 	if (stream->type != STREAM_OUTPUT)
 		return 0;
-
-	buf->size = max3(stream->out_fmt.plane_fmt[0].bytesperline *
-			 stream->out_fmt.height,
-			 stream->out_fmt.plane_fmt[1].sizeimage,
-			 stream->out_fmt.plane_fmt[2].sizeimage);
-	return rkispp_allow_buffer(dev, buf);
+	return rkispp_alloc_common_dummy_buf(dev);
 }
 
 static void rkispp_destroy_dummy_buf(struct rkispp_stream *stream)
 {
-	struct rkispp_dummy_buffer *buf = &stream->dummy_buf;
 	struct rkispp_device *dev = stream->isppdev;
-	struct rkispp_stream_vdev *vdev;
-
-	vdev = &dev->stream_vdev;
-	rkispp_free_buffer(dev, buf);
+	struct rkispp_stream_vdev *vdev= &dev->stream_vdev;
 
 	if (atomic_read(&vdev->refcnt) == 1) {
 		vdev->irq_ends = 0;

@@ -31,6 +31,7 @@ struct rkispp_hw_dev {
 	struct clk *clks[ISPP_MAX_BUS_CLK];
 	struct rkispp_device *ispp[DEV_MAX];
 	struct rkispp_isp_buf_pool pool[RKISPP_BUF_POOL_MAX];
+	struct rkispp_dummy_buffer dummy_buf;
 	struct max_input max_in;
 	struct list_head list;
 	int clk_rate_tbl_num;

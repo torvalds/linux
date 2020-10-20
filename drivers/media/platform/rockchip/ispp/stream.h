@@ -134,7 +134,6 @@ struct in_fec_buf {
  * buf_queue: queued buffer list
  * curr_buf: the buffer used for current frame
  * next_buf: the buffer used for next frame
- * dummy_buf: dummy space to store dropped data
  * done: wait frame end event queue
  * vbq_lock: lock to protect buf_queue
  * out_cap_fmt: the output of ispp
@@ -152,7 +151,6 @@ struct rkispp_stream {
 	struct list_head buf_queue;
 	struct rkispp_buffer *curr_buf;
 	struct rkispp_buffer *next_buf;
-	struct rkispp_dummy_buffer dummy_buf;
 	wait_queue_head_t done;
 	spinlock_t vbq_lock;
 

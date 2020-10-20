@@ -310,3 +310,41 @@ void rkispp_soft_reset(struct rkispp_device *ispp)
 	if (domain)
 		iommu_attach_device(domain, hw->dev);
 }
+
+int rkispp_alloc_common_dummy_buf(struct rkispp_device *dev)
+{
+	struct rkispp_hw_dev *hw = dev->hw_dev;
+	struct rkispp_subdev *sdev = &dev->ispp_sdev;
+	struct rkispp_dummy_buffer *dummy_buf = &hw->dummy_buf;
+	u32 w = hw->max_in.w ? hw->max_in.w : sdev->out_fmt.width;
+	u32 h =  hw->max_in.h ? hw->max_in.h : sdev->out_fmt.height;
+	u32 size =  w * h * 2;
+	int ret = 0;
+
+	mutex_lock(&hw->dev_lock);
+	if (dummy_buf->mem_priv) {
+		if (dummy_buf->size >= size)
+			goto end;
+		rkispp_free_buffer(dev, &dev->hw_dev->dummy_buf);
+	}
+	dummy_buf->size = w * h * 2;
+	ret = rkispp_allow_buffer(dev, dummy_buf);
+	if (ret < 0)
+		v4l2_err(&dev->v4l2_dev,
+			 "failed to alloc common dummy buf:%d\n", ret);
+	else
+		v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
+			 "alloc common dummy buf:0x%x size:%d\n",
+			 (u32)dummy_buf->dma_addr, dummy_buf->size);
+
+end:
+	mutex_unlock(&hw->dev_lock);
+	return ret;
+}
+
+void rkispp_free_common_dummy_buf(struct rkispp_device *dev)
+{
+	mutex_lock(&dev->hw_dev->dev_lock);
+	rkispp_free_buffer(dev, &dev->hw_dev->dummy_buf);
+	mutex_unlock(&dev->hw_dev->dev_lock);
+}
