@@ -267,9 +267,8 @@ cifs_posix_to_fattr(struct cifs_fattr *fattr, struct smb2_posix_info *info,
 	if (reparse_file_needs_reval(fattr))
 		fattr->cf_flags |= CIFS_FATTR_NEED_REVAL;
 
-	/* TODO map SIDs */
-	fattr->cf_uid = cifs_sb->mnt_uid;
-	fattr->cf_gid = cifs_sb->mnt_gid;
+	sid_to_id(cifs_sb, &parsed.owner, fattr, SIDOWNER);
+	sid_to_id(cifs_sb, &parsed.group, fattr, SIDGROUP);
 }
 
 static void __dir_info_to_fattr(struct cifs_fattr *fattr, const void *info)
