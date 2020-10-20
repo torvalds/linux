@@ -601,14 +601,17 @@ nfs3svc_decode_readdirplusargs(struct svc_rqst *rqstp, __be32 *p)
 int
 nfs3svc_decode_commitargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	struct nfsd3_commitargs *args = rqstp->rq_argp;
-	p = decode_fh(p, &args->fh);
-	if (!p)
-		return 0;
-	p = xdr_decode_hyper(p, &args->offset);
-	args->count = ntohl(*p++);
 
-	return xdr_argsize_check(rqstp, p);
+	if (!svcxdr_decode_nfs_fh3(xdr, &args->fh))
+		return 0;
+	if (xdr_stream_decode_u64(xdr, &args->offset) < 0)
+		return 0;
+	if (xdr_stream_decode_u32(xdr, &args->count) < 0)
+		return 0;
+
+	return 1;
 }
 
 /*
