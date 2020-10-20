@@ -10,10 +10,6 @@
 #include <inttypes.h>
 #include <libgen.h>
 #include <stdlib.h>
-#include <bpf/bpf.h>
-#include <bpf/btf.h>
-#include <bpf/libbpf.h>
-#include <linux/btf.h>
 #include "util.h" // hex_width()
 #include "ui/ui.h"
 #include "sort.h"
@@ -1684,6 +1680,10 @@ fallback:
 #define PACKAGE "perf"
 #include <bfd.h>
 #include <dis-asm.h>
+#include <bpf/bpf.h>
+#include <bpf/btf.h>
+#include <bpf/libbpf.h>
+#include <linux/btf.h>
 
 static int symbol__disassemble_bpf(struct symbol *sym,
 				   struct annotate_args *args)
