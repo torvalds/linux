@@ -34,6 +34,7 @@
 #include "sienna_cichlid_ppt.h"
 #include "renoir_ppt.h"
 #include "vangogh_ppt.h"
+#include "aldebaran_ppt.h"
 #include "amd_pcie.h"
 
 /*
@@ -554,6 +555,11 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 	case CHIP_NAVY_FLOUNDER:
 	case CHIP_DIMGREY_CAVEFISH:
 		sienna_cichlid_set_ppt_funcs(smu);
+		break;
+	case CHIP_ALDEBARAN:
+		aldebaran_set_ppt_funcs(smu);
+		/* OD is not supported on Aldebaran */
+		smu->od_enabled = false;
 		break;
 	case CHIP_RENOIR:
 		renoir_set_ppt_funcs(smu);
@@ -2066,6 +2072,15 @@ const struct amdgpu_ip_block_version smu_v12_0_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_SMC,
 	.major = 12,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &smu_ip_funcs,
+};
+
+const struct amdgpu_ip_block_version smu_v13_0_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_SMC,
+	.major = 13,
 	.minor = 0,
 	.rev = 0,
 	.funcs = &smu_ip_funcs,

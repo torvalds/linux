@@ -19,18 +19,12 @@
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 #
+#
+# Makefile for the 'smu manager' sub-component of powerplay.
+# It provides the smu management services for the driver.
 
-AMD_SWSMU_PATH = ../pm/swsmu
+SMU13_MGR = smu_v13_0.o aldebaran_ppt.o
 
-SWSMU_LIBS = smu11 smu12 smu13
+AMD_SWSMU_SMU13MGR = $(addprefix $(AMD_SWSMU_PATH)/smu13/,$(SMU13_MGR))
 
-AMD_SWSMU = $(addsuffix /Makefile,$(addprefix $(FULL_AMD_PATH)/pm/swsmu/,$(SWSMU_LIBS)))
-
-include $(AMD_SWSMU)
-
-SWSMU_MGR = amdgpu_smu.o \
-	    smu_cmn.o \
-
-AMD_SWSMU_POWER = $(addprefix $(AMD_SWSMU_PATH)/,$(SWSMU_MGR))
-
-AMD_POWERPLAY_FILES += $(AMD_SWSMU_POWER)
+AMD_POWERPLAY_FILES += $(AMD_SWSMU_SMU13MGR)
