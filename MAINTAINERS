@@ -5231,7 +5231,6 @@ F:	kernel/dma/
 
 DMA-BUF HEAPS FRAMEWORK
 M:	Sumit Semwal <sumit.semwal@linaro.org>
-R:	Andrew F. Davis <afd@ti.com>
 R:	Benjamin Gaignard <benjamin.gaignard@linaro.org>
 R:	Liam Mark <lmark@codeaurora.org>
 R:	Laura Abbott <labbott@redhat.com>
@@ -11605,6 +11604,7 @@ M:	Microchip Linux Driver Support <UNGLinuxDriver@microchip.com>
 L:	linux-mips@vger.kernel.org
 S:	Supported
 F:	Documentation/devicetree/bindings/mips/mscc.txt
+F:	Documentation/devicetree/bindings/power/reset/ocelot-reset.txt
 F:	arch/mips/boot/dts/mscc/
 F:	arch/mips/configs/generic/board-ocelot.config
 F:	arch/mips/generic/board-ocelot.c
@@ -17391,7 +17391,7 @@ S:	Maintained
 F:	drivers/thermal/ti-soc-thermal/
 
 TI BQ27XXX POWER SUPPLY DRIVER
-R:	Andrew F. Davis <afd@ti.com>
+R:	Dan Murphy <dmurphy@ti.com>
 F:	drivers/power/supply/bq27xxx_battery.c
 F:	drivers/power/supply/bq27xxx_battery_i2c.c
 F:	include/linux/power/bq27xxx_battery.h
