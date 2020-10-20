@@ -307,8 +307,6 @@ int nfs3svc_encode_entry_plus(void *, const char *name,
 /* Helper functions for NFSv3 ACL code */
 __be32 *nfs3svc_encode_post_op_attr(struct svc_rqst *rqstp, __be32 *p,
 				struct svc_fh *fhp);
-__be32 *nfs3svc_decode_fh(__be32 *p, struct svc_fh *fhp);
 bool svcxdr_decode_nfs_fh3(struct xdr_stream *xdr, struct svc_fh *fhp);
-
 
 #endif /* _LINUX_NFSD_XDR3_H */

@@ -83,26 +83,6 @@ svcxdr_decode_nfs_fh3(struct xdr_stream *xdr, struct svc_fh *fhp)
 }
 
 static __be32 *
-decode_fh(__be32 *p, struct svc_fh *fhp)
-{
-	unsigned int size;
-	fh_init(fhp, NFS3_FHSIZE);
-	size = ntohl(*p++);
-	if (size > NFS3_FHSIZE)
-		return NULL;
-
-	memcpy(&fhp->fh_handle.fh_base, p, size);
-	fhp->fh_handle.fh_size = size;
-	return p + XDR_QUADLEN(size);
-}
-
-/* Helper function for NFSv3 ACL code */
-__be32 *nfs3svc_decode_fh(__be32 *p, struct svc_fh *fhp)
-{
-	return decode_fh(p, fhp);
-}
-
-static __be32 *
 encode_fh(__be32 *p, struct svc_fh *fhp)
 {
 	unsigned int size = fhp->fh_handle.fh_size;
