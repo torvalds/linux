@@ -111,9 +111,6 @@ static void ext4_finish_bio(struct bio *bio)
 		unsigned under_io = 0;
 		unsigned long flags;
 
-		if (!page)
-			continue;
-
 		if (fscrypt_is_bounce_page(page)) {
 			bounce_page = page;
 			page = fscrypt_pagecache_page(bounce_page);
