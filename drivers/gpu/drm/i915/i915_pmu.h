@@ -50,6 +50,10 @@ struct i915_pmu {
 	 */
 	struct pmu base;
 	/**
+	 * @closed: i915 is unregistering.
+	 */
+	bool closed;
+	/**
 	 * @name: Name as registered with perf core.
 	 */
 	const char *name;
