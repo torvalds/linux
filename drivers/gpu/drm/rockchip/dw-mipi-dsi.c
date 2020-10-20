@@ -1358,10 +1358,10 @@ dw_mipi_dsi_encoder_atomic_check(struct drm_encoder *encoder,
 	s->color_space = V4L2_COLORSPACE_DEFAULT;
 
 	if (dsi->slave)
-		s->output_flags |= ROCKCHIP_OUTPUT_DSI_DUAL_CHANNEL;
+		s->output_flags |= ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE;
 
 	if (dsi->id)
-		s->output_flags |= ROCKCHIP_OUTPUT_DSI_DUAL_LINK;
+		s->output_flags |= ROCKCHIP_OUTPUT_DATA_SWAP;
 
 	return 0;
 }

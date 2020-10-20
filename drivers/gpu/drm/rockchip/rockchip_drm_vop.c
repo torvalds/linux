@@ -2955,9 +2955,9 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 		VOP_CTRL_SET(vop, mipi_pin_pol, val);
 		VOP_CTRL_SET(vop, mipi_dclk_pol, dclk_inv);
 		VOP_CTRL_SET(vop, mipi_dual_channel_en,
-			!!(s->output_flags & ROCKCHIP_OUTPUT_DSI_DUAL_CHANNEL));
+			!!(s->output_flags & ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE));
 		VOP_CTRL_SET(vop, data01_swap,
-			!!(s->output_flags & ROCKCHIP_OUTPUT_DSI_DUAL_LINK) ||
+			!!(s->output_flags & ROCKCHIP_OUTPUT_DATA_SWAP) ||
 			vop->dual_channel_swap);
 		break;
 	case DRM_MODE_CONNECTOR_DisplayPort:
