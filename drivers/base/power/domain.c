@@ -413,15 +413,15 @@ static int _genpd_power_on(struct generic_pm_domain *genpd, bool timed)
 	unsigned int state_idx = genpd->state_idx;
 	ktime_t time_start;
 	s64 elapsed_ns;
-	int ret, nr_calls = 0;
+	int ret;
 
 	/* Notify consumers that we are about to power on. */
-	ret = __raw_notifier_call_chain(&genpd->power_notifiers,
-					GENPD_NOTIFY_PRE_ON, NULL, -1,
-					&nr_calls);
+	ret = raw_notifier_call_chain_robust(&genpd->power_notifiers,
+					     GENPD_NOTIFY_PRE_ON,
+					     GENPD_NOTIFY_OFF, NULL);
 	ret = notifier_to_errno(ret);
 	if (ret)
-		goto err;
+		return ret;
 
 	if (!genpd->power_on)
 		goto out;
@@ -462,15 +462,15 @@ static int _genpd_power_off(struct generic_pm_domain *genpd, bool timed)
 	unsigned int state_idx = genpd->state_idx;
 	ktime_t time_start;
 	s64 elapsed_ns;
-	int ret, nr_calls = 0;
+	int ret;
 
 	/* Notify consumers that we are about to power off. */
-	ret = __raw_notifier_call_chain(&genpd->power_notifiers,
-					GENPD_NOTIFY_PRE_OFF, NULL, -1,
-					&nr_calls);
+	ret = raw_notifier_call_chain_robust(&genpd->power_notifiers,
+					     GENPD_NOTIFY_PRE_OFF,
+					     GENPD_NOTIFY_ON, NULL);
 	ret = notifier_to_errno(ret);
 	if (ret)
-		goto busy;
+		return ret;
 
 	if (!genpd->power_off)
 		goto out;
@@ -502,10 +502,7 @@ out:
 				NULL);
 	return 0;
 busy:
-	if (nr_calls)
-		__raw_notifier_call_chain(&genpd->power_notifiers,
-					  GENPD_NOTIFY_ON, NULL, nr_calls - 1,
-					  NULL);
+	raw_notifier_call_chain(&genpd->power_notifiers, GENPD_NOTIFY_ON, NULL);
 	return ret;
 }
 
