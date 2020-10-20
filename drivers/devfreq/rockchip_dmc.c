@@ -795,6 +795,42 @@ end:
 	of_node_put(np_tim);
 }
 
+static void of_get_rk3568_timings(struct device *dev,
+				  struct device_node *np, uint32_t *timing)
+{
+	struct device_node *np_tim;
+	u32 *p;
+	struct rk3568_ddr_dts_config_timing *dts_timing;
+	int ret = 0;
+	u32 i;
+
+	dts_timing =
+		(struct rk3568_ddr_dts_config_timing *)(timing +
+							DTS_PAR_OFFSET / 4);
+
+	np_tim = of_parse_phandle(np, "ddr_timing", 0);
+	if (!np_tim) {
+		ret = -EINVAL;
+		goto end;
+	}
+
+	p = (u32 *)dts_timing;
+	for (i = 0; i < ARRAY_SIZE(px30_dts_timing); i++) {
+		ret |= of_property_read_u32(np_tim, px30_dts_timing[i],
+					p + i);
+	}
+
+end:
+	if (!ret) {
+		dts_timing->available = 1;
+	} else {
+		dts_timing->available = 0;
+		dev_err(dev, "of_get_ddr_timings: fail\n");
+	}
+
+	of_node_put(np_tim);
+}
+
 static void of_get_rv1126_timings(struct device *dev,
 				  struct device_node *np, uint32_t *timing)
 {
@@ -1103,6 +1139,8 @@ static irqreturn_t wait_dcf_complete_irq(int irqno, void *dev_id)
 
 int rockchip_dmcfreq_wait_complete(void)
 {
+	struct arm_smccc_res res;
+
 	if (!wait_ctrl.wait_en) {
 		pr_err("%s: Do not support time out!\n", __func__);
 		return 0;
@@ -1119,6 +1157,12 @@ int rockchip_dmcfreq_wait_complete(void)
 	if (wait_ctrl.dcf_en == 1) {
 		/* start dcf */
 		regmap_update_bits(wait_ctrl.regmap_dcf, 0x0, 0x1, 0x1);
+	} else if (wait_ctrl.dcf_en == 2) {
+		res = sip_smc_dram(0, 0, ROCKCHIP_SIP_CONFIG_MCU_START);
+		if (res.a0) {
+			pr_err("rockchip_sip_config_mcu_start error:%lx\n", res.a0);
+			return -ENOMEM;
+		}
 	}
 
 	wait_event_timeout(wait_ctrl.wait_wq, (wait_ctrl.wait_flag == 0),
@@ -1618,6 +1662,82 @@ static __maybe_unused int rk3399_dmc_init(struct platform_device *pdev,
 	return 0;
 }
 
+static __maybe_unused int rk3568_dmc_init(struct platform_device *pdev,
+					  struct rockchip_dmcfreq *dmcfreq)
+{
+	struct arm_smccc_res res;
+	u32 size;
+	int ret;
+	int complt_irq;
+
+	res = sip_smc_dram(0, 0,
+			   ROCKCHIP_SIP_CONFIG_DRAM_GET_VERSION);
+	dev_notice(&pdev->dev, "current ATF version 0x%lx\n", res.a1);
+	if (res.a0 || res.a1 < 0x100) {
+		dev_err(&pdev->dev,
+			"trusted firmware need to update or is invalid!\n");
+		return -ENXIO;
+	}
+
+	/*
+	 * first 4KB is used for interface parameters
+	 * after 4KB * N is dts parameters
+	 */
+	size = sizeof(struct rk1808_ddr_dts_config_timing);
+	res = sip_smc_request_share_mem(DIV_ROUND_UP(size, 4096) + 1,
+					SHARE_PAGE_TYPE_DDR);
+	if (res.a0 != 0) {
+		dev_err(&pdev->dev, "no ATF memory for init\n");
+		return -ENOMEM;
+	}
+	ddr_psci_param = (struct share_params *)res.a1;
+	of_get_rk3568_timings(&pdev->dev, pdev->dev.of_node,
+			      (uint32_t *)ddr_psci_param);
+
+	/* start mcu with sip_smc_dram */
+	wait_ctrl.dcf_en = 2;
+
+	init_waitqueue_head(&wait_ctrl.wait_wq);
+	wait_ctrl.wait_en = 1;
+	wait_ctrl.wait_time_out_ms = 17 * 5;
+
+	complt_irq = platform_get_irq_byname(pdev, "complete");
+	if (complt_irq < 0) {
+		dev_err(&pdev->dev, "no IRQ for complt_irq: %d\n",
+			complt_irq);
+		return complt_irq;
+	}
+	wait_ctrl.complt_irq = complt_irq;
+
+	ret = devm_request_irq(&pdev->dev, complt_irq, wait_dcf_complete_irq,
+			       0, dev_name(&pdev->dev), &wait_ctrl);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "cannot request complt_irq\n");
+		return ret;
+	}
+	disable_irq(complt_irq);
+
+	if (of_property_read_u32(pdev->dev.of_node, "update_drv_odt_cfg",
+				 &ddr_psci_param->update_drv_odt_cfg))
+		ddr_psci_param->update_drv_odt_cfg = 0;
+
+	if (of_property_read_u32(pdev->dev.of_node, "update_deskew_cfg",
+				 &ddr_psci_param->update_deskew_cfg))
+		ddr_psci_param->update_deskew_cfg = 0;
+
+	res = sip_smc_dram(SHARE_PAGE_TYPE_DDR, 0,
+			   ROCKCHIP_SIP_CONFIG_DRAM_INIT);
+	if (res.a0) {
+		dev_err(&pdev->dev, "rockchip_sip_config_dram_init error:%lx\n",
+			res.a0);
+		return -ENOMEM;
+	}
+
+	dmcfreq->set_auto_self_refresh = rockchip_ddr_set_auto_self_refresh;
+
+	return 0;
+}
+
 static __maybe_unused int rv1126_dmc_init(struct platform_device *pdev,
 					  struct rockchip_dmcfreq *dmcfreq)
 {
@@ -1726,6 +1846,9 @@ static const struct of_device_id rockchip_dmcfreq_of_match[] = {
 #endif
 #ifdef CONFIG_CPU_RK3399
 	{ .compatible = "rockchip,rk3399-dmc", .data = rk3399_dmc_init },
+#endif
+#ifdef CONFIG_CPU_RK3568
+	{ .compatible = "rockchip,rk3568-dmc", .data = rk3568_dmc_init },
 #endif
 #ifdef CONFIG_CPU_RV1126
 	{ .compatible = "rockchip,rv1126-dmc", .data = rv1126_dmc_init },
