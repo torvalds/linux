@@ -294,8 +294,31 @@
 		status = "disabled";
 	};
 
-	rk628_rgb: rgb {
-		compatible = "rockchip,rk628-rgb";
+	rk628_rgb_tx: rgb-tx {
+		compatible = "rockchip,rk628-rgb-tx";
+		status = "disabled";
+	};
+
+	rk628_yuv_rx: yuv-rx {
+		compatible = "rockchip,rk628-yuv-rx";
+		status = "disabled";
+	};
+
+	rk628_yuv_tx: yuv-tx {
+		compatible = "rockchip,rk628-yuv-tx";
+		status = "disabled";
+	};
+
+	rk628_bt1120_rx: bt1120-rx {
+		compatible = "rockchip,rk628-bt1120-rx";
+		clocks = <&rk628_cru CGU_BT1120DEC>;
+		clock-names = "bt1120dec";
+		resets = <&rk628_cru RGU_BT1120DEC>;
+		status = "disabled";
+	};
+
+	rk628_bt1120_tx: bt1120-tx {
+		compatible = "rockchip,rk628-bt1120-tx";
 		status = "disabled";
 	};
 
