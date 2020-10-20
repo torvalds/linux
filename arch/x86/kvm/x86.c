@@ -5252,14 +5252,21 @@ static int kvm_vm_ioctl_set_msr_filter(struct kvm *kvm, void __user *argp)
 	struct kvm_msr_filter filter;
 	bool default_allow;
 	int r = 0;
+	bool empty = true;
 	u32 i;
 
 	if (copy_from_user(&filter, user_msr_filter, sizeof(filter)))
 		return -EFAULT;
 
-	kvm_clear_msr_filter(kvm);
+	for (i = 0; i < ARRAY_SIZE(filter.ranges); i++)
+		empty &= !filter.ranges[i].nmsrs;
 
 	default_allow = !(filter.flags & KVM_MSR_FILTER_DEFAULT_DENY);
+	if (empty && !default_allow)
+		return -EINVAL;
+
+	kvm_clear_msr_filter(kvm);
+
 	kvm->arch.msr_filter.default_allow = default_allow;
 
 	/*
