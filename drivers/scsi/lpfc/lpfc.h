@@ -753,7 +753,7 @@ struct lpfc_hba {
 #define HBA_SP_QUEUE_EVT	0x8 /* Slow-path qevt posted to worker thread*/
 #define HBA_POST_RECEIVE_BUFFER 0x10 /* Rcv buffers need to be posted */
 #define HBA_PERSISTENT_TOPO	0x20 /* Persistent topology support in hba */
-#define ELS_XRI_ABORT_EVENT	0x40
+#define ELS_XRI_ABORT_EVENT	0x40 /* ELS_XRI abort event was queued */
 #define ASYNC_EVENT		0x80
 #define LINK_DISABLED		0x100 /* Link disabled by user */
 #define FCF_TS_INPROG           0x200 /* FCF table scan in progress */

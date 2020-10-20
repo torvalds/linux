@@ -46,6 +46,7 @@
 #define LPFC_MEM_POOL_SIZE      64      /* max elem in non-DMA safety pool */
 #define LPFC_DEVICE_DATA_POOL_SIZE 64   /* max elements in device data pool */
 #define LPFC_RRQ_POOL_SIZE	256	/* max elements in non-DMA  pool */
+#define LPFC_MBX_POOL_SIZE	256	/* max elements in MBX non-DMA pool */
 
 int
 lpfc_mem_alloc_active_rrq_pool_s4(struct lpfc_hba *phba) {
@@ -111,8 +112,8 @@ lpfc_mem_alloc(struct lpfc_hba *phba, int align)
 		pool->current_count++;
 	}
 
-	phba->mbox_mem_pool = mempool_create_kmalloc_pool(LPFC_MEM_POOL_SIZE,
-							 sizeof(LPFC_MBOXQ_t));
+	phba->mbox_mem_pool = mempool_create_kmalloc_pool(LPFC_MBX_POOL_SIZE,
+							  sizeof(LPFC_MBOXQ_t));
 	if (!phba->mbox_mem_pool)
 		goto fail_free_mbuf_pool;
 
