@@ -29,8 +29,9 @@ static u32	nfs3_ftypes[] = {
 
 
 /*
- * XDR functions for basic NFS types
+ * Basic NFSv3 data types (RFC 1813 Sections 2.5 and 2.6)
  */
+
 static __be32 *
 encode_time3(__be32 *p, struct timespec64 *time)
 {
@@ -44,6 +45,26 @@ decode_time3(__be32 *p, struct timespec64 *time)
 	time->tv_sec = ntohl(*p++);
 	time->tv_nsec = ntohl(*p++);
 	return p;
+}
+
+static bool
+svcxdr_decode_nfs_fh3(struct xdr_stream *xdr, struct svc_fh *fhp)
+{
+	__be32 *p;
+	u32 size;
+
+	if (xdr_stream_decode_u32(xdr, &size) < 0)
+		return false;
+	if (size == 0 || size > NFS3_FHSIZE)
+		return false;
+	p = xdr_inline_decode(xdr, size);
+	if (!p)
+		return false;
+	fh_init(fhp, NFS3_FHSIZE);
+	fhp->fh_handle.fh_size = size;
+	memcpy(&fhp->fh_handle.fh_base, p, size);
+
+	return true;
 }
 
 static __be32 *
@@ -312,14 +333,12 @@ void fill_post_wcc(struct svc_fh *fhp)
  */
 
 int
-nfs3svc_decode_fhandle(struct svc_rqst *rqstp, __be32 *p)
+nfs3svc_decode_fhandleargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	struct nfsd_fhandle *args = rqstp->rq_argp;
 
-	p = decode_fh(p, &args->fh);
-	if (!p)
-		return 0;
-	return xdr_argsize_check(rqstp, p);
+	return svcxdr_decode_nfs_fh3(xdr, &args->fh);
 }
 
 int
