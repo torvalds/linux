@@ -70,7 +70,7 @@ struct clk_hw *uniphier_clk_register_mux(struct device *dev,
 	init.ops = &uniphier_clk_mux_ops;
 	init.flags = CLK_SET_RATE_PARENT;
 	init.parent_names = data->parent_names;
-	init.num_parents = data->num_parents,
+	init.num_parents = data->num_parents;
 
 	mux->regmap = regmap;
 	mux->reg = data->reg;
