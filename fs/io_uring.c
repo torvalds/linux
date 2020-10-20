@@ -81,6 +81,7 @@
 #include <linux/pagemap.h>
 #include <linux/io_uring.h>
 #include <linux/blk-cgroup.h>
+#include <linux/audit.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/io_uring.h>
@@ -326,6 +327,11 @@ struct io_ring_ctx {
 	struct user_struct	*user;
 
 	const struct cred	*creds;
+
+#ifdef CONFIG_AUDIT
+	kuid_t			loginuid;
+	unsigned int		sessionid;
+#endif
 
 	struct completion	ref_comp;
 	struct completion	sq_thread_comp;
@@ -574,7 +580,6 @@ enum {
 	REQ_F_NOWAIT_BIT,
 	REQ_F_LINK_TIMEOUT_BIT,
 	REQ_F_ISREG_BIT,
-	REQ_F_COMP_LOCKED_BIT,
 	REQ_F_NEED_CLEANUP_BIT,
 	REQ_F_POLLED_BIT,
 	REQ_F_BUFFER_SELECTED_BIT,
@@ -613,8 +618,6 @@ enum {
 	REQ_F_LINK_TIMEOUT	= BIT(REQ_F_LINK_TIMEOUT_BIT),
 	/* regular file */
 	REQ_F_ISREG		= BIT(REQ_F_ISREG_BIT),
-	/* completion under lock */
-	REQ_F_COMP_LOCKED	= BIT(REQ_F_COMP_LOCKED_BIT),
 	/* needs cleanup */
 	REQ_F_NEED_CLEANUP	= BIT(REQ_F_NEED_CLEANUP_BIT),
 	/* already went through poll handler */
@@ -732,8 +735,6 @@ struct io_submit_state {
 };
 
 struct io_op_def {
-	/* needs current->mm setup, does mm access */
-	unsigned		needs_mm : 1;
 	/* needs req->file assigned */
 	unsigned		needs_file : 1;
 	/* don't fail if file grab fails */
@@ -744,10 +745,6 @@ struct io_op_def {
 	unsigned		unbound_nonreg_file : 1;
 	/* opcode is not supported by this kernel */
 	unsigned		not_supported : 1;
-	/* needs file table */
-	unsigned		file_table : 1;
-	/* needs ->fs */
-	unsigned		needs_fs : 1;
 	/* set if opcode supports polled "wait" */
 	unsigned		pollin : 1;
 	unsigned		pollout : 1;
@@ -757,45 +754,42 @@ struct io_op_def {
 	unsigned		needs_fsize : 1;
 	/* must always have async data allocated */
 	unsigned		needs_async_data : 1;
-	/* needs blkcg context, issues async io potentially */
-	unsigned		needs_blkcg : 1;
 	/* size of async data needed, if any */
 	unsigned short		async_size;
+	unsigned		work_flags;
 };
 
-static const struct io_op_def io_op_defs[] __read_mostly = {
+static const struct io_op_def io_op_defs[] = {
 	[IORING_OP_NOP] = {},
 	[IORING_OP_READV] = {
-		.needs_mm		= 1,
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollin			= 1,
 		.buffer_select		= 1,
 		.needs_async_data	= 1,
-		.needs_blkcg		= 1,
 		.async_size		= sizeof(struct io_async_rw),
+		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_WRITEV] = {
-		.needs_mm		= 1,
 		.needs_file		= 1,
 		.hash_reg_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
 		.needs_fsize		= 1,
 		.needs_async_data	= 1,
-		.needs_blkcg		= 1,
 		.async_size		= sizeof(struct io_async_rw),
+		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_FSYNC] = {
 		.needs_file		= 1,
-		.needs_blkcg		= 1,
+		.work_flags		= IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_READ_FIXED] = {
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollin			= 1,
-		.needs_blkcg		= 1,
 		.async_size		= sizeof(struct io_async_rw),
+		.work_flags		= IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_WRITE_FIXED] = {
 		.needs_file		= 1,
@@ -803,8 +797,8 @@ static const struct io_op_def io_op_defs[] __read_mostly = {
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
 		.needs_fsize		= 1,
-		.needs_blkcg		= 1,
 		.async_size		= sizeof(struct io_async_rw),
+		.work_flags		= IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_POLL_ADD] = {
 		.needs_file		= 1,
@@ -813,137 +807,123 @@ static const struct io_op_def io_op_defs[] __read_mostly = {
 	[IORING_OP_POLL_REMOVE] = {},
 	[IORING_OP_SYNC_FILE_RANGE] = {
 		.needs_file		= 1,
-		.needs_blkcg		= 1,
+		.work_flags		= IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_SENDMSG] = {
-		.needs_mm		= 1,
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
-		.needs_fs		= 1,
 		.pollout		= 1,
 		.needs_async_data	= 1,
-		.needs_blkcg		= 1,
 		.async_size		= sizeof(struct io_async_msghdr),
+		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG |
+						IO_WQ_WORK_FS,
 	},
 	[IORING_OP_RECVMSG] = {
-		.needs_mm		= 1,
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
-		.needs_fs		= 1,
 		.pollin			= 1,
 		.buffer_select		= 1,
 		.needs_async_data	= 1,
-		.needs_blkcg		= 1,
 		.async_size		= sizeof(struct io_async_msghdr),
+		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG |
+						IO_WQ_WORK_FS,
 	},
 	[IORING_OP_TIMEOUT] = {
-		.needs_mm		= 1,
 		.needs_async_data	= 1,
 		.async_size		= sizeof(struct io_timeout_data),
+		.work_flags		= IO_WQ_WORK_MM,
 	},
 	[IORING_OP_TIMEOUT_REMOVE] = {},
 	[IORING_OP_ACCEPT] = {
-		.needs_mm		= 1,
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
-		.file_table		= 1,
 		.pollin			= 1,
+		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_FILES,
 	},
 	[IORING_OP_ASYNC_CANCEL] = {},
 	[IORING_OP_LINK_TIMEOUT] = {
-		.needs_mm		= 1,
 		.needs_async_data	= 1,
 		.async_size		= sizeof(struct io_timeout_data),
+		.work_flags		= IO_WQ_WORK_MM,
 	},
 	[IORING_OP_CONNECT] = {
-		.needs_mm		= 1,
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
 		.needs_async_data	= 1,
 		.async_size		= sizeof(struct io_async_connect),
+		.work_flags		= IO_WQ_WORK_MM,
 	},
 	[IORING_OP_FALLOCATE] = {
 		.needs_file		= 1,
 		.needs_fsize		= 1,
-		.needs_blkcg		= 1,
+		.work_flags		= IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_OPENAT] = {
-		.file_table		= 1,
-		.needs_fs		= 1,
-		.needs_blkcg		= 1,
+		.work_flags		= IO_WQ_WORK_FILES | IO_WQ_WORK_BLKCG |
+						IO_WQ_WORK_FS,
 	},
 	[IORING_OP_CLOSE] = {
 		.needs_file		= 1,
 		.needs_file_no_error	= 1,
-		.file_table		= 1,
-		.needs_blkcg		= 1,
+		.work_flags		= IO_WQ_WORK_FILES | IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_FILES_UPDATE] = {
-		.needs_mm		= 1,
-		.file_table		= 1,
+		.work_flags		= IO_WQ_WORK_FILES | IO_WQ_WORK_MM,
 	},
 	[IORING_OP_STATX] = {
-		.needs_mm		= 1,
-		.needs_fs		= 1,
-		.file_table		= 1,
-		.needs_blkcg		= 1,
+		.work_flags		= IO_WQ_WORK_FILES | IO_WQ_WORK_MM |
+						IO_WQ_WORK_FS | IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_READ] = {
-		.needs_mm		= 1,
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollin			= 1,
 		.buffer_select		= 1,
-		.needs_blkcg		= 1,
 		.async_size		= sizeof(struct io_async_rw),
+		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_WRITE] = {
-		.needs_mm		= 1,
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
 		.needs_fsize		= 1,
-		.needs_blkcg		= 1,
 		.async_size		= sizeof(struct io_async_rw),
+		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_FADVISE] = {
 		.needs_file		= 1,
-		.needs_blkcg		= 1,
+		.work_flags		= IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_MADVISE] = {
-		.needs_mm		= 1,
-		.needs_blkcg		= 1,
+		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_SEND] = {
-		.needs_mm		= 1,
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
-		.needs_blkcg		= 1,
+		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_RECV] = {
-		.needs_mm		= 1,
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollin			= 1,
 		.buffer_select		= 1,
-		.needs_blkcg		= 1,
+		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_OPENAT2] = {
-		.file_table		= 1,
-		.needs_fs		= 1,
-		.needs_blkcg		= 1,
+		.work_flags		= IO_WQ_WORK_FILES | IO_WQ_WORK_FS |
+						IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_EPOLL_CTL] = {
 		.unbound_nonreg_file	= 1,
-		.file_table		= 1,
+		.work_flags		= IO_WQ_WORK_FILES,
 	},
 	[IORING_OP_SPLICE] = {
 		.needs_file		= 1,
 		.hash_reg_file		= 1,
 		.unbound_nonreg_file	= 1,
-		.needs_blkcg		= 1,
+		.work_flags		= IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_PROVIDE_BUFFERS] = {},
 	[IORING_OP_REMOVE_BUFFERS] = {},
@@ -963,8 +943,8 @@ static void __io_complete_rw(struct io_kiocb *req, long res, long res2,
 			     struct io_comp_state *cs);
 static void io_cqring_fill_event(struct io_kiocb *req, long res);
 static void io_put_req(struct io_kiocb *req);
+static void io_put_req_deferred(struct io_kiocb *req, int nr);
 static void io_double_put_req(struct io_kiocb *req);
-static void __io_double_put_req(struct io_kiocb *req);
 static struct io_kiocb *io_prep_linked_timeout(struct io_kiocb *req);
 static void __io_queue_linked_timeout(struct io_kiocb *req);
 static void io_queue_linked_timeout(struct io_kiocb *req);
@@ -986,7 +966,7 @@ static int io_setup_async_rw(struct io_kiocb *req, const struct iovec *iovec,
 
 static struct kmem_cache *req_cachep;
 
-static const struct file_operations io_uring_fops __read_mostly;
+static const struct file_operations io_uring_fops;
 
 struct sock *io_uring_get_socket(struct file *file)
 {
@@ -1034,7 +1014,7 @@ static int __io_sq_thread_acquire_mm(struct io_ring_ctx *ctx)
 static int io_sq_thread_acquire_mm(struct io_ring_ctx *ctx,
 				   struct io_kiocb *req)
 {
-	if (!io_op_defs[req->opcode].needs_mm)
+	if (!(io_op_defs[req->opcode].work_flags & IO_WQ_WORK_MM))
 		return 0;
 	return __io_sq_thread_acquire_mm(ctx);
 }
@@ -1066,16 +1046,48 @@ static inline void req_set_fail_links(struct io_kiocb *req)
 }
 
 /*
+ * None of these are dereferenced, they are simply used to check if any of
+ * them have changed. If we're under current and check they are still the
+ * same, we're fine to grab references to them for actual out-of-line use.
+ */
+static void io_init_identity(struct io_identity *id)
+{
+	id->files = current->files;
+	id->mm = current->mm;
+#ifdef CONFIG_BLK_CGROUP
+	rcu_read_lock();
+	id->blkcg_css = blkcg_css();
+	rcu_read_unlock();
+#endif
+	id->creds = current_cred();
+	id->nsproxy = current->nsproxy;
+	id->fs = current->fs;
+	id->fsize = rlimit(RLIMIT_FSIZE);
+#ifdef CONFIG_AUDIT
+	id->loginuid = current->loginuid;
+	id->sessionid = current->sessionid;
+#endif
+	refcount_set(&id->count, 1);
+}
+
+/*
  * Note: must call io_req_init_async() for the first time you
  * touch any members of io_wq_work.
  */
 static inline void io_req_init_async(struct io_kiocb *req)
 {
+	struct io_uring_task *tctx = current->io_uring;
+
 	if (req->flags & REQ_F_WORK_INITIALIZED)
 		return;
 
 	memset(&req->work, 0, sizeof(req->work));
 	req->flags |= REQ_F_WORK_INITIALIZED;
+
+	/* Grab a ref if this isn't our static identity */
+	req->work.identity = tctx->identity;
+	if (tctx->identity != &tctx->__identity)
+		refcount_inc(&req->work.identity->count);
 }
 
 static inline bool io_async_submit(struct io_ring_ctx *ctx)
@@ -1181,53 +1193,169 @@ static void __io_commit_cqring(struct io_ring_ctx *ctx)
 	}
 }
 
-/*
- * Returns true if we need to defer file table putting. This can only happen
- * from the error path with REQ_F_COMP_LOCKED set.
- */
-static bool io_req_clean_work(struct io_kiocb *req)
+static void io_put_identity(struct io_uring_task *tctx, struct io_kiocb *req)
+{
+	if (req->work.identity == &tctx->__identity)
+		return;
+	if (refcount_dec_and_test(&req->work.identity->count))
+		kfree(req->work.identity);
+}
+
+static void io_req_clean_work(struct io_kiocb *req)
 {
 	if (!(req->flags & REQ_F_WORK_INITIALIZED))
-		return false;
+		return;
 
 	req->flags &= ~REQ_F_WORK_INITIALIZED;
 
-	if (req->work.mm) {
-		mmdrop(req->work.mm);
-		req->work.mm = NULL;
+	if (req->work.flags & IO_WQ_WORK_MM) {
+		mmdrop(req->work.identity->mm);
+		req->work.flags &= ~IO_WQ_WORK_MM;
 	}
 #ifdef CONFIG_BLK_CGROUP
-	if (req->work.blkcg_css)
-		css_put(req->work.blkcg_css);
-#endif
-	if (req->work.creds) {
-		put_cred(req->work.creds);
-		req->work.creds = NULL;
+	if (req->work.flags & IO_WQ_WORK_BLKCG) {
+		css_put(req->work.identity->blkcg_css);
+		req->work.flags &= ~IO_WQ_WORK_BLKCG;
 	}
-	if (req->work.fs) {
-		struct fs_struct *fs = req->work.fs;
+#endif
+	if (req->work.flags & IO_WQ_WORK_CREDS) {
+		put_cred(req->work.identity->creds);
+		req->work.flags &= ~IO_WQ_WORK_CREDS;
+	}
+	if (req->work.flags & IO_WQ_WORK_FS) {
+		struct fs_struct *fs = req->work.identity->fs;
 
-		if (req->flags & REQ_F_COMP_LOCKED)
-			return true;
-
-		spin_lock(&req->work.fs->lock);
+		spin_lock(&req->work.identity->fs->lock);
 		if (--fs->users)
 			fs = NULL;
-		spin_unlock(&req->work.fs->lock);
+		spin_unlock(&req->work.identity->fs->lock);
 		if (fs)
 			free_fs_struct(fs);
-		req->work.fs = NULL;
+		req->work.flags &= ~IO_WQ_WORK_FS;
 	}
 
-	return false;
+	io_put_identity(req->task->io_uring, req);
+}
+
+/*
+ * Create a private copy of io_identity, since some fields don't match
+ * the current context.
+ */
+static bool io_identity_cow(struct io_kiocb *req)
+{
+	struct io_uring_task *tctx = current->io_uring;
+	const struct cred *creds = NULL;
+	struct io_identity *id;
+
+	if (req->work.flags & IO_WQ_WORK_CREDS)
+		creds = req->work.identity->creds;
+
+	id = kmemdup(req->work.identity, sizeof(*id), GFP_KERNEL);
+	if (unlikely(!id)) {
+		req->work.flags |= IO_WQ_WORK_CANCEL;
+		return false;
+	}
+
+	/*
+	 * We can safely just re-init the creds we copied  Either the field
+	 * matches the current one, or we haven't grabbed it yet. The only
+	 * exception is ->creds, through registered personalities, so handle
+	 * that one separately.
+	 */
+	io_init_identity(id);
+	if (creds)
+		req->work.identity->creds = creds;
+
+	/* add one for this request */
+	refcount_inc(&id->count);
+
+	/* drop old identity, assign new one. one ref for req, one for tctx */
+	if (req->work.identity != tctx->identity &&
+	    refcount_sub_and_test(2, &req->work.identity->count))
+		kfree(req->work.identity);
+
+	req->work.identity = id;
+	tctx->identity = id;
+	return true;
+}
+
+static bool io_grab_identity(struct io_kiocb *req)
+{
+	const struct io_op_def *def = &io_op_defs[req->opcode];
+	struct io_identity *id = req->work.identity;
+	struct io_ring_ctx *ctx = req->ctx;
+
+	if (def->needs_fsize && id->fsize != rlimit(RLIMIT_FSIZE))
+		return false;
+
+	if (!(req->work.flags & IO_WQ_WORK_FILES) &&
+	    (def->work_flags & IO_WQ_WORK_FILES) &&
+	    !(req->flags & REQ_F_NO_FILE_TABLE)) {
+		if (id->files != current->files ||
+		    id->nsproxy != current->nsproxy)
+			return false;
+		atomic_inc(&id->files->count);
+		get_nsproxy(id->nsproxy);
+		req->flags |= REQ_F_INFLIGHT;
+
+		spin_lock_irq(&ctx->inflight_lock);
+		list_add(&req->inflight_entry, &ctx->inflight_list);
+		spin_unlock_irq(&ctx->inflight_lock);
+		req->work.flags |= IO_WQ_WORK_FILES;
+	}
+#ifdef CONFIG_BLK_CGROUP
+	if (!(req->work.flags & IO_WQ_WORK_BLKCG) &&
+	    (def->work_flags & IO_WQ_WORK_BLKCG)) {
+		rcu_read_lock();
+		if (id->blkcg_css != blkcg_css()) {
+			rcu_read_unlock();
+			return false;
+		}
+		/*
+		 * This should be rare, either the cgroup is dying or the task
+		 * is moving cgroups. Just punt to root for the handful of ios.
+		 */
+		if (css_tryget_online(id->blkcg_css))
+			req->work.flags |= IO_WQ_WORK_BLKCG;
+		rcu_read_unlock();
+	}
+#endif
+	if (!(req->work.flags & IO_WQ_WORK_CREDS)) {
+		if (id->creds != current_cred())
+			return false;
+		get_cred(id->creds);
+		req->work.flags |= IO_WQ_WORK_CREDS;
+	}
+#ifdef CONFIG_AUDIT
+	if (!uid_eq(current->loginuid, id->loginuid) ||
+	    current->sessionid != id->sessionid)
+		return false;
+#endif
+	if (!(req->work.flags & IO_WQ_WORK_FS) &&
+	    (def->work_flags & IO_WQ_WORK_FS)) {
+		if (current->fs != id->fs)
+			return false;
+		spin_lock(&id->fs->lock);
+		if (!id->fs->in_exec) {
+			id->fs->users++;
+			req->work.flags |= IO_WQ_WORK_FS;
+		} else {
+			req->work.flags |= IO_WQ_WORK_CANCEL;
+		}
+		spin_unlock(&current->fs->lock);
+	}
+
+	return true;
 }
 
 static void io_prep_async_work(struct io_kiocb *req)
 {
 	const struct io_op_def *def = &io_op_defs[req->opcode];
 	struct io_ring_ctx *ctx = req->ctx;
+	struct io_identity *id;
 
 	io_req_init_async(req);
+	id = req->work.identity;
 
 	if (req->flags & REQ_F_ISREG) {
 		if (def->hash_reg_file || (ctx->flags & IORING_SETUP_IOPOLL))
@@ -1236,50 +1364,24 @@ static void io_prep_async_work(struct io_kiocb *req)
 		if (def->unbound_nonreg_file)
 			req->work.flags |= IO_WQ_WORK_UNBOUND;
 	}
-	if (!req->work.files && io_op_defs[req->opcode].file_table &&
-	    !(req->flags & REQ_F_NO_FILE_TABLE)) {
-		req->work.files = get_files_struct(current);
-		get_nsproxy(current->nsproxy);
-		req->work.nsproxy = current->nsproxy;
-		req->flags |= REQ_F_INFLIGHT;
 
-		spin_lock_irq(&ctx->inflight_lock);
-		list_add(&req->inflight_entry, &ctx->inflight_list);
-		spin_unlock_irq(&ctx->inflight_lock);
+	/* ->mm can never change on us */
+	if (!(req->work.flags & IO_WQ_WORK_MM) &&
+	    (def->work_flags & IO_WQ_WORK_MM)) {
+		mmgrab(id->mm);
+		req->work.flags |= IO_WQ_WORK_MM;
 	}
-	if (!req->work.mm && def->needs_mm) {
-		mmgrab(current->mm);
-		req->work.mm = current->mm;
-	}
-#ifdef CONFIG_BLK_CGROUP
-	if (!req->work.blkcg_css && def->needs_blkcg) {
-		rcu_read_lock();
-		req->work.blkcg_css = blkcg_css();
-		/*
-		 * This should be rare, either the cgroup is dying or the task
-		 * is moving cgroups. Just punt to root for the handful of ios.
-		 */
-		if (!css_tryget_online(req->work.blkcg_css))
-			req->work.blkcg_css = NULL;
-		rcu_read_unlock();
-	}
-#endif
-	if (!req->work.creds)
-		req->work.creds = get_current_cred();
-	if (!req->work.fs && def->needs_fs) {
-		spin_lock(&current->fs->lock);
-		if (!current->fs->in_exec) {
-			req->work.fs = current->fs;
-			req->work.fs->users++;
-		} else {
-			req->work.flags |= IO_WQ_WORK_CANCEL;
-		}
-		spin_unlock(&current->fs->lock);
-	}
-	if (def->needs_fsize)
-		req->work.fsize = rlimit(RLIMIT_FSIZE);
-	else
-		req->work.fsize = RLIM_INFINITY;
+
+	/* if we fail grabbing identity, we must COW, regrab, and retry */
+	if (io_grab_identity(req))
+		return;
+
+	if (!io_identity_cow(req))
+		return;
+
+	/* can't fail at this point */
+	if (!io_grab_identity(req))
+		WARN_ON(1);
 }
 
 static void io_prep_async_link(struct io_kiocb *req)
@@ -1325,9 +1427,8 @@ static void io_kill_timeout(struct io_kiocb *req)
 		atomic_set(&req->ctx->cq_timeouts,
 			atomic_read(&req->ctx->cq_timeouts) + 1);
 		list_del_init(&req->timeout.list);
-		req->flags |= REQ_F_COMP_LOCKED;
 		io_cqring_fill_event(req, 0);
-		io_put_req(req);
+		io_put_req_deferred(req, 1);
 	}
 }
 
@@ -1378,8 +1479,7 @@ static void __io_queue_deferred(struct io_ring_ctx *ctx)
 		if (link) {
 			__io_queue_linked_timeout(link);
 			/* drop submission reference */
-			link->flags |= REQ_F_COMP_LOCKED;
-			io_put_req(link);
+			io_put_req_deferred(link, 1);
 		}
 		kfree(de);
 	} while (!list_empty(&ctx->defer_list));
@@ -1471,8 +1571,9 @@ static inline bool io_match_files(struct io_kiocb *req,
 {
 	if (!files)
 		return true;
-	if (req->flags & REQ_F_WORK_INITIALIZED)
-		return req->work.files == files;
+	if ((req->flags & REQ_F_WORK_INITIALIZED) &&
+	    (req->work.flags & IO_WQ_WORK_FILES))
+		return req->work.identity->files == files;
 	return false;
 }
 
@@ -1606,13 +1707,19 @@ static void io_submit_flush_completions(struct io_comp_state *cs)
 		req = list_first_entry(&cs->list, struct io_kiocb, compl.list);
 		list_del(&req->compl.list);
 		__io_cqring_fill_event(req, req->result, req->compl.cflags);
-		if (!(req->flags & REQ_F_LINK_HEAD)) {
-			req->flags |= REQ_F_COMP_LOCKED;
-			io_put_req(req);
-		} else {
+
+		/*
+		 * io_free_req() doesn't care about completion_lock unless one
+		 * of these flags is set. REQ_F_WORK_INITIALIZED is in the list
+		 * because of a potential deadlock with req->work.fs->lock
+		 */
+		if (req->flags & (REQ_F_FAIL_LINK|REQ_F_LINK_TIMEOUT
+				 |REQ_F_WORK_INITIALIZED)) {
 			spin_unlock_irq(&ctx->completion_lock);
 			io_put_req(req);
 			spin_lock_irq(&ctx->completion_lock);
+		} else {
+			io_put_req(req);
 		}
 	}
 	io_commit_cqring(ctx);
@@ -1699,7 +1806,7 @@ static inline void io_put_file(struct io_kiocb *req, struct file *file,
 		fput(file);
 }
 
-static bool io_dismantle_req(struct io_kiocb *req)
+static void io_dismantle_req(struct io_kiocb *req)
 {
 	io_clean_op(req);
 
@@ -1708,15 +1815,17 @@ static bool io_dismantle_req(struct io_kiocb *req)
 	if (req->file)
 		io_put_file(req, req->file, (req->flags & REQ_F_FIXED_FILE));
 
-	return io_req_clean_work(req);
+	io_req_clean_work(req);
 }
 
-static void __io_free_req_finish(struct io_kiocb *req)
+static void __io_free_req(struct io_kiocb *req)
 {
 	struct io_uring_task *tctx = req->task->io_uring;
 	struct io_ring_ctx *ctx = req->ctx;
 
-	atomic_long_inc(&tctx->req_complete);
+	io_dismantle_req(req);
+
+	percpu_counter_dec(&tctx->inflight);
 	if (tctx->in_idle)
 		wake_up(&tctx->wait);
 	put_task_struct(req->task);
@@ -1726,39 +1835,6 @@ static void __io_free_req_finish(struct io_kiocb *req)
 	else
 		clear_bit_unlock(0, (unsigned long *) &ctx->fallback_req);
 	percpu_ref_put(&ctx->refs);
-}
-
-static void io_req_task_file_table_put(struct callback_head *cb)
-{
-	struct io_kiocb *req = container_of(cb, struct io_kiocb, task_work);
-	struct fs_struct *fs = req->work.fs;
-
-	spin_lock(&req->work.fs->lock);
-	if (--fs->users)
-		fs = NULL;
-	spin_unlock(&req->work.fs->lock);
-	if (fs)
-		free_fs_struct(fs);
-	req->work.fs = NULL;
-	__io_free_req_finish(req);
-}
-
-static void __io_free_req(struct io_kiocb *req)
-{
-	if (!io_dismantle_req(req)) {
-		__io_free_req_finish(req);
-	} else {
-		int ret;
-
-		init_task_work(&req->task_work, io_req_task_file_table_put);
-		ret = task_work_add(req->task, &req->task_work, TWA_RESUME);
-		if (unlikely(ret)) {
-			struct task_struct *tsk;
-
-			tsk = io_wq_get_task(req->ctx->io_wq);
-			task_work_add(tsk, &req->task_work, 0);
-		}
-	}
 }
 
 static bool io_link_cancel_timeout(struct io_kiocb *req)
@@ -1772,7 +1848,7 @@ static bool io_link_cancel_timeout(struct io_kiocb *req)
 		io_cqring_fill_event(req, -ECANCELED);
 		io_commit_cqring(ctx);
 		req->flags &= ~REQ_F_LINK_HEAD;
-		io_put_req(req);
+		io_put_req_deferred(req, 1);
 		return true;
 	}
 
@@ -1791,7 +1867,6 @@ static bool __io_kill_linked_timeout(struct io_kiocb *req)
 		return false;
 
 	list_del_init(&link->link_list);
-	link->flags |= REQ_F_COMP_LOCKED;
 	wake_ev = io_link_cancel_timeout(link);
 	req->flags &= ~REQ_F_LINK_TIMEOUT;
 	return wake_ev;
@@ -1800,17 +1875,12 @@ static bool __io_kill_linked_timeout(struct io_kiocb *req)
 static void io_kill_linked_timeout(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
+	unsigned long flags;
 	bool wake_ev;
 
-	if (!(req->flags & REQ_F_COMP_LOCKED)) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&ctx->completion_lock, flags);
-		wake_ev = __io_kill_linked_timeout(req);
-		spin_unlock_irqrestore(&ctx->completion_lock, flags);
-	} else {
-		wake_ev = __io_kill_linked_timeout(req);
-	}
+	spin_lock_irqsave(&ctx->completion_lock, flags);
+	wake_ev = __io_kill_linked_timeout(req);
+	spin_unlock_irqrestore(&ctx->completion_lock, flags);
 
 	if (wake_ev)
 		io_cqring_ev_posted(ctx);
@@ -1850,28 +1920,29 @@ static void __io_fail_links(struct io_kiocb *req)
 		trace_io_uring_fail_link(req, link);
 
 		io_cqring_fill_event(link, -ECANCELED);
-		link->flags |= REQ_F_COMP_LOCKED;
-		__io_double_put_req(link);
-		req->flags &= ~REQ_F_LINK_TIMEOUT;
+
+		/*
+		 * It's ok to free under spinlock as they're not linked anymore,
+		 * but avoid REQ_F_WORK_INITIALIZED because it may deadlock on
+		 * work.fs->lock.
+		 */
+		if (link->flags & REQ_F_WORK_INITIALIZED)
+			io_put_req_deferred(link, 2);
+		else
+			io_double_put_req(link);
 	}
 
 	io_commit_cqring(ctx);
-	io_cqring_ev_posted(ctx);
 }
 
 static void io_fail_links(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
+	unsigned long flags;
 
-	if (!(req->flags & REQ_F_COMP_LOCKED)) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&ctx->completion_lock, flags);
-		__io_fail_links(req);
-		spin_unlock_irqrestore(&ctx->completion_lock, flags);
-	} else {
-		__io_fail_links(req);
-	}
+	spin_lock_irqsave(&ctx->completion_lock, flags);
+	__io_fail_links(req);
+	spin_unlock_irqrestore(&ctx->completion_lock, flags);
 
 	io_cqring_ev_posted(ctx);
 }
@@ -2033,7 +2104,9 @@ static void io_req_free_batch_finish(struct io_ring_ctx *ctx,
 	if (rb->to_free)
 		__io_req_free_batch_flush(ctx, rb);
 	if (rb->task) {
-		atomic_long_add(rb->task_refs, &rb->task->io_uring->req_complete);
+		struct io_uring_task *tctx = rb->task->io_uring;
+
+		percpu_counter_sub(&tctx->inflight, rb->task_refs);
 		put_task_struct_many(rb->task, rb->task_refs);
 		rb->task = NULL;
 	}
@@ -2050,7 +2123,9 @@ static void io_req_free_batch(struct req_batch *rb, struct io_kiocb *req)
 
 	if (req->task != rb->task) {
 		if (rb->task) {
-			atomic_long_add(rb->task_refs, &rb->task->io_uring->req_complete);
+			struct io_uring_task *tctx = rb->task->io_uring;
+
+			percpu_counter_sub(&tctx->inflight, rb->task_refs);
 			put_task_struct_many(rb->task, rb->task_refs);
 		}
 		rb->task = req->task;
@@ -2058,7 +2133,7 @@ static void io_req_free_batch(struct req_batch *rb, struct io_kiocb *req)
 	}
 	rb->task_refs++;
 
-	WARN_ON_ONCE(io_dismantle_req(req));
+	io_dismantle_req(req);
 	rb->reqs[rb->to_free++] = req;
 	if (unlikely(rb->to_free == ARRAY_SIZE(rb->reqs)))
 		__io_req_free_batch_flush(req->ctx, rb);
@@ -2085,6 +2160,34 @@ static void io_put_req(struct io_kiocb *req)
 		io_free_req(req);
 }
 
+static void io_put_req_deferred_cb(struct callback_head *cb)
+{
+	struct io_kiocb *req = container_of(cb, struct io_kiocb, task_work);
+
+	io_free_req(req);
+}
+
+static void io_free_req_deferred(struct io_kiocb *req)
+{
+	int ret;
+
+	init_task_work(&req->task_work, io_put_req_deferred_cb);
+	ret = io_req_task_work_add(req, true);
+	if (unlikely(ret)) {
+		struct task_struct *tsk;
+
+		tsk = io_wq_get_task(req->ctx->io_wq);
+		task_work_add(tsk, &req->task_work, 0);
+		wake_up_process(tsk);
+	}
+}
+
+static inline void io_put_req_deferred(struct io_kiocb *req, int refs)
+{
+	if (refcount_sub_and_test(refs, &req->refs))
+		io_free_req_deferred(req);
+}
+
 static struct io_wq_work *io_steal_work(struct io_kiocb *req)
 {
 	struct io_kiocb *nxt;
@@ -2099,17 +2202,6 @@ static struct io_wq_work *io_steal_work(struct io_kiocb *req)
 
 	nxt = io_req_find_next(req);
 	return nxt ? &nxt->work : NULL;
-}
-
-/*
- * Must only be used if we don't need to care about links, usually from
- * within the completion handling itself.
- */
-static void __io_double_put_req(struct io_kiocb *req)
-{
-	/* drop both submit and complete references */
-	if (refcount_sub_and_test(2, &req->refs))
-		__io_free_req(req);
 }
 
 static void io_double_put_req(struct io_kiocb *req)
@@ -2601,7 +2693,7 @@ static struct file *__io_file_get(struct io_submit_state *state, int fd)
 static bool io_bdev_nowait(struct block_device *bdev)
 {
 #ifdef CONFIG_BLOCK
-	return !bdev || queue_is_mq(bdev_get_queue(bdev));
+	return !bdev || blk_queue_nowait(bdev_get_queue(bdev));
 #else
 	return true;
 #endif
@@ -4123,7 +4215,7 @@ static int io_close(struct io_kiocb *req, bool force_nonblock,
 	}
 
 	/* No ->flush() or already async, safely close from here */
-	ret = filp_close(close->put_file, req->work.files);
+	ret = filp_close(close->put_file, req->work.identity->files);
 	if (ret < 0)
 		req_set_fail_links(req);
 	fput(close->put_file);
@@ -4845,10 +4937,9 @@ static void io_poll_task_handler(struct io_kiocb *req, struct io_kiocb **nxt)
 
 	hash_del(&req->hash_node);
 	io_poll_complete(req, req->result, 0);
-	req->flags |= REQ_F_COMP_LOCKED;
-	*nxt = io_put_req_find_next(req);
 	spin_unlock_irq(&ctx->completion_lock);
 
+	*nxt = io_put_req_find_next(req);
 	io_cqring_ev_posted(ctx);
 }
 
@@ -4917,6 +5008,8 @@ static void __io_queue_proc(struct io_poll_iocb *poll, struct io_poll_table *pt,
 	 * for write). Setup a separate io_poll_iocb if this happens.
 	 */
 	if (unlikely(poll->head)) {
+		struct io_poll_iocb *poll_one = poll;
+
 		/* already have a 2nd entry, fail a third attempt */
 		if (*poll_ptr) {
 			pt->error = -EINVAL;
@@ -4927,7 +5020,7 @@ static void __io_queue_proc(struct io_poll_iocb *poll, struct io_poll_table *pt,
 			pt->error = -ENOMEM;
 			return;
 		}
-		io_init_poll_iocb(poll, req->poll.events, io_poll_double_wake);
+		io_init_poll_iocb(poll, poll_one->events, io_poll_double_wake);
 		refcount_inc(&req->refs);
 		poll->wait.private = req;
 		*poll_ptr = poll;
@@ -5144,9 +5237,8 @@ static bool io_poll_remove_one(struct io_kiocb *req)
 	if (do_complete) {
 		io_cqring_fill_event(req, -ECANCELED);
 		io_commit_cqring(req->ctx);
-		req->flags |= REQ_F_COMP_LOCKED;
 		req_set_fail_links(req);
-		io_put_req(req);
+		io_put_req_deferred(req, 1);
 	}
 
 	return do_complete;
@@ -5328,9 +5420,8 @@ static int __io_timeout_cancel(struct io_kiocb *req)
 	list_del_init(&req->timeout.list);
 
 	req_set_fail_links(req);
-	req->flags |= REQ_F_COMP_LOCKED;
 	io_cqring_fill_event(req, -ECANCELED);
-	io_put_req(req);
+	io_put_req_deferred(req, 1);
 	return 0;
 }
 
@@ -5740,9 +5831,9 @@ static void io_req_drop_files(struct io_kiocb *req)
 		wake_up(&ctx->inflight_wait);
 	spin_unlock_irqrestore(&ctx->inflight_lock, flags);
 	req->flags &= ~REQ_F_INFLIGHT;
-	put_files_struct(req->work.files);
-	put_nsproxy(req->work.nsproxy);
-	req->work.files = NULL;
+	put_files_struct(req->work.identity->files);
+	put_nsproxy(req->work.identity->nsproxy);
+	req->work.flags &= ~IO_WQ_WORK_FILES;
 }
 
 static void __io_clean_op(struct io_kiocb *req)
@@ -6100,14 +6191,15 @@ static void __io_queue_sqe(struct io_kiocb *req, struct io_comp_state *cs)
 again:
 	linked_timeout = io_prep_linked_timeout(req);
 
-	if ((req->flags & REQ_F_WORK_INITIALIZED) && req->work.creds &&
-	    req->work.creds != current_cred()) {
+	if ((req->flags & REQ_F_WORK_INITIALIZED) && req->work.identity->creds &&
+	    req->work.identity->creds != current_cred()) {
 		if (old_creds)
 			revert_creds(old_creds);
-		if (old_creds == req->work.creds)
+		if (old_creds == req->work.identity->creds)
 			old_creds = NULL; /* restored original creds */
 		else
-			old_creds = override_creds(req->work.creds);
+			old_creds = override_creds(req->work.identity->creds);
+		req->work.flags |= IO_WQ_WORK_CREDS;
 	}
 
 	ret = io_issue_sqe(req, true, cs);
@@ -6410,11 +6502,17 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 
 	id = READ_ONCE(sqe->personality);
 	if (id) {
+		struct io_identity *iod;
+
 		io_req_init_async(req);
-		req->work.creds = idr_find(&ctx->personality_idr, id);
-		if (unlikely(!req->work.creds))
+		iod = idr_find(&ctx->personality_idr, id);
+		if (unlikely(!iod))
 			return -EINVAL;
-		get_cred(req->work.creds);
+		refcount_inc(&iod->count);
+		io_put_identity(current->io_uring, req);
+		get_cred(iod->creds);
+		req->work.identity = iod;
+		req->work.flags |= IO_WQ_WORK_CREDS;
 	}
 
 	/* same numerical values with corresponding REQ_F_*, safe to copy */
@@ -6447,7 +6545,7 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
 	if (!percpu_ref_tryget_many(&ctx->refs, nr))
 		return -EAGAIN;
 
-	atomic_long_add(nr, &current->io_uring->req_issue);
+	percpu_counter_add(&current->io_uring->inflight, nr);
 	refcount_add(nr, &current->usage);
 
 	io_submit_state_start(&state, ctx, nr);
@@ -6489,10 +6587,12 @@ fail_req:
 
 	if (unlikely(submitted != nr)) {
 		int ref_used = (submitted == -EAGAIN) ? 0 : submitted;
+		struct io_uring_task *tctx = current->io_uring;
+		int unused = nr - ref_used;
 
-		percpu_ref_put_many(&ctx->refs, nr - ref_used);
-		atomic_long_sub(nr - ref_used, &current->io_uring->req_issue);
-		put_task_struct_many(current, nr - ref_used);
+		percpu_ref_put_many(&ctx->refs, unused);
+		percpu_counter_sub(&tctx->inflight, unused);
+		put_task_struct_many(current, unused);
 	}
 	if (link)
 		io_queue_link_head(link, &state.comp);
@@ -6672,6 +6772,10 @@ static int io_sq_thread(void *data)
 				old_cred = override_creds(ctx->creds);
 			}
 			io_sq_thread_associate_blkcg(ctx, &cur_css);
+#ifdef CONFIG_AUDIT
+			current->loginuid = ctx->loginuid;
+			current->sessionid = ctx->sessionid;
+#endif
 
 			ret |= __io_sq_thread(ctx, start_jiffies, cap_entries);
 
@@ -7306,7 +7410,7 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 	spin_lock_init(&file_data->lock);
 
 	nr_tables = DIV_ROUND_UP(nr_args, IORING_MAX_FILES_TABLE);
-	file_data->table = kcalloc(nr_tables, sizeof(file_data->table),
+	file_data->table = kcalloc(nr_tables, sizeof(*file_data->table),
 				   GFP_KERNEL);
 	if (!file_data->table)
 		goto out_free;
@@ -7317,6 +7421,7 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 
 	if (io_sqe_alloc_file_tables(file_data, nr_tables, nr_args))
 		goto out_ref;
+	ctx->file_data = file_data;
 
 	for (i = 0; i < nr_args; i++, ctx->nr_user_files++) {
 		struct fixed_file_table *table;
@@ -7351,7 +7456,6 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 		table->files[index] = file;
 	}
 
-	ctx->file_data = file_data;
 	ret = io_sqe_files_scm(ctx);
 	if (ret) {
 		io_sqe_files_unregister(ctx);
@@ -7384,6 +7488,7 @@ out_ref:
 out_free:
 	kfree(file_data->table);
 	kfree(file_data);
+	ctx->file_data = NULL;
 	return ret;
 }
 
@@ -7609,17 +7714,24 @@ out_fput:
 static int io_uring_alloc_task_context(struct task_struct *task)
 {
 	struct io_uring_task *tctx;
+	int ret;
 
 	tctx = kmalloc(sizeof(*tctx), GFP_KERNEL);
 	if (unlikely(!tctx))
 		return -ENOMEM;
 
+	ret = percpu_counter_init(&tctx->inflight, 0, GFP_KERNEL);
+	if (unlikely(ret)) {
+		kfree(tctx);
+		return ret;
+	}
+
 	xa_init(&tctx->xa);
 	init_waitqueue_head(&tctx->wait);
 	tctx->last = NULL;
 	tctx->in_idle = 0;
-	atomic_long_set(&tctx->req_issue, 0);
-	atomic_long_set(&tctx->req_complete, 0);
+	io_init_identity(&tctx->__identity);
+	tctx->identity = &tctx->__identity;
 	task->io_uring = tctx;
 	return 0;
 }
@@ -7629,6 +7741,10 @@ void __io_uring_free(struct task_struct *tsk)
 	struct io_uring_task *tctx = tsk->io_uring;
 
 	WARN_ON_ONCE(!xa_empty(&tctx->xa));
+	WARN_ON_ONCE(refcount_read(&tctx->identity->count) != 1);
+	if (tctx->identity != &tctx->__identity)
+		kfree(tctx->identity);
+	percpu_counter_destroy(&tctx->inflight);
 	kfree(tctx);
 	tsk->io_uring = NULL;
 }
@@ -8205,11 +8321,14 @@ static int io_uring_fasync(int fd, struct file *file, int on)
 static int io_remove_personalities(int id, void *p, void *data)
 {
 	struct io_ring_ctx *ctx = data;
-	const struct cred *cred;
+	struct io_identity *iod;
 
-	cred = idr_remove(&ctx->personality_idr, id);
-	if (cred)
-		put_cred(cred);
+	iod = idr_remove(&ctx->personality_idr, id);
+	if (iod) {
+		put_cred(iod->creds);
+		if (refcount_dec_and_test(&iod->count))
+			kfree(iod);
+	}
 	return 0;
 }
 
@@ -8281,7 +8400,8 @@ static bool io_wq_files_match(struct io_wq_work *work, void *data)
 {
 	struct files_struct *files = data;
 
-	return !files || work->files == files;
+	return !files || ((work->flags & IO_WQ_WORK_FILES) &&
+				work->identity->files == files);
 }
 
 /*
@@ -8436,7 +8556,8 @@ static bool io_uring_cancel_files(struct io_ring_ctx *ctx,
 
 		spin_lock_irq(&ctx->inflight_lock);
 		list_for_each_entry(req, &ctx->inflight_list, inflight_entry) {
-			if (files && req->work.files != files)
+			if (files && (req->work.flags & IO_WQ_WORK_FILES) &&
+			    req->work.identity->files != files)
 				continue;
 			/* req is being completed, ignore */
 			if (!refcount_inc_not_zero(&req->refs))
@@ -8608,12 +8729,6 @@ void __io_uring_files_cancel(struct files_struct *files)
 	}
 }
 
-static inline bool io_uring_task_idle(struct io_uring_task *tctx)
-{
-	return atomic_long_read(&tctx->req_issue) ==
-		atomic_long_read(&tctx->req_complete);
-}
-
 /*
  * Find any io_uring fd that this task has registered or done IO on, and cancel
  * requests.
@@ -8622,14 +8737,16 @@ void __io_uring_task_cancel(void)
 {
 	struct io_uring_task *tctx = current->io_uring;
 	DEFINE_WAIT(wait);
-	long completions;
+	s64 inflight;
 
 	/* make sure overflow events are dropped */
 	tctx->in_idle = true;
 
-	while (!io_uring_task_idle(tctx)) {
+	do {
 		/* read completions before cancelations */
-		completions = atomic_long_read(&tctx->req_complete);
+		inflight = percpu_counter_sum(&tctx->inflight);
+		if (!inflight)
+			break;
 		__io_uring_files_cancel(NULL);
 
 		prepare_to_wait(&tctx->wait, &wait, TASK_UNINTERRUPTIBLE);
@@ -8638,12 +8755,10 @@ void __io_uring_task_cancel(void)
 		 * If we've seen completions, retry. This avoids a race where
 		 * a completion comes in before we did prepare_to_wait().
 		 */
-		if (completions != atomic_long_read(&tctx->req_complete))
+		if (inflight != percpu_counter_sum(&tctx->inflight))
 			continue;
-		if (io_uring_task_idle(tctx))
-			break;
 		schedule();
-	}
+	} while (1);
 
 	finish_wait(&tctx->wait, &wait);
 	tctx->in_idle = false;
@@ -9109,7 +9224,10 @@ static int io_uring_create(unsigned entries, struct io_uring_params *p,
 	ctx->compat = in_compat_syscall();
 	ctx->user = user;
 	ctx->creds = get_current_cred();
-
+#ifdef CONFIG_AUDIT
+	ctx->loginuid = current->loginuid;
+	ctx->sessionid = current->sessionid;
+#endif
 	ctx->sqo_task = get_task_struct(current);
 
 	/*
@@ -9277,23 +9395,33 @@ out:
 
 static int io_register_personality(struct io_ring_ctx *ctx)
 {
-	const struct cred *creds = get_current_cred();
-	int id;
+	struct io_identity *id;
+	int ret;
 
-	id = idr_alloc_cyclic(&ctx->personality_idr, (void *) creds, 1,
-				USHRT_MAX, GFP_KERNEL);
-	if (id < 0)
-		put_cred(creds);
-	return id;
+	id = kmalloc(sizeof(*id), GFP_KERNEL);
+	if (unlikely(!id))
+		return -ENOMEM;
+
+	io_init_identity(id);
+	id->creds = get_current_cred();
+
+	ret = idr_alloc_cyclic(&ctx->personality_idr, id, 1, USHRT_MAX, GFP_KERNEL);
+	if (ret < 0) {
+		put_cred(id->creds);
+		kfree(id);
+	}
+	return ret;
 }
 
 static int io_unregister_personality(struct io_ring_ctx *ctx, unsigned id)
 {
-	const struct cred *old_creds;
+	struct io_identity *iod;
 
-	old_creds = idr_remove(&ctx->personality_idr, id);
-	if (old_creds) {
-		put_cred(old_creds);
+	iod = idr_remove(&ctx->personality_idr, id);
+	if (iod) {
+		put_cred(iod->creds);
+		if (refcount_dec_and_test(&iod->count))
+			kfree(iod);
 		return 0;
 	}
 
