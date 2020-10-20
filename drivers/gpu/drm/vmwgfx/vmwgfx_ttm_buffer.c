@@ -737,6 +737,8 @@ static int vmw_move(struct ttm_buffer_object *bo,
 	struct ttm_resource_manager *new_man = ttm_manager_type(bo->bdev, new_mem->mem_type);
 	int ret;
 
+	vmw_move_notify(bo, evict, new_mem);
+
 	if (old_man->use_tt && new_man->use_tt) {
 		if (bo->mem.mem_type == TTM_PL_SYSTEM) {
 			ttm_bo_assign_mem(bo, new_mem);
@@ -744,15 +746,23 @@ static int vmw_move(struct ttm_buffer_object *bo,
 		}
 		ret = ttm_bo_wait_ctx(bo, ctx);
 		if (ret)
-			return ret;
+			goto fail;
 
 		vmw_ttm_unbind(bo->bdev, bo->ttm);
 		ttm_resource_free(bo, &bo->mem);
 		ttm_bo_assign_mem(bo, new_mem);
 		return 0;
 	} else {
-		return ttm_bo_move_memcpy(bo, ctx, new_mem);
+		ret = ttm_bo_move_memcpy(bo, ctx, new_mem);
+		if (ret)
+			goto fail;
 	}
+	return 0;
+fail:
+	swap(*new_mem, bo->mem);
+	vmw_move_notify(bo, false, new_mem);
+	swap(*new_mem, bo->mem);
+	return ret;
 }
 
 struct ttm_bo_driver vmw_bo_driver = {

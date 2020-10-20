@@ -1032,9 +1032,10 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict,
 	struct nouveau_drm_tile *new_tile = NULL;
 	int ret = 0;
 
+	nouveau_bo_move_ntfy(bo, evict, new_reg);
 	ret = ttm_bo_wait_ctx(bo, ctx);
 	if (ret)
-		return ret;
+		goto out_ntfy;
 
 	if (nvbo->bo.pin_count)
 		NV_WARN(drm, "Moving pinned object %p!\n", nvbo);
@@ -1042,7 +1043,7 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict,
 	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA) {
 		ret = nouveau_bo_vm_bind(bo, new_reg, &new_tile);
 		if (ret)
-			return ret;
+			goto out_ntfy;
 	}
 
 	/* Fake bo copy. */
@@ -1090,7 +1091,12 @@ out:
 		else
 			nouveau_bo_vm_cleanup(bo, new_tile, &nvbo->tile);
 	}
-
+out_ntfy:
+	if (ret) {
+		swap(*new_reg, bo->mem);
+		nouveau_bo_move_ntfy(bo, false, new_reg);
+		swap(*new_reg, bo->mem);
+	}
 	return ret;
 }
 

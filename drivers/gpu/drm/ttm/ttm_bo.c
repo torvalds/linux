@@ -263,19 +263,9 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 		}
 	}
 
-	if (bdev->driver->move_notify)
-		bdev->driver->move_notify(bo, evict, mem);
-
 	ret = bdev->driver->move(bo, evict, ctx, mem);
-	if (ret) {
-		if (bdev->driver->move_notify) {
-			swap(*mem, bo->mem);
-			bdev->driver->move_notify(bo, false, mem);
-			swap(*mem, bo->mem);
-		}
-
+	if (ret)
 		goto out_err;
-	}
 
 	ctx->bytes_moved += bo->num_pages << PAGE_SHIFT;
 	return 0;

@@ -136,24 +136,6 @@ static struct ttm_tt *qxl_ttm_tt_create(struct ttm_buffer_object *bo,
 	return ttm;
 }
 
-static int qxl_bo_move(struct ttm_buffer_object *bo, bool evict,
-		       struct ttm_operation_ctx *ctx,
-		       struct ttm_resource *new_mem)
-{
-	struct ttm_resource *old_mem = &bo->mem;
-	int ret;
-
-	ret = ttm_bo_wait_ctx(bo, ctx);
-	if (ret)
-		return ret;
-
-	if (old_mem->mem_type == TTM_PL_SYSTEM && bo->ttm == NULL) {
-		ttm_bo_move_null(bo, new_mem);
-		return 0;
-	}
-	return ttm_bo_move_memcpy(bo, ctx, new_mem);
-}
-
 static void qxl_bo_move_notify(struct ttm_buffer_object *bo,
 			       bool evict,
 			       struct ttm_resource *new_mem)
@@ -168,6 +150,33 @@ static void qxl_bo_move_notify(struct ttm_buffer_object *bo,
 
 	if (bo->mem.mem_type == TTM_PL_PRIV && qbo->surface_id)
 		qxl_surface_evict(qdev, qbo, new_mem ? true : false);
+}
+
+static int qxl_bo_move(struct ttm_buffer_object *bo, bool evict,
+		       struct ttm_operation_ctx *ctx,
+		       struct ttm_resource *new_mem)
+{
+	struct ttm_resource *old_mem = &bo->mem;
+	int ret;
+
+	qxl_bo_move_notify(bo, evict, new_mem);
+
+	ret = ttm_bo_wait_ctx(bo, ctx);
+	if (ret)
+		goto out;
+
+	if (old_mem->mem_type == TTM_PL_SYSTEM && bo->ttm == NULL) {
+		ttm_bo_move_null(bo, new_mem);
+		return 0;
+	}
+	ret = ttm_bo_move_memcpy(bo, ctx, new_mem);
+out:
+	if (ret) {
+		swap(*new_mem, bo->mem);
+		qxl_bo_move_notify(bo, false, new_mem);
+		swap(*new_mem, bo->mem);
+	}
+	return ret;
 }
 
 static struct ttm_bo_driver qxl_bo_driver = {

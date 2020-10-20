@@ -311,9 +311,11 @@ static int radeon_bo_move(struct ttm_buffer_object *bo, bool evict,
 	struct ttm_resource *old_mem = &bo->mem;
 	int r;
 
+	radeon_bo_move_notify(bo, evict, new_mem);
+
 	r = ttm_bo_wait_ctx(bo, ctx);
 	if (r)
-		return r;
+		goto fail;
 
 	/* Can't move a pinned BO */
 	rbo = container_of(bo, struct radeon_bo, tbo);
@@ -359,13 +361,18 @@ static int radeon_bo_move(struct ttm_buffer_object *bo, bool evict,
 memcpy:
 		r = ttm_bo_move_memcpy(bo, ctx, new_mem);
 		if (r) {
-			return r;
+			goto fail;
 		}
 	}
 
 	/* update statistics */
 	atomic64_add((u64)bo->num_pages << PAGE_SHIFT, &rdev->num_bytes_moved);
 	return 0;
+fail:
+	swap(*new_mem, bo->mem);
+	radeon_bo_move_notify(bo, false, new_mem);
+	swap(*new_mem, bo->mem);
+	return r;
 }
 
 static int radeon_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_resource *mem)

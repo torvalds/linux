@@ -590,7 +590,16 @@ static int drm_gem_vram_bo_driver_move(struct drm_gem_vram_object *gbo,
 				       struct ttm_operation_ctx *ctx,
 				       struct ttm_resource *new_mem)
 {
-	return ttm_bo_move_memcpy(&gbo->bo, ctx, new_mem);
+	int ret;
+
+	drm_gem_vram_bo_driver_move_notify(gbo, evict, new_mem);
+	ret = ttm_bo_move_memcpy(&gbo->bo, ctx, new_mem);
+	if (ret) {
+		swap(*new_mem, gbo->bo.mem);
+		drm_gem_vram_bo_driver_move_notify(gbo, false, new_mem);
+		swap(*new_mem, gbo->bo.mem);
+	}
+	return ret;
 }
 
 /*

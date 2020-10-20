@@ -666,6 +666,8 @@ static int amdgpu_bo_move(struct ttm_buffer_object *bo, bool evict,
 	struct ttm_resource *old_mem = &bo->mem;
 	int r;
 
+	amdgpu_bo_move_notify(bo, evict, new_mem);
+
 	/* Can't move a pinned BO */
 	abo = ttm_to_amdgpu_bo(bo);
 	if (WARN_ON_ONCE(abo->tbo.pin_count > 0))
@@ -687,7 +689,7 @@ static int amdgpu_bo_move(struct ttm_buffer_object *bo, bool evict,
 	    new_mem->mem_type == TTM_PL_SYSTEM) {
 		r = ttm_bo_wait_ctx(bo, ctx);
 		if (r)
-			return r;
+			goto fail;
 
 		amdgpu_ttm_backend_unbind(bo->bdev, bo->ttm);
 		ttm_resource_free(bo, &bo->mem);
@@ -728,12 +730,12 @@ memcpy:
 		if (!amdgpu_mem_visible(adev, old_mem) ||
 		    !amdgpu_mem_visible(adev, new_mem)) {
 			pr_err("Move buffer fallback to memcpy unavailable\n");
-			return r;
+			goto fail;
 		}
 
 		r = ttm_bo_move_memcpy(bo, ctx, new_mem);
 		if (r)
-			return r;
+			goto fail;
 	}
 
 	if (bo->type == ttm_bo_type_device &&
@@ -748,6 +750,11 @@ memcpy:
 	/* update statistics */
 	atomic64_add((u64)bo->num_pages << PAGE_SHIFT, &adev->num_bytes_moved);
 	return 0;
+fail:
+	swap(*new_mem, bo->mem);
+	amdgpu_bo_move_notify(bo, false, new_mem);
+	swap(*new_mem, bo->mem);
+	return r;
 }
 
 /**
