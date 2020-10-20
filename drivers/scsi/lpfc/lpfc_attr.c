@@ -57,10 +57,6 @@
 #define LPFC_MIN_DEVLOSS_TMO	1
 #define LPFC_MAX_DEVLOSS_TMO	255
 
-#define LPFC_DEF_MRQ_POST	512
-#define LPFC_MIN_MRQ_POST	512
-#define LPFC_MAX_MRQ_POST	2048
-
 /*
  * Write key size should be multiple of 4. If write key is changed
  * make sure that library write key is also changed.
