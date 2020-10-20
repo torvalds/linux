@@ -32,7 +32,6 @@ struct nfsd3_readargs {
 	struct svc_fh		fh;
 	__u64			offset;
 	__u32			count;
-	int			vlen;
 };
 
 struct nfsd3_writeargs {

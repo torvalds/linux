@@ -389,31 +389,17 @@ nfs3svc_decode_accessargs(struct svc_rqst *rqstp, __be32 *p)
 int
 nfs3svc_decode_readargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	struct nfsd3_readargs *args = rqstp->rq_argp;
-	unsigned int len;
-	int v;
-	u32 max_blocksize = svc_max_payload(rqstp);
 
-	p = decode_fh(p, &args->fh);
-	if (!p)
+	if (!svcxdr_decode_nfs_fh3(xdr, &args->fh))
 		return 0;
-	p = xdr_decode_hyper(p, &args->offset);
+	if (xdr_stream_decode_u64(xdr, &args->offset) < 0)
+		return 0;
+	if (xdr_stream_decode_u32(xdr, &args->count) < 0)
+		return 0;
 
-	args->count = ntohl(*p++);
-	len = min(args->count, max_blocksize);
-
-	/* set up the kvec */
-	v=0;
-	while (len > 0) {
-		struct page *p = *(rqstp->rq_next_page++);
-
-		rqstp->rq_vec[v].iov_base = page_address(p);
-		rqstp->rq_vec[v].iov_len = min_t(unsigned int, len, PAGE_SIZE);
-		len -= rqstp->rq_vec[v].iov_len;
-		v++;
-	}
-	args->vlen = v;
-	return xdr_argsize_check(rqstp, p);
+	return 1;
 }
 
 int
