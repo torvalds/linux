@@ -430,7 +430,7 @@ struct mt76_usb {
 	u8 *data;
 	u16 data_len;
 
-	struct tasklet_struct rx_tasklet;
+	struct mt76_worker rx_worker;
 	struct work_struct stat_work;
 
 	u8 out_ep[__MT_EP_OUT_MAX];

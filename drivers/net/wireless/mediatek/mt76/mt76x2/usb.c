@@ -75,6 +75,7 @@ static int mt76x2u_probe(struct usb_interface *intf,
 	return 0;
 
 err:
+	mt76u_queues_deinit(&dev->mt76);
 	mt76_free_device(&dev->mt76);
 	usb_set_intfdata(intf, NULL);
 	usb_put_dev(udev);
