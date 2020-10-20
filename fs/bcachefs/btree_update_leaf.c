@@ -337,8 +337,9 @@ static inline bool iter_has_trans_triggers(struct btree_iter *iter)
 
 static inline bool iter_has_nontrans_triggers(struct btree_iter *iter)
 {
-	return (BTREE_NODE_TYPE_HAS_TRIGGERS &
-		~BTREE_NODE_TYPE_HAS_TRANS_TRIGGERS) &
+	return (((BTREE_NODE_TYPE_HAS_TRIGGERS &
+		  ~BTREE_NODE_TYPE_HAS_TRANS_TRIGGERS)) |
+		(1U << BTREE_ID_EC)) &
 		(1U << iter->btree_id);
 }
 

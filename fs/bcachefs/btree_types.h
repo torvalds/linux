@@ -591,6 +591,7 @@ static inline bool btree_iter_is_extents(struct btree_iter *iter)
 #define BTREE_NODE_TYPE_HAS_TRANS_TRIGGERS		\
 	((1U << BKEY_TYPE_EXTENTS)|			\
 	 (1U << BKEY_TYPE_INODES)|			\
+	 (1U << BKEY_TYPE_EC)|				\
 	 (1U << BKEY_TYPE_REFLINK))
 
 enum btree_trigger_flags {

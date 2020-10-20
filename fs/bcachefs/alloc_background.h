@@ -13,6 +13,9 @@ struct bkey_alloc_unpacked {
 #undef  x
 };
 
+/* How out of date a pointer gen is allowed to be: */
+#define BUCKET_GC_GEN_MAX	96U
+
 /* returns true if not equal */
 static inline bool bkey_alloc_unpacked_cmp(struct bkey_alloc_unpacked l,
 					   struct bkey_alloc_unpacked r)
