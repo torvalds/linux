@@ -25,7 +25,7 @@ struct nfsd3_diropargs {
 
 struct nfsd3_accessargs {
 	struct svc_fh		fh;
-	unsigned int		access;
+	__u32			access;
 };
 
 struct nfsd3_readargs {

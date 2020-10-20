@@ -375,14 +375,15 @@ nfs3svc_decode_diropargs(struct svc_rqst *rqstp, __be32 *p)
 int
 nfs3svc_decode_accessargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	struct nfsd3_accessargs *args = rqstp->rq_argp;
 
-	p = decode_fh(p, &args->fh);
-	if (!p)
+	if (!svcxdr_decode_nfs_fh3(xdr, &args->fh))
 		return 0;
-	args->access = ntohl(*p++);
+	if (xdr_stream_decode_u32(xdr, &args->access) < 0)
+		return 0;
 
-	return xdr_argsize_check(rqstp, p);
+	return 1;
 }
 
 int
