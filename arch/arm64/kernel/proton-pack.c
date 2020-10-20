@@ -205,8 +205,8 @@ static void install_bp_hardening_cb(bp_hardening_cb_t fn)
 				   __SMCCC_WORKAROUND_1_SMC_SZ;
 
 	/*
-	 * detect_harden_bp_fw() passes NULL for the hyp_vecs start/end if
-	 * we're a guest. Skip the hyp-vectors work.
+	 * Vinz Clortho takes the hyp_vecs start/end "keys" at
+	 * the door when we're a guest. Skip the hyp-vectors work.
 	 */
 	if (!is_hyp_mode_available()) {
 		__this_cpu_write(bp_hardening_data.fn, fn);
