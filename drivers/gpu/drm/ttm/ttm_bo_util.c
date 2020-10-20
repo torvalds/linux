@@ -68,10 +68,9 @@ int ttm_bo_move_to_new_tt_mem(struct ttm_buffer_object *bo,
 int ttm_bo_move_to_system(struct ttm_buffer_object *bo,
 			  struct ttm_operation_ctx *ctx)
 {
-	struct ttm_resource *old_mem = &bo->mem;
 	int ret;
 
-	if (old_mem->mem_type == TTM_PL_SYSTEM)
+	if (bo->mem.mem_type == TTM_PL_SYSTEM)
 		return 0;
 
 	ret = ttm_bo_wait_ctx(bo, ctx);
@@ -83,7 +82,6 @@ int ttm_bo_move_to_system(struct ttm_buffer_object *bo,
 
 	ttm_bo_tt_unbind(bo);
 	ttm_resource_free(bo, &bo->mem);
-	old_mem->mem_type = TTM_PL_SYSTEM;
 	return 0;
 }
 EXPORT_SYMBOL(ttm_bo_move_to_system);
