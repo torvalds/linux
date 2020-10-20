@@ -6237,8 +6237,10 @@ punt:
 	if (nxt) {
 		req = nxt;
 
-		if (req->flags & REQ_F_FORCE_ASYNC)
+		if (req->flags & REQ_F_FORCE_ASYNC) {
+			linked_timeout = NULL;
 			goto punt;
+		}
 		goto again;
 	}
 exit:
