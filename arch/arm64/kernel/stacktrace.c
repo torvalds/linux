@@ -190,6 +190,7 @@ void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk,
 
 	put_task_stack(tsk);
 }
+EXPORT_SYMBOL_GPL(dump_backtrace);
 
 void show_stack(struct task_struct *tsk, unsigned long *sp, const char *loglvl)
 {
