@@ -168,8 +168,7 @@ examples:
             };
         };
 
-        i2c7: i2c@ff160000 {
-            clock-frequency = <400000>;
+        i2c7: i2c {
             #address-cells = <1>;
             #size-cells = <0>;
 
