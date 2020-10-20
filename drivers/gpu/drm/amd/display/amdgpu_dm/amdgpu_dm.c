@@ -4036,7 +4036,8 @@ fill_plane_buffer_attributes(struct amdgpu_device *adev,
 #ifdef CONFIG_DRM_AMD_DC_DCN3_0
 		if (adev->asic_type == CHIP_SIENNA_CICHLID ||
 		    adev->asic_type == CHIP_NAVY_FLOUNDER ||
-		    adev->asic_type == CHIP_DIMGREY_CAVEFISH)
+		    adev->asic_type == CHIP_DIMGREY_CAVEFISH ||
+		    adev->asic_type == CHIP_VANGOGH)
 			tiling_info->gfx9.num_pkrs = adev->gfx.config.gb_addr_config_fields.num_pkrs;
 #endif
 		ret = fill_plane_dcc_attributes(adev, afb, format, rotation,
