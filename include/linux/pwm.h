@@ -71,6 +71,9 @@ struct pwm_state {
 	u64 duty_cycle;
 	enum pwm_polarity polarity;
 	enum pwm_output_type output_type;
+#ifdef CONFIG_PWM_ROCKCHIP_ONESHOT
+	u64 oneshot_count;
+#endif /* CONFIG_PWM_ROCKCHIP_ONESHOT */
 	bool enabled;
 };
 

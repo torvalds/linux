@@ -408,6 +408,12 @@ config PWM_ROCKCHIP
 	  Generic PWM framework driver for the PWM controller found on
 	  Rockchip SoCs.
 
+config PWM_ROCKCHIP_ONESHOT
+	bool "Rockchip PWM oneshot mode support"
+	depends on PWM_ROCKCHIP && NO_GKI
+	help
+	  Support Rockchip pwm oneshot mode for specified number of cycles.
+
 config PWM_SAMSUNG
 	tristate "Samsung PWM support"
 	depends on PLAT_SAMSUNG || ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
