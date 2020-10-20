@@ -4074,7 +4074,6 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	if (IS_ERR(bh)) {
 		ext4_msg(sb, KERN_ERR, "unable to read superblock");
 		ret = PTR_ERR(bh);
-		bh = NULL;
 		goto out_fail;
 	}
 	/*
@@ -4703,7 +4702,6 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 			       "can't read group descriptor %d", i);
 			db_count = i;
 			ret = PTR_ERR(bh);
-			bh = NULL;
 			goto failed_mount2;
 		}
 		rcu_read_lock();
