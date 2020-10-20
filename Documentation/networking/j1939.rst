@@ -376,7 +376,7 @@ only j1939.addr changed to the new SA, and must then send a valid address claim
 packet. This restarts the state machine in the kernel (and any other
 participant on the bus) for this NAME.
 
-can-utils also include the jacd tool, so it can be used as code example or as
+can-utils also include the j1939acd tool, so it can be used as code example or as
 default Address Claiming daemon.
 
 Send Examples
