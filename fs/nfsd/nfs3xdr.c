@@ -103,26 +103,6 @@ encode_fh(__be32 *p, struct svc_fh *fhp)
 	return p + XDR_QUADLEN(size);
 }
 
-/*
- * Decode a file name and make sure that the path contains
- * no slashes or null bytes.
- */
-static __be32 *
-decode_filename(__be32 *p, char **namp, unsigned int *lenp)
-{
-	char		*name;
-	unsigned int	i;
-
-	if ((p = xdr_decode_string_inplace(p, namp, lenp, NFS3_MAXNAMLEN)) != NULL) {
-		for (i = 0, name = *namp; i < *lenp; i++, name++) {
-			if (*name == '\0' || *name == '/')
-				return NULL;
-		}
-	}
-
-	return p;
-}
-
 static bool
 svcxdr_decode_filename3(struct xdr_stream *xdr, char **name, unsigned int *len)
 {
@@ -262,49 +242,26 @@ svcxdr_decode_sattrguard3(struct xdr_stream *xdr, struct nfsd3_sattrargs *args)
 	return true;
 }
 
-static __be32 *
-decode_sattr3(__be32 *p, struct iattr *iap, struct user_namespace *userns)
+static bool
+svcxdr_decode_specdata3(struct xdr_stream *xdr, struct nfsd3_mknodargs *args)
 {
-	u32	tmp;
+	__be32 *p;
 
-	iap->ia_valid = 0;
+	p = xdr_inline_decode(xdr, XDR_UNIT * 2);
+	if (!p)
+		return false;
+	args->major = be32_to_cpup(p++);
+	args->minor = be32_to_cpup(p);
 
-	if (*p++) {
-		iap->ia_valid |= ATTR_MODE;
-		iap->ia_mode = ntohl(*p++);
-	}
-	if (*p++) {
-		iap->ia_uid = make_kuid(userns, ntohl(*p++));
-		if (uid_valid(iap->ia_uid))
-			iap->ia_valid |= ATTR_UID;
-	}
-	if (*p++) {
-		iap->ia_gid = make_kgid(userns, ntohl(*p++));
-		if (gid_valid(iap->ia_gid))
-			iap->ia_valid |= ATTR_GID;
-	}
-	if (*p++) {
-		u64	newsize;
+	return true;
+}
 
-		iap->ia_valid |= ATTR_SIZE;
-		p = xdr_decode_hyper(p, &newsize);
-		iap->ia_size = min_t(u64, newsize, NFS_OFFSET_MAX);
-	}
-	if ((tmp = ntohl(*p++)) == 1) {	/* set to server time */
-		iap->ia_valid |= ATTR_ATIME;
-	} else if (tmp == 2) {		/* set to client time */
-		iap->ia_valid |= ATTR_ATIME | ATTR_ATIME_SET;
-		iap->ia_atime.tv_sec = ntohl(*p++);
-		iap->ia_atime.tv_nsec = ntohl(*p++);
-	}
-	if ((tmp = ntohl(*p++)) == 1) {	/* set to server time */
-		iap->ia_valid |= ATTR_MTIME;
-	} else if (tmp == 2) {		/* set to client time */
-		iap->ia_valid |= ATTR_MTIME | ATTR_MTIME_SET;
-		iap->ia_mtime.tv_sec = ntohl(*p++);
-		iap->ia_mtime.tv_nsec = ntohl(*p++);
-	}
-	return p;
+static bool
+svcxdr_decode_devicedata3(struct svc_rqst *rqstp, struct xdr_stream *xdr,
+			  struct nfsd3_mknodargs *args)
+{
+	return svcxdr_decode_sattr3(rqstp, xdr, &args->attrs) &&
+		svcxdr_decode_specdata3(xdr, args);
 }
 
 static __be32 *encode_fsid(__be32 *p, struct svc_fh *fhp)
@@ -644,24 +601,30 @@ nfs3svc_decode_symlinkargs(struct svc_rqst *rqstp, __be32 *p)
 int
 nfs3svc_decode_mknodargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	struct nfsd3_mknodargs *args = rqstp->rq_argp;
 
-	if (!(p = decode_fh(p, &args->fh))
-	 || !(p = decode_filename(p, &args->name, &args->len)))
+	if (!svcxdr_decode_diropargs3(xdr, &args->fh, &args->name, &args->len))
 		return 0;
-
-	args->ftype = ntohl(*p++);
-
-	if (args->ftype == NF3BLK  || args->ftype == NF3CHR
-	 || args->ftype == NF3SOCK || args->ftype == NF3FIFO)
-		p = decode_sattr3(p, &args->attrs, nfsd_user_namespace(rqstp));
-
-	if (args->ftype == NF3BLK || args->ftype == NF3CHR) {
-		args->major = ntohl(*p++);
-		args->minor = ntohl(*p++);
+	if (xdr_stream_decode_u32(xdr, &args->ftype) < 0)
+		return 0;
+	switch (args->ftype) {
+	case NF3CHR:
+	case NF3BLK:
+		return svcxdr_decode_devicedata3(rqstp, xdr, args);
+	case NF3SOCK:
+	case NF3FIFO:
+		return svcxdr_decode_sattr3(rqstp, xdr, &args->attrs);
+	case NF3REG:
+	case NF3DIR:
+	case NF3LNK:
+		/* Valid XDR but illegal file types */
+		break;
+	default:
+		return 0;
 	}
 
-	return xdr_argsize_check(rqstp, p);
+	return 1;
 }
 
 int
