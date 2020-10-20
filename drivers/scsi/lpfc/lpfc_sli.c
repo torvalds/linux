@@ -7248,12 +7248,16 @@ lpfc_post_rq_buffer(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 	struct rqb_dmabuf *rqb_buffer;
 	LIST_HEAD(rqb_buf_list);
 
-	spin_lock_irqsave(&phba->hbalock, flags);
 	rqbp = hrq->rqbp;
 	for (i = 0; i < count; i++) {
+		spin_lock_irqsave(&phba->hbalock, flags);
 		/* IF RQ is already full, don't bother */
-		if (rqbp->buffer_count + i >= rqbp->entry_count - 1)
+		if (rqbp->buffer_count + i >= rqbp->entry_count - 1) {
+			spin_unlock_irqrestore(&phba->hbalock, flags);
 			break;
+		}
+		spin_unlock_irqrestore(&phba->hbalock, flags);
+
 		rqb_buffer = rqbp->rqb_alloc_buffer(phba);
 		if (!rqb_buffer)
 			break;
@@ -7262,6 +7266,8 @@ lpfc_post_rq_buffer(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 		rqb_buffer->idx = idx;
 		list_add_tail(&rqb_buffer->hbuf.list, &rqb_buf_list);
 	}
+
+	spin_lock_irqsave(&phba->hbalock, flags);
 	while (!list_empty(&rqb_buf_list)) {
 		list_remove_head(&rqb_buf_list, rqb_buffer, struct rqb_dmabuf,
 				 hbuf.list);
