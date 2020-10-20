@@ -23,7 +23,10 @@
 		beq	1001b
 		.endm
 
-		.macro	waituart, rd, rx
+		.macro	waituartcts, rd, rx
+		.endm
+
+		.macro	waituarttxrdy, rd, rx
 		mov	\rd, #0x2000000
 1001:
 		subs	\rd, \rd, #1
@@ -47,7 +50,10 @@
 		beq	1001b
 		.endm
 
-		.macro	waituart, rd, rx
+		.macro	waituartcts, rd, rx
+		.endm
+
+		.macro	waituarttxrdy, rd, rx
 		mov	\rd, #0x10000000
 1001:
 		subs	\rd, \rd, #1
@@ -72,7 +78,10 @@
 
 		.endm
 
-		.macro	waituart, rd, rx
+		.macro	waituartcts, rd, rx
+		.endm
+
+		.macro	waituarttxrdy, rd, rx
 		mov	\rd, #0x2000000
 1001:
 		subs	\rd, \rd, #1

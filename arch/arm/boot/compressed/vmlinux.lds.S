@@ -44,10 +44,12 @@ SECTIONS
   }
   .table : ALIGN(4) {
     _table_start = .;
-    LONG(ZIMAGE_MAGIC(4))
+    LONG(ZIMAGE_MAGIC(6))
     LONG(ZIMAGE_MAGIC(0x5a534c4b))
     LONG(ZIMAGE_MAGIC(__piggy_size_addr - _start))
     LONG(ZIMAGE_MAGIC(_kernel_bss_size))
+    LONG(ZIMAGE_MAGIC(TEXT_OFFSET))
+    LONG(ZIMAGE_MAGIC(MALLOC_SIZE))
     LONG(0)
     _table_end = .;
   }

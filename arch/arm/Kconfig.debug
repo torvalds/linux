@@ -1546,6 +1546,17 @@ config DEBUG_SIRFSOC_UART
 	bool
 	depends on ARCH_SIRF
 
+config DEBUG_UART_FLOW_CONTROL
+	bool "Enable flow control (CTS) for the debug UART"
+	depends on DEBUG_LL
+	default y if ARCH_EBSA110 || DEBUG_FOOTBRIDGE_COM1 || DEBUG_GEMINI || ARCH_RPC
+	help
+	  Some UART ports are connected to terminals that will use modem
+	  control signals to indicate whether they are ready to receive text.
+	  In practice this means that the terminal is asserting the special
+	  control signal CTS (Clear To Send). If your debug UART supports
+	  this and your debug terminal will require it, enable this option.
+
 config DEBUG_LL_INCLUDE
 	string
 	default "debug/sa1100.S" if DEBUG_SA1100
@@ -1892,11 +1903,6 @@ config DEBUG_UART_8250_PALMCHIP
 	  Palmchip provides a UART implementation compatible with 16550
 	  except for having a different register layout.  Say Y here if
 	  the debug UART is of this type.
-
-config DEBUG_UART_8250_FLOW_CONTROL
-	bool "Enable flow control for 8250 UART"
-	depends on DEBUG_LL_UART_8250 || DEBUG_UART_8250
-	default y if ARCH_EBSA110 || DEBUG_FOOTBRIDGE_COM1 || DEBUG_GEMINI || ARCH_RPC
 
 config DEBUG_UNCOMPRESS
 	bool "Enable decompressor debugging via DEBUG_LL output"
