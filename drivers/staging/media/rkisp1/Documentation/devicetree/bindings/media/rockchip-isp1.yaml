@@ -24,20 +24,24 @@ properties:
     maxItems: 1
 
   clocks:
+    minItems: 3
     items:
+      # isp0 and isp1
       - description: ISP clock
-      - description: ISP AXI clock clock
-      - description: ISP AXI clock  wrapper clock
-      - description: ISP AHB clock clock
-      - description: ISP AHB wrapper clock
+      - description: ISP AXI clock
+      - description: ISP AHB clock
+      # only for isp1
+      - description: ISP Pixel clock
 
   clock-names:
+    minItems: 3
     items:
-      - const: clk_isp
-      - const: aclk_isp
-      - const: aclk_isp_wrap
-      - const: hclk_isp
-      - const: hclk_isp_wrap
+      # isp0 and isp1
+      - const: isp
+      - const: aclk
+      - const: hclk
+      # only for isp1
+      - const: pclk_isp
 
   iommus:
     maxItems: 1
@@ -116,6 +120,20 @@ required:
   - power-domains
   - ports
 
+if:
+  properties:
+    compatible:
+      contains:
+        const: rockchip,rk3399-cif-isp
+then:
+  properties:
+    clocks:
+      minItems: 3
+      maxItems: 4
+    clock-names:
+      minItems: 3
+      maxItems: 4
+
 additionalProperties: false
 
 examples:
@@ -134,11 +152,9 @@ examples:
             reg = <0x0 0xff910000 0x0 0x4000>;
             interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH 0>;
             clocks = <&cru SCLK_ISP0>,
-                     <&cru ACLK_ISP0>, <&cru ACLK_ISP0_WRAPPER>,
-                     <&cru HCLK_ISP0>, <&cru HCLK_ISP0_WRAPPER>;
-            clock-names = "clk_isp",
-                          "aclk_isp", "aclk_isp_wrap",
-                          "hclk_isp", "hclk_isp_wrap";
+                     <&cru ACLK_ISP0_WRAPPER>,
+                     <&cru HCLK_ISP0_WRAPPER>;
+            clock-names = "isp", "aclk", "hclk";
             iommus = <&isp0_mmu>;
             phys = <&dphy>;
             phy-names = "dphy";
