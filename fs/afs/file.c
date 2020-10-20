@@ -329,8 +329,8 @@ static int afs_page_filler(struct key *key, struct page *page)
 	req->vnode		= vnode;
 	req->key		= key_get(key);
 	req->pos		= (loff_t)page->index << PAGE_SHIFT;
-	req->len		= PAGE_SIZE;
-	req->nr_pages		= 1;
+	req->len		= thp_size(page);
+	req->nr_pages		= thp_nr_pages(page);
 	req->done		= afs_file_read_done;
 	req->cleanup		= afs_file_read_cleanup;
 
@@ -574,8 +574,8 @@ undirty:
 	trace_afs_page_dirty(vnode, tracepoint_string("undirty"), page);
 	clear_page_dirty_for_io(page);
 full_invalidate:
-	detach_page_private(page);
 	trace_afs_page_dirty(vnode, tracepoint_string("inval"), page);
+	detach_page_private(page);
 }
 
 /*
@@ -620,8 +620,8 @@ static int afs_releasepage(struct page *page, gfp_t gfp_flags)
 #endif
 
 	if (PagePrivate(page)) {
-		detach_page_private(page);
 		trace_afs_page_dirty(vnode, tracepoint_string("rel"), page);
+		detach_page_private(page);
 	}
 
 	/* indicate that the page can be released */

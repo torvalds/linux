@@ -2083,6 +2083,6 @@ static void afs_dir_invalidatepage(struct page *page, unsigned int offset,
 		afs_stat_v(dvnode, n_inval);
 
 	/* we clean up only if the entire page is being invalidated */
-	if (offset == 0 && length == PAGE_SIZE)
+	if (offset == 0 && length == thp_size(page))
 		detach_page_private(page);
 }

@@ -815,8 +815,6 @@ struct afs_operation {
 			loff_t	pos;
 			loff_t	size;
 			loff_t	i_size;
-			pgoff_t	first;		/* first page in mapping to deal with */
-			pgoff_t	last;		/* last page in mapping to deal with */
 			bool	laundering;	/* Laundering page, PG_writeback not set */
 		} store;
 		struct {
