@@ -54,9 +54,9 @@ these functions (see arch/arm{,64}/include/asm/virt.h):
     x3 = x1's value when entering the next payload (arm64)
     x4 = x2's value when entering the next payload (arm64)
 
-  Mask all exceptions, disable the MMU, move the arguments into place
-  (arm64 only), and jump to the restart address while at HYP/EL2. This
-  hypercall is not expected to return to its caller.
+  Mask all exceptions, disable the MMU, clear I+D bits, move the arguments
+  into place (arm64 only), and jump to the restart address while at HYP/EL2.
+  This hypercall is not expected to return to its caller.
 
 Any other value of r0/x0 triggers a hypervisor-specific handling,
 which is not documented here.
