@@ -108,15 +108,6 @@ struct mt7615_rate_desc {
 
 enum mt7615_wtbl_desc_type {
 	MT7615_WTBL_RATE_DESC,
-	MT7615_WTBL_KEY_DESC
-};
-
-struct mt7615_key_desc {
-	enum set_key_cmd cmd;
-	u32 cipher;
-	s8 keyidx;
-	u8 keylen;
-	u8 *key;
 };
 
 struct mt7615_wtbl_desc {
@@ -127,7 +118,6 @@ struct mt7615_wtbl_desc {
 
 	union {
 		struct mt7615_rate_desc rate;
-		struct mt7615_key_desc key;
 	};
 };
 
@@ -571,22 +561,13 @@ int mt7615_mac_write_txwi(struct mt7615_dev *dev, __le32 *txwi,
 			  struct ieee80211_sta *sta, int pid,
 			  struct ieee80211_key_conf *key, bool beacon);
 void mt7615_mac_set_timing(struct mt7615_phy *phy);
+int __mt7615_mac_wtbl_set_key(struct mt7615_dev *dev,
+			      struct mt76_wcid *wcid,
+			      struct ieee80211_key_conf *key,
+			      enum set_key_cmd cmd);
 int mt7615_mac_wtbl_set_key(struct mt7615_dev *dev, struct mt76_wcid *wcid,
 			    struct ieee80211_key_conf *key,
 			    enum set_key_cmd cmd);
-int mt7615_mac_wtbl_update_pk(struct mt7615_dev *dev,
-			      struct mt76_wcid *wcid,
-			      enum mt7615_cipher_type cipher,
-			      int keyidx, enum set_key_cmd cmd);
-void mt7615_mac_wtbl_update_cipher(struct mt7615_dev *dev,
-				   struct mt76_wcid *wcid,
-				   enum mt7615_cipher_type cipher,
-				   enum set_key_cmd cmd);
-int mt7615_mac_wtbl_update_key(struct mt7615_dev *dev,
-			       struct mt76_wcid *wcid,
-			       u8 *key, u8 keylen,
-			       enum mt7615_cipher_type cipher,
-			       enum set_key_cmd cmd);
 void mt7615_mac_reset_work(struct work_struct *work);
 u32 mt7615_mac_get_sta_tid_sn(struct mt7615_dev *dev, int wcid, u8 tid);
 

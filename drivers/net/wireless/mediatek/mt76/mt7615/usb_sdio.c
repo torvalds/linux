@@ -132,52 +132,6 @@ mt7663_usb_sdio_set_rates(struct mt7615_dev *dev,
 	return 0;
 }
 
-static int
-mt7663_usb_sdio_set_key(struct mt7615_dev *dev,
-			struct mt7615_wtbl_desc *wd)
-{
-	struct mt7615_key_desc *key = &wd->key;
-	struct mt7615_sta *sta = wd->sta;
-	enum mt7615_cipher_type cipher;
-	struct mt76_wcid *wcid;
-	int err;
-
-	lockdep_assert_held(&dev->mt76.mutex);
-
-	if (!sta) {
-		err = -EINVAL;
-		goto out;
-	}
-
-	cipher = mt7615_mac_get_cipher(key->cipher);
-	if (cipher == MT_CIPHER_NONE) {
-		err = -EOPNOTSUPP;
-		goto out;
-	}
-
-	wcid = &wd->sta->wcid;
-
-	mt7615_mac_wtbl_update_cipher(dev, wcid, cipher, key->cmd);
-	err = mt7615_mac_wtbl_update_key(dev, wcid, key->key, key->keylen,
-					 cipher, key->cmd);
-	if (err < 0)
-		goto out;
-
-	err = mt7615_mac_wtbl_update_pk(dev, wcid, cipher, key->keyidx,
-					key->cmd);
-	if (err < 0)
-		goto out;
-
-	if (key->cmd == SET_KEY)
-		wcid->cipher |= BIT(cipher);
-	else
-		wcid->cipher &= ~BIT(cipher);
-out:
-	kfree(key->key);
-
-	return err;
-}
-
 void mt7663_usb_sdio_wtbl_work(struct work_struct *work)
 {
 	struct mt7615_wtbl_desc *wd, *wd_next;
@@ -200,9 +154,6 @@ void mt7663_usb_sdio_wtbl_work(struct work_struct *work)
 		switch (wd->type) {
 		case MT7615_WTBL_RATE_DESC:
 			mt7663_usb_sdio_set_rates(dev, wd);
-			break;
-		case MT7615_WTBL_KEY_DESC:
-			mt7663_usb_sdio_set_key(dev, wd);
 			break;
 		}
 

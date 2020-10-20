@@ -1030,32 +1030,32 @@ void mt7615_mac_set_rates(struct mt7615_phy *phy, struct mt7615_sta *sta,
 }
 EXPORT_SYMBOL_GPL(mt7615_mac_set_rates);
 
-int mt7615_mac_wtbl_update_key(struct mt7615_dev *dev,
-			       struct mt76_wcid *wcid,
-			       u8 *key, u8 keylen,
-			       enum mt7615_cipher_type cipher,
-			       enum set_key_cmd cmd)
+static int
+mt7615_mac_wtbl_update_key(struct mt7615_dev *dev, struct mt76_wcid *wcid,
+			   struct ieee80211_key_conf *key,
+			   enum mt7615_cipher_type cipher,
+			   enum set_key_cmd cmd)
 {
 	u32 addr = mt7615_mac_wtbl_addr(dev, wcid->idx) + 30 * 4;
 	u8 data[32] = {};
 
-	if (keylen > sizeof(data))
+	if (key->keylen > sizeof(data))
 		return -EINVAL;
 
 	mt76_rr_copy(dev, addr, data, sizeof(data));
 	if (cmd == SET_KEY) {
 		if (cipher == MT_CIPHER_TKIP) {
 			/* Rx/Tx MIC keys are swapped */
-			memcpy(data, key, 16);
-			memcpy(data + 16, key + 24, 8);
-			memcpy(data + 24, key + 16, 8);
+			memcpy(data, key->key, 16);
+			memcpy(data + 16, key->key + 24, 8);
+			memcpy(data + 24, key->key + 16, 8);
 		} else {
 			if (cipher != MT_CIPHER_BIP_CMAC_128 && wcid->cipher)
 				memmove(data + 16, data, 16);
 			if (cipher != MT_CIPHER_BIP_CMAC_128 || !wcid->cipher)
-				memcpy(data, key, keylen);
+				memcpy(data, key->key, key->keylen);
 			else if (cipher == MT_CIPHER_BIP_CMAC_128)
-				memcpy(data + 16, key, 16);
+				memcpy(data + 16, key->key, 16);
 		}
 	} else {
 		if (wcid->cipher & ~BIT(cipher)) {
@@ -1070,12 +1070,11 @@ int mt7615_mac_wtbl_update_key(struct mt7615_dev *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(mt7615_mac_wtbl_update_key);
 
-int mt7615_mac_wtbl_update_pk(struct mt7615_dev *dev,
-			      struct mt76_wcid *wcid,
-			      enum mt7615_cipher_type cipher,
-			      int keyidx, enum set_key_cmd cmd)
+static int
+mt7615_mac_wtbl_update_pk(struct mt7615_dev *dev, struct mt76_wcid *wcid,
+			  enum mt7615_cipher_type cipher,
+			  int keyidx, enum set_key_cmd cmd)
 {
 	u32 addr = mt7615_mac_wtbl_addr(dev, wcid->idx), w0, w1;
 
@@ -1107,12 +1106,11 @@ int mt7615_mac_wtbl_update_pk(struct mt7615_dev *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(mt7615_mac_wtbl_update_pk);
 
-void mt7615_mac_wtbl_update_cipher(struct mt7615_dev *dev,
-				   struct mt76_wcid *wcid,
-				   enum mt7615_cipher_type cipher,
-				   enum set_key_cmd cmd)
+static void
+mt7615_mac_wtbl_update_cipher(struct mt7615_dev *dev, struct mt76_wcid *wcid,
+			      enum mt7615_cipher_type cipher,
+			      enum set_key_cmd cmd)
 {
 	u32 addr = mt7615_mac_wtbl_addr(dev, wcid->idx);
 
@@ -1130,12 +1128,11 @@ void mt7615_mac_wtbl_update_cipher(struct mt7615_dev *dev,
 			mt76_clear(dev, addr + 2 * 4, MT_WTBL_W2_KEY_TYPE);
 	}
 }
-EXPORT_SYMBOL_GPL(mt7615_mac_wtbl_update_cipher);
 
-int mt7615_mac_wtbl_set_key(struct mt7615_dev *dev,
-			    struct mt76_wcid *wcid,
-			    struct ieee80211_key_conf *key,
-			    enum set_key_cmd cmd)
+int __mt7615_mac_wtbl_set_key(struct mt7615_dev *dev,
+			      struct mt76_wcid *wcid,
+			      struct ieee80211_key_conf *key,
+			      enum set_key_cmd cmd)
 {
 	enum mt7615_cipher_type cipher;
 	int err;
@@ -1144,25 +1141,32 @@ int mt7615_mac_wtbl_set_key(struct mt7615_dev *dev,
 	if (cipher == MT_CIPHER_NONE)
 		return -EOPNOTSUPP;
 
-	spin_lock_bh(&dev->mt76.lock);
-
 	mt7615_mac_wtbl_update_cipher(dev, wcid, cipher, cmd);
-	err = mt7615_mac_wtbl_update_key(dev, wcid, key->key, key->keylen,
-					 cipher, cmd);
+	err = mt7615_mac_wtbl_update_key(dev, wcid, key, cipher, cmd);
 	if (err < 0)
-		goto out;
+		return err;
 
-	err = mt7615_mac_wtbl_update_pk(dev, wcid, cipher, key->keyidx,
-					cmd);
+	err = mt7615_mac_wtbl_update_pk(dev, wcid, cipher, key->keyidx, cmd);
 	if (err < 0)
-		goto out;
+		return err;
 
 	if (cmd == SET_KEY)
 		wcid->cipher |= BIT(cipher);
 	else
 		wcid->cipher &= ~BIT(cipher);
 
-out:
+	return 0;
+}
+
+int mt7615_mac_wtbl_set_key(struct mt7615_dev *dev,
+			    struct mt76_wcid *wcid,
+			    struct ieee80211_key_conf *key,
+			    enum set_key_cmd cmd)
+{
+	int err;
+
+	spin_lock_bh(&dev->mt76.lock);
+	err = __mt7615_mac_wtbl_set_key(dev, wcid, key, cmd);
 	spin_unlock_bh(&dev->mt76.lock);
 
 	return err;
