@@ -902,7 +902,7 @@ restart:
 }
 
 /*
- * Called by the state manger to remove all layouts established under an
+ * Called by the state manager to remove all layouts established under an
  * expired lease.
  */
 void
