@@ -706,7 +706,7 @@ void xas_create_range(struct xa_state *xas)
 	unsigned char shift = xas->xa_shift;
 	unsigned char sibs = xas->xa_sibs;
 
-	xas->xa_index |= ((sibs + 1) << shift) - 1;
+	xas->xa_index |= ((sibs + 1UL) << shift) - 1;
 	if (xas_is_node(xas) && xas->xa_node->shift == xas->xa_shift)
 		xas->xa_offset |= sibs;
 	xas->xa_shift = 0;
@@ -2162,6 +2162,29 @@ unsigned int xa_extract(struct xarray *xa, void **dst, unsigned long start,
 	return xas_extract_present(&xas, dst, max, n);
 }
 EXPORT_SYMBOL(xa_extract);
+
+/**
+ * xa_delete_node() - Private interface for workingset code.
+ * @node: Node to be removed from the tree.
+ * @update: Function to call to update ancestor nodes.
+ *
+ * Context: xa_lock must be held on entry and will not be released.
+ */
+void xa_delete_node(struct xa_node *node, xa_update_node_t update)
+{
+	struct xa_state xas = {
+		.xa = node->array,
+		.xa_index = (unsigned long)node->offset <<
+				(node->shift + XA_CHUNK_SHIFT),
+		.xa_shift = node->shift + XA_CHUNK_SHIFT,
+		.xa_offset = node->offset,
+		.xa_node = xa_parent_locked(node->array, node),
+		.xa_update = update,
+	};
+
+	xas_store(&xas, NULL);
+}
+EXPORT_SYMBOL_GPL(xa_delete_node);	/* For the benefit of the test suite */
 
 /**
  * xa_destroy() - Free all internal data structures.

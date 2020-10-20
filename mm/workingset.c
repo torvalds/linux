@@ -519,12 +519,11 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
 					  void *arg) __must_hold(lru_lock)
 {
 	struct xa_node *node = container_of(item, struct xa_node, private_list);
-	XA_STATE(xas, node->array, 0);
 	struct address_space *mapping;
 	int ret;
 
 	/*
-	 * Page cache insertions and deletions synchroneously maintain
+	 * Page cache insertions and deletions synchronously maintain
 	 * the shadow node LRU under the i_pages lock and the
 	 * lru_lock.  Because the page cache tree is emptied before
 	 * the inode can be destroyed, holding the lru_lock pins any
@@ -559,15 +558,7 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
 	if (WARN_ON_ONCE(node->count != node->nr_values))
 		goto out_invalid;
 	mapping->nrexceptional -= node->nr_values;
-	xas.xa_node = xa_parent_locked(&mapping->i_pages, node);
-	xas.xa_offset = node->offset;
-	xas.xa_shift = node->shift + XA_CHUNK_SHIFT;
-	xas_set_update(&xas, workingset_update_node);
-	/*
-	 * We could store a shadow entry here which was the minimum of the
-	 * shadow entries we were tracking ...
-	 */
-	xas_store(&xas, NULL);
+	xa_delete_node(node, workingset_update_node);
 	__inc_lruvec_slab_state(node, WORKINGSET_NODERECLAIM);
 
 out_invalid:
