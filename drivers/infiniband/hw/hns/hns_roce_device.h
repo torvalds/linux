@@ -129,9 +129,10 @@ enum {
 	SERV_TYPE_UD,
 };
 
-enum {
+enum hns_roce_qp_caps {
 	HNS_ROCE_QP_CAP_RQ_RECORD_DB = BIT(0),
 	HNS_ROCE_QP_CAP_SQ_RECORD_DB = BIT(1),
+	HNS_ROCE_QP_CAP_OWNER_DB = BIT(2),
 };
 
 enum hns_roce_cq_flags {
@@ -221,6 +222,7 @@ enum {
 	HNS_ROCE_CAP_FLAG_FRMR                  = BIT(8),
 	HNS_ROCE_CAP_FLAG_QP_FLOW_CTRL		= BIT(9),
 	HNS_ROCE_CAP_FLAG_ATOMIC		= BIT(10),
+	HNS_ROCE_CAP_FLAG_SDI_MODE		= BIT(14),
 };
 
 #define HNS_ROCE_DB_TYPE_COUNT			2
