@@ -104,6 +104,66 @@
 		clock-output-names = "xin24m";
 	};
 
+	usbdrd30: usbdrd {
+		compatible = "rockchip,rk3568-dwc3", "rockchip,rk3399-dwc3";
+		clocks = <&cru CLK_USB3OTG0_REF>, <&cru CLK_USB3OTG0_SUSPEND>,
+			 <&cru ACLK_USB3OTG0>;
+		clock-names = "ref_clk", "suspend_clk",
+			      "bus_clk";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+		status = "disabled";
+
+		usbdrd_dwc3: dwc3@fcc00000 {
+			compatible = "snps,dwc3";
+			reg = <0x0 0xfcc00000 0x0 0x400000>;
+			interrupts = <GIC_SPI 169 IRQ_TYPE_LEVEL_HIGH>;
+			dr_mode = "otg";
+			phy_type = "utmi_wide";
+			power-domains = <&power RK3568_PD_PIPE>;
+			resets = <&cru SRST_USB3OTG0>;
+			reset-names = "usb3-otg";
+			snps,dis_enblslpm_quirk;
+			snps,dis-u2-freeclk-exists-quirk;
+			snps,dis_u2_susphy_quirk;
+			snps,dis-del-phy-power-chg-quirk;
+			snps,dis-tx-ipgap-linecheck-quirk;
+			snps,xhci-trb-ent-quirk;
+			status = "disabled";
+		};
+	};
+
+	usbhost30: usbhost {
+		compatible = "rockchip,rk3568-dwc3", "rockchip,rk3399-dwc3";
+		clocks = <&cru CLK_USB3OTG1_REF>, <&cru CLK_USB3OTG1_SUSPEND>,
+			 <&cru ACLK_USB3OTG1>;
+		clock-names = "ref_clk", "suspend_clk",
+			      "bus_clk";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+		status = "disabled";
+
+		usbhost_dwc3: dwc3@fd000000 {
+			compatible = "snps,dwc3";
+			reg = <0x0 0xfd000000 0x0 0x400000>;
+			interrupts = <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>;
+			dr_mode = "host";
+			phy_type = "utmi_wide";
+			power-domains = <&power RK3568_PD_PIPE>;
+			resets = <&cru SRST_USB3OTG1>;
+			reset-names = "usb3-host";
+			snps,dis_enblslpm_quirk;
+			snps,dis-u2-freeclk-exists-quirk;
+			snps,dis_u2_susphy_quirk;
+			snps,dis-del-phy-power-chg-quirk;
+			snps,dis-tx-ipgap-linecheck-quirk;
+			snps,xhci-trb-ent-quirk;
+			status = "disabled";
+		};
+	};
+
 	gic: interrupt-controller@fd400000 {
 		compatible = "arm,gic-v3";
 		#interrupt-cells = <3>;
@@ -120,6 +180,42 @@
 			msi-controller;
 			reg = <0x0 0xfd440000 0x0 0x20000>;
 		};
+	};
+
+	usb_host0_ehci: usb@fd800000 {
+		compatible = "generic-ehci";
+		reg = <0x0 0xfd800000 0x0 0x40000>;
+		interrupts = <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru HCLK_USB2HOST0>, <&cru HCLK_USB2HOST0_ARB>;
+		clock-names = "usbhost", "arbiter";
+		status = "disabled";
+	};
+
+	usb_host0_ohci: usb@fd840000 {
+		compatible = "generic-ohci";
+		reg = <0x0 0xfd840000 0x0 0x40000>;
+		interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru HCLK_USB2HOST0>, <&cru HCLK_USB2HOST0_ARB>;
+		clock-names = "usbhost", "arbiter";
+		status = "disabled";
+	};
+
+	usb_host1_ehci: usb@fd880000 {
+		compatible = "generic-ehci";
+		reg = <0x0 0xfd880000 0x0 0x40000>;
+		interrupts = <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru HCLK_USB2HOST1>, <&cru HCLK_USB2HOST1_ARB>;
+		clock-names = "usbhost", "arbiter";
+		status = "disabled";
+	};
+
+	usb_host1_ohci: usb@fd8c0000 {
+		compatible = "generic-ohci";
+		reg = <0x0 0xfd8c0000 0x0 0x40000>;
+		interrupts = <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru HCLK_USB2HOST1>, <&cru HCLK_USB2HOST1_ARB>;
+		clock-names = "usbhost", "arbiter";
+		status = "disabled";
 	};
 
 	pmugrf: syscon@fdc20000 {
