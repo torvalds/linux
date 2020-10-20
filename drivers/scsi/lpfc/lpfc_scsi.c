@@ -6028,7 +6028,7 @@ struct scsi_host_template lpfc_template_nvme = {
 	.sg_tablesize		= 1,
 	.cmd_per_lun		= 1,
 	.shost_attrs		= lpfc_hba_attrs,
-	.max_sectors		= 0xFFFF,
+	.max_sectors		= 0xFFFFFFFF,
 	.vendor_id		= LPFC_NL_VENDOR_ID,
 	.track_queue_depth	= 0,
 };
@@ -6053,7 +6053,7 @@ struct scsi_host_template lpfc_template = {
 	.sg_tablesize		= LPFC_DEFAULT_SG_SEG_CNT,
 	.cmd_per_lun		= LPFC_CMD_PER_LUN,
 	.shost_attrs		= lpfc_hba_attrs,
-	.max_sectors		= 0xFFFF,
+	.max_sectors		= 0xFFFFFFFF,
 	.vendor_id		= LPFC_NL_VENDOR_ID,
 	.change_queue_depth	= scsi_change_queue_depth,
 	.track_queue_depth	= 1,

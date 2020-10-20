@@ -4343,16 +4343,13 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 			/* Seed physical port template */
 			memcpy(template, &lpfc_template, sizeof(*template));
 
-			if (use_no_reset_hba) {
+			if (use_no_reset_hba)
 				/* template is for a no reset SCSI Host */
-				template->max_sectors = 0xffff;
 				template->eh_host_reset_handler = NULL;
-			}
 
 			/* Template for all vports this physical port creates */
 			memcpy(&phba->vport_template, &lpfc_template,
 			       sizeof(*template));
-			phba->vport_template.max_sectors = 0xffff;
 			phba->vport_template.shost_attrs = lpfc_vport_attrs;
 			phba->vport_template.eh_bus_reset_handler = NULL;
 			phba->vport_template.eh_host_reset_handler = NULL;
