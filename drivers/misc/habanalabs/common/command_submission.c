@@ -941,7 +941,7 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 	struct hl_cs_compl *sig_waitcs_cmpl;
 	struct hl_cs *cs;
 	enum hl_queue_type q_type;
-	u32 size_to_copy, q_idx, collective_engine_id;
+	u32 size_to_copy, q_idx, collective_engine_id = 0;
 	u64 signal_seq;
 	int rc;
 
