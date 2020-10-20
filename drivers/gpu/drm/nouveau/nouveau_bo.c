@@ -1394,7 +1394,6 @@ struct ttm_bo_driver nouveau_bo_driver = {
 	.ttm_tt_populate = &nouveau_ttm_tt_populate,
 	.ttm_tt_unpopulate = &nouveau_ttm_tt_unpopulate,
 	.ttm_tt_bind = &nouveau_ttm_tt_bind,
-	.ttm_tt_unbind = &nouveau_ttm_tt_unbind,
 	.ttm_tt_destroy = &nouveau_ttm_tt_destroy,
 	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = nouveau_bo_evict_flags,

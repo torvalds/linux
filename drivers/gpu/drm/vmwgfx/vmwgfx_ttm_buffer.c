@@ -760,7 +760,6 @@ struct ttm_bo_driver vmw_bo_driver = {
 	.ttm_tt_populate = &vmw_ttm_populate,
 	.ttm_tt_unpopulate = &vmw_ttm_unpopulate,
 	.ttm_tt_bind = &vmw_ttm_bind,
-	.ttm_tt_unbind = &vmw_ttm_unbind,
 	.ttm_tt_destroy = &vmw_ttm_destroy,
 	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = vmw_evict_flags,

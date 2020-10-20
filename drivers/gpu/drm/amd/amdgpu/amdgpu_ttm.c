@@ -1722,7 +1722,6 @@ static struct ttm_bo_driver amdgpu_bo_driver = {
 	.ttm_tt_populate = &amdgpu_ttm_tt_populate,
 	.ttm_tt_unpopulate = &amdgpu_ttm_tt_unpopulate,
 	.ttm_tt_bind = &amdgpu_ttm_backend_bind,
-	.ttm_tt_unbind = &amdgpu_ttm_backend_unbind,
 	.ttm_tt_destroy = &amdgpu_ttm_backend_destroy,
 	.eviction_valuable = amdgpu_ttm_bo_eviction_valuable,
 	.evict_flags = &amdgpu_evict_flags,

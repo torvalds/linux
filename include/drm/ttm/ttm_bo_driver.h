@@ -105,17 +105,6 @@ struct ttm_bo_driver {
 	int (*ttm_tt_bind)(struct ttm_bo_device *bdev, struct ttm_tt *ttm, struct ttm_resource *bo_mem);
 
 	/**
-	 * ttm_tt_unbind
-	 *
-	 * @bdev: Pointer to a ttm device
-	 * @ttm: Pointer to a struct ttm_tt.
-	 *
-	 * Unbind previously bound backend pages. This function should be
-	 * able to handle differences between aperture and system page sizes.
-	 */
-	void (*ttm_tt_unbind)(struct ttm_bo_device *bdev, struct ttm_tt *ttm);
-
-	/**
 	 * ttm_tt_destroy
 	 *
 	 * @bdev: Pointer to a ttm device
@@ -646,13 +635,6 @@ pgprot_t ttm_io_prot(struct ttm_buffer_object *bo, struct ttm_resource *res,
  * Bind the object tt to a memory resource.
  */
 int ttm_bo_tt_bind(struct ttm_buffer_object *bo, struct ttm_resource *mem);
-
-/**
- * ttm_bo_tt_bind
- *
- * Unbind the object tt from a memory resource.
- */
-void ttm_bo_tt_unbind(struct ttm_buffer_object *bo);
 
 /**
  * ttm_bo_tt_destroy.

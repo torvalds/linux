@@ -817,7 +817,6 @@ static struct ttm_bo_driver radeon_bo_driver = {
 	.ttm_tt_populate = &radeon_ttm_tt_populate,
 	.ttm_tt_unpopulate = &radeon_ttm_tt_unpopulate,
 	.ttm_tt_bind = &radeon_ttm_tt_bind,
-	.ttm_tt_unbind = &radeon_ttm_tt_unbind,
 	.ttm_tt_destroy = &radeon_ttm_tt_destroy,
 	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = &radeon_evict_flags,
