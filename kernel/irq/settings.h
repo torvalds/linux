@@ -18,6 +18,7 @@ enum {
 	_IRQ_IS_POLLED		= IRQ_IS_POLLED,
 	_IRQ_DISABLE_UNLAZY	= IRQ_DISABLE_UNLAZY,
 	_IRQ_HIDDEN		= IRQ_HIDDEN,
+	_IRQ_RAW		= IRQ_RAW,
 	_IRQF_MODIFY_MASK	= IRQF_MODIFY_MASK,
 };
 
@@ -33,6 +34,7 @@ enum {
 #define IRQ_IS_POLLED		GOT_YOU_MORON
 #define IRQ_DISABLE_UNLAZY	GOT_YOU_MORON
 #define IRQ_HIDDEN		GOT_YOU_MORON
+#define IRQ_RAW			GOT_YOU_MORON
 #undef IRQF_MODIFY_MASK
 #define IRQF_MODIFY_MASK	GOT_YOU_MORON
 
@@ -179,4 +181,17 @@ static inline void irq_settings_clr_disable_unlazy(struct irq_desc *desc)
 static inline bool irq_settings_is_hidden(struct irq_desc *desc)
 {
 	return desc->status_use_accessors & _IRQ_HIDDEN;
+}
+
+static inline bool irq_settings_is_raw(struct irq_desc *desc)
+{
+	if (IS_ENABLED(CONFIG_ARCH_WANTS_IRQ_RAW))
+		return desc->status_use_accessors & _IRQ_RAW;
+
+	/*
+	 * Using IRQ_RAW on architectures that don't expect it is
+	 * likely to be wrong.
+	 */
+	WARN_ON_ONCE(1);
+	return false;
 }
