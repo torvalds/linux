@@ -1794,7 +1794,9 @@ static int transaction_kthread(void *arg)
 		if (cur->state < TRANS_STATE_COMMIT_START &&
 		    delta < fs_info->commit_interval) {
 			spin_unlock(&fs_info->trans_lock);
-			delay = msecs_to_jiffies(5000);
+			delay -= msecs_to_jiffies((delta - 1) * 1000);
+			delay = min(delay,
+				    msecs_to_jiffies(fs_info->commit_interval * 1000));
 			goto sleep;
 		}
 		transid = cur->transid;
