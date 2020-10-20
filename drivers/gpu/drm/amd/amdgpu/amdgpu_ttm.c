@@ -66,6 +66,8 @@
 static int amdgpu_ttm_backend_bind(struct ttm_bo_device *bdev,
 				   struct ttm_tt *ttm,
 				   struct ttm_resource *bo_mem);
+static void amdgpu_ttm_backend_unbind(struct ttm_bo_device *bdev,
+				      struct ttm_tt *ttm);
 
 static int amdgpu_ttm_init_on_chip(struct amdgpu_device *adev,
 				    unsigned int type,
@@ -561,11 +563,12 @@ static int amdgpu_move_vram_ram(struct ttm_buffer_object *bo, bool evict,
 		goto out_cleanup;
 	}
 
-	/* move BO (in tmp_mem) to new_mem */
-	r = ttm_bo_move_to_system(bo, ctx);
+	r = ttm_bo_wait_ctx(bo, ctx);
 	if (unlikely(r))
 		goto out_cleanup;
 
+	amdgpu_ttm_backend_unbind(bo->bdev, bo->ttm);
+	ttm_resource_free(bo, &bo->mem);
 	ttm_bo_assign_mem(bo, new_mem);
 out_cleanup:
 	ttm_resource_free(bo, &tmp_mem);
@@ -682,9 +685,12 @@ static int amdgpu_bo_move(struct ttm_buffer_object *bo, bool evict,
 
 	if (old_mem->mem_type == TTM_PL_TT &&
 	    new_mem->mem_type == TTM_PL_SYSTEM) {
-		r = ttm_bo_move_to_system(bo, ctx);
+		r = ttm_bo_wait_ctx(bo, ctx);
 		if (r)
 			return r;
+
+		amdgpu_ttm_backend_unbind(bo->bdev, bo->ttm);
+		ttm_resource_free(bo, &bo->mem);
 		ttm_bo_assign_mem(bo, new_mem);
 		return 0;
 	}

@@ -65,27 +65,6 @@ int ttm_bo_move_to_new_tt_mem(struct ttm_buffer_object *bo,
 	return 0;
 }
 
-int ttm_bo_move_to_system(struct ttm_buffer_object *bo,
-			  struct ttm_operation_ctx *ctx)
-{
-	int ret;
-
-	if (bo->mem.mem_type == TTM_PL_SYSTEM)
-		return 0;
-
-	ret = ttm_bo_wait_ctx(bo, ctx);
-	if (unlikely(ret != 0)) {
-		if (ret != -ERESTARTSYS)
-			pr_err("Failed to expire sync object before unbinding TTM\n");
-		return ret;
-	}
-
-	ttm_bo_tt_unbind(bo);
-	ttm_resource_free(bo, &bo->mem);
-	return 0;
-}
-EXPORT_SYMBOL(ttm_bo_move_to_system);
-
 int ttm_mem_io_reserve(struct ttm_bo_device *bdev,
 		       struct ttm_resource *mem)
 {
