@@ -580,26 +580,26 @@ nfs3svc_decode_writeargs(struct svc_rqst *rqstp, __be32 *p)
 int
 nfs3svc_decode_createargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	struct nfsd3_createargs *args = rqstp->rq_argp;
 
-	if (!(p = decode_fh(p, &args->fh))
-	 || !(p = decode_filename(p, &args->name, &args->len)))
+	if (!svcxdr_decode_diropargs3(xdr, &args->fh, &args->name, &args->len))
 		return 0;
-
-	switch (args->createmode = ntohl(*p++)) {
+	if (xdr_stream_decode_u32(xdr, &args->createmode) < 0)
+		return 0;
+	switch (args->createmode) {
 	case NFS3_CREATE_UNCHECKED:
 	case NFS3_CREATE_GUARDED:
-		p = decode_sattr3(p, &args->attrs, nfsd_user_namespace(rqstp));
-		break;
+		return svcxdr_decode_sattr3(rqstp, xdr, &args->attrs);
 	case NFS3_CREATE_EXCLUSIVE:
-		args->verf = p;
-		p += 2;
+		args->verf = xdr_inline_decode(xdr, NFS3_CREATEVERFSIZE);
+		if (!args->verf)
+			return 0;
 		break;
 	default:
 		return 0;
 	}
-
-	return xdr_argsize_check(rqstp, p);
+	return 1;
 }
 
 int
