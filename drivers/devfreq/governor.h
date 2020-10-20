@@ -13,6 +13,8 @@
 
 #include <linux/devfreq.h>
 
+#define DEVFREQ_NAME_LEN			16
+
 #define to_devfreq(DEV)	container_of((DEV), struct devfreq, dev)
 
 /* Devfreq events */
