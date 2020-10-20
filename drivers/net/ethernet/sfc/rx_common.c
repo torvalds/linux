@@ -797,7 +797,6 @@ int efx_probe_filters(struct efx_nic *efx)
 {
 	int rc;
 
-	init_rwsem(&efx->filter_sem);
 	mutex_lock(&efx->mac_lock);
 	down_write(&efx->filter_sem);
 	rc = efx->type->filter_table_probe(efx);
