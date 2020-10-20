@@ -42,13 +42,6 @@
 #define MPP_IOC_CFG_V1	_IOW(MPP_IOC_MAGIC, 1, unsigned int)
 #define MPP_IOC_CFG_V2	_IOW(MPP_IOC_MAGIC, 2, unsigned int)
 
-/* cmd support for version 1 */
-#define MPP_CMD_QUERY_SUPPORT_MASK_V1		(0x00000003)
-#define MPP_CMD_INIT_SUPPORT_MASK_V1		(0x00000007)
-#define MPP_CMD_SEND_SUPPORT_MASK_V1		(0x0000001F)
-#define MPP_CMD_POLL_SUPPORT_MASK_V1		(0x00000001)
-#define MPP_CMD_CONTROL_SUPPORT_MASK_V1		(0x0000000F)
-
 /* input parmater structure for version 1 */
 struct mpp_msg_v1 {
 	__u32 cmd;
@@ -816,24 +809,15 @@ int mpp_taskqueue_init(struct mpp_taskqueue *queue,
 
 static int mpp_check_cmd_v1(__u32 cmd)
 {
-	int ret;
-	__u64 mask = 0;
+	bool found;
 
-	if (cmd >= MPP_CMD_CONTROL_BASE)
-		mask = MPP_CMD_CONTROL_SUPPORT_MASK_V1;
-	else if (cmd >= MPP_CMD_POLL_BASE)
-		mask = MPP_CMD_POLL_SUPPORT_MASK_V1;
-	else if (cmd >= MPP_CMD_SEND_BASE)
-		mask = MPP_CMD_SEND_SUPPORT_MASK_V1;
-	else if (cmd >= MPP_CMD_INIT_BASE)
-		mask = MPP_CMD_INIT_SUPPORT_MASK_V1;
-	else
-		mask = MPP_CMD_QUERY_SUPPORT_MASK_V1;
+	found = (cmd < MPP_CMD_QUERY_BUTT) ? true : false;
+	found = (cmd >= MPP_CMD_INIT_BASE && cmd < MPP_CMD_INIT_BUTT) ? true : found;
+	found = (cmd >= MPP_CMD_SEND_BASE && cmd < MPP_CMD_SEND_BUTT) ? true : found;
+	found = (cmd >= MPP_CMD_POLL_BASE && cmd < MPP_CMD_POLL_BUTT) ? true : found;
+	found = (cmd >= MPP_CMD_CONTROL_BASE && cmd < MPP_CMD_CONTROL_BUTT) ? true : found;
 
-	cmd &= 0x3F;
-	ret = ((mask >> cmd) & 0x1) ? 0 : (-EINVAL);
-
-	return ret;
+	return found ? 0 : -EINVAL;
 }
 
 static int mpp_parse_msg_v1(struct mpp_msg_v1 *msg,
@@ -869,6 +853,35 @@ static inline int mpp_msg_is_last(struct mpp_request *req)
 	return flag;
 }
 
+static __u32 mpp_get_cmd_butt(__u32 cmd)
+{
+	__u32 mask = 0;
+
+	switch (cmd) {
+	case MPP_CMD_QUERY_BASE:
+		mask = MPP_CMD_QUERY_BUTT;
+		break;
+	case MPP_CMD_INIT_BASE:
+		mask = MPP_CMD_INIT_BUTT;
+		break;
+
+	case MPP_CMD_SEND_BASE:
+		mask = MPP_CMD_SEND_BUTT;
+		break;
+	case MPP_CMD_POLL_BASE:
+		mask = MPP_CMD_POLL_BUTT;
+		break;
+	case MPP_CMD_CONTROL_BASE:
+		mask = MPP_CMD_CONTROL_BUTT;
+		break;
+	default:
+		mpp_err("unknow dev cmd 0x%x\n", cmd);
+		break;
+	}
+
+	return mask;
+}
+
 static int mpp_process_request(struct mpp_session *session,
 			       struct mpp_service *srv,
 			       struct mpp_request *req,
@@ -895,6 +908,15 @@ static int mpp_process_request(struct mpp_session *session,
 		hw_info = mpp->var->hw_info;
 		mpp_debug(DEBUG_IOCTL, "hw_id %08x\n", hw_info->hw_id);
 		if (put_user(hw_info->hw_id, (u32 __user *)req->data))
+			return -EFAULT;
+	} break;
+	case MPP_CMD_QUERY_CMD_SUPPORT: {
+		__u32 cmd = 0;
+
+		if (get_user(cmd, (u32 __user *)req->data))
+			return -EINVAL;
+
+		if (put_user(mpp_get_cmd_butt(cmd), (u32 __user *)req->data))
 			return -EFAULT;
 	} break;
 	case MPP_CMD_INIT_CLIENT_TYPE: {
