@@ -2388,7 +2388,7 @@
 				ranges = <0 0 0x20000>;
 
 				usb1: usb@10000 {
-					compatible = "synopsys,dwc3";
+					compatible = "snps,dwc3";
 					reg = <0x10000 0x10000>;
 					interrupts = <GIC_SPI 168 IRQ_TYPE_LEVEL_HIGH>,
 						     <GIC_SPI 168 IRQ_TYPE_LEVEL_HIGH>,
@@ -2468,7 +2468,7 @@
 				ranges = <0 0 0x20000>;
 
 				usb2: usb@10000 {
-					compatible = "synopsys,dwc3";
+					compatible = "snps,dwc3";
 					reg = <0x10000 0x10000>;
 					interrupts = <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>,
 						     <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>,
