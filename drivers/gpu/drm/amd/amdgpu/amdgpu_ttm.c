@@ -973,7 +973,7 @@ bool amdgpu_ttm_tt_get_user_pages_done(struct ttm_tt *ttm)
 	if (!gtt || !gtt->userptr)
 		return false;
 
-	DRM_DEBUG_DRIVER("user_pages_done 0x%llx pages 0x%lx\n",
+	DRM_DEBUG_DRIVER("user_pages_done 0x%llx pages 0x%x\n",
 		gtt->userptr, ttm->num_pages);
 
 	WARN_ONCE(!gtt->range || !gtt->range->hmm_pfns,
@@ -1124,7 +1124,7 @@ static int amdgpu_ttm_gart_bind(struct amdgpu_device *adev,
 
 gart_bind_fail:
 	if (r)
-		DRM_ERROR("failed to bind %lu pages at 0x%08llX\n",
+		DRM_ERROR("failed to bind %u pages at 0x%08llX\n",
 			  ttm->num_pages, gtt->offset);
 
 	return r;
@@ -1159,7 +1159,7 @@ static int amdgpu_ttm_backend_bind(struct ttm_bo_device *bdev,
 		}
 	}
 	if (!ttm->num_pages) {
-		WARN(1, "nothing to bind %lu pages for mreg %p back %p!\n",
+		WARN(1, "nothing to bind %u pages for mreg %p back %p!\n",
 		     ttm->num_pages, bo_mem, ttm);
 	}
 
@@ -1182,7 +1182,7 @@ static int amdgpu_ttm_backend_bind(struct ttm_bo_device *bdev,
 		ttm->pages, gtt->ttm.dma_address, flags);
 
 	if (r)
-		DRM_ERROR("failed to bind %lu pages at 0x%08llX\n",
+		DRM_ERROR("failed to bind %u pages at 0x%08llX\n",
 			  ttm->num_pages, gtt->offset);
 	gtt->bound = true;
 	return r;
@@ -1291,7 +1291,7 @@ static void amdgpu_ttm_backend_unbind(struct ttm_bo_device *bdev,
 	/* unbind shouldn't be done for GDS/GWS/OA in ttm_bo_clean_mm */
 	r = amdgpu_gart_unbind(adev, gtt->offset, ttm->num_pages);
 	if (r)
-		DRM_ERROR("failed to unbind %lu pages at 0x%08llX\n",
+		DRM_ERROR("failed to unbind %u pages at 0x%08llX\n",
 			  gtt->ttm.ttm.num_pages, gtt->offset);
 	gtt->bound = false;
 }

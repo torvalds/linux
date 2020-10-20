@@ -108,7 +108,7 @@ nv04_gart_manager_new(struct ttm_resource_manager *man,
 		return ret;
 
 	ret = nvif_vmm_get(&mem->cli->vmm.vmm, PTES, false, 12, 0,
-			   reg->num_pages << PAGE_SHIFT, &mem->vma[0]);
+			   (long)reg->num_pages << PAGE_SHIFT, &mem->vma[0]);
 	if (ret) {
 		nouveau_mem_del(reg);
 		return ret;

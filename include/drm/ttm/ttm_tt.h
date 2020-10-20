@@ -61,7 +61,7 @@ struct ttm_operation_ctx;
 struct ttm_tt {
 	struct page **pages;
 	uint32_t page_flags;
-	unsigned long num_pages;
+	uint32_t num_pages;
 	struct sg_table *sg; /* for SG objects via dma-buf */
 	struct file *swap_storage;
 	enum ttm_caching caching;

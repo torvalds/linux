@@ -564,7 +564,7 @@ static int radeon_ttm_backend_bind(struct ttm_bo_device *bdev,
 
 	gtt->offset = (unsigned long)(bo_mem->start << PAGE_SHIFT);
 	if (!ttm->num_pages) {
-		WARN(1, "nothing to bind %lu pages for mreg %p back %p!\n",
+		WARN(1, "nothing to bind %u pages for mreg %p back %p!\n",
 		     ttm->num_pages, bo_mem, ttm);
 	}
 	if (ttm->caching == ttm_cached)
@@ -572,7 +572,7 @@ static int radeon_ttm_backend_bind(struct ttm_bo_device *bdev,
 	r = radeon_gart_bind(rdev, gtt->offset, ttm->num_pages,
 			     ttm->pages, gtt->ttm.dma_address, flags);
 	if (r) {
-		DRM_ERROR("failed to bind %lu pages at 0x%08X\n",
+		DRM_ERROR("failed to bind %u pages at 0x%08X\n",
 			  ttm->num_pages, (unsigned)gtt->offset);
 		return r;
 	}
