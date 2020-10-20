@@ -1647,7 +1647,7 @@
 			ranges;
 			status = "disabled";
 
-			usbdrd_dwc3: dwc3@15400000 {
+			usbdrd_dwc3: usb@15400000 {
 				compatible = "snps,dwc3";
 				clocks = <&cmu_fsys CLK_SCLK_USBDRD30>,
 					<&cmu_fsys CLK_ACLK_USBDRD30>,
@@ -1700,7 +1700,7 @@
 			ranges;
 			status = "disabled";
 
-			usbhost_dwc3: dwc3@15a00000 {
+			usbhost_dwc3: usb@15a00000 {
 				compatible = "snps,dwc3";
 				clocks = <&cmu_fsys CLK_SCLK_USBHOST30>,
 					<&cmu_fsys CLK_ACLK_USBHOST30>,

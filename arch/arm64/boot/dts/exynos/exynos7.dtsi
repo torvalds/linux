@@ -654,7 +654,7 @@
 			#size-cells = <1>;
 			ranges;
 
-			dwc3@15400000 {
+			usb@15400000 {
 				compatible = "snps,dwc3";
 				reg = <0x15400000 0x10000>;
 				interrupts = <GIC_SPI 223 IRQ_TYPE_LEVEL_HIGH>;
