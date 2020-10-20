@@ -65,3 +65,21 @@ config REGMAP_I3C
 config REGMAP_SPI_AVMM
 	tristate
 	depends on SPI
+
+config REGMAP_QTI_DEBUGFS
+	tristate "Regmap QTI debug feature support"
+	depends on REGMAP && DEBUG_FS
+	help
+	  This library provides a runtime debugfs interface to read and write a
+	  subset of regmap registers.  This interface is more performant and
+	  easier to use than the traditional method which dumps all registers
+	  defined in a given regmap.
+
+config REGMAP_QTI_DEBUGFS_ALLOW_WRITE
+	bool "Allow QTI regmap debugfs write"
+	depends on REGMAP_QTI_DEBUGFS
+	help
+	  Say 'y' here to allow regmap debugfs writes within the QTI debugfs
+	  regmap library.  Regmap debugfs write could be risky when accessing
+	  essential hardware components, so it is not recommended to enable this
+	  option on production devices.
