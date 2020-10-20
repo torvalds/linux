@@ -15893,12 +15893,6 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 	else
 		wq_create_version = LPFC_Q_CREATE_VERSION_0;
 
-
-	if (phba->sli4_hba.pc_sli4_params.wqsize & LPFC_WQ_SZ128_SUPPORT)
-		wq_create_version = LPFC_Q_CREATE_VERSION_1;
-	else
-		wq_create_version = LPFC_Q_CREATE_VERSION_0;
-
 	switch (wq_create_version) {
 	case LPFC_Q_CREATE_VERSION_1:
 		bf_set(lpfc_mbx_wq_create_wqe_count, &wq_create->u.request_1,
