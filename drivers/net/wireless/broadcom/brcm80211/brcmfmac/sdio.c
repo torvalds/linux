@@ -1340,7 +1340,7 @@ static void brcmf_sdio_free_glom(struct brcmf_sdio *bus)
 static inline u8 brcmf_sdio_getdatoffset(u8 *swheader)
 {
 	u32 hdrvalue;
-	hdrvalue = *(u32 *)swheader;
+	hdrvalue = le32_to_cpu(*(__le32 *)swheader);
 	return (u8)((hdrvalue & SDPCM_DOFFSET_MASK) >> SDPCM_DOFFSET_SHIFT);
 }
 
@@ -1349,7 +1349,7 @@ static inline bool brcmf_sdio_fromevntchan(u8 *swheader)
 	u32 hdrvalue;
 	u8 ret;
 
-	hdrvalue = *(u32 *)swheader;
+	hdrvalue = le32_to_cpu(*(__le32 *)swheader);
 	ret = (u8)((hdrvalue & SDPCM_CHANNEL_MASK) >> SDPCM_CHANNEL_SHIFT);
 
 	return (ret == SDPCM_EVENT_CHANNEL);
@@ -3544,7 +3544,7 @@ static int brcmf_sdio_bus_preinit(struct device *dev)
 		/* otherwise, set txglomalign */
 		value = sdiodev->settings->bus.sdio.sd_sgentry_align;
 		/* SDIO ADMA requires at least 32 bit alignment */
-		value = max_t(u32, value, ALIGNMENT);
+		value = cpu_to_le32(max_t(u32, value, ALIGNMENT));
 		err = brcmf_iovar_data_set(dev, "bus:txglomalign", &value,
 					   sizeof(u32));
 	}
@@ -3555,7 +3555,7 @@ static int brcmf_sdio_bus_preinit(struct device *dev)
 	bus->tx_hdrlen = SDPCM_HWHDR_LEN + SDPCM_SWHDR_LEN;
 	if (sdiodev->sg_support) {
 		bus->txglom = false;
-		value = 1;
+		value = cpu_to_le32(1);
 		err = brcmf_iovar_data_set(bus->sdiodev->dev, "bus:rxglom",
 					   &value, sizeof(u32));
 		if (err < 0) {
