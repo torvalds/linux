@@ -12,7 +12,7 @@ static const struct vb2_mem_ops *g_ops = &vb2_dma_contig_memops;
 void rkisp_write(struct rkisp_device *dev, u32 reg, u32 val, bool is_direct)
 {
 	u32 *mem = dev->sw_base_addr + reg;
-	u32 *flag = dev->sw_base_addr + reg + ISP_SW_REG_SIZE;
+	u32 *flag = dev->sw_base_addr + reg + RKISP_ISP_SW_REG_SIZE;
 
 	*mem = val;
 	*flag = SW_REG_CACHE;
@@ -52,13 +52,13 @@ void rkisp_update_regs(struct rkisp_device *dev, u32 start, u32 end)
 	void __iomem *base = dev->hw_dev->base_addr;
 	u32 i;
 
-	if (end > ISP_SW_REG_SIZE - 4) {
+	if (end > RKISP_ISP_SW_REG_SIZE - 4) {
 		dev_err(dev->dev, "%s out of range\n", __func__);
 		return;
 	}
 	for (i = start; i <= end; i += 4) {
 		u32 *val = dev->sw_base_addr + i;
-		u32 *flag = dev->sw_base_addr + i + ISP_SW_REG_SIZE;
+		u32 *flag = dev->sw_base_addr + i + RKISP_ISP_SW_REG_SIZE;
 
 		if (*flag == SW_REG_CACHE)
 			writel(*val, base + i);

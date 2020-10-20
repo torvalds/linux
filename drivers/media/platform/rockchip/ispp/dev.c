@@ -47,6 +47,14 @@ static char rkispp_version[RKISPP_VERNO_LEN];
 module_param_string(version, rkispp_version, RKISPP_VERNO_LEN, 0444);
 MODULE_PARM_DESC(version, "version number");
 
+bool rkispp_reg_withstream;
+module_param_named(sendreg_withstream, rkispp_reg_withstream, bool, 0644);
+MODULE_PARM_DESC(sendreg_withstream, "rkispp send reg out with stream");
+
+unsigned int rkispp_debug_reg = 0x1F;
+module_param_named(debug_reg, rkispp_debug_reg, uint, 0644);
+MODULE_PARM_DESC(debug_reg, "rkispp debug register");
+
 static void get_remote_node_dev(struct rkispp_device *ispp_dev)
 {
 	struct device *dev = ispp_dev->dev;
@@ -225,7 +233,7 @@ static int rkispp_plat_probe(struct platform_device *pdev)
 	ispp_dev = devm_kzalloc(dev, sizeof(*ispp_dev), GFP_KERNEL);
 	if (!ispp_dev)
 		return -ENOMEM;
-	ispp_dev->sw_base_addr = devm_kzalloc(dev, ISPP_SW_MAX_SIZE, GFP_KERNEL);
+	ispp_dev->sw_base_addr = devm_kzalloc(dev, RKISP_ISPP_SW_MAX_SIZE, GFP_KERNEL);
 	if (!ispp_dev->sw_base_addr)
 		return -ENOMEM;
 

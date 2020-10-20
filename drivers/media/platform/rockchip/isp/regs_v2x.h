@@ -6,9 +6,6 @@
 #ifndef _RKISP_REGS_V2X_H
 #define _RKISP_REGS_V2X_H
 
-#define ISP_SW_REG_SIZE					0x6000
-#define ISP_SW_MAX_SIZE					(ISP_SW_REG_SIZE * 2)
-
 #define CTRL_BASE					0x00000000
 #define CTRL_VI_ISP_EN					(CTRL_BASE + 0x00000)
 #define CTRL_VI_ISP_PATH				(CTRL_BASE + 0x00004)

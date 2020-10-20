@@ -67,6 +67,10 @@ static char rkisp_version[RKISP_VERNO_LEN];
 module_param_string(version, rkisp_version, RKISP_VERNO_LEN, 0444);
 MODULE_PARM_DESC(version, "version number");
 
+u64 rkisp_debug_reg = 0xFFFFFFFFFLL;
+module_param_named(debug_reg, rkisp_debug_reg, ullong, 0644);
+MODULE_PARM_DESC(debug_reg, "rkisp debug register");
+
 static DEFINE_MUTEX(rkisp_dev_mutex);
 static LIST_HEAD(rkisp_device_list);
 
@@ -691,7 +695,7 @@ static int rkisp_plat_probe(struct platform_device *pdev)
 	isp_dev = devm_kzalloc(dev, sizeof(*isp_dev), GFP_KERNEL);
 	if (!isp_dev)
 		return -ENOMEM;
-	isp_dev->sw_base_addr = devm_kzalloc(dev, ISP_SW_MAX_SIZE, GFP_KERNEL);
+	isp_dev->sw_base_addr = devm_kzalloc(dev, RKISP_ISP_SW_MAX_SIZE, GFP_KERNEL);
 	if (!isp_dev->sw_base_addr)
 		return -ENOMEM;
 

@@ -949,11 +949,12 @@ static int dmarx_init(struct rkisp_device *dev, u32 id)
 		RKISP_ISP_PAD_SINK, stream->linked);
 }
 
-void rkisp_dmarx_get_frame(struct rkisp_device *dev,
-			   u32 *id, u64 *timestamp, bool sync)
+void rkisp_dmarx_get_frame(struct rkisp_device *dev, u32 *id,
+			   u64 *sof_timestamp, u64 *timestamp,
+			   bool sync)
 {
 	unsigned long flag = 0;
-	u64 frame_timestamp = 0;
+	u64 sof_time = 0, frame_timestamp = 0;
 	u32 frame_id = 0;
 
 	if (!dev->dmarx_dev.trigger && id) {
@@ -964,14 +965,18 @@ void rkisp_dmarx_get_frame(struct rkisp_device *dev,
 	spin_lock_irqsave(&dev->csi_dev.rdbk_lock, flag);
 	if (sync) {
 		frame_id = dev->dmarx_dev.cur_frame.id;
+		sof_time = dev->dmarx_dev.cur_frame.sof_timestamp;
 		frame_timestamp = dev->dmarx_dev.cur_frame.timestamp;
 	} else {
 		frame_id = dev->dmarx_dev.pre_frame.id;
+		sof_time = dev->dmarx_dev.pre_frame.sof_timestamp;
 		frame_timestamp = dev->dmarx_dev.pre_frame.timestamp;
 	}
 	spin_unlock_irqrestore(&dev->csi_dev.rdbk_lock, flag);
 	if (id)
 		*id = frame_id;
+	if (sof_timestamp)
+		*sof_timestamp = sof_time;
 	if (timestamp)
 		*timestamp = frame_timestamp;
 }

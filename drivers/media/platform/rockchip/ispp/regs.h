@@ -4,9 +4,6 @@
 #ifndef _RKISPP_REGS_H
 #define _RKISPP_REGS_H
 
-#define ISPP_SW_REG_SIZE		0x0d00
-#define ISPP_SW_MAX_SIZE		(ISPP_SW_REG_SIZE * 2)
-
 /* registers */
 #define RKISPP_CTRL			0x0000
 #define RKISPP_CTRL_STRT		(RKISPP_CTRL + 0x0000)

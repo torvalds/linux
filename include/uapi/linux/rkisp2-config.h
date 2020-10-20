@@ -30,41 +30,78 @@
 #define RKISP_CMD_SET_LDCHBUF_SIZE \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 5, struct rkisp_ldchbuf_size)
 
-#define ISP2X_MODULE_DPCC		BIT_ULL(0)
-#define ISP2X_MODULE_BLS		BIT_ULL(1)
-#define ISP2X_MODULE_SDG		BIT_ULL(2)
-#define ISP2X_MODULE_SIHST		BIT_ULL(3)
-#define ISP2X_MODULE_LSC		BIT_ULL(4)
-#define ISP2X_MODULE_AWB_GAIN		BIT_ULL(5)
-#define ISP2X_MODULE_BDM		BIT_ULL(7)
-#define ISP2X_MODULE_CCM		BIT_ULL(8)
-#define ISP2X_MODULE_GOC		BIT_ULL(9)
-#define ISP2X_MODULE_CPROC		BIT_ULL(10)
-#define ISP2X_MODULE_SIAF		BIT_ULL(11)
-#define ISP2X_MODULE_SIAWB		BIT_ULL(12)
-#define ISP2X_MODULE_IE			BIT_ULL(13)
-#define ISP2X_MODULE_YUVAE		BIT_ULL(14)
-#define ISP2X_MODULE_WDR		BIT_ULL(15)
-#define ISP2X_MODULE_RK_IESHARP		BIT_ULL(16)
-#define ISP2X_MODULE_RAWAF		BIT_ULL(17)
-#define ISP2X_MODULE_RAWAE0		BIT_ULL(18)
-#define ISP2X_MODULE_RAWAE1		BIT_ULL(19)
-#define ISP2X_MODULE_RAWAE2		BIT_ULL(20)
-#define ISP2X_MODULE_RAWAE3		BIT_ULL(21)
-#define ISP2X_MODULE_RAWAWB		BIT_ULL(22)
-#define ISP2X_MODULE_RAWHIST0		BIT_ULL(23)
-#define ISP2X_MODULE_RAWHIST1		BIT_ULL(24)
-#define ISP2X_MODULE_RAWHIST2		BIT_ULL(25)
-#define ISP2X_MODULE_RAWHIST3		BIT_ULL(26)
-#define ISP2X_MODULE_HDRMGE		BIT_ULL(27)
-#define ISP2X_MODULE_RAWNR		BIT_ULL(28)
-#define ISP2X_MODULE_HDRTMO		BIT_ULL(29)
-#define ISP2X_MODULE_GIC		BIT_ULL(30)
-#define ISP2X_MODULE_DHAZ		BIT_ULL(31)
-#define ISP2X_MODULE_3DLUT		BIT_ULL(32)
-#define ISP2X_MODULE_LDCH		BIT_ULL(33)
-#define ISP2X_MODULE_GAIN		BIT_ULL(34)
-#define ISP2X_MODULE_DEBAYER		BIT_ULL(35)
+#define ISP2X_ID_DPCC			(0)
+#define ISP2X_ID_BLS			(1)
+#define ISP2X_ID_SDG			(2)
+#define ISP2X_ID_SIHST			(3)
+#define ISP2X_ID_LSC			(4)
+#define ISP2X_ID_AWB_GAIN		(5)
+#define ISP2X_ID_BDM			(7)
+#define ISP2X_ID_CCM			(8)
+#define ISP2X_ID_GOC			(9)
+#define ISP2X_ID_CPROC			(10)
+#define ISP2X_ID_SIAF			(11)
+#define ISP2X_ID_SIAWB			(12)
+#define ISP2X_ID_IE			(13)
+#define ISP2X_ID_YUVAE			(14)
+#define ISP2X_ID_WDR			(15)
+#define ISP2X_ID_RK_IESHARP		(16)
+#define ISP2X_ID_RAWAF			(17)
+#define ISP2X_ID_RAWAE0			(18)
+#define ISP2X_ID_RAWAE1			(19)
+#define ISP2X_ID_RAWAE2			(20)
+#define ISP2X_ID_RAWAE3			(21)
+#define ISP2X_ID_RAWAWB			(22)
+#define ISP2X_ID_RAWHIST0		(23)
+#define ISP2X_ID_RAWHIST1		(24)
+#define ISP2X_ID_RAWHIST2		(25)
+#define ISP2X_ID_RAWHIST3		(26)
+#define ISP2X_ID_HDRMGE			(27)
+#define ISP2X_ID_RAWNR			(28)
+#define ISP2X_ID_HDRTMO			(29)
+#define ISP2X_ID_GIC			(30)
+#define ISP2X_ID_DHAZ			(31)
+#define ISP2X_ID_3DLUT			(32)
+#define ISP2X_ID_LDCH			(33)
+#define ISP2X_ID_GAIN			(34)
+#define ISP2X_ID_DEBAYER		(35)
+#define ISP2X_ID_MAX			(36)
+
+#define ISP2X_MODULE_DPCC		BIT_ULL(ISP2X_ID_DPCC)
+#define ISP2X_MODULE_BLS		BIT_ULL(ISP2X_ID_BLS)
+#define ISP2X_MODULE_SDG		BIT_ULL(ISP2X_ID_SDG)
+#define ISP2X_MODULE_SIHST		BIT_ULL(ISP2X_ID_SIHST)
+#define ISP2X_MODULE_LSC		BIT_ULL(ISP2X_ID_LSC)
+#define ISP2X_MODULE_AWB_GAIN		BIT_ULL(ISP2X_ID_AWB_GAIN)
+#define ISP2X_MODULE_BDM		BIT_ULL(ISP2X_ID_BDM)
+#define ISP2X_MODULE_CCM		BIT_ULL(ISP2X_ID_CCM)
+#define ISP2X_MODULE_GOC		BIT_ULL(ISP2X_ID_GOC)
+#define ISP2X_MODULE_CPROC		BIT_ULL(ISP2X_ID_CPROC)
+#define ISP2X_MODULE_SIAF		BIT_ULL(ISP2X_ID_SIAF)
+#define ISP2X_MODULE_SIAWB		BIT_ULL(ISP2X_ID_SIAWB)
+#define ISP2X_MODULE_IE			BIT_ULL(ISP2X_ID_IE)
+#define ISP2X_MODULE_YUVAE		BIT_ULL(ISP2X_ID_YUVAE)
+#define ISP2X_MODULE_WDR		BIT_ULL(ISP2X_ID_WDR)
+#define ISP2X_MODULE_RK_IESHARP		BIT_ULL(ISP2X_ID_RK_IESHARP)
+#define ISP2X_MODULE_RAWAF		BIT_ULL(ISP2X_ID_RAWAF)
+#define ISP2X_MODULE_RAWAE0		BIT_ULL(ISP2X_ID_RAWAE0)
+#define ISP2X_MODULE_RAWAE1		BIT_ULL(ISP2X_ID_RAWAE1)
+#define ISP2X_MODULE_RAWAE2		BIT_ULL(ISP2X_ID_RAWAE2)
+#define ISP2X_MODULE_RAWAE3		BIT_ULL(ISP2X_ID_RAWAE3)
+#define ISP2X_MODULE_RAWAWB		BIT_ULL(ISP2X_ID_RAWAWB)
+#define ISP2X_MODULE_RAWHIST0		BIT_ULL(ISP2X_ID_RAWHIST0)
+#define ISP2X_MODULE_RAWHIST1		BIT_ULL(ISP2X_ID_RAWHIST1)
+#define ISP2X_MODULE_RAWHIST2		BIT_ULL(ISP2X_ID_RAWHIST2)
+#define ISP2X_MODULE_RAWHIST3		BIT_ULL(ISP2X_ID_RAWHIST3)
+#define ISP2X_MODULE_HDRMGE		BIT_ULL(ISP2X_ID_HDRMGE)
+#define ISP2X_MODULE_RAWNR		BIT_ULL(ISP2X_ID_RAWNR)
+#define ISP2X_MODULE_HDRTMO		BIT_ULL(ISP2X_ID_HDRTMO)
+#define ISP2X_MODULE_GIC		BIT_ULL(ISP2X_ID_GIC)
+#define ISP2X_MODULE_DHAZ		BIT_ULL(ISP2X_ID_DHAZ)
+#define ISP2X_MODULE_3DLUT		BIT_ULL(ISP2X_ID_3DLUT)
+#define ISP2X_MODULE_LDCH		BIT_ULL(ISP2X_ID_LDCH)
+#define ISP2X_MODULE_GAIN		BIT_ULL(ISP2X_ID_GAIN)
+#define ISP2X_MODULE_DEBAYER		BIT_ULL(ISP2X_ID_DEBAYER)
 
 /*
  * Measurement types
@@ -179,6 +216,7 @@ enum isp2x_trigger_mode {
 
 struct isp2x_csi_trigger {
 	/* timestamp in ns */
+	u64 sof_timestamp;
 	u64 frame_timestamp;
 	u32 frame_id;
 	int times;
@@ -1439,6 +1477,19 @@ struct isp2x_isp_meas_cfg {
 	struct isp2x_sihst_cfg sihst;
 } __attribute__ ((packed));
 
+struct sensor_exposure_s {
+	u32 fine_integration_time;
+	u32 coarse_integration_time;
+	u32 analog_gain_code_global;
+	u32 digital_gain_global;
+	u32 isp_digital_gain;
+} __attribute__ ((packed));
+
+struct sensor_exposure_cfg {
+	struct sensor_exposure_s linear_exp;
+	struct sensor_exposure_s hdr_exp[3];
+} __attribute__ ((packed));
+
 struct isp2x_isp_params_cfg {
 	u64 module_en_update;
 	u64 module_ens;
@@ -1446,7 +1497,8 @@ struct isp2x_isp_params_cfg {
 
 	u32 frame_id;
 	struct isp2x_isp_meas_cfg meas;
-	struct isp2x_isp_other_cfg others;	// must be last item
+	struct isp2x_isp_other_cfg others;
+	struct sensor_exposure_cfg exposure;
 } __attribute__ ((packed));
 
 struct isp2x_siawb_meas {

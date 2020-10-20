@@ -13,7 +13,7 @@ static const struct vb2_mem_ops *g_ops = &vb2_dma_contig_memops;
 void rkispp_write(struct rkispp_device *dev, u32 reg, u32 val)
 {
 	u32 *mem = dev->sw_base_addr + reg;
-	u32 *flag = dev->sw_base_addr + reg + ISPP_SW_REG_SIZE;
+	u32 *flag = dev->sw_base_addr + reg + RKISP_ISPP_SW_REG_SIZE;
 
 	*mem = val;
 	*flag = SW_REG_CACHE;
@@ -51,13 +51,13 @@ void rkispp_update_regs(struct rkispp_device *dev, u32 start, u32 end)
 	void __iomem *base = dev->hw_dev->base_addr;
 	u32 i;
 
-	if (end > ISPP_SW_REG_SIZE - 4) {
+	if (end > RKISP_ISPP_SW_REG_SIZE - 4) {
 		dev_err(dev->dev, "%s out of range\n", __func__);
 		return;
 	}
 	for (i = start; i <= end; i += 4) {
 		u32 *val = dev->sw_base_addr + i;
-		u32 *flag = dev->sw_base_addr + i + ISPP_SW_REG_SIZE;
+		u32 *flag = dev->sw_base_addr + i + RKISP_ISPP_SW_REG_SIZE;
 
 		if (*flag == SW_REG_CACHE)
 			writel(*val, base + i);
@@ -164,6 +164,66 @@ int rkispp_attach_hw(struct rkispp_device *ispp)
 	return 0;
 }
 
+static int rkispp_init_regbuf(struct rkispp_hw_dev *hw)
+{
+	struct rkisp_ispp_reg *reg_buf;
+	u32 i, buf_size;
+
+	if (!rkispp_reg_withstream) {
+		hw->reg_buf = NULL;
+		return 0;
+	}
+
+	buf_size = RKISP_ISPP_REGBUF_NUM * sizeof(struct rkisp_ispp_reg);
+	hw->reg_buf = vmalloc(buf_size);
+	if (!hw->reg_buf)
+		return -ENOMEM;
+
+	reg_buf = hw->reg_buf;
+	for (i = 0; i < RKISP_ISPP_REGBUF_NUM; i++) {
+		reg_buf[i].stat = ISP_ISPP_FREE;
+		reg_buf[i].dev_id = 0xFF;
+		reg_buf[i].frame_id = 0;
+		reg_buf[i].reg_size = 0;
+		reg_buf[i].sof_timestamp = 0LL;
+		reg_buf[i].frame_timestamp = 0LL;
+	}
+
+	return 0;
+}
+
+static void rkispp_free_regbuf(struct rkispp_hw_dev *hw)
+{
+	if (hw->reg_buf) {
+		vfree(hw->reg_buf);
+		hw->reg_buf = NULL;
+	}
+}
+
+static int rkispp_find_regbuf_by_stat(struct rkispp_hw_dev *hw, struct rkisp_ispp_reg **free_buf,
+				      enum rkisp_ispp_reg_stat stat)
+{
+	struct rkisp_ispp_reg *reg_buf = hw->reg_buf;
+	int i = 0, ret;
+
+	*free_buf = NULL;
+	if (!hw->reg_buf || !rkispp_reg_withstream)
+		return -EINVAL;
+
+	for (i = 0; i < RKISP_ISPP_REGBUF_NUM; i++) {
+		if (reg_buf[i].stat == stat)
+			break;
+	}
+
+	ret = -ENODATA;
+	if (i < RKISP_ISPP_REGBUF_NUM) {
+		ret = 0;
+		*free_buf = &reg_buf[i];
+	}
+
+	return ret;
+}
+
 static void rkispp_free_pool(struct rkispp_hw_dev *hw)
 {
 	struct rkispp_isp_buf_pool *buf;
@@ -188,6 +248,8 @@ static void rkispp_free_pool(struct rkispp_hw_dev *hw)
 		}
 		buf->dbufs = NULL;
 	}
+
+	rkispp_free_regbuf(hw);
 }
 
 static int rkispp_init_pool(struct rkispp_hw_dev *hw, struct rkisp_ispp_buf *dbufs)
@@ -224,6 +286,7 @@ static int rkispp_init_pool(struct rkispp_hw_dev *hw, struct rkisp_ispp_buf *dbu
 			dev_info(hw->dev, "%s dma[%d]:0x%x\n",
 				 __func__, i, (u32)pool->dma[i]);
 	}
+	rkispp_init_regbuf(hw);
 	return ret;
 err:
 	rkispp_free_pool(hw);
@@ -347,3 +410,75 @@ void rkispp_free_common_dummy_buf(struct rkispp_device *dev)
 		return;
 	rkispp_free_buffer(dev, &dev->hw_dev->dummy_buf);
 }
+
+int rkispp_find_regbuf_by_id(struct rkispp_device *ispp, struct rkisp_ispp_reg **free_buf,
+			     u32 dev_id, u32 frame_id)
+{
+	struct rkispp_hw_dev *hw = ispp->hw_dev;
+	struct rkisp_ispp_reg *reg_buf = hw->reg_buf;
+	int i = 0, ret;
+
+	*free_buf = NULL;
+	if (!hw->reg_buf)
+		return -EINVAL;
+
+	for (i = 0; i < RKISP_ISPP_REGBUF_NUM; i++) {
+		if (reg_buf[i].dev_id == dev_id && reg_buf[i].frame_id == frame_id)
+			break;
+	}
+
+	ret = -ENODATA;
+	if (i < RKISP_ISPP_REGBUF_NUM) {
+		ret = 0;
+		*free_buf = &reg_buf[i];
+	}
+
+	return ret;
+}
+
+void rkispp_release_regbuf(struct rkispp_device *ispp, struct rkisp_ispp_reg *freebuf)
+{
+	struct rkispp_hw_dev *hw = ispp->hw_dev;
+	struct rkisp_ispp_reg *reg_buf = hw->reg_buf;
+	int i;
+
+	if (!hw->reg_buf)
+		return;
+
+	for (i = 0; i < RKISP_ISPP_REGBUF_NUM; i++) {
+		if (reg_buf[i].dev_id == freebuf->dev_id &&
+			reg_buf[i].frame_timestamp < freebuf->frame_timestamp) {
+			reg_buf[i].frame_id = 0;
+			reg_buf[i].stat = ISP_ISPP_FREE;
+		}
+	}
+
+	freebuf->frame_id = 0;
+	freebuf->stat = ISP_ISPP_FREE;
+}
+
+void rkispp_request_regbuf(struct v4l2_subdev *sd, struct rkisp_ispp_reg **free_buf)
+{
+	struct rkispp_subdev *ispp_sdev = v4l2_get_subdevdata(sd);
+	struct rkispp_device *dev = ispp_sdev->dev;
+	struct rkispp_hw_dev *hw = dev->hw_dev;
+	int ret;
+
+	if (!hw->reg_buf) {
+		*free_buf = NULL;
+		return;
+	}
+
+	ret = rkispp_find_regbuf_by_stat(hw, free_buf, ISP_ISPP_FREE);
+	if (!ret) {
+		(*free_buf)->stat = ISP_ISPP_INUSE;
+	}
+}
+EXPORT_SYMBOL(rkispp_request_regbuf);
+
+bool rkispp_get_reg_withstream(void)
+{
+	return rkispp_reg_withstream;
+}
+EXPORT_SYMBOL(rkispp_get_reg_withstream);
+

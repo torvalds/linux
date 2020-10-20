@@ -4165,7 +4165,7 @@ rkisp_params_isr_v2x(struct rkisp_isp_params_vdev *params_vdev,
 	struct rkisp_device *dev = params_vdev->dev;
 	u32 cur_frame_id;
 
-	rkisp_dmarx_get_frame(dev, &cur_frame_id, NULL, true);
+	rkisp_dmarx_get_frame(dev, &cur_frame_id, NULL, NULL, true);
 	if (isp_mis & CIF_ISP_V_START) {
 		if (!params_vdev->cur_buf)
 			return;

@@ -82,7 +82,7 @@ static void default_sw_reg_flag(struct rkisp_device *dev)
 	u32 i, *flag;
 
 	for (i = 0; i < ARRAY_SIZE(reg); i++) {
-		flag = dev->sw_base_addr + reg[i] + ISP_SW_REG_SIZE;
+		flag = dev->sw_base_addr + reg[i] + RKISP_ISP_SW_REG_SIZE;
 		*flag = SW_REG_CACHE;
 	}
 }
@@ -743,8 +743,8 @@ static int __maybe_unused rkisp_runtime_resume(struct device *dev)
 	for (i = 0; i < hw_dev->dev_num; i++) {
 		void *buf = hw_dev->isp[i]->sw_base_addr;
 
-		memset(buf, 0, ISP_SW_MAX_SIZE);
-		memcpy_fromio(buf, base, ISP_SW_REG_SIZE);
+		memset(buf, 0, RKISP_ISP_SW_MAX_SIZE);
+		memcpy_fromio(buf, base, RKISP_ISP_SW_REG_SIZE);
 		default_sw_reg_flag(hw_dev->isp[i]);
 	}
 	return 0;

@@ -48,14 +48,396 @@ static void update_mi(struct rkisp_bridge_device *dev)
 		 rkisp_read(dev->ispdev, dev->cfg->reg.g0_base, true));
 }
 
+static void dump_dbg_reg(struct rkisp_bridge_device *dev, struct rkisp_ispp_reg *reg_buf)
+{
+	struct rkisp_isp2x_stat_buffer *tmp_statsbuf;
+	struct rkisp_hw_dev *hw = dev->ispdev->hw_dev;
+	u32 offset = 0, size;
+
+	tmp_statsbuf = (struct rkisp_isp2x_stat_buffer *)dev->ispdev->stats_vdev.tmp_statsbuf.vaddr;
+	memset(reg_buf->isp_offset, -1, sizeof(reg_buf->isp_offset));
+	memset(reg_buf->ispp_offset, -1, sizeof(reg_buf->ispp_offset));
+	memset(reg_buf->isp_size, 0, sizeof(reg_buf->isp_offset));
+	memset(reg_buf->isp_stats_size, 0, sizeof(reg_buf->isp_offset));
+	memset(reg_buf->ispp_size, 0, sizeof(reg_buf->ispp_offset));
+	if (rkisp_debug_reg & ISP2X_MODULE_DPCC) {
+		size = 4 + ISP_DPCC0_PDAF_FORWARD_MED - ISP_DPCC0_MODE;
+		reg_buf->isp_size[ISP2X_ID_DPCC] = size;
+		reg_buf->isp_offset[ISP2X_ID_DPCC] = offset;
+		memcpy_fromio(&reg_buf->reg[offset], hw->base_addr + ISP_DPCC0_MODE, size);
+		offset += size;
+	}
+
+	if (rkisp_debug_reg & ISP2X_MODULE_BLS) {
+		size = 4 + ISP_BLS_D_MEASURED - ISP_BLS_CTRL;
+		reg_buf->isp_size[ISP2X_ID_BLS] = size;
+		reg_buf->isp_offset[ISP2X_ID_BLS] = offset;
+		memcpy_fromio(&reg_buf->reg[offset], hw->base_addr + ISP_BLS_CTRL, size);
+		offset += size;
+	}
+
+	if (rkisp_debug_reg & ISP2X_MODULE_SDG) {
+		size = 4 + ISP_GAMMA_B_Y_16 - ISP_GAMMA_DX_LO;
+		reg_buf->isp_size[ISP2X_ID_SDG] = size;
+		reg_buf->isp_offset[ISP2X_ID_SDG] = offset;
+		memcpy_fromio(&reg_buf->reg[offset], hw->base_addr + ISP_GAMMA_DX_LO, size);
+		offset += size;
+	}
+
+	if (rkisp_debug_reg & ISP2X_MODULE_SIHST) {
+		size = 4 + ISP_HIST_HIST3_DBG2 - ISP_HIST_HIST_CTRL;
+		reg_buf->isp_size[ISP2X_ID_SIHST] = size;
+		reg_buf->isp_offset[ISP2X_ID_SIHST] = offset;
+		memcpy_fromio(&reg_buf->reg[offset], hw->base_addr + ISP_HIST_HIST_CTRL, size);
+		offset += size;
+	}
+
+	if (rkisp_debug_reg & ISP2X_MODULE_LSC) {
+		size = 4 + ISP_LSC_STATUS - ISP_LSC_CTRL;
+		reg_buf->isp_size[ISP2X_ID_LSC] = size;
+		reg_buf->isp_offset[ISP2X_ID_LSC] = offset;
+		memcpy_fromio(&reg_buf->reg[offset], hw->base_addr + ISP_LSC_CTRL, size);
+		offset += size;
+	}
+
+	if (rkisp_debug_reg & ISP2X_MODULE_AWB_GAIN) {
+		size = 4 + CIF_ISP_AWB_GAIN_RB_V12 - CIF_ISP_AWB_GAIN_G_V12;
+		reg_buf->isp_size[ISP2X_ID_AWB_GAIN] = size;
+		reg_buf->isp_offset[ISP2X_ID_AWB_GAIN] = offset;
+		memcpy_fromio(&reg_buf->reg[offset], hw->base_addr + CIF_ISP_AWB_GAIN_G_V12, size);
+		offset += size;
+	}
+
+	if (rkisp_debug_reg & ISP2X_MODULE_CCM) {
+		size = 4 + ISP_CCM_BOUND_BIT - ISP_CCM_CTRL;
+		reg_buf->isp_size[ISP2X_ID_CCM] = size;
+		reg_buf->isp_offset[ISP2X_ID_CCM] = offset;
+		memcpy_fromio(&reg_buf->reg[offset], hw->base_addr + ISP_CCM_CTRL, size);
+		offset += size;
+	}
+
+	if (rkisp_debug_reg & ISP2X_MODULE_GOC) {
+		size = 4 + ISP_GAMMA_OUT_Y40 - ISP_GAMMA_OUT_CTRL;
+		reg_buf->isp_size[ISP2X_ID_GOC] = size;
+		reg_buf->isp_offset[ISP2X_ID_GOC] = offset;
+		memcpy_fromio(&reg_buf->reg[offset], hw->base_addr + ISP_GAMMA_OUT_CTRL, size);
+		offset += size;
+	}
+
+	if (rkisp_debug_reg & ISP2X_MODULE_CPROC) {
+		size = 4 + CPROC_HUE - CPROC_CTRL;
+		reg_buf->isp_size[ISP2X_ID_CPROC] = size;
+		reg_buf->isp_offset[ISP2X_ID_CPROC] = offset;
+		memcpy_fromio(&reg_buf->reg[offset], hw->base_addr + CPROC_CTRL, size);
+		offset += size;
+	}
+
+	if (rkisp_debug_reg & ISP2X_MODULE_SIAF) {
+		size = 4 + ISP_AFM_LUM_C - ISP_AFM_CTRL;
+		reg_buf->isp_size[ISP2X_ID_SIAF] = size;
+		reg_buf->isp_offset[ISP2X_ID_SIAF] = offset;
+		memcpy_fromio(&reg_buf->reg[offset], hw->base_addr + ISP_AFM_CTRL, size);
+		offset += size;
+	}
+
+	if (rkisp_debug_reg & ISP2X_MODULE_SIAWB) {
+		size = 4 + CIF_ISP_AWB_MEAN_V10 - CIF_ISP_AWB_PROP_V10;
+		reg_buf->isp_size[ISP2X_ID_SIAWB] = size;
+		reg_buf->isp_offset[ISP2X_ID_SIAWB] = offset;
+		memcpy_fromio(&reg_buf->reg[offset], hw->base_addr + CIF_ISP_AWB_PROP_V10, size);
+		offset += size;
+	}
+
+	if (rkisp_debug_reg & ISP2X_MODULE_IE) {
+		size = 4 + CIF_IMG_EFF_SHARPEN - CIF_IMG_EFF_CTRL;
+		reg_buf->isp_size[ISP2X_ID_IE] = size;
+		reg_buf->isp_offset[ISP2X_ID_IE] = offset;
+		memcpy_fromio(&reg_buf->reg[offset], hw->base_addr + CIF_IMG_EFF_CTRL, size);
+		offset += size;
+	}
+
+	if (rkisp_debug_reg & ISP2X_MODULE_YUVAE) {
+		size = 4 + ISP_YUVAE_RO_DBG3 - ISP_YUVAE_CTRL;
+		reg_buf->isp_size[ISP2X_ID_YUVAE] = size;
+		reg_buf->isp_offset[ISP2X_ID_YUVAE] = offset;
+		memcpy_fromio(&reg_buf->reg[offset], hw->base_addr + ISP_YUVAE_CTRL, size);
+		offset += size;
+	}
+
+	if (rkisp_debug_reg & ISP2X_MODULE_WDR) {
+		size = 4 + ISP_WDR_BLKMEAN8_ROW9_4TO7 - ISP_WDR_CTRL;
+		reg_buf->isp_size[ISP2X_ID_WDR] = size;
+		reg_buf->isp_offset[ISP2X_ID_WDR] = offset;
+		memcpy_fromio(&reg_buf->reg[offset], hw->base_addr + ISP_WDR_CTRL, size);
+		offset += size;
+	}
+
+	if (rkisp_debug_reg & ISP2X_MODULE_RK_IESHARP) {
+		size = 4 + CIF_RKSHARP_UV_GAUSS_OTHER_COE33_COE35 - CIF_RKSHARP_CTRL;
+		reg_buf->isp_size[ISP2X_ID_RK_IESHARP] = size;
+		reg_buf->isp_offset[ISP2X_ID_RK_IESHARP] = offset;
+		memcpy_fromio(&reg_buf->reg[offset], hw->base_addr + CIF_RKSHARP_CTRL, size);
+		offset += size;
+	}
+
+	if (rkisp_debug_reg & ISP2X_MODULE_RAWAF) {
+		size = 4 + ISP_RAWAF_INT_STATE - ISP_RAWAF_CTRL;
+		reg_buf->isp_size[ISP2X_ID_RAWAF] = size;
+		reg_buf->isp_offset[ISP2X_ID_RAWAF] = offset;
+		memcpy_fromio(&reg_buf->reg[offset], hw->base_addr + ISP_RAWAF_CTRL, size);
+		offset += size;
+
+		size = ISP2X_RAWAF_SUMDATA_NUM * sizeof(tmp_statsbuf->params.rawaf.ramdata[0]);
+		reg_buf->isp_size[ISP2X_ID_RAWAF] += size;
+		reg_buf->isp_stats_size[ISP2X_ID_RAWAF] = size;
+		if (tmp_statsbuf->frame_id == reg_buf->frame_id)
+			memcpy(&reg_buf->reg[offset], &tmp_statsbuf->params.rawaf.ramdata[0], size);
+		else
+			memset(&reg_buf->reg[offset], 0, size);
+		offset += size;
+	}
+
+	if (rkisp_debug_reg & ISP2X_MODULE_RAWAE0) {
+		size = 4 + ISP_RAWAE_LITE_RO_DBG2 - ISP_RAWAE_LITE_CTRL;
+		reg_buf->isp_size[ISP2X_ID_RAWAE0] = size;
+		reg_buf->isp_offset[ISP2X_ID_RAWAE0] = offset;
+		memcpy_fromio(&reg_buf->reg[offset], hw->base_addr + ISP_RAWAE_LITE_CTRL, size);
+		offset += size;
+
+		size = ISP2X_RAWAELITE_MEAN_NUM * sizeof(tmp_statsbuf->params.rawae0.data[0]);
+		reg_buf->isp_size[ISP2X_ID_RAWAE0] += size;
+		reg_buf->isp_stats_size[ISP2X_ID_RAWAE0] = size;
+		if (tmp_statsbuf->frame_id == reg_buf->frame_id) {
+			memcpy(&reg_buf->reg[offset], &tmp_statsbuf->params.rawae0.data[0], size);
+		} else {
+			memset(&reg_buf->reg[offset], 0, size);
+		}
+		offset += size;
+	}
+
+	if (rkisp_debug_reg & ISP2X_MODULE_RAWAE1) {
+		size = 4 + RAWAE_BIG_RO_DBG3 - RAWAE_BIG_CTRL;
+		reg_buf->isp_size[ISP2X_ID_RAWAE1] = size;
+		reg_buf->isp_offset[ISP2X_ID_RAWAE1] = offset;
+		memcpy_fromio(&reg_buf->reg[offset], hw->base_addr + RAWAE_BIG1_BASE, size);
+		offset += size;
+
+		size = ISP2X_RAWAEBIG_MEAN_NUM * sizeof(tmp_statsbuf->params.rawae1.data[0]);
+		reg_buf->isp_size[ISP2X_ID_RAWAE1] += size;
+		reg_buf->isp_stats_size[ISP2X_ID_RAWAE1] = size;
+		if (tmp_statsbuf->frame_id == reg_buf->frame_id) {
+			memcpy(&reg_buf->reg[offset], &tmp_statsbuf->params.rawae1.data[0], size);
+		} else {
+			memset(&reg_buf->reg[offset], 0, size);
+		}
+		offset += size;
+	}
+
+	if (rkisp_debug_reg & ISP2X_MODULE_RAWAE2) {
+		size = 4 + RAWAE_BIG_RO_DBG3 - RAWAE_BIG_CTRL;
+		reg_buf->isp_size[ISP2X_ID_RAWAE2] = size;
+		reg_buf->isp_offset[ISP2X_ID_RAWAE2] = offset;
+		memcpy_fromio(&reg_buf->reg[offset], hw->base_addr + RAWAE_BIG2_BASE, size);
+		offset += size;
+
+		size = ISP2X_RAWAEBIG_MEAN_NUM * sizeof(tmp_statsbuf->params.rawae2.data[0]);
+		reg_buf->isp_size[ISP2X_ID_RAWAE2] += size;
+		reg_buf->isp_stats_size[ISP2X_ID_RAWAE2] = size;
+		if (tmp_statsbuf->frame_id == reg_buf->frame_id) {
+			memcpy(&reg_buf->reg[offset], &tmp_statsbuf->params.rawae2.data[0], size);
+		} else {
+			memset(&reg_buf->reg[offset], 0, size);
+		}
+		offset += size;
+	}
+
+	if (rkisp_debug_reg & ISP2X_MODULE_RAWAE3) {
+		size = 4 + RAWAE_BIG_RO_DBG3 - RAWAE_BIG_CTRL;
+		reg_buf->isp_size[ISP2X_ID_RAWAE3] = size;
+		reg_buf->isp_offset[ISP2X_ID_RAWAE3] = offset;
+		memcpy_fromio(&reg_buf->reg[offset], hw->base_addr + RAWAE_BIG3_BASE, size);
+		offset += size;
+
+		size = ISP2X_RAWAEBIG_MEAN_NUM * sizeof(tmp_statsbuf->params.rawae3.data[0]);
+		reg_buf->isp_size[ISP2X_ID_RAWAE3] += size;
+		reg_buf->isp_stats_size[ISP2X_ID_RAWAE3] = size;
+		if (tmp_statsbuf->frame_id == reg_buf->frame_id) {
+			memcpy(&reg_buf->reg[offset], &tmp_statsbuf->params.rawae3.data[0], size);
+		} else {
+			memset(&reg_buf->reg[offset], 0, size);
+		}
+		offset += size;
+	}
+
+	if (rkisp_debug_reg & ISP2X_MODULE_RAWAWB) {
+		size = 4 + ISP_RAWAWB_RAM_CTRL - ISP_RAWAWB_CTRL;
+		reg_buf->isp_size[ISP2X_ID_RAWAWB] = size;
+		reg_buf->isp_offset[ISP2X_ID_RAWAWB] = offset;
+		memcpy_fromio(&reg_buf->reg[offset], hw->base_addr + ISP_RAWAWB_CTRL, size);
+		offset += size;
+
+		size = ISP2X_RAWAWB_RAMDATA_NUM * sizeof(tmp_statsbuf->params.rawawb.ramdata[0]);
+		reg_buf->isp_size[ISP2X_ID_RAWAWB] += size;
+		reg_buf->isp_stats_size[ISP2X_ID_RAWAWB] = size;
+		if (tmp_statsbuf->frame_id == reg_buf->frame_id)
+			memcpy(&reg_buf->reg[offset], &tmp_statsbuf->params.rawawb.ramdata[0], size);
+		else
+			memset(&reg_buf->reg[offset], 0, size);
+		offset += size;
+	}
+
+	if (rkisp_debug_reg & ISP2X_MODULE_RAWHIST0) {
+		size = 4 + ISP_RAWHIST_LITE_WEIGHT - ISP_RAWHIST_LITE_CTRL;
+		reg_buf->isp_size[ISP2X_ID_RAWHIST0] = size;
+		reg_buf->isp_offset[ISP2X_ID_RAWHIST0] = offset;
+		memcpy_fromio(&reg_buf->reg[offset], hw->base_addr + ISP_RAWHIST_LITE_CTRL, size);
+		offset += size;
+
+		size = ISP2X_HIST_BIN_N_MAX * sizeof(tmp_statsbuf->params.rawhist0.hist_bin[0]);
+		reg_buf->isp_size[ISP2X_ID_RAWHIST0] += size;
+		reg_buf->isp_stats_size[ISP2X_ID_RAWHIST0] = size;
+		if (tmp_statsbuf->frame_id == reg_buf->frame_id)
+			memcpy(&reg_buf->reg[offset], &tmp_statsbuf->params.rawhist0.hist_bin[0], size);
+		else
+			memset(&reg_buf->reg[offset], 0, size);
+		offset += size;
+	}
+
+	if (rkisp_debug_reg & ISP2X_MODULE_RAWHIST1) {
+		size = 4 + ISP_RAWHIST_BIG_WEIGHT_BASE - ISP_RAWHIST_BIG_CTRL;
+		reg_buf->isp_size[ISP2X_ID_RAWHIST1] = size;
+		reg_buf->isp_offset[ISP2X_ID_RAWHIST1] = offset;
+		memcpy_fromio(&reg_buf->reg[offset], hw->base_addr + ISP_RAWHIST_BIG1_BASE, size);
+		offset += size;
+
+		size = ISP2X_HIST_BIN_N_MAX * sizeof(tmp_statsbuf->params.rawhist1.hist_bin[0]);
+		reg_buf->isp_size[ISP2X_ID_RAWHIST1] += size;
+		reg_buf->isp_stats_size[ISP2X_ID_RAWHIST1] = size;
+		if (tmp_statsbuf->frame_id == reg_buf->frame_id)
+			memcpy(&reg_buf->reg[offset], &tmp_statsbuf->params.rawhist1.hist_bin[0], size);
+		else
+			memset(&reg_buf->reg[offset], 0, size);
+		offset += size;
+	}
+
+	if (rkisp_debug_reg & ISP2X_MODULE_RAWHIST2) {
+		size = 4 + ISP_RAWHIST_BIG_WEIGHT_BASE - ISP_RAWHIST_BIG_CTRL;
+		reg_buf->isp_size[ISP2X_ID_RAWHIST2] = size;
+		reg_buf->isp_offset[ISP2X_ID_RAWHIST2] = offset;
+		memcpy_fromio(&reg_buf->reg[offset], hw->base_addr + ISP_RAWHIST_BIG2_BASE, size);
+		offset += size;
+
+		size = ISP2X_HIST_BIN_N_MAX * sizeof(tmp_statsbuf->params.rawhist2.hist_bin[0]);
+		reg_buf->isp_size[ISP2X_ID_RAWHIST2] += size;
+		reg_buf->isp_stats_size[ISP2X_ID_RAWHIST2] = size;
+		if (tmp_statsbuf->frame_id == reg_buf->frame_id)
+			memcpy(&reg_buf->reg[offset], &tmp_statsbuf->params.rawhist2.hist_bin[0], size);
+		else
+			memset(&reg_buf->reg[offset], 0, size);
+		offset += size;
+	}
+
+	if (rkisp_debug_reg & ISP2X_MODULE_RAWHIST3) {
+		size = 4 + ISP_RAWHIST_BIG_WEIGHT_BASE - ISP_RAWHIST_BIG_CTRL;
+		reg_buf->isp_size[ISP2X_ID_RAWHIST3] = size;
+		reg_buf->isp_offset[ISP2X_ID_RAWHIST3] = offset;
+		memcpy_fromio(&reg_buf->reg[offset], hw->base_addr + ISP_RAWHIST_BIG3_BASE, size);
+		offset += size;
+
+		size = ISP2X_HIST_BIN_N_MAX * sizeof(tmp_statsbuf->params.rawhist3.hist_bin[0]);
+		reg_buf->isp_size[ISP2X_ID_RAWHIST3] += size;
+		reg_buf->isp_stats_size[ISP2X_ID_RAWHIST3] = size;
+		if (tmp_statsbuf->frame_id == reg_buf->frame_id)
+			memcpy(&reg_buf->reg[offset], &tmp_statsbuf->params.rawhist3.hist_bin[0], size);
+		else
+			memset(&reg_buf->reg[offset], 0, size);
+		offset += size;
+	}
+
+	if (rkisp_debug_reg & ISP2X_MODULE_HDRMGE) {
+		size = 4 + ISP_HDRMGE_OVER_Y16 - ISP_HDRMGE_CTRL;
+		reg_buf->isp_size[ISP2X_ID_HDRMGE] = size;
+		reg_buf->isp_offset[ISP2X_ID_HDRMGE] = offset;
+		memcpy_fromio(&reg_buf->reg[offset], hw->base_addr + ISP_HDRMGE_CTRL, size);
+		offset += size;
+	}
+
+	if (rkisp_debug_reg & ISP2X_MODULE_RAWNR) {
+		size = 4 + ISP_RAWNR_RGBAIN_FLIP - ISP_RAWNR_CTRL;
+		reg_buf->isp_size[ISP2X_ID_RAWNR] = size;
+		reg_buf->isp_offset[ISP2X_ID_RAWNR] = offset;
+		memcpy_fromio(&reg_buf->reg[offset], hw->base_addr + ISP_RAWNR_CTRL, size);
+		offset += size;
+	}
+
+	if (rkisp_debug_reg & ISP2X_MODULE_HDRTMO) {
+		size = 4 + ISP_HDRTMO_HIST_RO31 - ISP_HDRTMO_CTRL;
+		reg_buf->isp_size[ISP2X_ID_HDRTMO] = size;
+		reg_buf->isp_offset[ISP2X_ID_HDRTMO] = offset;
+		memcpy_fromio(&reg_buf->reg[offset], hw->base_addr + ISP_HDRTMO_CTRL, size);
+		offset += size;
+	}
+
+	if (rkisp_debug_reg & ISP2X_MODULE_GIC) {
+		size = 4 + ISP_GIC_NOISE_CTRL1 - ISP_GIC_CONTROL;
+		reg_buf->isp_size[ISP2X_ID_GIC] = size;
+		reg_buf->isp_offset[ISP2X_ID_GIC] = offset;
+		memcpy_fromio(&reg_buf->reg[offset], hw->base_addr + ISP_GIC_CONTROL, size);
+		offset += size;
+	}
+
+	if (rkisp_debug_reg & ISP2X_MODULE_DHAZ) {
+		size = 4 + ISP_DHAZ_HIST_REG95 - ISP_DHAZ_CTRL;
+		reg_buf->isp_size[ISP2X_ID_DHAZ] = size;
+		reg_buf->isp_offset[ISP2X_ID_DHAZ] = offset;
+		memcpy_fromio(&reg_buf->reg[offset], hw->base_addr + ISP_DHAZ_CTRL, size);
+		offset += size;
+	}
+
+	if (rkisp_debug_reg & ISP2X_MODULE_3DLUT) {
+		size = 4 + ISP_3DLUT_UPDATE - ISP_3DLUT_CTRL;
+		reg_buf->isp_size[ISP2X_ID_3DLUT] = size;
+		reg_buf->isp_offset[ISP2X_ID_3DLUT] = offset;
+		memcpy_fromio(&reg_buf->reg[offset], hw->base_addr + ISP_3DLUT_CTRL, size);
+		offset += size;
+	}
+
+	if (rkisp_debug_reg & ISP2X_MODULE_LDCH) {
+		size = 4 + ISP_LDCH_STS - ISP_LDCH_STS;
+		reg_buf->isp_size[ISP2X_ID_LDCH] = size;
+		reg_buf->isp_offset[ISP2X_ID_LDCH] = offset;
+		memcpy_fromio(&reg_buf->reg[offset], hw->base_addr + ISP_LDCH_STS, size);
+		offset += size;
+	}
+
+	if (rkisp_debug_reg & ISP2X_MODULE_GAIN) {
+		size = 4 + ISP_GAIN_LUT8 - ISP_GAIN_CTRL;
+		reg_buf->isp_size[ISP2X_ID_GAIN] = size;
+		reg_buf->isp_offset[ISP2X_ID_GAIN] = offset;
+		memcpy_fromio(&reg_buf->reg[offset], hw->base_addr + ISP_GAIN_CTRL, size);
+		offset += size;
+	}
+
+	if (rkisp_debug_reg & ISP2X_MODULE_DEBAYER) {
+		size = 4 + ISP_DEBAYER_C_FILTER - ISP_DEBAYER_CONTROL;
+		reg_buf->isp_size[ISP2X_ID_DEBAYER] = size;
+		reg_buf->isp_offset[ISP2X_ID_DEBAYER] = offset;
+		memcpy_fromio(&reg_buf->reg[offset], hw->base_addr + ISP_DEBAYER_CONTROL, size);
+		offset += size;
+	}
+
+	reg_buf->reg_size = offset;
+}
+
 static int frame_end(struct rkisp_bridge_device *dev, bool en)
 {
 	struct rkisp_hw_dev *hw = dev->ispdev->hw_dev;
 	struct v4l2_subdev *sd = v4l2_get_subdev_hostdata(&dev->sd);
+	struct rkisp_ispp_reg *reg_buf;
 	unsigned long lock_flags = 0;
 	u64 ns = ktime_get_ns();
 
-	rkisp_dmarx_get_frame(dev->ispdev, &dev->dbg.id, NULL, true);
+	rkisp_dmarx_get_frame(dev->ispdev, &dev->dbg.id, NULL, NULL, true);
 	dev->dbg.interval = ns - dev->dbg.timestamp;
 	dev->dbg.timestamp = ns;
 	if (hw->cur_buf && hw->nxt_buf) {
@@ -69,14 +451,27 @@ static int frame_end(struct rkisp_bridge_device *dev, bool en)
 			list_add_tail(&hw->cur_buf->list, &hw->list);
 			spin_unlock_irqrestore(&hw->buf_lock, lock_flags);
 		} else {
+			u64 sof_ns = 0;
+
 			ns = 0;
 			rkisp_dmarx_get_frame(dev->ispdev,
-				&hw->cur_buf->frame_id, &ns, true);
-			hw->cur_buf->frame_id++;
+				&hw->cur_buf->frame_id, &sof_ns, &ns, true);
+			if (!sof_ns)
+				sof_ns = 0;
 			if (!ns)
 				ns = ktime_get_ns();
 			hw->cur_buf->frame_timestamp = ns;
 			hw->cur_buf->index = dev->ispdev->dev_id;
+			rkispp_request_regbuf(sd, &reg_buf);
+			if (reg_buf) {
+				reg_buf->stat = ISP_ISPP_INUSE;
+				reg_buf->dev_id = hw->cur_buf->index;
+				reg_buf->frame_id = hw->cur_buf->frame_id;
+				reg_buf->sof_timestamp = sof_ns;
+				reg_buf->frame_timestamp = hw->cur_buf->frame_timestamp;
+				reg_buf->exposure = dev->ispdev->params_vdev.exposure;
+				dump_dbg_reg(dev, reg_buf);
+			}
 			v4l2_subdev_call(sd, video, s_rx_buffer, hw->cur_buf, NULL);
 		}
 		hw->cur_buf = NULL;
@@ -464,6 +859,7 @@ static int bridge_start(struct rkisp_bridge_device *dev)
 			update_mi(dev);
 	}
 	dev->ispdev->skip_frame = 0;
+	rkisp_stats_first_ddr_config(&dev->ispdev->stats_vdev);
 	dev->en = true;
 	return 0;
 }

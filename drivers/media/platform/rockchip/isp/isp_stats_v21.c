@@ -915,7 +915,7 @@ rkisp_stats_isr_v2x(struct rkisp_isp_stats_vdev *stats_vdev,
 	u32 wr_buf_idx;
 	u32 temp_isp_ris, temp_isp3a_ris;
 
-	rkisp_dmarx_get_frame(stats_vdev->dev, &cur_frame_id, NULL, true);
+	rkisp_dmarx_get_frame(stats_vdev->dev, &cur_frame_id, NULL, NULL, true);
 #ifdef LOG_ISR_EXE_TIME
 	ktime_t in_t = ktime_get();
 #endif

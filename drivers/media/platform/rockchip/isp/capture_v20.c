@@ -1310,7 +1310,7 @@ static int mi_frame_end(struct rkisp_stream *stream)
 		    stream->id == RKISP_STREAM_SP)
 			rkisp_dmarx_get_frame(dev,
 					      &stream->curr_buf->vb.sequence,
-					      &ns, false);
+					      NULL, &ns, false);
 		else
 			stream->curr_buf->vb.sequence =
 				atomic_read(&stream->sequence) - 1;

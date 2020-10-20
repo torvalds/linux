@@ -94,6 +94,7 @@ struct tnr_module {
 	struct rkisp_ispp_buf *cur_rd;
 	struct rkisp_ispp_buf *nxt_rd;
 	struct rkisp_ispp_buf *cur_wr;
+	struct rkisp_ispp_reg *reg_buf;
 	struct frame_debug_info dbg;
 	u32 uv_offset;
 	bool is_end;
@@ -107,6 +108,7 @@ struct nr_module {
 	spinlock_t buf_lock;
 	struct rkisp_ispp_buf *cur_rd;
 	struct rkispp_dummy_buffer *cur_wr;
+	struct rkisp_ispp_reg *reg_buf;
 	struct frame_debug_info dbg;
 	u32 uv_offset;
 	bool is_end;
@@ -115,6 +117,7 @@ struct nr_module {
 struct fec_module {
 	struct list_head list_rd;
 	struct rkispp_dummy_buffer *cur_rd;
+	struct rkisp_ispp_reg *reg_buf;
 	struct frame_debug_info dbg;
 	spinlock_t buf_lock;
 	u32 uv_offset;

@@ -530,7 +530,7 @@ void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm, u32 mode)
 	bool is_upd = false;
 
 	hw->cur_dev_id = dev->dev_id;
-	rkisp_dmarx_get_frame(dev, &cur_frame_id, NULL, true);
+	rkisp_dmarx_get_frame(dev, &cur_frame_id, NULL, NULL, true);
 	if (dma2frm > 2)
 		dma2frm = 2;
 	if (dma2frm == 2)
@@ -630,6 +630,7 @@ static void rkisp_dev_trigger_handle(struct rkisp_device *dev, u32 cmd)
 		rkisp_csi_trigger_event(isp, T_CMD_DEQUEUE, &t);
 		isp->dmarx_dev.pre_frame = isp->dmarx_dev.cur_frame;
 		isp->dmarx_dev.cur_frame.id = t.frame_id;
+		isp->dmarx_dev.cur_frame.sof_timestamp = t.sof_timestamp;
 		isp->dmarx_dev.cur_frame.timestamp = t.frame_timestamp;
 		mode = t.mode;
 		times = t.times;

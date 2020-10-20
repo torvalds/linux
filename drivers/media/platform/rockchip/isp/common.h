@@ -131,6 +131,7 @@ struct rkisp_dummy_buffer {
 };
 
 extern int rkisp_debug;
+extern u64 rkisp_debug_reg;
 extern struct platform_driver rkisp_plat_drv;
 
 static inline

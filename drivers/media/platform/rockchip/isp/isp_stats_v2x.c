@@ -1261,6 +1261,13 @@ rkisp_stats_send_meas_v2x(struct rkisp_isp_stats_vdev *stats_vdev,
 				      sizeof(struct rkisp_isp2x_stat_buffer));
 		cur_buf->vb.sequence = cur_frame_id;
 		cur_buf->vb.vb2_buf.timestamp = meas_work->timestamp;
+		if (rkispp_get_reg_withstream()) {
+			struct rkisp_isp2x_stat_buffer *tmp_statsbuf;
+
+			tmp_statsbuf = (struct rkisp_isp2x_stat_buffer *)stats_vdev->tmp_statsbuf.vaddr;
+			if (tmp_statsbuf)
+				memcpy(tmp_statsbuf, cur_stat_buf, sizeof(*cur_stat_buf));
+		}
 		vb2_buffer_done(&cur_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 	}
 }
@@ -1330,7 +1337,7 @@ rkisp_stats_isr_v2x(struct rkisp_isp_stats_vdev *stats_vdev,
 	u32 wr_buf_idx;
 	u32 temp_isp_ris, temp_isp3a_ris;
 
-	rkisp_dmarx_get_frame(stats_vdev->dev, &cur_frame_id, NULL, true);
+	rkisp_dmarx_get_frame(stats_vdev->dev, &cur_frame_id, NULL, NULL, true);
 #ifdef LOG_ISR_EXE_TIME
 	ktime_t in_t = ktime_get();
 #endif
@@ -1465,6 +1472,12 @@ void rkisp_stats_first_ddr_config_v2x(struct rkisp_isp_stats_vdev *stats_vdev)
 			    stats_vdev->stats_buf[0].dma_addr, false);
 		rkisp_set_bits(stats_vdev->dev, CTRL_SWS_CFG, SW_3A_DDR_WRITE_EN,
 			       SW_3A_DDR_WRITE_EN, false);
+	}
+
+	if (rkispp_get_reg_withstream()) {
+		stats_vdev->tmp_statsbuf.is_need_vaddr = true;
+		stats_vdev->tmp_statsbuf.size = sizeof(struct rkisp_isp2x_stat_buffer);
+		rkisp_alloc_buffer(stats_vdev->dev, &stats_vdev->tmp_statsbuf);
 	}
 }
 

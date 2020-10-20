@@ -325,6 +325,7 @@ static int rkispp_frame_end(struct rkispp_stream *stream)
 {
 	struct rkispp_device *dev = stream->isppdev;
 	struct capture_fmt *fmt = &stream->out_cap_fmt;
+	struct rkisp_ispp_reg *reg_buf;
 	unsigned long lock_flags = 0;
 	int i = 0;
 
@@ -343,8 +344,29 @@ static int rkispp_frame_end(struct rkispp_stream *stream)
 					      payload_size);
 		}
 		stream->curr_buf->vb.sequence =
-			atomic_read(&dev->ispp_sdev.frm_sync_seq) - 1;
+			atomic_read(&dev->ispp_sdev.frm_sync_seq);
 		stream->curr_buf->vb.vb2_buf.timestamp = ns;
+
+		if (rkispp_reg_withstream && (fmt->wr_fmt & FMT_FBC)) {
+			void *addr = vb2_plane_vaddr(&stream->curr_buf->vb.vb2_buf, i);
+
+			rkispp_find_regbuf_by_id(dev, &reg_buf, dev->dev_id,
+						 stream->curr_buf->vb.sequence);
+			if (reg_buf) {
+				u32 cpy_size = offsetof(struct rkisp_ispp_reg, reg);
+
+				cpy_size += reg_buf->reg_size;
+				memcpy(addr, reg_buf, cpy_size);
+
+				rkispp_release_regbuf(dev, reg_buf);
+				vb2_set_plane_payload(&stream->curr_buf->vb.vb2_buf, 1, cpy_size);
+			} else {
+				v4l2_err(&dev->v4l2_dev,
+					 "%s can not find reg buf: dev_id %d, sequence %d\n",
+					 __func__, dev->dev_id, stream->curr_buf->vb.sequence);
+			}
+		}
+
 		vb2_buffer_done(&stream->curr_buf->vb.vb2_buf,
 				VB2_BUF_STATE_DONE);
 
@@ -355,6 +377,17 @@ static int rkispp_frame_end(struct rkispp_stream *stream)
 		stream->dbg.id = stream->curr_buf->vb.sequence;
 
 		stream->curr_buf = NULL;
+	} else if (rkispp_reg_withstream && (fmt->wr_fmt & FMT_FBC)) {
+		u32 frame_id;
+
+		frame_id = atomic_read(&dev->ispp_sdev.frm_sync_seq);
+		rkispp_find_regbuf_by_id(dev, &reg_buf, dev->dev_id, frame_id);
+		if (reg_buf) {
+			rkispp_release_regbuf(dev, reg_buf);
+			v4l2_info(&dev->v4l2_dev,
+				  "%s: current frame use dummy buffer(dev_id %d, sequence %d)\n",
+				  __func__, dev->dev_id, frame_id);
+		}
 	}
 
 	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
@@ -1308,6 +1341,11 @@ static int rkispp_queue_setup(struct vb2_queue *queue,
 				plane_fmt->sizeimage;
 	}
 
+	if (rkispp_reg_withstream && (cap_fmt->wr_fmt & FMT_FBC)) {
+		(*num_planes)++;
+		sizes[1] = sizeof(struct rkisp_ispp_reg);
+	}
+
 	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
 		 "%s stream:%d count %d, size %d\n",
 		 v4l2_type_names[queue->type],
@@ -1696,6 +1734,9 @@ static int rkispp_set_fmt(struct rkispp_stream *stream,
 	if (fmt->mplanes == 1)
 		pixm->plane_fmt[0].sizeimage = imagsize;
 
+	if ((fmt->wr_fmt & FMT_FBC) && rkispp_reg_withstream)
+		pixm->num_planes++;
+
 	if (!try) {
 		stream->out_cap_fmt = *fmt;
 		stream->out_fmt = *pixm;
@@ -2063,6 +2104,7 @@ static void fec_work_event(struct rkispp_device *dev,
 	struct rkispp_dummy_buffer *dummy;
 	unsigned long lock_flags = 0, lock_flags1 = 0;
 	bool is_start = false, is_quick = false;
+	struct rkisp_ispp_reg *reg_buf;
 	u32 val;
 
 	if (!(vdev->module_ens & ISPP_MODULE_FEC))
@@ -2154,6 +2196,20 @@ static void fec_work_event(struct rkispp_device *dev,
 			if (!completion_done(&monitor->fec.cmpl))
 				complete(&monitor->fec.cmpl);
 		}
+
+		rkispp_find_regbuf_by_id(dev, &reg_buf, dev->dev_id, seq);
+		if (reg_buf && (rkispp_debug_reg & ISPP_MODULE_FEC)) {
+			u32 offset, size;
+
+			offset = reg_buf->reg_size;
+			size = 4 + RKISPP_FEC_CROP - RKISPP_FEC_CTRL;
+			reg_buf->ispp_size[ISPP_ID_FEC] = size;
+			reg_buf->ispp_offset[ISPP_ID_FEC] = offset;
+			memcpy_fromio(&reg_buf->reg[offset], base + RKISPP_FEC_CTRL, size);
+
+			offset += size;
+			reg_buf->reg_size = offset;
+		}
 		writel(FEC_ST, base + RKISPP_CTRL_STRT);
 		vdev->fec.is_end = false;
 	}
@@ -2180,6 +2236,7 @@ static void nr_work_event(struct rkispp_device *dev,
 	bool is_start = false, is_quick = false;
 	bool is_tnr_en = vdev->module_ens & ISPP_MODULE_TNR;
 	bool is_fec_en = (vdev->module_ens & ISPP_MODULE_FEC);
+	struct rkisp_ispp_reg *reg_buf;
 	u32 val;
 
 	if (!(vdev->module_ens & (ISPP_MODULE_NR | ISPP_MODULE_SHP)))
@@ -2353,6 +2410,44 @@ static void nr_work_event(struct rkispp_device *dev,
 			if (!completion_done(&monitor->nr.cmpl))
 				complete(&monitor->nr.cmpl);
 		}
+
+		rkispp_find_regbuf_by_id(dev, &reg_buf, dev->dev_id, seq);
+		if (reg_buf && (rkispp_debug_reg & ISPP_MODULE_NR)) {
+			u32 offset, size;
+
+			offset = reg_buf->reg_size;
+			size = 4 + RKISPP_NR_BUFFER_READY - RKISPP_NR_CTRL;
+			reg_buf->ispp_size[ISPP_ID_NR] = size;
+			reg_buf->ispp_offset[ISPP_ID_NR] = offset;
+			memcpy_fromio(&reg_buf->reg[offset], base + RKISPP_NR_CTRL, size);
+
+			offset += size;
+			reg_buf->reg_size = offset;
+		}
+		if (reg_buf && (rkispp_debug_reg & ISPP_MODULE_SHP)) {
+			u32 offset, size;
+
+			offset = reg_buf->reg_size;
+			size = 4 + RKISPP_SHARP_GRAD_RATIO - RKISPP_SHARP_CTRL;
+			reg_buf->ispp_size[ISPP_ID_SHP] = size;
+			reg_buf->ispp_offset[ISPP_ID_SHP] = offset;
+			memcpy_fromio(&reg_buf->reg[offset], base + RKISPP_SHARP_CTRL, size);
+
+			offset += size;
+			reg_buf->reg_size = offset;
+		}
+		if (reg_buf && (rkispp_debug_reg & ISPP_MODULE_ORB)) {
+			u32 offset, size;
+
+			offset = reg_buf->reg_size;
+			size = 4 + RKISPP_ORB_MAX_FEATURE - RKISPP_ORB_WR_BASE;
+			reg_buf->ispp_size[ISPP_ID_ORB] = size;
+			reg_buf->ispp_offset[ISPP_ID_ORB] = offset;
+			memcpy_fromio(&reg_buf->reg[offset], base + RKISPP_ORB_WR_BASE, size);
+
+			offset += size;
+			reg_buf->reg_size = offset;
+		}
 		if (!is_quick)
 			writel(NR_SHP_ST, base + RKISPP_CTRL_STRT);
 		vdev->nr.is_end = false;
@@ -2387,6 +2482,7 @@ static void tnr_work_event(struct rkispp_device *dev,
 	u32 val, size = sizeof(vdev->tnr.buf) / sizeof(*dummy);
 	bool is_3to1 = vdev->tnr.is_3to1, is_start = false, is_skip = false;
 	bool is_en = rkispp_read(dev, RKISPP_TNR_CORE_CTRL) & SW_TNR_EN;
+	struct rkisp_ispp_reg *reg_buf;
 
 	if (!(vdev->module_ens & ISPP_MODULE_TNR) ||
 	    (dev->inp == INP_ISP && dev->isp_mode & ISP_ISPP_QUICK))
@@ -2573,6 +2669,19 @@ static void tnr_work_event(struct rkispp_device *dev,
 			monitor->monitoring_module |= MONITOR_TNR;
 			if (!completion_done(&monitor->tnr.cmpl))
 				complete(&monitor->tnr.cmpl);
+		}
+		rkispp_find_regbuf_by_id(dev, &reg_buf, dev->dev_id, seq);
+		if (reg_buf && (rkispp_debug_reg & ISPP_MODULE_TNR)) {
+			u32 offset, size;
+
+			offset = reg_buf->reg_size;
+			size = 4 + RKISPP_TNR_STATE - RKISPP_TNR_CTRL;
+			reg_buf->ispp_size[ISPP_ID_TNR] = size;
+			reg_buf->ispp_offset[ISPP_ID_TNR] = offset;
+			memcpy_fromio(&reg_buf->reg[offset], base + RKISPP_TNR_CTRL, size);
+
+			offset += size;
+			reg_buf->reg_size = offset;
 		}
 		writel(TNR_ST, base + RKISPP_CTRL_STRT);
 		vdev->tnr.is_end = false;

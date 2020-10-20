@@ -54,7 +54,7 @@ static void default_sw_reg_flag(struct rkispp_device *dev)
 	u32 i, *flag;
 
 	for (i = 0; i < ARRAY_SIZE(reg); i++) {
-		flag = dev->sw_base_addr + reg[i] + ISPP_SW_REG_SIZE;
+		flag = dev->sw_base_addr + reg[i] + RKISP_ISPP_SW_REG_SIZE;
 		*flag = 0xffffffff;
 	}
 }
@@ -338,8 +338,8 @@ static int __maybe_unused rkispp_runtime_resume(struct device *dev)
 	for (i = 0; i < hw_dev->dev_num; i++) {
 		void *buf = hw_dev->ispp[i]->sw_base_addr;
 
-		memset(buf, 0, ISPP_SW_MAX_SIZE);
-		memcpy_fromio(buf, base, ISPP_SW_REG_SIZE);
+		memset(buf, 0, RKISP_ISPP_SW_MAX_SIZE);
+		memcpy_fromio(buf, base, RKISP_ISPP_SW_REG_SIZE);
 		default_sw_reg_flag(hw_dev->ispp[i]);
 	}
 	hw_dev->is_idle = true;

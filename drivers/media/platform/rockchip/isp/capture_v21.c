@@ -729,7 +729,7 @@ static int mi_frame_end(struct rkisp_stream *stream)
 		}
 		if (stream->id == RKISP_STREAM_MP ||
 		    stream->id == RKISP_STREAM_SP) {
-			rkisp_dmarx_get_frame(dev, &i, &ns, true);
+			rkisp_dmarx_get_frame(dev, &i, NULL, &ns, true);
 			atomic_set(&stream->sequence, i);
 			stream->curr_buf->vb.sequence = i;
 		} else {

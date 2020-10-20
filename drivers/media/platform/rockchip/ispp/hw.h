@@ -51,5 +51,6 @@ struct rkispp_hw_dev {
 	bool is_idle;
 	bool is_single;
 	bool is_fec_ext;
+	struct rkisp_ispp_reg *reg_buf;
 };
 #endif

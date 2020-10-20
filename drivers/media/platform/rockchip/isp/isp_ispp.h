@@ -6,9 +6,17 @@
 
 #include <linux/platform_device.h>
 #include <media/v4l2-subdev.h>
+#include <linux/rkisp1-config.h>
+#include <linux/rkispp-config.h>
 
 #define RKISPP_BUF_MAX 5
 #define RKISP_ISPP_BUF_MAX (RKISPP_BUF_MAX + (2 * (DEV_MAX - 1)))
+
+#define RKISP_ISPP_REGBUF_NUM		RKISPP_BUF_POOL_MAX
+#define RKISP_ISP_SW_REG_SIZE		0x6000
+#define RKISP_ISP_SW_MAX_SIZE		(RKISP_ISP_SW_REG_SIZE * 2)
+#define RKISP_ISPP_SW_REG_SIZE		0x0d00
+#define RKISP_ISPP_SW_MAX_SIZE		(RKISP_ISPP_SW_REG_SIZE * 2)
 
 #define RKISP_ISPP_CMD_SET_MODE \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 0, struct rkisp_ispp_mode)
@@ -41,6 +49,11 @@ enum rkisp_ispp_work_mode {
 	ISP_ISPP_INIT_FAIL = BIT(7),
 };
 
+enum rkisp_ispp_reg_stat {
+	ISP_ISPP_FREE = 0,
+	ISP_ISPP_INUSE,
+};
+
 struct frame_debug_info {
 	u64 timestamp;
 	u32 interval;
@@ -57,6 +70,22 @@ struct max_input {
 struct rkisp_ispp_mode {
 	u8 work_mode;
 	u8 buf_num;
+};
+
+struct rkisp_ispp_reg {
+	enum rkisp_ispp_reg_stat stat;
+	u32 dev_id;
+	u32 frame_id;
+	u32 reg_size;
+	s32 isp_offset[ISP2X_ID_MAX];
+	s32 ispp_offset[ISPP_ID_MAX];
+	u32 isp_size[ISP2X_ID_MAX];
+	u32 isp_stats_size[ISP2X_ID_MAX];
+	u32 ispp_size[ISPP_ID_MAX];
+	u64 sof_timestamp;
+	u64 frame_timestamp;
+	struct sensor_exposure_cfg exposure;
+	u8 reg[RKISP_ISP_SW_REG_SIZE + RKISP_ISPP_SW_REG_SIZE];
 };
 
 struct rkisp_ispp_buf {
@@ -81,6 +110,22 @@ static inline void rkisp_get_bridge_sd(struct platform_device *dev,
 				       struct v4l2_subdev **sd)
 {
 	*sd = NULL;
+}
+#endif
+
+#if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISPP)
+void rkispp_request_regbuf(struct v4l2_subdev *sd, struct rkisp_ispp_reg **free_buf);
+bool rkispp_get_reg_withstream(void);
+#else
+static inline void rkispp_request_regbuf(struct v4l2_subdev *sd,
+					 struct rkisp_ispp_reg **free_buf)
+{
+	*free_buf = NULL;
+}
+
+static inline bool rkispp_get_reg_withstream(void)
+{
+	return false;
 }
 #endif
 
