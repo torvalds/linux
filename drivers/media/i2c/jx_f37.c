@@ -851,6 +851,8 @@ static long jx_f37_compat_ioctl32(struct v4l2_subdev *sd,
 				  unsigned int cmd, unsigned long arg)
 {
 	void __user *up = compat_ptr(arg);
+	struct preisp_hdrae_exp_s *hdrae;
+	struct rkmodule_hdr_cfg *hdr;
 	struct rkmodule_inf *inf;
 	long ret;
 
@@ -1185,10 +1187,10 @@ static int jx_f37_enum_frame_interval(struct v4l2_subdev *sd,
 	if (fie->index >= ARRAY_SIZE(supported_modes))
 		return -EINVAL;
 
-	fie->code = supported_modes[fie->index].MEDIA_BUS_FMT_SBGGR10_1X10;
-	fie->width = ov2718->support_modes[fie->index].width;
-	fie->height = ov2718->support_modes[fie->index].height;
-	fie->interval = ov2718->support_modes[fie->index].max_fps;
+	fie->code = MEDIA_BUS_FMT_SBGGR10_1X10;
+	fie->width = supported_modes[fie->index].width;
+	fie->height = supported_modes[fie->index].height;
+	fie->interval = supported_modes[fie->index].max_fps;
 	fie->reserved[0] = supported_modes[fie->index].hdr_mode;
 
 	return 0;
