@@ -931,9 +931,13 @@ nouveau_bo_move_flips(struct ttm_buffer_object *bo, bool evict,
 	if (ret)
 		return ret;
 
-	ret = ttm_bo_move_to_new_tt_mem(bo, ctx, &tmp_reg);
-	if (ret)
-		goto out;
+	ret = ttm_tt_populate(bo->bdev, bo->ttm, ctx);
+	if (unlikely(ret != 0))
+		return ret;
+
+	ret = nouveau_ttm_tt_bind(bo->bdev, bo->ttm, &tmp_reg);
+	if (unlikely(ret != 0))
+		return ret;
 
 	ttm_bo_assign_mem(bo, &tmp_reg);
 	ret = nouveau_bo_move_m2mf(bo, true, ctx, new_reg);

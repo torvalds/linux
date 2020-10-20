@@ -64,7 +64,6 @@ int ttm_bo_move_to_new_tt_mem(struct ttm_buffer_object *bo,
 
 	return 0;
 }
-EXPORT_SYMBOL(ttm_bo_move_to_new_tt_mem);
 
 int ttm_bo_move_to_system(struct ttm_buffer_object *bo,
 			  struct ttm_operation_ctx *ctx)
