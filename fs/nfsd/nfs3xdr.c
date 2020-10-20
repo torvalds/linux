@@ -605,14 +605,12 @@ nfs3svc_decode_createargs(struct svc_rqst *rqstp, __be32 *p)
 int
 nfs3svc_decode_mkdirargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	struct nfsd3_createargs *args = rqstp->rq_argp;
 
-	if (!(p = decode_fh(p, &args->fh)) ||
-	    !(p = decode_filename(p, &args->name, &args->len)))
-		return 0;
-	p = decode_sattr3(p, &args->attrs, nfsd_user_namespace(rqstp));
-
-	return xdr_argsize_check(rqstp, p);
+	return svcxdr_decode_diropargs3(xdr, &args->fh,
+					&args->name, &args->len) &&
+		svcxdr_decode_sattr3(rqstp, xdr, &args->attrs);
 }
 
 int
