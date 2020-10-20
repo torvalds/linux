@@ -144,6 +144,10 @@ int __get_log_header(struct gfs2_sbd *sdp, const struct gfs2_log_header *lh,
 	head->lh_tail = be32_to_cpu(lh->lh_tail);
 	head->lh_blkno = be32_to_cpu(lh->lh_blkno);
 
+	head->lh_local_total = be64_to_cpu(lh->lh_local_total);
+	head->lh_local_free = be64_to_cpu(lh->lh_local_free);
+	head->lh_local_dinodes = be64_to_cpu(lh->lh_local_dinodes);
+
 	return 0;
 }
 /**

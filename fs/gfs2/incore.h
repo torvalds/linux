@@ -41,6 +41,10 @@ struct gfs2_log_header_host {
 	u32 lh_flags;		/* GFS2_LOG_HEAD_... */
 	u32 lh_tail;		/* Block number of log tail */
 	u32 lh_blkno;
+
+	s64 lh_local_total;
+	s64 lh_local_free;
+	s64 lh_local_dinodes;
 };
 
 /*
