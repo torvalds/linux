@@ -3335,6 +3335,12 @@ lpfc_issue_els_rscn(struct lpfc_vport *vport, uint8_t retry)
 		lpfc_els_free_iocb(phba, elsiocb);
 		return 1;
 	}
+
+	/* Only keep the ndlp if RDF is being sent */
+	if (!phba->cfg_enable_mi ||
+	    phba->sli4_hba.pc_sli4_params.mi_ver < LPFC_MIB3_SUPPORT)
+		return 0;
+
 	/* This will cause the callback-function lpfc_cmpl_els_cmd to
 	 * trigger the release of node.
 	 */

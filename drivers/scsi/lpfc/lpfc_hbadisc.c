@@ -3205,7 +3205,7 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 	}
 
 	phba->fc_topology = bf_get(lpfc_mbx_read_top_topology, la);
-	phba->link_flag &= ~LS_NPIV_FAB_SUPPORTED;
+	phba->link_flag &= ~(LS_NPIV_FAB_SUPPORTED | LS_CT_VEN_RPA);
 
 	shost = lpfc_shost_from_vport(vport);
 	if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
@@ -4133,7 +4133,9 @@ out:
 		/* Issue SCR just before NameServer GID_FT Query */
 		lpfc_issue_els_scr(vport, 0);
 
-		lpfc_issue_els_rdf(vport, 0);
+		if (!phba->cfg_enable_mi ||
+		    phba->sli4_hba.pc_sli4_params.mi_ver < LPFC_MIB3_SUPPORT)
+			lpfc_issue_els_rdf(vport, 0);
 	}
 
 	vport->fc_ns_retry = 0;

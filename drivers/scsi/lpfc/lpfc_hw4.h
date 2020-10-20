@@ -3506,8 +3506,14 @@ struct lpfc_sli4_parameters {
 #define cfg_max_tow_xri_MASK			0x0000ffff
 #define cfg_max_tow_xri_WORD			word20
 
-	uint32_t word21;                        /* RESERVED */
-	uint32_t word22;                        /* RESERVED */
+	uint32_t word21;
+#define cfg_mib_bde_cnt_SHIFT			16
+#define cfg_mib_bde_cnt_MASK			0x000000ff
+#define cfg_mib_bde_cnt_WORD			word21
+#define cfg_mi_ver_SHIFT			0
+#define cfg_mi_ver_MASK				0x0000ffff
+#define cfg_mi_ver_WORD				word21
+	uint32_t mib_size;
 	uint32_t word23;                        /* RESERVED */
 
 	uint32_t word24;

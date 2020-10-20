@@ -1959,6 +1959,7 @@ lpfc_cmpl_ct_disc_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				vport->fdmi_port_mask = LPFC_FDMI1_PORT_ATTR;
 				/* Start over */
 				lpfc_fdmi_cmd(vport, ndlp, cmd, 0);
+				return;
 			}
 			if (vport->fdmi_port_mask == LPFC_FDMI2_SMART_ATTR) {
 				vport->fdmi_port_mask = LPFC_FDMI2_PORT_ATTR;
@@ -1968,12 +1969,21 @@ lpfc_cmpl_ct_disc_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			return;
 
 		case SLI_MGMT_RPA:
+			/* No retry on Vendor RPA */
+			if (phba->link_flag & LS_CT_VEN_RPA) {
+				lpfc_printf_vlog(vport, KERN_ERR,
+						 LOG_DISCOVERY | LOG_ELS,
+						 "6460 VEN FDMI RPA failure\n");
+				phba->link_flag &= ~LS_CT_VEN_RPA;
+				return;
+			}
 			if (vport->fdmi_port_mask == LPFC_FDMI2_PORT_ATTR) {
 				/* Fallback to FDMI-1 */
 				vport->fdmi_hba_mask = LPFC_FDMI1_HBA_ATTR;
 				vport->fdmi_port_mask = LPFC_FDMI1_PORT_ATTR;
 				/* Start over */
 				lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_DHBA, 0);
+				return;
 			}
 			if (vport->fdmi_port_mask == LPFC_FDMI2_SMART_ATTR) {
 				vport->fdmi_port_mask = LPFC_FDMI2_PORT_ATTR;
@@ -2003,6 +2013,33 @@ lpfc_cmpl_ct_disc_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_RHBA, 0);
 		else
 			lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_RPRT, 0);
+		break;
+	case SLI_MGMT_RPA:
+		if (vport->port_type == LPFC_PHYSICAL_PORT &&
+		    phba->cfg_enable_mi &&
+		    phba->sli4_hba.pc_sli4_params.mi_ver > LPFC_MIB1_SUPPORT) {
+			/* mi is only for the phyical port, no vports */
+			if (phba->link_flag & LS_CT_VEN_RPA) {
+				lpfc_printf_vlog(vport, KERN_INFO,
+						 LOG_DISCOVERY | LOG_ELS,
+						 "6449 VEN RPA Success\n");
+				break;
+			}
+
+			if (lpfc_fdmi_cmd(vport, ndlp, cmd,
+					  LPFC_FDMI_VENDOR_ATTR_mi) == 0)
+				phba->link_flag |= LS_CT_VEN_RPA;
+			lpfc_printf_vlog(vport, KERN_INFO,
+					LOG_DISCOVERY | LOG_ELS,
+					"6458 Send MI FDMI:%x Flag x%x\n",
+					phba->sli4_hba.pc_sli4_params.mi_value,
+					phba->link_flag);
+		} else {
+			lpfc_printf_vlog(vport, KERN_INFO,
+					 LOG_DISCOVERY | LOG_ELS,
+					 "6459 No FDMI VEN MI support - "
+					 "RPA Success\n");
+		}
 		break;
 	}
 	return;
@@ -2974,6 +3011,28 @@ lpfc_fdmi_smart_attr_security(struct lpfc_vport *vport,
 	return size;
 }
 
+int
+lpfc_fdmi_vendor_attr_mi(struct lpfc_vport *vport,
+			  struct lpfc_fdmi_attr_def *ad)
+{
+	struct lpfc_hba *phba = vport->phba;
+	struct lpfc_fdmi_attr_entry *ae;
+	uint32_t len, size;
+	char mibrevision[16];
+
+	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
+	memset(ae, 0, 256);
+	sprintf(mibrevision, "ELXE2EM:%04d",
+		phba->sli4_hba.pc_sli4_params.mi_value);
+	strncpy(ae->un.AttrString, &mibrevision[0], sizeof(ae->un.AttrString));
+	len = strnlen(ae->un.AttrString, sizeof(ae->un.AttrString));
+	len += (len & 3) ? (4 - (len & 3)) : 4;
+	size = FOURBYTES + len;
+	ad->AttrLen = cpu_to_be16(size);
+	ad->AttrType = cpu_to_be16(RPRT_VENDOR_MI);
+	return size;
+}
+
 /* RHBA attribute jump table */
 int (*lpfc_fdmi_hba_action[])
 	(struct lpfc_vport *vport, struct lpfc_fdmi_attr_def *ad) = {
@@ -3025,6 +3084,7 @@ int (*lpfc_fdmi_port_action[])
 	lpfc_fdmi_smart_attr_port_info,     /* bit20  RPRT_SMART_PORT_INFO    */
 	lpfc_fdmi_smart_attr_qos,           /* bit21  RPRT_SMART_QOS          */
 	lpfc_fdmi_smart_attr_security,      /* bit22  RPRT_SMART_SECURITY     */
+	lpfc_fdmi_vendor_attr_mi,           /* bit23  RPRT_VENDOR_MI          */
 };
 
 /**
