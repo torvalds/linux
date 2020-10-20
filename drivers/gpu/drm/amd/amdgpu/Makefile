@@ -169,7 +169,8 @@ amdgpu-y += \
 
 # add SMUIO block
 amdgpu-y += \
-	smuio_v9_0.o
+	smuio_v9_0.o \
+	smuio_v11_0.o
 
 # add amdkfd interfaces
 amdgpu-y += amdgpu_amdkfd.o
