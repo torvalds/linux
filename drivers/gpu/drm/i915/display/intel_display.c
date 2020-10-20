@@ -6289,6 +6289,105 @@ void skl_scaler_disable(const struct intel_crtc_state *old_crtc_state)
 		skl_detach_scaler(crtc, i);
 }
 
+static int cnl_coef_tap(int i)
+{
+	return i % 7;
+}
+
+static u16 cnl_nearest_filter_coef(int t)
+{
+	return t == 3 ? 0x0800 : 0x3000;
+}
+
+/**
+ *  Theory behind setting nearest-neighbor integer scaling:
+ *
+ *  17 phase of 7 taps requires 119 coefficients in 60 dwords per set.
+ *  The letter represents the filter tap (D is the center tap) and the number
+ *  represents the coefficient set for a phase (0-16).
+ *
+ *         +------------+------------------------+------------------------+
+ *         |Index value | Data value coeffient 1 | Data value coeffient 2 |
+ *         +------------+------------------------+------------------------+
+ *         |   00h      |          B0            |          A0            |
+ *         +------------+------------------------+------------------------+
+ *         |   01h      |          D0            |          C0            |
+ *         +------------+------------------------+------------------------+
+ *         |   02h      |          F0            |          E0            |
+ *         +------------+------------------------+------------------------+
+ *         |   03h      |          A1            |          G0            |
+ *         +------------+------------------------+------------------------+
+ *         |   04h      |          C1            |          B1            |
+ *         +------------+------------------------+------------------------+
+ *         |   ...      |          ...           |          ...           |
+ *         +------------+------------------------+------------------------+
+ *         |   38h      |          B16           |          A16           |
+ *         +------------+------------------------+------------------------+
+ *         |   39h      |          D16           |          C16           |
+ *         +------------+------------------------+------------------------+
+ *         |   3Ah      |          F16           |          C16           |
+ *         +------------+------------------------+------------------------+
+ *         |   3Bh      |        Reserved        |          G16           |
+ *         +------------+------------------------+------------------------+
+ *
+ *  To enable nearest-neighbor scaling:  program scaler coefficents with
+ *  the center tap (Dxx) values set to 1 and all other values set to 0 as per
+ *  SCALER_COEFFICIENT_FORMAT
+ *
+ */
+
+static void cnl_program_nearest_filter_coefs(struct drm_i915_private *dev_priv,
+					     enum pipe pipe, int id, int set)
+{
+	int i;
+
+	intel_de_write_fw(dev_priv, CNL_PS_COEF_INDEX_SET(pipe, id, set),
+			  PS_COEE_INDEX_AUTO_INC);
+
+	for (i = 0; i < 17 * 7; i += 2) {
+		u32 tmp;
+		int t;
+
+		t = cnl_coef_tap(i);
+		tmp = cnl_nearest_filter_coef(t);
+
+		t = cnl_coef_tap(i + 1);
+		tmp |= cnl_nearest_filter_coef(t) << 16;
+
+		intel_de_write_fw(dev_priv, CNL_PS_COEF_DATA_SET(pipe, id, set),
+				  tmp);
+	}
+
+	intel_de_write_fw(dev_priv, CNL_PS_COEF_INDEX_SET(pipe, id, set), 0);
+}
+
+inline u32 skl_scaler_get_filter_select(enum drm_scaling_filter filter, int set)
+{
+	if (filter == DRM_SCALING_FILTER_NEAREST_NEIGHBOR) {
+		return (PS_FILTER_PROGRAMMED |
+			PS_Y_VERT_FILTER_SELECT(set) |
+			PS_Y_HORZ_FILTER_SELECT(set) |
+			PS_UV_VERT_FILTER_SELECT(set) |
+			PS_UV_HORZ_FILTER_SELECT(set));
+	}
+
+	return PS_FILTER_MEDIUM;
+}
+
+void skl_scaler_setup_filter(struct drm_i915_private *dev_priv, enum pipe pipe,
+			     int id, int set, enum drm_scaling_filter filter)
+{
+	switch (filter) {
+	case DRM_SCALING_FILTER_DEFAULT:
+		break;
+	case DRM_SCALING_FILTER_NEAREST_NEIGHBOR:
+		cnl_program_nearest_filter_coefs(dev_priv, pipe, id, set);
+		break;
+	default:
+		MISSING_CASE(filter);
+	}
+}
+
 static void skl_pfit_enable(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
