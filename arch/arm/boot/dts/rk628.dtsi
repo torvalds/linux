@@ -172,6 +172,7 @@
 			       "gpio3a3", /* vop_vsync */
 			       "gpio3b0"; /* vop_dclk */
 			function = "vop";
+			drive-strength = <1>;
 		};
 
 		hpdm1_out: hpdm1-out {
