@@ -34,6 +34,9 @@
 #define PWM_LOCK_EN		(1 << 6)
 #define PWM_LP_DISABLE		(0 << 8)
 
+#define PWM_ONESHOT_COUNT_SHIFT	24
+#define PWM_ONESHOT_COUNT_MAX	256
+
 struct rockchip_pwm_chip {
 	struct pwm_chip chip;
 	struct clk *clk;
@@ -45,6 +48,7 @@ struct rockchip_pwm_chip {
 	unsigned long clk_rate;
 	bool vop_pwm_en; /* indicate voppwm mirror register state */
 	bool center_aligned;
+	bool oneshot;
 };
 
 struct rockchip_pwm_regs {
@@ -141,6 +145,19 @@ static void rockchip_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			ctrl &= ~PWM_ENABLE;
 	}
 
+#ifdef CONFIG_PWM_ROCKCHIP_ONESHOT
+	if (state->oneshot_count > PWM_ONESHOT_COUNT_MAX) {
+		pc->oneshot = false;
+		dev_err(chip->dev, "Oneshot_count value overflow.\n");
+	} else if (state->oneshot_count > 0) {
+		pc->oneshot = true;
+		ctrl |= (state->oneshot_count - 1) << PWM_ONESHOT_COUNT_SHIFT;
+	} else {
+		pc->oneshot = false;
+		ctrl |= PWM_CONTINUOUS;
+	}
+#endif
+
 	if (pc->data->supports_lock) {
 		ctrl |= PWM_LOCK_EN;
 		writel_relaxed(ctrl, pc->base + pc->data->regs.ctrl);
@@ -192,10 +209,13 @@ static int rockchip_pwm_enable(struct pwm_chip *chip,
 			val |= PWM_OUTPUT_CENTER;
 	}
 
-	if (enable)
+	if (enable) {
 		val |= enable_conf;
-	else
+		if (pc->oneshot)
+			val &= ~PWM_CONTINUOUS;
+	} else {
 		val &= ~enable_conf;
+	}
 
 	writel_relaxed(val, pc->base + pc->data->regs.ctrl);
 	if (pc->data->vop_pwm)
@@ -243,7 +263,7 @@ static int rockchip_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	 */
 	rockchip_pwm_get_state(chip, pwm, state);
 
-	if (state->enabled)
+	if (state->enabled || pc->oneshot)
 		ret = pinctrl_select_state(pc->pinctrl, pc->active_state);
 out:
 	clk_disable(pc->pclk);

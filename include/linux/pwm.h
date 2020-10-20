@@ -84,6 +84,9 @@ struct pwm_state {
 	enum pwm_polarity polarity;
 	enum pwm_output_type output_type;
 	struct pwm_output_pattern *output_pattern;
+#ifdef CONFIG_PWM_ROCKCHIP_ONESHOT
+	u64 oneshot_count;
+#endif /* CONFIG_PWM_ROCKCHIP_ONESHOT */
 	bool enabled;
 };
 
