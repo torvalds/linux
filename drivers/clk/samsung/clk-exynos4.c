@@ -1233,6 +1233,8 @@ static void __init exynos4_clk_init(struct device_node *np,
 				    enum exynos4_soc soc)
 {
 	struct samsung_clk_provider *ctx;
+	struct clk_hw **hws;
+
 	exynos4_soc = soc;
 
 	reg_base = of_iomap(np, 0);
@@ -1240,6 +1242,7 @@ static void __init exynos4_clk_init(struct device_node *np,
 		panic("%s: failed to map registers\n", __func__);
 
 	ctx = samsung_clk_init(np, reg_base, CLK_NR_CLKS);
+	hws = ctx->clk_data.hws;
 
 	samsung_clk_of_register_fixed_ext(ctx, exynos4_fixed_rate_ext_clks,
 			ARRAY_SIZE(exynos4_fixed_rate_ext_clks),
@@ -1302,7 +1305,7 @@ static void __init exynos4_clk_init(struct device_node *np,
 			exynos4210_fixed_factor_clks,
 			ARRAY_SIZE(exynos4210_fixed_factor_clks));
 		exynos_register_cpu_clock(ctx, CLK_ARM_CLK, "armclk",
-			mout_core_p4210[0], mout_core_p4210[1], 0x14200,
+			hws[CLK_MOUT_APLL], hws[CLK_SCLK_MPLL], 0x14200,
 			e4210_armclk_d, ARRAY_SIZE(e4210_armclk_d),
 			CLK_CPU_NEEDS_DEBUG_ALT_DIV | CLK_CPU_HAS_DIV1);
 	} else {
@@ -1317,7 +1320,7 @@ static void __init exynos4_clk_init(struct device_node *np,
 			ARRAY_SIZE(exynos4x12_fixed_factor_clks));
 
 		exynos_register_cpu_clock(ctx, CLK_ARM_CLK, "armclk",
-			mout_core_p4x12[0], mout_core_p4x12[1], 0x14200,
+			hws[CLK_MOUT_APLL], hws[CLK_MOUT_MPLL_USER_C], 0x14200,
 			e4412_armclk_d, ARRAY_SIZE(e4412_armclk_d),
 			CLK_CPU_NEEDS_DEBUG_ALT_DIV | CLK_CPU_HAS_DIV1);
 	}
