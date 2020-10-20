@@ -612,6 +612,9 @@ static struct rockchip_clk_branch rk3568_clk_branches[] __initdata = {
 			RK3568_CLKGATE_CON(3), 12, GFLAGS),
 
 	/* PD_DDR */
+	COMPOSITE_DDRCLK(SCLK_DDRCLK, "sclk_ddrc", dpll_gpll_cpll_p,
+			CLK_IGNORE_UNUSED, RK3568_CLKSEL_CON(9), 6, 2, 0, 5,
+			ROCKCHIP_DDRCLK_SIP_V2),
 	COMPOSITE(CLK_DDRPHY1X_SRC, "clk_ddrphy1x_src", dpll_gpll_cpll_p, CLK_IGNORE_UNUSED,
 			RK3568_CLKSEL_CON(9), 6, 2, MFLAGS, 0, 5, DFLAGS,
 			RK3568_CLKGATE_CON(4), 0, GFLAGS),
