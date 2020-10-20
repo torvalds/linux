@@ -531,6 +531,9 @@ static struct snd_soc_dai_driver es8311_dai = {
 static int es8311_regs_init(struct snd_soc_component *component)
 {
 	/* reset codec */
+	snd_soc_component_write(component, ES8311_I2C_REGFA, 0x01);
+	msleep(20);
+	snd_soc_component_write(component, ES8311_I2C_REGFA, 0x00);
 	snd_soc_component_write(component, ES8311_RESET_REG00, 0x1F);
 	snd_soc_component_write(component, ES8311_GP_REG45, 0x00);
 	/* set ADC/DAC CLK */
@@ -546,7 +549,7 @@ static int es8311_regs_init(struct snd_soc_component *component)
 	snd_soc_component_write(component, ES8311_SYSTEM_REG11, 0x7F);
 	/* chip powerup. slave mode */
 	snd_soc_component_write(component, ES8311_RESET_REG00, 0x80);
-	usleep_range(5000, 5500);
+	msleep(20);
 
 	/* power up analog */
 	snd_soc_component_write(component, ES8311_SYSTEM_REG0D, 0x01);
@@ -699,6 +702,14 @@ static int es8311_i2c_probe(struct i2c_client *i2c_client,
 					       &es8311_dai, 1);
 }
 
+static void es8311_i2c_shutdown(struct i2c_client *client)
+{
+	struct es8311_priv *es8311 = (struct es8311_priv *)i2c_get_clientdata(client);
+
+	/* Need to reset anc clear all registers for reboot */
+	snd_soc_component_write(es8311->component, ES8311_I2C_REGFA, 0x01);
+}
+
 static const struct i2c_device_id es8311_i2c_id[] = {
 	{"es8311", 0 },
 	{}
@@ -717,6 +728,7 @@ static struct i2c_driver es8311_i2c_driver = {
 		.of_match_table	= of_match_ptr(es8311_of_match),
 	},
 	.probe		= es8311_i2c_probe,
+	.shutdown	= es8311_i2c_shutdown,
 	.id_table	= es8311_i2c_id,
 };
 module_i2c_driver(es8311_i2c_driver);

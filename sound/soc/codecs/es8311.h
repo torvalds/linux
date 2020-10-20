@@ -58,6 +58,7 @@
 #define ES8311_DAC_REG37			0x37 /* DAC, ramprate */
 #define ES8311_GPIO_REG44			0x44 /* GPIO, dac2adc for test */
 #define ES8311_GP_REG45				0x45 /* GP CONTROL */
+#define ES8311_I2C_REGFA			0xFA /* I2C_RETIME and INI_REG */
 #define ES8311_CHD1_REGFD			0xFD /* CHIP ID1 */
 #define ES8311_CHD2_REGFE			0xFE /* CHIP ID2 */
 #define ES8311_CHVER_REGFF			0xFF /* VERSION */
