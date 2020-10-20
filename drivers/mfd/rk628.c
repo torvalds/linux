@@ -104,8 +104,20 @@ static const struct mfd_cell rk628_devs[] = {
 		.resources = rk628_dsi0_resources,
 		.num_resources = ARRAY_SIZE(rk628_dsi0_resources),
 	}, {
-		.name = "rk628-rgb",
-		.of_compatible = "rockchip,rk628-rgb",
+		.name = "rk628-rgb-tx",
+		.of_compatible = "rockchip,rk628-rgb-tx",
+	}, {
+		.name = "rk628-yuv-rx",
+		.of_compatible = "rockchip,rk628-yuv-rx",
+	}, {
+		.name = "rk628-yuv-tx",
+		.of_compatible = "rockchip,rk628-yuv-tx",
+	}, {
+		.name = "rk628-bt1120-rx",
+		.of_compatible = "rockchip,rk628-bt1120-rx",
+	}, {
+		.name = "rk628-bt1120-tx",
+		.of_compatible = "rockchip,rk628-bt1120-tx",
 	}, {
 		.name = "rk628-lvds",
 		.of_compatible = "rockchip,rk628-lvds",

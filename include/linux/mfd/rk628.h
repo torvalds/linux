@@ -73,6 +73,8 @@
 #define SW_SPLIT_MODE(x)		UPDATE(x, 1, 1)
 #define SW_SPLIT_EN			BIT(0)
 #define GRF_CSC_CTRL_CON		0x0038
+#define SW_R2Y_EN(x)			HIWORD_UPDATE(x, 4, 4)
+#define SW_Y2R_EN(x)			HIWORD_UPDATE(x, 0, 0)
 #define GRF_LVDS_TX_CON			0x003c
 #define SW_LVDS_CON_DUAL_SEL(x)		HIWORD_UPDATE(x, 12, 12)
 #define SW_LVDS_CON_DEN_POLARITY(x)	HIWORD_UPDATE(x, 11, 11)
@@ -89,9 +91,21 @@
 #define GRF_RGB_DEC_CON0		0x0040
 #define SW_HRES_MASK			GENMASK(28, 16)
 #define SW_HRES(x)			UPDATE(x, 28, 16)
+#define DUAL_DATA_SWAP			BIT(6)
+#define DEC_DUALEDGE_EN			BIT(5)
+#define SW_PROGRESS_EN			BIT(4)
+#define SW_YC_SWAP			BIT(3)
+#define SW_CAP_EN_ASYNC			BIT(1)
+#define SW_CAP_EN_PSYNC			BIT(0)
 #define GRF_RGB_DEC_CON1		0x0044
+#define SW_SET_X_MASK			GENMASK(28, 16)
+#define SW_SET_X(x)			HIWORD_UPDATE(x, 28, 16)
+#define SW_SET_Y_MASK			GENMASK(28, 16)
+#define SW_SET_Y(x)			HIWORD_UPDATE(x, 28, 16)
 #define GRF_RGB_DEC_CON2		0x0048
 #define GRF_RGB_ENC_CON			0x004c
+#define BT1120_UV_SWAP(x)		HIWORD_UPDATE(x, 5, 5)
+#define ENC_DUALEDGE_EN(x)		HIWORD_UPDATE(x, 3, 3)
 #define GRF_MIPI_LANE_DELAY_CON0	0x0050
 #define GRF_MIPI_LANE_DELAY_CON1	0x0054
 #define GRF_BT1120_DCLK_DELAY_CON0	0x0058
