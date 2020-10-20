@@ -5306,10 +5306,6 @@ static int mlx5e_nic_init(struct mlx5_core_dev *mdev,
 	if (err)
 		mlx5_core_err(mdev, "TLS initialization failed, %d\n", err);
 
-	err = mlx5e_devlink_port_register(priv);
-	if (err)
-		mlx5_core_err(mdev, "mlx5e_devlink_port_register failed, %d\n", err);
-
 	mlx5e_health_create_reporters(priv);
 
 	return 0;
@@ -5318,7 +5314,6 @@ static int mlx5e_nic_init(struct mlx5_core_dev *mdev,
 static void mlx5e_nic_cleanup(struct mlx5e_priv *priv)
 {
 	mlx5e_health_destroy_reporters(priv);
-	mlx5e_devlink_port_unregister(priv);
 	mlx5e_tls_cleanup(priv);
 	mlx5e_ipsec_cleanup(priv);
 }
@@ -5829,10 +5824,17 @@ static int mlx5e_probe(struct auxiliary_device *adev,
 
 	priv->profile = profile;
 	priv->ppriv = NULL;
+
+	err = mlx5e_devlink_port_register(priv);
+	if (err) {
+		mlx5_core_err(mdev, "mlx5e_devlink_port_register failed, %d\n", err);
+		goto err_destroy_netdev;
+	}
+
 	err = profile->init(mdev, netdev);
 	if (err) {
 		mlx5_core_err(mdev, "mlx5e_nic_profile init failed, %d\n", err);
-		goto err_destroy_netdev;
+		goto err_devlink_cleanup;
 	}
 
 	err = mlx5e_resume(adev);
@@ -5856,6 +5858,8 @@ err_resume:
 	mlx5e_suspend(adev, state);
 err_profile_cleanup:
 	profile->cleanup(priv);
+err_devlink_cleanup:
+	mlx5e_devlink_port_unregister(priv);
 err_destroy_netdev:
 	mlx5e_destroy_netdev(priv);
 	return err;
@@ -5870,6 +5874,7 @@ static void mlx5e_remove(struct auxiliary_device *adev)
 	unregister_netdev(priv->netdev);
 	mlx5e_suspend(adev, state);
 	priv->profile->cleanup(priv);
+	mlx5e_devlink_port_unregister(priv);
 	mlx5e_destroy_netdev(priv);
 }
 
