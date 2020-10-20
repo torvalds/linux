@@ -560,10 +560,6 @@ int ttm_mem_io_reserve(struct ttm_bo_device *bdev,
 void ttm_mem_io_free(struct ttm_bo_device *bdev,
 		     struct ttm_resource *mem);
 
-int ttm_bo_move_to_new_tt_mem(struct ttm_buffer_object *bo,
-			      struct ttm_operation_ctx *ctx,
-			      struct ttm_resource *new_mem);
-
 /**
  * ttm_bo_move_memcpy
  *

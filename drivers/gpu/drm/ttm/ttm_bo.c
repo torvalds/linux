@@ -252,9 +252,15 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 		if (ret)
 			goto out_err;
 
-		ret = ttm_bo_move_to_new_tt_mem(bo, ctx, mem);
-		if (ret)
-			goto out_err;
+		if (mem->mem_type != TTM_PL_SYSTEM) {
+			ret = ttm_tt_populate(bo->bdev, bo->ttm, ctx);
+			if (ret)
+				goto out_err;
+
+			ret = bdev->driver->ttm_tt_bind(bo->bdev, bo->ttm, mem);
+			if (ret)
+				goto out_err;
+		}
 	}
 
 	if (bdev->driver->move_notify)
@@ -1492,7 +1498,3 @@ void ttm_bo_tt_destroy(struct ttm_buffer_object *bo)
 	bo->ttm = NULL;
 }
 
-int ttm_bo_tt_bind(struct ttm_buffer_object *bo, struct ttm_resource *mem)
-{
-	return bo->bdev->driver->ttm_tt_bind(bo->bdev, bo->ttm, mem);
-}

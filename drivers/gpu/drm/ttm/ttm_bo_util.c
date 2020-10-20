@@ -45,26 +45,6 @@ struct ttm_transfer_obj {
 	struct ttm_buffer_object *bo;
 };
 
-int ttm_bo_move_to_new_tt_mem(struct ttm_buffer_object *bo,
-			      struct ttm_operation_ctx *ctx,
-			      struct ttm_resource *new_mem)
-{
-	int ret;
-
-	if (new_mem->mem_type == TTM_PL_SYSTEM)
-		return 0;
-
-	ret = ttm_tt_populate(bo->bdev, bo->ttm, ctx);
-	if (unlikely(ret != 0))
-		return ret;
-
-	ret = ttm_bo_tt_bind(bo, new_mem);
-	if (unlikely(ret != 0))
-		return ret;
-
-	return 0;
-}
-
 int ttm_mem_io_reserve(struct ttm_bo_device *bdev,
 		       struct ttm_resource *mem)
 {
