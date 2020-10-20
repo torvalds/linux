@@ -1380,6 +1380,9 @@ struct lpfc_fdmi_reg_hba {
 	struct lpfc_fdmi_reg_port_list rpl;
 };
 
+/******** MI MIB ********/
+#define SLI_CT_MIB_Subtypes	0x11
+
 /*
  * Register HBA Attributes (RHAT)
  */

@@ -939,28 +939,9 @@ lpfc_bsg_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	INIT_LIST_HEAD(&head);
 	list_add_tail(&head, &piocbq->list);
 
-	if (piocbq->iocb.ulpBdeCount == 0 ||
-	    piocbq->iocb.un.cont64[0].tus.f.bdeSize == 0)
-		goto error_ct_unsol_exit;
-
-	if (phba->link_state == LPFC_HBA_ERROR ||
-		(!(phba->sli.sli_flag & LPFC_SLI_ACTIVE)))
-		goto error_ct_unsol_exit;
-
-	if (phba->sli3_options & LPFC_SLI3_HBQ_ENABLED)
-		dmabuf = bdeBuf1;
-	else {
-		dma_addr = getPaddr(piocbq->iocb.un.cont64[0].addrHigh,
-				    piocbq->iocb.un.cont64[0].addrLow);
-		dmabuf = lpfc_sli_ringpostbuf_get(phba, pring, dma_addr);
-	}
-	if (dmabuf == NULL)
-		goto error_ct_unsol_exit;
-	ct_req = (struct lpfc_sli_ct_request *)dmabuf->virt;
+	ct_req = (struct lpfc_sli_ct_request *)bdeBuf1;
 	evt_req_id = ct_req->FsType;
 	cmd = ct_req->CommandResponse.bits.CmdRsp;
-	if (!(phba->sli3_options & LPFC_SLI3_HBQ_ENABLED))
-		lpfc_sli_ringpostbuf_put(phba, pring, dmabuf);
 
 	spin_lock_irqsave(&phba->ct_ev_lock, flags);
 	list_for_each_entry(evt, &phba->ct_ev_waiters, node) {

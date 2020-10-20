@@ -99,21 +99,265 @@ lpfc_ct_unsol_buffer(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq,
 	lpfc_ct_ignore_hbq_buffer(phba, piocbq, mp, size);
 }
 
+/**
+ * lpfc_ct_unsol_cmpl : Completion callback function for unsol ct commands
+ * @phba : pointer to lpfc hba data structure.
+ * @cmdiocb : pointer to lpfc command iocb data structure.
+ * @rspiocb : pointer to lpfc response iocb data structure.
+ *
+ * This routine is the callback function for issuing unsol ct reject command.
+ * The memory allocated in the reject command path is freed up here.
+ **/
+static void
+lpfc_ct_unsol_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
+		   struct lpfc_iocbq *rspiocb)
+{
+	struct lpfc_nodelist *ndlp;
+	struct lpfc_dmabuf *mp, *bmp;
+
+	ndlp = (struct lpfc_nodelist *)cmdiocb->context1;
+	if (ndlp)
+		lpfc_nlp_put(ndlp);
+
+	mp = cmdiocb->context2;
+	bmp = cmdiocb->context3;
+	if (mp) {
+		lpfc_mbuf_free(phba, mp->virt, mp->phys);
+		kfree(mp);
+		cmdiocb->context2 = NULL;
+	}
+
+	if (bmp) {
+		lpfc_mbuf_free(phba, bmp->virt, bmp->phys);
+		kfree(bmp);
+		cmdiocb->context3 = NULL;
+	}
+
+	lpfc_sli_release_iocbq(phba, cmdiocb);
+}
+
+/**
+ * lpfc_ct_reject_event : Issue reject for unhandled CT MIB commands
+ * @ndlp : pointer to a node-list data structure.
+ * ct_req : pointer to the CT request data structure.
+ * rx_id : rx_id of the received UNSOL CT command
+ * ox_id : ox_id of the UNSOL CT command
+ *
+ * This routine is invoked by the lpfc_ct_handle_mibreq routine for sending
+ * a reject response. Reject response is sent for the unhandled commands.
+ **/
+static void
+lpfc_ct_reject_event(struct lpfc_nodelist *ndlp,
+		     struct lpfc_sli_ct_request *ct_req,
+		     u16 rx_id, u16 ox_id)
+{
+	struct lpfc_vport *vport = ndlp->vport;
+	struct lpfc_hba *phba = vport->phba;
+	struct lpfc_sli_ct_request *ct_rsp;
+	struct lpfc_iocbq *cmdiocbq = NULL;
+	struct lpfc_dmabuf *bmp = NULL;
+	struct lpfc_dmabuf *mp = NULL;
+	struct ulp_bde64 *bpl;
+	IOCB_t *icmd;
+	u8 rc = 0;
+
+	/* fill in BDEs for command */
+	mp = kmalloc(sizeof(*mp), GFP_KERNEL);
+	if (!mp) {
+		rc = 1;
+		goto ct_exit;
+	}
+
+	mp->virt = lpfc_mbuf_alloc(phba, MEM_PRI, &mp->phys);
+	if (!mp->virt) {
+		rc = 2;
+		goto ct_free_mp;
+	}
+
+	/* Allocate buffer for Buffer ptr list */
+	bmp = kmalloc(sizeof(*bmp), GFP_KERNEL);
+	if (!bmp) {
+		rc = 3;
+		goto ct_free_mpvirt;
+	}
+
+	bmp->virt = lpfc_mbuf_alloc(phba, MEM_PRI, &bmp->phys);
+	if (!bmp->virt) {
+		rc = 4;
+		goto ct_free_bmp;
+	}
+
+	INIT_LIST_HEAD(&mp->list);
+	INIT_LIST_HEAD(&bmp->list);
+
+	bpl = (struct ulp_bde64 *)bmp->virt;
+	memset(bpl, 0, sizeof(struct ulp_bde64));
+	bpl->addrHigh = le32_to_cpu(putPaddrHigh(mp->phys));
+	bpl->addrLow = le32_to_cpu(putPaddrLow(mp->phys));
+	bpl->tus.f.bdeFlags = BUFF_TYPE_BLP_64;
+	bpl->tus.f.bdeSize = (LPFC_CT_PREAMBLE - 4);
+	bpl->tus.w = le32_to_cpu(bpl->tus.w);
+
+	ct_rsp = (struct lpfc_sli_ct_request *)mp->virt;
+	memset(ct_rsp, 0, sizeof(struct lpfc_sli_ct_request));
+
+	ct_rsp->RevisionId.bits.Revision = SLI_CT_REVISION;
+	ct_rsp->RevisionId.bits.InId = 0;
+	ct_rsp->FsType = ct_req->FsType;
+	ct_rsp->FsSubType = ct_req->FsSubType;
+	ct_rsp->CommandResponse.bits.Size = 0;
+	ct_rsp->CommandResponse.bits.CmdRsp =
+		cpu_to_be16(SLI_CT_RESPONSE_FS_RJT);
+	ct_rsp->ReasonCode = SLI_CT_REQ_NOT_SUPPORTED;
+	ct_rsp->Explanation = SLI_CT_NO_ADDITIONAL_EXPL;
+
+	cmdiocbq = lpfc_sli_get_iocbq(phba);
+	if (!cmdiocbq) {
+		rc = 5;
+		goto ct_free_bmpvirt;
+	}
+
+	icmd = &cmdiocbq->iocb;
+	icmd->un.genreq64.bdl.ulpIoTag32 = 0;
+	icmd->un.genreq64.bdl.addrHigh = putPaddrHigh(bmp->phys);
+	icmd->un.genreq64.bdl.addrLow = putPaddrLow(bmp->phys);
+	icmd->un.genreq64.bdl.bdeFlags = BUFF_TYPE_BLP_64;
+	icmd->un.genreq64.bdl.bdeSize = sizeof(struct ulp_bde64);
+	icmd->un.genreq64.w5.hcsw.Fctl = (LS | LA);
+	icmd->un.genreq64.w5.hcsw.Dfctl = 0;
+	icmd->un.genreq64.w5.hcsw.Rctl = FC_RCTL_DD_SOL_CTL;
+	icmd->un.genreq64.w5.hcsw.Type = FC_TYPE_CT;
+	icmd->ulpCommand = CMD_XMIT_SEQUENCE64_CX;
+	icmd->ulpBdeCount = 1;
+	icmd->ulpLe = 1;
+	icmd->ulpClass = CLASS3;
+
+	/* Save for completion so we can release these resources */
+	cmdiocbq->context1 = lpfc_nlp_get(ndlp);
+	cmdiocbq->context2 = (uint8_t *)mp;
+	cmdiocbq->context3 = (uint8_t *)bmp;
+	cmdiocbq->iocb_cmpl = lpfc_ct_unsol_cmpl;
+	icmd->ulpContext = rx_id;  /* Xri / rx_id */
+	icmd->unsli3.rcvsli3.ox_id = ox_id;
+	icmd->un.ulpWord[3] =
+		phba->sli4_hba.rpi_ids[ndlp->nlp_rpi];
+	icmd->ulpTimeout = (3 * phba->fc_ratov);
+
+	cmdiocbq->retry = 0;
+	cmdiocbq->vport = vport;
+	cmdiocbq->context_un.ndlp = NULL;
+	cmdiocbq->drvrTimeout = icmd->ulpTimeout + LPFC_DRVR_TIMEOUT;
+
+	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, cmdiocbq, 0);
+	if (!rc)
+		return;
+
+	rc = 6;
+	lpfc_nlp_put(ndlp);
+	lpfc_sli_release_iocbq(phba, cmdiocbq);
+ct_free_bmpvirt:
+	lpfc_mbuf_free(phba, bmp->virt, bmp->phys);
+ct_free_bmp:
+	kfree(bmp);
+ct_free_mpvirt:
+	lpfc_mbuf_free(phba, mp->virt, mp->phys);
+ct_free_mp:
+	kfree(mp);
+ct_exit:
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+			 "6440 Unsol CT: Rsp err %d Data: x%x\n",
+			 rc, vport->fc_flag);
+}
+
+/**
+ * lpfc_ct_handle_mibreq - Process an unsolicited CT MIB request data buffer
+ * @phba: pointer to lpfc hba data structure.
+ * @ctiocb: pointer to lpfc CT command iocb data structure.
+ *
+ * This routine is used for processing the IOCB associated with a unsolicited
+ * CT MIB request. It first determines whether there is an existing ndlp that
+ * matches the DID from the unsolicited IOCB. If not, it will return.
+ **/
+static void
+lpfc_ct_handle_mibreq(struct lpfc_hba *phba, struct lpfc_iocbq *ctiocbq)
+{
+	struct lpfc_sli_ct_request *ct_req;
+	struct lpfc_nodelist *ndlp = NULL;
+	struct lpfc_vport *vport = NULL;
+	IOCB_t *icmd = &ctiocbq->iocb;
+	u32 mi_cmd, vpi;
+	u32 did = 0;
+
+	vpi = ctiocbq->iocb.unsli3.rcvsli3.vpi;
+	vport = lpfc_find_vport_by_vpid(phba, vpi);
+	if (!vport) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
+				"6437 Unsol CT: VPORT NULL vpi : x%x\n",
+				vpi);
+		return;
+	}
+
+	did = ctiocbq->iocb.un.rcvels.remoteID;
+	if (icmd->ulpStatus) {
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+				 "6438 Unsol CT: status:x%x/x%x did : x%x\n",
+				 icmd->ulpStatus, icmd->un.ulpWord[4], did);
+		return;
+	}
+
+	/* Ignore traffic received during vport shutdown */
+	if (vport->fc_flag & FC_UNLOADING)
+		return;
+
+	ndlp = lpfc_findnode_did(vport, did);
+	if (!ndlp) {
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+				 "6439 Unsol CT: NDLP Not Found for DID : x%x",
+				 did);
+		return;
+	}
+
+	ct_req = ((struct lpfc_sli_ct_request *)
+		 (((struct lpfc_dmabuf *)ctiocbq->context2)->virt));
+
+	mi_cmd = ct_req->CommandResponse.bits.CmdRsp;
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+			 "6442 : MI Cmd : x%x Not Supported\n", mi_cmd);
+	lpfc_ct_reject_event(ndlp, ct_req,
+			     ctiocbq->iocb.ulpContext,
+			     ctiocbq->iocb.unsli3.rcvsli3.ox_id);
+}
+
+/**
+ * lpfc_ct_unsol_event - Process an unsolicited event from a ct sli ring
+ * @phba: pointer to lpfc hba data structure.
+ * @pring: pointer to a SLI ring.
+ * @ctiocbq: pointer to lpfc ct iocb data structure.
+ *
+ * This routine is used to process an unsolicited event received from a SLI
+ * (Service Level Interface) ring. The actual processing of the data buffer
+ * associated with the unsolicited event is done by invoking appropriate routine
+ * after properly set up the iocb buffer from the SLI ring on which the
+ * unsolicited event was received.
+ **/
 void
 lpfc_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
-		    struct lpfc_iocbq *piocbq)
+		    struct lpfc_iocbq *ctiocbq)
 {
 	struct lpfc_dmabuf *mp = NULL;
-	IOCB_t *icmd = &piocbq->iocb;
+	IOCB_t *icmd = &ctiocbq->iocb;
 	int i;
 	struct lpfc_iocbq *iocbq;
-	dma_addr_t paddr;
+	dma_addr_t dma_addr;
 	uint32_t size;
 	struct list_head head;
-	struct lpfc_dmabuf *bdeBuf;
+	struct lpfc_sli_ct_request *ct_req;
+	struct lpfc_dmabuf *bdeBuf1 = ctiocbq->context2;
+	struct lpfc_dmabuf *bdeBuf2 = ctiocbq->context3;
 
-	if (lpfc_bsg_ct_unsol_event(phba, pring, piocbq) == 0)
-		return;
+	ctiocbq->context1 = NULL;
+	ctiocbq->context2 = NULL;
+	ctiocbq->context3 = NULL;
 
 	if (unlikely(icmd->ulpStatus == IOSTAT_NEED_BUFFER)) {
 		lpfc_sli_hbqbuf_add_hbqs(phba, LPFC_ELS_HBQ);
@@ -127,46 +371,75 @@ lpfc_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		return;
 	}
 
-	/* If there are no BDEs associated with this IOCB,
-	 * there is nothing to do.
+	/* If there are no BDEs associated
+	 * with this IOCB, there is nothing to do.
 	 */
 	if (icmd->ulpBdeCount == 0)
 		return;
 
 	if (phba->sli3_options & LPFC_SLI3_HBQ_ENABLED) {
+		ctiocbq->context2 = bdeBuf1;
+		if (icmd->ulpBdeCount == 2)
+			ctiocbq->context3 = bdeBuf2;
+	} else {
+		dma_addr = getPaddr(icmd->un.cont64[0].addrHigh,
+				    icmd->un.cont64[0].addrLow);
+		ctiocbq->context2 = lpfc_sli_ringpostbuf_get(phba, pring,
+							     dma_addr);
+		if (icmd->ulpBdeCount == 2) {
+			dma_addr = getPaddr(icmd->un.cont64[1].addrHigh,
+					    icmd->un.cont64[1].addrLow);
+			ctiocbq->context3 = lpfc_sli_ringpostbuf_get(phba,
+								     pring,
+								     dma_addr);
+		}
+	}
+
+	ct_req = ((struct lpfc_sli_ct_request *)
+		 (((struct lpfc_dmabuf *)ctiocbq->context2)->virt));
+
+	if (ct_req->FsType == SLI_CT_MANAGEMENT_SERVICE &&
+	    ct_req->FsSubType == SLI_CT_MIB_Subtypes) {
+		lpfc_ct_handle_mibreq(phba, ctiocbq);
+	} else {
+		if (!lpfc_bsg_ct_unsol_event(phba, pring, ctiocbq))
+			return;
+	}
+
+	if (phba->sli3_options & LPFC_SLI3_HBQ_ENABLED) {
 		INIT_LIST_HEAD(&head);
-		list_add_tail(&head, &piocbq->list);
+		list_add_tail(&head, &ctiocbq->list);
 		list_for_each_entry(iocbq, &head, list) {
 			icmd = &iocbq->iocb;
 			if (icmd->ulpBdeCount == 0)
 				continue;
-			bdeBuf = iocbq->context2;
+			bdeBuf1 = iocbq->context2;
 			iocbq->context2 = NULL;
 			size  = icmd->un.cont64[0].tus.f.bdeSize;
-			lpfc_ct_unsol_buffer(phba, piocbq, bdeBuf, size);
-			lpfc_in_buf_free(phba, bdeBuf);
+			lpfc_ct_unsol_buffer(phba, ctiocbq, bdeBuf1, size);
+			lpfc_in_buf_free(phba, bdeBuf1);
 			if (icmd->ulpBdeCount == 2) {
-				bdeBuf = iocbq->context3;
+				bdeBuf2 = iocbq->context3;
 				iocbq->context3 = NULL;
 				size  = icmd->unsli3.rcvsli3.bde2.tus.f.bdeSize;
-				lpfc_ct_unsol_buffer(phba, piocbq, bdeBuf,
+				lpfc_ct_unsol_buffer(phba, ctiocbq, bdeBuf2,
 						     size);
-				lpfc_in_buf_free(phba, bdeBuf);
+				lpfc_in_buf_free(phba, bdeBuf2);
 			}
 		}
 		list_del(&head);
 	} else {
 		INIT_LIST_HEAD(&head);
-		list_add_tail(&head, &piocbq->list);
+		list_add_tail(&head, &ctiocbq->list);
 		list_for_each_entry(iocbq, &head, list) {
 			icmd = &iocbq->iocb;
 			if (icmd->ulpBdeCount == 0)
 				lpfc_ct_unsol_buffer(phba, iocbq, NULL, 0);
 			for (i = 0; i < icmd->ulpBdeCount; i++) {
-				paddr = getPaddr(icmd->un.cont64[i].addrHigh,
-						 icmd->un.cont64[i].addrLow);
+				dma_addr = getPaddr(icmd->un.cont64[i].addrHigh,
+						    icmd->un.cont64[i].addrLow);
 				mp = lpfc_sli_ringpostbuf_get(phba, pring,
-							      paddr);
+							      dma_addr);
 				size = icmd->un.cont64[i].tus.f.bdeSize;
 				lpfc_ct_unsol_buffer(phba, iocbq, mp, size);
 				lpfc_in_buf_free(phba, mp);
