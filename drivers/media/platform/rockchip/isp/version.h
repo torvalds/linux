@@ -51,6 +51,13 @@
  * 4. request buf to alloc dummy buf
  * 5. set tmo bit in gain by tmo enable
  * 6. only rx mode can use when link with cif
+ *
+ * v0.1.9:
+ * 1. isp and ispp sync to power off
+ * 2. fix lsc error when ldch is on
+ * 3. fix error status of stream off
+ * 4. skip frame when change hdr/normal mode
+ * 5. use ldch share buffer to reduce buffer size
  */
 
 #define RKISP_DRIVER_VERSION RKISP_API_VERSION

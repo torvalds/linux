@@ -46,6 +46,11 @@
  * 2. isp/ispp procfs add work info
  * 3. scl add yuyv format
  * 4. fix config err for tnr init off
+ *
+ * v0.1.9:
+ * 1. isp and ispp sync to power off
+ * 2. fix error status of stream off
+ * 3. use fec share buffer to reduce buffer size
  */
 
 #define RKISPP_DRIVER_VERSION ISPP_API_VERSION
