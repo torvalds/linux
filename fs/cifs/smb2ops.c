@@ -3093,7 +3093,12 @@ get_smb2_acl_by_path(struct cifs_sb_info *cifs_sb,
 	oparms.tcon = tcon;
 	oparms.desired_access = READ_CONTROL;
 	oparms.disposition = FILE_OPEN;
-	oparms.create_options = cifs_create_options(cifs_sb, 0);
+	/*
+	 * When querying an ACL, even if the file is a symlink we want to open
+	 * the source not the target, and so the protocol requires that the
+	 * client specify this flag when opening a reparse point
+	 */
+	oparms.create_options = cifs_create_options(cifs_sb, 0) | OPEN_REPARSE_POINT;
 	oparms.fid = &fid;
 	oparms.reconnect = false;
 
