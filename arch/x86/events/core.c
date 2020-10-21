@@ -105,6 +105,9 @@ u64 x86_perf_event_update(struct perf_event *event)
 	if (unlikely(!hwc->event_base))
 		return 0;
 
+	if (unlikely(is_topdown_count(event)) && x86_pmu.update_topdown_event)
+		return x86_pmu.update_topdown_event(event);
+
 	/*
 	 * Careful: an NMI might modify the previous event value.
 	 *
@@ -1056,6 +1059,45 @@ int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 	return unsched ? -EINVAL : 0;
 }
 
+static int add_nr_metric_event(struct cpu_hw_events *cpuc,
+			       struct perf_event *event)
+{
+	if (is_metric_event(event)) {
+		if (cpuc->n_metric == INTEL_TD_METRIC_NUM)
+			return -EINVAL;
+		cpuc->n_metric++;
+		cpuc->n_txn_metric++;
+	}
+
+	return 0;
+}
+
+static void del_nr_metric_event(struct cpu_hw_events *cpuc,
+				struct perf_event *event)
+{
+	if (is_metric_event(event))
+		cpuc->n_metric--;
+}
+
+static int collect_event(struct cpu_hw_events *cpuc, struct perf_event *event,
+			 int max_count, int n)
+{
+
+	if (x86_pmu.intel_cap.perf_metrics && add_nr_metric_event(cpuc, event))
+		return -EINVAL;
+
+	if (n >= max_count + cpuc->n_metric)
+		return -EINVAL;
+
+	cpuc->event_list[n] = event;
+	if (is_counter_pair(&event->hw)) {
+		cpuc->n_pair++;
+		cpuc->n_txn_pair++;
+	}
+
+	return 0;
+}
+
 /*
  * dogrp: true if must collect siblings events (group)
  * returns total number of events and error code
@@ -1092,28 +1134,22 @@ static int collect_events(struct cpu_hw_events *cpuc, struct perf_event *leader,
 	}
 
 	if (is_x86_event(leader)) {
-		if (n >= max_count)
+		if (collect_event(cpuc, leader, max_count, n))
 			return -EINVAL;
-		cpuc->event_list[n] = leader;
 		n++;
-		if (is_counter_pair(&leader->hw))
-			cpuc->n_pair++;
 	}
+
 	if (!dogrp)
 		return n;
 
 	for_each_sibling_event(event, leader) {
-		if (!is_x86_event(event) ||
-		    event->state <= PERF_EVENT_STATE_OFF)
+		if (!is_x86_event(event) || event->state <= PERF_EVENT_STATE_OFF)
 			continue;
 
-		if (n >= max_count)
+		if (collect_event(cpuc, event, max_count, n))
 			return -EINVAL;
 
-		cpuc->event_list[n] = event;
 		n++;
-		if (is_counter_pair(&event->hw))
-			cpuc->n_pair++;
 	}
 	return n;
 }
@@ -1135,11 +1171,16 @@ static inline void x86_assign_hw_event(struct perf_event *event,
 		hwc->event_base	= 0;
 		break;
 
+	case INTEL_PMC_IDX_METRIC_BASE ... INTEL_PMC_IDX_METRIC_END:
+		/* All the metric events are mapped onto the fixed counter 3. */
+		idx = INTEL_PMC_IDX_FIXED_SLOTS;
+		/* fall through */
 	case INTEL_PMC_IDX_FIXED ... INTEL_PMC_IDX_FIXED_BTS-1:
 		hwc->config_base = MSR_ARCH_PERFMON_FIXED_CTR_CTRL;
 		hwc->event_base = MSR_ARCH_PERFMON_FIXED_CTR0 +
 				(idx - INTEL_PMC_IDX_FIXED);
-		hwc->event_base_rdpmc = (idx - INTEL_PMC_IDX_FIXED) | 1<<30;
+		hwc->event_base_rdpmc = (idx - INTEL_PMC_IDX_FIXED) |
+					INTEL_PMC_FIXED_RDPMC_BASE;
 		break;
 
 	default:
@@ -1270,6 +1311,10 @@ int x86_perf_event_set_period(struct perf_event *event)
 	if (unlikely(!hwc->event_base))
 		return 0;
 
+	if (unlikely(is_topdown_count(event)) &&
+	    x86_pmu.set_topdown_event_period)
+		return x86_pmu.set_topdown_event_period(event);
+
 	/*
 	 * If we are way outside a reasonable range then just skip forward:
 	 */
@@ -1309,11 +1354,11 @@ int x86_perf_event_set_period(struct perf_event *event)
 	wrmsrl(hwc->event_base, (u64)(-left) & x86_pmu.cntval_mask);
 
 	/*
-	 * Clear the Merge event counter's upper 16 bits since
+	 * Sign extend the Merge event counter's upper 16 bits since
 	 * we currently declare a 48-bit counter width
 	 */
 	if (is_counter_pair(hwc))
-		wrmsrl(x86_pmu_event_addr(idx + 1), 0);
+		wrmsrl(x86_pmu_event_addr(idx + 1), 0xffff);
 
 	/*
 	 * Due to erratum on certan cpu we need
@@ -1551,6 +1596,8 @@ static void x86_pmu_del(struct perf_event *event, int flags)
 	}
 	cpuc->event_constraint[i-1] = NULL;
 	--cpuc->n_events;
+	if (x86_pmu.intel_cap.perf_metrics)
+		del_nr_metric_event(cpuc, event);
 
 	perf_event_update_userpage(event);
 
@@ -2018,6 +2065,8 @@ static void x86_pmu_start_txn(struct pmu *pmu, unsigned int txn_flags)
 
 	perf_pmu_disable(pmu);
 	__this_cpu_write(cpu_hw_events.n_txn, 0);
+	__this_cpu_write(cpu_hw_events.n_txn_pair, 0);
+	__this_cpu_write(cpu_hw_events.n_txn_metric, 0);
 }
 
 /*
@@ -2043,6 +2092,8 @@ static void x86_pmu_cancel_txn(struct pmu *pmu)
 	 */
 	__this_cpu_sub(cpu_hw_events.n_added, __this_cpu_read(cpu_hw_events.n_txn));
 	__this_cpu_sub(cpu_hw_events.n_events, __this_cpu_read(cpu_hw_events.n_txn));
+	__this_cpu_sub(cpu_hw_events.n_pair, __this_cpu_read(cpu_hw_events.n_txn_pair));
+	__this_cpu_sub(cpu_hw_events.n_metric, __this_cpu_read(cpu_hw_events.n_txn_metric));
 	perf_pmu_enable(pmu);
 }
 
@@ -2264,17 +2315,15 @@ static void x86_pmu_event_unmapped(struct perf_event *event, struct mm_struct *m
 
 static int x86_pmu_event_idx(struct perf_event *event)
 {
-	int idx = event->hw.idx;
+	struct hw_perf_event *hwc = &event->hw;
 
-	if (!(event->hw.flags & PERF_X86_EVENT_RDPMC_ALLOWED))
+	if (!(hwc->flags & PERF_X86_EVENT_RDPMC_ALLOWED))
 		return 0;
 
-	if (x86_pmu.num_counters_fixed && idx >= INTEL_PMC_IDX_FIXED) {
-		idx -= INTEL_PMC_IDX_FIXED;
-		idx |= 1 << 30;
-	}
-
-	return idx + 1;
+	if (is_metric_idx(hwc->idx))
+		return INTEL_PMC_FIXED_RDPMC_METRICS + 1;
+	else
+		return hwc->event_base_rdpmc + 1;
 }
 
 static ssize_t get_attr_rdpmc(struct device *cdev,
