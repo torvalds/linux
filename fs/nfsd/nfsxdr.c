@@ -66,26 +66,6 @@ encode_fh(__be32 *p, struct svc_fh *fhp)
 	return p + (NFS_FHSIZE>> 2);
 }
 
-/*
- * Decode a file name and make sure that the path contains
- * no slashes or null bytes.
- */
-static __be32 *
-decode_filename(__be32 *p, char **namp, unsigned int *lenp)
-{
-	char		*name;
-	unsigned int	i;
-
-	if ((p = xdr_decode_string_inplace(p, namp, lenp, NFS_MAXNAMLEN)) != NULL) {
-		for (i = 0, name = *namp; i < *lenp; i++, name++) {
-			if (*name == '\0' || *name == '/')
-				return NULL;
-		}
-	}
-
-	return p;
-}
-
 static bool
 svcxdr_decode_filename(struct xdr_stream *xdr, char **name, unsigned int *len)
 {
@@ -116,61 +96,6 @@ svcxdr_decode_diropargs(struct xdr_stream *xdr, struct svc_fh *fhp,
 {
 	return svcxdr_decode_fhandle(xdr, fhp) &&
 		svcxdr_decode_filename(xdr, name, len);
-}
-
-static __be32 *
-decode_sattr(__be32 *p, struct iattr *iap, struct user_namespace *userns)
-{
-	u32	tmp, tmp1;
-
-	iap->ia_valid = 0;
-
-	/* Sun client bug compatibility check: some sun clients seem to
-	 * put 0xffff in the mode field when they mean 0xffffffff.
-	 * Quoting the 4.4BSD nfs server code: Nah nah nah nah na nah.
-	 */
-	if ((tmp = ntohl(*p++)) != (u32)-1 && tmp != 0xffff) {
-		iap->ia_valid |= ATTR_MODE;
-		iap->ia_mode = tmp;
-	}
-	if ((tmp = ntohl(*p++)) != (u32)-1) {
-		iap->ia_uid = make_kuid(userns, tmp);
-		if (uid_valid(iap->ia_uid))
-			iap->ia_valid |= ATTR_UID;
-	}
-	if ((tmp = ntohl(*p++)) != (u32)-1) {
-		iap->ia_gid = make_kgid(userns, tmp);
-		if (gid_valid(iap->ia_gid))
-			iap->ia_valid |= ATTR_GID;
-	}
-	if ((tmp = ntohl(*p++)) != (u32)-1) {
-		iap->ia_valid |= ATTR_SIZE;
-		iap->ia_size = tmp;
-	}
-	tmp  = ntohl(*p++); tmp1 = ntohl(*p++);
-	if (tmp != (u32)-1 && tmp1 != (u32)-1) {
-		iap->ia_valid |= ATTR_ATIME | ATTR_ATIME_SET;
-		iap->ia_atime.tv_sec = tmp;
-		iap->ia_atime.tv_nsec = tmp1 * 1000; 
-	}
-	tmp  = ntohl(*p++); tmp1 = ntohl(*p++);
-	if (tmp != (u32)-1 && tmp1 != (u32)-1) {
-		iap->ia_valid |= ATTR_MTIME | ATTR_MTIME_SET;
-		iap->ia_mtime.tv_sec = tmp;
-		iap->ia_mtime.tv_nsec = tmp1 * 1000; 
-		/*
-		 * Passing the invalid value useconds=1000000 for mtime
-		 * is a Sun convention for "set both mtime and atime to
-		 * current server time".  It's needed to make permissions
-		 * checks for the "touch" program across v2 mounts to
-		 * Solaris and Irix boxes work correctly. See description of
-		 * sattr in section 6.1 of "NFS Illustrated" by
-		 * Brent Callaghan, Addison-Wesley, ISBN 0-201-32750-5
-		 */
-		if (tmp1 == 1000000)
-			iap->ia_valid &= ~(ATTR_ATIME_SET|ATTR_MTIME_SET);
-	}
-	return p;
 }
 
 static bool
@@ -435,40 +360,22 @@ nfssvc_decode_linkargs(struct svc_rqst *rqstp, __be32 *p)
 int
 nfssvc_decode_symlinkargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	struct nfsd_symlinkargs *args = rqstp->rq_argp;
-	char *base = (char *)p;
-	size_t xdrlen;
+	struct kvec *head = rqstp->rq_arg.head;
 
-	if (   !(p = decode_fh(p, &args->ffh))
-	    || !(p = decode_filename(p, &args->fname, &args->flen)))
+	if (!svcxdr_decode_diropargs(xdr, &args->ffh, &args->fname, &args->flen))
 		return 0;
-
-	args->tlen = ntohl(*p++);
+	if (xdr_stream_decode_u32(xdr, &args->tlen) < 0)
+		return 0;
 	if (args->tlen == 0)
 		return 0;
 
-	args->first.iov_base = p;
-	args->first.iov_len = rqstp->rq_arg.head[0].iov_len;
-	args->first.iov_len -= (char *)p - base;
-
-	/* This request is never larger than a page. Therefore,
-	 * transport will deliver either:
-	 * 1. pathname in the pagelist -> sattr is in the tail.
-	 * 2. everything in the head buffer -> sattr is in the head.
-	 */
-	if (rqstp->rq_arg.page_len) {
-		if (args->tlen != rqstp->rq_arg.page_len)
-			return 0;
-		p = rqstp->rq_arg.tail[0].iov_base;
-	} else {
-		xdrlen = XDR_QUADLEN(args->tlen);
-		if (xdrlen > args->first.iov_len - (8 * sizeof(__be32)))
-			return 0;
-		p += xdrlen;
-	}
-	decode_sattr(p, &args->attrs, nfsd_user_namespace(rqstp));
-
-	return 1;
+	args->first.iov_len = head->iov_len - xdr_stream_pos(xdr);
+	args->first.iov_base = xdr_inline_decode(xdr, args->tlen);
+	if (!args->first.iov_base)
+		return 0;
+	return svcxdr_decode_sattr(rqstp, xdr, &args->attrs);
 }
 
 int
