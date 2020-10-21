@@ -19,7 +19,7 @@ config INET_MPTCP_DIAG
 
 config MPTCP_IPV6
 	bool "MPTCP: IPv6 support for Multipath TCP"
-	depends on IPV6
+	depends on IPV6=y
 	default y
 
 config MPTCP_KUNIT_TESTS
