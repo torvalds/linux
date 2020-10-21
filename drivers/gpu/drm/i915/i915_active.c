@@ -81,7 +81,7 @@ static void *active_debug_hint(void *addr)
 	return (void *)ref->active ?: (void *)ref->retire ?: (void *)ref;
 }
 
-static struct debug_obj_descr active_debug_desc = {
+static const struct debug_obj_descr active_debug_desc = {
 	.name = "i915_active",
 	.debug_hint = active_debug_hint,
 };
