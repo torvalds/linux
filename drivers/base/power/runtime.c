@@ -1643,42 +1643,6 @@ void pm_runtime_remove(struct device *dev)
 }
 
 /**
- * pm_runtime_clean_up_links - Prepare links to consumers for driver removal.
- * @dev: Device whose driver is going to be removed.
- *
- * Check links from this device to any consumers and if any of them have active
- * runtime PM references to the device, drop the usage counter of the device
- * (as many times as needed).
- *
- * Links with the DL_FLAG_MANAGED flag unset are ignored.
- *
- * Since the device is guaranteed to be runtime-active at the point this is
- * called, nothing else needs to be done here.
- *
- * Moreover, this is called after device_links_busy() has returned 'false', so
- * the status of each link is guaranteed to be DL_STATE_SUPPLIER_UNBIND and
- * therefore rpm_active can't be manipulated concurrently.
- */
-void pm_runtime_clean_up_links(struct device *dev)
-{
-	struct device_link *link;
-	int idx;
-
-	idx = device_links_read_lock();
-
-	list_for_each_entry_rcu(link, &dev->links.consumers, s_node,
-				device_links_read_lock_held()) {
-		if (!(link->flags & DL_FLAG_MANAGED))
-			continue;
-
-		while (refcount_dec_not_one(&link->rpm_active))
-			pm_runtime_put_noidle(dev);
-	}
-
-	device_links_read_unlock(idx);
-}
-
-/**
  * pm_runtime_get_suppliers - Resume and reference-count supplier devices.
  * @dev: Consumer device.
  */
