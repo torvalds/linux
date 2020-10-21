@@ -246,7 +246,7 @@
 #define  PCI_PM_CAP_PME_D0	0x0800	/* PME# from D0 */
 #define  PCI_PM_CAP_PME_D1	0x1000	/* PME# from D1 */
 #define  PCI_PM_CAP_PME_D2	0x2000	/* PME# from D2 */
-#define  PCI_PM_CAP_PME_D3	0x4000	/* PME# from D3 (hot) */
+#define  PCI_PM_CAP_PME_D3hot	0x4000	/* PME# from D3 (hot) */
 #define  PCI_PM_CAP_PME_D3cold	0x8000	/* PME# from D3 (cold) */
 #define  PCI_PM_CAP_PME_SHIFT	11	/* Start of the PME Mask in PMC */
 #define PCI_PM_CTRL		4	/* PM control and status register */
