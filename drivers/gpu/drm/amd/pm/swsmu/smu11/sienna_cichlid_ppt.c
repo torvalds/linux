@@ -955,12 +955,16 @@ static int sienna_cichlid_print_clk_levels(struct smu_context *smu,
 			freq_values[1] = cur_value;
 			mark_index = cur_value == freq_values[0] ? 0 :
 				     cur_value == freq_values[2] ? 2 : 1;
-			if (mark_index != 1)
-				freq_values[1] = (freq_values[0] + freq_values[2]) / 2;
 
-			for (i = 0; i < 3; i++) {
+			count = 3;
+			if (mark_index != 1) {
+				count = 2;
+				freq_values[1] = freq_values[2];
+			}
+
+			for (i = 0; i < count; i++) {
 				size += sprintf(buf + size, "%d: %uMhz %s\n", i, freq_values[i],
-						i == mark_index ? "*" : "");
+						cur_value  == freq_values[i] ? "*" : "");
 			}
 
 		}
