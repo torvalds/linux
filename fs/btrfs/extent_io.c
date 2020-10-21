@@ -1950,7 +1950,7 @@ static int __process_pages_contig(struct address_space *mapping,
 				  unsigned long page_ops, pgoff_t *index_ret)
 {
 	unsigned long nr_pages = end_index - start_index + 1;
-	unsigned long pages_locked = 0;
+	unsigned long pages_processed = 0;
 	pgoff_t index = start_index;
 	struct page *pages[16];
 	unsigned ret;
@@ -1985,7 +1985,7 @@ static int __process_pages_contig(struct address_space *mapping,
 
 			if (locked_page && pages[i] == locked_page) {
 				put_page(pages[i]);
-				pages_locked++;
+				pages_processed++;
 				continue;
 			}
 			if (page_ops & PAGE_CLEAR_DIRTY)
@@ -2010,7 +2010,7 @@ static int __process_pages_contig(struct address_space *mapping,
 				}
 			}
 			put_page(pages[i]);
-			pages_locked++;
+			pages_processed++;
 		}
 		nr_pages -= ret;
 		index += ret;
@@ -2018,7 +2018,7 @@ static int __process_pages_contig(struct address_space *mapping,
 	}
 out:
 	if (err && index_ret)
-		*index_ret = start_index + pages_locked - 1;
+		*index_ret = start_index + pages_processed - 1;
 	return err;
 }
 
