@@ -71,6 +71,11 @@ properties:
   wakeup-source:
     description: Button can wake-up the system.
 
+patternProperties:
+  "^i2c-tunnel[0-9]*$":
+    type: object
+    $ref: "/schemas/i2c/google,cros-ec-i2c-tunnel.yaml#"
+
 required:
   - compatible
 
