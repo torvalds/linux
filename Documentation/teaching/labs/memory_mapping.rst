@@ -278,7 +278,7 @@ Enabling is done using :c:func:`SetPageReserved` while reseting it
        if (!mem)
 	   return mem;
 
-       for(i = 0; i < npages * PAGE_SIZE; i += PAGE_SIZE) {
+       for(i = 0; i < npages * PAGE_SIZE; i += PAGE_SIZE)
 	   SetPageReserved(virt_to_page(((unsigned long)mem) + i));
 
        return mem;
