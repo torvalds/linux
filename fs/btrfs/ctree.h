@@ -912,6 +912,7 @@ struct btrfs_fs_info {
 
 	/* Extent buffer radix tree */
 	spinlock_t buffer_lock;
+	/* Entries are eb->start / sectorsize */
 	struct radix_tree_root buffer_radix;
 
 	/* next backup root to be overwritten */
