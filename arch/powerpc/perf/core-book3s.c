@@ -263,9 +263,16 @@ static inline u32 perf_get_misc_flags(struct pt_regs *regs)
 	 * DD1.
 	 */
 	if (marked && (ppmu->flags & PPMU_P10_DD1)) {
-		if (is_kernel_addr(mfspr(SPRN_SIAR)))
-			return PERF_RECORD_MISC_KERNEL;
-		return PERF_RECORD_MISC_USER;
+		unsigned long siar = mfspr(SPRN_SIAR);
+		if (siar) {
+			if (is_kernel_addr(siar))
+				return PERF_RECORD_MISC_KERNEL;
+			return PERF_RECORD_MISC_USER;
+		} else {
+			if (is_kernel_addr(regs->nip))
+				return PERF_RECORD_MISC_KERNEL;
+			return PERF_RECORD_MISC_USER;
+		}
 	}
 
 	/*
@@ -2199,8 +2206,14 @@ unsigned long perf_misc_flags(struct pt_regs *regs)
 unsigned long perf_instruction_pointer(struct pt_regs *regs)
 {
 	bool use_siar = regs_use_siar(regs);
+	unsigned long siar = mfspr(SPRN_SIAR);
 
-	if (use_siar && siar_valid(regs))
+	if (ppmu->flags & PPMU_P10_DD1) {
+		if (siar)
+			return siar;
+		else
+			return regs->nip;
+	} else if (use_siar && siar_valid(regs))
 		return mfspr(SPRN_SIAR) + perf_ip_adjust(regs);
 	else if (use_siar)
 		return 0;		// no valid instruction pointer
