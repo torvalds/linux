@@ -830,7 +830,6 @@ static int ttm_bo_mem_force_space(struct ttm_buffer_object *bo,
  * @bo: BO to find memory for
  * @place: where to search
  * @mem: the memory object to fill in
- * @ctx: operation context
  *
  * Check if placement is compatible and fill in mem structure.
  * Returns -EBUSY if placement won't work or negative error code.
@@ -838,8 +837,7 @@ static int ttm_bo_mem_force_space(struct ttm_buffer_object *bo,
  */
 static int ttm_bo_mem_placement(struct ttm_buffer_object *bo,
 				const struct ttm_place *place,
-				struct ttm_resource *mem,
-				struct ttm_operation_ctx *ctx)
+				struct ttm_resource *mem)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
 	struct ttm_resource_manager *man;
@@ -884,7 +882,7 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		const struct ttm_place *place = &placement->placement[i];
 		struct ttm_resource_manager *man;
 
-		ret = ttm_bo_mem_placement(bo, place, mem, ctx);
+		ret = ttm_bo_mem_placement(bo, place, mem);
 		if (ret)
 			continue;
 
@@ -910,7 +908,7 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 	for (i = 0; i < placement->num_busy_placement; ++i) {
 		const struct ttm_place *place = &placement->busy_placement[i];
 
-		ret = ttm_bo_mem_placement(bo, place, mem, ctx);
+		ret = ttm_bo_mem_placement(bo, place, mem);
 		if (ret)
 			continue;
 
