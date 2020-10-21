@@ -266,46 +266,36 @@ nfssvc_decode_readargs(struct svc_rqst *rqstp, __be32 *p)
 int
 nfssvc_decode_writeargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	struct nfsd_writeargs *args = rqstp->rq_argp;
-	unsigned int len, hdr, dlen;
 	struct kvec *head = rqstp->rq_arg.head;
+	struct kvec *tail = rqstp->rq_arg.tail;
+	u32 beginoffset, totalcount;
+	size_t remaining;
 
-	p = decode_fh(p, &args->fh);
-	if (!p)
+	if (!svcxdr_decode_fhandle(xdr, &args->fh))
+		return 0;
+	/* beginoffset is ignored */
+	if (xdr_stream_decode_u32(xdr, &beginoffset) < 0)
+		return 0;
+	if (xdr_stream_decode_u32(xdr, &args->offset) < 0)
+		return 0;
+	/* totalcount is ignored */
+	if (xdr_stream_decode_u32(xdr, &totalcount) < 0)
 		return 0;
 
-	p++;				/* beginoffset */
-	args->offset = ntohl(*p++);	/* offset */
-	p++;				/* totalcount */
-	len = args->len = ntohl(*p++);
-	/*
-	 * The protocol specifies a maximum of 8192 bytes.
-	 */
-	if (len > NFSSVC_MAXBLKSIZE_V2)
+	/* opaque data */
+	if (xdr_stream_decode_u32(xdr, &args->len) < 0)
 		return 0;
-
-	/*
-	 * Check to make sure that we got the right number of
-	 * bytes.
-	 */
-	hdr = (void*)p - head->iov_base;
-	if (hdr > head->iov_len)
+	if (args->len > NFSSVC_MAXBLKSIZE_V2)
 		return 0;
-	dlen = head->iov_len + rqstp->rq_arg.page_len - hdr;
-
-	/*
-	 * Round the length of the data which was specified up to
-	 * the next multiple of XDR units and then compare that
-	 * against the length which was actually received.
-	 * Note that when RPCSEC/GSS (for example) is used, the
-	 * data buffer can be padded so dlen might be larger
-	 * than required.  It must never be smaller.
-	 */
-	if (dlen < XDR_QUADLEN(len)*4)
+	remaining = head->iov_len + rqstp->rq_arg.page_len + tail->iov_len;
+	remaining -= xdr_stream_pos(xdr);
+	if (remaining < xdr_align_size(args->len))
 		return 0;
+	args->first.iov_base = xdr->p;
+	args->first.iov_len = head->iov_len - xdr_stream_pos(xdr);
 
-	args->first.iov_base = (void *)p;
-	args->first.iov_len = head->iov_len - hdr;
 	return 1;
 }
 
