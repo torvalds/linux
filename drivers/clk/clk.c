@@ -4395,6 +4395,42 @@ int clk_notifier_unregister(struct clk *clk, struct notifier_block *nb)
 }
 EXPORT_SYMBOL_GPL(clk_notifier_unregister);
 
+struct clk_notifier_devres {
+	struct clk *clk;
+	struct notifier_block *nb;
+};
+
+static void devm_clk_notifier_release(struct device *dev, void *res)
+{
+	struct clk_notifier_devres *devres = res;
+
+	clk_notifier_unregister(devres->clk, devres->nb);
+}
+
+int devm_clk_notifier_register(struct device *dev, struct clk *clk,
+			       struct notifier_block *nb)
+{
+	struct clk_notifier_devres *devres;
+	int ret;
+
+	devres = devres_alloc(devm_clk_notifier_release,
+			      sizeof(*devres), GFP_KERNEL);
+
+	if (!devres)
+		return -ENOMEM;
+
+	ret = clk_notifier_register(clk, nb);
+	if (!ret) {
+		devres->clk = clk;
+		devres->nb = nb;
+	} else {
+		devres_free(devres);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(devm_clk_notifier_register);
+
 #ifdef CONFIG_OF
 static void clk_core_reparent_orphans(void)
 {
