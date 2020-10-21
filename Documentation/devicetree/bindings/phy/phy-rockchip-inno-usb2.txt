@@ -10,6 +10,7 @@ Required properties (phy (parent) node):
 	* "rockchip,rk3366-usb2phy"
 	* "rockchip,rk3368-usb2phy"
 	* "rockchip,rk3399-usb2phy"
+	* "rockchip,rk3568-usb2phy"
 	* "rockchip,rv1108-usb2phy"
  - reg : the address offset of grf for usb-phy configuration.
  - #clock-cells : should be 0.
@@ -101,6 +102,7 @@ Required properties (usb2phy grf node):
 		"rockchip,rk1808-usb2phy-grf", "syscon", "simple-mfd";
 		"rockchip,rk3308-usb2phy-grf", "syscon", "simple-mfd";
 		"rockchip,rk3328-usb2phy-grf", "syscon", "simple-mfd";
+		"rockchip,rk3568-usb2phy-grf", "syscon";
  - reg : the address offset of grf for usb-phy configuration.
  - #address-cells : should be 1.
  - #size-cells : should be 1.
