@@ -3652,11 +3652,14 @@ static void end_extent_buffer_writeback(struct extent_buffer *eb)
 }
 
 /*
- * Lock eb pages and flush the bio if we can't the locks
+ * Lock extent buffer status and pages for writeback.
  *
- * Return  0 if nothing went wrong
- * Return >0 is same as 0, except bio is not submitted
- * Return <0 if something went wrong, no page is locked
+ * May try to flush write bio if we can't get the lock.
+ *
+ * Return  0 if the extent buffer doesn't need to be submitted.
+ *           (E.g. the extent buffer is not dirty)
+ * Return >0 is the extent buffer is submitted to bio.
+ * Return <0 if something went wrong, no page is locked.
  */
 static noinline_for_stack int lock_extent_buffer_for_io(struct extent_buffer *eb,
 			  struct extent_page_data *epd)
