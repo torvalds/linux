@@ -86,6 +86,13 @@ enum dr_ste_action_modify_type_l4 {
 	DR_STE_ACTION_MDFY_TYPE_L4_UDP	= 0x2,
 };
 
+enum {
+	HDR_MPLS_OFFSET_LABEL	= 12,
+	HDR_MPLS_OFFSET_EXP	= 9,
+	HDR_MPLS_OFFSET_S_BOS	= 8,
+	HDR_MPLS_OFFSET_TTL	= 0,
+};
+
 u16 mlx5dr_ste_conv_bit_to_byte_mask(u8 *bit_mask);
 
 #define DR_STE_CTX_BUILDER(fname) \

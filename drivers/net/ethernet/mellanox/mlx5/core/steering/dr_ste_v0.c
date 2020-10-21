@@ -1248,32 +1248,29 @@ dr_ste_v0_build_tnl_mpls_tag(struct mlx5dr_match_param *value,
 			     u8 *tag)
 {
 	struct mlx5dr_match_misc2 *misc_2 = &value->misc2;
+	u32 mpls_hdr;
 
 	if (DR_STE_IS_OUTER_MPLS_OVER_GRE_SET(misc_2)) {
-		DR_STE_SET_TAG(flex_parser_0, tag, parser_3_label,
-			       misc_2, outer_first_mpls_over_gre_label);
-
-		DR_STE_SET_TAG(flex_parser_0, tag, parser_3_exp,
-			       misc_2, outer_first_mpls_over_gre_exp);
-
-		DR_STE_SET_TAG(flex_parser_0, tag, parser_3_s_bos,
-			       misc_2, outer_first_mpls_over_gre_s_bos);
-
-		DR_STE_SET_TAG(flex_parser_0, tag, parser_3_ttl,
-			       misc_2, outer_first_mpls_over_gre_ttl);
+		mpls_hdr = misc_2->outer_first_mpls_over_gre_label << HDR_MPLS_OFFSET_LABEL;
+		misc_2->outer_first_mpls_over_gre_label = 0;
+		mpls_hdr |= misc_2->outer_first_mpls_over_gre_exp << HDR_MPLS_OFFSET_EXP;
+		misc_2->outer_first_mpls_over_gre_exp = 0;
+		mpls_hdr |= misc_2->outer_first_mpls_over_gre_s_bos << HDR_MPLS_OFFSET_S_BOS;
+		misc_2->outer_first_mpls_over_gre_s_bos = 0;
+		mpls_hdr |= misc_2->outer_first_mpls_over_gre_ttl << HDR_MPLS_OFFSET_TTL;
+		misc_2->outer_first_mpls_over_gre_ttl = 0;
 	} else {
-		DR_STE_SET_TAG(flex_parser_0, tag, parser_3_label,
-			       misc_2, outer_first_mpls_over_udp_label);
-
-		DR_STE_SET_TAG(flex_parser_0, tag, parser_3_exp,
-			       misc_2, outer_first_mpls_over_udp_exp);
-
-		DR_STE_SET_TAG(flex_parser_0, tag, parser_3_s_bos,
-			       misc_2, outer_first_mpls_over_udp_s_bos);
-
-		DR_STE_SET_TAG(flex_parser_0, tag, parser_3_ttl,
-			       misc_2, outer_first_mpls_over_udp_ttl);
+		mpls_hdr = misc_2->outer_first_mpls_over_udp_label << HDR_MPLS_OFFSET_LABEL;
+		misc_2->outer_first_mpls_over_udp_label = 0;
+		mpls_hdr |= misc_2->outer_first_mpls_over_udp_exp << HDR_MPLS_OFFSET_EXP;
+		misc_2->outer_first_mpls_over_udp_exp = 0;
+		mpls_hdr |= misc_2->outer_first_mpls_over_udp_s_bos << HDR_MPLS_OFFSET_S_BOS;
+		misc_2->outer_first_mpls_over_udp_s_bos = 0;
+		mpls_hdr |= misc_2->outer_first_mpls_over_udp_ttl << HDR_MPLS_OFFSET_TTL;
+		misc_2->outer_first_mpls_over_udp_ttl = 0;
 	}
+
+	MLX5_SET(ste_flex_parser_0, tag, flex_parser_3, mpls_hdr);
 	return 0;
 }
 

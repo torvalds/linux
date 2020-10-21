@@ -434,10 +434,7 @@ struct mlx5_ifc_ste_gre_bits {
 };
 
 struct mlx5_ifc_ste_flex_parser_0_bits {
-	u8         parser_3_label[0x14];
-	u8         parser_3_exp[0x3];
-	u8         parser_3_s_bos[0x1];
-	u8         parser_3_ttl[0x8];
+	u8         flex_parser_3[0x20];
 
 	u8         flex_parser_2[0x20];
 
