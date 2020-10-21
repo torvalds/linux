@@ -427,7 +427,7 @@ static int imx6_pcie_enable_ref_clk(struct imx6_pcie *imx6_pcie)
 		regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR12,
 				   IMX6SX_GPR12_PCIE_TEST_POWERDOWN, 0);
 		break;
-	case IMX6QP:		/* FALLTHROUGH */
+	case IMX6QP:
 	case IMX6Q:
 		/* power up core phy and enable ref clock */
 		regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR1,
@@ -630,7 +630,7 @@ static void imx6_pcie_init_phy(struct imx6_pcie *imx6_pcie)
 		regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR12,
 				   IMX6SX_GPR12_PCIE_RX_EQ_MASK,
 				   IMX6SX_GPR12_PCIE_RX_EQ_2);
-		/* FALLTHROUGH */
+		fallthrough;
 	default:
 		regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR12,
 				   IMX6Q_GPR12_PCIE_CTL_2, 0 << 10);
@@ -1060,39 +1060,34 @@ static int imx6_pcie_probe(struct platform_device *pdev)
 
 	/* Fetch clocks */
 	imx6_pcie->pcie_phy = devm_clk_get(dev, "pcie_phy");
-	if (IS_ERR(imx6_pcie->pcie_phy)) {
-		dev_err(dev, "pcie_phy clock source missing or invalid\n");
-		return PTR_ERR(imx6_pcie->pcie_phy);
-	}
+	if (IS_ERR(imx6_pcie->pcie_phy))
+		return dev_err_probe(dev, PTR_ERR(imx6_pcie->pcie_phy),
+				     "pcie_phy clock source missing or invalid\n");
 
 	imx6_pcie->pcie_bus = devm_clk_get(dev, "pcie_bus");
-	if (IS_ERR(imx6_pcie->pcie_bus)) {
-		dev_err(dev, "pcie_bus clock source missing or invalid\n");
-		return PTR_ERR(imx6_pcie->pcie_bus);
-	}
+	if (IS_ERR(imx6_pcie->pcie_bus))
+		return dev_err_probe(dev, PTR_ERR(imx6_pcie->pcie_bus),
+				     "pcie_bus clock source missing or invalid\n");
 
 	imx6_pcie->pcie = devm_clk_get(dev, "pcie");
-	if (IS_ERR(imx6_pcie->pcie)) {
-		dev_err(dev, "pcie clock source missing or invalid\n");
-		return PTR_ERR(imx6_pcie->pcie);
-	}
+	if (IS_ERR(imx6_pcie->pcie))
+		return dev_err_probe(dev, PTR_ERR(imx6_pcie->pcie),
+				     "pcie clock source missing or invalid\n");
 
 	switch (imx6_pcie->drvdata->variant) {
 	case IMX6SX:
 		imx6_pcie->pcie_inbound_axi = devm_clk_get(dev,
 							   "pcie_inbound_axi");
-		if (IS_ERR(imx6_pcie->pcie_inbound_axi)) {
-			dev_err(dev, "pcie_inbound_axi clock missing or invalid\n");
-			return PTR_ERR(imx6_pcie->pcie_inbound_axi);
-		}
+		if (IS_ERR(imx6_pcie->pcie_inbound_axi))
+			return dev_err_probe(dev, PTR_ERR(imx6_pcie->pcie_inbound_axi),
+					     "pcie_inbound_axi clock missing or invalid\n");
 		break;
 	case IMX8MQ:
 		imx6_pcie->pcie_aux = devm_clk_get(dev, "pcie_aux");
-		if (IS_ERR(imx6_pcie->pcie_aux)) {
-			dev_err(dev, "pcie_aux clock source missing or invalid\n");
-			return PTR_ERR(imx6_pcie->pcie_aux);
-		}
-		/* fall through */
+		if (IS_ERR(imx6_pcie->pcie_aux))
+			return dev_err_probe(dev, PTR_ERR(imx6_pcie->pcie_aux),
+					     "pcie_aux clock source missing or invalid\n");
+		fallthrough;
 	case IMX7D:
 		if (dbi_base->start == IMX8MQ_PCIE2_BASE_ADDR)
 			imx6_pcie->controller_id = 1;
