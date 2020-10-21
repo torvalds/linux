@@ -246,10 +246,8 @@ struct gpio_desc *__must_check devm_gpiod_get_index_optional(struct device *dev,
 	struct gpio_desc *desc;
 
 	desc = devm_gpiod_get_index(dev, con_id, index, flags);
-	if (IS_ERR(desc)) {
-		if (PTR_ERR(desc) == -ENOENT)
-			return NULL;
-	}
+	if (gpiod_not_found(desc))
+		return NULL;
 
 	return desc;
 }
@@ -308,7 +306,7 @@ devm_gpiod_get_array_optional(struct device *dev, const char *con_id,
 	struct gpio_descs *descs;
 
 	descs = devm_gpiod_get_array(dev, con_id, flags);
-	if (PTR_ERR(descs) == -ENOENT)
+	if (gpiod_not_found(descs))
 		return NULL;
 
 	return descs;
