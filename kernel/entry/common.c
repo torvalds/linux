@@ -208,7 +208,7 @@ static inline bool report_single_step(unsigned long ti_work)
 /*
  * If TIF_SYSCALL_EMU is set, then the only reason to report is when
  * TIF_SINGLESTEP is set (i.e. PTRACE_SYSEMU_SINGLESTEP).  This syscall
- * instruction has been already reported in syscall_enter_from_usermode().
+ * instruction has been already reported in syscall_enter_from_user_mode().
  */
 #define SYSEMU_STEP	(_TIF_SINGLESTEP | _TIF_SYSCALL_EMU)
 
