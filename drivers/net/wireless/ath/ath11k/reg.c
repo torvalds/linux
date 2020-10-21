@@ -80,6 +80,7 @@ ath11k_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
 	 */
 	init_country_param.flags = ALPHA_IS_SET;
 	memcpy(&init_country_param.cc_info.alpha2, request->alpha2, 2);
+	init_country_param.cc_info.alpha2[2] = 0;
 
 	ret = ath11k_wmi_send_init_country_cmd(ar, init_country_param);
 	if (ret)
