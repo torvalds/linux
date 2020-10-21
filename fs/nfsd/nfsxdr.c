@@ -23,8 +23,9 @@ static u32	nfs_ftypes[] = {
 
 
 /*
- * XDR functions for basic NFS types
+ * Basic NFSv2 data types (RFC 1094 Section 2.3)
  */
+
 static __be32 *
 decode_fh(__be32 *p, struct svc_fh *fhp)
 {
@@ -35,6 +36,21 @@ decode_fh(__be32 *p, struct svc_fh *fhp)
 	/* FIXME: Look up export pointer here and verify
 	 * Sun Secure RPC if requested */
 	return p + (NFS_FHSIZE >> 2);
+}
+
+static bool
+svcxdr_decode_fhandle(struct xdr_stream *xdr, struct svc_fh *fhp)
+{
+	__be32 *p;
+
+	p = xdr_inline_decode(xdr, NFS_FHSIZE);
+	if (!p)
+		return false;
+	fh_init(fhp, NFS_FHSIZE);
+	memcpy(&fhp->fh_handle.fh_base, p, NFS_FHSIZE);
+	fhp->fh_handle.fh_size = NFS_FHSIZE;
+
+	return true;
 }
 
 /* Helper function for NFSv2 ACL code */
@@ -194,14 +210,12 @@ __be32 *nfs2svc_encode_fattr(struct svc_rqst *rqstp, __be32 *p, struct svc_fh *f
  */
 
 int
-nfssvc_decode_fhandle(struct svc_rqst *rqstp, __be32 *p)
+nfssvc_decode_fhandleargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	struct nfsd_fhandle *args = rqstp->rq_argp;
 
-	p = decode_fh(p, &args->fh);
-	if (!p)
-		return 0;
-	return xdr_argsize_check(rqstp, p);
+	return svcxdr_decode_fhandle(xdr, &args->fh);
 }
 
 int
