@@ -819,6 +819,7 @@ void fc_host_post_event(struct Scsi_Host *shost, u32 event_number,
 		enum fc_host_event_code event_code, u32 event_data);
 void fc_host_post_vendor_event(struct Scsi_Host *shost, u32 event_number,
 		u32 data_len, char *data_buf, u64 vendor_id);
+struct fc_rport *fc_find_rport_by_wwpn(struct Scsi_Host *shost, u64 wwpn);
 void fc_host_post_fc_event(struct Scsi_Host *shost, u32 event_number,
 		enum fc_host_event_code event_code,
 		u32 data_len, char *data_buf, u64 vendor_id);
