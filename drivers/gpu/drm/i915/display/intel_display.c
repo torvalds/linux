@@ -6299,7 +6299,7 @@ static u16 cnl_nearest_filter_coef(int t)
 	return t == 3 ? 0x0800 : 0x3000;
 }
 
-/**
+/*
  *  Theory behind setting nearest-neighbor integer scaling:
  *
  *  17 phase of 7 taps requires 119 coefficients in 60 dwords per set.
