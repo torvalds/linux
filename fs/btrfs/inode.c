@@ -4717,8 +4717,7 @@ again:
 
 	if (only_release_metadata)
 		set_extent_bit(&BTRFS_I(inode)->io_tree, block_start,
-				block_end, EXTENT_NORESERVE, NULL, NULL,
-				GFP_NOFS);
+			       block_end, EXTENT_NORESERVE, NULL, GFP_NOFS);
 
 out_unlock:
 	if (ret) {

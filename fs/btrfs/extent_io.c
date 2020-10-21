@@ -980,6 +980,10 @@ __set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	btrfs_debug_check_extent_io_range(tree, start, end);
 	trace_btrfs_set_extent_bit(tree, start, end - start + 1, bits);
 
+	if (exclusive_bits)
+		ASSERT(failed_start);
+	else
+		ASSERT(failed_start == NULL);
 again:
 	if (!prealloc && gfpflags_allow_blocking(mask)) {
 		/*
@@ -1180,11 +1184,10 @@ out:
 }
 
 int set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
-		   unsigned bits, u64 * failed_start,
-		   struct extent_state **cached_state, gfp_t mask)
+		   unsigned bits, struct extent_state **cached_state, gfp_t mask)
 {
-	return __set_extent_bit(tree, start, end, bits, 0, failed_start,
-				cached_state, mask, NULL);
+	return __set_extent_bit(tree, start, end, bits, 0, NULL, cached_state,
+			        mask, NULL);
 }
 
 
