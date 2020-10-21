@@ -183,6 +183,16 @@ static void dpcd_set_link_settings(
 	if (link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_14 &&
 			lt_settings->link_settings.use_link_rate_set == true) {
 		rate = 0;
+		/* WA for some MUX chips that will power down with eDP and lose supported
+		 * link rate set for eDP 1.4. Source reads DPCD 0x010 again to ensure
+		 * MUX chip gets link rate set back before link training.
+		 */
+		if (link->connector_signal == SIGNAL_TYPE_EDP) {
+			uint8_t supported_link_rates[16];
+
+			core_link_read_dpcd(link, DP_SUPPORTED_LINK_RATES,
+					supported_link_rates, sizeof(supported_link_rates));
+		}
 		core_link_write_dpcd(link, DP_LINK_BW_SET, &rate, 1);
 		core_link_write_dpcd(link, DP_LINK_RATE_SET,
 				&lt_settings->link_settings.link_rate_set, 1);
