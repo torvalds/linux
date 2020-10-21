@@ -67,10 +67,6 @@
 #define PCIE20_AXI_MSTR_RESP_COMP_CTRL1		0x81c
 #define CFG_BRIDGE_SB_INIT			BIT(0)
 
-#define PCIE20_CAP				0x70
-#define PCIE20_DEVICE_CONTROL2_STATUS2		(PCIE20_CAP + PCI_EXP_DEVCTL2)
-#define PCIE20_CAP_LINK_CAPABILITIES		(PCIE20_CAP + PCI_EXP_LNKCAP)
-#define PCIE20_CAP_LINK_1			(PCIE20_CAP + 0x14)
 #define PCIE_CAP_LINK1_VAL			0x2FD7F
 
 #define PCIE20_PARF_Q2A_FLUSH			0x1AC
@@ -193,7 +189,6 @@ struct qcom_pcie {
 	struct phy *phy;
 	struct gpio_desc *reset;
 	const struct qcom_pcie_ops *ops;
-	int gen;
 };
 
 #define to_qcom_pcie(x)		dev_get_drvdata((x)->dev)
@@ -393,12 +388,6 @@ static int qcom_pcie_init_2_1_0(struct qcom_pcie *pcie)
 
 	/* wait for clock acquisition */
 	usleep_range(1000, 1500);
-
-	if (pcie->gen == 1) {
-		val = readl(pci->dbi_base + PCIE20_LNK_CONTROL2_LINK_STATUS2);
-		val |= PCI_EXP_LNKSTA_CLS_2_5GB;
-		writel(val, pci->dbi_base + PCIE20_LNK_CONTROL2_LINK_STATUS2);
-	}
 
 	/* Set the Max TLP size to 2K, instead of using default of 4K */
 	writel(CFG_REMOTE_RD_REQ_BRIDGE_SIZE_2K,
@@ -1017,6 +1006,7 @@ static int qcom_pcie_init_2_3_3(struct qcom_pcie *pcie)
 	struct qcom_pcie_resources_2_3_3 *res = &pcie->res.v2_3_3;
 	struct dw_pcie *pci = pcie->pci;
 	struct device *dev = pci->dev;
+	u16 offset = dw_pcie_find_capability(pci, PCI_CAP_ID_EXP);
 	int i, ret;
 	u32 val;
 
@@ -1092,14 +1082,14 @@ static int qcom_pcie_init_2_3_3(struct qcom_pcie *pcie)
 
 	writel(PCI_COMMAND_MASTER, pci->dbi_base + PCI_COMMAND);
 	writel(DBI_RO_WR_EN, pci->dbi_base + PCIE20_MISC_CONTROL_1_REG);
-	writel(PCIE_CAP_LINK1_VAL, pci->dbi_base + PCIE20_CAP_LINK_1);
+	writel(PCIE_CAP_LINK1_VAL, pci->dbi_base + offset + PCI_EXP_SLTCAP);
 
-	val = readl(pci->dbi_base + PCIE20_CAP_LINK_CAPABILITIES);
+	val = readl(pci->dbi_base + offset + PCI_EXP_LNKCAP);
 	val &= ~PCI_EXP_LNKCAP_ASPMS;
-	writel(val, pci->dbi_base + PCIE20_CAP_LINK_CAPABILITIES);
+	writel(val, pci->dbi_base + offset + PCI_EXP_LNKCAP);
 
-	writel(PCI_EXP_DEVCTL2_COMP_TMOUT_DIS, pci->dbi_base +
-		PCIE20_DEVICE_CONTROL2_STATUS2);
+	writel(PCI_EXP_DEVCTL2_COMP_TMOUT_DIS, pci->dbi_base + offset +
+		PCI_EXP_DEVCTL2);
 
 	return 0;
 
@@ -1252,7 +1242,8 @@ static void qcom_pcie_post_deinit_2_7_0(struct qcom_pcie *pcie)
 
 static int qcom_pcie_link_up(struct dw_pcie *pci)
 {
-	u16 val = readw(pci->dbi_base + PCIE20_CAP + PCI_EXP_LNKSTA);
+	u16 offset = dw_pcie_find_capability(pci, PCI_CAP_ID_EXP);
+	u16 val = readw(pci->dbi_base + offset + PCI_EXP_LNKSTA);
 
 	return !!(val & PCI_EXP_LNKSTA_DLLLA);
 }
@@ -1280,9 +1271,7 @@ static int qcom_pcie_host_init(struct pcie_port *pp)
 	}
 
 	dw_pcie_setup_rc(pp);
-
-	if (IS_ENABLED(CONFIG_PCI_MSI))
-		dw_pcie_msi_init(pp);
+	dw_pcie_msi_init(pp);
 
 	qcom_ep_reset_deassert(pcie);
 
@@ -1398,10 +1387,6 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 		ret = PTR_ERR(pcie->reset);
 		goto err_pm_runtime_put;
 	}
-
-	pcie->gen = of_pci_get_max_link_speed(pdev->dev.of_node);
-	if (pcie->gen < 0)
-		pcie->gen = 2;
 
 	pcie->parf = devm_platform_ioremap_resource_byname(pdev, "parf");
 	if (IS_ERR(pcie->parf)) {
