@@ -258,7 +258,7 @@ and finally for :c:func:`alloc_pages`:
    unsigned long pfn = page_to_pfn(page);
 
 .. attention:: Note that memory allocated with :c:func:`vmalloc` is not
-               physically contiguous so if we want to map a range alocated
+               physically contiguous so if we want to map a range allocated
                with :c:func:`vmalloc`, we have to map each page individually
                and compute the physical address for each page.
 
