@@ -301,9 +301,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn2_1_soc = {
 	.xfc_bus_transport_time_us = 4,
 	.xfc_xbuf_latency_tolerance_us = 4,
 	.use_urgent_burst_bw = 1,
-	.num_states = 8,
-	.allow_dram_self_refresh_or_dram_clock_change_in_vblank
-			= dm_allow_self_refresh_and_mclk_switch
+	.num_states = 8
 };
 
 #ifndef MAX
@@ -1199,11 +1197,29 @@ static bool dcn21_fast_validate_bw(
 		out = true;
 		goto validate_out;
 	}
-
+	/*
+	 * DML favors voltage over p-state, but we're more interested in
+	 * supporting p-state over voltage. We can't support p-state in
+	 * prefetch mode > 0 so try capping the prefetch mode to start.
+	 */
+	context->bw_ctx.dml.soc.allow_dram_self_refresh_or_dram_clock_change_in_vblank =
+				dm_allow_self_refresh_and_mclk_switch;
 	vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, pipe_cnt);
 
-	if (vlevel > context->bw_ctx.dml.soc.num_states)
-		goto validate_fail;
+	if (vlevel > context->bw_ctx.dml.soc.num_states) {
+		/*
+		 * If mode is unsupported or there's still no p-state support then
+		 * fall back to favoring voltage.
+		 *
+		 * We don't actually support prefetch mode 2, so require that we
+		 * at least support prefetch mode 1.
+		 */
+		context->bw_ctx.dml.soc.allow_dram_self_refresh_or_dram_clock_change_in_vblank =
+					dm_allow_self_refresh;
+		vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, pipe_cnt);
+		if (vlevel > context->bw_ctx.dml.soc.num_states)
+			goto validate_fail;
+	}
 
 	vlevel = dcn20_validate_apply_pipe_split_flags(dc, context, vlevel, split, NULL);
 
