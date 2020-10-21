@@ -82,3 +82,55 @@ int cifs_parse_security_flavors(char *value, struct smb_vol *vol)
 
 	return 0;
 }
+
+static const match_table_t cifs_cacheflavor_tokens = {
+	{ Opt_cache_loose, "loose" },
+	{ Opt_cache_strict, "strict" },
+	{ Opt_cache_none, "none" },
+	{ Opt_cache_ro, "ro" },
+	{ Opt_cache_rw, "singleclient" },
+	{ Opt_cache_err, NULL }
+};
+
+int
+cifs_parse_cache_flavor(char *value, struct smb_vol *vol)
+{
+	substring_t args[MAX_OPT_ARGS];
+
+	switch (match_token(value, cifs_cacheflavor_tokens, args)) {
+	case Opt_cache_loose:
+		vol->direct_io = false;
+		vol->strict_io = false;
+		vol->cache_ro = false;
+		vol->cache_rw = false;
+		break;
+	case Opt_cache_strict:
+		vol->direct_io = false;
+		vol->strict_io = true;
+		vol->cache_ro = false;
+		vol->cache_rw = false;
+		break;
+	case Opt_cache_none:
+		vol->direct_io = true;
+		vol->strict_io = false;
+		vol->cache_ro = false;
+		vol->cache_rw = false;
+		break;
+	case Opt_cache_ro:
+		vol->direct_io = false;
+		vol->strict_io = false;
+		vol->cache_ro = true;
+		vol->cache_rw = false;
+		break;
+	case Opt_cache_rw:
+		vol->direct_io = false;
+		vol->strict_io = false;
+		vol->cache_ro = false;
+		vol->cache_rw = true;
+		break;
+	default:
+		cifs_dbg(VFS, "bad cache= option: %s\n", value);
+		return 1;
+	}
+	return 0;
+}

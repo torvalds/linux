@@ -280,25 +280,6 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_err, NULL }
 };
 
-/* cache flavors */
-enum {
-	Opt_cache_loose,
-	Opt_cache_strict,
-	Opt_cache_none,
-	Opt_cache_ro,
-	Opt_cache_rw,
-	Opt_cache_err
-};
-
-static const match_table_t cifs_cacheflavor_tokens = {
-	{ Opt_cache_loose, "loose" },
-	{ Opt_cache_strict, "strict" },
-	{ Opt_cache_none, "none" },
-	{ Opt_cache_ro, "ro" },
-	{ Opt_cache_rw, "singleclient" },
-	{ Opt_cache_err, NULL }
-};
-
 static const match_table_t cifs_smb_version_tokens = {
 	{ Smb_1, SMB1_VERSION_STRING },
 	{ Smb_20, SMB20_VERSION_STRING},
@@ -1343,49 +1324,6 @@ static int get_option_gid(substring_t args[], kgid_t *result)
 		return -EINVAL;
 
 	*result = gid;
-	return 0;
-}
-
-static int
-cifs_parse_cache_flavor(char *value, struct smb_vol *vol)
-{
-	substring_t args[MAX_OPT_ARGS];
-
-	switch (match_token(value, cifs_cacheflavor_tokens, args)) {
-	case Opt_cache_loose:
-		vol->direct_io = false;
-		vol->strict_io = false;
-		vol->cache_ro = false;
-		vol->cache_rw = false;
-		break;
-	case Opt_cache_strict:
-		vol->direct_io = false;
-		vol->strict_io = true;
-		vol->cache_ro = false;
-		vol->cache_rw = false;
-		break;
-	case Opt_cache_none:
-		vol->direct_io = true;
-		vol->strict_io = false;
-		vol->cache_ro = false;
-		vol->cache_rw = false;
-		break;
-	case Opt_cache_ro:
-		vol->direct_io = false;
-		vol->strict_io = false;
-		vol->cache_ro = true;
-		vol->cache_rw = false;
-		break;
-	case Opt_cache_rw:
-		vol->direct_io = false;
-		vol->strict_io = false;
-		vol->cache_ro = false;
-		vol->cache_rw = true;
-		break;
-	default:
-		cifs_dbg(VFS, "bad cache= option: %s\n", value);
-		return 1;
-	}
 	return 0;
 }
 

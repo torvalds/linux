@@ -12,6 +12,17 @@
 #include <linux/parser.h>
 #include "cifsglob.h"
 
+enum {
+	Opt_cache_loose,
+	Opt_cache_strict,
+	Opt_cache_none,
+	Opt_cache_ro,
+	Opt_cache_rw,
+	Opt_cache_err
+};
+
+int cifs_parse_cache_flavor(char *value, struct smb_vol *vol);
+
 enum cifs_sec_param {
 	Opt_sec_krb5,
 	Opt_sec_krb5i,
