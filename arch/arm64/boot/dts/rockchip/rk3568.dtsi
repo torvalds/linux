@@ -7,6 +7,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/phy/phy.h>
 #include <dt-bindings/power/rk3568-power.h>
 
 / {
@@ -266,6 +267,11 @@
 	usb2phy1_grf: syscon@fdca8000 {
 		compatible = "rockchip,rk3568-usb2phy-grf", "syscon";
 		reg = <0x0 0xfdca8000 0x0 0x8000>;
+	};
+
+	pcie30_phy_grf: syscon@fdcb8000 {
+		compatible = "rockchip,pcie30-phy-grf", "syscon";
+		reg = <0x0 0xfdcb8000 0x0 0x10000>;
 	};
 
 	pmucru: clock-controller@fdd00000 {
@@ -641,6 +647,125 @@
 		fifo-depth = <0x100>;
 		resets = <&cru SRST_SDMMC2>;
 		reset-names = "reset";
+		status = "disabled";
+	};
+
+	pcie2x1: pcie@fe260000 {
+		compatible = "rockchip,rk3568-pcie", "snps,dw-pcie";
+		#address-cells = <3>;
+		#size-cells = <2>;
+		bus-range = <0x0 0x1f>;
+		clocks = <&cru ACLK_PCIE20_MST>, <&cru ACLK_PCIE20_SLV>,
+			 <&cru ACLK_PCIE20_DBI>, <&cru PCLK_PCIE20>,
+			 <&cru CLK_PCIE20_AUX_NDFT>, <&cru CLK_PCIE20_AUX_DFT>,
+			 <&cru CLK_PCIE20_PIPE_DFT>;
+		clock-names = "aclk_mst", "aclk_slv",
+			      "aclk_dbi", "pclk",
+			      "aux_ndft", "aux_dft",
+			      "pipe_dft";
+		interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "sys", "pmc", "msg", "legacy", "err";
+		linux,pci-domain = <0>;
+		num-ib-windows = <6>;
+		num-ob-windows = <2>;
+		max-link-speed = <2>;
+		msi-map = <0x0 &its 0x0 0x1000>;
+		num-lanes = <1>;
+		phys = <&combphy2_psq PHY_TYPE_PCIE>;
+		phy-names = "pcie-phy";
+		power-domains = <&power RK3568_PD_PIPE>;
+		ranges = <0x00000800 0x3 0x00000000 0x3 0x00000000 0x0 0x800000
+			  0x81000000 0x3 0x00800000 0x3 0x00800000 0x0 0x100000
+			  0x83000000 0x3 0x00900000 0x3 0x00900000 0x3 0x3f700000>;
+		reg = <0x3 0xc0000000 0x0 0x400000>,
+		      <0x0 0xfe260000 0x0 0x10000>;
+		reg-names = "pcie-dbi", "pcie-apb";
+		resets = <&cru SRST_P_PCIE20>;
+		reset-names = "pipe";
+		status = "disabled";
+	};
+
+	pcie3x1: pcie@fe270000 {
+		compatible = "rockchip,rk3568-pcie", "snps,dw-pcie";
+		#address-cells = <3>;
+		#size-cells = <2>;
+		bus-range = <0x0 0x1f>;
+		clocks = <&cru ACLK_PCIE30X1_MST>, <&cru ACLK_PCIE30X1_SLV>,
+			 <&cru ACLK_PCIE30X1_DBI>, <&cru PCLK_PCIE30X1>,
+			 <&cru CLK_PCIE30X1_AUX_NDFT>, <&cru CLK_PCIE30X1_AUX_DFT>,
+			 <&cru CLK_PCIE30X1_PIPE_DFT>;
+		clock-names = "aclk_mst", "aclk_slv",
+			      "aclk_dbi", "pclk",
+			      "aux_ndft", "aux_dft",
+			      "pipe_dft";
+		interrupts = <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 156 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "sys", "pmc", "msg", "legacy", "err";
+		linux,pci-domain = <0>;
+		num-ib-windows = <6>;
+		num-ob-windows = <2>;
+		max-link-speed = <3>;
+		msi-map = <0x0 &its 0x3000 0x1000>;
+		num-lanes = <1>;
+		phys = <&pcie30phy>;
+		phy-names = "pcie-phy";
+		power-domains = <&power RK3568_PD_PIPE>;
+		ranges = <0x00000800 0x3 0x40000000 0x3 0x40000000 0x0 0x800000
+			  0x81000000 0x3 0x40800000 0x3 0x40800000 0x0 0x100000
+			  0x83000000 0x3 0x40900000 0x3 0x40900000 0x0 0x3f700000>;
+		reg = <0x3 0xc0400000 0x0 0x400000>,
+		      <0x0 0xfe270000 0x0 0x10000>;
+		reg-names = "pcie-dbi", "pcie-apb";
+		resets = <&cru SRST_P_PCIE30X1>;
+		reset-names = "pipe";
+		rockchip,bifurcation; /* lane1 when using 1+1 */
+		status = "disabled";
+	};
+
+	pcie3x2: pcie@fe280000 {
+		compatible = "rockchip,rk3568-pcie", "snps,dw-pcie";
+		#address-cells = <3>;
+		#size-cells = <2>;
+		bus-range = <0x0 0x1f>;
+		clocks = <&cru ACLK_PCIE30X2_MST>, <&cru ACLK_PCIE30X2_SLV>,
+			 <&cru ACLK_PCIE30X2_DBI>, <&cru PCLK_PCIE30X2>,
+			 <&cru CLK_PCIE30X2_AUX_NDFT>, <&cru CLK_PCIE30X2_AUX_DFT>,
+			 <&cru CLK_PCIE30X2_PIPE_DFT>;
+		clock-names = "aclk_mst", "aclk_slv",
+			      "aclk_dbi", "pclk",
+			      "aux_ndft", "aux_dft",
+			      "pipe_dft";
+		interrupts = <GIC_SPI 165 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 164 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "sys", "pmc", "msg", "legacy", "err";
+		linux,pci-domain = <0>;
+		num-ib-windows = <6>;
+		num-ob-windows = <2>;
+		max-link-speed = <3>;
+		msi-map = <0x0 &its 0x2000 0x1000>;
+		num-lanes = <2>;
+		phys = <&pcie30phy>;
+		phy-names = "pcie-phy";
+		power-domains = <&power RK3568_PD_PIPE>;
+		ranges = <0x00000800 0x3 0x80000000 0x3 0x80000000 0x0 0x800000
+			  0x81000000 0x3 0x80800000 0x3 0x80800000 0x0 0x100000
+			  0x83000000 0x3 0x80900000 0x3 0x80900000 0x0 0x3f700000>;
+		reg = <0x3 0xc0400000 0x0 0x400000>,
+		      <0x0 0xfe280000 0x0 0x10000>;
+		reg-names = "pcie-dbi", "pcie-apb";
+		resets = <&cru SRST_P_PCIE30X1>;
+		reset-names = "pipe";
+		rockchip,bifurcation; /* lane0 when using 1+1 */
 		status = "disabled";
 	};
 
@@ -1367,6 +1492,20 @@
 			#phy-cells = <0>;
 			status = "disabled";
 		};
+	};
+
+	pcie30phy: phy@fe8c0000 {
+		compatible = "rockchip,rk3568-pcie3-phy";
+		reg = <0x0 0xfe8c0000 0x0 0x20000>;
+		#phy-cells = <0>;
+		clocks = <&pmucru CLK_PCIE30PHY_REF_M>, <&pmucru CLK_PCIE30PHY_REF_N>,
+			 <&cru PCLK_PCIE30PHY>;
+		clock-names = "refclk_m", "refclk_n", "pclk";
+		resets = <&cru SRST_PCIE30PHY>, <&cru SRST_P_PCIE30X1>,
+			 <&cru SRST_P_PCIE30X2>;
+		reset-names = "phy", "p30x1", "p30x2";
+		rockchip,phy-grf = <&pcie30_phy_grf>;
+		status = "disabled";
 	};
 
 	pinctrl: pinctrl {
