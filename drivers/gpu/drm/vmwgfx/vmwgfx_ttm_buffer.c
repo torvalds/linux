@@ -771,6 +771,12 @@ fail:
 	return ret;
 }
 
+static void
+vmw_delete_mem_notify(struct ttm_buffer_object *bo)
+{
+	vmw_move_notify(bo, false, NULL);
+}
+
 struct ttm_bo_driver vmw_bo_driver = {
 	.ttm_tt_create = &vmw_ttm_tt_create,
 	.ttm_tt_populate = &vmw_ttm_populate,
@@ -780,7 +786,7 @@ struct ttm_bo_driver vmw_bo_driver = {
 	.evict_flags = vmw_evict_flags,
 	.move = vmw_move,
 	.verify_access = vmw_verify_access,
-	.move_notify = vmw_move_notify,
+	.delete_mem_notify = vmw_delete_mem_notify,
 	.swap_notify = vmw_swap_notify,
 	.io_mem_reserve = &vmw_ttm_io_mem_reserve,
 };

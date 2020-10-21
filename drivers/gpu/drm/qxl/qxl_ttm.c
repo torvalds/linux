@@ -166,6 +166,11 @@ out:
 	return ret;
 }
 
+static void qxl_bo_delete_mem_notify(struct ttm_buffer_object *bo)
+{
+	qxl_bo_move_notify(bo, false, NULL);
+}
+
 static struct ttm_bo_driver qxl_bo_driver = {
 	.ttm_tt_create = &qxl_ttm_tt_create,
 	.ttm_tt_destroy = &qxl_ttm_backend_destroy,
@@ -173,7 +178,7 @@ static struct ttm_bo_driver qxl_bo_driver = {
 	.evict_flags = &qxl_evict_flags,
 	.move = &qxl_bo_move,
 	.io_mem_reserve = &qxl_ttm_io_mem_reserve,
-	.move_notify = &qxl_bo_move_notify,
+	.delete_mem_notify = &qxl_bo_delete_mem_notify,
 };
 
 static int qxl_ttm_init_mem_type(struct qxl_device *qdev,

@@ -156,15 +156,9 @@ struct ttm_bo_driver {
 			     struct file *filp);
 
 	/**
-	 * Hook to notify driver about a driver move so it
-	 * can do tiling things and book-keeping.
-	 *
-	 * @evict: whether this move is evicting the buffer from the graphics
-	 * address space
+	 * Hook to notify driver about a resource delete.
 	 */
-	void (*move_notify)(struct ttm_buffer_object *bo,
-			    bool evict,
-			    struct ttm_resource *new_mem);
+	void (*delete_mem_notify)(struct ttm_buffer_object *bo);
 
 	/**
 	 * notify the driver that we're about to swap out this bo

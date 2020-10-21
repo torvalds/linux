@@ -1401,6 +1401,12 @@ nouveau_bo_fence(struct nouveau_bo *nvbo, struct nouveau_fence *fence, bool excl
 		dma_resv_add_shared_fence(resv, &fence->base);
 }
 
+static void
+nouveau_bo_delete_mem_notify(struct ttm_buffer_object *bo)
+{
+	nouveau_bo_move_ntfy(bo, false, NULL);
+}
+
 struct ttm_bo_driver nouveau_bo_driver = {
 	.ttm_tt_create = &nouveau_ttm_tt_create,
 	.ttm_tt_populate = &nouveau_ttm_tt_populate,
@@ -1408,7 +1414,7 @@ struct ttm_bo_driver nouveau_bo_driver = {
 	.ttm_tt_destroy = &nouveau_ttm_tt_destroy,
 	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = nouveau_bo_evict_flags,
-	.move_notify = nouveau_bo_move_ntfy,
+	.delete_mem_notify = nouveau_bo_delete_mem_notify,
 	.move = nouveau_bo_move,
 	.verify_access = nouveau_bo_verify_access,
 	.io_mem_reserve = &nouveau_ttm_io_mem_reserve,

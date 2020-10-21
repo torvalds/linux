@@ -1730,6 +1730,12 @@ static int amdgpu_ttm_access_memory(struct ttm_buffer_object *bo,
 	return ret;
 }
 
+static void
+amdgpu_bo_delete_mem_notify(struct ttm_buffer_object *bo)
+{
+	amdgpu_bo_move_notify(bo, false, NULL);
+}
+
 static struct ttm_bo_driver amdgpu_bo_driver = {
 	.ttm_tt_create = &amdgpu_ttm_tt_create,
 	.ttm_tt_populate = &amdgpu_ttm_tt_populate,
@@ -1739,7 +1745,7 @@ static struct ttm_bo_driver amdgpu_bo_driver = {
 	.evict_flags = &amdgpu_evict_flags,
 	.move = &amdgpu_bo_move,
 	.verify_access = &amdgpu_verify_access,
-	.move_notify = &amdgpu_bo_move_notify,
+	.delete_mem_notify = &amdgpu_bo_delete_mem_notify,
 	.release_notify = &amdgpu_bo_release_notify,
 	.io_mem_reserve = &amdgpu_ttm_io_mem_reserve,
 	.io_mem_pfn = amdgpu_ttm_io_mem_pfn,
