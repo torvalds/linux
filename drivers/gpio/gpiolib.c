@@ -1985,7 +1985,7 @@ static int gpiod_request_commit(struct gpio_desc *desc, const char *label)
 			ret = -EINVAL;
 		spin_lock_irqsave(&gpio_lock, flags);
 
-		if (ret < 0) {
+		if (ret) {
 			desc_set_label(desc, NULL);
 			kfree_const(label);
 			clear_bit(FLAG_REQUESTED, &desc->flags);
@@ -2051,7 +2051,7 @@ int gpiod_request(struct gpio_desc *desc, const char *label)
 
 	if (try_module_get(gdev->owner)) {
 		ret = gpiod_request_commit(desc, label);
-		if (ret < 0)
+		if (ret)
 			module_put(gdev->owner);
 		else
 			get_device(&gdev->dev);
@@ -3958,7 +3958,7 @@ struct gpio_desc *__must_check gpiod_get_index(struct device *dev,
 	 * the device name as label
 	 */
 	ret = gpiod_request(desc, con_id ? con_id : devname);
-	if (ret < 0) {
+	if (ret) {
 		if (ret == -EBUSY && flags & GPIOD_FLAGS_BIT_NONEXCLUSIVE) {
 			/*
 			 * This happens when there are several consumers for
