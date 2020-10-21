@@ -187,6 +187,68 @@ config PCI_HYPERV
 	  The PCI device frontend driver allows the kernel to import arbitrary
 	  PCI devices from a PCI backend to support PCI driver domains.
 
+choice
+	prompt "PCI Express hierarchy optimization setting"
+	default PCIE_BUS_DEFAULT
+	depends on PCI && EXPERT
+	help
+	  MPS (Max Payload Size) and MRRS (Max Read Request Size) are PCIe
+	  device parameters that affect performance and the ability to
+	  support hotplug and peer-to-peer DMA.
+
+	  The following choices set the MPS and MRRS optimization strategy
+	  at compile-time.  The choices are the same as those offered for
+	  the kernel command-line parameter 'pci', i.e.,
+	  'pci=pcie_bus_tune_off', 'pci=pcie_bus_safe',
+	  'pci=pcie_bus_perf', and 'pci=pcie_bus_peer2peer'.
+
+	  This is a compile-time setting and can be overridden by the above
+	  command-line parameters.  If unsure, choose PCIE_BUS_DEFAULT.
+
+config PCIE_BUS_TUNE_OFF
+	bool "Tune Off"
+	depends on PCI
+	help
+	  Use the BIOS defaults; don't touch MPS at all.  This is the same
+	  as booting with 'pci=pcie_bus_tune_off'.
+
+config PCIE_BUS_DEFAULT
+	bool "Default"
+	depends on PCI
+	help
+	  Default choice; ensure that the MPS matches upstream bridge.
+
+config PCIE_BUS_SAFE
+	bool "Safe"
+	depends on PCI
+	help
+	  Use largest MPS that boot-time devices support.  If you have a
+	  closed system with no possibility of adding new devices, this
+	  will use the largest MPS that's supported by all devices.  This
+	  is the same as booting with 'pci=pcie_bus_safe'.
+
+config PCIE_BUS_PERFORMANCE
+	bool "Performance"
+	depends on PCI
+	help
+	  Use MPS and MRRS for best performance.  Ensure that a given
+	  device's MPS is no larger than its parent MPS, which allows us to
+	  keep all switches/bridges to the max MPS supported by their
+	  parent.  This is the same as booting with 'pci=pcie_bus_perf'.
+
+config PCIE_BUS_PEER2PEER
+	bool "Peer2peer"
+	depends on PCI
+	help
+	  Set MPS = 128 for all devices.  MPS configuration effected by the
+	  other options could cause the MPS on one root port to be
+	  different than that of the MPS on another, which may cause
+	  hot-added devices or peer-to-peer DMA to fail.  Set MPS to the
+	  smallest possible value (128B) system-wide to avoid these issues.
+	  This is the same as booting with 'pci=pcie_bus_peer2peer'.
+
+endchoice
+
 source "drivers/pci/hotplug/Kconfig"
 source "drivers/pci/controller/Kconfig"
 source "drivers/pci/endpoint/Kconfig"
