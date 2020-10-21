@@ -3474,10 +3474,10 @@ static void ilk_irq_postinstall(struct drm_i915_private *dev_priv)
 
 	ibx_irq_pre_postinstall(dev_priv);
 
+	gen5_gt_irq_postinstall(&dev_priv->gt);
+
 	GEN3_IRQ_INIT(uncore, DE, dev_priv->irq_mask,
 		      display_mask | extra_mask);
-
-	gen5_gt_irq_postinstall(&dev_priv->gt);
 
 	ilk_hpd_detection_setup(dev_priv);
 
