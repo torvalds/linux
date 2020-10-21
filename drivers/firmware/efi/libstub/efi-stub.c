@@ -87,40 +87,6 @@ static void install_memreserve_table(void)
 		efi_err("Failed to install memreserve config table!\n");
 }
 
-static unsigned long get_dram_base(void)
-{
-	efi_status_t status;
-	unsigned long map_size, buff_size;
-	unsigned long membase  = EFI_ERROR;
-	struct efi_memory_map map;
-	efi_memory_desc_t *md;
-	struct efi_boot_memmap boot_map;
-
-	boot_map.map		= (efi_memory_desc_t **)&map.map;
-	boot_map.map_size	= &map_size;
-	boot_map.desc_size	= &map.desc_size;
-	boot_map.desc_ver	= NULL;
-	boot_map.key_ptr	= NULL;
-	boot_map.buff_size	= &buff_size;
-
-	status = efi_get_memory_map(&boot_map);
-	if (status != EFI_SUCCESS)
-		return membase;
-
-	map.map_end = map.map + map_size;
-
-	for_each_efi_memory_desc_in_map(&map, md) {
-		if (md->attribute & EFI_MEMORY_WB) {
-			if (membase > md->phys_addr)
-				membase = md->phys_addr;
-		}
-	}
-
-	efi_bs_call(free_pool, map.map);
-
-	return membase;
-}
-
 /*
  * EFI entry point for the arm/arm64 EFI stubs.  This is the entrypoint
  * that is described in the PE/COFF header.  Most of the code is the same
@@ -134,7 +100,6 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	efi_status_t status;
 	unsigned long image_addr;
 	unsigned long image_size = 0;
-	unsigned long dram_base;
 	/* addr/point and size pairs for memory management*/
 	unsigned long initrd_addr = 0;
 	unsigned long initrd_size = 0;
@@ -171,13 +136,6 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 					&loaded_image_proto, (void *)&image);
 	if (status != EFI_SUCCESS) {
 		efi_err("Failed to get loaded image protocol\n");
-		goto fail;
-	}
-
-	dram_base = get_dram_base();
-	if (dram_base == EFI_ERROR) {
-		efi_err("Failed to find DRAM base\n");
-		status = EFI_LOAD_ERROR;
 		goto fail;
 	}
 
@@ -218,7 +176,7 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	status = handle_kernel_image(&image_addr, &image_size,
 				     &reserve_addr,
 				     &reserve_size,
-				     dram_base, image);
+				     image);
 	if (status != EFI_SUCCESS) {
 		efi_err("Failed to relocate kernel\n");
 		goto fail_free_screeninfo;
@@ -262,7 +220,7 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 		efi_info("Generating empty DTB\n");
 
 	if (!efi_noinitrd) {
-		max_addr = efi_get_max_initrd_addr(dram_base, image_addr);
+		max_addr = efi_get_max_initrd_addr(image_addr);
 		status = efi_load_initrd(image, &initrd_addr, &initrd_size,
 					 ULONG_MAX, max_addr);
 		if (status != EFI_SUCCESS)
@@ -306,7 +264,7 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	install_memreserve_table();
 
 	status = allocate_new_fdt_and_exit_boot(handle, &fdt_addr,
-						efi_get_max_fdt_addr(dram_base),
+						efi_get_max_fdt_addr(image_addr),
 						initrd_addr, initrd_size,
 						cmdline_ptr, fdt_addr, fdt_size);
 	if (status != EFI_SUCCESS)

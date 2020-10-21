@@ -136,7 +136,7 @@ efi_status_t handle_cmdline_files(efi_loaded_image_t *image,
 				  unsigned long *load_size)
 {
 	const efi_char16_t *cmdline = image->load_options;
-	int cmdline_len = image->load_options_size / 2;
+	int cmdline_len = image->load_options_size;
 	unsigned long efi_chunk_size = ULONG_MAX;
 	efi_file_protocol_t *volume = NULL;
 	efi_file_protocol_t *file;
@@ -147,6 +147,9 @@ efi_status_t handle_cmdline_files(efi_loaded_image_t *image,
 
 	if (!load_addr || !load_size)
 		return EFI_INVALID_PARAMETER;
+
+	efi_apply_loadoptions_quirk((const void **)&cmdline, &cmdline_len);
+	cmdline_len /= sizeof(*cmdline);
 
 	if (IS_ENABLED(CONFIG_X86) && !efi_nochunk)
 		efi_chunk_size = EFI_READ_CHUNK_SIZE;
