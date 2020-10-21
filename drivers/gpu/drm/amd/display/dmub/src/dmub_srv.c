@@ -648,3 +648,32 @@ enum dmub_status dmub_srv_get_fw_boot_status(struct dmub_srv *dmub,
 
 	return DMUB_STATUS_OK;
 }
+
+enum dmub_status dmub_srv_cmd_with_reply_data(struct dmub_srv *dmub,
+					      union dmub_rb_cmd *cmd)
+{
+	enum dmub_status status = DMUB_STATUS_OK;
+
+	// Queue command
+	status = dmub_srv_cmd_queue(dmub, cmd);
+
+	if (status != DMUB_STATUS_OK)
+		return status;
+
+	// Execute command
+	status = dmub_srv_cmd_execute(dmub);
+
+	if (status != DMUB_STATUS_OK)
+		return status;
+
+	// Wait for DMUB to process command
+	status = dmub_srv_wait_for_idle(dmub, 100000);
+
+	if (status != DMUB_STATUS_OK)
+		return status;
+
+	// Copy data back from ring buffer into command
+	dmub_rb_get_return_data(&dmub->inbox1_rb, cmd);
+
+	return status;
+}
