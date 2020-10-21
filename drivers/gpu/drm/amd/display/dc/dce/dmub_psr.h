@@ -40,6 +40,7 @@ struct dmub_psr_funcs {
 	void (*psr_get_state)(struct dmub_psr *dmub, enum dc_psr_state *dc_psr_state);
 	void (*psr_set_level)(struct dmub_psr *dmub, uint16_t psr_level);
 	void (*psr_force_static)(struct dmub_psr *dmub);
+	void (*psr_get_residency)(struct dmub_psr *dmub, uint32_t *residency);
 };
 
 struct dmub_psr *dmub_psr_create(struct dc_context *ctx);

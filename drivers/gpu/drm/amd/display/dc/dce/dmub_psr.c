@@ -293,12 +293,26 @@ static void dmub_psr_force_static(struct dmub_psr *dmub)
 	dc_dmub_srv_wait_idle(dc->dmub_srv);
 }
 
+/**
+ * Get PSR residency from firmware.
+ */
+static void dmub_psr_get_residency(struct dmub_psr *dmub, uint32_t *residency)
+{
+	struct dmub_srv *srv = dmub->ctx->dmub_srv->dmub;
+
+	// Send gpint command and wait for ack
+	dmub_srv_send_gpint_command(srv, DMUB_GPINT__PSR_RESIDENCY, 0, 30);
+
+	dmub_srv_get_gpint_response(srv, residency);
+}
+
 static const struct dmub_psr_funcs psr_funcs = {
 	.psr_copy_settings		= dmub_psr_copy_settings,
 	.psr_enable			= dmub_psr_enable,
 	.psr_get_state			= dmub_psr_get_state,
 	.psr_set_level			= dmub_psr_set_level,
 	.psr_force_static		= dmub_psr_force_static,
+	.psr_get_residency		= dmub_psr_get_residency,
 };
 
 /**

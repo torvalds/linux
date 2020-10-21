@@ -2783,6 +2783,18 @@ bool dc_link_setup_psr(struct dc_link *link,
 
 }
 
+void dc_link_get_psr_residency(const struct dc_link *link, uint32_t *residency)
+{
+	struct dc  *dc = link->ctx->dc;
+	struct dmub_psr *psr = dc->res_pool->psr;
+
+	// PSR residency measurements only supported on DMCUB
+	if (psr != NULL && link->psr_settings.psr_feature_enabled)
+		psr->funcs->psr_get_residency(psr, residency);
+	else
+		*residency = 0;
+}
+
 const struct dc_link_status *dc_link_get_status(const struct dc_link *link)
 {
 	return &link->link_status;
