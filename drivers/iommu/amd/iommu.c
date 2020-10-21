@@ -513,10 +513,11 @@ static void amd_iommu_report_page_fault(u16 devid, u16 domain_id,
 static void iommu_print_event(struct amd_iommu *iommu, void *__evt)
 {
 	struct device *dev = iommu->iommu.dev;
-	int type, devid, pasid, flags, tag;
+	int type, devid, flags, tag;
 	volatile u32 *event = __evt;
 	int count = 0;
 	u64 address;
+	u32 pasid;
 
 retry:
 	type    = (event[1] >> EVENT_TYPE_SHIFT)  & EVENT_TYPE_MASK;
@@ -909,7 +910,7 @@ static void build_inv_iotlb_pages(struct iommu_cmd *cmd, u16 devid, int qdep,
 		cmd->data[2] |= CMD_INV_IOMMU_PAGES_SIZE_MASK;
 }
 
-static void build_inv_iommu_pasid(struct iommu_cmd *cmd, u16 domid, int pasid,
+static void build_inv_iommu_pasid(struct iommu_cmd *cmd, u16 domid, u32 pasid,
 				  u64 address, bool size)
 {
 	memset(cmd, 0, sizeof(*cmd));
@@ -927,7 +928,7 @@ static void build_inv_iommu_pasid(struct iommu_cmd *cmd, u16 domid, int pasid,
 	CMD_SET_TYPE(cmd, CMD_INV_IOMMU_PAGES);
 }
 
-static void build_inv_iotlb_pasid(struct iommu_cmd *cmd, u16 devid, int pasid,
+static void build_inv_iotlb_pasid(struct iommu_cmd *cmd, u16 devid, u32 pasid,
 				  int qdep, u64 address, bool size)
 {
 	memset(cmd, 0, sizeof(*cmd));
@@ -947,7 +948,7 @@ static void build_inv_iotlb_pasid(struct iommu_cmd *cmd, u16 devid, int pasid,
 	CMD_SET_TYPE(cmd, CMD_INV_IOTLB_PAGES);
 }
 
-static void build_complete_ppr(struct iommu_cmd *cmd, u16 devid, int pasid,
+static void build_complete_ppr(struct iommu_cmd *cmd, u16 devid, u32 pasid,
 			       int status, int tag, bool gn)
 {
 	memset(cmd, 0, sizeof(*cmd));
@@ -2786,7 +2787,7 @@ out:
 }
 EXPORT_SYMBOL(amd_iommu_domain_enable_v2);
 
-static int __flush_pasid(struct protection_domain *domain, int pasid,
+static int __flush_pasid(struct protection_domain *domain, u32 pasid,
 			 u64 address, bool size)
 {
 	struct iommu_dev_data *dev_data;
@@ -2847,13 +2848,13 @@ out:
 	return ret;
 }
 
-static int __amd_iommu_flush_page(struct protection_domain *domain, int pasid,
+static int __amd_iommu_flush_page(struct protection_domain *domain, u32 pasid,
 				  u64 address)
 {
 	return __flush_pasid(domain, pasid, address, false);
 }
 
-int amd_iommu_flush_page(struct iommu_domain *dom, int pasid,
+int amd_iommu_flush_page(struct iommu_domain *dom, u32 pasid,
 			 u64 address)
 {
 	struct protection_domain *domain = to_pdomain(dom);
@@ -2868,13 +2869,13 @@ int amd_iommu_flush_page(struct iommu_domain *dom, int pasid,
 }
 EXPORT_SYMBOL(amd_iommu_flush_page);
 
-static int __amd_iommu_flush_tlb(struct protection_domain *domain, int pasid)
+static int __amd_iommu_flush_tlb(struct protection_domain *domain, u32 pasid)
 {
 	return __flush_pasid(domain, pasid, CMD_INV_IOMMU_ALL_PAGES_ADDRESS,
 			     true);
 }
 
-int amd_iommu_flush_tlb(struct iommu_domain *dom, int pasid)
+int amd_iommu_flush_tlb(struct iommu_domain *dom, u32 pasid)
 {
 	struct protection_domain *domain = to_pdomain(dom);
 	unsigned long flags;
@@ -2888,7 +2889,7 @@ int amd_iommu_flush_tlb(struct iommu_domain *dom, int pasid)
 }
 EXPORT_SYMBOL(amd_iommu_flush_tlb);
 
-static u64 *__get_gcr3_pte(u64 *root, int level, int pasid, bool alloc)
+static u64 *__get_gcr3_pte(u64 *root, int level, u32 pasid, bool alloc)
 {
 	int index;
 	u64 *pte;
@@ -2920,7 +2921,7 @@ static u64 *__get_gcr3_pte(u64 *root, int level, int pasid, bool alloc)
 	return pte;
 }
 
-static int __set_gcr3(struct protection_domain *domain, int pasid,
+static int __set_gcr3(struct protection_domain *domain, u32 pasid,
 		      unsigned long cr3)
 {
 	struct domain_pgtable pgtable;
@@ -2939,7 +2940,7 @@ static int __set_gcr3(struct protection_domain *domain, int pasid,
 	return __amd_iommu_flush_tlb(domain, pasid);
 }
 
-static int __clear_gcr3(struct protection_domain *domain, int pasid)
+static int __clear_gcr3(struct protection_domain *domain, u32 pasid)
 {
 	struct domain_pgtable pgtable;
 	u64 *pte;
@@ -2957,7 +2958,7 @@ static int __clear_gcr3(struct protection_domain *domain, int pasid)
 	return __amd_iommu_flush_tlb(domain, pasid);
 }
 
-int amd_iommu_domain_set_gcr3(struct iommu_domain *dom, int pasid,
+int amd_iommu_domain_set_gcr3(struct iommu_domain *dom, u32 pasid,
 			      unsigned long cr3)
 {
 	struct protection_domain *domain = to_pdomain(dom);
@@ -2972,7 +2973,7 @@ int amd_iommu_domain_set_gcr3(struct iommu_domain *dom, int pasid,
 }
 EXPORT_SYMBOL(amd_iommu_domain_set_gcr3);
 
-int amd_iommu_domain_clear_gcr3(struct iommu_domain *dom, int pasid)
+int amd_iommu_domain_clear_gcr3(struct iommu_domain *dom, u32 pasid)
 {
 	struct protection_domain *domain = to_pdomain(dom);
 	unsigned long flags;
@@ -2986,7 +2987,7 @@ int amd_iommu_domain_clear_gcr3(struct iommu_domain *dom, int pasid)
 }
 EXPORT_SYMBOL(amd_iommu_domain_clear_gcr3);
 
-int amd_iommu_complete_ppr(struct pci_dev *pdev, int pasid,
+int amd_iommu_complete_ppr(struct pci_dev *pdev, u32 pasid,
 			   int status, int tag)
 {
 	struct iommu_dev_data *dev_data;

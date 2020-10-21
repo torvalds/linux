@@ -40,7 +40,7 @@
 #define CIK_HPD_EOP_BYTES (1U << CIK_HPD_EOP_BYTES_LOG2)
 
 static int set_pasid_vmid_mapping(struct device_queue_manager *dqm,
-					unsigned int pasid, unsigned int vmid);
+				  u32 pasid, unsigned int vmid);
 
 static int execute_queues_cpsch(struct device_queue_manager *dqm,
 				enum kfd_unmap_queues_filter filter,
@@ -948,7 +948,7 @@ out:
 }
 
 static int
-set_pasid_vmid_mapping(struct device_queue_manager *dqm, unsigned int pasid,
+set_pasid_vmid_mapping(struct device_queue_manager *dqm, u32 pasid,
 			unsigned int vmid)
 {
 	return dqm->dev->kfd2kgd->set_pasid_vmid_mapping(
@@ -1981,8 +1981,7 @@ void device_queue_manager_uninit(struct device_queue_manager *dqm)
 	kfree(dqm);
 }
 
-int kfd_process_vm_fault(struct device_queue_manager *dqm,
-			 unsigned int pasid)
+int kfd_process_vm_fault(struct device_queue_manager *dqm, u32 pasid)
 {
 	struct kfd_process_device *pdd;
 	struct kfd_process *p = kfd_lookup_process_by_pasid(pasid);
