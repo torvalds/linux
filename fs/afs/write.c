@@ -151,8 +151,10 @@ try_again:
 	priv |= f;
 	trace_afs_page_dirty(vnode, tracepoint_string("begin"),
 			     page->index, priv);
-	SetPagePrivate(page);
-	set_page_private(page, priv);
+	if (PagePrivate(page))
+		set_page_private(page, priv);
+	else
+		attach_page_private(page, (void *)priv);
 	_leave(" = 0");
 	return 0;
 
@@ -334,10 +336,9 @@ static void afs_pages_written_back(struct afs_vnode *vnode,
 		ASSERTCMP(pv.nr, ==, count);
 
 		for (loop = 0; loop < count; loop++) {
-			priv = page_private(pv.pages[loop]);
+			priv = (unsigned long)detach_page_private(pv.pages[loop]);
 			trace_afs_page_dirty(vnode, tracepoint_string("clear"),
 					     pv.pages[loop]->index, priv);
-			set_page_private(pv.pages[loop], 0);
 			end_page_writeback(pv.pages[loop]);
 		}
 		first += count;
@@ -863,8 +864,10 @@ vm_fault_t afs_page_mkwrite(struct vm_fault *vmf)
 	priv |= 0; /* From */
 	trace_afs_page_dirty(vnode, tracepoint_string("mkwrite"),
 			     vmf->page->index, priv);
-	SetPagePrivate(vmf->page);
-	set_page_private(vmf->page, priv);
+	if (PagePrivate(vmf->page))
+		set_page_private(vmf->page, priv);
+	else
+		attach_page_private(vmf->page, (void *)priv);
 	file_update_time(file);
 
 	sb_end_pagefault(inode->i_sb);
@@ -926,10 +929,9 @@ int afs_launder_page(struct page *page)
 		ret = afs_store_data(mapping, page->index, page->index, t, f, true);
 	}
 
+	priv = (unsigned long)detach_page_private(page);
 	trace_afs_page_dirty(vnode, tracepoint_string("laundered"),
 			     page->index, priv);
-	set_page_private(page, 0);
-	ClearPagePrivate(page);
 
 #ifdef CONFIG_AFS_FSCACHE
 	if (PageFsCache(page)) {

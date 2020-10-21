@@ -627,11 +627,9 @@ static void afs_invalidatepage(struct page *page, unsigned int offset,
 #endif
 
 		if (PagePrivate(page)) {
-			priv = page_private(page);
+			priv = (unsigned long)detach_page_private(page);
 			trace_afs_page_dirty(vnode, tracepoint_string("inval"),
 					     page->index, priv);
-			set_page_private(page, 0);
-			ClearPagePrivate(page);
 		}
 	}
 
@@ -661,11 +659,9 @@ static int afs_releasepage(struct page *page, gfp_t gfp_flags)
 #endif
 
 	if (PagePrivate(page)) {
-		priv = page_private(page);
+		priv = (unsigned long)detach_page_private(page);
 		trace_afs_page_dirty(vnode, tracepoint_string("rel"),
 				     page->index, priv);
-		set_page_private(page, 0);
-		ClearPagePrivate(page);
 	}
 
 	/* indicate that the page can be released */
