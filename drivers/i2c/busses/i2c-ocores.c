@@ -83,7 +83,6 @@ struct ocores_i2c {
 
 #define TYPE_OCORES		0
 #define TYPE_GRLIB		1
-#define TYPE_SIFIVE_REV0	2
 
 #define OCORES_FLAG_BROKEN_IRQ BIT(1) /* Broken IRQ for FU540-C000 SoC */
 
@@ -476,11 +475,9 @@ static const struct of_device_id ocores_i2c_match[] = {
 	},
 	{
 		.compatible = "sifive,fu540-c000-i2c",
-		.data = (void *)TYPE_SIFIVE_REV0,
 	},
 	{
 		.compatible = "sifive,i2c0",
-		.data = (void *)TYPE_SIFIVE_REV0,
 	},
 	{},
 };
@@ -606,7 +603,6 @@ static int ocores_i2c_probe(struct platform_device *pdev)
 {
 	struct ocores_i2c *i2c;
 	struct ocores_i2c_platform_data *pdata;
-	const struct of_device_id *match;
 	struct resource *res;
 	int irq;
 	int ret;
@@ -687,16 +683,19 @@ static int ocores_i2c_probe(struct platform_device *pdev)
 	init_waitqueue_head(&i2c->wait);
 
 	irq = platform_get_irq(pdev, 0);
+	/*
+	 * Since the SoC does have an interrupt, its DT has an interrupt
+	 * property - But this should be bypassed as the IRQ logic in this
+	 * SoC is broken.
+	 */
+	if (of_device_is_compatible(pdev->dev.of_node,
+				    "sifive,fu540-c000-i2c")) {
+		i2c->flags |= OCORES_FLAG_BROKEN_IRQ;
+		irq = -ENXIO;
+	}
+
 	if (irq == -ENXIO) {
 		ocores_algorithm.master_xfer = ocores_xfer_polling;
-
-		/*
-		 * Set in OCORES_FLAG_BROKEN_IRQ to enable workaround for
-		 * FU540-C000 SoC in polling mode.
-		 */
-		match = of_match_node(ocores_i2c_match, pdev->dev.of_node);
-		if (match && (long)match->data == TYPE_SIFIVE_REV0)
-			i2c->flags |= OCORES_FLAG_BROKEN_IRQ;
 	} else {
 		if (irq < 0)
 			return irq;
