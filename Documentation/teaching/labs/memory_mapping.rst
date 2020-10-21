@@ -288,7 +288,7 @@ Enabling is done using :c:func:`SetPageReserved` while reseting it
    {
        int i;
 
-       for(i = 0; i < npages * PAGE_SIZE; i += PAGE_SIZE) {
+       for(i = 0; i < npages * PAGE_SIZE; i += PAGE_SIZE)
 	   ClearPageReserved(virt_to_page(((unsigned long)mem) + i));
 
        kfree(mem);
