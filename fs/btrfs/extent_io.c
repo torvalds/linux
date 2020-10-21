@@ -1554,11 +1554,12 @@ out:
 }
 
 /*
- * find the first offset in the io tree with 'bits' set. zero is
- * returned if we find something, and *start_ret and *end_ret are
- * set to reflect the state struct that was found.
+ * Find the first offset in the io tree with one or more @bits set.
  *
- * If nothing was found, 1 is returned. If found something, return 0.
+ * Note: If there are multiple bits set in @bits, any of them will match.
+ *
+ * Return 0 if we find something, and update @start_ret and @end_ret.
+ * Return 1 if we found nothing.
  */
 int find_first_extent_bit(struct extent_io_tree *tree, u64 start,
 			  u64 *start_ret, u64 *end_ret, unsigned bits,
