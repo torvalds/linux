@@ -11,5 +11,6 @@ obj-$(CONFIG_PHY_ROCKCHIP_INNO_VIDEO_PHY)	+= phy-rockchip-inno-video-phy.o
 obj-$(CONFIG_PHY_ROCKCHIP_MIPI_RX)	+= phy-rockchip-mipi-rx.o
 obj-$(CONFIG_PHY_ROCKCHIP_NANENG_USB2)	+= phy-rockchip-naneng-usb2.o
 obj-$(CONFIG_PHY_ROCKCHIP_PCIE)		+= phy-rockchip-pcie.o
+obj-$(CONFIG_PHY_ROCKCHIP_SNPS_PCIE3)	+= phy-rockchip-snps-pcie3.o
 obj-$(CONFIG_PHY_ROCKCHIP_TYPEC)	+= phy-rockchip-typec.o
 obj-$(CONFIG_PHY_ROCKCHIP_USB)		+= phy-rockchip-usb.o
