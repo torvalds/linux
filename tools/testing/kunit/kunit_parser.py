@@ -12,7 +12,7 @@ from collections import namedtuple
 from datetime import datetime
 from enum import Enum, auto
 from functools import reduce
-from typing import List
+from typing import List, Optional, Tuple
 
 TestResult = namedtuple('TestResult', ['status','suites','log'])
 
@@ -151,7 +151,7 @@ def parse_diagnostic(lines: List[str], test_case: TestCase) -> bool:
 	else:
 		return False
 
-def parse_test_case(lines: List[str]) -> TestCase:
+def parse_test_case(lines: List[str]) -> Optional[TestCase]:
 	test_case = TestCase()
 	save_non_diagnositic(lines, test_case)
 	while parse_diagnostic(lines, test_case):
@@ -163,7 +163,7 @@ def parse_test_case(lines: List[str]) -> TestCase:
 
 SUBTEST_HEADER = re.compile(r'^[\s]+# Subtest: (.*)$')
 
-def parse_subtest_header(lines: List[str]) -> str:
+def parse_subtest_header(lines: List[str]) -> Optional[str]:
 	consume_non_diagnositic(lines)
 	if not lines:
 		return None
@@ -176,7 +176,7 @@ def parse_subtest_header(lines: List[str]) -> str:
 
 SUBTEST_PLAN = re.compile(r'[\s]+[0-9]+\.\.([0-9]+)')
 
-def parse_subtest_plan(lines: List[str]) -> int:
+def parse_subtest_plan(lines: List[str]) -> Optional[int]:
 	consume_non_diagnositic(lines)
 	match = SUBTEST_PLAN.match(lines[0])
 	if match:
@@ -230,7 +230,7 @@ def bubble_up_test_case_errors(test_suite: TestSuite) -> TestStatus:
 	max_test_case_status = bubble_up_errors(lambda x: x.status, test_suite.cases)
 	return max_status(max_test_case_status, test_suite.status)
 
-def parse_test_suite(lines: List[str], expected_suite_index: int) -> TestSuite:
+def parse_test_suite(lines: List[str], expected_suite_index: int) -> Optional[TestSuite]:
 	if not lines:
 		return None
 	consume_non_diagnositic(lines)
@@ -271,7 +271,7 @@ def parse_tap_header(lines: List[str]) -> bool:
 
 TEST_PLAN = re.compile(r'[0-9]+\.\.([0-9]+)')
 
-def parse_test_plan(lines: List[str]) -> int:
+def parse_test_plan(lines: List[str]) -> Optional[int]:
 	consume_non_diagnositic(lines)
 	match = TEST_PLAN.match(lines[0])
 	if match:
@@ -310,7 +310,7 @@ def parse_test_result(lines: List[str]) -> TestResult:
 	else:
 		return TestResult(TestStatus.NO_TESTS, [], lines)
 
-def print_and_count_results(test_result: TestResult) -> None:
+def print_and_count_results(test_result: TestResult) -> Tuple[int, int, int]:
 	total_tests = 0
 	failed_tests = 0
 	crashed_tests = 0
