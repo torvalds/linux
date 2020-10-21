@@ -3460,7 +3460,7 @@ static void ilk_irq_postinstall(struct drm_i915_private *dev_priv)
 		display_mask = (DE_MASTER_IRQ_CONTROL | DE_GSE | DE_PCH_EVENT |
 				DE_AUX_CHANNEL_A | DE_PIPEB_CRC_DONE |
 				DE_PIPEA_CRC_DONE | DE_POISON);
-		extra_mask = (DE_PIPEA_VBLANK | DE_PIPEB_VBLANK | DE_PCU_EVENT |
+		extra_mask = (DE_PIPEA_VBLANK | DE_PIPEB_VBLANK |
 			      DE_PIPEB_FIFO_UNDERRUN | DE_PIPEA_FIFO_UNDERRUN |
 			      DE_DP_A_HOTPLUG);
 	}
@@ -3469,6 +3469,9 @@ static void ilk_irq_postinstall(struct drm_i915_private *dev_priv)
 		gen3_assert_iir_is_zero(uncore, EDP_PSR_IIR);
 		display_mask |= DE_EDP_PSR_INT_HSW;
 	}
+
+	if (IS_IRONLAKE_M(dev_priv))
+		extra_mask |= DE_PCU_EVENT;
 
 	dev_priv->irq_mask = ~display_mask;
 
@@ -3482,17 +3485,6 @@ static void ilk_irq_postinstall(struct drm_i915_private *dev_priv)
 	ilk_hpd_detection_setup(dev_priv);
 
 	ibx_irq_postinstall(dev_priv);
-
-	if (IS_IRONLAKE_M(dev_priv)) {
-		/* Enable PCU event interrupts
-		 *
-		 * spinlocking not required here for correctness since interrupt
-		 * setup is guaranteed to run in single-threaded context. But we
-		 * need it to make the assert_spin_locked happy. */
-		spin_lock_irq(&dev_priv->irq_lock);
-		ilk_enable_display_irq(dev_priv, DE_PCU_EVENT);
-		spin_unlock_irq(&dev_priv->irq_lock);
-	}
 }
 
 void valleyview_enable_display_irqs(struct drm_i915_private *dev_priv)

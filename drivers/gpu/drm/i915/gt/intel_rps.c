@@ -509,6 +509,7 @@ static unsigned int init_emon(struct intel_uncore *uncore)
 
 static bool gen5_rps_enable(struct intel_rps *rps)
 {
+	struct drm_i915_private *i915 = rps_to_i915(rps);
 	struct intel_uncore *uncore = rps_to_uncore(rps);
 	u8 fstart, vstart;
 	u32 rgvmodectl;
@@ -566,6 +567,10 @@ static bool gen5_rps_enable(struct intel_rps *rps)
 	rps->ips.last_count2 = intel_uncore_read(uncore, GFXEC);
 	rps->ips.last_time2 = ktime_get_raw_ns();
 
+	spin_lock(&i915->irq_lock);
+	ilk_enable_display_irq(i915, DE_PCU_EVENT);
+	spin_unlock(&i915->irq_lock);
+
 	spin_unlock_irq(&mchdev_lock);
 
 	rps->ips.corr = init_emon(uncore);
@@ -575,10 +580,15 @@ static bool gen5_rps_enable(struct intel_rps *rps)
 
 static void gen5_rps_disable(struct intel_rps *rps)
 {
+	struct drm_i915_private *i915 = rps_to_i915(rps);
 	struct intel_uncore *uncore = rps_to_uncore(rps);
 	u16 rgvswctl;
 
 	spin_lock_irq(&mchdev_lock);
+
+	spin_lock(&i915->irq_lock);
+	ilk_disable_display_irq(i915, DE_PCU_EVENT);
+	spin_unlock(&i915->irq_lock);
 
 	rgvswctl = intel_uncore_read16(uncore, MEMSWCTL);
 
@@ -587,11 +597,6 @@ static void gen5_rps_disable(struct intel_rps *rps)
 			   intel_uncore_read(uncore, MEMINTREN) &
 			   ~MEMINT_EVAL_CHG_EN);
 	intel_uncore_write(uncore, MEMINTRSTS, MEMINT_EVAL_CHG);
-	intel_uncore_write(uncore, DEIER,
-			   intel_uncore_read(uncore, DEIER) & ~DE_PCU_EVENT);
-	intel_uncore_write(uncore, DEIIR, DE_PCU_EVENT);
-	intel_uncore_write(uncore, DEIMR,
-			   intel_uncore_read(uncore, DEIMR) | DE_PCU_EVENT);
 
 	/* Go back to the starting frequency */
 	gen5_rps_set(rps, rps->idle_freq);
