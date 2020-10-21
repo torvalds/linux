@@ -20,7 +20,7 @@
 /*
  * Mapping of S_IF* types to NFS file types
  */
-static u32	nfs3_ftypes[] = {
+static const u32 nfs3_ftypes[] = {
 	NF3NON,  NF3FIFO, NF3CHR, NF3BAD,
 	NF3DIR,  NF3BAD,  NF3BLK, NF3BAD,
 	NF3REG,  NF3BAD,  NF3LNK, NF3BAD,
@@ -36,6 +36,15 @@ static __be32 *
 encode_time3(__be32 *p, struct timespec64 *time)
 {
 	*p++ = htonl((u32) time->tv_sec); *p++ = htonl(time->tv_nsec);
+	return p;
+}
+
+static __be32 *
+encode_nfstime3(__be32 *p, const struct timespec64 *time)
+{
+	*p++ = cpu_to_be32((u32)time->tv_sec);
+	*p++ = cpu_to_be32(time->tv_nsec);
+
 	return p;
 }
 
@@ -78,6 +87,19 @@ svcxdr_decode_nfs_fh3(struct xdr_stream *xdr, struct svc_fh *fhp)
 	fh_init(fhp, NFS3_FHSIZE);
 	fhp->fh_handle.fh_size = size;
 	memcpy(&fhp->fh_handle.fh_base, p, size);
+
+	return true;
+}
+
+static bool
+svcxdr_encode_nfsstat3(struct xdr_stream *xdr, __be32 status)
+{
+	__be32 *p;
+
+	p = xdr_reserve_space(xdr, sizeof(status));
+	if (!p)
+		return false;
+	*p = status;
 
 	return true;
 }
@@ -251,6 +273,58 @@ svcxdr_decode_devicedata3(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 {
 	return svcxdr_decode_sattr3(rqstp, xdr, &args->attrs) &&
 		svcxdr_decode_specdata3(xdr, args);
+}
+
+static bool
+svcxdr_encode_fattr3(struct svc_rqst *rqstp, struct xdr_stream *xdr,
+		     const struct svc_fh *fhp, const struct kstat *stat)
+{
+	struct user_namespace *userns = nfsd_user_namespace(rqstp);
+	__be32 *p;
+	u64 fsid;
+
+	p = xdr_reserve_space(xdr, XDR_UNIT * 21);
+	if (!p)
+		return false;
+
+	*p++ = cpu_to_be32(nfs3_ftypes[(stat->mode & S_IFMT) >> 12]);
+	*p++ = cpu_to_be32((u32)(stat->mode & S_IALLUGO));
+	*p++ = cpu_to_be32((u32)stat->nlink);
+	*p++ = cpu_to_be32((u32)from_kuid_munged(userns, stat->uid));
+	*p++ = cpu_to_be32((u32)from_kgid_munged(userns, stat->gid));
+	if (S_ISLNK(stat->mode) && stat->size > NFS3_MAXPATHLEN)
+		p = xdr_encode_hyper(p, (u64)NFS3_MAXPATHLEN);
+	else
+		p = xdr_encode_hyper(p, (u64)stat->size);
+
+	/* used */
+	p = xdr_encode_hyper(p, ((u64)stat->blocks) << 9);
+
+	/* rdev */
+	*p++ = cpu_to_be32((u32)MAJOR(stat->rdev));
+	*p++ = cpu_to_be32((u32)MINOR(stat->rdev));
+
+	switch(fsid_source(fhp)) {
+	case FSIDSOURCE_FSID:
+		fsid = (u64)fhp->fh_export->ex_fsid;
+		break;
+	case FSIDSOURCE_UUID:
+		fsid = ((u64 *)fhp->fh_export->ex_uuid)[0];
+		fsid ^= ((u64 *)fhp->fh_export->ex_uuid)[1];
+		break;
+	default:
+		fsid = (u64)huge_encode_dev(fhp->fh_dentry->d_sb->s_dev);
+	}
+	p = xdr_encode_hyper(p, fsid);
+
+	/* fileid */
+	p = xdr_encode_hyper(p, stat->ino);
+
+	p = encode_nfstime3(p, &stat->atime);
+	p = encode_nfstime3(p, &stat->mtime);
+	encode_nfstime3(p, &stat->ctime);
+
+	return true;
 }
 
 static __be32 *encode_fsid(__be32 *p, struct svc_fh *fhp)
@@ -713,17 +787,22 @@ nfs3svc_decode_commitargs(struct svc_rqst *rqstp, __be32 *p)
 
 /* GETATTR */
 int
-nfs3svc_encode_attrstat(struct svc_rqst *rqstp, __be32 *p)
+nfs3svc_encode_getattrres(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct xdr_stream *xdr = &rqstp->rq_res_stream;
 	struct nfsd3_attrstat *resp = rqstp->rq_resp;
 
-	*p++ = resp->status;
-	if (resp->status == 0) {
-		lease_get_mtime(d_inode(resp->fh.fh_dentry),
-				&resp->stat.mtime);
-		p = encode_fattr3(rqstp, p, &resp->fh, &resp->stat);
+	if (!svcxdr_encode_nfsstat3(xdr, resp->status))
+		return 0;
+	switch (resp->status) {
+	case nfs_ok:
+		lease_get_mtime(d_inode(resp->fh.fh_dentry), &resp->stat.mtime);
+		if (!svcxdr_encode_fattr3(rqstp, xdr, &resp->fh, &resp->stat))
+			return 0;
+		break;
 	}
-	return xdr_ressize_check(rqstp, p);
+
+	return 1;
 }
 
 /* SETATTR, REMOVE, RMDIR */
