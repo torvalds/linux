@@ -145,17 +145,6 @@ __sum16 ip_compute_csum(const void *buff, int len)
 }
 EXPORT_SYMBOL(ip_compute_csum);
 
-/*
- * copy from ds while checksumming, otherwise like csum_partial
- */
-__wsum
-csum_partial_copy_nocheck(const void *src, void *dst, int len, __wsum sum)
-{
-	memcpy(dst, src, len);
-	return csum_partial(dst, len, sum);
-}
-EXPORT_SYMBOL(csum_partial_copy_nocheck);
-
 #ifndef csum_tcpudp_nofold
 static inline u32 from64to32(u64 x)
 {
