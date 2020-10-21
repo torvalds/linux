@@ -389,6 +389,7 @@ static const struct intel_device_info ilk_m_info = {
 	GEN5_FEATURES,
 	PLATFORM(INTEL_IRONLAKE),
 	.is_mobile = 1,
+	.has_rps = true,
 	.display.has_fbc = 1,
 };
 
