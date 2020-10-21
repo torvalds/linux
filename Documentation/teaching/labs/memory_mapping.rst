@@ -96,7 +96,7 @@ There are many functions that interact with this structure:
 * :c:func:`page_to_pfn` return the page frame number associated with a
   :c:type:`struct page`
 * :c:func:`page_address` returns the virtual address of a
-  :c:type:`struc page`; this functions can be called only for pages from
+  :c:type:`struct page`; this functions can be called only for pages from
   lowmem
 * :c:func:`kmap` creates a mapping in kernel for an arbitrary physical
   page (can be from highmem) and returns a virtual address that can be
