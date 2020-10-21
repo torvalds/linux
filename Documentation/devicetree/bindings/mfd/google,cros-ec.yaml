@@ -71,6 +71,9 @@ properties:
   wakeup-source:
     description: Button can wake-up the system.
 
+  keyboard-controller:
+    $ref: "/schemas/input/google,cros-ec-keyb.yaml#"
+
 patternProperties:
   "^i2c-tunnel[0-9]*$":
     type: object
