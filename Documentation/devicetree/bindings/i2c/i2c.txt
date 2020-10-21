@@ -87,6 +87,11 @@ wants to support one of the below features, it should adapt these bindings.
 	this information to detect a stalled bus more reliably, for example.
 	Can not be combined with 'multi-master'.
 
+- smbus
+	states that additional SMBus restrictions and features apply to this bus.
+	Examples of features are SMBusHostNotify and SMBusAlert. Examples of
+	restrictions are more reserved addresses and timeout definitions.
+
 Required properties (per child device)
 --------------------------------------
 

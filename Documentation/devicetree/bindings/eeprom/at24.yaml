@@ -114,6 +114,9 @@ properties:
           - const: renesas,r1ex24128
           - const: atmel,24c128
 
+  label:
+    description: Descriptive name of the EEPROM.
+
   reg:
     maxItems: 1
 
