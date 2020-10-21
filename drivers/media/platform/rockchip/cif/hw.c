@@ -395,6 +395,7 @@ static const struct cif_reg rv1126_cif_regs[] = {
 	[CIF_REG_LVDS_SAV_EAV_BLK1_ID3] = CIF_REG(CIF_LVDS_SAV_EAV_BLK1_ID3),
 	[CIF_REG_Y_STAT_CONTROL] = CIF_REG(CIF_Y_STAT_CONTROL),
 	[CIF_REG_Y_STAT_VALUE] = CIF_REG(CIF_Y_STAT_VALUE),
+	[CIF_REG_GRF_CIFIO_CON] = CIF_REG(CIF_GRF_CIFIO_CON),
 };
 
 static const char * const rv1126_cif_lite_clks[] = {
@@ -671,6 +672,7 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	struct device_node *node = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
 	struct rkcif_hw *cif_hw;
 	struct rkcif_device *cif_dev;
 	const struct rkcif_hw_match_data *data;
@@ -727,6 +729,10 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 		if (IS_ERR(cif_hw->base_addr))
 			return PTR_ERR(cif_hw->base_addr);
 	}
+
+	cif_hw->grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
+	if (IS_ERR(cif_hw->grf))
+		dev_warn(dev, "unable to get rockchip,grf\n");
 
 	if (data->clks_num > RKCIF_MAX_BUS_CLK ||
 	    data->rsts_num > RKCIF_MAX_RESET) {

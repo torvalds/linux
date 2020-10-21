@@ -118,7 +118,7 @@ void rkcif_write_register(struct rkcif_device *dev,
 		    (index != CIF_REG_DVP_CTRL && reg->offset != 0x0))
 			write_cif_reg(base, reg->offset, val);
 		else
-			dev_warn(dev->dev,
+			v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev,
 				 "write reg[%d]:0x%x failed, maybe useless!!!\n",
 				 index, val);
 	}
@@ -138,7 +138,7 @@ void rkcif_write_register_or(struct rkcif_device *dev,
 			reg_val |= val;
 			write_cif_reg(base, reg->offset, reg_val);
 		} else {
-			dev_warn(dev->dev,
+			v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev,
 				 "write reg[%d]:0x%x with OR failed, maybe useless!!!\n",
 				 index, val);
 		}
@@ -178,9 +178,47 @@ unsigned int rkcif_read_register(struct rkcif_device *dev,
 		    (index != CIF_REG_DVP_CTRL && reg->offset != 0x0))
 			val = read_cif_reg(base, reg->offset);
 		else
-			dev_warn(dev->dev,
+			v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev,
 				 "read reg[%d] failed, maybe useless!!!\n",
 				 index);
+	}
+
+	return val;
+}
+
+void rkcif_write_grf_reg(struct rkcif_device *dev,
+			 enum cif_reg_index index, u32 val)
+{
+	struct rkcif_hw *cif_hw = dev->hw_dev;
+	const struct cif_reg *reg = &cif_hw->cif_regs[index];
+
+	if (index < CIF_REG_INDEX_MAX) {
+		if (index > CIF_REG_DVP_CTRL) {
+			if (!IS_ERR(cif_hw->grf))
+				regmap_write(cif_hw->grf, reg->offset, val);
+		} else {
+			v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev,
+				 "write reg[%d]:0x%x failed, maybe useless!!!\n",
+				 index, val);
+		}
+	}
+}
+
+u32 rkcif_read_grf_reg(struct rkcif_device *dev, enum cif_reg_index index)
+{
+	struct rkcif_hw *cif_hw = dev->hw_dev;
+	const struct cif_reg *reg = &cif_hw->cif_regs[index];
+	u32 val = 0xffff;
+
+	if (index < CIF_REG_INDEX_MAX) {
+		if (index > CIF_REG_DVP_CTRL) {
+			if (!IS_ERR(cif_hw->grf))
+				regmap_read(cif_hw->grf, reg->offset, &val);
+		} else {
+			v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev,
+				 "read reg[%d] failed, maybe useless!!!\n",
+				 index);
+		}
 	}
 
 	return val;

@@ -2018,7 +2018,11 @@ static int rkcif_stream_start(struct rkcif_stream *stream)
 {
 	u32 val, mbus_flags, href_pol, vsync_pol,
 	    xfer_mode = 0, yc_swap = 0,
-	    inputmode = 0, mipimode = 0, workmode = 0;
+	    inputmode = 0, mipimode = 0, workmode = 0,
+	    multi_id_en = BT656_1120_MULTI_ID_DISABLE,
+	    multi_id_mode = BT656_1120_MULTI_ID_MODE_1,
+	    multi_id_sel = BT656_1120_MULTI_ID_SEL_LSB,
+	    bt1120_edge_mode = BT1120_CLOCK_SINGLE_EDGES;
 	struct rkcif_device *dev = stream->cifdev;
 	struct rkcif_sensor_info *sensor_info;
 	const struct cif_output_fmt *fmt;
@@ -2027,12 +2031,22 @@ static int rkcif_stream_start(struct rkcif_stream *stream)
 	stream->frame_idx = 0;
 
 	mbus_flags = sensor_info->mbus.flags;
+	if (mbus_flags & V4L2_MBUS_PCLK_SAMPLE_RISING)
+		rkcif_write_grf_reg(dev,
+				    CIF_REG_GRF_CIFIO_CON,
+				    CIF_PCLK_SAMPLING_EDGE_RISING);
+	else
+		rkcif_write_grf_reg(dev,
+				    CIF_REG_GRF_CIFIO_CON,
+				    CIF_PCLK_SAMPLING_EDGE_FALLING);
+
 	href_pol = (mbus_flags & V4L2_MBUS_HSYNC_ACTIVE_HIGH) ?
 		    HSY_HIGH_ACTIVE : HSY_LOW_ACTIVE;
 	vsync_pol = (mbus_flags & V4L2_MBUS_VSYNC_ACTIVE_HIGH) ?
 		     VSY_HIGH_ACTIVE : VSY_LOW_ACTIVE;
 
-	if (rkcif_determine_input_mode(stream) == INPUT_MODE_BT1120) {
+	inputmode = rkcif_determine_input_mode(stream);
+	if (inputmode == INPUT_MODE_BT1120) {
 		if (stream->cif_fmt_in->field == V4L2_FIELD_NONE)
 			xfer_mode = BT1120_TRANSMIT_PROGRESS;
 		else
@@ -2057,14 +2071,13 @@ static int rkcif_stream_start(struct rkcif_stream *stream)
 			mipimode = MIPI_MODE_RGB;
 		else
 			mipimode = MIPI_MODE_32BITS_BYPASS;
-	} else {
-		inputmode = rkcif_determine_input_mode(stream);
 	}
 
 	val = vsync_pol | href_pol | inputmode | mipimode
 	      | stream->cif_fmt_out->fmt_val
 	      | stream->cif_fmt_in->dvp_fmt_val
-	      | xfer_mode | yc_swap;
+	      | xfer_mode | yc_swap | multi_id_en
+	      | multi_id_sel | multi_id_mode | bt1120_edge_mode;
 	rkcif_write_register(dev, CIF_REG_DVP_FOR, val);
 
 	val = stream->pixm.width;
@@ -2099,7 +2112,7 @@ static int rkcif_stream_start(struct rkcif_stream *stream)
 
 	if ((dev->chip_id == CHIP_RK1808_CIF ||
 	     dev->chip_id == CHIP_RV1126_CIF) &&
-	    rkcif_determine_input_mode(stream) == INPUT_MODE_BT1120)
+	     inputmode == INPUT_MODE_BT1120)
 		rkcif_assign_new_buffer_pingpong(stream, 1, 0);
 	else
 		/* Set up an buffer for the next frame */
@@ -2118,7 +2131,7 @@ static int rkcif_stream_start(struct rkcif_stream *stream)
 
 	if ((dev->chip_id == CHIP_RK1808_CIF ||
 	     dev->chip_id == CHIP_RV1126_CIF) &&
-	    rkcif_determine_input_mode(stream) == INPUT_MODE_BT1120) {
+	     inputmode == INPUT_MODE_BT1120) {
 		dev->workmode = RKCIF_WORKMODE_PINGPONG;
 		rkcif_write_register(dev, CIF_REG_DVP_CTRL,
 				     AXI_BURST_16 | MODE_PINGPONG | ENABLE_CAPTURE);

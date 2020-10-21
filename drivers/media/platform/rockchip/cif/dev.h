@@ -478,6 +478,10 @@ void rkcif_write_register_and(struct rkcif_device *dev,
 			      enum cif_reg_index index, u32 val);
 unsigned int rkcif_read_register(struct rkcif_device *dev,
 				 enum cif_reg_index index);
+void rkcif_write_grf_reg(struct rkcif_device *dev,
+			 enum cif_reg_index index, u32 val);
+u32 rkcif_read_grf_reg(struct rkcif_device *dev,
+		       enum cif_reg_index index);
 void rkcif_unregister_stream_vdevs(struct rkcif_device *dev,
 				   int stream_num);
 int rkcif_register_stream_vdevs(struct rkcif_device *dev,

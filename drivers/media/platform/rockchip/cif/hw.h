@@ -64,6 +64,7 @@ struct rkcif_hw {
 	int				irq;
 	void __iomem			*base_addr;
 	void __iomem			*csi_base;
+	struct regmap			*grf;
 	struct clk			*clks[RKCIF_MAX_BUS_CLK];
 	int				clk_size;
 	bool				iommu_en;
