@@ -113,15 +113,12 @@
 		interrupt-controller;
 
 		reg = <0x0 0xfd400000 0 0x10000>, /* GICD */
-		      <0x0 0xfd460000 0 0xc0000>, /* GICR */
-		      <0x0 0xfd800000 0 0x10000>, /* GICC */
-		      <0x0 0xfd810000 0 0x10000>, /* GICH */
-		      <0x0 0xfd820000 0 0x10000>; /* GICV */
+		      <0x0 0xfd460000 0 0xc0000>; /* GICR */
 		interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
-		its: interrupt-controller@fd420000 {
+		its: interrupt-controller@fd440000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
-			reg = <0x0 0xfd420000 0x0 0x20000>;
+			reg = <0x0 0xfd440000 0x0 0x20000>;
 		};
 	};
 
