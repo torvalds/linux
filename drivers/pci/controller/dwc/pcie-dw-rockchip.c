@@ -37,6 +37,7 @@
 #include <linux/pci-epf.h>
 
 #include "pcie-designware.h"
+#include "../../pci.h"
 #include "../rockchip-pcie-dma.h"
 
 enum rk_pcie_device_mode {
@@ -81,6 +82,11 @@ struct reset_bulk_data	{
 
 #define PCIE_CLIENT_INTR_MASK		0x24
 #define PCIE_CLIENT_GENERAL_DEBUG	0x104
+#define PCIE_CLIENT_HOT_RESET_CTRL	0x180
+#define PCIE_LTSSM_ENABLE_ENHANCE	BIT(4)
+#define PCIE_CLIENT_LTSSM_STATUS	0x300
+#define SMLH_LINKUP			BIT(16)
+#define RDLH_LINKUP			BIT(17)
 
 #define PCIE_PHY_LINKUP			BIT(0)
 #define PCIE_DATA_LINKUP		BIT(1)
@@ -113,7 +119,10 @@ struct rk_pcie {
 	struct regmap			*usb_pcie_grf;
 	struct regmap			*pmu_grf;
 	struct dma_trx_obj		*dma_obj;
-	bool in_suspend;
+	bool				in_suspend;
+	bool				is_rk1808;
+	bool				bifurcation;
+	int				link_gen;
 };
 
 struct rk_pcie_of_data {
@@ -327,9 +336,8 @@ static inline void rk_pcie_set_mode(struct rk_pcie *rk_pcie)
 		 * Need to check producer-consumer model.
 		 * Just for RK1808 platform.
 		 */
-		if (of_device_is_compatible(pdev->dev.of_node,
-					    "rockchip,rk1808-pcie"))
-			rk_pcie_writel_dbi(rk_pcie,
+		if (rk_pcie->is_rk1808)
+			dw_pcie_writel_dbi(rk_pcie->pci,
 					   PCIE_PL_ORDER_RULE_CTRL_OFF,
 					   0xff00);
 		break;
@@ -353,19 +361,34 @@ static inline void rk_pcie_enable_ltssm(struct rk_pcie *rk_pcie)
 
 static inline void rk_pcie_set_gens(struct rk_pcie *rk_pcie)
 {
+	int gen_encode[] = {0x1, 0x2, 0x4};
+
+	if (rk_pcie->link_gen <= 0 || rk_pcie->link_gen > 3)
+		rk_pcie->link_gen = gen_encode[1]; /* Default to Gen2 */
+	else
+		rk_pcie->link_gen = gen_encode[rk_pcie->link_gen - 1];
+
 	dw_pcie_writel_dbi(rk_pcie->pci,
-			   PCIE_CAP_LINK_CONTROL2_LINK_STATUS, 0x2);
+			   PCIE_CAP_LINK_CONTROL2_LINK_STATUS,
+			   rk_pcie->link_gen);
 }
 
 static int rk_pcie_link_up(struct dw_pcie *pci)
 {
 	struct rk_pcie *rk_pcie = to_rk_pcie(pci);
+	u32 val;
 
-	u32 val = rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_GENERAL_DEBUG);
-
-	if ((val & (PCIE_PHY_LINKUP | PCIE_DATA_LINKUP)) == 0x3 &&
-		((val & GENMASK(15, 10)) >> 10) == 0x11)
-		return 1;
+	if (rk_pcie->is_rk1808) {
+		val = rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_GENERAL_DEBUG);
+		if ((val & (PCIE_PHY_LINKUP | PCIE_DATA_LINKUP)) == 0x3 &&
+		    ((val & GENMASK(15, 10)) >> 10) == 0x11)
+			return 1;
+	} else {
+		val = rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_LTSSM_STATUS);
+		if ((val & (RDLH_LINKUP | SMLH_LINKUP)) == 0x30000 &&
+		    (val & GENMASK(5, 0)) == 0x11)
+			return 1;
+	}
 
 	return 0;
 }
@@ -750,6 +773,9 @@ static int rk_pcie_phy_init(struct rk_pcie *rk_pcie)
 		return ret;
 	}
 
+	if (rk_pcie->bifurcation)
+		ret = phy_set_mode(rk_pcie->phy, PHY_MODE_PCIE_BIFURCATION);
+
 	ret = phy_init(rk_pcie->phy);
 	if (ret < 0) {
 		dev_err(dev, "fail to init phy, err %d\n", ret);
@@ -932,6 +958,14 @@ static const struct of_device_id rk_pcie_of_match[] = {
 		.compatible = "rockchip,rk1808-pcie-ep",
 		.data = &rk_pcie_ep_of_data,
 	},
+	{
+		.compatible = "rockchip,rk3568-pcie",
+		.data = &rk_pcie_rc_of_data,
+	},
+	{
+		.compatible = "rockchip,rk3568-pcie-ep",
+		.data = &rk_pcie_ep_of_data,
+	},
 	{},
 };
 
@@ -939,6 +973,61 @@ static const struct dw_pcie_ops dw_pcie_ops = {
 	.start_link = rk_pcie_establish_link,
 	.link_up = rk_pcie_link_up,
 };
+
+static int rk1808_pcie_fixup(struct rk_pcie *rk_pcie, struct device_node *np)
+{
+	int ret;
+	struct device *dev = rk_pcie->pci->dev;
+
+	rk_pcie->usb_pcie_grf = syscon_regmap_lookup_by_phandle(np,
+						"rockchip,usbpciegrf");
+	if (IS_ERR(rk_pcie->usb_pcie_grf)) {
+		dev_err(dev, "failed to find usb_pcie_grf regmap\n");
+		return PTR_ERR(rk_pcie->usb_pcie_grf);
+	}
+
+	rk_pcie->pmu_grf = syscon_regmap_lookup_by_phandle(np,
+							 "rockchip,pmugrf");
+	if (IS_ERR(rk_pcie->pmu_grf)) {
+		dev_err(dev, "failed to find pmugrf regmap\n");
+		return PTR_ERR(rk_pcie->pmu_grf);
+	}
+
+	/* Workaround for pcie, switch to PCIe_PRSTNm0 */
+	ret = regmap_write(rk_pcie->pmu_grf, 0x100, 0x01000100);
+	if (ret)
+		return ret;
+
+	ret = regmap_write(rk_pcie->pmu_grf, 0x0, 0x0c000000);
+	if (ret)
+		return ret;
+
+	/* release link reset grant */
+	ret = rk_pcie_reset_grant_ctrl(rk_pcie, true);
+	return ret;
+}
+
+static void rk_pcie_fast_link_setup(struct rk_pcie *rk_pcie)
+{
+	u32 val;
+
+	val = dw_pcie_readl_dbi(rk_pcie->pci, PCIE_PORT_LINK_CONTROL);
+	val |= BIT(7); /* Fast link mode */
+	dw_pcie_writel_dbi(rk_pcie->pci, PCIE_PORT_LINK_CONTROL, val);
+
+	val = dw_pcie_readl_dbi(rk_pcie->pci, PCIE_LINK_WIDTH_SPEED_CONTROL);
+	val |= PCIE_DIRECT_SPEED_CHANGE;
+	dw_pcie_writel_dbi(rk_pcie->pci, PCIE_LINK_WIDTH_SPEED_CONTROL, val);
+
+	val = dw_pcie_readl_dbi(rk_pcie->pci, PCIE_TIMER_CTRL_MAX_FUNC_NUM);
+	val &= FAST_LINK_SCALING_FACTOR; /* 00: 1ms is 1us */
+	dw_pcie_writel_dbi(rk_pcie->pci, PCIE_TIMER_CTRL_MAX_FUNC_NUM, val);
+
+	/* LTSSM EN ctrl mode */
+	val = rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_HOT_RESET_CTRL);
+	val |= PCIE_LTSSM_ENABLE_ENHANCE | (PCIE_LTSSM_ENABLE_ENHANCE << 16);
+	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_HOT_RESET_CTRL, val);
+}
 
 static int rk_pcie_probe(struct platform_device *pdev)
 {
@@ -949,6 +1038,7 @@ static int rk_pcie_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	const struct rk_pcie_of_data *data;
 	enum rk_pcie_device_mode mode;
+	struct device_node *np = pdev->dev.of_node;
 
 	match = of_match_device(rk_pcie_of_match, dev);
 	if (!match)
@@ -970,6 +1060,15 @@ static int rk_pcie_probe(struct platform_device *pdev)
 
 	rk_pcie->mode = mode;
 	rk_pcie->pci = pci;
+
+	if (of_device_is_compatible(np, "rockchip,rk1808-pcie") ||
+	    of_device_is_compatible(np, "rockchip,rk1808-pcie-ep"))
+		rk_pcie->is_rk1808 = true;
+	else
+		rk_pcie->is_rk1808 = false;
+
+	if (device_property_read_bool(dev, "rockchip,bifurcation"))
+		rk_pcie->bifurcation = true;
 
 	ret = rk_pcie_resource_get(pdev, rk_pcie);
 	if (ret) {
@@ -995,28 +1094,7 @@ static int rk_pcie_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	rk_pcie->usb_pcie_grf = syscon_regmap_lookup_by_phandle(dev->of_node,
-							 "rockchip,usbpciegrf");
-	if (IS_ERR(rk_pcie->usb_pcie_grf)) {
-		dev_err(dev, "failed to find usb_pcie_grf regmap\n");
-		return PTR_ERR(rk_pcie->usb_pcie_grf);
-	}
-
-	rk_pcie->pmu_grf = syscon_regmap_lookup_by_phandle(dev->of_node,
-							 "rockchip,pmugrf");
-	if (IS_ERR(rk_pcie->pmu_grf)) {
-		dev_err(dev, "failed to find pmugrf regmap\n");
-		return PTR_ERR(rk_pcie->pmu_grf);
-	}
-
-	/* Workaround for pcie, switch to PCIe_PRSTNm0 */
-	ret = regmap_write(rk_pcie->pmu_grf, 0x100, 0x01000100);
-	if (ret)
-		return ret;
-
-	ret = regmap_write(rk_pcie->pmu_grf, 0x0, 0x0c000000);
-	if (ret)
-		return ret;
+	platform_set_drvdata(pdev, rk_pcie);
 
 	ret = rk_pcie_clk_init(rk_pcie);
 	if (ret) {
@@ -1024,18 +1102,21 @@ static int rk_pcie_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	platform_set_drvdata(pdev, rk_pcie);
-
 	dw_pcie_dbi_ro_wr_en(pci);
 
-	/* release link reset grant */
-	ret = rk_pcie_reset_grant_ctrl(rk_pcie, true);
-	if (ret)
-		goto deinit_clk;
+	if (rk_pcie->is_rk1808) {
+		ret = rk1808_pcie_fixup(rk_pcie, np);
+		if (ret)
+			goto deinit_clk;
+	} else {
+		rk_pcie_fast_link_setup(rk_pcie);
+	}
 
 	/* Set PCIe mode */
 	rk_pcie_set_mode(rk_pcie);
-	/* Set PCIe gen2 */
+
+	/* Set PCIe gen */
+	rk_pcie->link_gen = of_pci_get_max_link_speed(np);
 	rk_pcie_set_gens(rk_pcie);
 
 	ret = rk_pcie_establish_link(pci);
@@ -1056,10 +1137,12 @@ static int rk_pcie_probe(struct platform_device *pdev)
 	if (ret)
 		goto deinit_clk;
 
-	/* hold link reset grant after link-up */
-	ret = rk_pcie_reset_grant_ctrl(rk_pcie, false);
-	if (ret)
-		goto deinit_clk;
+	if (rk_pcie->is_rk1808) {
+		/* hold link reset grant after link-up */
+		ret = rk_pcie_reset_grant_ctrl(rk_pcie, false);
+		if (ret)
+			goto deinit_clk;
+	}
 
 	dw_pcie_dbi_ro_wr_dis(pci);
 
@@ -1124,14 +1207,18 @@ static int __maybe_unused rockchip_dw_pcie_resume(struct device *dev)
 
 	dw_pcie_dbi_ro_wr_en(rk_pcie->pci);
 
-	/* release link reset grant */
-	ret = rk_pcie_reset_grant_ctrl(rk_pcie, true);
-	if (ret)
-		return ret;
+	if (rk_pcie->is_rk1808) {
+		/* release link reset grant */
+		ret = rk_pcie_reset_grant_ctrl(rk_pcie, true);
+		if (ret)
+			return ret;
+	} else {
+		rk_pcie_fast_link_setup(rk_pcie);
+	}
 
 	/* Set PCIe mode */
 	rk_pcie_set_mode(rk_pcie);
-	/* Set PCIe gen2 */
+	/* Set PCIe gen */
 	rk_pcie_set_gens(rk_pcie);
 
 	ret = rk_pcie_establish_link(rk_pcie->pci);
