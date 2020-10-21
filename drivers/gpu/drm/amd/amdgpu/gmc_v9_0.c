@@ -1146,6 +1146,16 @@ static int gmc_v9_0_early_init(void *handle)
 	gmc_v9_0_set_mmhub_funcs(adev);
 	gmc_v9_0_set_gfxhub_funcs(adev);
 
+	if (adev->asic_type == CHIP_VEGA20 ||
+	    adev->asic_type == CHIP_ARCTURUS)
+		adev->gmc.xgmi.supported = true;
+
+	if (adev->asic_type == CHIP_ALDEBARAN) {
+		adev->gmc.xgmi.supported = true;
+		adev->gmc.xgmi.connected_to_cpu =
+			adev->smuio.funcs->is_host_gpu_xgmi_supported(adev);
+        }
+
 	adev->gmc.shared_aperture_start = 0x2000000000000000ULL;
 	adev->gmc.shared_aperture_end =
 		adev->gmc.shared_aperture_start + (4ULL << 30) - 1;
@@ -1234,10 +1244,34 @@ static int gmc_v9_0_mc_init(struct amdgpu_device *adev)
 	adev->gmc.aper_size = pci_resource_len(adev->pdev, 0);
 
 #ifdef CONFIG_X86_64
+	/*
+	 * AMD Accelerated Processing Platform (APP) supporting GPU-HOST xgmi
+	 * interface can use VRAM through here as it appears system reserved
+	 * memory in host address space.
+	 *
+	 * For APUs, VRAM is just the stolen system memory and can be accessed
+	 * directly.
+	 *
+	 * Otherwise, use the legacy Host Data Path (HDP) through PCIe BAR.
+	 */
+
+	/* check whether both host-gpu and gpu-gpu xgmi links exist */
+	if (adev->gmc.xgmi.supported && adev->gmc.xgmi.connected_to_cpu &&
+	    adev->asic_type == CHIP_ALDEBARAN) {
+
+		adev->gmc.aper_base = adev->gfxhub.funcs->get_mc_fb_offset(adev) +
+			adev->gmc.xgmi.node_id *
+			adev->gmc.xgmi.node_segment_size;
+
+		adev->gmc.aper_size = adev->gmc.real_vram_size;
+
+	}
+
 	if (adev->flags & AMD_IS_APU) {
 		adev->gmc.aper_base = adev->gfxhub.funcs->get_mc_fb_offset(adev);
 		adev->gmc.aper_size = adev->gmc.real_vram_size;
 	}
+
 #endif
 	/* In case the PCI BAR is larger than the actual amount of vram */
 	adev->gmc.visible_vram_size = adev->gmc.aper_size;

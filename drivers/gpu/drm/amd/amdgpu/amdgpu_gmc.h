@@ -149,6 +149,7 @@ struct amdgpu_xgmi {
 	struct list_head head;
 	bool supported;
 	struct ras_common_if *ras_if;
+	bool connected_to_cpu;
 };
 
 struct amdgpu_gmc {
