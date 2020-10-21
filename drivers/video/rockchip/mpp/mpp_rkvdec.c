@@ -114,10 +114,10 @@
 #define to_rkvdec_dev(dev)		\
 		container_of(dev, struct rkvdec_dev, mpp)
 
-enum RKVDEC_STATE {
-	RKVDEC_STATE_NORMAL,
-	RKVDEC_STATE_LT_START,
-	RKVDEC_STATE_LT_RUN,
+enum RKVDEC_MODE {
+	RKVDEC_MODE_NONE,
+	RKVDEC_MODE_ONEFRAME,
+	RKVDEC_MODE_BUTT
 };
 
 enum SET_CLK_EVENT {
@@ -128,15 +128,10 @@ enum SET_CLK_EVENT {
 	EVENT_BUTT,
 };
 
-enum RKVDEC_HW_ID {
-	HEVC_DEC_ID_6867 = 0x6867,
-	RKVDEC_ID_6876   = 0x6876,
-	RKVDEC_ID_3410   = 0x3410,
-};
-
 struct rkvdec_task {
 	struct mpp_task mpp_task;
 
+	enum RKVDEC_MODE link_mode;
 	enum MPP_CLOCK_MODE clk_mode;
 	u32 reg[RKVDEC_V2_REG_NUM];
 	struct reg_offset_info off_inf;
@@ -171,7 +166,6 @@ struct rkvdec_dev {
 	struct reset_control *rst_cabac;
 	struct reset_control *rst_hevc_cabac;
 
-	enum RKVDEC_STATE state;
 	unsigned long aux_iova;
 	struct page *aux_page;
 #ifdef CONFIG_PM_DEVFREQ
@@ -827,6 +821,7 @@ static void *rkvdec_alloc_task(struct mpp_session *session,
 			goto fail;
 	}
 	task->strm_addr = task->reg[RKVDEC_REG_RLC_BASE_INDEX];
+	task->link_mode = RKVDEC_MODE_ONEFRAME;
 	task->clk_mode = CLK_MODE_NORMAL;
 
 	mpp_debug_leave();
@@ -874,16 +869,14 @@ static int rkvdec_run(struct mpp_dev *mpp,
 {
 	int i;
 	u32 reg_en;
-	struct rkvdec_dev *dec = NULL;
 	struct rkvdec_task *task = NULL;
 
 	mpp_debug_enter();
 
-	dec = to_rkvdec_dev(mpp);
 	task = to_rkvdec_task(mpp_task);
 	reg_en = mpp_task->hw_info->reg_en;
-	switch (dec->state) {
-	case RKVDEC_STATE_NORMAL: {
+	switch (task->link_mode) {
+	case RKVDEC_MODE_ONEFRAME: {
 		u32 reg;
 
 		/* set cache size */
@@ -968,21 +961,20 @@ static int rkvdec_isr(struct mpp_dev *mpp)
 	u32 err_mask;
 	struct rkvdec_task *task = NULL;
 	struct mpp_task *mpp_task = mpp->cur_task;
-	struct rkvdec_dev *dec = to_rkvdec_dev(mpp);
 
+	mpp_debug_enter();
 	/* FIXME use a spin lock here */
 	if (!mpp_task) {
 		dev_err(mpp->dev, "no current task\n");
-		return IRQ_HANDLED;
+		goto done;
 	}
 	mpp_time_diff(mpp_task);
 	mpp->cur_task = NULL;
 	task = to_rkvdec_task(mpp_task);
 	task->irq_status = mpp->irq_status;
-	switch (dec->state) {
-	case RKVDEC_STATE_NORMAL:
-		mpp_debug(DEBUG_IRQ_STATUS, "irq_status: %08x\n",
-			  task->irq_status);
+	switch (task->link_mode) {
+	case RKVDEC_MODE_ONEFRAME: {
+		mpp_debug(DEBUG_IRQ_STATUS, "irq_status: %08x\n", task->irq_status);
 
 		err_mask = RKVDEC_INT_BUF_EMPTY
 			| RKVDEC_INT_BUS_ERROR
@@ -994,13 +986,51 @@ static int rkvdec_isr(struct mpp_dev *mpp)
 			atomic_inc(&mpp->reset_request);
 
 		mpp_task_finish(mpp_task->session, mpp_task);
-
-		mpp_debug_leave();
-		return IRQ_HANDLED;
+	} break;
 	default:
-		goto fail;
+		break;
 	}
-fail:
+done:
+	mpp_debug_leave();
+	return IRQ_HANDLED;
+}
+
+static int rkvdec_3328_isr(struct mpp_dev *mpp)
+{
+	u32 err_mask;
+	struct rkvdec_task *task = NULL;
+	struct mpp_task *mpp_task = mpp->cur_task;
+	struct rkvdec_dev *dec = to_rkvdec_dev(mpp);
+
+	mpp_debug_enter();
+	/* FIXME use a spin lock here */
+	if (!mpp_task) {
+		dev_err(mpp->dev, "no current task\n");
+		goto done;
+	}
+	mpp_time_diff(mpp_task);
+	mpp->cur_task = NULL;
+	task = to_rkvdec_task(mpp_task);
+	task->irq_status = mpp->irq_status;
+	mpp_debug(DEBUG_IRQ_STATUS, "irq_status: %08x\n", task->irq_status);
+
+	err_mask = RKVDEC_INT_BUF_EMPTY
+		| RKVDEC_INT_BUS_ERROR
+		| RKVDEC_INT_COLMV_REF_ERROR
+		| RKVDEC_INT_STRM_ERROR
+		| RKVDEC_INT_TIMEOUT;
+	if (err_mask & task->irq_status)
+		atomic_inc(&mpp->reset_request);
+
+	/* unmap reserve buffer */
+	if (dec->aux_iova != -1) {
+		iommu_unmap(mpp->iommu_info->domain, dec->aux_iova, IOMMU_PAGE_SIZE);
+		dec->aux_iova = -1;
+	}
+
+	mpp_task_finish(mpp_task->session, mpp_task);
+done:
+	mpp_debug_leave();
 	return IRQ_HANDLED;
 }
 
@@ -1010,13 +1040,12 @@ static int rkvdec_finish(struct mpp_dev *mpp,
 	u32 i;
 	u32 dec_get;
 	s32 dec_length;
-	struct rkvdec_dev *dec = to_rkvdec_dev(mpp);
 	struct rkvdec_task *task = to_rkvdec_task(mpp_task);
 
 	mpp_debug_enter();
 
-	switch (dec->state) {
-	case RKVDEC_STATE_NORMAL: {
+	switch (task->link_mode) {
+	case RKVDEC_MODE_ONEFRAME: {
 		u32 s, e;
 		struct mpp_request *req;
 
@@ -1218,17 +1247,15 @@ static int rkvdec_3328_iommu_hdl(struct iommu_domain *iommu,
 	if (IOMMU_GET_BUS_ID(status) == 2) {
 		unsigned long page_iova = 0;
 		/* avoid another page fault occur after page fault */
-		if (dec->aux_iova)
-			iommu_unmap(mpp->iommu_info->domain,
-				    dec->aux_iova,
-				    IOMMU_PAGE_SIZE);
+		if (dec->aux_iova != -1) {
+			iommu_unmap(mpp->iommu_info->domain, dec->aux_iova, IOMMU_PAGE_SIZE);
+			dec->aux_iova = -1;
+		}
 
 		page_iova = round_down(iova, IOMMU_PAGE_SIZE);
-		ret = iommu_map(mpp->iommu_info->domain,
-				page_iova,
-				page_to_phys(dec->aux_page),
-				IOMMU_PAGE_SIZE,
-				DMA_FROM_DEVICE);
+		ret = iommu_map(mpp->iommu_info->domain, page_iova,
+				page_to_phys(dec->aux_page), IOMMU_PAGE_SIZE,
+				IOMMU_READ | IOMMU_WRITE);
 		if (!ret)
 			dec->aux_iova = page_iova;
 	}
@@ -1344,7 +1371,7 @@ static int rkvdec_3328_init(struct mpp_dev *mpp)
 		ret = -ENOMEM;
 		goto done;
 	}
-	dec->aux_iova = 0;
+	dec->aux_iova = -1;
 	mpp->iommu_info->hdl = rkvdec_3328_iommu_hdl;
 
 	ret = rkvdec_devfreq_init(mpp);
@@ -1359,10 +1386,10 @@ static int rkvdec_3328_exit(struct mpp_dev *mpp)
 	if (dec->aux_page)
 		__free_page(dec->aux_page);
 
-	if (dec->aux_iova)
-		iommu_unmap(mpp->iommu_info->domain,
-			    dec->aux_iova,
-			    IOMMU_PAGE_SIZE);
+	if (dec->aux_iova != -1) {
+		iommu_unmap(mpp->iommu_info->domain, dec->aux_iova, IOMMU_PAGE_SIZE);
+		dec->aux_iova = -1;
+	}
 	rkvdec_devfreq_remove(mpp);
 
 	return 0;
@@ -1620,7 +1647,7 @@ static struct mpp_dev_ops rkvdec_3328_dev_ops = {
 	.alloc_task = rkvdec_alloc_task,
 	.run = rkvdec_3328_run,
 	.irq = rkvdec_irq,
-	.isr = rkvdec_isr,
+	.isr = rkvdec_3328_isr,
 	.finish = rkvdec_finish,
 	.result = rkvdec_result,
 	.free_task = rkvdec_free_task,
@@ -1752,7 +1779,6 @@ static int rkvdec_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	dec->state = RKVDEC_STATE_NORMAL;
 	mpp->session_max_buffers = RKVDEC_SESSION_MAX_BUFFERS;
 	rkvdec_procfs_init(mpp);
 	dev_info(dev, "probing finish\n");
