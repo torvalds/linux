@@ -117,7 +117,8 @@ int clk_notifier_unregister(struct clk *clk, struct notifier_block *nb);
  *
  * Returns 0 on success, -EERROR otherwise
  */
-int devm_clk_notifier_register(struct device *dev, struct clk *clk, struct notifier_block *nb);
+int devm_clk_notifier_register(struct device *dev, struct clk *clk,
+			       struct notifier_block *nb);
 
 /**
  * clk_get_accuracy - obtain the clock accuracy in ppb (parts per billion)
@@ -192,6 +193,13 @@ static inline int clk_notifier_register(struct clk *clk,
 
 static inline int clk_notifier_unregister(struct clk *clk,
 					  struct notifier_block *nb)
+{
+	return -ENOTSUPP;
+}
+
+static inline int devm_clk_notifier_register(struct device *dev,
+					     struct clk *clk,
+					     struct notifier_block *nb)
 {
 	return -ENOTSUPP;
 }
