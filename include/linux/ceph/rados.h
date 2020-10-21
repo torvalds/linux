@@ -424,7 +424,7 @@ enum {
 };
 
 #define EOLDSNAPC    ERESTART  /* ORDERSNAP flag set; writer has old snapc*/
-#define EBLACKLISTED ESHUTDOWN /* blacklisted */
+#define EBLOCKLISTED ESHUTDOWN /* blocklisted */
 
 /* xattr comparison */
 enum {

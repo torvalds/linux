@@ -4010,10 +4010,10 @@ static int rbd_try_lock(struct rbd_device *rbd_dev)
 		rbd_warn(rbd_dev, "breaking header lock owned by %s%llu",
 			 ENTITY_NAME(lockers[0].id.name));
 
-		ret = ceph_monc_blacklist_add(&client->monc,
+		ret = ceph_monc_blocklist_add(&client->monc,
 					      &lockers[0].info.addr);
 		if (ret) {
-			rbd_warn(rbd_dev, "blacklist of %s%llu failed: %d",
+			rbd_warn(rbd_dev, "blocklist of %s%llu failed: %d",
 				 ENTITY_NAME(lockers[0].id.name), ret);
 			goto out;
 		}
@@ -4077,7 +4077,7 @@ static int rbd_try_acquire_lock(struct rbd_device *rbd_dev)
 	ret = rbd_try_lock(rbd_dev);
 	if (ret < 0) {
 		rbd_warn(rbd_dev, "failed to lock header: %d", ret);
-		if (ret == -EBLACKLISTED)
+		if (ret == -EBLOCKLISTED)
 			goto out;
 
 		ret = 1; /* request lock anyway */
@@ -4613,7 +4613,7 @@ static void rbd_reregister_watch(struct work_struct *work)
 	ret = __rbd_register_watch(rbd_dev);
 	if (ret) {
 		rbd_warn(rbd_dev, "failed to reregister watch: %d", ret);
-		if (ret != -EBLACKLISTED && ret != -ENOENT) {
+		if (ret != -EBLOCKLISTED && ret != -ENOENT) {
 			queue_delayed_work(rbd_dev->task_wq,
 					   &rbd_dev->watch_dwork,
 					   RBD_RETRY_DELAY);
