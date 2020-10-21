@@ -420,6 +420,8 @@ struct dc_bw_validation_profile {
 union mem_low_power_enable_options {
 	struct {
 		bool i2c: 1;
+		bool dmcu: 1;
+		bool cm: 1;
 		bool mpc: 1;
 		bool optc: 1;
 	} bits;

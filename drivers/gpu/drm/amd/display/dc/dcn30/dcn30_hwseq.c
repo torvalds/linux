@@ -462,6 +462,13 @@ void dcn30_init_hw(struct dc *dc)
 		hws->funcs.disable_vga(dc->hwseq);
 	}
 
+	if (dc->debug.enable_mem_low_power.bits.dmcu) {
+		// Force ERAM to shutdown if DMCU is not enabled
+		if (dc->debug.disable_dmcu || dc->config.disable_dmcu) {
+			REG_UPDATE(DMU_MEM_PWR_CNTL, DMCU_ERAM_MEM_PWR_FORCE, 3);
+		}
+	}
+
 	// Set default OPTC memory power states
 	if (dc->debug.enable_mem_low_power.bits.optc) {
 		// Shutdown when unassigned and light sleep in VBLANK
