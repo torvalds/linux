@@ -19,6 +19,7 @@
 #include <linux/types.h>
 #include <linux/writeback.h>
 #include <linux/nospec.h>
+#include "compat.h"
 
 static int check_quotactl_permission(struct super_block *sb, int type, int cmd,
 				     qid_t id)
@@ -211,8 +212,18 @@ static int quota_getquota(struct super_block *sb, int type, qid_t id,
 	if (ret)
 		return ret;
 	copy_to_if_dqblk(&idq, &fdq);
-	if (copy_to_user(addr, &idq, sizeof(idq)))
-		return -EFAULT;
+
+	if (compat_need_64bit_alignment_fixup()) {
+		struct compat_if_dqblk __user *compat_dqblk = addr;
+
+		if (copy_to_user(compat_dqblk, &idq, sizeof(*compat_dqblk)))
+			return -EFAULT;
+		if (put_user(idq.dqb_valid, &compat_dqblk->dqb_valid))
+			return -EFAULT;
+	} else {
+		if (copy_to_user(addr, &idq, sizeof(idq)))
+			return -EFAULT;
+	}
 	return 0;
 }
 
@@ -277,8 +288,16 @@ static int quota_setquota(struct super_block *sb, int type, qid_t id,
 	struct if_dqblk idq;
 	struct kqid qid;
 
-	if (copy_from_user(&idq, addr, sizeof(idq)))
-		return -EFAULT;
+	if (compat_need_64bit_alignment_fixup()) {
+		struct compat_if_dqblk __user *compat_dqblk = addr;
+
+		if (copy_from_user(&idq, compat_dqblk, sizeof(*compat_dqblk)) ||
+		    get_user(idq.dqb_valid, &compat_dqblk->dqb_valid))
+			return -EFAULT;
+	} else {
+		if (copy_from_user(&idq, addr, sizeof(idq)))
+			return -EFAULT;
+	}
 	if (!sb->s_qcop->set_dqblk)
 		return -ENOSYS;
 	qid = make_kqid(current_user_ns(), type, id);
@@ -382,6 +401,33 @@ static int quota_getstate(struct super_block *sb, int type,
 	return 0;
 }
 
+static int compat_copy_fs_qfilestat(struct compat_fs_qfilestat __user *to,
+		struct fs_qfilestat *from)
+{
+	if (copy_to_user(to, from, sizeof(*to)) ||
+	    put_user(from->qfs_nextents, &to->qfs_nextents))
+		return -EFAULT;
+	return 0;
+}
+
+static int compat_copy_fs_quota_stat(struct compat_fs_quota_stat __user *to,
+		struct fs_quota_stat *from)
+{
+	if (put_user(from->qs_version, &to->qs_version) ||
+	    put_user(from->qs_flags, &to->qs_flags) ||
+	    put_user(from->qs_pad, &to->qs_pad) ||
+	    compat_copy_fs_qfilestat(&to->qs_uquota, &from->qs_uquota) ||
+	    compat_copy_fs_qfilestat(&to->qs_gquota, &from->qs_gquota) ||
+	    put_user(from->qs_incoredqs, &to->qs_incoredqs) ||
+	    put_user(from->qs_btimelimit, &to->qs_btimelimit) ||
+	    put_user(from->qs_itimelimit, &to->qs_itimelimit) ||
+	    put_user(from->qs_rtbtimelimit, &to->qs_rtbtimelimit) ||
+	    put_user(from->qs_bwarnlimit, &to->qs_bwarnlimit) ||
+	    put_user(from->qs_iwarnlimit, &to->qs_iwarnlimit))
+		return -EFAULT;
+	return 0;
+}
+
 static int quota_getxstate(struct super_block *sb, int type, void __user *addr)
 {
 	struct fs_quota_stat fqs;
@@ -390,9 +436,14 @@ static int quota_getxstate(struct super_block *sb, int type, void __user *addr)
 	if (!sb->s_qcop->get_state)
 		return -ENOSYS;
 	ret = quota_getstate(sb, type, &fqs);
-	if (!ret && copy_to_user(addr, &fqs, sizeof(fqs)))
+	if (ret)
+		return ret;
+
+	if (compat_need_64bit_alignment_fixup())
+		return compat_copy_fs_quota_stat(addr, &fqs);
+	if (copy_to_user(addr, &fqs, sizeof(fqs)))
 		return -EFAULT;
-	return ret;
+	return 0;
 }
 
 static int quota_getstatev(struct super_block *sb, int type,
@@ -816,8 +867,8 @@ static struct super_block *quotactl_block(const char __user *special, int cmd)
  * calls. Maybe we need to add the process quotas etc. in the future,
  * but we probably should use rlimits for that.
  */
-int kernel_quotactl(unsigned int cmd, const char __user *special,
-		    qid_t id, void __user *addr)
+SYSCALL_DEFINE4(quotactl, unsigned int, cmd, const char __user *, special,
+		qid_t, id, void __user *, addr)
 {
 	uint cmds, type;
 	struct super_block *sb = NULL;
@@ -870,10 +921,4 @@ out:
 	if (pathp && !IS_ERR(pathp))
 		path_put(pathp);
 	return ret;
-}
-
-SYSCALL_DEFINE4(quotactl, unsigned int, cmd, const char __user *, special,
-		qid_t, id, void __user *, addr)
-{
-	return kernel_quotactl(cmd, special, id, addr);
 }
