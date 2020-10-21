@@ -15,7 +15,6 @@
 #include <linux/init.h>
 #include <linux/msi.h>
 #include <linux/of.h>
-#include <linux/of_pci.h>
 #include <linux/pci.h>
 #include <linux/pm.h>
 #include <linux/slab.h>
@@ -30,8 +29,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/pci_hotplug.h>
 #include <linux/vmalloc.h>
-#include <linux/pci-ats.h>
-#include <asm/setup.h>
 #include <asm/dma.h>
 #include <linux/aer.h>
 #include "pci.h"
@@ -4935,15 +4932,9 @@ static int pci_reset_hotplug_slot(struct hotplug_slot *hotplug, int probe)
 
 static int pci_dev_reset_slot_function(struct pci_dev *dev, int probe)
 {
-	struct pci_dev *pdev;
-
-	if (dev->subordinate || !dev->slot ||
+	if (dev->multifunction || dev->subordinate || !dev->slot ||
 	    dev->dev_flags & PCI_DEV_FLAGS_NO_BUS_RESET)
 		return -ENOTTY;
-
-	list_for_each_entry(pdev, &dev->bus->devices, bus_list)
-		if (pdev != dev && pdev->slot == dev->slot)
-			return -ENOTTY;
 
 	return pci_reset_hotplug_slot(dev->slot->hotplug, probe);
 }
@@ -6020,7 +6011,7 @@ int pci_set_vga_state(struct pci_dev *dev, bool decode,
 
 	if (flags & PCI_VGA_STATE_CHANGE_DECODES) {
 		pci_read_config_word(dev, PCI_COMMAND, &cmd);
-		if (decode == true)
+		if (decode)
 			cmd |= command_bits;
 		else
 			cmd &= ~command_bits;
@@ -6036,7 +6027,7 @@ int pci_set_vga_state(struct pci_dev *dev, bool decode,
 		if (bridge) {
 			pci_read_config_word(bridge, PCI_BRIDGE_CONTROL,
 					     &cmd);
-			if (decode == true)
+			if (decode)
 				cmd |= PCI_BRIDGE_CTL_VGA;
 			else
 				cmd &= ~PCI_BRIDGE_CTL_VGA;
@@ -6365,7 +6356,7 @@ static ssize_t resource_alignment_show(struct bus_type *bus, char *buf)
 
 	spin_lock(&resource_alignment_lock);
 	if (resource_alignment_param)
-		count = snprintf(buf, PAGE_SIZE, "%s", resource_alignment_param);
+		count = scnprintf(buf, PAGE_SIZE, "%s", resource_alignment_param);
 	spin_unlock(&resource_alignment_lock);
 
 	/*
