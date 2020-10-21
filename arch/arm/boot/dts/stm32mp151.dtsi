@@ -1574,7 +1574,7 @@
 		};
 
 		tamp: tamp@5c00a000 {
-			compatible = "st,stm32-tamp", "syscon";
+			compatible = "st,stm32-tamp", "syscon", "simple-mfd";
 			reg = <0x5c00a000 0x400>;
 		};
 
