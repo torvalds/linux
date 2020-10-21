@@ -28,6 +28,8 @@
 #define NANDC_V9_READ		0
 #define NANDC_V9_WRITE		1
 
+#define NFC_SYS_DATA_SIZE	(4) /* 4 bytes sys data in oob pre 1024 data.*/
+
 #define NANDC_REG_V9_FMCTL	0x00
 #define NANDC_REG_V9_FMWAIT	0x04
 #define NANDC_REG_V9_FLCTL	0x10
@@ -96,6 +98,7 @@ struct rk_nand_chip {
 	struct nand_chip nand;
 	unsigned long clk_rate;
 	u32 timing_cfg;
+	u16 metadata_size;
 	int selected;
 	int nsels;
 	int sels[NANDC_V9_NUM_CHIPS];
@@ -465,6 +468,45 @@ static u8 rk_nfc_read_byte(struct mtd_info *mtd)
 	return ret;
 }
 
+static int rk_nfc_ooblayout_free(struct mtd_info *mtd, int section,
+				 struct mtd_oob_region *oob_region)
+{
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct rk_nand_chip *rknand = to_rk_nand_chip(chip);
+
+	if (section)
+		return -ERANGE;
+
+	/*
+	 * The beginning of the oob area stores the reserved data for the NFC,
+	 * the size of the reserved data is NFC_SYS_DATA_SIZE bytes.
+	 */
+	oob_region->length = rknand->metadata_size - 2;
+	oob_region->offset = NFC_SYS_DATA_SIZE + 2;
+
+	return 0;
+}
+
+static int rk_nfc_ooblayout_ecc(struct mtd_info *mtd, int section,
+				struct mtd_oob_region *oob_region)
+{
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct rk_nand_chip *rknand = to_rk_nand_chip(chip);
+
+	if (section)
+		return -ERANGE;
+
+	oob_region->offset = rknand->metadata_size;
+	oob_region->length = mtd->oobsize - oob_region->offset;
+
+	return 0;
+}
+
+static const struct mtd_ooblayout_ops rk_nfc_ooblayout_ops = {
+	.free = rk_nfc_ooblayout_free,
+	.ecc = rk_nfc_ooblayout_ecc,
+};
+
 static int rk_nfc_hw_ecc_setup(struct mtd_info *mtd,
 			       struct nand_ecc_ctrl *ecc,
 			       uint32_t strength)
@@ -505,6 +547,7 @@ static int rk_nfc_hw_ecc_ctrl_init(struct mtd_info *mtd,
 	static const u8 strengths[] = {70, 60, 40, 16};
 	struct nand_chip *nand = mtd_to_nand(mtd);
 	struct rk_nfc *nfc = nand_get_controller_data(nand);
+	struct rk_nand_chip *rknand = to_rk_nand_chip(nand);
 	int max_strength;
 	int i;
 	int ver;
@@ -512,7 +555,8 @@ static int rk_nfc_hw_ecc_ctrl_init(struct mtd_info *mtd,
 	ecc->size = 1024;
 	ecc->prepad = 4;
 	ecc->steps = mtd->writesize / ecc->size;
-	max_strength = ((mtd->oobsize / ecc->steps) - 4) * 8 / 14;
+	rknand->metadata_size = NFC_SYS_DATA_SIZE * ecc->steps;
+	max_strength = ((mtd->oobsize / ecc->steps) - NFC_SYS_DATA_SIZE) * 8 / 14;
 	nfc->max_ecc_strength = 70;
 	ver = readl(nfc->regs + NANDC_REG_V9_VER);
 	if (ver != 0x56393030)
@@ -730,6 +774,7 @@ static int rk_nand_chip_init(struct device *dev, struct rk_nfc *nfc,
 	nand->ecc.read_oob = rk_nfc_hw_ecc_read_oob;
 
 	mtd = nand_to_mtd(nand);
+	mtd_set_ooblayout(mtd, &rk_nfc_ooblayout_ops);
 	mtd->dev.parent = dev;
 	mtd->name = "rk-nand";
 
