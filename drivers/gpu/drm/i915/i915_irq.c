@@ -152,6 +152,13 @@ static const u32 hpd_icp[HPD_NUM_PINS] = {
 	[HPD_PORT_TC6] = SDE_TC_HOTPLUG_ICP(PORT_TC6),
 };
 
+static const u32 hpd_sde_dg1[HPD_NUM_PINS] = {
+	[HPD_PORT_A] = SDE_DDI_HOTPLUG_ICP(PORT_A),
+	[HPD_PORT_B] = SDE_DDI_HOTPLUG_ICP(PORT_B),
+	[HPD_PORT_C] = SDE_DDI_HOTPLUG_ICP(PORT_C),
+	[HPD_PORT_D] = SDE_DDI_HOTPLUG_ICP(PORT_D),
+};
+
 static void intel_hpd_init_pins(struct drm_i915_private *dev_priv)
 {
 	struct i915_hotplug *hpd = &dev_priv->hotplug;
@@ -176,11 +183,14 @@ static void intel_hpd_init_pins(struct drm_i915_private *dev_priv)
 	else
 		hpd->hpd = hpd_ilk;
 
-	if (!HAS_PCH_SPLIT(dev_priv) || HAS_PCH_NOP(dev_priv))
+	if ((INTEL_PCH_TYPE(dev_priv) < PCH_DG1) &&
+	    (!HAS_PCH_SPLIT(dev_priv) || HAS_PCH_NOP(dev_priv)))
 		return;
 
-	if (HAS_PCH_TGP(dev_priv) || HAS_PCH_JSP(dev_priv) ||
-	    HAS_PCH_ICP(dev_priv) || HAS_PCH_MCC(dev_priv))
+	if (HAS_PCH_DG1(dev_priv))
+		hpd->pch_hpd = hpd_sde_dg1;
+	else if (HAS_PCH_TGP(dev_priv) || HAS_PCH_JSP(dev_priv) ||
+		 HAS_PCH_ICP(dev_priv) || HAS_PCH_MCC(dev_priv))
 		hpd->pch_hpd = hpd_icp;
 	else if (HAS_PCH_CNP(dev_priv) || HAS_PCH_SPT(dev_priv))
 		hpd->pch_hpd = hpd_spt;
@@ -1071,6 +1081,8 @@ static bool icp_ddi_port_hotplug_long_detect(enum hpd_pin pin, u32 val)
 		return val & SHOTPLUG_CTL_DDI_HPD_LONG_DETECT(PORT_B);
 	case HPD_PORT_C:
 		return val & SHOTPLUG_CTL_DDI_HPD_LONG_DETECT(PORT_C);
+	case HPD_PORT_D:
+		return val & SHOTPLUG_CTL_DDI_HPD_LONG_DETECT(PORT_D);
 	default:
 		return false;
 	}
@@ -1861,7 +1873,10 @@ static void icp_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 	u32 ddi_hotplug_trigger, tc_hotplug_trigger;
 	u32 pin_mask = 0, long_mask = 0;
 
-	if (HAS_PCH_TGP(dev_priv)) {
+	if (HAS_PCH_DG1(dev_priv)) {
+		ddi_hotplug_trigger = pch_iir & SDE_DDI_MASK_DG1;
+		tc_hotplug_trigger = 0;
+	} else if (HAS_PCH_TGP(dev_priv)) {
 		ddi_hotplug_trigger = pch_iir & SDE_DDI_MASK_TGP;
 		tc_hotplug_trigger = pch_iir & SDE_TC_MASK_TGP;
 	} else if (HAS_PCH_JSP(dev_priv)) {
@@ -3251,6 +3266,12 @@ static void jsp_hpd_irq_setup(struct drm_i915_private *dev_priv)
 			  TGP_DDI_HPD_ENABLE_MASK, 0);
 }
 
+static void dg1_hpd_irq_setup(struct drm_i915_private *dev_priv)
+{
+	icp_hpd_irq_setup(dev_priv,
+			  DG1_DDI_HPD_ENABLE_MASK, 0);
+}
+
 static void gen11_hpd_detection_setup(struct drm_i915_private *dev_priv)
 {
 	u32 hotplug;
@@ -3636,7 +3657,9 @@ static void icp_irq_postinstall(struct drm_i915_private *dev_priv)
 	gen3_assert_iir_is_zero(&dev_priv->uncore, SDEIIR);
 	I915_WRITE(SDEIMR, ~mask);
 
-	if (HAS_PCH_TGP(dev_priv)) {
+	if (HAS_PCH_DG1(dev_priv))
+		icp_ddi_hpd_detection_setup(dev_priv, DG1_DDI_HPD_ENABLE_MASK);
+	else if (HAS_PCH_TGP(dev_priv)) {
 		icp_ddi_hpd_detection_setup(dev_priv, TGP_DDI_HPD_ENABLE_MASK);
 		icp_tc_hpd_detection_setup(dev_priv, TGP_TC_HPD_ENABLE_MASK);
 	} else if (HAS_PCH_JSP(dev_priv)) {
@@ -4156,7 +4179,9 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 		if (I915_HAS_HOTPLUG(dev_priv))
 			dev_priv->display.hpd_irq_setup = i915_hpd_irq_setup;
 	} else {
-		if (HAS_PCH_JSP(dev_priv))
+		if (HAS_PCH_DG1(dev_priv))
+			dev_priv->display.hpd_irq_setup = dg1_hpd_irq_setup;
+		else if (HAS_PCH_JSP(dev_priv))
 			dev_priv->display.hpd_irq_setup = jsp_hpd_irq_setup;
 		else if (HAS_PCH_MCC(dev_priv))
 			dev_priv->display.hpd_irq_setup = mcc_hpd_irq_setup;

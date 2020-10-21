@@ -5066,6 +5066,15 @@ static bool hti_uses_phy(struct drm_i915_private *i915, enum phy phy)
 		 i915->hti_state & HDPORT_PHY_USED_HDMI(phy));
 }
 
+static enum hpd_pin dg1_hpd_pin(struct drm_i915_private *dev_priv,
+				enum port port)
+{
+	if (port >= PORT_D)
+		return HPD_PORT_C + port - PORT_D;
+	else
+		return HPD_PORT_A + port - PORT_A;
+}
+
 static enum hpd_pin tgl_hpd_pin(struct drm_i915_private *dev_priv,
 				enum port port)
 {
@@ -5195,7 +5204,9 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	encoder->cloneable = 0;
 	encoder->pipe_mask = ~0;
 
-	if (IS_ROCKETLAKE(dev_priv))
+	if (IS_DG1(dev_priv))
+		encoder->hpd_pin = dg1_hpd_pin(dev_priv, port);
+	else if (IS_ROCKETLAKE(dev_priv))
 		encoder->hpd_pin = rkl_hpd_pin(dev_priv, port);
 	else if (INTEL_GEN(dev_priv) >= 12)
 		encoder->hpd_pin = tgl_hpd_pin(dev_priv, port);
