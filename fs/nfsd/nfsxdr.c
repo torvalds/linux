@@ -173,6 +173,79 @@ decode_sattr(__be32 *p, struct iattr *iap, struct user_namespace *userns)
 	return p;
 }
 
+static bool
+svcxdr_decode_sattr(struct svc_rqst *rqstp, struct xdr_stream *xdr,
+		    struct iattr *iap)
+{
+	u32 tmp1, tmp2;
+	__be32 *p;
+
+	p = xdr_inline_decode(xdr, XDR_UNIT * 8);
+	if (!p)
+		return false;
+
+	iap->ia_valid = 0;
+
+	/*
+	 * Some Sun clients put 0xffff in the mode field when they
+	 * mean 0xffffffff.
+	 */
+	tmp1 = be32_to_cpup(p++);
+	if (tmp1 != (u32)-1 && tmp1 != 0xffff) {
+		iap->ia_valid |= ATTR_MODE;
+		iap->ia_mode = tmp1;
+	}
+
+	tmp1 = be32_to_cpup(p++);
+	if (tmp1 != (u32)-1) {
+		iap->ia_uid = make_kuid(nfsd_user_namespace(rqstp), tmp1);
+		if (uid_valid(iap->ia_uid))
+			iap->ia_valid |= ATTR_UID;
+	}
+
+	tmp1 = be32_to_cpup(p++);
+	if (tmp1 != (u32)-1) {
+		iap->ia_gid = make_kgid(nfsd_user_namespace(rqstp), tmp1);
+		if (gid_valid(iap->ia_gid))
+			iap->ia_valid |= ATTR_GID;
+	}
+
+	tmp1 = be32_to_cpup(p++);
+	if (tmp1 != (u32)-1) {
+		iap->ia_valid |= ATTR_SIZE;
+		iap->ia_size = tmp1;
+	}
+
+	tmp1 = be32_to_cpup(p++);
+	tmp2 = be32_to_cpup(p++);
+	if (tmp1 != (u32)-1 && tmp2 != (u32)-1) {
+		iap->ia_valid |= ATTR_ATIME | ATTR_ATIME_SET;
+		iap->ia_atime.tv_sec = tmp1;
+		iap->ia_atime.tv_nsec = tmp2 * NSEC_PER_USEC;
+	}
+
+	tmp1 = be32_to_cpup(p++);
+	tmp2 = be32_to_cpup(p++);
+	if (tmp1 != (u32)-1 && tmp2 != (u32)-1) {
+		iap->ia_valid |= ATTR_MTIME | ATTR_MTIME_SET;
+		iap->ia_mtime.tv_sec = tmp1;
+		iap->ia_mtime.tv_nsec = tmp2 * NSEC_PER_USEC;
+		/*
+		 * Passing the invalid value useconds=1000000 for mtime
+		 * is a Sun convention for "set both mtime and atime to
+		 * current server time".  It's needed to make permissions
+		 * checks for the "touch" program across v2 mounts to
+		 * Solaris and Irix boxes work correctly. See description of
+		 * sattr in section 6.1 of "NFS Illustrated" by
+		 * Brent Callaghan, Addison-Wesley, ISBN 0-201-32750-5
+		 */
+		if (tmp2 == 1000000)
+			iap->ia_valid &= ~(ATTR_ATIME_SET|ATTR_MTIME_SET);
+	}
+
+	return true;
+}
+
 static __be32 *
 encode_fattr(struct svc_rqst *rqstp, __be32 *p, struct svc_fh *fhp,
 	     struct kstat *stat)
@@ -253,14 +326,11 @@ nfssvc_decode_fhandleargs(struct svc_rqst *rqstp, __be32 *p)
 int
 nfssvc_decode_sattrargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	struct nfsd_sattrargs *args = rqstp->rq_argp;
 
-	p = decode_fh(p, &args->fh);
-	if (!p)
-		return 0;
-	p = decode_sattr(p, &args->attrs, nfsd_user_namespace(rqstp));
-
-	return xdr_argsize_check(rqstp, p);
+	return svcxdr_decode_fhandle(xdr, &args->fh) &&
+		svcxdr_decode_sattr(rqstp, xdr, &args->attrs);
 }
 
 int
