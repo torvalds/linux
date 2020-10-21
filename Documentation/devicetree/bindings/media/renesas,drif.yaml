@@ -53,6 +53,7 @@ properties:
       - enum:
           - renesas,r8a7795-drif        # R-Car H3
           - renesas,r8a7796-drif        # R-Car M3-W
+          - renesas,r8a77965-drif       # R-Car M3-N
           - renesas,r8a77990-drif       # R-Car E3
       - const: renesas,rcar-gen3-drif   # Generic R-Car Gen3 compatible device
 
