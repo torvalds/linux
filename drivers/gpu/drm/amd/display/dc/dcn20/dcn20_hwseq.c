@@ -1204,6 +1204,9 @@ void dcn20_pipe_control_lock(
 		    (!flip_immediate && pipe->stream_res.gsl_group > 0))
 			dcn20_setup_gsl_group_as_lock(dc, pipe, flip_immediate);
 
+	if (pipe->plane_state != NULL)
+		flip_immediate = pipe->plane_state->flip_immediate;
+
 	temp_pipe = pipe->bottom_pipe;
 	while (flip_immediate && temp_pipe) {
 	    if (temp_pipe->plane_state != NULL)
