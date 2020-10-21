@@ -12,6 +12,20 @@
 #include <linux/parser.h>
 #include "cifsglob.h"
 
+enum smb_version {
+	Smb_1 = 1,
+	Smb_20,
+	Smb_21,
+	Smb_30,
+	Smb_302,
+	Smb_311,
+	Smb_3any,
+	Smb_default,
+	Smb_version_err
+};
+
+int cifs_parse_smb_version(char *value, struct smb_vol *vol, bool is_smb3);
+
 enum {
 	Opt_cache_loose,
 	Opt_cache_strict,

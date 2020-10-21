@@ -195,18 +195,6 @@ struct smb_rqst {
 	unsigned int	rq_tailsz;	/* length of last page */
 };
 
-enum smb_version {
-	Smb_1 = 1,
-	Smb_20,
-	Smb_21,
-	Smb_30,
-	Smb_302,
-	Smb_311,
-	Smb_3any,
-	Smb_default,
-	Smb_version_err
-};
-
 struct mid_q_entry;
 struct TCP_Server_Info;
 struct cifsFileInfo;

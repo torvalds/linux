@@ -280,20 +280,6 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_err, NULL }
 };
 
-static const match_table_t cifs_smb_version_tokens = {
-	{ Smb_1, SMB1_VERSION_STRING },
-	{ Smb_20, SMB20_VERSION_STRING},
-	{ Smb_21, SMB21_VERSION_STRING },
-	{ Smb_30, SMB30_VERSION_STRING },
-	{ Smb_302, SMB302_VERSION_STRING },
-	{ Smb_302, ALT_SMB302_VERSION_STRING },
-	{ Smb_311, SMB311_VERSION_STRING },
-	{ Smb_311, ALT_SMB311_VERSION_STRING },
-	{ Smb_3any, SMB3ANY_VERSION_STRING },
-	{ Smb_default, SMBDEFAULT_VERSION_STRING },
-	{ Smb_version_err, NULL }
-};
-
 static int ip_connect(struct TCP_Server_Info *server);
 static int generic_ip_connect(struct TCP_Server_Info *server);
 static void tlink_rb_insert(struct rb_root *root, struct tcon_link *new_tlink);
@@ -1324,77 +1310,6 @@ static int get_option_gid(substring_t args[], kgid_t *result)
 		return -EINVAL;
 
 	*result = gid;
-	return 0;
-}
-
-static int
-cifs_parse_smb_version(char *value, struct smb_vol *vol, bool is_smb3)
-{
-	substring_t args[MAX_OPT_ARGS];
-
-	switch (match_token(value, cifs_smb_version_tokens, args)) {
-#ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
-	case Smb_1:
-		if (disable_legacy_dialects) {
-			cifs_dbg(VFS, "mount with legacy dialect disabled\n");
-			return 1;
-		}
-		if (is_smb3) {
-			cifs_dbg(VFS, "vers=1.0 (cifs) not permitted when mounting with smb3\n");
-			return 1;
-		}
-		cifs_dbg(VFS, "Use of the less secure dialect vers=1.0 is not recommended unless required for access to very old servers\n");
-		vol->ops = &smb1_operations;
-		vol->vals = &smb1_values;
-		break;
-	case Smb_20:
-		if (disable_legacy_dialects) {
-			cifs_dbg(VFS, "mount with legacy dialect disabled\n");
-			return 1;
-		}
-		if (is_smb3) {
-			cifs_dbg(VFS, "vers=2.0 not permitted when mounting with smb3\n");
-			return 1;
-		}
-		vol->ops = &smb20_operations;
-		vol->vals = &smb20_values;
-		break;
-#else
-	case Smb_1:
-		cifs_dbg(VFS, "vers=1.0 (cifs) mount not permitted when legacy dialects disabled\n");
-		return 1;
-	case Smb_20:
-		cifs_dbg(VFS, "vers=2.0 mount not permitted when legacy dialects disabled\n");
-		return 1;
-#endif /* CIFS_ALLOW_INSECURE_LEGACY */
-	case Smb_21:
-		vol->ops = &smb21_operations;
-		vol->vals = &smb21_values;
-		break;
-	case Smb_30:
-		vol->ops = &smb30_operations;
-		vol->vals = &smb30_values;
-		break;
-	case Smb_302:
-		vol->ops = &smb30_operations; /* currently identical with 3.0 */
-		vol->vals = &smb302_values;
-		break;
-	case Smb_311:
-		vol->ops = &smb311_operations;
-		vol->vals = &smb311_values;
-		break;
-	case Smb_3any:
-		vol->ops = &smb30_operations; /* currently identical with 3.0 */
-		vol->vals = &smb3any_values;
-		break;
-	case Smb_default:
-		vol->ops = &smb30_operations; /* currently identical with 3.0 */
-		vol->vals = &smbdefault_values;
-		break;
-	default:
-		cifs_dbg(VFS, "Unknown vers= option specified: %s\n", value);
-		return 1;
-	}
 	return 0;
 }
 
