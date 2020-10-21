@@ -547,7 +547,7 @@ void
 nouveau_bo_sync_for_device(struct nouveau_bo *nvbo)
 {
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
-	struct ttm_dma_tt *ttm_dma = (struct ttm_dma_tt *)nvbo->bo.ttm;
+	struct ttm_tt *ttm_dma = (struct ttm_tt *)nvbo->bo.ttm;
 	int i;
 
 	if (!ttm_dma)
@@ -557,7 +557,7 @@ nouveau_bo_sync_for_device(struct nouveau_bo *nvbo)
 	if (nvbo->force_coherent)
 		return;
 
-	for (i = 0; i < ttm_dma->ttm.num_pages; i++)
+	for (i = 0; i < ttm_dma->num_pages; i++)
 		dma_sync_single_for_device(drm->dev->dev,
 					   ttm_dma->dma_address[i],
 					   PAGE_SIZE, DMA_TO_DEVICE);
@@ -567,7 +567,7 @@ void
 nouveau_bo_sync_for_cpu(struct nouveau_bo *nvbo)
 {
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
-	struct ttm_dma_tt *ttm_dma = (struct ttm_dma_tt *)nvbo->bo.ttm;
+	struct ttm_tt *ttm_dma = (struct ttm_tt *)nvbo->bo.ttm;
 	int i;
 
 	if (!ttm_dma)
@@ -577,7 +577,7 @@ nouveau_bo_sync_for_cpu(struct nouveau_bo *nvbo)
 	if (nvbo->force_coherent)
 		return;
 
-	for (i = 0; i < ttm_dma->ttm.num_pages; i++)
+	for (i = 0; i < ttm_dma->num_pages; i++)
 		dma_sync_single_for_cpu(drm->dev->dev, ttm_dma->dma_address[i],
 					PAGE_SIZE, DMA_FROM_DEVICE);
 }
@@ -1309,7 +1309,7 @@ static int
 nouveau_ttm_tt_populate(struct ttm_bo_device *bdev,
 			struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 {
-	struct ttm_dma_tt *ttm_dma = (void *)ttm;
+	struct ttm_tt *ttm_dma = (void *)ttm;
 	struct nouveau_drm *drm;
 	struct device *dev;
 	bool slave = !!(ttm->page_flags & TTM_PAGE_FLAG_SG);
@@ -1345,7 +1345,7 @@ static void
 nouveau_ttm_tt_unpopulate(struct ttm_bo_device *bdev,
 			  struct ttm_tt *ttm)
 {
-	struct ttm_dma_tt *ttm_dma = (void *)ttm;
+	struct ttm_tt *ttm_dma = (void *)ttm;
 	struct nouveau_drm *drm;
 	struct device *dev;
 	bool slave = !!(ttm->page_flags & TTM_PAGE_FLAG_SG);

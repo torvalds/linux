@@ -437,7 +437,7 @@ static int radeon_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_reso
  * TTM backend functions.
  */
 struct radeon_ttm_tt {
-	struct ttm_dma_tt		ttm;
+	struct ttm_tt		ttm;
 	u64				offset;
 
 	uint64_t			userptr;
@@ -602,7 +602,7 @@ static void radeon_ttm_backend_destroy(struct ttm_bo_device *bdev, struct ttm_tt
 	radeon_ttm_backend_unbind(bdev, ttm);
 	ttm_tt_destroy_common(bdev, ttm);
 
-	ttm_dma_tt_fini(&gtt->ttm);
+	ttm_tt_fini(&gtt->ttm);
 	kfree(gtt);
 }
 
@@ -640,7 +640,7 @@ static struct ttm_tt *radeon_ttm_tt_create(struct ttm_buffer_object *bo,
 		kfree(gtt);
 		return NULL;
 	}
-	return &gtt->ttm.ttm;
+	return &gtt->ttm;
 }
 
 static struct radeon_ttm_tt *radeon_ttm_tt_to_gtt(struct radeon_device *rdev,
@@ -653,7 +653,7 @@ static struct radeon_ttm_tt *radeon_ttm_tt_to_gtt(struct radeon_device *rdev,
 
 	if (!ttm)
 		return NULL;
-	return container_of(ttm, struct radeon_ttm_tt, ttm.ttm);
+	return container_of(ttm, struct radeon_ttm_tt, ttm);
 }
 
 static int radeon_ttm_tt_populate(struct ttm_bo_device *bdev,

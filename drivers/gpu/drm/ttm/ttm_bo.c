@@ -1192,7 +1192,7 @@ size_t ttm_bo_dma_acc_size(struct ttm_bo_device *bdev,
 
 	size += ttm_round_pot(struct_size);
 	size += ttm_round_pot(npages * (2*sizeof(void *) + sizeof(dma_addr_t)));
-	size += ttm_round_pot(sizeof(struct ttm_dma_tt));
+	size += ttm_round_pot(sizeof(struct ttm_tt));
 	return size;
 }
 EXPORT_SYMBOL(ttm_bo_dma_acc_size);

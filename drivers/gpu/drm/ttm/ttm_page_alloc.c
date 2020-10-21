@@ -1081,28 +1081,28 @@ void ttm_pool_unpopulate(struct ttm_tt *ttm)
 }
 EXPORT_SYMBOL(ttm_pool_unpopulate);
 
-int ttm_populate_and_map_pages(struct device *dev, struct ttm_dma_tt *tt,
+int ttm_populate_and_map_pages(struct device *dev, struct ttm_tt *tt,
 					struct ttm_operation_ctx *ctx)
 {
 	unsigned i, j;
 	int r;
 
-	r = ttm_pool_populate(&tt->ttm, ctx);
+	r = ttm_pool_populate(tt, ctx);
 	if (r)
 		return r;
 
-	for (i = 0; i < tt->ttm.num_pages; ++i) {
-		struct page *p = tt->ttm.pages[i];
+	for (i = 0; i < tt->num_pages; ++i) {
+		struct page *p = tt->pages[i];
 		size_t num_pages = 1;
 
-		for (j = i + 1; j < tt->ttm.num_pages; ++j) {
-			if (++p != tt->ttm.pages[j])
+		for (j = i + 1; j < tt->num_pages; ++j) {
+			if (++p != tt->pages[j])
 				break;
 
 			++num_pages;
 		}
 
-		tt->dma_address[i] = dma_map_page(dev, tt->ttm.pages[i],
+		tt->dma_address[i] = dma_map_page(dev, tt->pages[i],
 						  0, num_pages * PAGE_SIZE,
 						  DMA_BIDIRECTIONAL);
 		if (dma_mapping_error(dev, tt->dma_address[i])) {
@@ -1111,7 +1111,7 @@ int ttm_populate_and_map_pages(struct device *dev, struct ttm_dma_tt *tt,
 					       PAGE_SIZE, DMA_BIDIRECTIONAL);
 				tt->dma_address[i] = 0;
 			}
-			ttm_pool_unpopulate(&tt->ttm);
+			ttm_pool_unpopulate(tt);
 			return -EFAULT;
 		}
 
@@ -1124,21 +1124,21 @@ int ttm_populate_and_map_pages(struct device *dev, struct ttm_dma_tt *tt,
 }
 EXPORT_SYMBOL(ttm_populate_and_map_pages);
 
-void ttm_unmap_and_unpopulate_pages(struct device *dev, struct ttm_dma_tt *tt)
+void ttm_unmap_and_unpopulate_pages(struct device *dev, struct ttm_tt *tt)
 {
 	unsigned i, j;
 
-	for (i = 0; i < tt->ttm.num_pages;) {
-		struct page *p = tt->ttm.pages[i];
+	for (i = 0; i < tt->num_pages;) {
+		struct page *p = tt->pages[i];
 		size_t num_pages = 1;
 
-		if (!tt->dma_address[i] || !tt->ttm.pages[i]) {
+		if (!tt->dma_address[i] || !tt->pages[i]) {
 			++i;
 			continue;
 		}
 
-		for (j = i + 1; j < tt->ttm.num_pages; ++j) {
-			if (++p != tt->ttm.pages[j])
+		for (j = i + 1; j < tt->num_pages; ++j) {
+			if (++p != tt->pages[j])
 				break;
 
 			++num_pages;
@@ -1149,7 +1149,7 @@ void ttm_unmap_and_unpopulate_pages(struct device *dev, struct ttm_dma_tt *tt)
 
 		i += num_pages;
 	}
-	ttm_pool_unpopulate(&tt->ttm);
+	ttm_pool_unpopulate(tt);
 }
 EXPORT_SYMBOL(ttm_unmap_and_unpopulate_pages);
 

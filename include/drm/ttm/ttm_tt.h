@@ -47,12 +47,13 @@ struct ttm_operation_ctx;
  * struct ttm_tt
  *
  * @pages: Array of pages backing the data.
+ * @page_flags: see TTM_PAGE_FLAG_*
  * @num_pages: Number of pages in the page array.
- * @bdev: Pointer to the current struct ttm_bo_device.
- * @be: Pointer to the ttm backend.
+ * @sg: for SG objects via dma-buf
+ * @dma_address: The DMA (bus) addresses of the pages
  * @swap_storage: Pointer to shmem struct file for swap storage.
- * @caching_state: The current caching state of the pages.
- * @state: The current binding state of the pages.
+ * @pages_list: used by some page allocation backend
+ * @caching: The current caching state of the pages.
  *
  * This is a structure holding the pages, caching- and aperture binding
  * status for a buffer object that isn't backed by fixed (VRAM / AGP)
@@ -62,8 +63,10 @@ struct ttm_tt {
 	struct page **pages;
 	uint32_t page_flags;
 	uint32_t num_pages;
-	struct sg_table *sg; /* for SG objects via dma-buf */
+	struct sg_table *sg;
+	dma_addr_t *dma_address;
 	struct file *swap_storage;
+	struct list_head pages_list;
 	enum ttm_caching caching;
 };
 
@@ -71,23 +74,6 @@ static inline bool ttm_tt_is_populated(struct ttm_tt *tt)
 {
 	return tt->page_flags & TTM_PAGE_FLAG_PRIV_POPULATED;
 }
-
-/**
- * struct ttm_dma_tt
- *
- * @ttm: Base ttm_tt struct.
- * @dma_address: The DMA (bus) addresses of the pages
- * @pages_list: used by some page allocation backend
- *
- * This is a structure holding the pages, caching- and aperture binding
- * status for a buffer object that isn't backed by fixed (VRAM / AGP)
- * memory.
- */
-struct ttm_dma_tt {
-	struct ttm_tt ttm;
-	dma_addr_t *dma_address;
-	struct list_head pages_list;
-};
 
 /**
  * ttm_tt_create
@@ -115,9 +101,9 @@ int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc);
  */
 int ttm_tt_init(struct ttm_tt *ttm, struct ttm_buffer_object *bo,
 		uint32_t page_flags, enum ttm_caching caching);
-int ttm_dma_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_buffer_object *bo,
+int ttm_dma_tt_init(struct ttm_tt *ttm_dma, struct ttm_buffer_object *bo,
 		    uint32_t page_flags, enum ttm_caching caching);
-int ttm_sg_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_buffer_object *bo,
+int ttm_sg_tt_init(struct ttm_tt *ttm_dma, struct ttm_buffer_object *bo,
 		   uint32_t page_flags, enum ttm_caching caching);
 
 /**
@@ -128,7 +114,6 @@ int ttm_sg_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_buffer_object *bo,
  * Free memory of ttm_tt structure
  */
 void ttm_tt_fini(struct ttm_tt *ttm);
-void ttm_dma_tt_fini(struct ttm_dma_tt *ttm_dma);
 
 /**
  * ttm_ttm_destroy:

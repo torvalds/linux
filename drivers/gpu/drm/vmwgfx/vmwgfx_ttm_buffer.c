@@ -186,7 +186,7 @@ struct ttm_placement vmw_nonfixed_placement = {
 };
 
 struct vmw_ttm_tt {
-	struct ttm_dma_tt dma_ttm;
+	struct ttm_tt dma_ttm;
 	struct vmw_private *dev_priv;
 	int gmr_id;
 	struct vmw_mob *mob;
@@ -374,8 +374,8 @@ static int vmw_ttm_map_dma(struct vmw_ttm_tt *vmw_tt)
 		return 0;
 
 	vsgt->mode = dev_priv->map_mode;
-	vsgt->pages = vmw_tt->dma_ttm.ttm.pages;
-	vsgt->num_pages = vmw_tt->dma_ttm.ttm.num_pages;
+	vsgt->pages = vmw_tt->dma_ttm.pages;
+	vsgt->num_pages = vmw_tt->dma_ttm.num_pages;
 	vsgt->addrs = vmw_tt->dma_ttm.dma_address;
 	vsgt->sgt = &vmw_tt->sgt;
 
@@ -483,7 +483,7 @@ static void vmw_ttm_unmap_dma(struct vmw_ttm_tt *vmw_tt)
 const struct vmw_sg_table *vmw_bo_sg_table(struct ttm_buffer_object *bo)
 {
 	struct vmw_ttm_tt *vmw_tt =
-		container_of(bo->ttm, struct vmw_ttm_tt, dma_ttm.ttm);
+		container_of(bo->ttm, struct vmw_ttm_tt, dma_ttm);
 
 	return &vmw_tt->vsgt;
 }
@@ -493,7 +493,7 @@ static int vmw_ttm_bind(struct ttm_bo_device *bdev,
 			struct ttm_tt *ttm, struct ttm_resource *bo_mem)
 {
 	struct vmw_ttm_tt *vmw_be =
-		container_of(ttm, struct vmw_ttm_tt, dma_ttm.ttm);
+		container_of(ttm, struct vmw_ttm_tt, dma_ttm);
 	int ret = 0;
 
 	if (!bo_mem)
@@ -537,7 +537,7 @@ static void vmw_ttm_unbind(struct ttm_bo_device *bdev,
 			   struct ttm_tt *ttm)
 {
 	struct vmw_ttm_tt *vmw_be =
-		container_of(ttm, struct vmw_ttm_tt, dma_ttm.ttm);
+		container_of(ttm, struct vmw_ttm_tt, dma_ttm);
 
 	if (!vmw_be->bound)
 		return;
@@ -562,13 +562,13 @@ static void vmw_ttm_unbind(struct ttm_bo_device *bdev,
 static void vmw_ttm_destroy(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
 {
 	struct vmw_ttm_tt *vmw_be =
-		container_of(ttm, struct vmw_ttm_tt, dma_ttm.ttm);
+		container_of(ttm, struct vmw_ttm_tt, dma_ttm);
 
 	vmw_ttm_unbind(bdev, ttm);
 	ttm_tt_destroy_common(bdev, ttm);
 	vmw_ttm_unmap_dma(vmw_be);
 	if (vmw_be->dev_priv->map_mode == vmw_dma_alloc_coherent)
-		ttm_dma_tt_fini(&vmw_be->dma_ttm);
+		ttm_tt_fini(&vmw_be->dma_ttm);
 	else
 		ttm_tt_fini(ttm);
 
@@ -583,7 +583,7 @@ static int vmw_ttm_populate(struct ttm_bo_device *bdev,
 			    struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 {
 	struct vmw_ttm_tt *vmw_tt =
-		container_of(ttm, struct vmw_ttm_tt, dma_ttm.ttm);
+		container_of(ttm, struct vmw_ttm_tt, dma_ttm);
 	struct vmw_private *dev_priv = vmw_tt->dev_priv;
 	struct ttm_mem_global *glob = vmw_mem_glob(dev_priv);
 	int ret;
@@ -612,7 +612,7 @@ static void vmw_ttm_unpopulate(struct ttm_bo_device *bdev,
 			       struct ttm_tt *ttm)
 {
 	struct vmw_ttm_tt *vmw_tt = container_of(ttm, struct vmw_ttm_tt,
-						 dma_ttm.ttm);
+						 dma_ttm);
 	struct vmw_private *dev_priv = vmw_tt->dev_priv;
 	struct ttm_mem_global *glob = vmw_mem_glob(dev_priv);
 
@@ -650,12 +650,12 @@ static struct ttm_tt *vmw_ttm_tt_create(struct ttm_buffer_object *bo,
 		ret = ttm_dma_tt_init(&vmw_be->dma_ttm, bo, page_flags,
 				      ttm_cached);
 	else
-		ret = ttm_tt_init(&vmw_be->dma_ttm.ttm, bo, page_flags,
+		ret = ttm_tt_init(&vmw_be->dma_ttm, bo, page_flags,
 				  ttm_cached);
 	if (unlikely(ret != 0))
 		goto out_no_init;
 
-	return &vmw_be->dma_ttm.ttm;
+	return &vmw_be->dma_ttm;
 out_no_init:
 	kfree(vmw_be);
 	return NULL;
@@ -813,7 +813,7 @@ int vmw_bo_create_and_populate(struct vmw_private *dev_priv,
 	ret = vmw_ttm_populate(bo->bdev, bo->ttm, &ctx);
 	if (likely(ret == 0)) {
 		struct vmw_ttm_tt *vmw_tt =
-			container_of(bo->ttm, struct vmw_ttm_tt, dma_ttm.ttm);
+			container_of(bo->ttm, struct vmw_ttm_tt, dma_ttm);
 		ret = vmw_ttm_map_dma(vmw_tt);
 	}
 

@@ -92,21 +92,22 @@ static int ttm_tt_alloc_page_directory(struct ttm_tt *ttm)
 	return 0;
 }
 
-static int ttm_dma_tt_alloc_page_directory(struct ttm_dma_tt *ttm)
+static int ttm_dma_tt_alloc_page_directory(struct ttm_tt *ttm)
 {
-	ttm->ttm.pages = kvmalloc_array(ttm->ttm.num_pages,
-					  sizeof(*ttm->ttm.pages) +
-					  sizeof(*ttm->dma_address),
-					  GFP_KERNEL | __GFP_ZERO);
-	if (!ttm->ttm.pages)
+	ttm->pages = kvmalloc_array(ttm->num_pages,
+				    sizeof(*ttm->pages) +
+				    sizeof(*ttm->dma_address),
+				    GFP_KERNEL | __GFP_ZERO);
+	if (!ttm->pages)
 		return -ENOMEM;
-	ttm->dma_address = (void *) (ttm->ttm.pages + ttm->ttm.num_pages);
+
+	ttm->dma_address = (void *)(ttm->pages + ttm->num_pages);
 	return 0;
 }
 
-static int ttm_sg_tt_alloc_page_directory(struct ttm_dma_tt *ttm)
+static int ttm_sg_tt_alloc_page_directory(struct ttm_tt *ttm)
 {
-	ttm->dma_address = kvmalloc_array(ttm->ttm.num_pages,
+	ttm->dma_address = kvmalloc_array(ttm->num_pages,
 					  sizeof(*ttm->dma_address),
 					  GFP_KERNEL | __GFP_ZERO);
 	if (!ttm->dma_address)
@@ -138,8 +139,10 @@ static void ttm_tt_init_fields(struct ttm_tt *ttm,
 	ttm->num_pages = bo->num_pages;
 	ttm->caching = ttm_cached;
 	ttm->page_flags = page_flags;
+	ttm->dma_address = NULL;
 	ttm->swap_storage = NULL;
 	ttm->sg = bo->sg;
+	INIT_LIST_HEAD(&ttm->pages_list);
 	ttm->caching = caching;
 }
 
@@ -158,20 +161,21 @@ EXPORT_SYMBOL(ttm_tt_init);
 
 void ttm_tt_fini(struct ttm_tt *ttm)
 {
-	kvfree(ttm->pages);
+	if (ttm->pages)
+		kvfree(ttm->pages);
+	else
+		kvfree(ttm->dma_address);
 	ttm->pages = NULL;
+	ttm->dma_address = NULL;
 }
 EXPORT_SYMBOL(ttm_tt_fini);
 
-int ttm_dma_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_buffer_object *bo,
+int ttm_dma_tt_init(struct ttm_tt *ttm, struct ttm_buffer_object *bo,
 		    uint32_t page_flags, enum ttm_caching caching)
 {
-	struct ttm_tt *ttm = &ttm_dma->ttm;
-
 	ttm_tt_init_fields(ttm, bo, page_flags, caching);
 
-	INIT_LIST_HEAD(&ttm_dma->pages_list);
-	if (ttm_dma_tt_alloc_page_directory(ttm_dma)) {
+	if (ttm_dma_tt_alloc_page_directory(ttm)) {
 		pr_err("Failed allocating page table\n");
 		return -ENOMEM;
 	}
@@ -179,19 +183,17 @@ int ttm_dma_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_buffer_object *bo,
 }
 EXPORT_SYMBOL(ttm_dma_tt_init);
 
-int ttm_sg_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_buffer_object *bo,
+int ttm_sg_tt_init(struct ttm_tt *ttm, struct ttm_buffer_object *bo,
 		   uint32_t page_flags, enum ttm_caching caching)
 {
-	struct ttm_tt *ttm = &ttm_dma->ttm;
 	int ret;
 
 	ttm_tt_init_fields(ttm, bo, page_flags, caching);
 
-	INIT_LIST_HEAD(&ttm_dma->pages_list);
 	if (page_flags & TTM_PAGE_FLAG_SG)
-		ret = ttm_sg_tt_alloc_page_directory(ttm_dma);
+		ret = ttm_sg_tt_alloc_page_directory(ttm);
 	else
-		ret = ttm_dma_tt_alloc_page_directory(ttm_dma);
+		ret = ttm_dma_tt_alloc_page_directory(ttm);
 	if (ret) {
 		pr_err("Failed allocating page table\n");
 		return -ENOMEM;
@@ -199,19 +201,6 @@ int ttm_sg_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_buffer_object *bo,
 	return 0;
 }
 EXPORT_SYMBOL(ttm_sg_tt_init);
-
-void ttm_dma_tt_fini(struct ttm_dma_tt *ttm_dma)
-{
-	struct ttm_tt *ttm = &ttm_dma->ttm;
-
-	if (ttm->pages)
-		kvfree(ttm->pages);
-	else
-		kvfree(ttm_dma->dma_address);
-	ttm->pages = NULL;
-	ttm_dma->dma_address = NULL;
-}
-EXPORT_SYMBOL(ttm_dma_tt_fini);
 
 int ttm_tt_swapin(struct ttm_tt *ttm)
 {

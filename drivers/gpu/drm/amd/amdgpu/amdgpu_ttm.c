@@ -294,11 +294,9 @@ static int amdgpu_ttm_map_buffer(struct ttm_buffer_object *bo,
 	cpu_addr = &job->ibs[0].ptr[num_dw];
 
 	if (mem->mem_type == TTM_PL_TT) {
-		struct ttm_dma_tt *dma;
 		dma_addr_t *dma_address;
 
-		dma = container_of(bo->ttm, struct ttm_dma_tt, ttm);
-		dma_address = &dma->dma_address[offset >> PAGE_SHIFT];
+		dma_address = &bo->ttm->dma_address[offset >> PAGE_SHIFT];
 		r = amdgpu_gart_map(adev, 0, num_pages, dma_address, flags,
 				    cpu_addr);
 		if (r)
@@ -841,7 +839,7 @@ uint64_t amdgpu_ttm_domain_start(struct amdgpu_device *adev, uint32_t type)
  * TTM backend functions.
  */
 struct amdgpu_ttm_tt {
-	struct ttm_dma_tt	ttm;
+	struct ttm_tt	ttm;
 	struct drm_gem_object	*gobj;
 	u64			offset;
 	uint64_t		userptr;
@@ -1292,7 +1290,7 @@ static void amdgpu_ttm_backend_unbind(struct ttm_bo_device *bdev,
 	r = amdgpu_gart_unbind(adev, gtt->offset, ttm->num_pages);
 	if (r)
 		DRM_ERROR("failed to unbind %u pages at 0x%08llX\n",
-			  gtt->ttm.ttm.num_pages, gtt->offset);
+			  gtt->ttm.num_pages, gtt->offset);
 	gtt->bound = false;
 }
 
@@ -1306,7 +1304,7 @@ static void amdgpu_ttm_backend_destroy(struct ttm_bo_device *bdev,
 	if (gtt->usertask)
 		put_task_struct(gtt->usertask);
 
-	ttm_dma_tt_fini(&gtt->ttm);
+	ttm_tt_fini(&gtt->ttm);
 	kfree(gtt);
 }
 
@@ -1340,7 +1338,7 @@ static struct ttm_tt *amdgpu_ttm_tt_create(struct ttm_buffer_object *bo,
 		kfree(gtt);
 		return NULL;
 	}
-	return &gtt->ttm.ttm;
+	return &gtt->ttm;
 }
 
 /**
@@ -1507,7 +1505,7 @@ bool amdgpu_ttm_tt_affect_userptr(struct ttm_tt *ttm, unsigned long start,
 	/* Return false if no part of the ttm_tt object lies within
 	 * the range
 	 */
-	size = (unsigned long)gtt->ttm.ttm.num_pages * PAGE_SIZE;
+	size = (unsigned long)gtt->ttm.num_pages * PAGE_SIZE;
 	if (gtt->userptr > end || gtt->userptr + size <= start)
 		return false;
 

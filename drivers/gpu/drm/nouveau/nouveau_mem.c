@@ -92,7 +92,7 @@ nouveau_mem_fini(struct nouveau_mem *mem)
 }
 
 int
-nouveau_mem_host(struct ttm_resource *reg, struct ttm_dma_tt *tt)
+nouveau_mem_host(struct ttm_resource *reg, struct ttm_tt *tt)
 {
 	struct nouveau_mem *mem = nouveau_mem(reg);
 	struct nouveau_cli *cli = mem->cli;
@@ -116,8 +116,10 @@ nouveau_mem_host(struct ttm_resource *reg, struct ttm_dma_tt *tt)
 		mem->comp = 0;
 	}
 
-	if (tt->ttm.sg) args.sgl = tt->ttm.sg->sgl;
-	else            args.dma = tt->dma_address;
+	if (tt->sg)
+		args.sgl = tt->sg->sgl;
+	else
+		args.dma = tt->dma_address;
 
 	mutex_lock(&drm->master.lock);
 	cli->base.super = true;

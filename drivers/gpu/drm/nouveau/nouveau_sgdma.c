@@ -11,7 +11,7 @@ struct nouveau_sgdma_be {
 	/* this has to be the first field so populate/unpopulated in
 	 * nouve_bo.c works properly, otherwise have to move them here
 	 */
-	struct ttm_dma_tt ttm;
+	struct ttm_tt ttm;
 	struct nouveau_mem *mem;
 };
 
@@ -23,7 +23,7 @@ nouveau_sgdma_destroy(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
 	if (ttm) {
 		nouveau_sgdma_unbind(bdev, ttm);
 		ttm_tt_destroy_common(bdev, ttm);
-		ttm_dma_tt_fini(&nvbe->ttm);
+		ttm_tt_fini(&nvbe->ttm);
 		kfree(nvbe);
 	}
 }
@@ -88,5 +88,5 @@ nouveau_sgdma_create_ttm(struct ttm_buffer_object *bo, uint32_t page_flags)
 		kfree(nvbe);
 		return NULL;
 	}
-	return &nvbe->ttm.ttm;
+	return &nvbe->ttm;
 }
