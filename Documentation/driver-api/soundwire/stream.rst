@@ -518,10 +518,10 @@ typically called during a dailink .shutdown() callback, which clears
 the stream pointer for all DAIS connected to a stream and releases the
 memory allocated for the stream.
 
-  Not Supported
+Not Supported
 =============
 
 1. A single port with multiple channels supported cannot be used between two
-streams or across stream. For example a port with 4 channels cannot be used
-to handle 2 independent stereo streams even though it's possible in theory
-in SoundWire.
+   streams or across stream. For example a port with 4 channels cannot be used
+   to handle 2 independent stereo streams even though it's possible in theory
+   in SoundWire.

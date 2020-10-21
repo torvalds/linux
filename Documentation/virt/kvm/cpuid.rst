@@ -78,7 +78,7 @@ KVM_FEATURE_PV_SEND_IPI           11          guest checks this feature bit
                                               before enabling paravirtualized
                                               sebd IPIs
 
-KVM_FEATURE_PV_POLL_CONTROL       12          host-side polling on HLT can
+KVM_FEATURE_POLL_CONTROL          12          host-side polling on HLT can
                                               be disabled by writing
                                               to msr 0x4b564d05.
 

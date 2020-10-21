@@ -6,7 +6,7 @@ Using the RAM disk block device with Linux
 
 	1) Overview
 	2) Kernel Command Line Parameters
-	3) Using "rdev -r"
+	3) Using "rdev"
 	4) An Example of Creating a Compressed RAM Disk
 
 
@@ -59,51 +59,27 @@ default is 4096 (4 MB).
 	rd_size
 		See ramdisk_size.
 
-3) Using "rdev -r"
-------------------
+3) Using "rdev"
+---------------
 
-The usage of the word (two bytes) that "rdev -r" sets in the kernel image is
-as follows. The low 11 bits (0 -> 10) specify an offset (in 1 k blocks) of up
-to 2 MB (2^11) of where to find the RAM disk (this used to be the size). Bit
-14 indicates that a RAM disk is to be loaded, and bit 15 indicates whether a
-prompt/wait sequence is to be given before trying to read the RAM disk. Since
-the RAM disk dynamically grows as data is being written into it, a size field
-is not required. Bits 11 to 13 are not currently used and may as well be zero.
-These numbers are no magical secrets, as seen below::
+"rdev" is an obsolete, deprecated, antiquated utility that could be used
+to set the boot device in a Linux kernel image.
 
-  ./arch/x86/kernel/setup.c:#define RAMDISK_IMAGE_START_MASK     0x07FF
-  ./arch/x86/kernel/setup.c:#define RAMDISK_PROMPT_FLAG          0x8000
-  ./arch/x86/kernel/setup.c:#define RAMDISK_LOAD_FLAG            0x4000
+Instead of using rdev, just place the boot device information on the
+kernel command line and pass it to the kernel from the bootloader.
 
-Consider a typical two floppy disk setup, where you will have the
-kernel on disk one, and have already put a RAM disk image onto disk #2.
+You can also pass arguments to the kernel by setting FDARGS in
+arch/x86/boot/Makefile and specify in initrd image by setting FDINITRD in
+arch/x86/boot/Makefile.
 
-Hence you want to set bits 0 to 13 as 0, meaning that your RAM disk
-starts at an offset of 0 kB from the beginning of the floppy.
-The command line equivalent is: "ramdisk_start=0"
+Some of the kernel command line boot options that may apply here are::
 
-You want bit 14 as one, indicating that a RAM disk is to be loaded.
-The command line equivalent is: "load_ramdisk=1"
-
-You want bit 15 as one, indicating that you want a prompt/keypress
-sequence so that you have a chance to switch floppy disks.
-The command line equivalent is: "prompt_ramdisk=1"
-
-Putting that together gives 2^15 + 2^14 + 0 = 49152 for an rdev word.
-So to create disk one of the set, you would do::
-
-	/usr/src/linux# cat arch/x86/boot/zImage > /dev/fd0
-	/usr/src/linux# rdev /dev/fd0 /dev/fd0
-	/usr/src/linux# rdev -r /dev/fd0 49152
+  ramdisk_start=N
+  ramdisk_size=M
 
 If you make a boot disk that has LILO, then for the above, you would use::
 
-	append = "ramdisk_start=0 load_ramdisk=1 prompt_ramdisk=1"
-
-Since the default start = 0 and the default prompt = 1, you could use::
-
-	append = "load_ramdisk=1"
-
+	append = "ramdisk_start=N ramdisk_size=M"
 
 4) An Example of Creating a Compressed RAM Disk
 -----------------------------------------------
@@ -151,12 +127,9 @@ f) Put the RAM disk image onto the floppy, after the kernel. Use an offset
 
 	dd if=/tmp/ram_image.gz of=/dev/fd0 bs=1k seek=400
 
-g) Use "rdev" to set the boot device, RAM disk offset, prompt flag, etc.
-   For prompt_ramdisk=1, load_ramdisk=1, ramdisk_start=400, one would
-   have 2^15 + 2^14 + 400 = 49552::
-
-	rdev /dev/fd0 /dev/fd0
-	rdev -r /dev/fd0 49552
+g) Make sure that you have already specified the boot information in
+   FDARGS and FDINITRD or that you use a bootloader to pass kernel
+   command line boot options to the kernel.
 
 That is it. You now have your boot/root compressed RAM disk floppy. Some
 users may wish to combine steps (d) and (f) by using a pipe.
@@ -167,11 +140,14 @@ users may wish to combine steps (d) and (f) by using a pipe.
 Changelog:
 ----------
 
+SEPT-2020 :
+
+                Removed usage of "rdev"
+
 10-22-04 :
 		Updated to reflect changes in command line options, remove
 		obsolete references, general cleanup.
 		James Nelson (james4765@gmail.com)
-
 
 12-95 :
 		Original Document
