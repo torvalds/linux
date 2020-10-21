@@ -1281,8 +1281,9 @@ static unsigned long __ips_gfx_val(struct intel_ips *ips)
 {
 	struct intel_rps *rps = container_of(ips, typeof(*rps), ips);
 	struct intel_uncore *uncore = rps_to_uncore(rps);
-	unsigned long t, corr, state1, corr2, state2;
+	unsigned int t, state1, state2;
 	u32 pxvid, ext_v;
+	u64 corr, corr2;
 
 	lockdep_assert_held(&mchdev_lock);
 
@@ -1303,11 +1304,10 @@ static unsigned long __ips_gfx_val(struct intel_ips *ips)
 	else /* < 50 */
 		corr = t * 301 + 1004;
 
-	corr = corr * 150142 * state1 / 10000 - 78642;
-	corr /= 100000;
-	corr2 = corr * ips->corr;
+	corr = div_u64(corr * 150142 * state1, 10000) - 78642;
+	corr2 = div_u64(corr, 100000) * ips->corr;
 
-	state2 = corr2 * state1 / 10000;
+	state2 = div_u64(corr2 * state1, 10000);
 	state2 /= 100; /* convert to mW */
 
 	__gen5_ips_update(ips);
