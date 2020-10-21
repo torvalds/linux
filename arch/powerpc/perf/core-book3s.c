@@ -250,9 +250,23 @@ static inline u32 perf_flags_from_msr(struct pt_regs *regs)
 static inline u32 perf_get_misc_flags(struct pt_regs *regs)
 {
 	bool use_siar = regs_use_siar(regs);
+	unsigned long mmcra = regs->dsisr;
+	int marked = mmcra & MMCRA_SAMPLE_ENABLE;
 
 	if (!use_siar)
 		return perf_flags_from_msr(regs);
+
+	/*
+	 * Check the address in SIAR to identify the
+	 * privilege levels since the SIER[MSR_HV, MSR_PR]
+	 * bits are not set for marked events in power10
+	 * DD1.
+	 */
+	if (marked && (ppmu->flags & PPMU_P10_DD1)) {
+		if (is_kernel_addr(mfspr(SPRN_SIAR)))
+			return PERF_RECORD_MISC_KERNEL;
+		return PERF_RECORD_MISC_USER;
+	}
 
 	/*
 	 * If we don't have flags in MMCRA, rather than using
