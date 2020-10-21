@@ -12,7 +12,7 @@ config PCI_MVEBU
 	select PCI_BRIDGE_EMUL
 
 config PCI_AARDVARK
-	bool "Aardvark PCIe controller"
+	tristate "Aardvark PCIe controller"
 	depends on (ARCH_MVEBU && ARM64) || COMPILE_TEST
 	depends on OF
 	depends on PCI_MSI_IRQ_DOMAIN
