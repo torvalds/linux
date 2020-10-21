@@ -32,7 +32,7 @@
 18	i386	oldstat			sys_stat
 19	i386	lseek			sys_lseek			compat_sys_lseek
 20	i386	getpid			sys_getpid
-21	i386	mount			sys_mount			compat_sys_mount
+21	i386	mount			sys_mount
 22	i386	umount			sys_oldumount
 23	i386	setuid			sys_setuid16
 24	i386	getuid			sys_getuid16

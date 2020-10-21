@@ -522,12 +522,6 @@ asmlinkage long compat_sys_fcntl64(unsigned int fd, unsigned int cmd,
 asmlinkage long compat_sys_ioctl(unsigned int fd, unsigned int cmd,
 				 compat_ulong_t arg);
 
-/* fs/namespace.c */
-asmlinkage long compat_sys_mount(const char __user *dev_name,
-				 const char __user *dir_name,
-				 const char __user *type, compat_ulong_t flags,
-				 const void __user *data);
-
 /* fs/open.c */
 asmlinkage long compat_sys_statfs(const char __user *pathname,
 				  struct compat_statfs __user *buf);

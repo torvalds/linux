@@ -26,7 +26,7 @@
 16   32		lchown			-				sys_lchown16
 19   common	lseek			sys_lseek			compat_sys_lseek
 20   common	getpid			sys_getpid			sys_getpid
-21   common	mount			sys_mount			compat_sys_mount
+21   common	mount			sys_mount			sys_mount
 22   common	umount			sys_oldumount			sys_oldumount
 23   32		setuid			-				sys_setuid16
 24   32		getuid			-				sys_getuid16
