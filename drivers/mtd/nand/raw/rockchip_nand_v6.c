@@ -748,14 +748,14 @@ static int rk_nand_chip_init(struct device *dev, struct rk_nfc *nfc,
 	mtd->dev.parent = dev;
 	mtd->name = "rk-nand";
 
-	ret = nand_scan(mtd, nsels);
+	ret = nand_scan(nand, nsels);
 	if (ret)
 		return ret;
 
 	ret = mtd_device_register(mtd, NULL, 0);
 	if (ret) {
 		dev_err(dev, "failed to register mtd device: %d\n", ret);
-		nand_release(mtd);
+		nand_release(nand);
 		return ret;
 	}
 
@@ -794,7 +794,7 @@ static void rk_nand_chips_cleanup(struct rk_nfc *nfc)
 	while (!list_empty(&nfc->chips)) {
 		chip = list_first_entry(&nfc->chips, struct rk_nand_chip,
 					node);
-		nand_release(nand_to_mtd(&chip->nand));
+		nand_release(&chip->nand);
 		list_del(&chip->node);
 	}
 }
