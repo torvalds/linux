@@ -2100,6 +2100,9 @@ fc_host_statistic(fc_xid_not_found);
 fc_host_statistic(fc_xid_busy);
 fc_host_statistic(fc_seq_not_found);
 fc_host_statistic(fc_non_bls_resp);
+fc_host_statistic(cn_sig_warn);
+fc_host_statistic(cn_sig_alarm);
+
 
 #define fc_host_fpin_statistic(name)					\
 static ssize_t fc_host_fpinstat_##name(struct device *cd,		\
@@ -2182,6 +2185,8 @@ static struct attribute *fc_statistics_attrs[] = {
 	&device_attr_host_fc_xid_busy.attr,
 	&device_attr_host_fc_seq_not_found.attr,
 	&device_attr_host_fc_non_bls_resp.attr,
+	&device_attr_host_cn_sig_warn.attr,
+	&device_attr_host_cn_sig_alarm.attr,
 	&device_attr_host_reset_statistics.attr,
 	&device_attr_host_fpin_dn.attr,
 	&device_attr_host_fpin_dn_unknown.attr,
