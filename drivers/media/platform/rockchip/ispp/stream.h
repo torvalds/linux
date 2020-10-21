@@ -182,7 +182,6 @@ struct module_monitor {
 	struct completion cmpl;
 	u16 time;
 	u8 module;
-	bool is_cancel;
 };
 
 struct rkispp_monitor {

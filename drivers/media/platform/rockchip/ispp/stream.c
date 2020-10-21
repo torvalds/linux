@@ -618,6 +618,10 @@ static int config_tnr(struct rkispp_device *dev)
 	rkispp_write(dev, RKISPP_TNR_GAIN_WR_VIR_STRIDE, ALIGN(width, 64) >> 4);
 	rkispp_write(dev, RKISPP_CTRL_TNR_SIZE, height << 16 | width);
 
+	if (vdev->monitor.is_en) {
+		init_completion(&vdev->monitor.tnr.cmpl);
+		schedule_work(&vdev->monitor.tnr.work);
+	}
 	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
 		 "%s size:%dx%d ctrl:0x%x core_ctrl:0x%x\n",
 		 __func__, width, height,
@@ -808,6 +812,10 @@ static int config_nr_shp(struct rkispp_device *dev)
 	rkispp_write(dev, RKISPP_NR_VIR_STRIDE_GAIN, ALIGN(width, 64) >> 4);
 	rkispp_write(dev, RKISPP_CTRL_SIZE, height << 16 | width);
 
+	if (vdev->monitor.is_en) {
+		init_completion(&vdev->monitor.nr.cmpl);
+		schedule_work(&vdev->monitor.nr.work);
+	}
 	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
 		 "%s size:%dx%d\n"
 		 "nr ctrl:0x%x ctrl_para:0x%x\n"
@@ -872,6 +880,11 @@ static int config_fec(struct rkispp_device *dev)
 	rkispp_write(dev, RKISPP_FEC_RD_VIR_STRIDE, ALIGN(width * mult, 16) >> 2);
 	rkispp_write(dev, RKISPP_FEC_PIC_SIZE, height << 16 | width);
 	rkispp_set_bits(dev, RKISPP_CTRL_QUICK, 0, GLB_FEC2SCL_EN);
+
+	if (vdev->monitor.is_en) {
+		init_completion(&vdev->monitor.fec.cmpl);
+		schedule_work(&vdev->monitor.fec.work);
+	}
 	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
 		 "%s size:%dx%d ctrl:0x%x core_ctrl:0x%x\n",
 		 __func__, width, height,
@@ -933,6 +946,7 @@ static int config_modules(struct rkispp_device *dev)
 	dev->stream_vdev.monitor.restart_module = 0;
 	dev->stream_vdev.monitor.is_restart = false;
 	dev->stream_vdev.monitor.retry = 0;
+	init_completion(&dev->stream_vdev.monitor.cmpl);
 
 	ret = config_tnr(dev);
 	if (ret < 0)
@@ -1912,6 +1926,8 @@ static void restart_module(struct rkispp_device *dev)
 	u32 val = 0;
 
 	monitor->retry++;
+	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
+		 "%s cnt:%d\n", __func__, monitor->retry);
 	if (dev->ispp_sdev.state == ISPP_STOP || monitor->retry > 3) {
 		monitor->is_en = false;
 		monitor->is_restart = false;
@@ -1919,9 +1935,12 @@ static void restart_module(struct rkispp_device *dev)
 	}
 	if (monitor->monitoring_module)
 		wait_for_completion_timeout(&monitor->cmpl,
-					    msecs_to_jiffies(400));
-	if (dev->ispp_sdev.state == ISPP_STOP)
+					    msecs_to_jiffies(500));
+	if (dev->ispp_sdev.state == ISPP_STOP) {
+		monitor->is_en = false;
+		monitor->is_restart = false;
 		return;
+	}
 	rkispp_soft_reset(dev);
 	rkispp_update_regs(dev, RKISPP_CTRL_QUICK, RKISPP_FEC_CROP);
 	writel(ALL_FORCE_UPD, base + RKISPP_CTRL_UPDATE);
@@ -1932,44 +1951,49 @@ static void restart_module(struct rkispp_device *dev)
 		rkispp_write(dev, RKISPP_TNR_IIR_UV_BASE,
 			     rkispp_read(dev, RKISPP_TNR_WR_UV_BASE));
 		monitor->monitoring_module |= MONITOR_TNR;
-		schedule_work(&monitor->tnr.work);
+		if (!completion_done(&monitor->tnr.cmpl))
+			complete(&monitor->tnr.cmpl);
 	}
 	if (monitor->restart_module & MONITOR_NR) {
 		val |= NR_SHP_ST;
 		monitor->monitoring_module |= MONITOR_NR;
-		schedule_work(&monitor->nr.work);
+		if (!completion_done(&monitor->nr.cmpl))
+			complete(&monitor->nr.cmpl);
 	}
 	if (monitor->restart_module & MONITOR_FEC) {
 		val |= FEC_ST;
 		monitor->monitoring_module |= MONITOR_FEC;
-		schedule_work(&monitor->fec.work);
+		if (!completion_done(&monitor->fec.cmpl))
+			complete(&monitor->fec.cmpl);
 	}
 	writel(val, base + RKISPP_CTRL_STRT);
 	monitor->is_restart = false;
 	monitor->restart_module = 0;
 }
+
 static void restart_monitor(struct work_struct *work)
 {
 	struct module_monitor *m_monitor =
 		container_of(work, struct module_monitor, work);
 	struct rkispp_device *dev = m_monitor->dev;
 	struct rkispp_monitor *monitor = &dev->stream_vdev.monitor;
-	u32 time = (!m_monitor->time ? 300 : m_monitor->time) + 100;
 	unsigned long lock_flags = 0;
-	int ret;
+	int ret, time;
 
-	if (dev->ispp_sdev.state == ISPP_STOP)
-		return;
-	ret = wait_for_completion_timeout(&m_monitor->cmpl,
-					  msecs_to_jiffies(time));
-	spin_lock_irqsave(&monitor->lock, lock_flags);
-	if (m_monitor->is_cancel) {
-		m_monitor->is_cancel = false;
-		spin_unlock_irqrestore(&monitor->lock, lock_flags);
-		return;
-	}
-	monitor->monitoring_module &= ~m_monitor->module;
-	if (!ret) {
+	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
+		 "%s module:0x%x enter\n", __func__, m_monitor->module);
+	while (monitor->is_en) {
+		time = (!m_monitor->time ? 300 : m_monitor->time) + 150;
+		ret = wait_for_completion_timeout(&m_monitor->cmpl,
+						  msecs_to_jiffies(time));
+		if (!(monitor->monitoring_module & m_monitor->module) ||
+		    ret || !monitor->is_en)
+			continue;
+		if (dev->ispp_sdev.state == ISPP_STOP)
+			break;
+
+		spin_lock_irqsave(&monitor->lock, lock_flags);
+		monitor->monitoring_module &= ~m_monitor->module;
 		monitor->restart_module |= m_monitor->module;
 		if (monitor->is_restart)
 			ret = true;
@@ -1982,15 +2006,19 @@ static void restart_monitor(struct work_struct *work)
 				     readl(dev->hw_dev->base_addr + RKISPP_TNR_IIR_UV_BASE_SHD));
 		}
 		v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
-			 "%s monitoring:0x%x module:0x%x timeout\n", __func__,
+			 "monitoring:0x%x module:0x%x timeout\n",
 			 monitor->monitoring_module, m_monitor->module);
+		spin_unlock_irqrestore(&monitor->lock, lock_flags);
+		if (!ret && monitor->is_restart)
+			restart_module(dev);
+		/* waitting for other working module if need restart ispp */
+		if (monitor->is_restart &&
+		    !monitor->monitoring_module &&
+		    !completion_done(&monitor->cmpl))
+			complete(&monitor->cmpl);
 	}
-	spin_unlock_irqrestore(&monitor->lock, lock_flags);
-	if (!ret && monitor->is_restart)
-		restart_module(dev);
-	/* waitting for other working module if need restart ispp */
-	if (monitor->is_restart && !monitor->monitoring_module)
-		complete(&monitor->cmpl);
+	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
+		 "%s module:0x%x exit\n", __func__, m_monitor->module);
 }
 
 static void monitor_init(struct rkispp_device *dev)
@@ -2111,13 +2139,10 @@ static void fec_work_event(struct rkispp_device *dev,
 		vdev->fec.dbg.id = seq;
 		vdev->fec.dbg.timestamp = ktime_get_ns();
 		if (monitor->is_en) {
-			monitor->fec.is_cancel = false;
 			monitor->fec.time = vdev->fec.dbg.interval / 1000 / 1000;
-			if (monitor->monitoring_module & MONITOR_FEC)
-				monitor->fec.is_cancel = true;
-			else
-				monitor->monitoring_module |= MONITOR_FEC;
-			schedule_work(&monitor->fec.work);
+			monitor->monitoring_module |= MONITOR_FEC;
+			if (!completion_done(&monitor->fec.cmpl))
+				complete(&monitor->fec.cmpl);
 		}
 		writel(FEC_ST, base + RKISPP_CTRL_STRT);
 		vdev->fec.is_end = false;
@@ -2313,13 +2338,10 @@ static void nr_work_event(struct rkispp_device *dev,
 		vdev->nr.dbg.id = seq;
 		vdev->nr.dbg.timestamp = ktime_get_ns();
 		if (monitor->is_en) {
-			monitor->nr.is_cancel = false;
 			monitor->nr.time = vdev->nr.dbg.interval / 1000 / 1000;
-			if (monitor->monitoring_module & MONITOR_NR)
-				monitor->nr.is_cancel = true;
-			else
-				monitor->monitoring_module |= MONITOR_NR;
-			schedule_work(&monitor->nr.work);
+			monitor->monitoring_module |= MONITOR_NR;
+			if (!completion_done(&monitor->nr.cmpl))
+				complete(&monitor->nr.cmpl);
 		}
 		if (!is_quick)
 			writel(NR_SHP_ST, base + RKISPP_CTRL_STRT);
@@ -2537,13 +2559,10 @@ static void tnr_work_event(struct rkispp_device *dev,
 		vdev->tnr.dbg.id = seq;
 		vdev->tnr.dbg.timestamp = ktime_get_ns();
 		if (monitor->is_en) {
-			monitor->tnr.is_cancel = false;
 			monitor->tnr.time = vdev->tnr.dbg.interval / 1000 / 1000;
-			if (monitor->monitoring_module & MONITOR_TNR)
-				monitor->tnr.is_cancel = true;
-			else
-				monitor->monitoring_module |= MONITOR_TNR;
-			schedule_work(&monitor->tnr.work);
+			monitor->monitoring_module |= MONITOR_TNR;
+			if (!completion_done(&monitor->tnr.cmpl))
+				complete(&monitor->tnr.cmpl);
 		}
 		writel(TNR_ST, base + RKISPP_CTRL_STRT);
 		vdev->tnr.is_end = false;
@@ -2617,18 +2636,27 @@ void rkispp_isr(u32 mis_val, struct rkispp_device *dev)
 	}
 
 	if (mis_val & TNR_INT) {
-		if (vdev->monitor.is_en)
-			complete(&vdev->monitor.tnr.cmpl);
+		if (vdev->monitor.is_en) {
+			vdev->monitor.monitoring_module &= ~MONITOR_TNR;
+			if (!completion_done(&vdev->monitor.tnr.cmpl))
+				complete(&vdev->monitor.tnr.cmpl);
+		}
 		vdev->tnr.dbg.interval = ns - vdev->tnr.dbg.timestamp;
 	}
 	if (mis_val & NR_INT) {
-		if (vdev->monitor.is_en)
-			complete(&vdev->monitor.nr.cmpl);
+		if (vdev->monitor.is_en) {
+			vdev->monitor.monitoring_module &= ~MONITOR_NR;
+			if (!completion_done(&vdev->monitor.nr.cmpl))
+				complete(&vdev->monitor.nr.cmpl);
+		}
 		vdev->nr.dbg.interval = ns - vdev->nr.dbg.timestamp;
 	}
 	if (mis_val & FEC_INT) {
-		if (vdev->monitor.is_en)
-			complete(&vdev->monitor.fec.cmpl);
+		if (vdev->monitor.is_en) {
+			vdev->monitor.monitoring_module &= ~MONITOR_FEC;
+			if (!completion_done(&vdev->monitor.fec.cmpl))
+				complete(&vdev->monitor.fec.cmpl);
+		}
 		vdev->fec.dbg.interval = ns - vdev->fec.dbg.timestamp;
 	}
 

@@ -258,9 +258,16 @@ static int rkispp_sd_s_stream(struct v4l2_subdev *sd, int on)
 			       video, s_stream, on);
 	if ((on && ret) || (!on && !ret)) {
 		ispp_sdev->state = ISPP_STOP;
-		if (dev->stream_vdev.monitor.is_en &&
-		    dev->stream_vdev.monitor.is_restart)
-			complete(&dev->stream_vdev.monitor.cmpl);
+		if (dev->stream_vdev.monitor.is_en) {
+			if (!completion_done(&dev->stream_vdev.monitor.cmpl))
+				complete(&dev->stream_vdev.monitor.cmpl);
+			if (!completion_done(&dev->stream_vdev.monitor.tnr.cmpl))
+				complete(&dev->stream_vdev.monitor.tnr.cmpl);
+			if (!completion_done(&dev->stream_vdev.monitor.nr.cmpl))
+				complete(&dev->stream_vdev.monitor.nr.cmpl);
+			if (!completion_done(&dev->stream_vdev.monitor.fec.cmpl))
+				complete(&dev->stream_vdev.monitor.fec.cmpl);
+		}
 		rkispp_event_handle(dev, CMD_STREAM, &ispp_sdev->state);
 	}
 	return ret;
