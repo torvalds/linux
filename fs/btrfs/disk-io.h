@@ -112,10 +112,10 @@ int btrfs_read_buffer(struct extent_buffer *buf, u64 parent_transid, int level,
 		      struct btrfs_key *first_key);
 blk_status_t btrfs_bio_wq_end_io(struct btrfs_fs_info *info, struct bio *bio,
 			enum btrfs_wq_endio_type metadata);
-blk_status_t btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct bio *bio,
-			int mirror_num, unsigned long bio_flags,
-			u64 bio_offset, void *private_data,
-			extent_submit_bio_start_t *submit_bio_start);
+blk_status_t btrfs_wq_submit_bio(struct inode *inode, struct bio *bio,
+				 int mirror_num, unsigned long bio_flags,
+				 u64 bio_offset,
+				 extent_submit_bio_start_t *submit_bio_start);
 blk_status_t btrfs_submit_bio_done(void *private_data, struct bio *bio,
 			  int mirror_num);
 int btrfs_init_log_root_tree(struct btrfs_trans_handle *trans,

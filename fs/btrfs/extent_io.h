@@ -71,7 +71,7 @@ typedef blk_status_t (submit_bio_hook_t)(struct inode *inode, struct bio *bio,
 					 int mirror_num,
 					 unsigned long bio_flags);
 
-typedef blk_status_t (extent_submit_bio_start_t)(void *private_data,
+typedef blk_status_t (extent_submit_bio_start_t)(struct inode *inode,
 		struct bio *bio, u64 bio_offset);
 
 #define INLINE_EXTENT_BUFFER_PAGES 16
