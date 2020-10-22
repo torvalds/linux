@@ -20,6 +20,17 @@ static inline void _tlbie(unsigned long address)
 #endif
 void _tlbia(void);
 
+/*
+ * Called at the end of a mmu_gather operation to make sure the
+ * TLB flush is completely done.
+ */
+static inline void tlb_flush(struct mmu_gather *tlb)
+{
+	/* 603 needs to flush the whole TLB here since it doesn't use a hash table. */
+	if (!mmu_has_feature(MMU_FTR_HPTE_TABLE))
+		_tlbia();
+}
+
 static inline void flush_range(struct mm_struct *mm, unsigned long start, unsigned long end)
 {
 	start &= PAGE_MASK;
