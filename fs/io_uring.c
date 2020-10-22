@@ -6162,7 +6162,6 @@ static struct io_kiocb *io_prep_linked_timeout(struct io_kiocb *req)
 static void __io_queue_sqe(struct io_kiocb *req, struct io_comp_state *cs)
 {
 	struct io_kiocb *linked_timeout;
-	struct io_kiocb *nxt;
 	const struct cred *old_creds = NULL;
 	int ret;
 
@@ -6197,30 +6196,25 @@ again:
 
 		if (linked_timeout)
 			io_queue_linked_timeout(linked_timeout);
-		goto exit;
-	}
+	} else if (likely(!ret)) {
+		/* drop submission reference */
+		req = io_put_req_find_next(req);
+		if (linked_timeout)
+			io_queue_linked_timeout(linked_timeout);
 
-	if (unlikely(ret)) {
+		if (req) {
+			if (!(req->flags & REQ_F_FORCE_ASYNC))
+				goto again;
+			io_queue_async_work(req);
+		}
+	} else {
 		/* un-prep timeout, so it'll be killed as any other linked */
 		req->flags &= ~REQ_F_LINK_TIMEOUT;
 		req_set_fail_links(req);
 		io_put_req(req);
 		io_req_complete(req, ret);
-		goto exit;
 	}
 
-	/* drop submission reference */
-	nxt = io_put_req_find_next(req);
-	if (linked_timeout)
-		io_queue_linked_timeout(linked_timeout);
-
-	if (nxt) {
-		req = nxt;
-		if (!(req->flags & REQ_F_FORCE_ASYNC))
-			goto again;
-		io_queue_async_work(req);
-	}
-exit:
 	if (old_creds)
 		revert_creds(old_creds);
 }
