@@ -14,8 +14,6 @@ void rtl8192u_dot11d_init(struct ieee80211_device *ieee)
 	memset(dot11d_info->channel_map, 0, MAX_CHANNEL_NUMBER + 1);
 	memset(dot11d_info->max_tx_pwr_dbm_list, 0xFF, MAX_CHANNEL_NUMBER + 1);
 	RESET_CIE_WATCHDOG(ieee);
-
-	netdev_info(ieee->dev, "%s\n", __func__);
 }
 EXPORT_SYMBOL(rtl8192u_dot11d_init);
 
