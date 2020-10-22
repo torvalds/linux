@@ -254,22 +254,25 @@ mcp251xfd_chip_wait_for_osc_ready(const struct mcp251xfd_priv *priv,
 	int err;
 
 	err = regmap_read_poll_timeout(priv->map_reg, MCP251XFD_REG_OSC, osc,
+				       !mcp251xfd_reg_invalid(osc) &&
 				       (osc & osc_mask) == osc_reference,
 				       MCP251XFD_OSC_STAB_SLEEP_US,
 				       MCP251XFD_OSC_STAB_TIMEOUT_US);
+	if (err != -ETIMEDOUT)
+		return err;
+
 	if (mcp251xfd_reg_invalid(osc)) {
 		netdev_err(priv->ndev,
-			   "Failed to detect %s (osc=0x%08x).\n",
-			   mcp251xfd_get_model_str(priv), osc);
+			   "Failed to read Oscillator Configuration Register (osc=0x%08x).\n",
+			   osc);
 		return -ENODEV;
-	} else if (err == -ETIMEDOUT) {
-		netdev_err(priv->ndev,
-			   "Timeout waiting for Oscillator Ready (osc=0x%08x, osc_reference=0x%08x)\n",
-			   osc, osc_reference);
-		return -ETIMEDOUT;
 	}
 
-	return 0;
+	netdev_err(priv->ndev,
+		   "Timeout waiting for Oscillator Ready (osc=0x%08x, osc_reference=0x%08x)\n",
+		   osc, osc_reference);
+
+	return -ETIMEDOUT;
 }
 
 static int mcp251xfd_chip_clock_enable(const struct mcp251xfd_priv *priv)
@@ -1965,8 +1968,11 @@ static int mcp251xfd_probe(struct spi_device *spi)
 		goto out_free_candev;
 
 	err = mcp251xfd_register(priv);
-	if (err)
+	if (err) {
+		dev_err_probe(&spi->dev, err, "Failed to detect %s.\n",
+			      mcp251xfd_get_model_str(priv));
 		goto out_can_rx_offload_del;
+	}
 
 	return 0;
 
