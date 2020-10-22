@@ -400,22 +400,20 @@ static void ionic_rx_fill_cb(void *arg)
 void ionic_rx_empty(struct ionic_queue *q)
 {
 	struct ionic_desc_info *desc_info;
-	struct ionic_rxq_desc *desc;
-	unsigned int i;
-	u16 idx;
+	struct ionic_page_info *page_info;
+	unsigned int i, j;
 
-	idx = q->tail_idx;
-	while (idx != q->head_idx) {
-		desc_info = &q->info[idx];
-		desc = desc_info->desc;
-		desc->addr = 0;
-		desc->len = 0;
+	for (i = 0; i < q->num_descs; i++) {
+		desc_info = &q->info[i];
+		for (j = 0; j < IONIC_RX_MAX_SG_ELEMS + 1; j++) {
+			page_info = &desc_info->pages[j];
+			if (page_info->page)
+				ionic_rx_page_free(q, page_info);
+		}
 
-		for (i = 0; i < desc_info->npages; i++)
-			ionic_rx_page_free(q, &desc_info->pages[i]);
-
+		desc_info->npages = 0;
+		desc_info->cb = NULL;
 		desc_info->cb_arg = NULL;
-		idx = (idx + 1) & (q->num_descs - 1);
 	}
 }
 
