@@ -157,7 +157,7 @@ DECLARE_PER_CPU(int, next_tlbcam_idx);
 
 enum {
 	MMU_FTRS_POSSIBLE =
-#ifdef CONFIG_PPC_BOOK3S
+#if defined(CONFIG_PPC_BOOK3S_64) || defined(CONFIG_PPC_BOOK3S_604)
 		MMU_FTR_HPTE_TABLE |
 #endif
 #ifdef CONFIG_PPC_8xx
@@ -206,6 +206,9 @@ enum {
 		0,
 };
 
+#if defined(CONFIG_PPC_BOOK3S_604) && !defined(CONFIG_PPC_BOOK3S_603)
+#define MMU_FTRS_ALWAYS		MMU_FTR_HPTE_TABLE
+#endif
 #ifdef CONFIG_PPC_8xx
 #define MMU_FTRS_ALWAYS		MMU_FTR_TYPE_8xx
 #endif
