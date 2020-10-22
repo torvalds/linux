@@ -147,12 +147,20 @@ enum mt76_testmode_state {
  * @MT76_TM_TX_MODE_OFDM: legacy OFDM mode
  * @MT76_TM_TX_MODE_HT: 802.11n MCS
  * @MT76_TM_TX_MODE_VHT: 802.11ac MCS
+ * @MT76_TM_TX_MODE_HE_SU: 802.11ax single-user MIMO
+ * @MT76_TM_TX_MODE_HE_EXT_SU: 802.11ax extended-range SU
+ * @MT76_TM_TX_MODE_HE_TB: 802.11ax trigger-based
+ * @MT76_TM_TX_MODE_HE_MU: 802.11ax multi-user MIMO
  */
 enum mt76_testmode_tx_mode {
 	MT76_TM_TX_MODE_CCK,
 	MT76_TM_TX_MODE_OFDM,
 	MT76_TM_TX_MODE_HT,
 	MT76_TM_TX_MODE_VHT,
+	MT76_TM_TX_MODE_HE_SU,
+	MT76_TM_TX_MODE_HE_EXT_SU,
+	MT76_TM_TX_MODE_HE_TB,
+	MT76_TM_TX_MODE_HE_MU,
 
 	/* keep last */
 	NUM_MT76_TM_TX_MODES,
