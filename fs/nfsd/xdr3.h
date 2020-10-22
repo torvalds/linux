@@ -145,6 +145,7 @@ struct nfsd3_readres {
 	struct svc_fh		fh;
 	unsigned long		count;
 	__u32			eof;
+	struct page		**pages;
 };
 
 struct nfsd3_writeres {
