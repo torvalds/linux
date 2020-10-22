@@ -908,7 +908,7 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 
 		/* get required alignment */
 		if (phys_pg_pack->page_size == page_size) {
-			va_range = ctx->host_va_range;
+			va_range = ctx->va_range[HL_VA_RANGE_TYPE_HOST];
 
 			/*
 			 * huge page alignment may be needed in case of regular
@@ -923,7 +923,7 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 			 * huge page alignment is needed in case of huge page
 			 * mapping
 			 */
-			va_range = ctx->host_huge_va_range;
+			va_range = ctx->va_range[HL_VA_RANGE_TYPE_HOST_HUGE];
 			va_block_align = huge_page_size;
 		}
 	} else {
@@ -948,7 +948,7 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 		hint_addr = args->map_device.hint_addr;
 
 		/* DRAM VA alignment is the same as the DRAM page size */
-		va_range = ctx->dram_va_range;
+		va_range = ctx->va_range[HL_VA_RANGE_TYPE_DRAM];
 		va_block_align = hdev->asic_prop.dmmu.page_size;
 	}
 
@@ -1093,12 +1093,12 @@ static int unmap_device_va(struct hl_ctx *ctx, u64 vaddr, bool ctx_free)
 
 		if (phys_pg_pack->page_size ==
 					hdev->asic_prop.pmmu.page_size)
-			va_range = ctx->host_va_range;
+			va_range = ctx->va_range[HL_VA_RANGE_TYPE_HOST];
 		else
-			va_range = ctx->host_huge_va_range;
+			va_range = ctx->va_range[HL_VA_RANGE_TYPE_HOST_HUGE];
 	} else if (*vm_type == VM_TYPE_PHYS_PACK) {
 		is_userptr = false;
-		va_range = ctx->dram_va_range;
+		va_range = ctx->va_range[HL_VA_RANGE_TYPE_DRAM];
 		phys_pg_pack = hnode->ptr;
 	} else {
 		dev_warn(hdev->dev,
@@ -1556,7 +1556,7 @@ bool hl_userptr_is_pinned(struct hl_device *hdev, u64 addr,
  *   addresses.
  */
 static int va_range_init(struct hl_device *hdev, struct hl_va_range *va_range,
-				u64 start, u64 end)
+				u64 start, u64 end, u32 page_size)
 {
 	int rc;
 
@@ -1586,6 +1586,7 @@ static int va_range_init(struct hl_device *hdev, struct hl_va_range *va_range,
 
 	va_range->start_addr = start;
 	va_range->end_addr = end;
+	va_range->page_size = page_size;
 
 	return 0;
 }
@@ -1598,8 +1599,7 @@ static int va_range_init(struct hl_device *hdev, struct hl_va_range *va_range,
  * This function does the following:
  * - Frees the virtual addresses block list and its lock
  */
-static void va_range_fini(struct hl_device *hdev,
-		struct hl_va_range *va_range)
+static void va_range_fini(struct hl_device *hdev, struct hl_va_range *va_range)
 {
 	mutex_lock(&va_range->lock);
 	clear_va_list_locked(hdev, &va_range->list);
@@ -1629,101 +1629,96 @@ static void va_range_fini(struct hl_device *hdev,
 static int vm_ctx_init_with_ranges(struct hl_ctx *ctx,
 					u64 host_range_start,
 					u64 host_range_end,
+					u32 host_page_size,
 					u64 host_huge_range_start,
 					u64 host_huge_range_end,
+					u32 host_huge_page_size,
 					u64 dram_range_start,
-					u64 dram_range_end)
+					u64 dram_range_end,
+					u32 dram_page_size)
 {
 	struct hl_device *hdev = ctx->hdev;
-	int rc;
+	int i, rc;
 
-	ctx->host_va_range = kzalloc(sizeof(*ctx->host_va_range), GFP_KERNEL);
-	if (!ctx->host_va_range)
-		return -ENOMEM;
-
-	ctx->host_huge_va_range = kzalloc(sizeof(*ctx->host_huge_va_range),
-						GFP_KERNEL);
-	if (!ctx->host_huge_va_range) {
-		rc =  -ENOMEM;
-		goto host_huge_va_range_err;
-	}
-
-	ctx->dram_va_range = kzalloc(sizeof(*ctx->dram_va_range), GFP_KERNEL);
-	if (!ctx->dram_va_range) {
-		rc = -ENOMEM;
-		goto dram_va_range_err;
+	for (i = 0 ; i < HL_VA_RANGE_TYPE_MAX ; i++) {
+		ctx->va_range[i] =
+			kzalloc(sizeof(struct hl_va_range), GFP_KERNEL);
+		if (!ctx->va_range[i]) {
+			rc = -ENOMEM;
+			goto free_va_range;
+		}
 	}
 
 	rc = hl_mmu_ctx_init(ctx);
 	if (rc) {
 		dev_err(hdev->dev, "failed to init context %d\n", ctx->asid);
-		goto mmu_ctx_err;
+		goto free_va_range;
 	}
 
 	mutex_init(&ctx->mem_hash_lock);
 	hash_init(ctx->mem_hash);
 
-	mutex_init(&ctx->host_va_range->lock);
+	mutex_init(&ctx->va_range[HL_VA_RANGE_TYPE_HOST]->lock);
 
-	rc = va_range_init(hdev, ctx->host_va_range, host_range_start,
-				host_range_end);
+	rc = va_range_init(hdev, ctx->va_range[HL_VA_RANGE_TYPE_HOST],
+			host_range_start, host_range_end, host_page_size);
 	if (rc) {
 		dev_err(hdev->dev, "failed to init host vm range\n");
-		goto host_page_range_err;
+		goto mmu_ctx_fini;
 	}
 
 	if (hdev->pmmu_huge_range) {
-		mutex_init(&ctx->host_huge_va_range->lock);
+		mutex_init(&ctx->va_range[HL_VA_RANGE_TYPE_HOST_HUGE]->lock);
 
-		rc = va_range_init(hdev, ctx->host_huge_va_range,
-					host_huge_range_start,
-					host_huge_range_end);
+		rc = va_range_init(hdev,
+			ctx->va_range[HL_VA_RANGE_TYPE_HOST_HUGE],
+			host_huge_range_start, host_huge_range_end,
+			host_huge_page_size);
 		if (rc) {
 			dev_err(hdev->dev,
 				"failed to init host huge vm range\n");
-			goto host_hpage_range_err;
+			goto clear_host_va_range;
 		}
 	} else {
-		ctx->host_huge_va_range = ctx->host_va_range;
+		ctx->va_range[HL_VA_RANGE_TYPE_HOST_HUGE] =
+				ctx->va_range[HL_VA_RANGE_TYPE_HOST];
 	}
 
-	mutex_init(&ctx->dram_va_range->lock);
+	mutex_init(&ctx->va_range[HL_VA_RANGE_TYPE_DRAM]->lock);
 
-	rc = va_range_init(hdev, ctx->dram_va_range, dram_range_start,
-			dram_range_end);
+	rc = va_range_init(hdev, ctx->va_range[HL_VA_RANGE_TYPE_DRAM],
+			dram_range_start, dram_range_end, dram_page_size);
 	if (rc) {
 		dev_err(hdev->dev, "failed to init dram vm range\n");
-		goto dram_vm_err;
+		goto clear_host_huge_va_range;
 	}
 
 	hl_debugfs_add_ctx_mem_hash(hdev, ctx);
 
 	return 0;
 
-dram_vm_err:
-	mutex_destroy(&ctx->dram_va_range->lock);
+clear_host_huge_va_range:
+	mutex_destroy(&ctx->va_range[HL_VA_RANGE_TYPE_DRAM]->lock);
 
 	if (hdev->pmmu_huge_range) {
-		mutex_lock(&ctx->host_huge_va_range->lock);
-		clear_va_list_locked(hdev, &ctx->host_huge_va_range->list);
-		mutex_unlock(&ctx->host_huge_va_range->lock);
+		mutex_lock(&ctx->va_range[HL_VA_RANGE_TYPE_HOST_HUGE]->lock);
+		clear_va_list_locked(hdev,
+			&ctx->va_range[HL_VA_RANGE_TYPE_HOST_HUGE]->list);
+		mutex_unlock(&ctx->va_range[HL_VA_RANGE_TYPE_HOST_HUGE]->lock);
 	}
-host_hpage_range_err:
+clear_host_va_range:
 	if (hdev->pmmu_huge_range)
-		mutex_destroy(&ctx->host_huge_va_range->lock);
-	mutex_lock(&ctx->host_va_range->lock);
-	clear_va_list_locked(hdev, &ctx->host_va_range->list);
-	mutex_unlock(&ctx->host_va_range->lock);
-host_page_range_err:
-	mutex_destroy(&ctx->host_va_range->lock);
+		mutex_destroy(&ctx->va_range[HL_VA_RANGE_TYPE_HOST_HUGE]->lock);
+	mutex_lock(&ctx->va_range[HL_VA_RANGE_TYPE_HOST]->lock);
+	clear_va_list_locked(hdev, &ctx->va_range[HL_VA_RANGE_TYPE_HOST]->list);
+	mutex_unlock(&ctx->va_range[HL_VA_RANGE_TYPE_HOST]->lock);
+mmu_ctx_fini:
+	mutex_destroy(&ctx->va_range[HL_VA_RANGE_TYPE_HOST]->lock);
 	mutex_destroy(&ctx->mem_hash_lock);
 	hl_mmu_ctx_fini(ctx);
-mmu_ctx_err:
-	kfree(ctx->dram_va_range);
-dram_va_range_err:
-	kfree(ctx->host_huge_va_range);
-host_huge_va_range_err:
-	kfree(ctx->host_va_range);
+free_va_range:
+	for (i = 0 ; i < HL_VA_RANGE_TYPE_MAX ; i++)
+		kfree(ctx->va_range[i]);
 
 	return rc;
 }
@@ -1733,6 +1728,7 @@ int hl_vm_ctx_init(struct hl_ctx *ctx)
 	struct asic_fixed_properties *prop = &ctx->hdev->asic_prop;
 	u64 host_range_start, host_range_end, host_huge_range_start,
 		host_huge_range_end, dram_range_start, dram_range_end;
+	u32 host_page_size, host_huge_page_size, dram_page_size;
 
 	atomic64_set(&ctx->dram_phys_mem, 0);
 
@@ -1748,14 +1744,18 @@ int hl_vm_ctx_init(struct hl_ctx *ctx)
 
 	dram_range_start = prop->dmmu.start_addr;
 	dram_range_end = prop->dmmu.end_addr;
+	dram_page_size = prop->dmmu.page_size;
 	host_range_start = prop->pmmu.start_addr;
 	host_range_end = prop->pmmu.end_addr;
+	host_page_size = prop->pmmu.page_size;
 	host_huge_range_start = prop->pmmu_huge.start_addr;
 	host_huge_range_end = prop->pmmu_huge.end_addr;
+	host_huge_page_size = prop->pmmu_huge.page_size;
 
 	return vm_ctx_init_with_ranges(ctx, host_range_start, host_range_end,
-				host_huge_range_start, host_huge_range_end,
-				dram_range_start, dram_range_end);
+			host_page_size, host_huge_range_start,
+			host_huge_range_end, host_huge_page_size,
+			dram_range_start, dram_range_end, dram_page_size);
 }
 
 /*
@@ -1824,10 +1824,10 @@ void hl_vm_ctx_fini(struct hl_ctx *ctx)
 		}
 	spin_unlock(&vm->idr_lock);
 
-	va_range_fini(hdev, ctx->dram_va_range);
+	va_range_fini(hdev, ctx->va_range[HL_VA_RANGE_TYPE_DRAM]);
 	if (hdev->pmmu_huge_range)
-		va_range_fini(hdev, ctx->host_huge_va_range);
-	va_range_fini(hdev, ctx->host_va_range);
+		va_range_fini(hdev, ctx->va_range[HL_VA_RANGE_TYPE_HOST_HUGE]);
+	va_range_fini(hdev, ctx->va_range[HL_VA_RANGE_TYPE_HOST]);
 
 	mutex_destroy(&ctx->mem_hash_lock);
 	hl_mmu_ctx_fini(ctx);

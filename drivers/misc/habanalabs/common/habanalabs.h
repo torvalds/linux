@@ -954,17 +954,32 @@ struct hl_asic_funcs {
 #define HL_KERNEL_ASID_ID	0
 
 /**
+ * enum hl_va_range_type - virtual address range type.
+ * @HL_VA_RANGE_TYPE_HOST: range type of host pages
+ * @HL_VA_RANGE_TYPE_HOST_HUGE: range type of host huge pages
+ * @HL_VA_RANGE_TYPE_DRAM: range type of dram pages
+ */
+enum hl_va_range_type {
+	HL_VA_RANGE_TYPE_HOST,
+	HL_VA_RANGE_TYPE_HOST_HUGE,
+	HL_VA_RANGE_TYPE_DRAM,
+	HL_VA_RANGE_TYPE_MAX
+};
+
+/**
  * struct hl_va_range - virtual addresses range.
  * @lock: protects the virtual addresses list.
  * @list: list of virtual addresses blocks available for mappings.
  * @start_addr: range start address.
  * @end_addr: range end address.
+ * @page_size: page size of this va range.
  */
 struct hl_va_range {
 	struct mutex		lock;
 	struct list_head	list;
 	u64			start_addr;
 	u64			end_addr;
+	u32			page_size;
 };
 
 /**
@@ -993,10 +1008,7 @@ struct hl_cs_counters_atomic {
  * @refcount: reference counter for the context. Context is released only when
  *		this hits 0l. It is incremented on CS and CS_WAIT.
  * @cs_pending: array of hl fence objects representing pending CS.
- * @host_va_range: holds available virtual addresses for host mappings.
- * @host_huge_va_range: holds available virtual addresses for host mappings
- *                      with huge pages.
- * @dram_va_range: holds available virtual addresses for DRAM mappings.
+ * @va_range: holds available virtual addresses for host and dram mappings.
  * @mem_hash_lock: protects the mem_hash.
  * @mmu_lock: protects the MMU page tables. Any change to the PGT, modifying the
  *            MMU hash or walking the PGT requires talking this lock.
@@ -1028,9 +1040,7 @@ struct hl_ctx {
 	struct hl_device		*hdev;
 	struct kref			refcount;
 	struct hl_fence			**cs_pending;
-	struct hl_va_range		*host_va_range;
-	struct hl_va_range		*host_huge_va_range;
-	struct hl_va_range		*dram_va_range;
+	struct hl_va_range		*va_range[HL_VA_RANGE_TYPE_MAX];
 	struct mutex			mem_hash_lock;
 	struct mutex			mmu_lock;
 	struct list_head		debugfs_list;
