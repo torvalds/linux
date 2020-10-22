@@ -383,6 +383,35 @@ encode_saved_post_attr(struct svc_rqst *rqstp, __be32 *p, struct svc_fh *fhp)
 	return encode_fattr3(rqstp, p, fhp, &fhp->fh_post_attr);
 }
 
+static bool
+svcxdr_encode_post_op_attr(struct svc_rqst *rqstp, struct xdr_stream *xdr,
+			   const struct svc_fh *fhp)
+{
+	struct dentry *dentry = fhp->fh_dentry;
+	struct kstat stat;
+
+	/*
+	 * The inode may be NULL if the call failed because of a
+	 * stale file handle. In this case, no attributes are
+	 * returned.
+	 */
+	if (fhp->fh_no_wcc || !dentry || !d_really_is_positive(dentry))
+		goto no_post_op_attrs;
+	if (fh_getattr(fhp, &stat) != nfs_ok)
+		goto no_post_op_attrs;
+
+	if (xdr_stream_encode_item_present(xdr) < 0)
+		return false;
+	lease_get_mtime(d_inode(dentry), &stat.mtime);
+	if (!svcxdr_encode_fattr3(rqstp, xdr, fhp, &stat))
+		return false;
+
+	return true;
+
+no_post_op_attrs:
+	return xdr_stream_encode_item_absent(xdr) > 0;
+}
+
 /*
  * Encode post-operation attributes.
  * The inode may be NULL if the call failed because of a stale file
@@ -835,13 +864,24 @@ nfs3svc_encode_diropres(struct svc_rqst *rqstp, __be32 *p)
 int
 nfs3svc_encode_accessres(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct xdr_stream *xdr = &rqstp->rq_res_stream;
 	struct nfsd3_accessres *resp = rqstp->rq_resp;
 
-	*p++ = resp->status;
-	p = encode_post_op_attr(rqstp, p, &resp->fh);
-	if (resp->status == 0)
-		*p++ = htonl(resp->access);
-	return xdr_ressize_check(rqstp, p);
+	if (!svcxdr_encode_nfsstat3(xdr, resp->status))
+		return 0;
+	switch (resp->status) {
+	case nfs_ok:
+		if (!svcxdr_encode_post_op_attr(rqstp, xdr, &resp->fh))
+			return 0;
+		if (xdr_stream_encode_u32(xdr, resp->access) < 0)
+			return 0;
+		break;
+	default:
+		if (!svcxdr_encode_post_op_attr(rqstp, xdr, &resp->fh))
+			return 0;
+	}
+
+	return 1;
 }
 
 /* READLINK */
