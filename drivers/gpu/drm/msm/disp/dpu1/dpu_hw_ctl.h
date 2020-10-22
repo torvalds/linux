@@ -91,13 +91,13 @@ struct dpu_hw_ctl_ops {
 		u32 flushbits);
 
 	/**
-	 * OR in the given flushbits to the cached pending_intf_flush_mask
+	 * OR in the given flushbits to the cached pending_(intf_)flush_mask
 	 * No effect on hardware
 	 * @ctx       : ctl path ctx pointer
-	 * @flushbits : module flushmask
+	 * @blk       : interface block index
 	 */
-	void (*update_pending_intf_flush)(struct dpu_hw_ctl *ctx,
-		u32 flushbits);
+	void (*update_pending_flush_intf)(struct dpu_hw_ctl *ctx,
+		enum dpu_intf blk);
 
 	/**
 	 * Write the value of the pending_flush_mask to hardware
@@ -141,23 +141,6 @@ struct dpu_hw_ctl_ops {
 
 	uint32_t (*get_bitmask_dspp)(struct dpu_hw_ctl *ctx,
 		enum dpu_dspp blk);
-
-	/**
-	 * Query the value of the intf flush mask
-	 * No effect on hardware
-	 * @ctx       : ctl path ctx pointer
-	 */
-	int (*get_bitmask_intf)(struct dpu_hw_ctl *ctx,
-		u32 *flushbits,
-		enum dpu_intf blk);
-
-	/**
-	 * Query the value of the intf active flush mask
-	 * No effect on hardware
-	 * @ctx       : ctl path ctx pointer
-	 */
-	int (*get_bitmask_active_intf)(struct dpu_hw_ctl *ctx,
-		u32 *flushbits, enum dpu_intf blk);
 
 	/**
 	 * Set all blend stages to disabled
