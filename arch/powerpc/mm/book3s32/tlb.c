@@ -118,14 +118,9 @@ EXPORT_SYMBOL(flush_tlb_kernel_range);
 /*
  * Flush all the (user) entries for the address space described by mm.
  */
-void flush_tlb_mm(struct mm_struct *mm)
+void hash__flush_tlb_mm(struct mm_struct *mm)
 {
 	struct vm_area_struct *mp;
-
-	if (!mmu_has_feature(MMU_FTR_HPTE_TABLE)) {
-		_tlbia();
-		return;
-	}
 
 	/*
 	 * It is safe to go down the mm's list of vmas when called
@@ -136,23 +131,19 @@ void flush_tlb_mm(struct mm_struct *mm)
 	for (mp = mm->mmap; mp != NULL; mp = mp->vm_next)
 		flush_range(mp->vm_mm, mp->vm_start, mp->vm_end);
 }
-EXPORT_SYMBOL(flush_tlb_mm);
+EXPORT_SYMBOL(hash__flush_tlb_mm);
 
-void flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
+void hash__flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
 {
 	struct mm_struct *mm;
 	pmd_t *pmd;
 
-	if (!mmu_has_feature(MMU_FTR_HPTE_TABLE)) {
-		_tlbie(vmaddr);
-		return;
-	}
 	mm = (vmaddr < TASK_SIZE)? vma->vm_mm: &init_mm;
 	pmd = pmd_off(mm, vmaddr);
 	if (!pmd_none(*pmd))
 		flush_hash_pages(mm->context.id, vmaddr, pmd_val(*pmd), 1);
 }
-EXPORT_SYMBOL(flush_tlb_page);
+EXPORT_SYMBOL(hash__flush_tlb_page);
 
 /*
  * For each address in the range, find the pte for the address

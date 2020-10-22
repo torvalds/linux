@@ -6,8 +6,8 @@
 /*
  * TLB flushing for "classic" hash-MMU 32-bit CPUs, 6xx, 7xx, 7xxx
  */
-extern void flush_tlb_mm(struct mm_struct *mm);
-extern void flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr);
+void hash__flush_tlb_mm(struct mm_struct *mm);
+void hash__flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr);
 extern void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 			    unsigned long end);
 extern void flush_tlb_kernel_range(unsigned long start, unsigned long end);
@@ -21,6 +21,22 @@ static inline void _tlbie(unsigned long address)
 }
 #endif
 void _tlbia(void);
+
+static inline void flush_tlb_mm(struct mm_struct *mm)
+{
+	if (mmu_has_feature(MMU_FTR_HPTE_TABLE))
+		hash__flush_tlb_mm(mm);
+	else
+		_tlbia();
+}
+
+static inline void flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
+{
+	if (mmu_has_feature(MMU_FTR_HPTE_TABLE))
+		hash__flush_tlb_page(vma, vmaddr);
+	else
+		_tlbie(vmaddr);
+}
 
 static inline void local_flush_tlb_page(struct vm_area_struct *vma,
 					unsigned long vmaddr)
