@@ -362,14 +362,10 @@ struct ras_err_data {
 struct ras_err_handler_data {
 	/* point to bad page records array */
 	struct eeprom_table_record *bps;
-	/* point to reserved bo array */
-	struct amdgpu_bo **bps_bo;
 	/* the count of entries */
 	int count;
 	/* the space can place new entries */
 	int space_left;
-	/* last reserved entry's index + 1 */
-	int last_reserved;
 };
 
 typedef int (*ras_ih_cb)(struct amdgpu_device *adev,
@@ -506,14 +502,10 @@ int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
 		struct eeprom_table_record *bps, int pages);
 
 int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev);
-int amdgpu_ras_reserve_bad_pages(struct amdgpu_device *adev);
 
 static inline int amdgpu_ras_reset_gpu(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
-
-	if (in_task())
-		amdgpu_ras_reserve_bad_pages(adev);
 
 	if (atomic_cmpxchg(&ras->in_recovery, 0, 1) == 0)
 		schedule_work(&ras->recovery_work);
