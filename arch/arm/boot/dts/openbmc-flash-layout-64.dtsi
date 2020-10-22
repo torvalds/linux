@@ -13,22 +13,22 @@ partitions {
 		label = "u-boot";
 	};
 
-	u-boot-env@e0000 {
+	u-boot-env@60000 {
 		reg = <0x60000 0x20000>; // 128KB
 		label = "u-boot-env";
 	};
 
-	kernel@100000 {
+	kernel@80000 {
 		reg = <0x80000 0x500000>; // 5MB
 		label = "kernel";
 	};
 
-	rofs@a00000 {
+	rofs@580000 {
 		reg = <0x580000 0x2a80000>; // 42.5MB
 		label = "rofs";
 	};
 
-	rwfs@6000000 {
+	rwfs@3000000 {
 		reg = <0x3000000 0x1000000>; // 16MB
 		label = "rwfs";
 	};
