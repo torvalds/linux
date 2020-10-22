@@ -1689,6 +1689,7 @@
 		assigned-clocks = <&cru DCLK_CIF>;
 		assigned-clock-rates = <300000000>;
 		power-domains = <&power RV1126_PD_VI>;
+		rockchip,grf = <&grf>;
 		// iommus = <&rkcif_mmu>;
 		memory-region = <&isp_reserved>;
 		status = "disabled";
