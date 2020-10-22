@@ -154,7 +154,7 @@ struct smb2_compression_transform_hdr {
 
 /* See MS-SMB2 2.2.42.1 */
 #define SMB2_COMPRESSION_FLAG_NONE	0x0000
-#define SMB2_COMPRESSION_FLAG_CHAINDED	0x0001
+#define SMB2_COMPRESSION_FLAG_CHAINED	0x0001
 
 struct compression_payload_header {
 	__le16	CompressionAlgorithm;
