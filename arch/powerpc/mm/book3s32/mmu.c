@@ -306,7 +306,7 @@ static void hash_preload(struct mm_struct *mm, unsigned long ea)
 {
 	pmd_t *pmd;
 
-	if (!Hash)
+	if (!mmu_has_feature(MMU_FTR_HPTE_TABLE))
 		return;
 	pmd = pmd_off(mm, ea);
 	if (!pmd_none(*pmd))

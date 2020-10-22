@@ -36,7 +36,7 @@ void flush_hash_entry(struct mm_struct *mm, pte_t *ptep, unsigned long addr)
 {
 	unsigned long ptephys;
 
-	if (Hash) {
+	if (mmu_has_feature(MMU_FTR_HPTE_TABLE)) {
 		ptephys = __pa(ptep) & PAGE_MASK;
 		flush_hash_pages(mm->context.id, addr, ptephys, 1);
 	}
@@ -49,7 +49,7 @@ EXPORT_SYMBOL(flush_hash_entry);
  */
 void tlb_flush(struct mmu_gather *tlb)
 {
-	if (!Hash) {
+	if (!mmu_has_feature(MMU_FTR_HPTE_TABLE)) {
 		/*
 		 * 603 needs to flush the whole TLB here since
 		 * it doesn't use a hash table.
@@ -80,7 +80,7 @@ static void flush_range(struct mm_struct *mm, unsigned long start,
 	unsigned int ctx = mm->context.id;
 
 	start &= PAGE_MASK;
-	if (!Hash) {
+	if (!mmu_has_feature(MMU_FTR_HPTE_TABLE)) {
 		if (end - start <= PAGE_SIZE)
 			_tlbie(start);
 		else
@@ -122,7 +122,7 @@ void flush_tlb_mm(struct mm_struct *mm)
 {
 	struct vm_area_struct *mp;
 
-	if (!Hash) {
+	if (!mmu_has_feature(MMU_FTR_HPTE_TABLE)) {
 		_tlbia();
 		return;
 	}
@@ -143,7 +143,7 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
 	struct mm_struct *mm;
 	pmd_t *pmd;
 
-	if (!Hash) {
+	if (!mmu_has_feature(MMU_FTR_HPTE_TABLE)) {
 		_tlbie(vmaddr);
 		return;
 	}
