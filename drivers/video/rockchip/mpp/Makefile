@@ -5,7 +5,8 @@ MPP_GIT_REVISION := \
 	--pretty=format:"%h author: %<|(30)%an %cd %s" -- $(src) || \
 	echo -n "unknown mpp version for missing VCS info")
 
-MPP_REVISION := $(subst \,\\\,$(MPP_GIT_REVISION))
+MPP_REVISION_0 := $(subst \,\\\,$(MPP_GIT_REVISION))
+MPP_REVISION   := $(subst ",\\\",$(MPP_REVISION_0))
 
 rk_vcodec-objs := mpp_service.o mpp_common.o mpp_iommu.o
 CFLAGS_mpp_service.o += -DMPP_VERSION="\"$(MPP_REVISION)\""
