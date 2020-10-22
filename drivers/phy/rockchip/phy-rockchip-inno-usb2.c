@@ -274,6 +274,8 @@ struct rockchip_usb2phy_port {
  * @dcd_retries: The retry count used to track Data contact
  *		 detection process.
  * @edev_self: represent the source of extcon.
+ * @irq: IRQ number assigned for phy which combined irqs of
+ *	 otg port and host port.
  * @edev: extcon device for notification registration
  * @phy_cfg: phy register configuration, assigned by driver data.
  * @ports: phy port instance.
@@ -290,6 +292,7 @@ struct rockchip_usb2phy {
 	u8			dcd_retries;
 	u8			primary_retries;
 	bool			edev_self;
+	int			irq;
 	struct extcon_dev	*edev;
 	const struct rockchip_usb2phy_cfg	*phy_cfg;
 	struct rockchip_usb2phy_port	ports[USB2PHY_NUM_PORTS];
@@ -631,18 +634,9 @@ static int rockchip_usb2phy_init(struct phy *phy)
 
 	mutex_lock(&rport->mutex);
 
-	if (rport->port_id == USB2PHY_PORT_OTG &&
-	    rport->bvalid_irq > 0) {
-		/* clear bvalid status and enable bvalid detect irq */
-		ret = rockchip_usb2phy_enable_vbus_irq(rphy, rport, true);
-		if (ret) {
-			dev_err(rphy->dev,
-				"failed to enable bvalid irq\n");
-			goto out;
-		}
-
+	if (rport->port_id == USB2PHY_PORT_OTG) {
 		/* clear id status and enable id detect irq */
-		if (rport->id_irq > 0) {
+		if (rport->id_irq > 0 || rport->otg_mux_irq > 0) {
 			ret = rockchip_usb2phy_enable_id_irq(rphy, rport,
 							     true);
 			if (ret) {
@@ -652,8 +646,20 @@ static int rockchip_usb2phy_init(struct phy *phy)
 			}
 		}
 
-		schedule_delayed_work(&rport->otg_sm_work,
-				      OTG_SCHEDULE_DELAY);
+		/* clear bvalid status and enable bvalid detect irq */
+		if ((rport->bvalid_irq > 0 || rport->otg_mux_irq > 0) &&
+		    !rport->vbus_always_on) {
+			ret = rockchip_usb2phy_enable_vbus_irq(rphy, rport,
+							       true);
+			if (ret) {
+				dev_err(rphy->dev,
+					"failed to enable bvalid irq\n");
+				goto out;
+			}
+
+			schedule_delayed_work(&rport->otg_sm_work,
+					      OTG_SCHEDULE_DELAY);
+		}
 	} else if (rport->port_id == USB2PHY_PORT_HOST) {
 		/* clear linestate and enable linestate detect irq */
 		ret = rockchip_usb2phy_enable_line_irq(rphy, rport, true);
@@ -1509,6 +1515,112 @@ static irqreturn_t rockchip_usb2phy_otg_mux_irq(int irq, void *data)
 	return ret;
 }
 
+static int rockchip_usb2phy_port_irq_init(struct rockchip_usb2phy *rphy,
+					  struct rockchip_usb2phy_port *rport,
+					  struct device_node *child_np)
+{
+	int ret;
+
+	/*
+	 * If the usb2 phy used combined irq for otg and host port,
+	 * don't need to init otg and host port irq separately.
+	 */
+	if (rphy->irq > 0)
+		return 0;
+
+	/*
+	 * Some SoCs (e.g. RV1108) use one combined irq for all of
+	 * the irqs of otg port. So probe the otg-mux interrupt first,
+	 * if not found, then init the regular irqs one by one.
+	 */
+	rport->otg_mux_irq = of_irq_get_byname(child_np, "otg-mux");
+	if (rport->otg_mux_irq > 0) {
+		ret = devm_request_threaded_irq(rphy->dev, rport->otg_mux_irq,
+						NULL,
+						rockchip_usb2phy_otg_mux_irq,
+						IRQF_ONESHOT,
+						"rockchip_usb2phy_otg",
+						rport);
+		if (ret)
+			dev_err(rphy->dev,
+				"failed to request otg-mux irq handle\n");
+
+		return ret;
+	}
+
+	/* Init linestate irq for both otg port and host port */
+	rport->ls_irq = of_irq_get_byname(child_np, "linestate");
+	if (rport->ls_irq <= 0) {
+		dev_err(rphy->dev, "no linestate irq provided\n");
+		return -EINVAL;
+	}
+
+	ret = devm_request_threaded_irq(rphy->dev, rport->ls_irq, NULL,
+					rockchip_usb2phy_linestate_irq,
+					IRQF_ONESHOT,
+					"rockchip_usb2phy", rport);
+	if (ret) {
+		dev_err(rphy->dev, "failed to request linestate irq handle\n");
+		return ret;
+	}
+
+	/*
+	 * If it's host port or it's otg port but only support
+	 * host mode, return immediately without init the bvalid
+	 * and id irqs/
+	 */
+	if (rport->port_id == USB2PHY_PORT_HOST ||
+	    rport->mode == USB_DR_MODE_HOST ||
+	    rport->mode == USB_DR_MODE_UNKNOWN)
+		return ret;
+
+	/* Init the bvalid irq for otg port */
+	if (!rport->vbus_always_on) {
+		rport->bvalid_irq = of_irq_get_byname(child_np,
+						      "otg-bvalid");
+		if (rport->bvalid_irq <= 0) {
+			dev_err(rphy->dev, "no bvalid irq provided\n");
+			return -EINVAL;
+		}
+
+		ret = devm_request_threaded_irq(rphy->dev,
+						rport->bvalid_irq,
+						NULL,
+						rockchip_usb2phy_bvalid_irq,
+						IRQF_ONESHOT,
+						"rockchip_usb2phy_bvalid",
+						rport);
+		if (ret) {
+			dev_err(rphy->dev,
+				"failed to request otg-bvalid irq handle\n");
+			return ret;
+		}
+	}
+
+	/* Init the id irq for otg port */
+	if (rphy->edev_self) {
+		rport->id_irq = of_irq_get_byname(child_np, "otg-id");
+		if (rport->id_irq <= 0) {
+			dev_err(rphy->dev, "no otg id irq provided\n");
+			return -EINVAL;
+		}
+
+		ret = devm_request_threaded_irq(rphy->dev,
+						rport->id_irq, NULL,
+						rockchip_usb2phy_id_irq,
+						IRQF_ONESHOT,
+						"rockchip_usb2phy_id",
+						rport);
+		if (ret) {
+			dev_err(rphy->dev,
+				"failed to request otg-id irq handle\n");
+			return ret;
+		}
+	}
+
+	return ret;
+}
+
 static int rockchip_usb2phy_host_port_init(struct rockchip_usb2phy *rphy,
 					   struct rockchip_usb2phy_port *rport,
 					   struct device_node *child_np)
@@ -1526,18 +1638,9 @@ static int rockchip_usb2phy_host_port_init(struct rockchip_usb2phy *rphy,
 	mutex_init(&rport->mutex);
 	INIT_DELAYED_WORK(&rport->sm_work, rockchip_usb2phy_sm_work);
 
-	rport->ls_irq = of_irq_get_byname(child_np, "linestate");
-	if (rport->ls_irq <= 0) {
-		dev_err(rphy->dev, "no linestate irq provided\n");
-		return -EINVAL;
-	}
-
-	ret = devm_request_threaded_irq(rphy->dev, rport->ls_irq, NULL,
-					rockchip_usb2phy_linestate_irq,
-					IRQF_ONESHOT,
-					"rockchip_usb2phy", rport);
+	ret = rockchip_usb2phy_port_irq_init(rphy, rport, child_np);
 	if (ret) {
-		dev_err(rphy->dev, "failed to request linestate irq handle\n");
+		dev_err(rphy->dev, "failed to init irq for host port\n");
 		return ret;
 	}
 
@@ -1602,26 +1705,31 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 		if (ret == -EPROBE_DEFER)
 			return ret;
 
-		dev_warn(&rport->phy->dev, "Failed to get VBUS supply regulator\n");
+		dev_warn(&rport->phy->dev, "No vbus specified for otg port\n");
 		rport->vbus = NULL;
 	}
 
 	rport->mode = of_usb_get_dr_mode_by_phy(child_np, -1);
-	if (rport->mode == USB_DR_MODE_HOST ||
-	    rport->mode == USB_DR_MODE_UNKNOWN) {
-		if (rphy->edev_self) {
-			extcon_set_state(rphy->edev, EXTCON_USB, false);
-			extcon_set_state(rphy->edev, EXTCON_USB_HOST, true);
-			/* Enable VBUS supply */
-			extcon_set_state(rphy->edev, EXTCON_USB_VBUS_EN, true);
-			ret = rockchip_set_vbus_power(rport, true);
-			if (ret)
-				return ret;
-		}
-		goto out;
+	iddig = property_enabled(rphy->grf, &rport->port_cfg->utmi_iddig);
+	if (rphy->edev_self && (rport->mode == USB_DR_MODE_HOST ||
+	    rport->mode == USB_DR_MODE_UNKNOWN || !iddig)) {
+		/* Enable VBUS supply for otg port */
+		extcon_set_state(rphy->edev, EXTCON_USB, false);
+		extcon_set_state(rphy->edev, EXTCON_USB_HOST, true);
+		extcon_set_state(rphy->edev, EXTCON_USB_VBUS_EN, true);
+		ret = rockchip_set_vbus_power(rport, true);
+		if (ret)
+			return ret;
 	}
 
-	if (rport->vbus_always_on)
+	ret = rockchip_usb2phy_port_irq_init(rphy, rport, child_np);
+	if (ret) {
+		dev_err(rphy->dev, "failed to init irq for otg port\n");
+		return ret;
+	}
+
+	if (rport->vbus_always_on || rport->mode == USB_DR_MODE_HOST ||
+	    rport->mode == USB_DR_MODE_UNKNOWN)
 		goto out;
 
 	wake_lock_init(&rport->wakelock, WAKE_LOCK_SUSPEND, "rockchip_otg");
@@ -1629,94 +1737,6 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 			  rockchip_usb_bypass_uart_work);
 	INIT_DELAYED_WORK(&rport->chg_work, rockchip_chg_detect_work);
 	INIT_DELAYED_WORK(&rport->otg_sm_work, rockchip_usb2phy_otg_sm_work);
-
-	/*
-	 * Some SoCs use one interrupt with otg-id/otg-bvalid/linestate
-	 * interrupts muxed together, so probe the otg-mux interrupt first,
-	 * if not found, then look for the regular interrupts one by one.
-	 */
-	rport->otg_mux_irq = of_irq_get_byname(child_np, "otg-mux");
-	if (rport->otg_mux_irq > 0) {
-		ret = devm_request_threaded_irq(rphy->dev, rport->otg_mux_irq,
-						NULL,
-						rockchip_usb2phy_otg_mux_irq,
-						IRQF_ONESHOT,
-						"rockchip_usb2phy_otg",
-						rport);
-		if (ret) {
-			dev_err(rphy->dev,
-				"failed to request otg-mux irq handle\n");
-			goto err;
-		}
-	} else {
-		rport->bvalid_irq = of_irq_get_byname(child_np, "otg-bvalid");
-		if (rport->bvalid_irq <= 0) {
-			dev_err(rphy->dev, "no vbus valid irq provided\n");
-			ret = -EINVAL;
-			goto err;
-		}
-
-		ret = devm_request_threaded_irq(rphy->dev, rport->bvalid_irq,
-						NULL,
-						rockchip_usb2phy_bvalid_irq,
-						IRQF_ONESHOT,
-						"rockchip_usb2phy_bvalid",
-						rport);
-		if (ret) {
-			dev_err(rphy->dev,
-				"failed to request otg-bvalid irq handle\n");
-			goto err;
-		}
-
-		rport->ls_irq = of_irq_get_byname(child_np, "linestate");
-		if (rport->ls_irq <= 0) {
-			dev_err(rphy->dev, "no linestate irq provided\n");
-			ret = -EINVAL;
-			goto err;
-		}
-
-		ret = devm_request_threaded_irq(rphy->dev, rport->ls_irq, NULL,
-						rockchip_usb2phy_linestate_irq,
-						IRQF_ONESHOT,
-						"rockchip_usb2phy", rport);
-		if (ret) {
-			dev_err(rphy->dev, "failed to request linestate irq handle\n");
-			goto err;
-		}
-
-		if (rphy->edev_self) {
-			rport->id_irq = of_irq_get_byname(child_np, "otg-id");
-			if (rport->id_irq <= 0) {
-				dev_err(rphy->dev, "no otg id irq provided\n");
-				ret = -EINVAL;
-				goto err;
-			}
-
-			ret = devm_request_threaded_irq(rphy->dev,
-							rport->id_irq, NULL,
-							rockchip_usb2phy_id_irq,
-							IRQF_ONESHOT,
-							"rockchip_usb2phy_id",
-							rport);
-			if (ret) {
-				dev_err(rphy->dev, "failed to request otg-id irq handle\n");
-				goto err;
-			}
-		}
-	}
-
-	if (rphy->edev_self) {
-		iddig = property_enabled(rphy->grf, &rport->port_cfg->utmi_iddig);
-		if (!iddig) {
-			extcon_set_state(rphy->edev, EXTCON_USB, false);
-			extcon_set_state(rphy->edev, EXTCON_USB_HOST, true);
-			extcon_set_state(rphy->edev, EXTCON_USB_VBUS_EN, true);
-			/* Enable VBUS supply */
-			ret = rockchip_set_vbus_power(rport, true);
-			if (ret)
-				goto err;
-		}
-	}
 
 	if (!IS_ERR(rphy->edev)) {
 		rport->event_nb.notifier_call = rockchip_otg_event;
@@ -1798,6 +1818,7 @@ static int rockchip_usb2phy_probe(struct platform_device *pdev)
 	rphy->chg_state = USB_CHG_STATE_UNDEFINED;
 	rphy->chg_type = POWER_SUPPLY_TYPE_UNKNOWN;
 	rphy->edev_self = false;
+	rphy->irq = platform_get_irq(pdev, 0);
 	platform_set_drvdata(pdev, rphy);
 
 	ret = rockchip_usb2phy_extcon_register(rphy);
