@@ -328,8 +328,6 @@ static int max20730_init_debugfs(struct i2c_client *client,
 		return -ENOENT;
 
 	max20730_dir = debugfs_create_dir(client->name, debugfs);
-	if (!max20730_dir)
-		return -ENOENT;
 
 	for (i = 0; i < MAX20730_DEBUGFS_NUM_ENTRIES; ++i)
 		psu->debugfs_entries[i] = i;
