@@ -1139,6 +1139,7 @@ nfs3svc_encode_readdirres(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct xdr_stream *xdr = &rqstp->rq_res_stream;
 	struct nfsd3_readdirres *resp = rqstp->rq_resp;
+	struct xdr_buf *dirlist = &resp->dirlist;
 
 	if (!svcxdr_encode_nfsstat3(xdr, resp->status))
 		return 0;
@@ -1148,7 +1149,7 @@ nfs3svc_encode_readdirres(struct svc_rqst *rqstp, __be32 *p)
 			return 0;
 		if (!svcxdr_encode_cookieverf3(xdr, resp->verf))
 			return 0;
-		xdr_write_pages(xdr, resp->pages, 0, resp->count << 2);
+		xdr_write_pages(xdr, dirlist->pages, 0, dirlist->len);
 		/* no more entries */
 		if (xdr_stream_encode_item_absent(xdr) < 0)
 			return 0;
@@ -1240,21 +1241,18 @@ out:
  * @resp: readdir result context
  * @offset: offset cookie to encode
  *
+ * The buffer space for the offset cookie has already been reserved
+ * by svcxdr_encode_entry3_common().
  */
 void nfs3svc_encode_cookie3(struct nfsd3_readdirres *resp, u64 offset)
 {
-	if (!resp->offset)
-		return;
+	__be64 cookie = cpu_to_be64(offset);
 
-	if (resp->offset1) {
-		/* we ended up with offset on a page boundary */
-		*resp->offset = cpu_to_be32(offset >> 32);
-		*resp->offset1 = cpu_to_be32(offset & 0xffffffff);
-		resp->offset1 = NULL;
-	} else {
-		xdr_encode_hyper(resp->offset, offset);
-	}
-	resp->offset = NULL;
+	if (!resp->cookie_offset)
+		return;
+	write_bytes_to_xdr_buf(&resp->dirlist, resp->cookie_offset, &cookie,
+			       sizeof(cookie));
+	resp->cookie_offset = 0;
 }
 
 /*
@@ -1401,6 +1399,150 @@ nfs3svc_encode_entry_plus(void *cd, const char *name,
 			  unsigned int d_type)
 {
 	return encode_entry(cd, name, namlen, offset, ino, d_type, 1);
+}
+
+static bool
+svcxdr_encode_entry3_common(struct nfsd3_readdirres *resp, const char *name,
+			    int namlen, loff_t offset, u64 ino)
+{
+	struct xdr_buf *dirlist = &resp->dirlist;
+	struct xdr_stream *xdr = &resp->xdr;
+
+	if (xdr_stream_encode_item_present(xdr) < 0)
+		return false;
+	/* fileid */
+	if (xdr_stream_encode_u64(xdr, ino) < 0)
+		return false;
+	/* name */
+	if (xdr_stream_encode_opaque(xdr, name, min(namlen, NFS3_MAXNAMLEN)) < 0)
+		return false;
+	/* cookie */
+	resp->cookie_offset = dirlist->len;
+	if (xdr_stream_encode_u64(xdr, NFS_OFFSET_MAX) < 0)
+		return false;
+
+	return true;
+}
+
+/**
+ * nfs3svc_encode_entry3 - encode one NFSv3 READDIR entry
+ * @data: directory context
+ * @name: name of the object to be encoded
+ * @namlen: length of that name, in bytes
+ * @offset: the offset of the previous entry
+ * @ino: the fileid of this entry
+ * @d_type: unused
+ *
+ * Return values:
+ *   %0: Entry was successfully encoded.
+ *   %-EINVAL: An encoding problem occured, secondary status code in resp->common.err
+ *
+ * On exit, the following fields are updated:
+ *   - resp->xdr
+ *   - resp->common.err
+ *   - resp->cookie_offset
+ */
+int nfs3svc_encode_entry3(void *data, const char *name, int namlen,
+			  loff_t offset, u64 ino, unsigned int d_type)
+{
+	struct readdir_cd *ccd = data;
+	struct nfsd3_readdirres *resp = container_of(ccd,
+						     struct nfsd3_readdirres,
+						     common);
+	unsigned int starting_length = resp->dirlist.len;
+
+	/* The offset cookie for the previous entry */
+	nfs3svc_encode_cookie3(resp, offset);
+
+	if (!svcxdr_encode_entry3_common(resp, name, namlen, offset, ino))
+		goto out_toosmall;
+
+	xdr_commit_encode(&resp->xdr);
+	resp->common.err = nfs_ok;
+	return 0;
+
+out_toosmall:
+	resp->cookie_offset = 0;
+	resp->common.err = nfserr_toosmall;
+	resp->dirlist.len = starting_length;
+	return -EINVAL;
+}
+
+static bool
+svcxdr_encode_entry3_plus(struct nfsd3_readdirres *resp, const char *name,
+			  int namlen, u64 ino)
+{
+	struct xdr_stream *xdr = &resp->xdr;
+	struct svc_fh *fhp = &resp->scratch;
+	bool result;
+
+	result = false;
+	fh_init(fhp, NFS3_FHSIZE);
+	if (compose_entry_fh(resp, fhp, name, namlen, ino) != nfs_ok)
+		goto out_noattrs;
+
+	if (!svcxdr_encode_post_op_attr(resp->rqstp, xdr, fhp))
+		goto out;
+	if (!svcxdr_encode_post_op_fh3(xdr, fhp))
+		goto out;
+	result = true;
+
+out:
+	fh_put(fhp);
+	return result;
+
+out_noattrs:
+	if (xdr_stream_encode_item_absent(xdr) < 0)
+		return false;
+	if (xdr_stream_encode_item_absent(xdr) < 0)
+		return false;
+	return true;
+}
+
+/**
+ * nfs3svc_encode_entryplus3 - encode one NFSv3 READDIRPLUS entry
+ * @data: directory context
+ * @name: name of the object to be encoded
+ * @namlen: length of that name, in bytes
+ * @offset: the offset of the previous entry
+ * @ino: the fileid of this entry
+ * @d_type: unused
+ *
+ * Return values:
+ *   %0: Entry was successfully encoded.
+ *   %-EINVAL: An encoding problem occured, secondary status code in resp->common.err
+ *
+ * On exit, the following fields are updated:
+ *   - resp->xdr
+ *   - resp->common.err
+ *   - resp->cookie_offset
+ */
+int nfs3svc_encode_entryplus3(void *data, const char *name, int namlen,
+			      loff_t offset, u64 ino, unsigned int d_type)
+{
+	struct readdir_cd *ccd = data;
+	struct nfsd3_readdirres *resp = container_of(ccd,
+						     struct nfsd3_readdirres,
+						     common);
+	unsigned int starting_length = resp->dirlist.len;
+
+	/* The offset cookie for the previous entry */
+	nfs3svc_encode_cookie3(resp, offset);
+
+	if (!svcxdr_encode_entry3_common(resp, name, namlen, offset, ino))
+		goto out_toosmall;
+	if (!svcxdr_encode_entry3_plus(resp, name, namlen, ino))
+		goto out_toosmall;
+
+	xdr_commit_encode(&resp->xdr);
+	resp->common.err = nfs_ok;
+	return 0;
+
+out_toosmall:
+	resp->cookie_offset = 0;
+	resp->common.err = nfserr_toosmall;
+	resp->dirlist.len = starting_length;
+	return -EINVAL;
 }
 
 static bool

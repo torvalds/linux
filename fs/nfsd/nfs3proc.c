@@ -441,18 +441,30 @@ static void nfsd3_init_dirlist_pages(struct svc_rqst *rqstp,
 				     struct nfsd3_readdirres *resp,
 				     int count)
 {
+	struct xdr_buf *buf = &resp->dirlist;
+	struct xdr_stream *xdr = &resp->xdr;
+
 	count = min_t(u32, count, svc_max_payload(rqstp));
 
-	/* Convert byte count to number of words (i.e. >> 2),
-	 * and reserve room for the NULL ptr & eof flag (-2 words) */
-	resp->buflen = (count >> 2) - 2;
+	memset(buf, 0, sizeof(*buf));
 
-	resp->pages = rqstp->rq_next_page;
-	resp->buffer = page_address(*resp->pages);
+	/* Reserve room for the NULL ptr & eof flag (-2 words) */
+	buf->buflen = count - XDR_UNIT * 2;
+	buf->pages = rqstp->rq_next_page;
 	while (count > 0) {
 		rqstp->rq_next_page++;
 		count -= PAGE_SIZE;
 	}
+
+	/* This is xdr_init_encode(), but it assumes that
+	 * the head kvec has already been consumed. */
+	xdr_set_scratch_buffer(xdr, NULL, 0);
+	xdr->buf = buf;
+	xdr->page_ptr = buf->pages;
+	xdr->iov = NULL;
+	xdr->p = page_address(*buf->pages);
+	xdr->end = xdr->p + (PAGE_SIZE >> 2);
+	xdr->rqst = NULL;
 }
 
 /*
@@ -471,16 +483,13 @@ nfsd3_proc_readdir(struct svc_rqst *rqstp)
 
 	nfsd3_init_dirlist_pages(rqstp, resp, argp->count);
 
-	/* Read directory and encode entries on the fly */
 	fh_copy(&resp->fh, &argp->fh);
-
-	resp->count = 0;
 	resp->common.err = nfs_ok;
+	resp->cookie_offset = 0;
 	resp->rqstp = rqstp;
 	offset = argp->cookie;
-
 	resp->status = nfsd_readdir(rqstp, &resp->fh, &offset,
-				    &resp->common, nfs3svc_encode_entry);
+				    &resp->common, nfs3svc_encode_entry3);
 	memcpy(resp->verf, argp->verf, 8);
 	nfs3svc_encode_cookie3(resp, offset);
 
@@ -504,11 +513,9 @@ nfsd3_proc_readdirplus(struct svc_rqst *rqstp)
 
 	nfsd3_init_dirlist_pages(rqstp, resp, argp->count);
 
-	/* Read directory and encode entries on the fly */
 	fh_copy(&resp->fh, &argp->fh);
-
-	resp->count = 0;
 	resp->common.err = nfs_ok;
+	resp->cookie_offset = 0;
 	resp->rqstp = rqstp;
 	offset = argp->cookie;
 
@@ -522,7 +529,7 @@ nfsd3_proc_readdirplus(struct svc_rqst *rqstp)
 	}
 
 	resp->status = nfsd_readdir(rqstp, &resp->fh, &offset,
-				    &resp->common, nfs3svc_encode_entry_plus);
+				    &resp->common, nfs3svc_encode_entryplus3);
 	memcpy(resp->verf, argp->verf, 8);
 	nfs3svc_encode_cookie3(resp, offset);
 
