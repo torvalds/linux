@@ -41,6 +41,8 @@
 #define PINGPONG_SDM845_SPLIT_MASK \
 	(PINGPONG_SDM845_MASK | BIT(DPU_PINGPONG_TE2))
 
+#define MERGE_3D_SM8150_MASK (0)
+
 #define DSPP_SC7180_MASK BIT(DPU_DSPP_PCC)
 
 #define INTF_SDM845_MASK (0)
@@ -481,40 +483,59 @@ static const struct dpu_pingpong_sub_blks sdm845_pp_sblk = {
 		.len = 0x20, .version = 0x10000},
 };
 
-#define PP_BLK_TE(_name, _id, _base) \
+#define PP_BLK_TE(_name, _id, _base, _merge_3d) \
 	{\
 	.name = _name, .id = _id, \
 	.base = _base, .len = 0xd4, \
 	.features = PINGPONG_SDM845_SPLIT_MASK, \
+	.merge_3d = _merge_3d, \
 	.sblk = &sdm845_pp_sblk_te \
 	}
-#define PP_BLK(_name, _id, _base) \
+#define PP_BLK(_name, _id, _base, _merge_3d) \
 	{\
 	.name = _name, .id = _id, \
 	.base = _base, .len = 0xd4, \
 	.features = PINGPONG_SDM845_MASK, \
+	.merge_3d = _merge_3d, \
 	.sblk = &sdm845_pp_sblk \
 	}
 
 static const struct dpu_pingpong_cfg sdm845_pp[] = {
-	PP_BLK_TE("pingpong_0", PINGPONG_0, 0x70000),
-	PP_BLK_TE("pingpong_1", PINGPONG_1, 0x70800),
-	PP_BLK("pingpong_2", PINGPONG_2, 0x71000),
-	PP_BLK("pingpong_3", PINGPONG_3, 0x71800),
+	PP_BLK_TE("pingpong_0", PINGPONG_0, 0x70000, 0),
+	PP_BLK_TE("pingpong_1", PINGPONG_1, 0x70800, 0),
+	PP_BLK("pingpong_2", PINGPONG_2, 0x71000, 0),
+	PP_BLK("pingpong_3", PINGPONG_3, 0x71800, 0),
 };
 
 static struct dpu_pingpong_cfg sc7180_pp[] = {
-	PP_BLK_TE("pingpong_0", PINGPONG_0, 0x70000),
-	PP_BLK_TE("pingpong_1", PINGPONG_1, 0x70800),
+	PP_BLK_TE("pingpong_0", PINGPONG_0, 0x70000, 0),
+	PP_BLK_TE("pingpong_1", PINGPONG_1, 0x70800, 0),
 };
 
 static const struct dpu_pingpong_cfg sm8150_pp[] = {
-	PP_BLK_TE("pingpong_0", PINGPONG_0, 0x70000),
-	PP_BLK_TE("pingpong_1", PINGPONG_1, 0x70800),
-	PP_BLK("pingpong_2", PINGPONG_2, 0x71000),
-	PP_BLK("pingpong_3", PINGPONG_3, 0x71800),
-	PP_BLK("pingpong_4", PINGPONG_4, 0x72000),
-	PP_BLK("pingpong_5", PINGPONG_5, 0x72800),
+	PP_BLK_TE("pingpong_0", PINGPONG_0, 0x70000, MERGE_3D_0),
+	PP_BLK_TE("pingpong_1", PINGPONG_1, 0x70800, MERGE_3D_0),
+	PP_BLK("pingpong_2", PINGPONG_2, 0x71000, MERGE_3D_1),
+	PP_BLK("pingpong_3", PINGPONG_3, 0x71800, MERGE_3D_1),
+	PP_BLK("pingpong_4", PINGPONG_4, 0x72000, MERGE_3D_2),
+	PP_BLK("pingpong_5", PINGPONG_5, 0x72800, MERGE_3D_2),
+};
+
+/*************************************************************
+ * MERGE_3D sub blocks config
+ *************************************************************/
+#define MERGE_3D_BLK(_name, _id, _base) \
+	{\
+	.name = _name, .id = _id, \
+	.base = _base, .len = 0x100, \
+	.features = MERGE_3D_SM8150_MASK, \
+	.sblk = NULL \
+	}
+
+static const struct dpu_merge_3d_cfg sm8150_merge_3d[] = {
+	MERGE_3D_BLK("merge_3d_0", MERGE_3D_0, 0x83000),
+	MERGE_3D_BLK("merge_3d_1", MERGE_3D_1, 0x83100),
+	MERGE_3D_BLK("merge_3d_2", MERGE_3D_2, 0x83200),
 };
 
 /*************************************************************
@@ -838,6 +859,8 @@ static void sm8150_cfg_init(struct dpu_mdss_cfg *dpu_cfg)
 		.mixer = sm8150_lm,
 		.pingpong_count = ARRAY_SIZE(sm8150_pp),
 		.pingpong = sm8150_pp,
+		.merge_3d_count = ARRAY_SIZE(sm8150_merge_3d),
+		.merge_3d = sm8150_merge_3d,
 		.intf_count = ARRAY_SIZE(sm8150_intf),
 		.intf = sm8150_intf,
 		.vbif_count = ARRAY_SIZE(sdm845_vbif),
@@ -868,6 +891,8 @@ static void sm8250_cfg_init(struct dpu_mdss_cfg *dpu_cfg)
 		.mixer = sm8150_lm,
 		.pingpong_count = ARRAY_SIZE(sm8150_pp),
 		.pingpong = sm8150_pp,
+		.merge_3d_count = ARRAY_SIZE(sm8150_merge_3d),
+		.merge_3d = sm8150_merge_3d,
 		.intf_count = ARRAY_SIZE(sm8150_intf),
 		.intf = sm8150_intf,
 		.vbif_count = ARRAY_SIZE(sdm845_vbif),
