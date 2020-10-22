@@ -1872,8 +1872,7 @@ static bool __io_kill_linked_timeout(struct io_kiocb *req)
 	if (list_empty(&req->link_list))
 		return false;
 	link = list_first_entry(&req->link_list, struct io_kiocb, link_list);
-	if (link->opcode != IORING_OP_LINK_TIMEOUT)
-		return false;
+
 	/*
 	 * Can happen if a linked timeout fired and link had been like
 	 * req -> link t-out -> link t-out [-> ...]
