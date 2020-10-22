@@ -1856,7 +1856,6 @@ static bool io_link_cancel_timeout(struct io_kiocb *req)
 	if (ret != -1) {
 		io_cqring_fill_event(req, -ECANCELED);
 		io_commit_cqring(ctx);
-		req->flags &= ~REQ_F_LINK_HEAD;
 		io_put_req_deferred(req, 1);
 		return true;
 	}
