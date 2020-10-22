@@ -18,4 +18,14 @@ struct iphdr *nf_reject_iphdr_put(struct sk_buff *nskb,
 void nf_reject_ip_tcphdr_put(struct sk_buff *nskb, const struct sk_buff *oldskb,
 			     const struct tcphdr *oth);
 
+struct sk_buff *nf_reject_skb_v4_unreach(struct net *net,
+                                         struct sk_buff *oldskb,
+                                         const struct net_device *dev,
+                                         int hook, u8 code);
+struct sk_buff *nf_reject_skb_v4_tcp_reset(struct net *net,
+					   struct sk_buff *oldskb,
+					   const struct net_device *dev,
+					   int hook);
+
+
 #endif /* _IPV4_NF_REJECT_H */
