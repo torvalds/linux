@@ -622,8 +622,8 @@ _ASM_NOKPROBE_SYMBOL(flush_hash_pages)
 /*
  * Flush an entry from the TLB
  */
-_GLOBAL(_tlbie)
 #ifdef CONFIG_SMP
+_GLOBAL(_tlbie)
 	lwz	r8,TASK_CPU(r2)
 	oris	r8,r8,11
 	mfmsr	r10
@@ -647,12 +647,9 @@ _GLOBAL(_tlbie)
 	stw	r0,0(r9)		/* clear mmu_hash_lock */
 	mtmsr	r10
 	isync
-#else /* CONFIG_SMP */
-	tlbie	r3
-	sync
-#endif /* CONFIG_SMP */
 	blr
 _ASM_NOKPROBE_SYMBOL(_tlbie)
+#endif /* CONFIG_SMP */
 
 /*
  * Flush the entire TLB. 603/603e only

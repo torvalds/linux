@@ -12,7 +12,14 @@ extern void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 			    unsigned long end);
 extern void flush_tlb_kernel_range(unsigned long start, unsigned long end);
 
+#ifdef CONFIG_SMP
 void _tlbie(unsigned long address);
+#else
+static inline void _tlbie(unsigned long address)
+{
+	asm volatile ("tlbie %0; sync" : : "r" (address) : "memory");
+}
+#endif
 void _tlbia(void);
 
 static inline void local_flush_tlb_page(struct vm_area_struct *vma,
