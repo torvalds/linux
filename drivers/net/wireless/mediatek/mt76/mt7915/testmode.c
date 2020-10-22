@@ -31,6 +31,8 @@ static const struct reg_band reg_backup_list[] = {
 	REG_BAND(TMAC_ICR0),
 	REG_BAND_IDX(ARB_DRNGR0, 0),
 	REG_BAND_IDX(ARB_DRNGR0, 1),
+	REG_BAND(WF_RFCR),
+	REG_BAND(WF_RFCR1),
 };
 
 static int
@@ -111,6 +113,10 @@ mt7915_tm_reg_backup_restore(struct mt7915_dev *dev, struct mt7915_phy *phy)
 
 	mt76_wr(dev, MT_TMAC_TFCR0(ext_phy), 0);
 	mt76_clear(dev, MT_TMAC_TCR0(ext_phy), MT_TMAC_TCR0_TBTT_STOP_CTRL);
+
+	/* config rx filter for testmode rx */
+	mt76_wr(dev, MT_WF_RFCR(ext_phy), 0xcf70a);
+	mt76_wr(dev, MT_WF_RFCR1(ext_phy), 0);
 }
 
 static void
@@ -156,6 +162,20 @@ mt7915_tm_set_tx_frames(struct mt7915_dev *dev, bool en)
 	info->control.vif = dev->phy.monitor_vif;
 }
 
+static void
+mt7915_tm_set_rx_frames(struct mt7915_dev *dev, bool en)
+{
+	if (en) {
+		mutex_unlock(&dev->mt76.mutex);
+		mt7915_set_channel(&dev->phy);
+		mutex_lock(&dev->mt76.mutex);
+
+		mt7915_mcu_set_chan_info(&dev->phy, MCU_EXT_CMD_SET_RX_PATH);
+	}
+
+	mt7915_tm_set_trx(dev, &dev->phy, TM_MAC_RX_RXV, en);
+}
+
 static int
 mt7915_tm_set_state(struct mt76_dev *mdev, enum mt76_testmode_state state)
 {
@@ -169,12 +189,69 @@ mt7915_tm_set_state(struct mt76_dev *mdev, enum mt76_testmode_state state)
 		mt7915_tm_set_tx_frames(dev, false);
 	else if (state == MT76_TM_STATE_TX_FRAMES)
 		mt7915_tm_set_tx_frames(dev, true);
+	else if (prev_state == MT76_TM_STATE_RX_FRAMES)
+		mt7915_tm_set_rx_frames(dev, false);
+	else if (state == MT76_TM_STATE_RX_FRAMES)
+		mt7915_tm_set_rx_frames(dev, true);
 	else if (prev_state == MT76_TM_STATE_OFF || state == MT76_TM_STATE_OFF)
 		mt7915_tm_init(dev);
 
 	return 0;
 }
 
+static int
+mt7915_tm_dump_stats(struct mt76_dev *mdev, struct sk_buff *msg)
+{
+	struct mt7915_dev *dev = container_of(mdev, struct mt7915_dev, mt76);
+	void *rx, *rssi;
+	int i;
+
+	rx = nla_nest_start(msg, MT76_TM_STATS_ATTR_LAST_RX);
+	if (!rx)
+		return -ENOMEM;
+
+	if (nla_put_s32(msg, MT76_TM_RX_ATTR_FREQ_OFFSET, dev->test.last_freq_offset))
+		return -ENOMEM;
+
+	rssi = nla_nest_start(msg, MT76_TM_RX_ATTR_RCPI);
+	if (!rssi)
+		return -ENOMEM;
+
+	for (i = 0; i < ARRAY_SIZE(dev->test.last_rcpi); i++)
+		if (nla_put_u8(msg, i, dev->test.last_rcpi[i]))
+			return -ENOMEM;
+
+	nla_nest_end(msg, rssi);
+
+	rssi = nla_nest_start(msg, MT76_TM_RX_ATTR_IB_RSSI);
+	if (!rssi)
+		return -ENOMEM;
+
+	for (i = 0; i < ARRAY_SIZE(dev->test.last_ib_rssi); i++)
+		if (nla_put_s8(msg, i, dev->test.last_ib_rssi[i]))
+			return -ENOMEM;
+
+	nla_nest_end(msg, rssi);
+
+	rssi = nla_nest_start(msg, MT76_TM_RX_ATTR_WB_RSSI);
+	if (!rssi)
+		return -ENOMEM;
+
+	for (i = 0; i < ARRAY_SIZE(dev->test.last_wb_rssi); i++)
+		if (nla_put_s8(msg, i, dev->test.last_wb_rssi[i]))
+			return -ENOMEM;
+
+	nla_nest_end(msg, rssi);
+
+	if (nla_put_u8(msg, MT76_TM_RX_ATTR_SNR, dev->test.last_snr))
+		return -ENOMEM;
+
+	nla_nest_end(msg, rx);
+
+	return 0;
+}
+
 const struct mt76_testmode_ops mt7915_testmode_ops = {
 	.set_state = mt7915_tm_set_state,
+	.dump_stats = mt7915_tm_dump_stats,
 };
