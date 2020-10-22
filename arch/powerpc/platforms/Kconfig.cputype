@@ -11,9 +11,6 @@ config PPC64
 	  This option selects whether a 32-bit or a 64-bit kernel
 	  will be built.
 
-config PPC_BOOK3S_32
-	bool
-
 menu "Processor support"
 choice
 	prompt "Processor Type"
@@ -29,9 +26,8 @@ choice
 
 	  If unsure, select 52xx/6xx/7xx/74xx/82xx/83xx/86xx.
 
-config PPC_BOOK3S_6xx
+config PPC_BOOK3S_32
 	bool "512x/52xx/6xx/7xx/74xx/82xx/83xx/86xx"
-	select PPC_BOOK3S_32
 	imply PPC_FPU
 	select PPC_HAVE_PMU_SUPPORT
 	select PPC_HAVE_KUEP
