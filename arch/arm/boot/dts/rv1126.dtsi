@@ -2161,6 +2161,8 @@
 			100000	396000
 		>;
 
+		rockchip,evb-irdrop = <25000>;
+
 		/* The source clock is CLK_VENC_CORE */
 		opp-297000000 {
 			opp-hz = /bits/ 64 <297000000>;
