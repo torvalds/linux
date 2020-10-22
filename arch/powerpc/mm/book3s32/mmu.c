@@ -33,7 +33,7 @@
 
 u8 __initdata early_hash[SZ_256K] __aligned(SZ_256K) = {0};
 
-struct hash_pte *Hash;
+static struct hash_pte *Hash = (struct hash_pte *)early_hash;
 static unsigned long Hash_size, Hash_mask;
 unsigned long _SDR1;
 static unsigned int hash_mb, hash_mb2;

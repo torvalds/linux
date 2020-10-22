@@ -99,7 +99,6 @@ extern int __map_without_bats;
 extern unsigned int rtas_data, rtas_size;
 
 struct hash_pte;
-extern struct hash_pte *Hash;
 extern u8 early_hash[];
 
 #endif /* CONFIG_PPC32 */
