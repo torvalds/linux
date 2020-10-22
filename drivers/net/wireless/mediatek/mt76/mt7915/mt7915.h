@@ -112,6 +112,8 @@ struct mt7915_phy {
 
 	struct ieee80211_sband_iftype_data iftype[2][NUM_NL80211_IFTYPES];
 
+	struct ieee80211_vif *monitor_vif;
+
 	u32 rxfilter;
 	u64 omac_mask;
 
@@ -164,6 +166,14 @@ struct mt7915_dev {
 	s8 **rate_power; /* TODO: use mt76_rate_power */
 
 	bool fw_debug;
+
+#ifdef CONFIG_NL80211_TESTMODE
+	struct {
+		u32 *reg_backup;
+
+		u8 spe_idx;
+	} test;
+#endif
 };
 
 enum {
@@ -253,6 +263,7 @@ static inline u8 mt7915_lmac_mapping(struct mt7915_dev *dev, u8 ac)
 
 extern const struct ieee80211_ops mt7915_ops;
 extern struct pci_driver mt7915_pci_driver;
+extern const struct mt76_testmode_ops mt7915_testmode_ops;
 
 u32 mt7915_reg_map(struct mt7915_dev *dev, u32 addr);
 
@@ -298,6 +309,7 @@ int mt7915_mcu_add_rate_ctrl(struct mt7915_dev *dev, struct ieee80211_vif *vif,
 			     struct ieee80211_sta *sta);
 int mt7915_mcu_add_smps(struct mt7915_dev *dev, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta);
+int mt7915_set_channel(struct mt7915_phy *phy);
 int mt7915_mcu_set_chan_info(struct mt7915_phy *phy, int cmd);
 int mt7915_mcu_set_tx(struct mt7915_dev *dev, struct ieee80211_vif *vif);
 int mt7915_mcu_set_fixed_rate(struct mt7915_dev *dev,
@@ -306,6 +318,8 @@ int mt7915_mcu_set_eeprom(struct mt7915_dev *dev);
 int mt7915_mcu_get_eeprom(struct mt7915_dev *dev, u32 offset);
 int mt7915_mcu_set_mac(struct mt7915_dev *dev, int band, bool enable,
 		       bool hdr_trans);
+int mt7915_mcu_set_test_param(struct mt7915_dev *dev, u8 param, bool test_mode,
+			      u8 en);
 int mt7915_mcu_set_scs(struct mt7915_dev *dev, u8 band, bool enable);
 int mt7915_mcu_set_ser(struct mt7915_dev *dev, u8 action, u8 set, u8 band);
 int mt7915_mcu_set_rts_thresh(struct mt7915_phy *phy, u32 val);

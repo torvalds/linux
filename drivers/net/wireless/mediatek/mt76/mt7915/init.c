@@ -264,6 +264,7 @@ mt7915_init_wiphy(struct ieee80211_hw *hw)
 
 	ieee80211_hw_set(hw, HAS_RATE_CONTROL);
 	ieee80211_hw_set(hw, SUPPORTS_TX_ENCAP_OFFLOAD);
+	ieee80211_hw_set(hw, WANT_MONITOR_VIF);
 
 	hw->max_tx_fragments = 4;
 }
@@ -620,9 +621,6 @@ int mt7915_register_ext_phy(struct mt7915_dev *dev)
 	mphy->hw->wiphy->perm_addr[0] |= 2;
 	mphy->hw->wiphy->perm_addr[0] ^= BIT(7);
 
-	/* The second interface does not get any packets unless it has a vif */
-	ieee80211_hw_set(mphy->hw, WANT_MONITOR_VIF);
-
 	ret = mt76_register_phy(mphy);
 	if (ret)
 		ieee80211_free_hw(mphy->hw);
@@ -677,6 +675,10 @@ int mt7915_register_device(struct mt7915_dev *dev)
 			IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK;
 	mt7915_cap_dbdc_disable(dev);
 	dev->phy.dfs_state = -1;
+
+#ifdef CONFIG_NL80211_TESTMODE
+	dev->mt76.test_ops = &mt7915_testmode_ops;
+#endif
 
 	ret = mt76_register_device(&dev->mt76, true, mt7915_rates,
 				   ARRAY_SIZE(mt7915_rates));

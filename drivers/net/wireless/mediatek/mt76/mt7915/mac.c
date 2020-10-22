@@ -563,6 +563,108 @@ int mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
 }
 
 static void
+mt7915_mac_write_txwi_tm(struct mt7915_dev *dev, struct mt76_phy *mphy,
+			 __le32 *txwi, struct sk_buff *skb)
+{
+#ifdef CONFIG_NL80211_TESTMODE
+	struct mt76_testmode_data *td = &dev->mt76.test;
+	u8 rate_idx = td->tx_rate_idx;
+	u8 nss = td->tx_rate_nss;
+	u8 bw, mode;
+	u16 rateval = 0;
+	u32 val;
+
+	if (skb != dev->mt76.test.tx_skb)
+		return;
+
+	switch (td->tx_rate_mode) {
+	case MT76_TM_TX_MODE_CCK:
+		mode = MT_PHY_TYPE_CCK;
+		break;
+	case MT76_TM_TX_MODE_HT:
+		nss = 1 + (rate_idx >> 3);
+		mode = MT_PHY_TYPE_HT;
+		break;
+	case MT76_TM_TX_MODE_VHT:
+		mode = MT_PHY_TYPE_VHT;
+		break;
+	case MT76_TM_TX_MODE_HE_SU:
+		mode = MT_PHY_TYPE_HE_SU;
+		break;
+	case MT76_TM_TX_MODE_HE_EXT_SU:
+		mode = MT_PHY_TYPE_HE_EXT_SU;
+		break;
+	case MT76_TM_TX_MODE_HE_TB:
+		mode = MT_PHY_TYPE_HE_TB;
+		break;
+	case MT76_TM_TX_MODE_HE_MU:
+		mode = MT_PHY_TYPE_HE_MU;
+		break;
+	case MT76_TM_TX_MODE_OFDM:
+	default:
+		mode = MT_PHY_TYPE_OFDM;
+		break;
+	}
+
+	switch (mphy->chandef.width) {
+	case NL80211_CHAN_WIDTH_40:
+		bw = 1;
+		break;
+	case NL80211_CHAN_WIDTH_80:
+		bw = 2;
+		break;
+	case NL80211_CHAN_WIDTH_80P80:
+	case NL80211_CHAN_WIDTH_160:
+		bw = 3;
+		break;
+	default:
+		bw = 0;
+		break;
+	}
+
+	if (td->tx_rate_stbc && nss == 1) {
+		nss++;
+		rateval |= MT_TX_RATE_STBC;
+	}
+
+	rateval |= FIELD_PREP(MT_TX_RATE_IDX, rate_idx) |
+		   FIELD_PREP(MT_TX_RATE_MODE, mode) |
+		   FIELD_PREP(MT_TX_RATE_NSS, nss - 1);
+
+	txwi[2] |= cpu_to_le32(MT_TXD2_FIX_RATE);
+
+	le32p_replace_bits(&txwi[3], 1, MT_TXD3_REM_TX_COUNT);
+	if (td->tx_rate_mode < MT76_TM_TX_MODE_HT)
+		txwi[3] |= cpu_to_le32(MT_TXD3_BA_DISABLE);
+
+	val = MT_TXD6_FIXED_BW |
+	      FIELD_PREP(MT_TXD6_BW, bw) |
+	      FIELD_PREP(MT_TXD6_TX_RATE, rateval) |
+	      FIELD_PREP(MT_TXD6_SGI, td->tx_rate_sgi);
+
+	/* for HE_SU/HE_EXT_SU PPDU
+	 * - 1x, 2x, 4x LTF + 0.8us GI
+	 * - 2x LTF + 1.6us GI, 4x LTF + 3.2us GI
+	 * for HE_MU PPDU
+	 * - 2x, 4x LTF + 0.8us GI
+	 * - 2x LTF + 1.6us GI, 4x LTF + 3.2us GI
+	 * for HE_TB PPDU
+	 * - 1x, 2x LTF + 1.6us GI
+	 * - 4x LTF + 3.2us GI
+	 */
+	if (mode >= MT_PHY_TYPE_HE_SU)
+		val |= FIELD_PREP(MT_TXD6_HELTF, td->tx_ltf);
+
+	if (td->tx_rate_ldpc)
+		val |= MT_TXD6_LDPC;
+
+	txwi[6] |= cpu_to_le32(val);
+	txwi[7] |= cpu_to_le32(FIELD_PREP(MT_TXD7_SPE_IDX,
+					  dev->test.spe_idx));
+#endif
+}
+
+static void
 mt7915_mac_write_txwi_8023(struct mt7915_dev *dev, __le32 *txwi,
 			   struct sk_buff *skb, struct mt76_wcid *wcid)
 {
@@ -761,6 +863,9 @@ void mt7915_mac_write_txwi(struct mt7915_dev *dev, __le32 *txwi,
 		txwi[6] |= cpu_to_le32(val);
 		txwi[3] |= cpu_to_le32(MT_TXD3_BA_DISABLE);
 	}
+
+	if (mt76_testmode_enabled(&dev->mt76))
+		mt7915_mac_write_txwi_tm(dev, mphy, txwi, skb);
 }
 
 int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
@@ -880,6 +985,18 @@ mt7915_tx_complete_status(struct mt76_dev *mdev, struct sk_buff *skb,
 	}
 
 	hw = mt76_tx_status_get_hw(mdev, skb);
+
+#ifdef CONFIG_NL80211_TESTMODE
+	if (skb == mdev->test.tx_skb) {
+		struct mt7915_phy *phy = mt7915_hw_phy(hw);
+		struct ieee80211_vif *vif = phy->monitor_vif;
+		struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
+
+		mt76_tx_complete_skb(mdev, mvif->sta.wcid.idx, skb);
+
+		return;
+	}
+#endif
 
 	if (info->flags & IEEE80211_TX_CTL_AMPDU)
 		info->flags |= IEEE80211_TX_STAT_AMPDU;

@@ -3166,6 +3166,15 @@ int mt7915_mcu_set_chan_info(struct mt7915_phy *phy, int cmd)
 		.channel_band = chandef->chan->band,
 	};
 
+#ifdef CONFIG_NL80211_TESTMODE
+	if (dev->mt76.test.tx_antenna_mask &&
+	    (dev->mt76.test.state == MT76_TM_STATE_TX_FRAMES ||
+	     dev->mt76.test.state == MT76_TM_STATE_RX_FRAMES)) {
+		req.tx_streams_num = fls(dev->mt76.test.tx_antenna_mask);
+		req.rx_streams = dev->mt76.test.tx_antenna_mask;
+	}
+#endif
+
 	if (dev->mt76.hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)
 		req.switch_reason = CH_SWITCH_SCAN_BYPASS_DPD;
 	else if ((chandef->chan->flags & IEEE80211_CHAN_RADAR) &&
@@ -3285,6 +3294,28 @@ int mt7915_mcu_set_sku(struct mt7915_phy *phy)
 	return mt76_mcu_send_msg(&dev->mt76,
 				 MCU_EXT_CMD_TX_POWER_FEATURE_CTRL, &req,
 				 sizeof(req), true);
+}
+
+int mt7915_mcu_set_test_param(struct mt7915_dev *dev, u8 param, bool test_mode,
+			      u8 en)
+{
+	struct {
+		u8 test_mode_en;
+		u8 param_idx;
+		u8 _rsv[2];
+
+		u8 enable;
+		u8 _rsv2[3];
+
+		u8 pad[8];
+	} __packed req = {
+		.test_mode_en = test_mode,
+		.param_idx = param,
+		.enable = en,
+	};
+
+	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_ATE_CTRL, &req,
+				 sizeof(req), false);
 }
 
 int mt7915_mcu_set_sku_en(struct mt7915_phy *phy, bool enable)
