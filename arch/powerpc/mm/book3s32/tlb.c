@@ -30,20 +30,6 @@
 #include <mm/mmu_decl.h>
 
 /*
- * Called when unmapping pages to flush entries from the TLB/hash table.
- */
-void flush_hash_entry(struct mm_struct *mm, pte_t *ptep, unsigned long addr)
-{
-	unsigned long ptephys;
-
-	if (mmu_has_feature(MMU_FTR_HPTE_TABLE)) {
-		ptephys = __pa(ptep) & PAGE_MASK;
-		flush_hash_pages(mm->context.id, addr, ptephys, 1);
-	}
-}
-EXPORT_SYMBOL(flush_hash_entry);
-
-/*
  * TLB flushing:
  *
  *  - flush_tlb_mm(mm) flushes the specified mm context TLB's
