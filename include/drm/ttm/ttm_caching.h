@@ -25,6 +25,8 @@
 #ifndef _TTM_CACHING_H_
 #define _TTM_CACHING_H_
 
+#define TTM_NUM_CACHING_TYPES	3
+
 enum ttm_caching {
 	ttm_uncached,
 	ttm_write_combined,

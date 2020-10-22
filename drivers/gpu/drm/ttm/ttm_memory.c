@@ -38,6 +38,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/swap.h>
+#include <drm/ttm/ttm_pool.h>
 
 #define TTM_MEMORY_ALLOC_RETRIES 4
 
@@ -453,6 +454,7 @@ int ttm_mem_global_init(struct ttm_mem_global *glob)
 	}
 	ttm_page_alloc_init(glob, glob->zone_kernel->max_mem/(2*PAGE_SIZE));
 	ttm_dma_page_alloc_init(glob, glob->zone_kernel->max_mem/(2*PAGE_SIZE));
+	ttm_pool_mgr_init(glob->zone_kernel->max_mem/(2*PAGE_SIZE));
 	return 0;
 out_no_zone:
 	ttm_mem_global_release(glob);
@@ -467,6 +469,7 @@ void ttm_mem_global_release(struct ttm_mem_global *glob)
 	/* let the page allocator first stop the shrink work. */
 	ttm_page_alloc_fini();
 	ttm_dma_page_alloc_fini();
+	ttm_pool_mgr_fini();
 
 	flush_workqueue(glob->swap_queue);
 	destroy_workqueue(glob->swap_queue);
