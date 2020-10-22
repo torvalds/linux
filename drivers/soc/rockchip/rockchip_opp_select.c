@@ -872,7 +872,7 @@ static int rockchip_adjust_opp_by_irdrop(struct device *dev,
 		if (!irdrop_table) {
 			delta_irdrop = 0;
 		} else {
-			opp_rate = opp->rate / 1000;
+			opp_rate = opp->rate / 1000000;
 			board_irdrop = -EINVAL;
 			for (i = 0; irdrop_table[i].sel != SEL_TABLE_END; i++) {
 				if (opp_rate >= irdrop_table[i].min)
