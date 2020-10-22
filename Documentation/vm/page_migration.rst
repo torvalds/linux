@@ -99,7 +99,7 @@ Steps:
 2. Ensure that writeback is complete.
 
 3. Lock the new page that we want to move to. It is locked so that accesses to
-   this (not yet uptodate) page immediately block while the move is in progress.
+   this (not yet up-to-date) page immediately block while the move is in progress.
 
 4. All the page table references to the page are converted to migration
    entries. This decreases the mapcount of a page. If the resulting
