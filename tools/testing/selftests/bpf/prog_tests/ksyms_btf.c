@@ -5,18 +5,17 @@
 #include <bpf/libbpf.h>
 #include <bpf/btf.h>
 #include "test_ksyms_btf.skel.h"
+#include "test_ksyms_btf_null_check.skel.h"
 
 static int duration;
 
-void test_ksyms_btf(void)
+static void test_basic(void)
 {
 	__u64 runqueues_addr, bpf_prog_active_addr;
 	__u32 this_rq_cpu;
 	int this_bpf_prog_active;
 	struct test_ksyms_btf *skel = NULL;
 	struct test_ksyms_btf__data *data;
-	struct btf *btf;
-	int percpu_datasec;
 	int err;
 
 	err = kallsyms_find("runqueues", &runqueues_addr);
@@ -30,20 +29,6 @@ void test_ksyms_btf(void)
 		return;
 	if (CHECK(err == -ENOENT, "ksym_find", "symbol 'bpf_prog_active' not found\n"))
 		return;
-
-	btf = libbpf_find_kernel_btf();
-	if (CHECK(IS_ERR(btf), "btf_exists", "failed to load kernel BTF: %ld\n",
-		  PTR_ERR(btf)))
-		return;
-
-	percpu_datasec = btf__find_by_name_kind(btf, ".data..percpu",
-						BTF_KIND_DATASEC);
-	if (percpu_datasec < 0) {
-		printf("%s:SKIP:no PERCPU DATASEC in kernel btf\n",
-		       __func__);
-		test__skip();
-		goto cleanup;
-	}
 
 	skel = test_ksyms_btf__open_and_load();
 	if (CHECK(!skel, "skel_open", "failed to open and load skeleton\n"))
@@ -83,6 +68,42 @@ void test_ksyms_btf(void)
 	      data->out__bpf_prog_active);
 
 cleanup:
-	btf__free(btf);
 	test_ksyms_btf__destroy(skel);
+}
+
+static void test_null_check(void)
+{
+	struct test_ksyms_btf_null_check *skel;
+
+	skel = test_ksyms_btf_null_check__open_and_load();
+	CHECK(skel, "skel_open", "unexpected load of a prog missing null check\n");
+
+	test_ksyms_btf_null_check__destroy(skel);
+}
+
+void test_ksyms_btf(void)
+{
+	int percpu_datasec;
+	struct btf *btf;
+
+	btf = libbpf_find_kernel_btf();
+	if (CHECK(IS_ERR(btf), "btf_exists", "failed to load kernel BTF: %ld\n",
+		  PTR_ERR(btf)))
+		return;
+
+	percpu_datasec = btf__find_by_name_kind(btf, ".data..percpu",
+						BTF_KIND_DATASEC);
+	btf__free(btf);
+	if (percpu_datasec < 0) {
+		printf("%s:SKIP:no PERCPU DATASEC in kernel btf\n",
+		       __func__);
+		test__skip();
+		return;
+	}
+
+	if (test__start_subtest("basic"))
+		test_basic();
+
+	if (test__start_subtest("null_check"))
+		test_null_check();
 }
