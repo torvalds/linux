@@ -253,19 +253,6 @@ static bool ionic_rx_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info)
 	return true;
 }
 
-void ionic_rx_flush(struct ionic_cq *cq)
-{
-	struct ionic_dev *idev = &cq->lif->ionic->idev;
-	u32 work_done;
-
-	work_done = ionic_cq_service(cq, cq->num_descs,
-				     ionic_rx_service, NULL, NULL);
-
-	if (work_done)
-		ionic_intr_credits(idev->intr_ctrl, cq->bound_intr->index,
-				   work_done, IONIC_INTR_CRED_RESET_COALESCE);
-}
-
 static int ionic_rx_page_alloc(struct ionic_queue *q,
 			       struct ionic_page_info *page_info)
 {

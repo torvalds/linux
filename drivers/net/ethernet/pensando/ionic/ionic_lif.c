@@ -1656,7 +1656,6 @@ static void ionic_txrx_deinit(struct ionic_lif *lif)
 	if (lif->rxqcqs) {
 		for (i = 0; i < lif->nxqs && lif->rxqcqs[i]; i++) {
 			ionic_lif_qcq_deinit(lif, lif->rxqcqs[i]);
-			ionic_rx_flush(&lif->rxqcqs[i]->cq);
 			ionic_rx_empty(&lif->rxqcqs[i]->q);
 		}
 	}
