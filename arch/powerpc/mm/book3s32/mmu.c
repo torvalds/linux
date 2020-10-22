@@ -471,3 +471,7 @@ void __init setup_kuap(bool disabled)
 		pr_warn("KUAP cannot be disabled yet on 6xx when compiled in\n");
 }
 #endif
+
+void __init early_init_mmu(void)
+{
+}
