@@ -246,7 +246,7 @@ static void vfe_hw_version_read(struct vfe_device *vfe, struct device *dev)
 	dev_err(dev, "VFE HW Version = 0x%08x\n", hw_version);
 }
 
-static u16 vfe_get_ub_size(u8 vfe_id)
+static u16 vfe47_get_ub_size(u8 vfe_id)
 {
 	if (vfe_id == 0)
 		return MSM_VFE_VFE0_UB_SIZE_RDI;
@@ -299,7 +299,7 @@ static void vfe_halt_clear(struct vfe_device *vfe)
 	writel_relaxed(0x0, vfe->base + VFE_0_BUS_BDG_CMD);
 }
 
-static void vfe_wm_enable(struct vfe_device *vfe, u8 wm, u8 enable)
+static void vfe47_wm_enable(struct vfe_device *vfe, u8 wm, u8 enable)
 {
 	if (enable)
 		vfe_reg_set(vfe, VFE_0_BUS_IMAGE_MASTER_n_WR_CFG(wm),
@@ -883,7 +883,7 @@ static void vfe_set_clamp_cfg(struct vfe_device *vfe)
 	writel_relaxed(val, vfe->base + VFE_0_CLAMP_ENC_MIN_CFG);
 }
 
-static void vfe_set_qos(struct vfe_device *vfe)
+static void vfe47_set_qos(struct vfe_device *vfe)
 {
 	u32 val = VFE_0_BUS_BDG_QOS_CFG_0_CFG;
 	u32 val7 = VFE_0_BUS_BDG_QOS_CFG_7_CFG;
@@ -898,7 +898,7 @@ static void vfe_set_qos(struct vfe_device *vfe)
 	writel_relaxed(val7, vfe->base + VFE_0_BUS_BDG_QOS_CFG_7);
 }
 
-static void vfe_set_ds(struct vfe_device *vfe)
+static void vfe47_set_ds(struct vfe_device *vfe)
 {
 	u32 val = VFE_0_BUS_BDG_DS_CFG_0_CFG;
 	u32 val16 = VFE_0_BUS_BDG_DS_CFG_16_CFG;
@@ -1098,11 +1098,11 @@ static irqreturn_t vfe_isr(int irq, void *dev)
 
 const struct vfe_hw_ops vfe_ops_4_7 = {
 	.hw_version_read = vfe_hw_version_read,
-	.get_ub_size = vfe_get_ub_size,
+	.get_ub_size = vfe47_get_ub_size,
 	.global_reset = vfe_global_reset,
 	.halt_request = vfe_halt_request,
 	.halt_clear = vfe_halt_clear,
-	.wm_enable = vfe_wm_enable,
+	.wm_enable = vfe47_wm_enable,
 	.wm_frame_based = vfe_wm_frame_based,
 	.wm_line_based = vfe_wm_line_based,
 	.wm_set_framedrop_period = vfe_wm_set_framedrop_period,
@@ -1128,8 +1128,8 @@ const struct vfe_hw_ops vfe_ops_4_7 = {
 	.set_scale_cfg = vfe_set_scale_cfg,
 	.set_crop_cfg = vfe_set_crop_cfg,
 	.set_clamp_cfg = vfe_set_clamp_cfg,
-	.set_qos = vfe_set_qos,
-	.set_ds = vfe_set_ds,
+	.set_qos = vfe47_set_qos,
+	.set_ds = vfe47_set_ds,
 	.set_cgc_override = vfe_set_cgc_override,
 	.set_camif_cfg = vfe_set_camif_cfg,
 	.set_camif_cmd = vfe_set_camif_cmd,
