@@ -213,4 +213,16 @@ static inline int vfio_pci_ibm_npu2_init(struct vfio_pci_device *vdev)
 	return -ENODEV;
 }
 #endif
+
+#ifdef CONFIG_VFIO_PCI_ZDEV
+extern int vfio_pci_info_zdev_add_caps(struct vfio_pci_device *vdev,
+				       struct vfio_info_cap *caps);
+#else
+static inline int vfio_pci_info_zdev_add_caps(struct vfio_pci_device *vdev,
+					      struct vfio_info_cap *caps)
+{
+	return -ENODEV;
+}
+#endif
+
 #endif /* VFIO_PCI_PRIVATE_H */
