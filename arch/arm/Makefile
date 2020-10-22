@@ -20,10 +20,6 @@ endif
 # linker. All sections should be explicitly named in the linker script.
 LDFLAGS_vmlinux += $(call ld-option, --orphan-handling=warn)
 
-ifeq ($(CONFIG_ARM_MODULE_PLTS),y)
-KBUILD_LDS_MODULE	+= $(srctree)/arch/arm/kernel/module.lds
-endif
-
 GZFLAGS		:=-9
 #KBUILD_CFLAGS	+=-pipe
 
