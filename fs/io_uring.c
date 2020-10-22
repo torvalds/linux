@@ -1881,7 +1881,6 @@ static bool __io_kill_linked_timeout(struct io_kiocb *req)
 
 	list_del_init(&link->link_list);
 	wake_ev = io_link_cancel_timeout(link);
-	req->flags &= ~REQ_F_LINK_TIMEOUT;
 	return wake_ev;
 }
 
@@ -1893,6 +1892,7 @@ static void io_kill_linked_timeout(struct io_kiocb *req)
 
 	spin_lock_irqsave(&ctx->completion_lock, flags);
 	wake_ev = __io_kill_linked_timeout(req);
+	req->flags &= ~REQ_F_LINK_TIMEOUT;
 	spin_unlock_irqrestore(&ctx->completion_lock, flags);
 
 	if (wake_ev)
