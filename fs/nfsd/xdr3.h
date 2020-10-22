@@ -176,6 +176,7 @@ struct nfsd3_readdirres {
 	struct svc_fh		scratch;
 	int			count;
 	__be32			verf[2];
+	struct page		**pages;
 
 	struct readdir_cd	common;
 	__be32 *		buffer;

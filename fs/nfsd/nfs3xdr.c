@@ -159,6 +159,19 @@ encode_fh(__be32 *p, struct svc_fh *fhp)
 }
 
 static bool
+svcxdr_encode_cookieverf3(struct xdr_stream *xdr, const __be32 *verf)
+{
+	__be32 *p;
+
+	p = xdr_reserve_space(xdr, NFS3_COOKIEVERFSIZE);
+	if (!p)
+		return false;
+	memcpy(p, verf, NFS3_COOKIEVERFSIZE);
+
+	return true;
+}
+
+static bool
 svcxdr_encode_writeverf3(struct xdr_stream *xdr, const __be32 *verf)
 {
 	__be32 *p;
@@ -1124,27 +1137,30 @@ nfs3svc_encode_linkres(struct svc_rqst *rqstp, __be32 *p)
 int
 nfs3svc_encode_readdirres(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct xdr_stream *xdr = &rqstp->rq_res_stream;
 	struct nfsd3_readdirres *resp = rqstp->rq_resp;
 
-	*p++ = resp->status;
-	p = encode_post_op_attr(rqstp, p, &resp->fh);
+	if (!svcxdr_encode_nfsstat3(xdr, resp->status))
+		return 0;
+	switch (resp->status) {
+	case nfs_ok:
+		if (!svcxdr_encode_post_op_attr(rqstp, xdr, &resp->fh))
+			return 0;
+		if (!svcxdr_encode_cookieverf3(xdr, resp->verf))
+			return 0;
+		xdr_write_pages(xdr, resp->pages, 0, resp->count << 2);
+		/* no more entries */
+		if (xdr_stream_encode_item_absent(xdr) < 0)
+			return 0;
+		if (xdr_stream_encode_bool(xdr, resp->common.err == nfserr_eof) < 0)
+			return 0;
+		break;
+	default:
+		if (!svcxdr_encode_post_op_attr(rqstp, xdr, &resp->fh))
+			return 0;
+	}
 
-	if (resp->status == 0) {
-		/* stupid readdir cookie */
-		memcpy(p, resp->verf, 8); p += 2;
-		xdr_ressize_check(rqstp, p);
-		if (rqstp->rq_res.head[0].iov_len + (2<<2) > PAGE_SIZE)
-			return 1; /*No room for trailer */
-		rqstp->rq_res.page_len = (resp->count) << 2;
-
-		/* add the 'tail' to the end of the 'head' page - page 0. */
-		rqstp->rq_res.tail[0].iov_base = p;
-		*p++ = 0;		/* no more entries */
-		*p++ = htonl(resp->common.err == nfserr_eof);
-		rqstp->rq_res.tail[0].iov_len = 2<<2;
-		return 1;
-	} else
-		return xdr_ressize_check(rqstp, p);
+	return 1;
 }
 
 static __be32 *

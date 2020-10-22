@@ -447,7 +447,8 @@ static void nfsd3_init_dirlist_pages(struct svc_rqst *rqstp,
 	 * and reserve room for the NULL ptr & eof flag (-2 words) */
 	resp->buflen = (count >> 2) - 2;
 
-	resp->buffer = page_address(*rqstp->rq_next_page);
+	resp->pages = rqstp->rq_next_page;
+	resp->buffer = page_address(*resp->pages);
 	while (count > 0) {
 		rqstp->rq_next_page++;
 		count -= PAGE_SIZE;
