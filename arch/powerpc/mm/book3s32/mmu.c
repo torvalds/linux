@@ -40,7 +40,7 @@ static unsigned int hash_mb, hash_mb2;
 
 struct ppc_bat BATS[8][2];	/* 8 pairs of IBAT, DBAT */
 
-struct batrange {		/* stores address ranges mapped by BATs */
+static struct batrange {	/* stores address ranges mapped by BATs */
 	unsigned long start;
 	unsigned long limit;
 	phys_addr_t phys;
