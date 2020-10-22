@@ -528,6 +528,7 @@ struct mt76_testmode_data {
 	u8 tx_rate_sgi;
 	u8 tx_rate_ldpc;
 	u8 tx_rate_stbc;
+	u8 tx_ltf;
 
 	u8 tx_antenna_mask;
 
