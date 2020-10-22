@@ -8,9 +8,7 @@
  */
 void hash__flush_tlb_mm(struct mm_struct *mm);
 void hash__flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr);
-extern void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
-			    unsigned long end);
-extern void flush_tlb_kernel_range(unsigned long start, unsigned long end);
+void flush_range(struct mm_struct *mm, unsigned long start, unsigned long end);
 
 #ifdef CONFIG_SMP
 void _tlbie(unsigned long address);
@@ -36,6 +34,17 @@ static inline void flush_tlb_page(struct vm_area_struct *vma, unsigned long vmad
 		hash__flush_tlb_page(vma, vmaddr);
 	else
 		_tlbie(vmaddr);
+}
+
+static inline void
+flush_tlb_range(struct vm_area_struct *vma, unsigned long start, unsigned long end)
+{
+	flush_range(vma->vm_mm, start, end);
+}
+
+static inline void flush_tlb_kernel_range(unsigned long start, unsigned long end)
+{
+	flush_range(&init_mm, start, end);
 }
 
 static inline void local_flush_tlb_page(struct vm_area_struct *vma,

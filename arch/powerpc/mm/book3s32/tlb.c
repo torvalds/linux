@@ -71,8 +71,12 @@ void tlb_flush(struct mmu_gather *tlb)
  *    -- Cort
  */
 
-static void flush_range(struct mm_struct *mm, unsigned long start,
-			unsigned long end)
+/*
+ * For each address in the range, find the pte for the address
+ * and check _PAGE_HASHPTE bit; if it is set, find and destroy
+ * the corresponding HPTE.
+ */
+void flush_range(struct mm_struct *mm, unsigned long start, unsigned long end)
 {
 	pmd_t *pmd;
 	unsigned long pmd_end;
@@ -105,15 +109,7 @@ static void flush_range(struct mm_struct *mm, unsigned long start,
 		++pmd;
 	}
 }
-
-/*
- * Flush kernel TLB entries in the given range
- */
-void flush_tlb_kernel_range(unsigned long start, unsigned long end)
-{
-	flush_range(&init_mm, start, end);
-}
-EXPORT_SYMBOL(flush_tlb_kernel_range);
+EXPORT_SYMBOL(flush_range);
 
 /*
  * Flush all the (user) entries for the address space described by mm.
@@ -144,18 +140,6 @@ void hash__flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
 		flush_hash_pages(mm->context.id, vmaddr, pmd_val(*pmd), 1);
 }
 EXPORT_SYMBOL(hash__flush_tlb_page);
-
-/*
- * For each address in the range, find the pte for the address
- * and check _PAGE_HASHPTE bit; if it is set, find and destroy
- * the corresponding HPTE.
- */
-void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
-		     unsigned long end)
-{
-	flush_range(vma->vm_mm, start, end);
-}
-EXPORT_SYMBOL(flush_tlb_range);
 
 void __init early_init_mmu(void)
 {
