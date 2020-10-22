@@ -1162,6 +1162,10 @@ int main(int argc, char *argv[])
 
 	sprintf(ldirname, "%s/test", start_dirname);
 
+	rc = nftw(ldirname, preprocess_arch_std_files, maxfds, 0);
+	if (rc)
+		goto err_processing_std_arch_event_dir;
+
 	rc = nftw(ldirname, process_one_file, maxfds, 0);
 	if (rc)
 		goto err_processing_dir;
