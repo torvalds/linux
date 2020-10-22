@@ -867,6 +867,7 @@ vm_fault_t afs_page_mkwrite(struct vm_fault *vmf)
 	wait_on_page_writeback(vmf->page);
 
 	priv = afs_page_dirty(0, PAGE_SIZE);
+	priv = afs_page_dirty_mmapped(priv);
 	trace_afs_page_dirty(vnode, tracepoint_string("mkwrite"),
 			     vmf->page->index, priv);
 	if (PagePrivate(vmf->page))

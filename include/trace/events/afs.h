@@ -986,10 +986,11 @@ TRACE_EVENT(afs_page_dirty,
 		    __entry->priv = priv;
 			   ),
 
-	    TP_printk("vn=%p %lx %s %zx-%zx",
+	    TP_printk("vn=%p %lx %s %zx-%zx%s",
 		      __entry->vnode, __entry->page, __entry->where,
 		      afs_page_dirty_from(__entry->priv),
-		      afs_page_dirty_to(__entry->priv))
+		      afs_page_dirty_to(__entry->priv),
+		      afs_is_page_dirty_mmapped(__entry->priv) ? " M" : "")
 	    );
 
 TRACE_EVENT(afs_call_state,

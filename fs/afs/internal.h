@@ -864,11 +864,13 @@ struct afs_vnode_cache_aux {
  * 0...PAGE_SIZE inclusive, so we can't support 64K pages on a 32-bit system.
  */
 #ifdef CONFIG_64BIT
-#define __AFS_PAGE_PRIV_MASK	0xffffffffUL
+#define __AFS_PAGE_PRIV_MASK	0x7fffffffUL
 #define __AFS_PAGE_PRIV_SHIFT	32
+#define __AFS_PAGE_PRIV_MMAPPED	0x80000000UL
 #else
-#define __AFS_PAGE_PRIV_MASK	0xffffUL
+#define __AFS_PAGE_PRIV_MASK	0x7fffUL
 #define __AFS_PAGE_PRIV_SHIFT	16
+#define __AFS_PAGE_PRIV_MMAPPED	0x8000UL
 #endif
 
 static inline size_t afs_page_dirty_from(unsigned long priv)
@@ -884,6 +886,16 @@ static inline size_t afs_page_dirty_to(unsigned long priv)
 static inline unsigned long afs_page_dirty(size_t from, size_t to)
 {
 	return ((unsigned long)(to - 1) << __AFS_PAGE_PRIV_SHIFT) | from;
+}
+
+static inline unsigned long afs_page_dirty_mmapped(unsigned long priv)
+{
+	return priv | __AFS_PAGE_PRIV_MMAPPED;
+}
+
+static inline bool afs_is_page_dirty_mmapped(unsigned long priv)
+{
+	return priv & __AFS_PAGE_PRIV_MMAPPED;
 }
 
 #include <trace/events/afs.h>
