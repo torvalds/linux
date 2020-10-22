@@ -111,6 +111,43 @@ static ssize_t duty_cycle_store(struct device *child,
 	return ret ? : size;
 }
 
+#ifdef CONFIG_PWM_ROCKCHIP_ONESHOT
+static ssize_t oneshot_count_show(struct device *child,
+			       struct device_attribute *attr,
+			       char *buf)
+{
+	const struct pwm_device *pwm = child_to_pwm_device(child);
+	struct pwm_state state;
+
+	pwm_get_state(pwm, &state);
+
+	return sprintf(buf, "%llu\n", state.oneshot_count);
+}
+
+static ssize_t oneshot_count_store(struct device *child,
+				struct device_attribute *attr,
+				const char *buf, size_t size)
+{
+	struct pwm_export *export = child_to_pwm_export(child);
+	struct pwm_device *pwm = export->pwm;
+	struct pwm_state state;
+	unsigned int val;
+	int ret;
+
+	ret = kstrtouint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	mutex_lock(&export->lock);
+	pwm_get_state(pwm, &state);
+	state.oneshot_count = val;
+	ret = pwm_apply_state(pwm, &state);
+	mutex_unlock(&export->lock);
+
+	return ret ? : size;
+}
+#endif
+
 static ssize_t enable_show(struct device *child,
 			   struct device_attribute *attr,
 			   char *buf)
@@ -225,6 +262,9 @@ static ssize_t capture_show(struct device *child,
 
 static DEVICE_ATTR_RW(period);
 static DEVICE_ATTR_RW(duty_cycle);
+#ifdef CONFIG_PWM_ROCKCHIP_ONESHOT
+static DEVICE_ATTR_RW(oneshot_count);
+#endif
 static DEVICE_ATTR_RW(enable);
 static DEVICE_ATTR_RW(polarity);
 static DEVICE_ATTR_RO(capture);
@@ -232,6 +272,9 @@ static DEVICE_ATTR_RO(capture);
 static struct attribute *pwm_attrs[] = {
 	&dev_attr_period.attr,
 	&dev_attr_duty_cycle.attr,
+#ifdef CONFIG_PWM_ROCKCHIP_ONESHOT
+	&dev_attr_oneshot_count.attr,
+#endif
 	&dev_attr_enable.attr,
 	&dev_attr_polarity.attr,
 	&dev_attr_capture.attr,
