@@ -2282,8 +2282,19 @@ static irqreturn_t fifo_empty_irq_handler(int irq, void *data)
 		if (num < 0)
 			return IRQ_HANDLED;
 
+		/*
+		 * With HAPTICS_PATTERN module revision 2.0 and above, if use
+		 * 1-byte write before 4-byte write, the hardware would insert
+		 * zeros in between to keep the FIFO samples 4-byte aligned, and
+		 * the inserted 0 values would cause HW stop driving hence spurs
+		 * will be seen on the haptics output. So only use 1-byte write
+		 * at the end of FIFO streaming.
+		 */
 		if (samples_left <= num)
 			num = samples_left;
+		else if ((chip->ptn_revision >= HAP_PTN_V2) &&
+				(num % HAP_PTN_V2_FIFO_DIN_NUM))
+			num -= (num % HAP_PTN_V2_FIFO_DIN_NUM);
 
 		samples = fifo->samples + status->samples_written;
 
