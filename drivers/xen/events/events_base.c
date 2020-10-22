@@ -1145,14 +1145,6 @@ static int bind_interdomain_evtchn_to_irq_chip(unsigned int remote_domain,
 					       chip);
 }
 
-int bind_interdomain_evtchn_to_irq(unsigned int remote_domain,
-				   evtchn_port_t remote_port)
-{
-	return bind_interdomain_evtchn_to_irq_chip(remote_domain, remote_port,
-						   &xen_dynamic_chip);
-}
-EXPORT_SYMBOL_GPL(bind_interdomain_evtchn_to_irq);
-
 int bind_interdomain_evtchn_to_irq_lateeoi(unsigned int remote_domain,
 					   evtchn_port_t remote_port)
 {
@@ -1319,19 +1311,6 @@ static int bind_interdomain_evtchn_to_irqhandler_chip(
 
 	return irq;
 }
-
-int bind_interdomain_evtchn_to_irqhandler(unsigned int remote_domain,
-					  evtchn_port_t remote_port,
-					  irq_handler_t handler,
-					  unsigned long irqflags,
-					  const char *devname,
-					  void *dev_id)
-{
-	return bind_interdomain_evtchn_to_irqhandler_chip(remote_domain,
-				remote_port, handler, irqflags, devname,
-				dev_id, &xen_dynamic_chip);
-}
-EXPORT_SYMBOL_GPL(bind_interdomain_evtchn_to_irqhandler);
 
 int bind_interdomain_evtchn_to_irqhandler_lateeoi(unsigned int remote_domain,
 						  evtchn_port_t remote_port,
