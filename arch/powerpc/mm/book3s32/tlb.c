@@ -76,7 +76,7 @@ void tlb_flush(struct mmu_gather *tlb)
  * and check _PAGE_HASHPTE bit; if it is set, find and destroy
  * the corresponding HPTE.
  */
-void flush_range(struct mm_struct *mm, unsigned long start, unsigned long end)
+void hash__flush_range(struct mm_struct *mm, unsigned long start, unsigned long end)
 {
 	pmd_t *pmd;
 	unsigned long pmd_end;
@@ -84,13 +84,6 @@ void flush_range(struct mm_struct *mm, unsigned long start, unsigned long end)
 	unsigned int ctx = mm->context.id;
 
 	start &= PAGE_MASK;
-	if (!mmu_has_feature(MMU_FTR_HPTE_TABLE)) {
-		if (end - start <= PAGE_SIZE)
-			_tlbie(start);
-		else
-			_tlbia();
-		return;
-	}
 	if (start >= end)
 		return;
 	end = (end - 1) | ~PAGE_MASK;
@@ -109,7 +102,7 @@ void flush_range(struct mm_struct *mm, unsigned long start, unsigned long end)
 		++pmd;
 	}
 }
-EXPORT_SYMBOL(flush_range);
+EXPORT_SYMBOL(hash__flush_range);
 
 /*
  * Flush all the (user) entries for the address space described by mm.
@@ -125,7 +118,7 @@ void hash__flush_tlb_mm(struct mm_struct *mm)
 	 * but it seems dup_mmap is the only SMP case which gets here.
 	 */
 	for (mp = mm->mmap; mp != NULL; mp = mp->vm_next)
-		flush_range(mp->vm_mm, mp->vm_start, mp->vm_end);
+		hash__flush_range(mp->vm_mm, mp->vm_start, mp->vm_end);
 }
 EXPORT_SYMBOL(hash__flush_tlb_mm);
 

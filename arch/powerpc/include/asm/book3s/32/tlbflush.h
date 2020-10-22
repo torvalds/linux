@@ -8,7 +8,7 @@
  */
 void hash__flush_tlb_mm(struct mm_struct *mm);
 void hash__flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr);
-void flush_range(struct mm_struct *mm, unsigned long start, unsigned long end);
+void hash__flush_range(struct mm_struct *mm, unsigned long start, unsigned long end);
 
 #ifdef CONFIG_SMP
 void _tlbie(unsigned long address);
@@ -19,6 +19,17 @@ static inline void _tlbie(unsigned long address)
 }
 #endif
 void _tlbia(void);
+
+static inline void flush_range(struct mm_struct *mm, unsigned long start, unsigned long end)
+{
+	start &= PAGE_MASK;
+	if (mmu_has_feature(MMU_FTR_HPTE_TABLE))
+		hash__flush_range(mm, start, end);
+	else if (end - start <= PAGE_SIZE)
+		_tlbie(start);
+	else
+		_tlbia();
+}
 
 static inline void flush_tlb_mm(struct mm_struct *mm)
 {
