@@ -122,8 +122,8 @@ static ssize_t max20730_debugfs_read(struct file *file, char __user *buf,
 	switch (idx) {
 	case MAX20730_DEBUGFS_VOUT_MIN:
 		ret = VOLT_FROM_REG(data->mfr_voutmin * 10000);
-		len = snprintf(tbuf, DEBUG_FS_DATA_MAX, "%d.%d\n",
-			       ret / 10000, ret % 10000);
+		len = scnprintf(tbuf, DEBUG_FS_DATA_MAX, "%d.%d\n",
+				ret / 10000, ret % 10000);
 		break;
 	case MAX20730_DEBUGFS_FREQUENCY:
 		val = (data->mfr_devset1 & MAX20730_MFR_DEVSET1_FSW_MASK)
@@ -141,7 +141,7 @@ static ssize_t max20730_debugfs_read(struct file *file, char __user *buf,
 			ret = 800;
 		else
 			ret = 900;
-		len = snprintf(tbuf, DEBUG_FS_DATA_MAX, "%d\n", ret);
+		len = scnprintf(tbuf, DEBUG_FS_DATA_MAX, "%d\n", ret);
 		break;
 	case MAX20730_DEBUGFS_PG_DELAY:
 		val = (data->mfr_devset1 & MAX20730_MFR_DEVSET1_TSTAT_MASK)
@@ -223,7 +223,7 @@ static ssize_t max20730_debugfs_read(struct file *file, char __user *buf,
 	case MAX20730_DEBUGFS_OC_PROTECT_MODE:
 		ret = (data->mfr_devset2 & MAX20730_MFR_DEVSET2_OCPM_MASK)
 			>> MAX20730_MFR_DEVSET2_OCPM_BIT_POS;
-		len = snprintf(tbuf, DEBUG_FS_DATA_MAX, "%d\n", ret);
+		len = scnprintf(tbuf, DEBUG_FS_DATA_MAX, "%d\n", ret);
 		break;
 	case MAX20730_DEBUGFS_SS_TIMING:
 		val = (data->mfr_devset2 & MAX20730_MFR_DEVSET2_SS_MASK)
@@ -241,32 +241,32 @@ static ssize_t max20730_debugfs_read(struct file *file, char __user *buf,
 	case MAX20730_DEBUGFS_IMAX:
 		ret = (data->mfr_devset2 & MAX20730_MFR_DEVSET2_IMAX_MASK)
 			>> MAX20730_MFR_DEVSET2_IMAX_BIT_POS;
-		len = snprintf(tbuf, DEBUG_FS_DATA_MAX, "%d\n", ret);
+		len = scnprintf(tbuf, DEBUG_FS_DATA_MAX, "%d\n", ret);
 		break;
 	case MAX20730_DEBUGFS_OPERATION:
 		ret = i2c_smbus_read_byte_data(psu->client, PMBUS_OPERATION);
 		if (ret < 0)
 			return ret;
-		len = snprintf(tbuf, DEBUG_FS_DATA_MAX, "%d\n", ret);
+		len = scnprintf(tbuf, DEBUG_FS_DATA_MAX, "%d\n", ret);
 		break;
 	case MAX20730_DEBUGFS_ON_OFF_CONFIG:
 		ret = i2c_smbus_read_byte_data(psu->client, PMBUS_ON_OFF_CONFIG);
 		if (ret < 0)
 			return ret;
-		len = snprintf(tbuf, DEBUG_FS_DATA_MAX, "%d\n", ret);
+		len = scnprintf(tbuf, DEBUG_FS_DATA_MAX, "%d\n", ret);
 		break;
 	case MAX20730_DEBUGFS_SMBALERT_MASK:
 		ret = i2c_smbus_read_word_data(psu->client,
 					       PMBUS_SMB_ALERT_MASK);
 		if (ret < 0)
 			return ret;
-		len = snprintf(tbuf, DEBUG_FS_DATA_MAX, "%d\n", ret);
+		len = scnprintf(tbuf, DEBUG_FS_DATA_MAX, "%d\n", ret);
 		break;
 	case MAX20730_DEBUGFS_VOUT_MODE:
 		ret = i2c_smbus_read_byte_data(psu->client, PMBUS_VOUT_MODE);
 		if (ret < 0)
 			return ret;
-		len = snprintf(tbuf, DEBUG_FS_DATA_MAX, "%d\n", ret);
+		len = scnprintf(tbuf, DEBUG_FS_DATA_MAX, "%d\n", ret);
 		break;
 	case MAX20730_DEBUGFS_VOUT_COMMAND:
 		ret = i2c_smbus_read_word_data(psu->client, PMBUS_VOUT_COMMAND);
@@ -274,8 +274,8 @@ static ssize_t max20730_debugfs_read(struct file *file, char __user *buf,
 			return ret;
 
 		ret = VOLT_FROM_REG(ret * 10000);
-		len = snprintf(tbuf, DEBUG_FS_DATA_MAX,
-			       "%d.%d\n", ret / 10000, ret % 10000);
+		len = scnprintf(tbuf, DEBUG_FS_DATA_MAX,
+				"%d.%d\n", ret / 10000, ret % 10000);
 		break;
 	case MAX20730_DEBUGFS_VOUT_MAX:
 		ret = i2c_smbus_read_word_data(psu->client, PMBUS_VOUT_MAX);
@@ -283,8 +283,8 @@ static ssize_t max20730_debugfs_read(struct file *file, char __user *buf,
 			return ret;
 
 		ret = VOLT_FROM_REG(ret * 10000);
-		len = snprintf(tbuf, DEBUG_FS_DATA_MAX,
-			       "%d.%d\n", ret / 10000, ret % 10000);
+		len = scnprintf(tbuf, DEBUG_FS_DATA_MAX,
+				"%d.%d\n", ret / 10000, ret % 10000);
 		break;
 	default:
 		len = strlcpy(tbuf, "Invalid\n", DEBUG_FS_DATA_MAX);
