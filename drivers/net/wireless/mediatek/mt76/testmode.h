@@ -99,8 +99,8 @@ enum mt76_testmode_stats_attr {
  *
  * @MT76_TM_RX_ATTR_FREQ_OFFSET: frequency offset (s32)
  * @MT76_TM_RX_ATTR_RCPI: received channel power indicator (array, u8)
- * @MT76_TM_RX_ATTR_IB_RSSI: internal inband RSSI (s8)
- * @MT76_TM_RX_ATTR_WB_RSSI: internal wideband RSSI (s8)
+ * @MT76_TM_RX_ATTR_IB_RSSI: internal inband RSSI (array, s8)
+ * @MT76_TM_RX_ATTR_WB_RSSI: internal wideband RSSI (array, s8)
  */
 enum mt76_testmode_rx_attr {
 	MT76_TM_RX_ATTR_UNSPEC,

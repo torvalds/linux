@@ -295,8 +295,8 @@ struct mt7615_dev {
 
 		s16 last_freq_offset;
 		u8 last_rcpi[4];
-		s8 last_ib_rssi;
-		s8 last_wb_rssi;
+		s8 last_ib_rssi[4];
+		s8 last_wb_rssi[4];
 	} test;
 #endif
 
