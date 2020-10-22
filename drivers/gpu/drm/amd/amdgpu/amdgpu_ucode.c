@@ -500,6 +500,8 @@ static int amdgpu_ucode_init_single_fw(struct amdgpu_device *adev,
 	     ucode->ucode_id != AMDGPU_UCODE_ID_RLC_RESTORE_LIST_CNTL &&
 	     ucode->ucode_id != AMDGPU_UCODE_ID_RLC_RESTORE_LIST_GPM_MEM &&
 	     ucode->ucode_id != AMDGPU_UCODE_ID_RLC_RESTORE_LIST_SRM_MEM &&
+	     ucode->ucode_id != AMDGPU_UCODE_ID_RLC_IRAM &&
+	     ucode->ucode_id != AMDGPU_UCODE_ID_RLC_DRAM &&
 		 ucode->ucode_id != AMDGPU_UCODE_ID_DMCU_ERAM &&
 		 ucode->ucode_id != AMDGPU_UCODE_ID_DMCU_INTV &&
 		 ucode->ucode_id != AMDGPU_UCODE_ID_DMCUB)) {
@@ -555,6 +557,14 @@ static int amdgpu_ucode_init_single_fw(struct amdgpu_device *adev,
 	} else if (ucode->ucode_id == AMDGPU_UCODE_ID_RLC_RESTORE_LIST_SRM_MEM) {
 		ucode->ucode_size = adev->gfx.rlc.save_restore_list_srm_size_bytes;
 		memcpy(ucode->kaddr, adev->gfx.rlc.save_restore_list_srm,
+		       ucode->ucode_size);
+	} else if (ucode->ucode_id == AMDGPU_UCODE_ID_RLC_IRAM) {
+		ucode->ucode_size = adev->gfx.rlc.rlc_iram_ucode_size_bytes;
+		memcpy(ucode->kaddr, adev->gfx.rlc.rlc_iram_ucode,
+		       ucode->ucode_size);
+	} else if (ucode->ucode_id == AMDGPU_UCODE_ID_RLC_DRAM) {
+		ucode->ucode_size = adev->gfx.rlc.rlc_dram_ucode_size_bytes;
+		memcpy(ucode->kaddr, adev->gfx.rlc.rlc_dram_ucode,
 		       ucode->ucode_size);
 	} else if (ucode->ucode_id == AMDGPU_UCODE_ID_CP_MES) {
 		ucode->ucode_size = le32_to_cpu(mes_hdr->mes_ucode_size_bytes);
