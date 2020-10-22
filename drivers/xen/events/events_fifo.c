@@ -237,6 +237,9 @@ static bool clear_masked_cond(volatile event_word_t *word)
 	w = *word;
 
 	do {
+		if (!(w & (1 << EVTCHN_FIFO_MASKED)))
+			return true;
+
 		if (w & (1 << EVTCHN_FIFO_PENDING))
 			return false;
 
