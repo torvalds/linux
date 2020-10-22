@@ -401,6 +401,35 @@ encode_saved_post_attr(struct svc_rqst *rqstp, __be32 *p, struct svc_fh *fhp)
 }
 
 static bool
+svcxdr_encode_wcc_attr(struct xdr_stream *xdr, const struct svc_fh *fhp)
+{
+	__be32 *p;
+
+	p = xdr_reserve_space(xdr, XDR_UNIT * 6);
+	if (!p)
+		return false;
+	p = xdr_encode_hyper(p, (u64)fhp->fh_pre_size);
+	p = encode_nfstime3(p, &fhp->fh_pre_mtime);
+	encode_nfstime3(p, &fhp->fh_pre_ctime);
+
+	return true;
+}
+
+static bool
+svcxdr_encode_pre_op_attr(struct xdr_stream *xdr, const struct svc_fh *fhp)
+{
+	if (!fhp->fh_pre_saved) {
+		if (xdr_stream_encode_item_absent(xdr) < 0)
+			return false;
+		return true;
+	}
+
+	if (xdr_stream_encode_item_present(xdr) < 0)
+		return false;
+	return svcxdr_encode_wcc_attr(xdr, fhp);
+}
+
+static bool
 svcxdr_encode_post_op_attr(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 			   const struct svc_fh *fhp)
 {
@@ -458,6 +487,39 @@ __be32 *
 nfs3svc_encode_post_op_attr(struct svc_rqst *rqstp, __be32 *p, struct svc_fh *fhp)
 {
 	return encode_post_op_attr(rqstp, p, fhp);
+}
+
+/*
+ * Encode weak cache consistency data
+ */
+static bool
+svcxdr_encode_wcc_data(struct svc_rqst *rqstp, struct xdr_stream *xdr,
+		       const struct svc_fh *fhp)
+{
+	struct dentry *dentry = fhp->fh_dentry;
+
+	if (!dentry || !d_really_is_positive(dentry) || !fhp->fh_post_saved)
+		goto neither;
+
+	/* before */
+	if (!svcxdr_encode_pre_op_attr(xdr, fhp))
+		return false;
+
+	/* after */
+	if (xdr_stream_encode_item_present(xdr) < 0)
+		return false;
+	if (!svcxdr_encode_fattr3(rqstp, xdr, fhp, &fhp->fh_post_attr))
+		return false;
+
+	return true;
+
+neither:
+	if (xdr_stream_encode_item_absent(xdr) < 0)
+		return false;
+	if (!svcxdr_encode_post_op_attr(rqstp, xdr, fhp))
+		return false;
+
+	return true;
 }
 
 /*
@@ -855,11 +917,11 @@ nfs3svc_encode_getattrres(struct svc_rqst *rqstp, __be32 *p)
 int
 nfs3svc_encode_wccstat(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct xdr_stream *xdr = &rqstp->rq_res_stream;
 	struct nfsd3_attrstat *resp = rqstp->rq_resp;
 
-	*p++ = resp->status;
-	p = encode_wcc_data(rqstp, p, &resp->fh);
-	return xdr_ressize_check(rqstp, p);
+	return svcxdr_encode_nfsstat3(xdr, resp->status) &&
+		svcxdr_encode_wcc_data(rqstp, xdr, &resp->fh);
 }
 
 /* LOOKUP */
