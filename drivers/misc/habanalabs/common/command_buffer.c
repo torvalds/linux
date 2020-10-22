@@ -67,9 +67,9 @@ static int cb_map_mem(struct hl_ctx *ctx, struct hl_cb *cb)
 	bus_addr = cb->bus_address;
 	offset = 0;
 	list_for_each_entry(va_block, &cb->va_block_list, node) {
-		rc = hl_mmu_map(ctx, va_block->start, bus_addr, va_block->size,
-				list_is_last(&va_block->node,
-						&cb->va_block_list));
+		rc = hl_mmu_map_page(ctx, va_block->start, bus_addr,
+				va_block->size, list_is_last(&va_block->node,
+							&cb->va_block_list));
 		if (rc) {
 			dev_err(hdev->dev, "Failed to map VA %#llx to CB\n",
 				va_block->start);
@@ -92,7 +92,7 @@ err_va_umap:
 	list_for_each_entry(va_block, &cb->va_block_list, node) {
 		if (offset <= 0)
 			break;
-		hl_mmu_unmap(ctx, va_block->start, va_block->size,
+		hl_mmu_unmap_page(ctx, va_block->start, va_block->size,
 				offset <= va_block->size);
 		offset -= va_block->size;
 	}
@@ -119,7 +119,7 @@ static void cb_unmap_mem(struct hl_ctx *ctx, struct hl_cb *cb)
 	mutex_lock(&ctx->mmu_lock);
 
 	list_for_each_entry(va_block, &cb->va_block_list, node)
-		if (hl_mmu_unmap(ctx, va_block->start, va_block->size,
+		if (hl_mmu_unmap_page(ctx, va_block->start, va_block->size,
 				list_is_last(&va_block->node,
 						&cb->va_block_list)))
 			dev_warn_ratelimited(hdev->dev,

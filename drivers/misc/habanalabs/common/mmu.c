@@ -122,7 +122,7 @@ void hl_mmu_ctx_fini(struct hl_ctx *ctx)
 }
 
 /*
- * hl_mmu_unmap - unmaps a virtual addr
+ * hl_mmu_unmap_page - unmaps a virtual addr
  *
  * @ctx: pointer to the context structure
  * @virt_addr: virt addr to map from
@@ -142,7 +142,7 @@ void hl_mmu_ctx_fini(struct hl_ctx *ctx)
  * For optimization reasons PCI flush may be requested once after unmapping of
  * large area.
  */
-int hl_mmu_unmap(struct hl_ctx *ctx, u64 virt_addr, u32 page_size,
+int hl_mmu_unmap_page(struct hl_ctx *ctx, u64 virt_addr, u32 page_size,
 		bool flush_pte)
 {
 	struct hl_device *hdev = ctx->hdev;
@@ -200,7 +200,7 @@ int hl_mmu_unmap(struct hl_ctx *ctx, u64 virt_addr, u32 page_size,
 }
 
 /*
- * hl_mmu_map - maps a virtual addr to physical addr
+ * hl_mmu_map_page - maps a virtual addr to physical addr
  *
  * @ctx: pointer to the context structure
  * @virt_addr: virt addr to map from
@@ -221,8 +221,8 @@ int hl_mmu_unmap(struct hl_ctx *ctx, u64 virt_addr, u32 page_size,
  * For optimization reasons PCI flush may be requested once after mapping of
  * large area.
  */
-int hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr, u32 page_size,
-		bool flush_pte)
+int hl_mmu_map_page(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr,
+		u32 page_size, bool flush_pte)
 {
 	struct hl_device *hdev = ctx->hdev;
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
@@ -298,6 +298,108 @@ err:
 	}
 
 	hdev->mmu_func[pgt_residency].flush(ctx);
+
+	return rc;
+}
+
+/*
+ * hl_mmu_map_contiguous - implements a wrapper for hl_mmu_map_page
+ *                         for mapping contiguous physical memory
+ *
+ * @ctx: pointer to the context structure
+ * @virt_addr: virt addr to map from
+ * @phys_addr: phys addr to map to
+ * @size: size to map
+ *
+ */
+int hl_mmu_map_contiguous(struct hl_ctx *ctx, u64 virt_addr,
+					u64 phys_addr, u32 size)
+{
+	struct hl_device *hdev = ctx->hdev;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	u64 curr_va, curr_pa;
+	u32 page_size;
+	bool flush_pte;
+	int rc = 0, off;
+
+	if (hl_mem_area_inside_range(virt_addr, size,
+			prop->dmmu.start_addr, prop->dmmu.end_addr))
+		page_size = prop->dmmu.page_size;
+	else if (hl_mem_area_inside_range(virt_addr, size,
+			prop->pmmu.start_addr, prop->pmmu.end_addr))
+		page_size = prop->pmmu.page_size;
+	else if (hl_mem_area_inside_range(virt_addr, size,
+			prop->pmmu_huge.start_addr, prop->pmmu_huge.end_addr))
+		page_size = prop->pmmu_huge.page_size;
+	else
+		return -EINVAL;
+
+	for (off = 0 ; off < size ; off += page_size) {
+		curr_va = virt_addr + off;
+		curr_pa = phys_addr + off;
+		flush_pte = (off + page_size) >= size;
+		rc = hl_mmu_map_page(ctx, curr_va, curr_pa, page_size,
+								flush_pte);
+		if (rc) {
+			dev_err(hdev->dev,
+				"Map failed for va 0x%llx to pa 0x%llx\n",
+				curr_va, curr_pa);
+			goto unmap;
+		}
+	}
+
+	return rc;
+
+unmap:
+	for (; off >= 0 ; off -= page_size) {
+		curr_va = virt_addr + off;
+		flush_pte = (off - (s32) page_size) < 0;
+		if (hl_mmu_unmap_page(ctx, curr_va, page_size, flush_pte))
+			dev_warn_ratelimited(hdev->dev,
+				"failed to unmap va 0x%llx\n", curr_va);
+	}
+
+	return rc;
+}
+
+/*
+ * hl_mmu_unmap_contiguous - implements a wrapper for hl_mmu_unmap_page
+ *                           for unmapping contiguous physical memory
+ *
+ * @ctx: pointer to the context structure
+ * @virt_addr: virt addr to unmap
+ * @size: size to unmap
+ *
+ */
+int hl_mmu_unmap_contiguous(struct hl_ctx *ctx, u64 virt_addr, u32 size)
+{
+	struct hl_device *hdev = ctx->hdev;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	u64 curr_va;
+	u32 page_size;
+	bool flush_pte;
+	int rc = 0, off;
+
+	if (hl_mem_area_inside_range(virt_addr, size,
+			prop->dmmu.start_addr, prop->dmmu.end_addr))
+		page_size = prop->dmmu.page_size;
+	else if (hl_mem_area_inside_range(virt_addr, size,
+			prop->pmmu.start_addr, prop->pmmu.end_addr))
+		page_size = prop->pmmu.page_size;
+	else if (hl_mem_area_inside_range(virt_addr, size,
+			prop->pmmu_huge.start_addr, prop->pmmu_huge.end_addr))
+		page_size = prop->pmmu_huge.page_size;
+	else
+		return -EINVAL;
+
+	for (off = 0 ; off < size ; off += page_size) {
+		curr_va = virt_addr + off;
+		flush_pte = (off + page_size) >= size;
+		rc = hl_mmu_unmap_page(ctx, curr_va, page_size, flush_pte);
+		if (rc)
+			dev_warn_ratelimited(hdev->dev,
+				"Unmap failed for va 0x%llx\n", curr_va);
+	}
 
 	return rc;
 }

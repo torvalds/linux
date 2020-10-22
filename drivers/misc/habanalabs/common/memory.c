@@ -843,7 +843,7 @@ static int map_phys_pg_pack(struct hl_ctx *ctx, u64 vaddr,
 	for (i = 0 ; i < phys_pg_pack->npages ; i++) {
 		paddr = phys_pg_pack->pages[i];
 
-		rc = hl_mmu_map(ctx, next_vaddr, paddr, page_size,
+		rc = hl_mmu_map_page(ctx, next_vaddr, paddr, page_size,
 				(i + 1) == phys_pg_pack->npages);
 		if (rc) {
 			dev_err(hdev->dev,
@@ -862,7 +862,7 @@ static int map_phys_pg_pack(struct hl_ctx *ctx, u64 vaddr,
 err:
 	next_vaddr = vaddr;
 	for (i = 0 ; i < mapped_pg_cnt ; i++) {
-		if (hl_mmu_unmap(ctx, next_vaddr, page_size,
+		if (hl_mmu_unmap_page(ctx, next_vaddr, page_size,
 					(i + 1) == mapped_pg_cnt))
 			dev_warn_ratelimited(hdev->dev,
 				"failed to unmap handle %u, va: 0x%llx, pa: 0x%llx, page size: %u\n",
@@ -892,7 +892,7 @@ static void unmap_phys_pg_pack(struct hl_ctx *ctx, u64 vaddr,
 	next_vaddr = vaddr;
 
 	for (i = 0 ; i < phys_pg_pack->npages ; i++, next_vaddr += page_size) {
-		if (hl_mmu_unmap(ctx, next_vaddr, page_size,
+		if (hl_mmu_unmap_page(ctx, next_vaddr, page_size,
 				       (i + 1) == phys_pg_pack->npages))
 			dev_warn_ratelimited(hdev->dev,
 			"unmap failed for vaddr: 0x%llx\n", next_vaddr);

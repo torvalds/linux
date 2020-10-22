@@ -2162,10 +2162,13 @@ int hl_mmu_init(struct hl_device *hdev);
 void hl_mmu_fini(struct hl_device *hdev);
 int hl_mmu_ctx_init(struct hl_ctx *ctx);
 void hl_mmu_ctx_fini(struct hl_ctx *ctx);
-int hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr,
+int hl_mmu_map_page(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr,
 		u32 page_size, bool flush_pte);
-int hl_mmu_unmap(struct hl_ctx *ctx, u64 virt_addr, u32 page_size,
+int hl_mmu_unmap_page(struct hl_ctx *ctx, u64 virt_addr, u32 page_size,
 		bool flush_pte);
+int hl_mmu_map_contiguous(struct hl_ctx *ctx, u64 virt_addr,
+					u64 phys_addr, u32 size);
+int hl_mmu_unmap_contiguous(struct hl_ctx *ctx, u64 virt_addr, u32 size);
 void hl_mmu_swap_out(struct hl_ctx *ctx);
 void hl_mmu_swap_in(struct hl_ctx *ctx);
 int hl_mmu_if_set_funcs(struct hl_device *hdev);
