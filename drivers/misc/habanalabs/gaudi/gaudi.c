@@ -7757,7 +7757,11 @@ static int gaudi_internal_cb_pool_init(struct hl_device *hdev,
 		goto destroy_internal_cb_pool;
 	}
 
-	hdev->internal_cb_va_base = VA_HOST_SPACE_INTERNAL_CB_START;
+	hdev->internal_cb_va_base = hl_reserve_va_block(hdev, ctx,
+			HL_VA_RANGE_TYPE_HOST, HOST_SPACE_INTERNAL_CB_SZ);
+
+	if (!hdev->internal_cb_va_base)
+		goto destroy_internal_cb_pool;
 
 	mutex_lock(&ctx->mmu_lock);
 
@@ -7765,7 +7769,7 @@ static int gaudi_internal_cb_pool_init(struct hl_device *hdev,
 	 * is aligned to HOST_SPACE_INTERNAL_CB_SZ
 	 */
 	for (off = 0 ; off < HOST_SPACE_INTERNAL_CB_SZ ; off += PAGE_SIZE_4KB) {
-		va = VA_HOST_SPACE_INTERNAL_CB_START + off;
+		va = hdev->internal_cb_va_base + off;
 		pa = hdev->internal_cb_pool_dma_addr + off;
 		flush_pte = (off + PAGE_SIZE_4KB) >= HOST_SPACE_INTERNAL_CB_SZ;
 		rc = hl_mmu_map(ctx, va, pa, PAGE_SIZE_4KB, flush_pte);
@@ -7785,12 +7789,15 @@ static int gaudi_internal_cb_pool_init(struct hl_device *hdev,
 
 unmap:
 	for (; off >= 0 ; off -= PAGE_SIZE_4KB) {
-		va = VA_HOST_SPACE_INTERNAL_CB_START + off;
+		va = hdev->internal_cb_va_base + off;
 		flush_pte = (off - (s32) PAGE_SIZE_4KB) < 0;
 		if (hl_mmu_unmap(ctx, va, PAGE_SIZE_4KB, flush_pte))
 			dev_warn_ratelimited(hdev->dev,
 					"failed to unmap va 0x%llx\n", va);
 	}
+
+	hl_unreserve_va_block(hdev, ctx, hdev->internal_cb_va_base,
+			HOST_SPACE_INTERNAL_CB_SZ);
 
 	hdev->asic_funcs->mmu_invalidate_cache(hdev, true, VM_TYPE_USERPTR);
 
@@ -7821,7 +7828,7 @@ static void gaudi_internal_cb_pool_fini(struct hl_device *hdev,
 	mutex_lock(&ctx->mmu_lock);
 
 	for (off = 0 ; off < HOST_SPACE_INTERNAL_CB_SZ ; off += PAGE_SIZE_4KB) {
-		va = VA_HOST_SPACE_INTERNAL_CB_START + off;
+		va = hdev->internal_cb_va_base + off;
 
 		if (off + PAGE_SIZE_4KB >= HOST_SPACE_INTERNAL_CB_SZ)
 			flush_pte = true;
@@ -7830,6 +7837,9 @@ static void gaudi_internal_cb_pool_fini(struct hl_device *hdev,
 			dev_warn_ratelimited(hdev->dev,
 					"failed to unmap va 0x%llx\n", va);
 	}
+
+	hl_unreserve_va_block(hdev, ctx, hdev->internal_cb_va_base,
+			HOST_SPACE_INTERNAL_CB_SZ);
 
 	hdev->asic_funcs->mmu_invalidate_cache(hdev, true, VM_TYPE_USERPTR);
 

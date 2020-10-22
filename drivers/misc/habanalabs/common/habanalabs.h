@@ -2109,6 +2109,10 @@ void hl_vm_ctx_fini(struct hl_ctx *ctx);
 int hl_vm_init(struct hl_device *hdev);
 void hl_vm_fini(struct hl_device *hdev);
 
+u64 hl_reserve_va_block(struct hl_device *hdev, struct hl_ctx *ctx,
+		enum hl_va_range_type type, u32 size);
+int hl_unreserve_va_block(struct hl_device *hdev, struct hl_ctx *ctx,
+		u64 start_addr, u64 size);
 int hl_pin_host_memory(struct hl_device *hdev, u64 addr, u64 size,
 			struct hl_userptr *userptr);
 void hl_unpin_host_memory(struct hl_device *hdev, struct hl_userptr *userptr);

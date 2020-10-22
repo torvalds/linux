@@ -621,6 +621,85 @@ out:
 }
 
 /*
+ * hl_reserve_va_block() - reserve a virtual block of a given size.
+ * @hdev: pointer to the habanalabs device structure.
+ * @ctx: current context
+ * @type: virtual addresses range type.
+ * @size: requested block size.
+ *
+ * This function does the following:
+ * - Iterate on the virtual block list to find a suitable virtual block for the
+ *   given size.
+ * - Reserve the requested block and update the list.
+ * - Return the start address of the virtual block.
+ */
+u64 hl_reserve_va_block(struct hl_device *hdev, struct hl_ctx *ctx,
+		enum hl_va_range_type type, u32 size)
+{
+	return get_va_block(hdev, ctx->va_range[type], size, 0,
+			ctx->va_range[type]->page_size);
+}
+
+/**
+ * hl_get_va_range_type() - get va_range type for the given address and size.
+ * @address: The start address of the area we want to validate.
+ * @size: The size in bytes of the area we want to validate.
+ * @type: returned va_range type
+ *
+ * Return: true if the area is inside a valid range, false otherwise.
+ */
+static int hl_get_va_range_type(struct hl_ctx *ctx, u64 address, u64 size,
+			enum hl_va_range_type *type)
+{
+	int i;
+
+	for (i = 0 ; i < HL_VA_RANGE_TYPE_MAX; i++) {
+		if (hl_mem_area_inside_range(address, size,
+				ctx->va_range[i]->start_addr,
+				ctx->va_range[i]->end_addr)) {
+			*type = i;
+			return 0;
+		}
+	}
+
+	return -EINVAL;
+}
+
+/*
+ * hl_unreserve_va_block - wrapper for add_va_block for unreserving a va block
+ *
+ * @hdev: pointer to the habanalabs device structure
+ * @ctx: current context
+ * @start: start virtual address
+ * @end: end virtual address
+ *
+ * This function does the following:
+ * - Takes the list lock and calls add_va_block_locked
+ */
+int hl_unreserve_va_block(struct hl_device *hdev, struct hl_ctx *ctx,
+		u64 start_addr, u64 size)
+{
+	enum hl_va_range_type type;
+	int rc;
+
+	rc = hl_get_va_range_type(ctx, start_addr, size, &type);
+	if (rc) {
+		dev_err(hdev->dev,
+			"cannot find va_range for va %#llx size %llu",
+			start_addr, size);
+		return rc;
+	}
+
+	rc = add_va_block(hdev, ctx->va_range[type], start_addr,
+						start_addr + size - 1);
+	if (rc)
+		dev_warn(hdev->dev,
+			"add va block failed for vaddr: 0x%llx\n", start_addr);
+
+	return rc;
+}
+
+/*
  * get_sg_info - get number of pages and the DMA address from SG list
  *
  * @sg                 : the SG list
