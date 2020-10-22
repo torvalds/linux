@@ -46,6 +46,10 @@ static struct batrange {	/* stores address ranges mapped by BATs */
 	phys_addr_t phys;
 } bat_addrs[8];
 
+#ifdef CONFIG_SMP
+unsigned long mmu_hash_lock;
+#endif
+
 /*
  * Return PA for this VA if it is mapped by a BAT, or 0
  */
