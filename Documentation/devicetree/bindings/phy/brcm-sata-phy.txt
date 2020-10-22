@@ -38,6 +38,9 @@ Sub-nodes optional properties:
 - brcm,rxaeq-value: when 'rxaeq-mode' is set to "manual", provides the RX
   equalizer value that should be used. Allowed range is 0..63.
 
+- brcm,tx-amplitude-millivolt: transmit amplitude voltage in millivolt.
+  Possible values are 400, 500, 600 or 800 mV.
+
 Example
 	sata-phy@f0458100 {
 		compatible = "brcm,bcm7445-sata-phy", "brcm,phy-sata3";
