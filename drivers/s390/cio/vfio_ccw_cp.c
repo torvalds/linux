@@ -311,40 +311,41 @@ static inline int is_tic_within_range(struct ccw1 *ccw, u32 head, int len)
 static struct ccwchain *ccwchain_alloc(struct channel_program *cp, int len)
 {
 	struct ccwchain *chain;
-	void *data;
-	size_t size;
 
-	/* Make ccw address aligned to 8. */
-	size = ((sizeof(*chain) + 7L) & -8L) +
-		sizeof(*chain->ch_ccw) * len +
-		sizeof(*chain->ch_pa) * len;
-	chain = kzalloc(size, GFP_DMA | GFP_KERNEL);
+	chain = kzalloc(sizeof(*chain), GFP_KERNEL);
 	if (!chain)
 		return NULL;
 
-	data = (u8 *)chain + ((sizeof(*chain) + 7L) & -8L);
-	chain->ch_ccw = (struct ccw1 *)data;
+	chain->ch_ccw = kcalloc(len, sizeof(*chain->ch_ccw), GFP_DMA | GFP_KERNEL);
+	if (!chain->ch_ccw)
+		goto out_err;
 
-	data = (u8 *)(chain->ch_ccw) + sizeof(*chain->ch_ccw) * len;
-	chain->ch_pa = (struct page_array *)data;
-
-	chain->ch_len = len;
+	chain->ch_pa = kcalloc(len, sizeof(*chain->ch_pa), GFP_KERNEL);
+	if (!chain->ch_pa)
+		goto out_err;
 
 	list_add_tail(&chain->next, &cp->ccwchain_list);
 
 	return chain;
+
+out_err:
+	kfree(chain->ch_ccw);
+	kfree(chain);
+	return NULL;
 }
 
 static void ccwchain_free(struct ccwchain *chain)
 {
 	list_del(&chain->next);
+	kfree(chain->ch_pa);
+	kfree(chain->ch_ccw);
 	kfree(chain);
 }
 
 /* Free resource for a ccw that allocated memory for its cda. */
 static void ccwchain_cda_free(struct ccwchain *chain, int idx)
 {
-	struct ccw1 *ccw = chain->ch_ccw + idx;
+	struct ccw1 *ccw = &chain->ch_ccw[idx];
 
 	if (ccw_is_tic(ccw))
 		return;
@@ -443,6 +444,8 @@ static int ccwchain_handle_ccw(u32 cda, struct channel_program *cp)
 	chain = ccwchain_alloc(cp, len);
 	if (!chain)
 		return -ENOMEM;
+
+	chain->ch_len = len;
 	chain->ch_iova = cda;
 
 	/* Copy the actual CCWs into the new chain */
@@ -464,7 +467,7 @@ static int ccwchain_loop_tic(struct ccwchain *chain, struct channel_program *cp)
 	int i, ret;
 
 	for (i = 0; i < chain->ch_len; i++) {
-		tic = chain->ch_ccw + i;
+		tic = &chain->ch_ccw[i];
 
 		if (!ccw_is_tic(tic))
 			continue;
@@ -681,7 +684,7 @@ void cp_free(struct channel_program *cp)
 	cp->initialized = false;
 	list_for_each_entry_safe(chain, temp, &cp->ccwchain_list, next) {
 		for (i = 0; i < chain->ch_len; i++) {
-			page_array_unpin_free(chain->ch_pa + i, vdev);
+			page_array_unpin_free(&chain->ch_pa[i], vdev);
 			ccwchain_cda_free(chain, i);
 		}
 		ccwchain_free(chain);
@@ -739,8 +742,8 @@ int cp_prefetch(struct channel_program *cp)
 	list_for_each_entry(chain, &cp->ccwchain_list, next) {
 		len = chain->ch_len;
 		for (idx = 0; idx < len; idx++) {
-			ccw = chain->ch_ccw + idx;
-			pa = chain->ch_pa + idx;
+			ccw = &chain->ch_ccw[idx];
+			pa = &chain->ch_pa[idx];
 
 			ret = ccwchain_fetch_one(ccw, pa, cp);
 			if (ret)
@@ -866,7 +869,7 @@ bool cp_iova_pinned(struct channel_program *cp, u64 iova, u64 length)
 
 	list_for_each_entry(chain, &cp->ccwchain_list, next) {
 		for (i = 0; i < chain->ch_len; i++)
-			if (page_array_iova_pinned(chain->ch_pa + i, iova, length))
+			if (page_array_iova_pinned(&chain->ch_pa[i], iova, length))
 				return true;
 	}
 
