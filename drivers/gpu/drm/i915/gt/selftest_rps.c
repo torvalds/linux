@@ -219,7 +219,7 @@ int live_rps_clock_interval(void *arg)
 	struct igt_spinner spin;
 	int err = 0;
 
-	if (!intel_rps_is_enabled(rps))
+	if (!intel_rps_is_enabled(rps) || INTEL_GEN(gt->i915) < 6)
 		return 0;
 
 	if (igt_spinner_init(&spin, gt))
@@ -1028,7 +1028,7 @@ int live_rps_interrupt(void *arg)
 	 * First, let's check whether or not we are receiving interrupts.
 	 */
 
-	if (!intel_rps_has_interrupts(rps))
+	if (!intel_rps_has_interrupts(rps) || INTEL_GEN(gt->i915) < 6)
 		return 0;
 
 	intel_gt_pm_get(gt);
@@ -1133,7 +1133,7 @@ int live_rps_power(void *arg)
 	 * that theory.
 	 */
 
-	if (!intel_rps_is_enabled(rps))
+	if (!intel_rps_is_enabled(rps) || INTEL_GEN(gt->i915) < 6)
 		return 0;
 
 	if (!librapl_energy_uJ())
@@ -1237,7 +1237,7 @@ int live_rps_dynamic(void *arg)
 	 * moving parts into dynamic reclocking based on load.
 	 */
 
-	if (!intel_rps_is_enabled(rps))
+	if (!intel_rps_is_enabled(rps) || INTEL_GEN(gt->i915) < 6)
 		return 0;
 
 	if (igt_spinner_init(&spin, gt))
