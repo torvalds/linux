@@ -288,7 +288,7 @@ static inline int kunit_run_all_tests(void)
 	static struct kunit_suite *unique_array[] = { __VA_ARGS__, NULL };     \
 	kunit_test_suites_for_module(unique_array);			       \
 	static struct kunit_suite **unique_suites			       \
-	__used __section(.kunit_test_suites) = unique_array
+	__used __section(".kunit_test_suites") = unique_array
 
 /**
  * kunit_test_suites() - used to register one or more &struct kunit_suite

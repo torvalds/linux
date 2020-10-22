@@ -119,7 +119,7 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 
 #define __TRACEPOINT_ENTRY(name)					 \
 	static tracepoint_ptr_t __tracepoint_ptr_##name __used		 \
-	__section(__tracepoints_ptrs) = &__tracepoint_##name
+	__section("__tracepoints_ptrs") = &__tracepoint_##name
 #endif
 
 #endif /* _LINUX_TRACEPOINT_H */
@@ -286,11 +286,11 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
  */
 #define DEFINE_TRACE_FN(_name, _reg, _unreg, proto, args)		\
 	static const char __tpstrtab_##_name[]				\
-	__section(__tracepoints_strings) = #_name;			\
+	__section("__tracepoints_strings") = #_name;			\
 	extern struct static_call_key STATIC_CALL_KEY(tp_func_##_name);	\
 	int __traceiter_##_name(void *__data, proto);			\
 	struct tracepoint __tracepoint_##_name	__used			\
-	__section(__tracepoints) = {					\
+	__section("__tracepoints") = {					\
 		.name = __tpstrtab_##_name,				\
 		.key = STATIC_KEY_INIT_FALSE,				\
 		.static_call_key = &STATIC_CALL_KEY(tp_func_##_name),	\
@@ -396,7 +396,7 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 		static const char *___tp_str __tracepoint_string = str; \
 		___tp_str;						\
 	})
-#define __tracepoint_string	__used __section(__tracepoint_str)
+#define __tracepoint_string	__used __section("__tracepoint_str")
 #else
 /*
  * tracepoint_string() is used to save the string address for userspace

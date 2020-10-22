@@ -32,7 +32,7 @@
 #include "head.h"
 
 #if defined(CONFIG_DUMMY_CONSOLE) || defined(CONFIG_EFI)
-struct screen_info screen_info __section(.data) = {
+struct screen_info screen_info __section(".data") = {
 	.orig_video_lines	= 30,
 	.orig_video_cols	= 80,
 	.orig_video_mode	= 0,
@@ -47,7 +47,7 @@ struct screen_info screen_info __section(.data) = {
  * This is used before the kernel initializes the BSS so it can't be in the
  * BSS.
  */
-atomic_t hart_lottery __section(.sdata);
+atomic_t hart_lottery __section(".sdata");
 unsigned long boot_cpu_hartid;
 static DEFINE_PER_CPU(struct cpu, cpu_devices);
 

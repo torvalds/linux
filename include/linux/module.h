@@ -278,7 +278,7 @@ extern typeof(name) __mod_##type##__##name##_device_table		\
 		.version	= _version,				\
 	};								\
 	static const struct module_version_attribute			\
-	__used __attribute__ ((__section__ ("__modver")))		\
+	__used __section("__modver")					\
 	* __moduleparam_const __modver_attr = &___modver_attr
 #endif
 

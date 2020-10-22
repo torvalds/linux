@@ -60,7 +60,7 @@ struct unwind_hint {
  * For more information, see tools/objtool/Documentation/stack-validation.txt.
  */
 #define STACK_FRAME_NON_STANDARD(func) \
-	static void __used __section(.discard.func_stack_frame_non_standard) \
+	static void __used __section(".discard.func_stack_frame_non_standard") \
 		*__func_stack_frame_non_standard_##func = func
 
 #else /* __ASSEMBLY__ */

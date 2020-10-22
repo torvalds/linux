@@ -28,7 +28,7 @@
  * those functions so they get relocated to ram.
  */
 #ifdef CONFIG_XIP_KERNEL
-#define __xipram noinline __attribute__ ((__section__ (".xiptext")))
+#define __xipram noinline __section(".xiptext")
 #endif
 
 /*

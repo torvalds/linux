@@ -32,7 +32,7 @@
 #ifdef CONFIG_BUG
 
 #define WARN_ON_ONCE_RM(condition)	({			\
-	static bool __section(.data.unlikely) __warned;		\
+	static bool __section(".data.unlikely") __warned;	\
 	int __ret_warn_once = !!(condition);			\
 								\
 	if (unlikely(__ret_warn_once && !__warned)) {		\

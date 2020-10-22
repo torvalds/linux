@@ -25,7 +25,7 @@ int early_serial_base;
  * error during initialization.
  */
 
-static void __attribute__((section(".inittext"))) serial_putchar(int ch)
+static void __section(".inittext") serial_putchar(int ch)
 {
 	unsigned timeout = 0xffff;
 
@@ -35,7 +35,7 @@ static void __attribute__((section(".inittext"))) serial_putchar(int ch)
 	outb(ch, early_serial_base + TXR);
 }
 
-static void __attribute__((section(".inittext"))) bios_putchar(int ch)
+static void __section(".inittext") bios_putchar(int ch)
 {
 	struct biosregs ireg;
 
@@ -47,7 +47,7 @@ static void __attribute__((section(".inittext"))) bios_putchar(int ch)
 	intcall(0x10, &ireg, NULL);
 }
 
-void __attribute__((section(".inittext"))) putchar(int ch)
+void __section(".inittext") putchar(int ch)
 {
 	if (ch == '\n')
 		putchar('\r');	/* \n -> \r\n */
@@ -58,7 +58,7 @@ void __attribute__((section(".inittext"))) putchar(int ch)
 		serial_putchar(ch);
 }
 
-void __attribute__((section(".inittext"))) puts(const char *str)
+void __section(".inittext") puts(const char *str)
 {
 	while (*str)
 		putchar(*str++);

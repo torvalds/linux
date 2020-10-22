@@ -84,7 +84,7 @@ static struct desc_ptr startup_gdt_descr = {
 	.address = 0,
 };
 
-#define __head	__section(.head.text)
+#define __head	__section(".head.text")
 
 static void __head *fixup_pointer(void *ptr, unsigned long physaddr)
 {
