@@ -168,10 +168,33 @@ cifs_fill_common_info(struct cifs_fattr *fattr, struct cifs_sb_info *cifs_sb)
 	fattr->cf_uid = cifs_sb->mnt_uid;
 	fattr->cf_gid = cifs_sb->mnt_gid;
 
+	/*
+	 * The IO_REPARSE_TAG_LX_ tags originally were used by WSL but they
+	 * are preferred by the Linux client in some cases since, unlike
+	 * the NFS reparse tag (or EAs), they don't require an extra query
+	 * to determine which type of special file they represent.
+	 * TODO: go through all documented  reparse tags to see if we can
+	 * reasonably map some of them to directories vs. files vs. symlinks
+	 */
 	if (fattr->cf_cifsattrs & ATTR_DIRECTORY) {
 		fattr->cf_mode = S_IFDIR | cifs_sb->mnt_dir_mode;
 		fattr->cf_dtype = DT_DIR;
-	} else {
+	} else if (fattr->cf_cifstag == IO_REPARSE_TAG_LX_SYMLINK) {
+		fattr->cf_mode |= S_IFLNK | cifs_sb->mnt_file_mode;
+		fattr->cf_dtype = DT_LNK;
+	} else if (fattr->cf_cifstag == IO_REPARSE_TAG_LX_FIFO) {
+		fattr->cf_mode |= S_IFIFO | cifs_sb->mnt_file_mode;
+		fattr->cf_dtype = DT_FIFO;
+	} else if (fattr->cf_cifstag == IO_REPARSE_TAG_AF_UNIX) {
+		fattr->cf_mode |= S_IFSOCK | cifs_sb->mnt_file_mode;
+		fattr->cf_dtype = DT_SOCK;
+	} else if (fattr->cf_cifstag == IO_REPARSE_TAG_LX_CHR) {
+		fattr->cf_mode |= S_IFCHR | cifs_sb->mnt_file_mode;
+		fattr->cf_dtype = DT_CHR;
+	} else if (fattr->cf_cifstag == IO_REPARSE_TAG_LX_BLK) {
+		fattr->cf_mode |= S_IFBLK | cifs_sb->mnt_file_mode;
+		fattr->cf_dtype = DT_BLK;
+	} else { /* TODO: should we mark some other reparse points (like DFSR) as directories? */
 		fattr->cf_mode = S_IFREG | cifs_sb->mnt_file_mode;
 		fattr->cf_dtype = DT_REG;
 	}
