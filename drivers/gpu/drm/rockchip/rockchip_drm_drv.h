@@ -97,6 +97,21 @@ struct rockchip_hdr_state {
 	bool hdr2sdr_en;
 	struct rockchip_sdr2hdr_state sdr2hdr_state;
 };
+
+#define VOP_OUTPUT_IF_RGB	BIT(0)
+#define VOP_OUTPUT_IF_BT1120	BIT(1)
+#define VOP_OUTPUT_IF_BT656	BIT(2)
+#define VOP_OUTPUT_IF_LVDS0	BIT(3)
+#define VOP_OUTPUT_IF_LVDS1	BIT(4)
+#define VOP_OUTPUT_IF_MIPI0	BIT(5)
+#define VOP_OUTPUT_IF_MIPI1	BIT(6)
+#define VOP_OUTPUT_IF_eDP0	BIT(7)
+#define VOP_OUTPUT_IF_eDP1	BIT(8)
+#define VOP_OUTPUT_IF_DP0	BIT(9)
+#define VOP_OUTPUT_IF_DP1	BIT(10)
+#define VOP_OUTPUT_IF_HDMI0	BIT(11)
+#define VOP_OUTPUT_IF_HDMI1	BIT(12)
+
 struct rockchip_crtc_state {
 	struct drm_crtc_state base;
 	struct drm_tv_connector_state *tv_state;
@@ -118,6 +133,7 @@ struct rockchip_crtc_state {
 	int output_mode;
 	int output_bpc;
 	int output_flags;
+	u32 output_if;
 	u32 bus_format;
 	u32 bus_flags;
 	int yuv_overlay;
