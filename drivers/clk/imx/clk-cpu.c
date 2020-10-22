@@ -5,6 +5,7 @@
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 #include "clk.h"
 
@@ -104,3 +105,4 @@ struct clk_hw *imx_clk_hw_cpu(const char *name, const char *parent_name,
 
 	return hw;
 }
+EXPORT_SYMBOL_GPL(imx_clk_hw_cpu);

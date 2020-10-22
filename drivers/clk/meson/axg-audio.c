@@ -147,6 +147,29 @@
 	},								\
 }
 
+#define AUD_SCLK_WS(_name, _reg, _width, _shift_ph, _shift_ws, _pname,	\
+		    _iflags) {						\
+	.data = &(struct meson_sclk_ws_inv_data) {			\
+		.ph = {							\
+			.reg_off = (_reg),				\
+			.shift   = (_shift_ph),				\
+			.width   = (_width),				\
+		},							\
+		.ws = {							\
+			.reg_off = (_reg),				\
+			.shift   = (_shift_ws),				\
+			.width   = (_width),				\
+		},							\
+	},								\
+	.hw.init = &(struct clk_init_data) {				\
+		.name = "aud_"#_name,					\
+		.ops = &meson_clk_phase_ops,				\
+		.parent_names = (const char *[]){ #_pname },		\
+		.num_parents = 1,					\
+		.flags = (_iflags),					\
+	},								\
+}
+
 /* Audio Master Clocks */
 static const struct clk_parent_data mst_mux_parent_data[] = {
 	{ .fw_name = "mst_in0", },
@@ -254,6 +277,10 @@ static const struct clk_parent_data tdm_lrclk_parent_data[] = {
 	AUD_PHASE(tdm##_name##_sclk, _reg, 1, 29,			\
 		  aud_tdm##_name##_sclk_post_en,			\
 		  CLK_DUTY_CYCLE_PARENT | CLK_SET_RATE_PARENT)
+#define AUD_TDM_SCLK_WS(_name, _reg)					\
+	AUD_SCLK_WS(tdm##_name##_sclk, _reg, 1, 29, 28,			\
+		    aud_tdm##_name##_sclk_post_en,			\
+		    CLK_DUTY_CYCLE_PARENT | CLK_SET_RATE_PARENT)
 
 #define AUD_TDM_LRLCK(_name, _reg)					\
 	AUD_MUX(tdm##_name##_lrclk, _reg, 0xf, 20,			\
@@ -499,12 +526,6 @@ static struct clk_regmap tdmin_c_sclk =
 	AUD_TDM_SCLK(in_c, AUDIO_CLK_TDMIN_C_CTRL);
 static struct clk_regmap tdmin_lb_sclk =
 	AUD_TDM_SCLK(in_lb, AUDIO_CLK_TDMIN_LB_CTRL);
-static struct clk_regmap tdmout_a_sclk =
-	AUD_TDM_SCLK(out_a, AUDIO_CLK_TDMOUT_A_CTRL);
-static struct clk_regmap tdmout_b_sclk =
-	AUD_TDM_SCLK(out_b, AUDIO_CLK_TDMOUT_B_CTRL);
-static struct clk_regmap tdmout_c_sclk =
-	AUD_TDM_SCLK(out_c, AUDIO_CLK_TDMOUT_C_CTRL);
 
 static struct clk_regmap tdmin_a_lrclk =
 	AUD_TDM_LRLCK(in_a, AUDIO_CLK_TDMIN_A_CTRL);
@@ -520,6 +541,14 @@ static struct clk_regmap tdmout_b_lrclk =
 	AUD_TDM_LRLCK(out_b, AUDIO_CLK_TDMOUT_B_CTRL);
 static struct clk_regmap tdmout_c_lrclk =
 	AUD_TDM_LRLCK(out_c, AUDIO_CLK_TDMOUT_C_CTRL);
+
+/* AXG Clocks */
+static struct clk_regmap axg_tdmout_a_sclk =
+	AUD_TDM_SCLK(out_a, AUDIO_CLK_TDMOUT_A_CTRL);
+static struct clk_regmap axg_tdmout_b_sclk =
+	AUD_TDM_SCLK(out_b, AUDIO_CLK_TDMOUT_B_CTRL);
+static struct clk_regmap axg_tdmout_c_sclk =
+	AUD_TDM_SCLK(out_c, AUDIO_CLK_TDMOUT_C_CTRL);
 
 /* AXG/G12A Clocks */
 static struct clk_hw axg_aud_top = {
@@ -591,7 +620,13 @@ static struct clk_regmap g12a_tdm_sclk_pad_1 = AUD_TDM_PAD_CTRL(
 static struct clk_regmap g12a_tdm_sclk_pad_2 = AUD_TDM_PAD_CTRL(
 	sclk_pad_2, AUDIO_MST_PAD_CTRL1, 8, sclk_pad_ctrl_parent_data);
 
-/* G12a/SM1 clocks */
+static struct clk_regmap g12a_tdmout_a_sclk =
+	AUD_TDM_SCLK_WS(out_a, AUDIO_CLK_TDMOUT_A_CTRL);
+static struct clk_regmap g12a_tdmout_b_sclk =
+	AUD_TDM_SCLK_WS(out_b, AUDIO_CLK_TDMOUT_B_CTRL);
+static struct clk_regmap g12a_tdmout_c_sclk =
+	AUD_TDM_SCLK_WS(out_c, AUDIO_CLK_TDMOUT_C_CTRL);
+
 static struct clk_regmap toram =
 	AUD_PCLK_GATE(toram, AUDIO_CLK_GATE_EN, 20);
 static struct clk_regmap spdifout_b =
@@ -889,9 +924,9 @@ static struct clk_hw_onecell_data axg_audio_hw_onecell_data = {
 		[AUD_CLKID_TDMIN_B_SCLK]	= &tdmin_b_sclk.hw,
 		[AUD_CLKID_TDMIN_C_SCLK]	= &tdmin_c_sclk.hw,
 		[AUD_CLKID_TDMIN_LB_SCLK]	= &tdmin_lb_sclk.hw,
-		[AUD_CLKID_TDMOUT_A_SCLK]	= &tdmout_a_sclk.hw,
-		[AUD_CLKID_TDMOUT_B_SCLK]	= &tdmout_b_sclk.hw,
-		[AUD_CLKID_TDMOUT_C_SCLK]	= &tdmout_c_sclk.hw,
+		[AUD_CLKID_TDMOUT_A_SCLK]	= &axg_tdmout_a_sclk.hw,
+		[AUD_CLKID_TDMOUT_B_SCLK]	= &axg_tdmout_b_sclk.hw,
+		[AUD_CLKID_TDMOUT_C_SCLK]	= &axg_tdmout_c_sclk.hw,
 		[AUD_CLKID_TDMIN_A_LRCLK]	= &tdmin_a_lrclk.hw,
 		[AUD_CLKID_TDMIN_B_LRCLK]	= &tdmin_b_lrclk.hw,
 		[AUD_CLKID_TDMIN_C_LRCLK]	= &tdmin_c_lrclk.hw,
@@ -1026,9 +1061,9 @@ static struct clk_hw_onecell_data g12a_audio_hw_onecell_data = {
 		[AUD_CLKID_TDMIN_B_SCLK]	= &tdmin_b_sclk.hw,
 		[AUD_CLKID_TDMIN_C_SCLK]	= &tdmin_c_sclk.hw,
 		[AUD_CLKID_TDMIN_LB_SCLK]	= &tdmin_lb_sclk.hw,
-		[AUD_CLKID_TDMOUT_A_SCLK]	= &tdmout_a_sclk.hw,
-		[AUD_CLKID_TDMOUT_B_SCLK]	= &tdmout_b_sclk.hw,
-		[AUD_CLKID_TDMOUT_C_SCLK]	= &tdmout_c_sclk.hw,
+		[AUD_CLKID_TDMOUT_A_SCLK]	= &g12a_tdmout_a_sclk.hw,
+		[AUD_CLKID_TDMOUT_B_SCLK]	= &g12a_tdmout_b_sclk.hw,
+		[AUD_CLKID_TDMOUT_C_SCLK]	= &g12a_tdmout_c_sclk.hw,
 		[AUD_CLKID_TDMIN_A_LRCLK]	= &tdmin_a_lrclk.hw,
 		[AUD_CLKID_TDMIN_B_LRCLK]	= &tdmin_b_lrclk.hw,
 		[AUD_CLKID_TDMIN_C_LRCLK]	= &tdmin_c_lrclk.hw,
@@ -1170,9 +1205,9 @@ static struct clk_hw_onecell_data sm1_audio_hw_onecell_data = {
 		[AUD_CLKID_TDMIN_B_SCLK]	= &tdmin_b_sclk.hw,
 		[AUD_CLKID_TDMIN_C_SCLK]	= &tdmin_c_sclk.hw,
 		[AUD_CLKID_TDMIN_LB_SCLK]	= &tdmin_lb_sclk.hw,
-		[AUD_CLKID_TDMOUT_A_SCLK]	= &tdmout_a_sclk.hw,
-		[AUD_CLKID_TDMOUT_B_SCLK]	= &tdmout_b_sclk.hw,
-		[AUD_CLKID_TDMOUT_C_SCLK]	= &tdmout_c_sclk.hw,
+		[AUD_CLKID_TDMOUT_A_SCLK]	= &g12a_tdmout_a_sclk.hw,
+		[AUD_CLKID_TDMOUT_B_SCLK]	= &g12a_tdmout_b_sclk.hw,
+		[AUD_CLKID_TDMOUT_C_SCLK]	= &g12a_tdmout_c_sclk.hw,
 		[AUD_CLKID_TDMIN_A_LRCLK]	= &tdmin_a_lrclk.hw,
 		[AUD_CLKID_TDMIN_B_LRCLK]	= &tdmin_b_lrclk.hw,
 		[AUD_CLKID_TDMIN_C_LRCLK]	= &tdmin_c_lrclk.hw,
@@ -1209,13 +1244,132 @@ static struct clk_hw_onecell_data sm1_audio_hw_onecell_data = {
 };
 
 
-/* Convenience table to populate regmap in .probe()
- * Note that this table is shared between both AXG and G12A,
- * with spdifout_b clocks being exclusive to G12A. Since those
- * clocks are not declared within the AXG onecell table, we do not
- * feel the need to have separate AXG/G12A regmap tables.
- */
+/* Convenience table to populate regmap in .probe(). */
 static struct clk_regmap *const axg_clk_regmaps[] = {
+	&ddr_arb,
+	&pdm,
+	&tdmin_a,
+	&tdmin_b,
+	&tdmin_c,
+	&tdmin_lb,
+	&tdmout_a,
+	&tdmout_b,
+	&tdmout_c,
+	&frddr_a,
+	&frddr_b,
+	&frddr_c,
+	&toddr_a,
+	&toddr_b,
+	&toddr_c,
+	&loopback,
+	&spdifin,
+	&spdifout,
+	&resample,
+	&power_detect,
+	&mst_a_mclk_sel,
+	&mst_b_mclk_sel,
+	&mst_c_mclk_sel,
+	&mst_d_mclk_sel,
+	&mst_e_mclk_sel,
+	&mst_f_mclk_sel,
+	&mst_a_mclk_div,
+	&mst_b_mclk_div,
+	&mst_c_mclk_div,
+	&mst_d_mclk_div,
+	&mst_e_mclk_div,
+	&mst_f_mclk_div,
+	&mst_a_mclk,
+	&mst_b_mclk,
+	&mst_c_mclk,
+	&mst_d_mclk,
+	&mst_e_mclk,
+	&mst_f_mclk,
+	&spdifout_clk_sel,
+	&spdifout_clk_div,
+	&spdifout_clk,
+	&spdifin_clk_sel,
+	&spdifin_clk_div,
+	&spdifin_clk,
+	&pdm_dclk_sel,
+	&pdm_dclk_div,
+	&pdm_dclk,
+	&pdm_sysclk_sel,
+	&pdm_sysclk_div,
+	&pdm_sysclk,
+	&mst_a_sclk_pre_en,
+	&mst_b_sclk_pre_en,
+	&mst_c_sclk_pre_en,
+	&mst_d_sclk_pre_en,
+	&mst_e_sclk_pre_en,
+	&mst_f_sclk_pre_en,
+	&mst_a_sclk_div,
+	&mst_b_sclk_div,
+	&mst_c_sclk_div,
+	&mst_d_sclk_div,
+	&mst_e_sclk_div,
+	&mst_f_sclk_div,
+	&mst_a_sclk_post_en,
+	&mst_b_sclk_post_en,
+	&mst_c_sclk_post_en,
+	&mst_d_sclk_post_en,
+	&mst_e_sclk_post_en,
+	&mst_f_sclk_post_en,
+	&mst_a_sclk,
+	&mst_b_sclk,
+	&mst_c_sclk,
+	&mst_d_sclk,
+	&mst_e_sclk,
+	&mst_f_sclk,
+	&mst_a_lrclk_div,
+	&mst_b_lrclk_div,
+	&mst_c_lrclk_div,
+	&mst_d_lrclk_div,
+	&mst_e_lrclk_div,
+	&mst_f_lrclk_div,
+	&mst_a_lrclk,
+	&mst_b_lrclk,
+	&mst_c_lrclk,
+	&mst_d_lrclk,
+	&mst_e_lrclk,
+	&mst_f_lrclk,
+	&tdmin_a_sclk_sel,
+	&tdmin_b_sclk_sel,
+	&tdmin_c_sclk_sel,
+	&tdmin_lb_sclk_sel,
+	&tdmout_a_sclk_sel,
+	&tdmout_b_sclk_sel,
+	&tdmout_c_sclk_sel,
+	&tdmin_a_sclk_pre_en,
+	&tdmin_b_sclk_pre_en,
+	&tdmin_c_sclk_pre_en,
+	&tdmin_lb_sclk_pre_en,
+	&tdmout_a_sclk_pre_en,
+	&tdmout_b_sclk_pre_en,
+	&tdmout_c_sclk_pre_en,
+	&tdmin_a_sclk_post_en,
+	&tdmin_b_sclk_post_en,
+	&tdmin_c_sclk_post_en,
+	&tdmin_lb_sclk_post_en,
+	&tdmout_a_sclk_post_en,
+	&tdmout_b_sclk_post_en,
+	&tdmout_c_sclk_post_en,
+	&tdmin_a_sclk,
+	&tdmin_b_sclk,
+	&tdmin_c_sclk,
+	&tdmin_lb_sclk,
+	&axg_tdmout_a_sclk,
+	&axg_tdmout_b_sclk,
+	&axg_tdmout_c_sclk,
+	&tdmin_a_lrclk,
+	&tdmin_b_lrclk,
+	&tdmin_c_lrclk,
+	&tdmin_lb_lrclk,
+	&tdmout_a_lrclk,
+	&tdmout_b_lrclk,
+	&tdmout_c_lrclk,
+};
+
+static struct clk_regmap *const g12a_clk_regmaps[] = {
 	&ddr_arb,
 	&pdm,
 	&tdmin_a,
@@ -1328,9 +1482,9 @@ static struct clk_regmap *const axg_clk_regmaps[] = {
 	&tdmin_b_sclk,
 	&tdmin_c_sclk,
 	&tdmin_lb_sclk,
-	&tdmout_a_sclk,
-	&tdmout_b_sclk,
-	&tdmout_c_sclk,
+	&g12a_tdmout_a_sclk,
+	&g12a_tdmout_b_sclk,
+	&g12a_tdmout_c_sclk,
 	&tdmin_a_lrclk,
 	&tdmin_b_lrclk,
 	&tdmin_c_lrclk,
@@ -1465,9 +1619,9 @@ static struct clk_regmap *const sm1_clk_regmaps[] = {
 	&tdmin_b_sclk,
 	&tdmin_c_sclk,
 	&tdmin_lb_sclk,
-	&tdmout_a_sclk,
-	&tdmout_b_sclk,
-	&tdmout_c_sclk,
+	&g12a_tdmout_a_sclk,
+	&g12a_tdmout_b_sclk,
+	&g12a_tdmout_c_sclk,
 	&tdmin_a_lrclk,
 	&tdmin_b_lrclk,
 	&tdmin_c_lrclk,
@@ -1713,8 +1867,8 @@ static const struct audioclk_data axg_audioclk_data = {
 };
 
 static const struct audioclk_data g12a_audioclk_data = {
-	.regmap_clks = axg_clk_regmaps,
-	.regmap_clk_num = ARRAY_SIZE(axg_clk_regmaps),
+	.regmap_clks = g12a_clk_regmaps,
+	.regmap_clk_num = ARRAY_SIZE(g12a_clk_regmaps),
 	.hw_onecell_data = &g12a_audio_hw_onecell_data,
 	.reset_offset = AUDIO_SW_RESET,
 	.reset_num = 26,
