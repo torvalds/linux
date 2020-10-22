@@ -11,6 +11,11 @@ struct mt7915_tm_trx {
 	u8 rsv;
 };
 
+struct mt7915_tm_freq_offset {
+	u8 band;
+	__le32 freq_offset;
+};
+
 struct mt7915_tm_cmd {
 	u8 testmode_en;
 	u8 param_idx;
@@ -18,6 +23,7 @@ struct mt7915_tm_cmd {
 	union {
 		__le32 data;
 		struct mt7915_tm_trx trx;
+		struct mt7915_tm_freq_offset freq;
 		u8 test[72];
 	} param;
 } __packed;

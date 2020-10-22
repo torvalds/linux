@@ -8,6 +8,7 @@
 
 enum {
 	TM_CHANGED_TXPOWER,
+	TM_CHANGED_FREQ_OFFSET,
 
 	/* must be last */
 	NUM_TM_CHANGED
@@ -15,6 +16,7 @@ enum {
 
 static const u8 tm_change_map[] = {
 	[TM_CHANGED_TXPOWER] = MT76_TM_ATTR_TX_POWER,
+	[TM_CHANGED_FREQ_OFFSET] = MT76_TM_ATTR_FREQ_OFFSET,
 };
 
 struct reg_band {
@@ -80,6 +82,19 @@ mt7915_tm_set_tx_power(struct mt7915_phy *phy)
 				&req, sizeof(req), false);
 
 	return ret;
+}
+
+static int
+mt7915_tm_set_freq_offset(struct mt7915_dev *dev, bool en, u32 val)
+{
+	struct mt7915_tm_cmd req = {
+		.testmode_en = en,
+		.param_idx = MCU_ATE_SET_FREQ_OFFSET,
+		.param.freq.freq_offset = cpu_to_le32(val),
+	};
+
+	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_ATE_CTRL, &req,
+				 sizeof(req), false);
 }
 
 static int
@@ -226,6 +241,11 @@ mt7915_tm_set_rx_frames(struct mt7915_dev *dev, bool en)
 static void
 mt7915_tm_update_params(struct mt7915_dev *dev, u32 changed)
 {
+	struct mt76_testmode_data *td = &dev->mt76.test;
+	bool en = dev->mt76.test.state != MT76_TM_STATE_OFF;
+
+	if (changed & BIT(TM_CHANGED_FREQ_OFFSET))
+		mt7915_tm_set_freq_offset(dev, en, en ? td->freq_offset : 0);
 	if (changed & BIT(TM_CHANGED_TXPOWER))
 		mt7915_tm_set_tx_power(&dev->phy);
 }
