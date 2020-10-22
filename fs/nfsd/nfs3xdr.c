@@ -405,52 +405,41 @@ nfs3svc_decode_readargs(struct svc_rqst *rqstp, __be32 *p)
 int
 nfs3svc_decode_writeargs(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
 	struct nfsd3_writeargs *args = rqstp->rq_argp;
-	unsigned int len, hdr, dlen;
 	u32 max_blocksize = svc_max_payload(rqstp);
 	struct kvec *head = rqstp->rq_arg.head;
 	struct kvec *tail = rqstp->rq_arg.tail;
+	size_t remaining;
 
-	p = decode_fh(p, &args->fh);
-	if (!p)
+	if (!svcxdr_decode_nfs_fh3(xdr, &args->fh))
 		return 0;
-	p = xdr_decode_hyper(p, &args->offset);
+	if (xdr_stream_decode_u64(xdr, &args->offset) < 0)
+		return 0;
+	if (xdr_stream_decode_u32(xdr, &args->count) < 0)
+		return 0;
+	if (xdr_stream_decode_u32(xdr, &args->stable) < 0)
+		return 0;
 
-	args->count = ntohl(*p++);
-	args->stable = ntohl(*p++);
-	len = args->len = ntohl(*p++);
-	if ((void *)p > head->iov_base + head->iov_len)
+	/* opaque data */
+	if (xdr_stream_decode_u32(xdr, &args->len) < 0)
 		return 0;
-	/*
-	 * The count must equal the amount of data passed.
-	 */
+
+	/* request sanity */
 	if (args->count != args->len)
 		return 0;
-
-	/*
-	 * Check to make sure that we got the right number of
-	 * bytes.
-	 */
-	hdr = (void*)p - head->iov_base;
-	dlen = head->iov_len + rqstp->rq_arg.page_len + tail->iov_len - hdr;
-	/*
-	 * Round the length of the data which was specified up to
-	 * the next multiple of XDR units and then compare that
-	 * against the length which was actually received.
-	 * Note that when RPCSEC/GSS (for example) is used, the
-	 * data buffer can be padded so dlen might be larger
-	 * than required.  It must never be smaller.
-	 */
-	if (dlen < XDR_QUADLEN(len)*4)
+	remaining = head->iov_len + rqstp->rq_arg.page_len + tail->iov_len;
+	remaining -= xdr_stream_pos(xdr);
+	if (remaining < xdr_align_size(args->len))
 		return 0;
-
 	if (args->count > max_blocksize) {
 		args->count = max_blocksize;
-		len = args->len = max_blocksize;
+		args->len = max_blocksize;
 	}
 
-	args->first.iov_base = (void *)p;
-	args->first.iov_len = head->iov_len - hdr;
+	args->first.iov_base = xdr->p;
+	args->first.iov_len = head->iov_len - xdr_stream_pos(xdr);
+
 	return 1;
 }
 
