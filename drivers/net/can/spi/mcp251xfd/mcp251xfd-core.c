@@ -651,7 +651,7 @@ static int mcp251xfd_chip_softreset_check(const struct mcp251xfd_priv *priv)
 
 	if (osc != osc_reference) {
 		netdev_info(priv->ndev,
-			    "Controller failed to reset. osc=0x%08x, reference value=0x%08x\n",
+			    "Controller failed to reset. osc=0x%08x, reference value=0x%08x.\n",
 			    osc, osc_reference);
 		return -ETIMEDOUT;
 	}
@@ -666,7 +666,7 @@ static int mcp251xfd_chip_softreset(const struct mcp251xfd_priv *priv)
 	for (i = 0; i < MCP251XFD_SOFTRESET_RETRIES_MAX; i++) {
 		if (i)
 			netdev_info(priv->ndev,
-				    "Retrying to reset Controller.\n");
+				    "Retrying to reset controller.\n");
 
 		err = mcp251xfd_chip_softreset_do(priv);
 		if (err == -ETIMEDOUT)
@@ -1239,7 +1239,7 @@ mcp251xfd_handle_tefif_recover(const struct mcp251xfd_priv *priv, const u32 seq)
 	}
 
 	netdev_info(priv->ndev,
-		    "Transmit Event FIFO buffer %s. (seq=0x%08x, tef_tail=0x%08x, tef_head=0x%08x, tx_head=0x%08x)\n",
+		    "Transmit Event FIFO buffer %s. (seq=0x%08x, tef_tail=0x%08x, tef_head=0x%08x, tx_head=0x%08x).\n",
 		    tef_sta & MCP251XFD_REG_TEFSTA_TEFFIF ?
 		    "full" : tef_sta & MCP251XFD_REG_TEFSTA_TEFNEIF ?
 		    "not empty" : "empty",
@@ -1891,7 +1891,7 @@ mcp251xfd_handle_modif(const struct mcp251xfd_priv *priv, bool *set_normal_mode)
 			   "Controller changed into %s Mode (%u).\n",
 			   mcp251xfd_get_mode_str(mode), mode);
 
-	/* After the application requests Normal mode, the Controller
+	/* After the application requests Normal mode, the controller
 	 * will automatically attempt to retransmit the message that
 	 * caused the TX MAB underflow.
 	 *
