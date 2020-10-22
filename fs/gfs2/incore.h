@@ -106,7 +106,7 @@ struct gfs2_rgrpd {
 	u32 rd_data;			/* num of data blocks in rgrp */
 	u32 rd_bitbytes;		/* number of bytes in data bitmaps */
 	u32 rd_free;
-	u32 rd_reserved;                /* number of blocks reserved */
+	u32 rd_requested;		/* number of blocks in rd_rstree */
 	u32 rd_free_clone;
 	u32 rd_dinodes;
 	u64 rd_igeneration;
@@ -290,8 +290,8 @@ struct gfs2_qadata { /* quota allocation data */
 struct gfs2_blkreserv {
 	struct rb_node rs_node;       /* node within rd_rstree */
 	struct gfs2_rgrpd *rs_rgd;
-	u64 rs_start;		      /* start of reservation */
-	u32 rs_free;                  /* how many blocks are still free */
+	u64 rs_start;
+	u32 rs_requested;
 };
 
 /*
