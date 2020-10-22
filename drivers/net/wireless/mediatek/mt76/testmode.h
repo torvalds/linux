@@ -25,6 +25,7 @@
  * @MT76_TM_ATTR_TX_RATE_IDX: packet tx rate/MCS index (u8)
  * @MT76_TM_ATTR_TX_RATE_SGI: packet tx use short guard interval (u8)
  * @MT76_TM_ATTR_TX_RATE_LDPC: packet tx enable LDPC (u8)
+ * @MT76_TM_ATTR_TX_RATE_STBC: packet tx enable STBC (u8)
  *
  * @MT76_TM_ATTR_TX_ANTENNA: tx antenna mask (u8)
  * @MT76_TM_ATTR_TX_POWER_CONTROL: enable tx power control (u8)
@@ -50,6 +51,7 @@ enum mt76_testmode_attr {
 	MT76_TM_ATTR_TX_RATE_IDX,
 	MT76_TM_ATTR_TX_RATE_SGI,
 	MT76_TM_ATTR_TX_RATE_LDPC,
+	MT76_TM_ATTR_TX_RATE_STBC,
 
 	MT76_TM_ATTR_TX_ANTENNA,
 	MT76_TM_ATTR_TX_POWER_CONTROL,
