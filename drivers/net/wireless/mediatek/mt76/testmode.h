@@ -101,6 +101,7 @@ enum mt76_testmode_stats_attr {
  * @MT76_TM_RX_ATTR_RCPI: received channel power indicator (array, u8)
  * @MT76_TM_RX_ATTR_IB_RSSI: internal inband RSSI (array, s8)
  * @MT76_TM_RX_ATTR_WB_RSSI: internal wideband RSSI (array, s8)
+ * @MT76_TM_RX_ATTR_SNR: signal-to-noise ratio (u8)
  */
 enum mt76_testmode_rx_attr {
 	MT76_TM_RX_ATTR_UNSPEC,
@@ -109,6 +110,7 @@ enum mt76_testmode_rx_attr {
 	MT76_TM_RX_ATTR_RCPI,
 	MT76_TM_RX_ATTR_IB_RSSI,
 	MT76_TM_RX_ATTR_WB_RSSI,
+	MT76_TM_RX_ATTR_SNR,
 
 	/* keep last */
 	NUM_MT76_TM_RX_ATTRS,
