@@ -76,7 +76,7 @@ static int afs_fill_page(struct afs_vnode *vnode, struct key *key,
  */
 int afs_write_begin(struct file *file, struct address_space *mapping,
 		    loff_t pos, unsigned len, unsigned flags,
-		    struct page **pagep, void **fsdata)
+		    struct page **_page, void **fsdata)
 {
 	struct afs_vnode *vnode = AFS_FS_I(file_inode(file));
 	struct page *page;
@@ -109,9 +109,6 @@ int afs_write_begin(struct file *file, struct address_space *mapping,
 		}
 		SetPageUptodate(page);
 	}
-
-	/* page won't leak in error case: it eventually gets cleaned off LRU */
-	*pagep = page;
 
 try_again:
 	/* See if this page is already partially written in a way that we can
@@ -155,6 +152,7 @@ try_again:
 		set_page_private(page, priv);
 	else
 		attach_page_private(page, (void *)priv);
+	*_page = page;
 	_leave(" = 0");
 	return 0;
 
@@ -164,17 +162,18 @@ try_again:
 flush_conflicting_write:
 	_debug("flush conflict");
 	ret = write_one_page(page);
-	if (ret < 0) {
-		_leave(" = %d", ret);
-		return ret;
-	}
+	if (ret < 0)
+		goto error;
 
 	ret = lock_page_killable(page);
-	if (ret < 0) {
-		_leave(" = %d", ret);
-		return ret;
-	}
+	if (ret < 0)
+		goto error;
 	goto try_again;
+
+error:
+	put_page(page);
+	_leave(" = %d", ret);
+	return ret;
 }
 
 /*
