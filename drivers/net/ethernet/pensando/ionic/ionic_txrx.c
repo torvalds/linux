@@ -200,7 +200,7 @@ static void ionic_rx_clean(struct ionic_queue *q,
 	if (likely(netdev->features & NETIF_F_RXCSUM)) {
 		if (comp->csum_flags & IONIC_RXQ_COMP_CSUM_F_CALC) {
 			skb->ip_summed = CHECKSUM_COMPLETE;
-			skb->csum = (__wsum)le16_to_cpu(comp->csum);
+			skb->csum = (__force __wsum)le16_to_cpu(comp->csum);
 			stats->csum_complete++;
 		}
 	} else {
@@ -812,6 +812,7 @@ static int ionic_tx_tso(struct ionic_queue *q, struct sk_buff *skb)
 	skb_frag_t *frag;
 	bool start, done;
 	bool outer_csum;
+	dma_addr_t addr;
 	bool has_vlan;
 	u16 desc_len;
 	u8 desc_nsge;
@@ -893,11 +894,10 @@ static int ionic_tx_tso(struct ionic_queue *q, struct sk_buff *skb)
 			if (frag_left > 0) {
 				len = min(frag_left, left);
 				frag_left -= len;
-				elem->addr =
-				    cpu_to_le64(ionic_tx_map_frag(q, frag,
-								  offset, len));
-				if (dma_mapping_error(dev, elem->addr))
+				addr = ionic_tx_map_frag(q, frag, offset, len);
+				if (dma_mapping_error(dev, addr))
 					goto err_out_abort;
+				elem->addr = cpu_to_le64(addr);
 				elem->len = cpu_to_le16(len);
 				elem++;
 				desc_nsge++;
