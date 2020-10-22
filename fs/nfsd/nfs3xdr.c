@@ -25,6 +25,15 @@ static const struct svc_fh nfs3svc_null_fh = {
 };
 
 /*
+ * time_delta. {1, 0} means the server is accurate only
+ * to the nearest second.
+ */
+static const struct timespec64 nfs3svc_time_delta = {
+	.tv_sec		= 1,
+	.tv_nsec	= 0,
+};
+
+/*
  * Mapping of S_IF* types to NFS file types
  */
 static const u32 nfs3_ftypes[] = {
@@ -1445,30 +1454,51 @@ nfs3svc_encode_fsstatres(struct svc_rqst *rqstp, __be32 *p)
 	return 1;
 }
 
+static bool
+svcxdr_encode_fsinfo3resok(struct xdr_stream *xdr,
+			   const struct nfsd3_fsinfores *resp)
+{
+	__be32 *p;
+
+	p = xdr_reserve_space(xdr, XDR_UNIT * 12);
+	if (!p)
+		return false;
+	*p++ = cpu_to_be32(resp->f_rtmax);
+	*p++ = cpu_to_be32(resp->f_rtpref);
+	*p++ = cpu_to_be32(resp->f_rtmult);
+	*p++ = cpu_to_be32(resp->f_wtmax);
+	*p++ = cpu_to_be32(resp->f_wtpref);
+	*p++ = cpu_to_be32(resp->f_wtmult);
+	*p++ = cpu_to_be32(resp->f_dtpref);
+	p = xdr_encode_hyper(p, resp->f_maxfilesize);
+	p = encode_nfstime3(p, &nfs3svc_time_delta);
+	*p = cpu_to_be32(resp->f_properties);
+
+	return true;
+}
+
 /* FSINFO */
 int
 nfs3svc_encode_fsinfores(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct xdr_stream *xdr = &rqstp->rq_res_stream;
 	struct nfsd3_fsinfores *resp = rqstp->rq_resp;
 
-	*p++ = resp->status;
-	*p++ = xdr_zero;	/* no post_op_attr */
-
-	if (resp->status == 0) {
-		*p++ = htonl(resp->f_rtmax);
-		*p++ = htonl(resp->f_rtpref);
-		*p++ = htonl(resp->f_rtmult);
-		*p++ = htonl(resp->f_wtmax);
-		*p++ = htonl(resp->f_wtpref);
-		*p++ = htonl(resp->f_wtmult);
-		*p++ = htonl(resp->f_dtpref);
-		p = xdr_encode_hyper(p, resp->f_maxfilesize);
-		*p++ = xdr_one;
-		*p++ = xdr_zero;
-		*p++ = htonl(resp->f_properties);
+	if (!svcxdr_encode_nfsstat3(xdr, resp->status))
+		return 0;
+	switch (resp->status) {
+	case nfs_ok:
+		if (!svcxdr_encode_post_op_attr(rqstp, xdr, &nfs3svc_null_fh))
+			return 0;
+		if (!svcxdr_encode_fsinfo3resok(xdr, resp))
+			return 0;
+		break;
+	default:
+		if (!svcxdr_encode_post_op_attr(rqstp, xdr, &nfs3svc_null_fh))
+			return 0;
 	}
 
-	return xdr_ressize_check(rqstp, p);
+	return 1;
 }
 
 /* PATHCONF */
