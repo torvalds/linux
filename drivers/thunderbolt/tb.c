@@ -179,6 +179,9 @@ static void tb_scan_xdomain(struct tb_port *port)
 	struct tb_xdomain *xd;
 	u64 route;
 
+	if (!tb_is_xdomain_enabled())
+		return;
+
 	route = tb_downstream_route(port);
 	xd = tb_xdomain_find_by_route(tb, route);
 	if (xd) {

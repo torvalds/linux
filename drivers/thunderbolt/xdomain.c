@@ -30,6 +30,10 @@ struct xdomain_request_work {
 	struct tb *tb;
 };
 
+static bool tb_xdomain_enabled = true;
+module_param_named(xdomain, tb_xdomain_enabled, bool, 0444);
+MODULE_PARM_DESC(xdomain, "allow XDomain protocol (default: true)");
+
 /* Serializes access to the properties and protocol handlers below */
 static DEFINE_MUTEX(xdomain_lock);
 
@@ -46,6 +50,11 @@ static LIST_HEAD(protocol_handlers);
 static const uuid_t tb_xdp_uuid =
 	UUID_INIT(0xb638d70e, 0x42ff, 0x40bb,
 		  0x97, 0xc2, 0x90, 0xe2, 0xc0, 0xb2, 0xff, 0x07);
+
+bool tb_is_xdomain_enabled(void)
+{
+	return tb_xdomain_enabled;
+}
 
 static bool tb_xdomain_match(const struct tb_cfg_request *req,
 			     const struct ctl_pkg *pkg)
