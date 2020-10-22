@@ -213,7 +213,7 @@ struct cfg80211_wifidirect_info {
 };
 
 struct wifidirect_info {
-	struct adapter *			padapter;
+	struct adapter				*padapter;
 	_timer					find_phase_timer;
 	_timer					restore_p2p_state_timer;
 
