@@ -82,9 +82,6 @@ static inline void print_system_hash_info(void) {}
 
 #else /* CONFIG_PPC_MMU_NOHASH */
 
-extern void _tlbie(unsigned long address);
-extern void _tlbia(void);
-
 void print_system_hash_info(void);
 
 #endif /* CONFIG_PPC_MMU_NOHASH */
