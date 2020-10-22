@@ -104,6 +104,23 @@ svcxdr_encode_nfsstat3(struct xdr_stream *xdr, __be32 status)
 	return true;
 }
 
+static bool
+svcxdr_encode_nfs_fh3(struct xdr_stream *xdr, const struct svc_fh *fhp)
+{
+	u32 size = fhp->fh_handle.fh_size;
+	__be32 *p;
+
+	p = xdr_reserve_space(xdr, XDR_UNIT + size);
+	if (!p)
+		return false;
+	*p++ = cpu_to_be32(size);
+	if (size)
+		p[XDR_QUADLEN(size) - 1] = 0;
+	memcpy(p, &fhp->fh_handle.fh_base, size);
+
+	return true;
+}
+
 static __be32 *
 encode_fh(__be32 *p, struct svc_fh *fhp)
 {
@@ -846,18 +863,28 @@ nfs3svc_encode_wccstat(struct svc_rqst *rqstp, __be32 *p)
 }
 
 /* LOOKUP */
-int
-nfs3svc_encode_diropres(struct svc_rqst *rqstp, __be32 *p)
+int nfs3svc_encode_lookupres(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct xdr_stream *xdr = &rqstp->rq_res_stream;
 	struct nfsd3_diropres *resp = rqstp->rq_resp;
 
-	*p++ = resp->status;
-	if (resp->status == 0) {
-		p = encode_fh(p, &resp->fh);
-		p = encode_post_op_attr(rqstp, p, &resp->fh);
+	if (!svcxdr_encode_nfsstat3(xdr, resp->status))
+		return 0;
+	switch (resp->status) {
+	case nfs_ok:
+		if (!svcxdr_encode_nfs_fh3(xdr, &resp->fh))
+			return 0;
+		if (!svcxdr_encode_post_op_attr(rqstp, xdr, &resp->fh))
+			return 0;
+		if (!svcxdr_encode_post_op_attr(rqstp, xdr, &resp->dirfh))
+			return 0;
+		break;
+	default:
+		if (!svcxdr_encode_post_op_attr(rqstp, xdr, &resp->dirfh))
+			return 0;
 	}
-	p = encode_post_op_attr(rqstp, p, &resp->dirfh);
-	return xdr_ressize_check(rqstp, p);
+
+	return 1;
 }
 
 /* ACCESS */
