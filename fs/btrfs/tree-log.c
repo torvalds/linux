@@ -1564,18 +1564,6 @@ out:
 	return ret;
 }
 
-static int insert_orphan_item(struct btrfs_trans_handle *trans,
-			      struct btrfs_root *root, u64 ino)
-{
-	int ret;
-
-	ret = btrfs_insert_orphan_item(trans, root, ino);
-	if (ret == -EEXIST)
-		ret = 0;
-
-	return ret;
-}
-
 static int count_inode_extrefs(struct btrfs_root *root,
 		struct btrfs_inode *inode, struct btrfs_path *path)
 {
@@ -1727,7 +1715,9 @@ static noinline int fixup_inode_link_count(struct btrfs_trans_handle *trans,
 			if (ret)
 				goto out;
 		}
-		ret = insert_orphan_item(trans, root, ino);
+		ret = btrfs_insert_orphan_item(trans, root, ino);
+		if (ret == -EEXIST)
+			ret = 0;
 	}
 
 out:
