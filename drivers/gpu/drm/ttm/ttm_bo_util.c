@@ -180,9 +180,6 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 	void *new_iomap;
 	int ret;
 	unsigned long i;
-	unsigned long page;
-	unsigned long add = 0;
-	int dir;
 
 	ret = ttm_bo_wait_ctx(bo, ctx);
 	if (ret)
@@ -220,27 +217,17 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 			goto out1;
 	}
 
-	add = 0;
-	dir = 1;
-
-	if ((old_mem->mem_type == new_mem->mem_type) &&
-	    (new_mem->start < old_mem->start + old_mem->size)) {
-		dir = -1;
-		add = new_mem->num_pages - 1;
-	}
-
 	for (i = 0; i < new_mem->num_pages; ++i) {
-		page = i * dir + add;
 		if (old_iomap == NULL) {
 			pgprot_t prot = ttm_io_prot(bo, old_mem, PAGE_KERNEL);
-			ret = ttm_copy_ttm_io_page(ttm, new_iomap, page,
+			ret = ttm_copy_ttm_io_page(ttm, new_iomap, i,
 						   prot);
 		} else if (new_iomap == NULL) {
 			pgprot_t prot = ttm_io_prot(bo, new_mem, PAGE_KERNEL);
-			ret = ttm_copy_io_ttm_page(ttm, old_iomap, page,
+			ret = ttm_copy_io_ttm_page(ttm, old_iomap, i,
 						   prot);
 		} else {
-			ret = ttm_copy_io_page(new_iomap, old_iomap, page);
+			ret = ttm_copy_io_page(new_iomap, old_iomap, i);
 		}
 		if (ret)
 			goto out1;
