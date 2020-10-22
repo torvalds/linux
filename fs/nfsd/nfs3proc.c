@@ -126,14 +126,15 @@ nfsd3_proc_readlink(struct svc_rqst *rqstp)
 {
 	struct nfsd_fhandle *argp = rqstp->rq_argp;
 	struct nfsd3_readlinkres *resp = rqstp->rq_resp;
-	char *buffer = page_address(*(rqstp->rq_next_page++));
 
 	dprintk("nfsd: READLINK(3) %s\n", SVCFH_fmt(&argp->fh));
 
 	/* Read the symlink. */
 	fh_copy(&resp->fh, &argp->fh);
 	resp->len = NFS3_MAXPATHLEN;
-	resp->status = nfsd_readlink(rqstp, &resp->fh, buffer, &resp->len);
+	resp->pages = rqstp->rq_next_page++;
+	resp->status = nfsd_readlink(rqstp, &resp->fh,
+				     page_address(*resp->pages), &resp->len);
 	return rpc_success;
 }
 

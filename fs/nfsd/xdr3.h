@@ -137,6 +137,7 @@ struct nfsd3_readlinkres {
 	__be32			status;
 	struct svc_fh		fh;
 	__u32			len;
+	struct page		**pages;
 };
 
 struct nfsd3_readres {
