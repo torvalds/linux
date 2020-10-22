@@ -1296,7 +1296,7 @@ static int rockchip_usb2phy_probe(struct platform_device *pdev)
 
 	rphy->base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(rphy->base)) {
-		dev_err(rphy->dev, "failed to remap phy regs\n");
+		dev_err(dev, "failed to remap phy regs\n");
 		return PTR_ERR(rphy->base);
 	}
 
