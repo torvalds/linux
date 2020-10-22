@@ -11,6 +11,9 @@
 #include "dpu_kms.h"
 #include "dpu_trace.h"
 
+#define MERGE_3D_MUX  0x000
+#define MERGE_3D_MODE 0x004
+
 static const struct dpu_merge_3d_cfg *_merge_3d_offset(enum dpu_merge_3d idx,
 		const struct dpu_mdss_cfg *m,
 		void __iomem *addr,
@@ -32,9 +35,27 @@ static const struct dpu_merge_3d_cfg *_merge_3d_offset(enum dpu_merge_3d idx,
 	return ERR_PTR(-EINVAL);
 }
 
+static void dpu_hw_merge_3d_setup_3d_mode(struct dpu_hw_merge_3d *merge_3d,
+			enum dpu_3d_blend_mode mode_3d)
+{
+	struct dpu_hw_blk_reg_map *c;
+	u32 data;
+
+
+	c = &merge_3d->hw;
+	if (mode_3d == BLEND_3D_NONE) {
+		DPU_REG_WRITE(c, MERGE_3D_MODE, 0);
+		DPU_REG_WRITE(c, MERGE_3D_MUX, 0);
+	} else {
+		data = BIT(0) | ((mode_3d - 1) << 1);
+		DPU_REG_WRITE(c, MERGE_3D_MODE, data);
+	}
+}
+
 static void _setup_merge_3d_ops(struct dpu_hw_merge_3d *c,
 				unsigned long features)
 {
+	c->ops.setup_3d_mode = dpu_hw_merge_3d_setup_3d_mode;
 };
 
 static struct dpu_hw_blk_ops dpu_hw_ops;
