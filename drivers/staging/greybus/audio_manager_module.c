@@ -213,8 +213,7 @@ int gb_audio_manager_module_create(
 	err = kobject_init_and_add(&m->kobj, &gb_audio_module_type, NULL, "%d",
 				   id);
 	if (err) {
-		pr_err("failed initializing kobject for audio module #%d\n",
-		       id);
+		pr_err("failed initializing kobject for audio module #%d\n", id);
 		kobject_put(&m->kobj);
 		return err;
 	}
