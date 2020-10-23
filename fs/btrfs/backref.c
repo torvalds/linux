@@ -2997,7 +2997,6 @@ int btrfs_backref_finish_upper_links(struct btrfs_backref_cache *cache,
 	while (!list_empty(&pending_edge)) {
 		struct btrfs_backref_node *upper;
 		struct btrfs_backref_node *lower;
-		struct rb_node *rb_node;
 
 		edge = list_first_entry(&pending_edge,
 				struct btrfs_backref_edge, list[UPPER]);
