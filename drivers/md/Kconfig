@@ -463,6 +463,15 @@ config DM_MULTIPATH_HST
 
 	  If unsure, say N.
 
+config DM_MULTIPATH_IOA
+	tristate "I/O Path Selector based on CPU submission"
+	depends on DM_MULTIPATH
+	help
+	  This path selector selects the path based on the CPU the IO is
+	  executed on and the CPU to path mapping setup at path addition time.
+
+	  If unsure, say N.
+
 config DM_DELAY
 	tristate "I/O delaying target"
 	depends on BLK_DEV_DM
