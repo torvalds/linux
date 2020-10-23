@@ -1826,10 +1826,9 @@ int m_can_class_register(struct m_can_classdev *m_can_dev)
 	int ret;
 
 	if (m_can_dev->pm_clock_support) {
-		pm_runtime_enable(m_can_dev->dev);
 		ret = m_can_clk_start(m_can_dev);
 		if (ret)
-			goto pm_runtime_fail;
+			return ret;
 	}
 
 	ret = m_can_dev_setup(m_can_dev);
@@ -1855,11 +1854,6 @@ int m_can_class_register(struct m_can_classdev *m_can_dev)
 	 */
 clk_disable:
 	m_can_clk_stop(m_can_dev);
-pm_runtime_fail:
-	if (ret) {
-		if (m_can_dev->pm_clock_support)
-			pm_runtime_disable(m_can_dev->dev);
-	}
 
 	return ret;
 }
