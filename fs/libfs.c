@@ -1481,7 +1481,7 @@ static const struct dentry_operations generic_encrypted_ci_dentry_ops = {
 void generic_set_encrypted_ci_d_ops(struct inode *dir, struct dentry *dentry)
 {
 #ifdef CONFIG_FS_ENCRYPTION
-	if (dentry->d_flags & DCACHE_ENCRYPTED_NAME) {
+	if (dentry->d_flags & DCACHE_NOKEY_NAME) {
 #ifdef CONFIG_UNICODE
 		if (dir->i_sb->s_encoding) {
 			d_set_d_op(dentry, &generic_encrypted_ci_dentry_ops);
