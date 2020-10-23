@@ -98,8 +98,8 @@ int get_compat_msghdr(struct msghdr *kmsg,
 	if (err)
 		return err;
 
-	err = import_iovec(save_addr ? READ : WRITE, compat_ptr(ptr), len,
-			   UIO_FASTIOV, iov, &kmsg->msg_iter);
+	err = compat_import_iovec(save_addr ? READ : WRITE, compat_ptr(ptr),
+				   len, UIO_FASTIOV, iov, &kmsg->msg_iter);
 	return err < 0 ? err : 0;
 }
 
