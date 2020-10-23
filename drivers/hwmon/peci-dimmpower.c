@@ -27,7 +27,12 @@ struct peci_dimmpower {
 		sensor_data_list[PECI_DIMMPOWER_CHANNEL_COUNT]
 				[PECI_DIMMPOWER_SENSOR_COUNT];
 
-	s32 avg_power_val;
+	/*
+	 * Not exposed to any sensor directly - just used to store previous raw
+	 * energy counter value that is required to calculate average power
+	 */
+	struct peci_sensor_data power_sensor_prev_energy;
+
 	union peci_pkg_power_sku_unit units;
 	bool units_valid;
 
@@ -56,19 +61,16 @@ peci_dimmpower_read_dram_power_limit(struct peci_client_manager *peci_mgr,
 
 static int
 peci_dimmpower_get_avg_power(void *ctx, struct peci_sensor_conf *sensor_conf,
-			     struct peci_sensor_data *sensor_data,
-			     s32 *val)
+			     struct peci_sensor_data *sensor_data)
 {
 	struct peci_dimmpower *priv = (struct peci_dimmpower *)ctx;
-	u32 energy_cnt;
-	ulong jif;
+	struct peci_sensor_data energy;
 	int ret;
 
 	if (!peci_sensor_need_update_with_time(sensor_data,
 					       sensor_conf->update_interval)) {
-		*val = priv->avg_power_val;
 		dev_dbg(priv->dev, "skip reading peci, average power %dmW\n",
-			*val);
+			sensor_data->value);
 		return 0;
 	}
 
@@ -78,30 +80,30 @@ peci_dimmpower_get_avg_power(void *ctx, struct peci_sensor_conf *sensor_conf,
 		return ret;
 	}
 
-	jif = jiffies;
 	ret = peci_pcs_read(priv->mgr, PECI_MBX_INDEX_ENERGY_STATUS,
-			    PECI_PKG_ID_DIMM, &energy_cnt);
+			    PECI_PKG_ID_DIMM, &energy.value);
 	if (ret) {
 		dev_dbg(priv->dev, "not able to read energy\n");
 		return ret;
 	}
 
-	ret = peci_pcs_calc_pwr_from_eng(priv->dev, sensor_data, energy_cnt,
-					 priv->units.bits.eng_unit, val);
+	energy.last_updated = jiffies;
 
-	priv->avg_power_val = *val;
-	peci_sensor_mark_updated_with_time(sensor_data, jif);
+	ret = peci_pcs_calc_pwr_from_eng(priv->dev,
+					 &priv->power_sensor_prev_energy,
+					 &energy, priv->units.bits.eng_unit,
+					 &sensor_data->value);
+	peci_sensor_mark_updated_with_time(sensor_data, energy.last_updated);
 
 	dev_dbg(priv->dev, "average power %dmW, jif %lu, HZ is %d jiffies\n",
-		*val, jif, HZ);
+		sensor_data->value, energy.last_updated, HZ);
 
 	return ret;
 }
 
 static int
 peci_dimmpower_get_power_limit(void *ctx, struct peci_sensor_conf *sensor_conf,
-			       struct peci_sensor_data *sensor_data,
-			       s32 *val)
+			       struct peci_sensor_data *sensor_data)
 {
 	struct peci_dimmpower *priv = (struct peci_dimmpower *)ctx;
 	union peci_dram_power_limit power_limit;
@@ -110,9 +112,8 @@ peci_dimmpower_get_power_limit(void *ctx, struct peci_sensor_conf *sensor_conf,
 
 	if (!peci_sensor_need_update_with_time(sensor_data,
 					       sensor_conf->update_interval)) {
-		*val = sensor_data->value;
 		dev_dbg(priv->dev, "skip reading peci, power limit %dmW\n",
-			*val);
+			sensor_data->value);
 		return 0;
 	}
 
@@ -129,14 +130,13 @@ peci_dimmpower_get_power_limit(void *ctx, struct peci_sensor_conf *sensor_conf,
 		return ret;
 	}
 
-	*val = peci_pcs_xn_to_munits(power_limit.bits.pp_pwr_lim,
-				     priv->units.bits.pwr_unit);
-
-	sensor_data->value = *val;
+	sensor_data->value = peci_pcs_xn_to_munits(power_limit.bits.pp_pwr_lim,
+						   priv->units.bits.pwr_unit);
 	peci_sensor_mark_updated_with_time(sensor_data, jif);
 
 	dev_dbg(priv->dev, "raw power limit %u, unit %u, power limit %d\n",
-		power_limit.bits.pp_pwr_lim, priv->units.bits.pwr_unit, *val);
+		power_limit.bits.pp_pwr_lim, priv->units.bits.pwr_unit,
+		sensor_data->value);
 
 	return ret;
 }
@@ -197,8 +197,7 @@ peci_dimmpower_set_power_limit(void *ctx, struct peci_sensor_conf *sensor_conf,
 
 static int
 peci_dimmpower_read_max_power(void *ctx, struct peci_sensor_conf *sensor_conf,
-			      struct peci_sensor_data *sensor_data,
-			      s32 *val)
+			      struct peci_sensor_data *sensor_data)
 {
 	struct peci_dimmpower *priv = (struct peci_dimmpower *)ctx;
 	union peci_dram_power_info_high power_info;
@@ -207,9 +206,8 @@ peci_dimmpower_read_max_power(void *ctx, struct peci_sensor_conf *sensor_conf,
 
 	if (!peci_sensor_need_update_with_time(sensor_data,
 					       sensor_conf->update_interval)) {
-		*val = sensor_data->value;
 		dev_dbg(priv->dev, "skip reading peci, max power %dmW\n",
-			*val);
+			sensor_data->value);
 		return 0;
 	}
 
@@ -227,22 +225,20 @@ peci_dimmpower_read_max_power(void *ctx, struct peci_sensor_conf *sensor_conf,
 		return ret;
 	}
 
-	*val = peci_pcs_xn_to_munits(power_info.bits.max_pwr,
-				     priv->units.bits.pwr_unit);
-
-	sensor_data->value = *val;
+	sensor_data->value = peci_pcs_xn_to_munits(power_info.bits.max_pwr,
+						   priv->units.bits.pwr_unit);
 	peci_sensor_mark_updated_with_time(sensor_data, jif);
 
 	dev_dbg(priv->dev, "raw max power %u, unit %u, max power %dmW\n",
-		power_info.bits.max_pwr, priv->units.bits.pwr_unit, *val);
+		power_info.bits.max_pwr, priv->units.bits.pwr_unit,
+		sensor_data->value);
 
 	return ret;
 }
 
 static int
 peci_dimmpower_read_min_power(void *ctx, struct peci_sensor_conf *sensor_conf,
-			      struct peci_sensor_data *sensor_data,
-			      s32 *val)
+			      struct peci_sensor_data *sensor_data)
 {
 	struct peci_dimmpower *priv = (struct peci_dimmpower *)ctx;
 	union peci_dram_power_info_low power_info;
@@ -251,9 +247,8 @@ peci_dimmpower_read_min_power(void *ctx, struct peci_sensor_conf *sensor_conf,
 
 	if (!peci_sensor_need_update_with_time(sensor_data,
 					       sensor_conf->update_interval)) {
-		*val = sensor_data->value;
 		dev_dbg(priv->dev, "skip reading peci, min power %dmW\n",
-			*val);
+			sensor_data->value);
 		return 0;
 	}
 
@@ -271,14 +266,13 @@ peci_dimmpower_read_min_power(void *ctx, struct peci_sensor_conf *sensor_conf,
 		return ret;
 	}
 
-	*val = peci_pcs_xn_to_munits(power_info.bits.min_pwr,
-				     priv->units.bits.pwr_unit);
-
-	sensor_data->value = *val;
+	sensor_data->value = peci_pcs_xn_to_munits(power_info.bits.min_pwr,
+						   priv->units.bits.pwr_unit);
 	peci_sensor_mark_updated_with_time(sensor_data, jif);
 
 	dev_dbg(priv->dev, "raw min power %u, unit %u, min power %dmW\n",
-		power_info.bits.min_pwr, priv->units.bits.pwr_unit, *val);
+		power_info.bits.min_pwr, priv->units.bits.pwr_unit,
+		sensor_data->value);
 
 	return ret;
 }
@@ -358,11 +352,9 @@ peci_dimmpower_read(struct device *dev, enum hwmon_sensor_types type,
 		return ret;
 
 	if (sensor_conf->read) {
-		s32 tmp;
-
-		ret = sensor_conf->read(priv, sensor_conf, sensor_data, &tmp);
+		ret = sensor_conf->read(priv, sensor_conf, sensor_data);
 		if (!ret)
-			*val = (long)tmp;
+			*val = (long)sensor_data->value;
 	} else {
 		ret = -EOPNOTSUPP;
 	}

@@ -106,8 +106,7 @@ struct peci_sensor_conf {
 	const ulong update_interval;
 
 	int (*const read)(void *priv, struct peci_sensor_conf *sensor_conf,
-			  struct peci_sensor_data *sensor_data,
-			  s32 *val);
+			  struct peci_sensor_data *sensor_data);
 	int (*const write)(void *priv, struct peci_sensor_conf *sensor_conf,
 			   struct peci_sensor_data *sensor_data,
 			   s32 val);
@@ -361,6 +360,23 @@ union peci_dram_power_limit {
 static_assert(sizeof(union peci_dram_power_limit) == PECI_PCS_REGISTER_SIZE);
 
 /**
+ * peci_pcs_xn_to_uunits - function converting value in units in x.N format to
+ * micro units (microjoules, microseconds, microdegrees) in regular format
+ * @x_n_value: Value in units in x.n format
+ * @n: n factor for x.n format
+
+ *
+ * Return: value in micro units (microjoules, microseconds, microdegrees)
+ * in regular format
+ */
+static inline u64 peci_pcs_xn_to_uunits(u32 x_n_value, u8 n)
+{
+	u64 mx_n_value = (u64)x_n_value * 1000000uLL;
+
+	return mx_n_value >> n;
+}
+
+/**
  * peci_pcs_xn_to_munits - function converting value in units in x.N format to
  * milli units (millijoules, milliseconds, millidegrees) in regular format
  * @x_n_value: Value in units in x.n format
@@ -372,9 +388,8 @@ static_assert(sizeof(union peci_dram_power_limit) == PECI_PCS_REGISTER_SIZE);
  */
 static inline u64 peci_pcs_xn_to_munits(u32 x_n_value, u8 n)
 {
-	/* Convert value in units in x.n format to milli units in x.n format */
 	u64 mx_n_value = (u64)x_n_value * 1000uLL;
-	/* Convert x.n format to regular format */
+
 	return mx_n_value >> n;
 }
 
@@ -453,10 +468,10 @@ static inline int peci_pcs_write(struct peci_client_manager *peci_mgr, u8 index,
 
 /**
  * peci_pcs_calc_pwr_from_eng - calculate power (in milliwatts) based on
- * energy reading
+ * two energy readings
  * @dev: Device handle
- * @energy: Energy reading context
- * @energy_cnt: Raw energy reading
+ * @prev_energy: Previous energy reading context with raw energy counter value
+ * @energy: Current energy reading context with raw energy counter value
  * @unit: Calculation factor
  * @power_val_in_mW: Pointer to the variable calculation result is going to
  * be put
@@ -466,38 +481,38 @@ static inline int peci_pcs_write(struct peci_client_manager *peci_mgr, u8 index,
  *	-EAGAIN if calculation is skipped.
  */
 static inline int peci_pcs_calc_pwr_from_eng(struct device *dev,
-					     struct peci_sensor_data *sensor,
-					     u32 energy_cnt, u32 unit,
+					     struct peci_sensor_data *prev_energy,
+					     struct peci_sensor_data *energy,
+					     u32 unit,
 					     s32 *power_in_mW)
 {
-	ulong jif = jiffies;
 	ulong elapsed;
 	int ret;
 
-	if (!dev || !sensor || !power_in_mW)
+	if (!dev || !prev_energy || !energy || !power_in_mW)
 		return -EINVAL;
 
-	elapsed = jif - sensor->last_updated;
+	elapsed = energy->last_updated - prev_energy->last_updated;
 
 	dev_dbg(dev, "raw energy before %u, raw energy now %u, unit %u, jiffies elapsed %lu\n",
-		sensor->value, energy_cnt, unit, elapsed);
+		prev_energy->value, energy->value, unit, elapsed);
 
 	/*
 	 * Don't calculate average power for first counter read  last counter
 	 * read was more than 60 minutes ago (jiffies did not wrap and power
 	 * calculation does not overflow or underflow).
 	 */
-	if (sensor->last_updated > 0 && elapsed < (HZ * 3600)) {
+	if (prev_energy->last_updated > 0 && elapsed < (HZ * 3600) && elapsed) {
 		u32 energy_consumed;
 		u64 energy_consumed_in_mJ;
 		u64 energy_by_jiffies;
 
 		/* Take care here about energy counter rollover */
-		if (energy_cnt >= (u32)(sensor->value))
-			energy_consumed = energy_cnt - (u32)(sensor->value);
+		if ((u32)(energy->value) >= (u32)(prev_energy->value))
+			energy_consumed = (u32)(energy->value) - (u32)(prev_energy->value);
 		else
-			energy_consumed = (U32_MAX - (u32)(sensor->value)) +
-					energy_cnt + 1u;
+			energy_consumed = (U32_MAX - (u32)(prev_energy->value)) +
+					(u32)(energy->value) + 1u;
 
 		/* Calculate the energy here */
 		energy_consumed_in_mJ =
@@ -522,8 +537,9 @@ static inline int peci_pcs_calc_pwr_from_eng(struct device *dev,
 		ret = -EAGAIN;
 	}
 
-	/* Update sensor context */
-	sensor->value = energy_cnt;
+	/* Update previous energy sensor context with current value */
+	prev_energy->value = energy->value;
+	peci_sensor_mark_updated_with_time(prev_energy, energy->last_updated);
 
 	return ret;
 }

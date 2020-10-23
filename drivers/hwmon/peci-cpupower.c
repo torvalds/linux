@@ -9,25 +9,51 @@
 #include <linux/platform_device.h>
 #include "peci-hwmon.h"
 
-#define PECI_CPUPOWER_CHANNEL_COUNT   1 /* Supported channels number */
+enum PECI_CPUPOWER_POWER_CONFIG_TYPES {
+	PECI_CPUPOWER_CONFIG_TYPE_POWER = 0,
+	PECI_CPUPOWER_CONFIG_TYPE_ENERGY,
+	PECI_CPUPOWER_CONFIG_TYPES_COUNT,
+};
 
-#define PECI_CPUPOWER_SENSOR_COUNT 4 /* Supported sensors/readings number */
+#define PECI_CPUPOWER_POWER_CHANNEL_COUNT	1 /* Supported channels number */
+#define PECI_CPUPOWER_ENERGY_CHANNEL_COUNT	1 /* Supported channels number */
+
+#define PECI_CPUPOWER_POWER_SENSOR_COUNT	4 /* Supported sensors number */
+#define PECI_CPUPOWER_ENERGY_SENSOR_COUNT	1 /* Supported sensors number */
 
 struct peci_cpupower {
 	struct device *dev;
 	struct peci_client_manager *mgr;
 	char name[PECI_NAME_SIZE];
-	u32 power_config[PECI_CPUPOWER_CHANNEL_COUNT + 1];
+	u32 power_config[PECI_CPUPOWER_POWER_CHANNEL_COUNT + 1];
+	u32 energy_config[PECI_CPUPOWER_ENERGY_CHANNEL_COUNT + 1];
 	u32 config_idx;
+
 	struct hwmon_channel_info power_info;
-	const struct hwmon_channel_info *info[2];
+	struct hwmon_channel_info energy_info;
+	const struct hwmon_channel_info *info[PECI_CPUPOWER_CONFIG_TYPES_COUNT + 1];
 	struct hwmon_chip_info chip;
 
 	struct peci_sensor_data
-		sensor_data_list[PECI_CPUPOWER_CHANNEL_COUNT]
-				[PECI_CPUPOWER_SENSOR_COUNT];
+		power_sensor_data_list[PECI_CPUPOWER_POWER_CHANNEL_COUNT]
+				      [PECI_CPUPOWER_POWER_SENSOR_COUNT];
+	struct peci_sensor_data
+		energy_sensor_data_list[PECI_CPUPOWER_ENERGY_CHANNEL_COUNT]
+				       [PECI_CPUPOWER_ENERGY_SENSOR_COUNT];
 
-	s32 avg_power_val;
+	/*
+	 * Not exposed to any sensor directly - just used to limit PECI
+	 * communication for energy/power_average which are derived from the
+	 * same underlying data
+	 */
+	struct peci_sensor_data energy_cache;
+
+	/*
+	 * Not exposed to any sensor directly - just used to store previous raw
+	 * energy counter value that is required to calculate average power
+	 */
+	struct peci_sensor_data power_sensor_prev_energy;
+
 	union peci_pkg_power_sku_unit units;
 	bool units_valid;
 
@@ -36,8 +62,9 @@ struct peci_cpupower {
 	bool ppl_time_windows_valid;
 };
 
-static const char *peci_cpupower_labels[PECI_CPUPOWER_CHANNEL_COUNT] = {
+static const char *peci_cpupower_labels[PECI_CPUPOWER_CONFIG_TYPES_COUNT] = {
 	"cpu power",
+	"cpu energy",
 };
 
 /**
@@ -71,21 +98,56 @@ peci_cpupower_read_cpu_pkg_pwr_lim_low(struct peci_client_manager *peci_mgr,
 }
 
 static int
-peci_cpupower_get_average_power(void *ctx, struct peci_sensor_conf *sensor_conf,
-				struct peci_sensor_data *sensor_data,
-				s32 *val)
+peci_cpupower_get_energy_counter(struct peci_cpupower *priv,
+				 struct peci_sensor_data *sensor_data,
+				 ulong update_interval)
+{
+	int ret;
+
+	/* Skip energy counter read if the interval time not elapsed */
+	if (!peci_sensor_need_update_with_time(sensor_data,
+					       update_interval)) {
+		dev_dbg(priv->dev, "skip reading peci\n");
+		return 0;
+	}
+
+	ret = peci_pcs_read(priv->mgr, PECI_MBX_INDEX_ENERGY_COUNTER,
+			    PECI_PKG_ID_CPU_PACKAGE, &sensor_data->value);
+	if (ret) {
+		dev_dbg(priv->dev, "not able to read package energy\n");
+		return ret;
+	}
+
+	peci_sensor_mark_updated(sensor_data);
+
+	dev_dbg(priv->dev,
+		"energy counter updated %duJ, jif %lu, HZ is %d jiffies\n",
+		sensor_data->value, sensor_data->last_updated, HZ);
+
+	return ret;
+}
+
+static int
+peci_cpupower_get_average_power(void *ctx,
+				struct peci_sensor_conf *sensor_conf,
+				struct peci_sensor_data *sensor_data)
 {
 	struct peci_cpupower *priv = (struct peci_cpupower *)ctx;
-	u32 energy_cnt;
-	ulong jif;
 	int ret;
 
 	if (!peci_sensor_need_update_with_time(sensor_data,
 					       sensor_conf->update_interval)) {
-		*val = priv->avg_power_val;
 		dev_dbg(priv->dev,
-			"skip reading peci, average power %dmW\n", *val);
+			"skip generating new power value %dmW jif %lu\n",
+			sensor_data->value, jiffies);
 		return 0;
+	}
+
+	ret = peci_cpupower_get_energy_counter(priv, &priv->energy_cache,
+					       sensor_conf->update_interval);
+	if (ret) {
+		dev_dbg(priv->dev, "cannot update energy counter\n");
+		return ret;
 	}
 
 	ret = peci_pcs_get_units(priv->mgr, &priv->units, &priv->units_valid);
@@ -94,31 +156,28 @@ peci_cpupower_get_average_power(void *ctx, struct peci_sensor_conf *sensor_conf,
 		return ret;
 	}
 
-	jif = jiffies;
-	ret = peci_pcs_read(priv->mgr, PECI_MBX_INDEX_ENERGY_COUNTER,
-			    PECI_PKG_ID_CPU_PACKAGE, &energy_cnt);
-
+	ret = peci_pcs_calc_pwr_from_eng(priv->dev,
+					 &priv->power_sensor_prev_energy,
+					 &priv->energy_cache,
+					 priv->units.bits.eng_unit,
+					 &sensor_data->value);
 	if (ret) {
-		dev_dbg(priv->dev, "not able to read package energy\n");
+		dev_dbg(priv->dev, "power calculation failed\n");
 		return ret;
 	}
 
-	ret = peci_pcs_calc_pwr_from_eng(priv->dev, sensor_data, energy_cnt,
-					 priv->units.bits.eng_unit, val);
-
-	priv->avg_power_val = *val;
-	peci_sensor_mark_updated_with_time(sensor_data, jif);
+	peci_sensor_mark_updated_with_time(sensor_data,
+					   priv->energy_cache.last_updated);
 
 	dev_dbg(priv->dev, "average power %dmW, jif %lu, HZ is %d jiffies\n",
-		*val, jif, HZ);
+		sensor_data->value, sensor_data->last_updated, HZ);
 
 	return ret;
 }
 
 static int
 peci_cpupower_get_power_limit(void *ctx, struct peci_sensor_conf *sensor_conf,
-			      struct peci_sensor_data *sensor_data,
-			      s32 *val)
+			      struct peci_sensor_data *sensor_data)
 {
 	struct peci_cpupower *priv = (struct peci_cpupower *)ctx;
 	union peci_package_power_limit_low power_limit;
@@ -127,9 +186,8 @@ peci_cpupower_get_power_limit(void *ctx, struct peci_sensor_conf *sensor_conf,
 
 	if (!peci_sensor_need_update_with_time(sensor_data,
 					       sensor_conf->update_interval)) {
-		*val = sensor_data->value;
 		dev_dbg(priv->dev, "skip reading peci, power limit %dmW\n",
-			*val);
+			sensor_data->value);
 		return 0;
 	}
 
@@ -146,14 +204,14 @@ peci_cpupower_get_power_limit(void *ctx, struct peci_sensor_conf *sensor_conf,
 		return ret;
 	}
 
-	*val = peci_pcs_xn_to_munits(power_limit.bits.pwr_lim_1,
-				     priv->units.bits.pwr_unit);
+	sensor_data->value = peci_pcs_xn_to_munits(power_limit.bits.pwr_lim_1,
+						   priv->units.bits.pwr_unit);
 
-	sensor_data->value = *val;
 	peci_sensor_mark_updated_with_time(sensor_data, jif);
 
 	dev_dbg(priv->dev, "raw power limit %u, unit %u, power limit %d\n",
-		power_limit.bits.pwr_lim_1, priv->units.bits.pwr_unit, *val);
+		power_limit.bits.pwr_lim_1, priv->units.bits.pwr_unit,
+		sensor_data->value);
 
 	return ret;
 }
@@ -249,8 +307,7 @@ peci_cpupower_set_power_limit(void *ctx, struct peci_sensor_conf *sensor_conf,
 
 static int
 peci_cpupower_read_max_power(void *ctx, struct peci_sensor_conf *sensor_conf,
-			     struct peci_sensor_data *sensor_data,
-			     s32 *val)
+			     struct peci_sensor_data *sensor_data)
 {
 	struct peci_cpupower *priv = (struct peci_cpupower *)ctx;
 	union peci_package_power_info_low power_info;
@@ -259,8 +316,8 @@ peci_cpupower_read_max_power(void *ctx, struct peci_sensor_conf *sensor_conf,
 
 	if (!peci_sensor_need_update_with_time(sensor_data,
 					       sensor_conf->update_interval)) {
-		*val = sensor_data->value;
-		dev_dbg(priv->dev, "skip reading peci, max power %dmW\n", *val);
+		dev_dbg(priv->dev, "skip reading peci, max power %dmW\n",
+			sensor_data->value);
 		return 0;
 	}
 
@@ -277,22 +334,21 @@ peci_cpupower_read_max_power(void *ctx, struct peci_sensor_conf *sensor_conf,
 		return ret;
 	}
 
-	*val = peci_pcs_xn_to_munits(power_info.bits.pkg_tdp,
-				     priv->units.bits.pwr_unit);
+	sensor_data->value = peci_pcs_xn_to_munits(power_info.bits.pkg_tdp,
+						   priv->units.bits.pwr_unit);
 
-	sensor_data->value = *val;
 	peci_sensor_mark_updated_with_time(sensor_data, jif);
 
 	dev_dbg(priv->dev, "raw max power %u, unit %u, max power %dmW\n",
-		power_info.bits.pkg_tdp, priv->units.bits.pwr_unit, *val);
+		power_info.bits.pkg_tdp, priv->units.bits.pwr_unit,
+		sensor_data->value);
 
 	return ret;
 }
 
 static int
 peci_cpupower_read_min_power(void *ctx, struct peci_sensor_conf *sensor_conf,
-			     struct peci_sensor_data *sensor_data,
-			     s32 *val)
+			     struct peci_sensor_data *sensor_data)
 {
 	struct peci_cpupower *priv = (struct peci_cpupower *)ctx;
 	union peci_package_power_info_low power_info;
@@ -301,9 +357,8 @@ peci_cpupower_read_min_power(void *ctx, struct peci_sensor_conf *sensor_conf,
 
 	if (!peci_sensor_need_update_with_time(sensor_data,
 					       sensor_conf->update_interval)) {
-		*val = sensor_data->value;
 		dev_dbg(priv->dev, "skip reading peci, min power %dmW\n",
-			*val);
+			sensor_data->value);
 		return 0;
 	}
 
@@ -320,20 +375,60 @@ peci_cpupower_read_min_power(void *ctx, struct peci_sensor_conf *sensor_conf,
 		return ret;
 	}
 
-	*val = peci_pcs_xn_to_munits(power_info.bits.pkg_min_pwr,
-				     priv->units.bits.pwr_unit);
-
-	sensor_data->value = *val;
+	sensor_data->value = peci_pcs_xn_to_munits(power_info.bits.pkg_min_pwr,
+						   priv->units.bits.pwr_unit);
 	peci_sensor_mark_updated_with_time(sensor_data, jif);
 
 	dev_dbg(priv->dev, "raw min power %u, unit %u, min power %dmW\n",
-		power_info.bits.pkg_min_pwr, priv->units.bits.pwr_unit, *val);
+		power_info.bits.pkg_min_pwr, priv->units.bits.pwr_unit,
+		sensor_data->value);
 
 	return ret;
 }
 
+static int
+peci_cpupower_read_energy(void *ctx, struct peci_sensor_conf *sensor_conf,
+			  struct peci_sensor_data *sensor_data)
+{
+	struct peci_cpupower *priv = (struct peci_cpupower *)ctx;
+	int ret;
+
+	if (!peci_sensor_need_update_with_time(sensor_data,
+					       sensor_conf->update_interval)) {
+		dev_dbg(priv->dev,
+			"skip generating new energy value %duJ jif %lu\n",
+			sensor_data->value, jiffies);
+		return 0;
+	}
+
+	ret = peci_cpupower_get_energy_counter(priv, &priv->energy_cache,
+					       sensor_conf->update_interval);
+	if (ret) {
+		dev_dbg(priv->dev, "cannot update energy counter\n");
+		return ret;
+	}
+
+	ret = peci_pcs_get_units(priv->mgr, &priv->units, &priv->units_valid);
+	if (ret) {
+		dev_dbg(priv->dev, "not able to read units\n");
+		return ret;
+	}
+
+	/* Energy consumed in microjoules */
+	sensor_data->value = (u32)peci_pcs_xn_to_uunits(priv->energy_cache.value,
+							priv->units.bits.eng_unit);
+	peci_sensor_mark_updated_with_time(sensor_data,
+					   priv->energy_cache.last_updated);
+
+	dev_dbg(priv->dev, "energy %duJ, jif %lu, HZ is %d jiffies\n",
+		sensor_data->value, sensor_data->last_updated, HZ);
+
+	return 0;
+}
+
 static struct peci_sensor_conf
-peci_cpupower_cfg[PECI_CPUPOWER_CHANNEL_COUNT][PECI_CPUPOWER_SENSOR_COUNT] = {
+peci_cpupower_power_cfg[PECI_CPUPOWER_POWER_CHANNEL_COUNT]
+		       [PECI_CPUPOWER_POWER_SENSOR_COUNT] = {
 	/* Channel 0  - Power */
 	{
 		{
@@ -367,17 +462,52 @@ peci_cpupower_cfg[PECI_CPUPOWER_CHANNEL_COUNT][PECI_CPUPOWER_SENSOR_COUNT] = {
 	},
 };
 
+static struct peci_sensor_conf
+peci_cpupower_energy_cfg[PECI_CPUPOWER_ENERGY_CHANNEL_COUNT]
+		[PECI_CPUPOWER_ENERGY_SENSOR_COUNT] = {
+	/* Channel 0  - Energy */
+	{
+		{
+			.attribute = hwmon_energy_input,
+			.config = HWMON_E_INPUT,
+			.update_interval = UPDATE_INTERVAL_100MS,
+			.read = peci_cpupower_read_energy,
+			.write = NULL,
+		},
+	}
+};
+
+static bool
+peci_cpupower_is_channel_valid(enum hwmon_sensor_types type,
+			       int channel)
+{
+	if ((type == hwmon_power && channel < PECI_CPUPOWER_POWER_CHANNEL_COUNT) ||
+	    (type == hwmon_energy && channel < PECI_CPUPOWER_ENERGY_CHANNEL_COUNT))
+		return true;
+
+	return false;
+}
+
 static int
 peci_cpupower_read_string(struct device *dev, enum hwmon_sensor_types type,
 			  u32 attr, int channel, const char **str)
 {
-	if (attr != hwmon_power_label || channel >= PECI_CPUPOWER_CHANNEL_COUNT)
+	if (!str)
+		return -EINVAL;
+
+	if (!peci_cpupower_is_channel_valid(type, channel))
 		return -EOPNOTSUPP;
 
-	if (str)
-		*str = peci_cpupower_labels[channel];
-	else
-		return -EINVAL;
+	switch (attr) {
+	case hwmon_power_label:
+		*str = peci_cpupower_labels[PECI_CPUPOWER_CONFIG_TYPE_POWER];
+		break;
+	case hwmon_energy_label:
+		*str = peci_cpupower_labels[PECI_CPUPOWER_CONFIG_TYPE_ENERGY];
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
 
 	return 0;
 }
@@ -394,22 +524,35 @@ peci_cpupower_read(struct device *dev, enum hwmon_sensor_types type,
 	if (!priv || !val)
 		return -EINVAL;
 
-	if (channel >= PECI_CPUPOWER_CHANNEL_COUNT)
+	if (!peci_cpupower_is_channel_valid(type, channel))
 		return -EOPNOTSUPP;
 
-	ret = peci_sensor_get_ctx(attr, peci_cpupower_cfg[channel],
-				  &sensor_conf, priv->sensor_data_list[channel],
-				  &sensor_data,
-				  ARRAY_SIZE(peci_cpupower_cfg[channel]));
+	switch (type) {
+	case hwmon_power:
+		ret = peci_sensor_get_ctx(attr, peci_cpupower_power_cfg[channel],
+					  &sensor_conf,
+					  priv->power_sensor_data_list[channel],
+					  &sensor_data,
+					  ARRAY_SIZE(peci_cpupower_power_cfg[channel]));
+		break;
+	case hwmon_energy:
+		ret = peci_sensor_get_ctx(attr, peci_cpupower_energy_cfg[channel],
+					  &sensor_conf,
+					  priv->energy_sensor_data_list[channel],
+					  &sensor_data,
+					  ARRAY_SIZE(peci_cpupower_energy_cfg[channel]));
+		break;
+	default:
+		ret = -EOPNOTSUPP;
+	}
+
 	if (ret)
 		return ret;
 
 	if (sensor_conf->read) {
-		s32 tmp;
-
-		ret = sensor_conf->read(priv, sensor_conf, sensor_data, &tmp);
+		ret = sensor_conf->read(priv, sensor_conf, sensor_data);
 		if (!ret)
-			*val = (long)tmp;
+			*val = (long)sensor_data->value;
 	} else {
 		ret = -EOPNOTSUPP;
 	}
@@ -429,13 +572,28 @@ peci_cpupower_write(struct device *dev, enum hwmon_sensor_types type,
 	if (!priv)
 		return -EINVAL;
 
-	if (channel >= PECI_CPUPOWER_CHANNEL_COUNT)
+	if (!peci_cpupower_is_channel_valid(type, channel))
 		return -EOPNOTSUPP;
 
-	ret = peci_sensor_get_ctx(attr, peci_cpupower_cfg[channel],
-				  &sensor_conf, priv->sensor_data_list[channel],
-				  &sensor_data,
-				  ARRAY_SIZE(peci_cpupower_cfg[channel]));
+	switch (type) {
+	case hwmon_power:
+		ret = peci_sensor_get_ctx(attr, peci_cpupower_power_cfg[channel],
+					  &sensor_conf,
+					  priv->power_sensor_data_list[channel],
+					  &sensor_data,
+					  ARRAY_SIZE(peci_cpupower_power_cfg[channel]));
+		break;
+	case hwmon_energy:
+		ret = peci_sensor_get_ctx(attr, peci_cpupower_energy_cfg[channel],
+					  &sensor_conf,
+					  priv->energy_sensor_data_list[channel],
+					  &sensor_data,
+					  ARRAY_SIZE(peci_cpupower_energy_cfg[channel]));
+		break;
+	default:
+		ret = -EOPNOTSUPP;
+	}
+
 	if (ret)
 		return ret;
 
@@ -457,15 +615,27 @@ peci_cpupower_is_visible(const void *data, enum hwmon_sensor_types type,
 	umode_t mode = 0;
 	int ret;
 
-	if (channel >= PECI_CPUPOWER_CHANNEL_COUNT)
+	if (!peci_cpupower_is_channel_valid(type, channel))
 		return mode;
 
-	if (attr == hwmon_power_label)
+	if (attr == hwmon_power_label || attr == hwmon_energy_label)
 		return 0444;
 
-	ret = peci_sensor_get_ctx(attr, peci_cpupower_cfg[channel],
-				  &sensor_conf, NULL, NULL,
-				  ARRAY_SIZE(peci_cpupower_cfg[channel]));
+	switch (type) {
+	case hwmon_power:
+		ret = peci_sensor_get_ctx(attr, peci_cpupower_power_cfg[channel],
+					  &sensor_conf, NULL, NULL,
+					  ARRAY_SIZE(peci_cpupower_power_cfg[channel]));
+		break;
+	case hwmon_energy:
+		ret = peci_sensor_get_ctx(attr, peci_cpupower_energy_cfg[channel],
+					  &sensor_conf, NULL, NULL,
+					  ARRAY_SIZE(peci_cpupower_energy_cfg[channel]));
+		break;
+	default:
+		return mode;
+	}
+
 	if (!ret) {
 		if (sensor_conf->read)
 			mode |= 0444;
@@ -506,18 +676,26 @@ static int peci_cpupower_probe(struct platform_device *pdev)
 	snprintf(priv->name, PECI_NAME_SIZE, "peci_cpupower.cpu%d",
 		 mgr->client->addr - PECI_BASE_ADDR);
 
-	priv->power_config[priv->config_idx] = HWMON_P_LABEL |
-		peci_sensor_get_config(peci_cpupower_cfg[priv->config_idx],
-				       ARRAY_SIZE(peci_cpupower_cfg
-						  [priv->config_idx]));
+	priv->power_config[0] = HWMON_P_LABEL |
+		peci_sensor_get_config(peci_cpupower_power_cfg[0],
+				       ARRAY_SIZE(peci_cpupower_power_cfg[0]));
+
+	priv->energy_config[0] = HWMON_E_LABEL |
+		peci_sensor_get_config(peci_cpupower_energy_cfg[0],
+				       ARRAY_SIZE(peci_cpupower_energy_cfg[0]));
+
+	priv->info[priv->config_idx] = &priv->power_info;
+	priv->power_info.type = hwmon_power;
+	priv->power_info.config = priv->power_config;
+	priv->config_idx++;
+
+	priv->info[priv->config_idx] = &priv->energy_info;
+	priv->energy_info.type = hwmon_energy;
+	priv->energy_info.config = priv->energy_config;
 	priv->config_idx++;
 
 	priv->chip.ops = &peci_cpupower_ops;
 	priv->chip.info = priv->info;
-	priv->info[0] = &priv->power_info;
-
-	priv->power_info.type = hwmon_power;
-	priv->power_info.config = priv->power_config;
 
 	hwmon_dev = devm_hwmon_device_register_with_info(priv->dev, priv->name,
 							 priv, &priv->chip,

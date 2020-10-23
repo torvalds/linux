@@ -38,13 +38,17 @@ Description
 -----------
 
 This driver implements a generic PECI hwmon feature which provides
-average power consumption readings of the CPU package based on energy counter.
+average power and energy consumption readings of the CPU package based on
+energy counter.
 
 Power values are average power since last measure given in milli Watt and
 will be measurable only when the target CPU is powered on.
 
+Energy values are energy consumption in micro Joules.
+
 Driver provides current package power limit, maximal (TDP) and minimal power
 setting as well.
+
 All needed processor registers are accessible using the PECI Client Command
 Suite via the processor PECI client.
 
@@ -56,4 +60,6 @@ power1_average		Provides average power since last read in milli Watt.
 power1_cap		Provides current package power limit 1 (PPL1).
 power1_cap_max		Provides maximal (TDP) package power setting.
 power1_cap_min		Provides minimal package power setting.
+energy1_label		Provides string "cpu energy".
+energy1_input		Provides energy consumption in micro Joules.
 ======================= =======================================================
