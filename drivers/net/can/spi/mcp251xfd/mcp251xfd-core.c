@@ -289,6 +289,11 @@ static int mcp251xfd_chip_clock_enable(const struct mcp251xfd_priv *priv)
 	return err;
 }
 
+static inline int mcp251xfd_chip_sleep(const struct mcp251xfd_priv *priv)
+{
+	return mcp251xfd_chip_set_mode(priv, MCP251XFD_REG_CON_MODE_SLEEP);
+}
+
 static int mcp251xfd_chip_softreset_do(const struct mcp251xfd_priv *priv)
 {
 	const __be16 cmd = mcp251xfd_cmd_reset();
@@ -635,7 +640,7 @@ static int mcp251xfd_chip_stop(struct mcp251xfd_priv *priv,
 
 	mcp251xfd_chip_interrupts_disable(priv);
 	mcp251xfd_chip_rx_int_disable(priv);
-	return mcp251xfd_chip_set_mode(priv, MCP251XFD_REG_CON_MODE_SLEEP);
+	return mcp251xfd_chip_sleep(priv);
 }
 
 static int mcp251xfd_chip_start(struct mcp251xfd_priv *priv)
@@ -1719,19 +1724,19 @@ static int mcp251xfd_register(struct mcp251xfd_priv *priv)
 	if (err == -ENODEV)
 		goto out_runtime_disable;
 	if (err)
-		goto out_chip_set_mode_sleep;
+		goto out_chip_sleep;
 
 	err = mcp251xfd_register_chip_detect(priv);
 	if (err)
-		goto out_chip_set_mode_sleep;
+		goto out_chip_sleep;
 
 	err = mcp251xfd_register_check_rx_int(priv);
 	if (err)
-		goto out_chip_set_mode_sleep;
+		goto out_chip_sleep;
 
 	err = register_candev(ndev);
 	if (err)
-		goto out_chip_set_mode_sleep;
+		goto out_chip_sleep;
 
 	err = mcp251xfd_register_done(priv);
 	if (err)
@@ -1741,7 +1746,7 @@ static int mcp251xfd_register(struct mcp251xfd_priv *priv)
 	 * disable the clocks and vdd. If CONFIG_PM is not enabled,
 	 * the clocks and vdd will stay powered.
 	 */
-	err = mcp251xfd_chip_set_mode(priv, MCP251XFD_REG_CON_MODE_SLEEP);
+	err = mcp251xfd_chip_sleep(priv);
 	if (err)
 		goto out_unregister_candev;
 
@@ -1751,8 +1756,8 @@ static int mcp251xfd_register(struct mcp251xfd_priv *priv)
 
  out_unregister_candev:
 	unregister_candev(ndev);
- out_chip_set_mode_sleep:
-	mcp251xfd_chip_set_mode(priv, MCP251XFD_REG_CON_MODE_SLEEP);
+ out_chip_sleep:
+	mcp251xfd_chip_sleep(priv);
  out_runtime_disable:
 	pm_runtime_disable(ndev->dev.parent);
  out_runtime_put_noidle:
