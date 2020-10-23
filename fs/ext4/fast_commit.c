@@ -964,7 +964,6 @@ static int ext4_fc_commit_dentry_updates(journal_t *journal, u32 *crc)
 			fc_dentry->fcd_parent, fc_dentry->fcd_ino,
 			fc_dentry->fcd_name.len,
 			fc_dentry->fcd_name.name, crc)) {
-			spin_lock(&sbi->s_fc_lock);
 			ret = -ENOSPC;
 			goto lock_and_exit;
 		}
