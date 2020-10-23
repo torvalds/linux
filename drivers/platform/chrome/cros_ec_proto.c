@@ -15,6 +15,43 @@
 
 #define EC_COMMAND_RETRIES	50
 
+static const int cros_ec_error_map[] = {
+	[EC_RES_INVALID_COMMAND] = -EOPNOTSUPP,
+	[EC_RES_ERROR] = -EIO,
+	[EC_RES_INVALID_PARAM] = -EINVAL,
+	[EC_RES_ACCESS_DENIED] = -EACCES,
+	[EC_RES_INVALID_RESPONSE] = -EPROTO,
+	[EC_RES_INVALID_VERSION] = -ENOPROTOOPT,
+	[EC_RES_INVALID_CHECKSUM] = -EBADMSG,
+	[EC_RES_IN_PROGRESS] = -EINPROGRESS,
+	[EC_RES_UNAVAILABLE] = -ENODATA,
+	[EC_RES_TIMEOUT] = -ETIMEDOUT,
+	[EC_RES_OVERFLOW] = -EOVERFLOW,
+	[EC_RES_INVALID_HEADER] = -EBADR,
+	[EC_RES_REQUEST_TRUNCATED] = -EBADR,
+	[EC_RES_RESPONSE_TOO_BIG] = -EFBIG,
+	[EC_RES_BUS_ERROR] = -EFAULT,
+	[EC_RES_BUSY] = -EBUSY,
+	[EC_RES_INVALID_HEADER_VERSION] = -EBADMSG,
+	[EC_RES_INVALID_HEADER_CRC] = -EBADMSG,
+	[EC_RES_INVALID_DATA_CRC] = -EBADMSG,
+	[EC_RES_DUP_UNAVAILABLE] = -ENODATA,
+};
+
+static int cros_ec_map_error(uint32_t result)
+{
+	int ret = 0;
+
+	if (result != EC_RES_SUCCESS) {
+		if (result < ARRAY_SIZE(cros_ec_error_map) && cros_ec_error_map[result])
+			ret = cros_ec_error_map[result];
+		else
+			ret = -EPROTO;
+	}
+
+	return ret;
+}
+
 static int prepare_packet(struct cros_ec_device *ec_dev,
 			  struct cros_ec_command *msg)
 {
@@ -512,19 +549,22 @@ exit:
 EXPORT_SYMBOL(cros_ec_query_all);
 
 /**
- * cros_ec_cmd_xfer() - Send a command to the ChromeOS EC.
+ * cros_ec_cmd_xfer_status() - Send a command to the ChromeOS EC.
  * @ec_dev: EC device.
  * @msg: Message to write.
  *
- * Call this to send a command to the ChromeOS EC.  This should be used
- * instead of calling the EC's cmd_xfer() callback directly.
+ * Call this to send a command to the ChromeOS EC. This should be used instead of calling the EC's
+ * cmd_xfer() callback directly. It returns success status only if both the command was transmitted
+ * successfully and the EC replied with success status.
  *
- * Return: 0 on success or negative error code.
+ * Return:
+ * >=0 - The number of bytes transferred
+ * <0 - Linux error code
  */
-static int cros_ec_cmd_xfer(struct cros_ec_device *ec_dev,
+int cros_ec_cmd_xfer_status(struct cros_ec_device *ec_dev,
 			    struct cros_ec_command *msg)
 {
-	int ret;
+	int ret, mapped;
 
 	mutex_lock(&ec_dev->lock);
 	if (ec_dev->proto_version == EC_PROTO_VERSION_UNKNOWN) {
@@ -561,42 +601,15 @@ static int cros_ec_cmd_xfer(struct cros_ec_device *ec_dev,
 			return -EMSGSIZE;
 		}
 	}
+
 	ret = send_command(ec_dev, msg);
 	mutex_unlock(&ec_dev->lock);
 
-	return ret;
-}
-
-/**
- * cros_ec_cmd_xfer_status() - Send a command to the ChromeOS EC.
- * @ec_dev: EC device.
- * @msg: Message to write.
- *
- * This function is identical to cros_ec_cmd_xfer, except it returns success
- * status only if both the command was transmitted successfully and the EC
- * replied with success status. It's not necessary to check msg->result when
- * using this function.
- *
- * Return:
- * >=0 - The number of bytes transferred
- * -ENOTSUPP - Operation not supported
- * -EPROTO - Protocol error
- */
-int cros_ec_cmd_xfer_status(struct cros_ec_device *ec_dev,
-			    struct cros_ec_command *msg)
-{
-	int ret;
-
-	ret = cros_ec_cmd_xfer(ec_dev, msg);
-	if (ret < 0) {
-		dev_err(ec_dev->dev, "Command xfer error (err:%d)\n", ret);
-	} else if (msg->result == EC_RES_INVALID_VERSION) {
-		dev_dbg(ec_dev->dev, "Command invalid version (err:%d)\n",
-			msg->result);
-		return -ENOTSUPP;
-	} else if (msg->result != EC_RES_SUCCESS) {
-		dev_dbg(ec_dev->dev, "Command result (err: %d)\n", msg->result);
-		return -EPROTO;
+	mapped = cros_ec_map_error(msg->result);
+	if (mapped) {
+		dev_dbg(ec_dev->dev, "Command result (err: %d [%d])\n",
+			msg->result, mapped);
+		ret = mapped;
 	}
 
 	return ret;
@@ -615,7 +628,7 @@ static int get_next_event_xfer(struct cros_ec_device *ec_dev,
 	msg->insize = size;
 	msg->outsize = 0;
 
-	ret = cros_ec_cmd_xfer(ec_dev, msg);
+	ret = cros_ec_cmd_xfer_status(ec_dev, msg);
 	if (ret > 0) {
 		ec_dev->event_size = ret - 1;
 		ec_dev->event_data = *event;
@@ -659,7 +672,7 @@ static int get_keyboard_state_event(struct cros_ec_device *ec_dev)
 	msg->insize = sizeof(ec_dev->event_data.data);
 	msg->outsize = 0;
 
-	ec_dev->event_size = cros_ec_cmd_xfer(ec_dev, msg);
+	ec_dev->event_size = cros_ec_cmd_xfer_status(ec_dev, msg);
 	ec_dev->event_data.event_type = EC_MKBP_EVENT_KEY_MATRIX;
 	memcpy(&ec_dev->event_data.data, msg->data,
 	       sizeof(ec_dev->event_data.data));
@@ -848,11 +861,9 @@ int cros_ec_get_sensor_count(struct cros_ec_dev *ec)
 	params = (struct ec_params_motion_sense *)msg->data;
 	params->cmd = MOTIONSENSE_CMD_DUMP;
 
-	ret = cros_ec_cmd_xfer(ec->ec_dev, msg);
+	ret = cros_ec_cmd_xfer_status(ec->ec_dev, msg);
 	if (ret < 0) {
 		sensor_count = ret;
-	} else if (msg->result != EC_RES_SUCCESS) {
-		sensor_count = -EPROTO;
 	} else {
 		resp = (struct ec_response_motion_sense *)msg->data;
 		sensor_count = resp->dump.sensor_count;
@@ -863,9 +874,7 @@ int cros_ec_get_sensor_count(struct cros_ec_dev *ec)
 	 * Check legacy mode: Let's find out if sensors are accessible
 	 * via LPC interface.
 	 */
-	if (sensor_count == -EPROTO &&
-	    ec->cmd_offset == 0 &&
-	    ec_dev->cmd_readmem) {
+	if (sensor_count < 0 && ec->cmd_offset == 0 && ec_dev->cmd_readmem) {
 		ret = ec_dev->cmd_readmem(ec_dev, EC_MEMMAP_ACC_STATUS,
 				1, &status);
 		if (ret >= 0 &&
@@ -880,9 +889,6 @@ int cros_ec_get_sensor_count(struct cros_ec_dev *ec)
 			 */
 			sensor_count = 0;
 		}
-	} else if (sensor_count == -EPROTO) {
-		/* EC responded, but does not understand DUMP command. */
-		sensor_count = 0;
 	}
 	return sensor_count;
 }
