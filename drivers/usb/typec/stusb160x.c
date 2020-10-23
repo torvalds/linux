@@ -545,7 +545,7 @@ static int stusb160x_get_fw_caps(struct stusb160x *chip,
 	ret = fwnode_property_read_string(fwnode, "power-role", &cap_str);
 	if (!ret) {
 		chip->port_type = typec_find_port_power_role(cap_str);
-		if (chip->port_type < 0) {
+		if ((int)chip->port_type < 0) {
 			ret = chip->port_type;
 			return ret;
 		}
@@ -567,9 +567,10 @@ static int stusb160x_get_fw_caps(struct stusb160x *chip,
 	if (!ret) {
 		chip->pwr_opmode = typec_find_pwr_opmode(cap_str);
 		/* Power delivery not yet supported */
-		if (chip->pwr_opmode < 0 ||
+		if ((int)chip->pwr_opmode < 0 ||
 		    chip->pwr_opmode == TYPEC_PWR_MODE_PD) {
-			ret = chip->pwr_opmode < 0 ? chip->pwr_opmode : -EINVAL;
+			ret = (int)chip->pwr_opmode < 0 ? chip->pwr_opmode :
+							  -EINVAL;
 			dev_err(chip->dev, "bad power operation mode: %d\n",
 				chip->pwr_opmode);
 			return ret;
