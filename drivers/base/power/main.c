@@ -441,9 +441,9 @@ static pm_callback_t pm_noirq_op(const struct dev_pm_ops *ops, pm_message_t stat
 
 static void pm_dev_dbg(struct device *dev, pm_message_t state, const char *info)
 {
-	dev_dbg(dev, "%s%s%s\n", info, pm_verb(state.event),
+	dev_dbg(dev, "%s%s%s driver flags: %x\n", info, pm_verb(state.event),
 		((state.event & PM_EVENT_SLEEP) && device_may_wakeup(dev)) ?
-		", may wakeup" : "");
+		", may wakeup" : "", dev->power.driver_flags);
 }
 
 static void pm_dev_err(struct device *dev, pm_message_t state, const char *info,
