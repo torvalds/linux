@@ -67,7 +67,7 @@
 #ifdef CONFIG_ADAPTIVE_SOML
 
 struct adaptive_soml {
-	u8			rvrt_val;
+	u32			rvrt_val; /*all rvrt_val for pause API must set to u32*/
 	boolean			is_soml_method_enable;
 	boolean			get_stats;
 	u8			soml_on_off;

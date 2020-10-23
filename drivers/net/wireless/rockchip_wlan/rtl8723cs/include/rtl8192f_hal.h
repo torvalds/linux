@@ -117,7 +117,13 @@ typedef struct _RT_8192F_FIRMWARE_HDR {
  * NS offload: 2 NDP info: 1
  */
 #ifdef CONFIG_WOWLAN
-	#define WOWLAN_PAGE_NUM_8192F	0x07
+	#ifdef CONFIG_WOW_KEEP_ALIVE_PATTERN
+	#define WOWLAN_KEEP_ALIVE_PAGE 0x02 /*for keep alive packet*/
+	#else
+	#define WOWLAN_KEEP_ALIVE_PAGE	0x00
+	#endif /*CONFIG_WOW_KEEP_ALIVE_PATTERN*/
+	/* 7 pages for wow rsvd page + 2 pages for pattern */
+	#define WOWLAN_PAGE_NUM_8192F	(0x09 + WOWLAN_KEEP_ALIVE_PAGE)
 #else
 	#define WOWLAN_PAGE_NUM_8192F	0x00
 #endif
@@ -234,10 +240,10 @@ void Hal_InitPGData(PADAPTER padapter, u8 *PROMContent);
 void Hal_EfuseParseIDCode(PADAPTER padapter, u8 *hwinfo);
 void Hal_EfuseParseTxPowerInfo_8192F(PADAPTER padapter,
 					u8 *PROMContent, BOOLEAN AutoLoadFail);
-/*
+#ifdef CONFIG_BT_COEXIST
 void Hal_EfuseParseBTCoexistInfo_8192F(PADAPTER padapter,
 				       u8 *hwinfo, BOOLEAN AutoLoadFail);
-*/
+#endif /* CONFIG_BT_COEXIST */
 void Hal_EfuseParseEEPROMVer_8192F(PADAPTER padapter,
 				   u8 *hwinfo, BOOLEAN AutoLoadFail);
 void Hal_EfuseParseChnlPlan_8192F(PADAPTER padapter,

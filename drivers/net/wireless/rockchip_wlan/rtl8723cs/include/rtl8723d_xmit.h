@@ -477,9 +477,7 @@ void rtl8723d_fill_txdesc_vcs(PADAPTER padapter, struct pkt_attrib *pattrib, str
 void rtl8723d_fill_txdesc_phy(PADAPTER padapter, struct pkt_attrib *pattrib, struct tx_desc *ptxdesc);
 void rtl8723d_fill_fake_txdesc(PADAPTER padapter, u8 *pDesc, u32 BufferLen, u8 IsPsPoll, u8 IsBTQosNull, u8 bDataFrame);
 
-#if defined(CONFIG_CONCURRENT_MODE)
-	void fill_txdesc_force_bmc_camid(struct pkt_attrib *pattrib, u8 *ptxdesc);
-#endif
+void fill_txdesc_force_bmc_camid(struct pkt_attrib *pattrib, u8 *ptxdesc);
 void fill_txdesc_bmc_tx_rate(struct pkt_attrib *pattrib, u8 *ptxdesc);
 
 #if defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
@@ -487,6 +485,9 @@ void fill_txdesc_bmc_tx_rate(struct pkt_attrib *pattrib, u8 *ptxdesc);
 	void rtl8723ds_free_xmit_priv(PADAPTER padapter);
 	s32 rtl8723ds_hal_xmit(PADAPTER padapter, struct xmit_frame *pxmitframe);
 	s32 rtl8723ds_mgnt_xmit(PADAPTER padapter, struct xmit_frame *pmgntframe);
+#ifdef CONFIG_RTW_MGMT_QUEUE
+	s32 rtl8723ds_hal_mgmt_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
+#endif
 	s32	rtl8723ds_hal_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
 	s32 rtl8723ds_xmit_buf_handler(PADAPTER padapter);
 	thread_return rtl8723ds_xmit_thread(thread_context context);
@@ -500,6 +501,9 @@ void fill_txdesc_bmc_tx_rate(struct pkt_attrib *pattrib, u8 *ptxdesc);
 	void rtl8723du_free_xmit_priv(PADAPTER padapter);
 	s32 rtl8723du_hal_xmit(PADAPTER padapter, struct xmit_frame *pxmitframe);
 	s32 rtl8723du_mgnt_xmit(PADAPTER padapter, struct xmit_frame *pmgntframe);
+#ifdef CONFIG_RTW_MGMT_QUEUE
+	s32 rtl8723du_hal_mgmt_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
+#endif
 	s32	 rtl8723du_hal_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
 	void rtl8723du_xmit_tasklet(void *priv);
 	s32 rtl8723du_xmitframe_complete(_adapter *padapter, struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf);
@@ -513,6 +517,9 @@ void fill_txdesc_bmc_tx_rate(struct pkt_attrib *pattrib, u8 *ptxdesc);
 	void	rtl8723de_xmitframe_resume(_adapter *padapter);
 	s32 rtl8723de_hal_xmit(PADAPTER padapter, struct xmit_frame *pxmitframe);
 	s32 rtl8723de_mgnt_xmit(PADAPTER padapter, struct xmit_frame *pmgntframe);
+#ifdef CONFIG_RTW_MGMT_QUEUE
+	s32 rtl8723de_hal_mgmt_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
+#endif
 	s32	rtl8723de_hal_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
 	void rtl8723de_xmit_tasklet(void *priv);
 #endif

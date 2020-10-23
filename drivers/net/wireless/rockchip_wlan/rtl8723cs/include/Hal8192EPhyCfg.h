@@ -92,16 +92,6 @@ PHY_SetTxPowerIndex_8192E(
 		u8					Rate
 );
 
-u8
-PHY_GetTxPowerIndex_8192E(
-		PADAPTER			pAdapter,
-		enum rf_path			RFPath,
-		u8					Rate,
-		u8					BandWidth,
-		u8					Channel,
-	struct txpwr_idx_comp *tic
-);
-
 /*
  * channel switch related funciton
  *   */

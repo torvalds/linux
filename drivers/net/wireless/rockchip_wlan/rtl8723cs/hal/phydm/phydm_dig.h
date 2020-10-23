@@ -26,10 +26,11 @@
 #ifndef __PHYDMDIG_H__
 #define __PHYDMDIG_H__
 
-#define DIG_VERSION "2.3"
+/* 2019.10.25 remove redundant code*/
+#define DIG_VERSION "3.7"
 
 #define	DIG_HW		0
-#define DIG_LIMIT_PERIOD 60 /*@60 sec*/
+#define DIG_LIMIT_PERIOD 60 /*60 sec*/
 
 /*@--------------------Define ---------------------------------------*/
 
@@ -81,15 +82,21 @@
 #define DIG_RECORD_NUM			4
 
 /*@--------------------Enum-----------------------------------*/
-enum dig_goupcheck_level {
-	DIG_GOUPCHECK_LEVEL_0,
-	DIG_GOUPCHECK_LEVEL_1,
-	DIG_GOUPCHECK_LEVEL_2
-};
-
 enum phydm_dig_mode {
 	PHYDM_DIG_PERFORAMNCE_MODE	= 0,
 	PHYDM_DIG_COVERAGE_MODE		= 1,
+};
+
+enum phydm_dig_trend {
+	DIG_STABLE			= 0,
+	DIG_INCREASING			= 1,
+	DIG_DECREASING			= 2
+};
+
+enum phydm_fw_dig_mode_e {
+	DIG_PERFORMANCE_MODE	= 0,
+	DIG_COVERAGE_MODE	= 1,
+	DIG_LPS_MODE		= 2
 };
 
 #ifdef PHYDM_TDMA_DIG_SUPPORT
@@ -141,24 +148,26 @@ struct phydm_dig_struct {
 	struct phydm_dig_recorder_strcut dig_recorder_t;
 	u8		dig_dl_en; /*@damping limit function enable*/
 #endif
+	boolean		fw_dig_enable;
 	boolean		is_dbg_fa_th;
 	u8		cur_ig_value;
-	u8		rvrt_val;
+	boolean		igi_dyn_up_hit;
+	u8		igi_trend;
+	u32		rvrt_val; /*all rvrt_val for pause API must set to u32*/
 	u8		igi_backup;
 	u8		rx_gain_range_max;	/*@dig_dynamic_max*/
 	u8		rx_gain_range_min;	/*@dig_dynamic_min*/
 	u8		dm_dig_max;		/*@Absolutly upper bound*/
 	u8		dm_dig_min;		/*@Absolutly lower bound*/
 	u8		dig_max_of_min;		/*@Absolutly max of min*/
-	boolean		is_media_connect;
 	u32		ant_div_rssi_max;
 	u8		*is_p2p_in_process;
-	enum dig_goupcheck_level	go_up_chk_lv;
 	u16		fa_th[3];
 #if (RTL8822B_SUPPORT || RTL8197F_SUPPORT || RTL8821C_SUPPORT ||\
 	RTL8198F_SUPPORT || RTL8192F_SUPPORT || RTL8195B_SUPPORT ||\
 	RTL8822C_SUPPORT || RTL8814B_SUPPORT || RTL8721D_SUPPORT ||\
-	RTL8812F_SUPPORT || RTL8197G_SUPPORT)
+	RTL8710C_SUPPORT || RTL8812F_SUPPORT || RTL8197G_SUPPORT ||\
+	RTL8723F_SUPPORT)
 	u8		rf_gain_idx;
 	u8		agc_table_idx;
 	u8		big_jump_lmt[16];
@@ -190,6 +199,8 @@ struct phydm_dig_struct {
 	u8		tdma_rx_gain_min[DIG_NUM_OF_TDMA_STATES];
 			/*To distinguish current state(L-sate or H-state)*/
 #endif
+	u8		tdma_force_l_igi;
+	u8		tdma_force_h_igi;
 #endif
 };
 
@@ -197,7 +208,8 @@ struct phydm_fa_struct {
 	u32		cnt_parity_fail;
 	u32		cnt_rate_illegal;
 	u32		cnt_crc8_fail;
-	u32		cnt_crc8_fail_vht;
+	u32		cnt_crc8_fail_vhta;
+	u32		cnt_crc8_fail_vhtb;
 	u32		cnt_mcs_fail;
 	u32		cnt_mcs_fail_vht;
 	u32		cnt_ofdm_fail;
@@ -230,6 +242,19 @@ struct phydm_fa_struct {
 	boolean		ofdm_block_enable;
 	u32		dbg_port0;
 	boolean		edcca_flag;
+	u8		ofdm2_rate_idx;
+	u32		cnt_ofdm2_crc32_error;
+	u32		cnt_ofdm2_crc32_ok;
+	u8		ofdm2_pcr;
+	u8		ht2_rate_idx;
+	u32		cnt_ht2_crc32_error;
+	u32		cnt_ht2_crc32_ok;
+	u8		ht2_pcr;
+	u8		vht2_rate_idx;
+	u32		cnt_vht2_crc32_error;
+	u32		cnt_vht2_crc32_ok;
+	u8		vht2_pcr;
+
 };
 
 #ifdef PHYDM_TDMA_DIG_SUPPORT
@@ -277,6 +302,13 @@ void phydm_set_dig_val(void *dm_void, u32 *val_buf, u8 val_len);
 void odm_pause_dig(void *dm_void, enum phydm_pause_type pause_type,
 		   enum phydm_pause_level pause_level, u8 igi_value);
 
+#ifdef PHYDM_HW_IGI
+void phydm_hwigi(void *dm_void);
+
+void phydm_hwigi_dbg(void *dm_void, char input[][16], u32 *_used,
+		     char *output, u32 *_out_len);
+#endif
+
 void phydm_dig_init(void *dm_void);
 
 void phydm_dig(void *dm_void);
@@ -285,7 +317,13 @@ void phydm_dig_lps_32k(void *dm_void);
 
 void phydm_dig_by_rssi_lps(void *dm_void);
 
+void phydm_get_dig_coverage(void *dm_void, u8 *max, u8 *min);
+
+u8 phydm_get_igi_for_target_pin_scan(void *dm_void, u8 rssi);
+
 void phydm_false_alarm_counter_statistics(void *dm_void);
+
+u32 phydm_get_edcca_report(void * dm_void);
 
 #ifdef PHYDM_TDMA_DIG_SUPPORT
 void phydm_set_tdma_dig_timer(void *dm_void);
@@ -329,9 +367,14 @@ void phydm_set_ofdm_agc_tab(void *dm_void, u8 tab_sel);
 void phydm_dig_debug(void *dm_void, char input[][16], u32 *_used, char *output,
 		     u32 *_out_len);
 
+void phydm_fill_fw_dig_info(void *dm_void, boolean *enable,
+			    u8 *para4, u8 *para8);
+
+void phydm_crc32_cnt_dbg(void *dm_void, char input[][16], u32 *_used,
+			 char *output, u32 *_out_len);
+
 #ifdef CONFIG_MCC_DM
 void phydm_mcc_igi_cal(void *dm_void);
 #endif
-
 
 #endif

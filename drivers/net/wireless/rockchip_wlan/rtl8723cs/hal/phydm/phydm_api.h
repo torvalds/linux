@@ -26,12 +26,21 @@
 #ifndef __PHYDM_API_H__
 #define __PHYDM_API_H__
 
-#define PHYDM_API_VERSION "1.0" /* @2017.07.10  Dino, Add phydm_api.h*/
+/* 2019.10.22 Add get/shift rxagc API for 8822C*/
+#define PHYDM_API_VERSION "2.3"
 
 /* @1 ============================================================
  * 1  Definition
  * 1 ============================================================
  */
+#define N_IC_TX_OFFEST_5_BIT (ODM_RTL8188E | ODM_RTL8192E)
+
+#define N_IC_TX_OFFEST_6_BIT (ODM_RTL8723D | ODM_RTL8197F | ODM_RTL8710B |\
+			ODM_RTL8723B | ODM_RTL8703B | ODM_RTL8195A |\
+			ODM_RTL8188F)
+
+#define N_IC_TX_OFFEST_7_BIT (ODM_RTL8721D | ODM_RTL8710C)
+
 #define CN_CNT_MAX 10 /*@max condition number threshold*/
 
 #define FUNC_ENABLE 1
@@ -78,6 +87,7 @@ struct phydm_api_stuc {
 	u32 rxiqc_reg2; /*N-mode: for pathB REG0xc1c*/
 	u8 tx_queue_bitmap; /*REG0x520[23:16]*/
 	u8 ccktx_path;
+	u8 pri_ch_idx;
 };
 
 /* @1 ============================================================
@@ -89,6 +99,8 @@ struct phydm_api_stuc {
  * 1  function prototype
  * 1 ============================================================
  */
+enum channel_width phydm_rxsc_2_bw(void *dm_void, u8 rxsc);
+
 void phydm_reset_bb_hw_cnt(void *dm_void);
 
 void phydm_dynamic_ant_weighting(void *dm_void);
@@ -100,7 +112,7 @@ void phydm_ant_weight_dbg(void *dm_void, char input[][16], u32 *_used,
 
 void phydm_trx_antenna_setting_init(void *dm_void, u8 num_rf_path);
 
-void phydm_config_ofdm_rx_path(void *dm_void, u32 path);
+void phydm_config_ofdm_rx_path(void *dm_void, enum bb_path path);
 
 void phydm_config_cck_rx_path(void *dm_void, enum bb_path path);
 
@@ -109,6 +121,10 @@ void phydm_config_cck_rx_antenna_init(void *dm_void);
 void phydm_config_trx_path(void *dm_void, char input[][16], u32 *_used,
 			   char *output, u32 *_out_len);
 
+void phydm_config_ofdm_tx_path(void *dm_void, enum bb_path path);
+
+void phydm_config_cck_tx_path(void *dm_void, enum bb_path path);
+
 void phydm_tx_2path(void *dm_void);
 
 void phydm_stop_3_wire(void *dm_void, u8 set_type);
@@ -116,6 +132,10 @@ void phydm_stop_3_wire(void *dm_void, u8 set_type);
 u8 phydm_stop_ic_trx(void *dm_void, u8 set_type);
 
 void phydm_dis_cck_trx(void *dm_void, u8 set_type);
+
+void phydm_bw_fixed_enable(void *dm_void, u8 enable);
+
+void phydm_bw_fixed_setting(void *dm_void);
 
 void phydm_set_ext_switch(void *dm_void, u32 ext_ant_switch);
 
@@ -137,7 +157,13 @@ void phydm_stop_ck320(void *dm_void, u8 enable);
 
 boolean
 phydm_set_bb_txagc_offset(void *dm_void, s8 power_offset, u8 add_half_db);
+
+boolean phydm_spur_case_mapping(void *dm_void);
+
+enum odm_rf_band phydm_ch_to_rf_band(void *dm_void, u8 central_ch);
 #ifdef PHYDM_IC_JGR3_SERIES_SUPPORT
+u32 phydm_rf_psd_jgr3(void *dm_void, u8 path, u32 tone_idx);
+
 u8 phydm_csi_mask_setting_jgr3(void *dm_void, u32 enable, u32 ch, u32 bw,
 			       u32 f_intf, u32 sec_ch, u8 wgt);
 
@@ -159,6 +185,8 @@ void phydm_user_position_for_sniffer(void *dm_void, u8 user_position);
 #endif
 
 #ifdef PHYDM_COMMON_API_SUPPORT
+void phydm_reset_txagc(void *dm_void);
+
 boolean
 phydm_api_shift_txagc(void *dm_void, u32 pwr_offset, enum rf_path path,
 		      boolean is_positive);
@@ -180,6 +208,10 @@ boolean
 phydm_api_trx_mode(void *dm_void, enum bb_path tx_path, enum bb_path rx_path,
 		   enum bb_path tx_path_ctrl);
 
+#endif
+
+#ifdef PHYDM_COMMON_API_NOT_SUPPORT
+u8 config_phydm_read_txagc_n(void *dm_void, enum rf_path path, u8 hw_rate);
 #endif
 
 #ifdef CONFIG_MCC_DM

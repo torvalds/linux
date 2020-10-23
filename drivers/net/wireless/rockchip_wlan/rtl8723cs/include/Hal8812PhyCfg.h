@@ -92,14 +92,7 @@ PHY_SwitchWirelessBand8812(
  *   */
 void	PHY_SetTxPowerLevel8812(PADAPTER	Adapter, u8	Channel);
 
-u8 PHY_GetTxPowerIndex_8812A(
-		PADAPTER			pAdapter,
-		enum rf_path			RFPath,
-		u8					Rate,
-		u8					BandWidth,
-		u8					Channel,
-	struct txpwr_idx_comp *tic
-);
+bool phy_get_txpwr_target_skip_by_rate_8812a(_adapter *adapter, enum MGN_RATE rate);
 
 u32 phy_get_tx_bb_swing_8812a(
 		PADAPTER	Adapter,

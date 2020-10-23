@@ -50,8 +50,15 @@
 #endif
 
 #if (RTL8814B_SUPPORT == 1)
-	#include "halrf/rtl8814b/halrf_iqk_8814b.h"	
+	#include "halrf/rtl8814b/halrf_iqk_8814b.h"
 	#include "halrf/rtl8814b/halrf_dpk_8814b.h"
+	#include "halrf/rtl8814b/halrf_txgapk_8814b.h"
+#endif
+
+#if (RTL8197G_SUPPORT == 1)
+	#include "halrf/rtl8197g/halrf_iqk_8197g.h"
+	#include "halrf/rtl8197g/halrf_dpk_8197g.h"
+	#include "halrf/rtl8197g/halrf_tssi_8197g.h"
 #endif
 
 enum pwrtrack_method {
@@ -67,6 +74,7 @@ enum pwrtrack_method {
 typedef void	(*func_set_pwr)(void *, enum pwrtrack_method, u8, u8);
 typedef void(*func_iqk)(void *, u8, u8, u8);
 typedef void	(*func_lck)(void *);
+typedef void	(*func_tssi_dck)(void *, u8);
 /* refine by YuChen for 8814A */
 typedef void	(*func_swing)(void *, u8 **, u8 **, u8 **, u8 **);
 typedef void	(*func_swing8814only)(void *, u8 **, u8 **, u8 **, u8 **);
@@ -84,6 +92,7 @@ struct txpwrtrack_cfg {
 	func_set_pwr	odm_tx_pwr_track_set_pwr;
 	func_iqk	do_iqk;
 	func_lck		phy_lc_calibrate;
+	func_tssi_dck	do_tssi_dck;
 	func_swing	get_delta_swing_table;
 	func_swing8814only	get_delta_swing_table8814only;
 	func_all_swing		get_delta_all_swing_table;
@@ -133,7 +142,7 @@ odm_txpowertracking_callback_thermal_meter_jaguar_series3(
 	void		*dm_void
 );
 
-#elif (RTL8814B_SUPPORT == 1)
+#elif (RTL8814B_SUPPORT == 1 || RTL8812F_SUPPORT == 1 || RTL8822C_SUPPORT == 1 || RTL8197G_SUPPORT == 1)
 void
 odm_txpowertracking_callback_thermal_meter_jaguar_series4(
 	void		*dm_void

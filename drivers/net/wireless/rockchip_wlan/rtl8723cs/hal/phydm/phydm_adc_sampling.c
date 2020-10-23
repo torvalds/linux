@@ -92,7 +92,7 @@ void phydm_la_pre_run(void *dm_void)
 	/*r_dma_trigger_AND1_inv = 1*/
 	odm_set_bb_reg(dm, R_0x1ce8, BIT5, 1); /*@AND 1 val*/
 	/* polling bit for BB ADC mode */
-	odm_set_mac_reg(dm, 0x7c0, BIT(1), 1);
+	odm_set_mac_reg(dm, R_0x7c0, BIT(1), 1);
 
 	pr_debug("buf[end:start]=(0x%x~0x%x)\n", buf->end_pos, buf->start_pos);
 
@@ -117,7 +117,7 @@ void phydm_la_pre_run(void *dm_void)
 }
 #endif
 
-#if (RTL8821C_SUPPORT | RTL8195B_SUPPORT)
+#if (RTL8821C_SUPPORT || RTL8195B_SUPPORT)
 void
 phydm_la_clk_en(void *dm_void, boolean enable)
 {
@@ -132,6 +132,20 @@ phydm_la_clk_en(void *dm_void, boolean enable)
 		return;
 
 	odm_set_bb_reg(dm, R_0x95c, BIT(23), val);
+}
+#endif
+
+#if (RTL8723F_SUPPORT)
+void
+phydm_la_mac_clk_en(void *dm_void, boolean enable)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	u8 val = (enable) ? 1 : 0;
+
+	if (!(dm->support_ic_type & ODM_RTL8723F))
+		return;
+
+	odm_set_mac_reg(dm, R_0x1008, BIT(1), val);
 }
 #endif
 
@@ -167,8 +181,8 @@ phydm_la_mv_data_2_tx_buffer(void *dm_void)
 	if (!(dm->support_ic_type & PHYDM_LA_STORE_IN_IMEM_IC))
 		return;
 
-	pr_debug("98F GetTxPktBuf from iMEM\n");
-	odm_set_bb_reg(dm, R_0x7c0, BIT(0), 0x0); /*Disable LA mode HW block*/
+	pr_debug("GetTxPktBuf from iMEM\n");
+	odm_set_mac_reg(dm, R_0x7c0, BIT(0), 0x0); /*Disable LA mode HW block*/
 
 	/* 98F LA memory loccation is separate from normal
 	 * driver use, DMA is no longer required to stop
@@ -198,20 +212,8 @@ void phydm_la_bb_adv_reset_jgr3(void *dm_void)
 	struct rt_adcsmp *smp = &dm->adcsmp;
 	struct la_adv_trig *adv = &smp->adv_trig_table;
 
-#if 1
 	odm_memory_set(dm, adv, 0, sizeof(struct la_adv_trig));
-#else
-	adv->la_en_new_bbtrigger = false;
-	adv->la_ori_bb_dis = false;
-	adv->la_and1_sel = 0;
-	adv->la_and1_val = 0;
-	adv->la_and2_sel = 0;
-	adv->la_and2_val = 0;
-	adv->la_and3_sel = 0;
-	adv->la_and3_val = 0;
-	adv->la_and4_mask = 0;
-	adv->la_and4_bitmap = 0;
-#endif
+
 }
 
 void phydm_la_bb_adv_trig_setting_jgr3(void *dm_void)
@@ -219,11 +221,10 @@ void phydm_la_bb_adv_trig_setting_jgr3(void *dm_void)
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 	struct rt_adcsmp *smp = &dm->adcsmp;
 	struct la_adv_trig *adv = &smp->adv_trig_table;
-	boolean adv_bb_trig_en = adv->la_en_new_bbtrigger;
 
-	pr_debug(" *ADV BB-trig = %d\n", adv_bb_trig_en);
+	pr_debug(" *ADV BB-trig = %d\n", adv->la_adv_bbtrigger_en);
 
-	if (!adv_bb_trig_en) { /*normal LA mode & back to default*/
+	if (!adv->la_adv_bbtrigger_en) { /*normal LA mode & back to default*/
 		/*@AND0*/
 		odm_set_bb_reg(dm, R_0x1ce4, BIT(27), 0);
 
@@ -240,7 +241,7 @@ void phydm_la_bb_adv_trig_setting_jgr3(void *dm_void)
 		odm_set_bb_reg(dm, R_0x1cf0, MASKDWORD, 0); /*@AND 4 mask en*/
 		odm_set_bb_reg(dm, R_0x1ce8, BIT(26), 0); /*@AND 4 inv*/
 	} else {
-		/* @AND0 */
+		/*@AND0 */
 		/*path 1 default: enable ori. BB trigger*/
 		odm_set_bb_reg(dm, R_0x1ce4, BIT(27),
 			       (adv->la_ori_bb_dis ? 1 : 0));
@@ -250,17 +251,17 @@ void phydm_la_bb_adv_trig_setting_jgr3(void *dm_void)
 		odm_set_bb_reg(dm, R_0x1ce4, MASKH4BITS, adv->la_and1_sel);
 		odm_set_bb_reg(dm, R_0x1ce8, 0x1f, adv->la_and1_val);
 
-		/* @AND2 */
+		/*@AND2 */
 		odm_set_bb_reg(dm, R_0x1ce8, BIT(15), adv->la_and2_inv);
 		odm_set_bb_reg(dm, R_0x1ce8, 0x3c0, adv->la_and2_sel);
 		odm_set_bb_reg(dm, R_0x1ce8, 0x7c00, adv->la_and2_val);
 
-		/* @AND3 */
+		/*@AND3 */
 		odm_set_bb_reg(dm, R_0x1ce8, BIT(25), adv->la_and3_inv);
 		odm_set_bb_reg(dm, R_0x1ce8, 0xf0000, adv->la_and3_sel);
 		odm_set_bb_reg(dm, R_0x1ce8, 0x1f00000, adv->la_and3_val);
 
-		/* @AND4 */
+		/*@AND4 */
 		odm_set_bb_reg(dm, R_0x1ce8, BIT(26), adv->la_and4_inv);
 		odm_set_bb_reg(dm, R_0x1cf0, MASKDWORD, adv->la_and4_mask);
 		odm_set_bb_reg(dm, R_0x1cec, MASKDWORD, adv->la_and4_bitmap);
@@ -318,7 +319,7 @@ void phydm_la_bb_adv_cmd_jgr3(void *dm_void, char input[][16], u32 *_used,
 		return;
 	}
 
-	adv->la_en_new_bbtrigger = true;
+	adv->la_adv_bbtrigger_en = true;
 
 	if (var1[1] == 0) {
 		adv->la_ori_bb_dis = (boolean)var1[2];
@@ -335,8 +336,8 @@ void phydm_la_bb_adv_cmd_jgr3(void *dm_void, char input[][16], u32 *_used,
 		adv->la_and3_val = (u8)var1[3];
 		adv->la_and2_inv = (boolean)var1[4];
 	}  else if (var1[1] == 4) {
-		adv->la_and4_mask = (u8)var1[2];
-		adv->la_and4_bitmap = (u8)var1[3];
+		adv->la_and4_mask = var1[2];
+		adv->la_and4_bitmap = var1[3];
 		adv->la_and4_inv = (boolean)var1[4];
 	}
 
@@ -346,34 +347,391 @@ void phydm_la_bb_adv_cmd_jgr3(void *dm_void, char input[][16], u32 *_used,
 	phydm_la_bb_adv_cmd_show_jgr3(dm, _used, output, _out_len);
 }
 
+void phydm_la_cmd_fast_jgr3(void *dm_void, char input[][16], u32 *_used,
+			    char *output, u32 *_out_len)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	struct rt_adcsmp *smp = &dm->adcsmp;
+	struct la_adv_trig *adv = &smp->adv_trig_table;
+	enum auto_detection_state ad_mode;
+	const u8 ofdm_codeword[8] = {0xb, 0xf, 0xa, 0xe, 0x9, 0xd, 0x8, 0xc};
+	u32 codeword;
+	u8 rate_idx;
+	u32 trig_time_cca = 0;
+	s32 val_sign32_tmp = 0;
+	u32 var[10] = {0};
+	u8 bw = *dm->band_width;
+
+	if (!(dm->support_ic_type & ODM_IC_JGR3_SERIES)) {
+		PDM_SNPF(*_out_len, *_used, output + *_used, *_out_len - *_used,
+			 "Only Support for JGR-3 ICs\n");
+		return;
+	}
+
+	if (bw > 2) {
+		PDM_SNPF(*_out_len, *_used, output + *_used, *_out_len - *_used,
+			 "Not Support for BW > %dM\n", 20 << bw);
+		return;
+	}
+
+	PHYDM_SSCANF(input[2], DCMD_DECIMAL, &var[0]);
+	PHYDM_SSCANF(input[3], DCMD_DECIMAL, &var[1]);
+	PHYDM_SSCANF(input[4], DCMD_DECIMAL, &var[2]);
+
+	trig_time_cca = ((smp->smp_number_max >> (bw + 1)) / 10)
+			- (2 << (2 - bw)) - (2 - bw);
+
+	if (var[0] < 10) {
+	/*=== [Type: 0 ~ 10] : CCA P-edge trigger ==========================*/
+		/*--- Basic Trigger Setting --------------------------------*/
+		smp->la_trig_mode = 1;
+		smp->la_trig_sig_sel = 2;
+		smp->la_trigger_time = trig_time_cca;
+		smp->la_mac_mask_or_hdr_sel = 0;
+		smp->la_trigger_edge = 0;
+		smp->la_smp_rate = 2 - bw;
+		smp->la_count = 0;
+		if (var[0] == 0) { /*AGC*/
+			smp->la_dma_type = 5;
+			smp->la_dbg_port = 0x870;
+		} else if (var[0] == 1) { /*EVM*/
+			smp->la_dma_type = 4;
+			smp->la_dbg_port = 0x392;
+		} else if (var[0] == 2) { /*SNR*/
+			smp->la_dma_type = 4;
+			if (var[1] == 0)
+				smp->la_dbg_port = 0x89e;
+			else
+				smp->la_dbg_port = 0xa9e;
+		} else if (var[0] == 3) { /*CFO*/
+			smp->la_dma_type = 4;
+			if (var[1] == 0)
+				smp->la_dbg_port = 0x88c;
+			else
+				smp->la_dbg_port = 0xa8c;
+		}  else if (var[0] == 4) { /*ADC*/
+			if (var[1] == 0) {
+				smp->la_dma_type = 0;
+				smp->la_dbg_port = 0x880;
+			} else {
+				smp->la_dma_type = 1;
+				smp->la_dbg_port = 0xa80;
+			}
+		}
+		/*--- Adv-Trigger Setting------------------------------------*/
+		adv->la_adv_bbtrigger_en = false;
+	} else if (var[0] < 20) {
+	/*=== [Type: 10 ~ 19]: RX-EVM Trigger ===============================*/
+		/*--- Basic Trigger Setting ---------------------------------*/
+		smp->la_trig_mode = 0;
+		smp->la_trig_sig_sel = 0;
+		smp->la_mac_mask_or_hdr_sel = 0;
+		smp->la_trigger_edge = 0;
+		smp->la_smp_rate = 2 - bw;
+		smp->la_count = 0;
+		smp->la_dma_type = 4;
+		smp->la_dbg_port = 0x392;
+
+		/*--- Adv-Trigger Setting -----------------------------------*/
+		phydm_la_bb_adv_reset_jgr3(dm);
+		adv->la_adv_bbtrigger_en = true;
+
+		/*And[0]*/
+		adv->la_ori_bb_dis = true;
+
+		/*And[1]*/
+		adv->la_and1_inv = 0;
+		adv->la_and1_sel = 4; /*RX-state*/
+		if (var[2] == 0) {
+			/*L-preamble 8+8+4 = 20*/
+			smp->la_trigger_time = trig_time_cca - 20;
+			/*Legacy Data*/
+			adv->la_and1_val = 5;
+		} else if (var[2] == 1) {
+			/*HT-preamble (8+8+4) + (8+4+4*Nrx) = 32 + Nrx * 4*/
+			smp->la_trigger_time = trig_time_cca - 32 -
+					       (dm->num_rf_path * 4);
+			/*HT Data*/
+			adv->la_and1_val = 18;
+		} else {
+			/*VHT-preamble (8+8+4) + (8+4+4*Nrx) +4 = 36 + Nrx * 4*/
+			smp->la_trigger_time = trig_time_cca - 36 -
+					       (dm->num_rf_path * 4);
+			/*VHT Data*/
+			adv->la_and1_val = 18;
+		}
+
+		/*And[2]*/
+		adv->la_and2_inv = 0;
+		adv->la_and2_sel = 0; /*Disable*/
+
+		/*And[3]*/
+		adv->la_and2_inv = 0;
+		adv->la_and3_sel = 0; /*Disable*/
+
+		/*And[4]*/
+		adv->la_and4_inv = 0;
+
+		if (var[0] == 11) {
+			/*[>= -X dB]*/
+			if (var[1] == 2) {
+				adv->la_and4_bitmap = 0;
+				adv->la_and4_mask = 0x1;
+			} else if (var[1] == 4) {
+				adv->la_and4_bitmap = 0;
+				adv->la_and4_mask = 0x3;
+			} else if (var[1] == 8) {
+				adv->la_and4_bitmap = 0;
+				adv->la_and4_mask = 0x7;
+			} else if (var[1] == 16) {
+				adv->la_and4_bitmap = 0;
+				adv->la_and4_mask = 0xf;
+			} else if (var[1] == 32) {
+				adv->la_and4_bitmap = 0;
+				adv->la_and4_mask = 0x1f;
+			} else if (var[1] == 64) {
+				adv->la_and4_bitmap = 0;
+				adv->la_and4_mask = 0x3f;
+			} else {
+				PDM_SNPF(*_out_len, *_used, output + *_used,
+					 *_out_len - *_used,
+					 "Not Support >= -%d dB\n", var[1]);
+				return;
+			}
+		} else if (var[0] == 10) {
+			/*[<= -X dB]*/
+			if (var[1] == 2) {
+				adv->la_and4_bitmap = 0x7e;
+				adv->la_and4_mask = 0x7e;
+			} else if (var[1] == 4) {
+				adv->la_and4_bitmap = 0x7c;
+				adv->la_and4_mask = 0x7c;
+			} else if (var[1] == 8) {
+				adv->la_and4_bitmap = 0x78;
+				adv->la_and4_mask = 0x78;
+			} else if (var[1] == 16) {
+				adv->la_and4_bitmap = 0x70;
+				adv->la_and4_mask = 0x70;
+			} else if (var[1] == 32) {
+				adv->la_and4_bitmap = 0x60;
+				adv->la_and4_mask = 0x60;
+			} else if (var[1] == 64) {
+				adv->la_and4_bitmap = 0x40;
+				adv->la_and4_mask = 0x40;
+			} else {
+				PDM_SNPF(*_out_len, *_used, output + *_used,
+					 *_out_len - *_used,
+					 "Not Support <= -%d dB\n", var[1]);
+				return;
+			}
+		} else if (var[0] == 12) {
+			/*[= -X dB]*/
+			val_sign32_tmp = 0 - (s32)var[1];
+			adv->la_and4_bitmap = (u32)(val_sign32_tmp & 0x7f);
+			adv->la_and4_mask = 0x7f;
+		}
+	} else if (var[0] < 30) {
+	/*=== [Type: 20 ~ 29]: RX-Rate Trigger ==============================*/
+		/*--- Basic Trigger Setting ---------------------------------*/
+		smp->la_trig_mode = 0;
+		smp->la_trig_sig_sel = 0;
+		smp->la_mac_mask_or_hdr_sel = 0;
+		smp->la_trigger_edge = 0;
+		smp->la_smp_rate = 2 - bw;
+		smp->la_count = 0;
+		smp->la_dma_type = 4;
+
+		rate_idx = (u8)var[1];
+
+		/*--- Adv-Trigger Setting -----------------------------------*/
+		phydm_la_bb_adv_reset_jgr3(dm);
+		adv->la_adv_bbtrigger_en = true;
+
+		/*And[0]*/
+		adv->la_ori_bb_dis = true;
+
+		/*And[1]*/
+		adv->la_and1_inv = 0;
+		adv->la_and1_sel = 4; /*RX-state*/
+
+		if (rate_idx <= ODM_RATE54M && rate_idx >= ODM_RATE6M) {
+			ad_mode = AD_LEGACY_MODE;
+			codeword = (u32)ofdm_codeword[rate_idx - ODM_RATE6M];
+			smp->la_dbg_port = 0x3a9;
+			/*L-preamble 8+8 = 16*/
+			smp->la_trigger_time = trig_time_cca - 20;
+			/*Legacy Data*/
+			adv->la_and1_val = 5;
+		} else if (rate_idx <= ODM_RATEMCS31) {
+			ad_mode = AD_HT_MODE;
+			codeword = (u32)(rate_idx - ODM_RATEMCS0);
+			smp->la_dbg_port = 0x3aa;
+			/*HT-preamble (8+8+4) + (8+4+4*Nrx) = 32 + Nrx * 4*/
+			smp->la_trigger_time = trig_time_cca - 32 -
+					       (dm->num_rf_path * 4);
+			/*HT,VHT Data*/
+			adv->la_and1_val = 18;
+		} else if (rate_idx <= ODM_RATEVHTSS4MCS9) {
+			ad_mode = AD_VHT_MODE;
+			codeword = (u32)phydm_rate_order_compute(dm, rate_idx);
+			codeword--;
+			smp->la_dbg_port = 0x3ab;
+			/*VHT-preamble (8+8+4) + (8+4+4*Nrx) = 36 + Nrx * 4*/
+			smp->la_trigger_time = trig_time_cca - 36 -
+					       (dm->num_rf_path * 4);
+			/*HT,VHT Data*/
+			adv->la_and1_val = 18;
+		} else {
+			PDM_SNPF(*_out_len, *_used, output + *_used,
+				 *_out_len - *_used,
+				 "Not Support\n");
+			return;
+		}
+
+		/*And[2]*/
+		adv->la_and2_inv = 0;
+		adv->la_and2_sel = 0; /*Disable*/
+
+		/*And[3]*/
+		adv->la_and2_inv = 0;
+		adv->la_and3_sel = 0; /*Disable*/
+
+		/*And[4]*/
+		adv->la_and4_inv = 0;
+
+		if (var[0] == 20) {
+			if (ad_mode == AD_LEGACY_MODE) {
+				adv->la_and4_bitmap = codeword;
+				adv->la_and4_mask = 0x3000000f;
+			} else if (ad_mode == AD_HT_MODE) {
+				adv->la_and4_bitmap = (2 << 28) | codeword;
+				adv->la_and4_mask = 0x3000003f;
+			}  else { /* AD_VHT_MODE*/
+				adv->la_and4_bitmap = (1 << 28) |
+						      (codeword << 4);
+				adv->la_and4_mask = 0x300000f0;
+			}
+		} else {
+			PDM_SNPF(*_out_len, *_used, output + *_used,
+				 *_out_len - *_used,
+				 "Not Support\n");
+			return;
+		}
+	} else {
+		PDM_SNPF(*_out_len, *_used, output + *_used, *_out_len - *_used,
+			 "Not Support\n");
+		return;
+	}
+	PDM_SNPF(*_out_len, *_used, output + *_used, *_out_len - *_used,
+		 "[Basic-Trigger]\n");
+	PDM_SNPF(*_out_len, *_used, output + *_used, *_out_len - *_used,
+		 "  *echo lamode 1 %d %d %d %d %d %x %d %d %d\n\n",
+		 smp->la_trig_mode, smp->la_trig_sig_sel, smp->la_dma_type,
+		 smp->la_trigger_time, smp->la_mac_mask_or_hdr_sel,
+		 smp->la_dbg_port, smp->la_trigger_edge, smp->la_smp_rate,
+		 smp->la_count);
+	pr_debug("echo lamode 1 %d %d %d %d %d %x %d %d %d\n\n",
+		 smp->la_trig_mode, smp->la_trig_sig_sel, smp->la_dma_type,
+		 smp->la_trigger_time, smp->la_mac_mask_or_hdr_sel,
+		 smp->la_dbg_port, smp->la_trigger_edge, smp->la_smp_rate,
+		 smp->la_count);
+
+	if (adv->la_adv_bbtrigger_en) {
+		PDM_SNPF(*_out_len, *_used, output + *_used, *_out_len - *_used,
+			 "[Adv-Trigger]\n");
+		PDM_SNPF(*_out_len, *_used, output + *_used, *_out_len - *_used,
+			 "  *And0 Disable=%d\n", adv->la_ori_bb_dis);
+		PDM_SNPF(*_out_len, *_used, output + *_used, *_out_len - *_used,
+			 "  *And1{sel,val,inv}={0x%x,0x%x,%d}\n  *And2{sel,val,inv}={0x%x,0x%x,%d}\n  *And3{sel,val,inv}={0x%x,0x%x,%d}\n",
+			 adv->la_and1_sel, adv->la_and1_val, adv->la_and1_inv,
+			 adv->la_and2_sel, adv->la_and2_val, adv->la_and2_inv,
+			 adv->la_and3_sel, adv->la_and3_val, adv->la_and3_inv);
+		PDM_SNPF(*_out_len, *_used, output + *_used, *_out_len - *_used,
+			 "  *And4{mask,bitmap,inv}={0x%x,0x%x,%d}\n",
+			 adv->la_and4_mask, adv->la_and4_bitmap,
+			 adv->la_and4_inv);
+	}
+	phydm_la_set(dm);
+}
+
 #endif
 
 void
-phydm_la_buffer_print(void *dm_void)
+phydm_la_buffer_print(void *dm_void, char input[][16], u32 *_used,
+		      char *output, u32 *_out_len)
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 	struct rt_adcsmp *smp = &dm->adcsmp;
 	struct rt_adcsmp_string *buf = &smp->adc_smp_buf;
+	u64 la_pattern_msb, la_pattern_lsb;
+	u64 la_pattern, la_pattern_part;
+	s64 tmp_s64;
+	u64 mask = 0xffffffff;
+	u8 mask_length = 0;
 	u32 i;
 	u32 idx;
+	u32 var[10] = {0};
 
 	if (!buf->octet || buf->length == 0 || buf->length < smp->smp_number)
 		return;
 
+	PHYDM_SSCANF(input[2], DCMD_DECIMAL, &var[0]);
+	PHYDM_SSCANF(input[3], DCMD_DECIMAL, &var[1]);
+	PHYDM_SSCANF(input[4], DCMD_DECIMAL, &var[2]);
+	PHYDM_SSCANF(input[5], DCMD_DECIMAL, &var[3]);
+
+	pr_debug("echo lamode 1 %d %d %d %d %d %x %d %d %d\n\n",
+		 smp->la_trig_mode, smp->la_trig_sig_sel, smp->la_dma_type,
+		 smp->la_trigger_time, smp->la_mac_mask_or_hdr_sel,
+		 smp->la_dbg_port, smp->la_trigger_edge, smp->la_smp_rate,
+		 smp->la_count);
 	pr_debug("[LA Data Dump] smp_number = %d\n", smp->smp_number);
+	pr_debug("Dump_Start\n");
 
-	for (i = 0; i < smp->smp_number; i++) {
-		idx = i << 1;
+	if (var[0] == 0) {
+		for (i = 0; i < smp->smp_number; i++) {
+			idx = i << 1;
+			pr_debug("%08x%08x\n", buf->octet[idx],
+				 buf->octet[idx + 1]);
+		}
+	} else if (var[0] == 1) {
+		/*------------------------*/
+		if (var[1] == 0)
+			pr_debug("[Hex]\n");
+		else if (var[1] == 1)
+			pr_debug("[Dec unsigned]\n");
+		else if (var[1] == 2)
+			pr_debug("[Dec signed]\n");
 
-		#if 0 /*((DM_ODM_SUPPORT_TYPE & ODM_WIN) && !DBG)*/
-		/*WIN driver free build*/
-		RT_TRACE_EX(COMP_LA_MODE, DBG_LOUD, ("%08x%08x\n",
-			    buf->octet[idx], buf->octet[idx + 1]));
-		#else
-		pr_debug("%08x%08x\n", buf->octet[idx], buf->octet[idx + 1]);
-		#endif
+		pr_debug("BIT[%d:%d]\n", var[3], var[2]);
+
+		if (var[2] > var[3]) {
+			pr_debug("[Warning] BIT_L > BIT_H\n");
+			return;
+		}
+
+		mask_length = (u8)(var[3] - var[2] + 1);
+		mask = phydm_gen_bitmask(mask_length) << var[2];
+		/*------------------------*/
+		for (i = 0; i < smp->smp_number; i++) {
+			idx = i << 1;
+			la_pattern_msb = (u64)buf->octet[idx];
+			la_pattern_lsb = (u64)buf->octet[idx + 1];
+			la_pattern = (la_pattern_msb << 32) | la_pattern_lsb;
+			la_pattern_part = (la_pattern & mask) >> var[2];
+
+			if (var[1] == 0) {
+				pr_debug("0x%llx\n", la_pattern_part);
+			} else if (var[1] == 1) {
+				pr_debug("%llu\n", la_pattern_part);
+			} else if (var[1] == 2) {
+				tmp_s64 = phydm_cnvrt_2_sign_64(la_pattern_part,
+								mask_length);
+				pr_debug("%lld\n", tmp_s64);
+			}
+		}
 	}
-	pr_debug("Dump Finished\n\n");
+	pr_debug("Dump_End\n\n");
 }
 
 void
@@ -439,9 +797,9 @@ void phydm_la_access_tx_pkt_buf(void *dm_void, u32 addr, u32 buff_idx)
 					    &data_h, &data_l);
 		#else
 		odm_write_1byte(dm, R_0x0106, 0x69);
-		odm_set_bb_reg(dm, R_0x0140, MASKDWORD, addr >> 3);
-		data_l = odm_get_bb_reg(dm, R_0x0144, MASKDWORD);
-		data_h = odm_get_bb_reg(dm, R_0x0148, MASKDWORD);
+		odm_set_mac_reg(dm, R_0x0140, MASKDWORD, addr >> 3);
+		data_l = odm_get_mac_reg(dm, R_0x0144, MASKDWORD);
+		data_h = odm_get_mac_reg(dm, R_0x0148, MASKDWORD);
 		odm_write_1byte(dm, R_0x0106, 0x0);
 		#endif
 	} else
@@ -454,14 +812,18 @@ void phydm_la_access_tx_pkt_buf(void *dm_void, u32 addr, u32 buff_idx)
 
 		if (page != smp->txff_page) {
 			smp->txff_page = page;
-			odm_set_bb_reg(dm, R_0x0140, MASKLWORD, 0x780 + page);
+			odm_set_mac_reg(dm, R_0x0140, MASKLWORD, 0x780 + page);
 		}
-		data_l = odm_read_4byte(dm, 0x8000 + (addr & 0xfff));
-		data_h = odm_read_4byte(dm, 0x8000 + (addr & 0xfff) + 4);
+		data_l = odm_read_4byte(dm, R_0x8000 + (addr & 0xfff));
+		data_h = odm_read_4byte(dm, R_0x8000 + (addr & 0xfff) + 4);
 	}
 
 	buf->octet[buff_idx] = data_h;
 	buf->octet[buff_idx + 1] = data_l;
+
+	/*@==== [Print LA Patterns] ==========================================*/
+	if (smp->is_la_print)
+		pr_debug("%08x%08x\n", data_h, data_l);
 }
 
 void phydm_la_get_tx_pkt_buf(void *dm_void)
@@ -523,6 +885,7 @@ void phydm_la_get_tx_pkt_buf(void *dm_void)
 	}
 
 	/*@==== [Get LA Patterns in TXFF] ====================================*/
+	pr_debug("Dump_Start\n");
 	#ifdef PHYDM_COMPILE_LA_STORE_IN_IMEM
 	phydm_la_mv_data_2_tx_buffer(dm);
 	#endif
@@ -542,13 +905,10 @@ void phydm_la_get_tx_pkt_buf(void *dm_void)
 			addr = buf->start_pos; /*Ring buffer*/
 	}
 
-	/*@==== [Print LA Patterns] ==========================================*/
-	if (smp->is_la_print)
-		phydm_la_buffer_print(dm);
-
 	#if (RTL8197F_SUPPORT)
 	phydm_la_stop_dma_8197f(dm, PHYDM_RESTORE);
 	#endif
+	pr_debug("Dump_End\n");
 }
 
 void phydm_la_set_trig_src(void *dm_void, u8 la_trig_mode)
@@ -582,6 +942,11 @@ void phydm_la_set_mac_iq_dump(void *dm_void, boolean impossible_trig_condi)
 	odm_write_1byte(dm, reg1, 0); /*@clear all reg1*/
 	/*@Enable LA mode HW block*/
 	odm_set_mac_reg(dm, reg1, BIT(0), 1);
+
+	#if (RTL8723F_SUPPORT)
+	if (dm->support_ic_type & ODM_RTL8723F)
+		phydm_la_mac_clk_en(dm, true);
+	#endif
 
 	if (smp->la_trig_mode == PHYDM_MAC_TRIG) {
 		smp->la_dump_mode = LA_MAC_DBG_DUMP;
@@ -619,7 +984,7 @@ void phydm_la_set_mac_iq_dump(void *dm_void, boolean impossible_trig_condi)
 		odm_set_mac_reg(dm, reg1, BIT(1), 1);
 	}
 
-	reg_value = odm_get_bb_reg(dm, reg1, 0xff);
+	reg_value = odm_get_mac_reg(dm, reg1, 0xff);
 	pr_debug("4. [Set MAC IQ dump] 0x%x[7:0]=(0x%x)\n", reg1, reg_value);
 
 	#if (DM_ODM_SUPPORT_TYPE & ODM_WIN)
@@ -721,7 +1086,7 @@ void phydm_la_set_bb(void *dm_void)
 		 *	(6:) '1.25MHz'
 		 *	(7:) '160MHz (for BW160 ic)'
 		 */
-		#if (RTL8821C_SUPPORT | RTL8195B_SUPPORT)
+		#if (RTL8821C_SUPPORT || RTL8195B_SUPPORT)
 		phydm_la_clk_en(dm, true);
 		#endif
 
@@ -784,6 +1149,9 @@ void phydm_la_set_mac_trigger_time(void *dm_void, u32 trigger_time_mu_sec)
 		unit = 5; /*unit: 32mu sec*/
 	else if (trigger_time_mu_sec < 8192)
 		unit = 6; /*unit: 64mu sec*/
+	else if (trigger_time_mu_sec < 16384)
+		if (dm->support_ic_type & ODM_RTL8723F)
+			unit = 7; /*unit: 128mu sec*/
 
 	time_unit_num = (u8)(trigger_time_mu_sec >> unit);
 
@@ -799,6 +1167,9 @@ void phydm_la_set_mac_trigger_time(void *dm_void, u32 trigger_time_mu_sec)
 		odm_set_mac_reg(dm, R_0x7fc, BIT(2) | BIT(1) | BIT(0), unit);
 		odm_set_mac_reg(dm, R_0x7f0, 0x7f00, (time_unit_num & 0x7f));
 	#ifdef PHYDM_IC_JGR3_SERIES_SUPPORT
+	} else if (dm->support_ic_type & ODM_RTL8814B) {
+		odm_set_mac_reg(dm, R_0x7cc, BIT(20) | BIT(19) | BIT(18), unit);
+		odm_set_mac_reg(dm, R_0x7c0, 0x7f00, (time_unit_num & 0x7f));
 	} else if (dm->support_ic_type & ODM_IC_JGR3_SERIES) {
 		odm_set_mac_reg(dm, R_0x7cc, BIT(18) | BIT(17) | BIT(16), unit);
 		odm_set_mac_reg(dm, R_0x7c0, 0x7f00, (time_unit_num & 0x7f));
@@ -857,6 +1228,10 @@ void phydm_la_set_buff_mode(void *dm_void, enum la_buff_mode mode)
 		buff_size_base = 0x4000;
 		end_pos_tmp = 0x8000;
 		break;
+	case ODM_RTL8723F:
+		buff_size_base = 0x20000;
+		end_pos_tmp = 0x60000;
+		break;
 	default:
 		pr_debug("[%s] Warning!", __func__);
 		break;
@@ -864,7 +1239,14 @@ void phydm_la_set_buff_mode(void *dm_void, enum la_buff_mode mode)
 
 	buf->buffer_size = buff_size_base;
 
-	if (dm->support_ic_type & FULL_BUFF_MODE_SUPPORT) {
+	if (dm->support_ic_type & ODM_RTL8814B) {
+		if (mode == ADCSMP_BUFF_HALF) {
+			odm_set_mac_reg(dm, R_0x7cc, BIT(21), 0);
+		} else {
+			buf->buffer_size = buf->buffer_size << 1;
+			odm_set_mac_reg(dm, R_0x7cc, BIT(21), 1);
+		}
+	} else if (dm->support_ic_type & FULL_BUFF_MODE_SUPPORT) {
 		if (mode == ADCSMP_BUFF_HALF) {
 			odm_set_mac_reg(dm, R_0x7cc, BIT(30), 0);
 		} else {
@@ -877,10 +1259,9 @@ void phydm_la_set_buff_mode(void *dm_void, enum la_buff_mode mode)
 	buf->start_pos = end_pos_tmp - buf->buffer_size;
 	smp->smp_number_max = buf->buffer_size >> 3;
 
-	PHYDM_DBG(dm, DBG_TMP,
-		  "start_addr=(0x%x), end_addr=(0x%x), buffer_size=(0x%x), smp_number_max=(%d)\n",
-		  buf->start_pos, buf->end_pos, buf->buffer_size,
-		  smp->smp_number_max);
+	pr_debug("start_addr=(0x%x), end_addr=(0x%x), buffer_size=(0x%x), smp_number_max=(%d)\n",
+		 buf->start_pos, buf->end_pos, buf->buffer_size,
+		 smp->smp_number_max);
 }
 
 void phydm_la_adc_smp_start(void *dm_void)
@@ -890,6 +1271,7 @@ void phydm_la_adc_smp_start(void *dm_void)
 	u8 tmp_u1b = 0;
 	u8 i = 0;
 	u8 polling_bit = 0;
+	u8 bkp_val = 0;
 	boolean polling_ok = false;
 	boolean impossible_trig_condi = (smp->en_fake_trig) ? true : false;
 
@@ -902,6 +1284,9 @@ void phydm_la_adc_smp_start(void *dm_void)
 	pr_debug("1. [BB Setting] trig_mode = ((%d)), dbg_port = ((0x%x)), Trig_Edge = ((%d)), smp_rate = ((%d)), Trig_Sel = ((0x%x)), Dma_type = ((%d))\n",
 		 smp->la_trig_mode, smp->la_dbg_port, smp->la_trigger_edge,
 		 smp->la_smp_rate, smp->la_trig_sig_sel, smp->la_dma_type);
+
+	if(dm->support_ic_type & ODM_RTL8723F)
+		bkp_val = (u8)odm_get_mac_reg(dm, R_0x1008, BIT(1));
 
 	phydm_la_set_mac_trigger_time(dm, smp->la_trigger_time);
 	phydm_la_set_bb(dm);
@@ -975,8 +1360,12 @@ void phydm_la_adc_smp_start(void *dm_void)
 		pr_debug("LA Dump finished ---------->\n\n\n");
 		phydm_release_bb_dbg_port(dm);
 
-		#if (RTL8821C_SUPPORT | RTL8195B_SUPPORT)
+		#if (RTL8821C_SUPPORT || RTL8195B_SUPPORT)
 		phydm_la_clk_en(dm, false);
+		#endif
+		#if (RTL8723F_SUPPORT)
+		if(dm->support_ic_type & ODM_RTL8723F)
+			phydm_la_mac_clk_en(dm, (bkp_val == 1) ? true : false);
 		#endif
 	} else {
 		smp->la_count--;
@@ -1021,66 +1410,11 @@ void phydm_la_set(void *dm_void)
 #endif
 }
 
-void phydm_la_cmd_fast(void *dm_void, char input[][16], u32 *_used,
-		       char *output, u32 *_out_len)
-{
-	struct dm_struct *dm = (struct dm_struct *)dm_void;
-	struct rt_adcsmp *smp = &dm->adcsmp;
-	u32 var[10] = {0};
-	u8 bw = *dm->band_width;
-
-	if (bw > 2) {
-		PDM_SNPF(*_out_len, *_used, output + *_used, *_out_len - *_used,
-			 "Not Support for BW > %dM\n", 20 << bw);
-		return;
-	}
-
-	PHYDM_SSCANF(input[2], DCMD_HEX, &var[0]);
-
-	if (var[0] <= 10) { /* CCA P-edge trigger*/
-		smp->la_trig_mode = 1;
-		smp->la_trig_sig_sel = 2;
-		smp->la_trigger_time = ((smp->smp_number_max >> (bw + 1)) / 10)
-					 - (2 << (2 - bw)) - (2 - bw);
-		smp->la_mac_mask_or_hdr_sel = 0;
-		smp->la_trigger_edge = 0;
-		smp->la_smp_rate = 2 - bw;
-		smp->la_count = 0;
-		if (var[0] == 0) {
-			smp->la_dma_type = 5;
-			if (dm->support_ic_type & ODM_IC_JGR3_SERIES)
-				smp->la_dbg_port = 0x870;
-			else
-				smp->la_dbg_port = 0x210;
-		} else if (var[0] == 1) {
-			if (dm->support_ic_type & ODM_IC_JGR3_SERIES) {
-				smp->la_dma_type = 4;
-				smp->la_dbg_port = 0x392;
-			} else {
-				smp->la_dma_type = 5;
-				smp->la_dbg_port = 0xa44;
-			}
-		}
-	}
-
-	PDM_SNPF(*_out_len, *_used, output + *_used, *_out_len - *_used,
-		 "echo lamode 1 %d %d %d %d %d %x %d %d %d\n",
-		 smp->la_trig_mode, smp->la_trig_sig_sel, smp->la_dma_type,
-		 smp->la_trigger_time, smp->la_mac_mask_or_hdr_sel,
-		 smp->la_dbg_port, smp->la_trigger_edge, smp->la_smp_rate,
-		 smp->la_count);
-
-	phydm_la_set(dm);
-}
-
 void phydm_la_cmd(void *dm_void, char input[][16], u32 *_used, char *output,
 		  u32 *_out_len)
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 	struct rt_adcsmp *smp = &dm->adcsmp;
-	u8 trig_mode = 0, dma_data_sig_sel = 0;
-	u32 trig_sig_sel = 0;
-	u32 trigger_time_mu_sec = 0;
 	char help[] = "-h";
 	u32 var1[10] = {0};
 	u32 used = *_used;
@@ -1138,22 +1472,36 @@ void phydm_la_cmd(void *dm_void, char input[][16], u32 *_used, char *output,
 			 "set {3:Auto Print} {en}\n\n");
 		/*Print*/
 		PDM_SNPF(out_len, used, output + used, out_len - used,
-			 "print\n\n");
+			 "print {0: all(Hex)}\n");
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "print {1: partial} {0:hex 1:dec 2: s-dec} {bit_L} {bit_H}\n\n");
 
 		/*Fast Trigger*/
 		PDM_SNPF(out_len, used, output + used, out_len - used,
-			 "fast {0: CCA trig & CCA Dbg Port}\n");
-
+			 "fast {0: CCA trig & AGC Dbg Port}\n");
 		PDM_SNPF(out_len, used, output + used, out_len - used,
 			 "fast {1: CCA trig & EVM Dbg Port}\n");
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "fast {2: CCA trig & SNR Dbg Port}\n");
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "fast {3: CCA trig & CFO Dbg Port}\n");
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "fast {4: CCA trig & ADC output Dbg Port}\n");
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "fast {10: EVM>=-X dB, 11: EVM<=-X dB} {X=2/4/8/16/32/64} {0:Lgcy, 1:HT}\n");
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "fast {12: EVM=-X dB} {X} {0:Lgcy, 1:HT}\n");
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "fast {20: RX-rate-idx=X} {X}\n");
 
 		PDM_SNPF(out_len, used, output + used, out_len - used,
 			 "=================================================\n");
 	} else if ((strcmp(input[1], "print") == 0)) {
-		phydm_la_buffer_print(dm);
-	} else if ((strcmp(input[1], "fast") == 0)) {
-		phydm_la_cmd_fast(dm, input, &used, output, &out_len);
+		phydm_la_buffer_print(dm, input, &used, output, &out_len);
 #ifdef PHYDM_IC_JGR3_SERIES_SUPPORT
+	} else if ((strcmp(input[1], "fast") == 0)) {
+		phydm_la_cmd_fast_jgr3(dm, input, &used, output, &out_len);
+
 	} else if ((strcmp(input[1], "adv") == 0)) {
 		phydm_la_bb_adv_cmd_jgr3(dm, input, &used, output, &out_len);
 #endif
@@ -1182,7 +1530,7 @@ void phydm_la_cmd(void *dm_void, char input[][16], u32 *_used, char *output,
 
 		smp->la_trig_mode = (u8)var1[1];
 
-		if (trig_mode == PHYDM_MAC_TRIG)
+		if (smp->la_trig_mode == PHYDM_MAC_TRIG)
 			PHYDM_SSCANF(input[3], DCMD_HEX, &var1[2]);
 		else
 			PHYDM_SSCANF(input[3], DCMD_DECIMAL, &var1[2]);
@@ -1217,10 +1565,11 @@ void phydm_la_cmd(void *dm_void, char input[][16], u32 *_used, char *output,
 
 		PDM_SNPF(out_len, used, output + used, out_len - used,
 			 "a.En= ((1)),  b.mode = ((%d)), c.Trig_Sel = ((0x%x)), d.Dma_type = ((%d))\n",
-			 trig_mode, trig_sig_sel, dma_data_sig_sel);
+			 smp->la_trig_mode, smp->la_trig_sig_sel,
+			 smp->la_dma_type);
 		PDM_SNPF(out_len, used, output + used, out_len - used,
 			 "e.Trig_Time = ((%dus)), f.Dbg_head/mac_ref_mask = ((0x%x)), g.dbg_port = ((0x%x))\n",
-			 trigger_time_mu_sec,
+			 smp->la_trigger_time,
 			 smp->la_mac_mask_or_hdr_sel, smp->la_dbg_port);
 		PDM_SNPF(out_len, used, output + used, out_len - used,
 			 "h.Trig_edge = ((%d)), i.smp rate = ((%d MHz)), j.Cap_num = ((%d))\n",
@@ -1230,7 +1579,7 @@ void phydm_la_cmd(void *dm_void, char input[][16], u32 *_used, char *output,
 		#ifdef PHYDM_IC_JGR3_SERIES_SUPPORT
 		PDM_SNPF(out_len, used, output + used, out_len - used,
 			 "k.en_new_bbtrigger = ((%d))\n",
-			 smp->adv_trig_table.la_en_new_bbtrigger);
+			 smp->adv_trig_table.la_adv_bbtrigger_en);
 		#endif
 
 		phydm_la_set(dm);
@@ -1250,8 +1599,6 @@ void phydm_la_stop(void *dm_void)
 	struct rt_adcsmp *smp = &dm->adcsmp;
 
 	smp->adc_smp_state = ADCSMP_STATE_IDLE;
-
-	PHYDM_DBG(dm, DBG_TMP, "[LA_Stop] LA_state = %d\n", smp->adc_smp_state);
 }
 
 void phydm_la_init(void *dm_void)
@@ -1259,6 +1606,9 @@ void phydm_la_init(void *dm_void)
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 	struct rt_adcsmp *smp = &dm->adcsmp;
 	struct rt_adcsmp_string *buf = &smp->adc_smp_buf;
+
+	if (!(dm->support_ic_type & PHYDM_IC_SUPPORT_LA_MODE))
+		return;
 
 	smp->adc_smp_state = ADCSMP_STATE_IDLE;
 	smp->is_la_print = true;
@@ -1274,6 +1624,9 @@ void phydm_la_init(void *dm_void)
 void adc_smp_de_init(void *dm_void)
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
+
+	if (!(dm->support_ic_type & PHYDM_IC_SUPPORT_LA_MODE))
+		return;
 
 	phydm_la_stop(dm);
 	phydm_la_buffer_release(dm);
@@ -1291,98 +1644,4 @@ void adc_smp_work_item_callback(void *context)
 	phydm_la_adc_smp_start(dm);
 }
 #endif
-
-#if 0
-#if (DM_ODM_SUPPORT_TYPE & ODM_WIN)
-enum rt_status
-adc_smp_query(void *dm_void, ULONG info_buf_length, void *info_buf,
-	      PULONG bytes_written)
-{
-	struct dm_struct *dm = (struct dm_struct *)dm_void;
-	struct rt_adcsmp *smp = &dm->adcsmp;
-	enum rt_status ret_status = RT_STATUS_SUCCESS;
-	struct rt_adcsmp_string *buf = &smp->adc_smp_buf;
-
-	pr_debug("[%s] LA_State=((%d))", __func__, smp->adc_smp_state);
-
-	if (info_buf_length != buf->buffer_size) {
-		*bytes_written = 0;
-		ret_status = RT_STATUS_RESOURCE;
-	} else if (buf->length != buf->buffer_size) {
-		*bytes_written = 0;
-		ret_status = RT_STATUS_RESOURCE;
-	} else if (smp->adc_smp_state != ADCSMP_STATE_QUERY) {
-		*bytes_written = 0;
-		ret_status = RT_STATUS_PENDING;
-	} else {
-		odm_move_memory(dm, info_buf, buf->octet, buf->buffer_size);
-		*bytes_written = buf->buffer_size;
-
-		smp->adc_smp_state = ADCSMP_STATE_IDLE;
-	}
-
-	pr_debug("Return status %d\n", ret_status);
-
-	return ret_status;
-}
-#elif (DM_ODM_SUPPORT_TYPE & ODM_CE)
-
-void adc_smp_query(void *dm_void, void *output, u32 out_len, u32 *pused)
-{
-	struct dm_struct *dm = (struct dm_struct *)dm_void;
-	struct rt_adcsmp *smp = &dm->adcsmp;
-	struct rt_adcsmp_string *buf = &smp->adc_smp_buf;
-	u32 used = *pused;
-	u32 i = 0;
-#if 0
-	/* struct timespec t; */
-	/* rtw_get_current_timespec(&t); */
-#endif
-
-	pr_debug("%s adc_smp_state %d", __func__, smp->adc_smp_state);
-
-	for (i = 0; i < (buf->length >> 2) - 2; i += 2) {
-		PDM_SNPF(out_len, used, output + used, out_len - used,
-			 "%08x%08x\n", buf->octet[i], buf->octet[i + 1]);
-	}
-
-	PDM_SNPF(out_len, used, output + used, out_len - used, "\n");
-	/* PDM_SNPF(output + used, out_len - used, "\n[%lu.%06lu]\n", */
-	/*	    t.tv_sec, t.tv_nsec); */
-	*pused = used;
-}
-
-s32 adc_smp_get_sample_counts(void *dm_void)
-{
-	struct dm_struct *dm = (struct dm_struct *)dm_void;
-	struct rt_adcsmp *smp = &dm->adcsmp;
-	struct rt_adcsmp_string *buf = &smp->adc_smp_buf;
-
-	return (buf->length >> 2) - 2;
-}
-
-s32 adc_smp_query_single_data(void *dm_void, void *output, u32 out_len, u32 idx)
-{
-	struct dm_struct *dm = (struct dm_struct *)dm_void;
-	struct rt_adcsmp *smp = &dm->adcsmp;
-	struct rt_adcsmp_string *buf = &smp->adc_smp_buf;
-	u32 used = 0;
-
-	/* @dbg_print("%s adc_smp_state %d\n", __func__,*/
-	/*	      smp->adc_smp_state);*/
-	if (smp->adc_smp_state != ADCSMP_STATE_QUERY) {
-		PDM_SNPF(out_len, used, output + used, out_len - used,
-			 "Error: la data is not ready yet ...\n");
-		return -1;
-	}
-
-	if (idx < ((buf->length >> 2) - 2)) {
-		PDM_SNPF(out_len, used, output + used, out_len - used,
-			 "%08x%08x\n", buf->octet[idx], buf->octet[idx + 1]);
-	}
-	return 0;
-}
-#endif
-#endif
-
 #endif /*@endif PHYDM_LA_MODE_SUPPORT*/

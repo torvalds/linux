@@ -126,12 +126,6 @@ s32 c2h_handler_8192e(_adapter *adapter, u8 id, u8 seq, u8 plen, u8 *payload);
 	void rtl8192e_set_p2p_ps_offload_cmd(PADAPTER padapter, u8 p2p_ps_state);
 #endif /* CONFIG_P2P */
 
-#ifdef CONFIG_TDLS
-	#ifdef CONFIG_TDLS_CH_SW
-		void rtl8192e_set_BcnEarly_C2H_Rpt_cmd(PADAPTER padapter, u8 enable);
-	#endif
-#endif
-
 /* / TX Feedback Content */
 #define	USEC_UNIT_FOR_8192E_C2H_TX_RPT_QUEUE_TIME			256
 

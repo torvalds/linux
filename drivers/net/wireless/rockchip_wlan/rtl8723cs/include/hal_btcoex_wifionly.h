@@ -19,14 +19,15 @@
 #include <hal_data.h>
 
 /* Define the ICs that support wifi only cfg in coex. codes */
-#if defined(CONFIG_RTL8723B) || defined(CONFIG_RTL8822B) || defined(CONFIG_RTL8821C) || defined(CONFIG_RTL8822C)
+#if defined(CONFIG_RTL8723B) || defined(CONFIG_RTL8822B) || defined(CONFIG_RTL8821C) || defined(CONFIG_RTL8822C) || defined(CONFIG_RTL8814B) \
+|| defined(CONFIG_RTL8723F)
 #define CONFIG_BTCOEX_SUPPORT_WIFI_ONLY_CFG 1
 #else
 #define CONFIG_BTCOEX_SUPPORT_WIFI_ONLY_CFG 0
 #endif
 
 /* Define the ICs that support hal btc common file structure */
-#if defined(CONFIG_RTL8822C)
+#if defined(CONFIG_RTL8822C) || (defined(CONFIG_RTL8192F) || defined(CONFIG_RTL8723F)&& defined(CONFIG_BT_COEXIST))
 #define CONFIG_BTCOEX_SUPPORT_BTC_CMN 1
 #else
 #define CONFIG_BTCOEX_SUPPORT_BTC_CMN 0

@@ -158,6 +158,46 @@ enum rt_spinlock_type {
 
 	#define	phydm_timer_list	_RT_TIMER
 
+	// for power limit table
+	enum odm_pw_lmt_regulation_type {
+		PW_LMT_REGU_FCC = 0,
+		PW_LMT_REGU_ETSI = 1,
+		PW_LMT_REGU_MKK = 2,
+		PW_LMT_REGU_WW13 = 3,
+		PW_LMT_REGU_IC = 4,
+		PW_LMT_REGU_KCC = 5,
+		PW_LMT_REGU_ACMA = 6,
+		PW_LMT_REGU_CHILE = 7,
+		PW_LMT_REGU_UKRAINE = 8,
+		PW_LMT_REGU_MEXICO = 9,
+		PW_LMT_REGU_CN = 10
+	};
+
+	enum odm_pw_lmt_band_type {
+		PW_LMT_BAND_2_4G = 0,
+		PW_LMT_BAND_5G = 1
+	};
+
+	enum odm_pw_lmt_bandwidth_type {
+		PW_LMT_BW_20M = 0,
+		PW_LMT_BW_40M = 1,
+		PW_LMT_BW_80M = 2,
+		PW_LMT_BW_160M = 3
+	};
+
+	enum odm_pw_lmt_ratesection_type {
+		PW_LMT_RS_CCK = 0,
+		PW_LMT_RS_OFDM = 1,
+		PW_LMT_RS_HT = 2,
+		PW_LMT_RS_VHT = 3
+	};
+
+	enum odm_pw_lmt_rfpath_type {
+		PW_LMT_PH_1T = 0,
+		PW_LMT_PH_2T = 1,
+		PW_LMT_PH_3T = 2,
+		PW_LMT_PH_4T = 3
+	};
 
 #elif (DM_ODM_SUPPORT_TYPE == ODM_AP)
 	#include "../typedef.h"
@@ -180,7 +220,9 @@ enum rt_spinlock_type {
 	#define	boolean	bool
 
 	#define	phydm_timer_list	timer_list
-
+	#if defined(__ECOS)
+	#define s64	s8Byte
+	#endif 
 #elif (DM_ODM_SUPPORT_TYPE == ODM_CE) && defined(DM_ODM_CE_MAC80211)
 
 	#include <asm/byteorder.h>
@@ -250,6 +292,47 @@ enum rt_spinlock_type {
 	#endif
 
 	#define	phydm_timer_list	rtw_timer_list
+
+	// for power limit table
+	enum odm_pw_lmt_regulation_type {
+		PW_LMT_REGU_FCC = 0,
+		PW_LMT_REGU_ETSI = 1,
+		PW_LMT_REGU_MKK = 2,
+		PW_LMT_REGU_WW13 = 3,
+		PW_LMT_REGU_IC = 4,
+		PW_LMT_REGU_KCC = 5,
+		PW_LMT_REGU_ACMA = 6,
+		PW_LMT_REGU_CHILE = 7,
+		PW_LMT_REGU_UKRAINE = 8,
+		PW_LMT_REGU_MEXICO = 9,
+		PW_LMT_REGU_CN = 10
+	};
+
+	enum odm_pw_lmt_band_type {
+		PW_LMT_BAND_2_4G = 0,
+		PW_LMT_BAND_5G = 1
+	};
+
+	enum odm_pw_lmt_bandwidth_type {
+		PW_LMT_BW_20M = 0,
+		PW_LMT_BW_40M = 1,
+		PW_LMT_BW_80M = 2,
+		PW_LMT_BW_160M = 3
+	};
+
+	enum odm_pw_lmt_ratesection_type {
+		PW_LMT_RS_CCK = 0,
+		PW_LMT_RS_OFDM = 1,
+		PW_LMT_RS_HT = 2,
+		PW_LMT_RS_VHT = 3
+	};
+
+	enum odm_pw_lmt_rfpath_type {
+		PW_LMT_PH_1T = 0,
+		PW_LMT_PH_2T = 1,
+		PW_LMT_PH_3T = 2,
+		PW_LMT_PH_4T = 3
+	};
 
 #elif (DM_ODM_SUPPORT_TYPE == ODM_IOT)
 	#define	boolean	bool

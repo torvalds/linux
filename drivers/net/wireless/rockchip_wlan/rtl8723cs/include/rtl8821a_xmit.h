@@ -140,6 +140,9 @@ s32 InitXmitPriv8821AS(PADAPTER padapter);
 void FreeXmitPriv8821AS(PADAPTER padapter);
 s32 XmitBufHandler8821AS(PADAPTER padapter);
 s32 MgntXmit8821AS(PADAPTER padapter, struct xmit_frame *pmgntframe);
+#ifdef CONFIG_RTW_MGMT_QUEUE 
+s32 rtl8821as_hal_mgmt_xmit_enqueue(PADAPTER adapter, struct xmit_frame *pxmitframe);
+#endif
 s32	HalXmitNoLock8821AS(PADAPTER padapter, struct xmit_frame *pxmitframe);
 s32 HalXmit8821AS(PADAPTER padapter, struct xmit_frame *pxmitframe);
 #ifndef CONFIG_SDIO_TX_TASKLET

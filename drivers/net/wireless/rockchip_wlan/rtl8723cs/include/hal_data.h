@@ -94,8 +94,8 @@ typedef enum _RT_AMPDU_BRUST_MODE {
 #define MAX_RATE_SECTION_NUM						10
 #define MAX_5G_BANDWIDTH_NUM						4
 
-#define MAX_BASE_NUM_IN_PHY_REG_PG_2_4G			10 /* CCK:1, OFDM:1, HT:4, VHT:4 */
-#define MAX_BASE_NUM_IN_PHY_REG_PG_5G			9 /* OFDM:1, HT:4, VHT:4 */
+#define NUM_OF_TARGET_TXPWR_2G	10 /* CCK:1, OFDM:1, HT:4, VHT:4 */
+#define NUM_OF_TARGET_TXPWR_5G	9 /* OFDM:1, HT:4, VHT:4 */
 
 #ifdef RTW_RX_AGGREGATION
 typedef enum _RX_AGG_MODE {
@@ -144,7 +144,7 @@ typedef enum _RX_AGG_MODE {
 	#define EFUSE_MAP_SIZE	512
 #endif
 
-#if defined(CONFIG_RTL8814A) || defined(CONFIG_RTL8822B) || defined(CONFIG_RTL8821C)
+#if defined(CONFIG_RTL8814A) || defined(CONFIG_RTL8822B) || defined(CONFIG_RTL8821C) || defined(CONFIG_RTL8814B)
 	#define EFUSE_MAX_SIZE	1024
 #elif defined(CONFIG_RTL8188E) || defined(CONFIG_RTL8188F) || defined(CONFIG_RTL8188GTV) || defined(CONFIG_RTL8703B) || defined(CONFIG_RTL8710B)
 	#define EFUSE_MAX_SIZE	256
@@ -209,7 +209,7 @@ struct kfree_data_t {
 	u8 flag;
 	s8 bb_gain[BB_GAIN_NUM][RF_PATH_MAX];
 
-#ifdef CONFIG_IEEE80211_BAND_5GHZ
+#if CONFIG_IEEE80211_BAND_5GHZ
 	s8 pa_bias_5g[RF_PATH_MAX];
 	s8 pad_bias_5g[RF_PATH_MAX];
 #endif
@@ -224,20 +224,32 @@ struct hal_spec_t {
 
 	u8 sec_cam_ent_num;
 	u8 sec_cap;
+	u8 wow_cap;
+	u8 macid_cap;
+	u16 macid_txrpt;
+	u8 macid_txrpt_pgsz;
 
 	u8 rfpath_num_2g:4;	/* used for tx power index path */
 	u8 rfpath_num_5g:4;	/* used for tx power index path */
-	u8 txgi_max; /* maximum tx power gain index */
-	u8 txgi_pdbm; /* tx power gain index per dBm */
-
+	u8 rf_reg_path_num;
+	u8 rf_reg_path_avail_num;
+	u8 rf_reg_trx_path_bmp; /* [7:4]TX path bmp, [0:3]RX path bmp */
 	u8 max_tx_cnt;
+
 	u8 tx_nss_num:4;
 	u8 rx_nss_num:4;
+
 	u8 band_cap;	/* value of BAND_CAP_XXX */
 	u8 bw_cap;		/* value of BW_CAP_XXX */
 	u8 port_num;
 	u8 proto_cap;	/* value of PROTO_CAP_XXX */
+
+	u8 txgi_max; /* maximum tx power gain index */
+	u8 txgi_pdbm; /* tx power gain index per dBm */
+
 	u8 wl_func;		/* value of WL_FUNC_XXX */
+
+	u8 tx_aclt_unit_factor; /* how many 32us */
 
 	u8 rx_tsf_filter:1;
 
@@ -252,8 +264,6 @@ struct hal_spec_t {
 #define HAL_SPEC_CHK_RF_PATH(_spec, _band, _path) ( \
 	_band == BAND_ON_2_4G ? HAL_SPEC_CHK_RF_PATH_2G(_spec, _path) : \
 	_band == BAND_ON_5G ? HAL_SPEC_CHK_RF_PATH_5G(_spec, _path) : 0)
-
-#define HAL_SPEC_CHK_TX_CNT(_spec, _cnt_idx) ((_spec)->max_tx_cnt > (_cnt_idx))
 
 #ifdef CONFIG_PHY_CAPABILITY_QUERY
 struct phy_spec_t {
@@ -313,7 +323,7 @@ typedef struct hal_p2p_ps_para {
 #define TXPWR_LMT_RS_NUM_2G	4 /* CCK, OFDM, HT, VHT */
 #define TXPWR_LMT_RS_NUM_5G	3 /* OFDM, HT, VHT */
 
-#ifdef CONFIG_TXPWR_LIMIT
+#if CONFIG_TXPWR_LIMIT
 extern const char *const _txpwr_lmt_rs_str[];
 #define txpwr_lmt_rs_str(rs) (((rs) >= TXPWR_LMT_RS_NUM) ? _txpwr_lmt_rs_str[TXPWR_LMT_RS_NUM] : _txpwr_lmt_rs_str[(rs)])
 
@@ -325,7 +335,7 @@ struct txpwr_lmt_ent {
 		[CENTER_CH_2G_NUM]
 		[MAX_TX_COUNT];
 
-#ifdef CONFIG_IEEE80211_BAND_5GHZ
+#if CONFIG_IEEE80211_BAND_5GHZ
 	s8 lmt_5g[MAX_5G_BANDWIDTH_NUM]
 		[TXPWR_LMT_RS_NUM_5G]
 		[CENTER_CH_5G_ALL_NUM]
@@ -353,12 +363,14 @@ typedef struct hal_com_data {
 	u8	bBTFWReady;
 	u8	fw_ractrl;
 	u8	LastHMEBoxNum;	/* H2C - for host message to fw */
+#ifdef CONFIG_LPS_1T1R
+	u8 lps_1t1r;
+#endif
 
 	/****** current WIFI_PHY values ******/
 	WIRELESS_MODE	CurrentWirelessMode;
 	enum channel_width current_channel_bw;
 	BAND_TYPE		current_band_type;	/* 0:2.4G, 1:5G */
-	BAND_TYPE		BandSet;
 	u8				current_channel;
 	u8				cch_20;
 	u8				cch_40;
@@ -370,14 +382,15 @@ typedef struct hal_com_data {
 	u8				bDisableSWChannelPlan; /* flag of disable software change channel plan	 */
 	u16				BasicRateSet;
 	u32				ReceiveConfig;
-	u32				rcr_backup; /* used for switching back from monitor mode */
+#ifdef CONFIG_WIFI_MONITOR
+	struct mon_reg_backup		mon_backup; /* used for switching back from monitor mode */
+#endif /* CONFIG_WIFI_MONITOR */
 	u8				rx_tsf_addr_filter_config; /* for 8822B/8821C USE */
 	BOOLEAN			bSwChnl;
 	BOOLEAN			bSetChnlBW;
 	BOOLEAN			bSWToBW40M;
 	BOOLEAN			bSWToBW80M;
 	BOOLEAN			bChnlBWInitialized;
-	u32				BackUp_BB_REG_4_2nd_CCA[3];
 
 #ifdef CONFIG_RTW_ACS
 	struct auto_chan_sel acs;
@@ -388,10 +401,23 @@ typedef struct hal_com_data {
 
 	/****** rf_ctrl *****/
 	u8	rf_chip;
-	u8	rf_type;	/*enum rf_type*/
+
+	u8 trx_path_bmp; /* [7:4]TX path bmp, [0:3]RX path bmp */
+	u8	rf_type;	/*enum rf_type , is RF_PATH - GET_HAL_RFPATH*/
+	u8	NumTotalRFPath; /*GET_HAL_RFPATH_NUM*/
+	u8 max_tx_cnt;
+	u8	tx_nss; /*tx Spatial Streams - GET_HAL_TX_NSS*/
+	u8	rx_nss; /*rx Spatial Streams - GET_HAL_RX_NSS*/
+	u8 txpath_cap_num_nss[4]; /* capable path num for NSS TX, [0] for 1SS, [3] for 4SS */
+
 	u8	PackageType;
-	u8	NumTotalRFPath;
 	u8	antenna_test;
+
+	/* runtime TRX path setting */
+	enum bb_path txpath; /* TX path bmp */
+	enum bb_path rxpath; /* RX path bmp */
+	enum bb_path txpath_nss[4]; /* path bmp for NSS TX, [0] for 1SS, [3] for 4SS */
+	u8 txpath_num_nss[4]; /* path num for NSS TX, [0] for 1SS, [3] for 4SS */
 
 	/****** Debug ******/
 	u16	ForcedDataRate;	/* Force Data Rate. 0: Auto, 0x02: 1M ~ 0x6C: 54M. */
@@ -433,6 +459,10 @@ typedef struct hal_com_data {
 	u8	EEPROMBluetoothAntIsolation;
 	u8	EEPROMBluetoothRadioShared;
 	u8	EEPROMMACAddr[ETH_ALEN];
+
+	u8 eeprom_trx_path_bmp; /* [7:4]TX path bmp, [0:3]RX path bmp. 0x00:not specified */
+	u8 eeprom_max_tx_cnt; /* 0: not specified */
+
 	u8	tx_bbswing_24G;
 	u8	tx_bbswing_5G;
 	u8	efuse0x3d7;	/* efuse[0x3D7] */
@@ -444,6 +474,9 @@ typedef struct hal_com_data {
 	struct kfree_data_t kfree_data;
 #endif /*CONFIG_RF_POWER_TRIM*/
 
+#ifdef CONFIG_RTL8814A
+	u32	BackUp_BB_REG_4_2nd_CCA[3];
+#endif
 #if defined(CONFIG_RTL8723B) || defined(CONFIG_RTL8703B) || \
 	defined(CONFIG_RTL8723D) || \
 	defined(CONFIG_RTL8192F)
@@ -456,7 +489,10 @@ typedef struct hal_com_data {
 	/*u8		EfuseMap[2][HWSET_MAX_SIZE_JAGUAR];*/
 	EFUSE_HAL	EfuseHal;
 
+	u8 txpwr_pg_mode; /* enum txpwr_pg_mode */
+
 	/*---------------------------------------------------------------------------------*/
+#ifdef CONFIG_TXPWR_PG_WITH_PWR_IDX
 	/* 2.4G TX power info for target TX power*/
 	u8	Index24G_CCK_Base[MAX_RF_PATH][CENTER_CH_2G_NUM];
 	u8	Index24G_BW40_Base[MAX_RF_PATH][CENTER_CH_2G_NUM];
@@ -466,7 +502,7 @@ typedef struct hal_com_data {
 	s8	BW40_24G_Diff[MAX_RF_PATH][MAX_TX_COUNT];
 
 	/* 5G TX power info for target TX power*/
-#ifdef CONFIG_IEEE80211_BAND_5GHZ
+#if CONFIG_IEEE80211_BAND_5GHZ
 	u8	Index5G_BW40_Base[MAX_RF_PATH][CENTER_CH_5G_ALL_NUM];
 	u8	Index5G_BW80_Base[MAX_RF_PATH][CENTER_CH_5G_80M_NUM];
 	s8	OFDM_5G_Diff[MAX_RF_PATH][MAX_TX_COUNT];
@@ -474,29 +510,37 @@ typedef struct hal_com_data {
 	s8	BW40_5G_Diff[MAX_RF_PATH][MAX_TX_COUNT];
 	s8	BW80_5G_Diff[MAX_RF_PATH][MAX_TX_COUNT];
 #endif
+#endif /* CONFIG_TXPWR_PG_WITH_PWR_IDX */
 
 	u8 txpwr_by_rate_undefined_band_path[TX_PWR_BY_RATE_NUM_BAND]
 		[TX_PWR_BY_RATE_NUM_RF];
 
-	s8	TxPwrByRateOffset[TX_PWR_BY_RATE_NUM_BAND]
+	s8	TxPwrByRate[TX_PWR_BY_RATE_NUM_BAND]
 		[TX_PWR_BY_RATE_NUM_RF]
 		[TX_PWR_BY_RATE_NUM_RATE];
 
-	/* Store the original power by rate value of the base rate for each rate section and rf path */
-	u8	TxPwrByRateBase2_4G[TX_PWR_BY_RATE_NUM_RF]
-		[MAX_BASE_NUM_IN_PHY_REG_PG_2_4G];
-	u8	TxPwrByRateBase5G[TX_PWR_BY_RATE_NUM_RF]
-		[MAX_BASE_NUM_IN_PHY_REG_PG_5G];
+	/* Store the target power for each rate section and rf path */
+	u8	target_txpwr_2g[TX_PWR_BY_RATE_NUM_RF]
+		[NUM_OF_TARGET_TXPWR_2G];
+	u8	target_txpwr_5g[TX_PWR_BY_RATE_NUM_RF]
+		[NUM_OF_TARGET_TXPWR_5G];
 
-#if defined(CONFIG_RTL8821C) || defined(CONFIG_RTL8822B) || defined(CONFIG_RTL8822C)
+	bool set_entire_txpwr;
+
+#if defined(CONFIG_RTL8821C) || defined(CONFIG_RTL8822B) || defined(CONFIG_RTL8822C) || defined(CONFIG_RTL8814B) \
+    || defined(CONFIG_RTL8723F)
 	u32 txagc_set_buf;
+#endif
+
+#ifdef CONFIG_FW_OFFLOAD_SET_TXPWR_IDX
+	u8 txpwr_idx_offload_buf[3]; /* for CCK, OFDM, HT1SS */
+	struct submit_ctx txpwr_idx_offload_sctx;
 #endif
 
 	u8	txpwr_by_rate_loaded:1;
 	u8	txpwr_by_rate_from_file:1;
 	u8	txpwr_limit_loaded:1;
 	u8	txpwr_limit_from_file:1;
-	u8	rf_power_tracking_type;
 
 	/* Read/write are allow for following hardware information variables	 */
 	u8	crystal_cap;
@@ -526,7 +570,10 @@ typedef struct hal_com_data {
 	/* RDG enable */
 	BOOLEAN	 bRDGEnable;
 
-	u16 RegRRSR;
+	#if defined (CONFIG_RTL8812A) || defined(CONFIG_RTL8821A)
+	u32 RegRRSR;
+	#endif
+
 	/****** antenna diversity ******/
 	u8	AntDivCfg;
 	u8	with_extenal_ant_switch;
@@ -549,15 +596,13 @@ typedef struct hal_com_data {
 	u8			neediqk_24g;
 	u8			IQK_MP_Switch;
 	u8			bScanInProcess;
+	u8			phydm_init_result; /*BB and RF para match or not*/
 	/******** PHY DM & DM Section **********/
 
 
 
 	/* 2010/08/09 MH Add CU power down mode. */
 	BOOLEAN		pwrdown;
-
-	/* Add for dual MAC  0--Mac0 1--Mac1 */
-	u32	interfaceIndex;
 
 #ifdef CONFIG_P2P
 #ifdef CONFIG_P2P_PS_NOA_USE_MACID_SLEEP
@@ -588,6 +633,8 @@ typedef struct hal_com_data {
 	u8 rxagg_dma_timeout;
 #endif /* RTW_RX_AGGREGATION */
 
+	bool intf_start;
+
 #if defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
 	/*  */
 	/* For SDIO Interface HAL related */
@@ -611,6 +658,9 @@ typedef struct hal_com_data {
 #else
 	u8			SdioTxFIFOFreePage[SDIO_TX_FREE_PG_QUEUE];
 #endif/*CONFIG_RTL8192F*/
+#ifdef CONFIG_SDIO_TX_ENABLE_AVAL_INT
+	u8			sdio_avail_int_en_q;
+#endif
 	_lock		SdioTxFIFOFreePageLock;
 	u8			SdioTxOQTMaxFreeSpace;
 	u8			SdioTxOQTFreeSpace;
@@ -622,7 +672,7 @@ typedef struct hal_com_data {
 	/* SDIO Rx FIFO related. */
 	/*  */
 	u8			SdioRxFIFOCnt;
-#ifdef CONFIG_RTL8822C
+#if defined (CONFIG_RTL8822C) || defined (CONFIG_RTL8192F)
 	u32			SdioRxFIFOSize;
 #else
 	u16			SdioRxFIFOSize;
@@ -692,8 +742,6 @@ typedef struct hal_com_data {
 	u32			IntrMaskReg[2];
 	u32			IntrMaskDefault[4];
 
-	BOOLEAN		bL1OffSupport;
-	BOOLEAN	bSupportBackDoor;
 	u32			pci_backdoor_ctrl;
 
 	u8			bDefaultAntenna;
@@ -702,9 +750,6 @@ typedef struct hal_com_data {
 	u8			bDisableTxInt;
 
 	u16			RxTag;
-#ifdef CONFIG_PCI_DYNAMIC_ASPM
-	BOOLEAN		bAspmL1LastIdle;
-#endif
 #endif /* CONFIG_PCI_HCI */
 
 
@@ -764,9 +809,10 @@ typedef struct hal_com_data {
 #if defined(CONFIG_PCI_HCI) && defined(RTL8814AE_SW_BCN)
 	BOOLEAN bCorrectBCN;
 #endif
+#ifdef CONFIG_RTL8814A
 	u32 RxGainOffset[4]; /*{2G, 5G_Low, 5G_Middle, G_High}*/
 	u8 BackUp_IG_REG_4_Chnl_Section[4]; /*{A,B,C,D}*/
-
+#endif
 	struct hal_iqk_reg_backup iqk_reg_backup[MAX_IQK_INFO_BACKUP_CHNL_NUM];
 
 #ifdef RTW_HALMAC
@@ -790,17 +836,20 @@ typedef struct hal_com_data {
 #endif
 	/* for multi channel case (ex: MCC/TDLS) */
 	u8 multi_ch_switch_mode;
+	
+#ifdef CONFIG_RTL8814B
+	u8 dma_ch_map[32];	/* TXDESC qsel maximum size */
+#endif
 
 } HAL_DATA_COMMON, *PHAL_DATA_COMMON;
 
 typedef struct hal_com_data HAL_DATA_TYPE, *PHAL_DATA_TYPE;
-#define GET_HAL_DATA(__pAdapter)			((HAL_DATA_TYPE *)(((struct _ADAPTER*)__pAdapter)->HalData))
+#define GET_HAL_DATA(__pAdapter)		((HAL_DATA_TYPE *)(((struct _ADAPTER*)__pAdapter)->HalData))
 #define GET_HAL_SPEC(__pAdapter)			(&(GET_HAL_DATA((__pAdapter))->hal_spec))
 #define adapter_to_led(adapter) (&(GET_HAL_DATA(adapter)->led))
 
-#define GET_HAL_RFPATH_NUM(__pAdapter)		(((HAL_DATA_TYPE *)((__pAdapter)->HalData))->NumTotalRFPath)
 #define RT_GetInterfaceSelection(_Adapter)		(GET_HAL_DATA(_Adapter)->InterfaceSel)
-#define GET_RF_TYPE(__pAdapter)				(GET_HAL_DATA(__pAdapter)->rf_type)
+
 #define GET_KFREE_DATA(_adapter) (&(GET_HAL_DATA((_adapter))->kfree_data))
 
 #define	SUPPORT_HW_RADIO_DETECT(Adapter)	(RT_GetInterfaceSelection(Adapter) == INTF_SEL2_MINICARD || \
@@ -812,6 +861,17 @@ typedef struct hal_com_data HAL_DATA_TYPE, *PHAL_DATA_TYPE;
 #define rtw_get_hw_init_completed(adapter)		(GET_HAL_DATA(adapter)->hw_init_completed)
 #define rtw_set_hw_init_completed(adapter, cmp)	(GET_HAL_DATA(adapter)->hw_init_completed = cmp)
 #define rtw_is_hw_init_completed(adapter)		(GET_HAL_DATA(adapter)->hw_init_completed == _TRUE)
+
+/* refer to (hal_data->version_id.RFType / registrypriv->rf_path / 8814a from efuse or registrypriv)*/
+#define GET_HAL_RFPATH(adapter)			(GET_HAL_DATA(adapter)->rf_type)
+#define GET_HAL_RFPATH_NUM(adapter)		(GET_HAL_DATA(adapter)->NumTotalRFPath)
+#define GET_HAL_TX_PATH_BMP(adapter)	((GET_HAL_DATA(adapter)->trx_path_bmp & 0xF0) >> 4)
+#define GET_HAL_RX_PATH_BMP(adapter)	(GET_HAL_DATA(adapter)->trx_path_bmp & 0x0F)
+
+/* refer to (registrypriv-> tx_nss,rx_nss / hal_spec->tx_nss_num,rx_nss_num)*/
+#define GET_HAL_TX_NSS(adapter)			(GET_HAL_DATA(adapter)->tx_nss)
+#define GET_HAL_RX_NSS(adapter)			(GET_HAL_DATA(adapter)->rx_nss)
+
 #endif
 
 #ifdef RTW_HALMAC

@@ -1197,13 +1197,13 @@ void _phy_mac_setting_calibration8703b(struct dm_struct *dm, u32 *mac_reg,
 	odm_write_1byte(dm, mac_reg[i], 0x3F);
 	for (i = 1; i < (IQK_MAC_REG_NUM - 1); i++)
 		odm_write_1byte(dm, mac_reg[i], (u8)(mac_backup[i] & (~BIT(3))));
-	/*remove 0x40[5]setting for coex reason*/
+	/*remove 0x40[5]setting for coex reason */
 	/*odm_write_1byte(dm, mac_reg[i], (u8)(mac_backup[i] & (~BIT(5))));*/
 }
 
 boolean
 phy_simularity_compare_8703b(struct dm_struct *dm, s32 result[][8], u8 c1,
-			     u8 c2)
+			     u8 c2, boolean is2t)
 {
 	u32 i, j, diff, simularity_bit_map, bound = 0;
 	u8 final_candidate[2] = {0xFF, 0xFF}; /* for path A and path B */
@@ -1212,12 +1212,11 @@ phy_simularity_compare_8703b(struct dm_struct *dm, s32 result[][8], u8 c1,
 	/* #if !(DM_ODM_SUPPORT_TYPE & ODM_AP) */
 	/*	bool		is2T = IS_92C_SERIAL( hal_data->version_id);
 	 * #else */
-	boolean is2T = true;
 	/* #endif */
 
 	s32 tmp1 = 0, tmp2 = 0;
 
-	if (is2T)
+	if (is2t)
 		bound = 8;
 	else
 		bound = 4;
@@ -1570,6 +1569,8 @@ void _phy_lc_calibrate_8703b(struct dm_struct *dm, boolean is2T)
 
 		ODM_delay_ms(10);
 	}
+	if (cnt == 100)
+		RF_DBG(dm, DBG_RF_LCK, "LCK time out\n");
 
 	/*Recover channel number*/
 	odm_set_rf_reg(dm, RF_PATH_A, RF_CHNLBW, RFREGOFFSETMASK, lc_cal);
@@ -1652,7 +1653,7 @@ void phy_iq_calibrate_8703b(void *dm_void, boolean is_recovery)
 	for (i = 0; i < 3; i++) {
 		_phy_iq_calibrate_8703b(dm, result, i);
 		if (i == 1) {
-			is12simular = phy_simularity_compare_8703b(dm, result, 0, 1);
+			is12simular = phy_simularity_compare_8703b(dm, result, 0, 1, true);
 			if (is12simular) {
 				final_candidate = 0;
 				RF_DBG(dm, DBG_RF_IQK,
@@ -1663,7 +1664,7 @@ void phy_iq_calibrate_8703b(void *dm_void, boolean is_recovery)
 		}
 
 		if (i == 2) {
-			is13simular = phy_simularity_compare_8703b(dm, result, 0, 2);
+			is13simular = phy_simularity_compare_8703b(dm, result, 0, 2, true);
 			if (is13simular) {
 				final_candidate = 0;
 				RF_DBG(dm, DBG_RF_IQK,
@@ -1672,7 +1673,7 @@ void phy_iq_calibrate_8703b(void *dm_void, boolean is_recovery)
 
 				break;
 			}
-			is23simular = phy_simularity_compare_8703b(dm, result, 1, 2);
+			is23simular = phy_simularity_compare_8703b(dm, result, 1, 2, true);
 			if (is23simular) {
 				final_candidate = 1;
 				RF_DBG(dm, DBG_RF_IQK,

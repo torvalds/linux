@@ -103,12 +103,12 @@ phy_RF6052_Config_ParaFile(
 
 	int					rtStatus = _SUCCESS;
 	HAL_DATA_TYPE		*pHalData = GET_HAL_DATA(Adapter);
+	struct hal_spec_t *hal_spec = GET_HAL_SPEC(Adapter);
 
 	/* 3 */ /* ----------------------------------------------------------------- */
 	/* 3 */ /* <2> Initialize RF */
 	/* 3 */ /* ----------------------------------------------------------------- */
-	/* for(eRFPath = RF_PATH_A; eRFPath <pHalData->NumTotalRFPath; eRFPath++) */
-	for (eRFPath = RF_PATH_A; eRFPath < pHalData->NumTotalRFPath; eRFPath++) {
+	for (eRFPath = RF_PATH_A; eRFPath < hal_spec->rf_reg_path_num; eRFPath++) {
 
 		pPhyReg = &pHalData->PHYRegDef[eRFPath];
 
@@ -220,24 +220,13 @@ int
 PHY_RF6052_Config8703B(
 		PADAPTER		Adapter)
 {
-	HAL_DATA_TYPE				*pHalData = GET_HAL_DATA(Adapter);
 	int					rtStatus = _SUCCESS;
-
-	/*  */
-	/* Initialize general global value */
-	/*  */
-	/* TODO: Extend RF_PATH_C and RF_PATH_D in the future */
-	if (pHalData->rf_type == RF_1T1R)
-		pHalData->NumTotalRFPath = 1;
-	else
-		pHalData->NumTotalRFPath = 2;
 
 	/*  */
 	/* Config BB and RF */
 	/*  */
 	rtStatus = phy_RF6052_Config_ParaFile(Adapter);
 	return rtStatus;
-
 }
 
 /* End of HalRf6052.c */

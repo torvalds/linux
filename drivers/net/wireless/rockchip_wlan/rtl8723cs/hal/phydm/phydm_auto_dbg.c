@@ -64,7 +64,7 @@ void phydm_auto_check_hang_engine_n(
 	struct n_dbgport_803 dbgport_803 = {0};
 	u32 value32_tmp = 0, value32_tmp_2 = 0;
 	u8 i;
-	u32 curr_dbg_port_val[DBGPORT_CHK_NUM];
+	u32 curr_dbg_port_val[DBGPORT_CHK_NUM] = {0, 0, 0, 0, 0, 0};
 	u16 curr_ofdm_t_cnt;
 	u16 curr_ofdm_r_cnt;
 	u16 curr_cck_t_cnt;
@@ -715,7 +715,7 @@ void phydm_auto_dbg_engine_init(void *dm_void)
 	u16 dbg_port_table[DBGPORT_CHK_NUM] = {0x0, 0x803, 0x208, 0xab0,
 					       0xab1, 0xab2};
 
-	PHYDM_DBG(dm, ODM_COMP_API, "%s ======>n", __func__);
+	PHYDM_DBG(dm, ODM_COMP_API, "%s ======>\n", __func__);
 
 	odm_move_memory(dm, &atd_t->dbg_port_table[0],
 			&dbg_port_table[0], (DBGPORT_CHK_NUM * 2));

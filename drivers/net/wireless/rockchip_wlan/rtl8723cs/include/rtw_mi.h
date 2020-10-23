@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2017 Realtek Corporation.
+ * Copyright(c) 2007 - 2019 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -25,29 +25,27 @@ int rtw_mi_get_ch_setting_union_no_self(_adapter *adapter, u8 *ch, u8 *bw, u8 *o
 
 struct mi_state {
 	u8 sta_num;			/* WIFI_STATION_STATE */
-	u8 ld_sta_num;		/* WIFI_STATION_STATE && _FW_LINKED */
-	u8 lg_sta_num;		/* WIFI_STATION_STATE && _FW_UNDER_LINKING */
+	u8 ld_sta_num;		/* WIFI_STATION_STATE && WIFI_ASOC_STATE */
+	u8 lg_sta_num;		/* WIFI_STATION_STATE && WIFI_UNDER_LINKING */
 #ifdef CONFIG_TDLS
 	u8 ld_tdls_num;		/* adapter.tdlsinfo.link_established */
 #endif
 #ifdef CONFIG_AP_MODE
-	u8 ap_num;			/* WIFI_AP_STATE && _FW_LINKED */
+	u8 ap_num;			/* WIFI_AP_STATE && WIFI_ASOC_STATE */
 	u8 starting_ap_num;	/*WIFI_FW_AP_STATE*/
-	u8 ld_ap_num;		/* WIFI_AP_STATE && _FW_LINKED && asoc_sta_count > 2 */
+	u8 ld_ap_num;		/* WIFI_AP_STATE && WIFI_ASOC_STATE && asoc_sta_count > 2 */
 #endif
-	u8 adhoc_num;		/* (WIFI_ADHOC_STATE | WIFI_ADHOC_MASTER_STATE) && _FW_LINKED */
-	u8 ld_adhoc_num;	/* (WIFI_ADHOC_STATE | WIFI_ADHOC_MASTER_STATE) && _FW_LINKED && asoc_sta_count > 2 */
+	u8 adhoc_num;		/* (WIFI_ADHOC_STATE | WIFI_ADHOC_MASTER_STATE) && WIFI_ASOC_STATE */
+	u8 ld_adhoc_num;	/* (WIFI_ADHOC_STATE | WIFI_ADHOC_MASTER_STATE) && WIFI_ASOC_STATE && asoc_sta_count > 2 */
 #ifdef CONFIG_RTW_MESH
-	u8 mesh_num;		/* WIFI_MESH_STATE &&  _FW_LINKED */
-	u8 ld_mesh_num;		/* WIFI_MESH_STATE &&  _FW_LINKED && asoc_sta_count > 2 */
+	u8 mesh_num;		/* WIFI_MESH_STATE &&  WIFI_ASOC_STATE */
+	u8 ld_mesh_num;		/* WIFI_MESH_STATE &&  WIFI_ASOC_STATE && asoc_sta_count > 2 */
 #endif
-	u8 scan_num;		/* WIFI_SITE_MONITOR */
-	u8 scan_enter_num;	/* WIFI_SITE_MONITOR && !SCAN_DISABLE && !SCAN_BACK_OP */
+	u8 scan_num;		/* WIFI_UNDER_SURVEY */
+	u8 scan_enter_num;	/* WIFI_UNDER_SURVEY && !SCAN_DISABLE && !SCAN_BACK_OP */
 	u8 uwps_num;		/* WIFI_UNDER_WPS */
 #ifdef CONFIG_IOCTL_CFG80211
-	#ifdef CONFIG_P2P
 	u8 roch_num;
-	#endif
 	u8 mgmt_tx_num;
 #endif
 #ifdef CONFIG_P2P
@@ -55,9 +53,6 @@ struct mi_state {
 	u8 p2p_gc;
 	u8 p2p_go;
 #endif
-	u8 union_ch;
-	u8 union_bw;
-	u8 union_offset;
 };
 
 #define MSTATE_STA_NUM(_mstate)			((_mstate)->sta_num)
@@ -95,7 +90,7 @@ struct mi_state {
 #define MSTATE_SCAN_ENTER_NUM(_mstate)	((_mstate)->scan_enter_num)
 #define MSTATE_WPS_NUM(_mstate)			((_mstate)->uwps_num)
 
-#if defined(CONFIG_IOCTL_CFG80211) && defined(CONFIG_P2P)
+#if defined(CONFIG_IOCTL_CFG80211)
 #define MSTATE_ROCH_NUM(_mstate)		((_mstate)->roch_num)
 #else
 #define MSTATE_ROCH_NUM(_mstate)		0
@@ -117,13 +112,9 @@ struct mi_state {
 #define MSTATE_MGMT_TX_NUM(_mstate)		0
 #endif
 
-#define MSTATE_U_CH(_mstate)			((_mstate)->union_ch)
-#define MSTATE_U_BW(_mstate)			((_mstate)->union_bw)
-#define MSTATE_U_OFFSET(_mstate)		((_mstate)->union_offset)
-
-#define rtw_mi_get_union_chan(adapter)	adapter_to_dvobj(adapter)->iface_state.union_ch
-#define rtw_mi_get_union_bw(adapter)		adapter_to_dvobj(adapter)->iface_state.union_bw
-#define rtw_mi_get_union_offset(adapter)	adapter_to_dvobj(adapter)->iface_state.union_offset
+#define rtw_mi_get_union_chan(adapter)		((adapter_to_dvobj(adapter)->union_ch) ? (adapter_to_dvobj(adapter)->union_ch) : (adapter_to_dvobj(adapter)->union_ch_bak))
+#define rtw_mi_get_union_bw(adapter)		((adapter_to_dvobj(adapter)->union_ch) ? (adapter_to_dvobj(adapter)->union_bw) : (adapter_to_dvobj(adapter)->union_bw_bak))
+#define rtw_mi_get_union_offset(adapter)	((adapter_to_dvobj(adapter)->union_ch) ? (adapter_to_dvobj(adapter)->union_offset) : (adapter_to_dvobj(adapter)->union_offset_bak))
 
 #define rtw_mi_get_assoced_sta_num(adapter)	DEV_STA_LD_NUM(adapter_to_dvobj(adapter))
 #define rtw_mi_get_ap_num(adapter)			DEV_AP_NUM(adapter_to_dvobj(adapter))
@@ -195,16 +186,18 @@ u8 rtw_mi_buddy_is_scan_deny(_adapter *adapter);
 void rtw_mi_beacon_update(_adapter *padapter);
 void rtw_mi_buddy_beacon_update(_adapter *padapter);
 
-void rtw_mi_hal_dump_macaddr(_adapter *padapter);
-void rtw_mi_buddy_hal_dump_macaddr(_adapter *padapter);
+#ifndef CONFIG_MI_WITH_MBSSID_CAM
+void rtw_mi_hal_dump_macaddr(void *sel, _adapter *padapter);
+void rtw_mi_buddy_hal_dump_macaddr(void *sel, _adapter *padapter);
+#endif
 
 #ifdef CONFIG_PCI_HCI
 void rtw_mi_xmit_tasklet_schedule(_adapter *padapter);
 void rtw_mi_buddy_xmit_tasklet_schedule(_adapter *padapter);
 #endif
 
-u8 rtw_mi_busy_traffic_check(_adapter *padapter, bool check_sc_interval);
-u8 rtw_mi_buddy_busy_traffic_check(_adapter *padapter, bool check_sc_interval);
+u8 rtw_mi_busy_traffic_check(_adapter *padapter);
+u8 rtw_mi_buddy_busy_traffic_check(_adapter *padapter);
 
 u8 rtw_mi_check_mlmeinfo_state(_adapter *padapter, u32 state);
 u8 rtw_mi_buddy_check_mlmeinfo_state(_adapter *padapter, u32 state);
@@ -246,6 +239,8 @@ u8 rtw_mi_buddy_check_pending_xmitbuf(_adapter *padapter);
 	#include <rtl8822b_hal.h>
 #elif defined(CONFIG_RTL8822C)
 	#include <rtl8822c_hal.h>
+#elif defined(CONFIG_RTL8723F)
+	#include <rtl8723f_hal.h>
 #else
 	extern s32 _dequeue_writeport(PADAPTER padapter);
 #endif
@@ -274,11 +269,16 @@ extern void sreset_stop_adapter(_adapter *padapter);
 u8 rtw_mi_sreset_adapter_hdl(_adapter *padapter, u8 bstart);
 u8 rtw_mi_buddy_sreset_adapter_hdl(_adapter *padapter, u8 bstart);
 
+#ifdef CONFIG_AP_MODE
+#if defined(DBG_CONFIG_ERROR_RESET) && defined(CONFIG_CONCURRENT_MODE)
+void rtw_mi_ap_info_restore(_adapter *adapter);
+#endif
 u8 rtw_mi_tx_beacon_hdl(_adapter *padapter);
 u8 rtw_mi_buddy_tx_beacon_hdl(_adapter *padapter);
 
 u8 rtw_mi_set_tx_beacon_cmd(_adapter *padapter);
 u8 rtw_mi_buddy_set_tx_beacon_cmd(_adapter *padapter);
+#endif /* CONFIG_AP_MODE */
 
 #ifdef CONFIG_P2P
 u8 rtw_mi_p2p_chk_state(_adapter *padapter, enum P2P_STATE p2p_state);

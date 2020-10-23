@@ -306,7 +306,8 @@ hal_txbf_8822b_init(
 
 	if (dm->rf_type == RF_2T2R) { /*@2T2R*/
 		PHYDM_DBG(dm, DBG_TXBF, "%s: rf_type is 2T2R\n", __func__);
-		config_phydm_trx_mode_8822b(dm, (enum bb_path)3, (enum bb_path)3, true);/*Tx2path*/
+		config_phydm_trx_mode_8822b(dm, (enum bb_path)3,
+					    (enum bb_path)3, BB_PATH_AB;
 	}
 
 #if (OMNIPEEK_SNIFFER_ENABLED == 1)

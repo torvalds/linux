@@ -112,14 +112,27 @@ struct btc_coexist;
 #include "halbtc8821c2ant.h"
 #endif
 
-#ifdef CONFIG_RTL8822C
+#ifdef CONFIG_RTL8814A
+#include "halbtc8814a2ant.h"
+#endif
+
+#if (CONFIG_BTCOEX_SUPPORT_BTC_CMN == 1)
 #include "halbtccommon.h"
+
+#ifdef CONFIG_RTL8822C
 #include "halbtc8822cwifionly.h"
 #include "halbtc8822c.h"
 #endif
 
-#ifdef CONFIG_RTL8814A
-#include "halbtc8814a2ant.h"
+#ifdef CONFIG_RTL8723F
+#include "halbtc8723fwifionly.h"
+#include "halbtc8723f.h"
+#endif
+
+#ifdef CONFIG_RTL8192F
+#include "halbtc8192f.h"
+#endif
+
 #endif
 
 #include "halbtcoutsrc.h"
@@ -140,6 +153,14 @@ struct btc_coexist;
 
 #ifdef CONFIG_RTL8822C
 #include "halbtc8822cwifionly.h"
+#endif
+
+#ifdef CONFIG_RTL8723F
+#include "halbtc8723fwifionly.h"
+#endif
+
+#ifdef CONFIG_RTL8814B
+#include "halbtc8814bwifionly.h"
 #endif
 
 #endif /* CONFIG_BT_COEXIST */

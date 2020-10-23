@@ -32,32 +32,34 @@
 
 #ifdef PHYDM_PMAC_TX_SETTING_SUPPORT
 #ifdef PHYDM_IC_JGR3_SERIES_SUPPORT
-
 void phydm_start_cck_cont_tx_jgr3(void *dm_void,
 				  struct phydm_pmac_info *tx_info)
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 	struct phydm_pmac_tx *pmac_tx = &dm->dm_pmac_tx_table;
-	u8 rate = tx_info->tx_rate; /* @HW rate */
+	u8 rate = tx_info->tx_rate; /* HW rate */
 
-	/* @if CCK block on? */
+	/* if CCK block on? */
 	if (!odm_get_bb_reg(dm, R_0x1c3c, BIT(1)))
-		odm_set_bb_reg(dm, R_0x1c3c, BIT(1), 1);
-
-	/* @Turn Off All Test mode */
+		odm_set_bb_reg(dm, R_0x1c3c, BIT(1), 0x1);
+	if (dm->support_ic_type & ODM_RTL8723F) {
+		odm_set_bb_reg(dm, R_0x2a08, BIT(21)|BIT(20), rate);
+		odm_set_bb_reg(dm, R_0x2a04, BIT(5), 0x0); /* turn on scrambler*/
+	} else {
+	/* Turn Off All Test mode */
 	odm_set_bb_reg(dm, R_0x1ca4, 0x7, 0x0);
 
 	odm_set_bb_reg(dm, R_0x1a00, 0x3000, rate);
-	odm_set_bb_reg(dm, R_0x1a00, 0x3, 0x2); /* @transmit mode */
-	odm_set_bb_reg(dm, R_0x1a00, 0x8, 0x1); /* @turn on scramble setting */
+	odm_set_bb_reg(dm, R_0x1a00, 0x3, 0x2); /* transmit mode */
+	odm_set_bb_reg(dm, R_0x1a00, BIT(3), 0x1); /* turn on scrambler*/
 
-	/* @Fix rate selection issue */
-	odm_set_bb_reg(dm, R_0x1a70, 0x4000, 0x1);
-	/* @set RX weighting for path I & Q to 0 */
+	/* Fix rate selection issue */
+	odm_set_bb_reg(dm, R_0x1a70, BIT(14), 0x1);
+	/* set RX weighting for path I & Q to 0 */
 	odm_set_bb_reg(dm, R_0x1a14, 0x300, 0x3);
-	/* @set loopback mode */
-	odm_set_bb_reg(dm, R_0x1c3c, 0x10, 0x1);
-
+	/* set loopback mode */
+	odm_set_bb_reg(dm, R_0x1c3c, BIT(4), 0x1);
+	}
 	pmac_tx->cck_cont_tx = true;
 	pmac_tx->ofdm_cont_tx = false;
 }
@@ -70,16 +72,21 @@ void phydm_stop_cck_cont_tx_jgr3(void *dm_void)
 	pmac_tx->cck_cont_tx = false;
 	pmac_tx->ofdm_cont_tx = false;
 
-	odm_set_bb_reg(dm, R_0x1a00, 0x3, 0x0); /* @normal mode */
-	odm_set_bb_reg(dm, R_0x1a00, 0x8, 0x1); /* @turn on scramble setting */
+	if (dm->support_ic_type & ODM_RTL8723F) {
+		/* @Disable pmac tx_en*/
+		odm_set_bb_reg(dm, R_0x2a04, BIT(5), 0x0); /* turn on scrambler*/
+	} else {
+		odm_set_bb_reg(dm, R_0x1a00, 0x3, 0x0); /* normal mode */
+		odm_set_bb_reg(dm, R_0x1a00, BIT(3), 0x1); /* turn on scrambler*/
 
-	/* @back to default */
-	odm_set_bb_reg(dm, R_0x1a70, 0x4000, 0x0);
-	odm_set_bb_reg(dm, R_0x1a14, 0x300, 0x0);
-	odm_set_bb_reg(dm, R_0x1c3c, 0x10, 0x0);
-	/* @BB Reset */
-	odm_set_bb_reg(dm, R_0x1d0c, 0x10000, 0x0);
-	odm_set_bb_reg(dm, R_0x1d0c, 0x10000, 0x1);
+		/* back to default */
+		odm_set_bb_reg(dm, R_0x1a70, BIT(14), 0x0);
+		odm_set_bb_reg(dm, R_0x1a14, 0x300, 0x0);
+		odm_set_bb_reg(dm, R_0x1c3c, BIT(4), 0x0);
+	}
+	/* BB Reset */
+	odm_set_bb_reg(dm, R_0x1d0c, BIT(16), 0x0);
+	odm_set_bb_reg(dm, R_0x1d0c, BIT(16), 0x1);
 }
 
 void phydm_start_ofdm_cont_tx_jgr3(void *dm_void)
@@ -87,17 +94,18 @@ void phydm_start_ofdm_cont_tx_jgr3(void *dm_void)
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 	struct phydm_pmac_tx *pmac_tx = &dm->dm_pmac_tx_table;
 
-	/* @1. if OFDM block on */
+	/* 1. if OFDM block on */
 	if (!odm_get_bb_reg(dm, R_0x1c3c, BIT(0)))
-		odm_set_bb_reg(dm, R_0x1c3c, BIT(0), 1);
+		odm_set_bb_reg(dm, R_0x1c3c, BIT(0), 0x1);
+	if (!(dm->support_ic_type & ODM_RTL8723F)) {
 
-	/* @2. set CCK test mode off, set to CCK normal mode */
-	odm_set_bb_reg(dm, R_0x1a00, 0x3, 0);
+		/* 2. set CCK test mode off, set to CCK normal mode */
+		odm_set_bb_reg(dm, R_0x1a00, 0x3, 0x0);
 
-	/* @3. turn on scramble setting */
-	odm_set_bb_reg(dm, R_0x1a00, 0x8, 1);
-
-	/* @4. Turn On Continue Tx and turn off the other test modes. */
+		/* 3. turn on scramble setting */
+		odm_set_bb_reg(dm, R_0x1a00, BIT(3), 0x1);
+	}
+	/* 4. Turn On Continue Tx and turn off the other test modes. */
 	odm_set_bb_reg(dm, R_0x1ca4, 0x7, 0x1);
 
 	pmac_tx->cck_cont_tx = false;
@@ -112,126 +120,15 @@ void phydm_stop_ofdm_cont_tx_jgr3(void *dm_void)
 	pmac_tx->cck_cont_tx = false;
 	pmac_tx->ofdm_cont_tx = false;
 
-	/* @Turn Off All Test mode */
+	/* Turn Off All Test mode */
 	odm_set_bb_reg(dm, R_0x1ca4, 0x7, 0x0);
 
-	/* @Delay 10 ms */
+	/* Delay 10 ms */
 	ODM_delay_ms(10);
 
-	/* @BB Reset */
-	odm_set_bb_reg(dm, R_0x1d0c, 0x10000, 0x0);
-	odm_set_bb_reg(dm, R_0x1d0c, 0x10000, 0x1);
-}
-
-void phydm_set_single_tone_jgr3(void *dm_void, boolean is_single_tone,
-				boolean en_pmac_tx, u8 path)
-{
-	struct dm_struct *dm = (struct dm_struct *)dm_void;
-	struct phydm_pmac_tx *pmac_tx = &dm->dm_pmac_tx_table;
-	u8 start = RF_PATH_A, end = RF_PATH_A;
-	u8 i = 0;
-
-	switch (path) {
-	case RF_PATH_A:
-	case RF_PATH_B:
-	case RF_PATH_C:
-	case RF_PATH_D:
-		start = path;
-		end = path;
-		break;
-	case RF_PATH_AB:
-		start = RF_PATH_A;
-		end = RF_PATH_B;
-		break;
-#if (RTL8814B_SUPPORT || RTL8198F_SUPPORT)
-	case RF_PATH_AC:
-		start = RF_PATH_A;
-		end = RF_PATH_C;
-		break;
-	case RF_PATH_AD:
-		start = RF_PATH_A;
-		end = RF_PATH_D;
-		break;
-	case RF_PATH_BC:
-		start = RF_PATH_B;
-		end = RF_PATH_C;
-		break;
-	case RF_PATH_BD:
-		start = RF_PATH_B;
-		end = RF_PATH_D;
-		break;
-	case RF_PATH_CD:
-		start = RF_PATH_C;
-		end = RF_PATH_D;
-		break;
-	case RF_PATH_ABC:
-		start = RF_PATH_A;
-		end = RF_PATH_C;
-		break;
-	case RF_PATH_ABD:
-		start = RF_PATH_A;
-		end = RF_PATH_D;
-		break;
-	case RF_PATH_ACD:
-		start = RF_PATH_A;
-		end = RF_PATH_D;
-		break;
-	case RF_PATH_BCD:
-		start = RF_PATH_B;
-		end = RF_PATH_D;
-		break;
-	case RF_PATH_ABCD:
-		start = RF_PATH_A;
-		end = RF_PATH_D;
-		break;
-#endif
-	}
-
-	if (is_single_tone) {
-		pmac_tx->tx_scailing = odm_get_bb_reg(dm, R_0x81c, MASKDWORD);
-
-		if (!en_pmac_tx) {
-			phydm_start_ofdm_cont_tx_jgr3(dm);
-			/*SendPSPoll(pAdapter);*/
-		}
-
-		odm_set_bb_reg(dm, R_0x1c68, BIT(24), 0x1); /* @Disable CCA */
-
-		for (i = start; i <= end; i++) {
-			/* @Tx mode: RF0x00[19:16]=4'b0010 */
-			/* @odm_set_rf_reg(dm, i, RF_0x0, 0xF0000, 0x2); */
-			/* @Lowest RF gain index: RF_0x0[4:0] = 0*/
-			odm_set_rf_reg(dm, i, RF_0x0, 0x1F, 0x0);
-			/* @RF LO enabled */
-			odm_set_rf_reg(dm, i, RF_0x58, BIT(1), 0x1);
-		}
-		#if (RTL8814B_SUPPORT == 1)
-		if (dm->support_ic_type & ODM_RTL8814B) {
-			/* @Tx mode: RF0x00[19:16]=4'b0010 */
-			/* config_phydm_write_rf_syn_8814b(dm, RF_SYN0, RF_0x0,
-			 *				0xF0000, 0x2);
-			 */
-			/* @Lowest RF gain index: RF_0x0[4:0] = 0*/
-			config_phydm_write_rf_syn_8814b(dm, RF_SYN0, RF_0x0,
-							0x1F, 0x0);
-			/* @RF LO enabled */
-			config_phydm_write_rf_syn_8814b(dm, RF_SYN0, RF_0x58,
-							BIT(1), 0x1);
-		}
-		#endif
-		odm_set_bb_reg(dm, R_0x81c, 0x001FC000, 0);
-	} else {
-		for (i = start; i <= end; i++) {
-			/* @RF LO disabled */
-			odm_set_rf_reg(dm, i, RF_0x58, BIT(1), 0x0);
-		}
-		odm_set_bb_reg(dm, R_0x1c68, BIT(24), 0x0); /* @Enable CCA */
-
-		if (!en_pmac_tx)
-			phydm_stop_ofdm_cont_tx_jgr3(dm);
-
-		odm_set_bb_reg(dm, R_0x81c, MASKDWORD, pmac_tx->tx_scailing);
-	}
+	/* BB Reset */
+	odm_set_bb_reg(dm, R_0x1d0c, BIT(16), 0x0);
+	odm_set_bb_reg(dm, R_0x1d0c, BIT(16), 0x1);
 }
 
 void phydm_stop_pmac_tx_jgr3(void *dm_void, struct phydm_pmac_info *tx_info)
@@ -240,28 +137,39 @@ void phydm_stop_pmac_tx_jgr3(void *dm_void, struct phydm_pmac_info *tx_info)
 	struct phydm_pmac_tx *pmac_tx = &dm->dm_pmac_tx_table;
 	u32 tmp = 0;
 
-	if (tx_info->mode == CONT_TX) {
-		odm_set_bb_reg(dm, R_0x1e70, 0xf, 2); /* TX Stop */
+	odm_set_bb_reg(dm, R_0x1e70, 0xf, 0x2); /* TX Stop */
+	if (dm->support_ic_type & ODM_RTL8723F) {
+		if (tx_info->mode == CONT_TX) {
+			if (pmac_tx->is_cck_rate) {
+				/* TX Stop */
+				odm_set_bb_reg(dm, R_0x2a00, BIT(0), 0x1);
+				/* Clear BB cont tx */
+				odm_set_bb_reg(dm, R_0x2a00, BIT(28), 0x0);
+				/* Clear PMAC cont tx */
+				odm_set_bb_reg(dm, R_0x2a08, BIT(17), 0x0);
+				/* Clear TX Stop */
+				odm_set_bb_reg(dm, R_0x2a00, BIT(0), 0x0);
+				phydm_stop_cck_cont_tx_jgr3(dm);
+			} else 
+				phydm_stop_ofdm_cont_tx_jgr3(dm);
+		} else {
+			if (pmac_tx->is_cck_rate) {
+				/* packet_count = 0x1 */
+				odm_set_bb_reg(dm, R_0x2a04, 0x03ff0000, 0x1);
+				/* @Disable pmac tx_en*/
+				odm_set_bb_reg(dm, R_0x2a08, BIT(31), 0x0);
+				/* @Enable pmac tx_en*/
+				odm_set_bb_reg(dm, R_0x2a08, BIT(31), 0x1);
+				phydm_stop_cck_cont_tx_jgr3(dm);
+			}
+		} 
+	}else {
+		if (tx_info->mode == CONT_TX) {
 		if (pmac_tx->is_cck_rate)
 			phydm_stop_cck_cont_tx_jgr3(dm);
 		else
 			phydm_stop_ofdm_cont_tx_jgr3(dm);
-	} else {
-		if (pmac_tx->is_cck_rate) {
-			tmp = odm_get_bb_reg(dm, R_0x2de4, MASKLWORD);
-			odm_set_bb_reg(dm, R_0x1e64, MASKLWORD, tmp + 50);
 		}
-		odm_set_bb_reg(dm, R_0x1e70, 0xf, 2); /* TX Stop */
-	}
-
-	if (tx_info->mode == OFDM_SINGLE_TONE_TX) {
-		/* Stop HW TX -> Stop Continuous TX -> Stop RF Setting */
-		if (pmac_tx->is_cck_rate)
-			phydm_stop_cck_cont_tx_jgr3(dm);
-		else
-			phydm_stop_ofdm_cont_tx_jgr3(dm);
-
-		phydm_set_single_tone_jgr3(dm, false, true, pmac_tx->path);
 	}
 }
 
@@ -272,34 +180,39 @@ void phydm_set_mac_phy_txinfo_jgr3(void *dm_void,
 	struct phydm_pmac_tx *pmac_tx = &dm->dm_pmac_tx_table;
 	u32 tmp = 0;
 
-	odm_set_bb_reg(dm, R_0xa58, 0x003F8000, tx_info->tx_rate);
+	odm_set_bb_reg(dm, R_0xa58, 0x003f8000, tx_info->tx_rate);
 
-	/* @0x900[1] ndp_sound */
-	odm_set_bb_reg(dm, R_0x900, 0x2, tx_info->ndp_sound);
+	/*0x900[1] ndp_sound */
+	odm_set_bb_reg(dm, R_0x900, BIT(1), tx_info->ndp_sound);
 
-	/* @0x900[27:24] txsc [29:28] bw [31:30] m_stbc */
-	if (dm->support_ic_type & ODM_RTL8812F) {
-		tmp = (tx_info->tx_sc) | ((tx_info->bw) << 4) |
-			((tx_info->m_stbc) << 6);
-	} else {
-		tmp = (tx_info->tx_sc) | ((tx_info->bw) << 4) |
-			((tx_info->m_stbc - 1) << 6);
-	}
-	odm_set_bb_reg(dm, R_0x900, 0xFF000000, tmp);
+	#if (DM_ODM_SUPPORT_TYPE & (ODM_WIN | ODM_CE))
+	tx_info->m_stbc = tx_info->m_stbc - 1;
+	#endif
+	/*0x900[27:24] txsc [29:28] bw [31:30] m_stbc */
+	tmp = (tx_info->tx_sc) | ((tx_info->bw) << 4) |
+		((tx_info->m_stbc) << 6);
+	odm_set_bb_reg(dm, R_0x900, 0xff000000, tmp);
 
-	if (pmac_tx->is_ofdm_rate) {
-		odm_set_bb_reg(dm, R_0x900, 0x1, 0);
-		odm_set_bb_reg(dm, R_0x900, 0x4, 0);
-	} else if (pmac_tx->is_ht_rate) {
-		odm_set_bb_reg(dm, R_0x900, 0x1, 1);
-		odm_set_bb_reg(dm, R_0x900, 0x4, 0);
+	if (tx_info->tx_sc == 1) /*upper*/
+		odm_set_bb_reg(dm, R_0x1ae0, 0x7000, 0x5);
+	else if (tx_info->tx_sc == 2) /*lower*/
+		odm_set_bb_reg(dm, R_0x1ae0, 0x7000, 0x6);
+	else /* duplicate*/
+		odm_set_bb_reg(dm, R_0x1ae0, 0x7000, 0x0);
+
+	if (pmac_tx->is_ht_rate) {
+		odm_set_bb_reg(dm, R_0x900, BIT(0), 0x1);
+		odm_set_bb_reg(dm, R_0x900, BIT(2), 0x0);
 	} else if (pmac_tx->is_vht_rate) {
-		odm_set_bb_reg(dm, R_0x900, 0x1, 0);
-		odm_set_bb_reg(dm, R_0x900, 0x4, 1);
+		odm_set_bb_reg(dm, R_0x900, BIT(0), 0x0);
+		odm_set_bb_reg(dm, R_0x900, BIT(2), 0x1);
+	} else {
+		odm_set_bb_reg(dm, R_0x900, BIT(0), 0x0);
+		odm_set_bb_reg(dm, R_0x900, BIT(2), 0x0);
 	}
 
-	tmp = tx_info->packet_period; /* @for TX interval */
-	odm_set_bb_reg(dm, R_0x9b8, 0xffff0000, tmp);
+	/* for TX interval */
+	odm_set_bb_reg(dm, R_0x9b8, MASKHWORD, tx_info->packet_period);
 }
 
 void phydm_set_sig_jgr3(void *dm_void, struct phydm_pmac_info *tx_info)
@@ -311,26 +224,14 @@ void phydm_set_sig_jgr3(void *dm_void, struct phydm_pmac_info *tx_info)
 	if (pmac_tx->is_cck_rate)
 		return;
 
-	/* @L-SIG */
 	odm_set_bb_reg(dm, R_0x1eb4, 0xfffff, tx_info->packet_count);
 
+	/* L-SIG */
 	tmp = BYTE_2_DWORD(0, tx_info->lsig[2], tx_info->lsig[1],
 			   tx_info->lsig[0]);
 	odm_set_bb_reg(dm, R_0x908, 0xffffff, tmp);
-#if 0
-	/* @0x924[7:0] = Data init octet */
-	tmp = tx_info->packet_pattern;
-	odm_set_bb_reg(dm, R_0x924, 0xff, tmp);
-
-	if (tx_info->packet_pattern == RANDOM_BY_PN32)
-		tmp = 0x3;
-	else
-		tmp = 0x0;
-
-	odm_set_bb_reg(dm, R_0x914, 0x60000000, tmp);
-#endif
 	if (pmac_tx->is_ht_rate) {
-	/* @HT SIG */
+	/* HT SIG */
 		tmp = BYTE_2_DWORD(0, tx_info->ht_sig[2], tx_info->ht_sig[1],
 				   tx_info->ht_sig[0]);
 		odm_set_bb_reg(dm, R_0x90c, 0xffffff, tmp);
@@ -338,7 +239,7 @@ void phydm_set_sig_jgr3(void *dm_void, struct phydm_pmac_info *tx_info)
 				   tx_info->ht_sig[3]);
 		odm_set_bb_reg(dm, R_0x910, 0xffffff, tmp);
 	} else if (pmac_tx->is_vht_rate) {
-	/* @VHT SIG A/B/serv_field/delimiter */
+	/* VHT SIG A/B/serv_field/delimiter */
 		tmp = BYTE_2_DWORD(0, tx_info->vht_sig_a[2],
 				   tx_info->vht_sig_a[1],
 				   tx_info->vht_sig_a[0]);
@@ -350,10 +251,8 @@ void phydm_set_sig_jgr3(void *dm_void, struct phydm_pmac_info *tx_info)
 		tmp = BYTE_2_DWORD(tx_info->vht_sig_b[3], tx_info->vht_sig_b[2],
 				   tx_info->vht_sig_b[1],
 				   tx_info->vht_sig_b[0]);
-		odm_set_bb_reg(dm, R_0x914, 0x1FFFFFFF, tmp);
-
-		tmp = tx_info->vht_sig_b_crc;
-		odm_set_bb_reg(dm, R_0x938, 0xff00, tmp);
+		odm_set_bb_reg(dm, R_0x914, 0x1fffffff, tmp);
+		odm_set_bb_reg(dm, R_0x938, 0xff00, tx_info->vht_sig_b_crc);
 
 		tmp = BYTE_2_DWORD(tx_info->vht_delimiter[3],
 				   tx_info->vht_delimiter[2],
@@ -369,22 +268,39 @@ void phydm_set_cck_preamble_hdr_jgr3(void *dm_void,
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 	struct phydm_pmac_tx *pmac_tx = &dm->dm_pmac_tx_table;
 	u32 tmp = 0;
+	u8 rate = tx_info->tx_rate; /* HW rate */
 
 	if (!pmac_tx->is_cck_rate)
 		return;
 
-	tmp = tx_info->packet_count | (tx_info->sfd << 16);
-	odm_set_bb_reg(dm, R_0x1e64, MASKDWORD, tmp);
-	tmp = tx_info->signal_field | (tx_info->service_field << 8) |
-	      (tx_info->length << 16);
-	odm_set_bb_reg(dm, R_0x1e68, MASKDWORD, tmp);
-	tmp = BYTE_2_DWORD(0, 0, tx_info->crc16[1], tx_info->crc16[0]);
-	odm_set_bb_reg(dm, R_0x1e6c, 0xffff, tmp);
+	if (dm->support_ic_type & ODM_RTL8723F) {
+		#if (RTL8723F_SUPPORT)
+		odm_set_bb_reg(dm, R_0x2a04, 0x03ff0000, tx_info->packet_count);
+		odm_set_bb_reg(dm, R_0x2a08, BIT(22), tx_info->service_field_bit2);
+		odm_set_bb_reg(dm, R_0x2a08, BIT(21) | BIT(20), rate);
+		odm_set_bb_reg(dm, R_0x2a08, 0x1ffff, tx_info->packet_length);
+		/* turn on scrambler */
+		odm_set_bb_reg(dm, R_0x2a04, BIT(5), 0x0);
 
-	if (tx_info->is_short_preamble)
-		odm_set_bb_reg(dm, R_0x1e6c, BIT(16), 0);
-	else
-		odm_set_bb_reg(dm, R_0x1e6c, BIT(16), 1);
+		if (tx_info->is_short_preamble)
+			odm_set_bb_reg(dm, R_0x2a08, BIT(19), 0x1);
+		else
+			odm_set_bb_reg(dm, R_0x2a08, BIT(19), 0x0);
+		#endif
+	} else {
+		tmp = tx_info->packet_count | (tx_info->sfd << 16);
+		odm_set_bb_reg(dm, R_0x1e64, MASKDWORD, tmp);
+		tmp = tx_info->signal_field | (tx_info->service_field << 8) |
+	      	(tx_info->length << 16);
+		odm_set_bb_reg(dm, R_0x1e68, MASKDWORD, tmp);
+		tmp = BYTE_2_DWORD(0, 0, tx_info->crc16[1], tx_info->crc16[0]);
+		odm_set_bb_reg(dm, R_0x1e6c, MASKLWORD, tmp);
+
+		if (tx_info->is_short_preamble)
+			odm_set_bb_reg(dm, R_0x1e6c, BIT(16), 0x0);
+		else
+			odm_set_bb_reg(dm, R_0x1e6c, BIT(16), 0x1);
+	}
 }
 
 void phydm_set_mode_jgr3(void *dm_void, struct phydm_pmac_info *tx_info,
@@ -400,17 +316,6 @@ void phydm_set_mode_jgr3(void *dm_void, struct phydm_pmac_info *tx_info,
 			phydm_start_cck_cont_tx_jgr3(dm, tx_info);
 		else
 			phydm_start_ofdm_cont_tx_jgr3(dm);
-	} else if (mode == OFDM_SINGLE_TONE_TX) {
-		/* Continuous TX -> HW TX -> RF Setting */
-		tx_info->packet_count = 1;
-
-		if (pmac_tx->is_cck_rate)
-			phydm_start_cck_cont_tx_jgr3(dm, tx_info);
-		else
-			phydm_start_ofdm_cont_tx_jgr3(dm);
-	} else if (mode == PKTS_TX) {
-		if (pmac_tx->is_cck_rate && tx_info->packet_count == 0)
-			tx_info->packet_count = 0xffff;
 	}
 }
 
@@ -419,24 +324,37 @@ void phydm_set_pmac_txon_jgr3(void *dm_void, struct phydm_pmac_info *tx_info)
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 	struct phydm_pmac_tx *pmac_tx = &dm->dm_pmac_tx_table;
 
-	odm_set_bb_reg(dm, R_0x1d08, BIT(0), 1); /* Turn on PMAC */
+	odm_set_bb_reg(dm, R_0x1d08, BIT(0), 0x1); /*Turn on PMAC */
 
-	/* mac scramble seed setting, only in 8198F */
-	#if (RTL8198F_SUPPORT)
-		if (dm->support_ic_type & ODM_RTL8198F)
-			if (!odm_get_bb_reg(dm, R_0x1d10, BIT(16)))
-				odm_set_bb_reg(dm, R_0x1d10, BIT(16), 1);
-	#endif
-
-	if (pmac_tx->is_cck_rate) {
-		odm_set_bb_reg(dm, R_0x1e70, 0xf, 8); /* TX CCK ON */
-		odm_set_bb_reg(dm, R_0x1a84, BIT(31), 0);
+	if (dm->support_ic_type & ODM_RTL8723F) {
+		if (pmac_tx->is_cck_rate) {
+			if (tx_info->mode == CONT_TX) {
+				/* BB and PMAC cont tx */
+				odm_set_bb_reg(dm, R_0x2a08, BIT(17), 0x1);
+				odm_set_bb_reg(dm, R_0x2a00, BIT(28), 0x1);
+			}
+			/* TX CCK ON */
+			odm_set_bb_reg(dm, R_0x2a08, BIT(31), 0x0);
+			odm_set_bb_reg(dm, R_0x2a08, BIT(31), 0x1);
+		} else {
+			odm_set_bb_reg(dm, R_0x1e70, 0xf, 0x0); /*TX Ofdm OFF */
+			odm_set_bb_reg(dm, R_0x1e70, 0xf, 0x4); /*TX Ofdm ON */
+		}
 	} else {
-		odm_set_bb_reg(dm, R_0x1e70, 0xf, 4); /* TX Ofdm ON */
+		/*mac scramble seed setting, only in 8198F */
+		#if (RTL8198F_SUPPORT)
+			if (dm->support_ic_type & ODM_RTL8198F)
+				if (!odm_get_bb_reg(dm, R_0x1d10, BIT(16)))
+					odm_set_bb_reg(dm, R_0x1d10, BIT(16), 0x1);
+		#endif
+ 
+		if (pmac_tx->is_cck_rate){
+			odm_set_bb_reg(dm, R_0x1e70, 0xf, 0x8); /*TX CCK ON */
+			odm_set_bb_reg(dm, R_0x1a84, BIT(31), 0x0);
+		} else {
+			odm_set_bb_reg(dm, R_0x1e70, 0xf, 0x4); /*TX Ofdm ON */
+		}
 	}
-
-	if (tx_info->mode == OFDM_SINGLE_TONE_TX)
-		phydm_set_single_tone_jgr3(dm, true, true, pmac_tx->path);
 }
 
 void phydm_set_pmac_tx_jgr3(void *dm_void, struct phydm_pmac_info *tx_info,
@@ -473,18 +391,20 @@ void phydm_set_tmac_tx_jgr3(void *dm_void)
 
 	/* Turn on TMAC */
 	if (odm_get_bb_reg(dm, R_0x1d08, BIT(0)))
-		odm_set_bb_reg(dm, R_0x1d08, BIT(0), 0);
+		odm_set_bb_reg(dm, R_0x1d08, BIT(0), 0x0);
 
 	/* mac scramble seed setting, only in 8198F */
-	#if (RTL8198F_SUPPORT == 1)
+	#if (RTL8198F_SUPPORT)
 		if (dm->support_ic_type & ODM_RTL8198F)
 			if (odm_get_bb_reg(dm, R_0x1d10, BIT(16)))
-				odm_set_bb_reg(dm, R_0x1d10, BIT(16), 0);
+				odm_set_bb_reg(dm, R_0x1d10, BIT(16), 0x0);
 	#endif
 
 	/* Turn on TMAC CCK */
-	if ((odm_get_bb_reg(dm, R_0x1a84, BIT(31))) == 0)
-		odm_set_bb_reg(dm, R_0x1a84, BIT(31), 1);
+	if (!(dm->support_ic_type & ODM_RTL8723F)) {
+		if (!odm_get_bb_reg(dm, R_0x1a84, BIT(31)))
+			odm_set_bb_reg(dm, R_0x1a84, BIT(31), 0x1);
+	}
 }
 #endif
 
@@ -492,42 +412,40 @@ void phydm_start_cck_cont_tx(void *dm_void, struct phydm_pmac_info *tx_info)
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 
+	#ifdef PHYDM_IC_JGR3_SERIES_SUPPORT
 	if (dm->support_ic_type & ODM_IC_JGR3_SERIES)
 		phydm_start_cck_cont_tx_jgr3(dm, tx_info);
+	#endif
 }
 
 void phydm_stop_cck_cont_tx(void *dm_void)
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 
+	#ifdef PHYDM_IC_JGR3_SERIES_SUPPORT
 	if (dm->support_ic_type & ODM_IC_JGR3_SERIES)
 		phydm_stop_cck_cont_tx_jgr3(dm);
+	#endif
 }
 
 void phydm_start_ofdm_cont_tx(void *dm_void)
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 
+	#ifdef PHYDM_IC_JGR3_SERIES_SUPPORT
 	if (dm->support_ic_type & ODM_IC_JGR3_SERIES)
 		phydm_start_ofdm_cont_tx_jgr3(dm);
+	#endif
 }
 
 void phydm_stop_ofdm_cont_tx(void *dm_void)
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 
+	#ifdef PHYDM_IC_JGR3_SERIES_SUPPORT
 	if (dm->support_ic_type & ODM_IC_JGR3_SERIES)
 		phydm_stop_ofdm_cont_tx_jgr3(dm);
-}
-
-void phydm_set_single_tone(void *dm_void, boolean is_single_tone,
-			   boolean en_pmac_tx, u8 path)
-{
-	struct dm_struct *dm = (struct dm_struct *)dm_void;
-
-	if (dm->support_ic_type & ODM_IC_JGR3_SERIES)
-		phydm_set_single_tone_jgr3(dm, is_single_tone,
-					   en_pmac_tx, path);
+	#endif
 }
 
 void phydm_set_pmac_tx(void *dm_void, struct phydm_pmac_info *tx_info,
@@ -535,16 +453,132 @@ void phydm_set_pmac_tx(void *dm_void, struct phydm_pmac_info *tx_info,
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 
+	#ifdef PHYDM_IC_JGR3_SERIES_SUPPORT
 	if (dm->support_ic_type & ODM_IC_JGR3_SERIES)
 		phydm_set_pmac_tx_jgr3(dm, tx_info, mpt_rf_path);
+	#endif
 }
 
 void phydm_set_tmac_tx(void *dm_void)
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 
+	#ifdef PHYDM_IC_JGR3_SERIES_SUPPORT
 	if (dm->support_ic_type & ODM_IC_JGR3_SERIES)
 		phydm_set_tmac_tx_jgr3(dm);
+	#endif
 }
 
+void phydm_pmac_tx_dbg(void *dm_void, char input[][16], u32 *_used,
+		       char *output, u32 *_out_len)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	struct phydm_pmac_info tx_info;
+	char help[] = "-h";
+	char dbg_buf[PHYDM_SNPRINT_SIZE] = {0};
+	u32 var[10] = {0};
+	u32 used = *_used;
+	u32 out_len = *_out_len;
+	u8 i = 0;
+	u32 tx_cnt = 0x0;
+	u8 poll_cnt = 0x0;
+
+	PHYDM_SSCANF(input[1], DCMD_DECIMAL, &var[0]);
+
+	if (!(dm->support_ic_type & ODM_IC_JGR3_SERIES))
+		return;
+
+	if ((strcmp(input[1], help) == 0)) {
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "[pmac_tx] basic : {1} {rate_idx}(only 1M & 6M) {count}\n");
+	} else {
+		for (i = 1; i < 7; i++) {
+			if (input[i + 1]) {
+				PHYDM_SSCANF(input[i + 1], DCMD_DECIMAL,
+					     &var[i]);
+			}
+		}
+
+		tx_info.en_pmac_tx = true;
+		tx_info.mode = PKTS_TX;
+		tx_info.ndp_sound = false;
+		tx_info.bw = CHANNEL_WIDTH_20;
+		tx_info.tx_sc = 0x0; /*duplicate*/
+		tx_info.m_stbc = 0x0; /*disable*/
+		tx_info.packet_period = 2000; /*d'500 us*/
+		tx_info.tx_rate = (u8)var[1];
+		tx_info.packet_count = (u32)var[2];
+
+		if (tx_info.tx_rate == ODM_RATE1M) {
+			tx_info.signal_field = 0xa; /*rate = 1M*/
+			tx_info.service_field = 0x0;
+			if (dm->support_ic_type & ODM_RTL8723F) {
+				tx_info.service_field_bit2= 0x1;
+				tx_info.packet_length = 1000; /*1000 bytes*/
+			}
+			tx_info.length = 8000; /*d'8000 us=1000 bytes*/
+			tx_info.crc16[0] = 0x60;
+			tx_info.crc16[1] = 0x8e;
+			/*long preamble*/
+			tx_info.is_short_preamble = false;
+			tx_info.sfd = 0xf3a0;
+		} else if (tx_info.tx_rate == ODM_RATE6M) {
+			/*l-sig[3:0] = rate = 6M = 0xb*/
+			/*l-sig[16:5] = length = 1000 bytes*/
+			/*l-sig[17] = parity = 1*/
+			tx_info.lsig[0] = 0xb;
+			tx_info.lsig[1] = 0x7d;
+			tx_info.lsig[2] = 0x2;
+		}
+		phydm_print_rate_2_buff(dm, tx_info.tx_rate, dbg_buf,
+					PHYDM_SNPRINT_SIZE);
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "rate=%s, count=%d, pkt_interval=500(us), length=1000(bytes)\n",
+			 dbg_buf, tx_info.packet_count);
+
+		if (phydm_stop_ic_trx(dm, PHYDM_SET) == PHYDM_SET_FAIL) {
+			PDM_SNPF(out_len, used, output + used, out_len - used,
+				 "check trx idle failed, please try again.\n");
+			return;
+		}
+
+		phydm_reset_bb_hw_cnt(dm);
+		phydm_set_pmac_tx_jgr3(dm, &tx_info, RF_PATH_A);
+
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "pmac_tx enabled, please wait for tx_cnt = %d\n",
+			 tx_info.packet_count);
+		while (1) {
+			if (phydm_is_cck_rate(dm, tx_info.tx_rate))
+				tx_cnt = odm_get_bb_reg(dm, R_0x2de4,
+							MASKLWORD);
+			else
+				tx_cnt = odm_get_bb_reg(dm, R_0x2de0,
+							MASKLWORD);
+
+			if (tx_cnt >= tx_info.packet_count || poll_cnt >= 10)
+				break;
+
+			ODM_delay_ms(100);
+			poll_cnt++;
+		}
+
+		if (tx_cnt < tx_info.packet_count)
+			PDM_SNPF(out_len, used, output + used, out_len - used,
+				 "polling time out(1s), tx_cnt = %d\n", tx_cnt);
+		else
+			PDM_SNPF(out_len, used, output + used, out_len - used,
+				 "pmac_tx finished, poll_cnt = %d\n", poll_cnt);
+
+		tx_info.en_pmac_tx = false;
+		phydm_set_pmac_tx(dm, &tx_info, RF_PATH_A);
+		phydm_set_tmac_tx(dm);
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "Stop pmac_tx and turn on true mac mode.\n");
+
+		phydm_stop_ic_trx(dm, PHYDM_REVERT);
+	}
+	*_used = used;
+	*_out_len = out_len;
+}
 #endif

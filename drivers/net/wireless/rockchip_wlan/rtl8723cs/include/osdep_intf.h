@@ -90,9 +90,7 @@ void rtw_os_ndevs_unregister(struct dvobj_priv *dvobj);
 int rtw_os_ndevs_init(struct dvobj_priv *dvobj);
 void rtw_os_ndevs_deinit(struct dvobj_priv *dvobj);
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35))
-u16 rtw_recv_select_queue(struct sk_buff *skb);
-#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35) */
+u16 rtw_os_recv_select_queue(u8 *msdu, enum rtw_rx_llc_hdl llc_hdl);
 
 int rtw_ndev_notifier_register(void);
 void rtw_ndev_notifier_unregister(void);
@@ -100,6 +98,10 @@ void rtw_inetaddr_notifier_register(void);
 void rtw_inetaddr_notifier_unregister(void);
 
 #include "../os_dep/linux/rtw_proc.h"
+#include "../os_dep/linux/nlrtw.h"
+#ifdef CONFIG_PLATFORM_CMAP_INTFS
+#include "../os_dep/linux/custom_multiap_intfs/custom_multiap_intfs.h"
+#endif
 
 #ifdef CONFIG_IOCTL_CFG80211
 	#include "../os_dep/linux/ioctl_cfg80211.h"

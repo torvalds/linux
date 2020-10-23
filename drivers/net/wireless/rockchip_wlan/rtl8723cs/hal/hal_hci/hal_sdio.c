@@ -18,6 +18,12 @@
 #include <hal_data.h>
 
 #ifndef RTW_HALMAC
+const char *_sdio_tx_queue_str[] = {
+	"H",
+	"M",
+	"L",
+};
+
 static void dump_mac_page0(PADAPTER padapter)
 {
 	char str_out[128];
@@ -173,6 +179,12 @@ void rtw_hal_set_sdio_tx_max_length(PADAPTER padapter, u8 numHQ, u8 numNQ, u8 nu
 	pHalData->sdio_tx_max_len[HI_QUEUE_IDX] = (lenHQ > MAX_XMITBUF_SZ) ? MAX_XMITBUF_SZ : lenHQ;
 	pHalData->sdio_tx_max_len[MID_QUEUE_IDX] = (lenNQ > MAX_XMITBUF_SZ) ? MAX_XMITBUF_SZ : lenNQ;
 	pHalData->sdio_tx_max_len[LOW_QUEUE_IDX] = (lenLQ > MAX_XMITBUF_SZ) ? MAX_XMITBUF_SZ : lenLQ;
+	#ifdef DBG_TX_FREE_PAGE
+	RTW_INFO("rtw_hal_set_sdio_tx_max_length div_num :%u  numHQ=%u numNQ=%u numLQ=%u numPubQ=%u\n",div_num ,numHQ,numNQ,numLQ,numPubQ);
+	RTW_INFO("pHalData->sdio_tx_max_len[HI_QUEUE_IDX] :%u\n",pHalData->sdio_tx_max_len[HI_QUEUE_IDX] );
+	RTW_INFO("pHalData->sdio_tx_max_len[MID_QUEUE_IDX] :%u\n",pHalData->sdio_tx_max_len[MID_QUEUE_IDX] );
+	RTW_INFO("rtw_hal_set_sdio_tx_max_length pHalData->sdio_tx_max_len[LOW_QUEUE_IDX] :%u\n",pHalData->sdio_tx_max_len[LOW_QUEUE_IDX] );
+	#endif
 }
 
 u32 rtw_hal_get_sdio_tx_max_length(PADAPTER padapter, u8 queue_idx)
@@ -203,6 +215,67 @@ u32 rtw_hal_get_sdio_tx_max_length(PADAPTER padapter, u8 queue_idx)
 
 	return max_len;
 }
+
+#ifdef CONFIG_SDIO_TX_ENABLE_AVAL_INT
+#if defined(CONFIG_RTL8188F) || defined(CONFIG_RTL8188GTV) ||defined(CONFIG_RTL8188E) || defined(CONFIG_RTL8821A) || defined(CONFIG_RTL8192F)|| defined(CONFIG_RTL8723D)
+void rtw_hal_sdio_avail_page_threshold_init(_adapter *adapter)
+{
+	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
+
+	hal_data->sdio_avail_int_en_q = 0xFF;
+	rtw_write32(adapter, REG_TQPNT1, 0xFFFFFFFF);
+	rtw_write32(adapter, REG_TQPNT2, 0xFFFFFFFF);
+	#ifdef CONFIG_RTL8192F
+	rtw_write32(adapter, REG_TQPNT3_V1_8192F, 0xFFFFFFFF);
+	#endif
+}
+
+void rtw_hal_sdio_avail_page_threshold_en(_adapter *adapter, u8 qidx, u8 page)
+{
+	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
+	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
+
+	if (hal_data->sdio_avail_int_en_q != qidx) {
+		u32 page_size;
+		u32 tx_max_len;
+		u32 threshold_reg[] = {REG_TQPNT1, REG_TQPNT1 + 2, REG_TQPNT2, REG_TQPNT2 + 2}; /* H, M, L, E */
+		u8 dw_shift[] = {0, 16, 0, 16}; /* H, M, L, E */
+		u32 threshold = 0;
+
+		/* use same low-high threshold as page num from tx_max_len */
+		if(dvobj->tx_aval_int_thr_mode == 0) /*default setting by requirement*/
+			threshold = page;
+		else if (dvobj->tx_aval_int_thr_mode == 1 && dvobj->tx_aval_int_thr_value)
+			threshold = dvobj->tx_aval_int_thr_value;
+		else {
+			rtw_hal_get_def_var(adapter, HAL_DEF_TX_PAGE_SIZE, &page_size);
+			tx_max_len = hal_data->sdio_tx_max_len[qidx];
+			threshold = PageNum(tx_max_len, page_size);
+		}
+		threshold |= (threshold) << 8;
+
+		if (hal_data->sdio_avail_int_en_q == 0xFF)
+			rtw_write16(adapter, threshold_reg[qidx], threshold);
+		else if (hal_data->sdio_avail_int_en_q >> 1 == qidx >> 1) {/* same dword */
+			rtw_write16(adapter, threshold_reg[hal_data->sdio_avail_int_en_q], 0);
+			rtw_write32(adapter, threshold_reg[qidx & 0xFE]
+				, (0xFFFF << dw_shift[hal_data->sdio_avail_int_en_q]) | (threshold << dw_shift[qidx]));
+		} else {
+			rtw_write16(adapter, threshold_reg[hal_data->sdio_avail_int_en_q], 0);
+			rtw_write16(adapter, threshold_reg[hal_data->sdio_avail_int_en_q], 0xFFFF);
+			rtw_write16(adapter, threshold_reg[qidx], threshold);
+		}
+
+		hal_data->sdio_avail_int_en_q = qidx;
+
+		#ifdef DBG_TX_FREE_PAGE
+		RTW_INFO("DWQP enable avail page threshold %s:%u-%u\n", sdio_tx_queue_str(qidx)
+			, threshold & 0xFF, threshold >> 8);
+		#endif
+	}
+}
+#endif
+#endif /* CONFIG_SDIO_TX_ENABLE_AVAL_INT */
 
 #ifdef CONFIG_FW_C2H_REG
 void sd_c2h_hisr_hdl(_adapter *adapter)
@@ -701,3 +774,112 @@ u32 cmd53_4byte_alignment(struct intf_hdl *pintfhdl, u32 addr)
 }
 
 #endif /* !RTW_HALMAC */
+
+#ifndef CONFIG_SDIO_TX_TASKLET
+#ifdef SDIO_FREE_XMIT_BUF_SEMA
+void _rtw_sdio_free_xmitbuf_sema_up(struct xmit_priv *xmit)
+{
+	_rtw_up_sema(&xmit->sdio_free_xmitbuf_sema);
+}
+
+void _rtw_sdio_free_xmitbuf_sema_down(struct xmit_priv *xmit)
+{
+	_rtw_down_sema(&xmit->sdio_free_xmitbuf_sema);
+}
+
+#ifdef DBG_SDIO_FREE_XMIT_BUF_SEMA
+void dbg_rtw_sdio_free_xmitbuf_sema_up(struct xmit_priv *xmit, const char *caller)
+{
+	/* just for debug usage only, pleae take care for the different of count implementaton */
+	RTW_INFO("%s("ADPT_FMT") before up sdio_free_xmitbuf_sema, count:%u\n"
+		, caller, ADPT_ARG(xmit->adapter), xmit->sdio_free_xmitbuf_sema.count);
+	_rtw_sdio_free_xmitbuf_sema_up(xmit);
+}
+
+void dbg_rtw_sdio_free_xmitbuf_sema_down(struct xmit_priv *xmit, const char *caller)
+{
+	/* just for debug usage only, pleae take care for the different of count implementaton */
+	RTW_INFO("%s("ADPT_FMT") before down sdio_free_xmitbuf_sema, count:%u\n"
+		, caller, ADPT_ARG(xmit->adapter), xmit->sdio_free_xmitbuf_sema.count);
+	_rtw_sdio_free_xmitbuf_sema_down(xmit);
+}
+#endif /* DBG_SDIO_FREE_XMIT_BUF_SEMA */
+
+#endif /* SDIO_FREE_XMIT_BUF_SEMA */
+#endif /* !CONFIG_SDIO_TX_TASKLET */
+
+s32 sdio_initrecvbuf(struct recv_buf *recvbuf, _adapter *adapter)
+{
+	_rtw_init_listhead(&recvbuf->list);
+#ifdef PLATFORM_WINDOWS
+	_rtw_spinlock_init(&recvbuf->recvbuf_lock);
+#endif
+	recvbuf->adapter = adapter;
+
+	return _SUCCESS;
+}
+
+void sdio_freerecvbuf(struct recv_buf *recvbuf)
+{
+#ifdef PLATFORM_WINDOWS
+	_rtw_spinlock_free(&recvbuf->recvbuf_lock);
+#endif
+}
+
+#ifdef CONFIG_SDIO_RECVBUF_PWAIT
+void dump_recvbuf_pwait_conf(void *sel, struct recv_priv *recvpriv)
+{
+	struct rtw_pwait_conf *conf = &recvpriv->recvbuf_pwait.conf;
+
+	RTW_PRINT_SEL(sel, "%-4s %-10s %-10s\n"
+		, "type", "time", "cnt_lmt");
+	RTW_PRINT_SEL(sel, "%4s %10d %10d\n"
+		, rtw_pwait_type_str(conf->type), conf->wait_time, conf->wait_cnt_lmt);
+}
+
+#ifdef CONFIG_SDIO_RECVBUF_PWAIT_RUNTIME_ADJUST
+int recvbuf_pwait_config_req(struct recv_priv *recvpriv, enum rtw_pwait_type type, s32 time, s32 cnt_lmt)
+{
+	struct recv_buf *rbuf;
+	struct rtw_pwait_conf *conf;
+	int ret = _FAIL;
+
+	rbuf = rtw_malloc(sizeof(*rbuf) + sizeof(struct rtw_pwait_conf));
+	if (!rbuf)
+		goto exit;
+
+	sdio_initrecvbuf(rbuf, recvpriv->adapter);
+	rbuf->type = RBUF_TYPE_PWAIT_ADJ;
+	rbuf->pbuf = ((u8*)rbuf) + sizeof(*rbuf);
+	conf = (struct rtw_pwait_conf *)rbuf->pbuf;
+	conf->type = type;
+	conf->wait_time = time;
+	conf->wait_cnt_lmt = cnt_lmt;
+
+	ret = rtw_enqueue_recvbuf(rbuf, &recvpriv->free_recv_buf_queue);
+	if (0 && ret == _SUCCESS) {
+		RTW_INFO("request recvbuf_pwait with type=%s time=%d cnt_lmt=%d\n"
+			, rtw_pwait_type_str(type), time, cnt_lmt);
+	}
+
+exit:
+	return ret;
+}
+
+int recvbuf_pwait_config_hdl(struct recv_priv *recvpriv, struct recv_buf *rbuf)
+{
+	struct rtw_pwait_conf *conf = (struct rtw_pwait_conf *)rbuf->pbuf;
+	int ret = rtw_pwctx_config(&recvpriv->recvbuf_pwait, conf->type, conf->wait_time, conf->wait_cnt_lmt);
+
+	if (0 && ret == _SUCCESS) {
+		RTW_INFO("config recvbuf_pwait with type=%s time=%d cnt_lmt=%d\n"
+			, rtw_pwait_type_str(conf->type), conf->wait_time, conf->wait_cnt_lmt);
+	}
+	sdio_freerecvbuf(rbuf);
+	rtw_mfree(rbuf, sizeof(*rbuf) + sizeof(*conf));
+
+	return ret;
+}
+#endif /* CONFIG_SDIO_RECVBUF_PWAIT_RUNTIME_ADJUST */
+#endif /* CONFIG_SDIO_RECVBUF_PWAIT */
+

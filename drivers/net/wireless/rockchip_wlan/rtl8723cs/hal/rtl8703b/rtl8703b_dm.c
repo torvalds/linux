@@ -108,7 +108,7 @@ dm_InterruptMigration(
 	/* when interrupt migration is set before. 2010.03.05. */
 	/*  */
 	if (!Adapter->registrypriv.wifi_spec &&
-	    (check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE) &&
+	    (check_fwstate(pmlmepriv, WIFI_ASOC_STATE) == _TRUE) &&
 	    pmlmepriv->LinkDetectInfo.bHigherBusyTraffic) {
 		IntMtToSet = _TRUE;
 
@@ -192,7 +192,7 @@ static void Init_ODM_ComInfo_8703b(PADAPTER	Adapter)
 	fab_ver = ODM_TSMC;
 	cut_ver = GET_CVID_CUT_VERSION(pHalData->version_id);
 
-	RTW_INFO("%s(): fab_ver=%d cut_ver=%d\n", __func__, fab_ver, cut_ver);
+	RTW_INFO("%s(): Fv=%d Cv=%d\n", __func__, fab_ver, cut_ver);
 	odm_cmn_info_init(pDM_Odm, ODM_CMNINFO_FAB_VER, fab_ver);
 	odm_cmn_info_init(pDM_Odm, ODM_CMNINFO_CUT_VER, cut_ver);
 }

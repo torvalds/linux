@@ -96,6 +96,23 @@ static __inline void RF_DBG(PDM_ODM_T dm, int comp, char *fmt, ...)
 #if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
 static __inline void RF_DBG(struct dm_struct *dm, int comp, char *fmt, ...)
 {
+#if 0
+	RT_STATUS rt_status;
+	va_list args;
+	char buf[128] = {0};/*PRINT_MAX_SIZE*/
+
+	if ((comp & dm->rf_table.rf_dbg_comp) == 0)
+		return;
+
+	if (NULL != fmt) {
+		va_start(args, fmt);
+		rt_status = (RT_STATUS)RtlStringCbVPrintfA(buf, sizeof(buf), fmt, args);
+		va_end(args);
+		if (rt_status == RT_STATUS_SUCCESS) {
+			halrf_rt_trace(buf);
+		}
+	}
+#endif
 }
 #else
 #define RF_DBG(dm, comp, fmt, args...)

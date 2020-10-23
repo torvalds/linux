@@ -15,9 +15,9 @@
 
 #include <drv_types.h>
 #include <hal_data.h>
-#include "rtw_rm_fsm.h"
-
 #ifdef CONFIG_RTW_80211K
+#include "rtw_rm_fsm.h"
+#include "rtw_rm_util.h"
 
 struct fsm_state {
 	u8 *name;
@@ -65,7 +65,7 @@ int rtw_init_rm(_adapter *padapter)
 
 	/* bit 0-7 */
 	prmpriv->rm_en_cap_def[0] = 0
-		/*| BIT(RM_LINK_MEAS_CAP_EN)*/
+		| BIT(RM_LINK_MEAS_CAP_EN)
 		| BIT(RM_NB_REP_CAP_EN)
 		/*| BIT(RM_PARAL_MEAS_CAP_EN)*/
 		| BIT(RM_REPEAT_MEAS_CAP_EN)
@@ -122,6 +122,7 @@ int rtw_init_rm(_adapter *padapter)
 		padapter, rm_timer_callback, padapter);
 	_set_timer(&prmpriv->rm_timer, CLOCK_UNIT);
 
+	prmpriv->meas_token = 1;
 	return _SUCCESS;
 }
 
@@ -387,7 +388,7 @@ u8 rtw_rm_post_envent_cmd(_adapter *padapter, u32 rmid, u8 evid)
 	pev->rmid = rmid;
 	pev->evid = evid;
 
-	init_h2fwcmd_w_parm_no_rsp(pcmd, pev, GEN_CMD_CODE(_RM_POST_EVENT));
+	init_h2fwcmd_w_parm_no_rsp(pcmd, pev, CMD_RM_POST_EVENT);
 	res = rtw_enqueue_cmd(pcmdpriv, pcmd);
 exit:
 	return res;
@@ -501,6 +502,8 @@ static int rm_issue_meas_req(struct rm_obj *prm)
 		issue_nb_req(prm);
 		break;
 	case RM_ACT_LINK_MEAS_REQ:
+		issue_link_meas_req(prm);
+		break;
 	default:
 		return _FALSE;
 	} /* action_code */
@@ -555,8 +558,8 @@ static int rm_state_idle(struct rm_obj *prm, enum RM_EV_ID evid)
 				prm->rmid);
 			break;
 		case RM_ACT_LINK_MEAS_REQ:
+			prm->p.diag_token = prm->q.diag_token;
 			prm->p.action_code = RM_ACT_LINK_MEAS_REP;
-			rm_set_rep_mode(prm, MEAS_REP_MOD_INCAP);
 			RTW_INFO("RM: rmid=%x Link meas switch in\n",
 				prm->rmid);
 			break;
@@ -650,6 +653,10 @@ static int rm_state_do_meas(struct rm_obj *prm, enum RM_EV_ID evid)
 					RM_EV_busy_timer_expire);
 				return _SUCCESS;
 			}
+		} else if (prm->q.action_code == RM_ACT_LINK_MEAS_REQ) {
+			; /* do nothing */
+			rm_state_goto(prm, RM_ST_SEND_REPORT);
+			return _SUCCESS;
 		}
 		_rm_post_event(padapter, prm->rmid, RM_EV_start_meas);
 		break;
@@ -662,8 +669,9 @@ static int rm_state_do_meas(struct rm_obj *prm, enum RM_EV_ID evid)
 			switch (prm->q.m_type) {
 			case bcn_req:
 				val8 = 1; /* Enable free run counter */
-				rtw_hal_set_hwreg(padapter,
-					HW_VAR_FREECNT, &val8);
+				prm->free_run_counter_valid = rtw_hal_set_hwreg(
+					padapter, HW_VAR_FREECNT, &val8);
+
 				rm_sitesurvey(prm);
 				break;
 			case ch_load_req:
@@ -790,15 +798,26 @@ static int rm_state_send_report(struct rm_obj *prm, enum RM_EV_ID evid)
 	switch (evid) {
 	case RM_EV_state_in:
 		/* we have to issue report */
-		switch (prm->q.m_type) {
-		case bcn_req:
-			issue_beacon_rep(prm);
-			break;
-		case ch_load_req:
-		case noise_histo_req:
-			issue_radio_meas_rep(prm);
-			break;
-		default:
+		if (prm->q.action_code == RM_ACT_RADIO_MEAS_REQ) {
+			switch (prm->q.m_type) {
+			case bcn_req:
+				issue_beacon_rep(prm);
+				break;
+			case ch_load_req:
+			case noise_histo_req:
+				issue_radio_meas_rep(prm);
+				break;
+			default:
+				rm_state_goto(prm, RM_ST_END);
+				return _SUCCESS;
+			}
+
+		} else if (prm->q.action_code == RM_ACT_LINK_MEAS_REQ) {
+			issue_link_meas_rep(prm);
+			rm_state_goto(prm, RM_ST_END);
+			return _SUCCESS;
+
+		} else {
 			rm_state_goto(prm, RM_ST_END);
 			return _SUCCESS;
 		}

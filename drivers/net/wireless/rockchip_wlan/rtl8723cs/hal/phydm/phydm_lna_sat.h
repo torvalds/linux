@@ -31,7 +31,7 @@
  * 1 ============================================================
  */
 
-#define LNA_SAT_VERSION "1.0"
+#define LNA_SAT_VERSION "1.1"
 
 /*@LNA saturation check*/
 #define	OFDM_AGC_TAB_0			0
@@ -76,6 +76,21 @@ enum lna_sat_type {
 	LNA_SAT_WITH_PEAK_DET	= 1,	/*type1*/
 	LNA_SAT_WITH_TRAIN	= 2,	/*type2*/
 };
+
+#ifdef PHYDM_HW_SWITCH_AGC_TAB
+enum lna_pd_th_level {
+	LNA_PD_TH_LEVEL0	= 0,
+	LNA_PD_TH_LEVEL1	= 1,
+	LNA_PD_TH_LEVEL2	= 2,
+	LNA_PD_TH_LEVEL3	= 3
+};
+
+enum agc_tab_switch_state {
+	AGC_SWH_IDLE,
+	AGC_SWH_CCK,
+	AGC_SWH_OFDM
+};
+#endif
 
 /* @1 ============================================================
  * 1  structure
@@ -130,6 +145,10 @@ struct phydm_lna_sat_t {
 	u32			check_time;
 	boolean			pre_sat_status;
 	boolean			cur_sat_status;
+#ifdef PHYDM_HW_SWITCH_AGC_TAB
+	boolean			hw_swh_tab_on;
+	enum odm_rf_band	cur_rf_band;
+#endif
 	struct phydm_timer_list	phydm_lna_sat_chk_timer;
 	u32			cur_timer_check_cnt;
 	u32			pre_timer_check_cnt;
@@ -169,5 +188,9 @@ void phydm_lna_sat_chk_watchdog(void *dm_void);
 
 void phydm_lna_sat_check_init(void *dm_void);
 
+#ifdef PHYDM_HW_SWITCH_AGC_TAB
+void phydm_auto_agc_tab_debug(void *dm_void, char input[][16], u32 *_used,
+			      char *output, u32 *_out_len);
+#endif
 #endif /*@#if (PHYDM_LNA_SAT_CHK_SUPPORT == 1)*/
 #endif

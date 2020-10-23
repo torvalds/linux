@@ -39,14 +39,19 @@
 #define rxiqk_gs_limit 6
 #define TXWBIQK_EN 1
 #define RXWBIQK_EN 1
+#if (RTL8814A_SUPPORT == 1 || RTL8198F_SUPPORT == 1 ||\
+	RTL8814B_SUPPORT)
 #define NUM 4
+#elif (RTL8822B_SUPPORT == 1 || RTL8822C_SUPPORT == 1 ||\
+	RTL8812F_SUPPORT == 1 ||	RTL8197G_SUPPORT == 1)
+#define NUM 2
+#else
+#define NUM 1
+#endif
+
 /*@-----------------------End Define Parameters-----------------------*/
 
 struct dm_dack_info {
-	u32 ic_a;
-	u32 qc_a;
-	u32 ic_b;
-	u32 qc_b;
 	boolean dack_en;
 	u16 msbk_d[2][2][15];
 	u8 dck_d[2][2][2];
@@ -72,36 +77,52 @@ struct dm_iqk_info {
 	u8 rxbb;
 	u32 rf_reg58;
 	boolean segment_iqk;
+	boolean is_tssi_mode;
+	u8 iqk_band;
+	u8 iqk_ch;
+	u8 iqk_bw;
 #if (RTL8814A_SUPPORT == 1 || RTL8822B_SUPPORT == 1 || RTL8821C_SUPPORT == 1 ||\
 	RTL8195B_SUPPORT == 1 || RTL8198F_SUPPORT == 1 ||\
 	RTL8814B_SUPPORT == 1 || RTL8822C_SUPPORT == 1 ||\
-	RTL8812F_SUPPORT == 1 || RTL8197G_SUPPORT == 1 )
+	RTL8812F_SUPPORT == 1 || RTL8197G_SUPPORT == 1 ||\
+	RTL8710C_SUPPORT == 1 || RTL8723F_SUPPORT == 1)
 	u32 iqk_channel[2];
-	boolean iqk_fail_report[2][4][2]; /*channel/path/TRX(TX:0, RX:1) */
+	boolean iqk_fail_report[2][NUM][2]; /*channel/path/TRX(TX:0, RX:1) */
 	/*channel / path / TRX(TX:0, RX:1) / CFIR_real*/
 	/*channel index = 2 is just for debug*/
-#if (RTL8812F_SUPPORT == 1 || RTL8822C_SUPPORT == 1 )
+#if (RTL8814B_SUPPORT == 1)
+	u16 iqk_cfir_real[3][NUM][2][19];
+	u16 iqk_cfir_imag[3][NUM][2][19];
+#elif (RTL8812F_SUPPORT == 1 || RTL8822C_SUPPORT == 1 )
 	u16 iqk_cfir_real[3][2][2][17];
 	/*channel / path / TRX(TX:0, RX:1) / CFIR_imag*/
 	/*channel index = 2 is just for debug*/
 	u16 iqk_cfir_imag[3][2][2][17];
+	/*times/path*/
+#elif (RTL8195B_SUPPORT == 1)
+	u32 iqk_cfir_real[3][NUM][2][9];
+	u32 iqk_cfir_imag[3][NUM][2][9];
+	/*channel / path / TRX(TX:0, RX:1) / CFIR_imag*/
+	/*channel index = 2 is just for debug*/
+#else
+	u32 iqk_cfir_real[3][NUM][2][8];
+	/*channel / path / TRX(TX:0, RX:1) / CFIR_imag*/
+	/*channel index = 2 is just for debug*/
+	u32 iqk_cfir_imag[3][NUM][2][8];
+#endif
+
+#if (RTL8812F_SUPPORT == 1 || RTL8822C_SUPPORT == 1 )
 	u32 rx_cfir_real[2][2][17];
 	u32 rx_cfir_imag[2][2][17];
 	u32 rx_cfir[2][2];
-	/*times/path*/
-#else
-	u32 iqk_cfir_real[3][4][2][8];
-	/*channel / path / TRX(TX:0, RX:1) / CFIR_imag*/
-	/*channel index = 2 is just for debug*/
-	u32 iqk_cfir_imag[3][4][2][8];
 #endif
-	u8 retry_count[2][4][3]; /* channel / path / (TXK:0, RXK1:1, RXK2:2) */
-	u8 gs_retry_count[2][4][2]; /* channel / path / (GSRXK1:0, GSRXK2:1) */
+	u8 retry_count[2][NUM][3]; /* channel / path / (TXK:0, RXK1:1, RXK2:2) */
+	u8 gs_retry_count[2][NUM][2]; /* channel / path / (GSRXK1:0, GSRXK2:1) */
 	/* channel / path 0:SRXK1 fail, 1:RXK1 fail 2:RXK2 fail */
-	u8 rxiqk_fail_code[2][4];
-	u32 lok_idac[2][4]; /*channel / path*/
-	u16 rxiqk_agc[2][4]; /*channel / path*/
-	u32 bypass_iqk[2][4]; /*channel / 0xc94/0xe94*/
+	u8 rxiqk_fail_code[2][NUM];
+	u32 lok_idac[2][NUM]; /*channel / path*/
+	u16 rxiqk_agc[2][NUM]; /*channel / path*/
+	u32 bypass_iqk[2][NUM]; /*channel / 0xc94/0xe94*/
 	u32 txgap_result[8]; /*txagpK result  */
 	u32 tmp_gntwl;
 	boolean is_btg;
@@ -110,13 +131,20 @@ struct dm_iqk_info {
 	boolean is_hwtx;
 	boolean xym_read;
 	boolean trximr_enable;
+#if (RTL8822B_SUPPORT == 1 || RTL8821C_SUPPORT == 1 ||\
+	RTL8814B_SUPPORT == 1 || RTL8822C_SUPPORT == 1)
 	u32 rx_xym[2][10];
 	u32 tx_xym[2][10];
 	u32 gs1_xym[2][6];
 	u32 gs2_xym[2][6];
 	u32 rxk1_xym[2][6];
+	u32 nbtxk_1b38[2];
+	u32 nbrxk_1b3c[2];
+#endif
+#if (RTL8710C_SUPPORT == 1 || RTL8197G_SUPPORT == 1 )
 	u32 txxy[2][2];
 	u32 rxxy[2][2];
+#endif
 #endif
 };
 

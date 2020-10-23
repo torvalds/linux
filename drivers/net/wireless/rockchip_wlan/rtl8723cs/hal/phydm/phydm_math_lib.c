@@ -159,27 +159,32 @@ u32 odm_convert_to_db(u64 value)
 			break;
 	}
 
+	/*special cases*/
 	if (j == 0 && i == 0)
 		goto end;
 
+	if (i == 3 && j == 0) {
+		if (db_invert_table[3][0] - value >
+		    value - (db_invert_table[2][7] >> FRAC_BITS)) {
+			i = 2;
+			j = 7;
+		}
+		goto end;
+	}
+
+	if (i < 3)
+		value = value << FRAC_BITS; /*@elements of row 0~2 shift left*/
+
+	/*compare difference to get precise dB*/
 	if (j == 0) {
-		if (i != 3) {
-			if (db_invert_table[i][0] - value >
-			    value - db_invert_table[i - 1][7]) {
-				i = i - 1;
-				j = 7;
-			}
-		} else {
-			if (db_invert_table[3][0] - value >
-			    value - db_invert_table[2][7]) {
-				i = 2;
-				j = 7;
-			}
+		if (db_invert_table[i][j] - value >
+		    value - db_invert_table[i - 1][7]) {
+			i = i - 1;
+			j = 7;
 		}
 	} else {
 		if (db_invert_table[i][j] - value >
 		    value - db_invert_table[i][j - 1]) {
-			i = i;
 			j = j - 1;
 		}
 	}
@@ -227,6 +232,21 @@ u16 phydm_show_fraction_num(u32 frac_val, u8 bit_num)
 			val += (base >> (bit_num - i));
 	}
 	return val;
+}
+
+u16 phydm_ones_num_in_bitmap(u64 val, u8 size)
+{
+	u8 i = 0;
+	u8 ones_num = 0;
+
+	for (i = 0; i < size; i++) {
+		if (val & BIT(0))
+			ones_num++;
+
+		val = val >> 1;
+	}
+
+	return ones_num;
 }
 
 u64 phydm_gen_bitmask(u8 mask_num)

@@ -50,17 +50,14 @@
 	#define CONFIG_SET_SCAN_DENY_TIMER
 #endif
 
-#define CONFIG_AP_MODE
 #ifdef CONFIG_AP_MODE
 	#define CONFIG_NATIVEAP_MLME
 	#ifndef CONFIG_NATIVEAP_MLME
 		#define CONFIG_HOSTAPD_MLME
 	#endif
 	/* #define CONFIG_FIND_BEST_CHANNEL */
-	#define CONFIG_TX_MCAST2UNI	/* Support IP multicast->unicast */
 #endif
 
-#define CONFIG_P2P
 #ifdef CONFIG_P2P
 	/* Added by Albert 20110812
 	The CONFIG_WFD is for supporting the Wi-Fi display */
@@ -98,9 +95,6 @@
 	/* #define DBG_RUNTIME_PORT_SWITCH */
 #endif /* CONFIG_CONCURRENT_MODE */
 
-#define CONFIG_LAYER2_ROAMING
-#define CONFIG_LAYER2_ROAMING_RESUME
-
 /*
  * Hareware/Firmware Related Config
  */
@@ -132,7 +126,7 @@
 #define CONFIG_SDIO_RX_COPY
 #define CONFIG_XMIT_THREAD_MODE
 /* #define CONFIG_SDIO_TX_ENABLE_AVAL_INT */
-/* #define CONFIG_RECV_THREAD_MODE */
+#define CONFIG_RECV_THREAD_MODE
 
 /*
  * Others
@@ -240,8 +234,6 @@
 #define CONFIG_RTW_NAPI_V2
 #endif
 
-
-
 /*
  * Platform dependent
  */
@@ -288,8 +280,6 @@
 #else /* !CONFIG_RTW_DEBUG */
 #define DBG	0	/* for ODM & BTCOEX debug */
 #endif /* !CONFIG_RTW_DEBUG */
-
-#define CONFIG_PROC_DEBUG
 
 #define DBG_CONFIG_ERROR_DETECT
 /* #define DBG_XMIT_BUF */

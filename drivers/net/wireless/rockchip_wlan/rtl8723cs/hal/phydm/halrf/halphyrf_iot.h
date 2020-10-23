@@ -39,6 +39,13 @@
 	#include "halrf/rtl8195b/halrf_dpk_8195b.h"
 #endif
 
+#if (RTL8710C_SUPPORT == 1)
+//	#include "halrf/rtl8710c/halrf.h"
+	#include "halrf/rtl8710c/halrf_iqk_8710c.h"
+//	#include "halrf/rtl8710c/halrf_txgapk_8710c.h"
+//	#include "halrf/rtl8710c/halrf_dpk_8710c.h"
+#endif
+
 #include "halrf/halrf_powertracking_iot.h"
 
 
@@ -53,7 +60,8 @@ enum pwrtrack_method {
 	MIX_MODE,
 	TSSI_MODE,
 	MIX_2G_TSSI_5G_MODE,
-	MIX_5G_TSSI_2G_MODE
+	MIX_5G_TSSI_2G_MODE,
+	CLEAN_MODE
 };
 
 typedef void	(*func_set_pwr)(void *, enum pwrtrack_method, u8, u8);

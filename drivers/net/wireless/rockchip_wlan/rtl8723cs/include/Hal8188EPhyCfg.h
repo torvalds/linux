@@ -103,15 +103,8 @@ PHY_SetTxPowerIndex_8188E(
 		u8					Rate
 );
 
-u8
-PHY_GetTxPowerIndex_8188E(
-		PADAPTER		pAdapter,
-		enum rf_path		RFPath,
-		u8				Rate,
-		u8				BandWidth,
-		u8				Channel,
-	struct txpwr_idx_comp *tic
-);
+s8 phy_get_txpwr_target_extra_bias_8188e(_adapter *adapter, enum rf_path rfpath
+	, RATE_SECTION rs, enum MGN_RATE rate, enum channel_width bw, BAND_TYPE band, u8 cch);
 
 /*
  * Switch bandwidth for 8192S

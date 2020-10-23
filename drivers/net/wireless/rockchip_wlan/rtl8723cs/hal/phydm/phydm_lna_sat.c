@@ -55,8 +55,7 @@ void phydm_lna_sat_chk_init(
 	lna_info->pre_timer_check_cnt = 0;
 
 	#if (RTL8198F_SUPPORT || RTL8814B_SUPPORT)
-	if (dm->support_ic_type &
-	    (ODM_RTL8198F | ODM_RTL8814B))
+	if (dm->support_ic_type & (ODM_RTL8198F | ODM_RTL8814B))
 		phydm_lna_sat_chk_bb_init(dm);
 	#endif
 }
@@ -519,7 +518,7 @@ void phydm_lna_sat_chk_watchdog_type1(
 
 	u8 rssi_min = dm->rssi_min;
 
-	PHYDM_DBG(dm, DBG_LNA_SAT_CHK, "\n%s ==>\n", __func__);
+	PHYDM_DBG(dm, DBG_LNA_SAT_CHK, "%s ==>\n", __func__);
 
 	if (!(dm->support_ability & ODM_BB_LNA_SAT_CHK)) {
 		PHYDM_DBG(dm, DBG_LNA_SAT_CHK,
@@ -537,13 +536,6 @@ void phydm_lna_sat_chk_watchdog_type1(
 		PHYDM_DBG(dm, DBG_LNA_SAT_CHK,
 			  "is_disable_lna_sat_chk=%d, return\n",
 			  lna_info->is_disable_lna_sat_chk);
-		return;
-	}
-
-	if (!(dm->support_ic_type &
-	    (ODM_RTL8197F | ODM_RTL8198F | ODM_RTL8814B))) {
-		PHYDM_DBG(dm, DBG_LNA_SAT_CHK,
-			  "support_ic_type not 97F/98F/14B, return\n");
 		return;
 	}
 
@@ -621,10 +613,6 @@ void phydm_snr_collect(
 	struct phydm_lna_sat_t	*pinfo = &dm->dm_lna_sat_info;
 
 	if (pinfo->is_sm_done) {
-#if 0
-		/*PHYDM_DBG(dm, DBG_LNA_SAT_CHK, "%s ==>\n", __func__);*/
-#endif
-
 		/* @adapt only path-A for calculation */
 		pinfo->snr_statistic[pinfo->cnt_snr_statistic] = rx_snr;
 
@@ -1160,16 +1148,365 @@ void phydm_lna_sat_type2_sm(
 		return;
 	}
 }
-
-
 #endif /*@#ifdef PHYDM_LNA_SAT_CHK_TYPE2*/
 
-void phydm_lna_sat_debug(
-	void *dm_void,
-	char input[][16],
-	u32 *_used,
-	char *output,
-	u32 *_out_len)
+#ifdef PHYDM_HW_SWITCH_AGC_TAB
+u32 phydm_get_lna_pd_reg(void *dm_void)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	u32 rf_pd_reg = RF_0x8b;
+
+#if (RTL8814B_SUPPORT)
+		if (dm->support_ic_type & ODM_RTL8814B) {
+			if (*dm->channel <= 14)
+				rf_pd_reg = RF_0x87;
+			else
+				rf_pd_reg = RF_0x8b;
+		}
+#endif
+	return rf_pd_reg;
+}
+
+u32 phydm_get_lna_pd_en_mask(void *dm_void)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	u32 rf_pd_en_msk = BIT(2);
+
+#if (RTL8814B_SUPPORT)
+		if (dm->support_ic_type & ODM_RTL8814B) {
+			if (*dm->channel <= 14)
+				rf_pd_en_msk = BIT(4);
+			else
+				rf_pd_en_msk = BIT(2);
+		}
+#endif
+	return rf_pd_en_msk;
+}
+
+boolean phydm_get_lna_pd_en(void *dm_void)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	u32 rf_pd_reg = RF_0x8b;
+	u32 rf_pd_en_msk = BIT(2);
+	u32 pd_en = 0;
+
+	rf_pd_reg = phydm_get_lna_pd_reg(dm);
+	rf_pd_en_msk = phydm_get_lna_pd_en_mask(dm);
+
+#if (RTL8814B_SUPPORT)
+		if (dm->support_ic_type & ODM_RTL8814B)
+			pd_en = config_phydm_read_rf_reg_8814b(dm, RF_PATH_A,
+							       rf_pd_reg,
+							       rf_pd_en_msk);
+#endif
+	return (boolean)pd_en;
+}
+
+void phydm_set_lna_pd_en(void *dm_void, boolean lna_pd_en)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	enum rf_path i = RF_PATH_A;
+	u32 rf_pd_reg = RF_0x8b;
+	u32 rf_pd_en_msk = BIT(2);
+
+	rf_pd_reg = phydm_get_lna_pd_reg(dm);
+	rf_pd_en_msk = phydm_get_lna_pd_en_mask(dm);
+
+#if (RTL8814B_SUPPORT)
+		if (dm->support_ic_type & ODM_RTL8814B)
+			for (i = RF_PATH_A; i < MAX_PATH_NUM_8814B; i++)
+				config_phydm_write_rf_reg_8814b(dm, i,
+								rf_pd_reg,
+								rf_pd_en_msk,
+								(u8)lna_pd_en);
+#endif
+}
+
+u32 phydm_get_lna_pd_th_mask(void *dm_void)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	u32 rf_pd_th_msk = 0x3;
+
+#if (RTL8814B_SUPPORT)
+		if (dm->support_ic_type & ODM_RTL8814B)
+			rf_pd_th_msk = 0x3;
+#endif
+	return rf_pd_th_msk;
+}
+
+enum lna_pd_th_level phydm_get_lna_pd_th_lv(void *dm_void)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	u32 rf_pd_reg = RF_0x8b;
+	u32 rf_pd_th_msk = 0x3;
+	u32 pd_th_lv = 0x0;
+
+	rf_pd_reg = phydm_get_lna_pd_reg(dm);
+	rf_pd_th_msk = phydm_get_lna_pd_th_mask(dm);
+
+#if (RTL8814B_SUPPORT)
+	if (dm->support_ic_type & ODM_RTL8814B)
+		pd_th_lv = config_phydm_read_rf_reg_8814b(dm, RF_PATH_A,
+							  rf_pd_reg,
+							  rf_pd_th_msk);
+#endif
+	return (enum lna_pd_th_level)pd_th_lv;
+}
+
+void phydm_set_lna_pd_th_lv(void *dm_void,
+			    enum lna_pd_th_level lna_pd_th_lv)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	enum rf_path i = RF_PATH_A;
+	u32 rf_pd_reg = RF_0x8b;
+	u32 rf_pd_th_msk = 0x3;
+
+	rf_pd_reg = phydm_get_lna_pd_reg(dm);
+	rf_pd_th_msk = phydm_get_lna_pd_th_mask(dm);
+
+#if (RTL8814B_SUPPORT)
+		if (dm->support_ic_type & ODM_RTL8814B)
+			for (i = RF_PATH_A; i < MAX_PATH_NUM_8814B; i++)
+				config_phydm_write_rf_reg_8814b(dm, i,
+								rf_pd_reg,
+								rf_pd_th_msk,
+								lna_pd_th_lv);
+#endif
+}
+
+u32 phydm_get_sat_agc_tab_version(void *dm_void)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+
+#if (RTL8814B_SUPPORT)
+	if (dm->support_ic_type & ODM_RTL8814B)
+		return odm_get_version_mp_8814b_extra_agc_tab();
+#endif
+	return 0;
+}
+
+boolean phydm_get_auto_agc_config(void *dm_void,
+				  enum agc_tab_switch_state state_sel)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	u32 state_en = 0;
+#ifdef PHYDM_IC_JGR3_SERIES_SUPPORT
+	switch (state_sel) {
+	case AGC_SWH_IDLE:
+		state_en = odm_get_bb_reg(dm, R_0x18ac, BIT(16));
+		break;
+	case AGC_SWH_OFDM:
+		state_en = odm_get_bb_reg(dm, R_0x18ac, BIT(17));
+		break;
+	case AGC_SWH_CCK:
+		state_en = odm_get_bb_reg(dm, R_0x18ac, BIT(18));
+		break;
+	default:
+		state_en = 0;
+		break;
+	}
+#endif
+	return (boolean)state_en;
+}
+
+boolean phydm_is_auto_agc_on(void *dm_void)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	boolean state_on = false;
+
+	state_on = ((phydm_get_auto_agc_config(dm, AGC_SWH_IDLE) ||
+		     phydm_get_auto_agc_config(dm, AGC_SWH_CCK) ||
+		     phydm_get_auto_agc_config(dm, AGC_SWH_OFDM)) &&
+		     phydm_get_lna_pd_en(dm));
+
+	return state_on;
+}
+
+void phydm_config_auto_agc(void *dm_void,
+			   boolean idle_en,
+			   boolean cck_cca_en,
+			   boolean ofdm_cca_en)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	u32 hwagc_opt = 0;
+#ifdef PHYDM_IC_JGR3_SERIES_SUPPORT
+	if (dm->support_ic_type & ~ODM_RTL8814B)
+		return;
+
+	if (idle_en)
+		hwagc_opt |= BIT(0);
+	else
+		hwagc_opt &= ~BIT(0);
+	if (ofdm_cca_en)
+		hwagc_opt |= BIT(1);
+	else
+		hwagc_opt &= ~BIT(1);
+	if (cck_cca_en)
+		hwagc_opt |= BIT(2);
+	else
+		hwagc_opt &= ~BIT(2);
+
+	odm_set_bb_reg(dm, R_0x18ac, BIT(18) | BIT(17) | BIT(16), hwagc_opt);
+#ifdef PHYDM_COMPILE_ABOVE_2SS
+	odm_set_bb_reg(dm, R_0x41ac, BIT(18) | BIT(17) | BIT(16), hwagc_opt);
+#endif
+#ifdef PHYDM_COMPILE_ABOVE_3SS
+	odm_set_bb_reg(dm, R_0x52ac, BIT(18) | BIT(17) | BIT(16), hwagc_opt);
+#endif
+#ifdef PHYDM_COMPILE_ABOVE_4SS
+	odm_set_bb_reg(dm, R_0x53ac, BIT(18) | BIT(17) | BIT(16), hwagc_opt);
+#endif
+#endif
+}
+
+void phydm_auto_agc_tab_reset(void *dm_void)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+
+	phydm_set_lna_pd_th_lv(dm, 0x0);
+	phydm_config_auto_agc(dm, true, false, true);
+	phydm_set_lna_pd_en(dm, true);
+}
+
+void phydm_auto_agc_tab_off(void *dm_void)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+
+	phydm_config_auto_agc(dm, false, false, false);
+	phydm_set_lna_pd_en(dm, false);
+}
+
+void phydm_switch_sat_agc_by_band(void *dm_void)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	struct phydm_lna_sat_t	*lna_sat = &dm->dm_lna_sat_info;
+
+#if (RTL8814B_SUPPORT)
+	if (dm->support_ic_type & ODM_RTL8814B)
+		odm_config_mp_8814b_extra_agc_tab(dm, lna_sat->cur_rf_band);
+#endif
+#if (DM_ODM_SUPPORT_TYPE == ODM_AP)
+	pr_debug("%s ==> switch to band%d\n", __func__, lna_sat->cur_rf_band);
+#else
+	PHYDM_DBG(dm, DBG_LNA_SAT_CHK, "%s ==> switch to band%d\n",
+		  __func__, lna_sat->cur_rf_band);
+#endif
+}
+
+void phydm_auto_agc_tab_init(void *dm_void)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	struct phydm_lna_sat_t	*lna_sat = &dm->dm_lna_sat_info;
+	u8 channel = *dm->channel;
+
+	lna_sat->cur_rf_band = phydm_ch_to_rf_band(dm, channel);
+	phydm_switch_sat_agc_by_band(dm);
+
+	if ((dm->support_ability & ODM_BB_LNA_SAT_CHK)) {
+		phydm_auto_agc_tab_reset(dm);
+		lna_sat->hw_swh_tab_on = true;
+	} else {
+		phydm_auto_agc_tab_off(dm);
+		lna_sat->hw_swh_tab_on = false;
+	}
+}
+
+void phydm_auto_agc_tab_watchdog(void *dm_void)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	struct phydm_lna_sat_t	*lna_sat = &dm->dm_lna_sat_info;
+	boolean hw_swh_on = false;
+
+	PHYDM_DBG(dm, DBG_LNA_SAT_CHK, "%s ==>\n", __func__);
+
+	if (!(dm->support_ability & ODM_BB_LNA_SAT_CHK)) {
+		if (lna_sat->hw_swh_tab_on) {
+			phydm_auto_agc_tab_off(dm);
+			lna_sat->hw_swh_tab_on = false;
+		}
+		PHYDM_DBG(dm, DBG_LNA_SAT_CHK, "Disabled LNA sat. check\n");
+		return;
+	}
+
+	if (!lna_sat->hw_swh_tab_on)
+		PHYDM_DBG(dm, DBG_LNA_SAT_CHK,
+			  "[WARNING] HW switch AGC Tab not fully enabled\n");
+}
+
+void phydm_auto_agc_tab_debug(void *dm_void, char input[][16], u32 *_used,
+			      char *output, u32 *_out_len)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	struct phydm_lna_sat_t	*lna_sat = &dm->dm_lna_sat_info;
+	char help[] = "-h";
+	u32 var1[10] = {0};
+	u32 used = *_used;
+	u32 out_len = *_out_len;
+	u8 i;
+	u8 agc_tab = 0;
+
+	if ((strcmp(input[1], help) == 0)) {
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "LNA sat. AGC Tab version : %d\n",
+			 phydm_get_sat_agc_tab_version(dm));
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "Enable LNA peak detector : {0} {lna_pd_en = %d}\n",
+			 phydm_get_lna_pd_en(dm));
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "Set LNA peak detector lv : {1} {lna_pd_th_lv = %d}\n",
+			 phydm_get_lna_pd_th_lv(dm));
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "Config hw switch AGC tab : {2} {hw_swh_en_rx_idle} {hw_swh_en_cck_cca} {hw_swh_en_ofdm_cca} = (%d, %d, %d)\n",
+			 phydm_get_auto_agc_config(dm, AGC_SWH_IDLE),
+			 phydm_get_auto_agc_config(dm, AGC_SWH_CCK),
+			 phydm_get_auto_agc_config(dm, AGC_SWH_OFDM));
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "Reset to default setting : {3}\n",
+			 phydm_get_auto_agc_config(dm, AGC_SWH_IDLE),
+			 phydm_get_auto_agc_config(dm, AGC_SWH_CCK),
+			 phydm_get_auto_agc_config(dm, AGC_SWH_OFDM));
+
+	} else {
+		PHYDM_SSCANF(input[1], DCMD_DECIMAL, &var1[0]);
+		for (i = 1; i < 10; i++) {
+			if (input[i + 1])
+				PHYDM_SSCANF(input[i + 1], DCMD_DECIMAL,
+					     &var1[i]);
+		}
+		
+		if (var1[0] == 0) {
+			phydm_set_lna_pd_en(dm, (boolean)var1[1]);
+			PDM_SNPF(out_len, used, output + used, out_len - used,
+				 "set lna_pd_en = %d\n",
+				 (u8)phydm_get_lna_pd_en(dm));
+		} else if (var1[0] == 1) {
+			phydm_set_lna_pd_th_lv(dm, (u8)var1[1]);
+			PDM_SNPF(out_len, used, output + used, out_len - used,
+				 "set lna_pd_th_lv = %d\n",
+				 phydm_get_lna_pd_th_lv(dm));
+		}  else if (var1[0] == 2) {
+			phydm_config_auto_agc(dm, (boolean)var1[1],
+					      (boolean)var1[2],
+					      (boolean)var1[3]);
+			PDM_SNPF(out_len, used, output + used, out_len - used,
+				 "set hw switch agc tab en: (rx_idle, cck_cca, ofdm_cca) = (%d, %d, %d)\n",
+				 phydm_get_auto_agc_config(dm, AGC_SWH_IDLE),
+				 phydm_get_auto_agc_config(dm, AGC_SWH_CCK),
+				 phydm_get_auto_agc_config(dm, AGC_SWH_OFDM));
+		}  else if (var1[0] == 3) {
+			PDM_SNPF(out_len, used, output + used, out_len - used,
+				 "reset to default settings\n");
+			phydm_auto_agc_tab_reset(dm);
+		}
+		lna_sat->hw_swh_tab_on = phydm_is_auto_agc_on(dm);
+	}
+	*_used = used;
+	*_out_len = out_len;
+}
+#endif /*@#ifdef PHYDM_HW_SWITCH_AGC_TAB*/
+
+void phydm_lna_sat_debug(void *dm_void,	char input[][16], u32 *_used,
+			 char *output, u32 *_out_len)
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 	struct phydm_lna_sat_t	*lna_t = &dm->dm_lna_sat_info;
@@ -1264,8 +1601,7 @@ void phydm_lna_sat_debug(
 	*_out_len = out_len;
 }
 
-void phydm_lna_sat_chk_watchdog(
-	void *dm_void)
+void phydm_lna_sat_chk_watchdog(void *dm_void)
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 	struct phydm_lna_sat_t *lna_sat = &dm->dm_lna_sat_info;
@@ -1273,29 +1609,40 @@ void phydm_lna_sat_chk_watchdog(
 	PHYDM_DBG(dm, DBG_LNA_SAT_CHK, "%s ==>\n", __func__);
 
 	if (lna_sat->lna_sat_type == LNA_SAT_WITH_PEAK_DET) {
+		#ifdef PHYDM_HW_SWITCH_AGC_TAB
+		if (dm->support_ic_type & ODM_RTL8814B) {
+			phydm_auto_agc_tab_watchdog(dm);
+			return;
+		}
+		#endif
 		#ifdef PHYDM_LNA_SAT_CHK_TYPE1
-		phydm_lna_sat_chk_watchdog_type1(dm);
+		if (dm->support_ic_type &
+		    (ODM_RTL8197F | ODM_RTL8198F | ODM_RTL8814B)) {
+			phydm_lna_sat_chk_watchdog_type1(dm);
+			return;
+		}
 		#endif
 	} else if (lna_sat->lna_sat_type == LNA_SAT_WITH_TRAIN) {
 		#ifdef PHYDM_LNA_SAT_CHK_TYPE2
-
+		return;
 		#endif
 	}
 
+	PHYDM_DBG(dm, DBG_LNA_SAT_CHK, "support_ic_type match fail, return\n");
 }
 
-void phydm_lna_sat_config(
-	void *dm_void)
+void phydm_lna_sat_config(void *dm_void)
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 	struct phydm_lna_sat_t	*lna_sat = &dm->dm_lna_sat_info;
 
+	lna_sat->lna_sat_type = 0;
 	#if (RTL8822B_SUPPORT == 1)
 	if (dm->support_ic_type & (ODM_RTL8822B))
 		lna_sat->lna_sat_type = LNA_SAT_WITH_TRAIN;
 	#endif
 
-	#if (RTL8197F_SUPPORT || RTL8192F_SUPPORT ||\
+	#if (RTL8197F_SUPPORT || RTL8192F_SUPPORT || \
 	     RTL8198F_SUPPORT || RTL8814B_SUPPORT)
 	if (dm->support_ic_type &
 	    (ODM_RTL8197F | ODM_RTL8192F | ODM_RTL8198F | ODM_RTL8814B))
@@ -1306,14 +1653,10 @@ void phydm_lna_sat_config(
 		  __func__, lna_sat->lna_sat_type);
 }
 
-void phydm_lna_sat_check_init(
-	void *dm_void)
+void phydm_lna_sat_check_init(void *dm_void)
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 	struct phydm_lna_sat_t	*lna_sat = &dm->dm_lna_sat_info;
-
-	if ((dm->support_ability & ODM_BB_LNA_SAT_CHK))
-		return;
 
 	/*@2018.04.17 Johnson*/
 	phydm_lna_sat_config(dm);
@@ -1326,6 +1669,12 @@ void phydm_lna_sat_check_init(
 	/*@2018.04.17 Johnson end*/
 
 	if (lna_sat->lna_sat_type == LNA_SAT_WITH_PEAK_DET) {
+		#ifdef PHYDM_HW_SWITCH_AGC_TAB
+		if (dm->support_ic_type & ODM_RTL8814B) {
+			phydm_auto_agc_tab_init(dm);
+			return;
+		}
+		#endif
 		#ifdef PHYDM_LNA_SAT_CHK_TYPE1
 		phydm_lna_sat_chk_init(dm);
 		#endif

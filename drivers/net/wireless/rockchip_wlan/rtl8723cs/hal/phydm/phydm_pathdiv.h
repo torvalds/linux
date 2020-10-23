@@ -27,7 +27,13 @@
 #define __PHYDMPATHDIV_H__
 
 #ifdef CONFIG_PATH_DIVERSITY
-#define PATHDIV_VERSION "4.1" /* @ modify the condition of by reg*/
+/* @2019.03.07 open resp tx path h2c only for 1ss status*/
+#define PATHDIV_VERSION "4.4"
+
+#if (RTL8192F_SUPPORT || RTL8822B_SUPPORT || RTL8822C_SUPPORT ||\
+	RTL8812F_SUPPORT || RTL8197G_SUPPORT)
+	#define PHYDM_CONFIG_PATH_DIV_V2
+#endif
 
 #define USE_PATH_A_AS_DEFAULT_ANT /* @for 8814 dynamic TX path selection */
 

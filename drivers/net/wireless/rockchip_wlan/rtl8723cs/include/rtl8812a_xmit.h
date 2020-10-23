@@ -318,9 +318,7 @@ void rtl8812a_fill_fake_txdesc(PADAPTER	padapter, u8 *pDesc, u32 BufferLen, u8 I
 void rtl8812a_fill_txdesc_sectype(struct pkt_attrib *pattrib, u8 *ptxdesc);
 void rtl8812a_fill_txdesc_vcs(PADAPTER padapter, struct pkt_attrib *pattrib, u8 *ptxdesc);
 void rtl8812a_fill_txdesc_phy(PADAPTER padapter, struct pkt_attrib *pattrib, u8 *ptxdesc);
-#if defined(CONFIG_CONCURRENT_MODE)
 void fill_txdesc_force_bmc_camid(struct pkt_attrib *pattrib, u8 *ptxdesc);
-#endif
 void fill_txdesc_bmc_tx_rate(struct pkt_attrib *pattrib, u8 *ptxdesc);
 
 #ifdef CONFIG_USB_HCI
@@ -328,6 +326,9 @@ s32 rtl8812au_init_xmit_priv(PADAPTER padapter);
 void rtl8812au_free_xmit_priv(PADAPTER padapter);
 s32 rtl8812au_hal_xmit(PADAPTER padapter, struct xmit_frame *pxmitframe);
 s32 rtl8812au_mgnt_xmit(PADAPTER padapter, struct xmit_frame *pmgntframe);
+#ifdef CONFIG_RTW_MGMT_QUEUE
+s32 rtl8812au_hal_mgmt_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
+#endif
 s32	 rtl8812au_hal_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
 s32 rtl8812au_xmit_buf_handler(PADAPTER padapter);
 void rtl8812au_xmit_tasklet(void *priv);
@@ -341,6 +342,9 @@ struct xmit_buf *rtl8812ae_dequeue_xmitbuf(struct rtw_tx_ring *ring);
 void	rtl8812ae_xmitframe_resume(_adapter *padapter);
 s32 rtl8812ae_hal_xmit(PADAPTER padapter, struct xmit_frame *pxmitframe);
 s32 rtl8812ae_mgnt_xmit(PADAPTER padapter, struct xmit_frame *pmgntframe);
+#ifdef CONFIG_RTW_MGMT_QUEUE
+s32 rtl8812ae_hal_mgmt_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
+#endif
 s32	rtl8812ae_hal_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
 void rtl8812ae_xmit_tasklet(void *priv);
 

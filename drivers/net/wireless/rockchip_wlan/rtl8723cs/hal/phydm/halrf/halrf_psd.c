@@ -242,11 +242,8 @@ void _halrf_psd_iqk_init(struct dm_struct *dm)
 
 	if (dm->support_ic_type & ODM_RTL8197G)
 		odm_set_bb_reg(dm, 0x1b20, MASKDWORD, 0x00040008);
-	if (dm->support_ic_type & ODM_RTL8198F) {
+	if (dm->support_ic_type & ODM_RTL8198F)
 		odm_set_bb_reg(dm, 0x1b20, MASKDWORD, 0x00000000);
-		odm_set_bb_reg(dm, 0x1b1c, 0xfff, 0xd21);
-		odm_set_bb_reg(dm, 0x1b1c, 0xfff00000, 0x821);
-	}
 
 	if (dm->support_ic_type & (ODM_RTL8197G | ODM_RTL8198F)) {
 		odm_set_bb_reg(dm, 0x1b24, MASKDWORD, 0x00030000);
@@ -254,9 +251,11 @@ void _halrf_psd_iqk_init(struct dm_struct *dm)
 		odm_set_bb_reg(dm, 0x1b2c, MASKDWORD, 0x00180018);
 		odm_set_bb_reg(dm, 0x1b30, MASKDWORD, 0x20000000);
 		/*odm_set_bb_reg(dm, 0x1b38, MASKDWORD, 0x20000000);*/
-		/*odm_set_bb_reg(dm, 0x1b3C, MASKDWORD, 0x20000000);*/
+		/*odm_set_bb_reg(dm, 0x1b3c, MASKDWORD, 0x20000000);*/
 	}
 
+	odm_set_bb_reg(dm, 0x1b1c, 0xfff, 0xd21);
+	odm_set_bb_reg(dm, 0x1b1c, 0xfff00000, 0x821);
 	odm_set_bb_reg(dm, 0x1b28, MASKDWORD, 0x0);
 	odm_set_bb_reg(dm, 0x1bcc, 0x3f, 0x3f);	
 }
@@ -296,9 +295,9 @@ u32 halrf_get_iqk_psd_data(
 
 	odm_set_bb_reg(dm, R_0x1b2c, MASKDWORD, psd_point);
 
-	odm_set_bb_reg(dm, R_0x1b34, MASKDWORD, 0x1);
+	odm_set_bb_reg(dm, R_0x1b34, BIT(0), 0x1);
 
-	odm_set_bb_reg(dm, R_0x1b34, MASKDWORD, 0x0);
+	odm_set_bb_reg(dm, R_0x1b34, BIT(0), 0x0);
 
 	for (i = 0; i < delay_time; i++)
 		ODM_delay_us(1);

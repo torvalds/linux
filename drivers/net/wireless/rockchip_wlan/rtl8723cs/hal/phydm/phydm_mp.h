@@ -26,7 +26,8 @@
 #ifndef __PHYDM_MP_H__
 #define __PHYDM_MP_H__
 
-#define MP_VERSION "1.3"
+/*2020.04.27 Refine single tone Tx flow*/
+#define MP_VERSION "1.5"
 
 /* @1 ============================================================
  * 1  Definition
@@ -37,22 +38,18 @@
  * 1 ============================================================
  */
 struct phydm_mp {
-	/* @Rx OK count, statistics used in Mass Production Test.*/
+	/*Rx OK count, statistics used in Mass Production Test.*/
 	u64 tx_phy_ok_cnt;
 	u64 rx_phy_ok_cnt;
-	/* @Rx CRC32 error count, statistics used in Mass Production Test.*/
+	/*Rx CRC32 error count, statistics used in Mass Production Test.*/
 	u64 rx_phy_crc_err_cnt;
-	/* @The Value of IO operation is depend of MptActType.*/
+	/*The Value of IO operation is depend of MptActType.*/
 	u32 io_value;
-	u32 rf_reg0;
-	/* @u32 rfe_sel_a_0;*/
-	/* @u32 rfe_sel_b_0;*/
-	/* @u32 rfe_sel_c_0;*/
-	/* @u32 rfe_sel_d_0;*/
-	/* @u32 rfe_sel_a_1;*/
-	/* @u32 rfe_sel_b_1;*/
-	/* @u32 rfe_sel_c_1;*/
-	/* @u32 rfe_sel_d_1;*/
+	u32 rf0[RF_PATH_MEM_SIZE];
+	#if (RTL8814B_SUPPORT)
+	u32 rf0_syn[2];
+	#endif
+	u32 rf1[RF_PATH_MEM_SIZE];
 };
 
 /* @1 ============================================================

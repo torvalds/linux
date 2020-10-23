@@ -271,8 +271,10 @@ enum {
 	MP_PwrCtlDM,
 	MP_GETVER,
 	MP_MON,
+	EFUSE_BT_MASK,
 	EFUSE_MASK,
 	EFUSE_FILE,
+	EFUSE_FILE_STORE,
 	MP_TX,
 	MP_RX,
 	MP_IQK,
@@ -288,6 +290,8 @@ enum {
 	MP_LINK,
 	MP_DPK_TRK,
 	MP_DPK,
+	MP_GET_TSSIDE,
+	MP_SET_TSSIDE,
 	MP_NULL,
 #ifdef CONFIG_APPEND_VENDOR_IE_ENABLE
 	VENDOR_IE_SET ,
@@ -296,6 +300,10 @@ enum {
 #ifdef CONFIG_WOWLAN
 	MP_WOW_ENABLE,
 	MP_WOW_SET_PATTERN,
+#ifdef CONFIG_WOW_KEEP_ALIVE_PATTERN
+	MP_WOW_SET_KEEP_ALIVE_PATTERN,
+#endif /*CONFIG_WOW_KEEP_ALIVE_PATTERN*/
+
 #endif
 #ifdef CONFIG_AP_WOWLAN
 	MP_AP_WOW_ENABLE,
@@ -383,6 +391,9 @@ struct mp_priv {
 	BOOLEAN mplink_brx;
 	BOOLEAN mplink_btx;
 
+	bool tssitrk_on;
+	bool efuse_update_file;
+	char efuse_file_path[128];
 };
 
 typedef struct _IOCMD_STRUCT_ {
@@ -643,6 +654,16 @@ typedef enum	_MPT_TXPWR_DEF {
 #define IS_MPT_VHT_RATE(_rate)			(_rate >= MPT_RATE_VHT1SS_MCS0 && _rate <= MPT_RATE_VHT4SS_MCS9)
 #define IS_MPT_CCK_RATE(_rate)			(_rate >= MPT_RATE_1M && _rate <= MPT_RATE_11M)
 #define IS_MPT_OFDM_RATE(_rate)			(_rate >= MPT_RATE_6M && _rate <= MPT_RATE_54M)
+
+typedef enum _mp_tx_pkt_payload{
+	MP_TX_Payload_00 = 0,
+	MP_TX_Payload_a5,
+	MP_TX_Payload_5a,
+	MP_TX_Payload_ff,
+	MP_TX_Payload_prbs9,
+	MP_TX_Payload_default_random
+} mp_tx_pkt_payload;
+
 /*************************************************************************/
 #if 0
 extern struct mp_xmit_frame *alloc_mp_xmitframe(struct mp_priv *pmp_priv);
@@ -694,7 +715,7 @@ void	rtw_mp_trigger_iqk(PADAPTER padapter);
 void	rtw_mp_trigger_lck(PADAPTER padapter);
 void	rtw_mp_trigger_dpk(PADAPTER padapter);
 u8 rtw_mp_mode_check(PADAPTER padapter);
-
+bool rtw_is_mp_tssitrk_on(_adapter *adapter);
 
 void hal_mpt_SwitchRfSetting(PADAPTER pAdapter);
 s32 hal_mpt_SetPowerTracking(PADAPTER padapter, u8 enable);
@@ -713,16 +734,19 @@ void hal_mpt_SetContinuousTx(PADAPTER pAdapter, u8 bStart);
 void hal_mpt_SetSingleCarrierTx(PADAPTER pAdapter, u8 bStart);
 void hal_mpt_SetSingleToneTx(PADAPTER pAdapter, u8 bStart);
 void hal_mpt_SetCarrierSuppressionTx(PADAPTER pAdapter, u8 bStart);
-void mpt_ProSetPMacTx(PADAPTER	Adapter);
+u8 mpt_ProSetPMacTx(PADAPTER	Adapter);
 void MP_PHY_SetRFPathSwitch(PADAPTER pAdapter , BOOLEAN bMain);
 void mp_phy_switch_rf_path_set(PADAPTER pAdapter , u8 *pstate);
 u8 MP_PHY_QueryRFPathSwitch(PADAPTER pAdapter);
 u32 mpt_ProQueryCalTxPower(PADAPTER	pAdapter, u8 RfPath);
-void MPT_PwrCtlDM(PADAPTER padapter, u32 bstart);
+void MPT_PwrCtlDM(PADAPTER padapter, u32 trk_type);
 u8 mpt_to_mgnt_rate(u32	MptRateIdx);
 u8 rtw_mpRateParseFunc(PADAPTER pAdapter, u8 *targetStr);
 u32 mp_join(PADAPTER padapter, u8 mode);
 u32 hal_mpt_query_phytxok(PADAPTER	pAdapter);
+u32 mpt_get_tx_power_finalabs_val(PADAPTER	padapter, u8 rf_path);
+void mpt_trigger_tssi_tracking(PADAPTER pAdapter, u8 rf_path);
+
 
 void
 PMAC_Get_Pkt_Param(
@@ -878,7 +902,13 @@ int rtw_mp_dpk(struct net_device *dev,
 int rtw_efuse_mask_file(struct net_device *dev,
 		struct iw_request_info *info,
 		union iwreq_data *wrqu, char *extra);
+int rtw_bt_efuse_mask_file(struct net_device *dev,
+		struct iw_request_info *info,
+		union iwreq_data *wrqu, char *extra);
 int rtw_efuse_file_map(struct net_device *dev,
+		struct iw_request_info *info,
+		union iwreq_data *wrqu, char *extra);
+int rtw_efuse_file_map_store(struct net_device *dev,
 		struct iw_request_info *info,
 		union iwreq_data *wrqu, char *extra);
 int rtw_bt_efuse_file_map(struct net_device *dev,
@@ -902,6 +932,12 @@ int rtw_mp_iqk(struct net_device *dev,
 		 struct iw_request_info *info,
 		 struct iw_point *wrqu, char *extra);
 int rtw_mp_lck(struct net_device *dev,
+		struct iw_request_info *info,
+		struct iw_point *wrqu, char *extra);
+int rtw_mp_get_tsside(struct net_device *dev,
+		struct iw_request_info *info,
+		struct iw_point *wrqu, char *extra);
+int rtw_mp_set_tsside(struct net_device *dev,
 		struct iw_request_info *info,
 		struct iw_point *wrqu, char *extra);
 #endif /* _RTW_MP_H_ */

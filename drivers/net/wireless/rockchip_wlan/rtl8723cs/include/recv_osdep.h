@@ -25,7 +25,9 @@ void rtw_rframe_set_os_pkt(union recv_frame *rframe);
 extern int rtw_recv_indicatepkt(_adapter *adapter, union recv_frame *precv_frame);
 extern void rtw_recv_returnpacket(_nic_hdl cnxt, _pkt *preturnedpkt);
 
+#ifdef CONFIG_WIFI_MONITOR
 extern int rtw_recv_monitor(_adapter *padapter, union recv_frame *precv_frame);
+#endif /* CONFIG_WIFI_MONITOR */
 
 #ifdef CONFIG_HOSTAPD_MLME
 extern void rtw_hostapd_mlme_rx(_adapter *padapter, union recv_frame *precv_frame);
@@ -45,10 +47,11 @@ int rtw_os_recvframe_duplicate_skb(_adapter *padapter, union recv_frame *pclonef
 void rtw_os_free_recvframe(union recv_frame *precvframe);
 
 
-int rtw_os_recvbuf_resource_alloc(_adapter *padapter, struct recv_buf *precvbuf);
+int rtw_os_recvbuf_resource_alloc(_adapter *padapter, struct recv_buf *precvbuf, u32 size);
 int rtw_os_recvbuf_resource_free(_adapter *padapter, struct recv_buf *precvbuf);
 
-_pkt *rtw_os_alloc_msdu_pkt(union recv_frame *prframe, const u8 *da, const u8 *sa, u8 *msdu ,u16 msdu_len);
+_pkt *rtw_os_alloc_msdu_pkt(union recv_frame *prframe, const u8 *da, const u8 *sa
+	, u8 *msdu ,u16 msdu_len, enum rtw_rx_llc_hdl llc_hdl);
 void rtw_os_recv_indicate_pkt(_adapter *padapter, _pkt *pkt, union recv_frame *rframe);
 
 void rtw_os_read_port(_adapter *padapter, struct recv_buf *precvbuf);

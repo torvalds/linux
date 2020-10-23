@@ -78,6 +78,29 @@ void phydm_iq_gen_en(void *dm_void)
 		odm_set_rf_reg(dm, RF_PATH_B, RF_0xef, 0x80000, 0x0);
 	}
 	#endif
+
+	#ifdef PHYDM_IC_JGR3_SERIES_SUPPORT
+	if (dm->support_ic_type & ODM_RTL8197G) {
+		/*RF mode table write enable*/
+		/* Path A */
+		odm_set_rf_reg(dm, RF_PATH_A, RF_0xef, 0x80000, 0x1);
+		odm_set_rf_reg(dm, RF_PATH_A, RF_0x30, 0xfffff, 0x18000);
+		odm_set_rf_reg(dm, RF_PATH_A, RF_0x31, 0xfffff, 0x000cf);
+		odm_set_rf_reg(dm, RF_PATH_A, RF_0x32, 0xfffff, 0x71fc2);
+		odm_set_rf_reg(dm, RF_PATH_A, RF_0xef, 0x80000, 0x0);
+
+		/* Path B */
+		odm_set_rf_reg(dm, RF_PATH_B, RF_0xef, 0x80000, 0x1);
+		odm_set_rf_reg(dm, RF_PATH_B, RF_0x30, 0xfffff, 0x18000);
+		odm_set_rf_reg(dm, RF_PATH_B, RF_0x31, 0xfffff, 0x000cf);
+		odm_set_rf_reg(dm, RF_PATH_B, RF_0x32, 0xfffff, 0x71fc2);
+		odm_set_rf_reg(dm, RF_PATH_B, RF_0x30, 0xfffff, 0x08000);
+		odm_set_rf_reg(dm, RF_PATH_B, RF_0x31, 0xfffff, 0x000ef);
+		odm_set_rf_reg(dm, RF_PATH_B, RF_0x32, 0xfffff, 0x01042);
+		odm_set_rf_reg(dm, RF_PATH_B, RF_0xef, 0x80000, 0x0);
+	}
+	#endif
+
 }
 
 void phydm_dis_cdd(void *dm_void)
@@ -104,6 +127,14 @@ void phydm_dis_cdd(void *dm_void)
 		odm_set_bb_reg(dm, R_0xd0c, 0x3c0, 0);
 		/* Tx CDD for HT SS1*/
 		odm_set_bb_reg(dm, R_0xd0c, 0xf8000, 0);
+	}
+	#endif
+	#ifdef PHYDM_IC_JGR3_SERIES_SUPPORT
+	if (dm->support_ic_type & ODM_IC_JGR3_SERIES) {
+		/* Tx CDD for Legacy Preamble*/
+		odm_set_bb_reg(dm, R_0x1cc0, 0xffffffff, 0x24800000);
+		/* Tx CDD for HT Preamble*/
+		odm_set_bb_reg(dm, R_0x1cb0, 0xffffffff, 0);
 	}
 	#endif
 }
@@ -303,6 +334,31 @@ void phydm_set_direct_bfer(void *dm_void, u16 phs_idx, u8 su_idx)
 			}
 		}
 		odm_set_bb_reg(dm, 0x9e8, 0x2000000, 0); //normal txbf
+	}
+#endif
+} //end function
+
+/*Before use this API, Disable STBC in advance*/
+/*only 1SS rate can improve performance*/
+void phydm_set_direct_bfer_txdesc_en(void *dm_void, u8 enable)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+#if (RTL8197G_SUPPORT)
+	if (dm->support_ic_type & ODM_RTL8197G) {
+		phydm_iq_gen_en(dm);
+
+		/*#ifdef PHYDM_COMMON_API_SUPPORT*/
+		/*path selection is controlled by driver, use 1ss 2Tx*/
+		#if 0
+		if (!phydm_api_trx_mode(dm, BB_PATH_AB, BB_PATH_AB, BB_PATH_AB))
+			return;
+		#endif
+
+		phydm_dis_cdd(dm);
+		if (enable)
+			odm_set_bb_reg(dm, R_0x1d90, 0x8000, 1);
+		else
+			odm_set_bb_reg(dm, R_0x1d90, 0x8000, 0);
 	}
 #endif
 } //end function

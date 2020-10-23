@@ -237,24 +237,6 @@ void rtl8703b_set_FwPwrMode_cmd(PADAPTER padapter, u8 psmode)
 	FillH2CCmd8703B(padapter, H2C_8703B_SET_PWR_MODE, H2C_PWRMODE_LEN, u1H2CPwrModeParm);
 }
 
-#ifdef CONFIG_TDLS
-#ifdef CONFIG_TDLS_CH_SW
-void rtl8703b_set_BcnEarly_C2H_Rpt_cmd(PADAPTER padapter, u8 enable)
-{
-	u8	u1H2CSetPwrMode[H2C_PWRMODE_LEN] = {0};
-
-	SET_8703B_H2CCMD_PWRMODE_PARM_MODE(u1H2CSetPwrMode, 1);
-	SET_8703B_H2CCMD_PWRMODE_PARM_RLBM(u1H2CSetPwrMode, 1);
-	SET_8703B_H2CCMD_PWRMODE_PARM_SMART_PS(u1H2CSetPwrMode, 0);
-	SET_8703B_H2CCMD_PWRMODE_PARM_BCN_PASS_TIME(u1H2CSetPwrMode, 0);
-	SET_8703B_H2CCMD_PWRMODE_PARM_ALL_QUEUE_UAPSD(u1H2CSetPwrMode, 0);
-	SET_8703B_H2CCMD_PWRMODE_PARM_BCN_EARLY_C2H_RPT(u1H2CSetPwrMode, enable);
-	SET_8703B_H2CCMD_PWRMODE_PARM_PWR_STATE(u1H2CSetPwrMode, 0x0C);
-	FillH2CCmd8703B(padapter, H2C_8703B_SET_PWR_MODE, sizeof(u1H2CSetPwrMode), u1H2CSetPwrMode);
-}
-#endif
-#endif
-
 void rtl8703b_set_FwPsTuneParam_cmd(PADAPTER padapter)
 {
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);

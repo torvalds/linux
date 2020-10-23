@@ -1285,15 +1285,13 @@ static void sd_recv_loopback(PADAPTER padapter, u32 size)
 #endif /* CONFIG_MAC_LOOPBACK_DRIVER */
 
 #ifdef CONFIG_SDIO_RX_COPY
- static u32 sd_recv_rxfifo(PADAPTER padapter, u32 size, struct recv_buf **recvbuf_ret)
-
+static u32 sd_recv_rxfifo(PADAPTER padapter, u32 size, struct recv_buf **recvbuf_ret)
 {
 	u32 readsize, ret;
 	u8 *preadbuf;
 	struct recv_priv *precvpriv;
 	struct recv_buf	*precvbuf;
 
-	*recvbuf_ret = NULL;
 
 #if 0
 	readsize = size;
@@ -1307,11 +1305,9 @@ static void sd_recv_loopback(PADAPTER padapter, u32 size)
 	precvpriv = &padapter->recvpriv;
 	precvbuf = rtw_dequeue_recvbuf(&precvpriv->free_recv_buf_queue);
 	if (precvbuf == NULL) {
-		RTW_INFO("%s: recvbuf unavailable\n", __func__);
+		RTW_INFO("%s: recvbuf unavailable\n", __func__); //No free rece_buffer.
 		ret = RTW_RBUF_UNAVAIL;
 		goto exit;
-
-
 	}
 
 	/* 3 2. alloc skb */
@@ -1341,7 +1337,6 @@ static void sd_recv_loopback(PADAPTER padapter, u32 size)
 	if (ret == _FAIL) {
 		rtw_enqueue_recvbuf(precvbuf, &precvpriv->free_recv_buf_queue);
 		goto exit;
-
 	}
 
 	/* 3 4. init recvbuf */
@@ -1518,11 +1513,11 @@ void sd_int_dpc(PADAPTER padapter)
 		RTW_INFO("%s: Rx Error\n", __func__);
 
 	if (phal->sdio_hisr & SDIO_HISR_RX_REQUEST) {
-		struct recv_buf *precvbuf;
+		struct recv_buf *precvbuf = NULL;
 		int alloc_fail_time = 0;
 		u32 hisr = 0, rx_cnt = 0, ret = 0;
 
-		/*		RTW_INFO("%s: RX Request, size=%d\n", __func__, phal->SdioRxFIFOSize); */
+	/*		RTW_INFO("%s: RX Request, size=%d\n", __func__, phal->SdioRxFIFOSize); */
 		phal->sdio_hisr ^= SDIO_HISR_RX_REQUEST;
 		do {
 			phal->SdioRxFIFOSize = SdioLocalCmd52Read2Byte(padapter, SDIO_REG_RX0_REQ_LEN);
@@ -1658,6 +1653,7 @@ u8 RecvOnePkt(PADAPTER padapter)
 	if (len) {
 		sdio_claim_host(func);
 		res = sd_recv_rxfifo(padapter, len, &precvbuf);
+
 		if (precvbuf) {
 			/* printk("Completed Recv One Pkt.\n"); */
 			sd_rxhandler(padapter, precvbuf);

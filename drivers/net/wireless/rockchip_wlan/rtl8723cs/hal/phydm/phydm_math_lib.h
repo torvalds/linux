@@ -35,7 +35,7 @@
  * 1 ============================================================
  */
 
-#define PHYDM_DIV(a, b) ((b) ? (a / b) : 0)
+#define PHYDM_DIV(a, b) ((b) ? ((a) / (b)) : 0)
 #define DIVIDED_2(X) ((X) >> 1)
 /*@1/3 ~ 11/32*/
 #if defined(DM_ODM_CE_MAC80211)
@@ -109,6 +109,8 @@ u32 odm_convert_to_db(u64 value);
 u64 phydm_db_2_linear(u32 value);
 
 u16 phydm_show_fraction_num(u32 frac_val, u8 bit_num);
+
+u16 phydm_ones_num_in_bitmap(u64 val, u8 size);
 
 u64 phydm_gen_bitmask(u8 mask_num);
 

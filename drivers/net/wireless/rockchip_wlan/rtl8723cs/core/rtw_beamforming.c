@@ -94,11 +94,13 @@ static void _get_sta_beamform_cap(PADAPTER adapter, struct sta_info *sta,
 	u8 *sta_bf_cap, u8 *sounding_dim, u8 *comp_steering)
 {
 	struct beamforming_info *info;
+	struct mlme_priv *mlme;
 	struct ht_priv *ht;
+	u16 ht_bf_cap;
 #ifdef CONFIG_80211AC_VHT
 	struct vht_priv *vht;
+	u16 vht_bf_cap;
 #endif /* CONFIG_80211AC_VHT */
-	u16 bf_cap;
 
 
 	*sta_bf_cap = 0;
@@ -110,56 +112,123 @@ static void _get_sta_beamform_cap(PADAPTER adapter, struct sta_info *sta,
 #ifdef CONFIG_80211AC_VHT
 	vht = &adapter->mlmepriv.vhtpriv;
 #endif /* CONFIG_80211AC_VHT */
+	mlme = &adapter->mlmepriv;
 
-	if (is_supported_ht(sta->wireless_mode) == _TRUE) {
-		/* HT */
-		bf_cap = ht->beamform_cap;
+	if (is_supported_ht(sta->wireless_mode) == _FALSE)
+		return;
 
-		if (TEST_FLAG(bf_cap, BEAMFORMING_HT_BEAMFORMEE_ENABLE)) {
-			info->beamforming_cap |= BEAMFORMEE_CAP_HT_EXPLICIT;
-			*sta_bf_cap |= BEAMFORMER_CAP_HT_EXPLICIT;
-			*sounding_dim = (bf_cap & BEAMFORMING_HT_BEAMFORMEE_CHNL_EST_CAP) >> 6;
-		}
-		if (TEST_FLAG(bf_cap, BEAMFORMING_HT_BEAMFORMER_ENABLE)) {
+	/* HT */
+	if (check_fwstate(mlme, WIFI_AP_STATE)) {
+		/* Get peer clinet's BF cap: the cap. is intersected with associated AP.*/
+		ht_bf_cap = sta->htpriv.beamform_cap;
+		RTW_INFO("At AP state, peer sta's ht_bf_cap=0x%x\n", ht_bf_cap);
+
+		if (TEST_FLAG(ht_bf_cap, BEAMFORMING_HT_BEAMFORMEE_ENABLE)) {
 			info->beamforming_cap |= BEAMFORMER_CAP_HT_EXPLICIT;
 			*sta_bf_cap |= BEAMFORMEE_CAP_HT_EXPLICIT;
-			*comp_steering = (bf_cap & BEAMFORMING_HT_BEAMFORMER_STEER_NUM) >> 4;
+			*comp_steering = (ht_bf_cap & BEAMFORMING_HT_BEAMFORMER_STEER_NUM) >> 4;
+			RTW_INFO("%s: we support BEAMFORMER_CAP_HT_EXPLICIT\n", __func__);
+		}
+		if (TEST_FLAG(ht_bf_cap, BEAMFORMING_HT_BEAMFORMER_ENABLE)) {
+			info->beamforming_cap |= BEAMFORMEE_CAP_HT_EXPLICIT;
+			*sta_bf_cap |= BEAMFORMER_CAP_HT_EXPLICIT;
+			*sounding_dim = (ht_bf_cap & BEAMFORMING_HT_BEAMFORMEE_CHNL_EST_CAP) >> 6;
+			RTW_INFO("%s: we support BEAMFORMEE_CAP_HT_EXPLICIT\n", __func__);
+		}
+	} else {
+		/* Get adapter's BF Cap: the cap. is intersected with associated AP.*/
+		ht_bf_cap = ht->beamform_cap;
+		RTW_INFO("At non-AP state, adapter's ht_bf_cap=0x%x\n", ht_bf_cap);
+
+		if (TEST_FLAG(ht_bf_cap, BEAMFORMING_HT_BEAMFORMEE_ENABLE)) {
+			info->beamforming_cap |= BEAMFORMEE_CAP_HT_EXPLICIT;
+			*sta_bf_cap |= BEAMFORMER_CAP_HT_EXPLICIT;
+			*sounding_dim = (ht_bf_cap & BEAMFORMING_HT_BEAMFORMEE_CHNL_EST_CAP) >> 6;
+			RTW_INFO("%s: we support BEAMFORMEE_CAP_HT_EXPLICIT\n", __func__);
+		}
+		if (TEST_FLAG(ht_bf_cap, BEAMFORMING_HT_BEAMFORMER_ENABLE)) {
+			info->beamforming_cap |= BEAMFORMER_CAP_HT_EXPLICIT;
+			*sta_bf_cap |= BEAMFORMEE_CAP_HT_EXPLICIT;
+			*comp_steering = (ht_bf_cap & BEAMFORMING_HT_BEAMFORMER_STEER_NUM) >> 4;
+			RTW_INFO("%s: we support BEAMFORMER_CAP_HT_EXPLICIT\n", __func__);
 		}
 	}
 
 #ifdef CONFIG_80211AC_VHT
-	if (is_supported_vht(sta->wireless_mode) == _TRUE) {
-		/* VHT */
-		bf_cap = vht->beamform_cap;
 
-		/* We are SU Beamformee because the STA is SU Beamformer */
-		if (TEST_FLAG(bf_cap, BEAMFORMING_VHT_BEAMFORMEE_ENABLE)) {
-			info->beamforming_cap |= BEAMFORMEE_CAP_VHT_SU;
-			*sta_bf_cap |= BEAMFORMER_CAP_VHT_SU;
+	if (is_supported_vht(sta->wireless_mode) == _FALSE)
+		return;
 
-			/* We are MU Beamformee because the STA is MU Beamformer */
-			if (TEST_FLAG(bf_cap, BEAMFORMING_VHT_MU_MIMO_STA_ENABLE)) {
-				info->beamforming_cap |= BEAMFORMEE_CAP_VHT_MU;
-				*sta_bf_cap |= BEAMFORMER_CAP_VHT_MU;
-			}
+	/* VHT */
+	if (check_fwstate(mlme, WIFI_AP_STATE)) {
+		/* Get peer clinet's BF cap: the cap. is intersected with associated AP.*/
+		vht_bf_cap = sta->vhtpriv.beamform_cap;
+		RTW_INFO("At AP state, peer sta's vht_bf_cap=0x%x\n", vht_bf_cap);
 
-			*sounding_dim = (bf_cap & BEAMFORMING_VHT_BEAMFORMEE_SOUND_DIM) >> 12;
-		}
 		/* We are SU Beamformer because the STA is SU Beamformee */
-		if (TEST_FLAG(bf_cap, BEAMFORMING_VHT_BEAMFORMER_ENABLE)) {
+		if (TEST_FLAG(vht_bf_cap, BEAMFORMING_VHT_BEAMFORMEE_ENABLE)) {
 			info->beamforming_cap |= BEAMFORMER_CAP_VHT_SU;
 			*sta_bf_cap |= BEAMFORMEE_CAP_VHT_SU;
+			RTW_INFO("%s: we support BEAMFORMER_CAP_VHT_SU\n", __func__);
 
 			/* We are MU Beamformer because the STA is MU Beamformee */
-			if (TEST_FLAG(bf_cap, BEAMFORMING_VHT_MU_MIMO_AP_ENABLE)) {
+			if (TEST_FLAG(vht_bf_cap, BEAMFORMING_VHT_MU_MIMO_STA_ENABLE)) {
 				info->beamforming_cap |= BEAMFORMER_CAP_VHT_MU;
 				*sta_bf_cap |= BEAMFORMEE_CAP_VHT_MU;
+				RTW_INFO("%s: we support BEAMFORMER_CAP_VHT_MU\n", __func__);
 			}
 
-			*comp_steering = (bf_cap & BEAMFORMING_VHT_BEAMFORMER_STS_CAP) >> 8;
+			*comp_steering = (vht_bf_cap & BEAMFORMING_VHT_BEAMFORMER_STS_CAP) >> 8;
+		}
+		/* We are SU Beamformee because the STA is SU Beamformer */
+		if (TEST_FLAG(vht_bf_cap, BEAMFORMING_VHT_BEAMFORMER_ENABLE)) {
+			info->beamforming_cap |= BEAMFORMEE_CAP_VHT_SU;
+			*sta_bf_cap |= BEAMFORMER_CAP_VHT_SU;
+			RTW_INFO("%s: we support BEAMFORMEE_CAP_VHT_SU\n", __func__);
+
+			/* The STA is MU Beamformer, but we(AP) should not be MU Beamformee */
+			if (TEST_FLAG(vht_bf_cap, BEAMFORMING_VHT_MU_MIMO_AP_ENABLE)) {
+				RTW_WARN("%s: Associated STA should not be a MU BFer.\n", __func__);
+			}
+
+			*sounding_dim = (vht_bf_cap & BEAMFORMING_VHT_BEAMFORMEE_SOUND_DIM) >> 12;
+		}
+	} else {
+		/* Get adapter's BF Cap: the cap. is intersected with associated AP.*/
+		vht_bf_cap = vht->beamform_cap;
+		RTW_INFO("At non-AP state, adapter's vht_bf_cap=0x%x\n", vht_bf_cap);
+
+		/* We are SU Beamformee */
+		if (TEST_FLAG(vht_bf_cap, BEAMFORMING_VHT_BEAMFORMEE_ENABLE)) {
+			info->beamforming_cap |= BEAMFORMEE_CAP_VHT_SU;
+			*sta_bf_cap |= BEAMFORMER_CAP_VHT_SU;
+			RTW_INFO("%s: we support BEAMFORMEE_CAP_VHT_SU\n", __func__);
+
+			/* We are MU Beamformee */
+			if (TEST_FLAG(vht_bf_cap, BEAMFORMING_VHT_MU_MIMO_STA_ENABLE)) {
+				info->beamforming_cap |= BEAMFORMEE_CAP_VHT_MU;
+				*sta_bf_cap |= BEAMFORMER_CAP_VHT_MU;
+				RTW_INFO("%s: we support BEAMFORMEE_CAP_VHT_MU\n", __func__);
+			}
+
+			*sounding_dim = (vht_bf_cap & BEAMFORMING_VHT_BEAMFORMEE_SOUND_DIM) >> 12;
+		}
+		/* We are SU Beamformer */
+		if (TEST_FLAG(vht_bf_cap, BEAMFORMING_VHT_BEAMFORMER_ENABLE)) {
+			info->beamforming_cap |= BEAMFORMER_CAP_VHT_SU;
+			*sta_bf_cap |= BEAMFORMEE_CAP_VHT_SU;
+			RTW_INFO("%s: we support BEAMFORMER_CAP_VHT_SU\n", __func__);
+
+			/* We are MU Beamformer, but client should not be a MU Beamformer */
+			if (TEST_FLAG(vht_bf_cap, BEAMFORMING_VHT_MU_MIMO_AP_ENABLE)) {
+				RTW_WARN("%s: non-AP state should not support MU BFer.\n", __func__);
+			}
+
+			*comp_steering = (vht_bf_cap & BEAMFORMING_VHT_BEAMFORMER_STS_CAP) >> 8;
 		}
 	}
 #endif /* CONFIG_80211AC_VHT */
+
 }
 
 static u8 _send_ht_ndpa_packet(PADAPTER adapter, u8 *ra, enum channel_width bw)
@@ -770,7 +839,7 @@ static void _sounding_handler(PADAPTER adapter)
 
 		wait_cnt = 0;
 
-		if (check_fwstate(&adapter->mlmepriv, WIFI_SITE_MONITOR) == _TRUE) {
+		if (check_fwstate(&adapter->mlmepriv, WIFI_UNDER_SURVEY) == _TRUE) {
 			RTW_INFO("%s: Sounding abort! scanning APs...\n", __FUNCTION__);
 			info->sounding_running--;
 			return;
@@ -1386,6 +1455,10 @@ static void _beamforming_enter(PADAPTER adapter, void *p)
 			__FUNCTION__, MAC_ARG(sta_copy->cmn.mac_addr));
 		return;
 	}
+
+	RTW_INFO("%s: find STA info for " MAC_FMT "\n",
+		__FUNCTION__, MAC_ARG(sta_copy->cmn.mac_addr));
+
 	if (sta != sta_copy) {
 		RTW_WARN("%s: Origin sta(fake)=%p realsta=%p for " MAC_FMT "\n",
 		__FUNCTION__, sta_copy, sta, MAC_ARG(sta_copy->cmn.mac_addr));
@@ -1890,7 +1963,7 @@ u8 rtw_bf_cmd(PADAPTER adapter, s32 type, u8 *pbuf, s32 size, u8 enqueue)
 	pdrvextra_cmd_parm->size = size;
 	pdrvextra_cmd_parm->pbuf = wk_buf;
 
-	init_h2fwcmd_w_parm_no_rsp(ph2c, pdrvextra_cmd_parm, GEN_CMD_CODE(_Set_Drv_Extra));
+	init_h2fwcmd_w_parm_no_rsp(ph2c, pdrvextra_cmd_parm, CMD_SET_DRV_EXTRA);
 
 	res = rtw_enqueue_cmd(pcmdpriv, ph2c);
 
@@ -2097,7 +2170,7 @@ u8	beamforming_wk_cmd(_adapter *padapter, s32 type, u8 *pbuf, s32 size, u8 enque
 		pdrvextra_cmd_parm->size = size;
 		pdrvextra_cmd_parm->pbuf = wk_buf;
 
-		init_h2fwcmd_w_parm_no_rsp(ph2c, pdrvextra_cmd_parm, GEN_CMD_CODE(_Set_Drv_Extra));
+		init_h2fwcmd_w_parm_no_rsp(ph2c, pdrvextra_cmd_parm, CMD_SET_DRV_EXTRA);
 
 		res = rtw_enqueue_cmd(pcmdpriv, ph2c);
 	} else

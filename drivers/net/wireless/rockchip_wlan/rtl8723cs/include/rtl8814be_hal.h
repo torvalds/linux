@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2009-2010 - 2017 Realtek Corporation.
+ * Copyright(c) 2015 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -12,23 +12,19 @@
  * more details.
  *
  *****************************************************************************/
+#ifndef _RTL8814BE_HAL_H_
+#define _RTL8814BE_HAL_H_
 
-#ifndef __RTW_WIFI_REGD_H__
-#define __RTW_WIFI_REGD_H__
+#include <drv_types.h>		/* PADAPTER */
 
-struct country_code_to_enum_rd {
-	u16 countrycode;
-	const char *iso_name;
-};
+#define RT_BCN_INT_MASKS	(BIT_BCNDMAINT0_MSK_8814B |	\
+				 BIT_TXBCN0OK_MSK_8814B |	\
+				 BIT_TXBCN0ERR_MSK_8814B |	\
+				 BIT_BCNDERR0_MSK_8814B)
 
-enum country_code_type_t {
-	COUNTRY_CODE_USER = 0,
+/* rtl8814be_ops.c */
+void UpdateInterruptMask8814BE(PADAPTER, u32 AddMSR, u32 AddMSR1, u32 RemoveMSR, u32 RemoveMSR1);
+u16 get_txbd_rw_reg(u16 q_idx);
 
-	/*add new channel plan above this line */
-	COUNTRY_CODE_MAX
-};
 
-void rtw_regd_apply_flags(struct wiphy *wiphy);
-int rtw_regd_init(struct wiphy *wiphy);
-
-#endif /* __RTW_WIFI_REGD_H__ */
+#endif /* _RTL8814BE_HAL_H_ */

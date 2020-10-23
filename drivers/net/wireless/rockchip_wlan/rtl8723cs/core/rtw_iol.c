@@ -24,7 +24,7 @@ struct xmit_frame	*rtw_IOL_accquire_xmit_frame(ADAPTER *adapter)
 	struct xmit_priv	*pxmitpriv = &(adapter->xmitpriv);
 
 #if 1
-	xmit_frame = rtw_alloc_xmitframe(pxmitpriv);
+	xmit_frame = rtw_alloc_xmitframe(pxmitpriv, 0);
 	if (xmit_frame == NULL) {
 		RTW_INFO("%s rtw_alloc_xmitframe return null\n", __FUNCTION__);
 		goto exit;

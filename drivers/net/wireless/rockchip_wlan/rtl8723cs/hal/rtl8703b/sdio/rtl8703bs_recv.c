@@ -16,26 +16,9 @@
 
 #include <rtl8703b_hal.h>
 
-
-static s32 initrecvbuf(struct recv_buf *precvbuf, PADAPTER padapter)
-{
-	_rtw_init_listhead(&precvbuf->list);
-	_rtw_spinlock_init(&precvbuf->recvbuf_lock);
-
-	precvbuf->adapter = padapter;
-
-	return _SUCCESS;
-}
-
-static void freerecvbuf(struct recv_buf *precvbuf)
-{
-	_rtw_spinlock_free(&precvbuf->recvbuf_lock);
-}
-
 #ifdef CONFIG_SDIO_RX_COPY
 s32 rtl8703bs_recv_hdl(_adapter *padapter)
 {
-
 	PHAL_DATA_TYPE		pHalData;
 	struct recv_priv		*precvpriv;
 	struct recv_buf	*precvbuf;
@@ -63,7 +46,6 @@ s32 rtl8703bs_recv_hdl(_adapter *padapter)
 				rtw_enqueue_recvbuf_to_head(precvbuf, &precvpriv->recv_buf_pending_queue);
 
 				return RTW_RFRAME_UNAVAIL;   
-
 			}
 
 			/* rx desc parsing */
@@ -158,7 +140,6 @@ s32 rtl8703bs_recv_hdl(_adapter *padapter)
 		rtw_enqueue_recvbuf(precvbuf, &precvpriv->free_recv_buf_queue);
 	} while (1);
 
-	
 #ifdef CONFIG_RTW_NAPI
 #ifdef CONFIG_RTW_NAPI_V2
 		if (padapter->registrypriv.en_napi) {
@@ -374,6 +355,7 @@ static void rtl8703bs_recv_tasklet(void *priv)
  */
 s32 rtl8703bs_init_recv_priv(PADAPTER padapter)
 {
+	struct registry_priv *regsty = adapter_to_regsty(padapter);
 	s32			res;
 	u32			i, n;
 	struct recv_priv	*precvpriv;
@@ -387,7 +369,7 @@ s32 rtl8703bs_init_recv_priv(PADAPTER padapter)
 	_rtw_init_queue(&precvpriv->free_recv_buf_queue);
 	_rtw_init_queue(&precvpriv->recv_buf_pending_queue);
 
-	n = NR_RECVBUFF * sizeof(struct recv_buf) + 4;
+	n = regsty->recvbuf_nr * sizeof(struct recv_buf) + 4;
 	precvpriv->pallocated_recv_buf = rtw_zmalloc(n);
 	if (precvpriv->pallocated_recv_buf == NULL) {
 		res = _FAIL;
@@ -398,36 +380,16 @@ s32 rtl8703bs_init_recv_priv(PADAPTER padapter)
 
 	/* init each recv buffer */
 	precvbuf = (struct recv_buf *)precvpriv->precv_buf;
-	for (i = 0; i < NR_RECVBUFF; i++) {
-		res = initrecvbuf(precvbuf, padapter);
+	for (i = 0; i < regsty->recvbuf_nr; i++) {
+		res = sdio_initrecvbuf(precvbuf, padapter);
 		if (res == _FAIL)
 			break;
 
-		res = rtw_os_recvbuf_resource_alloc(padapter, precvbuf);
+		res = rtw_os_recvbuf_resource_alloc(padapter, precvbuf, MAX_RECVBUF_SZ);
 		if (res == _FAIL) {
-			freerecvbuf(precvbuf);
+			sdio_freerecvbuf(precvbuf);
 			break;
 		}
-
-#ifdef CONFIG_SDIO_RX_COPY
-		if (precvbuf->pskb == NULL) {
-			SIZE_PTR tmpaddr = 0;
-			SIZE_PTR alignment = 0;
-
-			precvbuf->pskb = rtw_skb_alloc(MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ);
-
-			if (precvbuf->pskb) {
-				precvbuf->pskb->dev = padapter->pnetdev;
-
-				tmpaddr = (SIZE_PTR)precvbuf->pskb->data;
-				alignment = tmpaddr & (RECVBUFF_ALIGN_SZ - 1);
-				skb_reserve(precvbuf->pskb, (RECVBUFF_ALIGN_SZ - alignment));
-			}
-
-			if (precvbuf->pskb == NULL)
-				RTW_INFO("%s: alloc_skb fail!\n", __FUNCTION__);
-		}
-#endif
 
 		rtw_list_insert_tail(&precvbuf->list, &precvpriv->free_recv_buf_queue.queue);
 
@@ -455,14 +417,14 @@ initbuferror:
 		for (i = 0; i < n ; i++) {
 			rtw_list_delete(&precvbuf->list);
 			rtw_os_recvbuf_resource_free(padapter, precvbuf);
-			freerecvbuf(precvbuf);
+			sdio_freerecvbuf(precvbuf);
 			precvbuf++;
 		}
 		precvpriv->precv_buf = NULL;
 	}
 
 	if (precvpriv->pallocated_recv_buf) {
-		n = NR_RECVBUFF * sizeof(struct recv_buf) + 4;
+		n = regsty->recvbuf_nr * sizeof(struct recv_buf) + 4;
 		rtw_mfree(precvpriv->pallocated_recv_buf, n);
 		precvpriv->pallocated_recv_buf = NULL;
 	}
@@ -479,6 +441,7 @@ exit:
  */
 void rtl8703bs_free_recv_priv(PADAPTER padapter)
 {
+	struct registry_priv *regsty = &padapter->registrypriv;
 	u32			i, n;
 	struct recv_priv	*precvpriv;
 	struct recv_buf		*precvbuf;
@@ -494,19 +457,19 @@ void rtl8703bs_free_recv_priv(PADAPTER padapter)
 	/* 3 2. free all recv buffers */
 	precvbuf = (struct recv_buf *)precvpriv->precv_buf;
 	if (precvbuf) {
-		n = NR_RECVBUFF;
+		n = regsty->recvbuf_nr;
 		precvpriv->free_recv_buf_queue_cnt = 0;
 		for (i = 0; i < n ; i++) {
 			rtw_list_delete(&precvbuf->list);
 			rtw_os_recvbuf_resource_free(padapter, precvbuf);
-			freerecvbuf(precvbuf);
+			sdio_freerecvbuf(precvbuf);
 			precvbuf++;
 		}
 		precvpriv->precv_buf = NULL;
 	}
 
 	if (precvpriv->pallocated_recv_buf) {
-		n = NR_RECVBUFF * sizeof(struct recv_buf) + 4;
+		n = regsty->recvbuf_nr * sizeof(struct recv_buf) + 4;
 		rtw_mfree(precvpriv->pallocated_recv_buf, n);
 		precvpriv->pallocated_recv_buf = NULL;
 	}

@@ -190,9 +190,6 @@ odm_single_dual_antenna_detection(
 
 	/* @change to Antenna B */
 	if (dm->support_ic_type & ODM_RTL8723B) {
-#if 0
-		/* odm_set_bb_reg(dm, REG_DPDT_CONTROL, 0x3, 0x2); */
-#endif
 		odm_set_bb_reg(dm, REG_S0_S1_PATH_SWITCH, 0xfff, 0x280);
 		odm_set_bb_reg(dm, REG_AGC_TABLE_SELECT, BIT(31), 0x1);
 	}

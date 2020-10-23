@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2018 Realtek Corporation.
+ * Copyright(c) 2007 - 2019 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -870,7 +870,187 @@ s32 sd_write(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, void *pdata)
 #else 
 #define DUMP_LEN_LMT	32
 #endif
-#define GET_DUMP_LEN(len)	(DUMP_LEN_LMT ? MIN(len, DUMP_LEN_LMT) : len)
+#define GET_DUMP_LEN(len)	(DUMP_LEN_LMT ? rtw_min(len, DUMP_LEN_LMT) : len)
+
+#ifdef DBG_SDIO
+#if (DBG_SDIO >= 1)
+static void sdio_dump_reg_by_cmd52(struct dvobj_priv *d,
+				   u32 addr, size_t len, u8 *buf)
+{
+	struct sdio_func *func;
+	size_t i;
+	u8 val;
+	u8 str[80], used = 0;
+	u8 read_twice = 0;
+	int error;
+
+
+	if (buf)
+		_rtw_memset(buf, 0xAE, len);
+	func = dvobj_to_sdio_func(d);
+	/*
+	 * When register is WLAN IOREG,
+	 * read twice to guarantee the result is correct.
+	 */
+	if (addr & 0x10000)
+		read_twice = 1;
+
+	_rtw_memset(str, 0, 80);
+	used = 0;
+	if (addr & 0xF) {
+		used += snprintf(str+used, (80-used), "0x%02x:\t", addr&~0xF);
+		used += snprintf(str+used, (80-used), "%*s", (addr&0xF)*5, "");
+	}
+	for (i = 0; i < len; i++, addr++) {
+		val = sdio_readb(func, addr, &error);
+		if (read_twice)
+			val = sdio_readb(func, addr, &error);
+		if (error)
+			break;
+
+		if (buf)
+			buf[i] = val;
+
+		if (!(addr & 0xF))
+			used += snprintf(str+used, (80-used), "0x%02x:\t", addr&~0xF);
+		used += snprintf(str+used, (80-used), "%02x ", val);
+		if (((i + 1) < len) && ((addr + 1) & 0xF) == 0) {
+			dev_err(&func->dev, "%s", str);
+			_rtw_memset(str, 0, 80);
+			used = 0;
+		}
+	}
+
+	if (used) {
+		dev_err(&func->dev, "%s", str);
+		_rtw_memset(str, 0, 80);
+		used = 0;
+	}
+
+	if (error)
+		dev_err(&func->dev, "rtw_sdio_dbg: READ 0x%02x FAIL!", addr);
+}
+
+static void sdio_dump_cia(struct dvobj_priv *d, u32 addr, size_t len, u8 *buf)
+{
+	struct sdio_func *func;
+	size_t i;
+	u8 val;
+	u8 str[80], used = 0;
+	int error;
+
+
+	if (buf)
+		_rtw_memset(buf, 0xAE, len);
+	func = dvobj_to_sdio_func(d);
+
+	_rtw_memset(str, 0, 80);
+	used = 0;
+	if (addr & 0xF) {
+		used += snprintf(str+used, (80-used), "0x%02x:\t", addr&~0xF);
+		used += snprintf(str+used, (80-used), "%*s", (addr&0xF)*5, "");
+	}
+	for (i = 0; i < len; i++, addr++) {
+		val = sdio_f0_readb(func, addr, &error);
+		if (error)
+			break;
+
+		if (buf)
+			buf[i] = val;
+
+		if (!(addr & 0xF))
+			used += snprintf(str+used, (80-used), "0x%02x:\t", addr&~0xF);
+		used += snprintf(str+used, (80-used), "%02x ", val);
+		if (((i + 1) < len) && ((addr + 1) & 0xF) == 0) {
+			dev_err(&func->dev, "%s", str);
+			_rtw_memset(str, 0, 80);
+			used = 0;
+		}
+	}
+
+	if (used) {
+		dev_err(&func->dev, "%s", str);
+		_rtw_memset(str, 0, 80);
+		used = 0;
+	}
+
+	if (error)
+		dev_err(&func->dev, "rtw_sdio_dbg: READ CIA 0x%02x FAIL!",
+			addr);
+}
+
+#if (DBG_SDIO >= 2)
+void rtw_sdio_dbg_reg_alloc(struct dvobj_priv *d);
+#endif /* DBG_SDIO >= 2 */
+
+/*
+ * Dump register when CMD53 fail
+ */
+static void sdio_dump_dbg_reg(struct dvobj_priv *d, u8 write,
+			      unsigned int addr, size_t len)
+{
+	struct sdio_data *sdio;
+	struct sdio_func *func;
+	u8 *buf = NULL;
+#if (DBG_SDIO >= 2)
+	u8 *msg;
+#endif /* DBG_SDIO >= 2 */
+
+
+	sdio = &d->intf_data;
+	if (sdio->reg_dump_mark)
+		return;
+	func = dvobj_to_sdio_func(d);
+
+	sdio->reg_dump_mark = sdio->cmd53_err_cnt;
+
+#if (DBG_SDIO >= 2)
+	if (!sdio->dbg_msg) {
+		msg = rtw_zmalloc(80);
+		if (msg) {
+			sdio->dbg_msg = msg;
+			sdio->dbg_msg_size = 80;
+		}
+	}
+	if (sdio->dbg_msg_size) {
+		snprintf(sdio->dbg_msg, sdio->dbg_msg_size,
+			 "CMD53 %s 0x%05x, %zu bytes FAIL "
+			 "at err_cnt=%d",
+			 write?"WRITE":"READ",
+			 addr, len, sdio->reg_dump_mark);
+	}
+
+	rtw_sdio_dbg_reg_alloc(d);
+#endif /* DBG_SDIO >= 2 */
+
+	/* MAC register */
+	dev_err(&func->dev, "MAC register:");
+#if (DBG_SDIO >= 2)
+	buf = sdio->reg_mac;
+#endif /* DBG_SDIO >= 2 */
+	sdio_dump_reg_by_cmd52(d, 0x10000, 0x800, buf);
+	dev_err(&func->dev, "MAC Extend register:");
+#if (DBG_SDIO >= 2)
+	buf = sdio->reg_mac_ext;
+#endif /* DBG_SDIO >= 2 */
+	sdio_dump_reg_by_cmd52(d, 0x11000, 0x800, buf);
+
+	/* SDIO local register */
+	dev_err(&func->dev, "SDIO Local register:");
+#if (DBG_SDIO >= 2)
+	buf = sdio->reg_local;
+#endif /* DBG_SDIO >= 2 */
+	sdio_dump_reg_by_cmd52(d, 0x0, 0x100, buf);
+
+	/* F0 */
+	dev_err(&func->dev, "f0 register:");
+#if (DBG_SDIO >= 2)
+	buf = sdio->reg_cia;
+#endif /* DBG_SDIO >= 2 */
+	sdio_dump_cia(d, 0x0, 0x200, buf);
+}
+#endif /* DBG_SDIO >= 1 */
+#endif /* DBG_SDIO */
 
 /**
  *	Returns driver error code,
@@ -982,6 +1162,33 @@ int __must_check rtw_sdio_raw_read(struct dvobj_priv *d, unsigned int addr,
 				error = sdio_memcpy_fromio(func, buf, addr, len);
 		}
 	}
+
+#ifdef DBG_SDIO
+#if (DBG_SDIO >= 3)
+	if (!error && !f0 && !cmd52
+	    && (d->intf_data.dbg_enable
+		&& d->intf_data.err_test && !d->intf_data.err_test_triggered
+		&& ((addr & 0x10000)
+		    || (!(addr & 0xE000)
+			&& !((addr >= 0x40) && (addr < 0x48)))))) {
+		d->intf_data.err_test_triggered = 1;
+		error = -ETIMEDOUT;
+		dev_warn(&func->dev, "Simulate error(%d) READ addr=0x%05x %zu bytes",
+			 error, addr, len);
+	}
+#endif /* DBG_SDIO >= 3 */
+
+	if (error) {
+		if (f0 || cmd52) {
+			d->intf_data.cmd52_err_cnt++;
+		} else {
+			d->intf_data.cmd53_err_cnt++;
+#if (DBG_SDIO >= 1)
+			sdio_dump_dbg_reg(d, 0, addr, len);
+#endif /* DBG_SDIO >= 1 */
+		}
+	}
+#endif /* DBG_SDIO */
 
 	if (claim_needed)
 		sdio_release_host(func);
@@ -1102,6 +1309,19 @@ int __must_check rtw_sdio_raw_write(struct dvobj_priv *d, unsigned int addr,
 				error = sdio_memcpy_toio(func, addr, buf, len);
 		}
 	}
+
+#ifdef DBG_SDIO
+	if (error) {
+		if (f0 || cmd52) {
+			d->intf_data.cmd52_err_cnt++;
+		} else {
+			d->intf_data.cmd53_err_cnt++;
+#if (DBG_SDIO >= 1)
+			sdio_dump_dbg_reg(d, 1, addr, len);
+#endif /* DBG_SDIO >= 1 */
+		}
+	}
+#endif /* DBG_SDIO */
 
 	if (claim_needed)
 		sdio_release_host(func);

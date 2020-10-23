@@ -358,6 +358,9 @@ void rtl8192e_cal_txdesc_chksum(u8 *ptxdesc);
 	void rtl8192eu_free_xmit_priv(PADAPTER padapter);
 	s32 rtl8192eu_hal_xmit(PADAPTER padapter, struct xmit_frame *pxmitframe);
 	s32 rtl8192eu_mgnt_xmit(PADAPTER padapter, struct xmit_frame *pmgntframe);
+#ifdef CONFIG_RTW_MGMT_QUEUE
+	s32 rtl8192eu_hal_mgmt_xmitframe_enqueue(PADAPTER padapter, struct xmit_frame *pxmitframe);
+#endif
 	s32	rtl8192eu_hal_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
 	s32 rtl8192eu_xmit_buf_handler(PADAPTER padapter);
 	#define hal_xmit_handler rtl8192eu_xmit_buf_handler
@@ -369,6 +372,9 @@ void rtl8192e_cal_txdesc_chksum(u8 *ptxdesc);
 	s32 rtl8192ee_init_xmit_priv(PADAPTER padapter);
 	void rtl8192ee_free_xmit_priv(PADAPTER padapter);
 	struct xmit_buf *rtl8192ee_dequeue_xmitbuf(struct rtw_tx_ring *ring);
+#ifdef CONFIG_RTW_MGMT_QUEUE
+	s32 rtl8192ee_hal_mgmt_xmitframe_enqueue(PADAPTER padapter, struct xmit_frame *pxmitframe);
+#endif
 	s32	rtl8192ee_hal_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
 	void	rtl8192ee_xmitframe_resume(_adapter *padapter);
 	s32 rtl8192ee_hal_xmit(PADAPTER padapter, struct xmit_frame *pxmitframe);
@@ -382,6 +388,9 @@ void rtl8192e_cal_txdesc_chksum(u8 *ptxdesc);
 
 	s32 rtl8192es_hal_xmit(PADAPTER padapter, struct xmit_frame *pxmitframe);
 	s32 rtl8192es_mgnt_xmit(PADAPTER padapter, struct xmit_frame *pmgntframe);
+#ifdef CONFIG_RTW_MGMT_QUEUE
+	s32 rtl8192es_hal_mgmt_xmitframe_enqueue(PADAPTER padapter, struct xmit_frame *pxmitframe);
+#endif
 	s32	rtl8192es_hal_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
 	thread_return rtl8192es_xmit_thread(thread_context context);
 	s32 rtl8192es_xmit_buf_handler(PADAPTER padapter);
@@ -439,9 +448,7 @@ u8	BWMapping_92E(PADAPTER Adapter, struct pkt_attrib *pattrib);
 u8	SCMapping_92E(PADAPTER Adapter, struct pkt_attrib	*pattrib);
 void fill_txdesc_phy(PADAPTER padapter, struct pkt_attrib *pattrib, u8 *ptxdesc);
 void fill_txdesc_vcs(struct pkt_attrib *pattrib, u8 *ptxdesc);
-#if defined(CONFIG_CONCURRENT_MODE)
-	void fill_txdesc_force_bmc_camid(struct pkt_attrib *pattrib, u8 *ptxdesc);
-#endif
+void fill_txdesc_force_bmc_camid(struct pkt_attrib *pattrib, u8 *ptxdesc);
 void fill_txdesc_bmc_tx_rate(struct pkt_attrib *pattrib, u8 *ptxdesc);
 
 void fill_txdesc_sectype(struct pkt_attrib *pattrib, u8 *ptxdesc);

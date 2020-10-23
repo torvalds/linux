@@ -83,7 +83,7 @@ void rtw_btcoex_ScanNotify(PADAPTER padapter, u8 type)
 
 	if (_FALSE == type) {
 		#ifdef CONFIG_CONCURRENT_MODE
-		if (rtw_mi_buddy_check_fwstate(padapter, WIFI_SITE_MONITOR))
+		if (rtw_mi_buddy_check_fwstate(padapter, WIFI_UNDER_SURVEY))
 			return;
 		#endif
 
@@ -100,7 +100,7 @@ void rtw_btcoex_ScanNotify(PADAPTER padapter, u8 type)
 	hal_btcoex_ScanNotify(padapter, type);
 }
 
-void rtw_btcoex_ConnectNotify(PADAPTER padapter, u8 action)
+static void _rtw_btcoex_connect_notify(PADAPTER padapter, u8 action)
 {
 	PHAL_DATA_TYPE	pHalData;
 
@@ -176,6 +176,17 @@ void rtw_btcoex_IQKNotify(PADAPTER padapter, u8 state)
 		return;
 
 	hal_btcoex_IQKNotify(padapter, state);
+}
+
+void rtw_btcoex_WLRFKNotify(PADAPTER padapter, u8 path, u8 type, u8 state)
+{
+	PHAL_DATA_TYPE	pHalData;
+
+	pHalData = GET_HAL_DATA(padapter);
+	if (_FALSE == pHalData->EEPROMBluetoothCoexist)
+		return;
+
+	hal_btcoex_WLRFKNotify(padapter, path, type, state);
 }
 
 void rtw_btcoex_BtInfoNotify(PADAPTER padapter, u8 length, u8 *tmpBuf)
@@ -313,6 +324,11 @@ void rtw_btcoex_SetManualControl(PADAPTER padapter, u8 manual)
 		hal_btcoex_SetManualControl(padapter, _TRUE);
 	else
 		hal_btcoex_SetManualControl(padapter, _FALSE);
+}
+
+void rtw_btcoex_set_policy_control(PADAPTER padapter, u8 btc_policy)
+{
+	hal_btcoex_set_policy_control(padapter, btc_policy);
 }
 
 u8 rtw_btcoex_1Ant(PADAPTER padapter)
@@ -515,9 +531,9 @@ u8 rtw_btcoex_get_pg_rfe_type(PADAPTER padapter)
 
 u8 rtw_btcoex_is_tfbga_package_type(PADAPTER padapter)
 {
+#ifdef CONFIG_RTL8723B
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
 
-#ifdef CONFIG_RTL8723B
 	if ((pHalData->PackageType == PACKAGE_TFBGA79) || (pHalData->PackageType == PACKAGE_TFBGA80)
 	    || (pHalData->PackageType == PACKAGE_TFBGA90))
 		return _TRUE;
@@ -577,7 +593,7 @@ u8 rtw_btcoex_btinfo_cmd(_adapter *adapter, u8 *buf, u16 len)
 
 	_rtw_memcpy(btinfo, buf, len);
 
-	init_h2fwcmd_w_parm_no_rsp(ph2c, pdrvextra_cmd_parm, GEN_CMD_CODE(_Set_Drv_Extra));
+	init_h2fwcmd_w_parm_no_rsp(ph2c, pdrvextra_cmd_parm, CMD_SET_DRV_EXTRA);
 
 	res = rtw_enqueue_cmd(pcmdpriv, ph2c);
 
@@ -1783,5 +1799,19 @@ void rtw_btcoex_set_ant_info(PADAPTER padapter)
 	else
 #endif
 		rtw_btcoex_wifionly_AntInfoSetting(padapter);
+}
+
+void rtw_btcoex_connect_notify(PADAPTER padapter, u8 join_type)
+{
+#ifdef CONFIG_BT_COEXIST
+	PHAL_DATA_TYPE	pHalData;
+
+	pHalData = GET_HAL_DATA(padapter);
+
+	if (pHalData->EEPROMBluetoothCoexist == _TRUE)
+		_rtw_btcoex_connect_notify(padapter, join_type ? _FALSE : _TRUE);
+	else
+#endif /* CONFIG_BT_COEXIST */
+	rtw_btcoex_wifionly_connect_notify(padapter);
 }
 

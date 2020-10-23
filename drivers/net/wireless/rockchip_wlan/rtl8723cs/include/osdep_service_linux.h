@@ -23,6 +23,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/namei.h>
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 5))
 	#include <linux/kref.h>
 #endif
@@ -54,6 +55,10 @@
 #include <linux/kthread.h>
 #include <linux/list.h>
 #include <linux/vmalloc.h>
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+	#include <uapi/linux/sched/types.h>
+#endif
 
 #if (LINUX_VERSION_CODE <= KERNEL_VERSION(2, 5, 41))
 	#include <linux/tqueue.h>
@@ -91,6 +96,10 @@
 #ifdef CONFIG_IOCTL_CFG80211
 	/*	#include <linux/ieee80211.h> */
 	#include <net/cfg80211.h>
+#else
+	#ifdef CONFIG_REGD_SRC_FROM_OS
+	#error "CONFIG_REGD_SRC_FROM_OS requires CONFIG_IOCTL_CFG80211"
+	#endif
 #endif /* CONFIG_IOCTL_CFG80211 */
 
 
@@ -121,11 +130,6 @@
 
 #ifdef CONFIG_USB_HCI
 	typedef struct urb   *PURB;
-	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 22))
-		#ifdef CONFIG_USB_SUSPEND
-			#define CONFIG_AUTOSUSPEND	1
-		#endif
-	#endif
 #endif
 
 #if defined(CONFIG_RTW_GRO) && (!defined(CONFIG_RTW_NAPI))
@@ -217,6 +221,7 @@ typedef void *timer_hdl_context;
 #endif
 
 typedef unsigned long systime;
+typedef ktime_t sysptime;
 typedef struct tasklet_struct _tasklet;
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 22))
@@ -383,6 +388,11 @@ __inline static void _set_timer(_timer *ptimer, u32 delay_time)
 __inline static void _cancel_timer(_timer *ptimer, u8 *bcancelled)
 {
 	*bcancelled = del_timer_sync(&ptimer->timer) == 1 ? 1 : 0;
+}
+
+__inline static void _cancel_timer_async(_timer *ptimer)
+{
+	del_timer(&ptimer->timer);
 }
 
 static inline void _init_workitem(_workitem *pwork, void *pfunc, void *cntx)

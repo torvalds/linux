@@ -37,38 +37,60 @@ u32 phydm_get_psd_data(void *dm_void, u32 psd_tone_idx, u32 igi)
 	u32 psd_report = 0;
 
 	if (dm->support_ic_type & ODM_IC_JGR3_SERIES) {
+		#if(RTL8723F_SUPPORT)
+		if (dm->support_ic_type & (ODM_RTL8723F)) {
+			odm_set_bb_reg(dm, dm_psd_table->psd_reg, 0x3ff80000, psd_tone_idx & 0x7ff);
+			/*PSD trigger start*/
+			odm_set_bb_reg(dm, dm_psd_table->psd_reg, BIT(16), 1);
+			ODM_delay_us(10 << (dm_psd_table->fft_smp_point >> 7));
+			/*PSD trigger stop*/
+			odm_set_bb_reg(dm, dm_psd_table->psd_reg, BIT(16), 0);
+		}
+		#endif
+		#if 0
 		odm_set_bb_reg(dm, R_0x1e8c, 0x3ff, psd_tone_idx & 0x3ff);
 		odm_set_bb_reg(dm, R_0x1e88, BIT(27) | BIT(26),
 			       psd_tone_idx >> 10);
 		/*PSD trigger start*/
 		odm_set_bb_reg(dm, dm_psd_table->psd_reg, BIT(18), 1);
-		ODM_delay_us(10);
+		ODM_delay_us(10 << (dm_psd_table->fft_smp_point >> 7));
 		/*PSD trigger stop*/
 		odm_set_bb_reg(dm, dm_psd_table->psd_reg, BIT(18), 0);
-	} else if (dm->support_ic_type == ODM_RTL8721D) {
+		#endif
+	} else if (dm->support_ic_type & (ODM_RTL8721D |
+				ODM_RTL8710C)) {
 		odm_set_bb_reg(dm, dm_psd_table->psd_reg, 0xfff, psd_tone_idx);
 		odm_set_bb_reg(dm, dm_psd_table->psd_reg, BIT(28), 1);
 		/*PSD trigger start*/
-		ODM_delay_us(10);
+		ODM_delay_us(10 << (dm_psd_table->fft_smp_point >> 7));
 		odm_set_bb_reg(dm, dm_psd_table->psd_reg, BIT(28), 0);
 		/*PSD trigger stop*/
 	} else {
 		odm_set_bb_reg(dm, dm_psd_table->psd_reg, 0x3ff, psd_tone_idx);
 		/*PSD trigger start*/
 		odm_set_bb_reg(dm, dm_psd_table->psd_reg, BIT(22), 1);
-		ODM_delay_us(10);
+		ODM_delay_us(10 << (dm_psd_table->fft_smp_point >> 7));
 		/*PSD trigger stop*/
 		odm_set_bb_reg(dm, dm_psd_table->psd_reg, BIT(22), 0);
 	}
 
 	/*Get PSD Report*/
-	if (dm->support_ic_type & (ODM_RTL8821C | ODM_RTL8721D)) {
+	if (dm->support_ic_type & (ODM_RTL8821C | ODM_RTL8721D |
+				ODM_RTL8710C)) {
 		psd_report = odm_get_bb_reg(dm, dm_psd_table->psd_report_reg,
 					    0xffffff);
 		psd_report = psd_report >> 5;
 	} else if (dm->support_ic_type & ODM_IC_JGR3_SERIES) {
+		#if(RTL8723F_SUPPORT)
+		if (dm->support_ic_type & (ODM_RTL8723F)) {
+			psd_report = odm_get_bb_reg(dm, dm_psd_table->psd_report_reg,
+					   	 0x1ffffff);
+		}
+		#endif
+		#if 0
 		psd_report = odm_get_bb_reg(dm, dm_psd_table->psd_report_reg,
 					    0xffffff);
+		#endif
 	} else {
 		psd_report = odm_get_bb_reg(dm, dm_psd_table->psd_report_reg,
 					    0xffff);
@@ -138,12 +160,21 @@ u8 phydm_psd(void *dm_void, u32 igi, u16 start_point, u16 stop_point)
 		is_5G = 1;
 		if (dm->support_ic_type & (ODM_RTL8822C | ODM_RTL8812F |
 					   ODM_RTL8197G)) {
+		#if 0
 			if (psd_fc_channel < 80)
 				ag_rf_mode_reg = 0x1;
 			else if (psd_fc_channel >= 80 && psd_fc_channel <= 140)
 				ag_rf_mode_reg = 0x3;
 			else if (psd_fc_channel > 140)
 				ag_rf_mode_reg = 0x5;
+		#endif
+		} else if (dm->support_ic_type & ODM_RTL8723F) {
+				if (psd_fc_channel < 80)
+					ag_rf_mode_reg = 0x1;
+				else if (psd_fc_channel >= 80 && psd_fc_channel <= 144)
+					ag_rf_mode_reg = 0x5;
+				else if (psd_fc_channel > 144)
+					ag_rf_mode_reg = 0x9;
 		} else if (dm->support_ic_type == ODM_RTL8721D) {
 			if (psd_fc_channel >= 36 && psd_fc_channel <= 64)
 				ag_rf_mode_reg = 0x1;
@@ -168,6 +199,7 @@ u8 phydm_psd(void *dm_void, u32 igi, u16 start_point, u16 stop_point)
 	odm_set_rf_reg(dm, RF_PATH_B, RF_0x18, 0x300, is_5G);
 	if (dm->support_ic_type & (ODM_RTL8822C | ODM_RTL8812F |
 				   ODM_RTL8197G)) {
+		#if 0
 		/* @2b'11: 20MHz, 2b'10: 40MHz, 2b'01: 80MHz */
 		odm_set_rf_reg(dm, RF_PATH_A, RF_0x18, 0x3000,
 			       dm_psd_table->psd_bw_rf_reg);
@@ -178,11 +210,39 @@ u8 phydm_psd(void *dm_void, u32 igi, u16 start_point, u16 stop_point)
 			       ag_rf_mode_reg);
 		odm_set_rf_reg(dm, RF_PATH_B, RF_0x18, 0x70000,
 			       ag_rf_mode_reg);
+		#endif
+	} else if (dm->support_ic_type & ODM_RTL8723F) {
+			/* @2b'11: 20MHz, 2b'10: 40MHz, 2b'01: 80MHz */
+			odm_set_rf_reg(dm, RF_PATH_A, RF_0x18, 0x1c00,
+				       dm_psd_table->psd_bw_rf_reg);
+			odm_set_rf_reg(dm, RF_PATH_B, RF_0x18, 0x1c00,
+				       dm_psd_table->psd_bw_rf_reg);
+			/* Set RF ag fc mode*/
+			odm_set_rf_reg(dm, RF_PATH_A, RF_0x18, 0x30000,	1);
+			odm_set_rf_reg(dm, RF_PATH_B, RF_0x18, 0x30000,	1);
+			if(ag_rf_mode_reg == 1) {
+				odm_set_rf_reg(dm, RF_PATH_A, RF_0x19, 0xc0000, 0);
+				odm_set_rf_reg(dm, RF_PATH_B, RF_0x19, 0xc0000, 0);
+			}
+			else if(ag_rf_mode_reg == 5){
+				odm_set_rf_reg(dm, RF_PATH_A, RF_0x19, 0xc0000, 1);
+				odm_set_rf_reg(dm, RF_PATH_B, RF_0x19, 0xc0000, 1);
+			}
+			else {
+				odm_set_rf_reg(dm, RF_PATH_A, RF_0x19, 0xc0000, 2);	
+				odm_set_rf_reg(dm, RF_PATH_B, RF_0x19, 0xc0000, 2);	
+			}
 	} else {
 		/* @2b'11: 20MHz, 2b'10: 40MHz, 2b'01: 80MHz */
 		if (dm->support_ic_type == ODM_RTL8721D) {
 			odm_set_rf_reg(dm, RF_PATH_A, RF_0x18, 0x1c00,
 				       dm_psd_table->psd_bw_rf_reg);
+#if (RTL8710C_SUPPORT == 1)
+		} else if (dm->support_ic_type == ODM_RTL8710C) {
+			odm_set_rf_reg(dm, RF_PATH_A,
+							RF_0x18, 0x1c00,
+						dm_psd_table->psd_bw_rf_reg);
+#endif
 		} else {
 			odm_set_rf_reg(dm, RF_PATH_A, RF_0x18, 0xc00,
 				       dm_psd_table->psd_bw_rf_reg);
@@ -195,10 +255,15 @@ u8 phydm_psd(void *dm_void, u32 igi, u16 start_point, u16 stop_point)
 			odm_set_rf_reg(dm, RF_PATH_B, RF_0x18, 0xf0000,
 				       ag_rf_mode_reg);
 	}
-	if (dm->support_ic_type & ODM_IC_JGR3_SERIES)
+
+	if (dm->support_ic_type & ODM_IC_JGR3_SERIES){
+		if (dm->support_ic_type & ODM_RTL8723F) {
 		PHYDM_DBG(dm, ODM_COMP_API, "0x1d70=((0x%x))\n",
 			  odm_get_bb_reg(dm, R_0x1d70, MASKDWORD));
-	else
+		PHYDM_DBG(dm, ODM_COMP_API, "RF0x19=((0x%x))\n",
+			 odm_get_rf_reg(dm, RF_PATH_A, RF_0x19, RFREG_MASK));
+		}
+	} else
 		PHYDM_DBG(dm, ODM_COMP_API, "0xc50=((0x%x))\n",
 			  odm_get_bb_reg(dm, R_0xc50, MASKDWORD));
 
@@ -295,17 +360,35 @@ void phydm_psd_para_setting(void *dm_void, u8 sw_avg_time, u8 hw_avg_time,
 	dm_psd_table->sw_avg_time = sw_avg_time;
 	dm_psd_table->psd_fc_channel = channel;
 	dm_psd_table->noise_k_en = noise_k_en;
-
-	if (fft_smp_point == 128)
-		fft_smp_point_idx = 0;
-	else if (fft_smp_point == 256)
-		fft_smp_point_idx = 1;
-	else if (fft_smp_point == 512)
-		fft_smp_point_idx = 2;
-	else if (fft_smp_point == 1024)
-		fft_smp_point_idx = 3;
-
+	if (dm->support_ic_type & ODM_RTL8723F) {
+		if (fft_smp_point == 128)
+			fft_smp_point_idx = 3;
+		else if (fft_smp_point == 256)
+			fft_smp_point_idx = 2;
+		else if (fft_smp_point == 512)
+			fft_smp_point_idx = 1;
+		else if (fft_smp_point == 1024)
+			fft_smp_point_idx = 0;
+	} 
+	else {
+		if (fft_smp_point == 128)
+			fft_smp_point_idx = 0;
+		else if (fft_smp_point == 256)
+			fft_smp_point_idx = 1;
+		else if (fft_smp_point == 512)
+			fft_smp_point_idx = 2;
+		else if (fft_smp_point == 1024)
+			fft_smp_point_idx = 3;
+	}
 	if (dm->support_ic_type & ODM_IC_JGR3_SERIES) {
+		#if (RTL8723F_SUPPORT)
+		odm_set_bb_reg(dm, R_0x1e8c, BIT(12) | BIT(11), hw_avg_time);
+		odm_set_bb_reg(dm, R_0x1e8c, BIT(14) | BIT(13),
+				       fft_smp_point_idx);
+		odm_set_bb_reg(dm, R_0x1e8c, BIT(18) | BIT(17), ant_sel);
+		odm_set_bb_reg(dm, R_0x1e88, BIT(25) | BIT(24), psd_input);
+		#else
+		#if 0
 		odm_set_bb_reg(dm, R_0x1e8c, BIT(11) | BIT(10), i_q_setting);
 		odm_set_bb_reg(dm, R_0x1e8c, BIT(13) | BIT(12), hw_avg_time);
 
@@ -320,6 +403,8 @@ void phydm_psd_para_setting(void *dm_void, u8 sw_avg_time, u8 hw_avg_time,
 		}
 		odm_set_bb_reg(dm, R_0x1e8c, BIT(17) | BIT(16), ant_sel);
 		odm_set_bb_reg(dm, R_0x1e8c, BIT(23) | BIT(22), psd_input);
+		#endif
+		#endif
 	} else if (dm->support_ic_type & ODM_IC_11AC_SERIES) {
 		odm_set_bb_reg(dm, R_0x910, BIT(11) | BIT(10), i_q_setting);
 		odm_set_bb_reg(dm, R_0x910, BIT(13) | BIT(12), hw_avg_time);
@@ -327,12 +412,13 @@ void phydm_psd_para_setting(void *dm_void, u8 sw_avg_time, u8 hw_avg_time,
 			       fft_smp_point_idx);
 		odm_set_bb_reg(dm, R_0x910, BIT(17) | BIT(16), ant_sel);
 		odm_set_bb_reg(dm, R_0x910, BIT(23), psd_input);
-	} else if (dm->support_ic_type == ODM_RTL8721D) {
-		odm_set_bb_reg(dm, 0x808, BIT(19) | BIT(18), i_q_setting);
-		odm_set_bb_reg(dm, 0x808, BIT(21) | BIT(20), hw_avg_time);
-		odm_set_bb_reg(dm, 0x808, BIT(23) | BIT(22), fft_smp_point_idx);
-		odm_set_bb_reg(dm, 0x804, BIT(5) | BIT(4), ant_sel);
-		odm_set_bb_reg(dm, 0x80C, BIT(23), psd_input);
+	} else if (dm->support_ic_type & (ODM_RTL8721D | ODM_RTL8710C)) {
+		odm_set_bb_reg(dm, R_0x808, BIT(19) | BIT(18), i_q_setting);
+		odm_set_bb_reg(dm, R_0x808, BIT(21) | BIT(20), hw_avg_time);
+		odm_set_bb_reg(dm, R_0x808, BIT(23) | BIT(22),
+			       fft_smp_point_idx);
+		odm_set_bb_reg(dm, R_0x804, BIT(5) | BIT(4), ant_sel);
+		odm_set_bb_reg(dm, R_0x80c, BIT(23), psd_input);
 
 #if 0
 	} else {	/*ODM_IC_11N_SERIES*/
@@ -352,11 +438,25 @@ void phydm_psd_init(void *dm_void)
 	dm_psd_table->psd_in_progress = false;
 
 	if (dm->support_ic_type & ODM_IC_JGR3_SERIES) {
+		#if (RTL8723F_SUPPORT)
+		if (dm->support_ic_type & ODM_RTL8723F) {
+			dm_psd_table->psd_reg = R_0x1e8c;
+			dm_psd_table->psd_report_reg = R_0x2d90;
+
+			/*@2b'11: 20MHz, 2b'10: 40MHz, 2b'01: 80MHz */
+			dm_psd_table->psd_bw_rf_reg = 2;
+		}
+		#else
+		#if 0
 		dm_psd_table->psd_reg = R_0x1e8c;
 		dm_psd_table->psd_report_reg = R_0x2d90;
 
 		/*@2b'11: 20MHz, 2b'10: 40MHz, 2b'01: 80MHz */
 		dm_psd_table->psd_bw_rf_reg = 1;
+		#endif
+
+		return;
+		#endif
 	} else if (dm->support_ic_type & ODM_IC_11AC_SERIES) {
 		dm_psd_table->psd_reg = R_0x910;
 		dm_psd_table->psd_report_reg = R_0xf44;
@@ -393,10 +493,17 @@ void phydm_psd_debug(void *dm_void, char input[][16], u32 *_used,
 
 	if ((strcmp(input[1], help) == 0)) {
 		#ifdef PHYDM_IC_JGR3_SERIES_SUPPORT
+		#if (RTL8723F_SUPPORT)
+				if (dm->support_ic_type & ODM_RTL8723F)
+			PDM_SNPF(out_len, used, output + used, out_len - used,
+				 "{0} {sw_avg} {hw_avg 0:3} {1:I,2:Q,3:IQ} {fft_point: 128*(1:4)}\n{path_sel 0~3} {0:ADC, 1:rxdata_fir_in, 2:rx_nbi_nf_stage2} {CH} {noise_k}\n\n");
+		#endif
+		#if 0
 		if (dm->support_ic_type & ODM_IC_JGR3_SERIES)
 			PDM_SNPF(out_len, used, output + used, out_len - used,
 				 "{0} {sw_avg} {hw_avg 0:3} {1:I,2:Q,3:IQ} {fft_point: 128*(1:4) 2048 4096}\n{path_sel 0~3} {0:ADC, 1:rxdata_fir_in, 2:rx_nbi_nf_stage2} {CH} {noise_k}\n\n");
 		else
+		#endif
 		#endif
 			PDM_SNPF(out_len, used, output + used, out_len - used,
 				 "{0} {sw_avg} {hw_avg 0:3} {1:I,2:Q,3:IQ} {fft_point: 128*(1:4)} {path_sel 0~3} {0:ADC, 1:RXIQC} {CH} {noise_k}\n");
@@ -410,9 +517,8 @@ void phydm_psd_debug(void *dm_void, char input[][16], u32 *_used,
 
 	if (var1[0] == 0) {
 		for (i = 1; i < 10; i++) {
-			if (input[i + 1])
-				PHYDM_SSCANF(input[i + 1], DCMD_DECIMAL,
-					     &var1[i]);
+			PHYDM_SSCANF(input[i + 1], DCMD_DECIMAL,
+				     &var1[i]);
 		}
 		PDM_SNPF(out_len, used, output + used, out_len - used,
 			 "sw_avg_time=((%d)), hw_avg_time=((%d)), IQ=((%d)), fft=((%d)), path=((%d)), input =((%d)) ch=((%d)), noise_k=((%d))\n",

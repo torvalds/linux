@@ -67,9 +67,17 @@ struct rm_priv {
 	u8 rm_en_cap_def[5];
 	u8 rm_en_cap_assoc[5];
 
+	u8 meas_token;
 	/* rm debug */
 	void *prm_sel;
 };
+
+#define	MAX_CH_NUM_IN_OP_CLASS	11
+typedef struct _RT_OPERATING_CLASS {
+	int	global_op_class;
+	int	Len;
+	u8	Channel[MAX_CH_NUM_IN_OP_CLASS];
+} RT_OPERATING_CLASS, *PRT_OPERATING_CLASS;
 
 int rtw_init_rm(_adapter *padapter);
 int rtw_free_rm_priv(_adapter *padapter);
@@ -83,6 +91,15 @@ int rm_post_event(_adapter *padapter, u32 rmid, enum RM_EV_ID evid);
 void rm_handler(_adapter *padapter, struct rm_event *pev);
 
 u8 rm_add_nb_req(_adapter *padapter, struct sta_info *psta);
+
+/* from ioctl */
+int rm_send_bcn_reqs(_adapter *padapter, u8 *sta_addr, u8 op_class, u8 ch,
+	u16 measure_duration, u8 measure_mode, u8 *bssid, u8 *ssid,
+	u8 reporting_detail,
+	u8 n_ap_ch_rpt, struct _RT_OPERATING_CLASS *rpt,
+	u8 n_elem_id, u8 *elem_id_list);
+void indicate_beacon_report(u8 *sta_addr,
+	u8 n_measure_rpt, u32 elem_len, u8 *elem);
 
 #endif /*CONFIG_RTW_80211K */
 #endif /* __RTW_RM_H_ */

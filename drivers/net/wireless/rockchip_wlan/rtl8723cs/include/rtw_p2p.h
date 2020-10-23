@@ -70,8 +70,6 @@ u8	p2p_ps_wk_cmd(_adapter *padapter, u8 p2p_ps_state, u8 enqueue);
 #endif /* CONFIG_P2P_PS */
 
 #ifdef CONFIG_IOCTL_CFG80211
-u8 roch_stay_in_cur_chan(_adapter *padapter);
-void rtw_init_cfg80211_wifidirect_info(_adapter	*padapter);
 int rtw_p2p_check_frames(_adapter *padapter, const u8 *buf, u32 len, u8 tx);
 #endif /* CONFIG_IOCTL_CFG80211 */
 

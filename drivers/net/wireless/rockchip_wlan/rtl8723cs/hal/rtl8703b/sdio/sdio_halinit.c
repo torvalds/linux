@@ -480,7 +480,9 @@ void _InitAdaptiveCtrl(PADAPTER padapter)
 	value32 = rtw_read32(padapter, REG_RRSR);
 	value32 &= ~RATE_BITMAP_ALL;
 	value32 |= RATE_RRSR_CCK_ONLY_1M;
-	rtw_write32(padapter, REG_RRSR, value32);
+
+	rtw_phydm_set_rrsr(padapter, value32, TRUE);
+
 
 	/* CF-END Threshold */
 	/* m_spIoBase->rtw_write8(REG_CFEND_TH, 0x1); */
@@ -980,23 +982,6 @@ static u32 rtl8703bs_hal_init(PADAPTER padapter)
 	rtw_write8(padapter, REG_SECONDARY_CCA_CTRL_8703B, 0x3);	/* CCA */
 	rtw_write8(padapter, 0x976, 0);	/* hpfan_todo: 2nd CCA related */
 
-#if defined(CONFIG_CONCURRENT_MODE) || defined(CONFIG_TX_MCAST2UNI)
-
-#ifdef CONFIG_CHECK_AC_LIFETIME
-	/* Enable lifetime check for the four ACs */
-	rtw_write8(padapter, REG_LIFETIME_CTRL, rtw_read8(padapter, REG_LIFETIME_CTRL) | 0x0F);
-#endif /* CONFIG_CHECK_AC_LIFETIME */
-
-#ifdef CONFIG_TX_MCAST2UNI
-	rtw_write16(padapter, REG_PKT_VO_VI_LIFE_TIME, 0x0400);	/* unit: 256us. 256ms */
-	rtw_write16(padapter, REG_PKT_BE_BK_LIFE_TIME, 0x0400);	/* unit: 256us. 256ms */
-#else	/* CONFIG_TX_MCAST2UNI */
-	rtw_write16(padapter, REG_PKT_VO_VI_LIFE_TIME, 0x3000);	/* unit: 256us. 3s */
-	rtw_write16(padapter, REG_PKT_BE_BK_LIFE_TIME, 0x3000);	/* unit: 256us. 3s */
-#endif /* CONFIG_TX_MCAST2UNI */
-#endif /* CONFIG_CONCURRENT_MODE || CONFIG_TX_MCAST2UNI */
-
-
 	invalidate_cam_all(padapter);
 
 	rtw_hal_set_chnl_bw(padapter, padapter->registrypriv.channel,
@@ -1070,42 +1055,12 @@ static u32 rtl8703bs_hal_init(PADAPTER padapter)
 	{
 		pwrctrlpriv->rf_pwrstate = rf_on;
 
-		if (pwrctrlpriv->rf_pwrstate == rf_on) {
-			struct pwrctrl_priv *pwrpriv;
-			systime start_time;
-			u8 h2cCmdBuf;
+		/*phy_lc_calibrate_8703b(&pHalData->odmpriv);*/
+		halrf_lck_trigger(&pHalData->odmpriv);
 
-			pwrpriv = adapter_to_pwrctl(padapter);
+		pHalData->neediqk_24g = _TRUE;
 
-			/*phy_lc_calibrate_8703b(&pHalData->odmpriv);*/
-			halrf_lck_trigger(&pHalData->odmpriv);
-
-			/* Inform WiFi FW that it is the beginning of IQK */
-			h2cCmdBuf = 1;
-			FillH2CCmd8703B(padapter, H2C_8703B_BT_WLAN_CALIBRATION, 1, &h2cCmdBuf);
-
-			start_time = rtw_get_current_time();
-			do {
-				if (rtw_read8(padapter, 0x1e7) & 0x01)
-					break;
-
-				rtw_msleep_os(50);
-			} while (rtw_get_passing_time_ms(start_time) <= 400);
-
-#ifdef CONFIG_BT_COEXIST
-			rtw_btcoex_IQKNotify(padapter, _TRUE);
-#endif
-			pHalData->neediqk_24g= _TRUE;
-#ifdef CONFIG_BT_COEXIST
-			rtw_btcoex_IQKNotify(padapter, _FALSE);
-#endif
-
-			/* Inform WiFi FW that it is the finish of IQK */
-			h2cCmdBuf = 0;
-			FillH2CCmd8703B(padapter, H2C_8703B_BT_WLAN_CALIBRATION, 1, &h2cCmdBuf);
-
-			odm_txpowertracking_check(&pHalData->odmpriv);
-		}
+		odm_txpowertracking_check(&pHalData->odmpriv);
 	}
 
 #ifdef CONFIG_BT_COEXIST
@@ -1671,8 +1626,8 @@ void rtl8703bs_set_hal_ops(PADAPTER padapter)
 	pHalFunc->init_recv_priv = &rtl8703bs_init_recv_priv;
 	pHalFunc->free_recv_priv = &rtl8703bs_free_recv_priv;
 #ifdef CONFIG_RECV_THREAD_MODE 
-	pHalFunc->recv_hdl = rtl8703bs_recv_hdl;
-#endif /* CONFIG_RECV_THREAD_MODE */
+		pHalFunc->recv_hdl = rtl8703bs_recv_hdl;
+#endif /* CONFIG_RECV_THREAD_MODE */	
 #ifdef CONFIG_RTW_SW_LED
 	pHalFunc->InitSwLeds = &rtl8703bs_InitSwLeds;
 	pHalFunc->DeInitSwLeds = &rtl8703bs_DeInitSwLeds;
@@ -1694,6 +1649,9 @@ void rtl8703bs_set_hal_ops(PADAPTER padapter)
 
 	pHalFunc->hal_xmit = &rtl8703bs_hal_xmit;
 	pHalFunc->mgnt_xmit = &rtl8703bs_mgnt_xmit;
+#ifdef CONFIG_RTW_MGMT_QUEUE
+	pHalFunc->hal_mgmt_xmitframe_enqueue = &rtl8703bs_hal_mgmt_xmitframe_enqueue;
+#endif
 	pHalFunc->hal_xmitframe_enqueue = &rtl8703bs_hal_xmitframe_enqueue;
 
 #ifdef CONFIG_HOSTAPD_MLME

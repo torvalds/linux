@@ -44,8 +44,7 @@ u8 beamforming_get_vht_ndp_tx_rate(void *dm_void, u8 bfer_str_num);
 #endif
 
 #if (RTL8822B_SUPPORT == 1 || RTL8822C_SUPPORT == 1 || RTL8192F_SUPPORT == 1 ||\
-	RTL8814B_SUPPORT == 1 || RTL8198F_SUPPORT == 1)
-
+	RTL8814B_SUPPORT == 1 || RTL8198F_SUPPORT == 1 || RTL8812F_SUPPORT == 1)
 u8 phydm_get_beamforming_sounding_info(void *dm_void, u16 *throughput,
 				       u8 total_bfee_num, u8 *tx_rate);
 u8 phydm_get_ndpa_rate(void *dm_void);
@@ -66,6 +65,11 @@ struct phydm_bf_rate_info_jgr3 {
 	u32			pre_mu_ratio;
 	u16			num_mu_vht_pkt[VHT_RATE_NUM];
 	u16			num_qry_vht_pkt[VHT_RATE_NUM];
+	boolean			mu_set_trxpath;
+	u8			tx_path_en_ofdm_1sts;
+	u8			tx_path_en_ofdm_2sts;
+	u8			rx_path_en_ofdm;
+	boolean			mu_been_iot;
 };
 
 /*this function is only used for BFer*/

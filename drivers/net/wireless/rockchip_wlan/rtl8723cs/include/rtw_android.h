@@ -93,7 +93,11 @@ void *wl_android_prealloc(int section, unsigned long size);
 int wifi_get_irq_number(unsigned long *irq_flags_ptr);
 int wifi_set_power(int on, unsigned long msec);
 int wifi_get_mac_addr(unsigned char *buf);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0))
+void *wifi_get_country_code(char *ccode, u32 flags);
+#else /* Linux kernel < 3.18 */
 void *wifi_get_country_code(char *ccode);
+#endif /* Linux kernel < 3.18 */
 #else
 static inline int rtw_android_wifictrl_func_add(void)
 {

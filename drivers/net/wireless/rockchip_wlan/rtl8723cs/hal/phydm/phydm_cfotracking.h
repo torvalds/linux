@@ -26,7 +26,8 @@
 #ifndef __PHYDMCFOTRACK_H__
 #define __PHYDMCFOTRACK_H__
 
-#define CFO_TRACKING_VERSION "2.3"
+/* 2019.03.28 fix 8197G crystal_cap register address*/
+#define CFO_TRACKING_VERSION "2.4"
 
 #define		CFO_TRK_ENABLE_TH	20 /* @kHz enable CFO_Track threshold*/
 #define		CFO_TRK_STOP_TH		10 /* @kHz disable CFO_Track threshold*/

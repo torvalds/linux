@@ -57,6 +57,12 @@ typedef enum _BTCOEX_SUSPEND_STATE {
 	BTCOEX_SUSPEND_STATE_MAX
 } BTCOEX_SUSPEND_STATE, *PBTCOEX_SUSPEND_STATE;
 
+typedef enum _BTCOEX_POLICY_CONTROL {
+	BTCOEX_POLICY_CONTROL_AUTO,
+	BTCOEX_POLICY_CONTROL_FORCE_FREERUN,
+	BTCOEX_POLICY_CONTROL_FORCE_TDMA
+} BTCOEX_POLICY_CONTROL, *PBTCOEX_POLICY_CONTROL;
+
 #define SET_BT_MP_OPER_RET(OpCode, StatusCode)						((OpCode << 8) | StatusCode)
 #define GET_OP_CODE_FROM_BT_MP_OPER_RET(RetCode)					((RetCode & 0xF0) >> 8)
 #define GET_STATUS_CODE_FROM_BT_MP_OPER_RET(RetCode)				(RetCode & 0x0F)
@@ -373,10 +379,10 @@ void rtw_btcoex_HAL_Initialize(PADAPTER padapter, u8 bWifiOnly);
 void rtw_btcoex_IpsNotify(PADAPTER, u8 type);
 void rtw_btcoex_LpsNotify(PADAPTER, u8 type);
 void rtw_btcoex_ScanNotify(PADAPTER, u8 type);
-void rtw_btcoex_ConnectNotify(PADAPTER, u8 action);
 void rtw_btcoex_MediaStatusNotify(PADAPTER, u8 mediaStatus);
 void rtw_btcoex_SpecialPacketNotify(PADAPTER, u8 pktType);
 void rtw_btcoex_IQKNotify(PADAPTER padapter, u8 state);
+void rtw_btcoex_WLRFKNotify(PADAPTER padapter, u8 path, u8 type, u8 state);
 void rtw_btcoex_BtInfoNotify(PADAPTER, u8 length, u8 *tmpBuf);
 void rtw_btcoex_BtMpRptNotify(PADAPTER, u8 length, u8 *tmpBuf);
 void rtw_btcoex_SuspendNotify(PADAPTER, u8 state);
@@ -392,6 +398,7 @@ s32 rtw_btcoex_IsBTCoexRejectAMPDU(PADAPTER padapter);
 s32 rtw_btcoex_IsBTCoexCtrlAMPDUSize(PADAPTER);
 u32 rtw_btcoex_GetAMPDUSize(PADAPTER);
 void rtw_btcoex_SetManualControl(PADAPTER, u8 bmanual);
+void rtw_btcoex_set_policy_control(PADAPTER, u8 btc_policy);
 u8 rtw_btcoex_1Ant(PADAPTER);
 u8 rtw_btcoex_IsBtControlLps(PADAPTER);
 u8 rtw_btcoex_IsLpsOn(PADAPTER);
@@ -457,4 +464,5 @@ u8 rtw_btcoex_LPS_Leave(PADAPTER padapter);
 #endif /* CONFIG_BT_COEXIST */
 
 void rtw_btcoex_set_ant_info(PADAPTER padapter);
+void rtw_btcoex_connect_notify(PADAPTER, u8 join_type);
 

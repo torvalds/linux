@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2017 Realtek Corporation.
+ * Copyright(c) 2007 - 2019 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -48,6 +48,35 @@ typedef struct sdio_data {
 	unsigned int timing;
 	u8	sd3_bus_mode;
 #endif
+
+#ifdef DBG_SDIO
+#ifdef PLATFORM_LINUX
+	struct proc_dir_entry *proc_sdio_dbg;
+#endif /* PLATFORM_LINUX */
+
+	u32 cmd52_err_cnt;	/* CMD52 I/O error count */
+	u32 cmd53_err_cnt;	/* CMD53 I/O error count */
+
+#if (DBG_SDIO >= 1)
+	u32 reg_dump_mark;	/* reg dump at specific error count */
+#endif /* DBG_SDIO >= 1 */
+
+#if (DBG_SDIO >= 2)
+	u8 *dbg_msg;		/* Messages for debug */
+	u8 dbg_msg_size;
+	u8 *reg_mac;		/* Device MAC register, 0x0~0x800 */
+	u8 *reg_mac_ext;	/* Device MAC extend register, 0x1000~0x1800 */
+	u8 *reg_local;		/* Device SDIO local register, 0x0~0xFF */
+	u8 *reg_cia;		/* SDIO CIA(CCCR, FBR and etc.), 0x0~0x1FF */
+#endif /* DBG_SDIO >= 2 */
+
+#if (DBG_SDIO >= 3)
+	u8 dbg_enable;		/* 0/1: disable/enable debug mode */
+	u8 err_stop;		/* Stop(surprise remove) when I/O error happen */
+	u8 err_test;		/* Simulate error happen */
+	u8 err_test_triggered;	/* Simulate error already triggered */
+#endif /* DBG_SDIO >= 3 */
+#endif /* DBG_SDIO */
 } SDIO_DATA, *PSDIO_DATA;
 
 #define dvobj_to_sdio_func(d)	((d)->intf_data.func)

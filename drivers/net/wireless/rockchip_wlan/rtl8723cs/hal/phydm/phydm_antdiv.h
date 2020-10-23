@@ -84,20 +84,26 @@
 
 #define ODM_N_ANTDIV_SUPPORT (ODM_RTL8188E | ODM_RTL8192E | ODM_RTL8723B |\
 			ODM_RTL8188F | ODM_RTL8723D | ODM_RTL8195A |\
-			ODM_RTL8197F | ODM_RTL8721D)
+			ODM_RTL8197F | ODM_RTL8721D | ODM_RTL8710C)
 #define ODM_AC_ANTDIV_SUPPORT (ODM_RTL8821 | ODM_RTL8881A | ODM_RTL8812 |\
-			ODM_RTL8821C | ODM_RTL8822B | ODM_RTL8814B)
-#define ODM_ANTDIV_SUPPORT	(ODM_N_ANTDIV_SUPPORT | ODM_AC_ANTDIV_SUPPORT)
+			ODM_RTL8821C | ODM_RTL8822B | ODM_RTL8814B |\
+			ODM_RTL8195B)
+#define ODM_JGR3_ANTDIV_SUPPORT ODM_RTL8197G
+#define ODM_ANTDIV_SUPPORT	(ODM_N_ANTDIV_SUPPORT | ODM_AC_ANTDIV_SUPPORT |\
+			ODM_JGR3_ANTDIV_SUPPORT)
 #define ODM_SMART_ANT_SUPPORT	(ODM_RTL8188E | ODM_RTL8192E)
 #define ODM_HL_SMART_ANT_TYPE1_SUPPORT		(ODM_RTL8821 | ODM_RTL8822B)
 
 #define ODM_ANTDIV_2G_SUPPORT_IC (ODM_RTL8188E | ODM_RTL8192E | ODM_RTL8723B |\
 			ODM_RTL8881A | ODM_RTL8188F | ODM_RTL8723D |\
-			ODM_RTL8197F)
+			ODM_RTL8197F | ODM_RTL8197G)
 #define ODM_ANTDIV_5G_SUPPORT_IC (ODM_RTL8821 | ODM_RTL8881A | ODM_RTL8812 |\
-			ODM_RTL8821C | ODM_RTL8822B)
+			ODM_RTL8821C | ODM_RTL8822B | ODM_RTL8195B)
 
-#define ODM_EVM_ANTDIV_IC (ODM_RTL8192E | ODM_RTL8197F | ODM_RTL8822B)
+#define ODM_ANTDIV_SUPPORT_IC (ODM_ANTDIV_2G_SUPPORT_IC | ODM_ANTDIV_5G_SUPPORT_IC)
+
+#define ODM_EVM_ANTDIV_IC (ODM_RTL8192E | ODM_RTL8197F | ODM_RTL8822B |\
+			ODM_RTL8197G)
 
 #define ODM_ANTDIV_2G	BIT(0)
 #define ODM_ANTDIV_5G	BIT(1)
@@ -168,7 +174,7 @@
 /*@Hong Lin Smart antenna*/
 #define HL_SMTANT_2WIRE_DATA_LEN 24
 
-#if (RTL8723D_SUPPORT == 1)
+#if (RTL8723D_SUPPORT == 1 || RTL8710C_SUPPORT == 1)
 	#ifndef CONFIG_ANTDIV_PERIOD
 		#define CONFIG_ANTDIV_PERIOD 1
 	#endif
@@ -277,7 +283,7 @@ struct phydm_fat_struct {
 	u16	aux_cnt_cck[ODM_ASSOCIATE_ENTRY_NUM];
 	u8	rx_idle_ant;
 	u8	rx_idle_ant2;
-	u8	rvrt_val;
+	u32	rvrt_val; /*all rvrt_val for pause API must set to u32*/
 	u8	ant_div_on_off;
 	u8	div_path_type;
 	boolean	is_become_linked;
@@ -324,7 +330,7 @@ struct phydm_fat_struct {
 	u8	pre_antdiv_rssi;
 	u8	pre_antdiv_tp;
 #endif
-#if (DM_ODM_SUPPORT_TYPE & (ODM_WIN | ODM_CE))
+#if (DM_ODM_SUPPORT_TYPE & (ODM_WIN | ODM_CE | ODM_IOT))
 	u32    cck_ctrl_frame_cnt_main;
 	u32    cck_ctrl_frame_cnt_aux;
 	u32    ofdm_ctrl_frame_cnt_main;
@@ -334,6 +340,7 @@ struct phydm_fat_struct {
 	u32	main_ctrl_cnt;
 	u32	aux_ctrl_cnt;
 #endif
+
 	u8	b_fix_tx_ant;
 	boolean	fix_ant_bfee;
 	boolean	enable_ctrl_frame_antdiv;
@@ -347,6 +354,9 @@ struct phydm_fat_struct {
 	/*@A temp value, will hook to driver team's outer parameter later*/
 	u8	*p_default_s0_s1;
 	u8	default_s0_s1;
+	u8 ant_idx_vec[3]; /* for SP3T only, added by Jiao Qi on June.6,2020*/
+
+
 };
 
 /* @1 ============================================================
@@ -404,6 +414,8 @@ void phydm_antdiv_reset_statistic(void *dm_void, u32 macid);
 
 void odm_update_rx_idle_ant(void *dm_void, u8 ant);
 
+void odm_update_rx_idle_ant_sp3t(void *dm_void, u8 ant);
+
 void phydm_update_rx_idle_ant_pathb(void *dm_void, u8 ant);
 
 void phydm_set_antdiv_val(void *dm_void, u32 *val_buf,	u8 val_len);
@@ -438,6 +450,10 @@ void odm_sw_antdiv_workitem_callback(void *context);
 void odm_sw_antdiv_workitem_callback(void *context);
 
 void odm_sw_antdiv_callback(void *function_context);
+
+#elif (DM_ODM_SUPPORT_TYPE == ODM_IOT)
+
+void odm_sw_antdiv_callback(void *dm_void);
 
 #endif
 

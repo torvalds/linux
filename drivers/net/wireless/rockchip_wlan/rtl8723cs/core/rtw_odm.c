@@ -178,24 +178,9 @@ void rtw_odm_releasespinlock(_adapter *adapter,	enum rt_spinlock_type type)
 	}
 }
 
-inline u8 rtw_odm_get_dfs_domain(struct dvobj_priv *dvobj)
+s16 rtw_odm_get_tx_power_mbm(struct dm_struct *dm, u8 rfpath, u8 rate, u8 bw, u8 cch)
 {
-#ifdef CONFIG_DFS_MASTER
-	struct dm_struct *pDM_Odm = dvobj_to_phydm(dvobj);
-
-	return pDM_Odm->dfs_region_domain;
-#else
-	return PHYDM_DFS_DOMAIN_UNKNOWN;
-#endif
-}
-
-inline u8 rtw_odm_dfs_domain_unknown(struct dvobj_priv *dvobj)
-{
-#ifdef CONFIG_DFS_MASTER
-	return rtw_odm_get_dfs_domain(dvobj) == PHYDM_DFS_DOMAIN_UNKNOWN;
-#else
-	return 1;
-#endif
+	return phy_get_txpwr_single_mbm(dm->adapter, rfpath, mgn_rate_to_rs(rate), rate, bw, cch, 0, 0, 0, NULL);
 }
 
 #ifdef CONFIG_DFS_MASTER
@@ -218,6 +203,20 @@ inline void rtw_odm_radar_detect_enable(_adapter *adapter)
 inline BOOLEAN rtw_odm_radar_detect(_adapter *adapter)
 {
 	return phydm_radar_detect(adapter_to_phydm(adapter));
+}
+
+static enum phydm_dfs_region_domain _rtw_dfs_regd_to_phydm[] = {
+	[RTW_DFS_REGD_NONE]	= PHYDM_DFS_DOMAIN_UNKNOWN,
+	[RTW_DFS_REGD_FCC]	= PHYDM_DFS_DOMAIN_FCC,
+	[RTW_DFS_REGD_MKK]	= PHYDM_DFS_DOMAIN_MKK,
+	[RTW_DFS_REGD_ETSI]	= PHYDM_DFS_DOMAIN_ETSI,
+};
+
+#define rtw_dfs_regd_to_phydm(region) (((region) >= RTW_DFS_REGD_NUM) ? _rtw_dfs_regd_to_phydm[RTW_DFS_REGD_NONE] : _rtw_dfs_regd_to_phydm[(region)])
+
+void rtw_odm_update_dfs_region(struct dvobj_priv *dvobj)
+{
+	odm_cmn_info_init(dvobj_to_phydm(dvobj), ODM_CMNINFO_DFS_REGION_DOMAIN, rtw_dfs_regd_to_phydm(rtw_rfctl_get_dfs_domain(dvobj_to_rfctl(dvobj))));
 }
 
 inline u8 rtw_odm_radar_detect_polling_int_ms(struct dvobj_priv *dvobj)
@@ -337,12 +336,6 @@ void rtw_odm_parse_rx_phy_status_chinfo(union recv_frame *rframe, u8 *phys)
 
 				static const s8 cch_offset_by_rxsc[15] = {0, 2, -2, 6, -6, 10, -10, 14, -14, 4, -4, 12, -12, 8, -8};
 
-				if (phys_t1->rf_mode > 3) {
-					/* invalid rf_mode */
-					rtw_warn_on(1);
-					goto type1_end;
-				}
-
 				if (phys_t1->rf_mode == 0) {
 					/* RF 20MHz */
 					pkt_cch = phys_t1->channel;
@@ -417,4 +410,191 @@ type1_end:
 #endif /* (ODM_PHY_STATUS_NEW_TYPE_SUPPORT == 1) */
 
 }
+
+#if defined(CONFIG_RTL8822C) && defined(CONFIG_LPS_PG)
+void
+debug_DACK(
+	struct dm_struct *dm
+)
+{
+	//P_PHYDM_FUNC dm;
+	//dm = &(SysMib.ODM.Phydm);
+	//PIQK_OFFLOAD_PARM pIQK_info;
+	//pIQK_info= &(SysMib.ODM.IQKParm);
+	u8 i;
+	u32 temp1, temp2, temp3;
+
+	temp1 = odm_get_bb_reg(dm, 0x1860, bMaskDWord);
+	temp2 = odm_get_bb_reg(dm, 0x4160, bMaskDWord);
+	temp3 = odm_get_bb_reg(dm, 0x9b4, bMaskDWord);
+
+	odm_set_bb_reg(dm, 0x9b4, bMaskDWord, 0xdb66db00);
+
+	//pathA
+	odm_set_bb_reg(dm, 0x1830, BIT(30), 0x0);
+	odm_set_bb_reg(dm, 0x1860, 0xfc000000, 0x3c);
+
+	RTW_INFO("path A i\n");
+	//i
+	for (i = 0; i < 0xf; i++) {
+		odm_set_bb_reg(dm, 0x18b0, 0xf0000000, i);
+		RTW_INFO("[0][0][%d] = 0x%08x\n", i, (u16)odm_get_bb_reg(dm,0x2810,0x7fc0000));
+		//pIQK_info->msbk_d[0][0][i] = (u16)odm_get_bb_reg(dm,0x2810,0x7fc0000);
+	}
+	RTW_INFO("path A q\n");
+	//q
+	for (i = 0; i < 0xf; i++) {
+		odm_set_bb_reg(dm, 0x18cc, 0xf0000000, i);
+		RTW_INFO("[0][1][%d] = 0x%08x\n", i, (u16)odm_get_bb_reg(dm,0x283c,0x7fc0000));
+		//pIQK_info->msbk_d[0][1][i] = (u16)odm_get_bb_reg(dm,0x283c,0x7fc0000);
+	}
+	//pathB
+	odm_set_bb_reg(dm, 0x4130, BIT(30), 0x0);
+	odm_set_bb_reg(dm, 0x4160, 0xfc000000, 0x3c);
+
+	RTW_INFO("\npath B i\n");
+	//i
+	for (i = 0; i < 0xf; i++) {
+		odm_set_bb_reg(dm, 0x41b0, 0xf0000000, i);
+		RTW_INFO("[1][0][%d] = 0x%08x\n", i, (u16)odm_get_bb_reg(dm,0x4510,0x7fc0000));
+		//pIQK_info->msbk_d[1][0][i] = (u16)odm_get_bb_reg(dm,0x2810,0x7fc0000);
+	}
+	RTW_INFO("path B q\n");
+	//q
+	for (i = 0; i < 0xf; i++) {
+		odm_set_bb_reg(dm, 0x41cc, 0xf0000000, i);
+		RTW_INFO("[1][1][%d] = 0x%08x\n", i, (u16)odm_get_bb_reg(dm,0x453c,0x7fc0000));
+		//pIQK_info->msbk_d[1][1][i] = (u16)odm_get_bb_reg(dm,0x283c,0x7fc0000);
+	}
+
+	//restore to normal
+	odm_set_bb_reg(dm, 0x1830, BIT(30), 0x1);
+	odm_set_bb_reg(dm, 0x4130, BIT(30), 0x1);
+	odm_set_bb_reg(dm, 0x1860, bMaskDWord, temp1);
+	odm_set_bb_reg(dm, 0x4160, bMaskDWord, temp2);
+	odm_set_bb_reg(dm, 0x9b4, bMaskDWord, temp3);
+
+
+}
+
+void
+debug_IQK(
+	struct dm_struct *dm,
+	IN	u8 idx,
+	IN	u8 path
+)
+{
+	u8 i, ch;
+	u32 tmp;
+	u32 bit_mask_20_16 = BIT(20) | BIT(19) | BIT(18) | BIT(17) | BIT(16);
+
+	RTW_INFO("idx = %d, path = %d\n", idx, path);
+
+	odm_set_bb_reg(dm, 0x1b00, MASKDWORD, 0x8 | path << 1);
+
+	if (idx == TX_IQK) {//TXCFIR
+		odm_set_bb_reg(dm, R_0x1b20, BIT(31) | BIT(30), 0x3);
+	} else {//RXCFIR
+		odm_set_bb_reg(dm, R_0x1b20, BIT(31) | BIT(30), 0x1);		
+	}
+	odm_set_bb_reg(dm, R_0x1bd4, BIT(21), 0x1);
+	odm_set_bb_reg(dm, R_0x1bd4, bit_mask_20_16, 0x10);
+	for (i = 0; i <= 16; i++) {
+		odm_set_bb_reg(dm, R_0x1bd8, MASKDWORD, 0xe0000001 | i << 2);
+		tmp = odm_get_bb_reg(dm, R_0x1bfc, MASKDWORD);
+		RTW_INFO("iqk_cfir_real[%d][%d][%d] = 0x%x\n", path, idx, i, ((tmp & 0x0fff0000) >> 16));
+		//iqk_info->iqk_cfir_real[ch][path][idx][i] =
+		//				(tmp & 0x0fff0000) >> 16;
+		RTW_INFO("iqk_cfir_imag[%d][%d][%d] = 0x%x\n", path, idx, i, (tmp & 0x0fff));
+		//iqk_info->iqk_cfir_imag[ch][path][idx][i] = tmp & 0x0fff;		
+	}
+	odm_set_bb_reg(dm, R_0x1b20, BIT(31) | BIT(30), 0x0);
+	//odm_set_bb_reg(dm, R_0x1bd8, MASKDWORD, 0x0);
+}
+
+__odm_func__ void
+debug_information_8822c(
+	struct dm_struct *dm)
+{
+	struct dm_dpk_info *dpk_info = &dm->dpk_info;
+
+	u32  reg_rf18;
+
+	if (odm_get_bb_reg(dm, R_0x1e7c, BIT(30)))
+		dpk_info->is_tssi_mode = true;
+	else
+		dpk_info->is_tssi_mode = false;
+
+	reg_rf18 = odm_get_rf_reg(dm, RF_PATH_A, RF_0x18, RFREG_MASK);
+
+	dpk_info->dpk_band = (u8)((reg_rf18 & BIT(16)) >> 16); /*0/1:G/A*/
+	dpk_info->dpk_ch = (u8)reg_rf18 & 0xff;
+	dpk_info->dpk_bw = (u8)((reg_rf18 & 0x3000) >> 12); /*3/2/1:20/40/80*/
+
+	RTW_INFO("[DPK] TSSI/ Band/ CH/ BW = %d / %s / %d / %s\n",
+	       dpk_info->is_tssi_mode, dpk_info->dpk_band == 0 ? "2G" : "5G",
+	       dpk_info->dpk_ch,
+	       dpk_info->dpk_bw == 3 ? "20M" : (dpk_info->dpk_bw == 2 ? "40M" : "80M"));
+}
+
+extern void _dpk_get_coef_8822c(void *dm_void, u8 path);
+
+__odm_func__ void
+debug_reload_data_8822c(
+	void *dm_void)
+{	
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	struct dm_dpk_info *dpk_info = &dm->dpk_info;
+
+	u8 path;
+	u32 u32tmp;
+
+	debug_information_8822c(dm);
+
+	for (path = 0; path < DPK_RF_PATH_NUM_8822C; path++) {
+
+		RTW_INFO("[DPK] Reload path: 0x%x\n", path);
+
+		odm_set_bb_reg(dm, R_0x1b00, MASKDWORD, 0x8 | (path << 1));
+
+		 /*txagc bnd*/
+		if (dpk_info->dpk_band == 0x0)
+			u32tmp = odm_get_bb_reg(dm, R_0x1b60, MASKDWORD);
+		else
+			u32tmp = odm_get_bb_reg(dm, R_0x1b60, MASKDWORD);
+
+ 		RTW_INFO("[DPK] txagc bnd = 0x%08x\n", u32tmp);
+
+		u32tmp = odm_get_bb_reg(dm, R_0x1b64, MASKBYTE3);
+		RTW_INFO("[DPK] dpk_txagc = 0x%08x\n", u32tmp);
+		
+		//debug_coef_write_8822c(dm, path, dpk_info->dpk_path_ok & BIT(path) >> path);
+		_dpk_get_coef_8822c(dm, path);
+
+		//debug_one_shot_8822c(dm, path, DPK_ON);
+
+		odm_set_bb_reg(dm, R_0x1b00, 0x0000000f, 0xc);
+
+		if (path == RF_PATH_A)
+			u32tmp = odm_get_bb_reg(dm, R_0x1b04, 0x0fffffff);
+		else 
+			u32tmp = odm_get_bb_reg(dm, R_0x1b5c, 0x0fffffff);
+
+		RTW_INFO("[DPK] dpk_gs = 0x%08x\n", u32tmp);
+		
+	}
+}
+
+void odm_lps_pg_debug_8822c(void *dm_void)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+
+	debug_DACK(dm);
+	debug_IQK(dm, TX_IQK, RF_PATH_A);
+	debug_IQK(dm, RX_IQK, RF_PATH_A);
+	debug_IQK(dm, TX_IQK, RF_PATH_B);
+	debug_IQK(dm, RX_IQK, RF_PATH_B);	
+	debug_reload_data_8822c(dm);
+}
+#endif /* defined(CONFIG_RTL8822C) && defined(CONFIG_LPS_PG) */
 

@@ -51,5 +51,8 @@
 void phydm_rssi_monitor_check(void *dm_void);
 
 void phydm_rssi_monitor_init(void *dm_void);
+#if (DM_ODM_SUPPORT_TYPE == ODM_AP)
+void phydm_sta_rssi_init(void *dm_void, u8 macid, u8 init_rssi);
+#endif
 
 #endif

@@ -23,7 +23,11 @@
 #ifdef CONFIG_SUPPORT_TRX_SHARED
 #define MAX_RECVBUF_SZ		46080	/* 45KB, TX: (256-64)KB */
 #else /* !CONFIG_SUPPORT_TRX_SHARED */
+#ifdef CONFIG_PCI_HCI
+#define MAX_RECVBUF_SZ		12288	/* 12KB */
+#else
 #define MAX_RECVBUF_SZ		24576	/* 24KB, TX: 256KB */
+#endif /* !CONFIG_PCI_HCI */
 #endif /* !CONFIG_SUPPORT_TRX_SHARED */
 
 /*

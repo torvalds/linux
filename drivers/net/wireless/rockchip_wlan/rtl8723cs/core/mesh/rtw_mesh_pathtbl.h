@@ -42,20 +42,23 @@
  *	With this flag, It will try the last used rann_snd_addr
  * @RTW_MESH_PATH_PEER_AKA: only used toward a peer, only used in active keep
  *	alive mechanism. PREQ's da = path dst
+ * @RTW_MESH_PATH_BCAST_PREQ: for re-checking next hop resolve toward root.
+ *	Use it to force path_discover sending broadcast PREQ for root.
  * 
  * RTW_MESH_PATH_RESOLVED is used by the mesh path timer to
  * decide when to stop or cancel the mesh path discovery.
  */
 enum rtw_mesh_path_flags {
-	RTW_MESH_PATH_ACTIVE =	BIT(0),
+	RTW_MESH_PATH_ACTIVE =		BIT(0),
 	RTW_MESH_PATH_RESOLVING =	BIT(1),
 	RTW_MESH_PATH_SN_VALID =	BIT(2),
 	RTW_MESH_PATH_FIXED	=	BIT(3),
 	RTW_MESH_PATH_RESOLVED =	BIT(4),
 	RTW_MESH_PATH_REQ_QUEUED =	BIT(5),
-	RTW_MESH_PATH_DELETED =	BIT(6),
+	RTW_MESH_PATH_DELETED =		BIT(6),
 	RTW_MESH_PATH_ROOT_ADD_CHK =	BIT(7),
 	RTW_MESH_PATH_PEER_AKA =	BIT(8),
+	RTW_MESH_PATH_BCAST_PREQ =	BIT(9),	
 };
 
 /**

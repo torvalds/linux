@@ -773,51 +773,6 @@ PHY_SetTxPowerIndex_8703B(
 	}
 }
 
-u8
-PHY_GetTxPowerIndex_8703B(
-		PADAPTER			pAdapter,
-		enum rf_path			RFPath,
-		u8					Rate,
-		u8					BandWidth,
-		u8					Channel,
-	struct txpwr_idx_comp *tic
-)
-{
-	PHAL_DATA_TYPE pHalData = GET_HAL_DATA(pAdapter);
-	struct hal_spec_t *hal_spec = GET_HAL_SPEC(pAdapter);
-	s16 power_idx;
-	u8 pg = 0;
-	s8 by_rate_diff = 0, limit = 0, tpt_offset = 0, extra_bias = 0, by_btc_diff = 0;
-	BOOLEAN bIn24G = _FALSE;
-
-	pg = phy_get_pg_txpwr_idx(pAdapter, RFPath, Rate, RF_1TX, BandWidth, Channel, &bIn24G);
-
-	by_rate_diff = PHY_GetTxPowerByRate(pAdapter, BAND_ON_2_4G, RF_PATH_A, Rate);
-	limit = PHY_GetTxPowerLimit(pAdapter, NULL, (u8)(!bIn24G), pHalData->current_channel_bw, RFPath, Rate, RF_1TX, pHalData->current_channel);
-
-	tpt_offset = PHY_GetTxPowerTrackingOffset(pAdapter, RFPath, Rate);
-
-	if (tic) {
-		tic->ntx_idx = RF_1TX;
-		tic->pg = pg;
-		tic->by_rate = by_rate_diff;
-		tic->limit = limit;
-		tic->tpt = tpt_offset;
-		tic->ebias = extra_bias;
-		tic->btc = by_btc_diff;
-	}
-
-	by_rate_diff = by_rate_diff > limit ? limit : by_rate_diff;
-	power_idx = pg + by_rate_diff + tpt_offset + extra_bias;
-
-	if (power_idx < 0)
-		power_idx = 0;
-	else if (power_idx > hal_spec->txgi_max)
-		power_idx = hal_spec->txgi_max;
-
-	return power_idx;
-}
-
 void
 PHY_SetTxPowerLevel8703B(
 		PADAPTER		Adapter,
@@ -1044,7 +999,6 @@ phy_GetSecondaryChnl_8703B(
 
 	}
 
-	barrier(); /* work around https://bugs.llvm.org/show_bug.cgi?id=42576 */
 	return (SCSettingOf40 << 4) | SCSettingOf20;
 }
 

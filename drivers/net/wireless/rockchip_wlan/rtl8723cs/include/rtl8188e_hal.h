@@ -138,8 +138,13 @@ typedef struct _RT_8188E_FIRMWARE_HDR {
 
 /* For WoWLan , more reserved page */
 #ifdef CONFIG_WOWLAN
+	#ifdef CONFIG_WOW_KEEP_ALIVE_PATTERN
+	#define WOWLAN_KEEP_ALIVE_PAGE 0x02 /*for keep alive packet*/
+	#else
+	#define WOWLAN_KEEP_ALIVE_PAGE	0x00
+	#endif /*CONFIG_WOW_KEEP_ALIVE_PATTERN*/
 	/* 1 ArpRsp + 2 NbrAdv + 2 NDPInfo + 1 RCI + 1 AOAC = 7 pages */
-	#define WOWLAN_PAGE_NUM_88E	0x07
+	#define WOWLAN_PAGE_NUM_88E	(0x07+ WOWLAN_KEEP_ALIVE_PAGE)
 #else
 	#define WOWLAN_PAGE_NUM_88E	0x00
 #endif

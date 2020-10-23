@@ -75,6 +75,10 @@
 extern u8 rtw_bridge_tunnel_header[];
 extern u8 rtw_rfc1042_header[];
 
+enum addba_rsp_ack_state {
+	RTW_RECV_ACK_OR_TIMEOUT,
+};
+
 /* for Rx reordering buffer control */
 struct recv_reorder_ctrl {
 	_adapter	*padapter;
@@ -87,6 +91,7 @@ struct recv_reorder_ctrl {
 	_queue pending_recvframe_queue;
 	_timer reordering_ctrl_timer;
 	u8 bReorderWaiting;
+	unsigned long rec_abba_rsp_ack;
 };
 
 struct	stainfo_rxcache	{
@@ -167,8 +172,6 @@ struct rx_pkt_attrib	{
 	u8	crc_err;
 	u8	icv_err;
 
-	u16	eth_type;
-
 	u8	dst[ETH_ALEN];
 	u8	src[ETH_ALEN];
 	u8	ta[ETH_ALEN];
@@ -192,11 +195,15 @@ struct rx_pkt_attrib	{
 	u8	ldpc;
 	u8	sgi;
 	u8	pkt_rpt_type;
-	u32 tsfl;
 	u32	MacIDValidEntry[2];	/* 64 bits present 64 entry. */
+	u8	ampdu;
 	u8	ppdu_cnt;
+	u8	ampdu_eof;
 	u32 	free_cnt;		/* free run counter */
 	struct phydm_phyinfo_struct phy_info;
+#ifdef CONFIG_WIFI_MONITOR
+	u8 moif[16];
+#endif
 
 #ifdef CONFIG_TCP_CSUM_OFFLOAD_RX
 	/* checksum offload realted varaiables */
@@ -397,11 +404,20 @@ struct recv_priv {
 	_queue	recv_buf_pending_queue;
 #endif
 
+#if defined(CONFIG_SDIO_HCI)
+#ifdef CONFIG_SDIO_RECVBUF_PWAIT
+	struct rtw_pwait_ctx recvbuf_pwait;
+#endif
+#ifdef CONFIG_SDIO_RECVBUF_AGGREGATION
+	bool recvbuf_agg;
+#endif
+#endif /* CONFIG_SDIO_HCI */
+
 #ifdef CONFIG_PCI_HCI
 	/* Rx */
 	struct rtw_rx_ring	rx_ring[PCI_MAX_RX_QUEUE];
 	int rxringcount;	/* size should be PCI_MAX_RX_QUEUE */
-	u16	rxbuffersize;
+	u32	rxbuffersize;
 #endif
 
 	/* For display the phy informatiom */
@@ -432,6 +448,15 @@ struct recv_priv {
 
 	BOOLEAN store_law_data_flag;
 };
+
+#ifdef CONFIG_SDIO_RECVBUF_AGGREGATION
+#define recv_buf_agg(recvpriv) recvpriv->recvbuf_agg
+#ifndef CONFIG_SDIO_RECVBUF_AGGREGATION_EN
+#define CONFIG_SDIO_RECVBUF_AGGREGATION_EN 1
+#endif
+#else
+#define recv_buf_agg(recvpriv) 0
+#endif
 
 #define RX_BH_STG_UNKNOWN		0
 #define RX_BH_STG_HDL_ENTER		1
@@ -481,10 +506,20 @@ struct sta_recv_priv {
 };
 
 
+#define RBUF_TYPE_PREALLOC	0
+#define RBUF_TYPE_TMP		1
+#define RBUF_TYPE_PWAIT_ADJ	2
+
 struct recv_buf {
 	_list list;
 
+#ifdef PLATFORM_WINDOWS
 	_lock recvbuf_lock;
+#endif
+
+#ifdef CONFIG_SDIO_RECVBUF_PWAIT_RUNTIME_ADJUST
+	u8 type;
+#endif
 
 	u32	ref_cnt;
 
@@ -515,6 +550,11 @@ struct recv_buf {
 #endif
 };
 
+#ifdef CONFIG_SDIO_RECVBUF_PWAIT_RUNTIME_ADJUST
+#define RBUF_IS_PREALLOC(rbuf) ((rbuf)->type == RBUF_TYPE_PREALLOC)
+#else
+#define RBUF_IS_PREALLOC(rbuf) 1
+#endif
 
 /*
 	head  ----->
@@ -581,6 +621,12 @@ union recv_frame {
 
 };
 
+enum rtw_rx_llc_hdl {
+	RTW_RX_LLC_KEEP		= 0,
+	RTW_RX_LLC_REMOVE	= 1,
+	RTW_RX_LLC_VLAN		= 2,
+};
+
 bool rtw_rframe_del_wfd_ie(union recv_frame *rframe, u8 ies_offset);
 
 typedef enum _RX_PACKET_TYPE {
@@ -606,6 +652,9 @@ u32 rtw_free_uc_swdec_pending_queue(_adapter *adapter);
 sint rtw_enqueue_recvbuf_to_head(struct recv_buf *precvbuf, _queue *queue);
 sint rtw_enqueue_recvbuf(struct recv_buf *precvbuf, _queue *queue);
 struct recv_buf *rtw_dequeue_recvbuf(_queue *queue);
+
+void process_pwrbit_data(_adapter *padapter, union recv_frame *precv_frame, struct sta_info *psta);
+void process_wmmps_data(_adapter *padapter, union recv_frame *precv_frame, struct sta_info *psta);
 
 #if defined(CONFIG_80211N_HT) && defined(CONFIG_RECV_REORDERING_CTRL)
 void rtw_reordering_ctrl_timeout_handler(void *pcontext);

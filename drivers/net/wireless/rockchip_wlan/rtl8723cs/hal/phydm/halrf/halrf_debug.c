@@ -39,11 +39,73 @@ void halrf_basic_profile(void *dm_void, u32 *_used, char *output, u32 *_out_len)
 	u32 out_len = *_out_len;
 	u32 rf_release_ver = 0;
 
-#if (RTL8822C_SUPPORT)
-	if (dm->support_ic_type == ODM_RTL8822C) {
-		rf_release_ver = RF_RELEASE_VERSION_8822C;
-	}
+	switch (dm->support_ic_type) {
+#if (RTL8814A_SUPPORT)
+	case ODM_RTL8814A:
+		rf_release_ver = RF_RELEASE_VERSION_8814A;
+		break;
 #endif
+
+#if (RTL8821C_SUPPORT)
+	case ODM_RTL8821C:
+		rf_release_ver = RF_RELEASE_VERSION_8821C;
+		break;
+#endif
+
+#if (RTL8822B_SUPPORT)
+	case ODM_RTL8822B:
+		rf_release_ver = RF_RELEASE_VERSION_8822B;
+		break;
+#endif
+
+#if (RTL8822C_SUPPORT)
+	case ODM_RTL8822C:
+		rf_release_ver = RF_RELEASE_VERSION_8822C;
+		break;
+#endif
+
+#if (RTL8814B_SUPPORT)
+	case ODM_RTL8814B:
+		rf_release_ver = RF_RELEASE_VERSION_8814B;
+		break;
+#endif
+
+#if (RTL8812F_SUPPORT)
+	case ODM_RTL8812F:
+		rf_release_ver = RF_RELEASE_VERSION_8812F;
+		break;
+#endif
+
+#if (RTL8198F_SUPPORT)
+	case ODM_RTL8198F:
+		rf_release_ver = RF_RELEASE_VERSION_8198F;
+		break;
+#endif
+
+#if (RTL8197F_SUPPORT)
+	case ODM_RTL8197F:
+		rf_release_ver = RF_RELEASE_VERSION_8197F;
+		break;
+#endif
+
+#if (RTL8192F_SUPPORT)
+	case ODM_RTL8192F:
+		rf_release_ver = RF_RELEASE_VERSION_8192F;
+		break;
+#endif
+
+#if (RTL8710B_SUPPORT)
+	case ODM_RTL8710B:
+		rf_release_ver = RF_RELEASE_VERSION_8710B;
+		break;
+#endif
+
+#if (RTL8195B_SUPPORT)
+	case ODM_RTL8195B:
+		rf_release_ver = RF_RELEASE_VERSION_8195B;
+		break;
+#endif
+	}
 
 	PDM_SNPF(out_len, used, output + used, out_len - used, "  %-35s: %d\n",
 		 "RF Para Release Ver", rf_release_ver);
@@ -63,6 +125,8 @@ void halrf_basic_profile(void *dm_void, u32 *_used, char *output, u32 *_out_len)
 		 "LCK", HALRF_LCK_VER);
 	PDM_SNPF(out_len, used, output + used, out_len - used, "  %-35s: %s\n",
 		 "DPK", HALRF_DPK_VER);
+	PDM_SNPF(out_len, used, output + used, out_len - used, "  %-35s: %s\n",
+		 "TSSI", HALRF_TSSI_VER);
 	PDM_SNPF(out_len, used, output + used, out_len - used, "  %-35s: %s\n",
 		 "KFREE", HALRF_KFREE_VER);
 	PDM_SNPF(out_len, used, output + used, out_len - used, "  %-35s: %s\n",
@@ -110,6 +174,9 @@ void halrf_debug_trace(void *dm_void, char input[][16], u32 *_used,
 			 "04. (( %s ))TXGAPK\n",
 			 ((rf->rf_dbg_comp & DBG_RF_TXGAPK) ? ("V") : (".")));
 		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "06. (( %s ))DPK_TRACK\n",
+			 ((rf->rf_dbg_comp & DBG_RF_DPK_TRACK) ? ("V") : (".")));
+		PDM_SNPF(out_len, used, output + used, out_len - used,
 			 "29. (( %s ))MP\n",
 			 ((rf->rf_dbg_comp & DBG_RF_MP) ? ("V") : (".")));
 		PDM_SNPF(out_len, used, output + used, out_len - used,
@@ -136,6 +203,23 @@ void halrf_debug_trace(void *dm_void, char input[][16], u32 *_used,
 	*_out_len = out_len;
 }
 
+void halrf_dack_debug_cmd(void *dm_void, char input[][16])
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	struct _hal_rf_ *rf = &dm->rf_table;
+	u32 dm_value[10] = {0};
+	u8 i;
+
+	for (i = 0; i < 7; i++)
+		if (input[i + 1])
+			PHYDM_SSCANF(input[i + 2], DCMD_DECIMAL, &dm_value[i]);
+
+	if (dm_value[0] == 1)
+		halrf_dack_trigger(dm, true);
+	else			
+		halrf_dack_trigger(dm, false);	
+}
+
 struct halrf_command {
 	char name[16];
 	u8 id;
@@ -150,7 +234,12 @@ enum halrf_CMD_ID {
 	HALRF_IQK,
 	HALRF_IQK_DEBUG,
 	HALRF_DPK,
+	HALRF_DACK,
+	HALRF_DACK_DEBUG,
 	HALRF_DUMP_RFK_REG,
+#ifdef CONFIG_2G_BAND_SHIFT
+	HAL_BAND_SHIFT,
+#endif
 };
 
 struct halrf_command halrf_cmd_ary[] = {
@@ -162,7 +251,12 @@ struct halrf_command halrf_cmd_ary[] = {
 	{"iqk", HALRF_IQK},
 	{"iqk_dbg", HALRF_IQK_DEBUG},
 	{"dpk", HALRF_DPK},
+	{"dack", HALRF_DACK},
+	{"dack_dbg", HALRF_DACK_DEBUG},
 	{"dump_rfk_reg", HALRF_DUMP_RFK_REG},
+#ifdef CONFIG_2G_BAND_SHIFT
+	{"band_shift", HAL_BAND_SHIFT},
+#endif
 };
 
 void halrf_cmd_parser(void *dm_void, char input[][16], u32 *_used, char *output,
@@ -206,6 +300,12 @@ void halrf_cmd_parser(void *dm_void, char input[][16], u32 *_used, char *output,
 		halrf_support_ability_debug(dm, &input[0], &used, output,
 					    &out_len);
 		break;
+#ifdef CONFIG_2G_BAND_SHIFT
+	case HAL_BAND_SHIFT:
+		halrf_support_band_shift_debug(dm, &input[0], &used, output,
+					       &out_len);
+		break;
+#endif
 	case HALRF_DBG_COMP:
 		halrf_debug_trace(dm, &input[0], &used, output, &out_len);
 		break;
@@ -226,7 +326,8 @@ void halrf_cmd_parser(void *dm_void, char input[][16], u32 *_used, char *output,
 #endif
 		break;
 	case HALRF_IQK_DEBUG:
-
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "IQK DEBUG!!!!!\n");
 		for (i = 0; i < 5; i++) {
 			if (input[i + 1]) {
 				PHYDM_SSCANF(input[i + 2], DCMD_HEX,
@@ -236,17 +337,25 @@ void halrf_cmd_parser(void *dm_void, char input[][16], u32 *_used, char *output,
 		}
 
 		if (input_idx >= 1) {
-#if (RTL8822B_SUPPORT == 1 || RTL8821C_SUPPORT == 1)
-			if (dm->support_ic_type & (ODM_RTL8822B | ODM_RTL8821C))
+#if (RTL8822B_SUPPORT == 1 || RTL8821C_SUPPORT == 1 || RTL8822C_SUPPORT == 1 || RTL8814B_SUPPORT == 1)
+			if (dm->support_ic_type & (ODM_RTL8822B | ODM_RTL8821C | ODM_RTL8822C | ODM_RTL8814B))
 				halrf_iqk_debug(dm, (u32 *)rf_var, &used,
 						output, &out_len);
 #endif
 		}
 		break;
 	case HALRF_DPK:
+		halrf_dpk_debug_cmd(dm, input, &used, output, &out_len);
+		break;
+	case HALRF_DACK:
 		PDM_SNPF(out_len, used, output + used, out_len - used,
-			 "DPK Trigger\n");
-		halrf_dpk_trigger(dm);
+			 "DACK Trigger\n");
+		halrf_dack_debug_cmd(dm, &input[0]);
+		break;
+	case HALRF_DACK_DEBUG:
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "DACK DEBUG\n");
+		halrf_dack_dbg(dm);
 		break;
 	case HALRF_DUMP_RFK_REG:
 		halrf_dump_rfk_reg(dm, input, &used, output, &out_len);
@@ -266,15 +375,18 @@ void halrf_init_debug_setting(void *dm_void)
 	struct _hal_rf_ *rf = &dm->rf_table;
 
 	rf->rf_dbg_comp =
+
+	DBG_RF_RFK		|
 #if DBG
 #if 0
-	/*DBG_RF_TX_PWR_TRACK	|*/
+	/*DBG_RF_TX_PWR_TRACK	| */
 	/*DBG_RF_IQK		| */
 	/*DBG_RF_LCK		| */
 	/*DBG_RF_DPK		| */
-	/*DBG_RF_DACK		| */
 	/*DBG_RF_TXGAPK		| */
-	/*DBG_RF_MP			| */
+	/*DBG_RF_DACK		| */
+	/*DBG_RF_DPK_TRACK	| */ 
+	/*DBG_RF_MP		| */
 	/*DBG_RF_TMP		| */
 	/*DBG_RF_INIT		| */
 #endif

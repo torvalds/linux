@@ -32,9 +32,10 @@
  * ============================================================
  */
 
-/*@#define DYNAMIC_TXPWR_VERSION	"1.0"*/
-/*@#define DYNAMIC_TXPWR_VERSION	"1.3" */ /*@2015.08.26, Add 8814 Dynamic TX power*/
-#define DYNAMIC_TXPWR_VERSION "1.4" /*@2015.11.06, Add CE 8821A Dynamic TX power*/
+/* 2020.6.23, Let gain_idx be initialized to 0 for linux compile warning*/
+#define DYNAMIC_TXPWR_VERSION "2.1"
+
+#define DTP_POWER_LEVEL_SIZE 3
 
 #if (DM_ODM_SUPPORT_TYPE == ODM_AP)
 #define TX_POWER_NEAR_FIELD_THRESH_LVL2 74
@@ -48,11 +49,26 @@
 #define TX_POWER_NEAR_FIELD_THRESH_LVL1 60
 #endif
 
+#if (DM_ODM_SUPPORT_TYPE == ODM_AP)
+#define TX_PWR_NEAR_FIELD_TH_JGR3_LVL3 80
+#define TX_PWR_NEAR_FIELD_TH_JGR3_LVL2 63
+#define TX_PWR_NEAR_FIELD_TH_JGR3_LVL1 55
+#elif (DM_ODM_SUPPORT_TYPE == ODM_WIN)
+#define TX_PWR_NEAR_FIELD_TH_JGR3_LVL3 90
+#define TX_PWR_NEAR_FIELD_TH_JGR3_LVL2 85
+#define TX_PWR_NEAR_FIELD_TH_JGR3_LVL1 80
+#elif (DM_ODM_SUPPORT_TYPE == ODM_CE)
+#define TX_PWR_NEAR_FIELD_TH_JGR3_LVL3 90
+#define TX_PWR_NEAR_FIELD_TH_JGR3_LVL2 85
+#define TX_PWR_NEAR_FIELD_TH_JGR3_LVL1 80
+#endif
+
 #define tx_high_pwr_level_normal 0
 #define tx_high_pwr_level_level1 1
 #define tx_high_pwr_level_level2 2
 #define tx_high_pwr_level_level3 3
 #define tx_high_pwr_level_unchange 4
+#define DTP_FLOOR_UP_GAP 3
 
 /* @============================================================
  * enumrate
@@ -67,19 +83,26 @@ enum phydm_dtp_power_offset {
 	PHYDM_OFFSET_ADD_6DB = 5
 };
 
-enum phydm_dtp_power_offset_2ndtype {
+enum phydm_dtp_power_offset_2nd {
 	PHYDM_2ND_OFFSET_ZERO = 0,
-	PHYDM_2ND_OFFSET_MINUS_3DB = 2,
-	PHYDM_2ND_OFFSET_MINUS_7DB = 3,
-	PHYDM_2ND_OFFSET_MINUS_11DB = 1
+	PHYDM_2ND_OFFSET_MINUS_3DB = 1,
+	PHYDM_2ND_OFFSET_MINUS_7DB = 2,
+	PHYDM_2ND_OFFSET_MINUS_11DB = 3
 };
 
 enum phydm_dtp_power_offset_bbram {
-	/*@ HW min use 0.25*/
+	/*@ HW min use 1dB*/
 	PHYDM_BBRAM_OFFSET_ZERO = 0,
 	PHYDM_BBRAM_OFFSET_MINUS_3DB = -3,
 	PHYDM_BBRAM_OFFSET_MINUS_7DB = -7,
 	PHYDM_BBRAM_OFFSET_MINUS_11DB = -11
+};
+
+enum phydm_dtp_power_pkt_type {
+	RAM_PWR_OFST0		= 0,
+	RAM_PWR_OFST1		= 1,
+	REG_PWR_OFST0		= 2,
+	REG_PWR_OFST1		= 3
 };
 
 /* @============================================================
@@ -101,6 +124,15 @@ void phydm_dynamic_tx_power_init(void *dm_void);
 
 void phydm_dtp_debug(void *dm_void, char input[][16], u32 *_used, char *output,
 			     u32 *_out_len);
+
+void phydm_rd_reg_pwr(void *dm_void, u32 *_used, char *output, u32 *_out_len);
+
+void phydm_wt_reg_pwr(void *dm_void, boolean is_ofst1, boolean pwr_ofst_en,
+            		     s8 pwr_ofst);
+
+void phydm_wt_ram_pwr(void *dm_void, u8 macid, boolean is_ofst1, 
+		             boolean pwr_ofst_en, s8 pwr_ofst);
+
 
 #if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
 void odm_dynamic_tx_power_win(void *dm_void);

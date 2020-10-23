@@ -359,7 +359,7 @@ void dump_mpath(void *sel, _adapter *adapter)
 		rtw_rcu_read_unlock();
 
 		if (mpath) {
-			RTW_PRINT_SEL(sel, MAC_FMT" "MAC_FMT" %10u %10u %4u %6u %6u %4u%s%s%s%s%s\n"
+			RTW_PRINT_SEL(sel, MAC_FMT" "MAC_FMT" %10u %10u %4u %6u %6u %4u%s%s%s%s%s%s%s%s%s%s\n"
 				, MAC_ARG(dst), MAC_ARG(next_hop), sn, metric, qlen
 				, exp_ms < 999999 ? exp_ms : 999999
 				, dto_ms < 999999 ? dto_ms : 999999
@@ -369,6 +369,11 @@ void dump_mpath(void *sel, _adapter *adapter)
 				, (flags & RTW_MESH_PATH_SN_VALID) ? " SN_VALID" : ""
 				, (flags & RTW_MESH_PATH_FIXED) ?  " FIXED" : ""
 				, (flags & RTW_MESH_PATH_RESOLVED) ? " RSVED" : ""
+				, (flags & RTW_MESH_PATH_REQ_QUEUED) ? " REQ_IN_Q" : ""
+				, (flags & RTW_MESH_PATH_DELETED) ? " DELETED" : ""
+				, (flags & RTW_MESH_PATH_ROOT_ADD_CHK) ? " R_ADD_CHK" : ""
+				, (flags & RTW_MESH_PATH_PEER_AKA) ? " PEER_AKA" : ""
+				, (flags & RTW_MESH_PATH_BCAST_PREQ) ? " BC_PREQ" : ""
 			);
 		}
 
@@ -440,7 +445,7 @@ int rtw_mesh_path_add_gate(struct rtw_mesh_path *mpath)
 	exit_critical_bh(&mpath->state_lock);
 
 	if (ori_num_gates == 0) {
-		update_beacon(mpath->adapter, WLAN_EID_MESH_CONFIG, NULL, _TRUE);
+		update_beacon(mpath->adapter, WLAN_EID_MESH_CONFIG, NULL, _TRUE, 0);
 		#if CONFIG_RTW_MESH_CTO_MGATE_CARRIER
 		if (!rtw_mesh_cto_mgate_required(mpath->adapter))
 			rtw_netif_carrier_on(mpath->adapter->pnetdev);
@@ -500,7 +505,7 @@ void rtw_mesh_gate_del(struct rtw_mesh_table *tbl, struct rtw_mesh_path *mpath)
 	exit_critical_bh(&tbl->gates_lock);
 
 	if (ori_num_gates == 1) {
-		update_beacon(mpath->adapter, WLAN_EID_MESH_CONFIG, NULL, _TRUE);
+		update_beacon(mpath->adapter, WLAN_EID_MESH_CONFIG, NULL, _TRUE, 0);
 		#if CONFIG_RTW_MESH_CTO_MGATE_CARRIER
 		if (rtw_mesh_cto_mgate_required(mpath->adapter))
 			rtw_netif_carrier_off(mpath->adapter->pnetdev);

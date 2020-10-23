@@ -15,7 +15,7 @@
 #ifndef __PCI_OSINTF_H
 #define __PCI_OSINTF_H
 
-#ifdef RTK_129X_PLATFORM
+#ifdef CONFIG_PLATFORM_RTK129X
 #define PCIE_SLOT1_MEM_START	0x9804F000
 #define PCIE_SLOT1_MEM_LEN	0x1000
 #define PCIE_SLOT1_CTRL_START	0x9804EC00
@@ -35,16 +35,32 @@
 //#define PCI_BC_ASPM_LTR	BIT4
 //#define PCI_BC_ASPM_OBFF	BIT5
 
-void	rtw_pci_disable_aspm(_adapter *padapter);
-void	rtw_pci_enable_aspm(_adapter *padapter);
 void	PlatformClearPciPMEStatus(PADAPTER Adapter);
 void	rtw_pci_aspm_config(_adapter *padapter);
 void	rtw_pci_aspm_config_l1off_general(_adapter *padapter, u8 eanble);
 #ifdef CONFIG_PCI_DYNAMIC_ASPM
-void	rtw_pci_aspm_config_dynamic_l1_ilde_time(_adapter *padapter);
+void rtw_pci_set_aspm_lnkctl(_adapter *padapter, u8 mode);
+void rtw_pci_set_l1_latency(_adapter *padapter, u8 mode);
+
+static inline void rtw_pci_dynamic_aspm_set_mode(_adapter *padapter, u8 mode)
+{
+	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(padapter);
+	struct pci_priv	*pcipriv = &(pdvobjpriv->pcipriv);
+
+	if (mode == pcipriv->aspm_mode)
+		return;
+
+	pcipriv->aspm_mode = mode;
+
+#ifdef CONFIG_PCI_DYNAMIC_ASPM_LINK_CTRL
+	rtw_pci_set_aspm_lnkctl(padapter, mode);
 #endif
-#ifdef CONFIG_64BIT_DMA
-	u8	PlatformEnableDMA64(PADAPTER Adapter);
+#ifdef CONFIG_PCI_DYNAMIC_ASPM_L1_LATENCY
+	rtw_pci_set_l1_latency(padapter, mode);
+#endif
+}
+#else
+#define rtw_pci_dynamic_aspm_set_mode(adapter, mode)
 #endif
 
 #endif

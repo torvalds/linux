@@ -26,6 +26,9 @@
 #ifndef __PHYDM_PHYSTATUS_H__
 #define __PHYDM_PHYSTATUS_H__
 
+/* 2020.07.03 fix cck report bug due to 8723F coding error*/
+#define PHYSTS_VERSION "1.2"
+
 /*@--------------------------Define ------------------------------------------*/
 #define CCK_RSSI_INIT_COUNT 5
 
@@ -645,7 +648,79 @@ __PACK struct phy_sts_rpt_jgr3_type0 {
 	u8 gain_d : 6;
 #endif
 };
+#if(RTL8723F_SUPPORT)
+__PACK struct phy_sts_rpt_jgr3_type6 {
+	/* judy_add_8723F_0512 */
+/* @DW0 : Offset 0 */
+#if (ODM_ENDIAN_TYPE == ODM_ENDIAN_LITTLE)
+	u8 pop_idx : 4;
+	u8 pkt_cnt : 2;
+	u8 channel_msb : 2;
+#else
+	u8 channel_msb : 2;
+	u8 pkt_cnt : 2;
+	u8 pop_idx : 4;
+#endif
 
+#if (ODM_ENDIAN_TYPE == ODM_ENDIAN_LITTLE)
+	u8 agc_table_a : 4;
+	u8 rsvd_0 : 4;
+#else
+	u8 rsvd_0 : 4;
+	u8 agc_table_a : 4;
+#endif
+	u8 rsvd_1 : 8;
+#if (ODM_ENDIAN_TYPE == ODM_ENDIAN_LITTLE)
+	u8 trsw : 1;
+	u8 hw_antsw_occur_keep_cck : 1;
+	u8 gnt_bt_keep_cck : 1;
+	u8 rssi_msb : 3;
+	u8 rsvd_2 : 2;	
+#else
+	u8 rsvd_2 : 2;
+	u8 rssi_msb : 3;
+	u8 gnt_bt_keep_cck : 1;
+	u8 hw_antsw_occur_keep_cck : 1;
+	u8 trsw : 1;
+#endif
+
+/* @DW1 : Offset 4 */
+	u8 channel;
+#if (ODM_ENDIAN_TYPE == ODM_ENDIAN_LITTLE)
+	u8 antidx_a : 4;
+	u8 rsvd_2_1 : 4;
+#else
+	u8 rsvd_2_1 : 4;
+	u8 antidx_a : 4;
+#endif
+	u8 rsvd_2_2;
+	u8 mp_gain_idx_a;
+
+/* @DW2 : Offset 8 */
+	u16 rsvd_3_1;
+	u8 rsvd_4_1;
+	u8 rssi;
+
+/* @DW3 : Offset 12 */
+	u16 rsvd_4_2;
+	u8 rsvd_5_1;
+	u8 avg_cfo;	
+/* @DW4 : Offset 16 */
+	u8 coarse_cfo;
+#if (ODM_ENDIAN_TYPE == ODM_ENDIAN_LITTLE)
+	u8 coarse_cfo_msb : 4;
+	u8 avg_cfo_msb : 4;
+#else
+	u8 avg_cfo_msb : 4;
+	u8 coarse_cfo_msb : 4;
+#endif
+	u8 evm_hdr;
+	u8 evm_pld;
+/* @DW5 : Offset 20 */
+	u32 rsvd_6_1;
+	u32 rsvd_7_1;
+};
+#endif
 __PACK struct phy_sts_rpt_jgr3_type1 {
 /* @DW0 : Offset 0 */
 #if (ODM_ENDIAN_TYPE == ODM_ENDIAN_LITTLE)
@@ -1092,18 +1167,53 @@ __PACK struct phy_sts_rpt_jgr3_type5 {
 	u8 inf_pos_0_d;
 	u8 inf_pos_1_d;
 };
+
+__PACK struct phy_sts_rpt_jgr3_ofdm_cmn {
+	#if (ODM_ENDIAN_TYPE == ODM_ENDIAN_LITTLE)
+	u8 page_num : 4;
+	u8 pkt_cnt : 2;
+	u8 channel_msb : 2;
+	#else
+	u8 channel_msb : 2;
+	u8 pkt_cnt : 2;
+	u8 page_num : 4;
+	#endif
+	u8 pwdb[4];
+	#if (ODM_ENDIAN_TYPE == ODM_ENDIAN_LITTLE)
+	u8 l_rxsc : 4;
+	u8 ht_rxsc : 4;
+	#else
+	u8 ht_rxsc : 4;
+	u8 l_rxsc : 4;
+	#endif
+	u8 channel_lsb;
+	#if (ODM_ENDIAN_TYPE == ODM_ENDIAN_LITTLE)
+	u8 band : 2;
+	u8 rsvd_0 : 2;
+	u8 gnt_bt : 1;
+	u8 ldpc : 1;
+	u8 stbc : 1;
+	u8 beamformed : 1;
+	#else
+	u8 beamformed : 1;
+	u8 stbc : 1;
+	u8 ldpc : 1;
+	u8 gnt_bt : 1;
+	u8 rsvd_0 : 1;
+	u8 band : 2;
+	#endif
+};
 #endif /*@#ifdef PHYSTS_3RD_TYPE_SUPPORT*/
+
+#ifdef PHYDM_PHYSTAUS_AUTO_SWITCH
+void phydm_physts_auto_switch_jgr3_set(void *dm_void, boolean enable,
+				       u8 bitmap_en);
+#endif
 
 #if (ODM_PHY_STATUS_NEW_TYPE_SUPPORT == 1)
 boolean
 phydm_query_is_mu_api(struct dm_struct *phydm, u8 ppdu_idx, u8 *p_data_rate,
 		      u8 *p_gid);
-#endif
-
-#ifdef PHYSTS_3RD_TYPE_SUPPORT
-void phydm_rx_physts_3rd_type(void *dm_void, u8 *phy_sts,
-			      struct phydm_perpkt_info_struct *pktinfo,
-			      struct phydm_phyinfo_struct *phy_info);
 #endif
 
 void phydm_reset_phystatus_avg(struct dm_struct *dm);
@@ -1127,11 +1237,14 @@ void phydm_normal_driver_rx_sniffer(
 s32 phydm_signal_scale_mapping(struct dm_struct *dm, s32 curr_sig);
 #endif
 
-void odm_phy_status_query(struct dm_struct *dm,
-			  struct phydm_phyinfo_struct *phy_info,
-			  u8 *phy_status_inf,
-			  struct phydm_perpkt_info_struct *pktinfo);
+boolean odm_phy_status_query(struct dm_struct *dm,
+			     struct phydm_phyinfo_struct *phy_info,
+			     u8 *phy_sts,
+			     struct phydm_perpkt_info_struct *pktinfo);
 
 void phydm_rx_phy_status_init(void *dm_void);
+
+void phydm_physts_dbg(void *dm_void, char input[][16], u32 *_used,
+		      char *output, u32 *_out_len);
 
 #endif /*@#ifndef	__HALHWOUTSRC_H__*/

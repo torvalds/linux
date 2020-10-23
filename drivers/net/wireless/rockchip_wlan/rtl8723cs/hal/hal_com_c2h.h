@@ -74,6 +74,8 @@ typedef enum _C2H_EVT {
 #ifdef RTW_PER_CMD_SUPPORT_FW
 	C2H_PER_RATE_RPT = 0x2c,
 #endif
+	C2H_LPS_STATUS_RPT = 0x32,
+	C2H_SET_TXPWR_FINISH = 0x70,
 	C2H_DEFEATURE_RSVD = 0xFD,
 	C2H_EXTEND = 0xff,
 } C2H_EVT;
@@ -121,5 +123,20 @@ int c2h_customer_str_rpt_2_hdl(_adapter *adapter, u8 *data, u8 len);
 /* C2H_PER_RATE_RPT, 0x2c */
 int c2h_per_rate_rpt_hdl(_adapter *adapter, u8 *data, u8 len);
 #endif
+
+#ifdef CONFIG_LPS_ACK
+/* C2H_LPS_STATUS_RPT, 0x32 */
+#define LPS_STATUS_RPT_LEN 2
+int c2h_lps_status_rpt(PADAPTER adapter, u8 *data, u8 len);
+#endif /* CONFIG_LPS_ACK */
+
+#ifdef CONFIG_FW_OFFLOAD_SET_TXPWR_IDX
+/* C2H_SET_TXPWR_FINISH, 0x70 */
+#define SET_TXPWR_FINISH_LEN 1
+void c2h_txpwr_idx_offload_done(_adapter *adapter, u8 *data, u8 len);
+int c2h_txpwr_idx_offload_wait(_adapter *adapter);
+#endif
+
+void rtw_hal_bcn_early_rpt_c2h_handler(_adapter *adapter);
 
 #endif /* __COMMON_C2H_H__ */

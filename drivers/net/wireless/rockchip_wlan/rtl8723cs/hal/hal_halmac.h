@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2015 - 2018 Realtek Corporation.
+ * Copyright(c) 2015 - 2019 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -116,6 +116,9 @@ int rtw_halmac_write32(struct intf_hdl *, u32 addr, u32 value);
 /* Software Information */
 void rtw_halmac_get_version(char *str, u32 len);
 
+/* Software setting before Initialization */
+int rtw_halmac_preinit_sdio_io_indirect(struct dvobj_priv *d, bool enable);
+
 /* Software Initialization */
 int rtw_halmac_init_adapter(struct dvobj_priv *d, struct halmac_platform_api *pf_api);
 int rtw_halmac_deinit_adapter(struct dvobj_priv *);
@@ -131,6 +134,7 @@ int rtw_halmac_get_rx_agg_align_size(struct dvobj_priv *d, u8 *size);
 int rtw_halmac_get_rx_drv_info_sz(struct dvobj_priv *, u8 *sz);
 int rtw_halmac_get_tx_desc_size(struct dvobj_priv *d, u32 *size);
 int rtw_halmac_get_rx_desc_size(struct dvobj_priv *d, u32 *size);
+int rtw_halmac_get_tx_dma_ch_map(struct dvobj_priv *d, u8 *dma_ch_map, u8 map_size);
 int rtw_halmac_get_ori_h2c_size(struct dvobj_priv *d, u32 *size);
 int rtw_halmac_get_oqt_size(struct dvobj_priv *d, u8 *size);
 int rtw_halmac_get_ac_queue_number(struct dvobj_priv *d, u8 *num);
@@ -194,10 +198,12 @@ int rtw_halmac_download_rsvd_page(struct dvobj_priv *dvobj, u8 pg_offset, u8 *pb
 int rtw_halmac_fill_hal_spec(struct dvobj_priv *, struct hal_spec_t *);
 int rtw_halmac_p2pps(struct dvobj_priv *dvobj, PHAL_P2P_PS_PARA pp2p_ps_para);
 int rtw_halmac_iqk(struct dvobj_priv *d, u8 clear, u8 segment);
+int rtw_halmac_dpk(struct dvobj_priv *d, u8 *buf, u32 bufsz);
 int rtw_halmac_cfg_phy_para(struct dvobj_priv *d, struct rtw_phy_parameter *para);
 int rtw_halmac_led_cfg(struct dvobj_priv *d, u8 enable, u8 mode);
 void rtw_halmac_led_switch(struct dvobj_priv *d, u8 on);
 int rtw_halmac_bt_wake_cfg(struct dvobj_priv *d, u8 enable);
+int rtw_halmac_rfe_ctrl_cfg(struct dvobj_priv *d, u8 gpio);
 #ifdef CONFIG_PNO_SUPPORT
 int rtw_halmac_pno_scanoffload(struct dvobj_priv *d, u32 enable);
 #endif
@@ -208,6 +214,7 @@ int rtw_halmac_get_tx_queue_page_num(struct dvobj_priv *, u8 queue, u32 *page);
 u32 rtw_halmac_sdio_get_tx_addr(struct dvobj_priv *, u8 *desc, u32 size);
 int rtw_halmac_sdio_tx_allowed(struct dvobj_priv *, u8 *buf, u32 size);
 u32 rtw_halmac_sdio_get_rx_addr(struct dvobj_priv *, u8 *seq);
+int rtw_halmac_sdio_set_tx_format(struct dvobj_priv *d, enum halmac_sdio_tx_format format);
 #endif /* CONFIG_SDIO_HCI */
 
 #ifdef CONFIG_USB_HCI
@@ -231,7 +238,7 @@ int rtw_halmac_bf_cfg_sounding(struct dvobj_priv *d, enum halmac_snd_role role,
 int rtw_halmac_bf_del_sounding(struct dvobj_priv *d, enum halmac_snd_role role);
 
 int rtw_halmac_bf_cfg_csi_rate(struct dvobj_priv *d, u8 rssi, u8 current_rate,
-		u8 fixrate_en, u8 *new_rate);
+		u8 fixrate_en, u8 *new_rate, u8 *bmp_ofdm54);
 
 int rtw_halmac_bf_cfg_mu_mimo(struct dvobj_priv *d, enum halmac_snd_role role,
 		u8 *sounding_sts, u16 grouping_bitmap, u8 mu_tx_en,
