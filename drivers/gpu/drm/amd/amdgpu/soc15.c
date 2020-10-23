@@ -1169,7 +1169,6 @@ static int soc15_common_early_init(void *handle)
 				AMD_CG_SUPPORT_GFX_CGLS |
 				AMD_CG_SUPPORT_BIF_LS |
 				AMD_CG_SUPPORT_HDP_LS |
-				AMD_CG_SUPPORT_ROM_MGCG |
 				AMD_CG_SUPPORT_MC_MGCG |
 				AMD_CG_SUPPORT_MC_LS |
 				AMD_CG_SUPPORT_SDMA_MGCG |
@@ -1187,7 +1186,6 @@ static int soc15_common_early_init(void *handle)
 				AMD_CG_SUPPORT_GFX_CGLS |
 				AMD_CG_SUPPORT_BIF_LS |
 				AMD_CG_SUPPORT_HDP_LS |
-				AMD_CG_SUPPORT_ROM_MGCG |
 				AMD_CG_SUPPORT_MC_MGCG |
 				AMD_CG_SUPPORT_MC_LS |
 				AMD_CG_SUPPORT_SDMA_MGCG |
@@ -1211,7 +1209,6 @@ static int soc15_common_early_init(void *handle)
 				AMD_CG_SUPPORT_HDP_LS |
 				AMD_CG_SUPPORT_DRM_MGCG |
 				AMD_CG_SUPPORT_DRM_LS |
-				AMD_CG_SUPPORT_ROM_MGCG |
 				AMD_CG_SUPPORT_MC_MGCG |
 				AMD_CG_SUPPORT_MC_LS |
 				AMD_CG_SUPPORT_SDMA_MGCG |
@@ -1264,7 +1261,6 @@ static int soc15_common_early_init(void *handle)
 				 AMD_CG_SUPPORT_SDMA_LS |
 				 AMD_CG_SUPPORT_BIF_LS |
 				 AMD_CG_SUPPORT_HDP_LS |
-				 AMD_CG_SUPPORT_ROM_MGCG |
 				 AMD_CG_SUPPORT_VCN_MGCG |
 				 AMD_CG_SUPPORT_JPEG_MGCG |
 				 AMD_CG_SUPPORT_IH_CG |
