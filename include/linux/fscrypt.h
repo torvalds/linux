@@ -139,7 +139,6 @@ static inline struct page *fscrypt_pagecache_page(struct page *bounce_page)
 }
 
 void fscrypt_free_bounce_page(struct page *bounce_page);
-int fscrypt_d_revalidate(struct dentry *dentry, unsigned int flags);
 
 /* policy.c */
 int fscrypt_ioctl_set_policy(struct file *filp, const void __user *arg);
@@ -775,7 +774,7 @@ static inline int fscrypt_prepare_rename(struct inode *old_dir,
  * directory's encryption key is available, then the lookup is assumed to be by
  * plaintext name; otherwise, it is assumed to be by no-key name.
  *
- * After calling this function, a filesystem should ensure that it's dentry
+ * After calling this function, a filesystem should ensure that its dentry
  * operations contain fscrypt_d_revalidate if DCACHE_NOKEY_NAME was set,
  * so that the dentry can be invalidated if the key is later added.
  *
