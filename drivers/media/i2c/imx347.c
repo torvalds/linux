@@ -116,6 +116,9 @@
 #define IMX347_4LANES			4
 #define IMX347_BITS_PER_SAMPLE		10
 
+#define IMX347_VREVERSE_REG	0x304f
+#define IMX347_HREVERSE_REG	0x304e
+
 #define RHS1_MAX			3113 // <2*BRL=2*1556 && 4n+1
 #define SHR1_MIN			9
 #define BRL				1556
@@ -934,10 +937,10 @@ static int imx347_set_fmt(struct v4l2_subdev *sd,
 			if (ret < 0)
 				dev_err(dev, "Failed to enable xvclk\n");
 		}
-		v4l2_ctrl_s_ctrl_int64(imx347->pixel_rate,
-				       imx347->cur_pixel_rate);
-		v4l2_ctrl_s_ctrl(imx347->link_freq,
-				 imx347->cur_link_freq);
+		__v4l2_ctrl_s_ctrl_int64(imx347->pixel_rate,
+					 imx347->cur_pixel_rate);
+		__v4l2_ctrl_s_ctrl(imx347->link_freq,
+				   imx347->cur_link_freq);
 	}
 
 	mutex_unlock(&imx347->mutex);
@@ -1302,7 +1305,7 @@ static long imx347_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct imx347 *imx347 = to_imx347(sd);
 	struct rkmodule_hdr_cfg *hdr;
-	u32 i, h, w;
+	u32 i, h, w, stream;
 	long ret = 0;
 
 	switch (cmd) {
@@ -1342,10 +1345,29 @@ static long imx347_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 				IMX347_VTS_MAX - imx347->cur_mode->height,
 				1, h);
 			imx347->cur_vts = imx347->cur_mode->vts_def;
+			if (imx347->cur_mode->bus_fmt == MEDIA_BUS_FMT_SRGGB10_1X10) {
+				if (imx347->cur_mode->hdr_mode == NO_HDR)
+					imx347->cur_pixel_rate = IMX347_10BIT_LINEAR_PIXEL_RATE;
+				else if (imx347->cur_mode->hdr_mode == HDR_X2)
+					imx347->cur_pixel_rate = IMX347_10BIT_HDR2_PIXEL_RATE;
+				__v4l2_ctrl_s_ctrl_int64(imx347->pixel_rate,
+							 imx347->cur_pixel_rate);
+			}
 		}
 		break;
 	case RKMODULE_SET_CONVERSION_GAIN:
 		ret = imx347_set_conversion_gain(imx347, (u32 *)arg);
+		break;
+	case RKMODULE_SET_QUICK_STREAM:
+
+		stream = *((u32 *)arg);
+
+		if (stream)
+			ret = imx347_write_reg(imx347->client, IMX347_REG_CTRL_MODE,
+				IMX347_REG_VALUE_08BIT, IMX347_MODE_STREAMING);
+		else
+			ret = imx347_write_reg(imx347->client, IMX347_REG_CTRL_MODE,
+				IMX347_REG_VALUE_08BIT, IMX347_MODE_SW_STANDBY);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -1366,6 +1388,7 @@ static long imx347_compat_ioctl32(struct v4l2_subdev *sd,
 	struct preisp_hdrae_exp_s *hdrae;
 	long ret;
 	u32 cg = 0;
+	u32  stream;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -1433,6 +1456,12 @@ static long imx347_compat_ioctl32(struct v4l2_subdev *sd,
 		if (!ret)
 			ret = imx347_ioctl(sd, cmd, &cg);
 		break;
+	case RKMODULE_SET_QUICK_STREAM:
+		ret = copy_from_user(&stream, up, sizeof(u32));
+		if (!ret) {
+			ret = imx347_ioctl(sd, cmd, &stream);
+		}
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -1467,6 +1496,9 @@ static int __imx347_start_stream(struct imx347 *imx347)
 	if (ret)
 		return ret;
 	/* In case these controls are set before streaming */
+	ret = __v4l2_ctrl_handler_setup(&imx347->ctrl_handler);
+	if (ret)
+		return ret;
 	if (imx347->has_init_exp && imx347->cur_mode->hdr_mode != NO_HDR) {
 		ret = imx347_ioctl(&imx347->subdev, PREISP_CMD_SET_HDRAE_EXP,
 			&imx347->init_hdrae_exp);
@@ -1475,12 +1507,6 @@ static int __imx347_start_stream(struct imx347 *imx347)
 				"init exp fail in hdr mode\n");
 			return ret;
 		}
-	} else {
-		mutex_unlock(&imx347->mutex);
-		ret = v4l2_ctrl_handler_setup(&imx347->ctrl_handler);
-		mutex_lock(&imx347->mutex);
-		if (ret)
-			return ret;
 	}
 	return imx347_write_reg(imx347->client, IMX347_REG_CTRL_MODE,
 				IMX347_REG_VALUE_08BIT, 0);
@@ -1781,20 +1807,24 @@ static int imx347_set_ctrl(struct v4l2_ctrl *ctrl)
 	struct imx347 *imx347 = container_of(ctrl->handler,
 					     struct imx347, ctrl_handler);
 	struct i2c_client *client = imx347->client;
+	const struct imx347_mode *mode = imx347->cur_mode;
 	s64 max;
 	u32 vts = 0;
 	int ret = 0;
 	u32 shr0 = 0;
+	u32 flip = 0;
 
 	/* Propagate change of current control to all related controls */
 	switch (ctrl->id) {
 	case V4L2_CID_VBLANK:
 		/* Update max exposure while meeting expected vblanking */
-		max = imx347->cur_mode->height + ctrl->val - 4;
-		__v4l2_ctrl_modify_range(imx347->exposure,
-					 imx347->exposure->minimum, max,
-					 imx347->exposure->step,
-					 imx347->exposure->default_value);
+		if (mode->hdr_mode == NO_HDR) {
+			max = imx347->cur_mode->height + ctrl->val - 3;
+			__v4l2_ctrl_modify_range(imx347->exposure,
+						 imx347->exposure->minimum, max,
+						 imx347->exposure->step,
+						 imx347->exposure->default_value);
+		}
 		break;
 	}
 
@@ -1803,28 +1833,32 @@ static int imx347_set_ctrl(struct v4l2_ctrl *ctrl)
 
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
-		shr0 = imx347->cur_vts - ctrl->val;
-		ret = imx347_write_reg(imx347->client, IMX347_LF_EXPO_REG_L,
-				       IMX347_REG_VALUE_08BIT,
-				       IMX347_FETCH_EXP_L(shr0));
-		ret |= imx347_write_reg(imx347->client, IMX347_LF_EXPO_REG_M,
-				       IMX347_REG_VALUE_08BIT,
-				       IMX347_FETCH_EXP_M(shr0));
-		ret |= imx347_write_reg(imx347->client, IMX347_LF_EXPO_REG_H,
-				       IMX347_REG_VALUE_08BIT,
-				       IMX347_FETCH_EXP_H(shr0));
-		dev_dbg(&client->dev, "set exposure 0x%x\n",
-			ctrl->val);
+		if (mode->hdr_mode == NO_HDR) {
+			shr0 = imx347->cur_vts - ctrl->val;
+			ret = imx347_write_reg(imx347->client, IMX347_LF_EXPO_REG_L,
+					IMX347_REG_VALUE_08BIT,
+					IMX347_FETCH_EXP_L(shr0));
+			ret |= imx347_write_reg(imx347->client, IMX347_LF_EXPO_REG_M,
+					IMX347_REG_VALUE_08BIT,
+					IMX347_FETCH_EXP_M(shr0));
+			ret |= imx347_write_reg(imx347->client, IMX347_LF_EXPO_REG_H,
+					IMX347_REG_VALUE_08BIT,
+					IMX347_FETCH_EXP_H(shr0));
+			dev_dbg(&client->dev, "set exposure 0x%x\n",
+				ctrl->val);
+		}
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
-		ret = imx347_write_reg(imx347->client, IMX347_LF_GAIN_REG_H,
-				       IMX347_REG_VALUE_08BIT,
-				       IMX347_FETCH_GAIN_H(ctrl->val));
-		ret |= imx347_write_reg(imx347->client, IMX347_LF_GAIN_REG_L,
-				       IMX347_REG_VALUE_08BIT,
-				       IMX347_FETCH_GAIN_L(ctrl->val));
-		dev_dbg(&client->dev, "set analog gain 0x%x\n",
-			ctrl->val);
+		if (mode->hdr_mode == NO_HDR) {
+			ret = imx347_write_reg(imx347->client, IMX347_LF_GAIN_REG_H,
+					IMX347_REG_VALUE_08BIT,
+					IMX347_FETCH_GAIN_H(ctrl->val));
+			ret |= imx347_write_reg(imx347->client, IMX347_LF_GAIN_REG_L,
+					IMX347_REG_VALUE_08BIT,
+					IMX347_FETCH_GAIN_L(ctrl->val));
+			dev_dbg(&client->dev, "set analog gain 0x%x\n",
+				ctrl->val);
+		}
 		break;
 	case V4L2_CID_VBLANK:
 		vts = ctrl->val + imx347->cur_mode->height;
@@ -1843,6 +1877,50 @@ static int imx347_set_ctrl(struct v4l2_ctrl *ctrl)
 
 		dev_dbg(&client->dev, "set vblank 0x%x\n",
 			ctrl->val);
+		break;
+	case V4L2_CID_HFLIP:
+		ret = imx347_write_reg(imx347->client, IMX347_HREVERSE_REG,
+				       IMX347_REG_VALUE_08BIT, !!ctrl->val);
+		break;
+	case V4L2_CID_VFLIP:
+		flip = ctrl->val;
+		ret = imx347_write_reg(imx347->client, IMX347_VREVERSE_REG,
+				IMX347_REG_VALUE_08BIT, !!flip);
+		if (flip) {
+			ret |= imx347_write_reg(imx347->client, 0x3074,
+				IMX347_REG_VALUE_08BIT, 0x40);
+			ret |= imx347_write_reg(imx347->client, 0x3075,
+				IMX347_REG_VALUE_08BIT, 0x06);
+			ret |= imx347_write_reg(imx347->client, 0x3080,
+				IMX347_REG_VALUE_08BIT, 0xff);
+			ret |= imx347_write_reg(imx347->client, 0x30ad,
+				IMX347_REG_VALUE_08BIT, 0x7e);
+			ret |= imx347_write_reg(imx347->client, 0x30b6,
+				IMX347_REG_VALUE_08BIT, 0xff);
+			ret |= imx347_write_reg(imx347->client, 0x30b7,
+				IMX347_REG_VALUE_08BIT, 0x01);
+			ret |= imx347_write_reg(imx347->client, 0x30d8,
+				IMX347_REG_VALUE_08BIT, 0x45);
+			ret |= imx347_write_reg(imx347->client, 0x3114,
+				IMX347_REG_VALUE_08BIT, 0x01);
+		} else {
+			ret |= imx347_write_reg(imx347->client, 0x3074,
+				IMX347_REG_VALUE_08BIT, 0x3c);
+			ret |= imx347_write_reg(imx347->client, 0x3075,
+				IMX347_REG_VALUE_08BIT, 0x00);
+			ret |= imx347_write_reg(imx347->client, 0x3080,
+				IMX347_REG_VALUE_08BIT, 0x01);
+			ret |= imx347_write_reg(imx347->client, 0x30ad,
+				IMX347_REG_VALUE_08BIT, 0x02);
+			ret |= imx347_write_reg(imx347->client, 0x30b6,
+				IMX347_REG_VALUE_08BIT, 0x00);
+			ret |= imx347_write_reg(imx347->client, 0x30b7,
+				IMX347_REG_VALUE_08BIT, 0x00);
+			ret |= imx347_write_reg(imx347->client, 0x30d8,
+				IMX347_REG_VALUE_08BIT, 0x44);
+			ret |= imx347_write_reg(imx347->client, 0x3114,
+				IMX347_REG_VALUE_08BIT, 0x02);
+		}
 		break;
 	default:
 		dev_warn(&client->dev, "%s Unhandled id:0x%x, val:0x%x\n",
@@ -1890,7 +1968,7 @@ static int imx347_initialize_controls(struct imx347 *imx347)
 		imx347->cur_pixel_rate =
 				IMX347_12BIT_PIXEL_RATE;
 	}
-	v4l2_ctrl_s_ctrl(imx347->link_freq,
+	__v4l2_ctrl_s_ctrl(imx347->link_freq,
 			 imx347->cur_link_freq);
 	imx347->pixel_rate = v4l2_ctrl_new_std(handler, NULL,
 		V4L2_CID_PIXEL_RATE, 0, IMX347_10BIT_HDR2_PIXEL_RATE,
@@ -1909,7 +1987,7 @@ static int imx347_initialize_controls(struct imx347 *imx347)
 				1, vblank_def);
 	imx347->cur_vts = mode->vts_def;
 
-	exposure_max = mode->vts_def - 4;
+	exposure_max = mode->vts_def - 3;
 	imx347->exposure = v4l2_ctrl_new_std(handler, &imx347_ctrl_ops,
 				V4L2_CID_EXPOSURE, IMX347_EXPOSURE_MIN,
 				exposure_max, IMX347_EXPOSURE_STEP,
@@ -1919,6 +1997,9 @@ static int imx347_initialize_controls(struct imx347 *imx347)
 				V4L2_CID_ANALOGUE_GAIN, IMX347_GAIN_MIN,
 				IMX347_GAIN_MAX, IMX347_GAIN_STEP,
 				IMX347_GAIN_DEFAULT);
+	v4l2_ctrl_new_std(handler, &imx347_ctrl_ops, V4L2_CID_HFLIP, 0, 1, 1, 0);
+	v4l2_ctrl_new_std(handler, &imx347_ctrl_ops, V4L2_CID_VFLIP, 0, 1, 1, 0);
+
 	if (handler->error) {
 		ret = handler->error;
 		dev_err(&imx347->client->dev,
