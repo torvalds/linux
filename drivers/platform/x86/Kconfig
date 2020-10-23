@@ -1424,6 +1424,14 @@ config INTEL_SCU_PLATFORM
 	  and SCU (sometimes called PMC as well). The driver currently
 	  supports Intel Elkhart Lake and compatible platforms.
 
+config INTEL_SCU_WDT
+	bool
+	default INTEL_SCU_PCI
+	depends on INTEL_MID_WATCHDOG
+	help
+	  This is a specific platform code to instantiate watchdog device
+	  on ACPI-based Intel MID platforms.
+
 config INTEL_SCU_IPC_UTIL
 	tristate "Intel SCU IPC utility driver"
 	depends on INTEL_SCU
