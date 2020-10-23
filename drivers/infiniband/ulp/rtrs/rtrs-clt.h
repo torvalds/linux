@@ -72,6 +72,7 @@ struct rtrs_clt_con {
 	struct rtrs_iu		*rsp_ius;
 	u32			queue_size;
 	unsigned int		cpu;
+	struct mutex		con_mutex;
 	atomic_t		io_cnt;
 	int			cm_err;
 };
