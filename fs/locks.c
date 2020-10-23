@@ -750,7 +750,7 @@ static void __locks_wake_up_blocks(struct file_lock *blocker)
 }
 
 /**
- *	locks_delete_lock - stop waiting for a file lock
+ *	locks_delete_block - stop waiting for a file lock
  *	@waiter: the lock which was waiting
  *
  *	lockd/nfsd need to disconnect the lock while working on it.
