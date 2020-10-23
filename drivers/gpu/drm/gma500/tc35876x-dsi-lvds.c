@@ -518,11 +518,9 @@ void tc35876x_toshiba_bridge_panel_off(struct drm_device *dev)
 
 	dev_dbg(&tc35876x_client->dev, "%s\n", __func__);
 
-	if (bridge_bl_enable)
-		gpiod_set_value_cansleep(bridge_bl_enable, 0);
+	gpiod_set_value_cansleep(bridge_bl_enable, 0);
 
-	if (backlight_voltage)
-		gpiod_set_value_cansleep(backlight_voltage, 0);
+	gpiod_set_value_cansleep(backlight_voltage, 0);
 }
 
 void tc35876x_toshiba_bridge_panel_on(struct drm_device *dev)
@@ -567,8 +565,7 @@ void tc35876x_toshiba_bridge_panel_on(struct drm_device *dev)
 				"i2c write failed (%d)\n", ret);
 	}
 
-	if (bridge_bl_enable)
-		gpiod_set_value_cansleep(bridge_bl_enable, 1);
+	gpiod_set_value_cansleep(bridge_bl_enable, 1);
 
 	tc35876x_brightness_control(dev, dev_priv->brightness_adjusted);
 }
@@ -642,20 +639,17 @@ static int tc35876x_bridge_probe(struct i2c_client *client,
 	bridge_reset = devm_gpiod_get_optional(&client->dev, "bridge-reset", GPIOD_OUT_LOW);
 	if (IS_ERR(bridge_reset))
 		return PTR_ERR(bridge_reset);
-	if (bridge_reset)
-		gpiod_set_consumer_name(bridge_reset, "tc35876x bridge reset");
+	gpiod_set_consumer_name(bridge_reset, "tc35876x bridge reset");
 
 	bridge_bl_enable = devm_gpiod_get_optional(&client->dev, "bl-en", GPIOD_OUT_LOW);
 	if (IS_ERR(bridge_bl_enable))
 		return PTR_ERR(bridge_bl_enable);
-	if (bridge_bl_enable)
-		gpiod_set_consumer_name(bridge_bl_enable, "tc35876x panel bl en");
+	gpiod_set_consumer_name(bridge_bl_enable, "tc35876x panel bl en");
 
 	backlight_voltage = devm_gpiod_get_optional(&client->dev, "vadd", GPIOD_OUT_LOW);
 	if (IS_ERR(backlight_voltage))
 		return PTR_ERR(backlight_voltage);
-	if (backlight_voltage)
-		gpiod_set_consumer_name(backlight_voltage, "tc35876x panel vadd");
+	gpiod_set_consumer_name(backlight_voltage, "tc35876x panel vadd");
 
 	tc35876x_client = client;
 
