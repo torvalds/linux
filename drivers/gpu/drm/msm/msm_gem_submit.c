@@ -65,7 +65,9 @@ void msm_gem_submit_free(struct msm_gem_submit *submit)
 	unsigned i;
 
 	dma_fence_put(submit->fence);
+	spin_lock(&submit->ring->submit_lock);
 	list_del(&submit->node);
+	spin_unlock(&submit->ring->submit_lock);
 	put_pid(submit->pid);
 	msm_submitqueue_put(submit->queue);
 
