@@ -456,10 +456,26 @@ u16 nvmet_parse_passthru_admin_cmd(struct nvmet_req *req)
 			req->execute = nvmet_passthru_execute_cmd;
 			req->p.use_workqueue = true;
 			return NVME_SC_SUCCESS;
+		case NVME_ID_CNS_CS_CTRL:
+			switch (req->cmd->identify.csi) {
+			case NVME_CSI_ZNS:
+				req->execute = nvmet_passthru_execute_cmd;
+				req->p.use_workqueue = true;
+				return NVME_SC_SUCCESS;
+			}
+			return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
 		case NVME_ID_CNS_NS:
 			req->execute = nvmet_passthru_execute_cmd;
 			req->p.use_workqueue = true;
 			return NVME_SC_SUCCESS;
+		case NVME_ID_CNS_CS_NS:
+			switch (req->cmd->identify.csi) {
+			case NVME_CSI_ZNS:
+				req->execute = nvmet_passthru_execute_cmd;
+				req->p.use_workqueue = true;
+				return NVME_SC_SUCCESS;
+			}
+			return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
 		default:
 			return nvmet_setup_passthru_command(req);
 		}
@@ -474,6 +490,7 @@ u16 nvmet_parse_passthru_admin_cmd(struct nvmet_req *req)
 int nvmet_passthru_ctrl_enable(struct nvmet_subsys *subsys)
 {
 	struct nvme_ctrl *ctrl;
+	struct file *file;
 	int ret = -EINVAL;
 	void *old;
 
@@ -488,24 +505,29 @@ int nvmet_passthru_ctrl_enable(struct nvmet_subsys *subsys)
 		goto out_unlock;
 	}
 
-	ctrl = nvme_ctrl_get_by_path(subsys->passthru_ctrl_path);
-	if (IS_ERR(ctrl)) {
-		ret = PTR_ERR(ctrl);
+	file = filp_open(subsys->passthru_ctrl_path, O_RDWR, 0);
+	if (IS_ERR(file)) {
+		ret = PTR_ERR(file);
+		goto out_unlock;
+	}
+
+	ctrl = nvme_ctrl_from_file(file);
+	if (!ctrl) {
 		pr_err("failed to open nvme controller %s\n",
 		       subsys->passthru_ctrl_path);
 
-		goto out_unlock;
+		goto out_put_file;
 	}
 
 	old = xa_cmpxchg(&passthru_subsystems, ctrl->cntlid, NULL,
 			 subsys, GFP_KERNEL);
 	if (xa_is_err(old)) {
 		ret = xa_err(old);
-		goto out_put_ctrl;
+		goto out_put_file;
 	}
 
 	if (old)
-		goto out_put_ctrl;
+		goto out_put_file;
 
 	subsys->passthru_ctrl = ctrl;
 	subsys->ver = ctrl->vs;
@@ -516,13 +538,12 @@ int nvmet_passthru_ctrl_enable(struct nvmet_subsys *subsys)
 			NVME_TERTIARY(subsys->ver));
 		subsys->ver = NVME_VS(1, 2, 1);
 	}
-
+	nvme_get_ctrl(ctrl);
 	__module_get(subsys->passthru_ctrl->ops->module);
-	mutex_unlock(&subsys->lock);
-	return 0;
+	ret = 0;
 
-out_put_ctrl:
-	nvme_put_ctrl(ctrl);
+out_put_file:
+	filp_close(file, NULL);
 out_unlock:
 	mutex_unlock(&subsys->lock);
 	return ret;
