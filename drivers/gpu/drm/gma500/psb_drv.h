@@ -428,6 +428,8 @@ struct psb_ops;
 
 #define PSB_NUM_PIPE		3
 
+struct intel_scu_ipc_dev;
+
 struct drm_psb_private {
 	struct drm_device *dev;
 	struct pci_dev *aux_pdev; /* Currently only used by mrst */
@@ -567,6 +569,7 @@ struct drm_psb_private {
 	 * Used for modifying backlight from
 	 * xrandr -- consider removing and using HAL instead
 	 */
+	struct intel_scu_ipc_dev *scu;
 	struct backlight_device *backlight_device;
 	struct drm_property *backlight_property;
 	bool backlight_enabled;

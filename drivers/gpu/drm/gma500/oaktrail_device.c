@@ -10,9 +10,6 @@
 #include <linux/dmi.h>
 #include <linux/module.h>
 
-#include <asm/intel-mid.h>
-#include <asm/intel_scu_ipc.h>
-
 #include <drm/drm.h>
 
 #include "intel_bios.h"

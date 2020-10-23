@@ -444,6 +444,7 @@ static inline u16 calc_clkdiv(unsigned long baseclk, unsigned int f)
 
 static void tc35876x_brightness_init(struct drm_device *dev)
 {
+	struct drm_psb_private *dev_priv = dev->dev_private;
 	int ret;
 	u8 pwmctrl;
 	u16 clkdiv;
@@ -451,23 +452,23 @@ static void tc35876x_brightness_init(struct drm_device *dev)
 	/* Make sure the PWM reference is the 19.2 MHz system clock. Read first
 	 * instead of setting directly to catch potential conflicts between PWM
 	 * users. */
-	ret = intel_scu_ipc_ioread8(GPIOPWMCTRL, &pwmctrl);
+	ret = intel_scu_ipc_dev_ioread8(dev_priv->scu, GPIOPWMCTRL, &pwmctrl);
 	if (ret || pwmctrl != 0x01) {
 		if (ret)
 			dev_err(&dev->pdev->dev, "GPIOPWMCTRL read failed\n");
 		else
 			dev_warn(&dev->pdev->dev, "GPIOPWMCTRL was not set to system clock (pwmctrl = 0x%02x)\n", pwmctrl);
 
-		ret = intel_scu_ipc_iowrite8(GPIOPWMCTRL, 0x01);
+		ret = intel_scu_ipc_dev_iowrite8(dev_priv->scu, GPIOPWMCTRL, 0x01);
 		if (ret)
 			dev_err(&dev->pdev->dev, "GPIOPWMCTRL set failed\n");
 	}
 
 	clkdiv = calc_clkdiv(SYSTEMCLK, PWM_FREQUENCY);
 
-	ret = intel_scu_ipc_iowrite8(PWM0CLKDIV1, (clkdiv >> 8) & 0xff);
+	ret = intel_scu_ipc_dev_iowrite8(dev_priv->scu, PWM0CLKDIV1, (clkdiv >> 8) & 0xff);
 	if (!ret)
-		ret = intel_scu_ipc_iowrite8(PWM0CLKDIV0, clkdiv & 0xff);
+		ret = intel_scu_ipc_dev_iowrite8(dev_priv->scu, PWM0CLKDIV0, clkdiv & 0xff);
 
 	if (ret)
 		dev_err(&dev->pdev->dev, "PWM0CLKDIV set failed\n");
@@ -480,6 +481,7 @@ static void tc35876x_brightness_init(struct drm_device *dev)
 
 void tc35876x_brightness_control(struct drm_device *dev, int level)
 {
+	struct drm_psb_private *dev_priv = dev->dev_private;
 	int ret;
 	u8 duty_val;
 	u8 panel_duty_val;
@@ -495,7 +497,7 @@ void tc35876x_brightness_control(struct drm_device *dev, int level)
 	panel_duty_val = (2 * level - 100) * 0xA9 /
 			 MDFLD_DSI_BRIGHTNESS_MAX_LEVEL + 0x56;
 
-	ret = intel_scu_ipc_iowrite8(PWM0DUTYCYCLE, duty_val);
+	ret = intel_scu_ipc_dev_iowrite8(dev_priv->scu, PWM0DUTYCYCLE, duty_val);
 	if (ret)
 		dev_err(&tc35876x_client->dev, "%s: ipc write fail\n",
 			__func__);
