@@ -1520,15 +1520,6 @@ static int create_con_cq_qp(struct rtrs_clt_con *con)
 	int err, cq_vector;
 	struct rtrs_msg_rkey_rsp *rsp;
 
-	/*
-	 * This function can fail, but still destroy_con_cq_qp() should
-	 * be called, this is because create_con_cq_qp() is called on cm
-	 * event path, thus caller/waiter never knows: have we failed before
-	 * create_con_cq_qp() or after.  To solve this dilemma without
-	 * creating any additional flags just allow destroy_con_cq_qp() be
-	 * called many times.
-	 */
-
 	if (con->c.cid == 0) {
 		/*
 		 * One completion for each receive and two for each send
