@@ -3287,49 +3287,32 @@ nvme_fc_reconnect_or_delete(struct nvme_fc_ctrl *ctrl, int status)
 }
 
 static void
-__nvme_fc_terminate_io(struct nvme_fc_ctrl *ctrl)
-{
-	/*
-	 * For any other state, kill the association. As this routine
-	 * is a common io abort routine for resetting and such, after
-	 * the association is terminated, ensure that the state is set
-	 * to CONNECTING.
-	 */
-
-	nvme_stop_keep_alive(&ctrl->ctrl);
-
-	/* will block will waiting for io to terminate */
-	nvme_fc_delete_association(ctrl);
-
-	if (ctrl->ctrl.state != NVME_CTRL_CONNECTING &&
-	    !nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_CONNECTING))
-		dev_err(ctrl->ctrl.device,
-			"NVME-FC{%d}: error_recovery: Couldn't change state "
-			"to CONNECTING\n", ctrl->cnum);
-}
-
-static void
 nvme_fc_reset_ctrl_work(struct work_struct *work)
 {
 	struct nvme_fc_ctrl *ctrl =
 		container_of(work, struct nvme_fc_ctrl, ctrl.reset_work);
-	int ret;
-
-	__nvme_fc_terminate_io(ctrl);
 
 	nvme_stop_ctrl(&ctrl->ctrl);
 
-	if (ctrl->rport->remoteport.port_state == FC_OBJSTATE_ONLINE)
-		ret = nvme_fc_create_association(ctrl);
-	else
-		ret = -ENOTCONN;
+	/* will block will waiting for io to terminate */
+	nvme_fc_delete_association(ctrl);
 
-	if (ret)
-		nvme_fc_reconnect_or_delete(ctrl, ret);
-	else
-		dev_info(ctrl->ctrl.device,
-			"NVME-FC{%d}: controller reset complete\n",
-			ctrl->cnum);
+	if (!nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_CONNECTING))
+		dev_err(ctrl->ctrl.device,
+			"NVME-FC{%d}: error_recovery: Couldn't change state "
+			"to CONNECTING\n", ctrl->cnum);
+
+	if (ctrl->rport->remoteport.port_state == FC_OBJSTATE_ONLINE) {
+		if (!queue_delayed_work(nvme_wq, &ctrl->connect_work, 0)) {
+			dev_err(ctrl->ctrl.device,
+				"NVME-FC{%d}: failed to schedule connect "
+				"after reset\n", ctrl->cnum);
+		} else {
+			flush_delayed_work(&ctrl->connect_work);
+		}
+	} else {
+		nvme_fc_reconnect_or_delete(ctrl, -ENOTCONN);
+	}
 }
 
 
