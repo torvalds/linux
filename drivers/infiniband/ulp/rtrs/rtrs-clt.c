@@ -1835,8 +1835,8 @@ static int rtrs_clt_rdma_cm_handler(struct rdma_cm_id *cm_id,
 		cm_err = rtrs_rdma_route_resolved(con);
 		break;
 	case RDMA_CM_EVENT_ESTABLISHED:
-		con->cm_err = rtrs_rdma_conn_established(con, ev);
-		if (likely(!con->cm_err)) {
+		cm_err = rtrs_rdma_conn_established(con, ev);
+		if (likely(!cm_err)) {
 			/*
 			 * Report success and wake up. Here we abuse state_wq,
 			 * i.e. wake up without state change, but we set cm_err.
