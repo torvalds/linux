@@ -11,6 +11,8 @@
 #include <linux/module.h>
 #include <linux/ctype.h>
 
+#include "internal.h"
+
 static const struct acpi_device_id acpi_pnp_device_ids[] = {
 	/* pata_isapnp */
 	{"PNP0600"},		/* Generic ESDI/IDE/ATA compatible hard disk controller */

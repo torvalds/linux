@@ -1142,7 +1142,7 @@ static void __init xen_pagetable_p2m_free(void)
 	 * We could be in __ka space.
 	 * We roundup to the PMD, which means that if anybody at this stage is
 	 * using the __ka address of xen_start_info or
-	 * xen_start_info->shared_info they are in going to crash. Fortunatly
+	 * xen_start_info->shared_info they are in going to crash. Fortunately
 	 * we have already revectored in xen_setup_kernel_pagetable.
 	 */
 	size = roundup(size, PMD_SIZE);
