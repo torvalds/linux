@@ -892,7 +892,7 @@ fc_fpin_congn_stats_update(struct Scsi_Host *shost,
 }
 
 /**
- * fc_host_rcv_fpin - routine to process a received FPIN.
+ * fc_host_fpin_rcv - routine to process a received FPIN.
  * @shost:		host the FPIN was received on
  * @fpin_len:		length of FPIN payload, in bytes
  * @fpin_buf:		pointer to FPIN payload
