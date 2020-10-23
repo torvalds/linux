@@ -1292,7 +1292,7 @@ static inline void v4l2_ctrl_request_hdl_put(struct v4l2_ctrl_handler *hdl)
 }
 
 /**
- * v4l2_ctrl_request_ctrl_find() - Find a control with the given ID.
+ * v4l2_ctrl_request_hdl_ctrl_find() - Find a control with the given ID.
  *
  * @hdl: The control handler from the request.
  * @id: The ID of the control to find.

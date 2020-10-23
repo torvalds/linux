@@ -538,7 +538,7 @@ v4l2_async_notifier_parse_fwnode_endpoints_by_port(struct device *dev,
 						   parse_endpoint_func parse_endpoint);
 
 /**
- * v4l2_fwnode_reference_parse_sensor_common - parse common references on
+ * v4l2_async_notifier_parse_fwnode_sensor_common - parse common references on
  *					       sensors for async sub-devices
  * @dev: the device node the properties of which are parsed for references
  * @notifier: the async notifier where the async subdevs will be added
