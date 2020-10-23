@@ -13,8 +13,10 @@ Required properties:
 		"rockchip,hevc-decoder-px30",
 		"rockchip,hevc-decoder-rk3368",
 		"rockchip,rkv-decoder-v1",
+		"rockchip,rkv-decoder-v2",
 		"rockchip,rkv-decoder-rk3399",
 		"rockchip,rkv-decoder-rk3328",
+		"rockchip,rkv-jpeg-decoder-v1",
 	Encoder should be one of following:
 		"rockchip,vpu-encoder-v1",
 		"rockchip,vpu-encoder-v2",
