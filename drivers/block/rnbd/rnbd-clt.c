@@ -102,18 +102,12 @@ static int rnbd_clt_set_dev_attr(struct rnbd_clt_dev *dev,
 static int rnbd_clt_change_capacity(struct rnbd_clt_dev *dev,
 				    size_t new_nsectors)
 {
-	int err = 0;
-
 	rnbd_clt_info(dev, "Device size changed from %zu to %zu sectors\n",
 		       dev->nsectors, new_nsectors);
 	dev->nsectors = new_nsectors;
 	set_capacity(dev->gd, dev->nsectors);
-	err = revalidate_disk(dev->gd);
-	if (err)
-		rnbd_clt_err(dev,
-			      "Failed to change device size from %zu to %zu, err: %d\n",
-			      dev->nsectors, new_nsectors, err);
-	return err;
+	revalidate_disk_size(dev->gd, true);
+	return 0;
 }
 
 static int process_msg_open_rsp(struct rnbd_clt_dev *dev,
@@ -1180,7 +1174,7 @@ static int setup_mq_tags(struct rnbd_clt_session *sess)
 	tag_set->queue_depth	= sess->queue_depth;
 	tag_set->numa_node		= NUMA_NO_NODE;
 	tag_set->flags		= BLK_MQ_F_SHOULD_MERGE |
-				  BLK_MQ_F_TAG_SHARED;
+				  BLK_MQ_F_TAG_QUEUE_SHARED;
 	tag_set->cmd_size		= sizeof(struct rnbd_iu);
 	tag_set->nr_hw_queues	= num_online_cpus();
 

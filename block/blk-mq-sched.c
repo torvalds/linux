@@ -18,21 +18,6 @@
 #include "blk-mq-tag.h"
 #include "blk-wbt.h"
 
-void blk_mq_sched_free_hctx_data(struct request_queue *q,
-				 void (*exit)(struct blk_mq_hw_ctx *))
-{
-	struct blk_mq_hw_ctx *hctx;
-	int i;
-
-	queue_for_each_hw_ctx(q, hctx, i) {
-		if (exit && hctx->sched_data)
-			exit(hctx);
-		kfree(hctx->sched_data);
-		hctx->sched_data = NULL;
-	}
-}
-EXPORT_SYMBOL_GPL(blk_mq_sched_free_hctx_data);
-
 void blk_mq_sched_assign_ioc(struct request *rq)
 {
 	struct request_queue *q = rq->q;
@@ -359,38 +344,6 @@ void blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 	}
 }
 
-bool blk_mq_sched_try_merge(struct request_queue *q, struct bio *bio,
-		unsigned int nr_segs, struct request **merged_request)
-{
-	struct request *rq;
-
-	switch (elv_merge(q, &rq, bio)) {
-	case ELEVATOR_BACK_MERGE:
-		if (!blk_mq_sched_allow_merge(q, rq, bio))
-			return false;
-		if (bio_attempt_back_merge(rq, bio, nr_segs) != BIO_MERGE_OK)
-			return false;
-		*merged_request = attempt_back_merge(q, rq);
-		if (!*merged_request)
-			elv_merged_request(q, rq, ELEVATOR_BACK_MERGE);
-		return true;
-	case ELEVATOR_FRONT_MERGE:
-		if (!blk_mq_sched_allow_merge(q, rq, bio))
-			return false;
-		if (bio_attempt_front_merge(rq, bio, nr_segs) != BIO_MERGE_OK)
-			return false;
-		*merged_request = attempt_front_merge(q, rq);
-		if (!*merged_request)
-			elv_merged_request(q, rq, ELEVATOR_FRONT_MERGE);
-		return true;
-	case ELEVATOR_DISCARD_MERGE:
-		return bio_attempt_discard_merge(q, rq, bio) == BIO_MERGE_OK;
-	default:
-		return false;
-	}
-}
-EXPORT_SYMBOL_GPL(blk_mq_sched_try_merge);
-
 bool __blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio,
 		unsigned int nr_segs)
 {
@@ -468,12 +421,6 @@ void blk_mq_sched_insert_request(struct request *rq, bool at_head,
 	struct elevator_queue *e = q->elevator;
 	struct blk_mq_ctx *ctx = rq->mq_ctx;
 	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
-
-	/* flush rq in flush machinery need to be dispatched directly */
-	if (!(rq->rq_flags & RQF_FLUSH_SEQ) && op_is_flush(rq->cmd_flags)) {
-		blk_insert_flush(rq);
-		goto run;
-	}
 
 	WARN_ON(e && (rq->tag != BLK_MQ_NO_TAG));
 
@@ -560,9 +507,11 @@ static void blk_mq_sched_free_tags(struct blk_mq_tag_set *set,
 				   struct blk_mq_hw_ctx *hctx,
 				   unsigned int hctx_idx)
 {
+	unsigned int flags = set->flags & ~BLK_MQ_F_TAG_HCTX_SHARED;
+
 	if (hctx->sched_tags) {
 		blk_mq_free_rqs(set, hctx->sched_tags, hctx_idx);
-		blk_mq_free_rq_map(hctx->sched_tags);
+		blk_mq_free_rq_map(hctx->sched_tags, flags);
 		hctx->sched_tags = NULL;
 	}
 }
@@ -572,10 +521,12 @@ static int blk_mq_sched_alloc_tags(struct request_queue *q,
 				   unsigned int hctx_idx)
 {
 	struct blk_mq_tag_set *set = q->tag_set;
+	/* Clear HCTX_SHARED so tags are init'ed */
+	unsigned int flags = set->flags & ~BLK_MQ_F_TAG_HCTX_SHARED;
 	int ret;
 
 	hctx->sched_tags = blk_mq_alloc_rq_map(set, hctx_idx, q->nr_requests,
-					       set->reserved_tags);
+					       set->reserved_tags, flags);
 	if (!hctx->sched_tags)
 		return -ENOMEM;
 
@@ -593,8 +544,11 @@ static void blk_mq_sched_tags_teardown(struct request_queue *q)
 	int i;
 
 	queue_for_each_hw_ctx(q, hctx, i) {
+		/* Clear HCTX_SHARED so tags are freed */
+		unsigned int flags = hctx->flags & ~BLK_MQ_F_TAG_HCTX_SHARED;
+
 		if (hctx->sched_tags) {
-			blk_mq_free_rq_map(hctx->sched_tags);
+			blk_mq_free_rq_map(hctx->sched_tags, flags);
 			hctx->sched_tags = NULL;
 		}
 	}

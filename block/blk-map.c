@@ -148,6 +148,7 @@ static int bio_copy_user_iov(struct request *rq, struct rq_map_data *map_data,
 	 * shortlived one.
 	 */
 	bmd->is_our_pages = !map_data;
+	bmd->is_null_mapped = (map_data && map_data->null_mapped);
 
 	nr_pages = DIV_ROUND_UP(offset + len, PAGE_SIZE);
 	if (nr_pages > BIO_MAX_PAGES)
@@ -218,8 +219,6 @@ static int bio_copy_user_iov(struct request *rq, struct rq_map_data *map_data,
 	}
 
 	bio->bi_private = bmd;
-	if (map_data && map_data->null_mapped)
-		bmd->is_null_mapped = true;
 
 	bounce_bio = bio;
 	ret = blk_rq_append_bio(rq, &bounce_bio);

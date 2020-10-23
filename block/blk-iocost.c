@@ -287,12 +287,9 @@ enum {
 	MIN_DELAY		= 250,
 	MAX_DELAY		= 250 * USEC_PER_MSEC,
 
-	/*
-	 * Halve debts if total usage keeps staying under 25% w/o any shortages
-	 * for over 100ms.
-	 */
-	DEBT_BUSY_USAGE_PCT	= 25,
-	DEBT_REDUCTION_IDLE_DUR	= 100 * USEC_PER_MSEC,
+	/* halve debts if avg usage over 100ms is under 50% */
+	DFGV_USAGE_PCT		= 50,
+	DFGV_PERIOD		= 100 * USEC_PER_MSEC,
 
 	/* don't let cmds which take a very long time pin lagging for too long */
 	MAX_LAGGING_PERIODS	= 10,
@@ -436,8 +433,10 @@ struct ioc {
 	bool				weights_updated;
 	atomic_t			hweight_gen;	/* for lazy hweights */
 
-	/* the last time debt cancel condition wasn't met */
-	u64				debt_busy_at;
+	/* debt forgivness */
+	u64				dfgv_period_at;
+	u64				dfgv_period_rem;
+	u64				dfgv_usage_us_sum;
 
 	u64				autop_too_fast_at;
 	u64				autop_too_slow_at;
@@ -670,7 +669,7 @@ static struct ioc *q_to_ioc(struct request_queue *q)
 
 static const char *q_name(struct request_queue *q)
 {
-	if (test_bit(QUEUE_FLAG_REGISTERED, &q->queue_flags))
+	if (blk_queue_registered(q))
 		return kobject_name(q->kobj.parent);
 	else
 		return "<unknown>";
@@ -1254,7 +1253,8 @@ static bool iocg_activate(struct ioc_gq *iocg, struct ioc_now *now)
 
 	if (ioc->running == IOC_IDLE) {
 		ioc->running = IOC_RUNNING;
-		ioc->debt_busy_at = now->now;
+		ioc->dfgv_period_at = now->now;
+		ioc->dfgv_period_rem = 0;
 		ioc_start_period(ioc, now);
 	}
 
@@ -1881,15 +1881,21 @@ static void transfer_surpluses(struct list_head *surpluses, struct ioc_now *now)
 
 	/*
 	 * Calculate the global donation rate (gamma) - the rate to adjust
-	 * non-donating budgets by. No need to use 64bit multiplication here as
-	 * the first operand is guaranteed to be smaller than WEIGHT_ONE
-	 * (1<<16).
+	 * non-donating budgets by.
+	 *
+	 * No need to use 64bit multiplication here as the first operand is
+	 * guaranteed to be smaller than WEIGHT_ONE (1<<16).
+	 *
+	 * We know that there are beneficiary nodes and the sum of the donating
+	 * hweights can't be whole; however, due to the round-ups during hweight
+	 * calculations, root_iocg->hweight_donating might still end up equal to
+	 * or greater than whole. Limit the range when calculating the divider.
 	 *
 	 * gamma = (1 - t_r') / (1 - t_r)
 	 */
 	gamma = DIV_ROUND_UP(
 		(WEIGHT_ONE - root_iocg->hweight_after_donation) * WEIGHT_ONE,
-		WEIGHT_ONE - root_iocg->hweight_donating);
+		WEIGHT_ONE - min_t(u32, root_iocg->hweight_donating, WEIGHT_ONE - 1));
 
 	/*
 	 * Calculate adjusted hwi, child_adjusted_sum and inuse for the inner
@@ -1973,6 +1979,98 @@ static void transfer_surpluses(struct list_head *surpluses, struct ioc_now *now)
 		list_del_init(&iocg->walk_list);
 }
 
+/*
+ * A low weight iocg can amass a large amount of debt, for example, when
+ * anonymous memory gets reclaimed aggressively. If the system has a lot of
+ * memory paired with a slow IO device, the debt can span multiple seconds or
+ * more. If there are no other subsequent IO issuers, the in-debt iocg may end
+ * up blocked paying its debt while the IO device is idle.
+ *
+ * The following protects against such cases. If the device has been
+ * sufficiently idle for a while, the debts are halved and delays are
+ * recalculated.
+ */
+static void ioc_forgive_debts(struct ioc *ioc, u64 usage_us_sum, int nr_debtors,
+			      struct ioc_now *now)
+{
+	struct ioc_gq *iocg;
+	u64 dur, usage_pct, nr_cycles;
+
+	/* if no debtor, reset the cycle */
+	if (!nr_debtors) {
+		ioc->dfgv_period_at = now->now;
+		ioc->dfgv_period_rem = 0;
+		ioc->dfgv_usage_us_sum = 0;
+		return;
+	}
+
+	/*
+	 * Debtors can pass through a lot of writes choking the device and we
+	 * don't want to be forgiving debts while the device is struggling from
+	 * write bursts. If we're missing latency targets, consider the device
+	 * fully utilized.
+	 */
+	if (ioc->busy_level > 0)
+		usage_us_sum = max_t(u64, usage_us_sum, ioc->period_us);
+
+	ioc->dfgv_usage_us_sum += usage_us_sum;
+	if (time_before64(now->now, ioc->dfgv_period_at + DFGV_PERIOD))
+		return;
+
+	/*
+	 * At least DFGV_PERIOD has passed since the last period. Calculate the
+	 * average usage and reset the period counters.
+	 */
+	dur = now->now - ioc->dfgv_period_at;
+	usage_pct = div64_u64(100 * ioc->dfgv_usage_us_sum, dur);
+
+	ioc->dfgv_period_at = now->now;
+	ioc->dfgv_usage_us_sum = 0;
+
+	/* if was too busy, reset everything */
+	if (usage_pct > DFGV_USAGE_PCT) {
+		ioc->dfgv_period_rem = 0;
+		return;
+	}
+
+	/*
+	 * Usage is lower than threshold. Let's forgive some debts. Debt
+	 * forgiveness runs off of the usual ioc timer but its period usually
+	 * doesn't match ioc's. Compensate the difference by performing the
+	 * reduction as many times as would fit in the duration since the last
+	 * run and carrying over the left-over duration in @ioc->dfgv_period_rem
+	 * - if ioc period is 75% of DFGV_PERIOD, one out of three consecutive
+	 * reductions is doubled.
+	 */
+	nr_cycles = dur + ioc->dfgv_period_rem;
+	ioc->dfgv_period_rem = do_div(nr_cycles, DFGV_PERIOD);
+
+	list_for_each_entry(iocg, &ioc->active_iocgs, active_list) {
+		u64 __maybe_unused old_debt, __maybe_unused old_delay;
+
+		if (!iocg->abs_vdebt && !iocg->delay)
+			continue;
+
+		spin_lock(&iocg->waitq.lock);
+
+		old_debt = iocg->abs_vdebt;
+		old_delay = iocg->delay;
+
+		if (iocg->abs_vdebt)
+			iocg->abs_vdebt = iocg->abs_vdebt >> nr_cycles ?: 1;
+		if (iocg->delay)
+			iocg->delay = iocg->delay >> nr_cycles ?: 1;
+
+		iocg_kick_waitq(iocg, true, now);
+
+		TRACE_IOCG_PATH(iocg_forgive_debt, iocg, now, usage_pct,
+				old_debt, iocg->abs_vdebt,
+				old_delay, iocg->delay);
+
+		spin_unlock(&iocg->waitq.lock);
+	}
+}
+
 static void ioc_timer_fn(struct timer_list *timer)
 {
 	struct ioc *ioc = container_of(timer, struct ioc, timer);
@@ -2034,7 +2132,7 @@ static void ioc_timer_fn(struct timer_list *timer)
 		    iocg->delay) {
 			/* might be oversleeping vtime / hweight changes, kick */
 			iocg_kick_waitq(iocg, true, &now);
-			if (iocg->abs_vdebt)
+			if (iocg->abs_vdebt || iocg->delay)
 				nr_debtors++;
 		} else if (iocg_is_idle(iocg)) {
 			/* no waiter and idle, deactivate */
@@ -2166,38 +2264,6 @@ static void ioc_timer_fn(struct timer_list *timer)
 		list_del_init(&iocg->surplus_list);
 
 	/*
-	 * A low weight iocg can amass a large amount of debt, for example, when
-	 * anonymous memory gets reclaimed aggressively. If the system has a lot
-	 * of memory paired with a slow IO device, the debt can span multiple
-	 * seconds or more. If there are no other subsequent IO issuers, the
-	 * in-debt iocg may end up blocked paying its debt while the IO device
-	 * is idle.
-	 *
-	 * The following protects against such pathological cases. If the device
-	 * has been sufficiently idle for a substantial amount of time, the
-	 * debts are halved. The criteria are on the conservative side as we
-	 * want to resolve the rare extreme cases without impacting regular
-	 * operation by forgiving debts too readily.
-	 */
-	if (nr_shortages ||
-	    div64_u64(100 * usage_us_sum, now.now - ioc->period_at) >=
-	    DEBT_BUSY_USAGE_PCT)
-		ioc->debt_busy_at = now.now;
-
-	if (nr_debtors &&
-	    now.now - ioc->debt_busy_at >= DEBT_REDUCTION_IDLE_DUR) {
-		list_for_each_entry(iocg, &ioc->active_iocgs, active_list) {
-			if (iocg->abs_vdebt) {
-				spin_lock(&iocg->waitq.lock);
-				iocg->abs_vdebt /= 2;
-				iocg_kick_waitq(iocg, true, &now);
-				spin_unlock(&iocg->waitq.lock);
-			}
-		}
-		ioc->debt_busy_at = now.now;
-	}
-
-	/*
 	 * If q is getting clogged or we're missing too much, we're issuing
 	 * too much IO and should lower vtime rate.  If we're not missing
 	 * and experiencing shortages but not surpluses, we're too stingy
@@ -2291,6 +2357,8 @@ static void ioc_timer_fn(struct timer_list *timer)
 
 	ioc_refresh_params(ioc, false);
 
+	ioc_forgive_debts(ioc, usage_us_sum, nr_debtors, &now);
+
 	/*
 	 * This period is done.  Move onto the next one.  If nothing's
 	 * going on with the device, stop the timer.
@@ -2317,9 +2385,8 @@ static u64 adjust_inuse_and_calc_cost(struct ioc_gq *iocg, u64 vtime,
 {
 	struct ioc *ioc = iocg->ioc;
 	struct ioc_margins *margins = &ioc->margins;
-	u32 adj_step = DIV_ROUND_UP(iocg->active * INUSE_ADJ_STEP_PCT, 100);
 	u32 __maybe_unused old_inuse = iocg->inuse, __maybe_unused old_hwi;
-	u32 hwi;
+	u32 hwi, adj_step;
 	s64 margin;
 	u64 cost, new_inuse;
 
@@ -2348,8 +2415,15 @@ static u64 adjust_inuse_and_calc_cost(struct ioc_gq *iocg, u64 vtime,
 		return cost;
 	}
 
-	/* bump up inuse till @abs_cost fits in the existing budget */
+	/*
+	 * Bump up inuse till @abs_cost fits in the existing budget.
+	 * adj_step must be determined after acquiring ioc->lock - we might
+	 * have raced and lost to another thread for activation and could
+	 * be reading 0 iocg->active before ioc->lock which will lead to
+	 * infinite loop.
+	 */
 	new_inuse = iocg->inuse;
+	adj_step = DIV_ROUND_UP(iocg->active * INUSE_ADJ_STEP_PCT, 100);
 	do {
 		new_inuse = new_inuse + adj_step;
 		propagate_weights(iocg, iocg->active, new_inuse, true, now);
@@ -3331,7 +3405,7 @@ static int __init ioc_init(void)
 
 static void __exit ioc_exit(void)
 {
-	return blkcg_policy_unregister(&blkcg_policy_iocost);
+	blkcg_policy_unregister(&blkcg_policy_iocost);
 }
 
 module_init(ioc_init);

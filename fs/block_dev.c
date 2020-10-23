@@ -103,6 +103,35 @@ void invalidate_bdev(struct block_device *bdev)
 }
 EXPORT_SYMBOL(invalidate_bdev);
 
+/*
+ * Drop all buffers & page cache for given bdev range. This function bails
+ * with error if bdev has other exclusive owner (such as filesystem).
+ */
+int truncate_bdev_range(struct block_device *bdev, fmode_t mode,
+			loff_t lstart, loff_t lend)
+{
+	struct block_device *claimed_bdev = NULL;
+	int err;
+
+	/*
+	 * If we don't hold exclusive handle for the device, upgrade to it
+	 * while we discard the buffer cache to avoid discarding buffers
+	 * under live filesystem.
+	 */
+	if (!(mode & FMODE_EXCL)) {
+		claimed_bdev = bdev->bd_contains;
+		err = bd_prepare_to_claim(bdev, claimed_bdev,
+					  truncate_bdev_range);
+		if (err)
+			return err;
+	}
+	truncate_inode_pages_range(bdev->bd_inode->i_mapping, lstart, lend);
+	if (claimed_bdev)
+		bd_abort_claiming(bdev, claimed_bdev, truncate_bdev_range);
+	return 0;
+}
+EXPORT_SYMBOL(truncate_bdev_range);
+
 static void set_init_blocksize(struct block_device *bdev)
 {
 	bdev->bd_inode->i_blkbits = blksize_bits(bdev_logical_block_size(bdev));
@@ -862,7 +891,7 @@ static int bdev_set(struct inode *inode, void *data)
 	return 0;
 }
 
-struct block_device *bdget(dev_t dev)
+static struct block_device *bdget(dev_t dev)
 {
 	struct block_device *bdev;
 	struct inode *inode;
@@ -881,7 +910,6 @@ struct block_device *bdget(dev_t dev)
 		bdev->bd_super = NULL;
 		bdev->bd_inode = inode;
 		bdev->bd_part_count = 0;
-		bdev->bd_invalidated = 0;
 		inode->i_mode = S_IFBLK;
 		inode->i_rdev = dev;
 		inode->i_bdev = bdev;
@@ -891,8 +919,6 @@ struct block_device *bdget(dev_t dev)
 	}
 	return bdev;
 }
-
-EXPORT_SYMBOL(bdget);
 
 /**
  * bdgrab -- Grab a reference to an already referenced block device
@@ -904,6 +930,11 @@ struct block_device *bdgrab(struct block_device *bdev)
 	return bdev;
 }
 EXPORT_SYMBOL(bdgrab);
+
+struct block_device *bdget_part(struct hd_struct *part)
+{
+	return bdget(part_devt(part));
+}
 
 long nr_blockdev_pages(void)
 {
@@ -1302,7 +1333,6 @@ static void check_disk_size_change(struct gendisk *disk,
 		}
 		i_size_write(bdev->bd_inode, disk_size);
 	}
-	bdev->bd_invalidated = 0;
 	spin_unlock(&bdev->bd_size_lock);
 
 	if (bdev_size > disk_size) {
@@ -1313,66 +1343,32 @@ static void check_disk_size_change(struct gendisk *disk,
 }
 
 /**
- * revalidate_disk - wrapper for lower-level driver's revalidate_disk call-back
- * @disk: struct gendisk to be revalidated
+ * revalidate_disk_size - checks for disk size change and adjusts bdev size.
+ * @disk: struct gendisk to check
+ * @verbose: if %true log a message about a size change if there is any
  *
- * This routine is a wrapper for lower-level driver's revalidate_disk
- * call-backs.  It is used to do common pre and post operations needed
- * for all revalidate_disk operations.
+ * This routine checks to see if the bdev size does not match the disk size
+ * and adjusts it if it differs. When shrinking the bdev size, its all caches
+ * are freed.
  */
-int revalidate_disk(struct gendisk *disk)
+void revalidate_disk_size(struct gendisk *disk, bool verbose)
 {
-	int ret = 0;
-
-	if (disk->fops->revalidate_disk)
-		ret = disk->fops->revalidate_disk(disk);
+	struct block_device *bdev;
 
 	/*
 	 * Hidden disks don't have associated bdev so there's no point in
-	 * revalidating it.
+	 * revalidating them.
 	 */
-	if (!(disk->flags & GENHD_FL_HIDDEN)) {
-		struct block_device *bdev = bdget_disk(disk, 0);
+	if (disk->flags & GENHD_FL_HIDDEN)
+		return;
 
-		if (bdev) {
-			check_disk_size_change(disk, bdev, ret == 0);
-			bdput(bdev);
-		}
+	bdev = bdget_disk(disk, 0);
+	if (bdev) {
+		check_disk_size_change(disk, bdev, verbose);
+		bdput(bdev);
 	}
-	return ret;
 }
-EXPORT_SYMBOL(revalidate_disk);
-
-/*
- * This routine checks whether a removable media has been changed,
- * and invalidates all buffer-cache-entries in that case. This
- * is a relatively slow routine, so we have to try to minimize using
- * it. Thus it is called only upon a 'mount' or 'open'. This
- * is the best way of combining speed and utility, I think.
- * People changing diskettes in the middle of an operation deserve
- * to lose :-)
- */
-int check_disk_change(struct block_device *bdev)
-{
-	struct gendisk *disk = bdev->bd_disk;
-	const struct block_device_operations *bdops = disk->fops;
-	unsigned int events;
-
-	events = disk_clear_events(disk, DISK_EVENT_MEDIA_CHANGE |
-				   DISK_EVENT_EJECT_REQUEST);
-	if (!(events & DISK_EVENT_MEDIA_CHANGE))
-		return 0;
-
-	if (__invalidate_device(bdev, true))
-		pr_warn("VFS: busy inodes on changed media %s\n",
-			disk->disk_name);
-	bdev->bd_invalidated = 1;
-	if (bdops->revalidate_disk)
-		bdops->revalidate_disk(bdev->bd_disk);
-	return 1;
-}
-
-EXPORT_SYMBOL(check_disk_change);
+EXPORT_SYMBOL(revalidate_disk_size);
 
 void bd_set_nr_sectors(struct block_device *bdev, sector_t sectors)
 {
@@ -1390,6 +1386,8 @@ int bdev_disk_changed(struct block_device *bdev, bool invalidate)
 	int ret;
 
 	lockdep_assert_held(&bdev->bd_mutex);
+
+	clear_bit(GD_NEED_PART_SCAN, &bdev->bd_disk->state);
 
 rescan:
 	ret = blk_drop_partitions(bdev);
@@ -1513,7 +1511,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, void *holder,
 			 * The latter is necessary to prevent ghost
 			 * partitions on a removed medium.
 			 */
-			if (bdev->bd_invalidated &&
+			if (test_bit(GD_NEED_PART_SCAN, &disk->state) &&
 			    (!ret || ret == -ENOMEDIUM))
 				bdev_disk_changed(bdev, ret == -ENOMEDIUM);
 
@@ -1543,7 +1541,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, void *holder,
 			if (bdev->bd_disk->fops->open)
 				ret = bdev->bd_disk->fops->open(bdev, mode);
 			/* the same as first opener case, read comment there */
-			if (bdev->bd_invalidated &&
+			if (test_bit(GD_NEED_PART_SCAN, &disk->state) &&
 			    (!ret || ret == -ENOMEDIUM))
 				bdev_disk_changed(bdev, ret == -ENOMEDIUM);
 			if (ret)
@@ -1621,7 +1619,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, void *holder,
  * RETURNS:
  * 0 on success, -errno on failure.
  */
-int blkdev_get(struct block_device *bdev, fmode_t mode, void *holder)
+static int blkdev_get(struct block_device *bdev, fmode_t mode, void *holder)
 {
 	int ret, perm = 0;
 
@@ -1642,7 +1640,6 @@ bdput:
 	bdput(bdev);
 	return ret;
 }
-EXPORT_SYMBOL(blkdev_get);
 
 /**
  * blkdev_get_by_path - open a block device by name
@@ -1890,7 +1887,7 @@ ssize_t blkdev_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (bdev_read_only(I_BDEV(bd_inode)))
 		return -EPERM;
 
-	if (IS_SWAPFILE(bd_inode) && !is_hibernate_resume_dev(bd_inode))
+	if (IS_SWAPFILE(bd_inode) && !is_hibernate_resume_dev(bd_inode->i_rdev))
 		return -ETXTBSY;
 
 	if (!iov_iter_count(from))
@@ -1970,7 +1967,6 @@ static long blkdev_fallocate(struct file *file, int mode, loff_t start,
 			     loff_t len)
 {
 	struct block_device *bdev = I_BDEV(bdev_file_inode(file));
-	struct address_space *mapping;
 	loff_t end = start + len - 1;
 	loff_t isize;
 	int error;
@@ -1998,8 +1994,9 @@ static long blkdev_fallocate(struct file *file, int mode, loff_t start,
 		return -EINVAL;
 
 	/* Invalidate the page cache, including dirty pages. */
-	mapping = bdev->bd_inode->i_mapping;
-	truncate_inode_pages_range(mapping, start, end);
+	error = truncate_bdev_range(bdev, file->f_mode, start, end);
+	if (error)
+		return error;
 
 	switch (mode) {
 	case FALLOC_FL_ZERO_RANGE:
@@ -2026,7 +2023,7 @@ static long blkdev_fallocate(struct file *file, int mode, loff_t start,
 	 * the caller will be given -EBUSY.  The third argument is
 	 * inclusive, so the rounding here is safe.
 	 */
-	return invalidate_inode_pages2_range(mapping,
+	return invalidate_inode_pages2_range(bdev->bd_inode->i_mapping,
 					     start >> PAGE_SHIFT,
 					     end >> PAGE_SHIFT);
 }

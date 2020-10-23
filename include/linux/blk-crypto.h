@@ -122,13 +122,25 @@ static inline bool bio_has_crypt_ctx(struct bio *bio)
 static inline void bio_clone_skip_dm_default_key(struct bio *dst,
 						 const struct bio *src);
 
-void __bio_crypt_clone(struct bio *dst, struct bio *src, gfp_t gfp_mask);
-static inline void bio_crypt_clone(struct bio *dst, struct bio *src,
-				   gfp_t gfp_mask)
+int __bio_crypt_clone(struct bio *dst, struct bio *src, gfp_t gfp_mask);
+/**
+ * bio_crypt_clone - clone bio encryption context
+ * @dst: destination bio
+ * @src: source bio
+ * @gfp_mask: memory allocation flags
+ *
+ * If @src has an encryption context, clone it to @dst.
+ *
+ * Return: 0 on success, -ENOMEM if out of memory.  -ENOMEM is only possible if
+ *	   @gfp_mask doesn't include %__GFP_DIRECT_RECLAIM.
+ */
+static inline int bio_crypt_clone(struct bio *dst, struct bio *src,
+				  gfp_t gfp_mask)
 {
 	bio_clone_skip_dm_default_key(dst, src);
 	if (bio_has_crypt_ctx(src))
-		__bio_crypt_clone(dst, src, gfp_mask);
+		return __bio_crypt_clone(dst, src, gfp_mask);
+	return 0;
 }
 
 #if IS_ENABLED(CONFIG_DM_DEFAULT_KEY)

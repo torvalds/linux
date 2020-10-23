@@ -580,7 +580,7 @@ int bdev_resize_partition(struct block_device *bdev, int partno,
 		return -ENXIO;
 
 	ret = -ENOMEM;
-	bdevp = bdget(part_devt(part));
+	bdevp = bdget_part(part);
 	if (!bdevp)
 		goto out_put_part;
 
