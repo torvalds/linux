@@ -574,17 +574,21 @@ nfssvc_encode_readres(struct svc_rqst *rqstp, __be32 *p)
 int
 nfssvc_encode_readdirres(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct xdr_stream *xdr = &rqstp->rq_res_stream;
 	struct nfsd_readdirres *resp = rqstp->rq_resp;
 
-	*p++ = resp->status;
-	if (resp->status != nfs_ok)
-		return xdr_ressize_check(rqstp, p);
-
-	xdr_ressize_check(rqstp, p);
-	p = resp->buffer;
-	*p++ = 0;			/* no more entries */
-	*p++ = htonl((resp->common.err == nfserr_eof));
-	rqstp->rq_res.page_len = resp->count << 2;
+	if (!svcxdr_encode_stat(xdr, resp->status))
+		return 0;
+	switch (resp->status) {
+	case nfs_ok:
+		xdr_write_pages(xdr, &resp->page, 0, resp->count << 2);
+		/* no more entries */
+		if (xdr_stream_encode_item_absent(xdr) < 0)
+			return 0;
+		if (xdr_stream_encode_bool(xdr, resp->common.err == nfserr_eof) < 0)
+			return 0;
+		break;
+	}
 
 	return 1;
 }

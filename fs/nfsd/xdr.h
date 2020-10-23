@@ -114,6 +114,7 @@ struct nfsd_readdirres {
 	__be32 *		buffer;
 	int			buflen;
 	__be32 *		offset;
+	struct page		*page;
 };
 
 struct nfsd_statfsres {
