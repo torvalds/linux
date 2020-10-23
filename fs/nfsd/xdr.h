@@ -94,6 +94,7 @@ struct nfsd_diropres  {
 struct nfsd_readlinkres {
 	__be32			status;
 	int			len;
+	struct page		*page;
 };
 
 struct nfsd_readres {
