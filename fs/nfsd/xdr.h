@@ -148,7 +148,7 @@ int nfssvc_decode_linkargs(struct svc_rqst *, __be32 *);
 int nfssvc_decode_symlinkargs(struct svc_rqst *, __be32 *);
 int nfssvc_decode_readdirargs(struct svc_rqst *, __be32 *);
 int nfssvc_encode_statres(struct svc_rqst *, __be32 *);
-int nfssvc_encode_attrstat(struct svc_rqst *, __be32 *);
+int nfssvc_encode_attrstatres(struct svc_rqst *, __be32 *);
 int nfssvc_encode_diropres(struct svc_rqst *, __be32 *);
 int nfssvc_encode_readlinkres(struct svc_rqst *, __be32 *);
 int nfssvc_encode_readres(struct svc_rqst *, __be32 *);

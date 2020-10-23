@@ -14,7 +14,7 @@
 /*
  * Mapping of S_IF* types to NFS file types
  */
-static u32	nfs_ftypes[] = {
+static const u32 nfs_ftypes[] = {
 	NFNON,  NFCHR,  NFCHR, NFBAD,
 	NFDIR,  NFBAD,  NFBLK, NFBAD,
 	NFREG,  NFBAD,  NFLNK, NFBAD,
@@ -68,6 +68,17 @@ encode_fh(__be32 *p, struct svc_fh *fhp)
 {
 	memcpy(p, &fhp->fh_handle.fh_base, NFS_FHSIZE);
 	return p + (NFS_FHSIZE>> 2);
+}
+
+static __be32 *
+encode_timeval(__be32 *p, const struct timespec64 *time)
+{
+	*p++ = cpu_to_be32((u32)time->tv_sec);
+	if (time->tv_nsec)
+		*p++ = cpu_to_be32(time->tv_nsec / NSEC_PER_USEC);
+	else
+		*p++ = xdr_zero;
+	return p;
 }
 
 static bool
@@ -231,6 +242,64 @@ encode_fattr(struct svc_rqst *rqstp, __be32 *p, struct svc_fh *fhp,
 	*p++ = htonl(stat->ctime.tv_nsec ? stat->ctime.tv_nsec / 1000 : 0);
 
 	return p;
+}
+
+static int
+svcxdr_encode_fattr(struct svc_rqst *rqstp, struct xdr_stream *xdr,
+		    const struct svc_fh *fhp, const struct kstat *stat)
+{
+	struct user_namespace *userns = nfsd_user_namespace(rqstp);
+	struct dentry *dentry = fhp->fh_dentry;
+	int type = stat->mode & S_IFMT;
+	struct timespec64 time;
+	__be32 *p;
+	u32 fsid;
+
+	p = xdr_reserve_space(xdr, XDR_UNIT * 17);
+	if (!p)
+		return 0;
+
+	*p++ = cpu_to_be32(nfs_ftypes[type >> 12]);
+	*p++ = cpu_to_be32((u32)stat->mode);
+	*p++ = cpu_to_be32((u32)stat->nlink);
+	*p++ = cpu_to_be32((u32)from_kuid_munged(userns, stat->uid));
+	*p++ = cpu_to_be32((u32)from_kgid_munged(userns, stat->gid));
+
+	if (S_ISLNK(type) && stat->size > NFS_MAXPATHLEN)
+		*p++ = cpu_to_be32(NFS_MAXPATHLEN);
+	else
+		*p++ = cpu_to_be32((u32) stat->size);
+	*p++ = cpu_to_be32((u32) stat->blksize);
+	if (S_ISCHR(type) || S_ISBLK(type))
+		*p++ = cpu_to_be32(new_encode_dev(stat->rdev));
+	else
+		*p++ = cpu_to_be32(0xffffffff);
+	*p++ = cpu_to_be32((u32)stat->blocks);
+
+	switch (fsid_source(fhp)) {
+	case FSIDSOURCE_FSID:
+		fsid = (u32)fhp->fh_export->ex_fsid;
+		break;
+	case FSIDSOURCE_UUID:
+		fsid = ((u32 *)fhp->fh_export->ex_uuid)[0];
+		fsid ^= ((u32 *)fhp->fh_export->ex_uuid)[1];
+		fsid ^= ((u32 *)fhp->fh_export->ex_uuid)[2];
+		fsid ^= ((u32 *)fhp->fh_export->ex_uuid)[3];
+		break;
+	default:
+		fsid = new_encode_dev(stat->dev);
+		break;
+	}
+	*p++ = cpu_to_be32(fsid);
+
+	*p++ = cpu_to_be32((u32)stat->ino);
+	p = encode_timeval(p, &stat->atime);
+	time = stat->mtime;
+	lease_get_mtime(d_inode(dentry), &time);
+	p = encode_timeval(p, &time);
+	encode_timeval(p, &stat->ctime);
+
+	return 1;
 }
 
 /* Helper function for NFSv2 ACL code */
@@ -412,16 +481,21 @@ nfssvc_encode_statres(struct svc_rqst *rqstp, __be32 *p)
 }
 
 int
-nfssvc_encode_attrstat(struct svc_rqst *rqstp, __be32 *p)
+nfssvc_encode_attrstatres(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct xdr_stream *xdr = &rqstp->rq_res_stream;
 	struct nfsd_attrstat *resp = rqstp->rq_resp;
 
-	*p++ = resp->status;
-	if (resp->status != nfs_ok)
-		goto out;
-	p = encode_fattr(rqstp, p, &resp->fh, &resp->stat);
-out:
-	return xdr_ressize_check(rqstp, p);
+	if (!svcxdr_encode_stat(xdr, resp->status))
+		return 0;
+	switch (resp->status) {
+	case nfs_ok:
+		if (!svcxdr_encode_fattr(rqstp, xdr, &resp->fh, &resp->stat))
+			return 0;
+		break;
+	}
+
+	return 1;
 }
 
 int
