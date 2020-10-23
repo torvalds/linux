@@ -158,7 +158,6 @@ struct nvme_fc_ctrl {
 	u32			cnum;
 
 	bool			ioq_live;
-	atomic_t		err_work_active;
 	u64			association_id;
 	struct nvmefc_ls_rcv_op	*rcv_disconn;
 
@@ -168,7 +167,6 @@ struct nvme_fc_ctrl {
 	struct blk_mq_tag_set	tag_set;
 
 	struct delayed_work	connect_work;
-	struct work_struct	err_work;
 
 	struct kref		ref;
 	unsigned long		flags;
@@ -2415,11 +2413,11 @@ nvme_fc_nvme_ctrl_freed(struct nvme_ctrl *nctrl)
 	nvme_fc_ctrl_put(ctrl);
 }
 
+static void __nvme_fc_terminate_io(struct nvme_fc_ctrl *ctrl);
+
 static void
 nvme_fc_error_recovery(struct nvme_fc_ctrl *ctrl, char *errmsg)
 {
-	int active;
-
 	/*
 	 * if an error (io timeout, etc) while (re)connecting,
 	 * it's an error on creating the new association.
@@ -2428,11 +2426,14 @@ nvme_fc_error_recovery(struct nvme_fc_ctrl *ctrl, char *errmsg)
 	 * ios hitting this path before things are cleaned up.
 	 */
 	if (ctrl->ctrl.state == NVME_CTRL_CONNECTING) {
-		active = atomic_xchg(&ctrl->err_work_active, 1);
-		if (!active && !queue_work(nvme_fc_wq, &ctrl->err_work)) {
-			atomic_set(&ctrl->err_work_active, 0);
-			WARN_ON(1);
-		}
+		__nvme_fc_terminate_io(ctrl);
+
+		/*
+		 * Rescheduling the connection after recovering
+		 * from the io error is left to the reconnect work
+		 * item, which is what should have stalled waiting on
+		 * the io that had the error that scheduled this work.
+		 */
 		return;
 	}
 
@@ -3240,7 +3241,6 @@ nvme_fc_delete_ctrl(struct nvme_ctrl *nctrl)
 {
 	struct nvme_fc_ctrl *ctrl = to_fc_ctrl(nctrl);
 
-	cancel_work_sync(&ctrl->err_work);
 	cancel_delayed_work_sync(&ctrl->connect_work);
 	/*
 	 * kill the association on the link side.  this will block
@@ -3351,23 +3351,6 @@ nvme_fc_reset_ctrl_work(struct work_struct *work)
 			ctrl->cnum);
 }
 
-static void
-nvme_fc_connect_err_work(struct work_struct *work)
-{
-	struct nvme_fc_ctrl *ctrl =
-			container_of(work, struct nvme_fc_ctrl, err_work);
-
-	__nvme_fc_terminate_io(ctrl);
-
-	atomic_set(&ctrl->err_work_active, 0);
-
-	/*
-	 * Rescheduling the connection after recovering
-	 * from the io error is left to the reconnect work
-	 * item, which is what should have stalled waiting on
-	 * the io that had the error that scheduled this work.
-	 */
-}
 
 static const struct nvme_ctrl_ops nvme_fc_ctrl_ops = {
 	.name			= "fc",
@@ -3495,7 +3478,6 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 	ctrl->dev = lport->dev;
 	ctrl->cnum = idx;
 	ctrl->ioq_live = false;
-	atomic_set(&ctrl->err_work_active, 0);
 	init_waitqueue_head(&ctrl->ioabort_wait);
 
 	get_device(ctrl->dev);
@@ -3503,7 +3485,6 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 
 	INIT_WORK(&ctrl->ctrl.reset_work, nvme_fc_reset_ctrl_work);
 	INIT_DELAYED_WORK(&ctrl->connect_work, nvme_fc_connect_ctrl_work);
-	INIT_WORK(&ctrl->err_work, nvme_fc_connect_err_work);
 	spin_lock_init(&ctrl->lock);
 
 	/* io queue count */
@@ -3596,7 +3577,6 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 fail_ctrl:
 	nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_DELETING);
 	cancel_work_sync(&ctrl->ctrl.reset_work);
-	cancel_work_sync(&ctrl->err_work);
 	cancel_delayed_work_sync(&ctrl->connect_work);
 
 	ctrl->ctrl.opts = NULL;
