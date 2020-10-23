@@ -285,7 +285,7 @@ struct adf_accel_dev *adf_devmgr_get_first(void)
 
 /**
  * adf_devmgr_pci_to_accel_dev() - Get accel_dev associated with the pci_dev.
- * @accel_dev:  Pointer to pci device.
+ * @pci_dev:  Pointer to pci device.
  *
  * Function returns acceleration device associated with the given pci device.
  * To be used by QAT device specific drivers.
