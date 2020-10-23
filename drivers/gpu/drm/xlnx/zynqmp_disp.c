@@ -28,7 +28,6 @@
 #include <linux/dmaengine.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_dma.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/spinlock.h>
@@ -1316,8 +1315,7 @@ static int zynqmp_disp_layer_request_dma(struct zynqmp_disp *disp,
 
 		snprintf(dma_channel_name, sizeof(dma_channel_name),
 			 "%s%u", dma_names[layer->id], i);
-		dma->chan = of_dma_request_slave_channel(disp->dev->of_node,
-							 dma_channel_name);
+		dma->chan = dma_request_chan(disp->dev, dma_channel_name);
 		if (IS_ERR(dma->chan)) {
 			dev_err(disp->dev, "failed to request dma channel\n");
 			ret = PTR_ERR(dma->chan);
