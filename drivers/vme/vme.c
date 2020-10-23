@@ -68,7 +68,7 @@ static struct vme_bridge *find_bridge(struct vme_resource *resource)
 }
 
 /**
- * vme_free_consistent - Allocate contiguous memory.
+ * vme_alloc_consistent - Allocate contiguous memory.
  * @resource: Pointer to VME resource.
  * @size: Size of allocation required.
  * @dma: Pointer to variable to store physical address of allocation.
@@ -638,7 +638,7 @@ int vme_master_get(struct vme_resource *resource, int *enabled,
 EXPORT_SYMBOL(vme_master_get);
 
 /**
- * vme_master_write - Read data from VME space into a buffer.
+ * vme_master_read - Read data from VME space into a buffer.
  * @resource: Pointer to VME master resource.
  * @buf: Pointer to buffer where data should be transferred.
  * @count: Number of bytes to transfer.
