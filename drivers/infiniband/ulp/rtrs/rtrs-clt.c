@@ -1640,10 +1640,8 @@ static int rtrs_rdma_addr_resolved(struct rtrs_clt_con *con)
 		return err;
 	}
 	err = rdma_resolve_route(con->c.cm_id, RTRS_CONNECT_TIMEOUT_MS);
-	if (err) {
+	if (err)
 		rtrs_err(s, "Resolving route failed, err: %d\n", err);
-		destroy_con_cq_qp(con);
-	}
 
 	return err;
 }
