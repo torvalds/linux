@@ -563,15 +563,14 @@ void btrfs_discard_calc_delay(struct btrfs_discard_ctl *discard_ctl)
 /**
  * btrfs_discard_update_discardable - propagate discard counters
  * @block_group: block_group of interest
- * @ctl: free_space_ctl of @block_group
  *
  * This propagates deltas of counters up to the discard_ctl.  It maintains a
  * current counter and a previous counter passing the delta up to the global
  * stat.  Then the current counter value becomes the previous counter value.
  */
-void btrfs_discard_update_discardable(struct btrfs_block_group *block_group,
-				      struct btrfs_free_space_ctl *ctl)
+void btrfs_discard_update_discardable(struct btrfs_block_group *block_group)
 {
+	struct btrfs_free_space_ctl *ctl;
 	struct btrfs_discard_ctl *discard_ctl;
 	s32 extents_delta;
 	s64 bytes_delta;
@@ -581,8 +580,10 @@ void btrfs_discard_update_discardable(struct btrfs_block_group *block_group,
 	    !btrfs_is_block_group_data_only(block_group))
 		return;
 
+	ctl = block_group->free_space_ctl;
 	discard_ctl = &block_group->fs_info->discard_ctl;
 
+	lockdep_assert_held(&ctl->tree_lock);
 	extents_delta = ctl->discardable_extents[BTRFS_STAT_CURR] -
 			ctl->discardable_extents[BTRFS_STAT_PREV];
 	if (extents_delta) {

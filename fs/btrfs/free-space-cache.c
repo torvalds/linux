@@ -828,7 +828,6 @@ static int __load_free_space_cache(struct btrfs_root *root, struct inode *inode,
 	merge_space_tree(ctl);
 	ret = 1;
 out:
-	btrfs_discard_update_discardable(ctl->private, ctl);
 	io_ctl_free(&io_ctl);
 	return ret;
 free_cache:
@@ -929,6 +928,9 @@ out:
 			   block_group->start);
 	}
 
+	spin_lock(&ctl->tree_lock);
+	btrfs_discard_update_discardable(block_group);
+	spin_unlock(&ctl->tree_lock);
 	iput(inode);
 	return ret;
 }
@@ -2508,7 +2510,7 @@ link:
 	if (ret)
 		kmem_cache_free(btrfs_free_space_cachep, info);
 out:
-	btrfs_discard_update_discardable(block_group, ctl);
+	btrfs_discard_update_discardable(block_group);
 	spin_unlock(&ctl->tree_lock);
 
 	if (ret) {
@@ -2643,7 +2645,7 @@ again:
 		goto again;
 	}
 out_lock:
-	btrfs_discard_update_discardable(block_group, ctl);
+	btrfs_discard_update_discardable(block_group);
 	spin_unlock(&ctl->tree_lock);
 out:
 	return ret;
@@ -2779,7 +2781,7 @@ void __btrfs_remove_free_space_cache(struct btrfs_free_space_ctl *ctl)
 	spin_lock(&ctl->tree_lock);
 	__btrfs_remove_free_space_cache_locked(ctl);
 	if (ctl->private)
-		btrfs_discard_update_discardable(ctl->private, ctl);
+		btrfs_discard_update_discardable(ctl->private);
 	spin_unlock(&ctl->tree_lock);
 }
 
@@ -2801,7 +2803,7 @@ void btrfs_remove_free_space_cache(struct btrfs_block_group *block_group)
 		cond_resched_lock(&ctl->tree_lock);
 	}
 	__btrfs_remove_free_space_cache_locked(ctl);
-	btrfs_discard_update_discardable(block_group, ctl);
+	btrfs_discard_update_discardable(block_group);
 	spin_unlock(&ctl->tree_lock);
 
 }
@@ -2885,7 +2887,7 @@ u64 btrfs_find_space_for_alloc(struct btrfs_block_group *block_group,
 			link_free_space(ctl, entry);
 	}
 out:
-	btrfs_discard_update_discardable(block_group, ctl);
+	btrfs_discard_update_discardable(block_group);
 	spin_unlock(&ctl->tree_lock);
 
 	if (align_gap_len)
