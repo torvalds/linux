@@ -2264,8 +2264,12 @@ static int process_info_rsp(struct rtrs_clt_sess *sess,
 	int i, sgi;
 
 	sg_cnt = le16_to_cpu(msg->sg_cnt);
-	if (unlikely(!sg_cnt))
+	if (unlikely(!sg_cnt || (sess->queue_depth % sg_cnt))) {
+		rtrs_err(sess->clt, "Incorrect sg_cnt %d, is not multiple\n",
+			  sg_cnt);
 		return -EINVAL;
+	}
+
 	/*
 	 * Check if IB immediate data size is enough to hold the mem_id and
 	 * the offset inside the memory chunk.
@@ -2276,11 +2280,6 @@ static int process_info_rsp(struct rtrs_clt_sess *sess,
 		rtrs_err(sess->clt,
 			  "RDMA immediate size (%db) not enough to encode %d buffers of size %dB\n",
 			  MAX_IMM_PAYL_BITS, sg_cnt, sess->chunk_size);
-		return -EINVAL;
-	}
-	if (unlikely(!sg_cnt || (sess->queue_depth % sg_cnt))) {
-		rtrs_err(sess->clt, "Incorrect sg_cnt %d, is not multiple\n",
-			  sg_cnt);
 		return -EINVAL;
 	}
 	total_len = 0;
