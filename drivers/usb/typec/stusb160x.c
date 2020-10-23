@@ -730,8 +730,8 @@ static int stusb160x_probe(struct i2c_client *client)
 	}
 
 	chip->port = typec_register_port(chip->dev, &chip->capability);
-	if (!chip->port) {
-		ret = -ENODEV;
+	if (IS_ERR(chip->port)) {
+		ret = PTR_ERR(chip->port);
 		goto all_reg_disable;
 	}
 
