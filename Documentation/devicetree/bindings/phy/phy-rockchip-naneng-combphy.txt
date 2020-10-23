@@ -1,0 +1,34 @@
+ROCKCHIP COMBO PHY WITH NANENG IP BLOCK
+
+Required properties (phy (parent) node):
+ - compatible : should be one of the listed compatibles:
+	* "rockchip,rk3568-naneng-combphy"
+ - reg : the address offset of grf for combo-phy configuration.
+ - rockchip,pipe-grf : phandle to the syscon managing the "pipe general register files"
+ - rockchip,pipe-phy-grf: phandle to the syscon managing the "phy general register files"
+ - clocks : phandle + phy specifier pair, for the input clocks of phy.
+ - clock-names : input clocks name of phy.
+ - resets : phandle + reset specifier pairs.
+ - reset-names : reset names of phy.
+ - #clock-cells : should be 1.
+
+Optional properties:
+ - assigned-clocks : phandle of refclk.
+ - assigned-clock-parents : parent of clk_xxx_osc or clk_xxx_div.
+		 Refer to clk/clock-bindings.txt for generic clock
+		 consumer properties.
+
+Example:
+
+combphy0: phy@fe820000 {
+	compatible = "rockchip,rk3568-naneng-combphy";
+	reg = <0x0 0xfe820000 0x0 0x100>;
+	#phy-cells = <1>;
+	clocks = <&pmucru CLK_PCIEPHY0_REF>, <&cru PCLK_PIPEPHY0>;
+	clock-names = "refclk", "apbclk";
+	resets = <&cru SRST_P_PIPEPHY0>, <&cru SRST_PIPEPHY0>;
+	reset-names = "combphy-apb", "combphy";
+	rockchip,pipe-grf = <&pipegrf>;
+	rockchip,pipe-phy-grf = <&pipe_phy_grf0>;
+	status = "disabled";
+};
