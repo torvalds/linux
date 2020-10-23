@@ -26,6 +26,19 @@ static u32	nfs_ftypes[] = {
  * Basic NFSv2 data types (RFC 1094 Section 2.3)
  */
 
+static bool
+svcxdr_encode_stat(struct xdr_stream *xdr, __be32 status)
+{
+	__be32 *p;
+
+	p = xdr_reserve_space(xdr, sizeof(status));
+	if (!p)
+		return false;
+	*p = status;
+
+	return true;
+}
+
 /**
  * svcxdr_decode_fhandle - Decode an NFSv2 file handle
  * @xdr: XDR stream positioned at an encoded NFSv2 FH
@@ -390,12 +403,12 @@ nfssvc_decode_readdirargs(struct svc_rqst *rqstp, __be32 *p)
  */
 
 int
-nfssvc_encode_stat(struct svc_rqst *rqstp, __be32 *p)
+nfssvc_encode_statres(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct xdr_stream *xdr = &rqstp->rq_res_stream;
 	struct nfsd_stat *resp = rqstp->rq_resp;
 
-	*p++ = resp->status;
-	return xdr_ressize_check(rqstp, p);
+	return svcxdr_encode_stat(xdr, resp->status);
 }
 
 int
