@@ -54,7 +54,7 @@ static void *prism2_wep_init(int keyidx)
 
 static void prism2_wep_deinit(void *priv)
 {
-	kzfree(priv);
+	kfree_sensitive(priv);
 }
 
 /* Perform WEP encryption on given skb that has at least 4 bytes of headroom
