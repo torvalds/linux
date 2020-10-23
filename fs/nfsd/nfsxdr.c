@@ -63,11 +63,17 @@ svcxdr_decode_fhandle(struct xdr_stream *xdr, struct svc_fh *fhp)
 	return true;
 }
 
-static __be32 *
-encode_fh(__be32 *p, struct svc_fh *fhp)
+static bool
+svcxdr_encode_fhandle(struct xdr_stream *xdr, const struct svc_fh *fhp)
 {
+	__be32 *p;
+
+	p = xdr_reserve_space(xdr, NFS_FHSIZE);
+	if (!p)
+		return false;
 	memcpy(p, &fhp->fh_handle.fh_base, NFS_FHSIZE);
-	return p + (NFS_FHSIZE>> 2);
+
+	return true;
 }
 
 static __be32 *
@@ -244,7 +250,7 @@ encode_fattr(struct svc_rqst *rqstp, __be32 *p, struct svc_fh *fhp,
 	return p;
 }
 
-static int
+static bool
 svcxdr_encode_fattr(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 		    const struct svc_fh *fhp, const struct kstat *stat)
 {
@@ -257,7 +263,7 @@ svcxdr_encode_fattr(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 
 	p = xdr_reserve_space(xdr, XDR_UNIT * 17);
 	if (!p)
-		return 0;
+		return false;
 
 	*p++ = cpu_to_be32(nfs_ftypes[type >> 12]);
 	*p++ = cpu_to_be32((u32)stat->mode);
@@ -299,7 +305,7 @@ svcxdr_encode_fattr(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 	p = encode_timeval(p, &time);
 	encode_timeval(p, &stat->ctime);
 
-	return 1;
+	return true;
 }
 
 /* Helper function for NFSv2 ACL code */
@@ -501,15 +507,21 @@ nfssvc_encode_attrstatres(struct svc_rqst *rqstp, __be32 *p)
 int
 nfssvc_encode_diropres(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct xdr_stream *xdr = &rqstp->rq_res_stream;
 	struct nfsd_diropres *resp = rqstp->rq_resp;
 
-	*p++ = resp->status;
-	if (resp->status != nfs_ok)
-		goto out;
-	p = encode_fh(p, &resp->fh);
-	p = encode_fattr(rqstp, p, &resp->fh, &resp->stat);
-out:
-	return xdr_ressize_check(rqstp, p);
+	if (!svcxdr_encode_stat(xdr, resp->status))
+		return 0;
+	switch (resp->status) {
+	case nfs_ok:
+		if (!svcxdr_encode_fhandle(xdr, &resp->fh))
+			return 0;
+		if (!svcxdr_encode_fattr(rqstp, xdr, &resp->fh, &resp->stat))
+			return 0;
+		break;
+	}
+
+	return 1;
 }
 
 int
