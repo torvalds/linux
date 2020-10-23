@@ -1768,10 +1768,10 @@ static inline void mcp251xfd_unregister(struct mcp251xfd_priv *priv)
 
 	unregister_candev(ndev);
 
-	pm_runtime_get_sync(ndev->dev.parent);
-	pm_runtime_put_noidle(ndev->dev.parent);
-	mcp251xfd_clks_and_vdd_disable(priv);
-	pm_runtime_disable(ndev->dev.parent);
+	if (pm_runtime_enabled(ndev->dev.parent))
+		pm_runtime_disable(ndev->dev.parent);
+	else
+		mcp251xfd_clks_and_vdd_disable(priv);
 }
 
 static const struct of_device_id mcp251xfd_of_match[] = {
