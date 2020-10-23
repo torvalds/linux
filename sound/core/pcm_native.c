@@ -112,7 +112,7 @@ void snd_pcm_stream_lock(struct snd_pcm_substream *substream)
 EXPORT_SYMBOL_GPL(snd_pcm_stream_lock);
 
 /**
- * snd_pcm_stream_lock - Unlock the PCM stream
+ * snd_pcm_stream_unlock - Unlock the PCM stream
  * @substream: PCM substream
  *
  * This unlocks the PCM stream that has been locked via snd_pcm_stream_lock().
@@ -595,7 +595,7 @@ static void snd_pcm_sync_stop(struct snd_pcm_substream *substream)
 }
 
 /**
- * snd_pcm_hw_param_choose - choose a configuration defined by @params
+ * snd_pcm_hw_params_choose - choose a configuration defined by @params
  * @pcm: PCM instance
  * @params: the hw_params instance
  *
