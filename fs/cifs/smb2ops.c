@@ -3044,7 +3044,6 @@ smb2_query_reparse_tag(const unsigned int xid, struct cifs_tcon *tcon,
 	__u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
 	struct cifs_open_parms oparms;
 	struct cifs_fid fid;
-	struct kvec err_iov = {NULL, 0};
 	struct TCP_Server_Info *server = cifs_pick_channel(tcon->ses);
 	int flags = 0;
 	struct smb_rqst rqst[3];
@@ -3053,7 +3052,6 @@ smb2_query_reparse_tag(const unsigned int xid, struct cifs_tcon *tcon,
 	struct kvec open_iov[SMB2_CREATE_IOV_SIZE];
 	struct kvec io_iov[SMB2_IOCTL_IOV_SIZE];
 	struct kvec close_iov[1];
-	struct smb2_create_rsp *create_rsp;
 	struct smb2_ioctl_rsp *ioctl_rsp;
 	struct reparse_data_buffer *reparse_buf;
 	u32 plen;
@@ -3129,9 +3127,6 @@ smb2_query_reparse_tag(const unsigned int xid, struct cifs_tcon *tcon,
 				flags, 3, rqst,
 				resp_buftype, rsp_iov);
 
-	create_rsp = rsp_iov[0].iov_base;
-	if (create_rsp && create_rsp->sync_hdr.Status)
-		err_iov = rsp_iov[0];
 	ioctl_rsp = rsp_iov[1].iov_base;
 
 	/*
