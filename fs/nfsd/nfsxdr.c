@@ -592,19 +592,26 @@ nfssvc_encode_readdirres(struct svc_rqst *rqstp, __be32 *p)
 int
 nfssvc_encode_statfsres(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct xdr_stream *xdr = &rqstp->rq_res_stream;
 	struct nfsd_statfsres *resp = rqstp->rq_resp;
 	struct kstatfs	*stat = &resp->stats;
 
-	*p++ = resp->status;
-	if (resp->status != nfs_ok)
-		return xdr_ressize_check(rqstp, p);
+	if (!svcxdr_encode_stat(xdr, resp->status))
+		return 0;
+	switch (resp->status) {
+	case nfs_ok:
+		p = xdr_reserve_space(xdr, XDR_UNIT * 5);
+		if (!p)
+			return 0;
+		*p++ = cpu_to_be32(NFSSVC_MAXBLKSIZE_V2);
+		*p++ = cpu_to_be32(stat->f_bsize);
+		*p++ = cpu_to_be32(stat->f_blocks);
+		*p++ = cpu_to_be32(stat->f_bfree);
+		*p = cpu_to_be32(stat->f_bavail);
+		break;
+	}
 
-	*p++ = htonl(NFSSVC_MAXBLKSIZE_V2);	/* max transfer size */
-	*p++ = htonl(stat->f_bsize);
-	*p++ = htonl(stat->f_blocks);
-	*p++ = htonl(stat->f_bfree);
-	*p++ = htonl(stat->f_bavail);
-	return xdr_ressize_check(rqstp, p);
+	return 1;
 }
 
 int
