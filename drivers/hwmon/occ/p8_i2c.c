@@ -203,8 +203,7 @@ static int p8_i2c_occ_send_cmd(struct occ *occ, u8 *cmd)
 	return 0;
 }
 
-static int p8_i2c_occ_probe(struct i2c_client *client,
-			    const struct i2c_device_id *id)
+static int p8_i2c_occ_probe(struct i2c_client *client)
 {
 	struct occ *occ;
 	struct p8_i2c_occ *ctx = devm_kzalloc(&client->dev, sizeof(*ctx),
@@ -245,7 +244,7 @@ static struct i2c_driver p8_i2c_occ_driver = {
 		.name = "occ-hwmon",
 		.of_match_table = p8_i2c_occ_of_match,
 	},
-	.probe = p8_i2c_occ_probe,
+	.probe_new = p8_i2c_occ_probe,
 	.remove = p8_i2c_occ_remove,
 };
 

@@ -13,6 +13,7 @@
 #include <linux/bitops.h>
 #include <linux/clk.h>
 #include <linux/completion.h>
+#include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/hwmon.h>
@@ -476,6 +477,7 @@ static int pvt_read_data(struct pvt_hwmon *pvt, enum pvt_sensor_type type,
 			 long *val)
 {
 	struct pvt_cache *cache = &pvt->cache[type];
+	unsigned long timeout;
 	u32 data;
 	int ret;
 
@@ -499,7 +501,14 @@ static int pvt_read_data(struct pvt_hwmon *pvt, enum pvt_sensor_type type,
 	pvt_update(pvt->regs + PVT_INTR_MASK, PVT_INTR_DVALID, 0);
 	pvt_update(pvt->regs + PVT_CTRL, PVT_CTRL_EN, PVT_CTRL_EN);
 
-	wait_for_completion(&cache->conversion);
+	/*
+	 * Wait with timeout since in case if the sensor is suddenly powered
+	 * down the request won't be completed and the caller will hang up on
+	 * this procedure until the power is back up again. Multiply the
+	 * timeout by the factor of two to prevent a false timeout.
+	 */
+	timeout = 2 * usecs_to_jiffies(ktime_to_us(pvt->timeout));
+	ret = wait_for_completion_timeout(&cache->conversion, timeout);
 
 	pvt_update(pvt->regs + PVT_CTRL, PVT_CTRL_EN, 0);
 	pvt_update(pvt->regs + PVT_INTR_MASK, PVT_INTR_DVALID,
@@ -508,6 +517,9 @@ static int pvt_read_data(struct pvt_hwmon *pvt, enum pvt_sensor_type type,
 	data = READ_ONCE(cache->data);
 
 	mutex_unlock(&pvt->iface_mtx);
+
+	if (!ret)
+		return -ETIMEDOUT;
 
 	if (type == PVT_TEMP)
 		*val = pvt_calc_poly(&poly_N_to_temp, data);
@@ -654,44 +666,16 @@ static int pvt_write_trim(struct pvt_hwmon *pvt, long val)
 
 static int pvt_read_timeout(struct pvt_hwmon *pvt, long *val)
 {
-	unsigned long rate;
-	ktime_t kt;
-	u32 data;
+	int ret;
 
-	rate = clk_get_rate(pvt->clks[PVT_CLOCK_REF].clk);
-	if (!rate)
-		return -ENODEV;
-
-	/*
-	 * Don't bother with mutex here, since we just read data from MMIO.
-	 * We also have to scale the ticks timeout up to compensate the
-	 * ms-ns-data translations.
-	 */
-	data = readl(pvt->regs + PVT_TTIMEOUT) + 1;
-
-	/*
-	 * Calculate ref-clock based delay (Ttotal) between two consecutive
-	 * data samples of the same sensor. So we first must calculate the
-	 * delay introduced by the internal ref-clock timer (Tref * Fclk).
-	 * Then add the constant timeout cuased by each conversion latency
-	 * (Tmin). The basic formulae for each conversion is following:
-	 *   Ttotal = Tref * Fclk + Tmin
-	 * Note if alarms are enabled the sensors are polled one after
-	 * another, so in order to have the delay being applicable for each
-	 * sensor the requested value must be equally redistirbuted.
-	 */
-#if defined(CONFIG_SENSORS_BT1_PVT_ALARMS)
-	kt = ktime_set(PVT_SENSORS_NUM * (u64)data, 0);
-	kt = ktime_divns(kt, rate);
-	kt = ktime_add_ns(kt, PVT_SENSORS_NUM * PVT_TOUT_MIN);
-#else
-	kt = ktime_set(data, 0);
-	kt = ktime_divns(kt, rate);
-	kt = ktime_add_ns(kt, PVT_TOUT_MIN);
-#endif
+	ret = mutex_lock_interruptible(&pvt->iface_mtx);
+	if (ret)
+		return ret;
 
 	/* Return the result in msec as hwmon sysfs interface requires. */
-	*val = ktime_to_ms(kt);
+	*val = ktime_to_ms(pvt->timeout);
+
+	mutex_unlock(&pvt->iface_mtx);
 
 	return 0;
 }
@@ -699,7 +683,7 @@ static int pvt_read_timeout(struct pvt_hwmon *pvt, long *val)
 static int pvt_write_timeout(struct pvt_hwmon *pvt, long val)
 {
 	unsigned long rate;
-	ktime_t kt;
+	ktime_t kt, cache;
 	u32 data;
 	int ret;
 
@@ -712,7 +696,7 @@ static int pvt_write_timeout(struct pvt_hwmon *pvt, long val)
 	 * between all available sensors to have the requested delay
 	 * applicable to each individual sensor.
 	 */
-	kt = ms_to_ktime(val);
+	cache = kt = ms_to_ktime(val);
 #if defined(CONFIG_SENSORS_BT1_PVT_ALARMS)
 	kt = ktime_divns(kt, PVT_SENSORS_NUM);
 #endif
@@ -741,6 +725,7 @@ static int pvt_write_timeout(struct pvt_hwmon *pvt, long val)
 		return ret;
 
 	pvt_set_tout(pvt, data);
+	pvt->timeout = cache;
 
 	mutex_unlock(&pvt->iface_mtx);
 
@@ -982,9 +967,51 @@ static int pvt_request_clks(struct pvt_hwmon *pvt)
 	return 0;
 }
 
-static void pvt_init_iface(struct pvt_hwmon *pvt)
+static int pvt_check_pwr(struct pvt_hwmon *pvt)
 {
+	unsigned long tout;
+	int ret = 0;
+	u32 data;
+
+	/*
+	 * Test out the sensor conversion functionality. If it is not done on
+	 * time then the domain must have been unpowered and we won't be able
+	 * to use the device later in this driver.
+	 * Note If the power source is lost during the normal driver work the
+	 * data read procedure will either return -ETIMEDOUT (for the
+	 * alarm-less driver configuration) or just stop the repeated
+	 * conversion. In the later case alas we won't be able to detect the
+	 * problem.
+	 */
+	pvt_update(pvt->regs + PVT_INTR_MASK, PVT_INTR_ALL, PVT_INTR_ALL);
+	pvt_update(pvt->regs + PVT_CTRL, PVT_CTRL_EN, PVT_CTRL_EN);
+	pvt_set_tout(pvt, 0);
+	readl(pvt->regs + PVT_DATA);
+
+	tout = PVT_TOUT_MIN / NSEC_PER_USEC;
+	usleep_range(tout, 2 * tout);
+
+	data = readl(pvt->regs + PVT_DATA);
+	if (!(data & PVT_DATA_VALID)) {
+		ret = -ENODEV;
+		dev_err(pvt->dev, "Sensor is powered down\n");
+	}
+
+	pvt_update(pvt->regs + PVT_CTRL, PVT_CTRL_EN, 0);
+
+	return ret;
+}
+
+static int pvt_init_iface(struct pvt_hwmon *pvt)
+{
+	unsigned long rate;
 	u32 trim, temp;
+
+	rate = clk_get_rate(pvt->clks[PVT_CLOCK_REF].clk);
+	if (!rate) {
+		dev_err(pvt->dev, "Invalid reference clock rate\n");
+		return -ENODEV;
+	}
 
 	/*
 	 * Make sure all interrupts and controller are disabled so not to
@@ -1000,12 +1027,37 @@ static void pvt_init_iface(struct pvt_hwmon *pvt)
 	pvt_set_mode(pvt, pvt_info[pvt->sensor].mode);
 	pvt_set_tout(pvt, PVT_TOUT_DEF);
 
+	/*
+	 * Preserve the current ref-clock based delay (Ttotal) between the
+	 * sensors data samples in the driver data so not to recalculate it
+	 * each time on the data requests and timeout reads. It consists of the
+	 * delay introduced by the internal ref-clock timer (N / Fclk) and the
+	 * constant timeout caused by each conversion latency (Tmin):
+	 *   Ttotal = N / Fclk + Tmin
+	 * If alarms are enabled the sensors are polled one after another and
+	 * in order to get the next measurement of a particular sensor the
+	 * caller will have to wait for at most until all the others are
+	 * polled. In that case the formulae will look a bit different:
+	 *   Ttotal = 5 * (N / Fclk + Tmin)
+	 */
+#if defined(CONFIG_SENSORS_BT1_PVT_ALARMS)
+	pvt->timeout = ktime_set(PVT_SENSORS_NUM * PVT_TOUT_DEF, 0);
+	pvt->timeout = ktime_divns(pvt->timeout, rate);
+	pvt->timeout = ktime_add_ns(pvt->timeout, PVT_SENSORS_NUM * PVT_TOUT_MIN);
+#else
+	pvt->timeout = ktime_set(PVT_TOUT_DEF, 0);
+	pvt->timeout = ktime_divns(pvt->timeout, rate);
+	pvt->timeout = ktime_add_ns(pvt->timeout, PVT_TOUT_MIN);
+#endif
+
 	trim = PVT_TRIM_DEF;
 	if (!of_property_read_u32(pvt->dev->of_node,
 	     "baikal,pvt-temp-offset-millicelsius", &temp))
 		trim = pvt_calc_trim(temp);
 
 	pvt_set_trim(pvt, trim);
+
+	return 0;
 }
 
 static int pvt_request_irq(struct pvt_hwmon *pvt)
@@ -1109,7 +1161,13 @@ static int pvt_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	pvt_init_iface(pvt);
+	ret = pvt_check_pwr(pvt);
+	if (ret)
+		return ret;
+
+	ret = pvt_init_iface(pvt);
+	if (ret)
+		return ret;
 
 	ret = pvt_request_irq(pvt);
 	if (ret)
