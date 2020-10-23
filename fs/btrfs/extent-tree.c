@@ -2641,6 +2641,11 @@ static int __exclude_logged_extent(struct btrfs_fs_info *fs_info,
 		BUG_ON(!btrfs_block_group_done(block_group));
 		ret = btrfs_remove_free_space(block_group, start, num_bytes);
 	} else {
+		/*
+		 * We must wait for v1 caching to finish, otherwise we may not
+		 * remove our space.
+		 */
+		btrfs_wait_space_cache_v1_finished(block_group, caching_ctl);
 		mutex_lock(&caching_ctl->mutex);
 
 		if (start >= caching_ctl->progress) {
