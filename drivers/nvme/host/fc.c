@@ -146,7 +146,8 @@ struct nvme_fc_rport {
 
 /* fc_ctrl flags values - specified as bit positions */
 #define ASSOC_ACTIVE		0
-#define FCCTRL_TERMIO		1
+#define ASSOC_FAILED		1
+#define FCCTRL_TERMIO		2
 
 struct nvme_fc_ctrl {
 	spinlock_t		lock;
@@ -2988,6 +2989,8 @@ nvme_fc_create_association(struct nvme_fc_ctrl *ctrl)
 		ctrl->cnum, ctrl->lport->localport.port_name,
 		ctrl->rport->remoteport.port_name, ctrl->ctrl.opts->subsysnqn);
 
+	clear_bit(ASSOC_FAILED, &ctrl->flags);
+
 	/*
 	 * Create the admin queue
 	 */
@@ -3016,7 +3019,7 @@ nvme_fc_create_association(struct nvme_fc_ctrl *ctrl)
 	 */
 
 	ret = nvme_enable_ctrl(&ctrl->ctrl);
-	if (ret)
+	if (ret || test_bit(ASSOC_FAILED, &ctrl->flags))
 		goto out_disconnect_admin_queue;
 
 	ctrl->ctrl.max_segments = ctrl->lport->ops->max_sgl_segments;
@@ -3026,7 +3029,7 @@ nvme_fc_create_association(struct nvme_fc_ctrl *ctrl)
 	blk_mq_unquiesce_queue(ctrl->ctrl.admin_q);
 
 	ret = nvme_init_identify(&ctrl->ctrl);
-	if (ret)
+	if (ret || test_bit(ASSOC_FAILED, &ctrl->flags))
 		goto out_disconnect_admin_queue;
 
 	/* sanity checks */
@@ -3071,9 +3074,9 @@ nvme_fc_create_association(struct nvme_fc_ctrl *ctrl)
 			ret = nvme_fc_create_io_queues(ctrl);
 		else
 			ret = nvme_fc_recreate_io_queues(ctrl);
-		if (ret)
-			goto out_term_aen_ops;
 	}
+	if (ret || test_bit(ASSOC_FAILED, &ctrl->flags))
+		goto out_term_aen_ops;
 
 	changed = nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_LIVE);
 
@@ -3301,6 +3304,7 @@ __nvme_fc_terminate_io(struct nvme_fc_ctrl *ctrl)
 	 */
 	if (ctrl->ctrl.state == NVME_CTRL_CONNECTING) {
 		__nvme_fc_abort_outstanding_ios(ctrl, true);
+		set_bit(ASSOC_FAILED, &ctrl->flags);
 		return;
 	}
 
