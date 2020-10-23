@@ -434,18 +434,14 @@ static int msm_gem_pin_iova(struct drm_gem_object *obj,
 			msm_obj->sgt, obj->size >> PAGE_SHIFT);
 }
 
-/*
- * get iova and pin it. Should have a matching put
- * limits iova to specified range (in pages)
- */
-int msm_gem_get_and_pin_iova_range(struct drm_gem_object *obj,
+static int get_and_pin_iova_range_locked(struct drm_gem_object *obj,
 		struct msm_gem_address_space *aspace, uint64_t *iova,
 		u64 range_start, u64 range_end)
 {
 	u64 local;
 	int ret;
 
-	msm_gem_lock(obj);
+	WARN_ON(!msm_gem_is_locked(obj));
 
 	ret = get_iova_locked(obj, aspace, &local,
 		range_start, range_end);
@@ -456,8 +452,30 @@ int msm_gem_get_and_pin_iova_range(struct drm_gem_object *obj,
 	if (!ret)
 		*iova = local;
 
-	msm_gem_unlock(obj);
 	return ret;
+}
+
+/*
+ * get iova and pin it. Should have a matching put
+ * limits iova to specified range (in pages)
+ */
+int msm_gem_get_and_pin_iova_range(struct drm_gem_object *obj,
+		struct msm_gem_address_space *aspace, uint64_t *iova,
+		u64 range_start, u64 range_end)
+{
+	int ret;
+
+	msm_gem_lock(obj);
+	ret = get_and_pin_iova_range_locked(obj, aspace, iova, range_start, range_end);
+	msm_gem_unlock(obj);
+
+	return ret;
+}
+
+int msm_gem_get_and_pin_iova_locked(struct drm_gem_object *obj,
+		struct msm_gem_address_space *aspace, uint64_t *iova)
+{
+	return get_and_pin_iova_range_locked(obj, aspace, iova, 0, U64_MAX);
 }
 
 /* get iova and pin it. Should have a matching put */
@@ -500,6 +518,22 @@ uint64_t msm_gem_iova(struct drm_gem_object *obj,
 }
 
 /*
+ * Locked variant of msm_gem_unpin_iova()
+ */
+void msm_gem_unpin_iova_locked(struct drm_gem_object *obj,
+		struct msm_gem_address_space *aspace)
+{
+	struct msm_gem_vma *vma;
+
+	WARN_ON(!msm_gem_is_locked(obj));
+
+	vma = lookup_vma(obj, aspace);
+
+	if (!WARN_ON(!vma))
+		msm_gem_unmap_vma(aspace, vma);
+}
+
+/*
  * Unpin a iova by updating the reference counts. The memory isn't actually
  * purged until something else (shrinker, mm_notifier, destroy, etc) decides
  * to get rid of it
@@ -507,14 +541,8 @@ uint64_t msm_gem_iova(struct drm_gem_object *obj,
 void msm_gem_unpin_iova(struct drm_gem_object *obj,
 		struct msm_gem_address_space *aspace)
 {
-	struct msm_gem_vma *vma;
-
 	msm_gem_lock(obj);
-	vma = lookup_vma(obj, aspace);
-
-	if (!WARN_ON(!vma))
-		msm_gem_unmap_vma(aspace, vma);
-
+	msm_gem_unpin_iova_locked(obj, aspace);
 	msm_gem_unlock(obj);
 }
 
@@ -553,15 +581,14 @@ static void *get_vaddr(struct drm_gem_object *obj, unsigned madv)
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	int ret = 0;
 
+	WARN_ON(!msm_gem_is_locked(obj));
+
 	if (obj->import_attach)
 		return ERR_PTR(-ENODEV);
-
-	msm_gem_lock(obj);
 
 	if (WARN_ON(msm_obj->madv > madv)) {
 		DRM_DEV_ERROR(obj->dev->dev, "Invalid madv state: %u vs %u\n",
 			msm_obj->madv, madv);
-		msm_gem_unlock(obj);
 		return ERR_PTR(-EBUSY);
 	}
 
@@ -587,18 +614,27 @@ static void *get_vaddr(struct drm_gem_object *obj, unsigned madv)
 		}
 	}
 
-	msm_gem_unlock(obj);
 	return msm_obj->vaddr;
 
 fail:
 	msm_obj->vmap_count--;
-	msm_gem_unlock(obj);
 	return ERR_PTR(ret);
+}
+
+void *msm_gem_get_vaddr_locked(struct drm_gem_object *obj)
+{
+	return get_vaddr(obj, MSM_MADV_WILLNEED);
 }
 
 void *msm_gem_get_vaddr(struct drm_gem_object *obj)
 {
-	return get_vaddr(obj, MSM_MADV_WILLNEED);
+	void *ret;
+
+	msm_gem_lock(obj);
+	ret = msm_gem_get_vaddr_locked(obj);
+	msm_gem_unlock(obj);
+
+	return ret;
 }
 
 /*
@@ -609,16 +645,29 @@ void *msm_gem_get_vaddr(struct drm_gem_object *obj)
  */
 void *msm_gem_get_vaddr_active(struct drm_gem_object *obj)
 {
-	return get_vaddr(obj, __MSM_MADV_PURGED);
+	void *ret;
+
+	msm_gem_lock(obj);
+	ret = get_vaddr(obj, __MSM_MADV_PURGED);
+	msm_gem_unlock(obj);
+
+	return ret;
+}
+
+void msm_gem_put_vaddr_locked(struct drm_gem_object *obj)
+{
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+
+	WARN_ON(!msm_gem_is_locked(obj));
+	WARN_ON(msm_obj->vmap_count < 1);
+
+	msm_obj->vmap_count--;
 }
 
 void msm_gem_put_vaddr(struct drm_gem_object *obj)
 {
-	struct msm_gem_object *msm_obj = to_msm_bo(obj);
-
 	msm_gem_lock(obj);
-	WARN_ON(msm_obj->vmap_count < 1);
-	msm_obj->vmap_count--;
+	msm_gem_put_vaddr_locked(obj);
 	msm_gem_unlock(obj);
 }
 
