@@ -1027,9 +1027,7 @@ static void rkcif_assign_new_buffer_oneframe(struct rkcif_stream *stream,
 								    struct rkcif_buffer, queue);
 				list_del(&stream->curr_buf->queue);
 				buffer = stream->curr_buf;
-			}
-
-			if (stream->frame_phase == CIF_CSI_FRAME1_READY) {
+			} else if (stream->frame_phase == CIF_CSI_FRAME1_READY) {
 				stream->next_buf = list_first_entry(&stream->buf_head,
 								    struct rkcif_buffer, queue);
 				list_del(&stream->next_buf->queue);
@@ -1046,9 +1044,7 @@ static void rkcif_assign_new_buffer_oneframe(struct rkcif_stream *stream,
 		if (stream->frame_phase == CIF_CSI_FRAME0_READY) {
 			frm_addr_y = CIF_REG_DVP_FRM0_ADDR_Y;
 			frm_addr_uv = CIF_REG_DVP_FRM0_ADDR_UV;
-		}
-
-		if (stream->frame_phase == CIF_CSI_FRAME1_READY) {
+		} else if (stream->frame_phase == CIF_CSI_FRAME1_READY) {
 			frm_addr_y = CIF_REG_DVP_FRM1_ADDR_Y;
 			frm_addr_uv = CIF_REG_DVP_FRM1_ADDR_UV;
 		}
@@ -1141,17 +1137,17 @@ static void rkcif_assign_new_buffer_pingpong(struct rkcif_stream *stream,
 	} else {
 		if (mbus_cfg->type == V4L2_MBUS_CSI2 ||
 		    mbus_cfg->type == V4L2_MBUS_CCP2) {
-			frm_addr_y = stream->frame_phase & CIF_CSI_FRAME1_READY ?
-				     get_reg_index_of_frm1_y_addr(csi_ch) :
-				     get_reg_index_of_frm0_y_addr(csi_ch);
-			frm_addr_uv = stream->frame_phase & CIF_CSI_FRAME1_READY ?
-				      get_reg_index_of_frm1_uv_addr(csi_ch) :
-				      get_reg_index_of_frm0_uv_addr(csi_ch);
+			frm_addr_y = stream->frame_phase & CIF_CSI_FRAME0_READY ?
+				     get_reg_index_of_frm0_y_addr(csi_ch) :
+				     get_reg_index_of_frm1_y_addr(csi_ch);
+			frm_addr_uv = stream->frame_phase & CIF_CSI_FRAME0_READY ?
+				      get_reg_index_of_frm0_uv_addr(csi_ch) :
+				      get_reg_index_of_frm1_uv_addr(csi_ch);
 		} else {
-			frm_addr_y = stream->frame_phase & CIF_CSI_FRAME1_READY ?
-				     CIF_FRM1_ADDR_Y : CIF_FRM0_ADDR_Y;
-			frm_addr_uv = stream->frame_phase & CIF_CSI_FRAME1_READY ?
-				      CIF_FRM1_ADDR_UV : CIF_FRM0_ADDR_UV;
+			frm_addr_y = stream->frame_phase & CIF_CSI_FRAME0_READY ?
+				     CIF_FRM0_ADDR_Y : CIF_FRM1_ADDR_Y;
+			frm_addr_uv = stream->frame_phase & CIF_CSI_FRAME0_READY ?
+				      CIF_FRM0_ADDR_UV : CIF_FRM1_ADDR_UV;
 		}
 
 		spin_lock(&stream->vbq_lock);
@@ -1161,9 +1157,7 @@ static void rkcif_assign_new_buffer_pingpong(struct rkcif_stream *stream,
 								    struct rkcif_buffer, queue);
 				list_del(&stream->curr_buf->queue);
 				buffer = stream->curr_buf;
-			}
-
-			if (stream->frame_phase == CIF_CSI_FRAME1_READY) {
+			} else if (stream->frame_phase == CIF_CSI_FRAME1_READY) {
 				stream->next_buf = list_first_entry(&stream->buf_head,
 								    struct rkcif_buffer, queue);
 				list_del(&stream->next_buf->queue);
