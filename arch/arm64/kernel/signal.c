@@ -938,7 +938,7 @@ asmlinkage void do_notify_resume(struct pt_regs *regs,
 					       (void __user *)NULL, current);
 			}
 
-			if (thread_flags & _TIF_SIGPENDING)
+			if (thread_flags & (_TIF_SIGPENDING | _TIF_NOTIFY_SIGNAL))
 				do_signal(regs);
 
 			if (thread_flags & _TIF_NOTIFY_RESUME) {
