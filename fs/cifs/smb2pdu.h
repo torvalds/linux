@@ -999,6 +999,31 @@ struct copychunk_ioctl_rsp {
 	__le32 TotalBytesWritten;
 } __packed;
 
+/* See MS-FSCC 2.3.29 and 2.3.30 */
+struct get_retrieval_pointer_count_req {
+	__le64 StartingVcn; /* virtual cluster number (signed) */
+} __packed;
+
+struct get_retrieval_pointer_count_rsp {
+	__le32 ExtentCount;
+} __packed;
+
+/*
+ * See MS-FSCC 2.3.33 and 2.3.34
+ * request is the same as get_retrieval_point_count_req struct above
+ */
+struct smb3_extents {
+	__le64 NextVcn;
+	__le64 Lcn; /* logical cluster number */
+} __packed;
+
+struct get_retrieval_pointers_refcount_rsp {
+	__le32 ExtentCount;
+	__u32  Reserved;
+	__le64 StartingVcn;
+	struct smb3_extents extents[];
+} __packed;
+
 struct fsctl_set_integrity_information_req {
 	__le16	ChecksumAlgorithm;
 	__le16	Reserved;
@@ -1640,6 +1665,7 @@ struct smb2_file_rename_info { /* encoding of request for level 10 */
 	__u64  RootDirectory;  /* MBZ for network operations (why says spec?) */
 	__le32 FileNameLength;
 	char   FileName[];     /* New name to be assigned */
+	/* padding - overall struct size must be >= 24 so filename + pad >= 6 */
 } __packed; /* level 10 Set */
 
 struct smb2_file_link_info { /* encoding of request for level 11 */
