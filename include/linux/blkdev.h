@@ -24,6 +24,7 @@
 #include <linux/percpu-refcount.h>
 #include <linux/scatterlist.h>
 #include <linux/blkzoned.h>
+#include <linux/pm.h>
 
 struct module;
 struct scsi_ioctl_command;
@@ -460,7 +461,7 @@ struct request_queue {
 
 #ifdef CONFIG_PM
 	struct device		*dev;
-	int			rpm_status;
+	enum rpm_status		rpm_status;
 	unsigned int		nr_pending;
 #endif
 
@@ -1457,10 +1458,9 @@ static inline int bdev_alignment_offset(struct block_device *bdev)
 
 	if (q->limits.misaligned)
 		return -1;
-
 	if (bdev != bdev->bd_contains)
-		return bdev->bd_part->alignment_offset;
-
+		return queue_limit_alignment_offset(&q->limits,
+				bdev->bd_part->start_sect);
 	return q->limits.alignment_offset;
 }
 
@@ -1500,8 +1500,8 @@ static inline int bdev_discard_alignment(struct block_device *bdev)
 	struct request_queue *q = bdev_get_queue(bdev);
 
 	if (bdev != bdev->bd_contains)
-		return bdev->bd_part->discard_alignment;
-
+		return queue_limit_discard_alignment(&q->limits,
+				bdev->bd_part->start_sect);
 	return q->limits.discard_alignment;
 }
 

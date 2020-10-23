@@ -876,6 +876,7 @@ struct block_device *bdget(dev_t dev)
 	bdev = &BDEV_I(inode)->bdev;
 
 	if (inode->i_state & I_NEW) {
+		spin_lock_init(&bdev->bd_size_lock);
 		bdev->bd_contains = NULL;
 		bdev->bd_super = NULL;
 		bdev->bd_inode = inode;
@@ -1290,6 +1291,7 @@ static void check_disk_size_change(struct gendisk *disk,
 {
 	loff_t disk_size, bdev_size;
 
+	spin_lock(&bdev->bd_size_lock);
 	disk_size = (loff_t)get_capacity(disk) << 9;
 	bdev_size = i_size_read(bdev->bd_inode);
 	if (disk_size != bdev_size) {
@@ -1299,11 +1301,15 @@ static void check_disk_size_change(struct gendisk *disk,
 			       disk->disk_name, bdev_size, disk_size);
 		}
 		i_size_write(bdev->bd_inode, disk_size);
-		if (bdev_size > disk_size && __invalidate_device(bdev, false))
+	}
+	bdev->bd_invalidated = 0;
+	spin_unlock(&bdev->bd_size_lock);
+
+	if (bdev_size > disk_size) {
+		if (__invalidate_device(bdev, false))
 			pr_warn("VFS: busy inodes on resized disk %s\n",
 				disk->disk_name);
 	}
-	bdev->bd_invalidated = 0;
 }
 
 /**
@@ -1328,13 +1334,10 @@ int revalidate_disk(struct gendisk *disk)
 	if (!(disk->flags & GENHD_FL_HIDDEN)) {
 		struct block_device *bdev = bdget_disk(disk, 0);
 
-		if (!bdev)
-			return ret;
-
-		mutex_lock(&bdev->bd_mutex);
-		check_disk_size_change(disk, bdev, ret == 0);
-		mutex_unlock(&bdev->bd_mutex);
-		bdput(bdev);
+		if (bdev) {
+			check_disk_size_change(disk, bdev, ret == 0);
+			bdput(bdev);
+		}
 	}
 	return ret;
 }
@@ -1371,13 +1374,13 @@ int check_disk_change(struct block_device *bdev)
 
 EXPORT_SYMBOL(check_disk_change);
 
-void bd_set_size(struct block_device *bdev, loff_t size)
+void bd_set_nr_sectors(struct block_device *bdev, sector_t sectors)
 {
-	inode_lock(bdev->bd_inode);
-	i_size_write(bdev->bd_inode, size);
-	inode_unlock(bdev->bd_inode);
+	spin_lock(&bdev->bd_size_lock);
+	i_size_write(bdev->bd_inode, (loff_t)sectors << SECTOR_SHIFT);
+	spin_unlock(&bdev->bd_size_lock);
 }
-EXPORT_SYMBOL(bd_set_size);
+EXPORT_SYMBOL(bd_set_nr_sectors);
 
 static void __blkdev_put(struct block_device *bdev, fmode_t mode, int for_part);
 
@@ -1446,21 +1449,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, void *holder,
 	struct gendisk *disk;
 	int ret;
 	int partno;
-	int perm = 0;
 	bool first_open = false, unblock_events = true, need_restart;
-
-	if (mode & FMODE_READ)
-		perm |= MAY_READ;
-	if (mode & FMODE_WRITE)
-		perm |= MAY_WRITE;
-	/*
-	 * hooks: /n/, see "layering violations".
-	 */
-	if (!for_part) {
-		ret = devcgroup_inode_permission(bdev->bd_inode, perm);
-		if (ret != 0)
-			return ret;
-	}
 
  restart:
 	need_restart = false;
@@ -1514,7 +1503,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, void *holder,
 			}
 
 			if (!ret) {
-				bd_set_size(bdev,(loff_t)get_capacity(disk)<<9);
+				bd_set_nr_sectors(bdev, get_capacity(disk));
 				set_init_blocksize(bdev);
 			}
 
@@ -1542,7 +1531,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, void *holder,
 				ret = -ENXIO;
 				goto out_clear;
 			}
-			bd_set_size(bdev, (loff_t)bdev->bd_part->nr_sects << 9);
+			bd_set_nr_sectors(bdev, bdev->bd_part->nr_sects);
 			set_init_blocksize(bdev);
 		}
 
@@ -1634,12 +1623,24 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, void *holder,
  */
 int blkdev_get(struct block_device *bdev, fmode_t mode, void *holder)
 {
-	int res;
+	int ret, perm = 0;
 
-	res =__blkdev_get(bdev, mode, holder, 0);
-	if (res)
-		bdput(bdev);
-	return res;
+	if (mode & FMODE_READ)
+		perm |= MAY_READ;
+	if (mode & FMODE_WRITE)
+		perm |= MAY_WRITE;
+	ret = devcgroup_inode_permission(bdev->bd_inode, perm);
+	if (ret)
+		goto bdput;
+
+	ret =__blkdev_get(bdev, mode, holder, 0);
+	if (ret)
+		goto bdput;
+	return 0;
+
+bdput:
+	bdput(bdev);
+	return ret;
 }
 EXPORT_SYMBOL(blkdev_get);
 

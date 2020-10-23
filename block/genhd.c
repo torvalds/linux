@@ -110,8 +110,7 @@ static void part_stat_read_all(struct hd_struct *part, struct disk_stats *stat)
 	}
 }
 
-static unsigned int part_in_flight(struct request_queue *q,
-		struct hd_struct *part)
+static unsigned int part_in_flight(struct hd_struct *part)
 {
 	unsigned int inflight = 0;
 	int cpu;
@@ -126,8 +125,7 @@ static unsigned int part_in_flight(struct request_queue *q,
 	return inflight;
 }
 
-static void part_in_flight_rw(struct request_queue *q, struct hd_struct *part,
-		unsigned int inflight[2])
+static void part_in_flight_rw(struct hd_struct *part, unsigned int inflight[2])
 {
 	int cpu;
 
@@ -913,7 +911,7 @@ void del_gendisk(struct gendisk *disk)
 			     DISK_PITER_INCL_EMPTY | DISK_PITER_REVERSE);
 	while ((part = disk_part_iter_next(&piter))) {
 		invalidate_partition(disk, part->partno);
-		delete_partition(disk, part);
+		delete_partition(part);
 	}
 	disk_part_iter_exit(&piter);
 
@@ -1301,7 +1299,7 @@ ssize_t part_stat_show(struct device *dev,
 	if (queue_is_mq(q))
 		inflight = blk_mq_in_flight(q, p);
 	else
-		inflight = part_in_flight(q, p);
+		inflight = part_in_flight(p);
 
 	return sprintf(buf,
 		"%8lu %8lu %8llu %8u "
@@ -1343,7 +1341,7 @@ ssize_t part_inflight_show(struct device *dev, struct device_attribute *attr,
 	if (queue_is_mq(q))
 		blk_mq_in_flight_rw(q, p, inflight);
 	else
-		part_in_flight_rw(q, p, inflight);
+		part_in_flight_rw(p, inflight);
 
 	return sprintf(buf, "%8u %8u\n", inflight[0], inflight[1]);
 }
@@ -1623,7 +1621,7 @@ static int diskstats_show(struct seq_file *seqf, void *v)
 		if (queue_is_mq(gp->queue))
 			inflight = blk_mq_in_flight(gp->queue, hd);
 		else
-			inflight = part_in_flight(gp->queue, hd);
+			inflight = part_in_flight(hd);
 
 		seq_printf(seqf, "%4d %7d %s "
 			   "%lu %lu %lu %u "
@@ -1729,45 +1727,48 @@ struct gendisk *__alloc_disk_node(int minors, int node_id)
 	}
 
 	disk = kzalloc_node(sizeof(struct gendisk), GFP_KERNEL, node_id);
-	if (disk) {
-		disk->part0.dkstats = alloc_percpu(struct disk_stats);
-		if (!disk->part0.dkstats) {
-			kfree(disk);
-			return NULL;
-		}
-		init_rwsem(&disk->lookup_sem);
-		disk->node_id = node_id;
-		if (disk_expand_part_tbl(disk, 0)) {
-			free_percpu(disk->part0.dkstats);
-			kfree(disk);
-			return NULL;
-		}
-		ptbl = rcu_dereference_protected(disk->part_tbl, 1);
-		rcu_assign_pointer(ptbl->part[0], &disk->part0);
+	if (!disk)
+		return NULL;
 
-		/*
-		 * set_capacity() and get_capacity() currently don't use
-		 * seqcounter to read/update the part0->nr_sects. Still init
-		 * the counter as we can read the sectors in IO submission
-		 * patch using seqence counters.
-		 *
-		 * TODO: Ideally set_capacity() and get_capacity() should be
-		 * converted to make use of bd_mutex and sequence counters.
-		 */
-		hd_sects_seq_init(&disk->part0);
-		if (hd_ref_init(&disk->part0)) {
-			hd_free_part(&disk->part0);
-			kfree(disk);
-			return NULL;
-		}
+	disk->part0.dkstats = alloc_percpu(struct disk_stats);
+	if (!disk->part0.dkstats)
+		goto out_free_disk;
 
-		disk->minors = minors;
-		rand_initialize_disk(disk);
-		disk_to_dev(disk)->class = &block_class;
-		disk_to_dev(disk)->type = &disk_type;
-		device_initialize(disk_to_dev(disk));
+	init_rwsem(&disk->lookup_sem);
+	disk->node_id = node_id;
+	if (disk_expand_part_tbl(disk, 0)) {
+		free_percpu(disk->part0.dkstats);
+		goto out_free_disk;
 	}
+
+	ptbl = rcu_dereference_protected(disk->part_tbl, 1);
+	rcu_assign_pointer(ptbl->part[0], &disk->part0);
+
+	/*
+	 * set_capacity() and get_capacity() currently don't use
+	 * seqcounter to read/update the part0->nr_sects. Still init
+	 * the counter as we can read the sectors in IO submission
+	 * patch using seqence counters.
+	 *
+	 * TODO: Ideally set_capacity() and get_capacity() should be
+	 * converted to make use of bd_mutex and sequence counters.
+	 */
+	hd_sects_seq_init(&disk->part0);
+	if (hd_ref_init(&disk->part0))
+		goto out_free_part0;
+
+	disk->minors = minors;
+	rand_initialize_disk(disk);
+	disk_to_dev(disk)->class = &block_class;
+	disk_to_dev(disk)->type = &disk_type;
+	device_initialize(disk_to_dev(disk));
 	return disk;
+
+out_free_part0:
+	hd_free_part(&disk->part0);
+out_free_disk:
+	kfree(disk);
+	return NULL;
 }
 EXPORT_SYMBOL(__alloc_disk_node);
 
