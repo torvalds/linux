@@ -709,6 +709,8 @@ static inline u64 acpi_arch_get_root_pointer(void)
 #define ACPI_HANDLE_FWNODE(fwnode)	(NULL)
 #define ACPI_DEVICE_CLASS(_cls, _msk)	.cls = (0), .cls_msk = (0),
 
+#include <acpi/acpi_numa.h>
+
 struct fwnode_handle;
 
 static inline bool acpi_dev_found(const char *hid)

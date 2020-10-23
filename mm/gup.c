@@ -329,6 +329,13 @@ void unpin_user_pages(struct page **pages, unsigned long npages)
 	unsigned long index;
 
 	/*
+	 * If this WARN_ON() fires, then the system *might* be leaking pages (by
+	 * leaving them pinned), but probably not. More likely, gup/pup returned
+	 * a hard -ERRNO error to the caller, who erroneously passed it here.
+	 */
+	if (WARN_ON(IS_ERR_VALUE(npages)))
+		return;
+	/*
 	 * TODO: this can be optimized for huge pages: if a series of pages is
 	 * physically contiguous and part of the same compound page, then a
 	 * single operation to the head page should suffice.
@@ -1747,6 +1754,25 @@ static __always_inline long __gup_longterm_locked(struct mm_struct *mm,
 }
 #endif /* CONFIG_FS_DAX || CONFIG_CMA */
 
+static bool is_valid_gup_flags(unsigned int gup_flags)
+{
+	/*
+	 * FOLL_PIN must only be set internally by the pin_user_pages*() APIs,
+	 * never directly by the caller, so enforce that with an assertion:
+	 */
+	if (WARN_ON_ONCE(gup_flags & FOLL_PIN))
+		return false;
+	/*
+	 * FOLL_PIN is a prerequisite to FOLL_LONGTERM. Another way of saying
+	 * that is, FOLL_LONGTERM is a specific case, more restrictive case of
+	 * FOLL_PIN.
+	 */
+	if (WARN_ON_ONCE(gup_flags & FOLL_LONGTERM))
+		return false;
+
+	return true;
+}
+
 #ifdef CONFIG_MMU
 static long __get_user_pages_remote(struct mm_struct *mm,
 				    unsigned long start, unsigned long nr_pages,
@@ -1842,11 +1868,7 @@ long get_user_pages_remote(struct mm_struct *mm,
 		unsigned int gup_flags, struct page **pages,
 		struct vm_area_struct **vmas, int *locked)
 {
-	/*
-	 * FOLL_PIN must only be set internally by the pin_user_pages*() APIs,
-	 * never directly by the caller, so enforce that with an assertion:
-	 */
-	if (WARN_ON_ONCE(gup_flags & FOLL_PIN))
+	if (!is_valid_gup_flags(gup_flags))
 		return -EINVAL;
 
 	return __get_user_pages_remote(mm, start, nr_pages, gup_flags,
@@ -1892,11 +1914,7 @@ long get_user_pages(unsigned long start, unsigned long nr_pages,
 		unsigned int gup_flags, struct page **pages,
 		struct vm_area_struct **vmas)
 {
-	/*
-	 * FOLL_PIN must only be set internally by the pin_user_pages*() APIs,
-	 * never directly by the caller, so enforce that with an assertion:
-	 */
-	if (WARN_ON_ONCE(gup_flags & FOLL_PIN))
+	if (!is_valid_gup_flags(gup_flags))
 		return -EINVAL;
 
 	return __gup_longterm_locked(current->mm, start, nr_pages,
@@ -2786,11 +2804,7 @@ EXPORT_SYMBOL_GPL(get_user_pages_fast_only);
 int get_user_pages_fast(unsigned long start, int nr_pages,
 			unsigned int gup_flags, struct page **pages)
 {
-	/*
-	 * FOLL_PIN must only be set internally by the pin_user_pages*() APIs,
-	 * never directly by the caller, so enforce that:
-	 */
-	if (WARN_ON_ONCE(gup_flags & FOLL_PIN))
+	if (!is_valid_gup_flags(gup_flags))
 		return -EINVAL;
 
 	/*

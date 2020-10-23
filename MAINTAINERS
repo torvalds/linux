@@ -9734,8 +9734,8 @@ M:	Catalin Marinas <catalin.marinas@arm.com>
 S:	Maintained
 F:	Documentation/dev-tools/kmemleak.rst
 F:	include/linux/kmemleak.h
-F:	mm/kmemleak-test.c
 F:	mm/kmemleak.c
+F:	samples/kmemleak/kmemleak-test.c
 
 KMOD KERNEL MODULE LOADER - USERMODE HELPER
 M:	Luis Chamberlain <mcgrof@kernel.org>
@@ -13983,6 +13983,7 @@ PRINTK
 M:	Petr Mladek <pmladek@suse.com>
 M:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 R:	Steven Rostedt <rostedt@goodmis.org>
+R:	John Ogness <john.ogness@linutronix.de>
 S:	Maintained
 F:	include/linux/printk.h
 F:	kernel/printk/
@@ -15633,6 +15634,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/pcmoore/selinux.git
 F:	Documentation/ABI/obsolete/sysfs-selinux-checkreqprot
 F:	Documentation/ABI/obsolete/sysfs-selinux-disable
 F:	Documentation/admin-guide/LSM/SELinux.rst
+F:	include/trace/events/avc.h
 F:	include/uapi/linux/selinux_netlink.h
 F:	scripts/selinux/
 F:	security/selinux/

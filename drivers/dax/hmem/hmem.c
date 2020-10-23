@@ -3,30 +3,39 @@
 #include <linux/memregion.h>
 #include <linux/module.h>
 #include <linux/pfn_t.h>
-#include "bus.h"
+#include "../bus.h"
+
+static bool region_idle;
+module_param_named(region_idle, region_idle, bool, 0644);
 
 static int dax_hmem_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct dev_pagemap pgmap = { };
 	struct dax_region *dax_region;
 	struct memregion_info *mri;
+	struct dev_dax_data data;
 	struct dev_dax *dev_dax;
 	struct resource *res;
+	struct range range;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
 		return -ENOMEM;
 
 	mri = dev->platform_data;
-	memcpy(&pgmap.res, res, sizeof(*res));
-
-	dax_region = alloc_dax_region(dev, pdev->id, res, mri->target_node,
-			PMD_SIZE, PFN_DEV|PFN_MAP);
+	range.start = res->start;
+	range.end = res->end;
+	dax_region = alloc_dax_region(dev, pdev->id, &range, mri->target_node,
+			PMD_SIZE, 0);
 	if (!dax_region)
 		return -ENOMEM;
 
-	dev_dax = devm_create_dev_dax(dax_region, 0, &pgmap);
+	data = (struct dev_dax_data) {
+		.dax_region = dax_region,
+		.id = -1,
+		.size = region_idle ? 0 : resource_size(res),
+	};
+	dev_dax = devm_create_dev_dax(&data);
 	if (IS_ERR(dev_dax))
 		return PTR_ERR(dev_dax);
 

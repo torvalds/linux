@@ -473,8 +473,9 @@ static void __init map_mem(pgd_t *pgdp)
 {
 	phys_addr_t kernel_start = __pa_symbol(_text);
 	phys_addr_t kernel_end = __pa_symbol(__init_begin);
-	struct memblock_region *reg;
+	phys_addr_t start, end;
 	int flags = 0;
+	u64 i;
 
 	if (rodata_full || debug_pagealloc_enabled())
 		flags = NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS;
@@ -493,15 +494,9 @@ static void __init map_mem(pgd_t *pgdp)
 #endif
 
 	/* map all the memory banks */
-	for_each_memblock(memory, reg) {
-		phys_addr_t start = reg->base;
-		phys_addr_t end = start + reg->size;
-
+	for_each_mem_range(i, &start, &end) {
 		if (start >= end)
 			break;
-		if (memblock_is_nomap(reg))
-			continue;
-
 		/*
 		 * The linear map must allow allocation tags reading/writing
 		 * if MTE is present. Otherwise, it has the same attributes as

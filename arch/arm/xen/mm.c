@@ -25,11 +25,12 @@
 
 unsigned long xen_get_swiotlb_free_pages(unsigned int order)
 {
-	struct memblock_region *reg;
+	phys_addr_t base;
 	gfp_t flags = __GFP_NOWARN|__GFP_KSWAPD_RECLAIM;
+	u64 i;
 
-	for_each_memblock(memory, reg) {
-		if (reg->base < (phys_addr_t)0xffffffff) {
+	for_each_mem_range(i, &base, NULL) {
+		if (base < (phys_addr_t)0xffffffff) {
 			if (IS_ENABLED(CONFIG_ZONE_DMA32))
 				flags |= __GFP_DMA32;
 			else

@@ -2306,13 +2306,13 @@ void vma_adjust_trans_huge(struct vm_area_struct *vma,
 
 	/*
 	 * If we're also updating the vma->vm_next->vm_start, if the new
-	 * vm_next->vm_start isn't page aligned and it could previously
+	 * vm_next->vm_start isn't hpage aligned and it could previously
 	 * contain an hugepage: check if we need to split an huge pmd.
 	 */
 	if (adjust_next > 0) {
 		struct vm_area_struct *next = vma->vm_next;
 		unsigned long nstart = next->vm_start;
-		nstart += adjust_next << PAGE_SHIFT;
+		nstart += adjust_next;
 		if (nstart & ~HPAGE_PMD_MASK &&
 		    (nstart & HPAGE_PMD_MASK) >= next->vm_start &&
 		    (nstart & HPAGE_PMD_MASK) + HPAGE_PMD_SIZE <= next->vm_end)

@@ -484,8 +484,9 @@ static struct resource __initdata *standard_resources[] = {
 static void __init setup_resources(void)
 {
 	struct resource *res, *std_res, *sub_res;
-	struct memblock_region *reg;
+	phys_addr_t start, end;
 	int j;
+	u64 i;
 
 	code_resource.start = (unsigned long) _text;
 	code_resource.end = (unsigned long) _etext - 1;
@@ -494,7 +495,7 @@ static void __init setup_resources(void)
 	bss_resource.start = (unsigned long) __bss_start;
 	bss_resource.end = (unsigned long) __bss_stop - 1;
 
-	for_each_memblock(memory, reg) {
+	for_each_mem_range(i, &start, &end) {
 		res = memblock_alloc(sizeof(*res), 8);
 		if (!res)
 			panic("%s: Failed to allocate %zu bytes align=0x%x\n",
@@ -502,8 +503,13 @@ static void __init setup_resources(void)
 		res->flags = IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM;
 
 		res->name = "System RAM";
-		res->start = reg->base;
-		res->end = reg->base + reg->size - 1;
+		res->start = start;
+		/*
+		 * In memblock, end points to the first byte after the
+		 * range while in resourses, end points to the last byte in
+		 * the range.
+		 */
+		res->end = end - 1;
 		request_resource(&iomem_resource, res);
 
 		for (j = 0; j < ARRAY_SIZE(standard_resources); j++) {
@@ -776,8 +782,8 @@ static void __init memblock_add_mem_detect_info(void)
 	unsigned long start, end;
 	int i;
 
-	memblock_dbg("physmem info source: %s (%hhd)\n",
-		     get_mem_info_source(), mem_detect.info_source);
+	pr_debug("physmem info source: %s (%hhd)\n",
+		 get_mem_info_source(), mem_detect.info_source);
 	/* keep memblock lists close to the kernel */
 	memblock_set_bottom_up(true);
 	for_each_mem_detect_block(i, &start, &end) {
@@ -819,14 +825,15 @@ static void __init reserve_kernel(void)
 
 static void __init setup_memory(void)
 {
-	struct memblock_region *reg;
+	phys_addr_t start, end;
+	u64 i;
 
 	/*
 	 * Init storage key for present memory
 	 */
-	for_each_memblock(memory, reg) {
-		storage_key_init_range(reg->base, reg->base + reg->size);
-	}
+	for_each_mem_range(i, &start, &end)
+		storage_key_init_range(start, end);
+
 	psw_set_key(PAGE_DEFAULT_KEY);
 
 	/* Only cosmetics */

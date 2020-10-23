@@ -9,6 +9,7 @@
 #
 abandonning||abandoning
 abigious||ambiguous
+abitrary||arbitrary
 abitrate||arbitrate
 abnornally||abnormally
 abnrormal||abnormal
@@ -482,6 +483,7 @@ disgest||digest
 dispalying||displaying
 diplay||display
 directon||direction
+direcly||directly
 direectly||directly
 diregard||disregard
 disassocation||disassociation
@@ -871,6 +873,7 @@ malplace||misplace
 managable||manageable
 managment||management
 mangement||management
+manger||manager
 manoeuvering||maneuvering
 manufaucturing||manufacturing
 mappping||mapping
@@ -1478,6 +1481,7 @@ unsolicitied||unsolicited
 unsuccessfull||unsuccessful
 unsuported||unsupported
 untill||until
+ununsed||unused
 unuseful||useless
 unvalid||invalid
 upate||update
