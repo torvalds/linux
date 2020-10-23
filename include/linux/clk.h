@@ -150,7 +150,7 @@ int clk_get_phase(struct clk *clk);
 int clk_set_duty_cycle(struct clk *clk, unsigned int num, unsigned int den);
 
 /**
- * clk_get_duty_cycle - return the duty cycle ratio of a clock signal
+ * clk_get_scaled_duty_cycle - return the duty cycle ratio of a clock signal
  * @clk: clock signal source
  * @scale: scaling factor to be applied to represent the ratio as an integer
  *
