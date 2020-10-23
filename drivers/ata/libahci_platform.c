@@ -59,7 +59,7 @@ int ahci_platform_enable_phys(struct ahci_host_priv *hpriv)
 		}
 
 		rc = phy_power_on(hpriv->phys[i]);
-		if (rc) {
+		if (rc && !(rc == -EOPNOTSUPP && (hpriv->flags & AHCI_HFLAG_IGN_NOTSUPP_POWER_ON))) {
 			phy_exit(hpriv->phys[i]);
 			goto disable_phys;
 		}
