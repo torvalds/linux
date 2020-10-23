@@ -1691,6 +1691,11 @@ struct smb2_file_eof_info { /* encoding of request for level 10 */
 	__le64 EndOfFile; /* new end of file value */
 } __packed; /* level 20 Set */
 
+struct smb2_file_reparse_point_info {
+	__le64 IndexNumber;
+	__le32 Tag;
+} __packed;
+
 struct smb2_file_network_open_info {
 	__le64 CreationTime;
 	__le64 LastAccessTime;
