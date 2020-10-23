@@ -1264,6 +1264,13 @@ static int bch2_mark_stripe(struct bch_fs *c,
 		m->algorithm	= new_s->algorithm;
 		m->nr_blocks	= new_s->nr_blocks;
 		m->nr_redundant	= new_s->nr_redundant;
+		m->blocks_nonempty = 0;
+
+		for (i = 0; i < new_s->nr_blocks; i++) {
+			m->block_sectors[i] =
+				stripe_blockcount_get(new_s, i);
+			m->blocks_nonempty += !!m->block_sectors[i];
+		}
 
 		if (gc && old_s)
 			update_replicas(c, fs_usage, &m->r.e,
@@ -1274,17 +1281,6 @@ static int bch2_mark_stripe(struct bch_fs *c,
 		if (gc)
 			update_replicas(c, fs_usage, &m->r.e,
 					((s64) m->sectors * m->nr_redundant));
-
-		/* gc recalculates these fields: */
-		if (!(flags & BTREE_TRIGGER_GC)) {
-			m->blocks_nonempty = 0;
-
-			for (i = 0; i < new_s->nr_blocks; i++) {
-				m->block_sectors[i] =
-					stripe_blockcount_get(new_s, i);
-				m->blocks_nonempty += !!m->block_sectors[i];
-			}
-		}
 
 		if (!gc) {
 			spin_lock(&c->ec_stripes_heap_lock);
