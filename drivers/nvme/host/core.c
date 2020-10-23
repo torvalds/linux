@@ -2125,7 +2125,7 @@ static int nvme_update_ns_info(struct nvme_ns *ns, struct nvme_id_ns *id)
 
 	if (blk_queue_is_zoned(ns->queue)) {
 		ret = nvme_revalidate_zones(ns);
-		if (ret)
+		if (ret && !nvme_first_scan(ns->disk))
 			return ret;
 	}
 
