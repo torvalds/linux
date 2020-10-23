@@ -643,13 +643,7 @@ void *msm_gem_get_vaddr(struct drm_gem_object *obj)
  */
 void *msm_gem_get_vaddr_active(struct drm_gem_object *obj)
 {
-	void *ret;
-
-	msm_gem_lock(obj);
-	ret = get_vaddr(obj, __MSM_MADV_PURGED);
-	msm_gem_unlock(obj);
-
-	return ret;
+	return get_vaddr(obj, __MSM_MADV_PURGED);
 }
 
 void msm_gem_put_vaddr_locked(struct drm_gem_object *obj)
@@ -969,15 +963,20 @@ static void free_object(struct msm_gem_object *msm_obj)
 		if (msm_obj->pages)
 			kvfree(msm_obj->pages);
 
+		/* dma_buf_detach() grabs resv lock, so we need to unlock
+		 * prior to drm_prime_gem_destroy
+		 */
+		msm_gem_unlock(obj);
+
 		drm_prime_gem_destroy(obj, msm_obj->sgt);
 	} else {
 		msm_gem_vunmap(obj);
 		put_pages(obj);
+		msm_gem_unlock(obj);
 	}
 
 	drm_gem_object_release(obj);
 
-	msm_gem_unlock(obj);
 	kfree(msm_obj);
 }
 
@@ -1048,8 +1047,6 @@ static int msm_gem_new_impl(struct drm_device *dev,
 	msm_obj = kzalloc(sizeof(*msm_obj), GFP_KERNEL);
 	if (!msm_obj)
 		return -ENOMEM;
-
-	mutex_init(&msm_obj->lock);
 
 	msm_obj->flags = flags;
 	msm_obj->madv = MSM_MADV_WILLNEED;
