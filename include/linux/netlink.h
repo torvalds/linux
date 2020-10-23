@@ -240,7 +240,7 @@ struct netlink_dump_control {
 	int (*done)(struct netlink_callback *);
 	void *data;
 	struct module *module;
-	u16 min_dump_alloc;
+	u32 min_dump_alloc;
 };
 
 int __netlink_dump_start(struct sock *ssk, struct sk_buff *skb,

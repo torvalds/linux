@@ -10213,7 +10213,7 @@ void netdev_run_todo(void)
 		struct net_device *dev = list_first_entry(&unlink_list,
 							  struct net_device,
 							  unlink_list);
-		list_del(&dev->unlink_list);
+		list_del_init(&dev->unlink_list);
 		dev->nested_level = dev->lower_level - 1;
 	}
 #endif

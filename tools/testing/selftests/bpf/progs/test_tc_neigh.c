@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -118,7 +119,7 @@ SEC("dst_ingress") int tc_dst(struct __sk_buff *skb)
 	if (bpf_skb_store_bytes(skb, 0, &zero, sizeof(zero), 0) < 0)
 		return TC_ACT_SHOT;
 
-	return bpf_redirect_neigh(get_dev_ifindex(dev_src), 0);
+	return bpf_redirect_neigh(get_dev_ifindex(dev_src), NULL, 0, 0);
 }
 
 SEC("src_ingress") int tc_src(struct __sk_buff *skb)
@@ -142,7 +143,7 @@ SEC("src_ingress") int tc_src(struct __sk_buff *skb)
 	if (bpf_skb_store_bytes(skb, 0, &zero, sizeof(zero), 0) < 0)
 		return TC_ACT_SHOT;
 
-	return bpf_redirect_neigh(get_dev_ifindex(dev_dst), 0);
+	return bpf_redirect_neigh(get_dev_ifindex(dev_dst), NULL, 0, 0);
 }
 
 char __license[] SEC("license") = "GPL";

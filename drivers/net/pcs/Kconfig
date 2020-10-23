@@ -7,8 +7,7 @@ menu "PCS device drivers"
 
 config PCS_XPCS
 	tristate "Synopsys DesignWare XPCS controller"
-	select MDIO_BUS
-	depends on MDIO_DEVICE
+	depends on MDIO_DEVICE && MDIO_BUS
 	help
 	  This module provides helper functions for Synopsys DesignWare XPCS
 	  controllers.

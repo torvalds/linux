@@ -16,6 +16,7 @@ if CHELSIO_INLINE_CRYPTO
 config CRYPTO_DEV_CHELSIO_TLS
 	tristate "Chelsio Crypto Inline TLS Driver"
 	depends on CHELSIO_T4
+	depends on TLS
 	depends on TLS_TOE
 	help
 	  Support Chelsio Inline TLS with Chelsio crypto accelerator.

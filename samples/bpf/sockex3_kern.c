@@ -44,17 +44,17 @@ static inline void parse_eth_proto(struct __sk_buff *skb, u32 proto)
 	switch (proto) {
 	case ETH_P_8021Q:
 	case ETH_P_8021AD:
-		bpf_tail_call_static(skb, &jmp_table, PARSE_VLAN);
+		bpf_tail_call(skb, &jmp_table, PARSE_VLAN);
 		break;
 	case ETH_P_MPLS_UC:
 	case ETH_P_MPLS_MC:
-		bpf_tail_call_static(skb, &jmp_table, PARSE_MPLS);
+		bpf_tail_call(skb, &jmp_table, PARSE_MPLS);
 		break;
 	case ETH_P_IP:
-		bpf_tail_call_static(skb, &jmp_table, PARSE_IP);
+		bpf_tail_call(skb, &jmp_table, PARSE_IP);
 		break;
 	case ETH_P_IPV6:
-		bpf_tail_call_static(skb, &jmp_table, PARSE_IPV6);
+		bpf_tail_call(skb, &jmp_table, PARSE_IPV6);
 		break;
 	}
 }
