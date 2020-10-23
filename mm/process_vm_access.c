@@ -276,17 +276,20 @@ static ssize_t process_vm_rw(pid_t pid,
 	if (rc < 0)
 		return rc;
 	if (!iov_iter_count(&iter))
-		goto free_iov_l;
-	iov_r = iovec_from_user(rvec, riovcnt, UIO_FASTIOV, iovstack_r, false);
-	if (IS_ERR(iov_r)) {
-		rc = PTR_ERR(iov_r);
-		goto free_iov_l;
-	}
+		goto free_iovecs;
+
+	rc = rw_copy_check_uvector(CHECK_IOVEC_ONLY, rvec, riovcnt, UIO_FASTIOV,
+				   iovstack_r, &iov_r);
+	if (rc <= 0)
+		goto free_iovecs;
+
 	rc = process_vm_rw_core(pid, &iter, iov_r, riovcnt, flags, vm_write);
+
+free_iovecs:
 	if (iov_r != iovstack_r)
 		kfree(iov_r);
-free_iov_l:
 	kfree(iov_l);
+
 	return rc;
 }
 
@@ -330,17 +333,18 @@ compat_process_vm_rw(compat_pid_t pid,
 	if (rc < 0)
 		return rc;
 	if (!iov_iter_count(&iter))
-		goto free_iov_l;
-	iov_r = iovec_from_user((const struct iovec __user *)rvec, riovcnt,
-				UIO_FASTIOV, iovstack_r, true);
-	if (IS_ERR(iov_r)) {
-		rc = PTR_ERR(iov_r);
-		goto free_iov_l;
-	}
+		goto free_iovecs;
+	rc = compat_rw_copy_check_uvector(CHECK_IOVEC_ONLY, rvec, riovcnt,
+					  UIO_FASTIOV, iovstack_r,
+					  &iov_r);
+	if (rc <= 0)
+		goto free_iovecs;
+
 	rc = process_vm_rw_core(pid, &iter, iov_r, riovcnt, flags, vm_write);
+
+free_iovecs:
 	if (iov_r != iovstack_r)
 		kfree(iov_r);
-free_iov_l:
 	kfree(iov_l);
 	return rc;
 }
