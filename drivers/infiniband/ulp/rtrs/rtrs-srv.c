@@ -113,26 +113,16 @@ static bool __rtrs_srv_change_state(struct rtrs_srv_sess *sess,
 	return changed;
 }
 
-static bool rtrs_srv_change_state_get_old(struct rtrs_srv_sess *sess,
-					   enum rtrs_srv_state new_state,
-					   enum rtrs_srv_state *old_state)
+static bool rtrs_srv_change_state(struct rtrs_srv_sess *sess,
+				   enum rtrs_srv_state new_state)
 {
 	bool changed;
 
 	spin_lock_irq(&sess->state_lock);
-	*old_state = sess->state;
 	changed = __rtrs_srv_change_state(sess, new_state);
 	spin_unlock_irq(&sess->state_lock);
 
 	return changed;
-}
-
-static bool rtrs_srv_change_state(struct rtrs_srv_sess *sess,
-				   enum rtrs_srv_state new_state)
-{
-	enum rtrs_srv_state old_state;
-
-	return rtrs_srv_change_state_get_old(sess, new_state, &old_state);
 }
 
 static void free_id(struct rtrs_srv_op *id)
@@ -471,10 +461,7 @@ static int send_io_resp_imm(struct rtrs_srv_con *con, struct rtrs_srv_op *id,
 
 void close_sess(struct rtrs_srv_sess *sess)
 {
-	enum rtrs_srv_state old_state;
-
-	if (rtrs_srv_change_state_get_old(sess, RTRS_SRV_CLOSING,
-					   &old_state))
+	if (rtrs_srv_change_state(sess, RTRS_SRV_CLOSING))
 		queue_work(rtrs_wq, &sess->close_work);
 	WARN_ON(sess->state != RTRS_SRV_CLOSING);
 }
