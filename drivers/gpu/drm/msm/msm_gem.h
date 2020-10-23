@@ -93,6 +93,34 @@ struct msm_gem_object {
 };
 #define to_msm_bo(x) container_of(x, struct msm_gem_object, base)
 
+static inline void
+msm_gem_lock(struct drm_gem_object *obj)
+{
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	mutex_lock(&msm_obj->lock);
+}
+
+static inline int
+msm_gem_lock_interruptible(struct drm_gem_object *obj)
+{
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	return mutex_lock_interruptible(&msm_obj->lock);
+}
+
+static inline void
+msm_gem_unlock(struct drm_gem_object *obj)
+{
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	mutex_unlock(&msm_obj->lock);
+}
+
+static inline bool
+msm_gem_is_locked(struct drm_gem_object *obj)
+{
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	return mutex_is_locked(&msm_obj->lock);
+}
+
 static inline bool is_active(struct msm_gem_object *msm_obj)
 {
 	return atomic_read(&msm_obj->active_count);
