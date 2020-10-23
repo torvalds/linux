@@ -6846,13 +6846,8 @@ static int io_run_task_work_sig(void)
 		return 1;
 	if (!signal_pending(current))
 		return 0;
-	if (current->jobctl & JOBCTL_TASK_WORK) {
-		spin_lock_irq(&current->sighand->siglock);
-		current->jobctl &= ~JOBCTL_TASK_WORK;
-		recalc_sigpending();
-		spin_unlock_irq(&current->sighand->siglock);
-		return 1;
-	}
+	if (test_tsk_thread_flag(current, TIF_NOTIFY_SIGNAL))
+		return -ERESTARTSYS;
 	return -EINTR;
 }
 
