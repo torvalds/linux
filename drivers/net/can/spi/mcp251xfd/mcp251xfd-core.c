@@ -633,14 +633,14 @@ static int mcp251xfd_chip_interrupts_disable(const struct mcp251xfd_priv *priv)
 	return regmap_write(priv->map_reg, MCP251XFD_REG_CRC, 0);
 }
 
-static int mcp251xfd_chip_stop(struct mcp251xfd_priv *priv,
-			       const enum can_state state)
+static void mcp251xfd_chip_stop(struct mcp251xfd_priv *priv,
+				const enum can_state state)
 {
 	priv->can.state = state;
 
 	mcp251xfd_chip_interrupts_disable(priv);
 	mcp251xfd_chip_rx_int_disable(priv);
-	return mcp251xfd_chip_sleep(priv);
+	mcp251xfd_chip_sleep(priv);
 }
 
 static int mcp251xfd_chip_start(struct mcp251xfd_priv *priv)
