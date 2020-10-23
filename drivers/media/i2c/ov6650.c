@@ -685,7 +685,7 @@ static int ov6650_set_fmt(struct v4l2_subdev *sd,
 	switch (mf->code) {
 	case MEDIA_BUS_FMT_Y10_1X10:
 		mf->code = MEDIA_BUS_FMT_Y8_1X8;
-		/* fall through */
+		fallthrough;
 	case MEDIA_BUS_FMT_Y8_1X8:
 	case MEDIA_BUS_FMT_YVYU8_2X8:
 	case MEDIA_BUS_FMT_YUYV8_2X8:
@@ -694,7 +694,7 @@ static int ov6650_set_fmt(struct v4l2_subdev *sd,
 		break;
 	default:
 		mf->code = MEDIA_BUS_FMT_SBGGR8_1X8;
-		/* fall through */
+		fallthrough;
 	case MEDIA_BUS_FMT_SBGGR8_1X8:
 		break;
 	}
@@ -921,55 +921,74 @@ static const struct v4l2_subdev_core_ops ov6650_core_ops = {
 };
 
 /* Request bus settings on camera side */
-static int ov6650_g_mbus_config(struct v4l2_subdev *sd,
-				struct v4l2_mbus_config *cfg)
+static int ov6650_get_mbus_config(struct v4l2_subdev *sd,
+				  unsigned int pad,
+				  struct v4l2_mbus_config *cfg)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	u8 comj, comf;
+	int ret;
 
-	cfg->flags = V4L2_MBUS_MASTER |
-		V4L2_MBUS_PCLK_SAMPLE_RISING | V4L2_MBUS_PCLK_SAMPLE_FALLING |
-		V4L2_MBUS_HSYNC_ACTIVE_HIGH | V4L2_MBUS_HSYNC_ACTIVE_LOW |
-		V4L2_MBUS_VSYNC_ACTIVE_HIGH | V4L2_MBUS_VSYNC_ACTIVE_LOW |
-		V4L2_MBUS_DATA_ACTIVE_HIGH;
+	ret = ov6650_reg_read(client, REG_COMJ, &comj);
+	if (ret)
+		return ret;
+
+	ret = ov6650_reg_read(client, REG_COMF, &comf);
+	if (ret)
+		return ret;
+
+	cfg->flags = V4L2_MBUS_MASTER | V4L2_MBUS_DATA_ACTIVE_HIGH
+		   | ((comj & COMJ_VSYNC_HIGH)  ? V4L2_MBUS_VSYNC_ACTIVE_HIGH
+						: V4L2_MBUS_VSYNC_ACTIVE_LOW)
+		   | ((comf & COMF_HREF_LOW)    ? V4L2_MBUS_HSYNC_ACTIVE_LOW
+						: V4L2_MBUS_HSYNC_ACTIVE_HIGH)
+		   | ((comj & COMJ_PCLK_RISING) ? V4L2_MBUS_PCLK_SAMPLE_RISING
+						: V4L2_MBUS_PCLK_SAMPLE_FALLING);
 	cfg->type = V4L2_MBUS_PARALLEL;
 
 	return 0;
 }
 
 /* Alter bus settings on camera side */
-static int ov6650_s_mbus_config(struct v4l2_subdev *sd,
-				const struct v4l2_mbus_config *cfg)
+static int ov6650_set_mbus_config(struct v4l2_subdev *sd,
+				  unsigned int pad,
+				  struct v4l2_mbus_config *cfg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int ret;
+	int ret = 0;
 
 	if (cfg->flags & V4L2_MBUS_PCLK_SAMPLE_RISING)
 		ret = ov6650_reg_rmw(client, REG_COMJ, COMJ_PCLK_RISING, 0);
-	else
+	else if (cfg->flags & V4L2_MBUS_PCLK_SAMPLE_FALLING)
 		ret = ov6650_reg_rmw(client, REG_COMJ, 0, COMJ_PCLK_RISING);
 	if (ret)
 		return ret;
 
 	if (cfg->flags & V4L2_MBUS_HSYNC_ACTIVE_LOW)
 		ret = ov6650_reg_rmw(client, REG_COMF, COMF_HREF_LOW, 0);
-	else
+	else if (cfg->flags & V4L2_MBUS_HSYNC_ACTIVE_HIGH)
 		ret = ov6650_reg_rmw(client, REG_COMF, 0, COMF_HREF_LOW);
 	if (ret)
 		return ret;
 
 	if (cfg->flags & V4L2_MBUS_VSYNC_ACTIVE_HIGH)
 		ret = ov6650_reg_rmw(client, REG_COMJ, COMJ_VSYNC_HIGH, 0);
-	else
+	else if (cfg->flags & V4L2_MBUS_VSYNC_ACTIVE_LOW)
 		ret = ov6650_reg_rmw(client, REG_COMJ, 0, COMJ_VSYNC_HIGH);
+	if (ret)
+		return ret;
 
-	return ret;
+	/*
+	 * Update the configuration to report what is actually applied to
+	 * the hardware.
+	 */
+	return ov6650_get_mbus_config(sd, pad, cfg);
 }
 
 static const struct v4l2_subdev_video_ops ov6650_video_ops = {
 	.s_stream	= ov6650_s_stream,
 	.g_frame_interval = ov6650_g_frame_interval,
 	.s_frame_interval = ov6650_s_frame_interval,
-	.g_mbus_config	= ov6650_g_mbus_config,
-	.s_mbus_config	= ov6650_s_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops ov6650_pad_ops = {
@@ -978,6 +997,8 @@ static const struct v4l2_subdev_pad_ops ov6650_pad_ops = {
 	.set_selection	= ov6650_set_selection,
 	.get_fmt	= ov6650_get_fmt,
 	.set_fmt	= ov6650_set_fmt,
+	.get_mbus_config = ov6650_get_mbus_config,
+	.set_mbus_config = ov6650_set_mbus_config,
 };
 
 static const struct v4l2_subdev_ops ov6650_subdev_ops = {

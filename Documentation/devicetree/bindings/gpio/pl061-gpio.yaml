@@ -51,7 +51,10 @@ properties:
 
   gpio-controller: true
 
+  gpio-line-names: true
+
   gpio-ranges:
+    minItems: 1
     maxItems: 8
 
 required:

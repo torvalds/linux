@@ -51,9 +51,11 @@ struct fw_param {
 
 static struct firmware_header *firmware_header;
 
-/* The string STR is a place holder
+/*
+ * The string STR is a place holder
  * which will be replaced with the actual RELEASE_VERSION
- * during package generation. Please do not modify  */
+ * during package generation. Please do not modify
+ */
 static const char *isp2400_release_version = STR(irci_stable_candrpv_0415_20150521_0458);
 static const char *isp2401_release_version = STR(irci_ecr - master_20150911_0724);
 
@@ -78,7 +80,8 @@ char *sh_css_get_fw_version(void)
 /* Setup sp/sp1 binary */
 static int
 setup_binary(struct ia_css_fw_info *fw, const char *fw_data,
-	     struct ia_css_fw_info *sh_css_fw, unsigned int binary_id) {
+	     struct ia_css_fw_info *sh_css_fw, unsigned int binary_id)
+{
 	const char *blob_data;
 
 	if ((!fw) || (!fw_data))
@@ -102,7 +105,8 @@ setup_binary(struct ia_css_fw_info *fw, const char *fw_data,
 int
 sh_css_load_blob_info(const char *fw, const struct ia_css_fw_info *bi,
 		      struct ia_css_blob_descr *bd,
-		      unsigned int index) {
+		      unsigned int index)
+{
 	const char *name;
 	const unsigned char *blob;
 
@@ -110,14 +114,16 @@ sh_css_load_blob_info(const char *fw, const struct ia_css_fw_info *bi,
 		return -EINVAL;
 
 	/* Special case: only one binary in fw */
-	if (!bi) bi = (const struct ia_css_fw_info *)fw;
+	if (!bi)
+		bi = (const struct ia_css_fw_info *)fw;
 
 	name = fw + bi->blob.prog_name_offset;
 	blob = (const unsigned char *)fw + bi->blob.offset;
 
 	/* sanity check */
-	if (bi->blob.size != bi->blob.text_size + bi->blob.icache_size + bi->blob.data_size + bi->blob.padding_size)
-	{
+	if (bi->blob.size !=
+		bi->blob.text_size + bi->blob.icache_size +
+			bi->blob.data_size + bi->blob.padding_size) {
 		/* sanity check, note the padding bytes added for section to DDR alignment */
 		return -EINVAL;
 	}
@@ -128,21 +134,18 @@ sh_css_load_blob_info(const char *fw, const struct ia_css_fw_info *bi,
 	bd->blob = blob;
 	bd->header = *bi;
 
-	if (bi->type == ia_css_isp_firmware || bi->type == ia_css_sp_firmware)
-	{
+	if (bi->type == ia_css_isp_firmware || bi->type == ia_css_sp_firmware) {
 		char *namebuffer;
 
 		namebuffer = kstrdup(name, GFP_KERNEL);
 		if (!namebuffer)
 			return -ENOMEM;
 		bd->name = fw_minibuffer[index].name = namebuffer;
-	} else
-	{
+	} else {
 		bd->name = name;
 	}
 
-	if (bi->type == ia_css_isp_firmware)
-	{
+	if (bi->type == ia_css_isp_firmware) {
 		size_t paramstruct_size = sizeof(struct ia_css_memory_offsets);
 		size_t configstruct_size = sizeof(struct ia_css_config_memory_offsets);
 		size_t statestruct_size = sizeof(struct ia_css_state_memory_offsets);
@@ -204,7 +207,7 @@ sh_css_check_firmware_version(struct device *dev, const char *fw_data)
 	}
 
 	/* For now, let's just accept a wrong version, even if wrong */
-	return 0;
+	return false;
 }
 
 static const char * const fw_type_name[] = {
@@ -223,7 +226,8 @@ static const char * const fw_acc_type_name[] = {
 
 int
 sh_css_load_firmware(struct device *dev, const char *fw_data,
-		     unsigned int fw_size) {
+		     unsigned int fw_size)
+{
 	unsigned int i;
 	struct ia_css_fw_info *binaries;
 	struct sh_css_fw_bi_file_h *file_header;
@@ -238,7 +242,8 @@ sh_css_load_firmware(struct device *dev, const char *fw_data,
 	firmware_header = (struct firmware_header *)fw_data;
 	file_header = &firmware_header->file_header;
 	binaries = &firmware_header->binary_header;
-	strscpy(FW_rel_ver_name, file_header->version, min(sizeof(FW_rel_ver_name), sizeof(file_header->version)));
+	strscpy(FW_rel_ver_name, file_header->version,
+		min(sizeof(FW_rel_ver_name), sizeof(file_header->version)));
 	ret = sh_css_check_firmware_version(dev, fw_data);
 	if (ret) {
 		IA_CSS_ERROR("CSS code version (%s) and firmware version (%s) mismatch!",
@@ -257,8 +262,7 @@ sh_css_load_firmware(struct device *dev, const char *fw_data,
 
 	sh_css_num_binaries = file_header->binary_nr;
 	/* Only allocate memory for ISP blob info */
-	if (sh_css_num_binaries > NUM_OF_SPS)
-	{
+	if (sh_css_num_binaries > NUM_OF_SPS) {
 		sh_css_blob_info = kmalloc(
 		    (sh_css_num_binaries - NUM_OF_SPS) *
 		    sizeof(*sh_css_blob_info), GFP_KERNEL);
@@ -273,13 +277,13 @@ sh_css_load_firmware(struct device *dev, const char *fw_data,
 	if (!fw_minibuffer)
 		return -ENOMEM;
 
-	for (i = 0; i < sh_css_num_binaries; i++)
-	{
+	for (i = 0; i < sh_css_num_binaries; i++) {
 		struct ia_css_fw_info *bi = &binaries[i];
-		/* note: the var below is made static as it is quite large;
-		   if it is not static it ends up on the stack which could
-		   cause issues for drivers
-		*/
+		/*
+		 * note: the var below is made static as it is quite large;
+		 * if it is not static it ends up on the stack which could
+		 * cause issues for drivers
+		 */
 		static struct ia_css_blob_descr bd;
 		int err;
 
@@ -333,7 +337,11 @@ sh_css_load_firmware(struct device *dev, const char *fw_data,
 				return err;
 
 		} else {
-			/* All subsequent binaries (including bootloaders) (i>NUM_OF_SPS) are ISP firmware */
+			/*
+			 * All subsequent binaries
+			 * (including bootloaders) (i>NUM_OF_SPS)
+			 * are ISP firmware
+			 */
 			if (i < NUM_OF_SPS)
 				return -EINVAL;
 
@@ -374,8 +382,10 @@ ia_css_ptr
 sh_css_load_blob(const unsigned char *blob, unsigned int size)
 {
 	ia_css_ptr target_addr = hmm_alloc(size, HMM_BO_PRIVATE, 0, NULL, 0);
-	/* this will allocate memory aligned to a DDR word boundary which
-	   is required for the CSS DMA to read the instructions. */
+	/*
+	 * this will allocate memory aligned to a DDR word boundary which
+	 * is required for the CSS DMA to read the instructions.
+	 */
 
 	assert(blob);
 	if (target_addr)

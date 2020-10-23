@@ -235,6 +235,7 @@ config SPI_DAVINCI
 
 config SPI_DESIGNWARE
 	tristate "DesignWare SPI controller core support"
+	imply SPI_MEM
 	help
 	  general driver for SPI controller core from DesignWare
 
@@ -250,6 +251,34 @@ config SPI_DW_PCI
 config SPI_DW_MMIO
 	tristate "Memory-mapped io interface driver for DW SPI core"
 	depends on HAS_IOMEM
+
+config SPI_DW_BT1
+	tristate "Baikal-T1 SPI driver for DW SPI core"
+	depends on MIPS_BAIKAL_T1 || COMPILE_TEST
+	help
+	  Baikal-T1 SoC is equipped with three DW APB SSI-based MMIO SPI
+	  controllers. Two of them are pretty much normal: with IRQ, DMA,
+	  FIFOs of 64 words depth, 4x CSs, but the third one as being a
+	  part of the Baikal-T1 System Boot Controller has got a very
+	  limited resources: no IRQ, no DMA, only a single native
+	  chip-select and Tx/Rx FIFO with just 8 words depth available.
+	  The later one is normally connected to an external SPI-nor flash
+	  of 128Mb (in general can be of bigger size).
+
+config SPI_DW_BT1_DIRMAP
+	bool "Directly mapped Baikal-T1 Boot SPI flash support"
+	depends on SPI_DW_BT1
+	select MULTIPLEXER
+	select MUX_MMIO
+	help
+	  Directly mapped SPI flash memory is an interface specific to the
+	  Baikal-T1 System Boot Controller. It is a 16MB MMIO region, which
+	  can be used to access a peripheral memory device just by
+	  reading/writing data from/to it. Note that the system APB bus
+	  will stall during each IO from/to the dirmap region until the
+	  operation is finished. So try not to use it concurrently with
+	  time-critical tasks (like the SPI memory operations implemented
+	  in this driver).
 
 endif
 
@@ -637,7 +666,7 @@ config SPI_QCOM_QSPI
 
 config SPI_QUP
 	tristate "Qualcomm SPI controller with QUP interface"
-	depends on ARCH_QCOM || (ARM && COMPILE_TEST)
+	depends on ARCH_QCOM || COMPILE_TEST
 	help
 	  Qualcomm Universal Peripheral (QUP) core is an AHB slave that
 	  provides a common data path (an output FIFO and an input FIFO)

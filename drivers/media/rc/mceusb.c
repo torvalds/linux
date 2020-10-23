@@ -1070,7 +1070,7 @@ static int mceusb_set_timeout(struct rc_dev *dev, unsigned int timeout)
 	struct mceusb_dev *ir = dev->priv;
 	unsigned int units;
 
-	units = DIV_ROUND_CLOSEST(timeout, US_TO_NS(MCE_TIME_UNIT));
+	units = DIV_ROUND_CLOSEST(timeout, MCE_TIME_UNIT);
 
 	cmdbuf[2] = units >> 8;
 	cmdbuf[3] = units;
@@ -1196,7 +1196,7 @@ static void mceusb_handle_command(struct mceusb_dev *ir, u8 *buf_in)
 	switch (subcmd) {
 	/* 2-byte return value commands */
 	case MCE_RSP_EQIRTIMEOUT:
-		ir->rc->timeout = US_TO_NS((*hi << 8 | *lo) * MCE_TIME_UNIT);
+		ir->rc->timeout = (*hi << 8 | *lo) * MCE_TIME_UNIT;
 		break;
 	case MCE_RSP_EQIRNUMPORTS:
 		ir->num_txports = *hi;
@@ -1291,9 +1291,9 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 				ir->pulse_tunit += rawir.duration;
 				ir->pulse_count++;
 			}
-			rawir.duration *= US_TO_NS(MCE_TIME_UNIT);
+			rawir.duration *= MCE_TIME_UNIT;
 
-			dev_dbg(ir->dev, "Storing %s %u ns (%02x)",
+			dev_dbg(ir->dev, "Storing %s %u us (%02x)",
 				rawir.pulse ? "pulse" : "space",
 				rawir.duration,	ir->buf_in[i]);
 
@@ -1605,8 +1605,8 @@ static struct rc_dev *mceusb_init_rc_dev(struct mceusb_dev *ir)
 	rc->dev.parent = dev;
 	rc->priv = ir;
 	rc->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
-	rc->min_timeout = US_TO_NS(MCE_TIME_UNIT);
-	rc->timeout = MS_TO_NS(100);
+	rc->min_timeout = MCE_TIME_UNIT;
+	rc->timeout = MS_TO_US(100);
 	if (!mceusb_model[ir->model].broken_irtimeout) {
 		rc->s_timeout = mceusb_set_timeout;
 		rc->max_timeout = 10 * IR_DEFAULT_TIMEOUT;

@@ -123,7 +123,7 @@ static int sy8106a_i2c_probe(struct i2c_client *i2c)
 	return 0;
 }
 
-static const struct of_device_id sy8106a_i2c_of_match[] = {
+static const struct of_device_id __maybe_unused sy8106a_i2c_of_match[] = {
 	{ .compatible = "silergy,sy8106a" },
 	{ },
 };

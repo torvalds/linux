@@ -22,15 +22,8 @@
 #include "ia_css_ctc_types.h"
 
 #ifndef PIPE_GENERATION
-#if defined(HAS_VAMEM_VERSION_2)
 #define SH_CSS_ISP_CTC_TABLE_SIZE_LOG2       IA_CSS_VAMEM_2_CTC_TABLE_SIZE_LOG2
 #define SH_CSS_ISP_CTC_TABLE_SIZE            IA_CSS_VAMEM_2_CTC_TABLE_SIZE
-#elif defined(HAS_VAMEM_VERSION_1)
-#define SH_CSS_ISP_CTC_TABLE_SIZE_LOG2       IA_CSS_VAMEM_1_CTC_TABLE_SIZE_LOG2
-#define SH_CSS_ISP_CTC_TABLE_SIZE            IA_CSS_VAMEM_1_CTC_TABLE_SIZE
-#else
-#error "VAMEM should be {VERSION1, VERSION2}"
-#endif
 
 #else
 /* For pipe generation, the size is not relevant */

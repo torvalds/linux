@@ -974,12 +974,7 @@ void camss_delete(struct camss *camss)
  */
 static int camss_remove(struct platform_device *pdev)
 {
-	unsigned int i;
-
 	struct camss *camss = platform_get_drvdata(pdev);
-
-	for (i = 0; i < camss->vfe_num; i++)
-		msm_vfe_stop_streaming(&camss->vfe[i]);
 
 	v4l2_async_notifier_unregister(&camss->notifier);
 	v4l2_async_notifier_cleanup(&camss->notifier);

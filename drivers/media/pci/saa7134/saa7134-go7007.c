@@ -493,7 +493,7 @@ static int saa7134_go7007_fini(struct saa7134_dev *dev)
 	free_page((unsigned long)saa->bottom);
 	v4l2_device_unregister_subdev(&saa->sd);
 	kfree(saa);
-	video_unregister_device(&go->vdev);
+	vb2_video_unregister_device(&go->vdev);
 
 	v4l2_device_put(&go->v4l2_dev);
 	dev->empress_dev = NULL;

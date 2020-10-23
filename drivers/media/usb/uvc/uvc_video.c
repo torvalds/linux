@@ -622,7 +622,7 @@ static u16 uvc_video_clock_host_sof(const struct uvc_clock_sample *sample)
  * to avoid losing precision in the division. Similarly, the host timestamp is
  * computed with
  *
- * TS = ((TS2 - TS1) * PTS + TS1 * SOF2 - TS2 * SOF1) / (SOF2 - SOF1)	     (2)
+ * TS = ((TS2 - TS1) * SOF + TS1 * SOF2 - TS2 * SOF1) / (SOF2 - SOF1)	     (2)
  *
  * SOF values are coded on 11 bits by USB. We extend their precision with 16
  * decimal bits, leading to a 11.16 coding.
@@ -1509,11 +1509,11 @@ static void uvc_video_complete(struct urb *urb)
 	default:
 		uvc_printk(KERN_WARNING, "Non-zero status (%d) in video "
 			"completion handler.\n", urb->status);
-		/* fall through */
+		fallthrough;
 	case -ENOENT:		/* usb_poison_urb() called. */
 		if (stream->frozen)
 			return;
-		/* fall through */
+		fallthrough;
 	case -ECONNRESET:	/* usb_unlink_urb() called. */
 	case -ESHUTDOWN:	/* The endpoint is being disabled. */
 		uvc_queue_cancel(queue, urb->status == -ESHUTDOWN);

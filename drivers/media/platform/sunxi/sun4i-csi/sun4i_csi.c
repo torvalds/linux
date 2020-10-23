@@ -287,6 +287,7 @@ static int sun4i_csi_remove(struct platform_device *pdev)
 
 	v4l2_async_notifier_unregister(&csi->notifier);
 	v4l2_async_notifier_cleanup(&csi->notifier);
+	vb2_video_unregister_device(&csi->vdev);
 	media_device_unregister(&csi->mdev);
 	sun4i_csi_dma_unregister(csi);
 	media_device_cleanup(&csi->mdev);

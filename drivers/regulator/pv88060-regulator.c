@@ -233,13 +233,10 @@ static irqreturn_t pv88060_irq_handler(int irq, void *data)
 
 	if (reg_val & PV88060_E_VDD_FLT) {
 		for (i = 0; i < PV88060_MAX_REGULATORS; i++) {
-			if (chip->rdev[i] != NULL) {
-				regulator_lock(chip->rdev[i]);
+			if (chip->rdev[i] != NULL)
 				regulator_notifier_call_chain(chip->rdev[i],
 					REGULATOR_EVENT_UNDER_VOLTAGE,
 					NULL);
-				regulator_unlock(chip->rdev[i]);
-			}
 		}
 
 		err = regmap_write(chip->regmap, PV88060_REG_EVENT_A,
@@ -252,13 +249,10 @@ static irqreturn_t pv88060_irq_handler(int irq, void *data)
 
 	if (reg_val & PV88060_E_OVER_TEMP) {
 		for (i = 0; i < PV88060_MAX_REGULATORS; i++) {
-			if (chip->rdev[i] != NULL) {
-				regulator_lock(chip->rdev[i]);
+			if (chip->rdev[i] != NULL)
 				regulator_notifier_call_chain(chip->rdev[i],
 					REGULATOR_EVENT_OVER_TEMP,
 					NULL);
-				regulator_unlock(chip->rdev[i]);
-			}
 		}
 
 		err = regmap_write(chip->regmap, PV88060_REG_EVENT_A,

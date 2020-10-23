@@ -94,7 +94,7 @@ static void mtk_mdp_reset_handler(void *priv)
 void mtk_mdp_register_component(struct mtk_mdp_dev *mdp,
 				struct mtk_mdp_comp *comp)
 {
-	list_add(&mdp->comp_list, &comp->node);
+	list_add(&comp->node, &mdp->comp_list);
 }
 
 void mtk_mdp_unregister_component(struct mtk_mdp_dev *mdp,

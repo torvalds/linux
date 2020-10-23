@@ -432,27 +432,27 @@ static void ene_rx_setup(struct ene_device *dev)
 
 select_timeout:
 	if (dev->rx_fan_input_inuse) {
-		dev->rdev->rx_resolution = US_TO_NS(ENE_FW_SAMPLE_PERIOD_FAN);
+		dev->rdev->rx_resolution = ENE_FW_SAMPLE_PERIOD_FAN;
 
 		/* Fan input doesn't support timeouts, it just ends the
 			input with a maximum sample */
 		dev->rdev->min_timeout = dev->rdev->max_timeout =
-			US_TO_NS(ENE_FW_SMPL_BUF_FAN_MSK *
-				ENE_FW_SAMPLE_PERIOD_FAN);
+			ENE_FW_SMPL_BUF_FAN_MSK *
+				ENE_FW_SAMPLE_PERIOD_FAN;
 	} else {
-		dev->rdev->rx_resolution = US_TO_NS(sample_period);
+		dev->rdev->rx_resolution = sample_period;
 
 		/* Theoreticly timeout is unlimited, but we cap it
 		 * because it was seen that on one device, it
 		 * would stop sending spaces after around 250 msec.
 		 * Besides, this is close to 2^32 anyway and timeout is u32.
 		 */
-		dev->rdev->min_timeout = US_TO_NS(127 * sample_period);
-		dev->rdev->max_timeout = US_TO_NS(200000);
+		dev->rdev->min_timeout = 127 * sample_period;
+		dev->rdev->max_timeout = 200000;
 	}
 
 	if (dev->hw_learning_and_tx_capable)
-		dev->rdev->tx_resolution = US_TO_NS(sample_period);
+		dev->rdev->tx_resolution = sample_period;
 
 	if (dev->rdev->timeout > dev->rdev->max_timeout)
 		dev->rdev->timeout = dev->rdev->max_timeout;
@@ -798,7 +798,7 @@ static irqreturn_t ene_isr(int irq, void *data)
 
 		dbg("RX: %d (%s)", hw_sample, pulse ? "pulse" : "space");
 
-		ev.duration = US_TO_NS(hw_sample);
+		ev.duration = hw_sample;
 		ev.pulse = pulse;
 		ir_raw_event_store_with_filter(dev->rdev, &ev);
 	}
@@ -818,7 +818,7 @@ static void ene_setup_default_settings(struct ene_device *dev)
 	dev->learning_mode_enabled = learning_mode_force;
 
 	/* Set reasonable default timeout */
-	dev->rdev->timeout = US_TO_NS(150000);
+	dev->rdev->timeout = MS_TO_US(150);
 }
 
 /* Upload all hardware settings at once. Used at load and resume time */
