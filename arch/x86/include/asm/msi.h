@@ -29,7 +29,8 @@ typedef struct x86_msi_addr_lo {
 			u32	reserved_0		:  2,
 				dest_mode_logical	:  1,
 				redirect_hint		:  1,
-				reserved_1		:  8,
+				reserved_1		:  1,
+				virt_destid_8_14	:  7,
 				destid_0_7		:  8,
 				base_address		: 12;
 		};
