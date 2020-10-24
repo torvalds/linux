@@ -475,25 +475,23 @@
 	status = "disabled";
 };
 
-&mac {
+&mac_sw {
 	status = "okay";
-
-	dual_emac;
 };
 
-&cpsw_emac0 {
+&cpsw_port1 {
 	phy-handle = <&dp83867_0>;
 	phy-mode = "rgmii-id";
-	dual_emac_res_vlan = <1>;
+	ti,dual-emac-pvid = <1>;
 };
 
-&cpsw_emac1 {
+&cpsw_port2 {
 	phy-handle = <&dp83867_1>;
 	phy-mode = "rgmii-id";
-	dual_emac_res_vlan = <2>;
+	ti,dual-emac-pvid = <2>;
 };
 
-&davinci_mdio {
+&davinci_mdio_sw {
 	dp83867_0: ethernet-phy@2 {
 		reg = <2>;
 		ti,rx-internal-delay = <DP83867_RGMIIDCTL_2_25_NS>;
@@ -522,12 +520,12 @@
 };
 
 &dss {
-	status = "ok";
+	status = "okay";
 	vdda_video-supply = <&ldo5_reg>;
 };
 
 &hdmi {
-	status = "ok";
+	status = "okay";
 
 	vdda-supply = <&ldo1_reg>;
 

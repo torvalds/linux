@@ -245,16 +245,16 @@
 &ecspi2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi2>;
-	cs-gpios = <&gpio2 26 GPIO_ACTIVE_HIGH>,
-		   <&gpio2 27 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio2 26 GPIO_ACTIVE_LOW>,
+		   <&gpio2 27 GPIO_ACTIVE_LOW>;
 };
 
 /* SPI0 */
 &ecspi4 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi4>;
-	cs-gpios = <&gpio3 24 GPIO_ACTIVE_HIGH>,
-		   <&gpio3 29 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio3 24 GPIO_ACTIVE_LOW>,
+		   <&gpio3 29 GPIO_ACTIVE_LOW>;
 	status = "okay";
 
 	/* default boot source: workaround #1 for errata ERR006282 */

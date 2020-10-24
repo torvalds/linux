@@ -161,9 +161,11 @@
 			};
 
 			timer2: dual-timer@2000 {
-				compatible = "arm,sp804";
+				compatible = "arm,sp804", "arm,primecell";
 				reg = <0x2000 0x1000>;
-				clocks = <&sysclk>;
+				clocks = <&sysclk>, <&sysclk>, <&sysclk>;
+				clock-names = "timer0clk", "timer1clk",
+					       "apb_pclk";
 				interrupts = <10>;
 				status = "disabled";
 			};
@@ -197,8 +199,8 @@
 				arm,primecell-periphid = <0x00141805>;
 				reg = <0x8000 0x1000>;
 				interrupts = <0>;
-				clocks = <&sysclk>;
-				clock-names = "apb_pclk";
+				clocks = <&sysclk>, <&sysclk>;
+				clock-names = "wdog_clk", "apb_pclk";
 				status = "disabled";
 			};
 		};

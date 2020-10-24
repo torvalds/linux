@@ -448,7 +448,7 @@
 		status = "disabled";
 	};
 
-	pfc: pin-controller@e6050000 {
+	pfc: pinctrl@e6050000 {
 		compatible = "renesas,pfc-sh73a0";
 		reg = <0xe6050000 0x8000>,
 		      <0xe605801c 0x1c>;

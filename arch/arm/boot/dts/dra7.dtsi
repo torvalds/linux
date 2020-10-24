@@ -37,8 +37,8 @@
 		serial7 = &uart8;
 		serial8 = &uart9;
 		serial9 = &uart10;
-		ethernet0 = &cpsw_emac0;
-		ethernet1 = &cpsw_emac1;
+		ethernet0 = &cpsw_port1;
+		ethernet1 = &cpsw_port2;
 		d_can0 = &dcan1;
 		d_can1 = &dcan2;
 		spi0 = &qspi;

@@ -4,7 +4,7 @@
  * Author: Daniel Palmer <daniel@thingy.jp>
  */
 
-#include "infinity.dtsi"
+#include "mstar-infinity.dtsi"
 
 / {
 	memory@20000000 {

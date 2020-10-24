@@ -43,6 +43,7 @@ dtb-$(CONFIG_SOC_AT91SAM9) += \
 	at91-smartkiz.dtb \
 	at91-wb45n.dtb \
 	at91sam9g15ek.dtb \
+	at91sam9g25-gardena-smart-gateway.dtb \
 	at91sam9g25ek.dtb \
 	at91sam9g35ek.dtb \
 	at91sam9x25ek.dtb \
@@ -127,6 +128,7 @@ dtb-$(CONFIG_ARCH_BCM_5301X) += \
 	bcm47094-luxul-xwr-3150-v1.dtb \
 	bcm47094-netgear-r8500.dtb \
 	bcm47094-phicomm-k3.dtb \
+	bcm53016-meraki-mr32.dtb \
 	bcm94708.dtb \
 	bcm94709.dtb \
 	bcm953012er.dtb \
@@ -357,6 +359,8 @@ dtb-$(CONFIG_ARCH_MPS2) += \
 	mps2-an399.dtb
 dtb-$(CONFIG_ARCH_MOXART) += \
 	moxart-uc7112lx.dtb
+dtb-$(CONFIG_ARCH_SD5203) += \
+	sd5203.dtb
 dtb-$(CONFIG_SOC_IMX1) += \
 	imx1-ads.dtb \
 	imx1-apf9328.dtb
@@ -482,6 +486,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6dl-wandboard-revd1.dtb \
 	imx6dl-yapp4-draco.dtb \
 	imx6dl-yapp4-hydra.dtb \
+	imx6dl-yapp4-orion.dtb \
 	imx6dl-yapp4-ursa.dtb \
 	imx6q-apalis-eval.dtb \
 	imx6q-apalis-ixora.dtb \
@@ -531,6 +536,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6q-icore-ofcap12.dtb \
 	imx6q-icore-rqs.dtb \
 	imx6q-kp-tpc.dtb \
+	imx6q-logicpd.dtb \
 	imx6q-marsboard.dtb \
 	imx6q-mccmon6.dtb \
 	imx6q-nitrogen6x.dtb \
@@ -585,6 +591,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6qp-zii-rdu2.dtb
 dtb-$(CONFIG_SOC_IMX6SL) += \
 	imx6sl-evk.dtb \
+	imx6sl-tolino-shine2hd.dtb \
 	imx6sl-tolino-shine3.dtb \
 	imx6sl-warp.dtb
 dtb-$(CONFIG_SOC_IMX6SLL) += \
@@ -868,7 +875,12 @@ dtb-$(CONFIG_ARCH_ORION5X) += \
 dtb-$(CONFIG_ARCH_ACTIONS) += \
 	owl-s500-cubieboard6.dtb \
 	owl-s500-guitar-bb-rev-b.dtb \
+	owl-s500-labrador-base-m.dtb \
+	owl-s500-roseapplepi.dtb \
 	owl-s500-sparky.dtb
+dtb-$(CONFIG_ARCH_PICOXCELL) += \
+	picoxcell-pc7302-pc3x2.dtb \
+	picoxcell-pc7302-pc3x3.dtb
 dtb-$(CONFIG_ARCH_PRIMA2) += \
 	prima2-evb.dtb
 dtb-$(CONFIG_ARCH_PXA) += \
@@ -1047,6 +1059,7 @@ dtb-$(CONFIG_ARCH_STM32) += \
 	stm32746g-eval.dtb \
 	stm32h743i-eval.dtb \
 	stm32h743i-disco.dtb \
+	stm32mp153c-dhcom-drc02.dtb \
 	stm32mp157a-avenger96.dtb \
 	stm32mp157a-dhcor-avenger96.dtb \
 	stm32mp157a-dk1.dtb \
@@ -1056,7 +1069,8 @@ dtb-$(CONFIG_ARCH_STM32) += \
 	stm32mp157c-dk2.dtb \
 	stm32mp157c-ed1.dtb \
 	stm32mp157c-ev1.dtb \
-	stm32mp157c-lxa-mc1.dtb
+	stm32mp157c-lxa-mc1.dtb \
+	stm32mp157c-odyssey.dtb
 dtb-$(CONFIG_MACH_SUN4I) += \
 	sun4i-a10-a1000.dtb \
 	sun4i-a10-ba10-tvbox.dtb \
@@ -1194,6 +1208,7 @@ dtb-$(CONFIG_MACH_SUN8I) += \
 	sun8i-r16-parrot.dtb \
 	sun8i-r40-bananapi-m2-ultra.dtb \
 	sun8i-s3-lichee-zero-plus.dtb \
+	sun8i-s3-pinecube.dtb \
 	sun8i-t3-cqa3t-bv3.dtb \
 	sun8i-v3s-licheepi-zero.dtb \
 	sun8i-v3s-licheepi-zero-dock.dtb \
@@ -1356,9 +1371,9 @@ dtb-$(CONFIG_ARCH_MEDIATEK) += \
 	mt8135-evbp1.dtb
 dtb-$(CONFIG_ARCH_MILBEAUT) += milbeaut-m10v-evb.dtb
 dtb-$(CONFIG_ARCH_MSTARV7) += \
-	infinity-msc313-breadbee_crust.dtb \
-	infinity3-msc313e-breadbee.dtb \
-	mercury5-ssc8336n-midrived08.dtb
+	mstar-infinity-msc313-breadbee_crust.dtb \
+	mstar-infinity3-msc313e-breadbee.dtb \
+	mstar-mercury5-ssc8336n-midrived08.dtb
 dtb-$(CONFIG_ARCH_ZX) += zx296702-ad1.dtb
 dtb-$(CONFIG_ARCH_ASPEED) += \
 	aspeed-ast2500-evb.dtb \
@@ -1371,6 +1386,7 @@ dtb-$(CONFIG_ARCH_ASPEED) += \
 	aspeed-bmc-facebook-tiogapass.dtb \
 	aspeed-bmc-facebook-wedge40.dtb \
 	aspeed-bmc-facebook-wedge100.dtb \
+	aspeed-bmc-facebook-wedge400.dtb \
 	aspeed-bmc-facebook-yamp.dtb \
 	aspeed-bmc-facebook-yosemitev2.dtb \
 	aspeed-bmc-ibm-rainier.dtb \
@@ -1381,6 +1397,7 @@ dtb-$(CONFIG_ARCH_ASPEED) += \
 	aspeed-bmc-microsoft-olympus.dtb \
 	aspeed-bmc-opp-lanyang.dtb \
 	aspeed-bmc-opp-mihawk.dtb \
+	aspeed-bmc-opp-mowgli.dtb \
 	aspeed-bmc-opp-nicole.dtb \
 	aspeed-bmc-opp-palmetto.dtb \
 	aspeed-bmc-opp-romulus.dtb \

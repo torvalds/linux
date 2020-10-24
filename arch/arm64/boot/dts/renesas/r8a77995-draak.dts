@@ -393,10 +393,8 @@
 
 &pfc {
 	avb0_pins: avb {
-		mux {
-			groups = "avb0_link", "avb0_mdio", "avb0_mii";
-			function = "avb0";
-		};
+		groups = "avb0_link", "avb0_mdio", "avb0_mii";
+		function = "avb0";
 	};
 
 	can0_pins: can0 {

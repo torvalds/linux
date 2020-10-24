@@ -14,7 +14,7 @@
 		bootargs = "console=ttyS0,115200";
 	};
 
-	memory {
+	memory@20000000 {
 		reg = <0x20000000 0x4000000>;
 	};
 
@@ -52,6 +52,7 @@
 					&pinctrl_mmc0_clk
 					&pinctrl_mmc0_slot0_cmd_dat0
 					&pinctrl_mmc0_slot0_dat1_3>;
+				pinctrl-names = "default";
 				status = "okay";
 				slot@0 {
 					reg = <0>;

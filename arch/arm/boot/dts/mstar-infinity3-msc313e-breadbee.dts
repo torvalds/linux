@@ -5,7 +5,7 @@
  */
 
 /dts-v1/;
-#include "infinity3-msc313e.dtsi"
+#include "mstar-infinity3-msc313e.dtsi"
 
 / {
 	model = "BreadBee";
