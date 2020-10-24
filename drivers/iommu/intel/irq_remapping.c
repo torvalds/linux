@@ -1280,9 +1280,9 @@ static void intel_irq_remapping_prepare_irte(struct intel_ir_data *data,
 					     int index, int sub_handle)
 {
 	struct irte *irte = &data->irte_entry;
-	struct IO_APIC_route_entry *entry;
 
 	prepare_irte(irte, irq_cfg->vector, irq_cfg->dest_apicid);
+
 	switch (info->type) {
 	case X86_IRQ_ALLOC_TYPE_IOAPIC:
 		/* Set source-id of interrupt request */
@@ -1293,39 +1293,20 @@ static void intel_irq_remapping_prepare_irte(struct intel_ir_data *data,
 			irte->trigger_mode, irte->dlvry_mode,
 			irte->avail, irte->vector, irte->dest_id,
 			irte->sid, irte->sq, irte->svt);
-
-		entry = info->ioapic.entry;
-		info->ioapic.entry = NULL;
-		memset(entry, 0, sizeof(*entry));
-		entry->ir_index_15	= !!(index & 0x8000);
-		entry->ir_format	= true;
-		entry->ir_index_0_14	= index & 0x7fff;
-		/*
-		 * IO-APIC RTE will be configured with virtual vector.
-		 * irq handler will do the explicit EOI to the io-apic.
-		 */
-		entry->vector		= info->ioapic.pin;
-		entry->is_level		= info->ioapic.is_level;
-		entry->active_low	= info->ioapic.active_low;
-		/* Mask level triggered irqs. */
-		entry->masked		= info->ioapic.is_level;
+		sub_handle = info->ioapic.pin;
 		break;
-
 	case X86_IRQ_ALLOC_TYPE_HPET:
+		set_hpet_sid(irte, info->devid);
+		break;
 	case X86_IRQ_ALLOC_TYPE_PCI_MSI:
 	case X86_IRQ_ALLOC_TYPE_PCI_MSIX:
-		if (info->type == X86_IRQ_ALLOC_TYPE_HPET)
-			set_hpet_sid(irte, info->devid);
-		else
-			set_msi_sid(irte, msi_desc_to_pci_dev(info->desc));
-
-		fill_msi_msg(&data->msi_entry, index, sub_handle);
+		set_msi_sid(irte, msi_desc_to_pci_dev(info->desc));
 		break;
-
 	default:
 		BUG_ON(1);
 		break;
 	}
+	fill_msi_msg(&data->msi_entry, index, sub_handle);
 }
 
 static void intel_free_irq_resources(struct irq_domain *domain,
