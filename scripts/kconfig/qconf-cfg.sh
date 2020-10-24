@@ -11,7 +11,7 @@ if [ -z "$(command -v pkg-config)" ]; then
 fi
 
 if pkg-config --exists $PKG; then
-	echo cflags=\"-std=c++11 -fPIC $(pkg-config --cflags Qt5Core Qt5Gui Qt5Widgets)\"
+	echo cflags=\"-std=c++11 -fPIC $(pkg-config --cflags $PKG)\"
 	echo libs=\"$(pkg-config --libs $PKG)\"
 	echo moc=\"$(pkg-config --variable=host_bins Qt5Core)/moc\"
 	exit 0
