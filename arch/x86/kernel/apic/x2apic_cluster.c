@@ -188,11 +188,9 @@ static struct apic apic_x2apic_cluster __ro_after_init = {
 	.irq_dest_mode			= 1, /* logical */
 
 	.disable_esr			= 0,
-	.dest_logical			= APIC_DEST_LOGICAL,
+
 	.check_apicid_used		= NULL,
-
 	.init_apic_ldr			= init_x2apic_ldr,
-
 	.ioapic_phys_id_map		= NULL,
 	.setup_apic_routing		= NULL,
 	.cpu_present_to_apicid		= default_cpu_present_to_apicid,

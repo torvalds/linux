@@ -1591,7 +1591,7 @@ static void setup_local_APIC(void)
 	apic->init_apic_ldr();
 
 #ifdef CONFIG_X86_32
-	if (apic->dest_logical) {
+	if (apic->irq_dest_mode == 1) {
 		int logical_apicid, ldr_apicid;
 
 		/*
