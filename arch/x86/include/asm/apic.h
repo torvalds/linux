@@ -309,7 +309,8 @@ struct apic {
 	/* dest_logical is used by the IPI functions */
 	u32	dest_logical;
 	u32	disable_esr;
-	u32	irq_delivery_mode;
+
+	enum apic_delivery_modes delivery_mode;
 	u32	irq_dest_mode;
 
 	u32	(*calc_dest_apicid)(unsigned int cpu);

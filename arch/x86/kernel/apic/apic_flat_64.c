@@ -113,7 +113,7 @@ static struct apic apic_flat __ro_after_init = {
 	.apic_id_valid			= default_apic_id_valid,
 	.apic_id_registered		= flat_apic_id_registered,
 
-	.irq_delivery_mode		= dest_Fixed,
+	.delivery_mode			= APIC_DELIVERY_MODE_FIXED,
 	.irq_dest_mode			= 1, /* logical */
 
 	.disable_esr			= 0,
@@ -206,7 +206,7 @@ static struct apic apic_physflat __ro_after_init = {
 	.apic_id_valid			= default_apic_id_valid,
 	.apic_id_registered		= flat_apic_id_registered,
 
-	.irq_delivery_mode		= dest_Fixed,
+	.delivery_mode			= APIC_DELIVERY_MODE_FIXED,
 	.irq_dest_mode			= 0, /* physical */
 
 	.disable_esr			= 0,

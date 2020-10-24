@@ -535,7 +535,7 @@ static void clear_IO_APIC_pin(unsigned int apic, unsigned int pin)
 
 	/* Check delivery_mode to be sure we're not clearing an SMI pin */
 	entry = ioapic_read_entry(apic, pin);
-	if (entry.delivery_mode == dest_SMI)
+	if (entry.delivery_mode == APIC_DELIVERY_MODE_SMI)
 		return;
 
 	/*
@@ -1368,7 +1368,8 @@ void __init enable_IO_APIC(void)
 		/* If the interrupt line is enabled and in ExtInt mode
 		 * I have found the pin where the i8259 is connected.
 		 */
-		if ((entry.mask == 0) && (entry.delivery_mode == dest_ExtINT)) {
+		if ((entry.mask == 0) &&
+		    (entry.delivery_mode == APIC_DELIVERY_MODE_EXTINT)) {
 			ioapic_i8259.apic = apic;
 			ioapic_i8259.pin  = pin;
 			goto found_i8259;
@@ -1416,7 +1417,7 @@ void native_restore_boot_irq_mode(void)
 		entry.trigger		= IOAPIC_EDGE;
 		entry.polarity		= IOAPIC_POL_HIGH;
 		entry.dest_mode		= IOAPIC_DEST_MODE_PHYSICAL;
-		entry.delivery_mode	= dest_ExtINT;
+		entry.delivery_mode	= APIC_DELIVERY_MODE_EXTINT;
 		entry.dest		= read_apic_id();
 
 		/*
@@ -2047,7 +2048,7 @@ static inline void __init unlock_ExtINT_logic(void)
 	entry1.dest_mode = IOAPIC_DEST_MODE_PHYSICAL;
 	entry1.mask = IOAPIC_UNMASKED;
 	entry1.dest = hard_smp_processor_id();
-	entry1.delivery_mode = dest_ExtINT;
+	entry1.delivery_mode = APIC_DELIVERY_MODE_EXTINT;
 	entry1.polarity = entry0.polarity;
 	entry1.trigger = IOAPIC_EDGE;
 	entry1.vector = 0;
@@ -2948,7 +2949,7 @@ static void mp_setup_entry(struct irq_cfg *cfg, struct mp_chip_data *data,
 			   struct IO_APIC_route_entry *entry)
 {
 	memset(entry, 0, sizeof(*entry));
-	entry->delivery_mode = apic->irq_delivery_mode;
+	entry->delivery_mode = apic->delivery_mode;
 	entry->dest_mode     = apic->irq_dest_mode;
 	entry->dest	     = cfg->dest_apicid;
 	entry->vector	     = cfg->vector;

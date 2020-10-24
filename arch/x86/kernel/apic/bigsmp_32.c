@@ -127,7 +127,7 @@ static struct apic apic_bigsmp __ro_after_init = {
 	.apic_id_valid			= default_apic_id_valid,
 	.apic_id_registered		= bigsmp_apic_id_registered,
 
-	.irq_delivery_mode		= dest_Fixed,
+	.delivery_mode			= APIC_DELIVERY_MODE_FIXED,
 	/* phys delivery to target CPU: */
 	.irq_dest_mode			= 0,
 
