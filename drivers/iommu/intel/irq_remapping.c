@@ -1306,11 +1306,10 @@ static void intel_irq_remapping_prepare_irte(struct intel_ir_data *data,
 		 * irq handler will do the explicit EOI to the io-apic.
 		 */
 		entry->vector	= info->ioapic.pin;
-		entry->mask	= 0;			/* enable IRQ */
-		entry->trigger	= info->ioapic.trigger;
-		entry->polarity	= info->ioapic.polarity;
-		if (info->ioapic.trigger)
-			entry->mask = 1; /* Mask level triggered irqs. */
+		entry->trigger	= info->ioapic.is_level;
+		entry->polarity	= info->ioapic.active_low;
+		/* Mask level triggered irqs. */
+		entry->mask	= info->ioapic.is_level;
 		break;
 
 	case X86_IRQ_ALLOC_TYPE_HPET:

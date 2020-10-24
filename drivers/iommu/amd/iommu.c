@@ -3687,13 +3687,11 @@ static void irq_remapping_prepare_irte(struct amd_ir_data *data,
 		entry = info->ioapic.entry;
 		info->ioapic.entry = NULL;
 		memset(entry, 0, sizeof(*entry));
-		entry->vector        = index;
-		entry->mask          = 0;
-		entry->trigger       = info->ioapic.trigger;
-		entry->polarity      = info->ioapic.polarity;
+		entry->vector	= index;
+		entry->trigger	= info->ioapic.is_level;
+		entry->polarity	= info->ioapic.active_low;
 		/* Mask level triggered irqs. */
-		if (info->ioapic.trigger)
-			entry->mask = 1;
+		entry->mask	= info->ioapic.is_level;
 		break;
 
 	case X86_IRQ_ALLOC_TYPE_HPET:

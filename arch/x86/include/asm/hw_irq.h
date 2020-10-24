@@ -47,9 +47,9 @@ enum irq_alloc_type {
 struct ioapic_alloc_info {
 	int				pin;
 	int				node;
-	u32				trigger : 1;
-	u32				polarity : 1;
-	u32				valid : 1;
+	u32				is_level	: 1;
+	u32				active_low	: 1;
+	u32				valid		: 1;
 	struct IO_APIC_route_entry	*entry;
 };
 
