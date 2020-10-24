@@ -261,9 +261,9 @@ For the static assignment and unallocation of device identifiers, the
 It is recommended that device identifiers be dynamically assigned to the
 ``alloc_chrdev_region`` function.
 
-The ``my_minor_count`` sequence reserves my_minor_count devices, starting with
-``my_major`` major and my_first_minor minor (if the max value for minor is
-exceeded, move to the next major):
+Below sequence reserves ``my_minor_count`` devices, starting with ``my_major``
+major and ``my_first_minor`` minor (if the max value for minor is exceeded,
+move to the next major):
 
 .. code-block:: c
 
@@ -375,13 +375,13 @@ Access to the address space of the process
 ==========================================
 
 A driver for a device is the interface between an application and hardware. As
-a result, we often have to access a given user-space driver device. Accessing
-process address space can not be done directly (by de-referencing a user-space
-pointer). Direct access of a user-space pointer can lead to incorrect behavior
-(depending on architecture, a user-space pointer may not be valid or mapped to
-kernel-space), a kernel oops (the user-mode pointer can refer to a non-resident
-memory area) or security issues. Proper access to user-space data is done by
-calling the macros / functions below:
+a result, we often have to access user-space data. Accessing it can not be done
+directly (by de-referencing a user-space pointer). Direct access of a
+user-space pointer can lead to incorrect behavior (depending on architecture, a
+user-space pointer may not be valid or mapped to kernel-space), a kernel oops
+(the user-mode pointer can refer to a non-resident memory area) or security
+issues. Proper access to user-space data is done by calling the macros /
+functions below:
 
 .. code-block:: c
 
@@ -397,7 +397,7 @@ calling the macros / functions below:
 All macros / functions return 0 in case of success and another value in case of
 error and have the following roles:
 
-   * ``put_user`` put in the user-space at the address address value of the val;
+   * ``put_user`` store the value ``val`` to user-space address ``address``;
      Type can be one on 8, 16, 32, 64 bit (the maximum supported type depends on the
      hardware platform);
    * ``get_user`` analogue to the previous function, only that val will be set to a
