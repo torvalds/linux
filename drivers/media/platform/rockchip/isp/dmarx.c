@@ -375,6 +375,16 @@ static void update_rawrd(struct rkisp_stream *stream)
 				readl(base + rawwr_addr));
 		}
 	}
+	if (dev->isp_ver == ISP_V20 &&
+	    dev->csi_dev.rd_mode == HDR_RDBK_FRAME1 &&
+	    stream->id == RKISP_STREAM_RAWRD2) {
+		rkisp_write(dev, MI_RAW0_RD_BASE,
+			    rkisp_read(dev, MI_RAW2_RD_BASE, false),
+			    false);
+		rkisp_write(dev, MI_RAW0_RD_LENGTH,
+			    rkisp_read(dev, MI_RAW2_RD_LENGTH, false),
+			    false);
+	}
 }
 
 static struct streams_ops rkisp2_dmarx_streams_ops = {

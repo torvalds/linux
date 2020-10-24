@@ -3432,8 +3432,7 @@ isp_gain_config(struct rkisp_isp_params_vdev *params_vdev,
 	u32 value, i, gain_wsize;
 	u8 mge_en;
 
-	if (dev->csi_dev.rd_mode != HDR_NORMAL &&
-	    dev->csi_dev.rd_mode != HDR_RDBK_FRAME1)
+	if (dev->csi_dev.rd_mode != HDR_NORMAL)
 		mge_en = 1;
 	else
 		mge_en = 0;
