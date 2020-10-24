@@ -11,6 +11,7 @@
 #include "isp_params.h"
 #include "isp_params_v1x.h"
 #include "isp_params_v2x.h"
+#include "isp_params_v21.h"
 
 #define PARAMS_NAME DRIVER_NAME "-input-params"
 #define RKISP_ISP_PARAMS_REQ_BUFS_MIN	2
@@ -277,6 +278,8 @@ static int rkisp_init_params_vdev(struct rkisp_isp_params_vdev *params_vdev)
 
 	if (params_vdev->dev->isp_ver <= ISP_V13)
 		return rkisp_init_params_vdev_v1x(params_vdev);
+	else if (params_vdev->dev->isp_ver == ISP_V21)
+		return rkisp_init_params_vdev_v21(params_vdev);
 	else
 		return rkisp_init_params_vdev_v2x(params_vdev);
 }
@@ -285,6 +288,8 @@ static void rkisp_uninit_params_vdev(struct rkisp_isp_params_vdev *params_vdev)
 {
 	if (params_vdev->dev->isp_ver <= ISP_V13)
 		rkisp_uninit_params_vdev_v1x(params_vdev);
+	else if (params_vdev->dev->isp_ver == ISP_V21)
+		rkisp_uninit_params_vdev_v21(params_vdev);
 	else
 		rkisp_uninit_params_vdev_v2x(params_vdev);
 }

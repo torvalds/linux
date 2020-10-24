@@ -46,6 +46,7 @@ struct rkisp_isp_params_vdev {
 	union {
 		struct rkisp1_isp_params_cfg *isp1x_params;
 		struct isp2x_isp_params_cfg *isp2x_params;
+		struct isp21_isp_params_cfg *isp21_params;
 	};
 	struct v4l2_format vdev_fmt;
 	bool streamon;
