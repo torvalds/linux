@@ -805,7 +805,7 @@ The driver will control a single device with the ``MY_MAJOR`` major and
       .. note:: Entries in /dev are not created by loading the module. These can be created
                 in two ways:
 
-                * manually, using the ``mknod`` command as we will do in the following exercises.
+                * manually, using the ``mknod`` command as we did above.
                 * automatically using udev daemon
 
    4. Unload the kernel module
