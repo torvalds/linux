@@ -47,7 +47,6 @@
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_placement.h>
 #include <drm/ttm/ttm_module.h>
-#include <drm/ttm/ttm_page_alloc.h>
 
 #include <drm/drm_debugfs.h>
 #include <drm/amdgpu_drm.h>
@@ -1383,15 +1382,7 @@ static int amdgpu_ttm_tt_populate(struct ttm_bo_device *bdev,
 		return 0;
 	}
 
-#ifdef CONFIG_SWIOTLB
-	if (adev->need_swiotlb && swiotlb_nr_tbl()) {
-		return ttm_dma_populate(&gtt->ttm, adev->dev, ctx);
-	}
-#endif
-
-	/* fall back to generic helper to populate the page array
-	 * and map them to the device */
-	return ttm_populate_and_map_pages(adev->dev, &gtt->ttm, ctx);
+	return ttm_pool_alloc(&adev->mman.bdev.pool, ttm, ctx);
 }
 
 /**
@@ -1400,7 +1391,8 @@ static int amdgpu_ttm_tt_populate(struct ttm_bo_device *bdev,
  * Unmaps pages of a ttm_tt object from the device address space and
  * unpopulates the page array backing it.
  */
-static void amdgpu_ttm_tt_unpopulate(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
+static void amdgpu_ttm_tt_unpopulate(struct ttm_bo_device *bdev,
+				     struct ttm_tt *ttm)
 {
 	struct amdgpu_ttm_tt *gtt = (void *)ttm;
 	struct amdgpu_device *adev;
@@ -1425,16 +1417,7 @@ static void amdgpu_ttm_tt_unpopulate(struct ttm_bo_device *bdev, struct ttm_tt *
 		return;
 
 	adev = amdgpu_ttm_adev(bdev);
-
-#ifdef CONFIG_SWIOTLB
-	if (adev->need_swiotlb && swiotlb_nr_tbl()) {
-		ttm_dma_unpopulate(&gtt->ttm, adev->dev);
-		return;
-	}
-#endif
-
-	/* fall back to generic helper to unmap and unpopulate array */
-	ttm_unmap_and_unpopulate_pages(adev->dev, &gtt->ttm);
+	return ttm_pool_free(&adev->mman.bdev.pool, ttm);
 }
 
 /**
@@ -2347,16 +2330,22 @@ static int amdgpu_mm_dump_table(struct seq_file *m, void *data)
 	return 0;
 }
 
+static int amdgpu_ttm_pool_debugfs(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *)m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct amdgpu_device *adev = drm_to_adev(dev);
+
+	return ttm_pool_debugfs(&adev->mman.bdev.pool, m);
+}
+
 static const struct drm_info_list amdgpu_ttm_debugfs_list[] = {
 	{"amdgpu_vram_mm", amdgpu_mm_dump_table, 0, (void *)TTM_PL_VRAM},
 	{"amdgpu_gtt_mm", amdgpu_mm_dump_table, 0, (void *)TTM_PL_TT},
 	{"amdgpu_gds_mm", amdgpu_mm_dump_table, 0, (void *)AMDGPU_PL_GDS},
 	{"amdgpu_gws_mm", amdgpu_mm_dump_table, 0, (void *)AMDGPU_PL_GWS},
 	{"amdgpu_oa_mm", amdgpu_mm_dump_table, 0, (void *)AMDGPU_PL_OA},
-	{"ttm_page_pool", ttm_page_alloc_debugfs, 0, NULL},
-#ifdef CONFIG_SWIOTLB
-	{"ttm_dma_page_pool", ttm_dma_page_alloc_debugfs, 0, NULL}
-#endif
+	{"ttm_page_pool", amdgpu_ttm_pool_debugfs, 0, NULL},
 };
 
 /**
@@ -2649,12 +2638,6 @@ int amdgpu_ttm_debugfs_init(struct amdgpu_device *adev)
 	}
 
 	count = ARRAY_SIZE(amdgpu_ttm_debugfs_list);
-
-#ifdef CONFIG_SWIOTLB
-	if (!(adev->need_swiotlb && swiotlb_nr_tbl()))
-		--count;
-#endif
-
 	return amdgpu_debugfs_add_files(adev, amdgpu_ttm_debugfs_list, count);
 #else
 	return 0;
