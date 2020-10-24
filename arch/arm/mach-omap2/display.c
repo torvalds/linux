@@ -1,7 +1,7 @@
 /*
  * OMAP2plus display device setup / initialization.
  *
- * Copyright (C) 2010 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2010 Texas Instruments Incorporated - https://www.ti.com/
  *	Senthilvadivu Guruswamy
  *	Sumit Semwal
  *

@@ -143,22 +143,15 @@ static struct omap_hwmod_ocp_if *am43xx_hwmod_ocp_ifs[] __initdata = {
 	&am43xx_l3_main__l4_hs,
 	&am33xx_l3_main__l3_s,
 	&am33xx_l3_main__l3_instr,
-	&am33xx_l3_main__gfx,
 	&am33xx_l3_s__l3_main,
 	&am43xx_l3_main__emif,
 	&am43xx_wkup_m3__l4_wkup,
-	&am33xx_gfx__l3_main,
 	&am43xx_l4_wkup__wkup_m3,
 	&am43xx_l4_wkup__control,
 	&am43xx_l4_wkup__smartreflex0,
 	&am43xx_l4_wkup__smartreflex1,
 	&am33xx_l3_s__gpmc,
 	&am33xx_l3_main__ocmc,
-	NULL,
-};
-
-static struct omap_hwmod_ocp_if *am43xx_rtc_hwmod_ocp_ifs[] __initdata = {
-	&am33xx_l4_wkup__rtc,
 	NULL,
 };
 
@@ -169,9 +162,6 @@ int __init am43xx_hwmod_init(void)
 	omap_hwmod_am43xx_reg();
 	omap_hwmod_init();
 	ret = omap_hwmod_register_links(am43xx_hwmod_ocp_ifs);
-
-	if (!ret && of_machine_is_compatible("ti,am4372"))
-		ret = omap_hwmod_register_links(am43xx_rtc_hwmod_ocp_ifs);
 
 	return ret;
 }

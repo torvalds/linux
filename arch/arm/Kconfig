@@ -268,9 +268,7 @@ config PHYS_OFFSET
 	depends on !ARM_PATCH_PHYS_VIRT
 	default DRAM_BASE if !MMU
 	default 0x00000000 if ARCH_EBSA110 || \
-			ARCH_FOOTBRIDGE || \
-			ARCH_INTEGRATOR || \
-			ARCH_REALVIEW
+			ARCH_FOOTBRIDGE
 	default 0x10000000 if ARCH_OMAP1 || ARCH_RPC
 	default 0x20000000 if ARCH_S5PV210
 	default 0xc0000000 if ARCH_SA1100
@@ -506,11 +504,12 @@ config ARCH_S3C24XX
 	select GPIOLIB
 	select GENERIC_IRQ_MULTI_HANDLER
 	select HAVE_S3C2410_I2C if I2C
-	select HAVE_S3C2410_WATCHDOG if WATCHDOG
 	select HAVE_S3C_RTC if RTC_CLASS
 	select NEED_MACH_IO_H
+	select S3C2410_WATCHDOG
 	select SAMSUNG_ATAGS
 	select USE_OF
+	select WATCHDOG
 	help
 	  Samsung S3C2410, S3C2412, S3C2413, S3C2416, S3C2440, S3C2442, S3C2443
 	  and S3C2450 SoCs based systems, such as the Simtec Electronics BAST
@@ -639,7 +638,6 @@ source "arch/arm/mach-dove/Kconfig"
 source "arch/arm/mach-ep93xx/Kconfig"
 
 source "arch/arm/mach-exynos/Kconfig"
-source "arch/arm/plat-samsung/Kconfig"
 
 source "arch/arm/mach-footbridge/Kconfig"
 
@@ -712,9 +710,7 @@ source "arch/arm/mach-realview/Kconfig"
 
 source "arch/arm/mach-rockchip/Kconfig"
 
-source "arch/arm/mach-s3c24xx/Kconfig"
-
-source "arch/arm/mach-s3c64xx/Kconfig"
+source "arch/arm/mach-s3c/Kconfig"
 
 source "arch/arm/mach-s5pv210/Kconfig"
 
