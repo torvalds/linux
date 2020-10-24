@@ -8004,7 +8004,7 @@ static int __init vmx_init(void)
 	for_each_possible_cpu(cpu) {
 		INIT_LIST_HEAD(&per_cpu(loaded_vmcss_on_cpu, cpu));
 
-		pi_init(cpu);
+		pi_init_cpu(cpu);
 	}
 
 #ifdef CONFIG_KEXEC_CORE
