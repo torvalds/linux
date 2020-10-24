@@ -1186,6 +1186,8 @@ void mhi_power_down(struct mhi_controller *mhi_cntrl, bool graceful)
 	flush_work(&mhi_cntrl->st_worker);
 
 	disable_irq(mhi_cntrl->irq[0]);
+	if (mhi_cntrl->fbc_image)
+		mhi_free_bhie_table(mhi_cntrl, &mhi_cntrl->fbc_image);
 }
 EXPORT_SYMBOL_GPL(mhi_power_down);
 

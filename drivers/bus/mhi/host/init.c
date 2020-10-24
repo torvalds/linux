@@ -1040,8 +1040,15 @@ void mhi_unregister_controller(struct mhi_controller *mhi_cntrl)
 	unsigned int i;
 
 	mhi_deinit_free_irq(mhi_cntrl);
+	/* Free the memory controller wanted to preserve for BHIe images */
+	if (mhi_cntrl->img_pre_alloc) {
+		mhi_cntrl->img_pre_alloc = false;
+		if (mhi_cntrl->fbc_image)
+			mhi_free_bhie_table(mhi_cntrl, &mhi_cntrl->fbc_image);
+		if (mhi_cntrl->rddm_image)
+			mhi_free_bhie_table(mhi_cntrl, &mhi_cntrl->rddm_image);
+	}
 	mhi_destroy_debugfs(mhi_cntrl);
-
 	destroy_workqueue(mhi_cntrl->hiprio_wq);
 	kfree(mhi_cntrl->mhi_cmd);
 	kfree(mhi_cntrl->mhi_event);
@@ -1162,15 +1169,8 @@ EXPORT_SYMBOL_GPL(mhi_prepare_for_power_up);
 
 void mhi_unprepare_after_power_down(struct mhi_controller *mhi_cntrl)
 {
-	if (mhi_cntrl->fbc_image) {
-		mhi_free_bhie_table(mhi_cntrl, mhi_cntrl->fbc_image);
-		mhi_cntrl->fbc_image = NULL;
-	}
-
-	if (mhi_cntrl->rddm_image) {
-		mhi_free_bhie_table(mhi_cntrl, mhi_cntrl->rddm_image);
-		mhi_cntrl->rddm_image = NULL;
-	}
+	if (mhi_cntrl->rddm_image)
+		mhi_free_bhie_table(mhi_cntrl, &mhi_cntrl->rddm_image);
 
 	mhi_cntrl->bhi = NULL;
 	mhi_cntrl->bhie = NULL;
