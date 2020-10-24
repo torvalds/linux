@@ -23,7 +23,6 @@
 #include <asm/pci-direct.h>
 #include <asm/iommu.h>
 #include <asm/apic.h>
-#include <asm/msidef.h>
 #include <asm/gart.h>
 #include <asm/x86_init.h>
 #include <asm/iommu_table.h>
@@ -1966,10 +1965,16 @@ static int iommu_setup_msi(struct amd_iommu *iommu)
 	return 0;
 }
 
-#define XT_INT_DEST_MODE(x)	(((x) & 0x1ULL) << 2)
-#define XT_INT_DEST_LO(x)	(((x) & 0xFFFFFFULL) << 8)
-#define XT_INT_VEC(x)		(((x) & 0xFFULL) << 32)
-#define XT_INT_DEST_HI(x)	((((x) >> 24) & 0xFFULL) << 56)
+union intcapxt {
+	u64	capxt;
+	u64	reserved_0		:  2,
+		dest_mode_logical	:  1,
+		reserved_1		:  5,
+		destid_0_23		: 24,
+		vector			:  8,
+		reserved_2		: 16,
+		destid_24_31		:  8;
+} __attribute__ ((packed));
 
 /*
  * Setup the IntCapXT registers with interrupt routing information
@@ -1978,28 +1983,29 @@ static int iommu_setup_msi(struct amd_iommu *iommu)
  */
 static void iommu_update_intcapxt(struct amd_iommu *iommu)
 {
-	u64 val;
-	u32 addr_lo = readl(iommu->mmio_base + MMIO_MSI_ADDR_LO_OFFSET);
-	u32 addr_hi = readl(iommu->mmio_base + MMIO_MSI_ADDR_HI_OFFSET);
-	u32 data    = readl(iommu->mmio_base + MMIO_MSI_DATA_OFFSET);
-	bool dm     = (addr_lo >> MSI_ADDR_DEST_MODE_SHIFT) & 0x1;
-	u32 dest    = ((addr_lo >> MSI_ADDR_DEST_ID_SHIFT) & 0xFF);
+	struct msi_msg msg;
+	union intcapxt xt;
+	u32 destid;
 
-	if (x2apic_enabled())
-		dest |= MSI_ADDR_EXT_DEST_ID(addr_hi);
+	msg.address_lo = readl(iommu->mmio_base + MMIO_MSI_ADDR_LO_OFFSET);
+	msg.address_hi = readl(iommu->mmio_base + MMIO_MSI_ADDR_HI_OFFSET);
+	msg.data = readl(iommu->mmio_base + MMIO_MSI_DATA_OFFSET);
 
-	val = XT_INT_VEC(data & 0xFF) |
-	      XT_INT_DEST_MODE(dm) |
-	      XT_INT_DEST_LO(dest) |
-	      XT_INT_DEST_HI(dest);
+	destid = x86_msi_msg_get_destid(&msg, x2apic_enabled());
+
+	xt.capxt = 0ULL;
+	xt.dest_mode_logical = msg.arch_data.dest_mode_logical;
+	xt.vector = msg.arch_data.vector;
+	xt.destid_0_23 = destid & GENMASK(23, 0);
+	xt.destid_24_31 = destid >> 24;
 
 	/**
 	 * Current IOMMU implemtation uses the same IRQ for all
 	 * 3 IOMMU interrupts.
 	 */
-	writeq(val, iommu->mmio_base + MMIO_INTCAPXT_EVT_OFFSET);
-	writeq(val, iommu->mmio_base + MMIO_INTCAPXT_PPR_OFFSET);
-	writeq(val, iommu->mmio_base + MMIO_INTCAPXT_GALOG_OFFSET);
+	writeq(xt.capxt, iommu->mmio_base + MMIO_INTCAPXT_EVT_OFFSET);
+	writeq(xt.capxt, iommu->mmio_base + MMIO_INTCAPXT_PPR_OFFSET);
+	writeq(xt.capxt, iommu->mmio_base + MMIO_INTCAPXT_GALOG_OFFSET);
 }
 
 static void _irq_notifier_notify(struct irq_affinity_notify *notify,
