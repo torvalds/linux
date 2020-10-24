@@ -947,11 +947,11 @@ xfs_free_file_space(
 	endoffset_fsb = XFS_B_TO_FSBT(mp, offset + len);
 
 	/* We can only free complete realtime extents. */
-	if (XFS_IS_REALTIME_INODE(ip)) {
-		xfs_extlen_t	extsz = xfs_get_extsz_hint(ip);
-
-		if ((startoffset_fsb | endoffset_fsb) & (extsz - 1))
-			return -EINVAL;
+	if (XFS_IS_REALTIME_INODE(ip) && mp->m_sb.sb_rextsize > 1) {
+		startoffset_fsb = roundup_64(startoffset_fsb,
+					     mp->m_sb.sb_rextsize);
+		endoffset_fsb = rounddown_64(endoffset_fsb,
+					     mp->m_sb.sb_rextsize);
 	}
 
 	/*
@@ -1146,14 +1146,6 @@ xfs_insert_file_space(
 	ASSERT(xfs_isilocked(ip, XFS_MMAPLOCK_EXCL));
 
 	trace_xfs_insert_file_space(ip);
-
-	/* We can only insert complete realtime extents. */
-	if (XFS_IS_REALTIME_INODE(ip)) {
-		xfs_extlen_t	extsz = xfs_get_extsz_hint(ip);
-
-		if ((stop_fsb | shift_fsb) & (extsz - 1))
-			return -EINVAL;
-	}
 
 	error = xfs_bmap_can_insert_extents(ip, stop_fsb, shift_fsb);
 	if (error)
