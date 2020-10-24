@@ -750,7 +750,9 @@ static int validate_bset(struct bch_fs *c, struct btree *b,
 
 		btree_err_on(bkey_cmp(bn->max_key, b->key.k.p),
 			     BTREE_ERR_MUST_RETRY, c, b, i,
-			     "incorrect max key");
+			     "incorrect max key %llu:%llu",
+			     bn->max_key.inode,
+			     bn->max_key.offset);
 
 		if (write)
 			compat_btree_node(b->c.level, b->c.btree_id, version,
@@ -930,7 +932,8 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct btree *b, bool have_retry
 
 			btree_err_on(!bch2_checksum_type_valid(c, BSET_CSUM_TYPE(i)),
 				     BTREE_ERR_WANT_RETRY, c, b, i,
-				     "unknown checksum type");
+				     "unknown checksum type %llu",
+				     BSET_CSUM_TYPE(i));
 
 			nonce = btree_nonce(i, b->written << 9);
 			csum = csum_vstruct(c, BSET_CSUM_TYPE(i), nonce, b->data);
@@ -957,7 +960,8 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct btree *b, bool have_retry
 
 			btree_err_on(!bch2_checksum_type_valid(c, BSET_CSUM_TYPE(i)),
 				     BTREE_ERR_WANT_RETRY, c, b, i,
-				     "unknown checksum type");
+				     "unknown checksum type %llu",
+				     BSET_CSUM_TYPE(i));
 
 			nonce = btree_nonce(i, b->written << 9);
 			csum = csum_vstruct(c, BSET_CSUM_TYPE(i), nonce, bne);
