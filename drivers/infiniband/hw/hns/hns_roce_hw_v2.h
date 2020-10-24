@@ -44,6 +44,7 @@
 #define HNS_ROCE_VF_SMAC_NUM			32
 #define HNS_ROCE_VF_SGID_NUM			32
 #define HNS_ROCE_VF_SL_NUM			8
+#define HNS_ROCE_VF_GMV_BT_NUM			256
 
 #define HNS_ROCE_V2_MAX_QP_NUM			0x100000
 #define HNS_ROCE_V2_MAX_QPC_TIMER_NUM		0x200
@@ -89,6 +90,7 @@
 
 #define HNS_ROCE_V2_SCCC_SZ			32
 #define HNS_ROCE_V3_SCCC_SZ			64
+#define HNS_ROCE_V3_GMV_ENTRY_SZ		32
 
 #define HNS_ROCE_V2_QPC_TIMER_ENTRY_SZ		PAGE_SIZE
 #define HNS_ROCE_V2_CQC_TIMER_ENTRY_SZ		PAGE_SIZE
@@ -241,6 +243,7 @@ enum hns_roce_opcode_type {
 	HNS_ROCE_OPC_CLR_SCCC				= 0x8509,
 	HNS_ROCE_OPC_QUERY_SCCC				= 0x850a,
 	HNS_ROCE_OPC_RESET_SCCC				= 0x850b,
+	HNS_ROCE_OPC_CFG_GMV_BT				= 0x8510,
 	HNS_SWITCH_PARAMETER_CFG			= 0x1033,
 };
 
@@ -1334,7 +1337,7 @@ struct hns_roce_pf_res_b {
 	__le32	sgid_idx_num;
 	__le32	qid_idx_sl_num;
 	__le32	sccc_bt_idx_num;
-	__le32	rsv;
+	__le32	gmv_idx_num;
 };
 
 #define PF_RES_DATA_1_PF_SMAC_IDX_S 0
@@ -1360,6 +1363,12 @@ struct hns_roce_pf_res_b {
 
 #define PF_RES_DATA_4_PF_SCCC_BT_NUM_S 9
 #define PF_RES_DATA_4_PF_SCCC_BT_NUM_M GENMASK(17, 9)
+
+#define PF_RES_DATA_5_PF_GMV_BT_IDX_S 0
+#define PF_RES_DATA_5_PF_GMV_BT_IDX_M GENMASK(7, 0)
+
+#define PF_RES_DATA_5_PF_GMV_BT_NUM_S 8
+#define PF_RES_DATA_5_PF_GMV_BT_NUM_M GENMASK(16, 8)
 
 struct hns_roce_pf_timer_res_a {
 	__le32	rsv0;
@@ -1425,7 +1434,7 @@ struct hns_roce_vf_res_b {
 	__le32 vf_sgid_idx_num;
 	__le32 vf_qid_idx_sl_num;
 	__le32 vf_sccc_idx_num;
-	__le32 rsv1;
+	__le32 vf_gmv_idx_num;
 };
 
 #define VF_RES_B_DATA_0_VF_ID_S 0
@@ -1454,6 +1463,12 @@ struct hns_roce_vf_res_b {
 
 #define VF_RES_B_DATA_4_VF_SCCC_BT_NUM_S 9
 #define VF_RES_B_DATA_4_VF_SCCC_BT_NUM_M GENMASK(17, 9)
+
+#define VF_RES_B_DATA_5_VF_GMV_BT_IDX_S 0
+#define VF_RES_B_DATA_5_VF_GMV_BT_IDX_M GENMASK(7, 0)
+
+#define VF_RES_B_DATA_5_VF_GMV_BT_NUM_S 16
+#define VF_RES_B_DATA_5_VF_GMV_BT_NUM_M GENMASK(24, 16)
 
 struct hns_roce_vf_switch {
 	__le32 rocee_sel;
@@ -1576,6 +1591,16 @@ struct hns_roce_cfg_smac_tb {
 
 #define CFG_SMAC_TB_VF_SMAC_H_S 0
 #define CFG_SMAC_TB_VF_SMAC_H_M GENMASK(15, 0)
+
+struct hns_roce_cfg_gmv_bt {
+	__le32 gmv_ba_l;
+	__le32 gmv_ba_h;
+	__le32 gmv_bt_idx;
+	__le32 rsv[3];
+};
+
+#define CFG_GMV_BA_H_S 0
+#define CFG_GMV_BA_H_M GENMASK(19, 0)
 
 #define HNS_ROCE_QUERY_PF_CAPS_CMD_NUM 5
 struct hns_roce_query_pf_caps_a {

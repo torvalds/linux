@@ -651,7 +651,24 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 		}
 	}
 
+	if (hr_dev->caps.gmv_entry_sz) {
+		ret = hns_roce_init_hem_table(hr_dev, &hr_dev->gmv_table,
+					      HEM_TYPE_GMV,
+					      hr_dev->caps.gmv_entry_sz,
+					      hr_dev->caps.gmv_entry_num, 1);
+		if (ret) {
+			dev_err(dev,
+				"failed to init gmv table memory, ret = %d\n",
+				ret);
+			goto err_unmap_cqc_timer;
+		}
+	}
+
 	return 0;
+
+err_unmap_cqc_timer:
+	if (hr_dev->caps.cqc_timer_entry_sz)
+		hns_roce_cleanup_hem_table(hr_dev, &hr_dev->cqc_timer_table);
 
 err_unmap_qpc_timer:
 	if (hr_dev->caps.qpc_timer_entry_sz)

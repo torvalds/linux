@@ -75,6 +75,9 @@ bool hns_roce_check_whether_mhop(struct hns_roce_dev *hr_dev, u32 type)
 	case HEM_TYPE_CQC_TIMER:
 		hop_num = hr_dev->caps.cqc_timer_hop_num;
 		break;
+	case HEM_TYPE_GMV:
+		hop_num = hr_dev->caps.gmv_hop_num;
+		break;
 	default:
 		return false;
 	}
@@ -182,6 +185,14 @@ static int get_hem_table_config(struct hns_roce_dev *hr_dev,
 					     + PAGE_SHIFT);
 		mhop->ba_l0_num = hr_dev->caps.srqc_bt_num;
 		mhop->hop_num = hr_dev->caps.srqc_hop_num;
+		break;
+	case HEM_TYPE_GMV:
+		mhop->buf_chunk_size = 1 << (hr_dev->caps.gmv_buf_pg_sz +
+					     PAGE_SHIFT);
+		mhop->bt_chunk_size = 1 << (hr_dev->caps.gmv_ba_pg_sz +
+					    PAGE_SHIFT);
+		mhop->ba_l0_num = hr_dev->caps.gmv_bt_num;
+		mhop->hop_num = hr_dev->caps.gmv_hop_num;
 		break;
 	default:
 		dev_err(dev, "Table %d not support multi-hop addressing!\n",
@@ -1033,6 +1044,10 @@ void hns_roce_cleanup_hem(struct hns_roce_dev *hr_dev)
 	if (hr_dev->caps.trrl_entry_sz)
 		hns_roce_cleanup_hem_table(hr_dev,
 					   &hr_dev->qp_table.trrl_table);
+
+	if (hr_dev->caps.gmv_entry_sz)
+		hns_roce_cleanup_hem_table(hr_dev, &hr_dev->gmv_table);
+
 	hns_roce_cleanup_hem_table(hr_dev, &hr_dev->qp_table.irrl_table);
 	hns_roce_cleanup_hem_table(hr_dev, &hr_dev->qp_table.qp_table);
 	hns_roce_cleanup_hem_table(hr_dev, &hr_dev->mr_table.mtpt_table);
