@@ -185,7 +185,7 @@ enum opt_type {
 	x(inline_data,			u8,				\
 	  OPT_MOUNT|OPT_RUNTIME,					\
 	  OPT_BOOL(),							\
-	  NO_SB_OPT,			false,				\
+	  NO_SB_OPT,			true,				\
 	  NULL,		"Enable inline data extents")			\
 	x(acl,				u8,				\
 	  OPT_FORMAT|OPT_MOUNT,						\

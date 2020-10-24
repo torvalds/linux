@@ -445,10 +445,35 @@ static inline bool bkey_extent_is_direct_data(const struct bkey *k)
 	}
 }
 
+static inline bool bkey_extent_is_inline_data(const struct bkey *k)
+{
+	return  k->type == KEY_TYPE_inline_data ||
+		k->type == KEY_TYPE_indirect_inline_data;
+}
+
+static inline unsigned bkey_inline_data_offset(const struct bkey *k)
+{
+	switch (k->type) {
+	case KEY_TYPE_inline_data:
+		return sizeof(struct bch_inline_data);
+	case KEY_TYPE_indirect_inline_data:
+		return sizeof(struct bch_indirect_inline_data);
+	default:
+		BUG();
+	}
+}
+
+static inline unsigned bkey_inline_data_bytes(const struct bkey *k)
+{
+	return bkey_val_bytes(k) - bkey_inline_data_offset(k);
+}
+
+#define bkey_inline_data_p(_k)	(((void *) (_k).v) + bkey_inline_data_offset((_k).k))
+
 static inline bool bkey_extent_is_data(const struct bkey *k)
 {
-	return bkey_extent_is_direct_data(k) ||
-		k->type == KEY_TYPE_inline_data ||
+	return  bkey_extent_is_direct_data(k) ||
+		bkey_extent_is_inline_data(k) ||
 		k->type == KEY_TYPE_reflink_p;
 }
 
@@ -463,6 +488,7 @@ static inline bool bkey_extent_is_allocation(const struct bkey *k)
 	case KEY_TYPE_reflink_p:
 	case KEY_TYPE_reflink_v:
 	case KEY_TYPE_inline_data:
+	case KEY_TYPE_indirect_inline_data:
 		return true;
 	default:
 		return false;

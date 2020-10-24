@@ -9,6 +9,18 @@
 
 #include <linux/sched/signal.h>
 
+static inline unsigned bkey_type_to_indirect(const struct bkey *k)
+{
+	switch (k->type) {
+	case KEY_TYPE_extent:
+		return KEY_TYPE_reflink_v;
+	case KEY_TYPE_inline_data:
+		return KEY_TYPE_indirect_inline_data;
+	default:
+		return 0;
+	}
+}
+
 /* reflink pointers */
 
 const char *bch2_reflink_p_invalid(const struct bch_fs *c, struct bkey_s_c k)
@@ -71,16 +83,41 @@ void bch2_reflink_v_to_text(struct printbuf *out, struct bch_fs *c,
 	bch2_bkey_ptrs_to_text(out, c, k);
 }
 
+/* indirect inline data */
+
+const char *bch2_indirect_inline_data_invalid(const struct bch_fs *c,
+					      struct bkey_s_c k)
+{
+	if (bkey_val_bytes(k.k) < sizeof(struct bch_indirect_inline_data))
+		return "incorrect value size";
+	return NULL;
+}
+
+void bch2_indirect_inline_data_to_text(struct printbuf *out,
+					struct bch_fs *c, struct bkey_s_c k)
+{
+	struct bkey_s_c_indirect_inline_data d = bkey_s_c_to_indirect_inline_data(k);
+	unsigned datalen = bkey_inline_data_bytes(k.k);
+
+	pr_buf(out, "refcount %llu datalen %u: %*phN",
+	       le64_to_cpu(d.v->refcount), datalen,
+	       min(datalen, 32U), d.v->data);
+}
+
 static int bch2_make_extent_indirect(struct btree_trans *trans,
 				     struct btree_iter *extent_iter,
-				     struct bkey_i_extent *e)
+				     struct bkey_i *orig)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_iter *reflink_iter;
 	struct bkey_s_c k;
-	struct bkey_i_reflink_v *r_v;
+	struct bkey_i *r_v;
 	struct bkey_i_reflink_p *r_p;
+	__le64 *refcount;
 	int ret;
+
+	if (orig->k.type == KEY_TYPE_inline_data)
+		bch2_check_set_feature(c, BCH_FEATURE_reflink_inline_data);
 
 	for_each_btree_key(trans, reflink_iter, BTREE_ID_REFLINK,
 			   POS(0, c->reflink_hint),
@@ -90,7 +127,7 @@ static int bch2_make_extent_indirect(struct btree_trans *trans,
 			continue;
 		}
 
-		if (bkey_deleted(k.k) && e->k.size <= k.k->size)
+		if (bkey_deleted(k.k) && orig->k.size <= k.k->size)
 			break;
 	}
 
@@ -100,29 +137,31 @@ static int bch2_make_extent_indirect(struct btree_trans *trans,
 	/* rewind iter to start of hole, if necessary: */
 	bch2_btree_iter_set_pos(reflink_iter, bkey_start_pos(k.k));
 
-	r_v = bch2_trans_kmalloc(trans, sizeof(*r_v) + bkey_val_bytes(&e->k));
+	r_v = bch2_trans_kmalloc(trans, sizeof(__le64) + bkey_val_bytes(&orig->k));
 	ret = PTR_ERR_OR_ZERO(r_v);
 	if (ret)
 		goto err;
 
-	bkey_reflink_v_init(&r_v->k_i);
+	bkey_init(&r_v->k);
+	r_v->k.type	= bkey_type_to_indirect(&orig->k);
 	r_v->k.p	= reflink_iter->pos;
-	bch2_key_resize(&r_v->k, e->k.size);
-	r_v->k.version	= e->k.version;
+	bch2_key_resize(&r_v->k, orig->k.size);
+	r_v->k.version	= orig->k.version;
 
-	set_bkey_val_u64s(&r_v->k, bkey_val_u64s(&r_v->k) +
-			  bkey_val_u64s(&e->k));
-	r_v->v.refcount	= 0;
-	memcpy(r_v->v.start, e->v.start, bkey_val_bytes(&e->k));
+	set_bkey_val_bytes(&r_v->k, sizeof(__le64) + bkey_val_bytes(&orig->k));
 
-	bch2_trans_update(trans, reflink_iter, &r_v->k_i, 0);
+	refcount	= (void *) &r_v->v;
+	*refcount	= 0;
+	memcpy(refcount + 1, &orig->v, bkey_val_bytes(&orig->k));
+
+	bch2_trans_update(trans, reflink_iter, r_v, 0);
 
 	r_p = bch2_trans_kmalloc(trans, sizeof(*r_p));
 	if (IS_ERR(r_p))
 		return PTR_ERR(r_p);
 
-	e->k.type = KEY_TYPE_reflink_p;
-	r_p = bkey_i_to_reflink_p(&e->k_i);
+	orig->k.type = KEY_TYPE_reflink_p;
+	r_p = bkey_i_to_reflink_p(orig);
 	set_bkey_val_bytes(&r_p->k, sizeof(r_p->v));
 	r_p->v.idx = cpu_to_le64(bkey_start_offset(&r_v->k));
 
@@ -144,8 +183,7 @@ static struct bkey_s_c get_next_src(struct btree_iter *iter, struct bpos end)
 		if (bkey_cmp(iter->pos, end) >= 0)
 			return bkey_s_c_null;
 
-		if (k.k->type == KEY_TYPE_extent ||
-		    k.k->type == KEY_TYPE_reflink_p)
+		if (bkey_extent_is_data(k.k))
 			break;
 	}
 
@@ -218,7 +256,7 @@ s64 bch2_remap_range(struct bch_fs *c,
 		if (!bkey_cmp(dst_iter->pos, dst_end))
 			break;
 
-		if (src_k.k->type == KEY_TYPE_extent) {
+		if (src_k.k->type != KEY_TYPE_reflink_p) {
 			bkey_on_stack_reassemble(&new_src, c, src_k);
 			src_k = bkey_i_to_s_c(new_src.k);
 
@@ -226,7 +264,7 @@ s64 bch2_remap_range(struct bch_fs *c,
 			bch2_cut_back(src_end,		new_src.k);
 
 			ret = bch2_make_extent_indirect(&trans, src_iter,
-						bkey_i_to_extent(new_src.k));
+						new_src.k);
 			if (ret)
 				goto btree_err;
 

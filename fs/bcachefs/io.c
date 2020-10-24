@@ -2000,7 +2000,8 @@ int __bch2_read_indirect_extent(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
-	if (k.k->type != KEY_TYPE_reflink_v) {
+	if (k.k->type != KEY_TYPE_reflink_v &&
+	    k.k->type != KEY_TYPE_indirect_inline_data) {
 		__bcache_io_error(trans->c,
 				"pointer to nonexistent indirect extent");
 		ret = -EIO;
@@ -2027,13 +2028,12 @@ int __bch2_read_extent(struct bch_fs *c, struct bch_read_bio *orig,
 	struct bpos pos = bkey_start_pos(k.k);
 	int pick_ret;
 
-	if (k.k->type == KEY_TYPE_inline_data) {
-		struct bkey_s_c_inline_data d = bkey_s_c_to_inline_data(k);
+	if (bkey_extent_is_inline_data(k.k)) {
 		unsigned bytes = min_t(unsigned, iter.bi_size,
-				       bkey_val_bytes(d.k));
+				       bkey_inline_data_bytes(k.k));
 
 		swap(iter.bi_size, bytes);
-		memcpy_to_bio(&orig->bio, iter, d.v->data);
+		memcpy_to_bio(&orig->bio, iter, bkey_inline_data_p(k));
 		swap(iter.bi_size, bytes);
 		bio_advance_iter(&orig->bio, &iter, bytes);
 		zero_fill_bio_iter(&orig->bio, iter);

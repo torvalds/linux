@@ -1811,6 +1811,18 @@ put_iter:
 	return ret;
 }
 
+static __le64 *bkey_refcount(struct bkey_i *k)
+{
+	switch (k->k.type) {
+	case KEY_TYPE_reflink_v:
+		return &bkey_i_to_reflink_v(k)->v.refcount;
+	case KEY_TYPE_indirect_inline_data:
+		return &bkey_i_to_indirect_inline_data(k)->v.refcount;
+	default:
+		return NULL;
+	}
+}
+
 static int __bch2_trans_mark_reflink_p(struct btree_trans *trans,
 			struct bkey_s_c_reflink_p p,
 			u64 idx, unsigned sectors,
@@ -1819,21 +1831,14 @@ static int __bch2_trans_mark_reflink_p(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	struct btree_iter *iter;
 	struct bkey_s_c k;
-	struct bkey_i_reflink_v *r_v;
+	struct bkey_i *n;
+	__le64 *refcount;
 	s64 ret;
 
 	ret = trans_get_key(trans, BTREE_ID_REFLINK,
 			    POS(0, idx), &iter, &k);
 	if (ret < 0)
 		return ret;
-
-	if (k.k->type != KEY_TYPE_reflink_v) {
-		bch2_fs_inconsistent(c,
-			"%llu:%llu len %u points to nonexistent indirect extent %llu",
-			p.k->p.inode, p.k->p.offset, p.k->size, idx);
-		ret = -EIO;
-		goto err;
-	}
 
 	if ((flags & BTREE_TRIGGER_OVERWRITE) &&
 	    (bkey_start_offset(k.k) < idx ||
@@ -1842,25 +1847,33 @@ static int __bch2_trans_mark_reflink_p(struct btree_trans *trans,
 
 	sectors = k.k->p.offset - idx;
 
-	r_v = bch2_trans_kmalloc(trans, bkey_bytes(k.k));
-	ret = PTR_ERR_OR_ZERO(r_v);
+	n = bch2_trans_kmalloc(trans, bkey_bytes(k.k));
+	ret = PTR_ERR_OR_ZERO(n);
 	if (ret)
 		goto err;
 
-	bkey_reassemble(&r_v->k_i, k);
+	bkey_reassemble(n, k);
 
-	le64_add_cpu(&r_v->v.refcount,
-		     !(flags & BTREE_TRIGGER_OVERWRITE) ? 1 : -1);
+	refcount = bkey_refcount(n);
+	if (!refcount) {
+		bch2_fs_inconsistent(c,
+			"%llu:%llu len %u points to nonexistent indirect extent %llu",
+			p.k->p.inode, p.k->p.offset, p.k->size, idx);
+		ret = -EIO;
+		goto err;
+	}
 
-	if (!r_v->v.refcount) {
-		r_v->k.type = KEY_TYPE_deleted;
-		set_bkey_val_u64s(&r_v->k, 0);
+	le64_add_cpu(refcount, !(flags & BTREE_TRIGGER_OVERWRITE) ? 1 : -1);
+
+	if (!*refcount) {
+		n->k.type = KEY_TYPE_deleted;
+		set_bkey_val_u64s(&n->k, 0);
 	}
 
 	bch2_btree_iter_set_pos(iter, bkey_start_pos(k.k));
 	BUG_ON(iter->uptodate > BTREE_ITER_NEED_PEEK);
 
-	bch2_trans_update(trans, iter, &r_v->k_i, 0);
+	bch2_trans_update(trans, iter, n, 0);
 out:
 	ret = sectors;
 err:
