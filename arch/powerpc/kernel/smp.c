@@ -1240,43 +1240,33 @@ static struct device_node *cpu_to_l2cache(int cpu)
 	return cache;
 }
 
-static bool update_mask_by_l2(int cpu)
+static bool update_mask_by_l2(int cpu, cpumask_var_t *mask)
 {
 	struct cpumask *(*submask_fn)(int) = cpu_sibling_mask;
 	struct device_node *l2_cache, *np;
-	cpumask_var_t mask;
 	int i;
 
+	if (has_big_cores)
+		submask_fn = cpu_smallcore_mask;
+
 	l2_cache = cpu_to_l2cache(cpu);
-	if (!l2_cache) {
-		struct cpumask *(*sibling_mask)(int) = cpu_sibling_mask;
-
-		/*
-		 * If no l2cache for this CPU, assume all siblings to share
-		 * cache with this CPU.
-		 */
-		if (has_big_cores)
-			sibling_mask = cpu_smallcore_mask;
-
-		for_each_cpu(i, sibling_mask(cpu))
+	if (!l2_cache || !*mask) {
+		/* Assume only core siblings share cache with this CPU */
+		for_each_cpu(i, submask_fn(cpu))
 			set_cpus_related(cpu, i, cpu_l2_cache_mask);
 
 		return false;
 	}
 
-	alloc_cpumask_var_node(&mask, GFP_KERNEL, cpu_to_node(cpu));
-	cpumask_and(mask, cpu_online_mask, cpu_cpu_mask(cpu));
-
-	if (has_big_cores)
-		submask_fn = cpu_smallcore_mask;
+	cpumask_and(*mask, cpu_online_mask, cpu_cpu_mask(cpu));
 
 	/* Update l2-cache mask with all the CPUs that are part of submask */
 	or_cpumasks_related(cpu, cpu, submask_fn, cpu_l2_cache_mask);
 
 	/* Skip all CPUs already part of current CPU l2-cache mask */
-	cpumask_andnot(mask, mask, cpu_l2_cache_mask(cpu));
+	cpumask_andnot(*mask, *mask, cpu_l2_cache_mask(cpu));
 
-	for_each_cpu(i, mask) {
+	for_each_cpu(i, *mask) {
 		/*
 		 * when updating the marks the current CPU has not been marked
 		 * online, but we need to update the cache masks
@@ -1286,15 +1276,14 @@ static bool update_mask_by_l2(int cpu)
 		/* Skip all CPUs already part of current CPU l2-cache */
 		if (np == l2_cache) {
 			or_cpumasks_related(cpu, i, submask_fn, cpu_l2_cache_mask);
-			cpumask_andnot(mask, mask, submask_fn(i));
+			cpumask_andnot(*mask, *mask, submask_fn(i));
 		} else {
-			cpumask_andnot(mask, mask, cpu_l2_cache_mask(i));
+			cpumask_andnot(*mask, *mask, cpu_l2_cache_mask(i));
 		}
 
 		of_node_put(np);
 	}
 	of_node_put(l2_cache);
-	free_cpumask_var(mask);
 
 	return true;
 }
@@ -1337,40 +1326,46 @@ static inline void add_cpu_to_smallcore_masks(int cpu)
 	}
 }
 
-static void update_coregroup_mask(int cpu)
+static void update_coregroup_mask(int cpu, cpumask_var_t *mask)
 {
 	struct cpumask *(*submask_fn)(int) = cpu_sibling_mask;
-	cpumask_var_t mask;
 	int coregroup_id = cpu_to_coregroup_id(cpu);
 	int i;
 
-	alloc_cpumask_var_node(&mask, GFP_KERNEL, cpu_to_node(cpu));
-	cpumask_and(mask, cpu_online_mask, cpu_cpu_mask(cpu));
-
 	if (shared_caches)
 		submask_fn = cpu_l2_cache_mask;
+
+	if (!*mask) {
+		/* Assume only siblings are part of this CPU's coregroup */
+		for_each_cpu(i, submask_fn(cpu))
+			set_cpus_related(cpu, i, cpu_coregroup_mask);
+
+		return;
+	}
+
+	cpumask_and(*mask, cpu_online_mask, cpu_cpu_mask(cpu));
 
 	/* Update coregroup mask with all the CPUs that are part of submask */
 	or_cpumasks_related(cpu, cpu, submask_fn, cpu_coregroup_mask);
 
 	/* Skip all CPUs already part of coregroup mask */
-	cpumask_andnot(mask, mask, cpu_coregroup_mask(cpu));
+	cpumask_andnot(*mask, *mask, cpu_coregroup_mask(cpu));
 
-	for_each_cpu(i, mask) {
+	for_each_cpu(i, *mask) {
 		/* Skip all CPUs not part of this coregroup */
 		if (coregroup_id == cpu_to_coregroup_id(i)) {
 			or_cpumasks_related(cpu, i, submask_fn, cpu_coregroup_mask);
-			cpumask_andnot(mask, mask, submask_fn(i));
+			cpumask_andnot(*mask, *mask, submask_fn(i));
 		} else {
-			cpumask_andnot(mask, mask, cpu_coregroup_mask(i));
+			cpumask_andnot(*mask, *mask, cpu_coregroup_mask(i));
 		}
 	}
-	free_cpumask_var(mask);
 }
 
 static void add_cpu_to_masks(int cpu)
 {
 	int first_thread = cpu_first_thread_sibling(cpu);
+	cpumask_var_t mask;
 	int i;
 
 	/*
@@ -1384,10 +1379,15 @@ static void add_cpu_to_masks(int cpu)
 			set_cpus_related(i, cpu, cpu_sibling_mask);
 
 	add_cpu_to_smallcore_masks(cpu);
-	update_mask_by_l2(cpu);
+
+	/* In CPU-hotplug path, hence use GFP_ATOMIC */
+	alloc_cpumask_var_node(&mask, GFP_ATOMIC, cpu_to_node(cpu));
+	update_mask_by_l2(cpu, &mask);
 
 	if (has_coregroup_support())
-		update_coregroup_mask(cpu);
+		update_coregroup_mask(cpu, &mask);
+
+	free_cpumask_var(mask);
 }
 
 /* Activate a secondary processor. */
