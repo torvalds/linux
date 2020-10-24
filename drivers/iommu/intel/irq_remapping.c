@@ -203,13 +203,13 @@ static int modify_irte(struct irq_2_iommu *irq_iommu,
 	return rc;
 }
 
-static struct irq_domain *map_hpet_to_ir(u8 hpet_id)
+static struct intel_iommu *map_hpet_to_iommu(u8 hpet_id)
 {
 	int i;
 
 	for (i = 0; i < MAX_HPET_TBS; i++) {
 		if (ir_hpet[i].id == hpet_id && ir_hpet[i].iommu)
-			return ir_hpet[i].iommu->ir_domain;
+			return ir_hpet[i].iommu;
 	}
 	return NULL;
 }
@@ -223,13 +223,6 @@ static struct intel_iommu *map_ioapic_to_iommu(int apic)
 			return ir_ioapic[i].iommu;
 	}
 	return NULL;
-}
-
-static struct irq_domain *map_ioapic_to_ir(int apic)
-{
-	struct intel_iommu *iommu = map_ioapic_to_iommu(apic);
-
-	return iommu ? iommu->ir_domain : NULL;
 }
 
 static struct irq_domain *map_dev_to_ir(struct pci_dev *dev)
@@ -1418,12 +1411,14 @@ static int intel_irq_remapping_select(struct irq_domain *d,
 				      struct irq_fwspec *fwspec,
 				      enum irq_domain_bus_token bus_token)
 {
-	if (x86_fwspec_is_ioapic(fwspec))
-		return d == map_ioapic_to_ir(fwspec->param[0]);
-	else if (x86_fwspec_is_hpet(fwspec))
-		return d == map_hpet_to_ir(fwspec->param[0]);
+	struct intel_iommu *iommu = NULL;
 
-	return 0;
+	if (x86_fwspec_is_ioapic(fwspec))
+		iommu = map_ioapic_to_iommu(fwspec->param[0]);
+	else if (x86_fwspec_is_hpet(fwspec))
+		iommu = map_hpet_to_iommu(fwspec->param[0]);
+
+	return iommu && d == iommu->ir_domain;
 }
 
 static const struct irq_domain_ops intel_ir_domain_ops = {
