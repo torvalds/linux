@@ -488,6 +488,9 @@ static void mlxsw_emad_transmit_retry(struct mlxsw_core *mlxsw_core,
 		err = mlxsw_emad_transmit(trans->core, trans);
 		if (err == 0)
 			return;
+
+		if (!atomic_dec_and_test(&trans->active))
+			return;
 	} else {
 		err = -EIO;
 	}
