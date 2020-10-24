@@ -309,7 +309,7 @@ struct apic {
 	u32	disable_esr;
 
 	enum apic_delivery_modes delivery_mode;
-	u32	irq_dest_mode;
+	bool	dest_mode_logical;
 
 	u32	(*calc_dest_apicid)(unsigned int cpu);
 

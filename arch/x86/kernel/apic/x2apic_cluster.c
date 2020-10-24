@@ -185,7 +185,7 @@ static struct apic apic_x2apic_cluster __ro_after_init = {
 	.apic_id_registered		= x2apic_apic_id_registered,
 
 	.delivery_mode			= APIC_DELIVERY_MODE_FIXED,
-	.irq_dest_mode			= 1, /* logical */
+	.dest_mode_logical		= true,
 
 	.disable_esr			= 0,
 

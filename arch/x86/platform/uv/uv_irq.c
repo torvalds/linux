@@ -36,7 +36,7 @@ static void uv_program_mmr(struct irq_cfg *cfg, struct uv_irq_2_mmr_pnode *info)
 	entry = (struct uv_IO_APIC_route_entry *)&mmr_value;
 	entry->vector		= cfg->vector;
 	entry->delivery_mode	= apic->delivery_mode;
-	entry->dest_mode	= apic->irq_dest_mode;
+	entry->dest_mode	= apic->dest_mode_logical;
 	entry->polarity		= 0;
 	entry->trigger		= 0;
 	entry->mask		= 0;

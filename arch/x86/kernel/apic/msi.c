@@ -30,9 +30,9 @@ static void __irq_msi_compose_msg(struct irq_cfg *cfg, struct msi_msg *msg,
 
 	msg->address_lo =
 		MSI_ADDR_BASE_LO |
-		((apic->irq_dest_mode == 0) ?
-			MSI_ADDR_DEST_MODE_PHYSICAL :
-			MSI_ADDR_DEST_MODE_LOGICAL) |
+		(apic->dest_mode_logical ?
+			MSI_ADDR_DEST_MODE_LOGICAL :
+			MSI_ADDR_DEST_MODE_PHYSICAL) |
 		MSI_ADDR_REDIRECTION_CPU |
 		MSI_ADDR_DEST_ID(cfg->dest_apicid);
 

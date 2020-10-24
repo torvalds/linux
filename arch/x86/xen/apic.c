@@ -148,8 +148,7 @@ static struct apic xen_pv_apic = {
 	.apic_id_valid 			= xen_id_always_valid,
 	.apic_id_registered 		= xen_id_always_registered,
 
-	/* .irq_delivery_mode - used in native_compose_msi_msg only */
-	/* .irq_dest_mode     - used in native_compose_msi_msg only */
+	/* .delivery_mode and .dest_mode_logical not used by XENPV */
 
 	.disable_esr			= 0,
 

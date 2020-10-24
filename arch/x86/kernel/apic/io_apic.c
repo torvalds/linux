@@ -2950,7 +2950,7 @@ static void mp_setup_entry(struct irq_cfg *cfg, struct mp_chip_data *data,
 {
 	memset(entry, 0, sizeof(*entry));
 	entry->delivery_mode = apic->delivery_mode;
-	entry->dest_mode     = apic->irq_dest_mode;
+	entry->dest_mode     = apic->dest_mode_logical;
 	entry->dest	     = cfg->dest_apicid;
 	entry->vector	     = cfg->vector;
 	entry->trigger	     = data->trigger;

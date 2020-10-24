@@ -158,7 +158,7 @@ static struct apic apic_x2apic_phys __ro_after_init = {
 	.apic_id_registered		= x2apic_apic_id_registered,
 
 	.delivery_mode			= APIC_DELIVERY_MODE_FIXED,
-	.irq_dest_mode			= 0, /* physical */
+	.dest_mode_logical		= false,
 
 	.disable_esr			= 0,
 
