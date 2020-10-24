@@ -175,7 +175,7 @@ data.
 
 The file structure contains, among many fields:
 
-   * ``f_mode``, which specifies read ``FMODE_READ`` (``FMODE_READ``) or write
+   * ``f_mode``, which specifies read (``FMODE_READ``) or write
      (``FMODE_WRITE``);
    * ``f_flags``, which specifies the file opening flags (``O_RDONLY``,
      ``O_NONBLOCK``, ``O_SYNC``, ``O_APPEND``, ``O_TRUNC``, etc.);
@@ -611,7 +611,7 @@ http://lwn.net/Articles/119652/
 
 .. **
 
-``cmd`` is the command sent from user-space. If a value is being sent to the
+``cmd`` is the command sent from user-space. If a value is being sent from the
 user-space call, it can be accessed directly. If a buffer is fetched, the arg
 value will be a pointer to it, and must be accessed through the ``copy_to_user``
 or ``copy_from_user``.
@@ -994,8 +994,7 @@ Add two ioctl operations to the device driver for queuing.
       * ``MY_IOCTL_DOWN`` to add the process to a queue;
       * ``MY_IOCTL_UP`` to remove the process from a queue.
 
-   2. Fill the device structure with a ``wait_queue_head_t`` field and a
-      ``wait_queue_head_t`` flag.
+   2. Fill the device structure with a ``wait_queue_head_t`` field and a flag.
    3. Do not forget to initialize the wait queue and flag.
    4. Remove exclusive access condition from previous exercise
    5. For testing, pass the required command line arguments to the
