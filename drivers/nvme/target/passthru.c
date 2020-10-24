@@ -26,7 +26,7 @@ static u16 nvmet_passthru_override_id_ctrl(struct nvmet_req *req)
 	struct nvme_ctrl *pctrl = ctrl->subsys->passthru_ctrl;
 	u16 status = NVME_SC_SUCCESS;
 	struct nvme_id_ctrl *id;
-	u32 max_hw_sectors;
+	int max_hw_sectors;
 	int page_shift;
 
 	id = kzalloc(sizeof(*id), GFP_KERNEL);
@@ -47,6 +47,13 @@ static u16 nvmet_passthru_override_id_ctrl(struct nvmet_req *req)
 	 */
 	max_hw_sectors = min_not_zero(pctrl->max_segments << (PAGE_SHIFT - 9),
 				      pctrl->max_hw_sectors);
+
+	/*
+	 * nvmet_passthru_map_sg is limitted to using a single bio so limit
+	 * the mdts based on BIO_MAX_PAGES as well
+	 */
+	max_hw_sectors = min_not_zero(BIO_MAX_PAGES << (PAGE_SHIFT - 9),
+				      max_hw_sectors);
 
 	page_shift = NVME_CAP_MPSMIN(ctrl->cap) + 12;
 
@@ -180,18 +187,20 @@ static void nvmet_passthru_req_done(struct request *rq,
 
 static int nvmet_passthru_map_sg(struct nvmet_req *req, struct request *rq)
 {
-	int sg_cnt = req->sg_cnt;
 	struct scatterlist *sg;
 	int op_flags = 0;
 	struct bio *bio;
 	int i, ret;
+
+	if (req->sg_cnt > BIO_MAX_PAGES)
+		return -EINVAL;
 
 	if (req->cmd->common.opcode == nvme_cmd_flush)
 		op_flags = REQ_FUA;
 	else if (nvme_is_write(req->cmd))
 		op_flags = REQ_SYNC | REQ_IDLE;
 
-	bio = bio_alloc(GFP_KERNEL, min(sg_cnt, BIO_MAX_PAGES));
+	bio = bio_alloc(GFP_KERNEL, req->sg_cnt);
 	bio->bi_end_io = bio_put;
 	bio->bi_opf = req_op(rq) | op_flags;
 
@@ -201,7 +210,6 @@ static int nvmet_passthru_map_sg(struct nvmet_req *req, struct request *rq)
 			bio_put(bio);
 			return -EINVAL;
 		}
-		sg_cnt--;
 	}
 
 	ret = blk_rq_append_bio(rq, &bio);
@@ -236,7 +244,7 @@ static void nvmet_passthru_execute_cmd(struct nvmet_req *req)
 		q = ns->queue;
 	}
 
-	rq = nvme_alloc_request(q, req->cmd, BLK_MQ_REQ_NOWAIT, NVME_QID_ANY);
+	rq = nvme_alloc_request(q, req->cmd, 0, NVME_QID_ANY);
 	if (IS_ERR(rq)) {
 		status = NVME_SC_INTERNAL;
 		goto out_put_ns;
