@@ -4,6 +4,8 @@
 
 #include <linux/types.h>
 
+#ifdef CONFIG_GENERIC_MSI_IRQ_DOMAIN
+
 #ifndef NUM_MSI_ALLOC_SCRATCHPAD_REGS
 # define NUM_MSI_ALLOC_SCRATCHPAD_REGS	2
 #endif
@@ -29,5 +31,7 @@ typedef struct msi_alloc_info {
 } msi_alloc_info_t;
 
 #define GENERIC_MSI_DOMAIN_OPS		1
+
+#endif /* CONFIG_GENERIC_MSI_IRQ_DOMAIN */
 
 #endif
