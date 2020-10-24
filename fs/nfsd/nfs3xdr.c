@@ -544,19 +544,6 @@ nfs3svc_decode_renameargs(struct svc_rqst *rqstp, __be32 *p)
 }
 
 int
-nfs3svc_decode_readlinkargs(struct svc_rqst *rqstp, __be32 *p)
-{
-	struct nfsd3_readlinkargs *args = rqstp->rq_argp;
-
-	p = decode_fh(p, &args->fh);
-	if (!p)
-		return 0;
-	args->buffer = page_address(*(rqstp->rq_next_page++));
-
-	return xdr_argsize_check(rqstp, p);
-}
-
-int
 nfs3svc_decode_linkargs(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd3_linkargs *args = rqstp->rq_argp;
