@@ -72,6 +72,28 @@ alternative_cb kvm_update_va_mask
 alternative_cb_end
 .endm
 
+/*
+ * Convert a kernel image address to a PA
+ * reg: kernel address to be converted in place
+ * tmp: temporary register
+ *
+ * The actual code generation takes place in kvm_get_kimage_voffset, and
+ * the instructions below are only there to reserve the space and
+ * perform the register allocation (kvm_get_kimage_voffset uses the
+ * specific registers encoded in the instructions).
+ */
+.macro kimg_pa reg, tmp
+alternative_cb kvm_get_kimage_voffset
+	movz	\tmp, #0
+	movk	\tmp, #0, lsl #16
+	movk	\tmp, #0, lsl #32
+	movk	\tmp, #0, lsl #48
+alternative_cb_end
+
+	/* reg = __pa(reg) */
+	sub	\reg, \reg, \tmp
+.endm
+
 #else
 
 #include <linux/pgtable.h>
