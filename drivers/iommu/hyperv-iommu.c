@@ -52,7 +52,7 @@ static int hyperv_ir_set_affinity(struct irq_data *data,
 		return ret;
 
 	entry = data->chip_data;
-	entry->dest = cfg->dest_apicid;
+	entry->destid_0_7 = cfg->dest_apicid;
 	entry->vector = cfg->vector;
 	send_cleanup_vector(cfg);
 
@@ -125,7 +125,7 @@ static int hyperv_irq_remapping_activate(struct irq_domain *domain,
 	struct irq_cfg *cfg = irqd_cfg(irq_data);
 	struct IO_APIC_route_entry *entry = irq_data->chip_data;
 
-	entry->dest = cfg->dest_apicid;
+	entry->destid_0_7 = cfg->dest_apicid;
 	entry->vector = cfg->vector;
 
 	return 0;

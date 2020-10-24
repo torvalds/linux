@@ -286,31 +286,26 @@ static void io_apic_write(unsigned int apic, unsigned int reg,
 	writel(value, &io_apic->data);
 }
 
-union entry_union {
-	struct { u32 w1, w2; };
-	struct IO_APIC_route_entry entry;
-};
-
 static struct IO_APIC_route_entry __ioapic_read_entry(int apic, int pin)
 {
-	union entry_union eu;
+	struct IO_APIC_route_entry entry;
 
-	eu.w1 = io_apic_read(apic, 0x10 + 2 * pin);
-	eu.w2 = io_apic_read(apic, 0x11 + 2 * pin);
+	entry.w1 = io_apic_read(apic, 0x10 + 2 * pin);
+	entry.w2 = io_apic_read(apic, 0x11 + 2 * pin);
 
-	return eu.entry;
+	return entry;
 }
 
 static struct IO_APIC_route_entry ioapic_read_entry(int apic, int pin)
 {
-	union entry_union eu;
+	struct IO_APIC_route_entry entry;
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&ioapic_lock, flags);
-	eu.entry = __ioapic_read_entry(apic, pin);
+	entry = __ioapic_read_entry(apic, pin);
 	raw_spin_unlock_irqrestore(&ioapic_lock, flags);
 
-	return eu.entry;
+	return entry;
 }
 
 /*
@@ -321,11 +316,8 @@ static struct IO_APIC_route_entry ioapic_read_entry(int apic, int pin)
  */
 static void __ioapic_write_entry(int apic, int pin, struct IO_APIC_route_entry e)
 {
-	union entry_union eu = {{0, 0}};
-
-	eu.entry = e;
-	io_apic_write(apic, 0x11 + 2*pin, eu.w2);
-	io_apic_write(apic, 0x10 + 2*pin, eu.w1);
+	io_apic_write(apic, 0x11 + 2*pin, e.w2);
+	io_apic_write(apic, 0x10 + 2*pin, e.w1);
 }
 
 static void ioapic_write_entry(int apic, int pin, struct IO_APIC_route_entry e)
@@ -344,12 +336,12 @@ static void ioapic_write_entry(int apic, int pin, struct IO_APIC_route_entry e)
  */
 static void ioapic_mask_entry(int apic, int pin)
 {
+	struct IO_APIC_route_entry e = { .masked = true };
 	unsigned long flags;
-	union entry_union eu = { .entry.mask = IOAPIC_MASKED };
 
 	raw_spin_lock_irqsave(&ioapic_lock, flags);
-	io_apic_write(apic, 0x10 + 2*pin, eu.w1);
-	io_apic_write(apic, 0x11 + 2*pin, eu.w2);
+	io_apic_write(apic, 0x10 + 2*pin, e.w1);
+	io_apic_write(apic, 0x11 + 2*pin, e.w2);
 	raw_spin_unlock_irqrestore(&ioapic_lock, flags);
 }
 
@@ -422,20 +414,15 @@ static void __init replace_pin_at_irq_node(struct mp_chip_data *data, int node,
 	add_pin_to_irq_node(data, node, newapic, newpin);
 }
 
-static void io_apic_modify_irq(struct mp_chip_data *data,
-			       int mask_and, int mask_or,
+static void io_apic_modify_irq(struct mp_chip_data *data, bool masked,
 			       void (*final)(struct irq_pin_list *entry))
 {
-	union entry_union eu;
 	struct irq_pin_list *entry;
 
-	eu.entry = data->entry;
-	eu.w1 &= mask_and;
-	eu.w1 |= mask_or;
-	data->entry = eu.entry;
+	data->entry.masked = masked;
 
 	for_each_irq_pin(entry, data->irq_2_pin) {
-		io_apic_write(entry->apic, 0x10 + 2 * entry->pin, eu.w1);
+		io_apic_write(entry->apic, 0x10 + 2 * entry->pin, data->entry.w1);
 		if (final)
 			final(entry);
 	}
@@ -459,13 +446,13 @@ static void mask_ioapic_irq(struct irq_data *irq_data)
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&ioapic_lock, flags);
-	io_apic_modify_irq(data, ~0, IO_APIC_REDIR_MASKED, &io_apic_sync);
+	io_apic_modify_irq(data, true, &io_apic_sync);
 	raw_spin_unlock_irqrestore(&ioapic_lock, flags);
 }
 
 static void __unmask_ioapic(struct mp_chip_data *data)
 {
-	io_apic_modify_irq(data, ~IO_APIC_REDIR_MASKED, 0, NULL);
+	io_apic_modify_irq(data, false, NULL);
 }
 
 static void unmask_ioapic_irq(struct irq_data *irq_data)
@@ -506,8 +493,8 @@ static void __eoi_ioapic_pin(int apic, int pin, int vector)
 		/*
 		 * Mask the entry and change the trigger mode to edge.
 		 */
-		entry1.mask = IOAPIC_MASKED;
-		entry1.trigger = IOAPIC_EDGE;
+		entry1.masked = true;
+		entry1.is_level = false;
 
 		__ioapic_write_entry(apic, pin, entry1);
 
@@ -542,8 +529,8 @@ static void clear_IO_APIC_pin(unsigned int apic, unsigned int pin)
 	 * Make sure the entry is masked and re-read the contents to check
 	 * if it is a level triggered pin and if the remote-IRR is set.
 	 */
-	if (entry.mask == IOAPIC_UNMASKED) {
-		entry.mask = IOAPIC_MASKED;
+	if (!entry.masked) {
+		entry.masked = true;
 		ioapic_write_entry(apic, pin, entry);
 		entry = ioapic_read_entry(apic, pin);
 	}
@@ -556,8 +543,8 @@ static void clear_IO_APIC_pin(unsigned int apic, unsigned int pin)
 		 * doesn't clear the remote-IRR if the trigger mode is not
 		 * set to level.
 		 */
-		if (entry.trigger == IOAPIC_EDGE) {
-			entry.trigger = IOAPIC_LEVEL;
+		if (!entry.is_level) {
+			entry.is_level = true;
 			ioapic_write_entry(apic, pin, entry);
 		}
 		raw_spin_lock_irqsave(&ioapic_lock, flags);
@@ -659,8 +646,8 @@ void mask_ioapic_entries(void)
 			struct IO_APIC_route_entry entry;
 
 			entry = ioapics[apic].saved_registers[pin];
-			if (entry.mask == IOAPIC_UNMASKED) {
-				entry.mask = IOAPIC_MASKED;
+			if (!entry.masked) {
+				entry.masked = true;
 				ioapic_write_entry(apic, pin, entry);
 			}
 		}
@@ -947,8 +934,8 @@ static bool mp_check_pin_attr(int irq, struct irq_alloc_info *info)
 	if (irq < nr_legacy_irqs() && data->count == 1) {
 		if (info->ioapic.is_level != data->is_level)
 			mp_register_handler(irq, info->ioapic.is_level);
-		data->entry.trigger = data->is_level = info->ioapic.is_level;
-		data->entry.polarity = data->active_low = info->ioapic.active_low;
+		data->entry.is_level = data->is_level = info->ioapic.is_level;
+		data->entry.active_low = data->active_low = info->ioapic.active_low;
 	}
 
 	return data->is_level == info->ioapic.is_level &&
@@ -1231,10 +1218,9 @@ void ioapic_zap_locks(void)
 
 static void io_apic_print_entries(unsigned int apic, unsigned int nr_entries)
 {
-	int i;
-	char buf[256];
 	struct IO_APIC_route_entry entry;
-	struct IR_IO_APIC_route_entry *ir_entry = (void *)&entry;
+	char buf[256];
+	int i;
 
 	printk(KERN_DEBUG "IOAPIC %d:\n", apic);
 	for (i = 0; i <= nr_entries; i++) {
@@ -1242,20 +1228,20 @@ static void io_apic_print_entries(unsigned int apic, unsigned int nr_entries)
 		snprintf(buf, sizeof(buf),
 			 " pin%02x, %s, %s, %s, V(%02X), IRR(%1d), S(%1d)",
 			 i,
-			 entry.mask == IOAPIC_MASKED ? "disabled" : "enabled ",
-			 entry.trigger == IOAPIC_LEVEL ? "level" : "edge ",
-			 entry.polarity == IOAPIC_POL_LOW ? "low " : "high",
+			 entry.masked ? "disabled" : "enabled ",
+			 entry.is_level ? "level" : "edge ",
+			 entry.active_low ? "low " : "high",
 			 entry.vector, entry.irr, entry.delivery_status);
-		if (ir_entry->format)
+		if (entry.ir_format) {
 			printk(KERN_DEBUG "%s, remapped, I(%04X),  Z(%X)\n",
-			       buf, (ir_entry->index2 << 15) | ir_entry->index,
-			       ir_entry->zero);
-		else
-			printk(KERN_DEBUG "%s, %s, D(%02X), M(%1d)\n",
 			       buf,
-			       entry.dest_mode == IOAPIC_DEST_MODE_LOGICAL ?
-			       "logical " : "physical",
-			       entry.dest, entry.delivery_mode);
+			       (entry.ir_index_15 << 15) | entry.ir_index_0_14,
+				entry.ir_zero);
+		} else {
+			printk(KERN_DEBUG "%s, %s, D(%02X), M(%1d)\n", buf,
+			       entry.dest_mode_logical ? "logical " : "physical",
+			       entry.destid_0_7, entry.delivery_mode);
+		}
 	}
 }
 
@@ -1380,8 +1366,8 @@ void __init enable_IO_APIC(void)
 		/* If the interrupt line is enabled and in ExtInt mode
 		 * I have found the pin where the i8259 is connected.
 		 */
-		if ((entry.mask == 0) &&
-		    (entry.delivery_mode == APIC_DELIVERY_MODE_EXTINT)) {
+		if (!entry.masked &&
+		    entry.delivery_mode == APIC_DELIVERY_MODE_EXTINT) {
 			ioapic_i8259.apic = apic;
 			ioapic_i8259.pin  = pin;
 			goto found_i8259;
@@ -1425,12 +1411,12 @@ void native_restore_boot_irq_mode(void)
 		struct IO_APIC_route_entry entry;
 
 		memset(&entry, 0, sizeof(entry));
-		entry.mask		= IOAPIC_UNMASKED;
-		entry.trigger		= IOAPIC_EDGE;
-		entry.polarity		= IOAPIC_POL_HIGH;
-		entry.dest_mode		= IOAPIC_DEST_MODE_PHYSICAL;
+		entry.masked		= false;
+		entry.is_level		= false;
+		entry.active_low	= false;
+		entry.dest_mode_logical	= false;
 		entry.delivery_mode	= APIC_DELIVERY_MODE_EXTINT;
-		entry.dest		= read_apic_id();
+		entry.destid_0_7	= read_apic_id();
 
 		/*
 		 * Add it to the IO-APIC irq-routing table:
@@ -1709,13 +1695,13 @@ static bool io_apic_level_ack_pending(struct mp_chip_data *data)
 
 	raw_spin_lock_irqsave(&ioapic_lock, flags);
 	for_each_irq_pin(entry, data->irq_2_pin) {
-		unsigned int reg;
+		struct IO_APIC_route_entry e;
 		int pin;
 
 		pin = entry->pin;
-		reg = io_apic_read(entry->apic, 0x10 + pin*2);
+		e.w1 = io_apic_read(entry->apic, 0x10 + pin*2);
 		/* Is the remote IRR bit set? */
-		if (reg & IO_APIC_REDIR_REMOTE_IRR) {
+		if (e.irr) {
 			raw_spin_unlock_irqrestore(&ioapic_lock, flags);
 			return true;
 		}
@@ -1874,7 +1860,7 @@ static void ioapic_configure_entry(struct irq_data *irqd)
 	 * ioapic chip to verify that.
 	 */
 	if (irqd->chip == &ioapic_chip) {
-		mpd->entry.dest = cfg->dest_apicid;
+		mpd->entry.destid_0_7 = cfg->dest_apicid;
 		mpd->entry.vector = cfg->vector;
 	}
 	for_each_irq_pin(entry, mpd->irq_2_pin)
@@ -1932,7 +1918,7 @@ static int ioapic_irq_get_chip_state(struct irq_data *irqd,
 		 * irrelevant because the IO-APIC treats them as fire and
 		 * forget.
 		 */
-		if (rentry.irr && rentry.trigger) {
+		if (rentry.irr && rentry.is_level) {
 			*state = true;
 			break;
 		}
@@ -2057,12 +2043,12 @@ static inline void __init unlock_ExtINT_logic(void)
 
 	memset(&entry1, 0, sizeof(entry1));
 
-	entry1.dest_mode = IOAPIC_DEST_MODE_PHYSICAL;
-	entry1.mask = IOAPIC_UNMASKED;
-	entry1.dest = hard_smp_processor_id();
-	entry1.delivery_mode = APIC_DELIVERY_MODE_EXTINT;
-	entry1.polarity = entry0.polarity;
-	entry1.trigger = IOAPIC_EDGE;
+	entry1.dest_mode_logical	= true;
+	entry1.masked			= false;
+	entry1.destid_0_7		= hard_smp_processor_id();
+	entry1.delivery_mode		= APIC_DELIVERY_MODE_EXTINT;
+	entry1.active_low		= entry0.active_low;
+	entry1.is_level			= false;
 	entry1.vector = 0;
 
 	ioapic_write_entry(apic, pin, entry1);
@@ -2937,17 +2923,17 @@ static void mp_setup_entry(struct irq_cfg *cfg, struct mp_chip_data *data,
 			   struct IO_APIC_route_entry *entry)
 {
 	memset(entry, 0, sizeof(*entry));
-	entry->delivery_mode = apic->delivery_mode;
-	entry->dest_mode     = apic->dest_mode_logical;
-	entry->dest	     = cfg->dest_apicid;
-	entry->vector	     = cfg->vector;
-	entry->trigger	     = data->is_level;
-	entry->polarity	     = data->active_low;
+	entry->delivery_mode	 = apic->delivery_mode;
+	entry->dest_mode_logical = apic->dest_mode_logical;
+	entry->destid_0_7	 = cfg->dest_apicid;
+	entry->vector		 = cfg->vector;
+	entry->is_level		 = data->is_level;
+	entry->active_low	 = data->active_low;
 	/*
 	 * Mask level triggered irqs. Edge triggered irqs are masked
 	 * by the irq core code in case they fire.
 	 */
-	entry->mask = data->is_level;
+	entry->masked		= data->is_level;
 }
 
 int mp_irqdomain_alloc(struct irq_domain *domain, unsigned int virq,

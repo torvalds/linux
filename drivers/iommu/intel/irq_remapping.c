@@ -1279,8 +1279,8 @@ static void intel_irq_remapping_prepare_irte(struct intel_ir_data *data,
 					     struct irq_alloc_info *info,
 					     int index, int sub_handle)
 {
-	struct IR_IO_APIC_route_entry *entry;
 	struct irte *irte = &data->irte_entry;
+	struct IO_APIC_route_entry *entry;
 
 	prepare_irte(irte, irq_cfg->vector, irq_cfg->dest_apicid);
 	switch (info->type) {
@@ -1294,22 +1294,21 @@ static void intel_irq_remapping_prepare_irte(struct intel_ir_data *data,
 			irte->avail, irte->vector, irte->dest_id,
 			irte->sid, irte->sq, irte->svt);
 
-		entry = (struct IR_IO_APIC_route_entry *)info->ioapic.entry;
+		entry = info->ioapic.entry;
 		info->ioapic.entry = NULL;
 		memset(entry, 0, sizeof(*entry));
-		entry->index2	= (index >> 15) & 0x1;
-		entry->zero	= 0;
-		entry->format	= 1;
-		entry->index	= (index & 0x7fff);
+		entry->ir_index_15	= !!(index & 0x8000);
+		entry->ir_format	= true;
+		entry->ir_index_0_14	= index & 0x7fff;
 		/*
 		 * IO-APIC RTE will be configured with virtual vector.
 		 * irq handler will do the explicit EOI to the io-apic.
 		 */
-		entry->vector	= info->ioapic.pin;
-		entry->trigger	= info->ioapic.is_level;
-		entry->polarity	= info->ioapic.active_low;
+		entry->vector		= info->ioapic.pin;
+		entry->is_level		= info->ioapic.is_level;
+		entry->active_low	= info->ioapic.active_low;
 		/* Mask level triggered irqs. */
-		entry->mask	= info->ioapic.is_level;
+		entry->masked		= info->ioapic.is_level;
 		break;
 
 	case X86_IRQ_ALLOC_TYPE_HPET:
