@@ -49,7 +49,7 @@ extern const int ionic_num_stats_grps;
 	(*((u64 *)(((u8 *)(base_ptr)) + (desc_ptr)->offset)))
 
 #define IONIC_READ_STAT_LE64(base_ptr, desc_ptr) \
-	__le64_to_cpu(*((u64 *)(((u8 *)(base_ptr)) + (desc_ptr)->offset)))
+	__le64_to_cpu(*((__le64 *)(((u8 *)(base_ptr)) + (desc_ptr)->offset)))
 
 struct ionic_stat_desc {
 	char name[ETH_GSTRING_LEN];

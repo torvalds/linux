@@ -27,9 +27,9 @@ static void ionic_dev_cmd_firmware_download(struct ionic_dev *idev, u64 addr,
 {
 	union ionic_dev_cmd cmd = {
 		.fw_download.opcode = IONIC_CMD_FW_DOWNLOAD,
-		.fw_download.offset = offset,
-		.fw_download.addr = addr,
-		.fw_download.length = length
+		.fw_download.offset = cpu_to_le32(offset),
+		.fw_download.addr = cpu_to_le64(addr),
+		.fw_download.length = cpu_to_le32(length),
 	};
 
 	ionic_dev_cmd_go(idev, &cmd);
