@@ -38,6 +38,7 @@
 #include <linux/jiffies.h>
 #include <linux/random.h>
 #include <linux/sched.h>
+#include <linux/bitops.h>
 #include <asm/unaligned.h>
 #include <trace/events/random.h>
 
@@ -555,6 +556,61 @@ static void prandom_timer_start(struct random_ready_callback *unused)
 {
 	mod_timer(&seed_timer, jiffies);
 }
+
+#ifdef CONFIG_RANDOM32_SELFTEST
+/* Principle: True 32-bit random numbers will all have 16 differing bits on
+ * average. For each 32-bit number, there are 601M numbers differing by 16
+ * bits, and 89% of the numbers differ by at least 12 bits. Note that more
+ * than 16 differing bits also implies a correlation with inverted bits. Thus
+ * we take 1024 random numbers and compare each of them to the other ones,
+ * counting the deviation of correlated bits to 16. Constants report 32,
+ * counters 32-log2(TEST_SIZE), and pure randoms, around 6 or lower. With the
+ * u32 total, TEST_SIZE may be as large as 4096 samples.
+ */
+#define TEST_SIZE 1024
+static int __init prandom32_state_selftest(void)
+{
+	unsigned int x, y, bits, samples;
+	u32 xor, flip;
+	u32 total;
+	u32 *data;
+
+	data = kmalloc(sizeof(*data) * TEST_SIZE, GFP_KERNEL);
+	if (!data)
+		return 0;
+
+	for (samples = 0; samples < TEST_SIZE; samples++)
+		data[samples] = prandom_u32();
+
+	flip = total = 0;
+	for (x = 0; x < samples; x++) {
+		for (y = 0; y < samples; y++) {
+			if (x == y)
+				continue;
+			xor = data[x] ^ data[y];
+			flip |= xor;
+			bits = hweight32(xor);
+			total += (bits - 16) * (bits - 16);
+		}
+	}
+
+	/* We'll return the average deviation as 2*sqrt(corr/samples), which
+	 * is also sqrt(4*corr/samples) which provides a better resolution.
+	 */
+	bits = int_sqrt(total / (samples * (samples - 1)) * 4);
+	if (bits > 6)
+		pr_warn("prandom32: self test failed (at least %u bits"
+			" correlated, fixed_mask=%#x fixed_value=%#x\n",
+			bits, ~flip, data[0] & ~flip);
+	else
+		pr_info("prandom32: self test passed (less than %u bits"
+			" correlated)\n",
+			bits+1);
+	kfree(data);
+	return 0;
+}
+core_initcall(prandom32_state_selftest);
+#endif /*  CONFIG_RANDOM32_SELFTEST */
 
 /*
  * Start periodic full reseeding as soon as strong
