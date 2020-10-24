@@ -811,7 +811,7 @@ static struct apic apic_x2apic_uv_x __ro_after_init = {
 	.irq_dest_mode			= 0, /* Physical */
 
 	.disable_esr			= 0,
-	.dest_logical			= APIC_DEST_LOGICAL,
+	.dest_logical			= APIC_DEST_PHYSICAL,
 	.check_apicid_used		= NULL,
 
 	.init_apic_ldr			= uv_init_apic_ldr,
