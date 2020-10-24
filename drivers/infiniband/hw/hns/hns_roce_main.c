@@ -33,6 +33,7 @@
 #include <linux/acpi.h>
 #include <linux/of_platform.h>
 #include <linux/module.h>
+#include <linux/pci.h>
 #include <rdma/ib_addr.h>
 #include <rdma/ib_smi.h>
 #include <rdma/ib_user_verbs.h>
@@ -61,7 +62,10 @@ int hns_get_gid_index(struct hns_roce_dev *hr_dev, u8 port, int gid_index)
 static int hns_roce_set_mac(struct hns_roce_dev *hr_dev, u8 port, u8 *addr)
 {
 	u8 phy_port;
-	u32 i = 0;
+	u32 i;
+
+	if (hr_dev->pci_dev->revision >= PCI_REVISION_ID_HIP09)
+		return 0;
 
 	if (!memcmp(hr_dev->dev_addr[port], addr, ETH_ALEN))
 		return 0;
@@ -90,14 +94,13 @@ static int hns_roce_add_gid(const struct ib_gid_attr *attr, void **context)
 static int hns_roce_del_gid(const struct ib_gid_attr *attr, void **context)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(attr->device);
-	struct ib_gid_attr zattr = {};
 	u8 port = attr->port_num - 1;
 	int ret;
 
 	if (port >= hr_dev->caps.num_ports)
 		return -EINVAL;
 
-	ret = hr_dev->hw->set_gid(hr_dev, port, attr->index, &zgid, &zattr);
+	ret = hr_dev->hw->set_gid(hr_dev, port, attr->index, NULL, NULL);
 
 	return ret;
 }

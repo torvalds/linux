@@ -243,6 +243,7 @@ enum hns_roce_opcode_type {
 	HNS_ROCE_OPC_CLR_SCCC				= 0x8509,
 	HNS_ROCE_OPC_QUERY_SCCC				= 0x850a,
 	HNS_ROCE_OPC_RESET_SCCC				= 0x850b,
+	HNS_ROCE_OPC_CFG_GMV_TBL			= 0x850f,
 	HNS_ROCE_OPC_CFG_GMV_BT				= 0x8510,
 	HNS_SWITCH_PARAMETER_CFG			= 0x1033,
 };
@@ -1601,6 +1602,36 @@ struct hns_roce_cfg_gmv_bt {
 
 #define CFG_GMV_BA_H_S 0
 #define CFG_GMV_BA_H_M GENMASK(19, 0)
+
+struct hns_roce_cfg_gmv_tb_a {
+	__le32 vf_sgid_l;
+	__le32 vf_sgid_ml;
+	__le32 vf_sgid_mh;
+	__le32 vf_sgid_h;
+	__le32 vf_sgid_type_vlan;
+	__le32 resv;
+};
+
+#define CFG_GMV_TB_SGID_IDX_S 0
+#define CFG_GMV_TB_SGID_IDX_M GENMASK(7, 0)
+
+#define CFG_GMV_TB_VF_SGID_TYPE_S 0
+#define CFG_GMV_TB_VF_SGID_TYPE_M GENMASK(1, 0)
+
+#define CFG_GMV_TB_VF_VLAN_EN_S 2
+
+#define CFG_GMV_TB_VF_VLAN_ID_S 16
+#define CFG_GMV_TB_VF_VLAN_ID_M GENMASK(27, 16)
+
+struct hns_roce_cfg_gmv_tb_b {
+	__le32	vf_smac_l;
+	__le32	vf_smac_h;
+	__le32	table_idx_rsv;
+	__le32	resv[3];
+};
+
+#define CFG_GMV_TB_SMAC_H_S 0
+#define CFG_GMV_TB_SMAC_H_M GENMASK(15, 0)
 
 #define HNS_ROCE_QUERY_PF_CAPS_CMD_NUM 5
 struct hns_roce_query_pf_caps_a {
