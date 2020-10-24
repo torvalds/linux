@@ -67,7 +67,8 @@ struct IO_APIC_route_entry {
 				is_level		:  1,
 				masked			:  1,
 				reserved_0		: 15,
-				reserved_1		: 24,
+				reserved_1		: 17,
+				virt_destid_8_14	:  7,
 				destid_0_7		:  8;
 		};
 		struct {

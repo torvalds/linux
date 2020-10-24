@@ -1238,9 +1238,10 @@ static void io_apic_print_entries(unsigned int apic, unsigned int nr_entries)
 			       (entry.ir_index_15 << 15) | entry.ir_index_0_14,
 				entry.ir_zero);
 		} else {
-			printk(KERN_DEBUG "%s, %s, D(%02X), M(%1d)\n", buf,
+			printk(KERN_DEBUG "%s, %s, D(%02X%02X), M(%1d)\n", buf,
 			       entry.dest_mode_logical ? "logical " : "physical",
-			       entry.destid_0_7, entry.delivery_mode);
+			       entry.virt_destid_8_14, entry.destid_0_7,
+			       entry.delivery_mode);
 		}
 	}
 }
@@ -1409,6 +1410,7 @@ void native_restore_boot_irq_mode(void)
 	 */
 	if (ioapic_i8259.pin != -1) {
 		struct IO_APIC_route_entry entry;
+		u32 apic_id = read_apic_id();
 
 		memset(&entry, 0, sizeof(entry));
 		entry.masked		= false;
@@ -1416,7 +1418,8 @@ void native_restore_boot_irq_mode(void)
 		entry.active_low	= false;
 		entry.dest_mode_logical	= false;
 		entry.delivery_mode	= APIC_DELIVERY_MODE_EXTINT;
-		entry.destid_0_7	= read_apic_id();
+		entry.destid_0_7	= apic_id & 0xFF;
+		entry.virt_destid_8_14	= apic_id >> 8;
 
 		/*
 		 * Add it to the IO-APIC irq-routing table:
@@ -1885,7 +1888,11 @@ static void ioapic_setup_msg_from_msi(struct irq_data *irq_data,
 	/* DMAR/IR: 1, 0 for all other modes */
 	entry->ir_format		= msg.arch_addr_lo.dmar_format;
 	/*
-	 * DMAR/IR: index bit 0-14.
+	 * - DMAR/IR: index bit 0-14.
+	 *
+	 * - Virt: If the host supports x2apic without a virtualized IR
+	 *	   unit then bit 0-6 of dmar_index_0_14 are providing bit
+	 *	   8-14 of the destination id.
 	 *
 	 * All other modes have bit 0-6 of dmar_index_0_14 cleared and the
 	 * topmost 8 bits are destination id bit 0-7 (entry::destid_0_7).
@@ -2063,6 +2070,7 @@ static inline void __init unlock_ExtINT_logic(void)
 	int apic, pin, i;
 	struct IO_APIC_route_entry entry0, entry1;
 	unsigned char save_control, save_freq_select;
+	u32 apic_id;
 
 	pin  = find_isa_irq_pin(8, mp_INT);
 	if (pin == -1) {
@@ -2078,11 +2086,13 @@ static inline void __init unlock_ExtINT_logic(void)
 	entry0 = ioapic_read_entry(apic, pin);
 	clear_IO_APIC_pin(apic, pin);
 
+	apic_id = hard_smp_processor_id();
 	memset(&entry1, 0, sizeof(entry1));
 
 	entry1.dest_mode_logical	= true;
 	entry1.masked			= false;
-	entry1.destid_0_7		= hard_smp_processor_id();
+	entry1.destid_0_7		= apic_id & 0xFF;
+	entry1.virt_destid_8_14		= apic_id >> 8;
 	entry1.delivery_mode		= APIC_DELIVERY_MODE_EXTINT;
 	entry1.active_low		= entry0.active_low;
 	entry1.is_level			= false;
