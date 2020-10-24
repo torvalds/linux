@@ -197,12 +197,9 @@ static void ioapic_lazy_update_eoi(struct kvm_ioapic *ioapic, int irq)
 
 		/*
 		 * If no longer has pending EOI in LAPICs, update
-		 * EOI for this vetor.
+		 * EOI for this vector.
 		 */
 		rtc_irq_eoi(ioapic, vcpu, entry->fields.vector);
-		kvm_ioapic_update_eoi_one(vcpu, ioapic,
-					  entry->fields.trig_mode,
-					  irq);
 		break;
 	}
 }
