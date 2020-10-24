@@ -247,7 +247,7 @@ int bch2_opt_parse(struct bch_fs *c, const struct bch_option *opt,
 		break;
 	case BCH_OPT_FN:
 		if (!c)
-			return -EINVAL;
+			return 0;
 
 		return opt->parse(c, val, res);
 	}
@@ -325,7 +325,8 @@ int bch2_opts_check_may_set(struct bch_fs *c)
 	return 0;
 }
 
-int bch2_parse_mount_opts(struct bch_opts *opts, char *options)
+int bch2_parse_mount_opts(struct bch_fs *c, struct bch_opts *opts,
+			  char *options)
 {
 	char *opt, *name, *val;
 	int ret, id;
@@ -340,7 +341,7 @@ int bch2_parse_mount_opts(struct bch_opts *opts, char *options)
 			if (id < 0)
 				goto bad_opt;
 
-			ret = bch2_opt_parse(NULL, &bch2_opt_table[id], val, &v);
+			ret = bch2_opt_parse(c, &bch2_opt_table[id], val, &v);
 			if (ret < 0)
 				goto bad_val;
 		} else {

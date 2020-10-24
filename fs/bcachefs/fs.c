@@ -1343,7 +1343,7 @@ static int bch2_remount(struct super_block *sb, int *flags, char *data)
 
 	opt_set(opts, read_only, (*flags & SB_RDONLY) != 0);
 
-	ret = bch2_parse_mount_opts(&opts, data);
+	ret = bch2_parse_mount_opts(c, &opts, data);
 	if (ret)
 		return ret;
 
@@ -1484,7 +1484,7 @@ static struct dentry *bch2_mount(struct file_system_type *fs_type,
 
 	opt_set(opts, read_only, (flags & SB_RDONLY) != 0);
 
-	ret = bch2_parse_mount_opts(&opts, data);
+	ret = bch2_parse_mount_opts(NULL, &opts, data);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -1507,11 +1507,24 @@ static struct dentry *bch2_mount(struct file_system_type *fs_type,
 		goto got_sb;
 
 	c = bch2_fs_open(devs, nr_devs, opts);
-
-	if (!IS_ERR(c))
-		sb = sget(fs_type, NULL, bch2_set_super, flags|SB_NOSEC, c);
-	else
+	if (IS_ERR(c)) {
 		sb = ERR_CAST(c);
+		goto got_sb;
+	}
+
+	/* Some options can't be parsed until after the fs is started: */
+	ret = bch2_parse_mount_opts(c, &opts, data);
+	if (ret) {
+		bch2_fs_stop(c);
+		sb = ERR_PTR(ret);
+		goto got_sb;
+	}
+
+	bch2_opts_apply(&c->opts, opts);
+
+	sb = sget(fs_type, NULL, bch2_set_super, flags|SB_NOSEC, c);
+	if (IS_ERR(sb))
+		bch2_fs_stop(c);
 got_sb:
 	kfree(devs_to_fs);
 	kfree(devs[0]);

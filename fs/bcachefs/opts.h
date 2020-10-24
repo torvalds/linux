@@ -424,7 +424,7 @@ void bch2_opt_to_text(struct printbuf *, struct bch_fs *,
 
 int bch2_opt_check_may_set(struct bch_fs *, int, u64);
 int bch2_opts_check_may_set(struct bch_fs *);
-int bch2_parse_mount_opts(struct bch_opts *, char *);
+int bch2_parse_mount_opts(struct bch_fs *, struct bch_opts *, char *);
 
 /* inode opts: */
 
