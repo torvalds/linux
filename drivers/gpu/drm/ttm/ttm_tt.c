@@ -51,9 +51,6 @@ int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc)
 	if (bo->ttm)
 		return 0;
 
-	if (bdev->need_dma32)
-		page_flags |= TTM_PAGE_FLAG_DMA32;
-
 	if (bdev->no_retry)
 		page_flags |= TTM_PAGE_FLAG_NO_RETRY;
 
@@ -141,7 +138,6 @@ static void ttm_tt_init_fields(struct ttm_tt *ttm,
 	ttm->dma_address = NULL;
 	ttm->swap_storage = NULL;
 	ttm->sg = bo->sg;
-	INIT_LIST_HEAD(&ttm->pages_list);
 	ttm->caching = caching;
 }
 

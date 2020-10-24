@@ -30,7 +30,6 @@
 
 #include <drm/ttm/ttm_memory.h>
 #include <drm/ttm/ttm_module.h>
-#include <drm/ttm/ttm_page_alloc.h>
 #include <linux/spinlock.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
@@ -452,9 +451,7 @@ int ttm_mem_global_init(struct ttm_mem_global *glob)
 		pr_info("Zone %7s: Available graphics memory: %llu KiB\n",
 			zone->name, (unsigned long long)zone->max_mem >> 10);
 	}
-	ttm_page_alloc_init(glob, glob->zone_kernel->max_mem/(2*PAGE_SIZE));
-	ttm_dma_page_alloc_init(glob, glob->zone_kernel->max_mem/(2*PAGE_SIZE));
-	ttm_pool_mgr_init(glob->zone_kernel->max_mem / (2 * PAGE_SIZE));
+	ttm_pool_mgr_init(glob->zone_kernel->max_mem/(2*PAGE_SIZE));
 	return 0;
 out_no_zone:
 	ttm_mem_global_release(glob);
@@ -467,8 +464,6 @@ void ttm_mem_global_release(struct ttm_mem_global *glob)
 	unsigned int i;
 
 	/* let the page allocator first stop the shrink work. */
-	ttm_page_alloc_fini();
-	ttm_dma_page_alloc_fini();
 	ttm_pool_mgr_fini();
 
 	flush_workqueue(glob->swap_queue);
