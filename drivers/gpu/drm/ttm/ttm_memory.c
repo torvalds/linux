@@ -454,7 +454,7 @@ int ttm_mem_global_init(struct ttm_mem_global *glob)
 	}
 	ttm_page_alloc_init(glob, glob->zone_kernel->max_mem/(2*PAGE_SIZE));
 	ttm_dma_page_alloc_init(glob, glob->zone_kernel->max_mem/(2*PAGE_SIZE));
-	ttm_pool_mgr_init(glob->zone_kernel->max_mem/(2*PAGE_SIZE));
+	ttm_pool_mgr_init(glob->zone_kernel->max_mem / (2 * PAGE_SIZE));
 	return 0;
 out_no_zone:
 	ttm_mem_global_release(glob);

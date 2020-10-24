@@ -281,6 +281,7 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 	struct nvkm_pci *pci = device->pci;
 	struct nvif_mmu *mmu = &drm->client.mmu;
 	struct drm_device *dev = drm->dev;
+	bool need_swiotlb = false;
 	int typei, ret;
 
 	ret = nouveau_ttm_init_host(drm, 0);
@@ -315,11 +316,14 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 		drm->agp.cma = pci->agp.cma;
 	}
 
-	ret = ttm_bo_device_init(&drm->ttm.bdev,
-				  &nouveau_bo_driver,
-				  dev->anon_inode->i_mapping,
-				  dev->vma_offset_manager,
-				  drm->client.mmu.dmabits <= 32 ? true : false);
+#if IS_ENABLED(CONFIG_SWIOTLB) && IS_ENABLED(CONFIG_X86)
+	need_swiotlb = !!swiotlb_nr_tbl();
+#endif
+
+	ret = ttm_bo_device_init(&drm->ttm.bdev, &nouveau_bo_driver,
+				 drm->dev->dev, dev->anon_inode->i_mapping,
+				 dev->vma_offset_manager, need_swiotlb,
+				 drm->client.mmu.dmabits <= 32);
 	if (ret) {
 		NV_ERROR(drm, "error initialising bo driver, %d\n", ret);
 		return ret;

@@ -1914,10 +1914,10 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	mutex_init(&adev->mman.gtt_window_lock);
 
 	/* No others user of address space so set it to 0 */
-	r = ttm_bo_device_init(&adev->mman.bdev,
-			       &amdgpu_bo_driver,
+	r = ttm_bo_device_init(&adev->mman.bdev, &amdgpu_bo_driver, adev->dev,
 			       adev_to_drm(adev)->anon_inode->i_mapping,
 			       adev_to_drm(adev)->vma_offset_manager,
+			       adev->need_swiotlb,
 			       dma_addressing_limited(adev->dev));
 	if (r) {
 		DRM_ERROR("failed initializing buffer object driver(%d).\n", r);

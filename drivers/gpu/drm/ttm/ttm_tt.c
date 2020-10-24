@@ -37,7 +37,6 @@
 #include <linux/file.h>
 #include <drm/drm_cache.h>
 #include <drm/ttm/ttm_bo_driver.h>
-#include <drm/ttm/ttm_page_alloc.h>
 
 /**
  * Allocates a ttm structure for the given BO.
@@ -321,7 +320,7 @@ int ttm_tt_populate(struct ttm_bo_device *bdev,
 	if (bdev->driver->ttm_tt_populate)
 		ret = bdev->driver->ttm_tt_populate(bdev, ttm, ctx);
 	else
-		ret = ttm_pool_populate(ttm, ctx);
+		ret = ttm_pool_alloc(&bdev->pool, ttm, ctx);
 	if (ret)
 		return ret;
 
@@ -363,6 +362,6 @@ void ttm_tt_unpopulate(struct ttm_bo_device *bdev,
 	if (bdev->driver->ttm_tt_unpopulate)
 		bdev->driver->ttm_tt_unpopulate(bdev, ttm);
 	else
-		ttm_pool_unpopulate(ttm);
+		ttm_pool_free(&bdev->pool, ttm);
 	ttm->page_flags &= ~TTM_PAGE_FLAG_PRIV_POPULATED;
 }

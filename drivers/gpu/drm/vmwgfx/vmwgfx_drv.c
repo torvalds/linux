@@ -878,10 +878,11 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	drm_vma_offset_manager_init(&dev_priv->vma_manager,
 				    DRM_FILE_PAGE_OFFSET_START,
 				    DRM_FILE_PAGE_OFFSET_SIZE);
-	ret = ttm_bo_device_init(&dev_priv->bdev,
-				 &vmw_bo_driver,
+	ret = ttm_bo_device_init(&dev_priv->bdev, &vmw_bo_driver,
+				 dev_priv->dev->dev,
 				 dev->anon_inode->i_mapping,
 				 &dev_priv->vma_manager,
+				 dev_priv->map_mode == vmw_dma_alloc_coherent,
 				 false);
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Failed initializing TTM buffer object driver.\n");

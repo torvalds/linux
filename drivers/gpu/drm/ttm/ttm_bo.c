@@ -1283,6 +1283,8 @@ int ttm_bo_device_release(struct ttm_bo_device *bdev)
 			pr_debug("Swap list %d was clean\n", i);
 	spin_unlock(&glob->lru_lock);
 
+	ttm_pool_fini(&bdev->pool);
+
 	if (!ret)
 		ttm_bo_global_release();
 
@@ -1307,9 +1309,10 @@ static void ttm_bo_init_sysman(struct ttm_bo_device *bdev)
 
 int ttm_bo_device_init(struct ttm_bo_device *bdev,
 		       struct ttm_bo_driver *driver,
+		       struct device *dev,
 		       struct address_space *mapping,
 		       struct drm_vma_offset_manager *vma_manager,
-		       bool need_dma32)
+		       bool use_dma_alloc, bool use_dma32)
 {
 	struct ttm_bo_global *glob = &ttm_bo_glob;
 	int ret;
@@ -1324,12 +1327,13 @@ int ttm_bo_device_init(struct ttm_bo_device *bdev,
 	bdev->driver = driver;
 
 	ttm_bo_init_sysman(bdev);
+	ttm_pool_init(&bdev->pool, dev, use_dma_alloc, use_dma32);
 
 	bdev->vma_manager = vma_manager;
 	INIT_DELAYED_WORK(&bdev->wq, ttm_bo_delayed_workqueue);
 	INIT_LIST_HEAD(&bdev->ddestroy);
 	bdev->dev_mapping = mapping;
-	bdev->need_dma32 = need_dma32;
+	bdev->need_dma32 = use_dma32;
 	mutex_lock(&ttm_global_mutex);
 	list_add_tail(&bdev->device_list, &glob->device_list);
 	mutex_unlock(&ttm_global_mutex);

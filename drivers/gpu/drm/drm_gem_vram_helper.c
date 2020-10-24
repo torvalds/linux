@@ -1045,10 +1045,10 @@ static int drm_vram_mm_init(struct drm_vram_mm *vmm, struct drm_device *dev,
 	vmm->vram_base = vram_base;
 	vmm->vram_size = vram_size;
 
-	ret = ttm_bo_device_init(&vmm->bdev, &bo_driver,
+	ret = ttm_bo_device_init(&vmm->bdev, &bo_driver, dev->dev,
 				 dev->anon_inode->i_mapping,
 				 dev->vma_offset_manager,
-				 true);
+				 false, true);
 	if (ret)
 		return ret;
 
