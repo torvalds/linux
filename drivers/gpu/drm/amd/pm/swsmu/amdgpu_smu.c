@@ -46,6 +46,8 @@
 #undef pr_info
 #undef pr_debug
 
+static const struct amd_pm_funcs swsmu_pm_funcs;
+
 size_t smu_sys_get_pp_feature_mask(struct smu_context *smu, char *buf)
 {
 	size_t size = 0;
@@ -552,6 +554,9 @@ static int smu_early_init(void *handle)
 	mutex_init(&smu->smu_baco.mutex);
 	smu->smu_baco.state = SMU_BACO_STATE_EXIT;
 	smu->smu_baco.platform_support = false;
+
+	adev->powerplay.pp_handle = smu;
+	adev->powerplay.pp_funcs = &swsmu_pm_funcs;
 
 	return smu_set_funcs(adev);
 }
@@ -1691,8 +1696,9 @@ int smu_switch_power_profile(struct smu_context *smu,
 	return 0;
 }
 
-enum amd_dpm_forced_level smu_get_performance_level(struct smu_context *smu)
+enum amd_dpm_forced_level smu_get_performance_level(void *handle)
 {
+	struct smu_context *smu = handle;
 	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
 	enum amd_dpm_forced_level level;
 
@@ -2723,3 +2729,7 @@ int smu_gfx_state_change_set(struct smu_context *smu, uint32_t state)
 
 	return ret;
 }
+
+static const struct amd_pm_funcs swsmu_pm_funcs = {
+	.get_performance_level = smu_get_performance_level,
+};

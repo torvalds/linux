@@ -279,9 +279,7 @@ static ssize_t amdgpu_get_power_dpm_force_performance_level(struct device *dev,
 		return ret;
 	}
 
-	if (is_support_sw_smu(adev))
-		level = smu_get_performance_level(&adev->smu);
-	else if (adev->powerplay.pp_funcs->get_performance_level)
+	if (adev->powerplay.pp_funcs->get_performance_level)
 		level = amdgpu_dpm_get_performance_level(adev);
 	else
 		level = adev->pm.dpm.forced_level;
