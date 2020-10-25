@@ -44,7 +44,6 @@
 
 struct keyspan_pda_private {
 	int			tx_room;
-	int			tx_throttled;
 	struct work_struct	unthrottle_work;
 	struct usb_serial	*serial;
 	struct usb_serial_port	*port;
@@ -138,8 +137,12 @@ static void keyspan_pda_request_unthrottle(struct work_struct *work)
 {
 	struct keyspan_pda_private *priv =
 		container_of(work, struct keyspan_pda_private, unthrottle_work);
+	struct usb_serial_port *port = priv->port;
 	struct usb_serial *serial = priv->serial;
+	unsigned long flags;
 	int result;
+
+	dev_dbg(&port->dev, "%s\n", __func__);
 
 	/* ask the device to tell us when the tx buffer becomes
 	   sufficiently empty */
@@ -156,8 +159,19 @@ static void keyspan_pda_request_unthrottle(struct work_struct *work)
 	if (result < 0)
 		dev_dbg(&serial->dev->dev, "%s - error %d from usb_control_msg\n",
 			__func__, result);
-}
+	/*
+	 * Need to check available space after requesting notification in case
+	 * buffer is already empty so that no notification is sent.
+	 */
+	result = keyspan_pda_get_write_room(priv);
+	if (result > KEYSPAN_TX_THRESHOLD) {
+		spin_lock_irqsave(&port->lock, flags);
+		priv->tx_room = max(priv->tx_room, result);
+		spin_unlock_irqrestore(&port->lock, flags);
 
+		usb_serial_port_softint(port);
+	}
+}
 
 static void keyspan_pda_rx_interrupt(struct urb *urb)
 {
@@ -212,7 +226,6 @@ static void keyspan_pda_rx_interrupt(struct urb *urb)
 			break;
 		case 2: /* tx unthrottle interrupt */
 			spin_lock_irqsave(&port->lock, flags);
-			priv->tx_throttled = 0;
 			priv->tx_room = max(priv->tx_room, KEYSPAN_TX_THRESHOLD);
 			spin_unlock_irqrestore(&port->lock, flags);
 			/* queue up a wakeup at scheduler time */
@@ -472,35 +485,42 @@ static int keyspan_pda_tiocmset(struct tty_struct *tty,
 static int keyspan_pda_write(struct tty_struct *tty,
 	struct usb_serial_port *port, const unsigned char *buf, int count)
 {
-	int request_unthrottle = 0;
-	int rc = 0;
 	struct keyspan_pda_private *priv;
 	unsigned long flags;
+	int room;
+	int rc;
 
 	priv = usb_get_serial_port_data(port);
-	/* guess how much room is left in the device's ring buffer, and if we
-	   want to send more than that, check first, updating our notion of
-	   what is left. If our write will result in no room left, ask the
-	   device to give us an interrupt when the room available rises above
-	   a threshold, and hold off all writers (eventually, those using
-	   select() or poll() too) until we receive that unthrottle interrupt.
-	   Block if we can't write anything at all, otherwise write as much as
-	   we can. */
+	/*
+	 * Guess how much room is left in the device's ring buffer. If our
+	 * write will result in no room left, ask the device to give us an
+	 * interrupt when the room available rises above a threshold but also
+	 * query how much room is currently available (in case our guess was
+	 * too conservative and the buffer is already empty when the
+	 * unthrottle work is scheduled).
+	 */
 	if (count == 0) {
 		dev_dbg(&port->dev, "write request of 0 bytes\n");
 		return 0;
 	}
+
+	if (count > port->bulk_out_size)
+		count = port->bulk_out_size;
 
 	/* we might block because of:
 	   the TX urb is in-flight (wait until it completes)
 	   the device is full (wait until it says there is room)
 	*/
 	spin_lock_irqsave(&port->lock, flags);
-	if (!test_bit(0, &port->write_urbs_free) || priv->tx_throttled) {
+	room = priv->tx_room;
+	if (!test_bit(0, &port->write_urbs_free) || room == 0) {
 		spin_unlock_irqrestore(&port->lock, flags);
 		return 0;
 	}
 	clear_bit(0, &port->write_urbs_free);
+	if (count > room)
+		count = room;
+	priv->tx_room -= count;
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	/* At this point the URB is in our control, nobody else can submit it
@@ -508,57 +528,29 @@ static int keyspan_pda_write(struct tty_struct *tty,
 	   finished).  Also, the tx process is not throttled. So we are
 	   ready to write. */
 
-	count = (count > port->bulk_out_size) ? port->bulk_out_size : count;
+	dev_dbg(&port->dev, "%s - count = %d, txroom = %d\n", __func__, count, room);
 
-	/* Check if we might overrun the Tx buffer.   If so, ask the
-	   device how much room it really has.  This is done only on
-	   scheduler time, since usb_control_msg() sleeps. */
-	if (count > priv->tx_room && !in_interrupt()) {
-		rc = keyspan_pda_get_write_room(priv);
-		if (rc < 0)
-			goto exit;
+	memcpy(port->write_urb->transfer_buffer, buf, count);
+	port->write_urb->transfer_buffer_length = count;
 
-		priv->tx_room = rc;
-	}
+	rc = usb_submit_urb(port->write_urb, GFP_ATOMIC);
+	if (rc) {
+		dev_dbg(&port->dev, "usb_submit_urb(write bulk) failed\n");
 
-	if (count >= priv->tx_room) {
-		/* we're about to completely fill the Tx buffer, so
-		   we'll be throttled afterwards. */
-		count = priv->tx_room;
-		request_unthrottle = 1;
-	}
+		spin_lock_irqsave(&port->lock, flags);
+		priv->tx_room = max(priv->tx_room, room + count);
+		spin_unlock_irqrestore(&port->lock, flags);
 
-	if (count) {
-		/* now transfer data */
-		memcpy(port->write_urb->transfer_buffer, buf, count);
-		/* send the data out the bulk port */
-		port->write_urb->transfer_buffer_length = count;
-
-		priv->tx_room -= count;
-
-		rc = usb_submit_urb(port->write_urb, GFP_ATOMIC);
-		if (rc) {
-			dev_dbg(&port->dev, "usb_submit_urb(write bulk) failed\n");
-			goto exit;
-		}
-	} else {
-		/* There wasn't any room left, so we are throttled until
-		   the buffer empties a bit */
-		request_unthrottle = 1;
-	}
-
-	if (request_unthrottle) {
-		priv->tx_throttled = 1; /* block writers */
-		schedule_work(&priv->unthrottle_work);
-	}
-
-	rc = count;
-exit:
-	if (rc <= 0)
 		set_bit(0, &port->write_urbs_free);
-	return rc;
-}
 
+		return rc;
+	}
+
+	if (count == room)
+		schedule_work(&priv->unthrottle_work);
+
+	return count;
+}
 
 static void keyspan_pda_write_bulk_callback(struct urb *urb)
 {
@@ -581,7 +573,7 @@ static int keyspan_pda_write_room(struct tty_struct *tty)
 	int room = 0;
 
 	spin_lock_irqsave(&port->lock, flags);
-	if (test_bit(0, &port->write_urbs_free) && !priv->tx_throttled)
+	if (test_bit(0, &port->write_urbs_free))
 		room = priv->tx_room;
 	spin_unlock_irqrestore(&port->lock, flags);
 
@@ -601,7 +593,7 @@ static int keyspan_pda_chars_in_buffer(struct tty_struct *tty)
 	   n_tty.c:normal_poll() ) that we're not writeable. */
 
 	spin_lock_irqsave(&port->lock, flags);
-	if (!test_bit(0, &port->write_urbs_free) || priv->tx_throttled)
+	if (!test_bit(0, &port->write_urbs_free) || priv->tx_room == 0)
 		ret = 256;
 	spin_unlock_irqrestore(&port->lock, flags);
 	return ret;
@@ -630,8 +622,9 @@ static int keyspan_pda_open(struct tty_struct *tty,
 	if (rc < 0)
 		return rc;
 
+	spin_lock_irq(&port->lock);
 	priv->tx_room = rc;
-	priv->tx_throttled = rc ? 0 : 1;
+	spin_unlock_irq(&port->lock);
 
 	/*Start reading from the device*/
 	rc = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
