@@ -300,9 +300,11 @@ static void cs_do_release(struct kref *ref)
 
 	if (!cs->submitted) {
 		/* In case the wait for signal CS was submitted, the put occurs
-		 * in init_signal_wait_cs() right before hanging on the PQ.
+		 * in init_signal_wait_cs() or collective_wait_init_cs()
+		 * right before hanging on the PQ.
 		 */
-		if (cs->type == CS_TYPE_WAIT)
+		if (cs->type == CS_TYPE_WAIT ||
+				cs->type == CS_TYPE_COLLECTIVE_WAIT)
 			hl_fence_put(cs->signal_fence);
 
 		goto out;
