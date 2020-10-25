@@ -62,6 +62,7 @@
 #include <linux/oom.h>
 #include <linux/compat.h>
 #include <linux/vmalloc.h>
+#include <linux/io_uring.h>
 
 #include <linux/uaccess.h>
 #include <asm/mmu_context.h>
@@ -1894,6 +1895,11 @@ static int bprm_execve(struct linux_binprm *bprm,
 	struct file *file;
 	struct files_struct *displaced;
 	int retval;
+
+	/*
+	 * Cancel any io_uring activity across execve
+	 */
+	io_uring_task_cancel();
 
 	retval = unshare_files(&displaced);
 	if (retval)

@@ -64,6 +64,7 @@ struct sighand_struct;
 struct signal_struct;
 struct task_delay_info;
 struct task_group;
+struct io_uring_task;
 
 /*
  * Task state bitmask. NOTE! These bits are also
@@ -939,6 +940,10 @@ struct task_struct {
 
 	/* Open file information: */
 	struct files_struct		*files;
+
+#ifdef CONFIG_IO_URING
+	struct io_uring_task		*io_uring;
+#endif
 
 	/* Namespaces: */
 	struct nsproxy			*nsproxy;
