@@ -138,9 +138,8 @@ static void init_array_page(event_word_t *array_page)
 		array_page[i] = 1 << EVTCHN_FIFO_MASKED;
 }
 
-static int evtchn_fifo_setup(struct irq_info *info)
+static int evtchn_fifo_setup(evtchn_port_t port)
 {
-	evtchn_port_t port = info->evtchn;
 	unsigned new_array_pages;
 	int ret;
 
@@ -186,7 +185,8 @@ static int evtchn_fifo_setup(struct irq_info *info)
 	return ret;
 }
 
-static void evtchn_fifo_bind_to_cpu(struct irq_info *info, unsigned cpu)
+static void evtchn_fifo_bind_to_cpu(evtchn_port_t evtchn, unsigned int cpu, 
+				    unsigned int old_cpu)
 {
 	/* no-op */
 }
@@ -237,6 +237,9 @@ static bool clear_masked_cond(volatile event_word_t *word)
 	w = *word;
 
 	do {
+		if (!(w & (1 << EVTCHN_FIFO_MASKED)))
+			return true;
+
 		if (w & (1 << EVTCHN_FIFO_PENDING))
 			return false;
 
