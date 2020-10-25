@@ -141,6 +141,7 @@ struct k3_ring_state {
  * @parent: Pointer on struct @k3_ringacc
  * @use_count: Use count for shared rings
  * @proxy_id: RA Ring Proxy Id (only if @K3_RINGACC_RING_USE_PROXY)
+ * @dma_dev: device to be used for DMA API (allocation, mapping)
  */
 struct k3_ring {
 	struct k3_ring_rt_regs __iomem *rt;
@@ -160,6 +161,7 @@ struct k3_ring {
 	struct k3_ringacc	*parent;
 	u32		use_count;
 	int		proxy_id;
+	struct device	*dma_dev;
 };
 
 struct k3_ringacc_ops {
@@ -508,11 +510,12 @@ int k3_ringacc_ring_free(struct k3_ring *ring)
 
 	k3_ringacc_ring_free_sci(ring);
 
-	dma_free_coherent(ringacc->dev,
+	dma_free_coherent(ring->dma_dev,
 			  ring->size * (4 << ring->elm_size),
 			  ring->ring_mem_virt, ring->ring_mem_dma);
 	ring->flags = 0;
 	ring->ops = NULL;
+	ring->dma_dev = NULL;
 	if (ring->proxy_id != K3_RINGACC_PROXY_NOT_USED) {
 		clear_bit(ring->proxy_id, ringacc->proxy_inuse);
 		ring->proxy = NULL;
@@ -633,8 +636,12 @@ int k3_ringacc_ring_cfg(struct k3_ring *ring, struct k3_ring_cfg *cfg)
 	switch (ring->mode) {
 	case K3_RINGACC_RING_MODE_RING:
 		ring->ops = &k3_ring_mode_ring_ops;
+		ring->dma_dev = cfg->dma_dev;
+		if (!ring->dma_dev)
+			ring->dma_dev = ringacc->dev;
 		break;
 	case K3_RINGACC_RING_MODE_MESSAGE:
+		ring->dma_dev = ringacc->dev;
 		if (ring->proxy)
 			ring->ops = &k3_ring_mode_proxy_ops;
 		else
@@ -646,9 +653,9 @@ int k3_ringacc_ring_cfg(struct k3_ring *ring, struct k3_ring_cfg *cfg)
 		goto err_free_proxy;
 	}
 
-	ring->ring_mem_virt = dma_alloc_coherent(ringacc->dev,
-					ring->size * (4 << ring->elm_size),
-					&ring->ring_mem_dma, GFP_KERNEL);
+	ring->ring_mem_virt = dma_alloc_coherent(ring->dma_dev,
+						 ring->size * (4 << ring->elm_size),
+						 &ring->ring_mem_dma, GFP_KERNEL);
 	if (!ring->ring_mem_virt) {
 		dev_err(ringacc->dev, "Failed to alloc ring mem\n");
 		ret = -ENOMEM;
@@ -669,12 +676,13 @@ int k3_ringacc_ring_cfg(struct k3_ring *ring, struct k3_ring_cfg *cfg)
 	return 0;
 
 err_free_mem:
-	dma_free_coherent(ringacc->dev,
+	dma_free_coherent(ring->dma_dev,
 			  ring->size * (4 << ring->elm_size),
 			  ring->ring_mem_virt,
 			  ring->ring_mem_dma);
 err_free_ops:
 	ring->ops = NULL;
+	ring->dma_dev = NULL;
 err_free_proxy:
 	ring->proxy = NULL;
 	return ret;
