@@ -915,6 +915,7 @@ struct rm_ti_sci_msg_udmap_rx_flow_opt_cfg {
  *   13 - Valid bit for @ref ti_sci_msg_rm_udmap_tx_ch_cfg::fdepth
  *   14 - Valid bit for @ref ti_sci_msg_rm_udmap_tx_ch_cfg::tx_burst_size
  *   15 - Valid bit for @ref ti_sci_msg_rm_udmap_tx_ch_cfg::tx_tdtype
+ *   16 - Valid bit for @ref ti_sci_msg_rm_udmap_tx_ch_cfg::extended_ch_type
  *
  * @nav_id: SoC device ID of Navigator Subsystem where tx channel is located
  *
@@ -983,6 +984,10 @@ struct rm_ti_sci_msg_udmap_rx_flow_opt_cfg {
  * programmed into the tdtype field of the TCHAN_TCFG register:
  * 0 - Return immediately
  * 1 - Wait for completion message from remote peer
+ *
+ * @extended_ch_type: Valid for BCDMA.
+ * 0 - the channel is split tx channel (tchan)
+ * 1 - the channel is block copy channel (bchan)
  */
 struct ti_sci_msg_rm_udmap_tx_ch_cfg_req {
 	struct ti_sci_msg_hdr hdr;
@@ -1005,6 +1010,7 @@ struct ti_sci_msg_rm_udmap_tx_ch_cfg_req {
 	u8 tx_sched_priority;
 	u8 tx_burst_size;
 	u8 tx_tdtype;
+	u8 extended_ch_type;
 } __packed;
 
 /**
