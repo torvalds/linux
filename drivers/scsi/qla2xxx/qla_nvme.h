@@ -14,9 +14,6 @@
 #include "qla_def.h"
 #include "qla_dsd.h"
 
-/* default dev loss time (seconds) before transport tears down ctrl */
-#define NVME_FC_DEV_LOSS_TMO  30
-
 #define NVME_ATIO_CMD_OFF 32
 #define NVME_FIRST_PACKET_CMDLEN (64 - NVME_ATIO_CMD_OFF)
 #define Q2T_NVME_NUM_TAGS 2048
@@ -57,6 +54,7 @@ struct cmd_nvme {
 	uint64_t rsvd;
 
 	__le16	control_flags;		/* Control Flags */
+#define CF_ADMIN_ASYNC_EVENT		BIT_13
 #define CF_NVME_FIRST_BURST_ENABLE	BIT_11
 #define CF_DIF_SEG_DESCR_ENABLE         BIT_3
 #define CF_DATA_SEG_DESCR_ENABLE        BIT_2

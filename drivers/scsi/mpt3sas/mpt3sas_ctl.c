@@ -1109,13 +1109,15 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 			    pcie_device->device_info))))
 				mpt3sas_scsih_issue_locked_tm(ioc,
 				  le16_to_cpu(mpi_request->FunctionDependent1),
-				  0, MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET, 0,
+				  0, 0, 0,
+				  MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET, 0,
 				  0, pcie_device->reset_timeout,
 			MPI26_SCSITASKMGMT_MSGFLAGS_PROTOCOL_LVL_RST_PCIE);
 			else
 				mpt3sas_scsih_issue_locked_tm(ioc,
 				  le16_to_cpu(mpi_request->FunctionDependent1),
-				  0, MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET, 0,
+				  0, 0, 0,
+				  MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET, 0,
 				  0, 30, MPI2_SCSITASKMGMT_MSGFLAGS_LINK_RESET);
 		} else
 			mpt3sas_base_hard_reset_handler(ioc, FORCE_BIG_HAMMER);
@@ -3384,12 +3386,10 @@ host_trace_buffer_enable_store(struct device *cdev,
 			    &&
 			    (ioc->diag_buffer_status[MPI2_DIAG_BUF_TYPE_TRACE] &
 			    MPT3_DIAG_BUFFER_IS_APP_OWNED)) {
-				pci_free_consistent(ioc->pdev,
-				    ioc->diag_buffer_sz[
-				    MPI2_DIAG_BUF_TYPE_TRACE],
-				    ioc->diag_buffer[MPI2_DIAG_BUF_TYPE_TRACE],
-				    ioc->diag_buffer_dma[
-				    MPI2_DIAG_BUF_TYPE_TRACE]);
+				dma_free_coherent(&ioc->pdev->dev,
+						  ioc->diag_buffer_sz[MPI2_DIAG_BUF_TYPE_TRACE],
+						  ioc->diag_buffer[MPI2_DIAG_BUF_TYPE_TRACE],
+						  ioc->diag_buffer_dma[MPI2_DIAG_BUF_TYPE_TRACE]);
 				ioc->diag_buffer[MPI2_DIAG_BUF_TYPE_TRACE] =
 				    NULL;
 			}

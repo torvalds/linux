@@ -549,10 +549,27 @@ static void scsi_mq_uninit_cmd(struct scsi_cmnd *cmd)
 static void scsi_run_queue_async(struct scsi_device *sdev)
 {
 	if (scsi_target(sdev)->single_lun ||
-	    !list_empty(&sdev->host->starved_list))
+	    !list_empty(&sdev->host->starved_list)) {
 		kblockd_schedule_work(&sdev->requeue_work);
-	else
-		blk_mq_run_hw_queues(sdev->request_queue, true);
+	} else {
+		/*
+		 * smp_mb() present in sbitmap_queue_clear() or implied in
+		 * .end_io is for ordering writing .device_busy in
+		 * scsi_device_unbusy() and reading sdev->restarts.
+		 */
+		int old = atomic_read(&sdev->restarts);
+
+		/*
+		 * ->restarts has to be kept as non-zero if new budget
+		 *  contention occurs.
+		 *
+		 *  No need to run queue when either another re-run
+		 *  queue wins in updating ->restarts or a new budget
+		 *  contention occurs.
+		 */
+		if (old && atomic_cmpxchg(&sdev->restarts, old, 0) == old)
+			blk_mq_run_hw_queues(sdev->request_queue, true);
+	}
 }
 
 /* Returns false when no more bytes to process, true if there are more */
@@ -652,6 +669,23 @@ static void scsi_io_completion_reprep(struct scsi_cmnd *cmd,
 	scsi_mq_requeue_cmd(cmd);
 }
 
+static bool scsi_cmd_runtime_exceeced(struct scsi_cmnd *cmd)
+{
+	struct request *req = cmd->request;
+	unsigned long wait_for;
+
+	if (cmd->allowed == SCSI_CMD_RETRIES_NO_LIMIT)
+		return false;
+
+	wait_for = (cmd->allowed + 1) * req->timeout;
+	if (time_before(cmd->jiffies_at_alloc + wait_for, jiffies)) {
+		scmd_printk(KERN_ERR, cmd, "timing out command, waited %lus\n",
+			    wait_for/HZ);
+		return true;
+	}
+	return false;
+}
+
 /* Helper for scsi_io_completion() when special action required. */
 static void scsi_io_completion_action(struct scsi_cmnd *cmd, int result)
 {
@@ -660,7 +694,6 @@ static void scsi_io_completion_action(struct scsi_cmnd *cmd, int result)
 	int level = 0;
 	enum {ACTION_FAIL, ACTION_REPREP, ACTION_RETRY,
 	      ACTION_DELAYED_RETRY} action;
-	unsigned long wait_for = (cmd->allowed + 1) * req->timeout;
 	struct scsi_sense_hdr sshdr;
 	bool sense_valid;
 	bool sense_current = true;      /* false implies "deferred sense" */
@@ -765,8 +798,7 @@ static void scsi_io_completion_action(struct scsi_cmnd *cmd, int result)
 	} else
 		action = ACTION_FAIL;
 
-	if (action != ACTION_FAIL &&
-	    time_before(cmd->jiffies_at_alloc + wait_for, jiffies))
+	if (action != ACTION_FAIL && scsi_cmd_runtime_exceeced(cmd))
 		action = ACTION_FAIL;
 
 	switch (action) {
@@ -1439,7 +1471,6 @@ static bool scsi_mq_lld_busy(struct request_queue *q)
 static void scsi_softirq_done(struct request *rq)
 {
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
-	unsigned long wait_for = (cmd->allowed + 1) * rq->timeout;
 	int disposition;
 
 	INIT_LIST_HEAD(&cmd->eh_entry);
@@ -1449,13 +1480,8 @@ static void scsi_softirq_done(struct request *rq)
 		atomic_inc(&cmd->device->ioerr_cnt);
 
 	disposition = scsi_decide_disposition(cmd);
-	if (disposition != SUCCESS &&
-	    time_before(cmd->jiffies_at_alloc + wait_for, jiffies)) {
-		scmd_printk(KERN_ERR, cmd,
-			    "timing out command, waited %lus\n",
-			    wait_for/HZ);
+	if (disposition != SUCCESS && scsi_cmd_runtime_exceeced(cmd))
 		disposition = SUCCESS;
-	}
 
 	scsi_log_completion(cmd, disposition);
 
@@ -1612,7 +1638,30 @@ static bool scsi_mq_get_budget(struct request_queue *q)
 {
 	struct scsi_device *sdev = q->queuedata;
 
-	return scsi_dev_queue_ready(q, sdev);
+	if (scsi_dev_queue_ready(q, sdev))
+		return true;
+
+	atomic_inc(&sdev->restarts);
+
+	/*
+	 * Orders atomic_inc(&sdev->restarts) and atomic_read(&sdev->device_busy).
+	 * .restarts must be incremented before .device_busy is read because the
+	 * code in scsi_run_queue_async() depends on the order of these operations.
+	 */
+	smp_mb__after_atomic();
+
+	/*
+	 * If all in-flight requests originated from this LUN are completed
+	 * before reading .device_busy, sdev->device_busy will be observed as
+	 * zero, then blk_mq_delay_run_hw_queues() will dispatch this request
+	 * soon. Otherwise, completion of one of these requests will observe
+	 * the .restarts flag, and the request queue will be run for handling
+	 * this request, see scsi_end_request().
+	 */
+	if (unlikely(atomic_read(&sdev->device_busy) == 0 &&
+				!scsi_device_blocked(sdev)))
+		blk_mq_delay_run_hw_queues(sdev->request_queue, SCSI_QUEUE_DELAY);
+	return false;
 }
 
 static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,

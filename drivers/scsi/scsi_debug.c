@@ -209,10 +209,6 @@ static const char *sdebug_version_date = "20200710";
 #define OPT_MEDIUM_ERR_ADDR   0x1234 /* that's sector 4660 in decimal */
 #define OPT_MEDIUM_ERR_NUM    10     /* number of consecutive medium errs */
 
-/* If REPORT LUNS has luns >= 256 it can choose "flat space" (value 1)
- * or "peripheral device" addressing (value 0) */
-#define SAM2_LUN_ADDRESS_METHOD 0
-
 /* SDEBUG_CANQUEUE is the maximum number of commands that can be queued
  * (for response) per submit queue at one time. Can be reduced by max_queue
  * option. Command responses are not queued when jdelay=0 and ndelay=0. The
@@ -790,6 +786,13 @@ static bool sdebug_wp;
 /* Following enum: 0: no zbc, def; 1: host aware; 2: host managed */
 static enum blk_zoned_model sdeb_zbc_model = BLK_ZONED_NONE;
 static char *sdeb_zbc_model_s;
+
+enum sam_lun_addr_method {SAM_LUN_AM_PERIPHERAL = 0x0,
+			  SAM_LUN_AM_FLAT = 0x1,
+			  SAM_LUN_AM_LOGICAL_UNIT = 0x2,
+			  SAM_LUN_AM_EXTENDED = 0x3};
+static enum sam_lun_addr_method sdebug_lun_am = SAM_LUN_AM_PERIPHERAL;
+static int sdebug_lun_am_i = (int)SAM_LUN_AM_PERIPHERAL;
 
 static unsigned int sdebug_store_sectors;
 static sector_t sdebug_capacity;	/* in sectors */
@@ -4179,6 +4182,8 @@ static int resp_report_luns(struct scsi_cmnd *scp,
 			if ((k * RL_BUCKET_ELEMS) + j > lun_cnt)
 				break;
 			int_to_scsilun(lun++, lun_p);
+			if (lun > 1 && sdebug_lun_am == SAM_LUN_AM_FLAT)
+				lun_p->scsi_lun[0] |= 0x40;
 		}
 		if (j < RL_BUCKET_ELEMS)
 			break;
@@ -4939,6 +4944,7 @@ static struct sdebug_dev_info *find_build_dev_info(struct scsi_device *sdev)
 		pr_err("Host info NULL\n");
 		return NULL;
 	}
+
 	list_for_each_entry(devip, &sdbg_host->dev_info_list, dev_list) {
 		if ((devip->used) && (devip->channel == sdev->channel) &&
 		    (devip->target == sdev->id) &&
@@ -5252,7 +5258,7 @@ static int scsi_debug_host_reset(struct scsi_cmnd *SCpnt)
 static void sdebug_build_parts(unsigned char *ramp, unsigned long store_size)
 {
 	struct msdos_partition *pp;
-	int starts[SDEBUG_MAX_PARTS + 2];
+	int starts[SDEBUG_MAX_PARTS + 2], max_part_secs;
 	int sectors_per_part, num_sectors, k;
 	int heads_by_sects, start_sec, end_sec;
 
@@ -5263,14 +5269,18 @@ static void sdebug_build_parts(unsigned char *ramp, unsigned long store_size)
 		sdebug_num_parts = SDEBUG_MAX_PARTS;
 		pr_warn("reducing partitions to %d\n", SDEBUG_MAX_PARTS);
 	}
-	num_sectors = (int)sdebug_store_sectors;
+	num_sectors = (int)get_sdebug_capacity();
 	sectors_per_part = (num_sectors - sdebug_sectors_per)
 			   / sdebug_num_parts;
 	heads_by_sects = sdebug_heads * sdebug_sectors_per;
 	starts[0] = sdebug_sectors_per;
-	for (k = 1; k < sdebug_num_parts; ++k)
+	max_part_secs = sectors_per_part;
+	for (k = 1; k < sdebug_num_parts; ++k) {
 		starts[k] = ((k * sectors_per_part) / heads_by_sects)
 			    * heads_by_sects;
+		if (starts[k] - starts[k - 1] < max_part_secs)
+			max_part_secs = starts[k] - starts[k - 1];
+	}
 	starts[sdebug_num_parts] = num_sectors;
 	starts[sdebug_num_parts + 1] = 0;
 
@@ -5279,7 +5289,7 @@ static void sdebug_build_parts(unsigned char *ramp, unsigned long store_size)
 	pp = (struct msdos_partition *)(ramp + 0x1be);
 	for (k = 0; starts[k + 1]; ++k, ++pp) {
 		start_sec = starts[k];
-		end_sec = starts[k + 1] - 1;
+		end_sec = starts[k] + max_part_secs - 1;
 		pp->boot_ind = 0;
 
 		pp->cyl = start_sec / heads_by_sects;
@@ -5579,6 +5589,7 @@ module_param_named(lbpu, sdebug_lbpu, int, S_IRUGO);
 module_param_named(lbpws, sdebug_lbpws, int, S_IRUGO);
 module_param_named(lbpws10, sdebug_lbpws10, int, S_IRUGO);
 module_param_named(lowest_aligned, sdebug_lowest_aligned, int, S_IRUGO);
+module_param_named(lun_format, sdebug_lun_am_i, int, S_IRUGO | S_IWUSR);
 module_param_named(max_luns, sdebug_max_luns, int, S_IRUGO | S_IWUSR);
 module_param_named(max_queue, sdebug_max_queue, int, S_IRUGO | S_IWUSR);
 module_param_named(medium_error_count, sdebug_medium_error_count, int,
@@ -5652,6 +5663,7 @@ MODULE_PARM_DESC(lbpws, "enable LBP, support WRITE SAME(16) with UNMAP bit (def=
 MODULE_PARM_DESC(lbpws10, "enable LBP, support WRITE SAME(10) with UNMAP bit (def=0)");
 MODULE_PARM_DESC(lowest_aligned, "lowest aligned lba (def=0)");
 MODULE_PARM_DESC(max_luns, "number of LUNs per target to simulate(def=1)");
+MODULE_PARM_DESC(lun_format, "LUN format: 0->peripheral (def); 1 --> flat address method");
 MODULE_PARM_DESC(max_queue, "max number of queued commands (1 to max(def))");
 MODULE_PARM_DESC(medium_error_count, "count of sectors to return follow on MEDIUM error");
 MODULE_PARM_DESC(medium_error_start, "starting sector number to return MEDIUM error");
@@ -6099,6 +6111,43 @@ every_nth_done:
 }
 static DRIVER_ATTR_RW(every_nth);
 
+static ssize_t lun_format_show(struct device_driver *ddp, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%d\n", (int)sdebug_lun_am);
+}
+static ssize_t lun_format_store(struct device_driver *ddp, const char *buf,
+				size_t count)
+{
+	int n;
+	bool changed;
+
+	if (kstrtoint(buf, 0, &n))
+		return -EINVAL;
+	if (n >= 0) {
+		if (n > (int)SAM_LUN_AM_FLAT) {
+			pr_warn("only LUN address methods 0 and 1 are supported\n");
+			return -EINVAL;
+		}
+		changed = ((int)sdebug_lun_am != n);
+		sdebug_lun_am = n;
+		if (changed && sdebug_scsi_level >= 5) {	/* >= SPC-3 */
+			struct sdebug_host_info *sdhp;
+			struct sdebug_dev_info *dp;
+
+			spin_lock(&sdebug_host_list_lock);
+			list_for_each_entry(sdhp, &sdebug_host_list, host_list) {
+				list_for_each_entry(dp, &sdhp->dev_info_list, dev_list) {
+					set_bit(SDEBUG_UA_LUNS_CHANGED, dp->uas_bm);
+				}
+			}
+			spin_unlock(&sdebug_host_list_lock);
+		}
+		return count;
+	}
+	return -EINVAL;
+}
+static DRIVER_ATTR_RW(lun_format);
+
 static ssize_t max_luns_show(struct device_driver *ddp, char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "%d\n", sdebug_max_luns);
@@ -6537,6 +6586,7 @@ static struct attribute *sdebug_drv_attrs[] = {
 	&driver_attr_dev_size_mb.attr,
 	&driver_attr_num_parts.attr,
 	&driver_attr_every_nth.attr,
+	&driver_attr_lun_format.attr,
 	&driver_attr_max_luns.attr,
 	&driver_attr_max_queue.attr,
 	&driver_attr_no_uld.attr,
@@ -6629,9 +6679,19 @@ static int __init scsi_debug_init(void)
 		pr_err("invalid physblk_exp %u\n", sdebug_physblk_exp);
 		return -EINVAL;
 	}
+
+	sdebug_lun_am = sdebug_lun_am_i;
+	if (sdebug_lun_am > SAM_LUN_AM_FLAT) {
+		pr_warn("Invalid LUN format %u, using default\n", (int)sdebug_lun_am);
+		sdebug_lun_am = SAM_LUN_AM_PERIPHERAL;
+	}
+
 	if (sdebug_max_luns > 256) {
-		pr_warn("max_luns can be no more than 256, use default\n");
-		sdebug_max_luns = DEF_MAX_LUNS;
+		if (sdebug_max_luns > 16384) {
+			pr_warn("max_luns can be no more than 16384, use default\n");
+			sdebug_max_luns = DEF_MAX_LUNS;
+		}
+		sdebug_lun_am = SAM_LUN_AM_FLAT;
 	}
 
 	if (sdebug_lowest_aligned > 0x3fff) {
@@ -7153,6 +7213,7 @@ static int scsi_debug_queuecommand(struct Scsi_Host *shost,
 	int (*pfp)(struct scsi_cmnd *, struct sdebug_dev_info *) = NULL;
 	int k, na;
 	int errsts = 0;
+	u64 lun_index = sdp->lun & 0x3FFF;
 	u32 flags;
 	u16 sa;
 	u8 opcode = cmd[0];
@@ -7186,7 +7247,7 @@ static int scsi_debug_queuecommand(struct Scsi_Host *shost,
 	if (unlikely(inject_now && (sdebug_opts & SDEBUG_OPT_HOST_BUSY)))
 		return SCSI_MLQUEUE_HOST_BUSY;
 	has_wlun_rl = (sdp->lun == SCSI_W_LUN_REPORT_LUNS);
-	if (unlikely((sdp->lun >= sdebug_max_luns) && !has_wlun_rl))
+	if (unlikely(lun_index >= sdebug_max_luns && !has_wlun_rl))
 		goto err_out;
 
 	sdeb_i = opcode_ind_arr[opcode];	/* fully mapped */

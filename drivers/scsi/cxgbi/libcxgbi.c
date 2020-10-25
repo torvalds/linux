@@ -77,9 +77,9 @@ int cxgbi_device_portmap_create(struct cxgbi_device *cdev, unsigned int base,
 {
 	struct cxgbi_ports_map *pmap = &cdev->pmap;
 
-	pmap->port_csk = cxgbi_alloc_big_mem(max_conn *
-					     sizeof(struct cxgbi_sock *),
-					     GFP_KERNEL);
+	pmap->port_csk = kvzalloc(array_size(max_conn,
+					     sizeof(struct cxgbi_sock *)),
+				  GFP_KERNEL | __GFP_NOWARN);
 	if (!pmap->port_csk) {
 		pr_warn("cdev 0x%p, portmap OOM %u.\n", cdev, max_conn);
 		return -ENOMEM;
@@ -124,7 +124,7 @@ static inline void cxgbi_device_destroy(struct cxgbi_device *cdev)
 	if (cdev->cdev2ppm)
 		cxgbi_ppm_release(cdev->cdev2ppm(cdev));
 	if (cdev->pmap.max_connect)
-		cxgbi_free_big_mem(cdev->pmap.port_csk);
+		kvfree(cdev->pmap.port_csk);
 	kfree(cdev);
 }
 

@@ -16,7 +16,7 @@
  * | Device Discovery             |       0x2134       | 0x210e-0x2116  |
  * |				  | 		       | 0x211a         |
  * |                              |                    | 0x211c-0x2128  |
- * |                              |                    | 0x212a-0x2134  |
+ * |                              |                    | 0x212c-0x2134  |
  * | Queue Command and IO tracing |       0x3074       | 0x300b         |
  * |                              |                    | 0x3027-0x3028  |
  * |                              |                    | 0x303d-0x3041  |
@@ -2449,7 +2449,7 @@ static void ql_dbg_prefix(char *pbuf, int pbuf_size,
 		const struct pci_dev *pdev = vha->hw->pdev;
 
 		/* <module-name> [<dev-name>]-<msg-id>:<host>: */
-		snprintf(pbuf, pbuf_size, "%s [%s]-%04x:%ld: ", QL_MSGHDR,
+		snprintf(pbuf, pbuf_size, "%s [%s]-%04x:%lu: ", QL_MSGHDR,
 			 dev_name(&(pdev->dev)), msg_id, vha->host_no);
 	} else {
 		/* <module-name> [<dev-name>]-<msg-id>: : */

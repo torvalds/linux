@@ -1402,7 +1402,7 @@ static void fnic_cleanup_io(struct fnic *fnic, int exclude_id)
 		}
 		if (!io_req) {
 			spin_unlock_irqrestore(io_lock, flags);
-			goto cleanup_scsi_cmd;
+			continue;
 		}
 
 		CMD_SP(sc) = NULL;
@@ -1417,7 +1417,6 @@ static void fnic_cleanup_io(struct fnic *fnic, int exclude_id)
 		fnic_release_ioreq_buf(fnic, io_req, sc);
 		mempool_free(io_req, fnic->io_req_pool);
 
-cleanup_scsi_cmd:
 		sc->result = DID_TRANSPORT_DISRUPTED << 16;
 		FNIC_SCSI_DBG(KERN_DEBUG, fnic->lport->host,
 			      "%s: tag:0x%x : sc:0x%p duration = %lu DID_TRANSPORT_DISRUPTED\n",
