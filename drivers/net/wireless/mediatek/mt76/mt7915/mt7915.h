@@ -278,7 +278,6 @@ void mt7915_unregister_device(struct mt7915_dev *dev);
 int mt7915_register_ext_phy(struct mt7915_dev *dev);
 void mt7915_unregister_ext_phy(struct mt7915_dev *dev);
 int mt7915_eeprom_init(struct mt7915_dev *dev);
-u32 mt7915_eeprom_read(struct mt7915_dev *dev, u32 offset);
 int mt7915_eeprom_get_target_power(struct mt7915_dev *dev,
 				   struct ieee80211_channel *chan,
 				   u8 chain_idx);

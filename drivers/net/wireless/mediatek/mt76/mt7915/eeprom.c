@@ -4,16 +4,11 @@
 #include "mt7915.h"
 #include "eeprom.h"
 
-static inline bool mt7915_efuse_valid(u8 val)
-{
-	return !(val == 0xff);
-}
-
-u32 mt7915_eeprom_read(struct mt7915_dev *dev, u32 offset)
+static u32 mt7915_eeprom_read(struct mt7915_dev *dev, u32 offset)
 {
 	u8 *data = dev->mt76.eeprom.data;
 
-	if (!mt7915_efuse_valid(data[offset]))
+	if (data[offset] == 0xff)
 		mt7915_mcu_get_eeprom(dev, offset);
 
 	return data[offset];
