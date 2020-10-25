@@ -40,7 +40,7 @@
 #define DRIVER_AUTHOR "Brian Warner <warner@lothar.com>"
 #define DRIVER_DESC "USB Keyspan PDA Converter driver"
 
-#define KEYSPAN_TX_THRESHOLD	16
+#define KEYSPAN_TX_THRESHOLD	128
 
 struct keyspan_pda_private {
 	int			tx_room;
