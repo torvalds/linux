@@ -43,8 +43,7 @@
 struct keyspan_pda_private {
 	int			tx_room;
 	int			tx_throttled;
-	struct work_struct			wakeup_work;
-	struct work_struct			unthrottle_work;
+	struct work_struct	unthrottle_work;
 	struct usb_serial	*serial;
 	struct usb_serial_port	*port;
 };
@@ -96,15 +95,6 @@ static const struct usb_device_id id_table_fake_xircom[] = {
 	{ }
 };
 #endif
-
-static void keyspan_pda_wakeup_write(struct work_struct *work)
-{
-	struct keyspan_pda_private *priv =
-		container_of(work, struct keyspan_pda_private, wakeup_work);
-	struct usb_serial_port *port = priv->port;
-
-	tty_port_tty_wakeup(&port->port);
-}
 
 static void keyspan_pda_request_unthrottle(struct work_struct *work)
 {
@@ -183,7 +173,7 @@ static void keyspan_pda_rx_interrupt(struct urb *urb)
 		case 2: /* tx unthrottle interrupt */
 			priv->tx_throttled = 0;
 			/* queue up a wakeup at scheduler time */
-			schedule_work(&priv->wakeup_work);
+			usb_serial_port_softint(port);
 			break;
 		default:
 			break;
@@ -563,7 +553,7 @@ static void keyspan_pda_write_bulk_callback(struct urb *urb)
 	priv = usb_get_serial_port_data(port);
 
 	/* queue up a wakeup at scheduler time */
-	schedule_work(&priv->wakeup_work);
+	usb_serial_port_softint(port);
 }
 
 
@@ -716,7 +706,6 @@ static int keyspan_pda_port_probe(struct usb_serial_port *port)
 	if (!priv)
 		return -ENOMEM;
 
-	INIT_WORK(&priv->wakeup_work, keyspan_pda_wakeup_write);
 	INIT_WORK(&priv->unthrottle_work, keyspan_pda_request_unthrottle);
 	priv->serial = port->serial;
 	priv->port = port;
