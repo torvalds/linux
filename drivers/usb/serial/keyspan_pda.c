@@ -76,7 +76,7 @@ static const struct usb_device_id id_table_fake[] = {
 static int keyspan_pda_get_write_room(struct keyspan_pda_private *priv)
 {
 	struct usb_serial_port *port = priv->port;
-	struct usb_serial *serial = priv->serial;
+	struct usb_serial *serial = port->serial;
 	u8 *room;
 	int rc;
 
@@ -114,7 +114,7 @@ static void keyspan_pda_request_unthrottle(struct work_struct *work)
 	struct keyspan_pda_private *priv =
 		container_of(work, struct keyspan_pda_private, unthrottle_work);
 	struct usb_serial_port *port = priv->port;
-	struct usb_serial *serial = priv->serial;
+	struct usb_serial *serial = port->serial;
 	unsigned long flags;
 	int result;
 
@@ -665,7 +665,6 @@ static int keyspan_pda_port_probe(struct usb_serial_port *port)
 		return -ENOMEM;
 
 	INIT_WORK(&priv->unthrottle_work, keyspan_pda_request_unthrottle);
-	priv->serial = port->serial;
 	priv->port = port;
 
 	usb_set_serial_port_data(port, priv);
