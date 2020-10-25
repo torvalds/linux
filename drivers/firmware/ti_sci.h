@@ -574,8 +574,10 @@ struct ti_sci_msg_req_get_resource_range {
 /**
  * struct ti_sci_msg_resp_get_resource_range - Response to resource get range.
  * @hdr:		Generic Header
- * @range_start:	Start index of the resource range.
- * @range_num:		Number of resources in the range.
+ * @range_start:	Start index of the first resource range.
+ * @range_num:		Number of resources in the first range.
+ * @range_start_sec:	Start index of the second resource range.
+ * @range_num_sec:	Number of resources in the second range.
  *
  * Response to request TI_SCI_MSG_GET_RESOURCE_RANGE.
  */
@@ -583,6 +585,8 @@ struct ti_sci_msg_resp_get_resource_range {
 	struct ti_sci_msg_hdr hdr;
 	u16 range_start;
 	u16 range_num;
+	u16 range_start_sec;
+	u16 range_num_sec;
 } __packed;
 
 /**

@@ -197,13 +197,17 @@ struct ti_sci_clk_ops {
 
 /**
  * struct ti_sci_resource_desc - Description of TI SCI resource instance range.
- * @start:	Start index of the resource.
- * @num:	Number of resources.
+ * @start:	Start index of the first resource range.
+ * @num:	Number of resources in the first range.
+ * @start_sec:	Start index of the second resource range.
+ * @num_sec:	Number of resources in the second range.
  * @res_map:	Bitmap to manage the allocation of these resources.
  */
 struct ti_sci_resource_desc {
 	u16 start;
 	u16 num;
+	u16 start_sec;
+	u16 num_sec;
 	unsigned long *res_map;
 };
 
