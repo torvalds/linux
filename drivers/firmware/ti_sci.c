@@ -1703,14 +1703,14 @@ fail:
  * @subtype:		Resource assignment subtype that is being requested
  *			from the given device.
  * @s_host:		Host processor ID to which the resources are allocated
- * @range_start:	Start index of the resource range
- * @range_num:		Number of resources in the range
+ * @desc:		Pointer to ti_sci_resource_desc to be updated with the
+ *			resource range start index and number of resources
  *
  * Return: 0 if all went fine, else return appropriate error.
  */
 static int ti_sci_get_resource_range(const struct ti_sci_handle *handle,
 				     u32 dev_id, u8 subtype, u8 s_host,
-				     u16 *range_start, u16 *range_num)
+				     struct ti_sci_resource_desc *desc)
 {
 	struct ti_sci_msg_resp_get_resource_range *resp;
 	struct ti_sci_msg_req_get_resource_range *req;
@@ -1721,7 +1721,7 @@ static int ti_sci_get_resource_range(const struct ti_sci_handle *handle,
 
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
-	if (!handle)
+	if (!handle || !desc)
 		return -EINVAL;
 
 	info = handle_to_ti_sci_info(handle);
@@ -1754,8 +1754,8 @@ static int ti_sci_get_resource_range(const struct ti_sci_handle *handle,
 	} else if (!resp->range_start && !resp->range_num) {
 		ret = -ENODEV;
 	} else {
-		*range_start = resp->range_start;
-		*range_num = resp->range_num;
+		desc->start = resp->range_start;
+		desc->num = resp->range_num;
 	};
 
 fail:
@@ -1771,18 +1771,18 @@ fail:
  * @dev_id:		TISCI device ID.
  * @subtype:		Resource assignment subtype that is being requested
  *			from the given device.
- * @range_start:	Start index of the resource range
- * @range_num:		Number of resources in the range
+ * @desc:		Pointer to ti_sci_resource_desc to be updated with the
+ *			resource range start index and number of resources
  *
  * Return: 0 if all went fine, else return appropriate error.
  */
 static int ti_sci_cmd_get_resource_range(const struct ti_sci_handle *handle,
 					 u32 dev_id, u8 subtype,
-					 u16 *range_start, u16 *range_num)
+					 struct ti_sci_resource_desc *desc)
 {
 	return ti_sci_get_resource_range(handle, dev_id, subtype,
 					 TI_SCI_IRQ_SECONDARY_HOST_INVALID,
-					 range_start, range_num);
+					 desc);
 }
 
 /**
@@ -1793,18 +1793,17 @@ static int ti_sci_cmd_get_resource_range(const struct ti_sci_handle *handle,
  * @subtype:		Resource assignment subtype that is being requested
  *			from the given device.
  * @s_host:		Host processor ID to which the resources are allocated
- * @range_start:	Start index of the resource range
- * @range_num:		Number of resources in the range
+ * @desc:		Pointer to ti_sci_resource_desc to be updated with the
+ *			resource range start index and number of resources
  *
  * Return: 0 if all went fine, else return appropriate error.
  */
 static
 int ti_sci_cmd_get_resource_range_from_shost(const struct ti_sci_handle *handle,
 					     u32 dev_id, u8 subtype, u8 s_host,
-					     u16 *range_start, u16 *range_num)
+					     struct ti_sci_resource_desc *desc)
 {
-	return ti_sci_get_resource_range(handle, dev_id, subtype, s_host,
-					 range_start, range_num);
+	return ti_sci_get_resource_range(handle, dev_id, subtype, s_host, desc);
 }
 
 /**
@@ -3243,8 +3242,7 @@ devm_ti_sci_get_resource_sets(const struct ti_sci_handle *handle,
 	for (i = 0; i < res->sets; i++) {
 		ret = handle->ops.rm_core_ops.get_range(handle, dev_id,
 							sub_types[i],
-							&res->desc[i].start,
-							&res->desc[i].num);
+							&res->desc[i]);
 		if (ret) {
 			dev_dbg(dev, "dev = %d subtype %d not allocated for this host\n",
 				dev_id, sub_types[i]);

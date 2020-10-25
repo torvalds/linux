@@ -196,6 +196,18 @@ struct ti_sci_clk_ops {
 };
 
 /**
+ * struct ti_sci_resource_desc - Description of TI SCI resource instance range.
+ * @start:	Start index of the resource.
+ * @num:	Number of resources.
+ * @res_map:	Bitmap to manage the allocation of these resources.
+ */
+struct ti_sci_resource_desc {
+	u16 start;
+	u16 num;
+	unsigned long *res_map;
+};
+
+/**
  * struct ti_sci_rm_core_ops - Resource management core operations
  * @get_range:		Get a range of resources belonging to ti sci host.
  * @get_rage_from_shost:	Get a range of resources belonging to
@@ -209,15 +221,15 @@ struct ti_sci_clk_ops {
  * - dev_id:	TISCI device ID.
  * - subtype:	Resource assignment subtype that is being requested
  *		from the given device.
- * - range_start:	Start index of the resource range
- * - range_end:		Number of resources in the range
+ * - desc:	Pointer to ti_sci_resource_desc to be updated with the resource
+ *		range start index and number of resources
  */
 struct ti_sci_rm_core_ops {
 	int (*get_range)(const struct ti_sci_handle *handle, u32 dev_id,
-			 u8 subtype, u16 *range_start, u16 *range_num);
+			 u8 subtype, struct ti_sci_resource_desc *desc);
 	int (*get_range_from_shost)(const struct ti_sci_handle *handle,
 				    u32 dev_id, u8 subtype, u8 s_host,
-				    u16 *range_start, u16 *range_num);
+				    struct ti_sci_resource_desc *desc);
 };
 
 #define TI_SCI_RESASG_SUBTYPE_IR_OUTPUT		0
@@ -521,18 +533,6 @@ struct ti_sci_handle {
 };
 
 #define TI_SCI_RESOURCE_NULL	0xffff
-
-/**
- * struct ti_sci_resource_desc - Description of TI SCI resource instance range.
- * @start:	Start index of the resource.
- * @num:	Number of resources.
- * @res_map:	Bitmap to manage the allocation of these resources.
- */
-struct ti_sci_resource_desc {
-	u16 start;
-	u16 num;
-	unsigned long *res_map;
-};
 
 /**
  * struct ti_sci_resource - Structure representing a resource assigned
