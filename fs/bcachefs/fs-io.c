@@ -782,17 +782,18 @@ retry:
 		if (ret)
 			break;
 
-		bkey_on_stack_reassemble(&sk, c, k);
-		k = bkey_i_to_s_c(sk.k);
-
 		offset_into_extent = iter->pos.offset -
 			bkey_start_offset(k.k);
 		sectors = k.k->size - offset_into_extent;
+
+		bkey_on_stack_reassemble(&sk, c, k);
 
 		ret = bch2_read_indirect_extent(trans,
 					&offset_into_extent, &sk);
 		if (ret)
 			break;
+
+		k = bkey_i_to_s_c(sk.k);
 
 		sectors = min(sectors, k.k->size - offset_into_extent);
 

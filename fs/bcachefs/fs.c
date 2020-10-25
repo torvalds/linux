@@ -911,19 +911,20 @@ retry:
 			continue;
 		}
 
-		bkey_on_stack_realloc(&cur, c, k.k->u64s);
-		bkey_on_stack_realloc(&prev, c, k.k->u64s);
-		bkey_reassemble(cur.k, k);
-		k = bkey_i_to_s_c(cur.k);
-
 		offset_into_extent	= iter->pos.offset -
 			bkey_start_offset(k.k);
 		sectors			= k.k->size - offset_into_extent;
+
+		bkey_on_stack_realloc(&cur, c, k.k->u64s);
+		bkey_on_stack_realloc(&prev, c, k.k->u64s);
+		bkey_reassemble(cur.k, k);
 
 		ret = bch2_read_indirect_extent(&trans,
 					&offset_into_extent, &cur);
 		if (ret)
 			break;
+
+		k = bkey_i_to_s_c(cur.k);
 
 		sectors = min(sectors, k.k->size - offset_into_extent);
 
