@@ -1160,15 +1160,17 @@ static int haptics_enable_play(struct haptics_chip *chip, bool en)
 		if (((val & CAL_RC_CLK_MASK) ==
 				CAL_RC_CLK_AUTO_VAL << CAL_RC_CLK_SHIFT)
 				&& is_boost_vreg_enabled_in_open_loop(chip)) {
+			val = CAL_RC_CLK_DISABLED_VAL << CAL_RC_CLK_SHIFT;
 			rc = haptics_masked_write(chip, chip->cfg_addr_base,
 					HAP_CFG_CAL_EN_REG, CAL_RC_CLK_MASK,
-					CAL_RC_CLK_DISABLED_VAL);
+					val);
 			if (rc < 0)
 				return rc;
 
+			val = CAL_RC_CLK_AUTO_VAL << CAL_RC_CLK_SHIFT;
 			rc = haptics_masked_write(chip, chip->cfg_addr_base,
 					HAP_CFG_CAL_EN_REG, CAL_RC_CLK_MASK,
-					CAL_RC_CLK_AUTO_VAL);
+					val);
 			if (rc < 0)
 				return rc;
 
