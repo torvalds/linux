@@ -49,7 +49,6 @@
 #define TI_SCI_MSG_RM_RING_RECONFIG		0x1102
 #define TI_SCI_MSG_RM_RING_RESET		0x1103
 #define TI_SCI_MSG_RM_RING_CFG			0x1110
-#define TI_SCI_MSG_RM_RING_GET_CFG		0x1111
 
 /* PSI-L requests */
 #define TI_SCI_MSG_RM_PSIL_PAIR			0x1280
@@ -679,49 +678,6 @@ struct ti_sci_msg_rm_ring_cfg_req {
 	u32 valid_params;
 	u16 nav_id;
 	u16 index;
-	u32 addr_lo;
-	u32 addr_hi;
-	u32 count;
-	u8 mode;
-	u8 size;
-	u8 order_id;
-} __packed;
-
-/**
- * struct ti_sci_msg_rm_ring_get_cfg_req - Get RA ring's configuration
- *
- * Gets the configuration of the non-real-time register fields of a ring.  The
- * host, or a supervisor of the host, who owns the ring must be the requesting
- * host.  The values of the non-real-time registers are returned in
- * @ti_sci_msg_rm_ring_get_cfg_resp.
- *
- * @hdr: Generic Header
- * @nav_id: Device ID of Navigator Subsystem from which the ring is allocated
- * @index: ring index.
- */
-struct ti_sci_msg_rm_ring_get_cfg_req {
-	struct ti_sci_msg_hdr hdr;
-	u16 nav_id;
-	u16 index;
-} __packed;
-
-/**
- * struct ti_sci_msg_rm_ring_get_cfg_resp -  Ring get configuration response
- *
- * Response received by host processor after RM has handled
- * @ti_sci_msg_rm_ring_get_cfg_req. The response contains the ring's
- * non-real-time register values.
- *
- * @hdr: Generic Header
- * @addr_lo: Ring 32 LSBs of base address
- * @addr_hi: Ring 16 MSBs of base address.
- * @count: Ring number of elements.
- * @mode: Ring mode.
- * @size: encoded Ring element size
- * @order_id: ing order ID.
- */
-struct ti_sci_msg_rm_ring_get_cfg_resp {
-	struct ti_sci_msg_hdr hdr;
 	u32 addr_lo;
 	u32 addr_hi;
 	u32 count;
