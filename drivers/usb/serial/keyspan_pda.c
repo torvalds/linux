@@ -422,13 +422,14 @@ static int keyspan_pda_tiocmget(struct tty_struct *tty)
 	rc = keyspan_pda_get_modem_info(serial, &status);
 	if (rc < 0)
 		return rc;
-	value =
-		((status & (1<<7)) ? TIOCM_DTR : 0) |
-		((status & (1<<6)) ? TIOCM_CAR : 0) |
-		((status & (1<<5)) ? TIOCM_RNG : 0) |
-		((status & (1<<4)) ? TIOCM_DSR : 0) |
-		((status & (1<<3)) ? TIOCM_CTS : 0) |
-		((status & (1<<2)) ? TIOCM_RTS : 0);
+
+	value = ((status & BIT(7)) ? TIOCM_DTR : 0) |
+		((status & BIT(6)) ? TIOCM_CAR : 0) |
+		((status & BIT(5)) ? TIOCM_RNG : 0) |
+		((status & BIT(4)) ? TIOCM_DSR : 0) |
+		((status & BIT(3)) ? TIOCM_CTS : 0) |
+		((status & BIT(2)) ? TIOCM_RTS : 0);
+
 	return value;
 }
 
@@ -445,14 +446,14 @@ static int keyspan_pda_tiocmset(struct tty_struct *tty,
 		return rc;
 
 	if (set & TIOCM_RTS)
-		status |= (1<<2);
+		status |= BIT(2);
 	if (set & TIOCM_DTR)
-		status |= (1<<7);
+		status |= BIT(7);
 
 	if (clear & TIOCM_RTS)
-		status &= ~(1<<2);
+		status &= ~BIT(2);
 	if (clear & TIOCM_DTR)
-		status &= ~(1<<7);
+		status &= ~BIT(7);
 	rc = keyspan_pda_set_modem_info(serial, status);
 	return rc;
 }
@@ -565,7 +566,7 @@ static void keyspan_pda_dtr_rts(struct usb_serial_port *port, int on)
 	struct usb_serial *serial = port->serial;
 
 	if (on)
-		keyspan_pda_set_modem_info(serial, (1 << 7) | (1 << 2));
+		keyspan_pda_set_modem_info(serial, BIT(7) | BIT(2));
 	else
 		keyspan_pda_set_modem_info(serial, 0);
 }
