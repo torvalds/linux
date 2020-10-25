@@ -98,6 +98,42 @@ static const struct usb_device_id id_table_fake_xircom[] = {
 };
 #endif
 
+static int keyspan_pda_get_write_room(struct keyspan_pda_private *priv)
+{
+	struct usb_serial_port *port = priv->port;
+	struct usb_serial *serial = priv->serial;
+	u8 *room;
+	int rc;
+
+	room = kmalloc(1, GFP_KERNEL);
+	if (!room)
+		return -ENOMEM;
+
+	rc = usb_control_msg(serial->dev,
+			     usb_rcvctrlpipe(serial->dev, 0),
+			     6, /* write_room */
+			     USB_TYPE_VENDOR | USB_RECIP_INTERFACE
+			     | USB_DIR_IN,
+			     0, /* value: 0 means "remaining room" */
+			     0, /* index */
+			     room,
+			     1,
+			     2000);
+	if (rc != 1) {
+		if (rc >= 0)
+			rc = -EIO;
+		dev_dbg(&port->dev, "roomquery failed: %d\n", rc);
+		goto out_free;
+	}
+
+	dev_dbg(&port->dev, "roomquery says %d\n", *room);
+	rc = *room;
+out_free:
+	kfree(room);
+
+	return rc;
+}
+
 static void keyspan_pda_request_unthrottle(struct work_struct *work)
 {
 	struct keyspan_pda_private *priv =
@@ -436,7 +472,6 @@ static int keyspan_pda_tiocmset(struct tty_struct *tty,
 static int keyspan_pda_write(struct tty_struct *tty,
 	struct usb_serial_port *port, const unsigned char *buf, int count)
 {
-	struct usb_serial *serial = port->serial;
 	int request_unthrottle = 0;
 	int rc = 0;
 	struct keyspan_pda_private *priv;
@@ -479,38 +514,11 @@ static int keyspan_pda_write(struct tty_struct *tty,
 	   device how much room it really has.  This is done only on
 	   scheduler time, since usb_control_msg() sleeps. */
 	if (count > priv->tx_room && !in_interrupt()) {
-		u8 *room;
+		rc = keyspan_pda_get_write_room(priv);
+		if (rc < 0)
+			goto exit;
 
-		room = kmalloc(1, GFP_KERNEL);
-		if (!room) {
-			rc = -ENOMEM;
-			goto exit;
-		}
-
-		rc = usb_control_msg(serial->dev,
-				     usb_rcvctrlpipe(serial->dev, 0),
-				     6, /* write_room */
-				     USB_TYPE_VENDOR | USB_RECIP_INTERFACE
-				     | USB_DIR_IN,
-				     0, /* value: 0 means "remaining room" */
-				     0, /* index */
-				     room,
-				     1,
-				     2000);
-		if (rc > 0) {
-			dev_dbg(&port->dev, "roomquery says %d\n", *room);
-			priv->tx_room = *room;
-		}
-		kfree(room);
-		if (rc < 0) {
-			dev_dbg(&port->dev, "roomquery failed\n");
-			goto exit;
-		}
-		if (rc == 0) {
-			dev_dbg(&port->dev, "roomquery returned 0 bytes\n");
-			rc = -EIO; /* device didn't return any data */
-			goto exit;
-		}
+		priv->tx_room = rc;
 	}
 
 	if (count >= priv->tx_room) {
@@ -614,48 +622,27 @@ static void keyspan_pda_dtr_rts(struct usb_serial_port *port, int on)
 static int keyspan_pda_open(struct tty_struct *tty,
 					struct usb_serial_port *port)
 {
-	struct usb_serial *serial = port->serial;
-	u8 *room;
-	int rc = 0;
-	struct keyspan_pda_private *priv;
+	struct keyspan_pda_private *priv = usb_get_serial_port_data(port);
+	int rc;
 
 	/* find out how much room is in the Tx ring */
-	room = kmalloc(1, GFP_KERNEL);
-	if (!room)
-		return -ENOMEM;
+	rc = keyspan_pda_get_write_room(priv);
+	if (rc < 0)
+		return rc;
 
-	rc = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
-			     6, /* write_room */
-			     USB_TYPE_VENDOR | USB_RECIP_INTERFACE
-			     | USB_DIR_IN,
-			     0, /* value */
-			     0, /* index */
-			     room,
-			     1,
-			     2000);
-	if (rc < 0) {
-		dev_dbg(&port->dev, "%s - roomquery failed\n", __func__);
-		goto error;
-	}
-	if (rc == 0) {
-		dev_dbg(&port->dev, "%s - roomquery returned 0 bytes\n", __func__);
-		rc = -EIO;
-		goto error;
-	}
-	priv = usb_get_serial_port_data(port);
-	priv->tx_room = *room;
-	priv->tx_throttled = *room ? 0 : 1;
+	priv->tx_room = rc;
+	priv->tx_throttled = rc ? 0 : 1;
 
 	/*Start reading from the device*/
 	rc = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 	if (rc) {
 		dev_dbg(&port->dev, "%s - usb_submit_urb(read int) failed\n", __func__);
-		goto error;
+		return rc;
 	}
-error:
-	kfree(room);
-	return rc;
+
+	return 0;
 }
+
 static void keyspan_pda_close(struct usb_serial_port *port)
 {
 	struct keyspan_pda_private *priv = usb_get_serial_port_data(port);
