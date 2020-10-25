@@ -265,32 +265,6 @@ xlog_header_check_mount(
 	return 0;
 }
 
-void
-xlog_recover_iodone(
-	struct xfs_buf	*bp)
-{
-	if (bp->b_error) {
-		/*
-		 * We're not going to bother about retrying
-		 * this during recovery. One strike!
-		 */
-		if (!XFS_FORCED_SHUTDOWN(bp->b_mount)) {
-			xfs_buf_ioerror_alert(bp, __this_address);
-			xfs_force_shutdown(bp->b_mount, SHUTDOWN_META_IO_ERROR);
-		}
-	}
-
-	/*
-	 * On v5 supers, a bli could be attached to update the metadata LSN.
-	 * Clean it up.
-	 */
-	if (bp->b_log_item)
-		xfs_buf_item_relse(bp);
-	ASSERT(bp->b_log_item == NULL);
-	bp->b_flags &= ~_XBF_LOGRECOVERY;
-	xfs_buf_ioend_finish(bp);
-}
-
 /*
  * This routine finds (to an approximation) the first block in the physical
  * log which contains the given cycle.  It uses a binary search algorithm.
@@ -2097,7 +2071,7 @@ xlog_recover_add_to_cont_trans(
 	old_ptr = item->ri_buf[item->ri_cnt-1].i_addr;
 	old_len = item->ri_buf[item->ri_cnt-1].i_len;
 
-	ptr = kmem_realloc(old_ptr, len + old_len, 0);
+	ptr = krealloc(old_ptr, len + old_len, GFP_KERNEL | __GFP_NOFAIL);
 	memcpy(&ptr[old_len], dp, len);
 	item->ri_buf[item->ri_cnt-1].i_len += len;
 	item->ri_buf[item->ri_cnt-1].i_addr = ptr;
@@ -3294,14 +3268,14 @@ xlog_do_log_recovery(
  */
 STATIC int
 xlog_do_recover(
-	struct xlog	*log,
-	xfs_daddr_t	head_blk,
-	xfs_daddr_t	tail_blk)
+	struct xlog		*log,
+	xfs_daddr_t		head_blk,
+	xfs_daddr_t		tail_blk)
 {
-	struct xfs_mount *mp = log->l_mp;
-	int		error;
-	xfs_buf_t	*bp;
-	xfs_sb_t	*sbp;
+	struct xfs_mount	*mp = log->l_mp;
+	struct xfs_buf		*bp = mp->m_sb_bp;
+	struct xfs_sb		*sbp = &mp->m_sb;
+	int			error;
 
 	trace_xfs_log_recover(log, head_blk, tail_blk);
 
@@ -3315,9 +3289,8 @@ xlog_do_recover(
 	/*
 	 * If IO errors happened during recovery, bail out.
 	 */
-	if (XFS_FORCED_SHUTDOWN(mp)) {
+	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
-	}
 
 	/*
 	 * We now update the tail_lsn since much of the recovery has completed
@@ -3331,16 +3304,12 @@ xlog_do_recover(
 	xlog_assign_tail_lsn(mp);
 
 	/*
-	 * Now that we've finished replaying all buffer and inode
-	 * updates, re-read in the superblock and reverify it.
+	 * Now that we've finished replaying all buffer and inode updates,
+	 * re-read the superblock and reverify it.
 	 */
-	bp = xfs_getsb(mp);
-	bp->b_flags &= ~(XBF_DONE | XBF_ASYNC);
-	ASSERT(!(bp->b_flags & XBF_WRITE));
-	bp->b_flags |= XBF_READ;
-	bp->b_ops = &xfs_sb_buf_ops;
-
-	error = xfs_buf_submit(bp);
+	xfs_buf_lock(bp);
+	xfs_buf_hold(bp);
+	error = _xfs_buf_read(bp, XBF_READ);
 	if (error) {
 		if (!XFS_FORCED_SHUTDOWN(mp)) {
 			xfs_buf_ioerror_alert(bp, __this_address);
@@ -3351,7 +3320,6 @@ xlog_do_recover(
 	}
 
 	/* Convert superblock from on-disk format */
-	sbp = &mp->m_sb;
 	xfs_sb_from_disk(sbp, bp->b_addr);
 	xfs_buf_relse(bp);
 

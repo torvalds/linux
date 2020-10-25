@@ -661,6 +661,17 @@ xfs_qm_init_quotainfo(
 	/* Precalc some constants */
 	qinf->qi_dqchunklen = XFS_FSB_TO_BB(mp, XFS_DQUOT_CLUSTER_SIZE_FSB);
 	qinf->qi_dqperchunk = xfs_calc_dquots_per_chunk(qinf->qi_dqchunklen);
+	if (xfs_sb_version_hasbigtime(&mp->m_sb)) {
+		qinf->qi_expiry_min =
+			xfs_dq_bigtime_to_unix(XFS_DQ_BIGTIME_EXPIRY_MIN);
+		qinf->qi_expiry_max =
+			xfs_dq_bigtime_to_unix(XFS_DQ_BIGTIME_EXPIRY_MAX);
+	} else {
+		qinf->qi_expiry_min = XFS_DQ_LEGACY_EXPIRY_MIN;
+		qinf->qi_expiry_max = XFS_DQ_LEGACY_EXPIRY_MAX;
+	}
+	trace_xfs_quota_expiry_range(mp, qinf->qi_expiry_min,
+			qinf->qi_expiry_max);
 
 	mp->m_qflags |= (mp->m_sb.sb_qflags & XFS_ALL_QUOTA_CHKD);
 
@@ -879,6 +890,8 @@ xfs_qm_reset_dqcounts(
 			ddq->d_bwarns = 0;
 			ddq->d_iwarns = 0;
 			ddq->d_rtbwarns = 0;
+			if (xfs_sb_version_hasbigtime(&mp->m_sb))
+				ddq->d_type |= XFS_DQTYPE_BIGTIME;
 		}
 
 		if (xfs_sb_version_hascrc(&mp->m_sb)) {

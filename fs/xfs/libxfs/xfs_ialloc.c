@@ -2473,6 +2473,7 @@ xfs_ialloc_log_agi(
 		offsetof(xfs_agi_t, agi_unlinked),
 		offsetof(xfs_agi_t, agi_free_root),
 		offsetof(xfs_agi_t, agi_free_level),
+		offsetof(xfs_agi_t, agi_iblocks),
 		sizeof(xfs_agi_t)
 	};
 #ifdef DEBUG
@@ -2805,6 +2806,10 @@ xfs_ialloc_setup_geometry(
 	struct xfs_ino_geometry	*igeo = M_IGEO(mp);
 	uint64_t		icount;
 	uint			inodes;
+
+	igeo->new_diflags2 = 0;
+	if (xfs_sb_version_hasbigtime(&mp->m_sb))
+		igeo->new_diflags2 |= XFS_DIFLAG2_BIGTIME;
 
 	/* Compute inode btree geometry. */
 	igeo->agino_log = sbp->sb_inopblog + sbp->sb_agblklog;

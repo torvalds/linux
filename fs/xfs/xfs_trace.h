@@ -338,7 +338,7 @@ DEFINE_BUF_EVENT(xfs_buf_delwri_split);
 DEFINE_BUF_EVENT(xfs_buf_delwri_pushbuf);
 DEFINE_BUF_EVENT(xfs_buf_get_uncached);
 DEFINE_BUF_EVENT(xfs_buf_item_relse);
-DEFINE_BUF_EVENT(xfs_buf_item_iodone_async);
+DEFINE_BUF_EVENT(xfs_buf_iodone_async);
 DEFINE_BUF_EVENT(xfs_buf_error_relse);
 DEFINE_BUF_EVENT(xfs_buf_wait_buftarg);
 DEFINE_BUF_EVENT(xfs_trans_read_buf_shut);
@@ -3676,7 +3676,6 @@ DEFINE_EVENT(xfs_kmem_class, name, \
 DEFINE_KMEM_EVENT(kmem_alloc);
 DEFINE_KMEM_EVENT(kmem_alloc_io);
 DEFINE_KMEM_EVENT(kmem_alloc_large);
-DEFINE_KMEM_EVENT(kmem_realloc);
 
 TRACE_EVENT(xfs_check_new_dalign,
 	TP_PROTO(struct xfs_mount *mp, int new_dalign, xfs_ino_t calc_rootino),
@@ -3843,6 +3842,32 @@ TRACE_EVENT(xfs_btree_bload_block,
 		  __entry->agbno,
 		  __entry->nr_records)
 )
+
+DECLARE_EVENT_CLASS(xfs_timestamp_range_class,
+	TP_PROTO(struct xfs_mount *mp, time64_t min, time64_t max),
+	TP_ARGS(mp, min, max),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(long long, min)
+		__field(long long, max)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->min = min;
+		__entry->max = max;
+	),
+	TP_printk("dev %d:%d min %lld max %lld",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->min,
+		  __entry->max)
+)
+
+#define DEFINE_TIMESTAMP_RANGE_EVENT(name) \
+DEFINE_EVENT(xfs_timestamp_range_class, name, \
+	TP_PROTO(struct xfs_mount *mp, long long min, long long max), \
+	TP_ARGS(mp, min, max))
+DEFINE_TIMESTAMP_RANGE_EVENT(xfs_inode_timestamp_range);
+DEFINE_TIMESTAMP_RANGE_EVENT(xfs_quota_expiry_range);
 
 #endif /* _TRACE_XFS_H */
 
