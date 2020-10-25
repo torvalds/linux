@@ -2270,7 +2270,6 @@ queue_exit:
 	blk_queue_exit(q);
 	return BLK_QC_T_NONE;
 }
-EXPORT_SYMBOL_GPL(blk_mq_submit_bio); /* only for request based dm */
 
 void blk_mq_free_rqs(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
 		     unsigned int hctx_idx)

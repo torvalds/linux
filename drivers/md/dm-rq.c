@@ -175,7 +175,7 @@ static void __dm_mq_kick_requeue_list(struct request_queue *q, unsigned long mse
 
 void dm_mq_kick_requeue_list(struct mapped_device *md)
 {
-	__dm_mq_kick_requeue_list(dm_get_md_queue(md), 0);
+	__dm_mq_kick_requeue_list(md->queue, 0);
 }
 EXPORT_SYMBOL(dm_mq_kick_requeue_list);
 
