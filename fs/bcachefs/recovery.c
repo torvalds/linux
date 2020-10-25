@@ -25,6 +25,18 @@
 
 #define QSTR(n) { { { .len = strlen(n) } }, .name = n }
 
+/* for -o reconstruct_alloc: */
+static void drop_alloc_keys(struct journal_keys *keys)
+{
+	size_t src, dst;
+
+	for (src = 0, dst = 0; src < keys->nr; src++)
+		if (keys->d[src].btree_id != BTREE_ID_ALLOC)
+			keys->d[dst++] = keys->d[src];
+
+	keys->nr = dst;
+}
+
 /* iterate over keys read from the journal: */
 
 static struct journal_key *journal_key_search(struct journal_keys *journal_keys,
@@ -930,7 +942,6 @@ static int read_btree_roots(struct bch_fs *c)
 			continue;
 		}
 
-
 		if (r->error) {
 			__fsck_err(c, i == BTREE_ID_ALLOC
 				   ? FSCK_CAN_IGNORE : 0,
@@ -1025,6 +1036,11 @@ int bch2_fs_recovery(struct bch_fs *c)
 		bch_err(c, "filesystem needs recovery from older version; run fsck from older bcachefs-tools to fix");
 		ret = -EINVAL;
 		goto err;
+	}
+
+	if (c->opts.reconstruct_alloc) {
+		c->sb.compat &= ~(1ULL << BCH_COMPAT_FEAT_ALLOC_INFO);
+		drop_alloc_keys(&c->journal_keys);
 	}
 
 	ret = journal_replay_early(c, clean, &c->journal_entries);
