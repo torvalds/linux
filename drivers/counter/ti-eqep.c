@@ -368,7 +368,7 @@ static const struct regmap_config ti_eqep_regmap32_config = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,
-	.max_register = 0x24,
+	.max_register = QUPRD,
 };
 
 static const struct regmap_config ti_eqep_regmap16_config = {
@@ -376,7 +376,7 @@ static const struct regmap_config ti_eqep_regmap16_config = {
 	.reg_bits = 16,
 	.val_bits = 16,
 	.reg_stride = 2,
-	.max_register = 0x1e,
+	.max_register = QCPRDLAT,
 };
 
 static int ti_eqep_probe(struct platform_device *pdev)
