@@ -659,6 +659,8 @@ struct ti_sci_msg_req_manage_irq {
  *	3 - Valid bit for @tisci_msg_rm_ring_cfg_req mode
  *	4 - Valid bit for @tisci_msg_rm_ring_cfg_req size
  *	5 - Valid bit for @tisci_msg_rm_ring_cfg_req order_id
+ *	6 - Valid bit for @tisci_msg_rm_ring_cfg_req virtid
+ *	7 - Valid bit for @tisci_msg_rm_ring_cfg_req ASEL
  * @nav_id: Device ID of Navigator Subsystem from which the ring is allocated
  * @index: ring index to be configured.
  * @addr_lo: 32 LSBs of ring base address to be programmed into the ring's
@@ -672,6 +674,9 @@ struct ti_sci_msg_req_manage_irq {
  *	the formula (log2(size_bytes) - 2), where size_bytes cannot be
  *	greater than 256.
  * @order_id: Specifies the ring's bus order ID.
+ * @virtid: Ring virt ID value
+ * @asel: Ring ASEL (address select) value to be set into the ASEL field of the
+ *	ring's RING_BA_HI register.
  */
 struct ti_sci_msg_rm_ring_cfg_req {
 	struct ti_sci_msg_hdr hdr;
@@ -684,6 +689,8 @@ struct ti_sci_msg_rm_ring_cfg_req {
 	u8 mode;
 	u8 size;
 	u8 order_id;
+	u16 virtid;
+	u8 asel;
 } __packed;
 
 /**

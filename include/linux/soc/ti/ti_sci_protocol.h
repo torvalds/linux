@@ -275,17 +275,44 @@ struct ti_sci_rm_irq_ops {
 #define TI_SCI_MSG_VALUE_RM_RING_SIZE_VALID	BIT(4)
 /* RA config.order_id parameter is valid for RM ring configure TISCI message */
 #define TI_SCI_MSG_VALUE_RM_RING_ORDER_ID_VALID	BIT(5)
+/* RA config.virtid parameter is valid for RM ring configure TISCI message */
+#define TI_SCI_MSG_VALUE_RM_RING_VIRTID_VALID	BIT(6)
+/* RA config.asel parameter is valid for RM ring configure TISCI message */
+#define TI_SCI_MSG_VALUE_RM_RING_ASEL_VALID	BIT(7)
 
 #define TI_SCI_MSG_VALUE_RM_ALL_NO_ORDER \
 	(TI_SCI_MSG_VALUE_RM_RING_ADDR_LO_VALID | \
 	TI_SCI_MSG_VALUE_RM_RING_ADDR_HI_VALID | \
 	TI_SCI_MSG_VALUE_RM_RING_COUNT_VALID | \
 	TI_SCI_MSG_VALUE_RM_RING_MODE_VALID | \
-	TI_SCI_MSG_VALUE_RM_RING_SIZE_VALID)
+	TI_SCI_MSG_VALUE_RM_RING_SIZE_VALID | \
+	TI_SCI_MSG_VALUE_RM_RING_ASEL_VALID)
+
+/**
+ * struct ti_sci_msg_rm_ring_cfg - Ring configuration
+ *
+ * Parameters for Navigator Subsystem ring configuration
+ * See @ti_sci_msg_rm_ring_cfg_req
+ */
+struct ti_sci_msg_rm_ring_cfg {
+	u32 valid_params;
+	u16 nav_id;
+	u16 index;
+	u32 addr_lo;
+	u32 addr_hi;
+	u32 count;
+	u8 mode;
+	u8 size;
+	u8 order_id;
+	u16 virtid;
+	u8 asel;
+};
 
 /**
  * struct ti_sci_rm_ringacc_ops - Ring Accelerator Management operations
  * @config: configure the SoC Navigator Subsystem Ring Accelerator ring
+ *	    Deprecated
+ * @set_cfg: configure the SoC Navigator Subsystem Ring Accelerator ring
  */
 struct ti_sci_rm_ringacc_ops {
 	int (*config)(const struct ti_sci_handle *handle,
@@ -293,6 +320,8 @@ struct ti_sci_rm_ringacc_ops {
 		      u32 addr_lo, u32 addr_hi, u32 count, u8 mode,
 		      u8 size, u8 order_id
 	);
+	int (*set_cfg)(const struct ti_sci_handle *handle,
+		       const struct ti_sci_msg_rm_ring_cfg *params);
 };
 
 /**
