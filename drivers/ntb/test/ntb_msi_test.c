@@ -319,7 +319,6 @@ static void ntb_msit_remove_dbgfs(struct ntb_msit_ctx *nm)
 static int ntb_msit_probe(struct ntb_client *client, struct ntb_dev *ntb)
 {
 	struct ntb_msit_ctx *nm;
-	size_t struct_size;
 	int peers;
 	int ret;
 
@@ -352,9 +351,7 @@ static int ntb_msit_probe(struct ntb_client *client, struct ntb_dev *ntb)
 		return ret;
 	}
 
-	struct_size = sizeof(*nm) + sizeof(*nm->peers) * peers;
-
-	nm = devm_kzalloc(&ntb->dev, struct_size, GFP_KERNEL);
+	nm = devm_kzalloc(&ntb->dev, struct_size(nm, peers, peers), GFP_KERNEL);
 	if (!nm)
 		return -ENOMEM;
 
