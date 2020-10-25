@@ -19,6 +19,10 @@
 #include <linux/scatterlist.h>
 #include <linux/hashtable.h>
 #include <linux/bitfield.h>
+#include <linux/genalloc.h>
+#include <linux/sched/signal.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/coresight.h>
 
 #define HL_NAME				"habanalabs"
 

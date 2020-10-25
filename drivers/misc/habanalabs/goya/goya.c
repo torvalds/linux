@@ -12,9 +12,7 @@
 #include "../include/goya/goya_reg_map.h"
 
 #include <linux/pci.h>
-#include <linux/genalloc.h>
 #include <linux/hwmon.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/iommu.h>
 #include <linux/seq_file.h>
 

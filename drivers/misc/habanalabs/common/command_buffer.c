@@ -11,7 +11,6 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
-#include <linux/genalloc.h>
 
 static int cb_map_mem(struct hl_ctx *ctx, struct hl_cb *cb)
 {

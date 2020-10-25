@@ -17,8 +17,6 @@
 #include <linux/pci.h>
 #include <linux/firmware.h>
 #include <linux/hwmon.h>
-#include <linux/genalloc.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/iommu.h>
 #include <linux/seq_file.h>
 

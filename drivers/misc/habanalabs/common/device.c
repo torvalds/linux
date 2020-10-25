@@ -10,7 +10,6 @@
 #include "habanalabs.h"
 
 #include <linux/pci.h>
-#include <linux/sched/signal.h>
 #include <linux/hwmon.h>
 #include <uapi/misc/habanalabs.h>
 

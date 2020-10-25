@@ -11,7 +11,6 @@
 
 #include <linux/uaccess.h>
 #include <linux/slab.h>
-#include <linux/genalloc.h>
 
 #define HL_MMU_DEBUG	0
 

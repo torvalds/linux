@@ -9,8 +9,6 @@
 #include "../include/common/hl_boot_if.h"
 
 #include <linux/firmware.h>
-#include <linux/genalloc.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/slab.h>
 
 #define FW_FILE_MAX_SIZE	0x1400000 /* maximum size of 20MB */
