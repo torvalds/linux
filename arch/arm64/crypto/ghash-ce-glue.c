@@ -168,7 +168,7 @@ static int ghash_final(struct shash_desc *desc, u8 *dst)
 	put_unaligned_be64(ctx->digest[1], dst);
 	put_unaligned_be64(ctx->digest[0], dst + 8);
 
-	*ctx = (struct ghash_desc_ctx){};
+	memzero_explicit(ctx, sizeof(*ctx));
 	return 0;
 }
 
