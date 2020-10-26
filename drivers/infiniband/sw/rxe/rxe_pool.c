@@ -1,34 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
  * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *	   Redistribution and use in source and binary forms, with or
- *	   without modification, are permitted provided that the following
- *	   conditions are met:
- *
- *		- Redistributions of source code must retain the above
- *		  copyright notice, this list of conditions and the following
- *		  disclaimer.
- *
- *		- Redistributions in binary form must reproduce the above
- *		  copyright notice, this list of conditions and the following
- *		  disclaimer in the documentation and/or other materials
- *		  provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 
 #include "rxe.h"
@@ -108,62 +81,6 @@ struct rxe_type_info rxe_type_info[RXE_NUM_TYPES] = {
 static inline const char *pool_name(struct rxe_pool *pool)
 {
 	return rxe_type_info[pool->type].name;
-}
-
-static inline struct kmem_cache *pool_cache(struct rxe_pool *pool)
-{
-	return rxe_type_info[pool->type].cache;
-}
-
-static void rxe_cache_clean(size_t cnt)
-{
-	int i;
-	struct rxe_type_info *type;
-
-	for (i = 0; i < cnt; i++) {
-		type = &rxe_type_info[i];
-		if (!(type->flags & RXE_POOL_NO_ALLOC)) {
-			kmem_cache_destroy(type->cache);
-			type->cache = NULL;
-		}
-	}
-}
-
-int rxe_cache_init(void)
-{
-	int err;
-	int i;
-	size_t size;
-	struct rxe_type_info *type;
-
-	for (i = 0; i < RXE_NUM_TYPES; i++) {
-		type = &rxe_type_info[i];
-		size = ALIGN(type->size, RXE_POOL_ALIGN);
-		if (!(type->flags & RXE_POOL_NO_ALLOC)) {
-			type->cache =
-				kmem_cache_create(type->name, size,
-						  RXE_POOL_ALIGN,
-						  RXE_POOL_CACHE_FLAGS, NULL);
-			if (!type->cache) {
-				pr_err("Unable to init kmem cache for %s\n",
-				       type->name);
-				err = -ENOMEM;
-				goto err1;
-			}
-		}
-	}
-
-	return 0;
-
-err1:
-	rxe_cache_clean(i);
-
-	return err;
-}
-
-void rxe_cache_exit(void)
-{
-	rxe_cache_clean(RXE_NUM_TYPES);
 }
 
 static int rxe_pool_init_index(struct rxe_pool *pool, u32 max, u32 min)
@@ -406,7 +323,7 @@ void *rxe_alloc(struct rxe_pool *pool)
 	if (atomic_inc_return(&pool->num_elem) > pool->max_elem)
 		goto out_cnt;
 
-	elem = kmem_cache_zalloc(pool_cache(pool),
+	elem = kzalloc(rxe_type_info[pool->type].size,
 				 (pool->flags & RXE_POOL_ATOMIC) ?
 				 GFP_ATOMIC : GFP_KERNEL);
 	if (!elem)
@@ -468,7 +385,7 @@ void rxe_elem_release(struct kref *kref)
 		pool->cleanup(elem);
 
 	if (!(pool->flags & RXE_POOL_NO_ALLOC))
-		kmem_cache_free(pool_cache(pool), elem);
+		kfree(elem);
 	atomic_dec(&pool->num_elem);
 	ib_device_put(&pool->rxe->ib_dev);
 	rxe_pool_put(pool);

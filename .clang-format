@@ -429,6 +429,7 @@ ForEachMacros:
   - 'rbtree_postorder_for_each_entry_safe'
   - 'rdma_for_each_block'
   - 'rdma_for_each_port'
+  - 'rdma_umem_for_each_dma_block'
   - 'resource_list_for_each_entry'
   - 'resource_list_for_each_entry_safe'
   - 'rhl_for_each_entry_rcu'

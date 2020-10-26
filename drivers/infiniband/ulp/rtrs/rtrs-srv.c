@@ -16,6 +16,7 @@
 #include "rtrs-srv.h"
 #include "rtrs-log.h"
 #include <rdma/ib_cm.h>
+#include <rdma/ib_verbs.h>
 
 MODULE_DESCRIPTION("RDMA Transport Server");
 MODULE_LICENSE("GPL");
@@ -31,6 +32,7 @@ MODULE_LICENSE("GPL");
 static struct rtrs_rdma_dev_pd dev_pd;
 static mempool_t *chunk_pool;
 struct class *rtrs_dev_class;
+static struct rtrs_srv_ib_ctx ib_ctx;
 
 static int __read_mostly max_chunk_size = DEFAULT_MAX_CHUNK_SIZE;
 static int __read_mostly sess_queue_depth = DEFAULT_SESS_QUEUE_DEPTH;
@@ -2042,6 +2044,70 @@ static void free_srv_ctx(struct rtrs_srv_ctx *ctx)
 	kfree(ctx);
 }
 
+static int rtrs_srv_add_one(struct ib_device *device)
+{
+	struct rtrs_srv_ctx *ctx;
+	int ret = 0;
+
+	mutex_lock(&ib_ctx.ib_dev_mutex);
+	if (ib_ctx.ib_dev_count)
+		goto out;
+
+	/*
+	 * Since our CM IDs are NOT bound to any ib device we will create them
+	 * only once
+	 */
+	ctx = ib_ctx.srv_ctx;
+	ret = rtrs_srv_rdma_init(ctx, ib_ctx.port);
+	if (ret) {
+		/*
+		 * We errored out here.
+		 * According to the ib code, if we encounter an error here then the
+		 * error code is ignored, and no more calls to our ops are made.
+		 */
+		pr_err("Failed to initialize RDMA connection");
+		goto err_out;
+	}
+
+out:
+	/*
+	 * Keep a track on the number of ib devices added
+	 */
+	ib_ctx.ib_dev_count++;
+
+err_out:
+	mutex_unlock(&ib_ctx.ib_dev_mutex);
+	return ret;
+}
+
+static void rtrs_srv_remove_one(struct ib_device *device, void *client_data)
+{
+	struct rtrs_srv_ctx *ctx;
+
+	mutex_lock(&ib_ctx.ib_dev_mutex);
+	ib_ctx.ib_dev_count--;
+
+	if (ib_ctx.ib_dev_count)
+		goto out;
+
+	/*
+	 * Since our CM IDs are NOT bound to any ib device we will remove them
+	 * only once, when the last device is removed
+	 */
+	ctx = ib_ctx.srv_ctx;
+	rdma_destroy_id(ctx->cm_id_ip);
+	rdma_destroy_id(ctx->cm_id_ib);
+
+out:
+	mutex_unlock(&ib_ctx.ib_dev_mutex);
+}
+
+static struct ib_client rtrs_srv_client = {
+	.name	= "rtrs_server",
+	.add	= rtrs_srv_add_one,
+	.remove	= rtrs_srv_remove_one
+};
+
 /**
  * rtrs_srv_open() - open RTRS server context
  * @ops:		callback functions
@@ -2060,7 +2126,11 @@ struct rtrs_srv_ctx *rtrs_srv_open(struct rtrs_srv_ops *ops, u16 port)
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 
-	err = rtrs_srv_rdma_init(ctx, port);
+	mutex_init(&ib_ctx.ib_dev_mutex);
+	ib_ctx.srv_ctx = ctx;
+	ib_ctx.port = port;
+
+	err = ib_register_client(&rtrs_srv_client);
 	if (err) {
 		free_srv_ctx(ctx);
 		return ERR_PTR(err);
@@ -2099,8 +2169,8 @@ static void close_ctx(struct rtrs_srv_ctx *ctx)
  */
 void rtrs_srv_close(struct rtrs_srv_ctx *ctx)
 {
-	rdma_destroy_id(ctx->cm_id_ip);
-	rdma_destroy_id(ctx->cm_id_ib);
+	ib_unregister_client(&rtrs_srv_client);
+	mutex_destroy(&ib_ctx.ib_dev_mutex);
 	close_ctx(ctx);
 	free_srv_ctx(ctx);
 }

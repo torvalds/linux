@@ -504,7 +504,8 @@ static void qed_rdma_init_devinfo(struct qed_hwfn *p_hwfn,
 	dev->max_mw = 0;
 	dev->max_mr_mw_fmr_pbl = (PAGE_SIZE / 8) * (PAGE_SIZE / 8);
 	dev->max_mr_mw_fmr_size = dev->max_mr_mw_fmr_pbl * PAGE_SIZE;
-	dev->max_pkey = QED_RDMA_MAX_P_KEY;
+	if (QED_IS_ROCE_PERSONALITY(p_hwfn))
+		dev->max_pkey = QED_RDMA_MAX_P_KEY;
 
 	dev->max_srq = p_hwfn->p_rdma_info->num_srqs;
 	dev->max_srq_wr = QED_RDMA_MAX_SRQ_WQE_ELEM;
@@ -1519,7 +1520,7 @@ qed_rdma_register_tid(void *rdma_cxt,
 		  params->pbl_two_level);
 
 	SET_FIELD(flags, RDMA_REGISTER_TID_RAMROD_DATA_ZERO_BASED,
-		  params->zbva);
+		  false);
 
 	SET_FIELD(flags, RDMA_REGISTER_TID_RAMROD_DATA_PHY_MR, params->phy_mr);
 
@@ -1581,15 +1582,7 @@ qed_rdma_register_tid(void *rdma_cxt,
 	p_ramrod->pd = cpu_to_le16(params->pd);
 	p_ramrod->length_hi = (u8)(params->length >> 32);
 	p_ramrod->length_lo = DMA_LO_LE(params->length);
-	if (params->zbva) {
-		/* Lower 32 bits of the registered MR address.
-		 * In case of zero based MR, will hold FBO
-		 */
-		p_ramrod->va.hi = 0;
-		p_ramrod->va.lo = cpu_to_le32(params->fbo);
-	} else {
-		DMA_REGPAIR_LE(p_ramrod->va, params->vaddr);
-	}
+	DMA_REGPAIR_LE(p_ramrod->va, params->vaddr);
 	DMA_REGPAIR_LE(p_ramrod->pbl_base, params->pbl_ptr);
 
 	/* DIF */

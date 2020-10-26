@@ -91,7 +91,7 @@ static struct davinci_nand_pdata davinci_nand_data = {
 	.mask_ale 		= 0x40000,
 	.parts			= davinci_nand_partitions,
 	.nr_parts		= ARRAY_SIZE(davinci_nand_partitions),
-	.ecc_mode		= NAND_ECC_HW,
+	.engine_type		= NAND_ECC_ENGINE_TYPE_ON_HOST,
 	.ecc_bits		= 1,
 	.options		= 0,
 };

@@ -1215,9 +1215,10 @@ static int mlx4_ib_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 	return 0;
 }
 
-static void mlx4_ib_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
+static int mlx4_ib_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
 {
 	mlx4_pd_free(to_mdev(pd->device)->dev, to_mpd(pd)->pdn);
+	return 0;
 }
 
 static int mlx4_ib_alloc_xrcd(struct ib_xrcd *ibxrcd, struct ib_udata *udata)
@@ -1256,11 +1257,12 @@ err2:
 	return err;
 }
 
-static void mlx4_ib_dealloc_xrcd(struct ib_xrcd *xrcd, struct ib_udata *udata)
+static int mlx4_ib_dealloc_xrcd(struct ib_xrcd *xrcd, struct ib_udata *udata)
 {
 	ib_destroy_cq(to_mxrcd(xrcd)->cq);
 	ib_dealloc_pd(to_mxrcd(xrcd)->pd);
 	mlx4_xrcd_free(to_mdev(xrcd->device)->dev, to_mxrcd(xrcd)->xrcdn);
+	return 0;
 }
 
 static int add_gid_entry(struct ib_qp *ibqp, union ib_gid *gid)
@@ -1533,20 +1535,8 @@ static int __mlx4_ib_create_flow(struct ib_qp *qp, struct ib_flow_attr *flow_att
 	struct mlx4_net_trans_rule_hw_ctrl *ctrl;
 	int default_flow;
 
-	static const u16 __mlx4_domain[] = {
-		[IB_FLOW_DOMAIN_USER] = MLX4_DOMAIN_UVERBS,
-		[IB_FLOW_DOMAIN_ETHTOOL] = MLX4_DOMAIN_ETHTOOL,
-		[IB_FLOW_DOMAIN_RFS] = MLX4_DOMAIN_RFS,
-		[IB_FLOW_DOMAIN_NIC] = MLX4_DOMAIN_NIC,
-	};
-
 	if (flow_attr->priority > MLX4_IB_FLOW_MAX_PRIO) {
 		pr_err("Invalid priority value %d\n", flow_attr->priority);
-		return -EINVAL;
-	}
-
-	if (domain >= IB_FLOW_DOMAIN_NUM) {
-		pr_err("Invalid domain value %d\n", domain);
 		return -EINVAL;
 	}
 
@@ -1558,8 +1548,7 @@ static int __mlx4_ib_create_flow(struct ib_qp *qp, struct ib_flow_attr *flow_att
 		return PTR_ERR(mailbox);
 	ctrl = mailbox->buf;
 
-	ctrl->prio = cpu_to_be16(__mlx4_domain[domain] |
-				 flow_attr->priority);
+	ctrl->prio = cpu_to_be16(domain | flow_attr->priority);
 	ctrl->type = mlx4_map_sw_to_hw_steering_mode(mdev->dev, flow_type);
 	ctrl->port = flow_attr->port;
 	ctrl->qpn = cpu_to_be32(qp->qp_num);
@@ -1701,8 +1690,8 @@ static int mlx4_ib_add_dont_trap_rule(struct mlx4_dev *dev,
 }
 
 static struct ib_flow *mlx4_ib_create_flow(struct ib_qp *qp,
-				    struct ib_flow_attr *flow_attr,
-				    int domain, struct ib_udata *udata)
+					   struct ib_flow_attr *flow_attr,
+					   struct ib_udata *udata)
 {
 	int err = 0, i = 0, j = 0;
 	struct mlx4_ib_flow *mflow;
@@ -1768,8 +1757,8 @@ static struct ib_flow *mlx4_ib_create_flow(struct ib_qp *qp,
 	}
 
 	while (i < ARRAY_SIZE(type) && type[i]) {
-		err = __mlx4_ib_create_flow(qp, flow_attr, domain, type[i],
-					    &mflow->reg_id[i].id);
+		err = __mlx4_ib_create_flow(qp, flow_attr, MLX4_DOMAIN_UVERBS,
+					    type[i], &mflow->reg_id[i].id);
 		if (err)
 			goto err_create_flow;
 		if (is_bonded) {
@@ -1778,7 +1767,7 @@ static struct ib_flow *mlx4_ib_create_flow(struct ib_qp *qp,
 			 */
 			flow_attr->port = 2;
 			err = __mlx4_ib_create_flow(qp, flow_attr,
-						    domain, type[j],
+						    MLX4_DOMAIN_UVERBS, type[j],
 						    &mflow->reg_id[j].mirror);
 			flow_attr->port = 1;
 			if (err)
@@ -2589,11 +2578,16 @@ static const struct ib_device_ops mlx4_ib_dev_wq_ops = {
 	.destroy_rwq_ind_table = mlx4_ib_destroy_rwq_ind_table,
 	.destroy_wq = mlx4_ib_destroy_wq,
 	.modify_wq = mlx4_ib_modify_wq,
+
+	INIT_RDMA_OBJ_SIZE(ib_rwq_ind_table, mlx4_ib_rwq_ind_table,
+			   ib_rwq_ind_tbl),
 };
 
 static const struct ib_device_ops mlx4_ib_dev_mw_ops = {
 	.alloc_mw = mlx4_ib_alloc_mw,
 	.dealloc_mw = mlx4_ib_dealloc_mw,
+
+	INIT_RDMA_OBJ_SIZE(ib_mw, mlx4_ib_mw, ibmw),
 };
 
 static const struct ib_device_ops mlx4_ib_dev_xrc_ops = {
@@ -2847,7 +2841,8 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 		goto err_steer_free_bitmap;
 
 	rdma_set_device_sysfs_group(&ibdev->ib_dev, &mlx4_attr_group);
-	if (ib_register_device(&ibdev->ib_dev, "mlx4_%d"))
+	if (ib_register_device(&ibdev->ib_dev, "mlx4_%d",
+			       &dev->persist->pdev->dev))
 		goto err_diag_counters;
 
 	if (mlx4_ib_mad_init(ibdev))
@@ -2989,10 +2984,8 @@ int mlx4_ib_steer_qp_reg(struct mlx4_ib_dev *mdev, struct mlx4_ib_qp *mqp,
 		/* Add an empty rule for IB L2 */
 		memset(&ib_spec->mask, 0, sizeof(ib_spec->mask));
 
-		err = __mlx4_ib_create_flow(&mqp->ibqp, flow,
-					    IB_FLOW_DOMAIN_NIC,
-					    MLX4_FS_REGULAR,
-					    &mqp->reg_id);
+		err = __mlx4_ib_create_flow(&mqp->ibqp, flow, MLX4_DOMAIN_NIC,
+					    MLX4_FS_REGULAR, &mqp->reg_id);
 	} else {
 		err = __mlx4_ib_destroy_flow(mdev->dev, mqp->reg_id);
 	}

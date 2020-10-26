@@ -188,7 +188,7 @@ static struct s3c2410_platform_nand real6410_nand_info = {
 	.twrph1		= 40,
 	.nr_sets	= ARRAY_SIZE(real6410_nand_sets),
 	.sets		= real6410_nand_sets,
-	.ecc_mode       = NAND_ECC_SOFT,
+	.engine_type	= NAND_ECC_ENGINE_TYPE_SOFT,
 };
 
 static struct platform_device *real6410_devices[] __initdata = {

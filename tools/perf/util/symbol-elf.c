@@ -50,6 +50,10 @@ typedef Elf64_Nhdr GElf_Nhdr;
 #define DMGL_ANSI        (1 << 1)       /* Include const, volatile, etc */
 #endif
 
+#ifdef HAVE_LIBBFD_SUPPORT
+#define PACKAGE 'perf'
+#include <bfd.h>
+#else
 #ifdef HAVE_CPLUS_DEMANGLE_SUPPORT
 extern char *cplus_demangle(const char *, int);
 
@@ -65,9 +69,7 @@ static inline char *bfd_demangle(void __maybe_unused *v,
 {
 	return NULL;
 }
-#else
-#define PACKAGE 'perf'
-#include <bfd.h>
+#endif
 #endif
 #endif
 
@@ -530,8 +532,40 @@ out:
 	return err;
 }
 
-int filename__read_build_id(const char *filename, void *bf, size_t size)
+#ifdef HAVE_LIBBFD_BUILDID_SUPPORT
+
+int filename__read_build_id(const char *filename, struct build_id *bid)
 {
+	size_t size = sizeof(bid->data);
+	int err = -1;
+	bfd *abfd;
+
+	abfd = bfd_openr(filename, NULL);
+	if (!abfd)
+		return -1;
+
+	if (!bfd_check_format(abfd, bfd_object)) {
+		pr_debug2("%s: cannot read %s bfd file.\n", __func__, filename);
+		goto out_close;
+	}
+
+	if (!abfd->build_id || abfd->build_id->size > size)
+		goto out_close;
+
+	memcpy(bid->data, abfd->build_id->data, abfd->build_id->size);
+	memset(bid->data + abfd->build_id->size, 0, size - abfd->build_id->size);
+	err = bid->size = abfd->build_id->size;
+
+out_close:
+	bfd_close(abfd);
+	return err;
+}
+
+#else // HAVE_LIBBFD_BUILDID_SUPPORT
+
+int filename__read_build_id(const char *filename, struct build_id *bid)
+{
+	size_t size = sizeof(bid->data);
 	int fd, err = -1;
 	Elf *elf;
 
@@ -548,7 +582,9 @@ int filename__read_build_id(const char *filename, void *bf, size_t size)
 		goto out_close;
 	}
 
-	err = elf_read_build_id(elf, bf, size);
+	err = elf_read_build_id(elf, bid->data, size);
+	if (err > 0)
+		bid->size = err;
 
 	elf_end(elf);
 out_close:
@@ -557,12 +593,12 @@ out:
 	return err;
 }
 
-int sysfs__read_build_id(const char *filename, void *build_id, size_t size)
-{
-	int fd, err = -1;
+#endif // HAVE_LIBBFD_BUILDID_SUPPORT
 
-	if (size < BUILD_ID_SIZE)
-		goto out;
+int sysfs__read_build_id(const char *filename, struct build_id *bid)
+{
+	size_t size = sizeof(bid->data);
+	int fd, err = -1;
 
 	fd = open(filename, O_RDONLY);
 	if (fd < 0)
@@ -584,8 +620,9 @@ int sysfs__read_build_id(const char *filename, void *build_id, size_t size)
 				break;
 			if (memcmp(bf, "GNU", sizeof("GNU")) == 0) {
 				size_t sz = min(descsz, size);
-				if (read(fd, build_id, sz) == (ssize_t)sz) {
-					memset(build_id + sz, 0, size - sz);
+				if (read(fd, bid->data, sz) == (ssize_t)sz) {
+					memset(bid->data + sz, 0, size - sz);
+					bid->size = sz;
 					err = 0;
 					break;
 				}
@@ -607,6 +644,44 @@ int sysfs__read_build_id(const char *filename, void *build_id, size_t size)
 out:
 	return err;
 }
+
+#ifdef HAVE_LIBBFD_SUPPORT
+
+int filename__read_debuglink(const char *filename, char *debuglink,
+			     size_t size)
+{
+	int err = -1;
+	asection *section;
+	bfd *abfd;
+
+	abfd = bfd_openr(filename, NULL);
+	if (!abfd)
+		return -1;
+
+	if (!bfd_check_format(abfd, bfd_object)) {
+		pr_debug2("%s: cannot read %s bfd file.\n", __func__, filename);
+		goto out_close;
+	}
+
+	section = bfd_get_section_by_name(abfd, ".gnu_debuglink");
+	if (!section)
+		goto out_close;
+
+	if (section->size > size)
+		goto out_close;
+
+	if (!bfd_get_section_contents(abfd, section, debuglink, 0,
+				      section->size))
+		goto out_close;
+
+	err = 0;
+
+out_close:
+	bfd_close(abfd);
+	return err;
+}
+
+#else
 
 int filename__read_debuglink(const char *filename, char *debuglink,
 			     size_t size)
@@ -659,6 +734,8 @@ out_close:
 out:
 	return err;
 }
+
+#endif
 
 static int dso__swap_init(struct dso *dso, unsigned char eidata)
 {
@@ -757,13 +834,17 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 	/* Always reject images with a mismatched build-id: */
 	if (dso->has_build_id && !symbol_conf.ignore_vmlinux_buildid) {
 		u8 build_id[BUILD_ID_SIZE];
+		struct build_id bid;
+		int size;
 
-		if (elf_read_build_id(elf, build_id, BUILD_ID_SIZE) < 0) {
+		size = elf_read_build_id(elf, build_id, BUILD_ID_SIZE);
+		if (size <= 0) {
 			dso->load_errno = DSO_LOAD_ERRNO__CANNOT_READ_BUILDID;
 			goto out_elf_end;
 		}
 
-		if (!dso__build_id_equal(dso, build_id)) {
+		build_id__init(&bid, build_id, size);
+		if (!dso__build_id_equal(dso, &bid)) {
 			pr_debug("%s: build id mismatch for %s.\n", __func__, name);
 			dso->load_errno = DSO_LOAD_ERRNO__MISMATCHING_BUILDID;
 			goto out_elf_end;

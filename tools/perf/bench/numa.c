@@ -137,12 +137,13 @@ struct global_info {
 	u8			*data;
 
 	pthread_mutex_t		startup_mutex;
+	pthread_cond_t		startup_cond;
 	int			nr_tasks_started;
 
-	pthread_mutex_t		startup_done_mutex;
-
 	pthread_mutex_t		start_work_mutex;
+	pthread_cond_t		start_work_cond;
 	int			nr_tasks_working;
+	bool			start_work;
 
 	pthread_mutex_t		stop_work_mutex;
 	u64			bytes_done;
@@ -481,6 +482,18 @@ static void init_global_mutex(pthread_mutex_t *mutex)
 	pthread_mutexattr_init(&attr);
 	pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED);
 	pthread_mutex_init(mutex, &attr);
+}
+
+/*
+ * Return a process-shared (global) condition variable:
+ */
+static void init_global_cond(pthread_cond_t *cond)
+{
+	pthread_condattr_t attr;
+
+	pthread_condattr_init(&attr);
+	pthread_condattr_setpshared(&attr, PTHREAD_PROCESS_SHARED);
+	pthread_cond_init(cond, &attr);
 }
 
 static int parse_cpu_list(const char *arg)
@@ -1136,15 +1149,18 @@ static void *worker_thread(void *__tdata)
 	if (g->p.serialize_startup) {
 		pthread_mutex_lock(&g->startup_mutex);
 		g->nr_tasks_started++;
+		/* The last thread wakes the main process. */
+		if (g->nr_tasks_started == g->p.nr_tasks)
+			pthread_cond_signal(&g->startup_cond);
+
 		pthread_mutex_unlock(&g->startup_mutex);
 
 		/* Here we will wait for the main process to start us all at once: */
 		pthread_mutex_lock(&g->start_work_mutex);
+		g->start_work = false;
 		g->nr_tasks_working++;
-
-		/* Last one wake the main process: */
-		if (g->nr_tasks_working == g->p.nr_tasks)
-			pthread_mutex_unlock(&g->startup_done_mutex);
+		while (!g->start_work)
+			pthread_cond_wait(&g->start_work_cond, &g->start_work_mutex);
 
 		pthread_mutex_unlock(&g->start_work_mutex);
 	}
@@ -1441,8 +1457,9 @@ static int init(void)
 
 	/* Startup serialization: */
 	init_global_mutex(&g->start_work_mutex);
+	init_global_cond(&g->start_work_cond);
 	init_global_mutex(&g->startup_mutex);
-	init_global_mutex(&g->startup_done_mutex);
+	init_global_cond(&g->startup_cond);
 	init_global_mutex(&g->stop_work_mutex);
 
 	init_thread_data();
@@ -1502,9 +1519,6 @@ static int __bench_numa(const char *name)
 	pids = zalloc(g->p.nr_proc * sizeof(*pids));
 	pid = -1;
 
-	/* All threads try to acquire it, this way we can wait for them to start up: */
-	pthread_mutex_lock(&g->start_work_mutex);
-
 	if (g->p.serialize_startup) {
 		tprintf(" #\n");
 		tprintf(" # Startup synchronization: ..."); fflush(stdout);
@@ -1526,22 +1540,29 @@ static int __bench_numa(const char *name)
 		pids[i] = pid;
 
 	}
-	/* Wait for all the threads to start up: */
-	while (g->nr_tasks_started != g->p.nr_tasks)
-		usleep(USEC_PER_MSEC);
-
-	BUG_ON(g->nr_tasks_started != g->p.nr_tasks);
 
 	if (g->p.serialize_startup) {
+		bool threads_ready = false;
 		double startup_sec;
 
-		pthread_mutex_lock(&g->startup_done_mutex);
+		/*
+		 * Wait for all the threads to start up. The last thread will
+		 * signal this process.
+		 */
+		pthread_mutex_lock(&g->startup_mutex);
+		while (g->nr_tasks_started != g->p.nr_tasks)
+			pthread_cond_wait(&g->startup_cond, &g->startup_mutex);
 
-		/* This will start all threads: */
-		pthread_mutex_unlock(&g->start_work_mutex);
+		pthread_mutex_unlock(&g->startup_mutex);
 
-		/* This mutex is locked - the last started thread will wake us: */
-		pthread_mutex_lock(&g->startup_done_mutex);
+		/* Wait for all threads to be at the start_work_cond. */
+		while (!threads_ready) {
+			pthread_mutex_lock(&g->start_work_mutex);
+			threads_ready = (g->nr_tasks_working == g->p.nr_tasks);
+			pthread_mutex_unlock(&g->start_work_mutex);
+			if (!threads_ready)
+				usleep(1);
+		}
 
 		gettimeofday(&stop, NULL);
 
@@ -1555,7 +1576,11 @@ static int __bench_numa(const char *name)
 		tprintf(" #\n");
 
 		start = stop;
-		pthread_mutex_unlock(&g->startup_done_mutex);
+		/* Start all threads running. */
+		pthread_mutex_lock(&g->start_work_mutex);
+		g->start_work = true;
+		pthread_mutex_unlock(&g->start_work_mutex);
+		pthread_cond_broadcast(&g->start_work_cond);
 	} else {
 		gettimeofday(&start, NULL);
 	}
