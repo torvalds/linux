@@ -12,7 +12,7 @@
  * Everything a scif driver needs to work with any particular scif
  * hardware abstraction layer.
  */
-#include <linux/dma-mapping.h>
+#include <linux/dma-map-ops.h>
 
 #include <linux/mic_common.h>
 #include "../common/mic_dev.h"

@@ -21,8 +21,7 @@
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/dma-direct.h>
-#include <linux/dma-mapping.h>
-#include <linux/dma-contiguous.h>
+#include <linux/dma-map-ops.h>
 #include <linux/efi.h>
 #include <linux/swiotlb.h>
 #include <linux/vmalloc.h>
@@ -428,6 +427,8 @@ void __init bootmem_init(void)
 #if defined(CONFIG_HUGETLB_PAGE) && defined(CONFIG_CMA)
 	arm64_hugetlb_cma_reserve();
 #endif
+
+	dma_pernuma_cma_reserve();
 
 	/*
 	 * sparse_init() tries to allocate memory from memblock, so must be

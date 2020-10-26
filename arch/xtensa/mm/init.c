@@ -26,7 +26,7 @@
 #include <linux/nodemask.h>
 #include <linux/mm.h>
 #include <linux/of_fdt.h>
-#include <linux/dma-contiguous.h>
+#include <linux/dma-map-ops.h>
 
 #include <asm/bootparam.h>
 #include <asm/page.h>

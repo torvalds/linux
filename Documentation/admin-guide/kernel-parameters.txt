@@ -597,7 +597,18 @@
 			placement constraint by the physical address range of
 			memory allocations. A value of 0 disables CMA
 			altogether. For more information, see
-			include/linux/dma-contiguous.h
+			kernel/dma/contiguous.c
+
+	cma_pernuma=nn[MG]
+			[ARM64,KNL]
+			Sets the size of kernel per-numa memory area for
+			contiguous memory allocations. A value of 0 disables
+			per-numa CMA altogether. And If this option is not
+			specificed, the default value is 0.
+			With per-numa CMA enabled, DMA users on node nid will
+			first try to allocate buffer from the pernuma area
+			which is located in node nid, if the allocation fails,
+			they will fallback to the global default memory area.
 
 	cmo_free_hint=	[PPC] Format: { yes | no }
 			Specify whether pages are marked as being inactive

@@ -5,27 +5,13 @@
  * Author: Joerg Roedel <joerg.roedel@amd.com>
  */
 
-#ifndef __DMA_DEBUG_H
-#define __DMA_DEBUG_H
-
-#include <linux/types.h>
-
-struct device;
-struct scatterlist;
-struct bus_type;
+#ifndef _KERNEL_DMA_DEBUG_H
+#define _KERNEL_DMA_DEBUG_H
 
 #ifdef CONFIG_DMA_API_DEBUG
-
-extern void dma_debug_add_bus(struct bus_type *bus);
-
-extern void debug_dma_map_single(struct device *dev, const void *addr,
-				 unsigned long len);
-
 extern void debug_dma_map_page(struct device *dev, struct page *page,
 			       size_t offset, size_t size,
 			       int direction, dma_addr_t dma_addr);
-
-extern void debug_dma_mapping_error(struct device *dev, dma_addr_t dma_addr);
 
 extern void debug_dma_unmap_page(struct device *dev, dma_addr_t addr,
 				 size_t size, int direction);
@@ -64,28 +50,10 @@ extern void debug_dma_sync_sg_for_cpu(struct device *dev,
 extern void debug_dma_sync_sg_for_device(struct device *dev,
 					 struct scatterlist *sg,
 					 int nelems, int direction);
-
-extern void debug_dma_dump_mappings(struct device *dev);
-
 #else /* CONFIG_DMA_API_DEBUG */
-
-static inline void dma_debug_add_bus(struct bus_type *bus)
-{
-}
-
-static inline void debug_dma_map_single(struct device *dev, const void *addr,
-					unsigned long len)
-{
-}
-
 static inline void debug_dma_map_page(struct device *dev, struct page *page,
 				      size_t offset, size_t size,
 				      int direction, dma_addr_t dma_addr)
-{
-}
-
-static inline void debug_dma_mapping_error(struct device *dev,
-					  dma_addr_t dma_addr)
 {
 }
 
@@ -150,11 +118,5 @@ static inline void debug_dma_sync_sg_for_device(struct device *dev,
 						int nelems, int direction)
 {
 }
-
-static inline void debug_dma_dump_mappings(struct device *dev)
-{
-}
-
 #endif /* CONFIG_DMA_API_DEBUG */
-
-#endif /* __DMA_DEBUG_H */
+#endif /* _KERNEL_DMA_DEBUG_H */

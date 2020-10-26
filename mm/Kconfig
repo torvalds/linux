@@ -516,13 +516,14 @@ config CMA_DEBUGFS
 config CMA_AREAS
 	int "Maximum count of the CMA areas"
 	depends on CMA
+	default 19 if NUMA
 	default 7
 	help
 	  CMA allows to create CMA areas for particular purpose, mainly,
 	  used as device private area. This parameter sets the maximum
 	  number of CMA area in the system.
 
-	  If unsure, leave the default value "7".
+	  If unsure, leave the default value "7" in UMA and "19" in NUMA.
 
 config MEM_SOFT_DIRTY
 	bool "Track memory changes"
