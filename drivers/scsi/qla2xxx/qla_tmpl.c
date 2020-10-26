@@ -1001,10 +1001,8 @@ qla27xx_mpi_fwdump(scsi_qla_host_t *vha, int hardware_locked)
 {
 	ulong flags = 0;
 
-#ifndef __CHECKER__
 	if (!hardware_locked)
 		spin_lock_irqsave(&vha->hw->hardware_lock, flags);
-#endif
 	if (!vha->hw->mpi_fw_dump) {
 		ql_log(ql_log_warn, vha, 0x02f3, "-> mpi_fwdump no buffer\n");
 	} else {
@@ -1050,10 +1048,8 @@ qla27xx_mpi_fwdump(scsi_qla_host_t *vha, int hardware_locked)
 	}
 
 bailout:
-#ifndef __CHECKER__
 	if (!hardware_locked)
 		spin_unlock_irqrestore(&vha->hw->hardware_lock, flags);
-#endif
 }
 
 void
