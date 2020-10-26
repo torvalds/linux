@@ -27,7 +27,11 @@
 #include <linux/random.h>
 #include <linux/unistd.h>
 
+#include <openssl/pem.h>
+#include <openssl/x509.h>
+
 #include <kselftest.h>
+#include <include/uapi/linux/fsverity.h>
 
 #include "utils.h"
 
@@ -72,6 +76,23 @@ struct {
 
 #define TESTNE(statement, res)					\
 	TESTCOND((statement) != (res))
+
+void print_bytes(const void *data, size_t size)
+{
+	const uint8_t *bytes = data;
+	int i;
+
+	for (i = 0; i < size; ++i) {
+		if (i % 0x10 == 0)
+			printf("%08x:", i);
+		printf("%02x ", (unsigned int) bytes[i]);
+		if (i % 0x10 == 0x0f)
+			printf("\n");
+	}
+
+	if (i % 0x10 != 0)
+		printf("\n");
+}
 
 struct hash_block {
 	char data[INCFS_DATA_FILE_BLOCK_SIZE];
@@ -3620,6 +3641,266 @@ out:
 	return result;
 }
 
+static EVP_PKEY *create_key(void)
+{
+	EVP_PKEY *pkey = NULL;
+	RSA *rsa = NULL;
+	BIGNUM *bn = NULL;
+
+	pkey = EVP_PKEY_new();
+	if (!pkey)
+		goto fail;
+
+	bn = BN_new();
+	BN_set_word(bn, RSA_F4);
+
+	rsa = RSA_new();
+	if (!rsa)
+		goto fail;
+
+	RSA_generate_key_ex(rsa, 4096, bn, NULL);
+	EVP_PKEY_assign_RSA(pkey, rsa);
+
+	BN_free(bn);
+	return pkey;
+
+fail:
+	BN_free(bn);
+	EVP_PKEY_free(pkey);
+	return NULL;
+}
+
+static X509 *get_cert(EVP_PKEY *key)
+{
+	X509 *x509 = NULL;
+	X509_NAME *name = NULL;
+
+	x509 = X509_new();
+	if (!x509)
+		return NULL;
+
+	ASN1_INTEGER_set(X509_get_serialNumber(x509), 1);
+	X509_gmtime_adj(X509_get_notBefore(x509), 0);
+	X509_gmtime_adj(X509_get_notAfter(x509), 31536000L);
+	X509_set_pubkey(x509, key);
+
+	name = X509_get_subject_name(x509);
+	X509_NAME_add_entry_by_txt(name, "C", MBSTRING_ASC,
+		   (const unsigned char *)"US", -1, -1, 0);
+	X509_NAME_add_entry_by_txt(name, "ST", MBSTRING_ASC,
+		   (const unsigned char *)"CA", -1, -1, 0);
+	X509_NAME_add_entry_by_txt(name, "L", MBSTRING_ASC,
+		   (const unsigned char *)"San Jose", -1, -1, 0);
+	X509_NAME_add_entry_by_txt(name, "O", MBSTRING_ASC,
+		   (const unsigned char *)"Example", -1, -1, 0);
+	X509_NAME_add_entry_by_txt(name, "OU", MBSTRING_ASC,
+		   (const unsigned char *)"Org", -1, -1, 0);
+	X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC,
+		   (const unsigned char *)"www.example.com", -1, -1, 0);
+	X509_set_issuer_name(x509, name);
+
+	if (!X509_sign(x509, key, EVP_sha256()))
+		return NULL;
+
+	return x509;
+}
+
+static int sign(EVP_PKEY *key, X509 *cert, const char *data, size_t len,
+		unsigned char **sig, size_t *sig_len)
+{
+	const int pkcs7_flags = PKCS7_BINARY | PKCS7_NOATTR | PKCS7_PARTIAL |
+			  PKCS7_DETACHED;
+	const EVP_MD *md = EVP_sha256();
+
+	int result = TEST_FAILURE;
+
+	BIO *bio = NULL;
+	PKCS7 *p7 = NULL;
+	unsigned char *bio_buffer;
+
+	TEST(bio = BIO_new_mem_buf(data, len), bio);
+	TEST(p7 = PKCS7_sign(NULL, NULL, NULL, bio, pkcs7_flags), p7);
+	TESTNE(PKCS7_sign_add_signer(p7, cert, key, md, pkcs7_flags), 0);
+	TESTEQUAL(PKCS7_final(p7, bio, pkcs7_flags), 1);
+	TEST(*sig_len = i2d_PKCS7(p7, NULL), *sig_len);
+	TEST(bio_buffer = malloc(*sig_len), bio_buffer);
+	*sig = bio_buffer;
+	TEST(*sig_len = i2d_PKCS7(p7, &bio_buffer), *sig_len);
+	TESTEQUAL(PKCS7_verify(p7, NULL, NULL, bio, NULL,
+			 pkcs7_flags | PKCS7_NOVERIFY | PKCS7_NOSIGS), 1);
+
+	result = TEST_SUCCESS;
+out:
+	PKCS7_free(p7);
+	BIO_free(bio);
+	return result;
+}
+
+static int validate_verity(const char *mount_dir, struct test_file *file,
+			   EVP_PKEY *key, X509 *cert, bool use_signatures)
+{
+	int result = TEST_FAILURE;
+	char *filename = NULL;
+	int fd = -1;
+	struct fsverity_enable_arg fear = {
+		.version = 1,
+		.hash_algorithm = FS_VERITY_HASH_ALG_SHA256,
+		.block_size = INCFS_DATA_FILE_BLOCK_SIZE,
+		.sig_size = 0,
+		.sig_ptr = 0,
+	};
+	unsigned char *sig = NULL;
+	size_t sig_len;
+	struct {
+		__u8 version;           /* must be 1 */
+		__u8 hash_algorithm;    /* Merkle tree hash algorithm */
+		__u8 log_blocksize;     /* log2 of size of data and tree blocks */
+		__u8 salt_size;         /* size of salt in bytes; 0 if none */
+		__le32 sig_size;        /* must be 0 */
+		__le64 data_size;       /* size of file the Merkle tree is built over */
+		__u8 root_hash[64];     /* Merkle tree root hash */
+		__u8 salt[32];          /* salt prepended to each hashed block */
+		__u8 __reserved[144];   /* must be 0's */
+	} __packed fsverity_descriptor = {
+		.version = 1,
+		.hash_algorithm = 1,
+		.log_blocksize = 12,
+		.data_size = file->size,
+	};
+	struct {
+		char magic[8];                  /* must be "FSVerity" */
+		__le16 digest_algorithm;
+		__le16 digest_size;
+		__u8 digest[32];
+	} __packed fsverity_signed_digest =  {
+		.digest_algorithm = 1,
+		.digest_size = 32
+	};
+
+	memcpy(fsverity_signed_digest.magic, "FSVerity", 8);
+
+	TEST(filename = concat_file_name(mount_dir, file->name), filename);
+	TEST(fd = open(filename, O_RDONLY | O_CLOEXEC), fd != -1);
+
+	/* First try to enable verity with random digest */
+	TESTEQUAL(sign(key, cert, (void *)&fsverity_signed_digest,
+		       sizeof(fsverity_signed_digest), &sig, &sig_len),
+		  0);
+
+	fear.sig_size = sig_len;
+	fear.sig_ptr = ptr_to_u64(sig);
+	TESTEQUAL(ioctl(fd, FS_IOC_ENABLE_VERITY, &fear), -1);
+
+	/* Now try with correct digest */
+	memcpy(fsverity_descriptor.root_hash, file->root_hash, 32);
+	sha256((char *)&fsverity_descriptor, sizeof(fsverity_descriptor),
+	       (char *)fsverity_signed_digest.digest);
+
+	if (ioctl(fd, FS_IOC_ENABLE_VERITY, NULL) == -1 &&
+	    errno == EOPNOTSUPP) {
+		result = TEST_SUCCESS;
+		goto out;
+	}
+
+	TESTEQUAL(sign(key, cert, (void *)&fsverity_signed_digest,
+		       sizeof(fsverity_signed_digest), &sig, &sig_len),
+		  0);
+
+	if (use_signatures) {
+		fear.sig_size = sig_len;
+		fear.sig_ptr = ptr_to_u64(sig);
+	} else {
+		fear.sig_size = 0;
+		fear.sig_ptr = 0;
+	}
+	TESTEQUAL(ioctl(fd, FS_IOC_ENABLE_VERITY, &fear), 0);
+
+	result = TEST_SUCCESS;
+out:
+	free(sig);
+	close(fd);
+	free(filename);
+	return result;
+}
+
+static int verity_test_optional_sigs(const char *mount_dir, bool use_signatures)
+{
+	int result = TEST_FAILURE;
+	char *backing_dir = NULL;
+	int cmd_fd = -1;
+	int i;
+	struct test_files_set test = get_test_files_set();
+	const int file_num = test.files_count;
+	EVP_PKEY *key = NULL;
+	X509 *cert = NULL;
+	BIO *mem = NULL;
+	long len;
+	void *ptr;
+	FILE *proc_key_fd = NULL;
+	char *line = NULL;
+	size_t read = 0;
+	int key_id = -1;
+
+	TEST(backing_dir = create_backing_dir(mount_dir), backing_dir);
+	TESTEQUAL(mount_fs_opt(mount_dir, backing_dir, "readahead=0", false),
+		  0);
+	TEST(cmd_fd = open_commands_file(mount_dir), cmd_fd != -1);
+	TEST(key = create_key(), key);
+	TEST(cert = get_cert(key), cert);
+
+	TEST(proc_key_fd = fopen("/proc/keys", "r"), proc_key_fd != NULL);
+	while (getline(&line, &read, proc_key_fd) != -1)
+		if (strstr(line, ".fs-verity"))
+			key_id = strtol(line, NULL, 16);
+
+	TEST(mem = BIO_new(BIO_s_mem()), mem != NULL);
+	TESTEQUAL(i2d_X509_bio(mem, cert), 1);
+	TEST(len = BIO_get_mem_data(mem, &ptr), len != 0);
+	TESTCOND(key_id == -1
+		 || syscall(__NR_add_key, "asymmetric", "test:key", ptr, len,
+			    key_id) != -1);
+
+	for (i = 0; i < file_num; i++) {
+		struct test_file *file = &test.files[i];
+
+		build_mtree(file);
+		TESTEQUAL(crypto_emit_file(cmd_fd, NULL, file->name, &file->id,
+				     file->size, file->root_hash,
+				     file->sig.add_data), 0);
+
+		TESTEQUAL(emit_partial_test_file_hash(mount_dir, file), 0);
+	}
+
+	for (i = 0; i < file_num; i++)
+		TESTEQUAL(validate_verity(mount_dir, &test.files[i], key, cert,
+					  use_signatures),
+			  0);
+
+	result = TEST_SUCCESS;
+
+out:
+	free(line);
+	BIO_free(mem);
+	X509_free(cert);
+	EVP_PKEY_free(key);
+	fclose(proc_key_fd);
+	close(cmd_fd);
+	umount(mount_dir);
+	free(backing_dir);
+	return result;
+}
+
+static int verity_test(const char *mount_dir)
+{
+	int result = TEST_FAILURE;
+
+	TESTEQUAL(verity_test_optional_sigs(mount_dir, true), TEST_SUCCESS);
+	TESTEQUAL(verity_test_optional_sigs(mount_dir, false), TEST_SUCCESS);
+	result = TEST_SUCCESS;
+out:
+	return result;
+}
+
 static char *setup_mount_dir()
 {
 	struct stat st;
@@ -3734,6 +4015,7 @@ int main(int argc, char *argv[])
 		MAKE_TEST(hash_block_count_test),
 		MAKE_TEST(per_uid_read_timeouts_test),
 		MAKE_TEST(inotify_test),
+		MAKE_TEST(verity_test),
 	};
 #undef MAKE_TEST
 

@@ -18,4 +18,6 @@ static inline struct mem_range range(u8 *data, size_t len)
 
 #define LOCK_REQUIRED(lock)  WARN_ON_ONCE(!mutex_is_locked(&lock))
 
+#define EFSCORRUPTED EUCLEAN
+
 #endif /* _INCFS_INTERNAL_H */

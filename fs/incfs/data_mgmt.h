@@ -273,9 +273,30 @@ struct data_file {
 	/* Offset to status metadata header */
 	loff_t df_status_offset;
 
+	/*
+	 * Mutex acquired while enabling verity. Note that df_hash_tree is set
+	 * by enable verity.
+	 *
+	 * The backing file mutex bc_mutex  may be taken while this mutex is
+	 * held.
+	 */
+	struct mutex df_enable_verity;
+
+	/*
+	 * Set either at construction time or during enabling verity. In the
+	 * latter case, set via smp_store_release, so use smp_load_acquire to
+	 * read it.
+	 */
 	struct mtree *df_hash_tree;
 
+	/* Guaranteed set if df_hash_tree is set. */
 	struct incfs_df_signature *df_signature;
+
+	/*
+	 * The verity file digest, set when verity is enabled and the file has
+	 * been opened
+	 */
+	struct mem_range df_verity_file_digest;
 };
 
 struct dir_file {
