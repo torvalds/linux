@@ -1171,8 +1171,7 @@ static inline const void *sg_data(struct scatterlist *sg)
 }
 
 /* Test one hash test vector in one configuration, using the shash API */
-static int test_shash_vec_cfg(const char *driver,
-			      const struct hash_testvec *vec,
+static int test_shash_vec_cfg(const struct hash_testvec *vec,
 			      const char *vec_name,
 			      const struct testvec_config *cfg,
 			      struct shash_desc *desc,
@@ -1183,6 +1182,7 @@ static int test_shash_vec_cfg(const char *driver,
 	const unsigned int alignmask = crypto_shash_alignmask(tfm);
 	const unsigned int digestsize = crypto_shash_digestsize(tfm);
 	const unsigned int statesize = crypto_shash_statesize(tfm);
+	const char *driver = crypto_shash_driver_name(tfm);
 	const struct test_sg_division *divs[XBUFSIZE];
 	unsigned int i;
 	u8 result[HASH_MAX_DIGESTSIZE + TESTMGR_POISON_LEN];
@@ -1355,8 +1355,7 @@ static int check_nonfinal_ahash_op(const char *op, int err,
 }
 
 /* Test one hash test vector in one configuration, using the ahash API */
-static int test_ahash_vec_cfg(const char *driver,
-			      const struct hash_testvec *vec,
+static int test_ahash_vec_cfg(const struct hash_testvec *vec,
 			      const char *vec_name,
 			      const struct testvec_config *cfg,
 			      struct ahash_request *req,
@@ -1367,6 +1366,7 @@ static int test_ahash_vec_cfg(const char *driver,
 	const unsigned int alignmask = crypto_ahash_alignmask(tfm);
 	const unsigned int digestsize = crypto_ahash_digestsize(tfm);
 	const unsigned int statesize = crypto_ahash_statesize(tfm);
+	const char *driver = crypto_ahash_driver_name(tfm);
 	const u32 req_flags = CRYPTO_TFM_REQ_MAY_BACKLOG | cfg->req_flags;
 	const struct test_sg_division *divs[XBUFSIZE];
 	DECLARE_CRYPTO_WAIT(wait);
@@ -1521,8 +1521,7 @@ result_ready:
 				 driver, cfg);
 }
 
-static int test_hash_vec_cfg(const char *driver,
-			     const struct hash_testvec *vec,
+static int test_hash_vec_cfg(const struct hash_testvec *vec,
 			     const char *vec_name,
 			     const struct testvec_config *cfg,
 			     struct ahash_request *req,
@@ -1539,20 +1538,18 @@ static int test_hash_vec_cfg(const char *driver,
 	 */
 
 	if (desc) {
-		err = test_shash_vec_cfg(driver, vec, vec_name, cfg, desc, tsgl,
+		err = test_shash_vec_cfg(vec, vec_name, cfg, desc, tsgl,
 					 hashstate);
 		if (err)
 			return err;
 	}
 
-	return test_ahash_vec_cfg(driver, vec, vec_name, cfg, req, tsgl,
-				  hashstate);
+	return test_ahash_vec_cfg(vec, vec_name, cfg, req, tsgl, hashstate);
 }
 
-static int test_hash_vec(const char *driver, const struct hash_testvec *vec,
-			 unsigned int vec_num, struct ahash_request *req,
-			 struct shash_desc *desc, struct test_sglist *tsgl,
-			 u8 *hashstate)
+static int test_hash_vec(const struct hash_testvec *vec, unsigned int vec_num,
+			 struct ahash_request *req, struct shash_desc *desc,
+			 struct test_sglist *tsgl, u8 *hashstate)
 {
 	char vec_name[16];
 	unsigned int i;
@@ -1561,7 +1558,7 @@ static int test_hash_vec(const char *driver, const struct hash_testvec *vec,
 	sprintf(vec_name, "%u", vec_num);
 
 	for (i = 0; i < ARRAY_SIZE(default_hash_testvec_configs); i++) {
-		err = test_hash_vec_cfg(driver, vec, vec_name,
+		err = test_hash_vec_cfg(vec, vec_name,
 					&default_hash_testvec_configs[i],
 					req, desc, tsgl, hashstate);
 		if (err)
@@ -1576,7 +1573,7 @@ static int test_hash_vec(const char *driver, const struct hash_testvec *vec,
 		for (i = 0; i < fuzz_iterations; i++) {
 			generate_random_testvec_config(&cfg, cfgname,
 						       sizeof(cfgname));
-			err = test_hash_vec_cfg(driver, vec, vec_name, &cfg,
+			err = test_hash_vec_cfg(vec, vec_name, &cfg,
 						req, desc, tsgl, hashstate);
 			if (err)
 				return err;
@@ -1633,8 +1630,7 @@ done:
  * Test the hash algorithm represented by @req against the corresponding generic
  * implementation, if one is available.
  */
-static int test_hash_vs_generic_impl(const char *driver,
-				     const char *generic_driver,
+static int test_hash_vs_generic_impl(const char *generic_driver,
 				     unsigned int maxkeysize,
 				     struct ahash_request *req,
 				     struct shash_desc *desc,
@@ -1646,6 +1642,7 @@ static int test_hash_vs_generic_impl(const char *driver,
 	const unsigned int blocksize = crypto_ahash_blocksize(tfm);
 	const unsigned int maxdatasize = (2 * PAGE_SIZE) - TESTMGR_POISON_LEN;
 	const char *algname = crypto_hash_alg_common(tfm)->base.cra_name;
+	const char *driver = crypto_ahash_driver_name(tfm);
 	char _generic_driver[CRYPTO_MAX_ALG_NAME];
 	struct crypto_shash *generic_tfm = NULL;
 	struct shash_desc *generic_desc = NULL;
@@ -1732,7 +1729,7 @@ static int test_hash_vs_generic_impl(const char *driver,
 					     vec_name, sizeof(vec_name));
 		generate_random_testvec_config(cfg, cfgname, sizeof(cfgname));
 
-		err = test_hash_vec_cfg(driver, &vec, vec_name, cfg,
+		err = test_hash_vec_cfg(&vec, vec_name, cfg,
 					req, desc, tsgl, hashstate);
 		if (err)
 			goto out;
@@ -1749,8 +1746,7 @@ out:
 	return err;
 }
 #else /* !CONFIG_CRYPTO_MANAGER_EXTRA_TESTS */
-static int test_hash_vs_generic_impl(const char *driver,
-				     const char *generic_driver,
+static int test_hash_vs_generic_impl(const char *generic_driver,
 				     unsigned int maxkeysize,
 				     struct ahash_request *req,
 				     struct shash_desc *desc,
@@ -1820,6 +1816,7 @@ static int __alg_test_hash(const struct hash_testvec *vecs,
 		       driver, PTR_ERR(atfm));
 		return PTR_ERR(atfm);
 	}
+	driver = crypto_ahash_driver_name(atfm);
 
 	req = ahash_request_alloc(atfm, GFP_KERNEL);
 	if (!req) {
@@ -1859,13 +1856,12 @@ static int __alg_test_hash(const struct hash_testvec *vecs,
 	}
 
 	for (i = 0; i < num_vecs; i++) {
-		err = test_hash_vec(driver, &vecs[i], i, req, desc, tsgl,
-				    hashstate);
+		err = test_hash_vec(&vecs[i], i, req, desc, tsgl, hashstate);
 		if (err)
 			goto out;
 		cond_resched();
 	}
-	err = test_hash_vs_generic_impl(driver, generic_driver, maxkeysize, req,
+	err = test_hash_vs_generic_impl(generic_driver, maxkeysize, req,
 					desc, tsgl, hashstate);
 out:
 	kfree(hashstate);
@@ -3602,6 +3598,7 @@ static int alg_test_crc32c(const struct alg_test_desc *desc,
 		       "%ld\n", driver, PTR_ERR(tfm));
 		return PTR_ERR(tfm);
 	}
+	driver = crypto_shash_driver_name(tfm);
 
 	do {
 		SHASH_DESC_ON_STACK(shash, tfm);
