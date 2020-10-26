@@ -117,8 +117,8 @@ try_again:
 	t = f = 0;
 	if (PagePrivate(page)) {
 		priv = page_private(page);
-		f = priv & AFS_PRIV_MAX;
-		t = priv >> AFS_PRIV_SHIFT;
+		f = afs_page_dirty_from(priv);
+		t = afs_page_dirty_to(priv);
 		ASSERTCMP(f, <=, t);
 	}
 
@@ -206,22 +206,18 @@ int afs_write_end(struct file *file, struct address_space *mapping,
 
 	if (PagePrivate(page)) {
 		priv = page_private(page);
-		f = priv & AFS_PRIV_MAX;
-		t = priv >> AFS_PRIV_SHIFT;
+		f = afs_page_dirty_from(priv);
+		t = afs_page_dirty_to(priv);
 		if (from < f)
 			f = from;
 		if (to > t)
 			t = to;
-		priv = (unsigned long)t << AFS_PRIV_SHIFT;
-		priv |= f;
+		priv = afs_page_dirty(f, t);
 		set_page_private(page, priv);
 		trace_afs_page_dirty(vnode, tracepoint_string("dirty+"),
 				     page->index, priv);
 	} else {
-		f = from;
-		t = to;
-		priv = (unsigned long)t << AFS_PRIV_SHIFT;
-		priv |= f;
+		priv = afs_page_dirty(from, to);
 		attach_page_private(page, (void *)priv);
 		trace_afs_page_dirty(vnode, tracepoint_string("dirty"),
 				     page->index, priv);
@@ -522,8 +518,8 @@ static int afs_write_back_from_locked_page(struct address_space *mapping,
 	 */
 	start = primary_page->index;
 	priv = page_private(primary_page);
-	offset = priv & AFS_PRIV_MAX;
-	to = priv >> AFS_PRIV_SHIFT;
+	offset = afs_page_dirty_from(priv);
+	to = afs_page_dirty_to(priv);
 	trace_afs_page_dirty(vnode, tracepoint_string("store"),
 			     primary_page->index, priv);
 
@@ -568,8 +564,8 @@ static int afs_write_back_from_locked_page(struct address_space *mapping,
 			}
 
 			priv = page_private(page);
-			f = priv & AFS_PRIV_MAX;
-			t = priv >> AFS_PRIV_SHIFT;
+			f = afs_page_dirty_from(priv);
+			t = afs_page_dirty_to(priv);
 			if (f != 0 &&
 			    !test_bit(AFS_VNODE_NEW_CONTENT, &vnode->flags)) {
 				unlock_page(page);
@@ -870,8 +866,7 @@ vm_fault_t afs_page_mkwrite(struct vm_fault *vmf)
 	 */
 	wait_on_page_writeback(vmf->page);
 
-	priv = (unsigned long)PAGE_SIZE << AFS_PRIV_SHIFT; /* To */
-	priv |= 0; /* From */
+	priv = afs_page_dirty(0, PAGE_SIZE);
 	trace_afs_page_dirty(vnode, tracepoint_string("mkwrite"),
 			     vmf->page->index, priv);
 	if (PagePrivate(vmf->page))
@@ -930,8 +925,8 @@ int afs_launder_page(struct page *page)
 		f = 0;
 		t = PAGE_SIZE;
 		if (PagePrivate(page)) {
-			f = priv & AFS_PRIV_MAX;
-			t = priv >> AFS_PRIV_SHIFT;
+			f = afs_page_dirty_from(priv);
+			t = afs_page_dirty_to(priv);
 		}
 
 		trace_afs_page_dirty(vnode, tracepoint_string("launder"),

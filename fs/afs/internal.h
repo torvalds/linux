@@ -858,6 +858,34 @@ struct afs_vnode_cache_aux {
 	u64			data_version;
 } __packed;
 
+/*
+ * We use page->private to hold the amount of the page that we've written to,
+ * splitting the field into two parts.  However, we need to represent a range
+ * 0...PAGE_SIZE inclusive, so we can't support 64K pages on a 32-bit system.
+ */
+#if PAGE_SIZE > 32768
+#define __AFS_PAGE_PRIV_MASK	0xffffffffUL
+#define __AFS_PAGE_PRIV_SHIFT	32
+#else
+#define __AFS_PAGE_PRIV_MASK	0xffffUL
+#define __AFS_PAGE_PRIV_SHIFT	16
+#endif
+
+static inline size_t afs_page_dirty_from(unsigned long priv)
+{
+	return priv & __AFS_PAGE_PRIV_MASK;
+}
+
+static inline size_t afs_page_dirty_to(unsigned long priv)
+{
+	return (priv >> __AFS_PAGE_PRIV_SHIFT) & __AFS_PAGE_PRIV_MASK;
+}
+
+static inline unsigned long afs_page_dirty(size_t from, size_t to)
+{
+	return ((unsigned long)to << __AFS_PAGE_PRIV_SHIFT) | from;
+}
+
 #include <trace/events/afs.h>
 
 /*****************************************************************************/
