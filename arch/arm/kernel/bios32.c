@@ -394,8 +394,7 @@ static int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	return irq;
 }
 
-static int pcibios_init_resource(int busnr, struct pci_sys_data *sys,
-				 int io_optional)
+static int pcibios_init_resource(int busnr, struct pci_sys_data *sys)
 {
 	int ret;
 	struct resource_entry *window;
@@ -404,14 +403,6 @@ static int pcibios_init_resource(int busnr, struct pci_sys_data *sys,
 		pci_add_resource_offset(&sys->resources,
 			 &iomem_resource, sys->mem_offset);
 	}
-
-	/*
-	 * If a platform says I/O port support is optional, we don't add
-	 * the default I/O space.  The platform is responsible for adding
-	 * any I/O space it needs.
-	 */
-	if (io_optional)
-		return 0;
 
 	resource_list_for_each_entry(window, &sys->resources)
 		if (resource_type(window->res) == IORESOURCE_IO)
@@ -462,7 +453,7 @@ static void pcibios_init_hw(struct device *parent, struct hw_pci *hw,
 
 		if (ret > 0) {
 
-			ret = pcibios_init_resource(nr, sys, hw->io_optional);
+			ret = pcibios_init_resource(nr, sys);
 			if (ret)  {
 				pci_free_host_bridge(bridge);
 				break;
@@ -480,9 +471,6 @@ static void pcibios_init_hw(struct device *parent, struct hw_pci *hw,
 				bridge->sysdata = sys;
 				bridge->busnr = sys->busnr;
 				bridge->ops = hw->ops;
-				bridge->msi = hw->msi_ctrl;
-				bridge->align_resource =
-						hw->align_resource;
 
 				ret = pci_scan_root_bus_bridge(bridge);
 			}
