@@ -305,6 +305,12 @@ void fill_post_wcc(struct svc_fh *fhp)
  * XDR decode functions
  */
 int
+nfs3svc_decode_voidarg(struct svc_rqst *rqstp, __be32 *p)
+{
+	return 1;
+}
+
+int
 nfs3svc_decode_fhandle(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd_fhandle *args = rqstp->rq_argp;
@@ -635,10 +641,7 @@ nfs3svc_decode_commitargs(struct svc_rqst *rqstp, __be32 *p)
 /*
  * XDR encode functions
  */
-/*
- * There must be an encoding function for void results so svc_process
- * will work properly.
- */
+
 int
 nfs3svc_encode_voidres(struct svc_rqst *rqstp, __be32 *p)
 {
@@ -651,6 +654,7 @@ nfs3svc_encode_attrstat(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd3_attrstat *resp = rqstp->rq_resp;
 
+	*p++ = resp->status;
 	if (resp->status == 0) {
 		lease_get_mtime(d_inode(resp->fh.fh_dentry),
 				&resp->stat.mtime);
@@ -665,6 +669,7 @@ nfs3svc_encode_wccstat(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd3_attrstat *resp = rqstp->rq_resp;
 
+	*p++ = resp->status;
 	p = encode_wcc_data(rqstp, p, &resp->fh);
 	return xdr_ressize_check(rqstp, p);
 }
@@ -675,6 +680,7 @@ nfs3svc_encode_diropres(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd3_diropres *resp = rqstp->rq_resp;
 
+	*p++ = resp->status;
 	if (resp->status == 0) {
 		p = encode_fh(p, &resp->fh);
 		p = encode_post_op_attr(rqstp, p, &resp->fh);
@@ -689,6 +695,7 @@ nfs3svc_encode_accessres(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd3_accessres *resp = rqstp->rq_resp;
 
+	*p++ = resp->status;
 	p = encode_post_op_attr(rqstp, p, &resp->fh);
 	if (resp->status == 0)
 		*p++ = htonl(resp->access);
@@ -701,6 +708,7 @@ nfs3svc_encode_readlinkres(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd3_readlinkres *resp = rqstp->rq_resp;
 
+	*p++ = resp->status;
 	p = encode_post_op_attr(rqstp, p, &resp->fh);
 	if (resp->status == 0) {
 		*p++ = htonl(resp->len);
@@ -723,6 +731,7 @@ nfs3svc_encode_readres(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd3_readres *resp = rqstp->rq_resp;
 
+	*p++ = resp->status;
 	p = encode_post_op_attr(rqstp, p, &resp->fh);
 	if (resp->status == 0) {
 		*p++ = htonl(resp->count);
@@ -748,6 +757,7 @@ nfs3svc_encode_writeres(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd3_writeres *resp = rqstp->rq_resp;
 
+	*p++ = resp->status;
 	p = encode_wcc_data(rqstp, p, &resp->fh);
 	if (resp->status == 0) {
 		*p++ = htonl(resp->count);
@@ -764,6 +774,7 @@ nfs3svc_encode_createres(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd3_diropres *resp = rqstp->rq_resp;
 
+	*p++ = resp->status;
 	if (resp->status == 0) {
 		*p++ = xdr_one;
 		p = encode_fh(p, &resp->fh);
@@ -779,6 +790,7 @@ nfs3svc_encode_renameres(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd3_renameres *resp = rqstp->rq_resp;
 
+	*p++ = resp->status;
 	p = encode_wcc_data(rqstp, p, &resp->ffh);
 	p = encode_wcc_data(rqstp, p, &resp->tfh);
 	return xdr_ressize_check(rqstp, p);
@@ -790,6 +802,7 @@ nfs3svc_encode_linkres(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd3_linkres *resp = rqstp->rq_resp;
 
+	*p++ = resp->status;
 	p = encode_post_op_attr(rqstp, p, &resp->fh);
 	p = encode_wcc_data(rqstp, p, &resp->tfh);
 	return xdr_ressize_check(rqstp, p);
@@ -801,6 +814,7 @@ nfs3svc_encode_readdirres(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd3_readdirres *resp = rqstp->rq_resp;
 
+	*p++ = resp->status;
 	p = encode_post_op_attr(rqstp, p, &resp->fh);
 
 	if (resp->status == 0) {
@@ -1053,6 +1067,7 @@ nfs3svc_encode_fsstatres(struct svc_rqst *rqstp, __be32 *p)
 	struct kstatfs	*s = &resp->stats;
 	u64		bs = s->f_bsize;
 
+	*p++ = resp->status;
 	*p++ = xdr_zero;	/* no post_op_attr */
 
 	if (resp->status == 0) {
@@ -1073,6 +1088,7 @@ nfs3svc_encode_fsinfores(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd3_fsinfores *resp = rqstp->rq_resp;
 
+	*p++ = resp->status;
 	*p++ = xdr_zero;	/* no post_op_attr */
 
 	if (resp->status == 0) {
@@ -1118,6 +1134,7 @@ nfs3svc_encode_commitres(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd3_commitres *resp = rqstp->rq_resp;
 
+	*p++ = resp->status;
 	p = encode_wcc_data(rqstp, p, &resp->fh);
 	/* Write verifier */
 	if (resp->status == 0) {

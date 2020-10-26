@@ -208,8 +208,6 @@ int __exfat_truncate(struct inode *inode, loff_t new_size)
 	/* hint information */
 	ei->hint_bmap.off = EXFAT_EOF_CLUSTER;
 	ei->hint_bmap.clu = EXFAT_EOF_CLUSTER;
-	if (ei->rwoffset > new_size)
-		ei->rwoffset = new_size;
 
 	/* hint_stat will be used if this is directory. */
 	ei->hint_stat.eidx = 0;
@@ -229,7 +227,7 @@ void exfat_truncate(struct inode *inode, loff_t size)
 {
 	struct super_block *sb = inode->i_sb;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
-	unsigned int blocksize = 1 << inode->i_blkbits;
+	unsigned int blocksize = i_blocksize(inode);
 	loff_t aligned_size;
 	int err;
 

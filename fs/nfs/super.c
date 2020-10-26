@@ -57,6 +57,7 @@
 #include <linux/rcupdate.h>
 
 #include <linux/uaccess.h>
+#include <linux/nfs_ssc.h>
 
 #include "nfs4_fs.h"
 #include "callback.h"
@@ -85,6 +86,10 @@ const struct super_operations nfs_sops = {
 };
 EXPORT_SYMBOL_GPL(nfs_sops);
 
+static const struct nfs_ssc_client_ops nfs_ssc_clnt_ops_tbl = {
+	.sco_sb_deactive = nfs_sb_deactive,
+};
+
 #if IS_ENABLED(CONFIG_NFS_V4)
 static int __init register_nfs4_fs(void)
 {
@@ -105,6 +110,16 @@ static void unregister_nfs4_fs(void)
 {
 }
 #endif
+
+static void nfs_ssc_register_ops(void)
+{
+	nfs_ssc_register(&nfs_ssc_clnt_ops_tbl);
+}
+
+static void nfs_ssc_unregister_ops(void)
+{
+	nfs_ssc_unregister(&nfs_ssc_clnt_ops_tbl);
+}
 
 static struct shrinker acl_shrinker = {
 	.count_objects	= nfs_access_cache_count,
@@ -133,6 +148,7 @@ int __init register_nfs_fs(void)
 	ret = register_shrinker(&acl_shrinker);
 	if (ret < 0)
 		goto error_3;
+	nfs_ssc_register_ops();
 	return 0;
 error_3:
 	nfs_unregister_sysctl();
@@ -152,6 +168,7 @@ void __exit unregister_nfs_fs(void)
 	unregister_shrinker(&acl_shrinker);
 	nfs_unregister_sysctl();
 	unregister_nfs4_fs();
+	nfs_ssc_unregister_ops();
 	unregister_filesystem(&nfs_fs_type);
 }
 
