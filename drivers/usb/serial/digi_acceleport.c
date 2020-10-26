@@ -197,6 +197,7 @@ struct digi_port {
 	int dp_throttle_restart;
 	wait_queue_head_t dp_flush_wait;
 	wait_queue_head_t dp_close_wait;	/* wait queue for close */
+	wait_queue_head_t write_wait;
 	struct usb_serial_port *dp_port;
 };
 
@@ -381,7 +382,7 @@ static int digi_write_oob_command(struct usb_serial_port *port,
 	while (count > 0) {
 		while (oob_priv->dp_write_urb_in_use) {
 			cond_wait_interruptible_timeout_irqrestore(
-				&oob_port->write_wait, DIGI_RETRY_TIMEOUT,
+				&oob_priv->write_wait, DIGI_RETRY_TIMEOUT,
 				&oob_priv->dp_port_lock, flags);
 			if (interruptible && signal_pending(current))
 				return -EINTR;
@@ -444,7 +445,7 @@ static int digi_write_inb_command(struct usb_serial_port *port,
 		while (priv->dp_write_urb_in_use &&
 		       time_before(jiffies, timeout)) {
 			cond_wait_interruptible_timeout_irqrestore(
-				&port->write_wait, DIGI_RETRY_TIMEOUT,
+				&priv->write_wait, DIGI_RETRY_TIMEOUT,
 				&priv->dp_port_lock, flags);
 			if (signal_pending(current))
 				return -EINTR;
@@ -523,7 +524,7 @@ static int digi_set_modem_signals(struct usb_serial_port *port,
 	while (oob_priv->dp_write_urb_in_use) {
 		spin_unlock(&port_priv->dp_port_lock);
 		cond_wait_interruptible_timeout_irqrestore(
-			&oob_port->write_wait, DIGI_RETRY_TIMEOUT,
+			&oob_priv->write_wait, DIGI_RETRY_TIMEOUT,
 			&oob_priv->dp_port_lock, flags);
 		if (interruptible && signal_pending(current))
 			return -EINTR;
@@ -983,7 +984,7 @@ static void digi_write_bulk_callback(struct urb *urb)
 		dev_dbg(&port->dev, "digi_write_bulk_callback: oob callback\n");
 		spin_lock_irqsave(&priv->dp_port_lock, flags);
 		priv->dp_write_urb_in_use = 0;
-		wake_up_interruptible(&port->write_wait);
+		wake_up_interruptible(&priv->write_wait);
 		spin_unlock_irqrestore(&priv->dp_port_lock, flags);
 		return;
 	}
@@ -1216,9 +1217,8 @@ static int digi_port_init(struct usb_serial_port *port, unsigned port_num)
 	init_waitqueue_head(&priv->dp_transmit_idle_wait);
 	init_waitqueue_head(&priv->dp_flush_wait);
 	init_waitqueue_head(&priv->dp_close_wait);
+	init_waitqueue_head(&priv->write_wait);
 	priv->dp_port = port;
-
-	init_waitqueue_head(&port->write_wait);
 
 	usb_set_serial_port_data(port, priv);
 
