@@ -45,6 +45,8 @@ create_package() {
 	chmod -R go-w "$pdir"
 	# in case we are in a restrictive umask environment like 0077
 	chmod -R a+rX "$pdir"
+	# in case we build in a setuid/setgid directory
+	chmod -R ug-s "$pdir"
 
 	# Create the package
 	dpkg-gencontrol -p$pname -P"$pdir"
