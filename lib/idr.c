@@ -471,6 +471,7 @@ alloc:
 	goto retry;
 nospc:
 	xas_unlock_irqrestore(&xas, flags);
+	kfree(alloc);
 	return -ENOSPC;
 }
 EXPORT_SYMBOL(ida_alloc_range);

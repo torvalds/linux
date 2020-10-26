@@ -1,6 +1,8 @@
 #ifndef INTERNAL_IO_WQ_H
 #define INTERNAL_IO_WQ_H
 
+#include <linux/io_uring.h>
+
 struct io_wq;
 
 enum {
@@ -9,6 +11,12 @@ enum {
 	IO_WQ_WORK_UNBOUND	= 4,
 	IO_WQ_WORK_NO_CANCEL	= 8,
 	IO_WQ_WORK_CONCURRENT	= 16,
+
+	IO_WQ_WORK_FILES	= 32,
+	IO_WQ_WORK_FS		= 64,
+	IO_WQ_WORK_MM		= 128,
+	IO_WQ_WORK_CREDS	= 256,
+	IO_WQ_WORK_BLKCG	= 512,
 
 	IO_WQ_HASH_SHIFT	= 24,	/* upper 8 bits are used for hash key */
 };
@@ -85,15 +93,7 @@ static inline void wq_list_del(struct io_wq_work_list *list,
 
 struct io_wq_work {
 	struct io_wq_work_node list;
-	struct files_struct *files;
-	struct mm_struct *mm;
-#ifdef CONFIG_BLK_CGROUP
-	struct cgroup_subsys_state *blkcg_css;
-#endif
-	const struct cred *creds;
-	struct nsproxy *nsproxy;
-	struct fs_struct *fs;
-	unsigned long fsize;
+	struct io_identity *identity;
 	unsigned flags;
 };
 

@@ -289,6 +289,27 @@ static noinline void check_xa_mark_2(struct xarray *xa)
 	xa_destroy(xa);
 }
 
+static noinline void check_xa_mark_3(struct xarray *xa)
+{
+#ifdef CONFIG_XARRAY_MULTI
+	XA_STATE(xas, xa, 0x41);
+	void *entry;
+	int count = 0;
+
+	xa_store_order(xa, 0x40, 2, xa_mk_index(0x40), GFP_KERNEL);
+	xa_set_mark(xa, 0x41, XA_MARK_0);
+
+	rcu_read_lock();
+	xas_for_each_marked(&xas, entry, ULONG_MAX, XA_MARK_0) {
+		count++;
+		XA_BUG_ON(xa, entry != xa_mk_index(0x40));
+	}
+	XA_BUG_ON(xa, count != 1);
+	rcu_read_unlock();
+	xa_destroy(xa);
+#endif
+}
+
 static noinline void check_xa_mark(struct xarray *xa)
 {
 	unsigned long index;
@@ -297,6 +318,7 @@ static noinline void check_xa_mark(struct xarray *xa)
 		check_xa_mark_1(xa, index);
 
 	check_xa_mark_2(xa);
+	check_xa_mark_3(xa);
 }
 
 static noinline void check_xa_shrink(struct xarray *xa)
@@ -393,6 +415,9 @@ static noinline void check_cmpxchg(struct xarray *xa)
 	XA_BUG_ON(xa, xa_cmpxchg(xa, 12345678, FIVE, LOTS, GFP_KERNEL) != FIVE);
 	XA_BUG_ON(xa, xa_cmpxchg(xa, 5, FIVE, NULL, GFP_KERNEL) != NULL);
 	XA_BUG_ON(xa, xa_cmpxchg(xa, 5, NULL, FIVE, GFP_KERNEL) != NULL);
+	XA_BUG_ON(xa, xa_insert(xa, 5, FIVE, GFP_KERNEL) != -EBUSY);
+	XA_BUG_ON(xa, xa_cmpxchg(xa, 5, FIVE, NULL, GFP_KERNEL) != FIVE);
+	XA_BUG_ON(xa, xa_insert(xa, 5, FIVE, GFP_KERNEL) == -EBUSY);
 	xa_erase_index(xa, 12345678);
 	xa_erase_index(xa, 5);
 	XA_BUG_ON(xa, !xa_empty(xa));
@@ -1618,14 +1643,9 @@ static noinline void shadow_remove(struct xarray *xa)
 	xa_lock(xa);
 	while ((node = list_first_entry_or_null(&shadow_nodes,
 					struct xa_node, private_list))) {
-		XA_STATE(xas, node->array, 0);
 		XA_BUG_ON(xa, node->array != xa);
 		list_del_init(&node->private_list);
-		xas.xa_node = xa_parent_locked(node->array, node);
-		xas.xa_offset = node->offset;
-		xas.xa_shift = node->shift + XA_CHUNK_SHIFT;
-		xas_set_update(&xas, test_update_node);
-		xas_store(&xas, NULL);
+		xa_delete_node(node, test_update_node);
 	}
 	xa_unlock(xa);
 }

@@ -2199,6 +2199,14 @@ ssize_t generic_file_buffered_read(struct kiocb *iocb,
 	last_index = (*ppos + iter->count + PAGE_SIZE-1) >> PAGE_SHIFT;
 	offset = *ppos & ~PAGE_MASK;
 
+	/*
+	 * If we've already successfully copied some data, then we
+	 * can no longer safely return -EIOCBQUEUED. Hence mark
+	 * an async read NOWAIT at that point.
+	 */
+	if (written && (iocb->ki_flags & IOCB_WAITQ))
+		iocb->ki_flags |= IOCB_NOWAIT;
+
 	for (;;) {
 		struct page *page;
 		pgoff_t end_index;

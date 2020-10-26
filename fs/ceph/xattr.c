@@ -116,7 +116,8 @@ static ssize_t ceph_vxattrcb_layout(struct ceph_inode_info *ci, char *val,
  * NULL terminates however, so call it on a temporary buffer and then memcpy
  * the result into place.
  */
-static int ceph_fmt_xattr(char *val, size_t size, const char *fmt, ...)
+static __printf(3, 4)
+int ceph_fmt_xattr(char *val, size_t size, const char *fmt, ...)
 {
 	int ret;
 	va_list args;

@@ -552,15 +552,23 @@ readit:
 void page_cache_sync_ra(struct readahead_control *ractl,
 		struct file_ra_state *ra, unsigned long req_count)
 {
-	/* no read-ahead */
-	if (!ra->ra_pages)
-		return;
+	bool do_forced_ra = ractl->file && (ractl->file->f_mode & FMODE_RANDOM);
 
-	if (blk_cgroup_congested())
-		return;
+	/*
+	 * Even if read-ahead is disabled, issue this request as read-ahead
+	 * as we'll need it to satisfy the requested range. The forced
+	 * read-ahead will do the right thing and limit the read to just the
+	 * requested range, which we'll set to 1 page for this case.
+	 */
+	if (!ra->ra_pages || blk_cgroup_congested()) {
+		if (!ractl->file)
+			return;
+		req_count = 1;
+		do_forced_ra = true;
+	}
 
 	/* be dumb */
-	if (ractl->file && (ractl->file->f_mode & FMODE_RANDOM)) {
+	if (do_forced_ra) {
 		force_page_cache_ra(ractl, ra, req_count);
 		return;
 	}
