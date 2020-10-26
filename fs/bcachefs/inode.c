@@ -271,6 +271,8 @@ void bch2_inode_to_text(struct printbuf *out, struct bch_fs *c,
 		return;
 	}
 
+	pr_buf(out, "mode: %o ", unpacked.bi_mode);
+
 #define x(_name, _bits)						\
 	pr_buf(out, #_name ": %llu ", (u64) unpacked._name);
 	BCH_INODE_FIELDS()
