@@ -428,22 +428,6 @@ static __always_inline bool __cpus_have_const_cap(int num)
 }
 
 /*
- * Test for a capability, possibly with a runtime check.
- *
- * Before capabilities are finalized, this behaves as cpus_have_cap().
- * After capabilities are finalized, this is patched to avoid a runtime check.
- *
- * @num must be a compile-time constant.
- */
-static __always_inline bool cpus_have_const_cap(int num)
-{
-	if (system_capabilities_finalized())
-		return __cpus_have_const_cap(num);
-	else
-		return cpus_have_cap(num);
-}
-
-/*
  * Test for a capability without a runtime check.
  *
  * Before capabilities are finalized, this will BUG().
@@ -457,6 +441,22 @@ static __always_inline bool cpus_have_final_cap(int num)
 		return __cpus_have_const_cap(num);
 	else
 		BUG();
+}
+
+/*
+ * Test for a capability, possibly with a runtime check.
+ *
+ * Before capabilities are finalized, this behaves as cpus_have_cap().
+ * After capabilities are finalized, this is patched to avoid a runtime check.
+ *
+ * @num must be a compile-time constant.
+ */
+static __always_inline bool cpus_have_const_cap(int num)
+{
+	if (system_capabilities_finalized())
+		return __cpus_have_const_cap(num);
+	else
+		return cpus_have_cap(num);
 }
 
 static inline void cpus_set_cap(unsigned int num)
