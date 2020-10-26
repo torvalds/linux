@@ -221,4 +221,18 @@ static inline bool fsverity_active(const struct inode *inode)
 	return fsverity_get_info(inode) != NULL;
 }
 
+#ifdef CONFIG_FS_VERITY_BUILTIN_SIGNATURES
+int __fsverity_verify_signature(const struct inode *inode, const u8 *signature,
+				u32 sig_size, const u8 *file_digest,
+				unsigned int digest_algorithm);
+#else /* !CONFIG_FS_VERITY_BUILTIN_SIGNATURES */
+static inline int __fsverity_verify_signature(const struct inode *inode,
+				const u8 *signature, u32 sig_size,
+				const u8 *file_digest,
+				unsigned int digest_algorithm)
+{
+	return 0;
+}
+#endif /* !CONFIG_FS_VERITY_BUILTIN_SIGNATURES */
+
 #endif	/* _LINUX_FSVERITY_H */
