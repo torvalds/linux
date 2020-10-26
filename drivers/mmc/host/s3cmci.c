@@ -24,11 +24,6 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/mmc/slot-gpio.h>
-
-#include <plat/gpio-cfg.h>
-#include <mach/dma.h>
-#include <mach/gpio-samsung.h>
-
 #include <linux/platform_data/mmc-s3cmci.h>
 
 #include "s3cmci.h"
@@ -305,7 +300,8 @@ static inline void clear_imask(struct s3cmci_host *host)
 static void s3cmci_check_sdio_irq(struct s3cmci_host *host)
 {
 	if (host->sdio_irqen) {
-		if (gpio_get_value(S3C2410_GPE(8)) == 0) {
+		if (host->pdata->bus[3] &&
+		    gpiod_get_value(host->pdata->bus[3]) == 0) {
 			pr_debug("%s: signalling irq\n", __func__);
 			mmc_signal_sdio_irq(host->mmc);
 		}
@@ -1201,32 +1197,19 @@ static void s3cmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	switch (ios->power_mode) {
 	case MMC_POWER_ON:
 	case MMC_POWER_UP:
-		/* Configure GPE5...GPE10 pins in SD mode */
-		if (!host->pdev->dev.of_node)
-			s3c_gpio_cfgall_range(S3C2410_GPE(5), 6, S3C_GPIO_SFN(2),
-					      S3C_GPIO_PULL_NONE);
-
-		if (host->pdata->set_power)
-			host->pdata->set_power(ios->power_mode, ios->vdd);
-
 		if (!host->is2440)
 			mci_con |= S3C2410_SDICON_FIFORESET;
-
 		break;
 
 	case MMC_POWER_OFF:
 	default:
-		if (!host->pdev->dev.of_node)
-			gpio_direction_output(S3C2410_GPE(5), 0);
-
 		if (host->is2440)
 			mci_con |= S3C2440_SDICON_SDRESET;
-
-		if (host->pdata->set_power)
-			host->pdata->set_power(ios->power_mode, ios->vdd);
-
 		break;
 	}
+
+	if (host->pdata->set_power)
+		host->pdata->set_power(ios->power_mode, ios->vdd);
 
 	s3cmci_set_clk(host, ios);
 
@@ -1303,13 +1286,6 @@ static const struct mmc_host_ops s3cmci_ops = {
 	.get_ro		= mmc_gpio_get_ro,
 	.get_cd		= mmc_gpio_get_cd,
 	.enable_sdio_irq = s3cmci_enable_sdio_irq,
-};
-
-static struct s3c24xx_mci_pdata s3cmci_def_pdata = {
-	/* This is currently here to avoid a number of if (host->pdata)
-	 * checks. Any zero fields to ensure reasonable defaults are picked. */
-	 .no_wprotect = 1,
-	 .no_detect = 1,
 };
 
 #ifdef CONFIG_ARM_S3C24XX_CPUFREQ
@@ -1465,23 +1441,20 @@ static int s3cmci_probe_pdata(struct s3cmci_host *host)
 	int i, ret;
 
 	host->is2440 = platform_get_device_id(pdev)->driver_data;
-
-	for (i = S3C2410_GPE(5); i <= S3C2410_GPE(10); i++) {
-		ret = gpio_request(i, dev_name(&pdev->dev));
-		if (ret) {
-			dev_err(&pdev->dev, "failed to get gpio %d\n", i);
-
-			for (i--; i >= S3C2410_GPE(5); i--)
-				gpio_free(i);
-
-			return ret;
-		}
+	pdata = pdev->dev.platform_data;
+	if (!pdata) {
+		dev_err(&pdev->dev, "need platform data");
+		return -ENXIO;
 	}
 
-	if (!pdev->dev.platform_data)
-		pdev->dev.platform_data = &s3cmci_def_pdata;
-
-	pdata = pdev->dev.platform_data;
+	for (i = 0; i < 6; i++) {
+		pdata->bus[i] = devm_gpiod_get_index(&pdev->dev, "bus", i,
+						     GPIOD_OUT_LOW);
+		if (IS_ERR(pdata->bus[i])) {
+			dev_err(&pdev->dev, "failed to get gpio %d\n", i);
+			return PTR_ERR(pdata->bus[i]);
+		}
+	}
 
 	if (pdata->no_wprotect)
 		mmc->caps2 |= MMC_CAP2_NO_WRITE_PROTECT;
@@ -1537,7 +1510,6 @@ static int s3cmci_probe(struct platform_device *pdev)
 	struct s3cmci_host *host;
 	struct mmc_host	*mmc;
 	int ret;
-	int i;
 
 	mmc = mmc_alloc_host(sizeof(struct s3cmci_host), &pdev->dev);
 	if (!mmc) {
@@ -1581,7 +1553,7 @@ static int s3cmci_probe(struct platform_device *pdev)
 			"failed to get io memory region resource.\n");
 
 		ret = -ENOENT;
-		goto probe_free_gpio;
+		goto probe_free_host;
 	}
 
 	host->mem = request_mem_region(host->mem->start,
@@ -1590,7 +1562,7 @@ static int s3cmci_probe(struct platform_device *pdev)
 	if (!host->mem) {
 		dev_err(&pdev->dev, "failed to request io memory region.\n");
 		ret = -ENOENT;
-		goto probe_free_gpio;
+		goto probe_free_host;
 	}
 
 	host->base = ioremap(host->mem->start, resource_size(host->mem));
@@ -1714,11 +1686,6 @@ static int s3cmci_probe(struct platform_device *pdev)
  probe_free_mem_region:
 	release_mem_region(host->mem->start, resource_size(host->mem));
 
- probe_free_gpio:
-	if (!pdev->dev.of_node)
-		for (i = S3C2410_GPE(5); i <= S3C2410_GPE(10); i++)
-			gpio_free(i);
-
  probe_free_host:
 	mmc_free_host(mmc);
 
@@ -1744,7 +1711,6 @@ static int s3cmci_remove(struct platform_device *pdev)
 {
 	struct mmc_host		*mmc  = platform_get_drvdata(pdev);
 	struct s3cmci_host	*host = mmc_priv(mmc);
-	int i;
 
 	s3cmci_shutdown(pdev);
 
@@ -1756,10 +1722,6 @@ static int s3cmci_remove(struct platform_device *pdev)
 		dma_release_channel(host->dma);
 
 	free_irq(host->irq, host);
-
-	if (!pdev->dev.of_node)
-		for (i = S3C2410_GPE(5); i <= S3C2410_GPE(10); i++)
-			gpio_free(i);
 
 	iounmap(host->base);
 	release_mem_region(host->mem->start, resource_size(host->mem));
