@@ -260,6 +260,8 @@ struct data_file *incfs_open_data_file(struct mount_info *mi, struct file *bf)
 		goto out;
 	}
 
+	mutex_init(&df->df_enable_verity);
+
 	df->df_backing_file_context = bfc;
 	df->df_mount_info = mi;
 	for (i = 0; i < ARRAY_SIZE(df->df_segments); i++)
@@ -329,6 +331,8 @@ void incfs_free_data_file(struct data_file *df)
 	incfs_free_mtree(df->df_hash_tree);
 	incfs_free_bfc(df->df_backing_file_context);
 	kfree(df->df_signature);
+	kfree(df->df_verity_file_digest.data);
+	mutex_destroy(&df->df_enable_verity);
 	kfree(df);
 }
 
