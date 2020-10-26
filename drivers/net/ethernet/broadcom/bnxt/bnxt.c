@@ -12852,6 +12852,9 @@ static pci_ers_result_t bnxt_io_error_detected(struct pci_dev *pdev,
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 
+	if (state == pci_channel_io_frozen)
+		set_bit(BNXT_STATE_PCI_CHANNEL_IO_FROZEN, &bp->state);
+
 	if (netif_running(netdev))
 		bnxt_close(netdev);
 
@@ -12878,7 +12881,7 @@ static pci_ers_result_t bnxt_io_slot_reset(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct bnxt *bp = netdev_priv(netdev);
-	int err = 0;
+	int err = 0, off;
 	pci_ers_result_t result = PCI_ERS_RESULT_DISCONNECT;
 
 	netdev_info(bp->dev, "PCI Slot Reset\n");
@@ -12890,6 +12893,20 @@ static pci_ers_result_t bnxt_io_slot_reset(struct pci_dev *pdev)
 			"Cannot re-enable PCI device after reset.\n");
 	} else {
 		pci_set_master(pdev);
+		/* Upon fatal error, our device internal logic that latches to
+		 * BAR value is getting reset and will restore only upon
+		 * rewritting the BARs.
+		 *
+		 * As pci_restore_state() does not re-write the BARs if the
+		 * value is same as saved value earlier, driver needs to
+		 * write the BARs to 0 to force restore, in case of fatal error.
+		 */
+		if (test_and_clear_bit(BNXT_STATE_PCI_CHANNEL_IO_FROZEN,
+				       &bp->state)) {
+			for (off = PCI_BASE_ADDRESS_0;
+			     off <= PCI_BASE_ADDRESS_5; off += 4)
+				pci_write_config_dword(bp->pdev, off, 0);
+		}
 		pci_restore_state(pdev);
 		pci_save_state(pdev);
 
