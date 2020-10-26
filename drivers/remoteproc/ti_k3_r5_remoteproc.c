@@ -940,9 +940,9 @@ out:
 	return ret;
 }
 
-static int k3_r5_cluster_rproc_exit(struct platform_device *pdev)
+static void k3_r5_cluster_rproc_exit(void *data)
 {
-	struct k3_r5_cluster *cluster = platform_get_drvdata(pdev);
+	struct k3_r5_cluster *cluster = platform_get_drvdata(data);
 	struct k3_r5_rproc *kproc;
 	struct k3_r5_core *core;
 	struct rproc *rproc;
@@ -967,8 +967,6 @@ static int k3_r5_cluster_rproc_exit(struct platform_device *pdev)
 		rproc_free(rproc);
 		core->rproc = NULL;
 	}
-
-	return 0;
 }
 
 static int k3_r5_core_of_get_internal_memories(struct platform_device *pdev,
@@ -1255,9 +1253,9 @@ static void k3_r5_core_of_exit(struct platform_device *pdev)
 	devres_release_group(dev, k3_r5_core_of_init);
 }
 
-static void k3_r5_cluster_of_exit(struct platform_device *pdev)
+static void k3_r5_cluster_of_exit(void *data)
 {
-	struct k3_r5_cluster *cluster = platform_get_drvdata(pdev);
+	struct k3_r5_cluster *cluster = platform_get_drvdata(data);
 	struct platform_device *cpdev;
 	struct k3_r5_core *core, *temp;
 
@@ -1351,9 +1349,7 @@ static int k3_r5_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = devm_add_action_or_reset(dev,
-				       (void(*)(void *))k3_r5_cluster_of_exit,
-				       pdev);
+	ret = devm_add_action_or_reset(dev, k3_r5_cluster_of_exit, pdev);
 	if (ret)
 		return ret;
 
@@ -1364,9 +1360,7 @@ static int k3_r5_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = devm_add_action_or_reset(dev,
-				       (void(*)(void *))k3_r5_cluster_rproc_exit,
-				       pdev);
+	ret = devm_add_action_or_reset(dev, k3_r5_cluster_rproc_exit, pdev);
 	if (ret)
 		return ret;
 
