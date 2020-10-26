@@ -5664,14 +5664,20 @@ int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 					     type, mask);
 
 test_done:
-	if (rc && (fips_enabled || panic_on_fail)) {
-		fips_fail_notify();
-		panic("alg: self-tests for %s (%s) failed in %s mode!\n",
-		      driver, alg, fips_enabled ? "fips" : "panic_on_fail");
+	if (rc) {
+		if (fips_enabled || panic_on_fail) {
+			fips_fail_notify();
+			panic("alg: self-tests for %s (%s) failed in %s mode!\n",
+			      driver, alg,
+			      fips_enabled ? "fips" : "panic_on_fail");
+		}
+		WARN(1, "alg: self-tests for %s (%s) failed (rc=%d)",
+		     driver, alg, rc);
+	} else {
+		if (fips_enabled)
+			pr_info("alg: self-tests for %s (%s) passed\n",
+				driver, alg);
 	}
-
-	if (fips_enabled && !rc)
-		pr_info("alg: self-tests for %s (%s) passed\n", driver, alg);
 
 	return rc;
 
