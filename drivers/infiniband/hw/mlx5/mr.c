@@ -1167,7 +1167,10 @@ static struct mlx5_ib_mr *reg_create(struct ib_mr *ibmr, struct ib_pd *pd,
 
 	inlen = MLX5_ST_SZ_BYTES(create_mkey_in);
 	if (populate)
-		inlen += sizeof(*pas) * roundup(ib_umem_num_pages(umem), 2);
+		inlen +=
+			sizeof(*pas) *
+			roundup(ib_umem_num_dma_blocks(umem, 1UL << page_shift),
+				2);
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in) {
 		err = -ENOMEM;
@@ -1179,7 +1182,7 @@ static struct mlx5_ib_mr *reg_create(struct ib_mr *ibmr, struct ib_pd *pd,
 			err = -EINVAL;
 			goto err_2;
 		}
-		mlx5_ib_populate_pas(dev, umem, page_shift, pas,
+		mlx5_ib_populate_pas(umem, 1ULL << page_shift, pas,
 				     pg_cap ? MLX5_IB_MTT_PRESENT : 0);
 	}
 

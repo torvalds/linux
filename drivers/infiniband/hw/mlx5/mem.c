@@ -155,13 +155,22 @@ void __mlx5_ib_populate_pas(struct mlx5_ib_dev *dev, struct ib_umem *umem,
 	}
 }
 
-void mlx5_ib_populate_pas(struct mlx5_ib_dev *dev, struct ib_umem *umem,
-			  int page_shift, __be64 *pas, int access_flags)
+/*
+ * Fill in a physical address list. ib_umem_num_dma_blocks() entries will be
+ * filled in the pas array.
+ */
+void mlx5_ib_populate_pas(struct ib_umem *umem, size_t page_size, __be64 *pas,
+			  u64 access_flags)
 {
-	return __mlx5_ib_populate_pas(dev, umem, page_shift, 0,
-				      ib_umem_num_dma_blocks(umem, PAGE_SIZE),
-				      pas, access_flags);
+	struct ib_block_iter biter;
+
+	rdma_umem_for_each_dma_block (umem, &biter, page_size) {
+		*pas = cpu_to_be64(rdma_block_iter_dma_address(&biter) |
+				   access_flags);
+		pas++;
+	}
 }
+
 int mlx5_ib_get_buf_offset(u64 addr, int page_shift, u32 *offset)
 {
 	u64 page_size;

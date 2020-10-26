@@ -2115,9 +2115,9 @@ static void devx_umem_reg_cmd_build(struct mlx5_ib_dev *dev,
 	MLX5_SET(umem, umem, log_page_size, obj->page_shift -
 					    MLX5_ADAPTER_PAGE_SHIFT);
 	MLX5_SET(umem, umem, page_offset, obj->page_offset);
-	mlx5_ib_populate_pas(dev, obj->umem, obj->page_shift, mtt,
+	mlx5_ib_populate_pas(obj->umem, 1UL << obj->page_shift, mtt,
 			     (obj->umem->writable ? MLX5_IB_MTT_WRITE : 0) |
-			     MLX5_IB_MTT_READ);
+				     MLX5_IB_MTT_READ);
 }
 
 static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_UMEM_REG)(

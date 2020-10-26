@@ -971,7 +971,7 @@ static int _create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	MLX5_SET(create_qp_in, *in, uid, uid);
 	pas = (__be64 *)MLX5_ADDR_OF(create_qp_in, *in, pas);
 	if (ubuffer->umem)
-		mlx5_ib_populate_pas(dev, ubuffer->umem, page_shift, pas, 0);
+		mlx5_ib_populate_pas(ubuffer->umem, 1UL << page_shift, pas, 0);
 
 	qpc = MLX5_ADDR_OF(create_qp_in, *in, qpc);
 
@@ -1251,7 +1251,7 @@ static int create_raw_packet_qp_sq(struct mlx5_ib_dev *dev,
 	MLX5_SET(wq, wq, page_offset, offset);
 
 	pas = (__be64 *)MLX5_ADDR_OF(wq, wq, pas);
-	mlx5_ib_populate_pas(dev, sq->ubuffer.umem, page_shift, pas, 0);
+	mlx5_ib_populate_pas(sq->ubuffer.umem, 1UL << page_shift, pas, 0);
 
 	err = mlx5_core_create_sq_tracked(dev, in, inlen, &sq->base.mqp);
 
@@ -4885,7 +4885,7 @@ static int  create_rq(struct mlx5_ib_rwq *rwq, struct ib_pd *pd,
 		MLX5_SET(rqc, rqc, delay_drop_en, 1);
 	}
 	rq_pas0 = (__be64 *)MLX5_ADDR_OF(wq, wq, pas);
-	mlx5_ib_populate_pas(dev, rwq->umem, rwq->page_shift, rq_pas0, 0);
+	mlx5_ib_populate_pas(rwq->umem, 1UL << rwq->page_shift, rq_pas0, 0);
 	err = mlx5_core_create_rq_tracked(dev, in, inlen, &rwq->core_qp);
 	if (!err && init_attr->create_flags & IB_WQ_FLAGS_DELAY_DROP) {
 		err = set_delay_drop(dev);

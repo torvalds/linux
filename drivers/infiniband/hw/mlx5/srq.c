@@ -100,7 +100,7 @@ static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
 		goto err_umem;
 	}
 
-	mlx5_ib_populate_pas(dev, srq->umem, page_shift, in->pas, 0);
+	mlx5_ib_populate_pas(srq->umem, 1UL << page_shift, in->pas, 0);
 
 	err = mlx5_ib_db_map_user(ucontext, udata, ucmd.db_addr, &srq->db);
 	if (err) {

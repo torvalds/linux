@@ -762,7 +762,7 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 	}
 
 	pas = (__be64 *)MLX5_ADDR_OF(create_cq_in, *cqb, pas);
-	mlx5_ib_populate_pas(dev, cq->buf.umem, page_shift, pas, 0);
+	mlx5_ib_populate_pas(cq->buf.umem, 1UL << page_shift, pas, 0);
 
 	cqc = MLX5_ADDR_OF(create_cq_in, *cqb, cq_context);
 	MLX5_SET(cqc, cqc, log_page_size,
@@ -1305,8 +1305,8 @@ int mlx5_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 
 	pas = (__be64 *)MLX5_ADDR_OF(modify_cq_in, in, pas);
 	if (udata)
-		mlx5_ib_populate_pas(dev, cq->resize_umem, page_shift,
-				     pas, 0);
+		mlx5_ib_populate_pas(cq->resize_umem, 1UL << page_shift, pas,
+				     0);
 	else
 		mlx5_fill_page_frag_array(&cq->resize_buf->frag_buf, pas);
 
