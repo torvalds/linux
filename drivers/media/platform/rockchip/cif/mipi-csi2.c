@@ -48,12 +48,17 @@ MODULE_PARM_DESC(debug_csi2, "Debug level (0-1)");
 #define IMX_MEDIA_GRP_ID_CSI2      BIT(8)
 #define CSIHOST_MAX_ERRINT_COUNT	10
 
+/*
+ * add new chip id in tail in time order
+ * by increasing to distinguish csi2 host version
+ */
 enum rkcsi2_chip_id {
 	CHIP_PX30_CSI2,
 	CHIP_RK1808_CSI2,
 	CHIP_RK3128_CSI2,
 	CHIP_RK3288_CSI2,
-	CHIP_RV1126_CSI2
+	CHIP_RV1126_CSI2,
+	CHIP_RK3568_CSI2,
 };
 
 enum csi2_pads {
@@ -119,8 +124,10 @@ struct csi2_dev {
 
 /* CSI Host Registers Define */
 #define CSIHOST_N_LANES		0x04
+#define CSIHOST_DPHY_SHUTDOWNZ	0x08
 #define CSIHOST_PHY_RSTZ	0x0c
 #define CSIHOST_RESETN		0x10
+#define CSIHOST_PHY_STATE	0x14
 #define CSIHOST_ERR1		0x20
 #define CSIHOST_ERR2		0x24
 #define CSIHOST_MSK1		0x28
@@ -787,6 +794,11 @@ static const struct csi2_match_data rv1126_csi2_match_data = {
 	.num_pads = CSI2_NUM_PADS
 };
 
+static const struct csi2_match_data rk3568_csi2_match_data = {
+	.chip_id = CHIP_RK3568_CSI2,
+	.num_pads = CSI2_NUM_PADS,
+};
+
 static const struct of_device_id csi2_dt_ids[] = {
 	{
 		.compatible = "rockchip,rk1808-mipi-csi2",
@@ -797,10 +809,13 @@ static const struct of_device_id csi2_dt_ids[] = {
 		.data = &rk3288_csi2_match_data,
 	},
 	{
+		.compatible = "rockchip,rk3568-mipi-csi2",
+		.data = &rk3568_csi2_match_data,
+	},
+	{
 		.compatible = "rockchip,rv1126-mipi-csi2",
 		.data = &rv1126_csi2_match_data,
 	},
-
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, csi2_dt_ids);
