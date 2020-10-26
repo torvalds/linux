@@ -647,12 +647,15 @@ static inline bool uverbs_attr_is_valid(const struct uverbs_attr_bundle *attrs_b
  * 'ucontext'.
  *
  */
-#define rdma_udata_to_drv_context(udata, drv_dev_struct, member)               \
-	(udata ? container_of(container_of(udata, struct uverbs_attr_bundle,   \
-					   driver_udata)                       \
-				      ->context,                               \
-			      drv_dev_struct, member) :                        \
-		 (drv_dev_struct *)NULL)
+static inline struct uverbs_attr_bundle *
+rdma_udata_to_uverbs_attr_bundle(struct ib_udata *udata)
+{
+	return container_of(udata, struct uverbs_attr_bundle, driver_udata);
+}
+
+#define rdma_udata_to_drv_context(udata, drv_dev_struct, member)                \
+	(udata ? container_of(rdma_udata_to_uverbs_attr_bundle(udata)->context, \
+			      drv_dev_struct, member) : (drv_dev_struct *)NULL)
 
 #define IS_UVERBS_COPY_ERR(_ret)		((_ret) && (_ret) != -ENOENT)
 
