@@ -26,24 +26,29 @@ if_enabled_echo() {
 
 create_package() {
 	local pname="$1" pdir="$2"
+	local dpkg_deb_opts
 
 	mkdir -m 755 -p "$pdir/DEBIAN"
 	mkdir -p "$pdir/usr/share/doc/$pname"
 	cp debian/copyright "$pdir/usr/share/doc/$pname/"
 	cp debian/changelog "$pdir/usr/share/doc/$pname/changelog.Debian"
-	gzip -9 "$pdir/usr/share/doc/$pname/changelog.Debian"
+	gzip -n -9 "$pdir/usr/share/doc/$pname/changelog.Debian"
 	sh -c "cd '$pdir'; find . -type f ! -path './DEBIAN/*' -printf '%P\0' \
 		| xargs -r0 md5sum > DEBIAN/md5sums"
 
 	# Fix ownership and permissions
-	chown -R root:root "$pdir"
+	if [ "$DEB_RULES_REQUIRES_ROOT" = "no" ]; then
+		dpkg_deb_opts="--root-owner-group"
+	else
+		chown -R root:root "$pdir"
+	fi
 	chmod -R go-w "$pdir"
 	# in case we are in a restrictive umask environment like 0077
 	chmod -R a+rX "$pdir"
 
 	# Create the package
 	dpkg-gencontrol -p$pname -P"$pdir"
-	dpkg-deb ${KDEB_COMPRESS:+-Z$KDEB_COMPRESS} --build "$pdir" ..
+	dpkg-deb $dpkg_deb_opts ${KDEB_COMPRESS:+-Z$KDEB_COMPRESS} --build "$pdir" ..
 }
 
 deploy_kernel_headers () {
@@ -55,7 +60,7 @@ deploy_kernel_headers () {
 		cd $srctree
 		find . arch/$SRCARCH -maxdepth 1 -name Makefile\*
 		find include scripts -type f -o -type l
-		find arch/$SRCARCH -name module.lds -o -name Kbuild.platforms -o -name Platform
+		find arch/$SRCARCH -name Kbuild.platforms -o -name Platform
 		find $(find arch/$SRCARCH -name include -o -name scripts -type d) -type f
 	) > debian/hdrsrcfiles
 
@@ -202,8 +207,10 @@ EOF
 done
 
 if [ "$ARCH" != "um" ]; then
-	deploy_kernel_headers debian/linux-headers
-	create_package linux-headers-$version debian/linux-headers
+	if is_enabled CONFIG_MODULES; then
+		deploy_kernel_headers debian/linux-headers
+		create_package linux-headers-$version debian/linux-headers
+	fi
 
 	deploy_libc_headers debian/linux-libc-dev
 	create_package linux-libc-dev debian/linux-libc-dev
