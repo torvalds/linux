@@ -2056,7 +2056,6 @@ static int devx_umem_get(struct mlx5_ib_dev *dev, struct ib_ucontext *ucontext,
 	u64 addr;
 	size_t size;
 	u32 access;
-	int npages;
 	int err;
 	u32 page_mask;
 
@@ -2081,14 +2080,7 @@ static int devx_umem_get(struct mlx5_ib_dev *dev, struct ib_ucontext *ucontext,
 		return PTR_ERR(obj->umem);
 
 	mlx5_ib_cont_pages(obj->umem, obj->umem->address,
-			   MLX5_MKEY_PAGE_SHIFT_MASK, &npages,
-			   &obj->page_shift);
-
-	if (!npages) {
-		ib_umem_release(obj->umem);
-		return -EINVAL;
-	}
-
+			   MLX5_MKEY_PAGE_SHIFT_MASK, &obj->page_shift);
 	page_mask = (1 << obj->page_shift) - 1;
 	obj->page_offset = obj->umem->address & page_mask;
 

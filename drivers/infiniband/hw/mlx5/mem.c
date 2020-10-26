@@ -39,11 +39,10 @@
 /* @umem: umem object to scan
  * @addr: ib virtual address requested by the user
  * @max_page_shift: high limit for page_shift - 0 means no limit
- * @count: number of PAGE_SIZE pages covered by umem
  * @shift: page shift for the compound pages found in the region
  */
 void mlx5_ib_cont_pages(struct ib_umem *umem, u64 addr,
-			unsigned long max_page_shift, int *count, int *shift)
+			unsigned long max_page_shift, int *shift)
 {
 	unsigned long tmp;
 	unsigned long m;
@@ -57,7 +56,6 @@ void mlx5_ib_cont_pages(struct ib_umem *umem, u64 addr,
 		struct ib_umem_odp *odp = to_ib_umem_odp(umem);
 
 		*shift = odp->page_shift;
-		*count = ib_umem_num_pages(umem);
 		return;
 	}
 
@@ -91,7 +89,6 @@ void mlx5_ib_cont_pages(struct ib_umem *umem, u64 addr,
 	else
 		m  = 0;
 	*shift = PAGE_SHIFT + m;
-	*count = i;
 }
 
 /*

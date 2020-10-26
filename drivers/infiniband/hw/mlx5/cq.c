@@ -710,7 +710,6 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 	size_t ucmdlen;
 	int page_shift;
 	__be64 *pas;
-	int npages;
 	int ncont;
 	void *cqc;
 	int err;
@@ -746,11 +745,13 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 	if (err)
 		goto err_umem;
 
-	mlx5_ib_cont_pages(cq->buf.umem, ucmd.buf_addr, 0, &npages,
-			   &page_shift);
+	mlx5_ib_cont_pages(cq->buf.umem, ucmd.buf_addr, 0, &page_shift);
 	ncont = ib_umem_num_dma_blocks(cq->buf.umem, 1UL << page_shift);
-	mlx5_ib_dbg(dev, "addr 0x%llx, size %u, npages %d, page_shift %d, ncont %d\n",
-		    ucmd.buf_addr, entries * ucmd.cqe_size, npages, page_shift, ncont);
+	mlx5_ib_dbg(
+		dev,
+		"addr 0x%llx, size %u, npages %zu, page_shift %d, ncont %d\n",
+		ucmd.buf_addr, entries * ucmd.cqe_size,
+		ib_umem_num_pages(cq->buf.umem), page_shift, ncont);
 
 	*inlen = MLX5_ST_SZ_BYTES(create_cq_in) +
 		 MLX5_FLD_SZ_BYTES(create_cq_in, pas[0]) * ncont;
@@ -1135,7 +1136,6 @@ static int resize_user(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
 	struct mlx5_ib_resize_cq ucmd;
 	struct ib_umem *umem;
 	int err;
-	int npages;
 
 	err = ib_copy_from_udata(&ucmd, udata, sizeof(ucmd));
 	if (err)
@@ -1156,7 +1156,7 @@ static int resize_user(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
 		return err;
 	}
 
-	mlx5_ib_cont_pages(umem, ucmd.buf_addr, 0, &npages, page_shift);
+	mlx5_ib_cont_pages(umem, ucmd.buf_addr, 0, page_shift);
 
 	cq->resize_umem = umem;
 	*cqe_size = ucmd.cqe_size;

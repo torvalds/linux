@@ -51,7 +51,6 @@ static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
 		udata, struct mlx5_ib_ucontext, ibucontext);
 	size_t ucmdlen;
 	int err;
-	int npages;
 	int page_shift;
 	u32 offset;
 	u32 uidx = MLX5_IB_DEFAULT_UIDX;
@@ -86,8 +85,7 @@ static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
 		return err;
 	}
 
-	mlx5_ib_cont_pages(srq->umem, ucmd.buf_addr, 0, &npages,
-			   &page_shift);
+	mlx5_ib_cont_pages(srq->umem, ucmd.buf_addr, 0, &page_shift);
 	err = mlx5_ib_get_buf_offset(ucmd.buf_addr, page_shift,
 				     &offset);
 	if (err) {
