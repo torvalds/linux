@@ -126,7 +126,9 @@ static int destroy_mkey(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 static inline bool mlx5_ib_pas_fits_in_mr(struct mlx5_ib_mr *mr, u64 start,
 					  u64 length)
 {
-	return ((u64)1 << mr->order) * MLX5_ADAPTER_PAGE_SIZE >=
+	if (!mr->cache_ent)
+		return false;
+	return ((u64)1 << mr->cache_ent->order) * MLX5_ADAPTER_PAGE_SIZE >=
 		length + (start & (MLX5_ADAPTER_PAGE_SIZE - 1));
 }
 
@@ -172,7 +174,6 @@ static struct mlx5_ib_mr *alloc_cache_mr(struct mlx5_cache_ent *ent, void *mkc)
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
 		return NULL;
-	mr->order = ent->order;
 	mr->cache_ent = ent;
 	mr->dev = ent->dev;
 
