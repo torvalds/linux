@@ -66,12 +66,13 @@ static const char *versions[6] = {
 	"LINUX_4.15",
 };
 
-static const char *names[2][5] = {
+static const char *names[2][6] = {
 	{
 		"__kernel_gettimeofday",
 		"__kernel_clock_gettime",
 		"__kernel_time",
 		"__kernel_clock_getres",
+		"__kernel_getcpu",
 #if defined(VDSO_32BIT)
 		"__kernel_clock_gettime64",
 #endif
@@ -81,6 +82,7 @@ static const char *names[2][5] = {
 		"__vdso_clock_gettime",
 		"__vdso_time",
 		"__vdso_clock_getres",
+		"__vdso_getcpu",
 #if defined(VDSO_32BIT)
 		"__vdso_clock_gettime64",
 #endif
