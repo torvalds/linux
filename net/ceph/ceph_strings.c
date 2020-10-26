@@ -18,6 +18,20 @@ const char *ceph_entity_type_name(int type)
 }
 EXPORT_SYMBOL(ceph_entity_type_name);
 
+const char *ceph_auth_proto_name(int proto)
+{
+	switch (proto) {
+	case CEPH_AUTH_UNKNOWN:
+		return "unknown";
+	case CEPH_AUTH_NONE:
+		return "none";
+	case CEPH_AUTH_CEPHX:
+		return "cephx";
+	default:
+		return "???";
+	}
+}
+
 const char *ceph_osd_op_name(int op)
 {
 	switch (op) {

@@ -21,15 +21,18 @@ static u32 supported_protocols[] = {
 	CEPH_AUTH_CEPHX
 };
 
-static int ceph_auth_init_protocol(struct ceph_auth_client *ac, int protocol)
+static int init_protocol(struct ceph_auth_client *ac, int proto)
 {
-	switch (protocol) {
+	dout("%s proto %d\n", __func__, proto);
+
+	switch (proto) {
 	case CEPH_AUTH_NONE:
 		return ceph_auth_none_init(ac);
 	case CEPH_AUTH_CEPHX:
 		return ceph_x_init(ac);
 	default:
-		return -ENOENT;
+		pr_err("bad auth protocol %d\n", proto);
+		return -EINVAL;
 	}
 }
 
@@ -145,31 +148,35 @@ bad:
 	goto out;
 }
 
-static int ceph_build_auth_request(struct ceph_auth_client *ac,
-				   void *msg_buf, size_t msg_len)
+static int build_request(struct ceph_auth_client *ac, bool add_header,
+			 void *buf, int buf_len)
 {
-	struct ceph_mon_request_header *monhdr = msg_buf;
-	void *p = monhdr + 1;
-	void *end = msg_buf + msg_len;
+	void *end = buf + buf_len;
+	void *p;
 	int ret;
 
-	monhdr->have_version = 0;
-	monhdr->session_mon = cpu_to_le16(-1);
-	monhdr->session_mon_tid = 0;
+	p = buf;
+	if (add_header) {
+		/* struct ceph_mon_request_header + protocol */
+		ceph_encode_64_safe(&p, end, 0, e_range);
+		ceph_encode_16_safe(&p, end, -1, e_range);
+		ceph_encode_64_safe(&p, end, 0, e_range);
+		ceph_encode_32_safe(&p, end, ac->protocol, e_range);
+	}
 
-	ceph_encode_32(&p, ac->protocol);
-
+	ceph_encode_need(&p, end, sizeof(u32), e_range);
 	ret = ac->ops->build_request(ac, p + sizeof(u32), end);
 	if (ret < 0) {
-		pr_err("error %d building auth method %s request\n", ret,
-		       ac->ops->name);
-		goto out;
+		pr_err("auth protocol '%s' building request failed: %d\n",
+		       ceph_auth_proto_name(ac->protocol), ret);
+		return ret;
 	}
 	dout(" built request %d bytes\n", ret);
 	ceph_encode_32(&p, ret);
-	ret = p + ret - msg_buf;
-out:
-	return ret;
+	return p + ret - buf;
+
+e_range:
+	return -ERANGE;
 }
 
 /*
@@ -229,10 +236,10 @@ int ceph_handle_auth_reply(struct ceph_auth_client *ac,
 			ac->ops = NULL;
 		}
 		if (ac->protocol != protocol) {
-			ret = ceph_auth_init_protocol(ac, protocol);
+			ret = init_protocol(ac, protocol);
 			if (ret) {
-				pr_err("error %d on auth protocol %d init\n",
-				       ret, protocol);
+				pr_err("auth protocol '%s' init failed: %d\n",
+				       ceph_auth_proto_name(protocol), ret);
 				goto out;
 			}
 		}
@@ -242,11 +249,11 @@ int ceph_handle_auth_reply(struct ceph_auth_client *ac,
 
 	ret = ac->ops->handle_reply(ac, result, payload, payload_end,
 				    NULL, NULL, NULL, NULL);
-	if (ret == -EAGAIN) {
-		ret = ceph_build_auth_request(ac, reply_buf, reply_len);
-	} else if (ret) {
-		pr_err("auth method '%s' error %d\n", ac->ops->name, ret);
-	}
+	if (ret == -EAGAIN)
+		ret = build_request(ac, true, reply_buf, reply_len);
+	else if (ret)
+		pr_err("auth protocol '%s' mauth authentication failed: %d\n",
+		       ceph_auth_proto_name(ac->protocol), result);
 
 out:
 	mutex_unlock(&ac->mutex);
@@ -265,7 +272,7 @@ int ceph_build_auth(struct ceph_auth_client *ac,
 
 	mutex_lock(&ac->mutex);
 	if (ac->ops->should_authenticate(ac))
-		ret = ceph_build_auth_request(ac, msg_buf, msg_len);
+		ret = build_request(ac, true, msg_buf, msg_len);
 	mutex_unlock(&ac->mutex);
 	return ret;
 }

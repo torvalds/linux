@@ -95,6 +95,7 @@ struct ceph_dir_layout {
 
 #define CEPH_AUTH_UID_DEFAULT ((__u64) -1)
 
+const char *ceph_auth_proto_name(int proto);
 
 /*********************************************
  * message layer
