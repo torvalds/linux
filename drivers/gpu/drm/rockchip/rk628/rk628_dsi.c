@@ -1227,6 +1227,8 @@ static const struct regmap_config testif_regmap_config = {
 
 static bool rk628_dsi_register_volatile(struct device *dev, unsigned int reg)
 {
+	reg &= 0xffff;
+
 	switch (reg) {
 	case DSI_GEN_HDR:
 	case DSI_GEN_PLD_DATA:
