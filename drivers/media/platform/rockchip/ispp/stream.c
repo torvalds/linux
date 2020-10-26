@@ -735,6 +735,8 @@ static int config_nr_shp(struct rkispp_device *dev)
 	if (fmt & FMT_YUYV)
 		mult = 2;
 
+	if (vdev->module_ens & ISPP_MODULE_FEC)
+		pic_size = w * h * 2;
 	ret = nr_init_buf(dev, pic_size);
 	if (ret)
 		return ret;
@@ -777,15 +779,13 @@ static int config_nr_shp(struct rkispp_device *dev)
 
 	rkispp_clear_bits(dev, RKISPP_CTRL_QUICK, GLB_FEC2SCL_EN);
 	if (vdev->module_ens & ISPP_MODULE_FEC) {
-		addr_offs = width * height;
-		vdev->fec.uv_offset = addr_offs;
+		vdev->fec.uv_offset = 0;
 		val = vdev->nr.buf.wr[0].dma_addr;
 		rkispp_write(dev, RKISPP_SHARP_WR_Y_BASE, val);
-		val += addr_offs;
 		rkispp_write(dev, RKISPP_SHARP_WR_UV_BASE, val);
-		rkispp_write(dev, RKISPP_SHARP_WR_VIR_STRIDE, ALIGN(width * mult, 16) >> 2);
+		rkispp_write(dev, RKISPP_SHARP_WR_VIR_STRIDE, ALIGN(width * 2, 16) >> 2);
 		rkispp_set_bits(dev, RKISPP_SHARP_CTRL,
-				SW_SHP_WR_FORMAT_MASK, fmt & (~FMT_FBC));
+				SW_SHP_WR_FORMAT_MASK, FMT_YUYV | FMT_YUV422);
 	} else {
 		stream = &vdev->stream[STREAM_MB];
 		if (!stream->streaming) {
@@ -860,14 +860,12 @@ static int config_fec(struct rkispp_device *dev)
 	width = dev->ispp_sdev.out_fmt.width;
 	height = dev->ispp_sdev.out_fmt.height;
 
-	if (fmt & FMT_YUYV)
-		mult = 2;
-
 	if (vdev->module_ens & (ISPP_MODULE_NR | ISPP_MODULE_SHP)) {
 		rkispp_write(dev, RKISPP_FEC_RD_Y_BASE,
 			     rkispp_read(dev, RKISPP_SHARP_WR_Y_BASE));
 		rkispp_write(dev, RKISPP_FEC_RD_UV_BASE,
 			     rkispp_read(dev, RKISPP_SHARP_WR_UV_BASE));
+		fmt = FMT_YUYV | FMT_YUV422;
 	} else if (stream) {
 		stream->config->frame_end_id = FEC_INT;
 		stream->config->reg.cur_y_base = RKISPP_FEC_RD_Y_BASE;
@@ -876,6 +874,8 @@ static int config_fec(struct rkispp_device *dev)
 		stream->config->reg.cur_uv_base_shd = RKISPP_FEC_RD_UV_BASE_SHD;
 	}
 
+	if (fmt & FMT_YUYV)
+		mult = 2;
 	rkispp_set_bits(dev, RKISPP_FEC_CTRL, FMT_RD_MASK, fmt);
 	rkispp_write(dev, RKISPP_FEC_RD_VIR_STRIDE, ALIGN(width * mult, 16) >> 2);
 	rkispp_write(dev, RKISPP_FEC_PIC_SIZE, height << 16 | width);
@@ -2130,6 +2130,8 @@ static void fec_work_event(struct rkispp_device *dev,
 		if (!dev->hw_dev->is_single)
 			rkispp_update_regs(dev, RKISPP_FEC, RKISPP_FEC_CROP);
 		writel(FEC_FORCE_UPD, base + RKISPP_CTRL_UPDATE);
+		if (vdev->nr.is_end)
+			writel(OTHER_FORCE_UPD, base + RKISPP_CTRL_UPDATE);
 		v4l2_dbg(3, rkispp_debug, &dev->v4l2_dev,
 			 "FEC start seq:%d | Y_SHD rd:0x%x\n",
 			 seq, readl(base + RKISPP_FEC_RD_Y_BASE_SHD));
