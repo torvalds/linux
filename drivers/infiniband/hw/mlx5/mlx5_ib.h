@@ -1454,8 +1454,7 @@ static inline int get_num_static_uars(struct mlx5_ib_dev *dev,
 	return get_uars_per_sys_page(dev, bfregi->lib_uar_4k) * bfregi->num_static_sys_pages;
 }
 
-unsigned long mlx5_ib_get_xlt_emergency_page(void);
-void mlx5_ib_put_xlt_emergency_page(void);
+extern unsigned long xlt_emergency_page;
 
 int bfregn_to_uar_index(struct mlx5_ib_dev *dev,
 			struct mlx5_bfreg_info *bfregi, u32 bfregn,

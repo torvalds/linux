@@ -41,6 +41,13 @@
 #include <rdma/ib_verbs.h>
 #include "mlx5_ib.h"
 
+/*
+ * We can't use an array for xlt_emergency_page because dma_map_single doesn't
+ * work on kernel modules memory
+ */
+unsigned long xlt_emergency_page;
+static DEFINE_MUTEX(xlt_emergency_page_mutex);
+
 enum {
 	MAX_PENDING_REG_MR = 8,
 };
@@ -991,6 +998,17 @@ static struct mlx5_ib_mr *alloc_mr_from_cache(struct ib_pd *pd,
 #define MLX5_MAX_UMR_CHUNK ((1 << (MLX5_MAX_UMR_SHIFT + 4)) - \
 			    MLX5_UMR_MTT_ALIGNMENT)
 #define MLX5_SPARE_UMR_CHUNK 0x10000
+
+static unsigned long mlx5_ib_get_xlt_emergency_page(void)
+{
+	mutex_lock(&xlt_emergency_page_mutex);
+	return xlt_emergency_page;
+}
+
+static void mlx5_ib_put_xlt_emergency_page(void)
+{
+	mutex_unlock(&xlt_emergency_page_mutex);
+}
 
 int mlx5_ib_update_xlt(struct mlx5_ib_mr *mr, u64 idx, int npages,
 		       int page_shift, int flags)
