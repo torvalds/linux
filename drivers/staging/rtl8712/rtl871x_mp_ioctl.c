@@ -186,7 +186,7 @@ static int mp_start_test(struct _adapter *padapter)
 	if (psta)
 		r8712_free_stainfo(padapter, psta);
 	psta = r8712_alloc_stainfo(&padapter->stapriv, bssid.MacAddress);
-	if (psta == NULL) {
+	if (!psta) {
 		res = -ENOMEM;
 		goto end_of_mp_start_test;
 	}

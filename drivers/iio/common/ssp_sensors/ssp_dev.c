@@ -503,7 +503,8 @@ static int ssp_probe(struct spi_device *spi)
 		return -ENODEV;
 	}
 
-	ret = mfd_add_devices(&spi->dev, -1, sensorhub_sensor_devs,
+	ret = mfd_add_devices(&spi->dev, PLATFORM_DEVID_NONE,
+			      sensorhub_sensor_devs,
 			      ARRAY_SIZE(sensorhub_sensor_devs), NULL, 0, NULL);
 	if (ret < 0) {
 		dev_err(&spi->dev, "mfd add devices fail\n");

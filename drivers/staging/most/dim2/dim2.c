@@ -100,12 +100,12 @@ struct dim2_hdm {
 	struct medialb_bus bus;
 	void (*on_netinfo)(struct most_interface *most_iface,
 			   unsigned char link_state, unsigned char *addrs);
-	void (*disable_platform)(struct platform_device *);
+	void (*disable_platform)(struct platform_device *pdev);
 };
 
 struct dim2_platform_data {
-	int (*enable)(struct platform_device *);
-	void (*disable)(struct platform_device *);
+	int (*enable)(struct platform_device *pdev);
+	void (*disable)(struct platform_device *pdev);
 };
 
 #define iface_to_hdm(iface) container_of(iface, struct dim2_hdm, most_iface)

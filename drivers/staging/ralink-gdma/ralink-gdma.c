@@ -701,9 +701,9 @@ static void gdma_dma_desc_free(struct virt_dma_desc *vdesc)
 	kfree(container_of(vdesc, struct gdma_dma_desc, vdesc));
 }
 
-static void gdma_dma_tasklet(unsigned long arg)
+static void gdma_dma_tasklet(struct tasklet_struct *t)
 {
-	struct gdma_dma_dev *dma_dev = (struct gdma_dma_dev *)arg;
+	struct gdma_dma_dev *dma_dev = from_tasklet(dma_dev, t, task);
 	struct gdma_dmaengine_chan *chan;
 	static unsigned int last_chan;
 	unsigned int i, chan_mask;
@@ -821,7 +821,7 @@ static int gdma_dma_probe(struct platform_device *pdev)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 	dma_dev->base = base;
-	tasklet_init(&dma_dev->task, gdma_dma_tasklet, (unsigned long)dma_dev);
+	tasklet_setup(&dma_dev->task, gdma_dma_tasklet);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)

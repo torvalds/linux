@@ -26,6 +26,7 @@ Major Change History:
 static u32 edca_setting_DL[HT_IOT_PEER_MAX] = {
 	0x5e4322, 0x5e4322, 0x5e4322, 0x604322, 0x00a44f, 0x5ea44f
 };
+
 static u32 edca_setting_UL[HT_IOT_PEER_MAX] = {
 	0x5e4322, 0x00a44f, 0x5e4322, 0x604322, 0x5ea44f, 0x5ea44f
 };
@@ -599,7 +600,6 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 					priv->rfa_txpowertrackingindex++;
 					priv->rfa_txpowertrackingindex_real++;
 					rtl8192_setBBreg(dev, rOFDM0_XATxIQImbalance, bMaskDWord, priv->txbbgain_table[priv->rfa_txpowertrackingindex_real].txbbgain_value);
-
 				}
 			}
 			priv->cck_present_attenuation_difference
@@ -1268,7 +1268,6 @@ static void dm_InitializeTXPowerTracking_TSSI(struct net_device *dev)
 	priv->btxpower_tracking = true;
 	priv->txpower_count       = 0;
 	priv->btxpower_trackingInit = false;
-
 }
 
 static void dm_InitializeTXPowerTracking_ThermalMeter(struct net_device *dev)
@@ -1773,7 +1772,6 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 		/* 1.5 Higher EDCCA. */
 		/*PlatformEFIOWrite4Byte(pAdapter, rOFDM0_ECCAThreshold, 0x325);*/
 		return;
-
 	}
 
 	/* 2. When RSSI increase, We have to judge if it is larger than a threshold
@@ -1836,7 +1834,6 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 
 		/* 2.5 DIG On. */
 		rtl8192_setBBreg(dev, UFWP, bMaskByte1, 0x1);	/*  Only clear byte 1 and rewrite. */
-
 	}
 
 	dm_ctrl_initgain_byrssi_highpwr(dev);
@@ -2157,7 +2154,6 @@ static void dm_check_edca_turbo(
 				write_nic_dword(dev, EDCAPARA_BE, edca_setting_UL[pHTInfo->IOTPeer]);
 				priv->bis_cur_rdlstate = false;
 			}
-
 		}
 
 		priv->bcurrent_turbo_EDCA = true;
@@ -2190,7 +2186,6 @@ static void dm_check_edca_turbo(
 			cpu_to_le32s(&u4bAcParam);
 
 			write_nic_dword(dev, EDCAPARA_BE, u4bAcParam);
-
 
 			/* Check ACM bit.
 			 * If it is set, immediately set ACM control bit to downgrading AC for passing WMM testplan. Annie, 2005-12-13.
@@ -2296,7 +2291,6 @@ static	void	dm_check_pbc_gpio(struct net_device *dev)
 		RT_TRACE(COMP_IO, "CheckPbcGPIO - PBC is pressed\n");
 		priv->bpbc_pressed = true;
 	}
-
 }
 
 /*-----------------------------------------------------------------------------
@@ -2495,7 +2489,6 @@ static void dm_rxpath_sel_byrssi(struct net_device *dev)
 						cck_rx_ver2_min_index = i;
 					}
 				}
-
 			}
 		}
 	}
@@ -2715,7 +2708,6 @@ static void dm_EndSWFsync(struct net_device *dev)
 
 	priv->ContinueDiffCount = 0;
 	write_nic_dword(dev, rOFDM0_RxDetector2, 0x465c52cd);
-
 }
 
 static void dm_StartSWFsync(struct net_device *dev)
@@ -2751,7 +2743,6 @@ static void dm_StartSWFsync(struct net_device *dev)
 	add_timer(&priv->fsync_timer);
 
 	write_nic_dword(dev, rOFDM0_RxDetector2, 0x465c12cd);
-
 }
 
 static void dm_EndHWFsync(struct net_device *dev)
@@ -2759,7 +2750,6 @@ static void dm_EndHWFsync(struct net_device *dev)
 	RT_TRACE(COMP_HALDM, "%s\n", __func__);
 	write_nic_dword(dev, rOFDM0_RxDetector2, 0x465c52cd);
 	write_nic_byte(dev, 0xc3b, 0x49);
-
 }
 
 void dm_check_fsync(struct net_device *dev)

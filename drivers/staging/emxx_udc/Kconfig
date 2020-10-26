@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 config USB_EMXX
 	tristate "EMXX USB Function Device Controller"
-	depends on USB_GADGET && (ARCH_RENESAS || (ARM && COMPILE_TEST))
+	depends on USB_GADGET && (ARCH_RENESAS || COMPILE_TEST)
 	help
 	   The Emma Mobile series of SoCs from Renesas Electronics and
 	   former NEC Electronics include USB Function hardware.

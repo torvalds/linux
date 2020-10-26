@@ -14,6 +14,7 @@ if RTLLIB
 config RTLLIB_CRYPTO_CCMP
 	tristate "Support for rtllib CCMP crypto"
 	depends on RTLLIB
+	select CRYPTO
 	select CRYPTO_AES
 	select CRYPTO_CCM
 	default y
