@@ -11,8 +11,6 @@
 #include "debug.h"
 #include "expr.h"
 #include "stat.h"
-#include <perf/cpumap.h>
-#include <perf/evlist.h>
 
 static struct pmu_event pme_test[] = {
 {
@@ -159,6 +157,7 @@ static int __compute_metric(const char *name, struct value *vals,
 	}
 
 	perf_evlist__set_maps(&evlist->core, cpus, NULL);
+	runtime_stat__init(&st);
 
 	/* Parse the metric into metric_events list. */
 	err = metricgroup__parse_groups_test(evlist, &map, name,
@@ -172,7 +171,6 @@ static int __compute_metric(const char *name, struct value *vals,
 		goto out;
 
 	/* Load the runtime stats with given numbers for events. */
-	runtime_stat__init(&st);
 	load_runtime_stat(&st, evlist, vals);
 
 	/* And execute the metric */

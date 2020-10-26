@@ -3,7 +3,7 @@
 # description: Kprobe dynamic event - busy event check
 # requires: kprobe_events
 
-echo p:myevent _do_fork > kprobe_events
+echo p:myevent kernel_clone > kprobe_events
 test -d events/kprobes/myevent
 echo 1 > events/kprobes/myevent/enable
 echo > kprobe_events && exit_fail # this must fail

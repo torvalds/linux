@@ -23,8 +23,15 @@
 static int cistpl_vers_1(struct mmc_card *card, struct sdio_func *func,
 			 const unsigned char *buf, unsigned size)
 {
+	u8 major_rev, minor_rev;
 	unsigned i, nr_strings;
 	char **buffer, *string;
+
+	if (size < 2)
+		return 0;
+
+	major_rev = buf[0];
+	minor_rev = buf[1];
 
 	/* Find all null-terminated (including zero length) strings in
 	   the TPLLV1_INFO field. Trailing garbage is ignored. */
@@ -57,9 +64,13 @@ static int cistpl_vers_1(struct mmc_card *card, struct sdio_func *func,
 	}
 
 	if (func) {
+		func->major_rev = major_rev;
+		func->minor_rev = minor_rev;
 		func->num_info = nr_strings;
 		func->info = (const char**)buffer;
 	} else {
+		card->major_rev = major_rev;
+		card->minor_rev = minor_rev;
 		card->num_info = nr_strings;
 		card->info = (const char**)buffer;
 	}

@@ -13,6 +13,8 @@ struct drm_connector_state;
 struct drm_i915_private;
 struct intel_crtc_state;
 struct intel_dp;
+struct intel_crtc;
+struct intel_atomic_state;
 
 #define CAN_PSR(dev_priv) (HAS_PSR(dev_priv) && dev_priv->psr.sink_support)
 void intel_psr_init_dpcd(struct intel_dp *intel_dp);
@@ -43,5 +45,8 @@ void intel_psr_atomic_check(struct drm_connector *connector,
 			    struct drm_connector_state *old_state,
 			    struct drm_connector_state *new_state);
 void intel_psr_set_force_mode_changed(struct intel_dp *intel_dp);
+void intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
+				 struct intel_crtc *crtc);
+void intel_psr2_program_trans_man_trk_ctl(const struct intel_crtc_state *crtc_state);
 
 #endif /* __INTEL_PSR_H__ */

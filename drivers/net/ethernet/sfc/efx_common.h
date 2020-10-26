@@ -105,6 +105,9 @@ int efx_change_mtu(struct net_device *net_dev, int new_mtu);
 
 extern const struct pci_error_handlers efx_err_handlers;
 
+netdev_features_t efx_features_check(struct sk_buff *skb, struct net_device *dev,
+				     netdev_features_t features);
+
 int efx_get_phys_port_id(struct net_device *net_dev,
 			 struct netdev_phys_item_id *ppid);
 

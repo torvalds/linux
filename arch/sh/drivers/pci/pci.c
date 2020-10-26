@@ -13,7 +13,6 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/types.h>
-#include <linux/dma-debug.h>
 #include <linux/io.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>

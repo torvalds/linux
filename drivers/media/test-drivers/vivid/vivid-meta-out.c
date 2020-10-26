@@ -164,10 +164,11 @@ void vivid_meta_out_process(struct vivid_dev *dev,
 {
 	struct vivid_meta_out_buf *meta = vb2_plane_vaddr(&buf->vb.vb2_buf, 0);
 
-	tpg_s_brightness(&dev->tpg, meta->brightness);
-	tpg_s_contrast(&dev->tpg, meta->contrast);
-	tpg_s_saturation(&dev->tpg, meta->saturation);
-	tpg_s_hue(&dev->tpg, meta->hue);
+	v4l2_ctrl_s_ctrl(dev->brightness, meta->brightness);
+	v4l2_ctrl_s_ctrl(dev->contrast, meta->contrast);
+	v4l2_ctrl_s_ctrl(dev->saturation, meta->saturation);
+	v4l2_ctrl_s_ctrl(dev->hue, meta->hue);
+
 	dprintk(dev, 2, " %s brightness %u contrast %u saturation %u hue %d\n",
 		__func__, meta->brightness, meta->contrast,
 		meta->saturation, meta->hue);

@@ -34,7 +34,7 @@
 
 unsigned int mmu_pid_bits;
 unsigned int mmu_base_pid;
-unsigned int radix_mem_block_size __ro_after_init;
+unsigned long radix_mem_block_size __ro_after_init;
 
 static __ref void *early_alloc_pgtable(unsigned long size, int nid,
 			unsigned long region_start, unsigned long region_end)
@@ -276,6 +276,7 @@ static int __meminit create_physical_mapping(unsigned long start,
 	int psize;
 
 	start = ALIGN(start, PAGE_SIZE);
+	end   = ALIGN_DOWN(end, PAGE_SIZE);
 	for (addr = start; addr < end; addr += mapping_size) {
 		unsigned long gap, previous_size;
 		int rc;
@@ -329,7 +330,8 @@ static int __meminit create_physical_mapping(unsigned long start,
 static void __init radix_init_pgtable(void)
 {
 	unsigned long rts_field;
-	struct memblock_region *reg;
+	phys_addr_t start, end;
+	u64 i;
 
 	/* We don't support slb for radix */
 	mmu_slb_size = 0;
@@ -337,20 +339,19 @@ static void __init radix_init_pgtable(void)
 	/*
 	 * Create the linear mapping
 	 */
-	for_each_memblock(memory, reg) {
+	for_each_mem_range(i, &start, &end) {
 		/*
 		 * The memblock allocator  is up at this point, so the
 		 * page tables will be allocated within the range. No
 		 * need or a node (which we don't have yet).
 		 */
 
-		if ((reg->base + reg->size) >= RADIX_VMALLOC_START) {
+		if (end >= RADIX_VMALLOC_START) {
 			pr_warn("Outside the supported range\n");
 			continue;
 		}
 
-		WARN_ON(create_physical_mapping(reg->base,
-						reg->base + reg->size,
+		WARN_ON(create_physical_mapping(start, end,
 						radix_mem_block_size,
 						-1, PAGE_KERNEL));
 	}
@@ -497,7 +498,7 @@ static int __init probe_memory_block_size(unsigned long node, const char *uname,
 					  depth, void *data)
 {
 	unsigned long *mem_block_size = (unsigned long *)data;
-	const __be64 *prop;
+	const __be32 *prop;
 	int len;
 
 	if (depth != 1)
@@ -507,13 +508,14 @@ static int __init probe_memory_block_size(unsigned long node, const char *uname,
 		return 0;
 
 	prop = of_get_flat_dt_prop(node, "ibm,lmb-size", &len);
-	if (!prop || len < sizeof(__be64))
+
+	if (!prop || len < dt_root_size_cells * sizeof(__be32))
 		/*
 		 * Nothing in the device tree
 		 */
 		*mem_block_size = MIN_MEMORY_BLOCK_SIZE;
 	else
-		*mem_block_size = be64_to_cpup(prop);
+		*mem_block_size = of_read_number(prop, dt_root_size_cells);
 	return 1;
 }
 

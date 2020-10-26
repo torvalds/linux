@@ -18,25 +18,19 @@ struct xsk_queue;
 struct xdp_buff;
 
 struct xdp_umem {
-	struct xsk_queue *fq;
-	struct xsk_queue *cq;
-	struct xsk_buff_pool *pool;
+	void *addrs;
 	u64 size;
 	u32 headroom;
 	u32 chunk_size;
+	u32 chunks;
+	u32 npgs;
 	struct user_struct *user;
 	refcount_t users;
-	struct work_struct work;
-	struct page **pgs;
-	u32 npgs;
-	u16 queue_id;
-	u8 need_wakeup;
 	u8 flags;
-	int id;
-	struct net_device *dev;
 	bool zc;
-	spinlock_t xsk_tx_list_lock;
-	struct list_head xsk_tx_list;
+	struct page **pgs;
+	int id;
+	struct list_head xsk_dma_list;
 };
 
 struct xsk_map {
@@ -48,10 +42,11 @@ struct xsk_map {
 struct xdp_sock {
 	/* struct sock must be the first member of struct xdp_sock */
 	struct sock sk;
-	struct xsk_queue *rx;
+	struct xsk_queue *rx ____cacheline_aligned_in_smp;
 	struct net_device *dev;
 	struct xdp_umem *umem;
 	struct list_head flush_node;
+	struct xsk_buff_pool *pool;
 	u16 queue_id;
 	bool zc;
 	enum {
@@ -59,10 +54,9 @@ struct xdp_sock {
 		XSK_BOUND,
 		XSK_UNBOUND,
 	} state;
-	/* Protects multiple processes in the control path */
-	struct mutex mutex;
+
 	struct xsk_queue *tx ____cacheline_aligned_in_smp;
-	struct list_head list;
+	struct list_head tx_list;
 	/* Mutual exclusion of NAPI TX thread and sendmsg error paths
 	 * in the SKB destructor callback.
 	 */
@@ -77,6 +71,10 @@ struct xdp_sock {
 	struct list_head map_list;
 	/* Protects map_list */
 	spinlock_t map_list_lock;
+	/* Protects multiple processes in the control path */
+	struct mutex mutex;
+	struct xsk_queue *fq_tmp; /* Only as tmp storage before bind */
+	struct xsk_queue *cq_tmp; /* Only as tmp storage before bind */
 };
 
 #ifdef CONFIG_XDP_SOCKETS

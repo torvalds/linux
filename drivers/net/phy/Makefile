@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-# Makefile for Linux PHY drivers and MDIO bus drivers
+# Makefile for Linux PHY drivers
 
 libphy-y			:= phy.o phy-c45.o phy-core.o phy_device.o \
 				   linkmode.o
@@ -24,31 +24,6 @@ libphy-$(CONFIG_LED_TRIGGER_PHY)	+= phy_led_triggers.o
 obj-$(CONFIG_PHYLINK)		+= phylink.o
 obj-$(CONFIG_PHYLIB)		+= libphy.o
 
-obj-$(CONFIG_MDIO_ASPEED)	+= mdio-aspeed.o
-obj-$(CONFIG_MDIO_BCM_IPROC)	+= mdio-bcm-iproc.o
-obj-$(CONFIG_MDIO_BCM_UNIMAC)	+= mdio-bcm-unimac.o
-obj-$(CONFIG_MDIO_BITBANG)	+= mdio-bitbang.o
-obj-$(CONFIG_MDIO_BUS_MUX)	+= mdio-mux.o
-obj-$(CONFIG_MDIO_BUS_MUX_BCM_IPROC)	+= mdio-mux-bcm-iproc.o
-obj-$(CONFIG_MDIO_BUS_MUX_GPIO)	+= mdio-mux-gpio.o
-obj-$(CONFIG_MDIO_BUS_MUX_MESON_G12A)	+= mdio-mux-meson-g12a.o
-obj-$(CONFIG_MDIO_BUS_MUX_MMIOREG) += mdio-mux-mmioreg.o
-obj-$(CONFIG_MDIO_BUS_MUX_MULTIPLEXER) += mdio-mux-multiplexer.o
-obj-$(CONFIG_MDIO_CAVIUM)	+= mdio-cavium.o
-obj-$(CONFIG_MDIO_GPIO)		+= mdio-gpio.o
-obj-$(CONFIG_MDIO_HISI_FEMAC)	+= mdio-hisi-femac.o
-obj-$(CONFIG_MDIO_I2C)		+= mdio-i2c.o
-obj-$(CONFIG_MDIO_IPQ4019)	+= mdio-ipq4019.o
-obj-$(CONFIG_MDIO_IPQ8064)	+= mdio-ipq8064.o
-obj-$(CONFIG_MDIO_MOXART)	+= mdio-moxart.o
-obj-$(CONFIG_MDIO_MSCC_MIIM)	+= mdio-mscc-miim.o
-obj-$(CONFIG_MDIO_MVUSB)	+= mdio-mvusb.o
-obj-$(CONFIG_MDIO_OCTEON)	+= mdio-octeon.o
-obj-$(CONFIG_MDIO_SUN4I)	+= mdio-sun4i.o
-obj-$(CONFIG_MDIO_THUNDER)	+= mdio-thunder.o
-obj-$(CONFIG_MDIO_XGENE)	+= mdio-xgene.o
-obj-$(CONFIG_MDIO_XPCS)		+= mdio-xpcs.o
-
 obj-$(CONFIG_NETWORK_PHY_TIMESTAMPING) += mii_timestamper.o
 
 obj-$(CONFIG_SFP)		+= sfp.o
@@ -62,32 +37,32 @@ ifdef CONFIG_HWMON
 aquantia-objs			+= aquantia_hwmon.o
 endif
 obj-$(CONFIG_AQUANTIA_PHY)	+= aquantia.o
-obj-$(CONFIG_AX88796B_PHY)	+= ax88796b.o
 obj-$(CONFIG_AT803X_PHY)	+= at803x.o
+obj-$(CONFIG_AX88796B_PHY)	+= ax88796b.o
+obj-$(CONFIG_BCM54140_PHY)	+= bcm54140.o
 obj-$(CONFIG_BCM63XX_PHY)	+= bcm63xx.o
 obj-$(CONFIG_BCM7XXX_PHY)	+= bcm7xxx.o
+obj-$(CONFIG_BCM84881_PHY)	+= bcm84881.o
 obj-$(CONFIG_BCM87XX_PHY)	+= bcm87xx.o
 obj-$(CONFIG_BCM_CYGNUS_PHY)	+= bcm-cygnus.o
 obj-$(CONFIG_BCM_NET_PHYLIB)	+= bcm-phy-lib.o
 obj-$(CONFIG_BROADCOM_PHY)	+= broadcom.o
-obj-$(CONFIG_BCM54140_PHY)	+= bcm54140.o
-obj-$(CONFIG_BCM84881_PHY)	+= bcm84881.o
 obj-$(CONFIG_CICADA_PHY)	+= cicada.o
 obj-$(CONFIG_CORTINA_PHY)	+= cortina.o
 obj-$(CONFIG_DAVICOM_PHY)	+= davicom.o
 obj-$(CONFIG_DP83640_PHY)	+= dp83640.o
 obj-$(CONFIG_DP83822_PHY)	+= dp83822.o
-obj-$(CONFIG_DP83TC811_PHY)	+= dp83tc811.o
 obj-$(CONFIG_DP83848_PHY)	+= dp83848.o
 obj-$(CONFIG_DP83867_PHY)	+= dp83867.o
 obj-$(CONFIG_DP83869_PHY)	+= dp83869.o
+obj-$(CONFIG_DP83TC811_PHY)	+= dp83tc811.o
 obj-$(CONFIG_FIXED_PHY)		+= fixed_phy.o
 obj-$(CONFIG_ICPLUS_PHY)	+= icplus.o
 obj-$(CONFIG_INTEL_XWAY_PHY)	+= intel-xway.o
 obj-$(CONFIG_LSI_ET1011C_PHY)	+= et1011c.o
 obj-$(CONFIG_LXT_PHY)		+= lxt.o
-obj-$(CONFIG_MARVELL_PHY)	+= marvell.o
 obj-$(CONFIG_MARVELL_10G_PHY)	+= marvell10g.o
+obj-$(CONFIG_MARVELL_PHY)	+= marvell.o
 obj-$(CONFIG_MESON_GXL_PHY)	+= meson-gxl.o
 obj-$(CONFIG_MICREL_KS8995MA)	+= spi_ks8995.o
 obj-$(CONFIG_MICREL_PHY)	+= micrel.o

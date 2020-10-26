@@ -82,9 +82,10 @@ int hns_roce_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 	return 0;
 }
 
-void hns_roce_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
+int hns_roce_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
 {
 	hns_roce_pd_free(to_hr_dev(pd->device), to_hr_pd(pd)->pdn);
+	return 0;
 }
 
 int hns_roce_uar_alloc(struct hns_roce_dev *hr_dev, struct hns_roce_uar *uar)

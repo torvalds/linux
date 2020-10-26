@@ -32,7 +32,7 @@
 18	i386	oldstat			sys_stat
 19	i386	lseek			sys_lseek			compat_sys_lseek
 20	i386	getpid			sys_getpid
-21	i386	mount			sys_mount			compat_sys_mount
+21	i386	mount			sys_mount
 22	i386	umount			sys_oldumount
 23	i386	setuid			sys_setuid16
 24	i386	getuid			sys_getuid16
@@ -142,7 +142,7 @@
 128	i386	init_module		sys_init_module
 129	i386	delete_module		sys_delete_module
 130	i386	get_kernel_syms
-131	i386	quotactl		sys_quotactl			compat_sys_quotactl32
+131	i386	quotactl		sys_quotactl
 132	i386	getpgid			sys_getpgid
 133	i386	fchdir			sys_fchdir
 134	i386	bdflush			sys_bdflush
@@ -156,8 +156,8 @@
 142	i386	_newselect		sys_select			compat_sys_select
 143	i386	flock			sys_flock
 144	i386	msync			sys_msync
-145	i386	readv			sys_readv			compat_sys_readv
-146	i386	writev			sys_writev			compat_sys_writev
+145	i386	readv			sys_readv
+146	i386	writev			sys_writev
 147	i386	getsid			sys_getsid
 148	i386	fdatasync		sys_fdatasync
 149	i386	_sysctl			sys_ni_syscall
@@ -327,7 +327,7 @@
 313	i386	splice			sys_splice
 314	i386	sync_file_range		sys_ia32_sync_file_range
 315	i386	tee			sys_tee
-316	i386	vmsplice		sys_vmsplice			compat_sys_vmsplice
+316	i386	vmsplice		sys_vmsplice
 317	i386	move_pages		sys_move_pages			compat_sys_move_pages
 318	i386	getcpu			sys_getcpu
 319	i386	epoll_pwait		sys_epoll_pwait
@@ -358,8 +358,8 @@
 344	i386	syncfs			sys_syncfs
 345	i386	sendmmsg		sys_sendmmsg			compat_sys_sendmmsg
 346	i386	setns			sys_setns
-347	i386	process_vm_readv	sys_process_vm_readv		compat_sys_process_vm_readv
-348	i386	process_vm_writev	sys_process_vm_writev		compat_sys_process_vm_writev
+347	i386	process_vm_readv	sys_process_vm_readv
+348	i386	process_vm_writev	sys_process_vm_writev
 349	i386	kcmp			sys_kcmp
 350	i386	finit_module		sys_finit_module
 351	i386	sched_setattr		sys_sched_setattr
@@ -444,3 +444,4 @@
 437	i386	openat2			sys_openat2
 438	i386	pidfd_getfd		sys_pidfd_getfd
 439	i386	faccessat2		sys_faccessat2
+440	i386	process_madvise		sys_process_madvise

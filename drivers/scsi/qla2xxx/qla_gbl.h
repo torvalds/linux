@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * QLogic Fibre Channel HBA Driver
  * Copyright (c)  2003-2014 QLogic Corporation
- *
- * See LICENSE.qla2xxx for copyright and licensing details.
  */
 #ifndef __QLA_GBL_H
 #define	__QLA_GBL_H
@@ -129,6 +128,8 @@ int qla2x00_reserve_mgmt_server_loop_id(scsi_qla_host_t *);
 void qla_rscn_replay(fc_port_t *fcport);
 void qla24xx_free_purex_item(struct purex_item *item);
 extern bool qla24xx_risc_firmware_invalid(uint32_t *);
+void qla_init_iocb_limit(scsi_qla_host_t *);
+
 
 /*
  * Global Data in qla_os.c source file.
@@ -175,6 +176,7 @@ extern int qla2xuseresexchforels;
 extern int ql2xexlogins;
 extern int ql2xdifbundlinginternalbuffers;
 extern int ql2xfulldump_on_mpifail;
+extern int ql2xenforce_iocb_limit;
 
 extern int qla2x00_loop_reset(scsi_qla_host_t *);
 extern void qla2x00_abort_all_cmds(scsi_qla_host_t *, int);
@@ -704,6 +706,8 @@ int qla24xx_async_gfpnid(scsi_qla_host_t *, fc_port_t *);
 void qla24xx_handle_gfpnid_event(scsi_qla_host_t *, struct event_arg *);
 void qla24xx_sp_unmap(scsi_qla_host_t *, srb_t *);
 void qla_scan_work_fn(struct work_struct *);
+uint qla25xx_fdmi_port_speed_capability(struct qla_hw_data *);
+uint qla25xx_fdmi_port_speed_currently(struct qla_hw_data *);
 
 /*
  * Global Function Prototypes in qla_attr.c source file.
@@ -935,9 +939,10 @@ void qlt_clr_qp_table(struct scsi_qla_host *vha);
 void qlt_set_mode(struct scsi_qla_host *);
 int qla2x00_set_data_rate(scsi_qla_host_t *vha, uint16_t mode);
 extern void qla24xx_process_purex_list(struct purex_list *);
+extern void qla2x00_dfs_create_rport(scsi_qla_host_t *vha, struct fc_port *fp);
+extern void qla2x00_dfs_remove_rport(scsi_qla_host_t *vha, struct fc_port *fp);
 
 /* nvme.c */
 void qla_nvme_unregister_remote_port(struct fc_port *fcport);
-void qla27xx_reset_mpi(scsi_qla_host_t *vha);
 void qla_handle_els_plogi_done(scsi_qla_host_t *vha, struct event_arg *ea);
 #endif /* _QLA_GBL_H */

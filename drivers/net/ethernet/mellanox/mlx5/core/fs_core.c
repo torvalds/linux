@@ -126,6 +126,10 @@
 #define LAG_NUM_PRIOS 1
 #define LAG_MIN_LEVEL (OFFLOADS_MIN_LEVEL + 1)
 
+#define KERNEL_TX_IPSEC_NUM_PRIOS  1
+#define KERNEL_TX_IPSEC_NUM_LEVELS 1
+#define KERNEL_TX_MIN_LEVEL        (KERNEL_TX_IPSEC_NUM_LEVELS)
+
 struct node_caps {
 	size_t	arr_sz;
 	long	*caps;
@@ -180,13 +184,24 @@ static struct init_tree_node {
 
 static struct init_tree_node egress_root_fs = {
 	.type = FS_TYPE_NAMESPACE,
+#ifdef CONFIG_MLX5_IPSEC
+	.ar_size = 2,
+#else
 	.ar_size = 1,
+#endif
 	.children = (struct init_tree_node[]) {
 		ADD_PRIO(0, MLX5_BY_PASS_NUM_PRIOS, 0,
 			 FS_CHAINING_CAPS_EGRESS,
 			 ADD_NS(MLX5_FLOW_TABLE_MISS_ACTION_DEF,
 				ADD_MULTIPLE_PRIO(MLX5_BY_PASS_NUM_PRIOS,
 						  BY_PASS_PRIO_NUM_LEVELS))),
+#ifdef CONFIG_MLX5_IPSEC
+		ADD_PRIO(0, KERNEL_TX_MIN_LEVEL, 0,
+			 FS_CHAINING_CAPS_EGRESS,
+			 ADD_NS(MLX5_FLOW_TABLE_MISS_ACTION_DEF,
+				ADD_MULTIPLE_PRIO(KERNEL_TX_IPSEC_NUM_PRIOS,
+						  KERNEL_TX_IPSEC_NUM_LEVELS))),
+#endif
 	}
 };
 
@@ -1595,11 +1610,12 @@ static bool dest_is_valid(struct mlx5_flow_destination *dest,
 		return true;
 
 	if (ignore_level) {
-		if (ft->type != FS_FT_FDB)
+		if (ft->type != FS_FT_FDB &&
+		    ft->type != FS_FT_NIC_RX)
 			return false;
 
 		if (dest->type == MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE &&
-		    dest->ft->type != FS_FT_FDB)
+		    ft->type != dest->ft->type)
 			return false;
 	}
 
@@ -2164,8 +2180,10 @@ struct mlx5_flow_namespace *mlx5_get_flow_namespace(struct mlx5_core_dev *dev,
 		break;
 	}
 
-	if (type == MLX5_FLOW_NAMESPACE_EGRESS) {
+	if (type == MLX5_FLOW_NAMESPACE_EGRESS ||
+	    type == MLX5_FLOW_NAMESPACE_EGRESS_KERNEL) {
 		root_ns = steering->egress_root_ns;
+		prio = type - MLX5_FLOW_NAMESPACE_EGRESS;
 	} else if (type == MLX5_FLOW_NAMESPACE_RDMA_RX) {
 		root_ns = steering->rdma_rx_root_ns;
 		prio = RDMA_RX_BYPASS_PRIO;

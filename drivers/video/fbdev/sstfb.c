@@ -733,7 +733,7 @@ static ssize_t show_vgapass(struct device *device, struct device_attribute *attr
 {
 	struct fb_info *info = dev_get_drvdata(device);
 	struct sstfb_par *par = info->par;
-	return snprintf(buf, PAGE_SIZE, "%d\n", par->vgapass);
+	return sprintf(buf, "%d\n", par->vgapass);
 }
 
 static struct device_attribute device_attrs[] = {

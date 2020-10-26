@@ -260,6 +260,7 @@ struct s5p_aes_ctx {
  * struct s5p_aes_dev - Crypto device state container
  * @dev:	Associated device
  * @clk:	Clock for accessing hardware
+ * @pclk:	APB bus clock necessary to access the hardware
  * @ioaddr:	Mapped IO memory region
  * @aes_ioaddr:	Per-varian offset for AES block IO memory
  * @irq_fc:	Feed control interrupt line
@@ -342,13 +343,13 @@ struct s5p_aes_dev {
  * @engine:	Bits for selecting type of HASH in SSS block
  * @sg:		sg for DMA transfer
  * @sg_len:	Length of sg for DMA transfer
- * @sgl[]:	sg for joining buffer and req->src scatterlist
+ * @sgl:	sg for joining buffer and req->src scatterlist
  * @skip:	Skip offset in req->src for current op
  * @total:	Total number of bytes for current request
  * @finup:	Keep state for finup or final.
  * @error:	Keep track of error.
  * @bufcnt:	Number of bytes holded in buffer[]
- * @buffer[]:	For byte(s) from end of req->src in UPDATE op
+ * @buffer:	For byte(s) from end of req->src in UPDATE op
  */
 struct s5p_hash_reqctx {
 	struct s5p_aes_dev	*dd;
@@ -1125,7 +1126,7 @@ static int s5p_hash_copy_sg_lists(struct s5p_hash_reqctx *ctx,
  * s5p_hash_prepare_sgs() - prepare sg for processing
  * @ctx:	request context
  * @sg:		source scatterlist request
- * @nbytes:	number of bytes to process from sg
+ * @new_len:	number of bytes to process from sg
  * @final:	final flag
  *
  * Check two conditions: (1) if buffers in sg have len aligned data, and (2)
@@ -2200,11 +2201,10 @@ static int s5p_aes_probe(struct platform_device *pdev)
 	}
 
 	pdata->clk = devm_clk_get(dev, variant->clk_names[0]);
-	if (IS_ERR(pdata->clk)) {
-		dev_err(dev, "failed to find secss clock %s\n",
-			variant->clk_names[0]);
-		return -ENOENT;
-	}
+	if (IS_ERR(pdata->clk))
+		return dev_err_probe(dev, PTR_ERR(pdata->clk),
+				     "failed to find secss clock %s\n",
+				     variant->clk_names[0]);
 
 	err = clk_prepare_enable(pdata->clk);
 	if (err < 0) {
@@ -2216,9 +2216,9 @@ static int s5p_aes_probe(struct platform_device *pdev)
 	if (variant->clk_names[1]) {
 		pdata->pclk = devm_clk_get(dev, variant->clk_names[1]);
 		if (IS_ERR(pdata->pclk)) {
-			dev_err(dev, "failed to find clock %s\n",
-				variant->clk_names[1]);
-			err = -ENOENT;
+			err = dev_err_probe(dev, PTR_ERR(pdata->pclk),
+					    "failed to find clock %s\n",
+					    variant->clk_names[1]);
 			goto err_clk;
 		}
 
@@ -2307,8 +2307,7 @@ err_algs:
 	tasklet_kill(&pdata->tasklet);
 
 err_irq:
-	if (pdata->pclk)
-		clk_disable_unprepare(pdata->pclk);
+	clk_disable_unprepare(pdata->pclk);
 
 err_clk:
 	clk_disable_unprepare(pdata->clk);
@@ -2338,8 +2337,7 @@ static int s5p_aes_remove(struct platform_device *pdev)
 		pdata->use_hash = false;
 	}
 
-	if (pdata->pclk)
-		clk_disable_unprepare(pdata->pclk);
+	clk_disable_unprepare(pdata->pclk);
 
 	clk_disable_unprepare(pdata->clk);
 	s5p_dev = NULL;

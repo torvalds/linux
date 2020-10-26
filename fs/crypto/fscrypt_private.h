@@ -97,7 +97,6 @@ static inline const u8 *fscrypt_context_nonce(const union fscrypt_context *ctx)
 	return NULL;
 }
 
-#undef fscrypt_policy
 union fscrypt_policy {
 	u8 version;
 	struct fscrypt_policy_v1 v1;
@@ -292,8 +291,9 @@ void fscrypt_generate_iv(union fscrypt_iv *iv, u64 lblk_num,
 /* fname.c */
 int fscrypt_fname_encrypt(const struct inode *inode, const struct qstr *iname,
 			  u8 *out, unsigned int olen);
-bool fscrypt_fname_encrypted_size(const struct inode *inode, u32 orig_len,
-				  u32 max_len, u32 *encrypted_len_ret);
+bool fscrypt_fname_encrypted_size(const union fscrypt_policy *policy,
+				  u32 orig_len, u32 max_len,
+				  u32 *encrypted_len_ret);
 extern const struct dentry_operations fscrypt_d_ops;
 
 /* hkdf.c */
@@ -572,6 +572,9 @@ int fscrypt_set_per_file_enc_key(struct fscrypt_info *ci, const u8 *raw_key);
 int fscrypt_derive_dirhash_key(struct fscrypt_info *ci,
 			       const struct fscrypt_master_key *mk);
 
+void fscrypt_hash_inode_number(struct fscrypt_info *ci,
+			       const struct fscrypt_master_key *mk);
+
 /* keysetup_v1.c */
 
 void fscrypt_put_direct_key(struct fscrypt_direct_key *dk);
@@ -590,5 +593,6 @@ bool fscrypt_supported_policy(const union fscrypt_policy *policy_u,
 int fscrypt_policy_from_context(union fscrypt_policy *policy_u,
 				const union fscrypt_context *ctx_u,
 				int ctx_size);
+const union fscrypt_policy *fscrypt_policy_to_inherit(struct inode *dir);
 
 #endif /* _FSCRYPT_PRIVATE_H */

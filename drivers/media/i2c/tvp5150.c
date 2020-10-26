@@ -293,7 +293,7 @@ static void tvp5150_selmux(struct v4l2_subdev *sd)
 	switch (decoder->input) {
 	case TVP5150_COMPOSITE1:
 		input |= 2;
-		/* fall through */
+		fallthrough;
 	case TVP5150_COMPOSITE0:
 		break;
 	case TVP5150_SVIDEO:
@@ -1191,8 +1191,9 @@ static int tvp5150_get_selection(struct v4l2_subdev *sd,
 	}
 }
 
-static int tvp5150_g_mbus_config(struct v4l2_subdev *sd,
-				 struct v4l2_mbus_config *cfg)
+static int tvp5150_get_mbus_config(struct v4l2_subdev *sd,
+				   unsigned int pad,
+				   struct v4l2_mbus_config *cfg)
 {
 	struct tvp5150 *decoder = to_tvp5150(sd);
 
@@ -1721,7 +1722,6 @@ static const struct v4l2_subdev_video_ops tvp5150_video_ops = {
 	.querystd = tvp5150_querystd,
 	.s_stream = tvp5150_s_stream,
 	.s_routing = tvp5150_s_routing,
-	.g_mbus_config = tvp5150_g_mbus_config,
 };
 
 static const struct v4l2_subdev_vbi_ops tvp5150_vbi_ops = {
@@ -1739,6 +1739,7 @@ static const struct v4l2_subdev_pad_ops tvp5150_pad_ops = {
 	.get_fmt = tvp5150_fill_fmt,
 	.get_selection = tvp5150_get_selection,
 	.set_selection = tvp5150_set_selection,
+	.get_mbus_config = tvp5150_get_mbus_config,
 };
 
 static const struct v4l2_subdev_ops tvp5150_ops = {

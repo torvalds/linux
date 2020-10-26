@@ -15,12 +15,12 @@
 #define PAGE_SIZE sysconf(_SC_PAGESIZE)
 
 #define GUP_FAST_BENCHMARK	_IOWR('g', 1, struct gup_benchmark)
-#define GUP_LONGTERM_BENCHMARK	_IOWR('g', 2, struct gup_benchmark)
-#define GUP_BENCHMARK		_IOWR('g', 3, struct gup_benchmark)
+#define GUP_BENCHMARK		_IOWR('g', 2, struct gup_benchmark)
 
 /* Similar to above, but use FOLL_PIN instead of FOLL_GET. */
-#define PIN_FAST_BENCHMARK	_IOWR('g', 4, struct gup_benchmark)
-#define PIN_BENCHMARK		_IOWR('g', 5, struct gup_benchmark)
+#define PIN_FAST_BENCHMARK	_IOWR('g', 3, struct gup_benchmark)
+#define PIN_BENCHMARK		_IOWR('g', 4, struct gup_benchmark)
+#define PIN_LONGTERM_BENCHMARK	_IOWR('g', 5, struct gup_benchmark)
 
 /* Just the flags we need, copied from mm.h: */
 #define FOLL_WRITE	0x01	/* check pte is writable */
@@ -52,6 +52,9 @@ int main(int argc, char **argv)
 		case 'b':
 			cmd = PIN_BENCHMARK;
 			break;
+		case 'L':
+			cmd = PIN_LONGTERM_BENCHMARK;
+			break;
 		case 'm':
 			size = atoi(optarg) * MB;
 			break;
@@ -66,9 +69,6 @@ int main(int argc, char **argv)
 			break;
 		case 'T':
 			thp = 0;
-			break;
-		case 'L':
-			cmd = GUP_LONGTERM_BENCHMARK;
 			break;
 		case 'U':
 			cmd = GUP_BENCHMARK;
@@ -105,12 +105,16 @@ int main(int argc, char **argv)
 		gup.flags |= FOLL_WRITE;
 
 	fd = open("/sys/kernel/debug/gup_benchmark", O_RDWR);
-	if (fd == -1)
-		perror("open"), exit(1);
+	if (fd == -1) {
+		perror("open");
+		exit(1);
+	}
 
 	p = mmap(NULL, size, PROT_READ | PROT_WRITE, flags, filed, 0);
-	if (p == MAP_FAILED)
-		perror("mmap"), exit(1);
+	if (p == MAP_FAILED) {
+		perror("mmap");
+		exit(1);
+	}
 	gup.addr = (unsigned long)p;
 
 	if (thp == 1)
@@ -123,8 +127,10 @@ int main(int argc, char **argv)
 
 	for (i = 0; i < repeats; i++) {
 		gup.size = size;
-		if (ioctl(fd, cmd, &gup))
-			perror("ioctl"), exit(1);
+		if (ioctl(fd, cmd, &gup)) {
+			perror("ioctl");
+			exit(1);
+		}
 
 		printf("Time: get:%lld put:%lld us", gup.get_delta_usec,
 			gup.put_delta_usec);

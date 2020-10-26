@@ -410,7 +410,7 @@ config PWM_ROCKCHIP
 
 config PWM_SAMSUNG
 	tristate "Samsung PWM support"
-	depends on PLAT_SAMSUNG || ARCH_EXYNOS || COMPILE_TEST
+	depends on PLAT_SAMSUNG || ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
 	help
 	  Generic PWM framework driver for Samsung.
 
@@ -427,6 +427,16 @@ config PWM_SIFIVE
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-sifive.
+
+config PWM_SL28CPLD
+	tristate "Kontron sl28cpld PWM support"
+	depends on MFD_SL28CPLD || COMPILE_TEST
+	help
+	  Generic PWM framework driver for board management controller
+	  found on the Kontron sl28 CPLD.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-sl28cpld.
 
 config PWM_SPEAR
 	tristate "STMicroelectronics SPEAr PWM support"

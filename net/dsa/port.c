@@ -193,11 +193,44 @@ void dsa_port_bridge_leave(struct dsa_port *dp, struct net_device *br)
 	dsa_port_set_state_now(dp, BR_STATE_FORWARDING);
 }
 
+/* Must be called under rcu_read_lock() */
 static bool dsa_port_can_apply_vlan_filtering(struct dsa_port *dp,
 					      bool vlan_filtering)
 {
 	struct dsa_switch *ds = dp->ds;
-	int i;
+	int err, i;
+
+	/* VLAN awareness was off, so the question is "can we turn it on".
+	 * We may have had 8021q uppers, those need to go. Make sure we don't
+	 * enter an inconsistent state: deny changing the VLAN awareness state
+	 * as long as we have 8021q uppers.
+	 */
+	if (vlan_filtering && dsa_is_user_port(ds, dp->index)) {
+		struct net_device *upper_dev, *slave = dp->slave;
+		struct net_device *br = dp->bridge_dev;
+		struct list_head *iter;
+
+		netdev_for_each_upper_dev_rcu(slave, upper_dev, iter) {
+			struct bridge_vlan_info br_info;
+			u16 vid;
+
+			if (!is_vlan_dev(upper_dev))
+				continue;
+
+			vid = vlan_dev_vlan_id(upper_dev);
+
+			/* br_vlan_get_info() returns -EINVAL or -ENOENT if the
+			 * device, respectively the VID is not found, returning
+			 * 0 means success, which is a failure for us here.
+			 */
+			err = br_vlan_get_info(br, vid, &br_info);
+			if (err == 0) {
+				dev_err(ds->dev, "Must remove upper %s first\n",
+					upper_dev->name);
+				return false;
+			}
+		}
+	}
 
 	if (!ds->vlan_filtering_is_global)
 		return true;
@@ -232,28 +265,38 @@ int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
 	struct dsa_switch *ds = dp->ds;
 	int err;
 
-	/* bridge skips -EOPNOTSUPP, so skip the prepare phase */
-	if (switchdev_trans_ph_prepare(trans))
-		return 0;
+	if (switchdev_trans_ph_prepare(trans)) {
+		bool apply;
 
-	if (!ds->ops->port_vlan_filtering)
-		return 0;
+		if (!ds->ops->port_vlan_filtering)
+			return -EOPNOTSUPP;
 
-	if (!dsa_port_can_apply_vlan_filtering(dp, vlan_filtering))
-		return -EINVAL;
+		/* We are called from dsa_slave_switchdev_blocking_event(),
+		 * which is not under rcu_read_lock(), unlike
+		 * dsa_slave_switchdev_event().
+		 */
+		rcu_read_lock();
+		apply = dsa_port_can_apply_vlan_filtering(dp, vlan_filtering);
+		rcu_read_unlock();
+		if (!apply)
+			return -EINVAL;
+	}
 
 	if (dsa_port_is_vlan_filtering(dp) == vlan_filtering)
 		return 0;
 
-	err = ds->ops->port_vlan_filtering(ds, dp->index,
-					   vlan_filtering);
+	err = ds->ops->port_vlan_filtering(ds, dp->index, vlan_filtering,
+					   trans);
 	if (err)
 		return err;
 
-	if (ds->vlan_filtering_is_global)
-		ds->vlan_filtering = vlan_filtering;
-	else
-		dp->vlan_filtering = vlan_filtering;
+	if (switchdev_trans_ph_commit(trans)) {
+		if (ds->vlan_filtering_is_global)
+			ds->vlan_filtering = vlan_filtering;
+		else
+			dp->vlan_filtering = vlan_filtering;
+	}
+
 	return 0;
 }
 
@@ -432,39 +475,6 @@ int dsa_port_vlan_del(struct dsa_port *dp,
 
 	return dsa_port_notify(dp, DSA_NOTIFIER_VLAN_DEL, &info);
 }
-
-int dsa_port_vid_add(struct dsa_port *dp, u16 vid, u16 flags)
-{
-	struct switchdev_obj_port_vlan vlan = {
-		.obj.id = SWITCHDEV_OBJ_ID_PORT_VLAN,
-		.flags = flags,
-		.vid_begin = vid,
-		.vid_end = vid,
-	};
-	struct switchdev_trans trans;
-	int err;
-
-	trans.ph_prepare = true;
-	err = dsa_port_vlan_add(dp, &vlan, &trans);
-	if (err)
-		return err;
-
-	trans.ph_prepare = false;
-	return dsa_port_vlan_add(dp, &vlan, &trans);
-}
-EXPORT_SYMBOL(dsa_port_vid_add);
-
-int dsa_port_vid_del(struct dsa_port *dp, u16 vid)
-{
-	struct switchdev_obj_port_vlan vlan = {
-		.obj.id = SWITCHDEV_OBJ_ID_PORT_VLAN,
-		.vid_begin = vid,
-		.vid_end = vid,
-	};
-
-	return dsa_port_vlan_del(dp, &vlan);
-}
-EXPORT_SYMBOL(dsa_port_vid_del);
 
 static struct phy_device *dsa_port_get_phy_device(struct dsa_port *dp)
 {

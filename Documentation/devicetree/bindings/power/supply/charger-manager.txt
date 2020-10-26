@@ -3,24 +3,32 @@ charger-manager bindings
 
 Required properties :
  - compatible : "charger-manager"
- - <>-supply : for regulator consumer
- - cm-num-chargers : number of chargers
+ - <>-supply : for regulator consumer, named according to cm-regulator-name
  - cm-chargers : name of chargers
  - cm-fuel-gauge : name of battery fuel gauge
  - subnode <regulator> :
 	- cm-regulator-name : name of charger regulator
 	- subnode <cable> :
-		- cm-cable-name : name of charger cable
+		- cm-cable-name : name of charger cable - one of USB, USB-HOST,
+			SDP, DCP, CDP, ACA, FAST-CHARGER, SLOW-CHARGER, WPT,
+			PD, DOCK, JIG, or MECHANICAL
 		- cm-cable-extcon : name of extcon dev
 (optional)	- cm-cable-min : minimum current of cable
 (optional)	- cm-cable-max : maximum current of cable
 
 Optional properties :
  - cm-name : charger manager's name (default : "battery")
- - cm-poll-mode : polling mode (enum polling_modes)
- - cm-poll-interval : polling interval
- - cm-battery-stat : battery status (enum data_source)
- - cm-fullbatt-* : data for full battery checking
+ - cm-poll-mode : polling mode - 0 for disabled, 1 for always, 2 for when
+	external power is connected, or 3 for when charging.  If not present,
+	then polling is disabled
+ - cm-poll-interval : polling interval (in ms)
+ - cm-battery-stat : battery status - 0 for battery always present, 1 for no
+	battery, 2 to check presence via fuel gauge, or 3 to check presence
+	via charger
+ - cm-fullbatt-vchkdrop-volt : voltage drop (in uV) before restarting charging
+ - cm-fullbatt-voltage : voltage (in uV) of full battery
+ - cm-fullbatt-soc : state of charge to consider as full battery
+ - cm-fullbatt-capacity : capcity (in uAh) to consider as full battery
  - cm-thermal-zone : name of external thermometer's thermal zone
  - cm-battery-* : threshold battery temperature for charging
 	-cold : critical cold temperature of battery for charging
@@ -28,6 +36,10 @@ Optional properties :
 	-hot : critical hot temperature of battery for charging
 	-temp-diff : temperature difference to allow recharging
  - cm-dis/charging-max = limits of charging duration
+
+Deprecated properties:
+ - cm-num-chargers
+ - cm-fullbatt-vchkdrop-ms
 
 Example :
 	charger-manager@0 {
@@ -39,13 +51,11 @@ Example :
 		cm-poll-mode = <1>;
 		cm-poll-interval = <30000>;
 
-		cm-fullbatt-vchkdrop-ms = <30000>;
 		cm-fullbatt-vchkdrop-volt = <150000>;
 		cm-fullbatt-soc = <100>;
 
 		cm-battery-stat = <3>;
 
-		cm-num-chargers = <3>;
 		cm-chargers = "charger0", "charger1", "charger2";
 
 		cm-fuel-gauge = "fuelgauge0";
@@ -71,7 +81,7 @@ Example :
 				cm-cable-max = <500000>;
 			};
 			cable@1 {
-				cm-cable-name = "TA";
+				cm-cable-name = "SDP";
 				cm-cable-extcon = "extcon-dev.0";
 				cm-cable-min = <650000>;
 				cm-cable-max = <675000>;

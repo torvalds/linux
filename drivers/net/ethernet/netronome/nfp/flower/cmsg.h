@@ -24,6 +24,7 @@
 #define NFP_FLOWER_LAYER_VXLAN		BIT(7)
 
 #define NFP_FLOWER_LAYER2_GRE		BIT(0)
+#define NFP_FLOWER_LAYER2_QINQ		BIT(4)
 #define NFP_FLOWER_LAYER2_GENEVE	BIT(5)
 #define NFP_FLOWER_LAYER2_GENEVE_OP	BIT(6)
 #define NFP_FLOWER_LAYER2_TUN_IPV6	BIT(7)
@@ -317,6 +318,22 @@ struct nfp_flower_mac_mpls {
 	u8 mac_dst[6];
 	u8 mac_src[6];
 	__be32 mpls_lse;
+};
+
+/* VLAN details (2W/8B)
+ *    3                   2                   1
+ *  1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |           outer_tpid          |           outer_tci           |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |           inner_tpid          |           inner_tci           |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
+struct nfp_flower_vlan {
+	__be16 outer_tpid;
+	__be16 outer_tci;
+	__be16 inner_tpid;
+	__be16 inner_tci;
 };
 
 /* L4 ports (for UDP, TCP, SCTP) (1W/4B)

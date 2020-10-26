@@ -129,8 +129,8 @@ static u8 halbtc_get_wifi_central_chnl(struct btc_coexist *btcoexist)
 
 	if (rtlphy->current_channel != 0)
 		chnl = rtlphy->current_channel;
-	RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-		 "static halbtc_get_wifi_central_chnl:%d\n", chnl);
+	rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
+		"%s:%d\n", __func__, chnl);
 	return chnl;
 }
 
@@ -250,16 +250,16 @@ bool halbtc_send_bt_mp_operation(struct btc_coexist *btcoexist, u8 op_code,
 	if (!wait_ms)
 		return true;
 
-	RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-		 "btmpinfo wait req_num=%d wait=%ld\n", req_num, wait_ms);
+	rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
+		"btmpinfo wait req_num=%d wait=%ld\n", req_num, wait_ms);
 
 	if (in_interrupt())
 		return false;
 
 	if (wait_for_completion_timeout(&btcoexist->bt_mp_comp,
 					msecs_to_jiffies(wait_ms)) == 0) {
-		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_DMESG,
-			 "btmpinfo wait (req_num=%d) timeout\n", req_num);
+		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_DMESG,
+			"btmpinfo wait (req_num=%d) timeout\n", req_num);
 
 		return false;	/* timeout */
 	}
@@ -278,14 +278,15 @@ static void halbtc_leave_lps(struct btc_coexist *btcoexist)
 			   &ap_enable);
 
 	if (ap_enable) {
-		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_DMESG,
-			 "%s()<--dont leave lps under AP mode\n", __func__);
+		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_DMESG,
+			"%s()<--dont leave lps under AP mode\n", __func__);
 		return;
 	}
 
 	btcoexist->bt_info.bt_ctrl_lps = true;
 	btcoexist->bt_info.bt_lps_on = false;
-	rtl_lps_leave(rtlpriv->mac80211.hw);
+	/* FIXME: Context is unclear. Is it allowed to block? */
+	rtl_lps_leave(rtlpriv->mac80211.hw, false);
 }
 
 static void halbtc_enter_lps(struct btc_coexist *btcoexist)
@@ -299,14 +300,15 @@ static void halbtc_enter_lps(struct btc_coexist *btcoexist)
 			   &ap_enable);
 
 	if (ap_enable) {
-		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_DMESG,
-			 "%s()<--dont enter lps under AP mode\n", __func__);
+		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_DMESG,
+			"%s()<--dont enter lps under AP mode\n", __func__);
 		return;
 	}
 
 	btcoexist->bt_info.bt_ctrl_lps = true;
 	btcoexist->bt_info.bt_lps_on = true;
-	rtl_lps_enter(rtlpriv->mac80211.hw);
+	/* FIXME: Context is unclear. Is it allowed to block? */
+	rtl_lps_enter(rtlpriv->mac80211.hw, false);
 }
 
 static void halbtc_normal_lps(struct btc_coexist *btcoexist)
@@ -317,7 +319,8 @@ static void halbtc_normal_lps(struct btc_coexist *btcoexist)
 
 	if (btcoexist->bt_info.bt_ctrl_lps) {
 		btcoexist->bt_info.bt_lps_on = false;
-		rtl_lps_leave(rtlpriv->mac80211.hw);
+		/* FIXME: Context is unclear. Is it allowed to block? */
+		rtl_lps_leave(rtlpriv->mac80211.hw, false);
 		btcoexist->bt_info.bt_ctrl_lps = false;
 	}
 }
@@ -328,7 +331,8 @@ static void halbtc_pre_normal_lps(struct btc_coexist *btcoexist)
 
 	if (btcoexist->bt_info.bt_ctrl_lps) {
 		btcoexist->bt_info.bt_lps_on = false;
-		rtl_lps_leave(rtlpriv->mac80211.hw);
+		/* FIXME: Context is unclear. Is it allowed to block? */
+		rtl_lps_leave(rtlpriv->mac80211.hw, false);
 	}
 }
 
@@ -1368,11 +1372,11 @@ bool exhalbtc_bind_bt_coex_withadapter(void *adapter)
 		btcoexist->board_info.tfbga_package = true;
 
 	if (btcoexist->board_info.tfbga_package)
-		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			 "[BTCoex], Package Type = TFBGA\n");
+		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
+			"[BTCoex], Package Type = TFBGA\n");
 	else
-		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			 "[BTCoex], Package Type = Non-TFBGA\n");
+		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
+			"[BTCoex], Package Type = Non-TFBGA\n");
 
 	btcoexist->board_info.rfe_type = rtl_get_hwpg_rfe_type(rtlpriv);
 	btcoexist->board_info.ant_div_cfg = 0;

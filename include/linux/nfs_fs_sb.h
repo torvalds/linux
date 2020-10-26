@@ -287,5 +287,6 @@ struct nfs_server {
 #define NFS_CAP_LAYOUTERROR	(1U << 26)
 #define NFS_CAP_COPY_NOTIFY	(1U << 27)
 #define NFS_CAP_XATTR		(1U << 28)
+#define NFS_CAP_READ_PLUS	(1U << 29)
 
 #endif

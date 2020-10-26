@@ -2519,6 +2519,26 @@ const struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
+	/*
+	 * 1f4d:1abe MyGica iGrabber
+	 * (same as several other EM2860 devices)
+	 * Empia EM2860, Philips SAA7113, Empia EMP202, No Tuner
+	 */
+	[EM2860_BOARD_MYGICA_IGRABBER] = {
+		.name         = "MyGica iGrabber",
+		.vchannels    = 2,
+		.tuner_type   = TUNER_ABSENT,
+		.decoder      = EM28XX_SAA711X,
+		.input           = { {
+			.type     = EM28XX_VMUX_COMPOSITE,
+			.vmux     = SAA7115_COMPOSITE0,
+			.amux     = EM28XX_AMUX_LINE_IN,
+		}, {
+			.type     = EM28XX_VMUX_SVIDEO,
+			.vmux     = SAA7115_SVIDEO3,
+			.amux     = EM28XX_AMUX_LINE_IN,
+		} },
+	},
 };
 EXPORT_SYMBOL_GPL(em28xx_boards);
 
@@ -2698,6 +2718,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2860_BOARD_EASYCAP },
 	{ USB_DEVICE(0x1b80, 0xe425),
 			.driver_info = EM2874_BOARD_MAXMEDIA_UB425_TC },
+	{ USB_DEVICE(0x1f4d, 0x1abe),
+			.driver_info = EM2860_BOARD_MYGICA_IGRABBER },
 	{ USB_DEVICE(0x2304, 0x0242),
 			.driver_info = EM2884_BOARD_PCTV_510E },
 	{ USB_DEVICE(0x2013, 0x0251),

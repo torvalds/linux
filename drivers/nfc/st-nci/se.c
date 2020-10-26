@@ -331,8 +331,7 @@ static int st_nci_hci_connectivity_event_received(struct nci_dev *ndev,
 		    skb->data[0] != NFC_EVT_TRANSACTION_AID_TAG)
 			return -EPROTO;
 
-		transaction = (struct nfc_evt_transaction *)devm_kzalloc(dev,
-					    skb->len - 2, GFP_KERNEL);
+		transaction = devm_kzalloc(dev, skb->len - 2, GFP_KERNEL);
 		if (!transaction)
 			return -ENOMEM;
 

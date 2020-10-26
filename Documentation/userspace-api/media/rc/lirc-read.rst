@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: RC
 
 .. _lirc-read:
 
@@ -18,7 +12,6 @@ Name
 
 lirc-read - Read from a LIRC device
 
-
 Synopsis
 ========
 
@@ -26,10 +19,7 @@ Synopsis
 
     #include <unistd.h>
 
-
 .. c:function:: ssize_t read( int fd, void *buf, size_t count )
-    :name: lirc-read
-
 
 Arguments
 =========
@@ -46,9 +36,9 @@ Arguments
 Description
 ===========
 
-:ref:`read() <lirc-read>` attempts to read up to ``count`` bytes from file
+:c:func:`read()` attempts to read up to ``count`` bytes from file
 descriptor ``fd`` into the buffer starting at ``buf``.  If ``count`` is zero,
-:ref:`read() <lirc-read>` returns zero and has no other results. If ``count``
+:c:func:`read()` returns zero and has no other results. If ``count``
 is greater than ``SSIZE_MAX``, the result is unspecified.
 
 The exact format of the data depends on what :ref:`lirc_modes` a driver
@@ -65,7 +55,6 @@ by hardware decoders. The :c:type:`rc_proto` member is set to the
 :ref:`IR protocol <Remote_controllers_Protocols>`
 used for transmission, and ``scancode`` to the decoded scancode,
 and the ``keycode`` set to the keycode or ``KEY_RESERVED``.
-
 
 Return Value
 ============

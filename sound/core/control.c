@@ -1925,8 +1925,8 @@ EXPORT_SYMBOL(snd_ctl_unregister_ioctl);
 
 #ifdef CONFIG_COMPAT
 /**
- * snd_ctl_unregister_ioctl - de-register the device-specific compat 32bit
- * control-ioctls
+ * snd_ctl_unregister_ioctl_compat - de-register the device-specific compat
+ * 32bit control-ioctls
  * @fcn: ioctl callback function to unregister
  */
 int snd_ctl_unregister_ioctl_compat(snd_kctl_ioctl_func_t fcn)

@@ -8,7 +8,6 @@
 #include <linux/irqdesc.h>
 #include <linux/irqchip/chained_irq.h>
 #include "dpu_kms.h"
-#include <linux/interconnect.h>
 
 #define to_dpu_mdss(x) container_of(x, struct dpu_mdss, base)
 
@@ -277,9 +276,11 @@ int dpu_mdss_init(struct drm_device *dev)
 
 	DRM_DEBUG("mapped mdss address space @%pK\n", dpu_mdss->mmio);
 
-	ret = dpu_mdss_parse_data_bus_icc_path(dev, dpu_mdss);
-	if (ret)
-		return ret;
+	if (!of_device_is_compatible(dev->dev->of_node, "qcom,sc7180-mdss")) {
+		ret = dpu_mdss_parse_data_bus_icc_path(dev, dpu_mdss);
+		if (ret)
+			return ret;
+	}
 
 	mp = &dpu_mdss->mp;
 	ret = msm_dss_parse_clock(pdev, mp);

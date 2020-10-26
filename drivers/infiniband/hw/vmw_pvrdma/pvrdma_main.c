@@ -270,7 +270,7 @@ static int pvrdma_register_device(struct pvrdma_dev *dev)
 	spin_lock_init(&dev->srq_tbl_lock);
 	rdma_set_device_sysfs_group(&dev->ib_dev, &pvrdma_attr_group);
 
-	ret = ib_register_device(&dev->ib_dev, "vmw_pvrdma%d");
+	ret = ib_register_device(&dev->ib_dev, "vmw_pvrdma%d", &dev->pdev->dev);
 	if (ret)
 		goto err_srq_free;
 
@@ -854,7 +854,7 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 			goto err_free_resource;
 		}
 	}
-
+	dma_set_max_seg_size(&pdev->dev, UINT_MAX);
 	pci_set_master(pdev);
 
 	/* Map register space */

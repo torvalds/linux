@@ -87,36 +87,36 @@ static enum led_brightness pm8058_led_get(struct led_classdev *cled)
 
 static int pm8058_led_probe(struct platform_device *pdev)
 {
+	struct led_init_data init_data = {};
+	struct device *dev = &pdev->dev;
 	struct pm8058_led *led;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_node *np;
 	int ret;
 	struct regmap *map;
 	const char *state;
 	enum led_brightness maxbright;
 
-	led = devm_kzalloc(&pdev->dev, sizeof(*led), GFP_KERNEL);
+	led = devm_kzalloc(dev, sizeof(*led), GFP_KERNEL);
 	if (!led)
 		return -ENOMEM;
 
-	led->ledtype = (u32)(unsigned long)of_device_get_match_data(&pdev->dev);
+	led->ledtype = (u32)(unsigned long)of_device_get_match_data(dev);
 
-	map = dev_get_regmap(pdev->dev.parent, NULL);
+	map = dev_get_regmap(dev->parent, NULL);
 	if (!map) {
-		dev_err(&pdev->dev, "Parent regmap unavailable.\n");
+		dev_err(dev, "Parent regmap unavailable.\n");
 		return -ENXIO;
 	}
 	led->map = map;
 
+	np = dev_of_node(dev);
+
 	ret = of_property_read_u32(np, "reg", &led->reg);
 	if (ret) {
-		dev_err(&pdev->dev, "no register offset specified\n");
+		dev_err(dev, "no register offset specified\n");
 		return -EINVAL;
 	}
 
-	/* Use label else node name */
-	led->cdev.name = of_get_property(np, "label", NULL) ? : np->name;
-	led->cdev.default_trigger =
-		of_get_property(np, "linux,default-trigger", NULL);
 	led->cdev.brightness_set = pm8058_led_set;
 	led->cdev.brightness_get = pm8058_led_get;
 	if (led->ledtype == PM8058_LED_TYPE_COMMON)
@@ -142,14 +142,13 @@ static int pm8058_led_probe(struct platform_device *pdev)
 	    led->ledtype == PM8058_LED_TYPE_FLASH)
 		led->cdev.flags	= LED_CORE_SUSPENDRESUME;
 
-	ret = devm_led_classdev_register(&pdev->dev, &led->cdev);
-	if (ret) {
-		dev_err(&pdev->dev, "unable to register led \"%s\"\n",
-			led->cdev.name);
-		return ret;
-	}
+	init_data.fwnode = of_fwnode_handle(np);
 
-	return 0;
+	ret = devm_led_classdev_register_ext(dev, &led->cdev, &init_data);
+	if (ret)
+		dev_err(dev, "Failed to register LED for %pOF\n", np);
+
+	return ret;
 }
 
 static const struct of_device_id pm8058_leds_id_table[] = {

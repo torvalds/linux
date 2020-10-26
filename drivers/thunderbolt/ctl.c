@@ -219,6 +219,7 @@ static int check_config_address(struct tb_cfg_address addr,
 static struct tb_cfg_result decode_error(const struct ctl_pkg *response)
 {
 	struct cfg_error_pkg *pkg = response->buffer;
+	struct tb_ctl *ctl = response->ctl;
 	struct tb_cfg_result res = { 0 };
 	res.response_route = tb_cfg_get_route(&pkg->header);
 	res.response_port = 0;
@@ -227,9 +228,13 @@ static struct tb_cfg_result decode_error(const struct ctl_pkg *response)
 	if (res.err)
 		return res;
 
-	WARN(pkg->zero1, "pkg->zero1 is %#x\n", pkg->zero1);
-	WARN(pkg->zero2, "pkg->zero1 is %#x\n", pkg->zero1);
-	WARN(pkg->zero3, "pkg->zero1 is %#x\n", pkg->zero1);
+	if (pkg->zero1)
+		tb_ctl_warn(ctl, "pkg->zero1 is %#x\n", pkg->zero1);
+	if (pkg->zero2)
+		tb_ctl_warn(ctl, "pkg->zero2 is %#x\n", pkg->zero2);
+	if (pkg->zero3)
+		tb_ctl_warn(ctl, "pkg->zero3 is %#x\n", pkg->zero3);
+
 	res.err = 1;
 	res.tb_error = pkg->error;
 	res.response_port = pkg->port;
@@ -266,9 +271,8 @@ static void tb_cfg_print_error(struct tb_ctl *ctl,
 		 * Invalid cfg_space/offset/length combination in
 		 * cfg_read/cfg_write.
 		 */
-		tb_ctl_WARN(ctl,
-			"CFG_ERROR(%llx:%x): Invalid config space or offset\n",
-			res->response_route, res->response_port);
+		tb_ctl_dbg(ctl, "%llx:%x: invalid config space or offset\n",
+			   res->response_route, res->response_port);
 		return;
 	case TB_CFG_ERROR_NO_SUCH_PORT:
 		/*
@@ -282,6 +286,10 @@ static void tb_cfg_print_error(struct tb_ctl *ctl,
 	case TB_CFG_ERROR_LOOP:
 		tb_ctl_WARN(ctl, "CFG_ERROR(%llx:%x): Route contains a loop\n",
 			res->response_route, res->response_port);
+		return;
+	case TB_CFG_ERROR_LOCK:
+		tb_ctl_warn(ctl, "%llx:%x: downstream port is locked\n",
+			    res->response_route, res->response_port);
 		return;
 	default:
 		/* 5,6,7,9 and 11 are also valid error codes */
@@ -951,6 +959,9 @@ static int tb_cfg_get_error(struct tb_ctl *ctl, enum tb_cfg_space space,
 		return -ENODEV;
 
 	tb_cfg_print_error(ctl, res);
+
+	if (res->tb_error == TB_CFG_ERROR_LOCK)
+		return -EACCES;
 	return -EIO;
 }
 

@@ -252,6 +252,10 @@
 			reg = <0x00013000 0x1000>;
 		};
 
+		pcie2: pcie@14000 {
+			reg = <0x00014000 0x1000>;
+		};
+
 		usb2: usb2@21000 {
 			reg = <0x00021000 0x1000>;
 
@@ -350,6 +354,14 @@
 		};
 	};
 
+	pwm: pwm@18002000 {
+		compatible = "brcm,iproc-pwm";
+		reg = <0x18002000 0x28>;
+		clocks = <&osc>;
+		#pwm-cells = <3>;
+		status = "disabled";
+	};
+
 	mdio: mdio@18003000 {
 		compatible = "brcm,iproc-mdio";
 		reg = <0x18003000 0x8>;
@@ -382,6 +394,15 @@
 
 	usb3_dmp: syscon@18105000 {
 		reg = <0x18105000 0x1000>;
+	};
+
+	uart2: serial@18008000 {
+		compatible = "ns16550a";
+		reg = <0x18008000 0x20>;
+		clocks = <&iprocslow>;
+		interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
+		reg-shift = <2>;
+		status = "disabled";
 	};
 
 	i2c0: i2c@18009000 {
@@ -417,12 +438,12 @@
 					function = "spi";
 				};
 
-				i2c {
+				pinmux_i2c: i2c {
 					groups = "i2c_grp";
 					function = "i2c";
 				};
 
-				pwm {
+				pinmux_pwm: pwm {
 					groups = "pwm0_grp", "pwm1_grp",
 						 "pwm2_grp", "pwm3_grp";
 					function = "pwm";

@@ -22,20 +22,97 @@
 
 #include "hyperv_vmbus.h"
 
-#define NUM_PAGES_SPANNED(addr, len) \
-((PAGE_ALIGN(addr + len) >> PAGE_SHIFT) - (addr >> PAGE_SHIFT))
-
-static unsigned long virt_to_hvpfn(void *addr)
+/*
+ * hv_gpadl_size - Return the real size of a gpadl, the size that Hyper-V uses
+ *
+ * For BUFFER gpadl, Hyper-V uses the exact same size as the guest does.
+ *
+ * For RING gpadl, in each ring, the guest uses one PAGE_SIZE as the header
+ * (because of the alignment requirement), however, the hypervisor only
+ * uses the first HV_HYP_PAGE_SIZE as the header, therefore leaving a
+ * (PAGE_SIZE - HV_HYP_PAGE_SIZE) gap. And since there are two rings in a
+ * ringbuffer, the total size for a RING gpadl that Hyper-V uses is the
+ * total size that the guest uses minus twice of the gap size.
+ */
+static inline u32 hv_gpadl_size(enum hv_gpadl_type type, u32 size)
 {
-	phys_addr_t paddr;
+	switch (type) {
+	case HV_GPADL_BUFFER:
+		return size;
+	case HV_GPADL_RING:
+		/* The size of a ringbuffer must be page-aligned */
+		BUG_ON(size % PAGE_SIZE);
+		/*
+		 * Two things to notice here:
+		 * 1) We're processing two ring buffers as a unit
+		 * 2) We're skipping any space larger than HV_HYP_PAGE_SIZE in
+		 * the first guest-size page of each of the two ring buffers.
+		 * So we effectively subtract out two guest-size pages, and add
+		 * back two Hyper-V size pages.
+		 */
+		return size - 2 * (PAGE_SIZE - HV_HYP_PAGE_SIZE);
+	}
+	BUG();
+	return 0;
+}
 
-	if (is_vmalloc_addr(addr))
-		paddr = page_to_phys(vmalloc_to_page(addr)) +
-					 offset_in_page(addr);
-	else
-		paddr = __pa(addr);
+/*
+ * hv_ring_gpadl_send_hvpgoffset - Calculate the send offset (in unit of
+ *                                 HV_HYP_PAGE) in a ring gpadl based on the
+ *                                 offset in the guest
+ *
+ * @offset: the offset (in bytes) where the send ringbuffer starts in the
+ *               virtual address space of the guest
+ */
+static inline u32 hv_ring_gpadl_send_hvpgoffset(u32 offset)
+{
 
-	return  paddr >> PAGE_SHIFT;
+	/*
+	 * For RING gpadl, in each ring, the guest uses one PAGE_SIZE as the
+	 * header (because of the alignment requirement), however, the
+	 * hypervisor only uses the first HV_HYP_PAGE_SIZE as the header,
+	 * therefore leaving a (PAGE_SIZE - HV_HYP_PAGE_SIZE) gap.
+	 *
+	 * And to calculate the effective send offset in gpadl, we need to
+	 * substract this gap.
+	 */
+	return (offset - (PAGE_SIZE - HV_HYP_PAGE_SIZE)) >> HV_HYP_PAGE_SHIFT;
+}
+
+/*
+ * hv_gpadl_hvpfn - Return the Hyper-V page PFN of the @i th Hyper-V page in
+ *                  the gpadl
+ *
+ * @type: the type of the gpadl
+ * @kbuffer: the pointer to the gpadl in the guest
+ * @size: the total size (in bytes) of the gpadl
+ * @send_offset: the offset (in bytes) where the send ringbuffer starts in the
+ *               virtual address space of the guest
+ * @i: the index
+ */
+static inline u64 hv_gpadl_hvpfn(enum hv_gpadl_type type, void *kbuffer,
+				 u32 size, u32 send_offset, int i)
+{
+	int send_idx = hv_ring_gpadl_send_hvpgoffset(send_offset);
+	unsigned long delta = 0UL;
+
+	switch (type) {
+	case HV_GPADL_BUFFER:
+		break;
+	case HV_GPADL_RING:
+		if (i == 0)
+			delta = 0;
+		else if (i <= send_idx)
+			delta = PAGE_SIZE - HV_HYP_PAGE_SIZE;
+		else
+			delta = 2 * (PAGE_SIZE - HV_HYP_PAGE_SIZE);
+		break;
+	default:
+		BUG();
+		break;
+	}
+
+	return virt_to_hvpfn(kbuffer + delta + (HV_HYP_PAGE_SIZE * i));
 }
 
 /*
@@ -112,6 +189,320 @@ int vmbus_alloc_ring(struct vmbus_channel *newchannel,
 }
 EXPORT_SYMBOL_GPL(vmbus_alloc_ring);
 
+/* Used for Hyper-V Socket: a guest client's connect() to the host */
+int vmbus_send_tl_connect_request(const guid_t *shv_guest_servie_id,
+				  const guid_t *shv_host_servie_id)
+{
+	struct vmbus_channel_tl_connect_request conn_msg;
+	int ret;
+
+	memset(&conn_msg, 0, sizeof(conn_msg));
+	conn_msg.header.msgtype = CHANNELMSG_TL_CONNECT_REQUEST;
+	conn_msg.guest_endpoint_id = *shv_guest_servie_id;
+	conn_msg.host_service_id = *shv_host_servie_id;
+
+	ret = vmbus_post_msg(&conn_msg, sizeof(conn_msg), true);
+
+	trace_vmbus_send_tl_connect_request(&conn_msg, ret);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(vmbus_send_tl_connect_request);
+
+/*
+ * Set/change the vCPU (@target_vp) the channel (@child_relid) will interrupt.
+ *
+ * CHANNELMSG_MODIFYCHANNEL messages are aynchronous.  Also, Hyper-V does not
+ * ACK such messages.  IOW we can't know when the host will stop interrupting
+ * the "old" vCPU and start interrupting the "new" vCPU for the given channel.
+ *
+ * The CHANNELMSG_MODIFYCHANNEL message type is supported since VMBus version
+ * VERSION_WIN10_V4_1.
+ */
+int vmbus_send_modifychannel(u32 child_relid, u32 target_vp)
+{
+	struct vmbus_channel_modifychannel conn_msg;
+	int ret;
+
+	memset(&conn_msg, 0, sizeof(conn_msg));
+	conn_msg.header.msgtype = CHANNELMSG_MODIFYCHANNEL;
+	conn_msg.child_relid = child_relid;
+	conn_msg.target_vp = target_vp;
+
+	ret = vmbus_post_msg(&conn_msg, sizeof(conn_msg), true);
+
+	trace_vmbus_send_modifychannel(&conn_msg, ret);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(vmbus_send_modifychannel);
+
+/*
+ * create_gpadl_header - Creates a gpadl for the specified buffer
+ */
+static int create_gpadl_header(enum hv_gpadl_type type, void *kbuffer,
+			       u32 size, u32 send_offset,
+			       struct vmbus_channel_msginfo **msginfo)
+{
+	int i;
+	int pagecount;
+	struct vmbus_channel_gpadl_header *gpadl_header;
+	struct vmbus_channel_gpadl_body *gpadl_body;
+	struct vmbus_channel_msginfo *msgheader;
+	struct vmbus_channel_msginfo *msgbody = NULL;
+	u32 msgsize;
+
+	int pfnsum, pfncount, pfnleft, pfncurr, pfnsize;
+
+	pagecount = hv_gpadl_size(type, size) >> HV_HYP_PAGE_SHIFT;
+
+	/* do we need a gpadl body msg */
+	pfnsize = MAX_SIZE_CHANNEL_MESSAGE -
+		  sizeof(struct vmbus_channel_gpadl_header) -
+		  sizeof(struct gpa_range);
+	pfncount = pfnsize / sizeof(u64);
+
+	if (pagecount > pfncount) {
+		/* we need a gpadl body */
+		/* fill in the header */
+		msgsize = sizeof(struct vmbus_channel_msginfo) +
+			  sizeof(struct vmbus_channel_gpadl_header) +
+			  sizeof(struct gpa_range) + pfncount * sizeof(u64);
+		msgheader =  kzalloc(msgsize, GFP_KERNEL);
+		if (!msgheader)
+			goto nomem;
+
+		INIT_LIST_HEAD(&msgheader->submsglist);
+		msgheader->msgsize = msgsize;
+
+		gpadl_header = (struct vmbus_channel_gpadl_header *)
+			msgheader->msg;
+		gpadl_header->rangecount = 1;
+		gpadl_header->range_buflen = sizeof(struct gpa_range) +
+					 pagecount * sizeof(u64);
+		gpadl_header->range[0].byte_offset = 0;
+		gpadl_header->range[0].byte_count = hv_gpadl_size(type, size);
+		for (i = 0; i < pfncount; i++)
+			gpadl_header->range[0].pfn_array[i] = hv_gpadl_hvpfn(
+				type, kbuffer, size, send_offset, i);
+		*msginfo = msgheader;
+
+		pfnsum = pfncount;
+		pfnleft = pagecount - pfncount;
+
+		/* how many pfns can we fit */
+		pfnsize = MAX_SIZE_CHANNEL_MESSAGE -
+			  sizeof(struct vmbus_channel_gpadl_body);
+		pfncount = pfnsize / sizeof(u64);
+
+		/* fill in the body */
+		while (pfnleft) {
+			if (pfnleft > pfncount)
+				pfncurr = pfncount;
+			else
+				pfncurr = pfnleft;
+
+			msgsize = sizeof(struct vmbus_channel_msginfo) +
+				  sizeof(struct vmbus_channel_gpadl_body) +
+				  pfncurr * sizeof(u64);
+			msgbody = kzalloc(msgsize, GFP_KERNEL);
+
+			if (!msgbody) {
+				struct vmbus_channel_msginfo *pos = NULL;
+				struct vmbus_channel_msginfo *tmp = NULL;
+				/*
+				 * Free up all the allocated messages.
+				 */
+				list_for_each_entry_safe(pos, tmp,
+					&msgheader->submsglist,
+					msglistentry) {
+
+					list_del(&pos->msglistentry);
+					kfree(pos);
+				}
+
+				goto nomem;
+			}
+
+			msgbody->msgsize = msgsize;
+			gpadl_body =
+				(struct vmbus_channel_gpadl_body *)msgbody->msg;
+
+			/*
+			 * Gpadl is u32 and we are using a pointer which could
+			 * be 64-bit
+			 * This is governed by the guest/host protocol and
+			 * so the hypervisor guarantees that this is ok.
+			 */
+			for (i = 0; i < pfncurr; i++)
+				gpadl_body->pfn[i] = hv_gpadl_hvpfn(type,
+					kbuffer, size, send_offset, pfnsum + i);
+
+			/* add to msg header */
+			list_add_tail(&msgbody->msglistentry,
+				      &msgheader->submsglist);
+			pfnsum += pfncurr;
+			pfnleft -= pfncurr;
+		}
+	} else {
+		/* everything fits in a header */
+		msgsize = sizeof(struct vmbus_channel_msginfo) +
+			  sizeof(struct vmbus_channel_gpadl_header) +
+			  sizeof(struct gpa_range) + pagecount * sizeof(u64);
+		msgheader = kzalloc(msgsize, GFP_KERNEL);
+		if (msgheader == NULL)
+			goto nomem;
+
+		INIT_LIST_HEAD(&msgheader->submsglist);
+		msgheader->msgsize = msgsize;
+
+		gpadl_header = (struct vmbus_channel_gpadl_header *)
+			msgheader->msg;
+		gpadl_header->rangecount = 1;
+		gpadl_header->range_buflen = sizeof(struct gpa_range) +
+					 pagecount * sizeof(u64);
+		gpadl_header->range[0].byte_offset = 0;
+		gpadl_header->range[0].byte_count = hv_gpadl_size(type, size);
+		for (i = 0; i < pagecount; i++)
+			gpadl_header->range[0].pfn_array[i] = hv_gpadl_hvpfn(
+				type, kbuffer, size, send_offset, i);
+
+		*msginfo = msgheader;
+	}
+
+	return 0;
+nomem:
+	kfree(msgheader);
+	kfree(msgbody);
+	return -ENOMEM;
+}
+
+/*
+ * __vmbus_establish_gpadl - Establish a GPADL for a buffer or ringbuffer
+ *
+ * @channel: a channel
+ * @type: the type of the corresponding GPADL, only meaningful for the guest.
+ * @kbuffer: from kmalloc or vmalloc
+ * @size: page-size multiple
+ * @send_offset: the offset (in bytes) where the send ring buffer starts,
+ * 		 should be 0 for BUFFER type gpadl
+ * @gpadl_handle: some funky thing
+ */
+static int __vmbus_establish_gpadl(struct vmbus_channel *channel,
+				   enum hv_gpadl_type type, void *kbuffer,
+				   u32 size, u32 send_offset,
+				   u32 *gpadl_handle)
+{
+	struct vmbus_channel_gpadl_header *gpadlmsg;
+	struct vmbus_channel_gpadl_body *gpadl_body;
+	struct vmbus_channel_msginfo *msginfo = NULL;
+	struct vmbus_channel_msginfo *submsginfo, *tmp;
+	struct list_head *curr;
+	u32 next_gpadl_handle;
+	unsigned long flags;
+	int ret = 0;
+
+	next_gpadl_handle =
+		(atomic_inc_return(&vmbus_connection.next_gpadl_handle) - 1);
+
+	ret = create_gpadl_header(type, kbuffer, size, send_offset, &msginfo);
+	if (ret)
+		return ret;
+
+	init_completion(&msginfo->waitevent);
+	msginfo->waiting_channel = channel;
+
+	gpadlmsg = (struct vmbus_channel_gpadl_header *)msginfo->msg;
+	gpadlmsg->header.msgtype = CHANNELMSG_GPADL_HEADER;
+	gpadlmsg->child_relid = channel->offermsg.child_relid;
+	gpadlmsg->gpadl = next_gpadl_handle;
+
+
+	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
+	list_add_tail(&msginfo->msglistentry,
+		      &vmbus_connection.chn_msg_list);
+
+	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
+
+	if (channel->rescind) {
+		ret = -ENODEV;
+		goto cleanup;
+	}
+
+	ret = vmbus_post_msg(gpadlmsg, msginfo->msgsize -
+			     sizeof(*msginfo), true);
+
+	trace_vmbus_establish_gpadl_header(gpadlmsg, ret);
+
+	if (ret != 0)
+		goto cleanup;
+
+	list_for_each(curr, &msginfo->submsglist) {
+		submsginfo = (struct vmbus_channel_msginfo *)curr;
+		gpadl_body =
+			(struct vmbus_channel_gpadl_body *)submsginfo->msg;
+
+		gpadl_body->header.msgtype =
+			CHANNELMSG_GPADL_BODY;
+		gpadl_body->gpadl = next_gpadl_handle;
+
+		ret = vmbus_post_msg(gpadl_body,
+				     submsginfo->msgsize - sizeof(*submsginfo),
+				     true);
+
+		trace_vmbus_establish_gpadl_body(gpadl_body, ret);
+
+		if (ret != 0)
+			goto cleanup;
+
+	}
+	wait_for_completion(&msginfo->waitevent);
+
+	if (msginfo->response.gpadl_created.creation_status != 0) {
+		pr_err("Failed to establish GPADL: err = 0x%x\n",
+		       msginfo->response.gpadl_created.creation_status);
+
+		ret = -EDQUOT;
+		goto cleanup;
+	}
+
+	if (channel->rescind) {
+		ret = -ENODEV;
+		goto cleanup;
+	}
+
+	/* At this point, we received the gpadl created msg */
+	*gpadl_handle = gpadlmsg->gpadl;
+
+cleanup:
+	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
+	list_del(&msginfo->msglistentry);
+	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
+	list_for_each_entry_safe(submsginfo, tmp, &msginfo->submsglist,
+				 msglistentry) {
+		kfree(submsginfo);
+	}
+
+	kfree(msginfo);
+	return ret;
+}
+
+/*
+ * vmbus_establish_gpadl - Establish a GPADL for the specified buffer
+ *
+ * @channel: a channel
+ * @kbuffer: from kmalloc or vmalloc
+ * @size: page-size multiple
+ * @gpadl_handle: some funky thing
+ */
+int vmbus_establish_gpadl(struct vmbus_channel *channel, void *kbuffer,
+			  u32 size, u32 *gpadl_handle)
+{
+	return __vmbus_establish_gpadl(channel, HV_GPADL_BUFFER, kbuffer, size,
+				       0U, gpadl_handle);
+}
+EXPORT_SYMBOL_GPL(vmbus_establish_gpadl);
+
 static int __vmbus_open(struct vmbus_channel *newchannel,
 		       void *userdata, u32 userdatalen,
 		       void (*onchannelcallback)(void *context), void *context)
@@ -148,10 +539,11 @@ static int __vmbus_open(struct vmbus_channel *newchannel,
 	/* Establish the gpadl for the ring buffer */
 	newchannel->ringbuffer_gpadlhandle = 0;
 
-	err = vmbus_establish_gpadl(newchannel,
-				    page_address(newchannel->ringbuffer_page),
-				    (send_pages + recv_pages) << PAGE_SHIFT,
-				    &newchannel->ringbuffer_gpadlhandle);
+	err = __vmbus_establish_gpadl(newchannel, HV_GPADL_RING,
+				      page_address(newchannel->ringbuffer_page),
+				      (send_pages + recv_pages) << PAGE_SHIFT,
+				      newchannel->ringbuffer_send_offset << PAGE_SHIFT,
+				      &newchannel->ringbuffer_gpadlhandle);
 	if (err)
 		goto error_clean_ring;
 
@@ -172,7 +564,13 @@ static int __vmbus_open(struct vmbus_channel *newchannel,
 	open_msg->openid = newchannel->offermsg.child_relid;
 	open_msg->child_relid = newchannel->offermsg.child_relid;
 	open_msg->ringbuffer_gpadlhandle = newchannel->ringbuffer_gpadlhandle;
-	open_msg->downstream_ringbuffer_pageoffset = newchannel->ringbuffer_send_offset;
+	/*
+	 * The unit of ->downstream_ringbuffer_pageoffset is HV_HYP_PAGE and
+	 * the unit of ->ringbuffer_send_offset (i.e. send_pages) is PAGE, so
+	 * here we calculate it into HV_HYP_PAGE.
+	 */
+	open_msg->downstream_ringbuffer_pageoffset =
+		hv_ring_gpadl_send_hvpgoffset(send_pages << PAGE_SHIFT);
 	open_msg->target_vp = hv_cpu_number_to_vp_number(newchannel->target_cpu);
 
 	if (userdatalen)
@@ -265,299 +663,6 @@ int vmbus_open(struct vmbus_channel *newchannel,
 	return err;
 }
 EXPORT_SYMBOL_GPL(vmbus_open);
-
-/* Used for Hyper-V Socket: a guest client's connect() to the host */
-int vmbus_send_tl_connect_request(const guid_t *shv_guest_servie_id,
-				  const guid_t *shv_host_servie_id)
-{
-	struct vmbus_channel_tl_connect_request conn_msg;
-	int ret;
-
-	memset(&conn_msg, 0, sizeof(conn_msg));
-	conn_msg.header.msgtype = CHANNELMSG_TL_CONNECT_REQUEST;
-	conn_msg.guest_endpoint_id = *shv_guest_servie_id;
-	conn_msg.host_service_id = *shv_host_servie_id;
-
-	ret = vmbus_post_msg(&conn_msg, sizeof(conn_msg), true);
-
-	trace_vmbus_send_tl_connect_request(&conn_msg, ret);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(vmbus_send_tl_connect_request);
-
-/*
- * Set/change the vCPU (@target_vp) the channel (@child_relid) will interrupt.
- *
- * CHANNELMSG_MODIFYCHANNEL messages are aynchronous.  Also, Hyper-V does not
- * ACK such messages.  IOW we can't know when the host will stop interrupting
- * the "old" vCPU and start interrupting the "new" vCPU for the given channel.
- *
- * The CHANNELMSG_MODIFYCHANNEL message type is supported since VMBus version
- * VERSION_WIN10_V4_1.
- */
-int vmbus_send_modifychannel(u32 child_relid, u32 target_vp)
-{
-	struct vmbus_channel_modifychannel conn_msg;
-	int ret;
-
-	memset(&conn_msg, 0, sizeof(conn_msg));
-	conn_msg.header.msgtype = CHANNELMSG_MODIFYCHANNEL;
-	conn_msg.child_relid = child_relid;
-	conn_msg.target_vp = target_vp;
-
-	ret = vmbus_post_msg(&conn_msg, sizeof(conn_msg), true);
-
-	trace_vmbus_send_modifychannel(&conn_msg, ret);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(vmbus_send_modifychannel);
-
-/*
- * create_gpadl_header - Creates a gpadl for the specified buffer
- */
-static int create_gpadl_header(void *kbuffer, u32 size,
-			       struct vmbus_channel_msginfo **msginfo)
-{
-	int i;
-	int pagecount;
-	struct vmbus_channel_gpadl_header *gpadl_header;
-	struct vmbus_channel_gpadl_body *gpadl_body;
-	struct vmbus_channel_msginfo *msgheader;
-	struct vmbus_channel_msginfo *msgbody = NULL;
-	u32 msgsize;
-
-	int pfnsum, pfncount, pfnleft, pfncurr, pfnsize;
-
-	pagecount = size >> PAGE_SHIFT;
-
-	/* do we need a gpadl body msg */
-	pfnsize = MAX_SIZE_CHANNEL_MESSAGE -
-		  sizeof(struct vmbus_channel_gpadl_header) -
-		  sizeof(struct gpa_range);
-	pfncount = pfnsize / sizeof(u64);
-
-	if (pagecount > pfncount) {
-		/* we need a gpadl body */
-		/* fill in the header */
-		msgsize = sizeof(struct vmbus_channel_msginfo) +
-			  sizeof(struct vmbus_channel_gpadl_header) +
-			  sizeof(struct gpa_range) + pfncount * sizeof(u64);
-		msgheader =  kzalloc(msgsize, GFP_KERNEL);
-		if (!msgheader)
-			goto nomem;
-
-		INIT_LIST_HEAD(&msgheader->submsglist);
-		msgheader->msgsize = msgsize;
-
-		gpadl_header = (struct vmbus_channel_gpadl_header *)
-			msgheader->msg;
-		gpadl_header->rangecount = 1;
-		gpadl_header->range_buflen = sizeof(struct gpa_range) +
-					 pagecount * sizeof(u64);
-		gpadl_header->range[0].byte_offset = 0;
-		gpadl_header->range[0].byte_count = size;
-		for (i = 0; i < pfncount; i++)
-			gpadl_header->range[0].pfn_array[i] = virt_to_hvpfn(
-				kbuffer + PAGE_SIZE * i);
-		*msginfo = msgheader;
-
-		pfnsum = pfncount;
-		pfnleft = pagecount - pfncount;
-
-		/* how many pfns can we fit */
-		pfnsize = MAX_SIZE_CHANNEL_MESSAGE -
-			  sizeof(struct vmbus_channel_gpadl_body);
-		pfncount = pfnsize / sizeof(u64);
-
-		/* fill in the body */
-		while (pfnleft) {
-			if (pfnleft > pfncount)
-				pfncurr = pfncount;
-			else
-				pfncurr = pfnleft;
-
-			msgsize = sizeof(struct vmbus_channel_msginfo) +
-				  sizeof(struct vmbus_channel_gpadl_body) +
-				  pfncurr * sizeof(u64);
-			msgbody = kzalloc(msgsize, GFP_KERNEL);
-
-			if (!msgbody) {
-				struct vmbus_channel_msginfo *pos = NULL;
-				struct vmbus_channel_msginfo *tmp = NULL;
-				/*
-				 * Free up all the allocated messages.
-				 */
-				list_for_each_entry_safe(pos, tmp,
-					&msgheader->submsglist,
-					msglistentry) {
-
-					list_del(&pos->msglistentry);
-					kfree(pos);
-				}
-
-				goto nomem;
-			}
-
-			msgbody->msgsize = msgsize;
-			gpadl_body =
-				(struct vmbus_channel_gpadl_body *)msgbody->msg;
-
-			/*
-			 * Gpadl is u32 and we are using a pointer which could
-			 * be 64-bit
-			 * This is governed by the guest/host protocol and
-			 * so the hypervisor guarantees that this is ok.
-			 */
-			for (i = 0; i < pfncurr; i++)
-				gpadl_body->pfn[i] = virt_to_hvpfn(
-					kbuffer + PAGE_SIZE * (pfnsum + i));
-
-			/* add to msg header */
-			list_add_tail(&msgbody->msglistentry,
-				      &msgheader->submsglist);
-			pfnsum += pfncurr;
-			pfnleft -= pfncurr;
-		}
-	} else {
-		/* everything fits in a header */
-		msgsize = sizeof(struct vmbus_channel_msginfo) +
-			  sizeof(struct vmbus_channel_gpadl_header) +
-			  sizeof(struct gpa_range) + pagecount * sizeof(u64);
-		msgheader = kzalloc(msgsize, GFP_KERNEL);
-		if (msgheader == NULL)
-			goto nomem;
-
-		INIT_LIST_HEAD(&msgheader->submsglist);
-		msgheader->msgsize = msgsize;
-
-		gpadl_header = (struct vmbus_channel_gpadl_header *)
-			msgheader->msg;
-		gpadl_header->rangecount = 1;
-		gpadl_header->range_buflen = sizeof(struct gpa_range) +
-					 pagecount * sizeof(u64);
-		gpadl_header->range[0].byte_offset = 0;
-		gpadl_header->range[0].byte_count = size;
-		for (i = 0; i < pagecount; i++)
-			gpadl_header->range[0].pfn_array[i] = virt_to_hvpfn(
-				kbuffer + PAGE_SIZE * i);
-
-		*msginfo = msgheader;
-	}
-
-	return 0;
-nomem:
-	kfree(msgheader);
-	kfree(msgbody);
-	return -ENOMEM;
-}
-
-/*
- * vmbus_establish_gpadl - Establish a GPADL for the specified buffer
- *
- * @channel: a channel
- * @kbuffer: from kmalloc or vmalloc
- * @size: page-size multiple
- * @gpadl_handle: some funky thing
- */
-int vmbus_establish_gpadl(struct vmbus_channel *channel, void *kbuffer,
-			       u32 size, u32 *gpadl_handle)
-{
-	struct vmbus_channel_gpadl_header *gpadlmsg;
-	struct vmbus_channel_gpadl_body *gpadl_body;
-	struct vmbus_channel_msginfo *msginfo = NULL;
-	struct vmbus_channel_msginfo *submsginfo, *tmp;
-	struct list_head *curr;
-	u32 next_gpadl_handle;
-	unsigned long flags;
-	int ret = 0;
-
-	next_gpadl_handle =
-		(atomic_inc_return(&vmbus_connection.next_gpadl_handle) - 1);
-
-	ret = create_gpadl_header(kbuffer, size, &msginfo);
-	if (ret)
-		return ret;
-
-	init_completion(&msginfo->waitevent);
-	msginfo->waiting_channel = channel;
-
-	gpadlmsg = (struct vmbus_channel_gpadl_header *)msginfo->msg;
-	gpadlmsg->header.msgtype = CHANNELMSG_GPADL_HEADER;
-	gpadlmsg->child_relid = channel->offermsg.child_relid;
-	gpadlmsg->gpadl = next_gpadl_handle;
-
-
-	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
-	list_add_tail(&msginfo->msglistentry,
-		      &vmbus_connection.chn_msg_list);
-
-	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
-
-	if (channel->rescind) {
-		ret = -ENODEV;
-		goto cleanup;
-	}
-
-	ret = vmbus_post_msg(gpadlmsg, msginfo->msgsize -
-			     sizeof(*msginfo), true);
-
-	trace_vmbus_establish_gpadl_header(gpadlmsg, ret);
-
-	if (ret != 0)
-		goto cleanup;
-
-	list_for_each(curr, &msginfo->submsglist) {
-		submsginfo = (struct vmbus_channel_msginfo *)curr;
-		gpadl_body =
-			(struct vmbus_channel_gpadl_body *)submsginfo->msg;
-
-		gpadl_body->header.msgtype =
-			CHANNELMSG_GPADL_BODY;
-		gpadl_body->gpadl = next_gpadl_handle;
-
-		ret = vmbus_post_msg(gpadl_body,
-				     submsginfo->msgsize - sizeof(*submsginfo),
-				     true);
-
-		trace_vmbus_establish_gpadl_body(gpadl_body, ret);
-
-		if (ret != 0)
-			goto cleanup;
-
-	}
-	wait_for_completion(&msginfo->waitevent);
-
-	if (msginfo->response.gpadl_created.creation_status != 0) {
-		pr_err("Failed to establish GPADL: err = 0x%x\n",
-		       msginfo->response.gpadl_created.creation_status);
-
-		ret = -EDQUOT;
-		goto cleanup;
-	}
-
-	if (channel->rescind) {
-		ret = -ENODEV;
-		goto cleanup;
-	}
-
-	/* At this point, we received the gpadl created msg */
-	*gpadl_handle = gpadlmsg->gpadl;
-
-cleanup:
-	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
-	list_del(&msginfo->msglistentry);
-	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
-	list_for_each_entry_safe(submsginfo, tmp, &msginfo->submsglist,
-				 msglistentry) {
-		kfree(submsginfo);
-	}
-
-	kfree(msginfo);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(vmbus_establish_gpadl);
 
 /*
  * vmbus_teardown_gpadl -Teardown the specified GPADL handle

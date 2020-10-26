@@ -47,16 +47,13 @@ static int sun4i_lvds_get_modes(struct drm_connector *connector)
 	return drm_panel_get_modes(lvds->panel, connector);
 }
 
-static struct drm_connector_helper_funcs sun4i_lvds_con_helper_funcs = {
+static const struct drm_connector_helper_funcs sun4i_lvds_con_helper_funcs = {
 	.get_modes	= sun4i_lvds_get_modes,
 };
 
 static void
 sun4i_lvds_connector_destroy(struct drm_connector *connector)
 {
-	struct sun4i_lvds *lvds = drm_connector_to_sun4i_lvds(connector);
-
-	drm_panel_detach(lvds->panel);
 	drm_connector_cleanup(connector);
 }
 
@@ -141,12 +138,6 @@ int sun4i_lvds_init(struct drm_device *drm, struct sun4i_tcon *tcon)
 
 		drm_connector_attach_encoder(&lvds->connector,
 						  &lvds->encoder);
-
-		ret = drm_panel_attach(lvds->panel, &lvds->connector);
-		if (ret) {
-			dev_err(drm->dev, "Couldn't attach our panel\n");
-			goto err_cleanup_connector;
-		}
 	}
 
 	if (bridge) {

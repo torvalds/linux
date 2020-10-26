@@ -13,12 +13,12 @@
 
 	aliases {
 		pinctrl0 = &pinctrl_0;
-		serial0 = &uart0;
-		serial1 = &uart1;
-		serial2 = &uart2;
+		serial0 = &uart_0;
+		serial1 = &uart_1;
+		serial2 = &uart_2;
 	};
 
-	intc:interrupt-controller@4a000000 {
+	intc: interrupt-controller@4a000000 {
 		compatible = "samsung,s3c2410-irq";
 		reg = <0x4a000000 0x100>;
 		interrupt-controller;
@@ -39,49 +39,49 @@
 		};
 	};
 
-	timer@51000000 {
+	timer: pwm@51000000 {
 		compatible = "samsung,s3c2410-pwm";
 		reg = <0x51000000 0x1000>;
 		interrupts = <0 0 10 3>, <0 0 11 3>, <0 0 12 3>, <0 0 13 3>, <0 0 14 3>;
-		#pwm-cells = <4>;
+		#pwm-cells = <3>;
 	};
 
-	uart0: serial@50000000 {
+	uart_0: serial@50000000 {
 		compatible = "samsung,s3c2410-uart";
 		reg = <0x50000000 0x4000>;
 		interrupts = <1 28 0 4>, <1 28 1 4>;
 		status = "disabled";
 	};
 
-	uart1: serial@50004000 {
+	uart_1: serial@50004000 {
 		compatible = "samsung,s3c2410-uart";
 		reg = <0x50004000 0x4000>;
 		interrupts = <1 23 3 4>, <1 23 4 4>;
 		status = "disabled";
 	};
 
-	uart2: serial@50008000 {
+	uart_2: serial@50008000 {
 		compatible = "samsung,s3c2410-uart";
 		reg = <0x50008000 0x4000>;
 		interrupts = <1 15 6 4>, <1 15 7 4>;
 		status = "disabled";
 	};
 
-	watchdog@53000000 {
+	watchdog: watchdog@53000000 {
 		compatible = "samsung,s3c2410-wdt";
 		reg = <0x53000000 0x100>;
 		interrupts = <0 0 9 3>;
 		status = "disabled";
 	};
 
-	rtc@57000000 {
+	rtc: rtc@57000000 {
 		compatible = "samsung,s3c2410-rtc";
 		reg = <0x57000000 0x100>;
 		interrupts = <0 0 30 3>, <0 0 8 3>;
 		status = "disabled";
 	};
 
-	i2c@54000000 {
+	i2c: i2c@54000000 {
 		compatible = "samsung,s3c2410-i2c";
 		reg = <0x54000000 0x100>;
 		interrupts = <0 0 27 3>;

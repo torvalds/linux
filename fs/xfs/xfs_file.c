@@ -32,6 +32,39 @@
 
 static const struct vm_operations_struct xfs_file_vm_ops;
 
+/*
+ * Decide if the given file range is aligned to the size of the fundamental
+ * allocation unit for the file.
+ */
+static bool
+xfs_is_falloc_aligned(
+	struct xfs_inode	*ip,
+	loff_t			pos,
+	long long int		len)
+{
+	struct xfs_mount	*mp = ip->i_mount;
+	uint64_t		mask;
+
+	if (XFS_IS_REALTIME_INODE(ip)) {
+		if (!is_power_of_2(mp->m_sb.sb_rextsize)) {
+			u64	rextbytes;
+			u32	mod;
+
+			rextbytes = XFS_FSB_TO_B(mp, mp->m_sb.sb_rextsize);
+			div_u64_rem(pos, rextbytes, &mod);
+			if (mod)
+				return false;
+			div_u64_rem(len, rextbytes, &mod);
+			return mod == 0;
+		}
+		mask = XFS_FSB_TO_B(mp, mp->m_sb.sb_rextsize) - 1;
+	} else {
+		mask = mp->m_sb.sb_blocksize - 1;
+	}
+
+	return !((pos | len) & mask);
+}
+
 int
 xfs_update_prealloc_flags(
 	struct xfs_inode	*ip,
@@ -850,9 +883,7 @@ xfs_file_fallocate(
 		if (error)
 			goto out_unlock;
 	} else if (mode & FALLOC_FL_COLLAPSE_RANGE) {
-		unsigned int blksize_mask = i_blocksize(inode) - 1;
-
-		if (offset & blksize_mask || len & blksize_mask) {
+		if (!xfs_is_falloc_aligned(ip, offset, len)) {
 			error = -EINVAL;
 			goto out_unlock;
 		}
@@ -872,10 +903,9 @@ xfs_file_fallocate(
 		if (error)
 			goto out_unlock;
 	} else if (mode & FALLOC_FL_INSERT_RANGE) {
-		unsigned int	blksize_mask = i_blocksize(inode) - 1;
 		loff_t		isize = i_size_read(inode);
 
-		if (offset & blksize_mask || len & blksize_mask) {
+		if (!xfs_is_falloc_aligned(ip, offset, len)) {
 			error = -EINVAL;
 			goto out_unlock;
 		}
@@ -1008,6 +1038,21 @@ xfs_file_fadvise(
 	return ret;
 }
 
+/* Does this file, inode, or mount want synchronous writes? */
+static inline bool xfs_file_sync_writes(struct file *filp)
+{
+	struct xfs_inode	*ip = XFS_I(file_inode(filp));
+
+	if (ip->i_mount->m_flags & XFS_MOUNT_WSYNC)
+		return true;
+	if (filp->f_flags & (__O_SYNC | O_DSYNC))
+		return true;
+	if (IS_SYNC(file_inode(filp)))
+		return true;
+
+	return false;
+}
+
 STATIC loff_t
 xfs_file_remap_range(
 	struct file		*file_in,
@@ -1065,7 +1110,7 @@ xfs_file_remap_range(
 	if (ret)
 		goto out_unlock;
 
-	if (mp->m_flags & XFS_MOUNT_WSYNC)
+	if (xfs_file_sync_writes(file_in) || xfs_file_sync_writes(file_out))
 		xfs_log_force_inode(dest);
 out_unlock:
 	xfs_iunlock2_io_mmap(src, dest);

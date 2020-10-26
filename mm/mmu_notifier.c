@@ -913,7 +913,7 @@ static int __mmu_interval_notifier_insert(
 		return -EOVERFLOW;
 
 	/* Must call with a mmget() held */
-	if (WARN_ON(atomic_read(&mm->mm_count) <= 0))
+	if (WARN_ON(atomic_read(&mm->mm_users) <= 0))
 		return -EINVAL;
 
 	/* pairs with mmdrop in mmu_interval_notifier_remove() */

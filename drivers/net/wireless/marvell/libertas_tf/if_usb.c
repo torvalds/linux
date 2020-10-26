@@ -50,7 +50,7 @@ static int if_usb_reset_device(struct lbtf_private *priv);
 /**
  *  if_usb_wrike_bulk_callback -  call back to handle URB status
  *
- *  @param urb		pointer to urb structure
+ *  @urb:		pointer to urb structure
  */
 static void if_usb_write_bulk_callback(struct urb *urb)
 {
@@ -67,7 +67,7 @@ static void if_usb_write_bulk_callback(struct urb *urb)
 /**
  *  if_usb_free - free tx/rx urb, skb and rx buffer
  *
- *  @param cardp	pointer if_usb_card
+ *  @cardp:	pointer if_usb_card
  */
 static void if_usb_free(struct if_usb_card *cardp)
 {
@@ -136,8 +136,8 @@ static const struct lbtf_ops if_usb_ops = {
 /**
  *  if_usb_probe - sets the configuration values
  *
- *  @ifnum	interface number
- *  @id		pointer to usb_device_id
+ *  @intf:	USB interface structure
+ *  @id:	pointer to usb_device_id
  *
  *  Returns: 0 on success, error code on failure
  */
@@ -238,7 +238,7 @@ lbtf_deb_leave(LBTF_DEB_MAIN);
 /**
  *  if_usb_disconnect -  free resource and cleanup
  *
- *  @intf	USB interface structure
+ *  @intf:	USB interface structure
  */
 static void if_usb_disconnect(struct usb_interface *intf)
 {
@@ -264,7 +264,7 @@ static void if_usb_disconnect(struct usb_interface *intf)
 /**
  *  if_usb_send_fw_pkt -  This function downloads the FW
  *
- *  @priv	pointer to struct lbtf_private
+ *  @cardp:	pointer if_usb_card
  *
  *  Returns: 0
  */
@@ -360,10 +360,10 @@ static int if_usb_reset_device(struct lbtf_private *priv)
 /**
  *  usb_tx_block - transfer data to the device
  *
- *  @priv	pointer to struct lbtf_private
- *  @payload	pointer to payload data
- *  @nb		data length
- *  @data	non-zero for data, zero for commands
+ *  @cardp:	pointer if_usb_card
+ *  @payload:	pointer to payload data
+ *  @nb:	data length
+ *  @data:	non-zero for data, zero for commands
  *
  *  Returns: 0 on success, nonzero otherwise.
  */
@@ -619,7 +619,7 @@ static inline void process_cmdrequest(int recvlength, uint8_t *recvbuff,
 /**
  *  if_usb_receive - read data received from the device.
  *
- *  @urb		pointer to struct urb
+ *  @urb:		pointer to struct urb
  */
 static void if_usb_receive(struct urb *urb)
 {
@@ -702,10 +702,10 @@ setup_for_next:
 /**
  *  if_usb_host_to_card -  Download data to the device
  *
- *  @priv		pointer to struct lbtf_private structure
- *  @type		type of data
- *  @buf		pointer to data buffer
- *  @len		number of bytes
+ *  @priv:		pointer to struct lbtf_private structure
+ *  @type:		type of data
+ *  @payload:		pointer to payload buffer
+ *  @nb:		number of bytes
  *
  *  Returns: 0 on success, nonzero otherwise
  */
@@ -734,7 +734,8 @@ static int if_usb_host_to_card(struct lbtf_private *priv, uint8_t type,
 /**
  *  if_usb_issue_boot_command - Issue boot command to Boot2.
  *
- *  @ivalue   1 boots from FW by USB-Download, 2 boots from FW in EEPROM.
+ *  @cardp:	pointer if_usb_card
+ *  @ivalue:   1 boots from FW by USB-Download, 2 boots from FW in EEPROM.
  *
  *  Returns: 0
  */
@@ -757,8 +758,8 @@ static int if_usb_issue_boot_command(struct if_usb_card *cardp, int ivalue)
 /**
  *  check_fwfile_format - Check the validity of Boot2/FW image.
  *
- *  @data	pointer to image
- *  @totlen	image length
+ *  @data:	pointer to image
+ *  @totlen:	image length
  *
  *  Returns: 0 if the image is valid, nonzero otherwise.
  */

@@ -569,7 +569,7 @@ static void kvmppc_set_msr_pr(struct kvm_vcpu *vcpu, u64 msr)
 #endif
 }
 
-void kvmppc_set_pvr_pr(struct kvm_vcpu *vcpu, u32 pvr)
+static void kvmppc_set_pvr_pr(struct kvm_vcpu *vcpu, u32 pvr)
 {
 	u32 host_pvr;
 

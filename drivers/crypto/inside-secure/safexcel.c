@@ -304,6 +304,11 @@ static void eip197_init_firmware(struct safexcel_crypto_priv *priv)
 		/* Enable access to all IFPP program memories */
 		writel(EIP197_PE_ICE_RAM_CTRL_FPP_PROG_EN,
 		       EIP197_PE(priv) + EIP197_PE_ICE_RAM_CTRL(pe));
+
+		/* bypass the OCE, if present */
+		if (priv->flags & EIP197_OCE)
+			writel(EIP197_DEBUG_OCE_BYPASS, EIP197_PE(priv) +
+							EIP197_PE_DEBUG(pe));
 	}
 
 }
@@ -1495,6 +1500,9 @@ static int safexcel_probe_generic(void *pdev,
 	hwopt = readl(EIP197_GLOBAL(priv) + EIP197_OPTIONS);
 	hiaopt = readl(EIP197_HIA_AIC(priv) + EIP197_HIA_OPTIONS);
 
+	priv->hwconfig.icever = 0;
+	priv->hwconfig.ocever = 0;
+	priv->hwconfig.psever = 0;
 	if (priv->flags & SAFEXCEL_HW_EIP197) {
 		/* EIP197 */
 		peopt = readl(EIP197_PE(priv) + EIP197_PE_OPTIONS(0));
@@ -1513,8 +1521,37 @@ static int safexcel_probe_generic(void *pdev,
 					    EIP197_N_RINGS_MASK;
 		if (hiaopt & EIP197_HIA_OPT_HAS_PE_ARB)
 			priv->flags |= EIP197_PE_ARB;
-		if (EIP206_OPT_ICE_TYPE(peopt) == 1)
+		if (EIP206_OPT_ICE_TYPE(peopt) == 1) {
 			priv->flags |= EIP197_ICE;
+			/* Detect ICE EIP207 class. engine and version */
+			version = readl(EIP197_PE(priv) +
+				  EIP197_PE_ICE_VERSION(0));
+			if (EIP197_REG_LO16(version) != EIP207_VERSION_LE) {
+				dev_err(dev, "EIP%d: ICE EIP207 not detected.\n",
+					peid);
+				return -ENODEV;
+			}
+			priv->hwconfig.icever = EIP197_VERSION_MASK(version);
+		}
+		if (EIP206_OPT_OCE_TYPE(peopt) == 1) {
+			priv->flags |= EIP197_OCE;
+			/* Detect EIP96PP packet stream editor and version */
+			version = readl(EIP197_PE(priv) + EIP197_PE_PSE_VERSION(0));
+			if (EIP197_REG_LO16(version) != EIP96_VERSION_LE) {
+				dev_err(dev, "EIP%d: EIP96PP not detected.\n", peid);
+				return -ENODEV;
+			}
+			priv->hwconfig.psever = EIP197_VERSION_MASK(version);
+			/* Detect OCE EIP207 class. engine and version */
+			version = readl(EIP197_PE(priv) +
+				  EIP197_PE_ICE_VERSION(0));
+			if (EIP197_REG_LO16(version) != EIP207_VERSION_LE) {
+				dev_err(dev, "EIP%d: OCE EIP207 not detected.\n",
+					peid);
+				return -ENODEV;
+			}
+			priv->hwconfig.ocever = EIP197_VERSION_MASK(version);
+		}
 		/* If not a full TRC, then assume simple TRC */
 		if (!(hwopt & EIP197_OPT_HAS_TRC))
 			priv->flags |= EIP197_SIMPLE_TRC;
@@ -1552,13 +1589,14 @@ static int safexcel_probe_generic(void *pdev,
 				    EIP197_PE_EIP96_OPTIONS(0));
 
 	/* Print single info line describing what we just detected */
-	dev_info(priv->dev, "EIP%d:%x(%d,%d,%d,%d)-HIA:%x(%d,%d,%d),PE:%x/%x,alg:%08x\n",
+	dev_info(priv->dev, "EIP%d:%x(%d,%d,%d,%d)-HIA:%x(%d,%d,%d),PE:%x/%x(alg:%08x)/%x/%x/%x\n",
 		 peid, priv->hwconfig.hwver, hwctg, priv->hwconfig.hwnumpes,
 		 priv->hwconfig.hwnumrings, priv->hwconfig.hwnumraic,
 		 priv->hwconfig.hiaver, priv->hwconfig.hwdataw,
 		 priv->hwconfig.hwcfsize, priv->hwconfig.hwrfsize,
 		 priv->hwconfig.ppver, priv->hwconfig.pever,
-		 priv->hwconfig.algo_flags);
+		 priv->hwconfig.algo_flags, priv->hwconfig.icever,
+		 priv->hwconfig.ocever, priv->hwconfig.psever);
 
 	safexcel_configure(priv);
 

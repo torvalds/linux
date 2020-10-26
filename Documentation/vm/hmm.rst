@@ -1,4 +1,4 @@
-.. hmm:
+.. _hmm:
 
 =====================================
 Heterogeneous Memory Management (HMM)
@@ -271,10 +271,139 @@ map those pages from the CPU side.
 Migration to and from device memory
 ===================================
 
-Because the CPU cannot access device memory, migration must use the device DMA
-engine to perform copy from and to device memory. For this we need to use
-migrate_vma_setup(), migrate_vma_pages(), and migrate_vma_finalize() helpers.
+Because the CPU cannot access device memory directly, the device driver must
+use hardware DMA or device specific load/store instructions to migrate data.
+The migrate_vma_setup(), migrate_vma_pages(), and migrate_vma_finalize()
+functions are designed to make drivers easier to write and to centralize common
+code across drivers.
 
+Before migrating pages to device private memory, special device private
+``struct page`` need to be created. These will be used as special "swap"
+page table entries so that a CPU process will fault if it tries to access
+a page that has been migrated to device private memory.
+
+These can be allocated and freed with::
+
+    struct resource *res;
+    struct dev_pagemap pagemap;
+
+    res = request_free_mem_region(&iomem_resource, /* number of bytes */,
+                                  "name of driver resource");
+    pagemap.type = MEMORY_DEVICE_PRIVATE;
+    pagemap.range.start = res->start;
+    pagemap.range.end = res->end;
+    pagemap.nr_range = 1;
+    pagemap.ops = &device_devmem_ops;
+    memremap_pages(&pagemap, numa_node_id());
+
+    memunmap_pages(&pagemap);
+    release_mem_region(pagemap.range.start, range_len(&pagemap.range));
+
+There are also devm_request_free_mem_region(), devm_memremap_pages(),
+devm_memunmap_pages(), and devm_release_mem_region() when the resources can
+be tied to a ``struct device``.
+
+The overall migration steps are similar to migrating NUMA pages within system
+memory (see :ref:`Page migration <page_migration>`) but the steps are split
+between device driver specific code and shared common code:
+
+1. ``mmap_read_lock()``
+
+   The device driver has to pass a ``struct vm_area_struct`` to
+   migrate_vma_setup() so the mmap_read_lock() or mmap_write_lock() needs to
+   be held for the duration of the migration.
+
+2. ``migrate_vma_setup(struct migrate_vma *args)``
+
+   The device driver initializes the ``struct migrate_vma`` fields and passes
+   the pointer to migrate_vma_setup(). The ``args->flags`` field is used to
+   filter which source pages should be migrated. For example, setting
+   ``MIGRATE_VMA_SELECT_SYSTEM`` will only migrate system memory and
+   ``MIGRATE_VMA_SELECT_DEVICE_PRIVATE`` will only migrate pages residing in
+   device private memory. If the latter flag is set, the ``args->pgmap_owner``
+   field is used to identify device private pages owned by the driver. This
+   avoids trying to migrate device private pages residing in other devices.
+   Currently only anonymous private VMA ranges can be migrated to or from
+   system memory and device private memory.
+
+   One of the first steps migrate_vma_setup() does is to invalidate other
+   device's MMUs with the ``mmu_notifier_invalidate_range_start(()`` and
+   ``mmu_notifier_invalidate_range_end()`` calls around the page table
+   walks to fill in the ``args->src`` array with PFNs to be migrated.
+   The ``invalidate_range_start()`` callback is passed a
+   ``struct mmu_notifier_range`` with the ``event`` field set to
+   ``MMU_NOTIFY_MIGRATE`` and the ``migrate_pgmap_owner`` field set to
+   the ``args->pgmap_owner`` field passed to migrate_vma_setup(). This is
+   allows the device driver to skip the invalidation callback and only
+   invalidate device private MMU mappings that are actually migrating.
+   This is explained more in the next section.
+
+   While walking the page tables, a ``pte_none()`` or ``is_zero_pfn()``
+   entry results in a valid "zero" PFN stored in the ``args->src`` array.
+   This lets the driver allocate device private memory and clear it instead
+   of copying a page of zeros. Valid PTE entries to system memory or
+   device private struct pages will be locked with ``lock_page()``, isolated
+   from the LRU (if system memory since device private pages are not on
+   the LRU), unmapped from the process, and a special migration PTE is
+   inserted in place of the original PTE.
+   migrate_vma_setup() also clears the ``args->dst`` array.
+
+3. The device driver allocates destination pages and copies source pages to
+   destination pages.
+
+   The driver checks each ``src`` entry to see if the ``MIGRATE_PFN_MIGRATE``
+   bit is set and skips entries that are not migrating. The device driver
+   can also choose to skip migrating a page by not filling in the ``dst``
+   array for that page.
+
+   The driver then allocates either a device private struct page or a
+   system memory page, locks the page with ``lock_page()``, and fills in the
+   ``dst`` array entry with::
+
+     dst[i] = migrate_pfn(page_to_pfn(dpage)) | MIGRATE_PFN_LOCKED;
+
+   Now that the driver knows that this page is being migrated, it can
+   invalidate device private MMU mappings and copy device private memory
+   to system memory or another device private page. The core Linux kernel
+   handles CPU page table invalidations so the device driver only has to
+   invalidate its own MMU mappings.
+
+   The driver can use ``migrate_pfn_to_page(src[i])`` to get the
+   ``struct page`` of the source and either copy the source page to the
+   destination or clear the destination device private memory if the pointer
+   is ``NULL`` meaning the source page was not populated in system memory.
+
+4. ``migrate_vma_pages()``
+
+   This step is where the migration is actually "committed".
+
+   If the source page was a ``pte_none()`` or ``is_zero_pfn()`` page, this
+   is where the newly allocated page is inserted into the CPU's page table.
+   This can fail if a CPU thread faults on the same page. However, the page
+   table is locked and only one of the new pages will be inserted.
+   The device driver will see that the ``MIGRATE_PFN_MIGRATE`` bit is cleared
+   if it loses the race.
+
+   If the source page was locked, isolated, etc. the source ``struct page``
+   information is now copied to destination ``struct page`` finalizing the
+   migration on the CPU side.
+
+5. Device driver updates device MMU page tables for pages still migrating,
+   rolling back pages not migrating.
+
+   If the ``src`` entry still has ``MIGRATE_PFN_MIGRATE`` bit set, the device
+   driver can update the device MMU and set the write enable bit if the
+   ``MIGRATE_PFN_WRITE`` bit is set.
+
+6. ``migrate_vma_finalize()``
+
+   This step replaces the special migration page table entry with the new
+   page's page table entry and releases the reference to the source and
+   destination ``struct page``.
+
+7. ``mmap_read_unlock()``
+
+   The lock can now be released.
 
 Memory cgroup (memcg) and rss accounting
 ========================================

@@ -316,7 +316,7 @@
 				};
 
 				pcie_reset_pins: pcie-reset-pins {
-					groups = "pcie1";
+					groups = "pcie1"; /* this actually controls "pcie1_reset" */
 					function = "gpio";
 				};
 

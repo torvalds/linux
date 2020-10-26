@@ -95,7 +95,6 @@ static int vti_rcv_cb(struct sk_buff *skb, int err)
 {
 	unsigned short family;
 	struct net_device *dev;
-	struct pcpu_sw_netstats *tstats;
 	struct xfrm_state *x;
 	const struct xfrm_mode *inner_mode;
 	struct ip_tunnel *tunnel = XFRM_TUNNEL_SKB_CB(skb)->tunnel.ip4;
@@ -138,13 +137,7 @@ static int vti_rcv_cb(struct sk_buff *skb, int err)
 
 	skb_scrub_packet(skb, !net_eq(tunnel->net, dev_net(skb->dev)));
 	skb->dev = dev;
-
-	tstats = this_cpu_ptr(dev->tstats);
-
-	u64_stats_update_begin(&tstats->syncp);
-	tstats->rx_packets++;
-	tstats->rx_bytes += skb->len;
-	u64_stats_update_end(&tstats->syncp);
+	dev_sw_netstats_rx_add(dev, skb->len);
 
 	return 0;
 }
@@ -490,12 +483,14 @@ static struct xfrm_tunnel vti_ipip_handler __read_mostly = {
 	.priority	=	0,
 };
 
+#if IS_ENABLED(CONFIG_IPV6)
 static struct xfrm_tunnel vti_ipip6_handler __read_mostly = {
 	.handler	=	vti_rcv_tunnel,
 	.cb_handler	=	vti_rcv_cb,
 	.err_handler	=	vti4_err,
 	.priority	=	0,
 };
+#endif
 #endif
 
 static int __net_init vti_init_net(struct net *net)

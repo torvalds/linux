@@ -15,7 +15,7 @@ the FPGA manager and bridges.  It will:
  * lock the mutex of the region's FPGA manager
  * build a list of FPGA bridges if a method has been specified to do so
  * disable the bridges
- * program the FPGA using info passed in :c:member:`fpga_region->info`.
+ * program the FPGA using info passed in :c:expr:`fpga_region->info`.
  * re-enable the bridges
  * release the locks
 

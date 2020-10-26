@@ -275,7 +275,7 @@ static int ath10k_vif_wow_set_wakeups(struct ath10k_vif *arvif,
 	switch (arvif->vdev_type) {
 	case WMI_VDEV_TYPE_IBSS:
 		__set_bit(WOW_BEACON_EVENT, &wow_mask);
-		 /* fall through */
+		fallthrough;
 	case WMI_VDEV_TYPE_AP:
 		__set_bit(WOW_DEAUTH_RECVD_EVENT, &wow_mask);
 		__set_bit(WOW_DISASSOC_RECVD_EVENT, &wow_mask);

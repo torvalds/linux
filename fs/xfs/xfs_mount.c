@@ -80,9 +80,9 @@ xfs_uuid_mount(
 	}
 
 	if (hole < 0) {
-		xfs_uuid_table = kmem_realloc(xfs_uuid_table,
+		xfs_uuid_table = krealloc(xfs_uuid_table,
 			(xfs_uuid_table_size + 1) * sizeof(*xfs_uuid_table),
-			0);
+			GFP_KERNEL | __GFP_NOFAIL);
 		hole = xfs_uuid_table_size++;
 	}
 	xfs_uuid_table[hole] = *uuid;
@@ -1059,11 +1059,12 @@ xfs_unmountfs(
 	 * We can potentially deadlock here if we have an inode cluster
 	 * that has been freed has its buffer still pinned in memory because
 	 * the transaction is still sitting in a iclog. The stale inodes
-	 * on that buffer will have their flush locks held until the
-	 * transaction hits the disk and the callbacks run. the inode
-	 * flush takes the flush lock unconditionally and with nothing to
-	 * push out the iclog we will never get that unlocked. hence we
-	 * need to force the log first.
+	 * on that buffer will be pinned to the buffer until the
+	 * transaction hits the disk and the callbacks run. Pushing the AIL will
+	 * skip the stale inodes and may never see the pinned buffer, so
+	 * nothing will push out the iclog and unpin the buffer. Hence we
+	 * need to force the log here to ensure all items are flushed into the
+	 * AIL before we go any further.
 	 */
 	xfs_log_force(mp, XFS_LOG_SYNC);
 
@@ -1286,23 +1287,6 @@ xfs_mod_frextents(
 		mp->m_sb.sb_frextents = lcounter;
 	spin_unlock(&mp->m_sb_lock);
 	return ret;
-}
-
-/*
- * xfs_getsb() is called to obtain the buffer for the superblock.
- * The buffer is returned locked and read in from disk.
- * The buffer should be released with a call to xfs_brelse().
- */
-struct xfs_buf *
-xfs_getsb(
-	struct xfs_mount	*mp)
-{
-	struct xfs_buf		*bp = mp->m_sb_bp;
-
-	xfs_buf_lock(bp);
-	xfs_buf_hold(bp);
-	ASSERT(bp->b_flags & XBF_DONE);
-	return bp;
 }
 
 /*

@@ -2,9 +2,7 @@
 config ATH11K
 	tristate "Qualcomm Technologies 802.11ax chipset support"
 	depends on MAC80211 && HAS_DMA
-	depends on REMOTEPROC
 	depends on CRYPTO_MICHAEL_MIC
-	depends on ARCH_QCOM || COMPILE_TEST
 	select ATH_COMMON
 	select QCOM_QMI_HELPERS
 	help
@@ -12,6 +10,22 @@ config ATH11K
 	  chipsets.
 
 	  If you choose to build a module, it'll be called ath11k.
+
+config ATH11K_AHB
+	tristate "Atheros ath11k AHB support"
+	depends on ATH11K
+	depends on REMOTEPROC
+	help
+	  This module adds support for AHB bus
+
+config ATH11K_PCI
+	tristate "Atheros ath11k PCI support"
+	depends on ATH11K && PCI
+	select MHI_BUS
+	select QRTR
+	select QRTR_MHI
+	help
+	  This module adds support for PCIE bus
 
 config ATH11K_DEBUG
 	bool "QCA ath11k debugging"

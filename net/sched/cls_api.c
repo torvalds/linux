@@ -3712,7 +3712,7 @@ int tc_setup_flow_action(struct flow_action *flow_action,
 			entry->gate.num_entries = tcf_gate_num_entries(act);
 			err = tcf_gate_get_entries(entry, act);
 			if (err)
-				goto err_out;
+				goto err_out_locked;
 		} else {
 			err = -EOPNOTSUPP;
 			goto err_out_locked;

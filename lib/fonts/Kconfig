@@ -119,6 +119,12 @@ config FONT_TER16x32
 	  This is the high resolution, large version for use with HiDPI screens.
 	  If the standard font is unreadable for you, say Y, otherwise say N.
 
+config FONT_6x8
+	bool "OLED 6x8 font" if FONTS
+	depends on FRAMEBUFFER_CONSOLE
+	help
+	  This font is useful for small displays (OLED).
+
 config FONT_AUTOSELECT
 	def_bool y
 	depends on !FONT_8x8
@@ -132,6 +138,7 @@ config FONT_AUTOSELECT
 	depends on !FONT_SUN12x22
 	depends on !FONT_10x18
 	depends on !FONT_TER16x32
+	depends on !FONT_6x8
 	select FONT_8x16
 
 endif # FONT_SUPPORT

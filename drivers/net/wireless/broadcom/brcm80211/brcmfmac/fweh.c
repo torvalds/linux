@@ -23,6 +23,7 @@
  * @ifidx: interface index related to this event.
  * @ifaddr: ethernet address for interface.
  * @emsg: common parameters of the firmware event message.
+ * @datalen: length of the data array
  * @data: event specific data part of the firmware event.
  */
 struct brcmf_fweh_queue_item {
@@ -35,7 +36,7 @@ struct brcmf_fweh_queue_item {
 	u8 data[];
 };
 
-/**
+/*
  * struct brcmf_fweh_event_name - code, name mapping entry.
  */
 struct brcmf_fweh_event_name {
@@ -118,8 +119,8 @@ static int brcmf_fweh_call_event_handler(struct brcmf_pub *drvr,
  * brcmf_fweh_handle_if_event() - handle IF event.
  *
  * @drvr: driver information object.
- * @item: queue entry.
- * @ifpp: interface object (may change upon ADD action).
+ * @emsg: event message object.
+ * @data: event object.
  */
 static void brcmf_fweh_handle_if_event(struct brcmf_pub *drvr,
 				       struct brcmf_event_msg *emsg,
@@ -128,7 +129,6 @@ static void brcmf_fweh_handle_if_event(struct brcmf_pub *drvr,
 	struct brcmf_if_event *ifevent = data;
 	struct brcmf_if *ifp;
 	bool is_p2pdev;
-	int err = 0;
 
 	brcmf_dbg(EVENT, "action: %u ifidx: %u bsscfgidx: %u flags: %u role: %u\n",
 		  ifevent->action, ifevent->ifidx, ifevent->bsscfgidx,
@@ -171,8 +171,8 @@ static void brcmf_fweh_handle_if_event(struct brcmf_pub *drvr,
 	if (ifp && ifevent->action == BRCMF_E_IF_CHANGE)
 		brcmf_proto_reset_if(drvr, ifp);
 
-	err = brcmf_fweh_call_event_handler(drvr, ifp, emsg->event_code, emsg,
-					    data);
+	brcmf_fweh_call_event_handler(drvr, ifp, emsg->event_code, emsg,
+				      data);
 
 	if (ifp && ifevent->action == BRCMF_E_IF_DEL) {
 		bool armed = brcmf_cfg80211_vif_event_armed(drvr->config);
@@ -304,10 +304,12 @@ void brcmf_fweh_detach(struct brcmf_pub *drvr)
 {
 	struct brcmf_fweh_info *fweh = &drvr->fweh;
 
-	/* cancel the worker */
-	cancel_work_sync(&fweh->event_work);
-	WARN_ON(!list_empty(&fweh->event_q));
-	memset(fweh->evt_handler, 0, sizeof(fweh->evt_handler));
+	/* cancel the worker if initialized */
+	if (fweh->event_work.func) {
+		cancel_work_sync(&fweh->event_work);
+		WARN_ON(!list_empty(&fweh->event_q));
+		memset(fweh->evt_handler, 0, sizeof(fweh->evt_handler));
+	}
 }
 
 /**
@@ -381,18 +383,18 @@ int brcmf_fweh_activate_events(struct brcmf_if *ifp)
  *
  * @drvr: driver information object.
  * @event_packet: event packet to process.
+ * @packet_len: length of the packet
  *
  * If the packet buffer contains a firmware event message it will
  * dispatch the event to a registered handler (using worker).
  */
 void brcmf_fweh_process_event(struct brcmf_pub *drvr,
 			      struct brcmf_event *event_packet,
-			      u32 packet_len)
+			      u32 packet_len, gfp_t gfp)
 {
 	enum brcmf_fweh_event_code code;
 	struct brcmf_fweh_info *fweh = &drvr->fweh;
 	struct brcmf_fweh_queue_item *event;
-	gfp_t alloc_flag = GFP_KERNEL;
 	void *data;
 	u32 datalen;
 
@@ -411,10 +413,7 @@ void brcmf_fweh_process_event(struct brcmf_pub *drvr,
 	    datalen + sizeof(*event_packet) > packet_len)
 		return;
 
-	if (in_interrupt())
-		alloc_flag = GFP_ATOMIC;
-
-	event = kzalloc(sizeof(*event) + datalen, alloc_flag);
+	event = kzalloc(sizeof(*event) + datalen, gfp);
 	if (!event)
 		return;
 

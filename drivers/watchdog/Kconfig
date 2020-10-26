@@ -340,6 +340,17 @@ config MLX_WDT
 	  To compile this driver as a module, choose M here: the
 	  module will be called mlx-wdt.
 
+config SL28CPLD_WATCHDOG
+	tristate "Kontron sl28cpld Watchdog"
+	depends on MFD_SL28CPLD || COMPILE_TEST
+	select WATCHDOG_CORE
+	help
+	  Say Y here to include support for the watchdog timer
+	  on the Kontron sl28 CPLD.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sl28cpld_wdt.
+
 # ALPHA Architecture
 
 # ARM Architecture
@@ -478,16 +489,10 @@ config IXP4XX_WATCHDOG
 
 	  Say N if you are unsure.
 
-config HAVE_S3C2410_WATCHDOG
-	bool
-	help
-	  This will include watchdog timer support for Samsung SoCs. If
-	  you want to include watchdog support for any machine, kindly
-	  select this in the respective mach-XXXX/Kconfig file.
-
 config S3C2410_WATCHDOG
 	tristate "S3C2410 Watchdog"
-	depends on HAVE_S3C2410_WATCHDOG || COMPILE_TEST
+	depends on ARCH_S3C24XX || ARCH_S3C64XX || ARCH_S5PV210 || ARCH_EXYNOS || \
+		   COMPILE_TEST
 	select WATCHDOG_CORE
 	select MFD_SYSCON if ARCH_EXYNOS
 	help
@@ -1003,6 +1008,14 @@ config PM8916_WATCHDOG
 	help
 	  Say Y here to include support watchdog timer embedded into the
 	  pm8916 module.
+
+config VISCONTI_WATCHDOG
+	tristate "Toshiba Visconti series watchdog support"
+	depends on ARCH_VISCONTI || COMPILE_TEST
+	select WATCHDOG_CORE
+	help
+	  Say Y here to include support for the watchdog timer in Toshiba
+	  Visconti SoCs.
 
 # X86 (i386 + ia64 + x86_64) Architecture
 

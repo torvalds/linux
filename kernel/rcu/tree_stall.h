@@ -158,7 +158,7 @@ static void rcu_stall_kick_kthreads(void)
 {
 	unsigned long j;
 
-	if (!rcu_kick_kthreads)
+	if (!READ_ONCE(rcu_kick_kthreads))
 		return;
 	j = READ_ONCE(rcu_state.jiffies_kick_kthreads);
 	if (time_after(jiffies, j) && rcu_state.gp_kthread &&
@@ -580,7 +580,7 @@ static void check_cpu_stall(struct rcu_data *rdp)
 	unsigned long js;
 	struct rcu_node *rnp;
 
-	if ((rcu_stall_is_suppressed() && !rcu_kick_kthreads) ||
+	if ((rcu_stall_is_suppressed() && !READ_ONCE(rcu_kick_kthreads)) ||
 	    !rcu_gp_in_progress())
 		return;
 	rcu_stall_kick_kthreads();
@@ -623,7 +623,7 @@ static void check_cpu_stall(struct rcu_data *rdp)
 
 		/* We haven't checked in, so go dump stack. */
 		print_cpu_stall(gps);
-		if (rcu_cpu_stall_ftrace_dump)
+		if (READ_ONCE(rcu_cpu_stall_ftrace_dump))
 			rcu_ftrace_dump(DUMP_ALL);
 
 	} else if (rcu_gp_in_progress() &&
@@ -632,7 +632,7 @@ static void check_cpu_stall(struct rcu_data *rdp)
 
 		/* They had a few time units to dump stack, so complain. */
 		print_other_cpu_stall(gs2, gps);
-		if (rcu_cpu_stall_ftrace_dump)
+		if (READ_ONCE(rcu_cpu_stall_ftrace_dump))
 			rcu_ftrace_dump(DUMP_ALL);
 	}
 }

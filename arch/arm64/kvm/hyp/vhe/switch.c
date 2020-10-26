@@ -28,6 +28,11 @@
 
 const char __hyp_panic_string[] = "HYP panic:\nPS:%08llx PC:%016llx ESR:%08llx\nFAR:%016llx HPFAR:%016llx PAR:%016llx\nVCPU:%p\n";
 
+/* VHE specific context */
+DEFINE_PER_CPU(struct kvm_host_data, kvm_host_data);
+DEFINE_PER_CPU(struct kvm_cpu_context, kvm_hyp_ctxt);
+DEFINE_PER_CPU(unsigned long, kvm_hyp_vector);
+
 static void __activate_traps(struct kvm_vcpu *vcpu)
 {
 	u64 val;
@@ -59,7 +64,7 @@ static void __activate_traps(struct kvm_vcpu *vcpu)
 
 	write_sysreg(val, cpacr_el1);
 
-	write_sysreg(kvm_get_hyp_vector(), vbar_el1);
+	write_sysreg(__this_cpu_read(kvm_hyp_vector), vbar_el1);
 }
 NOKPROBE_SYMBOL(__activate_traps);
 
@@ -108,7 +113,7 @@ static int __kvm_vcpu_run_vhe(struct kvm_vcpu *vcpu)
 	struct kvm_cpu_context *guest_ctxt;
 	u64 exit_code;
 
-	host_ctxt = &__hyp_this_cpu_ptr(kvm_host_data)->host_ctxt;
+	host_ctxt = &this_cpu_ptr(&kvm_host_data)->host_ctxt;
 	host_ctxt->__hyp_running_vcpu = vcpu;
 	guest_ctxt = &vcpu->arch.ctxt;
 
@@ -120,27 +125,23 @@ static int __kvm_vcpu_run_vhe(struct kvm_vcpu *vcpu)
 	 * HCR_EL2.TGE.
 	 *
 	 * We have already configured the guest's stage 1 translation in
-	 * kvm_vcpu_load_sysregs_vhe above.  We must now call __activate_vm
-	 * before __activate_traps, because __activate_vm configures
-	 * stage 2 translation, and __activate_traps clear HCR_EL2.TGE
-	 * (among other things).
+	 * kvm_vcpu_load_sysregs_vhe above.  We must now call
+	 * __load_guest_stage2 before __activate_traps, because
+	 * __load_guest_stage2 configures stage 2 translation, and
+	 * __activate_traps clear HCR_EL2.TGE (among other things).
 	 */
-	__activate_vm(vcpu->arch.hw_mmu);
+	__load_guest_stage2(vcpu->arch.hw_mmu);
 	__activate_traps(vcpu);
 
 	sysreg_restore_guest_state_vhe(guest_ctxt);
 	__debug_switch_to_guest(vcpu);
 
-	__set_guest_arch_workaround_state(vcpu);
-
 	do {
 		/* Jump in the fire! */
-		exit_code = __guest_enter(vcpu, host_ctxt);
+		exit_code = __guest_enter(vcpu);
 
 		/* And we're baaack! */
 	} while (fixup_guest_exit(vcpu, &exit_code));
-
-	__set_host_arch_workaround_state(vcpu);
 
 	sysreg_save_guest_state_vhe(guest_ctxt);
 
@@ -192,10 +193,12 @@ int __kvm_vcpu_run(struct kvm_vcpu *vcpu)
 	return ret;
 }
 
-static void __hyp_call_panic(u64 spsr, u64 elr, u64 par,
-			     struct kvm_cpu_context *host_ctxt)
+static void __hyp_call_panic(u64 spsr, u64 elr, u64 par)
 {
+	struct kvm_cpu_context *host_ctxt;
 	struct kvm_vcpu *vcpu;
+
+	host_ctxt = &this_cpu_ptr(&kvm_host_data)->host_ctxt;
 	vcpu = host_ctxt->__hyp_running_vcpu;
 
 	__deactivate_traps(vcpu);
@@ -208,13 +211,13 @@ static void __hyp_call_panic(u64 spsr, u64 elr, u64 par,
 }
 NOKPROBE_SYMBOL(__hyp_call_panic);
 
-void __noreturn hyp_panic(struct kvm_cpu_context *host_ctxt)
+void __noreturn hyp_panic(void)
 {
 	u64 spsr = read_sysreg_el2(SYS_SPSR);
 	u64 elr = read_sysreg_el2(SYS_ELR);
 	u64 par = read_sysreg(par_el1);
 
-	__hyp_call_panic(spsr, elr, par, host_ctxt);
+	__hyp_call_panic(spsr, elr, par);
 	unreachable();
 }
 

@@ -173,7 +173,7 @@ static int st_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	return 0;
 }
 
-static struct rtc_class_ops st_rtc_ops = {
+static const struct rtc_class_ops st_rtc_ops = {
 	.read_time		= st_rtc_read_time,
 	.set_time		= st_rtc_set_time,
 	.read_alarm		= st_rtc_read_alarm,

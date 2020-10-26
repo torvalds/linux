@@ -10,7 +10,7 @@
 #include <linux/clk-provider.h>
 #include <linux/clk.h>
 #include <linux/clkdev.h>
-#include <linux/dma-contiguous.h>
+#include <linux/dma-map-ops.h>
 #include <linux/dmaengine.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -884,6 +884,7 @@ early_param("rproc_mem", early_rproc_mem);
 
 void __init da8xx_rproc_reserve_cma(void)
 {
+	struct cma *cma;
 	int ret;
 
 	if (!rproc_base || !rproc_size) {
@@ -897,13 +898,16 @@ void __init da8xx_rproc_reserve_cma(void)
 	pr_info("%s: reserving 0x%lx @ 0x%lx...\n",
 		__func__, rproc_size, (unsigned long)rproc_base);
 
-	ret = dma_declare_contiguous(&da8xx_dsp.dev, rproc_size, rproc_base, 0);
-	if (ret)
-		pr_err("%s: dma_declare_contiguous failed %d\n", __func__, ret);
-	else
-		rproc_mem_inited = true;
+	ret = dma_contiguous_reserve_area(rproc_size, rproc_base, 0, &cma,
+			true);
+	if (ret) {
+		pr_err("%s: dma_contiguous_reserve_area failed %d\n",
+			__func__, ret);
+		return;
+	}
+	da8xx_dsp.dev.cma_area = cma;
+	rproc_mem_inited = true;
 }
-
 #else
 
 void __init da8xx_rproc_reserve_cma(void)

@@ -1019,7 +1019,8 @@ static void xfrm_state_look_at(struct xfrm_policy *pol, struct xfrm_state *x,
 	 */
 	if (x->km.state == XFRM_STATE_VALID) {
 		if ((x->sel.family &&
-		     !xfrm_selector_match(&x->sel, fl, x->sel.family)) ||
+		     (x->sel.family != family ||
+		      !xfrm_selector_match(&x->sel, fl, family))) ||
 		    !security_xfrm_state_pol_flow_match(x, pol, fl))
 			return;
 
@@ -1032,7 +1033,9 @@ static void xfrm_state_look_at(struct xfrm_policy *pol, struct xfrm_state *x,
 		*acq_in_progress = 1;
 	} else if (x->km.state == XFRM_STATE_ERROR ||
 		   x->km.state == XFRM_STATE_EXPIRED) {
-		if (xfrm_selector_match(&x->sel, fl, x->sel.family) &&
+		if ((!x->sel.family ||
+		     (x->sel.family == family &&
+		      xfrm_selector_match(&x->sel, fl, family))) &&
 		    security_xfrm_state_pol_flow_match(x, pol, fl))
 			*error = -ESRCH;
 	}
@@ -1072,7 +1075,7 @@ xfrm_state_find(const xfrm_address_t *daddr, const xfrm_address_t *saddr,
 		    tmpl->mode == x->props.mode &&
 		    tmpl->id.proto == x->id.proto &&
 		    (tmpl->id.spi == x->id.spi || !tmpl->id.spi))
-			xfrm_state_look_at(pol, x, fl, encap_family,
+			xfrm_state_look_at(pol, x, fl, family,
 					   &best, &acquire_in_progress, &error);
 	}
 	if (best || acquire_in_progress)
@@ -1089,7 +1092,7 @@ xfrm_state_find(const xfrm_address_t *daddr, const xfrm_address_t *saddr,
 		    tmpl->mode == x->props.mode &&
 		    tmpl->id.proto == x->id.proto &&
 		    (tmpl->id.spi == x->id.spi || !tmpl->id.spi))
-			xfrm_state_look_at(pol, x, fl, encap_family,
+			xfrm_state_look_at(pol, x, fl, family,
 					   &best, &acquire_in_progress, &error);
 	}
 
@@ -1441,6 +1444,30 @@ out:
 EXPORT_SYMBOL(xfrm_state_add);
 
 #ifdef CONFIG_XFRM_MIGRATE
+static inline int clone_security(struct xfrm_state *x, struct xfrm_sec_ctx *security)
+{
+	struct xfrm_user_sec_ctx *uctx;
+	int size = sizeof(*uctx) + security->ctx_len;
+	int err;
+
+	uctx = kmalloc(size, GFP_KERNEL);
+	if (!uctx)
+		return -ENOMEM;
+
+	uctx->exttype = XFRMA_SEC_CTX;
+	uctx->len = size;
+	uctx->ctx_doi = security->ctx_doi;
+	uctx->ctx_alg = security->ctx_alg;
+	uctx->ctx_len = security->ctx_len;
+	memcpy(uctx + 1, security->ctx_str, security->ctx_len);
+	err = security_xfrm_state_alloc(x, uctx);
+	kfree(uctx);
+	if (err)
+		return err;
+
+	return 0;
+}
+
 static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig,
 					   struct xfrm_encap_tmpl *encap)
 {
@@ -1497,6 +1524,10 @@ static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig,
 			goto error;
 	}
 
+	if (orig->security)
+		if (clone_security(x, orig->security))
+			goto error;
+
 	if (orig->coaddr) {
 		x->coaddr = kmemdup(orig->coaddr, sizeof(*x->coaddr),
 				    GFP_KERNEL);
@@ -1510,6 +1541,7 @@ static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig,
 	}
 
 	memcpy(&x->mark, &orig->mark, sizeof(x->mark));
+	memcpy(&x->props.smark, &orig->props.smark, sizeof(x->props.smark));
 
 	if (xfrm_init_state(x) < 0)
 		goto error;
@@ -1521,7 +1553,7 @@ static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig,
 	x->tfcpad = orig->tfcpad;
 	x->replay_maxdiff = orig->replay_maxdiff;
 	x->replay_maxage = orig->replay_maxage;
-	x->curlft.add_time = orig->curlft.add_time;
+	memcpy(&x->curlft, &orig->curlft, sizeof(x->curlft));
 	x->km.state = orig->km.state;
 	x->km.seq = orig->km.seq;
 	x->replay = orig->replay;
@@ -2264,15 +2296,72 @@ static bool km_is_alive(const struct km_event *c)
 	return is_alive;
 }
 
+#if IS_ENABLED(CONFIG_XFRM_USER_COMPAT)
+static DEFINE_SPINLOCK(xfrm_translator_lock);
+static struct xfrm_translator __rcu *xfrm_translator;
+
+struct xfrm_translator *xfrm_get_translator(void)
+{
+	struct xfrm_translator *xtr;
+
+	rcu_read_lock();
+	xtr = rcu_dereference(xfrm_translator);
+	if (unlikely(!xtr))
+		goto out;
+	if (!try_module_get(xtr->owner))
+		xtr = NULL;
+out:
+	rcu_read_unlock();
+	return xtr;
+}
+EXPORT_SYMBOL_GPL(xfrm_get_translator);
+
+void xfrm_put_translator(struct xfrm_translator *xtr)
+{
+	module_put(xtr->owner);
+}
+EXPORT_SYMBOL_GPL(xfrm_put_translator);
+
+int xfrm_register_translator(struct xfrm_translator *xtr)
+{
+	int err = 0;
+
+	spin_lock_bh(&xfrm_translator_lock);
+	if (unlikely(xfrm_translator != NULL))
+		err = -EEXIST;
+	else
+		rcu_assign_pointer(xfrm_translator, xtr);
+	spin_unlock_bh(&xfrm_translator_lock);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(xfrm_register_translator);
+
+int xfrm_unregister_translator(struct xfrm_translator *xtr)
+{
+	int err = 0;
+
+	spin_lock_bh(&xfrm_translator_lock);
+	if (likely(xfrm_translator != NULL)) {
+		if (rcu_access_pointer(xfrm_translator) != xtr)
+			err = -EINVAL;
+		else
+			RCU_INIT_POINTER(xfrm_translator, NULL);
+	}
+	spin_unlock_bh(&xfrm_translator_lock);
+	synchronize_rcu();
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(xfrm_unregister_translator);
+#endif
+
 int xfrm_user_policy(struct sock *sk, int optname, sockptr_t optval, int optlen)
 {
 	int err;
 	u8 *data;
 	struct xfrm_mgr *km;
 	struct xfrm_policy *pol = NULL;
-
-	if (in_compat_syscall())
-		return -EOPNOTSUPP;
 
 	if (sockptr_is_null(optval) && !optlen) {
 		xfrm_sk_policy_insert(sk, XFRM_POLICY_IN, NULL);
@@ -2287,6 +2376,20 @@ int xfrm_user_policy(struct sock *sk, int optname, sockptr_t optval, int optlen)
 	data = memdup_sockptr(optval, optlen);
 	if (IS_ERR(data))
 		return PTR_ERR(data);
+
+	if (in_compat_syscall()) {
+		struct xfrm_translator *xtr = xfrm_get_translator();
+
+		if (!xtr)
+			return -EOPNOTSUPP;
+
+		err = xtr->xlate_user_policy_sockptr(&data, optlen);
+		xfrm_put_translator(xtr);
+		if (err) {
+			kfree(data);
+			return err;
+		}
+	}
 
 	err = -EINVAL;
 	rcu_read_lock();

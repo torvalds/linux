@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
+#include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 
@@ -768,7 +769,7 @@ static const struct sunxi_engine_ops sun4i_backend_engine_ops = {
 	.vblank_quirk			= sun4i_backend_vblank_quirk,
 };
 
-static struct regmap_config sun4i_backend_regmap_config = {
+static const struct regmap_config sun4i_backend_regmap_config = {
 	.reg_bits	= 32,
 	.val_bits	= 32,
 	.reg_stride	= 4,
@@ -810,8 +811,13 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 		 * because of an old DT, we need to set the DMA offset by hand
 		 * on our device since the RAM mapping is at 0 for the DMA bus,
 		 * unlike the CPU.
+		 *
+		 * XXX(hch): this has no business in a driver and needs to move
+		 * to the device tree.
 		 */
-		drm->dev->dma_pfn_offset = PHYS_PFN_OFFSET;
+		ret = dma_direct_set_offset(drm->dev, PHYS_OFFSET, 0, SZ_4G);
+		if (ret)
+			return ret;
 	}
 
 	backend->engine.node = dev->of_node;

@@ -1037,6 +1037,11 @@ static const struct usb_device_id id_table_combined[] = {
 	/* U-Blox devices */
 	{ USB_DEVICE(UBLOX_VID, UBLOX_C099F9P_ZED_PID) },
 	{ USB_DEVICE(UBLOX_VID, UBLOX_C099F9P_ODIN_PID) },
+	/* FreeCalypso USB adapters */
+	{ USB_DEVICE(FTDI_VID, FTDI_FALCONIA_JTAG_BUF_PID),
+		.driver_info = (kernel_ulong_t)&ftdi_jtag_quirk },
+	{ USB_DEVICE(FTDI_VID, FTDI_FALCONIA_JTAG_UNBUF_PID),
+		.driver_info = (kernel_ulong_t)&ftdi_jtag_quirk },
 	{ }					/* Terminating entry */
 };
 
@@ -1566,7 +1571,8 @@ static void ftdi_determine_type(struct usb_serial_port *port)
 	dev_dbg(&port->dev, "%s: bcdDevice = 0x%x, bNumInterfaces = %u\n", __func__,
 		version, interfaces);
 	if (interfaces > 1) {
-		int inter;
+		struct usb_interface *intf = serial->interface;
+		int ifnum = intf->cur_altsetting->desc.bInterfaceNumber;
 
 		/* Multiple interfaces.*/
 		if (version == 0x0800) {
@@ -1581,16 +1587,15 @@ static void ftdi_determine_type(struct usb_serial_port *port)
 			priv->chip_type = FT2232C;
 
 		/* Determine interface code. */
-		inter = serial->interface->altsetting->desc.bInterfaceNumber;
-		if (inter == 0) {
+		if (ifnum == 0)
 			priv->interface = INTERFACE_A;
-		} else  if (inter == 1) {
+		else if (ifnum == 1)
 			priv->interface = INTERFACE_B;
-		} else  if (inter == 2) {
+		else if (ifnum == 2)
 			priv->interface = INTERFACE_C;
-		} else  if (inter == 3) {
+		else if (ifnum == 3)
 			priv->interface = INTERFACE_D;
-		}
+
 		/* BM-type devices have a bug where bcdDevice gets set
 		 * to 0x200 when iSerialNumber is 0.  */
 		if (version < 0x500) {
@@ -2330,12 +2335,11 @@ static int ftdi_NDI_device_setup(struct usb_serial *serial)
  */
 static int ftdi_jtag_probe(struct usb_serial *serial)
 {
-	struct usb_device *udev = serial->dev;
-	struct usb_interface *interface = serial->interface;
+	struct usb_interface *intf = serial->interface;
+	int ifnum = intf->cur_altsetting->desc.bInterfaceNumber;
 
-	if (interface == udev->actconfig->interface[0]) {
-		dev_info(&udev->dev,
-			 "Ignoring serial port reserved for JTAG\n");
+	if (ifnum == 0) {
+		dev_info(&intf->dev, "Ignoring interface reserved for JTAG\n");
 		return -ENODEV;
 	}
 
@@ -2367,12 +2371,11 @@ static int ftdi_8u2232c_probe(struct usb_serial *serial)
  */
 static int ftdi_stmclite_probe(struct usb_serial *serial)
 {
-	struct usb_device *udev = serial->dev;
-	struct usb_interface *interface = serial->interface;
+	struct usb_interface *intf = serial->interface;
+	int ifnum = intf->cur_altsetting->desc.bInterfaceNumber;
 
-	if (interface == udev->actconfig->interface[0] ||
-	    interface == udev->actconfig->interface[1]) {
-		dev_info(&udev->dev, "Ignoring serial port reserved for JTAG\n");
+	if (ifnum < 2) {
+		dev_info(&intf->dev, "Ignoring interface reserved for JTAG\n");
 		return -ENODEV;
 	}
 

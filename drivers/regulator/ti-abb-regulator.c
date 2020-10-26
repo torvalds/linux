@@ -619,7 +619,7 @@ check_abb:
 	return 0;
 }
 
-static struct regulator_ops ti_abb_reg_ops = {
+static const struct regulator_ops ti_abb_reg_ops = {
 	.list_voltage = regulator_list_voltage_table,
 
 	.set_voltage_sel = ti_abb_set_voltage_sel,

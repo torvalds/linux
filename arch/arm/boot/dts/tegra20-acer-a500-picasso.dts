@@ -14,6 +14,10 @@
 	compatible = "acer,picasso", "nvidia,tegra20";
 
 	aliases {
+		mmc0 = &sdmmc4; /* eMMC */
+		mmc1 = &sdmmc3; /* MicroSD */
+		mmc2 = &sdmmc1; /* WiFi */
+
 		rtc0 = &pmic;
 		rtc1 = "/rtc@7000e000";
 
@@ -314,16 +318,24 @@
 				nvidia,pins = "drive_ddc",
 						"drive_vi1",
 						"drive_sdio1";
+				nvidia,pull-up-strength = <31>;
+				nvidia,pull-down-strength = <31>;
 				nvidia,schmitt = <TEGRA_PIN_ENABLE>;
-				nvidia,low-power-mode = <TEGRA_PIN_LP_DRIVE_DIV_4>;
+				nvidia,high-speed-mode = <TEGRA_PIN_DISABLE>;
+				nvidia,low-power-mode = <TEGRA_PIN_LP_DRIVE_DIV_1>;
+				nvidia,slew-rate-rising = <TEGRA_PIN_SLEW_RATE_SLOWEST>;
+				nvidia,slew-rate-falling = <TEGRA_PIN_SLEW_RATE_SLOWEST>;
 			};
 			drive_dbg {
 				nvidia,pins = "drive_dbg",
 						"drive_vi2",
 						"drive_at1",
 						"drive_ao1";
+				nvidia,pull-up-strength = <31>;
+				nvidia,pull-down-strength = <31>;
 				nvidia,schmitt = <TEGRA_PIN_ENABLE>;
-				nvidia,low-power-mode = <TEGRA_PIN_LP_DRIVE_DIV_4>;
+				nvidia,high-speed-mode = <TEGRA_PIN_DISABLE>;
+				nvidia,low-power-mode = <TEGRA_PIN_LP_DRIVE_DIV_1>;
 				nvidia,slew-rate-rising = <TEGRA_PIN_SLEW_RATE_FASTEST>;
 				nvidia,slew-rate-falling = <TEGRA_PIN_SLEW_RATE_FASTEST>;
 			};
@@ -430,8 +442,6 @@
 		touchscreen@4c {
 			compatible = "atmel,maxtouch";
 			reg = <0x4c>;
-
-			atmel,cfg_name = "maxtouch-acer-iconia-tab-a500.cfg";
 
 			interrupt-parent = <&gpio>;
 			interrupts = <TEGRA_GPIO(V, 6) IRQ_TYPE_LEVEL_LOW>;
@@ -720,13 +730,17 @@
 		power-off-delay-us = <300>;
 	};
 
-	mmc@c8000000 {
+	sdmmc1: mmc@c8000000 {
 		status = "okay";
 
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		max-frequency = <25000000>;
+		assigned-clocks = <&tegra_car TEGRA20_CLK_SDMMC1>;
+		assigned-clock-parents = <&tegra_car TEGRA20_CLK_PLL_C>;
+		assigned-clock-rates = <50000000>;
+
+		max-frequency = <50000000>;
 		keep-power-in-suspend;
 		bus-width = <4>;
 		non-removable;
@@ -745,7 +759,7 @@
 		};
 	};
 
-	mmc@c8000400 {
+	sdmmc3: mmc@c8000400 {
 		status = "okay";
 		bus-width = <4>;
 		cd-gpios = <&gpio TEGRA_GPIO(I, 5) GPIO_ACTIVE_LOW>;
@@ -754,7 +768,7 @@
 		vqmmc-supply = <&vdd_3v3_sys>;
 	};
 
-	mmc@c8000600 {
+	sdmmc4: mmc@c8000600 {
 		status = "okay";
 		bus-width = <8>;
 		vmmc-supply = <&vcore_emmc>;

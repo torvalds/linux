@@ -2,6 +2,7 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include <stdlib.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <getopt.h>

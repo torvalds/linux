@@ -61,6 +61,8 @@ required:
   - sharp,proximity-far-hysteresis
   - sharp,proximity-close-hysteresis
 
+additionalProperties: false
+
 examples:
   - |
     #include <dt-bindings/interrupt-controller/irq.h>

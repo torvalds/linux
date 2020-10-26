@@ -174,8 +174,9 @@ struct bpf_link_create_opts {
 	__u32 flags;
 	union bpf_iter_link_info *iter_info;
 	__u32 iter_info_len;
+	__u32 target_btf_id;
 };
-#define bpf_link_create_opts__last_field iter_info_len
+#define bpf_link_create_opts__last_field target_btf_id
 
 LIBBPF_API int bpf_link_create(int prog_fd, int target_fd,
 			       enum bpf_attach_type attach_type,
@@ -234,7 +235,7 @@ LIBBPF_API int bpf_prog_query(int target_fd, enum bpf_attach_type type,
 			      __u32 query_flags, __u32 *attach_flags,
 			      __u32 *prog_ids, __u32 *prog_cnt);
 LIBBPF_API int bpf_raw_tracepoint_open(const char *name, int prog_fd);
-LIBBPF_API int bpf_load_btf(void *btf, __u32 btf_size, char *log_buf,
+LIBBPF_API int bpf_load_btf(const void *btf, __u32 btf_size, char *log_buf,
 			    __u32 log_buf_size, bool do_log);
 LIBBPF_API int bpf_task_fd_query(int pid, int fd, __u32 flags, char *buf,
 				 __u32 *buf_len, __u32 *prog_id, __u32 *fd_type,
@@ -242,6 +243,40 @@ LIBBPF_API int bpf_task_fd_query(int pid, int fd, __u32 flags, char *buf,
 
 enum bpf_stats_type; /* defined in up-to-date linux/bpf.h */
 LIBBPF_API int bpf_enable_stats(enum bpf_stats_type type);
+
+struct bpf_prog_bind_opts {
+	size_t sz; /* size of this struct for forward/backward compatibility */
+	__u32 flags;
+};
+#define bpf_prog_bind_opts__last_field flags
+
+LIBBPF_API int bpf_prog_bind_map(int prog_fd, int map_fd,
+				 const struct bpf_prog_bind_opts *opts);
+
+struct bpf_test_run_opts {
+	size_t sz; /* size of this struct for forward/backward compatibility */
+	const void *data_in; /* optional */
+	void *data_out;      /* optional */
+	__u32 data_size_in;
+	__u32 data_size_out; /* in: max length of data_out
+			      * out: length of data_out
+			      */
+	const void *ctx_in; /* optional */
+	void *ctx_out;      /* optional */
+	__u32 ctx_size_in;
+	__u32 ctx_size_out; /* in: max length of ctx_out
+			     * out: length of cxt_out
+			     */
+	__u32 retval;        /* out: return code of the BPF program */
+	int repeat;
+	__u32 duration;      /* out: average per repetition in ns */
+	__u32 flags;
+	__u32 cpu;
+};
+#define bpf_test_run_opts__last_field cpu
+
+LIBBPF_API int bpf_prog_test_run_opts(int prog_fd,
+				      struct bpf_test_run_opts *opts);
 
 #ifdef __cplusplus
 } /* extern "C" */

@@ -1647,17 +1647,13 @@ int ipoib_cm_dev_init(struct net_device *dev)
 void ipoib_cm_dev_cleanup(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
-	int ret;
 
 	if (!priv->cm.srq)
 		return;
 
 	ipoib_dbg(priv, "Cleanup ipoib connected mode.\n");
 
-	ret = ib_destroy_srq(priv->cm.srq);
-	if (ret)
-		ipoib_warn(priv, "ib_destroy_srq failed: %d\n", ret);
-
+	ib_destroy_srq(priv->cm.srq);
 	priv->cm.srq = NULL;
 	if (!priv->cm.srq_ring)
 		return;

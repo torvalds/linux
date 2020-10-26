@@ -19,8 +19,6 @@
 
 #include "internal.h"
 
-ACPI_MODULE_NAME("platform");
-
 static const struct acpi_device_id forbidden_id_list[] = {
 	{"PNP0000",  0},	/* PIC */
 	{"PNP0100",  0},	/* Timer */

@@ -112,11 +112,15 @@ static u32 pmu_clk_cr_b[] = {
 #define PMU_PPE_DP	BIT(23)
 #define PMU_PPE_DPLUS	BIT(24)
 #define PMU_USB1_P	BIT(26)
+#define PMU_GPHY3	BIT(26) /* grx390 */
 #define PMU_USB1	BIT(27)
 #define PMU_SWITCH	BIT(28)
 #define PMU_PPE_TOP	BIT(29)
+#define PMU_GPHY0	BIT(29) /* ar10, xrx390 */
 #define PMU_GPHY	BIT(30)
+#define PMU_GPHY1	BIT(30) /* ar10, xrx390 */
 #define PMU_PCIE_CLK	BIT(31)
+#define PMU_GPHY2	BIT(31) /* ar10, xrx390 */
 
 #define PMU1_PCIE_PHY	BIT(0)	/* vr9-specific,moved in ar10/grx390 */
 #define PMU1_PCIE_CTL	BIT(1)
@@ -465,6 +469,9 @@ void __init ltq_soc_init(void)
 
 	if (of_machine_is_compatible("lantiq,grx390") ||
 	    of_machine_is_compatible("lantiq,ar10")) {
+		clkdev_add_pmu("1e108000.switch", "gphy0", 0, 0, PMU_GPHY0);
+		clkdev_add_pmu("1e108000.switch", "gphy1", 0, 0, PMU_GPHY1);
+		clkdev_add_pmu("1e108000.switch", "gphy2", 0, 0, PMU_GPHY2);
 		clkdev_add_pmu("1f203018.usb2-phy", "phy", 1, 2, PMU_ANALOG_USB0_P);
 		clkdev_add_pmu("1f203034.usb2-phy", "phy", 1, 2, PMU_ANALOG_USB1_P);
 		/* rc 0 */
@@ -496,6 +503,7 @@ void __init ltq_soc_init(void)
 	} else if (of_machine_is_compatible("lantiq,grx390")) {
 		clkdev_add_static(ltq_grx390_cpu_hz(), ltq_grx390_fpi_hz(),
 				  ltq_grx390_fpi_hz(), ltq_grx390_pp32_hz());
+		clkdev_add_pmu("1e108000.switch", "gphy3", 0, 0, PMU_GPHY3);
 		clkdev_add_pmu("1e101000.usb", "otg", 1, 0, PMU_USB0);
 		clkdev_add_pmu("1e106000.usb", "otg", 1, 0, PMU_USB1);
 		/* rc 2 */
@@ -514,8 +522,6 @@ void __init ltq_soc_init(void)
 		clkdev_add_pmu("1e10b308.eth", NULL, 0, 0, PMU_SWITCH |
 			       PMU_PPE_DP | PMU_PPE_TC);
 		clkdev_add_pmu("1da00000.usif", "NULL", 1, 0, PMU_USIF);
-		clkdev_add_pmu("1e108000.switch", "gphy0", 0, 0, PMU_GPHY);
-		clkdev_add_pmu("1e108000.switch", "gphy1", 0, 0, PMU_GPHY);
 		clkdev_add_pmu("1e103100.deu", NULL, 1, 0, PMU_DEU);
 		clkdev_add_pmu("1e116000.mei", "afe", 1, 2, PMU_ANALOG_DSL_AFE);
 		clkdev_add_pmu("1e116000.mei", "dfe", 1, 0, PMU_DFE);

@@ -327,10 +327,6 @@ static inline int audit_signal_info_syscall(struct task_struct *t)
 
 extern char *audit_unpack_string(void **bufp, size_t *remain, size_t len);
 
-extern pid_t audit_sig_pid;
-extern kuid_t audit_sig_uid;
-extern u32 audit_sig_sid;
-
 extern int audit_filter(int msgtype, unsigned int listtype);
 
 extern void audit_ctl_lock(void);

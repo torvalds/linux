@@ -41,6 +41,10 @@ struct gfs2_log_header_host {
 	u32 lh_flags;		/* GFS2_LOG_HEAD_... */
 	u32 lh_tail;		/* Block number of log tail */
 	u32 lh_blkno;
+
+	s64 lh_local_total;
+	s64 lh_local_free;
+	s64 lh_local_dinodes;
 };
 
 /*
@@ -340,7 +344,6 @@ enum {
 	GLF_REPLY_PENDING		= 9,
 	GLF_INITIAL			= 10,
 	GLF_FROZEN			= 11,
-	GLF_QUEUED			= 12,
 	GLF_LRU				= 13,
 	GLF_OBJECT			= 14, /* Used only for tracing */
 	GLF_BLOCKING			= 15,
@@ -378,17 +381,10 @@ struct gfs2_glock {
 	atomic_t gl_ail_count;
 	atomic_t gl_revokes;
 	struct delayed_work gl_work;
-	union {
-		/* For iopen glocks only */
-		struct {
-			struct delayed_work gl_delete;
-			u64 gl_no_formal_ino;
-		};
-		/* For rgrp glocks only */
-		struct {
-			loff_t start;
-			loff_t end;
-		} gl_vm;
+	/* For iopen glocks only */
+	struct {
+		struct delayed_work gl_delete;
+		u64 gl_no_formal_ino;
 	};
 	struct rcu_head gl_rcu;
 	struct rhash_head gl_node;
@@ -701,10 +697,18 @@ struct gfs2_pcpu_lkstats {
 	struct gfs2_lkstats lkstats[10];
 };
 
+/* List of local (per node) statfs inodes */
+struct local_statfs_inode {
+	struct list_head si_list;
+	struct inode *si_sc_inode;
+	unsigned int si_jid; /* journal id this statfs inode corresponds to */
+};
+
 struct gfs2_sbd {
 	struct super_block *sd_vfs;
 	struct gfs2_pcpu_lkstats __percpu *sd_lkstats;
 	struct kobject sd_kobj;
+	struct completion sd_kobj_unregister;
 	unsigned long sd_flags;	/* SDF_... */
 	struct gfs2_sb_host sd_sb;
 
@@ -751,6 +755,7 @@ struct gfs2_sbd {
 	struct inode *sd_jindex;
 	struct inode *sd_statfs_inode;
 	struct inode *sd_sc_inode;
+	struct list_head sd_sc_inodes_list;
 	struct inode *sd_qc_inode;
 	struct inode *sd_rindex;
 	struct inode *sd_quota_inode;

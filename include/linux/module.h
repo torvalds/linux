@@ -25,6 +25,7 @@
 #include <linux/error-injection.h>
 #include <linux/tracepoint-defs.h>
 #include <linux/srcu.h>
+#include <linux/static_call_types.h>
 
 #include <linux/percpu.h>
 #include <asm/module.h>
@@ -277,7 +278,7 @@ extern typeof(name) __mod_##type##__##name##_device_table		\
 		.version	= _version,				\
 	};								\
 	static const struct module_version_attribute			\
-	__used __attribute__ ((__section__ ("__modver")))		\
+	__used __section("__modver")					\
 	* __moduleparam_const __modver_attr = &___modver_attr
 #endif
 
@@ -497,6 +498,10 @@ struct module {
 	unsigned int kprobes_text_size;
 	unsigned long *kprobe_blacklist;
 	unsigned int num_kprobe_blacklist;
+#endif
+#ifdef CONFIG_HAVE_STATIC_CALL_INLINE
+	int num_static_call_sites;
+	struct static_call_site *static_call_sites;
 #endif
 
 #ifdef CONFIG_LIVEPATCH

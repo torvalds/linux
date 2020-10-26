@@ -7,6 +7,7 @@
 #include <drm/i915_drm.h>
 
 #include "i915_drv.h"
+#include "intel_breadcrumbs.h"
 #include "intel_gt.h"
 #include "intel_gt_clock_utils.h"
 #include "intel_gt_irq.h"

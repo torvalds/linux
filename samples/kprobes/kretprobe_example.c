@@ -8,10 +8,10 @@
  *
  * usage: insmod kretprobe_example.ko func=<func_name>
  *
- * If no func_name is specified, _do_fork is instrumented
+ * If no func_name is specified, kernel_clone is instrumented
  *
  * For more information on theory of operation of kretprobes, see
- * Documentation/staging/kprobes.rst
+ * Documentation/trace/kprobes.rst
  *
  * Build and insert the kernel module as done in the kprobe example.
  * You will see the trace data in /var/log/messages and on the console
@@ -26,7 +26,7 @@
 #include <linux/limits.h>
 #include <linux/sched.h>
 
-static char func_name[NAME_MAX] = "_do_fork";
+static char func_name[NAME_MAX] = "kernel_clone";
 module_param_string(func, func_name, NAME_MAX, S_IRUGO);
 MODULE_PARM_DESC(func, "Function to kretprobe; this module will report the"
 			" function's execution time");

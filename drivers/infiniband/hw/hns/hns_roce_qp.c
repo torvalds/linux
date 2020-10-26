@@ -41,8 +41,6 @@
 #include "hns_roce_hem.h"
 #include <rdma/hns-abi.h>
 
-#define SQP_NUM				(2 * HNS_ROCE_MAX_PORTS)
-
 static void flush_work_handle(struct work_struct *work)
 {
 	struct hns_roce_work *flush_work = container_of(work,
@@ -288,7 +286,7 @@ static int alloc_qpc(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 		}
 	}
 
-	if (hr_dev->caps.sccc_entry_sz) {
+	if (hr_dev->caps.sccc_sz) {
 		/* Alloc memory for SCC CTX */
 		ret = hns_roce_table_get(hr_dev, &qp_table->sccc_table,
 					 hr_qp->qpn);
@@ -551,10 +549,9 @@ static int set_kernel_sq_size(struct hns_roce_dev *hr_dev,
 	int ret;
 
 	if (!cap->max_send_wr || cap->max_send_wr > hr_dev->caps.max_wqes ||
-	    cap->max_send_sge > hr_dev->caps.max_sq_sg ||
-	    cap->max_inline_data > hr_dev->caps.max_sq_inline) {
+	    cap->max_send_sge > hr_dev->caps.max_sq_sg) {
 		ibdev_err(ibdev,
-			  "failed to check SQ WR, SGE or inline num, ret = %d.\n",
+			  "failed to check SQ WR or SGE num, ret = %d.\n",
 			  -EINVAL);
 		return -EINVAL;
 	}
@@ -576,9 +573,6 @@ static int set_kernel_sq_size(struct hns_roce_dev *hr_dev,
 	/* sync the parameters of kernel QP to user's configuration */
 	cap->max_send_wr = cnt;
 	cap->max_send_sge = hr_qp->sq.max_gs;
-
-	/* We don't support inline sends for kernel QPs (yet) */
-	cap->max_inline_data = 0;
 
 	return 0;
 }
@@ -847,6 +841,11 @@ static int set_qp_param(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 
 	hr_qp->ibqp.qp_type = init_attr->qp_type;
 
+	if (init_attr->cap.max_inline_data > hr_dev->caps.max_sq_inline)
+		init_attr->cap.max_inline_data = hr_dev->caps.max_sq_inline;
+
+	hr_qp->max_inline_data = init_attr->cap.max_inline_data;
+
 	if (init_attr->sq_sig_type == IB_SIGNAL_ALL_WR)
 		hr_qp->sq_signal_bits = IB_SIGNAL_ALL_WR;
 	else
@@ -1014,53 +1013,32 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 	int ret;
 
 	switch (init_attr->qp_type) {
-	case IB_QPT_RC: {
-		hr_qp = kzalloc(sizeof(*hr_qp), GFP_KERNEL);
-		if (!hr_qp)
-			return ERR_PTR(-ENOMEM);
-
-		ret = hns_roce_create_qp_common(hr_dev, pd, init_attr, udata,
-						hr_qp);
-		if (ret) {
-			ibdev_err(ibdev, "Create QP 0x%06lx failed(%d)\n",
-				  hr_qp->qpn, ret);
-			kfree(hr_qp);
-			return ERR_PTR(ret);
-		}
-
+	case IB_QPT_RC:
+	case IB_QPT_GSI:
 		break;
-	}
-	case IB_QPT_GSI: {
-		/* Userspace is not allowed to create special QPs: */
-		if (udata) {
-			ibdev_err(ibdev, "not support usr space GSI\n");
-			return ERR_PTR(-EINVAL);
-		}
-
-		hr_qp = kzalloc(sizeof(*hr_qp), GFP_KERNEL);
-		if (!hr_qp)
-			return ERR_PTR(-ENOMEM);
-
-		hr_qp->port = init_attr->port_num - 1;
-		hr_qp->phy_port = hr_dev->iboe.phy_port[hr_qp->port];
-
-		ret = hns_roce_create_qp_common(hr_dev, pd, init_attr, udata,
-						hr_qp);
-		if (ret) {
-			ibdev_err(ibdev, "Create GSI QP failed!\n");
-			kfree(hr_qp);
-			return ERR_PTR(ret);
-		}
-
-		break;
-	}
-	default:{
+	default:
 		ibdev_err(ibdev, "not support QP type %d\n",
 			  init_attr->qp_type);
 		return ERR_PTR(-EOPNOTSUPP);
 	}
+
+	hr_qp = kzalloc(sizeof(*hr_qp), GFP_KERNEL);
+	if (!hr_qp)
+		return ERR_PTR(-ENOMEM);
+
+	if (init_attr->qp_type == IB_QPT_GSI) {
+		hr_qp->port = init_attr->port_num - 1;
+		hr_qp->phy_port = hr_dev->iboe.phy_port[hr_qp->port];
 	}
 
+	ret = hns_roce_create_qp_common(hr_dev, pd, init_attr, udata, hr_qp);
+	if (ret) {
+		ibdev_err(ibdev, "Create QP type 0x%x failed(%d)\n",
+			  init_attr->qp_type, ret);
+		ibdev_err(ibdev, "Create GSI QP failed!\n");
+		kfree(hr_qp);
+		return ERR_PTR(ret);
+	}
 	return &hr_qp->ibqp;
 }
 
@@ -1161,8 +1139,10 @@ int hns_roce_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	mutex_lock(&hr_qp->mutex);
 
-	cur_state = attr_mask & IB_QP_CUR_STATE ?
-		    attr->cur_qp_state : (enum ib_qp_state)hr_qp->state;
+	if (attr_mask & IB_QP_CUR_STATE && attr->cur_qp_state != hr_qp->state)
+		goto out;
+
+	cur_state = hr_qp->state;
 	new_state = attr_mask & IB_QP_STATE ? attr->qp_state : cur_state;
 
 	if (ibqp->uobject &&

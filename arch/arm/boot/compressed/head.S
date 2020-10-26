@@ -28,19 +28,19 @@
 #if defined(CONFIG_CPU_V6) || defined(CONFIG_CPU_V6K) || defined(CONFIG_CPU_V7)
 		.macro	loadsp, rb, tmp1, tmp2
 		.endm
-		.macro	writeb, ch, rb
+		.macro	writeb, ch, rb, tmp
 		mcr	p14, 0, \ch, c0, c5, 0
 		.endm
 #elif defined(CONFIG_CPU_XSCALE)
 		.macro	loadsp, rb, tmp1, tmp2
 		.endm
-		.macro	writeb, ch, rb
+		.macro	writeb, ch, rb, tmp
 		mcr	p14, 0, \ch, c8, c0, 0
 		.endm
 #else
 		.macro	loadsp, rb, tmp1, tmp2
 		.endm
-		.macro	writeb, ch, rb
+		.macro	writeb, ch, rb, tmp
 		mcr	p14, 0, \ch, c1, c0, 0
 		.endm
 #endif
@@ -49,8 +49,13 @@
 
 #include CONFIG_DEBUG_LL_INCLUDE
 
-		.macro	writeb,	ch, rb
+		.macro	writeb,	ch, rb, tmp
+#ifdef CONFIG_DEBUG_UART_FLOW_CONTROL
+		waituartcts \tmp, \rb
+#endif
+		waituarttxrdy \tmp, \rb
 		senduart \ch, \rb
+		busyuart \tmp, \rb
 		.endm
 
 #if defined(CONFIG_ARCH_SA1100)
@@ -81,42 +86,11 @@
 		bl	phex
 		.endm
 
-		.macro	debug_reloc_start
-#ifdef DEBUG
-		kputc	#'\n'
-		kphex	r6, 8		/* processor id */
-		kputc	#':'
-		kphex	r7, 8		/* architecture id */
-#ifdef CONFIG_CPU_CP15
-		kputc	#':'
-		mrc	p15, 0, r0, c1, c0
-		kphex	r0, 8		/* control reg */
-#endif
-		kputc	#'\n'
-		kphex	r5, 8		/* decompressed kernel start */
-		kputc	#'-'
-		kphex	r9, 8		/* decompressed kernel end  */
-		kputc	#'>'
-		kphex	r4, 8		/* kernel execution address */
-		kputc	#'\n'
-#endif
-		.endm
-
-		.macro	debug_reloc_end
-#ifdef DEBUG
-		kphex	r5, 8		/* end of kernel */
-		kputc	#'\n'
-		mov	r0, r4
-		bl	memdump		/* dump 256 bytes at start of kernel */
-#endif
-		.endm
-
 		/*
 		 * Debug kernel copy by printing the memory addresses involved
 		 */
 		.macro dbgkc, begin, end, cbegin, cend
 #ifdef DEBUG
-		kputc   #'\n'
 		kputc   #'C'
 		kputc   #':'
 		kputc   #'0'
@@ -136,7 +110,28 @@
 		kputc	#'x'
 		kphex	\cend, 8	/* End of kernel copy */
 		kputc	#'\n'
-		kputc	#'\r'
+#endif
+		.endm
+
+		/*
+		 * Debug print of the final appended DTB location
+		 */
+		.macro dbgadtb, begin, end
+#ifdef DEBUG
+		kputc   #'D'
+		kputc   #'T'
+		kputc   #'B'
+		kputc   #':'
+		kputc   #'0'
+		kputc   #'x'
+		kphex   \begin, 8	/* Start of appended DTB */
+		kputc	#' '
+		kputc	#'('
+		kputc	#'0'
+		kputc	#'x'
+		kphex	\end, 8		/* End of appended DTB */
+		kputc	#')'
+		kputc	#'\n'
 #endif
 		.endm
 
@@ -303,7 +298,7 @@ restart:	adr	r0, LC1
 
 #ifndef CONFIG_ZBOOT_ROM
 		/* malloc space is above the relocated stack (64k max) */
-		add	r10, sp, #0x10000
+		add	r10, sp, #MALLOC_SIZE
 #else
 		/*
 		 * With ZBOOT_ROM the bss/stack is non relocatable,
@@ -357,6 +352,7 @@ restart:	adr	r0, LC1
 		mov	r5, r5, ror #8
 		eor	r5, r5, r1, lsr #8
 #endif
+		dbgadtb	r6, r5
 		/* 50% DTB growth should be good enough */
 		add	r5, r5, r5, lsr #1
 		/* preserve 64-bit alignment */
@@ -614,7 +610,7 @@ not_relocated:	mov	r0, #0
  */
 		mov	r0, r4
 		mov	r1, sp			@ malloc space above stack
-		add	r2, sp, #0x10000	@ 64k max
+		add	r2, sp, #MALLOC_SIZE	@ 64k max
 		mov	r3, r7
 		bl	decompress_kernel
 
@@ -1356,7 +1352,7 @@ puts:		loadsp	r3, r2, r1
 1:		ldrb	r2, [r0], #1
 		teq	r2, #0
 		moveq	pc, lr
-2:		writeb	r2, r3
+2:		writeb	r2, r3, r1
 		mov	r1, #0x00020000
 3:		subs	r1, r1, #1
 		bne	3b

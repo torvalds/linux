@@ -404,7 +404,7 @@ EXPORT_SYMBOL_GPL(unregister_switchdev_notifier);
  *	@val: value passed unmodified to notifier function
  *	@dev: port device
  *	@info: notifier information data
- *
+ *	@extack: netlink extended ack
  *	Call all network notifier blocks.
  */
 int call_switchdev_notifiers(unsigned long val, struct net_device *dev,

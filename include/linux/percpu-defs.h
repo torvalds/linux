@@ -51,7 +51,7 @@
 	PER_CPU_ATTRIBUTES
 
 #define __PCPU_DUMMY_ATTRS						\
-	__attribute__((section(".discard"), unused))
+	__section(".discard") __attribute__((unused))
 
 /*
  * s390 and alpha modules require percpu variables to be defined as

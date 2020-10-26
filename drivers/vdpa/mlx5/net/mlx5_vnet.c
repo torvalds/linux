@@ -1133,15 +1133,17 @@ static void suspend_vq(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *m
 	if (!mvq->initialized)
 		return;
 
-	if (query_virtqueue(ndev, mvq, &attr)) {
-		mlx5_vdpa_warn(&ndev->mvdev, "failed to query virtqueue\n");
-		return;
-	}
 	if (mvq->fw_state != MLX5_VIRTIO_NET_Q_OBJECT_STATE_RDY)
 		return;
 
 	if (modify_virtqueue(ndev, mvq, MLX5_VIRTIO_NET_Q_OBJECT_STATE_SUSPEND))
 		mlx5_vdpa_warn(&ndev->mvdev, "modify to suspend failed\n");
+
+	if (query_virtqueue(ndev, mvq, &attr)) {
+		mlx5_vdpa_warn(&ndev->mvdev, "failed to query virtqueue\n");
+		return;
+	}
+	mvq->avail_idx = attr.available_index;
 }
 
 static void suspend_vqs(struct mlx5_vdpa_net *ndev)
@@ -1411,8 +1413,14 @@ static int mlx5_vdpa_get_vq_state(struct vdpa_device *vdev, u16 idx, struct vdpa
 	struct mlx5_virtq_attr attr;
 	int err;
 
-	if (!mvq->initialized)
-		return -EAGAIN;
+	/* If the virtq object was destroyed, use the value saved at
+	 * the last minute of suspend_vq. This caters for userspace
+	 * that cares about emulating the index after vq is stopped.
+	 */
+	if (!mvq->initialized) {
+		state->avail_index = mvq->avail_idx;
+		return 0;
+	}
 
 	err = query_virtqueue(ndev, mvq, &attr);
 	if (err) {
@@ -1514,6 +1522,11 @@ static inline bool mlx5_vdpa_is_little_endian(struct mlx5_vdpa_dev *mvdev)
 		(mvdev->actual_features & (1ULL << VIRTIO_F_VERSION_1));
 }
 
+static __virtio16 cpu_to_mlx5vdpa16(struct mlx5_vdpa_dev *mvdev, u16 val)
+{
+	return __cpu_to_virtio16(mlx5_vdpa_is_little_endian(mvdev), val);
+}
+
 static int mlx5_vdpa_set_features(struct vdpa_device *vdev, u64 features)
 {
 	struct mlx5_vdpa_dev *mvdev = to_mvdev(vdev);
@@ -1527,8 +1540,8 @@ static int mlx5_vdpa_set_features(struct vdpa_device *vdev, u64 features)
 		return err;
 
 	ndev->mvdev.actual_features = features & ndev->mvdev.mlx_features;
-	ndev->config.mtu = __cpu_to_virtio16(mlx5_vdpa_is_little_endian(mvdev),
-					     ndev->mtu);
+	ndev->config.mtu = cpu_to_mlx5vdpa16(mvdev, ndev->mtu);
+	ndev->config.status |= cpu_to_mlx5vdpa16(mvdev, VIRTIO_NET_S_LINK_UP);
 	return err;
 }
 
@@ -1644,6 +1657,9 @@ static int mlx5_vdpa_change_map(struct mlx5_vdpa_net *ndev, struct vhost_iotlb *
 	err = mlx5_vdpa_create_mr(&ndev->mvdev, iotlb);
 	if (err)
 		goto err_mr;
+
+	if (!(ndev->mvdev.status & VIRTIO_CONFIG_S_DRIVER_OK))
+		return 0;
 
 	restore_channels_info(ndev);
 	err = setup_driver(ndev);

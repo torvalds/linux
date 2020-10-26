@@ -3527,6 +3527,10 @@ DEFINE_SHOW_ATTRIBUTE(meminfo);
 
 static int chcr_stats_show(struct seq_file *seq, void *v)
 {
+#if IS_ENABLED(CONFIG_CHELSIO_TLS_DEVICE)
+	struct ch_ktls_port_stats_debug *ktls_port;
+	int i = 0;
+#endif
 	struct adapter *adap = seq->private;
 
 	seq_puts(seq, "Chelsio Crypto Accelerator Stats \n");
@@ -3542,52 +3546,45 @@ static int chcr_stats_show(struct seq_file *seq, void *v)
 		   atomic_read(&adap->chcr_stats.error));
 	seq_printf(seq, "Fallback: %10u \n",
 		   atomic_read(&adap->chcr_stats.fallback));
-	seq_printf(seq, "IPSec PDU: %10u\n",
-		   atomic_read(&adap->chcr_stats.ipsec_cnt));
 	seq_printf(seq, "TLS PDU Tx: %10u\n",
 		   atomic_read(&adap->chcr_stats.tls_pdu_tx));
 	seq_printf(seq, "TLS PDU Rx: %10u\n",
 		   atomic_read(&adap->chcr_stats.tls_pdu_rx));
 	seq_printf(seq, "TLS Keys (DDR) Count: %10u\n",
 		   atomic_read(&adap->chcr_stats.tls_key));
-#ifdef CONFIG_CHELSIO_TLS_DEVICE
+#if IS_ENABLED(CONFIG_CHELSIO_IPSEC_INLINE)
+	seq_puts(seq, "\nChelsio Inline IPsec Crypto Accelerator Stats\n");
+	seq_printf(seq, "IPSec PDU: %10u\n",
+		   atomic_read(&adap->ch_ipsec_stats.ipsec_cnt));
+#endif
+#if IS_ENABLED(CONFIG_CHELSIO_TLS_DEVICE)
 	seq_puts(seq, "\nChelsio KTLS Crypto Accelerator Stats\n");
 	seq_printf(seq, "Tx TLS offload refcount:          %20u\n",
 		   refcount_read(&adap->chcr_ktls.ktls_refcount));
-	seq_printf(seq, "Tx HW offload contexts added:     %20llu\n",
-		   atomic64_read(&adap->chcr_stats.ktls_tx_ctx));
-	seq_printf(seq, "Tx connection created:            %20llu\n",
-		   atomic64_read(&adap->chcr_stats.ktls_tx_connection_open));
-	seq_printf(seq, "Tx connection failed:             %20llu\n",
-		   atomic64_read(&adap->chcr_stats.ktls_tx_connection_fail));
-	seq_printf(seq, "Tx connection closed:             %20llu\n",
-		   atomic64_read(&adap->chcr_stats.ktls_tx_connection_close));
-	seq_printf(seq, "Packets passed for encryption :   %20llu\n",
-		   atomic64_read(&adap->chcr_stats.ktls_tx_encrypted_packets));
-	seq_printf(seq, "Bytes passed for encryption :     %20llu\n",
-		   atomic64_read(&adap->chcr_stats.ktls_tx_encrypted_bytes));
 	seq_printf(seq, "Tx records send:                  %20llu\n",
-		   atomic64_read(&adap->chcr_stats.ktls_tx_send_records));
+		   atomic64_read(&adap->ch_ktls_stats.ktls_tx_send_records));
 	seq_printf(seq, "Tx partial start of records:      %20llu\n",
-		   atomic64_read(&adap->chcr_stats.ktls_tx_start_pkts));
+		   atomic64_read(&adap->ch_ktls_stats.ktls_tx_start_pkts));
 	seq_printf(seq, "Tx partial middle of records:     %20llu\n",
-		   atomic64_read(&adap->chcr_stats.ktls_tx_middle_pkts));
+		   atomic64_read(&adap->ch_ktls_stats.ktls_tx_middle_pkts));
 	seq_printf(seq, "Tx partial end of record:         %20llu\n",
-		   atomic64_read(&adap->chcr_stats.ktls_tx_end_pkts));
+		   atomic64_read(&adap->ch_ktls_stats.ktls_tx_end_pkts));
 	seq_printf(seq, "Tx complete records:              %20llu\n",
-		   atomic64_read(&adap->chcr_stats.ktls_tx_complete_pkts));
+		   atomic64_read(&adap->ch_ktls_stats.ktls_tx_complete_pkts));
 	seq_printf(seq, "TX trim pkts :                    %20llu\n",
-		   atomic64_read(&adap->chcr_stats.ktls_tx_trimmed_pkts));
-	seq_printf(seq, "Tx out of order packets:          %20llu\n",
-		   atomic64_read(&adap->chcr_stats.ktls_tx_ooo));
-	seq_printf(seq, "Tx drop pkts before HW offload:   %20llu\n",
-		   atomic64_read(&adap->chcr_stats.ktls_tx_skip_no_sync_data));
-	seq_printf(seq, "Tx drop not synced packets:       %20llu\n",
-		   atomic64_read(&adap->chcr_stats.ktls_tx_drop_no_sync_data));
-	seq_printf(seq, "Tx drop bypass req:               %20llu\n",
-		   atomic64_read(&adap->chcr_stats.ktls_tx_drop_bypass_req));
+		   atomic64_read(&adap->ch_ktls_stats.ktls_tx_trimmed_pkts));
+	while (i < MAX_NPORTS) {
+		ktls_port = &adap->ch_ktls_stats.ktls_port[i];
+		seq_printf(seq, "Port %d\n", i);
+		seq_printf(seq, "Tx connection created:            %20llu\n",
+			   atomic64_read(&ktls_port->ktls_tx_connection_open));
+		seq_printf(seq, "Tx connection failed:             %20llu\n",
+			   atomic64_read(&ktls_port->ktls_tx_connection_fail));
+		seq_printf(seq, "Tx connection closed:             %20llu\n",
+			   atomic64_read(&ktls_port->ktls_tx_connection_close));
+		i++;
+	}
 #endif
-
 	return 0;
 }
 DEFINE_SHOW_ATTRIBUTE(chcr_stats);

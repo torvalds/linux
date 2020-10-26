@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.fe
 
 .. _FE_READ_STATUS:
 
@@ -18,24 +12,22 @@ Name
 
 FE_READ_STATUS - Returns status information about the front-end. This call only requires - read-only access to the device
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, FE_READ_STATUS, unsigned int *status )
-    :name: FE_READ_STATUS
+.. c:macro:: FE_READ_STATUS
 
+``int ioctl(int fd, FE_READ_STATUS, unsigned int *status)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <frontend_f_open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``status``
     pointer to a bitmask integer filled with the values defined by enum
     :c:type:`fe_status`.
-
 
 Description
 ===========
@@ -51,14 +43,12 @@ written.
    varies according with the architecture. This needs to be fixed in the
    future.
 
-
 int fe_status
 =============
 
 The fe_status parameter is used to indicate the current state and/or
 state changes of the frontend hardware. It is produced using the enum
 :c:type:`fe_status` values on a bitmask
-
 
 Return Value
 ============

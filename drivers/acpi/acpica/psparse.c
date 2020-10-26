@@ -508,8 +508,8 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 			}
 
 			/*
-			 * If the transfer to the new method method call worked
-			 *, a new walk state was created -- get it
+			 * If the transfer to the new method method call worked,
+			 * a new walk state was created -- get it
 			 */
 			walk_state = acpi_ds_get_current_walk_state(thread);
 			continue;

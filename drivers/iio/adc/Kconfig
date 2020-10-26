@@ -340,7 +340,7 @@ config AXP288_ADC
 
 config BCM_IPROC_ADC
 	tristate "Broadcom IPROC ADC driver"
-	depends on ARCH_BCM_IPROC || COMPILE_TEST
+	depends on (ARCH_BCM_IPROC && OF) || COMPILE_TEST
 	depends on MFD_SYSCON
 	default ARCH_BCM_CYGNUS
 	help
@@ -863,7 +863,7 @@ config RN5T618_ADC
 
 config ROCKCHIP_SARADC
 	tristate "Rockchip SARADC driver"
-	depends on ARCH_ROCKCHIP || (ARM && COMPILE_TEST)
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	depends on RESET_CONTROLLER
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER

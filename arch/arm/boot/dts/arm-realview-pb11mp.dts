@@ -546,7 +546,7 @@
 			interrupt-parent = <&intc_pb11mp>;
 			interrupts = <0 0 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&wdogclk>, <&pclk>;
-			clock-names = "wdogclk", "apb_pclk";
+			clock-names = "wdog_clk", "apb_pclk";
 			status = "disabled";
 		};
 
@@ -556,7 +556,7 @@
 			interrupt-parent = <&intc_pb11mp>;
 			interrupts = <0 0 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&wdogclk>, <&pclk>;
-			clock-names = "wdogclk", "apb_pclk";
+			clock-names = "wdog_clk", "apb_pclk";
 		};
 
 		timer01: timer@10011000 {
@@ -568,8 +568,8 @@
 			clocks = <&sp810_syscon 0>,
 			         <&sp810_syscon 1>,
 				 <&pclk>;
-			clock-names = "timerclk0",
-				    "timerclk1",
+			clock-names = "timer0clk",
+				    "timer1clk",
 				    "apb_pclk";
 		};
 
@@ -582,8 +582,8 @@
 			clocks = <&sp810_syscon 2>,
 			         <&sp810_syscon 3>,
 				 <&pclk>;
-			clock-names = "timerclk2",
-				    "timerclk3",
+			clock-names = "timer0clk",
+				    "timer1clk",
 				    "apb_pclk";
 		};
 
@@ -645,16 +645,16 @@
 		timer45: timer@10018000 {
 			compatible = "arm,sp804", "arm,primecell";
 			reg = <0x10018000 0x1000>;
-			clocks = <&timclk>, <&pclk>;
-			clock-names = "timer", "apb_pclk";
+			clocks = <&timclk>, <&timclk>, <&pclk>;
+			clock-names = "timer0clk", "timer1clk", "apb_pclk";
 			status = "disabled";
 		};
 
 		timer67: timer@10019000 {
 			compatible = "arm,sp804", "arm,primecell";
 			reg = <0x10019000 0x1000>;
-			clocks = <&timclk>, <&pclk>;
-			clock-names = "timer", "apb_pclk";
+			clocks = <&timclk>, <&timclk>, <&pclk>;
+			clock-names = "timer0clk", "timer1clk", "apb_pclk";
 			status = "disabled";
 		};
 

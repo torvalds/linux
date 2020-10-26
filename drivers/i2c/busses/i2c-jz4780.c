@@ -752,6 +752,7 @@ static const struct ingenic_i2c_config x1000_i2c_config = {
 };
 
 static const struct of_device_id jz4780_i2c_of_matches[] = {
+	{ .compatible = "ingenic,jz4770-i2c", .data = &jz4780_i2c_config },
 	{ .compatible = "ingenic,jz4780-i2c", .data = &jz4780_i2c_config },
 	{ .compatible = "ingenic,x1000-i2c", .data = &x1000_i2c_config },
 	{ /* sentinel */ }
@@ -856,7 +857,7 @@ static struct platform_driver jz4780_i2c_driver = {
 	.remove		= jz4780_i2c_remove,
 	.driver		= {
 		.name	= "jz4780-i2c",
-		.of_match_table = of_match_ptr(jz4780_i2c_of_matches),
+		.of_match_table = jz4780_i2c_of_matches,
 	},
 };
 

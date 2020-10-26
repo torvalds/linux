@@ -142,13 +142,24 @@ static inline void blk_crypto_free_request(struct request *rq)
 		__blk_crypto_free_request(rq);
 }
 
-void __blk_crypto_rq_bio_prep(struct request *rq, struct bio *bio,
-			      gfp_t gfp_mask);
-static inline void blk_crypto_rq_bio_prep(struct request *rq, struct bio *bio,
-					  gfp_t gfp_mask)
+int __blk_crypto_rq_bio_prep(struct request *rq, struct bio *bio,
+			     gfp_t gfp_mask);
+/**
+ * blk_crypto_rq_bio_prep - Prepare a request's crypt_ctx when its first bio
+ *			    is inserted
+ * @rq: The request to prepare
+ * @bio: The first bio being inserted into the request
+ * @gfp_mask: Memory allocation flags
+ *
+ * Return: 0 on success, -ENOMEM if out of memory.  -ENOMEM is only possible if
+ *	   @gfp_mask doesn't include %__GFP_DIRECT_RECLAIM.
+ */
+static inline int blk_crypto_rq_bio_prep(struct request *rq, struct bio *bio,
+					 gfp_t gfp_mask)
 {
 	if (bio_has_crypt_ctx(bio))
-		__blk_crypto_rq_bio_prep(rq, bio, gfp_mask);
+		return __blk_crypto_rq_bio_prep(rq, bio, gfp_mask);
+	return 0;
 }
 
 /**

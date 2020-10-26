@@ -148,8 +148,12 @@ static int amdgpu_amdkfd_reserve_mem_limit(struct amdgpu_device *adev,
 
 	spin_lock(&kfd_mem_limit.mem_limit_lock);
 
+	if (kfd_mem_limit.system_mem_used + system_mem_needed >
+	    kfd_mem_limit.max_system_mem_limit)
+		pr_debug("Set no_system_mem_limit=1 if using shared memory\n");
+
 	if ((kfd_mem_limit.system_mem_used + system_mem_needed >
-	     kfd_mem_limit.max_system_mem_limit) ||
+	     kfd_mem_limit.max_system_mem_limit && !no_system_mem_limit) ||
 	    (kfd_mem_limit.ttm_mem_used + ttm_mem_needed >
 	     kfd_mem_limit.max_ttm_mem_limit) ||
 	    (adev->kfd.vram_used + vram_needed >
@@ -562,7 +566,7 @@ static int init_user_pages(struct kgd_mem *mem, uint64_t user_addr)
 
 	mutex_lock(&process_info->lock);
 
-	ret = amdgpu_ttm_tt_set_userptr(bo->tbo.ttm, user_addr, 0);
+	ret = amdgpu_ttm_tt_set_userptr(&bo->tbo, user_addr, 0);
 	if (ret) {
 		pr_err("%s: Failed to set userptr: %d\n", __func__, ret);
 		goto out;
@@ -992,7 +996,7 @@ create_evict_fence_fail:
 	return ret;
 }
 
-int amdgpu_amdkfd_gpuvm_create_process_vm(struct kgd_dev *kgd, unsigned int pasid,
+int amdgpu_amdkfd_gpuvm_create_process_vm(struct kgd_dev *kgd, u32 pasid,
 					  void **vm, void **process_info,
 					  struct dma_fence **ef)
 {
@@ -1028,7 +1032,7 @@ amdgpu_vm_init_fail:
 }
 
 int amdgpu_amdkfd_gpuvm_acquire_process_vm(struct kgd_dev *kgd,
-					   struct file *filp, unsigned int pasid,
+					   struct file *filp, u32 pasid,
 					   void **vm, void **process_info,
 					   struct dma_fence **ef)
 {
@@ -1668,7 +1672,7 @@ int amdgpu_amdkfd_gpuvm_import_dmabuf(struct kgd_dev *kgd,
 		return -EINVAL;
 
 	obj = dma_buf->priv;
-	if (obj->dev->dev_private != adev)
+	if (drm_to_adev(obj->dev) != adev)
 		/* Can't handle buffers from other devices */
 		return -EINVAL;
 

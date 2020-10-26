@@ -28,6 +28,7 @@ static struct inode *f2fs_new_inode(struct inode *dir, umode_t mode)
 	nid_t ino;
 	struct inode *inode;
 	bool nid_free = false;
+	bool encrypt = false;
 	int xattr_size = 0;
 	int err;
 
@@ -69,13 +70,17 @@ static struct inode *f2fs_new_inode(struct inode *dir, umode_t mode)
 		F2FS_I(inode)->i_projid = make_kprojid(&init_user_ns,
 							F2FS_DEF_PROJID);
 
+	err = fscrypt_prepare_new_inode(dir, inode, &encrypt);
+	if (err)
+		goto fail_drop;
+
 	err = dquot_initialize(inode);
 	if (err)
 		goto fail_drop;
 
 	set_inode_flag(inode, FI_NEW_INODE);
 
-	if (f2fs_may_encrypt(dir, inode))
+	if (encrypt)
 		f2fs_set_encrypted_inode(inode);
 
 	if (f2fs_sb_has_extra_attr(sbi)) {
@@ -707,7 +712,7 @@ out_f2fs_handle_failed_inode:
 	f2fs_handle_failed_inode(inode);
 out_free_encrypted_link:
 	if (disk_link.name != (unsigned char *)symname)
-		kvfree(disk_link.name);
+		kfree(disk_link.name);
 	return err;
 }
 

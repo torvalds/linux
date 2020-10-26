@@ -15,7 +15,7 @@
 
 #include "system_global.h"
 
-#ifdef USE_INPUT_SYSTEM_VERSION_2
+#ifndef ISP2401
 
 #include "input_system.h"
 #include <type_support.h>
@@ -30,17 +30,17 @@
 #define ZERO (0x0)
 #define ONE  (1U)
 
-static const ib_buffer_t   IB_BUFFER_NULL = {0, 0, 0 };
+static const isp2400_ib_buffer_t   IB_BUFFER_NULL = {0, 0, 0 };
 
-static input_system_error_t input_system_configure_channel(
+static input_system_err_t input_system_configure_channel(
     const channel_cfg_t		channel);
 
-static input_system_error_t input_system_configure_channel_sensor(
+static input_system_err_t input_system_configure_channel_sensor(
     const channel_cfg_t		channel);
 
-static input_system_error_t input_buffer_configuration(void);
+static input_system_err_t input_buffer_configuration(void);
 
-static input_system_error_t configuration_to_registers(void);
+static input_system_err_t configuration_to_registers(void);
 
 static void receiver_rst(const rx_ID_t ID);
 static void input_system_network_rst(const input_system_ID_t ID);
@@ -48,12 +48,12 @@ static void input_system_network_rst(const input_system_ID_t ID);
 static void capture_unit_configure(
     const input_system_ID_t			ID,
     const sub_system_ID_t			sub_id,
-    const ib_buffer_t *const cfg);
+    const isp2400_ib_buffer_t *const cfg);
 
 static void acquisition_unit_configure(
     const input_system_ID_t			ID,
     const sub_system_ID_t			sub_id,
-    const ib_buffer_t *const cfg);
+    const isp2400_ib_buffer_t *const cfg);
 
 static void ctrl_unit_configure(
     const input_system_ID_t			ID,
@@ -65,17 +65,17 @@ static void input_system_network_configure(
     const input_system_network_cfg_t *const cfg);
 
 // MW: CSI is previously named as "rx" short for "receiver"
-static input_system_error_t set_csi_cfg(
+static input_system_err_t set_csi_cfg(
     csi_cfg_t *const lhs,
     const csi_cfg_t *const rhs,
     input_system_config_flags_t *const flags);
 
-static input_system_error_t set_source_type(
+static input_system_err_t set_source_type(
     input_system_source_t *const lhs,
     const input_system_source_t				rhs,
     input_system_config_flags_t *const flags);
 
-static input_system_error_t input_system_multiplexer_cfg(
+static input_system_err_t input_system_multiplexer_cfg(
     input_system_multiplex_t *const lhs,
     const input_system_multiplex_t			rhs,
     input_system_config_flags_t *const flags);
@@ -848,7 +848,7 @@ static void input_system_network_rst(const input_system_ID_t ID)
 }
 
 // Function that resets current configuration.
-input_system_error_t input_system_configuration_reset(void)
+input_system_err_t input_system_configuration_reset(void)
 {
 	unsigned int i;
 
@@ -890,10 +890,10 @@ input_system_error_t input_system_configuration_reset(void)
 
 // MW: Comments are good, but doxygen is required, place it at the declaration
 // Function that appends the channel to current configuration.
-static input_system_error_t input_system_configure_channel(
+static input_system_err_t input_system_configure_channel(
     const channel_cfg_t		channel)
 {
-	input_system_error_t error = INPUT_SYSTEM_ERR_NO_ERROR;
+	input_system_err_t error = INPUT_SYSTEM_ERR_NO_ERROR;
 	// Check if channel is not already configured.
 	if (config.ch_flags[channel.ch_id] & INPUT_SYSTEM_CFG_FLAG_SET) {
 		return INPUT_SYSTEM_ERR_CHANNEL_ALREADY_SET;
@@ -948,12 +948,12 @@ static input_system_error_t input_system_configure_channel(
 }
 
 // Function that partitions input buffer space with determining addresses.
-static input_system_error_t input_buffer_configuration(void)
+static input_system_err_t input_buffer_configuration(void)
 {
 	u32 current_address    = 0;
 	u32 unallocated_memory = IB_CAPACITY_IN_WORDS;
 
-	ib_buffer_t	candidate_buffer_acq  = IB_BUFFER_NULL;
+	isp2400_ib_buffer_t	candidate_buffer_acq  = IB_BUFFER_NULL;
 	u32 size_requested;
 	input_system_config_flags_t	acq_already_specified = INPUT_SYSTEM_CFG_FLAG_RESET;
 	input_system_csi_port_t port;
@@ -1062,7 +1062,7 @@ static input_system_error_t input_buffer_configuration(void)
 static void capture_unit_configure(
     const input_system_ID_t			ID,
     const sub_system_ID_t			sub_id,
-    const ib_buffer_t *const cfg)
+    const isp2400_ib_buffer_t *const cfg)
 {
 	assert(ID < N_INPUT_SYSTEM_ID);
 	assert(/*(sub_id >= CAPTURE_UNIT0_ID) &&*/ (sub_id <=
@@ -1088,7 +1088,7 @@ static void capture_unit_configure(
 static void acquisition_unit_configure(
     const input_system_ID_t			ID,
     const sub_system_ID_t			sub_id,
-    const ib_buffer_t *const cfg)
+    const isp2400_ib_buffer_t *const cfg)
 {
 	assert(ID < N_INPUT_SYSTEM_ID);
 	assert(sub_id == ACQUISITION_UNIT0_ID);
@@ -1236,7 +1236,7 @@ static void input_system_network_configure(
 	return;
 }
 
-static input_system_error_t configuration_to_registers(void)
+static input_system_err_t configuration_to_registers(void)
 {
 	input_system_network_cfg_t input_system_network_cfg;
 	int i;
@@ -1335,10 +1335,10 @@ static input_system_error_t configuration_to_registers(void)
 }
 
 // Function that applies the whole configuration.
-input_system_error_t input_system_configuration_commit(void)
+input_system_err_t input_system_configuration_commit(void)
 {
 	// The last configuration step is to configure the input buffer.
-	input_system_error_t error = input_buffer_configuration();
+	input_system_err_t error = input_buffer_configuration();
 
 	if (error != INPUT_SYSTEM_ERR_NO_ERROR) {
 		return error;
@@ -1357,7 +1357,7 @@ input_system_error_t input_system_configuration_commit(void)
 
 // FIFO
 
-input_system_error_t	input_system_csi_fifo_channel_cfg(
+input_system_err_t	input_system_csi_fifo_channel_cfg(
     u32		ch_id,
     input_system_csi_port_t	port,
     backend_channel_cfg_t	backend_ch,
@@ -1380,7 +1380,7 @@ input_system_error_t	input_system_csi_fifo_channel_cfg(
 	return input_system_configure_channel(channel);
 }
 
-input_system_error_t	input_system_csi_fifo_channel_with_counting_cfg(
+input_system_err_t	input_system_csi_fifo_channel_with_counting_cfg(
     u32				ch_id,
     u32				nof_frames,
     input_system_csi_port_t			port,
@@ -1411,7 +1411,7 @@ input_system_error_t	input_system_csi_fifo_channel_with_counting_cfg(
 
 // SRAM
 
-input_system_error_t	input_system_csi_sram_channel_cfg(
+input_system_err_t	input_system_csi_sram_channel_cfg(
     u32				ch_id,
     input_system_csi_port_t			port,
     backend_channel_cfg_t			backend_ch,
@@ -1443,7 +1443,7 @@ input_system_error_t	input_system_csi_sram_channel_cfg(
 //XMEM
 
 // Collects all parameters and puts them in channel_cfg_t.
-input_system_error_t	input_system_csi_xmem_channel_cfg(
+input_system_err_t	input_system_csi_xmem_channel_cfg(
     u32				ch_id,
     input_system_csi_port_t			port,
     backend_channel_cfg_t			backend_ch,
@@ -1475,7 +1475,7 @@ input_system_error_t	input_system_csi_xmem_channel_cfg(
 	return input_system_configure_channel(channel);
 }
 
-input_system_error_t	input_system_csi_xmem_acquire_only_channel_cfg(
+input_system_err_t	input_system_csi_xmem_acquire_only_channel_cfg(
     u32				ch_id,
     u32				nof_frames,
     input_system_csi_port_t			port,
@@ -1502,7 +1502,7 @@ input_system_error_t	input_system_csi_xmem_acquire_only_channel_cfg(
 	return input_system_configure_channel(channel);
 }
 
-input_system_error_t	input_system_csi_xmem_capture_only_channel_cfg(
+input_system_err_t	input_system_csi_xmem_capture_only_channel_cfg(
     u32				ch_id,
     u32				nof_frames,
     input_system_csi_port_t			port,
@@ -1535,7 +1535,7 @@ input_system_error_t	input_system_csi_xmem_capture_only_channel_cfg(
 
 // Non - CSI
 
-input_system_error_t	input_system_prbs_channel_cfg(
+input_system_err_t	input_system_prbs_channel_cfg(
     u32		ch_id,
     u32		nof_frames,//not used yet
     u32		seed,
@@ -1564,7 +1564,7 @@ input_system_error_t	input_system_prbs_channel_cfg(
 	return input_system_configure_channel(channel);
 }
 
-input_system_error_t	input_system_tpg_channel_cfg(
+input_system_err_t	input_system_tpg_channel_cfg(
     u32		ch_id,
     u32		nof_frames,//not used yet
     u32		x_mask,
@@ -1601,7 +1601,7 @@ input_system_error_t	input_system_tpg_channel_cfg(
 }
 
 // MW: Don't use system specific names, (even in system specific files) "cfg2400" -> cfg
-input_system_error_t	input_system_gpfifo_channel_cfg(
+input_system_err_t	input_system_gpfifo_channel_cfg(
     u32		ch_id,
     u32		nof_frames, //not used yet
 
@@ -1625,11 +1625,11 @@ input_system_error_t	input_system_gpfifo_channel_cfg(
 ///////////////////////////////////////////////////////////////////////////
 
 // Fills the parameters to config.csi_value[port]
-static input_system_error_t input_system_configure_channel_sensor(
+static input_system_err_t input_system_configure_channel_sensor(
     const channel_cfg_t channel)
 {
 	const u32 port = channel.source_cfg.csi_cfg.csi_port;
-	input_system_error_t status = INPUT_SYSTEM_ERR_NO_ERROR;
+	input_system_err_t status = INPUT_SYSTEM_ERR_NO_ERROR;
 
 	input_system_multiplex_t mux;
 
@@ -1711,7 +1711,7 @@ static input_system_error_t input_system_configure_channel_sensor(
 }
 
 // Test flags and set structure.
-static input_system_error_t set_source_type(
+static input_system_err_t set_source_type(
     input_system_source_t *const lhs,
     const input_system_source_t			rhs,
     input_system_config_flags_t *const flags)
@@ -1747,7 +1747,7 @@ static input_system_error_t set_source_type(
 }
 
 // Test flags and set structure.
-static input_system_error_t set_csi_cfg(
+static input_system_err_t set_csi_cfg(
     csi_cfg_t *const lhs,
     const csi_cfg_t *const rhs,
     input_system_config_flags_t *const flags)
@@ -1814,7 +1814,7 @@ static input_system_error_t set_csi_cfg(
 }
 
 // Test flags and set structure.
-static input_system_error_t input_system_multiplexer_cfg(
+static input_system_err_t input_system_multiplexer_cfg(
     input_system_multiplex_t *const lhs,
     const input_system_multiplex_t		rhs,
     input_system_config_flags_t *const flags)

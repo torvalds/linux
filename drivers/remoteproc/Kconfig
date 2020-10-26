@@ -43,7 +43,7 @@ config INGENIC_VPU_RPROC
 
 config MTK_SCP
 	tristate "Mediatek SCP support"
-	depends on ARCH_MEDIATEK
+	depends on ARCH_MEDIATEK || COMPILE_TEST
 	select RPMSG_MTK_SCP
 	help
 	  Say y here to support Mediatek's System Companion Processor (SCP) via
@@ -274,6 +274,19 @@ config TI_K3_DSP_REMOTEPROC
 
 	  It's safe to say N here if you're not interested in utilizing
 	  the DSP slave processors.
+
+config TI_K3_R5_REMOTEPROC
+	tristate "TI K3 R5 remoteproc support"
+	depends on ARCH_K3
+	select MAILBOX
+	select OMAP2PLUS_MBOX
+	help
+	  Say m here to support TI's R5F remote processor subsystems
+	  on various TI K3 family of SoCs through the remote processor
+	  framework.
+
+	  It's safe to say N here if you're not interested in utilizing
+	  a slave processor.
 
 endif # REMOTEPROC
 

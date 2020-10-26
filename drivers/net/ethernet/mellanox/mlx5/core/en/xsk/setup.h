@@ -12,7 +12,7 @@ bool mlx5e_validate_xsk_param(struct mlx5e_params *params,
 			      struct mlx5e_xsk_param *xsk,
 			      struct mlx5_core_dev *mdev);
 int mlx5e_open_xsk(struct mlx5e_priv *priv, struct mlx5e_params *params,
-		   struct mlx5e_xsk_param *xsk, struct xdp_umem *umem,
+		   struct mlx5e_xsk_param *xsk, struct xsk_buff_pool *pool,
 		   struct mlx5e_channel *c);
 void mlx5e_close_xsk(struct mlx5e_channel *c);
 void mlx5e_activate_xsk(struct mlx5e_channel *c);

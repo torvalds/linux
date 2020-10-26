@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * QLogic Fibre Channel HBA Driver
  * Copyright (c)  2003-2014 QLogic Corporation
- *
- * See LICENSE.qla2xxx for copyright and licensing details.
  */
 #include "qla_def.h"
 #include "qla_tmpl.h"
@@ -11,33 +10,6 @@
 #define IOBAR(reg)	offsetof(typeof(*(reg)), iobase_addr)
 #define IOBASE(vha)	IOBAR(ISPREG(vha))
 #define INVALID_ENTRY ((struct qla27xx_fwdt_entry *)0xffffffffffffffffUL)
-
-/* hardware_lock assumed held. */
-static void
-qla27xx_write_remote_reg(struct scsi_qla_host *vha,
-			 u32 addr, u32 data)
-{
-	struct device_reg_24xx __iomem *reg = &vha->hw->iobase->isp24;
-
-	ql_dbg(ql_dbg_misc, vha, 0xd300,
-	       "%s: addr/data = %xh/%xh\n", __func__, addr, data);
-
-	wrt_reg_dword(&reg->iobase_addr, 0x40);
-	wrt_reg_dword(&reg->iobase_c4, data);
-	wrt_reg_dword(&reg->iobase_window, addr);
-}
-
-void
-qla27xx_reset_mpi(scsi_qla_host_t *vha)
-{
-	ql_dbg(ql_dbg_misc + ql_dbg_verbose, vha, 0xd301,
-	       "Entered %s.\n", __func__);
-
-	qla27xx_write_remote_reg(vha, 0x104050, 0x40004);
-	qla27xx_write_remote_reg(vha, 0x10405c, 0x4);
-
-	vha->hw->stat.num_mpi_reset++;
-}
 
 static inline void
 qla27xx_insert16(uint16_t value, void *buf, ulong *len)
@@ -906,8 +878,8 @@ qla27xx_driver_info(struct qla27xx_fwdt_template *tmp)
 	uint8_t v[] = { 0, 0, 0, 0, 0, 0 };
 
 	WARN_ON_ONCE(sscanf(qla2x00_version_str,
-			    "%hhu.%hhu.%hhu.%hhu.%hhu.%hhu",
-			    v+0, v+1, v+2, v+3, v+4, v+5) != 6);
+			    "%hhu.%hhu.%hhu.%hhu",
+			    v + 0, v + 1, v + 2, v + 3) != 4);
 
 	tmp->driver_info[0] = cpu_to_le32(
 		v[3] << 24 | v[2] << 16 | v[1] << 8 | v[0]);
@@ -1028,7 +1000,6 @@ void
 qla27xx_mpi_fwdump(scsi_qla_host_t *vha, int hardware_locked)
 {
 	ulong flags = 0;
-	bool need_mpi_reset = true;
 
 #ifndef __CHECKER__
 	if (!hardware_locked)
@@ -1036,14 +1007,20 @@ qla27xx_mpi_fwdump(scsi_qla_host_t *vha, int hardware_locked)
 #endif
 	if (!vha->hw->mpi_fw_dump) {
 		ql_log(ql_log_warn, vha, 0x02f3, "-> mpi_fwdump no buffer\n");
-	} else if (vha->hw->mpi_fw_dumped) {
-		ql_log(ql_log_warn, vha, 0x02f4,
-		       "-> MPI firmware already dumped (%p) -- ignoring request\n",
-		       vha->hw->mpi_fw_dump);
 	} else {
 		struct fwdt *fwdt = &vha->hw->fwdt[1];
 		ulong len;
 		void *buf = vha->hw->mpi_fw_dump;
+		bool walk_template_only = false;
+
+		if (vha->hw->mpi_fw_dumped) {
+			/* Use the spare area for any further dumps. */
+			buf += fwdt->dump_size;
+			walk_template_only = true;
+			ql_log(ql_log_warn, vha, 0x02f4,
+			       "-> MPI firmware already dumped -- dump saving to temporary buffer %p.\n",
+			       buf);
+		}
 
 		ql_log(ql_log_warn, vha, 0x02f5, "-> fwdt1 running...\n");
 		if (!fwdt->template) {
@@ -1058,9 +1035,10 @@ qla27xx_mpi_fwdump(scsi_qla_host_t *vha, int hardware_locked)
 			ql_log(ql_log_warn, vha, 0x02f7,
 			       "-> fwdt1 fwdump residual=%+ld\n",
 			       fwdt->dump_size - len);
-		} else {
-			need_mpi_reset = false;
 		}
+		vha->hw->stat.num_mpi_reset++;
+		if (walk_template_only)
+			goto bailout;
 
 		vha->hw->mpi_fw_dump_len = len;
 		vha->hw->mpi_fw_dumped = 1;
@@ -1072,8 +1050,6 @@ qla27xx_mpi_fwdump(scsi_qla_host_t *vha, int hardware_locked)
 	}
 
 bailout:
-	if (need_mpi_reset)
-		qla27xx_reset_mpi(vha);
 #ifndef __CHECKER__
 	if (!hardware_locked)
 		spin_unlock_irqrestore(&vha->hw->hardware_lock, flags);

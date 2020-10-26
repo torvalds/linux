@@ -50,7 +50,6 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 				 unsigned long *image_size,
 				 unsigned long *reserve_addr,
 				 unsigned long *reserve_size,
-				 unsigned long dram_base,
 				 efi_loaded_image_t *image)
 {
 	efi_status_t status;
@@ -62,10 +61,12 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 			status = efi_get_random_bytes(sizeof(phys_seed),
 						      (u8 *)&phys_seed);
 			if (status == EFI_NOT_FOUND) {
-				efi_info("EFI_RNG_PROTOCOL unavailable, no randomness supplied\n");
+				efi_info("EFI_RNG_PROTOCOL unavailable, KASLR will be disabled\n");
+				efi_nokaslr = true;
 			} else if (status != EFI_SUCCESS) {
-				efi_err("efi_get_random_bytes() failed\n");
-				return status;
+				efi_err("efi_get_random_bytes() failed (0x%lx), KASLR will be disabled\n",
+					status);
+				efi_nokaslr = true;
 			}
 		} else {
 			efi_info("KASLR disabled on kernel command line\n");
@@ -77,7 +78,7 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 
 	kernel_size = _edata - _text;
 	kernel_memsize = kernel_size + (_end - _edata);
-	*reserve_size = kernel_memsize + TEXT_OFFSET % min_kimg_align();
+	*reserve_size = kernel_memsize;
 
 	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE) && phys_seed != 0) {
 		/*
@@ -91,7 +92,7 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 	}
 
 	if (status != EFI_SUCCESS) {
-		if (IS_ALIGNED((u64)_text - TEXT_OFFSET, min_kimg_align())) {
+		if (IS_ALIGNED((u64)_text, min_kimg_align())) {
 			/*
 			 * Just execute from wherever we were loaded by the
 			 * UEFI PE/COFF loader if the alignment is suitable.
@@ -111,7 +112,7 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 		}
 	}
 
-	*image_addr = *reserve_addr + TEXT_OFFSET % min_kimg_align();
+	*image_addr = *reserve_addr;
 	memcpy((void *)*image_addr, _text, kernel_size);
 
 	return EFI_SUCCESS;

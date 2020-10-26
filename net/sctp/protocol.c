@@ -372,7 +372,7 @@ static int sctp_v4_available(union sctp_addr *addr, struct sctp_sock *sp)
  * Level 3 - private addresses.
  * Level 4 - global addresses
  * For INIT and INIT-ACK address list, let L be the level of
- * of requested destination address, sender and receiver
+ * requested destination address, sender and receiver
  * SHOULD include all of its addresses with level greater
  * than or equal to L.
  *
@@ -1483,10 +1483,10 @@ static __init int sctp_init(void)
 	num_entries = (1UL << order) * PAGE_SIZE /
 		      sizeof(struct sctp_bind_hashbucket);
 
-	/* And finish by rounding it down to the nearest power of two
-	 * this wastes some memory of course, but its needed because
+	/* And finish by rounding it down to the nearest power of two.
+	 * This wastes some memory of course, but it's needed because
 	 * the hash function operates based on the assumption that
-	 * that the number of entries is a power of two
+	 * the number of entries is a power of two.
 	 */
 	sctp_port_hashsize = rounddown_pow_of_two(num_entries);
 

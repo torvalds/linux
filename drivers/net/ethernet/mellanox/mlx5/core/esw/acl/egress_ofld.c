@@ -148,6 +148,11 @@ static void esw_acl_egress_ofld_groups_destroy(struct mlx5_vport *vport)
 	esw_acl_egress_vlan_grp_destroy(vport);
 }
 
+static bool esw_acl_egress_needed(const struct mlx5_eswitch *esw, u16 vport_num)
+{
+	return mlx5_eswitch_is_vf_vport(esw, vport_num);
+}
+
 int esw_acl_egress_ofld_setup(struct mlx5_eswitch *esw, struct mlx5_vport *vport)
 {
 	int table_size = 0;
@@ -155,6 +160,9 @@ int esw_acl_egress_ofld_setup(struct mlx5_eswitch *esw, struct mlx5_vport *vport
 
 	if (!mlx5_esw_acl_egress_fwd2vport_supported(esw) &&
 	    !MLX5_CAP_GEN(esw->dev, prio_tag_required))
+		return 0;
+
+	if (!esw_acl_egress_needed(esw, vport->vport))
 		return 0;
 
 	esw_acl_egress_ofld_rules_destroy(vport);

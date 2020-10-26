@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.audio
 
 .. _AUDIO_BILINGUAL_CHANNEL_SELECT:
 
@@ -23,9 +17,9 @@ AUDIO_BILINGUAL_CHANNEL_SELECT
 Synopsis
 --------
 
-.. c:function:: int ioctl(int fd, AUDIO_BILINGUAL_CHANNEL_SELECT, struct *audio_channel_select)
-    :name: AUDIO_BILINGUAL_CHANNEL_SELECT
+.. c:macro:: AUDIO_BILINGUAL_CHANNEL_SELECT
 
+``int ioctl(int fd, AUDIO_BILINGUAL_CHANNEL_SELECT, struct audio_channel_select *select)``
 
 Arguments
 ---------
@@ -46,7 +40,6 @@ Arguments
 
        -  Select the output format of the audio (mono left/right, stereo).
 
-
 Description
 -----------
 
@@ -56,7 +49,6 @@ for MPEG decoders controlled through V4L2.
 
 This ioctl call asks the Audio Device to select the requested channel
 for bilingual streams if possible.
-
 
 Return Value
 ------------

@@ -558,7 +558,7 @@ static int wl1251_build_null_data(struct wl1251 *wl)
 out:
 	dev_kfree_skb(skb);
 	if (ret)
-		wl1251_warning("cmd buld null data failed: %d", ret);
+		wl1251_warning("cmd build null data failed: %d", ret);
 
 	return ret;
 }

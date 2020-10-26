@@ -340,7 +340,7 @@ static void redrat3_process_ir_data(struct redrat3_dev *rr3)
 {
 	struct ir_raw_event rawir = {};
 	struct device *dev;
-	unsigned int i, sig_size, single_len, offset, val;
+	unsigned int i, sig_size, offset, val;
 	u32 mod_freq;
 
 	dev = rr3->dev;
@@ -361,7 +361,6 @@ static void redrat3_process_ir_data(struct redrat3_dev *rr3)
 	for (i = 0; i < sig_size; i++) {
 		offset = rr3->irdata.sigdata[i];
 		val = get_unaligned_be16(&rr3->irdata.lens[offset]);
-		single_len = redrat3_len_to_us(val);
 
 		/* we should always get pulse/space/pulse/space samples */
 		if (i % 2)
@@ -369,7 +368,7 @@ static void redrat3_process_ir_data(struct redrat3_dev *rr3)
 		else
 			rawir.pulse = true;
 
-		rawir.duration = US_TO_NS(single_len);
+		rawir.duration = redrat3_len_to_us(val);
 		/* cap the value to IR_MAX_DURATION */
 		rawir.duration = (rawir.duration > IR_MAX_DURATION) ?
 				 IR_MAX_DURATION : rawir.duration;
@@ -495,7 +494,7 @@ static u32 redrat3_get_timeout(struct redrat3_dev *rr3)
 	return timeout;
 }
 
-static int redrat3_set_timeout(struct rc_dev *rc_dev, unsigned int timeoutns)
+static int redrat3_set_timeout(struct rc_dev *rc_dev, unsigned int timeoutus)
 {
 	struct redrat3_dev *rr3 = rc_dev->priv;
 	struct usb_device *udev = rr3->udev;
@@ -507,7 +506,7 @@ static int redrat3_set_timeout(struct rc_dev *rc_dev, unsigned int timeoutns)
 	if (!timeout)
 		return -ENOMEM;
 
-	*timeout = cpu_to_be32(redrat3_us_to_len(timeoutns / 1000));
+	*timeout = cpu_to_be32(redrat3_us_to_len(timeoutus));
 	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0), RR3_SET_IR_PARAM,
 		     USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
 		     RR3_IR_IO_SIG_TIMEOUT, 0, timeout, sizeof(*timeout),
@@ -947,15 +946,15 @@ static struct rc_dev *redrat3_init_rc_dev(struct redrat3_dev *rr3)
 	rc->dev.parent = dev;
 	rc->priv = rr3;
 	rc->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
-	rc->min_timeout = MS_TO_NS(RR3_RX_MIN_TIMEOUT);
-	rc->max_timeout = MS_TO_NS(RR3_RX_MAX_TIMEOUT);
-	rc->timeout = US_TO_NS(redrat3_get_timeout(rr3));
+	rc->min_timeout = MS_TO_US(RR3_RX_MIN_TIMEOUT);
+	rc->max_timeout = MS_TO_US(RR3_RX_MAX_TIMEOUT);
+	rc->timeout = redrat3_get_timeout(rr3);
 	rc->s_timeout = redrat3_set_timeout;
 	rc->tx_ir = redrat3_transmit_ir;
 	rc->s_tx_carrier = redrat3_set_tx_carrier;
 	rc->s_carrier_report = redrat3_wideband_receiver;
 	rc->driver_name = DRIVER_NAME;
-	rc->rx_resolution = US_TO_NS(2);
+	rc->rx_resolution = 2;
 	rc->map_name = RC_MAP_HAUPPAUGE;
 
 	ret = rc_register_device(rc);

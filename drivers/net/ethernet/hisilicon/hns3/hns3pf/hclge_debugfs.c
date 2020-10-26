@@ -8,7 +8,7 @@
 #include "hclge_tm.h"
 #include "hnae3.h"
 
-static struct hclge_dbg_reg_type_info hclge_dbg_reg_info[] = {
+static const struct hclge_dbg_reg_type_info hclge_dbg_reg_info[] = {
 	{ .reg_type = "bios common",
 	  .dfx_msg = &hclge_dbg_bios_common_reg[0],
 	  .reg_msg = { .msg_num = ARRAY_SIZE(hclge_dbg_bios_common_reg),
@@ -115,14 +115,14 @@ static int hclge_dbg_cmd_send(struct hclge_dev *hdev,
 }
 
 static void hclge_dbg_dump_reg_common(struct hclge_dev *hdev,
-				      struct hclge_dbg_reg_type_info *reg_info,
+				      const struct hclge_dbg_reg_type_info *reg_info,
 				      const char *cmd_buf)
 {
 #define IDX_OFFSET	1
 
 	const char *s = &cmd_buf[strlen(reg_info->reg_type) + IDX_OFFSET];
-	struct hclge_dbg_dfx_message *dfx_message = reg_info->dfx_msg;
-	struct hclge_dbg_reg_common_msg *reg_msg = &reg_info->reg_msg;
+	const struct hclge_dbg_dfx_message *dfx_message = reg_info->dfx_msg;
+	const struct hclge_dbg_reg_common_msg *reg_msg = &reg_info->reg_msg;
 	struct hclge_desc *desc_src;
 	struct hclge_desc *desc;
 	int entries_per_desc;
@@ -399,7 +399,7 @@ err_dcb_cmd_send:
 
 static void hclge_dbg_dump_reg_cmd(struct hclge_dev *hdev, const char *cmd_buf)
 {
-	struct hclge_dbg_reg_type_info *reg_info;
+	const struct hclge_dbg_reg_type_info *reg_info;
 	bool has_dump = false;
 	int i;
 
@@ -428,17 +428,13 @@ static void hclge_dbg_dump_reg_cmd(struct hclge_dev *hdev, const char *cmd_buf)
 	}
 }
 
-static void hclge_title_idx_print(struct hclge_dev *hdev, bool flag, int index,
-				  char *title_buf, char *true_buf,
-				  char *false_buf)
+static void hclge_print_tc_info(struct hclge_dev *hdev, bool flag, int index)
 {
 	if (flag)
-		dev_info(&hdev->pdev->dev, "%s(%d): %s weight: %u\n",
-			 title_buf, index, true_buf,
-			 hdev->tm_info.pg_info[0].tc_dwrr[index]);
+		dev_info(&hdev->pdev->dev, "tc(%d): no sp mode weight: %u\n",
+			 index, hdev->tm_info.pg_info[0].tc_dwrr[index]);
 	else
-		dev_info(&hdev->pdev->dev, "%s(%d): %s\n", title_buf, index,
-			 false_buf);
+		dev_info(&hdev->pdev->dev, "tc(%d): sp mode\n", index);
 }
 
 static void hclge_dbg_dump_tc(struct hclge_dev *hdev)
@@ -469,8 +465,7 @@ static void hclge_dbg_dump_tc(struct hclge_dev *hdev)
 		 ets_weight->weight_offset);
 
 	for (i = 0; i < HNAE3_MAX_TC; i++)
-		hclge_title_idx_print(hdev, ets_weight->tc_weight[i], i,
-				      "tc", "no sp mode", "sp mode");
+		hclge_print_tc_info(hdev, ets_weight->tc_weight[i], i);
 }
 
 static void hclge_dbg_dump_tm_pg(struct hclge_dev *hdev)
@@ -1170,6 +1165,14 @@ static void hclge_dbg_dump_serv_info(struct hclge_dev *hdev)
 		 hdev->serv_processed_cnt);
 }
 
+static void hclge_dbg_dump_interrupt(struct hclge_dev *hdev)
+{
+	dev_info(&hdev->pdev->dev, "num_nic_msi: %u\n", hdev->num_nic_msi);
+	dev_info(&hdev->pdev->dev, "num_roce_msi: %u\n", hdev->num_roce_msi);
+	dev_info(&hdev->pdev->dev, "num_msi_used: %u\n", hdev->num_msi_used);
+	dev_info(&hdev->pdev->dev, "num_msi_left: %u\n", hdev->num_msi_left);
+}
+
 static void hclge_dbg_get_m7_stats_info(struct hclge_dev *hdev)
 {
 	struct hclge_desc *desc_src, *desc_tmp;
@@ -1494,6 +1497,7 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, const char *cmd_buf)
 #define DUMP_REG	"dump reg"
 #define DUMP_TM_MAP	"dump tm map"
 #define DUMP_LOOPBACK	"dump loopback"
+#define DUMP_INTERRUPT	"dump intr"
 
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
@@ -1541,6 +1545,9 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, const char *cmd_buf)
 		hclge_dbg_dump_mac_list(hdev,
 					&cmd_buf[sizeof("dump mc mac list")],
 					false);
+	} else if (strncmp(cmd_buf, DUMP_INTERRUPT,
+		   strlen(DUMP_INTERRUPT)) == 0) {
+		hclge_dbg_dump_interrupt(hdev);
 	} else {
 		dev_info(&hdev->pdev->dev, "unknown command\n");
 		return -EINVAL;

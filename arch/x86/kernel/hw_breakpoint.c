@@ -442,42 +442,6 @@ int hw_breakpoint_arch_parse(struct perf_event *bp,
 }
 
 /*
- * Dump the debug register contents to the user.
- * We can't dump our per cpu values because it
- * may contain cpu wide breakpoint, something that
- * doesn't belong to the current task.
- *
- * TODO: include non-ptrace user breakpoints (perf)
- */
-void aout_dump_debugregs(struct user *dump)
-{
-	int i;
-	int dr7 = 0;
-	struct perf_event *bp;
-	struct arch_hw_breakpoint *info;
-	struct thread_struct *thread = &current->thread;
-
-	for (i = 0; i < HBP_NUM; i++) {
-		bp = thread->ptrace_bps[i];
-
-		if (bp && !bp->attr.disabled) {
-			dump->u_debugreg[i] = bp->attr.bp_addr;
-			info = counter_arch_bp(bp);
-			dr7 |= encode_dr7(i, info->len, info->type);
-		} else {
-			dump->u_debugreg[i] = 0;
-		}
-	}
-
-	dump->u_debugreg[4] = 0;
-	dump->u_debugreg[5] = 0;
-	dump->u_debugreg[6] = current->thread.debugreg6;
-
-	dump->u_debugreg[7] = dr7;
-}
-EXPORT_SYMBOL_GPL(aout_dump_debugregs);
-
-/*
  * Release the user breakpoints used by ptrace
  */
 void flush_ptrace_hw_breakpoint(struct task_struct *tsk)
@@ -490,7 +454,7 @@ void flush_ptrace_hw_breakpoint(struct task_struct *tsk)
 		t->ptrace_bps[i] = NULL;
 	}
 
-	t->debugreg6 = 0;
+	t->virtual_dr6 = 0;
 	t->ptrace_dr7 = 0;
 }
 
@@ -500,7 +464,7 @@ void hw_breakpoint_restore(void)
 	set_debugreg(__this_cpu_read(cpu_debugreg[1]), 1);
 	set_debugreg(__this_cpu_read(cpu_debugreg[2]), 2);
 	set_debugreg(__this_cpu_read(cpu_debugreg[3]), 3);
-	set_debugreg(current->thread.debugreg6, 6);
+	set_debugreg(DR6_RESERVED, 6);
 	set_debugreg(__this_cpu_read(cpu_dr7), 7);
 }
 EXPORT_SYMBOL_GPL(hw_breakpoint_restore);
@@ -523,10 +487,10 @@ EXPORT_SYMBOL_GPL(hw_breakpoint_restore);
  */
 static int hw_breakpoint_handler(struct die_args *args)
 {
-	int i, cpu, rc = NOTIFY_STOP;
+	int i, rc = NOTIFY_STOP;
 	struct perf_event *bp;
-	unsigned long dr6;
 	unsigned long *dr6_p;
+	unsigned long dr6;
 
 	/* The DR6 value is pointed by args->err */
 	dr6_p = (unsigned long *)ERR_PTR(args->err);
@@ -539,14 +503,6 @@ static int hw_breakpoint_handler(struct die_args *args)
 	/* Do an early return if no trap bits are set in DR6 */
 	if ((dr6 & DR_TRAP_BITS) == 0)
 		return NOTIFY_DONE;
-
-	/*
-	 * Assert that local interrupts are disabled
-	 * Reset the DRn bits in the virtualized register value.
-	 * The ptrace trigger routine will add in whatever is needed.
-	 */
-	current->thread.debugreg6 &= ~DR_TRAP_BITS;
-	cpu = get_cpu();
 
 	/* Handle all the breakpoints that were triggered */
 	for (i = 0; i < HBP_NUM; ++i) {
@@ -561,7 +517,7 @@ static int hw_breakpoint_handler(struct die_args *args)
 		 */
 		rcu_read_lock();
 
-		bp = per_cpu(bp_per_reg[i], cpu);
+		bp = this_cpu_read(bp_per_reg[i]);
 		/*
 		 * Reset the 'i'th TRAP bit in dr6 to denote completion of
 		 * exception handling
@@ -592,11 +548,9 @@ static int hw_breakpoint_handler(struct die_args *args)
 	 * breakpoints (to generate signals) and b) when the system has
 	 * taken exception due to multiple causes
 	 */
-	if ((current->thread.debugreg6 & DR_TRAP_BITS) ||
+	if ((current->thread.virtual_dr6 & DR_TRAP_BITS) ||
 	    (dr6 & (~DR_TRAP_BITS)))
 		rc = NOTIFY_DONE;
-
-	put_cpu();
 
 	return rc;
 }

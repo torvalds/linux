@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: CEC
 
 .. _cec-func-poll:
 
@@ -18,7 +12,6 @@ Name
 
 cec-poll - Wait for some event on a file descriptor
 
-
 Synopsis
 ========
 
@@ -26,9 +19,7 @@ Synopsis
 
     #include <sys/poll.h>
 
-
 .. c:function:: int poll( struct pollfd *ufds, unsigned int nfds, int timeout )
-   :name: cec-poll
 
 Arguments
 =========
@@ -42,14 +33,13 @@ Arguments
 ``timeout``
    Timeout to wait for events
 
-
 Description
 ===========
 
-With the :c:func:`poll() <cec-poll>` function applications can wait for CEC
+With the :c:func:`poll()` function applications can wait for CEC
 events.
 
-On success :c:func:`poll() <cec-poll>` returns the number of file descriptors
+On success :c:func:`poll()` returns the number of file descriptors
 that have been selected (that is, file descriptors for which the
 ``revents`` field of the respective struct :c:type:`pollfd`
 is non-zero). CEC devices set the ``POLLIN`` and ``POLLRDNORM`` flags in
@@ -60,13 +50,12 @@ then the ``POLLPRI`` flag is set. When the function times out it returns
 a value of zero, on failure it returns -1 and the ``errno`` variable is
 set appropriately.
 
-For more details see the :c:func:`poll() <cec-poll>` manual page.
-
+For more details see the :c:func:`poll()` manual page.
 
 Return Value
 ============
 
-On success, :c:func:`poll() <cec-poll>` returns the number structures which have
+On success, :c:func:`poll()` returns the number structures which have
 non-zero ``revents`` fields, or zero if the call timed out. On error -1
 is returned, and the ``errno`` variable is set appropriately:
 

@@ -109,7 +109,7 @@ int uvd_v2_2_resume(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	/* programm the VCPU memory controller bits 0-27 */
+	/* program the VCPU memory controller bits 0-27 */
 	addr = rdev->uvd.gpu_addr >> 3;
 	size = RADEON_GPU_PAGE_ALIGN(rdev->uvd_fw->size + 4) >> 3;
 	WREG32(UVD_VCPU_CACHE_OFFSET0, addr);

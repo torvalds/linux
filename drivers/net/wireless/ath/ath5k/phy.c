@@ -3229,10 +3229,10 @@ ath5k_write_pwr_to_pdadc_table(struct ath5k_hw *ah, u8 ee_mode)
 	switch (pdcurves) {
 	case 3:
 		reg |= AR5K_REG_SM(pdg_to_idx[2], AR5K_PHY_TPC_RG1_PDGAIN_3);
-		/* Fall through */
+		fallthrough;
 	case 2:
 		reg |= AR5K_REG_SM(pdg_to_idx[1], AR5K_PHY_TPC_RG1_PDGAIN_2);
-		/* Fall through */
+		fallthrough;
 	case 1:
 		reg |= AR5K_REG_SM(pdg_to_idx[0], AR5K_PHY_TPC_RG1_PDGAIN_1);
 		break;
@@ -3353,7 +3353,7 @@ ath5k_setup_channel_powertable(struct ath5k_hw *ah,
 					table_min[pdg] = table_max[pdg] - 126;
 			}
 
-			/* Fall through */
+			fallthrough;
 		case AR5K_PWRTABLE_PWR_TO_PCDAC:
 		case AR5K_PWRTABLE_PWR_TO_PDADC:
 

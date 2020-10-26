@@ -381,7 +381,7 @@ struct v4l2_mbus_frame_desc {
  *	OUTPUT device. This is ignored by video capture devices.
  *
  * @g_input_status: get input status. Same as the status field in the
- *	&struct &v4l2_input
+ *	&struct v4l2_input
  *
  * @s_stream: used to notify the driver that a video stream will start or has
  *	stopped.
@@ -401,12 +401,6 @@ struct v4l2_mbus_frame_desc {
  * @g_dv_timings: Get custom dv timings in the sub device.
  *
  * @query_dv_timings: callback for VIDIOC_QUERY_DV_TIMINGS() ioctl handler code.
- *
- * @g_mbus_config: get supported mediabus configurations
- *
- * @s_mbus_config: set a certain mediabus configuration. This operation is added
- *	for compatibility with soc-camera drivers and should not be used by new
- *	software.
  *
  * @s_rx_buffer: set a host allocated memory buffer for the subdev. The subdev
  *	can adjust @size to a lower value and must not write more data to the
@@ -435,10 +429,6 @@ struct v4l2_subdev_video_ops {
 			struct v4l2_dv_timings *timings);
 	int (*query_dv_timings)(struct v4l2_subdev *sd,
 			struct v4l2_dv_timings *timings);
-	int (*g_mbus_config)(struct v4l2_subdev *sd,
-			     struct v4l2_mbus_config *cfg);
-	int (*s_mbus_config)(struct v4l2_subdev *sd,
-			     const struct v4l2_mbus_config *cfg);
 	int (*s_rx_buffer)(struct v4l2_subdev *sd, void *buf,
 			   unsigned int *size);
 };
@@ -670,6 +660,30 @@ struct v4l2_subdev_pad_config {
  *
  * @set_frame_desc: set the low level media bus frame parameters, @fd array
  *                  may be adjusted by the subdev driver to device capabilities.
+ *
+ * @get_mbus_config: get the media bus configuration of a remote sub-device.
+ *		     The media bus configuration is usually retrieved from the
+ *		     firmware interface at sub-device probe time, immediately
+ *		     applied to the hardware and eventually adjusted by the
+ *		     driver. Remote sub-devices (usually video receivers) shall
+ *		     use this operation to query the transmitting end bus
+ *		     configuration in order to adjust their own one accordingly.
+ *		     Callers should make sure they get the most up-to-date as
+ *		     possible configuration from the remote end, likely calling
+ *		     this operation as close as possible to stream on time. The
+ *		     operation shall fail if the pad index it has been called on
+ *		     is not valid or in case of unrecoverable failures.
+ *
+ * @set_mbus_config: set the media bus configuration of a remote sub-device.
+ *		     This operations is intended to allow, in combination with
+ *		     the get_mbus_config operation, the negotiation of media bus
+ *		     configuration parameters between media sub-devices. The
+ *		     operation shall not fail if the requested configuration is
+ *		     not supported, but the driver shall update the content of
+ *		     the %config argument to reflect what has been actually
+ *		     applied to the hardware. The operation shall fail if the
+ *		     pad index it has been called on is not valid or in case of
+ *		     unrecoverable failures.
  */
 struct v4l2_subdev_pad_ops {
 	int (*init_cfg)(struct v4l2_subdev *sd,
@@ -710,6 +724,10 @@ struct v4l2_subdev_pad_ops {
 			      struct v4l2_mbus_frame_desc *fd);
 	int (*set_frame_desc)(struct v4l2_subdev *sd, unsigned int pad,
 			      struct v4l2_mbus_frame_desc *fd);
+	int (*get_mbus_config)(struct v4l2_subdev *sd, unsigned int pad,
+			       struct v4l2_mbus_config *config);
+	int (*set_mbus_config)(struct v4l2_subdev *sd, unsigned int pad,
+			       struct v4l2_mbus_config *config);
 };
 
 /**

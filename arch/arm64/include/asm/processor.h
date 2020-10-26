@@ -38,6 +38,7 @@
 #include <asm/pgtable-hwdef.h>
 #include <asm/pointer_auth.h>
 #include <asm/ptrace.h>
+#include <asm/spectre.h>
 #include <asm/types.h>
 
 /*
@@ -151,6 +152,10 @@ struct thread_struct {
 	struct ptrauth_keys_user	keys_user;
 	struct ptrauth_keys_kernel	keys_kernel;
 #endif
+#ifdef CONFIG_ARM64_MTE
+	u64			sctlr_tcf0;
+	u64			gcr_user_incl;
+#endif
 };
 
 static inline void arch_thread_struct_whitelist(unsigned long *offset,
@@ -197,38 +202,13 @@ static inline void start_thread_common(struct pt_regs *regs, unsigned long pc)
 		regs->pmr_save = GIC_PRIO_IRQON;
 }
 
-static inline void set_ssbs_bit(struct pt_regs *regs)
-{
-	regs->pstate |= PSR_SSBS_BIT;
-}
-
-static inline void set_compat_ssbs_bit(struct pt_regs *regs)
-{
-	regs->pstate |= PSR_AA32_SSBS_BIT;
-}
-
 static inline void start_thread(struct pt_regs *regs, unsigned long pc,
 				unsigned long sp)
 {
 	start_thread_common(regs, pc);
 	regs->pstate = PSR_MODE_EL0t;
-
-	if (arm64_get_ssbd_state() != ARM64_SSBD_FORCE_ENABLE)
-		set_ssbs_bit(regs);
-
+	spectre_v4_enable_task_mitigation(current);
 	regs->sp = sp;
-}
-
-static inline bool is_ttbr0_addr(unsigned long addr)
-{
-	/* entry assembly clears tags for TTBR0 addrs */
-	return addr < TASK_SIZE;
-}
-
-static inline bool is_ttbr1_addr(unsigned long addr)
-{
-	/* TTBR1 addresses may have a tag if KASAN_SW_TAGS is in use */
-	return arch_kasan_reset_tag(addr) >= PAGE_OFFSET;
 }
 
 #ifdef CONFIG_COMPAT
@@ -244,12 +224,22 @@ static inline void compat_start_thread(struct pt_regs *regs, unsigned long pc,
 	regs->pstate |= PSR_AA32_E_BIT;
 #endif
 
-	if (arm64_get_ssbd_state() != ARM64_SSBD_FORCE_ENABLE)
-		set_compat_ssbs_bit(regs);
-
+	spectre_v4_enable_task_mitigation(current);
 	regs->compat_sp = sp;
 }
 #endif
+
+static inline bool is_ttbr0_addr(unsigned long addr)
+{
+	/* entry assembly clears tags for TTBR0 addrs */
+	return addr < TASK_SIZE;
+}
+
+static inline bool is_ttbr1_addr(unsigned long addr)
+{
+	/* TTBR1 addresses may have a tag if KASAN_SW_TAGS is in use */
+	return arch_kasan_reset_tag(addr) >= PAGE_OFFSET;
+}
 
 /* Forward declaration, a strange C thing */
 struct task_struct;
@@ -315,10 +305,10 @@ extern void __init minsigstksz_setup(void);
 
 #ifdef CONFIG_ARM64_TAGGED_ADDR_ABI
 /* PR_{SET,GET}_TAGGED_ADDR_CTRL prctl */
-long set_tagged_addr_ctrl(unsigned long arg);
-long get_tagged_addr_ctrl(void);
-#define SET_TAGGED_ADDR_CTRL(arg)	set_tagged_addr_ctrl(arg)
-#define GET_TAGGED_ADDR_CTRL()		get_tagged_addr_ctrl()
+long set_tagged_addr_ctrl(struct task_struct *task, unsigned long arg);
+long get_tagged_addr_ctrl(struct task_struct *task);
+#define SET_TAGGED_ADDR_CTRL(arg)	set_tagged_addr_ctrl(current, arg)
+#define GET_TAGGED_ADDR_CTRL()		get_tagged_addr_ctrl(current)
 #endif
 
 /*

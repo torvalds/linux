@@ -528,6 +528,10 @@ object corresponding to it, as follows:
 	Total number of times the hardware has been asked by the given CPU to
 	enter this idle state.
 
+``rejected``
+	Total number of times a request to enter this idle state on the given
+	CPU was rejected.
+
 The :file:`desc` and :file:`name` files both contain strings.  The difference
 between them is that the name is expected to be more concise, while the
 description may be longer and it may contain white space or special characters.
@@ -572,6 +576,11 @@ particular case.  For these reasons, the only reliable way to find out how
 much time has been spent by the hardware in different idle states supported by
 it is to use idle state residency counters in the hardware, if available.
 
+Generally, an interrupt received when trying to enter an idle state causes the
+idle state entry request to be rejected, in which case the ``CPUIdle`` driver
+may return an error code to indicate that this was the case. The :file:`usage`
+and :file:`rejected` files report the number of times the given idle state
+was entered successfully or rejected, respectively.
 
 .. _cpu-pm-qos:
 

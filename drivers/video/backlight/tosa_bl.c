@@ -11,7 +11,7 @@
 #include <linux/device.h>
 #include <linux/spi/spi.h>
 #include <linux/i2c.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/fb.h>
 #include <linux/backlight.h>
 #include <linux/slab.h>

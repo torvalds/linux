@@ -97,7 +97,7 @@ MODULE_DEVICE_TABLE(pci, peak_pci_tbl);
 /* GPIOICR byte access offsets */
 #define PITA_GPOUT		0x18	/* GPx output value */
 #define PITA_GPIN		0x19	/* GPx input value */
-#define PITA_GPOEN		0x1A	/* configure GPx as ouput pin */
+#define PITA_GPOEN		0x1A	/* configure GPx as output pin */
 
 /* I2C GP bits */
 #define PITA_GPIN_SCL		0x01	/* Serial Clock Line */

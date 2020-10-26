@@ -272,13 +272,13 @@ static int snd_tm6000_card_trigger(struct snd_pcm_substream *substream, int cmd)
 	int err = 0;
 
 	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE: /* fall through */
-	case SNDRV_PCM_TRIGGER_RESUME: /* fall through */
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_START:
 		atomic_set(&core->stream_started, 1);
 		break;
-	case SNDRV_PCM_TRIGGER_PAUSE_PUSH: /* fall through */
-	case SNDRV_PCM_TRIGGER_SUSPEND: /* fall through */
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
 		atomic_set(&core->stream_started, 0);
 		break;

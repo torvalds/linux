@@ -129,8 +129,7 @@ static void imx_dwmac_exit(struct platform_device *pdev, void *priv)
 {
 	struct imx_priv_data *dwmac = priv;
 
-	if (dwmac->clk_tx)
-		clk_disable_unprepare(dwmac->clk_tx);
+	clk_disable_unprepare(dwmac->clk_tx);
 	clk_disable_unprepare(dwmac->clk_mem);
 }
 

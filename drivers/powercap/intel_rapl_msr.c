@@ -44,6 +44,7 @@ static struct rapl_if_priv rapl_msr_priv = {
 	.regs[RAPL_DOMAIN_PLATFORM] = {
 		MSR_PLATFORM_POWER_LIMIT, MSR_PLATFORM_ENERGY_STATUS, 0, 0, 0},
 	.limits[RAPL_DOMAIN_PACKAGE] = 2,
+	.limits[RAPL_DOMAIN_PLATFORM] = 2,
 };
 
 /* Handles CPU hotplug on multi-socket systems.
@@ -157,9 +158,6 @@ static int rapl_msr_probe(struct platform_device *pdev)
 		goto out;
 	rapl_msr_priv.pcap_rapl_online = ret;
 
-	/* Don't bail out if PSys is not supported */
-	rapl_add_platform_domain(&rapl_msr_priv);
-
 	return 0;
 
 out:
@@ -171,7 +169,6 @@ out:
 static int rapl_msr_remove(struct platform_device *pdev)
 {
 	cpuhp_remove_state(rapl_msr_priv.pcap_rapl_online);
-	rapl_remove_platform_domain(&rapl_msr_priv);
 	powercap_unregister_control_type(rapl_msr_priv.control_type);
 	return 0;
 }

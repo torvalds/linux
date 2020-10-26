@@ -403,6 +403,14 @@ static void release_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 	wa_ctx->indirect_ctx.shadow_va = NULL;
 }
 
+static void set_dma_address(struct i915_page_directory *pd, dma_addr_t addr)
+{
+	struct scatterlist *sg = pd->pt.base->mm.pages->sgl;
+
+	/* This is not a good idea */
+	sg->dma_address = addr;
+}
+
 static void set_context_ppgtt_from_shadow(struct intel_vgpu_workload *workload,
 					  struct intel_context *ce)
 {
@@ -411,7 +419,7 @@ static void set_context_ppgtt_from_shadow(struct intel_vgpu_workload *workload,
 	int i = 0;
 
 	if (mm->ppgtt_mm.root_entry_type == GTT_TYPE_PPGTT_ROOT_L4_ENTRY) {
-		px_dma(ppgtt->pd) = mm->ppgtt_mm.shadow_pdps[0];
+		set_dma_address(ppgtt->pd, mm->ppgtt_mm.shadow_pdps[0]);
 	} else {
 		for (i = 0; i < GVT_RING_CTX_NR_PDPS; i++) {
 			struct i915_page_directory * const pd =
@@ -421,7 +429,8 @@ static void set_context_ppgtt_from_shadow(struct intel_vgpu_workload *workload,
 			   shadow ppgtt. */
 			if (!pd)
 				break;
-			px_dma(pd) = mm->ppgtt_mm.shadow_pdps[i];
+
+			set_dma_address(pd, mm->ppgtt_mm.shadow_pdps[i]);
 		}
 	}
 }
@@ -1240,13 +1249,13 @@ i915_context_ppgtt_root_restore(struct intel_vgpu_submission *s,
 	int i;
 
 	if (i915_vm_is_4lvl(&ppgtt->vm)) {
-		px_dma(ppgtt->pd) = s->i915_context_pml4;
+		set_dma_address(ppgtt->pd, s->i915_context_pml4);
 	} else {
 		for (i = 0; i < GEN8_3LVL_PDPES; i++) {
 			struct i915_page_directory * const pd =
 				i915_pd_entry(ppgtt->pd, i);
 
-			px_dma(pd) = s->i915_context_pdps[i];
+			set_dma_address(pd, s->i915_context_pdps[i]);
 		}
 	}
 }

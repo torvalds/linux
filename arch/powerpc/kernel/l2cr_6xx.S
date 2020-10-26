@@ -256,7 +256,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_SPEC7450)
 	sync
 
 	/* Restore MSR (restores EE and DR bits to original state) */
-	SYNC
 	mtmsr	r7
 	isync
 
@@ -377,7 +376,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_L3CR)
 1:	bdnz	1b
 
 	/* Restore MSR (restores EE and DR bits to original state) */
-4:	SYNC
+4:
 	mtmsr	r7
 	isync
 	blr

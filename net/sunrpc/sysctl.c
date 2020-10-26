@@ -70,7 +70,13 @@ static int proc_do_xprt(struct ctl_table *table, int write,
 		return 0;
 	}
 	len = svc_print_xprts(tmpbuf, sizeof(tmpbuf));
-	return memory_read_from_buffer(buffer, *lenp, ppos, tmpbuf, len);
+	*lenp = memory_read_from_buffer(buffer, *lenp, ppos, tmpbuf, len);
+
+	if (*lenp < 0) {
+		*lenp = 0;
+		return -EINVAL;
+	}
+	return 0;
 }
 
 static int
@@ -108,8 +114,10 @@ proc_dodebug(struct ctl_table *table, int write, void *buffer, size_t *lenp,
 			left -= (s - tmpbuf);
 			if (left && !isspace(*s))
 				return -EINVAL;
-			while (left && isspace(*s))
-				left--, s++;
+			while (left && isspace(*s)) {
+				left--;
+				s++;
+			}
 		} else
 			left = 0;
 		*(unsigned int *) table->data = value;

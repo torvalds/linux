@@ -85,6 +85,15 @@ void dce_pipe_control_lock(struct dc *dc,
 	}
 }
 
+#if defined(CONFIG_DRM_AMD_DC_SI)
+void dce60_pipe_control_lock(struct dc *dc,
+		struct pipe_ctx *pipe,
+		bool lock)
+{
+	/* DCE6 has no BLND_V_UPDATE_LOCK register */
+}
+#endif
+
 void dce_set_blender_mode(struct dce_hwseq *hws,
 	unsigned int blnd_inst,
 	enum blnd_mode mode)

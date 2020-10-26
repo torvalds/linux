@@ -16,6 +16,7 @@
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/kernel_read_file.h>
 #include <linux/lsm_hooks.h>
 #include <linux/integrity.h>
 #include <linux/ima.h>
@@ -1671,14 +1672,15 @@ int security_kernel_module_request(char *kmod_name)
 	return integrity_kernel_module_request(kmod_name);
 }
 
-int security_kernel_read_file(struct file *file, enum kernel_read_file_id id)
+int security_kernel_read_file(struct file *file, enum kernel_read_file_id id,
+			      bool contents)
 {
 	int ret;
 
-	ret = call_int_hook(kernel_read_file, 0, file, id);
+	ret = call_int_hook(kernel_read_file, 0, file, id, contents);
 	if (ret)
 		return ret;
-	return ima_read_file(file, id);
+	return ima_read_file(file, id, contents);
 }
 EXPORT_SYMBOL_GPL(security_kernel_read_file);
 
@@ -1694,16 +1696,30 @@ int security_kernel_post_read_file(struct file *file, char *buf, loff_t size,
 }
 EXPORT_SYMBOL_GPL(security_kernel_post_read_file);
 
-int security_kernel_load_data(enum kernel_load_data_id id)
+int security_kernel_load_data(enum kernel_load_data_id id, bool contents)
 {
 	int ret;
 
-	ret = call_int_hook(kernel_load_data, 0, id);
+	ret = call_int_hook(kernel_load_data, 0, id, contents);
 	if (ret)
 		return ret;
-	return ima_load_data(id);
+	return ima_load_data(id, contents);
 }
 EXPORT_SYMBOL_GPL(security_kernel_load_data);
+
+int security_kernel_post_load_data(char *buf, loff_t size,
+				   enum kernel_load_data_id id,
+				   char *description)
+{
+	int ret;
+
+	ret = call_int_hook(kernel_post_load_data, 0, buf, size, id,
+			    description);
+	if (ret)
+		return ret;
+	return ima_post_load_data(buf, size, id, description);
+}
+EXPORT_SYMBOL_GPL(security_kernel_post_load_data);
 
 int security_task_fix_setuid(struct cred *new, const struct cred *old,
 			     int flags)

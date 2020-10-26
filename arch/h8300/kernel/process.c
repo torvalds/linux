@@ -172,5 +172,5 @@ asmlinkage int sys_clone(unsigned long __user *args)
 	kargs.exit_signal	= (lower_32_bits(clone_flags) & CSIGNAL);
 	kargs.stack		= newsp;
 
-	return _do_fork(&kargs);
+	return kernel_clone(&kargs);
 }

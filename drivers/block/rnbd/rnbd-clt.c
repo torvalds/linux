@@ -91,29 +91,18 @@ static int rnbd_clt_set_dev_attr(struct rnbd_clt_dev *dev,
 	dev->max_hw_sectors = sess->max_io_size / SECTOR_SIZE;
 	dev->max_segments = BMAX_SEGMENTS;
 
-	dev->max_hw_sectors = min_t(u32, dev->max_hw_sectors,
-				    le32_to_cpu(rsp->max_hw_sectors));
-	dev->max_segments = min_t(u16, dev->max_segments,
-				  le16_to_cpu(rsp->max_segments));
-
 	return 0;
 }
 
 static int rnbd_clt_change_capacity(struct rnbd_clt_dev *dev,
 				    size_t new_nsectors)
 {
-	int err = 0;
-
 	rnbd_clt_info(dev, "Device size changed from %zu to %zu sectors\n",
 		       dev->nsectors, new_nsectors);
 	dev->nsectors = new_nsectors;
 	set_capacity(dev->gd, dev->nsectors);
-	err = revalidate_disk(dev->gd);
-	if (err)
-		rnbd_clt_err(dev,
-			      "Failed to change device size from %zu to %zu, err: %d\n",
-			      dev->nsectors, new_nsectors, err);
-	return err;
+	revalidate_disk_size(dev->gd, true);
+	return 0;
 }
 
 static int process_msg_open_rsp(struct rnbd_clt_dev *dev,
@@ -433,7 +422,7 @@ enum wait_type {
 };
 
 static int send_usr_msg(struct rtrs_clt *rtrs, int dir,
-			struct rnbd_iu *iu, struct kvec *vec, size_t nr,
+			struct rnbd_iu *iu, struct kvec *vec,
 			size_t len, struct scatterlist *sg, unsigned int sg_len,
 			void (*conf)(struct work_struct *work),
 			int *errno, enum wait_type wait)
@@ -447,7 +436,7 @@ static int send_usr_msg(struct rtrs_clt *rtrs, int dir,
 		.conf_fn = msg_conf,
 	};
 	err = rtrs_clt_request(dir, &req_ops, rtrs, iu->permit,
-				vec, nr, len, sg, sg_len);
+				vec, 1, len, sg, sg_len);
 	if (!err && wait) {
 		wait_event(iu->comp.wait, iu->comp.errno != INT_MAX);
 		*errno = iu->comp.errno;
@@ -492,7 +481,7 @@ static int send_msg_close(struct rnbd_clt_dev *dev, u32 device_id, bool wait)
 	msg.device_id	= cpu_to_le32(device_id);
 
 	WARN_ON(!rnbd_clt_get_dev(dev));
-	err = send_usr_msg(sess->rtrs, WRITE, iu, &vec, 1, 0, NULL, 0,
+	err = send_usr_msg(sess->rtrs, WRITE, iu, &vec, 0, NULL, 0,
 			   msg_close_conf, &errno, wait);
 	if (err) {
 		rnbd_clt_put_dev(dev);
@@ -581,7 +570,7 @@ static int send_msg_open(struct rnbd_clt_dev *dev, bool wait)
 
 	WARN_ON(!rnbd_clt_get_dev(dev));
 	err = send_usr_msg(sess->rtrs, READ, iu,
-			   &vec, 1, sizeof(*rsp), iu->sglist, 1,
+			   &vec, sizeof(*rsp), iu->sglist, 1,
 			   msg_open_conf, &errno, wait);
 	if (err) {
 		rnbd_clt_put_dev(dev);
@@ -635,7 +624,7 @@ static int send_msg_sess_info(struct rnbd_clt_session *sess, bool wait)
 		goto put_iu;
 	}
 	err = send_usr_msg(sess->rtrs, READ, iu,
-			   &vec, 1, sizeof(*rsp), iu->sglist, 1,
+			   &vec, sizeof(*rsp), iu->sglist, 1,
 			   msg_sess_info_conf, &errno, wait);
 	if (err) {
 		rnbd_clt_put_sess(sess);
@@ -1180,7 +1169,7 @@ static int setup_mq_tags(struct rnbd_clt_session *sess)
 	tag_set->queue_depth	= sess->queue_depth;
 	tag_set->numa_node		= NUMA_NO_NODE;
 	tag_set->flags		= BLK_MQ_F_SHOULD_MERGE |
-				  BLK_MQ_F_TAG_SHARED;
+				  BLK_MQ_F_TAG_QUEUE_SHARED;
 	tag_set->cmd_size		= sizeof(struct rnbd_iu);
 	tag_set->nr_hw_queues	= num_online_cpus();
 
@@ -1520,7 +1509,7 @@ struct rnbd_clt_dev *rnbd_clt_map_device(const char *sessname,
 			      "map_device: Failed to configure device, err: %d\n",
 			      ret);
 		mutex_unlock(&dev->lock);
-		goto del_dev;
+		goto send_close;
 	}
 
 	rnbd_clt_info(dev,
@@ -1539,6 +1528,8 @@ struct rnbd_clt_dev *rnbd_clt_map_device(const char *sessname,
 
 	return dev;
 
+send_close:
+	send_msg_close(dev, dev->device_id, WAIT);
 del_dev:
 	delete_dev(dev);
 put_dev:

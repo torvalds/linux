@@ -24,7 +24,7 @@
 #include <linux/kexec.h>
 #include <linux/sizes.h>
 #include <linux/device.h>
-#include <linux/dma-contiguous.h>
+#include <linux/dma-map-ops.h>
 #include <linux/decompress/generic.h>
 #include <linux/of_fdt.h>
 #include <linux/of_reserved_mem.h>
@@ -44,7 +44,7 @@
 #include <asm/prom.h>
 
 #ifdef CONFIG_MIPS_ELF_APPENDED_DTB
-const char __section(.appended_dtb) __appended_dtb[0x100000];
+const char __section(".appended_dtb") __appended_dtb[0x100000];
 #endif /* CONFIG_MIPS_ELF_APPENDED_DTB */
 
 struct cpuinfo_mips cpu_data[NR_CPUS] __read_mostly;
@@ -91,45 +91,6 @@ unsigned long ARCH_PFN_OFFSET;
 EXPORT_SYMBOL(ARCH_PFN_OFFSET);
 #endif
 
-void __init add_memory_region(phys_addr_t start, phys_addr_t size, long type)
-{
-	/*
-	 * Note: This function only exists for historical reason,
-	 * new code should use memblock_add or memblock_add_node instead.
-	 */
-
-	/*
-	 * If the region reaches the top of the physical address space, adjust
-	 * the size slightly so that (start + size) doesn't overflow
-	 */
-	if (start + size - 1 == PHYS_ADDR_MAX)
-		--size;
-
-	/* Sanity check */
-	if (start + size < start) {
-		pr_warn("Trying to add an invalid memory region, skipped\n");
-		return;
-	}
-
-	if (start < PHYS_OFFSET)
-		return;
-
-	memblock_add(start, size);
-	/* Reserve any memory except the ordinary RAM ranges. */
-	switch (type) {
-	case BOOT_MEM_RAM:
-		break;
-
-	case BOOT_MEM_NOMAP: /* Discard the range from the system. */
-		memblock_remove(start, size);
-		break;
-
-	default: /* Reserve the rest of the memory types at boot time */
-		memblock_reserve(start, size);
-		break;
-	}
-}
-
 void __init detect_memory_region(phys_addr_t start, phys_addr_t sz_min, phys_addr_t sz_max)
 {
 	void *dm = &detect_magic;
@@ -146,7 +107,7 @@ void __init detect_memory_region(phys_addr_t start, phys_addr_t sz_min, phys_add
 		((unsigned long long) sz_min) / SZ_1M,
 		((unsigned long long) sz_max) / SZ_1M);
 
-	add_memory_region(start, size, BOOT_MEM_RAM);
+	memblock_add(start, size);
 }
 
 /*
@@ -300,8 +261,9 @@ static void __init bootmem_init(void)
 
 static void __init bootmem_init(void)
 {
-	struct memblock_region *mem;
 	phys_addr_t ramstart, ramend;
+	phys_addr_t start, end;
+	u64 i;
 
 	ramstart = memblock_start_of_DRAM();
 	ramend = memblock_end_of_DRAM();
@@ -338,18 +300,13 @@ static void __init bootmem_init(void)
 
 	min_low_pfn = ARCH_PFN_OFFSET;
 	max_pfn = PFN_DOWN(ramend);
-	for_each_memblock(memory, mem) {
-		unsigned long start = memblock_region_memory_base_pfn(mem);
-		unsigned long end = memblock_region_memory_end_pfn(mem);
-
+	for_each_mem_range(i, &start, &end) {
 		/*
 		 * Skip highmem here so we get an accurate max_low_pfn if low
 		 * memory stops short of high memory.
 		 * If the region overlaps HIGHMEM_START, end is clipped so
 		 * max_pfn excludes the highmem portion.
 		 */
-		if (memblock_is_nomap(mem))
-			continue;
 		if (start >= PFN_DOWN(HIGHMEM_START))
 			continue;
 		if (end > PFN_DOWN(HIGHMEM_START))
@@ -400,7 +357,7 @@ static int __init early_parse_mem(char *p)
 	if (*p == '@')
 		start = memparse(p + 1, &p);
 
-	add_memory_region(start, size, BOOT_MEM_RAM);
+	memblock_add(start, size);
 
 	return 0;
 }
@@ -426,13 +383,14 @@ static int __init early_parse_memmap(char *p)
 
 	if (*p == '@') {
 		start_at = memparse(p+1, &p);
-		add_memory_region(start_at, mem_size, BOOT_MEM_RAM);
+		memblock_add(start_at, mem_size);
 	} else if (*p == '#') {
 		pr_err("\"memmap=nn#ss\" (force ACPI data) invalid on MIPS\n");
 		return -EINVAL;
 	} else if (*p == '$') {
 		start_at = memparse(p+1, &p);
-		add_memory_region(start_at, mem_size, BOOT_MEM_RESERVED);
+		memblock_add(start_at, mem_size);
+		memblock_reserve(start_at, mem_size);
 	} else {
 		pr_err("\"memmap\" invalid format!\n");
 		return -EINVAL;
@@ -447,16 +405,15 @@ static int __init early_parse_memmap(char *p)
 early_param("memmap", early_parse_memmap);
 
 #ifdef CONFIG_PROC_VMCORE
-unsigned long setup_elfcorehdr, setup_elfcorehdr_size;
+static unsigned long setup_elfcorehdr, setup_elfcorehdr_size;
 static int __init early_parse_elfcorehdr(char *p)
 {
-	struct memblock_region *mem;
+	phys_addr_t start, end;
+	u64 i;
 
 	setup_elfcorehdr = memparse(p, &p);
 
-	 for_each_memblock(memory, mem) {
-		unsigned long start = mem->base;
-		unsigned long end = start + mem->size;
+	for_each_mem_range(i, &start, &end) {
 		if (setup_elfcorehdr >= start && setup_elfcorehdr < end) {
 			/*
 			 * Reserve from the elf core header to the end of
@@ -477,6 +434,11 @@ early_param("elfcorehdr", early_parse_elfcorehdr);
 #endif
 
 #ifdef CONFIG_KEXEC
+
+/* 64M alignment for crash kernel regions */
+#define CRASH_ALIGN	SZ_64M
+#define CRASH_ADDR_MAX	SZ_512M
+
 static void __init mips_parse_crashkernel(void)
 {
 	unsigned long long total_mem;
@@ -489,9 +451,22 @@ static void __init mips_parse_crashkernel(void)
 	if (ret != 0 || crash_size <= 0)
 		return;
 
-	if (!memblock_find_in_range(crash_base, crash_base + crash_size, crash_size, 1)) {
-		pr_warn("Invalid memory region reserved for crash kernel\n");
-		return;
+	if (crash_base <= 0) {
+		crash_base = memblock_find_in_range(CRASH_ALIGN, CRASH_ADDR_MAX,
+							crash_size, CRASH_ALIGN);
+		if (!crash_base) {
+			pr_warn("crashkernel reservation failed - No suitable area found.\n");
+			return;
+		}
+	} else {
+		unsigned long long start;
+
+		start = memblock_find_in_range(crash_base, crash_base + crash_size,
+						crash_size, 1);
+		if (start != crash_base) {
+			pr_warn("Invalid memory region reserved for crash kernel\n");
+			return;
+		}
 	}
 
 	crashk_res.start = crash_base;
@@ -626,7 +601,7 @@ static void __init bootcmdline_init(void)
  * arch_mem_init - initialize memory management subsystem
  *
  *  o plat_mem_setup() detects the memory configuration and will record detected
- *    memory areas using add_memory_region.
+ *    memory areas using memblock_add.
  *
  * At this stage the memory configuration of the system is known to the
  * kernel but generic memory management system is still entirely uninitialized.
@@ -720,7 +695,8 @@ static void __init arch_mem_init(char **cmdline_p)
 
 static void __init resource_init(void)
 {
-	struct memblock_region *region;
+	phys_addr_t start, end;
+	u64 i;
 
 	if (UNCAC_BASE != IO_BASE)
 		return;
@@ -732,9 +708,7 @@ static void __init resource_init(void)
 	bss_resource.start = __pa_symbol(&__bss_start);
 	bss_resource.end = __pa_symbol(&__bss_stop) - 1;
 
-	for_each_memblock(memory, region) {
-		phys_addr_t start = PFN_PHYS(memblock_region_memory_base_pfn(region));
-		phys_addr_t end = PFN_PHYS(memblock_region_memory_end_pfn(region)) - 1;
+	for_each_mem_range(i, &start, &end) {
 		struct resource *res;
 
 		res = memblock_alloc(sizeof(struct resource), SMP_CACHE_BYTES);
@@ -743,7 +717,12 @@ static void __init resource_init(void)
 			      sizeof(struct resource));
 
 		res->start = start;
-		res->end = end;
+		/*
+		 * In memblock, end points to the first byte after the
+		 * range while in resourses, end points to the last byte in
+		 * the range.
+		 */
+		res->end = end - 1;
 		res->flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
 		res->name = "System RAM";
 

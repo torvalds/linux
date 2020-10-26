@@ -328,7 +328,6 @@ static int dsi_mgr_connector_get_modes(struct drm_connector *connector)
 	 * In dual DSI mode, we have one connector that can be
 	 * attached to the drm_panel.
 	 */
-	drm_panel_attach(panel, connector);
 	num = drm_panel_get_modes(panel, connector);
 	if (!num)
 		return 0;

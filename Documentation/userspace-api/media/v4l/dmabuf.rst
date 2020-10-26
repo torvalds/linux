@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _dmabuf:
 
@@ -42,7 +36,6 @@ are passed in struct :c:type:`v4l2_buffer` (or in struct
 :c:type:`v4l2_plane` in the multi-planar API case). The
 driver must be switched into DMABUF I/O mode by calling the
 :ref:`VIDIOC_REQBUFS <VIDIOC_REQBUFS>` with the desired buffer type.
-
 
 Example: Initiating streaming I/O with DMABUF file descriptors
 ==============================================================
@@ -142,10 +135,10 @@ buffers it must wait until an empty buffer can be dequeued and reused.
 Two methods exist to suspend execution of the application until one or
 more buffers can be dequeued. By default :ref:`VIDIOC_DQBUF
 <VIDIOC_QBUF>` blocks when no buffer is in the outgoing queue. When the
-``O_NONBLOCK`` flag was given to the :ref:`open() <func-open>` function,
+``O_NONBLOCK`` flag was given to the :c:func:`open()` function,
 :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` returns immediately with an ``EAGAIN``
 error code when no buffer is available. The
-:ref:`select() <func-select>` and :ref:`poll() <func-poll>`
+:c:func:`select()` and :c:func:`poll()`
 functions are always available.
 
 To start and stop capturing or displaying applications call the
@@ -165,5 +158,5 @@ Drivers implementing DMABUF importing I/O must support the
 :ref:`VIDIOC_REQBUFS <VIDIOC_REQBUFS>`, :ref:`VIDIOC_QBUF <VIDIOC_QBUF>`,
 :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>`, :ref:`VIDIOC_STREAMON
 <VIDIOC_STREAMON>` and :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` ioctls,
-and the :ref:`select() <func-select>` and :ref:`poll() <func-poll>`
+and the :c:func:`select()` and :c:func:`poll()`
 functions.

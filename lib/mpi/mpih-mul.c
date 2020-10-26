@@ -317,6 +317,31 @@ mpih_sqr_n(mpi_ptr_t prodp, mpi_ptr_t up, mpi_size_t size, mpi_ptr_t tspace)
 	}
 }
 
+
+void mpihelp_mul_n(mpi_ptr_t prodp,
+		mpi_ptr_t up, mpi_ptr_t vp, mpi_size_t size)
+{
+	if (up == vp) {
+		if (size < KARATSUBA_THRESHOLD)
+			mpih_sqr_n_basecase(prodp, up, size);
+		else {
+			mpi_ptr_t tspace;
+			tspace = mpi_alloc_limb_space(2 * size);
+			mpih_sqr_n(prodp, up, size, tspace);
+			mpi_free_limb_space(tspace);
+		}
+	} else {
+		if (size < KARATSUBA_THRESHOLD)
+			mul_n_basecase(prodp, up, vp, size);
+		else {
+			mpi_ptr_t tspace;
+			tspace = mpi_alloc_limb_space(2 * size);
+			mul_n(prodp, up, vp, size, tspace);
+			mpi_free_limb_space(tspace);
+		}
+	}
+}
+
 int
 mpihelp_mul_karatsuba_case(mpi_ptr_t prodp,
 			   mpi_ptr_t up, mpi_size_t usize,

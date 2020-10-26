@@ -735,7 +735,7 @@ zone_found:
 	 */
 
 	/*
-	 * If the zone we wish to scan is the the current zone and the
+	 * If the zone we wish to scan is the current zone and the
 	 * pfn falls into the current node then we do not need to walk
 	 * the tree.
 	 */

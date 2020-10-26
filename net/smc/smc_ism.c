@@ -21,7 +21,9 @@ struct smcd_dev_list smcd_dev_list = {
 	.mutex = __MUTEX_INITIALIZER(smcd_dev_list.mutex)
 };
 
-/* Test if an ISM communication is possible. */
+bool smc_ism_v2_capable;
+
+/* Test if an ISM communication is possible - same CPC */
 int smc_ism_cantalk(u64 peer_gid, unsigned short vlan_id, struct smcd_dev *smcd)
 {
 	return smcd->ops->query_remote_gid(smcd, peer_gid, vlan_id ? 1 : 0,
@@ -37,6 +39,16 @@ int smc_ism_write(struct smcd_dev *smcd, const struct smc_ism_position *pos,
 				  pos->offset, data, len);
 
 	return rc < 0 ? rc : 0;
+}
+
+void smc_ism_get_system_eid(struct smcd_dev *smcd, u8 **eid)
+{
+	smcd->ops->get_system_eid(smcd, eid);
+}
+
+u16 smc_ism_get_chid(struct smcd_dev *smcd)
+{
+	return smcd->ops->get_chid(smcd);
 }
 
 /* Set a connection using this DMBE. */
@@ -319,7 +331,18 @@ EXPORT_SYMBOL_GPL(smcd_alloc_dev);
 int smcd_register_dev(struct smcd_dev *smcd)
 {
 	mutex_lock(&smcd_dev_list.mutex);
-	list_add_tail(&smcd->list, &smcd_dev_list.list);
+	if (list_empty(&smcd_dev_list.list)) {
+		u8 *system_eid = NULL;
+
+		smc_ism_get_system_eid(smcd, &system_eid);
+		if (system_eid[24] != '0' || system_eid[28] != '0')
+			smc_ism_v2_capable = true;
+	}
+	/* sort list: devices without pnetid before devices with pnetid */
+	if (smcd->pnetid[0])
+		list_add_tail(&smcd->list, &smcd_dev_list.list);
+	else
+		list_add(&smcd->list, &smcd_dev_list.list);
 	mutex_unlock(&smcd_dev_list.mutex);
 
 	pr_warn_ratelimited("smc: adding smcd device %s with pnetid %.16s%s\n",
@@ -399,3 +422,8 @@ void smcd_handle_irq(struct smcd_dev *smcd, unsigned int dmbno)
 	spin_unlock_irqrestore(&smcd->lock, flags);
 }
 EXPORT_SYMBOL_GPL(smcd_handle_irq);
+
+void __init smc_ism_init(void)
+{
+	smc_ism_v2_capable = false;
+}

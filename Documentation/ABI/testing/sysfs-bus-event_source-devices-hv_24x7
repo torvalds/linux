@@ -1,3 +1,28 @@
+What:           /sys/bus/event_source/devices/hv_24x7/format
+Date:           September 2020
+Contact:        Linux on PowerPC Developer List <linuxppc-dev@lists.ozlabs.org>
+Description:    Read-only. Attribute group to describe the magic bits
+                that go into perf_event_attr.config for a particular pmu.
+                (See ABI/testing/sysfs-bus-event_source-devices-format).
+
+                Each attribute under this group defines a bit range of the
+                perf_event_attr.config. All supported attributes are listed
+                below.
+
+				chip = "config:16-31"
+				core  = "config:16-31"
+				domain = "config:0-3"
+				lpar = "config:0-15"
+				offset = "config:32-63"
+				vcpu = "config:16-31"
+
+               For example,
+
+		PM_PB_CYC =  "domain=1,offset=0x80,chip=?,lpar=0x0"
+
+		In this event, '?' after chip specifies that
+		this value will be provided by user while running this event.
+
 What:		/sys/bus/event_source/devices/hv_24x7/interface/catalog
 Date:		February 2014
 Contact:	Linux on PowerPC Developer List <linuxppc-dev@lists.ozlabs.org>

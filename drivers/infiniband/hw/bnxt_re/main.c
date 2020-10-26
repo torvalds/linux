@@ -736,7 +736,8 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 	if (ret)
 		return ret;
 
-	return ib_register_device(ibdev, "bnxt_re%d");
+	dma_set_max_seg_size(&rdev->en_dev->pdev->dev, UINT_MAX);
+	return ib_register_device(ibdev, "bnxt_re%d", &rdev->en_dev->pdev->dev);
 }
 
 static void bnxt_re_dev_remove(struct bnxt_re_dev *rdev)

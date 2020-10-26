@@ -79,6 +79,7 @@ struct btrfs_space_info;
 #define IO_TREE_OWNER						    \
 	EM( IO_TREE_FS_PINNED_EXTENTS, 	  "PINNED_EXTENTS")	    \
 	EM( IO_TREE_FS_EXCLUDED_EXTENTS,  "EXCLUDED_EXTENTS")	    \
+	EM( IO_TREE_BTREE_INODE_IO,	  "BTREE_INODE_IO")	    \
 	EM( IO_TREE_INODE_IO,		  "INODE_IO")		    \
 	EM( IO_TREE_INODE_IO_FAILURE,	  "INODE_IO_FAILURE")	    \
 	EM( IO_TREE_RELOC_BLOCKS,	  "RELOC_BLOCKS")	    \
@@ -510,7 +511,7 @@ DEFINE_EVENT(
 
 DECLARE_EVENT_CLASS(btrfs__ordered_extent,
 
-	TP_PROTO(const struct inode *inode,
+	TP_PROTO(const struct btrfs_inode *inode,
 		 const struct btrfs_ordered_extent *ordered),
 
 	TP_ARGS(inode, ordered),
@@ -529,8 +530,8 @@ DECLARE_EVENT_CLASS(btrfs__ordered_extent,
 		__field(	u64,  truncated_len	)
 	),
 
-	TP_fast_assign_btrfs(btrfs_sb(inode->i_sb),
-		__entry->ino 		= btrfs_ino(BTRFS_I(inode));
+	TP_fast_assign_btrfs(inode->root->fs_info,
+		__entry->ino 		= btrfs_ino(inode);
 		__entry->file_offset	= ordered->file_offset;
 		__entry->start		= ordered->disk_bytenr;
 		__entry->len		= ordered->num_bytes;
@@ -539,8 +540,7 @@ DECLARE_EVENT_CLASS(btrfs__ordered_extent,
 		__entry->flags		= ordered->flags;
 		__entry->compress_type	= ordered->compress_type;
 		__entry->refs		= refcount_read(&ordered->refs);
-		__entry->root_objectid	=
-				BTRFS_I(inode)->root->root_key.objectid;
+		__entry->root_objectid	= inode->root->root_key.objectid;
 		__entry->truncated_len	= ordered->truncated_len;
 	),
 
@@ -563,7 +563,7 @@ DECLARE_EVENT_CLASS(btrfs__ordered_extent,
 
 DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_add,
 
-	TP_PROTO(const struct inode *inode,
+	TP_PROTO(const struct btrfs_inode *inode,
 		 const struct btrfs_ordered_extent *ordered),
 
 	TP_ARGS(inode, ordered)
@@ -571,7 +571,7 @@ DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_add,
 
 DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_remove,
 
-	TP_PROTO(const struct inode *inode,
+	TP_PROTO(const struct btrfs_inode *inode,
 		 const struct btrfs_ordered_extent *ordered),
 
 	TP_ARGS(inode, ordered)
@@ -579,7 +579,7 @@ DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_remove,
 
 DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_start,
 
-	TP_PROTO(const struct inode *inode,
+	TP_PROTO(const struct btrfs_inode *inode,
 		 const struct btrfs_ordered_extent *ordered),
 
 	TP_ARGS(inode, ordered)
@@ -587,7 +587,7 @@ DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_start,
 
 DEFINE_EVENT(btrfs__ordered_extent, btrfs_ordered_extent_put,
 
-	TP_PROTO(const struct inode *inode,
+	TP_PROTO(const struct btrfs_inode *inode,
 		 const struct btrfs_ordered_extent *ordered),
 
 	TP_ARGS(inode, ordered)
@@ -1176,25 +1176,27 @@ DEFINE_EVENT(btrfs__reserved_extent,  btrfs_reserved_extent_free,
 
 TRACE_EVENT(find_free_extent,
 
-	TP_PROTO(const struct btrfs_fs_info *fs_info, u64 num_bytes,
+	TP_PROTO(const struct btrfs_root *root, u64 num_bytes,
 		 u64 empty_size, u64 data),
 
-	TP_ARGS(fs_info, num_bytes, empty_size, data),
+	TP_ARGS(root, num_bytes, empty_size, data),
 
 	TP_STRUCT__entry_btrfs(
+		__field(	u64,	root_objectid		)
 		__field(	u64,	num_bytes		)
 		__field(	u64,	empty_size		)
 		__field(	u64,	data			)
 	),
 
-	TP_fast_assign_btrfs(fs_info,
+	TP_fast_assign_btrfs(root->fs_info,
+		__entry->root_objectid	= root->root_key.objectid;
 		__entry->num_bytes	= num_bytes;
 		__entry->empty_size	= empty_size;
 		__entry->data		= data;
 	),
 
 	TP_printk_btrfs("root=%llu(%s) len=%llu empty_size=%llu flags=%llu(%s)",
-		  show_root_type(BTRFS_EXTENT_TREE_OBJECTID),
+		  show_root_type(__entry->root_objectid),
 		  __entry->num_bytes, __entry->empty_size, __entry->data,
 		  __print_flags((unsigned long)__entry->data, "|",
 				 BTRFS_GROUP_FLAGS))

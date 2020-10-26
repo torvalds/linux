@@ -333,4 +333,6 @@ struct ipmi_smi_info {
 /* This is to get the private info of struct ipmi_smi */
 extern int ipmi_get_smi_info(int if_num, struct ipmi_smi_info *data);
 
+#define GET_DEVICE_ID_MAX_RETRY		5
+
 #endif /* __LINUX_IPMI_H */

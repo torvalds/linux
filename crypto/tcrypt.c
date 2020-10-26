@@ -63,6 +63,7 @@ static u32 type;
 static u32 mask;
 static int mode;
 static u32 num_mb = 8;
+static unsigned int klen;
 static char *tvmem[TVMEMSIZE];
 
 static const char *check[] = {
@@ -398,7 +399,7 @@ static void test_mb_aead_speed(const char *algo, int enc, int secs,
 					ret = do_one_aead_op(cur->req, ret);
 
 					if (ret) {
-						pr_err("calculating auth failed failed (%d)\n",
+						pr_err("calculating auth failed (%d)\n",
 						       ret);
 						break;
 					}
@@ -648,7 +649,7 @@ static void test_aead_speed(const char *algo, int enc, unsigned int secs,
 						     crypto_aead_encrypt(req));
 
 				if (ret) {
-					pr_err("calculating auth failed failed (%d)\n",
+					pr_err("calculating auth failed (%d)\n",
 					       ret);
 					break;
 				}
@@ -864,8 +865,8 @@ static void test_mb_ahash_speed(const char *algo, unsigned int secs,
 			goto out;
 		}
 
-		if (speed[i].klen)
-			crypto_ahash_setkey(tfm, tvmem[0], speed[i].klen);
+		if (klen)
+			crypto_ahash_setkey(tfm, tvmem[0], klen);
 
 		for (k = 0; k < num_mb; k++)
 			ahash_request_set_crypt(data[k].req, data[k].sg,
@@ -1099,8 +1100,8 @@ static void test_ahash_speed_common(const char *algo, unsigned int secs,
 			break;
 		}
 
-		if (speed[i].klen)
-			crypto_ahash_setkey(tfm, tvmem[0], speed[i].klen);
+		if (klen)
+			crypto_ahash_setkey(tfm, tvmem[0], klen);
 
 		pr_info("test%3u "
 			"(%5u byte blocks,%5u bytes per update,%4u updates): ",
@@ -2418,7 +2419,8 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		if (mode > 300 && mode < 400) break;
 		fallthrough;
 	case 318:
-		test_hash_speed("ghash-generic", sec, hash_speed_template_16);
+		klen = 16;
+		test_hash_speed("ghash", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
 		fallthrough;
 	case 319:
@@ -3076,6 +3078,8 @@ MODULE_PARM_DESC(sec, "Length in seconds of speed tests "
 		      "(defaults to zero which uses CPU cycles instead)");
 module_param(num_mb, uint, 0000);
 MODULE_PARM_DESC(num_mb, "Number of concurrent requests to be used in mb speed tests (defaults to 8)");
+module_param(klen, uint, 0);
+MODULE_PARM_DESC(klen, "Key length (defaults to 0)");
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Quick & dirty crypto testing module");

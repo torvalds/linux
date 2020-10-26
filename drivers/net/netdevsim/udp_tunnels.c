@@ -22,11 +22,13 @@ nsim_udp_tunnel_set_port(struct net_device *dev, unsigned int table,
 		msleep(ns->udp_ports.sleep);
 
 	if (!ret) {
-		if (ns->udp_ports.ports[table][entry])
+		if (ns->udp_ports.ports[table][entry]) {
+			WARN(1, "entry already in use\n");
 			ret = -EBUSY;
-		else
+		} else {
 			ns->udp_ports.ports[table][entry] =
 				be16_to_cpu(ti->port) << 16 | ti->type;
+		}
 	}
 
 	netdev_info(dev, "set [%d, %d] type %d family %d port %d - %d\n",
@@ -50,10 +52,13 @@ nsim_udp_tunnel_unset_port(struct net_device *dev, unsigned int table,
 	if (!ret) {
 		u32 val = be16_to_cpu(ti->port) << 16 | ti->type;
 
-		if (val == ns->udp_ports.ports[table][entry])
+		if (val == ns->udp_ports.ports[table][entry]) {
 			ns->udp_ports.ports[table][entry] = 0;
-		else
+		} else {
+			WARN(1, "entry not installed %x vs %x\n",
+			     val, ns->udp_ports.ports[table][entry]);
 			ret = -ENOENT;
+		}
 	}
 
 	netdev_info(dev, "unset [%d, %d] type %d family %d port %d - %d\n",
@@ -107,7 +112,7 @@ nsim_udp_tunnels_info_reset_write(struct file *file, const char __user *data,
 	struct net_device *dev = file->private_data;
 	struct netdevsim *ns = netdev_priv(dev);
 
-	memset(&ns->udp_ports.ports, 0, sizeof(ns->udp_ports.ports));
+	memset(ns->udp_ports.ports, 0, sizeof(ns->udp_ports.__ports));
 	rtnl_lock();
 	udp_tunnel_nic_reset_ntf(dev);
 	rtnl_unlock();
@@ -126,6 +131,17 @@ int nsim_udp_tunnels_info_create(struct nsim_dev *nsim_dev,
 {
 	struct netdevsim *ns = netdev_priv(dev);
 	struct udp_tunnel_nic_info *info;
+
+	if (nsim_dev->udp_ports.shared && nsim_dev->udp_ports.open_only) {
+		dev_err(&nsim_dev->nsim_bus_dev->dev,
+			"shared can't be used in conjunction with open_only\n");
+		return -EINVAL;
+	}
+
+	if (!nsim_dev->udp_ports.shared)
+		ns->udp_ports.ports = ns->udp_ports.__ports;
+	else
+		ns->udp_ports.ports = nsim_dev->udp_ports.__ports;
 
 	debugfs_create_u32("udp_ports_inject_error", 0600,
 			   ns->nsim_dev_port->ddir,
@@ -168,6 +184,10 @@ int nsim_udp_tunnels_info_create(struct nsim_dev *nsim_dev,
 		info->flags |= UDP_TUNNEL_NIC_INFO_OPEN_ONLY;
 	if (nsim_dev->udp_ports.ipv4_only)
 		info->flags |= UDP_TUNNEL_NIC_INFO_IPV4_ONLY;
+	if (nsim_dev->udp_ports.shared)
+		info->shared = &nsim_dev->udp_ports.utn_shared;
+	if (nsim_dev->udp_ports.static_iana_vxlan)
+		info->flags |= UDP_TUNNEL_NIC_INFO_STATIC_IANA_VXLAN;
 
 	dev->udp_tunnel_nic_info = info;
 	return 0;
@@ -187,6 +207,10 @@ void nsim_udp_tunnels_debugfs_create(struct nsim_dev *nsim_dev)
 			    &nsim_dev->udp_ports.open_only);
 	debugfs_create_bool("udp_ports_ipv4_only", 0600, nsim_dev->ddir,
 			    &nsim_dev->udp_ports.ipv4_only);
+	debugfs_create_bool("udp_ports_shared", 0600, nsim_dev->ddir,
+			    &nsim_dev->udp_ports.shared);
+	debugfs_create_bool("udp_ports_static_iana_vxlan", 0600, nsim_dev->ddir,
+			    &nsim_dev->udp_ports.static_iana_vxlan);
 	debugfs_create_u32("udp_ports_sleep", 0600, nsim_dev->ddir,
 			   &nsim_dev->udp_ports.sleep);
 }

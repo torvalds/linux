@@ -938,8 +938,8 @@ int au0828_analog_unregister(struct au0828_dev *dev)
 		return 0;
 
 	mutex_lock(&au0828_sysfs_lock);
-	video_unregister_device(&dev->vdev);
-	video_unregister_device(&dev->vbi_dev);
+	vb2_video_unregister_device(&dev->vdev);
+	vb2_video_unregister_device(&dev->vbi_dev);
 	mutex_unlock(&au0828_sysfs_lock);
 
 	v4l2_device_disconnect(&dev->v4l2_dev);
@@ -2011,8 +2011,7 @@ int au0828_analog_register(struct au0828_dev *dev,
 	if (retval != 0) {
 		dprintk(1, "unable to register video device (error = %d).\n",
 			retval);
-		ret = -ENODEV;
-		goto err_reg_vdev;
+		return -ENODEV;
 	}
 
 	/* Register the vbi device */
@@ -2040,10 +2039,7 @@ int au0828_analog_register(struct au0828_dev *dev,
 	return 0;
 
 err_reg_vbi_dev:
-	video_unregister_device(&dev->vdev);
-err_reg_vdev:
-	vb2_queue_release(&dev->vb_vidq);
-	vb2_queue_release(&dev->vb_vbiq);
+	vb2_video_unregister_device(&dev->vdev);
 	return ret;
 }
 

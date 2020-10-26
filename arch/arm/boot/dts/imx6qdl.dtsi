@@ -159,7 +159,7 @@
 			clocks = <&clks IMX6QDL_CLK_APBH_DMA>;
 		};
 
-		gpmi: gpmi-nand@112000 {
+		gpmi: nand-controller@112000 {
 			compatible = "fsl,imx6q-gpmi-nand";
 			reg = <0x00112000 0x2000>, <0x00114000 0x2000>;
 			reg-names = "gpmi-nand", "bch";
@@ -1043,8 +1043,9 @@
 					     <0 119 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6QDL_CLK_ENET>,
 					 <&clks IMX6QDL_CLK_ENET>,
+					 <&clks IMX6QDL_CLK_ENET_REF>,
 					 <&clks IMX6QDL_CLK_ENET_REF>;
-				clock-names = "ipg", "ahb", "ptp";
+				clock-names = "ipg", "ahb", "ptp", "enet_out";
 				fsl,stop-mode = <&gpr 0x34 27>;
 				status = "disabled";
 			};

@@ -34,4 +34,7 @@ patternProperties:
 
     required:
       - color
+
+additionalProperties: true
+
 ...

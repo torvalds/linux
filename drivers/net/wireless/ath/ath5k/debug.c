@@ -161,33 +161,14 @@ static int reg_show(struct seq_file *seq, void *p)
 	return 0;
 }
 
-static const struct seq_operations register_seq_ops = {
+static const struct seq_operations registers_sops = {
 	.start = reg_start,
 	.next  = reg_next,
 	.stop  = reg_stop,
 	.show  = reg_show
 };
 
-static int open_file_registers(struct inode *inode, struct file *file)
-{
-	struct seq_file *s;
-	int res;
-	res = seq_open(file, &register_seq_ops);
-	if (res == 0) {
-		s = file->private_data;
-		s->private = inode->i_private;
-	}
-	return res;
-}
-
-static const struct file_operations fops_registers = {
-	.open = open_file_registers,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = seq_release,
-	.owner = THIS_MODULE,
-};
-
+DEFINE_SEQ_ATTRIBUTE(registers);
 
 /* debugfs: beacons */
 
@@ -1005,7 +986,7 @@ ath5k_debug_init_device(struct ath5k_hw *ah)
 		return;
 
 	debugfs_create_file("debug", 0600, phydir, ah, &fops_debug);
-	debugfs_create_file("registers", 0400, phydir, ah, &fops_registers);
+	debugfs_create_file("registers", 0400, phydir, ah, &registers_fops);
 	debugfs_create_file("beacon", 0600, phydir, ah, &fops_beacon);
 	debugfs_create_file("reset", 0200, phydir, ah, &fops_reset);
 	debugfs_create_file("antenna", 0600, phydir, ah, &fops_antenna);

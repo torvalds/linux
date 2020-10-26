@@ -89,8 +89,7 @@ static int exfat_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_blocks = sbi->num_clusters - 2; /* clu 0 & 1 */
 	buf->f_bfree = buf->f_blocks - sbi->used_clusters;
 	buf->f_bavail = buf->f_bfree;
-	buf->f_fsid.val[0] = (unsigned int)id;
-	buf->f_fsid.val[1] = (unsigned int)(id >> 32);
+	buf->f_fsid = u64_to_fsid(id);
 	/* Unicode utf16 255 characters */
 	buf->f_namelen = EXFAT_MAX_FILE_LEN * NLS_MAX_CHARSET_SIZE;
 	return 0;
@@ -342,7 +341,6 @@ static int exfat_read_root(struct inode *inode)
 	ei->flags = ALLOC_FAT_CHAIN;
 	ei->type = TYPE_DIR;
 	ei->version = 0;
-	ei->rwoffset = 0;
 	ei->hint_bmap.off = EXFAT_EOF_CLUSTER;
 	ei->hint_stat.eidx = 0;
 	ei->hint_stat.clu = sbi->root_dir;
@@ -376,7 +374,6 @@ static int exfat_read_root(struct inode *inode)
 	inode->i_mtime = inode->i_atime = inode->i_ctime = ei->i_crtime =
 		current_time(inode);
 	exfat_truncate_atime(&inode->i_atime);
-	exfat_cache_init_inode(inode);
 	return 0;
 }
 
@@ -763,6 +760,10 @@ static void exfat_inode_init_once(void *foo)
 {
 	struct exfat_inode_info *ei = (struct exfat_inode_info *)foo;
 
+	spin_lock_init(&ei->cache_lru_lock);
+	ei->nr_caches = 0;
+	ei->cache_valid_id = EXFAT_CACHE_VALID + 1;
+	INIT_LIST_HEAD(&ei->cache_lru);
 	INIT_HLIST_NODE(&ei->i_hash_fat);
 	inode_init_once(&ei->vfs_inode);
 }

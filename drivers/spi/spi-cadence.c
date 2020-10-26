@@ -418,8 +418,8 @@ static int cdns_transfer_one(struct spi_master *master,
 	xspi->rx_bytes = transfer->len;
 
 	cdns_spi_setup_transfer(spi, transfer);
-
 	cdns_spi_fill_tx_fifo(xspi);
+	spi_transfer_delay_exec(transfer);
 
 	cdns_spi_write(xspi, CDNS_SPI_IER, CDNS_SPI_IXR_DEFAULT);
 	return transfer->len;

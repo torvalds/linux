@@ -757,7 +757,7 @@ version_failure:
  * NetLabel Generic NETLINK Command Definitions
  */
 
-static const struct genl_ops netlbl_mgmt_genl_ops[] = {
+static const struct genl_small_ops netlbl_mgmt_genl_ops[] = {
 	{
 	.cmd = NLBL_MGMT_C_ADD,
 	.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
@@ -823,8 +823,8 @@ static struct genl_family netlbl_mgmt_gnl_family __ro_after_init = {
 	.maxattr = NLBL_MGMT_A_MAX,
 	.policy = netlbl_mgmt_genl_policy,
 	.module = THIS_MODULE,
-	.ops = netlbl_mgmt_genl_ops,
-	.n_ops = ARRAY_SIZE(netlbl_mgmt_genl_ops),
+	.small_ops = netlbl_mgmt_genl_ops,
+	.n_small_ops = ARRAY_SIZE(netlbl_mgmt_genl_ops),
 };
 
 /*

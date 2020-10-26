@@ -137,13 +137,16 @@ static struct sk_buff *ocelot_xmit(struct sk_buff *skb,
 				   struct net_device *netdev)
 {
 	struct dsa_port *dp = dsa_slave_to_port(netdev);
+	struct sk_buff *clone = DSA_SKB_CB(skb)->clone;
 	struct dsa_switch *ds = dp->ds;
 	struct ocelot *ocelot = ds->priv;
 	struct ocelot_port *ocelot_port;
+	u8 *prefix, *injection;
 	u64 qos_class, rew_op;
-	u8 *injection;
+	int err;
 
-	if (unlikely(skb_cow_head(skb, OCELOT_TAG_LEN) < 0)) {
+	err = skb_cow_head(skb, OCELOT_TOTAL_TAG_LEN);
+	if (unlikely(err < 0)) {
 		netdev_err(netdev, "Cannot make room for tag.\n");
 		return NULL;
 	}
@@ -152,16 +155,18 @@ static struct sk_buff *ocelot_xmit(struct sk_buff *skb,
 
 	injection = skb_push(skb, OCELOT_TAG_LEN);
 
-	memcpy(injection, ocelot_port->xmit_template, OCELOT_TAG_LEN);
+	prefix = skb_push(skb, OCELOT_SHORT_PREFIX_LEN);
+
+	memcpy(prefix, ocelot_port->xmit_template, OCELOT_TOTAL_TAG_LEN);
+
 	/* Fix up the fields which are not statically determined
 	 * in the template
 	 */
 	qos_class = skb->priority;
 	packing(injection, &qos_class, 19,  17, OCELOT_TAG_LEN, PACK, 0);
 
-	if (ocelot->ptp && (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)) {
-		struct sk_buff *clone = DSA_SKB_CB(skb)->clone;
-
+	/* TX timestamping was requested */
+	if (clone) {
 		rew_op = ocelot_port->ptp_cmd;
 		/* Retrieve timestamp ID populated inside skb->cb[0] of the
 		 * clone by ocelot_port_add_txtstamp_skb
@@ -179,19 +184,24 @@ static struct sk_buff *ocelot_rcv(struct sk_buff *skb,
 				  struct net_device *netdev,
 				  struct packet_type *pt)
 {
+	struct dsa_port *cpu_dp = netdev->dsa_ptr;
+	struct dsa_switch *ds = cpu_dp->ds;
+	struct ocelot *ocelot = ds->priv;
 	u64 src_port, qos_class;
+	u64 vlan_tci, tag_type;
 	u8 *start = skb->data;
 	u8 *extraction;
+	u16 vlan_tpid;
 
 	/* Revert skb->data by the amount consumed by the DSA master,
 	 * so it points to the beginning of the frame.
 	 */
 	skb_push(skb, ETH_HLEN);
-	/* We don't care about the long prefix, it is just for easy entrance
+	/* We don't care about the short prefix, it is just for easy entrance
 	 * into the DSA master's RX filter. Discard it now by moving it into
 	 * the headroom.
 	 */
-	skb_pull(skb, OCELOT_LONG_PREFIX_LEN);
+	skb_pull(skb, OCELOT_SHORT_PREFIX_LEN);
 	/* And skb->data now points to the extraction frame header.
 	 * Keep a pointer to it.
 	 */
@@ -205,10 +215,12 @@ static struct sk_buff *ocelot_rcv(struct sk_buff *skb,
 	skb_pull(skb, ETH_HLEN);
 
 	/* Remove from inet csum the extraction header */
-	skb_postpull_rcsum(skb, start, OCELOT_LONG_PREFIX_LEN + OCELOT_TAG_LEN);
+	skb_postpull_rcsum(skb, start, OCELOT_TOTAL_TAG_LEN);
 
 	packing(extraction, &src_port,  46, 43, OCELOT_TAG_LEN, UNPACK, 0);
 	packing(extraction, &qos_class, 19, 17, OCELOT_TAG_LEN, UNPACK, 0);
+	packing(extraction, &tag_type,  16, 16, OCELOT_TAG_LEN, UNPACK, 0);
+	packing(extraction, &vlan_tci,  15,  0, OCELOT_TAG_LEN, UNPACK, 0);
 
 	skb->dev = dsa_master_find_slave(netdev, 0, src_port);
 	if (!skb->dev)
@@ -223,6 +235,33 @@ static struct sk_buff *ocelot_rcv(struct sk_buff *skb,
 	skb->offload_fwd_mark = 1;
 	skb->priority = qos_class;
 
+	/* Ocelot switches copy frames unmodified to the CPU. However, it is
+	 * possible for the user to request a VLAN modification through
+	 * VCAP_IS1_ACT_VID_REPLACE_ENA. In this case, what will happen is that
+	 * the VLAN ID field from the Extraction Header gets updated, but the
+	 * 802.1Q header does not (the classified VLAN only becomes visible on
+	 * egress through the "port tag" of front-panel ports).
+	 * So, for traffic extracted by the CPU, we want to pick up the
+	 * classified VLAN and manually replace the existing 802.1Q header from
+	 * the packet with it, so that the operating system is always up to
+	 * date with the result of tc-vlan actions.
+	 * NOTE: In VLAN-unaware mode, we don't want to do that, we want the
+	 * frame to remain unmodified, because the classified VLAN is always
+	 * equal to the pvid of the ingress port and should not be used for
+	 * processing.
+	 */
+	vlan_tpid = tag_type ? ETH_P_8021AD : ETH_P_8021Q;
+
+	if (ocelot->ports[src_port]->vlan_aware &&
+	    eth_hdr(skb)->h_proto == htons(vlan_tpid)) {
+		u16 dummy_vlan_tci;
+
+		skb_push_rcsum(skb, ETH_HLEN);
+		__skb_vlan_pop(skb, &dummy_vlan_tci);
+		skb_pull_rcsum(skb, ETH_HLEN);
+		__vlan_hwaccel_put_tag(skb, htons(vlan_tpid), vlan_tci);
+	}
+
 	return skb;
 }
 
@@ -231,7 +270,8 @@ static const struct dsa_device_ops ocelot_netdev_ops = {
 	.proto			= DSA_TAG_PROTO_OCELOT,
 	.xmit			= ocelot_xmit,
 	.rcv			= ocelot_rcv,
-	.overhead		= OCELOT_TAG_LEN + OCELOT_LONG_PREFIX_LEN,
+	.overhead		= OCELOT_TOTAL_TAG_LEN,
+	.promisc_on_master	= true,
 };
 
 MODULE_LICENSE("GPL v2");

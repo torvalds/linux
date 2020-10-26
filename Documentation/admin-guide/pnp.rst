@@ -281,10 +281,6 @@ ISAPNP drivers.  They should serve as a temporary solution only.
 
 They are as follows::
 
-	struct pnp_card *pnp_find_card(unsigned short vendor,
-				       unsigned short device,
-				       struct pnp_card *from)
-
 	struct pnp_dev *pnp_find_dev(struct pnp_card *card,
 				     unsigned short vendor,
 				     unsigned short function,

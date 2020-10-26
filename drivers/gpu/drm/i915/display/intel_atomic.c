@@ -527,8 +527,6 @@ void intel_atomic_state_clear(struct drm_atomic_state *s)
 	intel_atomic_clear_global_state(state);
 
 	state->dpll_set = state->modeset = false;
-	state->global_state_changed = false;
-	state->active_pipes = 0;
 }
 
 struct intel_crtc_state *
@@ -541,41 +539,4 @@ intel_atomic_get_crtc_state(struct drm_atomic_state *state,
 		return ERR_CAST(crtc_state);
 
 	return to_intel_crtc_state(crtc_state);
-}
-
-int _intel_atomic_lock_global_state(struct intel_atomic_state *state)
-{
-	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	struct intel_crtc *crtc;
-
-	state->global_state_changed = true;
-
-	for_each_intel_crtc(&dev_priv->drm, crtc) {
-		int ret;
-
-		ret = drm_modeset_lock(&crtc->base.mutex,
-				       state->base.acquire_ctx);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
-int _intel_atomic_serialize_global_state(struct intel_atomic_state *state)
-{
-	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	struct intel_crtc *crtc;
-
-	state->global_state_changed = true;
-
-	for_each_intel_crtc(&dev_priv->drm, crtc) {
-		struct intel_crtc_state *crtc_state;
-
-		crtc_state = intel_atomic_get_crtc_state(&state->base, crtc);
-		if (IS_ERR(crtc_state))
-			return PTR_ERR(crtc_state);
-	}
-
-	return 0;
 }

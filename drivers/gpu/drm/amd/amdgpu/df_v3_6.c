@@ -251,7 +251,7 @@ static ssize_t df_v3_6_get_df_cntr_avail(struct device *dev,
 	int i, count;
 
 	ddev = dev_get_drvdata(dev);
-	adev = ddev->dev_private;
+	adev = drm_to_adev(ddev);
 	count = 0;
 
 	for (i = 0; i < DF_V3_6_MAX_COUNTERS; i++) {
@@ -455,7 +455,8 @@ static int df_v3_6_pmc_get_ctrl_settings(struct amdgpu_device *adev,
 					  uint32_t *lo_base_addr,
 					  uint32_t *hi_base_addr,
 					  uint32_t *lo_val,
-					  uint32_t *hi_val)
+					  uint32_t *hi_val,
+					  bool is_enable)
 {
 
 	uint32_t eventsel, instance, unitmask;
@@ -477,7 +478,8 @@ static int df_v3_6_pmc_get_ctrl_settings(struct amdgpu_device *adev,
 	instance_5432 = (instance >> 2) & 0xf;
 	instance_76 = (instance >> 6) & 0x3;
 
-	*lo_val = (unitmask << 8) | (instance_10 << 6) | eventsel | (1 << 22);
+	*lo_val = (unitmask << 8) | (instance_10 << 6) | eventsel;
+	*lo_val = is_enable ? *lo_val | (1 << 22) : *lo_val & ~(1 << 22);
 	*hi_val = (instance_76 << 29) | instance_5432;
 
 	DRM_DEBUG_DRIVER("config=%llx addr=%08x:%08x val=%08x:%08x",
@@ -572,14 +574,14 @@ static void df_v3_6_reset_perfmon_cntr(struct amdgpu_device *adev,
 }
 
 static int df_v3_6_pmc_start(struct amdgpu_device *adev, uint64_t config,
-			     int is_enable)
+			     int is_add)
 {
 	uint32_t lo_base_addr, hi_base_addr, lo_val, hi_val;
 	int err = 0, ret = 0;
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA20:
-		if (is_enable)
+		if (is_add)
 			return df_v3_6_pmc_add_cntr(adev, config);
 
 		df_v3_6_reset_perfmon_cntr(adev, config);
@@ -589,7 +591,8 @@ static int df_v3_6_pmc_start(struct amdgpu_device *adev, uint64_t config,
 					&lo_base_addr,
 					&hi_base_addr,
 					&lo_val,
-					&hi_val);
+					&hi_val,
+					true);
 
 		if (ret)
 			return ret;
@@ -612,7 +615,7 @@ static int df_v3_6_pmc_start(struct amdgpu_device *adev, uint64_t config,
 }
 
 static int df_v3_6_pmc_stop(struct amdgpu_device *adev, uint64_t config,
-			    int is_disable)
+			    int is_remove)
 {
 	uint32_t lo_base_addr, hi_base_addr, lo_val, hi_val;
 	int ret = 0;
@@ -624,15 +627,17 @@ static int df_v3_6_pmc_stop(struct amdgpu_device *adev, uint64_t config,
 			&lo_base_addr,
 			&hi_base_addr,
 			&lo_val,
-			&hi_val);
+			&hi_val,
+			false);
 
 		if (ret)
 			return ret;
 
-		df_v3_6_reset_perfmon_cntr(adev, config);
 
-		if (is_disable)
+		if (is_remove) {
+			df_v3_6_reset_perfmon_cntr(adev, config);
 			df_v3_6_pmc_release_cntr(adev, config);
+		}
 
 		break;
 	default:
@@ -646,7 +651,7 @@ static void df_v3_6_pmc_get_count(struct amdgpu_device *adev,
 				  uint64_t config,
 				  uint64_t *count)
 {
-	uint32_t lo_base_addr, hi_base_addr, lo_val = 0, hi_val = 0;
+	uint32_t lo_base_addr = 0, hi_base_addr = 0, lo_val = 0, hi_val = 0;
 	*count = 0;
 
 	switch (adev->asic_type) {

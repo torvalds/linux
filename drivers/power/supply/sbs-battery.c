@@ -193,7 +193,6 @@ struct sbs_info {
 	struct power_supply		*power_supply;
 	bool				is_present;
 	struct gpio_desc		*gpio_detect;
-	bool				enable_detection;
 	bool				charger_broadcasts;
 	int				last_state;
 	int				poll_time;
@@ -279,6 +278,12 @@ static int sbs_update_presence(struct sbs_info *chip, bool is_present)
 		client->flags |= I2C_CLIENT_PEC;
 	else
 		client->flags &= ~I2C_CLIENT_PEC;
+
+	if (of_device_is_compatible(client->dev.parent->of_node, "google,cros-ec-i2c-tunnel")
+	    && client->flags & I2C_CLIENT_PEC) {
+		dev_info(&client->dev, "Disabling PEC because of broken Cros-EC implementation\n");
+		client->flags &= ~I2C_CLIENT_PEC;
+	}
 
 	dev_dbg(&client->dev, "PEC: %s\n", (client->flags & I2C_CLIENT_PEC) ?
 		"enabled" : "disabled");
@@ -474,37 +479,6 @@ static bool sbs_bat_needs_calibration(struct i2c_client *client)
 	return !!(ret & BIT(7));
 }
 
-static int sbs_get_battery_presence_and_health(
-	struct i2c_client *client, enum power_supply_property psp,
-	union power_supply_propval *val)
-{
-	int ret;
-
-	/* Dummy command; if it succeeds, battery is present. */
-	ret = sbs_read_word_data(client, sbs_data[REG_STATUS].addr);
-
-	if (ret < 0) { /* battery not present*/
-		if (psp == POWER_SUPPLY_PROP_PRESENT) {
-			val->intval = 0;
-			return 0;
-		}
-		return ret;
-	}
-
-	if (psp == POWER_SUPPLY_PROP_PRESENT)
-		val->intval = 1; /* battery present */
-	else { /* POWER_SUPPLY_PROP_HEALTH */
-		if (sbs_bat_needs_calibration(client)) {
-			val->intval = POWER_SUPPLY_HEALTH_CALIBRATION_REQUIRED;
-		} else {
-			/* SBS spec doesn't have a general health command. */
-			val->intval = POWER_SUPPLY_HEALTH_UNKNOWN;
-		}
-	}
-
-	return 0;
-}
-
 static int sbs_get_ti_battery_presence_and_health(
 	struct i2c_client *client, enum power_supply_property psp,
 	union power_supply_propval *val)
@@ -558,6 +532,41 @@ static int sbs_get_ti_battery_presence_and_health(
 			val->intval = POWER_SUPPLY_HEALTH_CALIBRATION_REQUIRED;
 		else
 			val->intval = POWER_SUPPLY_HEALTH_GOOD;
+	}
+
+	return 0;
+}
+
+static int sbs_get_battery_presence_and_health(
+	struct i2c_client *client, enum power_supply_property psp,
+	union power_supply_propval *val)
+{
+	struct sbs_info *chip = i2c_get_clientdata(client);
+	int ret;
+
+	if (chip->flags & SBS_FLAGS_TI_BQ20ZX5)
+		return sbs_get_ti_battery_presence_and_health(client, psp, val);
+
+	/* Dummy command; if it succeeds, battery is present. */
+	ret = sbs_read_word_data(client, sbs_data[REG_STATUS].addr);
+
+	if (ret < 0) { /* battery not present*/
+		if (psp == POWER_SUPPLY_PROP_PRESENT) {
+			val->intval = 0;
+			return 0;
+		}
+		return ret;
+	}
+
+	if (psp == POWER_SUPPLY_PROP_PRESENT)
+		val->intval = 1; /* battery present */
+	else { /* POWER_SUPPLY_PROP_HEALTH */
+		if (sbs_bat_needs_calibration(client)) {
+			val->intval = POWER_SUPPLY_HEALTH_CALIBRATION_REQUIRED;
+		} else {
+			/* SBS spec doesn't have a general health command. */
+			val->intval = POWER_SUPPLY_HEALTH_UNKNOWN;
+		}
 	}
 
 	return 0;
@@ -865,12 +874,7 @@ static int sbs_get_property(struct power_supply *psy,
 	switch (psp) {
 	case POWER_SUPPLY_PROP_PRESENT:
 	case POWER_SUPPLY_PROP_HEALTH:
-		if (chip->flags & SBS_FLAGS_TI_BQ20ZX5)
-			ret = sbs_get_ti_battery_presence_and_health(client,
-								     psp, val);
-		else
-			ret = sbs_get_battery_presence_and_health(client, psp,
-								  val);
+		ret = sbs_get_battery_presence_and_health(client, psp, val);
 
 		/* this can only be true if no gpio is used */
 		if (psp == POWER_SUPPLY_PROP_PRESENT)
@@ -961,32 +965,30 @@ static int sbs_get_property(struct power_supply *psy,
 		return -EINVAL;
 	}
 
-	if (!chip->enable_detection)
-		goto done;
+	if (!chip->gpio_detect && chip->is_present != (ret >= 0)) {
+		bool old_present = chip->is_present;
+		union power_supply_propval val;
+		int err = sbs_get_battery_presence_and_health(
+				client, POWER_SUPPLY_PROP_PRESENT, &val);
 
-	if (!chip->gpio_detect &&
-		chip->is_present != (ret >= 0)) {
-		sbs_update_presence(chip, (ret >= 0));
-		power_supply_changed(chip->power_supply);
+		sbs_update_presence(chip, !err && val.intval);
+
+		if (old_present != chip->is_present)
+			power_supply_changed(chip->power_supply);
 	}
 
 done:
 	if (!ret) {
 		/* Convert units to match requirements for power supply class */
 		sbs_unit_adjustment(client, psp, val);
+		dev_dbg(&client->dev,
+			"%s: property = %d, value = %x\n", __func__,
+			psp, val->intval);
+	} else if (!chip->is_present)  {
+		/* battery not present, so return NODATA for properties */
+		ret = -ENODATA;
 	}
-
-	dev_dbg(&client->dev,
-		"%s: property = %d, value = %x\n", __func__, psp, val->intval);
-
-	if (ret && chip->is_present)
-		return ret;
-
-	/* battery not present, so return NODATA for properties */
-	if (ret)
-		return -ENODATA;
-
-	return 0;
+	return ret;
 }
 
 static void sbs_supply_changed(struct sbs_info *chip)
@@ -1092,7 +1094,6 @@ static int sbs_probe(struct i2c_client *client)
 
 	chip->flags = (u32)(uintptr_t)device_get_match_data(&client->dev);
 	chip->client = client;
-	chip->enable_detection = false;
 	psy_cfg.of_node = client->dev.of_node;
 	psy_cfg.drv_data = chip;
 	chip->last_state = POWER_SUPPLY_STATUS_UNKNOWN;
@@ -1153,14 +1154,18 @@ skip_gpio:
 	 * to the battery.
 	 */
 	if (!(force_load || chip->gpio_detect)) {
-		rc = sbs_read_word_data(client, sbs_data[REG_STATUS].addr);
+		union power_supply_propval val;
 
-		if (rc < 0) {
-			dev_err(&client->dev, "%s: Failed to get device status\n",
-				__func__);
+		rc = sbs_get_battery_presence_and_health(
+				client, POWER_SUPPLY_PROP_PRESENT, &val);
+		if (rc < 0 || !val.intval) {
+			dev_err(&client->dev, "Failed to get present status\n");
+			rc = -ENODEV;
 			goto exit_psupply;
 		}
 	}
+
+	INIT_DELAYED_WORK(&chip->work, sbs_delayed_work);
 
 	chip->power_supply = devm_power_supply_register(&client->dev, sbs_desc,
 						   &psy_cfg);
@@ -1173,10 +1178,6 @@ skip_gpio:
 
 	dev_info(&client->dev,
 		"%s: battery gas gauge device registered\n", client->name);
-
-	INIT_DELAYED_WORK(&chip->work, sbs_delayed_work);
-
-	chip->enable_detection = true;
 
 	return 0;
 

@@ -839,8 +839,9 @@ static bool bnx2x_is_wreg_in_chip(struct bnx2x *bp,
 /**
  * bnx2x_read_pages_regs - read "paged" registers
  *
- * @bp		device handle
- * @p		output buffer
+ * @bp:		device handle
+ * @p:		output buffer
+ * @preset:	the preset value
  *
  * Reads "paged" memories: memories that may only be read by first writing to a
  * specific address ("write address") and then reading from a specific address
@@ -3561,6 +3562,7 @@ static void bnx2x_get_channels(struct net_device *dev,
  * bnx2x_change_num_queues - change the number of RSS queues.
  *
  * @bp:			bnx2x private structure
+ * @num_rss:		rss count
  *
  * Re-configure interrupt mode to get the new number of MSI-X
  * vectors and re-add NAPI objects.

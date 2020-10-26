@@ -309,7 +309,7 @@ static void fsl_ifc_cmdfunc(struct nand_chip *chip, unsigned int command,
 		ifc_nand_ctrl->read_bytes = mtd->writesize + mtd->oobsize;
 		ifc_nand_ctrl->index += column;
 
-		if (chip->ecc.mode == NAND_ECC_HW)
+		if (chip->ecc.engine_type == NAND_ECC_ENGINE_TYPE_ON_HOST)
 			ifc_nand_ctrl->eccread = 1;
 
 		fsl_ifc_do_read(chip, 0, mtd);
@@ -724,8 +724,8 @@ static int fsl_ifc_attach_chip(struct nand_chip *chip)
 							chip->page_shift);
 	dev_dbg(priv->dev, "%s: nand->phys_erase_shift = %d\n", __func__,
 							chip->phys_erase_shift);
-	dev_dbg(priv->dev, "%s: nand->ecc.mode = %d\n", __func__,
-							chip->ecc.mode);
+	dev_dbg(priv->dev, "%s: nand->ecc.engine_type = %d\n", __func__,
+							chip->ecc.engine_type);
 	dev_dbg(priv->dev, "%s: nand->ecc.steps = %d\n", __func__,
 							chip->ecc.steps);
 	dev_dbg(priv->dev, "%s: nand->ecc.bytes = %d\n", __func__,
@@ -912,7 +912,7 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 
 	/* Must also set CSOR_NAND_ECC_ENC_EN if DEC_EN set */
 	if (csor & CSOR_NAND_ECC_DEC_EN) {
-		chip->ecc.mode = NAND_ECC_HW;
+		chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_ON_HOST;
 		mtd_set_ooblayout(mtd, &fsl_ifc_ooblayout_ops);
 
 		/* Hardware generates ECC per 512 Bytes */
@@ -925,8 +925,8 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 			chip->ecc.strength = 8;
 		}
 	} else {
-		chip->ecc.mode = NAND_ECC_SOFT;
-		chip->ecc.algo = NAND_ECC_HAMMING;
+		chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
+		chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
 	}
 
 	ret = fsl_ifc_sram_init(priv);

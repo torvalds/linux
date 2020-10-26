@@ -545,7 +545,7 @@ int sun4i_frontend_enable(struct sun4i_frontend *frontend)
 }
 EXPORT_SYMBOL(sun4i_frontend_enable);
 
-static struct regmap_config sun4i_frontend_regmap_config = {
+static const struct regmap_config sun4i_frontend_regmap_config = {
 	.reg_bits	= 32,
 	.val_bits	= 32,
 	.reg_stride	= 4,

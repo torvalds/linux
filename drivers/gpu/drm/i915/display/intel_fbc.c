@@ -424,6 +424,14 @@ static void intel_fbc_deactivate(struct drm_i915_private *dev_priv,
 	fbc->no_fbc_reason = reason;
 }
 
+static u64 intel_fbc_cfb_base_max(struct drm_i915_private *i915)
+{
+	if (INTEL_GEN(i915) >= 5 || IS_G4X(i915))
+		return BIT_ULL(28);
+	else
+		return BIT_ULL(32);
+}
+
 static int find_compression_threshold(struct drm_i915_private *dev_priv,
 				      struct drm_mm_node *node,
 				      unsigned int size,
@@ -441,6 +449,8 @@ static int find_compression_threshold(struct drm_i915_private *dev_priv,
 		end = resource_size(&dev_priv->dsm) - 8 * 1024 * 1024;
 	else
 		end = U64_MAX;
+
+	end = min(end, intel_fbc_cfb_base_max(dev_priv));
 
 	/* HACK: This code depends on what we will do in *_enable_fbc. If that
 	 * code changes, this code needs to change as well.
@@ -1414,6 +1424,13 @@ static int intel_sanitize_fbc_option(struct drm_i915_private *dev_priv)
 		return !!dev_priv->params.enable_fbc;
 
 	if (!HAS_FBC(dev_priv))
+		return 0;
+
+	/*
+	 * Fbc is causing random underruns in CI execution on TGL platforms.
+	 * Disabling the same while the problem is being debugged and analyzed.
+	 */
+	if (IS_TIGERLAKE(dev_priv))
 		return 0;
 
 	if (IS_BROADWELL(dev_priv) || INTEL_GEN(dev_priv) >= 9)

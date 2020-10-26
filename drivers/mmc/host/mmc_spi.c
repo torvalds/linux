@@ -882,9 +882,9 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 	else
 		clock_rate = spi->max_speed_hz;
 
-	timeout = data->timeout_ns +
+	timeout = data->timeout_ns / 1000 +
 		  data->timeout_clks * 1000000 / clock_rate;
-	timeout = usecs_to_jiffies((unsigned int)(timeout / 1000)) + 1;
+	timeout = usecs_to_jiffies((unsigned int)timeout) + 1;
 
 	/* Handle scatterlist segments one at a time, with synch for
 	 * each 512-byte block

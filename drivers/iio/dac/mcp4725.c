@@ -16,8 +16,8 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/regulator/consumer.h>
-#include <linux/of_device.h>
-#include <linux/of.h>
+#include <linux/mod_devicetable.h>
+#include <linux/property.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -357,29 +357,16 @@ static const struct iio_info mcp4725_info = {
 	.attrs = &mcp4725_attribute_group,
 };
 
-#ifdef CONFIG_OF
 static int mcp4725_probe_dt(struct device *dev,
 			    struct mcp4725_platform_data *pdata)
 {
-	struct device_node *np = dev->of_node;
-
-	if (!np)
-		return -ENODEV;
-
 	/* check if is the vref-supply defined */
-	pdata->use_vref = of_property_read_bool(np, "vref-supply");
+	pdata->use_vref = device_property_read_bool(dev, "vref-supply");
 	pdata->vref_buffered =
-		of_property_read_bool(np, "microchip,vref-buffered");
+		device_property_read_bool(dev, "microchip,vref-buffered");
 
 	return 0;
 }
-#else
-static int mcp4725_probe_dt(struct device *dev,
-			    struct mcp4725_platform_data *platform_data)
-{
-	return -ENODEV;
-}
-#endif
 
 static int mcp4725_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
@@ -398,8 +385,8 @@ static int mcp4725_probe(struct i2c_client *client,
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
-	if (client->dev.of_node)
-		data->id = (enum chip_id)of_device_get_match_data(&client->dev);
+	if (dev_fwnode(&client->dev))
+		data->id = (enum chip_id)device_get_match_data(&client->dev);
 	else
 		data->id = id->driver_data;
 	pdata = dev_get_platdata(&client->dev);
@@ -519,7 +506,6 @@ static const struct i2c_device_id mcp4725_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, mcp4725_id);
 
-#ifdef CONFIG_OF
 static const struct of_device_id mcp4725_of_match[] = {
 	{
 		.compatible = "microchip,mcp4725",
@@ -532,12 +518,11 @@ static const struct of_device_id mcp4725_of_match[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(of, mcp4725_of_match);
-#endif
 
 static struct i2c_driver mcp4725_driver = {
 	.driver = {
 		.name	= MCP4725_DRV_NAME,
-		.of_match_table = of_match_ptr(mcp4725_of_match),
+		.of_match_table = mcp4725_of_match,
 		.pm	= &mcp4725_pm_ops,
 	},
 	.probe		= mcp4725_probe,

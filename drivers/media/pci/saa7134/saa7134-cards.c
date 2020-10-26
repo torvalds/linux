@@ -7812,7 +7812,7 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 				dev->name, saa7134_boards[dev->board].name);
 			break;
 		}
-		/* fall-through */
+		fallthrough;
 	case SAA7134_BOARD_VIDEOMATE_DVBT_300:
 	case SAA7134_BOARD_ASUS_EUROPA2_HYBRID:
 	case SAA7134_BOARD_ASUS_EUROPA_HYBRID:
@@ -7870,7 +7870,7 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		break;
 	case SAA7134_BOARD_HAUPPAUGE_HVR1110:
 		hauppauge_eeprom(dev, dev->eedata+0x80);
-		/* fall-through */
+		fallthrough;
 	case SAA7134_BOARD_PINNACLE_PCTV_310i:
 	case SAA7134_BOARD_KWORLD_DVBT_210:
 	case SAA7134_BOARD_TEVION_DVBT_220RF:

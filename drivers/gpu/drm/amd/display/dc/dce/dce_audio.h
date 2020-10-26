@@ -64,6 +64,20 @@
 		SF(AZALIA_F0_CODEC_ENDPOINT_INDEX, AZALIA_ENDPOINT_REG_INDEX, mask_sh),\
 		SF(AZALIA_F0_CODEC_ENDPOINT_DATA, AZALIA_ENDPOINT_REG_DATA, mask_sh)
 
+#if defined(CONFIG_DRM_AMD_DC_SI)
+#define AUD_DCE60_MASK_SH_LIST(mask_sh)\
+		SF(DCCG_AUDIO_DTO_SOURCE, DCCG_AUDIO_DTO0_SOURCE_SEL, mask_sh),\
+		SF(DCCG_AUDIO_DTO_SOURCE, DCCG_AUDIO_DTO_SEL, mask_sh),\
+		SF(DCCG_AUDIO_DTO0_MODULE, DCCG_AUDIO_DTO0_MODULE, mask_sh),\
+		SF(DCCG_AUDIO_DTO0_PHASE, DCCG_AUDIO_DTO0_PHASE, mask_sh),\
+		SF(DCCG_AUDIO_DTO1_MODULE, DCCG_AUDIO_DTO1_MODULE, mask_sh),\
+		SF(DCCG_AUDIO_DTO1_PHASE, DCCG_AUDIO_DTO1_PHASE, mask_sh),\
+		SF(AZALIA_F0_CODEC_FUNCTION_PARAMETER_SUPPORTED_SIZE_RATES, AUDIO_RATE_CAPABILITIES, mask_sh),\
+		SF(AZALIA_F0_CODEC_FUNCTION_PARAMETER_POWER_STATES, CLKSTOP, mask_sh),\
+		SF(AZALIA_F0_CODEC_FUNCTION_PARAMETER_POWER_STATES, EPSS, mask_sh), \
+		SF(AZALIA_F0_CODEC_ENDPOINT_INDEX, AZALIA_ENDPOINT_REG_INDEX, mask_sh),\
+		SF(AZALIA_F0_CODEC_ENDPOINT_DATA, AZALIA_ENDPOINT_REG_DATA, mask_sh)
+#endif
 
 struct dce_audio_registers {
 	uint32_t AZALIA_F0_CODEC_ENDPOINT_INDEX;
@@ -134,6 +148,15 @@ struct audio *dce_audio_create(
 		const struct dce_audio_registers *reg,
 		const struct dce_audio_shift *shifts,
 		const struct dce_audio_mask *masks);
+
+#if defined(CONFIG_DRM_AMD_DC_SI)
+struct audio *dce60_audio_create(
+		struct dc_context *ctx,
+		unsigned int inst,
+		const struct dce_audio_registers *reg,
+		const struct dce_audio_shift *shifts,
+		const struct dce_audio_mask *masks);
+#endif
 
 void dce_aud_destroy(struct audio **audio);
 

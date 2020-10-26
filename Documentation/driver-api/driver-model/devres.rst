@@ -263,7 +263,7 @@ DMA
   dmam_pool_destroy()
 
 DRM
-  devm_drm_dev_init()
+  devm_drm_dev_alloc()
 
 GPIO
   devm_gpiod_get()
@@ -354,6 +354,7 @@ MEM
   devm_kmalloc()
   devm_kmalloc_array()
   devm_kmemdup()
+  devm_krealloc()
   devm_kstrdup()
   devm_kvasprintf()
   devm_kzalloc()

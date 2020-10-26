@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi-mem.h>
 #include <linux/string.h>
@@ -27,6 +28,7 @@
 #define MTK_NOR_CMD_MASK		GENMASK(5, 0)
 
 #define MTK_NOR_REG_PRG_CNT		0x04
+#define MTK_NOR_PRG_CNT_MAX		56
 #define MTK_NOR_REG_RDATA		0x0c
 
 #define MTK_NOR_REG_RADR0		0x10
@@ -78,6 +80,8 @@
 #define MTK_NOR_REG_DMA_FADR		0x71c
 #define MTK_NOR_REG_DMA_DADR		0x720
 #define MTK_NOR_REG_DMA_END_DADR	0x724
+#define MTK_NOR_REG_DMA_DADR_HB		0x738
+#define MTK_NOR_REG_DMA_END_DADR_HB	0x73c
 
 #define MTK_NOR_PRG_MAX_SIZE		6
 // Reading DMA src/dst addresses have to be 16-byte aligned
@@ -89,18 +93,20 @@
 // Buffered page program can do one 128-byte transfer
 #define MTK_NOR_PP_SIZE			128
 
-#define CLK_TO_US(sp, clkcnt)		((clkcnt) * 1000000 / sp->spi_freq)
+#define CLK_TO_US(sp, clkcnt)		DIV_ROUND_UP(clkcnt, sp->spi_freq / 1000000)
 
 struct mtk_nor {
 	struct spi_controller *ctlr;
 	struct device *dev;
 	void __iomem *base;
 	u8 *buffer;
+	dma_addr_t buffer_dma;
 	struct clk *spi_clk;
 	struct clk *ctlr_clk;
 	unsigned int spi_freq;
 	bool wbuf_en;
 	bool has_irq;
+	bool high_dma;
 	struct completion op_done;
 };
 
@@ -144,6 +150,11 @@ static void mtk_nor_set_addr(struct mtk_nor *sp, const struct spi_mem_op *op)
 	}
 }
 
+static bool need_bounce(struct mtk_nor *sp, const struct spi_mem_op *op)
+{
+	return ((uintptr_t)op->data.buf.in & MTK_NOR_DMA_ALIGN_MASK);
+}
+
 static bool mtk_nor_match_read(const struct spi_mem_op *op)
 {
 	int dummy = 0;
@@ -167,9 +178,77 @@ static bool mtk_nor_match_read(const struct spi_mem_op *op)
 	return false;
 }
 
+static bool mtk_nor_match_prg(const struct spi_mem_op *op)
+{
+	int tx_len, rx_len, prg_len, prg_left;
+
+	// prg mode is spi-only.
+	if ((op->cmd.buswidth > 1) || (op->addr.buswidth > 1) ||
+	    (op->dummy.buswidth > 1) || (op->data.buswidth > 1))
+		return false;
+
+	tx_len = op->cmd.nbytes + op->addr.nbytes;
+
+	if (op->data.dir == SPI_MEM_DATA_OUT) {
+		// count dummy bytes only if we need to write data after it
+		tx_len += op->dummy.nbytes;
+
+		// leave at least one byte for data
+		if (tx_len > MTK_NOR_REG_PRGDATA_MAX)
+			return false;
+
+		// if there's no addr, meaning adjust_op_size is impossible,
+		// check data length as well.
+		if ((!op->addr.nbytes) &&
+		    (tx_len + op->data.nbytes > MTK_NOR_REG_PRGDATA_MAX + 1))
+			return false;
+	} else if (op->data.dir == SPI_MEM_DATA_IN) {
+		if (tx_len > MTK_NOR_REG_PRGDATA_MAX + 1)
+			return false;
+
+		rx_len = op->data.nbytes;
+		prg_left = MTK_NOR_PRG_CNT_MAX / 8 - tx_len - op->dummy.nbytes;
+		if (prg_left > MTK_NOR_REG_SHIFT_MAX + 1)
+			prg_left = MTK_NOR_REG_SHIFT_MAX + 1;
+		if (rx_len > prg_left) {
+			if (!op->addr.nbytes)
+				return false;
+			rx_len = prg_left;
+		}
+
+		prg_len = tx_len + op->dummy.nbytes + rx_len;
+		if (prg_len > MTK_NOR_PRG_CNT_MAX / 8)
+			return false;
+	} else {
+		prg_len = tx_len + op->dummy.nbytes;
+		if (prg_len > MTK_NOR_PRG_CNT_MAX / 8)
+			return false;
+	}
+	return true;
+}
+
+static void mtk_nor_adj_prg_size(struct spi_mem_op *op)
+{
+	int tx_len, tx_left, prg_left;
+
+	tx_len = op->cmd.nbytes + op->addr.nbytes;
+	if (op->data.dir == SPI_MEM_DATA_OUT) {
+		tx_len += op->dummy.nbytes;
+		tx_left = MTK_NOR_REG_PRGDATA_MAX + 1 - tx_len;
+		if (op->data.nbytes > tx_left)
+			op->data.nbytes = tx_left;
+	} else if (op->data.dir == SPI_MEM_DATA_IN) {
+		prg_left = MTK_NOR_PRG_CNT_MAX / 8 - tx_len - op->dummy.nbytes;
+		if (prg_left > MTK_NOR_REG_SHIFT_MAX + 1)
+			prg_left = MTK_NOR_REG_SHIFT_MAX + 1;
+		if (op->data.nbytes > prg_left)
+			op->data.nbytes = prg_left;
+	}
+}
+
 static int mtk_nor_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
 {
-	size_t len;
+	struct mtk_nor *sp = spi_controller_get_devdata(mem->spi->master);
 
 	if (!op->data.nbytes)
 		return 0;
@@ -177,11 +256,14 @@ static int mtk_nor_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
 	if ((op->addr.nbytes == 3) || (op->addr.nbytes == 4)) {
 		if ((op->data.dir == SPI_MEM_DATA_IN) &&
 		    mtk_nor_match_read(op)) {
+			// limit size to prevent timeout calculation overflow
+			if (op->data.nbytes > 0x400000)
+				op->data.nbytes = 0x400000;
+
 			if ((op->addr.val & MTK_NOR_DMA_ALIGN_MASK) ||
 			    (op->data.nbytes < MTK_NOR_DMA_ALIGN))
 				op->data.nbytes = 1;
-			else if (!((ulong)(op->data.buf.in) &
-				   MTK_NOR_DMA_ALIGN_MASK))
+			else if (!need_bounce(sp, op))
 				op->data.nbytes &= ~MTK_NOR_DMA_ALIGN_MASK;
 			else if (op->data.nbytes > MTK_NOR_BOUNCE_BUF_SIZE)
 				op->data.nbytes = MTK_NOR_BOUNCE_BUF_SIZE;
@@ -195,41 +277,37 @@ static int mtk_nor_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
 		}
 	}
 
-	len = MTK_NOR_PRG_MAX_SIZE - op->cmd.nbytes - op->addr.nbytes -
-	      op->dummy.nbytes;
-	if (op->data.nbytes > len)
-		op->data.nbytes = len;
-
+	mtk_nor_adj_prg_size(op);
 	return 0;
 }
 
 static bool mtk_nor_supports_op(struct spi_mem *mem,
 				const struct spi_mem_op *op)
 {
-	size_t len;
+	if (!spi_mem_default_supports_op(mem, op))
+		return false;
 
 	if (op->cmd.buswidth != 1)
 		return false;
 
-	/* DTR ops not supported. */
-	if (op->cmd.dtr || op->addr.dtr || op->dummy.dtr || op->data.dtr)
-		return false;
-	if (op->cmd.nbytes != 1)
-		return false;
-
 	if ((op->addr.nbytes == 3) || (op->addr.nbytes == 4)) {
-		if ((op->data.dir == SPI_MEM_DATA_IN) && mtk_nor_match_read(op))
-			return true;
-		else if (op->data.dir == SPI_MEM_DATA_OUT)
-			return (op->addr.buswidth == 1) &&
-			       (op->dummy.buswidth == 0) &&
-			       (op->data.buswidth == 1);
+		switch(op->data.dir) {
+		case SPI_MEM_DATA_IN:
+			if (mtk_nor_match_read(op))
+				return true;
+			break;
+		case SPI_MEM_DATA_OUT:
+			if ((op->addr.buswidth == 1) &&
+			    (op->dummy.nbytes == 0) &&
+			    (op->data.buswidth == 1))
+				return true;
+			break;
+		default:
+			break;
+		}
 	}
-	len = op->cmd.nbytes + op->addr.nbytes + op->dummy.nbytes;
-	if ((len > MTK_NOR_PRG_MAX_SIZE) ||
-	    ((op->data.nbytes) && (len == MTK_NOR_PRG_MAX_SIZE)))
-		return false;
-	return true;
+
+	return mtk_nor_match_prg(op);
 }
 
 static void mtk_nor_setup_bus(struct mtk_nor *sp, const struct spi_mem_op *op)
@@ -258,23 +336,23 @@ static void mtk_nor_setup_bus(struct mtk_nor *sp, const struct spi_mem_op *op)
 	mtk_nor_rmw(sp, MTK_NOR_REG_BUSCFG, reg, MTK_NOR_BUS_MODE_MASK);
 }
 
-static int mtk_nor_read_dma(struct mtk_nor *sp, u32 from, unsigned int length,
-			    u8 *buffer)
+static int mtk_nor_dma_exec(struct mtk_nor *sp, u32 from, unsigned int length,
+			    dma_addr_t dma_addr)
 {
 	int ret = 0;
 	ulong delay;
 	u32 reg;
-	dma_addr_t dma_addr;
-
-	dma_addr = dma_map_single(sp->dev, buffer, length, DMA_FROM_DEVICE);
-	if (dma_mapping_error(sp->dev, dma_addr)) {
-		dev_err(sp->dev, "failed to map dma buffer.\n");
-		return -EINVAL;
-	}
 
 	writel(from, sp->base + MTK_NOR_REG_DMA_FADR);
 	writel(dma_addr, sp->base + MTK_NOR_REG_DMA_DADR);
 	writel(dma_addr + length, sp->base + MTK_NOR_REG_DMA_END_DADR);
+
+	if (sp->high_dma) {
+		writel(upper_32_bits(dma_addr),
+		       sp->base + MTK_NOR_REG_DMA_DADR_HB);
+		writel(upper_32_bits(dma_addr + length),
+		       sp->base + MTK_NOR_REG_DMA_END_DADR_HB);
+	}
 
 	if (sp->has_irq) {
 		reinit_completion(&sp->op_done);
@@ -295,30 +373,49 @@ static int mtk_nor_read_dma(struct mtk_nor *sp, u32 from, unsigned int length,
 					 (delay + 1) * 100);
 	}
 
-	dma_unmap_single(sp->dev, dma_addr, length, DMA_FROM_DEVICE);
 	if (ret < 0)
 		dev_err(sp->dev, "dma read timeout.\n");
 
 	return ret;
 }
 
-static int mtk_nor_read_bounce(struct mtk_nor *sp, u32 from,
-			       unsigned int length, u8 *buffer)
+static int mtk_nor_read_bounce(struct mtk_nor *sp, const struct spi_mem_op *op)
 {
 	unsigned int rdlen;
 	int ret;
 
-	if (length & MTK_NOR_DMA_ALIGN_MASK)
-		rdlen = (length + MTK_NOR_DMA_ALIGN) & ~MTK_NOR_DMA_ALIGN_MASK;
+	if (op->data.nbytes & MTK_NOR_DMA_ALIGN_MASK)
+		rdlen = (op->data.nbytes + MTK_NOR_DMA_ALIGN) & ~MTK_NOR_DMA_ALIGN_MASK;
 	else
-		rdlen = length;
+		rdlen = op->data.nbytes;
 
-	ret = mtk_nor_read_dma(sp, from, rdlen, sp->buffer);
-	if (ret)
-		return ret;
+	ret = mtk_nor_dma_exec(sp, op->addr.val, rdlen, sp->buffer_dma);
 
-	memcpy(buffer, sp->buffer, length);
-	return 0;
+	if (!ret)
+		memcpy(op->data.buf.in, sp->buffer, op->data.nbytes);
+
+	return ret;
+}
+
+static int mtk_nor_read_dma(struct mtk_nor *sp, const struct spi_mem_op *op)
+{
+	int ret;
+	dma_addr_t dma_addr;
+
+	if (need_bounce(sp, op))
+		return mtk_nor_read_bounce(sp, op);
+
+	dma_addr = dma_map_single(sp->dev, op->data.buf.in,
+				  op->data.nbytes, DMA_FROM_DEVICE);
+
+	if (dma_mapping_error(sp->dev, dma_addr))
+		return -EINVAL;
+
+	ret = mtk_nor_dma_exec(sp, op->addr.val, op->data.nbytes, dma_addr);
+
+	dma_unmap_single(sp->dev, dma_addr, op->data.nbytes, DMA_FROM_DEVICE);
+
+	return ret;
 }
 
 static int mtk_nor_read_pio(struct mtk_nor *sp, const struct spi_mem_op *op)
@@ -397,6 +494,83 @@ static int mtk_nor_pp_unbuffered(struct mtk_nor *sp,
 	return mtk_nor_cmd_exec(sp, MTK_NOR_CMD_WRITE, 6 * BITS_PER_BYTE);
 }
 
+static int mtk_nor_spi_mem_prg(struct mtk_nor *sp, const struct spi_mem_op *op)
+{
+	int rx_len = 0;
+	int reg_offset = MTK_NOR_REG_PRGDATA_MAX;
+	int tx_len, prg_len;
+	int i, ret;
+	void __iomem *reg;
+	u8 bufbyte;
+
+	tx_len = op->cmd.nbytes + op->addr.nbytes;
+
+	// count dummy bytes only if we need to write data after it
+	if (op->data.dir == SPI_MEM_DATA_OUT)
+		tx_len += op->dummy.nbytes + op->data.nbytes;
+	else if (op->data.dir == SPI_MEM_DATA_IN)
+		rx_len = op->data.nbytes;
+
+	prg_len = op->cmd.nbytes + op->addr.nbytes + op->dummy.nbytes +
+		  op->data.nbytes;
+
+	// an invalid op may reach here if the caller calls exec_op without
+	// adjust_op_size. return -EINVAL instead of -ENOTSUPP so that
+	// spi-mem won't try this op again with generic spi transfers.
+	if ((tx_len > MTK_NOR_REG_PRGDATA_MAX + 1) ||
+	    (rx_len > MTK_NOR_REG_SHIFT_MAX + 1) ||
+	    (prg_len > MTK_NOR_PRG_CNT_MAX / 8))
+		return -EINVAL;
+
+	// fill tx data
+	for (i = op->cmd.nbytes; i > 0; i--, reg_offset--) {
+		reg = sp->base + MTK_NOR_REG_PRGDATA(reg_offset);
+		bufbyte = (op->cmd.opcode >> ((i - 1) * BITS_PER_BYTE)) & 0xff;
+		writeb(bufbyte, reg);
+	}
+
+	for (i = op->addr.nbytes; i > 0; i--, reg_offset--) {
+		reg = sp->base + MTK_NOR_REG_PRGDATA(reg_offset);
+		bufbyte = (op->addr.val >> ((i - 1) * BITS_PER_BYTE)) & 0xff;
+		writeb(bufbyte, reg);
+	}
+
+	if (op->data.dir == SPI_MEM_DATA_OUT) {
+		for (i = 0; i < op->dummy.nbytes; i++, reg_offset--) {
+			reg = sp->base + MTK_NOR_REG_PRGDATA(reg_offset);
+			writeb(0, reg);
+		}
+
+		for (i = 0; i < op->data.nbytes; i++, reg_offset--) {
+			reg = sp->base + MTK_NOR_REG_PRGDATA(reg_offset);
+			writeb(((const u8 *)(op->data.buf.out))[i], reg);
+		}
+	}
+
+	for (; reg_offset >= 0; reg_offset--) {
+		reg = sp->base + MTK_NOR_REG_PRGDATA(reg_offset);
+		writeb(0, reg);
+	}
+
+	// trigger op
+	writel(prg_len * BITS_PER_BYTE, sp->base + MTK_NOR_REG_PRG_CNT);
+	ret = mtk_nor_cmd_exec(sp, MTK_NOR_CMD_PROGRAM,
+			       prg_len * BITS_PER_BYTE);
+	if (ret)
+		return ret;
+
+	// fetch read data
+	reg_offset = 0;
+	if (op->data.dir == SPI_MEM_DATA_IN) {
+		for (i = op->data.nbytes - 1; i >= 0; i--, reg_offset++) {
+			reg = sp->base + MTK_NOR_REG_SHIFT(reg_offset);
+			((u8 *)(op->data.buf.in))[i] = readb(reg);
+		}
+	}
+
+	return 0;
+}
+
 static int mtk_nor_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 {
 	struct mtk_nor *sp = spi_controller_get_devdata(mem->spi->master);
@@ -404,7 +578,7 @@ static int mtk_nor_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 
 	if ((op->data.nbytes == 0) ||
 	    ((op->addr.nbytes != 3) && (op->addr.nbytes != 4)))
-		return -ENOTSUPP;
+		return mtk_nor_spi_mem_prg(sp, op);
 
 	if (op->data.dir == SPI_MEM_DATA_OUT) {
 		mtk_nor_set_addr(sp, op);
@@ -422,19 +596,12 @@ static int mtk_nor_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 		if (op->data.nbytes == 1) {
 			mtk_nor_set_addr(sp, op);
 			return mtk_nor_read_pio(sp, op);
-		} else if (((ulong)(op->data.buf.in) &
-			    MTK_NOR_DMA_ALIGN_MASK)) {
-			return mtk_nor_read_bounce(sp, op->addr.val,
-						   op->data.nbytes,
-						   op->data.buf.in);
 		} else {
-			return mtk_nor_read_dma(sp, op->addr.val,
-						op->data.nbytes,
-						op->data.buf.in);
+			return mtk_nor_read_dma(sp, op);
 		}
 	}
 
-	return -ENOTSUPP;
+	return mtk_nor_spi_mem_prg(sp, op);
 }
 
 static int mtk_nor_setup(struct spi_device *spi)
@@ -524,22 +691,15 @@ static int mtk_nor_enable_clk(struct mtk_nor *sp)
 	return 0;
 }
 
-static int mtk_nor_init(struct mtk_nor *sp)
+static void mtk_nor_init(struct mtk_nor *sp)
 {
-	int ret;
-
-	ret = mtk_nor_enable_clk(sp);
-	if (ret)
-		return ret;
-
-	sp->spi_freq = clk_get_rate(sp->spi_clk);
+	writel(0, sp->base + MTK_NOR_REG_IRQ_EN);
+	writel(MTK_NOR_IRQ_MASK, sp->base + MTK_NOR_REG_IRQ_STAT);
 
 	writel(MTK_NOR_ENABLE_SF_CMD, sp->base + MTK_NOR_REG_WP);
 	mtk_nor_rmw(sp, MTK_NOR_REG_CFG2, MTK_NOR_WR_CUSTOM_OP_EN, 0);
 	mtk_nor_rmw(sp, MTK_NOR_REG_CFG3,
 		    MTK_NOR_DISABLE_WREN | MTK_NOR_DISABLE_SR_POLL, 0);
-
-	return ret;
 }
 
 static irqreturn_t mtk_nor_irq_handler(int irq, void *data)
@@ -575,7 +735,8 @@ static const struct spi_controller_mem_ops mtk_nor_mem_ops = {
 };
 
 static const struct of_device_id mtk_nor_match[] = {
-	{ .compatible = "mediatek,mt8173-nor" },
+	{ .compatible = "mediatek,mt8192-nor", .data = (void *)36 },
+	{ .compatible = "mediatek,mt8173-nor", .data = (void *)32 },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, mtk_nor_match);
@@ -585,9 +746,9 @@ static int mtk_nor_probe(struct platform_device *pdev)
 	struct spi_controller *ctlr;
 	struct mtk_nor *sp;
 	void __iomem *base;
-	u8 *buffer;
 	struct clk *spi_clk, *ctlr_clk;
 	int ret, irq;
+	unsigned long dma_bits;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
@@ -601,15 +762,11 @@ static int mtk_nor_probe(struct platform_device *pdev)
 	if (IS_ERR(ctlr_clk))
 		return PTR_ERR(ctlr_clk);
 
-	buffer = devm_kmalloc(&pdev->dev,
-			      MTK_NOR_BOUNCE_BUF_SIZE + MTK_NOR_DMA_ALIGN,
-			      GFP_KERNEL);
-	if (!buffer)
-		return -ENOMEM;
-
-	if ((ulong)buffer & MTK_NOR_DMA_ALIGN_MASK)
-		buffer = (u8 *)(((ulong)buffer + MTK_NOR_DMA_ALIGN) &
-				~MTK_NOR_DMA_ALIGN_MASK);
+	dma_bits = (unsigned long)of_device_get_match_data(&pdev->dev);
+	if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(dma_bits))) {
+		dev_err(&pdev->dev, "failed to set dma mask(%lu)\n", dma_bits);
+		return -EINVAL;
+	}
 
 	ctlr = spi_alloc_master(&pdev->dev, sizeof(*sp));
 	if (!ctlr) {
@@ -625,25 +782,43 @@ static int mtk_nor_probe(struct platform_device *pdev)
 	ctlr->num_chipselect = 1;
 	ctlr->setup = mtk_nor_setup;
 	ctlr->transfer_one_message = mtk_nor_transfer_one_message;
+	ctlr->auto_runtime_pm = true;
 
 	dev_set_drvdata(&pdev->dev, ctlr);
 
 	sp = spi_controller_get_devdata(ctlr);
 	sp->base = base;
-	sp->buffer = buffer;
 	sp->has_irq = false;
 	sp->wbuf_en = false;
 	sp->ctlr = ctlr;
 	sp->dev = &pdev->dev;
 	sp->spi_clk = spi_clk;
 	sp->ctlr_clk = ctlr_clk;
+	sp->high_dma = (dma_bits > 32);
+	sp->buffer = dmam_alloc_coherent(&pdev->dev,
+				MTK_NOR_BOUNCE_BUF_SIZE + MTK_NOR_DMA_ALIGN,
+				&sp->buffer_dma, GFP_KERNEL);
+	if (!sp->buffer)
+		return -ENOMEM;
+
+	if ((uintptr_t)sp->buffer & MTK_NOR_DMA_ALIGN_MASK) {
+		dev_err(sp->dev, "misaligned allocation of internal buffer.\n");
+		return -ENOMEM;
+	}
+
+	ret = mtk_nor_enable_clk(sp);
+	if (ret < 0)
+		return ret;
+
+	sp->spi_freq = clk_get_rate(sp->spi_clk);
+
+	mtk_nor_init(sp);
 
 	irq = platform_get_irq_optional(pdev, 0);
+
 	if (irq < 0) {
 		dev_warn(sp->dev, "IRQ not available.");
 	} else {
-		writel(MTK_NOR_IRQ_MASK, base + MTK_NOR_REG_IRQ_STAT);
-		writel(0, base + MTK_NOR_REG_IRQ_EN);
 		ret = devm_request_irq(sp->dev, irq, mtk_nor_irq_handler, 0,
 				       pdev->name, sp);
 		if (ret < 0) {
@@ -654,34 +829,86 @@ static int mtk_nor_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = mtk_nor_init(sp);
-	if (ret < 0) {
-		kfree(ctlr);
-		return ret;
-	}
+	pm_runtime_set_autosuspend_delay(&pdev->dev, -1);
+	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_get_noresume(&pdev->dev);
+
+	ret = devm_spi_register_controller(&pdev->dev, ctlr);
+	if (ret < 0)
+		goto err_probe;
+
+	pm_runtime_mark_last_busy(&pdev->dev);
+	pm_runtime_put_autosuspend(&pdev->dev);
 
 	dev_info(&pdev->dev, "spi frequency: %d Hz\n", sp->spi_freq);
 
-	return devm_spi_register_controller(&pdev->dev, ctlr);
+	return 0;
+
+err_probe:
+	pm_runtime_disable(&pdev->dev);
+	pm_runtime_set_suspended(&pdev->dev);
+	pm_runtime_dont_use_autosuspend(&pdev->dev);
+
+	mtk_nor_disable_clk(sp);
+
+	return ret;
 }
 
 static int mtk_nor_remove(struct platform_device *pdev)
 {
-	struct spi_controller *ctlr;
-	struct mtk_nor *sp;
+	struct spi_controller *ctlr = dev_get_drvdata(&pdev->dev);
+	struct mtk_nor *sp = spi_controller_get_devdata(ctlr);
 
-	ctlr = dev_get_drvdata(&pdev->dev);
-	sp = spi_controller_get_devdata(ctlr);
+	pm_runtime_disable(&pdev->dev);
+	pm_runtime_set_suspended(&pdev->dev);
+	pm_runtime_dont_use_autosuspend(&pdev->dev);
 
 	mtk_nor_disable_clk(sp);
 
 	return 0;
 }
 
+static int __maybe_unused mtk_nor_runtime_suspend(struct device *dev)
+{
+	struct spi_controller *ctlr = dev_get_drvdata(dev);
+	struct mtk_nor *sp = spi_controller_get_devdata(ctlr);
+
+	mtk_nor_disable_clk(sp);
+
+	return 0;
+}
+
+static int __maybe_unused mtk_nor_runtime_resume(struct device *dev)
+{
+	struct spi_controller *ctlr = dev_get_drvdata(dev);
+	struct mtk_nor *sp = spi_controller_get_devdata(ctlr);
+
+	return mtk_nor_enable_clk(sp);
+}
+
+static int __maybe_unused mtk_nor_suspend(struct device *dev)
+{
+	return pm_runtime_force_suspend(dev);
+}
+
+static int __maybe_unused mtk_nor_resume(struct device *dev)
+{
+	return pm_runtime_force_resume(dev);
+}
+
+static const struct dev_pm_ops mtk_nor_pm_ops = {
+	SET_RUNTIME_PM_OPS(mtk_nor_runtime_suspend,
+			   mtk_nor_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(mtk_nor_suspend, mtk_nor_resume)
+};
+
 static struct platform_driver mtk_nor_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = mtk_nor_match,
+		.pm = &mtk_nor_pm_ops,
 	},
 	.probe = mtk_nor_probe,
 	.remove = mtk_nor_remove,

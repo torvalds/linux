@@ -4,6 +4,7 @@
  * Author: Rob Clark <robdclark@gmail.com>
  */
 
+#include <linux/dma-map-ops.h>
 #include <linux/spinlock.h>
 #include <linux/shmem_fs.h>
 #include <linux/dma-buf.h>
@@ -52,26 +53,14 @@ static void sync_for_device(struct msm_gem_object *msm_obj)
 {
 	struct device *dev = msm_obj->base.dev->dev;
 
-	if (get_dma_ops(dev) && IS_ENABLED(CONFIG_ARM64)) {
-		dma_sync_sg_for_device(dev, msm_obj->sgt->sgl,
-			msm_obj->sgt->nents, DMA_BIDIRECTIONAL);
-	} else {
-		dma_map_sg(dev, msm_obj->sgt->sgl,
-			msm_obj->sgt->nents, DMA_BIDIRECTIONAL);
-	}
+	dma_map_sgtable(dev, msm_obj->sgt, DMA_BIDIRECTIONAL, 0);
 }
 
 static void sync_for_cpu(struct msm_gem_object *msm_obj)
 {
 	struct device *dev = msm_obj->base.dev->dev;
 
-	if (get_dma_ops(dev) && IS_ENABLED(CONFIG_ARM64)) {
-		dma_sync_sg_for_cpu(dev, msm_obj->sgt->sgl,
-			msm_obj->sgt->nents, DMA_BIDIRECTIONAL);
-	} else {
-		dma_unmap_sg(dev, msm_obj->sgt->sgl,
-			msm_obj->sgt->nents, DMA_BIDIRECTIONAL);
-	}
+	dma_unmap_sgtable(dev, msm_obj->sgt, DMA_BIDIRECTIONAL, 0);
 }
 
 /* allocate pages from VRAM carveout, used when no IOMMU: */
@@ -126,7 +115,7 @@ static struct page **get_pages(struct drm_gem_object *obj)
 
 		msm_obj->pages = p;
 
-		msm_obj->sgt = drm_prime_pages_to_sg(p, npages);
+		msm_obj->sgt = drm_prime_pages_to_sg(obj->dev, p, npages);
 		if (IS_ERR(msm_obj->sgt)) {
 			void *ptr = ERR_CAST(msm_obj->sgt);
 
@@ -753,31 +742,31 @@ int msm_gem_sync_object(struct drm_gem_object *obj,
 	return 0;
 }
 
-void msm_gem_move_to_active(struct drm_gem_object *obj,
-		struct msm_gpu *gpu, bool exclusive, struct dma_fence *fence)
+void msm_gem_active_get(struct drm_gem_object *obj, struct msm_gpu *gpu)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	WARN_ON(!mutex_is_locked(&obj->dev->struct_mutex));
 	WARN_ON(msm_obj->madv != MSM_MADV_WILLNEED);
-	msm_obj->gpu = gpu;
-	if (exclusive)
-		dma_resv_add_excl_fence(obj->resv, fence);
-	else
-		dma_resv_add_shared_fence(obj->resv, fence);
-	list_del_init(&msm_obj->mm_list);
-	list_add_tail(&msm_obj->mm_list, &gpu->active_list);
+
+	if (!atomic_fetch_inc(&msm_obj->active_count)) {
+		msm_obj->gpu = gpu;
+		list_del_init(&msm_obj->mm_list);
+		list_add_tail(&msm_obj->mm_list, &gpu->active_list);
+	}
 }
 
-void msm_gem_move_to_inactive(struct drm_gem_object *obj)
+void msm_gem_active_put(struct drm_gem_object *obj)
 {
-	struct drm_device *dev = obj->dev;
-	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	struct msm_drm_private *priv = obj->dev->dev_private;
 
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+	WARN_ON(!mutex_is_locked(&obj->dev->struct_mutex));
 
-	msm_obj->gpu = NULL;
-	list_del_init(&msm_obj->mm_list);
-	list_add_tail(&msm_obj->mm_list, &priv->inactive_list);
+	if (!atomic_dec_return(&msm_obj->active_count)) {
+		msm_obj->gpu = NULL;
+		list_del_init(&msm_obj->mm_list);
+		list_add_tail(&msm_obj->mm_list, &priv->inactive_list);
+	}
 }
 
 int msm_gem_cpu_prep(struct drm_gem_object *obj, uint32_t op, ktime_t *timeout)
@@ -852,11 +841,28 @@ void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 
 		seq_puts(m, "      vmas:");
 
-		list_for_each_entry(vma, &msm_obj->vmas, list)
-			seq_printf(m, " [%s: %08llx,%s,inuse=%d]",
-				vma->aspace != NULL ? vma->aspace->name : NULL,
-				vma->iova, vma->mapped ? "mapped" : "unmapped",
+		list_for_each_entry(vma, &msm_obj->vmas, list) {
+			const char *name, *comm;
+			if (vma->aspace) {
+				struct msm_gem_address_space *aspace = vma->aspace;
+				struct task_struct *task =
+					get_pid_task(aspace->pid, PIDTYPE_PID);
+				if (task) {
+					comm = kstrdup(task->comm, GFP_KERNEL);
+				} else {
+					comm = NULL;
+				}
+				name = aspace->name;
+			} else {
+				name = comm = NULL;
+			}
+			seq_printf(m, " [%s%s%s: aspace=%p, %08llx,%s,inuse=%d]",
+				name, comm ? ":" : "", comm ? comm : "",
+				vma->aspace, vma->iova,
+				vma->mapped ? "mapped" : "unmapped",
 				vma->inuse);
+			kfree(comm);
+		}
 
 		seq_puts(m, "\n");
 	}

@@ -576,6 +576,8 @@ static int ath10k_qmi_cap_send_sync_msg(struct ath10k_qmi *qmi)
 	if (resp->chip_info_valid) {
 		qmi->chip_info.chip_id = resp->chip_info.chip_id;
 		qmi->chip_info.chip_family = resp->chip_info.chip_family;
+	} else {
+		qmi->chip_info.chip_id = 0xFF;
 	}
 
 	if (resp->board_info_valid)
@@ -817,11 +819,17 @@ err_setup_msa:
 static int ath10k_qmi_fetch_board_file(struct ath10k_qmi *qmi)
 {
 	struct ath10k *ar = qmi->ar;
+	int ret;
 
 	ar->hif.bus = ATH10K_BUS_SNOC;
 	ar->id.qmi_ids_valid = true;
 	ar->id.qmi_board_id = qmi->board_info.board_id;
+	ar->id.qmi_chip_id = qmi->chip_info.chip_id;
 	ar->hw_params.fw.dir = WCN3990_HW_1_0_FW_DIR;
+
+	ret = ath10k_core_check_dt(ar);
+	if (ret)
+		ath10k_dbg(ar, ATH10K_DBG_QMI, "DT bdf variant name not set.\n");
 
 	return ath10k_core_fetch_board_file(qmi->ar, ATH10K_BD_IE_BOARD);
 }

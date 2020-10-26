@@ -15,8 +15,6 @@
 
 #include "internal.h"
 
-ACPI_MODULE_NAME("cmos rtc");
-
 static const struct acpi_device_id acpi_cmos_rtc_ids[] = {
 	{ "PNP0B00" },
 	{ "PNP0B01" },

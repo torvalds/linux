@@ -215,6 +215,9 @@ static void fw_cfg_io_cleanup(void)
 #  define FW_CFG_CTRL_OFF 0x08
 #  define FW_CFG_DATA_OFF 0x00
 #  define FW_CFG_DMA_OFF 0x10
+# elif defined(CONFIG_PARISC)	/* parisc */
+#  define FW_CFG_CTRL_OFF 0x00
+#  define FW_CFG_DATA_OFF 0x04
 # elif (defined(CONFIG_PPC_PMAC) || defined(CONFIG_SPARC32)) /* ppc/mac,sun4m */
 #  define FW_CFG_CTRL_OFF 0x00
 #  define FW_CFG_DATA_OFF 0x02

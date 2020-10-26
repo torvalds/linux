@@ -243,11 +243,7 @@ static inline void set_trap_norestart(struct pt_regs *regs)
 }
 
 #define arch_has_single_step()	(1)
-#ifndef CONFIG_PPC_BOOK3S_601
 #define arch_has_block_step()	(true)
-#else
-#define arch_has_block_step()	(false)
-#endif
 #define ARCH_HAS_USER_SINGLE_STEP_REPORT
 
 /*

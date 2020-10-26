@@ -308,8 +308,7 @@ static int __set_input_tf(struct dc_transfer_func *func,
 int amdgpu_dm_update_crtc_color_mgmt(struct dm_crtc_state *crtc)
 {
 	struct dc_stream_state *stream = crtc->stream;
-	struct amdgpu_device *adev =
-		(struct amdgpu_device *)crtc->base.state->dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(crtc->base.state->dev);
 	bool has_rom = adev->asic_type <= CHIP_RAVEN;
 	struct drm_color_ctm *ctm = NULL;
 	const struct drm_color_lut *degamma_lut, *regamma_lut;

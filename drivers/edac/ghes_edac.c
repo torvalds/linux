@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2013 by Mauro Carvalho Chehab
  *
- * Red Hat Inc. http://www.redhat.com
+ * Red Hat Inc. https://www.redhat.com
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -372,8 +372,18 @@ void ghes_edac_report_mem_error(int sev, struct cper_sec_mem_err *mem_err)
 		p += sprintf(p, "rank:%d ", mem_err->rank);
 	if (mem_err->validation_bits & CPER_MEM_VALID_BANK)
 		p += sprintf(p, "bank:%d ", mem_err->bank);
-	if (mem_err->validation_bits & CPER_MEM_VALID_ROW)
-		p += sprintf(p, "row:%d ", mem_err->row);
+	if (mem_err->validation_bits & CPER_MEM_VALID_BANK_GROUP)
+		p += sprintf(p, "bank_group:%d ",
+			     mem_err->bank >> CPER_MEM_BANK_GROUP_SHIFT);
+	if (mem_err->validation_bits & CPER_MEM_VALID_BANK_ADDRESS)
+		p += sprintf(p, "bank_address:%d ",
+			     mem_err->bank & CPER_MEM_BANK_ADDRESS_MASK);
+	if (mem_err->validation_bits & (CPER_MEM_VALID_ROW | CPER_MEM_VALID_ROW_EXT)) {
+		u32 row = mem_err->row;
+
+		row |= cper_get_mem_extension(mem_err->validation_bits, mem_err->extended);
+		p += sprintf(p, "row:%d ", row);
+	}
 	if (mem_err->validation_bits & CPER_MEM_VALID_COLUMN)
 		p += sprintf(p, "col:%d ", mem_err->column);
 	if (mem_err->validation_bits & CPER_MEM_VALID_BIT_POSITION)
@@ -395,6 +405,9 @@ void ghes_edac_report_mem_error(int sev, struct cper_sec_mem_err *mem_err)
 			strcpy(e->label, dimm->label);
 		}
 	}
+	if (mem_err->validation_bits & CPER_MEM_VALID_CHIP_ID)
+		p += sprintf(p, "chipID: %d ",
+			     mem_err->extended >> CPER_MEM_CHIP_ID_SHIFT);
 	if (p > e->location)
 		*(p - 1) = '\0';
 

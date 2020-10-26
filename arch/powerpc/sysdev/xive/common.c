@@ -1565,7 +1565,7 @@ static int __init xive_off(char *arg)
 }
 __setup("xive=off", xive_off);
 
-void xive_debug_show_cpu(struct seq_file *m, int cpu)
+static void xive_debug_show_cpu(struct seq_file *m, int cpu)
 {
 	struct xive_cpu *xc = per_cpu(xive_cpu, cpu);
 
@@ -1599,7 +1599,7 @@ void xive_debug_show_cpu(struct seq_file *m, int cpu)
 	seq_puts(m, "\n");
 }
 
-void xive_debug_show_irq(struct seq_file *m, u32 hw_irq, struct irq_data *d)
+static void xive_debug_show_irq(struct seq_file *m, u32 hw_irq, struct irq_data *d)
 {
 	struct irq_chip *chip = irq_data_get_irq_chip(d);
 	int rc;

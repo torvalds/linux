@@ -11,7 +11,8 @@ maintainers:
 
 description:
   A USB connector node represents a physical USB connector. It should be a child
-  of a USB interface controller.
+  of a USB interface controller or a separate node when it is attached to both
+  MUX and USB interface controller.
 
 properties:
   compatible:
@@ -23,6 +24,10 @@ properties:
 
       - items:
           - const: gpio-usb-b-connector
+          - const: usb-b-connector
+
+      - items:
+          - const: samsung,usb-connector-11pin
           - const: usb-b-connector
 
   label:
@@ -158,6 +163,18 @@ allOf:
         - required:
             - id-gpios
 
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,usb-connector-11pin
+    then:
+      properties:
+        type:
+          const: micro
+
+additionalProperties: true
+
 examples:
   # Micro-USB connector with HS lines routed via controller (MUIC).
   - |
@@ -221,6 +238,33 @@ examples:
       };
     };
 
+  # USB-C connector attached to SoC and USB3 typec port controller(hd3ss3220)
+  # with SS 2:1 MUX. HS lines routed to SoC, SS lines routed to the MUX and
+  # the output of MUX is connected to the SoC.
+  - |
+    connector {
+        compatible = "usb-c-connector";
+        label = "USB-C";
+        data-role = "dual";
+
+        ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
+                port@0 {
+                        reg = <0>;
+                        hs_ep: endpoint {
+                                remote-endpoint = <&usb3_hs_ep>;
+                        };
+                };
+                port@1 {
+                        reg = <1>;
+                        ss_ep: endpoint {
+                                remote-endpoint = <&hd3ss3220_in_ep>;
+                        };
+                };
+        };
+    };
+
   # USB connector with GPIO control lines
   - |
     #include <dt-bindings/gpio/gpio.h>
@@ -231,5 +275,35 @@ examples:
         type = "micro";
         id-gpios = <&pio 12 GPIO_ACTIVE_HIGH>;
         vbus-supply = <&usb_p0_vbus>;
+      };
+    };
+
+  # Micro-USB connector with HS lines routed via controller (MUIC) and MHL
+  # lines connected to HDMI-MHL bridge (sii8620) on Samsung Exynos5433-based
+  # mobile phone
+  - |
+    muic-max77843 {
+      usb_con4: connector {
+        compatible = "samsung,usb-connector-11pin", "usb-b-connector";
+        label = "micro-USB";
+        type = "micro";
+
+        ports {
+          #address-cells = <1>;
+          #size-cells = <0>;
+
+          port@0 {
+            reg = <0>;
+            muic_to_usb: endpoint {
+              remote-endpoint = <&usb_to_muic>;
+            };
+          };
+          port@3 {
+            reg = <3>;
+            usb_con_mhl: endpoint {
+              remote-endpoint = <&sii8620_mhl>;
+            };
+          };
+        };
       };
     };

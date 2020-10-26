@@ -308,6 +308,8 @@ required:
   - clocks
   - '#clock-cells'
 
+additionalProperties: false
+
 dependencies:
   "nvidia,suspend-mode": ["nvidia,core-pwr-off-time", "nvidia,cpu-pwr-off-time"]
   "nvidia,core-pwr-off-time": ["nvidia,core-pwr-good-time"]

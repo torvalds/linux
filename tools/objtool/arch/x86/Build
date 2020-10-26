@@ -1,3 +1,4 @@
+objtool-y += special.o
 objtool-y += decode.o
 
 inat_tables_script = ../arch/x86/tools/gen-insn-attr-x86.awk

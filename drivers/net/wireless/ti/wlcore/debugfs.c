@@ -122,13 +122,6 @@ static void chip_op_handler(struct wl1271 *wl, unsigned long value,
 	pm_runtime_put_autosuspend(wl->dev);
 }
 
-
-static inline void no_write_handler(struct wl1271 *wl,
-				    unsigned long value,
-				    unsigned long param)
-{
-}
-
 #define WL12XX_CONF_DEBUGFS(param, conf_sub_struct,			\
 			    min_val, max_val, write_handler_locked,	\
 			    write_handler_arg)				\

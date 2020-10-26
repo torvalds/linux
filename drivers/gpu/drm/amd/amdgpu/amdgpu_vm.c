@@ -28,6 +28,7 @@
 #include <linux/dma-fence-array.h>
 #include <linux/interval_tree_generic.h>
 #include <linux/idr.h>
+#include <linux/dma-buf.h>
 
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
@@ -35,6 +36,7 @@
 #include "amdgpu_amdkfd.h"
 #include "amdgpu_gmc.h"
 #include "amdgpu_xgmi.h"
+#include "amdgpu_dma_buf.h"
 
 /**
  * DOC: GPUVM
@@ -1500,6 +1502,8 @@ static int amdgpu_vm_update_ptes(struct amdgpu_vm_update_params *params,
 
 			pt = cursor.entry->base.bo;
 			shift = parent_shift;
+			frag_end = max(frag_end, ALIGN(frag_start + 1,
+				   1ULL << shift));
 		}
 
 		/* Looks good so far, calculate parameters for the update */
@@ -1511,19 +1515,26 @@ static int amdgpu_vm_update_ptes(struct amdgpu_vm_update_params *params,
 		entry_end = min(entry_end, end);
 
 		do {
+			struct amdgpu_vm *vm = params->vm;
 			uint64_t upd_end = min(entry_end, frag_end);
 			unsigned nptes = (upd_end - frag_start) >> shift;
+			uint64_t upd_flags = flags | AMDGPU_PTE_FRAG(frag);
 
 			/* This can happen when we set higher level PDs to
 			 * silent to stop fault floods.
 			 */
 			nptes = max(nptes, 1u);
+
+			trace_amdgpu_vm_update_ptes(params, frag_start, upd_end,
+						    nptes, dst, incr, upd_flags,
+						    vm->task_info.pid,
+						    vm->immediate.fence_context);
 			amdgpu_vm_update_flags(params, pt, cursor.level,
 					       pe_start, dst, nptes, incr,
-					       flags | AMDGPU_PTE_FRAG(frag));
+					       upd_flags);
 
 			pe_start += nptes * 8;
-			dst += (uint64_t)nptes * AMDGPU_GPU_PAGE_SIZE << shift;
+			dst += nptes * incr;
 
 			frag_start = upd_end;
 			if (frag_start >= frag_end) {
@@ -1691,13 +1702,13 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 		uint64_t max_entries;
 		uint64_t addr, last;
 
+		max_entries = mapping->last - start + 1;
 		if (nodes) {
 			addr = nodes->start << PAGE_SHIFT;
-			max_entries = (nodes->size - pfn) *
-				AMDGPU_GPU_PAGES_IN_CPU_PAGE;
+			max_entries = min((nodes->size - pfn) *
+				AMDGPU_GPU_PAGES_IN_CPU_PAGE, max_entries);
 		} else {
 			addr = 0;
-			max_entries = S64_MAX;
 		}
 
 		if (pages_addr) {
@@ -1727,7 +1738,7 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 			addr += pfn << PAGE_SHIFT;
 		}
 
-		last = min((uint64_t)mapping->last, start + max_entries - 1);
+		last = start + max_entries - 1;
 		r = amdgpu_vm_bo_update_mapping(adev, vm, false, false, resv,
 						start, last, flags, addr,
 						dma_addr, fence);
@@ -1765,7 +1776,7 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev, struct amdgpu_bo_va *bo_va,
 	struct amdgpu_vm *vm = bo_va->base.vm;
 	struct amdgpu_bo_va_mapping *mapping;
 	dma_addr_t *pages_addr = NULL;
-	struct ttm_mem_reg *mem;
+	struct ttm_resource *mem;
 	struct drm_mm_node *nodes;
 	struct dma_fence **last_update;
 	struct dma_resv *resv;
@@ -1778,15 +1789,24 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev, struct amdgpu_bo_va *bo_va,
 		nodes = NULL;
 		resv = vm->root.base.bo->tbo.base.resv;
 	} else {
+		struct drm_gem_object *obj = &bo->tbo.base;
 		struct ttm_dma_tt *ttm;
 
+		resv = bo->tbo.base.resv;
+		if (obj->import_attach && bo_va->is_xgmi) {
+			struct dma_buf *dma_buf = obj->import_attach->dmabuf;
+			struct drm_gem_object *gobj = dma_buf->priv;
+			struct amdgpu_bo *abo = gem_to_amdgpu_bo(gobj);
+
+			if (abo->tbo.mem.mem_type == TTM_PL_VRAM)
+				bo = gem_to_amdgpu_bo(gobj);
+		}
 		mem = &bo->tbo.mem;
 		nodes = mem->mm_node;
 		if (mem->mem_type == TTM_PL_TT) {
 			ttm = container_of(bo->tbo.ttm, struct ttm_dma_tt, ttm);
 			pages_addr = ttm->dma_address;
 		}
-		resv = bo->tbo.base.resv;
 	}
 
 	if (bo) {
@@ -2132,8 +2152,10 @@ struct amdgpu_bo_va *amdgpu_vm_bo_add(struct amdgpu_device *adev,
 	INIT_LIST_HEAD(&bo_va->valids);
 	INIT_LIST_HEAD(&bo_va->invalids);
 
-	if (bo && amdgpu_xgmi_same_hive(adev, amdgpu_ttm_adev(bo->tbo.bdev)) &&
-	    (bo->preferred_domains & AMDGPU_GEM_DOMAIN_VRAM)) {
+	if (!bo)
+		return bo_va;
+
+	if (amdgpu_dmabuf_is_xgmi_accessible(adev, bo)) {
 		bo_va->is_xgmi = true;
 		/* Power up XGMI if it can be potentially used */
 		amdgpu_xgmi_set_pstate(adev, AMDGPU_XGMI_PSTATE_MAX_VEGA20);
@@ -2785,7 +2807,7 @@ long amdgpu_vm_wait_idle(struct amdgpu_vm *vm, long timeout)
  * 0 for success, error for failure.
  */
 int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
-		   int vm_context, unsigned int pasid)
+		   int vm_context, u32 pasid)
 {
 	struct amdgpu_bo_param bp;
 	struct amdgpu_bo *root;
@@ -2956,7 +2978,7 @@ static int amdgpu_vm_check_clean_reserved(struct amdgpu_device *adev,
  * 0 for success, -errno for errors.
  */
 int amdgpu_vm_make_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm,
-			   unsigned int pasid)
+			   u32 pasid)
 {
 	bool pte_support_ats = (adev->asic_type == CHIP_RAVEN);
 	int r;
@@ -3209,7 +3231,7 @@ void amdgpu_vm_manager_fini(struct amdgpu_device *adev)
 int amdgpu_vm_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 {
 	union drm_amdgpu_vm *args = data;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct amdgpu_fpriv *fpriv = filp->driver_priv;
 	long timeout = msecs_to_jiffies(2000);
 	int r;
@@ -3254,7 +3276,7 @@ int amdgpu_vm_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
  * @pasid: PASID identifier for VM
  * @task_info: task_info to fill.
  */
-void amdgpu_vm_get_task_info(struct amdgpu_device *adev, unsigned int pasid,
+void amdgpu_vm_get_task_info(struct amdgpu_device *adev, u32 pasid,
 			 struct amdgpu_task_info *task_info)
 {
 	struct amdgpu_vm *vm;
@@ -3298,7 +3320,7 @@ void amdgpu_vm_set_task_info(struct amdgpu_vm *vm)
  * Try to gracefully handle a VM fault. Return true if the fault was handled and
  * shouldn't be reported any more.
  */
-bool amdgpu_vm_handle_fault(struct amdgpu_device *adev, unsigned int pasid,
+bool amdgpu_vm_handle_fault(struct amdgpu_device *adev, u32 pasid,
 			    uint64_t addr)
 {
 	struct amdgpu_bo *root;

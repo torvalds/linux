@@ -92,13 +92,6 @@ int cmd_list(int argc, const char **argv)
 		else if ((sep = strchr(argv[i], ':')) != NULL) {
 			int sep_idx;
 
-			if (sep == NULL) {
-				print_events(argv[i], raw_dump, !desc_flag,
-							long_desc_flag,
-							details_flag,
-							deprecated);
-				continue;
-			}
 			sep_idx = sep - argv[i];
 			s = strdup(argv[i]);
 			if (s == NULL)

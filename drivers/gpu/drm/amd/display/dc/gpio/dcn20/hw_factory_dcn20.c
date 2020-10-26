@@ -221,7 +221,7 @@ static void define_generic_registers(struct hw_gpio_pin *pin, uint32_t en)
 	generic->base.regs = &generic_regs[en].gpio;
 }
 
-/* fucntion table */
+/* function table */
 static const struct hw_factory_funcs funcs = {
 	.init_ddc_data = dal_hw_ddc_init,
 	.init_generic = dal_hw_generic_init,

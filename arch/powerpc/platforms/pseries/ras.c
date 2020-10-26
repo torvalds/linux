@@ -521,17 +521,54 @@ int pSeries_system_reset_exception(struct pt_regs *regs)
 	return 0; /* need to perform reset */
 }
 
+static int mce_handle_err_realmode(int disposition, u8 error_type)
+{
+#ifdef CONFIG_PPC_BOOK3S_64
+	if (disposition == RTAS_DISP_NOT_RECOVERED) {
+		switch (error_type) {
+		case	MC_ERROR_TYPE_SLB:
+		case	MC_ERROR_TYPE_ERAT:
+			/*
+			 * Store the old slb content in paca before flushing.
+			 * Print this when we go to virtual mode.
+			 * There are chances that we may hit MCE again if there
+			 * is a parity error on the SLB entry we trying to read
+			 * for saving. Hence limit the slb saving to single
+			 * level of recursion.
+			 */
+			if (local_paca->in_mce == 1)
+				slb_save_contents(local_paca->mce_faulty_slbs);
+			flush_and_reload_slb();
+			disposition = RTAS_DISP_FULLY_RECOVERED;
+			break;
+		default:
+			break;
+		}
+	} else if (disposition == RTAS_DISP_LIMITED_RECOVERY) {
+		/* Platform corrected itself but could be degraded */
+		pr_err("MCE: limited recovery, system may be degraded\n");
+		disposition = RTAS_DISP_FULLY_RECOVERED;
+	}
+#endif
+	return disposition;
+}
 
-static int mce_handle_error(struct pt_regs *regs, struct rtas_error_log *errp)
+static int mce_handle_err_virtmode(struct pt_regs *regs,
+				   struct rtas_error_log *errp,
+				   struct pseries_mc_errorlog *mce_log,
+				   int disposition)
 {
 	struct mce_error_info mce_err = { 0 };
-	unsigned long eaddr = 0, paddr = 0;
-	struct pseries_errorlog *pseries_log;
-	struct pseries_mc_errorlog *mce_log;
-	int disposition = rtas_error_disposition(errp);
 	int initiator = rtas_error_initiator(errp);
 	int severity = rtas_error_severity(errp);
+	unsigned long eaddr = 0, paddr = 0;
 	u8 error_type, err_sub_type;
+
+	if (!mce_log)
+		goto out;
+
+	error_type = mce_log->error_type;
+	err_sub_type = rtas_mc_error_sub_type(mce_log);
 
 	if (initiator == RTAS_INITIATOR_UNKNOWN)
 		mce_err.initiator = MCE_INITIATOR_UNKNOWN;
@@ -571,18 +608,7 @@ static int mce_handle_error(struct pt_regs *regs, struct rtas_error_log *errp)
 	mce_err.error_type = MCE_ERROR_TYPE_UNKNOWN;
 	mce_err.error_class = MCE_ECLASS_UNKNOWN;
 
-	if (!rtas_error_extended(errp))
-		goto out;
-
-	pseries_log = get_pseries_errorlog(errp, PSERIES_ELOG_SECT_ID_MCE);
-	if (pseries_log == NULL)
-		goto out;
-
-	mce_log = (struct pseries_mc_errorlog *)pseries_log->data;
-	error_type = mce_log->error_type;
-	err_sub_type = rtas_mc_error_sub_type(mce_log);
-
-	switch (mce_log->error_type) {
+	switch (error_type) {
 	case MC_ERROR_TYPE_UE:
 		mce_err.error_type = MCE_ERROR_TYPE_UE;
 		mce_common_process_ue(regs, &mce_err);
@@ -682,37 +708,31 @@ static int mce_handle_error(struct pt_regs *regs, struct rtas_error_log *errp)
 		mce_err.error_type = MCE_ERROR_TYPE_UNKNOWN;
 		break;
 	}
-
-#ifdef CONFIG_PPC_BOOK3S_64
-	if (disposition == RTAS_DISP_NOT_RECOVERED) {
-		switch (error_type) {
-		case	MC_ERROR_TYPE_SLB:
-		case	MC_ERROR_TYPE_ERAT:
-			/*
-			 * Store the old slb content in paca before flushing.
-			 * Print this when we go to virtual mode.
-			 * There are chances that we may hit MCE again if there
-			 * is a parity error on the SLB entry we trying to read
-			 * for saving. Hence limit the slb saving to single
-			 * level of recursion.
-			 */
-			if (local_paca->in_mce == 1)
-				slb_save_contents(local_paca->mce_faulty_slbs);
-			flush_and_reload_slb();
-			disposition = RTAS_DISP_FULLY_RECOVERED;
-			break;
-		default:
-			break;
-		}
-	} else if (disposition == RTAS_DISP_LIMITED_RECOVERY) {
-		/* Platform corrected itself but could be degraded */
-		printk(KERN_ERR "MCE: limited recovery, system may "
-		       "be degraded\n");
-		disposition = RTAS_DISP_FULLY_RECOVERED;
-	}
-#endif
-
 out:
+	save_mce_event(regs, disposition == RTAS_DISP_FULLY_RECOVERED,
+		       &mce_err, regs->nip, eaddr, paddr);
+	return disposition;
+}
+
+static int mce_handle_error(struct pt_regs *regs, struct rtas_error_log *errp)
+{
+	struct pseries_errorlog *pseries_log;
+	struct pseries_mc_errorlog *mce_log = NULL;
+	int disposition = rtas_error_disposition(errp);
+	u8 error_type;
+
+	if (!rtas_error_extended(errp))
+		goto out;
+
+	pseries_log = get_pseries_errorlog(errp, PSERIES_ELOG_SECT_ID_MCE);
+	if (!pseries_log)
+		goto out;
+
+	mce_log = (struct pseries_mc_errorlog *)pseries_log->data;
+	error_type = mce_log->error_type;
+
+	disposition = mce_handle_err_realmode(disposition, error_type);
+
 	/*
 	 * Enable translation as we will be accessing per-cpu variables
 	 * in save_mce_event() which may fall outside RMO region, also
@@ -723,10 +743,10 @@ out:
 	 * Note: All the realmode handling like flushing SLB entries for
 	 *       SLB multihit is done by now.
 	 */
+out:
 	mtmsr(mfmsr() | MSR_IR | MSR_DR);
-	save_mce_event(regs, disposition == RTAS_DISP_FULLY_RECOVERED,
-			&mce_err, regs->nip, eaddr, paddr);
-
+	disposition = mce_handle_err_virtmode(regs, errp, mce_log,
+					      disposition);
 	return disposition;
 }
 

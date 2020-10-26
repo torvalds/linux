@@ -34,6 +34,7 @@ Please see:
     mc-core
     cec-core
     csi2
+    camera-sensor
 
     drivers/index
 

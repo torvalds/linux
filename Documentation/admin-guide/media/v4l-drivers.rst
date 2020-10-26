@@ -25,6 +25,7 @@ Video4Linux (V4L) driver-specific documentation
 	philips
 	qcom_camss
 	rcar-fdp1
+	rkisp1
 	saa7134
 	si470x
 	si4713

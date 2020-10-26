@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.video
 
 .. _VIDEO_GET_FRAME_COUNT:
 
@@ -23,9 +17,9 @@ VIDEO_GET_FRAME_COUNT
 Synopsis
 --------
 
-.. c:function:: int ioctl(int fd, VIDEO_GET_FRAME_COUNT, __u64 *pts)
-    :name: VIDEO_GET_FRAME_COUNT
+.. c:macro:: VIDEO_GET_FRAME_COUNT
 
+``int ioctl(int fd, VIDEO_GET_FRAME_COUNT, __u64 *pts)``
 
 Arguments
 ---------
@@ -33,7 +27,6 @@ Arguments
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -  .. row 1
 
@@ -54,7 +47,6 @@ Arguments
        -  Returns the number of frames displayed since the decoder was
 	  started.
 
-
 Description
 -----------
 
@@ -64,7 +56,6 @@ control.
 
 This ioctl call asks the Video Device to return the number of displayed
 frames since the decoder was started.
-
 
 Return Value
 ------------

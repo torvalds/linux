@@ -30,9 +30,6 @@
 #include <asm/rse.h>
 #include <linux/uaccess.h>
 #include <asm/unwind.h>
-#ifdef CONFIG_PERFMON
-#include <asm/perfmon.h>
-#endif
 
 #include "entry.h"
 
@@ -1951,27 +1948,6 @@ access_uarea(struct task_struct *child, unsigned long addr,
 				"address 0x%lx\n", addr);
 		return -1;
 	}
-#ifdef CONFIG_PERFMON
-	/*
-	 * Check if debug registers are used by perfmon. This
-	 * test must be done once we know that we can do the
-	 * operation, i.e. the arguments are all valid, but
-	 * before we start modifying the state.
-	 *
-	 * Perfmon needs to keep a count of how many processes
-	 * are trying to modify the debug registers for system
-	 * wide monitoring sessions.
-	 *
-	 * We also include read access here, because they may
-	 * cause the PMU-installed debug register state
-	 * (dbr[], ibr[]) to be reset. The two arrays are also
-	 * used by perfmon, but we do not use
-	 * IA64_THREAD_DBG_VALID. The registers are restored
-	 * by the PMU context switch code.
-	 */
-	if (pfm_use_debug_registers(child))
-		return -1;
-#endif
 
 	if (!(child->thread.flags & IA64_THREAD_DBG_VALID)) {
 		child->thread.flags |= IA64_THREAD_DBG_VALID;

@@ -15,6 +15,7 @@
 #include "../../elf.h"
 #include "../../arch.h"
 #include "../../warn.h"
+#include <asm/orc_types.h>
 
 static unsigned char op_to_cfi_reg[][2] = {
 	{CFI_AX, CFI_R8},
@@ -582,4 +583,40 @@ const char *arch_nop_insn(int len)
 	}
 
 	return nops[len-1];
+}
+
+int arch_decode_hint_reg(struct instruction *insn, u8 sp_reg)
+{
+	struct cfi_reg *cfa = &insn->cfi.cfa;
+
+	switch (sp_reg) {
+	case ORC_REG_UNDEFINED:
+		cfa->base = CFI_UNDEFINED;
+		break;
+	case ORC_REG_SP:
+		cfa->base = CFI_SP;
+		break;
+	case ORC_REG_BP:
+		cfa->base = CFI_BP;
+		break;
+	case ORC_REG_SP_INDIRECT:
+		cfa->base = CFI_SP_INDIRECT;
+		break;
+	case ORC_REG_R10:
+		cfa->base = CFI_R10;
+		break;
+	case ORC_REG_R13:
+		cfa->base = CFI_R13;
+		break;
+	case ORC_REG_DI:
+		cfa->base = CFI_DI;
+		break;
+	case ORC_REG_DX:
+		cfa->base = CFI_DX;
+		break;
+	default:
+		return -1;
+	}
+
+	return 0;
 }

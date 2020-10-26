@@ -592,6 +592,9 @@ static int sdma_v4_0_init_microcode(struct amdgpu_device *adev)
 	struct amdgpu_firmware_info *info = NULL;
 	const struct common_firmware_header *header = NULL;
 
+	if (amdgpu_sriov_vf(adev))
+		return 0;
+
 	DRM_DEBUG("\n");
 
 	switch (adev->asic_type) {
@@ -1000,7 +1003,7 @@ static void sdma_v4_0_page_stop(struct amdgpu_device *adev)
 		sdma[i] = &adev->sdma.instance[i].page;
 
 		if ((adev->mman.buffer_funcs_ring == sdma[i]) &&
-			(unset == false)) {
+			(!unset)) {
 			amdgpu_ttm_set_buffer_funcs_status(adev, false);
 			unset = true;
 		}
@@ -1063,6 +1066,15 @@ static void sdma_v4_0_ctx_switch_enable(struct amdgpu_device *adev, bool enable)
 			WREG32_SDMA(i, mmSDMA0_PHASE2_QUANTUM, phase_quantum);
 		}
 		WREG32_SDMA(i, mmSDMA0_CNTL, f32_cntl);
+
+		/*
+		 * Enable SDMA utilization. Its only supported on
+		 * Arcturus for the moment and firmware version 14
+		 * and above.
+		 */
+		if (adev->asic_type == CHIP_ARCTURUS &&
+		    adev->sdma.instance[i].fw_version >= 14)
+			WREG32_SDMA(i, mmSDMA0_PUB_DUMMY_REG2, enable);
 	}
 
 }
@@ -1080,7 +1092,7 @@ static void sdma_v4_0_enable(struct amdgpu_device *adev, bool enable)
 	u32 f32_cntl;
 	int i;
 
-	if (enable == false) {
+	if (!enable) {
 		sdma_v4_0_gfx_stop(adev);
 		sdma_v4_0_rlc_stop(adev);
 		if (adev->sdma.has_page_queue)

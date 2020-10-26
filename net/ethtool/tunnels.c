@@ -8,10 +8,9 @@
 #include "common.h"
 #include "netlink.h"
 
-static const struct nla_policy
-ethtool_tunnel_info_policy[ETHTOOL_A_TUNNEL_INFO_MAX + 1] = {
-	[ETHTOOL_A_TUNNEL_INFO_UNSPEC]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_TUNNEL_INFO_HEADER]		= { .type = NLA_NESTED },
+const struct nla_policy ethnl_tunnel_info_get_policy[] = {
+	[ETHTOOL_A_TUNNEL_INFO_HEADER]		=
+		NLA_POLICY_NESTED(ethnl_header_policy),
 };
 
 static_assert(ETHTOOL_UDP_TUNNEL_TYPE_VXLAN == ilog2(UDP_TUNNEL_TYPE_VXLAN));
@@ -161,35 +160,19 @@ err_cancel_ports:
 	return -EMSGSIZE;
 }
 
-static int
-ethnl_tunnel_info_req_parse(struct ethnl_req_info *req_info,
-			    const struct nlmsghdr *nlhdr, struct net *net,
-			    struct netlink_ext_ack *extack, bool require_dev)
-{
-	struct nlattr *tb[ETHTOOL_A_TUNNEL_INFO_MAX + 1];
-	int ret;
-
-	ret = nlmsg_parse(nlhdr, GENL_HDRLEN, tb, ETHTOOL_A_TUNNEL_INFO_MAX,
-			  ethtool_tunnel_info_policy, extack);
-	if (ret < 0)
-		return ret;
-
-	return ethnl_parse_header_dev_get(req_info,
-					  tb[ETHTOOL_A_TUNNEL_INFO_HEADER],
-					  net, extack, require_dev);
-}
-
 int ethnl_tunnel_info_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct ethnl_req_info req_info = {};
+	struct nlattr **tb = info->attrs;
 	struct sk_buff *rskb;
 	void *reply_payload;
 	int reply_len;
 	int ret;
 
-	ret = ethnl_tunnel_info_req_parse(&req_info, info->nlhdr,
-					  genl_info_net(info), info->extack,
-					  true);
+	ret = ethnl_parse_header_dev_get(&req_info,
+					 tb[ETHTOOL_A_TUNNEL_INFO_HEADER],
+					 genl_info_net(info), info->extack,
+					 true);
 	if (ret < 0)
 		return ret;
 
@@ -233,16 +216,19 @@ struct ethnl_tunnel_info_dump_ctx {
 
 int ethnl_tunnel_info_start(struct netlink_callback *cb)
 {
+	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
 	struct ethnl_tunnel_info_dump_ctx *ctx = (void *)cb->ctx;
+	struct nlattr **tb = info->attrs;
 	int ret;
 
 	BUILD_BUG_ON(sizeof(*ctx) > sizeof(cb->ctx));
 
 	memset(ctx, 0, sizeof(*ctx));
 
-	ret = ethnl_tunnel_info_req_parse(&ctx->req_info, cb->nlh,
-					  sock_net(cb->skb->sk), cb->extack,
-					  false);
+	ret = ethnl_parse_header_dev_get(&ctx->req_info,
+					 tb[ETHTOOL_A_TUNNEL_INFO_HEADER],
+					 sock_net(cb->skb->sk), cb->extack,
+					 false);
 	if (ctx->req_info.dev) {
 		dev_put(ctx->req_info.dev);
 		ctx->req_info.dev = NULL;

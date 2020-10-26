@@ -20,5 +20,5 @@ config CAN_M_CAN_TCAN4X5X
 	tristate "TCAN4X5X M_CAN device"
 	help
 	  Say Y here if you want support for Texas Instruments TCAN4x5x
-	  M_CAN controller.  This device is a peripherial device that uses the
+	  M_CAN controller.  This device is a peripheral device that uses the
 	  SPI bus for communication.

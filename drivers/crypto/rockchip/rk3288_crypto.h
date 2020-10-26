@@ -7,6 +7,7 @@
 #include <crypto/algapi.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+#include <linux/scatterlist.h>
 #include <crypto/internal/hash.h>
 #include <crypto/internal/skcipher.h>
 

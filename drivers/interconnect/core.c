@@ -26,6 +26,8 @@
 
 static DEFINE_IDR(icc_idr);
 static LIST_HEAD(icc_providers);
+static int providers_count;
+static bool synced_state;
 static DEFINE_MUTEX(icc_lock);
 static struct dentry *icc_debugfs_dir;
 
@@ -267,6 +269,12 @@ static int aggregate_requests(struct icc_node *node)
 		}
 		p->aggregate(node, r->tag, avg_bw, peak_bw,
 			     &node->avg_bw, &node->peak_bw);
+
+		/* during boot use the initial bandwidth as a floor value */
+		if (!synced_state) {
+			node->avg_bw = max(node->avg_bw, node->init_avg);
+			node->peak_bw = max(node->peak_bw, node->init_peak);
+		}
 	}
 
 	return 0;
@@ -342,12 +350,13 @@ EXPORT_SYMBOL_GPL(of_icc_xlate_onecell);
  * Looks for interconnect provider under the node specified by @spec and if
  * found, uses xlate function of the provider to map phandle args to node.
  *
- * Returns a valid pointer to struct icc_node on success or ERR_PTR()
+ * Returns a valid pointer to struct icc_node_data on success or ERR_PTR()
  * on failure.
  */
-struct icc_node *of_icc_get_from_provider(struct of_phandle_args *spec)
+struct icc_node_data *of_icc_get_from_provider(struct of_phandle_args *spec)
 {
 	struct icc_node *node = ERR_PTR(-EPROBE_DEFER);
+	struct icc_node_data *data = NULL;
 	struct icc_provider *provider;
 
 	if (!spec)
@@ -355,14 +364,33 @@ struct icc_node *of_icc_get_from_provider(struct of_phandle_args *spec)
 
 	mutex_lock(&icc_lock);
 	list_for_each_entry(provider, &icc_providers, provider_list) {
-		if (provider->dev->of_node == spec->np)
-			node = provider->xlate(spec, provider->data);
-		if (!IS_ERR(node))
-			break;
+		if (provider->dev->of_node == spec->np) {
+			if (provider->xlate_extended) {
+				data = provider->xlate_extended(spec, provider->data);
+				if (!IS_ERR(data)) {
+					node = data->node;
+					break;
+				}
+			} else {
+				node = provider->xlate(spec, provider->data);
+				if (!IS_ERR(node))
+					break;
+			}
+		}
 	}
 	mutex_unlock(&icc_lock);
 
-	return node;
+	if (IS_ERR(node))
+		return ERR_CAST(node);
+
+	if (!data) {
+		data = kzalloc(sizeof(*data), GFP_KERNEL);
+		if (!data)
+			return ERR_PTR(-ENOMEM);
+		data->node = node;
+	}
+
+	return data;
 }
 EXPORT_SYMBOL_GPL(of_icc_get_from_provider);
 
@@ -409,7 +437,7 @@ EXPORT_SYMBOL_GPL(devm_of_icc_get);
 struct icc_path *of_icc_get_by_index(struct device *dev, int idx)
 {
 	struct icc_path *path;
-	struct icc_node *src_node, *dst_node;
+	struct icc_node_data *src_data, *dst_data;
 	struct device_node *np;
 	struct of_phandle_args src_args, dst_args;
 	int ret;
@@ -447,39 +475,42 @@ struct icc_path *of_icc_get_by_index(struct device *dev, int idx)
 
 	of_node_put(dst_args.np);
 
-	src_node = of_icc_get_from_provider(&src_args);
+	src_data = of_icc_get_from_provider(&src_args);
 
-	if (IS_ERR(src_node)) {
-		if (PTR_ERR(src_node) != -EPROBE_DEFER)
-			dev_err(dev, "error finding src node: %ld\n",
-				PTR_ERR(src_node));
-		return ERR_CAST(src_node);
+	if (IS_ERR(src_data)) {
+		dev_err_probe(dev, PTR_ERR(src_data), "error finding src node\n");
+		return ERR_CAST(src_data);
 	}
 
-	dst_node = of_icc_get_from_provider(&dst_args);
+	dst_data = of_icc_get_from_provider(&dst_args);
 
-	if (IS_ERR(dst_node)) {
-		if (PTR_ERR(dst_node) != -EPROBE_DEFER)
-			dev_err(dev, "error finding dst node: %ld\n",
-				PTR_ERR(dst_node));
-		return ERR_CAST(dst_node);
+	if (IS_ERR(dst_data)) {
+		dev_err_probe(dev, PTR_ERR(dst_data), "error finding dst node\n");
+		kfree(src_data);
+		return ERR_CAST(dst_data);
 	}
 
 	mutex_lock(&icc_lock);
-	path = path_find(dev, src_node, dst_node);
+	path = path_find(dev, src_data->node, dst_data->node);
 	mutex_unlock(&icc_lock);
 	if (IS_ERR(path)) {
 		dev_err(dev, "%s: invalid path=%ld\n", __func__, PTR_ERR(path));
-		return path;
+		goto free_icc_data;
 	}
+
+	if (src_data->tag && src_data->tag == dst_data->tag)
+		icc_set_tag(path, src_data->tag);
 
 	path->name = kasprintf(GFP_KERNEL, "%s-%s",
-			       src_node->name, dst_node->name);
+			       src_data->node->name, dst_data->node->name);
 	if (!path->name) {
 		kfree(path);
-		return ERR_PTR(-ENOMEM);
+		path = ERR_PTR(-ENOMEM);
 	}
 
+free_icc_data:
+	kfree(src_data);
+	kfree(dst_data);
 	return path;
 }
 EXPORT_SYMBOL_GPL(of_icc_get_by_index);
@@ -931,6 +962,19 @@ void icc_node_add(struct icc_node *node, struct icc_provider *provider)
 	node->provider = provider;
 	list_add_tail(&node->node_list, &provider->nodes);
 
+	/* get the initial bandwidth values and sync them with hardware */
+	if (provider->get_bw) {
+		provider->get_bw(node, &node->init_avg, &node->init_peak);
+	} else {
+		node->init_avg = INT_MAX;
+		node->init_peak = INT_MAX;
+	}
+	node->avg_bw = node->init_avg;
+	node->peak_bw = node->init_peak;
+	provider->set(node, node);
+	node->avg_bw = 0;
+	node->peak_bw = 0;
+
 	mutex_unlock(&icc_lock);
 }
 EXPORT_SYMBOL_GPL(icc_node_add);
@@ -981,7 +1025,7 @@ int icc_provider_add(struct icc_provider *provider)
 {
 	if (WARN_ON(!provider->set))
 		return -EINVAL;
-	if (WARN_ON(!provider->xlate))
+	if (WARN_ON(!provider->xlate && !provider->xlate_extended))
 		return -EINVAL;
 
 	mutex_lock(&icc_lock);
@@ -1026,8 +1070,54 @@ int icc_provider_del(struct icc_provider *provider)
 }
 EXPORT_SYMBOL_GPL(icc_provider_del);
 
+static int of_count_icc_providers(struct device_node *np)
+{
+	struct device_node *child;
+	int count = 0;
+
+	for_each_available_child_of_node(np, child) {
+		if (of_property_read_bool(child, "#interconnect-cells"))
+			count++;
+		count += of_count_icc_providers(child);
+	}
+	of_node_put(np);
+
+	return count;
+}
+
+void icc_sync_state(struct device *dev)
+{
+	struct icc_provider *p;
+	struct icc_node *n;
+	static int count;
+
+	count++;
+
+	if (count < providers_count)
+		return;
+
+	mutex_lock(&icc_lock);
+	synced_state = true;
+	list_for_each_entry(p, &icc_providers, provider_list) {
+		dev_dbg(p->dev, "interconnect provider is in synced state\n");
+		list_for_each_entry(n, &p->nodes, node_list) {
+			if (n->init_avg || n->init_peak) {
+				aggregate_requests(n);
+				p->set(n, n);
+			}
+		}
+	}
+	mutex_unlock(&icc_lock);
+}
+EXPORT_SYMBOL_GPL(icc_sync_state);
+
 static int __init icc_init(void)
 {
+	struct device_node *root = of_find_node_by_path("/");
+
+	providers_count = of_count_icc_providers(root);
+	of_node_put(root);
+
 	icc_debugfs_dir = debugfs_create_dir("interconnect", NULL);
 	debugfs_create_file("interconnect_summary", 0444,
 			    icc_debugfs_dir, NULL, &icc_summary_fops);

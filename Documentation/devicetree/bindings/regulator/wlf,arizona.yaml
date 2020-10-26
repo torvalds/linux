@@ -35,3 +35,5 @@ properties:
       Initial data for the MICVDD regulator.
     $ref: "regulator.yaml#"
     type: object
+
+additionalProperties: true

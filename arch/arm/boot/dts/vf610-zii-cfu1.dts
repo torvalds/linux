@@ -172,7 +172,6 @@
 			interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			reset-gpios = <&gpio3 11 GPIO_ACTIVE_LOW>;
 
 			ports {
 				#address-cells = <1>;
@@ -226,6 +225,7 @@
 		compatible = "nxp,pca9554";
 		reg = <0x22>;
 		gpio-controller;
+		#gpio-cells = <2>;
 	};
 
 	lm75@48 {
@@ -356,7 +356,6 @@
 	pinctrl_switch: switch-grp {
 		fsl,pins = <
 			VF610_PAD_PTB28__GPIO_98		0x3061
-			VF610_PAD_PTE2__GPIO_107		0x1042
 		>;
 	};
 

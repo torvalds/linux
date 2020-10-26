@@ -2,7 +2,7 @@
 /*
  * Scan related functions.
  *
- * Copyright (c) 2017-2019, Silicon Laboratories, Inc.
+ * Copyright (c) 2017-2020, Silicon Laboratories, Inc.
  * Copyright (c) 2010, ST-Ericsson
  */
 #include <net/mac80211.h>
@@ -113,10 +113,6 @@ int wfx_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 
 	WARN_ON(hw_req->req.n_channels > HIF_API_MAX_NB_CHANNELS);
-
-	if (vif->type == NL80211_IFTYPE_AP)
-		return -EOPNOTSUPP;
-
 	wvif->scan_req = hw_req;
 	schedule_work(&wvif->scan_work);
 	return 0;

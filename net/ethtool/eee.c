@@ -19,16 +19,9 @@ struct eee_reply_data {
 #define EEE_REPDATA(__reply_base) \
 	container_of(__reply_base, struct eee_reply_data, base)
 
-static const struct nla_policy
-eee_get_policy[ETHTOOL_A_EEE_MAX + 1] = {
-	[ETHTOOL_A_EEE_UNSPEC]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_EEE_HEADER]		= { .type = NLA_NESTED },
-	[ETHTOOL_A_EEE_MODES_OURS]	= { .type = NLA_REJECT },
-	[ETHTOOL_A_EEE_MODES_PEER]	= { .type = NLA_REJECT },
-	[ETHTOOL_A_EEE_ACTIVE]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_EEE_ENABLED]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_EEE_TX_LPI_ENABLED]	= { .type = NLA_REJECT },
-	[ETHTOOL_A_EEE_TX_LPI_TIMER]	= { .type = NLA_REJECT },
+const struct nla_policy ethnl_eee_get_policy[] = {
+	[ETHTOOL_A_EEE_HEADER]		=
+		NLA_POLICY_NESTED(ethnl_header_policy),
 };
 
 static int eee_prepare_data(const struct ethnl_req_info *req_base,
@@ -119,10 +112,8 @@ const struct ethnl_request_ops ethnl_eee_request_ops = {
 	.request_cmd		= ETHTOOL_MSG_EEE_GET,
 	.reply_cmd		= ETHTOOL_MSG_EEE_GET_REPLY,
 	.hdr_attr		= ETHTOOL_A_EEE_HEADER,
-	.max_attr		= ETHTOOL_A_EEE_MAX,
 	.req_info_size		= sizeof(struct eee_req_info),
 	.reply_data_size	= sizeof(struct eee_reply_data),
-	.request_policy		= eee_get_policy,
 
 	.prepare_data		= eee_prepare_data,
 	.reply_size		= eee_reply_size,
@@ -131,13 +122,10 @@ const struct ethnl_request_ops ethnl_eee_request_ops = {
 
 /* EEE_SET */
 
-static const struct nla_policy
-eee_set_policy[ETHTOOL_A_EEE_MAX + 1] = {
-	[ETHTOOL_A_EEE_UNSPEC]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_EEE_HEADER]		= { .type = NLA_NESTED },
+const struct nla_policy ethnl_eee_set_policy[] = {
+	[ETHTOOL_A_EEE_HEADER]		=
+		NLA_POLICY_NESTED(ethnl_header_policy),
 	[ETHTOOL_A_EEE_MODES_OURS]	= { .type = NLA_NESTED },
-	[ETHTOOL_A_EEE_MODES_PEER]	= { .type = NLA_REJECT },
-	[ETHTOOL_A_EEE_ACTIVE]		= { .type = NLA_REJECT },
 	[ETHTOOL_A_EEE_ENABLED]		= { .type = NLA_U8 },
 	[ETHTOOL_A_EEE_TX_LPI_ENABLED]	= { .type = NLA_U8 },
 	[ETHTOOL_A_EEE_TX_LPI_TIMER]	= { .type = NLA_U32 },
@@ -145,18 +133,14 @@ eee_set_policy[ETHTOOL_A_EEE_MAX + 1] = {
 
 int ethnl_set_eee(struct sk_buff *skb, struct genl_info *info)
 {
-	struct nlattr *tb[ETHTOOL_A_EEE_MAX + 1];
-	struct ethtool_eee eee = {};
 	struct ethnl_req_info req_info = {};
+	struct nlattr **tb = info->attrs;
 	const struct ethtool_ops *ops;
+	struct ethtool_eee eee = {};
 	struct net_device *dev;
 	bool mod = false;
 	int ret;
 
-	ret = nlmsg_parse(info->nlhdr, GENL_HDRLEN, tb, ETHTOOL_A_EEE_MAX,
-			  eee_set_policy, info->extack);
-	if (ret < 0)
-		return ret;
 	ret = ethnl_parse_header_dev_get(&req_info,
 					 tb[ETHTOOL_A_EEE_HEADER],
 					 genl_info_net(info), info->extack,

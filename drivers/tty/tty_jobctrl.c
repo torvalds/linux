@@ -178,8 +178,8 @@ void session_clear_tty(struct pid *session)
 
 /**
  *	tty_signal_session_leader	- sends SIGHUP to session leader
- *	@tty		controlling tty
- *	@exit_session	if non-zero, signal all foreground group processes
+ *	@tty: controlling tty
+ *	@exit_session: if non-zero, signal all foreground group processes
  *
  *	Send SIGHUP and SIGCONT to the session leader and its process group.
  *	Optionally, signal all processes in the foreground process group.

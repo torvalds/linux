@@ -762,10 +762,7 @@ static int xs_nospace(struct rpc_rqst *req)
 	struct sock *sk = transport->inet;
 	int ret = -EAGAIN;
 
-	dprintk("RPC: %5u xmit incomplete (%u left of %u)\n",
-			req->rq_task->tk_pid,
-			req->rq_slen - transport->xmit.offset,
-			req->rq_slen);
+	trace_rpc_socket_nospace(req, transport);
 
 	/* Protect against races with write_space */
 	spin_lock(&xprt->transport_lock);

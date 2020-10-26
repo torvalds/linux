@@ -2497,7 +2497,6 @@ ctnetlink_ct_stat_cpu_fill_info(struct sk_buff *skb, u32 portid, u32 seq,
 
 	if (nla_put_be32(skb, CTA_STATS_FOUND, htonl(st->found)) ||
 	    nla_put_be32(skb, CTA_STATS_INVALID, htonl(st->invalid)) ||
-	    nla_put_be32(skb, CTA_STATS_IGNORE, htonl(st->ignore)) ||
 	    nla_put_be32(skb, CTA_STATS_INSERT, htonl(st->insert)) ||
 	    nla_put_be32(skb, CTA_STATS_INSERT_FAILED,
 				htonl(st->insert_failed)) ||
@@ -2505,7 +2504,9 @@ ctnetlink_ct_stat_cpu_fill_info(struct sk_buff *skb, u32 portid, u32 seq,
 	    nla_put_be32(skb, CTA_STATS_EARLY_DROP, htonl(st->early_drop)) ||
 	    nla_put_be32(skb, CTA_STATS_ERROR, htonl(st->error)) ||
 	    nla_put_be32(skb, CTA_STATS_SEARCH_RESTART,
-				htonl(st->search_restart)))
+				htonl(st->search_restart)) ||
+	    nla_put_be32(skb, CTA_STATS_CLASH_RESOLVE,
+				htonl(st->clash_resolve)))
 		goto nla_put_failure;
 
 	nlmsg_end(skb, nlh);

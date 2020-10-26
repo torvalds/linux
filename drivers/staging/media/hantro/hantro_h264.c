@@ -197,6 +197,7 @@ assemble_scaling_list(struct hantro_ctx *ctx)
 {
 	const struct hantro_h264_dec_ctrls *ctrls = &ctx->h264_dec.ctrls;
 	const struct v4l2_ctrl_h264_scaling_matrix *scaling = ctrls->scaling;
+	const struct v4l2_ctrl_h264_pps *pps = ctrls->pps;
 	const size_t num_list_4x4 = ARRAY_SIZE(scaling->scaling_list_4x4);
 	const size_t list_len_4x4 = ARRAY_SIZE(scaling->scaling_list_4x4[0]);
 	const size_t list_len_8x8 = ARRAY_SIZE(scaling->scaling_list_8x8[0]);
@@ -204,6 +205,9 @@ assemble_scaling_list(struct hantro_ctx *ctx)
 	u32 *dst = (u32 *)tbl->scaling_list;
 	const u32 *src;
 	int i, j;
+
+	if (!(pps->flags & V4L2_H264_PPS_FLAG_SCALING_MATRIX_PRESENT))
+		return;
 
 	for (i = 0; i < num_list_4x4; i++) {
 		src = (u32 *)&scaling->scaling_list_4x4[i];
@@ -325,7 +329,7 @@ dma_addr_t hantro_h264_get_ref_buf(struct hantro_ctx *ctx,
 		 */
 		dst_buf = hantro_get_dst_buf(ctx);
 		buf = &dst_buf->vb2_buf;
-		dma_addr = vb2_dma_contig_plane_dma_addr(buf, 0);
+		dma_addr = hantro_get_dec_buf_addr(ctx, buf);
 	}
 
 	return dma_addr;
@@ -349,11 +353,6 @@ int hantro_h264_dec_prepare_run(struct hantro_ctx *ctx)
 	if (WARN_ON(!ctrls->decode))
 		return -EINVAL;
 
-	ctrls->slices =
-		hantro_get_ctrl(ctx, V4L2_CID_MPEG_VIDEO_H264_SLICE_PARAMS);
-	if (WARN_ON(!ctrls->slices))
-		return -EINVAL;
-
 	ctrls->sps =
 		hantro_get_ctrl(ctx, V4L2_CID_MPEG_VIDEO_H264_SPS);
 	if (WARN_ON(!ctrls->sps))
@@ -372,8 +371,7 @@ int hantro_h264_dec_prepare_run(struct hantro_ctx *ctx)
 
 	/* Build the P/B{0,1} ref lists. */
 	v4l2_h264_init_reflist_builder(&reflist_builder, ctrls->decode,
-				       &ctrls->slices[0], ctrls->sps,
-				       ctx->h264_dec.dpb);
+				       ctrls->sps, ctx->h264_dec.dpb);
 	v4l2_h264_build_p_ref_list(&reflist_builder, h264_ctx->reflists.p);
 	v4l2_h264_build_b_ref_lists(&reflist_builder, h264_ctx->reflists.b0,
 				    h264_ctx->reflists.b1);

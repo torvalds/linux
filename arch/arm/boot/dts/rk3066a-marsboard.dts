@@ -47,7 +47,11 @@
 };
 
 &cpu0 {
-	cpu0-supply = <&vdd_arm>;
+	cpu-supply = <&vdd_arm>;
+};
+
+&cpu1 {
+	cpu-supply = <&vdd_arm>;
 };
 
 &i2c1 {

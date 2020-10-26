@@ -91,7 +91,7 @@ config MTD_MCHP23K256
 
 config MTD_SPEAR_SMI
 	tristate "SPEAR MTD NOR Support through SMI controller"
-	depends on PLAT_SPEAR
+	depends on PLAT_SPEAR || COMPILE_TEST
 	default y
 	help
 	  This enable SNOR support on SPEAR platforms using SMI controller

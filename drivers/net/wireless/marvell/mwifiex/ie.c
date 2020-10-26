@@ -374,7 +374,7 @@ static int mwifiex_uap_parse_tail_ies(struct mwifiex_private *priv,
 						    (const u8 *)hdr,
 						    token_len))
 				break;
-			/* fall through */
+			fallthrough;
 		default:
 			if (ie_len + token_len > IEEE_MAX_IE_SIZE) {
 				err = -EINVAL;

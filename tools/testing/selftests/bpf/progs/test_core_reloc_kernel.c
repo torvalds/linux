@@ -3,6 +3,7 @@
 
 #include <linux/bpf.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_core_read.h>
 
@@ -11,6 +12,7 @@ char _license[] SEC("license") = "GPL";
 struct {
 	char in[256];
 	char out[256];
+	bool skip;
 	uint64_t my_pid_tgid;
 } data = {};
 

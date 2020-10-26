@@ -286,8 +286,7 @@ struct w83792d_data {
 	u8 sf2_levels[3][4];	/* Smart FanII: Fan1,2,3 duty cycle levels */
 };
 
-static int w83792d_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id);
+static int w83792d_probe(struct i2c_client *client);
 static int w83792d_detect(struct i2c_client *client,
 			  struct i2c_board_info *info);
 static int w83792d_remove(struct i2c_client *client);
@@ -310,7 +309,7 @@ static struct i2c_driver w83792d_driver = {
 	.driver = {
 		.name = "w83792d",
 	},
-	.probe		= w83792d_probe,
+	.probe_new	= w83792d_probe,
 	.remove		= w83792d_remove,
 	.id_table	= w83792d_id,
 	.detect		= w83792d_detect,
@@ -1359,7 +1358,7 @@ w83792d_detect(struct i2c_client *client, struct i2c_board_info *info)
 }
 
 static int
-w83792d_probe(struct i2c_client *client, const struct i2c_device_id *id)
+w83792d_probe(struct i2c_client *client)
 {
 	struct w83792d_data *data;
 	struct device *dev = &client->dev;

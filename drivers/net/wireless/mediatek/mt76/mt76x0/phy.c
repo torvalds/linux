@@ -734,7 +734,7 @@ mt76x0_phy_get_delta_power(struct mt76x02_dev *dev, u8 tx_mode,
 	case 1:
 		if (chan->band == NL80211_BAND_2GHZ)
 			tssi_target += 29491; /* 3.6 * 8192 */
-		/* fall through */
+		fallthrough;
 	case 0:
 		break;
 	default:

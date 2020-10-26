@@ -1389,7 +1389,7 @@ static bool ars_supported(struct nvdimm_bus *nvdimm_bus)
 
 static umode_t nfit_visible(struct kobject *kobj, struct attribute *a, int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct nvdimm_bus *nvdimm_bus = to_nvdimm_bus(dev);
 
 	if (a == &dev_attr_scrub.attr)
@@ -1679,7 +1679,7 @@ static struct attribute *acpi_nfit_dimm_attributes[] = {
 static umode_t acpi_nfit_dimm_attr_visible(struct kobject *kobj,
 		struct attribute *a, int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct nvdimm *nvdimm = to_nvdimm(dev);
 	struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
 
@@ -3006,10 +3006,8 @@ static int acpi_nfit_register_region(struct acpi_nfit_desc *acpi_desc,
 	ndr_desc->provider_data = nfit_spa;
 	ndr_desc->attr_groups = acpi_nfit_region_attribute_groups;
 	if (spa->flags & ACPI_NFIT_PROXIMITY_VALID) {
-		ndr_desc->numa_node = acpi_map_pxm_to_online_node(
-						spa->proximity_domain);
-		ndr_desc->target_node = acpi_map_pxm_to_node(
-				spa->proximity_domain);
+		ndr_desc->numa_node = pxm_to_online_node(spa->proximity_domain);
+		ndr_desc->target_node = pxm_to_node(spa->proximity_domain);
 	} else {
 		ndr_desc->numa_node = NUMA_NO_NODE;
 		ndr_desc->target_node = NUMA_NO_NODE;

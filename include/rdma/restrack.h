@@ -106,22 +106,11 @@ struct rdma_restrack_entry {
 
 int rdma_restrack_count(struct ib_device *dev,
 			enum rdma_restrack_type type);
-
-void rdma_restrack_kadd(struct rdma_restrack_entry *res);
-void rdma_restrack_uadd(struct rdma_restrack_entry *res);
-
-/**
- * rdma_restrack_del() - delete object from the reource tracking database
- * @res:  resource entry
- * @type: actual type of object to operate
- */
-void rdma_restrack_del(struct rdma_restrack_entry *res);
-
 /**
  * rdma_is_kernel_res() - check the owner of resource
  * @res:  resource entry
  */
-static inline bool rdma_is_kernel_res(struct rdma_restrack_entry *res)
+static inline bool rdma_is_kernel_res(const struct rdma_restrack_entry *res)
 {
 	return !res->user;
 }
@@ -137,14 +126,6 @@ int __must_check rdma_restrack_get(struct rdma_restrack_entry *res);
  * @res:  resource entry
  */
 int rdma_restrack_put(struct rdma_restrack_entry *res);
-
-/**
- * rdma_restrack_set_task() - set the task for this resource
- * @res:  resource entry
- * @caller: kernel name, the current task will be used if the caller is NULL.
- */
-void rdma_restrack_set_task(struct rdma_restrack_entry *res,
-			    const char *caller);
 
 /*
  * Helper functions for rdma drivers when filling out
