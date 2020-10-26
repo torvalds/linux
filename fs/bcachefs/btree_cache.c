@@ -949,7 +949,7 @@ struct btree *bch2_btree_node_get_sibling(struct bch_fs *c,
 		 * holding other locks that would cause us to deadlock:
 		 */
 		trans_for_each_iter(trans, linked)
-			if (btree_iter_cmp(iter, linked) < 0)
+			if (btree_iter_lock_cmp(iter, linked) < 0)
 				__bch2_btree_iter_unlock(linked);
 
 		if (sib == btree_prev_sib)

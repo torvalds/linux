@@ -177,8 +177,9 @@ void bch2_btree_iter_set_pos_same_leaf(struct btree_iter *, struct bpos);
 void __bch2_btree_iter_set_pos(struct btree_iter *, struct bpos, bool);
 void bch2_btree_iter_set_pos(struct btree_iter *, struct bpos);
 
-static inline int btree_iter_cmp(const struct btree_iter *l,
-				 const struct btree_iter *r)
+/* Sort order for locking btree iterators: */
+static inline int btree_iter_lock_cmp(const struct btree_iter *l,
+				      const struct btree_iter *r)
 {
 	return   cmp_int(l->btree_id, r->btree_id) ?:
 		-cmp_int(btree_iter_type(l), btree_iter_type(r)) ?:

@@ -1104,7 +1104,7 @@ retry_all:
 		sorted[nr_sorted++] = iter->idx;
 
 #define btree_iter_cmp_by_idx(_l, _r)				\
-		btree_iter_cmp(&trans->iters[_l], &trans->iters[_r])
+		btree_iter_lock_cmp(&trans->iters[_l], &trans->iters[_r])
 
 	bubble_sort(sorted, nr_sorted, btree_iter_cmp_by_idx);
 #undef btree_iter_cmp_by_idx

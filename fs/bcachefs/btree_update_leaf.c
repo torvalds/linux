@@ -690,6 +690,13 @@ bch2_trans_commit_get_rw_cold(struct btree_trans *trans)
 	return 0;
 }
 
+static inline int btree_iter_pos_cmp(const struct btree_iter *l,
+				     const struct btree_iter *r)
+{
+	return   cmp_int(l->btree_id, r->btree_id) ?:
+		 bkey_cmp(l->pos, r->pos);
+}
+
 static void bch2_trans_update2(struct btree_trans *trans,
 			       struct btree_iter *iter,
 			       struct bkey_i *insert)
@@ -707,12 +714,12 @@ static void bch2_trans_update2(struct btree_trans *trans,
 	iter->flags |= BTREE_ITER_KEEP_UNTIL_COMMIT;
 
 	trans_for_each_update2(trans, i) {
-		if (btree_iter_cmp(n.iter, i->iter) == 0) {
+		if (btree_iter_pos_cmp(n.iter, i->iter) == 0) {
 			*i = n;
 			return;
 		}
 
-		if (btree_iter_cmp(n.iter, i->iter) <= 0)
+		if (btree_iter_pos_cmp(n.iter, i->iter) <= 0)
 			break;
 	}
 
@@ -996,7 +1003,7 @@ int bch2_trans_update(struct btree_trans *trans, struct btree_iter *iter,
 	 * Pending updates are kept sorted: first, find position of new update:
 	 */
 	trans_for_each_update(trans, i)
-		if (btree_iter_cmp(iter, i->iter) <= 0)
+		if (btree_iter_pos_cmp(iter, i->iter) <= 0)
 			break;
 
 	/*
