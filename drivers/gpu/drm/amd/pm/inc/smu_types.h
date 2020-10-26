@@ -302,13 +302,9 @@ enum smu_clk_type {
        __SMU_DUMMY_MAP(CCLK_DPM),                     	\
        __SMU_DUMMY_MAP(FAN_CONTROLLER),                 \
        __SMU_DUMMY_MAP(VCN_DPM),                     	\
-       __SMU_DUMMY_MAP(FCLK_DPM),                     	\
-       __SMU_DUMMY_MAP(SOCCLK_DPM),                     \
-       __SMU_DUMMY_MAP(MP0CLK_DPM),                     \
        __SMU_DUMMY_MAP(LCLK_DPM),                     	\
        __SMU_DUMMY_MAP(SHUBCLK_DPM),                    \
        __SMU_DUMMY_MAP(DCFCLK_DPM),                     \
-       __SMU_DUMMY_MAP(GFX_DPM),                     	\
        __SMU_DUMMY_MAP(DS_DCFCLK),                     	\
        __SMU_DUMMY_MAP(S0I2),                     	\
        __SMU_DUMMY_MAP(SMU_LOW_POWER),                  \
