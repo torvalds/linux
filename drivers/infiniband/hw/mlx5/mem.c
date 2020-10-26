@@ -57,6 +57,17 @@ void mlx5_ib_cont_pages(struct ib_umem *umem, u64 addr,
 	struct scatterlist *sg;
 	int entry;
 
+	if (umem->is_odp) {
+		struct ib_umem_odp *odp = to_ib_umem_odp(umem);
+
+		*shift = odp->page_shift;
+		*ncont = ib_umem_odp_num_pages(odp);
+		*count = *ncont << (*shift - PAGE_SHIFT);
+		if (order)
+			*order = ilog2(roundup_pow_of_two(*count));
+		return;
+	}
+
 	addr = addr >> PAGE_SHIFT;
 	tmp = (unsigned long)addr;
 	m = find_first_bit(&tmp, BITS_PER_LONG);
