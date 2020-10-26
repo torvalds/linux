@@ -283,15 +283,15 @@ static uint32_t defer_delay_converter_wa(
 	struct dc_link *link = ddc->link;
 
 	if (link->dpcd_caps.branch_dev_id == DP_BRANCH_DEVICE_ID_0080E1 &&
-		!memcmp(link->dpcd_caps.branch_dev_name,
-			DP_DVI_CONVERTER_ID_4,
-			sizeof(link->dpcd_caps.branch_dev_name)))
+	    !memcmp(link->dpcd_caps.branch_dev_name,
+		    DP_DVI_CONVERTER_ID_4,
+		    sizeof(link->dpcd_caps.branch_dev_name)))
 		return defer_delay > I2C_OVER_AUX_DEFER_WA_DELAY ?
 			defer_delay : I2C_OVER_AUX_DEFER_WA_DELAY;
-		if (link->dpcd_caps.branch_dev_id == DP_BRANCH_DEVICE_ID_006037 &&
-			!memcmp(link->dpcd_caps.branch_dev_name,
-				DP_DVI_CONVERTER_ID_5,
-				sizeof(link->dpcd_caps.branch_dev_name)))
+	if (link->dpcd_caps.branch_dev_id == DP_BRANCH_DEVICE_ID_006037 &&
+	    !memcmp(link->dpcd_caps.branch_dev_name,
+		    DP_DVI_CONVERTER_ID_5,
+		    sizeof(link->dpcd_caps.branch_dev_name)))
 		return defer_delay > I2C_OVER_AUX_DEFER_WA_DELAY_1MS ?
 			I2C_OVER_AUX_DEFER_WA_DELAY_1MS : defer_delay;
 
