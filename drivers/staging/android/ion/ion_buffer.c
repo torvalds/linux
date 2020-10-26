@@ -9,7 +9,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
-#include <linux/dma-noncoherent.h>
+#include <linux/dma-map-ops.h>
 
 #define CREATE_TRACE_POINTS
 #include "ion_trace.h"
