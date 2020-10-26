@@ -163,6 +163,9 @@ int main(int argc, char *argv[])
 	mte_register_signal(SIGSEGV, mte_default_handler);
 	mte_register_signal(SIGBUS, mte_default_handler);
 
+	/* Set test plan */
+	ksft_set_plan(12);
+
 	evaluate_test(check_child_memory_mapping(USE_MMAP, MTE_SYNC_ERR, MAP_PRIVATE),
 		"Check child anonymous memory with private mapping, precise mode and mmap memory\n");
 	evaluate_test(check_child_memory_mapping(USE_MMAP, MTE_SYNC_ERR, MAP_SHARED),
