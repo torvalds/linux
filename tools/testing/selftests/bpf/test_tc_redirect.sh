@@ -24,8 +24,7 @@ command -v timeout >/dev/null 2>&1 || \
 	{ echo >&2 "timeout is not available"; exit 1; }
 command -v ping >/dev/null 2>&1 || \
 	{ echo >&2 "ping is not available"; exit 1; }
-command -v ping6 >/dev/null 2>&1 || \
-	{ echo >&2 "ping6 is not available"; exit 1; }
+if command -v ping6 >/dev/null 2>&1; then PING6=ping6; else PING6=ping; fi
 command -v perl >/dev/null 2>&1 || \
 	{ echo >&2 "perl is not available"; exit 1; }
 command -v jq >/dev/null 2>&1 || \
@@ -152,7 +151,7 @@ netns_test_connectivity()
 	echo -e "${TEST}: ${GREEN}PASS${NC}"
 
 	TEST="ICMPv6 connectivity test"
-	ip netns exec ${NS_SRC} ping6 $PING_ARG ${IP6_DST}
+	ip netns exec ${NS_SRC} $PING6 $PING_ARG ${IP6_DST}
 	if [ $? -ne 0 ]; then
 		echo -e "${TEST}: ${RED}FAIL${NC}"
 		exit 1
@@ -170,6 +169,7 @@ hex_mem_str()
 netns_setup_bpf()
 {
 	local obj=$1
+	local use_forwarding=${2:-0}
 
 	ip netns exec ${NS_FWD} tc qdisc add dev veth_src_fwd clsact
 	ip netns exec ${NS_FWD} tc filter add dev veth_src_fwd ingress bpf da obj $obj sec src_ingress
@@ -178,6 +178,14 @@ netns_setup_bpf()
 	ip netns exec ${NS_FWD} tc qdisc add dev veth_dst_fwd clsact
 	ip netns exec ${NS_FWD} tc filter add dev veth_dst_fwd ingress bpf da obj $obj sec dst_ingress
 	ip netns exec ${NS_FWD} tc filter add dev veth_dst_fwd egress  bpf da obj $obj sec chk_egress
+
+	if [ "$use_forwarding" -eq "1" ]; then
+		# bpf_fib_lookup() checks if forwarding is enabled
+		ip netns exec ${NS_FWD} sysctl -w net.ipv4.ip_forward=1
+		ip netns exec ${NS_FWD} sysctl -w net.ipv6.conf.veth_dst_fwd.forwarding=1
+		ip netns exec ${NS_FWD} sysctl -w net.ipv6.conf.veth_src_fwd.forwarding=1
+		return 0
+	fi
 
 	veth_src=$(ip netns exec ${NS_FWD} cat /sys/class/net/veth_src_fwd/ifindex)
 	veth_dst=$(ip netns exec ${NS_FWD} cat /sys/class/net/veth_dst_fwd/ifindex)
@@ -197,6 +205,10 @@ set -e
 
 netns_setup
 netns_setup_bpf test_tc_neigh.o
+netns_test_connectivity
+netns_cleanup
+netns_setup
+netns_setup_bpf test_tc_neigh_fib.o 1
 netns_test_connectivity
 netns_cleanup
 netns_setup

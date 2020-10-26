@@ -38,12 +38,16 @@ struct mask_count {
 	u64 counter;
 };
 
+struct mask_array_stats {
+	struct u64_stats_sync syncp;
+	u64 usage_cntrs[];
+};
+
 struct mask_array {
 	struct rcu_head rcu;
 	int count, max;
-	u64 __percpu *masks_usage_cntr;
+	struct mask_array_stats __percpu *masks_usage_stats;
 	u64 *masks_usage_zero_cntr;
-	struct u64_stats_sync syncp;
 	struct sw_flow_mask __rcu *masks[];
 };
 

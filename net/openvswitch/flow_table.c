@@ -175,7 +175,7 @@ static struct table_instance *table_instance_alloc(int new_size)
 
 static void __mask_array_destroy(struct mask_array *ma)
 {
-	free_percpu(ma->masks_usage_cntr);
+	free_percpu(ma->masks_usage_stats);
 	kfree(ma);
 }
 
@@ -199,15 +199,15 @@ static void tbl_mask_array_reset_counters(struct mask_array *ma)
 		ma->masks_usage_zero_cntr[i] = 0;
 
 		for_each_possible_cpu(cpu) {
-			u64 *usage_counters = per_cpu_ptr(ma->masks_usage_cntr,
-							  cpu);
+			struct mask_array_stats *stats;
 			unsigned int start;
 			u64 counter;
 
+			stats = per_cpu_ptr(ma->masks_usage_stats, cpu);
 			do {
-				start = u64_stats_fetch_begin_irq(&ma->syncp);
-				counter = usage_counters[i];
-			} while (u64_stats_fetch_retry_irq(&ma->syncp, start));
+				start = u64_stats_fetch_begin_irq(&stats->syncp);
+				counter = stats->usage_cntrs[i];
+			} while (u64_stats_fetch_retry_irq(&stats->syncp, start));
 
 			ma->masks_usage_zero_cntr[i] += counter;
 		}
@@ -230,9 +230,10 @@ static struct mask_array *tbl_mask_array_alloc(int size)
 					     sizeof(struct sw_flow_mask *) *
 					     size);
 
-	new->masks_usage_cntr = __alloc_percpu(sizeof(u64) * size,
-					       __alignof__(u64));
-	if (!new->masks_usage_cntr) {
+	new->masks_usage_stats = __alloc_percpu(sizeof(struct mask_array_stats) +
+						sizeof(u64) * size,
+						__alignof__(u64));
+	if (!new->masks_usage_stats) {
 		kfree(new);
 		return NULL;
 	}
@@ -722,6 +723,8 @@ static struct sw_flow *masked_flow_lookup(struct table_instance *ti,
 
 /* Flow lookup does full lookup on flow table. It starts with
  * mask from index passed in *index.
+ * This function MUST be called with BH disabled due to the use
+ * of CPU specific variables.
  */
 static struct sw_flow *flow_lookup(struct flow_table *tbl,
 				   struct table_instance *ti,
@@ -731,7 +734,7 @@ static struct sw_flow *flow_lookup(struct flow_table *tbl,
 				   u32 *n_cache_hit,
 				   u32 *index)
 {
-	u64 *usage_counters = this_cpu_ptr(ma->masks_usage_cntr);
+	struct mask_array_stats *stats = this_cpu_ptr(ma->masks_usage_stats);
 	struct sw_flow *flow;
 	struct sw_flow_mask *mask;
 	int i;
@@ -741,9 +744,9 @@ static struct sw_flow *flow_lookup(struct flow_table *tbl,
 		if (mask) {
 			flow = masked_flow_lookup(ti, key, mask, n_mask_hit);
 			if (flow) {
-				u64_stats_update_begin(&ma->syncp);
-				usage_counters[*index]++;
-				u64_stats_update_end(&ma->syncp);
+				u64_stats_update_begin(&stats->syncp);
+				stats->usage_cntrs[*index]++;
+				u64_stats_update_end(&stats->syncp);
 				(*n_cache_hit)++;
 				return flow;
 			}
@@ -762,9 +765,9 @@ static struct sw_flow *flow_lookup(struct flow_table *tbl,
 		flow = masked_flow_lookup(ti, key, mask, n_mask_hit);
 		if (flow) { /* Found */
 			*index = i;
-			u64_stats_update_begin(&ma->syncp);
-			usage_counters[*index]++;
-			u64_stats_update_end(&ma->syncp);
+			u64_stats_update_begin(&stats->syncp);
+			stats->usage_cntrs[*index]++;
+			u64_stats_update_end(&stats->syncp);
 			return flow;
 		}
 	}
@@ -850,9 +853,17 @@ struct sw_flow *ovs_flow_tbl_lookup(struct flow_table *tbl,
 	struct mask_array *ma = rcu_dereference_ovsl(tbl->mask_array);
 	u32 __always_unused n_mask_hit;
 	u32 __always_unused n_cache_hit;
+	struct sw_flow *flow;
 	u32 index = 0;
 
-	return flow_lookup(tbl, ti, ma, key, &n_mask_hit, &n_cache_hit, &index);
+	/* This function gets called trough the netlink interface and therefore
+	 * is preemptible. However, flow_lookup() function needs to be called
+	 * with BH disabled due to CPU specific variables.
+	 */
+	local_bh_disable();
+	flow = flow_lookup(tbl, ti, ma, key, &n_mask_hit, &n_cache_hit, &index);
+	local_bh_enable();
+	return flow;
 }
 
 struct sw_flow *ovs_flow_tbl_lookup_exact(struct flow_table *tbl,
@@ -1109,7 +1120,6 @@ void ovs_flow_masks_rebalance(struct flow_table *table)
 
 	for (i = 0; i < ma->max; i++) {
 		struct sw_flow_mask *mask;
-		unsigned int start;
 		int cpu;
 
 		mask = rcu_dereference_ovsl(ma->masks[i]);
@@ -1120,14 +1130,16 @@ void ovs_flow_masks_rebalance(struct flow_table *table)
 		masks_and_count[i].counter = 0;
 
 		for_each_possible_cpu(cpu) {
-			u64 *usage_counters = per_cpu_ptr(ma->masks_usage_cntr,
-							  cpu);
+			struct mask_array_stats *stats;
+			unsigned int start;
 			u64 counter;
 
+			stats = per_cpu_ptr(ma->masks_usage_stats, cpu);
 			do {
-				start = u64_stats_fetch_begin_irq(&ma->syncp);
-				counter = usage_counters[i];
-			} while (u64_stats_fetch_retry_irq(&ma->syncp, start));
+				start = u64_stats_fetch_begin_irq(&stats->syncp);
+				counter = stats->usage_cntrs[i];
+			} while (u64_stats_fetch_retry_irq(&stats->syncp,
+							   start));
 
 			masks_and_count[i].counter += counter;
 		}

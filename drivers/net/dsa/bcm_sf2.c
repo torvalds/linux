@@ -54,7 +54,7 @@ static void bcm_sf2_recalc_clock(struct dsa_switch *ds)
 	unsigned long new_rate;
 	unsigned int ports_active;
 	/* Frequenty in Mhz */
-	const unsigned long rate_table[] = {
+	static const unsigned long rate_table[] = {
 		59220000,
 		60820000,
 		62500000,
