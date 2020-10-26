@@ -1055,8 +1055,8 @@ dhdsdio_clk_kso_init(dhd_bus_t *bus)
 #define CUSTOM_MAX_KSO_ATTEMPTS DEFAULT_MAX_KSO_ATTEMPTS
 #endif
 
-#define KSO_CLR_WAIT_MS		50
-#define KSO_CLR_RETRY		100
+#define KSO_CLR_WAIT_MS		1
+#define KSO_CLR_RETRY		1000
 
 static int
 dhdsdio_clk_kso_enab(dhd_bus_t *bus, bool on)
@@ -1143,6 +1143,7 @@ dhdsdio_clk_kso_disable(dhd_bus_t *bus)
 	//mmc_retune_disable(host);
 
 	KSO_DBG(("%s> op:%s\n", __FUNCTION__, (on ? "KSO_SET" : "KSO_CLR")));
+	pr_err("%s> op:%s\n", __FUNCTION__, "KSO_CLR");
 
 	bcmsdh_cfg_write(bus->sdh, SDIO_FUNC_1, SBSDIO_FUNC1_SLEEPCSR, wr_val, &err);
 
@@ -1154,8 +1155,11 @@ dhdsdio_clk_kso_disable(dhd_bus_t *bus)
 		rd_val = bcmsdh_cfg_read(bus->sdh, SDIO_FUNC_1, SBSDIO_FUNC1_SLEEPCSR, &err);
 		cmp_val = 0;
 		bmask = SBSDIO_FUNC1_SLEEPCSR_KSO_MASK;
-		if (((rd_val & bmask) == cmp_val) && !err)
+		if (((rd_val & bmask) == cmp_val) && !err) {
+			DHD_ERROR(("[%s]: rd_val=%d, err=%d, try_cnt=%d, max=%d\n", __func__,
+						(rd_val & bmask), err, try_cnt, KSO_CLR_RETRY));
 			break;
+		}
 		wr_val = 0;
 		OSL_SLEEP(KSO_CLR_WAIT_MS);
 		bcmsdh_cfg_write(bus->sdh, SDIO_FUNC_1, SBSDIO_FUNC1_SLEEPCSR, wr_val, &err);
