@@ -244,7 +244,7 @@ int vt_waitactive(int n)
 
 
 static inline int 
-do_fontx_ioctl(int cmd, struct consolefontdesc __user *user_cfd, int perm, struct console_font_op *op)
+do_fontx_ioctl(struct vc_data *vc, int cmd, struct consolefontdesc __user *user_cfd, int perm, struct console_font_op *op)
 {
 	struct consolefontdesc cfdarg;
 	int i;
@@ -262,15 +262,16 @@ do_fontx_ioctl(int cmd, struct consolefontdesc __user *user_cfd, int perm, struc
 		op->height = cfdarg.charheight;
 		op->charcount = cfdarg.charcount;
 		op->data = cfdarg.chardata;
-		return con_font_op(vc_cons[fg_console].d, op);
-	case GIO_FONTX: {
+		return con_font_op(vc, op);
+
+	case GIO_FONTX:
 		op->op = KD_FONT_OP_GET;
 		op->flags = KD_FONT_FLAG_OLD;
 		op->width = 8;
 		op->height = cfdarg.charheight;
 		op->charcount = cfdarg.charcount;
 		op->data = cfdarg.chardata;
-		i = con_font_op(vc_cons[fg_console].d, op);
+		i = con_font_op(vc, op);
 		if (i)
 			return i;
 		cfdarg.charheight = op->height;
@@ -278,7 +279,6 @@ do_fontx_ioctl(int cmd, struct consolefontdesc __user *user_cfd, int perm, struc
 		if (copy_to_user(user_cfd, &cfdarg, sizeof(struct consolefontdesc)))
 			return -EFAULT;
 		return 0;
-		}
 	}
 	return -EINVAL;
 }
@@ -924,7 +924,7 @@ int vt_ioctl(struct tty_struct *tty,
 		op.height = 0;
 		op.charcount = 256;
 		op.data = up;
-		ret = con_font_op(vc_cons[fg_console].d, &op);
+		ret = con_font_op(vc, &op);
 		break;
 	}
 
@@ -935,7 +935,7 @@ int vt_ioctl(struct tty_struct *tty,
 		op.height = 32;
 		op.charcount = 256;
 		op.data = up;
-		ret = con_font_op(vc_cons[fg_console].d, &op);
+		ret = con_font_op(vc, &op);
 		break;
 	}
 
@@ -952,7 +952,7 @@ int vt_ioctl(struct tty_struct *tty,
 
 	case PIO_FONTX:
 	case GIO_FONTX:
-		ret = do_fontx_ioctl(cmd, up, perm, &op);
+		ret = do_fontx_ioctl(vc, cmd, up, perm, &op);
 		break;
 
 	case PIO_FONTRESET:
@@ -969,11 +969,11 @@ int vt_ioctl(struct tty_struct *tty,
 		{
 		op.op = KD_FONT_OP_SET_DEFAULT;
 		op.data = NULL;
-		ret = con_font_op(vc_cons[fg_console].d, &op);
+		ret = con_font_op(vc, &op);
 		if (ret)
 			break;
 		console_lock();
-		con_set_default_unimap(vc_cons[fg_console].d);
+		con_set_default_unimap(vc);
 		console_unlock();
 		break;
 		}
@@ -1100,8 +1100,9 @@ struct compat_consolefontdesc {
 };
 
 static inline int
-compat_fontx_ioctl(int cmd, struct compat_consolefontdesc __user *user_cfd,
-			 int perm, struct console_font_op *op)
+compat_fontx_ioctl(struct vc_data *vc, int cmd,
+		   struct compat_consolefontdesc __user *user_cfd,
+		   int perm, struct console_font_op *op)
 {
 	struct compat_consolefontdesc cfdarg;
 	int i;
@@ -1119,7 +1120,8 @@ compat_fontx_ioctl(int cmd, struct compat_consolefontdesc __user *user_cfd,
 		op->height = cfdarg.charheight;
 		op->charcount = cfdarg.charcount;
 		op->data = compat_ptr(cfdarg.chardata);
-		return con_font_op(vc_cons[fg_console].d, op);
+		return con_font_op(vc, op);
+
 	case GIO_FONTX:
 		op->op = KD_FONT_OP_GET;
 		op->flags = KD_FONT_FLAG_OLD;
@@ -1127,7 +1129,7 @@ compat_fontx_ioctl(int cmd, struct compat_consolefontdesc __user *user_cfd,
 		op->height = cfdarg.charheight;
 		op->charcount = cfdarg.charcount;
 		op->data = compat_ptr(cfdarg.chardata);
-		i = con_font_op(vc_cons[fg_console].d, op);
+		i = con_font_op(vc, op);
 		if (i)
 			return i;
 		cfdarg.charheight = op->height;
@@ -1218,7 +1220,7 @@ long vt_compat_ioctl(struct tty_struct *tty,
 	 */
 	case PIO_FONTX:
 	case GIO_FONTX:
-		ret = compat_fontx_ioctl(cmd, up, perm, &op);
+		ret = compat_fontx_ioctl(vc, cmd, up, perm, &op);
 		break;
 
 	case KDFONTOP:
