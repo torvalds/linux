@@ -31,6 +31,7 @@ config M68K
 	select NO_DMA if !MMU && !COLDFIRE
 	select OLD_SIGACTION
 	select OLD_SIGSUSPEND3
+	select SET_FS
 	select UACCESS_MEMCPY if !MMU
 	select VIRT_TO_BUS
 

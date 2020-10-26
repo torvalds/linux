@@ -38,9 +38,6 @@ static void __used common(void)
 #endif
 
 	BLANK();
-	OFFSET(TASK_addr_limit, task_struct, thread.addr_limit);
-
-	BLANK();
 	OFFSET(crypto_tfm_ctx_offset, crypto_tfm, __crt_ctx);
 
 	BLANK();
