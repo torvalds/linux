@@ -56,7 +56,6 @@ static int gfs2_unstuffer_page(struct gfs2_inode *ip, struct buffer_head *dibh,
 			       u64 block, struct page *page)
 {
 	struct inode *inode = &ip->i_inode;
-	struct buffer_head *bh;
 	int release = 0;
 
 	if (!page || page->index) {
@@ -80,20 +79,21 @@ static int gfs2_unstuffer_page(struct gfs2_inode *ip, struct buffer_head *dibh,
 		SetPageUptodate(page);
 	}
 
-	if (!page_has_buffers(page))
-		create_empty_buffers(page, BIT(inode->i_blkbits),
-				     BIT(BH_Uptodate));
+	if (gfs2_is_jdata(ip)) {
+		struct buffer_head *bh;
 
-	bh = page_buffers(page);
+		if (!page_has_buffers(page))
+			create_empty_buffers(page, BIT(inode->i_blkbits),
+					     BIT(BH_Uptodate));
 
-	if (!buffer_mapped(bh))
-		map_bh(bh, inode->i_sb, block);
+		bh = page_buffers(page);
+		if (!buffer_mapped(bh))
+			map_bh(bh, inode->i_sb, block);
 
-	set_buffer_uptodate(bh);
-	if (gfs2_is_jdata(ip))
+		set_buffer_uptodate(bh);
 		gfs2_trans_add_data(ip->i_gl, bh);
-	else {
-		mark_buffer_dirty(bh);
+	} else {
+		set_page_dirty(page);
 		gfs2_ordered_add_inode(ip);
 	}
 
@@ -1158,7 +1158,8 @@ static int gfs2_iomap_begin(struct inode *inode, loff_t pos, loff_t length,
 	struct metapath mp = { .mp_aheight = 1, };
 	int ret;
 
-	iomap->flags |= IOMAP_F_BUFFER_HEAD;
+	if (gfs2_is_jdata(ip))
+		iomap->flags |= IOMAP_F_BUFFER_HEAD;
 
 	trace_gfs2_iomap_start(ip, pos, length, flags);
 	if (gfs2_iomap_need_write_lock(flags)) {
@@ -1291,6 +1292,7 @@ int gfs2_block_map(struct inode *inode, sector_t lblock,
 	loff_t length = bh_map->b_size;
 	struct metapath mp = { .mp_aheight = 1, };
 	struct iomap iomap = { };
+	int flags = create ? IOMAP_WRITE : 0;
 	int ret;
 
 	clear_buffer_mapped(bh_map);
@@ -1298,15 +1300,14 @@ int gfs2_block_map(struct inode *inode, sector_t lblock,
 	clear_buffer_boundary(bh_map);
 	trace_gfs2_bmap(ip, bh_map, lblock, create, 1);
 
-	if (create) {
-		ret = gfs2_iomap_get(inode, pos, length, IOMAP_WRITE, &iomap, &mp);
-		if (!ret && iomap.type == IOMAP_HOLE)
+	ret = gfs2_iomap_get(inode, pos, length, flags, &iomap, &mp);
+	if (!ret && iomap.type == IOMAP_HOLE) {
+		if (create)
 			ret = gfs2_iomap_alloc(inode, &iomap, &mp);
-		release_metapath(&mp);
-	} else {
-		ret = gfs2_iomap_get(inode, pos, length, 0, &iomap, &mp);
-		release_metapath(&mp);
+		else
+			ret = -ENODATA;
 	}
+	release_metapath(&mp);
 	if (ret)
 		goto out;
 
@@ -2518,3 +2519,26 @@ out:
 		gfs2_trans_end(sdp);
 	return error;
 }
+
+static int gfs2_map_blocks(struct iomap_writepage_ctx *wpc, struct inode *inode,
+		loff_t offset)
+{
+	struct metapath mp = { .mp_aheight = 1, };
+	int ret;
+
+	if (WARN_ON_ONCE(gfs2_is_stuffed(GFS2_I(inode))))
+		return -EIO;
+
+	if (offset >= wpc->iomap.offset &&
+	    offset < wpc->iomap.offset + wpc->iomap.length)
+		return 0;
+
+	memset(&wpc->iomap, 0, sizeof(wpc->iomap));
+	ret = gfs2_iomap_get(inode, offset, INT_MAX, 0, &wpc->iomap, &mp);
+	release_metapath(&mp);
+	return ret;
+}
+
+const struct iomap_writeback_ops gfs2_writeback_ops = {
+	.map_blocks		= gfs2_map_blocks,
+};

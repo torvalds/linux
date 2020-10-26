@@ -511,9 +511,9 @@ smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 	int rc;
 	struct smb2_file_all_info *smb2_data;
 	__u32 create_options = 0;
-	struct cifs_fid fid;
 	bool no_cached_open = tcon->nohandlecache;
 	struct cifsFileInfo *cfile;
+	struct cached_fid *cfid = NULL;
 
 	*adjust_tz = false;
 	*symlink = false;
@@ -525,7 +525,7 @@ smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 
 	/* If it is a root and its handle is cached then use it */
 	if (!strlen(full_path) && !no_cached_open) {
-		rc = open_shroot(xid, tcon, cifs_sb, &fid);
+		rc = open_shroot(xid, tcon, cifs_sb, &cfid);
 		if (rc)
 			goto out;
 
@@ -533,12 +533,13 @@ smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 			move_smb2_info_to_cifs(data,
 					       &tcon->crfid.file_all_info);
 		} else {
-			rc = SMB2_query_info(xid, tcon, fid.persistent_fid,
-					     fid.volatile_fid, smb2_data);
+			rc = SMB2_query_info(xid, tcon,
+					     cfid->fid->persistent_fid,
+					     cfid->fid->volatile_fid, smb2_data);
 			if (!rc)
 				move_smb2_info_to_cifs(data, smb2_data);
 		}
-		close_shroot(&tcon->crfid);
+		close_shroot(cfid);
 		goto out;
 	}
 

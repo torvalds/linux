@@ -189,6 +189,10 @@ static void init_default_table_values(struct pm8001_hba_info *pm8001_ha)
 	u32 offsetib, offsetob;
 	void __iomem *addressib = pm8001_ha->inbnd_q_tbl_addr;
 	void __iomem *addressob = pm8001_ha->outbnd_q_tbl_addr;
+	u32 ib_offset = pm8001_ha->ib_offset;
+	u32 ob_offset = pm8001_ha->ob_offset;
+	u32 ci_offset = pm8001_ha->ci_offset;
+	u32 pi_offset = pm8001_ha->pi_offset;
 
 	pm8001_ha->main_cfg_tbl.pm8001_tbl.inbound_q_nppd_hppd		= 0;
 	pm8001_ha->main_cfg_tbl.pm8001_tbl.outbound_hw_event_pid0_3	= 0;
@@ -223,19 +227,19 @@ static void init_default_table_values(struct pm8001_hba_info *pm8001_ha)
 		pm8001_ha->inbnd_q_tbl[i].element_pri_size_cnt	=
 			PM8001_MPI_QUEUE | (pm8001_ha->iomb_size << 16) | (0x00<<30);
 		pm8001_ha->inbnd_q_tbl[i].upper_base_addr	=
-			pm8001_ha->memoryMap.region[IB + i].phys_addr_hi;
+			pm8001_ha->memoryMap.region[ib_offset + i].phys_addr_hi;
 		pm8001_ha->inbnd_q_tbl[i].lower_base_addr	=
-		pm8001_ha->memoryMap.region[IB + i].phys_addr_lo;
+		pm8001_ha->memoryMap.region[ib_offset + i].phys_addr_lo;
 		pm8001_ha->inbnd_q_tbl[i].base_virt		=
-			(u8 *)pm8001_ha->memoryMap.region[IB + i].virt_ptr;
+		  (u8 *)pm8001_ha->memoryMap.region[ib_offset + i].virt_ptr;
 		pm8001_ha->inbnd_q_tbl[i].total_length		=
-			pm8001_ha->memoryMap.region[IB + i].total_len;
+			pm8001_ha->memoryMap.region[ib_offset + i].total_len;
 		pm8001_ha->inbnd_q_tbl[i].ci_upper_base_addr	=
-			pm8001_ha->memoryMap.region[CI + i].phys_addr_hi;
+			pm8001_ha->memoryMap.region[ci_offset + i].phys_addr_hi;
 		pm8001_ha->inbnd_q_tbl[i].ci_lower_base_addr	=
-			pm8001_ha->memoryMap.region[CI + i].phys_addr_lo;
+			pm8001_ha->memoryMap.region[ci_offset + i].phys_addr_lo;
 		pm8001_ha->inbnd_q_tbl[i].ci_virt		=
-			pm8001_ha->memoryMap.region[CI + i].virt_ptr;
+			pm8001_ha->memoryMap.region[ci_offset + i].virt_ptr;
 		offsetib = i * 0x20;
 		pm8001_ha->inbnd_q_tbl[i].pi_pci_bar		=
 			get_pci_bar_index(pm8001_mr32(addressib,
@@ -249,21 +253,21 @@ static void init_default_table_values(struct pm8001_hba_info *pm8001_ha)
 		pm8001_ha->outbnd_q_tbl[i].element_size_cnt	=
 			PM8001_MPI_QUEUE | (pm8001_ha->iomb_size << 16) | (0x01<<30);
 		pm8001_ha->outbnd_q_tbl[i].upper_base_addr	=
-			pm8001_ha->memoryMap.region[OB + i].phys_addr_hi;
+			pm8001_ha->memoryMap.region[ob_offset + i].phys_addr_hi;
 		pm8001_ha->outbnd_q_tbl[i].lower_base_addr	=
-			pm8001_ha->memoryMap.region[OB + i].phys_addr_lo;
+			pm8001_ha->memoryMap.region[ob_offset + i].phys_addr_lo;
 		pm8001_ha->outbnd_q_tbl[i].base_virt		=
-			(u8 *)pm8001_ha->memoryMap.region[OB + i].virt_ptr;
+		  (u8 *)pm8001_ha->memoryMap.region[ob_offset + i].virt_ptr;
 		pm8001_ha->outbnd_q_tbl[i].total_length		=
-			pm8001_ha->memoryMap.region[OB + i].total_len;
+			pm8001_ha->memoryMap.region[ob_offset + i].total_len;
 		pm8001_ha->outbnd_q_tbl[i].pi_upper_base_addr	=
-			pm8001_ha->memoryMap.region[PI + i].phys_addr_hi;
+			pm8001_ha->memoryMap.region[pi_offset + i].phys_addr_hi;
 		pm8001_ha->outbnd_q_tbl[i].pi_lower_base_addr	=
-			pm8001_ha->memoryMap.region[PI + i].phys_addr_lo;
+			pm8001_ha->memoryMap.region[pi_offset + i].phys_addr_lo;
 		pm8001_ha->outbnd_q_tbl[i].interrup_vec_cnt_delay	=
 			0 | (10 << 16) | (i << 24);
 		pm8001_ha->outbnd_q_tbl[i].pi_virt		=
-			pm8001_ha->memoryMap.region[PI + i].virt_ptr;
+			pm8001_ha->memoryMap.region[pi_offset + i].virt_ptr;
 		offsetob = i * 0x24;
 		pm8001_ha->outbnd_q_tbl[i].ci_pci_bar		=
 			get_pci_bar_index(pm8001_mr32(addressob,
@@ -4371,8 +4375,7 @@ static int pm8001_chip_ssp_io_req(struct pm8001_hba_info *pm8001_ha,
 	/* fill in PRD (scatter/gather) table, if any */
 	if (task->num_scatter > 1) {
 		pm8001_chip_make_sg(task->scatter, ccb->n_elem, ccb->buf_prd);
-		phys_addr = ccb->ccb_dma_handle +
-				offsetof(struct pm8001_ccb_info, buf_prd[0]);
+		phys_addr = ccb->ccb_dma_handle;
 		ssp_cmd.addr_low = cpu_to_le32(lower_32_bits(phys_addr));
 		ssp_cmd.addr_high = cpu_to_le32(upper_32_bits(phys_addr));
 		ssp_cmd.esgl = cpu_to_le32(1<<31);
@@ -4445,8 +4448,7 @@ static int pm8001_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 	/* fill in PRD (scatter/gather) table, if any */
 	if (task->num_scatter > 1) {
 		pm8001_chip_make_sg(task->scatter, ccb->n_elem, ccb->buf_prd);
-		phys_addr = ccb->ccb_dma_handle +
-				offsetof(struct pm8001_ccb_info, buf_prd[0]);
+		phys_addr = ccb->ccb_dma_handle;
 		sata_cmd.addr_low = lower_32_bits(phys_addr);
 		sata_cmd.addr_high = upper_32_bits(phys_addr);
 		sata_cmd.esgl = cpu_to_le32(1 << 31);

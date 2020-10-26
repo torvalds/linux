@@ -70,7 +70,8 @@ extern int smb3_handle_read_data(struct TCP_Server_Info *server,
 				 struct mid_q_entry *mid);
 
 extern int open_shroot(unsigned int xid, struct cifs_tcon *tcon,
-		       struct cifs_sb_info *cifs_sb, struct cifs_fid *pfid);
+		       struct cifs_sb_info *cifs_sb,
+		       struct cached_fid **cfid);
 extern void close_shroot(struct cached_fid *cfid);
 extern void close_shroot_lease(struct cached_fid *cfid);
 extern void close_shroot_lease_locked(struct cached_fid *cfid);

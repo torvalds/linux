@@ -3446,6 +3446,14 @@ xlog_recover_finish(
 		int	error;
 		error = xlog_recover_process_intents(log);
 		if (error) {
+			/*
+			 * Cancel all the unprocessed intent items now so that
+			 * we don't leave them pinned in the AIL.  This can
+			 * cause the AIL to livelock on the pinned item if
+			 * anyone tries to push the AIL (inode reclaim does
+			 * this) before we get around to xfs_log_mount_cancel.
+			 */
+			xlog_recover_cancel_intents(log);
 			xfs_alert(log->l_mp, "Failed to recover intents");
 			return error;
 		}
