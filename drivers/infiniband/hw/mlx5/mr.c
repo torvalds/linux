@@ -964,11 +964,13 @@ static struct mlx5_ib_mr *alloc_mr_from_cache(struct ib_pd *pd,
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	struct mlx5_cache_ent *ent;
 	struct mlx5_ib_mr *mr;
-	int page_shift;
+	unsigned int page_size;
 
-	mlx5_ib_cont_pages(umem, iova, MLX5_MKEY_PAGE_SHIFT_MASK, &page_shift);
-	ent = mr_cache_ent_from_order(dev, order_base_2(ib_umem_num_dma_blocks(
-						   umem, 1UL << page_shift)));
+	page_size = mlx5_umem_find_best_pgsz(umem, mkc, log_page_size, 0, iova);
+	if (WARN_ON(!page_size))
+		return ERR_PTR(-EINVAL);
+	ent = mr_cache_ent_from_order(
+		dev, order_base_2(ib_umem_num_dma_blocks(umem, page_size)));
 	if (!ent)
 		return ERR_PTR(-E2BIG);
 
@@ -990,7 +992,7 @@ static struct mlx5_ib_mr *alloc_mr_from_cache(struct ib_pd *pd,
 	mr->mmkey.iova = iova;
 	mr->mmkey.size = umem->length;
 	mr->mmkey.pd = to_mpd(pd)->pdn;
-	mr->page_shift = page_shift;
+	mr->page_shift = order_base_2(page_size);
 
 	return mr;
 }
@@ -1280,8 +1282,8 @@ static struct mlx5_ib_mr *reg_create(struct ib_mr *ibmr, struct ib_pd *pd,
 				     int access_flags, bool populate)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
+	unsigned int page_size;
 	struct mlx5_ib_mr *mr;
-	int page_shift;
 	__be64 *pas;
 	void *mkc;
 	int inlen;
@@ -1289,22 +1291,23 @@ static struct mlx5_ib_mr *reg_create(struct ib_mr *ibmr, struct ib_pd *pd,
 	int err;
 	bool pg_cap = !!(MLX5_CAP_GEN(dev->mdev, pg));
 
+	page_size =
+		mlx5_umem_find_best_pgsz(umem, mkc, log_page_size, 0, iova);
+	if (WARN_ON(!page_size))
+		return ERR_PTR(-EINVAL);
+
 	mr = ibmr ? to_mmr(ibmr) : kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
-	mlx5_ib_cont_pages(umem, iova, MLX5_MKEY_PAGE_SHIFT_MASK, &page_shift);
-
-	mr->page_shift = page_shift;
 	mr->ibmr.pd = pd;
 	mr->access_flags = access_flags;
+	mr->page_shift = order_base_2(page_size);
 
 	inlen = MLX5_ST_SZ_BYTES(create_mkey_in);
 	if (populate)
-		inlen +=
-			sizeof(*pas) *
-			roundup(ib_umem_num_dma_blocks(umem, 1UL << page_shift),
-				2);
+		inlen += sizeof(*pas) *
+			 roundup(ib_umem_num_dma_blocks(umem, page_size), 2);
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in) {
 		err = -ENOMEM;
@@ -1316,7 +1319,7 @@ static struct mlx5_ib_mr *reg_create(struct ib_mr *ibmr, struct ib_pd *pd,
 			err = -EINVAL;
 			goto err_2;
 		}
-		mlx5_ib_populate_pas(umem, 1ULL << page_shift, pas,
+		mlx5_ib_populate_pas(umem, 1UL << mr->page_shift, pas,
 				     pg_cap ? MLX5_IB_MTT_PRESENT : 0);
 	}
 
@@ -1334,11 +1337,11 @@ static struct mlx5_ib_mr *reg_create(struct ib_mr *ibmr, struct ib_pd *pd,
 	MLX5_SET64(mkc, mkc, len, umem->length);
 	MLX5_SET(mkc, mkc, bsf_octword_size, 0);
 	MLX5_SET(mkc, mkc, translations_octword_size,
-		 get_octo_len(iova, umem->length, page_shift));
-	MLX5_SET(mkc, mkc, log_page_size, page_shift);
+		 get_octo_len(iova, umem->length, mr->page_shift));
+	MLX5_SET(mkc, mkc, log_page_size, mr->page_shift);
 	if (populate) {
 		MLX5_SET(create_mkey_in, in, translations_octword_actual_size,
-			 get_octo_len(iova, umem->length, page_shift));
+			 get_octo_len(iova, umem->length, mr->page_shift));
 	}
 
 	err = mlx5_ib_create_mkey(dev, &mr->mmkey, in, inlen);

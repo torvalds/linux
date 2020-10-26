@@ -42,6 +42,33 @@
 
 #define MLX5_MKEY_PAGE_SHIFT_MASK __mlx5_mask(mkc, log_page_size)
 
+static __always_inline unsigned long
+__mlx5_log_page_size_to_bitmap(unsigned int log_pgsz_bits,
+			       unsigned int pgsz_shift)
+{
+	unsigned int largest_pg_shift =
+		min_t(unsigned long, (1ULL << log_pgsz_bits) - 1 + pgsz_shift,
+		      BITS_PER_LONG - 1);
+
+	/*
+	 * Despite a command allowing it, the device does not support lower than
+	 * 4k page size.
+	 */
+	pgsz_shift = max_t(unsigned int, MLX5_ADAPTER_PAGE_SHIFT, pgsz_shift);
+	return GENMASK(largest_pg_shift, pgsz_shift);
+}
+
+/*
+ * For mkc users, instead of a page_offset the command has a start_iova which
+ * specifies both the page_offset and the on-the-wire IOVA
+ */
+#define mlx5_umem_find_best_pgsz(umem, typ, log_pgsz_fld, pgsz_shift, iova)    \
+	ib_umem_find_best_pgsz(umem,                                           \
+			       __mlx5_log_page_size_to_bitmap(                 \
+				       __mlx5_bit_sz(typ, log_pgsz_fld),       \
+				       pgsz_shift),                            \
+			       iova)
+
 enum {
 	MLX5_IB_MMAP_OFFSET_START = 9,
 	MLX5_IB_MMAP_OFFSET_END = 255,

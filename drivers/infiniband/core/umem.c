@@ -84,6 +84,15 @@ unsigned long ib_umem_find_best_pgsz(struct ib_umem *umem,
 	dma_addr_t mask;
 	int i;
 
+	if (umem->is_odp) {
+		unsigned int page_size = BIT(to_ib_umem_odp(umem)->page_shift);
+
+		/* ODP must always be self consistent. */
+		if (!(pgsz_bitmap & page_size))
+			return 0;
+		return page_size;
+	}
+
 	/* rdma_for_each_block() has a bug if the page size is smaller than the
 	 * page size used to build the umem. For now prevent smaller page sizes
 	 * from being returned.
