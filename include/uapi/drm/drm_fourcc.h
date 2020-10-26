@@ -350,7 +350,6 @@ extern "C" {
  */
 
 /* Vendor Ids: */
-#define DRM_FORMAT_MOD_NONE           0
 #define DRM_FORMAT_MOD_VENDOR_NONE    0
 #define DRM_FORMAT_MOD_VENDOR_INTEL   0x01
 #define DRM_FORMAT_MOD_VENDOR_AMD     0x02
@@ -421,6 +420,16 @@ extern "C" {
  * and so might actually result in a tiled framebuffer.
  */
 #define DRM_FORMAT_MOD_LINEAR	fourcc_mod_code(NONE, 0)
+
+/*
+ * Deprecated: use DRM_FORMAT_MOD_LINEAR instead
+ *
+ * The "none" format modifier doesn't actually mean that the modifier is
+ * implicit, instead it means that the layout is linear. Whether modifiers are
+ * used is out-of-band information carried in an API-specific way (e.g. in a
+ * flag for drm_mode_fb_cmd2).
+ */
+#define DRM_FORMAT_MOD_NONE	0
 
 /* Intel framebuffer modifiers */
 
