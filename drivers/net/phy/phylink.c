@@ -2515,9 +2515,10 @@ int phylink_mii_c22_pcs_config(struct mdio_device *pcs, unsigned int mode,
 
 	changed = ret > 0;
 
+	/* Ensure ISOLATE bit is disabled */
 	bmcr = mode == MLO_AN_INBAND ? BMCR_ANENABLE : 0;
 	ret = mdiobus_modify(pcs->bus, pcs->addr, MII_BMCR,
-			     BMCR_ANENABLE, bmcr);
+			     BMCR_ANENABLE | BMCR_ISOLATE, bmcr);
 	if (ret < 0)
 		return ret;
 
