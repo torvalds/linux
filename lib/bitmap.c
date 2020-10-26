@@ -552,7 +552,7 @@ static inline bool end_of_region(char c)
 }
 
 /*
- * The format allows commas and whitespases at the beginning
+ * The format allows commas and whitespaces at the beginning
  * of the region.
  */
 static const char *bitmap_find_region(const char *str)

@@ -55,9 +55,14 @@ DEFINE_IDTENTRY_SYSVEC(sysvec_hyperv_callback)
 	set_irq_regs(old_regs);
 }
 
-void hv_setup_vmbus_irq(void (*handler)(void))
+int hv_setup_vmbus_irq(int irq, void (*handler)(void))
 {
+	/*
+	 * The 'irq' argument is ignored on x86/x64 because a hard-coded
+	 * interrupt vector is used for Hyper-V interrupts.
+	 */
 	vmbus_handler = handler;
+	return 0;
 }
 
 void hv_remove_vmbus_irq(void)

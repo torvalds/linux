@@ -180,7 +180,7 @@ void hv_synic_enable_regs(unsigned int cpu)
 	/* Setup the shared SINT. */
 	hv_get_synint_state(VMBUS_MESSAGE_SINT, shared_sint.as_uint64);
 
-	shared_sint.vector = HYPERVISOR_CALLBACK_VECTOR;
+	shared_sint.vector = hv_get_vector();
 	shared_sint.masked = false;
 	shared_sint.auto_eoi = hv_recommend_using_aeoi();
 	hv_set_synint_state(VMBUS_MESSAGE_SINT, shared_sint.as_uint64);

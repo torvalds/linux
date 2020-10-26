@@ -523,7 +523,7 @@ config MEMMAP_CACHEATTR
 	    2: cache bypass,
 	    4: WB cached,
 	    f: illegal.
-	  For ful MMU:
+	  For full MMU:
 	    bit 0: executable,
 	    bit 1: writable,
 	    bits 2..3:

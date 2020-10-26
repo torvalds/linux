@@ -1586,7 +1586,7 @@ struct wiiproto_handler {
 	void (*func)(struct wiimote_data *wdata, const __u8 *payload);
 };
 
-static struct wiiproto_handler handlers[] = {
+static const struct wiiproto_handler handlers[] = {
 	{ .id = WIIPROTO_REQ_STATUS, .size = 6, .func = handler_status },
 	{ .id = WIIPROTO_REQ_STATUS, .size = 2, .func = handler_status_K },
 	{ .id = WIIPROTO_REQ_DATA, .size = 21, .func = handler_data },
@@ -1618,19 +1618,19 @@ static int wiimote_hid_event(struct hid_device *hdev, struct hid_report *report,
 							u8 *raw_data, int size)
 {
 	struct wiimote_data *wdata = hid_get_drvdata(hdev);
-	struct wiiproto_handler *h;
+	const struct wiiproto_handler *h;
 	int i;
 	unsigned long flags;
 
 	if (size < 1)
 		return -EINVAL;
 
-	spin_lock_irqsave(&wdata->state.lock, flags);
-
 	for (i = 0; handlers[i].id; ++i) {
 		h = &handlers[i];
 		if (h->id == raw_data[0] && h->size < size) {
+			spin_lock_irqsave(&wdata->state.lock, flags);
 			h->func(wdata, &raw_data[1]);
+			spin_unlock_irqrestore(&wdata->state.lock, flags);
 			break;
 		}
 	}
@@ -1638,8 +1638,6 @@ static int wiimote_hid_event(struct hid_device *hdev, struct hid_report *report,
 	if (!handlers[i].id)
 		hid_warn(hdev, "Unhandled report %hhu size %d\n", raw_data[0],
 									size);
-
-	spin_unlock_irqrestore(&wdata->state.lock, flags);
 
 	return 0;
 }
