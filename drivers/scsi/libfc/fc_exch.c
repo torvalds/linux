@@ -271,7 +271,7 @@ static void fc_exch_setup_hdr(struct fc_exch *ep, struct fc_frame *fp,
 
 	if (f_ctl & FC_FC_END_SEQ) {
 		fr_eof(fp) = FC_EOF_T;
-		if (fc_sof_needs_ack(ep->class))
+		if (fc_sof_needs_ack((enum fc_sof)ep->class))
 			fr_eof(fp) = FC_EOF_N;
 		/*
 		 * From F_CTL.
