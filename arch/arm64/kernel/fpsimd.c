@@ -678,7 +678,7 @@ int sve_set_current_vl(unsigned long arg)
 	vl = arg & PR_SVE_VL_LEN_MASK;
 	flags = arg & ~vl;
 
-	if (!system_supports_sve())
+	if (!system_supports_sve() || is_compat_task())
 		return -EINVAL;
 
 	ret = sve_set_vector_length(current, vl, flags);
@@ -691,7 +691,7 @@ int sve_set_current_vl(unsigned long arg)
 /* PR_SVE_GET_VL */
 int sve_get_current_vl(void)
 {
-	if (!system_supports_sve())
+	if (!system_supports_sve() || is_compat_task())
 		return -EINVAL;
 
 	return sve_prctl_status(0);
