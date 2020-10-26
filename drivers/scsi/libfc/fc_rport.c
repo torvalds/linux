@@ -58,8 +58,8 @@
 #include <asm/unaligned.h>
 
 #include <scsi/libfc.h>
-#include <scsi/fc_encode.h>
 
+#include "fc_encode.h"
 #include "fc_libfc.h"
 
 static struct workqueue_struct *rport_event_queue;
