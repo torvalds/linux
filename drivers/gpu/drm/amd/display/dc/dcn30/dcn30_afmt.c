@@ -25,6 +25,7 @@
 
 
 #include "dc_bios_types.h"
+#include "hw_shared.h"
 #include "dcn30_afmt.h"
 #include "reg_helper.h"
 
