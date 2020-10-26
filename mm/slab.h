@@ -280,9 +280,6 @@ static inline struct obj_cgroup *memcg_slab_pre_alloc_hook(struct kmem_cache *s,
 {
 	struct obj_cgroup *objcg;
 
-	if (memcg_kmem_bypass())
-		return NULL;
-
 	objcg = get_obj_cgroup_from_current();
 	if (!objcg)
 		return NULL;

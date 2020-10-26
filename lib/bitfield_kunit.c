@@ -5,8 +5,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/kernel.h>
-#include <linux/module.h>
+#include <kunit/test.h>
 #include <linux/bitfield.h>
 
 #define CHECK_ENC_GET_U(tp, v, field, res) do {				\
@@ -14,13 +13,11 @@
 			u##tp _res;					\
 									\
 			_res = u##tp##_encode_bits(v, field);		\
-			if (_res != res) {				\
-				pr_warn("u" #tp "_encode_bits(" #v ", " #field ") is 0x%llx != " #res "\n",\
-					(u64)_res);			\
-				return -EINVAL;				\
-			}						\
-			if (u##tp##_get_bits(_res, field) != v)		\
-				return -EINVAL;				\
+			KUNIT_ASSERT_FALSE_MSG(context, _res != res,	\
+				       "u" #tp "_encode_bits(" #v ", " #field ") is 0x%llx != " #res "\n",	\
+				       (u64)_res);			\
+			KUNIT_ASSERT_FALSE(context,			\
+				   u##tp##_get_bits(_res, field) != v);	\
 		}							\
 	} while (0)
 
@@ -29,14 +26,13 @@
 			__le##tp _res;					\
 									\
 			_res = le##tp##_encode_bits(v, field);		\
-			if (_res != cpu_to_le##tp(res)) {		\
-				pr_warn("le" #tp "_encode_bits(" #v ", " #field ") is 0x%llx != 0x%llx\n",\
-					(u64)le##tp##_to_cpu(_res),	\
-					(u64)(res));			\
-				return -EINVAL;				\
-			}						\
-			if (le##tp##_get_bits(_res, field) != v)	\
-				return -EINVAL;				\
+			KUNIT_ASSERT_FALSE_MSG(context,			\
+				       _res != cpu_to_le##tp(res),	\
+				       "le" #tp "_encode_bits(" #v ", " #field ") is 0x%llx != 0x%llx",\
+				       (u64)le##tp##_to_cpu(_res),	\
+				       (u64)(res));			\
+			KUNIT_ASSERT_FALSE(context,			\
+				   le##tp##_get_bits(_res, field) != v);\
 		}							\
 	} while (0)
 
@@ -45,14 +41,13 @@
 			__be##tp _res;					\
 									\
 			_res = be##tp##_encode_bits(v, field);		\
-			if (_res != cpu_to_be##tp(res)) {		\
-				pr_warn("be" #tp "_encode_bits(" #v ", " #field ") is 0x%llx != 0x%llx\n",\
-					(u64)be##tp##_to_cpu(_res),	\
-					(u64)(res));			\
-				return -EINVAL;				\
-			}						\
-			if (be##tp##_get_bits(_res, field) != v)	\
-				return -EINVAL;				\
+			KUNIT_ASSERT_FALSE_MSG(context,			\
+				       _res != cpu_to_be##tp(res),	\
+				       "be" #tp "_encode_bits(" #v ", " #field ") is 0x%llx != 0x%llx",	\
+				       (u64)be##tp##_to_cpu(_res),	\
+				       (u64)(res));			\
+			KUNIT_ASSERT_FALSE(context,			\
+				   be##tp##_get_bits(_res, field) != v);\
 		}							\
 	} while (0)
 
@@ -62,7 +57,7 @@
 		CHECK_ENC_GET_BE(tp, v, field, res);			\
 	} while (0)
 
-static int test_constants(void)
+static void __init test_bitfields_constants(struct kunit *context)
 {
 	/*
 	 * NOTE
@@ -95,19 +90,17 @@ static int test_constants(void)
 	CHECK_ENC_GET(64,  7, 0x00f0000000000000ull, 0x0070000000000000ull);
 	CHECK_ENC_GET(64, 14, 0x0f00000000000000ull, 0x0e00000000000000ull);
 	CHECK_ENC_GET(64, 15, 0xf000000000000000ull, 0xf000000000000000ull);
-
-	return 0;
 }
 
 #define CHECK(tp, mask) do {						\
 		u64 v;							\
 									\
 		for (v = 0; v < 1 << hweight32(mask); v++)		\
-			if (tp##_encode_bits(v, mask) != v << __ffs64(mask)) \
-				return -EINVAL;				\
+			KUNIT_ASSERT_FALSE(context,			\
+				tp##_encode_bits(v, mask) != v << __ffs64(mask));\
 	} while (0)
 
-static int test_variables(void)
+static void __init test_bitfields_variables(struct kunit *context)
 {
 	CHECK(u8, 0x0f);
 	CHECK(u8, 0xf0);
@@ -130,39 +123,32 @@ static int test_variables(void)
 	CHECK(u64, 0x000000007f000000ull);
 	CHECK(u64, 0x0000000018000000ull);
 	CHECK(u64, 0x0000001f8000000ull);
-
-	return 0;
 }
 
-static int __init test_bitfields(void)
-{
-	int ret = test_constants();
-
-	if (ret) {
-		pr_warn("constant tests failed!\n");
-		return ret;
-	}
-
-	ret = test_variables();
-	if (ret) {
-		pr_warn("variable tests failed!\n");
-		return ret;
-	}
-
 #ifdef TEST_BITFIELD_COMPILE
+static void __init test_bitfields_compile(struct kunit *context)
+{
 	/* these should fail compilation */
 	CHECK_ENC_GET(16, 16, 0x0f00, 0x1000);
 	u32_encode_bits(7, 0x06000000);
 
 	/* this should at least give a warning */
 	u16_encode_bits(0, 0x60000);
+}
 #endif
 
-	pr_info("tests passed\n");
+static struct kunit_case __refdata bitfields_test_cases[] = {
+	KUNIT_CASE(test_bitfields_constants),
+	KUNIT_CASE(test_bitfields_variables),
+	{}
+};
 
-	return 0;
-}
-module_init(test_bitfields)
+static struct kunit_suite bitfields_test_suite = {
+	.name = "bitfields",
+	.test_cases = bitfields_test_cases,
+};
+
+kunit_test_suites(&bitfields_test_suite);
 
 MODULE_AUTHOR("Johannes Berg <johannes@sipsolutions.net>");
 MODULE_LICENSE("GPL");

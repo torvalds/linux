@@ -1,12 +1,12 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0+
 #
-# Analyze a given results directory for rcuperf performance measurements,
+# Analyze a given results directory for rcuscale performance measurements,
 # looking for ftrace data.  Exits with 0 if data was found, analyzed, and
-# printed.  Intended to be invoked from kvm-recheck-rcuperf.sh after
+# printed.  Intended to be invoked from kvm-recheck-rcuscale.sh after
 # argument checking.
 #
-# Usage: kvm-recheck-rcuperf-ftrace.sh resdir
+# Usage: kvm-recheck-rcuscale-ftrace.sh resdir
 #
 # Copyright (C) IBM Corporation, 2016
 #
