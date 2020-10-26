@@ -252,12 +252,9 @@ static int stm32_dmamux_probe(struct platform_device *pdev)
 	spin_lock_init(&stm32_dmamux->lock);
 
 	stm32_dmamux->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(stm32_dmamux->clk)) {
-		ret = PTR_ERR(stm32_dmamux->clk);
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Missing clock controller\n");
-		return ret;
-	}
+	if (IS_ERR(stm32_dmamux->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(stm32_dmamux->clk),
+				     "Missing clock controller\n");
 
 	ret = clk_prepare_enable(stm32_dmamux->clk);
 	if (ret < 0) {

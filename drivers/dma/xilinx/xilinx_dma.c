@@ -1044,11 +1044,11 @@ static void xilinx_dma_chan_desc_cleanup(struct xilinx_dma_chan *chan)
 
 /**
  * xilinx_dma_do_tasklet - Schedule completion tasklet
- * @data: Pointer to the Xilinx DMA channel structure
+ * @t: Pointer to the Xilinx DMA channel structure
  */
-static void xilinx_dma_do_tasklet(unsigned long data)
+static void xilinx_dma_do_tasklet(struct tasklet_struct *t)
 {
-	struct xilinx_dma_chan *chan = (struct xilinx_dma_chan *)data;
+	struct xilinx_dma_chan *chan = from_tasklet(chan, t, tasklet);
 
 	xilinx_dma_chan_desc_cleanup(chan);
 }
@@ -2536,13 +2536,8 @@ static int axidma_clk_init(struct platform_device *pdev, struct clk **axi_clk,
 	*tmp_clk = NULL;
 
 	*axi_clk = devm_clk_get(&pdev->dev, "s_axi_lite_aclk");
-	if (IS_ERR(*axi_clk)) {
-		err = PTR_ERR(*axi_clk);
-		if (err != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "failed to get axi_aclk (%d)\n",
-				err);
-		return err;
-	}
+	if (IS_ERR(*axi_clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(*axi_clk), "failed to get axi_aclk\n");
 
 	*tx_clk = devm_clk_get(&pdev->dev, "m_axi_mm2s_aclk");
 	if (IS_ERR(*tx_clk))
@@ -2603,22 +2598,12 @@ static int axicdma_clk_init(struct platform_device *pdev, struct clk **axi_clk,
 	*tmp2_clk = NULL;
 
 	*axi_clk = devm_clk_get(&pdev->dev, "s_axi_lite_aclk");
-	if (IS_ERR(*axi_clk)) {
-		err = PTR_ERR(*axi_clk);
-		if (err != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "failed to get axi_clk (%d)\n",
-				err);
-		return err;
-	}
+	if (IS_ERR(*axi_clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(*axi_clk), "failed to get axi_aclk\n");
 
 	*dev_clk = devm_clk_get(&pdev->dev, "m_axi_aclk");
-	if (IS_ERR(*dev_clk)) {
-		err = PTR_ERR(*dev_clk);
-		if (err != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "failed to get dev_clk (%d)\n",
-				err);
-		return err;
-	}
+	if (IS_ERR(*dev_clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(*dev_clk), "failed to get dev_clk\n");
 
 	err = clk_prepare_enable(*axi_clk);
 	if (err) {
@@ -2647,13 +2632,8 @@ static int axivdma_clk_init(struct platform_device *pdev, struct clk **axi_clk,
 	int err;
 
 	*axi_clk = devm_clk_get(&pdev->dev, "s_axi_lite_aclk");
-	if (IS_ERR(*axi_clk)) {
-		err = PTR_ERR(*axi_clk);
-		if (err != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "failed to get axi_aclk (%d)\n",
-				err);
-		return err;
-	}
+	if (IS_ERR(*axi_clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(*axi_clk), "failed to get axi_aclk\n");
 
 	*tx_clk = devm_clk_get(&pdev->dev, "m_axi_mm2s_aclk");
 	if (IS_ERR(*tx_clk))
@@ -2866,8 +2846,7 @@ static int xilinx_dma_chan_probe(struct xilinx_dma_device *xdev,
 	}
 
 	/* Initialize the tasklet */
-	tasklet_init(&chan->tasklet, xilinx_dma_do_tasklet,
-			(unsigned long)chan);
+	tasklet_setup(&chan->tasklet, xilinx_dma_do_tasklet);
 
 	/*
 	 * Initialize the DMA channel and add it to the DMA engine channels

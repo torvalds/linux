@@ -368,6 +368,7 @@ static void idxd_cmd_exec(struct idxd_device *idxd, int cmd_code, u32 operand,
 	dev_dbg(&idxd->pdev->dev, "%s: sending cmd: %#x op: %#x\n",
 		__func__, cmd_code, operand);
 
+	idxd->cmd_status = 0;
 	__set_bit(IDXD_FLAG_CMD_RUNNING, &idxd->flags);
 	idxd->cmd_done = &done;
 	iowrite32(cmd.bits, idxd->reg_base + IDXD_CMD_OFFSET);
@@ -379,8 +380,11 @@ static void idxd_cmd_exec(struct idxd_device *idxd, int cmd_code, u32 operand,
 	spin_unlock_irqrestore(&idxd->dev_lock, flags);
 	wait_for_completion(&done);
 	spin_lock_irqsave(&idxd->dev_lock, flags);
-	if (status)
+	if (status) {
 		*status = ioread32(idxd->reg_base + IDXD_CMDSTS_OFFSET);
+		idxd->cmd_status = *status & GENMASK(7, 0);
+	}
+
 	__clear_bit(IDXD_FLAG_CMD_RUNNING, &idxd->flags);
 	/* Wake up other pending commands */
 	wake_up(&idxd->cmd_waitq);
@@ -555,8 +559,8 @@ static int idxd_wq_config_write(struct idxd_wq *wq)
 	wq->wqcfg.priority = wq->priority;
 
 	/* bytes 12-15 */
-	wq->wqcfg.max_xfer_shift = idxd->hw.gen_cap.max_xfer_shift;
-	wq->wqcfg.max_batch_shift = idxd->hw.gen_cap.max_batch_shift;
+	wq->wqcfg.max_xfer_shift = ilog2(wq->max_xfer_bytes);
+	wq->wqcfg.max_batch_shift = ilog2(wq->max_batch_size);
 
 	dev_dbg(dev, "WQ %d CFGs\n", wq->id);
 	for (i = 0; i < 8; i++) {
