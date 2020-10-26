@@ -115,6 +115,12 @@
 			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
+		hwspinlock: spinlock@30e00000 {
+			compatible = "ti,am654-hwspinlock";
+			reg = <0x00 0x30e00000 0x00 0x1000>;
+			#hwlock-cells = <1>;
+		};
+
 		main_ringacc: ringacc@3c000000 {
 			compatible = "ti,am654-navss-ringacc";
 			reg =	<0x00 0x3c000000 0x00 0x400000>,
