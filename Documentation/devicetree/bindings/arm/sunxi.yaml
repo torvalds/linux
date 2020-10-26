@@ -251,6 +251,11 @@ properties:
           - const: friendlyarm,nanopi-neo-plus2
           - const: allwinner,sun50i-h5
 
+      - description: FriendlyARM ZeroPi
+        items:
+          - const: friendlyarm,zeropi
+          - const: allwinner,sun8i-h3
+
       - description: Gemei G9 Tablet
         items:
           - const: gemei,g9
