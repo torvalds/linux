@@ -1016,14 +1016,6 @@ static long xsdfec_dev_ioctl(struct file *fptr, unsigned int cmd,
 	return rval;
 }
 
-#ifdef CONFIG_COMPAT
-static long xsdfec_dev_compat_ioctl(struct file *file, unsigned int cmd,
-				    unsigned long data)
-{
-	return xsdfec_dev_ioctl(file, cmd, (unsigned long)compat_ptr(data));
-}
-#endif
-
 static __poll_t xsdfec_poll(struct file *file, poll_table *wait)
 {
 	__poll_t mask = 0;
@@ -1054,9 +1046,7 @@ static const struct file_operations xsdfec_fops = {
 	.release = xsdfec_dev_release,
 	.unlocked_ioctl = xsdfec_dev_ioctl,
 	.poll = xsdfec_poll,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl = xsdfec_dev_compat_ioctl,
-#endif
+	.compat_ioctl = compat_ptr_ioctl,
 };
 
 static int xsdfec_parse_of(struct xsdfec_dev *xsdfec)
