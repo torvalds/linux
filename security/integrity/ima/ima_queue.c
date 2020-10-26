@@ -133,7 +133,7 @@ unsigned long ima_get_binary_runtime_size(void)
 		return ULONG_MAX;
 	else
 		return binary_runtime_size + sizeof(struct ima_kexec_hdr);
-};
+}
 
 static int ima_pcr_extend(struct tpm_digest *digests_arg, int pcr)
 {
