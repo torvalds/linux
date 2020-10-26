@@ -457,16 +457,70 @@ static struct nouveau_drm_prop_enum_list dither_depth[] = {
 	}                                                                      \
 } while(0)
 
+void
+nouveau_display_hpd_resume(struct drm_device *dev)
+{
+	struct nouveau_drm *drm = nouveau_drm(dev);
+
+	mutex_lock(&drm->hpd_lock);
+	drm->hpd_pending = ~0;
+	mutex_unlock(&drm->hpd_lock);
+
+	schedule_work(&drm->hpd_work);
+}
+
 static void
 nouveau_display_hpd_work(struct work_struct *work)
 {
 	struct nouveau_drm *drm = container_of(work, typeof(*drm), hpd_work);
+	struct drm_device *dev = drm->dev;
+	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
+	u32 pending;
+	bool changed = false;
 
-	pm_runtime_get_sync(drm->dev->dev);
+	pm_runtime_get_sync(dev->dev);
 
-	drm_helper_hpd_irq_event(drm->dev);
+	mutex_lock(&drm->hpd_lock);
+	pending = drm->hpd_pending;
+	drm->hpd_pending = 0;
+	mutex_unlock(&drm->hpd_lock);
+
+	/* Nothing to do, exit early without updating the last busy counter */
+	if (!pending)
+		goto noop;
+
+	mutex_lock(&dev->mode_config.mutex);
+	drm_connector_list_iter_begin(dev, &conn_iter);
+
+	nouveau_for_each_non_mst_connector_iter(connector, &conn_iter) {
+		enum drm_connector_status old_status = connector->status;
+		u64 old_epoch_counter = connector->epoch_counter;
+
+		if (!(pending & drm_connector_mask(connector)))
+			continue;
+
+		connector->status = drm_helper_probe_detect(connector, NULL,
+							    false);
+		if (old_epoch_counter == connector->epoch_counter)
+			continue;
+
+		changed = true;
+		drm_dbg_kms(dev, "[CONNECTOR:%d:%s] status updated from %s to %s (epoch counter %llu->%llu)\n",
+			    connector->base.id, connector->name,
+			    drm_get_connector_status_name(old_status),
+			    drm_get_connector_status_name(connector->status),
+			    old_epoch_counter, connector->epoch_counter);
+	}
+
+	drm_connector_list_iter_end(&conn_iter);
+	mutex_unlock(&dev->mode_config.mutex);
+
+	if (changed)
+		drm_kms_helper_hotplug_event(dev);
 
 	pm_runtime_mark_last_busy(drm->dev->dev);
+noop:
 	pm_runtime_put_sync(drm->dev->dev);
 }
 
@@ -490,12 +544,11 @@ nouveau_display_acpi_ntfy(struct notifier_block *nb, unsigned long val,
 				 */
 				pm_runtime_put_autosuspend(drm->dev->dev);
 			} else if (ret == 0) {
-				/* This may be the only indication we receive
-				 * of a connector hotplug on a runtime
-				 * suspended GPU, schedule hpd_work to check.
+				/* We've started resuming the GPU already, so
+				 * it will handle scheduling a full reprobe
+				 * itself
 				 */
 				NV_DEBUG(drm, "ACPI requested connector reprobe\n");
-				schedule_work(&drm->hpd_work);
 				pm_runtime_put_noidle(drm->dev->dev);
 			} else {
 				NV_WARN(drm, "Dropped ACPI reprobe event due to RPM error: %d\n",
@@ -569,7 +622,7 @@ nouveau_display_fini(struct drm_device *dev, bool suspend, bool runtime)
 		cancel_work_sync(&drm->hpd_work);
 
 	drm_kms_helper_poll_disable(dev);
-	disp->fini(dev, suspend);
+	disp->fini(dev, runtime, suspend);
 }
 
 static void
@@ -686,6 +739,7 @@ nouveau_display_create(struct drm_device *dev)
 	}
 
 	INIT_WORK(&drm->hpd_work, nouveau_display_hpd_work);
+	mutex_init(&drm->hpd_lock);
 #ifdef CONFIG_ACPI
 	drm->acpi_nb.notifier_call = nouveau_display_acpi_ntfy;
 	register_acpi_notifier(&drm->acpi_nb);
@@ -705,9 +759,10 @@ void
 nouveau_display_destroy(struct drm_device *dev)
 {
 	struct nouveau_display *disp = nouveau_display(dev);
+	struct nouveau_drm *drm = nouveau_drm(dev);
 
 #ifdef CONFIG_ACPI
-	unregister_acpi_notifier(&nouveau_drm(dev)->acpi_nb);
+	unregister_acpi_notifier(&drm->acpi_nb);
 #endif
 
 	drm_kms_helper_poll_fini(dev);
@@ -719,6 +774,7 @@ nouveau_display_destroy(struct drm_device *dev)
 	nvif_disp_dtor(&disp->disp);
 
 	nouveau_drm(dev)->display = NULL;
+	mutex_destroy(&drm->hpd_lock);
 	kfree(disp);
 }
 

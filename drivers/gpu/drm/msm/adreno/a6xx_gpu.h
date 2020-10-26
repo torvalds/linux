@@ -19,8 +19,15 @@ struct a6xx_gpu {
 	uint64_t sqe_iova;
 
 	struct msm_ringbuffer *cur_ring;
+	struct msm_file_private *cur_ctx;
 
 	struct a6xx_gmu gmu;
+
+	struct drm_gem_object *shadow_bo;
+	uint64_t shadow_iova;
+	uint32_t *shadow;
+
+	bool has_whereami;
 };
 
 #define to_a6xx_gpu(x) container_of(x, struct a6xx_gpu, base)
@@ -49,6 +56,9 @@ static inline bool a6xx_has_gbif(struct adreno_gpu *gpu)
 
 	return true;
 }
+
+#define shadowptr(_a6xx_gpu, _ring) ((_a6xx_gpu)->shadow_iova + \
+		((_ring)->id * sizeof(uint32_t)))
 
 int a6xx_gmu_resume(struct a6xx_gpu *gpu);
 int a6xx_gmu_stop(struct a6xx_gpu *gpu);

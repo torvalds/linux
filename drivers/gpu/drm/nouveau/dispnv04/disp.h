@@ -6,6 +6,8 @@
 
 #include "nouveau_display.h"
 
+struct nouveau_encoder;
+
 enum nv04_fp_display_regs {
 	FP_DISPLAY_END,
 	FP_TOTAL,
@@ -93,6 +95,8 @@ nv04_display(struct drm_device *dev)
 
 /* nv04_display.c */
 int nv04_display_create(struct drm_device *);
+struct nouveau_connector *
+nv04_encoder_get_connector(struct nouveau_encoder *nv_encoder);
 
 /* nv04_crtc.c */
 int nv04_crtc_create(struct drm_device *, int index);

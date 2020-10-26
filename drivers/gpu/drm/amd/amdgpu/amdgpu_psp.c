@@ -161,10 +161,12 @@ static int psp_sw_init(void *handle)
 	struct psp_context *psp = &adev->psp;
 	int ret;
 
-	ret = psp_init_microcode(psp);
-	if (ret) {
-		DRM_ERROR("Failed to load psp firmware!\n");
-		return ret;
+	if (!amdgpu_sriov_vf(adev)) {
+		ret = psp_init_microcode(psp);
+		if (ret) {
+			DRM_ERROR("Failed to load psp firmware!\n");
+			return ret;
+		}
 	}
 
 	ret = psp_memory_training_init(psp);
@@ -219,6 +221,9 @@ int psp_wait_for(struct psp_context *psp, uint32_t reg_index,
 	int i;
 	struct amdgpu_device *adev = psp->adev;
 
+	if (psp->adev->in_pci_err_recovery)
+		return 0;
+
 	for (i = 0; i < adev->usec_timeout; i++) {
 		val = RREG32(reg_index);
 		if (check_changed) {
@@ -244,6 +249,9 @@ psp_cmd_submit_buf(struct psp_context *psp,
 	int timeout = 2000;
 	bool ras_intr = false;
 	bool skip_unsupport = false;
+
+	if (psp->adev->in_pci_err_recovery)
+		return 0;
 
 	mutex_lock(&psp->mutex);
 
@@ -929,6 +937,7 @@ static int psp_ras_load(struct psp_context *psp)
 {
 	int ret;
 	struct psp_gfx_cmd_resp *cmd;
+	struct ta_ras_shared_memory *ras_cmd;
 
 	/*
 	 * TODO: bypass the loading in sriov for now
@@ -952,10 +961,19 @@ static int psp_ras_load(struct psp_context *psp)
 	ret = psp_cmd_submit_buf(psp, NULL, cmd,
 			psp->fence_buf_mc_addr);
 
+	ras_cmd = (struct ta_ras_shared_memory*)psp->ras.ras_shared_buf;
+
 	if (!ret) {
-		psp->ras.ras_initialized = true;
 		psp->ras.session_id = cmd->resp.session_id;
+
+		if (!ras_cmd->ras_status)
+			psp->ras.ras_initialized = true;
+		else
+			dev_warn(psp->adev->dev, "RAS Init Status: 0x%X\n", ras_cmd->ras_status);
 	}
+
+	if (ret || ras_cmd->ras_status)
+		amdgpu_ras_fini(psp->adev);
 
 	kfree(cmd);
 
@@ -1429,6 +1447,168 @@ static int psp_dtm_terminate(struct psp_context *psp)
 }
 // DTM end
 
+// RAP start
+static int psp_rap_init_shared_buf(struct psp_context *psp)
+{
+	int ret;
+
+	/*
+	 * Allocate 16k memory aligned to 4k from Frame Buffer (local
+	 * physical) for rap ta <-> Driver
+	 */
+	ret = amdgpu_bo_create_kernel(psp->adev, PSP_RAP_SHARED_MEM_SIZE,
+				      PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM,
+				      &psp->rap_context.rap_shared_bo,
+				      &psp->rap_context.rap_shared_mc_addr,
+				      &psp->rap_context.rap_shared_buf);
+
+	return ret;
+}
+
+static int psp_rap_load(struct psp_context *psp)
+{
+	int ret;
+	struct psp_gfx_cmd_resp *cmd;
+
+	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	memset(psp->fw_pri_buf, 0, PSP_1_MEG);
+	memcpy(psp->fw_pri_buf, psp->ta_rap_start_addr, psp->ta_rap_ucode_size);
+
+	psp_prep_ta_load_cmd_buf(cmd,
+				 psp->fw_pri_mc_addr,
+				 psp->ta_rap_ucode_size,
+				 psp->rap_context.rap_shared_mc_addr,
+				 PSP_RAP_SHARED_MEM_SIZE);
+
+	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
+
+	if (!ret) {
+		psp->rap_context.rap_initialized = true;
+		psp->rap_context.session_id = cmd->resp.session_id;
+		mutex_init(&psp->rap_context.mutex);
+	}
+
+	kfree(cmd);
+
+	return ret;
+}
+
+static int psp_rap_unload(struct psp_context *psp)
+{
+	int ret;
+	struct psp_gfx_cmd_resp *cmd;
+
+	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	psp_prep_ta_unload_cmd_buf(cmd, psp->rap_context.session_id);
+
+	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
+
+	kfree(cmd);
+
+	return ret;
+}
+
+static int psp_rap_initialize(struct psp_context *psp)
+{
+	int ret;
+
+	/*
+	 * TODO: bypass the initialize in sriov for now
+	 */
+	if (amdgpu_sriov_vf(psp->adev))
+		return 0;
+
+	if (!psp->adev->psp.ta_rap_ucode_size ||
+	    !psp->adev->psp.ta_rap_start_addr) {
+		dev_info(psp->adev->dev, "RAP: optional rap ta ucode is not available\n");
+		return 0;
+	}
+
+	if (!psp->rap_context.rap_initialized) {
+		ret = psp_rap_init_shared_buf(psp);
+		if (ret)
+			return ret;
+	}
+
+	ret = psp_rap_load(psp);
+	if (ret)
+		return ret;
+
+	ret = psp_rap_invoke(psp, TA_CMD_RAP__INITIALIZE);
+	if (ret != TA_RAP_STATUS__SUCCESS) {
+		psp_rap_unload(psp);
+
+		amdgpu_bo_free_kernel(&psp->rap_context.rap_shared_bo,
+			      &psp->rap_context.rap_shared_mc_addr,
+			      &psp->rap_context.rap_shared_buf);
+
+		psp->rap_context.rap_initialized = false;
+
+		dev_warn(psp->adev->dev, "RAP TA initialize fail.\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int psp_rap_terminate(struct psp_context *psp)
+{
+	int ret;
+
+	if (!psp->rap_context.rap_initialized)
+		return 0;
+
+	ret = psp_rap_unload(psp);
+
+	psp->rap_context.rap_initialized = false;
+
+	/* free rap shared memory */
+	amdgpu_bo_free_kernel(&psp->rap_context.rap_shared_bo,
+			      &psp->rap_context.rap_shared_mc_addr,
+			      &psp->rap_context.rap_shared_buf);
+
+	return ret;
+}
+
+int psp_rap_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
+{
+	struct ta_rap_shared_memory *rap_cmd;
+	int ret;
+
+	if (!psp->rap_context.rap_initialized)
+		return -EINVAL;
+
+	if (ta_cmd_id != TA_CMD_RAP__INITIALIZE &&
+	    ta_cmd_id != TA_CMD_RAP__VALIDATE_L0)
+		return -EINVAL;
+
+	mutex_lock(&psp->rap_context.mutex);
+
+	rap_cmd = (struct ta_rap_shared_memory *)
+		  psp->rap_context.rap_shared_buf;
+	memset(rap_cmd, 0, sizeof(struct ta_rap_shared_memory));
+
+	rap_cmd->cmd_id = ta_cmd_id;
+	rap_cmd->validation_method_id = METHOD_A;
+
+	ret = psp_ta_invoke(psp, rap_cmd->cmd_id, psp->rap_context.session_id);
+	if (ret) {
+		mutex_unlock(&psp->rap_context.mutex);
+		return ret;
+	}
+
+	mutex_unlock(&psp->rap_context.mutex);
+
+	return rap_cmd->rap_status;
+}
+// RAP end
+
 static int psp_hw_start(struct psp_context *psp)
 {
 	struct amdgpu_device *adev = psp->adev;
@@ -1706,7 +1886,7 @@ static int psp_load_smu_fw(struct psp_context *psp)
 		return 0;
 
 
-	if (adev->in_gpu_reset && ras && ras->supported) {
+	if (amdgpu_in_reset(adev) && ras && ras->supported) {
 		ret = amdgpu_dpm_set_mp1_state(adev, PP_MP1_STATE_UNLOAD);
 		if (ret) {
 			DRM_WARN("Failed to set MP1 state prepare for reload\n");
@@ -1821,7 +2001,7 @@ static int psp_load_fw(struct amdgpu_device *adev)
 	int ret;
 	struct psp_context *psp = &adev->psp;
 
-	if (amdgpu_sriov_vf(adev) && adev->in_gpu_reset) {
+	if (amdgpu_sriov_vf(adev) && amdgpu_in_reset(adev)) {
 		psp_ring_stop(psp, PSP_RING_TYPE__KM); /* should not destroy ring, only stop */
 		goto skip_memalloc;
 	}
@@ -1891,6 +2071,11 @@ skip_memalloc:
 		if (ret)
 			dev_err(psp->adev->dev,
 				"DTM: Failed to initialize DTM\n");
+
+		ret = psp_rap_initialize(psp);
+		if (ret)
+			dev_err(psp->adev->dev,
+				"RAP: Failed to initialize RAP\n");
 	}
 
 	return 0;
@@ -1941,6 +2126,7 @@ static int psp_hw_fini(void *handle)
 
 	if (psp->adev->psp.ta_fw) {
 		psp_ras_terminate(psp);
+		psp_rap_terminate(psp);
 		psp_dtm_terminate(psp);
 		psp_hdcp_terminate(psp);
 	}
@@ -1997,6 +2183,11 @@ static int psp_suspend(void *handle)
 		ret = psp_dtm_terminate(psp);
 		if (ret) {
 			DRM_ERROR("Failed to terminate dtm ta\n");
+			return ret;
+		}
+		ret = psp_rap_terminate(psp);
+		if (ret) {
+			DRM_ERROR("Failed to terminate rap ta\n");
 			return ret;
 		}
 	}
@@ -2077,6 +2268,11 @@ static int psp_resume(void *handle)
 		if (ret)
 			dev_err(psp->adev->dev,
 				"DTM: Failed to initialize DTM\n");
+
+		ret = psp_rap_initialize(psp);
+		if (ret)
+			dev_err(psp->adev->dev,
+				"RAP: Failed to initialize RAP\n");
 	}
 
 	mutex_unlock(&adev->firmware.mutex);
@@ -2342,6 +2538,11 @@ int parse_ta_bin_descriptor(struct psp_context *psp,
 		psp->ta_dtm_ucode_size     = le32_to_cpu(desc->size_bytes);
 		psp->ta_dtm_start_addr     = ucode_start_addr;
 		break;
+	case TA_FW_TYPE_PSP_RAP:
+		psp->ta_rap_ucode_version  = le32_to_cpu(desc->fw_version);
+		psp->ta_rap_ucode_size     = le32_to_cpu(desc->size_bytes);
+		psp->ta_rap_start_addr     = ucode_start_addr;
+		break;
 	default:
 		dev_warn(psp->adev->dev, "Unsupported TA type: %d\n", desc->fw_type);
 		break;
@@ -2420,7 +2621,7 @@ static ssize_t psp_usbc_pd_fw_sysfs_read(struct device *dev,
 					 char *buf)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
-	struct amdgpu_device *adev = ddev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(ddev);
 	uint32_t fw_ver;
 	int ret;
 
@@ -2447,7 +2648,7 @@ static ssize_t psp_usbc_pd_fw_sysfs_write(struct device *dev,
 						       size_t count)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
-	struct amdgpu_device *adev = ddev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(ddev);
 	void *cpu_addr;
 	dma_addr_t dma_addr;
 	int ret;

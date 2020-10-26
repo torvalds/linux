@@ -356,7 +356,7 @@ static int intel_gt_init_scratch(struct intel_gt *gt, unsigned int size)
 		goto err_unref;
 	}
 
-	ret = i915_ggtt_pin(vma, 0, PIN_HIGH);
+	ret = i915_ggtt_pin(vma, NULL, 0, PIN_HIGH);
 	if (ret)
 		goto err_unref;
 
@@ -406,21 +406,20 @@ static int __engines_record_defaults(struct intel_gt *gt)
 		/* We must be able to switch to something! */
 		GEM_BUG_ON(!engine->kernel_context);
 
-		err = intel_renderstate_init(&so, engine);
-		if (err)
-			goto out;
-
 		ce = intel_context_create(engine);
 		if (IS_ERR(ce)) {
 			err = PTR_ERR(ce);
 			goto out;
 		}
 
-		rq = intel_context_create_request(ce);
+		err = intel_renderstate_init(&so, ce);
+		if (err)
+			goto err;
+
+		rq = i915_request_create(ce);
 		if (IS_ERR(rq)) {
 			err = PTR_ERR(rq);
-			intel_context_put(ce);
-			goto out;
+			goto err_fini;
 		}
 
 		err = intel_engine_emit_ctx_wa(rq);
@@ -434,9 +433,13 @@ static int __engines_record_defaults(struct intel_gt *gt)
 err_rq:
 		requests[id] = i915_request_get(rq);
 		i915_request_add(rq);
-		intel_renderstate_fini(&so);
-		if (err)
+err_fini:
+		intel_renderstate_fini(&so, ce);
+err:
+		if (err) {
+			intel_context_put(ce);
 			goto out;
+		}
 	}
 
 	/* Flush the default context image to memory, and enable powersaving. */

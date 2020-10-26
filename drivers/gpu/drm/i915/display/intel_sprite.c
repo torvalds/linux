@@ -1626,8 +1626,7 @@ static int g4x_sprite_min_cdclk(const struct intel_crtc_state *crtc_state,
 	hscale = drm_rect_calc_hscale(&plane_state->uapi.src,
 				      &plane_state->uapi.dst,
 				      0, INT_MAX);
-	if (hscale < 0x10000)
-		return pixel_rate;
+	hscale = max(hscale, 0x10000u);
 
 	/* Decimation steps at 2x,4x,8x,16x */
 	decimate = ilog2(hscale >> 16);
@@ -1640,8 +1639,8 @@ static int g4x_sprite_min_cdclk(const struct intel_crtc_state *crtc_state,
 	limit -= decimate;
 
 	/* -10% for RGB */
-	if (fb->format->cpp[0] >= 4)
-		limit--; /* -10% for RGB */
+	if (!fb->format->is_yuv)
+		limit--;
 
 	/*
 	 * We should also do -10% if sprite scaling is enabled
@@ -2843,8 +2842,9 @@ static bool skl_plane_format_mod_supported(struct drm_plane *_plane,
 static bool gen12_plane_supports_mc_ccs(struct drm_i915_private *dev_priv,
 					enum plane_id plane_id)
 {
-	/* Wa_14010477008:tgl[a0..c0] */
-	if (IS_TGL_REVID(dev_priv, TGL_REVID_A0, TGL_REVID_C0))
+	/* Wa_14010477008:tgl[a0..c0],rkl[all] */
+	if (IS_ROCKETLAKE(dev_priv) ||
+	    IS_TGL_DISP_REVID(dev_priv, TGL_REVID_A0, TGL_REVID_C0))
 		return false;
 
 	return plane_id < PLANE_SPRITE4;

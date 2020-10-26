@@ -1001,6 +1001,9 @@ static void dpu_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 
 	trace_dpu_enc_mode_set(DRMID(drm_enc));
 
+	if (drm_enc->encoder_type == DRM_MODE_ENCODER_TMDS && priv->dp)
+		msm_dp_display_mode_set(priv->dp, drm_enc, mode, adj_mode);
+
 	list_for_each_entry(conn_iter, connector_list, head)
 		if (conn_iter->encoder == drm_enc)
 			conn = conn_iter;
@@ -1109,6 +1112,13 @@ static void _dpu_encoder_virt_enable_helper(struct drm_encoder *drm_enc)
 		return;
 	}
 
+
+	if (dpu_enc->disp_info.intf_type == DRM_MODE_CONNECTOR_DisplayPort &&
+		dpu_enc->cur_master->hw_mdptop &&
+		dpu_enc->cur_master->hw_mdptop->ops.intf_audio_select)
+		dpu_enc->cur_master->hw_mdptop->ops.intf_audio_select(
+			dpu_enc->cur_master->hw_mdptop);
+
 	_dpu_encoder_update_vsync_source(dpu_enc, &dpu_enc->disp_info);
 
 	if (dpu_enc->disp_info.intf_type == DRM_MODE_ENCODER_DSI &&
@@ -1146,6 +1156,7 @@ static void dpu_encoder_virt_enable(struct drm_encoder *drm_enc)
 {
 	struct dpu_encoder_virt *dpu_enc = NULL;
 	int ret = 0;
+	struct msm_drm_private *priv;
 	struct drm_display_mode *cur_mode = NULL;
 
 	if (!drm_enc) {
@@ -1156,6 +1167,7 @@ static void dpu_encoder_virt_enable(struct drm_encoder *drm_enc)
 
 	mutex_lock(&dpu_enc->enc_lock);
 	cur_mode = &dpu_enc->base.crtc->state->adjusted_mode;
+	priv = drm_enc->dev->dev_private;
 
 	trace_dpu_enc_enable(DRMID(drm_enc), cur_mode->hdisplay,
 			     cur_mode->vdisplay);
@@ -1176,6 +1188,15 @@ static void dpu_encoder_virt_enable(struct drm_encoder *drm_enc)
 
 	_dpu_encoder_virt_enable_helper(drm_enc);
 
+	if (drm_enc->encoder_type == DRM_MODE_ENCODER_TMDS && priv->dp) {
+		ret = msm_dp_display_enable(priv->dp,
+						drm_enc);
+		if (ret) {
+			DPU_ERROR_ENC(dpu_enc, "dp display enable failed: %d\n",
+				ret);
+			goto out;
+		}
+	}
 	dpu_enc->enabled = true;
 
 out:
@@ -1211,6 +1232,11 @@ static void dpu_encoder_virt_disable(struct drm_encoder *drm_enc)
 	/* wait for idle */
 	dpu_encoder_wait_for_event(drm_enc, MSM_ENC_TX_COMPLETE);
 
+	if (drm_enc->encoder_type == DRM_MODE_ENCODER_TMDS && priv->dp) {
+		if (msm_dp_display_pre_disable(priv->dp, drm_enc))
+			DPU_ERROR_ENC(dpu_enc, "dp display push idle failed\n");
+	}
+
 	dpu_encoder_resource_control(drm_enc, DPU_ENC_RC_EVENT_PRE_STOP);
 
 	for (i = 0; i < dpu_enc->num_phys_encs; i++) {
@@ -1219,6 +1245,7 @@ static void dpu_encoder_virt_disable(struct drm_encoder *drm_enc)
 		if (phys->ops.disable)
 			phys->ops.disable(phys);
 	}
+
 
 	/* after phys waits for frame-done, should be no more frames pending */
 	if (atomic_xchg(&dpu_enc->frame_done_timeout_ms, 0)) {
@@ -1233,6 +1260,11 @@ static void dpu_encoder_virt_disable(struct drm_encoder *drm_enc)
 	}
 
 	DPU_DEBUG_ENC(dpu_enc, "encoder disabled\n");
+
+	if (drm_enc->encoder_type == DRM_MODE_ENCODER_TMDS && priv->dp) {
+		if (msm_dp_display_disable(priv->dp, drm_enc))
+			DPU_ERROR_ENC(dpu_enc, "dp display disable failed\n");
+	}
 
 	mutex_unlock(&dpu_enc->enc_lock);
 }
@@ -1880,23 +1912,12 @@ static int _dpu_encoder_status_show(struct seq_file *s, void *data)
 	return 0;
 }
 
-static int _dpu_encoder_debugfs_status_open(struct inode *inode,
-		struct file *file)
-{
-	return single_open(file, _dpu_encoder_status_show, inode->i_private);
-}
+DEFINE_SHOW_ATTRIBUTE(_dpu_encoder_status);
 
 static int _dpu_encoder_init_debugfs(struct drm_encoder *drm_enc)
 {
 	struct dpu_encoder_virt *dpu_enc = to_dpu_encoder_virt(drm_enc);
 	int i;
-
-	static const struct file_operations debugfs_status_fops = {
-		.open =		_dpu_encoder_debugfs_status_open,
-		.read =		seq_read,
-		.llseek =	seq_lseek,
-		.release =	single_release,
-	};
 
 	char name[DPU_NAME_SIZE];
 
@@ -1913,7 +1934,7 @@ static int _dpu_encoder_init_debugfs(struct drm_encoder *drm_enc)
 
 	/* don't error check these */
 	debugfs_create_file("status", 0600,
-		dpu_enc->debugfs_root, dpu_enc, &debugfs_status_fops);
+		dpu_enc->debugfs_root, dpu_enc, &_dpu_encoder_status_fops);
 
 	for (i = 0; i < dpu_enc->num_phys_encs; i++)
 		if (dpu_enc->phys_encs[i]->ops.late_register)
@@ -2008,7 +2029,7 @@ static int dpu_encoder_setup_display(struct dpu_encoder_virt *dpu_enc,
 {
 	int ret = 0;
 	int i = 0;
-	enum dpu_intf_type intf_type;
+	enum dpu_intf_type intf_type = INTF_NONE;
 	struct dpu_enc_phys_init_params phys_params;
 
 	if (!dpu_enc) {
@@ -2030,9 +2051,9 @@ static int dpu_encoder_setup_display(struct dpu_encoder_virt *dpu_enc,
 	case DRM_MODE_ENCODER_DSI:
 		intf_type = INTF_DSI;
 		break;
-	default:
-		DPU_ERROR_ENC(dpu_enc, "unsupported display interface type\n");
-		return -EINVAL;
+	case DRM_MODE_ENCODER_TMDS:
+		intf_type = INTF_DP;
+		break;
 	}
 
 	WARN_ON(disp_info->num_of_h_tiles < 1);

@@ -14,6 +14,7 @@
 
 struct i915_vma *intel_emit_vma_fill_blt(struct intel_context *ce,
 					 struct i915_vma *vma,
+					 struct i915_gem_ww_ctx *ww,
 					 u32 value)
 {
 	struct drm_i915_private *i915 = ce->vm->i915;
@@ -39,10 +40,24 @@ struct i915_vma *intel_emit_vma_fill_blt(struct intel_context *ce,
 		goto out_pm;
 	}
 
+	err = i915_gem_object_lock(pool->obj, ww);
+	if (err)
+		goto out_put;
+
+	batch = i915_vma_instance(pool->obj, ce->vm, NULL);
+	if (IS_ERR(batch)) {
+		err = PTR_ERR(batch);
+		goto out_put;
+	}
+
+	err = i915_vma_pin_ww(batch, ww, 0, 0, PIN_USER);
+	if (unlikely(err))
+		goto out_put;
+
 	cmd = i915_gem_object_pin_map(pool->obj, I915_MAP_WC);
 	if (IS_ERR(cmd)) {
 		err = PTR_ERR(cmd);
-		goto out_put;
+		goto out_unpin;
 	}
 
 	rem = vma->size;
@@ -84,19 +99,11 @@ struct i915_vma *intel_emit_vma_fill_blt(struct intel_context *ce,
 
 	intel_gt_chipset_flush(ce->vm->gt);
 
-	batch = i915_vma_instance(pool->obj, ce->vm, NULL);
-	if (IS_ERR(batch)) {
-		err = PTR_ERR(batch);
-		goto out_put;
-	}
-
-	err = i915_vma_pin(batch, 0, 0, PIN_USER);
-	if (unlikely(err))
-		goto out_put;
-
 	batch->private = pool;
 	return batch;
 
+out_unpin:
+	i915_vma_unpin(batch);
 out_put:
 	intel_gt_buffer_pool_put(pool);
 out_pm:
@@ -108,11 +115,9 @@ int intel_emit_vma_mark_active(struct i915_vma *vma, struct i915_request *rq)
 {
 	int err;
 
-	i915_vma_lock(vma);
 	err = i915_request_await_object(rq, vma->obj, false);
 	if (err == 0)
 		err = i915_vma_move_to_active(vma, rq, 0);
-	i915_vma_unlock(vma);
 	if (unlikely(err))
 		return err;
 
@@ -141,6 +146,7 @@ int i915_gem_object_fill_blt(struct drm_i915_gem_object *obj,
 			     struct intel_context *ce,
 			     u32 value)
 {
+	struct i915_gem_ww_ctx ww;
 	struct i915_request *rq;
 	struct i915_vma *batch;
 	struct i915_vma *vma;
@@ -150,17 +156,28 @@ int i915_gem_object_fill_blt(struct drm_i915_gem_object *obj,
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 
-	err = i915_vma_pin(vma, 0, 0, PIN_USER);
-	if (unlikely(err))
-		return err;
+	i915_gem_ww_ctx_init(&ww, true);
+	intel_engine_pm_get(ce->engine);
+retry:
+	err = i915_gem_object_lock(obj, &ww);
+	if (err)
+		goto out;
 
-	batch = intel_emit_vma_fill_blt(ce, vma, value);
+	err = intel_context_pin_ww(ce, &ww);
+	if (err)
+		goto out;
+
+	err = i915_vma_pin_ww(vma, &ww, 0, 0, PIN_USER);
+	if (err)
+		goto out_ctx;
+
+	batch = intel_emit_vma_fill_blt(ce, vma, &ww, value);
 	if (IS_ERR(batch)) {
 		err = PTR_ERR(batch);
-		goto out_unpin;
+		goto out_vma;
 	}
 
-	rq = intel_context_create_request(ce);
+	rq = i915_request_create(ce);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto out_batch;
@@ -170,11 +187,9 @@ int i915_gem_object_fill_blt(struct drm_i915_gem_object *obj,
 	if (unlikely(err))
 		goto out_request;
 
-	i915_vma_lock(vma);
 	err = move_obj_to_gpu(vma->obj, rq, true);
 	if (err == 0)
 		err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
-	i915_vma_unlock(vma);
 	if (unlikely(err))
 		goto out_request;
 
@@ -193,8 +208,18 @@ out_request:
 	i915_request_add(rq);
 out_batch:
 	intel_emit_vma_release(ce, batch);
-out_unpin:
+out_vma:
 	i915_vma_unpin(vma);
+out_ctx:
+	intel_context_unpin(ce);
+out:
+	if (err == -EDEADLK) {
+		err = i915_gem_ww_ctx_backoff(&ww);
+		if (!err)
+			goto retry;
+	}
+	i915_gem_ww_ctx_fini(&ww);
+	intel_engine_pm_put(ce->engine);
 	return err;
 }
 
@@ -210,6 +235,7 @@ static bool wa_1209644611_applies(struct drm_i915_private *i915, u32 size)
 }
 
 struct i915_vma *intel_emit_vma_copy_blt(struct intel_context *ce,
+					 struct i915_gem_ww_ctx *ww,
 					 struct i915_vma *src,
 					 struct i915_vma *dst)
 {
@@ -236,10 +262,24 @@ struct i915_vma *intel_emit_vma_copy_blt(struct intel_context *ce,
 		goto out_pm;
 	}
 
+	err = i915_gem_object_lock(pool->obj, ww);
+	if (err)
+		goto out_put;
+
+	batch = i915_vma_instance(pool->obj, ce->vm, NULL);
+	if (IS_ERR(batch)) {
+		err = PTR_ERR(batch);
+		goto out_put;
+	}
+
+	err = i915_vma_pin_ww(batch, ww, 0, 0, PIN_USER);
+	if (unlikely(err))
+		goto out_put;
+
 	cmd = i915_gem_object_pin_map(pool->obj, I915_MAP_WC);
 	if (IS_ERR(cmd)) {
 		err = PTR_ERR(cmd);
-		goto out_put;
+		goto out_unpin;
 	}
 
 	rem = src->size;
@@ -296,20 +336,11 @@ struct i915_vma *intel_emit_vma_copy_blt(struct intel_context *ce,
 	i915_gem_object_unpin_map(pool->obj);
 
 	intel_gt_chipset_flush(ce->vm->gt);
-
-	batch = i915_vma_instance(pool->obj, ce->vm, NULL);
-	if (IS_ERR(batch)) {
-		err = PTR_ERR(batch);
-		goto out_put;
-	}
-
-	err = i915_vma_pin(batch, 0, 0, PIN_USER);
-	if (unlikely(err))
-		goto out_put;
-
 	batch->private = pool;
 	return batch;
 
+out_unpin:
+	i915_vma_unpin(batch);
 out_put:
 	intel_gt_buffer_pool_put(pool);
 out_pm:
@@ -321,10 +352,9 @@ int i915_gem_object_copy_blt(struct drm_i915_gem_object *src,
 			     struct drm_i915_gem_object *dst,
 			     struct intel_context *ce)
 {
-	struct drm_gem_object *objs[] = { &src->base, &dst->base };
 	struct i915_address_space *vm = ce->vm;
 	struct i915_vma *vma[2], *batch;
-	struct ww_acquire_ctx acquire;
+	struct i915_gem_ww_ctx ww;
 	struct i915_request *rq;
 	int err, i;
 
@@ -332,25 +362,36 @@ int i915_gem_object_copy_blt(struct drm_i915_gem_object *src,
 	if (IS_ERR(vma[0]))
 		return PTR_ERR(vma[0]);
 
-	err = i915_vma_pin(vma[0], 0, 0, PIN_USER);
-	if (unlikely(err))
-		return err;
-
 	vma[1] = i915_vma_instance(dst, vm, NULL);
 	if (IS_ERR(vma[1]))
-		goto out_unpin_src;
+		return PTR_ERR(vma[1]);
 
-	err = i915_vma_pin(vma[1], 0, 0, PIN_USER);
+	i915_gem_ww_ctx_init(&ww, true);
+	intel_engine_pm_get(ce->engine);
+retry:
+	err = i915_gem_object_lock(src, &ww);
+	if (!err)
+		err = i915_gem_object_lock(dst, &ww);
+	if (!err)
+		err = intel_context_pin_ww(ce, &ww);
+	if (err)
+		goto out;
+
+	err = i915_vma_pin_ww(vma[0], &ww, 0, 0, PIN_USER);
+	if (err)
+		goto out_ctx;
+
+	err = i915_vma_pin_ww(vma[1], &ww, 0, 0, PIN_USER);
 	if (unlikely(err))
 		goto out_unpin_src;
 
-	batch = intel_emit_vma_copy_blt(ce, vma[0], vma[1]);
+	batch = intel_emit_vma_copy_blt(ce, &ww, vma[0], vma[1]);
 	if (IS_ERR(batch)) {
 		err = PTR_ERR(batch);
 		goto out_unpin_dst;
 	}
 
-	rq = intel_context_create_request(ce);
+	rq = i915_request_create(ce);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto out_batch;
@@ -360,14 +401,10 @@ int i915_gem_object_copy_blt(struct drm_i915_gem_object *src,
 	if (unlikely(err))
 		goto out_request;
 
-	err = drm_gem_lock_reservations(objs, ARRAY_SIZE(objs), &acquire);
-	if (unlikely(err))
-		goto out_request;
-
 	for (i = 0; i < ARRAY_SIZE(vma); i++) {
 		err = move_obj_to_gpu(vma[i]->obj, rq, i);
 		if (unlikely(err))
-			goto out_unlock;
+			goto out_request;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(vma); i++) {
@@ -375,20 +412,19 @@ int i915_gem_object_copy_blt(struct drm_i915_gem_object *src,
 
 		err = i915_vma_move_to_active(vma[i], rq, flags);
 		if (unlikely(err))
-			goto out_unlock;
+			goto out_request;
 	}
 
 	if (rq->engine->emit_init_breadcrumb) {
 		err = rq->engine->emit_init_breadcrumb(rq);
 		if (unlikely(err))
-			goto out_unlock;
+			goto out_request;
 	}
 
 	err = rq->engine->emit_bb_start(rq,
 					batch->node.start, batch->node.size,
 					0);
-out_unlock:
-	drm_gem_unlock_reservations(objs, ARRAY_SIZE(objs), &acquire);
+
 out_request:
 	if (unlikely(err))
 		i915_request_set_error_once(rq, err);
@@ -400,6 +436,16 @@ out_unpin_dst:
 	i915_vma_unpin(vma[1]);
 out_unpin_src:
 	i915_vma_unpin(vma[0]);
+out_ctx:
+	intel_context_unpin(ce);
+out:
+	if (err == -EDEADLK) {
+		err = i915_gem_ww_ctx_backoff(&ww);
+		if (!err)
+			goto retry;
+	}
+	i915_gem_ww_ctx_fini(&ww);
+	intel_engine_pm_put(ce->engine);
 	return err;
 }
 

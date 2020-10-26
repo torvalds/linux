@@ -43,12 +43,9 @@ void drm_gem_ttm_print_info(struct drm_printer *p, unsigned int indent,
 	drm_print_bits(p, bo->mem.placement, plname, ARRAY_SIZE(plname));
 	drm_printf(p, "\n");
 
-	if (bo->mem.bus.is_iomem) {
-		drm_printf_indent(p, indent, "bus.base=%lx\n",
-				  (unsigned long)bo->mem.bus.base);
+	if (bo->mem.bus.is_iomem)
 		drm_printf_indent(p, indent, "bus.offset=%lx\n",
 				  (unsigned long)bo->mem.bus.offset);
-	}
 }
 EXPORT_SYMBOL(drm_gem_ttm_print_info);
 

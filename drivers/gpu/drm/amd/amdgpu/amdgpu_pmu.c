@@ -226,7 +226,7 @@ static int init_pmu_by_type(struct amdgpu_device *adev,
 	pmu_entry->pmu.attr_groups = attr_groups;
 	pmu_entry->pmu_perf_type = pmu_perf_type;
 	snprintf(pmu_name, PMU_NAME_SIZE, "%s_%d",
-				pmu_file_prefix, adev->ddev->primary->index);
+				pmu_file_prefix, adev_to_drm(adev)->primary->index);
 
 	ret = perf_pmu_register(&pmu_entry->pmu, pmu_name, -1);
 

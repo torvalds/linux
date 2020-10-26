@@ -217,6 +217,17 @@ config DRM_PANEL_NOVATEK_NT39016
 	  Say Y here if you want to enable support for the panels built
 	  around the Novatek NT39016 display controller.
 
+config DRM_PANEL_MANTIX_MLAF057WE51
+	tristate "Mantix MLAF057WE51-X MIPI-DSI LCD panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for the Mantix
+	  MLAF057WE51-X MIPI DSI panel as e.g. used in the Librem 5. It
+	  has a resolution of 720x1440 pixels, a built in backlight and touch
+	  controller.
+
 config DRM_PANEL_OLIMEX_LCD_OLINUXINO
 	tristate "Olimex LCD-OLinuXino panel"
 	depends on OF
@@ -313,13 +324,30 @@ config DRM_PANEL_SAMSUNG_S6E63J0X03
 	select VIDEOMODE_HELPERS
 
 config DRM_PANEL_SAMSUNG_S6E63M0
-	tristate "Samsung S6E63M0 RGB/SPI panel"
+	tristate "Samsung S6E63M0 RGB panel"
 	depends on OF
-	depends on SPI
 	depends on BACKLIGHT_CLASS_DEVICE
 	help
 	  Say Y here if you want to enable support for Samsung S6E63M0
-	  AMOLED LCD panel.
+	  AMOLED LCD panel. This panel can be accessed using SPI or
+	  DSI.
+
+config DRM_PANEL_SAMSUNG_S6E63M0_SPI
+	tristate "Samsung S6E63M0 RGB SPI interface"
+	depends on SPI
+	depends on DRM_PANEL_SAMSUNG_S6E63M0
+	default DRM_PANEL_SAMSUNG_S6E63M0
+	help
+	  Say Y here if you want to be able to access the Samsung
+	  S6E63M0 panel using SPI.
+
+config DRM_PANEL_SAMSUNG_S6E63M0_DSI
+	tristate "Samsung S6E63M0 RGB DSI interface"
+	depends on DRM_MIPI_DSI
+	depends on DRM_PANEL_SAMSUNG_S6E63M0
+	help
+	  Say Y here if you want to be able to access the Samsung
+	  S6E63M0 panel using DSI.
 
 config DRM_PANEL_SAMSUNG_S6E88A0_AMS452EF01
 	tristate "Samsung AMS452EF01 panel with S6E88A0 DSI video mode controller"

@@ -8,6 +8,8 @@
 #ifndef __DPU_KMS_H__
 #define __DPU_KMS_H__
 
+#include <linux/interconnect.h>
+
 #include <drm/drm_drv.h>
 
 #include "msm_drv.h"
@@ -140,6 +142,8 @@ struct dpu_kms {
 	 * when disabled.
 	 */
 	atomic_t bandwidth_ref;
+	struct icc_path *path[2];
+	u32 num_paths;
 };
 
 struct vsync_info {

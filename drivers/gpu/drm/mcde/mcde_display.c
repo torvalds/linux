@@ -7,6 +7,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/dma-buf.h>
+#include <linux/regulator/consumer.h>
 
 #include <drm/drm_device.h>
 #include <drm/drm_fb_cma_helper.h>
@@ -89,7 +90,7 @@ void mcde_display_irq(struct mcde *mcde)
 		 * the update function is called, then we disable the
 		 * flow on the channel once we get the TE IRQ.
 		 */
-		if (mcde->oneshot_mode) {
+		if (mcde->flow_mode == MCDE_COMMAND_ONESHOT_FLOW) {
 			spin_lock(&mcde->flow_lock);
 			if (--mcde->flow_active == 0) {
 				dev_dbg(mcde->dev, "TE0 IRQ\n");
@@ -333,7 +334,7 @@ static void mcde_configure_overlay(struct mcde *mcde, enum mcde_overlay ovl,
 				   enum mcde_extsrc src,
 				   enum mcde_channel ch,
 				   const struct drm_display_mode *mode,
-				   u32 format)
+				   u32 format, int cpp)
 {
 	u32 val;
 	u32 conf1;
@@ -342,6 +343,7 @@ static void mcde_configure_overlay(struct mcde *mcde, enum mcde_overlay ovl,
 	u32 ljinc;
 	u32 cr;
 	u32 comp;
+	u32 pixel_fetcher_watermark;
 
 	switch (ovl) {
 	case MCDE_OVERLAY_0:
@@ -426,8 +428,33 @@ static void mcde_configure_overlay(struct mcde *mcde, enum mcde_overlay ovl,
 			format);
 		break;
 	}
-	/* The default watermark level for overlay 0 is 48 */
-	val |= 48 << MCDE_OVLXCONF2_PIXELFETCHERWATERMARKLEVEL_SHIFT;
+
+	/*
+	 * Pixel fetch watermark level is max 0x1FFF pixels.
+	 * Two basic rules should be followed:
+	 * 1. The value should be at least 256 bits.
+	 * 2. The sum of all active overlays pixelfetch watermark level
+	 *    multiplied with bits per pixel, should be lower than the
+	 *    size of input_fifo_size in bits.
+	 * 3. The value should be a multiple of a line (256 bits).
+	 */
+	switch (cpp) {
+	case 2:
+		pixel_fetcher_watermark = 128;
+		break;
+	case 3:
+		pixel_fetcher_watermark = 96;
+		break;
+	case 4:
+		pixel_fetcher_watermark = 48;
+		break;
+	default:
+		pixel_fetcher_watermark = 48;
+		break;
+	}
+	dev_dbg(mcde->dev, "pixel fetcher watermark level %d pixels\n",
+		pixel_fetcher_watermark);
+	val |= pixel_fetcher_watermark << MCDE_OVLXCONF2_PIXELFETCHERWATERMARKLEVEL_SHIFT;
 	writel(val, mcde->regs + conf2);
 
 	/* Number of bytes to fetch per line */
@@ -498,19 +525,47 @@ static void mcde_configure_channel(struct mcde *mcde, enum mcde_channel ch,
 	}
 
 	/* Set up channel 0 sync (based on chnl_update_registers()) */
-	if (mcde->video_mode || mcde->te_sync)
-		val = MCDE_CHNLXSYNCHMOD_SRC_SYNCH_HARDWARE
-			<< MCDE_CHNLXSYNCHMOD_SRC_SYNCH_SHIFT;
-	else
+	switch (mcde->flow_mode) {
+	case MCDE_COMMAND_ONESHOT_FLOW:
+		/* Oneshot is achieved with software sync */
 		val = MCDE_CHNLXSYNCHMOD_SRC_SYNCH_SOFTWARE
 			<< MCDE_CHNLXSYNCHMOD_SRC_SYNCH_SHIFT;
-
-	if (mcde->te_sync)
+		break;
+	case MCDE_COMMAND_TE_FLOW:
+		val = MCDE_CHNLXSYNCHMOD_SRC_SYNCH_HARDWARE
+			<< MCDE_CHNLXSYNCHMOD_SRC_SYNCH_SHIFT;
 		val |= MCDE_CHNLXSYNCHMOD_OUT_SYNCH_SRC_TE0
 			<< MCDE_CHNLXSYNCHMOD_OUT_SYNCH_SRC_SHIFT;
-	else
+		break;
+	case MCDE_COMMAND_BTA_TE_FLOW:
+		val = MCDE_CHNLXSYNCHMOD_SRC_SYNCH_HARDWARE
+			<< MCDE_CHNLXSYNCHMOD_SRC_SYNCH_SHIFT;
+		/*
+		 * TODO:
+		 * The vendor driver uses the formatter as sync source
+		 * for BTA TE mode. Test to use TE if you have a panel
+		 * that uses this mode.
+		 */
 		val |= MCDE_CHNLXSYNCHMOD_OUT_SYNCH_SRC_FORMATTER
 			<< MCDE_CHNLXSYNCHMOD_OUT_SYNCH_SRC_SHIFT;
+		break;
+	case MCDE_VIDEO_TE_FLOW:
+		val = MCDE_CHNLXSYNCHMOD_SRC_SYNCH_HARDWARE
+			<< MCDE_CHNLXSYNCHMOD_SRC_SYNCH_SHIFT;
+		val |= MCDE_CHNLXSYNCHMOD_OUT_SYNCH_SRC_TE0
+			<< MCDE_CHNLXSYNCHMOD_OUT_SYNCH_SRC_SHIFT;
+		break;
+	case MCDE_VIDEO_FORMATTER_FLOW:
+		val = MCDE_CHNLXSYNCHMOD_SRC_SYNCH_HARDWARE
+			<< MCDE_CHNLXSYNCHMOD_SRC_SYNCH_SHIFT;
+		val |= MCDE_CHNLXSYNCHMOD_OUT_SYNCH_SRC_FORMATTER
+			<< MCDE_CHNLXSYNCHMOD_OUT_SYNCH_SRC_SHIFT;
+		break;
+	default:
+		dev_err(mcde->dev, "unknown flow mode %d\n",
+			mcde->flow_mode);
+		break;
+	}
 
 	writel(val, mcde->regs + sync);
 
@@ -825,6 +880,14 @@ static void mcde_display_enable(struct drm_simple_display_pipe *pipe,
 	u32 formatter_frame;
 	u32 pkt_div;
 	u32 val;
+	int ret;
+
+	/* This powers up the entire MCDE block and the DSI hardware */
+	ret = regulator_enable(mcde->epod);
+	if (ret) {
+		dev_err(drm->dev, "can't re-enable EPOD regulator\n");
+		return;
+	}
 
 	dev_info(drm->dev, "enable MCDE, %d x %d format %s\n",
 		 mode->hdisplay, mode->vdisplay,
@@ -834,6 +897,26 @@ static void mcde_display_enable(struct drm_simple_display_pipe *pipe,
 		dev_err(drm->dev, "no DSI master attached!\n");
 		return;
 	}
+
+	/* Set up the main control, watermark level at 7 */
+	val = 7 << MCDE_CONF0_IFIFOCTRLWTRMRKLVL_SHIFT;
+	/* 24 bits DPI: connect LSB Ch B to D[0:7] */
+	val |= 3 << MCDE_CONF0_OUTMUX0_SHIFT;
+	/* TV out: connect LSB Ch B to D[8:15] */
+	val |= 3 << MCDE_CONF0_OUTMUX1_SHIFT;
+	/* Don't care about this muxing */
+	val |= 0 << MCDE_CONF0_OUTMUX2_SHIFT;
+	/* 24 bits DPI: connect MID Ch B to D[24:31] */
+	val |= 4 << MCDE_CONF0_OUTMUX3_SHIFT;
+	/* 5: 24 bits DPI: connect MSB Ch B to D[32:39] */
+	val |= 5 << MCDE_CONF0_OUTMUX4_SHIFT;
+	/* Syncmux bits zero: DPI channel A and B on output pins A and B resp */
+	writel(val, mcde->regs + MCDE_CONF0);
+
+	/* Clear any pending interrupts */
+	mcde_display_disable_irqs(mcde);
+	writel(0, mcde->regs + MCDE_IMSCERR);
+	writel(0xFFFFFFFF, mcde->regs + MCDE_RISERR);
 
 	dev_info(drm->dev, "output in %s mode, format %dbpp\n",
 		 (mcde->mdsi->mode_flags & MIPI_DSI_MODE_VIDEO) ?
@@ -904,7 +987,7 @@ static void mcde_display_enable(struct drm_simple_display_pipe *pipe,
 	 * channel 0
 	 */
 	mcde_configure_overlay(mcde, MCDE_OVERLAY_0, MCDE_EXTSRC_0,
-			       MCDE_CHANNEL_0, mode, format);
+			       MCDE_CHANNEL_0, mode, format, cpp);
 
 	/*
 	 * Configure pixel-per-line and line-per-frame for channel 0 and then
@@ -916,11 +999,25 @@ static void mcde_display_enable(struct drm_simple_display_pipe *pipe,
 	mcde_configure_fifo(mcde, MCDE_FIFO_A, MCDE_DSI_FORMATTER_0,
 			    fifo_wtrmrk);
 
+	/*
+	 * This brings up the DSI bridge which is tightly connected
+	 * to the MCDE DSI formatter.
+	 *
+	 * FIXME: if we want to use another formatter, such as DPI,
+	 * we need to be more elaborate here and select the appropriate
+	 * bridge.
+	 */
+	mcde_dsi_enable(mcde->bridge);
+
 	/* Configure the DSI formatter 0 for the DSI panel output */
 	mcde_configure_dsi_formatter(mcde, MCDE_DSI_FORMATTER_0,
 				     formatter_frame, pkt_size);
 
-	if (mcde->te_sync) {
+	switch (mcde->flow_mode) {
+	case MCDE_COMMAND_TE_FLOW:
+	case MCDE_COMMAND_BTA_TE_FLOW:
+	case MCDE_VIDEO_TE_FLOW:
+		/* We are using TE in some comination */
 		if (mode->flags & DRM_MODE_FLAG_NVSYNC)
 			val = MCDE_VSCRC_VSPOL;
 		else
@@ -930,16 +1027,31 @@ static void mcde_display_enable(struct drm_simple_display_pipe *pipe,
 		val = readl(mcde->regs + MCDE_CRC);
 		val |= MCDE_CRC_SYCEN0;
 		writel(val, mcde->regs + MCDE_CRC);
+		break;
+	default:
+		/* No TE capture */
+		break;
 	}
 
 	drm_crtc_vblank_on(crtc);
 
-	if (mcde->video_mode)
-		/*
-		 * Keep FIFO permanently enabled in video mode,
-		 * otherwise MCDE will stop feeding data to the panel.
-		 */
+	/*
+	 * If we're using oneshot mode we don't start the flow
+	 * until each time the display is given an update, and
+	 * then we disable it immediately after. For all other
+	 * modes (command or video) we start the FIFO flow
+	 * right here. This is necessary for the hardware to
+	 * behave right.
+	 */
+	if (mcde->flow_mode != MCDE_COMMAND_ONESHOT_FLOW) {
 		mcde_enable_fifo(mcde, MCDE_FIFO_A);
+		dev_dbg(mcde->dev, "started MCDE video FIFO flow\n");
+	}
+
+	/* Enable MCDE with automatic clock gating */
+	val = readl(mcde->regs + MCDE_CR);
+	val |= MCDE_CR_MCDEEN | MCDE_CR_AUTOCLKG_EN;
+	writel(val, mcde->regs + MCDE_CR);
 
 	dev_info(drm->dev, "MCDE display is enabled\n");
 }
@@ -950,11 +1062,15 @@ static void mcde_display_disable(struct drm_simple_display_pipe *pipe)
 	struct drm_device *drm = crtc->dev;
 	struct mcde *mcde = to_mcde(drm);
 	struct drm_pending_vblank_event *event;
+	int ret;
 
 	drm_crtc_vblank_off(crtc);
 
 	/* Disable FIFO A flow */
 	mcde_disable_fifo(mcde, MCDE_FIFO_A, true);
+
+	/* This disables the DSI bridge */
+	mcde_dsi_disable(mcde->bridge);
 
 	event = crtc->state->event;
 	if (event) {
@@ -965,43 +1081,47 @@ static void mcde_display_disable(struct drm_simple_display_pipe *pipe)
 		spin_unlock_irq(&crtc->dev->event_lock);
 	}
 
+	ret = regulator_disable(mcde->epod);
+	if (ret)
+		dev_err(drm->dev, "can't disable EPOD regulator\n");
+	/* Make sure we are powered down (before we may power up again) */
+	usleep_range(50000, 70000);
+
 	dev_info(drm->dev, "MCDE display is disabled\n");
 }
 
-static void mcde_display_send_one_frame(struct mcde *mcde)
+static void mcde_start_flow(struct mcde *mcde)
 {
-	/* Request a TE ACK */
-	if (mcde->te_sync)
+	/* Request a TE ACK only in TE+BTA mode */
+	if (mcde->flow_mode == MCDE_COMMAND_BTA_TE_FLOW)
 		mcde_dsi_te_request(mcde->mdsi);
 
 	/* Enable FIFO A flow */
 	mcde_enable_fifo(mcde, MCDE_FIFO_A);
 
-	if (mcde->te_sync) {
+	/*
+	 * If oneshot mode is enabled, the flow will be disabled
+	 * when the TE0 IRQ arrives in the interrupt handler. Otherwise
+	 * updates are continuously streamed to the display after this
+	 * point.
+	 */
+
+	if (mcde->flow_mode == MCDE_COMMAND_ONESHOT_FLOW) {
+		/* Trigger a software sync out on channel 0 */
+		writel(MCDE_CHNLXSYNCHSW_SW_TRIG,
+		       mcde->regs + MCDE_CHNL0SYNCHSW);
+
 		/*
-		 * If oneshot mode is enabled, the flow will be disabled
-		 * when the TE0 IRQ arrives in the interrupt handler. Otherwise
-		 * updates are continuously streamed to the display after this
-		 * point.
+		 * Disable FIFO A flow again: since we are using TE sync we
+		 * need to wait for the FIFO to drain before we continue
+		 * so repeated calls to this function will not cause a mess
+		 * in the hardware by pushing updates will updates are going
+		 * on already.
 		 */
-		dev_dbg(mcde->dev, "sent TE0 framebuffer update\n");
-		return;
+		mcde_disable_fifo(mcde, MCDE_FIFO_A, true);
 	}
 
-	/* Trigger a software sync out on channel 0 */
-	writel(MCDE_CHNLXSYNCHSW_SW_TRIG,
-	       mcde->regs + MCDE_CHNL0SYNCHSW);
-
-	/*
-	 * Disable FIFO A flow again: since we are using TE sync we
-	 * need to wait for the FIFO to drain before we continue
-	 * so repeated calls to this function will not cause a mess
-	 * in the hardware by pushing updates will updates are going
-	 * on already.
-	 */
-	mcde_disable_fifo(mcde, MCDE_FIFO_A, true);
-
-	dev_dbg(mcde->dev, "sent SW framebuffer update\n");
+	dev_dbg(mcde->dev, "started MCDE FIFO flow\n");
 }
 
 static void mcde_set_extsrc(struct mcde *mcde, u32 buffer_address)
@@ -1060,15 +1180,13 @@ static void mcde_display_update(struct drm_simple_display_pipe *pipe,
 	 */
 	if (fb) {
 		mcde_set_extsrc(mcde, drm_fb_cma_get_gem_addr(fb, pstate, 0));
-		if (!mcde->video_mode) {
-			/*
-			 * Send a single frame using software sync if the flow
-			 * is not active yet.
-			 */
-			if (mcde->flow_active == 0)
-				mcde_display_send_one_frame(mcde);
-		}
-		dev_info_once(mcde->dev, "sent first display update\n");
+		dev_info_once(mcde->dev, "first update of display contents\n");
+		/*
+		 * Usually the flow is already active, unless we are in
+		 * oneshot mode, then we need to kick the flow right here.
+		 */
+		if (mcde->flow_active == 0)
+			mcde_start_flow(mcde);
 	} else {
 		/*
 		 * If an update is receieved before the MCDE is enabled

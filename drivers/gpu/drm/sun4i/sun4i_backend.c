@@ -768,7 +768,7 @@ static const struct sunxi_engine_ops sun4i_backend_engine_ops = {
 	.vblank_quirk			= sun4i_backend_vblank_quirk,
 };
 
-static struct regmap_config sun4i_backend_regmap_config = {
+static const struct regmap_config sun4i_backend_regmap_config = {
 	.reg_bits	= 32,
 	.val_bits	= 32,
 	.reg_stride	= 4,

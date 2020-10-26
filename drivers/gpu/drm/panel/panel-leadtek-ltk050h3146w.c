@@ -17,7 +17,6 @@
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_panel.h>
-#include <drm/drm_print.h>
 
 struct ltk050h3146w_cmd {
 	char cmd;
@@ -314,8 +313,7 @@ static int ltk050h3146w_init_sequence(struct ltk050h3146w *ctx)
 
 	ret = mipi_dsi_dcs_set_tear_on(dsi, 1);
 	if (ret < 0) {
-		DRM_DEV_ERROR(ctx->dev, "failed to set tear on: %d\n",
-			      ret);
+		dev_err(ctx->dev, "failed to set tear on: %d\n", ret);
 		return ret;
 	}
 
@@ -360,8 +358,7 @@ static int ltk050h3146w_a2_write_page(struct ltk050h3146w *ctx, int page,
 
 	ret = ltk050h3146w_a2_select_page(ctx, page);
 	if (ret < 0) {
-		DRM_DEV_ERROR(ctx->dev, "failed to select page %d: %d\n",
-			      page, ret);
+		dev_err(ctx->dev, "failed to select page %d: %d\n", page, ret);
 		return ret;
 	}
 
@@ -369,9 +366,7 @@ static int ltk050h3146w_a2_write_page(struct ltk050h3146w *ctx, int page,
 		ret = mipi_dsi_generic_write(dsi, &cmds[i],
 					     sizeof(struct ltk050h3146w_cmd));
 		if (ret < 0) {
-			DRM_DEV_ERROR(ctx->dev,
-				      "failed to write page %d init cmds: %d\n",
-				       page, ret);
+			dev_err(ctx->dev, "failed to write page %d init cmds: %d\n", page, ret);
 			return ret;
 		}
 	}
@@ -405,15 +400,14 @@ static int ltk050h3146w_a2_init_sequence(struct ltk050h3146w *ctx)
 
 	ret = ltk050h3146w_a2_select_page(ctx, 0);
 	if (ret < 0) {
-		DRM_DEV_ERROR(ctx->dev, "failed to select page 0: %d\n", ret);
+		dev_err(ctx->dev, "failed to select page 0: %d\n", ret);
 		return ret;
 	}
 
 	/* vendor code called this without param, where there should be one */
 	ret = mipi_dsi_dcs_set_tear_on(dsi, 0);
 	if (ret < 0) {
-		DRM_DEV_ERROR(ctx->dev, "failed to set tear on: %d\n",
-			      ret);
+		dev_err(ctx->dev, "failed to set tear on: %d\n", ret);
 		return ret;
 	}
 
@@ -452,15 +446,13 @@ static int ltk050h3146w_unprepare(struct drm_panel *panel)
 
 	ret = mipi_dsi_dcs_set_display_off(dsi);
 	if (ret < 0) {
-		DRM_DEV_ERROR(ctx->dev, "failed to set display off: %d\n",
-			      ret);
+		dev_err(ctx->dev, "failed to set display off: %d\n", ret);
 		return ret;
 	}
 
 	mipi_dsi_dcs_enter_sleep_mode(dsi);
 	if (ret < 0) {
-		DRM_DEV_ERROR(ctx->dev, "failed to enter sleep mode: %d\n",
-			      ret);
+		dev_err(ctx->dev, "failed to enter sleep mode: %d\n", ret);
 		return ret;
 	}
 
@@ -481,17 +473,15 @@ static int ltk050h3146w_prepare(struct drm_panel *panel)
 	if (ctx->prepared)
 		return 0;
 
-	DRM_DEV_DEBUG_DRIVER(ctx->dev, "Resetting the panel\n");
+	dev_dbg(ctx->dev, "Resetting the panel\n");
 	ret = regulator_enable(ctx->vci);
 	if (ret < 0) {
-		DRM_DEV_ERROR(ctx->dev,
-			      "Failed to enable vci supply: %d\n", ret);
+		dev_err(ctx->dev, "Failed to enable vci supply: %d\n", ret);
 		return ret;
 	}
 	ret = regulator_enable(ctx->iovcc);
 	if (ret < 0) {
-		DRM_DEV_ERROR(ctx->dev,
-			      "Failed to enable iovcc supply: %d\n", ret);
+		dev_err(ctx->dev, "Failed to enable iovcc supply: %d\n", ret);
 		goto disable_vci;
 	}
 
@@ -502,14 +492,13 @@ static int ltk050h3146w_prepare(struct drm_panel *panel)
 
 	ret = ctx->panel_desc->init(ctx);
 	if (ret < 0) {
-		DRM_DEV_ERROR(ctx->dev, "Panel init sequence failed: %d\n",
-			      ret);
+		dev_err(ctx->dev, "Panel init sequence failed: %d\n", ret);
 		goto disable_iovcc;
 	}
 
 	ret = mipi_dsi_dcs_exit_sleep_mode(dsi);
 	if (ret < 0) {
-		DRM_DEV_ERROR(ctx->dev, "Failed to exit sleep mode: %d\n", ret);
+		dev_err(ctx->dev, "Failed to exit sleep mode: %d\n", ret);
 		goto disable_iovcc;
 	}
 
@@ -518,7 +507,7 @@ static int ltk050h3146w_prepare(struct drm_panel *panel)
 
 	ret = mipi_dsi_dcs_set_display_on(dsi);
 	if (ret < 0) {
-		DRM_DEV_ERROR(ctx->dev, "Failed to set display on: %d\n", ret);
+		dev_err(ctx->dev, "Failed to set display on: %d\n", ret);
 		goto disable_iovcc;
 	}
 
@@ -577,7 +566,7 @@ static int ltk050h3146w_probe(struct mipi_dsi_device *dsi)
 
 	ctx->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->reset_gpio)) {
-		DRM_DEV_ERROR(dev, "cannot get reset gpio\n");
+		dev_err(dev, "cannot get reset gpio\n");
 		return PTR_ERR(ctx->reset_gpio);
 	}
 
@@ -585,9 +574,7 @@ static int ltk050h3146w_probe(struct mipi_dsi_device *dsi)
 	if (IS_ERR(ctx->vci)) {
 		ret = PTR_ERR(ctx->vci);
 		if (ret != -EPROBE_DEFER)
-			DRM_DEV_ERROR(dev,
-				      "Failed to request vci regulator: %d\n",
-				      ret);
+			dev_err(dev, "Failed to request vci regulator: %d\n", ret);
 		return ret;
 	}
 
@@ -595,9 +582,7 @@ static int ltk050h3146w_probe(struct mipi_dsi_device *dsi)
 	if (IS_ERR(ctx->iovcc)) {
 		ret = PTR_ERR(ctx->iovcc);
 		if (ret != -EPROBE_DEFER)
-			DRM_DEV_ERROR(dev,
-				      "Failed to request iovcc regulator: %d\n",
-				      ret);
+			dev_err(dev, "Failed to request iovcc regulator: %d\n", ret);
 		return ret;
 	}
 
@@ -621,7 +606,7 @@ static int ltk050h3146w_probe(struct mipi_dsi_device *dsi)
 
 	ret = mipi_dsi_attach(dsi);
 	if (ret < 0) {
-		DRM_DEV_ERROR(dev, "mipi_dsi_attach failed: %d\n", ret);
+		dev_err(dev, "mipi_dsi_attach failed: %d\n", ret);
 		drm_panel_remove(&ctx->panel);
 		return ret;
 	}
@@ -636,13 +621,11 @@ static void ltk050h3146w_shutdown(struct mipi_dsi_device *dsi)
 
 	ret = drm_panel_unprepare(&ctx->panel);
 	if (ret < 0)
-		DRM_DEV_ERROR(&dsi->dev, "Failed to unprepare panel: %d\n",
-			      ret);
+		dev_err(&dsi->dev, "Failed to unprepare panel: %d\n", ret);
 
 	ret = drm_panel_disable(&ctx->panel);
 	if (ret < 0)
-		DRM_DEV_ERROR(&dsi->dev, "Failed to disable panel: %d\n",
-			      ret);
+		dev_err(&dsi->dev, "Failed to disable panel: %d\n", ret);
 }
 
 static int ltk050h3146w_remove(struct mipi_dsi_device *dsi)
@@ -654,8 +637,7 @@ static int ltk050h3146w_remove(struct mipi_dsi_device *dsi)
 
 	ret = mipi_dsi_detach(dsi);
 	if (ret < 0)
-		DRM_DEV_ERROR(&dsi->dev, "Failed to detach from DSI host: %d\n",
-			      ret);
+		dev_err(&dsi->dev, "Failed to detach from DSI host: %d\n", ret);
 
 	drm_panel_remove(&ctx->panel);
 

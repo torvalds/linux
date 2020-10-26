@@ -1646,6 +1646,7 @@ static const struct drm_encoder_funcs gen11_dsi_encoder_funcs = {
 };
 
 static const struct drm_connector_funcs gen11_dsi_connector_funcs = {
+	.detect = intel_panel_detect,
 	.late_register = intel_connector_register,
 	.early_unregister = intel_connector_unregister,
 	.destroy = intel_connector_destroy,

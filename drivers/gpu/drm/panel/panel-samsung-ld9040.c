@@ -21,7 +21,6 @@
 
 #include <drm/drm_modes.h>
 #include <drm/drm_panel.h>
-#include <drm/drm_print.h>
 
 /* Manufacturer Command Set */
 #define MCS_MANPWR		0xb0
@@ -269,7 +268,7 @@ static int ld9040_get_modes(struct drm_panel *panel,
 
 	mode = drm_mode_create(connector->dev);
 	if (!mode) {
-		DRM_ERROR("failed to create a new display mode\n");
+		dev_err(panel->dev, "failed to create a new display mode\n");
 		return 0;
 	}
 
@@ -354,7 +353,9 @@ static int ld9040_probe(struct spi_device *spi)
 	drm_panel_init(&ctx->panel, dev, &ld9040_drm_funcs,
 		       DRM_MODE_CONNECTOR_DPI);
 
-	return drm_panel_add(&ctx->panel);
+	drm_panel_add(&ctx->panel);
+
+	return 0;
 }
 
 static int ld9040_remove(struct spi_device *spi)

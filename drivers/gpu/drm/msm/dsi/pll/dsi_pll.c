@@ -161,6 +161,10 @@ struct msm_dsi_pll *msm_dsi_pll_init(struct platform_device *pdev,
 	case MSM_DSI_PHY_10NM:
 		pll = msm_dsi_pll_10nm_init(pdev, id);
 		break;
+	case MSM_DSI_PHY_7NM:
+	case MSM_DSI_PHY_7NM_V4_1:
+		pll = msm_dsi_pll_7nm_init(pdev, id);
+		break;
 	default:
 		pll = ERR_PTR(-ENXIO);
 		break;

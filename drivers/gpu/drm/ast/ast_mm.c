@@ -85,9 +85,9 @@ static void ast_mm_release(struct drm_device *dev, void *ptr)
 
 int ast_mm_init(struct ast_private *ast)
 {
+	struct drm_device *dev = &ast->base;
 	u32 vram_size;
 	int ret;
-	struct drm_device *dev = ast->dev;
 
 	vram_size = ast_get_vram_size(ast);
 
