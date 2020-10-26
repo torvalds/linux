@@ -1057,6 +1057,48 @@
 		status = "disabled";
 	};
 
+	rkisp: rkisp@fdff0000 {
+		compatible = "rockchip,rk3568-rkisp";
+		reg = <0x0 0xfdff0000 0x0 0x10000>;
+		interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "mipi_irq", "mi_irq", "isp_irq";
+		clocks = <&cru ACLK_ISP>, <&cru HCLK_ISP>, <&cru CLK_ISP>;
+		clock-names = "aclk_isp", "hclk_isp", "clk_isp";
+		resets = <&cru SRST_ISP>, <&cru SRST_H_ISP>;
+		reset-names = "isp", "isp-h";
+		rockchip,grf = <&grf>;
+		power-domains = <&power RK3568_PD_VI>;
+		iommus = <&rkisp_mmu>;
+		status = "disabled";
+	};
+
+	rkisp_mmu: iommu@fdff1a00 {
+		compatible = "rockchip,iommu";
+		reg = <0x0 0xfdff1a00 0x0 0x100>;
+		interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "isp_mmu";
+		clocks = <&cru ACLK_ISP>, <&cru HCLK_ISP>;
+		clock-names = "aclk", "iface";
+		power-domains = <&power RK3568_PD_VI>;
+		#iommu-cells = <0>;
+		rockchip,disable-mmu-reset;
+		status = "disabled";
+	};
+
+	rkisp_vir0: rkisp-vir0 {
+		compatible = "rockchip,rkisp-vir";
+		rockchip,hw = <&rkisp>;
+		status = "disabled";
+	};
+
+	rkisp_vir1: rkisp-vir1 {
+		compatible = "rockchip,rkisp-vir";
+		rockchip,hw = <&rkisp>;
+		status = "disabled";
+	};
+
 	gmac1: ethernet@fe010000 {
 		compatible = "rockchip,rk3568-gmac", "snps,dwmac-4.20a";
 		reg = <0x0 0xfe010000 0x0 0x10000>;
