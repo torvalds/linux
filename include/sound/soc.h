@@ -1161,6 +1161,7 @@ struct snd_soc_pcm_runtime {
 
 	/* function mark */
 	struct snd_pcm_substream *mark_startup;
+	struct snd_pcm_substream *mark_hw_params;
 
 	/* bit field */
 	unsigned int pop_wait:1;
@@ -1183,21 +1184,15 @@ struct snd_soc_pcm_runtime {
 	for ((i) = 0;							\
 	     ((i) < rtd->num_cpus) && ((dai) = asoc_rtd_to_cpu(rtd, i)); \
 	     (i)++)
-#define for_each_rtd_cpu_dais_rollback(rtd, i, dai)		\
-	for (; (--(i) >= 0) && ((dai) = asoc_rtd_to_cpu(rtd, i));)
 #define for_each_rtd_codec_dais(rtd, i, dai)				\
 	for ((i) = 0;							\
 	     ((i) < rtd->num_codecs) && ((dai) = asoc_rtd_to_codec(rtd, i)); \
 	     (i)++)
-#define for_each_rtd_codec_dais_rollback(rtd, i, dai)		\
-	for (; (--(i) >= 0) && ((dai) = asoc_rtd_to_codec(rtd, i));)
 #define for_each_rtd_dais(rtd, i, dai)					\
 	for ((i) = 0;							\
 	     ((i) < (rtd)->num_cpus + (rtd)->num_codecs) &&		\
 		     ((dai) = (rtd)->dais[i]);				\
 	     (i)++)
-#define for_each_rtd_dais_rollback(rtd, i, dai)		\
-	for (; (--(i) >= 0) && ((dai) = (rtd)->dais[i]);)
 
 void snd_soc_close_delayed_work(struct snd_soc_pcm_runtime *rtd);
 

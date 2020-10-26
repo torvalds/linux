@@ -779,8 +779,7 @@ int snd_soc_pcm_component_prepare(struct snd_pcm_substream *substream)
 }
 
 int snd_soc_pcm_component_hw_params(struct snd_pcm_substream *substream,
-				    struct snd_pcm_hw_params *params,
-				    struct snd_soc_component **last)
+				    struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_component *component;
@@ -790,33 +789,35 @@ int snd_soc_pcm_component_hw_params(struct snd_pcm_substream *substream,
 		if (component->driver->hw_params) {
 			ret = component->driver->hw_params(component,
 							   substream, params);
-			if (ret < 0) {
-				*last = component;
+			if (ret < 0)
 				return soc_component_ret(component, ret);
-			}
 		}
+		/* mark substream if succeeded */
+		soc_component_mark_push(component, substream, hw_params);
 	}
 
-	*last = NULL;
 	return 0;
 }
 
 void snd_soc_pcm_component_hw_free(struct snd_pcm_substream *substream,
-				   struct snd_soc_component *last)
+				   int rollback)
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_component *component;
 	int i, ret;
 
 	for_each_rtd_components(rtd, i, component) {
-		if (component == last)
-			break;
+		if (rollback && !soc_component_mark_match(component, substream, hw_params))
+			continue;
 
 		if (component->driver->hw_free) {
 			ret = component->driver->hw_free(component, substream);
 			if (ret < 0)
 				soc_component_ret(component, ret);
 		}
+
+		/* remove marked substream */
+		soc_component_mark_pop(component, substream, hw_params);
 	}
 }
 

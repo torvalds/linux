@@ -119,16 +119,26 @@ int snd_soc_link_hw_params(struct snd_pcm_substream *substream,
 	    rtd->dai_link->ops->hw_params)
 		ret = rtd->dai_link->ops->hw_params(substream, params);
 
+	/* mark substream if succeeded */
+	if (ret == 0)
+		soc_link_mark_push(rtd, substream, hw_params);
+
 	return soc_link_ret(rtd, ret);
 }
 
-void snd_soc_link_hw_free(struct snd_pcm_substream *substream)
+void snd_soc_link_hw_free(struct snd_pcm_substream *substream, int rollback)
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+
+	if (rollback && !soc_link_mark_match(rtd, substream, hw_params))
+		return;
 
 	if (rtd->dai_link->ops &&
 	    rtd->dai_link->ops->hw_free)
 		rtd->dai_link->ops->hw_free(substream);
+
+	/* remove marked substream */
+	soc_link_mark_pop(rtd, substream, hw_params);
 }
 
 int snd_soc_link_trigger(struct snd_pcm_substream *substream, int cmd)
