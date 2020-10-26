@@ -28,7 +28,4 @@ int pnv_ocxl_spa_setup(struct pci_dev *dev, void *spa_mem, int PE_mask, void **p
 void pnv_ocxl_spa_release(void *platform_data);
 int pnv_ocxl_spa_remove_pe_from_cache(void *platform_data, int pe_handle);
 
-int pnv_ocxl_alloc_xive_irq(u32 *irq, u64 *trigger_addr);
-void pnv_ocxl_free_xive_irq(u32 irq);
-
 #endif /* _ASM_PNV_OCXL_H */

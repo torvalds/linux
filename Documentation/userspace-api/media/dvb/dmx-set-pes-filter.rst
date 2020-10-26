@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.dmx
 
 .. _DMX_SET_PES_FILTER:
 
@@ -11,24 +12,21 @@ Name
 
 DMX_SET_PES_FILTER
 
-
 Synopsis
 --------
 
-.. c:function:: int ioctl( int fd, DMX_SET_PES_FILTER, struct dmx_pes_filter_params *params)
-    :name: DMX_SET_PES_FILTER
+.. c:macro:: DMX_SET_PES_FILTER
 
+``int ioctl(int fd, DMX_SET_PES_FILTER, struct dmx_pes_filter_params *params)``
 
 Arguments
 ---------
 
-
 ``fd``
-    File descriptor returned by :c:func:`open() <dvb-dmx-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``params``
     Pointer to structure containing filter parameters.
-
 
 Description
 -----------
@@ -37,7 +35,6 @@ This ioctl call sets up a PES filter according to the parameters
 provided. By a PES filter is meant a filter that is based just on the
 packet identifier (PID), i.e. no PES header or payload filtering
 capability is supported.
-
 
 Return Value
 ------------
@@ -54,7 +51,6 @@ appropriately.
     :stub-columns: 0
     :widths: 1 16
 
-
     -  .. row 1
 
        -  ``EBUSY``
@@ -63,7 +59,6 @@ appropriately.
 	  There are active filters filtering data from another input source.
 	  Make sure that these filters are stopped before starting this
 	  filter.
-
 
 The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

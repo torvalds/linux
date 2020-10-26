@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: CEC
 
 .. _CEC_ADAP_PHYS_ADDR:
 .. _CEC_ADAP_G_PHYS_ADDR:
@@ -13,21 +14,22 @@ Name
 
 CEC_ADAP_G_PHYS_ADDR, CEC_ADAP_S_PHYS_ADDR - Get or set the physical address
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, CEC_ADAP_G_PHYS_ADDR, __u16 *argp )
-    :name: CEC_ADAP_G_PHYS_ADDR
+.. c:macro:: CEC_ADAP_G_PHYS_ADDR
 
-.. c:function:: int ioctl( int fd, CEC_ADAP_S_PHYS_ADDR, __u16 *argp )
-    :name: CEC_ADAP_S_PHYS_ADDR
+``int ioctl(int fd, CEC_ADAP_G_PHYS_ADDR, __u16 *argp)``
+
+.. c:macro:: CEC_ADAP_S_PHYS_ADDR
+
+``int ioctl(int fd, CEC_ADAP_S_PHYS_ADDR, __u16 *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :c:func:`open() <cec-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to the CEC address.
@@ -70,7 +72,6 @@ EDID of the sink.
 For example, the EDID for each HDMI input of the TV will have a
 different physical address of the form a.0.0.0 that the sources will
 read out and use as their physical address.
-
 
 Return Value
 ============

@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.audio
 
 .. _AUDIO_STOP:
 
@@ -16,8 +17,9 @@ AUDIO_STOP
 Synopsis
 --------
 
-.. c:function:: int ioctl(int fd, AUDIO_STOP)
-    :name: AUDIO_STOP
+.. c:macro:: AUDIO_STOP
+
+``int ioctl(int fd, AUDIO_STOP)``
 
 Arguments
 ---------
@@ -26,20 +28,17 @@ Arguments
     :header-rows:  0
     :stub-columns: 0
 
-
     -  .. row 1
 
        -  int fd
 
        -  File descriptor returned by a previous call to open().
 
-
 Description
 -----------
 
 This ioctl call asks the Audio Device to stop playing the current
 stream.
-
 
 Return Value
 ------------

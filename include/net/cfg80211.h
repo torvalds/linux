@@ -474,6 +474,7 @@ struct ieee80211_sta_s1g_cap {
  * @n_bitrates: Number of bitrates in @bitrates
  * @ht_cap: HT capabilities in this band
  * @vht_cap: VHT capabilities in this band
+ * @s1g_cap: S1G capabilities in this band
  * @edmg_cap: EDMG capabilities in this band
  * @s1g_cap: S1G capabilities in this band (S1B band only, of course)
  * @n_iftype_data: number of iftype data entries

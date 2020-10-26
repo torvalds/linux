@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.dmx
 
 .. _DMX_START:
 
@@ -11,26 +12,24 @@ Name
 
 DMX_START
 
-
 Synopsis
 --------
 
-.. c:function:: int ioctl( int fd, DMX_START)
-    :name: DMX_START
+.. c:macro:: DMX_START
 
+``int ioctl(int fd, DMX_START)``
 
 Arguments
 ---------
 
 ``fd``
-    File descriptor returned by :c:func:`open() <dvb-dmx-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 Description
 -----------
 
 This ioctl call is used to start the actual filtering operation defined
 via the ioctl calls :ref:`DMX_SET_FILTER` or :ref:`DMX_SET_PES_FILTER`.
-
 
 Return Value
 ------------
@@ -45,7 +44,6 @@ appropriately.
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -  .. row 1
 
@@ -62,7 +60,6 @@ appropriately.
 	  There are active filters filtering data from another input source.
 	  Make sure that these filters are stopped before starting this
 	  filter.
-
 
 The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

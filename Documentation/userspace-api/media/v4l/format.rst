@@ -1,11 +1,11 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _format:
 
 ************
 Data Formats
 ************
-
 
 Data Format Negotiation
 =======================
@@ -53,8 +53,8 @@ image size.
 When applications omit the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl its locking side
 effects are implied by the next step, the selection of an I/O method
 with the :ref:`VIDIOC_REQBUFS` ioctl or implicit
-with the first :ref:`read() <func-read>` or
-:ref:`write() <func-write>` call.
+with the first :c:func:`read()` or
+:c:func:`write()` call.
 
 Generally only one logical stream can be assigned to a file descriptor,
 the exception being drivers permitting simultaneous video capturing and
@@ -66,7 +66,6 @@ earlier versions of V4L2. Switching the logical stream or returning into
 All drivers exchanging data with applications must support the
 :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` and :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl. Implementation of the
 :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` is highly recommended but optional.
-
 
 Image Format Enumeration
 ========================

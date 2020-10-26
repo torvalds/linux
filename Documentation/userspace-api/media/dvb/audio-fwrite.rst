@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.audio
 
 .. _audio_fwrite:
 
@@ -17,8 +18,6 @@ Synopsis
 --------
 
 .. c:function:: size_t write(int fd, const void *buf, size_t count)
-    :name: dvb-audio-write
-
 
 Arguments
 ---------
@@ -26,7 +25,6 @@ Arguments
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -  .. row 1
 
@@ -46,7 +44,6 @@ Arguments
 
        -  Size of buf.
 
-
 Description
 -----------
 
@@ -56,14 +53,12 @@ PES format. If O_NONBLOCK is not specified the function will block
 until buffer space is available. The amount of data to be transferred is
 implied by count.
 
-
 Return Value
 ------------
 
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -  .. row 1
 

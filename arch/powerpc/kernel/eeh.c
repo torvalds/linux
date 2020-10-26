@@ -466,7 +466,7 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 		return 0;
 	}
 
-	if (!pe->addr && !pe->config_addr) {
+	if (!pe->addr) {
 		eeh_stats.no_cfg_addr++;
 		return 0;
 	}
@@ -929,56 +929,6 @@ void eeh_save_bars(struct eeh_dev *edev)
 		edev->config_space[1] |= PCI_COMMAND_MASTER;
 }
 
-/**
- * eeh_ops_register - Register platform dependent EEH operations
- * @ops: platform dependent EEH operations
- *
- * Register the platform dependent EEH operation callback
- * functions. The platform should call this function before
- * any other EEH operations.
- */
-int __init eeh_ops_register(struct eeh_ops *ops)
-{
-	if (!ops->name) {
-		pr_warn("%s: Invalid EEH ops name for %p\n",
-			__func__, ops);
-		return -EINVAL;
-	}
-
-	if (eeh_ops && eeh_ops != ops) {
-		pr_warn("%s: EEH ops of platform %s already existing (%s)\n",
-			__func__, eeh_ops->name, ops->name);
-		return -EEXIST;
-	}
-
-	eeh_ops = ops;
-
-	return 0;
-}
-
-/**
- * eeh_ops_unregister - Unreigster platform dependent EEH operations
- * @name: name of EEH platform operations
- *
- * Unregister the platform dependent EEH operation callback
- * functions.
- */
-int __exit eeh_ops_unregister(const char *name)
-{
-	if (!name || !strlen(name)) {
-		pr_warn("%s: Invalid EEH ops name\n",
-			__func__);
-		return -EINVAL;
-	}
-
-	if (eeh_ops && !strcmp(eeh_ops->name, name)) {
-		eeh_ops = NULL;
-		return 0;
-	}
-
-	return -EEXIST;
-}
-
 static int eeh_reboot_notifier(struct notifier_block *nb,
 			       unsigned long action, void *unused)
 {
@@ -989,54 +939,6 @@ static int eeh_reboot_notifier(struct notifier_block *nb,
 static struct notifier_block eeh_reboot_nb = {
 	.notifier_call = eeh_reboot_notifier,
 };
-
-/**
- * eeh_init - EEH initialization
- *
- * Initialize EEH by trying to enable it for all of the adapters in the system.
- * As a side effect we can determine here if eeh is supported at all.
- * Note that we leave EEH on so failed config cycles won't cause a machine
- * check.  If a user turns off EEH for a particular adapter they are really
- * telling Linux to ignore errors.  Some hardware (e.g. POWER5) won't
- * grant access to a slot if EEH isn't enabled, and so we always enable
- * EEH for all slots/all devices.
- *
- * The eeh-force-off option disables EEH checking globally, for all slots.
- * Even if force-off is set, the EEH hardware is still enabled, so that
- * newer systems can boot.
- */
-static int eeh_init(void)
-{
-	struct pci_controller *hose, *tmp;
-	int ret = 0;
-
-	/* Register reboot notifier */
-	ret = register_reboot_notifier(&eeh_reboot_nb);
-	if (ret) {
-		pr_warn("%s: Failed to register notifier (%d)\n",
-			__func__, ret);
-		return ret;
-	}
-
-	/* call platform initialization function */
-	if (!eeh_ops) {
-		pr_warn("%s: Platform EEH operation not found\n",
-			__func__);
-		return -EEXIST;
-	} else if ((ret = eeh_ops->init()))
-		return ret;
-
-	/* Initialize PHB PEs */
-	list_for_each_entry_safe(hose, tmp, &hose_list, list_node)
-		eeh_phb_pe_create(hose);
-
-	eeh_addr_cache_init();
-
-	/* Initialize EEH event */
-	return eeh_event_init();
-}
-
-core_initcall_sync(eeh_init);
 
 static int eeh_device_notifier(struct notifier_block *nb,
 			       unsigned long action, void *data)
@@ -1062,12 +964,47 @@ static struct notifier_block eeh_device_nb = {
 	.notifier_call = eeh_device_notifier,
 };
 
-static __init int eeh_set_bus_notifier(void)
+/**
+ * eeh_init - System wide EEH initialization
+ *
+ * It's the platform's job to call this from an arch_initcall().
+ */
+int eeh_init(struct eeh_ops *ops)
 {
-	bus_register_notifier(&pci_bus_type, &eeh_device_nb);
-	return 0;
+	struct pci_controller *hose, *tmp;
+	int ret = 0;
+
+	/* the platform should only initialise EEH once */
+	if (WARN_ON(eeh_ops))
+		return -EEXIST;
+	if (WARN_ON(!ops))
+		return -ENOENT;
+	eeh_ops = ops;
+
+	/* Register reboot notifier */
+	ret = register_reboot_notifier(&eeh_reboot_nb);
+	if (ret) {
+		pr_warn("%s: Failed to register reboot notifier (%d)\n",
+			__func__, ret);
+		return ret;
+	}
+
+	ret = bus_register_notifier(&pci_bus_type, &eeh_device_nb);
+	if (ret) {
+		pr_warn("%s: Failed to register bus notifier (%d)\n",
+			__func__, ret);
+		return ret;
+	}
+
+	/* Initialize PHB PEs */
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_node)
+		eeh_phb_pe_create(hose);
+
+	eeh_addr_cache_init();
+
+	/* Initialize EEH event */
+	return eeh_event_init();
 }
-arch_initcall(eeh_set_bus_notifier);
 
 /**
  * eeh_probe_device() - Perform EEH initialization for the indicated pci device
@@ -1720,7 +1657,7 @@ static ssize_t eeh_force_recover_write(struct file *filp,
 		return -ENODEV;
 
 	/* Retrieve PE */
-	pe = eeh_pe_get(hose, pe_no, 0);
+	pe = eeh_pe_get(hose, pe_no);
 	if (!pe)
 		return -ENODEV;
 

@@ -423,9 +423,8 @@ static int ar2315_pci_probe(struct platform_device *pdev)
 		return -EINVAL;
 	apc->irq = irq;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-					   "ar2315-pci-ctrl");
-	apc->mmr_mem = devm_ioremap_resource(dev, res);
+	apc->mmr_mem = devm_platform_ioremap_resource_byname(pdev,
+							     "ar2315-pci-ctrl");
 	if (IS_ERR(apc->mmr_mem))
 		return PTR_ERR(apc->mmr_mem);
 

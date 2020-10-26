@@ -25,6 +25,7 @@ typedef void (*kunit_resource_free_t)(struct kunit_resource *);
 /**
  * struct kunit_resource - represents a *test managed resource*
  * @data: for the user to store arbitrary data.
+ * @name: optional name
  * @free: a user supplied function to free the resource. Populated by
  * kunit_resource_alloc().
  *
@@ -80,10 +81,10 @@ typedef void (*kunit_resource_free_t)(struct kunit_resource *);
  */
 struct kunit_resource {
 	void *data;
-	const char *name;		/* optional name */
+	const char *name;
+	kunit_resource_free_t free;
 
 	/* private: internal use only. */
-	kunit_resource_free_t free;
 	struct kref refcount;
 	struct list_head node;
 };
@@ -348,6 +349,7 @@ static inline void kunit_put_resource(struct kunit_resource *res)
  *        none is supplied, the resource data value is simply set to @data.
  *	  If an init function is supplied, @data is passed to it instead.
  * @free: a user-supplied function to free the resource (if needed).
+ * @res: The resource.
  * @data: value to pass to init function or set in resource data field.
  */
 int kunit_add_resource(struct kunit *test,
@@ -361,7 +363,9 @@ int kunit_add_resource(struct kunit *test,
  * @test: The test context object.
  * @init: a user-supplied function to initialize the resource data, if needed.
  * @free: a user-supplied function to free the resource data, if needed.
- * @name_data: name and data to be set for resource.
+ * @res: The resource.
+ * @name: name to be set for resource.
+ * @data: value to pass to init function or set in resource data field.
  */
 int kunit_add_named_resource(struct kunit *test,
 			     kunit_resource_init_t init,
@@ -499,8 +503,8 @@ static inline int kunit_destroy_named_resource(struct kunit *test,
 }
 
 /**
- * kunit_remove_resource: remove resource from resource list associated with
- *			  test.
+ * kunit_remove_resource() - remove resource from resource list associated with
+ *			     test.
  * @test: The test context object.
  * @res: The resource to be removed.
  *

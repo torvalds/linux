@@ -1503,6 +1503,49 @@ static noinline void check_store_range(struct xarray *xa)
 	}
 }
 
+#ifdef CONFIG_XARRAY_MULTI
+static void check_split_1(struct xarray *xa, unsigned long index,
+							unsigned int order)
+{
+	XA_STATE(xas, xa, index);
+	void *entry;
+	unsigned int i = 0;
+
+	xa_store_order(xa, index, order, xa, GFP_KERNEL);
+
+	xas_split_alloc(&xas, xa, order, GFP_KERNEL);
+	xas_lock(&xas);
+	xas_split(&xas, xa, order);
+	xas_unlock(&xas);
+
+	xa_for_each(xa, index, entry) {
+		XA_BUG_ON(xa, entry != xa);
+		i++;
+	}
+	XA_BUG_ON(xa, i != 1 << order);
+
+	xa_set_mark(xa, index, XA_MARK_0);
+	XA_BUG_ON(xa, !xa_get_mark(xa, index, XA_MARK_0));
+
+	xa_destroy(xa);
+}
+
+static noinline void check_split(struct xarray *xa)
+{
+	unsigned int order;
+
+	XA_BUG_ON(xa, !xa_empty(xa));
+
+	for (order = 1; order < 2 * XA_CHUNK_SHIFT; order++) {
+		check_split_1(xa, 0, order);
+		check_split_1(xa, 1UL << order, order);
+		check_split_1(xa, 3UL << order, order);
+	}
+}
+#else
+static void check_split(struct xarray *xa) { }
+#endif
+
 static void check_align_1(struct xarray *xa, char *name)
 {
 	int i;
@@ -1649,6 +1692,26 @@ static noinline void check_account(struct xarray *xa)
 #endif
 }
 
+static noinline void check_get_order(struct xarray *xa)
+{
+	unsigned int max_order = IS_ENABLED(CONFIG_XARRAY_MULTI) ? 20 : 1;
+	unsigned int order;
+	unsigned long i, j;
+
+	for (i = 0; i < 3; i++)
+		XA_BUG_ON(xa, xa_get_order(xa, i) != 0);
+
+	for (order = 0; order < max_order; order++) {
+		for (i = 0; i < 10; i++) {
+			xa_store_order(xa, i << order, order,
+					xa_mk_index(i << order), GFP_KERNEL);
+			for (j = i << order; j < (i + 1) << order; j++)
+				XA_BUG_ON(xa, xa_get_order(xa, j) != order);
+			xa_erase(xa, i << order);
+		}
+	}
+}
+
 static noinline void check_destroy(struct xarray *xa)
 {
 	unsigned long index;
@@ -1697,6 +1760,7 @@ static int xarray_checks(void)
 	check_reserve(&array);
 	check_reserve(&xa0);
 	check_multi_store(&array);
+	check_get_order(&array);
 	check_xa_alloc();
 	check_find(&array);
 	check_find_entry(&array);
@@ -1708,6 +1772,7 @@ static int xarray_checks(void)
 	check_store_range(&array);
 	check_store_iter(&array);
 	check_align(&xa0);
+	check_split(&array);
 
 	check_workingset(&array, 0);
 	check_workingset(&array, 64);

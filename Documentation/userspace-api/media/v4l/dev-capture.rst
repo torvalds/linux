@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _capture:
 
@@ -19,7 +20,6 @@ device.
 
 .. note:: The same device file names are used for video output devices.
 
-
 Querying Capabilities
 =====================
 
@@ -34,7 +34,6 @@ functions they may also support the :ref:`video overlay <overlay>`
 streaming I/O methods must be supported. Tuners and audio inputs are
 optional.
 
-
 Supplemental Functions
 ======================
 
@@ -45,7 +44,6 @@ Video capture devices shall support :ref:`audio input <audio>`,
 :ref:`video input <video>` ioctls must be supported by all video
 capture devices.
 
-
 Image Format Negotiation
 ========================
 
@@ -55,7 +53,7 @@ capture, the latter how images are stored in memory, i. e. in RGB or YUV
 format, the number of bits per pixel or width and height. Together they
 also define how images are scaled in the process.
 
-As usual these parameters are *not* reset at :ref:`open() <func-open>`
+As usual these parameters are *not* reset at :c:func:`open()`
 time to permit Unix tool chains, programming a device and then reading
 from it as if it was a plain file. Well written V4L2 applications ensure
 they really get what they want, including cropping and scaling.
@@ -94,7 +92,6 @@ details. Video capture devices must implement both the :ref:`VIDIOC_G_FMT <VIDIO
 and :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl, even if :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ignores all
 requests and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does.
 :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` is optional.
-
 
 Reading Images
 ==============

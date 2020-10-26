@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.audio
 
 .. _AUDIO_PLAY:
 
@@ -16,9 +17,9 @@ AUDIO_PLAY
 Synopsis
 --------
 
-.. c:function:: int  ioctl(int fd, AUDIO_PLAY)
-    :name: AUDIO_PLAY
+.. c:macro:: AUDIO_PLAY
 
+``int ioctl(int fd, AUDIO_PLAY)``
 
 Arguments
 ---------
@@ -26,7 +27,6 @@ Arguments
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -  .. row 1
 
@@ -39,7 +39,6 @@ Description
 
 This ioctl call asks the Audio Device to start playing an audio stream
 from the selected source.
-
 
 Return Value
 ------------

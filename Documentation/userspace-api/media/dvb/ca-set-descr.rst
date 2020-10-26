@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.ca
 
 .. _CA_SET_DESCR:
 
@@ -11,19 +12,18 @@ Name
 
 CA_SET_DESCR
 
-
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, CA_SET_DESCR, struct ca_descr *desc)
-    :name: CA_SET_DESCR
+.. c:macro:: CA_SET_DESCR
 
+``int ioctl(fd, CA_SET_DESCR, struct ca_descr *desc)``
 
 Arguments
 ---------
 
 ``fd``
-  File descriptor returned by a previous call to :c:func:`open() <cec-open>`.
+  File descriptor returned by a previous call to :c:func:`open()`.
 
 ``msg``
   Pointer to struct :c:type:`ca_descr`.

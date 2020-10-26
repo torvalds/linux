@@ -267,7 +267,7 @@ flush_write_buffer(struct file *file, struct configfs_buffer *buffer, size_t cou
  *	There is no easy way for us to know if userspace is only doing a partial
  *	write, so we don't support them. We expect the entire buffer to come
  *	on the first write.
- *	Hint: if you're writing a value, first read the file, modify only the
+ *	Hint: if you're writing a value, first read the file, modify only
  *	the value you're changing, then write entire buffer back.
  */
 

@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.audio
 
 .. _AUDIO_SELECT_SOURCE:
 
@@ -16,9 +17,9 @@ AUDIO_SELECT_SOURCE
 Synopsis
 --------
 
-.. c:function:: int ioctl(int fd, AUDIO_SELECT_SOURCE, struct audio_stream_source *source)
-    :name: AUDIO_SELECT_SOURCE
+.. c:macro:: AUDIO_SELECT_SOURCE
 
+``int ioctl(int fd, AUDIO_SELECT_SOURCE, struct audio_stream_source *source)``
 
 Arguments
 ---------
@@ -26,7 +27,6 @@ Arguments
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -
 
@@ -40,7 +40,6 @@ Arguments
 
        -  Indicates the source that shall be used for the Audio stream.
 
-
 Description
 -----------
 
@@ -48,7 +47,6 @@ This ioctl call informs the audio device which source shall be used for
 the input data. The possible sources are demux or memory. If
 AUDIO_SOURCE_MEMORY is selected, the data is fed to the Audio Device
 through the write command.
-
 
 Return Value
 ------------

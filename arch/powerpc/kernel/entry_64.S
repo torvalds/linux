@@ -430,7 +430,11 @@ _ASM_NOKPROBE_SYMBOL(save_nvgprs);
 
 #define FLUSH_COUNT_CACHE	\
 1:	nop;			\
-	patch_site 1b, patch__call_flush_branch_caches
+	patch_site 1b, patch__call_flush_branch_caches1; \
+1:	nop;			\
+	patch_site 1b, patch__call_flush_branch_caches2; \
+1:	nop;			\
+	patch_site 1b, patch__call_flush_branch_caches3
 
 .macro nops number
 	.rept \number
@@ -512,7 +516,7 @@ _GLOBAL(_switch)
 
 	kuap_check_amr r9, r10
 
-	FLUSH_COUNT_CACHE
+	FLUSH_COUNT_CACHE	/* Clobbers r9, ctr */
 
 	/*
 	 * On SMP kernels, care must be taken because a task may be

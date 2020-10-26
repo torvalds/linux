@@ -204,7 +204,7 @@ void __set_page_owner_migrate_reason(struct page *page, int reason)
 	page_owner->last_migrate_reason = reason;
 }
 
-void __split_page_owner(struct page *page, unsigned int order)
+void __split_page_owner(struct page *page, unsigned int nr)
 {
 	int i;
 	struct page_ext *page_ext = lookup_page_ext(page);
@@ -213,7 +213,7 @@ void __split_page_owner(struct page *page, unsigned int order)
 	if (unlikely(!page_ext))
 		return;
 
-	for (i = 0; i < (1 << order); i++) {
+	for (i = 0; i < nr; i++) {
 		page_owner = get_page_owner(page_ext);
 		page_owner->order = 0;
 		page_ext = page_ext_next(page_ext);
@@ -295,7 +295,7 @@ void pagetypeinfo_showmixedcount_print(struct seq_file *m,
 			if (PageBuddy(page)) {
 				unsigned long freepage_order;
 
-				freepage_order = page_order_unsafe(page);
+				freepage_order = buddy_order_unsafe(page);
 				if (freepage_order < MAX_ORDER)
 					pfn += (1UL << freepage_order) - 1;
 				continue;
@@ -490,7 +490,7 @@ read_page_owner(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 
 		page = pfn_to_page(pfn);
 		if (PageBuddy(page)) {
-			unsigned long freepage_order = page_order_unsafe(page);
+			unsigned long freepage_order = buddy_order_unsafe(page);
 
 			if (freepage_order < MAX_ORDER)
 				pfn += (1UL << freepage_order) - 1;
@@ -584,7 +584,7 @@ static void init_pages_in_zone(pg_data_t *pgdat, struct zone *zone)
 			 * heavy lock contention.
 			 */
 			if (PageBuddy(page)) {
-				unsigned long order = page_order_unsafe(page);
+				unsigned long order = buddy_order_unsafe(page);
 
 				if (order > 0 && order < MAX_ORDER)
 					pfn += (1UL << order) - 1;

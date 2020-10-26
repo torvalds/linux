@@ -2,6 +2,8 @@
 ..
 .. Copyright 2019 Google LLC
 ..
+.. c:namespace:: CEC
+
 .. _CEC_ADAP_G_CONNECTOR_INFO:
 
 *******************************
@@ -16,17 +18,17 @@ CEC_ADAP_G_CONNECTOR_INFO - Query HDMI connector information
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, CEC_ADAP_G_CONNECTOR_INFO, struct cec_connector_info *argp )
-    :name: CEC_ADAP_G_CONNECTOR_INFO
+.. c:macro:: CEC_ADAP_G_CONNECTOR_INFO
+
+``int ioctl(int fd, CEC_ADAP_G_CONNECTOR_INFO, struct cec_connector_info *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :c:func:`open() <cec-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
-
 
 Description
 ===========
@@ -56,7 +58,6 @@ is only available if the ``CEC_CAP_CONNECTOR_INFO`` capability is set.
       - :ref:`cec-drm-connector-info`
     * - }
       -
-
 
 .. tabularcolumns:: |p{4.4cm}|p{2.5cm}|p{10.6cm}|
 

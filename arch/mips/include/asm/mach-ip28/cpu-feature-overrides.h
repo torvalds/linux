@@ -25,7 +25,7 @@
 #define cpu_has_mcheck		0
 #define cpu_has_ejtag		0
 
-#define cpu_has_llsc		1
+#define cpu_has_llsc		0
 #define cpu_has_vtag_icache	0
 #define cpu_has_dc_aliases	0 /* see probe_pcache() */
 #define cpu_has_ic_fills_f_dc	0

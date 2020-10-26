@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: RC
 
 .. _lirc_set_rec_timeout:
 .. _lirc_get_rec_timeout:
@@ -15,11 +16,13 @@ LIRC_GET_REC_TIMEOUT/LIRC_SET_REC_TIMEOUT - Get/set the integer value for IR ina
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, LIRC_GET_REC_TIMEOUT, __u32 *timeout )
-    :name: LIRC_GET_REC_TIMEOUT
+.. c:macro:: LIRC_GET_REC_TIMEOUT
 
-.. c:function:: int ioctl( int fd, LIRC_SET_REC_TIMEOUT, __u32 *timeout )
-    :name: LIRC_SET_REC_TIMEOUT
+``int ioctl(int fd, LIRC_GET_REC_TIMEOUT, __u32 *timeout)``
+
+.. c:macro:: LIRC_SET_REC_TIMEOUT
+
+``int ioctl(int fd, LIRC_SET_REC_TIMEOUT, __u32 *timeout)``
 
 Arguments
 =========
@@ -29,7 +32,6 @@ Arguments
 
 ``timeout``
     Timeout, in microseconds.
-
 
 Description
 ===========
@@ -44,7 +46,6 @@ given value should be set.
 .. note::
 
    The range of supported timeout is given by :ref:`LIRC_GET_MIN_TIMEOUT`.
-
 
 Return Value
 ============

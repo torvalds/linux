@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_G_FREQUENCY:
 
@@ -11,26 +12,25 @@ Name
 
 VIDIOC_G_FREQUENCY - VIDIOC_S_FREQUENCY - Get or set tuner or modulator radio frequency
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_G_FREQUENCY, struct v4l2_frequency *argp )
-    :name: VIDIOC_G_FREQUENCY
+.. c:macro:: VIDIOC_G_FREQUENCY
 
-.. c:function:: int ioctl( int fd, VIDIOC_S_FREQUENCY, const struct v4l2_frequency *argp )
-    :name: VIDIOC_S_FREQUENCY
+``int ioctl(int fd, VIDIOC_G_FREQUENCY, struct v4l2_frequency *argp)``
 
+.. c:macro:: VIDIOC_S_FREQUENCY
+
+``int ioctl(int fd, VIDIOC_S_FREQUENCY, const struct v4l2_frequency *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`v4l2_frequency`.
-
 
 Description
 ===========
@@ -50,7 +50,6 @@ and call the :ref:`VIDIOC_S_FREQUENCY <VIDIOC_G_FREQUENCY>` ioctl with a pointer
 structure. When the requested frequency is not possible the driver
 assumes the closest possible value. However :ref:`VIDIOC_S_FREQUENCY <VIDIOC_G_FREQUENCY>` is a
 write-only ioctl, it does not return the actual new frequency.
-
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
@@ -88,7 +87,6 @@ write-only ioctl, it does not return the actual new frequency.
       - ``reserved``\ [8]
       - Reserved for future extensions. Drivers and applications must set
 	the array to zero.
-
 
 Return Value
 ============

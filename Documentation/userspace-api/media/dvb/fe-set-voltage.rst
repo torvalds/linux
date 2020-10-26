@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.fe
 
 .. _FE_SET_VOLTAGE:
 
@@ -11,23 +12,21 @@ Name
 
 FE_SET_VOLTAGE - Allow setting the DC level sent to the antenna subsystem.
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, FE_SET_VOLTAGE, enum fe_sec_voltage voltage )
-    :name: FE_SET_VOLTAGE
+.. c:macro:: FE_SET_VOLTAGE
 
+``int ioctl(int fd, FE_SET_VOLTAGE, enum fe_sec_voltage voltage)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <frontend_f_open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``voltage``
     an integer enumered value described at :c:type:`fe_sec_voltage`
-
 
 Description
 ===========
@@ -48,7 +47,6 @@ power up the LNBf.
    the capability of setting polarization or IF. So, on those cases, setting
    the voltage to SEC_VOLTAGE_OFF while the device is not is used is
    recommended.
-
 
 Return Value
 ============

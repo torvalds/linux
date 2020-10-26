@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_ENUMSTD:
 
@@ -11,26 +12,25 @@ Name
 
 VIDIOC_ENUMSTD - VIDIOC_SUBDEV_ENUMSTD - Enumerate supported video standards
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_ENUMSTD, struct v4l2_standard *argp )
-    :name: VIDIOC_ENUMSTD
+.. c:macro:: VIDIOC_ENUMSTD
 
-.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_ENUMSTD, struct v4l2_standard *argp )
-    :name: VIDIOC_SUBDEV_ENUMSTD
+``int ioctl(int fd, VIDIOC_ENUMSTD, struct v4l2_standard *argp)``
 
+.. c:macro:: VIDIOC_SUBDEV_ENUMSTD
+
+``int ioctl(int fd, VIDIOC_SUBDEV_ENUMSTD, struct v4l2_standard *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`v4l2_standard`.
-
 
 Description
 ===========
@@ -44,7 +44,6 @@ bounds. To enumerate all standards applications shall begin at index
 zero, incrementing by one until the driver returns ``EINVAL``. Drivers may
 enumerate a different set of standards after switching the video input
 or output. [#f1]_
-
 
 .. c:type:: v4l2_standard
 
@@ -85,7 +84,6 @@ or output. [#f1]_
 	zero.
 
 
-
 .. c:type:: v4l2_fract
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
@@ -102,7 +100,6 @@ or output. [#f1]_
       - ``denominator``
       -
 
-
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. _v4l2-std-id:
@@ -118,7 +115,6 @@ or output. [#f1]_
 	as listed below and in :ref:`video-standards`. The 32 most
 	significant bits are reserved for custom (driver defined) video
 	standards.
-
 
 
 .. code-block:: c
@@ -142,7 +138,6 @@ rate, and PAL color modulation with a 4.43 MHz color subcarrier. Some
 PAL video recorders can play back NTSC tapes in this mode for display on
 a 50/60 Hz agnostic PAL TV.
 
-
 .. code-block:: c
 
     #define V4L2_STD_NTSC_M         ((v4l2_std_id)0x00001000)
@@ -151,7 +146,6 @@ a 50/60 Hz agnostic PAL TV.
 
 ``V4L2_STD_NTSC_443`` is a hybrid standard with 525 lines, 60 Hz refresh
 rate, and NTSC color modulation with a 4.43 MHz color subcarrier.
-
 
 .. code-block:: c
 
@@ -174,7 +168,6 @@ rate, and NTSC color modulation with a 4.43 MHz color subcarrier.
 terrestrial digital TV standards. Presently the V4L2 API does not
 support digital TV. See also the Linux DVB API at
 `https://linuxtv.org <https://linuxtv.org>`__.
-
 
 .. code-block:: c
 
@@ -227,7 +220,6 @@ support digital TV. See also the Linux DVB API at
     #define V4L2_STD_UNKNOWN        0
     #define V4L2_STD_ALL            (V4L2_STD_525_60        |
 		     V4L2_STD_625_50)
-
 
 .. raw:: latex
 
@@ -301,7 +293,6 @@ support digital TV. See also the Linux DVB API at
 .. raw:: latex
 
     \endgroup
-
 
 
 Return Value

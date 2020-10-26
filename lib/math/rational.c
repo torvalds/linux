@@ -11,7 +11,7 @@
 #include <linux/rational.h>
 #include <linux/compiler.h>
 #include <linux/export.h>
-#include <linux/kernel.h>
+#include <linux/minmax.h>
 
 /*
  * calculate best rational approximation for a given fraction

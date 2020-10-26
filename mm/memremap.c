@@ -266,7 +266,8 @@ static int pagemap_range(struct dev_pagemap *pgmap, struct mhp_params *params,
 
 		zone = &NODE_DATA(nid)->node_zones[ZONE_DEVICE];
 		move_pfn_range_to_zone(zone, PHYS_PFN(range->start),
-				PHYS_PFN(range_len(range)), params->altmap);
+				PHYS_PFN(range_len(range)), params->altmap,
+				MIGRATE_MOVABLE);
 	}
 
 	mem_hotplug_done();

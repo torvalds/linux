@@ -430,30 +430,44 @@ device_initcall(stf_barrier_debugfs_init);
 
 static void update_branch_cache_flush(void)
 {
+	u32 *site;
+
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+	site = &patch__call_kvm_flush_link_stack;
 	// This controls the branch from guest_exit_cont to kvm_flush_link_stack
 	if (link_stack_flush_type == BRANCH_CACHE_FLUSH_NONE) {
-		patch_instruction_site(&patch__call_kvm_flush_link_stack,
-				       ppc_inst(PPC_INST_NOP));
+		patch_instruction_site(site, ppc_inst(PPC_INST_NOP));
 	} else {
 		// Could use HW flush, but that could also flush count cache
-		patch_branch_site(&patch__call_kvm_flush_link_stack,
-				  (u64)&kvm_flush_link_stack, BRANCH_SET_LINK);
+		patch_branch_site(site, (u64)&kvm_flush_link_stack, BRANCH_SET_LINK);
 	}
 #endif
+
+	// Patch out the bcctr first, then nop the rest
+	site = &patch__call_flush_branch_caches3;
+	patch_instruction_site(site, ppc_inst(PPC_INST_NOP));
+	site = &patch__call_flush_branch_caches2;
+	patch_instruction_site(site, ppc_inst(PPC_INST_NOP));
+	site = &patch__call_flush_branch_caches1;
+	patch_instruction_site(site, ppc_inst(PPC_INST_NOP));
 
 	// This controls the branch from _switch to flush_branch_caches
 	if (count_cache_flush_type == BRANCH_CACHE_FLUSH_NONE &&
 	    link_stack_flush_type == BRANCH_CACHE_FLUSH_NONE) {
-		patch_instruction_site(&patch__call_flush_branch_caches,
-				       ppc_inst(PPC_INST_NOP));
+		// Nothing to be done
+
 	} else if (count_cache_flush_type == BRANCH_CACHE_FLUSH_HW &&
 		   link_stack_flush_type == BRANCH_CACHE_FLUSH_HW) {
-		patch_instruction_site(&patch__call_flush_branch_caches,
-				       ppc_inst(PPC_INST_BCCTR_FLUSH));
+		// Patch in the bcctr last
+		site = &patch__call_flush_branch_caches1;
+		patch_instruction_site(site, ppc_inst(0x39207fff)); // li r9,0x7fff
+		site = &patch__call_flush_branch_caches2;
+		patch_instruction_site(site, ppc_inst(0x7d2903a6)); // mtctr r9
+		site = &patch__call_flush_branch_caches3;
+		patch_instruction_site(site, ppc_inst(PPC_INST_BCCTR_FLUSH));
+
 	} else {
-		patch_branch_site(&patch__call_flush_branch_caches,
-				  (u64)&flush_branch_caches, BRANCH_SET_LINK);
+		patch_branch_site(site, (u64)&flush_branch_caches, BRANCH_SET_LINK);
 
 		// If we just need to flush the link stack, early return
 		if (count_cache_flush_type == BRANCH_CACHE_FLUSH_NONE) {

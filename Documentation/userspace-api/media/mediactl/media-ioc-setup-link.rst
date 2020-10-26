@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: MC
 
 .. _media_ioc_setup_link:
 
@@ -11,23 +12,21 @@ Name
 
 MEDIA_IOC_SETUP_LINK - Modify the properties of a link
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, MEDIA_IOC_SETUP_LINK, struct media_link_desc *argp )
-    :name: MEDIA_IOC_SETUP_LINK
+.. c:macro:: MEDIA_IOC_SETUP_LINK
 
+``int ioctl(int fd, MEDIA_IOC_SETUP_LINK, struct media_link_desc *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <media-func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`media_link_desc`.
-
 
 Description
 ===========
@@ -52,7 +51,6 @@ non-dynamic link will return an ``EBUSY`` error code.
 
 If the specified link can't be found the driver returns with an ``EINVAL``
 error code.
-
 
 Return Value
 ============

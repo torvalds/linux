@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.video
 
 .. _VIDEO_STOP:
 
@@ -16,9 +17,9 @@ VIDEO_STOP
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, VIDEO_STOP, boolean mode)
-    :name: VIDEO_STOP
+.. c:macro:: VIDEO_STOP
 
+``int ioctl(fd, VIDEO_STOP, boolean mode)``
 
 Arguments
 ---------
@@ -26,7 +27,6 @@ Arguments
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -  .. row 1
 
@@ -56,7 +56,6 @@ Arguments
        -
        -  FALSE: Show last decoded frame.
 
-
 Description
 -----------
 
@@ -66,7 +65,6 @@ V4L2 :ref:`VIDIOC_DECODER_CMD` instead.
 This ioctl call asks the Video Device to stop playing the current
 stream. Depending on the input parameter, the screen can be blanked out
 or displaying the last decoded frame.
-
 
 Return Value
 ------------

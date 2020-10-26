@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.fe
 
 .. _FE_GET_INFO:
 
@@ -12,23 +13,21 @@ Name
 FE_GET_INFO - Query Digital TV frontend capabilities and returns information
 about the - front-end. This call only requires read-only access to the device.
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, FE_GET_INFO, struct dvb_frontend_info *argp )
-    :name: FE_GET_INFO
+.. c:macro:: FE_GET_INFO
 
+``int ioctl(int fd, FE_GET_INFO, struct dvb_frontend_info *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <frontend_f_open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     pointer to struct :c:type:`dvb_frontend_info`
-
 
 Description
 ===========
@@ -40,7 +39,6 @@ takes a pointer to dvb_frontend_info which is filled by the driver.
 When the driver is not compatible with this specification the ioctl
 returns an error.
 
-
 frontend capabilities
 =====================
 
@@ -48,7 +46,6 @@ Capabilities describe what a frontend can do. Some capabilities are
 supported only on some specific frontend types.
 
 The frontend capabilities are described at :c:type:`fe_caps`.
-
 
 Return Value
 ============
