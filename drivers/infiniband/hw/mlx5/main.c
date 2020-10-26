@@ -4802,13 +4802,13 @@ static int __init mlx5_ib_init(void)
 {
 	int err;
 
-	xlt_emergency_page = __get_free_page(GFP_KERNEL);
+	xlt_emergency_page = (void *)__get_free_page(GFP_KERNEL);
 	if (!xlt_emergency_page)
 		return -ENOMEM;
 
 	mlx5_ib_event_wq = alloc_ordered_workqueue("mlx5_ib_event_wq", 0);
 	if (!mlx5_ib_event_wq) {
-		free_page(xlt_emergency_page);
+		free_page((unsigned long)xlt_emergency_page);
 		return -ENOMEM;
 	}
 
@@ -4823,7 +4823,7 @@ static void __exit mlx5_ib_cleanup(void)
 {
 	mlx5_unregister_interface(&mlx5_ib_interface);
 	destroy_workqueue(mlx5_ib_event_wq);
-	free_page(xlt_emergency_page);
+	free_page((unsigned long)xlt_emergency_page);
 }
 
 module_init(mlx5_ib_init);
