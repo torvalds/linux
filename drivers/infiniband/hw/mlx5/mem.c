@@ -41,12 +41,9 @@
  * @max_page_shift: high limit for page_shift - 0 means no limit
  * @count: number of PAGE_SIZE pages covered by umem
  * @shift: page shift for the compound pages found in the region
- * @ncont: number of compund pages
  */
 void mlx5_ib_cont_pages(struct ib_umem *umem, u64 addr,
-			unsigned long max_page_shift,
-			int *count, int *shift,
-			int *ncont)
+			unsigned long max_page_shift, int *count, int *shift)
 {
 	unsigned long tmp;
 	unsigned long m;
@@ -60,8 +57,7 @@ void mlx5_ib_cont_pages(struct ib_umem *umem, u64 addr,
 		struct ib_umem_odp *odp = to_ib_umem_odp(umem);
 
 		*shift = odp->page_shift;
-		*ncont = ib_umem_odp_num_pages(odp);
-		*count = *ncont << (*shift - PAGE_SHIFT);
+		*count = ib_umem_num_pages(umem);
 		return;
 	}
 
@@ -90,13 +86,10 @@ void mlx5_ib_cont_pages(struct ib_umem *umem, u64 addr,
 		i += len;
 	}
 
-	if (i) {
+	if (i)
 		m = min_t(unsigned long, ilog2(roundup_pow_of_two(i)), m);
-		*ncont = DIV_ROUND_UP(i, (1 << m));
-	} else {
+	else
 		m  = 0;
-		*ncont = 0;
-	}
 	*shift = PAGE_SHIFT + m;
 	*count = i;
 }

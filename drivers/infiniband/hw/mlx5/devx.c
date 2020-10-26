@@ -95,7 +95,6 @@ struct devx_umem {
 	struct ib_umem			*umem;
 	u32				page_offset;
 	int				page_shift;
-	int				ncont;
 	u32				dinlen;
 	u32				dinbox[MLX5_ST_SZ_DW(general_obj_in_cmd_hdr)];
 };
@@ -2083,7 +2082,7 @@ static int devx_umem_get(struct mlx5_ib_dev *dev, struct ib_ucontext *ucontext,
 
 	mlx5_ib_cont_pages(obj->umem, obj->umem->address,
 			   MLX5_MKEY_PAGE_SHIFT_MASK, &npages,
-			   &obj->page_shift, &obj->ncont);
+			   &obj->page_shift);
 
 	if (!npages) {
 		ib_umem_release(obj->umem);
@@ -2100,8 +2099,10 @@ static int devx_umem_reg_cmd_alloc(struct uverbs_attr_bundle *attrs,
 				   struct devx_umem *obj,
 				   struct devx_umem_reg_cmd *cmd)
 {
-	cmd->inlen = MLX5_ST_SZ_BYTES(create_umem_in) +
-		    (MLX5_ST_SZ_BYTES(mtt) * obj->ncont);
+	cmd->inlen =
+		MLX5_ST_SZ_BYTES(create_umem_in) +
+		(MLX5_ST_SZ_BYTES(mtt) *
+		 ib_umem_num_dma_blocks(obj->umem, 1UL << obj->page_shift));
 	cmd->in = uverbs_zalloc(attrs, cmd->inlen);
 	return PTR_ERR_OR_ZERO(cmd->in);
 }
@@ -2117,7 +2118,8 @@ static void devx_umem_reg_cmd_build(struct mlx5_ib_dev *dev,
 	mtt = (__be64 *)MLX5_ADDR_OF(umem, umem, mtt);
 
 	MLX5_SET(create_umem_in, cmd->in, opcode, MLX5_CMD_OP_CREATE_UMEM);
-	MLX5_SET64(umem, umem, num_of_mtt, obj->ncont);
+	MLX5_SET64(umem, umem, num_of_mtt,
+		   ib_umem_num_dma_blocks(obj->umem, 1UL << obj->page_shift));
 	MLX5_SET(umem, umem, log_page_size, obj->page_shift -
 					    MLX5_ADAPTER_PAGE_SHIFT);
 	MLX5_SET(umem, umem, page_offset, obj->page_offset);

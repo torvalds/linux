@@ -746,8 +746,9 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 	if (err)
 		goto err_umem;
 
-	mlx5_ib_cont_pages(cq->buf.umem, ucmd.buf_addr, 0, &npages, &page_shift,
-			   &ncont);
+	mlx5_ib_cont_pages(cq->buf.umem, ucmd.buf_addr, 0, &npages,
+			   &page_shift);
+	ncont = ib_umem_num_dma_blocks(cq->buf.umem, 1UL << page_shift);
 	mlx5_ib_dbg(dev, "addr 0x%llx, size %u, npages %d, page_shift %d, ncont %d\n",
 		    ucmd.buf_addr, entries * ucmd.cqe_size, npages, page_shift, ncont);
 
@@ -1128,7 +1129,7 @@ int mlx5_ib_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period)
 }
 
 static int resize_user(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
-		       int entries, struct ib_udata *udata, int *npas,
+		       int entries, struct ib_udata *udata,
 		       int *page_shift, int *cqe_size)
 {
 	struct mlx5_ib_resize_cq ucmd;
@@ -1155,7 +1156,7 @@ static int resize_user(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
 		return err;
 	}
 
-	mlx5_ib_cont_pages(umem, ucmd.buf_addr, 0, &npages, page_shift, npas);
+	mlx5_ib_cont_pages(umem, ucmd.buf_addr, 0, &npages, page_shift);
 
 	cq->resize_umem = umem;
 	*cqe_size = ucmd.cqe_size;
@@ -1276,21 +1277,22 @@ int mlx5_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 
 	mutex_lock(&cq->resize_mutex);
 	if (udata) {
-		err = resize_user(dev, cq, entries, udata, &npas, &page_shift,
+		err = resize_user(dev, cq, entries, udata, &page_shift,
 				  &cqe_size);
+		if (err)
+			goto ex;
+		npas = ib_umem_num_dma_blocks(cq->resize_umem, 1UL << page_shift);
 	} else {
+		struct mlx5_frag_buf *frag_buf;
+
 		cqe_size = 64;
 		err = resize_kernel(dev, cq, entries, cqe_size);
-		if (!err) {
-			struct mlx5_frag_buf *frag_buf = &cq->resize_buf->frag_buf;
-
-			npas = frag_buf->npages;
-			page_shift = frag_buf->page_shift;
-		}
+		if (err)
+			goto ex;
+		frag_buf = &cq->resize_buf->frag_buf;
+		npas = frag_buf->npages;
+		page_shift = frag_buf->page_shift;
 	}
-
-	if (err)
-		goto ex;
 
 	inlen = MLX5_ST_SZ_BYTES(modify_cq_in) +
 		MLX5_FLD_SZ_BYTES(modify_cq_in, pas[0]) * npas;
