@@ -83,18 +83,6 @@ static inline bool is_kernel_in_hyp_mode(void)
 	return read_sysreg(CurrentEL) == CurrentEL_EL2;
 }
 
-static __always_inline bool is_vhe_hyp_code(void)
-{
-	/* Only defined for code run in VHE hyp context */
-	return __is_defined(__KVM_VHE_HYPERVISOR__);
-}
-
-static __always_inline bool is_nvhe_hyp_code(void)
-{
-	/* Only defined for code run in NVHE hyp context */
-	return __is_defined(__KVM_NVHE_HYPERVISOR__);
-}
-
 static __always_inline bool has_vhe(void)
 {
 	/*
