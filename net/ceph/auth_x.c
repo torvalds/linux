@@ -1058,7 +1058,6 @@ static int ceph_x_check_message_signature(struct ceph_auth_handshake *auth,
 }
 
 static const struct ceph_auth_client_ops ceph_x_ops = {
-	.name = "x",
 	.is_authenticated = ceph_x_is_authenticated,
 	.should_authenticate = ceph_x_should_authenticate,
 	.build_request = ceph_x_build_request,

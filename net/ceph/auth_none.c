@@ -118,7 +118,6 @@ static int ceph_auth_none_create_authorizer(
 }
 
 static const struct ceph_auth_client_ops ceph_auth_none_ops = {
-	.name = "none",
 	.reset = reset,
 	.destroy = destroy,
 	.is_authenticated = is_authenticated,
