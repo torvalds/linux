@@ -840,7 +840,6 @@ poly1305_blocks_neon:
 	 ldp	d14,d15,[sp,#64]
 	addp	$ACC2,$ACC2,$ACC2
 	 ldr	x30,[sp,#8]
-	 .inst	0xd50323bf		// autiasp
 
 	////////////////////////////////////////////////////////////////
 	// lazy reduction, but without narrowing
@@ -882,6 +881,7 @@ poly1305_blocks_neon:
 	str	x4,[$ctx,#8]		// set is_base2_26
 
 	ldr	x29,[sp],#80
+	 .inst	0xd50323bf		// autiasp
 	ret
 .size	poly1305_blocks_neon,.-poly1305_blocks_neon
 
