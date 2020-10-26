@@ -13,7 +13,7 @@
 #include "linux/fsl/mc.h"
 #include "vfio_fsl_mc_private.h"
 
-int vfio_fsl_mc_irqs_allocate(struct vfio_fsl_mc_device *vdev)
+static int vfio_fsl_mc_irqs_allocate(struct vfio_fsl_mc_device *vdev)
 {
 	struct fsl_mc_device *mc_dev = vdev->mc_dev;
 	struct vfio_fsl_mc_irq *mc_irq;
