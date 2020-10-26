@@ -135,23 +135,8 @@ try_again:
 		if (!test_bit(AFS_VNODE_NEW_CONTENT, &vnode->flags) &&
 		    (to < f || from > t))
 			goto flush_conflicting_write;
-		if (from < f)
-			f = from;
-		if (to > t)
-			t = to;
-	} else {
-		f = from;
-		t = to;
 	}
 
-	priv = (unsigned long)t << AFS_PRIV_SHIFT;
-	priv |= f;
-	trace_afs_page_dirty(vnode, tracepoint_string("begin"),
-			     page->index, priv);
-	if (PagePrivate(page))
-		set_page_private(page, priv);
-	else
-		attach_page_private(page, (void *)priv);
 	*_page = page;
 	_leave(" = 0");
 	return 0;
@@ -185,6 +170,9 @@ int afs_write_end(struct file *file, struct address_space *mapping,
 {
 	struct afs_vnode *vnode = AFS_FS_I(file_inode(file));
 	struct key *key = afs_file_key(file);
+	unsigned long priv;
+	unsigned int f, from = pos & (PAGE_SIZE - 1);
+	unsigned int t, to = from + copied;
 	loff_t i_size, maybe_i_size;
 	int ret;
 
@@ -214,6 +202,29 @@ int afs_write_end(struct file *file, struct address_space *mapping,
 				goto out;
 		}
 		SetPageUptodate(page);
+	}
+
+	if (PagePrivate(page)) {
+		priv = page_private(page);
+		f = priv & AFS_PRIV_MAX;
+		t = priv >> AFS_PRIV_SHIFT;
+		if (from < f)
+			f = from;
+		if (to > t)
+			t = to;
+		priv = (unsigned long)t << AFS_PRIV_SHIFT;
+		priv |= f;
+		set_page_private(page, priv);
+		trace_afs_page_dirty(vnode, tracepoint_string("dirty+"),
+				     page->index, priv);
+	} else {
+		f = from;
+		t = to;
+		priv = (unsigned long)t << AFS_PRIV_SHIFT;
+		priv |= f;
+		attach_page_private(page, (void *)priv);
+		trace_afs_page_dirty(vnode, tracepoint_string("dirty"),
+				     page->index, priv);
 	}
 
 	set_page_dirty(page);
