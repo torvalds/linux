@@ -267,18 +267,7 @@ static struct platform_driver s2mps11_clk_driver = {
 	.remove = s2mps11_clk_remove,
 	.id_table = s2mps11_clk_id,
 };
-
-static int __init s2mps11_clk_init(void)
-{
-	return platform_driver_register(&s2mps11_clk_driver);
-}
-subsys_initcall(s2mps11_clk_init);
-
-static void __exit s2mps11_clk_cleanup(void)
-{
-	platform_driver_unregister(&s2mps11_clk_driver);
-}
-module_exit(s2mps11_clk_cleanup);
+module_platform_driver(s2mps11_clk_driver);
 
 MODULE_DESCRIPTION("S2MPS11 Clock Driver");
 MODULE_AUTHOR("Yadwinder Singh Brar <yadi.brar@samsung.com>");
