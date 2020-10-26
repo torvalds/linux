@@ -27,12 +27,12 @@ endchoice
 choice
 	prompt "rockchip camera sensor interface monitor mode of reset"
 	depends on VIDEO_ROCKCHIP_CIF
-	default ROCKCHIP_CIF_RESET_MONITOR_CONTINU
-
-config ROCKCHIP_CIF_RESET_MONITOR_CONTINU
-	bool "cif reset monitor is opened always"
+	default ROCKCHIP_CIF_RESET_MONITOR_TRIGGER
 
 config ROCKCHIP_CIF_RESET_MONITOR_TRIGGER
 	bool "cif reset monitor is triggered by event"
+
+config ROCKCHIP_CIF_RESET_MONITOR_CONTINU
+	bool "cif reset monitor is opened always"
 
 endchoice
