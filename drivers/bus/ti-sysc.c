@@ -227,6 +227,9 @@ static int sysc_wait_softreset(struct sysc *ddata)
 	u32 sysc_mask, syss_done, rstval;
 	int syss_offset, error = 0;
 
+	if (ddata->cap->regbits->srst_shift < 0)
+		return 0;
+
 	syss_offset = ddata->offsets[SYSC_SYSSTATUS];
 	sysc_mask = BIT(ddata->cap->regbits->srst_shift);
 
