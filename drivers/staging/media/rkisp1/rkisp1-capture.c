@@ -1133,6 +1133,7 @@ static void rkisp1_try_fmt(const struct rkisp1_capture *cap,
 	pixm->field = V4L2_FIELD_NONE;
 	pixm->colorspace = V4L2_COLORSPACE_DEFAULT;
 	pixm->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
+	pixm->quantization = V4L2_QUANTIZATION_DEFAULT;
 
 	info = rkisp1_fill_pixfmt(pixm, cap->id);
 
