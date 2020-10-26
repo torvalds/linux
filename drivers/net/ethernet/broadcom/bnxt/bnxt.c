@@ -1160,16 +1160,6 @@ static void bnxt_queue_sp_work(struct bnxt *bp)
 		schedule_work(&bp->sp_task);
 }
 
-static void bnxt_cancel_sp_work(struct bnxt *bp)
-{
-	if (BNXT_PF(bp)) {
-		flush_workqueue(bnxt_pf_wq);
-	} else {
-		cancel_work_sync(&bp->sp_task);
-		cancel_delayed_work_sync(&bp->fw_reset_task);
-	}
-}
-
 static void bnxt_sched_reset(struct bnxt *bp, struct bnxt_rx_ring_info *rxr)
 {
 	if (!rxr->bnapi->in_reset) {
@@ -12114,7 +12104,8 @@ static void bnxt_remove_one(struct pci_dev *pdev)
 	unregister_netdev(dev);
 	clear_bit(BNXT_STATE_IN_FW_RESET, &bp->state);
 	/* Flush any pending tasks */
-	bnxt_cancel_sp_work(bp);
+	cancel_work_sync(&bp->sp_task);
+	cancel_delayed_work_sync(&bp->fw_reset_task);
 	bp->sp_event = 0;
 
 	bnxt_dl_fw_reporters_destroy(bp, true);
