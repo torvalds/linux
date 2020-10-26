@@ -76,8 +76,8 @@ static void default_key_dtr(struct dm_target *ti)
 			DMWARN("Failed to evict crypto key: %d", err);
 		dm_put_device(ti, dkc->dev);
 	}
-	kzfree(dkc->cipher_string);
-	kzfree(dkc);
+	kfree_sensitive(dkc->cipher_string);
+	kfree_sensitive(dkc);
 }
 
 static int default_key_ctr_optional(struct dm_target *ti,
