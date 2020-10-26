@@ -65,7 +65,7 @@ static int __init stm_ftrace_init(void)
 {
 	int ret;
 
-	stm_ftrace.data.nr_chans = num_possible_cpus();
+	stm_ftrace.data.nr_chans = roundup_pow_of_two(num_possible_cpus());
 	ret = stm_source_register_device(NULL, &stm_ftrace.data);
 	if (ret)
 		pr_err("Failed to register stm_source - ftrace.\n");

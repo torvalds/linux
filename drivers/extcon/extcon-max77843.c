@@ -845,7 +845,7 @@ static int max77843_muic_probe(struct platform_device *pdev)
 			max77843_extcon_cable);
 	if (IS_ERR(info->edev)) {
 		dev_err(&pdev->dev, "Failed to allocate memory for extcon\n");
-		ret = -ENODEV;
+		ret = PTR_ERR(info->edev);
 		goto err_muic_irq;
 	}
 

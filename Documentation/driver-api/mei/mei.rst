@@ -42,6 +42,11 @@ The session is terminated calling :c:func:`close(int fd)`.
 
 A code snippet for an application communicating with Intel AMTHI client:
 
+In order to support virtualization or sandboxing a trusted supervisor
+can use :c:macro:`MEI_CONNECT_CLIENT_IOCTL_VTAG` to create
+virtual channels with an Intel ME feature. Not all features support
+virtual channels such client with answer EOPNOTSUPP.
+
 .. code-block:: C
 
 	struct mei_connect_client_data data;
@@ -110,6 +115,38 @@ Connect to firmware Feature/Client.
         data that can be sent or received. (e.g. if MTU=2K, can send
         requests up to bytes 2k and received responses up to 2k bytes).
 
+IOCTL_MEI_CONNECT_CLIENT_VTAG:
+------------------------------
+
+.. code-block:: none
+
+        Usage:
+
+        struct mei_connect_client_data_vtag client_data_vtag;
+
+        ioctl(fd, IOCTL_MEI_CONNECT_CLIENT_VTAG, &client_data_vtag);
+
+        Inputs:
+
+        struct mei_connect_client_data_vtag - contain the following
+        Input field:
+
+                in_client_uuid -  GUID of the FW Feature that needs
+                                  to connect to.
+                vtag - virtual tag [1, 255]
+
+         Outputs:
+                out_client_properties - Client Properties: MTU and Protocol Version.
+
+         Error returns:
+
+                ENOTTY No such client (i.e. wrong GUID) or connection is not allowed.
+                EINVAL Wrong IOCTL Number or tag == 0
+                ENODEV Device or Connection is not initialized or ready.
+                ENOMEM Unable to allocate memory to client internal data.
+                EFAULT Fatal Error (e.g. Unable to access user input data)
+                EBUSY  Connection Already Open
+                EOPNOTSUPP Vtag is not supported
 
 IOCTL_MEI_NOTIFY_SET
 ---------------------

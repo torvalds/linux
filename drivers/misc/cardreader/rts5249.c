@@ -73,23 +73,11 @@ static void rtsx_base_fetch_vendor_settings(struct rtsx_pcr *pcr)
 
 	pci_read_config_dword(pdev, PCR_SETTING_REG2, &reg);
 	pcr_dbg(pcr, "Cfg 0x%x: 0x%x\n", PCR_SETTING_REG2, reg);
+	if (rtsx_check_mmc_support(reg))
+		pcr->extra_caps |= EXTRA_CAPS_NO_MMC;
 	pcr->sd30_drive_sel_3v3 = rtsx_reg_to_sd30_drive_sel_3v3(reg);
 	if (rtsx_reg_check_reverse_socket(reg))
 		pcr->flags |= PCR_REVERSE_SOCKET;
-}
-
-static void rtsx_base_force_power_down(struct rtsx_pcr *pcr, u8 pm_state)
-{
-	/* Set relink_time to 0 */
-	rtsx_pci_write_register(pcr, AUTOLOAD_CFG_BASE + 1, 0xFF, 0);
-	rtsx_pci_write_register(pcr, AUTOLOAD_CFG_BASE + 2, 0xFF, 0);
-	rtsx_pci_write_register(pcr, AUTOLOAD_CFG_BASE + 3, 0x01, 0);
-
-	if (pm_state == HOST_ENTER_S3)
-		rtsx_pci_write_register(pcr, pcr->reg_pm_ctrl3,
-			D3_DELINK_MODE_EN, D3_DELINK_MODE_EN);
-
-	rtsx_pci_write_register(pcr, FPDCTL, 0x03, 0x03);
 }
 
 static void rts5249_init_from_cfg(struct rtsx_pcr *pcr)
@@ -104,6 +92,14 @@ static void rts5249_init_from_cfg(struct rtsx_pcr *pcr)
 		return;
 
 	pci_read_config_dword(pdev, l1ss + PCI_L1SS_CTL1, &lval);
+
+	if (CHK_PCI_PID(pcr, PID_524A) || CHK_PCI_PID(pcr, PID_525A)) {
+		if (0 == (lval & 0x0F))
+			rtsx_pci_enable_oobs_polling(pcr);
+		else
+			rtsx_pci_disable_oobs_polling(pcr);
+	}
+
 
 	if (lval & PCI_L1SS_CTL1_ASPM_L1_1)
 		rtsx_set_dev_flag(pcr, ASPM_L1_1_EN);
@@ -144,6 +140,112 @@ static int rts5249_init_from_hw(struct rtsx_pcr *pcr)
 	return 0;
 }
 
+static void rts52xa_save_content_from_efuse(struct rtsx_pcr *pcr)
+{
+	u8 cnt, sv;
+	u16 j = 0;
+	u8 tmp;
+	u8 val;
+	int i;
+
+	rtsx_pci_write_register(pcr, RTS524A_PME_FORCE_CTL,
+				REG_EFUSE_BYPASS | REG_EFUSE_POR, REG_EFUSE_POR);
+	udelay(1);
+
+	pcr_dbg(pcr, "Enable efuse por!");
+	pcr_dbg(pcr, "save efuse to autoload");
+
+	rtsx_pci_write_register(pcr, RTS525A_EFUSE_ADD, REG_EFUSE_ADD_MASK, 0x00);
+	rtsx_pci_write_register(pcr, RTS525A_EFUSE_CTL,
+				REG_EFUSE_ENABLE | REG_EFUSE_MODE, REG_EFUSE_ENABLE);
+	/* Wait transfer end */
+	for (j = 0; j < 1024; j++) {
+		rtsx_pci_read_register(pcr, RTS525A_EFUSE_CTL, &tmp);
+		if ((tmp & 0x80) == 0)
+			break;
+	}
+	rtsx_pci_read_register(pcr, RTS525A_EFUSE_DATA, &val);
+	cnt = val & 0x0F;
+	sv = val & 0x10;
+
+	if (sv) {
+		for (i = 0; i < 4; i++) {
+			rtsx_pci_write_register(pcr, RTS525A_EFUSE_ADD,
+				REG_EFUSE_ADD_MASK, 0x04 + i);
+			rtsx_pci_write_register(pcr, RTS525A_EFUSE_CTL,
+				REG_EFUSE_ENABLE | REG_EFUSE_MODE, REG_EFUSE_ENABLE);
+			/* Wait transfer end */
+			for (j = 0; j < 1024; j++) {
+				rtsx_pci_read_register(pcr, RTS525A_EFUSE_CTL, &tmp);
+				if ((tmp & 0x80) == 0)
+					break;
+			}
+			rtsx_pci_read_register(pcr, RTS525A_EFUSE_DATA, &val);
+			rtsx_pci_write_register(pcr, 0xFF04 + i, 0xFF, val);
+		}
+	} else {
+		rtsx_pci_write_register(pcr, 0xFF04, 0xFF, (u8)PCI_VID(pcr));
+		rtsx_pci_write_register(pcr, 0xFF05, 0xFF, (u8)(PCI_VID(pcr) >> 8));
+		rtsx_pci_write_register(pcr, 0xFF06, 0xFF, (u8)PCI_PID(pcr));
+		rtsx_pci_write_register(pcr, 0xFF07, 0xFF, (u8)(PCI_PID(pcr) >> 8));
+	}
+
+	for (i = 0; i < cnt * 4; i++) {
+		if (sv)
+			rtsx_pci_write_register(pcr, RTS525A_EFUSE_ADD,
+				REG_EFUSE_ADD_MASK, 0x08 + i);
+		else
+			rtsx_pci_write_register(pcr, RTS525A_EFUSE_ADD,
+				REG_EFUSE_ADD_MASK, 0x04 + i);
+		rtsx_pci_write_register(pcr, RTS525A_EFUSE_CTL,
+				REG_EFUSE_ENABLE | REG_EFUSE_MODE, REG_EFUSE_ENABLE);
+		/* Wait transfer end */
+		for (j = 0; j < 1024; j++) {
+			rtsx_pci_read_register(pcr, RTS525A_EFUSE_CTL, &tmp);
+			if ((tmp & 0x80) == 0)
+				break;
+		}
+		rtsx_pci_read_register(pcr, RTS525A_EFUSE_DATA, &val);
+		rtsx_pci_write_register(pcr, 0xFF08 + i, 0xFF, val);
+	}
+	rtsx_pci_write_register(pcr, 0xFF00, 0xFF, (cnt & 0x7F) | 0x80);
+	rtsx_pci_write_register(pcr, RTS524A_PME_FORCE_CTL,
+		REG_EFUSE_BYPASS | REG_EFUSE_POR, REG_EFUSE_BYPASS);
+	pcr_dbg(pcr, "Disable efuse por!");
+}
+
+static void rts52xa_save_content_to_autoload_space(struct rtsx_pcr *pcr)
+{
+	u8 val;
+
+	rtsx_pci_read_register(pcr, RESET_LOAD_REG, &val);
+	if (val & 0x02) {
+		rtsx_pci_read_register(pcr, RTS525A_BIOS_CFG, &val);
+		if (val & RTS525A_LOAD_BIOS_FLAG) {
+			rtsx_pci_write_register(pcr, RTS525A_BIOS_CFG,
+				RTS525A_LOAD_BIOS_FLAG, RTS525A_CLEAR_BIOS_FLAG);
+
+			rtsx_pci_write_register(pcr, RTS524A_PME_FORCE_CTL,
+				REG_EFUSE_POWER_MASK, REG_EFUSE_POWERON);
+
+			pcr_dbg(pcr, "Power ON efuse!");
+			mdelay(1);
+			rts52xa_save_content_from_efuse(pcr);
+		} else {
+			rtsx_pci_read_register(pcr, RTS524A_PME_FORCE_CTL, &val);
+			if (!(val & 0x08))
+				rts52xa_save_content_from_efuse(pcr);
+		}
+	} else {
+		pcr_dbg(pcr, "Load from autoload");
+		rtsx_pci_write_register(pcr, 0xFF00, 0xFF, 0x80);
+		rtsx_pci_write_register(pcr, 0xFF04, 0xFF, (u8)PCI_VID(pcr));
+		rtsx_pci_write_register(pcr, 0xFF05, 0xFF, (u8)(PCI_VID(pcr) >> 8));
+		rtsx_pci_write_register(pcr, 0xFF06, 0xFF, (u8)PCI_PID(pcr));
+		rtsx_pci_write_register(pcr, 0xFF07, 0xFF, (u8)(PCI_PID(pcr) >> 8));
+	}
+}
+
 static int rts5249_extra_init_hw(struct rtsx_pcr *pcr)
 {
 	struct rtsx_cr_option *option = &(pcr->option);
@@ -152,6 +254,9 @@ static int rts5249_extra_init_hw(struct rtsx_pcr *pcr)
 	rts5249_init_from_hw(pcr);
 
 	rtsx_pci_init_cmd(pcr);
+
+	if (CHK_PCI_PID(pcr, PID_524A) || CHK_PCI_PID(pcr, PID_525A))
+		rts52xa_save_content_to_autoload_space(pcr);
 
 	/* Rest L1SUB Config */
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, L1SUB_CONFIG3, 0xFF, 0x00);
@@ -171,18 +276,36 @@ static int rts5249_extra_init_hw(struct rtsx_pcr *pcr)
 	else
 		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, PETXCFG, 0xB0, 0x80);
 
+	rtsx_pci_send_cmd(pcr, CMD_TIMEOUT_DEF);
+
+	if (CHK_PCI_PID(pcr, PID_524A) || CHK_PCI_PID(pcr, PID_525A)) {
+		rtsx_pci_write_register(pcr, REG_VREF, PWD_SUSPND_EN, PWD_SUSPND_EN);
+		rtsx_pci_write_register(pcr, RTS524A_PM_CTRL3, 0x01, 0x00);
+		rtsx_pci_write_register(pcr, RTS524A_PME_FORCE_CTL, 0x30, 0x20);
+	} else {
+		rtsx_pci_write_register(pcr, PME_FORCE_CTL, 0xFF, 0x30);
+		rtsx_pci_write_register(pcr, PM_CTRL3, 0x01, 0x00);
+	}
+
 	/*
 	 * If u_force_clkreq_0 is enabled, CLKREQ# PIN will be forced
 	 * to drive low, and we forcibly request clock.
 	 */
 	if (option->force_clkreq_0)
-		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, PETXCFG,
+		rtsx_pci_write_register(pcr, PETXCFG,
 			FORCE_CLKREQ_DELINK_MASK, FORCE_CLKREQ_LOW);
 	else
-		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, PETXCFG,
+		rtsx_pci_write_register(pcr, PETXCFG,
 			FORCE_CLKREQ_DELINK_MASK, FORCE_CLKREQ_HIGH);
 
-	return rtsx_pci_send_cmd(pcr, CMD_TIMEOUT_DEF);
+	rtsx_pci_write_register(pcr, pcr->reg_pm_ctrl3, 0x10, 0x00);
+	if (CHK_PCI_PID(pcr, PID_524A) || CHK_PCI_PID(pcr, PID_525A)) {
+		rtsx_pci_write_register(pcr, RTS524A_PME_FORCE_CTL,
+				REG_EFUSE_POWER_MASK, REG_EFUSE_POWEROFF);
+		pcr_dbg(pcr, "Power OFF efuse!");
+	}
+
+	return 0;
 }
 
 static int rts5249_optimize_phy(struct rtsx_pcr *pcr)
@@ -360,7 +483,6 @@ static const struct pcr_ops rts5249_pcr_ops = {
 	.card_power_on = rtsx_base_card_power_on,
 	.card_power_off = rtsx_base_card_power_off,
 	.switch_output_voltage = rtsx_base_switch_output_voltage,
-	.force_power_down = rtsx_base_force_power_down,
 };
 
 /* SD Pull Control Enable:
@@ -585,7 +707,6 @@ static const struct pcr_ops rts524a_pcr_ops = {
 	.card_power_on = rtsx_base_card_power_on,
 	.card_power_off = rtsx_base_card_power_off,
 	.switch_output_voltage = rtsx_base_switch_output_voltage,
-	.force_power_down = rtsx_base_force_power_down,
 	.set_l1off_cfg_sub_d0 = rts5250_set_l1off_cfg_sub_d0,
 };
 
@@ -668,6 +789,8 @@ static int rts525a_extra_init_hw(struct rtsx_pcr *pcr)
 {
 	rts5249_extra_init_hw(pcr);
 
+	rtsx_pci_write_register(pcr, RTS5250_CLK_CFG3, RTS525A_CFG_MEM_PD, RTS525A_CFG_MEM_PD);
+
 	rtsx_pci_write_register(pcr, PCLK_CTL, PCLK_MODE_SEL, PCLK_MODE_SEL);
 	if (is_version(pcr, 0x525A, IC_VER_A)) {
 		rtsx_pci_write_register(pcr, L1SUB_CONFIG2,
@@ -700,7 +823,6 @@ static const struct pcr_ops rts525a_pcr_ops = {
 	.card_power_on = rts525a_card_power_on,
 	.card_power_off = rtsx_base_card_power_off,
 	.switch_output_voltage = rts525a_switch_output_voltage,
-	.force_power_down = rtsx_base_force_power_down,
 	.set_l1off_cfg_sub_d0 = rts5250_set_l1off_cfg_sub_d0,
 };
 

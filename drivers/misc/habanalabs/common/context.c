@@ -12,6 +12,7 @@
 static void hl_ctx_fini(struct hl_ctx *ctx)
 {
 	struct hl_device *hdev = ctx->hdev;
+	u64 idle_mask = 0;
 	int i;
 
 	/*
@@ -23,11 +24,13 @@ static void hl_ctx_fini(struct hl_ctx *ctx)
 	 */
 
 	for (i = 0 ; i < hdev->asic_prop.max_pending_cs ; i++)
-		dma_fence_put(ctx->cs_pending[i]);
+		hl_fence_put(ctx->cs_pending[i]);
 
 	kfree(ctx->cs_pending);
 
 	if (ctx->asid != HL_KERNEL_ASID_ID) {
+		dev_dbg(hdev->dev, "closing user context %d\n", ctx->asid);
+
 		/* The engines are stopped as there is no executing CS, but the
 		 * Coresight might be still working by accessing addresses
 		 * related to the stopped engines. Hence stop it explicitly.
@@ -37,9 +40,18 @@ static void hl_ctx_fini(struct hl_ctx *ctx)
 		if ((hdev->in_debug) && (hdev->compute_ctx == ctx))
 			hl_device_set_debug_mode(hdev, false);
 
+		hl_cb_va_pool_fini(ctx);
 		hl_vm_ctx_fini(ctx);
 		hl_asid_free(hdev, ctx->asid);
+
+		if ((!hdev->pldm) && (hdev->pdev) &&
+				(!hdev->asic_funcs->is_device_idle(hdev,
+							&idle_mask, NULL)))
+			dev_notice(hdev->dev,
+				"device not idle after user context is closed (0x%llx)\n",
+				idle_mask);
 	} else {
+		dev_dbg(hdev->dev, "closing kernel context\n");
 		hl_mmu_ctx_fini(ctx);
 	}
 }
@@ -128,7 +140,7 @@ int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx)
 	atomic_set(&ctx->thread_ctx_switch_token, 1);
 	ctx->thread_ctx_switch_wait_token = 0;
 	ctx->cs_pending = kcalloc(hdev->asic_prop.max_pending_cs,
-				sizeof(struct dma_fence *),
+				sizeof(struct hl_fence *),
 				GFP_KERNEL);
 	if (!ctx->cs_pending)
 		return -ENOMEM;
@@ -155,15 +167,26 @@ int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx)
 			goto err_asid_free;
 		}
 
+		rc = hl_cb_va_pool_init(ctx);
+		if (rc) {
+			dev_err(hdev->dev,
+				"Failed to init VA pool for mapped CB\n");
+			goto err_vm_ctx_fini;
+		}
+
 		rc = hdev->asic_funcs->ctx_init(ctx);
 		if (rc) {
 			dev_err(hdev->dev, "ctx_init failed\n");
-			goto err_vm_ctx_fini;
+			goto err_cb_va_pool_fini;
 		}
+
+		dev_dbg(hdev->dev, "create user context %d\n", ctx->asid);
 	}
 
 	return 0;
 
+err_cb_va_pool_fini:
+	hl_cb_va_pool_fini(ctx);
 err_vm_ctx_fini:
 	hl_vm_ctx_fini(ctx);
 err_asid_free:
@@ -184,10 +207,10 @@ int hl_ctx_put(struct hl_ctx *ctx)
 	return kref_put(&ctx->refcount, hl_ctx_do_release);
 }
 
-struct dma_fence *hl_ctx_get_fence(struct hl_ctx *ctx, u64 seq)
+struct hl_fence *hl_ctx_get_fence(struct hl_ctx *ctx, u64 seq)
 {
 	struct asic_fixed_properties *asic_prop = &ctx->hdev->asic_prop;
-	struct dma_fence *fence;
+	struct hl_fence *fence;
 
 	spin_lock(&ctx->cs_lock);
 
@@ -201,8 +224,9 @@ struct dma_fence *hl_ctx_get_fence(struct hl_ctx *ctx, u64 seq)
 		return NULL;
 	}
 
-	fence = dma_fence_get(
-			ctx->cs_pending[seq & (asic_prop->max_pending_cs - 1)]);
+	fence = ctx->cs_pending[seq & (asic_prop->max_pending_cs - 1)];
+	hl_fence_get(fence);
+
 	spin_unlock(&ctx->cs_lock);
 
 	return fence;

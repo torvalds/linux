@@ -2,13 +2,17 @@ What:           /sys/class/habanalabs/hl<n>/armcp_kernel_ver
 Date:           Jan 2019
 KernelVersion:  5.1
 Contact:        oded.gabbay@gmail.com
-Description:    Version of the Linux kernel running on the device's CPU
+Description:    Version of the Linux kernel running on the device's CPU.
+                Will be DEPRECATED in Linux kernel version 5.10, and be
+                replaced with cpucp_kernel_ver
 
 What:           /sys/class/habanalabs/hl<n>/armcp_ver
 Date:           Jan 2019
 KernelVersion:  5.1
 Contact:        oded.gabbay@gmail.com
 Description:    Version of the application running on the device's CPU
+                Will be DEPRECATED in Linux kernel version 5.10, and be
+                replaced with cpucp_ver
 
 What:           /sys/class/habanalabs/hl<n>/clk_max_freq_mhz
 Date:           Jun 2019
@@ -32,6 +36,18 @@ Date:           Jan 2019
 KernelVersion:  5.1
 Contact:        oded.gabbay@gmail.com
 Description:    Version of the Device's CPLD F/W
+
+What:           /sys/class/habanalabs/hl<n>/cpucp_kernel_ver
+Date:           Oct 2020
+KernelVersion:  5.10
+Contact:        oded.gabbay@gmail.com
+Description:    Version of the Linux kernel running on the device's CPU
+
+What:           /sys/class/habanalabs/hl<n>/cpucp_ver
+Date:           Oct 2020
+KernelVersion:  5.10
+Contact:        oded.gabbay@gmail.com
+Description:    Version of the application running on the device's CPU
 
 What:           /sys/class/habanalabs/hl<n>/device_type
 Date:           Jan 2019
