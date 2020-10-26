@@ -149,6 +149,6 @@ static const struct scmi_transport_ops scmi_smc_ops = {
 const struct scmi_desc scmi_smc_desc = {
 	.ops = &scmi_smc_ops,
 	.max_rx_timeout_ms = 30,
-	.max_msg = 1,
+	.max_msg = 20,
 	.max_msg_size = 128,
 };
