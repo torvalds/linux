@@ -9779,7 +9779,10 @@ int bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 {
 	int rc = 0;
 
-	rc = __bnxt_open_nic(bp, irq_re_init, link_re_init);
+	if (test_bit(BNXT_STATE_ABORT_ERR, &bp->state))
+		rc = -EIO;
+	if (!rc)
+		rc = __bnxt_open_nic(bp, irq_re_init, link_re_init);
 	if (rc) {
 		netdev_err(bp->dev, "nic open fail (rc: %x)\n", rc);
 		dev_close(bp->dev);
