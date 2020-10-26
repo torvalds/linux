@@ -152,6 +152,7 @@ int meson_pmx_get_funcs_count(struct pinctrl_dev *pcdev)
 
 	return pc->data->num_funcs;
 }
+EXPORT_SYMBOL_GPL(meson_pmx_get_funcs_count);
 
 const char *meson_pmx_get_func_name(struct pinctrl_dev *pcdev,
 				    unsigned selector)
@@ -160,6 +161,7 @@ const char *meson_pmx_get_func_name(struct pinctrl_dev *pcdev,
 
 	return pc->data->funcs[selector].name;
 }
+EXPORT_SYMBOL_GPL(meson_pmx_get_func_name);
 
 int meson_pmx_get_groups(struct pinctrl_dev *pcdev, unsigned selector,
 			 const char * const **groups,
@@ -172,6 +174,7 @@ int meson_pmx_get_groups(struct pinctrl_dev *pcdev, unsigned selector,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(meson_pmx_get_groups);
 
 static int meson_pinconf_set_gpio_bit(struct meson_pinctrl *pc,
 				      unsigned int pin,
@@ -723,6 +726,7 @@ int meson8_aobus_parse_dt_extra(struct meson_pinctrl *pc)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(meson8_aobus_parse_dt_extra);
 
 int meson_a1_parse_dt_extra(struct meson_pinctrl *pc)
 {
@@ -732,6 +736,7 @@ int meson_a1_parse_dt_extra(struct meson_pinctrl *pc)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(meson_a1_parse_dt_extra);
 
 int meson_pinctrl_probe(struct platform_device *pdev)
 {
@@ -766,3 +771,6 @@ int meson_pinctrl_probe(struct platform_device *pdev)
 
 	return meson_gpiolib_register(pc);
 }
+EXPORT_SYMBOL_GPL(meson_pinctrl_probe);
+
+MODULE_LICENSE("GPL v2");

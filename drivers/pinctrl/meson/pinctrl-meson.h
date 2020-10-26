@@ -10,6 +10,7 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/types.h>
+#include <linux/module.h>
 
 struct meson_pinctrl;
 
