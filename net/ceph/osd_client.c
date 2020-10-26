@@ -5623,8 +5623,11 @@ static int verify_authorizer_reply(struct ceph_connection *con)
 	struct ceph_osd *o = con->private;
 	struct ceph_osd_client *osdc = o->o_osdc;
 	struct ceph_auth_client *ac = osdc->client->monc.auth;
+	struct ceph_auth_handshake *auth = &o->o_auth;
 
-	return ceph_auth_verify_authorizer_reply(ac, o->o_auth.authorizer);
+	return ceph_auth_verify_authorizer_reply(ac, auth->authorizer,
+		auth->authorizer_reply_buf, auth->authorizer_reply_buf_len,
+		NULL, NULL, NULL, NULL);
 }
 
 static int invalidate_authorizer(struct ceph_connection *con)

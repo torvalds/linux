@@ -53,7 +53,9 @@ struct ceph_auth_client_ops {
 	 */
 	int (*build_request)(struct ceph_auth_client *ac, void *buf, void *end);
 	int (*handle_reply)(struct ceph_auth_client *ac, int result,
-			    void *buf, void *end);
+			    void *buf, void *end, u8 *session_key,
+			    int *session_key_len, u8 *con_secret,
+			    int *con_secret_len);
 
 	/*
 	 * Create authorizer for connecting to a service, and verify
@@ -69,7 +71,10 @@ struct ceph_auth_client_ops {
 					void *challenge_buf,
 					int challenge_buf_len);
 	int (*verify_authorizer_reply)(struct ceph_auth_client *ac,
-				       struct ceph_authorizer *a);
+				       struct ceph_authorizer *a,
+				       void *reply, int reply_len,
+				       u8 *session_key, int *session_key_len,
+				       u8 *con_secret, int *con_secret_len);
 	void (*invalidate_authorizer)(struct ceph_auth_client *ac,
 				      int peer_type);
 
@@ -126,8 +131,11 @@ int ceph_auth_add_authorizer_challenge(struct ceph_auth_client *ac,
 				       struct ceph_authorizer *a,
 				       void *challenge_buf,
 				       int challenge_buf_len);
-extern int ceph_auth_verify_authorizer_reply(struct ceph_auth_client *ac,
-					     struct ceph_authorizer *a);
+int ceph_auth_verify_authorizer_reply(struct ceph_auth_client *ac,
+				      struct ceph_authorizer *a,
+				      void *reply, int reply_len,
+				      u8 *session_key, int *session_key_len,
+				      u8 *con_secret, int *con_secret_len);
 extern void ceph_auth_invalidate_authorizer(struct ceph_auth_client *ac,
 					    int peer_type);
 

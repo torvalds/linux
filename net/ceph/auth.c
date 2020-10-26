@@ -240,7 +240,8 @@ int ceph_handle_auth_reply(struct ceph_auth_client *ac,
 		ac->negotiating = false;
 	}
 
-	ret = ac->ops->handle_reply(ac, result, payload, payload_end);
+	ret = ac->ops->handle_reply(ac, result, payload, payload_end,
+				    NULL, NULL, NULL, NULL);
 	if (ret == -EAGAIN) {
 		ret = ceph_build_auth_request(ac, reply_buf, reply_len);
 	} else if (ret) {
@@ -332,13 +333,18 @@ int ceph_auth_add_authorizer_challenge(struct ceph_auth_client *ac,
 EXPORT_SYMBOL(ceph_auth_add_authorizer_challenge);
 
 int ceph_auth_verify_authorizer_reply(struct ceph_auth_client *ac,
-				      struct ceph_authorizer *a)
+				      struct ceph_authorizer *a,
+				      void *reply, int reply_len,
+				      u8 *session_key, int *session_key_len,
+				      u8 *con_secret, int *con_secret_len)
 {
 	int ret = 0;
 
 	mutex_lock(&ac->mutex);
 	if (ac->ops && ac->ops->verify_authorizer_reply)
-		ret = ac->ops->verify_authorizer_reply(ac, a);
+		ret = ac->ops->verify_authorizer_reply(ac, a,
+			reply, reply_len, session_key, session_key_len,
+			con_secret, con_secret_len);
 	mutex_unlock(&ac->mutex);
 	return ret;
 }

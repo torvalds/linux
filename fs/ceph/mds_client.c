@@ -5178,8 +5178,11 @@ static int verify_authorizer_reply(struct ceph_connection *con)
 	struct ceph_mds_session *s = con->private;
 	struct ceph_mds_client *mdsc = s->s_mdsc;
 	struct ceph_auth_client *ac = mdsc->fsc->client->monc.auth;
+	struct ceph_auth_handshake *auth = &s->s_auth;
 
-	return ceph_auth_verify_authorizer_reply(ac, s->s_auth.authorizer);
+	return ceph_auth_verify_authorizer_reply(ac, auth->authorizer,
+		auth->authorizer_reply_buf, auth->authorizer_reply_buf_len,
+		NULL, NULL, NULL, NULL);
 }
 
 static int invalidate_authorizer(struct ceph_connection *con)
