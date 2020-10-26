@@ -345,9 +345,6 @@ void mlx5e_ktls_tx_handle_resync_dump_comp(struct mlx5e_txqsq *sq,
 	struct mlx5e_sq_stats *stats;
 	struct mlx5e_sq_dma *dma;
 
-	if (!wi->resync_dump_frag_page)
-		return;
-
 	dma = mlx5e_dma_get(sq, (*dma_fifo_cc)++);
 	stats = sq->stats;
 

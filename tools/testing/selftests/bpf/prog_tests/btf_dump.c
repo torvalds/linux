@@ -129,6 +129,109 @@ done:
 	return err;
 }
 
+static char *dump_buf;
+static size_t dump_buf_sz;
+static FILE *dump_buf_file;
+
+void test_btf_dump_incremental(void)
+{
+	struct btf *btf = NULL;
+	struct btf_dump *d = NULL;
+	struct btf_dump_opts opts;
+	int id, err, i;
+
+	dump_buf_file = open_memstream(&dump_buf, &dump_buf_sz);
+	if (!ASSERT_OK_PTR(dump_buf_file, "dump_memstream"))
+		return;
+	btf = btf__new_empty();
+	if (!ASSERT_OK_PTR(btf, "new_empty"))
+		goto err_out;
+	opts.ctx = dump_buf_file;
+	d = btf_dump__new(btf, NULL, &opts, btf_dump_printf);
+	if (!ASSERT_OK(libbpf_get_error(d), "btf_dump__new"))
+		goto err_out;
+
+	/* First, generate BTF corresponding to the following C code:
+	 *
+	 * enum { VAL = 1 };
+	 *
+	 * struct s { int x; };
+	 *
+	 */
+	id = btf__add_enum(btf, NULL, 4);
+	ASSERT_EQ(id, 1, "enum_id");
+	err = btf__add_enum_value(btf, "VAL", 1);
+	ASSERT_OK(err, "enum_val_ok");
+
+	id = btf__add_int(btf, "int", 4, BTF_INT_SIGNED);
+	ASSERT_EQ(id, 2, "int_id");
+
+	id = btf__add_struct(btf, "s", 4);
+	ASSERT_EQ(id, 3, "struct_id");
+	err = btf__add_field(btf, "x", 2, 0, 0);
+	ASSERT_OK(err, "field_ok");
+
+	for (i = 1; i <= btf__get_nr_types(btf); i++) {
+		err = btf_dump__dump_type(d, i);
+		ASSERT_OK(err, "dump_type_ok");
+	}
+
+	fflush(dump_buf_file);
+	dump_buf[dump_buf_sz] = 0; /* some libc implementations don't do this */
+	ASSERT_STREQ(dump_buf,
+"enum {\n"
+"	VAL = 1,\n"
+"};\n"
+"\n"
+"struct s {\n"
+"	int x;\n"
+"};\n\n", "c_dump1");
+
+	/* Now, after dumping original BTF, append another struct that embeds
+	 * anonymous enum. It also has a name conflict with the first struct:
+	 *
+	 * struct s___2 {
+	 *     enum { VAL___2 = 1 } x;
+	 *     struct s s;
+	 * };
+	 *
+	 * This will test that btf_dump'er maintains internal state properly.
+	 * Note that VAL___2 enum value. It's because we've already emitted
+	 * that enum as a global anonymous enum, so btf_dump will ensure that
+	 * enum values don't conflict;
+	 *
+	 */
+	fseek(dump_buf_file, 0, SEEK_SET);
+
+	id = btf__add_struct(btf, "s", 4);
+	ASSERT_EQ(id, 4, "struct_id");
+	err = btf__add_field(btf, "x", 1, 0, 0);
+	ASSERT_OK(err, "field_ok");
+	err = btf__add_field(btf, "s", 3, 32, 0);
+	ASSERT_OK(err, "field_ok");
+
+	for (i = 1; i <= btf__get_nr_types(btf); i++) {
+		err = btf_dump__dump_type(d, i);
+		ASSERT_OK(err, "dump_type_ok");
+	}
+
+	fflush(dump_buf_file);
+	dump_buf[dump_buf_sz] = 0; /* some libc implementations don't do this */
+	ASSERT_STREQ(dump_buf,
+"struct s___2 {\n"
+"	enum {\n"
+"		VAL___2 = 1,\n"
+"	} x;\n"
+"	struct s s;\n"
+"};\n\n" , "c_dump1");
+
+err_out:
+	fclose(dump_buf_file);
+	free(dump_buf);
+	btf_dump__free(d);
+	btf__free(btf);
+}
+
 void test_btf_dump() {
 	int i;
 
@@ -140,4 +243,6 @@ void test_btf_dump() {
 
 		test_btf_dump_case(i, &btf_dump_test_cases[i]);
 	}
+	if (test__start_subtest("btf_dump: incremental"))
+		test_btf_dump_incremental();
 }

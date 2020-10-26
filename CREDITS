@@ -191,6 +191,10 @@ N: Krishna Balasubramanian
 E: balasub@cis.ohio-state.edu
 D: Wrote SYS V IPC (part of standard kernel since 0.99.10)
 
+B: Robert Baldyga
+E: r.baldyga@hackerion.com
+D: Samsung S3FWRN5 NCI NFC Controller
+
 N: Chris Ball
 E: chris@printf.net
 D: Former maintainer of the MMC/SD/SDIO subsystem.

@@ -5,10 +5,9 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018        Intel Corporation
+ * Copyright(c) 2012 - 2014, 2018, 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -28,10 +27,9 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018        Intel Corporation
+ * Copyright(c) 2012 - 2014, 2018, 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -181,15 +179,37 @@ struct iwl_phy_context_cmd_tail {
  * @ci: channel info
  * @tail: command tail
  */
-struct iwl_phy_context_cmd {
+struct iwl_phy_context_cmd_v1 {
 	/* COMMON_INDEX_HDR_API_S_VER_1 */
 	__le32 id_and_color;
 	__le32 action;
-	/* PHY_CONTEXT_DATA_API_S_VER_1 */
+	/* PHY_CONTEXT_DATA_API_S_VER_3 */
 	__le32 apply_time;
 	__le32 tx_param_color;
 	struct iwl_fw_channel_info ci;
 	struct iwl_phy_context_cmd_tail tail;
 } __packed; /* PHY_CONTEXT_CMD_API_VER_1 */
 
+/**
+ * struct iwl_phy_context_cmd - config of the PHY context
+ * ( PHY_CONTEXT_CMD = 0x8 )
+ * @id_and_color: ID and color of the relevant Binding
+ * @action: action to perform, one of FW_CTXT_ACTION_*
+ * @lmac_id: the lmac id the phy context belongs to
+ * @ci: channel info
+ * @rxchain_info: ???
+ * @dsp_cfg_flags: set to 0
+ * @reserved: reserved to align to 64 bit
+ */
+struct iwl_phy_context_cmd {
+	/* COMMON_INDEX_HDR_API_S_VER_1 */
+	__le32 id_and_color;
+	__le32 action;
+	/* PHY_CONTEXT_DATA_API_S_VER_3 */
+	struct iwl_fw_channel_info ci;
+	__le32 lmac_id;
+	__le32 rxchain_info;
+	__le32 dsp_cfg_flags;
+	__le32 reserved;
+} __packed; /* PHY_CONTEXT_CMD_API_VER_3 */
 #endif /* __iwl_fw_api_phy_ctxt_h__ */

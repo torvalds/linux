@@ -13,7 +13,7 @@
 #define OPTION_DISABLED 0
 #define OPTION_ENABLED  1
 
-/**
+/*
  * TxDescriptors - Transmit Descriptor Count
  * @Valid Range:   PCH_GBE_MIN_TXD - PCH_GBE_MAX_TXD
  * @Default Value: PCH_GBE_DEFAULT_TXD
@@ -22,7 +22,7 @@ static int TxDescriptors = OPTION_UNSET;
 module_param(TxDescriptors, int, 0);
 MODULE_PARM_DESC(TxDescriptors, "Number of transmit descriptors");
 
-/**
+/*
  * RxDescriptors -Receive Descriptor Count
  * @Valid Range:   PCH_GBE_MIN_RXD - PCH_GBE_MAX_RXD
  * @Default Value: PCH_GBE_DEFAULT_RXD
@@ -31,7 +31,7 @@ static int RxDescriptors = OPTION_UNSET;
 module_param(RxDescriptors, int, 0);
 MODULE_PARM_DESC(RxDescriptors, "Number of receive descriptors");
 
-/**
+/*
  * Speed - User Specified Speed Override
  * @Valid Range: 0, 10, 100, 1000
  *   - 0:    auto-negotiate at all supported speeds
@@ -44,7 +44,7 @@ static int Speed = OPTION_UNSET;
 module_param(Speed, int, 0);
 MODULE_PARM_DESC(Speed, "Speed setting");
 
-/**
+/*
  * Duplex - User Specified Duplex Override
  * @Valid Range: 0-2
  *   - 0:  auto-negotiate for duplex
@@ -59,7 +59,7 @@ MODULE_PARM_DESC(Duplex, "Duplex setting");
 #define HALF_DUPLEX 1
 #define FULL_DUPLEX 2
 
-/**
+/*
  * AutoNeg - Auto-negotiation Advertisement Override
  * @Valid Range: 0x01-0x0F, 0x20-0x2F
  *
@@ -85,7 +85,7 @@ MODULE_PARM_DESC(AutoNeg, "Advertised auto-negotiation setting");
 #define PHY_ADVERTISE_1000_FULL    0x0020
 #define PCH_AUTONEG_ADVERTISE_DEFAULT   0x2F
 
-/**
+/*
  * FlowControl - User Specified Flow Control Override
  * @Valid Range: 0-3
  *    - 0:  No Flow Control
@@ -124,7 +124,7 @@ MODULE_PARM_DESC(XsumTX, "Disable or enable Transmit Checksum offload");
 
 #define PCH_GBE_DEFAULT_TX_CSUM             true	/* trueorfalse */
 
-/**
+/*
  * pch_gbe_option - Force the MAC's flow control settings
  * @hw:	            Pointer to the HW structure
  * Returns:

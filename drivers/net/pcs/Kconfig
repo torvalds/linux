@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# PCS Layer Configuration
+#
+
+menu "PCS device drivers"
+
+config PCS_XPCS
+	tristate "Synopsys DesignWare XPCS controller"
+	select MDIO_BUS
+	depends on MDIO_DEVICE
+	help
+	  This module provides helper functions for Synopsys DesignWare XPCS
+	  controllers.
+
+config PCS_LYNX
+	tristate
+	help
+	  This module provides helpers to phylink for managing the Lynx PCS
+	  which is part of the Layerscape and QorIQ Ethernet SERDES.
+
+endmenu

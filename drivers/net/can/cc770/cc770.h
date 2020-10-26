@@ -184,7 +184,7 @@ struct cc770_priv {
 	u8 control_normal_mode;	/* Control register for normal mode */
 	u8 cpu_interface;	/* CPU interface register */
 	u8 clkout;		/* Clock out register */
-	u8 bus_config;		/* Bus conffiguration register */
+	u8 bus_config;		/* Bus configuration register */
 
 	struct sk_buff *tx_skb;
 };

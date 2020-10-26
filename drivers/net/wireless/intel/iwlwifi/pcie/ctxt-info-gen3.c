@@ -301,3 +301,30 @@ void iwl_pcie_ctxt_info_gen3_free(struct iwl_trans *trans)
 	trans_pcie->prph_info_dma_addr = 0;
 	trans_pcie->prph_info = NULL;
 }
+
+int iwl_trans_pcie_ctx_info_gen3_set_pnvm(struct iwl_trans *trans,
+					  const void *data, u32 len)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct iwl_prph_scratch_ctrl_cfg *prph_sc_ctrl =
+		&trans_pcie->prph_scratch->ctrl_cfg;
+	int ret;
+
+	if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
+		return 0;
+
+	ret = iwl_pcie_ctxt_info_alloc_dma(trans, data, len,
+					   &trans_pcie->pnvm_dram);
+	if (ret < 0) {
+		IWL_DEBUG_FW(trans, "Failed to allocate PNVM DMA %d.\n",
+			     ret);
+		return ret;
+	}
+
+	prph_sc_ctrl->pnvm_cfg.pnvm_base_addr =
+		cpu_to_le64(trans_pcie->pnvm_dram.physical);
+	prph_sc_ctrl->pnvm_cfg.pnvm_size =
+		cpu_to_le32(trans_pcie->pnvm_dram.size);
+
+	return 0;
+}

@@ -1349,6 +1349,11 @@
 			Format: <interval>,<probability>,<space>,<times>
 			See also Documentation/fault-injection/.
 
+	fb_tunnels=	[NET]
+			Format: { initns | none }
+			See Documentation/admin-guide/sysctl/net.rst for
+			fb_tunnels_only_for_init_ns
+
 	floppy=		[HW]
 			See Documentation/admin-guide/blockdev/floppy.rst.
 

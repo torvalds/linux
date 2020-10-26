@@ -519,6 +519,18 @@ int hw_atl2_utils_get_action_resolve_table_caps(struct aq_hw_s *self,
 	return 0;
 }
 
+static int aq_a2_fw_set_downshift(struct aq_hw_s *self, u32 counter)
+{
+	struct link_options_s link_options;
+
+	hw_atl2_shared_buffer_get(self, link_options, link_options);
+	link_options.downshift = !!counter;
+	link_options.downshift_retry = counter;
+	hw_atl2_shared_buffer_write(self, link_options, link_options);
+
+	return hw_atl2_shared_buffer_finish_ack(self);
+}
+
 const struct aq_fw_ops aq_a2_fw_ops = {
 	.init               = aq_a2_fw_init,
 	.deinit             = aq_a2_fw_deinit,
@@ -536,4 +548,5 @@ const struct aq_fw_ops aq_a2_fw_ops = {
 	.set_flow_control   = aq_a2_fw_set_flow_control,
 	.get_flow_control   = aq_a2_fw_get_flow_control,
 	.set_phyloopback    = aq_a2_fw_set_phyloopback,
+	.set_downshift      = aq_a2_fw_set_downshift,
 };

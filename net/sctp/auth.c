@@ -445,7 +445,7 @@ struct sctp_shared_key *sctp_auth_get_shkey(
 }
 
 /*
- * Initialize all the possible digest transforms that we can use.  Right now
+ * Initialize all the possible digest transforms that we can use.  Right
  * now, the supported digests are SHA1 and SHA256.  We do this here once
  * because of the restrictiong that transforms may only be allocated in
  * user context.  This forces us to pre-allocated all possible transforms
@@ -811,7 +811,7 @@ int sctp_auth_ep_set_hmacs(struct sctp_endpoint *ep,
 }
 
 /* Set a new shared key on either endpoint or association.  If the
- * the key with a same ID already exists, replace the key (remove the
+ * key with a same ID already exists, replace the key (remove the
  * old key and add a new one).
  */
 int sctp_auth_set_key(struct sctp_endpoint *ep,

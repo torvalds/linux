@@ -20,25 +20,6 @@ config CAIF_TTY
 	  identified as N_CAIF. When this ldisc is opened from user space
 	  it will redirect the TTY's traffic into the CAIF stack.
 
-config CAIF_SPI_SLAVE
-	tristate "CAIF SPI transport driver for slave interface"
-	depends on CAIF && HAS_DMA
-	default n
-	help
-	  The CAIF Link layer SPI Protocol driver for Slave SPI interface.
-	  This driver implements a platform driver to accommodate for a
-	  platform specific SPI device. A sample CAIF SPI Platform device is
-	  provided in <file:Documentation/networking/caif/spi_porting.rst>.
-
-config CAIF_SPI_SYNC
-	bool "Next command and length in start of frame"
-	depends on CAIF_SPI_SLAVE
-	default n
-	help
-	  Putting the next command and length in the start of the frame can
-	  help to synchronize to the next transfer in case of over or under-runs.
-	  This option also needs to be enabled on the modem.
-
 config CAIF_HSI
 	tristate "CAIF HSI transport driver"
 	depends on CAIF

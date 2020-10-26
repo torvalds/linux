@@ -47,8 +47,8 @@ struct sk_buff *mlx5e_xsk_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq,
 
 	xdp->data_end = xdp->data + cqe_bcnt32;
 	xdp_set_data_meta_invalid(xdp);
-	xsk_buff_dma_sync_for_cpu(xdp);
-	prefetch(xdp->data);
+	xsk_buff_dma_sync_for_cpu(xdp, rq->xsk_pool);
+	net_prefetch(xdp->data);
 
 	/* Possible flows:
 	 * - XDP_REDIRECT to XSKMAP:
@@ -93,8 +93,8 @@ struct sk_buff *mlx5e_xsk_skb_from_cqe_linear(struct mlx5e_rq *rq,
 
 	xdp->data_end = xdp->data + cqe_bcnt;
 	xdp_set_data_meta_invalid(xdp);
-	xsk_buff_dma_sync_for_cpu(xdp);
-	prefetch(xdp->data);
+	xsk_buff_dma_sync_for_cpu(xdp, rq->xsk_pool);
+	net_prefetch(xdp->data);
 
 	if (unlikely(get_cqe_opcode(cqe) != MLX5_CQE_RESP_SEND)) {
 		rq->stats->wqe_err++;

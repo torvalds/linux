@@ -70,7 +70,7 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_edcca, mt7603_edcca_get,
 			 mt7603_edcca_set, "%lld\n");
 
 static int
-mt7603_ampdu_stat_read(struct seq_file *file, void *data)
+mt7603_ampdu_stat_show(struct seq_file *file, void *data)
 {
 	struct mt7603_dev *dev = file->private;
 	int bound[3], i, range;
@@ -91,18 +91,7 @@ mt7603_ampdu_stat_read(struct seq_file *file, void *data)
 	return 0;
 }
 
-static int
-mt7603_ampdu_stat_open(struct inode *inode, struct file *f)
-{
-	return single_open(f, mt7603_ampdu_stat_read, inode->i_private);
-}
-
-static const struct file_operations fops_ampdu_stat = {
-	.open = mt7603_ampdu_stat_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(mt7603_ampdu_stat);
 
 void mt7603_init_debugfs(struct mt7603_dev *dev)
 {
@@ -112,7 +101,8 @@ void mt7603_init_debugfs(struct mt7603_dev *dev)
 	if (!dir)
 		return;
 
-	debugfs_create_file("ampdu_stat", 0400, dir, dev, &fops_ampdu_stat);
+	debugfs_create_file("ampdu_stat", 0400, dir, dev,
+			     &mt7603_ampdu_stat_fops);
 	debugfs_create_devm_seqfile(dev->mt76.dev, "xmit-queues", dir,
 				    mt76_queues_read);
 	debugfs_create_file("edcca", 0600, dir, dev, &fops_edcca);

@@ -958,7 +958,7 @@ static int vsc8584_macsec_del_txsa(struct macsec_context *ctx)
 	return 0;
 }
 
-static struct macsec_ops vsc8584_macsec_ops = {
+static const struct macsec_ops vsc8584_macsec_ops = {
 	.mdo_dev_open = vsc8584_macsec_dev_open,
 	.mdo_dev_stop = vsc8584_macsec_dev_stop,
 	.mdo_add_secy = vsc8584_macsec_add_secy,

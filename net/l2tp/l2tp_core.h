@@ -51,7 +51,6 @@ struct l2tp_session_cfg {
 	unsigned int		lns_mode:1;	/* behave as LNS?
 						 * LAC enables sequence numbers under LNS control.
 						 */
-	int			debug;		/* bitmask of debug message categories */
 	u16			l2specific_type; /* Layer 2 specific type */
 	u8			cookie[8];	/* optional cookie */
 	int			cookie_len;	/* 0, 4 or 8 bytes */
@@ -66,6 +65,7 @@ struct l2tp_session_cfg {
  * Is linked into a per-tunnel session hashlist; and in the case of an L2TPv3 session into
  * an additional per-net ("global") hashlist.
  */
+#define L2TP_SESSION_NAME_MAX 32
 struct l2tp_session {
 	int			magic;		/* should be L2TP_SESSION_MAGIC */
 	long			dead;
@@ -90,14 +90,13 @@ struct l2tp_session {
 	struct hlist_node	hlist;		/* hash list node */
 	refcount_t		ref_count;
 
-	char			name[32];	/* for logging */
+	char			name[L2TP_SESSION_NAME_MAX]; /* for logging */
 	char			ifname[IFNAMSIZ];
 	unsigned int		recv_seq:1;	/* expect receive packets with sequence numbers? */
 	unsigned int		send_seq:1;	/* send packets with sequence numbers? */
 	unsigned int		lns_mode:1;	/* behave as LNS?
 						 * LAC enables sequence numbers under LNS control.
 						 */
-	int			debug;		/* bitmask of debug message categories */
 	int			reorder_timeout; /* configured reorder timeout (in jiffies) */
 	int			reorder_skip;	/* set if skip to next nr */
 	enum l2tp_pwtype	pwtype;
@@ -131,7 +130,6 @@ struct l2tp_session {
 
 /* L2TP tunnel configuration */
 struct l2tp_tunnel_cfg {
-	int			debug;		/* bitmask of debug message categories */
 	enum l2tp_encap_type	encap;
 
 	/* Used only for kernel-created sockets */
@@ -154,6 +152,7 @@ struct l2tp_tunnel_cfg {
  * Maintains a hashlist of sessions belonging to the tunnel instance.
  * Is linked into a per-net list of tunnels.
  */
+#define L2TP_TUNNEL_NAME_MAX 20
 struct l2tp_tunnel {
 	int			magic;		/* Should be L2TP_TUNNEL_MAGIC */
 
@@ -170,8 +169,7 @@ struct l2tp_tunnel {
 	u32			peer_tunnel_id;
 	int			version;	/* 2=>L2TPv2, 3=>L2TPv3 */
 
-	char			name[20];	/* for logging */
-	int			debug;		/* bitmask of debug message categories */
+	char			name[L2TP_TUNNEL_NAME_MAX]; /* for logging */
 	enum l2tp_encap_type	encap;
 	struct l2tp_stats	stats;
 
@@ -237,7 +235,7 @@ struct l2tp_session *l2tp_session_get_by_ifname(const struct net *net,
  * Creation of a new instance is a two-step process: create, then register.
  * Destruction is triggered using the *_delete functions, and completes asynchronously.
  */
-int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id,
+int l2tp_tunnel_create(int fd, int version, u32 tunnel_id,
 		       u32 peer_tunnel_id, struct l2tp_tunnel_cfg *cfg,
 		       struct l2tp_tunnel **tunnelp);
 int l2tp_tunnel_register(struct l2tp_tunnel *tunnel, struct net *net,
@@ -263,8 +261,7 @@ int l2tp_udp_encap_recv(struct sock *sk, struct sk_buff *skb);
 
 /* Transmit path helpers for sending packets over the tunnel socket. */
 void l2tp_session_set_header_len(struct l2tp_session *session, int version);
-int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb,
-		  int hdr_len);
+int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb);
 
 /* Pseudowire management.
  * Pseudowires should register with l2tp core on module init, and unregister
@@ -275,6 +272,11 @@ void l2tp_nl_unregister_ops(enum l2tp_pwtype pw_type);
 
 /* IOCTL helper for IP encap modules. */
 int l2tp_ioctl(struct sock *sk, int cmd, unsigned long arg);
+
+/* Extract the tunnel structure from a socket's sk_user_data pointer,
+ * validating the tunnel magic feather.
+ */
+struct l2tp_tunnel *l2tp_sk_to_tunnel(struct sock *sk);
 
 static inline int l2tp_get_l2specific_len(struct l2tp_session *session)
 {
@@ -336,19 +338,6 @@ static inline int l2tp_v3_ensure_opt_in_linear(struct l2tp_session *session, str
 
 	return 0;
 }
-
-#define l2tp_printk(ptr, type, func, fmt, ...)				\
-do {									\
-	if (((ptr)->debug) & (type))					\
-		func(fmt, ##__VA_ARGS__);				\
-} while (0)
-
-#define l2tp_warn(ptr, type, fmt, ...)					\
-	l2tp_printk(ptr, type, pr_warn, fmt, ##__VA_ARGS__)
-#define l2tp_info(ptr, type, fmt, ...)					\
-	l2tp_printk(ptr, type, pr_info, fmt, ##__VA_ARGS__)
-#define l2tp_dbg(ptr, type, fmt, ...)					\
-	l2tp_printk(ptr, type, pr_debug, fmt, ##__VA_ARGS__)
 
 #define MODULE_ALIAS_L2TP_PWTYPE(type) \
 	MODULE_ALIAS("net-l2tp-type-" __stringify(type))

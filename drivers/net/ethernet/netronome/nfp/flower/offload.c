@@ -31,6 +31,7 @@
 	 BIT(FLOW_DISSECTOR_KEY_PORTS) | \
 	 BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS) | \
 	 BIT(FLOW_DISSECTOR_KEY_VLAN) | \
+	 BIT(FLOW_DISSECTOR_KEY_CVLAN) | \
 	 BIT(FLOW_DISSECTOR_KEY_ENC_KEYID) | \
 	 BIT(FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) | \
 	 BIT(FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS) | \
@@ -66,7 +67,8 @@
 	 NFP_FLOWER_LAYER_IPV6)
 
 #define NFP_FLOWER_PRE_TUN_RULE_FIELDS \
-	(NFP_FLOWER_LAYER_PORT | \
+	(NFP_FLOWER_LAYER_EXT_META | \
+	 NFP_FLOWER_LAYER_PORT | \
 	 NFP_FLOWER_LAYER_MAC | \
 	 NFP_FLOWER_LAYER_IPV4 | \
 	 NFP_FLOWER_LAYER_IPV6)
@@ -284,6 +286,30 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 		    vlan.key->vlan_priority) {
 			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: loaded firmware does not support VLAN PCP offload");
 			return -EOPNOTSUPP;
+		}
+		if (priv->flower_ext_feats & NFP_FL_FEATS_VLAN_QINQ &&
+		    !(key_layer_two & NFP_FLOWER_LAYER2_QINQ)) {
+			key_layer |= NFP_FLOWER_LAYER_EXT_META;
+			key_size += sizeof(struct nfp_flower_ext_meta);
+			key_size += sizeof(struct nfp_flower_vlan);
+			key_layer_two |= NFP_FLOWER_LAYER2_QINQ;
+		}
+	}
+
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_CVLAN)) {
+		struct flow_match_vlan cvlan;
+
+		if (!(priv->flower_ext_feats & NFP_FL_FEATS_VLAN_QINQ)) {
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: loaded firmware does not support VLAN QinQ offload");
+			return -EOPNOTSUPP;
+		}
+
+		flow_rule_match_vlan(rule, &cvlan);
+		if (!(key_layer_two & NFP_FLOWER_LAYER2_QINQ)) {
+			key_layer |= NFP_FLOWER_LAYER_EXT_META;
+			key_size += sizeof(struct nfp_flower_ext_meta);
+			key_size += sizeof(struct nfp_flower_vlan);
+			key_layer_two |= NFP_FLOWER_LAYER2_QINQ;
 		}
 	}
 
@@ -1066,6 +1092,7 @@ err_destroy_merge_flow:
  * nfp_flower_validate_pre_tun_rule()
  * @app:	Pointer to the APP handle
  * @flow:	Pointer to NFP flow representation of rule
+ * @key_ls:	Pointer to NFP key layers structure
  * @extack:	Netlink extended ACK report
  *
  * Verifies the flow as a pre-tunnel rule.
@@ -1075,10 +1102,13 @@ err_destroy_merge_flow:
 static int
 nfp_flower_validate_pre_tun_rule(struct nfp_app *app,
 				 struct nfp_fl_payload *flow,
+				 struct nfp_fl_key_ls *key_ls,
 				 struct netlink_ext_ack *extack)
 {
+	struct nfp_flower_priv *priv = app->priv;
 	struct nfp_flower_meta_tci *meta_tci;
 	struct nfp_flower_mac_mpls *mac;
+	u8 *ext = flow->unmasked_data;
 	struct nfp_fl_act_head *act;
 	u8 *mask = flow->mask_data;
 	bool vlan = false;
@@ -1086,19 +1116,24 @@ nfp_flower_validate_pre_tun_rule(struct nfp_app *app,
 	u8 key_layer;
 
 	meta_tci = (struct nfp_flower_meta_tci *)flow->unmasked_data;
-	if (meta_tci->tci & cpu_to_be16(NFP_FLOWER_MASK_VLAN_PRESENT)) {
-		u16 vlan_tci = be16_to_cpu(meta_tci->tci);
+	key_layer = key_ls->key_layer;
+	if (!(priv->flower_ext_feats & NFP_FL_FEATS_VLAN_QINQ)) {
+		if (meta_tci->tci & cpu_to_be16(NFP_FLOWER_MASK_VLAN_PRESENT)) {
+			u16 vlan_tci = be16_to_cpu(meta_tci->tci);
 
-		vlan_tci &= ~NFP_FLOWER_MASK_VLAN_PRESENT;
-		flow->pre_tun_rule.vlan_tci = cpu_to_be16(vlan_tci);
-		vlan = true;
-	} else {
-		flow->pre_tun_rule.vlan_tci = cpu_to_be16(0xffff);
+			vlan_tci &= ~NFP_FLOWER_MASK_VLAN_PRESENT;
+			flow->pre_tun_rule.vlan_tci = cpu_to_be16(vlan_tci);
+			vlan = true;
+		} else {
+			flow->pre_tun_rule.vlan_tci = cpu_to_be16(0xffff);
+		}
 	}
 
-	key_layer = meta_tci->nfp_flow_key_layer;
 	if (key_layer & ~NFP_FLOWER_PRE_TUN_RULE_FIELDS) {
 		NL_SET_ERR_MSG_MOD(extack, "unsupported pre-tunnel rule: too many match fields");
+		return -EOPNOTSUPP;
+	} else if (key_ls->key_layer_two & ~NFP_FLOWER_LAYER2_QINQ) {
+		NL_SET_ERR_MSG_MOD(extack, "unsupported pre-tunnel rule: non-vlan in extended match fields");
 		return -EOPNOTSUPP;
 	}
 
@@ -1109,7 +1144,13 @@ nfp_flower_validate_pre_tun_rule(struct nfp_app *app,
 
 	/* Skip fields known to exist. */
 	mask += sizeof(struct nfp_flower_meta_tci);
+	ext += sizeof(struct nfp_flower_meta_tci);
+	if (key_ls->key_layer_two) {
+		mask += sizeof(struct nfp_flower_ext_meta);
+		ext += sizeof(struct nfp_flower_ext_meta);
+	}
 	mask += sizeof(struct nfp_flower_in_port);
+	ext += sizeof(struct nfp_flower_in_port);
 
 	/* Ensure destination MAC address is fully matched. */
 	mac = (struct nfp_flower_mac_mpls *)mask;
@@ -1118,6 +1159,8 @@ nfp_flower_validate_pre_tun_rule(struct nfp_app *app,
 		return -EOPNOTSUPP;
 	}
 
+	mask += sizeof(struct nfp_flower_mac_mpls);
+	ext += sizeof(struct nfp_flower_mac_mpls);
 	if (key_layer & NFP_FLOWER_LAYER_IPV4 ||
 	    key_layer & NFP_FLOWER_LAYER_IPV6) {
 		/* Flags and proto fields have same offset in IPv4 and IPv6. */
@@ -1130,7 +1173,6 @@ nfp_flower_validate_pre_tun_rule(struct nfp_app *app,
 			sizeof(struct nfp_flower_ipv4) :
 			sizeof(struct nfp_flower_ipv6);
 
-		mask += sizeof(struct nfp_flower_mac_mpls);
 
 		/* Ensure proto and flags are the only IP layer fields. */
 		for (i = 0; i < size; i++)
@@ -1138,6 +1180,25 @@ nfp_flower_validate_pre_tun_rule(struct nfp_app *app,
 				NL_SET_ERR_MSG_MOD(extack, "unsupported pre-tunnel rule: only flags and proto can be matched in ip header");
 				return -EOPNOTSUPP;
 			}
+		ext += size;
+		mask += size;
+	}
+
+	if ((priv->flower_ext_feats & NFP_FL_FEATS_VLAN_QINQ)) {
+		if (key_ls->key_layer_two & NFP_FLOWER_LAYER2_QINQ) {
+			struct nfp_flower_vlan *vlan_tags;
+			u16 vlan_tci;
+
+			vlan_tags = (struct nfp_flower_vlan *)ext;
+
+			vlan_tci = be16_to_cpu(vlan_tags->outer_tci);
+
+			vlan_tci &= ~NFP_FLOWER_MASK_VLAN_PRESENT;
+			flow->pre_tun_rule.vlan_tci = cpu_to_be16(vlan_tci);
+			vlan = true;
+		} else {
+			flow->pre_tun_rule.vlan_tci = cpu_to_be16(0xffff);
+		}
 	}
 
 	/* Action must be a single egress or pop_vlan and egress. */
@@ -1220,7 +1281,7 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 		goto err_destroy_flow;
 
 	if (flow_pay->pre_tun_rule.dev) {
-		err = nfp_flower_validate_pre_tun_rule(app, flow_pay, extack);
+		err = nfp_flower_validate_pre_tun_rule(app, flow_pay, key_layer, extack);
 		if (err)
 			goto err_destroy_flow;
 	}

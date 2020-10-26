@@ -68,6 +68,7 @@ the flags may not apply to requests. Recognized flags are:
   =================================  ===================================
   ``ETHTOOL_FLAG_COMPACT_BITSETS``   use compact format bitsets in reply
   ``ETHTOOL_FLAG_OMIT_REPLY``        omit optional reply (_SET and _ACT)
+  ``ETHTOOL_FLAG_STATS``             include optional device statistics
   =================================  ===================================
 
 New request flags should follow the general idea that if the flag is not set,
@@ -991,8 +992,18 @@ Kernel response contents:
   ``ETHTOOL_A_PAUSE_AUTONEG``            bool    pause autonegotiation
   ``ETHTOOL_A_PAUSE_RX``                 bool    receive pause frames
   ``ETHTOOL_A_PAUSE_TX``                 bool    transmit pause frames
+  ``ETHTOOL_A_PAUSE_STATS``              nested  pause statistics
   =====================================  ======  ==========================
 
+``ETHTOOL_A_PAUSE_STATS`` are reported if ``ETHTOOL_FLAG_STATS`` was set
+in ``ETHTOOL_A_HEADER_FLAGS``.
+It will be empty if driver did not report any statistics. Drivers fill in
+the statistics in the following structure:
+
+.. kernel-doc:: include/linux/ethtool.h
+    :identifiers: ethtool_pause_stats
+
+Each member has a corresponding attribute defined.
 
 PAUSE_SET
 ============

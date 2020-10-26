@@ -4174,7 +4174,6 @@ MLXSW_ITEM32(reg, ptys, an_status, 0x04, 28, 4);
 
 #define MLXSW_REG_PTYS_EXT_ETH_SPEED_SGMII_100M				BIT(0)
 #define MLXSW_REG_PTYS_EXT_ETH_SPEED_1000BASE_X_SGMII			BIT(1)
-#define MLXSW_REG_PTYS_EXT_ETH_SPEED_2_5GBASE_X_2_5GMII			BIT(2)
 #define MLXSW_REG_PTYS_EXT_ETH_SPEED_5GBASE_R				BIT(3)
 #define MLXSW_REG_PTYS_EXT_ETH_SPEED_XFI_XAUI_1_10G			BIT(4)
 #define MLXSW_REG_PTYS_EXT_ETH_SPEED_XLAUI_4_XLPPI_4_40G		BIT(5)
@@ -4197,7 +4196,6 @@ MLXSW_ITEM32(reg, ptys, ext_eth_proto_cap, 0x08, 0, 32);
 #define MLXSW_REG_PTYS_ETH_SPEED_10GBASE_CX4		BIT(2)
 #define MLXSW_REG_PTYS_ETH_SPEED_10GBASE_KX4		BIT(3)
 #define MLXSW_REG_PTYS_ETH_SPEED_10GBASE_KR		BIT(4)
-#define MLXSW_REG_PTYS_ETH_SPEED_20GBASE_KR2		BIT(5)
 #define MLXSW_REG_PTYS_ETH_SPEED_40GBASE_CR4		BIT(6)
 #define MLXSW_REG_PTYS_ETH_SPEED_40GBASE_KR4		BIT(7)
 #define MLXSW_REG_PTYS_ETH_SPEED_10GBASE_CR		BIT(12)
@@ -4210,10 +4208,6 @@ MLXSW_ITEM32(reg, ptys, ext_eth_proto_cap, 0x08, 0, 32);
 #define MLXSW_REG_PTYS_ETH_SPEED_100GBASE_CR4		BIT(20)
 #define MLXSW_REG_PTYS_ETH_SPEED_100GBASE_SR4		BIT(21)
 #define MLXSW_REG_PTYS_ETH_SPEED_100GBASE_KR4		BIT(22)
-#define MLXSW_REG_PTYS_ETH_SPEED_100GBASE_LR4_ER4	BIT(23)
-#define MLXSW_REG_PTYS_ETH_SPEED_100BASE_TX		BIT(24)
-#define MLXSW_REG_PTYS_ETH_SPEED_100BASE_T		BIT(25)
-#define MLXSW_REG_PTYS_ETH_SPEED_10GBASE_T		BIT(26)
 #define MLXSW_REG_PTYS_ETH_SPEED_25GBASE_CR		BIT(27)
 #define MLXSW_REG_PTYS_ETH_SPEED_25GBASE_KR		BIT(28)
 #define MLXSW_REG_PTYS_ETH_SPEED_25GBASE_SR		BIT(29)
@@ -5411,6 +5405,64 @@ static inline void mlxsw_reg_pspa_pack(char *payload, u8 swid, u8 local_port)
 	mlxsw_reg_pspa_sub_port_set(payload, 0);
 }
 
+/* PMAOS - Ports Module Administrative and Operational Status
+ * ----------------------------------------------------------
+ * This register configures and retrieves the per module status.
+ */
+#define MLXSW_REG_PMAOS_ID 0x5012
+#define MLXSW_REG_PMAOS_LEN 0x10
+
+MLXSW_REG_DEFINE(pmaos, MLXSW_REG_PMAOS_ID, MLXSW_REG_PMAOS_LEN);
+
+/* reg_slot_index
+ * Slot index.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pmaos, slot_index, 0x00, 24, 4);
+
+/* reg_pmaos_module
+ * Module number.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pmaos, module, 0x00, 16, 8);
+
+/* reg_pmaos_ase
+ * Admin state update enable.
+ * If this bit is set, admin state will be updated based on admin_state field.
+ * Only relevant on Set() operations.
+ * Access: WO
+ */
+MLXSW_ITEM32(reg, pmaos, ase, 0x04, 31, 1);
+
+/* reg_pmaos_ee
+ * Event update enable.
+ * If this bit is set, event generation will be updated based on the e field.
+ * Only relevant on Set operations.
+ * Access: WO
+ */
+MLXSW_ITEM32(reg, pmaos, ee, 0x04, 30, 1);
+
+enum mlxsw_reg_pmaos_e {
+	MLXSW_REG_PMAOS_E_DO_NOT_GENERATE_EVENT,
+	MLXSW_REG_PMAOS_E_GENERATE_EVENT,
+	MLXSW_REG_PMAOS_E_GENERATE_SINGLE_EVENT,
+};
+
+/* reg_pmaos_e
+ * Event Generation on operational state change.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pmaos, e, 0x04, 0, 2);
+
+static inline void mlxsw_reg_pmaos_pack(char *payload, u8 module,
+					enum mlxsw_reg_pmaos_e e)
+{
+	MLXSW_REG_ZERO(pmaos, payload);
+	mlxsw_reg_pmaos_module_set(payload, module);
+	mlxsw_reg_pmaos_e_set(payload, e);
+	mlxsw_reg_pmaos_ee_set(payload, true);
+}
+
 /* PPLR - Port Physical Loopback Register
  * --------------------------------------
  * This register allows configuration of the port's loopback mode.
@@ -5446,6 +5498,50 @@ static inline void mlxsw_reg_pplr_pack(char *payload, u8 local_port,
 				 phy_local ?
 				 MLXSW_REG_PPLR_LB_TYPE_BIT_PHY_LOCAL : 0);
 }
+
+/* PMPE - Port Module Plug/Unplug Event Register
+ * ---------------------------------------------
+ * This register reports any operational status change of a module.
+ * A change in the module’s state will generate an event only if the change
+ * happens after arming the event mechanism. Any changes to the module state
+ * while the event mechanism is not armed will not be reported. Software can
+ * query the PMPE register for module status.
+ */
+#define MLXSW_REG_PMPE_ID 0x5024
+#define MLXSW_REG_PMPE_LEN 0x10
+
+MLXSW_REG_DEFINE(pmpe, MLXSW_REG_PMPE_ID, MLXSW_REG_PMPE_LEN);
+
+/* reg_pmpe_slot_index
+ * Slot index.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pmpe, slot_index, 0x00, 24, 4);
+
+/* reg_pmpe_module
+ * Module number.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pmpe, module, 0x00, 16, 8);
+
+enum mlxsw_reg_pmpe_module_status {
+	MLXSW_REG_PMPE_MODULE_STATUS_PLUGGED_ENABLED = 1,
+	MLXSW_REG_PMPE_MODULE_STATUS_UNPLUGGED,
+	MLXSW_REG_PMPE_MODULE_STATUS_PLUGGED_ERROR,
+	MLXSW_REG_PMPE_MODULE_STATUS_PLUGGED_DISABLED,
+};
+
+/* reg_pmpe_module_status
+ * Module status.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, pmpe, module_status, 0x00, 0, 4);
+
+/* reg_pmpe_error_type
+ * Module error details.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, pmpe, error_type, 0x04, 8, 4);
 
 /* PDDR - Port Diagnostics Database Register
  * -----------------------------------------
@@ -5585,6 +5681,9 @@ MLXSW_ITEM32(reg, htgt, type, 0x00, 8, 4);
 
 enum mlxsw_reg_htgt_trap_group {
 	MLXSW_REG_HTGT_TRAP_GROUP_EMAD,
+	MLXSW_REG_HTGT_TRAP_GROUP_MFDE,
+	MLXSW_REG_HTGT_TRAP_GROUP_MTWE,
+	MLXSW_REG_HTGT_TRAP_GROUP_PMPE,
 	MLXSW_REG_HTGT_TRAP_GROUP_SP_STP,
 	MLXSW_REG_HTGT_TRAP_GROUP_SP_LACP,
 	MLXSW_REG_HTGT_TRAP_GROUP_SP_LLDP,
@@ -8418,6 +8517,13 @@ MLXSW_ITEM32(reg, mtmp, max_temperature, 0x08, 0, 16);
  * 2 - Generate single event
  * Access: RW
  */
+
+enum mlxsw_reg_mtmp_tee {
+	MLXSW_REG_MTMP_TEE_NO_EVENT,
+	MLXSW_REG_MTMP_TEE_GENERATE_EVENT,
+	MLXSW_REG_MTMP_TEE_GENERATE_SINGLE_EVENT,
+};
+
 MLXSW_ITEM32(reg, mtmp, tee, 0x0C, 30, 2);
 
 #define MLXSW_REG_MTMP_THRESH_HI 0x348	/* 105 Celsius */
@@ -8428,6 +8534,7 @@ MLXSW_ITEM32(reg, mtmp, tee, 0x0C, 30, 2);
  */
 MLXSW_ITEM32(reg, mtmp, temperature_threshold_hi, 0x0C, 0, 16);
 
+#define MLXSW_REG_MTMP_HYSTERESIS_TEMP 0x28 /* 5 Celsius */
 /* reg_mtmp_temperature_threshold_lo
  * Low threshold for Temperature Warning Event. In 0.125 Celsius.
  * Access: RW
@@ -8470,6 +8577,23 @@ static inline void mlxsw_reg_mtmp_unpack(char *payload, int *p_temp,
 	if (sensor_name)
 		mlxsw_reg_mtmp_sensor_name_memcpy_from(payload, sensor_name);
 }
+
+/* MTWE - Management Temperature Warning Event
+ * -------------------------------------------
+ * This register is used for over temperature warning.
+ */
+#define MLXSW_REG_MTWE_ID 0x900B
+#define MLXSW_REG_MTWE_LEN 0x10
+
+MLXSW_REG_DEFINE(mtwe, MLXSW_REG_MTWE_ID, MLXSW_REG_MTWE_LEN);
+
+/* reg_mtwe_sensor_warning
+ * Bit vector indicating which of the sensor reading is above threshold.
+ * Address 00h bit31 is sensor_warning[127].
+ * Address 0Ch bit0 is sensor_warning[0].
+ * Access: RO
+ */
+MLXSW_ITEM_BIT_ARRAY(reg, mtwe, sensor_warning, 0x0, 0x10, 1);
 
 /* MTBR - Management Temperature Bulk Register
  * -------------------------------------------
@@ -9827,6 +9951,26 @@ static inline void mlxsw_reg_mtptptp_pack(char *payload,
 	mlxsw_reg_mtptpt_message_type_set(payload, message_type);
 }
 
+/* MFGD - Monitoring FW General Debug Register
+ * -------------------------------------------
+ */
+#define MLXSW_REG_MFGD_ID 0x90F0
+#define MLXSW_REG_MFGD_LEN 0x0C
+
+MLXSW_REG_DEFINE(mfgd, MLXSW_REG_MFGD_ID, MLXSW_REG_MFGD_LEN);
+
+/* reg_mfgd_fw_fatal_event_mode
+ * 0 - don't check FW fatal (default)
+ * 1 - check FW fatal - enable MFDE trap
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mfgd, fatal_event_mode, 0x00, 9, 2);
+
+/* reg_mfgd_trigger_test
+ * Access: WO
+ */
+MLXSW_ITEM32(reg, mfgd, trigger_test, 0x00, 11, 1);
+
 /* MGPIR - Management General Peripheral Information Register
  * ----------------------------------------------------------
  * MGPIR register allows software to query the hardware and
@@ -9885,6 +10029,84 @@ mlxsw_reg_mgpir_unpack(char *payload, u8 *num_of_devices,
 	if (num_of_modules)
 		*num_of_modules = mlxsw_reg_mgpir_num_of_modules_get(payload);
 }
+
+/* MFDE - Monitoring FW Debug Register
+ * -----------------------------------
+ */
+#define MLXSW_REG_MFDE_ID 0x9200
+#define MLXSW_REG_MFDE_LEN 0x18
+
+MLXSW_REG_DEFINE(mfde, MLXSW_REG_MFDE_ID, MLXSW_REG_MFDE_LEN);
+
+/* reg_mfde_irisc_id
+ * Which irisc triggered the event
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, irisc_id, 0x00, 8, 4);
+
+enum mlxsw_reg_mfde_event_id {
+	MLXSW_REG_MFDE_EVENT_ID_CRSPACE_TO = 1,
+	/* KVD insertion machine stopped */
+	MLXSW_REG_MFDE_EVENT_ID_KVD_IM_STOP,
+};
+
+/* reg_mfde_event_id
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, event_id, 0x00, 0, 8);
+
+enum mlxsw_reg_mfde_method {
+	MLXSW_REG_MFDE_METHOD_QUERY,
+	MLXSW_REG_MFDE_METHOD_WRITE,
+};
+
+/* reg_mfde_method
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, method, 0x04, 29, 1);
+
+/* reg_mfde_long_process
+ * Indicates if the command is in long_process mode.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, long_process, 0x04, 28, 1);
+
+enum mlxsw_reg_mfde_command_type {
+	MLXSW_REG_MFDE_COMMAND_TYPE_MAD,
+	MLXSW_REG_MFDE_COMMAND_TYPE_EMAD,
+	MLXSW_REG_MFDE_COMMAND_TYPE_CMDIF,
+};
+
+/* reg_mfde_command_type
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, command_type, 0x04, 24, 2);
+
+/* reg_mfde_reg_attr_id
+ * EMAD - register id, MAD - attibute id
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, reg_attr_id, 0x04, 0, 16);
+
+/* reg_mfde_log_address
+ * crspace address accessed, which resulted in timeout.
+ * Valid in case event_id == MLXSW_REG_MFDE_EVENT_ID_CRSPACE_TO
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, log_address, 0x10, 0, 32);
+
+/* reg_mfde_log_id
+ * Which irisc triggered the timeout.
+ * Valid in case event_id == MLXSW_REG_MFDE_EVENT_ID_CRSPACE_TO
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, log_id, 0x14, 0, 4);
+
+/* reg_mfde_pipes_mask
+ * Bit per kvh pipe.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, pipes_mask, 0x10, 0, 16);
 
 /* TNGCR - Tunneling NVE General Configuration Register
  * ----------------------------------------------------
@@ -10948,7 +11170,9 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(pptb),
 	MLXSW_REG(pbmc),
 	MLXSW_REG(pspa),
+	MLXSW_REG(pmaos),
 	MLXSW_REG(pplr),
+	MLXSW_REG(pmpe),
 	MLXSW_REG(pddr),
 	MLXSW_REG(pmtm),
 	MLXSW_REG(htgt),
@@ -10978,6 +11202,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(fore),
 	MLXSW_REG(mtcap),
 	MLXSW_REG(mtmp),
+	MLXSW_REG(mtwe),
 	MLXSW_REG(mtbr),
 	MLXSW_REG(mcia),
 	MLXSW_REG(mpat),
@@ -10999,7 +11224,9 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(mtpppc),
 	MLXSW_REG(mtpptr),
 	MLXSW_REG(mtptpt),
+	MLXSW_REG(mfgd),
 	MLXSW_REG(mgpir),
+	MLXSW_REG(mfde),
 	MLXSW_REG(tngcr),
 	MLXSW_REG(tnumt),
 	MLXSW_REG(tnqcr),

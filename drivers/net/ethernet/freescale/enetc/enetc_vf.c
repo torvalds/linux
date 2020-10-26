@@ -78,16 +78,11 @@ static int enetc_vf_set_mac_addr(struct net_device *ndev, void *addr)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
 	struct sockaddr *saddr = addr;
-	int err;
 
 	if (!is_valid_ether_addr(saddr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	err = enetc_msg_vsi_set_primary_mac_addr(priv, saddr);
-	if (err)
-		return err;
-
-	return 0;
+	return enetc_msg_vsi_set_primary_mac_addr(priv, saddr);
 }
 
 static int enetc_vf_set_features(struct net_device *ndev,

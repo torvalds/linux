@@ -22,6 +22,15 @@
 #include "smc.h"
 #include "smc_core.h"
 
+struct smc_diag_dump_ctx {
+	int pos[2];
+};
+
+static struct smc_diag_dump_ctx *smc_dump_context(struct netlink_callback *cb)
+{
+	return (struct smc_diag_dump_ctx *)cb->ctx;
+}
+
 static void smc_gid_be16_convert(__u8 *buf, u8 *gid_raw)
 {
 	sprintf(buf, "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x",
@@ -193,13 +202,15 @@ errout:
 }
 
 static int smc_diag_dump_proto(struct proto *prot, struct sk_buff *skb,
-			       struct netlink_callback *cb)
+			       struct netlink_callback *cb, int p_type)
 {
+	struct smc_diag_dump_ctx *cb_ctx = smc_dump_context(cb);
 	struct net *net = sock_net(skb->sk);
+	int snum = cb_ctx->pos[p_type];
 	struct nlattr *bc = NULL;
 	struct hlist_head *head;
+	int rc = 0, num = 0;
 	struct sock *sk;
-	int rc = 0;
 
 	read_lock(&prot->h.smc_hash->lock);
 	head = &prot->h.smc_hash->ht;
@@ -209,13 +220,18 @@ static int smc_diag_dump_proto(struct proto *prot, struct sk_buff *skb,
 	sk_for_each(sk, head) {
 		if (!net_eq(sock_net(sk), net))
 			continue;
+		if (num < snum)
+			goto next;
 		rc = __smc_diag_dump(sk, skb, cb, nlmsg_data(cb->nlh), bc);
-		if (rc)
-			break;
+		if (rc < 0)
+			goto out;
+next:
+		num++;
 	}
 
 out:
 	read_unlock(&prot->h.smc_hash->lock);
+	cb_ctx->pos[p_type] = num;
 	return rc;
 }
 
@@ -223,10 +239,10 @@ static int smc_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	int rc = 0;
 
-	rc = smc_diag_dump_proto(&smc_proto, skb, cb);
+	rc = smc_diag_dump_proto(&smc_proto, skb, cb, SMCPROTO_SMC);
 	if (!rc)
-		rc = smc_diag_dump_proto(&smc_proto6, skb, cb);
-	return rc;
+		smc_diag_dump_proto(&smc_proto6, skb, cb, SMCPROTO_SMC6);
+	return skb->len;
 }
 
 static int smc_diag_handler_dump(struct sk_buff *skb, struct nlmsghdr *h)

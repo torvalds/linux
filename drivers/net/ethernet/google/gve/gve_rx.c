@@ -225,7 +225,8 @@ static enum pkt_hash_types gve_rss_type(__be16 pkt_flags)
 	return PKT_HASH_TYPE_L2;
 }
 
-static struct sk_buff *gve_rx_copy(struct net_device *dev,
+static struct sk_buff *gve_rx_copy(struct gve_rx_ring *rx,
+				   struct net_device *dev,
 				   struct napi_struct *napi,
 				   struct gve_rx_slot_page_info *page_info,
 				   u16 len)
@@ -242,6 +243,11 @@ static struct sk_buff *gve_rx_copy(struct net_device *dev,
 	skb_copy_to_linear_data(skb, va, len);
 
 	skb->protocol = eth_type_trans(skb, dev);
+
+	u64_stats_update_begin(&rx->statss);
+	rx->rx_copied_pkt++;
+	u64_stats_update_end(&rx->statss);
+
 	return skb;
 }
 
@@ -284,8 +290,12 @@ static bool gve_rx(struct gve_rx_ring *rx, struct gve_rx_desc *rx_desc,
 	u16 len;
 
 	/* drop this packet */
-	if (unlikely(rx_desc->flags_seq & GVE_RXF_ERR))
+	if (unlikely(rx_desc->flags_seq & GVE_RXF_ERR)) {
+		u64_stats_update_begin(&rx->statss);
+		rx->rx_desc_err_dropped_pkt++;
+		u64_stats_update_end(&rx->statss);
 		return true;
+	}
 
 	len = be16_to_cpu(rx_desc->len) - GVE_RX_PAD;
 	page_info = &rx->data.page_info[idx];
@@ -300,11 +310,14 @@ static bool gve_rx(struct gve_rx_ring *rx, struct gve_rx_desc *rx_desc,
 	if (PAGE_SIZE == 4096) {
 		if (len <= priv->rx_copybreak) {
 			/* Just copy small packets */
-			skb = gve_rx_copy(dev, napi, page_info, len);
+			skb = gve_rx_copy(rx, dev, napi, page_info, len);
+			u64_stats_update_begin(&rx->statss);
+			rx->rx_copybreak_pkt++;
+			u64_stats_update_end(&rx->statss);
 			goto have_skb;
 		}
 		if (unlikely(!gve_can_recycle_pages(dev))) {
-			skb = gve_rx_copy(dev, napi, page_info, len);
+			skb = gve_rx_copy(rx, dev, napi, page_info, len);
 			goto have_skb;
 		}
 		pagecount = page_count(page_info->page);
@@ -314,8 +327,12 @@ static bool gve_rx(struct gve_rx_ring *rx, struct gve_rx_desc *rx_desc,
 			 * stack.
 			 */
 			skb = gve_rx_add_frags(dev, napi, page_info, len);
-			if (!skb)
+			if (!skb) {
+				u64_stats_update_begin(&rx->statss);
+				rx->rx_skb_alloc_fail++;
+				u64_stats_update_end(&rx->statss);
 				return true;
+			}
 			/* Make sure the kernel stack can't release the page */
 			get_page(page_info->page);
 			/* "flip" to other packet buffer on this page */
@@ -324,21 +341,25 @@ static bool gve_rx(struct gve_rx_ring *rx, struct gve_rx_desc *rx_desc,
 			/* We have previously passed the other half of this
 			 * page up the stack, but it has not yet been freed.
 			 */
-			skb = gve_rx_copy(dev, napi, page_info, len);
+			skb = gve_rx_copy(rx, dev, napi, page_info, len);
 		} else {
 			WARN(pagecount < 1, "Pagecount should never be < 1");
 			return false;
 		}
 	} else {
-		skb = gve_rx_copy(dev, napi, page_info, len);
+		skb = gve_rx_copy(rx, dev, napi, page_info, len);
 	}
 
 have_skb:
 	/* We didn't manage to allocate an skb but we haven't had any
 	 * reset worthy failures.
 	 */
-	if (!skb)
+	if (!skb) {
+		u64_stats_update_begin(&rx->statss);
+		rx->rx_skb_alloc_fail++;
+		u64_stats_update_end(&rx->statss);
 		return true;
+	}
 
 	if (likely(feat & NETIF_F_RXCSUM)) {
 		/* NIC passes up the partial sum */
