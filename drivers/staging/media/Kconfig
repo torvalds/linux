@@ -44,8 +44,6 @@ source "drivers/staging/media/tegra-video/Kconfig"
 
 source "drivers/staging/media/ipu3/Kconfig"
 
-source "drivers/staging/media/phy-rockchip-dphy-rx0/Kconfig"
-
 source "drivers/staging/media/rkisp1/Kconfig"
 
 endif

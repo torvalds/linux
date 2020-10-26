@@ -135,13 +135,9 @@ static irqreturn_t ast_vhub_irq(int irq, void *data)
 
 	/* Handle device interrupts */
 	if (istat & vhub->port_irq_mask) {
-		unsigned long bitmap = istat;
-		int offset = VHUB_IRQ_DEV1_BIT;
-		int size = VHUB_IRQ_DEV1_BIT + vhub->max_ports;
-
-		for_each_set_bit_from(offset, &bitmap, size) {
-			i = offset - VHUB_IRQ_DEV1_BIT;
-			ast_vhub_dev_irq(&vhub->ports[i].dev);
+		for (i = 0; i < vhub->max_ports; i++) {
+			if (istat & VHUB_DEV_IRQ(i))
+				ast_vhub_dev_irq(&vhub->ports[i].dev);
 		}
 	}
 
