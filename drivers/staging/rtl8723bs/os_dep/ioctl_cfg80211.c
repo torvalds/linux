@@ -259,7 +259,7 @@ struct cfg80211_bss *rtw_cfg80211_inform_bss(struct adapter *padapter, struct wl
 
 	/* To reduce PBC Overlap rate */
 	/* spin_lock_bh(&pwdev_priv->scan_req_lock); */
-	if (adapter_wdev_data(padapter)->scan_request != NULL)
+	if (adapter_wdev_data(padapter)->scan_request)
 	{
 		u8 *psr = NULL, sr = 0;
 		struct ndis_802_11_ssid *pssid = &pnetwork->network.Ssid;
@@ -288,7 +288,7 @@ struct cfg80211_bss *rtw_cfg80211_inform_bss(struct adapter *padapter, struct wl
 				}
 				else
 				{
-					if (psr != NULL)
+					if (psr)
 						*psr = 0; /* clear sr */
 				}
 			}
@@ -1353,7 +1353,7 @@ void rtw_cfg80211_indicate_scan_done(struct adapter *adapter, bool aborted)
 	};
 
 	spin_lock_bh(&pwdev_priv->scan_req_lock);
-	if (pwdev_priv->scan_request != NULL) {
+	if (pwdev_priv->scan_request) {
 		#ifdef DEBUG_CFG80211
 		DBG_871X("%s with scan req\n", __func__);
 		#endif

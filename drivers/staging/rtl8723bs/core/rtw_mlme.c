@@ -1911,7 +1911,7 @@ static int rtw_check_roaming_candidate(struct mlme_priv *mlme
 	if (competitor->network.Rssi - mlme->cur_network_scanned->network.Rssi < mlme->roam_rssi_diff_th)
 		goto exit;
 
-	if (*candidate != NULL && (*candidate)->network.Rssi >= competitor->network.Rssi)
+	if (*candidate && (*candidate)->network.Rssi >= competitor->network.Rssi)
 		goto exit;
 
 update:
