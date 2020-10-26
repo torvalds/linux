@@ -4919,8 +4919,10 @@ static int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
 		index = nla_get_u32(info->attrs[DEVLINK_ATTR_PORT_INDEX]);
 
 		port = devlink_port_get_by_index(devlink, index);
-		if (!port)
-			return -ENODEV;
+		if (!port) {
+			err = -ENODEV;
+			goto out_unlock;
+		}
 	}
 
 	region_name = nla_data(attrs[DEVLINK_ATTR_REGION_NAME]);
