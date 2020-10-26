@@ -294,7 +294,8 @@ static int afs_parse_source(struct fs_context *fc, struct fs_parameter *param)
 			       cellnamesz, cellnamesz, cellname ?: "");
 			return PTR_ERR(cell);
 		}
-		afs_put_cell(ctx->net, ctx->cell);
+		afs_unuse_cell(ctx->net, ctx->cell, afs_cell_trace_unuse_parse);
+		afs_see_cell(cell, afs_cell_trace_see_source);
 		ctx->cell = cell;
 	}
 
@@ -389,8 +390,9 @@ static int afs_validate_fc(struct fs_context *fc)
 				_debug("switch to alias");
 				key_put(ctx->key);
 				ctx->key = NULL;
-				cell = afs_get_cell(ctx->cell->alias_of);
-				afs_put_cell(ctx->net, ctx->cell);
+				cell = afs_use_cell(ctx->cell->alias_of,
+						    afs_cell_trace_use_fc_alias);
+				afs_unuse_cell(ctx->net, ctx->cell, afs_cell_trace_unuse_fc);
 				ctx->cell = cell;
 				goto reget_key;
 			}
@@ -507,7 +509,7 @@ static struct afs_super_info *afs_alloc_sbi(struct fs_context *fc)
 		if (ctx->dyn_root) {
 			as->dyn_root = true;
 		} else {
-			as->cell = afs_get_cell(ctx->cell);
+			as->cell = afs_use_cell(ctx->cell, afs_cell_trace_use_sbi);
 			as->volume = afs_get_volume(ctx->volume,
 						    afs_volume_trace_get_alloc_sbi);
 		}
@@ -520,7 +522,7 @@ static void afs_destroy_sbi(struct afs_super_info *as)
 	if (as) {
 		struct afs_net *net = afs_net(as->net_ns);
 		afs_put_volume(net, as->volume, afs_volume_trace_put_destroy_sbi);
-		afs_put_cell(net, as->cell);
+		afs_unuse_cell(net, as->cell, afs_cell_trace_unuse_sbi);
 		put_net(as->net_ns);
 		kfree(as);
 	}
@@ -606,7 +608,7 @@ static void afs_free_fc(struct fs_context *fc)
 
 	afs_destroy_sbi(fc->s_fs_info);
 	afs_put_volume(ctx->net, ctx->volume, afs_volume_trace_put_free_fc);
-	afs_put_cell(ctx->net, ctx->cell);
+	afs_unuse_cell(ctx->net, ctx->cell, afs_cell_trace_unuse_fc);
 	key_put(ctx->key);
 	kfree(ctx);
 }
@@ -633,9 +635,7 @@ static int afs_init_fs_context(struct fs_context *fc)
 	ctx->net = afs_net(fc->net_ns);
 
 	/* Default to the workstation cell. */
-	rcu_read_lock();
-	cell = afs_lookup_cell_rcu(ctx->net, NULL, 0);
-	rcu_read_unlock();
+	cell = afs_find_cell(ctx->net, NULL, 0, afs_cell_trace_use_fc);
 	if (IS_ERR(cell))
 		cell = NULL;
 	ctx->cell = cell;
