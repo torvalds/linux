@@ -831,7 +831,7 @@ static int bch2_fill_extent(struct bch_fs *c,
 			    struct fiemap_extent_info *info,
 			    struct bkey_s_c k, unsigned flags)
 {
-	if (bkey_extent_is_data(k.k)) {
+	if (bkey_extent_is_direct_data(k.k)) {
 		struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 		const union bch_extent_entry *entry;
 		struct extent_ptr_decoded p;
@@ -862,6 +862,12 @@ static int bch2_fill_extent(struct bch_fs *c,
 		}
 
 		return 0;
+	} else if (bkey_extent_is_inline_data(k.k)) {
+		return fiemap_fill_next_extent(info,
+					       bkey_start_offset(k.k) << 9,
+					       0, k.k->size << 9,
+					       flags|
+					       FIEMAP_EXTENT_DATA_INLINE);
 	} else if (k.k->type == KEY_TYPE_reservation) {
 		return fiemap_fill_next_extent(info,
 					       bkey_start_offset(k.k) << 9,
@@ -928,11 +934,10 @@ retry:
 
 		sectors = min(sectors, k.k->size - offset_into_extent);
 
-		if (offset_into_extent)
-			bch2_cut_front(POS(k.k->p.inode,
-					   bkey_start_offset(k.k) +
-					   offset_into_extent),
-				       cur.k);
+		bch2_cut_front(POS(k.k->p.inode,
+				   bkey_start_offset(k.k) +
+				   offset_into_extent),
+			       cur.k);
 		bch2_key_resize(&cur.k->k, sectors);
 		cur.k->k.p = iter->pos;
 		cur.k->k.p.offset += cur.k->k.size;
@@ -947,10 +952,8 @@ retry:
 		bkey_copy(prev.k, cur.k);
 		have_extent = true;
 
-		if (k.k->type == KEY_TYPE_reflink_v)
-			bch2_btree_iter_set_pos(iter, k.k->p);
-		else
-			bch2_btree_iter_next(iter);
+		bch2_btree_iter_set_pos(iter,
+			POS(iter->pos.inode, iter->pos.offset + sectors));
 	}
 
 	if (ret == -EINTR)
