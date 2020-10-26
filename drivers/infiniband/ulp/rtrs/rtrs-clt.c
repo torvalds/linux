@@ -1674,9 +1674,9 @@ static int rtrs_rdma_route_resolved(struct rtrs_clt_con *con)
 	uuid_copy(&msg.sess_uuid, &sess->s.uuid);
 	uuid_copy(&msg.paths_uuid, &clt->paths_uuid);
 
-	err = rdma_connect(con->c.cm_id, &param);
+	err = rdma_connect_locked(con->c.cm_id, &param);
 	if (err)
-		rtrs_err(clt, "rdma_connect(): %d\n", err);
+		rtrs_err(clt, "rdma_connect_locked(): %d\n", err);
 
 	return err;
 }
