@@ -210,6 +210,9 @@ static int rk628_combtxphy_power_on(struct phy *phy)
 	reset_control_deassert(combtxphy->rstc);
 	udelay(10);
 
+	regcache_mark_dirty(combtxphy->regmap);
+	regcache_sync(combtxphy->regmap);
+
 	regmap_update_bits(combtxphy->regmap, COMBTXPHY_CON0,
 			   SW_TX_IDLE_MASK | SW_TX_PD_MASK | SW_PD_PLL_MASK,
 			   SW_TX_IDLE(0x3ff) | SW_TX_PD(0x3ff) | SW_PD_PLL);
