@@ -4,7 +4,7 @@
  */
 #include <linux/linkage.h>
 
-#include <asm/alternative.h>
+#include <asm/asm-uaccess.h>
 #include <asm/assembler.h>
 #include <asm/mte.h>
 #include <asm/page.h>
