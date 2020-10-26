@@ -142,7 +142,10 @@ ARM_BE8(	rev	\rd, \rd )
 		bne	1002b
 		.endm
 
-		.macro	waituart,rd,rx
+		.macro	waituarttxrdy,rd,rx
+		.endm
+
+		.macro	waituartcts,rd,rx
 		.endm
 
 /*
