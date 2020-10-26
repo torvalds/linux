@@ -12108,15 +12108,16 @@ static void bnxt_remove_one(struct pci_dev *pdev)
 	if (BNXT_PF(bp))
 		bnxt_sriov_disable(bp);
 
-	clear_bit(BNXT_STATE_IN_FW_RESET, &bp->state);
-	bnxt_cancel_sp_work(bp);
-	bp->sp_event = 0;
-
-	bnxt_dl_fw_reporters_destroy(bp, true);
 	if (BNXT_PF(bp))
 		devlink_port_type_clear(&bp->dl_port);
 	pci_disable_pcie_error_reporting(pdev);
 	unregister_netdev(dev);
+	clear_bit(BNXT_STATE_IN_FW_RESET, &bp->state);
+	/* Flush any pending tasks */
+	bnxt_cancel_sp_work(bp);
+	bp->sp_event = 0;
+
+	bnxt_dl_fw_reporters_destroy(bp, true);
 	bnxt_dl_unregister(bp);
 	bnxt_shutdown_tc(bp);
 
