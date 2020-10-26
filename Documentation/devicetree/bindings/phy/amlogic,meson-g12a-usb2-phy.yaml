@@ -63,6 +63,8 @@ then:
   required:
     - power-domains
 
+additionalProperties: false
+
 examples:
   - |
     phy@36000 {

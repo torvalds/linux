@@ -217,11 +217,6 @@ static int sticon_switch(struct vc_data *conp)
     return 1;	/* needs refreshing */
 }
 
-static int sticon_set_origin(struct vc_data *conp)
-{
-    return 0;
-}
-
 static int sticon_blank(struct vc_data *c, int blank, int mode_switch)
 {
     if (blank == 0) {
@@ -229,14 +224,13 @@ static int sticon_blank(struct vc_data *c, int blank, int mode_switch)
 	    vga_is_gfx = 0;
 	return 1;
     }
-    sticon_set_origin(c);
     sti_clear(sticon_sti, 0,0, c->vc_rows, c->vc_cols, BLANK);
     if (mode_switch)
 	vga_is_gfx = 1;
     return 1;
 }
 
-static u16 *sticon_screen_pos(struct vc_data *conp, int offset)
+static u16 *sticon_screen_pos(const struct vc_data *conp, int offset)
 {
     int line;
     unsigned long p;
@@ -334,7 +328,6 @@ static const struct consw sti_con = {
 	.con_scroll		= sticon_scroll,
 	.con_switch		= sticon_switch,
 	.con_blank		= sticon_blank,
-	.con_set_origin		= sticon_set_origin,
 	.con_save_screen	= sticon_save_screen, 
 	.con_build_attr		= sticon_build_attr,
 	.con_invert_region	= sticon_invert_region, 

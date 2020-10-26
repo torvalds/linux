@@ -23,6 +23,15 @@ properties:
       - samsung,exynos4210-mct
       - samsung,exynos4412-mct
 
+  clocks:
+    minItems: 2
+    maxItems: 2
+
+  clock-names:
+    items:
+      - pattern: "^(fin_pll|mct)$"
+      - pattern: "^(fin_pll|mct)$"
+
   reg:
     maxItems: 1
 
@@ -49,6 +58,8 @@ properties:
 
 required:
   - compatible
+  - clock-names
+  - clocks
   - interrupts
   - reg
 
@@ -59,11 +70,15 @@ examples:
     // In this example, the IP contains two local timers, using separate
     // interrupts, so two local timer interrupts have been specified,
     // in addition to four global timer interrupts.
+    #include <dt-bindings/clock/exynos4.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
     timer@10050000 {
         compatible = "samsung,exynos4210-mct";
         reg = <0x10050000 0x800>;
+        clocks = <&clock CLK_FIN_PLL>, <&clock CLK_MCT>;
+        clock-names = "fin_pll", "mct";
+
         interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>,
                      <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>,
                      <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>,
@@ -75,11 +90,15 @@ examples:
   - |
     // In this example, the timer interrupts are connected to two separate
     // interrupt controllers. Hence, an interrupts-extended is needed.
+    #include <dt-bindings/clock/exynos4.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
     timer@101c0000 {
         compatible = "samsung,exynos4210-mct";
         reg = <0x101C0000 0x800>;
+        clocks = <&clock CLK_FIN_PLL>, <&clock CLK_MCT>;
+        clock-names = "fin_pll", "mct";
+
         interrupts-extended = <&gic GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>,
                               <&gic GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>,
                               <&combiner 12 6>,
@@ -92,11 +111,14 @@ examples:
     // In this example, the IP contains four local timers, but using
     // a per-processor interrupt to handle them. Only one first local
     // interrupt is specified.
+    #include <dt-bindings/clock/exynos4.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
     timer@10050000 {
         compatible = "samsung,exynos4412-mct";
         reg = <0x10050000 0x800>;
+        clocks = <&clock CLK_FIN_PLL>, <&clock CLK_MCT>;
+        clock-names = "fin_pll", "mct";
 
         interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>,
                      <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>,
@@ -109,11 +131,14 @@ examples:
     // In this example, the IP contains four local timers, but using
     // a per-processor interrupt to handle them. All the local timer
     // interrupts are specified.
+    #include <dt-bindings/clock/exynos4.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
     timer@10050000 {
         compatible = "samsung,exynos4412-mct";
         reg = <0x10050000 0x800>;
+        clocks = <&clock CLK_FIN_PLL>, <&clock CLK_MCT>;
+        clock-names = "fin_pll", "mct";
 
         interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>,
                      <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>,

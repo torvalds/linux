@@ -156,6 +156,8 @@ properties:
       Maximum timeout in microseconds after which the flash LED is turned off.
       Required for flash LED nodes with configurable timeout.
 
+additionalProperties: true
+
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>

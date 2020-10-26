@@ -1248,6 +1248,18 @@ config GPIO_RC5T583
 	  This driver provides the support for driving/reading the gpio pins
 	  of RC5T583 device through standard gpio library.
 
+config GPIO_SL28CPLD
+	tristate "Kontron sl28cpld GPIO support"
+	depends on MFD_SL28CPLD || COMPILE_TEST
+	select GPIO_REGMAP
+	select GPIOLIB_IRQCHIP
+	select REGMAP_IRQ
+	help
+	  This enables support for the GPIOs found on the Kontron sl28 CPLD.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called gpio-sl28cpld.
+
 config GPIO_STMPE
 	bool "STMPE GPIOs"
 	depends on MFD_STMPE

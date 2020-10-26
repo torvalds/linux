@@ -373,39 +373,6 @@ static void dw8250_set_ldisc(struct uart_port *p, struct ktermios *termios)
 	serial8250_do_set_ldisc(p, termios);
 }
 
-static int dw8250_startup(struct uart_port *p)
-{
-	struct dw8250_data *d = to_dw8250_data(p->private_data);
-	int ret;
-
-	/*
-	 * Some platforms may provide a reference clock shared between several
-	 * devices. In this case before using the serial port first we have to
-	 * make sure that any clock state change is known to the UART port at
-	 * least post factum.
-	 */
-	if (d->clk) {
-		ret = clk_notifier_register(d->clk, &d->clk_notifier);
-		if (ret)
-			dev_warn(p->dev, "Failed to set the clock notifier\n");
-	}
-
-	return serial8250_do_startup(p);
-}
-
-static void dw8250_shutdown(struct uart_port *p)
-{
-	struct dw8250_data *d = to_dw8250_data(p->private_data);
-
-	serial8250_do_shutdown(p);
-
-	if (d->clk) {
-		clk_notifier_unregister(d->clk, &d->clk_notifier);
-
-		flush_work(&d->clk_work);
-	}
-}
-
 /*
  * dw8250_fallback_dma_filter will prevent the UART from getting just any free
  * channel on platforms that have DMA engines, but don't have any channels
@@ -501,8 +468,6 @@ static int dw8250_probe(struct platform_device *pdev)
 	p->serial_out	= dw8250_serial_out;
 	p->set_ldisc	= dw8250_set_ldisc;
 	p->set_termios	= dw8250_set_termios;
-	p->startup	= dw8250_startup;
-	p->shutdown	= dw8250_shutdown;
 
 	p->membase = devm_ioremap(dev, regs->start, resource_size(regs));
 	if (!p->membase)
@@ -622,6 +587,19 @@ static int dw8250_probe(struct platform_device *pdev)
 		goto err_reset;
 	}
 
+	/*
+	 * Some platforms may provide a reference clock shared between several
+	 * devices. In this case any clock state change must be known to the
+	 * UART port at least post factum.
+	 */
+	if (data->clk) {
+		err = clk_notifier_register(data->clk, &data->clk_notifier);
+		if (err)
+			dev_warn(p->dev, "Failed to set the clock notifier\n");
+		else
+			queue_work(system_unbound_wq, &data->clk_work);
+	}
+
 	platform_set_drvdata(pdev, data);
 
 	pm_runtime_set_active(dev);
@@ -647,6 +625,12 @@ static int dw8250_remove(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 
 	pm_runtime_get_sync(dev);
+
+	if (data->clk) {
+		clk_notifier_unregister(data->clk, &data->clk_notifier);
+
+		flush_work(&data->clk_work);
+	}
 
 	serial8250_unregister_port(data->data.line);
 

@@ -36,6 +36,8 @@ required:
   - clocks
   - vdda-supply
 
+unevaluatedProperties: false
+
 examples:
   - |
     #include <dt-bindings/clock/stm32mp1-clks.h>

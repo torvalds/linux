@@ -194,6 +194,8 @@ required:
   - clocks
   - ranges
 
+additionalProperties: false
+
 examples:
   - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>
