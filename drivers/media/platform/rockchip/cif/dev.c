@@ -957,16 +957,14 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 	if (rkcif_proc_init(cif_dev))
 		dev_warn(dev, "dev:%s create proc failed\n", dev_name(dev));
 
+	cif_dev->reset_notifier.priority = 1;
+	cif_dev->reset_notifier.notifier_call = rkcif_reset_notifier;
+	rkcif_csi2_register_notifier(&cif_dev->reset_notifier);
 #if defined(CONFIG_ROCKCHIP_CIF_RESET_MONITOR_CONTINU)
 	cif_dev->reset_watchdog_timer.reset_src = RKCIF_RESET_SRC_NORMAL;
 #else
 	cif_dev->reset_watchdog_timer.reset_src = RKCIF_RESET_SRC_NON;
 #endif
-
-	cif_dev->reset_notifier.priority = 1;
-	cif_dev->reset_notifier.notifier_call = rkcif_reset_notifier;
-	rkcif_csi2_register_notifier(&cif_dev->reset_notifier);
-	cif_dev->reset_watchdog_timer.reset_src = RKCIF_RESET_SRC_NORMAL;
 	timer_setup(&cif_dev->reset_watchdog_timer.timer,
 		    rkcif_reset_watchdog_timer_handler, 0);
 
