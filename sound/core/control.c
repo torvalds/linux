@@ -150,14 +150,14 @@ void snd_ctl_notify(struct snd_card *card, unsigned int mask,
 		return;
 	if (card->shutdown)
 		return;
-	read_lock(&card->ctl_files_rwlock);
+	read_lock_irqsave(&card->ctl_files_rwlock, flags);
 #if IS_ENABLED(CONFIG_SND_MIXER_OSS)
 	card->mixer_oss_change_count++;
 #endif
 	list_for_each_entry(ctl, &card->ctl_files, list) {
 		if (!ctl->subscribed)
 			continue;
-		spin_lock_irqsave(&ctl->read_lock, flags);
+		spin_lock(&ctl->read_lock);
 		list_for_each_entry(ev, &ctl->events, list) {
 			if (ev->id.numid == id->numid) {
 				ev->mask |= mask;
@@ -174,10 +174,10 @@ void snd_ctl_notify(struct snd_card *card, unsigned int mask,
 		}
 	_found:
 		wake_up(&ctl->change_sleep);
-		spin_unlock_irqrestore(&ctl->read_lock, flags);
+		spin_unlock(&ctl->read_lock);
 		kill_fasync(&ctl->fasync, SIGIO, POLL_IN);
 	}
-	read_unlock(&card->ctl_files_rwlock);
+	read_unlock_irqrestore(&card->ctl_files_rwlock, flags);
 }
 EXPORT_SYMBOL(snd_ctl_notify);
 
@@ -717,22 +717,19 @@ static int snd_ctl_card_info(struct snd_card *card, struct snd_ctl_file * ctl,
 }
 
 static int snd_ctl_elem_list(struct snd_card *card,
-			     struct snd_ctl_elem_list __user *_list)
+			     struct snd_ctl_elem_list *list)
 {
-	struct snd_ctl_elem_list list;
 	struct snd_kcontrol *kctl;
 	struct snd_ctl_elem_id id;
 	unsigned int offset, space, jidx;
 	int err = 0;
 
-	if (copy_from_user(&list, _list, sizeof(list)))
-		return -EFAULT;
-	offset = list.offset;
-	space = list.space;
+	offset = list->offset;
+	space = list->space;
 
 	down_read(&card->controls_rwsem);
-	list.count = card->controls_count;
-	list.used = 0;
+	list->count = card->controls_count;
+	list->used = 0;
 	if (space > 0) {
 		list_for_each_entry(kctl, &card->controls, list) {
 			if (offset >= kctl->count) {
@@ -741,12 +738,12 @@ static int snd_ctl_elem_list(struct snd_card *card,
 			}
 			for (jidx = offset; jidx < kctl->count; jidx++) {
 				snd_ctl_build_ioff(&id, kctl, jidx);
-				if (copy_to_user(list.pids + list.used, &id,
+				if (copy_to_user(list->pids + list->used, &id,
 						 sizeof(id))) {
 					err = -EFAULT;
 					goto out;
 				}
-				list.used++;
+				list->used++;
 				if (!--space)
 					goto out;
 			}
@@ -755,9 +752,24 @@ static int snd_ctl_elem_list(struct snd_card *card,
 	}
  out:
 	up_read(&card->controls_rwsem);
-	if (!err && copy_to_user(_list, &list, sizeof(list)))
-		err = -EFAULT;
 	return err;
+}
+
+static int snd_ctl_elem_list_user(struct snd_card *card,
+				  struct snd_ctl_elem_list __user *_list)
+{
+	struct snd_ctl_elem_list list;
+	int err;
+
+	if (copy_from_user(&list, _list, sizeof(list)))
+		return -EFAULT;
+	err = snd_ctl_elem_list(card, &list);
+	if (err)
+		return err;
+	if (copy_to_user(_list, &list, sizeof(list)))
+		return -EFAULT;
+
+	return 0;
 }
 
 /* Check whether the given kctl info is valid */
@@ -1703,7 +1715,7 @@ static long snd_ctl_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 	case SNDRV_CTL_IOCTL_CARD_INFO:
 		return snd_ctl_card_info(card, ctl, cmd, argp);
 	case SNDRV_CTL_IOCTL_ELEM_LIST:
-		return snd_ctl_elem_list(card, argp);
+		return snd_ctl_elem_list_user(card, argp);
 	case SNDRV_CTL_IOCTL_ELEM_INFO:
 		return snd_ctl_elem_info_user(ctl, argp);
 	case SNDRV_CTL_IOCTL_ELEM_READ:
@@ -1939,8 +1951,9 @@ int snd_ctl_get_preferred_subdevice(struct snd_card *card, int type)
 {
 	struct snd_ctl_file *kctl;
 	int subdevice = -1;
+	unsigned long flags;
 
-	read_lock(&card->ctl_files_rwlock);
+	read_lock_irqsave(&card->ctl_files_rwlock, flags);
 	list_for_each_entry(kctl, &card->ctl_files, list) {
 		if (kctl->pid == task_pid(current)) {
 			subdevice = kctl->preferred_subdevice[type];
@@ -1948,7 +1961,7 @@ int snd_ctl_get_preferred_subdevice(struct snd_card *card, int type)
 				break;
 		}
 	}
-	read_unlock(&card->ctl_files_rwlock);
+	read_unlock_irqrestore(&card->ctl_files_rwlock, flags);
 	return subdevice;
 }
 EXPORT_SYMBOL_GPL(snd_ctl_get_preferred_subdevice);
@@ -1997,13 +2010,14 @@ static int snd_ctl_dev_disconnect(struct snd_device *device)
 {
 	struct snd_card *card = device->device_data;
 	struct snd_ctl_file *ctl;
+	unsigned long flags;
 
-	read_lock(&card->ctl_files_rwlock);
+	read_lock_irqsave(&card->ctl_files_rwlock, flags);
 	list_for_each_entry(ctl, &card->ctl_files, list) {
 		wake_up(&ctl->change_sleep);
 		kill_fasync(&ctl->fasync, SIGIO, POLL_ERR);
 	}
-	read_unlock(&card->ctl_files_rwlock);
+	read_unlock_irqrestore(&card->ctl_files_rwlock, flags);
 
 	return snd_unregister_device(&card->ctl_dev);
 }

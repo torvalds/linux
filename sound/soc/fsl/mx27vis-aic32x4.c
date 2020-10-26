@@ -176,7 +176,7 @@ static int mx27vis_aic32x4_probe(struct platform_device *pdev)
 	mx27vis_amp_muter_gpio = pdata->amp_muter_gpio;
 
 	mx27vis_aic32x4.dev = &pdev->dev;
-	ret = snd_soc_register_card(&mx27vis_aic32x4);
+	ret = devm_snd_soc_register_card(&pdev->dev, &mx27vis_aic32x4);
 	if (ret) {
 		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n",
 			ret);
@@ -199,19 +199,11 @@ static int mx27vis_aic32x4_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int mx27vis_aic32x4_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_card(&mx27vis_aic32x4);
-
-	return 0;
-}
-
 static struct platform_driver mx27vis_aic32x4_audio_driver = {
 	.driver = {
 		.name = "mx27vis",
 	},
 	.probe = mx27vis_aic32x4_probe,
-	.remove = mx27vis_aic32x4_remove,
 };
 
 module_platform_driver(mx27vis_aic32x4_audio_driver);
