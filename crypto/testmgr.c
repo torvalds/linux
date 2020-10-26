@@ -2685,8 +2685,7 @@ out_nobuf:
 	return ret;
 }
 
-static int test_skcipher_vec_cfg(const char *driver, int enc,
-				 const struct cipher_testvec *vec,
+static int test_skcipher_vec_cfg(int enc, const struct cipher_testvec *vec,
 				 const char *vec_name,
 				 const struct testvec_config *cfg,
 				 struct skcipher_request *req,
@@ -2695,6 +2694,7 @@ static int test_skcipher_vec_cfg(const char *driver, int enc,
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	const unsigned int alignmask = crypto_skcipher_alignmask(tfm);
 	const unsigned int ivsize = crypto_skcipher_ivsize(tfm);
+	const char *driver = crypto_skcipher_driver_name(tfm);
 	const u32 req_flags = CRYPTO_TFM_REQ_MAY_BACKLOG | cfg->req_flags;
 	const char *op = enc ? "encryption" : "decryption";
 	DECLARE_CRYPTO_WAIT(wait);
@@ -2849,8 +2849,7 @@ static int test_skcipher_vec_cfg(const char *driver, int enc,
 	return 0;
 }
 
-static int test_skcipher_vec(const char *driver, int enc,
-			     const struct cipher_testvec *vec,
+static int test_skcipher_vec(int enc, const struct cipher_testvec *vec,
 			     unsigned int vec_num,
 			     struct skcipher_request *req,
 			     struct cipher_test_sglists *tsgls)
@@ -2865,7 +2864,7 @@ static int test_skcipher_vec(const char *driver, int enc,
 	sprintf(vec_name, "%u", vec_num);
 
 	for (i = 0; i < ARRAY_SIZE(default_cipher_testvec_configs); i++) {
-		err = test_skcipher_vec_cfg(driver, enc, vec, vec_name,
+		err = test_skcipher_vec_cfg(enc, vec, vec_name,
 					    &default_cipher_testvec_configs[i],
 					    req, tsgls);
 		if (err)
@@ -2880,7 +2879,7 @@ static int test_skcipher_vec(const char *driver, int enc,
 		for (i = 0; i < fuzz_iterations; i++) {
 			generate_random_testvec_config(&cfg, cfgname,
 						       sizeof(cfgname));
-			err = test_skcipher_vec_cfg(driver, enc, vec, vec_name,
+			err = test_skcipher_vec_cfg(enc, vec, vec_name,
 						    &cfg, req, tsgls);
 			if (err)
 				return err;
@@ -2951,8 +2950,7 @@ done:
  * Test the skcipher algorithm represented by @req against the corresponding
  * generic implementation, if one is available.
  */
-static int test_skcipher_vs_generic_impl(const char *driver,
-					 const char *generic_driver,
+static int test_skcipher_vs_generic_impl(const char *generic_driver,
 					 struct skcipher_request *req,
 					 struct cipher_test_sglists *tsgls)
 {
@@ -2962,6 +2960,7 @@ static int test_skcipher_vs_generic_impl(const char *driver,
 	const unsigned int blocksize = crypto_skcipher_blocksize(tfm);
 	const unsigned int maxdatasize = (2 * PAGE_SIZE) - TESTMGR_POISON_LEN;
 	const char *algname = crypto_skcipher_alg(tfm)->base.cra_name;
+	const char *driver = crypto_skcipher_driver_name(tfm);
 	char _generic_driver[CRYPTO_MAX_ALG_NAME];
 	struct crypto_skcipher *generic_tfm = NULL;
 	struct skcipher_request *generic_req = NULL;
@@ -3067,11 +3066,11 @@ static int test_skcipher_vs_generic_impl(const char *driver,
 					       vec_name, sizeof(vec_name));
 		generate_random_testvec_config(cfg, cfgname, sizeof(cfgname));
 
-		err = test_skcipher_vec_cfg(driver, ENCRYPT, &vec, vec_name,
+		err = test_skcipher_vec_cfg(ENCRYPT, &vec, vec_name,
 					    cfg, req, tsgls);
 		if (err)
 			goto out;
-		err = test_skcipher_vec_cfg(driver, DECRYPT, &vec, vec_name,
+		err = test_skcipher_vec_cfg(DECRYPT, &vec, vec_name,
 					    cfg, req, tsgls);
 		if (err)
 			goto out;
@@ -3089,8 +3088,7 @@ out:
 	return err;
 }
 #else /* !CONFIG_CRYPTO_MANAGER_EXTRA_TESTS */
-static int test_skcipher_vs_generic_impl(const char *driver,
-					 const char *generic_driver,
+static int test_skcipher_vs_generic_impl(const char *generic_driver,
 					 struct skcipher_request *req,
 					 struct cipher_test_sglists *tsgls)
 {
@@ -3098,8 +3096,7 @@ static int test_skcipher_vs_generic_impl(const char *driver,
 }
 #endif /* !CONFIG_CRYPTO_MANAGER_EXTRA_TESTS */
 
-static int test_skcipher(const char *driver, int enc,
-			 const struct cipher_test_suite *suite,
+static int test_skcipher(int enc, const struct cipher_test_suite *suite,
 			 struct skcipher_request *req,
 			 struct cipher_test_sglists *tsgls)
 {
@@ -3107,8 +3104,7 @@ static int test_skcipher(const char *driver, int enc,
 	int err;
 
 	for (i = 0; i < suite->count; i++) {
-		err = test_skcipher_vec(driver, enc, &suite->vecs[i], i, req,
-					tsgls);
+		err = test_skcipher_vec(enc, &suite->vecs[i], i, req, tsgls);
 		if (err)
 			return err;
 		cond_resched();
@@ -3136,6 +3132,7 @@ static int alg_test_skcipher(const struct alg_test_desc *desc,
 		       driver, PTR_ERR(tfm));
 		return PTR_ERR(tfm);
 	}
+	driver = crypto_skcipher_driver_name(tfm);
 
 	req = skcipher_request_alloc(tfm, GFP_KERNEL);
 	if (!req) {
@@ -3153,16 +3150,15 @@ static int alg_test_skcipher(const struct alg_test_desc *desc,
 		goto out;
 	}
 
-	err = test_skcipher(driver, ENCRYPT, suite, req, tsgls);
+	err = test_skcipher(ENCRYPT, suite, req, tsgls);
 	if (err)
 		goto out;
 
-	err = test_skcipher(driver, DECRYPT, suite, req, tsgls);
+	err = test_skcipher(DECRYPT, suite, req, tsgls);
 	if (err)
 		goto out;
 
-	err = test_skcipher_vs_generic_impl(driver, desc->generic_driver, req,
-					    tsgls);
+	err = test_skcipher_vs_generic_impl(desc->generic_driver, req, tsgls);
 out:
 	free_cipher_test_sglists(tsgls);
 	skcipher_request_free(req);
