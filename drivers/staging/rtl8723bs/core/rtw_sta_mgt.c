@@ -177,8 +177,7 @@ u32 _rtw_free_sta_priv(struct	sta_priv *pstapriv)
 
 		kfree_sta_priv_lock(pstapriv);
 
-		if (pstapriv->pallocated_stainfo_buf)
-			vfree(pstapriv->pallocated_stainfo_buf);
+		vfree(pstapriv->pallocated_stainfo_buf);
 
 	}
 	return _SUCCESS;

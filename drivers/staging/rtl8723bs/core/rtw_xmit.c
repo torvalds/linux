@@ -290,11 +290,8 @@ void _rtw_free_xmit_priv(struct xmit_priv *pxmitpriv)
 		pxmitbuf++;
 	}
 
-	if (pxmitpriv->pallocated_frame_buf)
-		vfree(pxmitpriv->pallocated_frame_buf);
-
-	if (pxmitpriv->pallocated_xmitbuf)
-		vfree(pxmitpriv->pallocated_xmitbuf);
+	vfree(pxmitpriv->pallocated_frame_buf);
+	vfree(pxmitpriv->pallocated_xmitbuf);
 
 	/* free xframe_ext queue,  the same count as extbuf  */
 	pxmitframe = (struct xmit_frame *)pxmitpriv->xframe_ext;
@@ -304,8 +301,8 @@ void _rtw_free_xmit_priv(struct xmit_priv *pxmitpriv)
 			pxmitframe++;
 		}
 	}
-	if (pxmitpriv->xframe_ext_alloc_addr)
-		vfree(pxmitpriv->xframe_ext_alloc_addr);
+
+	vfree(pxmitpriv->xframe_ext_alloc_addr);
 
 	/*  free xmit extension buff */
 	pxmitbuf = (struct xmit_buf *)pxmitpriv->pxmit_extbuf;
@@ -315,8 +312,7 @@ void _rtw_free_xmit_priv(struct xmit_priv *pxmitpriv)
 		pxmitbuf++;
 	}
 
-	if (pxmitpriv->pallocated_xmit_extbuf)
-		vfree(pxmitpriv->pallocated_xmit_extbuf);
+	vfree(pxmitpriv->pallocated_xmit_extbuf);
 
 	for (i = 0; i < CMDBUF_MAX; i++) {
 		pxmitbuf = &pxmitpriv->pcmd_xmitbuf[i];
