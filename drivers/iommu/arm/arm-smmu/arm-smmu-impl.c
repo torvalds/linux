@@ -91,14 +91,11 @@ static struct arm_smmu_device *cavium_smmu_impl_init(struct arm_smmu_device *smm
 {
 	struct cavium_smmu *cs;
 
-	cs = devm_kzalloc(smmu->dev, sizeof(*cs), GFP_KERNEL);
+	cs = devm_krealloc(smmu->dev, smmu, sizeof(*cs), GFP_KERNEL);
 	if (!cs)
 		return ERR_PTR(-ENOMEM);
 
-	cs->smmu = *smmu;
 	cs->smmu.impl = &cavium_impl;
-
-	devm_kfree(smmu->dev, smmu);
 
 	return &cs->smmu;
 }
