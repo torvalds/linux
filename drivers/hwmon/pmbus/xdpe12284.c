@@ -160,7 +160,6 @@ static struct i2c_driver xdpe122_driver = {
 		.of_match_table = of_match_ptr(xdpe122_of_match),
 	},
 	.probe_new = xdpe122_probe,
-	.remove = pmbus_do_remove,
 	.id_table = xdpe122_id,
 };
 

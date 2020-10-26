@@ -777,7 +777,6 @@ static struct i2c_driver max20730_driver = {
 		.of_match_table = max20730_of_match,
 	},
 	.probe_new = max20730_probe,
-	.remove = pmbus_do_remove,
 	.id_table = max20730_id,
 };
 

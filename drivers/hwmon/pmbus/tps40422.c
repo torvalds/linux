@@ -43,7 +43,6 @@ static struct i2c_driver tps40422_driver = {
 		   .name = "tps40422",
 		   },
 	.probe_new = tps40422_probe,
-	.remove = pmbus_do_remove,
 	.id_table = tps40422_id,
 };
 
