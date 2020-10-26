@@ -84,7 +84,7 @@ static inline bool lockdep_enabled(void)
 	if (!debug_locks)
 		return false;
 
-	if (raw_cpu_read(lockdep_recursion))
+	if (this_cpu_read(lockdep_recursion))
 		return false;
 
 	if (current->lockdep_recursion)
