@@ -863,7 +863,7 @@ struct afs_vnode_cache_aux {
  * splitting the field into two parts.  However, we need to represent a range
  * 0...PAGE_SIZE inclusive, so we can't support 64K pages on a 32-bit system.
  */
-#if PAGE_SIZE > 32768
+#ifdef CONFIG_64BIT
 #define __AFS_PAGE_PRIV_MASK	0xffffffffUL
 #define __AFS_PAGE_PRIV_SHIFT	32
 #else
@@ -878,12 +878,12 @@ static inline size_t afs_page_dirty_from(unsigned long priv)
 
 static inline size_t afs_page_dirty_to(unsigned long priv)
 {
-	return (priv >> __AFS_PAGE_PRIV_SHIFT) & __AFS_PAGE_PRIV_MASK;
+	return ((priv >> __AFS_PAGE_PRIV_SHIFT) & __AFS_PAGE_PRIV_MASK) + 1;
 }
 
 static inline unsigned long afs_page_dirty(size_t from, size_t to)
 {
-	return ((unsigned long)to << __AFS_PAGE_PRIV_SHIFT) | from;
+	return ((unsigned long)(to - 1) << __AFS_PAGE_PRIV_SHIFT) | from;
 }
 
 #include <trace/events/afs.h>

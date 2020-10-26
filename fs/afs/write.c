@@ -93,7 +93,7 @@ int afs_write_begin(struct file *file, struct address_space *mapping,
 	/* We want to store information about how much of a page is altered in
 	 * page->private.
 	 */
-	BUILD_BUG_ON(PAGE_SIZE > 32768 && sizeof(page->private) < 8);
+	BUILD_BUG_ON(PAGE_SIZE - 1 > __AFS_PAGE_PRIV_MASK && sizeof(page->private) < 8);
 
 	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (!page)
