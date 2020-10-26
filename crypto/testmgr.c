@@ -1919,8 +1919,7 @@ static int alg_test_hash(const struct alg_test_desc *desc, const char *driver,
 	return err;
 }
 
-static int test_aead_vec_cfg(const char *driver, int enc,
-			     const struct aead_testvec *vec,
+static int test_aead_vec_cfg(int enc, const struct aead_testvec *vec,
 			     const char *vec_name,
 			     const struct testvec_config *cfg,
 			     struct aead_request *req,
@@ -1930,6 +1929,7 @@ static int test_aead_vec_cfg(const char *driver, int enc,
 	const unsigned int alignmask = crypto_aead_alignmask(tfm);
 	const unsigned int ivsize = crypto_aead_ivsize(tfm);
 	const unsigned int authsize = vec->clen - vec->plen;
+	const char *driver = crypto_aead_driver_name(tfm);
 	const u32 req_flags = CRYPTO_TFM_REQ_MAY_BACKLOG | cfg->req_flags;
 	const char *op = enc ? "encryption" : "decryption";
 	DECLARE_CRYPTO_WAIT(wait);
@@ -2102,9 +2102,8 @@ static int test_aead_vec_cfg(const char *driver, int enc,
 	return 0;
 }
 
-static int test_aead_vec(const char *driver, int enc,
-			 const struct aead_testvec *vec, unsigned int vec_num,
-			 struct aead_request *req,
+static int test_aead_vec(int enc, const struct aead_testvec *vec,
+			 unsigned int vec_num, struct aead_request *req,
 			 struct cipher_test_sglists *tsgls)
 {
 	char vec_name[16];
@@ -2117,7 +2116,7 @@ static int test_aead_vec(const char *driver, int enc,
 	sprintf(vec_name, "%u", vec_num);
 
 	for (i = 0; i < ARRAY_SIZE(default_cipher_testvec_configs); i++) {
-		err = test_aead_vec_cfg(driver, enc, vec, vec_name,
+		err = test_aead_vec_cfg(enc, vec, vec_name,
 					&default_cipher_testvec_configs[i],
 					req, tsgls);
 		if (err)
@@ -2132,7 +2131,7 @@ static int test_aead_vec(const char *driver, int enc,
 		for (i = 0; i < fuzz_iterations; i++) {
 			generate_random_testvec_config(&cfg, cfgname,
 						       sizeof(cfgname));
-			err = test_aead_vec_cfg(driver, enc, vec, vec_name,
+			err = test_aead_vec_cfg(enc, vec, vec_name,
 						&cfg, req, tsgls);
 			if (err)
 				return err;
@@ -2148,7 +2147,6 @@ static int test_aead_vec(const char *driver, int enc,
 struct aead_extra_tests_ctx {
 	struct aead_request *req;
 	struct crypto_aead *tfm;
-	const char *driver;
 	const struct alg_test_desc *test_desc;
 	struct cipher_test_sglists *tsgls;
 	unsigned int maxdatasize;
@@ -2354,7 +2352,7 @@ static int test_aead_inauthentic_inputs(struct aead_extra_tests_ctx *ctx)
 		if (ctx->vec.novrfy) {
 			generate_random_testvec_config(&ctx->cfg, ctx->cfgname,
 						       sizeof(ctx->cfgname));
-			err = test_aead_vec_cfg(ctx->driver, DECRYPT, &ctx->vec,
+			err = test_aead_vec_cfg(DECRYPT, &ctx->vec,
 						ctx->vec_name, &ctx->cfg,
 						ctx->req, ctx->tsgls);
 			if (err)
@@ -2373,7 +2371,7 @@ static int test_aead_vs_generic_impl(struct aead_extra_tests_ctx *ctx)
 {
 	struct crypto_aead *tfm = ctx->tfm;
 	const char *algname = crypto_aead_alg(tfm)->base.cra_name;
-	const char *driver = ctx->driver;
+	const char *driver = crypto_aead_driver_name(tfm);
 	const char *generic_driver = ctx->test_desc->generic_driver;
 	char _generic_driver[CRYPTO_MAX_ALG_NAME];
 	struct crypto_aead *generic_tfm = NULL;
@@ -2450,14 +2448,14 @@ static int test_aead_vs_generic_impl(struct aead_extra_tests_ctx *ctx)
 		generate_random_testvec_config(&ctx->cfg, ctx->cfgname,
 					       sizeof(ctx->cfgname));
 		if (!ctx->vec.novrfy) {
-			err = test_aead_vec_cfg(driver, ENCRYPT, &ctx->vec,
+			err = test_aead_vec_cfg(ENCRYPT, &ctx->vec,
 						ctx->vec_name, &ctx->cfg,
 						ctx->req, ctx->tsgls);
 			if (err)
 				goto out;
 		}
 		if (ctx->vec.crypt_error == 0 || ctx->vec.novrfy) {
-			err = test_aead_vec_cfg(driver, DECRYPT, &ctx->vec,
+			err = test_aead_vec_cfg(DECRYPT, &ctx->vec,
 						ctx->vec_name, &ctx->cfg,
 						ctx->req, ctx->tsgls);
 			if (err)
@@ -2472,8 +2470,7 @@ out:
 	return err;
 }
 
-static int test_aead_extra(const char *driver,
-			   const struct alg_test_desc *test_desc,
+static int test_aead_extra(const struct alg_test_desc *test_desc,
 			   struct aead_request *req,
 			   struct cipher_test_sglists *tsgls)
 {
@@ -2489,7 +2486,6 @@ static int test_aead_extra(const char *driver,
 		return -ENOMEM;
 	ctx->req = req;
 	ctx->tfm = crypto_aead_reqtfm(req);
-	ctx->driver = driver;
 	ctx->test_desc = test_desc;
 	ctx->tsgls = tsgls;
 	ctx->maxdatasize = (2 * PAGE_SIZE) - TESTMGR_POISON_LEN;
@@ -2524,8 +2520,7 @@ out:
 	return err;
 }
 #else /* !CONFIG_CRYPTO_MANAGER_EXTRA_TESTS */
-static int test_aead_extra(const char *driver,
-			   const struct alg_test_desc *test_desc,
+static int test_aead_extra(const struct alg_test_desc *test_desc,
 			   struct aead_request *req,
 			   struct cipher_test_sglists *tsgls)
 {
@@ -2533,8 +2528,7 @@ static int test_aead_extra(const char *driver,
 }
 #endif /* !CONFIG_CRYPTO_MANAGER_EXTRA_TESTS */
 
-static int test_aead(const char *driver, int enc,
-		     const struct aead_test_suite *suite,
+static int test_aead(int enc, const struct aead_test_suite *suite,
 		     struct aead_request *req,
 		     struct cipher_test_sglists *tsgls)
 {
@@ -2542,8 +2536,7 @@ static int test_aead(const char *driver, int enc,
 	int err;
 
 	for (i = 0; i < suite->count; i++) {
-		err = test_aead_vec(driver, enc, &suite->vecs[i], i, req,
-				    tsgls);
+		err = test_aead_vec(enc, &suite->vecs[i], i, req, tsgls);
 		if (err)
 			return err;
 		cond_resched();
@@ -2571,6 +2564,7 @@ static int alg_test_aead(const struct alg_test_desc *desc, const char *driver,
 		       driver, PTR_ERR(tfm));
 		return PTR_ERR(tfm);
 	}
+	driver = crypto_aead_driver_name(tfm);
 
 	req = aead_request_alloc(tfm, GFP_KERNEL);
 	if (!req) {
@@ -2588,15 +2582,15 @@ static int alg_test_aead(const struct alg_test_desc *desc, const char *driver,
 		goto out;
 	}
 
-	err = test_aead(driver, ENCRYPT, suite, req, tsgls);
+	err = test_aead(ENCRYPT, suite, req, tsgls);
 	if (err)
 		goto out;
 
-	err = test_aead(driver, DECRYPT, suite, req, tsgls);
+	err = test_aead(DECRYPT, suite, req, tsgls);
 	if (err)
 		goto out;
 
-	err = test_aead_extra(driver, desc, req, tsgls);
+	err = test_aead_extra(desc, req, tsgls);
 out:
 	free_cipher_test_sglists(tsgls);
 	aead_request_free(req);
