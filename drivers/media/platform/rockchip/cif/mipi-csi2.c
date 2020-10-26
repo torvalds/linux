@@ -235,6 +235,8 @@ static int csi2_start(struct csi2_dev *csi2)
 	enum host_type_t host_type;
 	int ret, i;
 
+	atomic_set(&csi2->frm_sync_seq, 0);
+
 	ret = clk_prepare_enable(csi2->pix_clk);
 	if (ret)
 		return ret;
@@ -262,8 +264,6 @@ static int csi2_start(struct csi2_dev *csi2)
 
 	for (i = 0; i < RK_CSI2_ERR_MAX; i++)
 		csi2->err_list[i].cnt = 0;
-
-	atomic_set(&csi2->frm_sync_seq, 0);
 
 	return 0;
 
