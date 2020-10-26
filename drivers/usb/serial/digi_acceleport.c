@@ -911,9 +911,8 @@ static int digi_write(struct tty_struct *tty, struct usb_serial_port *port,
 	unsigned char *data = port->write_urb->transfer_buffer;
 	unsigned long flags = 0;
 
-	dev_dbg(&port->dev,
-		"digi_write: TOP: port=%d, count=%d, in_interrupt=%ld\n",
-		priv->dp_port_num, count, in_interrupt());
+	dev_dbg(&port->dev, "digi_write: TOP: port=%d, count=%d\n",
+		priv->dp_port_num, count);
 
 	/* copy user data (which can sleep) before getting spin lock */
 	count = min(count, port->bulk_out_size-2);
