@@ -333,7 +333,6 @@ static void ie31200_check(struct mem_ctl_info *mci)
 {
 	struct ie31200_error_info info;
 
-	edac_dbg(1, "MC%d\n", mci->mc_idx);
 	ie31200_get_and_clear_error_info(mci, &info);
 	ie31200_process_error_info(mci, &info);
 }
