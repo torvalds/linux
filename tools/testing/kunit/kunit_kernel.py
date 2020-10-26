@@ -6,10 +6,10 @@
 # Author: Felix Guo <felixguoxiuping@gmail.com>
 # Author: Brendan Higgins <brendanhiggins@google.com>
 
-
 import logging
 import subprocess
 import os
+import shutil
 import signal
 
 from contextlib import ExitStack
@@ -18,7 +18,8 @@ import kunit_config
 import kunit_parser
 
 KCONFIG_PATH = '.config'
-kunitconfig_path = '.kunitconfig'
+KUNITCONFIG_PATH = '.kunitconfig'
+DEFAULT_KUNITCONFIG_PATH = 'arch/um/configs/kunit_defconfig'
 BROKEN_ALLCONFIG_PATH = 'tools/testing/kunit/configs/broken_on_uml.config'
 
 class ConfigError(Exception):
@@ -99,19 +100,22 @@ class LinuxSourceTreeOperations(object):
 						   stderr=subprocess.STDOUT)
 			process.wait(timeout)
 
-
 def get_kconfig_path(build_dir):
 	kconfig_path = KCONFIG_PATH
 	if build_dir:
 		kconfig_path = os.path.join(build_dir, KCONFIG_PATH)
 	return kconfig_path
 
+def get_kunitconfig_path(build_dir):
+	kunitconfig_path = KUNITCONFIG_PATH
+	if build_dir:
+		kunitconfig_path = os.path.join(build_dir, KUNITCONFIG_PATH)
+	return kunitconfig_path
+
 class LinuxSourceTree(object):
 	"""Represents a Linux kernel source tree with KUnit tests."""
 
 	def __init__(self):
-		self._kconfig = kunit_config.Kconfig()
-		self._kconfig.read_from_file(kunitconfig_path)
 		self._ops = LinuxSourceTreeOperations()
 		signal.signal(signal.SIGINT, self.signal_handler)
 
@@ -122,6 +126,16 @@ class LinuxSourceTree(object):
 			logging.error(e)
 			return False
 		return True
+
+	def create_kunitconfig(self, build_dir, defconfig=DEFAULT_KUNITCONFIG_PATH):
+		kunitconfig_path = get_kunitconfig_path(build_dir)
+		if not os.path.exists(kunitconfig_path):
+			shutil.copyfile(defconfig, kunitconfig_path)
+
+	def read_kunitconfig(self, build_dir):
+		kunitconfig_path = get_kunitconfig_path(build_dir)
+		self._kconfig = kunit_config.Kconfig()
+		self._kconfig.read_from_file(kunitconfig_path)
 
 	def validate_config(self, build_dir):
 		kconfig_path = get_kconfig_path(build_dir)
