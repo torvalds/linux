@@ -715,6 +715,21 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 					break;
 			}
 
+			if (dc->current_state->stream_count == 1 // single display only
+			    && dc->current_state->stream_status[0].plane_count == 1 // single surface only
+			    && dc->current_state->stream_status[0].plane_states[0]->address.page_table_base.quad_part == 0 // no VM
+			    // Only 8 and 16 bit formats
+			    && dc->current_state->stream_status[0].plane_states[0]->format <= SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F
+			    && dc->current_state->stream_status[0].plane_states[0]->format >= SURFACE_PIXEL_FORMAT_GRPH_ARGB8888) {
+				surface_size = dc->current_state->stream_status[0].plane_states[0]->plane_size.surface_pitch *
+					dc->current_state->stream_status[0].plane_states[0]->plane_size.surface_size.height *
+					(dc->current_state->stream_status[0].plane_states[0]->format >= SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616 ?
+					 8 : 4);
+			} else {
+				// TODO: remove hard code size
+				surface_size = 128 * 1024 * 1024;
+			}
+
 			// TODO: remove hard code size
 			if (surface_size < 128 * 1024 * 1024) {
 				refresh_hz = div_u64((unsigned long long) dc->current_state->streams[0]->timing.pix_clk_100hz *
