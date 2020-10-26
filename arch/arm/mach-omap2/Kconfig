@@ -106,6 +106,7 @@ config ARCH_OMAP2PLUS
 	select OMAP_GPMC
 	select PINCTRL
 	select PM_GENERIC_DOMAINS if PM
+	select PM_GENERIC_DOMAINS_OF if PM
 	select RESET_CONTROLLER
 	select SOC_BUS
 	select TI_SYSC
