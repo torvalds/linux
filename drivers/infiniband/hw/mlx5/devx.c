@@ -2083,7 +2083,7 @@ static int devx_umem_get(struct mlx5_ib_dev *dev, struct ib_ucontext *ucontext,
 
 	mlx5_ib_cont_pages(obj->umem, obj->umem->address,
 			   MLX5_MKEY_PAGE_SHIFT_MASK, &npages,
-			   &obj->page_shift, &obj->ncont, NULL);
+			   &obj->page_shift, &obj->ncont);
 
 	if (!npages) {
 		ib_umem_release(obj->umem);

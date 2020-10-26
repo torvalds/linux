@@ -42,12 +42,11 @@
  * @count: number of PAGE_SIZE pages covered by umem
  * @shift: page shift for the compound pages found in the region
  * @ncont: number of compund pages
- * @order: log2 of the number of compound pages
  */
 void mlx5_ib_cont_pages(struct ib_umem *umem, u64 addr,
 			unsigned long max_page_shift,
 			int *count, int *shift,
-			int *ncont, int *order)
+			int *ncont)
 {
 	unsigned long tmp;
 	unsigned long m;
@@ -63,8 +62,6 @@ void mlx5_ib_cont_pages(struct ib_umem *umem, u64 addr,
 		*shift = odp->page_shift;
 		*ncont = ib_umem_odp_num_pages(odp);
 		*count = *ncont << (*shift - PAGE_SHIFT);
-		if (order)
-			*order = ilog2(roundup_pow_of_two(*count));
 		return;
 	}
 
@@ -95,17 +92,9 @@ void mlx5_ib_cont_pages(struct ib_umem *umem, u64 addr,
 
 	if (i) {
 		m = min_t(unsigned long, ilog2(roundup_pow_of_two(i)), m);
-
-		if (order)
-			*order = ilog2(roundup_pow_of_two(i) >> m);
-
 		*ncont = DIV_ROUND_UP(i, (1 << m));
 	} else {
 		m  = 0;
-
-		if (order)
-			*order = 0;
-
 		*ncont = 0;
 	}
 	*shift = PAGE_SHIFT + m;

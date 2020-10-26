@@ -1232,7 +1232,7 @@ int mlx5_ib_query_port(struct ib_device *ibdev, u8 port,
 void mlx5_ib_cont_pages(struct ib_umem *umem, u64 addr,
 			unsigned long max_page_shift,
 			int *count, int *shift,
-			int *ncont, int *order);
+			int *ncont);
 void __mlx5_ib_populate_pas(struct mlx5_ib_dev *dev, struct ib_umem *umem,
 			    int page_shift, size_t offset, size_t num_pages,
 			    __be64 *pas, int access_flags);
