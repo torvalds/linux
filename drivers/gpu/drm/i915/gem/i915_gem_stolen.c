@@ -505,6 +505,9 @@ static void dbg_poison(struct i915_ggtt *ggtt,
 	if (!drm_mm_node_allocated(&ggtt->error_capture))
 		return;
 
+	if (ggtt->vm.bind_async_flags & I915_VMA_GLOBAL_BIND)
+		return; /* beware stop_machine() inversion */
+
 	GEM_BUG_ON(!IS_ALIGNED(size, PAGE_SIZE));
 
 	mutex_lock(&ggtt->error_mutex);
