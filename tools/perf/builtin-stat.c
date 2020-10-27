@@ -2235,8 +2235,11 @@ int cmd_stat(int argc, const char **argv)
 		}
 
 		if (evlist__expand_cgroup(evsel_list, stat_config.cgroup_list,
-					  &stat_config.metric_events, true) < 0)
+					  &stat_config.metric_events, true) < 0) {
+			parse_options_usage(stat_usage, stat_options,
+					    "for-each-cgroup", 0);
 			goto out;
+		}
 	}
 
 	target__validate(&target);
