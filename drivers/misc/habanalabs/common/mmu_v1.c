@@ -481,9 +481,7 @@ static void hl_mmu_v1_fini(struct hl_device *hdev)
  */
 static int hl_mmu_v1_ctx_init(struct hl_ctx *ctx)
 {
-	mutex_init(&ctx->mmu_lock);
 	hash_init(ctx->mmu_shadow_hash);
-
 	return dram_default_mapping_init(ctx);
 }
 
@@ -516,8 +514,6 @@ static void hl_mmu_v1_ctx_fini(struct hl_ctx *ctx)
 			pgt_info->phys_addr, ctx->asid, pgt_info->num_of_ptes);
 		_free_hop(ctx, pgt_info);
 	}
-
-	mutex_destroy(&ctx->mmu_lock);
 }
 
 static int _hl_mmu_v1_unmap(struct hl_ctx *ctx,

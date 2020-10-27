@@ -81,6 +81,8 @@ int hl_mmu_ctx_init(struct hl_ctx *ctx)
 	if (!hdev->mmu_enable)
 		return 0;
 
+	mutex_init(&ctx->mmu_lock);
+
 	if (hdev->mmu_func[MMU_DR_PGT].ctx_init != NULL) {
 		rc = hdev->mmu_func[MMU_DR_PGT].ctx_init(ctx);
 		if (rc)
@@ -115,6 +117,8 @@ void hl_mmu_ctx_fini(struct hl_ctx *ctx)
 
 	if (hdev->mmu_func[MMU_HR_PGT].ctx_fini != NULL)
 		hdev->mmu_func[MMU_HR_PGT].ctx_fini(ctx);
+
+	mutex_destroy(&ctx->mmu_lock);
 }
 
 /*
