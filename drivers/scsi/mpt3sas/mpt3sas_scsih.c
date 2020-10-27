@@ -357,6 +357,30 @@ _scsih_srch_boot_encl_slot(u64 enclosure_logical_id, u16 slot_number,
 }
 
 /**
+ * mpt3sas_get_port_by_id - get hba port entry corresponding to provided
+ *			  port number from port list
+ * @ioc: per adapter object
+ * @port_id: port number
+ *
+ * Search for hba port entry corresponding to provided port number,
+ * if available return port object otherwise return NULL.
+ */
+struct hba_port *
+mpt3sas_get_port_by_id(struct MPT3SAS_ADAPTER *ioc, u8 port_id)
+{
+	struct hba_port *port, *port_next;
+
+	list_for_each_entry_safe(port, port_next,
+	    &ioc->port_table_list, list) {
+		if (port->port_id == port_id &&
+		    !(port->flags & HBA_PORT_FLAG_DIRTY_PORT))
+			return port;
+	}
+
+	return NULL;
+}
+
+/**
  * _scsih_is_boot_device - search for matching boot device.
  * @sas_address: sas address
  * @device_name: device name specified in INDENTIFY fram
@@ -5732,7 +5756,8 @@ _scsih_sas_host_refresh(struct MPT3SAS_ADAPTER *ioc)
 	Mpi2ConfigReply_t mpi_reply;
 	Mpi2SasIOUnitPage0_t *sas_iounit_pg0 = NULL;
 	u16 attached_handle;
-	u8 link_rate;
+	u8 link_rate, port_id;
+	struct hba_port *port;
 
 	dtmprintk(ioc,
 		  ioc_info(ioc, "updating handles for sas_host(0x%016llx)\n",
@@ -5756,13 +5781,28 @@ _scsih_sas_host_refresh(struct MPT3SAS_ADAPTER *ioc)
 	for (i = 0; i < ioc->sas_hba.num_phys ; i++) {
 		link_rate = sas_iounit_pg0->PhyData[i].NegotiatedLinkRate >> 4;
 		if (i == 0)
-			ioc->sas_hba.handle = le16_to_cpu(sas_iounit_pg0->
-			    PhyData[0].ControllerDevHandle);
+			ioc->sas_hba.handle = le16_to_cpu(
+			    sas_iounit_pg0->PhyData[0].ControllerDevHandle);
+		port_id = sas_iounit_pg0->PhyData[i].Port;
+		if (!(mpt3sas_get_port_by_id(ioc, port_id))) {
+			port = kzalloc(sizeof(struct hba_port), GFP_KERNEL);
+			if (!port)
+				goto out;
+
+			port->port_id = port_id;
+			ioc_info(ioc,
+			    "hba_port entry: %p, port: %d is added to hba_port list\n",
+			    port, port->port_id);
+			if (ioc->shost_recovery)
+				port->flags = HBA_PORT_FLAG_NEW_PORT;
+			list_add_tail(&port->list, &ioc->port_table_list);
+		}
 		ioc->sas_hba.phy[i].handle = ioc->sas_hba.handle;
 		attached_handle = le16_to_cpu(sas_iounit_pg0->PhyData[i].
 		    AttachedDevHandle);
 		if (attached_handle && link_rate < MPI2_SAS_NEG_LINK_RATE_1_5)
 			link_rate = MPI2_SAS_NEG_LINK_RATE_1_5;
+		ioc->sas_hba.phy[i].port = mpt3sas_get_port_by_id(ioc, port_id);
 		mpt3sas_transport_update_links(ioc, ioc->sas_hba.sas_address,
 		    attached_handle, i, link_rate);
 	}
@@ -5789,7 +5829,8 @@ _scsih_sas_host_add(struct MPT3SAS_ADAPTER *ioc)
 	u16 ioc_status;
 	u16 sz;
 	u8 device_missing_delay;
-	u8 num_phys;
+	u8 num_phys, port_id;
+	struct hba_port *port;
 
 	mpt3sas_config_get_number_hba_phys(ioc, &num_phys);
 	if (!num_phys) {
@@ -5882,8 +5923,24 @@ _scsih_sas_host_add(struct MPT3SAS_ADAPTER *ioc)
 		if (i == 0)
 			ioc->sas_hba.handle = le16_to_cpu(sas_iounit_pg0->
 			    PhyData[0].ControllerDevHandle);
+
+		port_id = sas_iounit_pg0->PhyData[i].Port;
+		if (!(mpt3sas_get_port_by_id(ioc, port_id))) {
+			port = kzalloc(sizeof(struct hba_port), GFP_KERNEL);
+			if (!port)
+				goto out;
+
+			port->port_id = port_id;
+			ioc_info(ioc,
+			   "hba_port entry: %p, port: %d is added to hba_port list\n",
+			   port, port->port_id);
+			list_add_tail(&port->list,
+			    &ioc->port_table_list);
+		}
+
 		ioc->sas_hba.phy[i].handle = ioc->sas_hba.handle;
 		ioc->sas_hba.phy[i].phy_id = i;
+		ioc->sas_hba.phy[i].port = mpt3sas_get_port_by_id(ioc, port_id);
 		mpt3sas_transport_add_host_phy(ioc, &ioc->sas_hba.phy[i],
 		    phy_pg0, ioc->sas_hba.parent_dev);
 	}
@@ -10136,6 +10193,7 @@ static void scsih_remove(struct pci_dev *pdev)
 	struct workqueue_struct	*wq;
 	unsigned long flags;
 	Mpi2ConfigReply_t mpi_reply;
+	struct hba_port *port, *port_next;
 
 	if (_scsih_get_shost_and_ioc(pdev, &shost, &ioc))
 		return;
@@ -10196,6 +10254,12 @@ static void scsih_remove(struct pci_dev *pdev)
 		    SAS_FANOUT_EXPANDER_DEVICE)
 			mpt3sas_expander_remove(ioc,
 			    mpt3sas_port->remote_identify.sas_address);
+	}
+
+	list_for_each_entry_safe(port, port_next,
+	    &ioc->port_table_list, list) {
+		list_del(&port->list);
+		kfree(port);
 	}
 
 	/* free phys attached to the sas_host */
@@ -10987,6 +11051,7 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	INIT_LIST_HEAD(&ioc->delayed_event_ack_list);
 	INIT_LIST_HEAD(&ioc->delayed_tr_volume_list);
 	INIT_LIST_HEAD(&ioc->reply_queue_list);
+	INIT_LIST_HEAD(&ioc->port_table_list);
 
 	sprintf(ioc->name, "%s_cm%d", ioc->driver_name, ioc->id);
 
