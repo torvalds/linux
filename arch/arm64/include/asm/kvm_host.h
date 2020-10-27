@@ -562,7 +562,6 @@ static inline bool __vcpu_write_sys_reg_to_cpu(u64 val, int reg)
 #define CPx_BIAS		IS_ENABLED(CONFIG_CPU_BIG_ENDIAN)
 
 #define vcpu_cp14(v,r)		((v)->arch.ctxt.copro[(r) ^ CPx_BIAS])
-#define vcpu_cp15(v,r)		((v)->arch.ctxt.copro[(r) ^ CPx_BIAS])
 
 struct kvm_vm_stat {
 	ulong remote_tlb_flush;
