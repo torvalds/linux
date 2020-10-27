@@ -377,7 +377,7 @@ static int ath11k_dp_rxdma_buf_ring_free(struct ath11k *ar,
 	spin_lock_bh(&rx_ring->idr_lock);
 	idr_for_each_entry(&rx_ring->bufs_idr, skb, buf_id) {
 		idr_remove(&rx_ring->bufs_idr, buf_id);
-		/* TODO: Understand where internal driver does this dma_unmap of
+		/* TODO: Understand where internal driver does this dma_unmap
 		 * of rxdma_buffer.
 		 */
 		dma_unmap_single(ar->ab->dev, ATH11K_SKB_RXCB(skb)->paddr,
@@ -399,7 +399,7 @@ static int ath11k_dp_rxdma_buf_ring_free(struct ath11k *ar,
 	spin_lock_bh(&rx_ring->idr_lock);
 	idr_for_each_entry(&rx_ring->bufs_idr, skb, buf_id) {
 		idr_remove(&rx_ring->bufs_idr, buf_id);
-		/* XXX: Understand where internal driver does this dma_unmap of
+		/* XXX: Understand where internal driver does this dma_unmap
 		 * of rxdma_buffer.
 		 */
 		dma_unmap_single(ar->ab->dev, ATH11K_SKB_RXCB(skb)->paddr,
@@ -960,7 +960,7 @@ int ath11k_peer_rx_tid_setup(struct ath11k *ar, const u8 *peer_mac, int vdev_id,
 
 	rx_tid->ba_win_sz = ba_win_sz;
 
-	/* TODO: Optimize the memory allocation for qos tid based on the
+	/* TODO: Optimize the memory allocation for qos tid based on
 	 * the actual BA window size in REO tid update path.
 	 */
 	if (tid == HAL_DESC_REO_NON_QOS_TID)

@@ -716,7 +716,7 @@ struct hal_reo_dest_ring {
  *
  * rx_msdu_info
  *		General information related to the MSDU that is passed
- *		on from RXDMA all the way to to the REO destination ring.
+ *		on from RXDMA all the way to the REO destination ring.
  *
  * queue_addr_lo
  *		Address (lower 32 bits) of the REO queue descriptor.

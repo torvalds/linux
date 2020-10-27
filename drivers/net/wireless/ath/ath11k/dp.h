@@ -423,7 +423,7 @@ enum htt_srng_ring_id {
  *                     Used only by Consumer ring to generate ring_sw_int_p.
  *                     Ring entries low threshold water mark, that is used
  *                     in combination with the interrupt timer as well as
- *                     the the clearing of the level interrupt.
+ *                     the clearing of the level interrupt.
  *           b'16:18 - prefetch_timer_cfg:
  *                     Used only by Consumer ring to set timer mode to
  *                     support Application prefetch handling.
