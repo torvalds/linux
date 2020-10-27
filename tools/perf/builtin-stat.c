@@ -972,6 +972,8 @@ static void print_counters(struct timespec *ts, int argc, const char **argv)
 	/* Do not print anything if we record to the pipe. */
 	if (STAT_RECORD && perf_stat.data.is_pipe)
 		return;
+	if (stat_config.quiet)
+		return;
 
 	perf_evlist__print_counters(evsel_list, &stat_config, &target,
 				    ts, argc, argv);
@@ -1171,6 +1173,8 @@ static struct option stat_options[] = {
 		    "threads of same physical core"),
 	OPT_BOOLEAN(0, "summary", &stat_config.summary,
 		       "print summary for interval mode"),
+	OPT_BOOLEAN(0, "quiet", &stat_config.quiet,
+			"don't print output (useful with record)"),
 #ifdef HAVE_LIBPFM
 	OPT_CALLBACK(0, "pfm-events", &evsel_list, "event",
 		"libpfm4 event selector. use 'perf list' to list available events",
@@ -2132,7 +2136,7 @@ int cmd_stat(int argc, const char **argv)
 		goto out;
 	}
 
-	if (!output) {
+	if (!output && !stat_config.quiet) {
 		struct timespec tm;
 		mode = append_file ? "a" : "w";
 

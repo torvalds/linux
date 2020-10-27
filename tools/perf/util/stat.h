@@ -122,6 +122,7 @@ struct perf_stat_config {
 	bool			 metric_no_group;
 	bool			 metric_no_merge;
 	bool			 stop_read_counter;
+	bool			 quiet;
 	FILE			*output;
 	unsigned int		 interval;
 	unsigned int		 timeout;
