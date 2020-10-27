@@ -153,8 +153,8 @@ struct async_submit_bio {
 static struct btrfs_lockdep_keyset {
 	u64			id;		/* root objectid */
 	const char		*name_stem;	/* lock name stem */
-	char			names[BTRFS_MAX_LEVEL + 1][20];
-	struct lock_class_key	keys[BTRFS_MAX_LEVEL + 1];
+	char			names[BTRFS_MAX_LEVEL][20];
+	struct lock_class_key	keys[BTRFS_MAX_LEVEL];
 } btrfs_lockdep_keysets[] = {
 	{ .id = BTRFS_ROOT_TREE_OBJECTID,	.name_stem = "root"	},
 	{ .id = BTRFS_EXTENT_TREE_OBJECTID,	.name_stem = "extent"	},
