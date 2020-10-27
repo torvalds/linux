@@ -544,12 +544,11 @@ ssize_t __kernel_write(struct file *file, const void *buf, size_t count, loff_t 
 		return warn_unsupported(file, "write");
 
 	init_sync_kiocb(&kiocb, file);
-	kiocb.ki_pos = pos ? *pos : 0;
+	kiocb.ki_pos = *pos;
 	iov_iter_kvec(&iter, WRITE, &iov, 1, iov.iov_len);
 	ret = file->f_op->write_iter(&kiocb, &iter);
 	if (ret > 0) {
-		if (pos)
-			*pos = kiocb.ki_pos;
+		*pos = kiocb.ki_pos;
 		fsnotify_modify(file);
 		add_wchar(current, ret);
 	}
