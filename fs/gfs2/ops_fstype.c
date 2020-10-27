@@ -704,7 +704,7 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 
 	if (undo) {
 		jindex = 0;
-		goto fail_jinode_gh;
+		goto fail_statfs;
 	}
 
 	sdp->sd_jindex = gfs2_lookup_simple(master, "jindex");
