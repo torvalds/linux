@@ -418,117 +418,6 @@
 			   <GCC_QSPI_CNOC_PERIPH_AHB_CLK>;
 };
 
-&pcie0 {
-	status = "okay";
-	perst-gpio = <&tlmm 35 GPIO_ACTIVE_LOW>;
-	enable-gpio = <&tlmm 134 GPIO_ACTIVE_HIGH>;
-
-	vddpe-3v3-supply = <&pcie0_3p3v_dual>;
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&pcie0_default_state>;
-};
-
-&pcie0_phy {
-	status = "okay";
-
-	vdda-phy-supply = <&vreg_l1a_0p875>;
-	vdda-pll-supply = <&vreg_l26a_1p2>;
-};
-
-&pcie1 {
-	status = "okay";
-	perst-gpio = <&tlmm 102 GPIO_ACTIVE_LOW>;
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&pcie1_default_state>;
-};
-
-&pcie1_phy {
-	status = "okay";
-
-	vdda-phy-supply = <&vreg_l1a_0p875>;
-	vdda-pll-supply = <&vreg_l26a_1p2>;
-};
-
-&i2c10 {
-	status = "okay";
-	clock-frequency = <400000>;
-
-	lt9611_codec: hdmi-bridge@3b {
-		compatible = "lontium,lt9611";
-		reg = <0x3b>;
-		#sound-dai-cells = <1>;
-
-		interrupts-extended = <&tlmm 84 IRQ_TYPE_EDGE_FALLING>;
-
-		reset-gpios = <&tlmm 128 GPIO_ACTIVE_HIGH>;
-
-		vdd-supply = <&lt9611_1v8>;
-		vcc-supply = <&lt9611_3v3>;
-
-		pinctrl-names = "default";
-		pinctrl-0 = <&lt9611_irq_pin>, <&dsi_sw_sel>;
-
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			port@0 {
-				reg = <0>;
-
-				lt9611_out: endpoint {
-					remote-endpoint = <&hdmi_con>;
-				};
-			};
-
-			port@1 {
-				reg = <1>;
-
-				lt9611_a: endpoint {
-					remote-endpoint = <&dsi0_out>;
-				};
-			};
-
-#if 0
-			port@2 {
-				reg = <2>;
-
-				lt9611_b: endpoint {
-					remote-endpoint = <&dsi1_out>;
-				};
-			};
-#endif
-		};
-	};
-};
-
-&i2c11 {
-	/* On Low speed expansion */
-	label = "LS-I2C1";
-	status = "okay";
-};
-
-&i2c14 {
-	/* On Low speed expansion */
-	label = "LS-I2C0";
-	status = "okay";
-};
-
-&spi2 {
-	/* On Low speed expansion */
-	label = "LS-SPI0";
-	status = "okay";
-};
-
-&mdss {
-	status = "okay";
-};
-
-&mdss_mdp {
-	status = "okay";
-};
-
 &gpu {
 	zap-shader {
 		memory-region = <&gpu_mem>;
@@ -562,16 +451,16 @@
 			port@0 {
 				reg = <0>;
 
-				lt9611_out: endpoint {
-					remote-endpoint = <&hdmi_con>;
+				lt9611_a: endpoint {
+					remote-endpoint = <&dsi0_out>;
 				};
 			};
 
-			port@1 {
-				reg = <1>;
+			port@2 {
+				reg = <2>;
 
-				lt9611_a: endpoint {
-					remote-endpoint = <&dsi0_out>;
+				lt9611_out: endpoint {
+					remote-endpoint = <&hdmi_con>;
 				};
 			};
 		};
@@ -932,12 +821,6 @@
 		};
 	};
 
-	lt9611_irq_pin: lt9611-irq {
-		pins = "gpio84";
-		function = "gpio";
-		bias-disable;
-	};
-
 	pcie0_pwren_state: pcie0-pwren {
 		pins = "gpio90";
 		function = "gpio";
@@ -1017,15 +900,6 @@
 		input-enable;
 		bias-pull-down;
 		drive-strength = <2>;
-	};
-
-	dsi_sw_sel: dsi-sw-sel {
-		pins = "gpio120";
-		function = "gpio";
-
-		drive-strength = <2>;
-		bias-disable;
-		output-high;
 	};
 };
 
