@@ -92,7 +92,6 @@
 		i2c-gpio,delay-us = <2>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		status = "okay";
 
 		max98504: amplifier@31 {
 			compatible = "maxim,max98504";
