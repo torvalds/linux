@@ -771,6 +771,7 @@ struct _sas_phy {
 	u16	handle;
 	u16	attached_handle;
 	u8	phy_belongs_to_port;
+	u8	hba_vphy;
 	struct hba_port *port;
 };
 
@@ -1024,11 +1025,28 @@ struct reply_post_struct {
 };
 
 /**
+ * struct virtual_phy - vSES phy structure
+ * sas_address: SAS Address of vSES device
+ * phy_mask: vSES device's phy number
+ * flags: flags used to manage this structure
+ */
+struct virtual_phy {
+	struct	list_head list;
+	u64	sas_address;
+	u32	phy_mask;
+	u8	flags;
+};
+
+#define MPT_VPHY_FLAG_DIRTY_PHY	0x01
+
+/**
  * struct hba_port - Saves each HBA's Wide/Narrow port info
  * @sas_address: sas address of this wide/narrow port's attached device
  * @phy_mask: HBA PHY's belonging to this port
  * @port_id: port number
  * @flags: hba port flags
+ * @vphys_mask : mask of vSES devices Phy number
+ * @vphys_list : list containing vSES device structures
  */
 struct hba_port {
 	struct list_head list;
@@ -1036,6 +1054,8 @@ struct hba_port {
 	u32	phy_mask;
 	u8      port_id;
 	u8	flags;
+	u32	vphys_mask;
+	struct list_head vphys_list;
 };
 
 /* hba port flags */
@@ -1688,6 +1708,9 @@ mpt3sas_raid_device_find_by_handle(struct MPT3SAS_ADAPTER *ioc, u16 handle);
 void mpt3sas_scsih_change_queue_depth(struct scsi_device *sdev, int qdepth);
 struct _sas_device *
 __mpt3sas_get_sdev_by_rphy(struct MPT3SAS_ADAPTER *ioc, struct sas_rphy *rphy);
+struct virtual_phy *
+mpt3sas_get_vphy_by_phy(struct MPT3SAS_ADAPTER *ioc,
+	struct hba_port *port, u32 phy);
 
 /* config shared API */
 u8 mpt3sas_config_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,

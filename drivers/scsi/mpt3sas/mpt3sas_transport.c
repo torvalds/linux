@@ -690,6 +690,7 @@ mpt3sas_transport_port_add(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 	struct _sas_device *sas_device = NULL;
 	int i;
 	struct sas_port *port;
+	struct virtual_phy *vphy = NULL;
 
 	if (!hba_port) {
 		ioc_err(ioc, "failure at %s:%d/%s()!\n",
@@ -743,9 +744,20 @@ mpt3sas_transport_port_add(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 			continue;
 		list_add_tail(&sas_node->phy[i].port_siblings,
 		    &mpt3sas_port->phy_list);
-		if (sas_node->handle <= ioc->sas_hba.num_phys)
-			hba_port->phy_mask |= (1 << i);
 		mpt3sas_port->num_phys++;
+		if (sas_node->handle <= ioc->sas_hba.num_phys) {
+			if (!sas_node->phy[i].hba_vphy) {
+				hba_port->phy_mask |= (1 << i);
+				continue;
+			}
+
+			vphy = mpt3sas_get_vphy_by_phy(ioc, hba_port, i);
+			if (!vphy) {
+				ioc_err(ioc, "failure at %s:%d/%s()!\n",
+				    __FILE__, __LINE__, __func__);
+				goto out_fail;
+			}
+		}
 	}
 
 	if (!mpt3sas_port->num_phys) {
@@ -795,8 +807,14 @@ mpt3sas_transport_port_add(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 	if (mpt3sas_port->remote_identify.device_type == SAS_END_DEVICE) {
 		rphy = sas_end_device_alloc(port);
 		sas_device->rphy = rphy;
-		if (sas_node->handle <= ioc->sas_hba.num_phys)
-			hba_port->sas_address = sas_device->sas_address;
+		if (sas_node->handle <= ioc->sas_hba.num_phys) {
+			if (!vphy)
+				hba_port->sas_address =
+				    sas_device->sas_address;
+			else
+				vphy->sas_address =
+				    sas_device->sas_address;
+		}
 	} else {
 		rphy = sas_expander_alloc(port,
 		    mpt3sas_port->remote_identify.device_type);
@@ -866,6 +884,7 @@ mpt3sas_transport_port_remove(struct MPT3SAS_ADAPTER *ioc, u64 sas_address,
 	u8 found = 0;
 	struct _sas_phy *mpt3sas_phy, *next_phy;
 	struct hba_port *hba_port_next, *hba_port = NULL;
+	struct virtual_phy *vphy, *vphy_next = NULL;
 
 	if (!port)
 		return;
@@ -894,17 +913,56 @@ mpt3sas_transport_port_remove(struct MPT3SAS_ADAPTER *ioc, u64 sas_address,
 	}
 
 	if (sas_node->handle <= ioc->sas_hba.num_phys) {
+		if (port->vphys_mask) {
+			list_for_each_entry_safe(vphy, vphy_next,
+			    &port->vphys_list, list) {
+				if (vphy->sas_address != sas_address)
+					continue;
+				ioc_info(ioc,
+				    "remove vphy entry: %p of port:%p,from %d port's vphys list\n",
+				    vphy, port, port->port_id);
+				port->vphys_mask &= ~vphy->phy_mask;
+				list_del(&vphy->list);
+				kfree(vphy);
+			}
+		}
+
 		list_for_each_entry_safe(hba_port, hba_port_next,
 		    &ioc->port_table_list, list) {
 			if (hba_port != port)
 				continue;
-			if (hba_port->sas_address != sas_address)
-				continue;
-			ioc_info(ioc,
-			    "remove hba_port entry: %p port: %d from hba_port list\n",
-			    hba_port, hba_port->port_id);
-			list_del(&hba_port->list);
-			kfree(hba_port);
+			/*
+			 * Delete hba_port object if
+			 *  - hba_port object's sas address matches with current
+			 *    removed device's sas address and no vphy's
+			 *    associated with it.
+			 *  - Current removed device is a vSES device and
+			 *    none of the other direct attached device have
+			 *    this vSES device's port number (hence hba_port
+			 *    object sas_address field will be zero).
+			 */
+			if ((hba_port->sas_address == sas_address ||
+			    !hba_port->sas_address) && !hba_port->vphys_mask) {
+				ioc_info(ioc,
+				    "remove hba_port entry: %p port: %d from hba_port list\n",
+				    hba_port, hba_port->port_id);
+				list_del(&hba_port->list);
+				kfree(hba_port);
+			} else if (hba_port->sas_address == sas_address &&
+			    hba_port->vphys_mask) {
+				/*
+				 * Current removed device is a non vSES device
+				 * and a vSES device has the same port number
+				 * as of current device's port number. Hence
+				 * only clear the sas_address filed, don't
+				 * delete the hba_port object.
+				 */
+				ioc_info(ioc,
+				    "clearing sas_address from hba_port entry: %p port: %d from hba_port list\n",
+				    hba_port, hba_port->port_id);
+				port->sas_address = 0;
+			}
+			break;
 		}
 	}
 

@@ -381,6 +381,30 @@ mpt3sas_get_port_by_id(struct MPT3SAS_ADAPTER *ioc, u8 port_id)
 }
 
 /**
+ * mpt3sas_get_vphy_by_phy - get virtual_phy object corresponding to phy number
+ * @ioc: per adapter object
+ * @port: hba_port object
+ * @phy: phy number
+ *
+ * Return virtual_phy object corresponding to phy number.
+ */
+struct virtual_phy *
+mpt3sas_get_vphy_by_phy(struct MPT3SAS_ADAPTER *ioc,
+	struct hba_port *port, u32 phy)
+{
+	struct virtual_phy *vphy, *vphy_next;
+
+	if (!port->vphys_mask)
+		return NULL;
+
+	list_for_each_entry_safe(vphy, vphy_next, &port->vphys_list, list) {
+		if (vphy->phy_mask & (1 << phy))
+			return vphy;
+	}
+	return NULL;
+}
+
+/**
  * _scsih_is_boot_device - search for matching boot device.
  * @sas_address: sas address
  * @device_name: device name specified in INDENTIFY fram
@@ -6153,6 +6177,47 @@ _scsih_sas_port_refresh(struct MPT3SAS_ADAPTER *ioc)
 }
 
 /**
+ * _scsih_alloc_vphy - allocate virtual_phy object
+ * @ioc: per adapter object
+ * @port_id: Port ID number
+ * @phy_num: HBA Phy number
+ *
+ * Returns allocated virtual_phy object.
+ */
+static struct virtual_phy *
+_scsih_alloc_vphy(struct MPT3SAS_ADAPTER *ioc, u8 port_id, u8 phy_num)
+{
+	struct virtual_phy *vphy;
+	struct hba_port *port;
+
+	port = mpt3sas_get_port_by_id(ioc, port_id);
+	if (!port)
+		return NULL;
+
+	vphy = mpt3sas_get_vphy_by_phy(ioc, port, phy_num);
+	if (!vphy) {
+		vphy = kzalloc(sizeof(struct virtual_phy), GFP_KERNEL);
+		if (!vphy)
+			return NULL;
+
+		/*
+		 * Enable bit corresponding to HBA phy number on its
+		 * parent hba_port object's vphys_mask field.
+		 */
+		port->vphys_mask |= (1 << phy_num);
+		vphy->phy_mask |= (1 << phy_num);
+
+		INIT_LIST_HEAD(&port->vphys_list);
+		list_add_tail(&vphy->list, &port->vphys_list);
+
+		ioc_info(ioc,
+		    "vphy entry: %p, port id: %d, phy:%d is added to port's vphys_list\n",
+		    vphy, port->port_id, phy_num);
+	}
+	return vphy;
+}
+
+/**
  * _scsih_sas_host_refresh - refreshing sas host object contents
  * @ioc: per adapter object
  * Context: user
@@ -6172,6 +6237,7 @@ _scsih_sas_host_refresh(struct MPT3SAS_ADAPTER *ioc)
 	u16 attached_handle;
 	u8 link_rate, port_id;
 	struct hba_port *port;
+	Mpi2SasPhyPage0_t phy_pg0;
 
 	dtmprintk(ioc,
 		  ioc_info(ioc, "updating handles for sas_host(0x%016llx)\n",
@@ -6211,6 +6277,31 @@ _scsih_sas_host_refresh(struct MPT3SAS_ADAPTER *ioc)
 				port->flags = HBA_PORT_FLAG_NEW_PORT;
 			list_add_tail(&port->list, &ioc->port_table_list);
 		}
+		/*
+		 * Check whether current Phy belongs to HBA vSES device or not.
+		 */
+		if (le32_to_cpu(sas_iounit_pg0->PhyData[i].ControllerPhyDeviceInfo) &
+		    MPI2_SAS_DEVICE_INFO_SEP &&
+		    (link_rate >=  MPI2_SAS_NEG_LINK_RATE_1_5)) {
+			if ((mpt3sas_config_get_phy_pg0(ioc, &mpi_reply,
+			    &phy_pg0, i))) {
+				ioc_err(ioc,
+				    "failure at %s:%d/%s()!\n",
+				     __FILE__, __LINE__, __func__);
+				goto out;
+			}
+			if (!(le32_to_cpu(phy_pg0.PhyInfo) &
+			    MPI2_SAS_PHYINFO_VIRTUAL_PHY))
+				continue;
+			/*
+			 * Allocate a virtual_phy object for vSES device, if
+			 * this vSES device is hot added.
+			 */
+			if (!_scsih_alloc_vphy(ioc, port_id, i))
+				goto out;
+			ioc->sas_hba.phy[i].hba_vphy = 1;
+		}
+
 		ioc->sas_hba.phy[i].handle = ioc->sas_hba.handle;
 		attached_handle = le16_to_cpu(sas_iounit_pg0->PhyData[i].
 		    AttachedDevHandle);
@@ -6351,6 +6442,21 @@ _scsih_sas_host_add(struct MPT3SAS_ADAPTER *ioc)
 			   port, port->port_id);
 			list_add_tail(&port->list,
 			    &ioc->port_table_list);
+		}
+
+		/*
+		 * Check whether current Phy belongs to HBA vSES device or not.
+		 */
+		if ((le32_to_cpu(phy_pg0.PhyInfo) &
+		    MPI2_SAS_PHYINFO_VIRTUAL_PHY) &&
+		    (phy_pg0.NegotiatedLinkRate >> 4) >=
+		    MPI2_SAS_NEG_LINK_RATE_1_5) {
+			/*
+			 * Allocate a virtual_phy object for vSES device.
+			 */
+			if (!_scsih_alloc_vphy(ioc, port_id, i))
+				goto out;
+			ioc->sas_hba.phy[i].hba_vphy = 1;
 		}
 
 		ioc->sas_hba.phy[i].handle = ioc->sas_hba.handle;
