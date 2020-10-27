@@ -428,7 +428,8 @@ static int br_fill_ifinfo(struct sk_buff *skb,
 	if (filter_mask & (RTEXT_FILTER_BRVLAN |
 			   RTEXT_FILTER_BRVLAN_COMPRESSED |
 			   RTEXT_FILTER_MRP |
-			   RTEXT_FILTER_CFM_CONFIG)) {
+			   RTEXT_FILTER_CFM_CONFIG |
+			   RTEXT_FILTER_CFM_STATUS)) {
 		af = nla_nest_start_noflag(skb, IFLA_AF_SPEC);
 		if (!af)
 			goto nla_put_failure;
@@ -477,7 +478,7 @@ static int br_fill_ifinfo(struct sk_buff *skb,
 			goto nla_put_failure;
 	}
 
-	if (filter_mask & RTEXT_FILTER_CFM_CONFIG) {
+	if (filter_mask & (RTEXT_FILTER_CFM_CONFIG | RTEXT_FILTER_CFM_STATUS)) {
 		struct nlattr *cfm_nest = NULL;
 		int err;
 
@@ -491,6 +492,14 @@ static int br_fill_ifinfo(struct sk_buff *skb,
 		if (filter_mask & RTEXT_FILTER_CFM_CONFIG) {
 			rcu_read_lock();
 			err = br_cfm_config_fill_info(skb, br);
+			rcu_read_unlock();
+			if (err)
+				goto nla_put_failure;
+		}
+
+		if (filter_mask & RTEXT_FILTER_CFM_STATUS) {
+			rcu_read_lock();
+			err = br_cfm_status_fill_info(skb, br);
 			rcu_read_unlock();
 			if (err)
 				goto nla_put_failure;
@@ -563,7 +572,8 @@ int br_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 	if (!port && !(filter_mask & RTEXT_FILTER_BRVLAN) &&
 	    !(filter_mask & RTEXT_FILTER_BRVLAN_COMPRESSED) &&
 	    !(filter_mask & RTEXT_FILTER_MRP) &&
-	    !(filter_mask & RTEXT_FILTER_CFM_CONFIG))
+	    !(filter_mask & RTEXT_FILTER_CFM_CONFIG) &&
+	    !(filter_mask & RTEXT_FILTER_CFM_STATUS))
 		return 0;
 
 	return br_fill_ifinfo(skb, port, pid, seq, RTM_NEWLINK, nlflags,
