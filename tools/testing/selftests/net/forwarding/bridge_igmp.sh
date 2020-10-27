@@ -93,7 +93,7 @@ mcast_packet_test()
 	# was received by it or not.
 	tc qdisc add dev $host2_if ingress
 	tc filter add dev $host2_if ingress protocol ip pref 1 handle 101 \
-		flower dst_mac $mac action drop
+		flower ip_proto udp dst_mac $mac action drop
 
 	$MZ $host1_if -c 1 -p 64 -b $mac -A $src_ip -B $ip -t udp "dp=4096,sp=2048" -q
 	sleep 1
