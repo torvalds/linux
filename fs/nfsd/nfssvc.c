@@ -997,7 +997,7 @@ int nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 	 * NFSv4 does some encoding while processing
 	 */
 	p = resv->iov_base + resv->iov_len;
-	resv->iov_len += sizeof(__be32);
+	svcxdr_init_encode(rqstp);
 
 	*statp = proc->pc_func(rqstp);
 	if (*statp == rpc_drop_reply || test_bit(RQ_DROPME, &rqstp->rq_flags))
@@ -1052,7 +1052,7 @@ int nfssvc_decode_voidarg(struct svc_rqst *rqstp, __be32 *p)
  */
 int nfssvc_encode_voidres(struct svc_rqst *rqstp, __be32 *p)
 {
-        return xdr_ressize_check(rqstp, p);
+	return 1;
 }
 
 int nfsd_pool_stats_open(struct inode *inode, struct file *file)

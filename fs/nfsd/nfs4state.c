@@ -2903,7 +2903,7 @@ out_err:
 static void
 nfsd4_store_cache_entry(struct nfsd4_compoundres *resp)
 {
-	struct xdr_buf *buf = resp->xdr.buf;
+	struct xdr_buf *buf = resp->xdr->buf;
 	struct nfsd4_slot *slot = resp->cstate.slot;
 	unsigned int base;
 
@@ -2973,7 +2973,7 @@ nfsd4_replay_cache_entry(struct nfsd4_compoundres *resp,
 			 struct nfsd4_sequence *seq)
 {
 	struct nfsd4_slot *slot = resp->cstate.slot;
-	struct xdr_stream *xdr = &resp->xdr;
+	struct xdr_stream *xdr = resp->xdr;
 	__be32 *p;
 	__be32 status;
 
@@ -3708,7 +3708,7 @@ nfsd4_sequence(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 {
 	struct nfsd4_sequence *seq = &u->sequence;
 	struct nfsd4_compoundres *resp = rqstp->rq_resp;
-	struct xdr_stream *xdr = &resp->xdr;
+	struct xdr_stream *xdr = resp->xdr;
 	struct nfsd4_session *session;
 	struct nfs4_client *clp;
 	struct nfsd4_slot *slot;
