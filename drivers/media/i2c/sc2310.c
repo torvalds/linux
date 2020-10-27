@@ -6,6 +6,10 @@
  *
  * V0.0X01.0X00 first version,adjust sc2310.
  * V0.0X01.0X01 add set flip ctrl.
+ * V0.0X01.0X02 1.fixed time limit error
+ *		2.fixed gain conversion function
+ *		3.fixed test pattern error
+ *		4.add quick stream on/off
  */
 
 //#define DEBUG
@@ -28,7 +32,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/rk-preisp.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x02)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -42,14 +46,14 @@
 
 #define SC2310_XVCLK_FREQ		24000000
 
-#define CHIP_ID					0x2311
+#define CHIP_ID				0x2311
 #define SC2310_REG_CHIP_ID		0x3107
 
 #define SC2310_REG_CTRL_MODE		0x0100
 #define SC2310_MODE_SW_STANDBY		0x0
 #define SC2310_MODE_STREAMING		BIT(0)
 
-#define	SC2310_EXPOSURE_MIN		3
+#define	SC2310_EXPOSURE_MIN		2// two lines long exp min
 #define	SC2310_EXPOSURE_STEP	1
 #define SC2310_VTS_MAX			0xffff
 
@@ -63,23 +67,23 @@
 #define SC2310_REG_EXP_SF_L		0x3e05    //[7:4]
 
 //long frame and normal gain reg
-#define SC2310_REG_AGAIN			0x3e08
+#define SC2310_REG_AGAIN		0x3e08
 #define SC2310_REG_AGAIN_FINE		0x3e09
 
-#define SC2310_REG_DGAIN			0x3e06
+#define SC2310_REG_DGAIN		0x3e06
 #define SC2310_REG_DGAIN_FINE		0x3e07
 
 //short fram gain reg
-#define SC2310_SF_REG_AGAIN			0x3e12
-#define SC2310_SF_REG_AGAIN_FINE		0x3e13
+#define SC2310_SF_REG_AGAIN		0x3e12
+#define SC2310_SF_REG_AGAIN_FINE	0x3e13
 
-#define SC2310_SF_REG_DGAIN			0x3e10
-#define SC2310_SF_REG_DGAIN_FINE		0x3e11
+#define SC2310_SF_REG_DGAIN		0x3e10
+#define SC2310_SF_REG_DGAIN_FINE	0x3e11
 
-#define SC2310_GAIN_MIN				0x40
-#define SC2310_GAIN_MAX				0x8000
-#define SC2310_GAIN_STEP			1
-#define SC2310_GAIN_DEFAULT			0x40
+#define SC2310_GAIN_MIN			0x40
+#define SC2310_GAIN_MAX			0x8000
+#define SC2310_GAIN_STEP		1
+#define SC2310_GAIN_DEFAULT		0x40
 
 //group hold
 #define SC2310_GROUP_UPDATE_ADDRESS	0x3812
@@ -88,8 +92,7 @@
 
 #define SC2310_SOFTWARE_RESET_REG	0x0103
 #define SC2310_REG_TEST_PATTERN		0x4501
-#define SC2310_TEST_PATTERN_ENABLE	0x80
-#define SC2310_TEST_PATTERN_DISABLE	0x0
+#define SC2310_TEST_PATTERN_ENABLE	0x08
 
 #define SC2310_REG_VTS			0x320e
 #define SC2310_FLIP_REG			0x3221
@@ -533,8 +536,8 @@ static __maybe_unused const struct regval sc2310_hdr10bit_1920x1080_regs[] = {
 	{0x33c0, 0x05},
 	{0x6000, 0x06},
 	{0x6002, 0x06},
-	{0x320e, 0x08},
-	{0x320f, 0xaa},
+	{0x320e, 0x0a},//{0x320e, 0x08},
+	{0x320f, 0x66},//{0x320f, 0xaa},
 	{0x3e00, 0x01},
 	{0x3e01, 0x03},
 	{0x3e02, 0xe0},
@@ -580,7 +583,7 @@ static const struct sc2310_mode supported_modes[] = {
 			.numerator = 10000,
 			.denominator = 300000,
 		},
-		.exp_def = 0x048c,
+		.exp_def = 0x048c / 2,
 		.hts_def = 0x044c * 2,
 		.vts_def = 0x0465,
 		.reg_list = sc2310_linear10bit_1920x1080_regs,
@@ -596,11 +599,11 @@ static const struct sc2310_mode supported_modes[] = {
 		.height = 1080,
 		.max_fps = {
 			.numerator = 10000,
-			.denominator = 300000,
+			.denominator = 250000,
 		},
-		.exp_def = 0x103e,
+		.exp_def = 0x103e / 2,
 		.hts_def = 0x0476 * 2,
-		.vts_def = 0x08aa,
+		.vts_def = 0x0a66,//0x08aa
 		.reg_list = sc2310_hdr10bit_1920x1080_regs,
 		.hdr_mode = HDR_X2,
 		.mipi_freq_idx = 1,
@@ -619,10 +622,7 @@ static const s64 link_freq_items[] = {
 
 static const char * const sc2310_test_pattern_menu[] = {
 	"Disabled",
-	"Vertical Color Bar Type 1",
-	"Vertical Color Bar Type 2",
-	"Vertical Color Bar Type 3",
-	"Vertical Color Bar Type 4"
+	"Vertical Color Bar Type 1"
 };
 
 /* Write registers up to 4 at a time */
@@ -848,15 +848,18 @@ static int sc2310_enum_frame_sizes(struct v4l2_subdev *sd,
 
 static int sc2310_enable_test_pattern(struct sc2310 *sc2310, u32 pattern)
 {
-	u32 val;
+	u32 val = 0;
+	int ret = 0;
 
+	ret = sc2310_read_reg(sc2310->client, SC2310_REG_TEST_PATTERN,
+			      SC2310_REG_VALUE_08BIT, &val);
 	if (pattern)
-		val = (pattern - 1) | SC2310_TEST_PATTERN_ENABLE;
+		val |= SC2310_TEST_PATTERN_ENABLE;
 	else
-		val = SC2310_TEST_PATTERN_DISABLE;
-
-	return sc2310_write_reg(sc2310->client, SC2310_REG_TEST_PATTERN,
+		val &= ~SC2310_TEST_PATTERN_ENABLE;
+	ret |= sc2310_write_reg(sc2310->client, SC2310_REG_TEST_PATTERN,
 				SC2310_REG_VALUE_08BIT, val);
+	return ret;
 }
 
 static int sc2310_g_frame_interval(struct v4l2_subdev *sd,
@@ -908,61 +911,67 @@ static void sc2310_get_module_inf(struct sc2310 *sc2310,
 static void sc2310_get_gain_reg(u32 val, u32 *again_reg, u32 *again_fine_reg,
 	u32 *dgain_reg, u32 *dgain_fine_reg)
 {
-	u32 again = 0, again_fine = 0;
-	u32 dgain = 0, dgain_fine = 0;
-	u32 total_gain = val;
+	u8 u8Reg0x3e09 = 0x40, u8Reg0x3e08 = 0x03, u8Reg0x3e07 = 0x80, u8Reg0x3e06 = 0x00;
+	u32 aCoarseGain = 0;
+	u32 aFineGain = 0;
+	u32 dCoarseGain = 0;
+	u32 dFineGain = 0;
+	u32 again = 0;
+	u32 dgain = 0;
 
-	if (total_gain < 0x80) {/* 1x gain ~  2x gain */
-		again = 0x3;
-		again_fine = total_gain;
-		dgain = 0x0;
-		dgain_fine = 0x80;
-	} else if (total_gain < 0x100) {/* 2x gain ~  4x gain*/
-		again = 0x7;
-		again_fine = total_gain >> 1;
-		dgain = 0x0;
-		dgain_fine = 0x80;
-	} else if (total_gain < 0x200) {/* 4x gain ~  8x gain*/
-		again = 0xf;
-		again_fine = total_gain >> 2;
-		dgain = 0x0;
-		dgain_fine = 0x80;
-	} else if (total_gain < 0x400) {/* 8x gain ~  16x gain*/
-		again = 0x1f;
-		again_fine = total_gain >> 3;
-		dgain = 0x0;
-		dgain_fine = 0x80;
-	} else if (total_gain < 0x800) {/* 16x gain ~  32x gain*/
-		again = 0x1f;
-		again_fine = 0x7f;
-		dgain = 0x0;
-		dgain_fine = total_gain >> 3;
-	} else if (total_gain < 0x1000) {/* 32x gain ~  64x gain*/
-		again = 0x1f;
-		again_fine = 0x7f;
-		dgain = 0x1;
-		dgain_fine = total_gain >> 4;
-	} else if (total_gain < 0x2000) {/* 64x gain ~  128x gain*/
-		again = 0x1f;
-		again_fine = 0x7f;
-		dgain = 0x3;
-		dgain_fine = total_gain >> 5;
-	} else if (total_gain < 0x4000) {/* 128x gain ~  256x gain*/
-		again = 0x1f;
-		again_fine = 0x7f;
-		dgain = 0x7;
-		dgain_fine = total_gain >> 6;
-	} else if (total_gain < 0x8000) {/* 256x gain ~  512x gain*/
-		again = 0x1f;
-		again_fine = 0x7f;
-		dgain = 0xf;
-		dgain_fine = total_gain >> 7;
+	if (val <= 1024) {
+		again = val;
+		dgain = 128;
+	} else {
+		again = 1024;
+		dgain = val * 128 / again;
 	}
 
-	*again_reg = again;
-	*again_fine_reg = again_fine;
-	*dgain_reg = dgain;
-	*dgain_fine_reg = dgain_fine;
+	//again
+	if (again <= 174) {
+		//a_gain < 2.72x
+		for (aCoarseGain = 1; aCoarseGain <= 2; aCoarseGain = aCoarseGain * 2) {
+			//1,2,4,8,16
+			if (again < (64 * 2 * aCoarseGain))
+				break;
+		}
+
+		aFineGain = again / aCoarseGain;
+	} else {
+		for (aCoarseGain = 1; aCoarseGain <= 8; aCoarseGain = aCoarseGain * 2) {
+			//1,2,4,8
+			if (again < (64 * 2 * aCoarseGain * 272 / 100))
+				break;
+		}
+		aFineGain = 100 * again / aCoarseGain / 272;
+	}
+	for ( ; aCoarseGain >= 2; aCoarseGain = aCoarseGain / 2)
+		u8Reg0x3e08 = (u8Reg0x3e08 << 1) | 0x01;
+
+	u8Reg0x3e09 = aFineGain;
+
+	//dcg = 2.72	-->		2.72*1024=2785.28
+	u8Reg0x3e08 = (again > 174) ? (u8Reg0x3e08 | 0x20) : (u8Reg0x3e08 & 0x1f);
+
+	//------------------------------------------------------
+	//dgain
+	for (dCoarseGain = 1; dCoarseGain <= 16; dCoarseGain = dCoarseGain * 2) {
+		//1,2,4,8,16
+		if (dgain < (256 * dCoarseGain))
+			break;
+	}
+	dFineGain = dgain / dCoarseGain;
+
+	for ( ; dCoarseGain >= 2; dCoarseGain = dCoarseGain / 2)
+		u8Reg0x3e06 = (u8Reg0x3e06 << 1) | 0x01;
+
+	u8Reg0x3e07 = dFineGain;
+
+	*again_reg = u8Reg0x3e08;
+	*again_fine_reg = u8Reg0x3e09;
+	*dgain_reg = u8Reg0x3e06;
+	*dgain_fine_reg = u8Reg0x3e07;
+
 }
 
 static int sc2310_set_hdrae(struct sc2310 *sc2310,
@@ -1076,7 +1085,7 @@ static long sc2310_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	const struct sc2310_mode *mode;
 	long ret = 0;
 	u64 pixel_rate = 0;
-	u32 i, h, w;
+	u32 i, h, w, stream;
 
 	switch (cmd) {
 	case PREISP_CMD_SET_HDRAE_EXP:
@@ -1129,6 +1138,17 @@ static long sc2310_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		hdr_cfg->esp.mode = HDR_NORMAL_VC;
 		hdr_cfg->hdr_mode = sc2310->cur_mode->hdr_mode;
 		break;
+	case RKMODULE_SET_QUICK_STREAM:
+
+		stream = *((u32 *)arg);
+
+		if (stream)
+			ret = sc2310_write_reg(sc2310->client, SC2310_REG_CTRL_MODE,
+				SC2310_REG_VALUE_08BIT, SC2310_MODE_STREAMING);
+		else
+			ret = sc2310_write_reg(sc2310->client, SC2310_REG_CTRL_MODE,
+				SC2310_REG_VALUE_08BIT, SC2310_MODE_SW_STANDBY);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -1148,6 +1168,7 @@ static long sc2310_compat_ioctl32(struct v4l2_subdev *sd,
 	struct preisp_hdrae_exp_s *hdrae;
 	long ret = 0;
 	u32 cg = 0;
+	u32 stream = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -1214,6 +1235,11 @@ static long sc2310_compat_ioctl32(struct v4l2_subdev *sd,
 		ret = copy_from_user(&cg, up, sizeof(cg));
 		if (!ret)
 			ret = sc2310_ioctl(sd, cmd, &cg);
+		break;
+	case RKMODULE_SET_QUICK_STREAM:
+		ret = copy_from_user(&stream, up, sizeof(u32));
+		if (!ret)
+			ret = sc2310_ioctl(sd, cmd, &stream);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -1509,7 +1535,7 @@ static int sc2310_set_ctrl(struct v4l2_ctrl *ctrl)
 	switch (ctrl->id) {
 	case V4L2_CID_VBLANK:
 		/* Update max exposure while meeting expected vblanking */
-		max = 2 * (sc2310->cur_mode->height + ctrl->val) - 6;
+		max = sc2310->cur_mode->height + ctrl->val - 3;
 		__v4l2_ctrl_modify_range(sc2310->exposure,
 					 sc2310->exposure->minimum, max,
 					 sc2310->exposure->step,
@@ -1546,10 +1572,6 @@ static int sc2310_set_ctrl(struct v4l2_ctrl *ctrl)
 		sc2310_get_gain_reg(ctrl->val, &again, &again_fine, &dgain, &dgain_fine);
 		dev_dbg(&client->dev, "recv:%d set again 0x%x, again_fine 0x%x, set dgain 0x%x, dgain_fine 0x%x\n",
 			ctrl->val, again, again_fine, dgain, dgain_fine);
-		ret = sc2310_write_reg(sc2310->client,
-					SC2310_GROUP_UPDATE_ADDRESS,
-					SC2310_REG_VALUE_08BIT,
-					SC2310_GROUP_UPDATE_START_DATA);
 
 		ret |= sc2310_write_reg(sc2310->client,
 					SC2310_REG_AGAIN,
@@ -1567,10 +1589,6 @@ static int sc2310_set_ctrl(struct v4l2_ctrl *ctrl)
 					SC2310_REG_DGAIN_FINE,
 					SC2310_REG_VALUE_08BIT,
 					dgain_fine);
-		ret |= sc2310_write_reg(sc2310->client,
-					SC2310_GROUP_UPDATE_ADDRESS,
-					SC2310_REG_VALUE_08BIT,
-					SC2310_GROUP_UPDATE_LAUNCH);
 		break;
 	case V4L2_CID_VBLANK:
 		ret = sc2310_write_reg(sc2310->client, SC2310_REG_VTS,
@@ -1661,7 +1679,7 @@ static int sc2310_initialize_controls(struct sc2310 *sc2310)
 				SC2310_VTS_MAX - mode->height,
 				1, vblank_def);
 
-	exposure_max = 2 * (mode->vts_def) - 6;
+	exposure_max = mode->vts_def - 3;
 	sc2310->exposure = v4l2_ctrl_new_std(handler, &sc2310_ctrl_ops,
 				V4L2_CID_EXPOSURE, SC2310_EXPOSURE_MIN,
 				exposure_max, SC2310_EXPOSURE_STEP,
