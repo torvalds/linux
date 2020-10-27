@@ -32,31 +32,29 @@ DEFINE_MUTEX(opp_table_lock);
 /* Flag indicating that opp_tables list is being updated at the moment */
 static bool opp_tables_busy;
 
-static struct opp_device *_find_opp_dev(const struct device *dev,
-					struct opp_table *opp_table)
+static bool _find_opp_dev(const struct device *dev, struct opp_table *opp_table)
 {
 	struct opp_device *opp_dev;
+	bool found = false;
 
+	mutex_lock(&opp_table->lock);
 	list_for_each_entry(opp_dev, &opp_table->dev_list, node)
-		if (opp_dev->dev == dev)
-			return opp_dev;
+		if (opp_dev->dev == dev) {
+			found = true;
+			break;
+		}
 
-	return NULL;
+	mutex_unlock(&opp_table->lock);
+	return found;
 }
 
 static struct opp_table *_find_opp_table_unlocked(struct device *dev)
 {
 	struct opp_table *opp_table;
-	bool found;
 
 	list_for_each_entry(opp_table, &opp_tables, node) {
-		mutex_lock(&opp_table->lock);
-		found = !!_find_opp_dev(dev, opp_table);
-		mutex_unlock(&opp_table->lock);
-
-		if (found) {
+		if (_find_opp_dev(dev, opp_table)) {
 			_get_opp_table_kref(opp_table);
-
 			return opp_table;
 		}
 	}
