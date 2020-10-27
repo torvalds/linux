@@ -263,7 +263,10 @@ typedef struct journal_superblock_s
 /* 0x0050 */
 	__u8	s_checksum_type;	/* checksum type */
 	__u8	s_padding2[3];
-	__u32	s_padding[42];
+/* 0x0054 */
+	__be32	s_num_fc_blks;		/* Number of fast commit blocks */
+/* 0x0058 */
+	__u32	s_padding[41];
 	__be32	s_checksum;		/* crc32c(superblock) */
 
 /* 0x0100 */
