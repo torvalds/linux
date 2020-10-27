@@ -5,6 +5,7 @@
  * Copyright (C) 2010-2011 Christopher Yeoh <cyeoh@au1.ibm.com>, IBM Corp.
  */
 
+#include <linux/compat.h>
 #include <linux/mm.h>
 #include <linux/uio.h>
 #include <linux/sched.h>
