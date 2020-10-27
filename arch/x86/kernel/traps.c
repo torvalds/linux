@@ -793,12 +793,6 @@ static __always_inline unsigned long debug_read_clear_dr6(void)
 	set_debugreg(DR6_RESERVED, 6);
 	dr6 ^= DR6_RESERVED; /* Flip to positive polarity */
 
-	/*
-	 * Clear the virtual DR6 value, ptrace routines will set bits here for
-	 * things we want signals for.
-	 */
-	current->thread.virtual_dr6 = 0;
-
 	return dr6;
 }
 
@@ -941,6 +935,12 @@ static __always_inline void exc_debug_user(struct pt_regs *regs,
 
 	irqentry_enter_from_user_mode(regs);
 	instrumentation_begin();
+
+	/*
+	 * Clear the virtual DR6 value, ptrace() routines will set bits here
+	 * for things it wants signals for.
+	 */
+	current->thread.virtual_dr6 = 0;
 
 	/*
 	 * The SDM says "The processor clears the BTF flag when it
