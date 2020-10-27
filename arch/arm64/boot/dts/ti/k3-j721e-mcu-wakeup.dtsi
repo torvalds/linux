@@ -53,7 +53,7 @@
 		reg = <0x0 0x43000014 0x0 0x4>;
 	};
 
-	wkup_pmx0: pinmux@4301c000 {
+	wkup_pmx0: pinctrl@4301c000 {
 		compatible = "pinctrl-single";
 		/* Proxy 0 addressing */
 		reg = <0x00 0x4301c000 0x00 0x178>;
@@ -249,7 +249,7 @@
 		};
 	};
 
-	mcu_navss {
+	mcu-navss {
 		compatible = "simple-mfd";
 		#address-cells = <2>;
 		#size-cells = <2>;

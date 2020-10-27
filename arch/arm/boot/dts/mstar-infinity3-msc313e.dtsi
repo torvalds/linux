@@ -4,8 +4,11 @@
  * Author: Daniel Palmer <daniel@thingy.jp>
  */
 
-#include "infinity.dtsi"
+#include "mstar-infinity3.dtsi"
 
-&imi {
-	reg = <0xa0000000 0x20000>;
+/ {
+	memory@20000000 {
+		device_type = "memory";
+		reg = <0x20000000 0x4000000>;
+	};
 };

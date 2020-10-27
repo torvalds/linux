@@ -8,6 +8,7 @@
 #define __RPM_INTERNAL_H__
 
 #include <linux/bitmap.h>
+#include <linux/wait.h>
 #include <soc/qcom/tcs.h>
 
 #define TCS_TYPE_NR			4
@@ -106,6 +107,8 @@ struct rpmh_ctrlr {
  * @lock:               Synchronize state of the controller.  If RPMH's cache
  *                      lock will also be held, the order is: drv->lock then
  *                      cache_lock.
+ * @tcs_wait:           Wait queue used to wait for @tcs_in_use to free up a
+ *                      slot
  * @client:             Handle to the DRV's client.
  */
 struct rsc_drv {
@@ -118,6 +121,7 @@ struct rsc_drv {
 	struct tcs_group tcs[TCS_TYPE_NR];
 	DECLARE_BITMAP(tcs_in_use, MAX_TCS_NR);
 	spinlock_t lock;
+	wait_queue_head_t tcs_wait;
 	struct rpmh_ctrlr client;
 };
 

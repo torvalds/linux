@@ -151,7 +151,7 @@
 };
 
 &nand {
-	status = "ok";
+	status = "okay";
 	nandcs@0 {
 		compatible = "brcm,nandcs";
 		reg = <0>;

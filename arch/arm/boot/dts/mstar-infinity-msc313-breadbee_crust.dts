@@ -5,7 +5,7 @@
  */
 
 /dts-v1/;
-#include "infinity-msc313.dtsi"
+#include "mstar-infinity-msc313.dtsi"
 
 / {
 	model = "BreadBee Crust";

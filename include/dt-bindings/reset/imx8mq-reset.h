@@ -58,7 +58,10 @@
 #define IMX8MQ_RESET_DDRC2_PRST			47	/* i.MX8MM/i.MX8MN does NOT support */
 #define IMX8MQ_RESET_DDRC2_CORE_RESET		48	/* i.MX8MM/i.MX8MN does NOT support */
 #define IMX8MQ_RESET_DDRC2_PHY_RESET		49	/* i.MX8MM/i.MX8MN does NOT support */
+#define IMX8MQ_RESET_SW_M4C_RST			50
+#define IMX8MQ_RESET_SW_M4P_RST			51
+#define IMX8MQ_RESET_M4_ENABLE			52
 
-#define IMX8MQ_RESET_NUM			50
+#define IMX8MQ_RESET_NUM			53
 
 #endif

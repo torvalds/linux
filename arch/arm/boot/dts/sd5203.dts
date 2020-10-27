@@ -1,0 +1,96 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (c) 2020 Hisilicon Limited.
+ *
+ * DTS file for Hisilicon SD5203 Board
+ */
+
+/dts-v1/;
+
+/ {
+	model = "Hisilicon SD5203";
+	compatible = "H836ASDJ", "hisilicon,sd5203";
+	interrupt-parent = <&vic>;
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	chosen {
+		bootargs="console=ttyS0,9600 earlycon=uart8250,mmio32,0x1600d000";
+	};
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu0 {
+			device_type = "cpu";
+			compatible = "arm,arm926ej-s";
+			reg = <0x0>;
+		};
+	};
+
+	memory@30000000 {
+		device_type = "memory";
+		reg = <0x30000000 0x8000000>;
+	};
+
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges;
+
+		vic: interrupt-controller@10130000 {
+			compatible = "snps,dw-apb-ictl";
+			reg = <0x10130000 0x1000>;
+			interrupt-controller;
+			#interrupt-cells = <1>;
+		};
+
+		refclk125mhz: refclk125mhz {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <125000000>;
+		};
+
+		timer0: timer@16002000 {
+			compatible = "arm,sp804", "arm,primecell";
+			reg = <0x16002000 0x1000>;
+			interrupts = <4>;
+			clocks = <&refclk125mhz>;
+			clock-names = "apb_pclk";
+		};
+
+		timer1: timer@16003000 {
+			compatible = "arm,sp804", "arm,primecell";
+			reg = <0x16003000 0x1000>;
+			interrupts = <5>;
+			clocks = <&refclk125mhz>;
+			clock-names = "apb_pclk";
+		};
+
+		uart0: serial@1600d000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x1600d000 0x1000>;
+			bus_id = "uart0";
+			clocks = <&refclk125mhz>;
+			clock-names = "baudclk", "apb_pclk";
+			reg-shift = <2>;
+			interrupts = <17>;
+		};
+
+		uart1: serial@1600c000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x1600c000 0x1000>;
+			clocks = <&refclk125mhz>;
+			clock-names = "baudclk", "apb_pclk";
+			reg-shift = <2>;
+			interrupts = <16>;
+			status = "disabled";
+		};
+	};
+};

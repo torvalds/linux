@@ -230,7 +230,7 @@
 			resets = <&cpg 905>;
 		};
 
-		pfc: pin-controller@e6060000 {
+		pfc: pinctrl@e6060000 {
 			compatible = "renesas,pfc-r8a7745";
 			reg = <0 0xe6060000 0 0x11c>;
 		};

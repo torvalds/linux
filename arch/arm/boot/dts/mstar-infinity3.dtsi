@@ -4,11 +4,8 @@
  * Author: Daniel Palmer <daniel@thingy.jp>
  */
 
-#include "mercury5.dtsi"
+#include "mstar-infinity.dtsi"
 
-/ {
-	memory@20000000 {
-		device_type = "memory";
-		reg = <0x20000000 0x4000000>;
-	};
+&imi {
+	reg = <0xa0000000 0x20000>;
 };
