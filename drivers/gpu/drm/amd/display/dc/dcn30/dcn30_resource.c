@@ -933,7 +933,7 @@ static struct dce_aux *dcn30_aux_engine_create(
 	return &aux_engine->base;
 }
 
-#define i2c_inst_regs(id) { I2C_HW_ENGINE_COMMON_REG_LIST(id) }
+#define i2c_inst_regs(id) { I2C_HW_ENGINE_COMMON_REG_LIST_DCN30(id) }
 
 static const struct dce_i2c_registers i2c_hw_regs[] = {
 		i2c_inst_regs(1),
@@ -945,11 +945,11 @@ static const struct dce_i2c_registers i2c_hw_regs[] = {
 };
 
 static const struct dce_i2c_shift i2c_shifts = {
-		I2C_COMMON_MASK_SH_LIST_DCN2(__SHIFT)
+		I2C_COMMON_MASK_SH_LIST_DCN30(__SHIFT)
 };
 
 static const struct dce_i2c_mask i2c_masks = {
-		I2C_COMMON_MASK_SH_LIST_DCN2(_MASK)
+		I2C_COMMON_MASK_SH_LIST_DCN30(_MASK)
 };
 
 static struct dce_i2c_hw *dcn30_i2c_hw_create(
