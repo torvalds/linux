@@ -713,14 +713,13 @@ struct io_kiocb {
 	u64				user_data;
 
 	struct io_kiocb			*link;
+	struct percpu_ref		*fixed_file_refs;
 
 	/*
 	 * 1. used with ctx->iopoll_list with reads/writes
 	 * 2. to track reqs with ->files (see io_op_def::file_table)
 	 */
 	struct list_head		inflight_entry;
-
-	struct percpu_ref		*fixed_file_refs;
 	struct callback_head		task_work;
 	/* for polled requests, i.e. IORING_OP_POLL_ADD and async armed poll */
 	struct hlist_node		hash_node;
