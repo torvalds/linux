@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
+ */
+/dts-v1/;
+#include "rv1109-evb-ddr3-v12-facial-gate.dts"
+
+/ {
+	model = "Rockchip RV1109 EVB DDR3 V13 Facial Gate Board";
+	compatible = "rockchip,rv1109-evb-ddr3-v13-facial-gate", "rockchip,rv1126";
+};
+
+&backlight {
+	pwms = <&pwm0 0 25000 0>;
+};
+
+&pwm0 {
+	status = "okay";
+};
+
+&pwm3 {
+	status = "disabled";
+};
+
+&u2phy0 {
+	vup-gpios = <&gpio0 RK_PC1 GPIO_ACTIVE_LOW>;
+};
