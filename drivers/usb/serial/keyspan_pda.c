@@ -26,18 +26,6 @@
 #include <linux/usb/serial.h>
 #include <linux/usb/ezusb.h>
 
-/* make a simple define to handle if we are compiling keyspan_pda or xircom support */
-#if IS_ENABLED(CONFIG_USB_SERIAL_KEYSPAN_PDA)
-	#define KEYSPAN
-#else
-	#undef KEYSPAN
-#endif
-#if IS_ENABLED(CONFIG_USB_SERIAL_XIRCOM)
-	#define XIRCOM
-#else
-	#undef XIRCOM
-#endif
-
 #define DRIVER_AUTHOR "Brian Warner <warner@lothar.com>, Johan Hovold <johan@kernel.org>"
 #define DRIVER_DESC "USB Keyspan PDA Converter driver"
 
@@ -64,18 +52,13 @@ static int keyspan_pda_write_start(struct usb_serial_port *port);
 #define ENTREGA_FAKE_ID			0x8093
 
 static const struct usb_device_id id_table_combined[] = {
-#ifdef KEYSPAN
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, KEYSPAN_PDA_FAKE_ID) },
-#endif
-#ifdef XIRCOM
 	{ USB_DEVICE(XIRCOM_VENDOR_ID, XIRCOM_FAKE_ID) },
 	{ USB_DEVICE(XIRCOM_VENDOR_ID, XIRCOM_FAKE_ID_2) },
 	{ USB_DEVICE(ENTREGA_VENDOR_ID, ENTREGA_FAKE_ID) },
-#endif
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, KEYSPAN_PDA_ID) },
 	{ }						/* Terminating entry */
 };
-
 MODULE_DEVICE_TABLE(usb, id_table_combined);
 
 static const struct usb_device_id id_table_std[] = {
@@ -83,21 +66,13 @@ static const struct usb_device_id id_table_std[] = {
 	{ }						/* Terminating entry */
 };
 
-#ifdef KEYSPAN
 static const struct usb_device_id id_table_fake[] = {
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, KEYSPAN_PDA_FAKE_ID) },
-	{ }						/* Terminating entry */
-};
-#endif
-
-#ifdef XIRCOM
-static const struct usb_device_id id_table_fake_xircom[] = {
 	{ USB_DEVICE(XIRCOM_VENDOR_ID, XIRCOM_FAKE_ID) },
 	{ USB_DEVICE(XIRCOM_VENDOR_ID, XIRCOM_FAKE_ID_2) },
 	{ USB_DEVICE(ENTREGA_VENDOR_ID, ENTREGA_FAKE_ID) },
-	{ }
+	{ }						/* Terminating entry */
 };
-#endif
 
 static int keyspan_pda_get_write_room(struct keyspan_pda_private *priv)
 {
@@ -647,22 +622,21 @@ static void keyspan_pda_close(struct usb_serial_port *port)
 /* download the firmware to a "fake" device (pre-renumeration) */
 static int keyspan_pda_fake_startup(struct usb_serial *serial)
 {
+	unsigned int vid = le16_to_cpu(serial->dev->descriptor.idVendor);
 	const char *fw_name;
 
 	/* download the firmware here ... */
 	ezusb_fx1_set_reset(serial->dev, 1);
 
-	if (0) { ; }
-#ifdef KEYSPAN
-	else if (le16_to_cpu(serial->dev->descriptor.idVendor) == KEYSPAN_VENDOR_ID)
+	switch (vid) {
+	case KEYSPAN_VENDOR_ID:
 		fw_name = "keyspan_pda/keyspan_pda.fw";
-#endif
-#ifdef XIRCOM
-	else if ((le16_to_cpu(serial->dev->descriptor.idVendor) == XIRCOM_VENDOR_ID) ||
-		 (le16_to_cpu(serial->dev->descriptor.idVendor) == ENTREGA_VENDOR_ID))
+		break;
+	case XIRCOM_VENDOR_ID:
+	case ENTREGA_VENDOR_ID:
 		fw_name = "keyspan_pda/xircom_pgs.fw";
-#endif
-	else {
+		break;
+	default:
 		dev_err(&serial->dev->dev, "%s: unknown vendor, aborting.\n",
 			__func__);
 		return -ENODEV;
@@ -681,12 +655,8 @@ static int keyspan_pda_fake_startup(struct usb_serial *serial)
 	return 1;
 }
 
-#ifdef KEYSPAN
 MODULE_FIRMWARE("keyspan_pda/keyspan_pda.fw");
-#endif
-#ifdef XIRCOM
 MODULE_FIRMWARE("keyspan_pda/xircom_pgs.fw");
-#endif
 
 static int keyspan_pda_port_probe(struct usb_serial_port *port)
 {
@@ -716,7 +686,6 @@ static int keyspan_pda_port_remove(struct usb_serial_port *port)
 	return 0;
 }
 
-#ifdef KEYSPAN
 static struct usb_serial_driver keyspan_pda_fake_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
@@ -727,20 +696,6 @@ static struct usb_serial_driver keyspan_pda_fake_device = {
 	.num_ports =		1,
 	.attach =		keyspan_pda_fake_startup,
 };
-#endif
-
-#ifdef XIRCOM
-static struct usb_serial_driver xircom_pgs_fake_device = {
-	.driver = {
-		.owner =	THIS_MODULE,
-		.name =		"xircom_no_firm",
-	},
-	.description =		"Xircom / Entrega PGS - (prerenumeration)",
-	.id_table =		id_table_fake_xircom,
-	.num_ports =		1,
-	.attach =		keyspan_pda_fake_startup,
-};
-#endif
 
 static struct usb_serial_driver keyspan_pda_device = {
 	.driver = {
@@ -770,12 +725,7 @@ static struct usb_serial_driver keyspan_pda_device = {
 
 static struct usb_serial_driver * const serial_drivers[] = {
 	&keyspan_pda_device,
-#ifdef KEYSPAN
 	&keyspan_pda_fake_device,
-#endif
-#ifdef XIRCOM
-	&xircom_pgs_fake_device,
-#endif
 	NULL
 };
 
