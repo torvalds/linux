@@ -1652,20 +1652,26 @@ int mpt3sas_scsih_issue_locked_tm(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 
 void mpt3sas_scsih_set_tm_flag(struct MPT3SAS_ADAPTER *ioc, u16 handle);
 void mpt3sas_scsih_clear_tm_flag(struct MPT3SAS_ADAPTER *ioc, u16 handle);
-void mpt3sas_expander_remove(struct MPT3SAS_ADAPTER *ioc, u64 sas_address);
+void mpt3sas_expander_remove(struct MPT3SAS_ADAPTER *ioc, u64 sas_address,
+	struct hba_port *port);
 void mpt3sas_device_remove_by_sas_address(struct MPT3SAS_ADAPTER *ioc,
-	u64 sas_address);
+	u64 sas_address, struct hba_port *port);
 u8 mpt3sas_check_for_pending_internal_cmds(struct MPT3SAS_ADAPTER *ioc,
 	u16 smid);
+struct hba_port *
+mpt3sas_get_port_by_id(struct MPT3SAS_ADAPTER *ioc, u8 port);
 
 struct _sas_node *mpt3sas_scsih_expander_find_by_handle(
 	struct MPT3SAS_ADAPTER *ioc, u16 handle);
 struct _sas_node *mpt3sas_scsih_expander_find_by_sas_address(
-	struct MPT3SAS_ADAPTER *ioc, u64 sas_address);
+	struct MPT3SAS_ADAPTER *ioc, u64 sas_address,
+	struct hba_port *port);
 struct _sas_device *mpt3sas_get_sdev_by_addr(
-	 struct MPT3SAS_ADAPTER *ioc, u64 sas_address);
+	 struct MPT3SAS_ADAPTER *ioc, u64 sas_address,
+	 struct hba_port *port);
 struct _sas_device *__mpt3sas_get_sdev_by_addr(
-	 struct MPT3SAS_ADAPTER *ioc, u64 sas_address);
+	 struct MPT3SAS_ADAPTER *ioc, u64 sas_address,
+	 struct hba_port *port);
 struct _sas_device *mpt3sas_get_sdev_by_handle(struct MPT3SAS_ADAPTER *ioc,
 	u16 handle);
 struct _pcie_device *mpt3sas_get_pdev_by_handle(struct MPT3SAS_ADAPTER *ioc,
