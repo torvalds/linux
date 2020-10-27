@@ -54,8 +54,11 @@ properties:
           - const: st,stm32mp157
       - description: Odyssey STM32MP1 SoM based Boards
         items:
-              - enum:
-                  - seeed,stm32mp157c-odyssey
-              - const: seeed,stm32mp157c-odyssey-som
-              - const: st,stm32mp157
+          - enum:
+              - seeed,stm32mp157c-odyssey
+          - const: seeed,stm32mp157c-odyssey-som
+          - const: st,stm32mp157
+
+additionalProperties: true
+
 ...

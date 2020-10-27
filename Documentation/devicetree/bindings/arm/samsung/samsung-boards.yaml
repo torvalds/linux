@@ -180,3 +180,5 @@ properties:
 
 required:
   - compatible
+
+additionalProperties: true

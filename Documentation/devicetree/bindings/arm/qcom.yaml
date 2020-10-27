@@ -178,4 +178,6 @@ properties:
               - qcom,sm8250-mtp
           - const: qcom,sm8250
 
+additionalProperties: true
+
 ...

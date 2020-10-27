@@ -184,4 +184,6 @@ properties:
           - const: atmel,samv71
           - const: atmel,samv7
 
+additionalProperties: true
+
 ...

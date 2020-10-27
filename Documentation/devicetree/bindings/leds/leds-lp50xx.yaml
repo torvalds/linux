@@ -46,6 +46,12 @@ properties:
   vled-supply:
     description: LED supply.
 
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
 patternProperties:
   '^multi-led@[0-9a-f]$':
     type: object
@@ -68,6 +74,8 @@ patternProperties:
 required:
   - compatible
   - reg
+
+additionalProperties: false
 
 examples:
   - |

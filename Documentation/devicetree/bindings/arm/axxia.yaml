@@ -18,4 +18,6 @@ properties:
       - const: lsi,axm5516-amarillo
       - const: lsi,axm5516
 
+additionalProperties: true
+
 ...

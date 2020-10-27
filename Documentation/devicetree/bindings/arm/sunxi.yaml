@@ -893,3 +893,5 @@ properties:
         items:
           - const: xunlong,orangepi-zero-plus2-h3
           - const: allwinner,sun8i-h3
+
+additionalProperties: true

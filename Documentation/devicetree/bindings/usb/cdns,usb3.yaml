@@ -44,8 +44,8 @@ properties:
     enum: [super-speed, high-speed, full-speed]
 
   phys:
-   minItems: 1
-   maxItems: 2
+    minItems: 1
+    maxItems: 2
 
   phy-names:
     minItems: 1

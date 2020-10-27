@@ -65,6 +65,8 @@ properties:
 required:
   - reg
 
+unevaluatedProperties: false
+
 examples:
   - |
     mdio0 {

@@ -26,8 +26,10 @@ properties:
   reg:
     maxItems: 2
     description: LPAIF core registers
+
   reg-names:
-     maxItems: 2
+    maxItems: 2
+
   clocks:
     minItems: 3
     maxItems: 6
@@ -39,8 +41,10 @@ properties:
   interrupts:
     maxItems: 2
     description: LPAIF DMA buffer interrupt
+
   interrupt-names:
     maxItems: 2
+
   qcom,adsp:
     $ref: /schemas/types.yaml#/definitions/phandle
     description: Phandle for the audio DSP node
@@ -141,31 +145,31 @@ allOf:
       properties:
         clock-names:
           oneOf:
-           - items:   #for I2S
-              - const: pcnoc-sway-clk
-              - const: audio-core
-              - const: mclk0
-              - const: pcnoc-mport-clk
-              - const: mi2s-bit-clk0
-              - const: mi2s-bit-clk1
-           - items:   #for HDMI
-              - const: pcnoc-sway-clk
-              - const: audio-core
-              - const: pcnoc-mport-clk
+            - items:   #for I2S
+                - const: pcnoc-sway-clk
+                - const: audio-core
+                - const: mclk0
+                - const: pcnoc-mport-clk
+                - const: mi2s-bit-clk0
+                - const: mi2s-bit-clk1
+            - items:   #for HDMI
+                - const: pcnoc-sway-clk
+                - const: audio-core
+                - const: pcnoc-mport-clk
         reg-names:
           anyOf:
             - items:   #for I2S
-              - const: lpass-lpaif
+                - const: lpass-lpaif
             - items:   #for I2S and HDMI
-              - const: lpass-hdmiif
-              - const: lpass-lpaif
+                - const: lpass-hdmiif
+                - const: lpass-lpaif
         interrupt-names:
           anyOf:
             - items:   #for I2S
-              - const: lpass-irq-lpaif
+                - const: lpass-irq-lpaif
             - items:   #for I2S and HDMI
-              - const: lpass-irq-lpaif
-              - const: lpass-irq-hdmi
+                - const: lpass-irq-lpaif
+                - const: lpass-irq-hdmi
       required:
         - iommus
         - power-domains
