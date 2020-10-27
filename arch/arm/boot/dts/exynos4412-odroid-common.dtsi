@@ -22,7 +22,7 @@
 		reg = <0x0204F000 0x1000>;
 	};
 
-	gpio_keys {
+	gpio_keys: gpio-keys {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
 		pinctrl-0 = <&gpio_power_key>;

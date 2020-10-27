@@ -36,18 +36,6 @@
 		};
 	};
 
-	gpio_keys {
-		pinctrl-0 = <&gpio_power_key &gpio_home_key>;
-
-		home_key {
-			gpios = <&gpx2 2 GPIO_ACTIVE_HIGH>;
-			linux,code = <KEY_HOME>;
-			label = "home key";
-			debounce-interval = <10>;
-			wakeup-source;
-		};
-	};
-
 	regulator_p3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "p3v3_en";
@@ -74,6 +62,18 @@
 &ehci {
 	phys = <&exynos_usbphy 2>;
 	phy-names = "hsic0";
+};
+
+&gpio_keys {
+	pinctrl-0 = <&gpio_power_key &gpio_home_key>;
+
+	home-key {
+		gpios = <&gpx2 2 GPIO_ACTIVE_HIGH>;
+		linux,code = <KEY_HOME>;
+		label = "home key";
+		debounce-interval = <10>;
+		wakeup-source;
+	};
 };
 
 &mshc_0 {
