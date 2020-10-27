@@ -43,6 +43,8 @@ struct br_cfm_cc_config {
 	/* Expected received CCM PDU interval. */
 	/* Transmitting CCM PDU interval when CCM tx is enabled. */
 	enum br_cfm_ccm_interval exp_interval;
+
+	bool enable; /* Enable/disable CCM PDU handling */
 };
 
 int br_cfm_cc_config_set(struct net_bridge *br,
@@ -87,6 +89,31 @@ int br_cfm_cc_ccm_tx(struct net_bridge *br, const u32 instance,
 		     const struct br_cfm_cc_ccm_tx_info *const tx_info,
 		     struct netlink_ext_ack *extack);
 
+struct br_cfm_mep_status {
+	/* Indications that an OAM PDU has been seen. */
+	bool opcode_unexp_seen; /* RX of OAM PDU with unexpected opcode */
+	bool version_unexp_seen; /* RX of OAM PDU with unexpected version */
+	bool rx_level_low_seen; /* Rx of OAM PDU with level low */
+};
+
+struct br_cfm_cc_peer_status {
+	/* This CCM related status is based on the latest received CCM PDU. */
+	u8 port_tlv_value; /* Port Status TLV value */
+	u8 if_tlv_value; /* Interface Status TLV value */
+
+	/* CCM has not been received for 3.25 intervals */
+	u8 ccm_defect:1;
+
+	/* (RDI == 1) for last received CCM PDU */
+	u8 rdi:1;
+
+	/* Indications that a CCM PDU has been seen. */
+	u8 seen:1; /* CCM PDU received */
+	u8 tlv_seen:1; /* CCM PDU with TLV received */
+	/* CCM PDU with unexpected sequence number received */
+	u8 seq_unexp_seen:1;
+};
+
 struct br_cfm_mep {
 	/* list header of MEP instances */
 	struct hlist_node		head;
@@ -101,6 +128,8 @@ struct br_cfm_mep {
 	unsigned long			ccm_tx_end;
 	struct delayed_work		ccm_tx_dwork;
 	u32				ccm_tx_snumber;
+	u32				ccm_rx_snumber;
+	struct br_cfm_mep_status	status;
 	bool				rdi;
 	struct rcu_head			rcu;
 };
@@ -108,7 +137,10 @@ struct br_cfm_mep {
 struct br_cfm_peer_mep {
 	struct hlist_node		head;
 	struct br_cfm_mep		*mep;
+	struct delayed_work		ccm_rx_dwork;
 	u32				mepid;
+	struct br_cfm_cc_peer_status	cc_status;
+	u32				ccm_rx_count_miss;
 	struct rcu_head			rcu;
 };
 
