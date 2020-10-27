@@ -1472,7 +1472,7 @@ static int at91_adc_write_raw(struct iio_dev *indio_dev,
 		return 0;
 	default:
 		return -EINVAL;
-	};
+	}
 }
 
 static void at91_adc_dma_init(struct platform_device *pdev)
