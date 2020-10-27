@@ -406,6 +406,15 @@ out_clean_idr:
 }
 
 int
+intel_gvt_pm_resume(struct intel_gvt *gvt)
+{
+	intel_gvt_restore_fence(gvt);
+	intel_gvt_restore_mmio(gvt);
+	intel_gvt_restore_ggtt(gvt);
+	return 0;
+}
+
+int
 intel_gvt_register_hypervisor(struct intel_gvt_mpt *m)
 {
 	int ret;
