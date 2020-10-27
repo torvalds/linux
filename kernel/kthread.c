@@ -455,6 +455,7 @@ void kthread_bind_mask(struct task_struct *p, const struct cpumask *mask)
 {
 	__kthread_bind_mask(p, mask, TASK_UNINTERRUPTIBLE);
 }
+EXPORT_SYMBOL_GPL(kthread_bind_mask);
 
 /**
  * kthread_bind - bind a just-created kthread to a cpu.

@@ -19,6 +19,7 @@
  * compromise in place of having locks on each irq in account_system_time.
  */
 DEFINE_PER_CPU(struct irqtime, cpu_irqtime);
+EXPORT_PER_CPU_SYMBOL_GPL(cpu_irqtime);
 
 static int sched_clock_irqtime;
 

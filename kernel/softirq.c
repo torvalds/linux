@@ -55,6 +55,7 @@ EXPORT_PER_CPU_SYMBOL(irq_stat);
 static struct softirq_action softirq_vec[NR_SOFTIRQS] __cacheline_aligned_in_smp;
 
 DEFINE_PER_CPU(struct task_struct *, ksoftirqd);
+EXPORT_PER_CPU_SYMBOL_GPL(ksoftirqd);
 
 /*
  * active_softirqs -- per cpu, a mask of softirqs that are being handled,
