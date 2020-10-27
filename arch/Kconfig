@@ -24,9 +24,6 @@ config KEXEC_ELF
 config HAVE_IMA_KEXEC
 	bool
 
-config SET_FS
-	bool
-
 config HOTPLUG_SMT
 	bool
 
