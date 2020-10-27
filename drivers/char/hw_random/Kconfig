@@ -540,15 +540,15 @@ endif # HW_RANDOM
 
 config UML_RANDOM
 	depends on UML
-	tristate "Hardware random number generator"
+	select HW_RANDOM
+	tristate "UML Random Number Generator support"
 	help
 	  This option enables UML's "hardware" random number generator.  It
 	  attaches itself to the host's /dev/random, supplying as much entropy
 	  as the host has, rather than the small amount the UML gets from its
-	  own drivers.  It registers itself as a standard hardware random number
-	  generator, major 10, minor 183, and the canonical device name is
-	  /dev/hwrng.
-	  The way to make use of this is to install the rng-tools package
-	  (check your distro, or download from
-	  http://sourceforge.net/projects/gkernel/).  rngd periodically reads
-	  /dev/hwrng and injects the entropy into /dev/random.
+	  own drivers. It registers itself as a rng-core driver thus providing
+	  a device which is usually called /dev/hwrng. This hardware random
+	  number generator does feed into the kernel's random number generator
+	  entropy pool.
+
+	  If unsure, say Y.
