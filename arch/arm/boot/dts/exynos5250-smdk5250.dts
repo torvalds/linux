@@ -290,7 +290,7 @@
 		reg = <0x51>;
 	};
 
-	wm8994: wm8994@1a {
+	wm8994: audio-codec@1a {
 		compatible = "wlf,wm8994";
 		reg = <0x1a>;
 
@@ -385,7 +385,7 @@
 	status = "okay";
 	cs-gpios = <&gpa2 5 GPIO_ACTIVE_HIGH>;
 
-	w25q80bw@0 {
+	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "w25x80";
