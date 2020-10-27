@@ -955,7 +955,7 @@ static char *amdgpu_ras_badpage_flags_str(unsigned int flags)
 	case AMDGPU_RAS_RETIRE_PAGE_FAULT:
 	default:
 		return "F";
-	};
+	}
 }
 
 /**
