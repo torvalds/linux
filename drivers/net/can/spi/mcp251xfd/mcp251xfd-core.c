@@ -349,9 +349,20 @@ static int mcp251xfd_chip_softreset_do(const struct mcp251xfd_priv *priv)
 
 static int mcp251xfd_chip_softreset_check(const struct mcp251xfd_priv *priv)
 {
-	u32 osc, osc_reference;
+	u32 osc_reference, osc_mask;
 	u8 mode;
 	int err;
+
+	/* Check for reset defaults of OSC reg.
+	 * This will take care of stabilization period.
+	 */
+	osc_reference = MCP251XFD_REG_OSC_OSCRDY |
+		FIELD_PREP(MCP251XFD_REG_OSC_CLKODIV_MASK,
+			   MCP251XFD_REG_OSC_CLKODIV_10);
+	osc_mask = osc_reference | MCP251XFD_REG_OSC_PLLRDY;
+	err = mcp251xfd_chip_wait_for_osc_ready(priv, osc_reference, osc_mask);
+	if (err)
+		return err;
 
 	err = mcp251xfd_chip_get_mode(priv, &mode);
 	if (err)
@@ -361,22 +372,6 @@ static int mcp251xfd_chip_softreset_check(const struct mcp251xfd_priv *priv)
 		netdev_info(priv->ndev,
 			    "Controller not in Config Mode after reset, but in %s Mode (%u).\n",
 			    mcp251xfd_get_mode_str(mode), mode);
-		return -ETIMEDOUT;
-	}
-
-	osc_reference = MCP251XFD_REG_OSC_OSCRDY |
-		FIELD_PREP(MCP251XFD_REG_OSC_CLKODIV_MASK,
-			   MCP251XFD_REG_OSC_CLKODIV_10);
-
-	/* check reset defaults of OSC reg */
-	err = regmap_read(priv->map_reg, MCP251XFD_REG_OSC, &osc);
-	if (err)
-		return err;
-
-	if (osc != osc_reference) {
-		netdev_info(priv->ndev,
-			    "Controller failed to reset. osc=0x%08x, reference value=0x%08x.\n",
-			    osc, osc_reference);
 		return -ETIMEDOUT;
 	}
 
