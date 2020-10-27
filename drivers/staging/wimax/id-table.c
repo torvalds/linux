@@ -28,7 +28,7 @@
 #include <net/genetlink.h>
 #include <linux/netdevice.h>
 #include <linux/list.h>
-#include <linux/wimax.h>
+#include "linux-wimax.h"
 #include "wimax-internal.h"
 
 

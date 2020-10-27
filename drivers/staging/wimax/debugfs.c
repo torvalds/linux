@@ -7,7 +7,7 @@
  * Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>
  */
 #include <linux/debugfs.h>
-#include <linux/wimax.h>
+#include "linux-wimax.h"
 #include "wimax-internal.h"
 
 #define D_SUBMODULE debugfs
