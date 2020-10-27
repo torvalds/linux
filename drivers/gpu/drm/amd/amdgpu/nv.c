@@ -495,8 +495,9 @@ void nv_set_virt_ops(struct amdgpu_device *adev)
 
 static bool nv_is_blockchain_sku(struct pci_dev *pdev)
 {
-	if (pdev->device == 0x731E &&
-	    (pdev->revision == 0xC6 || pdev->revision == 0xC7))
+	if ((pdev->device == 0x731E &&
+	    (pdev->revision == 0xC6 || pdev->revision == 0xC7)) ||
+	    (pdev->device == 0x7340 && pdev->revision == 0xC9))
 		return true;
 	return false;
 }
