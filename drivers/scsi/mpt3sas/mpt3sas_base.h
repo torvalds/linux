@@ -420,6 +420,7 @@ struct Mpi2ManufacturingPage11_t {
  * @flags: MPT_TARGET_FLAGS_XXX flags
  * @deleted: target flaged for deletion
  * @tm_busy: target is busy with TM request.
+ * @port: hba port entry containing target's port number info
  * @sas_dev: The sas_device associated with this target
  * @pcie_dev: The pcie device associated with this target
  */
@@ -432,6 +433,7 @@ struct MPT3SAS_TARGET {
 	u32	flags;
 	u8	deleted;
 	u8	tm_busy;
+	struct hba_port *port;
 	struct _sas_device *sas_dev;
 	struct _pcie_device *pcie_dev;
 };
@@ -534,6 +536,7 @@ struct _internal_cmd {
  *	addition routine.
  * @chassis_slot: chassis slot
  * @is_chassis_slot_valid: chassis slot valid or not
+ * @port: hba port entry containing device's port number info
  */
 struct _sas_device {
 	struct list_head list;
@@ -560,6 +563,7 @@ struct _sas_device {
 	u8	is_chassis_slot_valid;
 	u8	connector_name[5];
 	struct kref refcount;
+	struct hba_port *port;
 };
 
 static inline void sas_device_get(struct _sas_device *s)
@@ -730,6 +734,7 @@ struct _boot_device {
  * @remote_identify: attached device identification
  * @rphy: sas transport rphy object
  * @port: sas transport wide/narrow port object
+ * @hba_port: hba port entry containing port's port number info
  * @phy_list: _sas_phy list objects belonging to this port
  */
 struct _sas_port {
@@ -738,6 +743,7 @@ struct _sas_port {
 	struct sas_identify remote_identify;
 	struct sas_rphy *rphy;
 	struct sas_port *port;
+	struct hba_port *hba_port;
 	struct list_head phy_list;
 };
 
@@ -751,6 +757,7 @@ struct _sas_port {
  * @handle: device handle for this phy
  * @attached_handle: device handle for attached device
  * @phy_belongs_to_port: port has been created for this phy
+ * @port: hba port entry containing port number info
  */
 struct _sas_phy {
 	struct list_head port_siblings;
@@ -761,6 +768,7 @@ struct _sas_phy {
 	u16	handle;
 	u16	attached_handle;
 	u8	phy_belongs_to_port;
+	struct hba_port *port;
 };
 
 /**
@@ -776,6 +784,7 @@ struct _sas_phy {
  * @responding: used in _scsih_expander_device_mark_responding
  * @phy: a list of phys that make up this sas_host/expander
  * @sas_port_list: list of ports attached to this sas_host/expander
+ * @port: hba port entry containing node's port number info
  */
 struct _sas_node {
 	struct list_head list;
@@ -787,10 +796,10 @@ struct _sas_node {
 	u16	enclosure_handle;
 	u64	enclosure_logical_id;
 	u8	responding;
+	struct hba_port *port;
 	struct	_sas_phy *phy;
 	struct list_head sas_port_list;
 };
-
 
 /**
  * struct _enclosure_node - enclosure information
@@ -1009,6 +1018,27 @@ struct reply_post_struct {
 	dma_addr_t			reply_post_free_dma;
 };
 
+/**
+ * struct hba_port - Saves each HBA's Wide/Narrow port info
+ * @sas_address: sas address of this wide/narrow port's attached device
+ * @phy_mask: HBA PHY's belonging to this port
+ * @port_id: port number
+ * @flags: hba port flags
+ */
+struct hba_port {
+	struct list_head list;
+	u64	sas_address;
+	u32	phy_mask;
+	u8      port_id;
+	u8	flags;
+};
+
+/* hba port flags */
+#define HBA_PORT_FLAG_DIRTY_PORT       0x01
+#define HBA_PORT_FLAG_NEW_PORT         0x02
+
+#define MULTIPATH_DISABLED_PORT_ID     0xFF
+
 typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
 /**
  * struct MPT3SAS_ADAPTER - per adapter struct
@@ -1191,6 +1221,7 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  *	which ensures the syncrhonization between cli/sysfs_show path.
  * @atomic_desc_capable: Atomic Request Descriptor support.
  * @GET_MSIX_INDEX: Get the msix index of high iops queues.
+ * @port_table_list: list containing HBA's wide/narrow port's info
  */
 struct MPT3SAS_ADAPTER {
 	struct list_head list;
@@ -1483,6 +1514,8 @@ struct MPT3SAS_ADAPTER {
 	PUT_SMID_IO_FP_HIP put_smid_hi_priority;
 	PUT_SMID_DEFAULT put_smid_default;
 	GET_MSIX_INDEX get_msix_index_for_smlio;
+
+	struct list_head port_table_list;
 };
 
 struct mpt3sas_debugfs_buffer {
