@@ -3162,10 +3162,12 @@ message_out:
 
 static struct CommandControlBlock *arcmsr_get_freeccb(struct AdapterControlBlock *acb)
 {
-	struct list_head *head = &acb->ccb_free_list;
+	struct list_head *head;
 	struct CommandControlBlock *ccb = NULL;
 	unsigned long flags;
+
 	spin_lock_irqsave(&acb->ccblist_lock, flags);
+	head = &acb->ccb_free_list;
 	if (!list_empty(head)) {
 		ccb = list_entry(head->next, struct CommandControlBlock, list);
 		list_del_init(&ccb->list);
