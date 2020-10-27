@@ -1020,13 +1020,12 @@ static irqreturn_t udma_ring_irq_handler(int irq, void *data)
 {
 	struct udma_chan *uc = data;
 	struct udma_desc *d;
-	unsigned long flags;
 	dma_addr_t paddr = 0;
 
 	if (udma_pop_from_ring(uc, &paddr) || !paddr)
 		return IRQ_HANDLED;
 
-	spin_lock_irqsave(&uc->vc.lock, flags);
+	spin_lock(&uc->vc.lock);
 
 	/* Teardown completion message */
 	if (cppi5_desc_is_tdcm(paddr)) {
@@ -1077,7 +1076,7 @@ static irqreturn_t udma_ring_irq_handler(int irq, void *data)
 		}
 	}
 out:
-	spin_unlock_irqrestore(&uc->vc.lock, flags);
+	spin_unlock(&uc->vc.lock);
 
 	return IRQ_HANDLED;
 }
@@ -1086,9 +1085,8 @@ static irqreturn_t udma_udma_irq_handler(int irq, void *data)
 {
 	struct udma_chan *uc = data;
 	struct udma_desc *d;
-	unsigned long flags;
 
-	spin_lock_irqsave(&uc->vc.lock, flags);
+	spin_lock(&uc->vc.lock);
 	d = uc->desc;
 	if (d) {
 		d->tr_idx = (d->tr_idx + 1) % d->sglen;
@@ -1103,7 +1101,7 @@ static irqreturn_t udma_udma_irq_handler(int irq, void *data)
 		}
 	}
 
-	spin_unlock_irqrestore(&uc->vc.lock, flags);
+	spin_unlock(&uc->vc.lock);
 
 	return IRQ_HANDLED;
 }
