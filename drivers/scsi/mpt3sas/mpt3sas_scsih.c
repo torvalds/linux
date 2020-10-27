@@ -8742,69 +8742,69 @@ Mpi2SasDevicePage0_t *sas_device_pg0)
 	}
 	spin_lock_irqsave(&ioc->sas_device_lock, flags);
 	list_for_each_entry(sas_device, &ioc->sas_device_list, list) {
-		if ((sas_device->sas_address == le64_to_cpu(
-		    sas_device_pg0->SASAddress)) && (sas_device->slot ==
-		    le16_to_cpu(sas_device_pg0->Slot))) {
-			sas_device->responding = 1;
-			starget = sas_device->starget;
-			if (starget && starget->hostdata) {
-				sas_target_priv_data = starget->hostdata;
-				sas_target_priv_data->tm_busy = 0;
-				sas_target_priv_data->deleted = 0;
-			} else
-				sas_target_priv_data = NULL;
-			if (starget) {
+		if (sas_device->sas_address != le64_to_cpu(
+		    sas_device_pg0->SASAddress))
+			continue;
+		if (sas_device->slot != le16_to_cpu(sas_device_pg0->Slot))
+			continue;
+		sas_device->responding = 1;
+		starget = sas_device->starget;
+		if (starget && starget->hostdata) {
+			sas_target_priv_data = starget->hostdata;
+			sas_target_priv_data->tm_busy = 0;
+			sas_target_priv_data->deleted = 0;
+		} else
+			sas_target_priv_data = NULL;
+		if (starget) {
+			starget_printk(KERN_INFO, starget,
+			    "handle(0x%04x), sas_addr(0x%016llx)\n",
+			    le16_to_cpu(sas_device_pg0->DevHandle),
+			    (unsigned long long)
+			    sas_device->sas_address);
+
+			if (sas_device->enclosure_handle != 0)
 				starget_printk(KERN_INFO, starget,
-				    "handle(0x%04x), sas_addr(0x%016llx)\n",
-				    le16_to_cpu(sas_device_pg0->DevHandle),
-				    (unsigned long long)
-				    sas_device->sas_address);
-
-				if (sas_device->enclosure_handle != 0)
-					starget_printk(KERN_INFO, starget,
-					 "enclosure logical id(0x%016llx),"
-					 " slot(%d)\n",
-					 (unsigned long long)
-					 sas_device->enclosure_logical_id,
-					 sas_device->slot);
-			}
-			if (le16_to_cpu(sas_device_pg0->Flags) &
-			      MPI2_SAS_DEVICE0_FLAGS_ENCL_LEVEL_VALID) {
-				sas_device->enclosure_level =
-				   sas_device_pg0->EnclosureLevel;
-				memcpy(&sas_device->connector_name[0],
-					&sas_device_pg0->ConnectorName[0], 4);
-			} else {
-				sas_device->enclosure_level = 0;
-				sas_device->connector_name[0] = '\0';
-			}
-
-			sas_device->enclosure_handle =
-				le16_to_cpu(sas_device_pg0->EnclosureHandle);
-			sas_device->is_chassis_slot_valid = 0;
-			if (enclosure_dev) {
-				sas_device->enclosure_logical_id = le64_to_cpu(
-					enclosure_dev->pg0.EnclosureLogicalID);
-				if (le16_to_cpu(enclosure_dev->pg0.Flags) &
-				    MPI2_SAS_ENCLS0_FLAGS_CHASSIS_SLOT_VALID) {
-					sas_device->is_chassis_slot_valid = 1;
-					sas_device->chassis_slot =
-						enclosure_dev->pg0.ChassisSlot;
-				}
-			}
-
-			if (sas_device->handle == le16_to_cpu(
-			    sas_device_pg0->DevHandle))
-				goto out;
-			pr_info("\thandle changed from(0x%04x)!!!\n",
-			    sas_device->handle);
-			sas_device->handle = le16_to_cpu(
-			    sas_device_pg0->DevHandle);
-			if (sas_target_priv_data)
-				sas_target_priv_data->handle =
-				    le16_to_cpu(sas_device_pg0->DevHandle);
-			goto out;
+				 "enclosure logical id(0x%016llx), slot(%d)\n",
+				 (unsigned long long)
+				 sas_device->enclosure_logical_id,
+				 sas_device->slot);
 		}
+		if (le16_to_cpu(sas_device_pg0->Flags) &
+		      MPI2_SAS_DEVICE0_FLAGS_ENCL_LEVEL_VALID) {
+			sas_device->enclosure_level =
+			   sas_device_pg0->EnclosureLevel;
+			memcpy(&sas_device->connector_name[0],
+				&sas_device_pg0->ConnectorName[0], 4);
+		} else {
+			sas_device->enclosure_level = 0;
+			sas_device->connector_name[0] = '\0';
+		}
+
+		sas_device->enclosure_handle =
+			le16_to_cpu(sas_device_pg0->EnclosureHandle);
+		sas_device->is_chassis_slot_valid = 0;
+		if (enclosure_dev) {
+			sas_device->enclosure_logical_id = le64_to_cpu(
+				enclosure_dev->pg0.EnclosureLogicalID);
+			if (le16_to_cpu(enclosure_dev->pg0.Flags) &
+			    MPI2_SAS_ENCLS0_FLAGS_CHASSIS_SLOT_VALID) {
+				sas_device->is_chassis_slot_valid = 1;
+				sas_device->chassis_slot =
+					enclosure_dev->pg0.ChassisSlot;
+			}
+		}
+
+		if (sas_device->handle == le16_to_cpu(
+		    sas_device_pg0->DevHandle))
+			goto out;
+		pr_info("\thandle changed from(0x%04x)!!!\n",
+		    sas_device->handle);
+		sas_device->handle = le16_to_cpu(
+		    sas_device_pg0->DevHandle);
+		if (sas_target_priv_data)
+			sas_target_priv_data->handle =
+			    le16_to_cpu(sas_device_pg0->DevHandle);
+		goto out;
 	}
  out:
 	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
