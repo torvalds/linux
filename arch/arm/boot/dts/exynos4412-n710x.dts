@@ -45,7 +45,7 @@
 	pinctrl-names = "default";
 	status = "okay";
 
-	mms152-touchscreen@48 {
+	touchscreen@48 {
 		compatible = "melfas,mms152";
 		reg = <0x48>;
 		interrupt-parent = <&gpm2>;
