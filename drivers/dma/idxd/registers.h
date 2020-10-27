@@ -336,6 +336,8 @@ union wqcfg {
 	u32 bits[8];
 } __packed;
 
+#define WQCFG_PASID_IDX                2
+
 /*
  * This macro calculates the offset into the WQCFG register
  * idxd - struct idxd *

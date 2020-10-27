@@ -59,6 +59,7 @@ enum idxd_wq_state {
 
 enum idxd_wq_flag {
 	WQ_FLAG_DEDICATED = 0,
+	WQ_FLAG_BLOCK_ON_FAULT,
 };
 
 enum idxd_wq_type {
@@ -86,10 +87,11 @@ enum idxd_op_type {
 enum idxd_complete_type {
 	IDXD_COMPLETE_NORMAL = 0,
 	IDXD_COMPLETE_ABORT,
+	IDXD_COMPLETE_DEV_FAIL,
 };
 
 struct idxd_wq {
-	void __iomem *dportal;
+	void __iomem *portal;
 	struct device conf_dev;
 	struct idxd_cdev idxd_cdev;
 	struct idxd_device *idxd;
@@ -145,6 +147,7 @@ enum idxd_device_state {
 enum idxd_device_flag {
 	IDXD_FLAG_CONFIGURABLE = 0,
 	IDXD_FLAG_CMD_RUNNING,
+	IDXD_FLAG_PASID_ENABLED,
 };
 
 struct idxd_device {
@@ -166,6 +169,9 @@ struct idxd_device {
 	struct idxd_group *groups;
 	struct idxd_wq *wqs;
 	struct idxd_engine *engines;
+
+	struct iommu_sva *sva;
+	unsigned int pasid;
 
 	int num_groups;
 
@@ -215,9 +221,26 @@ struct idxd_desc {
 
 extern struct bus_type dsa_bus_type;
 
+extern bool support_enqcmd;
+
 static inline bool wq_dedicated(struct idxd_wq *wq)
 {
 	return test_bit(WQ_FLAG_DEDICATED, &wq->flags);
+}
+
+static inline bool wq_shared(struct idxd_wq *wq)
+{
+	return !test_bit(WQ_FLAG_DEDICATED, &wq->flags);
+}
+
+static inline bool device_pasid_enabled(struct idxd_device *idxd)
+{
+	return test_bit(IDXD_FLAG_PASID_ENABLED, &idxd->flags);
+}
+
+static inline bool device_swq_supported(struct idxd_device *idxd)
+{
+	return (support_enqcmd && device_pasid_enabled(idxd));
 }
 
 enum idxd_portal_prot {
@@ -288,6 +311,7 @@ void idxd_device_reset(struct idxd_device *idxd);
 void idxd_device_cleanup(struct idxd_device *idxd);
 int idxd_device_config(struct idxd_device *idxd);
 void idxd_device_wqs_clear_state(struct idxd_device *idxd);
+void idxd_device_drain_pasid(struct idxd_device *idxd, int pasid);
 
 /* work queue control */
 int idxd_wq_alloc_resources(struct idxd_wq *wq);
@@ -298,6 +322,8 @@ void idxd_wq_drain(struct idxd_wq *wq);
 int idxd_wq_map_portal(struct idxd_wq *wq);
 void idxd_wq_unmap_portal(struct idxd_wq *wq);
 void idxd_wq_disable_cleanup(struct idxd_wq *wq);
+int idxd_wq_set_pasid(struct idxd_wq *wq, int pasid);
+int idxd_wq_disable_pasid(struct idxd_wq *wq);
 
 /* submission */
 int idxd_submit_desc(struct idxd_wq *wq, struct idxd_desc *desc);
