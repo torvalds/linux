@@ -138,7 +138,7 @@
 		};
 	};
 
-	mmc1_pwrseq: mmc1_pwrseq {
+	mmc1_pwrseq: mmc1-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&gpx0 0 GPIO_ACTIVE_LOW>; /* WIFI_EN */
 		clocks = <&max77802 MAX77802_CLK_32K_CP>;
@@ -205,7 +205,7 @@
 	status = "okay";
 	clock-frequency = <400000>;
 
-	max77802: max77802-pmic@9 {
+	max77802: pmic@9 {
 		compatible = "maxim,max77802";
 		interrupt-parent = <&gpx3>;
 		interrupts = <1 IRQ_TYPE_NONE>;
@@ -615,7 +615,7 @@
 	status = "okay";
 	clock-frequency = <400000>;
 
-	max98090: codec@10 {
+	max98090: audio-codec@10 {
 		compatible = "maxim,max98090";
 		reg = <0x10>;
 		interrupts = <2 IRQ_TYPE_NONE>;
