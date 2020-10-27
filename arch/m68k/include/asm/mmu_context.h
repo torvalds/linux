@@ -189,6 +189,7 @@ static inline void get_mmu_context(struct mm_struct *mm)
 }
 
 /* flush context if allocated... */
+#define destroy_context destroy_context
 static inline void destroy_context(struct mm_struct *mm)
 {
 	if (mm->context != SUN3_INVALID_CONTEXT)
