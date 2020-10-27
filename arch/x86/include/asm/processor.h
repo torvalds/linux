@@ -482,6 +482,10 @@ extern unsigned int fpu_user_xstate_size;
 
 struct perf_event;
 
+typedef struct {
+	unsigned long		seg;
+} mm_segment_t;
+
 struct thread_struct {
 	/* Cached TLS descriptors: */
 	struct desc_struct	tls_array[GDT_ENTRY_TLS_ENTRIES];
@@ -533,6 +537,8 @@ struct thread_struct {
 	 * interrupts.
 	 */
 	unsigned long		iopl_emul;
+
+	mm_segment_t		addr_limit;
 
 	unsigned int		sig_on_uaccess_err:1;
 
@@ -780,12 +786,15 @@ static inline void spin_lock_prefetch(const void *x)
 #define INIT_THREAD  {							  \
 	.sp0			= TOP_OF_INIT_STACK,			  \
 	.sysenter_cs		= __KERNEL_CS,				  \
+	.addr_limit		= KERNEL_DS,				  \
 }
 
 #define KSTK_ESP(task)		(task_pt_regs(task)->sp)
 
 #else
-#define INIT_THREAD { }
+#define INIT_THREAD  {						\
+	.addr_limit		= KERNEL_DS,			\
+}
 
 extern unsigned long KSTK_ESP(struct task_struct *task);
 
