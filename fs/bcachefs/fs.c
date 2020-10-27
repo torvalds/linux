@@ -921,9 +921,7 @@ retry:
 			bkey_start_offset(k.k);
 		sectors			= k.k->size - offset_into_extent;
 
-		bkey_on_stack_realloc(&cur, c, k.k->u64s);
-		bkey_on_stack_realloc(&prev, c, k.k->u64s);
-		bkey_reassemble(cur.k, k);
+		bkey_on_stack_reassemble(&cur, c, k);
 
 		ret = bch2_read_indirect_extent(&trans,
 					&offset_into_extent, &cur);
@@ -931,6 +929,7 @@ retry:
 			break;
 
 		k = bkey_i_to_s_c(cur.k);
+		bkey_on_stack_realloc(&prev, c, k.k->u64s);
 
 		sectors = min(sectors, k.k->size - offset_into_extent);
 
