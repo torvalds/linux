@@ -189,29 +189,43 @@ static int mpp_show_session_summary(struct seq_file *seq, void *offset)
 
 static int mpp_show_support_cmd(struct seq_file *file, void *v)
 {
-	seq_puts(file, "------------- SUPPROT CMD -------------\n");
+	seq_puts(file, "------------- SUPPORT CMD -------------\n");
 	seq_printf(file, "QUERY_HW_SUPPORT:     0x%08x\n", MPP_CMD_QUERY_HW_SUPPORT);
 	seq_printf(file, "QUERY_HW_ID:          0x%08x\n", MPP_CMD_QUERY_HW_ID);
 	seq_printf(file, "QUERY_CMD_SUPPORT:    0x%08x\n", MPP_CMD_QUERY_CMD_SUPPORT);
-	seq_printf(file, "QUERY BUTT:           0x%08x\n", MPP_CMD_QUERY_BUTT);
+	seq_printf(file, "QUERY_BUTT:           0x%08x\n", MPP_CMD_QUERY_BUTT);
 	seq_puts(file, "----\n");
 	seq_printf(file, "INIT_CLIENT_TYPE:     0x%08x\n", MPP_CMD_INIT_CLIENT_TYPE);
 	seq_printf(file, "INIT_TRANS_TABLE:     0x%08x\n", MPP_CMD_INIT_TRANS_TABLE);
-	seq_printf(file, "INIT BUTT:            0x%08x\n", MPP_CMD_INIT_BUTT);
+	seq_printf(file, "INIT_BUTT:            0x%08x\n", MPP_CMD_INIT_BUTT);
 	seq_puts(file, "----\n");
 	seq_printf(file, "SET_REG_WRITE:        0x%08x\n", MPP_CMD_SET_REG_WRITE);
 	seq_printf(file, "SET_REG_READ:         0x%08x\n", MPP_CMD_SET_REG_READ);
 	seq_printf(file, "SET_REG_ADDR_OFFSET:  0x%08x\n", MPP_CMD_SET_REG_ADDR_OFFSET);
-	seq_printf(file, "SEND BUTT:            0x%08x\n", MPP_CMD_SEND_BUTT);
+	seq_printf(file, "SEND_BUTT:            0x%08x\n", MPP_CMD_SEND_BUTT);
 	seq_puts(file, "----\n");
 	seq_printf(file, "POLL_HW_FINISH:       0x%08x\n", MPP_CMD_POLL_HW_FINISH);
-	seq_printf(file, "POLL BUTT:            0x%08x\n", MPP_CMD_POLL_BUTT);
+	seq_printf(file, "POLL_BUTT:            0x%08x\n", MPP_CMD_POLL_BUTT);
 	seq_puts(file, "----\n");
 	seq_printf(file, "RESET_SESSION:        0x%08x\n", MPP_CMD_RESET_SESSION);
 	seq_printf(file, "TRANS_FD_TO_IOVA:     0x%08x\n", MPP_CMD_TRANS_FD_TO_IOVA);
 	seq_printf(file, "RELEASE_FD:           0x%08x\n", MPP_CMD_RELEASE_FD);
 	seq_printf(file, "SEND_CODEC_INFO:      0x%08x\n", MPP_CMD_SEND_CODEC_INFO);
-	seq_printf(file, "CONTROL BUTT:         0x%08x\n", MPP_CMD_CONTROL_BUTT);
+	seq_printf(file, "CONTROL_BUTT:         0x%08x\n", MPP_CMD_CONTROL_BUTT);
+
+	return 0;
+}
+
+static int mpp_show_support_device(struct seq_file *file, void *v)
+{
+	u32 i;
+	struct mpp_service *srv = file->private;
+
+	seq_puts(file, "---- SUPPORT DEVICES ----\n");
+	for (i = 0; i < MPP_DEVICE_BUTT; i++) {
+		if (test_bit(i, &srv->hw_support))
+			seq_printf(file, "DEVICE[%2d]:%s\n", i, mpp_device_name[i]);
+	}
 
 	return 0;
 }
@@ -225,12 +239,15 @@ static int mpp_procfs_init(struct mpp_service *srv)
 		return -EIO;
 	}
 	/* show version */
-	proc_create_single("version", 0644, srv->procfs, mpp_show_version);
+	proc_create_single("version", 0444, srv->procfs, mpp_show_version);
 	/* for show session info */
-	proc_create_single_data("session_summary", 0644,
+	proc_create_single_data("session_summary", 0444,
 				srv->procfs, mpp_show_session_summary, srv);
 	/* show support dev cmd */
-	proc_create_single("support_cmd", 0644, srv->procfs, mpp_show_support_cmd);
+	proc_create_single("support_cmd", 0444, srv->procfs, mpp_show_support_cmd);
+	/* show support devices */
+	proc_create_single_data("support_device", 0444,
+				srv->procfs, mpp_show_support_device, srv);
 
 	return 0;
 }
