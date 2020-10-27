@@ -503,16 +503,17 @@ _transport_add_phy(struct MPT3SAS_ADAPTER *ioc, struct _sas_port *mpt3sas_port,
 }
 
 /**
- * _transport_add_phy_to_an_existing_port - adding new phy to existing port
+ * mpt3sas_transport_add_phy_to_an_existing_port - adding new phy to existing port
  * @ioc: per adapter object
  * @sas_node: sas node object (either expander or sas host)
  * @mpt3sas_phy: mpt3sas per phy object
  * @sas_address: sas address of device/expander were phy needs to be added to
+ * @port: hba port entry
  */
-static void
-_transport_add_phy_to_an_existing_port(struct MPT3SAS_ADAPTER *ioc,
+void
+mpt3sas_transport_add_phy_to_an_existing_port(struct MPT3SAS_ADAPTER *ioc,
 	struct _sas_node *sas_node, struct _sas_phy *mpt3sas_phy,
-	u64 sas_address)
+	u64 sas_address, struct hba_port *port)
 {
 	struct _sas_port *mpt3sas_port;
 	struct _sas_phy *phy_srch;
@@ -520,10 +521,15 @@ _transport_add_phy_to_an_existing_port(struct MPT3SAS_ADAPTER *ioc,
 	if (mpt3sas_phy->phy_belongs_to_port == 1)
 		return;
 
+	if (!port)
+		return;
+
 	list_for_each_entry(mpt3sas_port, &sas_node->sas_port_list,
 	    port_list) {
 		if (mpt3sas_port->remote_identify.sas_address !=
 		    sas_address)
+			continue;
+		if (mpt3sas_port->hba_port != port)
 			continue;
 		list_for_each_entry(phy_srch, &mpt3sas_port->phy_list,
 		    port_siblings) {
@@ -537,13 +543,13 @@ _transport_add_phy_to_an_existing_port(struct MPT3SAS_ADAPTER *ioc,
 }
 
 /**
- * _transport_del_phy_from_an_existing_port - delete phy from existing port
+ * mpt3sas_transport_del_phy_from_an_existing_port - delete phy from existing port
  * @ioc: per adapter object
  * @sas_node: sas node object (either expander or sas host)
  * @mpt3sas_phy: mpt3sas per phy object
  */
-static void
-_transport_del_phy_from_an_existing_port(struct MPT3SAS_ADAPTER *ioc,
+void
+mpt3sas_transport_del_phy_from_an_existing_port(struct MPT3SAS_ADAPTER *ioc,
 	struct _sas_node *sas_node, struct _sas_phy *mpt3sas_phy)
 {
 	struct _sas_port *mpt3sas_port, *next;
@@ -559,7 +565,11 @@ _transport_del_phy_from_an_existing_port(struct MPT3SAS_ADAPTER *ioc,
 			if (phy_srch != mpt3sas_phy)
 				continue;
 
-			if (mpt3sas_port->num_phys == 1)
+			/*
+			 * Don't delete port during host reset,
+			 * just delete phy.
+			 */
+			if (mpt3sas_port->num_phys == 1 && !ioc->shost_recovery)
 				_transport_delete_port(ioc, mpt3sas_port);
 			else
 				_transport_delete_phy(ioc, mpt3sas_port,
@@ -590,8 +600,8 @@ _transport_sanity_check(struct MPT3SAS_ADAPTER *ioc, struct _sas_node *sas_node,
 		if (sas_node->phy[i].port != port)
 			continue;
 		if (sas_node->phy[i].phy_belongs_to_port == 1)
-			_transport_del_phy_from_an_existing_port(ioc, sas_node,
-			    &sas_node->phy[i]);
+			mpt3sas_transport_del_phy_from_an_existing_port(ioc,
+			    sas_node, &sas_node->phy[i]);
 	}
 }
 
@@ -1040,8 +1050,6 @@ mpt3sas_transport_update_links(struct MPT3SAS_ADAPTER *ioc,
 	if (handle && (link_rate >= MPI2_SAS_NEG_LINK_RATE_1_5)) {
 		_transport_set_identify(ioc, handle,
 		    &mpt3sas_phy->remote_identify);
-		_transport_add_phy_to_an_existing_port(ioc, sas_node,
-		    mpt3sas_phy, mpt3sas_phy->remote_identify.sas_address);
 		if (sas_node->handle <= ioc->sas_hba.num_phys) {
 			list_for_each_entry(hba_port,
 			    &ioc->port_table_list, list) {
@@ -1051,6 +1059,9 @@ mpt3sas_transport_update_links(struct MPT3SAS_ADAPTER *ioc,
 					    (1 << mpt3sas_phy->phy_id);
 			}
 		}
+		mpt3sas_transport_add_phy_to_an_existing_port(ioc, sas_node,
+		    mpt3sas_phy, mpt3sas_phy->remote_identify.sas_address,
+		    port);
 	} else
 		memset(&mpt3sas_phy->remote_identify, 0 , sizeof(struct
 		    sas_identify));
