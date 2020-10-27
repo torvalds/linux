@@ -395,14 +395,16 @@ struct io_ring_ctx {
  */
 struct io_poll_iocb {
 	struct file			*file;
-	union {
-		struct wait_queue_head	*head;
-		u64			addr;
-	};
+	struct wait_queue_head		*head;
 	__poll_t			events;
 	bool				done;
 	bool				canceled;
 	struct wait_queue_entry		wait;
+};
+
+struct io_poll_remove {
+	struct file			*file;
+	u64				addr;
 };
 
 struct io_close {
@@ -672,6 +674,7 @@ struct io_kiocb {
 		struct file		*file;
 		struct io_rw		rw;
 		struct io_poll_iocb	poll;
+		struct io_poll_remove	poll_remove;
 		struct io_accept	accept;
 		struct io_sync		sync;
 		struct io_cancel	cancel;
@@ -5538,7 +5541,7 @@ static int io_poll_remove_prep(struct io_kiocb *req,
 	    sqe->poll_events)
 		return -EINVAL;
 
-	req->poll.addr = READ_ONCE(sqe->addr);
+	req->poll_remove.addr = READ_ONCE(sqe->addr);
 	return 0;
 }
 
@@ -5549,12 +5552,10 @@ static int io_poll_remove_prep(struct io_kiocb *req,
 static int io_poll_remove(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
-	u64 addr;
 	int ret;
 
-	addr = req->poll.addr;
 	spin_lock_irq(&ctx->completion_lock);
-	ret = io_poll_cancel(ctx, addr);
+	ret = io_poll_cancel(ctx, req->poll_remove.addr);
 	spin_unlock_irq(&ctx->completion_lock);
 
 	if (ret < 0)
