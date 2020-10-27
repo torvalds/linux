@@ -1414,7 +1414,7 @@ _transport_get_linkerrors(struct sas_phy *phy)
 	spin_lock_irqsave(&ioc->sas_node_lock, flags);
 	if (_transport_sas_node_find_by_sas_address(ioc,
 	    phy->identify.sas_address,
-	    mpt3sas_get_port_by_id(ioc, port_id)) == NULL) {
+	    mpt3sas_get_port_by_id(ioc, port_id, 0)) == NULL) {
 		spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
 		return -EINVAL;
 	}
@@ -1703,7 +1703,7 @@ _transport_phy_reset(struct sas_phy *phy, int hard_reset)
 	spin_lock_irqsave(&ioc->sas_node_lock, flags);
 	if (_transport_sas_node_find_by_sas_address(ioc,
 	    phy->identify.sas_address,
-	    mpt3sas_get_port_by_id(ioc, port_id)) == NULL) {
+	    mpt3sas_get_port_by_id(ioc, port_id, 0)) == NULL) {
 		spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
 		return -EINVAL;
 	}
@@ -1762,7 +1762,7 @@ _transport_phy_enable(struct sas_phy *phy, int enable)
 	spin_lock_irqsave(&ioc->sas_node_lock, flags);
 	if (_transport_sas_node_find_by_sas_address(ioc,
 	    phy->identify.sas_address,
-	    mpt3sas_get_port_by_id(ioc, port_id)) == NULL) {
+	    mpt3sas_get_port_by_id(ioc, port_id, 0)) == NULL) {
 		spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
 		return -EINVAL;
 	}
@@ -1902,7 +1902,7 @@ _transport_phy_speed(struct sas_phy *phy, struct sas_phy_linkrates *rates)
 	spin_lock_irqsave(&ioc->sas_node_lock, flags);
 	if (_transport_sas_node_find_by_sas_address(ioc,
 	    phy->identify.sas_address,
-	    mpt3sas_get_port_by_id(ioc, port_id)) == NULL) {
+	    mpt3sas_get_port_by_id(ioc, port_id, 0)) == NULL) {
 		spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
 		return -EINVAL;
 	}
