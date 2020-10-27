@@ -159,6 +159,15 @@ module_param(enable_sdev_max_qd, bool, 0444);
 MODULE_PARM_DESC(enable_sdev_max_qd,
 	"Enable sdev max qd as can_queue, def=disabled(0)");
 
+static int multipath_on_hba = -1;
+module_param(multipath_on_hba, int, 0);
+MODULE_PARM_DESC(multipath_on_hba,
+	"Multipath support to add same target device\n\t\t"
+	"as many times as it is visible to HBA from various paths\n\t\t"
+	"(by default:\n\t\t"
+	"\t SAS 2.0 & SAS 3.0 HBA - This will be disabled,\n\t\t"
+	"\t SAS 3.5 HBA - This will be enabled)");
+
 /* raid transport support */
 static struct raid_template *mpt3sas_raid_template;
 static struct raid_template *mpt2sas_raid_template;
@@ -373,6 +382,14 @@ mpt3sas_get_port_by_id(struct MPT3SAS_ADAPTER *ioc,
 {
 	struct hba_port *port, *port_next;
 
+	/*
+	 * When multipath_on_hba is disabled then
+	 * search the hba_port entry using default
+	 * port id i.e. 255
+	 */
+	if (!ioc->multipath_on_hba)
+		port_id = MULTIPATH_DISABLED_PORT_ID;
+
 	list_for_each_entry_safe(port, port_next,
 	    &ioc->port_table_list, list) {
 		if (port->port_id != port_id)
@@ -384,6 +401,24 @@ mpt3sas_get_port_by_id(struct MPT3SAS_ADAPTER *ioc,
 		return port;
 	}
 
+	/*
+	 * Allocate hba_port object for default port id (i.e. 255)
+	 * when multipath_on_hba is disabled for the HBA.
+	 * And add this object to port_table_list.
+	 */
+	if (!ioc->multipath_on_hba) {
+		port = kzalloc(sizeof(struct hba_port), GFP_KERNEL);
+		if (!port)
+			return NULL;
+
+		port->port_id = port_id;
+		ioc_info(ioc,
+		   "hba_port entry: %p, port: %d is added to hba_port list\n",
+		   port, port->port_id);
+		list_add_tail(&port->list,
+		    &ioc->port_table_list);
+		return port;
+	}
 	return NULL;
 }
 
@@ -10014,6 +10049,7 @@ _scsih_search_responding_expanders(struct MPT3SAS_ADAPTER *ioc)
 	u16 ioc_status;
 	u64 sas_address;
 	u16 handle;
+	u8 port;
 
 	ioc_info(ioc, "search for expanders: start\n");
 
@@ -10031,10 +10067,12 @@ _scsih_search_responding_expanders(struct MPT3SAS_ADAPTER *ioc)
 
 		handle = le16_to_cpu(expander_pg0.DevHandle);
 		sas_address = le64_to_cpu(expander_pg0.SASAddress);
+		port = expander_pg0.PhysicalPort;
 		pr_info(
 		    "\texpander present: handle(0x%04x), sas_addr(0x%016llx), port:%d\n",
 		    handle, (unsigned long long)sas_address,
-		    expander_pg0.PhysicalPort);
+		    (ioc->multipath_on_hba ?
+		    port : MULTIPATH_DISABLED_PORT_ID));
 		_scsih_mark_responding_expander(ioc, &expander_pg0);
 	}
 
@@ -10477,8 +10515,10 @@ mpt3sas_scsih_reset_done_handler(struct MPT3SAS_ADAPTER *ioc)
 	dtmprintk(ioc, ioc_info(ioc, "%s: MPT3_IOC_DONE_RESET\n", __func__));
 	if ((!ioc->is_driver_loading) && !(disable_discovery > 0 &&
 					   !ioc->sas_hba.num_phys)) {
-		_scsih_sas_port_refresh(ioc);
-		_scsih_update_vphys_after_reset(ioc);
+		if (ioc->multipath_on_hba) {
+			_scsih_sas_port_refresh(ioc);
+			_scsih_update_vphys_after_reset(ioc);
+		}
 		_scsih_prep_device_scan(ioc);
 		_scsih_create_enclosure_list_after_reset(ioc);
 		_scsih_search_responding_sas_devices(ioc);
@@ -11766,6 +11806,12 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			ioc->mfg_pg10_hide_flag = MFG_PAGE10_EXPOSE_ALL_DISKS;
 			break;
 		}
+
+		if (multipath_on_hba == -1 || multipath_on_hba == 0)
+			ioc->multipath_on_hba = 0;
+		else
+			ioc->multipath_on_hba = 1;
+
 		break;
 	case MPI25_VERSION:
 	case MPI26_VERSION:
@@ -11827,6 +11873,23 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 				ioc->combined_reply_index_count =
 				 MPT3_SUP_REPLY_POST_HOST_INDEX_REG_COUNT_G3;
 		}
+
+		switch (ioc->is_gen35_ioc) {
+		case 0:
+			if (multipath_on_hba == -1 || multipath_on_hba == 0)
+				ioc->multipath_on_hba = 0;
+			else
+				ioc->multipath_on_hba = 1;
+			break;
+		case 1:
+			if (multipath_on_hba == -1 || multipath_on_hba > 0)
+				ioc->multipath_on_hba = 1;
+			else
+				ioc->multipath_on_hba = 0;
+		default:
+			break;
+		}
+
 		break;
 	default:
 		return -ENODEV;

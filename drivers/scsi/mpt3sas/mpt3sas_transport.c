@@ -912,7 +912,8 @@ mpt3sas_transport_port_remove(struct MPT3SAS_ADAPTER *ioc, u64 sas_address,
 		return;
 	}
 
-	if (sas_node->handle <= ioc->sas_hba.num_phys) {
+	if (sas_node->handle <= ioc->sas_hba.num_phys &&
+	    (ioc->multipath_on_hba)) {
 		if (port->vphys_mask) {
 			list_for_each_entry_safe(vphy, vphy_next,
 			    &port->vphys_list, list) {
@@ -1172,7 +1173,8 @@ mpt3sas_transport_update_links(struct MPT3SAS_ADAPTER *ioc,
 	if (handle && (link_rate >= MPI2_SAS_NEG_LINK_RATE_1_5)) {
 		_transport_set_identify(ioc, handle,
 		    &mpt3sas_phy->remote_identify);
-		if (sas_node->handle <= ioc->sas_hba.num_phys) {
+		if ((sas_node->handle <= ioc->sas_hba.num_phys) &&
+		    (ioc->multipath_on_hba)) {
 			list_for_each_entry(hba_port,
 			    &ioc->port_table_list, list) {
 				if (hba_port->sas_address == sas_address &&

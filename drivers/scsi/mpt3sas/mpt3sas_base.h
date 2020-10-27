@@ -1246,6 +1246,7 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  *	which ensures the syncrhonization between cli/sysfs_show path.
  * @atomic_desc_capable: Atomic Request Descriptor support.
  * @GET_MSIX_INDEX: Get the msix index of high iops queues.
+ * @multipath_on_hba: flag to determine multipath on hba is enabled or not
  * @port_table_list: list containing HBA's wide/narrow port's info
  */
 struct MPT3SAS_ADAPTER {
@@ -1540,6 +1541,7 @@ struct MPT3SAS_ADAPTER {
 	PUT_SMID_DEFAULT put_smid_default;
 	GET_MSIX_INDEX get_msix_index_for_smlio;
 
+	u8		multipath_on_hba;
 	struct list_head port_table_list;
 };
 
