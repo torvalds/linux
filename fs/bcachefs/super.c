@@ -703,6 +703,8 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 
 	seqcount_init(&c->usage_lock);
 
+	mutex_init(&c->inode_create_lock);
+
 	c->copy_gc_enabled		= 1;
 	c->rebalance.enabled		= 1;
 	c->promote_whole_extents	= true;

@@ -802,6 +802,10 @@ struct bch_fs {
 	struct mutex		verify_lock;
 #endif
 
+	struct mutex		inode_create_lock;
+	unsigned		unused_inodes_nr;
+	u64			unused_inodes[64];
+	u32			unused_inodes_gens[64];
 	u64			unused_inode_hint;
 
 	/*

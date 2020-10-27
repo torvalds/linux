@@ -60,9 +60,7 @@ void bch2_inode_init(struct bch_fs *, struct bch_inode_unpacked *,
 		     uid_t, gid_t, umode_t, dev_t,
 		     struct bch_inode_unpacked *);
 
-int bch2_inode_create(struct btree_trans *,
-		      struct bch_inode_unpacked *,
-		      u64, u64, u64 *);
+int bch2_inode_create(struct btree_trans *, struct bch_inode_unpacked *);
 
 int bch2_inode_rm(struct bch_fs *, u64);
 

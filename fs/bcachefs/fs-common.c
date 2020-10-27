@@ -34,9 +34,7 @@ int bch2_create_trans(struct btree_trans *trans, u64 dir_inum,
 	if (!name)
 		new_inode->bi_flags |= BCH_INODE_UNLINKED;
 
-	ret = bch2_inode_create(trans, new_inode,
-				BLOCKDEV_INODE_MAX, 0,
-				&c->unused_inode_hint);
+	ret = bch2_inode_create(trans, new_inode);
 	if (ret)
 		goto err;
 
