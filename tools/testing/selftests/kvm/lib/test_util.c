@@ -92,6 +92,13 @@ struct timespec timespec_diff_now(struct timespec start)
 	return timespec_sub(end, start);
 }
 
+struct timespec timespec_div(struct timespec ts, int divisor)
+{
+	int64_t ns = timespec_to_ns(ts) / divisor;
+
+	return timespec_add_ns((struct timespec){0}, ns);
+}
+
 void print_skip(const char *fmt, ...)
 {
 	va_list ap;

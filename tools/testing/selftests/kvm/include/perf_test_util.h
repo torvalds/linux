@@ -76,16 +76,18 @@ static void guest_code(uint32_t vcpu_id)
 	gva = vcpu_args->gva;
 	pages = vcpu_args->pages;
 
-	for (i = 0; i < pages; i++) {
-		uint64_t addr = gva + (i * perf_test_args.guest_page_size);
+	while (true) {
+		for (i = 0; i < pages; i++) {
+			uint64_t addr = gva + (i * perf_test_args.guest_page_size);
 
-		if (i % perf_test_args.wr_fract == 0)
-			*(uint64_t *)addr = 0x0123456789ABCDEF;
-		else
-			READ_ONCE(*(uint64_t *)addr);
+			if (i % perf_test_args.wr_fract == 0)
+				*(uint64_t *)addr = 0x0123456789ABCDEF;
+			else
+				READ_ONCE(*(uint64_t *)addr);
+		}
+
+		GUEST_SYNC(1);
 	}
-
-	GUEST_SYNC(1);
 }
 
 static struct kvm_vm *create_vm(enum vm_guest_mode mode, int vcpus,

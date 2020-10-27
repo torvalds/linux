@@ -27,6 +27,7 @@
 /clear_dirty_log_test
 /demand_paging_test
 /dirty_log_test
+/dirty_log_perf_test
 /kvm_create_max_vcpus
 /set_memory_region_test
 /steal_time
