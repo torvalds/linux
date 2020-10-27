@@ -363,6 +363,18 @@ void vm_handle_exception(struct kvm_vm *vm, int vector,
 			void (*handler)(struct ex_regs *));
 
 /*
+ * set_cpuid() - overwrites a matching cpuid entry with the provided value.
+ *		 matches based on ent->function && ent->index. returns true
+ *		 if a match was found and successfully overwritten.
+ * @cpuid: the kvm cpuid list to modify.
+ * @ent: cpuid entry to insert
+ */
+bool set_cpuid(struct kvm_cpuid2 *cpuid, struct kvm_cpuid_entry2 *ent);
+
+uint64_t kvm_hypercall(uint64_t nr, uint64_t a0, uint64_t a1, uint64_t a2,
+		       uint64_t a3);
+
+/*
  * Basic CPU control in CR0
  */
 #define X86_CR0_PE          (1UL<<0) /* Protection Enable */

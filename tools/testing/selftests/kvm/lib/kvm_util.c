@@ -86,6 +86,34 @@ int vm_enable_cap(struct kvm_vm *vm, struct kvm_enable_cap *cap)
 	return ret;
 }
 
+/* VCPU Enable Capability
+ *
+ * Input Args:
+ *   vm - Virtual Machine
+ *   vcpu_id - VCPU
+ *   cap - Capability
+ *
+ * Output Args: None
+ *
+ * Return: On success, 0. On failure a TEST_ASSERT failure is produced.
+ *
+ * Enables a capability (KVM_CAP_*) on the VCPU.
+ */
+int vcpu_enable_cap(struct kvm_vm *vm, uint32_t vcpu_id,
+		    struct kvm_enable_cap *cap)
+{
+	struct vcpu *vcpu = vcpu_find(vm, vcpu_id);
+	int r;
+
+	TEST_ASSERT(vcpu, "cannot find vcpu %d", vcpu_id);
+
+	r = ioctl(vcpu->fd, KVM_ENABLE_CAP, cap);
+	TEST_ASSERT(!r, "KVM_ENABLE_CAP vCPU ioctl failed,\n"
+			"  rc: %i, errno: %i", r, errno);
+
+	return r;
+}
+
 static void vm_open(struct kvm_vm *vm, int perm)
 {
 	vm->kvm_fd = open(KVM_DEV_PATH, perm);
