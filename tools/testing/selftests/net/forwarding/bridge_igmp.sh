@@ -83,9 +83,10 @@ cleanup()
 mcast_packet_test()
 {
 	local mac=$1
-	local ip=$2
-	local host1_if=$3
-	local host2_if=$4
+	local src_ip=$2
+	local ip=$3
+	local host1_if=$4
+	local host2_if=$5
 	local seen=0
 
 	# Add an ACL on `host2_if` which will tell us whether the packet
@@ -94,7 +95,7 @@ mcast_packet_test()
 	tc filter add dev $host2_if ingress protocol ip pref 1 handle 101 \
 		flower dst_mac $mac action drop
 
-	$MZ $host1_if -c 1 -p 64 -b $mac -B $ip -t udp "dp=4096,sp=2048" -q
+	$MZ $host1_if -c 1 -p 64 -b $mac -A $src_ip -B $ip -t udp "dp=4096,sp=2048" -q
 	sleep 1
 
 	tc -j -s filter show dev $host2_if ingress \
@@ -120,7 +121,7 @@ v2reportleave_test()
 	bridge mdb show dev br0 | grep $TEST_GROUP 1>/dev/null
 	check_err $? "IGMPv2 report didn't create mdb entry for $TEST_GROUP"
 
-	mcast_packet_test $TEST_GROUP_MAC $TEST_GROUP $h1 $h2
+	mcast_packet_test $TEST_GROUP_MAC 192.0.2.1 $TEST_GROUP $h1 $h2
 	check_fail $? "Traffic to $TEST_GROUP wasn't forwarded"
 
 	log_test "IGMPv2 report $TEST_GROUP"
@@ -136,7 +137,7 @@ v2reportleave_test()
 	bridge mdb show dev br0 | grep $TEST_GROUP 1>/dev/null
 	check_fail $? "Leave didn't delete mdb entry for $TEST_GROUP"
 
-	mcast_packet_test $TEST_GROUP_MAC $TEST_GROUP $h1 $h2
+	mcast_packet_test $TEST_GROUP_MAC 192.0.2.1 $TEST_GROUP $h1 $h2
 	check_err $? "Traffic to $TEST_GROUP was forwarded without mdb entry"
 
 	log_test "IGMPv2 leave $TEST_GROUP"
