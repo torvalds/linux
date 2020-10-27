@@ -178,7 +178,8 @@ static inline u16 nvme_req_qid(struct request *req)
 {
 	if (!req->q->queuedata)
 		return 0;
-	return blk_mq_unique_tag_to_hwq(blk_mq_unique_tag(req)) + 1;
+
+	return req->mq_hctx->queue_num + 1;
 }
 
 /* The below value is the specific amount of delay needed before checking
