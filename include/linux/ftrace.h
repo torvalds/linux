@@ -90,16 +90,21 @@ ftrace_enable_sysctl(struct ctl_table *table, int write,
 
 struct ftrace_ops;
 
+#ifndef CONFIG_HAVE_DYNAMIC_FTRACE_WITH_ARGS
+
 struct ftrace_regs {
 	struct pt_regs		regs;
 };
+#define arch_ftrace_get_regs(fregs) (&(fregs)->regs)
+
+#endif /* CONFIG_HAVE_DYNAMIC_FTRACE_WITH_ARGS */
 
 static __always_inline struct pt_regs *ftrace_get_regs(struct ftrace_regs *fregs)
 {
 	if (!fregs)
 		return NULL;
 
-	return &fregs->regs;
+	return arch_ftrace_get_regs(fregs);
 }
 
 typedef void (*ftrace_func_t)(unsigned long ip, unsigned long parent_ip,
