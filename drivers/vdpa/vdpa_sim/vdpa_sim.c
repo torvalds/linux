@@ -361,7 +361,9 @@ static struct vdpasim *vdpasim_create(void)
 	spin_lock_init(&vdpasim->iommu_lock);
 
 	dev = &vdpasim->vdpa.dev;
-	dev->coherent_dma_mask = DMA_BIT_MASK(64);
+	dev->dma_mask = &dev->coherent_dma_mask;
+	if (dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64)))
+		goto err_iommu;
 	set_dma_ops(dev, &vdpasim_dma_ops);
 
 	vdpasim->iommu = vhost_iotlb_alloc(2048, 0);
