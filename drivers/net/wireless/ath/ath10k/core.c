@@ -2636,7 +2636,7 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 		if (status)
 			goto err;
 
-		/* Some of of qca988x solutions are having global reset issue
+		/* Some of qca988x solutions are having global reset issue
 		 * during target initialization. Bypassing PLL setting before
 		 * downloading firmware and letting the SoC run on REF_CLK is
 		 * fixing the problem. Corresponding firmware change is also

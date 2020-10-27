@@ -1764,7 +1764,7 @@ static ssize_t ath10k_write_simulate_radar(struct file *file,
 	struct ath10k *ar = file->private_data;
 	struct ath10k_vif *arvif;
 
-	/* Just check for for the first vif alone, as all the vifs will be
+	/* Just check for the first vif alone, as all the vifs will be
 	 * sharing the same channel and if the channel is disabled, all the
 	 * vifs will share the same 'is_started' state.
 	 */

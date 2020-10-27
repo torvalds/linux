@@ -5457,7 +5457,7 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 	/* Some firmware revisions don't wait for beacon tx completion before
 	 * sending another SWBA event. This could lead to hardware using old
 	 * (freed) beacon data in some cases, e.g. tx credit starvation
-	 * combined with missed TBTT. This is very very rare.
+	 * combined with missed TBTT. This is very rare.
 	 *
 	 * On non-IOMMU-enabled hosts this could be a possible security issue
 	 * because hw could beacon some random data on the air.  On
