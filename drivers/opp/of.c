@@ -112,8 +112,6 @@ static struct opp_table *_find_table_of_opp_np(struct device_node *opp_np)
 	struct opp_table *opp_table;
 	struct device_node *opp_table_np;
 
-	lockdep_assert_held(&opp_table_lock);
-
 	opp_table_np = of_get_parent(opp_np);
 	if (!opp_table_np)
 		goto err;
@@ -121,12 +119,15 @@ static struct opp_table *_find_table_of_opp_np(struct device_node *opp_np)
 	/* It is safe to put the node now as all we need now is its address */
 	of_node_put(opp_table_np);
 
+	mutex_lock(&opp_table_lock);
 	list_for_each_entry(opp_table, &opp_tables, node) {
 		if (opp_table_np == opp_table->np) {
 			_get_opp_table_kref(opp_table);
+			mutex_unlock(&opp_table_lock);
 			return opp_table;
 		}
 	}
+	mutex_unlock(&opp_table_lock);
 
 err:
 	return ERR_PTR(-ENODEV);

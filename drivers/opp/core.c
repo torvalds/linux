@@ -29,6 +29,8 @@
 LIST_HEAD(opp_tables);
 /* Lock to allow exclusive modification to the device and opp lists */
 DEFINE_MUTEX(opp_table_lock);
+/* Flag indicating that opp_tables list is being updated at the moment */
+static bool opp_tables_busy;
 
 static struct opp_device *_find_opp_dev(const struct device *dev,
 					struct opp_table *opp_table)
@@ -1111,8 +1113,6 @@ static struct opp_table *_allocate_opp_table(struct device *dev, int index)
 	INIT_LIST_HEAD(&opp_table->opp_list);
 	kref_init(&opp_table->kref);
 
-	/* Secure the device table modification */
-	list_add(&opp_table->node, &opp_tables);
 	return opp_table;
 
 err:
@@ -1125,27 +1125,64 @@ void _get_opp_table_kref(struct opp_table *opp_table)
 	kref_get(&opp_table->kref);
 }
 
+/*
+ * We need to make sure that the OPP table for a device doesn't get added twice,
+ * if this routine gets called in parallel with the same device pointer.
+ *
+ * The simplest way to enforce that is to perform everything (find existing
+ * table and if not found, create a new one) under the opp_table_lock, so only
+ * one creator gets access to the same. But that expands the critical section
+ * under the lock and may end up causing circular dependencies with frameworks
+ * like debugfs, interconnect or clock framework as they may be direct or
+ * indirect users of OPP core.
+ *
+ * And for that reason we have to go for a bit tricky implementation here, which
+ * uses the opp_tables_busy flag to indicate if another creator is in the middle
+ * of adding an OPP table and others should wait for it to finish.
+ */
 static struct opp_table *_opp_get_opp_table(struct device *dev, int index)
 {
 	struct opp_table *opp_table;
 
-	/* Hold our table modification lock here */
+again:
 	mutex_lock(&opp_table_lock);
 
 	opp_table = _find_opp_table_unlocked(dev);
 	if (!IS_ERR(opp_table))
 		goto unlock;
 
+	/*
+	 * The opp_tables list or an OPP table's dev_list is getting updated by
+	 * another user, wait for it to finish.
+	 */
+	if (unlikely(opp_tables_busy)) {
+		mutex_unlock(&opp_table_lock);
+		cpu_relax();
+		goto again;
+	}
+
+	opp_tables_busy = true;
 	opp_table = _managed_opp(dev, index);
+
+	/* Drop the lock to reduce the size of critical section */
+	mutex_unlock(&opp_table_lock);
+
 	if (opp_table) {
 		if (!_add_opp_dev(dev, opp_table)) {
 			dev_pm_opp_put_opp_table(opp_table);
 			opp_table = ERR_PTR(-ENOMEM);
 		}
-		goto unlock;
+
+		mutex_lock(&opp_table_lock);
+	} else {
+		opp_table = _allocate_opp_table(dev, index);
+
+		mutex_lock(&opp_table_lock);
+		if (!IS_ERR(opp_table))
+			list_add(&opp_table->node, &opp_tables);
 	}
 
-	opp_table = _allocate_opp_table(dev, index);
+	opp_tables_busy = false;
 
 unlock:
 	mutex_unlock(&opp_table_lock);
