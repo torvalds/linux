@@ -329,7 +329,7 @@
 	pinctrl-0 = <&i2c3_bus>;
 	pinctrl-names = "default";
 
-	mxt224-touchscreen@4a {
+	touchscreen@4a {
 		compatible = "atmel,maxtouch";
 		reg = <0x4a>;
 
@@ -348,7 +348,7 @@
 	pinctrl-0 = <&i2c5_bus>;
 	pinctrl-names = "default";
 
-	max8997_pmic@66 {
+	pmic@66 {
 		compatible = "maxim,max8997-pmic";
 		reg = <0x66>;
 
@@ -597,7 +597,7 @@
 	pinctrl-0 = <&i2c7_bus>;
 	pinctrl-names = "default";
 
-	ak8975@c {
+	magnetometer@c {
 		compatible = "asahi-kasei,ak8975";
 		reg = <0x0c>;
 

@@ -263,7 +263,7 @@
 	pinctrl-names = "default";
 	status = "okay";
 
-	mms114-touchscreen@48 {
+	touchscreen@48 {
 		compatible = "melfas,mms114";
 		reg = <0x48>;
 		interrupt-parent = <&gpx0>;
@@ -283,7 +283,7 @@
 	pinctrl-names = "default";
 	status = "okay";
 
-	max8997_pmic@66 {
+	pmic@66 {
 		compatible = "maxim,max8997-pmic";
 
 		reg = <0x66>;
