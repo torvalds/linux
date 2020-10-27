@@ -799,6 +799,11 @@ save:
 	return 0;
 }
 
+bool br_cfm_created(struct net_bridge *br)
+{
+	return !hlist_empty(&br->mep_list);
+}
+
 /* Deletes the CFM instances on a specific bridge port
  */
 void br_cfm_port_del(struct net_bridge *br, struct net_bridge_port *port)
