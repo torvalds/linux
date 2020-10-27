@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
-ALL_TESTS="reportleave_test"
+ALL_TESTS="v2reportleave_test"
 NUM_NETIFS=4
 CHECK_TC="yes"
 TEST_GROUP="239.10.10.10"
@@ -110,7 +110,7 @@ mcast_packet_test()
 	return $seen
 }
 
-reportleave_test()
+v2reportleave_test()
 {
 	RET=0
 	ip address add dev $h2 $TEST_GROUP/32 autojoin
@@ -118,12 +118,12 @@ reportleave_test()
 
 	sleep 5
 	bridge mdb show dev br0 | grep $TEST_GROUP 1>/dev/null
-	check_err $? "Report didn't create mdb entry for $TEST_GROUP"
+	check_err $? "IGMPv2 report didn't create mdb entry for $TEST_GROUP"
 
 	mcast_packet_test $TEST_GROUP_MAC $TEST_GROUP $h1 $h2
 	check_fail $? "Traffic to $TEST_GROUP wasn't forwarded"
 
-	log_test "IGMP report $TEST_GROUP"
+	log_test "IGMPv2 report $TEST_GROUP"
 
 	RET=0
 	bridge mdb show dev br0 | grep $TEST_GROUP 1>/dev/null
@@ -139,7 +139,7 @@ reportleave_test()
 	mcast_packet_test $TEST_GROUP_MAC $TEST_GROUP $h1 $h2
 	check_err $? "Traffic to $TEST_GROUP was forwarded without mdb entry"
 
-	log_test "IGMP leave $TEST_GROUP"
+	log_test "IGMPv2 leave $TEST_GROUP"
 }
 
 trap cleanup EXIT
