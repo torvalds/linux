@@ -94,7 +94,7 @@
 		#size-cells = <0>;
 		status = "okay";
 
-		max98504: max98504@31 {
+		max98504: amplifier@31 {
 			compatible = "maxim,max98504";
 			reg = <0x31>;
 			maxim,rx-path = <1>;
@@ -386,7 +386,7 @@
 	status = "okay";
 	clock-frequency = <2500000>;
 
-	s2mps13-pmic@66 {
+	pmic@66 {
 		compatible = "samsung,s2mps13-pmic";
 		interrupt-parent = <&gpa0>;
 		interrupts = <7 IRQ_TYPE_NONE>;
@@ -817,7 +817,7 @@
 	status = "okay";
 	clock-frequency = <1000000>;
 
-	sii8620@39 {
+	bridge@39 {
 		reg = <0x39>;
 		compatible = "sil,sii8620";
 		cvcc10-supply = <&ldo36_reg>;
@@ -852,7 +852,7 @@
 &hsi2c_8 {
 	status = "okay";
 
-	max77843@66 {
+	pmic@66 {
 		compatible = "maxim,max77843";
 		interrupt-parent = <&gpa1>;
 		interrupts = <5 IRQ_TYPE_EDGE_FALLING>;
@@ -1231,7 +1231,7 @@
 	cs-gpios = <&gpd6 3 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
-	wm5110: wm5110-codec@0 {
+	wm5110: audio-codec@0 {
 		compatible = "wlf,wm5110";
 		reg = <0x0>;
 		spi-max-frequency = <20000000>;
