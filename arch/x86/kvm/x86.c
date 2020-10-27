@@ -1967,7 +1967,7 @@ static void kvm_write_system_time(struct kvm_vcpu *vcpu, gpa_t system_time,
 	struct kvm_arch *ka = &vcpu->kvm->arch;
 
 	if (vcpu->vcpu_id == 0 && !host_initiated) {
-		if (ka->boot_vcpu_runs_old_kvmclock && old_msr)
+		if (ka->boot_vcpu_runs_old_kvmclock != old_msr)
 			kvm_make_request(KVM_REQ_MASTERCLOCK_UPDATE, vcpu);
 
 		ka->boot_vcpu_runs_old_kvmclock = old_msr;
