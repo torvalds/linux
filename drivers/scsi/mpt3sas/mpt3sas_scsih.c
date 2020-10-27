@@ -5817,6 +5817,342 @@ _scsih_io_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
 }
 
 /**
+ * _scsih_get_port_table_after_reset - Construct temporary port table
+ * @ioc: per adapter object
+ * @port_table: address where port table needs to be constructed
+ *
+ * return number of HBA port entries available after reset.
+ */
+static int
+_scsih_get_port_table_after_reset(struct MPT3SAS_ADAPTER *ioc,
+	struct hba_port *port_table)
+{
+	u16 sz, ioc_status;
+	int i, j;
+	Mpi2ConfigReply_t mpi_reply;
+	Mpi2SasIOUnitPage0_t *sas_iounit_pg0 = NULL;
+	u16 attached_handle;
+	u64 attached_sas_addr;
+	u8 found = 0, port_count = 0, port_id;
+
+	sz = offsetof(Mpi2SasIOUnitPage0_t, PhyData) + (ioc->sas_hba.num_phys
+	    * sizeof(Mpi2SasIOUnit0PhyData_t));
+	sas_iounit_pg0 = kzalloc(sz, GFP_KERNEL);
+	if (!sas_iounit_pg0) {
+		ioc_err(ioc, "failure at %s:%d/%s()!\n",
+		    __FILE__, __LINE__, __func__);
+		return port_count;
+	}
+
+	if ((mpt3sas_config_get_sas_iounit_pg0(ioc, &mpi_reply,
+	    sas_iounit_pg0, sz)) != 0)
+		goto out;
+	ioc_status = le16_to_cpu(mpi_reply.IOCStatus) & MPI2_IOCSTATUS_MASK;
+	if (ioc_status != MPI2_IOCSTATUS_SUCCESS)
+		goto out;
+	for (i = 0; i < ioc->sas_hba.num_phys; i++) {
+		found = 0;
+		if ((sas_iounit_pg0->PhyData[i].NegotiatedLinkRate >> 4) <
+		    MPI2_SAS_NEG_LINK_RATE_1_5)
+			continue;
+		attached_handle =
+		    le16_to_cpu(sas_iounit_pg0->PhyData[i].AttachedDevHandle);
+		if (_scsih_get_sas_address(
+		    ioc, attached_handle, &attached_sas_addr) != 0) {
+			ioc_err(ioc, "failure at %s:%d/%s()!\n",
+			    __FILE__, __LINE__, __func__);
+			continue;
+		}
+
+		for (j = 0; j < port_count; j++) {
+			port_id = sas_iounit_pg0->PhyData[i].Port;
+			if (port_table[j].port_id == port_id &&
+			    port_table[j].sas_address == attached_sas_addr) {
+				port_table[j].phy_mask |= (1 << i);
+				found = 1;
+				break;
+			}
+		}
+
+		if (found)
+			continue;
+
+		port_id = sas_iounit_pg0->PhyData[i].Port;
+		port_table[port_count].port_id = port_id;
+		port_table[port_count].phy_mask = (1 << i);
+		port_table[port_count].sas_address = attached_sas_addr;
+		port_count++;
+	}
+out:
+	kfree(sas_iounit_pg0);
+	return port_count;
+}
+
+enum hba_port_matched_codes {
+	NOT_MATCHED = 0,
+	MATCHED_WITH_ADDR_AND_PHYMASK,
+	MATCHED_WITH_ADDR_SUBPHYMASK_AND_PORT,
+	MATCHED_WITH_ADDR_AND_SUBPHYMASK,
+	MATCHED_WITH_ADDR,
+};
+
+/**
+ * _scsih_look_and_get_matched_port_entry - Get matched hba port entry
+ *					from HBA port table
+ * @ioc: per adapter object
+ * @port_entry - hba port entry from temporary port table which needs to be
+ *		searched for matched entry in the HBA port table
+ * @matched_port_entry - save matched hba port entry here
+ * @count - count of matched entries
+ *
+ * return type of matched entry found.
+ */
+static enum hba_port_matched_codes
+_scsih_look_and_get_matched_port_entry(struct MPT3SAS_ADAPTER *ioc,
+	struct hba_port *port_entry,
+	struct hba_port **matched_port_entry, int *count)
+{
+	struct hba_port *port_table_entry, *matched_port = NULL;
+	enum hba_port_matched_codes matched_code = NOT_MATCHED;
+	int lcount = 0;
+	*matched_port_entry = NULL;
+
+	list_for_each_entry(port_table_entry, &ioc->port_table_list, list) {
+		if (!(port_table_entry->flags & HBA_PORT_FLAG_DIRTY_PORT))
+			continue;
+
+		if ((port_table_entry->sas_address == port_entry->sas_address)
+		    && (port_table_entry->phy_mask == port_entry->phy_mask)) {
+			matched_code = MATCHED_WITH_ADDR_AND_PHYMASK;
+			matched_port = port_table_entry;
+			break;
+		}
+
+		if ((port_table_entry->sas_address == port_entry->sas_address)
+		    && (port_table_entry->phy_mask & port_entry->phy_mask)
+		    && (port_table_entry->port_id == port_entry->port_id)) {
+			matched_code = MATCHED_WITH_ADDR_SUBPHYMASK_AND_PORT;
+			matched_port = port_table_entry;
+			continue;
+		}
+
+		if ((port_table_entry->sas_address == port_entry->sas_address)
+		    && (port_table_entry->phy_mask & port_entry->phy_mask)) {
+			if (matched_code ==
+			    MATCHED_WITH_ADDR_SUBPHYMASK_AND_PORT)
+				continue;
+			matched_code = MATCHED_WITH_ADDR_AND_SUBPHYMASK;
+			matched_port = port_table_entry;
+			continue;
+		}
+
+		if (port_table_entry->sas_address == port_entry->sas_address) {
+			if (matched_code ==
+			    MATCHED_WITH_ADDR_SUBPHYMASK_AND_PORT)
+				continue;
+			if (matched_code == MATCHED_WITH_ADDR_AND_SUBPHYMASK)
+				continue;
+			matched_code = MATCHED_WITH_ADDR;
+			matched_port = port_table_entry;
+			lcount++;
+		}
+	}
+
+	*matched_port_entry = matched_port;
+	if (matched_code ==  MATCHED_WITH_ADDR)
+		*count = lcount;
+	return matched_code;
+}
+
+/**
+ * _scsih_del_phy_part_of_anther_port - remove phy if it
+ *				is a part of anther port
+ *@ioc: per adapter object
+ *@port_table: port table after reset
+ *@index: hba port entry index
+ *@port_count: number of ports available after host reset
+ *@offset: HBA phy bit offset
+ *
+ */
+static void
+_scsih_del_phy_part_of_anther_port(struct MPT3SAS_ADAPTER *ioc,
+	struct hba_port *port_table,
+	int index, u8 port_count, int offset)
+{
+	struct _sas_node *sas_node = &ioc->sas_hba;
+	u32 i, found = 0;
+
+	for (i = 0; i < port_count; i++) {
+		if (i == index)
+			continue;
+
+		if (port_table[i].phy_mask & (1 << offset)) {
+			mpt3sas_transport_del_phy_from_an_existing_port(
+			    ioc, sas_node, &sas_node->phy[offset]);
+			found = 1;
+			break;
+		}
+	}
+	if (!found)
+		port_table[index].phy_mask |= (1 << offset);
+}
+
+/**
+ * _scsih_add_or_del_phys_from_existing_port - add/remove phy to/from
+ *						right port
+ *@ioc: per adapter object
+ *@hba_port_entry: hba port table entry
+ *@port_table: temporary port table
+ *@index: hba port entry index
+ *@port_count: number of ports available after host reset
+ *
+ */
+static void
+_scsih_add_or_del_phys_from_existing_port(struct MPT3SAS_ADAPTER *ioc,
+	struct hba_port *hba_port_entry, struct hba_port *port_table,
+	int index, int port_count)
+{
+	u32 phy_mask, offset = 0;
+	struct _sas_node *sas_node = &ioc->sas_hba;
+
+	phy_mask = hba_port_entry->phy_mask ^ port_table[index].phy_mask;
+
+	for (offset = 0; offset < ioc->sas_hba.num_phys; offset++) {
+		if (phy_mask & (1 << offset)) {
+			if (!(port_table[index].phy_mask & (1 << offset))) {
+				_scsih_del_phy_part_of_anther_port(
+				    ioc, port_table, index, port_count,
+				    offset);
+				continue;
+			}
+			if (sas_node->phy[offset].phy_belongs_to_port)
+				mpt3sas_transport_del_phy_from_an_existing_port(
+				    ioc, sas_node, &sas_node->phy[offset]);
+			mpt3sas_transport_add_phy_to_an_existing_port(
+			    ioc, sas_node, &sas_node->phy[offset],
+			    hba_port_entry->sas_address,
+			    hba_port_entry);
+		}
+	}
+}
+
+/**
+ * _scsih_del_dirty_port_entries - delete dirty port entries from port list
+ *					after host reset
+ *@ioc: per adapter object
+ *
+ */
+static void
+_scsih_del_dirty_port_entries(struct MPT3SAS_ADAPTER *ioc)
+{
+	struct hba_port *port, *port_next;
+
+	list_for_each_entry_safe(port, port_next,
+	    &ioc->port_table_list, list) {
+		if (!(port->flags & HBA_PORT_FLAG_DIRTY_PORT) ||
+		    port->flags & HBA_PORT_FLAG_NEW_PORT)
+			continue;
+
+		drsprintk(ioc, ioc_info(ioc,
+		    "Deleting port table entry %p having Port: %d\t Phy_mask 0x%08x\n",
+		    port, port->port_id, port->phy_mask));
+		list_del(&port->list);
+		kfree(port);
+	}
+}
+
+/**
+ * _scsih_sas_port_refresh - Update HBA port table after host reset
+ * @ioc: per adapter object
+ */
+static void
+_scsih_sas_port_refresh(struct MPT3SAS_ADAPTER *ioc)
+{
+	u32 port_count = 0;
+	struct hba_port *port_table;
+	struct hba_port *port_table_entry;
+	struct hba_port *port_entry = NULL;
+	int i, j, count = 0, lcount = 0;
+	int ret;
+	u64 sas_addr;
+
+	drsprintk(ioc, ioc_info(ioc,
+	    "updating ports for sas_host(0x%016llx)\n",
+	    (unsigned long long)ioc->sas_hba.sas_address));
+
+	port_table = kcalloc(ioc->sas_hba.num_phys,
+	    sizeof(struct hba_port), GFP_KERNEL);
+	if (!port_table)
+		return;
+
+	port_count = _scsih_get_port_table_after_reset(ioc, port_table);
+	if (!port_count)
+		return;
+
+	drsprintk(ioc, ioc_info(ioc, "New Port table\n"));
+	for (j = 0; j < port_count; j++)
+		drsprintk(ioc, ioc_info(ioc,
+		    "Port: %d\t Phy_mask 0x%08x\t sas_addr(0x%016llx)\n",
+		    port_table[j].port_id,
+		    port_table[j].phy_mask, port_table[j].sas_address));
+
+	list_for_each_entry(port_table_entry, &ioc->port_table_list, list)
+		port_table_entry->flags |= HBA_PORT_FLAG_DIRTY_PORT;
+
+	drsprintk(ioc, ioc_info(ioc, "Old Port table\n"));
+	port_table_entry = NULL;
+	list_for_each_entry(port_table_entry, &ioc->port_table_list, list) {
+		drsprintk(ioc, ioc_info(ioc,
+		    "Port: %d\t Phy_mask 0x%08x\t sas_addr(0x%016llx)\n",
+		    port_table_entry->port_id,
+		    port_table_entry->phy_mask,
+		    port_table_entry->sas_address));
+	}
+
+	for (j = 0; j < port_count; j++) {
+		ret = _scsih_look_and_get_matched_port_entry(ioc,
+		    &port_table[j], &port_entry, &count);
+		if (!port_entry) {
+			drsprintk(ioc, ioc_info(ioc,
+			    "No Matched entry for sas_addr(0x%16llx), Port:%d\n",
+			    port_table[j].sas_address,
+			    port_table[j].port_id));
+			continue;
+		}
+
+		switch (ret) {
+		case MATCHED_WITH_ADDR_SUBPHYMASK_AND_PORT:
+		case MATCHED_WITH_ADDR_AND_SUBPHYMASK:
+			_scsih_add_or_del_phys_from_existing_port(ioc,
+			    port_entry, port_table, j, port_count);
+			break;
+		case MATCHED_WITH_ADDR:
+			sas_addr = port_table[j].sas_address;
+			for (i = 0; i < port_count; i++) {
+				if (port_table[i].sas_address == sas_addr)
+					lcount++;
+			}
+
+			if (count > 1 || lcount > 1)
+				port_entry = NULL;
+			else
+				_scsih_add_or_del_phys_from_existing_port(ioc,
+				    port_entry, port_table, j, port_count);
+		}
+
+		if (!port_entry)
+			continue;
+
+		if (port_entry->port_id != port_table[j].port_id)
+			port_entry->port_id = port_table[j].port_id;
+		port_entry->flags &= ~HBA_PORT_FLAG_DIRTY_PORT;
+		port_entry->phy_mask = port_table[j].phy_mask;
+	}
+
+	port_table_entry = NULL;
+}
+
+/**
  * _scsih_sas_host_refresh - refreshing sas host object contents
  * @ioc: per adapter object
  * Context: user
@@ -9790,6 +10126,7 @@ mpt3sas_scsih_reset_done_handler(struct MPT3SAS_ADAPTER *ioc)
 	dtmprintk(ioc, ioc_info(ioc, "%s: MPT3_IOC_DONE_RESET\n", __func__));
 	if ((!ioc->is_driver_loading) && !(disable_discovery > 0 &&
 					   !ioc->sas_hba.num_phys)) {
+		_scsih_sas_port_refresh(ioc);
 		_scsih_prep_device_scan(ioc);
 		_scsih_create_enclosure_list_after_reset(ioc);
 		_scsih_search_responding_sas_devices(ioc);
@@ -9837,6 +10174,7 @@ _mpt3sas_fw_work(struct MPT3SAS_ADAPTER *ioc, struct fw_event_work *fw_event)
 			ssleep(1);
 		}
 		_scsih_remove_unresponding_devices(ioc);
+		_scsih_del_dirty_port_entries(ioc);
 		_scsih_scan_for_devices_after_reset(ioc);
 		_scsih_set_nvme_max_shutdown_latency(ioc);
 		break;
