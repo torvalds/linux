@@ -58,7 +58,6 @@
 		i2c-gpio,delay-us = <2>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		status = "okay";
 
 		magnetometer@c {
 			compatible = "asahi-kasei,ak8975";
