@@ -906,17 +906,6 @@ static int rtw_wx_get_range(struct net_device *dev,
 /*  If the driver doesn't provide this capability to network manager, */
 /*  the WPA/WPA2 routers can't be chosen in the network manager. */
 
-/*
-#define IW_SCAN_CAPA_NONE		0x00
-#define IW_SCAN_CAPA_ESSID		0x01
-#define IW_SCAN_CAPA_BSSID		0x02
-#define IW_SCAN_CAPA_CHANNEL		0x04
-#define IW_SCAN_CAPA_MODE		0x08
-#define IW_SCAN_CAPA_RATE		0x10
-#define IW_SCAN_CAPA_TYPE		0x20
-#define IW_SCAN_CAPA_TIME		0x40
-*/
-
 	range->enc_capa = IW_ENC_CAPA_WPA | IW_ENC_CAPA_WPA2 |
 			  IW_ENC_CAPA_CIPHER_TKIP | IW_ENC_CAPA_CIPHER_CCMP;
 
