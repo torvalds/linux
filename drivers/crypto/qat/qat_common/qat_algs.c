@@ -105,7 +105,7 @@ static int qat_get_inter_state_size(enum icp_qat_hw_auth_algo qat_hash_alg)
 		return ICP_QAT_HW_SHA512_STATE1_SZ;
 	default:
 		return -EFAULT;
-	};
+	}
 	return -EFAULT;
 }
 
