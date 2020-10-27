@@ -1560,9 +1560,7 @@ int xfrm_trans_queue(struct sk_buff *skb,
 int xfrm_output_resume(struct sk_buff *skb, int err);
 int xfrm_output(struct sock *sk, struct sk_buff *skb);
 
-#if IS_ENABLED(CONFIG_NET_PKTGEN)
 int pktgen_xfrm_outer_mode_output(struct xfrm_state *x, struct sk_buff *skb);
-#endif
 
 void xfrm_local_error(struct sk_buff *skb, int mtu);
 int xfrm4_extract_input(struct xfrm_state *x, struct sk_buff *skb);

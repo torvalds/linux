@@ -402,13 +402,11 @@ static int xfrm_outer_mode_output(struct xfrm_state *x, struct sk_buff *skb)
 	return -EOPNOTSUPP;
 }
 
-#if IS_ENABLED(CONFIG_NET_PKTGEN)
 int pktgen_xfrm_outer_mode_output(struct xfrm_state *x, struct sk_buff *skb)
 {
 	return xfrm_outer_mode_output(x, skb);
 }
 EXPORT_SYMBOL_GPL(pktgen_xfrm_outer_mode_output);
-#endif
 
 static int xfrm_output_one(struct sk_buff *skb, int err)
 {
