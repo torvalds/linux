@@ -112,7 +112,7 @@ static void pf2vf_resp_handler(struct work_struct *work)
 	case MBX_MSG_TYPE_ACK:
 	case MBX_MSG_TYPE_NACK:
 		break;
-	};
+	}
 
 	kfree(pf2vf_resp);
 }
