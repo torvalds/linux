@@ -788,6 +788,7 @@ struct _sas_phy {
  * @phy: a list of phys that make up this sas_host/expander
  * @sas_port_list: list of ports attached to this sas_host/expander
  * @port: hba port entry containing node's port number info
+ * @rphy: sas_rphy object of this expander
  */
 struct _sas_node {
 	struct list_head list;
@@ -802,6 +803,7 @@ struct _sas_node {
 	struct hba_port *port;
 	struct	_sas_phy *phy;
 	struct list_head sas_port_list;
+	struct sas_rphy *rphy;
 };
 
 /**

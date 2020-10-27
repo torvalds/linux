@@ -6510,6 +6510,7 @@ _scsih_expander_add(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 		goto out_fail;
 	}
 	sas_expander->parent_dev = &mpt3sas_port->rphy->dev;
+	sas_expander->rphy = mpt3sas_port->rphy;
 
 	for (i = 0 ; i < sas_expander->num_phys ; i++) {
 		if ((mpt3sas_config_get_expander_pg1(ioc, &mpi_reply,

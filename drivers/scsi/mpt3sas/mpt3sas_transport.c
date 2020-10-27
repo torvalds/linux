@@ -61,6 +61,24 @@
 #include "mpt3sas_base.h"
 
 /**
+ * _transport_get_port_id_by_sas_phy - get zone's port id that Phy belong to
+ * @phy - sas_phy object
+ *
+ * Return Port number
+ */
+static inline u8
+_transport_get_port_id_by_sas_phy(struct sas_phy *phy)
+{
+	u8 port_id = 0xFF;
+	struct hba_port *port = phy->hostdata;
+
+	if (port)
+		port_id = port->port_id;
+
+	return port_id;
+}
+
+/**
  * _transport_sas_node_find_by_sas_address - sas node search
  * @ioc: per adapter object
  * @sas_address: sas address of expander or sas host
@@ -79,6 +97,49 @@ _transport_sas_node_find_by_sas_address(struct MPT3SAS_ADAPTER *ioc,
 	else
 		return mpt3sas_scsih_expander_find_by_sas_address(ioc,
 		    sas_address, port);
+}
+
+/**
+ * _transport_get_port_id_by_rphy - Get Port number from rphy object
+ * @ioc: per adapter object
+ * @rphy: sas_rphy object
+ *
+ * Returns Port number.
+ */
+static u8
+_transport_get_port_id_by_rphy(struct MPT3SAS_ADAPTER *ioc,
+	struct sas_rphy *rphy)
+{
+	struct _sas_node *sas_expander;
+	struct _sas_device *sas_device;
+	unsigned long flags;
+	u8 port_id = 0xFF;
+
+	if (!rphy)
+		return port_id;
+
+	if (rphy->identify.device_type == SAS_EDGE_EXPANDER_DEVICE ||
+	    rphy->identify.device_type == SAS_FANOUT_EXPANDER_DEVICE) {
+		spin_lock_irqsave(&ioc->sas_node_lock, flags);
+		list_for_each_entry(sas_expander,
+		    &ioc->sas_expander_list, list) {
+			if (sas_expander->rphy == rphy) {
+				port_id = sas_expander->port->port_id;
+				break;
+			}
+		}
+		spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
+	} else if (rphy->identify.device_type == SAS_END_DEVICE) {
+		spin_lock_irqsave(&ioc->sas_device_lock, flags);
+		sas_device = __mpt3sas_get_sdev_by_rphy(ioc, rphy);
+		if (sas_device) {
+			port_id = sas_device->port->port_id;
+			sas_device_put(sas_device);
+		}
+		spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
+	}
+
+	return port_id;
 }
 
 /**
@@ -289,7 +350,7 @@ struct rep_manu_reply {
  */
 static int
 _transport_expander_report_manufacture(struct MPT3SAS_ADAPTER *ioc,
-	u64 sas_address, struct sas_expander_device *edev)
+	u64 sas_address, struct sas_expander_device *edev, u8 port_id)
 {
 	Mpi2SmpPassthroughRequest_t *mpi_request;
 	Mpi2SmpPassthroughReply_t *mpi_reply;
@@ -356,7 +417,7 @@ _transport_expander_report_manufacture(struct MPT3SAS_ADAPTER *ioc,
 
 	memset(mpi_request, 0, sizeof(Mpi2SmpPassthroughRequest_t));
 	mpi_request->Function = MPI2_FUNCTION_SMP_PASSTHROUGH;
-	mpi_request->PhysicalPort = 0xFF;
+	mpi_request->PhysicalPort = port_id;
 	mpi_request->SASAddress = cpu_to_le64(sas_address);
 	mpi_request->RequestDataLength = cpu_to_le16(data_out_sz);
 	psge = &mpi_request->SGL;
@@ -772,7 +833,7 @@ mpt3sas_transport_port_add(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 	    MPI2_SAS_DEVICE_INFO_FANOUT_EXPANDER)
 		_transport_expander_report_manufacture(ioc,
 		    mpt3sas_port->remote_identify.sas_address,
-		    rphy_to_expander_device(rphy));
+		    rphy_to_expander_device(rphy), hba_port->port_id);
 	return mpt3sas_port;
 
  out_fail:
@@ -923,6 +984,7 @@ mpt3sas_transport_add_host_phy(struct MPT3SAS_ADAPTER *ioc, struct _sas_phy
 	    phy_pg0.ProgrammedLinkRate & MPI2_SAS_PRATE_MIN_RATE_MASK);
 	phy->maximum_linkrate = _transport_convert_phy_link_rate(
 	    phy_pg0.ProgrammedLinkRate >> 4);
+	phy->hostdata = mpt3sas_phy->port;
 
 	if ((sas_phy_add(phy))) {
 		ioc_err(ioc, "failure at %s:%d/%s()!\n",
@@ -993,6 +1055,7 @@ mpt3sas_transport_add_expander_phy(struct MPT3SAS_ADAPTER *ioc, struct _sas_phy
 	    expander_pg1.ProgrammedLinkRate & MPI2_SAS_PRATE_MIN_RATE_MASK);
 	phy->maximum_linkrate = _transport_convert_phy_link_rate(
 	    expander_pg1.ProgrammedLinkRate >> 4);
+	phy->hostdata = mpt3sas_phy->port;
 
 	if ((sas_phy_add(phy))) {
 		ioc_err(ioc, "failure at %s:%d/%s()!\n",
@@ -1197,7 +1260,7 @@ _transport_get_expander_phy_error_log(struct MPT3SAS_ADAPTER *ioc,
 
 	memset(mpi_request, 0, sizeof(Mpi2SmpPassthroughRequest_t));
 	mpi_request->Function = MPI2_FUNCTION_SMP_PASSTHROUGH;
-	mpi_request->PhysicalPort = 0xFF;
+	mpi_request->PhysicalPort = _transport_get_port_id_by_sas_phy(phy);
 	mpi_request->VF_ID = 0; /* TODO */
 	mpi_request->VP_ID = 0;
 	mpi_request->SASAddress = cpu_to_le64(phy->identify.sas_address);
@@ -1493,7 +1556,7 @@ _transport_expander_phy_control(struct MPT3SAS_ADAPTER *ioc,
 
 	memset(mpi_request, 0, sizeof(Mpi2SmpPassthroughRequest_t));
 	mpi_request->Function = MPI2_FUNCTION_SMP_PASSTHROUGH;
-	mpi_request->PhysicalPort = 0xFF;
+	mpi_request->PhysicalPort = _transport_get_port_id_by_sas_phy(phy);
 	mpi_request->VF_ID = 0; /* TODO */
 	mpi_request->VP_ID = 0;
 	mpi_request->SASAddress = cpu_to_le64(phy->identify.sas_address);
@@ -1983,7 +2046,7 @@ _transport_smp_handler(struct bsg_job *job, struct Scsi_Host *shost,
 
 	memset(mpi_request, 0, sizeof(Mpi2SmpPassthroughRequest_t));
 	mpi_request->Function = MPI2_FUNCTION_SMP_PASSTHROUGH;
-	mpi_request->PhysicalPort = 0xFF;
+	mpi_request->PhysicalPort = _transport_get_port_id_by_rphy(ioc, rphy);
 	mpi_request->SASAddress = (rphy) ?
 	    cpu_to_le64(rphy->identify.sas_address) :
 	    cpu_to_le64(ioc->sas_hba.sas_address);
