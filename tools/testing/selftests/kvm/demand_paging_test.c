@@ -266,6 +266,8 @@ static void run_test(enum vm_guest_mode mode, bool use_uffd,
 
 	vm = create_vm(mode, vcpus, vcpu_memory_bytes);
 
+	perf_test_args.wr_fract = 1;
+
 	guest_data_prototype = malloc(perf_test_args.host_page_size);
 	TEST_ASSERT(guest_data_prototype,
 		    "Failed to allocate buffer for guest data pattern");

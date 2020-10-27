@@ -46,6 +46,7 @@ struct perf_test_args {
 	struct kvm_vm *vm;
 	uint64_t host_page_size;
 	uint64_t guest_page_size;
+	int wr_fract;
 
 	struct vcpu_args vcpu_args[MAX_VCPUS];
 };
@@ -72,7 +73,10 @@ static void guest_code(uint32_t vcpu_id)
 	for (i = 0; i < pages; i++) {
 		uint64_t addr = gva + (i * perf_test_args.guest_page_size);
 
-		*(uint64_t *)addr = 0x0123456789ABCDEF;
+		if (i % perf_test_args.wr_fract == 0)
+			*(uint64_t *)addr = 0x0123456789ABCDEF;
+		else
+			READ_ONCE(*(uint64_t *)addr);
 	}
 
 	GUEST_SYNC(1);
