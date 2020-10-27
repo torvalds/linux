@@ -4487,7 +4487,7 @@
 			};
 		};
 
-		slimbam: dma@17184000 {
+		slimbam: dma-controller@17184000 {
 			compatible = "qcom,bam-v1.7.0";
 			qcom,controlled-remotely;
 			reg = <0 0x17184000 0 0x2a000>;
