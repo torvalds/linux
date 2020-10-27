@@ -1792,16 +1792,17 @@ extern struct scsi_transport_template *mpt3sas_transport_template;
 u8 mpt3sas_transport_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 	u32 reply);
 struct _sas_port *mpt3sas_transport_port_add(struct MPT3SAS_ADAPTER *ioc,
-	u16 handle, u64 sas_address);
+	u16 handle, u64 sas_address, struct hba_port *port);
 void mpt3sas_transport_port_remove(struct MPT3SAS_ADAPTER *ioc, u64 sas_address,
-	u64 sas_address_parent);
+	u64 sas_address_parent, struct hba_port *port);
 int mpt3sas_transport_add_host_phy(struct MPT3SAS_ADAPTER *ioc, struct _sas_phy
 	*mpt3sas_phy, Mpi2SasPhyPage0_t phy_pg0, struct device *parent_dev);
 int mpt3sas_transport_add_expander_phy(struct MPT3SAS_ADAPTER *ioc,
 	struct _sas_phy *mpt3sas_phy, Mpi2ExpanderPage1_t expander_pg1,
 	struct device *parent_dev);
 void mpt3sas_transport_update_links(struct MPT3SAS_ADAPTER *ioc,
-	u64 sas_address, u16 handle, u8 phy_number, u8 link_rate);
+	u64 sas_address, u16 handle, u8 phy_number, u8 link_rate,
+	struct hba_port *port);
 extern struct sas_function_template mpt3sas_transport_functions;
 extern struct scsi_transport_template *mpt3sas_transport_template;
 /* trigger data externs */

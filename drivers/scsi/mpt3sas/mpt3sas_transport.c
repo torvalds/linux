@@ -594,6 +594,7 @@ _transport_sanity_check(struct MPT3SAS_ADAPTER *ioc, struct _sas_node *sas_node,
  * @ioc: per adapter object
  * @handle: handle of attached device
  * @sas_address: sas address of parent expander or sas host
+ * @port: hba port entry
  * Context: This function will acquire ioc->sas_node_lock.
  *
  * Adding new port object to the sas_node->sas_port_list.
@@ -602,7 +603,7 @@ _transport_sanity_check(struct MPT3SAS_ADAPTER *ioc, struct _sas_node *sas_node,
  */
 struct _sas_port *
 mpt3sas_transport_port_add(struct MPT3SAS_ADAPTER *ioc, u16 handle,
-	u64 sas_address)
+	u64 sas_address, struct hba_port *hba_port)
 {
 	struct _sas_phy *mpt3sas_phy, *next;
 	struct _sas_port *mpt3sas_port;
@@ -612,6 +613,12 @@ mpt3sas_transport_port_add(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 	struct _sas_device *sas_device = NULL;
 	int i;
 	struct sas_port *port;
+
+	if (!hba_port) {
+		ioc_err(ioc, "failure at %s:%d/%s()!\n",
+		    __FILE__, __LINE__, __func__);
+		return NULL;
+	}
 
 	mpt3sas_port = kzalloc(sizeof(struct _sas_port),
 	    GFP_KERNEL);
@@ -646,6 +653,7 @@ mpt3sas_transport_port_add(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 		goto out_fail;
 	}
 
+	mpt3sas_port->hba_port = hba_port;
 	_transport_sanity_check(ioc, sas_node,
 	    mpt3sas_port->remote_identify.sas_address);
 
@@ -653,8 +661,12 @@ mpt3sas_transport_port_add(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 		if (sas_node->phy[i].remote_identify.sas_address !=
 		    mpt3sas_port->remote_identify.sas_address)
 			continue;
+		if (sas_node->phy[i].port != hba_port)
+			continue;
 		list_add_tail(&sas_node->phy[i].port_siblings,
 		    &mpt3sas_port->phy_list);
+		if (sas_node->handle <= ioc->sas_hba.num_phys)
+			hba_port->phy_mask |= (1 << i);
 		mpt3sas_port->num_phys++;
 	}
 
@@ -686,14 +698,21 @@ mpt3sas_transport_port_add(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 			    mpt3sas_phy->phy_id);
 		sas_port_add_phy(port, mpt3sas_phy->phy);
 		mpt3sas_phy->phy_belongs_to_port = 1;
+		mpt3sas_phy->port = hba_port;
 	}
 
 	mpt3sas_port->port = port;
-	if (mpt3sas_port->remote_identify.device_type == SAS_END_DEVICE)
+	if (mpt3sas_port->remote_identify.device_type == SAS_END_DEVICE) {
 		rphy = sas_end_device_alloc(port);
-	else
+		if (sas_node->handle <= ioc->sas_hba.num_phys)
+			hba_port->sas_address = sas_device->sas_address;
+	} else {
 		rphy = sas_expander_alloc(port,
 		    mpt3sas_port->remote_identify.device_type);
+		if (sas_node->handle <= ioc->sas_hba.num_phys)
+			hba_port->sas_address =
+			    mpt3sas_port->remote_identify.sas_address;
+	}
 
 	rphy->identify = mpt3sas_port->remote_identify;
 
@@ -751,6 +770,7 @@ mpt3sas_transport_port_add(struct MPT3SAS_ADAPTER *ioc, u16 handle,
  * @ioc: per adapter object
  * @sas_address: sas address of attached device
  * @sas_address_parent: sas address of parent expander or sas host
+ * @port: hba port entry
  * Context: This function will acquire ioc->sas_node_lock.
  *
  * Removing object and freeing associated memory from the
@@ -758,7 +778,7 @@ mpt3sas_transport_port_add(struct MPT3SAS_ADAPTER *ioc, u16 handle,
  */
 void
 mpt3sas_transport_port_remove(struct MPT3SAS_ADAPTER *ioc, u64 sas_address,
-	u64 sas_address_parent)
+	u64 sas_address_parent, struct hba_port *port)
 {
 	int i;
 	unsigned long flags;
@@ -766,6 +786,10 @@ mpt3sas_transport_port_remove(struct MPT3SAS_ADAPTER *ioc, u64 sas_address,
 	struct _sas_node *sas_node;
 	u8 found = 0;
 	struct _sas_phy *mpt3sas_phy, *next_phy;
+	struct hba_port *hba_port_next, *hba_port = NULL;
+
+	if (!port)
+		return;
 
 	spin_lock_irqsave(&ioc->sas_node_lock, flags);
 	sas_node = _transport_sas_node_find_by_sas_address(ioc,
@@ -778,6 +802,8 @@ mpt3sas_transport_port_remove(struct MPT3SAS_ADAPTER *ioc, u64 sas_address,
 	    port_list) {
 		if (mpt3sas_port->remote_identify.sas_address != sas_address)
 			continue;
+		if (mpt3sas_port->hba_port != port)
+			continue;
 		found = 1;
 		list_del(&mpt3sas_port->port_list);
 		goto out;
@@ -786,6 +812,21 @@ mpt3sas_transport_port_remove(struct MPT3SAS_ADAPTER *ioc, u64 sas_address,
 	if (!found) {
 		spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
 		return;
+	}
+
+	if (sas_node->handle <= ioc->sas_hba.num_phys) {
+		list_for_each_entry_safe(hba_port, hba_port_next,
+		    &ioc->port_table_list, list) {
+			if (hba_port != port)
+				continue;
+			if (hba_port->sas_address != sas_address)
+				continue;
+			ioc_info(ioc,
+			    "remove hba_port entry: %p port: %d from hba_port list\n",
+			    hba_port, hba_port->port_id);
+			list_del(&hba_port->list);
+			kfree(hba_port);
+		}
 	}
 
 	for (i = 0; i < sas_node->num_phys; i++) {
@@ -961,14 +1002,19 @@ mpt3sas_transport_add_expander_phy(struct MPT3SAS_ADAPTER *ioc, struct _sas_phy
  * @handle: attached device handle
  * @phy_number: phy number
  * @link_rate: new link rate
+ * @port: hba port entry
+ *
+ * Return nothing.
  */
 void
 mpt3sas_transport_update_links(struct MPT3SAS_ADAPTER *ioc,
-	u64 sas_address, u16 handle, u8 phy_number, u8 link_rate)
+	u64 sas_address, u16 handle, u8 phy_number, u8 link_rate,
+	struct hba_port *port)
 {
 	unsigned long flags;
 	struct _sas_node *sas_node;
 	struct _sas_phy *mpt3sas_phy;
+	struct hba_port *hba_port = NULL;
 
 	if (ioc->shost_recovery || ioc->pci_error_recovery)
 		return;
@@ -988,6 +1034,15 @@ mpt3sas_transport_update_links(struct MPT3SAS_ADAPTER *ioc,
 		    &mpt3sas_phy->remote_identify);
 		_transport_add_phy_to_an_existing_port(ioc, sas_node,
 		    mpt3sas_phy, mpt3sas_phy->remote_identify.sas_address);
+		if (sas_node->handle <= ioc->sas_hba.num_phys) {
+			list_for_each_entry(hba_port,
+			    &ioc->port_table_list, list) {
+				if (hba_port->sas_address == sas_address &&
+				    hba_port == port)
+					hba_port->phy_mask |=
+					    (1 << mpt3sas_phy->phy_id);
+			}
+		}
 	} else
 		memset(&mpt3sas_phy->remote_identify, 0 , sizeof(struct
 		    sas_identify));
