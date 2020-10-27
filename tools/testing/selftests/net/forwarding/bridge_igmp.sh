@@ -4,7 +4,7 @@
 ALL_TESTS="v2reportleave_test v3include_test v3inc_allow_test v3inc_is_include_test \
 	   v3inc_is_exclude_test v3inc_to_exclude_test v3exc_allow_test v3exc_is_include_test \
 	   v3exc_is_exclude_test v3exc_to_exclude_test v3inc_block_test v3exc_block_test \
-	   v3exc_timeout_test"
+	   v3exc_timeout_test v3star_ex_auto_add_test"
 NUM_NETIFS=4
 CHECK_TC="yes"
 TEST_GROUP="239.10.10.10"
@@ -619,6 +619,35 @@ v3exc_timeout_test()
 					mcast_query_response_interval 1000
 
 	v3cleanup $swp1 $TEST_GROUP
+}
+
+v3star_ex_auto_add_test()
+{
+	RET=0
+
+	v3exclude_prepare $h1 $ALL_MAC $ALL_GROUP
+
+	$MZ $h2 -c 1 -b $ALL_MAC -B $ALL_GROUP -t ip "proto=2,p=$MZPKT_IS_INC" -q
+	sleep 1
+	bridge -j -d -s mdb show dev br0 \
+		| jq -e ".[].mdb[] | \
+			 select(.grp == \"$TEST_GROUP\" and .src == \"192.0.2.3\" and \
+				.port == \"$swp1\")" &>/dev/null
+	check_err $? "S,G entry for *,G port doesn't exist"
+
+	bridge -j -d -s mdb show dev br0 \
+		| jq -e ".[].mdb[] | \
+			 select(.grp == \"$TEST_GROUP\" and .src == \"192.0.2.3\" and \
+				.port == \"$swp1\" and \
+				.flags[] == \"added_by_star_ex\")" &>/dev/null
+	check_err $? "Auto-added S,G entry doesn't have added_by_star_ex flag"
+
+	check_sg_fwding 1 192.0.2.3
+
+	log_test "IGMPv3 S,G port entry automatic add to a *,G port"
+
+	v3cleanup $swp1 $TEST_GROUP
+	v3cleanup $swp2 $TEST_GROUP
 }
 
 trap cleanup EXIT
