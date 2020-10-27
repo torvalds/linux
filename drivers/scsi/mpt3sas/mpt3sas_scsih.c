@@ -5848,6 +5848,204 @@ _scsih_io_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
 }
 
 /**
+ * _scsih_update_vphys_after_reset - update the Port's
+ *			vphys_list after reset
+ * @ioc: per adapter object
+ *
+ * Returns nothing.
+ */
+static void
+_scsih_update_vphys_after_reset(struct MPT3SAS_ADAPTER *ioc)
+{
+	u16 sz, ioc_status;
+	int i;
+	Mpi2ConfigReply_t mpi_reply;
+	Mpi2SasIOUnitPage0_t *sas_iounit_pg0 = NULL;
+	u16 attached_handle;
+	u64 attached_sas_addr;
+	u8 found = 0, port_id;
+	Mpi2SasPhyPage0_t phy_pg0;
+	struct hba_port *port, *port_next, *mport;
+	struct virtual_phy *vphy, *vphy_next;
+	struct _sas_device *sas_device;
+
+	/*
+	 * Mark all the vphys objects as dirty.
+	 */
+	list_for_each_entry_safe(port, port_next,
+	    &ioc->port_table_list, list) {
+		if (!port->vphys_mask)
+			continue;
+		list_for_each_entry_safe(vphy, vphy_next,
+		    &port->vphys_list, list) {
+			vphy->flags |= MPT_VPHY_FLAG_DIRTY_PHY;
+		}
+	}
+
+	/*
+	 * Read SASIOUnitPage0 to get each HBA Phy's data.
+	 */
+	sz = offsetof(Mpi2SasIOUnitPage0_t, PhyData) +
+	    (ioc->sas_hba.num_phys * sizeof(Mpi2SasIOUnit0PhyData_t));
+	sas_iounit_pg0 = kzalloc(sz, GFP_KERNEL);
+	if (!sas_iounit_pg0) {
+		ioc_err(ioc, "failure at %s:%d/%s()!\n",
+		    __FILE__, __LINE__, __func__);
+		return;
+	}
+	if ((mpt3sas_config_get_sas_iounit_pg0(ioc, &mpi_reply,
+	    sas_iounit_pg0, sz)) != 0)
+		goto out;
+	ioc_status = le16_to_cpu(mpi_reply.IOCStatus) & MPI2_IOCSTATUS_MASK;
+	if (ioc_status != MPI2_IOCSTATUS_SUCCESS)
+		goto out;
+	/*
+	 * Loop over each HBA Phy.
+	 */
+	for (i = 0; i < ioc->sas_hba.num_phys; i++) {
+		/*
+		 * Check whether Phy's Negotiation Link Rate is > 1.5G or not.
+		 */
+		if ((sas_iounit_pg0->PhyData[i].NegotiatedLinkRate >> 4) <
+		    MPI2_SAS_NEG_LINK_RATE_1_5)
+			continue;
+		/*
+		 * Check whether Phy is connected to SEP device or not,
+		 * if it is SEP device then read the Phy's SASPHYPage0 data to
+		 * determine whether Phy is a virtual Phy or not. if it is
+		 * virtual phy then it is conformed that the attached remote
+		 * device is a HBA's vSES device.
+		 */
+		if (!(le32_to_cpu(
+		    sas_iounit_pg0->PhyData[i].ControllerPhyDeviceInfo) &
+		    MPI2_SAS_DEVICE_INFO_SEP))
+			continue;
+
+		if ((mpt3sas_config_get_phy_pg0(ioc, &mpi_reply, &phy_pg0,
+		    i))) {
+			ioc_err(ioc, "failure at %s:%d/%s()!\n",
+			    __FILE__, __LINE__, __func__);
+			continue;
+		}
+
+		if (!(le32_to_cpu(phy_pg0.PhyInfo) &
+		    MPI2_SAS_PHYINFO_VIRTUAL_PHY))
+			continue;
+		/*
+		 * Get the vSES device's SAS Address.
+		 */
+		attached_handle = le16_to_cpu(
+		    sas_iounit_pg0->PhyData[i].AttachedDevHandle);
+		if (_scsih_get_sas_address(ioc, attached_handle,
+		    &attached_sas_addr) != 0) {
+			ioc_err(ioc, "failure at %s:%d/%s()!\n",
+			    __FILE__, __LINE__, __func__);
+			continue;
+		}
+
+		found = 0;
+		port = port_next = NULL;
+		/*
+		 * Loop over each virtual_phy object from
+		 * each port's vphys_list.
+		 */
+		list_for_each_entry_safe(port,
+		    port_next, &ioc->port_table_list, list) {
+			if (!port->vphys_mask)
+				continue;
+			list_for_each_entry_safe(vphy, vphy_next,
+			    &port->vphys_list, list) {
+				/*
+				 * Continue with next virtual_phy object
+				 * if the object is not marked as dirty.
+				 */
+				if (!(vphy->flags & MPT_VPHY_FLAG_DIRTY_PHY))
+					continue;
+
+				/*
+				 * Continue with next virtual_phy object
+				 * if the object's SAS Address is not equals
+				 * to current Phy's vSES device SAS Address.
+				 */
+				if (vphy->sas_address != attached_sas_addr)
+					continue;
+				/*
+				 * Enable current Phy number bit in object's
+				 * phy_mask field.
+				 */
+				if (!(vphy->phy_mask & (1 << i)))
+					vphy->phy_mask = (1 << i);
+				/*
+				 * Get hba_port object from hba_port table
+				 * corresponding to current phy's Port ID.
+				 * if there is no hba_port object corresponding
+				 * to Phy's Port ID then create a new hba_port
+				 * object & add to hba_port table.
+				 */
+				port_id = sas_iounit_pg0->PhyData[i].Port;
+				mport = mpt3sas_get_port_by_id(ioc, port_id, 1);
+				if (!mport) {
+					mport = kzalloc(
+					    sizeof(struct hba_port), GFP_KERNEL);
+					if (!mport)
+						break;
+					mport->port_id = port_id;
+					ioc_info(ioc,
+					    "%s: hba_port entry: %p, port: %d is added to hba_port list\n",
+					    __func__, mport, mport->port_id);
+					list_add_tail(&mport->list,
+						&ioc->port_table_list);
+				}
+				/*
+				 * If mport & port pointers are not pointing to
+				 * same hba_port object then it means that vSES
+				 * device's Port ID got changed after reset and
+				 * hence move current virtual_phy object from
+				 * port's vphys_list to mport's vphys_list.
+				 */
+				if (port != mport) {
+					if (!mport->vphys_mask)
+						INIT_LIST_HEAD(
+						    &mport->vphys_list);
+					mport->vphys_mask |= (1 << i);
+					port->vphys_mask &= ~(1 << i);
+					list_move(&vphy->list,
+					    &mport->vphys_list);
+					sas_device = mpt3sas_get_sdev_by_addr(
+					    ioc, attached_sas_addr, port);
+					if (sas_device)
+						sas_device->port = mport;
+				}
+				/*
+				 * Earlier while updating the hba_port table,
+				 * it is determined that there is no other
+				 * direct attached device with mport's Port ID,
+				 * Hence mport was marked as dirty. Only vSES
+				 * device has this Port ID, so unmark the mport
+				 * as dirt.
+				 */
+				if (mport->flags & HBA_PORT_FLAG_DIRTY_PORT) {
+					mport->sas_address = 0;
+					mport->phy_mask = 0;
+					mport->flags &=
+					    ~HBA_PORT_FLAG_DIRTY_PORT;
+				}
+				/*
+				 * Unmark current virtual_phy object as dirty.
+				 */
+				vphy->flags &= ~MPT_VPHY_FLAG_DIRTY_PHY;
+				found = 1;
+				break;
+			}
+			if (found)
+				break;
+		}
+	}
+out:
+	kfree(sas_iounit_pg0);
+}
+
+/**
  * _scsih_get_port_table_after_reset - Construct temporary port table
  * @ioc: per adapter object
  * @port_table: address where port table needs to be constructed
@@ -6064,6 +6262,39 @@ _scsih_add_or_del_phys_from_existing_port(struct MPT3SAS_ADAPTER *ioc,
 			    hba_port_entry->sas_address,
 			    hba_port_entry);
 		}
+	}
+}
+
+/**
+ * _scsih_del_dirty_vphy - delete virtual_phy objects marked as dirty.
+ * @ioc: per adapter object
+ *
+ * Returns nothing.
+ */
+static void
+_scsih_del_dirty_vphy(struct MPT3SAS_ADAPTER *ioc)
+{
+	struct hba_port *port, *port_next;
+	struct virtual_phy *vphy, *vphy_next;
+
+	list_for_each_entry_safe(port, port_next,
+	    &ioc->port_table_list, list) {
+		if (!port->vphys_mask)
+			continue;
+		list_for_each_entry_safe(vphy, vphy_next,
+		    &port->vphys_list, list) {
+			if (vphy->flags & MPT_VPHY_FLAG_DIRTY_PHY) {
+				drsprintk(ioc, ioc_info(ioc,
+				    "Deleting vphy %p entry from port id: %d\t, Phy_mask 0x%08x\n",
+				    vphy, port->port_id,
+				    vphy->phy_mask));
+				port->vphys_mask &= ~vphy->phy_mask;
+				list_del(&vphy->list);
+				kfree(vphy);
+			}
+		}
+		if (!port->vphys_mask && !port->sas_address)
+			port->flags |= HBA_PORT_FLAG_DIRTY_PORT;
 	}
 }
 
@@ -10247,6 +10478,7 @@ mpt3sas_scsih_reset_done_handler(struct MPT3SAS_ADAPTER *ioc)
 	if ((!ioc->is_driver_loading) && !(disable_discovery > 0 &&
 					   !ioc->sas_hba.num_phys)) {
 		_scsih_sas_port_refresh(ioc);
+		_scsih_update_vphys_after_reset(ioc);
 		_scsih_prep_device_scan(ioc);
 		_scsih_create_enclosure_list_after_reset(ioc);
 		_scsih_search_responding_sas_devices(ioc);
@@ -10294,6 +10526,7 @@ _mpt3sas_fw_work(struct MPT3SAS_ADAPTER *ioc, struct fw_event_work *fw_event)
 			ssleep(1);
 		}
 		_scsih_remove_unresponding_devices(ioc);
+		_scsih_del_dirty_vphy(ioc);
 		_scsih_del_dirty_port_entries(ioc);
 		_scsih_scan_for_devices_after_reset(ioc);
 		_scsih_set_nvme_max_shutdown_latency(ioc);
