@@ -103,7 +103,7 @@ struct idxd_wq {
 	u32 priority;
 	enum idxd_wq_state state;
 	unsigned long flags;
-	union wqcfg wqcfg;
+	union wqcfg *wqcfg;
 	u32 vec_ptr;		/* interrupt steering */
 	struct dsa_hw_desc **hw_descs;
 	int num_descs;
@@ -183,6 +183,7 @@ struct idxd_device {
 	int max_wq_size;
 	int token_limit;
 	int nr_tokens;		/* non-reserved tokens */
+	unsigned int wqcfg_size;
 
 	union sw_err_reg sw_err;
 	wait_queue_head_t cmd_waitq;
