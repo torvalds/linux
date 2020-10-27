@@ -1256,7 +1256,7 @@ struct journal_s
 	 */
 	void (*j_fc_cleanup_callback)(struct journal_s *journal, int);
 
-	/*
+	/**
 	 * @j_fc_replay_callback:
 	 *
 	 * File-system specific function that performs replay of a fast
