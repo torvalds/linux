@@ -328,6 +328,7 @@ static void sched_energy_set(bool has_eas)
  *    3. no SMT is detected.
  *    4. the EM complexity is low enough to keep scheduling overheads low;
  *    5. schedutil is driving the frequency of all CPUs of the rd;
+ *    6. frequency invariance support is present;
  *
  * The complexity of the Energy Model is defined as:
  *
@@ -373,6 +374,14 @@ static bool build_perf_domains(const struct cpumask *cpu_map)
 	if (sched_smt_active()) {
 		pr_warn("rd %*pbl: Disabling EAS, SMT is not supported\n",
 			cpumask_pr_args(cpu_map));
+		goto free;
+	}
+
+	if (!arch_scale_freq_invariant()) {
+		if (sched_debug()) {
+			pr_warn("rd %*pbl: Disabling EAS: frequency-invariant load tracking not yet supported",
+				cpumask_pr_args(cpu_map));
+		}
 		goto free;
 	}
 
