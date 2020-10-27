@@ -138,6 +138,13 @@ static void ccm_rx_timer_start(struct br_cfm_peer_mep *peer_mep)
 			   usecs_to_jiffies(interval_us / 4));
 }
 
+static void br_cfm_notify(int event, const struct net_bridge_port *port)
+{
+	u32 filter = RTEXT_FILTER_CFM_STATUS;
+
+	return br_info_notify(event, port->br, NULL, filter);
+}
+
 static void cc_peer_enable(struct br_cfm_peer_mep *peer_mep)
 {
 	memset(&peer_mep->cc_status, 0, sizeof(peer_mep->cc_status));
@@ -288,6 +295,7 @@ static void ccm_tx_work_expired(struct work_struct *work)
 static void ccm_rx_work_expired(struct work_struct *work)
 {
 	struct br_cfm_peer_mep *peer_mep;
+	struct net_bridge_port *b_port;
 	struct delayed_work *del_work;
 
 	del_work = to_delayed_work(work);
@@ -305,6 +313,13 @@ static void ccm_rx_work_expired(struct work_struct *work)
 		 * CCM defect detected
 		 */
 		peer_mep->cc_status.ccm_defect = true;
+
+		/* Change in CCM defect status - notify */
+		rcu_read_lock();
+		b_port = rcu_dereference(peer_mep->mep->b_port);
+		if (b_port)
+			br_cfm_notify(RTM_NEWLINK, b_port);
+		rcu_read_unlock();
 	}
 }
 
@@ -429,6 +444,9 @@ static int br_cfm_frame_rx(struct net_bridge_port *port, struct sk_buff *skb)
 		/* A valid CCM frame is received */
 		if (peer_mep->cc_status.ccm_defect) {
 			peer_mep->cc_status.ccm_defect = false;
+
+			/* Change in CCM defect status - notify */
+			br_cfm_notify(RTM_NEWLINK, port);
 
 			/* Start CCM RX timer */
 			ccm_rx_timer_start(peer_mep);
@@ -795,6 +813,36 @@ int br_cfm_cc_ccm_tx(struct net_bridge *br, const u32 instance,
 
 save:
 	mep->cc_ccm_tx_info = *tx_info;
+
+	return 0;
+}
+
+int br_cfm_mep_count(struct net_bridge *br, u32 *count)
+{
+	struct br_cfm_mep *mep;
+
+	*count = 0;
+
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(mep, &br->mep_list, head)
+		*count += 1;
+	rcu_read_unlock();
+
+	return 0;
+}
+
+int br_cfm_peer_mep_count(struct net_bridge *br, u32 *count)
+{
+	struct br_cfm_peer_mep *peer_mep;
+	struct br_cfm_mep *mep;
+
+	*count = 0;
+
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(mep, &br->mep_list, head)
+		hlist_for_each_entry_rcu(peer_mep, &mep->peer_mep_list, head)
+			*count += 1;
+	rcu_read_unlock();
 
 	return 0;
 }
