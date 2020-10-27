@@ -139,17 +139,17 @@
 
 &kcs1 {
 	status = "okay";
-	kcs_addr = <0x60>;
+	aspeed,lpc-io-reg = <0x60>;
 };
 
 &kcs2 {
 	status = "okay";
-	kcs_addr = <0x62>;
+	aspeed,lpc-io-reg = <0x62>;
 };
 
 &kcs4 {
 	status = "okay";
-	kcs_addr = <0x97DE>;
+	aspeed,lpc-io-reg = <0x97DE>;
 };
 
 &lpc_snoop {
