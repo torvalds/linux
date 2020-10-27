@@ -610,8 +610,7 @@ service_callback(enum vchiq_reason reason, struct vchiq_header *header,
 		return VCHIQ_SUCCESS;
 
 	vchiq_log_trace(vchiq_arm_log_level,
-		"%s - service %lx(%d,%p), reason %d, header %lx, "
-		"instance %lx, bulk_userdata %lx",
+		"%s - service %lx(%d,%p), reason %d, header %lx, instance %lx, bulk_userdata %lx",
 		__func__, (unsigned long)user_service,
 		service->localport, user_service->userdata,
 		reason, (unsigned long)header,
@@ -1300,8 +1299,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		rc = mutex_lock_killable(&instance->state->mutex);
 		if (rc) {
 			vchiq_log_error(vchiq_arm_log_level,
-				"vchiq: connect: could not lock mutex for "
-				"state %d: %d",
+				"vchiq: connect: could not lock mutex for state %d: %d",
 				instance->state->id, rc);
 			ret = -EINTR;
 			break;
@@ -1384,8 +1382,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				vchiq_release_service_internal(service);
 			if (status != VCHIQ_SUCCESS) {
 				vchiq_log_error(vchiq_susp_log_level,
-					"%s: cmd %s returned error %d for "
-					"service %c%c%c%c:%03d",
+					"%s: cmd %s returned error %d for service %c%c%c%c:%03d",
 					__func__,
 					(cmd == VCHIQ_IOC_USE_SERVICE) ?
 						"VCHIQ_IOC_USE_SERVICE" :
@@ -2347,8 +2344,7 @@ vchiq_use_internal(struct vchiq_state *state, struct vchiq_service *service,
 			service->client_id);
 		entity_uc = &service->service_use_count;
 	} else {
-		vchiq_log_error(vchiq_susp_log_level, "%s null service "
-				"ptr", __func__);
+		vchiq_log_error(vchiq_susp_log_level, "%s null service ptr", __func__);
 		ret = VCHIQ_ERROR;
 		goto out;
 	}
@@ -2643,8 +2639,7 @@ vchiq_check_service(struct vchiq_service *service)
 
 	if (ret == VCHIQ_ERROR) {
 		vchiq_log_error(vchiq_susp_log_level,
-			"%s ERROR - %c%c%c%c:%d service count %d, "
-			"state count %d", __func__,
+			"%s ERROR - %c%c%c%c:%d service count %d, state count %d", __func__,
 			VCHIQ_FOURCC_AS_4CHARS(service->base.fourcc),
 			service->client_id, service->service_use_count,
 			arm_state->videocore_use_count);

@@ -900,8 +900,7 @@ queue_message(struct vchiq_state *state, struct vchiq_service *service,
 				service_quota->slot_quota))) {
 			spin_unlock(&quota_spinlock);
 			vchiq_log_trace(vchiq_core_log_level,
-				"%d: qm:%d %s,%zx - quota stall "
-				"(msg %d, slot %d)",
+				"%d: qm:%d %s,%zx - quota stall (msg %d, slot %d)",
 				state->id, service->localport,
 				msg_type_str(type), size,
 				service_quota->message_use_count,
@@ -1412,8 +1411,7 @@ abort_outstanding_bulks(struct vchiq_service *service,
 			vchiq_complete_bulk(bulk);
 
 			vchiq_log_info(SRVTRACE_LEVEL(service),
-				"%s %c%c%c%c d:%d ABORTED - tx len:%d, "
-				"rx len:%d",
+				"%s %c%c%c%c d:%d ABORTED - tx len:%d, rx len:%d",
 				is_tx ? "Send Bulk to" : "Recv Bulk from",
 				VCHIQ_FOURCC_AS_4CHARS(service->base.fourcc),
 				service->remoteport,
@@ -1648,8 +1646,7 @@ parse_rx_slots(struct vchiq_state *state)
 				? service->base.fourcc
 				: VCHIQ_MAKE_FOURCC('?', '?', '?', '?');
 			vchiq_log_info(SRVTRACE_LEVEL(service),
-				"Rcvd Msg %s(%u) from %c%c%c%c s:%d d:%d "
-				"len:%d",
+				"Rcvd Msg %s(%u) from %c%c%c%c s:%d d:%d len:%d",
 				msg_type_str(type), type,
 				VCHIQ_FOURCC_AS_4CHARS(svc_fourcc),
 				remoteport, localport, size);
@@ -1773,8 +1770,7 @@ parse_rx_slots(struct vchiq_state *state)
 				if ((int)(queue->remote_insert -
 					queue->local_insert) >= 0) {
 					vchiq_log_error(vchiq_core_log_level,
-						"%d: prs %s@%pK (%d->%d) "
-						"unexpected (ri=%d,li=%d)",
+						"%d: prs %s@%pK (%d->%d) unexpected (ri=%d,li=%d)",
 						state->id, msg_type_str(type),
 						header, remoteport, localport,
 						queue->remote_insert,
@@ -1957,8 +1953,7 @@ slot_handler_func(void *v)
 					 * through outstanding messages.
 					 */
 					vchiq_log_error(vchiq_core_log_level,
-						"Failed to send RESUME "
-						"message");
+						"Failed to send RESUME message");
 				}
 				break;
 			default:
@@ -2084,9 +2079,7 @@ sync_func(void *v)
 					VCHIQ_MESSAGE_AVAILABLE, header,
 					NULL) == VCHIQ_RETRY)
 					vchiq_log_error(vchiq_sync_log_level,
-						"synchronous callback to "
-						"service %d returns "
-						"VCHIQ_RETRY",
+						"synchronous callback to service %d returns VCHIQ_RETRY",
 						localport);
 			}
 			break;
@@ -2181,8 +2174,7 @@ vchiq_init_state(struct vchiq_state *state, struct vchiq_slot_zero *slot_zero)
 	if (local->initialised) {
 		vchiq_loud_error_header();
 		if (remote->initialised)
-			vchiq_loud_error("local state has already been "
-				"initialised");
+			vchiq_loud_error("local state has already been initialised");
 		else
 			vchiq_loud_error("master/slave mismatch two slaves");
 		vchiq_loud_error_footer();
@@ -2719,8 +2711,7 @@ vchiq_close_service_internal(struct vchiq_service *service, int close_recvd)
 	case VCHIQ_SRVSTATE_CLOSEWAIT:
 		if (close_recvd)
 			vchiq_log_error(vchiq_core_log_level,
-				"%s(1) called "
-				"in state %s",
+				"%s(1) called in state %s",
 				__func__, srvstate_names[service->srvstate]);
 		else if (is_server) {
 			if (service->srvstate == VCHIQ_SRVSTATE_LISTENING) {
@@ -3533,8 +3524,7 @@ int vchiq_dump_state(void *dump_context, struct vchiq_state *state)
 
 	if (VCHIQ_ENABLE_STATS) {
 		len = scnprintf(buf, sizeof(buf),
-			"  Stats: ctrl_tx_count=%d, ctrl_rx_count=%d, "
-			"error_count=%d",
+			"  Stats: ctrl_tx_count=%d, ctrl_rx_count=%d, error_count=%d",
 			state->stats.ctrl_tx_count, state->stats.ctrl_rx_count,
 			state->stats.error_count);
 		err = vchiq_dump(dump_context, buf, len + 1);
@@ -3543,8 +3533,7 @@ int vchiq_dump_state(void *dump_context, struct vchiq_state *state)
 	}
 
 	len = scnprintf(buf, sizeof(buf),
-		"  Slots: %d available (%d data), %d recyclable, %d stalls "
-		"(%d data)",
+		"  Slots: %d available (%d data), %d recyclable, %d stalls (%d data)",
 		((state->slot_queue_available * VCHIQ_SLOT_SIZE) -
 			state->local_tx_pos) / VCHIQ_SLOT_SIZE,
 		state->data_quota - state->data_use_count,
@@ -3639,8 +3628,7 @@ int vchiq_dump_service_state(void *dump_context, struct vchiq_service *service)
 			service->bulk_rx.remote_insert;
 
 		len = scnprintf(buf, sizeof(buf),
-			"  Bulk: tx_pending=%d (size %d),"
-			" rx_pending=%d (size %d)",
+			"  Bulk: tx_pending=%d (size %d), rx_pending=%d (size %d)",
 			tx_pending,
 			tx_pending ? service->bulk_tx.bulks[
 			BULK_INDEX(service->bulk_tx.remove)].size : 0,
@@ -3654,8 +3642,7 @@ int vchiq_dump_service_state(void *dump_context, struct vchiq_service *service)
 				return err;
 
 			len = scnprintf(buf, sizeof(buf),
-				"  Ctrl: tx_count=%d, tx_bytes=%llu, "
-				"rx_count=%d, rx_bytes=%llu",
+				"  Ctrl: tx_count=%d, tx_bytes=%llu, rx_count=%d, rx_bytes=%llu",
 				service->stats.ctrl_tx_count,
 				service->stats.ctrl_tx_bytes,
 				service->stats.ctrl_rx_count,
@@ -3665,8 +3652,7 @@ int vchiq_dump_service_state(void *dump_context, struct vchiq_service *service)
 				return err;
 
 			len = scnprintf(buf, sizeof(buf),
-				"  Bulk: tx_count=%d, tx_bytes=%llu, "
-				"rx_count=%d, rx_bytes=%llu",
+				"  Bulk: tx_count=%d, tx_bytes=%llu, rx_count=%d, rx_bytes=%llu",
 				service->stats.bulk_tx_count,
 				service->stats.bulk_tx_bytes,
 				service->stats.bulk_rx_count,
@@ -3676,8 +3662,7 @@ int vchiq_dump_service_state(void *dump_context, struct vchiq_service *service)
 				return err;
 
 			len = scnprintf(buf, sizeof(buf),
-				"  %d quota stalls, %d slot stalls, "
-				"%d bulk stalls, %d aborted, %d errors",
+				"  %d quota stalls, %d slot stalls, %d bulk stalls, %d aborted, %d errors",
 				service->stats.quota_stalls,
 				service->stats.slot_stalls,
 				service->stats.bulk_stalls,
@@ -3699,11 +3684,9 @@ void
 vchiq_loud_error_header(void)
 {
 	vchiq_log_error(vchiq_core_log_level,
-		"============================================================"
-		"================");
+		"============================================================================");
 	vchiq_log_error(vchiq_core_log_level,
-		"============================================================"
-		"================");
+		"============================================================================");
 	vchiq_log_error(vchiq_core_log_level, "=====");
 }
 
@@ -3712,11 +3695,9 @@ vchiq_loud_error_footer(void)
 {
 	vchiq_log_error(vchiq_core_log_level, "=====");
 	vchiq_log_error(vchiq_core_log_level,
-		"============================================================"
-		"================");
+		"============================================================================");
 	vchiq_log_error(vchiq_core_log_level,
-		"============================================================"
-		"================");
+		"============================================================================");
 }
 
 enum vchiq_status vchiq_send_remote_use(struct vchiq_state *state)
