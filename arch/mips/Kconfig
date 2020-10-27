@@ -2645,7 +2645,7 @@ config WAR_R4600_V1_INDEX_ICACHEOP
 #  18. The CACHE instructions Hit_Writeback_Invalidate_D, Hit_Writeback_D,
 #      Hit_Invalidate_D and Create_Dirty_Excl_D should only be
 #      executed if there is no other dcache activity. If the dcache is
-#      accessed for another instruction immeidately preceding when these
+#      accessed for another instruction immediately preceding when these
 #      cache instructions are executing, it is possible that the dcache
 #      tag match outputs used by these cache instructions will be
 #      incorrect. These cache instructions should be preceded by at least
@@ -3086,7 +3086,7 @@ config MIPS_O32_FP64_SUPPORT
 
 	  Although binutils currently supports use of this flag the details
 	  concerning its effect upon the O32 ABI in userland are still being
-	  worked on. In order to avoid userland becoming dependant upon current
+	  worked on. In order to avoid userland becoming dependent upon current
 	  behaviour before the details have been finalised, this option should
 	  be considered experimental and only enabled by those working upon
 	  said details.
@@ -3124,7 +3124,7 @@ choice
 
 		    objcopy --update-section .appended_dtb=<filename>.dtb vmlinux
 
-		  This is meant as a backward compatiblity convenience for those
+		  This is meant as a backward compatibility convenience for those
 		  systems with a bootloader that can't be upgraded to accommodate
 		  the documented boot protocol using a device tree.
 
