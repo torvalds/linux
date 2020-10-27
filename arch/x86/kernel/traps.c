@@ -937,10 +937,13 @@ static __always_inline void exc_debug_user(struct pt_regs *regs,
 	instrumentation_begin();
 
 	/*
-	 * Clear the virtual DR6 value, ptrace() routines will set bits here
-	 * for things it wants signals for.
+	 * Start the virtual/ptrace DR6 value with just the DR_STEP mask
+	 * of the real DR6. ptrace_triggered() will set the DR_TRAPn bits.
+	 *
+	 * Userspace expects DR_STEP to be visible in ptrace_get_debugreg(6)
+	 * even if it is not the result of PTRACE_SINGLESTEP.
 	 */
-	current->thread.virtual_dr6 = 0;
+	current->thread.virtual_dr6 = (dr6 & DR_STEP);
 
 	/*
 	 * The SDM says "The processor clears the BTF flag when it
