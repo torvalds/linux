@@ -10,6 +10,7 @@
 
 #include "../include/common/cpucp_if.h"
 #include "../include/common/qman_if.h"
+#include "../include/hw_ip/mmu/mmu_general.h"
 #include <uapi/misc/habanalabs.h>
 
 #include <linux/cdev.h>
@@ -1662,6 +1663,32 @@ struct hl_mmu_priv {
 };
 
 /**
+ * struct hl_mmu_per_hop_info - A structure describing one TLB HOP and its entry
+ *                that was created in order to translate a virtual address to a
+ *                physical one.
+ * @hop_addr: The address of the hop.
+ * @hop_pte_addr: The address of the hop entry.
+ * @hop_pte_val: The value in the hop entry.
+ */
+struct hl_mmu_per_hop_info {
+	u64 hop_addr;
+	u64 hop_pte_addr;
+	u64 hop_pte_val;
+};
+
+/**
+ * struct hl_mmu_hop_info - A structure describing the TLB hops and their
+ * hop-entries that were created in order to translate a virtual address to a
+ * physical one.
+ * @hop_info: Array holding the per-hop information used for the translation.
+ * @used_hops: The number of hops used for the translation.
+ */
+struct hl_mmu_hop_info {
+	struct hl_mmu_per_hop_info hop_info[MMU_ARCH_5_HOPS];
+	u32 used_hops;
+};
+
+/**
  * struct hl_mmu_funcs - Device related MMU functions.
  * @init: initialize the MMU module.
  * @fini: release the MMU module.
@@ -1672,6 +1699,9 @@ struct hl_mmu_priv {
  * @flush: flush all writes from all cores to reach device MMU.
  * @swap_out: marks all mapping of the given context as swapped out.
  * @swap_in: marks all mapping of the given context as swapped in.
+ * @get_tlb_info: returns the list of hops and hop-entries used that were
+ *                created in order to translate the giver virtual address to a
+ *                physical one.
  */
 struct hl_mmu_funcs {
 	int (*init)(struct hl_device *hdev);
@@ -1686,6 +1716,8 @@ struct hl_mmu_funcs {
 	void (*flush)(struct hl_ctx *ctx);
 	void (*swap_out)(struct hl_ctx *ctx);
 	void (*swap_in)(struct hl_ctx *ctx);
+	int (*get_tlb_info)(struct hl_ctx *ctx,
+			u64 virt_addr, struct hl_mmu_hop_info *hops);
 };
 
 /**
@@ -2138,6 +2170,9 @@ void hl_mmu_swap_out(struct hl_ctx *ctx);
 void hl_mmu_swap_in(struct hl_ctx *ctx);
 int hl_mmu_if_set_funcs(struct hl_device *hdev);
 void hl_mmu_v1_set_funcs(struct hl_device *hdev, struct hl_mmu_funcs *mmu);
+int hl_mmu_va_to_pa(struct hl_ctx *ctx, u64 virt_addr, u64 *phys_addr);
+int hl_mmu_get_tlb_info(struct hl_ctx *ctx, u64 virt_addr,
+			struct hl_mmu_hop_info *hops);
 
 int hl_fw_load_fw_to_device(struct hl_device *hdev, const char *fw_name,
 				void __iomem *dst, u32 src_offset, u32 size);

@@ -837,6 +837,107 @@ static void hl_mmu_v1_swap_in(struct hl_ctx *ctx)
 
 }
 
+static inline u64 get_hop_pte_addr(struct hl_ctx *ctx,
+				struct hl_mmu_properties *mmu_prop,
+				int hop_num, u64 hop_addr, u64 virt_addr)
+{
+	switch (hop_num) {
+	case 0:
+		return get_hop0_pte_addr(ctx, mmu_prop, hop_addr, virt_addr);
+	case 1:
+		return get_hop1_pte_addr(ctx, mmu_prop, hop_addr, virt_addr);
+	case 2:
+		return get_hop2_pte_addr(ctx, mmu_prop, hop_addr, virt_addr);
+	case 3:
+		return get_hop3_pte_addr(ctx, mmu_prop, hop_addr, virt_addr);
+	case 4:
+		return get_hop4_pte_addr(ctx, mmu_prop, hop_addr, virt_addr);
+	default:
+		break;
+	}
+	return U64_MAX;
+}
+
+static int hl_mmu_v1_get_tlb_info(struct hl_ctx *ctx, u64 virt_addr,
+				struct hl_mmu_hop_info *hops)
+{
+	struct hl_device *hdev = ctx->hdev;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct hl_mmu_properties *mmu_prop;
+	bool is_dram_addr, is_pmmu_addr, is_pmmu_h_addr, is_huge;
+	int i, used_hops;
+
+	is_dram_addr = hl_mem_area_inside_range(virt_addr, prop->dmmu.page_size,
+						prop->dmmu.start_addr,
+						prop->dmmu.end_addr);
+	is_pmmu_addr = hl_mem_area_inside_range(virt_addr, prop->pmmu.page_size,
+						prop->pmmu.start_addr,
+						prop->pmmu.end_addr);
+	is_pmmu_h_addr = hl_mem_area_inside_range(virt_addr,
+						prop->pmmu_huge.page_size,
+						prop->pmmu_huge.start_addr,
+						prop->pmmu_huge.end_addr);
+	if (is_dram_addr) {
+		mmu_prop = &prop->dmmu;
+		is_huge = true;
+	} else if (is_pmmu_addr) {
+		mmu_prop = &prop->pmmu;
+		is_huge = false;
+	} else if (is_pmmu_h_addr) {
+		mmu_prop = &prop->pmmu_huge;
+		is_huge = true;
+	} else {
+		return -EINVAL;
+	}
+
+	used_hops = mmu_prop->num_hops;
+
+	/* huge pages use lesser hops */
+	if (is_huge)
+		used_hops--;
+
+	hops->hop_info[0].hop_addr = get_phys_hop0_addr(ctx);
+	hops->hop_info[0].hop_pte_addr =
+			get_hop_pte_addr(ctx, mmu_prop, 0,
+					hops->hop_info[0].hop_addr, virt_addr);
+	hops->hop_info[0].hop_pte_val =
+			hdev->asic_funcs->read_pte(hdev,
+						hops->hop_info[0].hop_pte_addr);
+
+	for (i = 1 ; i < used_hops ; i++) {
+		hops->hop_info[i].hop_addr =
+			get_next_hop_addr(ctx,
+					hops->hop_info[i - 1].hop_pte_val);
+		if (hops->hop_info[i].hop_addr == ULLONG_MAX)
+			return -EFAULT;
+
+		hops->hop_info[i].hop_pte_addr =
+				get_hop_pte_addr(ctx, mmu_prop, i,
+						hops->hop_info[i].hop_addr,
+						virt_addr);
+		hops->hop_info[i].hop_pte_val =
+				hdev->asic_funcs->read_pte(hdev,
+						hops->hop_info[i].hop_pte_addr);
+
+		if (!(hops->hop_info[i].hop_pte_val & PAGE_PRESENT_MASK))
+			return -EFAULT;
+
+		if (hops->hop_info[i].hop_pte_val & LAST_MASK)
+			break;
+	}
+
+	/* if passed over all hops then no last hop was found */
+	if (i == mmu_prop->num_hops)
+		return -EFAULT;
+
+	if (!(hops->hop_info[i].hop_pte_val & PAGE_PRESENT_MASK))
+		return -EFAULT;
+
+	hops->used_hops = i + 1;
+
+	return 0;
+}
+
 /*
  * hl_mmu_v1_prepare - prepare mmu  for working with mmu v1
  *
@@ -853,4 +954,5 @@ void hl_mmu_v1_set_funcs(struct hl_device *hdev, struct hl_mmu_funcs *mmu)
 	mmu->flush = flush;
 	mmu->swap_out = hl_mmu_v1_swap_out;
 	mmu->swap_in = hl_mmu_v1_swap_in;
+	mmu->get_tlb_info = hl_mmu_v1_get_tlb_info;
 }

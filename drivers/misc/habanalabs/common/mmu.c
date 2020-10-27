@@ -342,6 +342,56 @@ void hl_mmu_swap_in(struct hl_ctx *ctx)
 		hdev->mmu_func[MMU_HR_PGT].swap_in(ctx);
 }
 
+int hl_mmu_va_to_pa(struct hl_ctx *ctx, u64 virt_addr, u64 *phys_addr)
+{
+	struct hl_mmu_hop_info hops;
+	u64 tmp_addr;
+	int rc;
+
+	rc = hl_mmu_get_tlb_info(ctx, virt_addr, &hops);
+	if (rc)
+		return rc;
+
+	/* last hop holds the phys address and flags */
+	tmp_addr = hops.hop_info[hops.used_hops - 1].hop_pte_val;
+	*phys_addr = (tmp_addr & HOP_PHYS_ADDR_MASK) | (virt_addr & FLAGS_MASK);
+
+	return 0;
+}
+
+int hl_mmu_get_tlb_info(struct hl_ctx *ctx, u64 virt_addr,
+			struct hl_mmu_hop_info *hops)
+{
+	struct hl_device *hdev = ctx->hdev;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct hl_mmu_properties *mmu_prop;
+	int rc;
+	bool is_dram_addr;
+
+	if (!hdev->mmu_enable)
+		return -EOPNOTSUPP;
+
+	is_dram_addr = hl_mem_area_inside_range(virt_addr, prop->dmmu.page_size,
+						prop->dmmu.start_addr,
+						prop->dmmu.end_addr);
+
+	/* host-residency is the same in PMMU and HPMMU, use one of them */
+	mmu_prop = is_dram_addr ? &prop->dmmu : &prop->pmmu;
+
+	mutex_lock(&ctx->mmu_lock);
+
+	if (mmu_prop->host_resident)
+		rc = hdev->mmu_func[MMU_HR_PGT].get_tlb_info(ctx,
+							virt_addr, hops);
+	else
+		rc = hdev->mmu_func[MMU_DR_PGT].get_tlb_info(ctx,
+							virt_addr, hops);
+
+	mutex_unlock(&ctx->mmu_lock);
+
+	return rc;
+}
+
 int hl_mmu_if_set_funcs(struct hl_device *hdev)
 {
 	if (!hdev->mmu_enable)
