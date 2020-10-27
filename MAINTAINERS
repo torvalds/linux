@@ -4485,6 +4485,13 @@ L:	linux-hwmon@vger.kernel.org
 S:	Maintained
 F:	drivers/hwmon/corsair-cpro.c
 
+CORSAIR-PSU HARDWARE MONITOR DRIVER
+M:	Wilken Gottwalt <wilken.gottwalt@posteo.net>
+L:	linux-hwmon@vger.kernel.org
+S:	Maintained
+F:	Documentation/hwmon/corsair-psu.rst
+F:	drivers/hwmon/corsair-psu.c
+
 COSA/SRP SYNC SERIAL DRIVER
 M:	Jan "Yenya" Kasprzak <kas@fi.muni.cz>
 S:	Maintained
