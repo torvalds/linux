@@ -430,6 +430,18 @@ config DELL_WMI
 	  To compile this driver as a module, choose M here: the module will
 	  be called dell-wmi.
 
+config DELL_WMI_SYSMAN
+	tristate "Dell WMI-based Systems management driver"
+	depends on ACPI_WMI
+	depends on DMI
+	select NLS
+	help
+	  This driver allows changing BIOS settings on many Dell machines from
+	  2018 and newer without the use of any additional software.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called dell-wmi-sysman.
+
 config DELL_WMI_DESCRIPTOR
 	tristate
 	depends on ACPI_WMI
