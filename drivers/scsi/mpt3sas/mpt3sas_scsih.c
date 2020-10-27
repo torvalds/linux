@@ -638,6 +638,44 @@ mpt3sas_get_pdev_from_target(struct MPT3SAS_ADAPTER *ioc,
 	return ret;
 }
 
+
+/**
+ * __mpt3sas_get_sdev_by_rphy - sas device search
+ * @ioc: per adapter object
+ * @rphy: sas_rphy pointer
+ *
+ * Context: This function will acquire ioc->sas_device_lock and will release
+ * before returning the sas_device object.
+ *
+ * This searches for sas_device from rphy object
+ * then return sas_device object.
+ */
+struct _sas_device *
+__mpt3sas_get_sdev_by_rphy(struct MPT3SAS_ADAPTER *ioc,
+	struct sas_rphy *rphy)
+{
+	struct _sas_device *sas_device;
+
+	assert_spin_locked(&ioc->sas_device_lock);
+
+	list_for_each_entry(sas_device, &ioc->sas_device_list, list) {
+		if (sas_device->rphy != rphy)
+			continue;
+		sas_device_get(sas_device);
+		return sas_device;
+	}
+
+	sas_device = NULL;
+	list_for_each_entry(sas_device, &ioc->sas_device_init_list, list) {
+		if (sas_device->rphy != rphy)
+			continue;
+		sas_device_get(sas_device);
+		return sas_device;
+	}
+
+	return NULL;
+}
+
 /**
  * mpt3sas_get_sdev_by_addr - get _sas_device object corresponding to provided
  *				sas address from sas_device_list list
@@ -1815,8 +1853,7 @@ scsih_target_alloc(struct scsi_target *starget)
 	/* sas/sata devices */
 	spin_lock_irqsave(&ioc->sas_device_lock, flags);
 	rphy = dev_to_rphy(starget->dev.parent);
-	sas_device = __mpt3sas_get_sdev_by_addr(ioc,
-	   rphy->identify.sas_address, NULL);
+	sas_device = __mpt3sas_get_sdev_by_rphy(ioc, rphy);
 
 	if (sas_device) {
 		sas_target_priv_data->handle = sas_device->handle;

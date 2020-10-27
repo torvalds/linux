@@ -537,6 +537,8 @@ struct _internal_cmd {
  * @chassis_slot: chassis slot
  * @is_chassis_slot_valid: chassis slot valid or not
  * @port: hba port entry containing device's port number info
+ * @rphy: device's sas_rphy address used to identify this device structure in
+ *	target_alloc callback function
  */
 struct _sas_device {
 	struct list_head list;
@@ -564,6 +566,7 @@ struct _sas_device {
 	u8	connector_name[5];
 	struct kref refcount;
 	struct hba_port *port;
+	struct sas_rphy *rphy;
 };
 
 static inline void sas_device_get(struct _sas_device *s)
@@ -1681,6 +1684,8 @@ void mpt3sas_port_enable_complete(struct MPT3SAS_ADAPTER *ioc);
 struct _raid_device *
 mpt3sas_raid_device_find_by_handle(struct MPT3SAS_ADAPTER *ioc, u16 handle);
 void mpt3sas_scsih_change_queue_depth(struct scsi_device *sdev, int qdepth);
+struct _sas_device *
+__mpt3sas_get_sdev_by_rphy(struct MPT3SAS_ADAPTER *ioc, struct sas_rphy *rphy);
 
 /* config shared API */
 u8 mpt3sas_config_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,

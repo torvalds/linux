@@ -733,6 +733,7 @@ mpt3sas_transport_port_add(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 	mpt3sas_port->port = port;
 	if (mpt3sas_port->remote_identify.device_type == SAS_END_DEVICE) {
 		rphy = sas_end_device_alloc(port);
+		sas_device->rphy = rphy;
 		if (sas_node->handle <= ioc->sas_hba.num_phys)
 			hba_port->sas_address = sas_device->sas_address;
 	} else {
@@ -1342,8 +1343,7 @@ _transport_get_enclosure_identifier(struct sas_rphy *rphy, u64 *identifier)
 	int rc;
 
 	spin_lock_irqsave(&ioc->sas_device_lock, flags);
-	sas_device = __mpt3sas_get_sdev_by_addr(ioc,
-	    rphy->identify.sas_address, 0);
+	sas_device = __mpt3sas_get_sdev_by_rphy(ioc, rphy);
 	if (sas_device) {
 		*identifier = sas_device->enclosure_logical_id;
 		rc = 0;
@@ -1372,8 +1372,7 @@ _transport_get_bay_identifier(struct sas_rphy *rphy)
 	int rc;
 
 	spin_lock_irqsave(&ioc->sas_device_lock, flags);
-	sas_device = __mpt3sas_get_sdev_by_addr(ioc,
-	    rphy->identify.sas_address, 0);
+	sas_device = __mpt3sas_get_sdev_by_rphy(ioc, rphy);
 	if (sas_device) {
 		rc = sas_device->slot;
 		sas_device_put(sas_device);
