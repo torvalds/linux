@@ -1007,12 +1007,8 @@ intel_opregion_get_panel_type(struct drm_i915_private *dev_priv)
 	int ret;
 
 	ret = swsci(dev_priv, SWSCI_GBDA_PANEL_DETAILS, 0x0, &panel_details);
-	if (ret) {
-		drm_dbg_kms(&dev_priv->drm,
-			    "Failed to get panel details from OpRegion (%d)\n",
-			    ret);
+	if (ret)
 		return ret;
-	}
 
 	ret = (panel_details >> 8) & 0xff;
 	if (ret > 0x10) {
