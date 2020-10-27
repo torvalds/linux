@@ -60,7 +60,7 @@
 
 #define GAUDI_DEFAULT_CARD_NAME		"HL2000"
 
-#define GAUDI_MAX_PENDING_CS		1024
+#define GAUDI_MAX_PENDING_CS		SZ_16K
 
 #if !IS_MAX_PENDING_CS_VALID(GAUDI_MAX_PENDING_CS)
 #error "GAUDI_MAX_PENDING_CS must be power of 2 and greater than 1"
