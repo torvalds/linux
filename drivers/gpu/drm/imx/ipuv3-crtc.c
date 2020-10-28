@@ -227,11 +227,13 @@ static bool ipu_crtc_mode_fixup(struct drm_crtc *crtc,
 }
 
 static int ipu_crtc_atomic_check(struct drm_crtc *crtc,
-				 struct drm_crtc_state *state)
+				 struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
+									  crtc);
 	u32 primary_plane_mask = drm_plane_mask(crtc->primary);
 
-	if (state->active && (primary_plane_mask & state->plane_mask) == 0)
+	if (crtc_state->active && (primary_plane_mask & crtc_state->plane_mask) == 0)
 		return -EINVAL;
 
 	return 0;

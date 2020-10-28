@@ -1415,8 +1415,10 @@ static void vop_wait_for_irq_handler(struct vop *vop)
 }
 
 static int vop_crtc_atomic_check(struct drm_crtc *crtc,
-				 struct drm_crtc_state *crtc_state)
+				 struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
+									  crtc);
 	struct vop *vop = to_vop(crtc);
 	struct drm_plane *plane;
 	struct drm_plane_state *plane_state;

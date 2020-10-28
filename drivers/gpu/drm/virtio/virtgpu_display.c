@@ -111,7 +111,7 @@ static void virtio_gpu_crtc_atomic_disable(struct drm_crtc *crtc,
 }
 
 static int virtio_gpu_crtc_atomic_check(struct drm_crtc *crtc,
-					struct drm_crtc_state *state)
+					struct drm_atomic_state *state)
 {
 	return 0;
 }

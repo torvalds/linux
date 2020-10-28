@@ -30,6 +30,7 @@
 #include <nvif/event.h>
 #include <nvif/cl0046.h>
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_vblank.h>
@@ -310,12 +311,14 @@ nv50_head_atomic_check_mode(struct nv50_head *head, struct nv50_head_atom *asyh)
 }
 
 static int
-nv50_head_atomic_check(struct drm_crtc *crtc, struct drm_crtc_state *state)
+nv50_head_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
+									  crtc);
 	struct nouveau_drm *drm = nouveau_drm(crtc->dev);
 	struct nv50_head *head = nv50_head(crtc);
 	struct nv50_head_atom *armh = nv50_head_atom(crtc->state);
-	struct nv50_head_atom *asyh = nv50_head_atom(state);
+	struct nv50_head_atom *asyh = nv50_head_atom(crtc_state);
 	struct nouveau_conn_atom *asyc = NULL;
 	struct drm_connector_state *conns;
 	struct drm_connector *conn;

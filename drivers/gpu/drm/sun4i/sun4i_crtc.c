@@ -15,6 +15,7 @@
 
 #include <video/videomode.h>
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_modes.h>
@@ -45,14 +46,16 @@ static struct drm_encoder *sun4i_crtc_get_encoder(struct drm_crtc *crtc)
 }
 
 static int sun4i_crtc_atomic_check(struct drm_crtc *crtc,
-				    struct drm_crtc_state *state)
+				    struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
+									  crtc);
 	struct sun4i_crtc *scrtc = drm_crtc_to_sun4i_crtc(crtc);
 	struct sunxi_engine *engine = scrtc->engine;
 	int ret = 0;
 
 	if (engine && engine->ops && engine->ops->atomic_check)
-		ret = engine->ops->atomic_check(engine, state);
+		ret = engine->ops->atomic_check(engine, crtc_state);
 
 	return ret;
 }

@@ -569,22 +569,25 @@ static bool omap_crtc_is_manually_updated(struct drm_crtc *crtc)
 }
 
 static int omap_crtc_atomic_check(struct drm_crtc *crtc,
-				struct drm_crtc_state *state)
+				struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
+									  crtc);
 	struct drm_plane_state *pri_state;
 
-	if (state->color_mgmt_changed && state->gamma_lut) {
-		unsigned int length = state->gamma_lut->length /
+	if (crtc_state->color_mgmt_changed && crtc_state->gamma_lut) {
+		unsigned int length = crtc_state->gamma_lut->length /
 			sizeof(struct drm_color_lut);
 
 		if (length < 2)
 			return -EINVAL;
 	}
 
-	pri_state = drm_atomic_get_new_plane_state(state->state, crtc->primary);
+	pri_state = drm_atomic_get_new_plane_state(crtc_state->state,
+						   crtc->primary);
 	if (pri_state) {
 		struct omap_crtc_state *omap_crtc_state =
-			to_omap_crtc_state(state);
+			to_omap_crtc_state(crtc_state);
 
 		/* Mirror new values for zpos and rotation in omap_crtc_state */
 		omap_crtc_state->zpos = pri_state->zpos;

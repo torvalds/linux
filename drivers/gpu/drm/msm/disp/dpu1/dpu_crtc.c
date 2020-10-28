@@ -815,10 +815,12 @@ struct plane_state {
 };
 
 static int dpu_crtc_atomic_check(struct drm_crtc *crtc,
-		struct drm_crtc_state *state)
+		struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
+									  crtc);
 	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
-	struct dpu_crtc_state *cstate = to_dpu_crtc_state(state);
+	struct dpu_crtc_state *cstate = to_dpu_crtc_state(crtc_state);
 	struct plane_state *pstates;
 
 	const struct drm_plane_state *pstate;
@@ -835,32 +837,33 @@ static int dpu_crtc_atomic_check(struct drm_crtc *crtc,
 
 	pstates = kzalloc(sizeof(*pstates) * DPU_STAGE_MAX * 4, GFP_KERNEL);
 
-	if (!state->enable || !state->active) {
+	if (!crtc_state->enable || !crtc_state->active) {
 		DPU_DEBUG("crtc%d -> enable %d, active %d, skip atomic_check\n",
-				crtc->base.id, state->enable, state->active);
+				crtc->base.id, crtc_state->enable,
+				crtc_state->active);
 		goto end;
 	}
 
-	mode = &state->adjusted_mode;
+	mode = &crtc_state->adjusted_mode;
 	DPU_DEBUG("%s: check", dpu_crtc->name);
 
 	/* force a full mode set if active state changed */
-	if (state->active_changed)
-		state->mode_changed = true;
+	if (crtc_state->active_changed)
+		crtc_state->mode_changed = true;
 
 	memset(pipe_staged, 0, sizeof(pipe_staged));
 
 	if (cstate->num_mixers) {
 		mixer_width = mode->hdisplay / cstate->num_mixers;
 
-		_dpu_crtc_setup_lm_bounds(crtc, state);
+		_dpu_crtc_setup_lm_bounds(crtc, crtc_state);
 	}
 
 	crtc_rect.x2 = mode->hdisplay;
 	crtc_rect.y2 = mode->vdisplay;
 
 	 /* get plane state for all drm planes associated with crtc state */
-	drm_atomic_crtc_state_for_each_plane_state(plane, pstate, state) {
+	drm_atomic_crtc_state_for_each_plane_state(plane, pstate, crtc_state) {
 		struct drm_rect dst, clip = crtc_rect;
 
 		if (IS_ERR_OR_NULL(pstate)) {
@@ -966,7 +969,7 @@ static int dpu_crtc_atomic_check(struct drm_crtc *crtc,
 
 	atomic_inc(&_dpu_crtc_get_kms(crtc)->bandwidth_ref);
 
-	rc = dpu_core_perf_crtc_check(crtc, state);
+	rc = dpu_core_perf_crtc_check(crtc, crtc_state);
 	if (rc) {
 		DPU_ERROR("crtc%d failed performance check %d\n",
 				crtc->base.id, rc);

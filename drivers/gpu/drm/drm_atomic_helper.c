@@ -918,7 +918,7 @@ drm_atomic_helper_check_planes(struct drm_device *dev,
 		if (!funcs || !funcs->atomic_check)
 			continue;
 
-		ret = funcs->atomic_check(crtc, new_crtc_state);
+		ret = funcs->atomic_check(crtc, state);
 		if (ret) {
 			DRM_DEBUG_ATOMIC("[CRTC:%d:%s] atomic driver check failed\n",
 					 crtc->base.id, crtc->name);

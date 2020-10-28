@@ -413,15 +413,17 @@ static void armada_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 }
 
 static int armada_drm_crtc_atomic_check(struct drm_crtc *crtc,
-					struct drm_crtc_state *state)
+					struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
+									  crtc);
 	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
 
-	if (state->gamma_lut && drm_color_lut_size(state->gamma_lut) != 256)
+	if (crtc_state->gamma_lut && drm_color_lut_size(crtc_state->gamma_lut) != 256)
 		return -EINVAL;
 
-	if (state->color_mgmt_changed)
-		state->planes_changed = true;
+	if (crtc_state->color_mgmt_changed)
+		crtc_state->planes_changed = true;
 
 	return 0;
 }

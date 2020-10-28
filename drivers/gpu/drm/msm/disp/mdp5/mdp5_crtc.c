@@ -7,6 +7,7 @@
 
 #include <linux/sort.h>
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_mode.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_flip_work.h>
@@ -682,15 +683,17 @@ static enum mdp_mixer_stage_id get_start_stage(struct drm_crtc *crtc,
 }
 
 static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
-		struct drm_crtc_state *state)
+		struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
+									  crtc);
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
 	struct drm_plane *plane;
 	struct drm_device *dev = crtc->dev;
 	struct plane_state pstates[STAGE_MAX + 1];
 	const struct mdp5_cfg_hw *hw_cfg;
 	const struct drm_plane_state *pstate;
-	const struct drm_display_mode *mode = &state->adjusted_mode;
+	const struct drm_display_mode *mode = &crtc_state->adjusted_mode;
 	bool cursor_plane = false;
 	bool need_right_mixer = false;
 	int cnt = 0, i;
@@ -699,7 +702,7 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 
 	DBG("%s: check", crtc->name);
 
-	drm_atomic_crtc_state_for_each_plane_state(plane, pstate, state) {
+	drm_atomic_crtc_state_for_each_plane_state(plane, pstate, crtc_state) {
 		if (!pstate->visible)
 			continue;
 
@@ -731,7 +734,7 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 	if (mode->hdisplay > hw_cfg->lm.max_width)
 		need_right_mixer = true;
 
-	ret = mdp5_crtc_setup_pipeline(crtc, state, need_right_mixer);
+	ret = mdp5_crtc_setup_pipeline(crtc, crtc_state, need_right_mixer);
 	if (ret) {
 		DRM_DEV_ERROR(dev->dev, "couldn't assign mixers %d\n", ret);
 		return ret;
@@ -744,7 +747,7 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 	WARN_ON(cursor_plane &&
 		(pstates[cnt - 1].plane->type != DRM_PLANE_TYPE_CURSOR));
 
-	start = get_start_stage(crtc, state, &pstates[0].state->base);
+	start = get_start_stage(crtc, crtc_state, &pstates[0].state->base);
 
 	/* verify that there are not too many planes attached to crtc
 	 * and that we don't have conflicting mixer stages:

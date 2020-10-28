@@ -325,8 +325,9 @@ static int atmel_hlcdc_crtc_select_output_mode(struct drm_crtc_state *state)
 }
 
 static int atmel_hlcdc_crtc_atomic_check(struct drm_crtc *c,
-					 struct drm_crtc_state *s)
+					 struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *s = drm_atomic_get_new_crtc_state(state, c);
 	int ret;
 
 	ret = atmel_hlcdc_crtc_select_output_mode(s);

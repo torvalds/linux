@@ -74,16 +74,18 @@ static void komeda_crtc_update_clock_ratio(struct komeda_crtc_state *kcrtc_st)
  */
 static int
 komeda_crtc_atomic_check(struct drm_crtc *crtc,
-			 struct drm_crtc_state *state)
+			 struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
+									  crtc);
 	struct komeda_crtc *kcrtc = to_kcrtc(crtc);
-	struct komeda_crtc_state *kcrtc_st = to_kcrtc_st(state);
+	struct komeda_crtc_state *kcrtc_st = to_kcrtc_st(crtc_state);
 	int err;
 
-	if (drm_atomic_crtc_needs_modeset(state))
+	if (drm_atomic_crtc_needs_modeset(crtc_state))
 		komeda_crtc_update_clock_ratio(kcrtc_st);
 
-	if (state->active) {
+	if (crtc_state->active) {
 		err = komeda_build_display_data_flow(kcrtc, kcrtc_st);
 		if (err)
 			return err;

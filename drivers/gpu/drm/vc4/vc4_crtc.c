@@ -584,18 +584,21 @@ void vc4_crtc_get_margins(struct drm_crtc_state *state,
 }
 
 static int vc4_crtc_atomic_check(struct drm_crtc *crtc,
-				 struct drm_crtc_state *state)
+				 struct drm_atomic_state *state)
 {
-	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(state);
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
+									  crtc);
+	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc_state);
 	struct drm_connector *conn;
 	struct drm_connector_state *conn_state;
 	int ret, i;
 
-	ret = vc4_hvs_atomic_check(crtc, state);
+	ret = vc4_hvs_atomic_check(crtc, crtc_state);
 	if (ret)
 		return ret;
 
-	for_each_new_connector_in_state(state->state, conn, conn_state, i) {
+	for_each_new_connector_in_state(crtc_state->state, conn, conn_state,
+					i) {
 		if (conn_state->crtc != crtc)
 			continue;
 

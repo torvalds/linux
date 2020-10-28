@@ -473,7 +473,7 @@ void vmw_du_plane_unpin_surf(struct vmw_plane_state *vps,
 			     bool unreference);
 
 int vmw_du_crtc_atomic_check(struct drm_crtc *crtc,
-			     struct drm_crtc_state *state);
+			     struct drm_atomic_state *state);
 void vmw_du_crtc_atomic_begin(struct drm_crtc *crtc,
 			      struct drm_crtc_state *old_crtc_state);
 void vmw_du_crtc_atomic_flush(struct drm_crtc *crtc,
