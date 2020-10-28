@@ -4356,7 +4356,8 @@ init_read_bvec(struct page **pages, unsigned int npages, unsigned int data_size,
 static int
 handle_read_data(struct TCP_Server_Info *server, struct mid_q_entry *mid,
 		 char *buf, unsigned int buf_len, struct page **pages,
-		 unsigned int npages, unsigned int page_data_size)
+		 unsigned int npages, unsigned int page_data_size,
+		 bool is_offloaded)
 {
 	unsigned int data_offset;
 	unsigned int data_len;
@@ -4378,7 +4379,8 @@ handle_read_data(struct TCP_Server_Info *server, struct mid_q_entry *mid,
 
 	if (server->ops->is_session_expired &&
 	    server->ops->is_session_expired(buf)) {
-		cifs_reconnect(server);
+		if (!is_offloaded)
+			cifs_reconnect(server);
 		return -1;
 	}
 
@@ -4518,7 +4520,8 @@ static void smb2_decrypt_offload(struct work_struct *work)
 		mid->decrypted = true;
 		rc = handle_read_data(dw->server, mid, dw->buf,
 				      dw->server->vals->read_rsp_size,
-				      dw->ppages, dw->npages, dw->len);
+				      dw->ppages, dw->npages, dw->len,
+				      true);
 		mid->callback(mid);
 		cifs_mid_q_entry_release(mid);
 	}
@@ -4622,7 +4625,7 @@ non_offloaded_decrypt:
 		(*mid)->decrypted = true;
 		rc = handle_read_data(server, *mid, buf,
 				      server->vals->read_rsp_size,
-				      pages, npages, len);
+				      pages, npages, len, false);
 	}
 
 free_pages:
@@ -4765,7 +4768,7 @@ smb3_handle_read_data(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	char *buf = server->large_buf ? server->bigbuf : server->smallbuf;
 
 	return handle_read_data(server, mid, buf, server->pdu_size,
-				NULL, 0, 0);
+				NULL, 0, 0, false);
 }
 
 static int
