@@ -19,6 +19,7 @@ int mlx5e_devlink_port_register(struct mlx5e_priv *priv)
 	struct devlink *devlink = priv_to_devlink(priv->mdev);
 	struct devlink_port_attrs attrs = {};
 	struct netdev_phys_item_id ppid = {};
+	struct devlink_port *dl_port;
 	unsigned int dl_port_index;
 
 	if (mlx5_core_is_pf(priv->mdev)) {
@@ -36,24 +37,30 @@ int mlx5e_devlink_port_register(struct mlx5e_priv *priv)
 		dl_port_index = mlx5_esw_vport_to_devlink_port_index(priv->mdev, 0);
 	}
 
-	devlink_port_attrs_set(&priv->dl_port, &attrs);
+	dl_port = mlx5e_devlink_get_dl_port(priv);
+	memset(dl_port, 0, sizeof(*dl_port));
+	devlink_port_attrs_set(dl_port, &attrs);
 
-	return devlink_port_register(devlink, &priv->dl_port, dl_port_index);
+	return devlink_port_register(devlink, dl_port, dl_port_index);
 }
 
 void mlx5e_devlink_port_type_eth_set(struct mlx5e_priv *priv)
 {
-	devlink_port_type_eth_set(&priv->dl_port, priv->netdev);
+	struct devlink_port *dl_port = mlx5e_devlink_get_dl_port(priv);
+
+	devlink_port_type_eth_set(dl_port, priv->netdev);
 }
 
 void mlx5e_devlink_port_unregister(struct mlx5e_priv *priv)
 {
-	devlink_port_unregister(&priv->dl_port);
+	struct devlink_port *dl_port = mlx5e_devlink_get_dl_port(priv);
+
+	devlink_port_unregister(dl_port);
 }
 
 struct devlink_port *mlx5e_get_devlink_port(struct net_device *dev)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 
-	return &priv->dl_port;
+	return mlx5e_devlink_get_dl_port(priv);
 }
