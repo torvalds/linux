@@ -633,6 +633,7 @@ static const struct of_device_id stusb160x_of_match[] = {
 	{ .compatible = "st,stusb1600", .data = &stusb1600_regmap_config},
 	{},
 };
+MODULE_DEVICE_TABLE(of, stusb160x_of_match);
 
 static int stusb160x_probe(struct i2c_client *client)
 {
