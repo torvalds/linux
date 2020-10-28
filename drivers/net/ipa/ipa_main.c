@@ -363,52 +363,38 @@ static void ipa_hardware_deconfig(struct ipa *ipa)
 
 #ifdef IPA_VALIDATION
 
-/* # IPA resources used based on version (see IPA_RESOURCE_GROUP_COUNT) */
-static int ipa_resource_group_count(struct ipa *ipa)
-{
-	switch (ipa->version) {
-	case IPA_VERSION_3_5_1:
-		return 3;
-
-	case IPA_VERSION_4_0:
-	case IPA_VERSION_4_1:
-		return 4;
-
-	case IPA_VERSION_4_2:
-		return 1;
-
-	default:
-		return 0;
-	}
-}
-
 static bool ipa_resource_limits_valid(struct ipa *ipa,
 				      const struct ipa_resource_data *data)
 {
-	u32 group_count = ipa_resource_group_count(ipa);
+	u32 group_count;
 	u32 i;
 	u32 j;
 
+	group_count = ipa_resource_group_src_count(ipa->version);
 	if (!group_count)
 		return false;
 
-	/* Return an error if a non-zero resource group limit is specified
-	 * for a resource not supported by hardware.
+	/* Return an error if a non-zero resource limit is specified
+	 * for a resource group not supported by hardware.
 	 */
 	for (i = 0; i < data->resource_src_count; i++) {
 		const struct ipa_resource_src *resource;
 
 		resource = &data->resource_src[i];
-		for (j = group_count; j < IPA_RESOURCE_GROUP_COUNT; j++)
+		for (j = group_count; j < IPA_RESOURCE_GROUP_SRC_MAX; j++)
 			if (resource->limits[j].min || resource->limits[j].max)
 				return false;
 	}
+
+	group_count = ipa_resource_group_dst_count(ipa->version);
+	if (!group_count)
+		return false;
 
 	for (i = 0; i < data->resource_dst_count; i++) {
 		const struct ipa_resource_dst *resource;
 
 		resource = &data->resource_dst[i];
-		for (j = group_count; j < IPA_RESOURCE_GROUP_COUNT; j++)
+		for (j = group_count; j < IPA_RESOURCE_GROUP_DST_MAX; j++)
 			if (resource->limits[j].min || resource->limits[j].max)
 				return false;
 	}

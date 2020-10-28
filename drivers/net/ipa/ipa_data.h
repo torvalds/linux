@@ -45,10 +45,10 @@
  * the IPA endpoint.
  */
 
-/* The maximum value returned by ipa_resource_group_count() */
-#define IPA_RESOURCE_GROUP_COUNT	4
+/* The maximum value returned by ipa_resource_group_{src,dst}_count() */
+#define IPA_RESOURCE_GROUP_SRC_MAX	4
+#define IPA_RESOURCE_GROUP_DST_MAX	4
 
-/** enum ipa_resource_type_src - source resource types */
 /**
  * struct gsi_channel_data - GSI channel configuration data
  * @tre_count:		number of TREs in the channel ring
@@ -208,7 +208,7 @@ struct ipa_resource_limits {
  */
 struct ipa_resource_src {
 	enum ipa_resource_type_src type;
-	struct ipa_resource_limits limits[IPA_RESOURCE_GROUP_COUNT];
+	struct ipa_resource_limits limits[IPA_RESOURCE_GROUP_SRC_MAX];
 };
 
 /**
@@ -218,7 +218,7 @@ struct ipa_resource_src {
  */
 struct ipa_resource_dst {
 	enum ipa_resource_type_dst type;
-	struct ipa_resource_limits limits[IPA_RESOURCE_GROUP_COUNT];
+	struct ipa_resource_limits limits[IPA_RESOURCE_GROUP_DST_MAX];
 };
 
 /**
