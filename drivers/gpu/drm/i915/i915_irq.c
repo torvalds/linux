@@ -3281,7 +3281,7 @@ static void dg1_hpd_irq_setup(struct drm_i915_private *dev_priv)
 			  DG1_DDI_HPD_ENABLE_MASK, 0);
 }
 
-static void gen11_hpd_detection_setup(struct drm_i915_private *dev_priv)
+static void gen11_tc_hpd_detection_setup(struct drm_i915_private *dev_priv)
 {
 	u32 hotplug;
 
@@ -3293,6 +3293,11 @@ static void gen11_hpd_detection_setup(struct drm_i915_private *dev_priv)
 		   GEN11_HOTPLUG_CTL_ENABLE(HPD_PORT_TC5) |
 		   GEN11_HOTPLUG_CTL_ENABLE(HPD_PORT_TC6);
 	I915_WRITE(GEN11_TC_HOTPLUG_CTL, hotplug);
+}
+
+static void gen11_tbt_hpd_detection_setup(struct drm_i915_private *dev_priv)
+{
+	u32 hotplug;
 
 	hotplug = I915_READ(GEN11_TBT_HOTPLUG_CTL);
 	hotplug |= GEN11_HOTPLUG_CTL_ENABLE(HPD_PORT_TC1) |
@@ -3318,7 +3323,8 @@ static void gen11_hpd_irq_setup(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN11_DE_HPD_IMR, val);
 	POSTING_READ(GEN11_DE_HPD_IMR);
 
-	gen11_hpd_detection_setup(dev_priv);
+	gen11_tc_hpd_detection_setup(dev_priv);
+	gen11_tbt_hpd_detection_setup(dev_priv);
 
 	if (INTEL_PCH_TYPE(dev_priv) >= PCH_TGP)
 		icp_hpd_irq_setup(dev_priv,
@@ -3633,7 +3639,8 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 
 		GEN3_IRQ_INIT(uncore, GEN11_DE_HPD_, ~de_hpd_masked,
 			      de_hpd_enables);
-		gen11_hpd_detection_setup(dev_priv);
+		gen11_tc_hpd_detection_setup(dev_priv);
+		gen11_tbt_hpd_detection_setup(dev_priv);
 	} else if (IS_GEN9_LP(dev_priv)) {
 		bxt_hpd_detection_setup(dev_priv);
 	} else if (IS_BROADWELL(dev_priv)) {
