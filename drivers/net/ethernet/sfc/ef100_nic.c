@@ -1110,6 +1110,8 @@ static int ef100_probe_main(struct efx_nic *efx)
 	net_dev->features |= efx->type->offload_features;
 	net_dev->hw_features |= efx->type->offload_features;
 	net_dev->hw_enc_features |= efx->type->offload_features;
+	net_dev->vlan_features |= NETIF_F_HW_CSUM | NETIF_F_SG |
+				  NETIF_F_HIGHDMA | NETIF_F_ALL_TSO;
 
 	/* Populate design-parameter defaults */
 	nic_data->tso_max_hdr_len = ESE_EF100_DP_GZ_TSO_MAX_HDR_LEN_DEFAULT;
