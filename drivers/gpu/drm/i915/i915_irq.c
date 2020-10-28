@@ -1205,6 +1205,31 @@ static void intel_get_hpd_pins(struct drm_i915_private *dev_priv,
 
 }
 
+static u32 intel_hpd_enabled_irqs(struct drm_i915_private *dev_priv,
+				  const u32 hpd[HPD_NUM_PINS])
+{
+	struct intel_encoder *encoder;
+	u32 enabled_irqs = 0;
+
+	for_each_intel_encoder(&dev_priv->drm, encoder)
+		if (dev_priv->hotplug.stats[encoder->hpd_pin].state == HPD_ENABLED)
+			enabled_irqs |= hpd[encoder->hpd_pin];
+
+	return enabled_irqs;
+}
+
+static u32 intel_hpd_hotplug_irqs(struct drm_i915_private *dev_priv,
+				  const u32 hpd[HPD_NUM_PINS])
+{
+	struct intel_encoder *encoder;
+	u32 hotplug_irqs = 0;
+
+	for_each_intel_encoder(&dev_priv->drm, encoder)
+		hotplug_irqs |= hpd[encoder->hpd_pin];
+
+	return hotplug_irqs;
+}
+
 static void gmbus_irq_handler(struct drm_i915_private *dev_priv)
 {
 	wake_up_all(&dev_priv->gmbus_wait_queue);
@@ -3143,31 +3168,6 @@ static void cherryview_irq_reset(struct drm_i915_private *dev_priv)
 	if (dev_priv->display_irqs_enabled)
 		vlv_display_irq_reset(dev_priv);
 	spin_unlock_irq(&dev_priv->irq_lock);
-}
-
-static u32 intel_hpd_enabled_irqs(struct drm_i915_private *dev_priv,
-				  const u32 hpd[HPD_NUM_PINS])
-{
-	struct intel_encoder *encoder;
-	u32 enabled_irqs = 0;
-
-	for_each_intel_encoder(&dev_priv->drm, encoder)
-		if (dev_priv->hotplug.stats[encoder->hpd_pin].state == HPD_ENABLED)
-			enabled_irqs |= hpd[encoder->hpd_pin];
-
-	return enabled_irqs;
-}
-
-static u32 intel_hpd_hotplug_irqs(struct drm_i915_private *dev_priv,
-				  const u32 hpd[HPD_NUM_PINS])
-{
-	struct intel_encoder *encoder;
-	u32 hotplug_irqs = 0;
-
-	for_each_intel_encoder(&dev_priv->drm, encoder)
-		hotplug_irqs |= hpd[encoder->hpd_pin];
-
-	return hotplug_irqs;
 }
 
 static void ibx_hpd_detection_setup(struct drm_i915_private *dev_priv)
