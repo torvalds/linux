@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * Authors:
  * (C) 2020 Alexander Aring <alex.aring@gmail.com>
  */
