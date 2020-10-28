@@ -615,9 +615,6 @@ static int goya_early_init(struct hl_device *hdev)
 				"PCI strap is not configured correctly, PCI bus errors may occur\n");
 	}
 
-	dev_info(hdev->dev, "firmware-level security is %s\n",
-		hdev->asic_prop.fw_security_disabled ? "disabled" : "enabled");
-
 	return 0;
 
 free_queue_props:
