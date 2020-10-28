@@ -600,6 +600,7 @@ static inline bool ttm_bo_uses_embedded_gem_object(struct ttm_buffer_object *bo)
 static inline void ttm_bo_pin(struct ttm_buffer_object *bo)
 {
 	dma_resv_assert_held(bo->base.resv);
+	WARN_ON_ONCE(!kref_read(&bo->kref));
 	++bo->pin_count;
 }
 
@@ -613,6 +614,7 @@ static inline void ttm_bo_unpin(struct ttm_buffer_object *bo)
 {
 	dma_resv_assert_held(bo->base.resv);
 	WARN_ON_ONCE(!bo->pin_count);
+	WARN_ON_ONCE(!kref_read(&bo->kref));
 	--bo->pin_count;
 }
 
