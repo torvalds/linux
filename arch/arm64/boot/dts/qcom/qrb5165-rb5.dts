@@ -18,6 +18,7 @@
 
 	aliases {
 		serial0 = &uart12;
+		sdhc2 = &sdhc_2;
 	};
 
 	chosen {
@@ -475,6 +476,20 @@
 	status = "okay";
 };
 
+&sdhc_2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdc2_default_state &sdc2_card_det_n>;
+	vmmc-supply = <&vreg_l9c_2p96>;
+	vqmmc-supply = <&vreg_l6c_2p96>;
+	cd-gpios = <&tlmm 77 GPIO_ACTIVE_LOW>;
+	bus-width = <4>;
+	/* there seem to be issues with HS400-1.8V mode, so disable it */
+	no-1-8-v;
+	no-sdio;
+	no-emmc;
+};
+
 /* CAN */
 &spi0 {
 	status = "okay";
@@ -663,6 +678,32 @@
 		"HST_BLE_SNS_UART_RX",
 		"HST_WLAN_UART_TX",
 		"HST_WLAN_UART_RX";
+
+	sdc2_default_state: sdc2-default {
+		clk {
+			pins = "sdc2_clk";
+			bias-disable;
+			drive-strength = <16>;
+		};
+
+		cmd {
+			pins = "sdc2_cmd";
+			bias-pull-up;
+			drive-strength = <16>;
+		};
+
+		data {
+			pins = "sdc2_data";
+			bias-pull-up;
+			drive-strength = <16>;
+		};
+	};
+
+	sdc2_card_det_n: sd-card-det-n {
+		pins = "gpio77";
+		function = "gpio";
+		bias-pull-up;
+	};
 };
 
 &uart12 {
