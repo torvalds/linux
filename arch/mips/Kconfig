@@ -88,6 +88,7 @@ config MIPS
 	select PERF_USE_VMALLOC
 	select PCI_MSI_ARCH_FALLBACKS if PCI_MSI
 	select RTC_LIB
+	select SET_FS
 	select SYSCTL_EXCEPTION_TRACE
 	select VIRT_TO_BUS
 
