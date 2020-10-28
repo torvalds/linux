@@ -6,8 +6,6 @@
 #include <linux/spinlock.h>
 #include <linux/clk-provider.h>
 
-#define IMX_CLK_GATE2_SINGLE_BIT	1
-
 extern spinlock_t imx_ccm_lock;
 
 void imx_check_clocks(struct clk *clks[], unsigned int count);
@@ -384,8 +382,7 @@ static inline struct clk_hw *imx_dev_clk_hw_gate_shared(struct device *dev,
 				unsigned int *share_count)
 {
 	return clk_hw_register_gate2(NULL, name, parent, CLK_SET_RATE_PARENT |
-					CLK_OPS_PARENT_ENABLE, reg, shift, 0x3,
-					IMX_CLK_GATE2_SINGLE_BIT,
+					CLK_OPS_PARENT_ENABLE, reg, shift, 0x1, 0,
 					&imx_ccm_lock, share_count);
 }
 
