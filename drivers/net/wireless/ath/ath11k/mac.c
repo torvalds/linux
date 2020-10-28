@@ -1850,6 +1850,52 @@ static void ath11k_recalculate_mgmt_rate(struct ath11k *ar,
 		ath11k_warn(ar->ab, "failed to set beacon tx rate %d\n", ret);
 }
 
+static int ath11k_mac_fils_discovery(struct ath11k_vif *arvif,
+				     struct ieee80211_bss_conf *info)
+{
+	struct ath11k *ar = arvif->ar;
+	struct sk_buff *tmpl;
+	int ret;
+	u32 interval;
+	bool unsol_bcast_probe_resp_enabled = false;
+
+	if (info->fils_discovery.max_interval) {
+		interval = info->fils_discovery.max_interval;
+
+		tmpl = ieee80211_get_fils_discovery_tmpl(ar->hw, arvif->vif);
+		if (tmpl)
+			ret = ath11k_wmi_fils_discovery_tmpl(ar, arvif->vdev_id,
+							     tmpl);
+	} else if (info->unsol_bcast_probe_resp_interval) {
+		unsol_bcast_probe_resp_enabled = 1;
+		interval = info->unsol_bcast_probe_resp_interval;
+
+		tmpl = ieee80211_get_unsol_bcast_probe_resp_tmpl(ar->hw,
+								 arvif->vif);
+		if (tmpl)
+			ret = ath11k_wmi_probe_resp_tmpl(ar, arvif->vdev_id,
+							 tmpl);
+	} else { /* Disable */
+		return ath11k_wmi_fils_discovery(ar, arvif->vdev_id, 0, false);
+	}
+
+	if (!tmpl) {
+		ath11k_warn(ar->ab,
+			    "mac vdev %i failed to retrieve %s template\n",
+			    arvif->vdev_id, (unsol_bcast_probe_resp_enabled ?
+			    "unsolicited broadcast probe response" :
+			    "FILS discovery"));
+		return -EPERM;
+	}
+	kfree_skb(tmpl);
+
+	if (!ret)
+		ret = ath11k_wmi_fils_discovery(ar, arvif->vdev_id, interval,
+						unsol_bcast_probe_resp_enabled);
+
+	return ret;
+}
+
 static void ath11k_mac_op_bss_info_changed(struct ieee80211_hw *hw,
 					   struct ieee80211_vif *vif,
 					   struct ieee80211_bss_conf *info,
@@ -2110,6 +2156,10 @@ static void ath11k_mac_op_bss_info_changed(struct ieee80211_hw *hw,
 					    arvif->vdev_id,  ret);
 		}
 	}
+
+	if (changed & BSS_CHANGED_FILS_DISCOVERY ||
+	    changed & BSS_CHANGED_UNSOL_BCAST_PROBE_RESP)
+		ath11k_mac_fils_discovery(arvif, info);
 
 	mutex_unlock(&ar->conf_mutex);
 }
@@ -6257,6 +6307,13 @@ static int __ath11k_mac_register(struct ath11k *ar)
 	ar->hw->wiphy->iftype_ext_capab = ath11k_iftypes_ext_capa;
 	ar->hw->wiphy->num_iftype_ext_capab =
 		ARRAY_SIZE(ath11k_iftypes_ext_capa);
+
+	if (ar->supports_6ghz) {
+		wiphy_ext_feature_set(ar->hw->wiphy,
+				      NL80211_EXT_FEATURE_FILS_DISCOVERY);
+		wiphy_ext_feature_set(ar->hw->wiphy,
+				      NL80211_EXT_FEATURE_UNSOL_BCAST_PROBE_RESP);
+	}
 
 	ath11k_reg_init(ar);
 

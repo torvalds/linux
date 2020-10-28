@@ -122,6 +122,10 @@ static const struct wmi_tlv_policy wmi_tlv_policies[] = {
 		= { .min_len = sizeof(struct wmi_stats_event) },
 	[WMI_TAG_PDEV_CTL_FAILSAFE_CHECK_EVENT]
 		= { .min_len = sizeof(struct wmi_pdev_ctl_failsafe_chk_event) },
+	[WMI_TAG_HOST_SWFDA_EVENT] = {
+		.min_len = sizeof(struct wmi_fils_discovery_event) },
+	[WMI_TAG_OFFLOAD_PRB_RSP_TX_STATUS_EVENT] = {
+		.min_len = sizeof(struct wmi_probe_resp_tx_status_event) },
 };
 
 #define PRIMAP(_hw_mode_) \
@@ -3059,6 +3063,137 @@ int ath11k_wmi_send_bss_color_change_enable_cmd(struct ath11k *ar, u32 vdev_id,
 				  WMI_BSS_COLOR_CHANGE_ENABLE_CMDID);
 	if (ret) {
 		ath11k_warn(ab, "Failed to send WMI_BSS_COLOR_CHANGE_ENABLE_CMDID");
+		dev_kfree_skb(skb);
+	}
+	return ret;
+}
+
+int ath11k_wmi_fils_discovery_tmpl(struct ath11k *ar, u32 vdev_id,
+				   struct sk_buff *tmpl)
+{
+	struct wmi_tlv *tlv;
+	struct sk_buff *skb;
+	void *ptr;
+	int ret, len;
+	size_t aligned_len;
+	struct wmi_fils_discovery_tmpl_cmd *cmd;
+
+	aligned_len = roundup(tmpl->len, 4);
+	len = sizeof(*cmd) + TLV_HDR_SIZE + aligned_len;
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_WMI,
+		   "WMI vdev %i set FILS discovery template\n", vdev_id);
+
+	skb = ath11k_wmi_alloc_skb(ar->wmi->wmi_ab, len);
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_fils_discovery_tmpl_cmd *)skb->data;
+	cmd->tlv_header = FIELD_PREP(WMI_TLV_TAG,
+				     WMI_TAG_FILS_DISCOVERY_TMPL_CMD) |
+			  FIELD_PREP(WMI_TLV_LEN, sizeof(*cmd) - TLV_HDR_SIZE);
+	cmd->vdev_id = vdev_id;
+	cmd->buf_len = tmpl->len;
+	ptr = skb->data + sizeof(*cmd);
+
+	tlv = ptr;
+	tlv->header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_ARRAY_BYTE) |
+		      FIELD_PREP(WMI_TLV_LEN, aligned_len);
+	memcpy(tlv->value, tmpl->data, tmpl->len);
+
+	ret = ath11k_wmi_cmd_send(ar->wmi, skb, WMI_FILS_DISCOVERY_TMPL_CMDID);
+	if (ret) {
+		ath11k_warn(ar->ab,
+			    "WMI vdev %i failed to send FILS discovery template command\n",
+			    vdev_id);
+		dev_kfree_skb(skb);
+	}
+	return ret;
+}
+
+int ath11k_wmi_probe_resp_tmpl(struct ath11k *ar, u32 vdev_id,
+			       struct sk_buff *tmpl)
+{
+	struct wmi_probe_tmpl_cmd *cmd;
+	struct wmi_bcn_prb_info *probe_info;
+	struct wmi_tlv *tlv;
+	struct sk_buff *skb;
+	void *ptr;
+	int ret, len;
+	size_t aligned_len = roundup(tmpl->len, 4);
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_WMI,
+		   "WMI vdev %i set probe response template\n", vdev_id);
+
+	len = sizeof(*cmd) + sizeof(*probe_info) + TLV_HDR_SIZE + aligned_len;
+
+	skb = ath11k_wmi_alloc_skb(ar->wmi->wmi_ab, len);
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_probe_tmpl_cmd *)skb->data;
+	cmd->tlv_header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_PRB_TMPL_CMD) |
+			  FIELD_PREP(WMI_TLV_LEN, sizeof(*cmd) - TLV_HDR_SIZE);
+	cmd->vdev_id = vdev_id;
+	cmd->buf_len = tmpl->len;
+
+	ptr = skb->data + sizeof(*cmd);
+
+	probe_info = ptr;
+	len = sizeof(*probe_info);
+	probe_info->tlv_header = FIELD_PREP(WMI_TLV_TAG,
+					    WMI_TAG_BCN_PRB_INFO) |
+				 FIELD_PREP(WMI_TLV_LEN, len - TLV_HDR_SIZE);
+	probe_info->caps = 0;
+	probe_info->erp = 0;
+
+	ptr += sizeof(*probe_info);
+
+	tlv = ptr;
+	tlv->header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_ARRAY_BYTE) |
+		      FIELD_PREP(WMI_TLV_LEN, aligned_len);
+	memcpy(tlv->value, tmpl->data, tmpl->len);
+
+	ret = ath11k_wmi_cmd_send(ar->wmi, skb, WMI_PRB_TMPL_CMDID);
+	if (ret) {
+		ath11k_warn(ar->ab,
+			    "WMI vdev %i failed to send probe response template command\n",
+			    vdev_id);
+		dev_kfree_skb(skb);
+	}
+	return ret;
+}
+
+int ath11k_wmi_fils_discovery(struct ath11k *ar, u32 vdev_id, u32 interval,
+			      bool unsol_bcast_probe_resp_enabled)
+{
+	struct sk_buff *skb;
+	int ret, len;
+	struct wmi_fils_discovery_cmd *cmd;
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_WMI,
+		   "WMI vdev %i set %s interval to %u TU\n",
+		   vdev_id, unsol_bcast_probe_resp_enabled ?
+		   "unsolicited broadcast probe response" : "FILS discovery",
+		   interval);
+
+	len = sizeof(*cmd);
+	skb = ath11k_wmi_alloc_skb(ar->wmi->wmi_ab, len);
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_fils_discovery_cmd *)skb->data;
+	cmd->tlv_header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_ENABLE_FILS_CMD) |
+			  FIELD_PREP(WMI_TLV_LEN, len - TLV_HDR_SIZE);
+	cmd->vdev_id = vdev_id;
+	cmd->interval = interval;
+	cmd->config = unsol_bcast_probe_resp_enabled;
+
+	ret = ath11k_wmi_cmd_send(ar->wmi, skb, WMI_ENABLE_FILS_CMDID);
+	if (ret) {
+		ath11k_warn(ar->ab,
+			    "WMI vdev %i failed to send FILS discovery enable/disable command\n",
+			    vdev_id);
 		dev_kfree_skb(skb);
 	}
 	return ret;
@@ -6429,6 +6564,68 @@ ath11k_wmi_pdev_temperature_event(struct ath11k_base *ab,
 	ath11k_thermal_event_temperature(ar, ev.temp);
 }
 
+static void ath11k_fils_discovery_event(struct ath11k_base *ab,
+					struct sk_buff *skb)
+{
+	const void **tb;
+	const struct wmi_fils_discovery_event *ev;
+	int ret;
+
+	tb = ath11k_wmi_tlv_parse_alloc(ab, skb->data, skb->len, GFP_ATOMIC);
+	if (IS_ERR(tb)) {
+		ret = PTR_ERR(tb);
+		ath11k_warn(ab,
+			    "failed to parse FILS discovery event tlv %d\n",
+			    ret);
+		return;
+	}
+
+	ev = tb[WMI_TAG_HOST_SWFDA_EVENT];
+	if (!ev) {
+		ath11k_warn(ab, "failed to fetch FILS discovery event\n");
+		kfree(tb);
+		return;
+	}
+
+	ath11k_warn(ab,
+		    "FILS discovery frame expected from host for vdev_id: %u, transmission scheduled at %u, next TBTT: %u\n",
+		    ev->vdev_id, ev->fils_tt, ev->tbtt);
+
+	kfree(tb);
+}
+
+static void ath11k_probe_resp_tx_status_event(struct ath11k_base *ab,
+					      struct sk_buff *skb)
+{
+	const void **tb;
+	const struct wmi_probe_resp_tx_status_event *ev;
+	int ret;
+
+	tb = ath11k_wmi_tlv_parse_alloc(ab, skb->data, skb->len, GFP_ATOMIC);
+	if (IS_ERR(tb)) {
+		ret = PTR_ERR(tb);
+		ath11k_warn(ab,
+			    "failed to parse probe response transmission status event tlv: %d\n",
+			    ret);
+		return;
+	}
+
+	ev = tb[WMI_TAG_OFFLOAD_PRB_RSP_TX_STATUS_EVENT];
+	if (!ev) {
+		ath11k_warn(ab,
+			    "failed to fetch probe response transmission status event");
+		kfree(tb);
+		return;
+	}
+
+	if (ev->tx_status)
+		ath11k_warn(ab,
+			    "Probe response transmission failed for vdev_id %u, status %u\n",
+			    ev->vdev_id, ev->tx_status);
+
+	kfree(tb);
+}
+
 static void ath11k_wmi_tlv_op_rx(struct ath11k_base *ab, struct sk_buff *skb)
 {
 	struct wmi_cmd_hdr *cmd_hdr;
@@ -6514,6 +6711,12 @@ static void ath11k_wmi_tlv_op_rx(struct ath11k_base *ab, struct sk_buff *skb)
 		break;
 	case WMI_PDEV_DMA_RING_BUF_RELEASE_EVENTID:
 		ath11k_wmi_pdev_dma_ring_buf_release_event(ab, skb);
+		break;
+	case WMI_HOST_FILS_DISCOVERY_EVENTID:
+		ath11k_fils_discovery_event(ab, skb);
+		break;
+	case WMI_OFFLOAD_PROB_RESP_TX_STATUS_EVENTID:
+		ath11k_probe_resp_tx_status_event(ab, skb);
 		break;
 	/* add Unsupported events here */
 	case WMI_TBTTOFFSET_EXT_UPDATE_EVENTID:
