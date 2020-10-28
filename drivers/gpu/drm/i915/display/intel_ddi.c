@@ -5174,8 +5174,31 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 
 	encoder = &dig_port->base;
 
-	drm_encoder_init(&dev_priv->drm, &encoder->base, &intel_ddi_funcs,
-			 DRM_MODE_ENCODER_TMDS, "DDI %c", port_name(port));
+	if (INTEL_GEN(dev_priv) >= 12) {
+		enum tc_port tc_port = intel_port_to_tc(dev_priv, port);
+
+		drm_encoder_init(&dev_priv->drm, &encoder->base, &intel_ddi_funcs,
+				 DRM_MODE_ENCODER_TMDS,
+				 "DDI %s%c/PHY %s%c",
+				 port >= PORT_TC1 ? "TC" : "",
+				 port >= PORT_TC1 ? port_name(port) : port - PORT_TC1 + '1',
+				 tc_port != TC_PORT_NONE ? "TC" : "",
+				 tc_port != TC_PORT_NONE ? phy_name(phy) : tc_port - TC_PORT_1 + '1');
+	} else if (INTEL_GEN(dev_priv) >= 11) {
+		enum tc_port tc_port = intel_port_to_tc(dev_priv, port);
+
+		drm_encoder_init(&dev_priv->drm, &encoder->base, &intel_ddi_funcs,
+				 DRM_MODE_ENCODER_TMDS,
+				 "DDI %c%s/PHY %s%c",
+				 port_name(port),
+				 port >= PORT_C ? " (TC)" : "",
+				 tc_port != TC_PORT_NONE ? "TC" : "",
+				 tc_port != TC_PORT_NONE ? phy_name(phy) : tc_port - TC_PORT_1 + '1');
+	} else {
+		drm_encoder_init(&dev_priv->drm, &encoder->base, &intel_ddi_funcs,
+				 DRM_MODE_ENCODER_TMDS,
+				 "DDI %c/PHY %c", port_name(port),  phy_name(phy));
+	}
 
 	mutex_init(&dig_port->hdcp_mutex);
 	dig_port->num_hdcp_streams = 0;
