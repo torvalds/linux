@@ -10,6 +10,7 @@
 #define KMSG_COMPONENT "zfcp"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/lockdep.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include "zfcp_ext.h"
@@ -283,6 +284,13 @@ int zfcp_qdio_send(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req)
 	int retval;
 	u8 sbal_number = q_req->sbal_number;
 
+	/*
+	 * This should actually be a spin_lock_bh(stat_lock), to protect against
+	 * zfcp_qdio_int_req() in tasklet context.
+	 * But we can't do so (and are safe), as we always get called with IRQs
+	 * disabled by spin_lock_irq[save](req_q_lock).
+	 */
+	lockdep_assert_irqs_disabled();
 	spin_lock(&qdio->stat_lock);
 	zfcp_qdio_account(qdio);
 	spin_unlock(&qdio->stat_lock);
