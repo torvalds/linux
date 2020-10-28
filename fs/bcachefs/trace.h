@@ -536,9 +536,46 @@ DEFINE_EVENT(transaction_restart,	trans_restart_btree_node_reused,
 	TP_ARGS(ip)
 );
 
-DEFINE_EVENT(transaction_restart,	trans_restart_would_deadlock,
-	TP_PROTO(unsigned long ip),
-	TP_ARGS(ip)
+TRACE_EVENT(trans_restart_would_deadlock,
+	TP_PROTO(unsigned long	trans_ip,
+		 unsigned long	caller_ip,
+		 unsigned	reason,
+		 enum btree_id	have_btree_id,
+		 unsigned	have_iter_type,
+		 enum btree_id	want_btree_id,
+		 unsigned	want_iter_type),
+	TP_ARGS(trans_ip, caller_ip, reason,
+		have_btree_id, have_iter_type,
+		want_btree_id, want_iter_type),
+
+	TP_STRUCT__entry(
+		__field(unsigned long,		trans_ip	)
+		__field(unsigned long,		caller_ip	)
+		__field(u8,			reason		)
+		__field(u8,			have_btree_id	)
+		__field(u8,			have_iter_type	)
+		__field(u8,			want_btree_id	)
+		__field(u8,			want_iter_type	)
+	),
+
+	TP_fast_assign(
+		__entry->trans_ip		= trans_ip;
+		__entry->caller_ip		= caller_ip;
+		__entry->reason			= reason;
+		__entry->have_btree_id		= have_btree_id;
+		__entry->have_iter_type		= have_iter_type;
+		__entry->want_btree_id		= want_btree_id;
+		__entry->want_iter_type		= want_iter_type;
+	),
+
+	TP_printk("%pF %pF because %u have %u:%u want %u:%u",
+		  (void *) __entry->trans_ip,
+		  (void *) __entry->caller_ip,
+		  __entry->reason,
+		  __entry->have_btree_id,
+		  __entry->have_iter_type,
+		  __entry->want_btree_id,
+		  __entry->want_iter_type)
 );
 
 TRACE_EVENT(trans_restart_iters_realloced,

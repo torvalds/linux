@@ -242,7 +242,7 @@ retry:
 		enum six_lock_type lock_want = __btree_lock_want(iter, 0);
 
 		if (!btree_node_lock((void *) ck, iter->pos, 0, iter, lock_want,
-				     bkey_cached_check_fn, iter)) {
+				     bkey_cached_check_fn, iter, _THIS_IP_)) {
 			if (ck->key.btree_id != iter->btree_id ||
 			    bkey_cmp(ck->key.pos, iter->pos)) {
 				goto retry;

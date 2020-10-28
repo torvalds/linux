@@ -706,7 +706,8 @@ static int lock_node_check_fn(struct six_lock *lock, void *p)
  */
 struct btree *bch2_btree_node_get(struct bch_fs *c, struct btree_iter *iter,
 				  const struct bkey_i *k, unsigned level,
-				  enum six_lock_type lock_type)
+				  enum six_lock_type lock_type,
+				  unsigned long trace_ip)
 {
 	struct btree_cache *bc = &c->btree_cache;
 	struct btree *b;
@@ -768,7 +769,7 @@ lock_node:
 			btree_node_unlock(iter, level + 1);
 
 		if (!btree_node_lock(b, k->k.p, level, iter, lock_type,
-				     lock_node_check_fn, (void *) k)) {
+				     lock_node_check_fn, (void *) k, trace_ip)) {
 			if (b->hash_val != btree_ptr_hash_val(k))
 				goto retry;
 			return ERR_PTR(-EINTR);
@@ -936,7 +937,7 @@ struct btree *bch2_btree_node_get_sibling(struct bch_fs *c,
 	bch2_bkey_unpack(parent, &tmp.k, k);
 
 	ret = bch2_btree_node_get(c, iter, &tmp.k, level,
-				  SIX_LOCK_intent);
+				  SIX_LOCK_intent, _THIS_IP_);
 
 	if (PTR_ERR_OR_ZERO(ret) == -EINTR && !trans->nounlock) {
 		struct btree_iter *linked;
@@ -956,7 +957,7 @@ struct btree *bch2_btree_node_get_sibling(struct bch_fs *c,
 			btree_node_unlock(iter, level);
 
 		ret = bch2_btree_node_get(c, iter, &tmp.k, level,
-					  SIX_LOCK_intent);
+					  SIX_LOCK_intent, _THIS_IP_);
 
 		/*
 		 * before btree_iter_relock() calls btree_iter_verify_locks():
