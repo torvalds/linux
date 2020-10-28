@@ -175,8 +175,11 @@ static int omap_enter_idle_coupled(struct cpuidle_device *dev,
 		if (mpuss_can_lose_context) {
 			error = cpu_cluster_pm_enter();
 			if (error) {
-				omap_set_pwrdm_state(mpu_pd, PWRDM_POWER_ON);
-				goto cpu_cluster_pm_out;
+				index = 0;
+				cx = state_ptr + index;
+				pwrdm_set_logic_retst(mpu_pd, cx->mpu_logic_state);
+				omap_set_pwrdm_state(mpu_pd, cx->mpu_state);
+				mpuss_can_lose_context = 0;
 			}
 		}
 	}
@@ -184,7 +187,6 @@ static int omap_enter_idle_coupled(struct cpuidle_device *dev,
 	omap4_enter_lowpower(dev->cpu, cx->cpu_state);
 	cpu_done[dev->cpu] = true;
 
-cpu_cluster_pm_out:
 	/* Wakeup CPU1 only if it is not offlined */
 	if (dev->cpu == 0 && cpumask_test_cpu(1, cpu_online_mask)) {
 
