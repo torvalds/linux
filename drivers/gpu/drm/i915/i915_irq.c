@@ -126,9 +126,9 @@ static const u32 hpd_status_i915[HPD_NUM_PINS] = {
 };
 
 static const u32 hpd_bxt[HPD_NUM_PINS] = {
-	[HPD_PORT_A] = BXT_DE_PORT_HP_DDIA,
-	[HPD_PORT_B] = BXT_DE_PORT_HP_DDIB,
-	[HPD_PORT_C] = BXT_DE_PORT_HP_DDIC,
+	[HPD_PORT_A] = BXT_DE_PORT_HP_DDI(HPD_PORT_A),
+	[HPD_PORT_B] = BXT_DE_PORT_HP_DDI(HPD_PORT_B),
+	[HPD_PORT_C] = BXT_DE_PORT_HP_DDI(HPD_PORT_C),
 };
 
 static const u32 hpd_gen11[HPD_NUM_PINS] = {
@@ -3420,13 +3420,13 @@ static void __bxt_hpd_detection_setup(struct drm_i915_private *dev_priv,
 	 * For BXT invert bit has to be set based on AOB design
 	 * for HPD detection logic, update it based on VBT fields.
 	 */
-	if ((enabled_irqs & BXT_DE_PORT_HP_DDIA) &&
+	if ((enabled_irqs & BXT_DE_PORT_HP_DDI(HPD_PORT_A)) &&
 	    intel_bios_is_port_hpd_inverted(dev_priv, PORT_A))
 		hotplug |= BXT_DDIA_HPD_INVERT;
-	if ((enabled_irqs & BXT_DE_PORT_HP_DDIB) &&
+	if ((enabled_irqs & BXT_DE_PORT_HP_DDI(HPD_PORT_B)) &&
 	    intel_bios_is_port_hpd_inverted(dev_priv, PORT_B))
 		hotplug |= BXT_DDIB_HPD_INVERT;
-	if ((enabled_irqs & BXT_DE_PORT_HP_DDIC) &&
+	if ((enabled_irqs & BXT_DE_PORT_HP_DDI(HPD_PORT_C)) &&
 	    intel_bios_is_port_hpd_inverted(dev_priv, PORT_C))
 		hotplug |= BXT_DDIC_HPD_INVERT;
 

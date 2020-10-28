@@ -7813,6 +7813,8 @@ enum {
 	(GEN9_DE_PIPE_IRQ_FAULT_ERRORS | \
 	 GEN11_PIPE_PLANE5_FAULT)
 
+#define _HPD_PIN_DDI(hpd_pin)	((hpd_pin) - HPD_PORT_A)
+
 #define GEN8_DE_PORT_ISR _MMIO(0x44440)
 #define GEN8_DE_PORT_IMR _MMIO(0x44444)
 #define GEN8_DE_PORT_IIR _MMIO(0x44448)
@@ -7826,12 +7828,10 @@ enum {
 #define  GEN9_AUX_CHANNEL_B		(1 << 25)
 #define  DSI1_TE			(1 << 24)
 #define  DSI0_TE			(1 << 23)
-#define  BXT_DE_PORT_HP_DDIC		(1 << 5)
-#define  BXT_DE_PORT_HP_DDIB		(1 << 4)
-#define  BXT_DE_PORT_HP_DDIA		(1 << 3)
-#define  BXT_DE_PORT_HOTPLUG_MASK	(BXT_DE_PORT_HP_DDIA | \
-					 BXT_DE_PORT_HP_DDIB | \
-					 BXT_DE_PORT_HP_DDIC)
+#define  BXT_DE_PORT_HP_DDI(hpd_pin)	REG_BIT(3 + _HPD_PIN_DDI(hpd_pin))
+#define  BXT_DE_PORT_HOTPLUG_MASK	(BXT_DE_PORT_HP_DDI(HPD_PORT_A) | \
+					 BXT_DE_PORT_HP_DDI(HPD_PORT_B) | \
+					 BXT_DE_PORT_HP_DDI(HPD_PORT_C))
 #define  GEN8_PORT_DP_A_HOTPLUG		(1 << 3)
 #define  BXT_DE_PORT_GMBUS		(1 << 1)
 #define  GEN8_AUX_CHANNEL_A		(1 << 0)
