@@ -888,6 +888,25 @@ static ssize_t btrfs_generation_show(struct kobject *kobj,
 }
 BTRFS_ATTR(, generation, btrfs_generation_show);
 
+/*
+ * Look for an exact string @string in @buffer with possible leading or
+ * trailing whitespace
+ */
+static bool strmatch(const char *buffer, const char *string)
+{
+	const size_t len = strlen(string);
+
+	/* Skip leading whitespace */
+	buffer = skip_spaces(buffer);
+
+	/* Match entire string, check if the rest is whitespace or empty */
+	if (strncmp(string, buffer, len) == 0 &&
+	    strlen(skip_spaces(buffer + len)) == 0)
+		return true;
+
+	return false;
+}
+
 static const struct attribute *btrfs_attrs[] = {
 	BTRFS_ATTR_PTR(, label),
 	BTRFS_ATTR_PTR(, nodesize),
