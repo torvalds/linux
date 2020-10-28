@@ -2348,6 +2348,7 @@
   __sock_recv_ts_and_drops
   sock_wake_async
   sock_wfree
+  timer_reduce
   unregister_net_sysctl_table
   __wake_up_sync_key
   __xfrm_policy_check
