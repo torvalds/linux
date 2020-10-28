@@ -187,20 +187,21 @@ static void ef100_make_tso_desc(struct efx_nic *efx,
 				struct efx_tx_buffer *buffer, efx_oword_t *txd,
 				unsigned int segment_count)
 {
-	u32 mangleid = (efx->net_dev->features & NETIF_F_TSO_MANGLEID) ||
-		skb_shinfo(skb)->gso_type & SKB_GSO_TCP_FIXEDID ?
-		ESE_GZ_TX_DESC_IP4_ID_NO_OP :
-		ESE_GZ_TX_DESC_IP4_ID_INC_MOD16;
-	u16 vlan_enable =  efx->net_dev->features & NETIF_F_HW_VLAN_CTAG_TX ?
-		skb_vlan_tag_present(skb) : 0;
 	bool gso_partial = skb_shinfo(skb)->gso_type & SKB_GSO_PARTIAL;
 	unsigned int len, ip_offset, tcp_offset, payload_segs;
+	u32 mangleid = ESE_GZ_TX_DESC_IP4_ID_INC_MOD16;
 	unsigned int outer_ip_offset, outer_l4_offset;
 	u16 vlan_tci = skb_vlan_tag_get(skb);
 	u32 mss = skb_shinfo(skb)->gso_size;
 	bool encap = skb->encapsulation;
+	u16 vlan_enable = 0;
 	struct tcphdr *tcp;
 	u32 paylen;
+
+	if (skb_shinfo(skb)->gso_type & SKB_GSO_TCP_FIXEDID)
+		mangleid = ESE_GZ_TX_DESC_IP4_ID_NO_OP;
+	if (efx->net_dev->features & NETIF_F_HW_VLAN_CTAG_TX)
+		vlan_enable = skb_vlan_tag_present(skb);
 
 	len = skb->len - buffer->len;
 	/* We use 1 for the TSO descriptor and 1 for the header */
