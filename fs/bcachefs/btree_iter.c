@@ -244,6 +244,7 @@ bool __bch2_btree_node_lock(struct btree *b, struct bpos pos,
 		 * we're about to lock, it must have the ancestors locked too:
 		 */
 		if (linked->btree_id == iter->btree_id &&
+		    btree_iter_is_cached(linked) == btree_iter_is_cached(iter) &&
 		    level > __fls(linked->nodes_locked)) {
 			if (!(trans->nounlock)) {
 				linked->locks_want =

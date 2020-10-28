@@ -283,6 +283,11 @@ btree_iter_type(const struct btree_iter *iter)
 	return iter->flags & BTREE_ITER_TYPE;
 }
 
+static inline bool btree_iter_is_cached(const struct btree_iter *iter)
+{
+	return btree_iter_type(iter) == BTREE_ITER_CACHED;
+}
+
 static inline struct btree_iter_level *iter_l(struct btree_iter *iter)
 {
 	return iter->l + iter->level;
