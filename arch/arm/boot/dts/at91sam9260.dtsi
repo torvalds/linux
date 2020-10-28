@@ -36,16 +36,17 @@
 		ssc0 = &ssc0;
 	};
 	cpus {
-		#address-cells = <0>;
+		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu {
+		cpu@0 {
 			compatible = "arm,arm926ej-s";
 			device_type = "cpu";
+			reg = <0>;
 		};
 	};
 
-	memory {
+	memory@20000000 {
 		device_type = "memory";
 		reg = <0x20000000 0x04000000>;
 	};
@@ -73,6 +74,9 @@
 	sram0: sram@2ff000 {
 		compatible = "mmio-sram";
 		reg = <0x002ff000 0x2000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x002ff000 0x2000>;
 	};
 
 	ahb {
@@ -650,7 +654,6 @@
 				interrupts = <9 IRQ_TYPE_LEVEL_HIGH 0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				pinctrl-names = "default";
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 9>;
 				clock-names = "mci_clk";
 				status = "disabled";

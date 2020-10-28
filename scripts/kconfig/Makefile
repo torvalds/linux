@@ -20,19 +20,19 @@ endif
 unexport CONFIG_
 
 xconfig: $(obj)/qconf
-	$< $(silent) $(Kconfig)
+	$(Q)$< $(silent) $(Kconfig)
 
 gconfig: $(obj)/gconf
-	$< $(silent) $(Kconfig)
+	$(Q)$< $(silent) $(Kconfig)
 
 menuconfig: $(obj)/mconf
-	$< $(silent) $(Kconfig)
+	$(Q)$< $(silent) $(Kconfig)
 
 config: $(obj)/conf
-	$< $(silent) --oldaskconfig $(Kconfig)
+	$(Q)$< $(silent) --oldaskconfig $(Kconfig)
 
 nconfig: $(obj)/nconf
-	$< $(silent) $(Kconfig)
+	$(Q)$< $(silent) $(Kconfig)
 
 build_menuconfig: $(obj)/mconf
 
@@ -68,12 +68,12 @@ simple-targets := oldconfig allnoconfig allyesconfig allmodconfig \
 PHONY += $(simple-targets)
 
 $(simple-targets): $(obj)/conf
-	$< $(silent) --$@ $(Kconfig)
+	$(Q)$< $(silent) --$@ $(Kconfig)
 
 PHONY += savedefconfig defconfig
 
 savedefconfig: $(obj)/conf
-	$< $(silent) --$@=defconfig $(Kconfig)
+	$(Q)$< $(silent) --$@=defconfig $(Kconfig)
 
 defconfig: $(obj)/conf
 ifneq ($(wildcard $(srctree)/arch/$(SRCARCH)/configs/$(KBUILD_DEFCONFIG)),)
@@ -111,7 +111,7 @@ tinyconfig:
 # CHECK: -o cache_dir=<path> working?
 PHONY += testconfig
 testconfig: $(obj)/conf
-	$(PYTHON3) -B -m pytest $(srctree)/$(src)/tests \
+	$(Q)$(PYTHON3) -B -m pytest $(srctree)/$(src)/tests \
 	-o cache_dir=$(abspath $(obj)/tests/.cache) \
 	$(if $(findstring 1,$(KBUILD_VERBOSE)),--capture=no)
 clean-files += tests/.cache

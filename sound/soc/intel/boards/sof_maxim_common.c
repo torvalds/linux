@@ -66,6 +66,10 @@ int max98373_trigger(struct snd_pcm_substream *substream, int cmd)
 	int j;
 	int ret = 0;
 
+	/* set spk pin by playback only */
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+		return 0;
+
 	for_each_rtd_codec_dais(rtd, j, codec_dai) {
 		struct snd_soc_component *component = codec_dai->component;
 		struct snd_soc_dapm_context *dapm =
@@ -86,9 +90,6 @@ int max98373_trigger(struct snd_pcm_substream *substream, int cmd)
 		case SNDRV_PCM_TRIGGER_STOP:
 		case SNDRV_PCM_TRIGGER_SUSPEND:
 		case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-			/* Make sure no streams are active before disable pin */
-			if (snd_soc_dai_active(codec_dai) != 1)
-				break;
 			ret = snd_soc_dapm_disable_pin(dapm, pin_name);
 			if (!ret)
 				snd_soc_dapm_sync(dapm);

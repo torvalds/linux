@@ -595,22 +595,10 @@ static const struct clk_parent_data gcc_xo_gpll1_emclk_sleep_parent_data[] = {
 	{ .fw_name = "sleep_clk", .name = "sleep_clk" },
 };
 
-static const struct parent_map gcc_xo_gpll6_gpll0_map[] = {
-	{ P_XO, 0 },
-	{ P_GPLL6, 1 },
-	{ P_GPLL0, 2 },
-};
-
 static const struct clk_parent_data gcc_xo_gpll6_gpll0_parent_data[] = {
 	{ .fw_name = "xo" },
 	{ .hw = &gpll6_vote.hw },
 	{ .hw = &gpll0_vote.hw },
-};
-
-static const struct parent_map gcc_xo_gpll6_gpll0a_map[] = {
-	{ P_XO, 0 },
-	{ P_GPLL6, 1 },
-	{ P_GPLL0_AUX, 2 },
 };
 
 static const struct clk_parent_data gcc_xo_gpll6_gpll0a_parent_data[] = {

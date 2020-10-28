@@ -553,6 +553,22 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 		val |= EDP_PSR2_FAST_WAKE(7);
 	}
 
+	if (dev_priv->psr.psr2_sel_fetch_enabled) {
+		/* WA 1408330847 */
+		if (IS_TGL_DISP_REVID(dev_priv, TGL_REVID_A0, TGL_REVID_A0) ||
+		    IS_RKL_REVID(dev_priv, RKL_REVID_A0, RKL_REVID_A0))
+			intel_de_rmw(dev_priv, CHICKEN_PAR1_1,
+				     DIS_RAM_BYPASS_PSR2_MAN_TRACK,
+				     DIS_RAM_BYPASS_PSR2_MAN_TRACK);
+
+		intel_de_write(dev_priv,
+			       PSR2_MAN_TRK_CTL(dev_priv->psr.transcoder),
+			       PSR2_MAN_TRK_CTL_ENABLE);
+	} else if (HAS_PSR2_SEL_FETCH(dev_priv)) {
+		intel_de_write(dev_priv,
+			       PSR2_MAN_TRK_CTL(dev_priv->psr.transcoder), 0);
+	}
+
 	/*
 	 * PSR2 HW is incorrectly using EDP_PSR_TP1_TP3_SEL and BSpec is
 	 * recommending keep this bit unset while PSR2 is enabled.
@@ -663,6 +679,38 @@ tgl_dc3co_exitline_compute_config(struct intel_dp *intel_dp,
 	crtc_state->dc3co_exitline = crtc_vdisplay - exit_scanlines;
 }
 
+static bool intel_psr2_sel_fetch_config_valid(struct intel_dp *intel_dp,
+					      struct intel_crtc_state *crtc_state)
+{
+	struct intel_atomic_state *state = to_intel_atomic_state(crtc_state->uapi.state);
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	struct intel_plane_state *plane_state;
+	struct intel_plane *plane;
+	int i;
+
+	if (!dev_priv->params.enable_psr2_sel_fetch) {
+		drm_dbg_kms(&dev_priv->drm,
+			    "PSR2 sel fetch not enabled, disabled by parameter\n");
+		return false;
+	}
+
+	if (crtc_state->uapi.async_flip) {
+		drm_dbg_kms(&dev_priv->drm,
+			    "PSR2 sel fetch not enabled, async flip enabled\n");
+		return false;
+	}
+
+	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
+		if (plane_state->uapi.rotation != DRM_MODE_ROTATE_0) {
+			drm_dbg_kms(&dev_priv->drm,
+				    "PSR2 sel fetch not enabled, plane rotated\n");
+			return false;
+		}
+	}
+
+	return crtc_state->enable_psr2_sel_fetch = true;
+}
+
 static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 				    struct intel_crtc_state *crtc_state)
 {
@@ -732,22 +780,17 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 		return false;
 	}
 
-	/*
-	 * Some platforms lack PSR2 HW tracking and instead require manual
-	 * tracking by software.  In this case, the driver is required to track
-	 * the areas that need updates and program hardware to send selective
-	 * updates.
-	 *
-	 * So until the software tracking is implemented, PSR2 needs to be
-	 * disabled for platforms without PSR2 HW tracking.
-	 */
-	if (!HAS_PSR_HW_TRACKING(dev_priv)) {
-		drm_dbg_kms(&dev_priv->drm,
-			    "No PSR2 HW tracking in the platform\n");
-		return false;
+	if (HAS_PSR2_SEL_FETCH(dev_priv)) {
+		if (!intel_psr2_sel_fetch_config_valid(intel_dp, crtc_state) &&
+		    !HAS_PSR_HW_TRACKING(dev_priv)) {
+			drm_dbg_kms(&dev_priv->drm,
+				    "PSR2 not enabled, selective fetch not valid and no HW tracking available\n");
+			return false;
+		}
 	}
 
-	if (crtc_hdisplay > psr_max_h || crtc_vdisplay > psr_max_v) {
+	if (!crtc_state->enable_psr2_sel_fetch &&
+	    (crtc_hdisplay > psr_max_h || crtc_vdisplay > psr_max_v)) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "PSR2 not enabled, resolution %dx%d > max supported %dx%d\n",
 			    crtc_hdisplay, crtc_vdisplay,
@@ -898,6 +941,11 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 		val |= EXITLINE_ENABLE;
 		intel_de_write(dev_priv, EXITLINE(cpu_transcoder), val);
 	}
+
+	if (HAS_PSR_HW_TRACKING(dev_priv))
+		intel_de_rmw(dev_priv, CHICKEN_PAR1_1, IGNORE_PSR2_HW_TRACKING,
+			     dev_priv->psr.psr2_sel_fetch_enabled ?
+			     IGNORE_PSR2_HW_TRACKING : 0);
 }
 
 static void intel_psr_enable_locked(struct drm_i915_private *dev_priv,
@@ -919,6 +967,7 @@ static void intel_psr_enable_locked(struct drm_i915_private *dev_priv,
 	/* DC5/DC6 requires at least 6 idle frames */
 	val = usecs_to_jiffies(intel_get_frame_time_us(crtc_state) * 6);
 	dev_priv->psr.dc3co_exit_delay = val;
+	dev_priv->psr.psr2_sel_fetch_enabled = crtc_state->enable_psr2_sel_fetch;
 
 	/*
 	 * If a PSR error happened and the driver is reloaded, the EDP_PSR_IIR
@@ -1058,6 +1107,13 @@ static void intel_psr_disable_locked(struct intel_dp *intel_dp)
 				    psr_status_mask, 2000))
 		drm_err(&dev_priv->drm, "Timed out waiting PSR idle state\n");
 
+	/* WA 1408330847 */
+	if (dev_priv->psr.psr2_sel_fetch_enabled &&
+	    (IS_TGL_DISP_REVID(dev_priv, TGL_REVID_A0, TGL_REVID_A0) ||
+	     IS_RKL_REVID(dev_priv, RKL_REVID_A0, RKL_REVID_A0)))
+		intel_de_rmw(dev_priv, CHICKEN_PAR1_1,
+			     DIS_RAM_BYPASS_PSR2_MAN_TRACK, 0);
+
 	/* Disable PSR on Sink */
 	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG, 0);
 
@@ -1113,6 +1169,32 @@ static void psr_force_hw_tracking_exit(struct drm_i915_private *dev_priv)
 		 * on older gens so doing the manual exit instead.
 		 */
 		intel_psr_exit(dev_priv);
+}
+
+void intel_psr2_program_trans_man_trk_ctl(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct i915_psr *psr = &dev_priv->psr;
+
+	if (!HAS_PSR2_SEL_FETCH(dev_priv) ||
+	    !crtc_state->enable_psr2_sel_fetch)
+		return;
+
+	intel_de_write(dev_priv, PSR2_MAN_TRK_CTL(psr->transcoder),
+		       crtc_state->psr2_man_track_ctl);
+}
+
+void intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
+				 struct intel_crtc *crtc)
+{
+	struct intel_crtc_state *crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
+
+	if (!crtc_state->enable_psr2_sel_fetch)
+		return;
+
+	crtc_state->psr2_man_track_ctl = PSR2_MAN_TRK_CTL_ENABLE |
+					 PSR2_MAN_TRK_CTL_SF_SINGLE_FULL_FRAME;
 }
 
 /**

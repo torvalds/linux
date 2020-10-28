@@ -569,10 +569,7 @@ static enum bp_result set_crtc_using_dtd_timing_v3(
 			 * but it is 4 either from Edid data (spec CEA 861)
 			 * or CEA timing table.
 			 */
-			params.v_syncoffset =
-				cpu_to_le16(le16_to_cpu(params.v_syncoffset) +
-						1);
-
+			le16_add_cpu(&params.v_syncoffset, 1);
 		}
 	}
 
@@ -923,11 +920,39 @@ static void init_enable_lvtma_control(struct bios_parser *bp)
 
 }
 
+static void enable_lvtma_control_dmcub(
+	struct dc_dmub_srv *dmcub,
+	uint8_t uc_pwr_on)
+{
+
+	union dmub_rb_cmd cmd;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	cmd.cmd_common.header.type = DMUB_CMD__VBIOS;
+	cmd.cmd_common.header.sub_type =
+			DMUB_CMD__VBIOS_LVTMA_CONTROL;
+	cmd.cmd_common.cmd_buffer[0] =
+			uc_pwr_on;
+
+	dc_dmub_srv_cmd_queue(dmcub, &cmd);
+	dc_dmub_srv_cmd_execute(dmcub);
+	dc_dmub_srv_wait_idle(dmcub);
+
+}
+
 static enum bp_result enable_lvtma_control(
 	struct bios_parser *bp,
 	uint8_t uc_pwr_on)
 {
 	enum bp_result result = BP_RESULT_FAILURE;
+
+	if (bp->base.ctx->dc->ctx->dmub_srv &&
+	    bp->base.ctx->dc->debug.dmub_command_table) {
+		enable_lvtma_control_dmcub(bp->base.ctx->dmub_srv,
+				uc_pwr_on);
+		return BP_RESULT_OK;
+	}
 	return result;
 }
 

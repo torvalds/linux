@@ -53,11 +53,12 @@ struct request *blk_mq_dequeue_from_ctx(struct blk_mq_hw_ctx *hctx,
  */
 void blk_mq_free_rqs(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
 		     unsigned int hctx_idx);
-void blk_mq_free_rq_map(struct blk_mq_tags *tags);
+void blk_mq_free_rq_map(struct blk_mq_tags *tags, unsigned int flags);
 struct blk_mq_tags *blk_mq_alloc_rq_map(struct blk_mq_tag_set *set,
 					unsigned int hctx_idx,
 					unsigned int nr_tags,
-					unsigned int reserved_tags);
+					unsigned int reserved_tags,
+					unsigned int flags);
 int blk_mq_alloc_rqs(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
 		     unsigned int hctx_idx, unsigned int depth);
 
@@ -158,6 +159,11 @@ struct blk_mq_alloc_data {
 	struct blk_mq_hw_ctx *hctx;
 };
 
+static inline bool blk_mq_is_sbitmap_shared(unsigned int flags)
+{
+	return flags & BLK_MQ_F_TAG_HCTX_SHARED;
+}
+
 static inline struct blk_mq_tags *blk_mq_tags_from_data(struct blk_mq_alloc_data *data)
 {
 	if (data->q->elevator)
@@ -193,6 +199,28 @@ static inline bool blk_mq_get_dispatch_budget(struct request_queue *q)
 	return true;
 }
 
+static inline void __blk_mq_inc_active_requests(struct blk_mq_hw_ctx *hctx)
+{
+	if (blk_mq_is_sbitmap_shared(hctx->flags))
+		atomic_inc(&hctx->queue->nr_active_requests_shared_sbitmap);
+	else
+		atomic_inc(&hctx->nr_active);
+}
+
+static inline void __blk_mq_dec_active_requests(struct blk_mq_hw_ctx *hctx)
+{
+	if (blk_mq_is_sbitmap_shared(hctx->flags))
+		atomic_dec(&hctx->queue->nr_active_requests_shared_sbitmap);
+	else
+		atomic_dec(&hctx->nr_active);
+}
+
+static inline int __blk_mq_active_requests(struct blk_mq_hw_ctx *hctx)
+{
+	if (blk_mq_is_sbitmap_shared(hctx->flags))
+		return atomic_read(&hctx->queue->nr_active_requests_shared_sbitmap);
+	return atomic_read(&hctx->nr_active);
+}
 static inline void __blk_mq_put_driver_tag(struct blk_mq_hw_ctx *hctx,
 					   struct request *rq)
 {
@@ -201,7 +229,7 @@ static inline void __blk_mq_put_driver_tag(struct blk_mq_hw_ctx *hctx,
 
 	if (rq->rq_flags & RQF_MQ_INFLIGHT) {
 		rq->rq_flags &= ~RQF_MQ_INFLIGHT;
-		atomic_dec(&hctx->nr_active);
+		__blk_mq_dec_active_requests(hctx);
 	}
 }
 
@@ -252,5 +280,47 @@ static inline struct blk_plug *blk_mq_plug(struct request_queue *q,
 	/* Zoned block device write operation case: do not plug the BIO */
 	return NULL;
 }
+
+/*
+ * For shared tag users, we track the number of currently active users
+ * and attempt to provide a fair share of the tag depth for each of them.
+ */
+static inline bool hctx_may_queue(struct blk_mq_hw_ctx *hctx,
+				  struct sbitmap_queue *bt)
+{
+	unsigned int depth, users;
+
+	if (!hctx || !(hctx->flags & BLK_MQ_F_TAG_QUEUE_SHARED))
+		return true;
+
+	/*
+	 * Don't try dividing an ant
+	 */
+	if (bt->sb.depth == 1)
+		return true;
+
+	if (blk_mq_is_sbitmap_shared(hctx->flags)) {
+		struct request_queue *q = hctx->queue;
+		struct blk_mq_tag_set *set = q->tag_set;
+
+		if (!test_bit(BLK_MQ_S_TAG_ACTIVE, &q->queue_flags))
+			return true;
+		users = atomic_read(&set->active_queues_shared_sbitmap);
+	} else {
+		if (!test_bit(BLK_MQ_S_TAG_ACTIVE, &hctx->state))
+			return true;
+		users = atomic_read(&hctx->tags->active_queues);
+	}
+
+	if (!users)
+		return true;
+
+	/*
+	 * Allow at least some tags
+	 */
+	depth = max((bt->sb.depth + users - 1) / users, 4U);
+	return __blk_mq_active_requests(hctx) < depth;
+}
+
 
 #endif

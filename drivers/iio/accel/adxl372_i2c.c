@@ -6,6 +6,7 @@
  */
 
 #include <linux/i2c.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
 
@@ -46,9 +47,16 @@ static const struct i2c_device_id adxl372_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, adxl372_i2c_id);
 
+static const struct of_device_id adxl372_of_match[] = {
+	{ .compatible = "adi,adxl372" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, adxl372_of_match);
+
 static struct i2c_driver adxl372_i2c_driver = {
 	.driver = {
 		.name = "adxl372_i2c",
+		.of_match_table = adxl372_of_match,
 	},
 	.probe = adxl372_i2c_probe,
 	.id_table = adxl372_i2c_id,

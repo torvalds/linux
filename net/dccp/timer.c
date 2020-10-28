@@ -85,7 +85,7 @@ static void dccp_retransmit_timer(struct sock *sk)
 	struct inet_connection_sock *icsk = inet_csk(sk);
 
 	/*
-	 * More than than 4MSL (8 minutes) has passed, a RESET(aborted) was
+	 * More than 4MSL (8 minutes) has passed, a RESET(aborted) was
 	 * sent, no need to retransmit, this sock is dead.
 	 */
 	if (dccp_write_timeout(sk))
@@ -176,7 +176,6 @@ static void dccp_delack_timer(struct timer_list *t)
 	bh_lock_sock(sk);
 	if (sock_owned_by_user(sk)) {
 		/* Try again later. */
-		icsk->icsk_ack.blocked = 1;
 		__NET_INC_STATS(sock_net(sk), LINUX_MIB_DELAYEDACKLOCKED);
 		sk_reset_timer(sk, &icsk->icsk_delack_timer,
 			       jiffies + TCP_DELACK_MIN);

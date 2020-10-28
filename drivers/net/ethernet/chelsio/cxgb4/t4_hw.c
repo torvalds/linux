@@ -4745,9 +4745,11 @@ static void le_intr_handler(struct adapter *adap)
 	static struct intr_info t6_le_intr_info[] = {
 		{ T6_LIPMISS_F, "LE LIP miss", -1, 0 },
 		{ T6_LIP0_F, "LE 0 LIP error", -1, 0 },
+		{ CMDTIDERR_F, "LE cmd tid error", -1, 1 },
 		{ TCAMINTPERR_F, "LE parity error", -1, 1 },
 		{ T6_UNKNOWNCMD_F, "LE unknown command", -1, 1 },
 		{ SSRAMINTPERR_F, "LE request queue parity error", -1, 1 },
+		{ HASHTBLMEMCRCERR_F, "LE hash table mem crc error", -1, 0 },
 		{ 0 }
 	};
 

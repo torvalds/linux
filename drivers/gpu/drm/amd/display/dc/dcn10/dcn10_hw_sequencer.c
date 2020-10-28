@@ -2377,14 +2377,6 @@ void dcn10_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 				&blnd_cfg.black_color);
 	}
 
-	/*
-	 * The way 420 is packed, 2 channels carry Y component, 1 channel
-	 * alternate between Cb and Cr, so both channels need the pixel
-	 * value for Y
-	 */
-	if (pipe_ctx->stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR420)
-		blnd_cfg.black_color.color_r_cr = blnd_cfg.black_color.color_g_y;
-
 	if (per_pixel_alpha)
 		blnd_cfg.alpha_mode = MPCC_ALPHA_BLEND_MODE_PER_PIXEL_ALPHA;
 	else
@@ -2767,6 +2759,154 @@ static struct pipe_ctx *dcn10_find_top_pipe_for_stream(
 			return pipe_ctx;
 	}
 	return NULL;
+}
+
+bool dcn10_disconnect_pipes(
+		struct dc *dc,
+		struct dc_state *context)
+{
+		bool found_pipe = false;
+		int i, j;
+		struct dce_hwseq *hws = dc->hwseq;
+		struct dc_state *old_ctx = dc->current_state;
+		bool mpcc_disconnected = false;
+		struct pipe_ctx *old_pipe;
+		struct pipe_ctx *new_pipe;
+		DC_LOGGER_INIT(dc->ctx->logger);
+
+		/* Set pipe update flags and lock pipes */
+		for (i = 0; i < dc->res_pool->pipe_count; i++) {
+			old_pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+			new_pipe = &context->res_ctx.pipe_ctx[i];
+			new_pipe->update_flags.raw = 0;
+
+			if (!old_pipe->plane_state && !new_pipe->plane_state)
+				continue;
+
+			if (old_pipe->plane_state && !new_pipe->plane_state)
+				new_pipe->update_flags.bits.disable = 1;
+
+			/* Check for scl update */
+			if (memcmp(&old_pipe->plane_res.scl_data, &new_pipe->plane_res.scl_data, sizeof(struct scaler_data)))
+					new_pipe->update_flags.bits.scaler = 1;
+
+			/* Check for vp update */
+			if (memcmp(&old_pipe->plane_res.scl_data.viewport, &new_pipe->plane_res.scl_data.viewport, sizeof(struct rect))
+					|| memcmp(&old_pipe->plane_res.scl_data.viewport_c,
+						&new_pipe->plane_res.scl_data.viewport_c, sizeof(struct rect)))
+				new_pipe->update_flags.bits.viewport = 1;
+
+		}
+
+		if (!IS_DIAG_DC(dc->ctx->dce_environment)) {
+			/* Disconnect mpcc here only if losing pipe split*/
+			for (i = 0; i < dc->res_pool->pipe_count; i++) {
+				if (context->res_ctx.pipe_ctx[i].update_flags.bits.disable &&
+					old_ctx->res_ctx.pipe_ctx[i].top_pipe) {
+
+					/* Find the top pipe in the new ctx for the bottom pipe that we
+					 * want to remove by comparing the streams and planes. If both
+					 * pipes are being disabled then do it in the regular pipe
+					 * programming sequence
+					 */
+					for (j = 0; j < dc->res_pool->pipe_count; j++) {
+						if (old_ctx->res_ctx.pipe_ctx[i].top_pipe->stream == context->res_ctx.pipe_ctx[j].stream &&
+							old_ctx->res_ctx.pipe_ctx[i].top_pipe->plane_state == context->res_ctx.pipe_ctx[j].plane_state &&
+							!context->res_ctx.pipe_ctx[j].top_pipe &&
+							!context->res_ctx.pipe_ctx[j].update_flags.bits.disable) {
+							found_pipe = true;
+							break;
+						}
+					}
+
+					// Disconnect if the top pipe lost it's pipe split
+					if (found_pipe && !context->res_ctx.pipe_ctx[j].bottom_pipe) {
+						hws->funcs.plane_atomic_disconnect(dc, &dc->current_state->res_ctx.pipe_ctx[i]);
+						DC_LOG_DC("Reset mpcc for pipe %d\n", dc->current_state->res_ctx.pipe_ctx[i].pipe_idx);
+						mpcc_disconnected = true;
+					}
+				}
+				found_pipe = false;
+			}
+		}
+
+		if (mpcc_disconnected) {
+			for (i = 0; i < dc->res_pool->pipe_count; i++) {
+				struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+				struct pipe_ctx *old_pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+				struct dc_plane_state *plane_state = pipe_ctx->plane_state;
+				struct hubp *hubp = pipe_ctx->plane_res.hubp;
+
+				if (!pipe_ctx || !plane_state || !pipe_ctx->stream)
+					continue;
+
+				// Only update scaler and viewport here if we lose a pipe split.
+				// This is to prevent half the screen from being black when we
+				// unlock after disconnecting MPCC.
+				if (!(old_pipe && !pipe_ctx->top_pipe &&
+					!pipe_ctx->bottom_pipe && old_pipe->bottom_pipe))
+					continue;
+
+				if (pipe_ctx->update_flags.raw || pipe_ctx->plane_state->update_flags.raw || pipe_ctx->stream->update_flags.raw) {
+					if (pipe_ctx->update_flags.bits.scaler ||
+						plane_state->update_flags.bits.scaling_change ||
+						plane_state->update_flags.bits.position_change ||
+						plane_state->update_flags.bits.per_pixel_alpha_change ||
+						pipe_ctx->stream->update_flags.bits.scaling) {
+
+						pipe_ctx->plane_res.scl_data.lb_params.alpha_en = pipe_ctx->plane_state->per_pixel_alpha;
+						ASSERT(pipe_ctx->plane_res.scl_data.lb_params.depth == LB_PIXEL_DEPTH_30BPP);
+						/* scaler configuration */
+						pipe_ctx->plane_res.dpp->funcs->dpp_set_scaler(
+						pipe_ctx->plane_res.dpp, &pipe_ctx->plane_res.scl_data);
+					}
+
+					if (pipe_ctx->update_flags.bits.viewport ||
+						(context == dc->current_state && plane_state->update_flags.bits.position_change) ||
+						(context == dc->current_state && plane_state->update_flags.bits.scaling_change) ||
+						(context == dc->current_state && pipe_ctx->stream->update_flags.bits.scaling)) {
+
+						hubp->funcs->mem_program_viewport(
+							hubp,
+							&pipe_ctx->plane_res.scl_data.viewport,
+							&pipe_ctx->plane_res.scl_data.viewport_c);
+					}
+				}
+			}
+		}
+	return mpcc_disconnected;
+}
+
+void dcn10_wait_for_pending_cleared(struct dc *dc,
+		struct dc_state *context)
+{
+		struct pipe_ctx *pipe_ctx;
+		struct timing_generator *tg;
+		int i;
+
+		for (i = 0; i < dc->res_pool->pipe_count; i++) {
+			pipe_ctx = &context->res_ctx.pipe_ctx[i];
+			tg = pipe_ctx->stream_res.tg;
+
+			/*
+			 * Only wait for top pipe's tg penindg bit
+			 * Also skip if pipe is disabled.
+			 */
+			if (pipe_ctx->top_pipe ||
+			    !pipe_ctx->stream || !pipe_ctx->plane_state ||
+			    !tg->funcs->is_tg_enabled(tg))
+				continue;
+
+			/*
+			 * Wait for VBLANK then VACTIVE to ensure we get VUPDATE.
+			 * For some reason waiting for OTG_UPDATE_PENDING cleared
+			 * seems to not trigger the update right away, and if we
+			 * lock again before VUPDATE then we don't get a separated
+			 * operation.
+			 */
+			pipe_ctx->stream_res.tg->funcs->wait_for_state(pipe_ctx->stream_res.tg, CRTC_STATE_VBLANK);
+			pipe_ctx->stream_res.tg->funcs->wait_for_state(pipe_ctx->stream_res.tg, CRTC_STATE_VACTIVE);
+		}
 }
 
 void dcn10_apply_ctx_for_surface(

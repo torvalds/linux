@@ -234,8 +234,8 @@
 			compatible = "arm,sp805" , "arm,primecell";
 			reg = <0x18009000 0x1000>;
 			interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&axi81_clk>;
-			clock-names = "apb_pclk";
+			clocks = <&axi81_clk>, <&axi81_clk>;
+			clock-names = "wdog_clk", "apb_pclk";
 		};
 
 		gpio_ccm: gpio@1800a000 {

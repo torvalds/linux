@@ -864,10 +864,9 @@ static int ctrl_std_sym_to_val(struct pvr2_ctrl *cptr,
 			       const char *bufPtr,unsigned int bufSize,
 			       int *mskp,int *valp)
 {
-	int ret;
 	v4l2_std_id id;
-	ret = pvr2_std_str_to_id(&id,bufPtr,bufSize);
-	if (ret < 0) return ret;
+	if (!pvr2_std_str_to_id(&id, bufPtr, bufSize))
+		return -EINVAL;
 	if (mskp) *mskp = id;
 	if (valp) *valp = id;
 	return 0;

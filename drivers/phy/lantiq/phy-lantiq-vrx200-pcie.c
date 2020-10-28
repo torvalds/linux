@@ -349,7 +349,7 @@ static int ltq_vrx200_pcie_phy_power_off(struct phy *phy)
 	return 0;
 }
 
-static struct phy_ops ltq_vrx200_pcie_phy_ops = {
+static const struct phy_ops ltq_vrx200_pcie_phy_ops = {
 	.init		= ltq_vrx200_pcie_phy_init,
 	.exit		= ltq_vrx200_pcie_phy_exit,
 	.power_on	= ltq_vrx200_pcie_phy_power_on,

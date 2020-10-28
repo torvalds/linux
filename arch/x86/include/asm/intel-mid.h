@@ -43,7 +43,7 @@ struct devs_id {
 
 #define sfi_device(i)								\
 	static const struct devs_id *const __intel_mid_sfi_##i##_dev __used	\
-	__attribute__((__section__(".x86_intel_mid_dev.init"))) = &i
+	__section(".x86_intel_mid_dev.init") = &i
 
 /**
 * struct mid_sd_board_info - template for SD device creation

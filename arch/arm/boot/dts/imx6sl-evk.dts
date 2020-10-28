@@ -94,6 +94,8 @@
 
 	sound {
 		compatible = "fsl,imx6sl-evk-wm8962", "fsl,imx-audio-wm8962";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_hp>;
 		model = "wm8962-audio";
 		ssi-controller = <&ssi2>;
 		audio-codec = <&codec>;
@@ -106,6 +108,7 @@
 			"IN3R", "AMIC";
 		mux-int-port = <2>;
 		mux-ext-port = <3>;
+		hp-det-gpio = <&gpio4 19 GPIO_ACTIVE_LOW>;
 	};
 
 	panel {
@@ -129,7 +132,7 @@
 };
 
 &ecspi1 {
-	cs-gpios = <&gpio4 11 0>;
+	cs-gpios = <&gpio4 11 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi1>;
 	status = "okay";
@@ -340,6 +343,12 @@
 				MX6SL_PAD_FEC_TXD0__GPIO4_IO24     0x3080
 				MX6SL_PAD_FEC_TXD1__GPIO4_IO16     0x3080
 				MX6SL_PAD_FEC_REF_CLK__GPIO4_IO26  0x3080
+			>;
+		};
+
+		pinctrl_hp: hpgrp {
+			fsl,pins = <
+				MX6SL_PAD_FEC_RX_ER__GPIO4_IO19	  0x1b0b0
 			>;
 		};
 

@@ -917,6 +917,57 @@ static int aq_ethtool_set_priv_flags(struct net_device *ndev, u32 flags)
 	return ret;
 }
 
+static int aq_ethtool_get_phy_tunable(struct net_device *ndev,
+				      const struct ethtool_tunable *tuna, void *data)
+{
+	struct aq_nic_s *aq_nic = netdev_priv(ndev);
+
+	switch (tuna->id) {
+	case ETHTOOL_PHY_EDPD: {
+		u16 *val = data;
+
+		*val = aq_nic->aq_nic_cfg.is_media_detect ? AQ_HW_MEDIA_DETECT_CNT : 0;
+		break;
+	}
+	case ETHTOOL_PHY_DOWNSHIFT: {
+		u8 *val = data;
+
+		*val = (u8)aq_nic->aq_nic_cfg.downshift_counter;
+		break;
+	}
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static int aq_ethtool_set_phy_tunable(struct net_device *ndev,
+				      const struct ethtool_tunable *tuna, const void *data)
+{
+	int err = -EOPNOTSUPP;
+	struct aq_nic_s *aq_nic = netdev_priv(ndev);
+
+	switch (tuna->id) {
+	case ETHTOOL_PHY_EDPD: {
+		const u16 *val = data;
+
+		err = aq_nic_set_media_detect(aq_nic, *val);
+		break;
+	}
+	case ETHTOOL_PHY_DOWNSHIFT: {
+		const u8 *val = data;
+
+		err = aq_nic_set_downshift(aq_nic, *val);
+		break;
+	}
+	default:
+		break;
+	}
+
+	return err;
+}
+
 const struct ethtool_ops aq_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
 				     ETHTOOL_COALESCE_MAX_FRAMES,
@@ -952,4 +1003,6 @@ const struct ethtool_ops aq_ethtool_ops = {
 	.get_coalesce	     = aq_ethtool_get_coalesce,
 	.set_coalesce	     = aq_ethtool_set_coalesce,
 	.get_ts_info         = aq_ethtool_get_ts_info,
+	.get_phy_tunable     = aq_ethtool_get_phy_tunable,
+	.set_phy_tunable     = aq_ethtool_set_phy_tunable,
 };

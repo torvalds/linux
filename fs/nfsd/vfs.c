@@ -2259,7 +2259,8 @@ out:
 __be32
 nfsd_removexattr(struct svc_rqst *rqstp, struct svc_fh *fhp, char *name)
 {
-	int err, ret;
+	__be32 err;
+	int ret;
 
 	err = fh_verify(rqstp, fhp, 0, NFSD_MAY_WRITE);
 	if (err)
@@ -2283,7 +2284,8 @@ __be32
 nfsd_setxattr(struct svc_rqst *rqstp, struct svc_fh *fhp, char *name,
 	      void *buf, u32 len, u32 flags)
 {
-	int err, ret;
+	__be32 err;
+	int ret;
 
 	err = fh_verify(rqstp, fhp, 0, NFSD_MAY_WRITE);
 	if (err)

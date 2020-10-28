@@ -42,7 +42,7 @@
  * Also check out reg.h and U.S. Patent 6677779 B1 (about buffer
  * registers and control registers):
  *
- * http://www.google.com/patents?id=qNURAAAAEBAJ
+ * https://www.google.com/patents?id=qNURAAAAEBAJ
  */
 
 

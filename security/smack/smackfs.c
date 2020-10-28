@@ -922,6 +922,10 @@ static ssize_t smk_set_cipso(struct file *file, const char __user *buf,
 		skp->smk_netlabel.attr.mls.cat = ncats.attr.mls.cat;
 		skp->smk_netlabel.attr.mls.lvl = ncats.attr.mls.lvl;
 		rc = count;
+		/*
+		 * This mapping may have been cached, so clear the cache.
+		 */
+		netlbl_cache_invalidate();
 	}
 
 out:
@@ -2950,15 +2954,6 @@ static struct file_system_type smk_fs_type = {
 
 static struct vfsmount *smackfs_mount;
 
-static int __init smk_preset_netlabel(struct smack_known *skp)
-{
-	skp->smk_netlabel.domain = skp->smk_known;
-	skp->smk_netlabel.flags =
-		NETLBL_SECATTR_DOMAIN | NETLBL_SECATTR_MLS_LVL;
-	return smk_netlbl_mls(smack_cipso_direct, skp->smk_known,
-				&skp->smk_netlabel, strlen(skp->smk_known));
-}
-
 /**
  * init_smk_fs - get the smackfs superblock
  *
@@ -2997,19 +2992,19 @@ static int __init init_smk_fs(void)
 	smk_cipso_doi();
 	smk_unlbl_ambient(NULL);
 
-	rc = smk_preset_netlabel(&smack_known_floor);
+	rc = smack_populate_secattr(&smack_known_floor);
 	if (err == 0 && rc < 0)
 		err = rc;
-	rc = smk_preset_netlabel(&smack_known_hat);
+	rc = smack_populate_secattr(&smack_known_hat);
 	if (err == 0 && rc < 0)
 		err = rc;
-	rc = smk_preset_netlabel(&smack_known_huh);
+	rc = smack_populate_secattr(&smack_known_huh);
 	if (err == 0 && rc < 0)
 		err = rc;
-	rc = smk_preset_netlabel(&smack_known_star);
+	rc = smack_populate_secattr(&smack_known_star);
 	if (err == 0 && rc < 0)
 		err = rc;
-	rc = smk_preset_netlabel(&smack_known_web);
+	rc = smack_populate_secattr(&smack_known_web);
 	if (err == 0 && rc < 0)
 		err = rc;
 

@@ -470,6 +470,14 @@ enum mod_hdcp_status mod_hdcp_process_event(struct mod_hdcp *hdcp,
 		if (reset_status != MOD_HDCP_STATUS_SUCCESS)
 			push_error_status(hdcp, reset_status);
 	}
+
+	/* Clear CP_IRQ status if needed */
+	if (event_ctx.event == MOD_HDCP_EVENT_CPIRQ) {
+		status = mod_hdcp_clear_cp_irq_status(hdcp);
+		if (status != MOD_HDCP_STATUS_SUCCESS)
+			push_error_status(hdcp, status);
+	}
+
 	return status;
 }
 

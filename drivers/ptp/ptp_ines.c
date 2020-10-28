@@ -93,9 +93,6 @@ MODULE_LICENSE("GPL");
 #define TC_E2E_PTP_V2		2
 #define TC_P2P_PTP_V2		3
 
-#define OFF_PTP_CLOCK_ID	20
-#define OFF_PTP_PORT_NUM	28
-
 #define PHY_SPEED_10		0
 #define PHY_SPEED_100		1
 #define PHY_SPEED_1000		2
@@ -443,57 +440,41 @@ static void ines_link_state(struct mii_timestamper *mii_ts,
 static bool ines_match(struct sk_buff *skb, unsigned int ptp_class,
 		       struct ines_timestamp *ts, struct device *dev)
 {
-	u8 *msgtype, *data = skb_mac_header(skb);
-	unsigned int offset = 0;
-	__be16 *portn, *seqid;
-	__be64 *clkid;
+	struct ptp_header *hdr;
+	u16 portn, seqid;
+	u8 msgtype;
+	u64 clkid;
 
 	if (unlikely(ptp_class & PTP_CLASS_V1))
 		return false;
 
-	if (ptp_class & PTP_CLASS_VLAN)
-		offset += VLAN_HLEN;
-
-	switch (ptp_class & PTP_CLASS_PMASK) {
-	case PTP_CLASS_IPV4:
-		offset += ETH_HLEN + IPV4_HLEN(data + offset) + UDP_HLEN;
-		break;
-	case PTP_CLASS_IPV6:
-		offset += ETH_HLEN + IP6_HLEN + UDP_HLEN;
-		break;
-	case PTP_CLASS_L2:
-		offset += ETH_HLEN;
-		break;
-	default:
-		return false;
-	}
-
-	if (skb->len + ETH_HLEN < offset + OFF_PTP_SEQUENCE_ID + sizeof(*seqid))
+	hdr = ptp_parse_header(skb, ptp_class);
+	if (!hdr)
 		return false;
 
-	msgtype = data + offset;
-	clkid = (__be64 *)(data + offset + OFF_PTP_CLOCK_ID);
-	portn = (__be16 *)(data + offset + OFF_PTP_PORT_NUM);
-	seqid = (__be16 *)(data + offset + OFF_PTP_SEQUENCE_ID);
+	msgtype = ptp_get_msgtype(hdr, ptp_class);
+	clkid = be64_to_cpup((__be64 *)&hdr->source_port_identity.clock_identity.id[0]);
+	portn = be16_to_cpu(hdr->source_port_identity.port_number);
+	seqid = be16_to_cpu(hdr->sequence_id);
 
-	if (tag_to_msgtype(ts->tag & 0x7) != (*msgtype & 0xf)) {
+	if (tag_to_msgtype(ts->tag & 0x7) != msgtype) {
 		dev_dbg(dev, "msgtype mismatch ts %hhu != skb %hhu\n",
-			  tag_to_msgtype(ts->tag & 0x7), *msgtype & 0xf);
+			tag_to_msgtype(ts->tag & 0x7), msgtype);
 		return false;
 	}
-	if (cpu_to_be64(ts->clkid) != *clkid) {
+	if (ts->clkid != clkid) {
 		dev_dbg(dev, "clkid mismatch ts %llx != skb %llx\n",
-			  cpu_to_be64(ts->clkid), *clkid);
+			ts->clkid, clkid);
 		return false;
 	}
-	if (ts->portnum != ntohs(*portn)) {
+	if (ts->portnum != portn) {
 		dev_dbg(dev, "portn mismatch ts %hu != skb %hu\n",
-			  ts->portnum, ntohs(*portn));
+			ts->portnum, portn);
 		return false;
 	}
-	if (ts->seqid != ntohs(*seqid)) {
+	if (ts->seqid != seqid) {
 		dev_dbg(dev, "seqid mismatch ts %hu != skb %hu\n",
-			  ts->seqid, ntohs(*seqid));
+			ts->seqid, seqid);
 		return false;
 	}
 
@@ -663,8 +644,7 @@ static void ines_txtstamp(struct mii_timestamper *mii_ts,
 
 	spin_unlock_irqrestore(&port->lock, flags);
 
-	if (old_skb)
-		kfree_skb(old_skb);
+	kfree_skb(old_skb);
 
 	schedule_delayed_work(&port->ts_work, 1);
 }
@@ -694,35 +674,16 @@ static void ines_txtstamp_work(struct work_struct *work)
 
 static bool is_sync_pdelay_resp(struct sk_buff *skb, int type)
 {
-	u8 *data = skb->data, *msgtype;
-	unsigned int offset = 0;
+	struct ptp_header *hdr;
+	u8 msgtype;
 
-	if (type & PTP_CLASS_VLAN)
-		offset += VLAN_HLEN;
+	hdr = ptp_parse_header(skb, type);
+	if (!hdr)
+		return false;
 
-	switch (type & PTP_CLASS_PMASK) {
-	case PTP_CLASS_IPV4:
-		offset += ETH_HLEN + IPV4_HLEN(data + offset) + UDP_HLEN;
-		break;
-	case PTP_CLASS_IPV6:
-		offset += ETH_HLEN + IP6_HLEN + UDP_HLEN;
-		break;
-	case PTP_CLASS_L2:
-		offset += ETH_HLEN;
-		break;
-	default:
-		return 0;
-	}
+	msgtype = ptp_get_msgtype(hdr, type);
 
-	if (type & PTP_CLASS_V1)
-		offset += OFF_PTP_CONTROL;
-
-	if (skb->len < offset + 1)
-		return 0;
-
-	msgtype = data + offset;
-
-	switch ((*msgtype & 0xf)) {
+	switch ((msgtype & 0xf)) {
 	case SYNC:
 	case PDELAY_RESP:
 		return true;

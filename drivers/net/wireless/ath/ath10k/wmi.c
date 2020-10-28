@@ -740,6 +740,7 @@ static struct wmi_cmd_map wmi_10_4_cmd_map = {
 	.tdls_peer_update_cmdid = WMI_10_4_TDLS_PEER_UPDATE_CMDID,
 	.tdls_set_offchan_mode_cmdid = WMI_10_4_TDLS_SET_OFFCHAN_MODE_CMDID,
 	.radar_found_cmdid = WMI_10_4_RADAR_FOUND_CMDID,
+	.per_peer_per_tid_config_cmdid = WMI_10_4_PER_PEER_PER_TID_CONFIG_CMDID,
 };
 
 static struct wmi_peer_param_map wmi_peer_param_map = {
@@ -3878,7 +3879,7 @@ void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 		 * actual channel switch is done
 		 */
 		if (arvif->vif->csa_active &&
-		    ieee80211_csa_is_complete(arvif->vif)) {
+		    ieee80211_beacon_cntdwn_is_complete(arvif->vif)) {
 			ieee80211_csa_finish(arvif->vif);
 			continue;
 		}
@@ -6551,7 +6552,7 @@ static struct sk_buff *ath10k_wmi_op_gen_init(struct ath10k *ar)
 	struct wmi_init_cmd *cmd;
 	struct sk_buff *buf;
 	struct wmi_resource_config config = {};
-	u32 len, val;
+	u32 val;
 
 	config.num_vdevs = __cpu_to_le32(TARGET_NUM_VDEVS);
 	config.num_peers = __cpu_to_le32(TARGET_NUM_PEERS);
@@ -6603,10 +6604,8 @@ static struct sk_buff *ath10k_wmi_op_gen_init(struct ath10k *ar)
 	config.num_msdu_desc = __cpu_to_le32(TARGET_NUM_MSDU_DESC);
 	config.max_frag_entries = __cpu_to_le32(TARGET_MAX_FRAG_ENTRIES);
 
-	len = sizeof(*cmd) +
-	      (sizeof(struct host_memory_chunk) * ar->wmi.num_mem_chunks);
-
-	buf = ath10k_wmi_alloc_skb(ar, len);
+	buf = ath10k_wmi_alloc_skb(ar, struct_size(cmd, mem_chunks.items,
+						   ar->wmi.num_mem_chunks));
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
 
@@ -6624,7 +6623,7 @@ static struct sk_buff *ath10k_wmi_10_1_op_gen_init(struct ath10k *ar)
 	struct wmi_init_cmd_10x *cmd;
 	struct sk_buff *buf;
 	struct wmi_resource_config_10x config = {};
-	u32 len, val;
+	u32 val;
 
 	config.num_vdevs = __cpu_to_le32(TARGET_10X_NUM_VDEVS);
 	config.num_peers = __cpu_to_le32(TARGET_10X_NUM_PEERS);
@@ -6668,10 +6667,8 @@ static struct sk_buff *ath10k_wmi_10_1_op_gen_init(struct ath10k *ar)
 	config.num_msdu_desc = __cpu_to_le32(TARGET_10X_NUM_MSDU_DESC);
 	config.max_frag_entries = __cpu_to_le32(TARGET_10X_MAX_FRAG_ENTRIES);
 
-	len = sizeof(*cmd) +
-	      (sizeof(struct host_memory_chunk) * ar->wmi.num_mem_chunks);
-
-	buf = ath10k_wmi_alloc_skb(ar, len);
+	buf = ath10k_wmi_alloc_skb(ar, struct_size(cmd, mem_chunks.items,
+						   ar->wmi.num_mem_chunks));
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
 
@@ -6689,7 +6686,7 @@ static struct sk_buff *ath10k_wmi_10_2_op_gen_init(struct ath10k *ar)
 	struct wmi_init_cmd_10_2 *cmd;
 	struct sk_buff *buf;
 	struct wmi_resource_config_10x config = {};
-	u32 len, val, features;
+	u32 val, features;
 
 	config.num_vdevs = __cpu_to_le32(TARGET_10X_NUM_VDEVS);
 	config.num_peer_keys = __cpu_to_le32(TARGET_10X_NUM_PEER_KEYS);
@@ -6741,10 +6738,8 @@ static struct sk_buff *ath10k_wmi_10_2_op_gen_init(struct ath10k *ar)
 	config.num_msdu_desc = __cpu_to_le32(TARGET_10X_NUM_MSDU_DESC);
 	config.max_frag_entries = __cpu_to_le32(TARGET_10X_MAX_FRAG_ENTRIES);
 
-	len = sizeof(*cmd) +
-	      (sizeof(struct host_memory_chunk) * ar->wmi.num_mem_chunks);
-
-	buf = ath10k_wmi_alloc_skb(ar, len);
+	buf = ath10k_wmi_alloc_skb(ar, struct_size(cmd, mem_chunks.items,
+						   ar->wmi.num_mem_chunks));
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
 
@@ -6776,7 +6771,6 @@ static struct sk_buff *ath10k_wmi_10_4_op_gen_init(struct ath10k *ar)
 	struct wmi_init_cmd_10_4 *cmd;
 	struct sk_buff *buf;
 	struct wmi_resource_config_10_4 config = {};
-	u32 len;
 
 	config.num_vdevs = __cpu_to_le32(ar->max_num_vdevs);
 	config.num_peers = __cpu_to_le32(ar->max_num_peers);
@@ -6838,10 +6832,8 @@ static struct sk_buff *ath10k_wmi_10_4_op_gen_init(struct ath10k *ar)
 	config.iphdr_pad_config = __cpu_to_le32(TARGET_10_4_IPHDR_PAD_CONFIG);
 	config.qwrap_config = __cpu_to_le32(TARGET_10_4_QWRAP_CONFIG);
 
-	len = sizeof(*cmd) +
-	      (sizeof(struct host_memory_chunk) * ar->wmi.num_mem_chunks);
-
-	buf = ath10k_wmi_alloc_skb(ar, len);
+	buf = ath10k_wmi_alloc_skb(ar, struct_size(cmd, mem_chunks.items,
+						   ar->wmi.num_mem_chunks));
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
 
@@ -7549,12 +7541,9 @@ ath10k_wmi_op_gen_scan_chan_list(struct ath10k *ar,
 	struct sk_buff *skb;
 	struct wmi_channel_arg *ch;
 	struct wmi_channel *ci;
-	int len;
 	int i;
 
-	len = sizeof(*cmd) + arg->n_channels * sizeof(struct wmi_channel);
-
-	skb = ath10k_wmi_alloc_skb(ar, len);
+	skb = ath10k_wmi_alloc_skb(ar, struct_size(cmd, chan_info, arg->n_channels));
 	if (!skb)
 		return ERR_PTR(-EINVAL);
 
@@ -9005,6 +8994,39 @@ ath10k_wmi_10_4_gen_radar_found(struct ath10k *ar,
 }
 
 static struct sk_buff *
+ath10k_wmi_10_4_gen_per_peer_per_tid_cfg(struct ath10k *ar,
+					 const struct wmi_per_peer_per_tid_cfg_arg *arg)
+{
+	struct wmi_peer_per_tid_cfg_cmd *cmd;
+	struct sk_buff *skb;
+
+	skb = ath10k_wmi_alloc_skb(ar, sizeof(*cmd));
+	if (!skb)
+		return ERR_PTR(-ENOMEM);
+
+	memset(skb->data, 0, sizeof(*cmd));
+
+	cmd = (struct wmi_peer_per_tid_cfg_cmd *)skb->data;
+	cmd->vdev_id = cpu_to_le32(arg->vdev_id);
+	ether_addr_copy(cmd->peer_macaddr.addr, arg->peer_macaddr.addr);
+	cmd->tid = cpu_to_le32(arg->tid);
+	cmd->ack_policy = cpu_to_le32(arg->ack_policy);
+	cmd->aggr_control = cpu_to_le32(arg->aggr_control);
+	cmd->rate_control = cpu_to_le32(arg->rate_ctrl);
+	cmd->retry_count = cpu_to_le32(arg->retry_count);
+	cmd->rcode_flags = cpu_to_le32(arg->rcode_flags);
+	cmd->ext_tid_cfg_bitmap = cpu_to_le32(arg->ext_tid_cfg_bitmap);
+	cmd->rtscts_ctrl = cpu_to_le32(arg->rtscts_ctrl);
+
+	ath10k_dbg(ar, ATH10K_DBG_WMI,
+		   "wmi noack tid %d vdev id %d ack_policy %d aggr %u rate_ctrl %u rcflag %u retry_count %d rtscts %d ext_tid_cfg_bitmap %d mac_addr %pM\n",
+		   arg->tid, arg->vdev_id, arg->ack_policy, arg->aggr_control,
+		   arg->rate_ctrl, arg->rcode_flags, arg->retry_count,
+		   arg->rtscts_ctrl, arg->ext_tid_cfg_bitmap, arg->peer_macaddr.addr);
+	return skb;
+}
+
+static struct sk_buff *
 ath10k_wmi_op_gen_echo(struct ath10k *ar, u32 value)
 {
 	struct wmi_echo_cmd *cmd;
@@ -9413,6 +9435,7 @@ static const struct wmi_ops wmi_10_4_ops = {
 	.gen_pdev_get_tpc_table_cmdid =
 			ath10k_wmi_10_4_op_gen_pdev_get_tpc_table_cmdid,
 	.gen_radar_found = ath10k_wmi_10_4_gen_radar_found,
+	.gen_per_peer_per_tid_cfg = ath10k_wmi_10_4_gen_per_peer_per_tid_cfg,
 
 	/* shared with 10.2 */
 	.pull_echo_ev = ath10k_wmi_op_pull_echo_ev,

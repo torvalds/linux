@@ -561,6 +561,7 @@ static void floppy_release_irq_and_dma(void);
  * output_byte is automatically disabled when reset is set.
  */
 static void reset_fdc(void);
+static int floppy_revalidate(struct gendisk *disk);
 
 /*
  * These are global variables, as that's the easiest way to give
@@ -3275,7 +3276,8 @@ static int invalidate_drive(struct block_device *bdev)
 	/* invalidate the buffer track to force a reread */
 	set_bit((long)bdev->bd_disk->private_data, &fake_change);
 	process_fd_request();
-	check_disk_change(bdev);
+	if (bdev_check_media_change(bdev))
+		floppy_revalidate(bdev->bd_disk);
 	return 0;
 }
 
@@ -4123,7 +4125,8 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 			drive_state[drive].last_checked = 0;
 			clear_bit(FD_OPEN_SHOULD_FAIL_BIT,
 				  &drive_state[drive].flags);
-			check_disk_change(bdev);
+			if (bdev_check_media_change(bdev))
+				floppy_revalidate(bdev->bd_disk);
 			if (test_bit(FD_DISK_CHANGED_BIT, &drive_state[drive].flags))
 				goto out;
 			if (test_bit(FD_OPEN_SHOULD_FAIL_BIT, &drive_state[drive].flags))
@@ -4291,7 +4294,6 @@ static const struct block_device_operations floppy_fops = {
 	.ioctl			= fd_ioctl,
 	.getgeo			= fd_getgeo,
 	.check_events		= floppy_check_events,
-	.revalidate_disk	= floppy_revalidate,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl		= fd_compat_ioctl,
 #endif

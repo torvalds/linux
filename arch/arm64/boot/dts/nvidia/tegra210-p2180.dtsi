@@ -273,6 +273,7 @@
 			compatible = "atmel,24c02";
 			reg = <0x50>;
 
+			label = "module";
 			vcc-supply = <&vdd_1v8>;
 			address-width = <8>;
 			pagesize = <8>;
@@ -337,7 +338,7 @@
 
 	vdd_gpu: regulator@100 {
 		compatible = "pwm-regulator";
-		pwms = <&pwm 1 4880>;
+		pwms = <&pwm 1 8000>;
 		regulator-name = "VDD_GPU";
 		regulator-min-microvolt = <710000>;
 		regulator-max-microvolt = <1320000>;

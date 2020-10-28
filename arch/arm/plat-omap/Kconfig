@@ -23,7 +23,7 @@ config OMAP_DEBUG_LEDS
 
 config POWER_AVS_OMAP
 	bool "AVS(Adaptive Voltage Scaling) support for OMAP IP versions 1&2"
-	depends on POWER_AVS && (ARCH_OMAP3 || ARCH_OMAP4) && PM
+	depends on (ARCH_OMAP3 || ARCH_OMAP4) && PM
 	select POWER_SUPPLY
 	help
 	  Say Y to enable AVS(Adaptive Voltage Scaling)

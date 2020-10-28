@@ -456,6 +456,16 @@ config PVPANIC
 	  a paravirtualized device provided by QEMU; it lets a virtual machine
 	  (guest) communicate panic events to the host.
 
+config HISI_HIKEY_USB
+	tristate "USB GPIO Hub on HiSilicon Hikey 960/970 Platform"
+	depends on (OF && GPIOLIB) || COMPILE_TEST
+	depends on USB_ROLE_SWITCH
+	help
+	  If you say yes here this adds support for the on-board USB GPIO hub
+	  found on HiKey 960/970 boards, which is necessary to support
+	  switching between the dual-role USB-C port and the USB-A host ports
+	  using only one USB controller.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"

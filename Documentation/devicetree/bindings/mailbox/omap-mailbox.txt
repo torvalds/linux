@@ -69,7 +69,7 @@ The following are mandatory properties for the K3 AM65x and J721E SoCs only:
 			the interrupt routes between the IP and the main GIC
 			controllers. See the following binding for additional
 			details,
-			Documentation/devicetree/bindings/interrupt-controller/ti,sci-intr.txt
+			Documentation/devicetree/bindings/interrupt-controller/ti,sci-intr.yaml
 
 Child Nodes:
 ============

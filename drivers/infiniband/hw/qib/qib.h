@@ -619,11 +619,11 @@ struct qib_pportdata {
 	/* LID mask control */
 	u8 lmc;
 	u8 link_width_supported;
-	u8 link_speed_supported;
+	u16 link_speed_supported;
 	u8 link_width_enabled;
-	u8 link_speed_enabled;
+	u16 link_speed_enabled;
 	u8 link_width_active;
-	u8 link_speed_active;
+	u16 link_speed_active;
 	u8 vls_supported;
 	u8 vls_operational;
 	/* Rx Polarity inversion (compensate for ~tx on partner) */

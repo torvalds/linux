@@ -141,7 +141,7 @@ void __warn(const char *file, int line, void *caller, unsigned taint,
 
 #ifndef WARN_ON_ONCE
 #define WARN_ON_ONCE(condition)	({				\
-	static bool __section(.data.once) __warned;		\
+	static bool __section(".data.once") __warned;		\
 	int __ret_warn_once = !!(condition);			\
 								\
 	if (unlikely(__ret_warn_once && !__warned)) {		\
@@ -153,7 +153,7 @@ void __warn(const char *file, int line, void *caller, unsigned taint,
 #endif
 
 #define WARN_ONCE(condition, format...)	({			\
-	static bool __section(.data.once) __warned;		\
+	static bool __section(".data.once") __warned;		\
 	int __ret_warn_once = !!(condition);			\
 								\
 	if (unlikely(__ret_warn_once && !__warned)) {		\
@@ -164,7 +164,7 @@ void __warn(const char *file, int line, void *caller, unsigned taint,
 })
 
 #define WARN_TAINT_ONCE(condition, taint, format...)	({	\
-	static bool __section(.data.once) __warned;		\
+	static bool __section(".data.once") __warned;		\
 	int __ret_warn_once = !!(condition);			\
 								\
 	if (unlikely(__ret_warn_once && !__warned)) {		\

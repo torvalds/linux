@@ -287,6 +287,7 @@ static __poll_t ringbuf_map_poll(struct bpf_map *map, struct file *filp,
 
 static int ringbuf_map_btf_id;
 const struct bpf_map_ops ringbuf_map_ops = {
+	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc = ringbuf_map_alloc,
 	.map_free = ringbuf_map_free,
 	.map_mmap = ringbuf_map_mmap,

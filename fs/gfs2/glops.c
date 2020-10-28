@@ -178,6 +178,9 @@ static int rgrp_go_sync(struct gfs2_glock *gl)
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	struct address_space *mapping = &sdp->sd_aspace;
 	struct gfs2_rgrpd *rgd = gfs2_glock2rgrp(gl);
+	const unsigned bsize = sdp->sd_sb.sb_bsize;
+	loff_t start = (rgd->rd_addr * bsize) & PAGE_MASK;
+	loff_t end = PAGE_ALIGN((rgd->rd_addr + rgd->rd_length) * bsize) - 1;
 	int error;
 
 	if (!test_and_clear_bit(GLF_DIRTY, &gl->gl_flags))
@@ -186,18 +189,13 @@ static int rgrp_go_sync(struct gfs2_glock *gl)
 
 	gfs2_log_flush(sdp, gl, GFS2_LOG_HEAD_FLUSH_NORMAL |
 		       GFS2_LFC_RGRP_GO_SYNC);
-	filemap_fdatawrite_range(mapping, gl->gl_vm.start, gl->gl_vm.end);
-	error = filemap_fdatawait_range(mapping, gl->gl_vm.start, gl->gl_vm.end);
-	WARN_ON_ONCE(error);
+	filemap_fdatawrite_range(mapping, start, end);
+	error = filemap_fdatawait_range(mapping, start, end);
+	WARN_ON_ONCE(error && !gfs2_withdrawn(sdp));
 	mapping_set_error(mapping, error);
 	if (!error)
 		error = gfs2_ail_empty_gl(gl);
-
-	spin_lock(&gl->gl_lockref.lock);
-	rgd = gl->gl_object;
-	if (rgd)
-		gfs2_free_clones(rgd);
-	spin_unlock(&gl->gl_lockref.lock);
+	gfs2_free_clones(rgd);
 	return error;
 }
 
@@ -216,15 +214,23 @@ static void rgrp_go_inval(struct gfs2_glock *gl, int flags)
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	struct address_space *mapping = &sdp->sd_aspace;
 	struct gfs2_rgrpd *rgd = gfs2_glock2rgrp(gl);
+	const unsigned bsize = sdp->sd_sb.sb_bsize;
+	loff_t start = (rgd->rd_addr * bsize) & PAGE_MASK;
+	loff_t end = PAGE_ALIGN((rgd->rd_addr + rgd->rd_length) * bsize) - 1;
 
-	if (rgd)
-		gfs2_rgrp_brelse(rgd);
-
+	gfs2_rgrp_brelse(rgd);
 	WARN_ON_ONCE(!(flags & DIO_METADATA));
-	truncate_inode_pages_range(mapping, gl->gl_vm.start, gl->gl_vm.end);
+	truncate_inode_pages_range(mapping, start, end);
+	rgd->rd_flags &= ~GFS2_RDF_UPTODATE;
+}
+
+static void gfs2_rgrp_go_dump(struct seq_file *seq, struct gfs2_glock *gl,
+			      const char *fs_id_buf)
+{
+	struct gfs2_rgrpd *rgd = gfs2_glock2rgrp(gl);
 
 	if (rgd)
-		rgd->rd_flags &= ~GFS2_RDF_UPTODATE;
+		gfs2_rgrp_dump(seq, rgd, fs_id_buf);
 }
 
 static struct gfs2_inode *gfs2_glock2inode(struct gfs2_glock *gl)
@@ -712,7 +718,7 @@ const struct gfs2_glock_operations gfs2_rgrp_glops = {
 	.go_sync = rgrp_go_sync,
 	.go_inval = rgrp_go_inval,
 	.go_lock = gfs2_rgrp_go_lock,
-	.go_dump = gfs2_rgrp_dump,
+	.go_dump = gfs2_rgrp_go_dump,
 	.go_type = LM_TYPE_RGRP,
 	.go_flags = GLOF_LVB,
 };

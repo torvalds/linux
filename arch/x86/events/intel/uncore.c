@@ -12,6 +12,8 @@ struct intel_uncore_type **uncore_mmio_uncores = empty_uncore;
 
 static bool pcidrv_registered;
 struct pci_driver *uncore_pci_driver;
+/* The PCI driver for the device which the uncore doesn't own. */
+struct pci_driver *uncore_pci_sub_driver;
 /* pci bus to socket mapping */
 DEFINE_RAW_SPINLOCK(pci2phy_map_lock);
 struct list_head pci2phy_map_head = LIST_HEAD_INIT(pci2phy_map_head);
@@ -989,65 +991,71 @@ uncore_types_init(struct intel_uncore_type **types, bool setid)
 }
 
 /*
- * add a pci uncore device
+ * Get the die information of a PCI device.
+ * @pdev: The PCI device.
+ * @phys_id: The physical socket id which the device maps to.
+ * @die: The die id which the device maps to.
  */
-static int uncore_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+static int uncore_pci_get_dev_die_info(struct pci_dev *pdev,
+				       int *phys_id, int *die)
 {
-	struct intel_uncore_type *type;
-	struct intel_uncore_pmu *pmu = NULL;
-	struct intel_uncore_box *box;
-	int phys_id, die, ret;
-
-	phys_id = uncore_pcibus_to_physid(pdev->bus);
-	if (phys_id < 0)
+	*phys_id = uncore_pcibus_to_physid(pdev->bus);
+	if (*phys_id < 0)
 		return -ENODEV;
 
-	die = (topology_max_die_per_package() > 1) ? phys_id :
-					topology_phys_to_logical_pkg(phys_id);
-	if (die < 0)
+	*die = (topology_max_die_per_package() > 1) ? *phys_id :
+				topology_phys_to_logical_pkg(*phys_id);
+	if (*die < 0)
 		return -EINVAL;
 
-	if (UNCORE_PCI_DEV_TYPE(id->driver_data) == UNCORE_EXTRA_PCI_DEV) {
-		int idx = UNCORE_PCI_DEV_IDX(id->driver_data);
+	return 0;
+}
 
-		uncore_extra_pci_dev[die].dev[idx] = pdev;
-		pci_set_drvdata(pdev, NULL);
-		return 0;
-	}
+/*
+ * Find the PMU of a PCI device.
+ * @pdev: The PCI device.
+ * @ids: The ID table of the available PCI devices with a PMU.
+ */
+static struct intel_uncore_pmu *
+uncore_pci_find_dev_pmu(struct pci_dev *pdev, const struct pci_device_id *ids)
+{
+	struct intel_uncore_pmu *pmu = NULL;
+	struct intel_uncore_type *type;
+	kernel_ulong_t data;
+	unsigned int devfn;
 
-	type = uncore_pci_uncores[UNCORE_PCI_DEV_TYPE(id->driver_data)];
-
-	/*
-	 * Some platforms, e.g.  Knights Landing, use a common PCI device ID
-	 * for multiple instances of an uncore PMU device type. We should check
-	 * PCI slot and func to indicate the uncore box.
-	 */
-	if (id->driver_data & ~0xffff) {
-		struct pci_driver *pci_drv = pdev->driver;
-		const struct pci_device_id *ids = pci_drv->id_table;
-		unsigned int devfn;
-
-		while (ids && ids->vendor) {
-			if ((ids->vendor == pdev->vendor) &&
-			    (ids->device == pdev->device)) {
-				devfn = PCI_DEVFN(UNCORE_PCI_DEV_DEV(ids->driver_data),
-						  UNCORE_PCI_DEV_FUNC(ids->driver_data));
-				if (devfn == pdev->devfn) {
-					pmu = &type->pmus[UNCORE_PCI_DEV_IDX(ids->driver_data)];
-					break;
-				}
+	while (ids && ids->vendor) {
+		if ((ids->vendor == pdev->vendor) &&
+		    (ids->device == pdev->device)) {
+			data = ids->driver_data;
+			devfn = PCI_DEVFN(UNCORE_PCI_DEV_DEV(data),
+					  UNCORE_PCI_DEV_FUNC(data));
+			if (devfn == pdev->devfn) {
+				type = uncore_pci_uncores[UNCORE_PCI_DEV_TYPE(data)];
+				pmu = &type->pmus[UNCORE_PCI_DEV_IDX(data)];
+				break;
 			}
-			ids++;
 		}
-		if (pmu == NULL)
-			return -ENODEV;
-	} else {
-		/*
-		 * for performance monitoring unit with multiple boxes,
-		 * each box has a different function id.
-		 */
-		pmu = &type->pmus[UNCORE_PCI_DEV_IDX(id->driver_data)];
+		ids++;
 	}
+	return pmu;
+}
+
+/*
+ * Register the PMU for a PCI device
+ * @pdev: The PCI device.
+ * @type: The corresponding PMU type of the device.
+ * @pmu: The corresponding PMU of the device.
+ * @phys_id: The physical socket id which the device maps to.
+ * @die: The die id which the device maps to.
+ */
+static int uncore_pci_pmu_register(struct pci_dev *pdev,
+				   struct intel_uncore_type *type,
+				   struct intel_uncore_pmu *pmu,
+				   int phys_id, int die)
+{
+	struct intel_uncore_box *box;
+	int ret;
 
 	if (WARN_ON_ONCE(pmu->boxes[die] != NULL))
 		return -EINVAL;
@@ -1067,7 +1075,6 @@ static int uncore_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id
 	box->pci_dev = pdev;
 	box->pmu = pmu;
 	uncore_box_init(box);
-	pci_set_drvdata(pdev, box);
 
 	pmu->boxes[die] = box;
 	if (atomic_inc_return(&pmu->activeboxes) > 1)
@@ -1076,12 +1083,81 @@ static int uncore_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id
 	/* First active box registers the pmu */
 	ret = uncore_pmu_register(pmu);
 	if (ret) {
-		pci_set_drvdata(pdev, NULL);
 		pmu->boxes[die] = NULL;
 		uncore_box_exit(box);
 		kfree(box);
 	}
 	return ret;
+}
+
+/*
+ * add a pci uncore device
+ */
+static int uncore_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+{
+	struct intel_uncore_type *type;
+	struct intel_uncore_pmu *pmu = NULL;
+	int phys_id, die, ret;
+
+	ret = uncore_pci_get_dev_die_info(pdev, &phys_id, &die);
+	if (ret)
+		return ret;
+
+	if (UNCORE_PCI_DEV_TYPE(id->driver_data) == UNCORE_EXTRA_PCI_DEV) {
+		int idx = UNCORE_PCI_DEV_IDX(id->driver_data);
+
+		uncore_extra_pci_dev[die].dev[idx] = pdev;
+		pci_set_drvdata(pdev, NULL);
+		return 0;
+	}
+
+	type = uncore_pci_uncores[UNCORE_PCI_DEV_TYPE(id->driver_data)];
+
+	/*
+	 * Some platforms, e.g.  Knights Landing, use a common PCI device ID
+	 * for multiple instances of an uncore PMU device type. We should check
+	 * PCI slot and func to indicate the uncore box.
+	 */
+	if (id->driver_data & ~0xffff) {
+		struct pci_driver *pci_drv = pdev->driver;
+
+		pmu = uncore_pci_find_dev_pmu(pdev, pci_drv->id_table);
+		if (pmu == NULL)
+			return -ENODEV;
+	} else {
+		/*
+		 * for performance monitoring unit with multiple boxes,
+		 * each box has a different function id.
+		 */
+		pmu = &type->pmus[UNCORE_PCI_DEV_IDX(id->driver_data)];
+	}
+
+	ret = uncore_pci_pmu_register(pdev, type, pmu, phys_id, die);
+
+	pci_set_drvdata(pdev, pmu->boxes[die]);
+
+	return ret;
+}
+
+/*
+ * Unregister the PMU of a PCI device
+ * @pmu: The corresponding PMU is unregistered.
+ * @phys_id: The physical socket id which the device maps to.
+ * @die: The die id which the device maps to.
+ */
+static void uncore_pci_pmu_unregister(struct intel_uncore_pmu *pmu,
+				      int phys_id, int die)
+{
+	struct intel_uncore_box *box = pmu->boxes[die];
+
+	if (WARN_ON_ONCE(phys_id != box->pci_phys_id))
+		return;
+
+	pmu->boxes[die] = NULL;
+	if (atomic_dec_return(&pmu->activeboxes) == 0)
+		uncore_pmu_unregister(pmu);
+	uncore_box_exit(box);
+	kfree(box);
 }
 
 static void uncore_pci_remove(struct pci_dev *pdev)
@@ -1090,12 +1166,11 @@ static void uncore_pci_remove(struct pci_dev *pdev)
 	struct intel_uncore_pmu *pmu;
 	int i, phys_id, die;
 
-	phys_id = uncore_pcibus_to_physid(pdev->bus);
+	if (uncore_pci_get_dev_die_info(pdev, &phys_id, &die))
+		return;
 
 	box = pci_get_drvdata(pdev);
 	if (!box) {
-		die = (topology_max_die_per_package() > 1) ? phys_id :
-					topology_phys_to_logical_pkg(phys_id);
 		for (i = 0; i < UNCORE_EXTRA_PCI_DEV_MAX; i++) {
 			if (uncore_extra_pci_dev[die].dev[i] == pdev) {
 				uncore_extra_pci_dev[die].dev[i] = NULL;
@@ -1107,15 +1182,84 @@ static void uncore_pci_remove(struct pci_dev *pdev)
 	}
 
 	pmu = box->pmu;
-	if (WARN_ON_ONCE(phys_id != box->pci_phys_id))
-		return;
 
 	pci_set_drvdata(pdev, NULL);
-	pmu->boxes[box->dieid] = NULL;
-	if (atomic_dec_return(&pmu->activeboxes) == 0)
-		uncore_pmu_unregister(pmu);
-	uncore_box_exit(box);
-	kfree(box);
+
+	uncore_pci_pmu_unregister(pmu, phys_id, die);
+}
+
+static int uncore_bus_notify(struct notifier_block *nb,
+			     unsigned long action, void *data)
+{
+	struct device *dev = data;
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct intel_uncore_pmu *pmu;
+	int phys_id, die;
+
+	/* Unregister the PMU when the device is going to be deleted. */
+	if (action != BUS_NOTIFY_DEL_DEVICE)
+		return NOTIFY_DONE;
+
+	pmu = uncore_pci_find_dev_pmu(pdev, uncore_pci_sub_driver->id_table);
+	if (!pmu)
+		return NOTIFY_DONE;
+
+	if (uncore_pci_get_dev_die_info(pdev, &phys_id, &die))
+		return NOTIFY_DONE;
+
+	uncore_pci_pmu_unregister(pmu, phys_id, die);
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block uncore_notifier = {
+	.notifier_call = uncore_bus_notify,
+};
+
+static void uncore_pci_sub_driver_init(void)
+{
+	const struct pci_device_id *ids = uncore_pci_sub_driver->id_table;
+	struct intel_uncore_type *type;
+	struct intel_uncore_pmu *pmu;
+	struct pci_dev *pci_sub_dev;
+	bool notify = false;
+	unsigned int devfn;
+	int phys_id, die;
+
+	while (ids && ids->vendor) {
+		pci_sub_dev = NULL;
+		type = uncore_pci_uncores[UNCORE_PCI_DEV_TYPE(ids->driver_data)];
+		/*
+		 * Search the available device, and register the
+		 * corresponding PMU.
+		 */
+		while ((pci_sub_dev = pci_get_device(PCI_VENDOR_ID_INTEL,
+						     ids->device, pci_sub_dev))) {
+			devfn = PCI_DEVFN(UNCORE_PCI_DEV_DEV(ids->driver_data),
+					  UNCORE_PCI_DEV_FUNC(ids->driver_data));
+			if (devfn != pci_sub_dev->devfn)
+				continue;
+
+			pmu = &type->pmus[UNCORE_PCI_DEV_IDX(ids->driver_data)];
+			if (!pmu)
+				continue;
+
+			if (uncore_pci_get_dev_die_info(pci_sub_dev,
+							&phys_id, &die))
+				continue;
+
+			if (!uncore_pci_pmu_register(pci_sub_dev, type, pmu,
+						     phys_id, die))
+				notify = true;
+		}
+		ids++;
+	}
+
+	if (notify && bus_register_notifier(&pci_bus_type, &uncore_notifier))
+		notify = false;
+
+	if (!notify)
+		uncore_pci_sub_driver = NULL;
 }
 
 static int __init uncore_pci_init(void)
@@ -1141,6 +1285,9 @@ static int __init uncore_pci_init(void)
 	if (ret)
 		goto errtype;
 
+	if (uncore_pci_sub_driver)
+		uncore_pci_sub_driver_init();
+
 	pcidrv_registered = true;
 	return 0;
 
@@ -1158,6 +1305,8 @@ static void uncore_pci_exit(void)
 {
 	if (pcidrv_registered) {
 		pcidrv_registered = false;
+		if (uncore_pci_sub_driver)
+			bus_unregister_notifier(&pci_bus_type, &uncore_notifier);
 		pci_unregister_driver(uncore_pci_driver);
 		uncore_types_exit(uncore_pci_uncores);
 		kfree(uncore_extra_pci_dev);
@@ -1478,12 +1627,12 @@ static const struct intel_uncore_init_fun icl_uncore_init __initconst = {
 };
 
 static const struct intel_uncore_init_fun tgl_uncore_init __initconst = {
-	.cpu_init = icl_uncore_cpu_init,
+	.cpu_init = tgl_uncore_cpu_init,
 	.mmio_init = tgl_uncore_mmio_init,
 };
 
 static const struct intel_uncore_init_fun tgl_l_uncore_init __initconst = {
-	.cpu_init = icl_uncore_cpu_init,
+	.cpu_init = tgl_uncore_cpu_init,
 	.mmio_init = tgl_l_uncore_mmio_init,
 };
 

@@ -774,8 +774,15 @@ void *kill_thread(void *data)
 	return (void *)SIBLING_EXIT_UNKILLED;
 }
 
+enum kill_t {
+	KILL_THREAD,
+	KILL_PROCESS,
+	RET_UNKNOWN
+};
+
 /* Prepare a thread that will kill itself or both of us. */
-void kill_thread_or_group(struct __test_metadata *_metadata, bool kill_process)
+void kill_thread_or_group(struct __test_metadata *_metadata,
+			  enum kill_t kill_how)
 {
 	pthread_t thread;
 	void *status;
@@ -791,11 +798,12 @@ void kill_thread_or_group(struct __test_metadata *_metadata, bool kill_process)
 		.len = (unsigned short)ARRAY_SIZE(filter_thread),
 		.filter = filter_thread,
 	};
+	int kill = kill_how == KILL_PROCESS ? SECCOMP_RET_KILL_PROCESS : 0xAAAAAAAAA;
 	struct sock_filter filter_process[] = {
 		BPF_STMT(BPF_LD|BPF_W|BPF_ABS,
 			offsetof(struct seccomp_data, nr)),
 		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_prctl, 0, 1),
-		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_KILL_PROCESS),
+		BPF_STMT(BPF_RET|BPF_K, kill),
 		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ALLOW),
 	};
 	struct sock_fprog prog_process = {
@@ -808,13 +816,15 @@ void kill_thread_or_group(struct __test_metadata *_metadata, bool kill_process)
 	}
 
 	ASSERT_EQ(0, seccomp(SECCOMP_SET_MODE_FILTER, 0,
-			     kill_process ? &prog_process : &prog_thread));
+			     kill_how == KILL_THREAD ? &prog_thread
+						     : &prog_process));
 
 	/*
 	 * Add the KILL_THREAD rule again to make sure that the KILL_PROCESS
 	 * flag cannot be downgraded by a new filter.
 	 */
-	ASSERT_EQ(0, seccomp(SECCOMP_SET_MODE_FILTER, 0, &prog_thread));
+	if (kill_how == KILL_PROCESS)
+		ASSERT_EQ(0, seccomp(SECCOMP_SET_MODE_FILTER, 0, &prog_thread));
 
 	/* Start a thread that will exit immediately. */
 	ASSERT_EQ(0, pthread_create(&thread, NULL, kill_thread, (void *)false));
@@ -842,7 +852,7 @@ TEST(KILL_thread)
 	child_pid = fork();
 	ASSERT_LE(0, child_pid);
 	if (child_pid == 0) {
-		kill_thread_or_group(_metadata, false);
+		kill_thread_or_group(_metadata, KILL_THREAD);
 		_exit(38);
 	}
 
@@ -861,7 +871,7 @@ TEST(KILL_process)
 	child_pid = fork();
 	ASSERT_LE(0, child_pid);
 	if (child_pid == 0) {
-		kill_thread_or_group(_metadata, true);
+		kill_thread_or_group(_metadata, KILL_PROCESS);
 		_exit(38);
 	}
 
@@ -869,6 +879,27 @@ TEST(KILL_process)
 
 	/* If the entire process was killed, we'll see SIGSYS. */
 	ASSERT_TRUE(WIFSIGNALED(status));
+	ASSERT_EQ(SIGSYS, WTERMSIG(status));
+}
+
+TEST(KILL_unknown)
+{
+	int status;
+	pid_t child_pid;
+
+	child_pid = fork();
+	ASSERT_LE(0, child_pid);
+	if (child_pid == 0) {
+		kill_thread_or_group(_metadata, RET_UNKNOWN);
+		_exit(38);
+	}
+
+	ASSERT_EQ(child_pid, waitpid(child_pid, &status, 0));
+
+	/* If the entire process was killed, we'll see SIGSYS. */
+	EXPECT_TRUE(WIFSIGNALED(status)) {
+		TH_LOG("Unknown SECCOMP_RET is only killing the thread?");
+	}
 	ASSERT_EQ(SIGSYS, WTERMSIG(status));
 }
 
@@ -1667,70 +1698,148 @@ TEST_F(TRACE_poke, getpid_runs_normally)
 }
 
 #if defined(__x86_64__)
-# define ARCH_REGS	struct user_regs_struct
-# define SYSCALL_NUM	orig_rax
-# define SYSCALL_RET	rax
+# define ARCH_REGS		struct user_regs_struct
+# define SYSCALL_NUM(_regs)	(_regs).orig_rax
+# define SYSCALL_RET(_regs)	(_regs).rax
 #elif defined(__i386__)
-# define ARCH_REGS	struct user_regs_struct
-# define SYSCALL_NUM	orig_eax
-# define SYSCALL_RET	eax
+# define ARCH_REGS		struct user_regs_struct
+# define SYSCALL_NUM(_regs)	(_regs).orig_eax
+# define SYSCALL_RET(_regs)	(_regs).eax
 #elif defined(__arm__)
-# define ARCH_REGS	struct pt_regs
-# define SYSCALL_NUM	ARM_r7
-# define SYSCALL_RET	ARM_r0
+# define ARCH_REGS		struct pt_regs
+# define SYSCALL_NUM(_regs)	(_regs).ARM_r7
+# ifndef PTRACE_SET_SYSCALL
+#  define PTRACE_SET_SYSCALL   23
+# endif
+# define SYSCALL_NUM_SET(_regs, _nr)	\
+		EXPECT_EQ(0, ptrace(PTRACE_SET_SYSCALL, tracee, NULL, _nr))
+# define SYSCALL_RET(_regs)	(_regs).ARM_r0
 #elif defined(__aarch64__)
-# define ARCH_REGS	struct user_pt_regs
-# define SYSCALL_NUM	regs[8]
-# define SYSCALL_RET	regs[0]
+# define ARCH_REGS		struct user_pt_regs
+# define SYSCALL_NUM(_regs)	(_regs).regs[8]
+# ifndef NT_ARM_SYSTEM_CALL
+#  define NT_ARM_SYSTEM_CALL 0x404
+# endif
+# define SYSCALL_NUM_SET(_regs, _nr)				\
+	do {							\
+		struct iovec __v;				\
+		typeof(_nr) __nr = (_nr);			\
+		__v.iov_base = &__nr;				\
+		__v.iov_len = sizeof(__nr);			\
+		EXPECT_EQ(0, ptrace(PTRACE_SETREGSET, tracee,	\
+				    NT_ARM_SYSTEM_CALL, &__v));	\
+	} while (0)
+# define SYSCALL_RET(_regs)	(_regs).regs[0]
 #elif defined(__riscv) && __riscv_xlen == 64
-# define ARCH_REGS	struct user_regs_struct
-# define SYSCALL_NUM	a7
-# define SYSCALL_RET	a0
+# define ARCH_REGS		struct user_regs_struct
+# define SYSCALL_NUM(_regs)	(_regs).a7
+# define SYSCALL_RET(_regs)	(_regs).a0
 #elif defined(__csky__)
-# define ARCH_REGS	struct pt_regs
-#if defined(__CSKYABIV2__)
-# define SYSCALL_NUM	regs[3]
-#else
-# define SYSCALL_NUM	regs[9]
-#endif
-# define SYSCALL_RET	a0
+# define ARCH_REGS		struct pt_regs
+#  if defined(__CSKYABIV2__)
+#   define SYSCALL_NUM(_regs)	(_regs).regs[3]
+#  else
+#   define SYSCALL_NUM(_regs)	(_regs).regs[9]
+#  endif
+# define SYSCALL_RET(_regs)	(_regs).a0
 #elif defined(__hppa__)
-# define ARCH_REGS	struct user_regs_struct
-# define SYSCALL_NUM	gr[20]
-# define SYSCALL_RET	gr[28]
+# define ARCH_REGS		struct user_regs_struct
+# define SYSCALL_NUM(_regs)	(_regs).gr[20]
+# define SYSCALL_RET(_regs)	(_regs).gr[28]
 #elif defined(__powerpc__)
-# define ARCH_REGS	struct pt_regs
-# define SYSCALL_NUM	gpr[0]
-# define SYSCALL_RET	gpr[3]
+# define ARCH_REGS		struct pt_regs
+# define SYSCALL_NUM(_regs)	(_regs).gpr[0]
+# define SYSCALL_RET(_regs)	(_regs).gpr[3]
+# define SYSCALL_RET_SET(_regs, _val)				\
+	do {							\
+		typeof(_val) _result = (_val);			\
+		/*						\
+		 * A syscall error is signaled by CR0 SO bit	\
+		 * and the code is stored as a positive value.	\
+		 */						\
+		if (_result < 0) {				\
+			SYSCALL_RET(_regs) = -result;		\
+			(_regs).ccr |= 0x10000000;		\
+		} else {					\
+			SYSCALL_RET(_regs) = result;		\
+			(_regs).ccr &= ~0x10000000;		\
+		}						\
+	} while (0)
+# define SYSCALL_RET_SET_ON_PTRACE_EXIT
 #elif defined(__s390__)
-# define ARCH_REGS     s390_regs
-# define SYSCALL_NUM   gprs[2]
-# define SYSCALL_RET   gprs[2]
-# define SYSCALL_NUM_RET_SHARE_REG
+# define ARCH_REGS		s390_regs
+# define SYSCALL_NUM(_regs)	(_regs).gprs[2]
+# define SYSCALL_RET_SET(_regs, _val)			\
+		TH_LOG("Can't modify syscall return on this architecture")
 #elif defined(__mips__)
-# define ARCH_REGS	struct pt_regs
-# define SYSCALL_NUM	regs[2]
-# define SYSCALL_SYSCALL_NUM regs[4]
-# define SYSCALL_RET	regs[2]
-# define SYSCALL_NUM_RET_SHARE_REG
+# include <asm/unistd_nr_n32.h>
+# include <asm/unistd_nr_n64.h>
+# include <asm/unistd_nr_o32.h>
+# define ARCH_REGS		struct pt_regs
+# define SYSCALL_NUM(_regs)				\
+	({						\
+		typeof((_regs).regs[2]) _nr;		\
+		if ((_regs).regs[2] == __NR_O32_Linux)	\
+			_nr = (_regs).regs[4];		\
+		else					\
+			_nr = (_regs).regs[2];		\
+		_nr;					\
+	})
+# define SYSCALL_NUM_SET(_regs, _nr)			\
+	do {						\
+		if ((_regs).regs[2] == __NR_O32_Linux)	\
+			(_regs).regs[4] = _nr;		\
+		else					\
+			(_regs).regs[2] = _nr;		\
+	} while (0)
+# define SYSCALL_RET_SET(_regs, _val)			\
+		TH_LOG("Can't modify syscall return on this architecture")
 #elif defined(__xtensa__)
-# define ARCH_REGS	struct user_pt_regs
-# define SYSCALL_NUM	syscall
+# define ARCH_REGS		struct user_pt_regs
+# define SYSCALL_NUM(_regs)	(_regs).syscall
 /*
  * On xtensa syscall return value is in the register
  * a2 of the current window which is not fixed.
  */
-#define SYSCALL_RET(reg) a[(reg).windowbase * 4 + 2]
+#define SYSCALL_RET(_regs)	(_regs).a[(_regs).windowbase * 4 + 2]
 #elif defined(__sh__)
-# define ARCH_REGS	struct pt_regs
-# define SYSCALL_NUM	gpr[3]
-# define SYSCALL_RET	gpr[0]
+# define ARCH_REGS		struct pt_regs
+# define SYSCALL_NUM(_regs)	(_regs).gpr[3]
+# define SYSCALL_RET(_regs)	(_regs).gpr[0]
 #else
 # error "Do not know how to find your architecture's registers and syscalls"
 #endif
 
+/*
+ * Most architectures can change the syscall by just updating the
+ * associated register. This is the default if not defined above.
+ */
+#ifndef SYSCALL_NUM_SET
+# define SYSCALL_NUM_SET(_regs, _nr)		\
+	do {					\
+		SYSCALL_NUM(_regs) = (_nr);	\
+	} while (0)
+#endif
+/*
+ * Most architectures can change the syscall return value by just
+ * writing to the SYSCALL_RET register. This is the default if not
+ * defined above. If an architecture cannot set the return value
+ * (for example when the syscall and return value register is
+ * shared), report it with TH_LOG() in an arch-specific definition
+ * of SYSCALL_RET_SET() above, and leave SYSCALL_RET undefined.
+ */
+#if !defined(SYSCALL_RET) && !defined(SYSCALL_RET_SET)
+# error "One of SYSCALL_RET or SYSCALL_RET_SET is needed for this arch"
+#endif
+#ifndef SYSCALL_RET_SET
+# define SYSCALL_RET_SET(_regs, _val)		\
+	do {					\
+		SYSCALL_RET(_regs) = (_val);	\
+	} while (0)
+#endif
+
 /* When the syscall return can't be changed, stub out the tests for it. */
-#ifdef SYSCALL_NUM_RET_SHARE_REG
+#ifndef SYSCALL_RET
 # define EXPECT_SYSCALL_RETURN(val, action)	EXPECT_EQ(-1, action)
 #else
 # define EXPECT_SYSCALL_RETURN(val, action)		\
@@ -1745,116 +1854,92 @@ TEST_F(TRACE_poke, getpid_runs_normally)
 	} while (0)
 #endif
 
-/* Use PTRACE_GETREGS and PTRACE_SETREGS when available. This is useful for
+/*
+ * Some architectures (e.g. powerpc) can only set syscall
+ * return values on syscall exit during ptrace.
+ */
+const bool ptrace_entry_set_syscall_nr = true;
+const bool ptrace_entry_set_syscall_ret =
+#ifndef SYSCALL_RET_SET_ON_PTRACE_EXIT
+	true;
+#else
+	false;
+#endif
+
+/*
+ * Use PTRACE_GETREGS and PTRACE_SETREGS when available. This is useful for
  * architectures without HAVE_ARCH_TRACEHOOK (e.g. User-mode Linux).
  */
 #if defined(__x86_64__) || defined(__i386__) || defined(__mips__)
-#define HAVE_GETREGS
+# define ARCH_GETREGS(_regs)	ptrace(PTRACE_GETREGS, tracee, 0, &(_regs))
+# define ARCH_SETREGS(_regs)	ptrace(PTRACE_SETREGS, tracee, 0, &(_regs))
+#else
+# define ARCH_GETREGS(_regs)	({					\
+		struct iovec __v;					\
+		__v.iov_base = &(_regs);				\
+		__v.iov_len = sizeof(_regs);				\
+		ptrace(PTRACE_GETREGSET, tracee, NT_PRSTATUS, &__v);	\
+	})
+# define ARCH_SETREGS(_regs)	({					\
+		struct iovec __v;					\
+		__v.iov_base = &(_regs);				\
+		__v.iov_len = sizeof(_regs);				\
+		ptrace(PTRACE_SETREGSET, tracee, NT_PRSTATUS, &__v);	\
+	})
 #endif
 
 /* Architecture-specific syscall fetching routine. */
 int get_syscall(struct __test_metadata *_metadata, pid_t tracee)
 {
 	ARCH_REGS regs;
-#ifdef HAVE_GETREGS
-	EXPECT_EQ(0, ptrace(PTRACE_GETREGS, tracee, 0, &regs)) {
-		TH_LOG("PTRACE_GETREGS failed");
+
+	EXPECT_EQ(0, ARCH_GETREGS(regs)) {
 		return -1;
 	}
-#else
-	struct iovec iov;
 
-	iov.iov_base = &regs;
-	iov.iov_len = sizeof(regs);
-	EXPECT_EQ(0, ptrace(PTRACE_GETREGSET, tracee, NT_PRSTATUS, &iov)) {
-		TH_LOG("PTRACE_GETREGSET failed");
-		return -1;
-	}
-#endif
-
-#if defined(__mips__)
-	if (regs.SYSCALL_NUM == __NR_O32_Linux)
-		return regs.SYSCALL_SYSCALL_NUM;
-#endif
-	return regs.SYSCALL_NUM;
+	return SYSCALL_NUM(regs);
 }
 
 /* Architecture-specific syscall changing routine. */
-void change_syscall(struct __test_metadata *_metadata,
-		    pid_t tracee, int syscall, int result)
+void __change_syscall(struct __test_metadata *_metadata,
+		    pid_t tracee, long *syscall, long *ret)
 {
-	int ret;
-	ARCH_REGS regs;
-#ifdef HAVE_GETREGS
-	ret = ptrace(PTRACE_GETREGS, tracee, 0, &regs);
-#else
-	struct iovec iov;
-	iov.iov_base = &regs;
-	iov.iov_len = sizeof(regs);
-	ret = ptrace(PTRACE_GETREGSET, tracee, NT_PRSTATUS, &iov);
-#endif
-	EXPECT_EQ(0, ret) {}
+	ARCH_REGS orig, regs;
 
-#if defined(__x86_64__) || defined(__i386__) || defined(__powerpc__) || \
-	defined(__s390__) || defined(__hppa__) || defined(__riscv) || \
-	defined(__xtensa__) || defined(__csky__) || defined(__sh__)
-	{
-		regs.SYSCALL_NUM = syscall;
+	/* Do not get/set registers if we have nothing to do. */
+	if (!syscall && !ret)
+		return;
+
+	EXPECT_EQ(0, ARCH_GETREGS(regs)) {
+		return;
 	}
-#elif defined(__mips__)
-	{
-		if (regs.SYSCALL_NUM == __NR_O32_Linux)
-			regs.SYSCALL_SYSCALL_NUM = syscall;
-		else
-			regs.SYSCALL_NUM = syscall;
-	}
+	orig = regs;
 
-#elif defined(__arm__)
-# ifndef PTRACE_SET_SYSCALL
-#  define PTRACE_SET_SYSCALL   23
-# endif
-	{
-		ret = ptrace(PTRACE_SET_SYSCALL, tracee, NULL, syscall);
-		EXPECT_EQ(0, ret);
-	}
+	if (syscall)
+		SYSCALL_NUM_SET(regs, *syscall);
 
-#elif defined(__aarch64__)
-# ifndef NT_ARM_SYSTEM_CALL
-#  define NT_ARM_SYSTEM_CALL 0x404
-# endif
-	{
-		iov.iov_base = &syscall;
-		iov.iov_len = sizeof(syscall);
-		ret = ptrace(PTRACE_SETREGSET, tracee, NT_ARM_SYSTEM_CALL,
-			     &iov);
-		EXPECT_EQ(0, ret);
-	}
+	if (ret)
+		SYSCALL_RET_SET(regs, *ret);
 
-#else
-	ASSERT_EQ(1, 0) {
-		TH_LOG("How is the syscall changed on this architecture?");
-	}
-#endif
+	/* Flush any register changes made. */
+	if (memcmp(&orig, &regs, sizeof(orig)) != 0)
+		EXPECT_EQ(0, ARCH_SETREGS(regs));
+}
 
-	/* If syscall is skipped, change return value. */
-	if (syscall == -1)
-#ifdef SYSCALL_NUM_RET_SHARE_REG
-		TH_LOG("Can't modify syscall return on this architecture");
+/* Change only syscall number. */
+void change_syscall_nr(struct __test_metadata *_metadata,
+		       pid_t tracee, long syscall)
+{
+	__change_syscall(_metadata, tracee, &syscall, NULL);
+}
 
-#elif defined(__xtensa__)
-		regs.SYSCALL_RET(regs) = result;
-#else
-		regs.SYSCALL_RET = result;
-#endif
+/* Change syscall return value (and set syscall number to -1). */
+void change_syscall_ret(struct __test_metadata *_metadata,
+			pid_t tracee, long ret)
+{
+	long syscall = -1;
 
-#ifdef HAVE_GETREGS
-	ret = ptrace(PTRACE_SETREGS, tracee, 0, &regs);
-#else
-	iov.iov_base = &regs;
-	iov.iov_len = sizeof(regs);
-	ret = ptrace(PTRACE_SETREGSET, tracee, NT_PRSTATUS, &iov);
-#endif
-	EXPECT_EQ(0, ret);
+	__change_syscall(_metadata, tracee, &syscall, &ret);
 }
 
 void tracer_seccomp(struct __test_metadata *_metadata, pid_t tracee,
@@ -1872,17 +1957,17 @@ void tracer_seccomp(struct __test_metadata *_metadata, pid_t tracee,
 	case 0x1002:
 		/* change getpid to getppid. */
 		EXPECT_EQ(__NR_getpid, get_syscall(_metadata, tracee));
-		change_syscall(_metadata, tracee, __NR_getppid, 0);
+		change_syscall_nr(_metadata, tracee, __NR_getppid);
 		break;
 	case 0x1003:
 		/* skip gettid with valid return code. */
 		EXPECT_EQ(__NR_gettid, get_syscall(_metadata, tracee));
-		change_syscall(_metadata, tracee, -1, 45000);
+		change_syscall_ret(_metadata, tracee, 45000);
 		break;
 	case 0x1004:
 		/* skip openat with error. */
 		EXPECT_EQ(__NR_openat, get_syscall(_metadata, tracee));
-		change_syscall(_metadata, tracee, -1, -ESRCH);
+		change_syscall_ret(_metadata, tracee, -ESRCH);
 		break;
 	case 0x1005:
 		/* do nothing (allow getppid) */
@@ -1897,12 +1982,21 @@ void tracer_seccomp(struct __test_metadata *_metadata, pid_t tracee,
 
 }
 
+FIXTURE(TRACE_syscall) {
+	struct sock_fprog prog;
+	pid_t tracer, mytid, mypid, parent;
+	long syscall_nr;
+};
+
 void tracer_ptrace(struct __test_metadata *_metadata, pid_t tracee,
 		   int status, void *args)
 {
-	int ret, nr;
+	int ret;
 	unsigned long msg;
 	static bool entry;
+	long syscall_nr_val, syscall_ret_val;
+	long *syscall_nr = NULL, *syscall_ret = NULL;
+	FIXTURE_DATA(TRACE_syscall) *self = args;
 
 	/*
 	 * The traditional way to tell PTRACE_SYSCALL entry/exit
@@ -1916,23 +2010,47 @@ void tracer_ptrace(struct __test_metadata *_metadata, pid_t tracee,
 	EXPECT_EQ(entry ? PTRACE_EVENTMSG_SYSCALL_ENTRY
 			: PTRACE_EVENTMSG_SYSCALL_EXIT, msg);
 
-	if (!entry)
+	/*
+	 * Some architectures only support setting return values during
+	 * syscall exit under ptrace, and on exit the syscall number may
+	 * no longer be available. Therefore, save the initial sycall
+	 * number here, so it can be examined during both entry and exit
+	 * phases.
+	 */
+	if (entry)
+		self->syscall_nr = get_syscall(_metadata, tracee);
+
+	/*
+	 * Depending on the architecture's syscall setting abilities, we
+	 * pick which things to set during this phase (entry or exit).
+	 */
+	if (entry == ptrace_entry_set_syscall_nr)
+		syscall_nr = &syscall_nr_val;
+	if (entry == ptrace_entry_set_syscall_ret)
+		syscall_ret = &syscall_ret_val;
+
+	/* Now handle the actual rewriting cases. */
+	switch (self->syscall_nr) {
+	case __NR_getpid:
+		syscall_nr_val = __NR_getppid;
+		/* Never change syscall return for this case. */
+		syscall_ret = NULL;
+		break;
+	case __NR_gettid:
+		syscall_nr_val = -1;
+		syscall_ret_val = 45000;
+		break;
+	case __NR_openat:
+		syscall_nr_val = -1;
+		syscall_ret_val = -ESRCH;
+		break;
+	default:
+		/* Unhandled, do nothing. */
 		return;
+	}
 
-	nr = get_syscall(_metadata, tracee);
-
-	if (nr == __NR_getpid)
-		change_syscall(_metadata, tracee, __NR_getppid, 0);
-	if (nr == __NR_gettid)
-		change_syscall(_metadata, tracee, -1, 45000);
-	if (nr == __NR_openat)
-		change_syscall(_metadata, tracee, -1, -ESRCH);
+	__change_syscall(_metadata, tracee, syscall_nr, syscall_ret);
 }
-
-FIXTURE(TRACE_syscall) {
-	struct sock_fprog prog;
-	pid_t tracer, mytid, mypid, parent;
-};
 
 FIXTURE_VARIANT(TRACE_syscall) {
 	/*
@@ -1992,7 +2110,7 @@ FIXTURE_SETUP(TRACE_syscall)
 	self->tracer = setup_trace_fixture(_metadata,
 					   variant->use_ptrace ? tracer_ptrace
 							       : tracer_seccomp,
-					   NULL, variant->use_ptrace);
+					   self, variant->use_ptrace);
 
 	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
 	ASSERT_EQ(0, ret);
@@ -3142,11 +3260,11 @@ skip:
 static int user_notif_syscall(int nr, unsigned int flags)
 {
 	struct sock_filter filter[] = {
-		BPF_STMT(BPF_LD+BPF_W+BPF_ABS,
+		BPF_STMT(BPF_LD|BPF_W|BPF_ABS,
 			offsetof(struct seccomp_data, nr)),
-		BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, nr, 0, 1),
-		BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_USER_NOTIF),
-		BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW),
+		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, nr, 0, 1),
+		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_USER_NOTIF),
+		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ALLOW),
 	};
 
 	struct sock_fprog prog = {
@@ -3699,7 +3817,7 @@ TEST(user_notification_filter_empty)
 	long ret;
 	int status;
 	struct pollfd pollfd;
-	struct clone_args args = {
+	struct __clone_args args = {
 		.flags = CLONE_FILES,
 		.exit_signal = SIGCHLD,
 	};
@@ -3715,7 +3833,7 @@ TEST(user_notification_filter_empty)
 	if (pid == 0) {
 		int listener;
 
-		listener = user_notif_syscall(__NR_mknod, SECCOMP_FILTER_FLAG_NEW_LISTENER);
+		listener = user_notif_syscall(__NR_mknodat, SECCOMP_FILTER_FLAG_NEW_LISTENER);
 		if (listener < 0)
 			_exit(EXIT_FAILURE);
 
@@ -3753,7 +3871,7 @@ TEST(user_notification_filter_empty_threaded)
 	long ret;
 	int status;
 	struct pollfd pollfd;
-	struct clone_args args = {
+	struct __clone_args args = {
 		.flags = CLONE_FILES,
 		.exit_signal = SIGCHLD,
 	};

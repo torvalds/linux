@@ -112,7 +112,7 @@ static void mpc85xx_take_timebase(void)
 	local_irq_restore(flags);
 }
 
-static void smp_85xx_mach_cpu_die(void)
+static void smp_85xx_cpu_offline_self(void)
 {
 	unsigned int cpu = smp_processor_id();
 
@@ -506,7 +506,7 @@ void __init mpc85xx_smp_init(void)
 	if (qoriq_pm_ops) {
 		smp_85xx_ops.give_timebase = mpc85xx_give_timebase;
 		smp_85xx_ops.take_timebase = mpc85xx_take_timebase;
-		ppc_md.cpu_die = smp_85xx_mach_cpu_die;
+		smp_85xx_ops.cpu_offline_self = smp_85xx_cpu_offline_self;
 		smp_85xx_ops.cpu_die = qoriq_cpu_kill;
 	}
 #endif

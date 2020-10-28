@@ -300,7 +300,7 @@ mt76x02_mac_process_tx_rate(struct ieee80211_tx_rate *txrate, u16 rate,
 		return 0;
 	case MT_PHY_TYPE_HT_GF:
 		txrate->flags |= IEEE80211_TX_RC_GREEN_FIELD;
-		/* fall through */
+		fallthrough;
 	case MT_PHY_TYPE_HT:
 		txrate->flags |= IEEE80211_TX_RC_MCS;
 		txrate->idx = idx;
@@ -348,6 +348,8 @@ void mt76x02_mac_write_txwi(struct mt76x02_dev *dev, struct mt76x02_txwi *txwi,
 	u8 ccmp_pn[8], nstreams = dev->chainmask & 0xf;
 
 	memset(txwi, 0, sizeof(*txwi));
+
+	mt76_tx_check_agg_ssn(sta, skb);
 
 	if (!info->control.hw_key && wcid && wcid->hw_key_idx != 0xff &&
 	    ieee80211_has_protected(hdr->frame_control)) {
@@ -462,7 +464,7 @@ mt76x02_tx_rate_fallback(struct ieee80211_tx_rate *rates, int idx, int phy)
 			rates[1].idx = 0;
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		rates[1].idx = max_t(int, rates[0].idx - 1, 0);
 		break;
@@ -677,7 +679,7 @@ mt76x02_mac_process_rate(struct mt76x02_dev *dev,
 		return 0;
 	case MT_PHY_TYPE_HT_GF:
 		status->enc_flags |= RX_ENC_FLAG_HT_GF;
-		/* fall through */
+		fallthrough;
 	case MT_PHY_TYPE_HT:
 		status->encoding = RX_ENC_HT;
 		status->rate_idx = idx;
@@ -898,8 +900,7 @@ void mt76x02_mac_poll_tx_status(struct mt76x02_dev *dev, bool irq)
 	}
 }
 
-void mt76x02_tx_complete_skb(struct mt76_dev *mdev, enum mt76_txq_id qid,
-			     struct mt76_queue_entry *e)
+void mt76x02_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e)
 {
 	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
 	struct mt76x02_txwi *txwi;
@@ -916,7 +917,7 @@ void mt76x02_tx_complete_skb(struct mt76_dev *mdev, enum mt76_txq_id qid,
 	txwi = (struct mt76x02_txwi *)txwi_ptr;
 	trace_mac_txdone(mdev, txwi->wcid, txwi->pktid);
 
-	mt76_tx_complete_skb(mdev, e->skb);
+	mt76_tx_complete_skb(mdev, e->wcid, e->skb);
 }
 EXPORT_SYMBOL_GPL(mt76x02_tx_complete_skb);
 

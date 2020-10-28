@@ -3499,7 +3499,7 @@ static void cx88_card_setup(struct cx88_core *core)
 		cx_clear(MO_GP0_IO, 0x00000040);
 		msleep(1000);
 		cx_set(MO_GP0_IO, 0x00004040);
-		/* FALLTHROUGH */
+		fallthrough;
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T1:
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PLUS:
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_HYBRID:

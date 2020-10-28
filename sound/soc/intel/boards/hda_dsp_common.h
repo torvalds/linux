@@ -15,9 +15,6 @@
 #include <sound/hda_i915.h>
 #include "../../codecs/hdac_hda.h"
 
-struct snd_pcm *hda_dsp_hdmi_pcm_handle(struct snd_soc_card *card,
-					int hdmi_idx);
-
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
 int hda_dsp_hdmi_build_controls(struct snd_soc_card *card,
 				struct snd_soc_component *comp);

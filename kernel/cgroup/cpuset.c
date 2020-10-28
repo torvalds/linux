@@ -390,7 +390,7 @@ static void guarantee_online_cpus(struct cpuset *cs, struct cpumask *pmask)
 			 * The top cpuset doesn't have any online cpu as a
 			 * consequence of a race between cpuset_hotplug_work
 			 * and cpu hotplug notifier.  But we know the top
-			 * cpuset's effective_cpus is on its way to to be
+			 * cpuset's effective_cpus is on its way to be
 			 * identical to cpu_online_mask.
 			 */
 			cpumask_copy(pmask, cpu_online_mask);

@@ -23,6 +23,7 @@
  */
 int nand_jedec_detect(struct nand_chip *chip)
 {
+	struct nand_device *base = &chip->base;
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct nand_memory_organization *memorg;
 	struct nand_jedec_params *p;
@@ -120,8 +121,12 @@ int nand_jedec_detect(struct nand_chip *chip)
 	ecc = &p->ecc_info[0];
 
 	if (ecc->codeword_size >= 9) {
-		chip->base.eccreq.strength = ecc->ecc_bits;
-		chip->base.eccreq.step_size = 1 << ecc->codeword_size;
+		struct nand_ecc_props requirements = {
+			.strength = ecc->ecc_bits,
+			.step_size = 1 << ecc->codeword_size,
+		};
+
+		nanddev_set_ecc_requirements(base, &requirements);
 	} else {
 		pr_warn("Invalid codeword size\n");
 	}

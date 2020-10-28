@@ -75,9 +75,9 @@ struct ia_css_hw_access_env {
 /* Environment with function pointers to print error and debug messages.
  */
 struct ia_css_print_env {
-	int (*debug_print)(const char *fmt, va_list args);
+	int  __printf(1, 0) (*debug_print)(const char *fmt, va_list args);
 	/** Print a debug message. */
-	int (*error_print)(const char *fmt, va_list args);
+	int  __printf(1, 0) (*error_print)(const char *fmt, va_list args);
 	/** Print an error message.*/
 };
 

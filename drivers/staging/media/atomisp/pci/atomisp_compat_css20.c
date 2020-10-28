@@ -159,19 +159,14 @@ static void atomisp_css2_hw_load(hrt_address addr, void *to, uint32_t n)
 	spin_unlock_irqrestore(&mmio_lock, flags);
 }
 
-static int atomisp_css2_dbg_print(const char *fmt, va_list args)
-{
-	vprintk(fmt, args);
-	return 0;
-}
-
-static int atomisp_css2_dbg_ftrace_print(const char *fmt, va_list args)
+static int  __printf(1, 0) atomisp_css2_dbg_ftrace_print(const char *fmt,
+							 va_list args)
 {
 	ftrace_vprintk(fmt, args);
 	return 0;
 }
 
-static int atomisp_css2_err_print(const char *fmt, va_list args)
+static int  __printf(1, 0) atomisp_vprintk(const char *fmt, va_list args)
 {
 	vprintk(fmt, args);
 	return 0;
@@ -711,7 +706,6 @@ static bool is_pipe_valid_to_current_run_mode(struct atomisp_sub_device *asd,
 			return true;
 
 		return false;
-		fallthrough;
 	case ATOMISP_RUN_MODE_VIDEO:
 		if (!asd->continuous_mode->val) {
 			if (pipe_id == IA_CSS_PIPE_ID_VIDEO ||
@@ -869,8 +863,7 @@ static inline int __set_css_print_env(struct atomisp_device *isp, int opt)
 		isp->css_env.isp_css_env.print_env.debug_print =
 		    atomisp_css2_dbg_ftrace_print;
 	else if (opt == 2)
-		isp->css_env.isp_css_env.print_env.debug_print =
-		    atomisp_css2_dbg_print;
+		isp->css_env.isp_css_env.print_env.debug_print = atomisp_vprintk;
 	else
 		ret = -EINVAL;
 
@@ -903,7 +896,7 @@ int atomisp_css_load_firmware(struct atomisp_device *isp)
 
 	__set_css_print_env(isp, dbg_func);
 
-	isp->css_env.isp_css_env.print_env.error_print = atomisp_css2_err_print;
+	isp->css_env.isp_css_env.print_env.error_print = atomisp_vprintk;
 
 	/* load isp fw into ISP memory */
 	err = ia_css_load_firmware(isp->dev, &isp->css_env.isp_css_env,

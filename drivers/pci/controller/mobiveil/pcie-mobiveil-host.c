@@ -480,7 +480,6 @@ static int mobiveil_pcie_init_irq_domain(struct mobiveil_pcie *pcie)
 	struct device *dev = &pcie->pdev->dev;
 	struct device_node *node = dev->of_node;
 	struct mobiveil_root_port *rp = &pcie->rp;
-	int ret;
 
 	/* setup INTx */
 	rp->intx_domain = irq_domain_add_linear(node, PCI_NUM_INTX,
@@ -494,11 +493,7 @@ static int mobiveil_pcie_init_irq_domain(struct mobiveil_pcie *pcie)
 	raw_spin_lock_init(&rp->intx_mask_lock);
 
 	/* setup MSI */
-	ret = mobiveil_allocate_msi_domains(pcie);
-	if (ret)
-		return ret;
-
-	return 0;
+	return mobiveil_allocate_msi_domains(pcie);
 }
 
 static int mobiveil_pcie_integrated_interrupt_init(struct mobiveil_pcie *pcie)

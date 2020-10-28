@@ -60,7 +60,7 @@ static struct page * __meminit shuffle_valid_page(struct zone *zone,
 	 * ...is the page on the same list as the page we will
 	 * shuffle it with?
 	 */
-	if (page_order(page) != order)
+	if (buddy_order(page) != order)
 		return NULL;
 
 	return page;

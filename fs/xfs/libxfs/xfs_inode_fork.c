@@ -386,8 +386,8 @@ xfs_iroot_realloc(
 		cur_max = xfs_bmbt_maxrecs(mp, ifp->if_broot_bytes, 0);
 		new_max = cur_max + rec_diff;
 		new_size = XFS_BMAP_BROOT_SPACE_CALC(mp, new_max);
-		ifp->if_broot = kmem_realloc(ifp->if_broot, new_size,
-				KM_NOFS);
+		ifp->if_broot = krealloc(ifp->if_broot, new_size,
+					 GFP_NOFS | __GFP_NOFAIL);
 		op = (char *)XFS_BMAP_BROOT_PTR_ADDR(mp, ifp->if_broot, 1,
 						     ifp->if_broot_bytes);
 		np = (char *)XFS_BMAP_BROOT_PTR_ADDR(mp, ifp->if_broot, 1,
@@ -496,8 +496,8 @@ xfs_idata_realloc(
 	 * in size so that it can be logged and stay on word boundaries.
 	 * We enforce that here.
 	 */
-	ifp->if_u1.if_data = kmem_realloc(ifp->if_u1.if_data,
-			roundup(new_size, 4), KM_NOFS);
+	ifp->if_u1.if_data = krealloc(ifp->if_u1.if_data, roundup(new_size, 4),
+				      GFP_NOFS | __GFP_NOFAIL);
 	ifp->if_bytes = new_size;
 }
 

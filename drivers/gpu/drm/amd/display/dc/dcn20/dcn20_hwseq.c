@@ -1251,6 +1251,11 @@ static void dcn20_detect_pipe_changes(struct pipe_ctx *old_pipe, struct pipe_ctx
 		return;
 	}
 
+	/* Detect plane change */
+	if (old_pipe->plane_state != new_pipe->plane_state) {
+		new_pipe->update_flags.bits.plane_changed = true;
+	}
+
 	/* Detect top pipe only changes */
 	if (!new_pipe->top_pipe && !new_pipe->prev_odm_pipe) {
 		/* Detect odm changes */
@@ -1392,6 +1397,7 @@ static void dcn20_update_dchubp_dpp(
 			&pipe_ctx->ttu_regs);
 
 	if (pipe_ctx->update_flags.bits.enable ||
+			pipe_ctx->update_flags.bits.plane_changed ||
 			plane_state->update_flags.bits.bpp_change ||
 			plane_state->update_flags.bits.input_csc_change ||
 			plane_state->update_flags.bits.color_space_change ||
@@ -1414,6 +1420,7 @@ static void dcn20_update_dchubp_dpp(
 	}
 
 	if (pipe_ctx->update_flags.bits.mpcc
+			|| pipe_ctx->update_flags.bits.plane_changed
 			|| plane_state->update_flags.bits.global_alpha_change
 			|| plane_state->update_flags.bits.per_pixel_alpha_change) {
 		// MPCC inst is equal to pipe index in practice
@@ -1515,6 +1522,7 @@ static void dcn20_update_dchubp_dpp(
 	}
 
 	if (pipe_ctx->update_flags.bits.enable ||
+			pipe_ctx->update_flags.bits.plane_changed ||
 			pipe_ctx->update_flags.bits.opp_changed ||
 			plane_state->update_flags.bits.pixel_format_change ||
 			plane_state->update_flags.bits.horizontal_mirror_change ||
@@ -1539,7 +1547,9 @@ static void dcn20_update_dchubp_dpp(
 		hubp->power_gated = false;
 	}
 
-	if (pipe_ctx->update_flags.bits.enable || plane_state->update_flags.bits.addr_update)
+	if (pipe_ctx->update_flags.bits.enable ||
+		pipe_ctx->update_flags.bits.plane_changed ||
+		plane_state->update_flags.bits.addr_update)
 		hws->funcs.update_plane_addr(dc, pipe_ctx);
 
 
@@ -1632,16 +1642,26 @@ void dcn20_program_front_end_for_ctx(
 	struct dce_hwseq *hws = dc->hwseq;
 	DC_LOGGER_INIT(dc->ctx->logger);
 
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+	/* Carry over GSL groups in case the context is changing. */
+       for (i = 0; i < dc->res_pool->pipe_count; i++) {
+               struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+               struct pipe_ctx *old_pipe_ctx =
+                       &dc->current_state->res_ctx.pipe_ctx[i];
 
-		if (!pipe_ctx->top_pipe && !pipe_ctx->prev_odm_pipe && pipe_ctx->plane_state) {
-			ASSERT(!pipe_ctx->plane_state->triplebuffer_flips);
-			if (dc->hwss.program_triplebuffer != NULL &&
-				!dc->debug.disable_tri_buf) {
+               if (pipe_ctx->stream == old_pipe_ctx->stream)
+                       pipe_ctx->stream_res.gsl_group =
+                               old_pipe_ctx->stream_res.gsl_group;
+       }
+
+	if (dc->hwss.program_triplebuffer != NULL && dc->debug.enable_tri_buf) {
+		for (i = 0; i < dc->res_pool->pipe_count; i++) {
+			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+			if (!pipe_ctx->top_pipe && !pipe_ctx->prev_odm_pipe && pipe_ctx->plane_state) {
+				ASSERT(!pipe_ctx->plane_state->triplebuffer_flips);
 				/*turn off triple buffer for full update*/
 				dc->hwss.program_triplebuffer(
-					dc, pipe_ctx, pipe_ctx->plane_state->triplebuffer_flips);
+						dc, pipe_ctx, pipe_ctx->plane_state->triplebuffer_flips);
 			}
 		}
 	}
@@ -1909,9 +1929,9 @@ void dcn20_disable_stream_gating(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	if (pipe_ctx->stream_res.dsc) {
 		struct pipe_ctx *odm_pipe = pipe_ctx->next_odm_pipe;
 
-		dcn20_dsc_pg_control(hws, pipe_ctx->stream_res.dsc->inst, true);
+		hws->funcs.dsc_pg_control(hws, pipe_ctx->stream_res.dsc->inst, true);
 		while (odm_pipe) {
-			dcn20_dsc_pg_control(hws, odm_pipe->stream_res.dsc->inst, true);
+			hws->funcs.dsc_pg_control(hws, odm_pipe->stream_res.dsc->inst, true);
 			odm_pipe = odm_pipe->next_odm_pipe;
 		}
 	}
@@ -1924,9 +1944,9 @@ void dcn20_enable_stream_gating(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	if (pipe_ctx->stream_res.dsc) {
 		struct pipe_ctx *odm_pipe = pipe_ctx->next_odm_pipe;
 
-		dcn20_dsc_pg_control(hws, pipe_ctx->stream_res.dsc->inst, false);
+		hws->funcs.dsc_pg_control(hws, pipe_ctx->stream_res.dsc->inst, false);
 		while (odm_pipe) {
-			dcn20_dsc_pg_control(hws, odm_pipe->stream_res.dsc->inst, false);
+			hws->funcs.dsc_pg_control(hws, odm_pipe->stream_res.dsc->inst, false);
 			odm_pipe = odm_pipe->next_odm_pipe;
 		}
 	}

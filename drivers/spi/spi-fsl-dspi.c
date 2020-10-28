@@ -1228,11 +1228,17 @@ static int dspi_probe(struct platform_device *pdev)
 	void __iomem *base;
 	bool big_endian;
 
-	ctlr = spi_alloc_master(&pdev->dev, sizeof(struct fsl_dspi));
+	dspi = devm_kzalloc(&pdev->dev, sizeof(*dspi), GFP_KERNEL);
+	if (!dspi)
+		return -ENOMEM;
+
+	ctlr = spi_alloc_master(&pdev->dev, 0);
 	if (!ctlr)
 		return -ENOMEM;
 
-	dspi = spi_controller_get_devdata(ctlr);
+	spi_controller_set_devdata(ctlr, dspi);
+	platform_set_drvdata(pdev, dspi);
+
 	dspi->pdev = pdev;
 	dspi->ctlr = ctlr;
 
@@ -1368,8 +1374,6 @@ poll_mode:
 	if (dspi->devtype_data->trans_mode != DSPI_DMA_MODE)
 		ctlr->ptp_sts_supported = true;
 
-	platform_set_drvdata(pdev, ctlr);
-
 	ret = spi_register_controller(ctlr);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Problem registering DSPI ctlr\n");
@@ -1391,8 +1395,7 @@ out_ctlr_put:
 
 static int dspi_remove(struct platform_device *pdev)
 {
-	struct spi_controller *ctlr = platform_get_drvdata(pdev);
-	struct fsl_dspi *dspi = spi_controller_get_devdata(ctlr);
+	struct fsl_dspi *dspi = platform_get_drvdata(pdev);
 
 	/* Disconnect from the SPI framework */
 	spi_unregister_controller(dspi->ctlr);

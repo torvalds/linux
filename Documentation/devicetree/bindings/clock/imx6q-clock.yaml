@@ -57,6 +57,8 @@ required:
   - interrupts
   - '#clock-cells'
 
+additionalProperties: false
+
 examples:
   # Clock Control Module node:
   - |

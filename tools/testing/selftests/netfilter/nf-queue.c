@@ -17,9 +17,12 @@
 
 struct options {
 	bool count_packets;
+	bool gso_enabled;
 	int verbose;
 	unsigned int queue_num;
 	unsigned int timeout;
+	uint32_t verdict;
+	uint32_t delay_ms;
 };
 
 static unsigned int queue_stats[5];
@@ -27,7 +30,7 @@ static struct options opts;
 
 static void help(const char *p)
 {
-	printf("Usage: %s [-c|-v [-vv] ] [-t timeout] [-q queue_num]\n", p);
+	printf("Usage: %s [-c|-v [-vv] ] [-t timeout] [-q queue_num] [-Qdst_queue ] [ -d ms_delay ] [-G]\n", p);
 }
 
 static int parse_attr_cb(const struct nlattr *attr, void *data)
@@ -162,7 +165,7 @@ nfq_build_cfg_params(char *buf, uint8_t mode, int range, int queue_num)
 }
 
 static struct nlmsghdr *
-nfq_build_verdict(char *buf, int id, int queue_num, int verd)
+nfq_build_verdict(char *buf, int id, int queue_num, uint32_t verd)
 {
 	struct nfqnl_msg_verdict_hdr vh = {
 		.verdict = htonl(verd),
@@ -188,9 +191,6 @@ static void print_stats(void)
 {
 	unsigned int last, total;
 	int i;
-
-	if (!opts.count_packets)
-		return;
 
 	total = 0;
 	last = queue_stats[0];
@@ -234,7 +234,8 @@ struct mnl_socket *open_queue(void)
 
 	nlh = nfq_build_cfg_params(buf, NFQNL_COPY_PACKET, 0xFFFF, queue_num);
 
-	flags = NFQA_CFG_F_GSO | NFQA_CFG_F_UID_GID;
+	flags = opts.gso_enabled ? NFQA_CFG_F_GSO : 0;
+	flags |= NFQA_CFG_F_UID_GID;
 	mnl_attr_put_u32(nlh, NFQA_CFG_FLAGS, htonl(flags));
 	mnl_attr_put_u32(nlh, NFQA_CFG_MASK, htonl(flags));
 
@@ -253,6 +254,17 @@ struct mnl_socket *open_queue(void)
 	}
 
 	return nl;
+}
+
+static void sleep_ms(uint32_t delay)
+{
+	struct timespec ts = { .tv_sec = delay / 1000 };
+
+	delay %= 1000;
+
+	ts.tv_nsec = delay * 1000llu * 1000llu;
+
+	nanosleep(&ts, NULL);
 }
 
 static int mainloop(void)
@@ -278,7 +290,7 @@ static int mainloop(void)
 
 		ret = mnl_socket_recvfrom(nl, buf, buflen);
 		if (ret == -1) {
-			if (errno == ENOBUFS)
+			if (errno == ENOBUFS || errno == EINTR)
 				continue;
 
 			if (errno == EAGAIN) {
@@ -298,7 +310,10 @@ static int mainloop(void)
 		}
 
 		id = ret - MNL_CB_OK;
-		nlh = nfq_build_verdict(buf, id, opts.queue_num, NF_ACCEPT);
+		if (opts.delay_ms)
+			sleep_ms(opts.delay_ms);
+
+		nlh = nfq_build_verdict(buf, id, opts.queue_num, opts.verdict);
 		if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0) {
 			perror("mnl_socket_sendto");
 			exit(EXIT_FAILURE);
@@ -314,7 +329,7 @@ static void parse_opts(int argc, char **argv)
 {
 	int c;
 
-	while ((c = getopt(argc, argv, "chvt:q:")) != -1) {
+	while ((c = getopt(argc, argv, "chvt:q:Q:d:G")) != -1) {
 		switch (c) {
 		case 'c':
 			opts.count_packets = true;
@@ -328,19 +343,47 @@ static void parse_opts(int argc, char **argv)
 			if (opts.queue_num > 0xffff)
 				opts.queue_num = 0;
 			break;
+		case 'Q':
+			opts.verdict = atoi(optarg);
+			if (opts.verdict > 0xffff) {
+				fprintf(stderr, "Expected destination queue number\n");
+				exit(1);
+			}
+
+			opts.verdict <<= 16;
+			opts.verdict |= NF_QUEUE;
+			break;
+		case 'd':
+			opts.delay_ms = atoi(optarg);
+			if (opts.delay_ms == 0) {
+				fprintf(stderr, "Expected nonzero delay (in milliseconds)\n");
+				exit(1);
+			}
+			break;
 		case 't':
 			opts.timeout = atoi(optarg);
+			break;
+		case 'G':
+			opts.gso_enabled = false;
 			break;
 		case 'v':
 			opts.verbose++;
 			break;
 		}
 	}
+
+	if (opts.verdict != NF_ACCEPT && (opts.verdict >> 16 == opts.queue_num)) {
+		fprintf(stderr, "Cannot use same destination and source queue\n");
+		exit(1);
+	}
 }
 
 int main(int argc, char *argv[])
 {
 	int ret;
+
+	opts.verdict = NF_ACCEPT;
+	opts.gso_enabled = true;
 
 	parse_opts(argc, argv);
 

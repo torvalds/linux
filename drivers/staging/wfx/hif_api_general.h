@@ -2,7 +2,7 @@
 /*
  * WFx hardware interface definitions
  *
- * Copyright (c) 2018-2019, Silicon Laboratories Inc.
+ * Copyright (c) 2018-2020, Silicon Laboratories Inc.
  */
 
 #ifndef WFX_HIF_API_GENERAL_H
@@ -16,8 +16,6 @@
 #include <stdint.h>
 #define __packed __attribute__((__packed__))
 #endif
-
-#define API_SSID_SIZE             32
 
 #define HIF_ID_IS_INDICATION      0x80
 #define HIF_COUNTER_MAX           7
@@ -115,31 +113,11 @@ enum hif_api_rate_index {
 	API_RATE_NUM_ENTRIES       = 22
 };
 
-
 enum hif_fw_type {
 	HIF_FW_TYPE_ETF  = 0x0,
 	HIF_FW_TYPE_WFM  = 0x1,
 	HIF_FW_TYPE_WSM  = 0x2
 };
-
-struct hif_capabilities {
-	u8     link_mode:2;
-	u8     reserved1:6;
-	u8     reserved2;
-	u8     reserved3;
-	u8     reserved4;
-} __packed;
-
-struct hif_otp_regul_sel_mode_info {
-	u8     region_sel_mode:4;
-	u8     reserved:4;
-} __packed;
-
-struct hif_otp_phy_info {
-	u8     phy1_region:3;
-	u8     phy0_region:3;
-	u8     otp_phy_ver:2;
-} __packed;
 
 struct hif_ind_startup {
 	// As the others, this struct is interpreted as little endian by the
@@ -156,14 +134,21 @@ struct hif_ind_startup {
 	u8     mac_addr[2][ETH_ALEN];
 	u8     api_version_minor;
 	u8     api_version_major;
-	struct hif_capabilities capabilities;
+	u8     link_mode:2;
+	u8     reserved1:6;
+	u8     reserved2;
+	u8     reserved3;
+	u8     reserved4;
 	u8     firmware_build;
 	u8     firmware_minor;
 	u8     firmware_major;
 	u8     firmware_type;
 	u8     disabled_channel_list[2];
-	struct hif_otp_regul_sel_mode_info regul_sel_mode_info;
-	struct hif_otp_phy_info otp_phy_info;
+	u8     region_sel_mode:4;
+	u8     reserved5:4;
+	u8     phy1_region:3;
+	u8     phy0_region:3;
+	u8     otp_phy_ver:2;
 	u32    supported_rate_mask;
 	u8     firmware_label[128];
 } __packed;
@@ -233,15 +218,12 @@ struct hif_tx_power_loop_info {
 	u8     reserved;
 } __packed;
 
-union hif_indication_data {
-	struct hif_rx_stats rx_stats;
-	struct hif_tx_power_loop_info tx_power_loop_info;
-	u8     raw_data[1];
-};
-
 struct hif_ind_generic {
-	__le32 indication_type;
-	union hif_indication_data indication_data;
+	__le32 type;
+	union {
+		struct hif_rx_stats rx_stats;
+		struct hif_tx_power_loop_info tx_power_loop_info;
+	} data;
 } __packed;
 
 enum hif_error {
@@ -262,6 +244,7 @@ enum hif_error {
 	HIF_ERROR_HIF_TX_QUEUE_FULL           = 0x0d,
 	HIF_ERROR_HIF_BUS                     = 0x0f,
 	HIF_ERROR_PDS_TESTFEATURE             = 0x10,
+	HIF_ERROR_SLK_UNCONFIGURED            = 0x11,
 };
 
 struct hif_ind_error {
@@ -280,85 +263,5 @@ enum hif_secure_link_state {
 	SEC_LINK_EVAL        = 0x2,
 	SEC_LINK_ENFORCED    = 0x3
 };
-
-enum hif_sl_encryption_type {
-	NO_ENCRYPTION = 0,
-	TX_ENCRYPTION = 1,
-	RX_ENCRYPTION = 2,
-	HP_ENCRYPTION = 3
-};
-
-struct hif_sl_msg_hdr {
-	u32    seqnum:30;
-	u32    encrypted:2;
-} __packed;
-
-struct hif_sl_msg {
-	struct hif_sl_msg_hdr hdr;
-	__le16 len;
-	u8     payload[];
-} __packed;
-
-#define AES_CCM_TAG_SIZE          16
-
-struct hif_sl_tag {
-	u8     tag[16];
-} __packed;
-
-enum hif_sl_mac_key_dest {
-	SL_MAC_KEY_DEST_OTP = 0x78,
-	SL_MAC_KEY_DEST_RAM = 0x87
-};
-
-#define API_KEY_VALUE_SIZE        32
-
-struct hif_req_set_sl_mac_key {
-	u8     otp_or_ram;
-	u8     key_value[API_KEY_VALUE_SIZE];
-} __packed;
-
-struct hif_cnf_set_sl_mac_key {
-	__le32 status;
-} __packed;
-
-enum hif_sl_session_key_alg {
-	HIF_SL_CURVE25519 = 0x01,
-	HIF_SL_KDF        = 0x02
-};
-
-#define API_HOST_PUB_KEY_SIZE     32
-#define API_HOST_PUB_KEY_MAC_SIZE 64
-
-struct hif_req_sl_exchange_pub_keys {
-	u8     algorithm:2;
-	u8     reserved1:6;
-	u8     reserved2[3];
-	u8     host_pub_key[API_HOST_PUB_KEY_SIZE];
-	u8     host_pub_key_mac[API_HOST_PUB_KEY_MAC_SIZE];
-} __packed;
-
-struct hif_cnf_sl_exchange_pub_keys {
-	__le32 status;
-} __packed;
-
-#define API_NCP_PUB_KEY_SIZE      32
-#define API_NCP_PUB_KEY_MAC_SIZE  64
-
-struct hif_ind_sl_exchange_pub_keys {
-	__le32 status;
-	u8     ncp_pub_key[API_NCP_PUB_KEY_SIZE];
-	u8     ncp_pub_key_mac[API_NCP_PUB_KEY_MAC_SIZE];
-} __packed;
-
-struct hif_req_sl_configure {
-	u8     encr_bmp[32];
-	u8     disable_session_key_protection:1;
-	u8     reserved1:7;
-	u8     reserved2[3];
-} __packed;
-
-struct hif_cnf_sl_configure {
-	__le32 status;
-} __packed;
 
 #endif

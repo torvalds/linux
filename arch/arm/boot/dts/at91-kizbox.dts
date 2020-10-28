@@ -18,7 +18,7 @@
 		stdout-path = &dbgu;
 	};
 
-	memory {
+	memory@20000000 {
 		reg = <0x20000000 0x2000000>;
 	};
 

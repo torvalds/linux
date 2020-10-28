@@ -1422,7 +1422,7 @@ struct ice_aqc_nvm_comp_tbl {
 	u8 cvs[]; /* Component Version String */
 } __packed;
 
-/**
+/*
  * Send to PF command (indirect 0x0801) ID is only used by PF
  *
  * Send to VF command (indirect 0x0802) ID is only used by PF
@@ -1826,8 +1826,8 @@ struct ice_aqc_event_lan_overflow {
  * @opcode: AQ command opcode
  * @datalen: length in bytes of indirect/external data buffer
  * @retval: return value from firmware
- * @cookie_h: opaque data high-half
- * @cookie_l: opaque data low-half
+ * @cookie_high: opaque data high-half
+ * @cookie_low: opaque data low-half
  * @params: command-specific parameters
  *
  * Descriptor format for commands the driver posts on the Admin Transmit Queue

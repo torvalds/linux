@@ -11,7 +11,7 @@
 struct nfs_netns_client {
 	struct kobject kobject;
 	struct net *net;
-	const char *identifier;
+	const char __rcu *identifier;
 };
 
 extern struct kobject *nfs_client_kobj;
