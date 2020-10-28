@@ -337,6 +337,7 @@ static const struct bpf_iter_seq_info task_seq_info = {
 
 static struct bpf_iter_reg task_reg_info = {
 	.target			= "task",
+	.feature		= BPF_ITER_RESCHED,
 	.ctx_arg_info_size	= 1,
 	.ctx_arg_info		= {
 		{ offsetof(struct bpf_iter__task, task),
@@ -354,6 +355,7 @@ static const struct bpf_iter_seq_info task_file_seq_info = {
 
 static struct bpf_iter_reg task_file_reg_info = {
 	.target			= "task_file",
+	.feature		= BPF_ITER_RESCHED,
 	.ctx_arg_info_size	= 2,
 	.ctx_arg_info		= {
 		{ offsetof(struct bpf_iter__task_file, task),
