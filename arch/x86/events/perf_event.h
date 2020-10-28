@@ -585,6 +585,7 @@ union perf_capabilities {
 		u64     pebs_baseline:1;
 		u64	perf_metrics:1;
 		u64	pebs_output_pt_available:1;
+		u64	anythread_deprecated:1;
 	};
 	u64	capabilities;
 };
