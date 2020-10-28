@@ -1774,7 +1774,6 @@ static i915_reg_t skl_aux_ctl_reg(struct intel_dp *intel_dp)
 	case AUX_CH_D:
 	case AUX_CH_E:
 	case AUX_CH_F:
-	case AUX_CH_G:
 		return DP_AUX_CH_CTL(aux_ch);
 	default:
 		MISSING_CASE(aux_ch);
@@ -1795,7 +1794,52 @@ static i915_reg_t skl_aux_data_reg(struct intel_dp *intel_dp, int index)
 	case AUX_CH_D:
 	case AUX_CH_E:
 	case AUX_CH_F:
-	case AUX_CH_G:
+		return DP_AUX_CH_DATA(aux_ch, index);
+	default:
+		MISSING_CASE(aux_ch);
+		return DP_AUX_CH_DATA(AUX_CH_A, index);
+	}
+}
+
+static i915_reg_t tgl_aux_ctl_reg(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	enum aux_ch aux_ch = dig_port->aux_ch;
+
+	switch (aux_ch) {
+	case AUX_CH_A:
+	case AUX_CH_B:
+	case AUX_CH_C:
+	case AUX_CH_USBC1:
+	case AUX_CH_USBC2:
+	case AUX_CH_USBC3:
+	case AUX_CH_USBC4:
+	case AUX_CH_USBC5:
+	case AUX_CH_USBC6:
+		return DP_AUX_CH_CTL(aux_ch);
+	default:
+		MISSING_CASE(aux_ch);
+		return DP_AUX_CH_CTL(AUX_CH_A);
+	}
+}
+
+static i915_reg_t tgl_aux_data_reg(struct intel_dp *intel_dp, int index)
+{
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	enum aux_ch aux_ch = dig_port->aux_ch;
+
+	switch (aux_ch) {
+	case AUX_CH_A:
+	case AUX_CH_B:
+	case AUX_CH_C:
+	case AUX_CH_USBC1:
+	case AUX_CH_USBC2:
+	case AUX_CH_USBC3:
+	case AUX_CH_USBC4:
+	case AUX_CH_USBC5:
+	case AUX_CH_USBC6:
 		return DP_AUX_CH_DATA(aux_ch, index);
 	default:
 		MISSING_CASE(aux_ch);
@@ -1816,7 +1860,10 @@ intel_dp_aux_init(struct intel_dp *intel_dp)
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct intel_encoder *encoder = &dig_port->base;
 
-	if (INTEL_GEN(dev_priv) >= 9) {
+	if (INTEL_GEN(dev_priv) >= 12) {
+		intel_dp->aux_ch_ctl_reg = tgl_aux_ctl_reg;
+		intel_dp->aux_ch_data_reg = tgl_aux_data_reg;
+	} else if (INTEL_GEN(dev_priv) >= 9) {
 		intel_dp->aux_ch_ctl_reg = skl_aux_ctl_reg;
 		intel_dp->aux_ch_data_reg = skl_aux_data_reg;
 	} else if (HAS_PCH_SPLIT(dev_priv)) {

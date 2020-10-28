@@ -291,6 +291,14 @@ enum aux_ch {
 	AUX_CH_G,
 	AUX_CH_H,
 	AUX_CH_I,
+
+	/* tgl+ */
+	AUX_CH_USBC1 = AUX_CH_D,
+	AUX_CH_USBC2,
+	AUX_CH_USBC3,
+	AUX_CH_USBC4,
+	AUX_CH_USBC5,
+	AUX_CH_USBC6,
 };
 
 #define aux_ch_name(a) ((a) + 'A')
