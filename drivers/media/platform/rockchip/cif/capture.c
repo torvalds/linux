@@ -976,7 +976,8 @@ static void rkcif_assign_new_buffer_oneframe(struct rkcif_stream *stream,
 	struct rkcif_dummy_buffer *dummy_buf = &stream->dummy_buf;
 	struct rkcif_device *dev = stream->cifdev;
 	struct rkcif_buffer *buffer = NULL;
-	u32 frm_addr_y, frm_addr_uv;
+	u32 frm_addr_y = CIF_REG_DVP_FRM0_ADDR_Y;
+	u32 frm_addr_uv = CIF_REG_DVP_FRM0_ADDR_UV;
 
 	spin_lock(&stream->vbq_lock);
 	if (stat == RKCIF_YUV_ADDR_STATE_INIT) {
