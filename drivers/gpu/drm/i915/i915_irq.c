@@ -141,9 +141,9 @@ static const u32 hpd_gen11[HPD_NUM_PINS] = {
 };
 
 static const u32 hpd_icp[HPD_NUM_PINS] = {
-	[HPD_PORT_A] = SDE_DDI_HOTPLUG_ICP(PORT_A),
-	[HPD_PORT_B] = SDE_DDI_HOTPLUG_ICP(PORT_B),
-	[HPD_PORT_C] = SDE_DDI_HOTPLUG_ICP(PORT_C),
+	[HPD_PORT_A] = SDE_DDI_HOTPLUG_ICP(HPD_PORT_A),
+	[HPD_PORT_B] = SDE_DDI_HOTPLUG_ICP(HPD_PORT_B),
+	[HPD_PORT_C] = SDE_DDI_HOTPLUG_ICP(HPD_PORT_C),
 	[HPD_PORT_TC1] = SDE_TC_HOTPLUG_ICP(TC_PORT_1),
 	[HPD_PORT_TC2] = SDE_TC_HOTPLUG_ICP(TC_PORT_2),
 	[HPD_PORT_TC3] = SDE_TC_HOTPLUG_ICP(TC_PORT_3),
@@ -153,10 +153,10 @@ static const u32 hpd_icp[HPD_NUM_PINS] = {
 };
 
 static const u32 hpd_sde_dg1[HPD_NUM_PINS] = {
-	[HPD_PORT_A] = SDE_DDI_HOTPLUG_ICP(PORT_A),
-	[HPD_PORT_B] = SDE_DDI_HOTPLUG_ICP(PORT_B),
-	[HPD_PORT_C] = SDE_DDI_HOTPLUG_ICP(PORT_C),
-	[HPD_PORT_D] = SDE_DDI_HOTPLUG_ICP(PORT_D),
+	[HPD_PORT_A] = SDE_DDI_HOTPLUG_ICP(HPD_PORT_A),
+	[HPD_PORT_B] = SDE_DDI_HOTPLUG_ICP(HPD_PORT_B),
+	[HPD_PORT_C] = SDE_DDI_HOTPLUG_ICP(HPD_PORT_C),
+	[HPD_PORT_D] = SDE_DDI_HOTPLUG_ICP(HPD_PORT_D),
 };
 
 static void intel_hpd_init_pins(struct drm_i915_private *dev_priv)
@@ -1076,13 +1076,13 @@ static bool icp_ddi_port_hotplug_long_detect(enum hpd_pin pin, u32 val)
 {
 	switch (pin) {
 	case HPD_PORT_A:
-		return val & SHOTPLUG_CTL_DDI_HPD_LONG_DETECT(PORT_A);
+		return val & SHOTPLUG_CTL_DDI_HPD_LONG_DETECT(HPD_PORT_A);
 	case HPD_PORT_B:
-		return val & SHOTPLUG_CTL_DDI_HPD_LONG_DETECT(PORT_B);
+		return val & SHOTPLUG_CTL_DDI_HPD_LONG_DETECT(HPD_PORT_B);
 	case HPD_PORT_C:
-		return val & SHOTPLUG_CTL_DDI_HPD_LONG_DETECT(PORT_C);
+		return val & SHOTPLUG_CTL_DDI_HPD_LONG_DETECT(HPD_PORT_C);
 	case HPD_PORT_D:
-		return val & SHOTPLUG_CTL_DDI_HPD_LONG_DETECT(PORT_D);
+		return val & SHOTPLUG_CTL_DDI_HPD_LONG_DETECT(HPD_PORT_D);
 	default:
 		return false;
 	}
