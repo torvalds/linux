@@ -143,6 +143,7 @@
 
 /* status subtypes for unsolicited status notification lost */
 #define FSF_STATUS_READ_SUB_INCOMING_ELS	0x00000001
+#define FSF_STATUS_READ_SUB_VERSION_CHANGE	0x00000100
 
 /* status subtypes for version change */
 #define FSF_STATUS_READ_SUB_LIC_CHANGE		0x00000001

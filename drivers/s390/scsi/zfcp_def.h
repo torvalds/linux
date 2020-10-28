@@ -201,6 +201,7 @@ struct zfcp_adapter {
 	struct zfcp_fc_events events;
 	unsigned long		next_port_scan;
 	struct zfcp_diag_adapter	*diagnostics;
+	struct work_struct	version_change_lost_work;
 };
 
 struct zfcp_port {
