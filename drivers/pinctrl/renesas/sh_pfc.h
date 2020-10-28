@@ -34,10 +34,10 @@ enum {
 #define SH_PFC_PIN_CFG_NO_GPIO		(1 << 31)
 
 struct sh_pfc_pin {
-	u16 pin;
-	u16 enum_id;
 	const char *name;
 	unsigned int configs;
+	u16 pin;
+	u16 enum_id;
 };
 
 #define SH_PFC_PIN_GROUP_ALIAS(alias, n)		\
