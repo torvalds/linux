@@ -861,7 +861,8 @@ struct afs_vnode_cache_aux {
 /*
  * We use page->private to hold the amount of the page that we've written to,
  * splitting the field into two parts.  However, we need to represent a range
- * 0...PAGE_SIZE inclusive, so we can't support 64K pages on a 32-bit system.
+ * 0...PAGE_SIZE, so we reduce the resolution if the size of the page
+ * exceeds what we can encode.
  */
 #ifdef CONFIG_64BIT
 #define __AFS_PAGE_PRIV_MASK	0x7fffffffUL
@@ -873,19 +874,34 @@ struct afs_vnode_cache_aux {
 #define __AFS_PAGE_PRIV_MMAPPED	0x8000UL
 #endif
 
+static inline unsigned int afs_page_dirty_resolution(void)
+{
+	int shift = PAGE_SHIFT - (__AFS_PAGE_PRIV_SHIFT - 1);
+	return (shift > 0) ? shift : 0;
+}
+
 static inline size_t afs_page_dirty_from(unsigned long priv)
 {
-	return priv & __AFS_PAGE_PRIV_MASK;
+	unsigned long x = priv & __AFS_PAGE_PRIV_MASK;
+
+	/* The lower bound is inclusive */
+	return x << afs_page_dirty_resolution();
 }
 
 static inline size_t afs_page_dirty_to(unsigned long priv)
 {
-	return ((priv >> __AFS_PAGE_PRIV_SHIFT) & __AFS_PAGE_PRIV_MASK) + 1;
+	unsigned long x = (priv >> __AFS_PAGE_PRIV_SHIFT) & __AFS_PAGE_PRIV_MASK;
+
+	/* The upper bound is immediately beyond the region */
+	return (x + 1) << afs_page_dirty_resolution();
 }
 
 static inline unsigned long afs_page_dirty(size_t from, size_t to)
 {
-	return ((unsigned long)(to - 1) << __AFS_PAGE_PRIV_SHIFT) | from;
+	unsigned int res = afs_page_dirty_resolution();
+	from >>= res;
+	to = (to - 1) >> res;
+	return (to << __AFS_PAGE_PRIV_SHIFT) | from;
 }
 
 static inline unsigned long afs_page_dirty_mmapped(unsigned long priv)
