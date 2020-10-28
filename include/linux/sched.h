@@ -1330,7 +1330,7 @@ struct task_struct {
 					__mce_reserved : 62;
 	struct callback_head		mce_kill_me;
 #endif
-	ANDROID_VENDOR_DATA_ARRAY(1, 2);
+	ANDROID_VENDOR_DATA_ARRAY(1, 64);
 
 	/*
 	 * New fields for task_struct should be added above here, so that

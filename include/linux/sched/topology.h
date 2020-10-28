@@ -3,6 +3,7 @@
 #define _LINUX_SCHED_TOPOLOGY_H
 
 #include <linux/topology.h>
+#include <linux/android_vendor.h>
 
 #include <linux/sched/idle.h>
 
@@ -74,6 +75,8 @@ struct sched_domain_shared {
 	atomic_t	ref;
 	atomic_t	nr_busy_cpus;
 	int		has_idle_cores;
+
+	ANDROID_VENDOR_DATA(1);
 };
 
 struct sched_domain {
