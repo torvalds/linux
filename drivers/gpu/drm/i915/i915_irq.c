@@ -144,12 +144,12 @@ static const u32 hpd_icp[HPD_NUM_PINS] = {
 	[HPD_PORT_A] = SDE_DDI_HOTPLUG_ICP(HPD_PORT_A),
 	[HPD_PORT_B] = SDE_DDI_HOTPLUG_ICP(HPD_PORT_B),
 	[HPD_PORT_C] = SDE_DDI_HOTPLUG_ICP(HPD_PORT_C),
-	[HPD_PORT_TC1] = SDE_TC_HOTPLUG_ICP(TC_PORT_1),
-	[HPD_PORT_TC2] = SDE_TC_HOTPLUG_ICP(TC_PORT_2),
-	[HPD_PORT_TC3] = SDE_TC_HOTPLUG_ICP(TC_PORT_3),
-	[HPD_PORT_TC4] = SDE_TC_HOTPLUG_ICP(TC_PORT_4),
-	[HPD_PORT_TC5] = SDE_TC_HOTPLUG_ICP(TC_PORT_5),
-	[HPD_PORT_TC6] = SDE_TC_HOTPLUG_ICP(TC_PORT_6),
+	[HPD_PORT_TC1] = SDE_TC_HOTPLUG_ICP(HPD_PORT_TC1),
+	[HPD_PORT_TC2] = SDE_TC_HOTPLUG_ICP(HPD_PORT_TC2),
+	[HPD_PORT_TC3] = SDE_TC_HOTPLUG_ICP(HPD_PORT_TC3),
+	[HPD_PORT_TC4] = SDE_TC_HOTPLUG_ICP(HPD_PORT_TC4),
+	[HPD_PORT_TC5] = SDE_TC_HOTPLUG_ICP(HPD_PORT_TC5),
+	[HPD_PORT_TC6] = SDE_TC_HOTPLUG_ICP(HPD_PORT_TC6),
 };
 
 static const u32 hpd_sde_dg1[HPD_NUM_PINS] = {
@@ -1092,17 +1092,17 @@ static bool icp_tc_port_hotplug_long_detect(enum hpd_pin pin, u32 val)
 {
 	switch (pin) {
 	case HPD_PORT_TC1:
-		return val & ICP_TC_HPD_LONG_DETECT(TC_PORT_1);
+		return val & ICP_TC_HPD_LONG_DETECT(HPD_PORT_TC1);
 	case HPD_PORT_TC2:
-		return val & ICP_TC_HPD_LONG_DETECT(TC_PORT_2);
+		return val & ICP_TC_HPD_LONG_DETECT(HPD_PORT_TC2);
 	case HPD_PORT_TC3:
-		return val & ICP_TC_HPD_LONG_DETECT(TC_PORT_3);
+		return val & ICP_TC_HPD_LONG_DETECT(HPD_PORT_TC3);
 	case HPD_PORT_TC4:
-		return val & ICP_TC_HPD_LONG_DETECT(TC_PORT_4);
+		return val & ICP_TC_HPD_LONG_DETECT(HPD_PORT_TC4);
 	case HPD_PORT_TC5:
-		return val & ICP_TC_HPD_LONG_DETECT(TC_PORT_5);
+		return val & ICP_TC_HPD_LONG_DETECT(HPD_PORT_TC5);
 	case HPD_PORT_TC6:
-		return val & ICP_TC_HPD_LONG_DETECT(TC_PORT_6);
+		return val & ICP_TC_HPD_LONG_DETECT(HPD_PORT_TC6);
 	default:
 		return false;
 	}
@@ -1884,7 +1884,7 @@ static void icp_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 		tc_hotplug_trigger = 0;
 	} else if (HAS_PCH_MCC(dev_priv)) {
 		ddi_hotplug_trigger = pch_iir & SDE_DDI_MASK_ICP;
-		tc_hotplug_trigger = pch_iir & SDE_TC_HOTPLUG_ICP(TC_PORT_1);
+		tc_hotplug_trigger = pch_iir & SDE_TC_HOTPLUG_ICP(HPD_PORT_TC1);
 	} else {
 		drm_WARN(&dev_priv->drm, !HAS_PCH_ICP(dev_priv),
 			 "Unrecognized PCH type 0x%x\n",
@@ -3252,7 +3252,7 @@ static void icp_hpd_irq_setup(struct drm_i915_private *dev_priv,
 static void mcc_hpd_irq_setup(struct drm_i915_private *dev_priv)
 {
 	icp_hpd_irq_setup(dev_priv,
-			  ICP_DDI_HPD_ENABLE_MASK, ICP_TC_HPD_ENABLE(TC_PORT_1));
+			  ICP_DDI_HPD_ENABLE_MASK, ICP_TC_HPD_ENABLE(HPD_PORT_TC1));
 }
 
 /*
@@ -3675,7 +3675,7 @@ static void icp_irq_postinstall(struct drm_i915_private *dev_priv)
 		icp_ddi_hpd_detection_setup(dev_priv, TGP_DDI_HPD_ENABLE_MASK);
 	} else if (HAS_PCH_MCC(dev_priv)) {
 		icp_ddi_hpd_detection_setup(dev_priv, ICP_DDI_HPD_ENABLE_MASK);
-		icp_tc_hpd_detection_setup(dev_priv, ICP_TC_HPD_ENABLE(TC_PORT_1));
+		icp_tc_hpd_detection_setup(dev_priv, ICP_TC_HPD_ENABLE(HPD_PORT_TC1));
 	} else {
 		icp_ddi_hpd_detection_setup(dev_priv, ICP_DDI_HPD_ENABLE_MASK);
 		icp_tc_hpd_detection_setup(dev_priv, ICP_TC_HPD_ENABLE_MASK);
