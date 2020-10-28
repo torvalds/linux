@@ -1227,23 +1227,26 @@ dr_ste_v0_build_src_gvmi_qpn_tag(struct mlx5dr_match_param *value,
 			caps = &dmn->peer_dmn->info.caps;
 		else
 			return -EINVAL;
+
+		misc->source_eswitch_owner_vhca_id = 0;
 	} else {
 		caps = &dmn->info.caps;
 	}
 
-	vport_cap = mlx5dr_get_vport_cap(caps, misc->source_port);
-	if (!vport_cap) {
-		mlx5dr_err(dmn, "Vport 0x%x is invalid\n",
-			   misc->source_port);
-		return -EINVAL;
-	}
-
 	source_gvmi_set = MLX5_GET(ste_src_gvmi_qp, bit_mask, source_gvmi);
-	if (vport_cap->vport_gvmi && source_gvmi_set)
-		MLX5_SET(ste_src_gvmi_qp, tag, source_gvmi, vport_cap->vport_gvmi);
+	if (source_gvmi_set) {
+		vport_cap = mlx5dr_get_vport_cap(caps, misc->source_port);
+		if (!vport_cap) {
+			mlx5dr_err(dmn, "Vport 0x%x is invalid\n",
+				   misc->source_port);
+			return -EINVAL;
+		}
 
-	misc->source_eswitch_owner_vhca_id = 0;
-	misc->source_port = 0;
+		if (vport_cap->vport_gvmi)
+			MLX5_SET(ste_src_gvmi_qp, tag, source_gvmi, vport_cap->vport_gvmi);
+
+		misc->source_port = 0;
+	}
 
 	return 0;
 }
