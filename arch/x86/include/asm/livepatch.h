@@ -12,9 +12,9 @@
 #include <asm/setup.h>
 #include <linux/ftrace.h>
 
-static inline void klp_arch_set_pc(struct pt_regs *regs, unsigned long ip)
+static inline void klp_arch_set_pc(struct ftrace_regs *fregs, unsigned long ip)
 {
-	regs->ip = ip;
+	ftrace_instruction_pointer_set(fregs, ip);
 }
 
 #endif /* _ASM_X86_LIVEPATCH_H */
