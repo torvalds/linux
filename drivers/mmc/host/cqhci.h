@@ -121,6 +121,8 @@
  * register address for SDHC v5.0 onwards.
  */
 #define CQE_V5_VENDOR_CFG		0x900
+#define CQHCI_VENDOR_CFG		0x100
+#define CMDQ_SEND_STATUS_TRIGGER (1 << 31)
 
 /* crypto capabilities */
 #define CQHCI_CCAP			0x100
