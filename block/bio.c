@@ -1044,6 +1044,7 @@ static int __bio_iov_append_get_pages(struct bio *bio, struct iov_iter *iter)
 	ssize_t size, left;
 	unsigned len, i;
 	size_t offset;
+	int ret = 0;
 
 	if (WARN_ON_ONCE(!max_append_sectors))
 		return 0;
@@ -1066,15 +1067,17 @@ static int __bio_iov_append_get_pages(struct bio *bio, struct iov_iter *iter)
 
 		len = min_t(size_t, PAGE_SIZE - offset, left);
 		if (bio_add_hw_page(q, bio, page, len, offset,
-				max_append_sectors, &same_page) != len)
-			return -EINVAL;
+				max_append_sectors, &same_page) != len) {
+			ret = -EINVAL;
+			break;
+		}
 		if (same_page)
 			put_page(page);
 		offset = 0;
 	}
 
-	iov_iter_advance(iter, size);
-	return 0;
+	iov_iter_advance(iter, size - left);
+	return ret;
 }
 
 /**
