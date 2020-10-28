@@ -20,9 +20,9 @@
 #define DRIVER_NAME	"pcie_mp2_amd"
 #define DRIVER_DESC	"AMD(R) PCIe MP2 Communication Driver"
 
-#define ACEL_EN		BIT(1)
-#define GYRO_EN		BIT(2)
-#define MAGNO_EN	BIT(3)
+#define ACEL_EN		BIT(0)
+#define GYRO_EN		BIT(1)
+#define MAGNO_EN		BIT(2)
 #define ALS_EN		BIT(19)
 
 void amd_start_sensor(struct amd_mp2_dev *privdata, struct amd_mp2_sensor_info info)

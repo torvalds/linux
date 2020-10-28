@@ -16,11 +16,6 @@ enum desc_type {
 	feature_size,
 };
 
-struct _hid_report_descriptor {
-	u8 bDescriptorType;
-	u8 wDescriptorLength;
-};
-
 struct common_feature_property {
 	/* common properties */
 	u8 report_id;
@@ -37,15 +32,6 @@ struct common_input_property {
 	u8 sensor_state;
 	u8 event_type;
 } __packed;
-
-struct _hid_device_descriptor {
-	u8 bLength;
-	u8 bDescriptorType;
-	u8 bcdHID[2];
-	u8 bCountryCode;
-	u8 bNumDescriptors;
-	struct _hid_report_descriptor *reports;
-};
 
 struct accel3_feature_report {
 	struct common_feature_property common_property;
