@@ -310,6 +310,35 @@ static int gpio_rcar_get(struct gpio_chip *chip, unsigned offset)
 		return !!(gpio_rcar_read(p, INDT) & bit);
 }
 
+static int gpio_rcar_get_multiple(struct gpio_chip *chip, unsigned long *mask,
+				  unsigned long *bits)
+{
+	struct gpio_rcar_priv *p = gpiochip_get_data(chip);
+	u32 bankmask, outputs, m, val = 0;
+	unsigned long flags;
+
+	bankmask = mask[0] & GENMASK(chip->ngpio - 1, 0);
+	if (chip->valid_mask)
+		bankmask &= chip->valid_mask[0];
+
+	if (!bankmask)
+		return 0;
+
+	spin_lock_irqsave(&p->lock, flags);
+	outputs = gpio_rcar_read(p, INOUTSEL);
+	m = outputs & bankmask;
+	if (m)
+		val |= gpio_rcar_read(p, OUTDT) & m;
+
+	m = ~outputs & bankmask;
+	if (m)
+		val |= gpio_rcar_read(p, INDT) & m;
+	spin_unlock_irqrestore(&p->lock, flags);
+
+	bits[0] = val;
+	return 0;
+}
+
 static void gpio_rcar_set(struct gpio_chip *chip, unsigned offset, int value)
 {
 	struct gpio_rcar_priv *p = gpiochip_get_data(chip);
@@ -478,6 +507,7 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 	gpio_chip->get_direction = gpio_rcar_get_direction;
 	gpio_chip->direction_input = gpio_rcar_direction_input;
 	gpio_chip->get = gpio_rcar_get;
+	gpio_chip->get_multiple = gpio_rcar_get_multiple;
 	gpio_chip->direction_output = gpio_rcar_direction_output;
 	gpio_chip->set = gpio_rcar_set;
 	gpio_chip->set_multiple = gpio_rcar_set_multiple;
