@@ -109,6 +109,7 @@ struct ipa_endpoint_rx_data {
 
 /**
  * struct ipa_endpoint_config_data - IPA endpoint hardware configuration
+ * @resource_group:	resource group to assign endpoint to
  * @checksum:		whether checksum offload is enabled
  * @qmap:		whether endpoint uses QMAP protocol
  * @aggregation:	whether endpoint supports aggregation
@@ -119,6 +120,7 @@ struct ipa_endpoint_rx_data {
  * @rx:			RX-specific endpoint information (see above)
  */
 struct ipa_endpoint_config_data {
+	u32 resource_group;
 	bool checksum;
 	bool qmap;
 	bool aggregation;
