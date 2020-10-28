@@ -7814,6 +7814,7 @@ enum {
 	 GEN11_PIPE_PLANE5_FAULT)
 
 #define _HPD_PIN_DDI(hpd_pin)	((hpd_pin) - HPD_PORT_A)
+#define _HPD_PIN_TC(hpd_pin)	((hpd_pin) - HPD_PORT_TC1)
 
 #define GEN8_DE_PORT_ISR _MMIO(0x44440)
 #define GEN8_DE_PORT_IMR _MMIO(0x44444)
@@ -7891,27 +7892,27 @@ enum {
 #define GEN11_DE_HPD_IMR		_MMIO(0x44474)
 #define GEN11_DE_HPD_IIR		_MMIO(0x44478)
 #define GEN11_DE_HPD_IER		_MMIO(0x4447c)
-#define  GEN11_TC_HOTPLUG(tc_port)		(1 << ((tc_port) + 16))
-#define  GEN11_DE_TC_HOTPLUG_MASK		(GEN11_TC_HOTPLUG(TC_PORT_6) | \
-						 GEN11_TC_HOTPLUG(TC_PORT_5) | \
-						 GEN11_TC_HOTPLUG(TC_PORT_4) | \
-						 GEN11_TC_HOTPLUG(TC_PORT_3) | \
-						 GEN11_TC_HOTPLUG(TC_PORT_2) | \
-						 GEN11_TC_HOTPLUG(TC_PORT_1))
-#define  GEN11_TBT_HOTPLUG(tc_port)		(1 << (tc_port))
-#define  GEN11_DE_TBT_HOTPLUG_MASK		(GEN11_TBT_HOTPLUG(TC_PORT_6) | \
-						 GEN11_TBT_HOTPLUG(TC_PORT_5) | \
-						 GEN11_TBT_HOTPLUG(TC_PORT_4) | \
-						 GEN11_TBT_HOTPLUG(TC_PORT_3) | \
-						 GEN11_TBT_HOTPLUG(TC_PORT_2) | \
-						 GEN11_TBT_HOTPLUG(TC_PORT_1))
+#define  GEN11_TC_HOTPLUG(hpd_pin)		REG_BIT(16 + _HPD_PIN_TC(hpd_pin))
+#define  GEN11_DE_TC_HOTPLUG_MASK		(GEN11_TC_HOTPLUG(HPD_PORT_TC6) | \
+						 GEN11_TC_HOTPLUG(HPD_PORT_TC5) | \
+						 GEN11_TC_HOTPLUG(HPD_PORT_TC4) | \
+						 GEN11_TC_HOTPLUG(HPD_PORT_TC3) | \
+						 GEN11_TC_HOTPLUG(HPD_PORT_TC2) | \
+						 GEN11_TC_HOTPLUG(HPD_PORT_TC1))
+#define  GEN11_TBT_HOTPLUG(hpd_pin)		REG_BIT(_HPD_PIN_TC(hpd_pin))
+#define  GEN11_DE_TBT_HOTPLUG_MASK		(GEN11_TBT_HOTPLUG(HPD_PORT_TC6) | \
+						 GEN11_TBT_HOTPLUG(HPD_PORT_TC5) | \
+						 GEN11_TBT_HOTPLUG(HPD_PORT_TC4) | \
+						 GEN11_TBT_HOTPLUG(HPD_PORT_TC3) | \
+						 GEN11_TBT_HOTPLUG(HPD_PORT_TC2) | \
+						 GEN11_TBT_HOTPLUG(HPD_PORT_TC1))
 
 #define GEN11_TBT_HOTPLUG_CTL				_MMIO(0x44030)
 #define GEN11_TC_HOTPLUG_CTL				_MMIO(0x44038)
-#define  GEN11_HOTPLUG_CTL_ENABLE(tc_port)		(8 << (tc_port) * 4)
-#define  GEN11_HOTPLUG_CTL_LONG_DETECT(tc_port)		(2 << (tc_port) * 4)
-#define  GEN11_HOTPLUG_CTL_SHORT_DETECT(tc_port)	(1 << (tc_port) * 4)
-#define  GEN11_HOTPLUG_CTL_NO_DETECT(tc_port)		(0 << (tc_port) * 4)
+#define  GEN11_HOTPLUG_CTL_ENABLE(hpd_pin)		(8 << (_HPD_PIN_TC(hpd_pin) * 4))
+#define  GEN11_HOTPLUG_CTL_LONG_DETECT(hpd_pin)		(2 << (_HPD_PIN_TC(hpd_pin) * 4))
+#define  GEN11_HOTPLUG_CTL_SHORT_DETECT(hpd_pin)	(1 << (_HPD_PIN_TC(hpd_pin) * 4))
+#define  GEN11_HOTPLUG_CTL_NO_DETECT(hpd_pin)		(0 << (_HPD_PIN_TC(hpd_pin) * 4))
 
 #define GEN11_GT_INTR_DW0		_MMIO(0x190018)
 #define  GEN11_CSME			(31)
