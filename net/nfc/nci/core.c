@@ -1112,6 +1112,8 @@ static struct nfc_ops nci_nfc_ops = {
  *
  * @ops: device operations
  * @supported_protocols: NFC protocols supported by the device
+ * @tx_headroom: Reserved space at beginning of skb
+ * @tx_tailroom: Reserved space at end of skb
  */
 struct nci_dev *nci_allocate_device(struct nci_ops *ops,
 				    __u32 supported_protocols,

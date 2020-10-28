@@ -189,7 +189,8 @@ static const struct rfkill_ops nfc_rfkill_ops = {
  * nfc_start_poll - start polling for nfc targets
  *
  * @dev: The nfc device that must start polling
- * @protocols: bitset of nfc protocols that must be used for polling
+ * @im_protocols: bitset of nfc initiator protocols to be used for polling
+ * @tm_protocols: bitset of nfc transport protocols to be used for polling
  *
  * The device remains polling for targets until a target is found or
  * the nfc_stop_poll function is called.
@@ -436,6 +437,7 @@ error:
  *
  * @dev: The nfc device that found the target
  * @target_idx: index of the target that must be deactivated
+ * @mode: idle or sleep?
  */
 int nfc_deactivate_target(struct nfc_dev *dev, u32 target_idx, u8 mode)
 {
@@ -703,7 +705,11 @@ EXPORT_SYMBOL(nfc_tm_deactivated);
 /**
  * nfc_alloc_send_skb - allocate a skb for data exchange responses
  *
+ * @dev: device sending the response
+ * @sk: socket sending the response
+ * @flags: MSG_DONTWAIT flag
  * @size: size to allocate
+ * @err: pointer to memory to store the error code
  */
 struct sk_buff *nfc_alloc_send_skb(struct nfc_dev *dev, struct sock *sk,
 				   unsigned int flags, unsigned int size,
@@ -1039,6 +1045,8 @@ struct nfc_dev *nfc_get_device(unsigned int idx)
  *
  * @ops: device operations
  * @supported_protocols: NFC protocols supported by the device
+ * @tx_headroom: reserved space at beginning of skb
+ * @tx_tailroom: reserved space at end of skb
  */
 struct nfc_dev *nfc_allocate_device(struct nfc_ops *ops,
 				    u32 supported_protocols,
