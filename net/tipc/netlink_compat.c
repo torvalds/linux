@@ -588,7 +588,7 @@ static int tipc_nl_compat_link_stat_dump(struct tipc_nl_compat_msg *msg,
 		return 0;
 
 	tipc_tlv_sprintf(msg->rep, "\nLink <%s>\n",
-			 nla_data(link[TIPC_NLA_LINK_NAME]));
+			 (char *)nla_data(link[TIPC_NLA_LINK_NAME]));
 
 	if (link[TIPC_NLA_LINK_BROADCAST]) {
 		__fill_bc_link_stat(msg, prop, stats);
