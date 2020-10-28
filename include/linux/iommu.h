@@ -465,6 +465,8 @@ extern void iommu_reg_write(struct iommu_domain *domain, unsigned long offset,
 extern struct iommu_group *pci_device_group(struct device *dev);
 /* Generic device grouping function */
 extern struct iommu_group *generic_device_group(struct device *dev);
+extern void rk_iommu_mask_irq(struct device *dev);
+extern void rk_iommu_unmask_irq(struct device *dev);
 
 static inline void iommu_tlbiall(struct iommu_domain *domain)
 {
@@ -836,6 +838,14 @@ const struct iommu_ops *iommu_ops_from_fwnode(struct fwnode_handle *fwnode)
 static inline int iommu_is_available(struct device *dev)
 {
 	return -ENODEV;
+}
+
+static inline void rk_iommu_mask_irq(struct device *dev)
+{
+}
+
+static inline void rk_iommu_unmask_irq(struct device *dev)
+{
 }
 #endif /* CONFIG_IOMMU_API */
 
