@@ -3600,7 +3600,6 @@ static int haptics_init_swr_slave_regulator(struct haptics_chip *chip)
 	return rc;
 }
 
-#define PBS_SW_TRG_LRA_ISC_CFG_BIT	BIT(7)
 static int haptics_pbs_trigger_isc_config(struct haptics_chip *chip)
 {
 	int rc;
@@ -3610,7 +3609,7 @@ static int haptics_pbs_trigger_isc_config(struct haptics_chip *chip)
 		return -ENODEV;
 	}
 
-	rc = qpnp_pbs_trigger_event(chip->pbs_node, PBS_SW_TRG_LRA_ISC_CFG_BIT);
+	rc = qpnp_pbs_trigger_single_event(chip->pbs_node);
 	if (rc < 0)
 		dev_err(chip->dev, "Trigger PBS to config ISC failed, rc=%d\n",
 				rc);
