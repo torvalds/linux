@@ -370,8 +370,11 @@ static bool ipa_resource_limits_valid(struct ipa *ipa,
 	u32 i;
 	u32 j;
 
+	/* We program at most 6 source or destination resource group limits */
+	BUILD_BUG_ON(IPA_RESOURCE_GROUP_SRC_MAX > 6);
+
 	group_count = ipa_resource_group_src_count(ipa->version);
-	if (!group_count)
+	if (!group_count || group_count > IPA_RESOURCE_GROUP_SRC_MAX)
 		return false;
 
 	/* Return an error if a non-zero resource limit is specified
@@ -387,7 +390,7 @@ static bool ipa_resource_limits_valid(struct ipa *ipa,
 	}
 
 	group_count = ipa_resource_group_dst_count(ipa->version);
-	if (!group_count)
+	if (!group_count || group_count > IPA_RESOURCE_GROUP_DST_MAX)
 		return false;
 
 	for (i = 0; i < data->resource_dst_count; i++) {
@@ -421,46 +424,64 @@ ipa_resource_config_common(struct ipa *ipa, u32 offset,
 
 	val = u32_encode_bits(xlimits->min, X_MIN_LIM_FMASK);
 	val |= u32_encode_bits(xlimits->max, X_MAX_LIM_FMASK);
-	val |= u32_encode_bits(ylimits->min, Y_MIN_LIM_FMASK);
-	val |= u32_encode_bits(ylimits->max, Y_MAX_LIM_FMASK);
+	if (ylimits) {
+		val |= u32_encode_bits(ylimits->min, Y_MIN_LIM_FMASK);
+		val |= u32_encode_bits(ylimits->max, Y_MAX_LIM_FMASK);
+	}
 
 	iowrite32(val, ipa->reg_virt + offset);
 }
 
-static void ipa_resource_config_src_01(struct ipa *ipa,
-				       const struct ipa_resource_src *resource)
+static void ipa_resource_config_src(struct ipa *ipa,
+				    const struct ipa_resource_src *resource)
 {
-	u32 offset = IPA_REG_SRC_RSRC_GRP_01_RSRC_TYPE_N_OFFSET(resource->type);
+	u32 group_count = ipa_resource_group_src_count(ipa->version);
+	const struct ipa_resource_limits *ylimits;
+	u32 offset;
 
-	ipa_resource_config_common(ipa, offset,
-				   &resource->limits[0], &resource->limits[1]);
+	offset = IPA_REG_SRC_RSRC_GRP_01_RSRC_TYPE_N_OFFSET(resource->type);
+	ylimits = group_count == 1 ? NULL : &resource->limits[1];
+	ipa_resource_config_common(ipa, offset, &resource->limits[0], ylimits);
+
+	if (group_count < 2)
+		return;
+
+	offset = IPA_REG_SRC_RSRC_GRP_23_RSRC_TYPE_N_OFFSET(resource->type);
+	ylimits = group_count == 3 ? NULL : &resource->limits[3];
+	ipa_resource_config_common(ipa, offset, &resource->limits[2], ylimits);
+
+	if (group_count < 4)
+		return;
+
+	offset = IPA_REG_SRC_RSRC_GRP_45_RSRC_TYPE_N_OFFSET(resource->type);
+	ylimits = group_count == 5 ? NULL : &resource->limits[5];
+	ipa_resource_config_common(ipa, offset, &resource->limits[4], ylimits);
 }
 
-static void ipa_resource_config_src_23(struct ipa *ipa,
-				       const struct ipa_resource_src *resource)
+static void ipa_resource_config_dst(struct ipa *ipa,
+				    const struct ipa_resource_dst *resource)
 {
-	u32 offset = IPA_REG_SRC_RSRC_GRP_23_RSRC_TYPE_N_OFFSET(resource->type);
+	u32 group_count = ipa_resource_group_dst_count(ipa->version);
+	const struct ipa_resource_limits *ylimits;
+	u32 offset;
 
-	ipa_resource_config_common(ipa, offset,
-				   &resource->limits[2], &resource->limits[3]);
-}
+	offset = IPA_REG_DST_RSRC_GRP_01_RSRC_TYPE_N_OFFSET(resource->type);
+	ylimits = group_count == 1 ? NULL : &resource->limits[1];
+	ipa_resource_config_common(ipa, offset, &resource->limits[0], ylimits);
 
-static void ipa_resource_config_dst_01(struct ipa *ipa,
-				       const struct ipa_resource_dst *resource)
-{
-	u32 offset = IPA_REG_DST_RSRC_GRP_01_RSRC_TYPE_N_OFFSET(resource->type);
+	if (group_count < 2)
+		return;
 
-	ipa_resource_config_common(ipa, offset,
-				   &resource->limits[0], &resource->limits[1]);
-}
+	offset = IPA_REG_DST_RSRC_GRP_23_RSRC_TYPE_N_OFFSET(resource->type);
+	ylimits = group_count == 3 ? NULL : &resource->limits[3];
+	ipa_resource_config_common(ipa, offset, &resource->limits[2], ylimits);
 
-static void ipa_resource_config_dst_23(struct ipa *ipa,
-				       const struct ipa_resource_dst *resource)
-{
-	u32 offset = IPA_REG_DST_RSRC_GRP_23_RSRC_TYPE_N_OFFSET(resource->type);
+	if (group_count < 4)
+		return;
 
-	ipa_resource_config_common(ipa, offset,
-				   &resource->limits[2], &resource->limits[3]);
+	offset = IPA_REG_DST_RSRC_GRP_45_RSRC_TYPE_N_OFFSET(resource->type);
+	ylimits = group_count == 5 ? NULL : &resource->limits[5];
+	ipa_resource_config_common(ipa, offset, &resource->limits[4], ylimits);
 }
 
 static int
@@ -471,15 +492,11 @@ ipa_resource_config(struct ipa *ipa, const struct ipa_resource_data *data)
 	if (!ipa_resource_limits_valid(ipa, data))
 		return -EINVAL;
 
-	for (i = 0; i < data->resource_src_count; i++) {
-		ipa_resource_config_src_01(ipa, &data->resource_src[i]);
-		ipa_resource_config_src_23(ipa, &data->resource_src[i]);
-	}
+	for (i = 0; i < data->resource_src_count; i++)
+		ipa_resource_config_src(ipa, data->resource_src);
 
-	for (i = 0; i < data->resource_dst_count; i++) {
-		ipa_resource_config_dst_01(ipa, &data->resource_dst[i]);
-		ipa_resource_config_dst_23(ipa, &data->resource_dst[i]);
-	}
+	for (i = 0; i < data->resource_dst_count; i++)
+		ipa_resource_config_dst(ipa, data->resource_dst);
 
 	return 0;
 }
