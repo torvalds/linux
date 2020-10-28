@@ -864,11 +864,11 @@ struct ftrace_graph_ent {
  */
 struct ftrace_graph_ret {
 	unsigned long func; /* Current function */
+	int depth;
 	/* Number of functions that overran the depth limit for current task */
-	unsigned long overrun;
+	unsigned int overrun;
 	unsigned long long calltime;
 	unsigned long long rettime;
-	int depth;
 } __packed;
 
 /* Type of the callback handlers for tracing function graph*/
