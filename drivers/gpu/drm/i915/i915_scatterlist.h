@@ -112,7 +112,7 @@ static inline unsigned int i915_sg_segment_size(void)
 	unsigned int size = swiotlb_max_segment();
 
 	if (size == 0)
-		return SCATTERLIST_MAX_SEGMENT;
+		size = UINT_MAX;
 
 	size = rounddown(size, PAGE_SIZE);
 	/* swiotlb_max_segment_size can return 1 byte when it means one page. */
