@@ -1866,7 +1866,7 @@ static int smu7_calculate_ro_range(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	struct amdgpu_device *adev = hwmgr->adev;
-	uint32_t asicrev1, evv_revision, max, min;
+	uint32_t asicrev1, evv_revision, max = 0, min = 0;
 
 	atomctrl_read_efuse(hwmgr, STRAP_EVV_REVISION_LSB, STRAP_EVV_REVISION_MSB,
 			&evv_revision);
@@ -1903,8 +1903,7 @@ static int smu7_calculate_ro_range(struct pp_hwmgr *hwmgr)
 				max = 2500;
 			}
 		}
-	} else if ((hwmgr->chip_id == CHIP_POLARIS11) ||
-		   (hwmgr->chip_id == CHIP_POLARIS12)) {
+	} else {
 		min = 1100;
 		max = 2100;
 	}
