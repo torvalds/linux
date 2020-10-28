@@ -596,7 +596,7 @@ static void ltdc_crtc_mode_set_nofb(struct drm_crtc *crtc)
 }
 
 static void ltdc_crtc_atomic_flush(struct drm_crtc *crtc,
-				   struct drm_crtc_state *old_crtc_state)
+				   struct drm_atomic_state *state)
 {
 	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
 	struct drm_device *ddev = crtc->dev;

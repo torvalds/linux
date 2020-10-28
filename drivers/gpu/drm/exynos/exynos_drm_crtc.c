@@ -65,7 +65,7 @@ static int exynos_crtc_atomic_check(struct drm_crtc *crtc,
 }
 
 static void exynos_crtc_atomic_begin(struct drm_crtc *crtc,
-				     struct drm_crtc_state *old_crtc_state)
+				     struct drm_atomic_state *state)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
 
@@ -74,7 +74,7 @@ static void exynos_crtc_atomic_begin(struct drm_crtc *crtc,
 }
 
 static void exynos_crtc_atomic_flush(struct drm_crtc *crtc,
-				     struct drm_crtc_state *old_crtc_state)
+				     struct drm_atomic_state *state)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
 

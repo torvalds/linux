@@ -205,7 +205,7 @@ static enum drm_mode_status hdlcd_crtc_mode_valid(struct drm_crtc *crtc,
 }
 
 static void hdlcd_crtc_atomic_begin(struct drm_crtc *crtc,
-				    struct drm_crtc_state *state)
+				    struct drm_atomic_state *state)
 {
 	struct drm_pending_vblank_event *event = crtc->state->event;
 

@@ -240,13 +240,13 @@ static int ipu_crtc_atomic_check(struct drm_crtc *crtc,
 }
 
 static void ipu_crtc_atomic_begin(struct drm_crtc *crtc,
-				  struct drm_crtc_state *old_crtc_state)
+				  struct drm_atomic_state *state)
 {
 	drm_crtc_vblank_on(crtc);
 }
 
 static void ipu_crtc_atomic_flush(struct drm_crtc *crtc,
-				  struct drm_crtc_state *old_crtc_state)
+				  struct drm_atomic_state *state)
 {
 	spin_lock_irq(&crtc->dev->event_lock);
 	if (crtc->state->event) {

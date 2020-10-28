@@ -61,8 +61,10 @@ static int sun4i_crtc_atomic_check(struct drm_crtc *crtc,
 }
 
 static void sun4i_crtc_atomic_begin(struct drm_crtc *crtc,
-				    struct drm_crtc_state *old_state)
+				    struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *old_state = drm_atomic_get_old_crtc_state(state,
+									 crtc);
 	struct sun4i_crtc *scrtc = drm_crtc_to_sun4i_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct sunxi_engine *engine = scrtc->engine;
@@ -82,7 +84,7 @@ static void sun4i_crtc_atomic_begin(struct drm_crtc *crtc,
 }
 
 static void sun4i_crtc_atomic_flush(struct drm_crtc *crtc,
-				    struct drm_crtc_state *old_state)
+				    struct drm_atomic_state *state)
 {
 	struct sun4i_crtc *scrtc = drm_crtc_to_sun4i_crtc(crtc);
 	struct drm_pending_vblank_event *event = crtc->state->event;

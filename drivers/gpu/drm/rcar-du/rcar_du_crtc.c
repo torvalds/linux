@@ -785,7 +785,7 @@ static void rcar_du_crtc_atomic_disable(struct drm_crtc *crtc,
 }
 
 static void rcar_du_crtc_atomic_begin(struct drm_crtc *crtc,
-				      struct drm_crtc_state *old_crtc_state)
+				      struct drm_atomic_state *state)
 {
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
 
@@ -814,7 +814,7 @@ static void rcar_du_crtc_atomic_begin(struct drm_crtc *crtc,
 }
 
 static void rcar_du_crtc_atomic_flush(struct drm_crtc *crtc,
-				      struct drm_crtc_state *old_crtc_state)
+				      struct drm_atomic_state *state)
 {
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
 	struct drm_device *dev = rcrtc->crtc.dev;

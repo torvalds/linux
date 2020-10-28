@@ -772,13 +772,13 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 }
 
 static void mdp5_crtc_atomic_begin(struct drm_crtc *crtc,
-				   struct drm_crtc_state *old_crtc_state)
+				   struct drm_atomic_state *state)
 {
 	DBG("%s: begin", crtc->name);
 }
 
 static void mdp5_crtc_atomic_flush(struct drm_crtc *crtc,
-				   struct drm_crtc_state *old_crtc_state)
+				   struct drm_atomic_state *state)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct mdp5_crtc_state *mdp5_cstate = to_mdp5_crtc_state(crtc->state);

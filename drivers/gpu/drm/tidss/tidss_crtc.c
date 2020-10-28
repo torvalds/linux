@@ -163,8 +163,10 @@ static void tidss_crtc_position_planes(struct tidss_device *tidss,
 }
 
 static void tidss_crtc_atomic_flush(struct drm_crtc *crtc,
-				    struct drm_crtc_state *old_crtc_state)
+				    struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *old_crtc_state = drm_atomic_get_old_crtc_state(state,
+									      crtc);
 	struct tidss_crtc *tcrtc = to_tidss_crtc(crtc);
 	struct drm_device *ddev = crtc->dev;
 	struct tidss_device *tidss = to_tidss(ddev);

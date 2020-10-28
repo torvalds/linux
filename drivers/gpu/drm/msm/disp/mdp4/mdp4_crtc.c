@@ -316,14 +316,14 @@ static int mdp4_crtc_atomic_check(struct drm_crtc *crtc,
 }
 
 static void mdp4_crtc_atomic_begin(struct drm_crtc *crtc,
-				   struct drm_crtc_state *old_crtc_state)
+				   struct drm_atomic_state *state)
 {
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
 	DBG("%s: begin", mdp4_crtc->name);
 }
 
 static void mdp4_crtc_atomic_flush(struct drm_crtc *crtc,
-				   struct drm_crtc_state *old_crtc_state)
+				   struct drm_atomic_state *state)
 {
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
 	struct drm_device *dev = crtc->dev;

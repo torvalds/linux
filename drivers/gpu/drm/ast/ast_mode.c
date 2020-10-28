@@ -779,8 +779,11 @@ static int ast_crtc_helper_atomic_check(struct drm_crtc *crtc,
 }
 
 static void
-ast_crtc_helper_atomic_flush(struct drm_crtc *crtc, struct drm_crtc_state *old_crtc_state)
+ast_crtc_helper_atomic_flush(struct drm_crtc *crtc,
+			     struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *old_crtc_state = drm_atomic_get_old_crtc_state(state,
+									      crtc);
 	struct ast_private *ast = to_ast_private(crtc->dev);
 	struct ast_crtc_state *ast_crtc_state = to_ast_crtc_state(crtc->state);
 	struct ast_crtc_state *old_ast_crtc_state = to_ast_crtc_state(old_crtc_state);

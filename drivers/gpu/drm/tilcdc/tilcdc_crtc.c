@@ -535,7 +535,7 @@ static void tilcdc_crtc_atomic_disable(struct drm_crtc *crtc,
 }
 
 static void tilcdc_crtc_atomic_flush(struct drm_crtc *crtc,
-				     struct drm_crtc_state *old_state)
+				     struct drm_atomic_state *state)
 {
 	if (!crtc->state->event)
 		return;

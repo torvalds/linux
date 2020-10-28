@@ -117,7 +117,7 @@ static int virtio_gpu_crtc_atomic_check(struct drm_crtc *crtc,
 }
 
 static void virtio_gpu_crtc_atomic_flush(struct drm_crtc *crtc,
-					 struct drm_crtc_state *old_state)
+					 struct drm_atomic_state *state)
 {
 	struct virtio_gpu_output *output = drm_crtc_to_virtio_gpu_output(crtc);
 

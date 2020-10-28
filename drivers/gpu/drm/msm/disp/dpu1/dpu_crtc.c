@@ -486,7 +486,7 @@ static void _dpu_crtc_setup_cp_blocks(struct drm_crtc *crtc)
 }
 
 static void dpu_crtc_atomic_begin(struct drm_crtc *crtc,
-		struct drm_crtc_state *old_state)
+		struct drm_atomic_state *state)
 {
 	struct dpu_crtc_state *cstate = to_dpu_crtc_state(crtc->state);
 	struct drm_encoder *encoder;
@@ -527,7 +527,7 @@ static void dpu_crtc_atomic_begin(struct drm_crtc *crtc,
 }
 
 static void dpu_crtc_atomic_flush(struct drm_crtc *crtc,
-		struct drm_crtc_state *old_crtc_state)
+		struct drm_atomic_state *state)
 {
 	struct dpu_crtc *dpu_crtc;
 	struct drm_device *dev;

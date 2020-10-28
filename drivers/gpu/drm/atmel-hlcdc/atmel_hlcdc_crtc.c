@@ -342,7 +342,7 @@ static int atmel_hlcdc_crtc_atomic_check(struct drm_crtc *c,
 }
 
 static void atmel_hlcdc_crtc_atomic_begin(struct drm_crtc *c,
-					  struct drm_crtc_state *old_s)
+					  struct drm_atomic_state *state)
 {
 	struct atmel_hlcdc_crtc *crtc = drm_crtc_to_atmel_hlcdc_crtc(c);
 
@@ -357,7 +357,7 @@ static void atmel_hlcdc_crtc_atomic_begin(struct drm_crtc *c,
 }
 
 static void atmel_hlcdc_crtc_atomic_flush(struct drm_crtc *crtc,
-					  struct drm_crtc_state *old_s)
+					  struct drm_atomic_state *state)
 {
 	/* TODO: write common plane control register if available */
 }

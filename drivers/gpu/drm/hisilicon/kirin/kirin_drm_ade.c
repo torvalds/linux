@@ -485,7 +485,7 @@ static void ade_crtc_mode_set_nofb(struct drm_crtc *crtc)
 }
 
 static void ade_crtc_atomic_begin(struct drm_crtc *crtc,
-				  struct drm_crtc_state *old_state)
+				  struct drm_atomic_state *state)
 {
 	struct kirin_crtc *kcrtc = to_kirin_crtc(crtc);
 	struct ade_hw_ctx *ctx = kcrtc->hw_ctx;
@@ -498,7 +498,7 @@ static void ade_crtc_atomic_begin(struct drm_crtc *crtc,
 }
 
 static void ade_crtc_atomic_flush(struct drm_crtc *crtc,
-				  struct drm_crtc_state *old_state)
+				  struct drm_atomic_state *state)
 
 {
 	struct kirin_crtc *kcrtc = to_kirin_crtc(crtc);

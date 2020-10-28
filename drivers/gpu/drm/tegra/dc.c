@@ -1918,7 +1918,7 @@ static void tegra_crtc_atomic_enable(struct drm_crtc *crtc,
 }
 
 static void tegra_crtc_atomic_begin(struct drm_crtc *crtc,
-				    struct drm_crtc_state *old_crtc_state)
+				    struct drm_atomic_state *state)
 {
 	unsigned long flags;
 
@@ -1937,17 +1937,17 @@ static void tegra_crtc_atomic_begin(struct drm_crtc *crtc,
 }
 
 static void tegra_crtc_atomic_flush(struct drm_crtc *crtc,
-				    struct drm_crtc_state *old_crtc_state)
+				    struct drm_atomic_state *state)
 {
-	struct tegra_dc_state *state = to_dc_state(crtc->state);
+	struct tegra_dc_state *crtc_state = to_dc_state(crtc->state);
 	struct tegra_dc *dc = to_tegra_dc(crtc);
 	u32 value;
 
-	value = state->planes << 8 | GENERAL_UPDATE;
+	value = crtc_state->planes << 8 | GENERAL_UPDATE;
 	tegra_dc_writel(dc, value, DC_CMD_STATE_CONTROL);
 	value = tegra_dc_readl(dc, DC_CMD_STATE_CONTROL);
 
-	value = state->planes | GENERAL_ACT_REQ;
+	value = crtc_state->planes | GENERAL_ACT_REQ;
 	tegra_dc_writel(dc, value, DC_CMD_STATE_CONTROL);
 	value = tegra_dc_readl(dc, DC_CMD_STATE_CONTROL);
 }

@@ -1513,14 +1513,14 @@ static int zynqmp_disp_crtc_atomic_check(struct drm_crtc *crtc,
 
 static void
 zynqmp_disp_crtc_atomic_begin(struct drm_crtc *crtc,
-			      struct drm_crtc_state *old_crtc_state)
+			      struct drm_atomic_state *state)
 {
 	drm_crtc_vblank_on(crtc);
 }
 
 static void
 zynqmp_disp_crtc_atomic_flush(struct drm_crtc *crtc,
-			      struct drm_crtc_state *old_crtc_state)
+			      struct drm_atomic_state *state)
 {
 	if (crtc->state->event) {
 		struct drm_pending_vblank_event *event;

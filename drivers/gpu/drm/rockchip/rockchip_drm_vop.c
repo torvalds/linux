@@ -1246,8 +1246,10 @@ static void vop_crtc_gamma_set(struct vop *vop, struct drm_crtc *crtc,
 }
 
 static void vop_crtc_atomic_begin(struct drm_crtc *crtc,
-				  struct drm_crtc_state *old_crtc_state)
+				  struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *old_crtc_state = drm_atomic_get_old_crtc_state(state,
+									      crtc);
 	struct vop *vop = to_vop(crtc);
 
 	/*
@@ -1462,8 +1464,10 @@ static int vop_crtc_atomic_check(struct drm_crtc *crtc,
 }
 
 static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
-				  struct drm_crtc_state *old_crtc_state)
+				  struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *old_crtc_state = drm_atomic_get_old_crtc_state(state,
+									      crtc);
 	struct drm_atomic_state *old_state = old_crtc_state->state;
 	struct drm_plane_state *old_plane_state, *new_plane_state;
 	struct vop *vop = to_vop(crtc);

@@ -373,7 +373,7 @@ struct drm_crtc_helper_funcs {
 	 * transitional plane helpers, but it is optional.
 	 */
 	void (*atomic_begin)(struct drm_crtc *crtc,
-			     struct drm_crtc_state *old_crtc_state);
+			     struct drm_atomic_state *state);
 	/**
 	 * @atomic_flush:
 	 *
@@ -397,7 +397,7 @@ struct drm_crtc_helper_funcs {
 	 * transitional plane helpers, but it is optional.
 	 */
 	void (*atomic_flush)(struct drm_crtc *crtc,
-			     struct drm_crtc_state *old_crtc_state);
+			     struct drm_atomic_state *state);
 
 	/**
 	 * @atomic_enable:
