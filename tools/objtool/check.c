@@ -566,8 +566,21 @@ static int create_mcount_loc_sections(struct objtool_file *file)
 		}
 		memset(reloc, 0, sizeof(*reloc));
 
-		reloc->sym = insn->sec->sym;
-		reloc->addend = insn->offset;
+		if (insn->sec->sym) {
+			reloc->sym = insn->sec->sym;
+			reloc->addend = insn->offset;
+		} else {
+			reloc->sym = find_symbol_containing(insn->sec, insn->offset);
+
+			if (!reloc->sym) {
+				WARN("missing symbol for insn at offset 0x%lx\n",
+				     insn->offset);
+				return -1;
+			}
+
+			reloc->addend = insn->offset - reloc->sym->offset;
+		}
+
 		reloc->type = R_X86_64_64;
 		reloc->offset = idx * sizeof(unsigned long);
 		reloc->sec = reloc_sec;
