@@ -460,12 +460,7 @@ static int sh_pfc_gpio_set_direction(struct pinctrl_dev *pctldev,
 	}
 
 	spin_lock_irqsave(&pfc->lock, flags);
-
 	ret = sh_pfc_config_mux(pfc, pin->enum_id, new_type);
-	if (ret < 0)
-		goto done;
-
-done:
 	spin_unlock_irqrestore(&pfc->lock, flags);
 	return ret;
 }
