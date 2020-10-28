@@ -80,8 +80,11 @@
 #define MII_M1111_HWCFG_MODE_FIBER_RGMII	0x3
 #define MII_M1111_HWCFG_MODE_SGMII_NO_CLK	0x4
 #define MII_M1111_HWCFG_MODE_RTBI		0x7
+#define MII_M1111_HWCFG_MODE_COPPER_1000X_AN	0x8
 #define MII_M1111_HWCFG_MODE_COPPER_RTBI	0x9
 #define MII_M1111_HWCFG_MODE_COPPER_RGMII	0xb
+#define MII_M1111_HWCFG_MODE_COPPER_1000X_NOAN	0xc
+#define MII_M1111_HWCFG_SERIAL_AN_BYPASS	BIT(12)
 #define MII_M1111_HWCFG_FIBER_COPPER_RES	BIT(13)
 #define MII_M1111_HWCFG_FIBER_COPPER_AUTO	BIT(15)
 
@@ -629,6 +632,51 @@ static int marvell_config_aneg_fiber(struct phy_device *phydev)
 	return genphy_check_and_restart_aneg(phydev, changed);
 }
 
+static int m88e1111_config_aneg(struct phy_device *phydev)
+{
+	int extsr = phy_read(phydev, MII_M1111_PHY_EXT_SR);
+	int err;
+
+	if (extsr < 0)
+		return extsr;
+
+	/* If not using SGMII or copper 1000BaseX modes, use normal process.
+	 * Steps below are only required for these modes.
+	 */
+	if (phydev->interface != PHY_INTERFACE_MODE_SGMII &&
+	    (extsr & MII_M1111_HWCFG_MODE_MASK) !=
+	    MII_M1111_HWCFG_MODE_COPPER_1000X_AN)
+		return marvell_config_aneg(phydev);
+
+	err = marvell_set_page(phydev, MII_MARVELL_COPPER_PAGE);
+	if (err < 0)
+		goto error;
+
+	/* Configure the copper link first */
+	err = marvell_config_aneg(phydev);
+	if (err < 0)
+		goto error;
+
+	/* Do not touch the fiber page if we're in copper->sgmii mode */
+	if (phydev->interface == PHY_INTERFACE_MODE_SGMII)
+		return 0;
+
+	/* Then the fiber link */
+	err = marvell_set_page(phydev, MII_MARVELL_FIBER_PAGE);
+	if (err < 0)
+		goto error;
+
+	err = marvell_config_aneg_fiber(phydev);
+	if (err < 0)
+		goto error;
+
+	return marvell_set_page(phydev, MII_MARVELL_COPPER_PAGE);
+
+error:
+	marvell_set_page(phydev, MII_MARVELL_COPPER_PAGE);
+	return err;
+}
+
 static int m88e1510_config_aneg(struct phy_device *phydev)
 {
 	int err;
@@ -814,6 +862,28 @@ static int m88e1111_config_init_rtbi(struct phy_device *phydev)
 		MII_M1111_HWCFG_FIBER_COPPER_AUTO);
 }
 
+static int m88e1111_config_init_1000basex(struct phy_device *phydev)
+{
+	int extsr = phy_read(phydev, MII_M1111_PHY_EXT_SR);
+	int err, mode;
+
+	if (extsr < 0)
+		return extsr;
+
+	/* If using copper mode, ensure 1000BaseX auto-negotiation is enabled */
+	mode = extsr & MII_M1111_HWCFG_MODE_MASK;
+	if (mode == MII_M1111_HWCFG_MODE_COPPER_1000X_NOAN) {
+		err = phy_modify(phydev, MII_M1111_PHY_EXT_SR,
+				 MII_M1111_HWCFG_MODE_MASK |
+				 MII_M1111_HWCFG_SERIAL_AN_BYPASS,
+				 MII_M1111_HWCFG_MODE_COPPER_1000X_AN |
+				 MII_M1111_HWCFG_SERIAL_AN_BYPASS);
+		if (err < 0)
+			return err;
+	}
+	return 0;
+}
+
 static int m88e1111_config_init(struct phy_device *phydev)
 {
 	int err;
@@ -832,6 +902,12 @@ static int m88e1111_config_init(struct phy_device *phydev)
 
 	if (phydev->interface == PHY_INTERFACE_MODE_RTBI) {
 		err = m88e1111_config_init_rtbi(phydev);
+		if (err < 0)
+			return err;
+	}
+
+	if (phydev->interface == PHY_INTERFACE_MODE_1000BASEX) {
+		err = m88e1111_config_init_1000basex(phydev);
 		if (err < 0)
 			return err;
 	}
@@ -2658,7 +2734,28 @@ static struct phy_driver marvell_drivers[] = {
 		/* PHY_GBIT_FEATURES */
 		.probe = marvell_probe,
 		.config_init = m88e1111_config_init,
-		.config_aneg = marvell_config_aneg,
+		.config_aneg = m88e1111_config_aneg,
+		.read_status = marvell_read_status,
+		.ack_interrupt = marvell_ack_interrupt,
+		.config_intr = marvell_config_intr,
+		.resume = genphy_resume,
+		.suspend = genphy_suspend,
+		.read_page = marvell_read_page,
+		.write_page = marvell_write_page,
+		.get_sset_count = marvell_get_sset_count,
+		.get_strings = marvell_get_strings,
+		.get_stats = marvell_get_stats,
+		.get_tunable = m88e1111_get_tunable,
+		.set_tunable = m88e1111_set_tunable,
+	},
+	{
+		.phy_id = MARVELL_PHY_ID_88E1111_FINISAR,
+		.phy_id_mask = MARVELL_PHY_ID_MASK,
+		.name = "Marvell 88E1111 (Finisar)",
+		/* PHY_GBIT_FEATURES */
+		.probe = marvell_probe,
+		.config_init = m88e1111_config_init,
+		.config_aneg = m88e1111_config_aneg,
 		.read_status = marvell_read_status,
 		.ack_interrupt = marvell_ack_interrupt,
 		.config_intr = marvell_config_intr,
@@ -2989,6 +3086,7 @@ static struct mdio_device_id __maybe_unused marvell_tbl[] = {
 	{ MARVELL_PHY_ID_88E1101, MARVELL_PHY_ID_MASK },
 	{ MARVELL_PHY_ID_88E1112, MARVELL_PHY_ID_MASK },
 	{ MARVELL_PHY_ID_88E1111, MARVELL_PHY_ID_MASK },
+	{ MARVELL_PHY_ID_88E1111_FINISAR, MARVELL_PHY_ID_MASK },
 	{ MARVELL_PHY_ID_88E1118, MARVELL_PHY_ID_MASK },
 	{ MARVELL_PHY_ID_88E1121R, MARVELL_PHY_ID_MASK },
 	{ MARVELL_PHY_ID_88E1145, MARVELL_PHY_ID_MASK },
