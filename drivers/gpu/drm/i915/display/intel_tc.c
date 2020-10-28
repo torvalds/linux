@@ -652,7 +652,7 @@ void intel_tc_port_init(struct intel_digital_port *dig_port, bool is_legacy)
 	enum port port = dig_port->base.port;
 	enum tc_port tc_port = intel_port_to_tc(i915, port);
 
-	if (drm_WARN_ON(&i915->drm, tc_port == PORT_TC_NONE))
+	if (drm_WARN_ON(&i915->drm, tc_port == TC_PORT_NONE))
 		return;
 
 	snprintf(dig_port->tc_port_name, sizeof(dig_port->tc_port_name),

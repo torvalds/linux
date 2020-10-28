@@ -132,24 +132,24 @@ static const u32 hpd_bxt[HPD_NUM_PINS] = {
 };
 
 static const u32 hpd_gen11[HPD_NUM_PINS] = {
-	[HPD_PORT_TC1] = GEN11_TC_HOTPLUG(PORT_TC1) | GEN11_TBT_HOTPLUG(PORT_TC1),
-	[HPD_PORT_TC2] = GEN11_TC_HOTPLUG(PORT_TC2) | GEN11_TBT_HOTPLUG(PORT_TC2),
-	[HPD_PORT_TC3] = GEN11_TC_HOTPLUG(PORT_TC3) | GEN11_TBT_HOTPLUG(PORT_TC3),
-	[HPD_PORT_TC4] = GEN11_TC_HOTPLUG(PORT_TC4) | GEN11_TBT_HOTPLUG(PORT_TC4),
-	[HPD_PORT_TC5] = GEN11_TC_HOTPLUG(PORT_TC5) | GEN11_TBT_HOTPLUG(PORT_TC5),
-	[HPD_PORT_TC6] = GEN11_TC_HOTPLUG(PORT_TC6) | GEN11_TBT_HOTPLUG(PORT_TC6),
+	[HPD_PORT_TC1] = GEN11_TC_HOTPLUG(TC_PORT_1) | GEN11_TBT_HOTPLUG(TC_PORT_1),
+	[HPD_PORT_TC2] = GEN11_TC_HOTPLUG(TC_PORT_2) | GEN11_TBT_HOTPLUG(TC_PORT_2),
+	[HPD_PORT_TC3] = GEN11_TC_HOTPLUG(TC_PORT_3) | GEN11_TBT_HOTPLUG(TC_PORT_3),
+	[HPD_PORT_TC4] = GEN11_TC_HOTPLUG(TC_PORT_4) | GEN11_TBT_HOTPLUG(TC_PORT_4),
+	[HPD_PORT_TC5] = GEN11_TC_HOTPLUG(TC_PORT_5) | GEN11_TBT_HOTPLUG(TC_PORT_5),
+	[HPD_PORT_TC6] = GEN11_TC_HOTPLUG(TC_PORT_6) | GEN11_TBT_HOTPLUG(TC_PORT_6),
 };
 
 static const u32 hpd_icp[HPD_NUM_PINS] = {
 	[HPD_PORT_A] = SDE_DDI_HOTPLUG_ICP(PORT_A),
 	[HPD_PORT_B] = SDE_DDI_HOTPLUG_ICP(PORT_B),
 	[HPD_PORT_C] = SDE_DDI_HOTPLUG_ICP(PORT_C),
-	[HPD_PORT_TC1] = SDE_TC_HOTPLUG_ICP(PORT_TC1),
-	[HPD_PORT_TC2] = SDE_TC_HOTPLUG_ICP(PORT_TC2),
-	[HPD_PORT_TC3] = SDE_TC_HOTPLUG_ICP(PORT_TC3),
-	[HPD_PORT_TC4] = SDE_TC_HOTPLUG_ICP(PORT_TC4),
-	[HPD_PORT_TC5] = SDE_TC_HOTPLUG_ICP(PORT_TC5),
-	[HPD_PORT_TC6] = SDE_TC_HOTPLUG_ICP(PORT_TC6),
+	[HPD_PORT_TC1] = SDE_TC_HOTPLUG_ICP(TC_PORT_1),
+	[HPD_PORT_TC2] = SDE_TC_HOTPLUG_ICP(TC_PORT_2),
+	[HPD_PORT_TC3] = SDE_TC_HOTPLUG_ICP(TC_PORT_3),
+	[HPD_PORT_TC4] = SDE_TC_HOTPLUG_ICP(TC_PORT_4),
+	[HPD_PORT_TC5] = SDE_TC_HOTPLUG_ICP(TC_PORT_5),
+	[HPD_PORT_TC6] = SDE_TC_HOTPLUG_ICP(TC_PORT_6),
 };
 
 static const u32 hpd_sde_dg1[HPD_NUM_PINS] = {
@@ -1042,17 +1042,17 @@ static bool gen11_port_hotplug_long_detect(enum hpd_pin pin, u32 val)
 {
 	switch (pin) {
 	case HPD_PORT_TC1:
-		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(PORT_TC1);
+		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(TC_PORT_1);
 	case HPD_PORT_TC2:
-		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(PORT_TC2);
+		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(TC_PORT_2);
 	case HPD_PORT_TC3:
-		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(PORT_TC3);
+		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(TC_PORT_3);
 	case HPD_PORT_TC4:
-		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(PORT_TC4);
+		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(TC_PORT_4);
 	case HPD_PORT_TC5:
-		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(PORT_TC5);
+		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(TC_PORT_5);
 	case HPD_PORT_TC6:
-		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(PORT_TC6);
+		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(TC_PORT_6);
 	default:
 		return false;
 	}
@@ -1092,17 +1092,17 @@ static bool icp_tc_port_hotplug_long_detect(enum hpd_pin pin, u32 val)
 {
 	switch (pin) {
 	case HPD_PORT_TC1:
-		return val & ICP_TC_HPD_LONG_DETECT(PORT_TC1);
+		return val & ICP_TC_HPD_LONG_DETECT(TC_PORT_1);
 	case HPD_PORT_TC2:
-		return val & ICP_TC_HPD_LONG_DETECT(PORT_TC2);
+		return val & ICP_TC_HPD_LONG_DETECT(TC_PORT_2);
 	case HPD_PORT_TC3:
-		return val & ICP_TC_HPD_LONG_DETECT(PORT_TC3);
+		return val & ICP_TC_HPD_LONG_DETECT(TC_PORT_3);
 	case HPD_PORT_TC4:
-		return val & ICP_TC_HPD_LONG_DETECT(PORT_TC4);
+		return val & ICP_TC_HPD_LONG_DETECT(TC_PORT_4);
 	case HPD_PORT_TC5:
-		return val & ICP_TC_HPD_LONG_DETECT(PORT_TC5);
+		return val & ICP_TC_HPD_LONG_DETECT(TC_PORT_5);
 	case HPD_PORT_TC6:
-		return val & ICP_TC_HPD_LONG_DETECT(PORT_TC6);
+		return val & ICP_TC_HPD_LONG_DETECT(TC_PORT_6);
 	default:
 		return false;
 	}
@@ -1884,7 +1884,7 @@ static void icp_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 		tc_hotplug_trigger = 0;
 	} else if (HAS_PCH_MCC(dev_priv)) {
 		ddi_hotplug_trigger = pch_iir & SDE_DDI_MASK_ICP;
-		tc_hotplug_trigger = pch_iir & SDE_TC_HOTPLUG_ICP(PORT_TC1);
+		tc_hotplug_trigger = pch_iir & SDE_TC_HOTPLUG_ICP(TC_PORT_1);
 	} else {
 		drm_WARN(&dev_priv->drm, !HAS_PCH_ICP(dev_priv),
 			 "Unrecognized PCH type 0x%x\n",
@@ -3252,7 +3252,7 @@ static void icp_hpd_irq_setup(struct drm_i915_private *dev_priv,
 static void mcc_hpd_irq_setup(struct drm_i915_private *dev_priv)
 {
 	icp_hpd_irq_setup(dev_priv,
-			  ICP_DDI_HPD_ENABLE_MASK, ICP_TC_HPD_ENABLE(PORT_TC1));
+			  ICP_DDI_HPD_ENABLE_MASK, ICP_TC_HPD_ENABLE(TC_PORT_1));
 }
 
 /*
@@ -3286,21 +3286,21 @@ static void gen11_hpd_detection_setup(struct drm_i915_private *dev_priv)
 	u32 hotplug;
 
 	hotplug = I915_READ(GEN11_TC_HOTPLUG_CTL);
-	hotplug |= GEN11_HOTPLUG_CTL_ENABLE(PORT_TC1) |
-		   GEN11_HOTPLUG_CTL_ENABLE(PORT_TC2) |
-		   GEN11_HOTPLUG_CTL_ENABLE(PORT_TC3) |
-		   GEN11_HOTPLUG_CTL_ENABLE(PORT_TC4) |
-		   GEN11_HOTPLUG_CTL_ENABLE(PORT_TC5) |
-		   GEN11_HOTPLUG_CTL_ENABLE(PORT_TC6);
+	hotplug |= GEN11_HOTPLUG_CTL_ENABLE(TC_PORT_1) |
+		   GEN11_HOTPLUG_CTL_ENABLE(TC_PORT_2) |
+		   GEN11_HOTPLUG_CTL_ENABLE(TC_PORT_3) |
+		   GEN11_HOTPLUG_CTL_ENABLE(TC_PORT_4) |
+		   GEN11_HOTPLUG_CTL_ENABLE(TC_PORT_5) |
+		   GEN11_HOTPLUG_CTL_ENABLE(TC_PORT_6);
 	I915_WRITE(GEN11_TC_HOTPLUG_CTL, hotplug);
 
 	hotplug = I915_READ(GEN11_TBT_HOTPLUG_CTL);
-	hotplug |= GEN11_HOTPLUG_CTL_ENABLE(PORT_TC1) |
-		   GEN11_HOTPLUG_CTL_ENABLE(PORT_TC2) |
-		   GEN11_HOTPLUG_CTL_ENABLE(PORT_TC3) |
-		   GEN11_HOTPLUG_CTL_ENABLE(PORT_TC4) |
-		   GEN11_HOTPLUG_CTL_ENABLE(PORT_TC5) |
-		   GEN11_HOTPLUG_CTL_ENABLE(PORT_TC6);
+	hotplug |= GEN11_HOTPLUG_CTL_ENABLE(TC_PORT_1) |
+		   GEN11_HOTPLUG_CTL_ENABLE(TC_PORT_2) |
+		   GEN11_HOTPLUG_CTL_ENABLE(TC_PORT_3) |
+		   GEN11_HOTPLUG_CTL_ENABLE(TC_PORT_4) |
+		   GEN11_HOTPLUG_CTL_ENABLE(TC_PORT_5) |
+		   GEN11_HOTPLUG_CTL_ENABLE(TC_PORT_6);
 	I915_WRITE(GEN11_TBT_HOTPLUG_CTL, hotplug);
 }
 
@@ -3675,7 +3675,7 @@ static void icp_irq_postinstall(struct drm_i915_private *dev_priv)
 		icp_ddi_hpd_detection_setup(dev_priv, TGP_DDI_HPD_ENABLE_MASK);
 	} else if (HAS_PCH_MCC(dev_priv)) {
 		icp_ddi_hpd_detection_setup(dev_priv, ICP_DDI_HPD_ENABLE_MASK);
-		icp_tc_hpd_detection_setup(dev_priv, ICP_TC_HPD_ENABLE(PORT_TC1));
+		icp_tc_hpd_detection_setup(dev_priv, ICP_TC_HPD_ENABLE(TC_PORT_1));
 	} else {
 		icp_ddi_hpd_detection_setup(dev_priv, ICP_DDI_HPD_ENABLE_MASK);
 		icp_tc_hpd_detection_setup(dev_priv, ICP_TC_HPD_ENABLE_MASK);

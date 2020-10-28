@@ -244,14 +244,14 @@ static inline const char *port_identifier(enum port port)
 }
 
 enum tc_port {
-	PORT_TC_NONE = -1,
+	TC_PORT_NONE = -1,
 
-	PORT_TC1 = 0,
-	PORT_TC2,
-	PORT_TC3,
-	PORT_TC4,
-	PORT_TC5,
-	PORT_TC6,
+	TC_PORT_1 = 0,
+	TC_PORT_2,
+	TC_PORT_3,
+	TC_PORT_4,
+	TC_PORT_5,
+	TC_PORT_6,
 
 	I915_MAX_TC_PORTS
 };
