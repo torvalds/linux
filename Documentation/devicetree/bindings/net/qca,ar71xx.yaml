@@ -72,6 +72,8 @@ required:
   - resets
   - reset-names
 
+unevaluatedProperties: false
+
 examples:
   # Lager board
   - |

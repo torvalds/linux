@@ -132,9 +132,8 @@ alternative_else_nop_endif
 	 * them if required.
 	 */
 	.macro	apply_ssbd, state, tmp1, tmp2
-#ifdef CONFIG_ARM64_SSBD
-alternative_cb	arm64_enable_wa2_handling
-	b	.L__asm_ssbd_skip\@
+alternative_cb	spectre_v4_patch_fw_mitigation_enable
+	b	.L__asm_ssbd_skip\@		// Patched to NOP
 alternative_cb_end
 	ldr_this_cpu	\tmp2, arm64_ssbd_callback_required, \tmp1
 	cbz	\tmp2,	.L__asm_ssbd_skip\@
@@ -142,10 +141,35 @@ alternative_cb_end
 	tbnz	\tmp2, #TIF_SSBD, .L__asm_ssbd_skip\@
 	mov	w0, #ARM_SMCCC_ARCH_WORKAROUND_2
 	mov	w1, #\state
-alternative_cb	arm64_update_smccc_conduit
+alternative_cb	spectre_v4_patch_fw_mitigation_conduit
 	nop					// Patched to SMC/HVC #0
 alternative_cb_end
 .L__asm_ssbd_skip\@:
+	.endm
+
+	/* Check for MTE asynchronous tag check faults */
+	.macro check_mte_async_tcf, flgs, tmp
+#ifdef CONFIG_ARM64_MTE
+alternative_if_not ARM64_MTE
+	b	1f
+alternative_else_nop_endif
+	mrs_s	\tmp, SYS_TFSRE0_EL1
+	tbz	\tmp, #SYS_TFSR_EL1_TF0_SHIFT, 1f
+	/* Asynchronous TCF occurred for TTBR0 access, set the TI flag */
+	orr	\flgs, \flgs, #_TIF_MTE_ASYNC_FAULT
+	str	\flgs, [tsk, #TSK_TI_FLAGS]
+	msr_s	SYS_TFSRE0_EL1, xzr
+1:
+#endif
+	.endm
+
+	/* Clear the MTE asynchronous tag check faults */
+	.macro clear_mte_async_tcf
+#ifdef CONFIG_ARM64_MTE
+alternative_if ARM64_MTE
+	dsb	ish
+	msr_s	SYS_TFSRE0_EL1, xzr
+alternative_else_nop_endif
 #endif
 	.endm
 
@@ -182,6 +206,8 @@ alternative_cb_end
 	ldr	x19, [tsk, #TSK_TI_FLAGS]
 	disable_step_tsk x19, x20
 
+	/* Check for asynchronous tag check faults in user space */
+	check_mte_async_tcf x19, x22
 	apply_ssbd 1, x22, x23
 
 	ptrauth_keys_install_kernel tsk, x20, x22, x23
@@ -232,6 +258,13 @@ alternative_if ARM64_HAS_IRQ_PRIO_MASKING
 	mrs_s	x20, SYS_ICC_PMR_EL1
 	str	x20, [sp, #S_PMR_SAVE]
 alternative_else_nop_endif
+
+	/* Re-enable tag checking (TCO set on exception entry) */
+#ifdef CONFIG_ARM64_MTE
+alternative_if ARM64_MTE
+	SET_PSTATE_TCO(0)
+alternative_else_nop_endif
+#endif
 
 	/*
 	 * Registers that may be useful after this macro is invoked:
@@ -697,11 +730,9 @@ el0_irq_naked:
 	bl	trace_hardirqs_off
 #endif
 
-#ifdef CONFIG_HARDEN_BRANCH_PREDICTOR
 	tbz	x22, #55, 1f
 	bl	do_el0_irq_bp_hardening
 1:
-#endif
 	irq_handler
 
 #ifdef CONFIG_TRACE_IRQFLAGS
@@ -744,6 +775,8 @@ SYM_CODE_START_LOCAL(ret_to_user)
 	and	x2, x1, #_TIF_WORK_MASK
 	cbnz	x2, work_pending
 finish_ret_to_user:
+	/* Ignore asynchronous tag check faults in the uaccess routines */
+	clear_mte_async_tcf
 	enable_step_tsk x1, x2
 #ifdef CONFIG_GCC_PLUGIN_STACKLEAK
 	bl	stackleak_erase

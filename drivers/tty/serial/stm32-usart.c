@@ -129,13 +129,9 @@ static int stm32_config_rs485(struct uart_port *port,
 		if (rs485conf->flags & SER_RS485_RTS_ON_SEND) {
 			cr3 &= ~USART_CR3_DEP;
 			rs485conf->flags &= ~SER_RS485_RTS_AFTER_SEND;
-			mctrl_gpio_set(stm32_port->gpios,
-					stm32_port->port.mctrl & ~TIOCM_RTS);
 		} else {
 			cr3 |= USART_CR3_DEP;
 			rs485conf->flags |= SER_RS485_RTS_AFTER_SEND;
-			mctrl_gpio_set(stm32_port->gpios,
-					stm32_port->port.mctrl | TIOCM_RTS);
 		}
 
 		writel_relaxed(cr3, port->membase + ofs->cr3);
@@ -541,16 +537,41 @@ static void stm32_disable_ms(struct uart_port *port)
 /* Transmit stop */
 static void stm32_stop_tx(struct uart_port *port)
 {
+	struct stm32_port *stm32_port = to_stm32_port(port);
+	struct serial_rs485 *rs485conf = &port->rs485;
+
 	stm32_tx_interrupt_disable(port);
+
+	if (rs485conf->flags & SER_RS485_ENABLED) {
+		if (rs485conf->flags & SER_RS485_RTS_ON_SEND) {
+			mctrl_gpio_set(stm32_port->gpios,
+					stm32_port->port.mctrl & ~TIOCM_RTS);
+		} else {
+			mctrl_gpio_set(stm32_port->gpios,
+					stm32_port->port.mctrl | TIOCM_RTS);
+		}
+	}
 }
 
 /* There are probably characters waiting to be transmitted. */
 static void stm32_start_tx(struct uart_port *port)
 {
+	struct stm32_port *stm32_port = to_stm32_port(port);
+	struct serial_rs485 *rs485conf = &port->rs485;
 	struct circ_buf *xmit = &port->state->xmit;
 
 	if (uart_circ_empty(xmit))
 		return;
+
+	if (rs485conf->flags & SER_RS485_ENABLED) {
+		if (rs485conf->flags & SER_RS485_RTS_ON_SEND) {
+			mctrl_gpio_set(stm32_port->gpios,
+					stm32_port->port.mctrl | TIOCM_RTS);
+		} else {
+			mctrl_gpio_set(stm32_port->gpios,
+					stm32_port->port.mctrl & ~TIOCM_RTS);
+		}
+	}
 
 	stm32_transmit_chars(port);
 }
@@ -851,13 +872,9 @@ static void stm32_set_termios(struct uart_port *port, struct ktermios *termios,
 		if (rs485conf->flags & SER_RS485_RTS_ON_SEND) {
 			cr3 &= ~USART_CR3_DEP;
 			rs485conf->flags &= ~SER_RS485_RTS_AFTER_SEND;
-			mctrl_gpio_set(stm32_port->gpios,
-					stm32_port->port.mctrl & ~TIOCM_RTS);
 		} else {
 			cr3 |= USART_CR3_DEP;
 			rs485conf->flags |= SER_RS485_RTS_AFTER_SEND;
-			mctrl_gpio_set(stm32_port->gpios,
-					stm32_port->port.mctrl | TIOCM_RTS);
 		}
 
 	} else {

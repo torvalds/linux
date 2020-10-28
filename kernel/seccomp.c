@@ -196,6 +196,10 @@ struct seccomp_filter {
  */
 static void populate_seccomp_data(struct seccomp_data *sd)
 {
+	/*
+	 * Instead of using current_pt_reg(), we're already doing the work
+	 * to safely fetch "current", so just use "task" everywhere below.
+	 */
 	struct task_struct *task = current;
 	struct pt_regs *regs = task_pt_regs(task);
 	unsigned long args[6];
@@ -910,7 +914,7 @@ out:
 	if (flags & SECCOMP_USER_NOTIF_FLAG_CONTINUE)
 		return 0;
 
-	syscall_set_return_value(current, task_pt_regs(current),
+	syscall_set_return_value(current, current_pt_regs(),
 				 err, ret);
 	return -1;
 }
@@ -943,13 +947,13 @@ static int __seccomp_filter(int this_syscall, const struct seccomp_data *sd,
 		/* Set low-order bits as an errno, capped at MAX_ERRNO. */
 		if (data > MAX_ERRNO)
 			data = MAX_ERRNO;
-		syscall_set_return_value(current, task_pt_regs(current),
+		syscall_set_return_value(current, current_pt_regs(),
 					 -data, 0);
 		goto skip;
 
 	case SECCOMP_RET_TRAP:
 		/* Show the handler the original registers. */
-		syscall_rollback(current, task_pt_regs(current));
+		syscall_rollback(current, current_pt_regs());
 		/* Let the filter pass back 16 bits of data. */
 		seccomp_send_sigsys(this_syscall, data);
 		goto skip;
@@ -962,7 +966,7 @@ static int __seccomp_filter(int this_syscall, const struct seccomp_data *sd,
 		/* ENOSYS these calls if there is no tracer attached. */
 		if (!ptrace_event_enabled(current, PTRACE_EVENT_SECCOMP)) {
 			syscall_set_return_value(current,
-						 task_pt_regs(current),
+						 current_pt_regs(),
 						 -ENOSYS, 0);
 			goto skip;
 		}
@@ -982,7 +986,7 @@ static int __seccomp_filter(int this_syscall, const struct seccomp_data *sd,
 		if (fatal_signal_pending(current))
 			goto skip;
 		/* Check if the tracer forced the syscall to be skipped. */
-		this_syscall = syscall_get_nr(current, task_pt_regs(current));
+		this_syscall = syscall_get_nr(current, current_pt_regs());
 		if (this_syscall < 0)
 			goto skip;
 
@@ -1020,20 +1024,20 @@ static int __seccomp_filter(int this_syscall, const struct seccomp_data *sd,
 	default:
 		seccomp_log(this_syscall, SIGSYS, action, true);
 		/* Dump core only if this is the last remaining thread. */
-		if (action == SECCOMP_RET_KILL_PROCESS ||
+		if (action != SECCOMP_RET_KILL_THREAD ||
 		    get_nr_threads(current) == 1) {
 			kernel_siginfo_t info;
 
 			/* Show the original registers in the dump. */
-			syscall_rollback(current, task_pt_regs(current));
+			syscall_rollback(current, current_pt_regs());
 			/* Trigger a manual coredump since do_exit skips it. */
 			seccomp_init_siginfo(&info, this_syscall, data);
 			do_coredump(&info);
 		}
-		if (action == SECCOMP_RET_KILL_PROCESS)
-			do_group_exit(SIGSYS);
-		else
+		if (action == SECCOMP_RET_KILL_THREAD)
 			do_exit(SIGSYS);
+		else
+			do_group_exit(SIGSYS);
 	}
 
 	unreachable();
@@ -1060,7 +1064,7 @@ int __secure_computing(const struct seccomp_data *sd)
 		return 0;
 
 	this_syscall = sd ? sd->nr :
-		syscall_get_nr(current, task_pt_regs(current));
+		syscall_get_nr(current, current_pt_regs());
 
 	switch (mode) {
 	case SECCOMP_MODE_STRICT:
@@ -1472,13 +1476,7 @@ static const struct file_operations seccomp_notify_ops = {
 
 static struct file *init_listener(struct seccomp_filter *filter)
 {
-	struct file *ret = ERR_PTR(-EBUSY);
-	struct seccomp_filter *cur;
-
-	for (cur = current->seccomp.filter; cur; cur = cur->prev) {
-		if (cur->notif)
-			goto out;
-	}
+	struct file *ret;
 
 	ret = ERR_PTR(-ENOMEM);
 	filter->notif = kzalloc(sizeof(*(filter->notif)), GFP_KERNEL);
@@ -1502,6 +1500,31 @@ out_notif:
 		seccomp_notify_free(filter);
 out:
 	return ret;
+}
+
+/*
+ * Does @new_child have a listener while an ancestor also has a listener?
+ * If so, we'll want to reject this filter.
+ * This only has to be tested for the current process, even in the TSYNC case,
+ * because TSYNC installs @child with the same parent on all threads.
+ * Note that @new_child is not hooked up to its parent at this point yet, so
+ * we use current->seccomp.filter.
+ */
+static bool has_duplicate_listener(struct seccomp_filter *new_child)
+{
+	struct seccomp_filter *cur;
+
+	/* must be protected against concurrent TSYNC */
+	lockdep_assert_held(&current->sighand->siglock);
+
+	if (!new_child->notif)
+		return false;
+	for (cur = current->seccomp.filter; cur; cur = cur->prev) {
+		if (cur->notif)
+			return true;
+	}
+
+	return false;
 }
 
 /**
@@ -1574,6 +1597,11 @@ static long seccomp_set_mode_filter(unsigned int flags,
 
 	if (!seccomp_may_assign_mode(seccomp_mode))
 		goto out;
+
+	if (has_duplicate_listener(prepared)) {
+		ret = -EBUSY;
+		goto out;
+	}
 
 	ret = seccomp_attach_filter(flags, prepared);
 	if (ret)

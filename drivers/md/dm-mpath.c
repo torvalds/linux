@@ -466,10 +466,8 @@ failed:
  */
 #define dm_report_EIO(m)						\
 do {									\
-	struct mapped_device *md = dm_table_get_md((m)->ti->table);	\
-									\
 	DMDEBUG_LIMIT("%s: returning EIO; QIFNP = %d; SQIFNP = %d; DNFS = %d", \
-		      dm_device_name(md),				\
+		      dm_table_device_name((m)->ti->table),		\
 		      test_bit(MPATHF_QUEUE_IF_NO_PATH, &(m)->flags),	\
 		      test_bit(MPATHF_SAVED_QUEUE_IF_NO_PATH, &(m)->flags), \
 		      dm_noflush_suspending((m)->ti));			\
@@ -736,7 +734,7 @@ static int queue_if_no_path(struct multipath *m, bool queue_if_no_path,
 {
 	unsigned long flags;
 	bool queue_if_no_path_bit, saved_queue_if_no_path_bit;
-	const char *dm_dev_name = dm_device_name(dm_table_get_md(m->ti->table));
+	const char *dm_dev_name = dm_table_device_name(m->ti->table);
 
 	DMDEBUG("%s: %s caller=%s queue_if_no_path=%d save_old_value=%d",
 		dm_dev_name, __func__, caller, queue_if_no_path, save_old_value);
@@ -781,9 +779,9 @@ static int queue_if_no_path(struct multipath *m, bool queue_if_no_path,
 static void queue_if_no_path_timeout_work(struct timer_list *t)
 {
 	struct multipath *m = from_timer(m, t, nopath_timer);
-	struct mapped_device *md = dm_table_get_md(m->ti->table);
 
-	DMWARN("queue_if_no_path timeout on %s, failing queued IO", dm_device_name(md));
+	DMWARN("queue_if_no_path timeout on %s, failing queued IO",
+	       dm_table_device_name(m->ti->table));
 	queue_if_no_path(m, false, false, __func__);
 }
 
@@ -1334,7 +1332,7 @@ static int fail_path(struct pgpath *pgpath)
 		goto out;
 
 	DMWARN("%s: Failing path %s.",
-	       dm_device_name(dm_table_get_md(m->ti->table)),
+	       dm_table_device_name(m->ti->table),
 	       pgpath->path.dev->name);
 
 	pgpath->pg->ps.type->fail_path(&pgpath->pg->ps, &pgpath->path);
@@ -1375,7 +1373,7 @@ static int reinstate_path(struct pgpath *pgpath)
 		goto out;
 
 	DMWARN("%s: Reinstating path %s.",
-	       dm_device_name(dm_table_get_md(m->ti->table)),
+	       dm_table_device_name(m->ti->table),
 	       pgpath->path.dev->name);
 
 	r = pgpath->pg->ps.type->reinstate_path(&pgpath->pg->ps, &pgpath->path);
@@ -1766,7 +1764,7 @@ static void multipath_resume(struct dm_target *ti)
 	}
 
 	DMDEBUG("%s: %s finished; QIFNP = %d; SQIFNP = %d",
-		dm_device_name(dm_table_get_md(m->ti->table)), __func__,
+		dm_table_device_name(m->ti->table), __func__,
 		test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags),
 		test_bit(MPATHF_SAVED_QUEUE_IF_NO_PATH, &m->flags));
 

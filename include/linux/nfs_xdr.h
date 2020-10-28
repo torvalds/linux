@@ -525,7 +525,7 @@ struct nfs_closeargs {
 	struct nfs_seqid *	seqid;
 	fmode_t			fmode;
 	u32			share_access;
-	const u32 *		bitmask;
+	u32 *			bitmask;
 	struct nfs4_layoutreturn_args *lr_args;
 };
 
@@ -608,7 +608,7 @@ struct nfs4_delegreturnargs {
 	struct nfs4_sequence_args	seq_args;
 	const struct nfs_fh *fhandle;
 	const nfs4_stateid *stateid;
-	const u32 * bitmask;
+	u32 * bitmask;
 	struct nfs4_layoutreturn_args *lr_args;
 };
 
@@ -648,7 +648,7 @@ struct nfs_pgio_args {
 	union {
 		unsigned int		replen;			/* used by read */
 		struct {
-			const u32 *		bitmask;	/* used by write */
+			u32 *			bitmask;	/* used by write */
 			enum nfs3_stable_how	stable;		/* used by write */
 		};
 	};
@@ -657,7 +657,7 @@ struct nfs_pgio_args {
 struct nfs_pgio_res {
 	struct nfs4_sequence_res	seq_res;
 	struct nfs_fattr *	fattr;
-	__u32			count;
+	__u64			count;
 	__u32			op_status;
 	union {
 		struct {
@@ -1611,8 +1611,8 @@ struct nfs_pgio_header {
 	__u64			mds_offset;	/* Filelayout dense stripe */
 	struct nfs_page_array	page_array;
 	struct nfs_client	*ds_clp;	/* pNFS data server */
-	int			ds_commit_idx;	/* ds index if ds_clp is set */
-	int			pgio_mirror_idx;/* mirror index in pgio layer */
+	u32			ds_commit_idx;	/* ds index if ds_clp is set */
+	u32			pgio_mirror_idx;/* mirror index in pgio layer */
 };
 
 struct nfs_mds_commit_info {

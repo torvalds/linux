@@ -529,7 +529,7 @@
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	.result = REJECT,
-	.errstr = "invalid access to packet, off=0 size=8, R5(id=1,off=0,r=0)",
+	.errstr = "invalid access to packet, off=0 size=8, R5(id=2,off=0,r=0)",
 	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {

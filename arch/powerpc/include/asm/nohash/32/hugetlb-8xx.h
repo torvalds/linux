@@ -65,4 +65,18 @@ static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
 	pte_update(mm, addr, ptep, clr, set, 1);
 }
 
+#ifdef CONFIG_PPC_4K_PAGES
+static inline pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
+				       struct page *page, int writable)
+{
+	size_t size = huge_page_size(hstate_vma(vma));
+
+	if (size == SZ_16K)
+		return __pte(pte_val(entry) & ~_PAGE_HUGE);
+	else
+		return entry;
+}
+#define arch_make_huge_pte arch_make_huge_pte
+#endif
+
 #endif /* _ASM_POWERPC_NOHASH_32_HUGETLB_8XX_H */

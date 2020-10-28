@@ -313,9 +313,15 @@ static void intel_dvo_pre_enable(struct intel_atomic_state *state,
 static enum drm_connector_status
 intel_dvo_detect(struct drm_connector *connector, bool force)
 {
+	struct drm_i915_private *i915 = to_i915(connector->dev);
 	struct intel_dvo *intel_dvo = intel_attached_dvo(to_intel_connector(connector));
+
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
 		      connector->base.id, connector->name);
+
+	if (!INTEL_DISPLAY_ENABLED(i915))
+		return connector_status_disconnected;
+
 	return intel_dvo->dev.dev_ops->detect(&intel_dvo->dev);
 }
 

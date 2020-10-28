@@ -303,7 +303,7 @@ static void gfs2_sbd_release(struct kobject *kobj)
 {
 	struct gfs2_sbd *sdp = container_of(kobj, struct gfs2_sbd, sd_kobj);
 
-	free_sbd(sdp);
+	complete(&sdp->sd_kobj_unregister);
 }
 
 static struct kobj_type gfs2_ktype = {
@@ -655,6 +655,7 @@ int gfs2_sys_fs_add(struct gfs2_sbd *sdp)
 	sprintf(ro, "RDONLY=%d", sb_rdonly(sb));
 	sprintf(spectator, "SPECTATOR=%d", sdp->sd_args.ar_spectator ? 1 : 0);
 
+	init_completion(&sdp->sd_kobj_unregister);
 	sdp->sd_kobj.kset = gfs2_kset;
 	error = kobject_init_and_add(&sdp->sd_kobj, &gfs2_ktype, NULL,
 				     "%s", sdp->sd_table_name);
@@ -685,6 +686,7 @@ fail_tune:
 fail_reg:
 	fs_err(sdp, "error %d adding sysfs files\n", error);
 	kobject_put(&sdp->sd_kobj);
+	wait_for_completion(&sdp->sd_kobj_unregister);
 	sb->s_fs_info = NULL;
 	return error;
 }
@@ -695,6 +697,7 @@ void gfs2_sys_fs_del(struct gfs2_sbd *sdp)
 	sysfs_remove_group(&sdp->sd_kobj, &tune_group);
 	sysfs_remove_group(&sdp->sd_kobj, &lock_module_group);
 	kobject_put(&sdp->sd_kobj);
+	wait_for_completion(&sdp->sd_kobj_unregister);
 }
 
 static int gfs2_uevent(struct kset *kset, struct kobject *kobj,

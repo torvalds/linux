@@ -165,10 +165,9 @@ static irqreturn_t owl_i2c_interrupt(int irq, void *_dev)
 {
 	struct owl_i2c_dev *i2c_dev = _dev;
 	struct i2c_msg *msg = i2c_dev->msg;
-	unsigned long flags;
 	unsigned int stat, fifostat;
 
-	spin_lock_irqsave(&i2c_dev->lock, flags);
+	spin_lock(&i2c_dev->lock);
 
 	i2c_dev->err = 0;
 
@@ -176,6 +175,9 @@ static irqreturn_t owl_i2c_interrupt(int irq, void *_dev)
 	fifostat = readl(i2c_dev->base + OWL_I2C_REG_FIFOSTAT);
 	if (fifostat & OWL_I2C_FIFOSTAT_RNB) {
 		i2c_dev->err = -ENXIO;
+		/* Clear NACK error bit by writing "1" */
+		owl_i2c_update_reg(i2c_dev->base + OWL_I2C_REG_FIFOSTAT,
+				   OWL_I2C_FIFOSTAT_RNB, true);
 		goto stop;
 	}
 
@@ -183,6 +185,9 @@ static irqreturn_t owl_i2c_interrupt(int irq, void *_dev)
 	stat = readl(i2c_dev->base + OWL_I2C_REG_STAT);
 	if (stat & OWL_I2C_STAT_BEB) {
 		i2c_dev->err = -EIO;
+		/* Clear BUS error bit by writing "1" */
+		owl_i2c_update_reg(i2c_dev->base + OWL_I2C_REG_STAT,
+				   OWL_I2C_STAT_BEB, true);
 		goto stop;
 	}
 
@@ -208,7 +213,7 @@ stop:
 			   OWL_I2C_STAT_IRQP, true);
 
 	complete_all(&i2c_dev->msg_complete);
-	spin_unlock_irqrestore(&i2c_dev->lock, flags);
+	spin_unlock(&i2c_dev->lock);
 
 	return IRQ_HANDLED;
 }

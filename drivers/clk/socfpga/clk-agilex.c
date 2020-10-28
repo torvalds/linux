@@ -21,19 +21,6 @@ static const struct clk_parent_data pll_mux[] = {
 	  .name = "f2s-free-clk", },
 };
 
-static const struct clk_parent_data cntr_mux[] = {
-	{ .fw_name = "main_pll",
-	  .name = "main_pll", },
-	{ .fw_name = "periph_pll",
-	  .name = "periph_pll", },
-	{ .fw_name = "osc1",
-	  .name = "osc1", },
-	{ .fw_name = "cb-intosc-hs-div2-clk",
-	  .name = "cb-intosc-hs-div2-clk", },
-	{ .fw_name = "f2s-free-clk",
-	  .name = "f2s-free-clk", },
-};
-
 static const struct clk_parent_data boot_mux[] = {
 	{ .fw_name = "osc1",
 	  .name = "osc1", },

@@ -1015,7 +1015,7 @@ config VIDEO_OV7670
 config VIDEO_OV7740
 	tristate "OmniVision OV7740 sensor support"
 	depends on I2C && VIDEO_V4L2
-	select REGMAP_I2C
+	select REGMAP_SCCB
 	help
 	  This is a Video4Linux2 sensor driver for the OmniVision
 	  OV7740 VGA camera sensor.

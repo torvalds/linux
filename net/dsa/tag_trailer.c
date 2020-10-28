@@ -83,6 +83,7 @@ static const struct dsa_device_ops trailer_netdev_ops = {
 	.xmit	= trailer_xmit,
 	.rcv	= trailer_rcv,
 	.overhead = 4,
+	.tail_tag = true,
 };
 
 MODULE_LICENSE("GPL");

@@ -11,7 +11,7 @@
 extern struct of_cpuidle_method __cpuidle_method_of_table[];
 
 static const struct of_cpuidle_method __cpuidle_method_of_table_sentinel
-	__used __section(__cpuidle_method_of_table_end);
+	__used __section("__cpuidle_method_of_table_end");
 
 static struct cpuidle_ops cpuidle_ops[NR_CPUS] __ro_after_init;
 

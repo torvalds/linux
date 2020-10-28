@@ -1431,8 +1431,7 @@ static int ufs_statfs(struct dentry *dentry, struct kstatfs *buf)
 		? (buf->f_bfree - uspi->s_root_blocks) : 0;
 	buf->f_files = uspi->s_ncg * uspi->s_ipg;
 	buf->f_namelen = UFS_MAXNAMLEN;
-	buf->f_fsid.val[0] = (u32)id;
-	buf->f_fsid.val[1] = (u32)(id >> 32);
+	buf->f_fsid = u64_to_fsid(id);
 
 	mutex_unlock(&UFS_SB(sb)->s_lock);
 

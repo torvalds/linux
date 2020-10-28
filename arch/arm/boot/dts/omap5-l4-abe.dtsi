@@ -1,14 +1,16 @@
 &l4_abe {						/* 0x40100000 */
-	compatible = "ti,omap5-l4-abe", "simple-bus";
+	compatible = "ti,omap5-l4-abe", "simple-pm-bus";
 	reg = <0x40100000 0x400>,
 	      <0x40100400 0x400>;
 	reg-names = "la", "ap";
+	power-domains = <&prm_abe>;
+	/* OMAP5_L4_ABE_CLKCTRL is read-only */
 	#address-cells = <1>;
 	#size-cells = <1>;
 	ranges = <0x00000000 0x40100000 0x100000>,	/* segment 0 */
 		 <0x49000000 0x49000000 0x100000>;
 	segment@0 {					/* 0x40100000 */
-		compatible = "simple-bus";
+		compatible = "simple-pm-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges =

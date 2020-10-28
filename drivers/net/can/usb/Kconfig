@@ -90,7 +90,7 @@ config CAN_PEAK_USB
 	tristate "PEAK PCAN-USB/USB Pro interfaces for CAN 2.0b/CAN-FD"
 	help
 	  This driver supports the PEAK-System Technik USB adapters that enable
-	  access to the CAN bus, with repect to the CAN 2.0b and/or CAN-FD
+	  access to the CAN bus, with respect to the CAN 2.0b and/or CAN-FD
 	  standards, that is:
 
 	  PCAN-USB             single CAN 2.0b channel USB adapter

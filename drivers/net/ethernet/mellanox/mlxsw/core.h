@@ -32,6 +32,8 @@ void *mlxsw_core_driver_priv(struct mlxsw_core *mlxsw_core);
 
 bool mlxsw_core_res_query_enabled(const struct mlxsw_core *mlxsw_core);
 
+bool mlxsw_core_temp_warn_enabled(const struct mlxsw_core *mlxsw_core);
+
 bool
 mlxsw_core_fw_rev_minor_subminor_validate(const struct mlxsw_fw_rev *rev,
 					  const struct mlxsw_fw_rev *req_rev);
@@ -221,6 +223,8 @@ enum devlink_port_type mlxsw_core_port_type_get(struct mlxsw_core *mlxsw_core,
 struct devlink_port *
 mlxsw_core_port_devlink_port_get(struct mlxsw_core *mlxsw_core,
 				 u8 local_port);
+struct mlxsw_env *mlxsw_core_env(const struct mlxsw_core *mlxsw_core);
+bool mlxsw_core_is_initialized(const struct mlxsw_core *mlxsw_core);
 int mlxsw_core_module_max_width(struct mlxsw_core *mlxsw_core, u8 module);
 
 int mlxsw_core_schedule_dw(struct delayed_work *dwork, unsigned long delay);
@@ -280,6 +284,8 @@ struct mlxsw_driver {
 	struct list_head list;
 	const char *kind;
 	size_t priv_size;
+	const struct mlxsw_fw_rev *fw_req_rev;
+	const char *fw_filename;
 	int (*init)(struct mlxsw_core *mlxsw_core,
 		    const struct mlxsw_bus_info *mlxsw_bus_info,
 		    struct netlink_ext_ack *extack);
@@ -324,9 +330,6 @@ struct mlxsw_driver {
 				       unsigned int sb_index, u16 tc_index,
 				       enum devlink_sb_pool_type pool_type,
 				       u32 *p_cur, u32 *p_max);
-	int (*flash_update)(struct mlxsw_core *mlxsw_core,
-			    const char *file_name, const char *component,
-			    struct netlink_ext_ack *extack);
 	int (*trap_init)(struct mlxsw_core *mlxsw_core,
 			 const struct devlink_trap *trap, void *trap_ctx);
 	void (*trap_fini)(struct mlxsw_core *mlxsw_core,
@@ -371,15 +374,14 @@ struct mlxsw_driver {
 	u8 txhdr_len;
 	const struct mlxsw_config_profile *profile;
 	bool res_query_enabled;
+	bool fw_fatal_enabled;
+	bool temp_warn_enabled;
 };
 
 int mlxsw_core_kvd_sizes_get(struct mlxsw_core *mlxsw_core,
 			     const struct mlxsw_config_profile *profile,
 			     u64 *p_single_size, u64 *p_double_size,
 			     u64 *p_linear_size);
-
-void mlxsw_core_fw_flash_start(struct mlxsw_core *mlxsw_core);
-void mlxsw_core_fw_flash_end(struct mlxsw_core *mlxsw_core);
 
 u32 mlxsw_core_read_frc_h(struct mlxsw_core *mlxsw_core);
 u32 mlxsw_core_read_frc_l(struct mlxsw_core *mlxsw_core);

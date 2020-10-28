@@ -5,7 +5,6 @@ config CRYPTO_DEV_VIRTIO
 	select CRYPTO_AEAD
 	select CRYPTO_SKCIPHER
 	select CRYPTO_ENGINE
-	default m
 	help
 	  This driver provides support for virtio crypto device. If you
 	  choose 'M' here, this module will be called virtio_crypto.

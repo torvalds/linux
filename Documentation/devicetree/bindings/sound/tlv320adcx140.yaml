@@ -187,6 +187,8 @@ required:
   - compatible
   - reg
 
+additionalProperties: false
+
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>

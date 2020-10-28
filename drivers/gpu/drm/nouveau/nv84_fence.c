@@ -209,12 +209,13 @@ nv84_fence_create(struct nouveau_drm *drm)
 	mutex_init(&priv->mutex);
 
 	/* Use VRAM if there is any ; otherwise fallback to system memory */
-	domain = drm->client.device.info.ram_size != 0 ? TTM_PL_FLAG_VRAM :
-			 /*
-			  * fences created in sysmem must be non-cached or we
-			  * will lose CPU/GPU coherency!
-			  */
-			 TTM_PL_FLAG_TT | TTM_PL_FLAG_UNCACHED;
+	domain = drm->client.device.info.ram_size != 0 ?
+		NOUVEAU_GEM_DOMAIN_VRAM :
+		 /*
+		  * fences created in sysmem must be non-cached or we
+		  * will lose CPU/GPU coherency!
+		  */
+		NOUVEAU_GEM_DOMAIN_GART | NOUVEAU_GEM_DOMAIN_COHERENT;
 	ret = nouveau_bo_new(&drm->client, 16 * drm->chan.nr, 0,
 			     domain, 0, 0, NULL, NULL, &priv->bo);
 	if (ret == 0) {

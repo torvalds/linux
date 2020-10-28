@@ -235,11 +235,10 @@ struct net_device *wilc_wfi_init_mon_interface(struct wilc *wl,
 
 	if (register_netdevice(wl->monitor_dev)) {
 		netdev_err(real_dev, "register_netdevice failed\n");
+		free_netdev(wl->monitor_dev);
 		return NULL;
 	}
 	priv = netdev_priv(wl->monitor_dev);
-	if (!priv)
-		return NULL;
 
 	priv->real_ndev = real_dev;
 

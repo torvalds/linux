@@ -90,7 +90,7 @@ il3945_get_prev_ieee_rate(u8 rate_idx)
 #define IL_EVT_DISABLE (0)
 #define IL_EVT_DISABLE_SIZE (1532/32)
 
-/**
+/*
  * il3945_disable_events - Disable selected events in uCode event log
  *
  * Disable an event by writing "1"s into "disable"
@@ -261,7 +261,7 @@ il3945_rs_next_rate(struct il_priv *il, int rate)
 	return next_rate;
 }
 
-/**
+/*
  * il3945_tx_queue_reclaim - Reclaim Tx queue entries already Tx'd
  *
  * When FW advances 'R' idx, all entries between old and new 'R' idx
@@ -291,7 +291,7 @@ il3945_tx_queue_reclaim(struct il_priv *il, int txq_id, int idx)
 		il_wake_queue(il, txq);
 }
 
-/**
+/*
  * il3945_hdl_tx - Handle Tx response
  */
 static void
@@ -627,7 +627,7 @@ il3945_hw_txq_attach_buf_to_tfd(struct il_priv *il, struct il_tx_queue *txq,
 	return 0;
 }
 
-/**
+/*
  * il3945_hw_txq_free_tfd - Free one TFD, those at idx [txq->q.read_ptr]
  *
  * Does NOT advance any idxes
@@ -675,7 +675,7 @@ il3945_hw_txq_free_tfd(struct il_priv *il, struct il_tx_queue *txq)
 	}
 }
 
-/**
+/*
  * il3945_hw_build_tx_cmd_rate - Add rate portion to TX_CMD:
  *
 */
@@ -828,7 +828,7 @@ il3945_tx_reset(struct il_priv *il)
 	return 0;
 }
 
-/**
+/*
  * il3945_txq_ctx_reset - Reset TX queue context
  *
  * Destroys all DMA structures and initialize them again
@@ -993,7 +993,7 @@ il3945_hw_nic_init(struct il_priv *il)
 	return 0;
 }
 
-/**
+/*
  * il3945_hw_txq_ctx_free - Free TXQ Context
  *
  * Destroy all TX DMA queues and structures
@@ -1035,7 +1035,7 @@ il3945_hw_txq_ctx_stop(struct il_priv *il)
 	}
 }
 
-/**
+/*
  * il3945_hw_reg_adjust_power_by_temp
  * return idx delta into power gain settings table
 */
@@ -1045,7 +1045,7 @@ il3945_hw_reg_adjust_power_by_temp(int new_reading, int old_reading)
 	return (new_reading - old_reading) * (-11) / 100;
 }
 
-/**
+/*
  * il3945_hw_reg_temp_out_of_range - Keep temperature in sane range
  */
 static inline int
@@ -1060,7 +1060,7 @@ il3945_hw_get_temperature(struct il_priv *il)
 	return _il_rd(il, CSR_UCODE_DRV_GP2);
 }
 
-/**
+/*
  * il3945_hw_reg_txpower_get_temperature
  * get the current temperature by reading from NIC
 */
@@ -1096,7 +1096,7 @@ il3945_hw_reg_txpower_get_temperature(struct il_priv *il)
  * Both are lower than older versions' 9 degrees */
 #define IL_TEMPERATURE_LIMIT_TIMER   6
 
-/**
+/*
  * il3945_is_temp_calib_needed - determines if new calibration is needed
  *
  * records new temperature in tx_mgr->temperature.
@@ -1315,7 +1315,7 @@ il3945_hw_reg_fix_power_idx(int idx)
 /* Kick off thermal recalibration check every 60 seconds */
 #define REG_RECALIB_PERIOD (60)
 
-/**
+/*
  * il3945_hw_reg_set_scan_power - Set Tx power for scan probe requests
  *
  * Set (in our channel info database) the direct scan Tx power for 1 Mbit (CCK)
@@ -1372,7 +1372,7 @@ il3945_hw_reg_set_scan_power(struct il_priv *il, u32 scan_tbl_idx, s32 rate_idx,
 	    power_gain_table[band_idx][power_idx].dsp_atten;
 }
 
-/**
+/*
  * il3945_send_tx_power - fill in Tx Power command with gain settings
  *
  * Configures power settings for all rates for the current channel,
@@ -1439,7 +1439,7 @@ il3945_send_tx_power(struct il_priv *il)
 
 }
 
-/**
+/*
  * il3945_hw_reg_set_new_power - Configures power tables at new levels
  * @ch_info: Channel to update.  Uses power_info.requested_power.
  *
@@ -1510,7 +1510,7 @@ il3945_hw_reg_set_new_power(struct il_priv *il, struct il_channel_info *ch_info)
 	return 0;
 }
 
-/**
+/*
  * il3945_hw_reg_get_ch_txpower_limit - returns new power limit for channel
  *
  * NOTE: Returned power limit may be less (but not more) than requested,
@@ -1537,7 +1537,7 @@ il3945_hw_reg_get_ch_txpower_limit(struct il_channel_info *ch_info)
 	return min(max_power, ch_info->max_power_avg);
 }
 
-/**
+/*
  * il3945_hw_reg_comp_txpower_temp - Compensate for temperature
  *
  * Compensate txpower settings of *all* channels for temperature.
@@ -1699,7 +1699,7 @@ il3945_send_rxon_assoc(struct il_priv *il)
 	return rc;
 }
 
-/**
+/*
  * il3945_commit_rxon - commit staging_rxon to hardware
  *
  * The RXON command in staging_rxon is committed to the hardware and
@@ -1830,7 +1830,7 @@ il3945_commit_rxon(struct il_priv *il)
 	return 0;
 }
 
-/**
+/*
  * il3945_reg_txpower_periodic -  called when time to check our temperature.
  *
  * -- reset periodic timer
@@ -1873,7 +1873,7 @@ out:
 	mutex_unlock(&il->mutex);
 }
 
-/**
+/*
  * il3945_hw_reg_get_ch_grp_idx - find the channel-group idx (0-4) for channel.
  *
  * This function is used when initializing channel-info structs.
@@ -1912,7 +1912,7 @@ il3945_hw_reg_get_ch_grp_idx(struct il_priv *il,
 	return group_idx;
 }
 
-/**
+/*
  * il3945_hw_reg_get_matched_power_idx - Interpolate to get nominal idx
  *
  * Interpolate to get nominal (i.e. at factory calibration temperature) idx
@@ -2035,7 +2035,7 @@ il3945_hw_reg_init_channel_groups(struct il_priv *il)
 	}
 }
 
-/**
+/*
  * il3945_txpower_set_from_eeprom - Set channel power info based on EEPROM
  *
  * Second pass (during init) to set up il->channel_info
@@ -2305,7 +2305,7 @@ il3945_manage_ibss_station(struct il_priv *il, struct ieee80211_vif *vif,
 				 vif->bss_conf.bssid);
 }
 
-/**
+/*
  * il3945_init_hw_rate_table - Initialize the hardware rate fallback table
  */
 int
@@ -2520,7 +2520,7 @@ il3945_eeprom_release_semaphore(struct il_priv *il)
 	return;
 }
 
- /**
+ /*
   * il3945_load_bsm - Load bootstrap instructions
   *
   * BSM operation:

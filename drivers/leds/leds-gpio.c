@@ -160,9 +160,6 @@ static struct gpio_leds_priv *gpio_leds_create(struct platform_device *pdev)
 
 		led_dat->gpiod = led.gpiod;
 
-		fwnode_property_read_string(child, "linux,default-trigger",
-					    &led.default_trigger);
-
 		if (!fwnode_property_read_string(child, "default-state",
 						 &state)) {
 			if (!strcmp(state, "keep"))

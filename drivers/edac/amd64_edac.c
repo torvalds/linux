@@ -3385,6 +3385,12 @@ static struct amd64_family_type *per_family_init(struct amd64_pvt *pvt)
 		break;
 
 	case 0x19:
+		if (pvt->model >= 0x20 && pvt->model <= 0x2f) {
+			fam_type = &family_types[F17_M70H_CPUS];
+			pvt->ops = &family_types[F17_M70H_CPUS].ops;
+			fam_type->ctl_name = "F19h_M20h";
+			break;
+		}
 		fam_type	= &family_types[F19_CPUS];
 		pvt->ops	= &family_types[F19_CPUS].ops;
 		family_types[F19_CPUS].ctl_name = "F19h";

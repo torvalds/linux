@@ -498,15 +498,4 @@ static struct bcma_driver bcma_hcd_driver = {
 	.suspend	= bcma_hcd_suspend,
 	.resume		= bcma_hcd_resume,
 };
-
-static int __init bcma_hcd_init(void)
-{
-	return bcma_driver_register(&bcma_hcd_driver);
-}
-module_init(bcma_hcd_init);
-
-static void __exit bcma_hcd_exit(void)
-{
-	bcma_driver_unregister(&bcma_hcd_driver);
-}
-module_exit(bcma_hcd_exit);
+module_bcma_driver(bcma_hcd_driver);

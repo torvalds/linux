@@ -1,40 +1,102 @@
 # SPDX-License-Identifier: GPL-2.0
 # common clock support for NXP i.MX SoC family.
 config MXC_CLK
-	bool
-	def_bool ARCH_MXC
+	tristate "IMX clock"
+	depends on ARCH_MXC || COMPILE_TEST
 
 config MXC_CLK_SCU
-	bool
-	depends on IMX_SCU
+	tristate "IMX SCU clock"
+	depends on ARCH_MXC || COMPILE_TEST
+	depends on IMX_SCU && HAVE_ARM_SMCCC
+
+config CLK_IMX1
+	def_bool SOC_IMX1
+	select MXC_CLK
+
+config CLK_IMX25
+	def_bool SOC_IMX25
+	select MXC_CLK
+
+config CLK_IMX27
+	def_bool SOC_IMX27
+	select MXC_CLK
+
+config CLK_IMX31
+	def_bool SOC_IMX31
+	select MXC_CLK
+
+config CLK_IMX35
+	def_bool SOC_IMX35
+	select MXC_CLK
+
+config CLK_IMX5
+	def_bool SOC_IMX5
+	select MXC_CLK
+
+config CLK_IMX6Q
+	def_bool SOC_IMX6Q
+	select MXC_CLK
+
+config CLK_IMX6SL
+	def_bool SOC_IMX6SL
+	select MXC_CLK
+
+config CLK_IMX6SLL
+	def_bool SOC_IMX6SLL
+	select MXC_CLK
+
+config CLK_IMX6SX
+	def_bool SOC_IMX6SX
+	select MXC_CLK
+
+config CLK_IMX6UL
+	def_bool SOC_IMX6UL
+	select MXC_CLK
+
+config CLK_IMX7D
+	def_bool SOC_IMX7D
+	select MXC_CLK
+
+config CLK_IMX7ULP
+	def_bool SOC_IMX7ULP
+	select MXC_CLK
+
+config CLK_VF610
+	def_bool SOC_VF610
+	select MXC_CLK
 
 config CLK_IMX8MM
-	bool "IMX8MM CCM Clock Driver"
-	depends on ARCH_MXC
+	tristate "IMX8MM CCM Clock Driver"
+	depends on ARCH_MXC || COMPILE_TEST
+	select MXC_CLK
 	help
 	    Build the driver for i.MX8MM CCM Clock Driver
 
 config CLK_IMX8MN
-	bool "IMX8MN CCM Clock Driver"
-	depends on ARCH_MXC
+	tristate "IMX8MN CCM Clock Driver"
+	depends on ARCH_MXC || COMPILE_TEST
+	select MXC_CLK
 	help
 	    Build the driver for i.MX8MN CCM Clock Driver
 
 config CLK_IMX8MP
-	bool "IMX8MP CCM Clock Driver"
-	depends on ARCH_MXC
+	tristate "IMX8MP CCM Clock Driver"
+	depends on ARCH_MXC || COMPILE_TEST
+	select MXC_CLK
 	help
 	    Build the driver for i.MX8MP CCM Clock Driver
 
 config CLK_IMX8MQ
-	bool "IMX8MQ CCM Clock Driver"
-	depends on ARCH_MXC
+	tristate "IMX8MQ CCM Clock Driver"
+	depends on ARCH_MXC || COMPILE_TEST
+	select MXC_CLK
 	help
 	    Build the driver for i.MX8MQ CCM Clock Driver
 
 config CLK_IMX8QXP
-	bool "IMX8QXP SCU Clock"
-	depends on ARCH_MXC && IMX_SCU && ARM64
+	tristate "IMX8QXP SCU Clock"
+	depends on (ARCH_MXC && ARM64) || COMPILE_TEST
+	depends on IMX_SCU && HAVE_ARM_SMCCC
 	select MXC_CLK_SCU
 	help
 	  Build the driver for IMX8QXP SCU based clocks.

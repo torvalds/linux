@@ -18,6 +18,7 @@
 #include <linux/of_platform.h>
 #include <linux/of_net.h>
 #include <linux/of_mdio.h>
+#include <linux/mdio/mdio-xgene.h>
 #include <linux/module.h>
 #include <net/ip.h>
 #include <linux/prefetch.h>
@@ -26,7 +27,6 @@
 #include "xgene_enet_hw.h"
 #include "xgene_enet_cle.h"
 #include "xgene_enet_ring2.h"
-#include "../../../phy/mdio-xgene.h"
 
 #define ETHER_MIN_PACKET	64
 #define ETHER_STD_PACKET	1518

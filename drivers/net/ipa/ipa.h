@@ -10,7 +10,6 @@
 #include <linux/device.h>
 #include <linux/notifier.h>
 #include <linux/pm_wakeup.h>
-#include <linux/notifier.h>
 
 #include "ipa_version.h"
 #include "gsi.h"
@@ -29,14 +28,24 @@ struct ipa_smp2p;
 struct ipa_interrupt;
 
 /**
+ * enum ipa_flag - IPA state flags
+ * @IPA_FLAG_RESUMED:	Whether resume from suspend has been signaled
+ * @IPA_FLAG_COUNT:	Number of defined IPA flags
+ */
+enum ipa_flag {
+	IPA_FLAG_RESUMED,
+	IPA_FLAG_COUNT,		/* Last; not a flag */
+};
+
+/**
  * struct ipa - IPA information
  * @gsi:		Embedded GSI structure
+ * @flags:		Boolean state flags
  * @version:		IPA hardware version
  * @pdev:		Platform device
  * @modem_rproc:	Remoteproc handle for modem subsystem
  * @smp2p:		SMP2P information
  * @clock:		IPA clocking information
- * @suspend_ref:	Whether clock reference preventing suspend taken
  * @table_addr:		DMA address of filter/route table content
  * @table_virt:		Virtual address of filter/route table content
  * @interrupt:		IPA Interrupt information
@@ -71,6 +80,7 @@ struct ipa_interrupt;
  */
 struct ipa {
 	struct gsi gsi;
+	DECLARE_BITMAP(flags, IPA_FLAG_COUNT);
 	enum ipa_version version;
 	struct platform_device *pdev;
 	struct rproc *modem_rproc;
@@ -78,7 +88,6 @@ struct ipa {
 	void *notifier;
 	struct ipa_smp2p *smp2p;
 	struct ipa_clock *clock;
-	atomic_t suspend_ref;
 
 	dma_addr_t table_addr;
 	__le64 *table_virt;
@@ -104,8 +113,6 @@ struct ipa {
 	dma_addr_t zero_addr;
 	void *zero_virt;
 	size_t zero_size;
-
-	struct wakeup_source *wakeup_source;
 
 	/* Bit masks indicating endpoint state */
 	u32 available;		/* supported by hardware */

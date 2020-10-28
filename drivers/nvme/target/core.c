@@ -395,7 +395,7 @@ static void nvmet_keep_alive_timer(struct work_struct *work)
 	nvmet_ctrl_fatal_error(ctrl);
 }
 
-static void nvmet_start_keep_alive_timer(struct nvmet_ctrl *ctrl)
+void nvmet_start_keep_alive_timer(struct nvmet_ctrl *ctrl)
 {
 	if (unlikely(ctrl->kato == 0))
 		return;
@@ -407,7 +407,7 @@ static void nvmet_start_keep_alive_timer(struct nvmet_ctrl *ctrl)
 	schedule_delayed_work(&ctrl->ka_work, ctrl->kato * HZ);
 }
 
-static void nvmet_stop_keep_alive_timer(struct nvmet_ctrl *ctrl)
+void nvmet_stop_keep_alive_timer(struct nvmet_ctrl *ctrl)
 {
 	if (unlikely(ctrl->kato == 0))
 		return;
@@ -1126,7 +1126,8 @@ static void nvmet_start_ctrl(struct nvmet_ctrl *ctrl)
 	 * in case a host died before it enabled the controller.  Hence, simply
 	 * reset the keep alive timer when the controller is enabled.
 	 */
-	mod_delayed_work(system_wq, &ctrl->ka_work, ctrl->kato * HZ);
+	if (ctrl->kato)
+		mod_delayed_work(system_wq, &ctrl->ka_work, ctrl->kato * HZ);
 }
 
 static void nvmet_clear_ctrl(struct nvmet_ctrl *ctrl)

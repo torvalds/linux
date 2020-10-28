@@ -15,18 +15,20 @@
  * Tracepoint for guest mode entry.
  */
 TRACE_EVENT(kvm_entry,
-	TP_PROTO(unsigned int vcpu_id),
-	TP_ARGS(vcpu_id),
+	TP_PROTO(struct kvm_vcpu *vcpu),
+	TP_ARGS(vcpu),
 
 	TP_STRUCT__entry(
 		__field(	unsigned int,	vcpu_id		)
+		__field(	unsigned long,	rip		)
 	),
 
 	TP_fast_assign(
-		__entry->vcpu_id	= vcpu_id;
+		__entry->vcpu_id        = vcpu->vcpu_id;
+		__entry->rip		= kvm_rip_read(vcpu);
 	),
 
-	TP_printk("vcpu %u", __entry->vcpu_id)
+	TP_printk("vcpu %u, rip 0x%lx", __entry->vcpu_id, __entry->rip)
 );
 
 /*
@@ -233,36 +235,45 @@ TRACE_EVENT(kvm_apic,
 	(isa == KVM_ISA_VMX) ?						\
 	__print_flags(exit_reason & ~0xffff, " ", VMX_EXIT_REASON_FLAGS) : ""
 
+#define TRACE_EVENT_KVM_EXIT(name)					     \
+TRACE_EVENT(name,							     \
+	TP_PROTO(unsigned int exit_reason, struct kvm_vcpu *vcpu, u32 isa),  \
+	TP_ARGS(exit_reason, vcpu, isa),				     \
+									     \
+	TP_STRUCT__entry(						     \
+		__field(	unsigned int,	exit_reason	)	     \
+		__field(	unsigned long,	guest_rip	)	     \
+		__field(	u32,	        isa             )	     \
+		__field(	u64,	        info1           )	     \
+		__field(	u64,	        info2           )	     \
+		__field(	u32,	        intr_info	)	     \
+		__field(	u32,	        error_code	)	     \
+		__field(	unsigned int,	vcpu_id         )	     \
+	),								     \
+									     \
+	TP_fast_assign(							     \
+		__entry->exit_reason	= exit_reason;			     \
+		__entry->guest_rip	= kvm_rip_read(vcpu);		     \
+		__entry->isa            = isa;				     \
+		__entry->vcpu_id        = vcpu->vcpu_id;		     \
+		kvm_x86_ops.get_exit_info(vcpu, &__entry->info1,	     \
+					  &__entry->info2,		     \
+					  &__entry->intr_info,		     \
+					  &__entry->error_code);	     \
+	),								     \
+									     \
+	TP_printk("vcpu %u reason %s%s%s rip 0x%lx info1 0x%016llx "	     \
+		  "info2 0x%016llx intr_info 0x%08x error_code 0x%08x",	     \
+		  __entry->vcpu_id,					     \
+		  kvm_print_exit_reason(__entry->exit_reason, __entry->isa), \
+		  __entry->guest_rip, __entry->info1, __entry->info2,	     \
+		  __entry->intr_info, __entry->error_code)		     \
+)
+
 /*
  * Tracepoint for kvm guest exit:
  */
-TRACE_EVENT(kvm_exit,
-	TP_PROTO(unsigned int exit_reason, struct kvm_vcpu *vcpu, u32 isa),
-	TP_ARGS(exit_reason, vcpu, isa),
-
-	TP_STRUCT__entry(
-		__field(	unsigned int,	exit_reason	)
-		__field(	unsigned long,	guest_rip	)
-		__field(	u32,	        isa             )
-		__field(	u64,	        info1           )
-		__field(	u64,	        info2           )
-		__field(	unsigned int,	vcpu_id         )
-	),
-
-	TP_fast_assign(
-		__entry->exit_reason	= exit_reason;
-		__entry->guest_rip	= kvm_rip_read(vcpu);
-		__entry->isa            = isa;
-		__entry->vcpu_id        = vcpu->vcpu_id;
-		kvm_x86_ops.get_exit_info(vcpu, &__entry->info1,
-					   &__entry->info2);
-	),
-
-	TP_printk("vcpu %u reason %s%s%s rip 0x%lx info %llx %llx",
-		  __entry->vcpu_id,
-		  kvm_print_exit_reason(__entry->exit_reason, __entry->isa),
-		  __entry->guest_rip, __entry->info1, __entry->info2)
-);
+TRACE_EVENT_KVM_EXIT(kvm_exit);
 
 /*
  * Tracepoint for kvm interrupt injection:
@@ -544,63 +555,38 @@ TRACE_EVENT(kvm_nested_vmrun,
 );
 
 TRACE_EVENT(kvm_nested_intercepts,
-	    TP_PROTO(__u16 cr_read, __u16 cr_write, __u32 exceptions, __u64 intercept),
-	    TP_ARGS(cr_read, cr_write, exceptions, intercept),
+	    TP_PROTO(__u16 cr_read, __u16 cr_write, __u32 exceptions,
+		     __u32 intercept1, __u32 intercept2, __u32 intercept3),
+	    TP_ARGS(cr_read, cr_write, exceptions, intercept1,
+		    intercept2, intercept3),
 
 	TP_STRUCT__entry(
 		__field(	__u16,		cr_read		)
 		__field(	__u16,		cr_write	)
 		__field(	__u32,		exceptions	)
-		__field(	__u64,		intercept	)
+		__field(	__u32,		intercept1	)
+		__field(	__u32,		intercept2	)
+		__field(	__u32,		intercept3	)
 	),
 
 	TP_fast_assign(
 		__entry->cr_read	= cr_read;
 		__entry->cr_write	= cr_write;
 		__entry->exceptions	= exceptions;
-		__entry->intercept	= intercept;
+		__entry->intercept1	= intercept1;
+		__entry->intercept2	= intercept2;
+		__entry->intercept3	= intercept3;
 	),
 
-	TP_printk("cr_read: %04x cr_write: %04x excp: %08x intercept: %016llx",
-		__entry->cr_read, __entry->cr_write, __entry->exceptions,
-		__entry->intercept)
+	TP_printk("cr_read: %04x cr_write: %04x excp: %08x "
+		  "intercepts: %08x %08x %08x",
+		  __entry->cr_read, __entry->cr_write, __entry->exceptions,
+		  __entry->intercept1, __entry->intercept2, __entry->intercept3)
 );
 /*
  * Tracepoint for #VMEXIT while nested
  */
-TRACE_EVENT(kvm_nested_vmexit,
-	    TP_PROTO(__u64 rip, __u32 exit_code,
-		     __u64 exit_info1, __u64 exit_info2,
-		     __u32 exit_int_info, __u32 exit_int_info_err, __u32 isa),
-	    TP_ARGS(rip, exit_code, exit_info1, exit_info2,
-		    exit_int_info, exit_int_info_err, isa),
-
-	TP_STRUCT__entry(
-		__field(	__u64,		rip			)
-		__field(	__u32,		exit_code		)
-		__field(	__u64,		exit_info1		)
-		__field(	__u64,		exit_info2		)
-		__field(	__u32,		exit_int_info		)
-		__field(	__u32,		exit_int_info_err	)
-		__field(	__u32,		isa			)
-	),
-
-	TP_fast_assign(
-		__entry->rip			= rip;
-		__entry->exit_code		= exit_code;
-		__entry->exit_info1		= exit_info1;
-		__entry->exit_info2		= exit_info2;
-		__entry->exit_int_info		= exit_int_info;
-		__entry->exit_int_info_err	= exit_int_info_err;
-		__entry->isa			= isa;
-	),
-	TP_printk("rip: 0x%016llx reason: %s%s%s ext_inf1: 0x%016llx "
-		  "ext_inf2: 0x%016llx ext_int: 0x%08x ext_int_err: 0x%08x",
-		  __entry->rip,
-		  kvm_print_exit_reason(__entry->exit_code, __entry->isa),
-		  __entry->exit_info1, __entry->exit_info2,
-		  __entry->exit_int_info, __entry->exit_int_info_err)
-);
+TRACE_EVENT_KVM_EXIT(kvm_nested_vmexit);
 
 /*
  * Tracepoint for #VMEXIT reinjected to the guest

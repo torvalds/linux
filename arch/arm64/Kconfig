@@ -29,6 +29,7 @@ config ARM64
 	select ARCH_HAS_SETUP_DMA_OPS
 	select ARCH_HAS_SET_DIRECT_MAP
 	select ARCH_HAS_SET_MEMORY
+	select ARCH_STACKWALK
 	select ARCH_HAS_STRICT_KERNEL_RWX
 	select ARCH_HAS_STRICT_MODULE_RWX
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
@@ -106,6 +107,7 @@ config ARM64
 	select GENERIC_CPU_VULNERABILITIES
 	select GENERIC_EARLY_IOREMAP
 	select GENERIC_IDLE_POLL_SETUP
+	select GENERIC_IRQ_IPI
 	select GENERIC_IRQ_MULTI_HANDLER
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
@@ -121,6 +123,7 @@ config ARM64
 	select GENERIC_VDSO_TIME_NS
 	select HANDLE_DOMAIN_IRQ
 	select HARDIRQS_SW_RESEND
+	select HAVE_MOVE_PMD
 	select HAVE_PCI
 	select HAVE_ACPI_APEI if (ACPI && EFI)
 	select HAVE_ALIGNED_STRUCT_PAGE if SLUB
@@ -192,6 +195,7 @@ config ARM64
 	select PCI_SYSCALL if PCI
 	select POWER_RESET
 	select POWER_SUPPLY
+	select SET_FS
 	select SPARSE_IRQ
 	select SWIOTLB
 	select SYSCTL_EXCEPTION_TRACE
@@ -211,10 +215,16 @@ config ARM64_PAGE_SHIFT
 	default 14 if ARM64_16K_PAGES
 	default 12
 
-config ARM64_CONT_SHIFT
+config ARM64_CONT_PTE_SHIFT
 	int
 	default 5 if ARM64_64K_PAGES
 	default 7 if ARM64_16K_PAGES
+	default 4
+
+config ARM64_CONT_PMD_SHIFT
+	int
+	default 5 if ARM64_64K_PAGES
+	default 5 if ARM64_16K_PAGES
 	default 4
 
 config ARCH_MMAP_RND_BITS_MIN
@@ -1033,19 +1043,6 @@ config ARCH_ENABLE_SPLIT_PMD_PTLOCK
 config CC_HAVE_SHADOW_CALL_STACK
 	def_bool $(cc-option, -fsanitize=shadow-call-stack -ffixed-x18)
 
-config SECCOMP
-	bool "Enable seccomp to safely compute untrusted bytecode"
-	help
-	  This kernel feature is useful for number crunching applications
-	  that may need to compute untrusted bytecode during their
-	  execution. By using pipes or other transports made available to
-	  the process as file descriptors supporting the read/write
-	  syscalls, it's possible to isolate those applications in
-	  their own address space using seccomp. Once seccomp is
-	  enabled via prctl(PR_SET_SECCOMP), it cannot be disabled
-	  and the task is only allowed to execute a few safe syscalls
-	  defined by each seccomp mode.
-
 config PARAVIRT
 	bool "Enable paravirtualization code"
 	help
@@ -1162,32 +1159,6 @@ config UNMAP_KERNEL_AT_EL0
 	  userspace. This can be defended against by unmapping the kernel
 	  when running in userspace, mapping it back in on exception entry
 	  via a trampoline page in the vector table.
-
-	  If unsure, say Y.
-
-config HARDEN_BRANCH_PREDICTOR
-	bool "Harden the branch predictor against aliasing attacks" if EXPERT
-	default y
-	help
-	  Speculation attacks against some high-performance processors rely on
-	  being able to manipulate the branch predictor for a victim context by
-	  executing aliasing branches in the attacker context.  Such attacks
-	  can be partially mitigated against by clearing internal branch
-	  predictor state and limiting the prediction logic in some situations.
-
-	  This config option will take CPU-specific actions to harden the
-	  branch predictor against aliasing attacks and may rely on specific
-	  instruction sequences or control bits being set by the system
-	  firmware.
-
-	  If unsure, say Y.
-
-config ARM64_SSBD
-	bool "Speculative Store Bypass Disable" if EXPERT
-	default y
-	help
-	  This enables mitigation of the bypassing of previous stores
-	  by speculative loads.
 
 	  If unsure, say Y.
 
@@ -1630,8 +1601,6 @@ config ARM64_BTI_KERNEL
 	depends on CC_HAS_BRANCH_PROT_PAC_RET_BTI
 	# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=94697
 	depends on !CC_IS_GCC || GCC_VERSION >= 100100
-	# https://reviews.llvm.org/rGb8ae3fdfa579dbf366b1bb1cbfdbf8c51db7fa55
-	depends on !CC_IS_CLANG || CLANG_VERSION >= 100001
 	depends on !(CC_IS_CLANG && GCOV_KERNEL)
 	depends on (!FUNCTION_GRAPH_TRACER || DYNAMIC_FTRACE_WITH_REGS)
 	help
@@ -1663,6 +1632,39 @@ config ARCH_RANDOM
 	  Random number generation (part of the ARMv8.5 Extensions)
 	  provides a high bandwidth, cryptographically secure
 	  hardware random number generator.
+
+config ARM64_AS_HAS_MTE
+	# Initial support for MTE went in binutils 2.32.0, checked with
+	# ".arch armv8.5-a+memtag" below. However, this was incomplete
+	# as a late addition to the final architecture spec (LDGM/STGM)
+	# is only supported in the newer 2.32.x and 2.33 binutils
+	# versions, hence the extra "stgm" instruction check below.
+	def_bool $(as-instr,.arch armv8.5-a+memtag\nstgm xzr$(comma)[x0])
+
+config ARM64_MTE
+	bool "Memory Tagging Extension support"
+	default y
+	depends on ARM64_AS_HAS_MTE && ARM64_TAGGED_ADDR_ABI
+	select ARCH_USES_HIGH_VMA_FLAGS
+	help
+	  Memory Tagging (part of the ARMv8.5 Extensions) provides
+	  architectural support for run-time, always-on detection of
+	  various classes of memory error to aid with software debugging
+	  to eliminate vulnerabilities arising from memory-unsafe
+	  languages.
+
+	  This option enables the support for the Memory Tagging
+	  Extension at EL0 (i.e. for userspace).
+
+	  Selecting this option allows the feature to be detected at
+	  runtime. Any secondary CPU not implementing this feature will
+	  not be allowed a late bring-up.
+
+	  Userspace binaries that want to use this feature must
+	  explicitly opt in. The mechanism for the userspace is
+	  described in:
+
+	  Documentation/arm64/memory-tagging-extension.rst.
 
 endmenu
 
@@ -1875,6 +1877,10 @@ config SYSVIPC_COMPAT
 config ARCH_ENABLE_HUGEPAGE_MIGRATION
 	def_bool y
 	depends on HUGETLB_PAGE && MIGRATION
+
+config ARCH_ENABLE_THP_MIGRATION
+	def_bool y
+	depends on TRANSPARENT_HUGEPAGE
 
 menu "Power management options"
 

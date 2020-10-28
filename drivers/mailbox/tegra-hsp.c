@@ -13,6 +13,8 @@
 #include <linux/pm.h>
 #include <linux/slab.h>
 
+#include <soc/tegra/fuse.h>
+
 #include <dt-bindings/mailbox/tegra186-hsp.h>
 
 #include "mailbox.h"
@@ -322,7 +324,12 @@ static int tegra_hsp_doorbell_startup(struct mbox_chan *chan)
 	if (!ccplex)
 		return -ENODEV;
 
-	if (!tegra_hsp_doorbell_can_ring(db))
+	/*
+	 * On simulation platforms the BPMP hasn't had a chance yet to mark
+	 * the doorbell as ringable by the CCPLEX, so we want to skip extra
+	 * checks here.
+	 */
+	if (tegra_is_silicon() && !tegra_hsp_doorbell_can_ring(db))
 		return -ENODEV;
 
 	spin_lock_irqsave(&hsp->lock, flags);

@@ -363,6 +363,66 @@ int drm_dp_dpcd_read_link_status(struct drm_dp_aux *aux,
 }
 EXPORT_SYMBOL(drm_dp_dpcd_read_link_status);
 
+static bool is_edid_digital_input_dp(const struct edid *edid)
+{
+	return edid && edid->revision >= 4 &&
+		edid->input & DRM_EDID_INPUT_DIGITAL &&
+		(edid->input & DRM_EDID_DIGITAL_TYPE_MASK) == DRM_EDID_DIGITAL_TYPE_DP;
+}
+
+/**
+ * drm_dp_downstream_is_type() - is the downstream facing port of certain type?
+ * @dpcd: DisplayPort configuration data
+ * @port_cap: port capabilities
+ *
+ * Caveat: Only works with DPCD 1.1+ port caps.
+ *
+ * Returns: whether the downstream facing port matches the type.
+ */
+bool drm_dp_downstream_is_type(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+			       const u8 port_cap[4], u8 type)
+{
+	return drm_dp_is_branch(dpcd) &&
+		dpcd[DP_DPCD_REV] >= 0x11 &&
+		(port_cap[0] & DP_DS_PORT_TYPE_MASK) == type;
+}
+EXPORT_SYMBOL(drm_dp_downstream_is_type);
+
+/**
+ * drm_dp_downstream_is_tmds() - is the downstream facing port TMDS?
+ * @dpcd: DisplayPort configuration data
+ * @port_cap: port capabilities
+ * @edid: EDID
+ *
+ * Returns: whether the downstream facing port is TMDS (HDMI/DVI).
+ */
+bool drm_dp_downstream_is_tmds(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+			       const u8 port_cap[4],
+			       const struct edid *edid)
+{
+	if (dpcd[DP_DPCD_REV] < 0x11) {
+		switch (dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DWN_STRM_PORT_TYPE_MASK) {
+		case DP_DWN_STRM_PORT_TYPE_TMDS:
+			return true;
+		default:
+			return false;
+		}
+	}
+
+	switch (port_cap[0] & DP_DS_PORT_TYPE_MASK) {
+	case DP_DS_PORT_TYPE_DP_DUALMODE:
+		if (is_edid_digital_input_dp(edid))
+			return false;
+		fallthrough;
+	case DP_DS_PORT_TYPE_DVI:
+	case DP_DS_PORT_TYPE_HDMI:
+		return true;
+	default:
+		return false;
+	}
+}
+EXPORT_SYMBOL(drm_dp_downstream_is_tmds);
+
 /**
  * drm_dp_send_real_edid_checksum() - send back real edid checksum value
  * @aux: DisplayPort AUX channel
@@ -423,66 +483,313 @@ bool drm_dp_send_real_edid_checksum(struct drm_dp_aux *aux,
 }
 EXPORT_SYMBOL(drm_dp_send_real_edid_checksum);
 
+static u8 drm_dp_downstream_port_count(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	u8 port_count = dpcd[DP_DOWN_STREAM_PORT_COUNT] & DP_PORT_COUNT_MASK;
+
+	if (dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DETAILED_CAP_INFO_AVAILABLE && port_count > 4)
+		port_count = 4;
+
+	return port_count;
+}
+
+static int drm_dp_read_extended_dpcd_caps(struct drm_dp_aux *aux,
+					  u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	u8 dpcd_ext[6];
+	int ret;
+
+	/*
+	 * Prior to DP1.3 the bit represented by
+	 * DP_EXTENDED_RECEIVER_CAP_FIELD_PRESENT was reserved.
+	 * If it is set DP_DPCD_REV at 0000h could be at a value less than
+	 * the true capability of the panel. The only way to check is to
+	 * then compare 0000h and 2200h.
+	 */
+	if (!(dpcd[DP_TRAINING_AUX_RD_INTERVAL] &
+	      DP_EXTENDED_RECEIVER_CAP_FIELD_PRESENT))
+		return 0;
+
+	ret = drm_dp_dpcd_read(aux, DP_DP13_DPCD_REV, &dpcd_ext,
+			       sizeof(dpcd_ext));
+	if (ret < 0)
+		return ret;
+	if (ret != sizeof(dpcd_ext))
+		return -EIO;
+
+	if (dpcd[DP_DPCD_REV] > dpcd_ext[DP_DPCD_REV]) {
+		DRM_DEBUG_KMS("%s: Extended DPCD rev less than base DPCD rev (%d > %d)\n",
+			      aux->name, dpcd[DP_DPCD_REV],
+			      dpcd_ext[DP_DPCD_REV]);
+		return 0;
+	}
+
+	if (!memcmp(dpcd, dpcd_ext, sizeof(dpcd_ext)))
+		return 0;
+
+	DRM_DEBUG_KMS("%s: Base DPCD: %*ph\n",
+		      aux->name, DP_RECEIVER_CAP_SIZE, dpcd);
+
+	memcpy(dpcd, dpcd_ext, sizeof(dpcd_ext));
+
+	return 0;
+}
+
 /**
- * drm_dp_downstream_max_clock() - extract branch device max
- *                                 pixel rate for legacy VGA
- *                                 converter or max TMDS clock
- *                                 rate for others
+ * drm_dp_read_dpcd_caps() - read DPCD caps and extended DPCD caps if
+ * available
+ * @aux: DisplayPort AUX channel
+ * @dpcd: Buffer to store the resulting DPCD in
+ *
+ * Attempts to read the base DPCD caps for @aux. Additionally, this function
+ * checks for and reads the extended DPRX caps (%DP_DP13_DPCD_REV) if
+ * present.
+ *
+ * Returns: %0 if the DPCD was read successfully, negative error code
+ * otherwise.
+ */
+int drm_dp_read_dpcd_caps(struct drm_dp_aux *aux,
+			  u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	int ret;
+
+	ret = drm_dp_dpcd_read(aux, DP_DPCD_REV, dpcd, DP_RECEIVER_CAP_SIZE);
+	if (ret < 0)
+		return ret;
+	if (ret != DP_RECEIVER_CAP_SIZE || dpcd[DP_DPCD_REV] == 0)
+		return -EIO;
+
+	ret = drm_dp_read_extended_dpcd_caps(aux, dpcd);
+	if (ret < 0)
+		return ret;
+
+	DRM_DEBUG_KMS("%s: DPCD: %*ph\n",
+		      aux->name, DP_RECEIVER_CAP_SIZE, dpcd);
+
+	return ret;
+}
+EXPORT_SYMBOL(drm_dp_read_dpcd_caps);
+
+/**
+ * drm_dp_read_downstream_info() - read DPCD downstream port info if available
+ * @aux: DisplayPort AUX channel
+ * @dpcd: A cached copy of the port's DPCD
+ * @downstream_ports: buffer to store the downstream port info in
+ *
+ * See also:
+ * drm_dp_downstream_max_clock()
+ * drm_dp_downstream_max_bpc()
+ *
+ * Returns: 0 if either the downstream port info was read successfully or
+ * there was no downstream info to read, or a negative error code otherwise.
+ */
+int drm_dp_read_downstream_info(struct drm_dp_aux *aux,
+				const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+				u8 downstream_ports[DP_MAX_DOWNSTREAM_PORTS])
+{
+	int ret;
+	u8 len;
+
+	memset(downstream_ports, 0, DP_MAX_DOWNSTREAM_PORTS);
+
+	/* No downstream info to read */
+	if (!drm_dp_is_branch(dpcd) ||
+	    dpcd[DP_DPCD_REV] < DP_DPCD_REV_10 ||
+	    !(dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DWN_STRM_PORT_PRESENT))
+		return 0;
+
+	len = drm_dp_downstream_port_count(dpcd);
+	if (dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DETAILED_CAP_INFO_AVAILABLE)
+		len *= 4;
+
+	ret = drm_dp_dpcd_read(aux, DP_DOWNSTREAM_PORT_0, downstream_ports, len);
+	if (ret < 0)
+		return ret;
+	if (ret != len)
+		return -EIO;
+
+	DRM_DEBUG_KMS("%s: DPCD DFP: %*ph\n",
+		      aux->name, len, downstream_ports);
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_read_downstream_info);
+
+/**
+ * drm_dp_downstream_max_dotclock() - extract downstream facing port max dot clock
  * @dpcd: DisplayPort configuration data
  * @port_cap: port capabilities
  *
- * Returns max clock in kHz on success or 0 if max clock not defined
+ * Returns: Downstream facing port max dot clock in kHz on success,
+ * or 0 if max clock not defined
  */
-int drm_dp_downstream_max_clock(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
-				const u8 port_cap[4])
+int drm_dp_downstream_max_dotclock(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+				   const u8 port_cap[4])
 {
-	int type = port_cap[0] & DP_DS_PORT_TYPE_MASK;
-	bool detailed_cap_info = dpcd[DP_DOWNSTREAMPORT_PRESENT] &
-		DP_DETAILED_CAP_INFO_AVAILABLE;
-
-	if (!detailed_cap_info)
+	if (!drm_dp_is_branch(dpcd))
 		return 0;
 
-	switch (type) {
+	if (dpcd[DP_DPCD_REV] < 0x11)
+		return 0;
+
+	switch (port_cap[0] & DP_DS_PORT_TYPE_MASK) {
 	case DP_DS_PORT_TYPE_VGA:
-		return port_cap[1] * 8 * 1000;
-	case DP_DS_PORT_TYPE_DVI:
-	case DP_DS_PORT_TYPE_HDMI:
+		if ((dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DETAILED_CAP_INFO_AVAILABLE) == 0)
+			return 0;
+		return port_cap[1] * 8000;
+	default:
+		return 0;
+	}
+}
+EXPORT_SYMBOL(drm_dp_downstream_max_dotclock);
+
+/**
+ * drm_dp_downstream_max_tmds_clock() - extract downstream facing port max TMDS clock
+ * @dpcd: DisplayPort configuration data
+ * @port_cap: port capabilities
+ * @edid: EDID
+ *
+ * Returns: HDMI/DVI downstream facing port max TMDS clock in kHz on success,
+ * or 0 if max TMDS clock not defined
+ */
+int drm_dp_downstream_max_tmds_clock(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+				     const u8 port_cap[4],
+				     const struct edid *edid)
+{
+	if (!drm_dp_is_branch(dpcd))
+		return 0;
+
+	if (dpcd[DP_DPCD_REV] < 0x11) {
+		switch (dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DWN_STRM_PORT_TYPE_MASK) {
+		case DP_DWN_STRM_PORT_TYPE_TMDS:
+			return 165000;
+		default:
+			return 0;
+		}
+	}
+
+	switch (port_cap[0] & DP_DS_PORT_TYPE_MASK) {
 	case DP_DS_PORT_TYPE_DP_DUALMODE:
+		if (is_edid_digital_input_dp(edid))
+			return 0;
+		/*
+		 * It's left up to the driver to check the
+		 * DP dual mode adapter's max TMDS clock.
+		 *
+		 * Unfortunatley it looks like branch devices
+		 * may not fordward that the DP dual mode i2c
+		 * access so we just usually get i2c nak :(
+		 */
+		fallthrough;
+	case DP_DS_PORT_TYPE_HDMI:
+		 /*
+		  * We should perhaps assume 165 MHz when detailed cap
+		  * info is not available. But looks like many typical
+		  * branch devices fall into that category and so we'd
+		  * probably end up with users complaining that they can't
+		  * get high resolution modes with their favorite dongle.
+		  *
+		  * So let's limit to 300 MHz instead since DPCD 1.4
+		  * HDMI 2.0 DFPs are required to have the detailed cap
+		  * info. So it's more likely we're dealing with a HDMI 1.4
+		  * compatible* device here.
+		  */
+		if ((dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DETAILED_CAP_INFO_AVAILABLE) == 0)
+			return 300000;
+		return port_cap[1] * 2500;
+	case DP_DS_PORT_TYPE_DVI:
+		if ((dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DETAILED_CAP_INFO_AVAILABLE) == 0)
+			return 165000;
+		/* FIXME what to do about DVI dual link? */
 		return port_cap[1] * 2500;
 	default:
 		return 0;
 	}
 }
-EXPORT_SYMBOL(drm_dp_downstream_max_clock);
+EXPORT_SYMBOL(drm_dp_downstream_max_tmds_clock);
 
 /**
- * drm_dp_downstream_max_bpc() - extract branch device max
- *                               bits per component
+ * drm_dp_downstream_min_tmds_clock() - extract downstream facing port min TMDS clock
  * @dpcd: DisplayPort configuration data
  * @port_cap: port capabilities
+ * @edid: EDID
  *
- * Returns max bpc on success or 0 if max bpc not defined
+ * Returns: HDMI/DVI downstream facing port min TMDS clock in kHz on success,
+ * or 0 if max TMDS clock not defined
  */
-int drm_dp_downstream_max_bpc(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
-			      const u8 port_cap[4])
+int drm_dp_downstream_min_tmds_clock(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+				     const u8 port_cap[4],
+				     const struct edid *edid)
 {
-	int type = port_cap[0] & DP_DS_PORT_TYPE_MASK;
-	bool detailed_cap_info = dpcd[DP_DOWNSTREAMPORT_PRESENT] &
-		DP_DETAILED_CAP_INFO_AVAILABLE;
-	int bpc;
-
-	if (!detailed_cap_info)
+	if (!drm_dp_is_branch(dpcd))
 		return 0;
 
-	switch (type) {
-	case DP_DS_PORT_TYPE_VGA:
+	if (dpcd[DP_DPCD_REV] < 0x11) {
+		switch (dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DWN_STRM_PORT_TYPE_MASK) {
+		case DP_DWN_STRM_PORT_TYPE_TMDS:
+			return 25000;
+		default:
+			return 0;
+		}
+	}
+
+	switch (port_cap[0] & DP_DS_PORT_TYPE_MASK) {
+	case DP_DS_PORT_TYPE_DP_DUALMODE:
+		if (is_edid_digital_input_dp(edid))
+			return 0;
+		fallthrough;
 	case DP_DS_PORT_TYPE_DVI:
 	case DP_DS_PORT_TYPE_HDMI:
-	case DP_DS_PORT_TYPE_DP_DUALMODE:
-		bpc = port_cap[2] & DP_DS_MAX_BPC_MASK;
+		/*
+		 * Unclear whether the protocol converter could
+		 * utilize pixel replication. Assume it won't.
+		 */
+		return 25000;
+	default:
+		return 0;
+	}
+}
+EXPORT_SYMBOL(drm_dp_downstream_min_tmds_clock);
 
-		switch (bpc) {
+/**
+ * drm_dp_downstream_max_bpc() - extract downstream facing port max
+ *                               bits per component
+ * @dpcd: DisplayPort configuration data
+ * @port_cap: downstream facing port capabilities
+ * @edid: EDID
+ *
+ * Returns: Max bpc on success or 0 if max bpc not defined
+ */
+int drm_dp_downstream_max_bpc(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+			      const u8 port_cap[4],
+			      const struct edid *edid)
+{
+	if (!drm_dp_is_branch(dpcd))
+		return 0;
+
+	if (dpcd[DP_DPCD_REV] < 0x11) {
+		switch (dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DWN_STRM_PORT_TYPE_MASK) {
+		case DP_DWN_STRM_PORT_TYPE_DP:
+			return 0;
+		default:
+			return 8;
+		}
+	}
+
+	switch (port_cap[0] & DP_DS_PORT_TYPE_MASK) {
+	case DP_DS_PORT_TYPE_DP:
+		return 0;
+	case DP_DS_PORT_TYPE_DP_DUALMODE:
+		if (is_edid_digital_input_dp(edid))
+			return 0;
+		fallthrough;
+	case DP_DS_PORT_TYPE_HDMI:
+	case DP_DS_PORT_TYPE_DVI:
+	case DP_DS_PORT_TYPE_VGA:
+		if ((dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DETAILED_CAP_INFO_AVAILABLE) == 0)
+			return 8;
+
+		switch (port_cap[2] & DP_DS_MAX_BPC_MASK) {
 		case DP_DS_8BPC:
 			return 8;
 		case DP_DS_10BPC:
@@ -491,13 +798,129 @@ int drm_dp_downstream_max_bpc(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 			return 12;
 		case DP_DS_16BPC:
 			return 16;
+		default:
+			return 8;
 		}
-		fallthrough;
+		break;
 	default:
-		return 0;
+		return 8;
 	}
 }
 EXPORT_SYMBOL(drm_dp_downstream_max_bpc);
+
+/**
+ * drm_dp_downstream_420_passthrough() - determine downstream facing port
+ *                                       YCbCr 4:2:0 pass-through capability
+ * @dpcd: DisplayPort configuration data
+ * @port_cap: downstream facing port capabilities
+ *
+ * Returns: whether the downstream facing port can pass through YCbCr 4:2:0
+ */
+bool drm_dp_downstream_420_passthrough(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+				       const u8 port_cap[4])
+{
+	if (!drm_dp_is_branch(dpcd))
+		return false;
+
+	if (dpcd[DP_DPCD_REV] < 0x13)
+		return false;
+
+	switch (port_cap[0] & DP_DS_PORT_TYPE_MASK) {
+	case DP_DS_PORT_TYPE_DP:
+		return true;
+	case DP_DS_PORT_TYPE_HDMI:
+		if ((dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DETAILED_CAP_INFO_AVAILABLE) == 0)
+			return false;
+
+		return port_cap[3] & DP_DS_HDMI_YCBCR420_PASS_THROUGH;
+	default:
+		return false;
+	}
+}
+EXPORT_SYMBOL(drm_dp_downstream_420_passthrough);
+
+/**
+ * drm_dp_downstream_444_to_420_conversion() - determine downstream facing port
+ *                                             YCbCr 4:4:4->4:2:0 conversion capability
+ * @dpcd: DisplayPort configuration data
+ * @port_cap: downstream facing port capabilities
+ *
+ * Returns: whether the downstream facing port can convert YCbCr 4:4:4 to 4:2:0
+ */
+bool drm_dp_downstream_444_to_420_conversion(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+					     const u8 port_cap[4])
+{
+	if (!drm_dp_is_branch(dpcd))
+		return false;
+
+	if (dpcd[DP_DPCD_REV] < 0x13)
+		return false;
+
+	switch (port_cap[0] & DP_DS_PORT_TYPE_MASK) {
+	case DP_DS_PORT_TYPE_HDMI:
+		if ((dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DETAILED_CAP_INFO_AVAILABLE) == 0)
+			return false;
+
+		return port_cap[3] & DP_DS_HDMI_YCBCR444_TO_420_CONV;
+	default:
+		return false;
+	}
+}
+EXPORT_SYMBOL(drm_dp_downstream_444_to_420_conversion);
+
+/**
+ * drm_dp_downstream_mode() - return a mode for downstream facing port
+ * @dpcd: DisplayPort configuration data
+ * @port_cap: port capabilities
+ *
+ * Provides a suitable mode for downstream facing ports without EDID.
+ *
+ * Returns: A new drm_display_mode on success or NULL on failure
+ */
+struct drm_display_mode *
+drm_dp_downstream_mode(struct drm_device *dev,
+		       const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+		       const u8 port_cap[4])
+
+{
+	u8 vic;
+
+	if (!drm_dp_is_branch(dpcd))
+		return NULL;
+
+	if (dpcd[DP_DPCD_REV] < 0x11)
+		return NULL;
+
+	switch (port_cap[0] & DP_DS_PORT_TYPE_MASK) {
+	case DP_DS_PORT_TYPE_NON_EDID:
+		switch (port_cap[0] & DP_DS_NON_EDID_MASK) {
+		case DP_DS_NON_EDID_720x480i_60:
+			vic = 6;
+			break;
+		case DP_DS_NON_EDID_720x480i_50:
+			vic = 21;
+			break;
+		case DP_DS_NON_EDID_1920x1080i_60:
+			vic = 5;
+			break;
+		case DP_DS_NON_EDID_1920x1080i_50:
+			vic = 20;
+			break;
+		case DP_DS_NON_EDID_1280x720_60:
+			vic = 4;
+			break;
+		case DP_DS_NON_EDID_1280x720_50:
+			vic = 19;
+			break;
+		default:
+			return NULL;
+		}
+		return drm_display_mode_from_cea_vic(dev, vic);
+	default:
+		return NULL;
+	}
+}
+EXPORT_SYMBOL(drm_dp_downstream_mode);
 
 /**
  * drm_dp_downstream_id() - identify branch device
@@ -517,12 +940,15 @@ EXPORT_SYMBOL(drm_dp_downstream_id);
  * @m: pointer for debugfs file
  * @dpcd: DisplayPort configuration data
  * @port_cap: port capabilities
+ * @edid: EDID
  * @aux: DisplayPort AUX channel
  *
  */
 void drm_dp_downstream_debug(struct seq_file *m,
 			     const u8 dpcd[DP_RECEIVER_CAP_SIZE],
-			     const u8 port_cap[4], struct drm_dp_aux *aux)
+			     const u8 port_cap[4],
+			     const struct edid *edid,
+			     struct drm_dp_aux *aux)
 {
 	bool detailed_cap_info = dpcd[DP_DOWNSTREAMPORT_PRESENT] &
 				 DP_DETAILED_CAP_INFO_AVAILABLE;
@@ -580,22 +1006,144 @@ void drm_dp_downstream_debug(struct seq_file *m,
 		seq_printf(m, "\t\tSW: %d.%d\n", rev[0], rev[1]);
 
 	if (detailed_cap_info) {
-		clk = drm_dp_downstream_max_clock(dpcd, port_cap);
+		clk = drm_dp_downstream_max_dotclock(dpcd, port_cap);
+		if (clk > 0)
+			seq_printf(m, "\t\tMax dot clock: %d kHz\n", clk);
 
-		if (clk > 0) {
-			if (type == DP_DS_PORT_TYPE_VGA)
-				seq_printf(m, "\t\tMax dot clock: %d kHz\n", clk);
-			else
-				seq_printf(m, "\t\tMax TMDS clock: %d kHz\n", clk);
-		}
+		clk = drm_dp_downstream_max_tmds_clock(dpcd, port_cap, edid);
+		if (clk > 0)
+			seq_printf(m, "\t\tMax TMDS clock: %d kHz\n", clk);
 
-		bpc = drm_dp_downstream_max_bpc(dpcd, port_cap);
+		clk = drm_dp_downstream_min_tmds_clock(dpcd, port_cap, edid);
+		if (clk > 0)
+			seq_printf(m, "\t\tMin TMDS clock: %d kHz\n", clk);
+
+		bpc = drm_dp_downstream_max_bpc(dpcd, port_cap, edid);
 
 		if (bpc > 0)
 			seq_printf(m, "\t\tMax bpc: %d\n", bpc);
 	}
 }
 EXPORT_SYMBOL(drm_dp_downstream_debug);
+
+/**
+ * drm_dp_subconnector_type() - get DP branch device type
+ *
+ */
+enum drm_mode_subconnector
+drm_dp_subconnector_type(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+			 const u8 port_cap[4])
+{
+	int type;
+	if (!drm_dp_is_branch(dpcd))
+		return DRM_MODE_SUBCONNECTOR_Native;
+	/* DP 1.0 approach */
+	if (dpcd[DP_DPCD_REV] == DP_DPCD_REV_10) {
+		type = dpcd[DP_DOWNSTREAMPORT_PRESENT] &
+		       DP_DWN_STRM_PORT_TYPE_MASK;
+
+		switch (type) {
+		case DP_DWN_STRM_PORT_TYPE_TMDS:
+			/* Can be HDMI or DVI-D, DVI-D is a safer option */
+			return DRM_MODE_SUBCONNECTOR_DVID;
+		case DP_DWN_STRM_PORT_TYPE_ANALOG:
+			/* Can be VGA or DVI-A, VGA is more popular */
+			return DRM_MODE_SUBCONNECTOR_VGA;
+		case DP_DWN_STRM_PORT_TYPE_DP:
+			return DRM_MODE_SUBCONNECTOR_DisplayPort;
+		case DP_DWN_STRM_PORT_TYPE_OTHER:
+		default:
+			return DRM_MODE_SUBCONNECTOR_Unknown;
+		}
+	}
+	type = port_cap[0] & DP_DS_PORT_TYPE_MASK;
+
+	switch (type) {
+	case DP_DS_PORT_TYPE_DP:
+	case DP_DS_PORT_TYPE_DP_DUALMODE:
+		return DRM_MODE_SUBCONNECTOR_DisplayPort;
+	case DP_DS_PORT_TYPE_VGA:
+		return DRM_MODE_SUBCONNECTOR_VGA;
+	case DP_DS_PORT_TYPE_DVI:
+		return DRM_MODE_SUBCONNECTOR_DVID;
+	case DP_DS_PORT_TYPE_HDMI:
+		return DRM_MODE_SUBCONNECTOR_HDMIA;
+	case DP_DS_PORT_TYPE_WIRELESS:
+		return DRM_MODE_SUBCONNECTOR_Wireless;
+	case DP_DS_PORT_TYPE_NON_EDID:
+	default:
+		return DRM_MODE_SUBCONNECTOR_Unknown;
+	}
+}
+EXPORT_SYMBOL(drm_dp_subconnector_type);
+
+/**
+ * drm_mode_set_dp_subconnector_property - set subconnector for DP connector
+ *
+ * Called by a driver on every detect event.
+ */
+void drm_dp_set_subconnector_property(struct drm_connector *connector,
+				      enum drm_connector_status status,
+				      const u8 *dpcd,
+				      const u8 port_cap[4])
+{
+	enum drm_mode_subconnector subconnector = DRM_MODE_SUBCONNECTOR_Unknown;
+
+	if (status == connector_status_connected)
+		subconnector = drm_dp_subconnector_type(dpcd, port_cap);
+	drm_object_property_set_value(&connector->base,
+			connector->dev->mode_config.dp_subconnector_property,
+			subconnector);
+}
+EXPORT_SYMBOL(drm_dp_set_subconnector_property);
+
+/**
+ * drm_dp_read_sink_count_cap() - Check whether a given connector has a valid sink
+ * count
+ * @connector: The DRM connector to check
+ * @dpcd: A cached copy of the connector's DPCD RX capabilities
+ * @desc: A cached copy of the connector's DP descriptor
+ *
+ * See also: drm_dp_read_sink_count()
+ *
+ * Returns: %True if the (e)DP connector has a valid sink count that should
+ * be probed, %false otherwise.
+ */
+bool drm_dp_read_sink_count_cap(struct drm_connector *connector,
+				const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+				const struct drm_dp_desc *desc)
+{
+	/* Some eDP panels don't set a valid value for the sink count */
+	return connector->connector_type != DRM_MODE_CONNECTOR_eDP &&
+		dpcd[DP_DPCD_REV] >= DP_DPCD_REV_11 &&
+		dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DWN_STRM_PORT_PRESENT &&
+		!drm_dp_has_quirk(desc, 0, DP_DPCD_QUIRK_NO_SINK_COUNT);
+}
+EXPORT_SYMBOL(drm_dp_read_sink_count_cap);
+
+/**
+ * drm_dp_read_sink_count() - Retrieve the sink count for a given sink
+ * @aux: The DP AUX channel to use
+ *
+ * See also: drm_dp_read_sink_count_cap()
+ *
+ * Returns: The current sink count reported by @aux, or a negative error code
+ * otherwise.
+ */
+int drm_dp_read_sink_count(struct drm_dp_aux *aux)
+{
+	u8 count;
+	int ret;
+
+	ret = drm_dp_dpcd_readb(aux, DP_SINK_COUNT, &count);
+	if (ret < 0)
+		return ret;
+	if (ret != 1)
+		return -EIO;
+
+	return DP_GET_SINK_COUNT(count);
+}
+EXPORT_SYMBOL(drm_dp_read_sink_count);
 
 /*
  * I2C-over-AUX implementation

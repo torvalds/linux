@@ -853,11 +853,11 @@ static void i810_dma_quiescent(struct drm_device *dev)
 	i810_wait_ring(dev, dev_priv->ring.Size - 8);
 }
 
-static int i810_flush_queue(struct drm_device *dev)
+static void i810_flush_queue(struct drm_device *dev)
 {
 	drm_i810_private_t *dev_priv = dev->dev_private;
 	struct drm_device_dma *dma = dev->dma;
-	int i, ret = 0;
+	int i;
 	RING_LOCALS;
 
 	i810_kernel_lost_context(dev);
@@ -882,7 +882,7 @@ static int i810_flush_queue(struct drm_device *dev)
 			DRM_DEBUG("still on client\n");
 	}
 
-	return ret;
+	return;
 }
 
 /* Must be called with the lock held */

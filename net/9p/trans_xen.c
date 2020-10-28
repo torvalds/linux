@@ -451,13 +451,13 @@ static int xen_9pfs_front_probe(struct xenbus_device *dev,
 		char str[16];
 
 		BUILD_BUG_ON(XEN_9PFS_NUM_RINGS > 9);
-		sprintf(str, "ring-ref%u", i);
+		sprintf(str, "ring-ref%d", i);
 		ret = xenbus_printf(xbt, dev->nodename, str, "%d",
 				    priv->rings[i].ref);
 		if (ret)
 			goto error_xenbus;
 
-		sprintf(str, "event-channel-%u", i);
+		sprintf(str, "event-channel-%d", i);
 		ret = xenbus_printf(xbt, dev->nodename, str, "%u",
 				    priv->rings[i].evtchn);
 		if (ret)

@@ -2653,6 +2653,10 @@ void serial8250_update_uartclk(struct uart_port *port, unsigned int uartclk)
 		goto out_lock;
 
 	port->uartclk = uartclk;
+
+	if (!tty_port_initialized(&port->state->port))
+		goto out_lock;
+
 	termios = &port->state->port.tty->termios;
 
 	baud = serial8250_get_baud_rate(port, termios, NULL);
@@ -2665,7 +2669,6 @@ void serial8250_update_uartclk(struct uart_port *port, unsigned int uartclk)
 
 	serial8250_set_divisor(port, baud, quot, frac);
 	serial_port_out(port, UART_LCR, up->lcr);
-	serial8250_out_MCR(up, UART_MCR_DTR | UART_MCR_RTS);
 
 	spin_unlock_irqrestore(&port->lock, flags);
 	serial8250_rpm_put(up);

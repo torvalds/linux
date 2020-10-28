@@ -423,38 +423,26 @@ static int sun4i_pwm_probe(struct platform_device *pdev)
 	 * back to the first clock of the PWM.
 	 */
 	pwm->clk = devm_clk_get_optional(&pdev->dev, "mod");
-	if (IS_ERR(pwm->clk)) {
-		if (PTR_ERR(pwm->clk) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "get mod clock failed %pe\n",
-				pwm->clk);
-		return PTR_ERR(pwm->clk);
-	}
+	if (IS_ERR(pwm->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(pwm->clk),
+				     "get mod clock failed\n");
 
 	if (!pwm->clk) {
 		pwm->clk = devm_clk_get(&pdev->dev, NULL);
-		if (IS_ERR(pwm->clk)) {
-			if (PTR_ERR(pwm->clk) != -EPROBE_DEFER)
-				dev_err(&pdev->dev, "get unnamed clock failed %pe\n",
-					pwm->clk);
-			return PTR_ERR(pwm->clk);
-		}
+		if (IS_ERR(pwm->clk))
+			return dev_err_probe(&pdev->dev, PTR_ERR(pwm->clk),
+					     "get unnamed clock failed\n");
 	}
 
 	pwm->bus_clk = devm_clk_get_optional(&pdev->dev, "bus");
-	if (IS_ERR(pwm->bus_clk)) {
-		if (PTR_ERR(pwm->bus_clk) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "get bus clock failed %pe\n",
-				pwm->bus_clk);
-		return PTR_ERR(pwm->bus_clk);
-	}
+	if (IS_ERR(pwm->bus_clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(pwm->bus_clk),
+				     "get bus clock failed\n");
 
 	pwm->rst = devm_reset_control_get_optional_shared(&pdev->dev, NULL);
-	if (IS_ERR(pwm->rst)) {
-		if (PTR_ERR(pwm->rst) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "get reset failed %pe\n",
-				pwm->rst);
-		return PTR_ERR(pwm->rst);
-	}
+	if (IS_ERR(pwm->rst))
+		return dev_err_probe(&pdev->dev, PTR_ERR(pwm->rst),
+				     "get reset failed\n");
 
 	/* Deassert reset */
 	ret = reset_control_deassert(pwm->rst);

@@ -97,7 +97,7 @@ struct cdns_reg_pairs {
 
 struct cdns_salvo_data {
 	u8 reg_offset_shift;
-	struct cdns_reg_pairs *init_sequence_val;
+	const struct cdns_reg_pairs *init_sequence_val;
 	u8 init_sequence_length;
 };
 
@@ -126,7 +126,7 @@ static void cdns_salvo_write(struct cdns_salvo_phy *salvo_phy,
  * Below bringup sequence pair are from Cadence PHY's User Guide
  * and NXP platform tuning results.
  */
-static struct cdns_reg_pairs cdns_nxp_sequence_pair[] = {
+static const struct cdns_reg_pairs cdns_nxp_sequence_pair[] = {
 	{0x0830, PHY_PMA_CMN_CTRL1},
 	{0x0010, TB_ADDR_CMN_DIAG_HSCLK_SEL},
 	{0x00f0, TB_ADDR_CMN_PLL0_VCOCAL_INIT_TMR},
@@ -217,7 +217,7 @@ static int cdns_salvo_phy_init(struct phy *phy)
 		return ret;
 
 	for (i = 0; i < data->init_sequence_length; i++) {
-		struct cdns_reg_pairs *reg_pair = data->init_sequence_val + i;
+		const struct cdns_reg_pairs *reg_pair = data->init_sequence_val + i;
 
 		cdns_salvo_write(salvo_phy, reg_pair->off, reg_pair->val);
 	}
@@ -251,7 +251,7 @@ static int cdns_salvo_phy_power_off(struct phy *phy)
 	return 0;
 }
 
-static struct phy_ops cdns_salvo_phy_ops = {
+static const struct phy_ops cdns_salvo_phy_ops = {
 	.init		= cdns_salvo_phy_init,
 	.power_on	= cdns_salvo_phy_power_on,
 	.power_off	= cdns_salvo_phy_power_off,

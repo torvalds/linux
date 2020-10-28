@@ -274,19 +274,6 @@ static int __init disable_vector_extension(char *str)
 }
 early_param("novx", disable_vector_extension);
 
-static int __init cad_setup(char *str)
-{
-	bool enabled;
-	int rc;
-
-	rc = kstrtobool(str, &enabled);
-	if (!rc && enabled && test_facility(128))
-		/* Enable problem state CAD. */
-		__ctl_set_bit(2, 3);
-	return rc;
-}
-early_param("cad", cad_setup);
-
 char __bootdata(early_command_line)[COMMAND_LINE_SIZE];
 static void __init setup_boot_command_line(void)
 {

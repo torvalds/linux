@@ -46,6 +46,8 @@ required:
   - loongson,msi-base-vec
   - loongson,msi-num-vecs
 
+additionalProperties: true #fixme
+
 examples:
   - |
     #include <dt-bindings/interrupt-controller/irq.h>

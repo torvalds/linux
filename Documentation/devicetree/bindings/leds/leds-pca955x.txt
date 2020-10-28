@@ -9,6 +9,7 @@ Required properties:
 	"nxp,pca9550"
 	"nxp,pca9551"
 	"nxp,pca9552"
+	"ibm,pca9552"
 	"nxp,pca9553"
 - #address-cells: must be 1
 - #size-cells: must be 0

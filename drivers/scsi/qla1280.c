@@ -1241,7 +1241,7 @@ qla1280_done(struct scsi_qla_host *ha)
 {
 	struct srb *sp;
 	struct list_head *done_q;
-	int bus, target, lun;
+	int bus, target;
 	struct scsi_cmnd *cmd;
 
 	ENTER("qla1280_done");
@@ -1256,7 +1256,6 @@ qla1280_done(struct scsi_qla_host *ha)
 		cmd = sp->cmd;
 		bus = SCSI_BUS_32(cmd);
 		target = SCSI_TCN_32(cmd);
-		lun = SCSI_LUN_32(cmd);
 
 		switch ((CMD_RESULT(cmd) >> 16)) {
 		case DID_RESET:
@@ -2185,13 +2184,12 @@ qla1280_nvram_config(struct scsi_qla_host *ha)
 		nv->cntr_flags_1.disable_loading_risc_code;
 
 	if (IS_ISP1040(ha)) {
-		uint16_t hwrev, cfg1, cdma_conf, ddma_conf;
+		uint16_t hwrev, cfg1, cdma_conf;
 
 		hwrev = RD_REG_WORD(&reg->cfg_0) & ISP_CFG0_HWMSK;
 
 		cfg1 = RD_REG_WORD(&reg->cfg_1) & ~(BIT_4 | BIT_5 | BIT_6);
 		cdma_conf = RD_REG_WORD(&reg->cdma_cfg);
-		ddma_conf = RD_REG_WORD(&reg->ddma_cfg);
 
 		/* Busted fifo, says mjacob. */
 		if (hwrev != ISP_CFG0_1040A)
@@ -2427,7 +2425,6 @@ qla1280_mailbox_command(struct scsi_qla_host *ha, uint8_t mr, uint16_t *mb)
 	int cnt;
 	uint16_t *optr, *iptr;
 	uint16_t __iomem *mptr;
-	uint16_t data;
 	DECLARE_COMPLETION_ONSTACK(wait);
 
 	ENTER("qla1280_mailbox_command");
@@ -2462,7 +2459,7 @@ qla1280_mailbox_command(struct scsi_qla_host *ha, uint8_t mr, uint16_t *mb)
 
 	spin_unlock_irq(ha->host->host_lock);
 	WRT_REG_WORD(&reg->host_cmd, HC_SET_HOST_INT);
-	data = qla1280_debounce_register(&reg->istatus);
+	qla1280_debounce_register(&reg->istatus);
 
 	wait_for_completion(&wait);
 	del_timer_sync(&ha->mailbox_timer);
@@ -3604,7 +3601,6 @@ static void
 qla1280_status_entry(struct scsi_qla_host *ha, struct response *pkt,
 		     struct list_head *done_q)
 {
-	unsigned int bus, target, lun;
 	int sense_sz;
 	struct srb *sp;
 	struct scsi_cmnd *cmd;
@@ -3629,11 +3625,6 @@ qla1280_status_entry(struct scsi_qla_host *ha, struct response *pkt,
 	ha->outstanding_cmds[handle] = NULL;
 
 	cmd = sp->cmd;
-
-	/* Generate LU queue on cntrl, target, LUN */
-	bus = SCSI_BUS_32(cmd);
-	target = SCSI_TCN_32(cmd);
-	lun = SCSI_LUN_32(cmd);
 
 	if (comp_status || scsi_status) {
 		dprintk(3, "scsi: comp_status = 0x%x, scsi_status = "
@@ -3673,7 +3664,8 @@ qla1280_status_entry(struct scsi_qla_host *ha, struct response *pkt,
 
 			dprintk(2, "qla1280_status_entry: Check "
 				"condition Sense data, b %i, t %i, "
-				"l %i\n", bus, target, lun);
+				"l %i\n", SCSI_BUS_32(cmd), SCSI_TCN_32(cmd),
+				SCSI_LUN_32(cmd));
 			if (sense_sz)
 				qla1280_dump_buffer(2,
 						    (char *)cmd->sense_buffer,

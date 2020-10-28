@@ -28,19 +28,6 @@ static int mtk_reg_read(void *context,
 	return 0;
 }
 
-static int mtk_reg_write(void *context,
-			 unsigned int reg, void *_val, size_t bytes)
-{
-	struct mtk_efuse_priv *priv = context;
-	u32 *val = _val;
-	int i = 0, words = bytes / 4;
-
-	while (words--)
-		writel(*val++, priv->base + reg + (i++ * 4));
-
-	return 0;
-}
-
 static int mtk_efuse_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -61,7 +48,6 @@ static int mtk_efuse_probe(struct platform_device *pdev)
 	econfig.stride = 4;
 	econfig.word_size = 4;
 	econfig.reg_read = mtk_reg_read;
-	econfig.reg_write = mtk_reg_write;
 	econfig.size = resource_size(res);
 	econfig.priv = priv;
 	econfig.dev = dev;

@@ -59,26 +59,6 @@ int main(void)
 	OFFSET(__SF_SIE_REASON, stack_frame, empty1[2]);
 	OFFSET(__SF_SIE_FLAGS, stack_frame, empty1[3]);
 	BLANK();
-	/* timeval/timezone offsets for use by vdso */
-	OFFSET(__VDSO_UPD_COUNT, vdso_data, tb_update_count);
-	OFFSET(__VDSO_XTIME_STAMP, vdso_data, xtime_tod_stamp);
-	OFFSET(__VDSO_XTIME_SEC, vdso_data, xtime_clock_sec);
-	OFFSET(__VDSO_XTIME_NSEC, vdso_data, xtime_clock_nsec);
-	OFFSET(__VDSO_XTIME_CRS_SEC, vdso_data, xtime_coarse_sec);
-	OFFSET(__VDSO_XTIME_CRS_NSEC, vdso_data, xtime_coarse_nsec);
-	OFFSET(__VDSO_WTOM_SEC, vdso_data, wtom_clock_sec);
-	OFFSET(__VDSO_WTOM_NSEC, vdso_data, wtom_clock_nsec);
-	OFFSET(__VDSO_WTOM_CRS_SEC, vdso_data, wtom_coarse_sec);
-	OFFSET(__VDSO_WTOM_CRS_NSEC, vdso_data, wtom_coarse_nsec);
-	OFFSET(__VDSO_TIMEZONE, vdso_data, tz_minuteswest);
-	OFFSET(__VDSO_ECTG_OK, vdso_data, ectg_available);
-	OFFSET(__VDSO_TK_MULT, vdso_data, tk_mult);
-	OFFSET(__VDSO_TK_SHIFT, vdso_data, tk_shift);
-	OFFSET(__VDSO_TS_DIR, vdso_data, ts_dir);
-	OFFSET(__VDSO_TS_END, vdso_data, ts_end);
-	OFFSET(__VDSO_CLOCK_REALTIME_RES, vdso_data, hrtimer_res);
-	OFFSET(__VDSO_ECTG_BASE, vdso_per_cpu_data, ectg_timer_base);
-	OFFSET(__VDSO_ECTG_USER, vdso_per_cpu_data, ectg_user_time);
 	OFFSET(__VDSO_GETCPU_VAL, vdso_per_cpu_data, getcpu_val);
 	BLANK();
 	/* constants used by the vdso */

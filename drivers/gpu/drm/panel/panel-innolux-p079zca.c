@@ -17,7 +17,6 @@
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_panel.h>
-#include <drm/drm_print.h>
 
 struct panel_init_cmd {
 	size_t len;
@@ -85,13 +84,11 @@ static int innolux_panel_unprepare(struct drm_panel *panel)
 
 	err = mipi_dsi_dcs_set_display_off(innolux->link);
 	if (err < 0)
-		DRM_DEV_ERROR(panel->dev, "failed to set display off: %d\n",
-			      err);
+		dev_err(panel->dev, "failed to set display off: %d\n", err);
 
 	err = mipi_dsi_dcs_enter_sleep_mode(innolux->link);
 	if (err < 0) {
-		DRM_DEV_ERROR(panel->dev, "failed to enter sleep mode: %d\n",
-			      err);
+		dev_err(panel->dev, "failed to enter sleep mode: %d\n", err);
 		return err;
 	}
 
@@ -147,8 +144,7 @@ static int innolux_panel_prepare(struct drm_panel *panel)
 			err = mipi_dsi_generic_write(innolux->link, cmd->data,
 						     cmd->len);
 			if (err < 0) {
-				dev_err(panel->dev,
-					"failed to write command %u\n", i);
+				dev_err(panel->dev, "failed to write command %u\n", i);
 				goto poweroff;
 			}
 
@@ -159,8 +155,7 @@ static int innolux_panel_prepare(struct drm_panel *panel)
 			 */
 			err = mipi_dsi_dcs_nop(innolux->link);
 			if (err < 0) {
-				dev_err(panel->dev,
-					"failed to send DCS nop: %d\n", err);
+				dev_err(panel->dev, "failed to send DCS nop: %d\n", err);
 				goto poweroff;
 			}
 		}
@@ -168,8 +163,7 @@ static int innolux_panel_prepare(struct drm_panel *panel)
 
 	err = mipi_dsi_dcs_exit_sleep_mode(innolux->link);
 	if (err < 0) {
-		DRM_DEV_ERROR(panel->dev, "failed to exit sleep mode: %d\n",
-			      err);
+		dev_err(panel->dev, "failed to exit sleep mode: %d\n", err);
 		goto poweroff;
 	}
 
@@ -178,8 +172,7 @@ static int innolux_panel_prepare(struct drm_panel *panel)
 
 	err = mipi_dsi_dcs_set_display_on(innolux->link);
 	if (err < 0) {
-		DRM_DEV_ERROR(panel->dev, "failed to set display on: %d\n",
-			      err);
+		dev_err(panel->dev, "failed to set display on: %d\n", err);
 		goto poweroff;
 	}
 
@@ -398,8 +391,8 @@ static int innolux_panel_get_modes(struct drm_panel *panel,
 
 	mode = drm_mode_duplicate(connector->dev, m);
 	if (!mode) {
-		DRM_DEV_ERROR(panel->dev, "failed to add mode %ux%ux@%u\n",
-			      m->hdisplay, m->vdisplay, drm_mode_vrefresh(m));
+		dev_err(panel->dev, "failed to add mode %ux%u@%u\n",
+			m->hdisplay, m->vdisplay, drm_mode_vrefresh(m));
 		return -ENOMEM;
 	}
 
@@ -475,9 +468,7 @@ static int innolux_panel_add(struct mipi_dsi_device *dsi,
 	if (err)
 		return err;
 
-	err = drm_panel_add(&innolux->base);
-	if (err < 0)
-		return err;
+	drm_panel_add(&innolux->base);
 
 	mipi_dsi_set_drvdata(dsi, innolux);
 	innolux->link = dsi;
@@ -514,17 +505,15 @@ static int innolux_panel_remove(struct mipi_dsi_device *dsi)
 
 	err = drm_panel_unprepare(&innolux->base);
 	if (err < 0)
-		DRM_DEV_ERROR(&dsi->dev, "failed to unprepare panel: %d\n",
-			      err);
+		dev_err(&dsi->dev, "failed to unprepare panel: %d\n", err);
 
 	err = drm_panel_disable(&innolux->base);
 	if (err < 0)
-		DRM_DEV_ERROR(&dsi->dev, "failed to disable panel: %d\n", err);
+		dev_err(&dsi->dev, "failed to disable panel: %d\n", err);
 
 	err = mipi_dsi_detach(dsi);
 	if (err < 0)
-		DRM_DEV_ERROR(&dsi->dev, "failed to detach from DSI host: %d\n",
-			      err);
+		dev_err(&dsi->dev, "failed to detach from DSI host: %d\n", err);
 
 	innolux_panel_del(innolux);
 

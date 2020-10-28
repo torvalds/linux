@@ -1623,4 +1623,15 @@ static struct kunit_suite tb_test_suite = {
 	.name = "thunderbolt",
 	.test_cases = tb_test_cases,
 };
-kunit_test_suite(tb_test_suite);
+
+static struct kunit_suite *tb_test_suites[] = { &tb_test_suite, NULL };
+
+int tb_test_init(void)
+{
+	return __kunit_test_suites_init(tb_test_suites);
+}
+
+void tb_test_exit(void)
+{
+	return __kunit_test_suites_exit(tb_test_suites);
+}

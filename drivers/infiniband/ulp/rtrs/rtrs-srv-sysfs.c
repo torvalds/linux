@@ -135,7 +135,7 @@ static struct attribute *rtrs_srv_sess_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group rtrs_srv_sess_attr_group = {
+static const struct attribute_group rtrs_srv_sess_attr_group = {
 	.attrs = rtrs_srv_sess_attrs,
 };
 
@@ -148,7 +148,7 @@ static struct attribute *rtrs_srv_stats_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group rtrs_srv_stats_attr_group = {
+static const struct attribute_group rtrs_srv_stats_attr_group = {
 	.attrs = rtrs_srv_stats_attrs,
 };
 

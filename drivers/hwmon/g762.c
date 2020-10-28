@@ -1033,7 +1033,7 @@ static inline int g762_fan_init(struct device *dev)
 					 data->fan_cmd1);
 }
 
-static int g762_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int g762_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device *hwmon_dev;
@@ -1079,7 +1079,7 @@ static struct i2c_driver g762_driver = {
 		.name = DRVNAME,
 		.of_match_table = of_match_ptr(g762_dt_match),
 	},
-	.probe	  = g762_probe,
+	.probe_new = g762_probe,
 	.id_table = g762_id,
 };
 

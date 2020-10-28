@@ -115,6 +115,13 @@ struct ceph_client_metric {
 	ktime_t metadata_latency_min;
 	ktime_t metadata_latency_max;
 
+	/* The total number of directories and files that are opened */
+	atomic64_t opened_files;
+
+	/* The total number of inodes that have opened files or directories */
+	struct percpu_counter opened_inodes;
+	struct percpu_counter total_inodes;
+
 	struct ceph_mds_session *session;
 	struct delayed_work delayed_work;  /* delayed work */
 };

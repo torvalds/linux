@@ -79,7 +79,6 @@ struct imx6_pcie {
 	u32			tx_deemph_gen2_6db;
 	u32			tx_swing_full;
 	u32			tx_swing_low;
-	int			link_gen;
 	struct regulator	*vpcie;
 	void __iomem		*phy_base;
 
@@ -94,15 +93,6 @@ struct imx6_pcie {
 #define PHY_PLL_LOCK_WAIT_USLEEP_MAX	200
 #define PHY_PLL_LOCK_WAIT_TIMEOUT	(2000 * PHY_PLL_LOCK_WAIT_USLEEP_MAX)
 
-/* PCIe Root Complex registers (memory-mapped) */
-#define PCIE_RC_IMX6_MSI_CAP			0x50
-#define PCIE_RC_LCR				0x7c
-#define PCIE_RC_LCR_MAX_LINK_SPEEDS_GEN1	0x1
-#define PCIE_RC_LCR_MAX_LINK_SPEEDS_GEN2	0x2
-#define PCIE_RC_LCR_MAX_LINK_SPEEDS_MASK	0xf
-
-#define PCIE_RC_LCSR				0x80
-
 /* PCIe Port Logic registers (memory-mapped) */
 #define PL_OFFSET 0x700
 
@@ -115,8 +105,6 @@ struct imx6_pcie {
 
 #define PCIE_PHY_STAT (PL_OFFSET + 0x110)
 #define PCIE_PHY_STAT_ACK		BIT(16)
-
-#define PCIE_LINK_WIDTH_SPEED_CONTROL	0x80C
 
 /* PHY registers (not memory-mapped) */
 #define PCIE_PHY_ATEOVRD			0x10
@@ -761,6 +749,7 @@ static int imx6_pcie_establish_link(struct imx6_pcie *imx6_pcie)
 {
 	struct dw_pcie *pci = imx6_pcie->pci;
 	struct device *dev = pci->dev;
+	u8 offset = dw_pcie_find_capability(pci, PCI_CAP_ID_EXP);
 	u32 tmp;
 	int ret;
 
@@ -769,10 +758,10 @@ static int imx6_pcie_establish_link(struct imx6_pcie *imx6_pcie)
 	 * started in Gen2 mode, there is a possibility the devices on the
 	 * bus will not be detected at all.  This happens with PCIe switches.
 	 */
-	tmp = dw_pcie_readl_dbi(pci, PCIE_RC_LCR);
-	tmp &= ~PCIE_RC_LCR_MAX_LINK_SPEEDS_MASK;
-	tmp |= PCIE_RC_LCR_MAX_LINK_SPEEDS_GEN1;
-	dw_pcie_writel_dbi(pci, PCIE_RC_LCR, tmp);
+	tmp = dw_pcie_readl_dbi(pci, offset + PCI_EXP_LNKCAP);
+	tmp &= ~PCI_EXP_LNKCAP_SLS;
+	tmp |= PCI_EXP_LNKCAP_SLS_2_5GB;
+	dw_pcie_writel_dbi(pci, offset + PCI_EXP_LNKCAP, tmp);
 
 	/* Start LTSSM. */
 	imx6_pcie_ltssm_enable(dev);
@@ -781,12 +770,12 @@ static int imx6_pcie_establish_link(struct imx6_pcie *imx6_pcie)
 	if (ret)
 		goto err_reset_phy;
 
-	if (imx6_pcie->link_gen == 2) {
+	if (pci->link_gen == 2) {
 		/* Allow Gen2 mode after the link is up. */
-		tmp = dw_pcie_readl_dbi(pci, PCIE_RC_LCR);
-		tmp &= ~PCIE_RC_LCR_MAX_LINK_SPEEDS_MASK;
-		tmp |= PCIE_RC_LCR_MAX_LINK_SPEEDS_GEN2;
-		dw_pcie_writel_dbi(pci, PCIE_RC_LCR, tmp);
+		tmp = dw_pcie_readl_dbi(pci, offset + PCI_EXP_LNKCAP);
+		tmp &= ~PCI_EXP_LNKCAP_SLS;
+		tmp |= PCI_EXP_LNKCAP_SLS_5_0GB;
+		dw_pcie_writel_dbi(pci, offset + PCI_EXP_LNKCAP, tmp);
 
 		/*
 		 * Start Directed Speed Change so the best possible
@@ -824,8 +813,8 @@ static int imx6_pcie_establish_link(struct imx6_pcie *imx6_pcie)
 		dev_info(dev, "Link: Gen2 disabled\n");
 	}
 
-	tmp = dw_pcie_readl_dbi(pci, PCIE_RC_LCSR);
-	dev_info(dev, "Link up, Gen%i\n", (tmp >> 16) & 0xf);
+	tmp = dw_pcie_readw_dbi(pci, offset + PCI_EXP_LNKSTA);
+	dev_info(dev, "Link up, Gen%i\n", tmp & PCI_EXP_LNKSTA_CLS);
 	return 0;
 
 err_reset_phy:
@@ -847,9 +836,7 @@ static int imx6_pcie_host_init(struct pcie_port *pp)
 	imx6_setup_phy_mpll(imx6_pcie);
 	dw_pcie_setup_rc(pp);
 	imx6_pcie_establish_link(imx6_pcie);
-
-	if (IS_ENABLED(CONFIG_PCI_MSI))
-		dw_pcie_msi_init(pp);
+	dw_pcie_msi_init(pp);
 
 	return 0;
 }
@@ -1073,38 +1060,33 @@ static int imx6_pcie_probe(struct platform_device *pdev)
 
 	/* Fetch clocks */
 	imx6_pcie->pcie_phy = devm_clk_get(dev, "pcie_phy");
-	if (IS_ERR(imx6_pcie->pcie_phy)) {
-		dev_err(dev, "pcie_phy clock source missing or invalid\n");
-		return PTR_ERR(imx6_pcie->pcie_phy);
-	}
+	if (IS_ERR(imx6_pcie->pcie_phy))
+		return dev_err_probe(dev, PTR_ERR(imx6_pcie->pcie_phy),
+				     "pcie_phy clock source missing or invalid\n");
 
 	imx6_pcie->pcie_bus = devm_clk_get(dev, "pcie_bus");
-	if (IS_ERR(imx6_pcie->pcie_bus)) {
-		dev_err(dev, "pcie_bus clock source missing or invalid\n");
-		return PTR_ERR(imx6_pcie->pcie_bus);
-	}
+	if (IS_ERR(imx6_pcie->pcie_bus))
+		return dev_err_probe(dev, PTR_ERR(imx6_pcie->pcie_bus),
+				     "pcie_bus clock source missing or invalid\n");
 
 	imx6_pcie->pcie = devm_clk_get(dev, "pcie");
-	if (IS_ERR(imx6_pcie->pcie)) {
-		dev_err(dev, "pcie clock source missing or invalid\n");
-		return PTR_ERR(imx6_pcie->pcie);
-	}
+	if (IS_ERR(imx6_pcie->pcie))
+		return dev_err_probe(dev, PTR_ERR(imx6_pcie->pcie),
+				     "pcie clock source missing or invalid\n");
 
 	switch (imx6_pcie->drvdata->variant) {
 	case IMX6SX:
 		imx6_pcie->pcie_inbound_axi = devm_clk_get(dev,
 							   "pcie_inbound_axi");
-		if (IS_ERR(imx6_pcie->pcie_inbound_axi)) {
-			dev_err(dev, "pcie_inbound_axi clock missing or invalid\n");
-			return PTR_ERR(imx6_pcie->pcie_inbound_axi);
-		}
+		if (IS_ERR(imx6_pcie->pcie_inbound_axi))
+			return dev_err_probe(dev, PTR_ERR(imx6_pcie->pcie_inbound_axi),
+					     "pcie_inbound_axi clock missing or invalid\n");
 		break;
 	case IMX8MQ:
 		imx6_pcie->pcie_aux = devm_clk_get(dev, "pcie_aux");
-		if (IS_ERR(imx6_pcie->pcie_aux)) {
-			dev_err(dev, "pcie_aux clock source missing or invalid\n");
-			return PTR_ERR(imx6_pcie->pcie_aux);
-		}
+		if (IS_ERR(imx6_pcie->pcie_aux))
+			return dev_err_probe(dev, PTR_ERR(imx6_pcie->pcie_aux),
+					     "pcie_aux clock source missing or invalid\n");
 		fallthrough;
 	case IMX7D:
 		if (dbi_base->start == IMX8MQ_PCIE2_BASE_ADDR)
@@ -1165,10 +1147,8 @@ static int imx6_pcie_probe(struct platform_device *pdev)
 		imx6_pcie->tx_swing_low = 127;
 
 	/* Limit link speed */
-	ret = of_property_read_u32(node, "fsl,max-link-speed",
-				   &imx6_pcie->link_gen);
-	if (ret)
-		imx6_pcie->link_gen = 1;
+	pci->link_gen = 1;
+	ret = of_property_read_u32(node, "fsl,max-link-speed", &pci->link_gen);
 
 	imx6_pcie->vpcie = devm_regulator_get_optional(&pdev->dev, "vpcie");
 	if (IS_ERR(imx6_pcie->vpcie)) {
@@ -1188,11 +1168,10 @@ static int imx6_pcie_probe(struct platform_device *pdev)
 		return ret;
 
 	if (pci_msi_enabled()) {
-		val = dw_pcie_readw_dbi(pci, PCIE_RC_IMX6_MSI_CAP +
-					PCI_MSI_FLAGS);
+		u8 offset = dw_pcie_find_capability(pci, PCI_CAP_ID_MSI);
+		val = dw_pcie_readw_dbi(pci, offset + PCI_MSI_FLAGS);
 		val |= PCI_MSI_FLAGS_ENABLE;
-		dw_pcie_writew_dbi(pci, PCIE_RC_IMX6_MSI_CAP + PCI_MSI_FLAGS,
-				   val);
+		dw_pcie_writew_dbi(pci, offset + PCI_MSI_FLAGS, val);
 	}
 
 	return 0;

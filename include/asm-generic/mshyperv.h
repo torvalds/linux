@@ -89,7 +89,7 @@ static inline void vmbus_signal_eom(struct hv_message *msg, u32 old_msg_type)
 	}
 }
 
-void hv_setup_vmbus_irq(void (*handler)(void));
+int hv_setup_vmbus_irq(int irq, void (*handler)(void));
 void hv_remove_vmbus_irq(void);
 void hv_enable_vmbus_irq(void);
 void hv_disable_vmbus_irq(void);
@@ -98,6 +98,8 @@ void hv_setup_kexec_handler(void (*handler)(void));
 void hv_remove_kexec_handler(void);
 void hv_setup_crash_handler(void (*handler)(struct pt_regs *regs));
 void hv_remove_crash_handler(void);
+
+extern int vmbus_interrupt;
 
 #if IS_ENABLED(CONFIG_HYPERV)
 /*

@@ -9,7 +9,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/idr.h>
-#include <linux/dma-mapping.h>
+#include <linux/dma-map-ops.h>
 
 #include "vop_bus.h"
 

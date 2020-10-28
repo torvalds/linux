@@ -2,7 +2,7 @@
 /*
  * OMAP IOMMU quirks for various TI SoCs
  *
- * Copyright (C) 2015-2019 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2015-2019 Texas Instruments Incorporated - https://www.ti.com/
  *      Suman Anna <s-anna@ti.com>
  */
 

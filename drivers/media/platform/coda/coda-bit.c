@@ -1101,7 +1101,7 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 		break;
 	case CODA_960:
 		coda_write(dev, 0, CODA9_GDI_WPROT_RGN_EN);
-		/* fallthrough */
+		fallthrough;
 	case CODA_HX4:
 	case CODA_7541:
 		coda_write(dev, CODA7_STREAM_BUF_DYNALLOC_EN |
@@ -1141,7 +1141,7 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 				 CODA7_PICHEIGHT_MASK) << CODA_PICHEIGHT_OFFSET;
 			break;
 		}
-		/* fallthrough */
+		fallthrough;
 	case CODA_960:
 		value = (q_data_src->rect.width & CODA7_PICWIDTH_MASK)
 			<< CODA7_PICWIDTH_OFFSET;

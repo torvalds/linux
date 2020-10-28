@@ -39,10 +39,17 @@
 			compatible = "samsung,clock-xusbxti";
 			clock-frequency = <24000000>;
 		};
+
+		pmic_ap_clk: pmic-ap-clk {
+			/* Workaround for missing clock on PMIC */
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <32768>;
+		};
 	};
 
 	vemmc_reg: voltage-regulator {
-	        compatible = "regulator-fixed";
+		compatible = "regulator-fixed";
 		regulator-name = "VMEM_VDD_2_8V";
 		regulator-min-microvolt = <2800000>;
 		regulator-max-microvolt = <2800000>;
@@ -104,7 +111,7 @@
 	};
 
 	tsp_reg: voltage-regulator {
-	        compatible = "regulator-fixed";
+		compatible = "regulator-fixed";
 		regulator-name = "TSP_2_8V";
 		regulator-min-microvolt = <2800000>;
 		regulator-max-microvolt = <2800000>;
@@ -112,13 +119,13 @@
 		enable-active-high;
 	};
 
-	spi-lcd {
+	spi-3 {
 		compatible = "spi-gpio";
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		gpio-sck = <&gpy3 1 GPIO_ACTIVE_HIGH>;
-		gpio-mosi = <&gpy3 3 GPIO_ACTIVE_HIGH>;
+		sck-gpios = <&gpy3 1 GPIO_ACTIVE_HIGH>;
+		mosi-gpios = <&gpy3 3 GPIO_ACTIVE_HIGH>;
 		num-chipselects = <1>;
 		cs-gpios = <&gpy4 3 GPIO_ACTIVE_LOW>;
 
@@ -190,6 +197,19 @@
 
 &cpu0 {
 	cpu0-supply = <&vdd_arm_reg>;
+};
+
+&cpu_thermal {
+	cooling-maps {
+		map0 {
+			/* Corresponds to 800MHz */
+			cooling-device = <&cpu0 2 2>;
+		};
+		map1 {
+			/* Corresponds to 200MHz */
+			cooling-device = <&cpu0 4 4>;
+		};
+	};
 };
 
 &ehci {
@@ -535,6 +555,12 @@
 &pwm {
 	compatible = "samsung,s5p6440-pwm";
 	status = "okay";
+};
+
+&rtc {
+	status = "okay";
+	clocks = <&clock CLK_RTC>, <&pmic_ap_clk>;
+	clock-names = "rtc", "rtc_src";
 };
 
 &sdhci_0 {

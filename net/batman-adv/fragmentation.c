@@ -306,7 +306,7 @@ free:
  * set *skb to merged packet; 2) Packet is buffered: Return true and set *skb
  * to NULL; 3) Error: Return false and free skb.
  *
- * Return: true when the packet is merged or buffered, false when skb is not not
+ * Return: true when the packet is merged or buffered, false when skb is not
  * used.
  */
 bool batadv_frag_skb_buffer(struct sk_buff **skb,

@@ -34,9 +34,13 @@ enum {
 	TRACE_FUNC_OPT_STACK	= 0x1,
 };
 
-static int allocate_ftrace_ops(struct trace_array *tr)
+int ftrace_allocate_ftrace_ops(struct trace_array *tr)
 {
 	struct ftrace_ops *ops;
+
+	/* The top level array uses the "global_ops" */
+	if (tr->flags & TRACE_ARRAY_FL_GLOBAL)
+		return 0;
 
 	ops = kzalloc(sizeof(*ops), GFP_KERNEL);
 	if (!ops)
@@ -48,15 +52,19 @@ static int allocate_ftrace_ops(struct trace_array *tr)
 
 	tr->ops = ops;
 	ops->private = tr;
+
 	return 0;
 }
 
+void ftrace_free_ftrace_ops(struct trace_array *tr)
+{
+	kfree(tr->ops);
+	tr->ops = NULL;
+}
 
 int ftrace_create_function_files(struct trace_array *tr,
 				 struct dentry *parent)
 {
-	int ret;
-
 	/*
 	 * The top level array uses the "global_ops", and the files are
 	 * created on boot up.
@@ -64,9 +72,8 @@ int ftrace_create_function_files(struct trace_array *tr,
 	if (tr->flags & TRACE_ARRAY_FL_GLOBAL)
 		return 0;
 
-	ret = allocate_ftrace_ops(tr);
-	if (ret)
-		return ret;
+	if (!tr->ops)
+		return -EINVAL;
 
 	ftrace_create_filter_files(tr->ops, parent);
 
@@ -76,8 +83,7 @@ int ftrace_create_function_files(struct trace_array *tr,
 void ftrace_destroy_function_files(struct trace_array *tr)
 {
 	ftrace_destroy_filter_files(tr->ops);
-	kfree(tr->ops);
-	tr->ops = NULL;
+	ftrace_free_ftrace_ops(tr);
 }
 
 static int function_trace_init(struct trace_array *tr)

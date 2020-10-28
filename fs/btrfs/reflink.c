@@ -45,7 +45,7 @@ out:
 	return ret;
 }
 
-static int copy_inline_to_page(struct inode *inode,
+static int copy_inline_to_page(struct btrfs_inode *inode,
 			       const u64 file_offset,
 			       char *inline_data,
 			       const u64 size,
@@ -58,6 +58,7 @@ static int copy_inline_to_page(struct inode *inode,
 	char *data_start = inline_data + btrfs_file_extent_calc_inline_size(0);
 	struct extent_changeset *data_reserved = NULL;
 	struct page *page = NULL;
+	struct address_space *mapping = inode->vfs_inode.i_mapping;
 	int ret;
 
 	ASSERT(IS_ALIGNED(file_offset, block_size));
@@ -68,24 +69,23 @@ static int copy_inline_to_page(struct inode *inode,
 	 * reservation here. Also we must not do the reservation while holding
 	 * a transaction open, otherwise we would deadlock.
 	 */
-	ret = btrfs_delalloc_reserve_space(BTRFS_I(inode), &data_reserved,
-					   file_offset, block_size);
+	ret = btrfs_delalloc_reserve_space(inode, &data_reserved, file_offset,
+					   block_size);
 	if (ret)
 		goto out;
 
-	page = find_or_create_page(inode->i_mapping, file_offset >> PAGE_SHIFT,
-				   btrfs_alloc_write_mask(inode->i_mapping));
+	page = find_or_create_page(mapping, file_offset >> PAGE_SHIFT,
+				   btrfs_alloc_write_mask(mapping));
 	if (!page) {
 		ret = -ENOMEM;
 		goto out_unlock;
 	}
 
 	set_page_extent_mapped(page);
-	clear_extent_bit(&BTRFS_I(inode)->io_tree, file_offset, range_end,
+	clear_extent_bit(&inode->io_tree, file_offset, range_end,
 			 EXTENT_DELALLOC | EXTENT_DO_ACCOUNTING | EXTENT_DEFRAG,
 			 0, 0, NULL);
-	ret = btrfs_set_extent_delalloc(BTRFS_I(inode), file_offset, range_end,
-					0, NULL);
+	ret = btrfs_set_extent_delalloc(inode, file_offset, range_end, 0, NULL);
 	if (ret)
 		goto out_unlock;
 
@@ -134,9 +134,9 @@ out_unlock:
 		put_page(page);
 	}
 	if (ret)
-		btrfs_delalloc_release_space(BTRFS_I(inode), data_reserved,
-					     file_offset, block_size, true);
-	btrfs_delalloc_release_extents(BTRFS_I(inode), block_size);
+		btrfs_delalloc_release_space(inode, data_reserved, file_offset,
+					     block_size, true);
+	btrfs_delalloc_release_extents(inode, block_size);
 out:
 	extent_changeset_free(data_reserved);
 
@@ -167,8 +167,8 @@ static int clone_copy_inline_extent(struct inode *dst,
 	struct btrfs_key key;
 
 	if (new_key->offset > 0) {
-		ret = copy_inline_to_page(dst, new_key->offset, inline_data,
-					  size, datal, comp_type);
+		ret = copy_inline_to_page(BTRFS_I(dst), new_key->offset,
+					  inline_data, size, datal, comp_type);
 		goto out;
 	}
 
@@ -194,7 +194,7 @@ static int clone_copy_inline_extent(struct inode *dst,
 			 * inline extent's data to the page.
 			 */
 			ASSERT(key.offset > 0);
-			ret = copy_inline_to_page(dst, new_key->offset,
+			ret = copy_inline_to_page(BTRFS_I(dst), new_key->offset,
 						  inline_data, size, datal,
 						  comp_type);
 			goto out;
@@ -213,8 +213,8 @@ static int clone_copy_inline_extent(struct inode *dst,
 		    BTRFS_FILE_EXTENT_INLINE)
 			goto copy_inline_extent;
 
-		ret = copy_inline_to_page(dst, new_key->offset, inline_data,
-					  size, datal, comp_type);
+		ret = copy_inline_to_page(BTRFS_I(dst), new_key->offset,
+					  inline_data, size, datal, comp_type);
 		goto out;
 	}
 
@@ -231,8 +231,8 @@ copy_inline_extent:
 		 * clone. Deal with all these cases by copying the inline extent
 		 * data into the respective page at the destination inode.
 		 */
-		ret = copy_inline_to_page(dst, new_key->offset, inline_data,
-					   size, datal, comp_type);
+		ret = copy_inline_to_page(BTRFS_I(dst), new_key->offset,
+					  inline_data, size, datal, comp_type);
 		goto out;
 	}
 
@@ -439,7 +439,7 @@ process_slot:
 
 		if (type == BTRFS_FILE_EXTENT_REG ||
 		    type == BTRFS_FILE_EXTENT_PREALLOC) {
-			struct btrfs_clone_extent_info clone_info;
+			struct btrfs_replace_extent_info clone_info;
 
 			/*
 			 *    a  | --- range to clone ---|  b
@@ -462,8 +462,8 @@ process_slot:
 			clone_info.data_len = datal;
 			clone_info.file_offset = new_key.offset;
 			clone_info.extent_buf = buf;
-			clone_info.item_size = size;
-			ret = btrfs_punch_hole_range(inode, path, drop_start,
+			clone_info.is_new_extent = false;
+			ret = btrfs_replace_file_extents(inode, path, drop_start,
 					new_key.offset + datal - 1, &clone_info,
 					&trans);
 			if (ret)
@@ -520,6 +520,8 @@ process_slot:
 			ret = -EINTR;
 			goto out;
 		}
+
+		cond_resched();
 	}
 	ret = 0;
 
@@ -533,7 +535,7 @@ process_slot:
 		btrfs_release_path(path);
 		path->leave_spinning = 0;
 
-		ret = btrfs_punch_hole_range(inode, path, last_dest_end,
+		ret = btrfs_replace_file_extents(inode, path, last_dest_end,
 				destoff + len - 1, NULL, &trans);
 		if (ret)
 			goto out;

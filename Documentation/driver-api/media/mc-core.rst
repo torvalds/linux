@@ -36,7 +36,7 @@ pad to a sink pad.
 Media device
 ^^^^^^^^^^^^
 
-A media device is represented by a struct :c:type:`media_device`
+A media device is represented by a struct media_device
 instance, defined in ``include/media/media-device.h``.
 Allocation of the structure is handled by the media device driver, usually by
 embedding the :c:type:`media_device` instance in a larger driver-specific
@@ -49,7 +49,7 @@ and unregistered by calling :c:func:`media_device_unregister()`.
 Entities
 ^^^^^^^^
 
-Entities are represented by a struct :c:type:`media_entity`
+Entities are represented by a struct media_entity
 instance, defined in ``include/media/media-entity.h``. The structure is usually
 embedded into a higher-level structure, such as
 :c:type:`v4l2_subdev` or :c:type:`video_device`
@@ -67,10 +67,10 @@ Interfaces
 ^^^^^^^^^^
 
 Interfaces are represented by a
-struct :c:type:`media_interface` instance, defined in
+struct media_interface instance, defined in
 ``include/media/media-entity.h``. Currently, only one type of interface is
 defined: a device node. Such interfaces are represented by a
-struct :c:type:`media_intf_devnode`.
+struct media_intf_devnode.
 
 Drivers initialize and create device node interfaces by calling
 :c:func:`media_devnode_create()`
@@ -79,7 +79,7 @@ and remove them by calling:
 
 Pads
 ^^^^
-Pads are represented by a struct :c:type:`media_pad` instance,
+Pads are represented by a struct media_pad instance,
 defined in ``include/media/media-entity.h``. Each entity stores its pads in
 a pads array managed by the entity driver. Drivers usually embed the array in
 a driver-specific structure.
@@ -87,8 +87,8 @@ a driver-specific structure.
 Pads are identified by their entity and their 0-based index in the pads
 array.
 
-Both information are stored in the struct :c:type:`media_pad`,
-making the struct :c:type:`media_pad` pointer the canonical way
+Both information are stored in the struct media_pad,
+making the struct media_pad pointer the canonical way
 to store and pass link references.
 
 Pads have flags that describe the pad capabilities and state.
@@ -104,7 +104,7 @@ Pads have flags that describe the pad capabilities and state.
 Links
 ^^^^^
 
-Links are represented by a struct :c:type:`media_link` instance,
+Links are represented by a struct media_link instance,
 defined in ``include/media/media-entity.h``. There are two types of links:
 
 **1. pad to pad links**:
@@ -187,7 +187,7 @@ Use count and power handling
 
 Due to the wide differences between drivers regarding power management
 needs, the media controller does not implement power management. However,
-the struct :c:type:`media_entity` includes a ``use_count``
+the struct media_entity includes a ``use_count``
 field that media drivers
 can use to track the number of users of every entity for power management
 needs.
@@ -213,11 +213,11 @@ prevent link states from being modified during streaming by calling
 The function will mark all entities connected to the given entity through
 enabled links, either directly or indirectly, as streaming.
 
-The struct :c:type:`media_pipeline` instance pointed to by
+The struct media_pipeline instance pointed to by
 the pipe argument will be stored in every entity in the pipeline.
-Drivers should embed the struct :c:type:`media_pipeline`
+Drivers should embed the struct media_pipeline
 in higher-level pipeline structures and can then access the
-pipeline through the struct :c:type:`media_entity`
+pipeline through the struct media_entity
 pipe field.
 
 Calls to :c:func:`media_pipeline_start()` can be nested.

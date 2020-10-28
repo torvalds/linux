@@ -2044,7 +2044,7 @@ out:
 
 	return r;
 }
-
+EXPORT_SYMBOL_GPL(dm_copy_name_and_uuid);
 
 /**
  * dm_early_create - create a mapped device in early boot.

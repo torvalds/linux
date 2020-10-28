@@ -1739,7 +1739,7 @@ static int wil_cancel_remain_on_channel(struct wiphy *wiphy,
 	return wil_p2p_cancel_listen(vif, cookie);
 }
 
-/**
+/*
  * find a specific IE in a list of IEs
  * return a pointer to the beginning of IE in the list
  * or NULL if not found
@@ -1766,7 +1766,7 @@ static const u8 *_wil_cfg80211_find_ie(const u8 *ies, u16 ies_len, const u8 *ie,
 				       ies_len);
 }
 
-/**
+/*
  * merge the IEs in two lists into a single list.
  * do not include IEs from the second list which exist in the first list.
  * add only vendor specific IEs from second list to keep

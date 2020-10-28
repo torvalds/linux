@@ -179,8 +179,7 @@ static const struct attribute_group pcf8591_attr_group_opt = {
  * Real code
  */
 
-static int pcf8591_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int pcf8591_probe(struct i2c_client *client)
 {
 	struct pcf8591_data *data;
 	int err;
@@ -295,7 +294,7 @@ static struct i2c_driver pcf8591_driver = {
 	.driver = {
 		.name	= "pcf8591",
 	},
-	.probe		= pcf8591_probe,
+	.probe_new	= pcf8591_probe,
 	.remove		= pcf8591_remove,
 	.id_table	= pcf8591_id,
 };

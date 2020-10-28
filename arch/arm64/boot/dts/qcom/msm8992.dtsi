@@ -335,7 +335,7 @@
 		blsp2_uart2: serial@f995e000 {
 			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
 			reg = <0xf995e000 0x1000>;
-			interrupt = <GIC_SPI 146 IRQ_TYPE_LEVEL_LOW>;
+			interrupts = <GIC_SPI 146 IRQ_TYPE_LEVEL_LOW>;
 			clock-names = "core", "iface";
 			clocks = <&gcc GCC_BLSP2_UART2_APPS_CLK>,
 				<&gcc GCC_BLSP2_AHB_CLK>;

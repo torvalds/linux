@@ -32,9 +32,15 @@ void i915_gem_object_flush_if_display(struct drm_i915_gem_object *obj)
 	if (!i915_gem_object_is_framebuffer(obj))
 		return;
 
-	i915_gem_object_lock(obj);
+	i915_gem_object_lock(obj, NULL);
 	__i915_gem_object_flush_for_display(obj);
 	i915_gem_object_unlock(obj);
+}
+
+void i915_gem_object_flush_if_display_locked(struct drm_i915_gem_object *obj)
+{
+	if (i915_gem_object_is_framebuffer(obj))
+		__i915_gem_object_flush_for_display(obj);
 }
 
 /**
@@ -197,17 +203,11 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ret;
 
-	ret = i915_gem_object_lock_interruptible(obj);
-	if (ret)
-		return ret;
-
 	/* Always invalidate stale cachelines */
 	if (obj->cache_level != cache_level) {
 		i915_gem_object_set_cache_coherency(obj, cache_level);
 		obj->cache_dirty = true;
 	}
-
-	i915_gem_object_unlock(obj);
 
 	/* The cache-level will be applied when each vma is rebound. */
 	return i915_gem_object_unbind(obj,
@@ -293,7 +293,12 @@ int i915_gem_set_caching_ioctl(struct drm_device *dev, void *data,
 		goto out;
 	}
 
+	ret = i915_gem_object_lock_interruptible(obj, NULL);
+	if (ret)
+		goto out;
+
 	ret = i915_gem_object_set_cache_level(obj, level);
+	i915_gem_object_unlock(obj);
 
 out:
 	i915_gem_object_put(obj);
@@ -313,6 +318,7 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 				     unsigned int flags)
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
+	struct i915_gem_ww_ctx ww;
 	struct i915_vma *vma;
 	int ret;
 
@@ -320,6 +326,11 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 	if (HAS_LMEM(i915) && !i915_gem_object_is_lmem(obj))
 		return ERR_PTR(-EINVAL);
 
+	i915_gem_ww_ctx_init(&ww, true);
+retry:
+	ret = i915_gem_object_lock(obj, &ww);
+	if (ret)
+		goto err;
 	/*
 	 * The display engine is not coherent with the LLC cache on gen6.  As
 	 * a result, we make sure that the pinning that is about to occur is
@@ -334,7 +345,7 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 					      HAS_WT(i915) ?
 					      I915_CACHE_WT : I915_CACHE_NONE);
 	if (ret)
-		return ERR_PTR(ret);
+		goto err;
 
 	/*
 	 * As the user may map the buffer once pinned in the display plane
@@ -347,18 +358,31 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 	vma = ERR_PTR(-ENOSPC);
 	if ((flags & PIN_MAPPABLE) == 0 &&
 	    (!view || view->type == I915_GGTT_VIEW_NORMAL))
-		vma = i915_gem_object_ggtt_pin(obj, view, 0, alignment,
-					       flags |
-					       PIN_MAPPABLE |
-					       PIN_NONBLOCK);
-	if (IS_ERR(vma))
-		vma = i915_gem_object_ggtt_pin(obj, view, 0, alignment, flags);
-	if (IS_ERR(vma))
-		return vma;
+		vma = i915_gem_object_ggtt_pin_ww(obj, &ww, view, 0, alignment,
+						  flags | PIN_MAPPABLE |
+						  PIN_NONBLOCK);
+	if (IS_ERR(vma) && vma != ERR_PTR(-EDEADLK))
+		vma = i915_gem_object_ggtt_pin_ww(obj, &ww, view, 0,
+						  alignment, flags);
+	if (IS_ERR(vma)) {
+		ret = PTR_ERR(vma);
+		goto err;
+	}
 
 	vma->display_alignment = max_t(u64, vma->display_alignment, alignment);
 
-	i915_gem_object_flush_if_display(obj);
+	i915_gem_object_flush_if_display_locked(obj);
+
+err:
+	if (ret == -EDEADLK) {
+		ret = i915_gem_ww_ctx_backoff(&ww);
+		if (!ret)
+			goto retry;
+	}
+	i915_gem_ww_ctx_fini(&ww);
+
+	if (ret)
+		return ERR_PTR(ret);
 
 	return vma;
 }
@@ -536,7 +560,7 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	if (err)
 		goto out;
 
-	err = i915_gem_object_lock_interruptible(obj);
+	err = i915_gem_object_lock_interruptible(obj, NULL);
 	if (err)
 		goto out_unpin;
 
@@ -576,19 +600,17 @@ int i915_gem_object_prepare_read(struct drm_i915_gem_object *obj,
 	if (!i915_gem_object_has_struct_page(obj))
 		return -ENODEV;
 
-	ret = i915_gem_object_lock_interruptible(obj);
-	if (ret)
-		return ret;
+	assert_object_held(obj);
 
 	ret = i915_gem_object_wait(obj,
 				   I915_WAIT_INTERRUPTIBLE,
 				   MAX_SCHEDULE_TIMEOUT);
 	if (ret)
-		goto err_unlock;
+		return ret;
 
 	ret = i915_gem_object_pin_pages(obj);
 	if (ret)
-		goto err_unlock;
+		return ret;
 
 	if (obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_READ ||
 	    !static_cpu_has(X86_FEATURE_CLFLUSH)) {
@@ -616,8 +638,6 @@ out:
 
 err_unpin:
 	i915_gem_object_unpin_pages(obj);
-err_unlock:
-	i915_gem_object_unlock(obj);
 	return ret;
 }
 
@@ -630,20 +650,18 @@ int i915_gem_object_prepare_write(struct drm_i915_gem_object *obj,
 	if (!i915_gem_object_has_struct_page(obj))
 		return -ENODEV;
 
-	ret = i915_gem_object_lock_interruptible(obj);
-	if (ret)
-		return ret;
+	assert_object_held(obj);
 
 	ret = i915_gem_object_wait(obj,
 				   I915_WAIT_INTERRUPTIBLE |
 				   I915_WAIT_ALL,
 				   MAX_SCHEDULE_TIMEOUT);
 	if (ret)
-		goto err_unlock;
+		return ret;
 
 	ret = i915_gem_object_pin_pages(obj);
 	if (ret)
-		goto err_unlock;
+		return ret;
 
 	if (obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_WRITE ||
 	    !static_cpu_has(X86_FEATURE_CLFLUSH)) {
@@ -680,7 +698,5 @@ out:
 
 err_unpin:
 	i915_gem_object_unpin_pages(obj);
-err_unlock:
-	i915_gem_object_unlock(obj);
 	return ret;
 }

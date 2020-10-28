@@ -394,9 +394,10 @@ static int realtek_smi_probe(struct platform_device *pdev)
 	var = of_device_get_match_data(dev);
 	np = dev->of_node;
 
-	smi = devm_kzalloc(dev, sizeof(*smi), GFP_KERNEL);
+	smi = devm_kzalloc(dev, sizeof(*smi) + var->chip_data_sz, GFP_KERNEL);
 	if (!smi)
 		return -ENOMEM;
+	smi->chip_data = (void *)smi + sizeof(*smi);
 	smi->map = devm_regmap_init(dev, NULL, smi,
 				    &realtek_smi_mdio_regmap_config);
 	if (IS_ERR(smi->map)) {

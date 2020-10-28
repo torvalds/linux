@@ -784,7 +784,7 @@ static void free_cmdq(struct hinic_cmdq *cmdq)
  * init_cmdqs_ctxt - write the cmdq ctxt to HW after init all cmdq
  * @hwdev: the NIC HW device
  * @cmdqs: cmdqs to write the ctxts for
- * &db_area: db_area for all the cmdqs
+ * @db_area: db_area for all the cmdqs
  *
  * Return 0 - Success, negative - Failure
  **/

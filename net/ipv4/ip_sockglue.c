@@ -1124,8 +1124,7 @@ static int do_ip_setsockopt(struct sock *sk, int level, int optname,
 		dev_put(dev);
 
 		err = -EINVAL;
-		if (sk->sk_bound_dev_if &&
-		    (!midx || midx != sk->sk_bound_dev_if))
+		if (sk->sk_bound_dev_if && midx != sk->sk_bound_dev_if)
 			break;
 
 		inet->uc_index = ifindex;
@@ -1189,7 +1188,7 @@ static int do_ip_setsockopt(struct sock *sk, int level, int optname,
 		err = -EINVAL;
 		if (sk->sk_bound_dev_if &&
 		    mreq.imr_ifindex != sk->sk_bound_dev_if &&
-		    (!midx || midx != sk->sk_bound_dev_if))
+		    midx != sk->sk_bound_dev_if)
 			break;
 
 		inet->mc_index = mreq.imr_ifindex;

@@ -669,7 +669,6 @@ do_work_pending(struct pt_regs *regs, unsigned int thread_flags, int syscall)
 			} else if (thread_flags & _TIF_UPROBE) {
 				uprobe_notify_resume(regs);
 			} else {
-				clear_thread_flag(TIF_NOTIFY_RESUME);
 				tracehook_notify_resume(regs);
 				rseq_handle_notify_resume(NULL, regs);
 			}

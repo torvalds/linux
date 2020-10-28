@@ -461,11 +461,6 @@ static void stub_disconnect(struct usb_device *udev)
 	return;
 }
 
-static bool usbip_match(struct usb_device *udev)
-{
-	return true;
-}
-
 #ifdef CONFIG_PM
 
 /* These functions need usb_port_suspend and usb_port_resume,
@@ -491,7 +486,6 @@ struct usb_device_driver stub_driver = {
 	.name		= "usbip-host",
 	.probe		= stub_probe,
 	.disconnect	= stub_disconnect,
-	.match		= usbip_match,
 #ifdef CONFIG_PM
 	.suspend	= stub_suspend,
 	.resume		= stub_resume,

@@ -1489,12 +1489,8 @@ static ssize_t aio_setup_rw(int rw, const struct iocb *iocb,
 		*iovec = NULL;
 		return ret;
 	}
-#ifdef CONFIG_COMPAT
-	if (compat)
-		return compat_import_iovec(rw, buf, len, UIO_FASTIOV, iovec,
-				iter);
-#endif
-	return import_iovec(rw, buf, len, UIO_FASTIOV, iovec, iter);
+
+	return __import_iovec(rw, buf, len, UIO_FASTIOV, iovec, iter, compat);
 }
 
 static inline void aio_rw_done(struct kiocb *req, ssize_t ret)

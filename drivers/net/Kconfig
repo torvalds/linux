@@ -473,6 +473,10 @@ config NET_SB1000
 
 source "drivers/net/phy/Kconfig"
 
+source "drivers/net/mdio/Kconfig"
+
+source "drivers/net/pcs/Kconfig"
+
 source "drivers/net/plip/Kconfig"
 
 source "drivers/net/ppp/Kconfig"

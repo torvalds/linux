@@ -11,6 +11,7 @@ board specific bus parameters.
 		    Example:
 			"qcom,soundwire-v1.3.0"
 			"qcom,soundwire-v1.5.0"
+			"qcom,soundwire-v1.5.1"
 			"qcom,soundwire-v1.6.0"
 - reg:
 	Usage: required

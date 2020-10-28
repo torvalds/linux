@@ -287,6 +287,7 @@ void i40e_service_event_schedule(struct i40e_pf *pf)
 /**
  * i40e_tx_timeout - Respond to a Tx Hang
  * @netdev: network interface device structure
+ * @txqueue: queue number timing out
  *
  * If any port has noticed a Tx timeout, it is likely that the whole
  * device is munged, not just the one netdev port, so go for the full
@@ -1609,6 +1610,8 @@ static int i40e_set_mac(struct net_device *netdev, void *p)
  * i40e_config_rss_aq - Prepare for RSS using AQ commands
  * @vsi: vsi structure
  * @seed: RSS hash seed
+ * @lut: pointer to lookup table of lut_size
+ * @lut_size: size of the lookup table
  **/
 static int i40e_config_rss_aq(struct i40e_vsi *vsi, const u8 *seed,
 			      u8 *lut, u16 lut_size)
@@ -3122,12 +3125,12 @@ static void i40e_config_xps_tx_ring(struct i40e_ring *ring)
 }
 
 /**
- * i40e_xsk_umem - Retrieve the AF_XDP ZC if XDP and ZC is enabled
+ * i40e_xsk_pool - Retrieve the AF_XDP buffer pool if XDP and ZC is enabled
  * @ring: The Tx or Rx ring
  *
- * Returns the UMEM or NULL.
+ * Returns the AF_XDP buffer pool or NULL.
  **/
-static struct xdp_umem *i40e_xsk_umem(struct i40e_ring *ring)
+static struct xsk_buff_pool *i40e_xsk_pool(struct i40e_ring *ring)
 {
 	bool xdp_on = i40e_enabled_xdp_vsi(ring->vsi);
 	int qid = ring->queue_index;
@@ -3138,7 +3141,7 @@ static struct xdp_umem *i40e_xsk_umem(struct i40e_ring *ring)
 	if (!xdp_on || !test_bit(qid, ring->vsi->af_xdp_zc_qps))
 		return NULL;
 
-	return xdp_get_umem_from_qid(ring->vsi->netdev, qid);
+	return xsk_get_pool_from_qid(ring->vsi->netdev, qid);
 }
 
 /**
@@ -3157,7 +3160,7 @@ static int i40e_configure_tx_ring(struct i40e_ring *ring)
 	u32 qtx_ctl = 0;
 
 	if (ring_is_xdp(ring))
-		ring->xsk_umem = i40e_xsk_umem(ring);
+		ring->xsk_pool = i40e_xsk_pool(ring);
 
 	/* some ATR related tx ring init */
 	if (vsi->back->flags & I40E_FLAG_FD_ATR_ENABLED) {
@@ -3280,12 +3283,13 @@ static int i40e_configure_rx_ring(struct i40e_ring *ring)
 		xdp_rxq_info_unreg_mem_model(&ring->xdp_rxq);
 
 	kfree(ring->rx_bi);
-	ring->xsk_umem = i40e_xsk_umem(ring);
-	if (ring->xsk_umem) {
+	ring->xsk_pool = i40e_xsk_pool(ring);
+	if (ring->xsk_pool) {
 		ret = i40e_alloc_rx_bi_zc(ring);
 		if (ret)
 			return ret;
-		ring->rx_buf_len = xsk_umem_get_rx_frame_size(ring->xsk_umem);
+		ring->rx_buf_len =
+		  xsk_pool_get_rx_frame_size(ring->xsk_pool);
 		/* For AF_XDP ZC, we disallow packets to span on
 		 * multiple buffers, thus letting us skip that
 		 * handling in the fast-path.
@@ -3320,8 +3324,8 @@ static int i40e_configure_rx_ring(struct i40e_ring *ring)
 	rx_ctx.base = (ring->dma / 128);
 	rx_ctx.qlen = ring->count;
 
-	/* use 32 byte descriptors */
-	rx_ctx.dsize = 1;
+	/* use 16 byte descriptors */
+	rx_ctx.dsize = 0;
 
 	/* descriptor type is always zero
 	 * rx_ctx.dtype = 0;
@@ -3368,8 +3372,8 @@ static int i40e_configure_rx_ring(struct i40e_ring *ring)
 	ring->tail = hw->hw_addr + I40E_QRX_TAIL(pf_q);
 	writel(0, ring->tail);
 
-	if (ring->xsk_umem) {
-		xsk_buff_set_rxq_info(ring->xsk_umem, &ring->xdp_rxq);
+	if (ring->xsk_pool) {
+		xsk_pool_set_rxq_info(ring->xsk_pool, &ring->xdp_rxq);
 		ok = i40e_alloc_rx_buffers_zc(ring, I40E_DESC_UNUSED(ring));
 	} else {
 		ok = !i40e_alloc_rx_buffers(ring, I40E_DESC_UNUSED(ring));
@@ -3380,7 +3384,7 @@ static int i40e_configure_rx_ring(struct i40e_ring *ring)
 		 */
 		dev_info(&vsi->back->pdev->dev,
 			 "Failed to allocate some buffers on %sRx ring %d (pf_q %d)\n",
-			 ring->xsk_umem ? "UMEM enabled " : "",
+			 ring->xsk_pool ? "AF_XDP ZC enabled " : "",
 			 ring->queue_index, pf_q);
 	}
 
@@ -5814,7 +5818,6 @@ static int i40e_vsi_reconfig_rss(struct i40e_vsi *vsi, u16 rss_size)
 /**
  * i40e_channel_setup_queue_map - Setup a channel queue map
  * @pf: ptr to PF device
- * @vsi: the VSI being setup
  * @ctxt: VSI context structure
  * @ch: ptr to channel structure
  *
@@ -6057,8 +6060,7 @@ static inline int i40e_setup_hw_channel(struct i40e_pf *pf,
 /**
  * i40e_setup_channel - setup new channel using uplink element
  * @pf: ptr to PF device
- * @type: type of channel to be created (VMDq2/VF)
- * @uplink_seid: underlying HW switching element (VEB) ID
+ * @vsi: pointer to the VSI to set up the channel within
  * @ch: ptr to channel structure
  *
  * Setup new channel (VSI) based on specified type (VMDq2/VF)
@@ -6623,6 +6625,25 @@ void i40e_print_link_message(struct i40e_vsi *vsi, bool isup)
 		netdev_info(vsi->netdev,
 			    "NIC Link is Up, %sbps Full Duplex, Requested FEC: %s, Negotiated FEC: %s, Autoneg: %s, Flow Control: %s\n",
 			    speed, req_fec, fec, an, fc);
+	} else if (pf->hw.device_id == I40E_DEV_ID_KX_X722) {
+		req_fec = "None";
+		fec = "None";
+		an = "False";
+
+		if (pf->hw.phy.link_info.an_info & I40E_AQ_AN_COMPLETED)
+			an = "True";
+
+		if (pf->hw.phy.link_info.fec_info &
+		    I40E_AQ_CONFIG_FEC_KR_ENA)
+			fec = "CL74 FC-FEC/BASE-R";
+
+		if (pf->hw.phy.link_info.req_fec_info &
+		    I40E_AQ_REQUEST_FEC_KR)
+			req_fec = "CL74 FC-FEC/BASE-R";
+
+		netdev_info(vsi->netdev,
+			    "NIC Link is Up, %sbps Full Duplex, Requested FEC: %s, Negotiated FEC: %s, Autoneg: %s, Flow Control: %s\n",
+			    speed, req_fec, fec, an, fc);
 	} else {
 		netdev_info(vsi->netdev,
 			    "NIC Link is Up, %sbps Full Duplex, Flow Control: %s\n",
@@ -6689,7 +6710,6 @@ static void i40e_vsi_reinit_locked(struct i40e_vsi *vsi)
 {
 	struct i40e_pf *pf = vsi->back;
 
-	WARN_ON(in_interrupt());
 	while (test_and_set_bit(__I40E_CONFIG_BUSY, pf->state))
 		usleep_range(1000, 2000);
 	i40e_down(vsi);
@@ -7779,7 +7799,7 @@ int i40e_add_del_cloud_filter_big_buf(struct i40e_vsi *vsi,
 /**
  * i40e_parse_cls_flower - Parse tc flower filters provided by kernel
  * @vsi: Pointer to VSI
- * @cls_flower: Pointer to struct flow_cls_offload
+ * @f: Pointer to struct flow_cls_offload
  * @filter: Pointer to cloud filter structure
  *
  **/
@@ -8160,8 +8180,8 @@ static int i40e_delete_clsflower(struct i40e_vsi *vsi,
 
 /**
  * i40e_setup_tc_cls_flower - flower classifier offloads
- * @netdev: net device to configure
- * @type_data: offload data
+ * @np: net device to configure
+ * @cls_flower: offload data
  **/
 static int i40e_setup_tc_cls_flower(struct i40e_netdev_priv *np,
 				    struct flow_cls_offload *cls_flower)
@@ -8461,9 +8481,6 @@ int i40e_close(struct net_device *netdev)
 void i40e_do_reset(struct i40e_pf *pf, u32 reset_flags, bool lock_acquired)
 {
 	u32 val;
-
-	WARN_ON(in_interrupt());
-
 
 	/* do the biggest reset indicated */
 	if (reset_flags & BIT_ULL(__I40E_GLOBAL_RESET_REQUESTED)) {
@@ -9585,6 +9602,7 @@ end_reconstitute:
 /**
  * i40e_get_capabilities - get info about the HW
  * @pf: the PF struct
+ * @list_type: AQ capability to be queried
  **/
 static int i40e_get_capabilities(struct i40e_pf *pf,
 				 enum i40e_admin_queue_opc list_type)
@@ -10383,106 +10401,6 @@ static void i40e_handle_mdd_event(struct i40e_pf *pf)
 	i40e_flush(hw);
 }
 
-static const char *i40e_tunnel_name(u8 type)
-{
-	switch (type) {
-	case UDP_TUNNEL_TYPE_VXLAN:
-		return "vxlan";
-	case UDP_TUNNEL_TYPE_GENEVE:
-		return "geneve";
-	default:
-		return "unknown";
-	}
-}
-
-/**
- * i40e_sync_udp_filters - Trigger a sync event for existing UDP filters
- * @pf: board private structure
- **/
-static void i40e_sync_udp_filters(struct i40e_pf *pf)
-{
-	int i;
-
-	/* loop through and set pending bit for all active UDP filters */
-	for (i = 0; i < I40E_MAX_PF_UDP_OFFLOAD_PORTS; i++) {
-		if (pf->udp_ports[i].port)
-			pf->pending_udp_bitmap |= BIT_ULL(i);
-	}
-
-	set_bit(__I40E_UDP_FILTER_SYNC_PENDING, pf->state);
-}
-
-/**
- * i40e_sync_udp_filters_subtask - Sync the VSI filter list with HW
- * @pf: board private structure
- **/
-static void i40e_sync_udp_filters_subtask(struct i40e_pf *pf)
-{
-	struct i40e_hw *hw = &pf->hw;
-	u8 filter_index, type;
-	u16 port;
-	int i;
-
-	if (!test_and_clear_bit(__I40E_UDP_FILTER_SYNC_PENDING, pf->state))
-		return;
-
-	/* acquire RTNL to maintain state of flags and port requests */
-	rtnl_lock();
-
-	for (i = 0; i < I40E_MAX_PF_UDP_OFFLOAD_PORTS; i++) {
-		if (pf->pending_udp_bitmap & BIT_ULL(i)) {
-			struct i40e_udp_port_config *udp_port;
-			i40e_status ret = 0;
-
-			udp_port = &pf->udp_ports[i];
-			pf->pending_udp_bitmap &= ~BIT_ULL(i);
-
-			port = READ_ONCE(udp_port->port);
-			type = READ_ONCE(udp_port->type);
-			filter_index = READ_ONCE(udp_port->filter_index);
-
-			/* release RTNL while we wait on AQ command */
-			rtnl_unlock();
-
-			if (port)
-				ret = i40e_aq_add_udp_tunnel(hw, port,
-							     type,
-							     &filter_index,
-							     NULL);
-			else if (filter_index != I40E_UDP_PORT_INDEX_UNUSED)
-				ret = i40e_aq_del_udp_tunnel(hw, filter_index,
-							     NULL);
-
-			/* reacquire RTNL so we can update filter_index */
-			rtnl_lock();
-
-			if (ret) {
-				dev_info(&pf->pdev->dev,
-					 "%s %s port %d, index %d failed, err %s aq_err %s\n",
-					 i40e_tunnel_name(type),
-					 port ? "add" : "delete",
-					 port,
-					 filter_index,
-					 i40e_stat_str(&pf->hw, ret),
-					 i40e_aq_str(&pf->hw,
-						     pf->hw.aq.asq_last_status));
-				if (port) {
-					/* failed to add, just reset port,
-					 * drop pending bit for any deletion
-					 */
-					udp_port->port = 0;
-					pf->pending_udp_bitmap &= ~BIT_ULL(i);
-				}
-			} else if (port) {
-				/* record filter index on success */
-				udp_port->filter_index = filter_index;
-			}
-		}
-	}
-
-	rtnl_unlock();
-}
-
 /**
  * i40e_service_task - Run the driver's async subtasks
  * @work: pointer to work_struct containing our data
@@ -10522,7 +10440,6 @@ static void i40e_service_task(struct work_struct *work)
 								pf->vsi[pf->lan_vsi]);
 		}
 		i40e_sync_filters_subtask(pf);
-		i40e_sync_udp_filters_subtask(pf);
 	} else {
 		i40e_reset_subtask(pf);
 	}
@@ -10546,7 +10463,7 @@ static void i40e_service_task(struct work_struct *work)
 
 /**
  * i40e_service_timer - timer callback
- * @data: pointer to PF struct
+ * @t: timer list pointer
  **/
 static void i40e_service_timer(struct timer_list *t)
 {
@@ -11185,11 +11102,10 @@ static int i40e_init_msix(struct i40e_pf *pf)
  * i40e_vsi_alloc_q_vector - Allocate memory for a single interrupt vector
  * @vsi: the VSI being configured
  * @v_idx: index of the vector in the vsi struct
- * @cpu: cpu to be used on affinity_mask
  *
  * We allocate one q_vector.  If allocation fails we return -ENOMEM.
  **/
-static int i40e_vsi_alloc_q_vector(struct i40e_vsi *vsi, int v_idx, int cpu)
+static int i40e_vsi_alloc_q_vector(struct i40e_vsi *vsi, int v_idx)
 {
 	struct i40e_q_vector *q_vector;
 
@@ -11222,7 +11138,7 @@ static int i40e_vsi_alloc_q_vector(struct i40e_vsi *vsi, int v_idx, int cpu)
 static int i40e_vsi_alloc_q_vectors(struct i40e_vsi *vsi)
 {
 	struct i40e_pf *pf = vsi->back;
-	int err, v_idx, num_q_vectors, current_cpu;
+	int err, v_idx, num_q_vectors;
 
 	/* if not MSIX, give the one vector only to the LAN VSI */
 	if (pf->flags & I40E_FLAG_MSIX_ENABLED)
@@ -11232,15 +11148,10 @@ static int i40e_vsi_alloc_q_vectors(struct i40e_vsi *vsi)
 	else
 		return -EINVAL;
 
-	current_cpu = cpumask_first(cpu_online_mask);
-
 	for (v_idx = 0; v_idx < num_q_vectors; v_idx++) {
-		err = i40e_vsi_alloc_q_vector(vsi, v_idx, current_cpu);
+		err = i40e_vsi_alloc_q_vector(vsi, v_idx);
 		if (err)
 			goto err_out;
-		current_cpu = cpumask_next(current_cpu, cpu_online_mask);
-		if (unlikely(current_cpu >= nr_cpu_ids))
-			current_cpu = cpumask_first(cpu_online_mask);
 	}
 
 	return 0;
@@ -12228,131 +12139,48 @@ static int i40e_set_features(struct net_device *netdev,
 	return 0;
 }
 
-/**
- * i40e_get_udp_port_idx - Lookup a possibly offloaded for Rx UDP port
- * @pf: board private structure
- * @port: The UDP port to look up
- *
- * Returns the index number or I40E_MAX_PF_UDP_OFFLOAD_PORTS if port not found
- **/
-static u8 i40e_get_udp_port_idx(struct i40e_pf *pf, u16 port)
-{
-	u8 i;
-
-	for (i = 0; i < I40E_MAX_PF_UDP_OFFLOAD_PORTS; i++) {
-		/* Do not report ports with pending deletions as
-		 * being available.
-		 */
-		if (!port && (pf->pending_udp_bitmap & BIT_ULL(i)))
-			continue;
-		if (pf->udp_ports[i].port == port)
-			return i;
-	}
-
-	return i;
-}
-
-/**
- * i40e_udp_tunnel_add - Get notifications about UDP tunnel ports that come up
- * @netdev: This physical port's netdev
- * @ti: Tunnel endpoint information
- **/
-static void i40e_udp_tunnel_add(struct net_device *netdev,
-				struct udp_tunnel_info *ti)
+static int i40e_udp_tunnel_set_port(struct net_device *netdev,
+				    unsigned int table, unsigned int idx,
+				    struct udp_tunnel_info *ti)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
-	struct i40e_vsi *vsi = np->vsi;
-	struct i40e_pf *pf = vsi->back;
-	u16 port = ntohs(ti->port);
-	u8 next_idx;
-	u8 idx;
+	struct i40e_hw *hw = &np->vsi->back->hw;
+	u8 type, filter_index;
+	i40e_status ret;
 
-	idx = i40e_get_udp_port_idx(pf, port);
+	type = ti->type == UDP_TUNNEL_TYPE_VXLAN ? I40E_AQC_TUNNEL_TYPE_VXLAN :
+						   I40E_AQC_TUNNEL_TYPE_NGE;
 
-	/* Check if port already exists */
-	if (idx < I40E_MAX_PF_UDP_OFFLOAD_PORTS) {
-		netdev_info(netdev, "port %d already offloaded\n", port);
-		return;
+	ret = i40e_aq_add_udp_tunnel(hw, ntohs(ti->port), type, &filter_index,
+				     NULL);
+	if (ret) {
+		netdev_info(netdev, "add UDP port failed, err %s aq_err %s\n",
+			    i40e_stat_str(hw, ret),
+			    i40e_aq_str(hw, hw->aq.asq_last_status));
+		return -EIO;
 	}
 
-	/* Now check if there is space to add the new port */
-	next_idx = i40e_get_udp_port_idx(pf, 0);
-
-	if (next_idx == I40E_MAX_PF_UDP_OFFLOAD_PORTS) {
-		netdev_info(netdev, "maximum number of offloaded UDP ports reached, not adding port %d\n",
-			    port);
-		return;
-	}
-
-	switch (ti->type) {
-	case UDP_TUNNEL_TYPE_VXLAN:
-		pf->udp_ports[next_idx].type = I40E_AQC_TUNNEL_TYPE_VXLAN;
-		break;
-	case UDP_TUNNEL_TYPE_GENEVE:
-		if (!(pf->hw_features & I40E_HW_GENEVE_OFFLOAD_CAPABLE))
-			return;
-		pf->udp_ports[next_idx].type = I40E_AQC_TUNNEL_TYPE_NGE;
-		break;
-	default:
-		return;
-	}
-
-	/* New port: add it and mark its index in the bitmap */
-	pf->udp_ports[next_idx].port = port;
-	pf->udp_ports[next_idx].filter_index = I40E_UDP_PORT_INDEX_UNUSED;
-	pf->pending_udp_bitmap |= BIT_ULL(next_idx);
-	set_bit(__I40E_UDP_FILTER_SYNC_PENDING, pf->state);
+	udp_tunnel_nic_set_port_priv(netdev, table, idx, filter_index);
+	return 0;
 }
 
-/**
- * i40e_udp_tunnel_del - Get notifications about UDP tunnel ports that go away
- * @netdev: This physical port's netdev
- * @ti: Tunnel endpoint information
- **/
-static void i40e_udp_tunnel_del(struct net_device *netdev,
-				struct udp_tunnel_info *ti)
+static int i40e_udp_tunnel_unset_port(struct net_device *netdev,
+				      unsigned int table, unsigned int idx,
+				      struct udp_tunnel_info *ti)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
-	struct i40e_vsi *vsi = np->vsi;
-	struct i40e_pf *pf = vsi->back;
-	u16 port = ntohs(ti->port);
-	u8 idx;
+	struct i40e_hw *hw = &np->vsi->back->hw;
+	i40e_status ret;
 
-	idx = i40e_get_udp_port_idx(pf, port);
-
-	/* Check if port already exists */
-	if (idx >= I40E_MAX_PF_UDP_OFFLOAD_PORTS)
-		goto not_found;
-
-	switch (ti->type) {
-	case UDP_TUNNEL_TYPE_VXLAN:
-		if (pf->udp_ports[idx].type != I40E_AQC_TUNNEL_TYPE_VXLAN)
-			goto not_found;
-		break;
-	case UDP_TUNNEL_TYPE_GENEVE:
-		if (pf->udp_ports[idx].type != I40E_AQC_TUNNEL_TYPE_NGE)
-			goto not_found;
-		break;
-	default:
-		goto not_found;
+	ret = i40e_aq_del_udp_tunnel(hw, ti->hw_priv, NULL);
+	if (ret) {
+		netdev_info(netdev, "delete UDP port failed, err %s aq_err %s\n",
+			    i40e_stat_str(hw, ret),
+			    i40e_aq_str(hw, hw->aq.asq_last_status));
+		return -EIO;
 	}
 
-	/* if port exists, set it to 0 (mark for deletion)
-	 * and make it pending
-	 */
-	pf->udp_ports[idx].port = 0;
-
-	/* Toggle pending bit instead of setting it. This way if we are
-	 * deleting a port that has yet to be added we just clear the pending
-	 * bit and don't have to worry about it.
-	 */
-	pf->pending_udp_bitmap ^= BIT_ULL(idx);
-	set_bit(__I40E_UDP_FILTER_SYNC_PENDING, pf->state);
-
-	return;
-not_found:
-	netdev_warn(netdev, "UDP port %d was not found, not deleting\n",
-		    port);
+	return 0;
 }
 
 static int i40e_get_phys_port_id(struct net_device *netdev,
@@ -12379,6 +12207,7 @@ static int i40e_get_phys_port_id(struct net_device *netdev,
  * @addr: the MAC address entry being added
  * @vid: VLAN ID
  * @flags: instructions from stack about fdb operation
+ * @extack: netlink extended ack, unused currently
  */
 static int i40e_ndo_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 			    struct net_device *dev,
@@ -12644,7 +12473,7 @@ static int i40e_xdp_setup(struct i40e_vsi *vsi,
 	 */
 	if (need_reset && prog)
 		for (i = 0; i < vsi->num_queue_pairs; i++)
-			if (vsi->xdp_rings[i]->xsk_umem)
+			if (vsi->xdp_rings[i]->xsk_pool)
 				(void)i40e_xsk_wakeup(vsi->netdev, i,
 						      XDP_WAKEUP_RX);
 
@@ -12923,8 +12752,8 @@ static int i40e_xdp(struct net_device *dev,
 	switch (xdp->command) {
 	case XDP_SETUP_PROG:
 		return i40e_xdp_setup(vsi, xdp->prog);
-	case XDP_SETUP_XSK_UMEM:
-		return i40e_xsk_umem_setup(vsi, xdp->xsk.umem,
+	case XDP_SETUP_XSK_POOL:
+		return i40e_xsk_pool_setup(vsi, xdp->xsk.pool,
 					   xdp->xsk.queue_id);
 	default:
 		return -EINVAL;
@@ -12957,8 +12786,8 @@ static const struct net_device_ops i40e_netdev_ops = {
 	.ndo_set_vf_link_state	= i40e_ndo_set_vf_link_state,
 	.ndo_set_vf_spoofchk	= i40e_ndo_set_vf_spoofchk,
 	.ndo_set_vf_trust	= i40e_ndo_set_vf_trust,
-	.ndo_udp_tunnel_add	= i40e_udp_tunnel_add,
-	.ndo_udp_tunnel_del	= i40e_udp_tunnel_del,
+	.ndo_udp_tunnel_add	= udp_tunnel_nic_add_port,
+	.ndo_udp_tunnel_del	= udp_tunnel_nic_del_port,
 	.ndo_get_phys_port_id	= i40e_get_phys_port_id,
 	.ndo_fdb_add		= i40e_ndo_fdb_add,
 	.ndo_features_check	= i40e_features_check,
@@ -13021,6 +12850,8 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 
 	if (!(pf->hw_features & I40E_HW_OUTER_UDP_CSUM_CAPABLE))
 		netdev->gso_partial_features |= NETIF_F_GSO_UDP_TUNNEL_CSUM;
+
+	netdev->udp_tunnel_nic_info = &pf->udp_tunnel_nic;
 
 	netdev->gso_partial_features |= NETIF_F_GSO_GRE_CSUM;
 
@@ -14422,7 +14253,7 @@ static int i40e_setup_pf_switch(struct i40e_pf *pf, bool reinit)
 	i40e_ptp_init(pf);
 
 	/* repopulate tunnel port filters */
-	i40e_sync_udp_filters(pf);
+	udp_tunnel_nic_reset_ntf(pf->vsi[pf->lan_vsi]->netdev);
 
 	return ret;
 }
@@ -15151,6 +14982,14 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto err_switch_setup;
 
+	pf->udp_tunnel_nic.set_port = i40e_udp_tunnel_set_port;
+	pf->udp_tunnel_nic.unset_port = i40e_udp_tunnel_unset_port;
+	pf->udp_tunnel_nic.flags = UDP_TUNNEL_NIC_INFO_MAY_SLEEP;
+	pf->udp_tunnel_nic.shared = &pf->udp_tunnel_shared;
+	pf->udp_tunnel_nic.tables[0].n_entries = I40E_MAX_PF_UDP_OFFLOAD_PORTS;
+	pf->udp_tunnel_nic.tables[0].tunnel_types = UDP_TUNNEL_TYPE_VXLAN |
+						    UDP_TUNNEL_TYPE_GENEVE;
+
 	/* The number of VSIs reported by the FW is the minimum guaranteed
 	 * to us; HW supports far more and we share the remaining pool with
 	 * the other PFs. We allocate space for more than the guarantee with
@@ -15160,6 +14999,12 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		pf->num_alloc_vsi = I40E_MIN_VSI_ALLOC;
 	else
 		pf->num_alloc_vsi = pf->hw.func_caps.num_vsis;
+	if (pf->num_alloc_vsi > UDP_TUNNEL_NIC_MAX_SHARING_DEVICES) {
+		dev_warn(&pf->pdev->dev,
+			 "limiting the VSI count due to UDP tunnel limitation %d > %d\n",
+			 pf->num_alloc_vsi, UDP_TUNNEL_NIC_MAX_SHARING_DEVICES);
+		pf->num_alloc_vsi = UDP_TUNNEL_NIC_MAX_SHARING_DEVICES;
+	}
 
 	/* Set up the *vsi struct and our local tracking of the MAIN PF vsi. */
 	pf->vsi = kcalloc(pf->num_alloc_vsi, sizeof(struct i40e_vsi *),

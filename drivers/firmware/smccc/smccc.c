@@ -24,8 +24,10 @@ enum arm_smccc_conduit arm_smccc_1_1_get_conduit(void)
 
 	return smccc_conduit;
 }
+EXPORT_SYMBOL_GPL(arm_smccc_1_1_get_conduit);
 
 u32 arm_smccc_get_version(void)
 {
 	return smccc_version;
 }
+EXPORT_SYMBOL_GPL(arm_smccc_get_version);

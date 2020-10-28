@@ -81,7 +81,6 @@ struct gsi_tre {
 
 /* gsi_tre->flags mask values (in CPU byte order) */
 #define TRE_FLAGS_CHAIN_FMASK	GENMASK(0, 0)
-#define TRE_FLAGS_IEOB_FMASK	GENMASK(8, 8)
 #define TRE_FLAGS_IEOT_FMASK	GENMASK(9, 9)
 #define TRE_FLAGS_BEI_FMASK	GENMASK(10, 10)
 #define TRE_FLAGS_TYPE_FMASK	GENMASK(23, 16)

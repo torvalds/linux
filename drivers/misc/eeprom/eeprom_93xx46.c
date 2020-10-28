@@ -455,6 +455,7 @@ static int eeprom_93xx46_probe(struct spi_device *spi)
 	edev->pdata = pd;
 
 	edev->size = 128;
+	edev->nvmem_config.type = NVMEM_TYPE_EEPROM;
 	edev->nvmem_config.name = dev_name(&spi->dev);
 	edev->nvmem_config.dev = &spi->dev;
 	edev->nvmem_config.read_only = pd->flags & EE_READONLY;

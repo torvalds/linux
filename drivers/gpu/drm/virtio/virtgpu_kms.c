@@ -80,8 +80,10 @@ static void virtio_gpu_get_capsets(struct virtio_gpu_device *vgdev,
 					 vgdev->capsets[i].id > 0, 5 * HZ);
 		if (ret == 0) {
 			DRM_ERROR("timed out waiting for cap set %d\n", i);
+			spin_lock(&vgdev->display_info_lock);
 			kfree(vgdev->capsets);
 			vgdev->capsets = NULL;
+			spin_unlock(&vgdev->display_info_lock);
 			return;
 		}
 		DRM_INFO("cap set %d: id %d, max-version %d, max-size %d\n",
@@ -103,7 +105,7 @@ int virtio_gpu_init(struct drm_device *dev)
 	/* this will expand later */
 	struct virtqueue *vqs[2];
 	u32 num_scanouts, num_capsets;
-	int ret;
+	int ret = 0;
 
 	if (!virtio_has_feature(dev_to_virtio(dev->dev), VIRTIO_F_VERSION_1))
 		return -ENODEV;
@@ -118,6 +120,7 @@ int virtio_gpu_init(struct drm_device *dev)
 	vgdev->dev = dev->dev;
 
 	spin_lock_init(&vgdev->display_info_lock);
+	spin_lock_init(&vgdev->resource_export_lock);
 	ida_init(&vgdev->ctx_id_ida);
 	ida_init(&vgdev->resource_ida);
 	init_waitqueue_head(&vgdev->resp_wq);
@@ -145,6 +148,9 @@ int virtio_gpu_init(struct drm_device *dev)
 	}
 	if (virtio_has_feature(vgdev->vdev, VIRTIO_RING_F_INDIRECT_DESC)) {
 		vgdev->has_indirect = true;
+	}
+	if (virtio_has_feature(vgdev->vdev, VIRTIO_GPU_F_RESOURCE_UUID)) {
+		vgdev->has_resource_assign_uuid = true;
 	}
 
 	DRM_INFO("features: %cvirgl %cedid\n",
@@ -180,7 +186,11 @@ int virtio_gpu_init(struct drm_device *dev)
 			num_capsets, &num_capsets);
 	DRM_INFO("number of cap sets: %d\n", num_capsets);
 
-	virtio_gpu_modeset_init(vgdev);
+	ret = virtio_gpu_modeset_init(vgdev);
+	if (ret) {
+		DRM_ERROR("modeset init failed\n");
+		goto err_scanouts;
+	}
 
 	virtio_device_ready(vgdev->vdev);
 

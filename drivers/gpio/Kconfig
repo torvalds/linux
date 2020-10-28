@@ -66,8 +66,33 @@ config GPIO_SYSFS
 
 	  This ABI is deprecated. If you want to use GPIO from userspace,
 	  use the character device /dev/gpiochipN with the appropriate
-	  ioctl() operations instead. The character device is always
-	  available.
+	  ioctl() operations instead.
+
+config GPIO_CDEV
+	bool
+	prompt "Character device (/dev/gpiochipN) support" if EXPERT
+	default y
+	help
+	  Say Y here to add the character device /dev/gpiochipN interface
+	  for GPIOs. The character device allows userspace to control GPIOs
+	  using ioctl() operations.
+
+	  Only say N if you are sure that the GPIO character device is not
+	  required.
+
+	  If unsure, say Y.
+
+config GPIO_CDEV_V1
+	bool "Support GPIO ABI Version 1"
+	default y
+	depends on GPIO_CDEV
+	help
+	  Say Y here to support version 1 of the GPIO CDEV ABI.
+
+	  This ABI version is deprecated.
+	  Please use the latest ABI for new developments.
+
+	  If unsure, say Y.
 
 config GPIO_GENERIC
 	depends on HAS_IOMEM # Only for IOMEM drivers
@@ -202,7 +227,7 @@ config GPIO_DAVINCI
 config GPIO_DWAPB
 	tristate "Synopsys DesignWare APB GPIO driver"
 	select GPIO_GENERIC
-	select GENERIC_IRQ_CHIP
+	select GPIOLIB_IRQCHIP
 	help
 	  Say Y or M here to build support for the Synopsys DesignWare APB
 	  GPIO block.
@@ -397,7 +422,7 @@ config GPIO_MVEBU
 	select REGMAP_MMIO
 
 config GPIO_MXC
-	def_bool y
+	tristate "i.MX GPIO support"
 	depends on ARCH_MXC || COMPILE_TEST
 	select GPIO_GENERIC
 	select GENERIC_IRQ_CHIP
@@ -1222,6 +1247,18 @@ config GPIO_RC5T583
 	  chip family.
 	  This driver provides the support for driving/reading the gpio pins
 	  of RC5T583 device through standard gpio library.
+
+config GPIO_SL28CPLD
+	tristate "Kontron sl28cpld GPIO support"
+	depends on MFD_SL28CPLD || COMPILE_TEST
+	select GPIO_REGMAP
+	select GPIOLIB_IRQCHIP
+	select REGMAP_IRQ
+	help
+	  This enables support for the GPIOs found on the Kontron sl28 CPLD.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called gpio-sl28cpld.
 
 config GPIO_STMPE
 	bool "STMPE GPIOs"

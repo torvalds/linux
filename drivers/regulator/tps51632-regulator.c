@@ -108,7 +108,7 @@ static int tps51632_dcdc_set_ramp_delay(struct regulator_dev *rdev,
 	return ret;
 }
 
-static struct regulator_ops tps51632_dcdc_ops = {
+static const struct regulator_ops tps51632_dcdc_ops = {
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
 	.list_voltage		= regulator_list_voltage_linear,

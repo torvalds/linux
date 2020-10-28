@@ -384,7 +384,7 @@ void __init debug_traps_init(void)
 	hook_debug_fault_code(DBG_ESR_EVT_HWSS, single_step_handler, SIGTRAP,
 			      TRAP_TRACE, "single-step handler");
 	hook_debug_fault_code(DBG_ESR_EVT_BRK, brk_handler, SIGTRAP,
-			      TRAP_BRKPT, "ptrace BRK handler");
+			      TRAP_BRKPT, "BRK handler");
 }
 
 /* Re-enable single step for syscall restarting. */

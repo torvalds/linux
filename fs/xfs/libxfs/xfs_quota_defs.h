@@ -23,7 +23,8 @@ typedef uint8_t		xfs_dqtype_t;
 #define XFS_DQTYPE_STRINGS \
 	{ XFS_DQTYPE_USER,	"USER" }, \
 	{ XFS_DQTYPE_PROJ,	"PROJ" }, \
-	{ XFS_DQTYPE_GROUP,	"GROUP" }
+	{ XFS_DQTYPE_GROUP,	"GROUP" }, \
+	{ XFS_DQTYPE_BIGTIME,	"BIGTIME" }
 
 /*
  * flags for q_flags field in the dquot.
@@ -142,5 +143,10 @@ extern xfs_failaddr_t xfs_dqblk_verify(struct xfs_mount *mp,
 extern int xfs_calc_dquots_per_chunk(unsigned int nbblks);
 extern void xfs_dqblk_repair(struct xfs_mount *mp, struct xfs_dqblk *dqb,
 		xfs_dqid_t id, xfs_dqtype_t type);
+
+struct xfs_dquot;
+time64_t xfs_dquot_from_disk_ts(struct xfs_disk_dquot *ddq,
+		__be32 dtimer);
+__be32 xfs_dquot_to_disk_ts(struct xfs_dquot *ddq, time64_t timer);
 
 #endif	/* __XFS_QUOTA_H__ */
