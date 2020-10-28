@@ -61,6 +61,8 @@
  */
 
 typedef bool (*long_pulse_detect_func)(enum hpd_pin pin, u32 val);
+typedef u32 (*hotplug_enables_func)(struct drm_i915_private *i915,
+				    enum hpd_pin pin);
 
 static const u32 hpd_ilk[HPD_NUM_PINS] = {
 	[HPD_PORT_A] = DE_DP_A_HOTPLUG,
@@ -1228,6 +1230,18 @@ static u32 intel_hpd_hotplug_irqs(struct drm_i915_private *dev_priv,
 		hotplug_irqs |= hpd[encoder->hpd_pin];
 
 	return hotplug_irqs;
+}
+
+static u32 intel_hpd_hotplug_enables(struct drm_i915_private *i915,
+				     hotplug_enables_func hotplug_enables)
+{
+	struct intel_encoder *encoder;
+	u32 hotplug = 0;
+
+	for_each_intel_encoder(&i915->drm, encoder)
+		hotplug |= hotplug_enables(i915, encoder->hpd_pin);
+
+	return hotplug;
 }
 
 static void gmbus_irq_handler(struct drm_i915_private *dev_priv)
@@ -3152,6 +3166,31 @@ static void cherryview_irq_reset(struct drm_i915_private *dev_priv)
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
+static u32 ibx_hotplug_enables(struct drm_i915_private *i915,
+			       enum hpd_pin pin)
+{
+	switch (pin) {
+	case HPD_PORT_A:
+		/*
+		 * When CPU and PCH are on the same package, port A
+		 * HPD must be enabled in both north and south.
+		 */
+		return HAS_PCH_LPT_LP(i915) ?
+			PORTA_HOTPLUG_ENABLE : 0;
+	case HPD_PORT_B:
+		return PORTB_HOTPLUG_ENABLE |
+			PORTB_PULSE_DURATION_2ms;
+	case HPD_PORT_C:
+		return PORTC_HOTPLUG_ENABLE |
+			PORTC_PULSE_DURATION_2ms;
+	case HPD_PORT_D:
+		return PORTD_HOTPLUG_ENABLE |
+			PORTD_PULSE_DURATION_2ms;
+	default:
+		return 0;
+	}
+}
+
 static void ibx_hpd_detection_setup(struct drm_i915_private *dev_priv)
 {
 	u32 hotplug;
@@ -3162,18 +3201,14 @@ static void ibx_hpd_detection_setup(struct drm_i915_private *dev_priv)
 	 * The pulse duration bits are reserved on LPT+.
 	 */
 	hotplug = I915_READ(PCH_PORT_HOTPLUG);
-	hotplug &= ~(PORTB_PULSE_DURATION_MASK |
+	hotplug &= ~(PORTA_HOTPLUG_ENABLE |
+		     PORTB_HOTPLUG_ENABLE |
+		     PORTC_HOTPLUG_ENABLE |
+		     PORTD_HOTPLUG_ENABLE |
+		     PORTB_PULSE_DURATION_MASK |
 		     PORTC_PULSE_DURATION_MASK |
 		     PORTD_PULSE_DURATION_MASK);
-	hotplug |= PORTB_HOTPLUG_ENABLE | PORTB_PULSE_DURATION_2ms;
-	hotplug |= PORTC_HOTPLUG_ENABLE | PORTC_PULSE_DURATION_2ms;
-	hotplug |= PORTD_HOTPLUG_ENABLE | PORTD_PULSE_DURATION_2ms;
-	/*
-	 * When CPU and PCH are on the same package, port A
-	 * HPD must be enabled in both north and south.
-	 */
-	if (HAS_PCH_LPT_LP(dev_priv))
-		hotplug |= PORTA_HOTPLUG_ENABLE;
+	hotplug |= intel_hpd_hotplug_enables(dev_priv, ibx_hotplug_enables);
 	I915_WRITE(PCH_PORT_HOTPLUG, hotplug);
 }
 
@@ -3189,28 +3224,65 @@ static void ibx_hpd_irq_setup(struct drm_i915_private *dev_priv)
 	ibx_hpd_detection_setup(dev_priv);
 }
 
-static void icp_ddi_hpd_detection_setup(struct drm_i915_private *dev_priv,
-					u32 enable_mask)
+static u32 icp_ddi_hotplug_enables(struct drm_i915_private *i915,
+				   enum hpd_pin pin)
+{
+	switch (pin) {
+	case HPD_PORT_A:
+	case HPD_PORT_B:
+	case HPD_PORT_C:
+	case HPD_PORT_D:
+		return SHOTPLUG_CTL_DDI_HPD_ENABLE(pin);
+	default:
+		return 0;
+	}
+}
+
+static u32 icp_tc_hotplug_enables(struct drm_i915_private *i915,
+				  enum hpd_pin pin)
+{
+	switch (pin) {
+	case HPD_PORT_TC1:
+	case HPD_PORT_TC2:
+	case HPD_PORT_TC3:
+	case HPD_PORT_TC4:
+	case HPD_PORT_TC5:
+	case HPD_PORT_TC6:
+		return ICP_TC_HPD_ENABLE(pin);
+	default:
+		return 0;
+	}
+}
+
+static void icp_ddi_hpd_detection_setup(struct drm_i915_private *dev_priv)
 {
 	u32 hotplug;
 
 	hotplug = I915_READ(SHOTPLUG_CTL_DDI);
-	hotplug |= enable_mask;
+	hotplug &= ~(SHOTPLUG_CTL_DDI_HPD_ENABLE(HPD_PORT_A) |
+		     SHOTPLUG_CTL_DDI_HPD_ENABLE(HPD_PORT_B) |
+		     SHOTPLUG_CTL_DDI_HPD_ENABLE(HPD_PORT_C) |
+		     SHOTPLUG_CTL_DDI_HPD_ENABLE(HPD_PORT_D));
+	hotplug |= intel_hpd_hotplug_enables(dev_priv, icp_ddi_hotplug_enables);
 	I915_WRITE(SHOTPLUG_CTL_DDI, hotplug);
 }
 
-static void icp_tc_hpd_detection_setup(struct drm_i915_private *dev_priv,
-				       u32 enable_mask)
+static void icp_tc_hpd_detection_setup(struct drm_i915_private *dev_priv)
 {
 	u32 hotplug;
 
 	hotplug = I915_READ(SHOTPLUG_CTL_TC);
-	hotplug |= enable_mask;
+	hotplug &= ~(ICP_TC_HPD_ENABLE(HPD_PORT_TC1) |
+		     ICP_TC_HPD_ENABLE(HPD_PORT_TC2) |
+		     ICP_TC_HPD_ENABLE(HPD_PORT_TC3) |
+		     ICP_TC_HPD_ENABLE(HPD_PORT_TC4) |
+		     ICP_TC_HPD_ENABLE(HPD_PORT_TC5) |
+		     ICP_TC_HPD_ENABLE(HPD_PORT_TC6));
+	hotplug |= intel_hpd_hotplug_enables(dev_priv, icp_tc_hotplug_enables);
 	I915_WRITE(SHOTPLUG_CTL_TC, hotplug);
 }
 
-static void icp_hpd_irq_setup(struct drm_i915_private *dev_priv,
-			      u32 ddi_enable_mask, u32 tc_enable_mask)
+static void icp_hpd_irq_setup(struct drm_i915_private *dev_priv)
 {
 	u32 hotplug_irqs, enabled_irqs;
 
@@ -3222,30 +3294,24 @@ static void icp_hpd_irq_setup(struct drm_i915_private *dev_priv,
 
 	ibx_display_interrupt_update(dev_priv, hotplug_irqs, enabled_irqs);
 
-	icp_ddi_hpd_detection_setup(dev_priv, ddi_enable_mask);
-	if (tc_enable_mask)
-		icp_tc_hpd_detection_setup(dev_priv, tc_enable_mask);
+	icp_ddi_hpd_detection_setup(dev_priv);
+	icp_tc_hpd_detection_setup(dev_priv);
 }
 
-/*
- * EHL doesn't need most of gen11_hpd_irq_setup, it's handling only the
- * equivalent of SDE.
- */
-static void mcc_hpd_irq_setup(struct drm_i915_private *dev_priv)
+static u32 gen11_hotplug_enables(struct drm_i915_private *i915,
+				 enum hpd_pin pin)
 {
-	icp_hpd_irq_setup(dev_priv,
-			  ICP_DDI_HPD_ENABLE_MASK, ICP_TC_HPD_ENABLE(HPD_PORT_TC1));
-}
-
-/*
- * JSP behaves exactly the same as MCC above except that port C is mapped to
- * the DDI-C pins instead of the TC1 pins.  This means we should follow TGP's
- * masks & tables rather than ICP's masks & tables.
- */
-static void jsp_hpd_irq_setup(struct drm_i915_private *dev_priv)
-{
-	icp_hpd_irq_setup(dev_priv,
-			  TGP_DDI_HPD_ENABLE_MASK, 0);
+	switch (pin) {
+	case HPD_PORT_TC1:
+	case HPD_PORT_TC2:
+	case HPD_PORT_TC3:
+	case HPD_PORT_TC4:
+	case HPD_PORT_TC5:
+	case HPD_PORT_TC6:
+		return GEN11_HOTPLUG_CTL_ENABLE(pin);
+	default:
+		return 0;
+	}
 }
 
 static void dg1_hpd_irq_setup(struct drm_i915_private *dev_priv)
@@ -3259,8 +3325,7 @@ static void dg1_hpd_irq_setup(struct drm_i915_private *dev_priv)
 		INVERT_DDID_HPD);
 	I915_WRITE(SOUTH_CHICKEN1, val);
 
-	icp_hpd_irq_setup(dev_priv,
-			  DG1_DDI_HPD_ENABLE_MASK, 0);
+	icp_hpd_irq_setup(dev_priv);
 }
 
 static void gen11_tc_hpd_detection_setup(struct drm_i915_private *dev_priv)
@@ -3268,12 +3333,13 @@ static void gen11_tc_hpd_detection_setup(struct drm_i915_private *dev_priv)
 	u32 hotplug;
 
 	hotplug = I915_READ(GEN11_TC_HOTPLUG_CTL);
-	hotplug |= GEN11_HOTPLUG_CTL_ENABLE(HPD_PORT_TC1) |
-		   GEN11_HOTPLUG_CTL_ENABLE(HPD_PORT_TC2) |
-		   GEN11_HOTPLUG_CTL_ENABLE(HPD_PORT_TC3) |
-		   GEN11_HOTPLUG_CTL_ENABLE(HPD_PORT_TC4) |
-		   GEN11_HOTPLUG_CTL_ENABLE(HPD_PORT_TC5) |
-		   GEN11_HOTPLUG_CTL_ENABLE(HPD_PORT_TC6);
+	hotplug &= ~(GEN11_HOTPLUG_CTL_ENABLE(HPD_PORT_TC1) |
+		     GEN11_HOTPLUG_CTL_ENABLE(HPD_PORT_TC2) |
+		     GEN11_HOTPLUG_CTL_ENABLE(HPD_PORT_TC3) |
+		     GEN11_HOTPLUG_CTL_ENABLE(HPD_PORT_TC4) |
+		     GEN11_HOTPLUG_CTL_ENABLE(HPD_PORT_TC5) |
+		     GEN11_HOTPLUG_CTL_ENABLE(HPD_PORT_TC6));
+	hotplug |= intel_hpd_hotplug_enables(dev_priv, gen11_hotplug_enables);
 	I915_WRITE(GEN11_TC_HOTPLUG_CTL, hotplug);
 }
 
@@ -3282,12 +3348,13 @@ static void gen11_tbt_hpd_detection_setup(struct drm_i915_private *dev_priv)
 	u32 hotplug;
 
 	hotplug = I915_READ(GEN11_TBT_HOTPLUG_CTL);
-	hotplug |= GEN11_HOTPLUG_CTL_ENABLE(HPD_PORT_TC1) |
-		   GEN11_HOTPLUG_CTL_ENABLE(HPD_PORT_TC2) |
-		   GEN11_HOTPLUG_CTL_ENABLE(HPD_PORT_TC3) |
-		   GEN11_HOTPLUG_CTL_ENABLE(HPD_PORT_TC4) |
-		   GEN11_HOTPLUG_CTL_ENABLE(HPD_PORT_TC5) |
-		   GEN11_HOTPLUG_CTL_ENABLE(HPD_PORT_TC6);
+	hotplug &= ~(GEN11_HOTPLUG_CTL_ENABLE(HPD_PORT_TC1) |
+		     GEN11_HOTPLUG_CTL_ENABLE(HPD_PORT_TC2) |
+		     GEN11_HOTPLUG_CTL_ENABLE(HPD_PORT_TC3) |
+		     GEN11_HOTPLUG_CTL_ENABLE(HPD_PORT_TC4) |
+		     GEN11_HOTPLUG_CTL_ENABLE(HPD_PORT_TC5) |
+		     GEN11_HOTPLUG_CTL_ENABLE(HPD_PORT_TC6));
+	hotplug |= intel_hpd_hotplug_enables(dev_priv, gen11_hotplug_enables);
 	I915_WRITE(GEN11_TBT_HOTPLUG_CTL, hotplug);
 }
 
@@ -3308,12 +3375,36 @@ static void gen11_hpd_irq_setup(struct drm_i915_private *dev_priv)
 	gen11_tc_hpd_detection_setup(dev_priv);
 	gen11_tbt_hpd_detection_setup(dev_priv);
 
-	if (INTEL_PCH_TYPE(dev_priv) >= PCH_TGP)
-		icp_hpd_irq_setup(dev_priv,
-				  TGP_DDI_HPD_ENABLE_MASK, TGP_TC_HPD_ENABLE_MASK);
-	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
-		icp_hpd_irq_setup(dev_priv,
-				  ICP_DDI_HPD_ENABLE_MASK, ICP_TC_HPD_ENABLE_MASK);
+	if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
+		icp_hpd_irq_setup(dev_priv);
+}
+
+static u32 spt_hotplug_enables(struct drm_i915_private *i915,
+			       enum hpd_pin pin)
+{
+	switch (pin) {
+	case HPD_PORT_A:
+		return PORTA_HOTPLUG_ENABLE;
+	case HPD_PORT_B:
+		return PORTB_HOTPLUG_ENABLE;
+	case HPD_PORT_C:
+		return PORTC_HOTPLUG_ENABLE;
+	case HPD_PORT_D:
+		return PORTD_HOTPLUG_ENABLE;
+	default:
+		return 0;
+	}
+}
+
+static u32 spt_hotplug2_enables(struct drm_i915_private *i915,
+				enum hpd_pin pin)
+{
+	switch (pin) {
+	case HPD_PORT_E:
+		return PORTE_HOTPLUG_ENABLE;
+	default:
+		return 0;
+	}
 }
 
 static void spt_hpd_detection_setup(struct drm_i915_private *dev_priv)
@@ -3330,14 +3421,16 @@ static void spt_hpd_detection_setup(struct drm_i915_private *dev_priv)
 
 	/* Enable digital hotplug on the PCH */
 	hotplug = I915_READ(PCH_PORT_HOTPLUG);
-	hotplug |= PORTA_HOTPLUG_ENABLE |
-		   PORTB_HOTPLUG_ENABLE |
-		   PORTC_HOTPLUG_ENABLE |
-		   PORTD_HOTPLUG_ENABLE;
+	hotplug &= ~(PORTA_HOTPLUG_ENABLE |
+		     PORTB_HOTPLUG_ENABLE |
+		     PORTC_HOTPLUG_ENABLE |
+		     PORTD_HOTPLUG_ENABLE);
+	hotplug |= intel_hpd_hotplug_enables(dev_priv, spt_hotplug_enables);
 	I915_WRITE(PCH_PORT_HOTPLUG, hotplug);
 
 	hotplug = I915_READ(PCH_PORT_HOTPLUG2);
-	hotplug |= PORTE_HOTPLUG_ENABLE;
+	hotplug &= ~PORTE_HOTPLUG_ENABLE;
+	hotplug |= intel_hpd_hotplug_enables(dev_priv, spt_hotplug2_enables);
 	I915_WRITE(PCH_PORT_HOTPLUG2, hotplug);
 }
 
@@ -3356,6 +3449,18 @@ static void spt_hpd_irq_setup(struct drm_i915_private *dev_priv)
 	spt_hpd_detection_setup(dev_priv);
 }
 
+static u32 ilk_hotplug_enables(struct drm_i915_private *i915,
+			       enum hpd_pin pin)
+{
+	switch (pin) {
+	case HPD_PORT_A:
+		return DIGITAL_PORTA_HOTPLUG_ENABLE |
+			DIGITAL_PORTA_PULSE_DURATION_2ms;
+	default:
+		return 0;
+	}
+}
+
 static void ilk_hpd_detection_setup(struct drm_i915_private *dev_priv)
 {
 	u32 hotplug;
@@ -3366,9 +3471,9 @@ static void ilk_hpd_detection_setup(struct drm_i915_private *dev_priv)
 	 * The pulse duration bits are reserved on HSW+.
 	 */
 	hotplug = I915_READ(DIGITAL_PORT_HOTPLUG_CNTRL);
-	hotplug &= ~DIGITAL_PORTA_PULSE_DURATION_MASK;
-	hotplug |= DIGITAL_PORTA_HOTPLUG_ENABLE |
-		   DIGITAL_PORTA_PULSE_DURATION_2ms;
+	hotplug &= ~(DIGITAL_PORTA_HOTPLUG_ENABLE |
+		     DIGITAL_PORTA_PULSE_DURATION_MASK);
+	hotplug |= intel_hpd_hotplug_enables(dev_priv, ilk_hotplug_enables);
 	I915_WRITE(DIGITAL_PORT_HOTPLUG_CNTRL, hotplug);
 }
 
@@ -3389,35 +3494,44 @@ static void ilk_hpd_irq_setup(struct drm_i915_private *dev_priv)
 	ibx_hpd_irq_setup(dev_priv);
 }
 
-static void bxt_hpd_detection_setup(struct drm_i915_private *dev_priv,
-				    u32 enabled_irqs)
+static u32 bxt_hotplug_enables(struct drm_i915_private *i915,
+			       enum hpd_pin pin)
+{
+	u32 hotplug;
+
+	switch (pin) {
+	case HPD_PORT_A:
+		hotplug = PORTA_HOTPLUG_ENABLE;
+		if (intel_bios_is_port_hpd_inverted(i915, PORT_A))
+			hotplug |= BXT_DDIA_HPD_INVERT;
+		return hotplug;
+	case HPD_PORT_B:
+		hotplug = PORTB_HOTPLUG_ENABLE;
+		if (intel_bios_is_port_hpd_inverted(i915, PORT_B))
+			hotplug |= BXT_DDIB_HPD_INVERT;
+		return hotplug;
+	case HPD_PORT_C:
+		hotplug = PORTC_HOTPLUG_ENABLE;
+		if (intel_bios_is_port_hpd_inverted(i915, PORT_C))
+			hotplug |= BXT_DDIC_HPD_INVERT;
+		return hotplug;
+	default:
+		return 0;
+	}
+}
+
+static void bxt_hpd_detection_setup(struct drm_i915_private *dev_priv)
 {
 	u32 hotplug;
 
 	hotplug = I915_READ(PCH_PORT_HOTPLUG);
-	hotplug |= PORTA_HOTPLUG_ENABLE |
-		   PORTB_HOTPLUG_ENABLE |
-		   PORTC_HOTPLUG_ENABLE;
-
-	drm_dbg_kms(&dev_priv->drm,
-		    "Invert bit setting: hp_ctl:%x hp_port:%x\n",
-		    hotplug, enabled_irqs);
-	hotplug &= ~BXT_DDI_HPD_INVERT_MASK;
-
-	/*
-	 * For BXT invert bit has to be set based on AOB design
-	 * for HPD detection logic, update it based on VBT fields.
-	 */
-	if ((enabled_irqs & GEN8_DE_PORT_HOTPLUG(HPD_PORT_A)) &&
-	    intel_bios_is_port_hpd_inverted(dev_priv, PORT_A))
-		hotplug |= BXT_DDIA_HPD_INVERT;
-	if ((enabled_irqs & GEN8_DE_PORT_HOTPLUG(HPD_PORT_B)) &&
-	    intel_bios_is_port_hpd_inverted(dev_priv, PORT_B))
-		hotplug |= BXT_DDIB_HPD_INVERT;
-	if ((enabled_irqs & GEN8_DE_PORT_HOTPLUG(HPD_PORT_C)) &&
-	    intel_bios_is_port_hpd_inverted(dev_priv, PORT_C))
-		hotplug |= BXT_DDIC_HPD_INVERT;
-
+	hotplug &= ~(PORTA_HOTPLUG_ENABLE |
+		     PORTB_HOTPLUG_ENABLE |
+		     PORTC_HOTPLUG_ENABLE |
+		     BXT_DDIA_HPD_INVERT |
+		     BXT_DDIB_HPD_INVERT |
+		     BXT_DDIC_HPD_INVERT);
+	hotplug |= intel_hpd_hotplug_enables(dev_priv, bxt_hotplug_enables);
 	I915_WRITE(PCH_PORT_HOTPLUG, hotplug);
 }
 
@@ -3430,7 +3544,7 @@ static void bxt_hpd_irq_setup(struct drm_i915_private *dev_priv)
 
 	bdw_update_port_irq(dev_priv, hotplug_irqs, enabled_irqs);
 
-	bxt_hpd_detection_setup(dev_priv, enabled_irqs);
+	bxt_hpd_detection_setup(dev_priv);
 }
 
 static void ibx_irq_postinstall(struct drm_i915_private *dev_priv)
@@ -4145,10 +4259,6 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	} else {
 		if (HAS_PCH_DG1(dev_priv))
 			dev_priv->display.hpd_irq_setup = dg1_hpd_irq_setup;
-		else if (HAS_PCH_JSP(dev_priv))
-			dev_priv->display.hpd_irq_setup = jsp_hpd_irq_setup;
-		else if (HAS_PCH_MCC(dev_priv))
-			dev_priv->display.hpd_irq_setup = mcc_hpd_irq_setup;
 		else if (INTEL_GEN(dev_priv) >= 11)
 			dev_priv->display.hpd_irq_setup = gen11_hpd_irq_setup;
 		else if (IS_GEN9_LP(dev_priv))
