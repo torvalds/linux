@@ -259,6 +259,7 @@ static int rkispp_sd_s_stream(struct v4l2_subdev *sd, int on)
 	if ((on && ret) || (!on && !ret)) {
 		ispp_sdev->state = ISPP_STOP;
 		if (dev->stream_vdev.monitor.is_en) {
+			dev->stream_vdev.monitor.is_en = false;
 			if (!completion_done(&dev->stream_vdev.monitor.cmpl))
 				complete(&dev->stream_vdev.monitor.cmpl);
 			if (!completion_done(&dev->stream_vdev.monitor.tnr.cmpl))

@@ -1989,8 +1989,6 @@ static void restart_monitor(struct work_struct *work)
 		if (!(monitor->monitoring_module & m_monitor->module) ||
 		    ret || !monitor->is_en)
 			continue;
-		if (dev->ispp_sdev.state == ISPP_STOP)
-			break;
 
 		spin_lock_irqsave(&monitor->lock, lock_flags);
 		monitor->monitoring_module &= ~m_monitor->module;
