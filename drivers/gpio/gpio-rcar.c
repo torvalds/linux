@@ -32,6 +32,11 @@ struct gpio_rcar_bank_info {
 	u32 intmsk;
 };
 
+struct gpio_rcar_info {
+	bool has_outdtsel;
+	bool has_both_edge_trigger;
+};
+
 struct gpio_rcar_priv {
 	void __iomem *base;
 	spinlock_t lock;
@@ -40,8 +45,7 @@ struct gpio_rcar_priv {
 	struct irq_chip irq_chip;
 	unsigned int irq_parent;
 	atomic_t wakeup_path;
-	bool has_outdtsel;
-	bool has_both_edge_trigger;
+	struct gpio_rcar_info info;
 	struct gpio_rcar_bank_info bank_info;
 };
 
@@ -123,7 +127,7 @@ static void gpio_rcar_config_interrupt_input_mode(struct gpio_rcar_priv *p,
 	gpio_rcar_modify_bit(p, EDGLEVEL, hwirq, !level_trigger);
 
 	/* Select one edge or both edges in BOTHEDGE */
-	if (p->has_both_edge_trigger)
+	if (p->info.has_both_edge_trigger)
 		gpio_rcar_modify_bit(p, BOTHEDGE, hwirq, both);
 
 	/* Select "Interrupt Input Mode" in IOINTSEL */
@@ -162,7 +166,7 @@ static int gpio_rcar_irq_set_type(struct irq_data *d, unsigned int type)
 						      false);
 		break;
 	case IRQ_TYPE_EDGE_BOTH:
-		if (!p->has_both_edge_trigger)
+		if (!p->info.has_both_edge_trigger)
 			return -EINVAL;
 		gpio_rcar_config_interrupt_input_mode(p, hwirq, true, false,
 						      true);
@@ -238,7 +242,7 @@ static void gpio_rcar_config_general_input_output_mode(struct gpio_chip *chip,
 	gpio_rcar_modify_bit(p, INOUTSEL, gpio, output);
 
 	/* Select General Output Register to output data in OUTDTSEL */
-	if (p->has_outdtsel && output)
+	if (p->info.has_outdtsel && output)
 		gpio_rcar_modify_bit(p, OUTDTSEL, gpio, false);
 
 	spin_unlock_irqrestore(&p->lock, flags);
@@ -347,11 +351,6 @@ static int gpio_rcar_direction_output(struct gpio_chip *chip, unsigned offset,
 	return 0;
 }
 
-struct gpio_rcar_info {
-	bool has_outdtsel;
-	bool has_both_edge_trigger;
-};
-
 static const struct gpio_rcar_info gpio_rcar_info_gen1 = {
 	.has_outdtsel = false,
 	.has_both_edge_trigger = false,
@@ -418,8 +417,7 @@ static int gpio_rcar_parse_dt(struct gpio_rcar_priv *p, unsigned int *npins)
 	int ret;
 
 	info = of_device_get_match_data(p->dev);
-	p->has_outdtsel = info->has_outdtsel;
-	p->has_both_edge_trigger = info->has_both_edge_trigger;
+	p->info = *info;
 
 	ret = of_parse_phandle_with_fixed_args(np, "gpio-ranges", 3, 0, &args);
 	*npins = ret == 0 ? args.args[2] : RCAR_MAX_GPIO_PER_BANK;
@@ -553,7 +551,7 @@ static int gpio_rcar_suspend(struct device *dev)
 	p->bank_info.intmsk = gpio_rcar_read(p, INTMSK);
 	p->bank_info.posneg = gpio_rcar_read(p, POSNEG);
 	p->bank_info.edglevel = gpio_rcar_read(p, EDGLEVEL);
-	if (p->has_both_edge_trigger)
+	if (p->info.has_both_edge_trigger)
 		p->bank_info.bothedge = gpio_rcar_read(p, BOTHEDGE);
 
 	if (atomic_read(&p->wakeup_path))
