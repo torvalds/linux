@@ -305,8 +305,9 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id)
 	engine->i915 = i915;
 	engine->gt = gt;
 	engine->uncore = gt->uncore;
-	engine->hw_id = engine->guc_id = info->hw_id;
 	engine->mmio_base = __engine_mmio_base(i915, info->mmio_bases);
+	engine->hw_id = info->hw_id;
+	engine->guc_id = MAKE_GUC_ID(info->class, info->instance);
 
 	engine->class = info->class;
 	engine->instance = info->instance;
