@@ -907,6 +907,54 @@ static bool strmatch(const char *buffer, const char *string)
 	return false;
 }
 
+static const char * const btrfs_read_policy_name[] = { "pid" };
+
+static ssize_t btrfs_read_policy_show(struct kobject *kobj,
+				      struct kobj_attribute *a, char *buf)
+{
+	struct btrfs_fs_devices *fs_devices = to_fs_devs(kobj);
+	ssize_t ret = 0;
+	int i;
+
+	for (i = 0; i < BTRFS_NR_READ_POLICY; i++) {
+		if (fs_devices->read_policy == i)
+			ret += scnprintf(buf + ret, PAGE_SIZE - ret, "%s[%s]",
+					 (ret == 0 ? "" : " "),
+					 btrfs_read_policy_name[i]);
+		else
+			ret += scnprintf(buf + ret, PAGE_SIZE - ret, "%s%s",
+					 (ret == 0 ? "" : " "),
+					 btrfs_read_policy_name[i]);
+	}
+
+	ret += scnprintf(buf + ret, PAGE_SIZE - ret, "\n");
+
+	return ret;
+}
+
+static ssize_t btrfs_read_policy_store(struct kobject *kobj,
+				       struct kobj_attribute *a,
+				       const char *buf, size_t len)
+{
+	struct btrfs_fs_devices *fs_devices = to_fs_devs(kobj);
+	int i;
+
+	for (i = 0; i < BTRFS_NR_READ_POLICY; i++) {
+		if (strmatch(buf, btrfs_read_policy_name[i])) {
+			if (i != fs_devices->read_policy) {
+				fs_devices->read_policy = i;
+				btrfs_info(fs_devices->fs_info,
+					   "read policy set to '%s'",
+					   btrfs_read_policy_name[i]);
+			}
+			return len;
+		}
+	}
+
+	return -EINVAL;
+}
+BTRFS_ATTR_RW(, read_policy, btrfs_read_policy_show, btrfs_read_policy_store);
+
 static const struct attribute *btrfs_attrs[] = {
 	BTRFS_ATTR_PTR(, label),
 	BTRFS_ATTR_PTR(, nodesize),
@@ -917,6 +965,7 @@ static const struct attribute *btrfs_attrs[] = {
 	BTRFS_ATTR_PTR(, checksum),
 	BTRFS_ATTR_PTR(, exclusive_operation),
 	BTRFS_ATTR_PTR(, generation),
+	BTRFS_ATTR_PTR(, read_policy),
 	NULL,
 };
 
