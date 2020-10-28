@@ -750,6 +750,8 @@ struct io_submit_state {
 	void			*reqs[IO_IOPOLL_BATCH];
 	unsigned int		free_reqs;
 
+	bool			plug_started;
+
 	/*
 	 * Batch completion logic
 	 */
@@ -782,6 +784,8 @@ struct io_op_def {
 	unsigned		buffer_select : 1;
 	/* must always have async data allocated */
 	unsigned		needs_async_data : 1;
+	/* should block plug */
+	unsigned		plug : 1;
 	/* size of async data needed, if any */
 	unsigned short		async_size;
 	unsigned		work_flags;
@@ -795,6 +799,7 @@ static const struct io_op_def io_op_defs[] = {
 		.pollin			= 1,
 		.buffer_select		= 1,
 		.needs_async_data	= 1,
+		.plug			= 1,
 		.async_size		= sizeof(struct io_async_rw),
 		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG,
 	},
@@ -804,6 +809,7 @@ static const struct io_op_def io_op_defs[] = {
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
 		.needs_async_data	= 1,
+		.plug			= 1,
 		.async_size		= sizeof(struct io_async_rw),
 		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG |
 						IO_WQ_WORK_FSIZE,
@@ -816,6 +822,7 @@ static const struct io_op_def io_op_defs[] = {
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollin			= 1,
+		.plug			= 1,
 		.async_size		= sizeof(struct io_async_rw),
 		.work_flags		= IO_WQ_WORK_BLKCG | IO_WQ_WORK_MM,
 	},
@@ -824,6 +831,7 @@ static const struct io_op_def io_op_defs[] = {
 		.hash_reg_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
+		.plug			= 1,
 		.async_size		= sizeof(struct io_async_rw),
 		.work_flags		= IO_WQ_WORK_BLKCG | IO_WQ_WORK_FSIZE |
 						IO_WQ_WORK_MM,
@@ -907,6 +915,7 @@ static const struct io_op_def io_op_defs[] = {
 		.unbound_nonreg_file	= 1,
 		.pollin			= 1,
 		.buffer_select		= 1,
+		.plug			= 1,
 		.async_size		= sizeof(struct io_async_rw),
 		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG,
 	},
@@ -914,6 +923,7 @@ static const struct io_op_def io_op_defs[] = {
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
+		.plug			= 1,
 		.async_size		= sizeof(struct io_async_rw),
 		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG |
 						IO_WQ_WORK_FSIZE,
@@ -6585,7 +6595,8 @@ static void io_submit_state_end(struct io_submit_state *state)
 {
 	if (!list_empty(&state->comp.list))
 		io_submit_flush_completions(&state->comp);
-	blk_finish_plug(&state->plug);
+	if (state->plug_started)
+		blk_finish_plug(&state->plug);
 	io_state_file_put(state);
 	if (state->free_reqs)
 		kmem_cache_free_bulk(req_cachep, state->free_reqs, state->reqs);
@@ -6597,7 +6608,7 @@ static void io_submit_state_end(struct io_submit_state *state)
 static void io_submit_state_start(struct io_submit_state *state,
 				  struct io_ring_ctx *ctx, unsigned int max_ios)
 {
-	blk_start_plug(&state->plug);
+	state->plug_started = false;
 	state->comp.nr = 0;
 	INIT_LIST_HEAD(&state->comp.list);
 	state->comp.ctx = ctx;
@@ -6738,6 +6749,16 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 
 	/* same numerical values with corresponding REQ_F_*, safe to copy */
 	req->flags |= sqe_flags;
+
+	/*
+	 * Plug now if we have more than 1 IO left after this, and the target
+	 * is potentially a read/write to block based storage.
+	 */
+	if (!state->plug_started && state->ios_left > 1 &&
+	    io_op_defs[req->opcode].plug) {
+		blk_start_plug(&state->plug);
+		state->plug_started = true;
+	}
 
 	if (!io_op_defs[req->opcode].needs_file)
 		return 0;
