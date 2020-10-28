@@ -45,19 +45,19 @@ struct gpio_rcar_priv {
 	struct gpio_rcar_bank_info bank_info;
 };
 
-#define IOINTSEL 0x00	/* General IO/Interrupt Switching Register */
-#define INOUTSEL 0x04	/* General Input/Output Switching Register */
-#define OUTDT 0x08	/* General Output Register */
-#define INDT 0x0c	/* General Input Register */
-#define INTDT 0x10	/* Interrupt Display Register */
-#define INTCLR 0x14	/* Interrupt Clear Register */
-#define INTMSK 0x18	/* Interrupt Mask Register */
-#define MSKCLR 0x1c	/* Interrupt Mask Clear Register */
-#define POSNEG 0x20	/* Positive/Negative Logic Select Register */
-#define EDGLEVEL 0x24	/* Edge/level Select Register */
-#define FILONOFF 0x28	/* Chattering Prevention On/Off Register */
-#define OUTDTSEL 0x40	/* Output Data Select Register */
-#define BOTHEDGE 0x4c	/* One Edge/Both Edge Select Register */
+#define IOINTSEL	0x00	/* General IO/Interrupt Switching Register */
+#define INOUTSEL	0x04	/* General Input/Output Switching Register */
+#define OUTDT		0x08	/* General Output Register */
+#define INDT		0x0c	/* General Input Register */
+#define INTDT		0x10	/* Interrupt Display Register */
+#define INTCLR		0x14	/* Interrupt Clear Register */
+#define INTMSK		0x18	/* Interrupt Mask Register */
+#define MSKCLR		0x1c	/* Interrupt Mask Clear Register */
+#define POSNEG		0x20	/* Positive/Negative Logic Select Register */
+#define EDGLEVEL	0x24	/* Edge/level Select Register */
+#define FILONOFF	0x28	/* Chattering Prevention On/Off Register */
+#define OUTDTSEL	0x40	/* Output Data Select Register */
+#define BOTHEDGE	0x4c	/* One Edge/Both Edge Select Register */
 
 #define RCAR_MAX_GPIO_PER_BANK		32
 
