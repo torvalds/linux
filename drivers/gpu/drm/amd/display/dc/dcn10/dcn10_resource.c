@@ -1439,6 +1439,7 @@ static bool dcn10_resource_construct(
 	dc->caps.color.dpp.dgam_rom_caps.hlg = 0;
 	dc->caps.color.dpp.post_csc = 0;
 	dc->caps.color.dpp.gamma_corr = 0;
+	dc->caps.color.dpp.dgam_rom_for_yuv = 1;
 
 	dc->caps.color.dpp.hw_3d_lut = 0;
 	dc->caps.color.dpp.ogam_ram = 1; // RGAM on DCN1

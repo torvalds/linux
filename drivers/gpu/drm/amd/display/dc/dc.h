@@ -125,6 +125,7 @@ struct dpp_color_caps {
 	uint16_t hw_3d_lut : 1;
 	uint16_t ogam_ram : 1; // blnd gam
 	uint16_t ocsc : 1;
+	uint16_t dgam_rom_for_yuv : 1;
 	struct rom_curve_caps dgam_rom_caps;
 	struct rom_curve_caps ogam_rom_caps;
 };
