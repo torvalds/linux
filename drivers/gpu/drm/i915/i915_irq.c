@@ -71,7 +71,7 @@ static const u32 hpd_ivb[HPD_NUM_PINS] = {
 };
 
 static const u32 hpd_bdw[HPD_NUM_PINS] = {
-	[HPD_PORT_A] = GEN8_PORT_DP_A_HOTPLUG,
+	[HPD_PORT_A] = GEN8_DE_PORT_HOTPLUG(HPD_PORT_A),
 };
 
 static const u32 hpd_ibx[HPD_NUM_PINS] = {
@@ -126,9 +126,9 @@ static const u32 hpd_status_i915[HPD_NUM_PINS] = {
 };
 
 static const u32 hpd_bxt[HPD_NUM_PINS] = {
-	[HPD_PORT_A] = BXT_DE_PORT_HP_DDI(HPD_PORT_A),
-	[HPD_PORT_B] = BXT_DE_PORT_HP_DDI(HPD_PORT_B),
-	[HPD_PORT_C] = BXT_DE_PORT_HP_DDI(HPD_PORT_C),
+	[HPD_PORT_A] = GEN8_DE_PORT_HOTPLUG(HPD_PORT_A),
+	[HPD_PORT_B] = GEN8_DE_PORT_HOTPLUG(HPD_PORT_B),
+	[HPD_PORT_C] = GEN8_DE_PORT_HOTPLUG(HPD_PORT_C),
 };
 
 static const u32 hpd_gen11[HPD_NUM_PINS] = {
@@ -2379,7 +2379,7 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 					found = true;
 				}
 			} else if (IS_BROADWELL(dev_priv)) {
-				tmp_mask = iir & GEN8_PORT_DP_A_HOTPLUG;
+				tmp_mask = iir & BDW_DE_PORT_HOTPLUG_MASK;
 				if (tmp_mask) {
 					ilk_hpd_irq_handler(dev_priv, tmp_mask);
 					found = true;
@@ -3420,13 +3420,13 @@ static void __bxt_hpd_detection_setup(struct drm_i915_private *dev_priv,
 	 * For BXT invert bit has to be set based on AOB design
 	 * for HPD detection logic, update it based on VBT fields.
 	 */
-	if ((enabled_irqs & BXT_DE_PORT_HP_DDI(HPD_PORT_A)) &&
+	if ((enabled_irqs & GEN8_DE_PORT_HOTPLUG(HPD_PORT_A)) &&
 	    intel_bios_is_port_hpd_inverted(dev_priv, PORT_A))
 		hotplug |= BXT_DDIA_HPD_INVERT;
-	if ((enabled_irqs & BXT_DE_PORT_HP_DDI(HPD_PORT_B)) &&
+	if ((enabled_irqs & GEN8_DE_PORT_HOTPLUG(HPD_PORT_B)) &&
 	    intel_bios_is_port_hpd_inverted(dev_priv, PORT_B))
 		hotplug |= BXT_DDIB_HPD_INVERT;
-	if ((enabled_irqs & BXT_DE_PORT_HP_DDI(HPD_PORT_C)) &&
+	if ((enabled_irqs & GEN8_DE_PORT_HOTPLUG(HPD_PORT_C)) &&
 	    intel_bios_is_port_hpd_inverted(dev_priv, PORT_C))
 		hotplug |= BXT_DDIC_HPD_INVERT;
 
@@ -3595,7 +3595,7 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 	if (IS_GEN9_LP(dev_priv))
 		de_port_enables |= BXT_DE_PORT_HOTPLUG_MASK;
 	else if (IS_BROADWELL(dev_priv))
-		de_port_enables |= GEN8_PORT_DP_A_HOTPLUG;
+		de_port_enables |= BDW_DE_PORT_HOTPLUG_MASK;
 
 	if (INTEL_GEN(dev_priv) >= 12) {
 		enum transcoder trans;
