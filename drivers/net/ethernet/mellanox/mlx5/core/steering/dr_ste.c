@@ -18,6 +18,11 @@ static u32 dr_ste_crc32_calc(const void *input_data, size_t length)
 	return (__force u32)htonl(crc);
 }
 
+bool mlx5dr_ste_supp_ttl_cs_recalc(struct mlx5dr_cmd_caps *caps)
+{
+	return caps->sw_format_ver > MLX5_STEERING_FORMAT_CONNECTX_5;
+}
+
 u32 mlx5dr_ste_calc_hash_index(u8 *hw_ste_p, struct mlx5dr_ste_htbl *htbl)
 {
 	struct dr_hw_ste_format *hw_ste = (struct dr_hw_ste_format *)hw_ste_p;
