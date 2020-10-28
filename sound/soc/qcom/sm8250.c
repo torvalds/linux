@@ -13,12 +13,11 @@
 
 #define DRIVER_NAME		"sm8250"
 #define MI2S_BCLK_RATE		1536000
-#define MAX_SDW_STREAMS		16
 
 struct sm8250_snd_data {
-	bool stream_prepared[MAX_SDW_STREAMS];
+	bool stream_prepared[AFE_PORT_MAX];
 	struct snd_soc_card *card;
-	struct sdw_stream_runtime *sruntime[MAX_SDW_STREAMS];
+	struct sdw_stream_runtime *sruntime[AFE_PORT_MAX];
 };
 
 static int sm8250_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
