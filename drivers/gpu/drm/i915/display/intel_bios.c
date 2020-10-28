@@ -2664,12 +2664,16 @@ enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *dev_priv,
 		aux_ch = AUX_CH_B;
 		break;
 	case DP_AUX_C:
+		/*
+		 * RKL/DG1 VBT uses PHY based mapping. Combo PHYs A,B,C,D
+		 * map to DDI A,B,TC1,TC2 respectively.
+		 */
 		aux_ch = (IS_DG1(dev_priv) || IS_ROCKETLAKE(dev_priv)) ?
-			AUX_CH_D : AUX_CH_C;
+			AUX_CH_USBC1 : AUX_CH_C;
 		break;
 	case DP_AUX_D:
 		aux_ch = (IS_DG1(dev_priv) || IS_ROCKETLAKE(dev_priv)) ?
-			AUX_CH_E : AUX_CH_D;
+			AUX_CH_USBC2 : AUX_CH_D;
 		break;
 	case DP_AUX_E:
 		aux_ch = AUX_CH_E;
