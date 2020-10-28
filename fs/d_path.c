@@ -102,6 +102,8 @@ restart:
 
 		if (dentry == vfsmnt->mnt_root || IS_ROOT(dentry)) {
 			struct mount *parent = READ_ONCE(mnt->mnt_parent);
+			struct mnt_namespace *mnt_ns;
+
 			/* Escaped? */
 			if (dentry != vfsmnt->mnt_root) {
 				bptr = *buffer;
@@ -116,7 +118,9 @@ restart:
 				vfsmnt = &mnt->mnt;
 				continue;
 			}
-			if (is_mounted(vfsmnt) && !is_anon_ns(mnt->mnt_ns))
+			mnt_ns = READ_ONCE(mnt->mnt_ns);
+			/* open-coded is_mounted() to use local mnt_ns */
+			if (!IS_ERR_OR_NULL(mnt_ns) && !is_anon_ns(mnt_ns))
 				error = 1;	// absolute root
 			else
 				error = 2;	// detached or not attached yet

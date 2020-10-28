@@ -109,6 +109,8 @@ properties:
 required:
   - reg
 
+unevaluatedProperties: false
+
 examples:
   - |
     #include <dt-bindings/net/ti-dp83867.h>

@@ -1196,9 +1196,8 @@ smsc911x_rx_fastforward(struct smsc911x_data *pdata, unsigned int pktwords)
 			SMSC_WARN(pdata, hw, "Timed out waiting for "
 				  "RX FFWD to finish, RX_DP_CTRL: 0x%08X", val);
 	} else {
-		unsigned int temp;
 		while (pktwords--)
-			temp = smsc911x_reg_read(pdata, RX_DATA_FIFO);
+			smsc911x_reg_read(pdata, RX_DATA_FIFO);
 	}
 }
 
@@ -2055,7 +2054,6 @@ static int smsc911x_eeprom_write_location(struct smsc911x_data *pdata,
 					  u8 address, u8 data)
 {
 	u32 op = E2P_CMD_EPC_CMD_ERASE_ | address;
-	u32 temp;
 	int ret;
 
 	SMSC_TRACE(pdata, drv, "address 0x%x, data 0x%x", address, data);
@@ -2066,7 +2064,7 @@ static int smsc911x_eeprom_write_location(struct smsc911x_data *pdata,
 		smsc911x_reg_write(pdata, E2P_DATA, (u32)data);
 
 		/* Workaround for hardware read-after-write restriction */
-		temp = smsc911x_reg_read(pdata, BYTE_TEST);
+		smsc911x_reg_read(pdata, BYTE_TEST);
 
 		ret = smsc911x_eeprom_send_cmd(pdata, op);
 	}

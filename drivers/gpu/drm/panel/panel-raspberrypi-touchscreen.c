@@ -361,7 +361,7 @@ static int rpi_touchscreen_probe(struct i2c_client *i2c,
 	struct rpi_touchscreen *ts;
 	struct device_node *endpoint, *dsi_host_node;
 	struct mipi_dsi_host *host;
-	int ret, ver;
+	int ver;
 	struct mipi_dsi_device_info info = {
 		.type = RPI_DSI_DRIVER_NAME,
 		.channel = 0,
@@ -429,9 +429,7 @@ static int rpi_touchscreen_probe(struct i2c_client *i2c,
 	/* This appears last, as it's what will unblock the DSI host
 	 * driver's component bind function.
 	 */
-	ret = drm_panel_add(&ts->base);
-	if (ret)
-		return ret;
+	drm_panel_add(&ts->base);
 
 	return 0;
 

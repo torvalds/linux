@@ -122,6 +122,12 @@ static inline void remove_watch_list(struct watch_list *wlist, u64 id)
  */
 #define watch_sizeof(STRUCT) (sizeof(STRUCT) << WATCH_INFO_LENGTH__SHIFT)
 
+#else
+static inline int watch_queue_init(struct pipe_inode_info *pipe)
+{
+	return -ENOPKG;
+}
+
 #endif
 
 #endif /* _LINUX_WATCH_QUEUE_H */

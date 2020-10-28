@@ -46,7 +46,9 @@ static int uverbs_free_counters(struct ib_uobject *uobject,
 	if (ret)
 		return ret;
 
-	counters->device->ops.destroy_counters(counters);
+	ret = counters->device->ops.destroy_counters(counters);
+	if (ret)
+		return ret;
 	kfree(counters);
 	return 0;
 }

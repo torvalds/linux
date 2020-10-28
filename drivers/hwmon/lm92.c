@@ -292,8 +292,7 @@ static int lm92_detect(struct i2c_client *new_client,
 	return 0;
 }
 
-static int lm92_probe(struct i2c_client *new_client,
-		      const struct i2c_device_id *id)
+static int lm92_probe(struct i2c_client *new_client)
 {
 	struct device *hwmon_dev;
 	struct lm92_data *data;
@@ -331,7 +330,7 @@ static struct i2c_driver lm92_driver = {
 	.driver = {
 		.name	= "lm92",
 	},
-	.probe		= lm92_probe,
+	.probe_new	= lm92_probe,
 	.id_table	= lm92_id,
 	.detect		= lm92_detect,
 	.address_list	= normal_i2c,

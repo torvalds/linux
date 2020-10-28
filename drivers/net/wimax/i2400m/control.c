@@ -656,8 +656,6 @@ void i2400m_msg_to_dev_cancel_wait(struct i2400m *i2400m, int code)
  *
  * @i2400m: device descriptor
  *
- * @msg_skb: an skb  *
- *
  * @buf: pointer to the buffer containing the message to be sent; it
  *           has to start with a &struct i2400M_l3l4_hdr and then
  *           followed by the payload. Once this function returns, the

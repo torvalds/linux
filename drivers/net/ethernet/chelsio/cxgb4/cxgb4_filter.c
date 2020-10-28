@@ -604,17 +604,14 @@ int cxgb4_get_free_ftid(struct net_device *dev, u8 family, bool hash_en,
 			/* If the new rule wants to get inserted into
 			 * HPFILTER region, but its prio is greater
 			 * than the rule with the highest prio in HASH
-			 * region, then reject the rule.
+			 * region, or if there's not enough slots
+			 * available in HPFILTER region, then skip
+			 * trying to insert this rule into HPFILTER
+			 * region and directly go to the next region.
 			 */
-			if (t->tc_hash_tids_max_prio &&
-			    tc_prio > t->tc_hash_tids_max_prio)
-				break;
-
-			/* If there's not enough slots available
-			 * in HPFILTER region, then move on to
-			 * normal FILTER region immediately.
-			 */
-			if (ftid + n > t->nhpftids) {
+			if ((t->tc_hash_tids_max_prio &&
+			     tc_prio > t->tc_hash_tids_max_prio) ||
+			     (ftid + n) > t->nhpftids) {
 				ftid = t->nhpftids;
 				continue;
 			}
@@ -1911,13 +1908,16 @@ out:
 static int configure_filter_tcb(struct adapter *adap, unsigned int tid,
 				struct filter_entry *f)
 {
-	if (f->fs.hitcnts)
+	if (f->fs.hitcnts) {
 		set_tcb_field(adap, f, tid, TCB_TIMESTAMP_W,
-			      TCB_TIMESTAMP_V(TCB_TIMESTAMP_M) |
+			      TCB_TIMESTAMP_V(TCB_TIMESTAMP_M),
+			      TCB_TIMESTAMP_V(0ULL),
+			      1);
+		set_tcb_field(adap, f, tid, TCB_RTT_TS_RECENT_AGE_W,
 			      TCB_RTT_TS_RECENT_AGE_V(TCB_RTT_TS_RECENT_AGE_M),
-			      TCB_TIMESTAMP_V(0ULL) |
 			      TCB_RTT_TS_RECENT_AGE_V(0ULL),
 			      1);
+	}
 
 	if (f->fs.newdmac)
 		set_tcb_tflag(adap, f, tid, TF_CCTRL_ECE_S, 1,

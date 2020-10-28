@@ -37,9 +37,6 @@ extern __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
  */
 extern __wsum csum_partial(const void *buff, int len, __wsum sum);
 
-extern __wsum csum_partial_copy_nocheck(const void *src, void *dst,
-					       int len, __wsum sum);
-
 /*
  * This routine is used for miscellaneous IP-like checksums, mainly in
  * icmp.c

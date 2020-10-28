@@ -260,34 +260,14 @@ static int vgic_debug_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-static const struct seq_operations vgic_debug_seq_ops = {
+static const struct seq_operations vgic_debug_sops = {
 	.start = vgic_debug_start,
 	.next  = vgic_debug_next,
 	.stop  = vgic_debug_stop,
 	.show  = vgic_debug_show
 };
 
-static int debug_open(struct inode *inode, struct file *file)
-{
-	int ret;
-	ret = seq_open(file, &vgic_debug_seq_ops);
-	if (!ret) {
-		struct seq_file *seq;
-		/* seq_open will have modified file->private_data */
-		seq = file->private_data;
-		seq->private = inode->i_private;
-	}
-
-	return ret;
-};
-
-static const struct file_operations vgic_debug_fops = {
-	.owner   = THIS_MODULE,
-	.open    = debug_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = seq_release
-};
+DEFINE_SEQ_ATTRIBUTE(vgic_debug);
 
 void vgic_debug_init(struct kvm *kvm)
 {

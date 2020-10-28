@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.audio
 
 .. _audio_fopen:
 
@@ -24,8 +18,6 @@ Synopsis
 --------
 
 .. c:function:: int open(const char *deviceName, int flags)
-    :name: dvb-audio-open
-
 
 Arguments
 ---------
@@ -33,7 +25,6 @@ Arguments
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -  .. row 1
 
@@ -67,7 +58,6 @@ Arguments
        -
        -  (blocking mode is the default)
 
-
 Description
 -----------
 
@@ -85,7 +75,6 @@ fail, and an error code will be returned. If the Audio Device is opened
 in O_RDONLY mode, the only ioctl call that can be used is
 AUDIO_GET_STATUS. All other call will return with an error code.
 
-
 Return Value
 ------------
 
@@ -94,7 +83,6 @@ Return Value
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -  .. row 1
 

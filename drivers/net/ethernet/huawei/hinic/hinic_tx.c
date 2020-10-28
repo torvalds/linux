@@ -357,6 +357,7 @@ static int offload_csum(struct hinic_sq_task *task, u32 *queue_info,
 	enum hinic_l4_offload_type l4_offload;
 	u32 offset, l4_len, network_hdr_len;
 	enum hinic_l3_offload_type l3_type;
+	u32 tunnel_type = NOT_TUNNEL;
 	union hinic_l3 ip;
 	union hinic_l4 l4;
 	u8 l4_proto;
@@ -367,27 +368,55 @@ static int offload_csum(struct hinic_sq_task *task, u32 *queue_info,
 	if (skb->encapsulation) {
 		u32 l4_tunnel_len;
 
+		tunnel_type = TUNNEL_UDP_NO_CSUM;
 		ip.hdr = skb_network_header(skb);
 
-		if (ip.v4->version == 4)
+		if (ip.v4->version == 4) {
 			l3_type = IPV4_PKT_NO_CHKSUM_OFFLOAD;
-		else if (ip.v4->version == 6)
+			l4_proto = ip.v4->protocol;
+		} else if (ip.v4->version == 6) {
+			unsigned char *exthdr;
+			__be16 frag_off;
 			l3_type = IPV6_PKT;
-		else
+			tunnel_type = TUNNEL_UDP_CSUM;
+			exthdr = ip.hdr + sizeof(*ip.v6);
+			l4_proto = ip.v6->nexthdr;
+			l4.hdr = skb_transport_header(skb);
+			if (l4.hdr != exthdr)
+				ipv6_skip_exthdr(skb, exthdr - skb->data,
+						 &l4_proto, &frag_off);
+		} else {
 			l3_type = L3TYPE_UNKNOWN;
+			l4_proto = IPPROTO_RAW;
+		}
 
 		hinic_task_set_outter_l3(task, l3_type,
 					 skb_network_header_len(skb));
 
-		l4_tunnel_len = skb_inner_network_offset(skb) -
-				skb_transport_offset(skb);
+		switch (l4_proto) {
+		case IPPROTO_UDP:
+			l4_tunnel_len = skb_inner_network_offset(skb) -
+					skb_transport_offset(skb);
+			ip.hdr = skb_inner_network_header(skb);
+			l4.hdr = skb_inner_transport_header(skb);
+			network_hdr_len = skb_inner_network_header_len(skb);
+			break;
+		case IPPROTO_IPIP:
+		case IPPROTO_IPV6:
+			tunnel_type = NOT_TUNNEL;
+			l4_tunnel_len = 0;
 
-		hinic_task_set_tunnel_l4(task, TUNNEL_UDP_NO_CSUM,
-					 l4_tunnel_len);
+			ip.hdr = skb_inner_network_header(skb);
+			l4.hdr = skb_transport_header(skb);
+			network_hdr_len = skb_network_header_len(skb);
+			break;
+		default:
+			/* Unsupported tunnel packet, disable csum offload */
+			skb_checksum_help(skb);
+			return 0;
+		}
 
-		ip.hdr = skb_inner_network_header(skb);
-		l4.hdr = skb_inner_transport_header(skb);
-		network_hdr_len = skb_inner_network_header_len(skb);
+		hinic_task_set_tunnel_l4(task, tunnel_type, l4_tunnel_len);
 	} else {
 		ip.hdr = skb_network_header(skb);
 		l4.hdr = skb_transport_header(skb);
@@ -717,8 +746,8 @@ static int free_tx_poll(struct napi_struct *napi, int budget)
 		netdev_txq = netdev_get_tx_queue(txq->netdev, qp->q_id);
 
 		__netif_tx_lock(netdev_txq, smp_processor_id());
-
-		netif_wake_subqueue(nic_dev->netdev, qp->q_id);
+		if (!netif_testing(nic_dev->netdev))
+			netif_wake_subqueue(nic_dev->netdev, qp->q_id);
 
 		__netif_tx_unlock(netdev_txq);
 
@@ -743,18 +772,6 @@ static int free_tx_poll(struct napi_struct *napi, int budget)
 	}
 
 	return budget;
-}
-
-static void tx_napi_add(struct hinic_txq *txq, int weight)
-{
-	netif_napi_add(txq->netdev, &txq->napi, free_tx_poll, weight);
-	napi_enable(&txq->napi);
-}
-
-static void tx_napi_del(struct hinic_txq *txq)
-{
-	napi_disable(&txq->napi);
-	netif_napi_del(&txq->napi);
 }
 
 static irqreturn_t tx_irq(int irq, void *data)
@@ -790,7 +807,7 @@ static int tx_request_irq(struct hinic_txq *txq)
 
 	qp = container_of(sq, struct hinic_qp, sq);
 
-	tx_napi_add(txq, nic_dev->tx_weight);
+	netif_napi_add(txq->netdev, &txq->napi, free_tx_poll, nic_dev->tx_weight);
 
 	hinic_hwdev_msix_set(nic_dev->hwdev, sq->msix_entry,
 			     TX_IRQ_NO_PENDING, TX_IRQ_NO_COALESC,
@@ -807,14 +824,14 @@ static int tx_request_irq(struct hinic_txq *txq)
 	if (err) {
 		netif_err(nic_dev, drv, txq->netdev,
 			  "Failed to set TX interrupt coalescing attribute\n");
-		tx_napi_del(txq);
+		netif_napi_del(&txq->napi);
 		return err;
 	}
 
 	err = request_irq(sq->irq, tx_irq, 0, txq->irq_name, txq);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to request Tx irq\n");
-		tx_napi_del(txq);
+		netif_napi_del(&txq->napi);
 		return err;
 	}
 
@@ -826,7 +843,7 @@ static void tx_free_irq(struct hinic_txq *txq)
 	struct hinic_sq *sq = txq->sq;
 
 	free_irq(sq->irq, txq);
-	tx_napi_del(txq);
+	netif_napi_del(&txq->napi);
 }
 
 /**
@@ -865,14 +882,14 @@ int hinic_init_txq(struct hinic_txq *txq, struct hinic_sq *sq,
 		goto err_alloc_free_sges;
 	}
 
-	irqname_len = snprintf(NULL, 0, "hinic_txq%d", qp->q_id) + 1;
+	irqname_len = snprintf(NULL, 0, "%s_txq%d", netdev->name, qp->q_id) + 1;
 	txq->irq_name = devm_kzalloc(&netdev->dev, irqname_len, GFP_KERNEL);
 	if (!txq->irq_name) {
 		err = -ENOMEM;
 		goto err_alloc_irqname;
 	}
 
-	sprintf(txq->irq_name, "hinic_txq%d", qp->q_id);
+	sprintf(txq->irq_name, "%s_txq%d", netdev->name, qp->q_id);
 
 	err = hinic_hwdev_hw_ci_addr_set(hwdev, sq, CI_UPDATE_NO_PENDING,
 					 CI_UPDATE_NO_COALESC);

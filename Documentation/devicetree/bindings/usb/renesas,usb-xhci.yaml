@@ -30,6 +30,7 @@ properties:
               - renesas,xhci-r8a774a1 # RZ/G2M
               - renesas,xhci-r8a774b1 # RZ/G2N
               - renesas,xhci-r8a774c0 # RZ/G2E
+              - renesas,xhci-r8a774e1 # RZ/G2H
               - renesas,xhci-r8a7795  # R-Car H3
               - renesas,xhci-r8a7796  # R-Car M3-W
               - renesas,xhci-r8a77961 # R-Car M3-W+

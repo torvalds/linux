@@ -307,18 +307,12 @@ INCLUDES += \
 	-I$(atomisp)/pci/runtime/queue/src/ \
 	-I$(atomisp)/pci/runtime/rmgr/interface/ \
 	-I$(atomisp)/pci/runtime/spctrl/interface/ \
-	-I$(atomisp)/pci/runtime/tagger/interface/
-
-INCLUDES_byt += \
+	-I$(atomisp)/pci/runtime/tagger/interface/ \
 	-I$(atomisp)/pci/css_2400_system/hive/ \
-
-INCLUDES_cht += \
 	-I$(atomisp)/pci/css_2401_system/ \
 	-I$(atomisp)/pci/css_2401_system/host/ \
 	-I$(atomisp)/pci/css_2401_system/hive/ \
-	-I$(atomisp)/pci/css_2401_system/hrt/ \
-
-#	-I$(atomisp)/pci/css_2401_system/hive_isp_css_2401_system_generated/ \
+	-I$(atomisp)/pci/css_2401_system/hrt/
 
 DEFINES := -DHRT_HW -DHRT_ISP_CSS_CUSTOM_HOST -DHRT_USE_VIR_ADDRS -D__HOST__
 #DEFINES += -DUSE_DYNAMIC_BIN
@@ -330,11 +324,9 @@ DEFINES := -DHRT_HW -DHRT_ISP_CSS_CUSTOM_HOST -DHRT_USE_VIR_ADDRS -D__HOST__
 
 ifeq ($(CONFIG_VIDEO_ATOMISP_ISP2401),y)
 atomisp-objs += $(obj-cht)
-INCLUDES += $(INCLUDES_cht)
 DEFINES += -DISP2401 -DISP2401_NEW_INPUT_SYSTEM -DSYSTEM_hive_isp_css_2401_system
 else
 atomisp-objs += $(obj-byt)
-INCLUDES += $(INCLUDES_byt)
 DEFINES += -DISP2400 -DSYSTEM_hive_isp_css_2400_system
 endif
 

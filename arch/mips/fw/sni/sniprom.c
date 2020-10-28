@@ -11,6 +11,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/memblock.h>
 #include <linux/string.h>
 #include <linux/console.h>
 
@@ -131,8 +132,7 @@ static void __init sni_mem_init(void)
 		}
 		pr_debug("Bank%d: %08x @ %08x\n", i,
 			memconf[i].size, memconf[i].base);
-		add_memory_region(memconf[i].base, memconf[i].size,
-				  BOOT_MEM_RAM);
+		memblock_add(memconf[i].base, memconf[i].size);
 	}
 }
 

@@ -67,7 +67,7 @@ You should also set these fields of :c:type:`video_device`:
   file operation is called this lock will be taken by the core and released
   afterwards. See the next section for more details.
 
-- :c:type:`video_device`->queue: a pointer to the struct :c:type:`vb2_queue`
+- :c:type:`video_device`->queue: a pointer to the struct vb2_queue
   associated with this device node.
   If queue is not ``NULL``, and queue->lock is not ``NULL``, then queue->lock
   is used for the queuing ioctls (``VIDIOC_REQBUFS``, ``CREATE_BUFS``,
@@ -81,7 +81,7 @@ You should also set these fields of :c:type:`video_device`:
 
 - :c:type:`video_device`->prio: keeps track of the priorities. Used to
   implement ``VIDIOC_G_PRIORITY`` and ``VIDIOC_S_PRIORITY``.
-  If left to ``NULL``, then it will use the struct :c:type:`v4l2_prio_state`
+  If left to ``NULL``, then it will use the struct v4l2_prio_state
   in :c:type:`v4l2_device`. If you want to have a separate priority state per
   (group of) device node(s),   then you can point it to your own struct
   :c:type:`v4l2_prio_state`.
@@ -95,7 +95,7 @@ You should also set these fields of :c:type:`video_device`:
   but   it is used by both a raw video PCI device (cx8800) and a MPEG PCI device
   (cx8802). Since the :c:type:`v4l2_device` cannot be associated with two PCI
   devices at the same time it is setup without a parent device. But when the
-  struct :c:type:`video_device` is initialized you **do** know which parent
+  struct video_device is initialized you **do** know which parent
   PCI device to use and so you set ``dev_device`` to the correct PCI device.
 
 If you use :c:type:`v4l2_ioctl_ops`, then you should set
@@ -138,7 +138,7 @@ ioctls and locking
 ------------------
 
 The V4L core provides optional locking services. The main service is the
-lock field in struct :c:type:`video_device`, which is a pointer to a mutex.
+lock field in struct video_device, which is a pointer to a mutex.
 If you set this pointer, then that will be used by unlocked_ioctl to
 serialize all ioctls.
 

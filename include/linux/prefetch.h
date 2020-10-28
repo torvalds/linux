@@ -15,6 +15,7 @@
 #include <asm/processor.h>
 #include <asm/cache.h>
 
+struct page;
 /*
 	prefetch(x) attempts to pre-emptively get the memory pointed to
 	by address "x" into the CPU L1 cache. 
@@ -59,6 +60,13 @@ static inline void prefetch_range(void *addr, size_t len)
 
 	for (cp = addr; cp < end; cp += PREFETCH_STRIDE)
 		prefetch(cp);
+#endif
+}
+
+static inline void prefetch_page_address(struct page *page)
+{
+#if defined(WANT_PAGE_VIRTUAL) || defined(HASHED_PAGE_VIRTUAL)
+	prefetch(page);
 #endif
 }
 

@@ -3100,3 +3100,15 @@ char *machine__resolve_kernel_addr(void *vmachine, unsigned long long *addrp, ch
 	*addrp = map->unmap_ip(map, sym->start);
 	return sym->name;
 }
+
+int machine__for_each_dso(struct machine *machine, machine__dso_t fn, void *priv)
+{
+	struct dso *pos;
+	int err = 0;
+
+	list_for_each_entry(pos, &machine->dsos.head, node) {
+		if (fn(pos, machine, priv))
+			err = -1;
+	}
+	return err;
+}

@@ -17,10 +17,13 @@
 	strb	\rd, [\rx, #UART_FIFO_REG]
 	.endm
 
-	.macro	waituart, rd, rx
+	.macro	waituarttxrdy, rd, rx
 1001:	ldr	\rd, [\rx, #UART_IR_REG]
 	tst	\rd, #(1 << UART_IR_TXEMPTY)
 	beq	1001b
+	.endm
+
+	.macro	waituartcts, rd, rx
 	.endm
 
 	.macro	busyuart, rd, rx

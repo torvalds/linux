@@ -854,7 +854,7 @@ css_generate_pgid(struct channel_subsystem *css, u32 tod_high)
 	if (css_general_characteristics.mcss) {
 		css->global_pgid.pgid_high.ext_cssid.version = 0x80;
 		css->global_pgid.pgid_high.ext_cssid.cssid =
-			(css->cssid < 0) ? 0 : css->cssid;
+			css->id_valid ? css->cssid : 0;
 	} else {
 		css->global_pgid.pgid_high.cpu_addr = stap();
 	}
@@ -877,7 +877,7 @@ static ssize_t real_cssid_show(struct device *dev, struct device_attribute *a,
 {
 	struct channel_subsystem *css = to_css(dev);
 
-	if (css->cssid < 0)
+	if (!css->id_valid)
 		return -EINVAL;
 
 	return sprintf(buf, "%x\n", css->cssid);
@@ -975,7 +975,12 @@ static int __init setup_css(int nr)
 	css->device.dma_mask = &css->device.coherent_dma_mask;
 
 	mutex_init(&css->mutex);
-	css->cssid = chsc_get_cssid(nr);
+	ret = chsc_get_cssid_iid(nr, &css->cssid, &css->iid);
+	if (!ret) {
+		css->id_valid = true;
+		pr_info("Partition identifier %01x.%01x\n", css->cssid,
+			css->iid);
+	}
 	css_generate_pgid(css, (u32) (get_tod_clock() >> 32));
 
 	ret = device_register(&css->device);
@@ -1349,20 +1354,6 @@ static int __init channel_subsystem_init_sync(void)
 	return 0;
 }
 subsys_initcall_sync(channel_subsystem_init_sync);
-
-void channel_subsystem_reinit(void)
-{
-	struct channel_path *chp;
-	struct chp_id chpid;
-
-	chsc_enable_facility(CHSC_SDA_OC_MSS);
-	chp_id_for_each(&chpid) {
-		chp = chpid_to_chp(chpid);
-		if (chp)
-			chp_update_desc(chp);
-	}
-	cmf_reactivate();
-}
 
 #ifdef CONFIG_PROC_FS
 static ssize_t cio_settle_write(struct file *file, const char __user *buf,

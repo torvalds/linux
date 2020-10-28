@@ -100,6 +100,13 @@ config EDAC_AMD64_ERROR_INJECTION
 	  In addition, there are two control files, inject_read and inject_write,
 	  which trigger the DRAM ECC Read and Write respectively.
 
+config EDAC_AL_MC
+	tristate "Amazon's Annapurna Lab Memory Controller"
+	depends on (ARCH_ALPINE || COMPILE_TEST)
+	help
+	  Support for error detection and correction for Amazon's Annapurna
+	  Labs Alpine chips which allow 1 bit correction and 2 bits detection.
+
 config EDAC_AMD76X
 	tristate "AMD 76x (760, 762, 768)"
 	depends on PCI && X86_32

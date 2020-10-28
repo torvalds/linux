@@ -727,7 +727,9 @@ u16 nvmet_set_feat_kato(struct nvmet_req *req)
 {
 	u32 val32 = le32_to_cpu(req->cmd->common.cdw11);
 
+	nvmet_stop_keep_alive_timer(req->sq->ctrl);
 	req->sq->ctrl->kato = DIV_ROUND_UP(val32, 1000);
+	nvmet_start_keep_alive_timer(req->sq->ctrl);
 
 	nvmet_set_result(req, req->sq->ctrl->kato);
 

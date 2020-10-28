@@ -250,14 +250,16 @@ static inline void build_clear_pref(u32 **buf, int off)
 		if (cpu_has_cache_cdex_s) {
 			uasm_i_cache(buf, Create_Dirty_Excl_SD, off, A0);
 		} else if (cpu_has_cache_cdex_p) {
-			if (R4600_V1_HIT_CACHEOP_WAR && cpu_is_r4600_v1_x()) {
+			if (IS_ENABLED(CONFIG_WAR_R4600_V1_HIT_CACHEOP) &&
+			    cpu_is_r4600_v1_x()) {
 				uasm_i_nop(buf);
 				uasm_i_nop(buf);
 				uasm_i_nop(buf);
 				uasm_i_nop(buf);
 			}
 
-			if (R4600_V2_HIT_CACHEOP_WAR && cpu_is_r4600_v2_x())
+			if (IS_ENABLED(CONFIG_WAR_R4600_V2_HIT_CACHEOP) &&
+			    cpu_is_r4600_v2_x())
 				uasm_i_lw(buf, ZERO, ZERO, AT);
 
 			uasm_i_cache(buf, Create_Dirty_Excl_D, off, A0);
@@ -302,7 +304,7 @@ void build_clear_page(void)
 	else
 		uasm_i_ori(&buf, A2, A0, off);
 
-	if (R4600_V2_HIT_CACHEOP_WAR && cpu_is_r4600_v2_x())
+	if (IS_ENABLED(CONFIG_WAR_R4600_V2_HIT_CACHEOP) && cpu_is_r4600_v2_x())
 		uasm_i_lui(&buf, AT, uasm_rel_hi(0xa0000000));
 
 	off = cache_line_size ? min(8, pref_bias_clear_store / cache_line_size)
@@ -402,14 +404,16 @@ static inline void build_copy_store_pref(u32 **buf, int off)
 		if (cpu_has_cache_cdex_s) {
 			uasm_i_cache(buf, Create_Dirty_Excl_SD, off, A0);
 		} else if (cpu_has_cache_cdex_p) {
-			if (R4600_V1_HIT_CACHEOP_WAR && cpu_is_r4600_v1_x()) {
+			if (IS_ENABLED(CONFIG_WAR_R4600_V1_HIT_CACHEOP) &&
+			    cpu_is_r4600_v1_x()) {
 				uasm_i_nop(buf);
 				uasm_i_nop(buf);
 				uasm_i_nop(buf);
 				uasm_i_nop(buf);
 			}
 
-			if (R4600_V2_HIT_CACHEOP_WAR && cpu_is_r4600_v2_x())
+			if (IS_ENABLED(CONFIG_WAR_R4600_V2_HIT_CACHEOP) &&
+			    cpu_is_r4600_v2_x())
 				uasm_i_lw(buf, ZERO, ZERO, AT);
 
 			uasm_i_cache(buf, Create_Dirty_Excl_D, off, A0);
@@ -453,7 +457,7 @@ void build_copy_page(void)
 	else
 		uasm_i_ori(&buf, A2, A0, off);
 
-	if (R4600_V2_HIT_CACHEOP_WAR && cpu_is_r4600_v2_x())
+	if (IS_ENABLED(CONFIG_WAR_R4600_V2_HIT_CACHEOP) && cpu_is_r4600_v2_x())
 		uasm_i_lui(&buf, AT, uasm_rel_hi(0xa0000000));
 
 	off = cache_line_size ? min(8, pref_bias_copy_load / cache_line_size) *

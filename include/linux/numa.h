@@ -23,19 +23,8 @@
 #ifdef CONFIG_NUMA
 /* Generic implementation available */
 int numa_map_to_online_node(int node);
-
-/*
- * Optional architecture specific implementation, users need a "depends
- * on $ARCH"
- */
-int phys_to_target_node(phys_addr_t addr);
 #else
 static inline int numa_map_to_online_node(int node)
-{
-	return NUMA_NO_NODE;
-}
-
-static inline int phys_to_target_node(phys_addr_t addr)
 {
 	return NUMA_NO_NODE;
 }

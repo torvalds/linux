@@ -97,33 +97,25 @@
 		};
 	};
 
-	fixed-rate-clocks {
-		#address-cells = <1>;
-		#size-cells = <0>;
+	xusbxti: clock-0 {
+		compatible = "fixed-clock";
+		clock-frequency = <0>;
+		#clock-cells = <0>;
+		clock-output-names = "xusbxti";
+	};
 
-		xusbxti: clock@0 {
-			compatible = "fixed-clock";
-			reg = <0>;
-			clock-frequency = <0>;
-			#clock-cells = <0>;
-			clock-output-names = "xusbxti";
-		};
+	xxti: clock-1 {
+		compatible = "fixed-clock";
+		clock-frequency = <0>;
+		#clock-cells = <0>;
+		clock-output-names = "xxti";
+	};
 
-		xxti: clock@1 {
-			compatible = "fixed-clock";
-			reg = <1>;
-			clock-frequency = <0>;
-			#clock-cells = <0>;
-			clock-output-names = "xxti";
-		};
-
-		xtcxo: clock@2 {
-			compatible = "fixed-clock";
-			reg = <2>;
-			clock-frequency = <0>;
-			#clock-cells = <0>;
-			clock-output-names = "xtcxo";
-		};
+	xtcxo: clock-2 {
+		compatible = "fixed-clock";
+		clock-frequency = <0>;
+		#clock-cells = <0>;
+		clock-output-names = "xtcxo";
 	};
 
 	pmu {
@@ -362,7 +354,7 @@
 		};
 
 		hsotg: hsotg@12480000 {
-			compatible = "samsung,s3c6400-hsotg", "snps,dwc2";
+			compatible = "samsung,s3c6400-hsotg";
 			reg = <0x12480000 0x20000>;
 			interrupts = <GIC_SPI 141 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cmu CLK_USBOTG>;

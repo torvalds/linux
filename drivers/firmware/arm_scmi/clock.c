@@ -318,7 +318,7 @@ scmi_clock_info_get(const struct scmi_handle *handle, u32 clk_id)
 	return clk;
 }
 
-static struct scmi_clk_ops clk_ops = {
+static const struct scmi_clk_ops clk_ops = {
 	.count_get = scmi_clock_count_get,
 	.info_get = scmi_clock_info_get,
 	.rate_get = scmi_clock_rate_get,
@@ -364,9 +364,4 @@ static int scmi_clock_protocol_init(struct scmi_handle *handle)
 	return 0;
 }
 
-static int __init scmi_clock_init(void)
-{
-	return scmi_protocol_register(SCMI_PROTOCOL_CLOCK,
-				      &scmi_clock_protocol_init);
-}
-subsys_initcall(scmi_clock_init);
+DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(SCMI_PROTOCOL_CLOCK, clock)

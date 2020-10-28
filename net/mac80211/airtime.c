@@ -560,7 +560,9 @@ static int ieee80211_fill_rx_status(struct ieee80211_rx_status *stat,
 	if (rate->idx < 0 || !rate->count)
 		return -1;
 
-	if (rate->flags & IEEE80211_TX_RC_80_MHZ_WIDTH)
+	if (rate->flags & IEEE80211_TX_RC_160_MHZ_WIDTH)
+		stat->bw = RATE_INFO_BW_160;
+	else if (rate->flags & IEEE80211_TX_RC_80_MHZ_WIDTH)
 		stat->bw = RATE_INFO_BW_80;
 	else if (rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
 		stat->bw = RATE_INFO_BW_40;
@@ -668,20 +670,26 @@ u32 ieee80211_calc_expected_tx_airtime(struct ieee80211_hw *hw,
 		 * This will not be very accurate, but much better than simply
 		 * assuming un-aggregated tx in all cases.
 		 */
-		if (duration > 400) /* <= VHT20 MCS2 1S */
+		if (duration > 400 * 1024) /* <= VHT20 MCS2 1S */
 			agg_shift = 1;
-		else if (duration > 250) /* <= VHT20 MCS3 1S or MCS1 2S */
+		else if (duration > 250 * 1024) /* <= VHT20 MCS3 1S or MCS1 2S */
 			agg_shift = 2;
-		else if (duration > 150) /* <= VHT20 MCS5 1S or MCS3 2S */
+		else if (duration > 150 * 1024) /* <= VHT20 MCS5 1S or MCS2 2S */
 			agg_shift = 3;
-		else
+		else if (duration > 70 * 1024) /* <= VHT20 MCS5 2S */
 			agg_shift = 4;
+		else if (stat.encoding != RX_ENC_HE ||
+			 duration > 20 * 1024) /* <= HE40 MCS6 2S */
+			agg_shift = 5;
+		else
+			agg_shift = 6;
 
 		duration *= len;
 		duration /= AVG_PKT_SIZE;
 		duration /= 1024;
+		duration += (overhead >> agg_shift);
 
-		return duration + (overhead >> agg_shift);
+		return max_t(u32, duration, 4);
 	}
 
 	if (!conf)

@@ -266,15 +266,15 @@ static int p80211_convert_to_ether(struct wlandevice *wlandev,
 /**
  * p80211netdev_rx_bh - deferred processing of all received frames
  *
- * @arg: pointer to WLAN network device structure (cast to unsigned long)
+ * @t: pointer to the tasklet associated with this handler
  */
-static void p80211netdev_rx_bh(unsigned long arg)
+static void p80211netdev_rx_bh(struct tasklet_struct *t)
 {
-	struct wlandevice *wlandev = (struct wlandevice *)arg;
+	struct wlandevice *wlandev = from_tasklet(wlandev, t, rx_bh);
 	struct sk_buff *skb = NULL;
 	struct net_device *dev = wlandev->netdev;
 
-	/* Let's empty our our queue */
+	/* Let's empty our queue */
 	while ((skb = skb_dequeue(&wlandev->nsd_rxq))) {
 		if (wlandev->state == WLAN_DEVICE_OPEN) {
 			if (dev->type != ARPHRD_ETHER) {
@@ -728,8 +728,7 @@ int wlan_setup(struct wlandevice *wlandev, struct device *physdev)
 
 	/* Set up the rx queue */
 	skb_queue_head_init(&wlandev->nsd_rxq);
-	tasklet_init(&wlandev->rx_bh,
-		     p80211netdev_rx_bh, (unsigned long)wlandev);
+	tasklet_setup(&wlandev->rx_bh, p80211netdev_rx_bh);
 
 	/* Allocate and initialize the wiphy struct */
 	wiphy = wlan_create_wiphy(physdev, wlandev);

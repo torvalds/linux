@@ -5,8 +5,7 @@
 #include "../dma.h"
 
 static int
-mt7603_init_tx_queue(struct mt7603_dev *dev, struct mt76_sw_queue *q,
-		     int idx, int n_desc)
+mt7603_init_tx_queue(struct mt7603_dev *dev, int qid, int idx, int n_desc)
 {
 	struct mt76_queue *hwq;
 	int err;
@@ -19,8 +18,7 @@ mt7603_init_tx_queue(struct mt7603_dev *dev, struct mt76_sw_queue *q,
 	if (err < 0)
 		return err;
 
-	INIT_LIST_HEAD(&q->swq);
-	q->q = hwq;
+	dev->mt76.q_tx[qid] = hwq;
 
 	mt7603_irq_enable(dev, MT_INT_TX_DONE(idx));
 
@@ -123,7 +121,7 @@ void mt7603_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			mt76_rx(&dev->mt76, q, skb);
 			return;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		dev_kfree_skb(skb);
 		break;
@@ -165,7 +163,7 @@ static int mt7603_poll_tx(struct napi_struct *napi, int budget)
 
 	mt7603_mac_sta_poll(dev);
 
-	tasklet_schedule(&dev->mt76.tx_tasklet);
+	mt76_worker_schedule(&dev->mt76.tx_worker);
 
 	return 0;
 }
@@ -193,29 +191,28 @@ int mt7603_dma_init(struct mt7603_dev *dev)
 	mt7603_pse_client_reset(dev);
 
 	for (i = 0; i < ARRAY_SIZE(wmm_queue_map); i++) {
-		ret = mt7603_init_tx_queue(dev, &dev->mt76.q_tx[i],
-					   wmm_queue_map[i],
-					   MT_TX_RING_SIZE);
+		ret = mt7603_init_tx_queue(dev, i, wmm_queue_map[i],
+					   MT7603_TX_RING_SIZE);
 		if (ret)
 			return ret;
 	}
 
-	ret = mt7603_init_tx_queue(dev, &dev->mt76.q_tx[MT_TXQ_PSD],
-				   MT_TX_HW_QUEUE_MGMT, MT_TX_RING_SIZE);
+	ret = mt7603_init_tx_queue(dev, MT_TXQ_PSD,
+				   MT_TX_HW_QUEUE_MGMT, MT7603_PSD_RING_SIZE);
 	if (ret)
 		return ret;
 
-	ret = mt7603_init_tx_queue(dev, &dev->mt76.q_tx[MT_TXQ_MCU],
+	ret = mt7603_init_tx_queue(dev, MT_TXQ_MCU,
 				   MT_TX_HW_QUEUE_MCU, MT_MCU_RING_SIZE);
 	if (ret)
 		return ret;
 
-	ret = mt7603_init_tx_queue(dev, &dev->mt76.q_tx[MT_TXQ_BEACON],
+	ret = mt7603_init_tx_queue(dev, MT_TXQ_BEACON,
 				   MT_TX_HW_QUEUE_BCN, MT_MCU_RING_SIZE);
 	if (ret)
 		return ret;
 
-	ret = mt7603_init_tx_queue(dev, &dev->mt76.q_tx[MT_TXQ_CAB],
+	ret = mt7603_init_tx_queue(dev, MT_TXQ_CAB,
 				   MT_TX_HW_QUEUE_BMC, MT_MCU_RING_SIZE);
 	if (ret)
 		return ret;
@@ -249,6 +246,5 @@ void mt7603_dma_cleanup(struct mt7603_dev *dev)
 		   MT_WPDMA_GLO_CFG_RX_DMA_EN |
 		   MT_WPDMA_GLO_CFG_TX_WRITEBACK_DONE);
 
-	tasklet_kill(&dev->mt76.tx_tasklet);
 	mt76_dma_cleanup(&dev->mt76);
 }

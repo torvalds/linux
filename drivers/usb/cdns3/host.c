@@ -13,11 +13,13 @@
 #include "core.h"
 #include "drd.h"
 #include "host-export.h"
+#include <linux/usb/hcd.h>
 
 static int __cdns3_host_init(struct cdns3 *cdns)
 {
 	struct platform_device *xhci;
 	int ret;
+	struct usb_hcd *hcd;
 
 	cdns3_drd_host_on(cdns);
 
@@ -42,6 +44,11 @@ static int __cdns3_host_init(struct cdns3 *cdns)
 		dev_err(cdns->dev, "failed to register xHCI device\n");
 		goto err1;
 	}
+
+	/* Glue needs to access xHCI region register for Power management */
+	hcd = platform_get_drvdata(xhci);
+	if (hcd)
+		cdns->xhci_regs = hcd->regs;
 
 	return 0;
 err1:

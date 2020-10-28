@@ -23,14 +23,22 @@ TRACE_EVENT(cros_ec_request_start,
 	TP_ARGS(cmd),
 	TP_STRUCT__entry(
 		__field(uint32_t, version)
+		__field(uint32_t, offset)
 		__field(uint32_t, command)
+		__field(uint32_t, outsize)
+		__field(uint32_t, insize)
 	),
 	TP_fast_assign(
 		__entry->version = cmd->version;
-		__entry->command = cmd->command;
+		__entry->offset = cmd->command / EC_CMD_PASSTHRU_OFFSET(1);
+		__entry->command = cmd->command % EC_CMD_PASSTHRU_OFFSET(1);
+		__entry->outsize = cmd->outsize;
+		__entry->insize = cmd->insize;
 	),
-	TP_printk("version: %u, command: %s", __entry->version,
-		  __print_symbolic(__entry->command, EC_CMDS))
+	TP_printk("version: %u, offset: %d, command: %s, outsize: %u, insize: %u",
+		  __entry->version, __entry->offset,
+		  __print_symbolic(__entry->command, EC_CMDS),
+		  __entry->outsize, __entry->insize)
 );
 
 TRACE_EVENT(cros_ec_request_done,
@@ -38,19 +46,26 @@ TRACE_EVENT(cros_ec_request_done,
 	TP_ARGS(cmd, retval),
 	TP_STRUCT__entry(
 		__field(uint32_t, version)
+		__field(uint32_t, offset)
 		__field(uint32_t, command)
+		__field(uint32_t, outsize)
+		__field(uint32_t, insize)
 		__field(uint32_t, result)
 		__field(int, retval)
 	),
 	TP_fast_assign(
 		__entry->version = cmd->version;
-		__entry->command = cmd->command;
+		__entry->offset = cmd->command / EC_CMD_PASSTHRU_OFFSET(1);
+		__entry->command = cmd->command % EC_CMD_PASSTHRU_OFFSET(1);
+		__entry->outsize = cmd->outsize;
+		__entry->insize = cmd->insize;
 		__entry->result = cmd->result;
 		__entry->retval = retval;
 	),
-	TP_printk("version: %u, command: %s, ec result: %s, retval: %d",
-		  __entry->version,
+	TP_printk("version: %u, offset: %d, command: %s, outsize: %u, insize: %u, ec result: %s, retval: %u",
+		  __entry->version, __entry->offset,
 		  __print_symbolic(__entry->command, EC_CMDS),
+		  __entry->outsize, __entry->insize,
 		  __print_symbolic(__entry->result, EC_RESULT),
 		  __entry->retval)
 );

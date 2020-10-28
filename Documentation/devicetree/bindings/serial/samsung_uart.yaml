@@ -68,6 +68,8 @@ required:
   - interrupts
   - reg
 
+additionalProperties: false
+
 allOf:
   - if:
       properties:

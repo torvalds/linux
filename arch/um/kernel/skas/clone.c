@@ -21,7 +21,7 @@
  * on some systems.
  */
 
-void __attribute__ ((__section__ (".__syscall_stub")))
+void __section(".__syscall_stub")
 stub_clone_handler(void)
 {
 	struct stub_data *data = (struct stub_data *) STUB_DATA;

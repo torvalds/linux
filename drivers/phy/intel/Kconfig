@@ -1,9 +1,21 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Phy drivers for Intel Lightning Mountain(LGM) platform
+# Phy drivers for Intel platforms
 #
-config PHY_INTEL_COMBO
-	bool "Intel ComboPHY driver"
+config PHY_INTEL_KEEMBAY_EMMC
+	tristate "Intel Keem Bay EMMC PHY driver"
+	depends on (OF && ARM64) || COMPILE_TEST
+	depends on HAS_IOMEM
+	select GENERIC_PHY
+	select REGMAP_MMIO
+	help
+	  Choose this option if you have an Intel Keem Bay SoC.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called phy-keembay-emmc.ko.
+
+config PHY_INTEL_LGM_COMBO
+	bool "Intel Lightning Mountain ComboPHY driver"
 	depends on X86 || COMPILE_TEST
 	depends on OF && HAS_IOMEM
 	select MFD_SYSCON
@@ -16,8 +28,8 @@ config PHY_INTEL_COMBO
 	  chipsets which provides PHYs for various controllers, EMAC,
 	  SATA and PCIe.
 
-config PHY_INTEL_EMMC
-	tristate "Intel EMMC PHY driver"
+config PHY_INTEL_LGM_EMMC
+	tristate "Intel Lightning Mountain EMMC PHY driver"
 	depends on X86 || COMPILE_TEST
 	select GENERIC_PHY
 	help

@@ -398,7 +398,7 @@ size_t perf_event__fprintf_switch(union perf_event *event, FILE *fp)
 	if (event->header.type == PERF_RECORD_SWITCH)
 		return fprintf(fp, " %s\n", in_out);
 
-	return fprintf(fp, " %s  %s pid/tid: %5u/%-5u\n",
+	return fprintf(fp, " %s  %s pid/tid: %5d/%-5d\n",
 		       in_out, out ? "next" : "prev",
 		       event->context_switch.next_prev_pid,
 		       event->context_switch.next_prev_tid);

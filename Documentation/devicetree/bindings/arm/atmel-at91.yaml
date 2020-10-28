@@ -41,6 +41,7 @@ properties:
               - overkiz,kizboxmini-mb   # Overkiz kizbox Mini Mother Board
               - overkiz,kizboxmini-rd   # Overkiz kizbox Mini RailDIN
               - overkiz,smartkiz        # Overkiz SmartKiz Board
+              - gardena,smart-gateway-at91sam # GARDENA smart Gateway (Article No. 19000)
           - const: atmel,at91sam9g25
           - const: atmel,at91sam9x5
           - const: atmel,at91sam9

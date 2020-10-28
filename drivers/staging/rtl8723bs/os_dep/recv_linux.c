@@ -10,6 +10,7 @@
 #include <rtw_debug.h>
 #include <linux/jiffies.h>
 #include <net/cfg80211.h>
+#include <asm/unaligned.h>
 
 void rtw_os_free_recvframe(union recv_frame *precvframe)
 {
@@ -69,7 +70,7 @@ _pkt *rtw_os_alloc_msdu_pkt(union recv_frame *prframe, u16 nSubframe_Length, u8 
 	skb_reserve(sub_skb, 12);
 	skb_put_data(sub_skb, (pdata + ETH_HLEN), nSubframe_Length);
 
-	eth_type = RTW_GET_BE16(&sub_skb->data[6]);
+	eth_type = get_unaligned_be16(&sub_skb->data[6]);
 
 	if (sub_skb->len >= 8 &&
 		((!memcmp(sub_skb->data, rfc1042_header, SNAP_SIZE) &&

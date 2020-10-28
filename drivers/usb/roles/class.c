@@ -87,19 +87,15 @@ enum usb_role usb_role_switch_get_role(struct usb_role_switch *sw)
 }
 EXPORT_SYMBOL_GPL(usb_role_switch_get_role);
 
-static void *usb_role_switch_match(struct device_connection *con, int ep,
+static void *usb_role_switch_match(struct fwnode_handle *fwnode, const char *id,
 				   void *data)
 {
 	struct device *dev;
 
-	if (con->fwnode) {
-		if (con->id && !fwnode_property_present(con->fwnode, con->id))
-			return NULL;
+	if (id && !fwnode_property_present(fwnode, id))
+		return NULL;
 
-		dev = class_find_device_by_fwnode(role_class, con->fwnode);
-	} else {
-		dev = class_find_device_by_name(role_class, con->endpoint[ep]);
-	}
+	dev = class_find_device_by_fwnode(role_class, fwnode);
 
 	return dev ? to_role_switch(dev) : ERR_PTR(-EPROBE_DEFER);
 }

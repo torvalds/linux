@@ -952,8 +952,8 @@ int
 ahd_dmamem_alloc(struct ahd_softc *ahd, bus_dma_tag_t dmat, void** vaddr,
 		 int flags, bus_dmamap_t *mapp)
 {
-	*vaddr = pci_alloc_consistent(ahd->dev_softc,
-				      dmat->maxsize, mapp);
+	*vaddr = dma_alloc_coherent(&ahd->dev_softc->dev, dmat->maxsize, mapp,
+				    GFP_ATOMIC);
 	if (*vaddr == NULL)
 		return (ENOMEM);
 	return(0);
@@ -963,8 +963,7 @@ void
 ahd_dmamem_free(struct ahd_softc *ahd, bus_dma_tag_t dmat,
 		void* vaddr, bus_dmamap_t map)
 {
-	pci_free_consistent(ahd->dev_softc, dmat->maxsize,
-			    vaddr, map);
+	dma_free_coherent(&ahd->dev_softc->dev, dmat->maxsize, vaddr, map);
 }
 
 int

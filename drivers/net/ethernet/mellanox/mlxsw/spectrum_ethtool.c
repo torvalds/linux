@@ -2,6 +2,7 @@
 /* Copyright (c) 2020 Mellanox Technologies. All rights reserved */
 
 #include "reg.h"
+#include "core.h"
 #include "spectrum.h"
 #include "core_env.h"
 
@@ -192,11 +193,19 @@ static int mlxsw_sp_port_pause_set(struct mlxsw_sp_port *mlxsw_sp_port,
 			       pfcc_pl);
 }
 
+/* Maximum delay buffer needed in case of PAUSE frames. Similar to PFC delay, but is
+ * measured in bytes. Assumes 100m cable and does not take into account MTU.
+ */
+#define MLXSW_SP_PAUSE_DELAY_BYTES 19476
+
 static int mlxsw_sp_port_set_pauseparam(struct net_device *dev,
 					struct ethtool_pauseparam *pause)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	bool pause_en = pause->tx_pause || pause->rx_pause;
+	struct mlxsw_sp_hdroom orig_hdroom;
+	struct mlxsw_sp_hdroom hdroom;
+	int prio;
 	int err;
 
 	if (mlxsw_sp_port->dcb.pfc && mlxsw_sp_port->dcb.pfc->pfc_en) {
@@ -209,7 +218,21 @@ static int mlxsw_sp_port_set_pauseparam(struct net_device *dev,
 		return -EINVAL;
 	}
 
-	err = mlxsw_sp_port_headroom_set(mlxsw_sp_port, dev->mtu, pause_en);
+	orig_hdroom = *mlxsw_sp_port->hdroom;
+
+	hdroom = orig_hdroom;
+	if (pause_en)
+		hdroom.delay_bytes = MLXSW_SP_PAUSE_DELAY_BYTES;
+	else
+		hdroom.delay_bytes = 0;
+
+	for (prio = 0; prio < IEEE_8021QAZ_MAX_TCS; prio++)
+		hdroom.prios.prio[prio].lossy = !pause_en;
+
+	mlxsw_sp_hdroom_bufs_reset_lossiness(&hdroom);
+	mlxsw_sp_hdroom_bufs_reset_sizes(mlxsw_sp_port, &hdroom);
+
+	err = mlxsw_sp_hdroom_configure(mlxsw_sp_port, &hdroom);
 	if (err) {
 		netdev_err(dev, "Failed to configure port's headroom\n");
 		return err;
@@ -227,8 +250,7 @@ static int mlxsw_sp_port_set_pauseparam(struct net_device *dev,
 	return 0;
 
 err_port_pause_configure:
-	pause_en = mlxsw_sp_port_is_pause_en(mlxsw_sp_port);
-	mlxsw_sp_port_headroom_set(mlxsw_sp_port, dev->mtu, pause_en);
+	mlxsw_sp_hdroom_configure(mlxsw_sp_port, &orig_hdroom);
 	return err;
 }
 
@@ -531,6 +553,37 @@ static struct mlxsw_sp_port_hw_stats mlxsw_sp_port_hw_tc_stats[] = {
 
 #define MLXSW_SP_PORT_HW_TC_STATS_LEN ARRAY_SIZE(mlxsw_sp_port_hw_tc_stats)
 
+struct mlxsw_sp_port_stats {
+	char str[ETH_GSTRING_LEN];
+	u64 (*getter)(struct mlxsw_sp_port *mlxsw_sp_port);
+};
+
+static u64
+mlxsw_sp_port_get_transceiver_overheat_stats(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	struct mlxsw_sp_port_mapping port_mapping = mlxsw_sp_port->mapping;
+	struct mlxsw_core *mlxsw_core = mlxsw_sp_port->mlxsw_sp->core;
+	u64 stats;
+	int err;
+
+	err = mlxsw_env_module_overheat_counter_get(mlxsw_core,
+						    port_mapping.module,
+						    &stats);
+	if (err)
+		return mlxsw_sp_port->module_overheat_initial_val;
+
+	return stats - mlxsw_sp_port->module_overheat_initial_val;
+}
+
+static struct mlxsw_sp_port_stats mlxsw_sp_port_transceiver_stats[] = {
+	{
+		.str = "transceiver_overheat",
+		.getter = mlxsw_sp_port_get_transceiver_overheat_stats,
+	},
+};
+
+#define MLXSW_SP_PORT_HW_TRANSCEIVER_STATS_LEN ARRAY_SIZE(mlxsw_sp_port_transceiver_stats)
+
 #define MLXSW_SP_PORT_ETHTOOL_STATS_LEN (MLXSW_SP_PORT_HW_STATS_LEN + \
 					 MLXSW_SP_PORT_HW_RFC_2863_STATS_LEN + \
 					 MLXSW_SP_PORT_HW_RFC_2819_STATS_LEN + \
@@ -540,7 +593,8 @@ static struct mlxsw_sp_port_hw_stats mlxsw_sp_port_hw_tc_stats[] = {
 					 (MLXSW_SP_PORT_HW_PRIO_STATS_LEN * \
 					  IEEE_8021QAZ_MAX_TCS) + \
 					 (MLXSW_SP_PORT_HW_TC_STATS_LEN * \
-					  TC_MAX_QUEUE))
+					  TC_MAX_QUEUE) + \
+					  MLXSW_SP_PORT_HW_TRANSCEIVER_STATS_LEN)
 
 static void mlxsw_sp_port_get_prio_strings(u8 **p, int prio)
 {
@@ -616,6 +670,12 @@ static void mlxsw_sp_port_get_strings(struct net_device *dev,
 			mlxsw_sp_port_get_tc_strings(&p, i);
 
 		mlxsw_sp_port->mlxsw_sp->ptp_ops->get_stats_strings(&p);
+
+		for (i = 0; i < MLXSW_SP_PORT_HW_TRANSCEIVER_STATS_LEN; i++) {
+			memcpy(p, mlxsw_sp_port_transceiver_stats[i].str,
+			       ETH_GSTRING_LEN);
+			p += ETH_GSTRING_LEN;
+		}
 		break;
 	}
 }
@@ -711,6 +771,17 @@ static void __mlxsw_sp_port_get_stats(struct net_device *dev,
 	}
 }
 
+static void __mlxsw_sp_port_get_env_stats(struct net_device *dev, u64 *data, int data_index,
+					  struct mlxsw_sp_port_stats *port_stats,
+					  int len)
+{
+	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
+	int i;
+
+	for (i = 0; i < len; i++)
+		data[data_index + i] = port_stats[i].getter(mlxsw_sp_port);
+}
+
 static void mlxsw_sp_port_get_stats(struct net_device *dev,
 				    struct ethtool_stats *stats, u64 *data)
 {
@@ -765,6 +836,11 @@ static void mlxsw_sp_port_get_stats(struct net_device *dev,
 	mlxsw_sp_port->mlxsw_sp->ptp_ops->get_stats(mlxsw_sp_port,
 						    data, data_index);
 	data_index += mlxsw_sp_port->mlxsw_sp->ptp_ops->get_stats_count();
+
+	/* Transceiver counters */
+	__mlxsw_sp_port_get_env_stats(dev, data, data_index, mlxsw_sp_port_transceiver_stats,
+				      MLXSW_SP_PORT_HW_TRANSCEIVER_STATS_LEN);
+	data_index += MLXSW_SP_PORT_HW_TRANSCEIVER_STATS_LEN;
 }
 
 static int mlxsw_sp_port_get_sset_count(struct net_device *dev, int sset)
@@ -842,6 +918,29 @@ mlxsw_sp_port_connector_port(enum mlxsw_reg_ptys_connector_type connector_type)
 	}
 }
 
+static int mlxsw_sp_port_ptys_query(struct mlxsw_sp_port *mlxsw_sp_port,
+				    u32 *p_eth_proto_cap, u32 *p_eth_proto_admin,
+				    u32 *p_eth_proto_oper, u8 *p_connector_type)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	const struct mlxsw_sp_port_type_speed_ops *ops;
+	char ptys_pl[MLXSW_REG_PTYS_LEN];
+	int err;
+
+	ops = mlxsw_sp->port_type_speed_ops;
+
+	ops->reg_ptys_eth_pack(mlxsw_sp, ptys_pl, mlxsw_sp_port->local_port, 0, false);
+	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(ptys), ptys_pl);
+	if (err)
+		return err;
+
+	ops->reg_ptys_eth_unpack(mlxsw_sp, ptys_pl, p_eth_proto_cap, p_eth_proto_admin,
+				 p_eth_proto_oper);
+	if (p_connector_type)
+		*p_connector_type = mlxsw_reg_ptys_connector_type_get(ptys_pl);
+	return 0;
+}
+
 static int mlxsw_sp_port_get_link_ksettings(struct net_device *dev,
 					    struct ethtool_link_ksettings *cmd)
 {
@@ -849,21 +948,17 @@ static int mlxsw_sp_port_get_link_ksettings(struct net_device *dev,
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	const struct mlxsw_sp_port_type_speed_ops *ops;
-	char ptys_pl[MLXSW_REG_PTYS_LEN];
 	u8 connector_type;
 	bool autoneg;
 	int err;
 
-	ops = mlxsw_sp->port_type_speed_ops;
-
-	autoneg = mlxsw_sp_port->link.autoneg;
-	ops->reg_ptys_eth_pack(mlxsw_sp, ptys_pl, mlxsw_sp_port->local_port,
-			       0, false);
-	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(ptys), ptys_pl);
+	err = mlxsw_sp_port_ptys_query(mlxsw_sp_port, &eth_proto_cap, &eth_proto_admin,
+				       &eth_proto_oper, &connector_type);
 	if (err)
 		return err;
-	ops->reg_ptys_eth_unpack(mlxsw_sp, ptys_pl, &eth_proto_cap,
-				 &eth_proto_admin, &eth_proto_oper);
+
+	ops = mlxsw_sp->port_type_speed_ops;
+	autoneg = mlxsw_sp_port->link.autoneg;
 
 	mlxsw_sp_port_get_link_supported(mlxsw_sp, eth_proto_cap,
 					 mlxsw_sp_port->mapping.width, cmd);
@@ -872,7 +967,6 @@ static int mlxsw_sp_port_get_link_ksettings(struct net_device *dev,
 					 mlxsw_sp_port->mapping.width, cmd);
 
 	cmd->base.autoneg = autoneg ? AUTONEG_ENABLE : AUTONEG_DISABLE;
-	connector_type = mlxsw_reg_ptys_connector_type_get(ptys_pl);
 	cmd->base.port = mlxsw_sp_port_connector_port(connector_type);
 	ops->from_ptys_speed_duplex(mlxsw_sp, netif_carrier_ok(dev),
 				    eth_proto_oper, cmd);
@@ -993,20 +1087,10 @@ struct mlxsw_sp1_port_link_mode {
 
 static const struct mlxsw_sp1_port_link_mode mlxsw_sp1_port_link_mode[] = {
 	{
-		.mask		= MLXSW_REG_PTYS_ETH_SPEED_100BASE_T,
-		.mask_ethtool	= ETHTOOL_LINK_MODE_100baseT_Full_BIT,
-		.speed		= SPEED_100,
-	},
-	{
 		.mask		= MLXSW_REG_PTYS_ETH_SPEED_SGMII |
 				  MLXSW_REG_PTYS_ETH_SPEED_1000BASE_KX,
 		.mask_ethtool	= ETHTOOL_LINK_MODE_1000baseKX_Full_BIT,
 		.speed		= SPEED_1000,
-	},
-	{
-		.mask		= MLXSW_REG_PTYS_ETH_SPEED_10GBASE_T,
-		.mask_ethtool	= ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
-		.speed		= SPEED_10000,
 	},
 	{
 		.mask		= MLXSW_REG_PTYS_ETH_SPEED_10GBASE_CX4 |
@@ -1021,11 +1105,6 @@ static const struct mlxsw_sp1_port_link_mode mlxsw_sp1_port_link_mode[] = {
 				  MLXSW_REG_PTYS_ETH_SPEED_10GBASE_ER_LR,
 		.mask_ethtool	= ETHTOOL_LINK_MODE_10000baseKR_Full_BIT,
 		.speed		= SPEED_10000,
-	},
-	{
-		.mask		= MLXSW_REG_PTYS_ETH_SPEED_20GBASE_KR2,
-		.mask_ethtool	= ETHTOOL_LINK_MODE_20000baseKR2_Full_BIT,
-		.speed		= SPEED_20000,
 	},
 	{
 		.mask		= MLXSW_REG_PTYS_ETH_SPEED_40GBASE_CR4,
@@ -1090,11 +1169,6 @@ static const struct mlxsw_sp1_port_link_mode mlxsw_sp1_port_link_mode[] = {
 	{
 		.mask		= MLXSW_REG_PTYS_ETH_SPEED_100GBASE_KR4,
 		.mask_ethtool	= ETHTOOL_LINK_MODE_100000baseKR4_Full_BIT,
-		.speed		= SPEED_100000,
-	},
-	{
-		.mask		= MLXSW_REG_PTYS_ETH_SPEED_100GBASE_LR4_ER4,
-		.mask_ethtool	= ETHTOOL_LINK_MODE_100000baseLR4_ER4_Full_BIT,
 		.speed		= SPEED_100000,
 	},
 };
@@ -1164,6 +1238,27 @@ mlxsw_sp1_from_ptys_speed_duplex(struct mlxsw_sp *mlxsw_sp, bool carrier_ok,
 		cmd->base.duplex = DUPLEX_FULL;
 }
 
+static int mlxsw_sp1_ptys_max_speed(struct mlxsw_sp_port *mlxsw_sp_port, u32 *p_max_speed)
+{
+	u32 eth_proto_cap;
+	u32 max_speed = 0;
+	int err;
+	int i;
+
+	err = mlxsw_sp_port_ptys_query(mlxsw_sp_port, &eth_proto_cap, NULL, NULL, NULL);
+	if (err)
+		return err;
+
+	for (i = 0; i < MLXSW_SP1_PORT_LINK_MODE_LEN; i++) {
+		if ((eth_proto_cap & mlxsw_sp1_port_link_mode[i].mask) &&
+		    mlxsw_sp1_port_link_mode[i].speed > max_speed)
+			max_speed = mlxsw_sp1_port_link_mode[i].speed;
+	}
+
+	*p_max_speed = max_speed;
+	return 0;
+}
+
 static u32
 mlxsw_sp1_to_ptys_advert_link(struct mlxsw_sp *mlxsw_sp, u8 width,
 			      const struct ethtool_link_ksettings *cmd)
@@ -1213,6 +1308,7 @@ const struct mlxsw_sp_port_type_speed_ops mlxsw_sp1_port_type_speed_ops = {
 	.from_ptys_link			= mlxsw_sp1_from_ptys_link,
 	.from_ptys_speed		= mlxsw_sp1_from_ptys_speed,
 	.from_ptys_speed_duplex		= mlxsw_sp1_from_ptys_speed_duplex,
+	.ptys_max_speed			= mlxsw_sp1_ptys_max_speed,
 	.to_ptys_advert_link		= mlxsw_sp1_to_ptys_advert_link,
 	.to_ptys_speed			= mlxsw_sp1_to_ptys_speed,
 	.reg_ptys_eth_pack		= mlxsw_sp1_reg_ptys_eth_pack,
@@ -1235,14 +1331,6 @@ mlxsw_sp2_mask_ethtool_1000base_x_sgmii[] = {
 
 #define MLXSW_SP2_MASK_ETHTOOL_1000BASE_X_SGMII_LEN \
 	ARRAY_SIZE(mlxsw_sp2_mask_ethtool_1000base_x_sgmii)
-
-static const enum ethtool_link_mode_bit_indices
-mlxsw_sp2_mask_ethtool_2_5gbase_x_2_5gmii[] = {
-	ETHTOOL_LINK_MODE_2500baseX_Full_BIT,
-};
-
-#define MLXSW_SP2_MASK_ETHTOOL_2_5GBASE_X_2_5GMII_LEN \
-	ARRAY_SIZE(mlxsw_sp2_mask_ethtool_2_5gbase_x_2_5gmii)
 
 static const enum ethtool_link_mode_bit_indices
 mlxsw_sp2_mask_ethtool_5gbase_r[] = {
@@ -1408,16 +1496,6 @@ static const struct mlxsw_sp2_port_link_mode mlxsw_sp2_port_link_mode[] = {
 		.speed		= SPEED_1000,
 	},
 	{
-		.mask		= MLXSW_REG_PTYS_EXT_ETH_SPEED_2_5GBASE_X_2_5GMII,
-		.mask_ethtool	= mlxsw_sp2_mask_ethtool_2_5gbase_x_2_5gmii,
-		.m_ethtool_len	= MLXSW_SP2_MASK_ETHTOOL_2_5GBASE_X_2_5GMII_LEN,
-		.mask_width	= MLXSW_SP_PORT_MASK_WIDTH_1X |
-				  MLXSW_SP_PORT_MASK_WIDTH_2X |
-				  MLXSW_SP_PORT_MASK_WIDTH_4X |
-				  MLXSW_SP_PORT_MASK_WIDTH_8X,
-		.speed		= SPEED_2500,
-	},
-	{
 		.mask		= MLXSW_REG_PTYS_EXT_ETH_SPEED_5GBASE_R,
 		.mask_ethtool	= mlxsw_sp2_mask_ethtool_5gbase_r,
 		.m_ethtool_len	= MLXSW_SP2_MASK_ETHTOOL_5GBASE_R_LEN,
@@ -1568,6 +1646,27 @@ mlxsw_sp2_from_ptys_speed_duplex(struct mlxsw_sp *mlxsw_sp, bool carrier_ok,
 		cmd->base.duplex = DUPLEX_FULL;
 }
 
+static int mlxsw_sp2_ptys_max_speed(struct mlxsw_sp_port *mlxsw_sp_port, u32 *p_max_speed)
+{
+	u32 eth_proto_cap;
+	u32 max_speed = 0;
+	int err;
+	int i;
+
+	err = mlxsw_sp_port_ptys_query(mlxsw_sp_port, &eth_proto_cap, NULL, NULL, NULL);
+	if (err)
+		return err;
+
+	for (i = 0; i < MLXSW_SP2_PORT_LINK_MODE_LEN; i++) {
+		if ((eth_proto_cap & mlxsw_sp2_port_link_mode[i].mask) &&
+		    mlxsw_sp2_port_link_mode[i].speed > max_speed)
+			max_speed = mlxsw_sp2_port_link_mode[i].speed;
+	}
+
+	*p_max_speed = max_speed;
+	return 0;
+}
+
 static bool
 mlxsw_sp2_test_bit_ethtool(const struct mlxsw_sp2_port_link_mode *link_mode,
 			   const unsigned long *mode)
@@ -1637,6 +1736,7 @@ const struct mlxsw_sp_port_type_speed_ops mlxsw_sp2_port_type_speed_ops = {
 	.from_ptys_link			= mlxsw_sp2_from_ptys_link,
 	.from_ptys_speed		= mlxsw_sp2_from_ptys_speed,
 	.from_ptys_speed_duplex		= mlxsw_sp2_from_ptys_speed_duplex,
+	.ptys_max_speed			= mlxsw_sp2_ptys_max_speed,
 	.to_ptys_advert_link		= mlxsw_sp2_to_ptys_advert_link,
 	.to_ptys_speed			= mlxsw_sp2_to_ptys_speed,
 	.reg_ptys_eth_pack		= mlxsw_sp2_reg_ptys_eth_pack,

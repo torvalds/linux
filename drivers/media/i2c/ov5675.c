@@ -666,8 +666,8 @@ static int ov5675_set_ctrl(struct v4l2_ctrl *ctrl)
 	/* Propagate change of current control to all related controls */
 	if (ctrl->id == V4L2_CID_VBLANK) {
 		/* Update max exposure while meeting expected vblanking */
-		exposure_max = (ov5675->cur_mode->height + ctrl->val -
-			       OV5675_EXPOSURE_MAX_MARGIN) / 2;
+		exposure_max = ov5675->cur_mode->height + ctrl->val -
+			OV5675_EXPOSURE_MAX_MARGIN;
 		__v4l2_ctrl_modify_range(ov5675->exposure,
 					 ov5675->exposure->minimum,
 					 exposure_max, ov5675->exposure->step,
@@ -689,7 +689,13 @@ static int ov5675_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 
 	case V4L2_CID_EXPOSURE:
-		/* 3 least significant bits of expsoure are fractional part */
+		/* 4 least significant bits of expsoure are fractional part
+		 * val = val << 4
+		 * for ov5675, the unit of exposure is differnt from other
+		 * OmniVision sensors, its exposure value is twice of the
+		 * register value, the exposure should be divided by 2 before
+		 * set register, e.g. val << 3.
+		 */
 		ret = ov5675_write_reg(ov5675, OV5675_REG_EXPOSURE,
 				       OV5675_REG_VALUE_24BIT, ctrl->val << 3);
 		break;
@@ -770,8 +776,7 @@ static int ov5675_init_controls(struct ov5675 *ov5675)
 	v4l2_ctrl_new_std(ctrl_hdlr, &ov5675_ctrl_ops, V4L2_CID_DIGITAL_GAIN,
 			  OV5675_DGTL_GAIN_MIN, OV5675_DGTL_GAIN_MAX,
 			  OV5675_DGTL_GAIN_STEP, OV5675_DGTL_GAIN_DEFAULT);
-	exposure_max = (ov5675->cur_mode->vts_def -
-			OV5675_EXPOSURE_MAX_MARGIN) / 2;
+	exposure_max = (ov5675->cur_mode->vts_def - OV5675_EXPOSURE_MAX_MARGIN);
 	ov5675->exposure = v4l2_ctrl_new_std(ctrl_hdlr, &ov5675_ctrl_ops,
 					     V4L2_CID_EXPOSURE,
 					     OV5675_EXPOSURE_MIN, exposure_max,

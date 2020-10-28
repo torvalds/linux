@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <malloc.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "lsm.skel.h"
 
@@ -55,6 +56,7 @@ void test_test_lsm(void)
 {
 	struct lsm *skel = NULL;
 	int err, duration = 0;
+	int buf = 1234;
 
 	skel = lsm__open_and_load();
 	if (CHECK(!skel, "skel_load", "lsm skeleton failed\n"))
@@ -80,6 +82,13 @@ void test_test_lsm(void)
 
 	CHECK(skel->bss->mprotect_count != 1, "mprotect_count",
 	      "mprotect_count = %d\n", skel->bss->mprotect_count);
+
+	syscall(__NR_setdomainname, &buf, -2L);
+	syscall(__NR_setdomainname, 0, -3L);
+	syscall(__NR_setdomainname, ~0L, -4L);
+
+	CHECK(skel->bss->copy_test != 3, "copy_test",
+	      "copy_test = %d\n", skel->bss->copy_test);
 
 close_prog:
 	lsm__destroy(skel);

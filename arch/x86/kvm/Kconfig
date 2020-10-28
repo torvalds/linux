@@ -66,6 +66,7 @@ config KVM_WERROR
 	default y if X86_64 && !KASAN
 	# We use the dependency on !COMPILE_TEST to not be enabled
 	# blindly in allmodconfig or allyesconfig configurations
+	depends on KVM
 	depends on (X86_64 && !KASAN) || !COMPILE_TEST
 	depends on EXPERT
 	help

@@ -13,7 +13,7 @@
 
 #define SOC_EARLY_INIT_DECLARE(name, compat, fn)			\
 	static const struct of_device_id __soc_early_init__##name	\
-		__used __section(__soc_early_init_table)		\
+		__used __section("__soc_early_init_table")		\
 		 = { .compatible = compat, .data = fn  }
 
 void soc_early_init(void);
@@ -46,7 +46,7 @@ struct soc_builtin_dtb {
 	}								\
 									\
 	static const struct soc_builtin_dtb __soc_builtin_dtb__##name	\
-		__used __section(__soc_builtin_dtb_table) =		\
+		__used __section("__soc_builtin_dtb_table") =		\
 	{								\
 		.vendor_id = vendor,					\
 		.arch_id   = arch,					\

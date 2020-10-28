@@ -29,6 +29,7 @@
  */
 
 extern unsigned int vced_count, vcei_count;
+extern int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src);
 
 #ifdef CONFIG_32BIT
 #ifdef CONFIG_KVM_GUEST

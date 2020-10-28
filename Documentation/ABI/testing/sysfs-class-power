@@ -34,7 +34,7 @@ Description:
 		Describes the main type of the supply.
 
 		Access: Read
-		Valid values: "Battery", "UPS", "Mains", "USB"
+		Valid values: "Battery", "UPS", "Mains", "USB", "Wireless"
 
 ===== Battery Properties =====
 
@@ -108,7 +108,8 @@ Description:
 		which they average readings to smooth out the reported value.
 
 		Access: Read
-		Valid values: Represented in microamps
+		Valid values: Represented in microamps. Negative values are used
+		for discharging batteries, positive values for charging batteries.
 
 What:		/sys/class/power_supply/<supply_name>/current_max
 Date:		October 2010
@@ -127,7 +128,8 @@ Description:
 		This value is not averaged/smoothed.
 
 		Access: Read
-		Valid values: Represented in microamps
+		Valid values: Represented in microamps. Negative values are used
+		for discharging batteries, positive values for charging batteries.
 
 What:		/sys/class/power_supply/<supply_name>/charge_control_limit
 Date:		Oct 2012

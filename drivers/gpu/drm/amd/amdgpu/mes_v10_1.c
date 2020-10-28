@@ -832,7 +832,6 @@ static int mes_v10_1_queue_init(struct amdgpu_device *adev)
 static int mes_v10_1_ring_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ring *ring;
-	int r;
 
 	ring = &adev->mes.ring;
 
@@ -849,11 +848,7 @@ static int mes_v10_1_ring_init(struct amdgpu_device *adev)
 	ring->no_scheduler = true;
 	sprintf(ring->name, "mes_%d.%d.%d", ring->me, ring->pipe, ring->queue);
 
-	r = amdgpu_ring_init(adev, ring, 1024, NULL, 0, AMDGPU_RING_PRIO_DEFAULT);
-	if (r)
-		return r;
-
-	return 0;
+	return amdgpu_ring_init(adev, ring, 1024, NULL, 0, AMDGPU_RING_PRIO_DEFAULT);
 }
 
 static int mes_v10_1_mqd_sw_init(struct amdgpu_device *adev)
