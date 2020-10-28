@@ -435,6 +435,7 @@ static void sh_pfc_gpio_disable_free(struct pinctrl_dev *pctldev,
 	spin_unlock_irqrestore(&pfc->lock, flags);
 }
 
+#ifdef CONFIG_PINCTRL_SH_PFC_GPIO
 static int sh_pfc_gpio_set_direction(struct pinctrl_dev *pctldev,
 				     struct pinctrl_gpio_range *range,
 				     unsigned offset, bool input)
@@ -462,6 +463,9 @@ static int sh_pfc_gpio_set_direction(struct pinctrl_dev *pctldev,
 	spin_unlock_irqrestore(&pfc->lock, flags);
 	return ret;
 }
+#else
+#define sh_pfc_gpio_set_direction	NULL
+#endif
 
 static const struct pinmux_ops sh_pfc_pinmux_ops = {
 	.get_functions_count	= sh_pfc_get_functions_count,
