@@ -47,10 +47,11 @@ static unsigned evtchn_2l_max_channels(void)
 	return EVTCHN_2L_NR_CHANNELS;
 }
 
-static void evtchn_2l_bind_to_cpu(struct irq_info *info, unsigned cpu)
+static void evtchn_2l_bind_to_cpu(evtchn_port_t evtchn, unsigned int cpu,
+				  unsigned int old_cpu)
 {
-	clear_bit(info->evtchn, BM(per_cpu(cpu_evtchn_mask, info->cpu)));
-	set_bit(info->evtchn, BM(per_cpu(cpu_evtchn_mask, cpu)));
+	clear_bit(evtchn, BM(per_cpu(cpu_evtchn_mask, old_cpu)));
+	set_bit(evtchn, BM(per_cpu(cpu_evtchn_mask, cpu)));
 }
 
 static void evtchn_2l_clear_pending(evtchn_port_t port)

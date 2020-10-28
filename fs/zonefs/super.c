@@ -1116,8 +1116,7 @@ static int zonefs_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 	fsid = le64_to_cpup((void *)sbi->s_uuid.b) ^
 		le64_to_cpup((void *)sbi->s_uuid.b + sizeof(u64));
-	buf->f_fsid.val[0] = (u32)fsid;
-	buf->f_fsid.val[1] = (u32)(fsid >> 32);
+	buf->f_fsid = u64_to_fsid(fsid);
 
 	return 0;
 }

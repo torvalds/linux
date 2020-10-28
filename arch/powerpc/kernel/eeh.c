@@ -466,11 +466,6 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 		return 0;
 	}
 
-	if (!pe->addr) {
-		eeh_stats.no_cfg_addr++;
-		return 0;
-	}
-
 	/*
 	 * On PowerNV platform, we might already have fenced PHB
 	 * there and we need take care of that firstly.

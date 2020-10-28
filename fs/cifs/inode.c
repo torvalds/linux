@@ -656,7 +656,7 @@ smb311_posix_info_to_fattr(struct cifs_fattr *fattr, struct smb311_posix_qinfo *
 static void
 cifs_all_info_to_fattr(struct cifs_fattr *fattr, FILE_ALL_INFO *info,
 		       struct super_block *sb, bool adjust_tz,
-		       bool symlink)
+		       bool symlink, u32 reparse_tag)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
@@ -684,8 +684,22 @@ cifs_all_info_to_fattr(struct cifs_fattr *fattr, FILE_ALL_INFO *info,
 	fattr->cf_createtime = le64_to_cpu(info->CreationTime);
 
 	fattr->cf_nlink = le32_to_cpu(info->NumberOfLinks);
-
-	if (symlink) {
+	if (reparse_tag == IO_REPARSE_TAG_LX_SYMLINK) {
+		fattr->cf_mode |= S_IFLNK | cifs_sb->mnt_file_mode;
+		fattr->cf_dtype = DT_LNK;
+	} else if (reparse_tag == IO_REPARSE_TAG_LX_FIFO) {
+		fattr->cf_mode |= S_IFIFO | cifs_sb->mnt_file_mode;
+		fattr->cf_dtype = DT_FIFO;
+	} else if (reparse_tag == IO_REPARSE_TAG_AF_UNIX) {
+		fattr->cf_mode |= S_IFSOCK | cifs_sb->mnt_file_mode;
+		fattr->cf_dtype = DT_SOCK;
+	} else if (reparse_tag == IO_REPARSE_TAG_LX_CHR) {
+		fattr->cf_mode |= S_IFCHR | cifs_sb->mnt_file_mode;
+		fattr->cf_dtype = DT_CHR;
+	} else if (reparse_tag == IO_REPARSE_TAG_LX_BLK) {
+		fattr->cf_mode |= S_IFBLK | cifs_sb->mnt_file_mode;
+		fattr->cf_dtype = DT_BLK;
+	} else if (symlink) { /* TODO add more reparse tag checks */
 		fattr->cf_mode = S_IFLNK;
 		fattr->cf_dtype = DT_LNK;
 	} else if (fattr->cf_cifsattrs & ATTR_DIRECTORY) {
@@ -740,8 +754,9 @@ cifs_get_file_info(struct file *filp)
 	rc = server->ops->query_file_info(xid, tcon, &cfile->fid, &find_data);
 	switch (rc) {
 	case 0:
+		/* TODO: add support to query reparse tag */
 		cifs_all_info_to_fattr(&fattr, &find_data, inode->i_sb, false,
-				       false);
+				       false, 0 /* no reparse tag */);
 		break;
 	case -EREMOTE:
 		cifs_create_dfs_fattr(&fattr, inode->i_sb);
@@ -910,12 +925,13 @@ cifs_get_inode_info(struct inode **inode,
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	bool adjust_tz = false;
 	struct cifs_fattr fattr = {0};
-	bool symlink = false;
+	bool is_reparse_point = false;
 	FILE_ALL_INFO *data = in_data;
 	FILE_ALL_INFO *tmp_data = NULL;
 	void *smb1_backup_rsp_buf = NULL;
 	int rc = 0;
 	int tmprc = 0;
+	__u32 reparse_tag = 0;
 
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink))
@@ -938,8 +954,8 @@ cifs_get_inode_info(struct inode **inode,
 			goto out;
 		}
 		rc = server->ops->query_path_info(xid, tcon, cifs_sb,
-						  full_path, tmp_data,
-						  &adjust_tz, &symlink);
+						 full_path, tmp_data,
+						 &adjust_tz, &is_reparse_point);
 		data = tmp_data;
 	}
 
@@ -949,7 +965,19 @@ cifs_get_inode_info(struct inode **inode,
 
 	switch (rc) {
 	case 0:
-		cifs_all_info_to_fattr(&fattr, data, sb, adjust_tz, symlink);
+		/*
+		 * If the file is a reparse point, it is more complicated
+		 * since we have to check if its reparse tag matches a known
+		 * special file type e.g. symlink or fifo or char etc.
+		 */
+		if ((le32_to_cpu(data->Attributes) & ATTR_REPARSE) &&
+		    server->ops->query_reparse_tag) {
+			rc = server->ops->query_reparse_tag(xid, tcon, cifs_sb,
+						full_path, &reparse_tag);
+			cifs_dbg(FYI, "reparse tag 0x%x\n", reparse_tag);
+		}
+		cifs_all_info_to_fattr(&fattr, data, sb, adjust_tz,
+				       is_reparse_point, reparse_tag);
 		break;
 	case -EREMOTE:
 		/* DFS link, no metadata available on this server */
