@@ -1895,29 +1895,9 @@ static void cpt_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 
 static void icp_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 {
-	u32 ddi_hotplug_trigger, tc_hotplug_trigger;
+	u32 ddi_hotplug_trigger = pch_iir & SDE_DDI_HOTPLUG_MASK_ICP;
+	u32 tc_hotplug_trigger = pch_iir & SDE_TC_HOTPLUG_MASK_ICP;
 	u32 pin_mask = 0, long_mask = 0;
-
-	if (HAS_PCH_DG1(dev_priv)) {
-		ddi_hotplug_trigger = pch_iir & SDE_DDI_MASK_DG1;
-		tc_hotplug_trigger = 0;
-	} else if (HAS_PCH_TGP(dev_priv)) {
-		ddi_hotplug_trigger = pch_iir & SDE_DDI_MASK_TGP;
-		tc_hotplug_trigger = pch_iir & SDE_TC_MASK_TGP;
-	} else if (HAS_PCH_JSP(dev_priv)) {
-		ddi_hotplug_trigger = pch_iir & SDE_DDI_MASK_TGP;
-		tc_hotplug_trigger = 0;
-	} else if (HAS_PCH_MCC(dev_priv)) {
-		ddi_hotplug_trigger = pch_iir & SDE_DDI_MASK_ICP;
-		tc_hotplug_trigger = pch_iir & SDE_TC_HOTPLUG_ICP(HPD_PORT_TC1);
-	} else {
-		drm_WARN(&dev_priv->drm, !HAS_PCH_ICP(dev_priv),
-			 "Unrecognized PCH type 0x%x\n",
-			 INTEL_PCH_TYPE(dev_priv));
-
-		ddi_hotplug_trigger = pch_iir & SDE_DDI_MASK_ICP;
-		tc_hotplug_trigger = pch_iir & SDE_TC_MASK_ICP;
-	}
 
 	if (ddi_hotplug_trigger) {
 		u32 dig_hotplug_reg;
