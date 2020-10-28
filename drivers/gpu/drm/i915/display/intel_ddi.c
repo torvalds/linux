@@ -5069,8 +5069,8 @@ static bool hti_uses_phy(struct drm_i915_private *i915, enum phy phy)
 static enum hpd_pin dg1_hpd_pin(struct drm_i915_private *dev_priv,
 				enum port port)
 {
-	if (port >= PORT_D)
-		return HPD_PORT_C + port - PORT_D;
+	if (port >= PORT_TC1)
+		return HPD_PORT_C + port - PORT_TC1;
 	else
 		return HPD_PORT_A + port - PORT_A;
 }
@@ -5078,8 +5078,8 @@ static enum hpd_pin dg1_hpd_pin(struct drm_i915_private *dev_priv,
 static enum hpd_pin tgl_hpd_pin(struct drm_i915_private *dev_priv,
 				enum port port)
 {
-	if (port >= PORT_D)
-		return HPD_PORT_TC1 + port - PORT_D;
+	if (port >= PORT_TC1)
+		return HPD_PORT_TC1 + port - PORT_TC1;
 	else
 		return HPD_PORT_A + port - PORT_A;
 }
@@ -5090,8 +5090,8 @@ static enum hpd_pin rkl_hpd_pin(struct drm_i915_private *dev_priv,
 	if (HAS_PCH_TGP(dev_priv))
 		return tgl_hpd_pin(dev_priv, port);
 
-	if (port >= PORT_D)
-		return HPD_PORT_C + port - PORT_D;
+	if (port >= PORT_TC1)
+		return HPD_PORT_C + port - PORT_TC1;
 	else
 		return HPD_PORT_A + port - PORT_A;
 }

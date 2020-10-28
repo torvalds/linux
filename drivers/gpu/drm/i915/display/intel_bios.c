@@ -1688,17 +1688,15 @@ static enum port dvo_port_to_port(struct drm_i915_private *dev_priv,
 		[PORT_I] = { DVO_PORT_HDMII, DVO_PORT_DPI, -1 },
 	};
 	/*
-	 * Bspec lists the ports as A, B, C, D - however internally in our
-	 * driver we keep them as PORT_A, PORT_B, PORT_D and PORT_E so the
-	 * registers in Display Engine match the right offsets. Apply the
-	 * mapping here to translate from VBT to internal convention.
+	 * RKL VBT uses PHY based mapping. Combo PHYs A,B,C,D
+	 * map to DDI A,B,TC1,TC2 respectively.
 	 */
 	static const int rkl_port_mapping[][3] = {
 		[PORT_A] = { DVO_PORT_HDMIA, DVO_PORT_DPA, -1 },
 		[PORT_B] = { DVO_PORT_HDMIB, DVO_PORT_DPB, -1 },
 		[PORT_C] = { -1 },
-		[PORT_D] = { DVO_PORT_HDMIC, DVO_PORT_DPC, -1 },
-		[PORT_E] = { DVO_PORT_HDMID, DVO_PORT_DPD, -1 },
+		[PORT_TC1] = { DVO_PORT_HDMIC, DVO_PORT_DPC, -1 },
+		[PORT_TC2] = { DVO_PORT_HDMID, DVO_PORT_DPD, -1 },
 	};
 
 	if (IS_DG1(dev_priv) || IS_ROCKETLAKE(dev_priv))

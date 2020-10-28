@@ -208,6 +208,14 @@ enum port {
 	PORT_H,
 	PORT_I,
 
+	/* tgl+ */
+	PORT_TC1 = PORT_D,
+	PORT_TC2,
+	PORT_TC3,
+	PORT_TC4,
+	PORT_TC5,
+	PORT_TC6,
+
 	I915_MAX_PORTS
 };
 
