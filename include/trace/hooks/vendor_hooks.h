@@ -15,11 +15,11 @@
 
 #define DEFINE_HOOK_FN(_name, _reg, _unreg, proto, args)		\
 	static const char __tpstrtab_##_name[]				\
-	__section(__tracepoints_strings) = #_name;			\
+	__section("__tracepoints_strings") = #_name;			\
 	extern struct static_call_key STATIC_CALL_KEY(tp_func_##_name);	\
 	int __traceiter_##_name(void *__data, proto);			\
 	struct tracepoint __tracepoint_##_name	__used			\
-	__section(__tracepoints) = {					\
+	__section("__tracepoints") = {					\
 		.name = __tpstrtab_##_name,				\
 		.key = STATIC_KEY_INIT_FALSE,				\
 		.static_call_key = &STATIC_CALL_KEY(tp_func_##_name),	\
