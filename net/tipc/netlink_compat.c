@@ -118,7 +118,8 @@ static void tipc_tlv_init(struct sk_buff *skb, u16 type)
 	skb_put(skb, sizeof(struct tlv_desc));
 }
 
-static int tipc_tlv_sprintf(struct sk_buff *skb, const char *fmt, ...)
+static __printf(2, 3) int tipc_tlv_sprintf(struct sk_buff *skb,
+					   const char *fmt, ...)
 {
 	int n;
 	u16 len;
