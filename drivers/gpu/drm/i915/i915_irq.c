@@ -2386,7 +2386,6 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 	if (master_ctl & GEN8_DE_PORT_IRQ) {
 		iir = I915_READ(GEN8_DE_PORT_IIR);
 		if (iir) {
-			u32 tmp_mask;
 			bool found = false;
 
 			I915_WRITE(GEN8_DE_PORT_IIR, iir);
@@ -2398,15 +2397,17 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 			}
 
 			if (IS_GEN9_LP(dev_priv)) {
-				tmp_mask = iir & BXT_DE_PORT_HOTPLUG_MASK;
-				if (tmp_mask) {
-					bxt_hpd_irq_handler(dev_priv, tmp_mask);
+				u32 hotplug_trigger = iir & BXT_DE_PORT_HOTPLUG_MASK;
+
+				if (hotplug_trigger) {
+					bxt_hpd_irq_handler(dev_priv, hotplug_trigger);
 					found = true;
 				}
 			} else if (IS_BROADWELL(dev_priv)) {
-				tmp_mask = iir & BDW_DE_PORT_HOTPLUG_MASK;
-				if (tmp_mask) {
-					ilk_hpd_irq_handler(dev_priv, tmp_mask);
+				u32 hotplug_trigger = iir & BDW_DE_PORT_HOTPLUG_MASK;
+
+				if (hotplug_trigger) {
+					ilk_hpd_irq_handler(dev_priv, hotplug_trigger);
 					found = true;
 				}
 			}
@@ -2417,9 +2418,10 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 			}
 
 			if (INTEL_GEN(dev_priv) >= 11) {
-				tmp_mask = iir & (DSI0_TE | DSI1_TE);
-				if (tmp_mask) {
-					gen11_dsi_te_interrupt_handler(dev_priv, tmp_mask);
+				u32 te_trigger = iir & (DSI0_TE | DSI1_TE);
+
+				if (te_trigger) {
+					gen11_dsi_te_interrupt_handler(dev_priv, te_trigger);
 					found = true;
 				}
 			}
