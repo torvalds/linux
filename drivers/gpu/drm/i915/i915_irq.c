@@ -3741,14 +3741,10 @@ static void gen8_irq_postinstall(struct drm_i915_private *dev_priv)
 
 static void icp_irq_postinstall(struct drm_i915_private *dev_priv)
 {
+	struct intel_uncore *uncore = &dev_priv->uncore;
 	u32 mask = SDE_GMBUS_ICP;
 
-	drm_WARN_ON(&dev_priv->drm, I915_READ(SDEIER) != 0);
-	I915_WRITE(SDEIER, 0xffffffff);
-	POSTING_READ(SDEIER);
-
-	gen3_assert_iir_is_zero(&dev_priv->uncore, SDEIIR);
-	I915_WRITE(SDEIMR, ~mask);
+	GEN3_IRQ_INIT(uncore, SDE, ~mask, 0xffffffff);
 }
 
 static void gen11_irq_postinstall(struct drm_i915_private *dev_priv)
