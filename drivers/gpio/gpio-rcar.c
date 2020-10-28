@@ -295,14 +295,15 @@ static int gpio_rcar_direction_input(struct gpio_chip *chip, unsigned offset)
 
 static int gpio_rcar_get(struct gpio_chip *chip, unsigned offset)
 {
+	struct gpio_rcar_priv *p = gpiochip_get_data(chip);
 	u32 bit = BIT(offset);
 
 	/* testing on r8a7790 shows that INDT does not show correct pin state
 	 * when configured as output, so use OUTDT in case of output pins */
-	if (gpio_rcar_read(gpiochip_get_data(chip), INOUTSEL) & bit)
-		return !!(gpio_rcar_read(gpiochip_get_data(chip), OUTDT) & bit);
+	if (gpio_rcar_read(p, INOUTSEL) & bit)
+		return !!(gpio_rcar_read(p, OUTDT) & bit);
 	else
-		return !!(gpio_rcar_read(gpiochip_get_data(chip), INDT) & bit);
+		return !!(gpio_rcar_read(p, INDT) & bit);
 }
 
 static void gpio_rcar_set(struct gpio_chip *chip, unsigned offset, int value)
