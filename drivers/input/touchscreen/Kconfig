@@ -1380,4 +1380,12 @@ config TOUCHSCREEN_VTL_CT36X
 config TOUCHSCREEN_GT1X
 	tristate "GT1X touchscreens support"
 
+config TOUCHSCREEN_FTS
+	bool "Focaltech Touchscreen"
+	depends on I2C
+	default n
+	help
+	  Say Y here if you have Focaltech touch panel.
+	  If unsure, say N.
+
 endif
