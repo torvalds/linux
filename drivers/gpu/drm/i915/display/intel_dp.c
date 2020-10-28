@@ -1859,6 +1859,7 @@ intel_dp_aux_init(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct intel_encoder *encoder = &dig_port->base;
+	enum aux_ch aux_ch = dig_port->aux_ch;
 
 	if (INTEL_GEN(dev_priv) >= 12) {
 		intel_dp->aux_ch_ctl_reg = tgl_aux_ctl_reg;
@@ -1891,9 +1892,15 @@ intel_dp_aux_init(struct intel_dp *intel_dp)
 	drm_dp_aux_init(&intel_dp->aux);
 
 	/* Failure to allocate our preferred name is not critical */
-	intel_dp->aux.name = kasprintf(GFP_KERNEL, "AUX %c/port %c",
-				       aux_ch_name(dig_port->aux_ch),
-				       port_name(encoder->port));
+	if (INTEL_GEN(dev_priv) >= 12 && aux_ch >= AUX_CH_USBC1)
+		intel_dp->aux.name = kasprintf(GFP_KERNEL, "AUX USBC%c/%s",
+					       aux_ch - AUX_CH_USBC1 + '1',
+					       encoder->base.name);
+	else
+		intel_dp->aux.name = kasprintf(GFP_KERNEL, "AUX %c/%s",
+					       aux_ch_name(aux_ch),
+					       encoder->base.name);
+
 	intel_dp->aux.transfer = intel_dp_aux_transfer;
 }
 
