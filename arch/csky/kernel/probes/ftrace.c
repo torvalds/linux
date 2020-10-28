@@ -11,17 +11,19 @@ int arch_check_ftrace_location(struct kprobe *p)
 
 /* Ftrace callback handler for kprobes -- called under preepmt disabed */
 void kprobe_ftrace_handler(unsigned long ip, unsigned long parent_ip,
-			   struct ftrace_ops *ops, struct pt_regs *regs)
+			   struct ftrace_ops *ops, struct ftrace_regs *fregs)
 {
 	int bit;
 	bool lr_saver = false;
 	struct kprobe *p;
 	struct kprobe_ctlblk *kcb;
+	struct pt_regs *regs;
 
 	bit = ftrace_test_recursion_trylock(ip, parent_ip);
 	if (bit < 0)
 		return;
 
+	regs = ftrace_get_regs(fregs);
 	preempt_disable_notrace();
 	p = get_kprobe((kprobe_opcode_t *)ip);
 	if (!p) {

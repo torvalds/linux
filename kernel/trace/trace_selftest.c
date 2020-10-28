@@ -107,7 +107,7 @@ static int trace_selftest_test_probe1_cnt;
 static void trace_selftest_test_probe1_func(unsigned long ip,
 					    unsigned long pip,
 					    struct ftrace_ops *op,
-					    struct pt_regs *pt_regs)
+					    struct ftrace_regs *fregs)
 {
 	trace_selftest_test_probe1_cnt++;
 }
@@ -116,7 +116,7 @@ static int trace_selftest_test_probe2_cnt;
 static void trace_selftest_test_probe2_func(unsigned long ip,
 					    unsigned long pip,
 					    struct ftrace_ops *op,
-					    struct pt_regs *pt_regs)
+					    struct ftrace_regs *fregs)
 {
 	trace_selftest_test_probe2_cnt++;
 }
@@ -125,7 +125,7 @@ static int trace_selftest_test_probe3_cnt;
 static void trace_selftest_test_probe3_func(unsigned long ip,
 					    unsigned long pip,
 					    struct ftrace_ops *op,
-					    struct pt_regs *pt_regs)
+					    struct ftrace_regs *fregs)
 {
 	trace_selftest_test_probe3_cnt++;
 }
@@ -134,7 +134,7 @@ static int trace_selftest_test_global_cnt;
 static void trace_selftest_test_global_func(unsigned long ip,
 					    unsigned long pip,
 					    struct ftrace_ops *op,
-					    struct pt_regs *pt_regs)
+					    struct ftrace_regs *fregs)
 {
 	trace_selftest_test_global_cnt++;
 }
@@ -143,7 +143,7 @@ static int trace_selftest_test_dyn_cnt;
 static void trace_selftest_test_dyn_func(unsigned long ip,
 					 unsigned long pip,
 					 struct ftrace_ops *op,
-					 struct pt_regs *pt_regs)
+					 struct ftrace_regs *fregs)
 {
 	trace_selftest_test_dyn_cnt++;
 }
@@ -414,7 +414,7 @@ static int trace_selftest_recursion_cnt;
 static void trace_selftest_test_recursion_func(unsigned long ip,
 					       unsigned long pip,
 					       struct ftrace_ops *op,
-					       struct pt_regs *pt_regs)
+					       struct ftrace_regs *fregs)
 {
 	/*
 	 * This function is registered without the recursion safe flag.
@@ -429,7 +429,7 @@ static void trace_selftest_test_recursion_func(unsigned long ip,
 static void trace_selftest_test_recursion_safe_func(unsigned long ip,
 						    unsigned long pip,
 						    struct ftrace_ops *op,
-						    struct pt_regs *pt_regs)
+						    struct ftrace_regs *fregs)
 {
 	/*
 	 * We said we would provide our own recursion. By calling
@@ -548,9 +548,11 @@ static enum {
 static void trace_selftest_test_regs_func(unsigned long ip,
 					  unsigned long pip,
 					  struct ftrace_ops *op,
-					  struct pt_regs *pt_regs)
+					  struct ftrace_regs *fregs)
 {
-	if (pt_regs)
+	struct pt_regs *regs = ftrace_get_regs(fregs);
+
+	if (regs)
 		trace_selftest_regs_stat = TRACE_SELFTEST_REGS_FOUND;
 	else
 		trace_selftest_regs_stat = TRACE_SELFTEST_REGS_NOT_FOUND;

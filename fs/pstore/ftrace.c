@@ -26,7 +26,7 @@ static u64 pstore_ftrace_stamp;
 static void notrace pstore_ftrace_call(unsigned long ip,
 				       unsigned long parent_ip,
 				       struct ftrace_ops *op,
-				       struct pt_regs *regs)
+				       struct ftrace_regs *fregs)
 {
 	int bit;
 	unsigned long flags;

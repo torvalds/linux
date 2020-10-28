@@ -23,10 +23,10 @@ static void tracing_start_function_trace(struct trace_array *tr);
 static void tracing_stop_function_trace(struct trace_array *tr);
 static void
 function_trace_call(unsigned long ip, unsigned long parent_ip,
-		    struct ftrace_ops *op, struct pt_regs *pt_regs);
+		    struct ftrace_ops *op, struct ftrace_regs *fregs);
 static void
 function_stack_trace_call(unsigned long ip, unsigned long parent_ip,
-			  struct ftrace_ops *op, struct pt_regs *pt_regs);
+			  struct ftrace_ops *op, struct ftrace_regs *fregs);
 static struct tracer_flags func_flags;
 
 /* Our option */
@@ -89,7 +89,6 @@ void ftrace_destroy_function_files(struct trace_array *tr)
 static int function_trace_init(struct trace_array *tr)
 {
 	ftrace_func_t func;
-
 	/*
 	 * Instance trace_arrays get their ops allocated
 	 * at instance creation. Unless it failed
@@ -129,7 +128,7 @@ static void function_trace_start(struct trace_array *tr)
 
 static void
 function_trace_call(unsigned long ip, unsigned long parent_ip,
-		    struct ftrace_ops *op, struct pt_regs *pt_regs)
+		    struct ftrace_ops *op, struct ftrace_regs *fregs)
 {
 	struct trace_array *tr = op->private;
 	struct trace_array_cpu *data;
@@ -178,7 +177,7 @@ function_trace_call(unsigned long ip, unsigned long parent_ip,
 
 static void
 function_stack_trace_call(unsigned long ip, unsigned long parent_ip,
-			  struct ftrace_ops *op, struct pt_regs *pt_regs)
+			  struct ftrace_ops *op, struct ftrace_regs *fregs)
 {
 	struct trace_array *tr = op->private;
 	struct trace_array_cpu *data;

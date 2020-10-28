@@ -10,7 +10,7 @@ extern void (*ftrace_trace_function)(unsigned long, unsigned long,
 extern void ftrace_graph_caller(void);
 
 noinline void __naked ftrace_stub(unsigned long ip, unsigned long parent_ip,
-				  struct ftrace_ops *op, struct pt_regs *regs)
+				  struct ftrace_ops *op, struct ftrace_regs *fregs)
 {
 	__asm__ ("");  /* avoid to optimize as pure function */
 }
@@ -38,7 +38,7 @@ EXPORT_SYMBOL(_mcount);
 #else /* CONFIG_DYNAMIC_FTRACE */
 
 noinline void __naked ftrace_stub(unsigned long ip, unsigned long parent_ip,
-				  struct ftrace_ops *op, struct pt_regs *regs)
+				  struct ftrace_ops *op, struct ftrace_regs *fregs)
 {
 	__asm__ ("");  /* avoid to optimize as pure function */
 }

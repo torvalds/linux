@@ -198,9 +198,10 @@ int ftrace_disable_ftrace_graph_caller(void)
 
 #ifdef CONFIG_KPROBES_ON_FTRACE
 void kprobe_ftrace_handler(unsigned long ip, unsigned long parent_ip,
-		struct ftrace_ops *ops, struct pt_regs *regs)
+		struct ftrace_ops *ops, struct ftrace_regs *fregs)
 {
 	struct kprobe_ctlblk *kcb;
+	struct pt_regs *regs;
 	struct kprobe *p;
 	int bit;
 
@@ -208,6 +209,7 @@ void kprobe_ftrace_handler(unsigned long ip, unsigned long parent_ip,
 	if (bit < 0)
 		return;
 
+	regs = ftrace_get_regs(fregs);
 	preempt_disable_notrace();
 	p = get_kprobe((kprobe_opcode_t *)ip);
 	if (unlikely(!p) || kprobe_disabled(p))

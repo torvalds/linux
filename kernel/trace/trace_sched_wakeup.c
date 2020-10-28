@@ -212,7 +212,7 @@ static void wakeup_print_header(struct seq_file *s)
  */
 static void
 wakeup_tracer_call(unsigned long ip, unsigned long parent_ip,
-		   struct ftrace_ops *op, struct pt_regs *pt_regs)
+		   struct ftrace_ops *op, struct ftrace_regs *fregs)
 {
 	struct trace_array *tr = wakeup_trace;
 	struct trace_array_cpu *data;

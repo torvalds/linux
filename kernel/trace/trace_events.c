@@ -3673,7 +3673,7 @@ static struct trace_event_file event_trace_file __initdata;
 
 static void __init
 function_test_events_call(unsigned long ip, unsigned long parent_ip,
-			  struct ftrace_ops *op, struct pt_regs *pt_regs)
+			  struct ftrace_ops *op, struct ftrace_regs *regs)
 {
 	struct trace_buffer *buffer;
 	struct ring_buffer_event *event;
