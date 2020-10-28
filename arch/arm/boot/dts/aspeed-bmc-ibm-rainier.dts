@@ -8,7 +8,7 @@
 #include <dt-bindings/leds/leds-pca955x.h>
 
 / {
-	model = "Rainier";
+	model = "Rainier 2U";
 	compatible = "ibm,rainier-bmc", "aspeed,ast2600";
 
 	aliases {
@@ -594,16 +594,6 @@
 		compatible = "ibm,cffps";
 		reg = <0x69>;
 	};
-
-	power-supply@6a {
-		compatible = "ibm,cffps";
-		reg = <0x6a>;
-	};
-
-	power-supply@6b {
-		compatible = "ibm,cffps";
-		reg = <0x6b>;
-	};
 };
 
 &i2c4 {
@@ -723,25 +713,25 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		fan@0 {
+		fan0: fan@0 {
 			compatible = "pmbus-fan";
 			reg = <0>;
 			tach-pulses = <2>;
 		};
 
-		fan@1 {
+		fan1: fan@1 {
 			compatible = "pmbus-fan";
 			reg = <1>;
 			tach-pulses = <2>;
 		};
 
-		fan@2 {
+		fan2: fan@2 {
 			compatible = "pmbus-fan";
 			reg = <2>;
 			tach-pulses = <2>;
 		};
 
-		fan@3 {
+		fan3: fan@3 {
 			compatible = "pmbus-fan";
 			reg = <3>;
 			tach-pulses = <2>;
