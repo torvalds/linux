@@ -3407,8 +3407,8 @@ static void ilk_hpd_irq_setup(struct drm_i915_private *dev_priv)
 	ibx_hpd_irq_setup(dev_priv);
 }
 
-static void __bxt_hpd_detection_setup(struct drm_i915_private *dev_priv,
-				      u32 enabled_irqs)
+static void bxt_hpd_detection_setup(struct drm_i915_private *dev_priv,
+				    u32 enabled_irqs)
 {
 	u32 hotplug;
 
@@ -3439,11 +3439,6 @@ static void __bxt_hpd_detection_setup(struct drm_i915_private *dev_priv,
 	I915_WRITE(PCH_PORT_HOTPLUG, hotplug);
 }
 
-static void bxt_hpd_detection_setup(struct drm_i915_private *dev_priv)
-{
-	__bxt_hpd_detection_setup(dev_priv, BXT_DE_PORT_HOTPLUG_MASK);
-}
-
 static void bxt_hpd_irq_setup(struct drm_i915_private *dev_priv)
 {
 	u32 hotplug_irqs, enabled_irqs;
@@ -3453,7 +3448,7 @@ static void bxt_hpd_irq_setup(struct drm_i915_private *dev_priv)
 
 	bdw_update_port_irq(dev_priv, hotplug_irqs, enabled_irqs);
 
-	__bxt_hpd_detection_setup(dev_priv, enabled_irqs);
+	bxt_hpd_detection_setup(dev_priv, enabled_irqs);
 }
 
 static void ibx_irq_postinstall(struct drm_i915_private *dev_priv)
@@ -3472,12 +3467,6 @@ static void ibx_irq_postinstall(struct drm_i915_private *dev_priv)
 
 	gen3_assert_iir_is_zero(&dev_priv->uncore, SDEIIR);
 	I915_WRITE(SDEIMR, ~mask);
-
-	if (HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv) ||
-	    HAS_PCH_LPT(dev_priv))
-		ibx_hpd_detection_setup(dev_priv);
-	else
-		spt_hpd_detection_setup(dev_priv);
 }
 
 static void ilk_irq_postinstall(struct drm_i915_private *dev_priv)
@@ -3516,8 +3505,6 @@ static void ilk_irq_postinstall(struct drm_i915_private *dev_priv)
 
 	GEN3_IRQ_INIT(uncore, DE, dev_priv->irq_mask,
 		      display_mask | extra_mask);
-
-	ilk_hpd_detection_setup(dev_priv);
 
 	ibx_irq_postinstall(dev_priv);
 }
@@ -3639,12 +3626,6 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 
 		GEN3_IRQ_INIT(uncore, GEN11_DE_HPD_, ~de_hpd_masked,
 			      de_hpd_enables);
-		gen11_tc_hpd_detection_setup(dev_priv);
-		gen11_tbt_hpd_detection_setup(dev_priv);
-	} else if (IS_GEN9_LP(dev_priv)) {
-		bxt_hpd_detection_setup(dev_priv);
-	} else if (IS_BROADWELL(dev_priv)) {
-		ilk_hpd_detection_setup(dev_priv);
 	}
 }
 
@@ -3672,21 +3653,6 @@ static void icp_irq_postinstall(struct drm_i915_private *dev_priv)
 
 	gen3_assert_iir_is_zero(&dev_priv->uncore, SDEIIR);
 	I915_WRITE(SDEIMR, ~mask);
-
-	if (HAS_PCH_DG1(dev_priv))
-		icp_ddi_hpd_detection_setup(dev_priv, DG1_DDI_HPD_ENABLE_MASK);
-	else if (HAS_PCH_TGP(dev_priv)) {
-		icp_ddi_hpd_detection_setup(dev_priv, TGP_DDI_HPD_ENABLE_MASK);
-		icp_tc_hpd_detection_setup(dev_priv, TGP_TC_HPD_ENABLE_MASK);
-	} else if (HAS_PCH_JSP(dev_priv)) {
-		icp_ddi_hpd_detection_setup(dev_priv, TGP_DDI_HPD_ENABLE_MASK);
-	} else if (HAS_PCH_MCC(dev_priv)) {
-		icp_ddi_hpd_detection_setup(dev_priv, ICP_DDI_HPD_ENABLE_MASK);
-		icp_tc_hpd_detection_setup(dev_priv, ICP_TC_HPD_ENABLE(HPD_PORT_TC1));
-	} else {
-		icp_ddi_hpd_detection_setup(dev_priv, ICP_DDI_HPD_ENABLE_MASK);
-		icp_tc_hpd_detection_setup(dev_priv, ICP_TC_HPD_ENABLE_MASK);
-	}
 }
 
 static void gen11_irq_postinstall(struct drm_i915_private *dev_priv)
