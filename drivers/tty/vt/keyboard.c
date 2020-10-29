@@ -26,27 +26,26 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/consolemap.h>
-#include <linux/module.h>
-#include <linux/sched/signal.h>
-#include <linux/sched/debug.h>
-#include <linux/tty.h>
-#include <linux/tty_flip.h>
+#include <linux/init.h>
+#include <linux/input.h>
+#include <linux/jiffies.h>
+#include <linux/kbd_diacr.h>
+#include <linux/kbd_kern.h>
+#include <linux/leds.h>
 #include <linux/mm.h>
+#include <linux/module.h>
 #include <linux/nospec.h>
+#include <linux/notifier.h>
+#include <linux/reboot.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/signal.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
-#include <linux/init.h>
-#include <linux/slab.h>
-#include <linux/leds.h>
-
-#include <linux/kbd_kern.h>
-#include <linux/kbd_diacr.h>
-#include <linux/vt_kern.h>
-#include <linux/input.h>
-#include <linux/reboot.h>
-#include <linux/notifier.h>
-#include <linux/jiffies.h>
+#include <linux/tty_flip.h>
+#include <linux/tty.h>
 #include <linux/uaccess.h>
+#include <linux/vt_kern.h>
 
 #include <asm/irq_regs.h>
 
