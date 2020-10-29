@@ -55,6 +55,9 @@ Since ACPI GpioIo() resource does not have a field saying whether it is
 active low or high, the "active_low" argument can be used here.  Setting
 it to 1 marks the GPIO as active low.
 
+Note, active_low in _DSD does not make sense for GpioInt() resource and
+must be 0. GpioInt() resource has its own means of defining it.
+
 In our Bluetooth example the "reset-gpios" refers to the second GpioIo()
 resource, second pin in that resource with the GPIO number of 31.
 
