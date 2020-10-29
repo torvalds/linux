@@ -520,10 +520,8 @@
 
 &pfc {
 	avb_pins: avb {
-		mux {
-			groups = "avb_link", "avb_mii";
-			function = "avb";
-		};
+		groups = "avb_link", "avb_mii";
+		function = "avb";
 	};
 
 	canfd0_pins: canfd0 {

@@ -77,7 +77,6 @@ available subsections can be seen below.
    console
    dcdbas
    eisa
-   ipmb
    isa
    isapnp
    io-mapping

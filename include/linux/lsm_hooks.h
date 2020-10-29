@@ -1611,12 +1611,12 @@ extern struct lsm_info __start_early_lsm_info[], __end_early_lsm_info[];
 
 #define DEFINE_LSM(lsm)							\
 	static struct lsm_info __lsm_##lsm				\
-		__used __section(.lsm_info.init)			\
+		__used __section(".lsm_info.init")			\
 		__aligned(sizeof(unsigned long))
 
 #define DEFINE_EARLY_LSM(lsm)						\
 	static struct lsm_info __early_lsm_##lsm			\
-		__used __section(.early_lsm_info.init)			\
+		__used __section(".early_lsm_info.init")		\
 		__aligned(sizeof(unsigned long))
 
 #ifdef CONFIG_SECURITY_SELINUX_DISABLE

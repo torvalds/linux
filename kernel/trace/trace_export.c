@@ -176,7 +176,7 @@ struct trace_event_call __used event_##call = {				\
 	.flags			= TRACE_EVENT_FL_IGNORE_ENABLE,		\
 };									\
 static struct trace_event_call __used						\
-__attribute__((section("_ftrace_events"))) *__event_##call = &event_##call;
+__section("_ftrace_events") *__event_##call = &event_##call;
 
 #undef FTRACE_ENTRY
 #define FTRACE_ENTRY(call, struct_name, etype, tstruct, print)		\

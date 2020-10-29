@@ -1005,9 +1005,8 @@ static int splice_pipe_to_pipe(struct pipe_inode_info *ipipe,
 /*
  * Determine where to splice to/from.
  */
-long do_splice(struct file *in, loff_t __user *off_in,
-		struct file *out, loff_t __user *off_out,
-		size_t len, unsigned int flags)
+long do_splice(struct file *in, loff_t *off_in, struct file *out,
+	       loff_t *off_out, size_t len, unsigned int flags)
 {
 	struct pipe_inode_info *ipipe;
 	struct pipe_inode_info *opipe;
@@ -1041,8 +1040,7 @@ long do_splice(struct file *in, loff_t __user *off_in,
 		if (off_out) {
 			if (!(out->f_mode & FMODE_PWRITE))
 				return -EINVAL;
-			if (copy_from_user(&offset, off_out, sizeof(loff_t)))
-				return -EFAULT;
+			offset = *off_out;
 		} else {
 			offset = out->f_pos;
 		}
@@ -1063,8 +1061,8 @@ long do_splice(struct file *in, loff_t __user *off_in,
 
 		if (!off_out)
 			out->f_pos = offset;
-		else if (copy_to_user(off_out, &offset, sizeof(loff_t)))
-			ret = -EFAULT;
+		else
+			*off_out = offset;
 
 		return ret;
 	}
@@ -1075,8 +1073,7 @@ long do_splice(struct file *in, loff_t __user *off_in,
 		if (off_in) {
 			if (!(in->f_mode & FMODE_PREAD))
 				return -EINVAL;
-			if (copy_from_user(&offset, off_in, sizeof(loff_t)))
-				return -EFAULT;
+			offset = *off_in;
 		} else {
 			offset = in->f_pos;
 		}
@@ -1100,13 +1097,53 @@ long do_splice(struct file *in, loff_t __user *off_in,
 			wakeup_pipe_readers(opipe);
 		if (!off_in)
 			in->f_pos = offset;
-		else if (copy_to_user(off_in, &offset, sizeof(loff_t)))
-			ret = -EFAULT;
+		else
+			*off_in = offset;
 
 		return ret;
 	}
 
 	return -EINVAL;
+}
+
+static long __do_splice(struct file *in, loff_t __user *off_in,
+			struct file *out, loff_t __user *off_out,
+			size_t len, unsigned int flags)
+{
+	struct pipe_inode_info *ipipe;
+	struct pipe_inode_info *opipe;
+	loff_t offset, *__off_in = NULL, *__off_out = NULL;
+	long ret;
+
+	ipipe = get_pipe_info(in, true);
+	opipe = get_pipe_info(out, true);
+
+	if (ipipe && off_in)
+		return -ESPIPE;
+	if (opipe && off_out)
+		return -ESPIPE;
+
+	if (off_out) {
+		if (copy_from_user(&offset, off_out, sizeof(loff_t)))
+			return -EFAULT;
+		__off_out = &offset;
+	}
+	if (off_in) {
+		if (copy_from_user(&offset, off_in, sizeof(loff_t)))
+			return -EFAULT;
+		__off_in = &offset;
+	}
+
+	ret = do_splice(in, __off_in, out, __off_out, len, flags);
+	if (ret < 0)
+		return ret;
+
+	if (__off_out && copy_to_user(off_out, __off_out, sizeof(loff_t)))
+		return -EFAULT;
+	if (__off_in && copy_to_user(off_in, __off_in, sizeof(loff_t)))
+		return -EFAULT;
+
+	return ret;
 }
 
 static int iter_to_pipe(struct iov_iter *from,
@@ -1303,8 +1340,8 @@ SYSCALL_DEFINE6(splice, int, fd_in, loff_t __user *, off_in,
 	if (in.file) {
 		out = fdget(fd_out);
 		if (out.file) {
-			error = do_splice(in.file, off_in, out.file, off_out,
-					  len, flags);
+			error = __do_splice(in.file, off_in, out.file, off_out,
+						len, flags);
 			fdput(out);
 		}
 		fdput(in);

@@ -115,9 +115,17 @@ extern const struct tegra_fuse_soc tegra210_fuse_soc;
 extern const struct tegra_fuse_soc tegra186_fuse_soc;
 #endif
 
+#if IS_ENABLED(CONFIG_ARCH_TEGRA_194_SOC) || \
+    IS_ENABLED(CONFIG_ARCH_TEGRA_234_SOC)
+extern const struct attribute_group tegra194_soc_attr_group;
+#endif
+
 #ifdef CONFIG_ARCH_TEGRA_194_SOC
 extern const struct tegra_fuse_soc tegra194_fuse_soc;
-extern const struct attribute_group tegra194_soc_attr_group;
+#endif
+
+#ifdef CONFIG_ARCH_TEGRA_234_SOC
+extern const struct tegra_fuse_soc tegra234_fuse_soc;
 #endif
 
 #endif

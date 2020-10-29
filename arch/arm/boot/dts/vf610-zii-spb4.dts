@@ -129,7 +129,6 @@
 			pinctrl-names = "default";
 			reg = <0>;
 			eeprom-length = <65536>;
-			reset-gpios = <&gpio3 11 GPIO_ACTIVE_LOW>;
 			interrupt-parent = <&gpio3>;
 			interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
 			interrupt-controller;
@@ -326,7 +325,6 @@
 
 	pinctrl_gpio_switch0: pinctrl-gpio-switch0 {
 		fsl,pins = <
-			VF610_PAD_PTE2__GPIO_107		0x31c2
 			VF610_PAD_PTB28__GPIO_98		0x219d
 		>;
 	};

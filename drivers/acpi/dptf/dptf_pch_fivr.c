@@ -114,7 +114,7 @@ static struct platform_driver pch_fivr_driver = {
 	.probe = pch_fivr_add,
 	.remove = pch_fivr_remove,
 	.driver = {
-		.name = "DPTF PCH FIVR",
+		.name = "dptf_pch_fivr",
 		.acpi_match_table = pch_fivr_device_ids,
 	},
 };

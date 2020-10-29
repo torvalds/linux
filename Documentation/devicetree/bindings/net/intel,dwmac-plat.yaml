@@ -46,6 +46,8 @@ required:
   - clocks
   - clock-names
 
+unevaluatedProperties: false
+
 examples:
 # FIXME: Remove defines and include the correct header file
 # once it is available in mainline.

@@ -99,7 +99,7 @@
 &ecspi5 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi5>;
-	cs-gpios = <&gpio1 12 0>;
+	cs-gpios = <&gpio1 12 GPIO_ACTIVE_LOW>;
 	status = "okay";
 
 	flash: m25p80@0 {

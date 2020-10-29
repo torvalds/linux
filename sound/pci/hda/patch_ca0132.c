@@ -7910,8 +7910,12 @@ static void ae7_post_dsp_asi_stream_setup(struct hda_codec *codec)
 
 static void ae7_post_dsp_pll_setup(struct hda_codec *codec)
 {
-	const unsigned int addr[] = { 0x41, 0x45, 0x40, 0x43, 0x51 };
-	const unsigned int data[] = { 0xc8, 0xcc, 0xcb, 0xc7, 0x8d };
+	static const unsigned int addr[] = {
+		0x41, 0x45, 0x40, 0x43, 0x51
+	};
+	static const unsigned int data[] = {
+		0xc8, 0xcc, 0xcb, 0xc7, 0x8d
+	};
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(addr); i++) {
@@ -7925,10 +7929,12 @@ static void ae7_post_dsp_pll_setup(struct hda_codec *codec)
 static void ae7_post_dsp_asi_setup_ports(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
-	const unsigned int target[] = { 0x0b, 0x04, 0x06, 0x0a, 0x0c, 0x11,
-					0x12, 0x13, 0x14 };
-	const unsigned int data[]   = { 0x12, 0x00, 0x48, 0x05, 0x5f, 0xff,
-					0xff, 0xff, 0x7f };
+	static const unsigned int target[] = {
+		0x0b, 0x04, 0x06, 0x0a, 0x0c, 0x11, 0x12, 0x13, 0x14
+	};
+	static const unsigned int data[] = {
+		0x12, 0x00, 0x48, 0x05, 0x5f, 0xff, 0xff, 0xff, 0x7f
+	};
 	unsigned int i;
 
 	mutex_lock(&spec->chipio_mutex);

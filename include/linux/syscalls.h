@@ -144,7 +144,7 @@ extern struct trace_event_functions exit_syscall_print_funcs;
 		.flags                  = TRACE_EVENT_FL_CAP_ANY,	\
 	};								\
 	static struct trace_event_call __used				\
-	  __attribute__((section("_ftrace_events")))			\
+	  __section("_ftrace_events")					\
 	 *__event_enter_##sname = &event_enter_##sname;
 
 #define SYSCALL_TRACE_EXIT_EVENT(sname)					\
@@ -160,7 +160,7 @@ extern struct trace_event_functions exit_syscall_print_funcs;
 		.flags                  = TRACE_EVENT_FL_CAP_ANY,	\
 	};								\
 	static struct trace_event_call __used				\
-	  __attribute__((section("_ftrace_events")))			\
+	  __section("_ftrace_events")					\
 	*__event_exit_##sname = &event_exit_##sname;
 
 #define SYSCALL_METADATA(sname, nb, ...)			\
@@ -184,7 +184,7 @@ extern struct trace_event_functions exit_syscall_print_funcs;
 		.enter_fields	= LIST_HEAD_INIT(__syscall_meta_##sname.enter_fields), \
 	};							\
 	static struct syscall_metadata __used			\
-	  __attribute__((section("__syscalls_metadata")))	\
+	  __section("__syscalls_metadata")			\
 	 *__p_syscall_meta_##sname = &__syscall_meta_##sname;
 
 static inline int is_syscall_trace_event(struct trace_event_call *tp_event)

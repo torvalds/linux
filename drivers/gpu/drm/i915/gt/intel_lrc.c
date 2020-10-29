@@ -1140,9 +1140,8 @@ __unwind_incomplete_requests(struct intel_engine_cs *engine)
 
 			/* Check in case we rollback so far we wrap [size/2] */
 			if (intel_ring_direction(rq->ring,
-						 intel_ring_wrap(rq->ring,
-								 rq->tail),
-						 rq->ring->tail) > 0)
+						 rq->tail,
+						 rq->ring->tail + 8) > 0)
 				rq->context->lrc.desc |= CTX_DESC_FORCE_RESTORE;
 
 			active = rq;
@@ -2464,7 +2463,7 @@ cancel_port_requests(struct intel_engine_execlists * const execlists)
 }
 
 static inline void
-invalidate_csb_entries(const u32 *first, const u32 *last)
+invalidate_csb_entries(const u64 *first, const u64 *last)
 {
 	clflush((void *)first);
 	clflush((void *)last);
@@ -2496,14 +2495,25 @@ invalidate_csb_entries(const u32 *first, const u32 *last)
  *     bits 47-57: sw context id of the lrc the GT switched away from
  *     bits 58-63: sw counter of the lrc the GT switched away from
  */
-static inline bool
-gen12_csb_parse(const struct intel_engine_execlists *execlists, const u32 *csb)
+static inline bool gen12_csb_parse(const u64 *csb)
 {
-	u32 lower_dw = csb[0];
-	u32 upper_dw = csb[1];
-	bool ctx_to_valid = GEN12_CSB_CTX_VALID(lower_dw);
-	bool ctx_away_valid = GEN12_CSB_CTX_VALID(upper_dw);
-	bool new_queue = lower_dw & GEN12_CTX_STATUS_SWITCHED_TO_NEW_QUEUE;
+	bool ctx_away_valid;
+	bool new_queue;
+	u64 entry;
+
+	/* HSD#22011248461 */
+	entry = READ_ONCE(*csb);
+	if (unlikely(entry == -1)) {
+		preempt_disable();
+		if (wait_for_atomic_us((entry = READ_ONCE(*csb)) != -1, 50))
+			GEM_WARN_ON("50us CSB timeout");
+		preempt_enable();
+	}
+	WRITE_ONCE(*(u64 *)csb, -1);
+
+	ctx_away_valid = GEN12_CSB_CTX_VALID(upper_32_bits(entry));
+	new_queue =
+		lower_32_bits(entry) & GEN12_CTX_STATUS_SWITCHED_TO_NEW_QUEUE;
 
 	/*
 	 * The context switch detail is not guaranteed to be 5 when a preemption
@@ -2513,7 +2523,7 @@ gen12_csb_parse(const struct intel_engine_execlists *execlists, const u32 *csb)
 	 * would require some extra handling, but we don't support that.
 	 */
 	if (!ctx_away_valid || new_queue) {
-		GEM_BUG_ON(!ctx_to_valid);
+		GEM_BUG_ON(!GEN12_CSB_CTX_VALID(lower_32_bits(entry)));
 		return true;
 	}
 
@@ -2522,12 +2532,11 @@ gen12_csb_parse(const struct intel_engine_execlists *execlists, const u32 *csb)
 	 * context switch on an unsuccessful wait instruction since we always
 	 * use polling mode.
 	 */
-	GEM_BUG_ON(GEN12_CTX_SWITCH_DETAIL(upper_dw));
+	GEM_BUG_ON(GEN12_CTX_SWITCH_DETAIL(upper_32_bits(entry)));
 	return false;
 }
 
-static inline bool
-gen8_csb_parse(const struct intel_engine_execlists *execlists, const u32 *csb)
+static inline bool gen8_csb_parse(const u64 *csb)
 {
 	return *csb & (GEN8_CTX_STATUS_IDLE_ACTIVE | GEN8_CTX_STATUS_PREEMPTED);
 }
@@ -2535,7 +2544,7 @@ gen8_csb_parse(const struct intel_engine_execlists *execlists, const u32 *csb)
 static void process_csb(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
-	const u32 * const buf = execlists->csb_status;
+	const u64 * const buf = execlists->csb_status;
 	const u8 num_entries = execlists->csb_size;
 	u8 head, tail;
 
@@ -2616,12 +2625,14 @@ static void process_csb(struct intel_engine_cs *engine)
 		 */
 
 		ENGINE_TRACE(engine, "csb[%d]: status=0x%08x:0x%08x\n",
-			     head, buf[2 * head + 0], buf[2 * head + 1]);
+			     head,
+			     upper_32_bits(buf[head]),
+			     lower_32_bits(buf[head]));
 
 		if (INTEL_GEN(engine->i915) >= 12)
-			promote = gen12_csb_parse(execlists, buf + 2 * head);
+			promote = gen12_csb_parse(buf + head);
 		else
-			promote = gen8_csb_parse(execlists, buf + 2 * head);
+			promote = gen8_csb_parse(buf + head);
 		if (promote) {
 			struct i915_request * const *old = execlists->active;
 
@@ -2648,6 +2659,9 @@ static void process_csb(struct intel_engine_cs *engine)
 				   execlists_num_ports(execlists));
 			smp_wmb(); /* complete the seqlock */
 			WRITE_ONCE(execlists->active, execlists->inflight);
+
+			/* XXX Magic delay for tgl */
+			ENGINE_POSTING_READ(engine, RING_CONTEXT_STATUS_PTR);
 
 			WRITE_ONCE(execlists->pending[0], NULL);
 		} else {
@@ -4005,6 +4019,8 @@ static void reset_csb_pointers(struct intel_engine_cs *engine)
 	WRITE_ONCE(*execlists->csb_write, reset_value);
 	wmb(); /* Make sure this is visible to HW (paranoia?) */
 
+	/* Check that the GPU does indeed update the CSB entries! */
+	memset(execlists->csb_status, -1, (reset_value + 1) * sizeof(u64));
 	invalidate_csb_entries(&execlists->csb_status[0],
 			       &execlists->csb_status[reset_value]);
 
@@ -5157,7 +5173,7 @@ int intel_execlists_submission_setup(struct intel_engine_cs *engine)
 	}
 
 	execlists->csb_status =
-		&engine->status_page.addr[I915_HWS_CSB_BUF0_INDEX];
+		(u64 *)&engine->status_page.addr[I915_HWS_CSB_BUF0_INDEX];
 
 	execlists->csb_write =
 		&engine->status_page.addr[intel_hws_csb_write_index(i915)];

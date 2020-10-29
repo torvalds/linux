@@ -87,8 +87,8 @@
 
 	i2c_max98504: i2c-gpio-0 {
 		compatible = "i2c-gpio";
-		gpios = <&gpd0 1 GPIO_ACTIVE_HIGH /* SPK_AMP_SDA */
-			 &gpd0 0 GPIO_ACTIVE_HIGH /* SPK_AMP_SCL */ >;
+		sda-gpios = <&gpd0 1 GPIO_ACTIVE_HIGH>;
+		scl-gpios = <&gpd0 0 GPIO_ACTIVE_HIGH>;
 		i2c-gpio,delay-us = <2>;
 		#address-cells = <1>;
 		#size-cells = <0>;

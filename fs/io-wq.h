@@ -17,6 +17,7 @@ enum {
 	IO_WQ_WORK_MM		= 128,
 	IO_WQ_WORK_CREDS	= 256,
 	IO_WQ_WORK_BLKCG	= 512,
+	IO_WQ_WORK_FSIZE	= 1024,
 
 	IO_WQ_HASH_SHIFT	= 24,	/* upper 8 bits are used for hash key */
 };

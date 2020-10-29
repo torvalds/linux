@@ -220,29 +220,34 @@ static void null_close_first_imp_zone(struct nullb_device *dev)
 	}
 }
 
-static bool null_can_set_active(struct nullb_device *dev)
+static blk_status_t null_check_active(struct nullb_device *dev)
 {
 	if (!dev->zone_max_active)
-		return true;
+		return BLK_STS_OK;
 
-	return dev->nr_zones_exp_open + dev->nr_zones_imp_open +
-	       dev->nr_zones_closed < dev->zone_max_active;
+	if (dev->nr_zones_exp_open + dev->nr_zones_imp_open +
+			dev->nr_zones_closed < dev->zone_max_active)
+		return BLK_STS_OK;
+
+	return BLK_STS_ZONE_ACTIVE_RESOURCE;
 }
 
-static bool null_can_open(struct nullb_device *dev)
+static blk_status_t null_check_open(struct nullb_device *dev)
 {
 	if (!dev->zone_max_open)
-		return true;
+		return BLK_STS_OK;
 
 	if (dev->nr_zones_exp_open + dev->nr_zones_imp_open < dev->zone_max_open)
-		return true;
+		return BLK_STS_OK;
 
-	if (dev->nr_zones_imp_open && null_can_set_active(dev)) {
-		null_close_first_imp_zone(dev);
-		return true;
+	if (dev->nr_zones_imp_open) {
+		if (null_check_active(dev) == BLK_STS_OK) {
+			null_close_first_imp_zone(dev);
+			return BLK_STS_OK;
+		}
 	}
 
-	return false;
+	return BLK_STS_ZONE_OPEN_RESOURCE;
 }
 
 /*
@@ -258,19 +263,22 @@ static bool null_can_open(struct nullb_device *dev)
  * it is not certain that closing an implicit open zone will allow a new zone
  * to be opened, since we might already be at the active limit capacity.
  */
-static bool null_has_zone_resources(struct nullb_device *dev, struct blk_zone *zone)
+static blk_status_t null_check_zone_resources(struct nullb_device *dev, struct blk_zone *zone)
 {
+	blk_status_t ret;
+
 	switch (zone->cond) {
 	case BLK_ZONE_COND_EMPTY:
-		if (!null_can_set_active(dev))
-			return false;
+		ret = null_check_active(dev);
+		if (ret != BLK_STS_OK)
+			return ret;
 		fallthrough;
 	case BLK_ZONE_COND_CLOSED:
-		return null_can_open(dev);
+		return null_check_open(dev);
 	default:
 		/* Should never be called for other states */
 		WARN_ON(1);
-		return false;
+		return BLK_STS_IOERR;
 	}
 }
 
@@ -293,8 +301,9 @@ static blk_status_t null_zone_write(struct nullb_cmd *cmd, sector_t sector,
 		return BLK_STS_IOERR;
 	case BLK_ZONE_COND_EMPTY:
 	case BLK_ZONE_COND_CLOSED:
-		if (!null_has_zone_resources(dev, zone))
-			return BLK_STS_IOERR;
+		ret = null_check_zone_resources(dev, zone);
+		if (ret != BLK_STS_OK)
+			return ret;
 		break;
 	case BLK_ZONE_COND_IMP_OPEN:
 	case BLK_ZONE_COND_EXP_OPEN:
@@ -349,6 +358,8 @@ static blk_status_t null_zone_write(struct nullb_cmd *cmd, sector_t sector,
 
 static blk_status_t null_open_zone(struct nullb_device *dev, struct blk_zone *zone)
 {
+	blk_status_t ret;
+
 	if (zone->type == BLK_ZONE_TYPE_CONVENTIONAL)
 		return BLK_STS_IOERR;
 
@@ -357,15 +368,17 @@ static blk_status_t null_open_zone(struct nullb_device *dev, struct blk_zone *zo
 		/* open operation on exp open is not an error */
 		return BLK_STS_OK;
 	case BLK_ZONE_COND_EMPTY:
-		if (!null_has_zone_resources(dev, zone))
-			return BLK_STS_IOERR;
+		ret = null_check_zone_resources(dev, zone);
+		if (ret != BLK_STS_OK)
+			return ret;
 		break;
 	case BLK_ZONE_COND_IMP_OPEN:
 		dev->nr_zones_imp_open--;
 		break;
 	case BLK_ZONE_COND_CLOSED:
-		if (!null_has_zone_resources(dev, zone))
-			return BLK_STS_IOERR;
+		ret = null_check_zone_resources(dev, zone);
+		if (ret != BLK_STS_OK)
+			return ret;
 		dev->nr_zones_closed--;
 		break;
 	case BLK_ZONE_COND_FULL:
@@ -381,6 +394,8 @@ static blk_status_t null_open_zone(struct nullb_device *dev, struct blk_zone *zo
 
 static blk_status_t null_finish_zone(struct nullb_device *dev, struct blk_zone *zone)
 {
+	blk_status_t ret;
+
 	if (zone->type == BLK_ZONE_TYPE_CONVENTIONAL)
 		return BLK_STS_IOERR;
 
@@ -389,8 +404,9 @@ static blk_status_t null_finish_zone(struct nullb_device *dev, struct blk_zone *
 		/* finish operation on full is not an error */
 		return BLK_STS_OK;
 	case BLK_ZONE_COND_EMPTY:
-		if (!null_has_zone_resources(dev, zone))
-			return BLK_STS_IOERR;
+		ret = null_check_zone_resources(dev, zone);
+		if (ret != BLK_STS_OK)
+			return ret;
 		break;
 	case BLK_ZONE_COND_IMP_OPEN:
 		dev->nr_zones_imp_open--;
@@ -399,8 +415,9 @@ static blk_status_t null_finish_zone(struct nullb_device *dev, struct blk_zone *
 		dev->nr_zones_exp_open--;
 		break;
 	case BLK_ZONE_COND_CLOSED:
-		if (!null_has_zone_resources(dev, zone))
-			return BLK_STS_IOERR;
+		ret = null_check_zone_resources(dev, zone);
+		if (ret != BLK_STS_OK)
+			return ret;
 		dev->nr_zones_closed--;
 		break;
 	default:

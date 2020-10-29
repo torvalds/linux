@@ -3168,81 +3168,6 @@ static inline void gdth_timer_init(void)
 }
 #endif
 
-static void __init internal_setup(char *str,int *ints)
-{
-    int i;
-    char *cur_str, *argv;
-
-    TRACE2(("internal_setup() str %s ints[0] %d\n", 
-            str ? str:"NULL", ints ? ints[0]:0));
-
-    /* analyse string */
-    argv = str;
-    while (argv && (cur_str = strchr(argv, ':'))) {
-        int val = 0, c = *++cur_str;
-        
-        if (c == 'n' || c == 'N')
-            val = 0;
-        else if (c == 'y' || c == 'Y')
-            val = 1;
-        else
-            val = (int)simple_strtoul(cur_str, NULL, 0);
-
-        if (!strncmp(argv, "disable:", 8))
-            disable = val;
-        else if (!strncmp(argv, "reserve_mode:", 13))
-            reserve_mode = val;
-        else if (!strncmp(argv, "reverse_scan:", 13))
-            reverse_scan = val;
-        else if (!strncmp(argv, "hdr_channel:", 12))
-            hdr_channel = val;
-        else if (!strncmp(argv, "max_ids:", 8))
-            max_ids = val;
-        else if (!strncmp(argv, "rescan:", 7))
-            rescan = val;
-        else if (!strncmp(argv, "shared_access:", 14))
-            shared_access = val;
-        else if (!strncmp(argv, "reserve_list:", 13)) {
-            reserve_list[0] = val;
-            for (i = 1; i < MAX_RES_ARGS; i++) {
-                cur_str = strchr(cur_str, ',');
-                if (!cur_str)
-                    break;
-                if (!isdigit((int)*++cur_str)) {
-                    --cur_str;          
-                    break;
-                }
-                reserve_list[i] = 
-                    (int)simple_strtoul(cur_str, NULL, 0);
-            }
-            if (!cur_str)
-                break;
-            argv = ++cur_str;
-            continue;
-        }
-
-        if ((argv = strchr(argv, ',')))
-            ++argv;
-    }
-}
-
-int __init option_setup(char *str)
-{
-    int ints[MAXHA];
-    char *cur = str;
-    int i = 1;
-
-    TRACE2(("option_setup() str %s\n", str ? str:"NULL")); 
-
-    while (cur && isdigit(*cur) && i < MAXHA) {
-        ints[i++] = simple_strtoul(cur, NULL, 0);
-        if ((cur = strchr(cur, ',')) != NULL) cur++;
-    }
-
-    ints[0] = i - 1;
-    internal_setup(cur, ints);
-    return 1;
-}
 
 static const char *gdth_ctr_name(gdth_ha_str *ha)
 {
@@ -4317,5 +4242,81 @@ module_init(gdth_init);
 module_exit(gdth_exit);
 
 #ifndef MODULE
+static void __init internal_setup(char *str,int *ints)
+{
+    int i;
+    char *cur_str, *argv;
+
+    TRACE2(("internal_setup() str %s ints[0] %d\n",
+            str ? str:"NULL", ints ? ints[0]:0));
+
+    /* analyse string */
+    argv = str;
+    while (argv && (cur_str = strchr(argv, ':'))) {
+        int val = 0, c = *++cur_str;
+
+        if (c == 'n' || c == 'N')
+            val = 0;
+        else if (c == 'y' || c == 'Y')
+            val = 1;
+        else
+            val = (int)simple_strtoul(cur_str, NULL, 0);
+
+        if (!strncmp(argv, "disable:", 8))
+            disable = val;
+        else if (!strncmp(argv, "reserve_mode:", 13))
+            reserve_mode = val;
+        else if (!strncmp(argv, "reverse_scan:", 13))
+            reverse_scan = val;
+        else if (!strncmp(argv, "hdr_channel:", 12))
+            hdr_channel = val;
+        else if (!strncmp(argv, "max_ids:", 8))
+            max_ids = val;
+        else if (!strncmp(argv, "rescan:", 7))
+            rescan = val;
+        else if (!strncmp(argv, "shared_access:", 14))
+            shared_access = val;
+        else if (!strncmp(argv, "reserve_list:", 13)) {
+            reserve_list[0] = val;
+            for (i = 1; i < MAX_RES_ARGS; i++) {
+                cur_str = strchr(cur_str, ',');
+                if (!cur_str)
+                    break;
+                if (!isdigit((int)*++cur_str)) {
+                    --cur_str;
+                    break;
+                }
+                reserve_list[i] =
+                    (int)simple_strtoul(cur_str, NULL, 0);
+            }
+            if (!cur_str)
+                break;
+            argv = ++cur_str;
+            continue;
+        }
+
+        if ((argv = strchr(argv, ',')))
+            ++argv;
+    }
+}
+
+static int __init option_setup(char *str)
+{
+    int ints[MAXHA];
+    char *cur = str;
+    int i = 1;
+
+    TRACE2(("option_setup() str %s\n", str ? str:"NULL"));
+
+    while (cur && isdigit(*cur) && i < MAXHA) {
+        ints[i++] = simple_strtoul(cur, NULL, 0);
+        if ((cur = strchr(cur, ',')) != NULL) cur++;
+    }
+
+    ints[0] = i - 1;
+    internal_setup(cur, ints);
+    return 1;
+}
+
 __setup("gdth=", option_setup);
 #endif

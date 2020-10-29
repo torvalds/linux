@@ -35,4 +35,7 @@ properties:
           - enum:
               - dell,wyse-ariel
           - const: marvell,mmp3
+
+additionalProperties: true
+
 ...

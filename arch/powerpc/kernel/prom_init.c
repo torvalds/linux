@@ -45,7 +45,7 @@
 #include <linux/linux_logo.h>
 
 /* All of prom_init bss lives here */
-#define __prombss __section(.bss.prominit)
+#define __prombss __section(".bss.prominit")
 
 /*
  * Eventually bump that one up

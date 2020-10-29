@@ -620,7 +620,7 @@ static void iser_route_handler(struct rdma_cm_id *cma_id)
 	conn_param.private_data	= (void *)&req_hdr;
 	conn_param.private_data_len = sizeof(struct iser_cm_hdr);
 
-	ret = rdma_connect(cma_id, &conn_param);
+	ret = rdma_connect_locked(cma_id, &conn_param);
 	if (ret) {
 		iser_err("failure connecting: %d\n", ret);
 		goto failure;

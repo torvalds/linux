@@ -573,8 +573,8 @@ static int k3_udma_glue_cfg_rx_flow(struct k3_udma_glue_rx_channel *rx_chn,
 
 	/* request and cfg rings */
 	ret =  k3_ringacc_request_rings_pair(rx_chn->common.ringacc,
-					     flow_cfg->ring_rxq_id,
 					     flow_cfg->ring_rxfdq0_id,
+					     flow_cfg->ring_rxq_id,
 					     &flow->ringrxfdq,
 					     &flow->ringrx);
 	if (ret) {

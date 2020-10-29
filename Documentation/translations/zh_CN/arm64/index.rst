@@ -14,3 +14,4 @@ ARM64 架构
     :maxdepth: 2
 
     amu
+    hugetlbpage

@@ -548,8 +548,7 @@ static const struct property_entry eeprom_properties[] = {
  */
 static struct i2c_client *dm6446evm_msp;
 
-static int dm6446evm_msp_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int dm6446evm_msp_probe(struct i2c_client *client)
 {
 	dm6446evm_msp = client;
 	return 0;
@@ -569,7 +568,7 @@ static const struct i2c_device_id dm6446evm_msp_ids[] = {
 static struct i2c_driver dm6446evm_msp_driver = {
 	.driver.name	= "dm6446evm_msp",
 	.id_table	= dm6446evm_msp_ids,
-	.probe		= dm6446evm_msp_probe,
+	.probe_new	= dm6446evm_msp_probe,
 	.remove		= dm6446evm_msp_remove,
 };
 
