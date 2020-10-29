@@ -1292,6 +1292,35 @@ void vcpu_set_mp_state(struct kvm_vm *vm, uint32_t vcpuid,
 }
 
 /*
+ * VM VCPU Get Reg List
+ *
+ * Input Args:
+ *   vm - Virtual Machine
+ *   vcpuid - VCPU ID
+ *
+ * Output Args:
+ *   None
+ *
+ * Return:
+ *   A pointer to an allocated struct kvm_reg_list
+ *
+ * Get the list of guest registers which are supported for
+ * KVM_GET_ONE_REG/KVM_SET_ONE_REG calls
+ */
+struct kvm_reg_list *vcpu_get_reg_list(struct kvm_vm *vm, uint32_t vcpuid)
+{
+	struct kvm_reg_list reg_list_n = { .n = 0 }, *reg_list;
+	int ret;
+
+	ret = _vcpu_ioctl(vm, vcpuid, KVM_GET_REG_LIST, &reg_list_n);
+	TEST_ASSERT(ret == -1 && errno == E2BIG, "KVM_GET_REG_LIST n=0");
+	reg_list = calloc(1, sizeof(*reg_list) + reg_list_n.n * sizeof(__u64));
+	reg_list->n = reg_list_n.n;
+	vcpu_ioctl(vm, vcpuid, KVM_GET_REG_LIST, reg_list);
+	return reg_list;
+}
+
+/*
  * VM VCPU Regs Get
  *
  * Input Args:
