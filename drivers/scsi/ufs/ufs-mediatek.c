@@ -48,23 +48,8 @@ static struct ufs_dev_fix ufs_mtk_dev_fixups[] = {
 	END_FIX
 };
 
-static const struct ufs_mtk_host_cfg ufs_mtk_mt8183_cfg = {
-	.caps = UFS_MTK_CAP_VA09_PWR_CTRL,
-};
-
-static const struct ufs_mtk_host_cfg ufs_mtk_mt8192_cfg = {
-	.caps = UFS_MTK_CAP_BOOST_CRYPT_ENGINE,
-};
-
 static const struct of_device_id ufs_mtk_of_match[] = {
-	{
-		.compatible = "mediatek,mt8183-ufshci",
-		.data = &ufs_mtk_mt8183_cfg
-	},
-	{
-		.compatible = "mediatek,mt8192-ufshci",
-		.data = &ufs_mtk_mt8192_cfg
-	},
+	{ .compatible = "mediatek,mt8183-ufshci" },
 	{},
 };
 
@@ -72,14 +57,14 @@ static bool ufs_mtk_is_boost_crypt_enabled(struct ufs_hba *hba)
 {
 	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
 
-	return (host->caps & UFS_MTK_CAP_BOOST_CRYPT_ENGINE);
+	return !!(host->caps & UFS_MTK_CAP_BOOST_CRYPT_ENGINE);
 }
 
 static bool ufs_mtk_is_va09_supported(struct ufs_hba *hba)
 {
 	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
 
-	return (host->caps & UFS_MTK_CAP_VA09_PWR_CTRL);
+	return !!(host->caps & UFS_MTK_CAP_VA09_PWR_CTRL);
 }
 
 static void ufs_mtk_cfg_unipro_cg(struct ufs_hba *hba, bool enable)
@@ -326,7 +311,7 @@ static int ufs_mtk_mphy_power_on(struct ufs_hba *hba, bool on)
 		return 0;
 
 	if (on) {
-		if (host->reg_va09) {
+		if (ufs_mtk_is_va09_supported(hba)) {
 			ret = regulator_enable(host->reg_va09);
 			if (ret < 0)
 				goto out;
@@ -337,7 +322,7 @@ static int ufs_mtk_mphy_power_on(struct ufs_hba *hba, bool on)
 		phy_power_on(mphy);
 	} else {
 		phy_power_off(mphy);
-		if (host->reg_va09) {
+		if (ufs_mtk_is_va09_supported(hba)) {
 			ufs_mtk_va09_pwr_ctrl(res, 0);
 			ret = regulator_disable(host->reg_va09);
 			if (ret < 0)
@@ -483,10 +468,10 @@ static void ufs_mtk_init_boost_crypt(struct ufs_hba *hba)
 
 	cfg->reg_vcore = reg;
 	cfg->vcore_volt = volt;
-	return;
+	host->caps |= UFS_MTK_CAP_BOOST_CRYPT_ENGINE;
 
 disable_caps:
-	host->caps &= ~UFS_MTK_CAP_BOOST_CRYPT_ENGINE;
+	return;
 }
 
 static void ufs_mtk_init_va09_pwr_ctrl(struct ufs_hba *hba)
@@ -494,22 +479,21 @@ static void ufs_mtk_init_va09_pwr_ctrl(struct ufs_hba *hba)
 	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
 
 	host->reg_va09 = regulator_get(hba->dev, "va09");
-	if (!host->reg_va09) {
+	if (!host->reg_va09)
 		dev_info(hba->dev, "failed to get va09");
-		host->caps &= ~UFS_MTK_CAP_VA09_PWR_CTRL;
-	}
+	else
+		host->caps |= UFS_MTK_CAP_VA09_PWR_CTRL;
 }
 
 static void ufs_mtk_init_host_caps(struct ufs_hba *hba)
 {
 	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
+	struct device_node *np = hba->dev->of_node;
 
-	host->caps = host->cfg->caps;
-
-	if (ufs_mtk_is_boost_crypt_enabled(hba))
+	if (of_property_read_bool(np, "mediatek,ufs-boost-crypt"))
 		ufs_mtk_init_boost_crypt(hba);
 
-	if (ufs_mtk_is_va09_supported(hba))
+	if (of_property_read_bool(np, "mediatek,ufs-support-va09"))
 		ufs_mtk_init_va09_pwr_ctrl(hba);
 
 	dev_info(hba->dev, "caps: 0x%x", host->caps);
@@ -597,17 +581,14 @@ static int ufs_mtk_init(struct ufs_hba *hba)
 	host->hba = hba;
 	ufshcd_set_variant(hba, host);
 
-	/* Get host capability and platform data */
 	id = of_match_device(ufs_mtk_of_match, dev);
 	if (!id) {
 		err = -EINVAL;
 		goto out;
 	}
 
-	if (id->data) {
-		host->cfg = (struct ufs_mtk_host_cfg *)id->data;
-		ufs_mtk_init_host_caps(hba);
-	}
+	/* Initialize host capability */
+	ufs_mtk_init_host_caps(hba);
 
 	err = ufs_mtk_bind_mphy(hba);
 	if (err)

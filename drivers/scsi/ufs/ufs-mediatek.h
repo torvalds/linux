@@ -106,20 +106,15 @@ struct ufs_mtk_crypt_cfg {
 	int vcore_volt;
 };
 
-struct ufs_mtk_host_cfg {
-	enum ufs_mtk_host_caps caps;
-};
-
 struct ufs_mtk_host {
-	struct ufs_hba *hba;
 	struct phy *mphy;
-	struct ufs_mtk_host_cfg *cfg;
-	struct ufs_mtk_crypt_cfg *crypt;
 	struct regulator *reg_va09;
-	enum ufs_mtk_host_caps caps;
 	struct reset_control *hci_reset;
 	struct reset_control *unipro_reset;
 	struct reset_control *crypto_reset;
+	struct ufs_hba *hba;
+	struct ufs_mtk_crypt_cfg *crypt;
+	enum ufs_mtk_host_caps caps;
 	bool mphy_powered_on;
 	bool unipro_lpm;
 	bool ref_clk_enabled;
