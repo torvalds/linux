@@ -241,12 +241,12 @@ static int mpp_procfs_init(struct mpp_service *srv)
 	/* show version */
 	proc_create_single("version", 0444, srv->procfs, mpp_show_version);
 	/* for show session info */
-	proc_create_single_data("session_summary", 0444,
+	proc_create_single_data("sessions-summary", 0444,
 				srv->procfs, mpp_show_session_summary, srv);
 	/* show support dev cmd */
-	proc_create_single("support_cmd", 0444, srv->procfs, mpp_show_support_cmd);
+	proc_create_single("supports-cmd", 0444, srv->procfs, mpp_show_support_cmd);
 	/* show support devices */
-	proc_create_single_data("support_device", 0444,
+	proc_create_single_data("supports-device", 0444,
 				srv->procfs, mpp_show_support_device, srv);
 
 	return 0;

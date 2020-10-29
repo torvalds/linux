@@ -798,7 +798,7 @@ static int rkvenc_procfs_init(struct mpp_dev *mpp)
 	mpp_procfs_create_u32("session_buffers", 0644,
 			      enc->procfs, &mpp->session_max_buffers);
 	/* for show session info */
-	proc_create_single_data("session_info", 0444,
+	proc_create_single_data("sessions-info", 0444,
 				enc->procfs, rkvenc_show_session_info, mpp);
 
 	return 0;
