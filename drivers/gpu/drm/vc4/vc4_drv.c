@@ -315,7 +315,6 @@ unbind_all:
 gem_destroy:
 	vc4_gem_destroy(drm);
 	drm_mode_config_cleanup(drm);
-	vc4_bo_cache_destroy(drm);
 dev_put:
 	drm_dev_put(drm);
 	return ret;
