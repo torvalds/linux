@@ -1563,14 +1563,16 @@ int mpp_task_dump_reg(struct mpp_dev *mpp,
 		return -EIO;
 
 	mpp_err("--- dump register ---\n");
-	if (task->reg) {
-		s = task->hw_info->reg_start;
-		e = task->hw_info->reg_end;
-		for (i = s; i <= e; i++) {
-			u32 reg = i * sizeof(u32);
+	if (mpp_debug_unlikely(DEBUG_DUMP_ERR_REG)) {
+		if (task->reg) {
+			s = task->hw_info->reg_start;
+			e = task->hw_info->reg_end;
+			for (i = s; i <= e; i++) {
+				u32 reg = i * sizeof(u32);
 
-			mpp_err("reg[%03d]: %04x: 0x%08x\n",
-				i, reg, task->reg[i]);
+				mpp_err("reg[%03d]: %04x: 0x%08x\n",
+					i, reg, task->reg[i]);
+			}
 		}
 	}
 
