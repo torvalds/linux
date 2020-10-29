@@ -27,6 +27,7 @@
 
 #define INIT_TIMEOUT_MS		2000U
 #define IPI_TIMEOUT_MS		2000U
+#define VPU_IDLE_TIMEOUT_MS	1000U
 #define VPU_FW_VER_LEN		16
 
 /* maximum program/data TCM (Tightly-Coupled Memory) size */
@@ -57,11 +58,15 @@
 #define VPU_DMEM_EXT0_ADDR	0x0014
 #define VPU_DMEM_EXT1_ADDR	0x0018
 #define HOST_TO_VPU		0x0024
+#define VPU_IDLE_REG		0x002C
+#define VPU_INT_STATUS		0x0034
 #define VPU_PC_REG		0x0060
 #define VPU_WDT_REG		0x0084
 
 /* vpu inter-processor communication interrupt */
 #define VPU_IPC_INT		BIT(8)
+/* vpu idle state */
+#define VPU_IDLE_STATE		BIT(23)
 
 /**
  * enum vpu_fw_type - VPU firmware type
@@ -945,11 +950,74 @@ static int mtk_vpu_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int mtk_vpu_suspend(struct device *dev)
+{
+	struct mtk_vpu *vpu = dev_get_drvdata(dev);
+	unsigned long timeout;
+	int ret;
+
+	ret = vpu_clock_enable(vpu);
+	if (ret) {
+		dev_err(dev, "failed to enable vpu clock\n");
+		return ret;
+	}
+
+	mutex_lock(&vpu->vpu_mutex);
+	/* disable vpu timer interrupt */
+	vpu_cfg_writel(vpu, vpu_cfg_readl(vpu, VPU_INT_STATUS) | VPU_IDLE_STATE,
+		       VPU_INT_STATUS);
+	/* check if vpu is idle for system suspend */
+	timeout = jiffies + msecs_to_jiffies(VPU_IDLE_TIMEOUT_MS);
+	do {
+		if (time_after(jiffies, timeout)) {
+			dev_err(dev, "vpu idle timeout\n");
+			mutex_unlock(&vpu->vpu_mutex);
+			vpu_clock_disable(vpu);
+			return -EIO;
+		}
+	} while (!vpu_cfg_readl(vpu, VPU_IDLE_REG));
+
+	mutex_unlock(&vpu->vpu_mutex);
+	vpu_clock_disable(vpu);
+	clk_unprepare(vpu->clk);
+
+	return 0;
+}
+
+static int mtk_vpu_resume(struct device *dev)
+{
+	struct mtk_vpu *vpu = dev_get_drvdata(dev);
+	int ret;
+
+	clk_prepare(vpu->clk);
+	ret = vpu_clock_enable(vpu);
+	if (ret) {
+		dev_err(dev, "failed to enable vpu clock\n");
+		return ret;
+	}
+
+	mutex_lock(&vpu->vpu_mutex);
+	/* enable vpu timer interrupt */
+	vpu_cfg_writel(vpu,
+		       vpu_cfg_readl(vpu, VPU_INT_STATUS) & ~(VPU_IDLE_STATE),
+		       VPU_INT_STATUS);
+	mutex_unlock(&vpu->vpu_mutex);
+	vpu_clock_disable(vpu);
+
+	return 0;
+}
+
+static const struct dev_pm_ops mtk_vpu_pm = {
+	.suspend = mtk_vpu_suspend,
+	.resume = mtk_vpu_resume,
+};
+
 static struct platform_driver mtk_vpu_driver = {
 	.probe	= mtk_vpu_probe,
 	.remove	= mtk_vpu_remove,
 	.driver	= {
 		.name	= "mtk_vpu",
+		.pm = &mtk_vpu_pm,
 		.of_match_table = mtk_vpu_match,
 	},
 };
