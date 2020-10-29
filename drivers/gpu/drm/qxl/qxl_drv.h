@@ -169,20 +169,6 @@ struct qxl_drm_image {
 	struct list_head chunk_list;
 };
 
-struct qxl_fb_image {
-	struct qxl_device *qdev;
-	uint32_t pseudo_palette[16];
-	struct fb_image fb_image;
-	uint32_t visual;
-};
-
-struct qxl_draw_fill {
-	struct qxl_device *qdev;
-	struct qxl_rect rect;
-	uint32_t color;
-	uint16_t rop;
-};
-
 /*
  * Debugfs
  */
@@ -190,8 +176,6 @@ struct qxl_debugfs {
 	struct drm_info_list	*files;
 	unsigned int num_files;
 };
-
-int qxl_debugfs_fence_init(struct qxl_device *rdev);
 
 struct qxl_device {
 	struct drm_device ddev;
@@ -273,6 +257,8 @@ struct qxl_device {
 };
 
 #define to_qxl(dev) container_of(dev, struct qxl_device, ddev)
+
+int qxl_debugfs_fence_init(struct qxl_device *rdev);
 
 extern const struct drm_ioctl_desc qxl_ioctls[];
 extern int qxl_max_ioctl;
