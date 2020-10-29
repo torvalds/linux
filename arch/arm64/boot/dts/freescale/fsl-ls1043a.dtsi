@@ -725,7 +725,7 @@
 			status = "disabled";
 		};
 
-		wdog0: wdog@2ad0000 {
+		wdog0: watchdog@2ad0000 {
 			compatible = "fsl,ls1043a-wdt", "fsl,imx21-wdt";
 			reg = <0x0 0x2ad0000 0x0 0x10000>;
 			interrupts = <0 83 0x4>;

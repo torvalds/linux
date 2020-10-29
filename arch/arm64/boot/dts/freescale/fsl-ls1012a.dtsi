@@ -401,7 +401,7 @@
 			#interrupt-cells = <2>;
 		};
 
-		wdog0: wdog@2ad0000 {
+		wdog0: watchdog@2ad0000 {
 			compatible = "fsl,ls1012a-wdt",
 				     "fsl,imx21-wdt";
 			reg = <0x0 0x2ad0000 0x0 0x10000>;
