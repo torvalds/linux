@@ -68,17 +68,9 @@ static long __init sp804_get_clock_rate(struct clk *clk, const char *name)
 		return PTR_ERR(clk);
 	}
 
-	err = clk_prepare(clk);
-	if (err) {
-		pr_err("sp804: clock failed to prepare: %d\n", err);
-		clk_put(clk);
-		return err;
-	}
-
-	err = clk_enable(clk);
+	err = clk_prepare_enable(clk);
 	if (err) {
 		pr_err("sp804: clock failed to enable: %d\n", err);
-		clk_unprepare(clk);
 		clk_put(clk);
 		return err;
 	}
@@ -86,8 +78,7 @@ static long __init sp804_get_clock_rate(struct clk *clk, const char *name)
 	rate = clk_get_rate(clk);
 	if (rate < 0) {
 		pr_err("sp804: clock failed to get rate: %ld\n", rate);
-		clk_disable(clk);
-		clk_unprepare(clk);
+		clk_disable_unprepare(clk);
 		clk_put(clk);
 	}
 
