@@ -425,7 +425,7 @@ static struct clk **uart_clks[ARRAY_SIZE(uart_clk_ids) + 1];
 static int imx8mp_clocks_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_node *np;
 	void __iomem *anatop_base, *ccm_base;
 	int i;
 
