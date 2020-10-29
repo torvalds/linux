@@ -1017,7 +1017,6 @@ int ocelot_port_mdb_add(struct ocelot *ocelot, int port,
 	unsigned char addr[ETH_ALEN];
 	struct ocelot_multicast *mc;
 	u16 vid = mdb->vid;
-	bool new = false;
 
 	if (port == ocelot->npi)
 		port = ocelot->num_phys_ports;
@@ -1029,6 +1028,7 @@ int ocelot_port_mdb_add(struct ocelot *ocelot, int port,
 
 	mc = ocelot_multicast_get(ocelot, mdb->addr, vid);
 	if (!mc) {
+		/* New entry */
 		int pgid = ocelot_mdb_get_pgid(ocelot, entry_type);
 
 		if (pgid < 0) {
@@ -1047,10 +1047,7 @@ int ocelot_port_mdb_add(struct ocelot *ocelot, int port,
 		mc->pgid = pgid;
 
 		list_add_tail(&mc->list, &ocelot->multicast);
-		new = true;
-	}
-
-	if (!new) {
+	} else {
 		ocelot_encode_ports_to_mdb(addr, mc, entry_type);
 		ocelot_mact_forget(ocelot, addr, vid);
 	}
