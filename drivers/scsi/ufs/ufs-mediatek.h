@@ -35,8 +35,8 @@
  */
 #define UFS_MTK_LIMIT_NUM_LANES_RX  2
 #define UFS_MTK_LIMIT_NUM_LANES_TX  2
-#define UFS_MTK_LIMIT_HSGEAR_RX     UFS_HS_G3
-#define UFS_MTK_LIMIT_HSGEAR_TX     UFS_HS_G3
+#define UFS_MTK_LIMIT_HSGEAR_RX     UFS_HS_G4
+#define UFS_MTK_LIMIT_HSGEAR_TX     UFS_HS_G4
 #define UFS_MTK_LIMIT_PWMGEAR_RX    UFS_PWM_G4
 #define UFS_MTK_LIMIT_PWMGEAR_TX    UFS_PWM_G4
 #define UFS_MTK_LIMIT_RX_PWR_PWM    SLOW_MODE
@@ -104,6 +104,12 @@ struct ufs_mtk_crypt_cfg {
 	int vcore_volt;
 };
 
+struct ufs_mtk_hw_ver {
+	u8 step;
+	u8 minor;
+	u8 major;
+};
+
 struct ufs_mtk_host_cfg {
 	enum ufs_mtk_host_caps caps;
 };
@@ -113,6 +119,7 @@ struct ufs_mtk_host {
 	struct phy *mphy;
 	struct ufs_mtk_host_cfg *cfg;
 	struct ufs_mtk_crypt_cfg *crypt;
+	struct ufs_mtk_hw_ver hw_ver;
 	enum ufs_mtk_host_caps caps;
 	struct reset_control *hci_reset;
 	struct reset_control *unipro_reset;
