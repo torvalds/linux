@@ -1109,6 +1109,8 @@ static int ip_set_create(struct net *net, struct sock *ctnl,
 		ret = -IPSET_ERR_PROTOCOL;
 		goto put_out;
 	}
+	/* Set create flags depending on the type revision */
+	set->flags |= set->type->create_flags[revision];
 
 	ret = set->type->create(net, set, tb, flags);
 	if (ret != 0)
