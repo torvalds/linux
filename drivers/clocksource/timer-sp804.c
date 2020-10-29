@@ -58,7 +58,6 @@ static struct sp804_clkevt sp804_clkevt[NR_TIMERS];
 
 static long __init sp804_get_clock_rate(struct clk *clk, const char *name)
 {
-	long rate;
 	int err;
 
 	if (!clk)
@@ -75,14 +74,7 @@ static long __init sp804_get_clock_rate(struct clk *clk, const char *name)
 		return err;
 	}
 
-	rate = clk_get_rate(clk);
-	if (rate < 0) {
-		pr_err("sp804: clock failed to get rate: %ld\n", rate);
-		clk_disable_unprepare(clk);
-		clk_put(clk);
-	}
-
-	return rate;
+	return clk_get_rate(clk);
 }
 
 static struct sp804_clkevt * __init sp804_clkevt_get(void __iomem *base)
