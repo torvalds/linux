@@ -61,6 +61,29 @@ must be 0. GpioInt() resource has its own means of defining it.
 In our Bluetooth example the "reset-gpios" refers to the second GpioIo()
 resource, second pin in that resource with the GPIO number of 31.
 
+The GpioIo() resource unfortunately doesn't explicitly provide an initial
+state of the output pin which driver should use during its initialization.
+
+Linux tries to use common sense here and derives the state from the bias
+and polarity settings. The table below shows the expectations:
+
+=========  =============  ==============
+Pull Bias     Polarity     Requested...
+=========  =============  ==============
+Implicit     x            AS IS (assumed firmware configured for us)
+Explicit     x (no _DSD)  as Pull Bias (Up == High, Down == Low),
+                          assuming non-active (Polarity = !Pull Bias)
+Down         Low          as low, assuming active
+Down         High         as low, assuming non-active
+Up           Low          as high, assuming non-active
+Up           High         as high, assuming active
+=========  =============  ==============
+
+That said, for our above example the both GPIOs, since the bias setting
+is explicit and _DSD is present, will be treated as active with a high
+polarity and Linux will configure the pins in this state until a driver
+reprograms them differently.
+
 It is possible to leave holes in the array of GPIOs. This is useful in
 cases like with SPI host controllers where some chip selects may be
 implemented as GPIOs and some as native signals. For example a SPI host
