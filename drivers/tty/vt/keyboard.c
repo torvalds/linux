@@ -2040,9 +2040,6 @@ int vt_do_kdgkb_ioctl(int cmd, struct kbsentry __user *user_kdgkb, int perm)
 	char *kbs;
 	int ret;
 
-	if (!capable(CAP_SYS_TTY_CONFIG))
-		perm = 0;
-
 	if (get_user(kb_func, &user_kdgkb->kb_func))
 		return -EFAULT;
 
@@ -2067,7 +2064,7 @@ int vt_do_kdgkb_ioctl(int cmd, struct kbsentry __user *user_kdgkb, int perm)
 		break;
 	}
 	case KDSKBSENT:
-		if (!perm)
+		if (!perm || !capable(CAP_SYS_TTY_CONFIG))
 			return -EPERM;
 
 		kbs = strndup_user(user_kdgkb->kb_string,
