@@ -11,7 +11,7 @@
 #include "../mt76.h"
 #include "regs.h"
 
-#define MT7615_MAX_INTERFACES		4
+#define MT7615_MAX_INTERFACES		16
 #define MT7615_MAX_WMM_SETS		4
 #define MT7663_WTBL_SIZE		32
 #define MT7615_WTBL_SIZE		128
@@ -168,7 +168,7 @@ struct mt7615_phy {
 	u8 n_beacon_vif;
 
 	u32 rxfilter;
-	u32 omac_mask;
+	u64 omac_mask;
 
 	u16 noise;
 
@@ -246,7 +246,7 @@ struct mt7615_dev {
 	struct tasklet_struct irq_tasklet;
 
 	struct mt7615_phy phy;
-	u32 omac_mask;
+	u64 omac_mask;
 
 	u16 chainmask;
 
@@ -338,24 +338,13 @@ enum {
 	HW_BSSID_1,
 	HW_BSSID_2,
 	HW_BSSID_3,
-	HW_BSSID_MAX,
+	HW_BSSID_MAX = HW_BSSID_3,
 	EXT_BSSID_START = 0x10,
 	EXT_BSSID_1,
-	EXT_BSSID_2,
-	EXT_BSSID_3,
-	EXT_BSSID_4,
-	EXT_BSSID_5,
-	EXT_BSSID_6,
-	EXT_BSSID_7,
-	EXT_BSSID_8,
-	EXT_BSSID_9,
-	EXT_BSSID_10,
-	EXT_BSSID_11,
-	EXT_BSSID_12,
-	EXT_BSSID_13,
-	EXT_BSSID_14,
-	EXT_BSSID_15,
-	EXT_BSSID_END
+	EXT_BSSID_15 = 0x1f,
+	EXT_BSSID_MAX = EXT_BSSID_15,
+	REPEATER_BSSID_START = 0x20,
+	REPEATER_BSSID_MAX = 0x3f,
 };
 
 enum {

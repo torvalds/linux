@@ -221,7 +221,7 @@ static const struct ieee80211_iface_combination if_comb_radar[] = {
 	{
 		.limits = if_limits,
 		.n_limits = ARRAY_SIZE(if_limits),
-		.max_interfaces = 4,
+		.max_interfaces = MT7615_MAX_INTERFACES,
 		.num_different_channels = 1,
 		.beacon_int_infra_match = true,
 		.radar_detect_widths = BIT(NL80211_CHAN_WIDTH_20_NOHT) |
@@ -237,7 +237,7 @@ static const struct ieee80211_iface_combination if_comb[] = {
 	{
 		.limits = if_limits,
 		.n_limits = ARRAY_SIZE(if_limits),
-		.max_interfaces = 4,
+		.max_interfaces = MT7615_MAX_INTERFACES,
 		.num_different_channels = 1,
 		.beacon_int_infra_match = true,
 	}

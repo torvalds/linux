@@ -115,29 +115,50 @@ static void mt7615_stop(struct ieee80211_hw *hw)
 	mt7615_mutex_release(dev);
 }
 
-static int get_omac_idx(enum nl80211_iftype type, u32 mask)
+static inline int get_free_idx(u32 mask, u8 start, u8 end)
+{
+	return ffs(~mask & GENMASK(end, start));
+}
+
+static int get_omac_idx(enum nl80211_iftype type, u64 mask)
 {
 	int i;
 
 	switch (type) {
-	case NL80211_IFTYPE_MONITOR:
-	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_MESH_POINT:
 	case NL80211_IFTYPE_ADHOC:
-		/* ap use hw bssid 0 and ext bssid */
+	case NL80211_IFTYPE_STATION:
+		/* prefer hw bssid slot 1-3 */
+		i = get_free_idx(mask, HW_BSSID_1, HW_BSSID_3);
+		if (i)
+			return i - 1;
+
+		if (type != NL80211_IFTYPE_STATION)
+			break;
+
+		/* next, try to find a free repeater entry for the sta */
+		i = get_free_idx(mask >> REPEATER_BSSID_START, 0,
+				 REPEATER_BSSID_MAX - REPEATER_BSSID_START);
+		if (i)
+			return i + 32 - 1;
+
+		i = get_free_idx(mask, EXT_BSSID_1, EXT_BSSID_MAX);
+		if (i)
+			return i - 1;
+
 		if (~mask & BIT(HW_BSSID_0))
 			return HW_BSSID_0;
 
-		for (i = EXT_BSSID_1; i < EXT_BSSID_END; i++)
-			if (~mask & BIT(i))
-				return i;
-
 		break;
-	case NL80211_IFTYPE_STATION:
-		/* sta use hw bssid other than 0 */
-		for (i = HW_BSSID_1; i < HW_BSSID_MAX; i++)
-			if (~mask & BIT(i))
-				return i;
+	case NL80211_IFTYPE_MONITOR:
+	case NL80211_IFTYPE_AP:
+		/* ap uses hw bssid 0 and ext bssid */
+		if (~mask & BIT(HW_BSSID_0))
+			return HW_BSSID_0;
+
+		i = get_free_idx(mask, EXT_BSSID_1, EXT_BSSID_MAX);
+		if (i)
+			return i - 1;
 
 		break;
 	default:
@@ -187,8 +208,8 @@ static int mt7615_add_interface(struct ieee80211_hw *hw,
 		mvif->wmm_idx = mvif->idx % MT7615_MAX_WMM_SETS;
 
 	dev->mphy.vif_mask |= BIT(mvif->idx);
-	dev->omac_mask |= BIT(mvif->omac_idx);
-	phy->omac_mask |= BIT(mvif->omac_idx);
+	dev->omac_mask |= BIT_ULL(mvif->omac_idx);
+	phy->omac_mask |= BIT_ULL(mvif->omac_idx);
 
 	mt7615_mcu_set_dbdc(dev);
 
@@ -243,8 +264,8 @@ static void mt7615_remove_interface(struct ieee80211_hw *hw,
 	rcu_assign_pointer(dev->mt76.wcid[idx], NULL);
 
 	dev->mphy.vif_mask &= ~BIT(mvif->idx);
-	dev->omac_mask &= ~BIT(mvif->omac_idx);
-	phy->omac_mask &= ~BIT(mvif->omac_idx);
+	dev->omac_mask &= ~BIT_ULL(mvif->omac_idx);
+	phy->omac_mask &= ~BIT_ULL(mvif->omac_idx);
 
 	mt7615_mutex_release(dev);
 
