@@ -73,12 +73,6 @@ static inline void efifb_setup_from_dmi(struct screen_info *si, const char *opt)
  */
 #define EFI_PHYS_ALIGN		max(SZ_2M, roundup_pow_of_two(TEXT_OFFSET))
 
-/* on ARM, the FDT should be located in a lowmem region */
-static inline unsigned long efi_get_max_fdt_addr(unsigned long image_addr)
-{
-	return round_down(image_addr, EFI_PHYS_ALIGN) + SZ_512M;
-}
-
 /* on ARM, the initrd should be loaded in a lowmem region */
 static inline unsigned long efi_get_max_initrd_addr(unsigned long image_addr)
 {

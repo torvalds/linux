@@ -64,12 +64,6 @@ efi_status_t __efi_rt_asm_wrapper(void *, const char *, ...);
 #define EFI_KIMG_ALIGN	\
 	(SEGMENT_ALIGN > THREAD_ALIGN ? SEGMENT_ALIGN : THREAD_ALIGN)
 
-/* on arm64, the FDT may be located anywhere in system RAM */
-static inline unsigned long efi_get_max_fdt_addr(unsigned long image_addr)
-{
-	return ULONG_MAX;
-}
-
 /*
  * On arm64, we have to ensure that the initrd ends up in the linear region,
  * which is a 1 GB aligned region of size '1UL << (VA_BITS_MIN - 1)' that is
