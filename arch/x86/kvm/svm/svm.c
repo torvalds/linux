@@ -33,7 +33,6 @@
 #include <asm/debugreg.h>
 #include <asm/kvm_para.h>
 #include <asm/irq_remapping.h>
-#include <asm/mce.h>
 #include <asm/spec-ctrl.h>
 #include <asm/cpu_device_id.h>
 
@@ -1931,25 +1930,6 @@ static bool is_erratum_383(void)
 	__flush_tlb_all();
 
 	return true;
-}
-
-/*
- * Trigger machine check on the host. We assume all the MSRs are already set up
- * by the CPU and that we still run on the same CPU as the MCE occurred on.
- * We pass a fake environment to the machine check handler because we want
- * the guest to be always treated like user space, no matter what context
- * it used internally.
- */
-static void kvm_machine_check(void)
-{
-#if defined(CONFIG_X86_MCE)
-	struct pt_regs regs = {
-		.cs = 3, /* Fake ring 3 no matter what the guest ran on */
-		.flags = X86_EFLAGS_IF,
-	};
-
-	do_machine_check(&regs);
-#endif
 }
 
 static void svm_handle_mce(struct vcpu_svm *svm)

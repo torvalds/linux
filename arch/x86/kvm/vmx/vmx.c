@@ -40,7 +40,6 @@
 #include <asm/irq_remapping.h>
 #include <asm/kexec.h>
 #include <asm/perf_event.h>
-#include <asm/mce.h>
 #include <asm/mmu_context.h>
 #include <asm/mshyperv.h>
 #include <asm/mwait.h>
@@ -4714,25 +4713,6 @@ static int handle_rmode_exception(struct kvm_vcpu *vcpu,
 	 */
 	kvm_queue_exception(vcpu, vec);
 	return 1;
-}
-
-/*
- * Trigger machine check on the host. We assume all the MSRs are already set up
- * by the CPU and that we still run on the same CPU as the MCE occurred on.
- * We pass a fake environment to the machine check handler because we want
- * the guest to be always treated like user space, no matter what context
- * it used internally.
- */
-static void kvm_machine_check(void)
-{
-#if defined(CONFIG_X86_MCE)
-	struct pt_regs regs = {
-		.cs = 3, /* Fake ring 3 no matter what the guest ran on */
-		.flags = X86_EFLAGS_IF,
-	};
-
-	do_machine_check(&regs);
-#endif
 }
 
 static int handle_machine_check(struct kvm_vcpu *vcpu)
