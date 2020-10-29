@@ -696,7 +696,7 @@ static void marvell_config_led(struct phy_device *phydev)
 
 static int marvell_config_init(struct phy_device *phydev)
 {
-	/* Set defalut LED */
+	/* Set default LED */
 	marvell_config_led(phydev);
 
 	/* Set registers from marvell,reg-init DT property */
