@@ -370,8 +370,11 @@ int mei_cldev_register_rx_cb(struct mei_cl_device *cldev, mei_cldev_cb_t rx_cb)
 	else
 		ret = -ENODEV;
 	mutex_unlock(&bus->device_lock);
-	if (ret && ret != -EBUSY)
+	if (ret && ret != -EBUSY) {
+		cancel_work_sync(&cldev->rx_work);
+		cldev->rx_cb = NULL;
 		return ret;
+	}
 
 	return 0;
 }
@@ -405,8 +408,11 @@ int mei_cldev_register_notif_cb(struct mei_cl_device *cldev,
 	mutex_lock(&bus->device_lock);
 	ret = mei_cl_notify_request(cldev->cl, NULL, 1);
 	mutex_unlock(&bus->device_lock);
-	if (ret)
+	if (ret) {
+		cancel_work_sync(&cldev->notif_work);
+		cldev->notif_cb = NULL;
 		return ret;
+	}
 
 	return 0;
 }
