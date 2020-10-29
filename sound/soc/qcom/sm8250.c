@@ -207,8 +207,8 @@ static int sm8250_platform_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id snd_sm8250_dt_match[] = {
-	{.compatible = "qcom,sdm8250"},
-	{.compatible = "qcom,qrb5165-rb5"},
+	{.compatible = "qcom,sm8250-sndcard"},
+	{.compatible = "qcom,qrb5165-rb5-sndcard"},
 	{}
 };
 
