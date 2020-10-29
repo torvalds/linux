@@ -158,6 +158,7 @@ static int ufs_mtk_hce_enable_notify(struct ufs_hba *hba,
 				     enum ufs_notify_change_status status)
 {
 	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
+	unsigned long flags;
 
 	if (status == PRE_CHANGE) {
 		if (host->unipro_lpm) {
@@ -169,6 +170,17 @@ static int ufs_mtk_hce_enable_notify(struct ufs_hba *hba,
 
 		if (hba->caps & UFSHCD_CAP_CRYPTO)
 			ufs_mtk_crypto_enable(hba);
+
+		if (host->caps & UFS_MTK_CAP_DISABLE_AH8) {
+			spin_lock_irqsave(hba->host->host_lock, flags);
+			ufshcd_writel(hba, 0,
+				      REG_AUTO_HIBERNATE_IDLE_TIMER);
+			spin_unlock_irqrestore(hba->host->host_lock,
+					       flags);
+
+			hba->capabilities &= ~MASK_AUTO_HIBERN8_SUPPORT;
+			hba->ahit = 0;
+		}
 	}
 
 	return 0;
@@ -496,6 +508,9 @@ static void ufs_mtk_init_host_caps(struct ufs_hba *hba)
 	if (of_property_read_bool(np, "mediatek,ufs-support-va09"))
 		ufs_mtk_init_va09_pwr_ctrl(hba);
 
+	if (of_property_read_bool(np, "mediatek,ufs-disable-ah8"))
+		host->caps |= UFS_MTK_CAP_DISABLE_AH8;
+
 	dev_info(hba->dev, "caps: 0x%x", host->caps);
 }
 
@@ -608,6 +623,9 @@ static int ufs_mtk_init(struct ufs_hba *hba)
 	/* Enable WriteBooster */
 	hba->caps |= UFSHCD_CAP_WB_EN;
 	hba->vps->wb_flush_threshold = UFS_WB_BUF_REMAIN_PERCENT(80);
+
+	if (host->caps & UFS_MTK_CAP_DISABLE_AH8)
+		hba->caps |= UFSHCD_CAP_HIBERN8_WITH_CLK_GATING;
 
 	/*
 	 * ufshcd_vops_init() is invoked after
