@@ -210,6 +210,8 @@ enum ndc_idx_e {
 	NIX0_RX = 0x0,
 	NIX0_TX = 0x1,
 	NPA0_U  = 0x2,
+	NIX1_RX = 0x4,
+	NIX1_TX = 0x5,
 };
 
 enum ndc_ctype_e {
