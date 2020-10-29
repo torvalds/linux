@@ -68,6 +68,23 @@ struct mce {
 	u16			pcifunc;
 };
 
+int rvu_get_next_nix_blkaddr(struct rvu *rvu, int blkaddr)
+{
+	int i = 0;
+
+	/*If blkaddr is 0, return the first nix block address*/
+	if (blkaddr == 0)
+		return rvu->nix_blkaddr[blkaddr];
+
+	while (i + 1 < MAX_NIX_BLKS) {
+		if (rvu->nix_blkaddr[i] == blkaddr)
+			return rvu->nix_blkaddr[i + 1];
+		i++;
+	}
+
+	return 0;
+}
+
 bool is_nixlf_attached(struct rvu *rvu, u16 pcifunc)
 {
 	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, pcifunc);
@@ -81,14 +98,16 @@ bool is_nixlf_attached(struct rvu *rvu, u16 pcifunc)
 
 int rvu_get_nixlf_count(struct rvu *rvu)
 {
+	int blkaddr = 0, max = 0;
 	struct rvu_block *block;
-	int blkaddr;
 
-	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, 0);
-	if (blkaddr < 0)
-		return 0;
-	block = &rvu->hw->block[blkaddr];
-	return block->lf.max;
+	blkaddr = rvu_get_next_nix_blkaddr(rvu, blkaddr);
+	while (blkaddr) {
+		block = &rvu->hw->block[blkaddr];
+		max += block->lf.max;
+		blkaddr = rvu_get_next_nix_blkaddr(rvu, blkaddr);
+	}
+	return max;
 }
 
 int nix_get_nixlf(struct rvu *rvu, u16 pcifunc, int *nixlf, int *nix_blkaddr)
@@ -130,11 +149,18 @@ static u16 nix_alloc_mce_list(struct nix_mcast *mcast, int count)
 	return idx;
 }
 
-static inline struct nix_hw *get_nix_hw(struct rvu_hwinfo *hw, int blkaddr)
+struct nix_hw *get_nix_hw(struct rvu_hwinfo *hw, int blkaddr)
 {
-	if (blkaddr == BLKADDR_NIX0 && hw->nix0)
-		return hw->nix0;
+	int nix_blkaddr = 0, i = 0;
+	struct rvu *rvu = hw->rvu;
 
+	nix_blkaddr = rvu_get_next_nix_blkaddr(rvu, nix_blkaddr);
+	while (nix_blkaddr) {
+		if (blkaddr == nix_blkaddr && hw->nix)
+			return &hw->nix[i];
+		nix_blkaddr = rvu_get_next_nix_blkaddr(rvu, nix_blkaddr);
+		i++;
+	}
 	return NULL;
 }
 
@@ -622,6 +648,7 @@ static int rvu_nix_aq_enq_inst(struct rvu *rvu, struct nix_aq_enq_req *req,
 	struct rvu_block *block;
 	struct admin_queue *aq;
 	struct rvu_pfvf *pfvf;
+	struct nix_hw *nix_hw;
 	void *ctx, *mask;
 	bool ena;
 	u64 cfg;
@@ -636,6 +663,10 @@ static int rvu_nix_aq_enq_inst(struct rvu *rvu, struct nix_aq_enq_req *req,
 		dev_warn(rvu->dev, "%s: NIX AQ not initialized\n", __func__);
 		return NIX_AF_ERR_AQ_ENQUEUE;
 	}
+
+	nix_hw =  get_nix_hw(rvu->hw, blkaddr);
+	if (!nix_hw)
+		return -EINVAL;
 
 	pfvf = rvu_get_pfvf(rvu, pcifunc);
 	nixlf = rvu_get_lf(rvu, block, pcifunc, 0);
@@ -669,8 +700,9 @@ static int rvu_nix_aq_enq_inst(struct rvu *rvu, struct nix_aq_enq_req *req,
 		break;
 	case NIX_AQ_CTYPE_MCE:
 		cfg = rvu_read64(rvu, blkaddr, NIX_AF_RX_MCAST_CFG);
+
 		/* Check if index exceeds MCE list length */
-		if (!hw->nix0->mcast.mce_ctx ||
+		if (!nix_hw->mcast.mce_ctx ||
 		    (req->qidx >= (256UL << (cfg & 0xF))))
 			rc = NIX_AF_ERR_AQ_ENQUEUE;
 
@@ -3109,17 +3141,15 @@ static int nix_aq_init(struct rvu *rvu, struct rvu_block *block)
 	return 0;
 }
 
-int rvu_nix_init(struct rvu *rvu)
+static int rvu_nix_block_init(struct rvu *rvu, struct nix_hw *nix_hw)
 {
 	const struct npc_lt_def_cfg *ltdefs;
 	struct rvu_hwinfo *hw = rvu->hw;
+	int blkaddr = nix_hw->blkaddr;
 	struct rvu_block *block;
-	int blkaddr, err;
+	int err;
 	u64 cfg;
 
-	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, 0);
-	if (blkaddr < 0)
-		return 0;
 	block = &hw->block[blkaddr];
 
 	if (is_rvu_96xx_B0(rvu)) {
@@ -3164,26 +3194,21 @@ int rvu_nix_init(struct rvu *rvu)
 	/* Restore CINT timer delay to HW reset values */
 	rvu_write64(rvu, blkaddr, NIX_AF_CINT_DELAY, 0x0ULL);
 
-	if (blkaddr == BLKADDR_NIX0) {
-		hw->nix0 = devm_kzalloc(rvu->dev,
-					sizeof(struct nix_hw), GFP_KERNEL);
-		if (!hw->nix0)
-			return -ENOMEM;
-
-		err = nix_setup_txschq(rvu, hw->nix0, blkaddr);
+	if (is_block_implemented(hw, blkaddr)) {
+		err = nix_setup_txschq(rvu, nix_hw, blkaddr);
 		if (err)
 			return err;
 
-		err = nix_af_mark_format_setup(rvu, hw->nix0, blkaddr);
+		err = nix_af_mark_format_setup(rvu, nix_hw, blkaddr);
 		if (err)
 			return err;
 
-		err = nix_setup_mcast(rvu, hw->nix0, blkaddr);
+		err = nix_setup_mcast(rvu, nix_hw, blkaddr);
 		if (err)
 			return err;
 
 		/* Configure segmentation offload formats */
-		nix_setup_lso(rvu, hw->nix0, blkaddr);
+		nix_setup_lso(rvu, nix_hw, blkaddr);
 
 		/* Config Outer/Inner L2, IP, TCP, UDP and SCTP NPC layer info.
 		 * This helps HW protocol checker to identify headers
@@ -3236,23 +3261,44 @@ int rvu_nix_init(struct rvu *rvu)
 	return 0;
 }
 
-void rvu_nix_freemem(struct rvu *rvu)
+int rvu_nix_init(struct rvu *rvu)
 {
 	struct rvu_hwinfo *hw = rvu->hw;
-	struct rvu_block *block;
+	struct nix_hw *nix_hw;
+	int blkaddr = 0, err;
+	int i = 0;
+
+	hw->nix = devm_kcalloc(rvu->dev, MAX_NIX_BLKS, sizeof(struct nix_hw),
+			       GFP_KERNEL);
+	if (!hw->nix)
+		return -ENOMEM;
+
+	blkaddr = rvu_get_next_nix_blkaddr(rvu, blkaddr);
+	while (blkaddr) {
+		nix_hw = &hw->nix[i];
+		nix_hw->rvu = rvu;
+		nix_hw->blkaddr = blkaddr;
+		err = rvu_nix_block_init(rvu, nix_hw);
+		if (err)
+			return err;
+		blkaddr = rvu_get_next_nix_blkaddr(rvu, blkaddr);
+		i++;
+	}
+
+	return 0;
+}
+
+static void rvu_nix_block_freemem(struct rvu *rvu, int blkaddr,
+				  struct rvu_block *block)
+{
 	struct nix_txsch *txsch;
 	struct nix_mcast *mcast;
 	struct nix_hw *nix_hw;
-	int blkaddr, lvl;
+	int lvl;
 
-	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, 0);
-	if (blkaddr < 0)
-		return;
-
-	block = &hw->block[blkaddr];
 	rvu_aq_free(rvu, block->aq);
 
-	if (blkaddr == BLKADDR_NIX0) {
+	if (is_block_implemented(rvu->hw, blkaddr)) {
 		nix_hw = get_nix_hw(rvu->hw, blkaddr);
 		if (!nix_hw)
 			return;
@@ -3266,6 +3312,20 @@ void rvu_nix_freemem(struct rvu *rvu)
 		qmem_free(rvu->dev, mcast->mce_ctx);
 		qmem_free(rvu->dev, mcast->mcast_buf);
 		mutex_destroy(&mcast->mce_lock);
+	}
+}
+
+void rvu_nix_freemem(struct rvu *rvu)
+{
+	struct rvu_hwinfo *hw = rvu->hw;
+	struct rvu_block *block;
+	int blkaddr = 0;
+
+	blkaddr = rvu_get_next_nix_blkaddr(rvu, blkaddr);
+	while (blkaddr) {
+		block = &hw->block[blkaddr];
+		rvu_nix_block_freemem(rvu, blkaddr, block);
+		blkaddr = rvu_get_next_nix_blkaddr(rvu, blkaddr);
 	}
 }
 
