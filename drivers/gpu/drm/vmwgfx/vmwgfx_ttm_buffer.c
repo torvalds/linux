@@ -695,7 +695,8 @@ static void vmw_swap_notify(struct ttm_buffer_object *bo)
 static int vmw_move(struct ttm_buffer_object *bo,
 		    bool evict,
 		    struct ttm_operation_ctx *ctx,
-		    struct ttm_resource *new_mem)
+		    struct ttm_resource *new_mem,
+		    struct ttm_place *hop)
 {
 	struct ttm_resource_manager *old_man = ttm_manager_type(bo->bdev, bo->mem.mem_type);
 	struct ttm_resource_manager *new_man = ttm_manager_type(bo->bdev, new_mem->mem_type);

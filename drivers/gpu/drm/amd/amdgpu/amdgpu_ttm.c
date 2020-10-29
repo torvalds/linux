@@ -656,7 +656,8 @@ static bool amdgpu_mem_visible(struct amdgpu_device *adev,
  */
 static int amdgpu_bo_move(struct ttm_buffer_object *bo, bool evict,
 			  struct ttm_operation_ctx *ctx,
-			  struct ttm_resource *new_mem)
+			  struct ttm_resource *new_mem,
+			  struct ttm_place *hop)
 {
 	struct amdgpu_device *adev;
 	struct amdgpu_bo *abo;

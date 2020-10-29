@@ -955,7 +955,8 @@ static void bo_driver_delete_mem_notify(struct ttm_buffer_object *bo)
 static int bo_driver_move(struct ttm_buffer_object *bo,
 			  bool evict,
 			  struct ttm_operation_ctx *ctx,
-			  struct ttm_resource *new_mem)
+			  struct ttm_resource *new_mem,
+			  struct ttm_place *hop)
 {
 	struct drm_gem_vram_object *gbo;
 
