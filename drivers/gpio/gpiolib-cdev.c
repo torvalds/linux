@@ -510,6 +510,8 @@ struct linereq {
 	(GPIO_V2_LINE_FLAG_EDGE_RISING | \
 	 GPIO_V2_LINE_FLAG_EDGE_FALLING)
 
+#define GPIO_V2_LINE_FLAG_EDGE_BOTH GPIO_V2_LINE_EDGE_FLAGS
+
 #define GPIO_V2_LINE_VALID_FLAGS \
 	(GPIO_V2_LINE_FLAG_ACTIVE_LOW | \
 	 GPIO_V2_LINE_DIRECTION_FLAGS | \
@@ -560,8 +562,7 @@ static irqreturn_t edge_irq_thread(int irq, void *p)
 	line->timestamp_ns = 0;
 
 	eflags = READ_ONCE(line->eflags);
-	if (eflags == (GPIO_V2_LINE_FLAG_EDGE_RISING |
-		       GPIO_V2_LINE_FLAG_EDGE_FALLING)) {
+	if (eflags == GPIO_V2_LINE_FLAG_EDGE_BOTH) {
 		int level = gpiod_get_value_cansleep(line->desc);
 
 		if (level)
