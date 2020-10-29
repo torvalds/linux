@@ -1059,12 +1059,10 @@ int amdgpu_dpm_set_mp1_state(struct amdgpu_device *adev,
 			     enum pp_mp1_state mp1_state)
 {
 	int ret = 0;
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
 
-	if (is_support_sw_smu(adev)) {
-		ret = smu_set_mp1_state(&adev->smu, mp1_state);
-	} else if (adev->powerplay.pp_funcs &&
-		   adev->powerplay.pp_funcs->set_mp1_state) {
-		ret = adev->powerplay.pp_funcs->set_mp1_state(
+	if (pp_funcs && pp_funcs->set_mp1_state) {
+		ret = pp_funcs->set_mp1_state(
 				adev->powerplay.pp_handle,
 				mp1_state);
 	}
@@ -1096,16 +1094,11 @@ int amdgpu_dpm_mode2_reset(struct amdgpu_device *adev)
 {
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
 	void *pp_handle = adev->powerplay.pp_handle;
-	struct smu_context *smu = &adev->smu;
 
-	if (is_support_sw_smu(adev)) {
-		return smu_mode2_reset(smu);
-	} else {
-		if (!pp_funcs || !pp_funcs->asic_reset_mode_2)
-			return -ENOENT;
+	if (!pp_funcs || !pp_funcs->asic_reset_mode_2)
+		return -ENOENT;
 
-		return pp_funcs->asic_reset_mode_2(pp_handle);
-	}
+	return pp_funcs->asic_reset_mode_2(pp_handle);
 }
 
 int amdgpu_dpm_baco_reset(struct amdgpu_device *adev)
@@ -1166,16 +1159,14 @@ int amdgpu_dpm_switch_power_profile(struct amdgpu_device *adev,
 				    enum PP_SMC_POWER_PROFILE type,
 				    bool en)
 {
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
 	int ret = 0;
 
 	if (amdgpu_sriov_vf(adev))
 		return 0;
 
-	if (is_support_sw_smu(adev))
-		ret = smu_switch_power_profile(&adev->smu, type, en);
-	else if (adev->powerplay.pp_funcs &&
-		 adev->powerplay.pp_funcs->switch_power_profile)
-		ret = adev->powerplay.pp_funcs->switch_power_profile(
+	if (pp_funcs && pp_funcs->switch_power_profile)
+		ret = pp_funcs->switch_power_profile(
 			adev->powerplay.pp_handle, type, en);
 
 	return ret;
@@ -1184,13 +1175,11 @@ int amdgpu_dpm_switch_power_profile(struct amdgpu_device *adev,
 int amdgpu_dpm_set_xgmi_pstate(struct amdgpu_device *adev,
 			       uint32_t pstate)
 {
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
 	int ret = 0;
 
-	if (is_support_sw_smu(adev))
-		ret = smu_set_xgmi_pstate(&adev->smu, pstate);
-	else if (adev->powerplay.pp_funcs &&
-		 adev->powerplay.pp_funcs->set_xgmi_pstate)
-		ret = adev->powerplay.pp_funcs->set_xgmi_pstate(adev->powerplay.pp_handle,
+	if (pp_funcs && pp_funcs->set_xgmi_pstate)
+		ret = pp_funcs->set_xgmi_pstate(adev->powerplay.pp_handle,
 								pstate);
 
 	return ret;
@@ -1202,12 +1191,8 @@ int amdgpu_dpm_set_df_cstate(struct amdgpu_device *adev,
 	int ret = 0;
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
 	void *pp_handle = adev->powerplay.pp_handle;
-	struct smu_context *smu = &adev->smu;
 
-	if (is_support_sw_smu(adev))
-		ret = smu_set_df_cstate(smu, cstate);
-	else if (pp_funcs &&
-		 pp_funcs->set_df_cstate)
+	if (pp_funcs && pp_funcs->set_df_cstate)
 		ret = pp_funcs->set_df_cstate(pp_handle, cstate);
 
 	return ret;
@@ -1228,12 +1213,9 @@ int amdgpu_dpm_enable_mgpu_fan_boost(struct amdgpu_device *adev)
 	void *pp_handle = adev->powerplay.pp_handle;
 	const struct amd_pm_funcs *pp_funcs =
 			adev->powerplay.pp_funcs;
-	struct smu_context *smu = &adev->smu;
 	int ret = 0;
 
-	if (is_support_sw_smu(adev))
-		ret = smu_enable_mgpu_fan_boost(smu);
-	else if (pp_funcs && pp_funcs->enable_mgpu_fan_boost)
+	if (pp_funcs && pp_funcs->enable_mgpu_fan_boost)
 		ret = pp_funcs->enable_mgpu_fan_boost(pp_handle);
 
 	return ret;

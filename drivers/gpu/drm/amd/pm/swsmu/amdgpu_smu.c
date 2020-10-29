@@ -1660,10 +1660,11 @@ out:
 	return ret;
 }
 
-int smu_switch_power_profile(struct smu_context *smu,
+int smu_switch_power_profile(void *handle,
 			     enum PP_SMC_POWER_PROFILE type,
 			     bool en)
 {
+	struct smu_context *smu = handle;
 	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
 	long workload;
 	uint32_t index;
@@ -1800,9 +1801,10 @@ int smu_force_clk_levels(struct smu_context *smu,
  * However, the mp1 state setting should still be granted
  * even if the dpm_enabled cleared.
  */
-int smu_set_mp1_state(struct smu_context *smu,
+int smu_set_mp1_state(void *handle,
 		      enum pp_mp1_state mp1_state)
 {
+	struct smu_context *smu = handle;
 	uint16_t msg;
 	int ret;
 
@@ -1839,9 +1841,10 @@ int smu_set_mp1_state(struct smu_context *smu,
 	return ret;
 }
 
-int smu_set_df_cstate(struct smu_context *smu,
+int smu_set_df_cstate(void *handle,
 		      enum pp_df_cstate state)
 {
+	struct smu_context *smu = handle;
 	int ret = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
@@ -2440,9 +2443,10 @@ int smu_display_disable_memory_clock_switch(struct smu_context *smu, bool disabl
 	return ret;
 }
 
-int smu_set_xgmi_pstate(struct smu_context *smu,
+int smu_set_xgmi_pstate(void *handle,
 			uint32_t pstate)
 {
+	struct smu_context *smu = handle;
 	int ret = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
@@ -2589,8 +2593,9 @@ int smu_mode1_reset(struct smu_context *smu)
 	return ret;
 }
 
-int smu_mode2_reset(struct smu_context *smu)
+int smu_mode2_reset(void *handle)
 {
+	struct smu_context *smu = handle;
 	int ret = 0;
 
 	if (!smu->pm_enabled)
@@ -2701,8 +2706,9 @@ ssize_t smu_sys_get_gpu_metrics(struct smu_context *smu,
 	return size;
 }
 
-int smu_enable_mgpu_fan_boost(struct smu_context *smu)
+int smu_enable_mgpu_fan_boost(void *handle)
 {
+	struct smu_context *smu = handle;
 	int ret = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
@@ -2731,5 +2737,14 @@ int smu_gfx_state_change_set(struct smu_context *smu, uint32_t state)
 }
 
 static const struct amd_pm_funcs swsmu_pm_funcs = {
+	/* export for sysfs */
 	.get_performance_level = smu_get_performance_level,
+	.switch_power_profile  = smu_switch_power_profile,
+	/* export to amdgpu */
+	.set_mp1_state         = smu_set_mp1_state,
+	/* export to DC */
+	.enable_mgpu_fan_boost = smu_enable_mgpu_fan_boost,
+	.asic_reset_mode_2     = smu_mode2_reset,
+	.set_df_cstate         = smu_set_df_cstate,
+	.set_xgmi_pstate       = smu_set_xgmi_pstate,
 };
