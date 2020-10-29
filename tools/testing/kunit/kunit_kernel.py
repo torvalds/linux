@@ -84,11 +84,16 @@ class LinuxSourceTreeOperations(object):
 		if build_dir:
 			command += ['O=' + build_dir]
 		try:
-			subprocess.check_output(command, stderr=subprocess.STDOUT)
+			proc = subprocess.Popen(command,
+						stderr=subprocess.PIPE,
+						stdout=subprocess.DEVNULL)
 		except OSError as e:
-			raise BuildError('Could not call execute make: ' + str(e))
-		except subprocess.CalledProcessError as e:
-			raise BuildError(e.output.decode())
+			raise BuildError('Could not call make command: ' + str(e))
+		_, stderr = proc.communicate()
+		if proc.returncode != 0:
+			raise BuildError(stderr.decode())
+		if stderr:  # likely only due to build warnings
+			print(stderr.decode())
 
 	def linux_bin(self, params, timeout, build_dir):
 		"""Runs the Linux UML binary. Must be named 'linux'."""
