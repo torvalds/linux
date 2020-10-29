@@ -224,6 +224,48 @@ static ssize_t rvu_dbg_rsrc_attach_status(struct file *filp,
 
 RVU_DEBUG_FOPS(rsrc_status, rsrc_attach_status, NULL);
 
+static int rvu_dbg_rvu_pf_cgx_map_display(struct seq_file *filp, void *unused)
+{
+	struct rvu *rvu = filp->private;
+	struct pci_dev *pdev = NULL;
+	char cgx[10], lmac[10];
+	struct rvu_pfvf *pfvf;
+	int pf, domain, blkid;
+	u8 cgx_id, lmac_id;
+	u16 pcifunc;
+
+	domain = 2;
+	seq_puts(filp, "PCI dev\t\tRVU PF Func\tNIX block\tCGX\tLMAC\n");
+	for (pf = 0; pf < rvu->hw->total_pfs; pf++) {
+		if (!is_pf_cgxmapped(rvu, pf))
+			continue;
+
+		pdev =  pci_get_domain_bus_and_slot(domain, pf + 1, 0);
+		if (!pdev)
+			continue;
+
+		cgx[0] = 0;
+		lmac[0] = 0;
+		pcifunc = pf << 10;
+		pfvf = rvu_get_pfvf(rvu, pcifunc);
+
+		if (pfvf->nix_blkaddr == BLKADDR_NIX0)
+			blkid = 0;
+		else
+			blkid = 1;
+
+		rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id,
+				    &lmac_id);
+		sprintf(cgx, "CGX%d", cgx_id);
+		sprintf(lmac, "LMAC%d", lmac_id);
+		seq_printf(filp, "%s\t0x%x\t\tNIX%d\t\t%s\t%s\n",
+			   dev_name(&pdev->dev), pcifunc, blkid, cgx, lmac);
+	}
+	return 0;
+}
+
+RVU_DEBUG_SEQ_FOPS(rvu_pf_cgx_map, rvu_pf_cgx_map_display, NULL);
+
 static bool rvu_dbg_is_valid_lf(struct rvu *rvu, int blkaddr, int lf,
 				u16 *pcifunc)
 {
@@ -1766,6 +1808,11 @@ void rvu_dbg_init(struct rvu *rvu)
 	}
 	pfile = debugfs_create_file("rsrc_alloc", 0444, rvu->rvu_dbg.root, rvu,
 				    &rvu_dbg_rsrc_status_fops);
+	if (!pfile)
+		goto create_failed;
+
+	pfile = debugfs_create_file("rvu_pf_cgx_map", 0444, rvu->rvu_dbg.root,
+				    rvu, &rvu_dbg_rvu_pf_cgx_map_fops);
 	if (!pfile)
 		goto create_failed;
 
