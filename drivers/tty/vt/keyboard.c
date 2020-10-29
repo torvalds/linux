@@ -324,12 +324,9 @@ static void put_queue(struct vc_data *vc, int ch)
 	tty_schedule_flip(&vc->port);
 }
 
-static void puts_queue(struct vc_data *vc, char *cp)
+static void puts_queue(struct vc_data *vc, const char *cp)
 {
-	while (*cp) {
-		tty_insert_flip_char(&vc->port, *cp, 0);
-		cp++;
-	}
+	tty_insert_flip_string(&vc->port, cp, strlen(cp));
 	tty_schedule_flip(&vc->port);
 }
 
