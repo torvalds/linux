@@ -8,7 +8,7 @@
 #include <sysdep/mcontext.h>
 #include <sys/ucontext.h>
 
-void __attribute__ ((__section__ (".__syscall_stub")))
+void __section(".__syscall_stub")
 stub_segv_handler(int sig, siginfo_t *info, void *p)
 {
 	ucontext_t *uc = p;

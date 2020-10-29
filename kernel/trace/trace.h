@@ -99,7 +99,7 @@ enum trace_type {
 
 /* Use this for memory failure errors */
 #define MEM_FAIL(condition, fmt, ...) ({			\
-	static bool __section(.data.once) __warned;		\
+	static bool __section(".data.once") __warned;		\
 	int __ret_warn_once = !!(condition);			\
 								\
 	if (unlikely(__ret_warn_once && !__warned)) {		\

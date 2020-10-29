@@ -10,9 +10,9 @@
 
 #ifdef CONFIG_X86_5LEVEL
 /* __pgtable_l5_enabled needs to be in .data to avoid being cleared along with .bss */
-unsigned int __section(.data) __pgtable_l5_enabled;
-unsigned int __section(.data) pgdir_shift = 39;
-unsigned int __section(.data) ptrs_per_p4d = 1;
+unsigned int __section(".data") __pgtable_l5_enabled;
+unsigned int __section(".data") pgdir_shift = 39;
+unsigned int __section(".data") ptrs_per_p4d = 1;
 #endif
 
 struct paging_config {
@@ -30,7 +30,7 @@ static char trampoline_save[TRAMPOLINE_32BIT_SIZE];
  * Avoid putting the pointer into .bss as it will be cleared between
  * paging_prepare() and extract_kernel().
  */
-unsigned long *trampoline_32bit __section(.data);
+unsigned long *trampoline_32bit __section(".data");
 
 extern struct boot_params *boot_params;
 int cmdline_find_option_bool(const char *option);

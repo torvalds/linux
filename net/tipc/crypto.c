@@ -418,7 +418,7 @@ static void tipc_aead_free(struct rcu_head *rp)
 		kfree(head);
 	}
 	free_percpu(aead->tfm_entry);
-	kzfree(aead->key);
+	kfree_sensitive(aead->key);
 	kfree(aead);
 }
 
@@ -2452,7 +2452,7 @@ static void tipc_crypto_work_tx(struct work_struct *work)
 		     tipc_crypto_key_init(tx, skey, PER_NODE_KEY, false);
 		if (likely(rc > 0))
 			rc = tipc_crypto_key_distr(tx, rc, NULL);
-		kzfree(skey);
+		kfree_sensitive(skey);
 	}
 
 	if (unlikely(rc))
