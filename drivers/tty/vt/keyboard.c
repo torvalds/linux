@@ -2026,9 +2026,10 @@ int vt_do_kdgkb_ioctl(int cmd, struct kbsentry __user *user_kdgkb, int perm)
 	int sz, fnw_sz;
 	int delta;
 	char *first_free, *fj, *fnw;
-	int i, j, k;
+	int j, k;
 	int ret;
 	unsigned long flags;
+	unsigned char kb_func;
 
 	if (!capable(CAP_SYS_TTY_CONFIG))
 		perm = 0;
@@ -2045,7 +2046,7 @@ int vt_do_kdgkb_ioctl(int cmd, struct kbsentry __user *user_kdgkb, int perm)
 		goto reterr;
 	}
 	kbs->kb_string[sizeof(kbs->kb_string)-1] = '\0';
-	i = array_index_nospec(kbs->kb_func, MAX_NR_FUNC);
+	kb_func = array_index_nospec(kbs->kb_func, MAX_NR_FUNC);
 
 	switch (cmd) {
 	case KDGKBSENT: {
@@ -2053,7 +2054,7 @@ int vt_do_kdgkb_ioctl(int cmd, struct kbsentry __user *user_kdgkb, int perm)
 		ssize_t len = sizeof(user_kdgkb->kb_string);
 
 		spin_lock_irqsave(&func_buf_lock, flags);
-		len = strlcpy(kbs->kb_string, func_table[i] ? : "", len);
+		len = strlcpy(kbs->kb_string, func_table[kb_func] ? : "", len);
 		spin_unlock_irqrestore(&func_buf_lock, flags);
 
 		ret = copy_to_user(user_kdgkb->kb_string, kbs->kb_string,
@@ -2072,11 +2073,11 @@ int vt_do_kdgkb_ioctl(int cmd, struct kbsentry __user *user_kdgkb, int perm)
 		/* race aginst other writers */
 		again:
 		spin_lock_irqsave(&func_buf_lock, flags);
-		q = func_table[i];
+		q = func_table[kb_func];
 
 		/* fj pointer to next entry after 'q' */
 		first_free = funcbufptr + (funcbufsize - funcbufleft);
-		for (j = i+1; j < MAX_NR_FUNC && !func_table[j]; j++)
+		for (j = kb_func + 1; j < MAX_NR_FUNC && !func_table[j]; j++)
 			;
 		if (j < MAX_NR_FUNC)
 			fj = func_table[j];
@@ -2094,7 +2095,7 @@ int vt_do_kdgkb_ioctl(int cmd, struct kbsentry __user *user_kdgkb, int perm)
 				func_table[k] += delta;
 		    }
 		    if (!q)
-		      func_table[i] = fj;
+		      func_table[kb_func] = fj;
 		    funcbufleft -= delta;
 		} else {			/* allocate a larger buffer */
 		    sz = 256;
@@ -2113,7 +2114,7 @@ int vt_do_kdgkb_ioctl(int cmd, struct kbsentry __user *user_kdgkb, int perm)
 		    }
 
 		    if (!q)
-		      func_table[i] = fj;
+		      func_table[kb_func] = fj;
 		    /* copy data before insertion point to new location */
 		    if (fj > funcbufptr)
 			memmove(fnw, funcbufptr, fj - funcbufptr);
@@ -2135,7 +2136,7 @@ int vt_do_kdgkb_ioctl(int cmd, struct kbsentry __user *user_kdgkb, int perm)
 		    funcbufsize = sz;
 		}
 		/* finally insert item itself */
-		strcpy(func_table[i], kbs->kb_string);
+		strcpy(func_table[kb_func], kbs->kb_string);
 		spin_unlock_irqrestore(&func_buf_lock, flags);
 		break;
 	}
