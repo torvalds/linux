@@ -2312,9 +2312,6 @@ group_sched_out(struct perf_event *group_event,
 		event_sched_out(event, cpuctx, ctx);
 
 	perf_pmu_enable(ctx->pmu);
-
-	if (group_event->attr.exclusive)
-		cpuctx->exclusive = 0;
 }
 
 #define DETACH_GROUP	0x01UL
