@@ -2730,7 +2730,7 @@ crypt_message(struct TCP_Server_Info *server, int num_rqst,
 	if (rc) {
 		cifs_dbg(VFS, "%s: Could not get %scryption key\n", __func__,
 			 enc ? "en" : "de");
-		return 0;
+		return rc;
 	}
 
 	rc = smb3_crypto_aead_allocate(server);

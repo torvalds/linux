@@ -13,13 +13,14 @@
  */
 
 #include <linux/errno.h>
-#include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/param.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
+#include <linux/delay.h>
+#include <linux/workqueue.h>
 
 #include <asm/io.h>
 #include <asm/reg.h>
@@ -39,8 +40,6 @@ static struct tau_temp
 	unsigned char grew;
 } tau[NR_CPUS];
 
-struct timer_list tau_timer;
-
 #undef DEBUG
 
 /* TODO: put these in a /proc interface, with some sanity checks, and maybe
@@ -50,7 +49,7 @@ struct timer_list tau_timer;
 #define step_size		2	/* step size when temp goes out of range */
 #define window_expand		1	/* expand the window by this much */
 /* configurable values for shrinking the window */
-#define shrink_timer	2*HZ	/* period between shrinking the window */
+#define shrink_timer	2000	/* period between shrinking the window */
 #define min_window	2	/* minimum window size, degrees C */
 
 static void set_thresholds(unsigned long cpu)
@@ -111,11 +110,6 @@ static void TAUupdate(int cpu)
 #ifdef DEBUG
 	printk("grew = %d\n", tau[cpu].grew);
 #endif
-
-#ifndef CONFIG_TAU_INT /* tau_timeout will do this if not using interrupts */
-	set_thresholds(cpu);
-#endif
-
 }
 
 #ifdef CONFIG_TAU_INT
@@ -178,26 +172,26 @@ static void tau_timeout(void * info)
 	 * complex sleep code needs to be added. One mtspr every time
 	 * tau_timeout is called is probably not a big deal.
 	 *
-	 * Enable thermal sensor and set up sample interval timer
-	 * need 20 us to do the compare.. until a nice 'cpu_speed' function
-	 * call is implemented, just assume a 500 mhz clock. It doesn't really
-	 * matter if we take too long for a compare since it's all interrupt
-	 * driven anyway.
-	 *
-	 * use a extra long time.. (60 us @ 500 mhz)
+	 * The "PowerPC 740 and PowerPC 750 Microprocessor Datasheet"
+	 * recommends that "the maximum value be set in THRM3 under all
+	 * conditions."
 	 */
-	mtspr(SPRN_THRM3, THRM3_SITV(500*60) | THRM3_E);
+	mtspr(SPRN_THRM3, THRM3_SITV(0x1fff) | THRM3_E);
 
 	local_irq_restore(flags);
 }
 
-static void tau_timeout_smp(struct timer_list *unused)
-{
+static struct workqueue_struct *tau_workq;
 
-	/* schedule ourselves to be run again */
-	mod_timer(&tau_timer, jiffies + shrink_timer) ;
+static void tau_work_func(struct work_struct *work)
+{
+	msleep(shrink_timer);
 	on_each_cpu(tau_timeout, NULL, 0);
+	/* schedule ourselves to be run again */
+	queue_work(tau_workq, work);
 }
+
+DECLARE_WORK(tau_work, tau_work_func);
 
 /*
  * setup the TAU
@@ -231,21 +225,16 @@ static int __init TAU_init(void)
 		return 1;
 	}
 
-
-	/* first, set up the window shrinking timer */
-	timer_setup(&tau_timer, tau_timeout_smp, 0);
-	tau_timer.expires = jiffies + shrink_timer;
-	add_timer(&tau_timer);
+	tau_workq = alloc_workqueue("tau", WQ_UNBOUND, 1);
+	if (!tau_workq)
+		return -ENOMEM;
 
 	on_each_cpu(TAU_init_smp, NULL, 0);
 
-	printk("Thermal assist unit ");
-#ifdef CONFIG_TAU_INT
-	printk("using interrupts, ");
-#else
-	printk("using timers, ");
-#endif
-	printk("shrink_timer: %d jiffies\n", shrink_timer);
+	queue_work(tau_workq, &tau_work);
+
+	pr_info("Thermal assist unit using %s, shrink_timer: %d ms\n",
+		IS_ENABLED(CONFIG_TAU_INT) ? "interrupts" : "workqueue", shrink_timer);
 	tau_initialized = 1;
 
 	return 0;
