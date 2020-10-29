@@ -1165,27 +1165,28 @@ void dcn20_pipe_control_lock(
 
 	temp_pipe = pipe->bottom_pipe;
 	while (!flip_immediate && temp_pipe) {
-	    if (temp_pipe->plane_state != NULL)
-		flip_immediate = temp_pipe->plane_state->flip_immediate;
-	    temp_pipe = temp_pipe->bottom_pipe;
+		if (temp_pipe->plane_state != NULL)
+			flip_immediate = temp_pipe->plane_state->flip_immediate;
+		temp_pipe = temp_pipe->bottom_pipe;
 	}
 
 	if (flip_immediate && lock) {
 		const int TIMEOUT_FOR_FLIP_PENDING = 100000;
 		int i;
 
-		for (i = 0; i < TIMEOUT_FOR_FLIP_PENDING; ++i) {
-			if (!pipe->plane_res.hubp->funcs->hubp_is_flip_pending(pipe->plane_res.hubp))
-				break;
-			udelay(1);
-		}
+		temp_pipe = pipe;
+		while (temp_pipe) {
+			if (temp_pipe->plane_state && temp_pipe->plane_state->flip_immediate) {
+				for (i = 0; i < TIMEOUT_FOR_FLIP_PENDING; ++i) {
+					if (!temp_pipe->plane_res.hubp->funcs->hubp_is_flip_pending(temp_pipe->plane_res.hubp))
+						break;
+					udelay(1);
+				}
 
-		if (pipe->bottom_pipe != NULL) {
-			for (i = 0; i < TIMEOUT_FOR_FLIP_PENDING; ++i) {
-				if (!pipe->bottom_pipe->plane_res.hubp->funcs->hubp_is_flip_pending(pipe->bottom_pipe->plane_res.hubp))
-					break;
-				udelay(1);
+				/* no reason it should take this long for immediate flips */
+				ASSERT(i != TIMEOUT_FOR_FLIP_PENDING);
 			}
+			temp_pipe = temp_pipe->bottom_pipe;
 		}
 	}
 
