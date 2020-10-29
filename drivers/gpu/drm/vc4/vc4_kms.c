@@ -51,7 +51,7 @@ static struct vc4_ctm_state *vc4_get_ctm_state(struct drm_atomic_state *state,
 					       struct drm_private_obj *manager)
 {
 	struct drm_device *dev = state->dev;
-	struct vc4_dev *vc4 = dev->dev_private;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct drm_private_state *priv_state;
 	int ret;
 
