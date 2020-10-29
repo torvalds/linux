@@ -52,7 +52,7 @@
 			reg = <0x0 0x0>;
 			enable-method = "psci";
 		};
-#if 0
+
 		cpu1: cpu@100 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a55";
@@ -73,10 +73,8 @@
 			reg = <0x0 0x300>;
 			enable-method = "psci";
 		};
-#endif
 	};
 
-#if 0
 	arm-pmu {
 		compatible = "arm,cortex-a55-pmu", "arm,armv8-pmuv3";
 		interrupts = <GIC_SPI 228 IRQ_TYPE_LEVEL_HIGH>,
@@ -85,7 +83,6 @@
 			     <GIC_SPI 231 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>;
 	};
-#endif
 
 	mpp_srv: mpp-srv {
 		compatible = "rockchip,mpp-service";
