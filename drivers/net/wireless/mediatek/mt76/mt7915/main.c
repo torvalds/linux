@@ -240,7 +240,7 @@ static void mt7915_remove_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&dev->mt76.mutex);
 	phy->mt76->vif_mask &= ~BIT(mvif->idx);
-	phy->omac_mask &= ~BIT(mvif->omac_idx);
+	phy->omac_mask &= ~BIT_ULL(mvif->omac_idx);
 	mutex_unlock(&dev->mt76.mutex);
 
 	spin_lock_bh(&dev->sta_poll_lock);
