@@ -179,8 +179,6 @@ int arch_make_page_accessible(struct page *page);
 #define HAVE_ARCH_MAKE_PAGE_ACCESSIBLE
 #endif
 
-#endif /* !__ASSEMBLY__ */
-
 #define __PAGE_OFFSET		0x0UL
 #define PAGE_OFFSET		0x0UL
 
@@ -203,6 +201,8 @@ int arch_make_page_accessible(struct page *page);
 #define virt_addr_valid(kaddr)	pfn_valid(virt_to_pfn(kaddr))
 
 #define VM_DATA_DEFAULT_FLAGS	VM_DATA_FLAGS_NON_EXEC
+
+#endif /* !__ASSEMBLY__ */
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/getorder.h>
