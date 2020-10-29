@@ -88,10 +88,10 @@ struct extent_buffer {
 	struct rcu_head rcu_head;
 	pid_t lock_owner;
 	bool lock_recursed;
-	struct rw_semaphore lock;
-
 	/* >= 0 if eb belongs to a log tree, -1 otherwise */
-	short log_index;
+	s8 log_index;
+
+	struct rw_semaphore lock;
 
 	struct page *pages[INLINE_EXTENT_BUFFER_PAGES];
 #ifdef CONFIG_BTRFS_DEBUG
