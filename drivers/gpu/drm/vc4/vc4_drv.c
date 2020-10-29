@@ -324,9 +324,6 @@ static void vc4_drm_unbind(struct device *dev)
 	drm_dev_unregister(drm);
 
 	drm_atomic_helper_shutdown(drm);
-
-	drm_atomic_private_obj_fini(&vc4->load_tracker);
-	drm_atomic_private_obj_fini(&vc4->ctm_manager);
 }
 
 static const struct component_master_ops vc4_drm_ops = {
