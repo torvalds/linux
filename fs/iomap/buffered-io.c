@@ -1374,6 +1374,7 @@ iomap_writepage_map(struct iomap_writepage_ctx *wpc,
 	WARN_ON_ONCE(!wpc->ioend && !list_empty(&submit_list));
 	WARN_ON_ONCE(!PageLocked(page));
 	WARN_ON_ONCE(PageWriteback(page));
+	WARN_ON_ONCE(PageDirty(page));
 
 	/*
 	 * We cannot cancel the ioend directly here on error.  We may have
@@ -1395,21 +1396,9 @@ iomap_writepage_map(struct iomap_writepage_ctx *wpc,
 			unlock_page(page);
 			goto done;
 		}
-
-		/*
-		 * If the page was not fully cleaned, we need to ensure that the
-		 * higher layers come back to it correctly.  That means we need
-		 * to keep the page dirty, and for WB_SYNC_ALL writeback we need
-		 * to ensure the PAGECACHE_TAG_TOWRITE index mark is not removed
-		 * so another attempt to write this page in this writeback sweep
-		 * will be made.
-		 */
-		set_page_writeback_keepwrite(page);
-	} else {
-		clear_page_dirty_for_io(page);
-		set_page_writeback(page);
 	}
 
+	set_page_writeback(page);
 	unlock_page(page);
 
 	/*
