@@ -255,7 +255,7 @@ static ssize_t wmi_sysman_attr_store(struct kobject *kobj, struct attribute *att
 	return ret;
 }
 
-const struct sysfs_ops wmi_sysman_kobj_sysfs_ops = {
+static const struct sysfs_ops wmi_sysman_kobj_sysfs_ops = {
 	.show	= wmi_sysman_attr_show,
 	.store	= wmi_sysman_attr_store,
 };
