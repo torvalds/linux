@@ -203,6 +203,7 @@
 
 			vdda: ldo1 {
 				regulator-name = "vdda";
+				regulator-always-on;
 				regulator-min-microvolt = <2900000>;
 				regulator-max-microvolt = <2900000>;
 				interrupts = <IT_CURLIM_LDO1 0>;
