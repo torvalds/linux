@@ -366,26 +366,30 @@ static bool trap_debug_regs(struct kvm_vcpu *vcpu,
  */
 static void reg_to_dbg(struct kvm_vcpu *vcpu,
 		       struct sys_reg_params *p,
+		       const struct sys_reg_desc *rd,
 		       u64 *dbg_reg)
 {
-	u64 val = p->regval;
+	u64 mask, shift, val;
 
-	if (p->is_32bit) {
-		val &= 0xffffffffUL;
-		val |= ((*dbg_reg >> 32) << 32);
-	}
+	get_access_mask(rd, &mask, &shift);
 
+	val = *dbg_reg;
+	val &= ~mask;
+	val |= (p->regval & (mask >> shift)) << shift;
 	*dbg_reg = val;
+
 	vcpu->arch.flags |= KVM_ARM64_DEBUG_DIRTY;
 }
 
 static void dbg_to_reg(struct kvm_vcpu *vcpu,
 		       struct sys_reg_params *p,
+		       const struct sys_reg_desc *rd,
 		       u64 *dbg_reg)
 {
-	p->regval = *dbg_reg;
-	if (p->is_32bit)
-		p->regval &= 0xffffffffUL;
+	u64 mask, shift;
+
+	get_access_mask(rd, &mask, &shift);
+	p->regval = (*dbg_reg & mask) >> shift;
 }
 
 static bool trap_bvr(struct kvm_vcpu *vcpu,
@@ -395,9 +399,9 @@ static bool trap_bvr(struct kvm_vcpu *vcpu,
 	u64 *dbg_reg = &vcpu->arch.vcpu_debug_state.dbg_bvr[rd->reg];
 
 	if (p->is_write)
-		reg_to_dbg(vcpu, p, dbg_reg);
+		reg_to_dbg(vcpu, p, rd, dbg_reg);
 	else
-		dbg_to_reg(vcpu, p, dbg_reg);
+		dbg_to_reg(vcpu, p, rd, dbg_reg);
 
 	trace_trap_reg(__func__, rd->reg, p->is_write, *dbg_reg);
 
@@ -437,9 +441,9 @@ static bool trap_bcr(struct kvm_vcpu *vcpu,
 	u64 *dbg_reg = &vcpu->arch.vcpu_debug_state.dbg_bcr[rd->reg];
 
 	if (p->is_write)
-		reg_to_dbg(vcpu, p, dbg_reg);
+		reg_to_dbg(vcpu, p, rd, dbg_reg);
 	else
-		dbg_to_reg(vcpu, p, dbg_reg);
+		dbg_to_reg(vcpu, p, rd, dbg_reg);
 
 	trace_trap_reg(__func__, rd->reg, p->is_write, *dbg_reg);
 
@@ -480,9 +484,9 @@ static bool trap_wvr(struct kvm_vcpu *vcpu,
 	u64 *dbg_reg = &vcpu->arch.vcpu_debug_state.dbg_wvr[rd->reg];
 
 	if (p->is_write)
-		reg_to_dbg(vcpu, p, dbg_reg);
+		reg_to_dbg(vcpu, p, rd, dbg_reg);
 	else
-		dbg_to_reg(vcpu, p, dbg_reg);
+		dbg_to_reg(vcpu, p, rd, dbg_reg);
 
 	trace_trap_reg(__func__, rd->reg, p->is_write,
 		vcpu->arch.vcpu_debug_state.dbg_wvr[rd->reg]);
@@ -523,9 +527,9 @@ static bool trap_wcr(struct kvm_vcpu *vcpu,
 	u64 *dbg_reg = &vcpu->arch.vcpu_debug_state.dbg_wcr[rd->reg];
 
 	if (p->is_write)
-		reg_to_dbg(vcpu, p, dbg_reg);
+		reg_to_dbg(vcpu, p, rd, dbg_reg);
 	else
-		dbg_to_reg(vcpu, p, dbg_reg);
+		dbg_to_reg(vcpu, p, rd, dbg_reg);
 
 	trace_trap_reg(__func__, rd->reg, p->is_write, *dbg_reg);
 
@@ -1744,66 +1748,27 @@ static bool trap_dbgidr(struct kvm_vcpu *vcpu,
 	}
 }
 
-static bool trap_debug32(struct kvm_vcpu *vcpu,
-			 struct sys_reg_params *p,
-			 const struct sys_reg_desc *r)
-{
-	if (p->is_write) {
-		vcpu_cp14(vcpu, r->reg) = p->regval;
-		vcpu->arch.flags |= KVM_ARM64_DEBUG_DIRTY;
-	} else {
-		p->regval = vcpu_cp14(vcpu, r->reg);
-	}
-
-	return true;
-}
-
-/* AArch32 debug register mappings
+/*
+ * AArch32 debug register mappings
  *
  * AArch32 DBGBVRn is mapped to DBGBVRn_EL1[31:0]
  * AArch32 DBGBXVRn is mapped to DBGBVRn_EL1[63:32]
  *
- * All control registers and watchpoint value registers are mapped to
- * the lower 32 bits of their AArch64 equivalents. We share the trap
- * handlers with the above AArch64 code which checks what mode the
- * system is in.
+ * None of the other registers share their location, so treat them as
+ * if they were 64bit.
  */
-
-static bool trap_xvr(struct kvm_vcpu *vcpu,
-		     struct sys_reg_params *p,
-		     const struct sys_reg_desc *rd)
-{
-	u64 *dbg_reg = &vcpu->arch.vcpu_debug_state.dbg_bvr[rd->reg];
-
-	if (p->is_write) {
-		u64 val = *dbg_reg;
-
-		val &= 0xffffffffUL;
-		val |= p->regval << 32;
-		*dbg_reg = val;
-
-		vcpu->arch.flags |= KVM_ARM64_DEBUG_DIRTY;
-	} else {
-		p->regval = *dbg_reg >> 32;
-	}
-
-	trace_trap_reg(__func__, rd->reg, p->is_write, *dbg_reg);
-
-	return true;
-}
-
-#define DBG_BCR_BVR_WCR_WVR(n)						\
-	/* DBGBVRn */							\
-	{ Op1( 0), CRn( 0), CRm((n)), Op2( 4), trap_bvr, NULL, n }, 	\
-	/* DBGBCRn */							\
-	{ Op1( 0), CRn( 0), CRm((n)), Op2( 5), trap_bcr, NULL, n },	\
-	/* DBGWVRn */							\
-	{ Op1( 0), CRn( 0), CRm((n)), Op2( 6), trap_wvr, NULL, n },	\
-	/* DBGWCRn */							\
+#define DBG_BCR_BVR_WCR_WVR(n)						      \
+	/* DBGBVRn */							      \
+	{ AA32(LO), Op1( 0), CRn( 0), CRm((n)), Op2( 4), trap_bvr, NULL, n }, \
+	/* DBGBCRn */							      \
+	{ Op1( 0), CRn( 0), CRm((n)), Op2( 5), trap_bcr, NULL, n },	      \
+	/* DBGWVRn */							      \
+	{ Op1( 0), CRn( 0), CRm((n)), Op2( 6), trap_wvr, NULL, n },	      \
+	/* DBGWCRn */							      \
 	{ Op1( 0), CRn( 0), CRm((n)), Op2( 7), trap_wcr, NULL, n }
 
-#define DBGBXVR(n)							\
-	{ Op1( 0), CRn( 1), CRm((n)), Op2( 1), trap_xvr, NULL, n }
+#define DBGBXVR(n)							      \
+	{ AA32(HI), Op1( 0), CRn( 1), CRm((n)), Op2( 1), trap_bvr, NULL, n }
 
 /*
  * Trapped cp14 registers. We generally ignore most of the external
@@ -1821,9 +1786,9 @@ static const struct sys_reg_desc cp14_regs[] = {
 	{ Op1( 0), CRn( 0), CRm( 1), Op2( 0), trap_raz_wi },
 	DBG_BCR_BVR_WCR_WVR(1),
 	/* DBGDCCINT */
-	{ Op1( 0), CRn( 0), CRm( 2), Op2( 0), trap_debug32, NULL, cp14_DBGDCCINT },
+	{ Op1( 0), CRn( 0), CRm( 2), Op2( 0), trap_debug_regs, NULL, MDCCINT_EL1 },
 	/* DBGDSCRext */
-	{ Op1( 0), CRn( 0), CRm( 2), Op2( 2), trap_debug32, NULL, cp14_DBGDSCRext },
+	{ Op1( 0), CRn( 0), CRm( 2), Op2( 2), trap_debug_regs, NULL, MDSCR_EL1 },
 	DBG_BCR_BVR_WCR_WVR(2),
 	/* DBGDTR[RT]Xint */
 	{ Op1( 0), CRn( 0), CRm( 3), Op2( 0), trap_raz_wi },
@@ -1838,7 +1803,7 @@ static const struct sys_reg_desc cp14_regs[] = {
 	{ Op1( 0), CRn( 0), CRm( 6), Op2( 2), trap_raz_wi },
 	DBG_BCR_BVR_WCR_WVR(6),
 	/* DBGVCR */
-	{ Op1( 0), CRn( 0), CRm( 7), Op2( 0), trap_debug32, NULL, cp14_DBGVCR },
+	{ Op1( 0), CRn( 0), CRm( 7), Op2( 0), trap_debug_regs, NULL, DBGVCR32_EL2 },
 	DBG_BCR_BVR_WCR_WVR(7),
 	DBG_BCR_BVR_WCR_WVR(8),
 	DBG_BCR_BVR_WCR_WVR(9),
