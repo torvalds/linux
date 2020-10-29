@@ -1844,7 +1844,7 @@ static void connector_bad_edid(struct drm_connector *connector,
 	if (connector->bad_edid_counter++ && !drm_debug_enabled(DRM_UT_KMS))
 		return;
 
-	drm_warn(connector->dev, "%s: EDID is invalid:\n", connector->name);
+	drm_dbg_kms(connector->dev, "%s: EDID is invalid:\n", connector->name);
 	for (i = 0; i < num_blocks; i++) {
 		u8 *block = edid + i * EDID_LENGTH;
 		char prefix[20];
@@ -1856,7 +1856,7 @@ static void connector_bad_edid(struct drm_connector *connector,
 		else
 			sprintf(prefix, "\t[%02x] GOOD ", i);
 
-		print_hex_dump(KERN_WARNING,
+		print_hex_dump(KERN_DEBUG,
 			       prefix, DUMP_PREFIX_NONE, 16, 1,
 			       block, EDID_LENGTH, false);
 	}
