@@ -111,10 +111,22 @@ static struct kbd_struct kbd_table[MAX_NR_CONSOLES];
 static struct kbd_struct *kbd = kbd_table;
 
 /* maximum values each key_handler can handle */
-static const int max_vals[] = {
-	255, ARRAY_SIZE(func_table) - 1, ARRAY_SIZE(fn_handler) - 1, NR_PAD - 1,
-	NR_DEAD - 1, 255, 3, NR_SHIFT - 1, 255, NR_ASCII - 1, NR_LOCK - 1,
-	255, NR_LOCK - 1, 255, NR_BRL - 1
+static const unsigned char max_vals[] = {
+	[ KT_LATIN	] = 255,
+	[ KT_FN		] = ARRAY_SIZE(func_table) - 1,
+	[ KT_SPEC	] = ARRAY_SIZE(fn_handler) - 1,
+	[ KT_PAD	] = NR_PAD - 1,
+	[ KT_DEAD	] = NR_DEAD - 1,
+	[ KT_CONS	] = 255,
+	[ KT_CUR	] = 3,
+	[ KT_SHIFT	] = NR_SHIFT - 1,
+	[ KT_META	] = 255,
+	[ KT_ASCII	] = NR_ASCII - 1,
+	[ KT_LOCK	] = NR_LOCK - 1,
+	[ KT_LETTER	] = 255,
+	[ KT_SLOCK	] = NR_LOCK - 1,
+	[ KT_DEAD2	] = 255,
+	[ KT_BRL	] = NR_BRL - 1,
 };
 
 static const int NR_TYPES = ARRAY_SIZE(max_vals);
