@@ -1263,8 +1263,8 @@ fail:
 	return ret;
 }
 
-void
-vc4_gem_init(struct drm_device *dev)
+static void vc4_gem_destroy(struct drm_device *dev, void *unused);
+int vc4_gem_init(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 
@@ -1285,10 +1285,11 @@ vc4_gem_init(struct drm_device *dev)
 
 	INIT_LIST_HEAD(&vc4->purgeable.list);
 	mutex_init(&vc4->purgeable.lock);
+
+	return drmm_add_action_or_reset(dev, vc4_gem_destroy, NULL);
 }
 
-void
-vc4_gem_destroy(struct drm_device *dev)
+static void vc4_gem_destroy(struct drm_device *dev, void *unused)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 

@@ -285,11 +285,13 @@ static int vc4_drm_bind(struct device *dev)
 	if (ret)
 		goto dev_put;
 
-	vc4_gem_init(drm);
+	ret = vc4_gem_init(drm);
+	if (ret)
+		goto dev_put;
 
 	ret = component_bind_all(dev, drm);
 	if (ret)
-		goto gem_destroy;
+		goto dev_put;
 
 	ret = vc4_plane_create_additional_planes(drm);
 	if (ret)
@@ -314,8 +316,6 @@ static int vc4_drm_bind(struct device *dev)
 
 unbind_all:
 	component_unbind_all(dev, drm);
-gem_destroy:
-	vc4_gem_destroy(drm);
 dev_put:
 	drm_dev_put(drm);
 	return ret;

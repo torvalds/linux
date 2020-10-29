@@ -874,8 +874,7 @@ extern struct platform_driver vc4_dsi_driver;
 extern const struct dma_fence_ops vc4_fence_ops;
 
 /* vc4_gem.c */
-void vc4_gem_init(struct drm_device *dev);
-void vc4_gem_destroy(struct drm_device *dev);
+int vc4_gem_init(struct drm_device *dev);
 int vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 int vc4_wait_seqno_ioctl(struct drm_device *dev, void *data,
