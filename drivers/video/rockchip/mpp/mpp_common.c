@@ -904,7 +904,20 @@ static int mpp_process_request(struct mpp_session *session,
 	case MPP_CMD_QUERY_HW_ID: {
 		struct mpp_hw_info *hw_info;
 
-		mpp = session->mpp;
+		mpp = NULL;
+		if (session && session->mpp) {
+			mpp = session->mpp;
+		} else {
+			u32 client_type;
+
+			if (get_user(client_type, (u32 __user *)req->data))
+				return -EFAULT;
+
+			mpp_debug(DEBUG_IOCTL, "client %d\n", client_type);
+			client_type = array_index_nospec(client_type, MPP_DEVICE_BUTT);
+			if (test_bit(client_type, &srv->hw_support))
+				mpp = srv->sub_devices[client_type];
+		}
 		if (!mpp)
 			return -EINVAL;
 		hw_info = mpp->var->hw_info;

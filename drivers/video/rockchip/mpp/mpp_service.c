@@ -17,6 +17,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
+#include <linux/nospec.h>
 #include <linux/mfd/syscon.h>
 
 #include "mpp_debug.h"
@@ -223,8 +224,20 @@ static int mpp_show_support_device(struct seq_file *file, void *v)
 
 	seq_puts(file, "---- SUPPORT DEVICES ----\n");
 	for (i = 0; i < MPP_DEVICE_BUTT; i++) {
-		if (test_bit(i, &srv->hw_support))
-			seq_printf(file, "DEVICE[%2d]:%s\n", i, mpp_device_name[i]);
+		struct mpp_dev *mpp;
+		struct mpp_hw_info *hw_info;
+
+		if (test_bit(i, &srv->hw_support)) {
+			mpp = srv->sub_devices[array_index_nospec(i, MPP_DEVICE_BUTT)];
+			if (!mpp)
+				continue;
+
+			seq_printf(file, "DEVICE[%2d]:%-10s", i, mpp_device_name[i]);
+			hw_info = mpp->var->hw_info;
+			if (hw_info->hw_id)
+				seq_printf(file, "HW_ID:0x%08x", hw_info->hw_id);
+			seq_puts(file, "\n");
+		}
 	}
 
 	return 0;
