@@ -1359,6 +1359,9 @@ static int __net_init sctp_defaults_init(struct net *net)
 	/* Set UDP tunneling listening port to 0 by default */
 	net->sctp.udp_port = 0;
 
+	/* Set remote encap port to 0 by default */
+	net->sctp.encap_port = 0;
+
 	/* Set SCOPE policy to enabled */
 	net->sctp.scope_policy = SCTP_SCOPE_POLICY_ENABLE;
 

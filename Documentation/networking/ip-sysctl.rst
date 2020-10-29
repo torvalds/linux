@@ -2642,6 +2642,22 @@ addr_scope_policy - INTEGER
 
 	Default: 1
 
+encap_port - INTEGER
+	The default remote UDP encapsulation port.
+
+	This value is used to set the dest port of the UDP header for the
+	outgoing UDP-encapsulated SCTP packets by default. Users can also
+	change the value for each sock/asoc/transport by using setsockopt.
+	For further information, please refer to RFC6951.
+
+	Note that when connecting to a remote server, the client should set
+	this to the port that the UDP tunneling sock on the peer server is
+	listening to and the local UDP tunneling sock on the client also
+	must be started. On the server, it would get the encap_port from
+	the incoming packet's source port.
+
+	Default: 0
+
 
 ``/proc/sys/net/core/*``
 ========================

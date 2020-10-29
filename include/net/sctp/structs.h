@@ -178,6 +178,8 @@ struct sctp_sock {
 	 */
 	__u32 hbinterval;
 
+	__be16 encap_port;
+
 	/* This is the max_retrans value for new associations. */
 	__u16 pathmaxrxt;
 
@@ -876,6 +878,8 @@ struct sctp_transport {
 	 * indication based on ECNE chunk.
 	 */
 	unsigned long last_time_ecne_reduced;
+
+	__be16 encap_port;
 
 	/* This is the max_retrans value for the transport and will
 	 * be initialized from the assocs value.  This can be changed
@@ -1789,6 +1793,8 @@ struct sctp_association {
 	 * will be inherited by all new transports.
 	 */
 	unsigned long hbinterval;
+
+	__be16 encap_port;
 
 	/* This is the max_retrans value for new transports in the
 	 * association.
