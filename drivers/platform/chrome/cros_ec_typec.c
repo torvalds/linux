@@ -14,6 +14,7 @@
 #include <linux/platform_data/cros_usbpd_notify.h>
 #include <linux/platform_device.h>
 #include <linux/usb/pd.h>
+#include <linux/usb/pd_vdo.h>
 #include <linux/usb/typec.h>
 #include <linux/usb/typec_altmode.h>
 #include <linux/usb/typec_dp.h>
@@ -51,6 +52,7 @@ struct cros_typec_port {
 
 	/* Flag indicating that PD discovery data parsing is completed. */
 	bool disc_done;
+	struct ec_response_typec_discovery *sop_disc;
 };
 
 /* Platform-specific data for the Chrome OS EC Type C controller. */
@@ -298,6 +300,12 @@ static int cros_typec_init_ports(struct cros_typec_data *typec)
 				port_num);
 
 		cros_typec_register_port_altmodes(typec, port_num);
+
+		cros_port->sop_disc = devm_kzalloc(dev, EC_PROTO2_MAX_RESPONSE_SIZE, GFP_KERNEL);
+		if (!cros_port->sop_disc) {
+			ret = -ENOMEM;
+			goto unregister_ports;
+		}
 	}
 
 	return 0;
@@ -582,6 +590,51 @@ static int cros_typec_get_mux_info(struct cros_typec_data *typec, int port_num,
 				     sizeof(req), resp, sizeof(*resp));
 }
 
+static int cros_typec_handle_sop_disc(struct cros_typec_data *typec, int port_num)
+{
+	struct cros_typec_port *port = typec->ports[port_num];
+	struct ec_response_typec_discovery *sop_disc = port->sop_disc;
+	struct ec_params_typec_discovery req = {
+		.port = port_num,
+		.partner_type = TYPEC_PARTNER_SOP,
+	};
+	int ret = 0;
+	int i;
+
+	if (!port->partner) {
+		dev_err(typec->dev,
+			"SOP Discovery received without partner registered, port: %d\n",
+			port_num);
+		ret = -EINVAL;
+		goto disc_exit;
+	}
+
+	memset(sop_disc, 0, EC_PROTO2_MAX_RESPONSE_SIZE);
+	ret = cros_typec_ec_command(typec, 0, EC_CMD_TYPEC_DISCOVERY, &req, sizeof(req),
+				    sop_disc, EC_PROTO2_MAX_RESPONSE_SIZE);
+	if (ret < 0) {
+		dev_err(typec->dev, "Failed to get SOP discovery data for port: %d\n", port_num);
+		goto disc_exit;
+	}
+
+	/* First, update the PD identity VDOs for the partner. */
+	if (sop_disc->identity_count > 0)
+		port->p_identity.id_header = sop_disc->discovery_vdo[0];
+	if (sop_disc->identity_count > 1)
+		port->p_identity.cert_stat = sop_disc->discovery_vdo[1];
+	if (sop_disc->identity_count > 2)
+		port->p_identity.product = sop_disc->discovery_vdo[2];
+
+	/* Copy the remaining identity VDOs till a maximum of 6. */
+	for (i = 3; i < sop_disc->identity_count && i < VDO_MAX_OBJECTS; i++)
+		port->p_identity.vdo[i - 3] = sop_disc->discovery_vdo[i];
+
+	ret = typec_partner_set_identity(port->partner);
+
+disc_exit:
+	return ret;
+}
+
 static void cros_typec_handle_status(struct cros_typec_data *typec, int port_num)
 {
 	struct ec_response_typec_status resp;
@@ -602,7 +655,12 @@ static void cros_typec_handle_status(struct cros_typec_data *typec, int port_num
 
 	/* Handle any events appropriately. */
 	if (resp.events & PD_STATUS_EVENT_SOP_DISC_DONE) {
-		dev_dbg(typec->dev, "SOP Discovery done for port: %d\n", port_num);
+		ret = cros_typec_handle_sop_disc(typec, port_num);
+		if (ret < 0) {
+			dev_err(typec->dev, "Couldn't parse SOP Disc data, port: %d\n", port_num);
+			return;
+		}
+
 		typec->ports[port_num]->disc_done = true;
 	}
 }
