@@ -2004,16 +2004,13 @@ int vt_do_kdsk_ioctl(int cmd, struct kbentry __user *user_kbe, int perm,
 	if (copy_from_user(&kbe, user_kbe, sizeof(struct kbentry)))
 		return -EFAULT;
 
-	if (!capable(CAP_SYS_TTY_CONFIG))
-		perm = 0;
-
 	switch (cmd) {
 	case KDGKBENT:
 		return put_user(vt_kdgkbent(kb->kbdmode, kbe.kb_index,
 					kbe.kb_table),
 				&user_kbe->kb_value);
 	case KDSKBENT:
-		if (!perm)
+		if (!perm || !capable(CAP_SYS_TTY_CONFIG))
 			return -EPERM;
 		return vt_kdskbent(kb->kbdmode, kbe.kb_index, kbe.kb_table,
 				kbe.kb_value);
