@@ -241,8 +241,8 @@ struct ceph_msg {
 };
 
 /* ceph connection fault delay defaults, for exponential backoff */
-#define BASE_DELAY_INTERVAL	(HZ/2)
-#define MAX_DELAY_INTERVAL	(5 * 60 * HZ)
+#define BASE_DELAY_INTERVAL	(HZ / 4)
+#define MAX_DELAY_INTERVAL	(15 * HZ)
 
 /*
  * A single connection with another host.

@@ -2812,6 +2812,9 @@ static int queue_con_delay(struct ceph_connection *con, unsigned long delay)
 		return -ENOENT;
 	}
 
+	if (delay >= HZ)
+		delay = round_jiffies_relative(delay);
+
 	dout("%s %p %lu\n", __func__, con, delay);
 	if (!queue_delayed_work(ceph_msgr_wq, &con->work, delay)) {
 		dout("%s %p - already queued\n", __func__, con);
@@ -2871,7 +2874,7 @@ static bool con_backoff(struct ceph_connection *con)
 	if (!con_flag_test_and_clear(con, CON_FLAG_BACKOFF))
 		return false;
 
-	ret = queue_con_delay(con, round_jiffies_relative(con->delay));
+	ret = queue_con_delay(con, con->delay);
 	if (ret) {
 		dout("%s: con %p FAILED to back off %lu\n", __func__,
 			con, con->delay);
@@ -3018,10 +3021,13 @@ static void con_fault(struct ceph_connection *con)
 	} else {
 		/* retry after a delay. */
 		con->state = CON_STATE_PREOPEN;
-		if (con->delay == 0)
+		if (!con->delay) {
 			con->delay = BASE_DELAY_INTERVAL;
-		else if (con->delay < MAX_DELAY_INTERVAL)
+		} else if (con->delay < MAX_DELAY_INTERVAL) {
 			con->delay *= 2;
+			if (con->delay > MAX_DELAY_INTERVAL)
+				con->delay = MAX_DELAY_INTERVAL;
+		}
 		con_flag_set(con, CON_FLAG_BACKOFF);
 		queue_con(con);
 	}
