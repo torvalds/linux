@@ -694,7 +694,7 @@ static  void cfg80211_scan_req_add_chan(struct cfg80211_scan_request *request,
 static bool cfg80211_find_ssid_match(struct cfg80211_colocated_ap *ap,
 				     struct cfg80211_scan_request *request)
 {
-	u8 i;
+	int i;
 	u32 s_ssid;
 
 	for (i = 0; i < request->n_ssids; i++) {
