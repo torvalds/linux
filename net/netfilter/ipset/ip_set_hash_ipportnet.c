@@ -28,7 +28,7 @@
 /*				5    Comments support added */
 /*				6    Forceadd support added */
 /*				7    skbinfo support added */
-#define IPSET_TYPE_REV_MAX	8 /* bucketsize support added */
+#define IPSET_TYPE_REV_MAX	8 /* bucketsize, initval support added */
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jozsef Kadlecsik <kadlec@netfilter.org>");
@@ -519,6 +519,7 @@ static struct ip_set_type hash_ipportnet_type __read_mostly = {
 	.create_policy	= {
 		[IPSET_ATTR_HASHSIZE]	= { .type = NLA_U32 },
 		[IPSET_ATTR_MAXELEM]	= { .type = NLA_U32 },
+		[IPSET_ATTR_INITVAL]	= { .type = NLA_U32 },
 		[IPSET_ATTR_BUCKETSIZE]	= { .type = NLA_U8 },
 		[IPSET_ATTR_RESIZE]	= { .type = NLA_U8  },
 		[IPSET_ATTR_TIMEOUT]	= { .type = NLA_U32 },

@@ -1301,9 +1301,11 @@ mtype_head(struct ip_set *set, struct sk_buff *skb)
 	if (nla_put_u32(skb, IPSET_ATTR_MARKMASK, h->markmask))
 		goto nla_put_failure;
 #endif
-	if (set->flags & IPSET_CREATE_FLAG_BUCKETSIZE &&
-	    nla_put_u8(skb, IPSET_ATTR_BUCKETSIZE, h->bucketsize))
-		goto nla_put_failure;
+	if (set->flags & IPSET_CREATE_FLAG_BUCKETSIZE) {
+		if (nla_put_u8(skb, IPSET_ATTR_BUCKETSIZE, h->bucketsize) ||
+		    nla_put_net32(skb, IPSET_ATTR_INITVAL, htonl(h->initval)))
+			goto nla_put_failure;
+	}
 	if (nla_put_net32(skb, IPSET_ATTR_REFERENCES, htonl(set->ref)) ||
 	    nla_put_net32(skb, IPSET_ATTR_MEMSIZE, htonl(memsize)) ||
 	    nla_put_net32(skb, IPSET_ATTR_ELEMENTS, htonl(elements)))
@@ -1546,7 +1548,10 @@ IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
 #ifdef IP_SET_HASH_WITH_MARKMASK
 	h->markmask = markmask;
 #endif
-	get_random_bytes(&h->initval, sizeof(h->initval));
+	if (tb[IPSET_ATTR_INITVAL])
+		h->initval = ntohl(nla_get_be32(tb[IPSET_ATTR_INITVAL]));
+	else
+		get_random_bytes(&h->initval, sizeof(h->initval));
 	h->bucketsize = AHASH_MAX_SIZE;
 	if (tb[IPSET_ATTR_BUCKETSIZE]) {
 		h->bucketsize = nla_get_u8(tb[IPSET_ATTR_BUCKETSIZE]);

@@ -92,7 +92,7 @@ enum {
 	/* Reserve empty slots */
 	IPSET_ATTR_CADT_MAX = 16,
 	/* Create-only specific attributes */
-	IPSET_ATTR_GC,
+	IPSET_ATTR_INITVAL,	/* was unused IPSET_ATTR_GC */
 	IPSET_ATTR_HASHSIZE,
 	IPSET_ATTR_MAXELEM,
 	IPSET_ATTR_NETMASK,
