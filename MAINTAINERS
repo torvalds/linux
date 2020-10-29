@@ -4997,7 +4997,8 @@ M:	Mario Limonciello <mario.limonciello@dell.com>
 M:	Prasanth Ksr <prasanth.ksr@dell.com>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
-F:	drivers/platform/x86/dell-wmi-syman/*
+F:	Documentation/ABI/testing/sysfs-class-firmware-attributes
+F:	drivers/platform/x86/dell-wmi-sysman/
 
 DELL WMI NOTIFICATIONS DRIVER
 M:	Matthew Garrett <mjg59@srcf.ucam.org>
