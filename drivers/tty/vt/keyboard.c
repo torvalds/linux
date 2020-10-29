@@ -144,7 +144,7 @@ static bool npadch_active;
 static unsigned int npadch_value;
 
 static unsigned int diacr;
-static char rep;					/* flag telling character repeat */
+static bool rep;			/* flag telling character repeat */
 
 static int shift_state = 0;
 
