@@ -99,6 +99,7 @@ struct bpf_htab {
 	u32 n_buckets;	/* number of hash buckets */
 	u32 elem_size;	/* size of each element in bytes */
 	u32 hashrnd;
+	struct lock_class_key lockdep_key;
 };
 
 /* each htab element is struct htab_elem + key + value */
@@ -136,12 +137,18 @@ static void htab_init_buckets(struct bpf_htab *htab)
 {
 	unsigned i;
 
+	lockdep_register_key(&htab->lockdep_key);
 	for (i = 0; i < htab->n_buckets; i++) {
 		INIT_HLIST_NULLS_HEAD(&htab->buckets[i].head, i);
-		if (htab_use_raw_lock(htab))
+		if (htab_use_raw_lock(htab)) {
 			raw_spin_lock_init(&htab->buckets[i].raw_lock);
-		else
+			lockdep_set_class(&htab->buckets[i].raw_lock,
+					  &htab->lockdep_key);
+		} else {
 			spin_lock_init(&htab->buckets[i].lock);
+			lockdep_set_class(&htab->buckets[i].lock,
+					  &htab->lockdep_key);
+		}
 	}
 }
 
@@ -1312,6 +1319,7 @@ static void htab_map_free(struct bpf_map *map)
 
 	free_percpu(htab->extra_elems);
 	bpf_map_area_free(htab->buckets);
+	lockdep_unregister_key(&htab->lockdep_key);
 	kfree(htab);
 }
 
