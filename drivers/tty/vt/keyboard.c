@@ -135,7 +135,7 @@ static struct input_handler kbd_handler;
 static DEFINE_SPINLOCK(kbd_event_lock);
 static DEFINE_SPINLOCK(led_lock);
 static DEFINE_SPINLOCK(func_buf_lock); /* guard 'func_buf'  and friends */
-static unsigned long key_down[BITS_TO_LONGS(KEY_CNT)];	/* keyboard key bitmap */
+static DECLARE_BITMAP(key_down, KEY_CNT);	/* keyboard key bitmap */
 static unsigned char shift_down[NR_SHIFT];		/* shift state counters.. */
 static bool dead_key_next;
 
