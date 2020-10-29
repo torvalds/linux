@@ -760,6 +760,9 @@ static void vc4_hdmi_encoder_enable(struct drm_encoder *encoder)
 {
 }
 
+#define WIFI_2_4GHz_CH1_MIN_FREQ	2400000000ULL
+#define WIFI_2_4GHz_CH1_MAX_FREQ	2422000000ULL
+
 static int vc4_hdmi_encoder_atomic_check(struct drm_encoder *encoder,
 					 struct drm_crtc_state *crtc_state,
 					 struct drm_connector_state *conn_state)
@@ -767,11 +770,26 @@ static int vc4_hdmi_encoder_atomic_check(struct drm_encoder *encoder,
 	struct drm_display_mode *mode = &crtc_state->adjusted_mode;
 	struct vc4_hdmi *vc4_hdmi = encoder_to_vc4_hdmi(encoder);
 	unsigned long long pixel_rate = mode->clock * 1000;
+	unsigned long long tmds_rate;
 
 	if (vc4_hdmi->variant->unsupported_odd_h_timings &&
 	    ((mode->hdisplay % 2) || (mode->hsync_start % 2) ||
 	     (mode->hsync_end % 2) || (mode->htotal % 2)))
 		return -EINVAL;
+
+	/*
+	 * The 1440p@60 pixel rate is in the same range than the first
+	 * WiFi channel (between 2.4GHz and 2.422GHz with 22MHz
+	 * bandwidth). Slightly lower the frequency to bring it out of
+	 * the WiFi range.
+	 */
+	tmds_rate = pixel_rate * 10;
+	if (vc4_hdmi->disable_wifi_frequencies &&
+	    (tmds_rate >= WIFI_2_4GHz_CH1_MIN_FREQ &&
+	     tmds_rate <= WIFI_2_4GHz_CH1_MAX_FREQ)) {
+		mode->clock = 238560;
+		pixel_rate = mode->clock * 1000;
+	}
 
 	if (pixel_rate > vc4_hdmi->variant->max_pixel_clock)
 		return -EINVAL;
@@ -1718,6 +1736,9 @@ static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
 
 		vc4_hdmi->hpd_active_low = hpd_gpio_flags & OF_GPIO_ACTIVE_LOW;
 	}
+
+	vc4_hdmi->disable_wifi_frequencies =
+		of_property_read_bool(dev->of_node, "wifi-2.4ghz-coexistence");
 
 	pm_runtime_enable(dev);
 

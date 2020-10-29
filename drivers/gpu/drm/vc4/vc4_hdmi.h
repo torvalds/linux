@@ -142,6 +142,14 @@ struct vc4_hdmi {
 	int hpd_gpio;
 	bool hpd_active_low;
 
+	/*
+	 * On some systems (like the RPi4), some modes are in the same
+	 * frequency range than the WiFi channels (1440p@60Hz for
+	 * example). Should we take evasive actions because that system
+	 * has a wifi adapter?
+	 */
+	bool disable_wifi_frequencies;
+
 	struct cec_adapter *cec_adap;
 	struct cec_msg cec_rx_msg;
 	bool cec_tx_ok;
