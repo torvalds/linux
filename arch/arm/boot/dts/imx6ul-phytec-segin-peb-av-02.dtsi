@@ -58,6 +58,7 @@
 		pinctrl-0 = <&pinctrl_stmpe>;
 		interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-parent = <&gpio5>;
+		wakeup-source;
 		status = "disabled";
 
 		stmpe_touchscreen {
