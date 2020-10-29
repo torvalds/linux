@@ -938,20 +938,6 @@ mt7915_mcu_bss_bmc_tlv(struct sk_buff *skb, struct mt7915_phy *phy)
 	}
 }
 
-static void
-mt7915_mcu_bss_sync_tlv(struct sk_buff *skb, struct ieee80211_vif *vif)
-{
-	struct bss_info_sync_mode *sync;
-	struct tlv *tlv;
-
-	tlv = mt7915_mcu_add_tlv(skb, BSS_INFO_SYNC_MODE, sizeof(*sync));
-
-	sync = (struct bss_info_sync_mode *)tlv;
-	sync->bcn_interval = cpu_to_le16(vif->bss_conf.beacon_int);
-	sync->dtim_period = vif->bss_conf.dtim_period;
-	sync->enable = true;
-}
-
 static int
 mt7915_mcu_muar_config(struct mt7915_phy *phy, struct ieee80211_vif *vif,
 		       bool bssid, bool enable)
@@ -1019,9 +1005,8 @@ int mt7915_mcu_add_bss_info(struct mt7915_phy *phy,
 		if (vif->bss_conf.he_support)
 			mt7915_mcu_bss_he_tlv(skb, vif, phy);
 
-		if (mvif->omac_idx < EXT_BSSID_START)
-			mt7915_mcu_bss_sync_tlv(skb, vif);
-		else if (mvif->omac_idx < REPEATER_BSSID_START)
+		if (mvif->omac_idx >= EXT_BSSID_START &&
+		    mvif->omac_idx < REPEATER_BSSID_START)
 			mt7915_mcu_bss_ext_tlv(skb, mvif);
 	}
 

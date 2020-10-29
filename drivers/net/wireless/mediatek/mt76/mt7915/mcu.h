@@ -384,15 +384,6 @@ struct bss_info_ext_bss {
 	u8 rsv[8];
 } __packed;
 
-struct bss_info_sync_mode {
-	__le16 tag;
-	__le16 len;
-	__le16 bcn_interval;
-	u8 enable;
-	u8 dtim_period;
-	u8 rsv[8];
-} __packed;
-
 struct bss_info_bmc_rate {
 	__le16 tag;
 	__le16 len;
@@ -510,7 +501,7 @@ enum {
 	BSS_INFO_LQ_RM,		/* obsoleted */
 	BSS_INFO_EXT_BSS,
 	BSS_INFO_BMC_RATE,	/* for bmc rate control in CR4 */
-	BSS_INFO_SYNC_MODE,
+	BSS_INFO_SYNC_MODE,	/* obsoleted */
 	BSS_INFO_RA,
 	BSS_INFO_HW_AMSDU,
 	BSS_INFO_BSS_COLOR,
@@ -1037,8 +1028,7 @@ enum {
 					 sizeof(struct bss_info_hw_amsdu) +\
 					 sizeof(struct bss_info_he) +	\
 					 sizeof(struct bss_info_bmc_rate) +\
-					 sizeof(struct bss_info_ext_bss) +\
-					 sizeof(struct bss_info_sync_mode))
+					 sizeof(struct bss_info_ext_bss))
 
 #define MT7915_BEACON_UPDATE_SIZE	(sizeof(struct sta_req_hdr) +	\
 					 sizeof(struct bss_info_bcn_csa) + \
