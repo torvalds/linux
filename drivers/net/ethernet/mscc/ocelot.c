@@ -958,7 +958,7 @@ static enum macaccess_entry_type ocelot_classify_mdb(const unsigned char *addr)
 		return ENTRYTYPE_MACv4;
 	if (addr[0] == 0x33 && addr[1] == 0x33)
 		return ENTRYTYPE_MACv6;
-	return ENTRYTYPE_NORMAL;
+	return ENTRYTYPE_LOCKED;
 }
 
 static int ocelot_mdb_get_pgid(struct ocelot *ocelot,
