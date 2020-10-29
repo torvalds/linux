@@ -186,6 +186,8 @@ struct rvu_pfvf {
 	int	cgx_users;  /* number of cgx users - used only by PFs */
 
 	u8	nix_blkaddr; /* BLKADDR_NIX0/1 assigned to this PF */
+	u8	nix_rx_intf; /* NIX0_RX/NIX1_RX interface to NPC */
+	u8	nix_tx_intf; /* NIX0_TX/NIX1_TX interface to NPC */
 };
 
 struct nix_txsch {
@@ -257,6 +259,11 @@ struct rvu_hwinfo {
 	u8	lbk_links;
 	u8	sdp_links;
 	u8	npc_kpus;          /* No of parser units */
+	u8	npc_pkinds;        /* No of port kinds */
+	u8	npc_intfs;         /* No of interfaces */
+	u8	npc_kpu_entries;   /* No of KPU entries */
+	u16	npc_counters;	   /* No of match stats counters */
+	bool	npc_ext_set;	   /* Extended register set */
 
 	struct hw_cap    cap;
 	struct rvu_block block[BLK_COUNT]; /* Block info */
@@ -307,7 +314,7 @@ struct npc_kpu_profile_adapter {
 	const struct npc_lt_def_cfg	*lt_def;
 	const struct npc_kpu_profile_action	*ikpu; /* array[pkinds] */
 	const struct npc_kpu_profile	*kpu; /* array[kpus] */
-	const struct npc_mcam_kex	*mkex;
+	struct npc_mcam_kex		*mkex;
 	size_t				pkinds;
 	size_t				kpus;
 };
@@ -524,6 +531,10 @@ void rvu_npc_get_mcam_entry_alloc_info(struct rvu *rvu, u16 pcifunc,
 void rvu_npc_get_mcam_counter_alloc_info(struct rvu *rvu, u16 pcifunc,
 					 int blkaddr, int *alloc_cnt,
 					 int *enable_cnt);
+bool is_npc_intf_tx(u8 intf);
+bool is_npc_intf_rx(u8 intf);
+bool is_npc_interface_valid(struct rvu *rvu, u8 intf);
+int rvu_npc_get_tx_nibble_cfg(struct rvu *rvu, u64 nibble_ena);
 
 #ifdef CONFIG_DEBUG_FS
 void rvu_dbg_init(struct rvu *rvu);

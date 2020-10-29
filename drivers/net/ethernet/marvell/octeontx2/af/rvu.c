@@ -1276,10 +1276,14 @@ static int rvu_get_nix_blkaddr(struct rvu *rvu, u16 pcifunc)
 	switch (blkaddr) {
 	case BLKADDR_NIX1:
 		pfvf->nix_blkaddr = BLKADDR_NIX1;
+		pfvf->nix_rx_intf = NIX_INTFX_RX(1);
+		pfvf->nix_tx_intf = NIX_INTFX_TX(1);
 		break;
 	case BLKADDR_NIX0:
 	default:
 		pfvf->nix_blkaddr = BLKADDR_NIX0;
+		pfvf->nix_rx_intf = NIX_INTFX_RX(0);
+		pfvf->nix_tx_intf = NIX_INTFX_TX(0);
 		break;
 	}
 
