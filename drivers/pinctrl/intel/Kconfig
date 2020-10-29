@@ -151,4 +151,5 @@ config PINCTRL_TIGERLAKE
 	help
 	  This pinctrl driver provides an interface that allows configuring
 	  of Intel Tiger Lake PCH pins and using them as GPIOs.
+
 endif
