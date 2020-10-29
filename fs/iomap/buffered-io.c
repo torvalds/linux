@@ -1382,14 +1382,15 @@ iomap_writepage_map(struct iomap_writepage_ctx *wpc,
 	 * appropriately.
 	 */
 	if (unlikely(error)) {
+		/*
+		 * Let the filesystem know what portion of the current page
+		 * failed to map. If the page wasn't been added to ioend, it
+		 * won't be affected by I/O completion and we must unlock it
+		 * now.
+		 */
+		if (wpc->ops->discard_page)
+			wpc->ops->discard_page(page, file_offset);
 		if (!count) {
-			/*
-			 * If the current page hasn't been added to ioend, it
-			 * won't be affected by I/O completions and we must
-			 * discard and unlock it right here.
-			 */
-			if (wpc->ops->discard_page)
-				wpc->ops->discard_page(page);
 			ClearPageUptodate(page);
 			unlock_page(page);
 			goto done;
