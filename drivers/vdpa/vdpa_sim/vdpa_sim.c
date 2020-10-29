@@ -38,6 +38,10 @@ static int batch_mapping = 1;
 module_param(batch_mapping, int, 0444);
 MODULE_PARM_DESC(batch_mapping, "Batched mapping 1 -Enable; 0 - Disable");
 
+static char *macaddr;
+module_param(macaddr, charp, 0);
+MODULE_PARM_DESC(macaddr, "Ethernet MAC address");
+
 struct vdpasim_virtqueue {
 	struct vringh vring;
 	struct vringh_kiov iov;
@@ -375,7 +379,15 @@ static struct vdpasim *vdpasim_create(void)
 	if (!vdpasim->buffer)
 		goto err_iommu;
 
-	eth_random_addr(vdpasim->config.mac);
+	if (macaddr) {
+		mac_pton(macaddr, vdpasim->config.mac);
+		if (!is_valid_ether_addr(vdpasim->config.mac)) {
+			ret = -EADDRNOTAVAIL;
+			goto err_iommu;
+		}
+	} else {
+		eth_random_addr(vdpasim->config.mac);
+	}
 
 	vringh_set_iotlb(&vdpasim->vqs[0].vring, vdpasim->iommu);
 	vringh_set_iotlb(&vdpasim->vqs[1].vring, vdpasim->iommu);
