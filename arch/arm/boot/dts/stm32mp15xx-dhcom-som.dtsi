@@ -68,6 +68,7 @@
 		gpio = <&gpiog 3 GPIO_ACTIVE_LOW>;
 		regulator-always-on;
 		regulator-boot-on;
+		vin-supply = <&vdd>;
 	};
 };
 
