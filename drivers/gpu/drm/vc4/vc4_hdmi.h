@@ -62,6 +62,9 @@ struct vc4_hdmi_variant {
 	 */
 	enum vc4_hdmi_phy_channel phy_lane_mapping[4];
 
+	/* The BCM2711 cannot deal with odd horizontal pixel timings */
+	bool unsupported_odd_h_timings;
+
 	/* Callback to get the resources (memory region, interrupts,
 	 * clocks, etc) for that variant.
 	 */

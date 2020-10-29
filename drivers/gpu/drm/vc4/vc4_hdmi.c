@@ -768,6 +768,11 @@ static int vc4_hdmi_encoder_atomic_check(struct drm_encoder *encoder,
 	struct vc4_hdmi *vc4_hdmi = encoder_to_vc4_hdmi(encoder);
 	unsigned long long pixel_rate = mode->clock * 1000;
 
+	if (vc4_hdmi->variant->unsupported_odd_h_timings &&
+	    ((mode->hdisplay % 2) || (mode->hsync_start % 2) ||
+	     (mode->hsync_end % 2) || (mode->htotal % 2)))
+		return -EINVAL;
+
 	if (pixel_rate > vc4_hdmi->variant->max_pixel_clock)
 		return -EINVAL;
 
@@ -779,6 +784,11 @@ vc4_hdmi_encoder_mode_valid(struct drm_encoder *encoder,
 			    const struct drm_display_mode *mode)
 {
 	struct vc4_hdmi *vc4_hdmi = encoder_to_vc4_hdmi(encoder);
+
+	if (vc4_hdmi->variant->unsupported_odd_h_timings &&
+	    ((mode->hdisplay % 2) || (mode->hsync_start % 2) ||
+	     (mode->hsync_end % 2) || (mode->htotal % 2)))
+		return MODE_H_ILLEGAL;
 
 	if ((mode->clock * 1000) > vc4_hdmi->variant->max_pixel_clock)
 		return MODE_CLOCK_HIGH;
@@ -1832,6 +1842,7 @@ static const struct vc4_hdmi_variant bcm2711_hdmi0_variant = {
 		PHY_LANE_2,
 		PHY_LANE_CK,
 	},
+	.unsupported_odd_h_timings	= true,
 
 	.init_resources		= vc5_hdmi_init_resources,
 	.csc_setup		= vc5_hdmi_csc_setup,
@@ -1857,6 +1868,7 @@ static const struct vc4_hdmi_variant bcm2711_hdmi1_variant = {
 		PHY_LANE_CK,
 		PHY_LANE_2,
 	},
+	.unsupported_odd_h_timings	= true,
 
 	.init_resources		= vc5_hdmi_init_resources,
 	.csc_setup		= vc5_hdmi_csc_setup,
