@@ -556,7 +556,7 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 	bool disable_hpd = false;
 	bool valid_test_pattern = false;
 	uint8_t param_nums = 0;
-	/* init with defalut 80bit custom pattern */
+	/* init with default 80bit custom pattern */
 	uint8_t custom_pattern[10] = {
 			0x1f, 0x7c, 0xf0, 0xc1, 0x07,
 			0x1f, 0x7c, 0xf0, 0xc1, 0x07
