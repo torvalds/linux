@@ -6,6 +6,7 @@
  *
  * V0.0X01.0X01 add poweron function.
  * V0.0X01.0X02 add enum_frame_interval function.
+ * V0.0X01.0X03 add quick stream on/off
  */
 
 #include <linux/clk.h>
@@ -25,7 +26,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x02)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x03)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -402,10 +403,22 @@ static long imx323_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct imx323 *imx323 = to_imx323(sd);
 	long ret = 0;
+	u32 stream = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
 		imx323_get_module_inf(imx323, (struct rkmodule_inf *)arg);
+		break;
+	case RKMODULE_SET_QUICK_STREAM:
+
+		stream = *((u32 *)arg);
+
+		if (stream)
+			imx323_write_reg(imx323->client, IMX323_REG_CTRL_MODE,
+				IMX323_REG_VALUE_08BIT, IMX323_MODE_STREAMING);
+		else
+			imx323_write_reg(imx323->client, IMX323_REG_CTRL_MODE,
+				IMX323_REG_VALUE_08BIT, IMX323_MODE_SW_STANDBY);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -423,6 +436,7 @@ static long imx323_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkmodule_inf *inf;
 	struct rkmodule_awb_cfg *cfg;
 	long ret;
+	u32 stream = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -448,6 +462,11 @@ static long imx323_compat_ioctl32(struct v4l2_subdev *sd,
 		if (!ret)
 			ret = imx323_ioctl(sd, cmd, cfg);
 		kfree(cfg);
+		break;
+	case RKMODULE_SET_QUICK_STREAM:
+		ret = copy_from_user(&stream, up, sizeof(u32));
+		if (!ret)
+			ret = imx323_ioctl(sd, cmd, &stream);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;

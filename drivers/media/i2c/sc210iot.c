@@ -5,6 +5,7 @@
  * Copyright (C) 2020 Rockchip Electronics Co., Ltd.
  *
  * V0.0X01.0X00 first version.
+ * V0.0X01.0X01 add quick stream on/off
  */
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -26,7 +27,7 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
-#define DRIVER_VERSION		KERNEL_VERSION(0, 0x01, 0x00)
+#define DRIVER_VERSION		KERNEL_VERSION(0, 0x01, 0x01)
 
 #define OF_CAMERA_PINCTRL_STATE_DEFAULT	"rockchip,camera_default"
 #define OF_CAMERA_PINCTRL_STATE_SLEEP	"rockchip,camera_sleep"
@@ -577,6 +578,7 @@ static long sc210iot_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct sc210iot *sc210iot = to_sc210iot(sd);
 	struct rkmodule_hdr_cfg *hdr_cfg;
 	long ret = 0;
+	u32 stream = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_HDR_CFG:
@@ -588,6 +590,19 @@ static long sc210iot_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		sc210iot_get_module_inf(sc210iot, (struct rkmodule_inf *)arg);
 		break;
 	case RKMODULE_SET_HDR_CFG:
+		break;
+	case RKMODULE_SET_QUICK_STREAM:
+
+		stream = *((u32 *)arg);
+
+		if (stream)
+			ret = sc210iot_write_reg(sc210iot,
+						 SC210IOT_REG_CTRL_MODE,
+						 SC210IOT_MODE_STREAMING);
+		else
+			ret = sc210iot_write_reg(sc210iot,
+						 SC210IOT_REG_CTRL_MODE,
+						 SC210IOT_MODE_SW_STANDBY);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -623,6 +638,7 @@ static long sc210iot_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkmodule_inf *inf;
 	struct rkmodule_hdr_cfg *hdr;
 	long ret = 0;
+	u32 stream = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -648,6 +664,11 @@ static long sc210iot_compat_ioctl32(struct v4l2_subdev *sd,
 		kfree(hdr);
 		break;
 	case RKMODULE_SET_HDR_CFG:
+		break;
+	case RKMODULE_SET_QUICK_STREAM:
+		ret = copy_from_user(&stream, up, sizeof(u32));
+		if (!ret)
+			ret = sc210iot_ioctl(sd, cmd, &stream);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;

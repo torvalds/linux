@@ -4,6 +4,7 @@
  *
  * Copyright (C) 2017 Fuzhou Rockchip Electronics Co., Ltd.
  * V0.0X01.0X01 add enum_frame_interval function.
+ * V0.0X01.0X02 add quick stream on/off
  */
 
 #include <linux/clk.h>
@@ -23,7 +24,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x02)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -1017,10 +1018,20 @@ static long ar0230_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct ar0230 *ar0230 = to_ar0230(sd);
 	long ret = 0;
+	u32 stream = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
 		ar0230_get_module_inf(ar0230, (struct rkmodule_inf *)arg);
+		break;
+	case RKMODULE_SET_QUICK_STREAM:
+		stream = *((u32 *)arg);
+		if (stream)
+			ret = ar0230_write_reg(ar0230->client, AR0230_REG_CTRL_MODE,
+				AR0230_REG_VALUE_16BIT, AR0230_MODE_STREAMING);
+		else
+			ret = ar0230_write_reg(ar0230->client, AR0230_REG_CTRL_MODE,
+				AR0230_REG_VALUE_16BIT, AR0230_MODE_SW_STANDBY);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -1037,6 +1048,7 @@ static long ar0230_compat_ioctl32(struct v4l2_subdev *sd,
 	void __user *up = compat_ptr(arg);
 	struct rkmodule_inf *inf;
 	long ret;
+	u32 stream = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -1050,6 +1062,11 @@ static long ar0230_compat_ioctl32(struct v4l2_subdev *sd,
 		if (!ret)
 			ret = copy_to_user(up, inf, sizeof(*inf));
 		kfree(inf);
+		break;
+	case RKMODULE_SET_QUICK_STREAM:
+		ret = copy_from_user(&stream, up, sizeof(u32));
+		if (!ret)
+			ret = ar0230_ioctl(sd, cmd, &stream);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;

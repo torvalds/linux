@@ -4,6 +4,7 @@
  *
  * Copyright (C) 2019 Fuzhou Rockchip Electronics Co.,Ltd.
  * V0.0X01.0X02 add enum_frame_interval function.
+ * V0.0X01.0X03 add quick stream on/off
  */
 
 #include <linux/clk.h>
@@ -69,7 +70,7 @@
 #define GC0403_EXPOSURE_MIN		1
 
 #define GC0403_NAME			"gc0403"
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x02)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x03)
 
 #define GC0403_XVCLK_FREQ		24000000
 #define GC0403_LINK_FREQ		96000000
@@ -631,10 +632,25 @@ static long gc0403_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct gc0403 *gc0403 = to_gc0403(sd);
 	long ret = 0;
+	u32 stream = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
 		gc0403_get_module_inf(gc0403, (struct rkmodule_inf *)arg);
+		break;
+	case RKMODULE_SET_QUICK_STREAM:
+
+		stream = *((u32 *)arg);
+
+		if (stream) {
+			ret = gc0403_write_reg(gc0403->client, PAGE_SELECT_REG, 0x03);
+			ret |= gc0403_write_reg(gc0403->client, GC0403_REG_MIPI_EN, 0x90);
+			ret |= gc0403_write_reg(gc0403->client, PAGE_SELECT_REG, 0x00);
+		} else {
+			ret = gc0403_write_reg(gc0403->client, PAGE_SELECT_REG, 0x03);
+			ret |= gc0403_write_reg(gc0403->client, GC0403_REG_MIPI_EN, 0x80);
+			ret |= gc0403_write_reg(gc0403->client, PAGE_SELECT_REG, 0x00);
+		}
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -652,6 +668,7 @@ static long gc0403_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkmodule_inf *inf;
 	struct rkmodule_awb_cfg *cfg;
 	long ret;
+	u32 stream = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -684,6 +701,11 @@ static long gc0403_compat_ioctl32(struct v4l2_subdev *sd,
 		else
 			ret = -EFAULT;
 		kfree(cfg);
+		break;
+	case RKMODULE_SET_QUICK_STREAM:
+		ret = copy_from_user(&stream, up, sizeof(u32));
+		if (!ret)
+			ret = gc0403_ioctl(sd, cmd, &stream);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;

@@ -7,6 +7,7 @@
  * V0.0X01.0X01 add poweron function.
  * V0.0X01.0X02 fix mclk issue when probe multiple camera.
  * V0.0X01.0X03 add enum_frame_interval function.
+ * V0.0X01.0X04 add quick stream on/off
  */
 
 #include <linux/clk.h>
@@ -27,7 +28,7 @@
 #include <linux/pinctrl/consumer.h>
 #include "imx258_eeprom_head.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x03)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x04)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -989,6 +990,7 @@ static long imx258_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct imx258 *imx258 = to_imx258(sd);
 	long ret = 0;
+	u32 stream = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -999,6 +1001,21 @@ static long imx258_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		break;
 	case RKMODULE_LSC_CFG:
 		imx258_set_lsc_cfg(imx258, (struct rkmodule_lsc_cfg *)arg);
+		break;
+	case RKMODULE_SET_QUICK_STREAM:
+
+		stream = *((u32 *)arg);
+
+		if (stream)
+			ret = imx258_write_reg(imx258->client,
+					       IMX258_REG_CTRL_MODE,
+					       IMX258_REG_VALUE_08BIT,
+					       IMX258_MODE_STREAMING);
+		else
+			ret = imx258_write_reg(imx258->client,
+					       IMX258_REG_CTRL_MODE,
+					       IMX258_REG_VALUE_08BIT,
+					       IMX258_MODE_SW_STANDBY);
 		break;
 	default:
 		ret = -ENOTTY;
@@ -1017,6 +1034,7 @@ static long imx258_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkmodule_awb_cfg *awb_cfg;
 	struct rkmodule_lsc_cfg *lsc_cfg;
 	long ret = 0;
+	u32 stream = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -1054,6 +1072,11 @@ static long imx258_compat_ioctl32(struct v4l2_subdev *sd,
 		if (!ret)
 			ret = imx258_ioctl(sd, cmd, lsc_cfg);
 		kfree(lsc_cfg);
+		break;
+	case RKMODULE_SET_QUICK_STREAM:
+		ret = copy_from_user(&stream, up, sizeof(u32));
+		if (!ret)
+			ret = imx258_ioctl(sd, cmd, &stream);
 		break;
 	default:
 		ret = -ENOTTY;

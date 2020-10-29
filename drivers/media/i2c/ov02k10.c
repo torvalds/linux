@@ -6,6 +6,7 @@
  *
  * V0.0X01.0X00 first version, only linear mode ready.
  * V0.0X01.0X01 both linear and HDR modes are ready.
+ * V0.0X01.0X02 add quick stream on/off
  */
 
 #include <linux/clk.h>
@@ -27,7 +28,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/rk-preisp.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x02)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -1090,6 +1091,7 @@ static long ov02k10_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	u32 i, h, w;
 	u64 dst_link_freq = 0;
 	u64 dst_pixel_rate = 0;
+	u32 stream = 0;
 
 	switch (cmd) {
 	case PREISP_CMD_SET_HDRAE_EXP:
@@ -1147,6 +1149,17 @@ static long ov02k10_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	case RKMODULE_SET_CONVERSION_GAIN:
 		ret = ov02k10_set_conversion_gain(ov02k10, (u32 *)arg);
 		break;
+	case RKMODULE_SET_QUICK_STREAM:
+
+		stream = *((u32 *)arg);
+
+		if (stream)
+			ret = ov02k10_write_reg(ov02k10->client, OV02K10_REG_CTRL_MODE,
+				OV02K10_REG_VALUE_08BIT, OV02K10_MODE_STREAMING);
+		else
+			ret = ov02k10_write_reg(ov02k10->client, OV02K10_REG_CTRL_MODE,
+				OV02K10_REG_VALUE_08BIT, OV02K10_MODE_SW_STANDBY);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -1166,6 +1179,7 @@ static long ov02k10_compat_ioctl32(struct v4l2_subdev *sd,
 	struct preisp_hdrae_exp_s *hdrae;
 	long ret;
 	u32 cg = 0;
+	u32 stream = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -1232,6 +1246,11 @@ static long ov02k10_compat_ioctl32(struct v4l2_subdev *sd,
 		ret = copy_from_user(&cg, up, sizeof(cg));
 		if (!ret)
 			ret = ov02k10_ioctl(sd, cmd, &cg);
+		break;
+	case RKMODULE_SET_QUICK_STREAM:
+		ret = copy_from_user(&stream, up, sizeof(u32));
+		if (!ret)
+			ret = ov02k10_ioctl(sd, cmd, &stream);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;

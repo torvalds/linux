@@ -5,6 +5,7 @@
  * Copyright (C) 2020 Rockchip Electronics Co., Ltd.
  *
  * V0.0X01.0X00 first version.
+ * V0.0X01.0X01 add quick stream on/off
  */
 //#define DEBUG
 #include <linux/clk.h>
@@ -27,7 +28,7 @@
 #include <linux/rk-preisp.h>
 #include "../platform/rockchip/isp/rkisp_tb_helper.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -1561,6 +1562,7 @@ static long sc4238_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct rkmodule_hdr_cfg *hdr_cfg;
 	long ret = 0;
 	u32 i, h, w;
+	u32 stream = 0;
 
 	switch (cmd) {
 	case PREISP_CMD_SET_HDRAE_EXP:
@@ -1606,6 +1608,17 @@ static long sc4238_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		hdr_cfg->esp.mode = HDR_NORMAL_VC;
 		hdr_cfg->hdr_mode = sc4238->cur_mode->hdr_mode;
 		break;
+	case RKMODULE_SET_QUICK_STREAM:
+
+		stream = *((u32 *)arg);
+
+		if (stream)
+			ret = sc4238_write_reg(sc4238->client, SC4238_REG_CTRL_MODE,
+				SC4238_REG_VALUE_08BIT, SC4238_MODE_STREAMING);
+		else
+			ret = sc4238_write_reg(sc4238->client, SC4238_REG_CTRL_MODE,
+				SC4238_REG_VALUE_08BIT, SC4238_MODE_SW_STANDBY);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -1624,6 +1637,7 @@ static long sc4238_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkmodule_hdr_cfg *hdr;
 	struct preisp_hdrae_exp_s *hdrae;
 	long ret;
+	u32 stream = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -1685,6 +1699,11 @@ static long sc4238_compat_ioctl32(struct v4l2_subdev *sd,
 		if (!ret)
 			ret = sc4238_ioctl(sd, cmd, hdrae);
 		kfree(hdrae);
+		break;
+	case RKMODULE_SET_QUICK_STREAM:
+		ret = copy_from_user(&stream, up, sizeof(u32));
+		if (!ret)
+			ret = sc4238_ioctl(sd, cmd, &stream);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;

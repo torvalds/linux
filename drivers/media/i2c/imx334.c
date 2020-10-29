@@ -7,6 +7,7 @@
  * V0.0X01.0X04
  *	1.add parse mclk pinctrl.
  *	2.add set flip ctrl.
+ * V0.0X01.0X05 add quick stream on/off
  */
 
 #include <linux/clk.h>
@@ -35,7 +36,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/rk-preisp.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x04)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x05)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -1023,6 +1024,7 @@ static long imx334_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	u32 i, h, w;
 	s64 dst_pixel_rate = 0;
 	const struct imx334_mode *mode;
+	u32 stream = 0;
 
 	switch (cmd) {
 	case PREISP_CMD_SET_HDRAE_EXP:
@@ -1083,6 +1085,17 @@ static long imx334_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			}
 		}
 		break;
+	case RKMODULE_SET_QUICK_STREAM:
+
+		stream = *((u32 *)arg);
+
+		if (stream)
+			ret = imx334_write_reg(imx334->client, IMX334_REG_CTRL_MODE,
+				IMX334_REG_VALUE_08BIT, 0);
+		else
+			ret = imx334_write_reg(imx334->client, IMX334_REG_CTRL_MODE,
+				IMX334_REG_VALUE_08BIT, 1);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -1101,6 +1114,7 @@ static long imx334_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkmodule_hdr_cfg *hdr;
 	struct preisp_hdrae_exp_s *hdrae;
 	long ret;
+	u32 stream = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -1152,17 +1166,22 @@ static long imx334_compat_ioctl32(struct v4l2_subdev *sd,
 		kfree(hdr);
 		break;
 	case PREISP_CMD_SET_HDRAE_EXP:
-			hdrae = kzalloc(sizeof(*hdrae), GFP_KERNEL);
-			if (!hdrae) {
-				ret = -ENOMEM;
-				return ret;
-			}
+		hdrae = kzalloc(sizeof(*hdrae), GFP_KERNEL);
+		if (!hdrae) {
+			ret = -ENOMEM;
+			return ret;
+		}
 
-			ret = copy_from_user(hdrae, up, sizeof(*hdrae));
-			if (!ret)
-				ret = imx334_ioctl(sd, cmd, hdrae);
-			kfree(hdrae);
-			break;
+		ret = copy_from_user(hdrae, up, sizeof(*hdrae));
+		if (!ret)
+			ret = imx334_ioctl(sd, cmd, hdrae);
+		kfree(hdrae);
+		break;
+	case RKMODULE_SET_QUICK_STREAM:
+		ret = copy_from_user(&stream, up, sizeof(u32));
+		if (!ret)
+			ret = imx334_ioctl(sd, cmd, &stream);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;

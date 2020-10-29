@@ -10,6 +10,7 @@
  * V0.0X01.0X03 fix gc2145 exposure issues.
  * V0.0X01.0X04 add enum_frame_interval function.
  * V0.0X01.0X05 reduce rkisp1: CIF_ISP_PIC_SIZE_ERROR 0x00000001.
+ * V0.0X01.0X06 add quick stream on/off
  */
 
 #include <linux/clk.h>
@@ -41,7 +42,7 @@
 #include <media/v4l2-mediabus.h>
 #include <media/v4l2-subdev.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x5)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x6)
 #define DRIVER_NAME "gc2145"
 #define GC2145_PIXEL_RATE		(120 * 1000 * 1000)
 
@@ -2543,10 +2544,17 @@ static long gc2145_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct gc2145 *gc2145 = to_gc2145(sd);
 	long ret = 0;
+	u32 stream = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
 		gc2145_get_module_inf(gc2145, (struct rkmodule_inf *)arg);
+		break;
+	case RKMODULE_SET_QUICK_STREAM:
+
+		stream = *((u32 *)arg);
+
+		gc2145_set_streaming(gc2145, !!stream);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -2564,6 +2572,7 @@ static long gc2145_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkmodule_inf *inf;
 	struct rkmodule_awb_cfg *cfg;
 	long ret;
+	u32 stream = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -2589,6 +2598,11 @@ static long gc2145_compat_ioctl32(struct v4l2_subdev *sd,
 		if (!ret)
 			ret = gc2145_ioctl(sd, cmd, cfg);
 		kfree(cfg);
+		break;
+	case RKMODULE_SET_QUICK_STREAM:
+		ret = copy_from_user(&stream, up, sizeof(u32));
+		if (!ret)
+			ret = gc2145_ioctl(sd, cmd, &stream);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;

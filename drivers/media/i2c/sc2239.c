@@ -560,9 +560,8 @@ static long sc2239_compat_ioctl32(struct v4l2_subdev *sd,
 		break;
 	case RKMODULE_SET_QUICK_STREAM:
 		ret = copy_from_user(&stream, up, sizeof(u32));
-		if (!ret) {
+		if (!ret)
 			ret = sc2239_ioctl(sd, cmd, &stream);
-		}
 		break;
 	default:
 		ret = -ENOIOCTLCMD;

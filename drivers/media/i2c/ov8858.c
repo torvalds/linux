@@ -5,6 +5,7 @@
  * v0.1.0x00 : 1. create file.
  * V0.0X01.0X02 fix mclk issue when probe multiple camera.
  * V0.0X01.0X03 add enum_frame_interval function.
+ * V0.0X01.0X04 add quick stream on/off
  */
 
 #include <linux/clk.h>
@@ -34,7 +35,7 @@
 #include <media/v4l2-mediabus.h>
 #include <media/v4l2-subdev.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x03)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x04)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -1799,6 +1800,7 @@ static long ov8858_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct ov8858 *ov8858 = to_ov8858(sd);
 	long ret = 0;
+	u32 stream = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -1809,6 +1811,21 @@ static long ov8858_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		break;
 	case RKMODULE_LSC_CFG:
 		ov8858_set_lsc_cfg(ov8858, (struct rkmodule_lsc_cfg *)arg);
+		break;
+	case RKMODULE_SET_QUICK_STREAM:
+
+		stream = *((u32 *)arg);
+
+		if (stream)
+			ret = ov8858_write_reg(ov8858->client,
+				OV8858_REG_CTRL_MODE,
+				OV8858_REG_VALUE_08BIT,
+				OV8858_MODE_STREAMING);
+		else
+			ret = ov8858_write_reg(ov8858->client,
+				OV8858_REG_CTRL_MODE,
+				OV8858_REG_VALUE_08BIT,
+				OV8858_MODE_SW_STANDBY);
 		break;
 	default:
 		ret = -ENOTTY;
@@ -1827,6 +1844,7 @@ static long ov8858_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkmodule_awb_cfg *awb_cfg;
 	struct rkmodule_lsc_cfg *lsc_cfg;
 	long ret = 0;
+	u32 stream = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -1864,6 +1882,11 @@ static long ov8858_compat_ioctl32(struct v4l2_subdev *sd,
 		if (!ret)
 			ret = ov8858_ioctl(sd, cmd, lsc_cfg);
 		kfree(lsc_cfg);
+		break;
+	case RKMODULE_SET_QUICK_STREAM:
+		ret = copy_from_user(&stream, up, sizeof(u32));
+		if (!ret)
+			ret = ov8858_ioctl(sd, cmd, &stream);
 		break;
 	default:
 		ret = -ENOTTY;

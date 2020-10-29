@@ -4,6 +4,7 @@
  *
  * Copyright (C) 2020 Rockchip Electronics Co., Ltd.
  * V0.0X01.0X01 init driver.
+ * V0.0X01.0X02 add quick stream on/off
  */
 
 #include <linux/clk.h>
@@ -35,7 +36,7 @@
 #include <media/v4l2-mediabus.h>
 #include <media/v4l2-subdev.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x1)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x2)
 #define DRIVER_NAME "gc032a"
 #define GC032A_PIXEL_RATE		(96 * 1000 * 1000)
 //#define GC032A_AUTO_FPS
@@ -752,10 +753,20 @@ static long gc032a_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct gc032a *gc032a = to_gc032a(sd);
 	long ret = 0;
+	u32 stream = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
 		gc032a_get_module_inf(gc032a, (struct rkmodule_inf *)arg);
+		break;
+	case RKMODULE_SET_QUICK_STREAM:
+
+		stream = *((u32 *)arg);
+
+		if (stream)
+			gc032a_set_streaming(gc032a, 0xff);
+		else
+			gc032a_set_streaming(gc032a, 0x00);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -773,6 +784,7 @@ static long gc032a_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkmodule_inf *inf;
 	struct rkmodule_awb_cfg *cfg;
 	long ret;
+	u32 stream = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -799,6 +811,11 @@ static long gc032a_compat_ioctl32(struct v4l2_subdev *sd,
 			ret = gc032a_ioctl(sd, cmd, cfg);
 		kfree(cfg);
 		break;
+	case RKMODULE_SET_QUICK_STREAM:
+		ret = copy_from_user(&stream, up, sizeof(u32));
+		if (!ret)
+			ret = gc032a_ioctl(sd, cmd, &stream);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -824,6 +841,7 @@ static int gc032a_s_stream(struct v4l2_subdev *sd, int on)
 		/* Stop Streaming Sequence */
 		gc032a_set_streaming(gc032a, 0x00);
 		gc032a->streaming = on;
+		goto unlock;
 	}
 
 	gc032a_set_streaming(gc032a, 0xFF);

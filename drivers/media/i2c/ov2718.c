@@ -14,6 +14,7 @@
  *	4.support raw12bit linear/hdr mode
  *	5.implement RKMODULE_SET/GET_HDR_CFG
  * V0.0X01.0X05 group hold launch immediately when set hdr ae.
+ * V0.0X01.0X06 add quick stream on/off
  */
 
 #include <linux/clk.h>
@@ -42,7 +43,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/rk-preisp.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x05)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x06)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -8039,6 +8040,7 @@ static long ov2718_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	u32 s_again, s_dgain, l_again, l_dgain;
 	u32 again, i, h, w;
 	long ret = 0;
+	u32 stream = 0;
 
 	switch (cmd) {
 	case PREISP_CMD_SET_HDRAE_EXP:
@@ -8172,6 +8174,17 @@ static long ov2718_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 				ov2718->cur_mode->hdr_mode, i);
 		}
 		break;
+	case RKMODULE_SET_QUICK_STREAM:
+
+		stream = *((u32 *)arg);
+
+		if (stream)
+			ret = ov2718_write_reg(ov2718->client, OV2718_REG_CTRL_MODE,
+				OV2718_REG_VALUE_08BIT, OV2718_MODE_STREAMING);
+		else
+			ret = ov2718_write_reg(ov2718->client, OV2718_REG_CTRL_MODE,
+				OV2718_REG_VALUE_08BIT, OV2718_MODE_SW_STANDBY);
+		break;
 	default:
 		return -ENOIOCTLCMD;
 	}
@@ -8189,6 +8202,7 @@ static long ov2718_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkmodule_hdr_cfg *hdr;
 	struct preisp_hdrae_exp_s *hdrae;
 	long ret;
+	u32 stream = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -8250,6 +8264,11 @@ static long ov2718_compat_ioctl32(struct v4l2_subdev *sd,
 		if (!ret)
 			ret = ov2718_ioctl(sd, cmd, hdrae);
 		kfree(hdrae);
+		break;
+	case RKMODULE_SET_QUICK_STREAM:
+		ret = copy_from_user(&stream, up, sizeof(u32));
+		if (!ret)
+			ret = ov2718_ioctl(sd, cmd, &stream);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;

@@ -758,6 +758,7 @@ static long gc2093_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct rkmodule_hdr_cfg *hdr_cfg;
 	long ret = 0;
 	u32 i, h, w;
+	u32 stream = 0;
 
 	switch (cmd) {
 	case PREISP_CMD_SET_HDRAE_EXP:
@@ -813,6 +814,17 @@ static long gc2093_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	case RKMODULE_GET_MODULE_INFO:
 		gc2093_get_module_inf(gc2093, (struct rkmodule_inf *)arg);
 		break;
+	case RKMODULE_SET_QUICK_STREAM:
+
+		stream = *((u32 *)arg);
+
+		if (stream)
+			ret = gc2093_write_reg(gc2093, GC2093_REG_CTRL_MODE,
+				GC2093_MODE_STREAMING);
+		else
+			ret = gc2093_write_reg(gc2093, GC2093_REG_CTRL_MODE,
+				GC2093_MODE_SW_STANDBY);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -864,6 +876,7 @@ static long gc2093_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkmodule_hdr_cfg *hdr;
 	struct preisp_hdrae_exp_s *hdrae;
 	long ret = 0;
+	u32 stream = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -913,6 +926,11 @@ static long gc2093_compat_ioctl32(struct v4l2_subdev *sd,
 		if (!ret)
 			ret = gc2093_ioctl(sd, cmd, hdrae);
 		kfree(hdrae);
+		break;
+	case RKMODULE_SET_QUICK_STREAM:
+		ret = copy_from_user(&stream, up, sizeof(u32));
+		if (!ret)
+			ret = gc2093_ioctl(sd, cmd, &stream);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;

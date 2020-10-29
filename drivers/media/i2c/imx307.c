@@ -11,6 +11,7 @@
  * v1.0x01.0x03 update frame rate from 25fps to 30fps
  * v1.0x01.0x04 update max exposure and formula
  *	shs1 = vts - (line + 1)
+ * V0.0X01.0X05 add quick stream on/off
  */
 
 #include <linux/clk.h>
@@ -35,7 +36,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/rk-preisp.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x04)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x05)
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
 #endif
@@ -1116,6 +1117,7 @@ static long imx307_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	long ret = 0;
 	s64 dst_pixel_rate = 0;
 	s32 dst_link_freq = 0;
+	u32 stream = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -1177,6 +1179,21 @@ static long imx307_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		else
 			ret = -ENOIOCTLCMD;
 		break;
+	case RKMODULE_SET_QUICK_STREAM:
+
+		stream = *((u32 *)arg);
+
+		if (stream)
+			ret = imx307_write_reg(imx307->client,
+					       IMX307_REG_CTRL_MODE,
+					       IMX307_REG_VALUE_08BIT,
+					       0);
+		else
+			ret = imx307_write_reg(imx307->client,
+					       IMX307_REG_CTRL_MODE,
+					       IMX307_REG_VALUE_08BIT,
+					       1);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -1195,6 +1212,7 @@ static long imx307_compat_ioctl32(struct v4l2_subdev *sd,
 	struct preisp_hdrae_exp_s *hdrae;
 	long ret;
 	u32 cg = 0;
+	u32 stream = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -1260,6 +1278,11 @@ static long imx307_compat_ioctl32(struct v4l2_subdev *sd,
 		ret = copy_from_user(&cg, up, sizeof(cg));
 		if (!ret)
 			ret = imx307_ioctl(sd, cmd, &cg);
+		break;
+	case RKMODULE_SET_QUICK_STREAM:
+		ret = copy_from_user(&stream, up, sizeof(u32));
+		if (!ret)
+			ret = imx307_ioctl(sd, cmd, &stream);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
