@@ -1750,11 +1750,8 @@ static int cdns3_check_ep_interrupt_proceed(struct cdns3_endpoint *priv_ep)
 
 static void cdns3_disconnect_gadget(struct cdns3_device *priv_dev)
 {
-	if (priv_dev->gadget_driver && priv_dev->gadget_driver->disconnect) {
-		spin_unlock(&priv_dev->lock);
+	if (priv_dev->gadget_driver && priv_dev->gadget_driver->disconnect)
 		priv_dev->gadget_driver->disconnect(&priv_dev->gadget);
-		spin_lock(&priv_dev->lock);
-	}
 }
 
 /**
@@ -1765,6 +1762,7 @@ static void cdns3_disconnect_gadget(struct cdns3_device *priv_dev)
  */
 static void cdns3_check_usb_interrupt_proceed(struct cdns3_device *priv_dev,
 					      u32 usb_ists)
+__must_hold(&priv_dev->lock)
 {
 	int speed = 0;
 
@@ -1789,7 +1787,9 @@ static void cdns3_check_usb_interrupt_proceed(struct cdns3_device *priv_dev,
 
 	/* Disconnection detected */
 	if (usb_ists & (USB_ISTS_DIS2I | USB_ISTS_DISI)) {
+		spin_unlock(&priv_dev->lock);
 		cdns3_disconnect_gadget(priv_dev);
+		spin_lock(&priv_dev->lock);
 		priv_dev->gadget.speed = USB_SPEED_UNKNOWN;
 		usb_gadget_set_state(&priv_dev->gadget, USB_STATE_NOTATTACHED);
 		cdns3_hw_reset_eps_config(priv_dev);
@@ -3275,10 +3275,13 @@ err0:
 }
 
 static int cdns3_gadget_suspend(struct cdns3 *cdns, bool do_wakeup)
+__must_hold(&cdns->lock)
 {
 	struct cdns3_device *priv_dev = cdns->gadget_dev;
 
+	spin_unlock(&cdns->lock);
 	cdns3_disconnect_gadget(priv_dev);
+	spin_lock(&cdns->lock);
 
 	priv_dev->gadget.speed = USB_SPEED_UNKNOWN;
 	usb_gadget_set_state(&priv_dev->gadget, USB_STATE_NOTATTACHED);
