@@ -363,9 +363,10 @@ void show_regs(struct pt_regs *fp)
 
 	pr_info("PC: 0x%08lx (%pS)\n", (long)fp->pc, (void *)fp->pc);
 	pr_info("LR: 0x%08lx (%pS)\n", (long)fp->lr, (void *)fp->lr);
-	pr_info("SP: 0x%08lx\n", (long)fp);
-	pr_info("orig_a0: 0x%08lx\n", fp->orig_a0);
+	pr_info("SP: 0x%08lx\n", (long)fp->usp);
 	pr_info("PSR: 0x%08lx\n", (long)fp->sr);
+	pr_info("orig_a0: 0x%08lx\n", fp->orig_a0);
+	pr_info("PT_REGS: 0x%08lx\n", (long)fp);
 
 	pr_info(" a0: 0x%08lx   a1: 0x%08lx   a2: 0x%08lx   a3: 0x%08lx\n",
 		fp->a0, fp->a1, fp->a2, fp->a3);
