@@ -1259,8 +1259,14 @@ DECLARE_TASKLET_DISABLED_OLD(keyboard_tasklet, kbd_bh);
     defined(CONFIG_PARISC) || defined(CONFIG_SUPERH) ||\
     (defined(CONFIG_ARM) && defined(CONFIG_KEYBOARD_ATKBD) && !defined(CONFIG_ARCH_RPC))
 
-#define HW_RAW(dev) (test_bit(EV_MSC, dev->evbit) && test_bit(MSC_RAW, dev->mscbit) &&\
-			((dev)->id.bustype == BUS_I8042) && ((dev)->id.vendor == 0x0001) && ((dev)->id.product == 0x0001))
+static inline bool kbd_is_hw_raw(const struct input_dev *dev)
+{
+	if (!test_bit(EV_MSC, dev->evbit) || !test_bit(MSC_RAW, dev->mscbit))
+		return false;
+
+	return dev->id.bustype == BUS_I8042 &&
+		dev->id.vendor == 0x0001 && dev->id.product == 0x0001;
+}
 
 static const unsigned short x86_keycodes[256] =
 	{ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
@@ -1345,7 +1351,10 @@ static int emulate_raw(struct vc_data *vc, unsigned int keycode,
 
 #else
 
-#define HW_RAW(dev)	0
+static inline bool kbd_is_hw_raw(const struct input_dev *dev)
+{
+	return false;
+}
 
 static int emulate_raw(struct vc_data *vc, unsigned int keycode, unsigned char up_flag)
 {
@@ -1366,7 +1375,7 @@ static void kbd_rawcode(unsigned char data)
 		put_queue(vc, data);
 }
 
-static void kbd_keycode(unsigned int keycode, int down, int hw_raw)
+static void kbd_keycode(unsigned int keycode, int down, bool hw_raw)
 {
 	struct vc_data *vc = vc_cons[fg_console].d;
 	unsigned short keysym, *key_map;
@@ -1511,10 +1520,11 @@ static void kbd_event(struct input_handle *handle, unsigned int event_type,
 	/* We are called with interrupts disabled, just take the lock */
 	spin_lock(&kbd_event_lock);
 
-	if (event_type == EV_MSC && event_code == MSC_RAW && HW_RAW(handle->dev))
+	if (event_type == EV_MSC && event_code == MSC_RAW &&
+			kbd_is_hw_raw(handle->dev))
 		kbd_rawcode(value);
 	if (event_type == EV_KEY && event_code <= KEY_MAX)
-		kbd_keycode(event_code, value, HW_RAW(handle->dev));
+		kbd_keycode(event_code, value, kbd_is_hw_raw(handle->dev));
 
 	spin_unlock(&kbd_event_lock);
 
