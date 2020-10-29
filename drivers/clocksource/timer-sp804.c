@@ -34,8 +34,7 @@
 #define HISI_TIMER_BGLOAD	0x20
 #define HISI_TIMER_BGLOAD_H	0x24
 
-
-struct sp804_timer __initdata arm_sp804_timer = {
+static struct sp804_timer arm_sp804_timer __initdata = {
 	.load		= TIMER_LOAD,
 	.value		= TIMER_VALUE,
 	.ctrl		= TIMER_CTRL,
@@ -44,7 +43,7 @@ struct sp804_timer __initdata arm_sp804_timer = {
 	.width		= 32,
 };
 
-struct sp804_timer __initdata hisi_sp804_timer = {
+static struct sp804_timer hisi_sp804_timer __initdata = {
 	.load		= HISI_TIMER_LOAD,
 	.load_h		= HISI_TIMER_LOAD_H,
 	.value		= HISI_TIMER_VALUE,
