@@ -517,6 +517,7 @@ int hl_cb_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma)
 	}
 
 	cb->mmap_size = cb->size;
+	vma->vm_pgoff = handle;
 
 	return 0;
 
