@@ -4701,7 +4701,7 @@ static int rtl_open(struct net_device *dev)
 	tp->TxDescArray = dma_alloc_coherent(&pdev->dev, R8169_TX_RING_BYTES,
 					     &tp->TxPhyAddr, GFP_KERNEL);
 	if (!tp->TxDescArray)
-		goto err_pm_runtime_put;
+		goto out;
 
 	tp->RxDescArray = dma_alloc_coherent(&pdev->dev, R8169_RX_RING_BYTES,
 					     &tp->RxPhyAddr, GFP_KERNEL);
@@ -4726,9 +4726,9 @@ static int rtl_open(struct net_device *dev)
 	rtl8169_up(tp);
 	rtl8169_init_counter_offsets(tp);
 	netif_start_queue(dev);
-
-	pm_runtime_put_sync(&pdev->dev);
 out:
+	pm_runtime_put_sync(&pdev->dev);
+
 	return retval;
 
 err_free_irq:
@@ -4744,8 +4744,6 @@ err_free_tx_0:
 	dma_free_coherent(&pdev->dev, R8169_TX_RING_BYTES, tp->TxDescArray,
 			  tp->TxPhyAddr);
 	tp->TxDescArray = NULL;
-err_pm_runtime_put:
-	pm_runtime_put_noidle(&pdev->dev);
 	goto out;
 }
 
