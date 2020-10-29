@@ -5286,7 +5286,7 @@ F:	drivers/hwmon/dme1737.c
 DMI/SMBIOS SUPPORT
 M:	Jean Delvare <jdelvare@suse.com>
 S:	Maintained
-T:	quilt http://jdelvare.nerim.net/devel/linux/jdelvare-dmi/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jdelvare/staging.git dmi-for-next
 F:	Documentation/ABI/testing/sysfs-firmware-dmi-tables
 F:	drivers/firmware/dmi-id.c
 F:	drivers/firmware/dmi_scan.c
