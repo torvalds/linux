@@ -635,7 +635,7 @@ static void stage2_flush_dcache(void *addr, u64 size)
 
 static bool stage2_pte_cacheable(kvm_pte_t pte)
 {
-	u64 memattr = FIELD_GET(KVM_PTE_LEAF_ATTR_LO_S2_MEMATTR, pte);
+	u64 memattr = pte & KVM_PTE_LEAF_ATTR_LO_S2_MEMATTR;
 	return memattr == PAGE_S2_MEMATTR(NORMAL);
 }
 
