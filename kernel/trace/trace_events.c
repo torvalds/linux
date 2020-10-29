@@ -2436,7 +2436,7 @@ void trace_event_eval_update(struct trace_eval_map **map, int len)
 		/*
 		 * Since calls are grouped by systems, the likelyhood that the
 		 * next call in the iteration belongs to the same system as the
-		 * previous call is high. As an optimization, we skip seaching
+		 * previous call is high. As an optimization, we skip searching
 		 * for a map[] that matches the call's system if the last call
 		 * was from the same system. That's what last_i is for. If the
 		 * call has the same system as the previous call, then last_i
@@ -3271,7 +3271,7 @@ create_event_toplevel_files(struct dentry *parent, struct trace_array *tr)
  *
  * When a new instance is created, it needs to set up its events
  * directory, as well as other files associated with events. It also
- * creates the event hierachry in the @parent/events directory.
+ * creates the event hierarchy in the @parent/events directory.
  *
  * Returns 0 on success.
  *

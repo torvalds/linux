@@ -1343,7 +1343,7 @@ static void blk_log_action(struct trace_iterator *iter, const char *act,
 			 * ones now use the 64bit ino as the whole ID and
 			 * no longer use generation.
 			 *
-			 * Regarldess of the content, always output
+			 * Regardless of the content, always output
 			 * "LOW32,HIGH32" so that FILEID_INO32_GEN fid can
 			 * be mapped back to @id on both 64 and 32bit ino
 			 * setups.  See __kernfs_fh_to_dentry().
@@ -1385,7 +1385,7 @@ static void blk_log_dump_pdu(struct trace_seq *s,
 				 i == 0 ? "" : " ", pdu_buf[i]);
 
 		/*
-		 * stop when the rest is just zeroes and indicate so
+		 * stop when the rest is just zeros and indicate so
 		 * with a ".." appended
 		 */
 		if (i == end && end != pdu_len - 1) {

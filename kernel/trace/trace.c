@@ -3118,7 +3118,7 @@ struct trace_buffer_struct {
 static struct trace_buffer_struct *trace_percpu_buffer;
 
 /*
- * Thise allows for lockless recording.  If we're nested too deeply, then
+ * This allows for lockless recording.  If we're nested too deeply, then
  * this returns NULL.
  */
 static char *get_trace_buf(void)

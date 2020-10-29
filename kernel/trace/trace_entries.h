@@ -32,7 +32,7 @@
  *	to be deciphered for the format file. Although these macros
  *	may become out of sync with the internal structure, they
  *	will create a compile error if it happens. Since the
- *	internel structures are just tracing helpers, this is not
+ *	internal structures are just tracing helpers, this is not
  *	an issue.
  *
  *	When an internal structure is used, it should use:

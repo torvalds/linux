@@ -1276,7 +1276,7 @@ static int __create_synth_event(int argc, const char *name, const char **argv)
 
 /**
  * synth_event_create - Create a new synthetic event
- * @name: The name of the new sythetic event
+ * @name: The name of the new synthetic event
  * @fields: An array of type/name field descriptions
  * @n_fields: The number of field descriptions contained in the fields array
  * @mod: The module creating the event, NULL if not created from a module
@@ -1446,7 +1446,7 @@ __synth_event_trace_init(struct trace_event_file *file,
 	 * this code to be called, etc).  Because this is called
 	 * directly by the user, we don't have that but we still need
 	 * to honor not logging when disabled.  For the iterated
-	 * trace case, we save the enabed state upon start and just
+	 * trace case, we save the enabled state upon start and just
 	 * ignore the following data calls.
 	 */
 	if (!(file->flags & EVENT_FILE_FL_ENABLED) ||
