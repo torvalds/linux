@@ -19,7 +19,6 @@ struct sys_reg_params {
 	u8	Op2;
 	u64	regval;
 	bool	is_write;
-	bool	is_aarch32;
 };
 
 struct sys_reg_desc {
