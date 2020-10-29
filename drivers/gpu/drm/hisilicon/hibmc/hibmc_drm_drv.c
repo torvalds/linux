@@ -369,7 +369,7 @@ static void hibmc_pci_remove(struct pci_dev *pdev)
 	drm_dev_put(dev);
 }
 
-static struct pci_device_id hibmc_pci_table[] = {
+static const struct pci_device_id hibmc_pci_table[] = {
 	{ PCI_VDEVICE(HUAWEI, 0x1711) },
 	{0,}
 };
