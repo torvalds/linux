@@ -2021,7 +2021,7 @@ int vt_do_kdsk_ioctl(int cmd, struct kbentry __user *user_kbe, int perm,
 /* FIXME: This one needs untangling */
 int vt_do_kdgkb_ioctl(int cmd, struct kbsentry __user *user_kdgkb, int perm)
 {
-	struct kbsentry *kbs;
+	char *kbs;
 	u_char *q;
 	int sz, fnw_sz;
 	int delta;
@@ -2034,39 +2034,37 @@ int vt_do_kdgkb_ioctl(int cmd, struct kbsentry __user *user_kdgkb, int perm)
 	if (!capable(CAP_SYS_TTY_CONFIG))
 		perm = 0;
 
-	kbs = kmalloc(sizeof(*kbs), GFP_KERNEL);
-	if (!kbs) {
-		ret = -ENOMEM;
-		goto reterr;
-	}
+	if (get_user(kb_func, &user_kdgkb->kb_func))
+		return -EFAULT;
 
-	/* we mostly copy too much here (512bytes), but who cares ;) */
-	if (copy_from_user(kbs, user_kdgkb, sizeof(struct kbsentry))) {
-		ret = -EFAULT;
-		goto reterr;
-	}
-	kbs->kb_string[sizeof(kbs->kb_string)-1] = '\0';
-	kb_func = array_index_nospec(kbs->kb_func, MAX_NR_FUNC);
+	kb_func = array_index_nospec(kb_func, MAX_NR_FUNC);
 
 	switch (cmd) {
 	case KDGKBSENT: {
 		/* size should have been a struct member */
 		ssize_t len = sizeof(user_kdgkb->kb_string);
 
+		kbs = kmalloc(len, GFP_KERNEL);
+		if (!kbs)
+			return -ENOMEM;
+
 		spin_lock_irqsave(&func_buf_lock, flags);
-		len = strlcpy(kbs->kb_string, func_table[kb_func] ? : "", len);
+		len = strlcpy(kbs, func_table[kb_func] ? : "", len);
 		spin_unlock_irqrestore(&func_buf_lock, flags);
 
-		ret = copy_to_user(user_kdgkb->kb_string, kbs->kb_string,
-				len + 1) ? -EFAULT : 0;
+		ret = copy_to_user(user_kdgkb->kb_string, kbs, len + 1) ?
+			-EFAULT : 0;
 
 		goto reterr;
 	}
 	case KDSKBSENT:
-		if (!perm) {
-			ret = -EPERM;
-			goto reterr;
-		}
+		if (!perm)
+			return -EPERM;
+
+		kbs = strndup_user(user_kdgkb->kb_string,
+				sizeof(user_kdgkb->kb_string));
+		if (IS_ERR(kbs))
+			return PTR_ERR(kbs);
 
 		fnw = NULL;
 		fnw_sz = 0;
@@ -2084,7 +2082,7 @@ int vt_do_kdgkb_ioctl(int cmd, struct kbsentry __user *user_kdgkb, int perm)
 		else
 			fj = first_free;
 		/* buffer usage increase by new entry */
-		delta = (q ? -strlen(q) : 1) + strlen(kbs->kb_string);
+		delta = (q ? -strlen(q) : 1) + strlen(kbs);
 
 		if (delta <= funcbufleft) { 	/* it fits in current buf */
 		    if (j < MAX_NR_FUNC) {
@@ -2136,7 +2134,7 @@ int vt_do_kdgkb_ioctl(int cmd, struct kbsentry __user *user_kdgkb, int perm)
 		    funcbufsize = sz;
 		}
 		/* finally insert item itself */
-		strcpy(func_table[kb_func], kbs->kb_string);
+		strcpy(func_table[kb_func], kbs);
 		spin_unlock_irqrestore(&func_buf_lock, flags);
 		break;
 	}
