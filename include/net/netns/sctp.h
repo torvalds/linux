@@ -24,6 +24,7 @@ struct netns_sctp {
 
 	/* UDP tunneling listening sock. */
 	struct sock *udp4_sock;
+	struct sock *udp6_sock;
 	/* UDP tunneling listening port. */
 	int udp_port;
 
