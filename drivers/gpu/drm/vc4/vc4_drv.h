@@ -72,7 +72,7 @@ struct vc4_perfmon {
 };
 
 struct vc4_dev {
-	struct drm_device *dev;
+	struct drm_device base;
 
 	struct vc4_hvs *hvs;
 	struct vc4_v3d *v3d;
@@ -235,7 +235,7 @@ struct vc4_dev {
 static inline struct vc4_dev *
 to_vc4_dev(struct drm_device *dev)
 {
-	return (struct vc4_dev *)dev->dev_private;
+	return container_of(dev, struct vc4_dev, base);
 }
 
 struct vc4_bo {

@@ -314,16 +314,16 @@ vc4_reset_work(struct work_struct *work)
 	struct vc4_dev *vc4 =
 		container_of(work, struct vc4_dev, hangcheck.reset_work);
 
-	vc4_save_hang_state(vc4->dev);
+	vc4_save_hang_state(&vc4->base);
 
-	vc4_reset(vc4->dev);
+	vc4_reset(&vc4->base);
 }
 
 static void
 vc4_hangcheck_elapsed(struct timer_list *t)
 {
 	struct vc4_dev *vc4 = from_timer(vc4, t, hangcheck.timer);
-	struct drm_device *dev = vc4->dev;
+	struct drm_device *dev = &vc4->base;
 	uint32_t ct0ca, ct1ca;
 	unsigned long irqflags;
 	struct vc4_exec_info *bin_exec, *render_exec;
@@ -1000,7 +1000,7 @@ vc4_job_handle_completed(struct vc4_dev *vc4)
 		list_del(&exec->head);
 
 		spin_unlock_irqrestore(&vc4->job_lock, irqflags);
-		vc4_complete_exec(vc4->dev, exec);
+		vc4_complete_exec(&vc4->base, exec);
 		spin_lock_irqsave(&vc4->job_lock, irqflags);
 	}
 
@@ -1258,7 +1258,7 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 	return 0;
 
 fail:
-	vc4_complete_exec(vc4->dev, exec);
+	vc4_complete_exec(&vc4->base, exec);
 
 	return ret;
 }
