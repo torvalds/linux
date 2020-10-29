@@ -59,6 +59,12 @@
 			reg = <0 0xa1100000 0 0xf00000>;
 			no-map;
 		};
+
+		rtos_ipc_memory_region: ipc-memories@a2000000 {
+			reg = <0x00 0xa2000000 0x00 0x00100000>;
+			alignment = <0x1000>;
+			no-map;
+		};
 	};
 
 	gpio-keys {
