@@ -5,6 +5,9 @@
  *  Copyright (C) 1999 - 2003 ARM Limited
  *  Copyright (C) 2000 Deep Blue Solutions Ltd
  */
+
+#define pr_fmt(fmt)    KBUILD_MODNAME ": " fmt
+
 #include <linux/clk.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
@@ -63,13 +66,13 @@ static long __init sp804_get_clock_rate(struct clk *clk, const char *name)
 	if (!clk)
 		clk = clk_get_sys("sp804", name);
 	if (IS_ERR(clk)) {
-		pr_err("sp804: %s clock not found: %ld\n", name, PTR_ERR(clk));
+		pr_err("%s clock not found: %ld\n", name, PTR_ERR(clk));
 		return PTR_ERR(clk);
 	}
 
 	err = clk_prepare_enable(clk);
 	if (err) {
-		pr_err("sp804: clock failed to enable: %d\n", err);
+		pr_err("clock failed to enable: %d\n", err);
 		clk_put(clk);
 		return err;
 	}
@@ -218,7 +221,7 @@ static int __init sp804_clockevents_init(void __iomem *base, unsigned int irq,
 
 	if (request_irq(irq, sp804_timer_interrupt, IRQF_TIMER | IRQF_IRQPOLL,
 			"timer", &sp804_clockevent))
-		pr_err("%s: request_irq() failed\n", "timer");
+		pr_err("request_irq() failed\n");
 	clockevents_config_and_register(evt, rate, 0xf, 0xffffffff);
 
 	return 0;
@@ -280,7 +283,7 @@ static int __init sp804_of_init(struct device_node *np, struct sp804_timer *time
 	if (of_clk_get_parent_count(np) == 3) {
 		clk2 = of_clk_get(np, 1);
 		if (IS_ERR(clk2)) {
-			pr_err("sp804: %pOFn clock not found: %d\n", np,
+			pr_err("%pOFn clock not found: %d\n", np,
 				(int)PTR_ERR(clk2));
 			clk2 = NULL;
 		}
