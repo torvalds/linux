@@ -149,5 +149,3 @@ void fbcon_set_tileops(struct vc_data *vc, struct fb_info *info)
 		info->tileops->fb_settile(info, &map);
 	}
 }
-
-EXPORT_SYMBOL(fbcon_set_tileops);

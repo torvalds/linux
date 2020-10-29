@@ -109,4 +109,3 @@ void fbcon_set_rotate(struct fbcon_ops *ops)
 		break;
 	}
 }
-EXPORT_SYMBOL(fbcon_set_rotate);
