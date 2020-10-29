@@ -48,6 +48,9 @@ struct cros_typec_port {
 
 	/* Port alt modes. */
 	struct typec_altmode p_altmode[CROS_EC_ALTMODE_MAX];
+
+	/* Flag indicating that PD discovery data parsing is completed. */
+	bool disc_done;
 };
 
 /* Platform-specific data for the Chrome OS EC Type C controller. */
@@ -60,6 +63,7 @@ struct cros_typec_data {
 	struct cros_typec_port *ports[EC_USB_PD_MAX_PORTS];
 	struct notifier_block nb;
 	struct work_struct port_work;
+	bool typec_cmd_supported;
 };
 
 static int cros_typec_parse_port_props(struct typec_capability *cap,
@@ -182,6 +186,7 @@ static void cros_typec_remove_partner(struct cros_typec_data *typec,
 	typec_unregister_partner(port->partner);
 	port->partner = NULL;
 	memset(&port->p_identity, 0, sizeof(port->p_identity));
+	port->disc_done = false;
 }
 
 static void cros_unregister_ports(struct cros_typec_data *typec)
@@ -577,6 +582,31 @@ static int cros_typec_get_mux_info(struct cros_typec_data *typec, int port_num,
 				     sizeof(req), resp, sizeof(*resp));
 }
 
+static void cros_typec_handle_status(struct cros_typec_data *typec, int port_num)
+{
+	struct ec_response_typec_status resp;
+	struct ec_params_typec_status req = {
+		.port = port_num,
+	};
+	int ret;
+
+	ret = cros_typec_ec_command(typec, 0, EC_CMD_TYPEC_STATUS, &req, sizeof(req),
+				    &resp, sizeof(resp));
+	if (ret < 0) {
+		dev_warn(typec->dev, "EC_CMD_TYPEC_STATUS failed for port: %d\n", port_num);
+		return;
+	}
+
+	if (typec->ports[port_num]->disc_done)
+		return;
+
+	/* Handle any events appropriately. */
+	if (resp.events & PD_STATUS_EVENT_SOP_DISC_DONE) {
+		dev_dbg(typec->dev, "SOP Discovery done for port: %d\n", port_num);
+		typec->ports[port_num]->disc_done = true;
+	}
+}
+
 static int cros_typec_port_update(struct cros_typec_data *typec, int port_num)
 {
 	struct ec_params_usb_pd_control req;
@@ -612,6 +642,9 @@ static int cros_typec_port_update(struct cros_typec_data *typec, int port_num)
 	else
 		cros_typec_set_port_params_v0(typec, port_num,
 			(struct ec_response_usb_pd_control *) &resp);
+
+	if (typec->typec_cmd_supported)
+		cros_typec_handle_status(typec, port_num);
 
 	/* Update the switches if they exist, according to requested state */
 	ret = cros_typec_get_mux_info(typec, port_num, &mux_resp);
@@ -659,6 +692,23 @@ static int cros_typec_get_cmd_version(struct cros_typec_data *typec)
 		typec->pd_ctrl_ver);
 
 	return 0;
+}
+
+/* Check the EC feature flags to see if TYPEC_* commands are supported. */
+static int cros_typec_cmds_supported(struct cros_typec_data *typec)
+{
+	struct ec_response_get_features resp = {};
+	int ret;
+
+	ret = cros_typec_ec_command(typec, 0, EC_CMD_GET_FEATURES, NULL, 0,
+				    &resp, sizeof(resp));
+	if (ret < 0) {
+		dev_warn(typec->dev,
+			 "Failed to get features, assuming typec commands unsupported.\n");
+		return 0;
+	}
+
+	return resp.flags[EC_FEATURE_TYPEC_CMD / 32] & EC_FEATURE_MASK_1(EC_FEATURE_TYPEC_CMD);
 }
 
 static void cros_typec_port_work(struct work_struct *work)
@@ -719,6 +769,8 @@ static int cros_typec_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to get PD command version info\n");
 		return ret;
 	}
+
+	typec->typec_cmd_supported = !!cros_typec_cmds_supported(typec);
 
 	ret = cros_typec_ec_command(typec, 0, EC_CMD_USB_PD_PORTS, NULL, 0,
 				    &resp, sizeof(resp));
