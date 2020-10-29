@@ -49,8 +49,6 @@
 
 #include <asm/irq_regs.h>
 
-extern void ctrl_alt_del(void);
-
 /*
  * Exported functions/variables
  */
