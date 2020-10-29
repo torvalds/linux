@@ -20,7 +20,6 @@ struct sys_reg_params {
 	u64	regval;
 	bool	is_write;
 	bool	is_aarch32;
-	bool	is_32bit;	/* Only valid if is_aarch32 is true */
 };
 
 struct sys_reg_desc {
