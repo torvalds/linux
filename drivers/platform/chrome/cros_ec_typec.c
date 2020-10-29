@@ -329,74 +329,6 @@ static int cros_typec_ec_command(struct cros_typec_data *typec,
 	return ret;
 }
 
-static void cros_typec_set_port_params_v0(struct cros_typec_data *typec,
-		int port_num, struct ec_response_usb_pd_control *resp)
-{
-	struct typec_port *port = typec->ports[port_num]->port;
-	enum typec_orientation polarity;
-
-	if (!resp->enabled)
-		polarity = TYPEC_ORIENTATION_NONE;
-	else if (!resp->polarity)
-		polarity = TYPEC_ORIENTATION_NORMAL;
-	else
-		polarity = TYPEC_ORIENTATION_REVERSE;
-
-	typec_set_pwr_role(port, resp->role ? TYPEC_SOURCE : TYPEC_SINK);
-	typec_set_orientation(port, polarity);
-}
-
-static void cros_typec_set_port_params_v1(struct cros_typec_data *typec,
-		int port_num, struct ec_response_usb_pd_control_v1 *resp)
-{
-	struct typec_port *port = typec->ports[port_num]->port;
-	enum typec_orientation polarity;
-	bool pd_en;
-	int ret;
-
-	if (!(resp->enabled & PD_CTRL_RESP_ENABLED_CONNECTED))
-		polarity = TYPEC_ORIENTATION_NONE;
-	else if (!resp->polarity)
-		polarity = TYPEC_ORIENTATION_NORMAL;
-	else
-		polarity = TYPEC_ORIENTATION_REVERSE;
-	typec_set_orientation(port, polarity);
-	typec_set_data_role(port, resp->role & PD_CTRL_RESP_ROLE_DATA ?
-			TYPEC_HOST : TYPEC_DEVICE);
-	typec_set_pwr_role(port, resp->role & PD_CTRL_RESP_ROLE_POWER ?
-			TYPEC_SOURCE : TYPEC_SINK);
-	typec_set_vconn_role(port, resp->role & PD_CTRL_RESP_ROLE_VCONN ?
-			TYPEC_SOURCE : TYPEC_SINK);
-
-	/* Register/remove partners when a connect/disconnect occurs. */
-	if (resp->enabled & PD_CTRL_RESP_ENABLED_CONNECTED) {
-		if (typec->ports[port_num]->partner)
-			return;
-
-		pd_en = resp->enabled & PD_CTRL_RESP_ENABLED_PD_CAPABLE;
-		ret = cros_typec_add_partner(typec, port_num, pd_en);
-		if (ret)
-			dev_warn(typec->dev,
-				 "Failed to register partner on port: %d\n",
-				 port_num);
-	} else {
-		if (!typec->ports[port_num]->partner)
-			return;
-		cros_typec_remove_partner(typec, port_num);
-	}
-}
-
-static int cros_typec_get_mux_info(struct cros_typec_data *typec, int port_num,
-				   struct ec_response_usb_pd_mux_info *resp)
-{
-	struct ec_params_usb_pd_mux_info req = {
-		.port = port_num,
-	};
-
-	return cros_typec_ec_command(typec, 0, EC_CMD_USB_PD_MUX_INFO, &req,
-				     sizeof(req), resp, sizeof(*resp));
-}
-
 static int cros_typec_usb_safe_state(struct cros_typec_port *port)
 {
 	port->state.mode = TYPEC_STATE_SAFE;
@@ -571,6 +503,74 @@ static int cros_typec_configure_mux(struct cros_typec_data *typec, int port_num,
 	}
 
 	return ret;
+}
+
+static void cros_typec_set_port_params_v0(struct cros_typec_data *typec,
+		int port_num, struct ec_response_usb_pd_control *resp)
+{
+	struct typec_port *port = typec->ports[port_num]->port;
+	enum typec_orientation polarity;
+
+	if (!resp->enabled)
+		polarity = TYPEC_ORIENTATION_NONE;
+	else if (!resp->polarity)
+		polarity = TYPEC_ORIENTATION_NORMAL;
+	else
+		polarity = TYPEC_ORIENTATION_REVERSE;
+
+	typec_set_pwr_role(port, resp->role ? TYPEC_SOURCE : TYPEC_SINK);
+	typec_set_orientation(port, polarity);
+}
+
+static void cros_typec_set_port_params_v1(struct cros_typec_data *typec,
+		int port_num, struct ec_response_usb_pd_control_v1 *resp)
+{
+	struct typec_port *port = typec->ports[port_num]->port;
+	enum typec_orientation polarity;
+	bool pd_en;
+	int ret;
+
+	if (!(resp->enabled & PD_CTRL_RESP_ENABLED_CONNECTED))
+		polarity = TYPEC_ORIENTATION_NONE;
+	else if (!resp->polarity)
+		polarity = TYPEC_ORIENTATION_NORMAL;
+	else
+		polarity = TYPEC_ORIENTATION_REVERSE;
+	typec_set_orientation(port, polarity);
+	typec_set_data_role(port, resp->role & PD_CTRL_RESP_ROLE_DATA ?
+			TYPEC_HOST : TYPEC_DEVICE);
+	typec_set_pwr_role(port, resp->role & PD_CTRL_RESP_ROLE_POWER ?
+			TYPEC_SOURCE : TYPEC_SINK);
+	typec_set_vconn_role(port, resp->role & PD_CTRL_RESP_ROLE_VCONN ?
+			TYPEC_SOURCE : TYPEC_SINK);
+
+	/* Register/remove partners when a connect/disconnect occurs. */
+	if (resp->enabled & PD_CTRL_RESP_ENABLED_CONNECTED) {
+		if (typec->ports[port_num]->partner)
+			return;
+
+		pd_en = resp->enabled & PD_CTRL_RESP_ENABLED_PD_CAPABLE;
+		ret = cros_typec_add_partner(typec, port_num, pd_en);
+		if (ret)
+			dev_warn(typec->dev,
+				 "Failed to register partner on port: %d\n",
+				 port_num);
+	} else {
+		if (!typec->ports[port_num]->partner)
+			return;
+		cros_typec_remove_partner(typec, port_num);
+	}
+}
+
+static int cros_typec_get_mux_info(struct cros_typec_data *typec, int port_num,
+				   struct ec_response_usb_pd_mux_info *resp)
+{
+	struct ec_params_usb_pd_mux_info req = {
+		.port = port_num,
+	};
+
+	return cros_typec_ec_command(typec, 0, EC_CMD_USB_PD_MUX_INFO, &req,
+				     sizeof(req), resp, sizeof(*resp));
 }
 
 static int cros_typec_port_update(struct cros_typec_data *typec, int port_num)
