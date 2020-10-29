@@ -368,7 +368,7 @@ mcp251xfd_regmap_crc_read(void *context,
 		 * to the caller. It will take care of both cases.
 		 *
 		 */
-		if (reg == MCP251XFD_REG_OSC) {
+		if (reg == MCP251XFD_REG_OSC && val_len == sizeof(__le32)) {
 			err = 0;
 			goto out;
 		}
