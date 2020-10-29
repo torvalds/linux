@@ -697,7 +697,7 @@ u32 sfc_nand_read_page_raw(u8 cs, u32 addr, u32 *p_page_buf)
 {
 	u32 page_size = SFC_NAND_SECTOR_FULL_SIZE * p_nand_info->sec_per_page;
 
-	return sfc_nand_read(addr, gp_page_buf, 0, page_size);
+	return sfc_nand_read(addr, p_page_buf, 0, page_size);
 }
 
 u32 sfc_nand_read_page(u8 cs, u32 addr, u32 *p_data, u32 *p_spare)

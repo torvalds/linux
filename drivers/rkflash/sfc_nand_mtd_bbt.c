@@ -7,8 +7,10 @@
  *	Peter Pan <peterpandong@micron.com>
  */
 
+#include <linux/mtd/mtd.h>
 #include <linux/slab.h>
 
+#include "sfc_nand.h"
 #include "sfc_nand_mtd.h"
 
 #ifdef CONFIG_MTD_NAND_BBT_USING_FLASH
@@ -44,12 +46,13 @@ static int nanddev_read_bbt(struct snand_mtd_dev *nand, u32 block, bool update)
 	unsigned int nbytes = DIV_ROUND_UP(nblocks * bits_per_block,
 					   BITS_PER_LONG) * sizeof(*nand->bbt.cache);
 	struct mtd_info *mtd = snanddev_to_mtd(nand);
-	u8 *data_buf, *oob_buf;
+	u8 *data_buf, *oob_buf, *temp_buf;
 	struct nanddev_bbt_info *bbt_info;
 	struct mtd_oob_ops ops;
-	int bbt_page_num;
+	u32 bbt_page_num;
 	int ret = 0;
 	unsigned int version = 0;
+	u32 page_addr, i;
 
 	if (!nand->bbt.cache)
 		return -ENOMEM;
@@ -74,7 +77,7 @@ static int nanddev_read_bbt(struct snand_mtd_dev *nand, u32 block, bool update)
 	bbt_info = (struct nanddev_bbt_info *)(data_buf + nbytes);
 
 	memset(&ops, 0, sizeof(struct mtd_oob_ops));
-	ops.mode = MTD_OPS_RAW;
+	ops.mode = MTD_OPS_PLACE_OOB;
 	ops.datbuf = data_buf;
 	ops.len = bbt_page_num * mtd->writesize;
 	ops.oobbuf = oob_buf;
@@ -82,14 +85,27 @@ static int nanddev_read_bbt(struct snand_mtd_dev *nand, u32 block, bool update)
 	ops.ooboffs = 0;
 
 	/* Store one entry for each block */
-	ret = sfc_nand_read_mtd(mtd, block * mtd->erasesize, &ops);
-	if (ret < 0) {
-		pr_err("%s fail %d\n", __func__, ret);
-		ret = -EIO;
-		goto out;
-	} else {
-		ret = 0;
+	temp_buf = kzalloc(mtd->writesize + mtd->oobsize, GFP_KERNEL);
+	if (!temp_buf) {
+		kfree(data_buf);
+		kfree(oob_buf);
+
+		return -ENOMEM;
 	}
+	page_addr = (u32)(block << (mtd->erasesize_shift - mtd->writesize_shift));
+	for (i = 0; i < bbt_page_num; i++) {
+		ret = sfc_nand_read_page_raw(0, page_addr + i, (u32 *)temp_buf);
+		if (ret < 0) {
+			pr_err("%s fail %d\n", __func__, ret);
+			ret = -EIO;
+			kfree(temp_buf);
+			goto out;
+		}
+
+		memcpy(ops.datbuf + i * mtd->writesize, temp_buf, mtd->writesize);
+		memcpy(ops.oobbuf + i * mtd->oobsize, temp_buf + mtd->writesize, mtd->oobsize);
+	}
+	kfree(temp_buf);
 
 	if (oob_buf[0] != 0xff && !memcmp(bbt_pattern, bbt_info->pattern, 4))
 		version = bbt_info->version;
@@ -114,11 +130,12 @@ static int nanddev_write_bbt(struct snand_mtd_dev *nand, u32 block)
 	unsigned int nbytes = DIV_ROUND_UP(nblocks * bits_per_block,
 					   BITS_PER_LONG) * sizeof(*nand->bbt.cache);
 	struct mtd_info *mtd = snanddev_to_mtd(nand);
-	u8 *data_buf, *oob_buf;
+	u8 *data_buf, *oob_buf, *temp_buf;
 	struct nanddev_bbt_info *bbt_info;
 	struct mtd_oob_ops ops;
-	int bbt_page_num;
+	u32 bbt_page_num;
 	int ret = 0;
+	u32 page_addr, i;
 
 	BBT_DBG("write_bbt to blk=%d ver=%d\n", block, nand->bbt.version);
 	if (!nand->bbt.cache)
@@ -149,7 +166,7 @@ static int nanddev_write_bbt(struct snand_mtd_dev *nand, u32 block)
 	bbt_info->version = nand->bbt.version;
 
 	/* Store one entry for each block */
-	ret = sfc_nand_erase_mtd(mtd, block << mtd->erasesize_shift);
+	ret = sfc_nand_erase_mtd(mtd, block / mtd->erasesize);
 	if (ret)
 		goto out;
 
@@ -159,7 +176,28 @@ static int nanddev_write_bbt(struct snand_mtd_dev *nand, u32 block)
 	ops.oobbuf = oob_buf;
 	ops.ooblen = bbt_page_num * mtd->oobsize;
 	ops.ooboffs = 0;
-	ret = sfc_nand_write_mtd(mtd, block * mtd->erasesize, &ops);
+
+	temp_buf = kzalloc(mtd->writesize + mtd->oobsize, GFP_KERNEL);
+	if (!temp_buf) {
+		kfree(data_buf);
+		kfree(oob_buf);
+
+		return -ENOMEM;
+	}
+	page_addr = (u32)(block << (mtd->erasesize_shift - mtd->writesize_shift));
+	for (i = 0; i < bbt_page_num; i++) {
+		memcpy(temp_buf, ops.datbuf + i * mtd->writesize, mtd->writesize);
+		memcpy(temp_buf + mtd->writesize, ops.oobbuf + i * mtd->oobsize, mtd->oobsize);
+
+		ret = sfc_nand_prog_page_raw(0, page_addr + i, (u32 *)temp_buf);
+		if (ret < 0) {
+			pr_err("%s fail %d\n", __func__, ret);
+			ret = -EIO;
+			kfree(temp_buf);
+			goto out;
+		}
+	}
+	kfree(temp_buf);
 
 out:
 	kfree(data_buf);
@@ -196,7 +234,7 @@ static int nanddev_scan_bbt(struct snand_mtd_dev *nand)
 {
 	unsigned int nblocks = snanddev_neraseblocks(nand);
 	u32 start_block, block;
-	int ret;
+	int ret = 0;
 
 	nand->bbt.version = 0;
 	start_block = nblocks - NANDDEV_BBT_SCAN_MAXBLOCKS;
@@ -213,7 +251,7 @@ static int nanddev_scan_bbt(struct snand_mtd_dev *nand)
 		}
 	}
 
-	return 0;
+	return ret;
 }
 
 #endif

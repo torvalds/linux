@@ -68,9 +68,15 @@ static inline struct snand_mtd_dev *mtd_to_snanddev(struct mtd_info *mtd)
 	return mtd->priv;
 }
 
+int snanddev_bbt_init(struct snand_mtd_dev *nand);
+void snanddev_bbt_cleanup(struct snand_mtd_dev *nand);
 int snanddev_bbt_update(struct snand_mtd_dev *nand);
 int snanddev_bbt_get_block_status(const struct snand_mtd_dev *nand,
 				  unsigned int entry);
 int snanddev_bbt_set_block_status(struct snand_mtd_dev *nand, unsigned int entry,
 				  enum nand_bbt_block_status status);
+
+int sfc_nand_isbad_mtd(struct mtd_info *mtd, loff_t ofs);
+int sfc_nand_erase_mtd(struct mtd_info *mtd, u32 addr);
+
 #endif
