@@ -276,7 +276,8 @@ static void mei_cl_bus_rx_work(struct work_struct *work)
 		cldev->rx_cb(cldev);
 
 	mutex_lock(&bus->device_lock);
-	mei_cl_read_start(cldev->cl, mei_cl_mtu(cldev->cl), NULL);
+	if (mei_cl_is_connected(cldev->cl))
+		mei_cl_read_start(cldev->cl, mei_cl_mtu(cldev->cl), NULL);
 	mutex_unlock(&bus->device_lock);
 }
 
@@ -364,7 +365,10 @@ int mei_cldev_register_rx_cb(struct mei_cl_device *cldev, mei_cldev_cb_t rx_cb)
 	INIT_WORK(&cldev->rx_work, mei_cl_bus_rx_work);
 
 	mutex_lock(&bus->device_lock);
-	ret = mei_cl_read_start(cldev->cl, mei_cl_mtu(cldev->cl), NULL);
+	if (mei_cl_is_connected(cldev->cl))
+		ret = mei_cl_read_start(cldev->cl, mei_cl_mtu(cldev->cl), NULL);
+	else
+		ret = -ENODEV;
 	mutex_unlock(&bus->device_lock);
 	if (ret && ret != -EBUSY)
 		return ret;
