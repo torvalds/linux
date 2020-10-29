@@ -2018,18 +2018,27 @@ int vt_do_kdsk_ioctl(int cmd, struct kbentry __user *user_kbe, int perm,
 	return 0;
 }
 
-/* FIXME: This one needs untangling */
+static char *vt_kdskbsent(char *kbs, unsigned char cur)
+{
+	static DECLARE_BITMAP(is_kmalloc, MAX_NR_FUNC);
+	char *cur_f = func_table[cur];
+
+	if (cur_f && strlen(cur_f) >= strlen(kbs)) {
+		strcpy(cur_f, kbs);
+		return kbs;
+	}
+
+	func_table[cur] = kbs;
+
+	return __test_and_set_bit(cur, is_kmalloc) ? cur_f : NULL;
+}
+
 int vt_do_kdgkb_ioctl(int cmd, struct kbsentry __user *user_kdgkb, int perm)
 {
-	char *kbs;
-	u_char *q;
-	int sz, fnw_sz;
-	int delta;
-	char *first_free, *fj, *fnw;
-	int j, k;
-	int ret;
-	unsigned long flags;
 	unsigned char kb_func;
+	unsigned long flags;
+	char *kbs;
+	int ret;
 
 	if (!capable(CAP_SYS_TTY_CONFIG))
 		perm = 0;
@@ -2055,7 +2064,7 @@ int vt_do_kdgkb_ioctl(int cmd, struct kbsentry __user *user_kdgkb, int perm)
 		ret = copy_to_user(user_kdgkb->kb_string, kbs, len + 1) ?
 			-EFAULT : 0;
 
-		goto reterr;
+		break;
 	}
 	case KDSKBSENT:
 		if (!perm)
@@ -2066,81 +2075,16 @@ int vt_do_kdgkb_ioctl(int cmd, struct kbsentry __user *user_kdgkb, int perm)
 		if (IS_ERR(kbs))
 			return PTR_ERR(kbs);
 
-		fnw = NULL;
-		fnw_sz = 0;
-		/* race aginst other writers */
-		again:
 		spin_lock_irqsave(&func_buf_lock, flags);
-		q = func_table[kb_func];
-
-		/* fj pointer to next entry after 'q' */
-		first_free = funcbufptr + (funcbufsize - funcbufleft);
-		for (j = kb_func + 1; j < MAX_NR_FUNC && !func_table[j]; j++)
-			;
-		if (j < MAX_NR_FUNC)
-			fj = func_table[j];
-		else
-			fj = first_free;
-		/* buffer usage increase by new entry */
-		delta = (q ? -strlen(q) : 1) + strlen(kbs);
-
-		if (delta <= funcbufleft) { 	/* it fits in current buf */
-		    if (j < MAX_NR_FUNC) {
-			/* make enough space for new entry at 'fj' */
-			memmove(fj + delta, fj, first_free - fj);
-			for (k = j; k < MAX_NR_FUNC; k++)
-			    if (func_table[k])
-				func_table[k] += delta;
-		    }
-		    if (!q)
-		      func_table[kb_func] = fj;
-		    funcbufleft -= delta;
-		} else {			/* allocate a larger buffer */
-		    sz = 256;
-		    while (sz < funcbufsize - funcbufleft + delta)
-		      sz <<= 1;
-		    if (fnw_sz != sz) {
-		      spin_unlock_irqrestore(&func_buf_lock, flags);
-		      kfree(fnw);
-		      fnw = kmalloc(sz, GFP_KERNEL);
-		      fnw_sz = sz;
-		      if (!fnw) {
-			ret = -ENOMEM;
-			goto reterr;
-		      }
-		      goto again;
-		    }
-
-		    if (!q)
-		      func_table[kb_func] = fj;
-		    /* copy data before insertion point to new location */
-		    if (fj > funcbufptr)
-			memmove(fnw, funcbufptr, fj - funcbufptr);
-		    for (k = 0; k < j; k++)
-		      if (func_table[k])
-			func_table[k] = fnw + (func_table[k] - funcbufptr);
-
-		    /* copy data after insertion point to new location */
-		    if (first_free > fj) {
-			memmove(fnw + (fj - funcbufptr) + delta, fj, first_free - fj);
-			for (k = j; k < MAX_NR_FUNC; k++)
-			  if (func_table[k])
-			    func_table[k] = fnw + (func_table[k] - funcbufptr) + delta;
-		    }
-		    if (funcbufptr != func_buf)
-		      kfree(funcbufptr);
-		    funcbufptr = fnw;
-		    funcbufleft = funcbufleft - delta + sz - funcbufsize;
-		    funcbufsize = sz;
-		}
-		/* finally insert item itself */
-		strcpy(func_table[kb_func], kbs);
+		kbs = vt_kdskbsent(kbs, kb_func);
 		spin_unlock_irqrestore(&func_buf_lock, flags);
+
+		ret = 0;
 		break;
 	}
-	ret = 0;
-reterr:
+
 	kfree(kbs);
+
 	return ret;
 }
 
