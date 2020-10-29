@@ -281,7 +281,9 @@ static int vc4_drm_bind(struct device *dev)
 	if (ret)
 		goto dev_put;
 
-	drm_mode_config_init(drm);
+	ret = drmm_mode_config_init(drm);
+	if (ret)
+		goto dev_put;
 
 	vc4_gem_init(drm);
 
@@ -314,7 +316,6 @@ unbind_all:
 	component_unbind_all(dev, drm);
 gem_destroy:
 	vc4_gem_destroy(drm);
-	drm_mode_config_cleanup(drm);
 dev_put:
 	drm_dev_put(drm);
 	return ret;
@@ -328,8 +329,6 @@ static void vc4_drm_unbind(struct device *dev)
 	drm_dev_unregister(drm);
 
 	drm_atomic_helper_shutdown(drm);
-
-	drm_mode_config_cleanup(drm);
 
 	drm_atomic_private_obj_fini(&vc4->load_tracker);
 	drm_atomic_private_obj_fini(&vc4->ctm_manager);
