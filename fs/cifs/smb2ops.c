@@ -4559,7 +4559,25 @@ static void smb2_decrypt_offload(struct work_struct *work)
 				      dw->server->vals->read_rsp_size,
 				      dw->ppages, dw->npages, dw->len,
 				      true);
-		mid->callback(mid);
+		if (rc >= 0) {
+#ifdef CONFIG_CIFS_STATS2
+			mid->when_received = jiffies;
+#endif
+			mid->callback(mid);
+		} else {
+			spin_lock(&GlobalMid_Lock);
+			if (dw->server->tcpStatus == CifsNeedReconnect) {
+				mid->mid_state = MID_RETRY_NEEDED;
+				spin_unlock(&GlobalMid_Lock);
+				mid->callback(mid);
+			} else {
+				mid->mid_state = MID_REQUEST_SUBMITTED;
+				mid->mid_flags &= ~(MID_DELETED);
+				list_add_tail(&mid->qhead,
+					&dw->server->pending_mid_q);
+				spin_unlock(&GlobalMid_Lock);
+			}
+		}
 		cifs_mid_q_entry_release(mid);
 	}
 
