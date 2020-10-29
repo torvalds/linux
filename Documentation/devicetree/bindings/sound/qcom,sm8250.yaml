@@ -16,10 +16,8 @@ description:
 properties:
   compatible:
     oneOf:
-      - const: qcom,qrb5165-rb5
-      - items:
-        - const: qcom,sm8250
-        - const: qcom,qrb5165-rb5
+      - const: qcom,sm8250-sndcard
+      - const: qcom,qrb5165-rb5-sndcard
 
   audio-routing:
     $ref: /schemas/types.yaml#/definitions/non-unique-string-array
@@ -83,7 +81,7 @@ examples:
     #include <dt-bindings/sound/qcom,q6afe.h>
     #include <dt-bindings/sound/qcom,q6asm.h>
     sound {
-        compatible = "qcom,qrb5165-rb5";
+        compatible = "qcom,qrb5165-rb5-sndcard";
         model = "Qualcomm-qrb5165-RB5-WSA8815-Speakers-DMIC0";
         audio-routing = "SpkrLeft IN", "WSA_SPK1 OUT",
                     "SpkrRight IN", "WSA_SPK2 OUT",
