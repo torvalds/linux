@@ -475,9 +475,14 @@ static blk_status_t null_zone_mgmt(struct nullb_cmd *cmd, enum req_opf op,
 
 	switch (op) {
 	case REQ_OP_ZONE_RESET_ALL:
-		for (i = dev->zone_nr_conv; i < dev->nr_zones; i++)
-			null_reset_zone(dev, &dev->zones[i]);
-		break;
+		for (i = dev->zone_nr_conv; i < dev->nr_zones; i++) {
+			zone = &dev->zones[i];
+			if (zone->cond != BLK_ZONE_COND_EMPTY) {
+				null_reset_zone(dev, zone);
+				trace_nullb_zone_op(cmd, i, zone->cond);
+			}
+		}
+		return BLK_STS_OK;
 	case REQ_OP_ZONE_RESET:
 		ret = null_reset_zone(dev, zone);
 		break;
