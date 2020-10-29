@@ -41,14 +41,6 @@ struct frame_info {
 	u32 timestamp;	/* rew_val */
 };
 
-struct ocelot_multicast {
-	struct list_head list;
-	unsigned char addr[ETH_ALEN];
-	u16 vid;
-	u16 ports;
-	int pgid;
-};
-
 struct ocelot_port_tc {
 	bool block_shared;
 	unsigned long offload_cnt;
@@ -85,6 +77,15 @@ enum macaccess_entry_type {
 	ENTRYTYPE_LOCKED,
 	ENTRYTYPE_MACv4,
 	ENTRYTYPE_MACv6,
+};
+
+struct ocelot_multicast {
+	struct list_head list;
+	enum macaccess_entry_type entry_type;
+	unsigned char addr[ETH_ALEN];
+	u16 vid;
+	u16 ports;
+	int pgid;
 };
 
 int ocelot_port_fdb_do_dump(const unsigned char *addr, u16 vid,

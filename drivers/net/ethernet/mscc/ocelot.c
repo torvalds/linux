@@ -962,7 +962,7 @@ static enum macaccess_entry_type ocelot_classify_mdb(const unsigned char *addr)
 }
 
 static int ocelot_mdb_get_pgid(struct ocelot *ocelot,
-			       enum macaccess_entry_type entry_type)
+			       const struct ocelot_multicast *mc)
 {
 	int pgid;
 
@@ -971,8 +971,8 @@ static int ocelot_mdb_get_pgid(struct ocelot *ocelot,
 	 * destination mask table (PGID), the destination set is programmed as
 	 * part of the entry MAC address.", and the DEST_IDX is set to 0.
 	 */
-	if (entry_type == ENTRYTYPE_MACv4 ||
-	    entry_type == ENTRYTYPE_MACv6)
+	if (mc->entry_type == ENTRYTYPE_MACv4 ||
+	    mc->entry_type == ENTRYTYPE_MACv6)
 		return 0;
 
 	for_each_nonreserved_multicast_dest_pgid(ocelot, pgid) {
@@ -994,16 +994,15 @@ static int ocelot_mdb_get_pgid(struct ocelot *ocelot,
 }
 
 static void ocelot_encode_ports_to_mdb(unsigned char *addr,
-				       struct ocelot_multicast *mc,
-				       enum macaccess_entry_type entry_type)
+				       struct ocelot_multicast *mc)
 {
 	ether_addr_copy(addr, mc->addr);
 
-	if (entry_type == ENTRYTYPE_MACv4) {
+	if (mc->entry_type == ENTRYTYPE_MACv4) {
 		addr[0] = 0;
 		addr[1] = mc->ports >> 8;
 		addr[2] = mc->ports & 0xff;
-	} else if (entry_type == ENTRYTYPE_MACv6) {
+	} else if (mc->entry_type == ENTRYTYPE_MACv6) {
 		addr[0] = mc->ports >> 8;
 		addr[1] = mc->ports & 0xff;
 	}
@@ -1013,7 +1012,6 @@ int ocelot_port_mdb_add(struct ocelot *ocelot, int port,
 			const struct switchdev_obj_port_mdb *mdb)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
-	enum macaccess_entry_type entry_type;
 	unsigned char addr[ETH_ALEN];
 	struct ocelot_multicast *mc;
 	u16 vid = mdb->vid;
@@ -1024,12 +1022,20 @@ int ocelot_port_mdb_add(struct ocelot *ocelot, int port,
 	if (!vid)
 		vid = ocelot_port->pvid;
 
-	entry_type = ocelot_classify_mdb(mdb->addr);
-
 	mc = ocelot_multicast_get(ocelot, mdb->addr, vid);
 	if (!mc) {
 		/* New entry */
-		int pgid = ocelot_mdb_get_pgid(ocelot, entry_type);
+		int pgid;
+
+		mc = devm_kzalloc(ocelot->dev, sizeof(*mc), GFP_KERNEL);
+		if (!mc)
+			return -ENOMEM;
+
+		mc->entry_type = ocelot_classify_mdb(mdb->addr);
+		ether_addr_copy(mc->addr, mdb->addr);
+		mc->vid = vid;
+
+		pgid = ocelot_mdb_get_pgid(ocelot, mc);
 
 		if (pgid < 0) {
 			dev_err(ocelot->dev,
@@ -1038,24 +1044,19 @@ int ocelot_port_mdb_add(struct ocelot *ocelot, int port,
 			return -ENOSPC;
 		}
 
-		mc = devm_kzalloc(ocelot->dev, sizeof(*mc), GFP_KERNEL);
-		if (!mc)
-			return -ENOMEM;
-
-		ether_addr_copy(mc->addr, mdb->addr);
-		mc->vid = vid;
 		mc->pgid = pgid;
 
 		list_add_tail(&mc->list, &ocelot->multicast);
 	} else {
-		ocelot_encode_ports_to_mdb(addr, mc, entry_type);
+		ocelot_encode_ports_to_mdb(addr, mc);
 		ocelot_mact_forget(ocelot, addr, vid);
 	}
 
 	mc->ports |= BIT(port);
-	ocelot_encode_ports_to_mdb(addr, mc, entry_type);
+	ocelot_encode_ports_to_mdb(addr, mc);
 
-	return ocelot_mact_learn(ocelot, mc->pgid, addr, vid, entry_type);
+	return ocelot_mact_learn(ocelot, mc->pgid, addr, vid,
+				 mc->entry_type);
 }
 EXPORT_SYMBOL(ocelot_port_mdb_add);
 
@@ -1063,7 +1064,6 @@ int ocelot_port_mdb_del(struct ocelot *ocelot, int port,
 			const struct switchdev_obj_port_mdb *mdb)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
-	enum macaccess_entry_type entry_type;
 	unsigned char addr[ETH_ALEN];
 	struct ocelot_multicast *mc;
 	u16 vid = mdb->vid;
@@ -1078,9 +1078,7 @@ int ocelot_port_mdb_del(struct ocelot *ocelot, int port,
 	if (!mc)
 		return -ENOENT;
 
-	entry_type = ocelot_classify_mdb(mdb->addr);
-
-	ocelot_encode_ports_to_mdb(addr, mc, entry_type);
+	ocelot_encode_ports_to_mdb(addr, mc);
 	ocelot_mact_forget(ocelot, addr, vid);
 
 	mc->ports &= ~BIT(port);
@@ -1090,9 +1088,10 @@ int ocelot_port_mdb_del(struct ocelot *ocelot, int port,
 		return 0;
 	}
 
-	ocelot_encode_ports_to_mdb(addr, mc, entry_type);
+	ocelot_encode_ports_to_mdb(addr, mc);
 
-	return ocelot_mact_learn(ocelot, mc->pgid, addr, vid, entry_type);
+	return ocelot_mact_learn(ocelot, mc->pgid, addr, vid,
+				 mc->entry_type);
 }
 EXPORT_SYMBOL(ocelot_port_mdb_del);
 
