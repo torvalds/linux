@@ -7,6 +7,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/list.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_data/cros_ec_commands.h>
@@ -31,6 +32,12 @@ enum {
 	CROS_EC_ALTMODE_MAX,
 };
 
+/* Container for altmode pointer nodes. */
+struct cros_typec_altmode_node {
+	struct typec_altmode *amode;
+	struct list_head list;
+};
+
 /* Per port data. */
 struct cros_typec_port {
 	struct typec_port *port;
@@ -53,6 +60,7 @@ struct cros_typec_port {
 	/* Flag indicating that PD discovery data parsing is completed. */
 	bool disc_done;
 	struct ec_response_typec_discovery *sop_disc;
+	struct list_head partner_mode_list;
 };
 
 /* Platform-specific data for the Chrome OS EC Type C controller. */
@@ -172,10 +180,24 @@ static int cros_typec_add_partner(struct cros_typec_data *typec, int port_num,
 	return ret;
 }
 
+static void cros_typec_unregister_altmodes(struct cros_typec_data *typec, int port_num)
+{
+	struct cros_typec_port *port = typec->ports[port_num];
+	struct cros_typec_altmode_node *node, *tmp;
+
+	list_for_each_entry_safe(node, tmp, &port->partner_mode_list, list) {
+		list_del(&node->list);
+		typec_unregister_altmode(node->amode);
+		devm_kfree(typec->dev, node);
+	}
+}
+
 static void cros_typec_remove_partner(struct cros_typec_data *typec,
 				     int port_num)
 {
 	struct cros_typec_port *port = typec->ports[port_num];
+
+	cros_typec_unregister_altmodes(typec, port_num);
 
 	port->state.alt = NULL;
 	port->state.mode = TYPEC_STATE_USB;
@@ -306,6 +328,8 @@ static int cros_typec_init_ports(struct cros_typec_data *typec)
 			ret = -ENOMEM;
 			goto unregister_ports;
 		}
+
+		INIT_LIST_HEAD(&cros_port->partner_mode_list);
 	}
 
 	return 0;
@@ -590,6 +614,49 @@ static int cros_typec_get_mux_info(struct cros_typec_data *typec, int port_num,
 				     sizeof(req), resp, sizeof(*resp));
 }
 
+static int cros_typec_register_altmodes(struct cros_typec_data *typec, int port_num)
+{
+	struct cros_typec_port *port = typec->ports[port_num];
+	struct ec_response_typec_discovery *sop_disc = port->sop_disc;
+	struct cros_typec_altmode_node *node;
+	struct typec_altmode_desc desc;
+	struct typec_altmode *amode;
+	int ret = 0;
+	int i, j;
+
+	for (i = 0; i < sop_disc->svid_count; i++) {
+		for (j = 0; j < sop_disc->svids[i].mode_count; j++) {
+			memset(&desc, 0, sizeof(desc));
+			desc.svid = sop_disc->svids[i].svid;
+			desc.mode = j;
+			desc.vdo = sop_disc->svids[i].mode_vdo[j];
+
+			amode = typec_partner_register_altmode(port->partner, &desc);
+			if (IS_ERR(amode)) {
+				ret = PTR_ERR(amode);
+				goto err_cleanup;
+			}
+
+			/* If no memory is available we should unregister and exit. */
+			node = devm_kzalloc(typec->dev, sizeof(*node), GFP_KERNEL);
+			if (!node) {
+				ret = -ENOMEM;
+				typec_unregister_altmode(amode);
+				goto err_cleanup;
+			}
+
+			node->amode = amode;
+			list_add_tail(&node->list, &port->partner_mode_list);
+		}
+	}
+
+	return 0;
+
+err_cleanup:
+	cros_typec_unregister_altmodes(typec, port_num);
+	return ret;
+}
+
 static int cros_typec_handle_sop_disc(struct cros_typec_data *typec, int port_num)
 {
 	struct cros_typec_port *port = typec->ports[port_num];
@@ -630,6 +697,16 @@ static int cros_typec_handle_sop_disc(struct cros_typec_data *typec, int port_nu
 		port->p_identity.vdo[i - 3] = sop_disc->discovery_vdo[i];
 
 	ret = typec_partner_set_identity(port->partner);
+	if (ret < 0) {
+		dev_err(typec->dev, "Failed to update partner PD identity, port: %d\n", port_num);
+		goto disc_exit;
+	}
+
+	ret = cros_typec_register_altmodes(typec, port_num);
+	if (ret < 0) {
+		dev_err(typec->dev, "Failed to register partner altmodes, port: %d\n", port_num);
+		goto disc_exit;
+	}
 
 disc_exit:
 	return ret;
