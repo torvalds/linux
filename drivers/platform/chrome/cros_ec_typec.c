@@ -181,6 +181,7 @@ static void cros_typec_remove_partner(struct cros_typec_data *typec,
 
 	typec_unregister_partner(port->partner);
 	port->partner = NULL;
+	memset(&port->p_identity, 0, sizeof(port->p_identity));
 }
 
 static void cros_unregister_ports(struct cros_typec_data *typec)
