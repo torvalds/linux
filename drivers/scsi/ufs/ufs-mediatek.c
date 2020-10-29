@@ -28,6 +28,9 @@
 	arm_smccc_smc(MTK_SIP_UFS_CONTROL, \
 		      cmd, val, 0, 0, 0, 0, 0, &(res))
 
+#define ufs_mtk_va09_pwr_ctrl(res, on) \
+	ufs_mtk_smc(UFS_MTK_SIP_VA09_PWR_CTRL, on, res)
+
 #define ufs_mtk_crypto_ctrl(res, enable) \
 	ufs_mtk_smc(UFS_MTK_SIP_CRYPTO_CTRL, enable, res)
 
@@ -45,6 +48,10 @@ static struct ufs_dev_fix ufs_mtk_dev_fixups[] = {
 	END_FIX
 };
 
+static const struct ufs_mtk_host_cfg ufs_mtk_mt8183_cfg = {
+	.caps = UFS_MTK_CAP_VA09_PWR_CTRL,
+};
+
 static const struct ufs_mtk_host_cfg ufs_mtk_mt8192_cfg = {
 	.caps = UFS_MTK_CAP_BOOST_CRYPT_ENGINE,
 };
@@ -52,6 +59,7 @@ static const struct ufs_mtk_host_cfg ufs_mtk_mt8192_cfg = {
 static const struct of_device_id ufs_mtk_of_match[] = {
 	{
 		.compatible = "mediatek,mt8183-ufshci",
+		.data = &ufs_mtk_mt8183_cfg
 	},
 	{
 		.compatible = "mediatek,mt8192-ufshci",
@@ -65,6 +73,13 @@ static bool ufs_mtk_is_boost_crypt_enabled(struct ufs_hba *hba)
 	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
 
 	return (host->caps & UFS_MTK_CAP_BOOST_CRYPT_ENGINE);
+}
+
+static bool ufs_mtk_is_va09_supported(struct ufs_hba *hba)
+{
+	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
+
+	return (host->caps & UFS_MTK_CAP_VA09_PWR_CTRL);
 }
 
 static void ufs_mtk_cfg_unipro_cg(struct ufs_hba *hba, bool enable)
@@ -300,21 +315,46 @@ static int ufs_mtk_wait_link_state(struct ufs_hba *hba, u32 state,
 	return -ETIMEDOUT;
 }
 
-static void ufs_mtk_mphy_power_on(struct ufs_hba *hba, bool on)
+static int ufs_mtk_mphy_power_on(struct ufs_hba *hba, bool on)
 {
 	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
 	struct phy *mphy = host->mphy;
+	struct arm_smccc_res res;
+	int ret = 0;
 
-	if (!mphy)
-		return;
+	if (!mphy || !(on ^ host->mphy_powered_on))
+		return 0;
 
-	if (on && !host->mphy_powered_on)
+	if (on) {
+		if (host->reg_va09) {
+			ret = regulator_enable(host->reg_va09);
+			if (ret < 0)
+				goto out;
+			/* wait 200 us to stablize VA09 */
+			usleep_range(200, 210);
+			ufs_mtk_va09_pwr_ctrl(res, 1);
+		}
 		phy_power_on(mphy);
-	else if (!on && host->mphy_powered_on)
+	} else {
 		phy_power_off(mphy);
-	else
-		return;
-	host->mphy_powered_on = on;
+		if (host->reg_va09) {
+			ufs_mtk_va09_pwr_ctrl(res, 0);
+			ret = regulator_disable(host->reg_va09);
+			if (ret < 0)
+				goto out;
+		}
+	}
+out:
+	if (ret) {
+		dev_info(hba->dev,
+			 "failed to %s va09: %d\n",
+			 on ? "enable" : "disable",
+			 ret);
+	} else {
+		host->mphy_powered_on = on;
+	}
+
+	return ret;
 }
 
 static int ufs_mtk_get_host_clk(struct device *dev, const char *name,
@@ -402,18 +442,13 @@ static int ufs_mtk_init_host_clk(struct ufs_hba *hba, const char *name,
 	return ret;
 }
 
-static void ufs_mtk_init_host_caps(struct ufs_hba *hba)
+static void ufs_mtk_init_boost_crypt(struct ufs_hba *hba)
 {
 	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
 	struct ufs_mtk_crypt_cfg *cfg;
 	struct device *dev = hba->dev;
 	struct regulator *reg;
 	u32 volt;
-
-	host->caps = host->cfg->caps;
-
-	if (!ufs_mtk_is_boost_crypt_enabled(hba))
-		return;
 
 	host->crypt = devm_kzalloc(dev, sizeof(*(host->crypt)),
 				   GFP_KERNEL);
@@ -448,11 +483,36 @@ static void ufs_mtk_init_host_caps(struct ufs_hba *hba)
 
 	cfg->reg_vcore = reg;
 	cfg->vcore_volt = volt;
-	dev_info(dev, "caps: boost-crypt");
 	return;
 
 disable_caps:
 	host->caps &= ~UFS_MTK_CAP_BOOST_CRYPT_ENGINE;
+}
+
+static void ufs_mtk_init_va09_pwr_ctrl(struct ufs_hba *hba)
+{
+	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
+
+	host->reg_va09 = regulator_get(hba->dev, "va09");
+	if (!host->reg_va09) {
+		dev_info(hba->dev, "failed to get va09");
+		host->caps &= ~UFS_MTK_CAP_VA09_PWR_CTRL;
+	}
+}
+
+static void ufs_mtk_init_host_caps(struct ufs_hba *hba)
+{
+	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
+
+	host->caps = host->cfg->caps;
+
+	if (ufs_mtk_is_boost_crypt_enabled(hba))
+		ufs_mtk_init_boost_crypt(hba);
+
+	if (ufs_mtk_is_va09_supported(hba))
+		ufs_mtk_init_va09_pwr_ctrl(hba);
+
+	dev_info(hba->dev, "caps: 0x%x", host->caps);
 }
 
 /**
@@ -467,8 +527,8 @@ static int ufs_mtk_setup_clocks(struct ufs_hba *hba, bool on,
 				enum ufs_notify_change_status status)
 {
 	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
-	int ret = 0;
 	bool clk_pwr_off = false;
+	int ret = 0;
 
 	/*
 	 * In case ufs_mtk_init() is not yet done, simply ignore.
@@ -499,10 +559,10 @@ static int ufs_mtk_setup_clocks(struct ufs_hba *hba, bool on,
 		if (clk_pwr_off) {
 			ufs_mtk_boost_crypt(hba, on);
 			ufs_mtk_setup_ref_clk(hba, on);
-			ufs_mtk_mphy_power_on(hba, on);
+			phy_power_off(host->mphy);
 		}
 	} else if (on && status == POST_CHANGE) {
-		ufs_mtk_mphy_power_on(hba, on);
+		phy_power_on(host->mphy);
 		ufs_mtk_setup_ref_clk(hba, on);
 		ufs_mtk_boost_crypt(hba, on);
 	}
@@ -575,6 +635,7 @@ static int ufs_mtk_init(struct ufs_hba *hba)
 	 *
 	 * Enable phy clocks specifically here.
 	 */
+	ufs_mtk_mphy_power_on(hba, true);
 	ufs_mtk_setup_clocks(hba, true, POST_CHANGE);
 
 	goto out;
@@ -826,40 +887,52 @@ static int ufs_mtk_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 
 	if (ufshcd_is_link_hibern8(hba)) {
 		err = ufs_mtk_link_set_lpm(hba);
-		if (err) {
-			/*
-			 * Set link as off state enforcedly to trigger
-			 * ufshcd_host_reset_and_restore() in ufshcd_suspend()
-			 * for completed host reset.
-			 */
-			ufshcd_set_link_off(hba);
-			return -EAGAIN;
-		}
+		if (err)
+			goto fail;
+	}
+
+	if (!ufshcd_is_link_active(hba)) {
 		/*
 		 * Make sure no error will be returned to prevent
 		 * ufshcd_suspend() re-enabling regulators while vreg is still
 		 * in low-power mode.
 		 */
 		ufs_mtk_vreg_set_lpm(hba, true);
+		err = ufs_mtk_mphy_power_on(hba, false);
+		if (err)
+			goto fail;
 	}
 
 	return 0;
+fail:
+	/*
+	 * Set link as off state enforcedly to trigger
+	 * ufshcd_host_reset_and_restore() in ufshcd_suspend()
+	 * for completed host reset.
+	 */
+	ufshcd_set_link_off(hba);
+	return -EAGAIN;
 }
 
 static int ufs_mtk_resume(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 {
 	int err;
 
+	err = ufs_mtk_mphy_power_on(hba, true);
+	if (err)
+		goto fail;
+
+	ufs_mtk_vreg_set_lpm(hba, false);
+
 	if (ufshcd_is_link_hibern8(hba)) {
-		ufs_mtk_vreg_set_lpm(hba, false);
 		err = ufs_mtk_link_set_hpm(hba);
-		if (err) {
-			err = ufshcd_link_recovery(hba);
-			return err;
-		}
+		if (err)
+			goto fail;
 	}
 
 	return 0;
+fail:
+	return ufshcd_link_recovery(hba);
 }
 
 static void ufs_mtk_dbg_register_dump(struct ufs_hba *hba)

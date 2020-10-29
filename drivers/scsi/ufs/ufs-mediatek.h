@@ -69,6 +69,7 @@ enum {
  * SiP commands
  */
 #define MTK_SIP_UFS_CONTROL               MTK_SIP_SMC_CMD(0x276)
+#define UFS_MTK_SIP_VA09_PWR_CTRL         BIT(0)
 #define UFS_MTK_SIP_DEVICE_RESET          BIT(1)
 #define UFS_MTK_SIP_CRYPTO_CTRL           BIT(2)
 #define UFS_MTK_SIP_REF_CLK_NOTIFICATION  BIT(3)
@@ -94,6 +95,7 @@ enum {
  */
 enum ufs_mtk_host_caps {
 	UFS_MTK_CAP_BOOST_CRYPT_ENGINE         = 1 << 0,
+	UFS_MTK_CAP_VA09_PWR_CTRL              = 1 << 1,
 };
 
 struct ufs_mtk_crypt_cfg {
@@ -113,6 +115,7 @@ struct ufs_mtk_host {
 	struct phy *mphy;
 	struct ufs_mtk_host_cfg *cfg;
 	struct ufs_mtk_crypt_cfg *crypt;
+	struct regulator *reg_va09;
 	enum ufs_mtk_host_caps caps;
 	struct reset_control *hci_reset;
 	struct reset_control *unipro_reset;
