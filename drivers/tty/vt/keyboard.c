@@ -33,6 +33,7 @@
 #include <linux/tty_flip.h>
 #include <linux/mm.h>
 #include <linux/nospec.h>
+#include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/slab.h>
