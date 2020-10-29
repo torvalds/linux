@@ -632,6 +632,7 @@ struct ocelot {
 	u32				*lags;
 
 	struct list_head		multicast;
+	struct list_head		pgids;
 
 	struct list_head		dummy_rules;
 	struct ocelot_vcap_block	block[3];

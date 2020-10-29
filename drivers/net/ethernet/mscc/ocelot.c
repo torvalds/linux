@@ -961,10 +961,37 @@ static enum macaccess_entry_type ocelot_classify_mdb(const unsigned char *addr)
 	return ENTRYTYPE_LOCKED;
 }
 
-static int ocelot_mdb_get_pgid(struct ocelot *ocelot,
-			       const struct ocelot_multicast *mc)
+static struct ocelot_pgid *ocelot_pgid_alloc(struct ocelot *ocelot, int index,
+					     unsigned long ports)
 {
-	int pgid;
+	struct ocelot_pgid *pgid;
+
+	pgid = kzalloc(sizeof(*pgid), GFP_KERNEL);
+	if (!pgid)
+		return ERR_PTR(-ENOMEM);
+
+	pgid->ports = ports;
+	pgid->index = index;
+	refcount_set(&pgid->refcount, 1);
+	list_add_tail(&pgid->list, &ocelot->pgids);
+
+	return pgid;
+}
+
+static void ocelot_pgid_free(struct ocelot *ocelot, struct ocelot_pgid *pgid)
+{
+	if (!refcount_dec_and_test(&pgid->refcount))
+		return;
+
+	list_del(&pgid->list);
+	kfree(pgid);
+}
+
+static struct ocelot_pgid *ocelot_mdb_get_pgid(struct ocelot *ocelot,
+					       const struct ocelot_multicast *mc)
+{
+	struct ocelot_pgid *pgid;
+	int index;
 
 	/* According to VSC7514 datasheet 3.9.1.5 IPv4 Multicast Entries and
 	 * 3.9.1.6 IPv6 Multicast Entries, "Instead of a lookup in the
@@ -973,24 +1000,34 @@ static int ocelot_mdb_get_pgid(struct ocelot *ocelot,
 	 */
 	if (mc->entry_type == ENTRYTYPE_MACv4 ||
 	    mc->entry_type == ENTRYTYPE_MACv6)
-		return 0;
+		return ocelot_pgid_alloc(ocelot, 0, mc->ports);
 
-	for_each_nonreserved_multicast_dest_pgid(ocelot, pgid) {
-		struct ocelot_multicast *mc;
+	list_for_each_entry(pgid, &ocelot->pgids, list) {
+		/* When searching for a nonreserved multicast PGID, ignore the
+		 * dummy PGID of zero that we have for MACv4/MACv6 entries
+		 */
+		if (pgid->index && pgid->ports == mc->ports) {
+			refcount_inc(&pgid->refcount);
+			return pgid;
+		}
+	}
+
+	/* Search for a free index in the nonreserved multicast PGID area */
+	for_each_nonreserved_multicast_dest_pgid(ocelot, index) {
 		bool used = false;
 
-		list_for_each_entry(mc, &ocelot->multicast, list) {
-			if (mc->pgid == pgid) {
+		list_for_each_entry(pgid, &ocelot->pgids, list) {
+			if (pgid->index == index) {
 				used = true;
 				break;
 			}
 		}
 
 		if (!used)
-			return pgid;
+			return ocelot_pgid_alloc(ocelot, index, mc->ports);
 	}
 
-	return -1;
+	return ERR_PTR(-ENOSPC);
 }
 
 static void ocelot_encode_ports_to_mdb(unsigned char *addr,
@@ -1014,6 +1051,7 @@ int ocelot_port_mdb_add(struct ocelot *ocelot, int port,
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	unsigned char addr[ETH_ALEN];
 	struct ocelot_multicast *mc;
+	struct ocelot_pgid *pgid;
 	u16 vid = mdb->vid;
 
 	if (port == ocelot->npi)
@@ -1025,8 +1063,6 @@ int ocelot_port_mdb_add(struct ocelot *ocelot, int port,
 	mc = ocelot_multicast_get(ocelot, mdb->addr, vid);
 	if (!mc) {
 		/* New entry */
-		int pgid;
-
 		mc = devm_kzalloc(ocelot->dev, sizeof(*mc), GFP_KERNEL);
 		if (!mc)
 			return -ENOMEM;
@@ -1035,27 +1071,36 @@ int ocelot_port_mdb_add(struct ocelot *ocelot, int port,
 		ether_addr_copy(mc->addr, mdb->addr);
 		mc->vid = vid;
 
-		pgid = ocelot_mdb_get_pgid(ocelot, mc);
-
-		if (pgid < 0) {
-			dev_err(ocelot->dev,
-				"No more PGIDs available for mdb %pM vid %d\n",
-				mdb->addr, vid);
-			return -ENOSPC;
-		}
-
-		mc->pgid = pgid;
-
 		list_add_tail(&mc->list, &ocelot->multicast);
 	} else {
+		/* Existing entry. Clean up the current port mask from
+		 * hardware now, because we'll be modifying it.
+		 */
+		ocelot_pgid_free(ocelot, mc->pgid);
 		ocelot_encode_ports_to_mdb(addr, mc);
 		ocelot_mact_forget(ocelot, addr, vid);
 	}
 
 	mc->ports |= BIT(port);
+
+	pgid = ocelot_mdb_get_pgid(ocelot, mc);
+	if (IS_ERR(pgid)) {
+		dev_err(ocelot->dev,
+			"Cannot allocate PGID for mdb %pM vid %d\n",
+			mc->addr, mc->vid);
+		devm_kfree(ocelot->dev, mc);
+		return PTR_ERR(pgid);
+	}
+	mc->pgid = pgid;
+
 	ocelot_encode_ports_to_mdb(addr, mc);
 
-	return ocelot_mact_learn(ocelot, mc->pgid, addr, vid,
+	if (mc->entry_type != ENTRYTYPE_MACv4 &&
+	    mc->entry_type != ENTRYTYPE_MACv6)
+		ocelot_write_rix(ocelot, pgid->ports, ANA_PGID_PGID,
+				 pgid->index);
+
+	return ocelot_mact_learn(ocelot, pgid->index, addr, vid,
 				 mc->entry_type);
 }
 EXPORT_SYMBOL(ocelot_port_mdb_add);
@@ -1066,6 +1111,7 @@ int ocelot_port_mdb_del(struct ocelot *ocelot, int port,
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	unsigned char addr[ETH_ALEN];
 	struct ocelot_multicast *mc;
+	struct ocelot_pgid *pgid;
 	u16 vid = mdb->vid;
 
 	if (port == ocelot->npi)
@@ -1081,6 +1127,7 @@ int ocelot_port_mdb_del(struct ocelot *ocelot, int port,
 	ocelot_encode_ports_to_mdb(addr, mc);
 	ocelot_mact_forget(ocelot, addr, vid);
 
+	ocelot_pgid_free(ocelot, mc->pgid);
 	mc->ports &= ~BIT(port);
 	if (!mc->ports) {
 		list_del(&mc->list);
@@ -1088,9 +1135,20 @@ int ocelot_port_mdb_del(struct ocelot *ocelot, int port,
 		return 0;
 	}
 
+	/* We have a PGID with fewer ports now */
+	pgid = ocelot_mdb_get_pgid(ocelot, mc);
+	if (IS_ERR(pgid))
+		return PTR_ERR(pgid);
+	mc->pgid = pgid;
+
 	ocelot_encode_ports_to_mdb(addr, mc);
 
-	return ocelot_mact_learn(ocelot, mc->pgid, addr, vid,
+	if (mc->entry_type != ENTRYTYPE_MACv4 &&
+	    mc->entry_type != ENTRYTYPE_MACv6)
+		ocelot_write_rix(ocelot, pgid->ports, ANA_PGID_PGID,
+				 pgid->index);
+
+	return ocelot_mact_learn(ocelot, pgid->index, addr, vid,
 				 mc->entry_type);
 }
 EXPORT_SYMBOL(ocelot_port_mdb_del);
@@ -1449,6 +1507,7 @@ int ocelot_init(struct ocelot *ocelot)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&ocelot->multicast);
+	INIT_LIST_HEAD(&ocelot->pgids);
 	ocelot_mact_init(ocelot);
 	ocelot_vlan_init(ocelot);
 	ocelot_vcap_init(ocelot);
