@@ -585,7 +585,6 @@ ath11k_reg_build_regd(struct ath11k_base *ab,
 	if (!tmp_regd)
 		goto ret;
 
-	tmp_regd->n_reg_rules = num_rules;
 	memcpy(tmp_regd->alpha2, reg_info->alpha2, REG_ALPHA2_LEN + 1);
 	memcpy(alpha2, reg_info->alpha2, REG_ALPHA2_LEN + 1);
 	alpha2[2] = '\0';
@@ -598,7 +597,7 @@ ath11k_reg_build_regd(struct ath11k_base *ab,
 	/* Update reg_rules[] below. Firmware is expected to
 	 * send these rules in order(2G rules first and then 5G)
 	 */
-	for (; i < tmp_regd->n_reg_rules; i++) {
+	for (; i < num_rules; i++) {
 		if (reg_info->num_2g_reg_rules &&
 		    (i < reg_info->num_2g_reg_rules)) {
 			reg_rule = reg_info->reg_rules_2g_ptr + i;
@@ -652,6 +651,8 @@ ath11k_reg_build_regd(struct ath11k_base *ab,
 			   tmp_regd->reg_rules[i].dfs_cac_ms,
 			   flags);
 	}
+
+	tmp_regd->n_reg_rules = i;
 
 	if (intersect) {
 		default_regd = ab->default_regd[reg_info->phy_id];
