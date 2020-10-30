@@ -2,15 +2,16 @@
 # SPDX-License-Identifier: GPL-2.0
 
 use strict;
+use warnings;
 use Pod::Usage;
 use Getopt::Long;
 use File::Find;
 use Fcntl ':mode';
 
-my $help;
-my $man;
-my $debug;
-my $enable_lineno;
+my $help = 0;
+my $man = 0;
+my $debug = 0;
+my $enable_lineno = 0;
 my $prefix="Documentation/ABI";
 
 #
@@ -40,6 +41,7 @@ pod2usage(2) if ($cmd eq "search" && !$arg);
 require Data::Dumper if ($debug);
 
 my %data;
+my %symbols;
 
 #
 # Displays an error message, printing file name and line
@@ -76,12 +78,12 @@ sub parse_abi {
 
 	my $what;
 	my $new_what;
-	my $tag;
+	my $tag = "";
 	my $ln;
 	my $xrefs;
 	my $space;
 	my @labels;
-	my $label;
+	my $label = "";
 
 	print STDERR "Opening $file\n" if ($debug > 1);
 	open IN, $file;
@@ -110,10 +112,18 @@ sub parse_abi {
 
 			if ($new_tag =~ m/what/) {
 				$space = "";
+				$content =~ s/[,.;]$//;
+
 				if ($tag =~ m/what/) {
 					$what .= ", " . $content;
 				} else {
-					parse_error($file, $ln, "What '$what' doesn't have a description", "") if ($what && !$data{$what}->{description});
+					if ($what) {
+						parse_error($file, $ln, "What '$what' doesn't have a description", "") if (!$data{$what}->{description});
+
+						foreach my $w(split /, /, $what) {
+							$symbols{$w} = $what;
+						};
+					}
 
 					$what = $content;
 					$label = $content;
@@ -122,7 +132,7 @@ sub parse_abi {
 				push @labels, [($content, $label)];
 				$tag = $new_tag;
 
-				push @{$data{$nametag}->{xrefs}}, [($content, $label)] if ($data{$nametag}->{what});
+				push @{$data{$nametag}->{symbols}}, $content if ($data{$nametag}->{what});
 				next;
 			}
 
@@ -132,7 +142,7 @@ sub parse_abi {
 				$data{$what}->{line_no} = $ln;
 
 				if ($new_what) {
-					@{$data{$what}->{label}} = @labels if ($data{$nametag}->{what});
+					@{$data{$what}->{label_list}} = @labels if ($data{$nametag}->{what});
 					@labels = ();
 					$label = "";
 					$new_what = 0;
@@ -203,17 +213,55 @@ sub parse_abi {
 		# Everything else is error
 		parse_error($file, $ln, "Unexpected line:", $_);
 	}
-	$data{$nametag}->{description} =~ s/^\n+//;
+	$data{$nametag}->{description} =~ s/^\n+// if ($data{$nametag}->{description});
+	if ($what) {
+		parse_error($file, $ln, "What '$what' doesn't have a description", "") if (!$data{$what}->{description});
+
+		foreach my $w(split /, /,$what) {
+			$symbols{$w} = $what;
+		};
+	}
 	close IN;
+}
+
+sub create_labels {
+	my %labels;
+
+	foreach my $what (keys %data) {
+		next if ($data{$what}->{file} eq "File");
+
+		foreach my $p (@{$data{$what}->{label_list}}) {
+			my ($content, $label) = @{$p};
+			$label = "abi_" . $label . " ";
+			$label =~ tr/A-Z/a-z/;
+
+			# Convert special chars to "_"
+			$label =~s/([\x00-\x2f\x3a-\x40\x5b-\x60\x7b-\xff])/_/g;
+			$label =~ s,_+,_,g;
+			$label =~ s,_$,,;
+
+			# Avoid duplicated labels
+			while (defined($labels{$label})) {
+			    my @chars = ("A".."Z", "a".."z");
+			    $label .= $chars[rand @chars];
+			}
+			$labels{$label} = 1;
+
+			$data{$what}->{label} = $label;
+
+			# only one label is enough
+			last;
+		}
+	}
 }
 
 #
 # Outputs the book on ReST format
 #
 
-my %labels;
-
 sub output_rest {
+	create_labels();
+
 	foreach my $what (sort {
 				($data{$a}->{type} eq "File") cmp ($data{$b}->{type} eq "File") ||
 				$a cmp $b
@@ -231,34 +279,7 @@ sub output_rest {
 		my $w = $what;
 		$w =~ s/([\(\)\_\-\*\=\^\~\\])/\\$1/g;
 
-
-		foreach my $p (@{$data{$what}->{label}}) {
-			my ($content, $label) = @{$p};
-			$label = "abi_" . $label . " ";
-			$label =~ tr/A-Z/a-z/;
-
-			# Convert special chars to "_"
-			$label =~s/([\x00-\x2f\x3a-\x40\x5b-\x60\x7b-\xff])/_/g;
-			$label =~ s,_+,_,g;
-			$label =~ s,_$,,;
-
-			# Avoid duplicated labels
-			while (defined($labels{$label})) {
-			    my @chars = ("A".."Z", "a".."z");
-			    $label .= $chars[rand @chars];
-			}
-			$labels{$label} = 1;
-
-			$data{$what}->{label} .= $label;
-
-			printf ".. _%s:\n\n", $label;
-
-			# only one label is enough
-			last;
-		}
-
-
-		$filepath =~ s,.*/(.*/.*),\1,;;
+		$filepath =~ s,.*/(.*/.*),$1,;;
 		$filepath =~ s,[/\-],_,g;;
 		my $fileref = "abi_file_".$filepath;
 
@@ -269,8 +290,9 @@ sub output_rest {
 			print ".. _$fileref:\n\n";
 			print "$w\n$bar\n\n";
 		} else {
-			my @names = split /\s*,\s*/,$w;
+			printf ".. _%s:\n\n", $data{$what}->{label};
 
+			my @names = split /, /,$w;
 			my $len = 0;
 
 			foreach my $name (@names) {
@@ -284,12 +306,13 @@ sub output_rest {
 				printf "| %s", $name . " " x ($len - length($name)) . " |\n";
 				print "+-" . "-" x $len . "-+\n";
 			}
-			print "\n";
+
+			print "\nDefined on file :ref:`$file <$fileref>`\n\n";
 		}
 
-		print "Defined on file :ref:`$file <$fileref>`\n\n" if ($type ne "File");
-
-		my $desc = $data{$what}->{description};
+		my $desc = "";
+		$desc = $data{$what}->{description} if (defined($data{$what}->{description}));
+		$desc =~ s/\s+$/\n/;
 
 		if (!($desc =~ /^\s*$/)) {
 			if ($description_is_rst) {
@@ -316,18 +339,11 @@ sub output_rest {
 			print "DESCRIPTION MISSING for $what\n\n" if (!$data{$what}->{is_file});
 		}
 
-		if ($data{$what}->{xrefs}) {
+		if ($data{$what}->{symbols}) {
 			printf "Has the following ABI:\n\n";
 
-			foreach my $p(@{$data{$what}->{xrefs}}) {
-				my ($content, $label) = @{$p};
-				$label = "abi_" . $label . " ";
-				$label =~ tr/A-Z/a-z/;
-
-				# Convert special chars to "_"
-				$label =~s/([\x00-\x2f\x3a-\x40\x5b-\x60\x7b-\xff])/_/g;
-				$label =~ s,_+,_,g;
-				$label =~ s,_$,,;
+			foreach my $content(@{$data{$what}->{symbols}}) {
+				my $label = $data{$symbols{$content}}->{label};
 
 				# Escape special chars from content
 				$content =~s/([\x00-\x1f\x21-\x2f\x3a-\x40\x7b-\xff])/\\$1/g;
@@ -355,17 +371,20 @@ sub search_symbols {
 
 		print "\n$what\n$bar\n\n";
 
-		my $kernelversion = $data{$what}->{kernelversion};
-		my $contact = $data{$what}->{contact};
-		my $users = $data{$what}->{users};
-		my $date = $data{$what}->{date};
-		my $desc = $data{$what}->{description};
-		$kernelversion =~ s/^\s+//;
-		$contact =~ s/^\s+//;
-		$users =~ s/^\s+//;
-		$users =~ s/\n//g;
-		$date =~ s/^\s+//;
-		$desc =~ s/^\s+//;
+		my $kernelversion = $data{$what}->{kernelversion} if (defined($data{$what}->{kernelversion}));
+		my $contact = $data{$what}->{contact} if (defined($data{$what}->{contact}));
+		my $users = $data{$what}->{users} if (defined($data{$what}->{users}));
+		my $date = $data{$what}->{date} if (defined($data{$what}->{date}));
+		my $desc = $data{$what}->{description} if (defined($data{$what}->{description}));
+
+		$kernelversion =~ s/^\s+// if ($kernelversion);
+		$contact =~ s/^\s+// if ($contact);
+		if ($users) {
+			$users =~ s/^\s+//;
+			$users =~ s/\n//g;
+		}
+		$date =~ s/^\s+// if ($date);
+		$desc =~ s/^\s+// if ($desc);
 
 		printf "Kernel version:\t\t%s\n", $kernelversion if ($kernelversion);
 		printf "Date:\t\t\t%s\n", $date if ($date);
