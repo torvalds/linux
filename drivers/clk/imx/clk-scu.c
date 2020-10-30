@@ -21,6 +21,7 @@
 
 static struct imx_sc_ipc *ccm_ipc_handle;
 struct device_node *pd_np;
+static struct platform_driver imx_clk_scu_driver;
 
 struct imx_scu_clk_node {
 	const char *name;
@@ -178,7 +179,7 @@ int imx_clk_scu_init(struct device_node *np)
 		}
 	}
 
-	return 0;
+	return platform_driver_register(&imx_clk_scu_driver);
 }
 
 /*
@@ -542,7 +543,6 @@ static struct platform_driver imx_clk_scu_driver = {
 	},
 	.probe = imx_clk_scu_probe,
 };
-builtin_platform_driver(imx_clk_scu_driver);
 
 static int imx_clk_scu_attach_pd(struct device *dev, u32 rsrc_id)
 {
