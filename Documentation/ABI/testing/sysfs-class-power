@@ -36,7 +36,229 @@ Description:
 		Access: Read
 		Valid values: "Battery", "UPS", "Mains", "USB", "Wireless"
 
-===== Battery Properties =====
+**Battery and USB properties**
+
+What:		/sys/class/power_supply/<supply_name>/current_avg
+Date:		May 2007
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Battery:
+
+		  Reports an average IBAT current reading for the battery, over
+		  a fixed period. Normally devices will provide a fixed interval
+		  in which they average readings to smooth out the reported
+		  value.
+
+		USB:
+
+		  Reports an average IBUS current reading over a fixed period.
+		  Normally devices will provide a fixed interval in which they
+		  average readings to smooth out the reported value.
+
+		Access: Read
+
+		Valid values: Represented in microamps. Negative values are
+		used for discharging batteries, positive values for charging
+		batteries and for USB IBUS current.
+
+What:		/sys/class/power_supply/<supply_name>/current_max
+Date:		October 2010
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Battery:
+
+		  Reports the maximum IBAT current allowed into the battery.
+
+		USB:
+
+		  Reports the maximum IBUS current the supply can support.
+
+		Access: Read
+		Valid values: Represented in microamps
+
+What: 		/sys/class/power_supply/<supply_name>/current_now
+Date:		May 2007
+Contact:	linux-pm@vger.kernel.org
+Description:
+
+		Battery:
+
+		  Reports an instant, single IBAT current reading for the
+		  battery. This value is not averaged/smoothed.
+
+		  Access: Read
+
+		USB:
+
+		  Reports the IBUS current supplied now. This value is generally
+		  read-only reporting, unless the 'online' state of the supply
+		  is set to be programmable, in which case this value can be set
+		  within the reported min/max range.
+
+		  Access: Read, Write
+
+		Valid values: Represented in microamps. Negative values are
+		used for discharging batteries, positive values for charging
+		batteries and for USB IBUS current.
+
+What:		/sys/class/power_supply/<supply_name>/temp
+Date:		May 2007
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Battery:
+
+		  Reports the current TBAT battery temperature reading.
+
+		USB:
+
+		  Reports the current supply temperature reading. This would
+		  normally be the internal temperature of the device itself
+		  (e.g TJUNC temperature of an IC)
+
+		Access: Read
+
+		Valid values: Represented in 1/10 Degrees Celsius
+
+What:		/sys/class/power_supply/<supply_name>/temp_alert_max
+Date:		July 2012
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Battery:
+
+		  Maximum TBAT temperature trip-wire value where the supply will
+		  notify user-space of the event.
+
+		USB:
+
+		  Maximum supply temperature trip-wire value where the supply
+		  will notify user-space of the event.
+
+		This is normally used for the charging scenario where
+		user-space needs to know if the temperature has crossed an
+		upper threshold so it can take appropriate action (e.g. warning
+		user that the temperature is critically high, and charging has
+		stopped).
+
+		Access: Read
+
+		Valid values: Represented in 1/10 Degrees Celsius
+
+What:		/sys/class/power_supply/<supply_name>/temp_alert_min
+Date:		July 2012
+Contact:	linux-pm@vger.kernel.org
+Description:
+
+		Battery:
+
+		  Minimum TBAT temperature trip-wire value where the supply will
+		  notify user-space of the event.
+
+		USB:
+
+		  Minimum supply temperature trip-wire value where the supply
+		  will notify user-space of the event.
+
+		This is normally used for the charging scenario where user-space
+		needs to know if the temperature has crossed a lower threshold
+		so it can take appropriate action (e.g. warning user that
+		temperature level is high, and charging current has been
+		reduced accordingly to remedy the situation).
+
+		Access: Read
+
+		Valid values: Represented in 1/10 Degrees Celsius
+
+What:		/sys/class/power_supply/<supply_name>/temp_max
+Date:		July 2014
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Battery:
+
+		  Reports the maximum allowed TBAT battery temperature for
+		  charging.
+
+		USB:
+
+		  Reports the maximum allowed supply temperature for operation.
+
+		Access: Read
+
+		Valid values: Represented in 1/10 Degrees Celsius
+
+What:		/sys/class/power_supply/<supply_name>/temp_min
+Date:		July 2014
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Battery:
+
+		  Reports the minimum allowed TBAT battery temperature for
+		  charging.
+
+		USB:
+
+		  Reports the minimum allowed supply temperature for operation.
+
+		Access: Read
+
+		Valid values: Represented in 1/10 Degrees Celsius
+
+What:		/sys/class/power_supply/<supply_name>/voltage_max,
+Date:		January 2008
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Battery:
+
+		  Reports the maximum safe VBAT voltage permitted for the
+		  battery, during charging.
+
+		USB:
+
+		  Reports the maximum VBUS voltage the supply can support.
+
+		Access: Read
+
+		Valid values: Represented in microvolts
+
+What:		/sys/class/power_supply/<supply_name>/voltage_min,
+Date:		January 2008
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Battery:
+
+		  Reports the minimum safe VBAT voltage permitted for the
+		  battery, during discharging.
+
+		USB:
+
+		  Reports the minimum VBUS voltage the supply can support.
+
+		Access: Read
+
+		Valid values: Represented in microvolts
+
+What:		/sys/class/power_supply/<supply_name>/voltage_now,
+Date:		May 2007
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Battery:
+
+		  Reports an instant, single VBAT voltage reading for the
+		  battery. This value is not averaged/smoothed.
+
+		  Access: Read
+
+		USB:
+
+		  Reports the VBUS voltage supplied now. This value is generally
+		  read-only reporting, unless the 'online' state of the supply
+		  is set to be programmable, in which case this value can be set
+		  within the reported min/max range.
+
+		  Access: Read, Write
+
+		Valid values: Represented in microvolts
+
+**Battery Properties**
 
 What:		/sys/class/power_supply/<supply_name>/capacity
 Date:		May 2007
@@ -105,40 +327,6 @@ Description:
 		Valid values:
 			      "Unknown", "Critical", "Low", "Normal", "High",
 			      "Full"
-
-What:		/sys/class/power_supply/<supply_name>/current_avg
-Date:		May 2007
-Contact:	linux-pm@vger.kernel.org
-Description:
-		Reports an average IBAT current reading for the battery, over a
-		fixed period. Normally devices will provide a fixed interval in
-		which they average readings to smooth out the reported value.
-
-		Access: Read
-
-		Valid values: Represented in microamps. Negative values are used
-		for discharging batteries, positive values for charging batteries.
-
-What:		/sys/class/power_supply/<supply_name>/current_max
-Date:		October 2010
-Contact:	linux-pm@vger.kernel.org
-Description:
-		Reports the maximum IBAT current allowed into the battery.
-
-		Access: Read
-		Valid values: Represented in microamps
-
-What:		/sys/class/power_supply/<supply_name>/current_now
-Date:		May 2007
-Contact:	linux-pm@vger.kernel.org
-Description:
-		Reports an instant, single IBAT current reading for the battery.
-		This value is not averaged/smoothed.
-
-		Access: Read
-
-		Valid values: Represented in microamps. Negative values are used
-		for discharging batteries, positive values for charging batteries.
 
 What:		/sys/class/power_supply/<supply_name>/charge_control_limit
 Date:		Oct 2012
@@ -279,68 +467,6 @@ Description:
 			      "Unknown", "NiMH", "Li-ion", "Li-poly", "LiFe",
 			      "NiCd", "LiMn"
 
-What:		/sys/class/power_supply/<supply_name>/temp
-Date:		May 2007
-Contact:	linux-pm@vger.kernel.org
-Description:
-		Reports the current TBAT battery temperature reading.
-
-		Access: Read
-
-		Valid values: Represented in 1/10 Degrees Celsius
-
-What:		/sys/class/power_supply/<supply_name>/temp_alert_max
-Date:		July 2012
-Contact:	linux-pm@vger.kernel.org
-Description:
-		Maximum TBAT temperature trip-wire value where the supply will
-		notify user-space of the event. This is normally used for the
-		battery charging scenario where user-space needs to know the
-		battery temperature has crossed an upper threshold so it can
-		take appropriate action (e.g. warning user that battery level is
-		critically high, and charging has stopped).
-
-		Access: Read
-
-		Valid values: Represented in 1/10 Degrees Celsius
-
-What:		/sys/class/power_supply/<supply_name>/temp_alert_min
-Date:		July 2012
-Contact:	linux-pm@vger.kernel.org
-Description:
-		Minimum TBAT temperature trip-wire value where the supply will
-		notify user-space of the event. This is normally used for the
-		battery charging scenario where user-space needs to know the
-		battery temperature has crossed a lower threshold so it can take
-		appropriate action (e.g. warning user that battery level is
-		high, and charging current has been reduced accordingly to
-		remedy the situation).
-
-		Access: Read
-
-		Valid values: Represented in 1/10 Degrees Celsius
-
-What:		/sys/class/power_supply/<supply_name>/temp_max
-Date:		July 2014
-Contact:	linux-pm@vger.kernel.org
-Description:
-		Reports the maximum allowed TBAT battery temperature for
-		charging.
-
-		Access: Read
-
-		Valid values: Represented in 1/10 Degrees Celsius
-
-What:		/sys/class/power_supply/<supply_name>/temp_min
-Date:		July 2014
-Contact:	linux-pm@vger.kernel.org
-Description:
-		Reports the minimum allowed TBAT battery temperature for
-		charging.
-
-		Access: Read
-
-		Valid values: Represented in 1/10 Degrees Celsius
 
 What:		/sys/class/power_supply/<supply_name>/voltage_avg,
 Date:		May 2007
@@ -354,76 +480,7 @@ Description:
 
 		Valid values: Represented in microvolts
 
-What:		/sys/class/power_supply/<supply_name>/voltage_max,
-Date:		January 2008
-Contact:	linux-pm@vger.kernel.org
-Description:
-		Reports the maximum safe VBAT voltage permitted for the battery,
-		during charging.
-
-		Access: Read
-
-		Valid values: Represented in microvolts
-
-What:		/sys/class/power_supply/<supply_name>/voltage_min,
-Date:		January 2008
-Contact:	linux-pm@vger.kernel.org
-Description:
-		Reports the minimum safe VBAT voltage permitted for the battery,
-		during discharging.
-
-		Access: Read
-
-		Valid values: Represented in microvolts
-
-What:		/sys/class/power_supply/<supply_name>/voltage_now,
-Date:		May 2007
-Contact:	linux-pm@vger.kernel.org
-Description:
-		Reports an instant, single VBAT voltage reading for the battery.
-		This value is not averaged/smoothed.
-
-		Access: Read
-
-		Valid values: Represented in microvolts
-
 **USB Properties**
-
-What:		/sys/class/power_supply/<supply_name>/current_avg
-Date:		May 2007
-Contact:	linux-pm@vger.kernel.org
-Description:
-		Reports an average IBUS current reading over a fixed period.
-		Normally devices will provide a fixed interval in which they
-		average readings to smooth out the reported value.
-
-		Access: Read
-
-		Valid values: Represented in microamps
-
-
-What: 		/sys/class/power_supply/<supply_name>/current_max
-Date:		October 2010
-Contact:	linux-pm@vger.kernel.org
-Description:
-		Reports the maximum IBUS current the supply can support.
-
-		Access: Read
-
-		Valid values: Represented in microamps
-
-What: 		/sys/class/power_supply/<supply_name>/current_now
-Date:		May 2007
-Contact:	linux-pm@vger.kernel.org
-Description:
-		Reports the IBUS current supplied now. This value is generally
-		read-only reporting, unless the 'online' state of the supply
-		is set to be programmable, in which case this value can be set
-		within the reported min/max range.
-
-		Access: Read, Write
-
-		Valid values: Represented in microamps
 
 What:		/sys/class/power_supply/<supply_name>/input_current_limit
 Date:		July 2014
@@ -491,70 +548,6 @@ Description:
 			2: Online Programmable - Programmable Voltage Supply
 			== ==================================================
 
-What:		/sys/class/power_supply/<supply_name>/temp
-Date:		May 2007
-Contact:	linux-pm@vger.kernel.org
-Description:
-		Reports the current supply temperature reading. This would
-		normally be the internal temperature of the device itself (e.g
-		TJUNC temperature of an IC)
-
-		Access: Read
-
-		Valid values: Represented in 1/10 Degrees Celsius
-
-What:		/sys/class/power_supply/<supply_name>/temp_alert_max
-Date:		July 2012
-Contact:	linux-pm@vger.kernel.org
-Description:
-		Maximum supply temperature trip-wire value where the supply will
-		notify user-space of the event. This is normally used for the
-		charging scenario where user-space needs to know the supply
-		temperature has crossed an upper threshold so it can take
-		appropriate action (e.g. warning user that the supply
-		temperature is critically high, and charging has stopped to
-		remedy the situation).
-
-		Access: Read
-
-		Valid values: Represented in 1/10 Degrees Celsius
-
-What:		/sys/class/power_supply/<supply_name>/temp_alert_min
-Date:		July 2012
-Contact:	linux-pm@vger.kernel.org
-Description:
-		Minimum supply temperature trip-wire value where the supply will
-		notify user-space of the event. This is normally used for the
-		charging scenario where user-space needs to know the supply
-		temperature has crossed a lower threshold so it can take
-		appropriate action (e.g. warning user that the supply
-		temperature is high, and charging current has been reduced
-		accordingly to remedy the situation).
-
-		Access: Read
-
-		Valid values: Represented in 1/10 Degrees Celsius
-
-What:		/sys/class/power_supply/<supply_name>/temp_max
-Date:		July 2014
-Contact:	linux-pm@vger.kernel.org
-Description:
-		Reports the maximum allowed supply temperature for operation.
-
-		Access: Read
-
-		Valid values: Represented in 1/10 Degrees Celsius
-
-What:		/sys/class/power_supply/<supply_name>/temp_min
-Date:		July 2014
-Contact:	linux-pm@vger.kernel.org
-Description:
-		Reports the mainimum allowed supply temperature for operation.
-
-		Access: Read
-
-		Valid values: Represented in 1/10 Degrees Celsius
-
 What: 		/sys/class/power_supply/<supply_name>/usb_type
 Date:		March 2018
 Contact:	linux-pm@vger.kernel.org
@@ -568,39 +561,6 @@ Description:
 		Valid values:
 			      "Unknown", "SDP", "DCP", "CDP", "ACA", "C", "PD",
 			      "PD_DRP", "PD_PPS", "BrickID"
-
-What: 		/sys/class/power_supply/<supply_name>/voltage_max
-Date:		January 2008
-Contact:	linux-pm@vger.kernel.org
-Description:
-		Reports the maximum VBUS voltage the supply can support.
-
-		Access: Read
-
-		Valid values: Represented in microvolts
-
-What: 		/sys/class/power_supply/<supply_name>/voltage_min
-Date:		January 2008
-Contact:	linux-pm@vger.kernel.org
-Description:
-		Reports the minimum VBUS voltage the supply can support.
-
-		Access: Read
-
-		Valid values: Represented in microvolts
-
-What: 		/sys/class/power_supply/<supply_name>/voltage_now
-Date:		May 2007
-Contact:	linux-pm@vger.kernel.org
-Description:
-		Reports the VBUS voltage supplied now. This value is generally
-		read-only reporting, unless the 'online' state of the supply
-		is set to be programmable, in which case this value can be set
-		within the reported min/max range.
-
-		Access: Read, Write
-
-		Valid values: Represented in microvolts
 
 **Device Specific Properties**
 
