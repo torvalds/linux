@@ -55,6 +55,7 @@ struct atmel_tcb_pwm_chip {
 	u8 width;
 	struct regmap *regmap;
 	struct clk *clk;
+	struct clk *gclk;
 	struct clk *slow_clk;
 	struct atmel_tcb_pwm_device *pwms[NPWM];
 	struct atmel_tcb_channel bkup;
@@ -292,7 +293,7 @@ static int atmel_tcb_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	struct atmel_tcb_pwm_chip *tcbpwmc = to_tcb_chip(chip);
 	struct atmel_tcb_pwm_device *tcbpwm = pwm_get_chip_data(pwm);
 	struct atmel_tcb_pwm_device *atcbpwm = NULL;
-	int i;
+	int i = 0;
 	int slowclk = 0;
 	unsigned period;
 	unsigned duty;
@@ -303,8 +304,11 @@ static int atmel_tcb_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	/*
 	 * Find best clk divisor:
 	 * the smallest divisor which can fulfill the period_ns requirements.
+	 * If there is a gclk, the first divisor is actuallly the gclk selector
 	 */
-	for (i = 0; i < ARRAY_SIZE(atmel_tcb_divisors); ++i) {
+	if (tcbpwmc->gclk)
+		i = 1;
+	for (; i < ARRAY_SIZE(atmel_tcb_divisors); ++i) {
 		if (atmel_tcb_divisors[i] == 0) {
 			slowclk = i;
 			continue;
@@ -383,9 +387,15 @@ static struct atmel_tcb_config tcb_sam9x5_config = {
 	.counter_width = 32,
 };
 
+static struct atmel_tcb_config tcb_sama5d2_config = {
+	.counter_width = 32,
+	.has_gclk = 1,
+};
+
 static const struct of_device_id atmel_tcb_of_match[] = {
 	{ .compatible = "atmel,at91rm9200-tcb", .data = &tcb_rm9200_config, },
 	{ .compatible = "atmel,at91sam9x5-tcb", .data = &tcb_sam9x5_config, },
+	{ .compatible = "atmel,sama5d2-tcb", .data = &tcb_sama5d2_config, },
 	{ /* sentinel */ }
 };
 
@@ -396,7 +406,7 @@ static int atmel_tcb_pwm_probe(struct platform_device *pdev)
 	const struct atmel_tcb_config *config;
 	struct device_node *np = pdev->dev.of_node;
 	struct regmap *regmap;
-	struct clk *clk;
+	struct clk *clk, *gclk = NULL;
 	struct clk *slow_clk;
 	char clk_name[] = "t0_clk";
 	int err;
@@ -428,6 +438,12 @@ static int atmel_tcb_pwm_probe(struct platform_device *pdev)
 	match = of_match_node(atmel_tcb_of_match, np->parent);
 	config = match->data;
 
+	if (config->has_gclk) {
+		gclk = of_clk_get_by_name(np->parent, "gclk");
+		if (IS_ERR(gclk))
+			return PTR_ERR(gclk);
+	}
+
 	tcbpwm = devm_kzalloc(&pdev->dev, sizeof(*tcbpwm), GFP_KERNEL);
 	if (tcbpwm == NULL) {
 		err = -ENOMEM;
@@ -443,6 +459,7 @@ static int atmel_tcb_pwm_probe(struct platform_device *pdev)
 	tcbpwm->channel = channel;
 	tcbpwm->regmap = regmap;
 	tcbpwm->clk = clk;
+	tcbpwm->gclk = gclk;
 	tcbpwm->slow_clk = slow_clk;
 	tcbpwm->width = config->counter_width;
 
