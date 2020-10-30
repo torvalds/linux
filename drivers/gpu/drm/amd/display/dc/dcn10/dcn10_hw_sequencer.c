@@ -3279,6 +3279,8 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	};
 	bool pipe_split_on = (pipe_ctx->top_pipe != NULL) ||
 		(pipe_ctx->bottom_pipe != NULL);
+	bool odm_combine_on = (pipe_ctx->next_odm_pipe != NULL) ||
+		(pipe_ctx->prev_odm_pipe != NULL);
 
 	int x_plane = pipe_ctx->plane_state->dst_rect.x;
 	int y_plane = pipe_ctx->plane_state->dst_rect.y;
@@ -3362,16 +3364,56 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 		uint32_t temp_y = pos_cpy.y;
 		int viewport_height =
 			pipe_ctx->plane_res.scl_data.viewport.height;
+		int viewport_y =
+			pipe_ctx->plane_res.scl_data.viewport.y;
 
-		if (pipe_split_on) {
+		/**
+		 * Display groups that are 1xnY, have pos_cpy.x > 2 * viewport.height
+		 * For pipe split cases:
+		 * - apply offset of viewport.y to normalize pos_cpy.x
+		 * - calculate the pos_cpy.y as before
+		 * - shift pos_cpy.y back by same offset to get final value
+		 * - since we iterate through both pipes, use the lower
+		 *   viewport.y for offset
+		 * For non pipe split cases, use the same calculation for
+		 *  pos_cpy.y as the 180 degree rotation case below,
+		 *  but use pos_cpy.x as our input because we are rotating
+		 *  270 degrees
+		 */
+		if (pipe_split_on || odm_combine_on) {
+			int pos_cpy_x_offset;
+			int other_pipe_viewport_y;
+
+			if (pipe_split_on) {
+				if (pipe_ctx->bottom_pipe) {
+					other_pipe_viewport_y =
+						pipe_ctx->bottom_pipe->plane_res.scl_data.viewport.y;
+				} else {
+					other_pipe_viewport_y =
+						pipe_ctx->top_pipe->plane_res.scl_data.viewport.y;
+				}
+			} else {
+				if (pipe_ctx->next_odm_pipe) {
+					other_pipe_viewport_y =
+						pipe_ctx->next_odm_pipe->plane_res.scl_data.viewport.y;
+				} else {
+					other_pipe_viewport_y =
+						pipe_ctx->prev_odm_pipe->plane_res.scl_data.viewport.y;
+				}
+			}
+			pos_cpy_x_offset = (viewport_y > other_pipe_viewport_y) ?
+				other_pipe_viewport_y : viewport_y;
+			pos_cpy.x -= pos_cpy_x_offset;
 			if (pos_cpy.x > viewport_height) {
 				pos_cpy.x = pos_cpy.x - viewport_height;
 				pos_cpy.y = viewport_height - pos_cpy.x;
 			} else {
 				pos_cpy.y = 2 * viewport_height - pos_cpy.x;
 			}
-		} else
-			pos_cpy.y = viewport_height - pos_cpy.x;
+			pos_cpy.y += pos_cpy_x_offset;
+		} else {
+			pos_cpy.y = (2 * viewport_y) + viewport_height - pos_cpy.x;
+		}
 		pos_cpy.x = temp_y;
 	}
 	// Mirror horizontally and vertically
@@ -3381,7 +3423,7 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 		int viewport_x =
 			pipe_ctx->plane_res.scl_data.viewport.x;
 
-		if (pipe_split_on) {
+		if (pipe_split_on || odm_combine_on) {
 			if (pos_cpy.x >= viewport_width + viewport_x) {
 				pos_cpy.x = 2 * viewport_width
 						- pos_cpy.x + 2 * viewport_x;
@@ -3399,7 +3441,17 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 		} else {
 			pos_cpy.x = viewport_width - pos_cpy.x + 2 * viewport_x;
 		}
-		pos_cpy.y = pipe_ctx->plane_res.scl_data.viewport.height - pos_cpy.y;
+
+		/**
+		 * Display groups that are 1xnY, have pos_cpy.y > viewport.height
+		 * Calculation:
+		 *   delta_from_bottom = viewport.y + viewport.height - pos_cpy.y
+		 *   pos_cpy.y_new = viewport.y + delta_from_bottom
+		 * Simplify it as:
+		 *   pos_cpy.y = viewport.y * 2 + viewport.height - pos_cpy.y
+		 */
+		pos_cpy.y = (2 * pipe_ctx->plane_res.scl_data.viewport.y) +
+			pipe_ctx->plane_res.scl_data.viewport.height - pos_cpy.y;
 	}
 
 	hubp->funcs->set_cursor_position(hubp, &pos_cpy, &param);
