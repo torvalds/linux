@@ -1400,11 +1400,14 @@ perf_event_addr_filters(struct perf_event *event)
 extern void perf_event_addr_filters_sync(struct perf_event *event);
 
 extern int perf_output_begin(struct perf_output_handle *handle,
+			     struct perf_sample_data *data,
 			     struct perf_event *event, unsigned int size);
 extern int perf_output_begin_forward(struct perf_output_handle *handle,
-				    struct perf_event *event,
-				    unsigned int size);
+				     struct perf_sample_data *data,
+				     struct perf_event *event,
+				     unsigned int size);
 extern int perf_output_begin_backward(struct perf_output_handle *handle,
+				      struct perf_sample_data *data,
 				      struct perf_event *event,
 				      unsigned int size);
 

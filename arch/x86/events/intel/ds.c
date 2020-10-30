@@ -642,8 +642,8 @@ int intel_pmu_drain_bts_buffer(void)
 	rcu_read_lock();
 	perf_prepare_sample(&header, &data, event, &regs);
 
-	if (perf_output_begin(&handle, event, header.size *
-			      (top - base - skip)))
+	if (perf_output_begin(&handle, &data, event,
+			      header.size * (top - base - skip)))
 		goto unlock;
 
 	for (at = base; at < top; at++) {
