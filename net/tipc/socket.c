@@ -658,8 +658,8 @@ static int tipc_release(struct socket *sock)
  * NOTE: This routine doesn't need to take the socket lock since it doesn't
  *       access any non-constant socket information.
  */
-static int tipc_bind(struct socket *sock, struct sockaddr *uaddr,
-		     int uaddr_len)
+
+int tipc_sk_bind(struct socket *sock, struct sockaddr *uaddr, int uaddr_len)
 {
 	struct sock *sk = sock->sk;
 	struct sockaddr_tipc *addr = (struct sockaddr_tipc *)uaddr;
@@ -691,19 +691,28 @@ static int tipc_bind(struct socket *sock, struct sockaddr *uaddr,
 		goto exit;
 	}
 
-	if ((addr->addr.nameseq.type < TIPC_RESERVED_TYPES) &&
-	    (addr->addr.nameseq.type != TIPC_TOP_SRV) &&
-	    (addr->addr.nameseq.type != TIPC_CFG_SRV)) {
-		res = -EACCES;
-		goto exit;
-	}
-
 	res = (addr->scope >= 0) ?
 		tipc_sk_publish(tsk, addr->scope, &addr->addr.nameseq) :
 		tipc_sk_withdraw(tsk, -addr->scope, &addr->addr.nameseq);
 exit:
 	release_sock(sk);
 	return res;
+}
+
+static int tipc_bind(struct socket *sock, struct sockaddr *skaddr, int alen)
+{
+	struct sockaddr_tipc *addr = (struct sockaddr_tipc *)skaddr;
+
+	if (alen) {
+		if (alen < sizeof(struct sockaddr_tipc))
+			return -EINVAL;
+		if (addr->addr.nameseq.type < TIPC_RESERVED_TYPES) {
+			pr_warn_once("Can't bind to reserved service type %u\n",
+				     addr->addr.nameseq.type);
+			return -EACCES;
+		}
+	}
+	return tipc_sk_bind(sock, skaddr, alen);
 }
 
 /**
