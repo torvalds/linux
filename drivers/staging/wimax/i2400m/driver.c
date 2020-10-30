@@ -50,7 +50,7 @@
  */
 #include "i2400m.h"
 #include <linux/etherdevice.h>
-#include <linux/wimax/i2400m.h>
+#include "linux-wimax-i2400m.h"
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/suspend.h>

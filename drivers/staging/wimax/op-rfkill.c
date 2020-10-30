@@ -45,9 +45,9 @@
  * wimax_rfkill_rm()            [called by wimax_dev_add/rm()]
  */
 
-#include <net/wimax.h>
+#include "net-wimax.h"
 #include <net/genetlink.h>
-#include <linux/wimax.h>
+#include "linux-wimax.h"
 #include <linux/security.h>
 #include <linux/rfkill.h>
 #include <linux/export.h>

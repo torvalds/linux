@@ -39,7 +39,7 @@
 #include <linux/gfp.h>
 #include <net/genetlink.h>
 #include <linux/netdevice.h>
-#include <linux/wimax.h>
+#include "linux-wimax.h"
 #include <linux/module.h>
 #include "wimax-internal.h"
 
@@ -388,17 +388,24 @@ void wimax_dev_init(struct wimax_dev *wimax_dev)
 }
 EXPORT_SYMBOL_GPL(wimax_dev_init);
 
+/*
+ * There are multiple enums reusing the same values, adding
+ * others is only possible if they use a compatible policy.
+ */
 static const struct nla_policy wimax_gnl_policy[WIMAX_GNL_ATTR_MAX + 1] = {
-	[WIMAX_GNL_RESET_IFIDX] = { .type = NLA_U32, },
-	[WIMAX_GNL_RFKILL_IFIDX] = { .type = NLA_U32, },
-	[WIMAX_GNL_RFKILL_STATE] = {
-		.type = NLA_U32		/* enum wimax_rf_state */
-	},
-	[WIMAX_GNL_STGET_IFIDX] = { .type = NLA_U32, },
-	[WIMAX_GNL_MSG_IFIDX] = { .type = NLA_U32, },
-	[WIMAX_GNL_MSG_DATA] = {
-		.type = NLA_UNSPEC,	/* libnl doesn't grok BINARY yet */
-	},
+	/*
+	 * WIMAX_GNL_RESET_IFIDX, WIMAX_GNL_RFKILL_IFIDX,
+	 * WIMAX_GNL_STGET_IFIDX, WIMAX_GNL_MSG_IFIDX
+	 */
+	[1] = { .type = NLA_U32, },
+	/*
+	 * WIMAX_GNL_RFKILL_STATE, WIMAX_GNL_MSG_PIPE_NAME
+	 */
+	[2] = { .type = NLA_U32, }, /* enum wimax_rf_state */
+	/*
+	 * WIMAX_GNL_MSG_DATA
+	 */
+	[3] = { .type = NLA_UNSPEC, }, /* libnl doesn't grok BINARY yet */
 };
 
 static const struct genl_small_ops wimax_gnl_ops[] = {

@@ -22,7 +22,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/device.h>
-#include <net/wimax.h>
+#include "net-wimax.h"
 
 
 /*

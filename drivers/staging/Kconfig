@@ -114,6 +114,8 @@ source "drivers/staging/kpc2000/Kconfig"
 
 source "drivers/staging/qlge/Kconfig"
 
+source "drivers/staging/wimax/Kconfig"
+
 source "drivers/staging/wfx/Kconfig"
 
 source "drivers/staging/hikey9xx/Kconfig"

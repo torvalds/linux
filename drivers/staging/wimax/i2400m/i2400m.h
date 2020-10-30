@@ -156,8 +156,8 @@
 #include <linux/completion.h>
 #include <linux/rwsem.h>
 #include <linux/atomic.h>
-#include <net/wimax.h>
-#include <linux/wimax/i2400m.h>
+#include "../net-wimax.h"
+#include "linux-wimax-i2400m.h"
 #include <asm/byteorder.h>
 
 enum {

@@ -22,6 +22,8 @@ menuconfig WIMAX
 
 	  If unsure, it is safe to select M (module).
 
+if WIMAX
+
 config WIMAX_DEBUG_LEVEL
 	int "WiMAX debug level"
 	depends on WIMAX
@@ -38,3 +40,7 @@ config WIMAX_DEBUG_LEVEL
 	  If set at zero, this will compile out all the debug code.
 
 	  It is recommended that it is left at 8.
+
+source "drivers/staging/wimax/i2400m/Kconfig"
+
+endif

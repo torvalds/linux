@@ -9096,16 +9096,6 @@ W:	https://wireless.wiki.kernel.org/en/users/drivers/iwlwifi
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/iwlwifi/iwlwifi.git
 F:	drivers/net/wireless/intel/iwlwifi/
 
-INTEL WIRELESS WIMAX CONNECTION 2400
-M:	Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>
-M:	linux-wimax@intel.com
-L:	wimax@linuxwimax.org (subscribers-only)
-S:	Supported
-W:	http://linuxwimax.org
-F:	Documentation/admin-guide/wimax/i2400m.rst
-F:	drivers/net/wimax/i2400m/
-F:	include/uapi/linux/wimax/i2400m.h
-
 INTEL WMI SLIM BOOTLOADER (SBL) FIRMWARE UPDATE DRIVER
 M:	Jithu Joseph <jithu.joseph@intel.com>
 R:	Maurice Ma <maurice.ma@intel.com>
@@ -18896,18 +18886,6 @@ L:	wil6210@qti.qualcomm.com
 S:	Supported
 W:	https://wireless.wiki.kernel.org/en/users/Drivers/wil6210
 F:	drivers/net/wireless/ath/wil6210/
-
-WIMAX STACK
-M:	Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>
-M:	linux-wimax@intel.com
-L:	wimax@linuxwimax.org (subscribers-only)
-S:	Supported
-W:	http://linuxwimax.org
-F:	Documentation/admin-guide/wimax/wimax.rst
-F:	include/linux/wimax/debug.h
-F:	include/net/wimax.h
-F:	include/uapi/linux/wimax.h
-F:	net/wimax/
 
 WINBOND CIR DRIVER
 M:	David Härdeman <david@hardeman.nu>
