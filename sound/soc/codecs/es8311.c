@@ -573,8 +573,8 @@ static int es8311_probe(struct snd_soc_component *component)
 		snd_soc_component_update_bits(component, ES8311_GPIO_REG44,
 					      0x70, es8311->aec_mode << 4);
 	if (es8311->adc_pga_gain)
-		snd_soc_component_write(component, ES8311_SYSTEM_REG14,
-					es8311->adc_pga_gain);
+		snd_soc_component_update_bits(component, ES8311_SYSTEM_REG14,
+					      0x0f, es8311->adc_pga_gain);
 	if (es8311->adc_volume)
 		snd_soc_component_write(component, ES8311_ADC_REG17,
 					es8311->adc_volume);
