@@ -22,3 +22,47 @@
 		stdout-path = "serial1:115200n8";
 	};
 };
+
+&dpmac1 {
+	phy-handle = <&mdio1_phy1>;
+	phy-connection-type = "10gbase-r";
+};
+
+&dpmac2 {
+	phy-handle = <&mdio1_phy2>;
+	phy-connection-type = "10gbase-r";
+};
+
+&dpmac3 {
+	phy-handle = <&mdio1_phy3>;
+	phy-connection-type = "10gbase-r";
+};
+
+&dpmac4 {
+	phy-handle = <&mdio1_phy4>;
+	phy-connection-type = "10gbase-r";
+};
+
+&emdio1 {
+	status = "okay";
+
+	mdio1_phy1: ethernet-phy@10 {
+		compatible = "ethernet-phy-id13e5.1002";
+		reg = <0x10>;
+	};
+
+	mdio1_phy2: ethernet-phy@11 {
+		compatible = "ethernet-phy-id13e5.1002";
+		reg = <0x11>;
+	};
+
+	mdio1_phy3: ethernet-phy@12 {
+		compatible = "ethernet-phy-id13e5.1002";
+		reg = <0x12>;
+	};
+
+	mdio1_phy4: ethernet-phy@13 {
+		compatible = "ethernet-phy-id13e5.1002";
+		reg = <0x13>;
+	};
+};
