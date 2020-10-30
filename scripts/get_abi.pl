@@ -316,8 +316,6 @@ sub output_rest {
 				$len = length($name) if (length($name) > $len);
 			}
 
-			print "What:\n\n";
-
 			print "+-" . "-" x $len . "-+\n";
 			foreach my $name (@names) {
 				printf "| %s", $name . " " x ($len - length($name)) . " |\n";

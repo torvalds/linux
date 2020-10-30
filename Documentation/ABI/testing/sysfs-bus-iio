@@ -15,6 +15,7 @@ Description:
 		based on hardware generated events (e.g. data ready) or
 		provided by a separate driver for other hardware (e.g.
 		periodic timer, GPIO or high resolution timer).
+
 		Contains trigger type specific elements. These do not
 		generalize well and hence are not documented in this file.
 		X is the IIO index of the trigger.
@@ -666,6 +667,7 @@ Description:
 		<type>[Y][_name]_<raw|input>_thresh_falling_value may take
 		different values, but the device can only enable both thresholds
 		or neither.
+
 		Note the driver will assume the last p events requested are
 		to be enabled where p is how many it supports (which may vary
 		depending on the exact set requested. So if you want to be
@@ -720,6 +722,7 @@ Description:
 		<type>[Y][_name]_<raw|input>_roc_falling_value may take
 		different values, but the device can only enable both rate of
 		change thresholds or neither.
+
 		Note the driver will assume the last p events requested are
 		to be enabled where p is however many it supports (which may
 		vary depending on the exact set requested. So if you want to be
@@ -775,9 +778,11 @@ Description:
 		Specifies the value of threshold that the device is comparing
 		against for the events enabled by
 		<type>Y[_name]_thresh[_rising|falling]_en.
+
 		If separate attributes exist for the two directions, but
 		direction is not specified for this attribute, then a single
 		threshold value applies to both directions.
+
 		The raw or input element of the name indicates whether the
 		value is in raw device units or in processed units (as _raw
 		and _input do on sysfs direct channel read attributes).
@@ -860,6 +865,7 @@ Description:
 		If separate attributes exist for the two directions, but
 		direction is not specified for this attribute, then a single
 		hysteresis value applies to both directions.
+
 		For falling events the hysteresis is added to the _value attribute for
 		this event to get the upper threshold for when the event goes back to
 		normal, for rising events the hysteresis is subtracted from the _value
@@ -906,6 +912,7 @@ Description:
 		Specifies the value of rate of change threshold that the
 		device is comparing against for the events enabled by
 		<type>[Y][_name]_roc[_rising|falling]_en.
+
 		If separate attributes exist for the two directions,
 		but direction is not specified for this attribute,
 		then a single threshold value applies to both directions.
@@ -1305,6 +1312,7 @@ Description:
 		Proximity measurement indicating that some
 		object is near the sensor, usually by observing
 		reflectivity of infrared or ultrasound emitted.
+
 		Often these sensors are unit less and as such conversion
 		to SI units is not possible. Higher proximity measurements
 		indicate closer objects, and vice versa. Units after
@@ -1450,9 +1458,12 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		A single positive integer specifying the maximum number of scan
 		elements to wait for.
+
 		Poll will block until the watermark is reached.
+
 		Blocking read will wait until the minimum between the requested
 		read amount or the low water mark is available.
+
 		Non-blocking read will retrieve the available samples from the
 		buffer even if there are less samples then watermark level. This
 		allows the application to block on poll with a timeout and read
@@ -1481,11 +1492,13 @@ Description:
 		device settings allows it (e.g. if a trigger is set that samples
 		data differently that the hardware fifo does then hardware fifo
 		will not enabled).
+
 		If the hardware fifo is enabled and the level of the hardware
 		fifo reaches the hardware fifo watermark level the device will
 		flush its hardware fifo to the device buffer. Doing a non
 		blocking read on the device when no samples are present in the
 		device buffer will also force a flush.
+
 		When the hardware fifo is enabled there is no need to use a
 		trigger to use buffer mode since the watermark settings
 		guarantees that the hardware fifo is flushed to the device
@@ -1523,6 +1536,7 @@ Description:
 		A single positive integer specifying the minimum watermark level
 		for the hardware fifo of this device. If the device does not
 		have a hardware fifo this entry is not present.
+
 		If the user sets buffer/watermark to a value less than this one,
 		then the hardware watermark will remain unset.
 
@@ -1533,6 +1547,7 @@ Description:
 		A single positive integer specifying the maximum watermark level
 		for the hardware fifo of this device. If the device does not
 		have a hardware fifo this entry is not present.
+
 		If the user sets buffer/watermark to a value greater than this
 		one, then the hardware watermark will be capped at this value.
 
@@ -1544,6 +1559,7 @@ Description:
 		levels for the hardware fifo. This entry is optional and if it
 		is not present it means that all the values between
 		hwfifo_watermark_min and hwfifo_watermark_max are supported.
+
 		If the user sets buffer/watermark to a value greater than
 		hwfifo_watermak_min but not equal to any of the values in this
 		list, the driver will chose an appropriate value for the
@@ -1605,7 +1621,8 @@ KernelVersion:	4.1.0
 Contact:	linux-iio@vger.kernel.org
 Description:
 		'1' (enable) or '0' (disable) specifying the enable
-		of heater function. Same reading values apply
+		of heater function. Same reading values apply.
+
 		This ABI is especially applicable for humidity sensors
 		to heatup the device and get rid of any condensation
 		in some humidity environment

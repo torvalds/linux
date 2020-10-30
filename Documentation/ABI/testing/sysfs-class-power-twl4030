@@ -6,9 +6,9 @@ Description:
 	Possible values are:
 
 		=============	===========================================
-		"auto" 		draw power as appropriate for detected
+		"auto"		draw power as appropriate for detected
 				power source and battery status.
-		"off"  		do not draw any power.
+		"off"		do not draw any power.
 		"continuous"	activate mode described as "linear" in
 				TWL data sheets.  This uses whatever
 				current is available and doesn't switch off

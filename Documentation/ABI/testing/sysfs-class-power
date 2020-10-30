@@ -43,7 +43,9 @@ Date:		May 2007
 Contact:	linux-pm@vger.kernel.org
 Description:
 		Fine grain representation of battery capacity.
+
 		Access: Read
+
 		Valid values: 0 - 100 (percent)
 
 What:		/sys/class/power_supply/<supply_name>/capacity_alert_max
@@ -58,6 +60,7 @@ Description:
 		low).
 
 		Access: Read, Write
+
 		Valid values: 0 - 100 (percent)
 
 What:		/sys/class/power_supply/<supply_name>/capacity_alert_min
@@ -88,6 +91,7 @@ Description:
 		completely useless.
 
 		Access: Read
+
 		Valid values: 0 - 100 (percent)
 
 What:		/sys/class/power_supply/<supply_name>/capacity_level
@@ -111,6 +115,7 @@ Description:
 		which they average readings to smooth out the reported value.
 
 		Access: Read
+
 		Valid values: Represented in microamps. Negative values are used
 		for discharging batteries, positive values for charging batteries.
 
@@ -131,6 +136,7 @@ Description:
 		This value is not averaged/smoothed.
 
 		Access: Read
+
 		Valid values: Represented in microamps. Negative values are used
 		for discharging batteries, positive values for charging batteries.
 
@@ -383,7 +389,7 @@ Description:
 
 **USB Properties**
 
-What: 		/sys/class/power_supply/<supply_name>/current_avg
+What:		/sys/class/power_supply/<supply_name>/current_avg
 Date:		May 2007
 Contact:	linux-pm@vger.kernel.org
 Description:
@@ -449,6 +455,7 @@ Description:
 		solved using power limit use input_voltage_limit.
 
 		Access: Read, Write
+
 		Valid values: Represented in microvolts
 
 What:		/sys/class/power_supply/<supply_name>/input_power_limit
@@ -462,6 +469,7 @@ Description:
 		limit only for problems that can be solved using power limit.
 
 		Access: Read, Write
+
 		Valid values: Represented in microwatts
 
 What:		/sys/class/power_supply/<supply_name>/online,
@@ -747,6 +755,7 @@ Description:
 		manufactured.
 
 		Access: Read
+
 		Valid values: Reported as integer
 
 What:		/sys/class/power_supply/<supply_name>/manufacture_month
@@ -756,6 +765,7 @@ Description:
 		Reports the month when the device has been manufactured.
 
 		Access: Read
+
 		Valid values: 1-12
 
 What:		/sys/class/power_supply/<supply_name>/manufacture_day

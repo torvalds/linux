@@ -9,6 +9,7 @@ Description:
 		by writing INTERFACE to /sys/bus/usb/drivers_probe
 		This allows to avoid side-effects with drivers
 		that need multiple interfaces.
+
 		A deauthorized interface cannot be probed or claimed.
 
 What:		/sys/bus/usb/devices/usbX/interface_authorized_default
@@ -216,6 +217,7 @@ Description:
 		 - Bit 0 of this field selects the "old" enumeration scheme,
 		   as it is considerably faster (it only causes one USB reset
 		   instead of 2).
+
 		   The old enumeration scheme can also be selected globally
 		   using /sys/module/usbcore/parameters/old_scheme_first, but
 		   it is often not desirable as the new scheme was introduced to

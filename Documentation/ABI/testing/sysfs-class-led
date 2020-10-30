@@ -47,6 +47,7 @@ Contact:	Richard Purdie <rpurdie@rpsys.net>
 Description:
 		Set the trigger for this LED. A trigger is a kernel based source
 		of LED events.
+
 		You can change triggers in a similar manner to the way an IO
 		scheduler is chosen. Trigger specific parameters can appear in
 		/sys/class/leds/<led> once a given trigger is selected. For

@@ -81,11 +81,11 @@ Description:
 		  $ cd /sys/firmware/acpi/interrupts
 		  $ grep . *
 		  error:	     0
-		  ff_gbl_lock:	   0   enable
-		  ff_pmtimer:	  0  invalid
-		  ff_pwr_btn:	  0   enable
-		  ff_rt_clk:	 2  disable
-		  ff_slp_btn:	  0  invalid
+		  ff_gbl_lock:	     0   enable
+		  ff_pmtimer:	     0  invalid
+		  ff_pwr_btn:	     0   enable
+		  ff_rt_clk:	     2  disable
+		  ff_slp_btn:	     0  invalid
 		  gpe00:	     0	invalid
 		  gpe01:	     0	 enable
 		  gpe02:	   108	 enable
@@ -118,9 +118,9 @@ Description:
 		  gpe1D:	     0	invalid
 		  gpe1E:	     0	invalid
 		  gpe1F:	     0	invalid
-		  gpe_all:    1192
-		  sci:	1194
-		  sci_not:     0
+		  gpe_all:	  1192
+		  sci:		  1194
+		  sci_not:	     0
 
 		===========  ==================================================
 		sci	     The number of times the ACPI SCI

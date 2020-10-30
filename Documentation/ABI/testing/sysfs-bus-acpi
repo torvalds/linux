@@ -5,6 +5,7 @@ Description:
 		This attribute indicates the full path of ACPI namespace
 		object associated with the device object.  For example,
 		\_SB_.PCI0.
+
 		This file is not present for device objects representing
 		fixed ACPI hardware features (like power and sleep
 		buttons).

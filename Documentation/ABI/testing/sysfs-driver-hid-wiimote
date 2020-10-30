@@ -20,6 +20,7 @@ Description:	This file contains the currently connected and initialized
 		the official Nintendo Nunchuck extension and classic is the
 		Nintendo Classic Controller extension. The motionp extension can
 		be combined with the other two.
+
 		Starting with kernel-version 3.11 Motion Plus hotplugging is
 		supported and if detected, it's no longer reported as static
 		extension. You will get uevent notifications for the motion-plus

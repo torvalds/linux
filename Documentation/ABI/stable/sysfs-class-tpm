@@ -191,6 +191,6 @@ Contact:	linux-integrity@vger.kernel.org
 Description:	The "tpm_version_major" property shows the TCG spec major version
 		implemented by the TPM device.
 
-		Example output:
+		Example output::
 
-		2
+		  2

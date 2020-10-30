@@ -193,10 +193,11 @@ Description:	When new NVM image is written to the non-active NVM
 		verification fails an error code is returned instead.
 
 		This file will accept writing values "1" or "2"
+
 		- Writing "1" will flush the image to the storage
-		area and authenticate the image in one action.
+		  area and authenticate the image in one action.
 		- Writing "2" will run some basic validation on the image
-		and flush it to the storage area.
+		  and flush it to the storage area.
 
 		When read holds status of the last authentication
 		operation if an error occurred during the process. This
@@ -213,9 +214,11 @@ Description:	This contains name of the property directory the XDomain
 		question. Following directories are already reserved by
 		the Apple XDomain specification:
 
-		network:  IP/ethernet over Thunderbolt
-		targetdm: Target disk mode protocol over Thunderbolt
-		extdisp:  External display mode protocol over Thunderbolt
+		========  ===============================================
+		network   IP/ethernet over Thunderbolt
+		targetdm  Target disk mode protocol over Thunderbolt
+		extdisp   External display mode protocol over Thunderbolt
+		========  ===============================================
 
 What:		/sys/bus/thunderbolt/devices/<xdomain>.<service>/modalias
 Date:		Jan 2018
@@ -293,7 +296,8 @@ Description:	For supported devices, automatically authenticate the new Thunderbo
 		image when the device is disconnected from the host system.
 
 		This file will accept writing values "1" or "2"
+
 		- Writing "1" will flush the image to the storage
-		area and prepare the device for authentication on disconnect.
+		  area and prepare the device for authentication on disconnect.
 		- Writing "2" will run some basic validation on the image
-		and flush it to the storage area.
+		  and flush it to the storage area.

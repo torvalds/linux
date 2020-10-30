@@ -55,7 +55,7 @@ Description:	Default output terminal descriptors
 
 		==============	=============================================
 		iTerminal	index of string descriptor
-		bSourceID 	id of the terminal to which this terminal
+		bSourceID	id of the terminal to which this terminal
 				is connected
 		bAssocTerminal	id of the input terminal to which this output
 				terminal is associated

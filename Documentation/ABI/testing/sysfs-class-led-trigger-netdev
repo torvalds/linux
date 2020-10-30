@@ -19,10 +19,13 @@ KernelVersion:	4.16
 Contact:	linux-leds@vger.kernel.org
 Description:
 		Signal the link state of the named network device.
+
 		If set to 0 (default), the LED's normal state is off.
+
 		If set to 1, the LED's normal state reflects the link state
 		of the named network device.
 		Setting this value also immediately changes the LED state.
+
 
 What:		/sys/class/leds/<led>/tx
 Date:		Dec 2017
@@ -30,7 +33,9 @@ KernelVersion:	4.16
 Contact:	linux-leds@vger.kernel.org
 Description:
 		Signal transmission of data on the named network device.
+
 		If set to 0 (default), the LED will not blink on transmission.
+
 		If set to 1, the LED will blink for the milliseconds specified
 		in interval to signal transmission.
 
@@ -40,6 +45,8 @@ KernelVersion:	4.16
 Contact:	linux-leds@vger.kernel.org
 Description:
 		Signal reception of data on the named network device.
+
 		If set to 0 (default), the LED will not blink on reception.
+
 		If set to 1, the LED will blink for the milliseconds specified
 		in interval to signal reception.
