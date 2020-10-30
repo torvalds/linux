@@ -279,6 +279,7 @@ int intel_svm_bind_gpasid(struct iommu_domain *domain, struct device *dev,
 	struct intel_iommu *iommu = device_to_iommu(dev, NULL, NULL);
 	struct intel_svm_dev *sdev = NULL;
 	struct dmar_domain *dmar_domain;
+	struct device_domain_info *info;
 	struct intel_svm *svm = NULL;
 	int ret = 0;
 
@@ -308,6 +309,10 @@ int intel_svm_bind_gpasid(struct iommu_domain *domain, struct device *dev,
 	 * guest PASID range.
 	 */
 	if (data->hpasid <= 0 || data->hpasid >= PASID_MAX)
+		return -EINVAL;
+
+	info = get_domain_info(dev);
+	if (!info)
 		return -EINVAL;
 
 	dmar_domain = to_dmar_domain(domain);
@@ -357,6 +362,7 @@ int intel_svm_bind_gpasid(struct iommu_domain *domain, struct device *dev,
 		goto out;
 	}
 	sdev->dev = dev;
+	sdev->sid = PCI_DEVID(info->bus, info->devfn);
 
 	/* Only count users if device has aux domains */
 	if (iommu_dev_feature_enabled(dev, IOMMU_DEV_FEAT_AUX))
