@@ -543,24 +543,22 @@ static void idxd_group_config_write(struct idxd_group *group)
 	dev_dbg(dev, "Writing group %d cfg registers\n", group->id);
 
 	/* setup GRPWQCFG */
-	for (i = 0; i < 4; i++) {
-		grpcfg_offset = idxd->grpcfg_offset +
-			group->id * 64 + i * sizeof(u64);
-		iowrite64(group->grpcfg.wqs[i],
-			  idxd->reg_base + grpcfg_offset);
+	for (i = 0; i < GRPWQCFG_STRIDES; i++) {
+		grpcfg_offset = GRPWQCFG_OFFSET(idxd, group->id, i);
+		iowrite64(group->grpcfg.wqs[i], idxd->reg_base + grpcfg_offset);
 		dev_dbg(dev, "GRPCFG wq[%d:%d: %#x]: %#llx\n",
 			group->id, i, grpcfg_offset,
 			ioread64(idxd->reg_base + grpcfg_offset));
 	}
 
 	/* setup GRPENGCFG */
-	grpcfg_offset = idxd->grpcfg_offset + group->id * 64 + 32;
+	grpcfg_offset = GRPENGCFG_OFFSET(idxd, group->id);
 	iowrite64(group->grpcfg.engines, idxd->reg_base + grpcfg_offset);
 	dev_dbg(dev, "GRPCFG engs[%d: %#x]: %#llx\n", group->id,
 		grpcfg_offset, ioread64(idxd->reg_base + grpcfg_offset));
 
 	/* setup GRPFLAGS */
-	grpcfg_offset = idxd->grpcfg_offset + group->id * 64 + 40;
+	grpcfg_offset = GRPFLGCFG_OFFSET(idxd, group->id);
 	iowrite32(group->grpcfg.flags.bits, idxd->reg_base + grpcfg_offset);
 	dev_dbg(dev, "GRPFLAGS flags[%d: %#x]: %#x\n",
 		group->id, grpcfg_offset,
