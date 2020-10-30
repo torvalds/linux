@@ -236,7 +236,7 @@
 #ifndef __NET__WIMAX_H__
 #define __NET__WIMAX_H__
 
-#include <linux/wimax.h>
+#include "linux-wimax.h"
 #include <net/genetlink.h>
 #include <linux/netdevice.h>
 

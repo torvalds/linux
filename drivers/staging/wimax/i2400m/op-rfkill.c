@@ -18,7 +18,7 @@
  *   switch (coming from sysfs, the wimax stack or user space).
  */
 #include "i2400m.h"
-#include <linux/wimax/i2400m.h>
+#include "linux-wimax-i2400m.h"
 #include <linux/slab.h>
 
 

@@ -13,9 +13,9 @@
  * disconnect and reconnect the device).
  */
 
-#include <net/wimax.h>
+#include "net-wimax.h"
 #include <net/genetlink.h>
-#include <linux/wimax.h>
+#include "linux-wimax.h"
 #include <linux/security.h>
 #include <linux/export.h>
 #include "wimax-internal.h"

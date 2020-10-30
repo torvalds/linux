@@ -60,7 +60,7 @@
  *     #define D_MODULENAME modulename
  *     #define D_MASTER 10
  *
- *     #include <linux/wimax/debug.h>
+ *     #include "linux-wimax-debug.h"
  *
  *     enum d_module {
  *             D_SUBMODULE_DECLARE(submodule_1),

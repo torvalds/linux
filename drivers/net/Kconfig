@@ -489,8 +489,6 @@ source "drivers/net/usb/Kconfig"
 
 source "drivers/net/wireless/Kconfig"
 
-source "drivers/net/wimax/Kconfig"
-
 source "drivers/net/wan/Kconfig"
 
 source "drivers/net/ieee802154/Kconfig"

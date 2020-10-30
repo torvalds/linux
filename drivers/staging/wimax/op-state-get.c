@@ -10,9 +10,9 @@
  *  Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>
  */
 
-#include <net/wimax.h>
+#include "net-wimax.h"
 #include <net/genetlink.h>
-#include <linux/wimax.h>
+#include "linux-wimax.h"
 #include <linux/security.h>
 #include "wimax-internal.h"
 
