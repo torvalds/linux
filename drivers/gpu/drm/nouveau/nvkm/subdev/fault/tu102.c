@@ -22,6 +22,7 @@
 #include "priv.h"
 
 #include <core/memory.h>
+#include <subdev/mc.h>
 #include <subdev/mmu.h>
 #include <engine/fifo.h>
 
@@ -34,6 +35,9 @@ tu102_fault_buffer_intr(struct nvkm_fault_buffer *buffer, bool enable)
 	 *     which don't appear to actually work anymore, but newer
 	 *     versions of RM don't appear to touch anything at all..
 	 */
+	struct nvkm_device *device = buffer->fault->subdev.device;
+
+	nvkm_mc_intr_mask(device, NVKM_SUBDEV_FAULT, enable);
 }
 
 static void
@@ -41,6 +45,11 @@ tu102_fault_buffer_fini(struct nvkm_fault_buffer *buffer)
 {
 	struct nvkm_device *device = buffer->fault->subdev.device;
 	const u32 foff = buffer->id * 0x20;
+
+	/* Disable the fault interrupts */
+	nvkm_wr32(device, 0xb81408, 0x1);
+	nvkm_wr32(device, 0xb81410, 0x10);
+
 	nvkm_mask(device, 0xb83010 + foff, 0x80000000, 0x00000000);
 }
 
@@ -49,6 +58,10 @@ tu102_fault_buffer_init(struct nvkm_fault_buffer *buffer)
 {
 	struct nvkm_device *device = buffer->fault->subdev.device;
 	const u32 foff = buffer->id * 0x20;
+
+	/* Enable the fault interrupts */
+	nvkm_wr32(device, 0xb81208, 0x1);
+	nvkm_wr32(device, 0xb81210, 0x10);
 
 	nvkm_mask(device, 0xb83010 + foff, 0xc0000000, 0x40000000);
 	nvkm_wr32(device, 0xb83004 + foff, upper_32_bits(buffer->addr));
@@ -109,14 +122,20 @@ tu102_fault_intr(struct nvkm_fault *fault)
 	}
 
 	if (stat & 0x00000200) {
+		/* Clear the associated interrupt flag */
+		nvkm_wr32(device, 0xb81010, 0x10);
+
 		if (fault->buffer[0]) {
 			nvkm_event_send(&fault->event, 1, 0, NULL, 0);
 			stat &= ~0x00000200;
 		}
 	}
 
-	/*XXX: guess, can't confirm until we get fw... */
+	/* Replayable MMU fault */
 	if (stat & 0x00000100) {
+		/* Clear the associated interrupt flag */
+		nvkm_wr32(device, 0xb81008, 0x1);
+
 		if (fault->buffer[1]) {
 			nvkm_event_send(&fault->event, 1, 1, NULL, 0);
 			stat &= ~0x00000100;
