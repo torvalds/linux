@@ -343,25 +343,24 @@ static void cs_do_release(struct kref *ref)
 	/* Need to update CI for internal queues */
 	hl_int_hw_queue_update_ci(cs);
 
-	spin_lock(&hdev->hw_queues_mirror_lock);
-	/* remove CS from hw_queues mirror list */
+	/* remove CS from CS mirror list */
+	spin_lock(&hdev->cs_mirror_lock);
 	list_del_init(&cs->mirror_node);
-	spin_unlock(&hdev->hw_queues_mirror_lock);
+	spin_unlock(&hdev->cs_mirror_lock);
 
 	/* Don't cancel TDR in case this CS was timedout because we might be
 	 * running from the TDR context
 	 */
-	if (!cs->timedout &&
-			hdev->timeout_jiffies != MAX_SCHEDULE_TIMEOUT) {
+	if (!cs->timedout && hdev->timeout_jiffies != MAX_SCHEDULE_TIMEOUT) {
 		struct hl_cs *next;
 
 		if (cs->tdr_active)
 			cancel_delayed_work_sync(&cs->work_tdr);
 
-		spin_lock(&hdev->hw_queues_mirror_lock);
+		spin_lock(&hdev->cs_mirror_lock);
 
 		/* queue TDR for next CS */
-		next = list_first_entry_or_null(&hdev->hw_queues_mirror_list,
+		next = list_first_entry_or_null(&hdev->cs_mirror_list,
 						struct hl_cs, mirror_node);
 
 		if (next && !next->tdr_active) {
@@ -370,7 +369,7 @@ static void cs_do_release(struct kref *ref)
 						hdev->timeout_jiffies);
 		}
 
-		spin_unlock(&hdev->hw_queues_mirror_lock);
+		spin_unlock(&hdev->cs_mirror_lock);
 	}
 
 out:
@@ -534,8 +533,7 @@ void hl_cs_rollback_all(struct hl_device *hdev)
 		flush_workqueue(hdev->cq_wq[i]);
 
 	/* Make sure we don't have leftovers in the H/W queues mirror list */
-	list_for_each_entry_safe(cs, tmp, &hdev->hw_queues_mirror_list,
-				mirror_node) {
+	list_for_each_entry_safe(cs, tmp, &hdev->cs_mirror_list, mirror_node) {
 		cs_get(cs);
 		cs->aborted = true;
 		dev_warn_ratelimited(hdev->dev, "Killing CS %d.%llu\n",

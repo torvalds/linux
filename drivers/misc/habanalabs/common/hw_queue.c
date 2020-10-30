@@ -578,19 +578,19 @@ int hl_hw_queue_schedule_cs(struct hl_cs *cs)
 	else if (cs->type == CS_TYPE_COLLECTIVE_WAIT)
 		hdev->asic_funcs->collective_wait_init_cs(cs);
 
-	spin_lock(&hdev->hw_queues_mirror_lock);
-	list_add_tail(&cs->mirror_node, &hdev->hw_queues_mirror_list);
+	spin_lock(&hdev->cs_mirror_lock);
+	list_add_tail(&cs->mirror_node, &hdev->cs_mirror_list);
 
 	/* Queue TDR if the CS is the first entry and if timeout is wanted */
 	if ((hdev->timeout_jiffies != MAX_SCHEDULE_TIMEOUT) &&
-			(list_first_entry(&hdev->hw_queues_mirror_list,
+			(list_first_entry(&hdev->cs_mirror_list,
 					struct hl_cs, mirror_node) == cs)) {
 		cs->tdr_active = true;
 		schedule_delayed_work(&cs->work_tdr, hdev->timeout_jiffies);
-		spin_unlock(&hdev->hw_queues_mirror_lock);
-	} else {
-		spin_unlock(&hdev->hw_queues_mirror_lock);
+
 	}
+
+	spin_unlock(&hdev->cs_mirror_lock);
 
 	if (!hdev->cs_active_cnt++) {
 		struct hl_device_idle_busy_ts *ts;

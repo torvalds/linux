@@ -1699,8 +1699,8 @@ struct hl_mmu_funcs {
  * @eq_wq: work queue of event queue for executing work in process context.
  * @kernel_ctx: Kernel driver context structure.
  * @kernel_queues: array of hl_hw_queue.
- * @hw_queues_mirror_list: CS mirror list for TDR.
- * @hw_queues_mirror_lock: protects hw_queues_mirror_list.
+ * @cs_mirror_list: CS mirror list for TDR.
+ * @cs_mirror_lock: protects cs_mirror_list.
  * @kernel_cb_mgr: command buffer manager for creating/destroying/handling CGs.
  * @event_queue: event queue for IRQ from CPU-CP.
  * @dma_pool: DMA pool for small allocations.
@@ -1810,8 +1810,8 @@ struct hl_device {
 	struct workqueue_struct		*eq_wq;
 	struct hl_ctx			*kernel_ctx;
 	struct hl_hw_queue		*kernel_queues;
-	struct list_head		hw_queues_mirror_list;
-	spinlock_t			hw_queues_mirror_lock;
+	struct list_head		cs_mirror_list;
+	spinlock_t			cs_mirror_lock;
 	struct hl_cb_mgr		kernel_cb_mgr;
 	struct hl_eq			event_queue;
 	struct dma_pool			*dma_pool;
