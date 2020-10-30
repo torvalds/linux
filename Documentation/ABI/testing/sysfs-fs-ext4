@@ -45,8 +45,8 @@ Description:
 		parameter will have their blocks allocated out of a
 		block group specific preallocation pool, so that small
 		files are packed closely together.  Each large file
-		 will have its blocks allocated out of its own unique
-		 preallocation pool.
+		will have its blocks allocated out of its own unique
+		preallocation pool.
 
 What:		/sys/fs/ext4/<disk>/inode_readahead_blks
 Date:		March 2008

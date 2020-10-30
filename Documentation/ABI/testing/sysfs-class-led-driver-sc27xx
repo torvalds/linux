@@ -12,8 +12,8 @@ Description:
 		format, we should set brightness as 0 for rise stage, fall
 		stage and low stage.
 
-		Min stage duration: 125 ms
-		Max stage duration: 31875 ms
+		- Min stage duration: 125 ms
+		- Max stage duration: 31875 ms
 
 		Since the stage duration step is 125 ms, the duration should be
 		a multiplier of 125, like 125ms, 250ms, 375ms, 500ms ... 31875ms.

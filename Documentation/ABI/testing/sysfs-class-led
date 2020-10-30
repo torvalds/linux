@@ -50,7 +50,7 @@ Description:
 		You can change triggers in a similar manner to the way an IO
 		scheduler is chosen. Trigger specific parameters can appear in
 		/sys/class/leds/<led> once a given trigger is selected. For
-		their documentation see sysfs-class-led-trigger-*.
+		their documentation see `sysfs-class-led-trigger-*`.
 
 What:		/sys/class/leds/<led>/inverted
 Date:		January 2011
