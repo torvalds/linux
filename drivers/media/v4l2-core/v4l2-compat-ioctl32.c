@@ -1414,6 +1414,59 @@ static int put_v4l2_edid32(struct v4l2_edid __user *p64,
 #define VIDIOC_G_OUTPUT32	_IOR ('V', 46, s32)
 #define VIDIOC_S_OUTPUT32	_IOWR('V', 47, s32)
 
+unsigned int v4l2_compat_translate_cmd(unsigned int cmd)
+{
+	switch (cmd) {
+	}
+	return cmd;
+}
+
+int v4l2_compat_get_user(void __user *arg, void *parg, unsigned int cmd)
+{
+	switch (cmd) {
+	}
+	return 0;
+}
+
+int v4l2_compat_put_user(void __user *arg, void *parg, unsigned int cmd)
+{
+	switch (cmd) {
+	}
+	return 0;
+}
+
+int v4l2_compat_get_array_args(struct file *file, void *mbuf,
+			       void __user *user_ptr, size_t array_size,
+			       unsigned int cmd, void *arg)
+{
+	int err = 0;
+
+	switch (cmd) {
+	default:
+		if (copy_from_user(mbuf, user_ptr, array_size))
+			err = -EFAULT;
+		break;
+	}
+
+	return err;
+}
+
+int v4l2_compat_put_array_args(struct file *file, void __user *user_ptr,
+			       void *mbuf, size_t array_size,
+			       unsigned int cmd, void *arg)
+{
+	int err = 0;
+
+	switch (cmd) {
+	default:
+		if (copy_to_user(user_ptr, mbuf, array_size))
+			err = -EFAULT;
+		break;
+	}
+
+	return err;
+}
+
 /**
  * alloc_userspace() - Allocates a 64-bits userspace pointer compatible
  *	for calling the native 64-bits version of an ioctl.
