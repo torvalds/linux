@@ -16,6 +16,7 @@
 #include <linux/bitops.h>
 #include <linux/compiler.h>
 #include <linux/android_vendor.h>
+#include <linux/android_kabi.h>
 
 #include <linux/netfilter/nf_conntrack_common.h>
 #include <linux/netfilter/nf_conntrack_tcp.h>
@@ -126,6 +127,8 @@ struct nf_conn {
 	union nf_conntrack_proto proto;
 
 	ANDROID_OEM_DATA(1);
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
 };
 
 static inline struct nf_conn *
