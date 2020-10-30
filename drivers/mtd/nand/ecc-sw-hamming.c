@@ -116,7 +116,7 @@ int ecc_sw_hamming_calculate(const unsigned char *buf, unsigned int step_size,
 			     unsigned char *code, bool sm_order)
 {
 	const u32 *bp = (uint32_t *)buf;
-	const u32 eccsize_mult = step_size >> 8;
+	const u32 eccsize_mult = (step_size == 256) ? 1 : 2;
 	/* current value in buffer */
 	u32 cur;
 	/* rp0..rp17 are the various accumulated parities (per byte) */
@@ -136,6 +136,7 @@ int ecc_sw_hamming_calculate(const unsigned char *buf, unsigned int step_size,
 	rp12 = 0;
 	rp14 = 0;
 	rp16 = 0;
+	rp17 = 0;
 
 	/*
 	 * The loop is unrolled a number of times;
