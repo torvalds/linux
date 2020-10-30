@@ -77,6 +77,7 @@ struct am65_cpsw_rx_chn {
 
 struct am65_cpsw_pdata {
 	u32	quirks;
+	const char	*ale_dev_id;
 };
 
 struct am65_cpsw_common {
