@@ -371,6 +371,14 @@ sub output_rest {
 				print "- :ref:`$content <$label>`\n\n";
 			}
 		}
+
+		if (defined($data{$what}->{users})) {
+			my $users = $data{$what}->{users};
+
+			$users =~ s/\n/\n\t/g;
+			printf "Users:\n\t%s\n\n", $users if ($users ne "");
+		}
+
 	}
 }
 
