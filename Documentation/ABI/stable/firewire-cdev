@@ -14,12 +14,14 @@ Description:
 		Each /dev/fw* is associated with one IEEE 1394 node, which can
 		be remote or local nodes.  Operations on a /dev/fw* file have
 		different scope:
+
 		  - The 1394 node which is associated with the file:
 			  - Asynchronous request transmission
 			  - Get the Configuration ROM
 			  - Query node ID
 			  - Query maximum speed of the path between this node
 			    and local node
+
 		  - The 1394 bus (i.e. "card") to which the node is attached to:
 			  - Isochronous stream transmission and reception
 			  - Asynchronous stream transmission and reception
@@ -31,6 +33,7 @@ Description:
 			    manager
 			  - Query cycle time
 			  - Bus reset initiation, bus reset event reception
+
 		  - All 1394 buses:
 			  - Allocation of IEEE 1212 address ranges on the local
 			    link layers, reception of inbound requests to such
@@ -43,6 +46,7 @@ Description:
 		userland implement different access permission models, some
 		operations are restricted to /dev/fw* files that are associated
 		with a local node:
+
 			  - Addition of descriptors or directories to the local
 			    nodes' Configuration ROM
 			  - PHY packet transmission and reception

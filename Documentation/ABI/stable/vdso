@@ -23,6 +23,7 @@ Unless otherwise noted, the set of symbols with any given version and the
 ABI of those symbols is considered stable.  It may vary across architectures,
 though.
 
-(As of this writing, this ABI documentation as been confirmed for x86_64.
+Note:
+ As of this writing, this ABI documentation as been confirmed for x86_64.
  The maintainers of the other vDSO-using architectures should confirm
- that it is correct for their architecture.)
+ that it is correct for their architecture.
