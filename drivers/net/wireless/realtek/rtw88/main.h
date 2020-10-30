@@ -1305,6 +1305,7 @@ struct rtw_coex_stat {
 	bool bt_init_scan;
 	bool bt_slave;
 	bool bt_418_hid_exist;
+	bool bt_ble_hid_exist;
 	bool bt_mailbox_reply;
 
 	bool wl_under_lps;
