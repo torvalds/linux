@@ -393,40 +393,21 @@ tu102_fifo_fault(struct nvkm_fifo *base, struct nvkm_fault_data *info)
 	spin_unlock_irqrestore(&fifo->base.lock, flags);
 }
 
-static const struct nvkm_enum
-tu102_fifo_sched_reason[] = {
-	{ 0x0a, "CTXSW_TIMEOUT" },
-	{}
-};
-
 static void
-tu102_fifo_intr_sched_ctxsw(struct gk104_fifo *fifo)
+tu102_fifo_intr_ctxsw_timeout(struct gk104_fifo *fifo)
 {
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
-	unsigned long flags, engm = 0;
+	unsigned long flags, engm;
 	u32 engn;
 
-	/* We need to ACK the SCHED_ERROR here, and prevent it reasserting,
-	 * as MMU_FAULT cannot be triggered while it's pending.
-	 */
 	spin_lock_irqsave(&fifo->base.lock, flags);
-	nvkm_mask(device, 0x002140, 0x00000100, 0x00000000);
-	nvkm_wr32(device, 0x002100, 0x00000100);
 
-	for (engn = 0; engn < fifo->engine_nr; engn++) {
-		struct gk104_fifo_engine_status status;
+	engm = nvkm_rd32(device, 0x2a30);
+	nvkm_wr32(device, 0x2a30, engm);
 
-		gk104_fifo_engine_status(fifo, engn, &status);
-		if (!status.busy || !status.chsw)
-			continue;
-
-		engm |= BIT(engn);
-	}
-
-	for_each_set_bit(engn, &engm, fifo->engine_nr)
+	for_each_set_bit(engn, &engm, 32)
 		tu102_fifo_recover_engn(fifo, engn);
 
-	nvkm_mask(device, 0x002140, 0x00000100, 0x00000100);
 	spin_unlock_irqrestore(&fifo->base.lock, flags);
 }
 
@@ -437,18 +418,8 @@ tu102_fifo_intr_sched(struct gk104_fifo *fifo)
 	struct nvkm_device *device = subdev->device;
 	u32 intr = nvkm_rd32(device, 0x00254c);
 	u32 code = intr & 0x000000ff;
-	const struct nvkm_enum *en =
-		nvkm_enum_find(tu102_fifo_sched_reason, code);
 
-	nvkm_error(subdev, "SCHED_ERROR %02x [%s]\n", code, en ? en->name : "");
-
-	switch (code) {
-	case 0x0a:
-		tu102_fifo_intr_sched_ctxsw(fifo);
-		break;
-	default:
-		break;
-	}
+	nvkm_error(subdev, "SCHED_ERROR %02x\n", code);
 }
 
 static void
@@ -466,10 +437,9 @@ tu102_fifo_intr(struct nvkm_fifo *base)
 		stat &= ~0x00000001;
 	}
 
-	if (stat & 0x00000010) {
-		nvkm_error(subdev, "PIO_ERROR\n");
-		nvkm_wr32(device, 0x002100, 0x00000010);
-		stat &= ~0x00000010;
+	if (stat & 0x00000002) {
+		tu102_fifo_intr_ctxsw_timeout(fifo);
+		stat &= ~0x00000002;
 	}
 
 	if (stat & 0x00000100) {
@@ -482,36 +452,6 @@ tu102_fifo_intr(struct nvkm_fifo *base)
 		gk104_fifo_intr_chsw(fifo);
 		nvkm_wr32(device, 0x002100, 0x00010000);
 		stat &= ~0x00010000;
-	}
-
-	if (stat & 0x00800000) {
-		nvkm_error(subdev, "FB_FLUSH_TIMEOUT\n");
-		nvkm_wr32(device, 0x002100, 0x00800000);
-		stat &= ~0x00800000;
-	}
-
-	if (stat & 0x01000000) {
-		nvkm_error(subdev, "LB_ERROR\n");
-		nvkm_wr32(device, 0x002100, 0x01000000);
-		stat &= ~0x01000000;
-	}
-
-	if (stat & 0x08000000) {
-		gk104_fifo_intr_dropped_fault(fifo);
-		nvkm_wr32(device, 0x002100, 0x08000000);
-		stat &= ~0x08000000;
-	}
-
-	if (stat & 0x10000000) {
-		u32 mask = nvkm_rd32(device, 0x00259c);
-
-		while (mask) {
-			u32 unit = __ffs(mask);
-			fifo->func->intr.fault(&fifo->base, unit);
-			nvkm_wr32(device, 0x00259c, (1 << unit));
-			mask &= ~(1 << unit);
-		}
-		stat &= ~0x10000000;
 	}
 
 	if (stat & 0x20000000) {
