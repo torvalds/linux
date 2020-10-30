@@ -72,6 +72,14 @@ enum rtw_fw_rf_type {
 	FW_RF_MAX_TYPE = 0xF,
 };
 
+enum rtw_fw_feature {
+	FW_FEATURE_SIG = BIT(0),
+	FW_FEATURE_LPS_C2H = BIT(1),
+	FW_FEATURE_LCLK = BIT(2),
+	FW_FEATURE_PG = BIT(3),
+	FW_FEATURE_MAX = BIT(31),
+};
+
 struct rtw_coex_info_req {
 	u8 seq;
 	u8 op_code;
@@ -177,7 +185,7 @@ struct rtw_fw_hdr {
 	u8 subversion;
 	u8 subindex;
 	__le32 rsvd;		/* 0x08 */
-	__le32 rsvd2;		/* 0x0C */
+	__le32 feature;		/* 0x0C */
 	u8 month;		/* 0x10 */
 	u8 day;
 	u8 hour;

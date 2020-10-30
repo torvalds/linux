@@ -1259,6 +1259,17 @@ static void rtw_unset_supported_band(struct ieee80211_hw *hw,
 	kfree(hw->wiphy->bands[NL80211_BAND_5GHZ]);
 }
 
+static void __update_firmware_feature(struct rtw_dev *rtwdev,
+				      struct rtw_fw_state *fw)
+{
+	u32 feature;
+	const struct rtw_fw_hdr *fw_hdr =
+				(const struct rtw_fw_hdr *)fw->firmware->data;
+
+	feature = le32_to_cpu(fw_hdr->feature);
+	fw->feature = feature & FW_FEATURE_SIG ? feature : 0;
+}
+
 static void __update_firmware_info(struct rtw_dev *rtwdev,
 				   struct rtw_fw_state *fw)
 {
@@ -1269,6 +1280,8 @@ static void __update_firmware_info(struct rtw_dev *rtwdev,
 	fw->version = le16_to_cpu(fw_hdr->version);
 	fw->sub_version = fw_hdr->subversion;
 	fw->sub_index = fw_hdr->subindex;
+
+	__update_firmware_feature(rtwdev, fw);
 }
 
 static void __update_firmware_info_legacy(struct rtw_dev *rtwdev,

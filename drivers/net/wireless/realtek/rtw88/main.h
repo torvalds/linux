@@ -1634,6 +1634,7 @@ struct rtw_fw_state {
 	u8 sub_index;
 	u16 h2c_version;
 	u8 prev_dump_seq;
+	u32 feature;
 };
 
 struct rtw_hal {
