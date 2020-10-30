@@ -300,6 +300,7 @@ sub output_rest {
 			my $len = 0;
 
 			foreach my $name (@names) {
+				$name = "**$name**";
 				$len = length($name) if (length($name) > $len);
 			}
 
