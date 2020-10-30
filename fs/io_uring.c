@@ -1365,6 +1365,9 @@ static void io_prep_async_work(struct io_kiocb *req)
 	io_req_init_async(req);
 	id = req->work.identity;
 
+	if (req->flags & REQ_F_FORCE_ASYNC)
+		req->work.flags |= IO_WQ_WORK_CONCURRENT;
+
 	if (req->flags & REQ_F_ISREG) {
 		if (def->hash_reg_file || (ctx->flags & IORING_SETUP_IOPOLL))
 			io_wq_hash_work(&req->work, file_inode(req->file));
@@ -1846,59 +1849,39 @@ static void __io_free_req(struct io_kiocb *req)
 	percpu_ref_put(&ctx->refs);
 }
 
-static bool io_link_cancel_timeout(struct io_kiocb *req)
+static void io_kill_linked_timeout(struct io_kiocb *req)
 {
-	struct io_timeout_data *io = req->async_data;
 	struct io_ring_ctx *ctx = req->ctx;
-	int ret;
-
-	ret = hrtimer_try_to_cancel(&io->timer);
-	if (ret != -1) {
-		io_cqring_fill_event(req, -ECANCELED);
-		io_commit_cqring(ctx);
-		req->flags &= ~REQ_F_LINK_HEAD;
-		io_put_req_deferred(req, 1);
-		return true;
-	}
-
-	return false;
-}
-
-static bool __io_kill_linked_timeout(struct io_kiocb *req)
-{
 	struct io_kiocb *link;
-	bool wake_ev;
+	bool cancelled = false;
+	unsigned long flags;
 
-	if (list_empty(&req->link_list))
-		return false;
-	link = list_first_entry(&req->link_list, struct io_kiocb, link_list);
-	if (link->opcode != IORING_OP_LINK_TIMEOUT)
-		return false;
+	spin_lock_irqsave(&ctx->completion_lock, flags);
+	link = list_first_entry_or_null(&req->link_list, struct io_kiocb,
+					link_list);
 	/*
 	 * Can happen if a linked timeout fired and link had been like
 	 * req -> link t-out -> link t-out [-> ...]
 	 */
-	if (!(link->flags & REQ_F_LTIMEOUT_ACTIVE))
-		return false;
+	if (link && (link->flags & REQ_F_LTIMEOUT_ACTIVE)) {
+		struct io_timeout_data *io = link->async_data;
+		int ret;
 
-	list_del_init(&link->link_list);
-	wake_ev = io_link_cancel_timeout(link);
+		list_del_init(&link->link_list);
+		ret = hrtimer_try_to_cancel(&io->timer);
+		if (ret != -1) {
+			io_cqring_fill_event(link, -ECANCELED);
+			io_commit_cqring(ctx);
+			cancelled = true;
+		}
+	}
 	req->flags &= ~REQ_F_LINK_TIMEOUT;
-	return wake_ev;
-}
-
-static void io_kill_linked_timeout(struct io_kiocb *req)
-{
-	struct io_ring_ctx *ctx = req->ctx;
-	unsigned long flags;
-	bool wake_ev;
-
-	spin_lock_irqsave(&ctx->completion_lock, flags);
-	wake_ev = __io_kill_linked_timeout(req);
 	spin_unlock_irqrestore(&ctx->completion_lock, flags);
 
-	if (wake_ev)
+	if (cancelled) {
 		io_cqring_ev_posted(ctx);
+		io_put_req(link);
+	}
 }
 
 static struct io_kiocb *io_req_link_next(struct io_kiocb *req)
@@ -4977,8 +4960,10 @@ static int io_poll_double_wake(struct wait_queue_entry *wait, unsigned mode,
 		/* make sure double remove sees this as being gone */
 		wait->private = NULL;
 		spin_unlock(&poll->head->lock);
-		if (!done)
-			__io_async_wake(req, poll, mask, io_poll_task_func);
+		if (!done) {
+			/* use wait func handler, so it matches the rq type */
+			poll->wait.func(&poll->wait, mode, sync, key);
+		}
 	}
 	refcount_dec(&req->refs);
 	return 1;
@@ -6180,7 +6165,6 @@ static struct io_kiocb *io_prep_linked_timeout(struct io_kiocb *req)
 static void __io_queue_sqe(struct io_kiocb *req, struct io_comp_state *cs)
 {
 	struct io_kiocb *linked_timeout;
-	struct io_kiocb *nxt;
 	const struct cred *old_creds = NULL;
 	int ret;
 
@@ -6206,7 +6190,6 @@ again:
 	 */
 	if (ret == -EAGAIN && !(req->flags & REQ_F_NOWAIT)) {
 		if (!io_arm_poll_handler(req)) {
-punt:
 			/*
 			 * Queued up for async execution, worker will release
 			 * submit reference when the iocb is actually submitted.
@@ -6216,33 +6199,25 @@ punt:
 
 		if (linked_timeout)
 			io_queue_linked_timeout(linked_timeout);
-		goto exit;
-	}
+	} else if (likely(!ret)) {
+		/* drop submission reference */
+		req = io_put_req_find_next(req);
+		if (linked_timeout)
+			io_queue_linked_timeout(linked_timeout);
 
-	if (unlikely(ret)) {
+		if (req) {
+			if (!(req->flags & REQ_F_FORCE_ASYNC))
+				goto again;
+			io_queue_async_work(req);
+		}
+	} else {
 		/* un-prep timeout, so it'll be killed as any other linked */
 		req->flags &= ~REQ_F_LINK_TIMEOUT;
 		req_set_fail_links(req);
 		io_put_req(req);
 		io_req_complete(req, ret);
-		goto exit;
 	}
 
-	/* drop submission reference */
-	nxt = io_put_req_find_next(req);
-	if (linked_timeout)
-		io_queue_linked_timeout(linked_timeout);
-
-	if (nxt) {
-		req = nxt;
-
-		if (req->flags & REQ_F_FORCE_ASYNC) {
-			linked_timeout = NULL;
-			goto punt;
-		}
-		goto again;
-	}
-exit:
 	if (old_creds)
 		revert_creds(old_creds);
 }
@@ -6266,13 +6241,6 @@ fail_req:
 			if (unlikely(ret))
 				goto fail_req;
 		}
-
-		/*
-		 * Never try inline submit of IOSQE_ASYNC is set, go straight
-		 * to async execution.
-		 */
-		io_req_init_async(req);
-		req->work.flags |= IO_WQ_WORK_CONCURRENT;
 		io_queue_async_work(req);
 	} else {
 		if (sqe) {
