@@ -15,3 +15,4 @@ ARM64 架构
 
     amu
     hugetlbpage
+    perf
