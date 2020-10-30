@@ -1,5 +1,7 @@
 # -*- coding: utf-8; mode: python -*-
+# coding=utf-8
 # SPDX-License-Identifier: GPL-2.0
+#
 u"""
     kernel-abi
     ~~~~~~~~~~
@@ -30,6 +32,7 @@ u"""
 
 """
 
+import codecs
 import sys
 import os
 from os import path
@@ -44,14 +47,6 @@ from docutils.utils.error_reporting import ErrorString
 
 
 __version__  = '1.0'
-
-# We can't assume that six is installed
-PY3 = sys.version_info[0] == 3
-PY2 = sys.version_info[0] == 2
-if PY3:
-    # pylint: disable=C0103, W0622
-    unicode     = str
-    basestring  = str
 
 def setup(app):
 
@@ -117,12 +112,12 @@ class KernelCmd(Directive):
                 cmd
                 , stdout = subprocess.PIPE
                 , stderr = subprocess.PIPE
-                , universal_newlines = True
                 , **kwargs
             )
             out, err = proc.communicate()
-            if err:
-                self.warn(err)
+
+            out, err = codecs.decode(out, 'utf-8'), codecs.decode(err, 'utf-8')
+
             if proc.returncode != 0:
                 raise self.severe(
                     u"command '%s' failed with return code %d"
@@ -131,7 +126,7 @@ class KernelCmd(Directive):
         except OSError as exc:
             raise self.severe(u"problems with '%s' directive: %s."
                               % (self.name, ErrorString(exc)))
-        return unicode(out)
+        return out
 
     def nestedParse(self, lines, fname):
         content = ViewList()
