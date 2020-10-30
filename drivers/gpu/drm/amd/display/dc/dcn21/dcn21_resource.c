@@ -1886,7 +1886,7 @@ static int dcn21_populate_dml_pipes_from_context(
 
 	for (i = 0; i < pipe_cnt; i++) {
 
-		pipes[i].pipe.src.hostvm = 1;
+		pipes[i].pipe.src.hostvm = dc->res_pool->hubbub->riommu_active;
 		pipes[i].pipe.src.gpuvm = 1;
 	}
 
