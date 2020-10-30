@@ -467,7 +467,7 @@ static void rkisp_config_ism(struct rkisp_device *dev)
 	u32 val;
 
 	/* isp2.0 no ism */
-	if (dev->isp_ver == ISP_V20)
+	if (dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V21)
 		return;
 
 	writel(0, base + CIF_ISP_IS_RECENTER);
@@ -523,14 +523,14 @@ static int rkisp_config_isp(struct rkisp_device *dev)
 			if (in_fmt->mbus_code == MEDIA_BUS_FMT_Y8_1X8 ||
 			    in_fmt->mbus_code == MEDIA_BUS_FMT_Y10_1X10 ||
 			    in_fmt->mbus_code == MEDIA_BUS_FMT_Y12_1X12) {
-				if (dev->isp_ver == ISP_V20)
+				if (dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V21)
 					rkisp_write(dev, ISP_DEBAYER_CONTROL, 0, false);
 				else
 					rkisp_write(dev, CIF_ISP_DEMOSAIC,
 						CIF_ISP_DEMOSAIC_BYPASS |
 						CIF_ISP_DEMOSAIC_TH(0xc), false);
 			} else {
-				if (dev->isp_ver == ISP_V20)
+				if (dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V21)
 					rkisp_write(dev, ISP_DEBAYER_CONTROL,
 						SW_DEBAYER_EN |
 						SW_DEBAYER_FILTER_G_EN |
@@ -611,11 +611,12 @@ static int rkisp_config_isp(struct rkisp_device *dev)
 	/* interrupt mask */
 	irq_mask |= CIF_ISP_FRAME | CIF_ISP_V_START | CIF_ISP_PIC_SIZE_ERROR |
 		    CIF_ISP_FRAME_IN;
-	if (dev->isp_ver == ISP_V20)
+	if (dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V21)
 		irq_mask |= ISP2X_LSC_LUT_ERR;
 	rkisp_write(dev, CIF_ISP_IMSC, irq_mask, true);
 
-	if (dev->isp_ver == ISP_V20 && IS_HDR_RDBK(dev->hdr.op_mode)) {
+	if ((dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V21) &&
+	    IS_HDR_RDBK(dev->hdr.op_mode)) {
 		irq_mask = ISP2X_3A_RAWAE_BIG;
 		rkisp_write(dev, ISP_ISP3A_IMSC, irq_mask, true);
 	}
@@ -867,7 +868,7 @@ static int rkisp_isp_stop(struct rkisp_device *dev)
 		readl(base + CIF_ISP_CSI0_ERR1);
 		readl(base + CIF_ISP_CSI0_ERR2);
 		readl(base + CIF_ISP_CSI0_ERR3);
-	} else if (dev->isp_ver == ISP_V20) {
+	} else if (dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V21) {
 		writel(0, base + CSI2RX_MASK_PHY);
 		writel(0, base + CSI2RX_MASK_PACKET);
 		writel(0, base + CSI2RX_MASK_OVERFLOW);
@@ -884,7 +885,7 @@ static int rkisp_isp_stop(struct rkisp_device *dev)
 	writel(0, base + CIF_ISP_IMSC);
 	writel(~0, base + CIF_ISP_ICR);
 
-	if (dev->isp_ver == ISP_V20) {
+	if (dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V21) {
 		writel(0, base + ISP_ISP3A_IMSC);
 		writel(~0, base + ISP_ISP3A_ICR);
 	}
@@ -940,7 +941,7 @@ static int rkisp_isp_stop(struct rkisp_device *dev)
 		writel(0, base + CIF_ISP_CSI0_MASK1);
 		writel(0, base + CIF_ISP_CSI0_MASK2);
 		writel(0, base + CIF_ISP_CSI0_MASK3);
-	} else if (dev->isp_ver == ISP_V20) {
+	} else if (dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V21) {
 		writel(0, base + CSI2RX_CSI2_RESETN);
 	}
 
@@ -949,7 +950,7 @@ static int rkisp_isp_stop(struct rkisp_device *dev)
 end:
 	rkisp_set_state(dev, ISP_STOP);
 
-	if (dev->isp_ver == ISP_V20)
+	if (dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V21)
 		kfifo_reset(&dev->csi_dev.rdbk_kfifo);
 	if (dev->emd_vc <= CIF_ISP_ADD_DATA_VC_MAX) {
 		for (i = 0; i < RKISP_EMDDATA_FIFO_MAX; i++)
@@ -1520,14 +1521,14 @@ static int rkisp_isp_sd_set_selection(struct v4l2_subdev *sd,
 	if (sel->pad == RKISP_ISP_PAD_SINK) {
 		isp_sd->in_crop = *crop;
 		/* ISP20 don't have out crop */
-		if (dev->isp_ver == ISP_V20) {
+		if (dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V21) {
 			isp_sd->out_crop = *crop;
 			isp_sd->out_crop.left = 0;
 			isp_sd->out_crop.top = 0;
 			dev->br_dev.crop = isp_sd->out_crop;
 		}
 	} else {
-		if (dev->isp_ver == ISP_V20)
+		if (dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V21)
 			*crop = isp_sd->out_crop;
 		isp_sd->out_crop = *crop;
 	}
@@ -1619,7 +1620,7 @@ static int rkisp_isp_sd_s_power(struct v4l2_subdev *sd, int on)
 		 "%s on:%d\n", __func__, on);
 
 	if (on) {
-		if (isp_dev->isp_ver == ISP_V20)
+		if (isp_dev->isp_ver == ISP_V20 || isp_dev->isp_ver == ISP_V21)
 			kfifo_reset(&isp_dev->csi_dev.rdbk_kfifo);
 		ret = pm_runtime_get_sync(isp_dev->dev);
 	} else {

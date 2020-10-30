@@ -487,6 +487,14 @@
 #define MI_GAIN_WR_BASE2			(MI_BASE + 0x0058c)
 #define MI_GAIN_WR_BASE_SHD			(MI_BASE + 0x00590)
 
+#define ISP21_MI_BAY3D_WR_BASE			(MI_BASE + 0x005a0)
+#define ISP21_MI_BAY3D_WR_SIZE			(MI_BASE + 0x005a4)
+#define ISP21_MI_BAY3D_WR_LENGTH		(MI_BASE + 0x005a8)
+#define ISP21_MI_BAY3D_WR_BASE_SHD		(MI_BASE + 0x005ac)
+#define ISP21_MI_BAY3D_RD_BASE			(MI_BASE + 0x005b0)
+#define ISP21_MI_BAY3D_RD_LENGTH		(MI_BASE + 0x005b4)
+#define ISP21_MI_BAY3D_RD_BASE_SHD		(MI_BASE + 0x005b8)
+
 #define ISP_MPFBC_BASE				0x000018C0
 #define ISP_MPFBC_CTRL				(ISP_MPFBC_BASE + 0x00000)
 #define ISP_MPFBC_VIR_WIDTH			(ISP_MPFBC_BASE + 0x00004)
@@ -2021,32 +2029,78 @@
 #define ISP_ISP_LSC_TABLE_DATA(v0, v1)	\
 	(((v0) & 0x1FFF) | (((v1) & 0x1FFF) << 16))
 
+/* ISP21 ISP CTRL0 */
+#define ISP21_CGC_RATIO_EN		BIT(29)
+#define ISP21_CGC_YUV_LIMIT		BIT(28)
+#define ISP21_NOC_HURRY_W1_MODE(a)	(((a) & 0x7) << 24)
+
+/* ISP CTRL1 */
+#define ISP21_BIGMODE_MODE		BIT(29)
+#define ISP21_BIGMODE_FORCE_EN		BIT(28)
+#define ISP21_RAW3D_FST_FRAME		BIT(27)
+#define ISP21_CNR_FST_FRAME		BIT(26)
+#define ISP21_DHAZ_FST_FRAME		BIT(25)
+#define ISP21_ADRC_FST_FRAME		BIT(24)
+#define ISP21_YNR_FST_FRAME		BIT(23)
+#define ISP21_BT1120_YC_SWAP		BIT(22)
+#define ISP21_DUALEDGE_EN		BIT(21)
+#define ISP21_BI1120_EN			BIT(20)
+#define ISP21_FIELD_INV			BIT(11)
+
+/* ISP21 ACQ_H_OFFS */
+#define ISP21_SENSOR_MODE(a)		(((a) & 3) << 30)
+#define ISP21_SENSOR_INDEX(a)		(((a) & 3) << 28)
+#define ISP21_ACQ_H_OFFS(a)		((a) & 0x7fff)
+
+/* ISP21 ACQ_H_SIZE */
+#define ISP21_ACQ_H_SIZE_BAY3DMI(a)	(((a) & 0xffff) << 16)
+#define ISP21_ACQ_H_SIZE(a)		((a) & 0x7fff)
+
+/* ISP21 MI_WR_INIT */
+#define ISP21_SP_FORCE_UPD		BIT(21)
+#define ISP21_MP_FORCE_UPD		BIT(20)
+
+/* ISP21 MI_WR_CTRL2*/
+#define ISP21_BAY3D_FORCE_UPD		BIT(22)
+#define ISP21_GAIN_FORCE_UPD		BIT(21)
+#define ISP21_DBR_FORCE_UPD		BIT(20)
+#define ISP21_BAY3D_WR_AUTO_UPD		BIT(16)
+
+/* ISP21 CSI2RX */
+#define ISP21_CSI_2PIX_MODE		BIT(1)
+
+#define ISP21_MIPI_DROP_FRM		BIT(31)
+
+#define ISP21_RAW3_WR_FRAME		BIT(3)
+
+#define ISP21_RAW_FORCE_UPD		BIT(31)
+
 static inline bool dmatx0_is_stream_stopped(void __iomem *base)
 {
 	u32 ret = readl(base + CSI2RX_RAW0_WR_CTRL);
 
-	return !(ret & SW_CSI2RX_EN);
+	return !(ret & SW_CSI_RAW_WR_EN_SHD);
 }
 
 static inline bool dmatx1_is_stream_stopped(void __iomem *base)
 {
 	u32 ret = readl(base + CSI2RX_RAW1_WR_CTRL);
 
-	return !(ret & SW_CSI2RX_EN);
+	return !(ret & SW_CSI_RAW_WR_EN_SHD);
 }
 
 static inline bool dmatx2_is_stream_stopped(void __iomem *base)
 {
 	u32 ret = readl(base + CSI2RX_RAW2_WR_CTRL);
 
-	return !(ret & SW_CSI2RX_EN);
+	return !(ret & SW_CSI_RAW_WR_EN_SHD);
 }
 
 static inline bool dmatx3_is_stream_stopped(void __iomem *base)
 {
 	u32 ret = readl(base + CSI2RX_RAW3_WR_CTRL);
 
-	return !(ret & SW_CSI2RX_EN);
+	return !(ret & SW_CSI_RAW_WR_EN_SHD);
 }
 
 static inline bool is_mpfbc_stopped(void __iomem *base)
@@ -2090,16 +2144,20 @@ static inline void raw_wr_enable(struct rkisp_stream *stream)
 {
 	void __iomem *base = stream->ispdev->base_addr;
 	void __iomem *addr = base + stream->config->dma.ctrl;
+	u32 val = readl(addr);
 
-	writel(SW_CSI_RAW_WR_EN_ORG | readl(addr), addr);
+	val |= ISP21_RAW_FORCE_UPD | SW_CSI_RAW_WR_EN_ORG;
+	writel(val, addr);
 }
 
 static inline void raw_wr_disable(struct rkisp_stream *stream)
 {
 	void __iomem *base = stream->ispdev->base_addr;
 	void __iomem *addr = base + stream->config->dma.ctrl;
+	u32 val = readl(addr);
 
-	writel(~SW_CSI_RAW_WR_EN_ORG & readl(addr), addr);
+	val &= ~(ISP21_RAW_FORCE_UPD | SW_CSI_RAW_WR_EN_ORG);
+	writel(val, addr);
 }
 
 static inline void mi_raw0_rd_set_addr(void __iomem *base, u32 val)
@@ -2142,6 +2200,15 @@ static inline void mi_raw_length(struct rkisp_stream *stream)
 		is_direct = false;
 	rkisp_write(stream->ispdev, stream->config->mi.length,
 		    stream->out_fmt.plane_fmt[0].bytesperline, is_direct);
+	if (stream->ispdev->isp_ver == ISP_V21)
+		rkisp_set_bits(stream->ispdev, MI_RD_CTRL2, 0, BIT(30), false);
+}
+
+static inline void rx_force_upd(void __iomem *base)
+{
+	void __iomem *addr = base + CSI2RX_RAW_RD_CTRL;
+
+	writel(ISP21_RAW_FORCE_UPD | readl(addr), addr);
 }
 
 #endif /* _RKISP_REGS_V2X_H */

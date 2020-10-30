@@ -105,15 +105,19 @@ static irqreturn_t mipi_irq_hdl(int irq, void *ctx)
 
 		if (err1 || err2 || err3)
 			rkisp_mipi_v13_isr(err1, err2, err3, isp);
-	} else if (hw_dev->isp_ver == ISP_V20) {
+	} else if (hw_dev->isp_ver == ISP_V20 || hw_dev->isp_ver == ISP_V21) {
 		u32 phy, packet, overflow, state;
 
 		state = readl(hw_dev->base_addr + CSI2RX_ERR_STAT);
 		phy = readl(hw_dev->base_addr + CSI2RX_ERR_PHY);
 		packet = readl(hw_dev->base_addr + CSI2RX_ERR_PACKET);
 		overflow = readl(hw_dev->base_addr + CSI2RX_ERR_OVERFLOW);
-		if (phy | packet | overflow | state)
-			rkisp_mipi_v20_isr(phy, packet, overflow, state, isp);
+		if (phy | packet | overflow | state) {
+			if (hw_dev->isp_ver == ISP_V20)
+				rkisp_mipi_v20_isr(phy, packet, overflow, state, isp);
+			else
+				rkisp_mipi_v21_isr(phy, packet, overflow, state, isp);
+		}
 	} else {
 		u32 mis_val = readl(hw_dev->base_addr + CIF_MIPI_MIS);
 
@@ -158,7 +162,7 @@ static irqreturn_t isp_irq_hdl(int irq, void *ctx)
 		return IRQ_HANDLED;
 
 	mis_val = readl(hw_dev->base_addr + CIF_ISP_MIS);
-	if (hw_dev->isp_ver == ISP_V20)
+	if (hw_dev->isp_ver == ISP_V20 || hw_dev->isp_ver == ISP_V21)
 		mis_3a = readl(hw_dev->base_addr + ISP_ISP3A_MIS);
 	if (mis_val || mis_3a)
 		rkisp_isp_isr(mis_val, mis_3a, isp);
@@ -174,7 +178,7 @@ static irqreturn_t irq_handler(int irq, void *ctx)
 	unsigned int mis_val, mis_3a = 0;
 
 	mis_val = readl(hw_dev->base_addr + CIF_ISP_MIS);
-	if (hw_dev->isp_ver == ISP_V20)
+	if (hw_dev->isp_ver == ISP_V20 || hw_dev->isp_ver == ISP_V21)
 		mis_3a = readl(hw_dev->base_addr + ISP_ISP3A_MIS);
 	if (mis_val || mis_3a)
 		rkisp_isp_isr(mis_val, mis_3a, isp);
@@ -511,7 +515,7 @@ static void isp_config_clk(struct rkisp_hw_dev *dev, int on)
 		      CIF_CLK_CTRL_CP | CIF_CLK_CTRL_IE;
 
 		writel(val, dev->base_addr + CIF_VI_ISP_CLK_CTRL_V12);
-	} else if (dev->isp_ver == ISP_V20) {
+	} else if (dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V21) {
 		val = !on ? 0 :
 		      CLK_CTRL_MI_LDC | CLK_CTRL_MI_MP |
 		      CLK_CTRL_MI_JPEG | CLK_CTRL_MI_DP |
@@ -655,10 +659,8 @@ static int rkisp_hw_probe(struct platform_device *pdev)
 	hw_dev->is_mi_update = false;
 	if (!is_iommu_enable(dev)) {
 		ret = of_reserved_mem_device_init(dev);
-		if (ret) {
+		if (ret)
 			dev_err(dev, "No reserved memory region\n");
-			goto err;
-		}
 	}
 
 	pm_runtime_enable(dev);

@@ -316,7 +316,7 @@ static int csi_config(struct rkisp_csi_device *csi)
 			 rkisp_read(dev, CIF_ISP_CSI0_CTRL1, true),
 			 rkisp_read(dev, CIF_ISP_CSI0_DATA_IDS_1, true),
 			 rkisp_read(dev, CIF_ISP_CSI0_MASK3, true));
-	} else if (dev->isp_ver == ISP_V20) {
+	} else if (dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V21) {
 		struct rkmodule_hdr_cfg hdr_cfg;
 		u32 val;
 
@@ -736,11 +736,7 @@ int rkisp_register_csi_subdev(struct rkisp_device *dev,
 		MEDIA_PAD_FL_SOURCE | MEDIA_PAD_FL_MUST_CONNECT;
 
 	csi_dev->max_pad = CSI_SRC_CH0 + 1;
-	if (dev->isp_ver == ISP_V12 ||
-	    dev->isp_ver == ISP_V13) {
-		csi_dev->max_pad = CSI_SRC_CH1 + 1;
-		csi_dev->pads[CSI_SRC_CH1].flags = MEDIA_PAD_FL_SOURCE;
-	} else if (dev->isp_ver == ISP_V20) {
+	if (dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V21) {
 		csi_dev->max_pad = CSI_PAD_MAX;
 		csi_dev->pads[CSI_SRC_CH1].flags = MEDIA_PAD_FL_SOURCE;
 		csi_dev->pads[CSI_SRC_CH2].flags = MEDIA_PAD_FL_SOURCE;

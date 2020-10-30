@@ -666,7 +666,8 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 			height = pixm->height / ysubs;
 		}
 
-		if (stream->ispdev->isp_ver == ISP_V20 &&
+		if ((stream->ispdev->isp_ver == ISP_V20 ||
+		     stream->ispdev->isp_ver == ISP_V21) &&
 		    !stream->ispdev->csi_dev.memory &&
 		    stream->id != RKISP_STREAM_DMARX)
 			bytesperline = ALIGN(width * fmt->bpp[i] / 8, 256);
@@ -988,21 +989,23 @@ int rkisp_register_dmarx_vdev(struct rkisp_device *dev)
 	if (ret < 0)
 		goto err;
 #endif
-	if (dev->isp_ver == ISP_V20) {
+	if (dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V21) {
 		ret = dmarx_init(dev, RKISP_STREAM_RAWRD0);
 		if (ret < 0)
 			goto err_free_dmarx;
-		ret = dmarx_init(dev, RKISP_STREAM_RAWRD1);
-		if (ret < 0)
-			goto err_free_dmarx0;
 		ret = dmarx_init(dev, RKISP_STREAM_RAWRD2);
 		if (ret < 0)
-			goto err_free_dmarx1;
+			goto err_free_dmarx0;
+	}
+	if (dev->isp_ver == ISP_V20) {
+		ret = dmarx_init(dev, RKISP_STREAM_RAWRD1);
+		if (ret < 0)
+			goto err_free_dmarx2;
 	}
 
 	return 0;
-err_free_dmarx1:
-	rkisp_unregister_dmarx_video(&dmarx_dev->stream[RKISP_STREAM_RAWRD1]);
+err_free_dmarx2:
+	rkisp_unregister_dmarx_video(&dmarx_dev->stream[RKISP_STREAM_RAWRD2]);
 err_free_dmarx0:
 	rkisp_unregister_dmarx_video(&dmarx_dev->stream[RKISP_STREAM_RAWRD0]);
 err_free_dmarx:
@@ -1023,14 +1026,15 @@ void rkisp_unregister_dmarx_vdev(struct rkisp_device *dev)
 	rkisp_unregister_dmarx_video(stream);
 #endif
 
-	if (dev->isp_ver == ISP_V20) {
+	if (dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V21) {
 		stream = &dmarx_dev->stream[RKISP_STREAM_RAWRD0];
 		rkisp_unregister_dmarx_video(stream);
 
-		stream = &dmarx_dev->stream[RKISP_STREAM_RAWRD1];
-		rkisp_unregister_dmarx_video(stream);
-
 		stream = &dmarx_dev->stream[RKISP_STREAM_RAWRD2];
+		rkisp_unregister_dmarx_video(stream);
+	}
+	if (dev->isp_ver == ISP_V20) {
+		stream = &dmarx_dev->stream[RKISP_STREAM_RAWRD1];
 		rkisp_unregister_dmarx_video(stream);
 	}
 }

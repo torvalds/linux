@@ -394,27 +394,32 @@ static int _set_pipeline_default_fmt(struct rkisp_device *dev)
 	if (dev->isp_ver != ISP_V10_1)
 		rkisp_set_stream_def_fmt(dev, RKISP_STREAM_SP,
 					 width, height, V4L2_PIX_FMT_YUYV);
-	if ((dev->isp_ver == ISP_V12 ||
-	     dev->isp_ver == ISP_V13 ||
-	     dev->isp_ver == ISP_V20) &&
+	if ((dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V21) &&
 	    dev->active_sensor->mbus.type == V4L2_MBUS_CSI2) {
 		width = dev->active_sensor->fmt[1].format.width;
 		height = dev->active_sensor->fmt[1].format.height;
 		code = dev->active_sensor->fmt[1].format.code;
 		rkisp_set_stream_def_fmt(dev, RKISP_STREAM_DMATX0,
 			width, height, rkisp_mbus_pixelcode_to_v4l2(code));
-	}
-	if (dev->isp_ver == ISP_V20 &&
-	    dev->active_sensor->mbus.type == V4L2_MBUS_CSI2) {
-		width = dev->active_sensor->fmt[2].format.width;
-		height = dev->active_sensor->fmt[2].format.height;
-		code = dev->active_sensor->fmt[2].format.code;
-		rkisp_set_stream_def_fmt(dev, RKISP_STREAM_DMATX1,
-			width, height, rkisp_mbus_pixelcode_to_v4l2(code));
+
 		width = dev->active_sensor->fmt[3].format.width;
 		height = dev->active_sensor->fmt[3].format.height;
 		code = dev->active_sensor->fmt[3].format.code;
 		rkisp_set_stream_def_fmt(dev, RKISP_STREAM_DMATX2,
+			width, height, rkisp_mbus_pixelcode_to_v4l2(code));
+
+		width = dev->active_sensor->fmt[4].format.width;
+		height = dev->active_sensor->fmt[4].format.height;
+		code = dev->active_sensor->fmt[4].format.code;
+		rkisp_set_stream_def_fmt(dev, RKISP_STREAM_DMATX3,
+			width, height, rkisp_mbus_pixelcode_to_v4l2(code));
+	}
+
+	if (dev->isp_ver == ISP_V20) {
+		width = dev->active_sensor->fmt[2].format.width;
+		height = dev->active_sensor->fmt[2].format.height;
+		code = dev->active_sensor->fmt[2].format.code;
+		rkisp_set_stream_def_fmt(dev, RKISP_STREAM_DMATX1,
 			width, height, rkisp_mbus_pixelcode_to_v4l2(code));
 	}
 	return 0;
@@ -714,7 +719,7 @@ static int rkisp_plat_probe(struct platform_device *pdev)
 	isp_dev->pipe.close = rkisp_pipeline_close;
 	isp_dev->pipe.set_stream = rkisp_pipeline_set_stream;
 
-	if (isp_dev->isp_ver == ISP_V20) {
+	if (isp_dev->isp_ver == ISP_V20 || isp_dev->isp_ver == ISP_V21) {
 		atomic_set(&isp_dev->hdr.refcnt, 0);
 		for (i = 0; i < HDR_DMA_MAX; i++) {
 			INIT_LIST_HEAD(&isp_dev->hdr.q_tx[i]);

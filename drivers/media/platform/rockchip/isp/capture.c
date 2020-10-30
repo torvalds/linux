@@ -83,7 +83,7 @@ int rkisp_mbus_code_xysubs(u32 code, u32 *xsubs, u32 *ysubs)
 static const struct capture_fmt mp_fmts[] = {
 	/* yuv422 */
 	{
-		.fourcc = V4L2_PIX_FMT_YUYV,
+		.fourcc = V4L2_PIX_FMT_UYVY,
 		.fmt_type = FMT_YUV,
 		.bpp = { 16 },
 		.cplanes = 1,
@@ -254,7 +254,7 @@ static const struct capture_fmt mp_fmts[] = {
 static const struct capture_fmt sp_fmts[] = {
 	/* yuv422 */
 	{
-		.fourcc = V4L2_PIX_FMT_YUYV,
+		.fourcc = V4L2_PIX_FMT_UYVY,
 		.fmt_type = FMT_YUV,
 		.bpp = { 16 },
 		.cplanes = 1,
@@ -599,7 +599,8 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 			height = pixm->height / ysubs;
 		}
 
-		if (dev->isp_ver == ISP_V20 &&
+		if ((dev->isp_ver == ISP_V20 ||
+		     dev->isp_ver == ISP_V21) &&
 		    !dev->csi_dev.memory &&
 		    stream->id != RKISP_STREAM_MP &&
 		    stream->id != RKISP_STREAM_SP)
@@ -1053,6 +1054,8 @@ int rkisp_register_stream_vdevs(struct rkisp_device *dev)
 		ret = rkisp_register_stream_v1x(dev);
 	else if (dev->isp_ver == ISP_V20)
 		ret = rkisp_register_stream_v20(dev);
+	else if (dev->isp_ver == ISP_V21)
+		ret = rkisp_register_stream_v21(dev);
 	return ret;
 }
 
@@ -1062,6 +1065,8 @@ void rkisp_unregister_stream_vdevs(struct rkisp_device *dev)
 		rkisp_unregister_stream_v1x(dev);
 	else if (dev->isp_ver == ISP_V20)
 		rkisp_unregister_stream_v20(dev);
+	else if (dev->isp_ver == ISP_V21)
+		rkisp_unregister_stream_v21(dev);
 }
 
 void rkisp_mi_isr(u32 mis_val, struct rkisp_device *dev)
@@ -1070,4 +1075,6 @@ void rkisp_mi_isr(u32 mis_val, struct rkisp_device *dev)
 		rkisp_mi_v1x_isr(mis_val, dev);
 	else if (dev->isp_ver == ISP_V20)
 		rkisp_mi_v20_isr(mis_val, dev);
+	else if (dev->isp_ver == ISP_V21)
+		rkisp_mi_v21_isr(mis_val, dev);
 }

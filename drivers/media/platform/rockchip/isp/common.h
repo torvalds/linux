@@ -75,6 +75,7 @@ enum rkisp_isp_ver {
 	ISP_V12 = 0x20,
 	ISP_V13 = 0x30,
 	ISP_V20 = 0x40,
+	ISP_V21 = 0x50,
 };
 
 enum rkisp_sd_type {

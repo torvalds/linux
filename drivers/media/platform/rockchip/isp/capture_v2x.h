@@ -20,4 +20,9 @@ int rkisp_register_stream_v20(struct rkisp_device *dev);
 void rkisp_unregister_stream_v20(struct rkisp_device *dev);
 void rkisp_mi_v20_isr(u32 mis_val, struct rkisp_device *dev);
 void rkisp_mipi_v20_isr(u32 phy, u32 packet, u32 overflow, u32 state, struct rkisp_device *dev);
+
+int rkisp_register_stream_v21(struct rkisp_device *dev);
+void rkisp_unregister_stream_v21(struct rkisp_device *dev);
+void rkisp_mi_v21_isr(u32 mis_val, struct rkisp_device *dev);
+void rkisp_mipi_v21_isr(u32 phy, u32 packet, u32 overflow, u32 state, struct rkisp_device *dev);
 #endif
