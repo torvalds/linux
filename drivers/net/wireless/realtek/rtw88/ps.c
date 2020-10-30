@@ -68,48 +68,39 @@ int rtw_leave_ips(struct rtw_dev *rtwdev)
 void rtw_power_mode_change(struct rtw_dev *rtwdev, bool enter)
 {
 	u8 request, confirm, polling;
-	u8 polling_cnt;
-	u8 retry_cnt = 0;
+	int ret;
 
-	for (retry_cnt = 0; retry_cnt < 3; retry_cnt++) {
-		request = rtw_read8(rtwdev, rtwdev->hci.rpwm_addr);
-		confirm = rtw_read8(rtwdev, rtwdev->hci.cpwm_addr);
+	request = rtw_read8(rtwdev, rtwdev->hci.rpwm_addr);
+	confirm = rtw_read8(rtwdev, rtwdev->hci.cpwm_addr);
 
-		/* toggle to request power mode, others remain 0 */
-		request ^= request | BIT_RPWM_TOGGLE;
-		if (!enter) {
-			request |= POWER_MODE_ACK;
-		} else {
-			request |= POWER_MODE_LCLK;
-			if (rtw_fw_lps_deep_mode == LPS_DEEP_MODE_PG)
-				request |= POWER_MODE_PG;
-		}
-
-		rtw_write8(rtwdev, rtwdev->hci.rpwm_addr, request);
-
-		if (enter)
-			return;
-
-		/* check confirm power mode has left power save state */
-		for (polling_cnt = 0; polling_cnt < 50; polling_cnt++) {
-			polling = rtw_read8(rtwdev, rtwdev->hci.cpwm_addr);
-			if ((polling ^ confirm) & BIT_RPWM_TOGGLE)
-				return;
-			udelay(100);
-		}
-
-		/* in case of fw/hw missed the request, retry */
-		rtw_warn(rtwdev, "failed to leave deep PS, retry=%d\n",
-			 retry_cnt);
+	/* toggle to request power mode, others remain 0 */
+	request ^= request | BIT_RPWM_TOGGLE;
+	if (enter) {
+		request |= POWER_MODE_LCLK;
+		if (rtw_fw_lps_deep_mode == LPS_DEEP_MODE_PG)
+			request |= POWER_MODE_PG;
 	}
+	/* Each request require an ack from firmware */
+	request |= POWER_MODE_ACK;
 
-	/* Hit here means that driver failed to change hardware power mode to
-	 * active state after retry 3 times. If the power state is locked at
-	 * Deep sleep, most of the hardware circuits is not working, even
-	 * register read/write. It should be treated as fatal error and
-	 * requires an entire analysis about the firmware/hardware
-	 */
-	WARN(1, "Hardware power state locked\n");
+	rtw_write8(rtwdev, rtwdev->hci.rpwm_addr, request);
+
+	/* Check firmware get the power requset and ack via cpwm register */
+	ret = read_poll_timeout_atomic(rtw_read8, polling,
+				       (polling ^ confirm) & BIT_RPWM_TOGGLE,
+				       100, 15000, true, rtwdev,
+				       rtwdev->hci.cpwm_addr);
+	if (ret) {
+		/* Hit here means that driver failed to get an ack from firmware.
+		 * The reason could be that hardware is locked at Deep sleep,
+		 * so most of the hardware circuits are not working, even
+		 * register read/write; or firmware is locked in some state and
+		 * cannot get the request. It should be treated as fatal error
+		 * and requires an entire analysis about the firmware/hardware.
+		 */
+		WARN(1, "firmware failed to ack driver for %s Deep Power mode\n",
+		     enter ? "entering" : "leaving");
+	}
 }
 EXPORT_SYMBOL(rtw_power_mode_change);
 
