@@ -1830,7 +1830,7 @@
 		compatible = "rockchip,rk3568-usb2phy";
 		reg = <0x0 0xfe8a0000 0x0 0x10000>;
 		interrupts = <GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru CLK_USBPHY0_REF>;
+		clocks = <&pmucru CLK_USBPHY0_REF>;
 		clock-names = "phyclk";
 		#clock-cells = <0>;
 		clock-output-names = "usb480m_phy";
@@ -1852,7 +1852,7 @@
 		compatible = "rockchip,rk3568-usb2phy";
 		reg = <0x0 0xfe8b0000 0x0 0x10000>;
 		interrupts = <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru CLK_USBPHY1_REF>;
+		clocks = <&pmucru CLK_USBPHY1_REF>;
 		clock-names = "phyclk";
 		rockchip,usbgrf = <&usb2phy1_grf>;
 		status = "disabled";
