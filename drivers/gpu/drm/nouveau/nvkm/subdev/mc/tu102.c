@@ -100,21 +100,6 @@ tu102_mc_intr_stat(struct nvkm_mc *mc)
 	return intr0 | intr1;
 }
 
-static void
-tu102_mc_intr_hack(struct nvkm_mc *mc, bool *handled)
-{
-	struct nvkm_device *device = mc->subdev.device;
-	u32 stat = nvkm_rd32(device, 0xb81010);
-
-	if (stat & 0x00000050) {
-		struct nvkm_subdev *subdev =
-			nvkm_device_subdev(device, NVKM_SUBDEV_FAULT);
-		nvkm_wr32(device, 0xb81010, stat & 0x00000050);
-		if (subdev)
-			nvkm_subdev_intr(subdev);
-		*handled = true;
-	}
-}
 
 static const struct nvkm_mc_func
 tu102_mc = {
@@ -124,7 +109,6 @@ tu102_mc = {
 	.intr_rearm = tu102_mc_intr_rearm,
 	.intr_mask = tu102_mc_intr_mask,
 	.intr_stat = tu102_mc_intr_stat,
-	.intr_hack = tu102_mc_intr_hack,
 	.reset = gk104_mc_reset,
 };
 
