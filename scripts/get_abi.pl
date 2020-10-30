@@ -65,7 +65,10 @@ sub parse_abi {
 	my $name = $file;
 	$name =~ s,.*/,,;
 
-	my $nametag = "File $name";
+	my $fn = $file;
+	$fn =~ s,Documentation/ABI/,,;
+
+	my $nametag = "File $fn";
 	$data{$nametag}->{what} = "File $name";
 	$data{$nametag}->{type} = "File";
 	$data{$nametag}->{file} = $name;
@@ -320,14 +323,16 @@ sub output_rest {
 			my $fileref = "abi_file_".$path;
 
 			if ($type eq "File") {
-				my $bar = $w;
-				$bar =~ s/./-/g;
-
 				print ".. _$fileref:\n\n";
-				print "$w\n$bar\n\n";
 			} else {
 				print "Defined on file :ref:`$f <$fileref>`\n\n";
 			}
+		}
+
+		if ($type eq "File") {
+			my $bar = $w;
+			$bar =~ s/./-/g;
+			print "$w\n$bar\n\n";
 		}
 
 		my $desc = "";
