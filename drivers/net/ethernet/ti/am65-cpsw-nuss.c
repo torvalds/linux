@@ -1487,9 +1487,8 @@ static int am65_cpsw_nuss_init_tx_chns(struct am65_cpsw_common *common)
 						    tx_chn->tx_chn_name,
 						    &tx_cfg);
 		if (IS_ERR(tx_chn->tx_chn)) {
-			ret = PTR_ERR(tx_chn->tx_chn);
-			dev_err(dev, "Failed to request tx dma channel %d\n",
-				ret);
+			ret = dev_err_probe(dev, PTR_ERR(tx_chn->tx_chn),
+					    "Failed to request tx dma channel\n");
 			goto err;
 		}
 
@@ -1560,8 +1559,8 @@ static int am65_cpsw_nuss_init_rx_chns(struct am65_cpsw_common *common)
 
 	rx_chn->rx_chn = k3_udma_glue_request_rx_chn(dev, "rx", &rx_cfg);
 	if (IS_ERR(rx_chn->rx_chn)) {
-		ret = PTR_ERR(rx_chn->rx_chn);
-		dev_err(dev, "Failed to request rx dma channel %d\n", ret);
+		ret = dev_err_probe(dev, PTR_ERR(rx_chn->rx_chn),
+				    "Failed to request rx dma channel\n");
 		goto err;
 	}
 
@@ -1768,12 +1767,10 @@ static int am65_cpsw_nuss_init_slave_ports(struct am65_cpsw_common *common)
 		/* get phy/link info */
 		if (of_phy_is_fixed_link(port_np)) {
 			ret = of_phy_register_fixed_link(port_np);
-			if (ret) {
-				if (ret != -EPROBE_DEFER)
-					dev_err(dev, "%pOF failed to register fixed-link phy: %d\n",
-						port_np, ret);
-				return ret;
-			}
+			if (ret)
+				return dev_err_probe(dev, ret,
+						     "failed to register fixed-link phy %pOF\n",
+						     port_np);
 			port->slave.phy_node = of_node_get(port_np);
 		} else {
 			port->slave.phy_node =
@@ -2062,13 +2059,8 @@ static int am65_cpsw_nuss_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	clk = devm_clk_get(dev, "fck");
-	if (IS_ERR(clk)) {
-		ret = PTR_ERR(clk);
-
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "error getting fck clock %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(clk))
+		return dev_err_probe(dev, PTR_ERR(clk), "getting fck clock\n");
 	common->bus_freq = clk_get_rate(clk);
 
 	pm_runtime_enable(dev);
