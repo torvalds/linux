@@ -75,7 +75,13 @@ static int soc_compr_open(struct snd_compr_stream *cstream)
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
 	struct snd_soc_component *component = NULL;
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+	int stream;
 	int ret;
+
+	if (cstream->direction == SND_COMPRESS_PLAYBACK)
+		stream = SNDRV_PCM_STREAM_PLAYBACK;
+	else
+		stream = SNDRV_PCM_STREAM_CAPTURE;
 
 	ret = snd_soc_pcm_component_pm_runtime_get(rtd, cstream);
 	if (ret < 0)
@@ -95,7 +101,7 @@ static int soc_compr_open(struct snd_compr_stream *cstream)
 	if (ret < 0)
 		goto machine_err;
 
-	snd_soc_runtime_activate(rtd, cstream->direction);
+	snd_soc_runtime_activate(rtd, stream);
 
 	mutex_unlock(&rtd->card->pcm_mutex);
 
@@ -208,7 +214,7 @@ static int soc_compr_free(struct snd_compr_stream *cstream)
 
 	snd_soc_runtime_deactivate(rtd, stream);
 
-	snd_soc_dai_digital_mute(codec_dai, 1, cstream->direction);
+	snd_soc_dai_digital_mute(codec_dai, 1, stream);
 
 	if (!snd_soc_dai_active(cpu_dai))
 		cpu_dai->rate = 0;
@@ -304,9 +310,15 @@ static int soc_compr_trigger(struct snd_compr_stream *cstream, int cmd)
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
 	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+	int stream;
 	int ret;
 
 	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
+
+	if (cstream->direction == SND_COMPRESS_PLAYBACK)
+		stream = SNDRV_PCM_STREAM_PLAYBACK;
+	else
+		stream = SNDRV_PCM_STREAM_CAPTURE;
 
 	ret = soc_compr_components_trigger(cstream, cmd);
 	if (ret < 0)
@@ -318,10 +330,10 @@ static int soc_compr_trigger(struct snd_compr_stream *cstream, int cmd)
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		snd_soc_dai_digital_mute(codec_dai, 0, cstream->direction);
+		snd_soc_dai_digital_mute(codec_dai, 0, stream);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
-		snd_soc_dai_digital_mute(codec_dai, 1, cstream->direction);
+		snd_soc_dai_digital_mute(codec_dai, 1, stream);
 		break;
 	}
 
