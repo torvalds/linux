@@ -725,6 +725,7 @@ int amdgpu_mes_add_hw_queue(struct amdgpu_device *adev, int gang_id,
 	queue->queue_type = qprops->queue_type;
 	queue->paging = qprops->paging;
 	queue->gang = gang;
+	queue->ring->mqd_ptr = queue->mqd_cpu_ptr;
 	list_add_tail(&queue->list, &gang->queue_list);
 
 	amdgpu_mes_unlock(&adev->mes);
@@ -1079,6 +1080,12 @@ void amdgpu_mes_remove_ring(struct amdgpu_device *adev,
 	amdgpu_mes_remove_hw_queue(adev, ring->hw_queue_id);
 	amdgpu_ring_fini(ring);
 	kfree(ring);
+}
+
+uint32_t amdgpu_mes_get_aggregated_doorbell_index(struct amdgpu_device *adev,
+						   enum amdgpu_mes_priority_level prio)
+{
+	return adev->mes.aggregated_doorbells[prio];
 }
 
 int amdgpu_mes_ctx_alloc_meta_data(struct amdgpu_device *adev,
