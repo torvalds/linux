@@ -780,7 +780,7 @@ static int sof_pcm_probe(struct snd_soc_component *component)
 static void sof_pcm_remove(struct snd_soc_component *component)
 {
 	/* remove topology */
-	snd_soc_tplg_component_remove(component, SND_SOC_TPLG_INDEX_ALL);
+	snd_soc_tplg_component_remove(component);
 }
 
 void snd_sof_new_platform_drv(struct snd_sof_dev *sdev)
