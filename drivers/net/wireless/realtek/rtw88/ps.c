@@ -77,7 +77,7 @@ void rtw_power_mode_change(struct rtw_dev *rtwdev, bool enter)
 	request ^= request | BIT_RPWM_TOGGLE;
 	if (enter) {
 		request |= POWER_MODE_LCLK;
-		if (rtw_fw_lps_deep_mode == LPS_DEEP_MODE_PG)
+		if (rtw_get_lps_deep_mode(rtwdev) == LPS_DEEP_MODE_PG)
 			request |= POWER_MODE_PG;
 	}
 	/* Each request require an ack from firmware */
@@ -195,9 +195,17 @@ static void rtw_leave_lps_core(struct rtw_dev *rtwdev)
 	rtw_coex_lps_notify(rtwdev, COEX_LPS_DISABLE);
 }
 
+enum rtw_lps_deep_mode rtw_get_lps_deep_mode(struct rtw_dev *rtwdev)
+{
+	if (test_bit(RTW_FLAG_WOWLAN, rtwdev->flags))
+		return rtwdev->lps_conf.wow_deep_mode;
+	else
+		return rtwdev->lps_conf.deep_mode;
+}
+
 static void __rtw_enter_lps_deep(struct rtw_dev *rtwdev)
 {
-	if (rtwdev->lps_conf.deep_mode == LPS_DEEP_MODE_NONE)
+	if (rtw_get_lps_deep_mode(rtwdev) == LPS_DEEP_MODE_NONE)
 		return;
 
 	if (!test_bit(RTW_FLAG_LEISURE_PS, rtwdev->flags)) {
@@ -206,7 +214,7 @@ static void __rtw_enter_lps_deep(struct rtw_dev *rtwdev)
 		return;
 	}
 
-	if (rtw_fw_lps_deep_mode == LPS_DEEP_MODE_PG)
+	if (rtw_get_lps_deep_mode(rtwdev) == LPS_DEEP_MODE_PG)
 		rtw_fw_set_pg_info(rtwdev);
 
 	rtw_hci_deep_ps(rtwdev, true);
