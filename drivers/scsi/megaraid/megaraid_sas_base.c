@@ -8319,16 +8319,19 @@ megasas_mgmt_fw_ioctl(struct megasas_instance *instance,
 	 * copy out the sense
 	 */
 	if (ioc->sense_len) {
+		void __user *uptr;
 		/*
 		 * sense_ptr points to the location that has the user
 		 * sense buffer address
 		 */
-		sense_ptr = (unsigned long *) ((unsigned long)ioc->frame.raw +
-				ioc->sense_off);
+		sense_ptr = (void *)ioc->frame.raw + ioc->sense_off;
+		if (in_compat_syscall())
+			uptr = compat_ptr(get_unaligned((compat_uptr_t *)
+							sense_ptr));
+		else
+			uptr = get_unaligned((void __user **)sense_ptr);
 
-		if (copy_to_user((void __user *)((unsigned long)
-				 get_unaligned((unsigned long *)sense_ptr)),
-				 sense, ioc->sense_len)) {
+		if (copy_to_user(uptr, sense, ioc->sense_len)) {
 			dev_err(&instance->pdev->dev, "Failed to copy out to user "
 					"sense data\n");
 			error = -EFAULT;
@@ -8371,6 +8374,38 @@ out:
 	return error;
 }
 
+static struct megasas_iocpacket *
+megasas_compat_iocpacket_get_user(void __user *arg)
+{
+	struct megasas_iocpacket *ioc;
+	struct compat_megasas_iocpacket __user *cioc = arg;
+	size_t size;
+	int err = -EFAULT;
+	int i;
+
+	ioc = kzalloc(sizeof(*ioc), GFP_KERNEL);
+	if (!ioc)
+		return ERR_PTR(-ENOMEM);
+	size = offsetof(struct megasas_iocpacket, frame) + sizeof(ioc->frame);
+	if (copy_from_user(ioc, arg, size))
+		goto out;
+
+	for (i = 0; i < MAX_IOCTL_SGE; i++) {
+		compat_uptr_t iov_base;
+
+		if (get_user(iov_base, &cioc->sgl[i].iov_base) ||
+		    get_user(ioc->sgl[i].iov_len, &cioc->sgl[i].iov_len))
+			goto out;
+
+		ioc->sgl[i].iov_base = compat_ptr(iov_base);
+	}
+
+	return ioc;
+out:
+	kfree(ioc);
+	return ERR_PTR(err);
+}
+
 static int megasas_mgmt_ioctl_fw(struct file *file, unsigned long arg)
 {
 	struct megasas_iocpacket __user *user_ioc =
@@ -8379,7 +8414,11 @@ static int megasas_mgmt_ioctl_fw(struct file *file, unsigned long arg)
 	struct megasas_instance *instance;
 	int error;
 
-	ioc = memdup_user(user_ioc, sizeof(*ioc));
+	if (in_compat_syscall())
+		ioc = megasas_compat_iocpacket_get_user(user_ioc);
+	else
+		ioc = memdup_user(user_ioc, sizeof(struct megasas_iocpacket));
+
 	if (IS_ERR(ioc))
 		return PTR_ERR(ioc);
 
@@ -8484,78 +8523,13 @@ megasas_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 }
 
 #ifdef CONFIG_COMPAT
-static int megasas_mgmt_compat_ioctl_fw(struct file *file, unsigned long arg)
-{
-	struct compat_megasas_iocpacket __user *cioc =
-	    (struct compat_megasas_iocpacket __user *)arg;
-	struct megasas_iocpacket __user *ioc =
-	    compat_alloc_user_space(sizeof(struct megasas_iocpacket));
-	int i;
-	int error = 0;
-	compat_uptr_t ptr;
-	u32 local_sense_off;
-	u32 local_sense_len;
-	u32 user_sense_off;
-
-	if (clear_user(ioc, sizeof(*ioc)))
-		return -EFAULT;
-
-	if (copy_in_user(&ioc->host_no, &cioc->host_no, sizeof(u16)) ||
-	    copy_in_user(&ioc->sgl_off, &cioc->sgl_off, sizeof(u32)) ||
-	    copy_in_user(&ioc->sense_off, &cioc->sense_off, sizeof(u32)) ||
-	    copy_in_user(&ioc->sense_len, &cioc->sense_len, sizeof(u32)) ||
-	    copy_in_user(ioc->frame.raw, cioc->frame.raw, 128) ||
-	    copy_in_user(&ioc->sge_count, &cioc->sge_count, sizeof(u32)))
-		return -EFAULT;
-
-	/*
-	 * The sense_ptr is used in megasas_mgmt_fw_ioctl only when
-	 * sense_len is not null, so prepare the 64bit value under
-	 * the same condition.
-	 */
-	if (get_user(local_sense_off, &ioc->sense_off) ||
-		get_user(local_sense_len, &ioc->sense_len) ||
-		get_user(user_sense_off, &cioc->sense_off))
-		return -EFAULT;
-
-	if (local_sense_off != user_sense_off)
-		return -EINVAL;
-
-	if (local_sense_len) {
-		void __user **sense_ioc_ptr =
-			(void __user **)((u8 *)((unsigned long)&ioc->frame.raw) + local_sense_off);
-		compat_uptr_t *sense_cioc_ptr =
-			(compat_uptr_t *)(((unsigned long)&cioc->frame.raw) + user_sense_off);
-		if (get_user(ptr, sense_cioc_ptr) ||
-		    put_user(compat_ptr(ptr), sense_ioc_ptr))
-			return -EFAULT;
-	}
-
-	for (i = 0; i < MAX_IOCTL_SGE; i++) {
-		if (get_user(ptr, &cioc->sgl[i].iov_base) ||
-		    put_user(compat_ptr(ptr), &ioc->sgl[i].iov_base) ||
-		    copy_in_user(&ioc->sgl[i].iov_len,
-				 &cioc->sgl[i].iov_len, sizeof(compat_size_t)))
-			return -EFAULT;
-	}
-
-	error = megasas_mgmt_ioctl_fw(file, (unsigned long)ioc);
-
-	if (copy_in_user(&cioc->frame.hdr.cmd_status,
-			 &ioc->frame.hdr.cmd_status, sizeof(u8))) {
-		printk(KERN_DEBUG "megasas: error copy_in_user cmd_status\n");
-		return -EFAULT;
-	}
-	return error;
-}
-
 static long
 megasas_mgmt_compat_ioctl(struct file *file, unsigned int cmd,
 			  unsigned long arg)
 {
 	switch (cmd) {
 	case MEGASAS_IOC_FIRMWARE32:
-		return megasas_mgmt_compat_ioctl_fw(file, arg);
+		return megasas_mgmt_ioctl_fw(file, arg);
 	case MEGASAS_IOC_GET_AEN:
 		return megasas_mgmt_ioctl_aen(file, arg);
 	}
