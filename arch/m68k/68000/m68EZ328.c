@@ -24,9 +24,7 @@
 #include <asm/bootstd.h>
 #endif
 
-/***************************************************************************/
-
-int m68328_hwclk(int set, struct rtc_time *t);
+#include "m68328.h"
 
 /***************************************************************************/
 
@@ -44,29 +42,12 @@ void m68ez328_reset(void)
 
 /***************************************************************************/
 
-unsigned char *cs8900a_hwaddr;
-static int errno;
-
-#ifdef CONFIG_UCSIMM
-_bsc0(char *, getserialnum)
-_bsc1(unsigned char *, gethwaddr, int, a)
-_bsc1(char *, getbenv, char *, a)
-#endif
-
 void __init config_BSP(char *command, int len)
 {
-  unsigned char *p;
-
   pr_info("68EZ328 DragonBallEZ support (C) 1999 Rt-Control, Inc\n");
 
 #ifdef CONFIG_UCSIMM
-  pr_info("uCsimm serial string [%s]\n", getserialnum());
-  p = cs8900a_hwaddr = gethwaddr(0);
-  pr_info("uCsimm hwaddr %pM\n", p);
-
-  p = getbenv("APPEND");
-  if (p) strcpy(p,command);
-  else command[0] = 0;
+  init_ucsimm(command, len);
 #endif
 
   mach_sched_init = hw_timer_init;

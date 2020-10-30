@@ -16,4 +16,8 @@ obj-$(CONFIG_M68EZ328)	+= m68EZ328.o
 obj-$(CONFIG_M68VZ328)	+= m68VZ328.o
 obj-$(CONFIG_ROM)	+= romvec.o
 
+obj-$(CONFIG_DRAGEN2)	+= dragen2.o
+obj-$(CONFIG_UCSIMM)	+= ucsimm.o
+obj-$(CONFIG_UCDIMM)	+= ucsimm.o
+
 extra-y 		:= head.o
