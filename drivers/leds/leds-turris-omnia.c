@@ -12,20 +12,20 @@
 #include <linux/of.h>
 #include "leds.h"
 
-#define OMNIA_BOARD_LEDS		12
-#define OMNIA_LED_NUM_CHANNELS		3
+#define OMNIA_BOARD_LEDS	12
+#define OMNIA_LED_NUM_CHANNELS	3
 
-#define CMD_LED_MODE			3
-#define CMD_LED_MODE_LED(l)		((l) & 0x0f)
-#define CMD_LED_MODE_USER		0x10
+#define CMD_LED_MODE		3
+#define CMD_LED_MODE_LED(l)	((l) & 0x0f)
+#define CMD_LED_MODE_USER	0x10
 
-#define CMD_LED_STATE			4
-#define CMD_LED_STATE_LED(l)		((l) & 0x0f)
-#define CMD_LED_STATE_ON		0x10
+#define CMD_LED_STATE		4
+#define CMD_LED_STATE_LED(l)	((l) & 0x0f)
+#define CMD_LED_STATE_ON	0x10
 
-#define CMD_LED_COLOR			5
-#define CMD_LED_SET_BRIGHTNESS		7
-#define CMD_LED_GET_BRIGHTNESS		8
+#define CMD_LED_COLOR		5
+#define CMD_LED_SET_BRIGHTNESS	7
+#define CMD_LED_GET_BRIGHTNESS	8
 
 struct omnia_led {
 	struct led_classdev_mc mc_cdev;
@@ -33,7 +33,7 @@ struct omnia_led {
 	int reg;
 };
 
-#define to_omnia_led(l)			container_of(l, struct omnia_led, mc_cdev)
+#define to_omnia_led(l)		container_of(l, struct omnia_led, mc_cdev)
 
 struct omnia_leds {
 	struct i2c_client *client;
@@ -118,18 +118,21 @@ static int omnia_led_register(struct i2c_client *client, struct omnia_led *led,
 					CMD_LED_MODE_LED(led->reg) |
 					CMD_LED_MODE_USER);
 	if (ret < 0) {
-		dev_err(dev, "Cannot set LED %pOF to software mode: %i\n", np, ret);
+		dev_err(dev, "Cannot set LED %pOF to software mode: %i\n", np,
+			ret);
 		return ret;
 	}
 
 	/* disable the LED */
-	ret = i2c_smbus_write_byte_data(client, CMD_LED_STATE, CMD_LED_STATE_LED(led->reg));
+	ret = i2c_smbus_write_byte_data(client, CMD_LED_STATE,
+					CMD_LED_STATE_LED(led->reg));
 	if (ret < 0) {
 		dev_err(dev, "Cannot set LED %pOF brightness: %i\n", np, ret);
 		return ret;
 	}
 
-	ret = devm_led_classdev_multicolor_register_ext(dev, &led->mc_cdev, &init_data);
+	ret = devm_led_classdev_multicolor_register_ext(dev, &led->mc_cdev,
+							&init_data);
 	if (ret < 0) {
 		dev_err(dev, "Cannot register LED %pOF: %i\n", np, ret);
 		return ret;
@@ -149,7 +152,8 @@ static int omnia_led_register(struct i2c_client *client, struct omnia_led *led,
  * file lives in the device directory of the LED controller, not an individual
  * LED, so it should not confuse users.
  */
-static ssize_t brightness_show(struct device *dev, struct device_attribute *a, char *buf)
+static ssize_t brightness_show(struct device *dev, struct device_attribute *a,
+			       char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct omnia_leds *leds = i2c_get_clientdata(client);
@@ -165,8 +169,8 @@ static ssize_t brightness_show(struct device *dev, struct device_attribute *a, c
 	return sprintf(buf, "%d\n", ret);
 }
 
-static ssize_t brightness_store(struct device *dev, struct device_attribute *a, const char *buf,
-				size_t count)
+static ssize_t brightness_store(struct device *dev, struct device_attribute *a,
+				const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct omnia_leds *leds = i2c_get_clientdata(client);
@@ -180,7 +184,8 @@ static ssize_t brightness_store(struct device *dev, struct device_attribute *a, 
 		return -EINVAL;
 
 	mutex_lock(&leds->lock);
-	ret = i2c_smbus_write_byte_data(client, CMD_LED_SET_BRIGHTNESS, (u8) brightness);
+	ret = i2c_smbus_write_byte_data(client, CMD_LED_SET_BRIGHTNESS,
+					(u8)brightness);
 	mutex_unlock(&leds->lock);
 
 	if (ret < 0)
