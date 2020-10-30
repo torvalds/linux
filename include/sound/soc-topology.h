@@ -185,11 +185,6 @@ int snd_soc_tplg_component_load(struct snd_soc_component *comp,
 	u32 index);
 int snd_soc_tplg_component_remove(struct snd_soc_component *comp, u32 index);
 
-/* Widget removal - widgets also removed wth component API */
-void snd_soc_tplg_widget_remove(struct snd_soc_dapm_widget *w);
-void snd_soc_tplg_widget_remove_all(struct snd_soc_dapm_context *dapm,
-	u32 index);
-
 /* Binds event handlers to dynamic widgets */
 int snd_soc_tplg_widget_bind_event(struct snd_soc_dapm_widget *w,
 	const struct snd_soc_tplg_widget_events *events, int num_events,

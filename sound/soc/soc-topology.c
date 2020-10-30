@@ -1725,7 +1725,7 @@ widget:
 	return 0;
 
 ready_err:
-	snd_soc_tplg_widget_remove(widget);
+	remove_widget(widget->dapm->component, &widget->dobj, SOC_TPLG_PASS_WIDGET);
 	snd_soc_dapm_free_widget(widget);
 hdr_err:
 	kfree(template.sname);
@@ -2833,41 +2833,6 @@ int snd_soc_tplg_component_load(struct snd_soc_component *comp,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_tplg_component_load);
-
-/* remove this dynamic widget */
-void snd_soc_tplg_widget_remove(struct snd_soc_dapm_widget *w)
-{
-	/* make sure we are a widget */
-	if (w->dobj.type != SND_SOC_DOBJ_WIDGET)
-		return;
-
-	remove_widget(w->dapm->component, &w->dobj, SOC_TPLG_PASS_WIDGET);
-}
-EXPORT_SYMBOL_GPL(snd_soc_tplg_widget_remove);
-
-/* remove all dynamic widgets from this DAPM context */
-void snd_soc_tplg_widget_remove_all(struct snd_soc_dapm_context *dapm,
-	u32 index)
-{
-	struct snd_soc_dapm_widget *w, *next_w;
-
-	for_each_card_widgets_safe(dapm->card, w, next_w) {
-
-		/* make sure we are a widget with correct context */
-		if (w->dobj.type != SND_SOC_DOBJ_WIDGET || w->dapm != dapm)
-			continue;
-
-		/* match ID */
-		if (w->dobj.index != index &&
-			w->dobj.index != SND_SOC_TPLG_INDEX_ALL)
-			continue;
-		/* check and free and dynamic widget kcontrols */
-		snd_soc_tplg_widget_remove(w);
-		snd_soc_dapm_free_widget(w);
-	}
-	snd_soc_dapm_reset_cache(dapm);
-}
-EXPORT_SYMBOL_GPL(snd_soc_tplg_widget_remove_all);
 
 /* remove dynamic controls from the component driver */
 int snd_soc_tplg_component_remove(struct snd_soc_component *comp, u32 index)
