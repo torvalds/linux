@@ -436,10 +436,8 @@ static int ehrpwm_pwm_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (IS_ERR(clk)) {
-		dev_err(&pdev->dev, "failed to get clock\n");
-		return PTR_ERR(clk);
-	}
+	if (IS_ERR(clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(clk), "Failed to get fck\n");
 
 	pc->clk_rate = clk_get_rate(clk);
 	if (!pc->clk_rate) {
@@ -460,10 +458,8 @@ static int ehrpwm_pwm_probe(struct platform_device *pdev)
 
 	/* Acquire tbclk for Time Base EHRPWM submodule */
 	pc->tbclk = devm_clk_get(&pdev->dev, "tbclk");
-	if (IS_ERR(pc->tbclk)) {
-		dev_err(&pdev->dev, "Failed to get tbclk\n");
-		return PTR_ERR(pc->tbclk);
-	}
+	if (IS_ERR(pc->tbclk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(pc->tbclk), "Failed to get tbclk\n");
 
 	ret = clk_prepare(pc->tbclk);
 	if (ret < 0) {
