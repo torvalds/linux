@@ -183,6 +183,9 @@ void rtw_fw_c2h_cmd_rx_irqsafe(struct rtw_dev *rtwdev, u32 pkt_offset,
 	case C2H_BT_MP_INFO:
 		rtw_coex_info_response(rtwdev, skb);
 		break;
+	case C2H_WLAN_RFON:
+		complete(&rtwdev->lps_leave_check);
+		break;
 	default:
 		/* pass offset for further operation */
 		*((u32 *)skb->cb) = pkt_offset;

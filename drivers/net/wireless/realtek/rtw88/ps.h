@@ -12,6 +12,7 @@
 #define POWER_MODE_LCLK		BIT(0)
 
 #define LEAVE_LPS_TRY_CNT	5
+#define LEAVE_LPS_TIMEOUT	msecs_to_jiffies(100)
 
 int rtw_enter_ips(struct rtw_dev *rtwdev);
 int rtw_leave_ips(struct rtw_dev *rtwdev);

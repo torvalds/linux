@@ -31,6 +31,7 @@ enum rtw_c2h_cmd_id {
 	C2H_RA_RPT = 0x0c,
 	C2H_HW_FEATURE_REPORT = 0x19,
 	C2H_WLAN_INFO = 0x27,
+	C2H_WLAN_RFON = 0x32,
 	C2H_HW_FEATURE_DUMP = 0xfd,
 	C2H_HALMAC = 0xff,
 };

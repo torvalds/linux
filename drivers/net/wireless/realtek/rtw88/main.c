@@ -1652,6 +1652,7 @@ int rtw_core_init(struct rtw_dev *rtwdev)
 	mutex_init(&rtwdev->hal.tx_power_mutex);
 
 	init_waitqueue_head(&rtwdev->coex.wait);
+	init_completion(&rtwdev->lps_leave_check);
 
 	rtwdev->sec.total_cam_num = 32;
 	rtwdev->hal.current_channel = 1;

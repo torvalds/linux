@@ -109,7 +109,7 @@ static void __rtw_leave_lps_deep(struct rtw_dev *rtwdev)
 	rtw_hci_deep_ps(rtwdev, false);
 }
 
-static void rtw_fw_leave_lps_state_check(struct rtw_dev *rtwdev)
+static int __rtw_fw_leave_lps_check_reg(struct rtw_dev *rtwdev)
 {
 	int i;
 
@@ -127,12 +127,53 @@ static void rtw_fw_leave_lps_state_check(struct rtw_dev *rtwdev)
 	 */
 	for (i = 0 ; i < LEAVE_LPS_TRY_CNT; i++) {
 		if (rtw_read32_mask(rtwdev, REG_TCR, BIT_PWRMGT_HWDATA_EN) == 0)
-			return;
+			return 0;
 		msleep(20);
 	}
 
-	rtw_write32_mask(rtwdev, REG_TCR, BIT_PWRMGT_HWDATA_EN, 0);
-	rtw_warn(rtwdev, "firmware failed to restore hardware setting\n");
+	return -EBUSY;
+}
+
+static  int __rtw_fw_leave_lps_check_c2h(struct rtw_dev *rtwdev)
+{
+	if (wait_for_completion_timeout(&rtwdev->lps_leave_check,
+					LEAVE_LPS_TIMEOUT))
+		return 0;
+	return -EBUSY;
+}
+
+static void rtw_fw_leave_lps_check(struct rtw_dev *rtwdev)
+{
+	bool ret = false;
+	struct rtw_fw_state *fw;
+
+	if (test_bit(RTW_FLAG_WOWLAN, rtwdev->flags))
+		fw = &rtwdev->wow_fw;
+	else
+		fw = &rtwdev->fw;
+
+	if (fw->feature & FW_FEATURE_LPS_C2H)
+		ret = __rtw_fw_leave_lps_check_c2h(rtwdev);
+	else
+		ret = __rtw_fw_leave_lps_check_reg(rtwdev);
+
+	if (ret) {
+		rtw_write32_clr(rtwdev, REG_TCR, BIT_PWRMGT_HWDATA_EN);
+		rtw_warn(rtwdev, "firmware failed to leave lps state\n");
+	}
+}
+
+static void rtw_fw_leave_lps_check_prepare(struct rtw_dev *rtwdev)
+{
+	struct rtw_fw_state *fw;
+
+	if (test_bit(RTW_FLAG_WOWLAN, rtwdev->flags))
+		fw = &rtwdev->wow_fw;
+	else
+		fw = &rtwdev->fw;
+
+	if (fw->feature & FW_FEATURE_LPS_C2H)
+		reinit_completion(&rtwdev->lps_leave_check);
 }
 
 static void rtw_leave_lps_core(struct rtw_dev *rtwdev)
@@ -145,8 +186,9 @@ static void rtw_leave_lps_core(struct rtw_dev *rtwdev)
 	conf->smart_ps = 0;
 
 	rtw_hci_link_ps(rtwdev, false);
+	rtw_fw_leave_lps_check_prepare(rtwdev);
 	rtw_fw_set_pwr_mode(rtwdev);
-	rtw_fw_leave_lps_state_check(rtwdev);
+	rtw_fw_leave_lps_check(rtwdev);
 
 	clear_bit(RTW_FLAG_LEISURE_PS, rtwdev->flags);
 
