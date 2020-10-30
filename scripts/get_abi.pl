@@ -147,17 +147,19 @@ sub parse_abi {
 					parse_error($file, $ln, "'What:' should come first:", $_);
 					next;
 				}
-				if ($tag eq "description") {
-					# Preserve initial spaces for the first line
+				if ($new_tag eq "description") {
+					$sep =~ s,:, ,;
 					$content = ' ' x length($new_tag) . $sep . $content;
-					$content =~ s,^(\s*):,$1 ,;
-					if ($content =~ m/^(\s*)(.*)$/) {
+					while ($content =~ s/\t+/' ' x (length($&) * 8 - length($`) % 8)/e) {}
+					if ($content =~ m/^(\s*)(\S.*)$/) {
+						# Preserve initial spaces for the first line
 						$space = $1;
-						$content = $2;
+						$content = "$2\n";
+						$data{$what}->{$tag} .= $content;
+					} else {
+						undef($space);
 					}
-					while ($space =~ s/\t+/' ' x (length($&) * 8 - length($`) % 8)/e) {}
 
-					$data{$what}->{$tag} .= "$content\n" if ($content);
 				} else {
 					$data{$what}->{$tag} = $content;
 				}
@@ -174,28 +176,22 @@ sub parse_abi {
 		if ($tag eq "description") {
 			my $content = $_;
 			while ($content =~ s/\t+/' ' x (length($&) * 8 - length($`) % 8)/e) {}
-			if (!$data{$what}->{description}) {
-				# Preserve initial spaces for the first line
-				if ($content =~ m/^(\s*)(.*)$/) {
-					$space = $1;
-					$content = $2;
-				}
-
-				$data{$what}->{$tag} .= "$content\n" if ($content);
-			} else {
-				if (m/^\s*\n/) {
-					$data{$what}->{$tag} .= $content;
-					next;
-				}
-
-				$space = "" if (!($content =~ s/^($space)//));
-
-#				# Compress spaces with tabs
-#				$content =~ s<^ {8}> <\t>;
-#				$content =~ s<^ {1,7}\t> <\t>;
-#				$content =~ s< {1,7}\t> <\t>;
-				$data{$what}->{$tag} .= $content;
+			if (m/^\s*\n/) {
+				$data{$what}->{$tag} .= "\n";
+				next;
 			}
+
+			if (!defined($space)) {
+				# Preserve initial spaces for the first line
+				if ($content =~ m/^(\s*)(\S.*)$/) {
+					$space = $1;
+					$content = "$2\n";
+				}
+			} else {
+				$space = "" if (!($content =~ s/^($space)//));
+			}
+			$data{$what}->{$tag} .= $content;
+
 			next;
 		}
 		if (m/^\s*(.*)/) {
