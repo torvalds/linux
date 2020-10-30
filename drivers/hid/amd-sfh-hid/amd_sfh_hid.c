@@ -88,10 +88,10 @@ static int amdtp_wait_for_response(struct hid_device *hid)
 		ret = wait_event_interruptible_timeout(hid_data->hid_wait,
 						       cli_data->request_done[i],
 						       msecs_to_jiffies(AMD_SFH_RESPONSE_TIMEOUT));
-	if (ret < 0)
-		return -ETIMEDOUT;
-	else if (ret == -ERESTARTSYS)
+	if (ret == -ERESTARTSYS)
 		return -ERESTARTSYS;
+	else if (ret < 0)
+		return -ETIMEDOUT;
 	else
 		return 0;
 }
