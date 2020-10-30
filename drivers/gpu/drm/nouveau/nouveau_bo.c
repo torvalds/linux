@@ -28,7 +28,6 @@
  */
 
 #include <linux/dma-mapping.h>
-#include <linux/swiotlb.h>
 
 #include "nouveau_drv.h"
 #include "nouveau_chan.h"
