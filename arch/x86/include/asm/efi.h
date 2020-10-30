@@ -380,4 +380,7 @@ static inline void efi_fake_memmap_early(void)
 }
 #endif
 
+#define arch_ima_efi_boot_mode	\
+	({ extern struct boot_params boot_params; boot_params.secure_boot; })
+
 #endif /* _ASM_X86_EFI_H */
