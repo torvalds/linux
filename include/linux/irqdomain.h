@@ -38,7 +38,6 @@
 
 struct device_node;
 struct irq_domain;
-struct of_device_id;
 struct irq_chip;
 struct irq_data;
 struct cpumask;
