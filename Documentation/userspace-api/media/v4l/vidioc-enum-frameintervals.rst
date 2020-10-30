@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_ENUM_FRAMEINTERVALS:
 
@@ -18,24 +12,22 @@ Name
 
 VIDIOC_ENUM_FRAMEINTERVALS - Enumerate frame intervals
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_ENUM_FRAMEINTERVALS, struct v4l2_frmivalenum *argp )
-    :name: VIDIOC_ENUM_FRAMEINTERVALS
+.. c:macro:: VIDIOC_ENUM_FRAMEINTERVALS
 
+``int ioctl(int fd, VIDIOC_ENUM_FRAMEINTERVALS, struct v4l2_frmivalenum *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`v4l2_frmivalenum`
     that contains a pixel format and size and receives a frame interval.
-
 
 Description
 ===========
@@ -98,14 +90,12 @@ other ioctl calls while it runs the frame interval enumeration.
 
        frame_rate = 1 / frame_interval
 
-
 Structs
 =======
 
 In the structs below, *IN* denotes a value that has to be filled in by
 the application, *OUT* denotes values that the driver fills in. The
 application should zero out all members except for the *IN* fields.
-
 
 .. c:type:: v4l2_frmival_stepwise
 
@@ -125,7 +115,6 @@ application should zero out all members except for the *IN* fields.
     * - struct :c:type:`v4l2_fract`
       - ``step``
       - Frame interval step size [s].
-
 
 
 .. c:type:: v4l2_frmivalenum
@@ -170,10 +159,8 @@ application should zero out all members except for the *IN* fields.
 	applications.
 
 
-
 Enums
 =====
-
 
 .. c:type:: v4l2_frmivaltypes
 
@@ -193,7 +180,6 @@ Enums
     * - ``V4L2_FRMIVAL_TYPE_STEPWISE``
       - 3
       - Step-wise defined frame interval.
-
 
 Return Value
 ============

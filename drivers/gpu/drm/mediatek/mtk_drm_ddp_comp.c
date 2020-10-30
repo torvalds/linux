@@ -13,6 +13,8 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/soc/mediatek/mtk-cmdq.h>
+#include <drm/drm_print.h>
+
 #include "mtk_drm_drv.h"
 #include "mtk_drm_plane.h"
 #include "mtk_drm_ddp_comp.h"
@@ -412,6 +414,22 @@ static const struct mtk_ddp_comp_match mtk_ddp_matches[DDP_COMPONENT_ID_MAX] = {
 	[DDP_COMPONENT_WDMA1]	= { MTK_DISP_WDMA,	1, NULL },
 };
 
+static bool mtk_drm_find_comp_in_ddp(struct mtk_ddp_comp ddp_comp,
+				     const enum mtk_ddp_comp_id *path,
+				     unsigned int path_len)
+{
+	unsigned int i;
+
+	if (path == NULL)
+		return false;
+
+	for (i = 0U; i < path_len; i++)
+		if (ddp_comp.id == path[i])
+			return true;
+
+	return false;
+}
+
 int mtk_ddp_comp_get_id(struct device_node *node,
 			enum mtk_ddp_comp_type comp_type)
 {
@@ -425,6 +443,26 @@ int mtk_ddp_comp_get_id(struct device_node *node,
 	}
 
 	return -EINVAL;
+}
+
+unsigned int mtk_drm_find_possible_crtc_by_comp(struct drm_device *drm,
+						struct mtk_ddp_comp ddp_comp)
+{
+	struct mtk_drm_private *private = drm->dev_private;
+	unsigned int ret = 0;
+
+	if (mtk_drm_find_comp_in_ddp(ddp_comp, private->data->main_path, private->data->main_len))
+		ret = BIT(0);
+	else if (mtk_drm_find_comp_in_ddp(ddp_comp, private->data->ext_path,
+					  private->data->ext_len))
+		ret = BIT(1);
+	else if (mtk_drm_find_comp_in_ddp(ddp_comp, private->data->third_path,
+					  private->data->third_len))
+		ret = BIT(2);
+	else
+		DRM_INFO("Failed to find comp in ddp table\n");
+
+	return ret;
 }
 
 int mtk_ddp_comp_init(struct device *dev, struct device_node *node,

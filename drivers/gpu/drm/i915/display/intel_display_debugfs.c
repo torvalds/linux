@@ -417,6 +417,9 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 			su_blocks = su_blocks >> PSR2_SU_STATUS_SHIFT(frame);
 			seq_printf(m, "%d\t%d\n", frame, su_blocks);
 		}
+
+		seq_printf(m, "PSR2 selective fetch: %s\n",
+			   enableddisabled(psr->psr2_sel_fetch_enabled));
 	}
 
 unlock:
@@ -598,6 +601,11 @@ static void intel_hdcp_info(struct seq_file *m,
 {
 	bool hdcp_cap, hdcp2_cap;
 
+	if (!intel_connector->hdcp.shim) {
+		seq_puts(m, "No Connector Support");
+		goto out;
+	}
+
 	hdcp_cap = intel_hdcp_capable(intel_connector);
 	hdcp2_cap = intel_hdcp2_capable(intel_connector);
 
@@ -609,6 +617,7 @@ static void intel_hdcp_info(struct seq_file *m,
 	if (!hdcp_cap && !hdcp2_cap)
 		seq_puts(m, "None");
 
+out:
 	seq_puts(m, "\n");
 }
 
@@ -617,6 +626,7 @@ static void intel_dp_info(struct seq_file *m,
 {
 	struct intel_encoder *intel_encoder = intel_attached_encoder(intel_connector);
 	struct intel_dp *intel_dp = enc_to_intel_dp(intel_encoder);
+	const struct drm_property_blob *edid = intel_connector->base.edid_blob_ptr;
 
 	seq_printf(m, "\tDPCD rev: %x\n", intel_dp->dpcd[DP_DPCD_REV]);
 	seq_printf(m, "\taudio support: %s\n", yesno(intel_dp->has_audio));
@@ -624,11 +634,7 @@ static void intel_dp_info(struct seq_file *m,
 		intel_panel_info(m, &intel_connector->panel);
 
 	drm_dp_downstream_debug(m, intel_dp->dpcd, intel_dp->downstream_ports,
-				&intel_dp->aux);
-	if (intel_connector->hdcp.shim) {
-		seq_puts(m, "\tHDCP version: ");
-		intel_hdcp_info(m, intel_connector);
-	}
+				edid ? edid->data : NULL, &intel_dp->aux);
 }
 
 static void intel_dp_mst_info(struct seq_file *m,
@@ -646,10 +652,6 @@ static void intel_hdmi_info(struct seq_file *m,
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(intel_encoder);
 
 	seq_printf(m, "\taudio support: %s\n", yesno(intel_hdmi->has_audio));
-	if (intel_connector->hdcp.shim) {
-		seq_puts(m, "\tHDCP version: ");
-		intel_hdcp_info(m, intel_connector);
-	}
 }
 
 static void intel_lvds_info(struct seq_file *m,
@@ -704,6 +706,9 @@ static void intel_connector_info(struct seq_file *m,
 	default:
 		break;
 	}
+
+	seq_puts(m, "\tHDCP version: ");
+	intel_hdcp_info(m, intel_connector);
 
 	seq_printf(m, "\tmodes:\n");
 	list_for_each_entry(mode, &connector->modes, head)
@@ -1066,10 +1071,18 @@ static void drrs_status_per_crtc(struct seq_file *m,
 
 	drm_connector_list_iter_begin(dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
+		bool supported = false;
+
 		if (connector->state->crtc != &intel_crtc->base)
 			continue;
 
 		seq_printf(m, "%s:\n", connector->name);
+
+		if (connector->connector_type == DRM_MODE_CONNECTOR_eDP &&
+		    drrs->type == SEAMLESS_DRRS_SUPPORT)
+			supported = true;
+
+		seq_printf(m, "\tDRRS Supported: %s\n", yesno(supported));
 	}
 	drm_connector_list_iter_end(&conn_iter);
 
@@ -1080,7 +1093,7 @@ static void drrs_status_per_crtc(struct seq_file *m,
 
 		mutex_lock(&drrs->mutex);
 		/* DRRS Supported */
-		seq_puts(m, "\tDRRS Supported: Yes\n");
+		seq_puts(m, "\tDRRS Enabled: Yes\n");
 
 		/* disable_drrs() will make drrs->dp NULL */
 		if (!drrs->dp) {
@@ -1115,7 +1128,7 @@ static void drrs_status_per_crtc(struct seq_file *m,
 		mutex_unlock(&drrs->mutex);
 	} else {
 		/* DRRS not supported. Print the VBT parameter*/
-		seq_puts(m, "\tDRRS Supported : No");
+		seq_puts(m, "\tDRRS Enabled : No");
 	}
 	seq_puts(m, "\n");
 }
@@ -2025,10 +2038,6 @@ static int i915_hdcp_sink_capability_show(struct seq_file *m, void *data)
 
 	if (connector->status != connector_status_connected)
 		return -ENODEV;
-
-	/* HDCP is supported by connector */
-	if (!intel_connector->hdcp.shim)
-		return -EINVAL;
 
 	seq_printf(m, "%s:%d HDCP version: ", connector->name,
 		   connector->base.id);

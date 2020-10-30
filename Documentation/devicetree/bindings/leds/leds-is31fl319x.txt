@@ -16,6 +16,7 @@ Optional properties:
 - audio-gain-db : audio gain selection for external analog modulation input.
 	Valid values: 0 - 21, step by 3 (rounded down)
 	Default: 0
+- shutdown-gpios : Specifier of the GPIO connected to SDB pin of the chip.
 
 Each led is represented as a sub-node of the issi,is31fl319x device.
 There can be less leds subnodes than the chip can support but not more.
@@ -44,6 +45,7 @@ fancy_leds: leds@65 {
 	#address-cells = <1>;
 	#size-cells = <0>;
 	reg = <0x65>;
+	shutdown-gpios = <&gpio0 11 GPIO_ACTIVE_HIGH>;
 
 	red_aux: led@1 {
 		label = "red:aux";

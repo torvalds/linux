@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_CREATE_BUFS:
 
@@ -18,23 +12,21 @@ Name
 
 VIDIOC_CREATE_BUFS - Create buffers for Memory Mapped or User Pointer or DMA Buffer I/O
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_CREATE_BUFS, struct v4l2_create_buffers *argp )
-    :name: VIDIOC_CREATE_BUFS
+.. c:macro:: VIDIOC_CREATE_BUFS
 
+``int ioctl(int fd, VIDIOC_CREATE_BUFS, struct v4l2_create_buffers *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`v4l2_create_buffers`.
-
 
 Description
 ===========
@@ -78,7 +70,6 @@ the actual number allocated and the starting index in the ``count`` and
 the ``index`` fields respectively. On return ``count`` can be smaller
 than the number requested.
 
-
 .. c:type:: v4l2_create_buffers
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
@@ -120,16 +111,11 @@ than the number requested.
 	If you want to just query the capabilities without making any
 	other changes, then set ``count`` to 0, ``memory`` to
 	``V4L2_MEMORY_MMAP`` and ``format.type`` to the buffer type.
-    * - __u32
-      - ``flags``
-      - Specifies additional buffer management attributes.
-	See :ref:`memory-flags`.
 
     * - __u32
-      - ``reserved``\ [6]
+      - ``reserved``\ [7]
       - A place holder for future extensions. Drivers and applications
 	must set the array to zero.
-
 
 Return Value
 ============

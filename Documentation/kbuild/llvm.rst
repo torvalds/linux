@@ -1,3 +1,5 @@
+.. _kbuild_llvm:
+
 ==============================
 Building Linux with Clang/LLVM
 ==============================
@@ -39,10 +41,10 @@ which can help simplify cross compiling. ::
 	ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- make CC=clang
 
 ``CROSS_COMPILE`` is not used to prefix the Clang compiler binary, instead
-``CROSS_COMPILE`` is used to set a command line flag: ``--target <triple>``. For
+``CROSS_COMPILE`` is used to set a command line flag: ``--target=<triple>``. For
 example: ::
 
-	clang --target aarch64-linux-gnu foo.c
+	clang --target=aarch64-linux-gnu foo.c
 
 LLVM Utilities
 --------------
@@ -72,6 +74,8 @@ Getting Help
 - `Telegram <https://t.me/ClangBuiltLinux>`_: @ClangBuiltLinux
 - `Wiki <https://github.com/ClangBuiltLinux/linux/wiki>`_
 - `Beginner Bugs <https://github.com/ClangBuiltLinux/linux/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22>`_
+
+.. _getting_llvm:
 
 Getting LLVM
 -------------

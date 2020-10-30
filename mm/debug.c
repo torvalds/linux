@@ -102,12 +102,12 @@ void __dump_page(struct page *page, const char *reason)
 		if (hpage_pincount_available(page)) {
 			pr_warn("head:%p order:%u compound_mapcount:%d compound_pincount:%d\n",
 					head, compound_order(head),
-					head_mapcount(head),
-					head_pincount(head));
+					head_compound_mapcount(head),
+					head_compound_pincount(head));
 		} else {
 			pr_warn("head:%p order:%u compound_mapcount:%d\n",
 					head, compound_order(head),
-					head_mapcount(head));
+					head_compound_mapcount(head));
 		}
 	}
 	if (PageKsm(page))
@@ -120,6 +120,7 @@ void __dump_page(struct page *page, const char *reason)
 		struct hlist_node *dentry_first;
 		struct dentry *dentry_ptr;
 		struct dentry dentry;
+		unsigned long ino;
 
 		/*
 		 * mapping can be invalid pointer and we don't want to crash
@@ -136,21 +137,22 @@ void __dump_page(struct page *page, const char *reason)
 			goto out_mapping;
 		}
 
-		if (get_kernel_nofault(dentry_first, &host->i_dentry.first)) {
+		if (get_kernel_nofault(dentry_first, &host->i_dentry.first) ||
+		    get_kernel_nofault(ino, &host->i_ino)) {
 			pr_warn("aops:%ps with invalid host inode %px\n",
 					a_ops, host);
 			goto out_mapping;
 		}
 
 		if (!dentry_first) {
-			pr_warn("aops:%ps ino:%lx\n", a_ops, host->i_ino);
+			pr_warn("aops:%ps ino:%lx\n", a_ops, ino);
 			goto out_mapping;
 		}
 
 		dentry_ptr = container_of(dentry_first, struct dentry, d_u.d_alias);
 		if (get_kernel_nofault(dentry, dentry_ptr)) {
-			pr_warn("aops:%ps with invalid dentry %px\n", a_ops,
-					dentry_ptr);
+			pr_warn("aops:%ps ino:%lx with invalid dentry %px\n",
+					a_ops, ino, dentry_ptr);
 		} else {
 			/*
 			 * if dentry is corrupted, the %pd handler may still
@@ -158,7 +160,7 @@ void __dump_page(struct page *page, const char *reason)
 			 * corrupted struct page
 			 */
 			pr_warn("aops:%ps ino:%lx dentry name:\"%pd\"\n",
-					a_ops, host->i_ino, &dentry);
+					a_ops, ino, &dentry);
 		}
 	}
 out_mapping:

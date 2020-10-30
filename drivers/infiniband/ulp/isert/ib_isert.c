@@ -1141,12 +1141,7 @@ isert_handle_iscsi_dataout(struct isert_conn *isert_conn,
 	 * multiple data-outs on the same command can arrive -
 	 * so post the buffer before hand
 	 */
-	rc = isert_post_recv(isert_conn, rx_desc);
-	if (rc) {
-		isert_err("ib_post_recv failed with %d\n", rc);
-		return rc;
-	}
-	return 0;
+	return isert_post_recv(isert_conn, rx_desc);
 }
 
 static int
@@ -1723,10 +1718,8 @@ isert_post_response(struct isert_conn *isert_conn, struct isert_cmd *isert_cmd)
 	int ret;
 
 	ret = isert_post_recv(isert_conn, isert_cmd->rx_desc);
-	if (ret) {
-		isert_err("ib_post_recv failed with %d\n", ret);
+	if (ret)
 		return ret;
-	}
 
 	ret = ib_post_send(isert_conn->qp, &isert_cmd->tx_desc.send_wr, NULL);
 	if (ret) {
@@ -2098,10 +2091,8 @@ isert_put_datain(struct iscsi_conn *conn, struct iscsi_cmd *cmd)
 				   &isert_cmd->tx_desc.send_wr);
 
 		rc = isert_post_recv(isert_conn, isert_cmd->rx_desc);
-		if (rc) {
-			isert_err("ib_post_recv failed with %d\n", rc);
+		if (rc)
 			return rc;
-		}
 
 		chain_wr = &isert_cmd->tx_desc.send_wr;
 	}

@@ -63,6 +63,7 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
@@ -81,44 +82,6 @@
 #include "mcde_drm.h"
 
 #define DRIVER_DESC	"DRM module for MCDE"
-
-#define MCDE_CR 0x00000000
-#define MCDE_CR_IFIFOEMPTYLINECOUNT_V422_SHIFT 0
-#define MCDE_CR_IFIFOEMPTYLINECOUNT_V422_MASK 0x0000003F
-#define MCDE_CR_IFIFOCTRLEN BIT(15)
-#define MCDE_CR_UFRECOVERY_MODE_V422 BIT(16)
-#define MCDE_CR_WRAP_MODE_V422_SHIFT BIT(17)
-#define MCDE_CR_AUTOCLKG_EN BIT(30)
-#define MCDE_CR_MCDEEN BIT(31)
-
-#define MCDE_CONF0 0x00000004
-#define MCDE_CONF0_SYNCMUX0 BIT(0)
-#define MCDE_CONF0_SYNCMUX1 BIT(1)
-#define MCDE_CONF0_SYNCMUX2 BIT(2)
-#define MCDE_CONF0_SYNCMUX3 BIT(3)
-#define MCDE_CONF0_SYNCMUX4 BIT(4)
-#define MCDE_CONF0_SYNCMUX5 BIT(5)
-#define MCDE_CONF0_SYNCMUX6 BIT(6)
-#define MCDE_CONF0_SYNCMUX7 BIT(7)
-#define MCDE_CONF0_IFIFOCTRLWTRMRKLVL_SHIFT 12
-#define MCDE_CONF0_IFIFOCTRLWTRMRKLVL_MASK 0x00007000
-#define MCDE_CONF0_OUTMUX0_SHIFT 16
-#define MCDE_CONF0_OUTMUX0_MASK 0x00070000
-#define MCDE_CONF0_OUTMUX1_SHIFT 19
-#define MCDE_CONF0_OUTMUX1_MASK 0x00380000
-#define MCDE_CONF0_OUTMUX2_SHIFT 22
-#define MCDE_CONF0_OUTMUX2_MASK 0x01C00000
-#define MCDE_CONF0_OUTMUX3_SHIFT 25
-#define MCDE_CONF0_OUTMUX3_MASK 0x0E000000
-#define MCDE_CONF0_OUTMUX4_SHIFT 28
-#define MCDE_CONF0_OUTMUX4_MASK 0x70000000
-
-#define MCDE_SSP 0x00000008
-#define MCDE_AIS 0x00000100
-#define MCDE_IMSCERR 0x00000110
-#define MCDE_RISERR 0x00000120
-#define MCDE_MISERR 0x00000130
-#define MCDE_SISERR 0x00000140
 
 #define MCDE_PID 0x000001FC
 #define MCDE_PID_METALFIX_VERSION_SHIFT 0
@@ -293,7 +256,6 @@ static int mcde_probe(struct platform_device *pdev)
 	struct component_match *match = NULL;
 	struct resource *res;
 	u32 pid;
-	u32 val;
 	int irq;
 	int ret;
 	int i;
@@ -304,9 +266,6 @@ static int mcde_probe(struct platform_device *pdev)
 	drm = &mcde->drm;
 	mcde->dev = dev;
 	platform_set_drvdata(pdev, drm);
-
-	/* Enable continuous updates: this is what Linux' framebuffer expects */
-	mcde->oneshot_mode = false;
 
 	/* First obtain and turn on the main power */
 	mcde->epod = devm_regulator_get(dev, "epod");
@@ -405,27 +364,7 @@ static int mcde_probe(struct platform_device *pdev)
 		goto clk_disable;
 	}
 
-	/* Set up the main control, watermark level at 7 */
-	val = 7 << MCDE_CONF0_IFIFOCTRLWTRMRKLVL_SHIFT;
-	/* 24 bits DPI: connect LSB Ch B to D[0:7] */
-	val |= 3 << MCDE_CONF0_OUTMUX0_SHIFT;
-	/* TV out: connect LSB Ch B to D[8:15] */
-	val |= 3 << MCDE_CONF0_OUTMUX1_SHIFT;
-	/* Don't care about this muxing */
-	val |= 0 << MCDE_CONF0_OUTMUX2_SHIFT;
-	/* 24 bits DPI: connect MID Ch B to D[24:31] */
-	val |= 4 << MCDE_CONF0_OUTMUX3_SHIFT;
-	/* 5: 24 bits DPI: connect MSB Ch B to D[32:39] */
-	val |= 5 << MCDE_CONF0_OUTMUX4_SHIFT;
-	/* Syncmux bits zero: DPI channel A and B on output pins A and B resp */
-	writel(val, mcde->regs + MCDE_CONF0);
-
-	/* Enable automatic clock gating */
-	val = readl(mcde->regs + MCDE_CR);
-	val |= MCDE_CR_MCDEEN | MCDE_CR_AUTOCLKG_EN;
-	writel(val, mcde->regs + MCDE_CR);
-
-	/* Clear any pending interrupts */
+	/* Disable and clear any pending interrupts */
 	mcde_display_disable_irqs(mcde);
 	writel(0, mcde->regs + MCDE_IMSCERR);
 	writel(0xFFFFFFFF, mcde->regs + MCDE_RISERR);
@@ -455,12 +394,28 @@ static int mcde_probe(struct platform_device *pdev)
 		ret = PTR_ERR(match);
 		goto clk_disable;
 	}
+
+	/*
+	 * Perform an invasive reset of the MCDE and all blocks by
+	 * cutting the power to the subsystem, then bring it back up
+	 * later when we enable the display as a result of
+	 * component_master_add_with_match().
+	 */
+	ret = regulator_disable(mcde->epod);
+	if (ret) {
+		dev_err(dev, "can't disable EPOD regulator\n");
+		return ret;
+	}
+	/* Wait 50 ms so we are sure we cut the power */
+	usleep_range(50000, 70000);
+
 	ret = component_master_add_with_match(&pdev->dev, &mcde_drm_comp_ops,
 					      match);
 	if (ret) {
 		dev_err(dev, "failed to add component master\n");
 		goto clk_disable;
 	}
+
 	return 0;
 
 clk_disable:

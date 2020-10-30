@@ -32,8 +32,8 @@
 #define OCTNIC_MAX_SG  MAX_SKB_FRAGS
 
 /**
- * \brief Delete gather lists
- * @param lio per-network private data
+ * lio_delete_glists - Delete gather lists
+ * @lio: per-network private data
  */
 void lio_delete_glists(struct lio *lio)
 {
@@ -73,8 +73,10 @@ void lio_delete_glists(struct lio *lio)
 }
 
 /**
- * \brief Setup gather lists
- * @param lio per-network private data
+ * lio_setup_glists - Setup gather lists
+ * @oct: octeon_device
+ * @lio: per-network private data
+ * @num_iqs: count of iqs to allocate
  */
 int lio_setup_glists(struct octeon_device *oct, struct lio *lio, int num_iqs)
 {
@@ -521,12 +523,12 @@ static void lio_update_txq_status(struct octeon_device *oct, int iq_num)
 }
 
 /**
- * \brief Setup output queue
- * @param oct octeon device
- * @param q_no which queue
- * @param num_descs how many descriptors
- * @param desc_size size of each descriptor
- * @param app_ctx application context
+ * octeon_setup_droq - Setup output queue
+ * @oct: octeon device
+ * @q_no: which queue
+ * @num_descs: how many descriptors
+ * @desc_size: size of each descriptor
+ * @app_ctx: application context
  */
 static int octeon_setup_droq(struct octeon_device *oct, int q_no, int num_descs,
 			     int desc_size, void *app_ctx)
@@ -555,16 +557,17 @@ static int octeon_setup_droq(struct octeon_device *oct, int q_no, int num_descs,
 	return ret_val;
 }
 
-/** Routine to push packets arriving on Octeon interface upto network layer.
- * @param oct_id   - octeon device id.
- * @param skbuff   - skbuff struct to be passed to network layer.
- * @param len      - size of total data received.
- * @param rh       - Control header associated with the packet
- * @param param    - additional control data with the packet
- * @param arg      - farg registered in droq_ops
+/**
+ * liquidio_push_packet - Routine to push packets arriving on Octeon interface upto network layer.
+ * @octeon_id:octeon device id.
+ * @skbuff:   skbuff struct to be passed to network layer.
+ * @len:      size of total data received.
+ * @rh:       Control header associated with the packet
+ * @param:    additional control data with the packet
+ * @arg:      farg registered in droq_ops
  */
 static void
-liquidio_push_packet(u32 octeon_id __attribute__((unused)),
+liquidio_push_packet(u32 __maybe_unused octeon_id,
 		     void *skbuff,
 		     u32 len,
 		     union octeon_rh *rh,
@@ -698,8 +701,8 @@ liquidio_push_packet(u32 octeon_id __attribute__((unused)),
 }
 
 /**
- * \brief wrapper for calling napi_schedule
- * @param param parameters to pass to napi_schedule
+ * napi_schedule_wrapper - wrapper for calling napi_schedule
+ * @param: parameters to pass to napi_schedule
  *
  * Used when scheduling on different CPUs
  */
@@ -711,8 +714,8 @@ static void napi_schedule_wrapper(void *param)
 }
 
 /**
- * \brief callback when receive interrupt occurs and we are in NAPI mode
- * @param arg pointer to octeon output queue
+ * liquidio_napi_drv_callback - callback when receive interrupt occurs and we are in NAPI mode
+ * @arg: pointer to octeon output queue
  */
 static void liquidio_napi_drv_callback(void *arg)
 {
@@ -737,9 +740,9 @@ static void liquidio_napi_drv_callback(void *arg)
 }
 
 /**
- * \brief Entry point for NAPI polling
- * @param napi NAPI structure
- * @param budget maximum number of items to process
+ * liquidio_napi_poll - Entry point for NAPI polling
+ * @napi: NAPI structure
+ * @budget: maximum number of items to process
  */
 static int liquidio_napi_poll(struct napi_struct *napi, int budget)
 {
@@ -792,9 +795,11 @@ static int liquidio_napi_poll(struct napi_struct *napi, int budget)
 }
 
 /**
- * \brief Setup input and output queues
- * @param octeon_dev octeon device
- * @param ifidx Interface index
+ * liquidio_setup_io_queues - Setup input and output queues
+ * @octeon_dev: octeon device
+ * @ifidx: Interface index
+ * @num_iqs: input io queue count
+ * @num_oqs: output io queue count
  *
  * Note: Queues are with respect to the octeon device. Thus
  * an input queue is for egress packets, and output queues
@@ -927,7 +932,7 @@ int liquidio_schedule_msix_droq_pkt_handler(struct octeon_droq *droq, u64 ret)
 }
 
 irqreturn_t
-liquidio_msix_intr_handler(int irq __attribute__((unused)), void *dev)
+liquidio_msix_intr_handler(int __maybe_unused irq, void *dev)
 {
 	struct octeon_ioq_vector *ioq_vector = (struct octeon_ioq_vector *)dev;
 	struct octeon_device *oct = ioq_vector->oct_dev;
@@ -943,8 +948,8 @@ liquidio_msix_intr_handler(int irq __attribute__((unused)), void *dev)
 }
 
 /**
- * \brief Droq packet processor sceduler
- * @param oct octeon device
+ * liquidio_schedule_droq_pkt_handlers - Droq packet processor sceduler
+ * @oct: octeon device
  */
 static void liquidio_schedule_droq_pkt_handlers(struct octeon_device *oct)
 {
@@ -972,13 +977,12 @@ static void liquidio_schedule_droq_pkt_handlers(struct octeon_device *oct)
 }
 
 /**
- * \brief Interrupt handler for octeon
- * @param irq unused
- * @param dev octeon device
+ * liquidio_legacy_intr_handler - Interrupt handler for octeon
+ * @irq: unused
+ * @dev: octeon device
  */
 static
-irqreturn_t liquidio_legacy_intr_handler(int irq __attribute__((unused)),
-					 void *dev)
+irqreturn_t liquidio_legacy_intr_handler(int __maybe_unused irq, void *dev)
 {
 	struct octeon_device *oct = (struct octeon_device *)dev;
 	irqreturn_t ret;
@@ -999,8 +1003,9 @@ irqreturn_t liquidio_legacy_intr_handler(int irq __attribute__((unused)),
 }
 
 /**
- * \brief Setup interrupt for octeon device
- * @param oct octeon device
+ * octeon_setup_interrupt - Setup interrupt for octeon device
+ * @oct: octeon device
+ * @num_ioqs: number of queues
  *
  *  Enable interrupt in Octeon device as given in the PCI interrupt mask.
  */
@@ -1083,7 +1088,7 @@ int octeon_setup_interrupt(struct octeon_device *oct, u32 num_ioqs)
 		dev_dbg(&oct->pci_dev->dev, "OCTEON: Enough MSI-X interrupts are allocated...\n");
 
 		num_ioq_vectors = oct->num_msix_irqs;
-		/** For PF, there is one non-ioq interrupt handler */
+		/* For PF, there is one non-ioq interrupt handler */
 		if (OCTEON_CN23XX_PF(oct)) {
 			num_ioq_vectors -= 1;
 
@@ -1126,13 +1131,13 @@ int octeon_setup_interrupt(struct octeon_device *oct, u32 num_ioqs)
 				dev_err(&oct->pci_dev->dev,
 					"Request_irq failed for MSIX interrupt Error: %d\n",
 					irqret);
-				/** Freeing the non-ioq irq vector here . */
+				/* Freeing the non-ioq irq vector here . */
 				free_irq(msix_entries[num_ioq_vectors].vector,
 					 oct);
 
 				while (i) {
 					i--;
-					/** clearing affinity mask. */
+					/* clearing affinity mask. */
 					irq_set_affinity_hint(
 						      msix_entries[i].vector,
 						      NULL);
@@ -1197,8 +1202,9 @@ int octeon_setup_interrupt(struct octeon_device *oct, u32 num_ioqs)
 }
 
 /**
- * \brief Net device change_mtu
- * @param netdev network device
+ * liquidio_change_mtu - Net device change_mtu
+ * @netdev: network device
+ * @new_mtu: the new max transmit unit size
  */
 int liquidio_change_mtu(struct net_device *netdev, int new_mtu)
 {

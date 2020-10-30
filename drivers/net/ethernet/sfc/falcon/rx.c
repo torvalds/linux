@@ -140,6 +140,7 @@ static struct page *ef4_reuse_page(struct ef4_rx_queue *rx_queue)
  * ef4_init_rx_buffers - create EF4_RX_BATCH page-based RX buffers
  *
  * @rx_queue:		Efx RX queue
+ * @atomic:		control memory allocation flags
  *
  * This allocates a batch of pages, maps them for DMA, and populates
  * struct ef4_rx_buffers for each one. Return a negative error code or
@@ -316,6 +317,7 @@ static void ef4_discard_rx_packet(struct ef4_channel *channel,
  * This will aim to fill the RX descriptor queue up to
  * @rx_queue->@max_fill. If there is insufficient atomic
  * memory to do so, a slow fill will be scheduled.
+ * @atomic: control memory allocation flags
  *
  * The caller must provide serialisation (none is used here). In practise,
  * this means this function must run from the NAPI handler, or be called

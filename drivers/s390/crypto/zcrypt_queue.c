@@ -40,22 +40,27 @@ static ssize_t online_show(struct device *dev,
 			   struct device_attribute *attr,
 			   char *buf)
 {
-	struct zcrypt_queue *zq = to_ap_queue(dev)->private;
+	struct ap_queue *aq = to_ap_queue(dev);
+	struct zcrypt_queue *zq = aq->private;
+	int online = aq->config && zq->online ? 1 : 0;
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", zq->online);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", online);
 }
 
 static ssize_t online_store(struct device *dev,
 			    struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
-	struct zcrypt_queue *zq = to_ap_queue(dev)->private;
+	struct ap_queue *aq = to_ap_queue(dev);
+	struct zcrypt_queue *zq = aq->private;
 	struct zcrypt_card *zc = zq->zcard;
 	int online;
 
 	if (sscanf(buf, "%d\n", &online) != 1 || online < 0 || online > 1)
 		return -EINVAL;
 
+	if (online && (!aq->config || !aq->card->config))
+		return -ENODEV;
 	if (online && !zc->online)
 		return -EINVAL;
 	zq->online = online;

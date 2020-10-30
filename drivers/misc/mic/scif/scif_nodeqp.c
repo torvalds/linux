@@ -363,7 +363,7 @@ scif_p2p_setsg(phys_addr_t pa, int page_size, int page_cnt)
 	struct page *page;
 	int i;
 
-	sg = kcalloc(page_cnt, sizeof(struct scatterlist), GFP_KERNEL);
+	sg = kmalloc_array(page_cnt, sizeof(struct scatterlist), GFP_KERNEL);
 	if (!sg)
 		return NULL;
 	sg_init_table(sg, page_cnt);

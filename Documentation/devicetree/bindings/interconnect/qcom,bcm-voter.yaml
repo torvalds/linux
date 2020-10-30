@@ -21,6 +21,23 @@ properties:
     enum:
       - qcom,bcm-voter
 
+  qcom,tcs-wait:
+    description: |
+      Optional mask of which TCSs (Triggered Command Sets) wait for completion
+      upon triggering. If not specified, then the AMC and WAKE sets wait for
+      completion. The mask bits are available in the QCOM_ICC_TAG_* defines.
+
+      The AMC TCS is triggered immediately when icc_set_bw() is called. The
+      WAKE/SLEEP TCSs are triggered when the RSC transitions between active and
+      sleep modes.
+
+      In most cases, it's necessary to wait in both the AMC and WAKE sets to
+      ensure resources are available before use. If a specific RSC and its use
+      cases can ensure sufficient delay by other means, then this can be
+      overridden to reduce latencies.
+
+    $ref: /schemas/types.yaml#/definitions/uint32
+
 required:
   - compatible
 
@@ -39,7 +56,10 @@ examples:
   # as defined in Documentation/devicetree/bindings/soc/qcom/rpmh-rsc.txt
   - |
 
+    #include <dt-bindings/interconnect/qcom,icc.h>
+
     disp_bcm_voter: bcm_voter {
         compatible = "qcom,bcm-voter";
+        qcom,tcs-wait = <QCOM_ICC_TAG_AMC>;
     };
 ...

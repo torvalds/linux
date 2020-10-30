@@ -14,7 +14,6 @@
 #define RXRPC_RTO_MAX	((unsigned)(120 * HZ))
 #define RXRPC_TIMEOUT_INIT ((unsigned)(1*HZ))	/* RFC6298 2.1 initial RTO value	*/
 #define rxrpc_jiffies32 ((u32)jiffies)		/* As rxrpc_jiffies32 */
-#define rxrpc_min_rtt_wlen 300			/* As sysctl_tcp_min_rtt_wlen */
 
 static u32 rxrpc_rto_min_us(struct rxrpc_peer *peer)
 {

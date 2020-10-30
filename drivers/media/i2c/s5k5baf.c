@@ -280,8 +280,7 @@ struct s5k5baf_fw {
 	struct {
 		u16 id;
 		u16 offset;
-	} seq[0];
-	u16 data[];
+	} seq[];
 };
 
 struct s5k5baf {
@@ -563,7 +562,7 @@ static u16 *s5k5baf_fw_get_seq(struct s5k5baf *state, u16 seq_id)
 	if (fw == NULL)
 		return NULL;
 
-	data = fw->data + 2 * fw->count;
+	data = &fw->seq[0].id + 2 * fw->count;
 
 	for (i = 0; i < fw->count; ++i) {
 		if (fw->seq[i].id == seq_id)

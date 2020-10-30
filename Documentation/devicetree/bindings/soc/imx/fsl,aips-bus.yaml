@@ -35,6 +35,8 @@ required:
   - compatible
   - reg
 
+additionalProperties: true
+
 examples:
   - |
     bus@30000000 {

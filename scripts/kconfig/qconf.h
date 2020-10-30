@@ -11,15 +11,14 @@
 #include <QPushButton>
 #include <QSettings>
 #include <QSplitter>
+#include <QStyledItemDelegate>
 #include <QTextBrowser>
 #include <QTreeWidget>
 
 #include "expr.h"
 
-class ConfigView;
 class ConfigList;
 class ConfigItem;
-class ConfigLineEdit;
 class ConfigMainWindow;
 
 class ConfigSettings : public QSettings {
@@ -30,7 +29,7 @@ public:
 };
 
 enum colIdx {
-	promptColIdx, nameColIdx, noColIdx, modColIdx, yesColIdx, dataColIdx
+	promptColIdx, nameColIdx, dataColIdx
 };
 enum listMode {
 	singleMode, menuMode, symbolMode, fullMode, listMode
@@ -43,13 +42,10 @@ class ConfigList : public QTreeWidget {
 	Q_OBJECT
 	typedef class QTreeWidget Parent;
 public:
-	ConfigList(ConfigView* p, const char *name = 0);
+	ConfigList(QWidget *parent, const char *name = 0);
+	~ConfigList();
 	void reinit(void);
 	ConfigItem* findConfigItem(struct menu *);
-	ConfigView* parent(void) const
-	{
-		return (ConfigView*)Parent::parent();
-	}
 	void setSelected(QTreeWidgetItem *item, bool enable) {
 		for (int i = 0; i < selectedItems().size(); i++)
 			selectedItems().at(i)->setSelected(false);
@@ -75,6 +71,7 @@ public slots:
 	void updateSelection(void);
 	void saveSettings(void);
 	void setOptionMode(QAction *action);
+	void setShowName(bool on);
 
 signals:
 	void menuChanged(struct menu *menu);
@@ -82,6 +79,7 @@ signals:
 	void itemSelected(struct menu *menu);
 	void parentSelected(void);
 	void gotFocus(struct menu *);
+	void showNameChanged(bool on);
 
 public:
 	void updateListAll(void)
@@ -100,13 +98,17 @@ public:
 
 	bool updateAll;
 
-	bool showName, showRange, showData;
+	bool showName;
 	enum listMode mode;
 	enum optionMode optMode;
 	struct menu *rootEntry;
 	QPalette disabledColorGroup;
 	QPalette inactivedColorGroup;
 	QMenu* headerPopup;
+
+	static QList<ConfigList *> allLists;
+	static void updateListForAll();
+	static void updateListAllForAll();
 
 	static QAction *showNormalAction, *showAllAction, *showPromptAction;
 };
@@ -131,7 +133,6 @@ public:
 	}
 	~ConfigItem(void);
 	void init(void);
-	void okRename(int col);
 	void updateMenu(void);
 	void testUpdateMenu(bool v);
 	ConfigList* listView() const
@@ -168,48 +169,18 @@ public:
 	static QIcon menuIcon, menubackIcon;
 };
 
-class ConfigLineEdit : public QLineEdit {
-	Q_OBJECT
-	typedef class QLineEdit Parent;
+class ConfigItemDelegate : public QStyledItemDelegate
+{
+private:
+	struct menu *menu;
 public:
-	ConfigLineEdit(ConfigView* parent);
-	ConfigView* parent(void) const
-	{
-		return (ConfigView*)Parent::parent();
-	}
-	void show(ConfigItem *i);
-	void keyPressEvent(QKeyEvent *e);
-
-public:
-	ConfigItem *item;
-};
-
-class ConfigView : public QWidget {
-	Q_OBJECT
-	typedef class QWidget Parent;
-public:
-	ConfigView(QWidget* parent, const char *name = 0);
-	~ConfigView(void);
-	static void updateList();
-	static void updateListAll(void);
-
-	bool showName(void) const { return list->showName; }
-	bool showRange(void) const { return list->showRange; }
-	bool showData(void) const { return list->showData; }
-public slots:
-	void setShowName(bool);
-	void setShowRange(bool);
-	void setShowData(bool);
-signals:
-	void showNameChanged(bool);
-	void showRangeChanged(bool);
-	void showDataChanged(bool);
-public:
-	ConfigList* list;
-	ConfigLineEdit* lineEdit;
-
-	static ConfigView* viewList;
-	ConfigView* nextView;
+	ConfigItemDelegate(QObject *parent = nullptr)
+		: QStyledItemDelegate(parent) {}
+	QWidget *createEditor(QWidget *parent,
+			      const QStyleOptionViewItem &option,
+			      const QModelIndex &index) const override;
+	void setModelData(QWidget *editor, QAbstractItemModel *model,
+			  const QModelIndex &index) const override;
 };
 
 class ConfigInfoView : public QTextBrowser {
@@ -257,7 +228,7 @@ protected:
 	QLineEdit* editField;
 	QPushButton* searchButton;
 	QSplitter* split;
-	ConfigView* list;
+	ConfigList *list;
 	ConfigInfoView* info;
 
 	struct symbol **result;
@@ -292,9 +263,7 @@ protected:
 	void closeEvent(QCloseEvent *e);
 
 	ConfigSearchWindow *searchWindow;
-	ConfigView *menuView;
 	ConfigList *menuList;
-	ConfigView *configView;
 	ConfigList *configList;
 	ConfigInfoView *helpText;
 	QAction *backAction;

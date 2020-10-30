@@ -119,10 +119,11 @@ static bool dmub_psr_set_version(struct dmub_psr *dmub, struct dc_stream_state *
 /**
  * Enable/Disable PSR.
  */
-static void dmub_psr_enable(struct dmub_psr *dmub, bool enable)
+static void dmub_psr_enable(struct dmub_psr *dmub, bool enable, bool wait)
 {
 	union dmub_rb_cmd cmd;
 	struct dc_context *dc = dmub->ctx;
+	uint32_t retry_count, psr_state = 0;
 
 	cmd.psr_enable.header.type = DMUB_CMD__PSR;
 
@@ -136,6 +137,30 @@ static void dmub_psr_enable(struct dmub_psr *dmub, bool enable)
 	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd);
 	dc_dmub_srv_cmd_execute(dc->dmub_srv);
 	dc_dmub_srv_wait_idle(dc->dmub_srv);
+
+	/* Below loops 1000 x 500us = 500 ms.
+	 *  Exit PSR may need to wait 1-2 frames to power up. Timeout after at
+	 *  least a few frames. Should never hit the max retry assert below.
+	 */
+	if (wait) {
+		for (retry_count = 0; retry_count <= 1000; retry_count++) {
+			dmub_psr_get_state(dmub, &psr_state);
+
+			if (enable) {
+				if (psr_state != 0)
+					break;
+			} else {
+				if (psr_state == 0)
+					break;
+			}
+
+			udelay(500);
+		}
+
+		/* assert if max retry hit */
+		if (retry_count >= 1000)
+			ASSERT(0);
+	}
 }
 
 /**
@@ -231,10 +256,11 @@ static bool dmub_psr_copy_settings(struct dmub_psr *dmub,
 	copy_settings_data->smu_optimizations_en		= psr_context->allow_smu_optimizations;
 	copy_settings_data->frame_delay				= psr_context->frame_delay;
 	copy_settings_data->frame_cap_ind			= psr_context->psrFrameCaptureIndicationReq;
+	copy_settings_data->init_sdp_deadline			= psr_context->sdpTransmitLineNumDeadline;
+	copy_settings_data->debug.u32All = 0;
 	copy_settings_data->debug.bitfields.visual_confirm	= dc->dc->debug.visual_confirm == VISUAL_CONFIRM_PSR ?
 									true : false;
-	copy_settings_data->debug.bitfields.use_hw_lock_mgr	= 1;
-	copy_settings_data->init_sdp_deadline			= psr_context->sdpTransmitLineNumDeadline;
+	copy_settings_data->debug.bitfields.use_hw_lock_mgr		= 1;
 
 	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd);
 	dc_dmub_srv_cmd_execute(dc->dmub_srv);

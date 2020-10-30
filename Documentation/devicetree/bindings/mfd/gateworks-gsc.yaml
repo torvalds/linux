@@ -144,9 +144,12 @@ required:
   - "#address-cells"
   - "#size-cells"
 
+additionalProperties: false
+
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
     i2c {
         #address-cells = <1>;
         #size-cells = <0>;
@@ -155,7 +158,7 @@ examples:
             compatible = "gw,gsc";
             reg = <0x20>;
             interrupt-parent = <&gpio1>;
-            interrupts = <4 GPIO_ACTIVE_LOW>;
+            interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
             interrupt-controller;
             #interrupt-cells = <1>;
             #address-cells = <1>;

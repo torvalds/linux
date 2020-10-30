@@ -717,9 +717,17 @@ static int cdns3_gadget_ep0_queue(struct usb_ep *ep,
 
 	/* send STATUS stage. Should be called only for SET_CONFIGURATION */
 	if (priv_dev->ep0_stage == CDNS3_STATUS_STAGE) {
+		u32 val;
+
 		cdns3_select_ep(priv_dev, 0x00);
 		cdns3_set_hw_configuration(priv_dev);
 		cdns3_ep0_complete_setup(priv_dev, 0, 1);
+		/* wait until configuration set */
+		ret = readl_poll_timeout_atomic(&priv_dev->regs->usb_sts, val,
+					  val & USB_STS_CFGSTS_MASK, 1, 100);
+		if (ret == -ETIMEDOUT)
+			dev_warn(priv_dev->dev, "timeout for waiting configuration set\n");
+
 		request->actual = 0;
 		priv_dev->status_completion_no_call = true;
 		priv_dev->pending_status_request = request;
@@ -731,7 +739,7 @@ static int cdns3_gadget_ep0_queue(struct usb_ep *ep,
 		 * ep0_queue is back.
 		 */
 		queue_work(system_freezable_wq, &priv_dev->pending_status_wq);
-		return 0;
+		return ret;
 	}
 
 	if (!list_empty(&priv_ep->pending_req_list)) {

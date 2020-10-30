@@ -431,7 +431,7 @@ int sun4i_csi_dma_register(struct sun4i_csi *csi, int irq)
 	ret = v4l2_device_register(csi->dev, &csi->v4l);
 	if (ret) {
 		dev_err(csi->dev, "Couldn't register the v4l2 device\n");
-		goto err_free_queue;
+		goto err_free_mutex;
 	}
 
 	ret = devm_request_irq(csi->dev, irq, sun4i_csi_irq, 0,
@@ -446,9 +446,6 @@ int sun4i_csi_dma_register(struct sun4i_csi *csi, int irq)
 err_unregister_device:
 	v4l2_device_unregister(&csi->v4l);
 
-err_free_queue:
-	vb2_queue_release(q);
-
 err_free_mutex:
 	mutex_destroy(&csi->lock);
 	return ret;
@@ -457,6 +454,5 @@ err_free_mutex:
 void sun4i_csi_dma_unregister(struct sun4i_csi *csi)
 {
 	v4l2_device_unregister(&csi->v4l);
-	vb2_queue_release(&csi->queue);
 	mutex_destroy(&csi->lock);
 }

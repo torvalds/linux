@@ -83,6 +83,8 @@ struct am65_cpts_regs {
 #define AM65_CPTS_CONTROL_HW8_TS_PUSH_EN	BIT(15)
 #define AM65_CPTS_CONTROL_HW1_TS_PUSH_OFFSET	(8)
 
+#define AM65_CPTS_CONTROL_TX_GENF_CLR_EN	BIT(17)
+
 #define AM65_CPTS_CONTROL_TS_SYNC_SEL_MASK	(0xF)
 #define AM65_CPTS_CONTROL_TS_SYNC_SEL_SHIFT	(28)
 
@@ -748,42 +750,23 @@ EXPORT_SYMBOL_GPL(am65_cpts_rx_enable);
 static int am65_skb_get_mtype_seqid(struct sk_buff *skb, u32 *mtype_seqid)
 {
 	unsigned int ptp_class = ptp_classify_raw(skb);
-	u8 *msgtype, *data = skb->data;
-	unsigned int offset = 0;
-	__be16 *seqid;
+	struct ptp_header *hdr;
+	u8 msgtype;
+	u16 seqid;
 
 	if (ptp_class == PTP_CLASS_NONE)
 		return 0;
 
-	if (ptp_class & PTP_CLASS_VLAN)
-		offset += VLAN_HLEN;
-
-	switch (ptp_class & PTP_CLASS_PMASK) {
-	case PTP_CLASS_IPV4:
-		offset += ETH_HLEN + IPV4_HLEN(data + offset) + UDP_HLEN;
-		break;
-	case PTP_CLASS_IPV6:
-		offset += ETH_HLEN + IP6_HLEN + UDP_HLEN;
-		break;
-	case PTP_CLASS_L2:
-		offset += ETH_HLEN;
-		break;
-	default:
-		return 0;
-	}
-
-	if (skb->len + ETH_HLEN < offset + OFF_PTP_SEQUENCE_ID + sizeof(*seqid))
+	hdr = ptp_parse_header(skb, ptp_class);
+	if (!hdr)
 		return 0;
 
-	if (unlikely(ptp_class & PTP_CLASS_V1))
-		msgtype = data + offset + OFF_PTP_CONTROL;
-	else
-		msgtype = data + offset;
+	msgtype = ptp_get_msgtype(hdr, ptp_class);
+	seqid	= ntohs(hdr->sequence_id);
 
-	seqid = (__be16 *)(data + offset + OFF_PTP_SEQUENCE_ID);
-	*mtype_seqid = (*msgtype << AM65_CPTS_EVENT_1_MESSAGE_TYPE_SHIFT) &
+	*mtype_seqid  = (msgtype << AM65_CPTS_EVENT_1_MESSAGE_TYPE_SHIFT) &
 			AM65_CPTS_EVENT_1_MESSAGE_TYPE_MASK;
-	*mtype_seqid |= (ntohs(*seqid) & AM65_CPTS_EVENT_1_SEQUENCE_ID_MASK);
+	*mtype_seqid |= (seqid & AM65_CPTS_EVENT_1_SEQUENCE_ID_MASK);
 
 	return 1;
 }
@@ -1005,7 +988,9 @@ struct am65_cpts *am65_cpts_create(struct device *dev, void __iomem *regs,
 
 	am65_cpts_set_add_val(cpts);
 
-	am65_cpts_write32(cpts, AM65_CPTS_CONTROL_EN | AM65_CPTS_CONTROL_64MODE,
+	am65_cpts_write32(cpts, AM65_CPTS_CONTROL_EN |
+			  AM65_CPTS_CONTROL_64MODE |
+			  AM65_CPTS_CONTROL_TX_GENF_CLR_EN,
 			  control);
 	am65_cpts_write32(cpts, AM65_CPTS_INT_ENABLE_TS_PEND_EN, int_enable);
 

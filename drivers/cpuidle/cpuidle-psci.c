@@ -66,7 +66,7 @@ static int psci_enter_domain_idle_state(struct cpuidle_device *dev,
 		return -1;
 
 	/* Do runtime PM to manage a hierarchical CPU toplogy. */
-	pm_runtime_put_sync_suspend(pd_dev);
+	RCU_NONIDLE(pm_runtime_put_sync_suspend(pd_dev));
 
 	state = psci_get_domain_state();
 	if (!state)
@@ -74,7 +74,7 @@ static int psci_enter_domain_idle_state(struct cpuidle_device *dev,
 
 	ret = psci_cpu_suspend_enter(state) ? -1 : idx;
 
-	pm_runtime_get_sync(pd_dev);
+	RCU_NONIDLE(pm_runtime_get_sync(pd_dev));
 
 	cpu_pm_exit();
 

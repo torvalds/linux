@@ -2004,7 +2004,7 @@ static void reg_w(struct sd *sd, u16 index, u16 value)
 		break;
 	case BRIDGE_OVFX2:
 		req = 0x0a;
-		/* fall through */
+		fallthrough;
 	case BRIDGE_W9968CF:
 		gspca_dbg(gspca_dev, D_USBO, "SET %02x %04x %04x\n",
 			  req, value, index);
@@ -3528,7 +3528,7 @@ static void ov511_mode_init_regs(struct sd *sd)
 	case SEN_OV76BE:
 		if (sd->gspca_dev.pixfmt.width == 320)
 			interlaced = 1;
-		/* Fall through */
+		fallthrough;
 	case SEN_OV6630:
 	case SEN_OV7610:
 	case SEN_OV7670:
@@ -3541,7 +3541,7 @@ static void ov511_mode_init_regs(struct sd *sd)
 				break;
 			}
 			/* For 640x480 case */
-			/* fall through */
+			fallthrough;
 		default:
 /*		case 20: */
 /*		case 15: */

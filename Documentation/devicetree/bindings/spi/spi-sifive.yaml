@@ -66,6 +66,8 @@ required:
   - interrupts
   - clocks
 
+unevaluatedProperties: false
+
 examples:
   - |
     spi: spi@10040000 {

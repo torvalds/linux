@@ -1060,7 +1060,7 @@ static int yellowfin_rx(struct net_device *dev)
 		struct sk_buff *rx_skb = yp->rx_skbuff[entry];
 		s16 frame_status;
 		u16 desc_status;
-		int data_size, yf_size;
+		int data_size, __maybe_unused yf_size;
 		u8 *buf_addr;
 
 		if(!desc->result_status)

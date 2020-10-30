@@ -555,10 +555,11 @@ int vmem_add_mapping(unsigned long start, unsigned long size)
  */
 void __init vmem_map_init(void)
 {
-	struct memblock_region *reg;
+	phys_addr_t base, end;
+	u64 i;
 
-	for_each_memblock(memory, reg)
-		vmem_add_range(reg->base, reg->size);
+	for_each_mem_range(i, &base, &end)
+		vmem_add_range(base, end - base);
 	__set_memory((unsigned long)_stext,
 		     (unsigned long)(_etext - _stext) >> PAGE_SHIFT,
 		     SET_MEMORY_RO | SET_MEMORY_X);

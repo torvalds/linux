@@ -200,9 +200,9 @@ void mantis_dma_stop(struct mantis_pci *mantis)
 }
 
 
-void mantis_dma_xfer(unsigned long data)
+void mantis_dma_xfer(struct tasklet_struct *t)
 {
-	struct mantis_pci *mantis = (struct mantis_pci *) data;
+	struct mantis_pci *mantis = from_tasklet(mantis, t, tasklet);
 	struct mantis_hwconfig *config = mantis->hwconfig;
 
 	while (mantis->last_block != mantis->busy_block) {

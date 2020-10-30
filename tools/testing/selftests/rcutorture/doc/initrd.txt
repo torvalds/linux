@@ -1,12 +1,11 @@
-The rcutorture scripting tools automatically create the needed initrd
-directory using dracut.  Failing that, this tool will create an initrd
-containing a single statically linked binary named "init" that loops
-over a very long sleep() call.  In both cases, this creation is done
-by tools/testing/selftests/rcutorture/bin/mkinitrd.sh.
+The rcutorture scripting tools automatically create an initrd containing
+a single statically linked binary named "init" that loops over a
+very long sleep() call.  In both cases, this creation is done by
+tools/testing/selftests/rcutorture/bin/mkinitrd.sh.
 
-However, if you are attempting to run rcutorture on a system that does
-not have dracut installed, and if you don't like the notion of static
-linking, you might wish to press an existing initrd into service:
+However, if you don't like the notion of statically linked bare-bones
+userspace environments, you might wish to press an existing initrd
+into service:
 
 ------------------------------------------------------------------------
 cd tools/testing/selftests/rcutorture
@@ -15,24 +14,3 @@ mkdir initrd
 cd initrd
 cpio -id < /tmp/initrd.img.zcat
 # Manually verify that initrd contains needed binaries and libraries.
-------------------------------------------------------------------------
-
-Interestingly enough, if you are running rcutorture, you don't really
-need userspace in many cases.  Running without userspace has the
-advantage of allowing you to test your kernel independently of the
-distro in place, the root-filesystem layout, and so on.  To make this
-happen, put the following script in the initrd's tree's "/init" file,
-with 0755 mode.
-
-------------------------------------------------------------------------
-#!/bin/sh
-
-while :
-do
-	sleep 10
-done
-------------------------------------------------------------------------
-
-This approach also allows most of the binaries and libraries in the
-initrd filesystem to be dispensed with, which can save significant
-space in rcutorture's "res" directory.

@@ -10,6 +10,8 @@ maintainers:
   - Anders Berg <anders.berg@lsi.com>
 
 properties:
+  $nodename:
+    const: "/"
   compatible:
     description: LSI AXM5516 Validation board (Amarillo)
     items:

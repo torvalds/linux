@@ -86,7 +86,7 @@ static void fd_inc(struct qm_fd *fd)
 	len--;
 	qm_fd_set_param(fd, fmt, off, len);
 
-	fd->cmd = cpu_to_be32(be32_to_cpu(fd->cmd) + 1);
+	be32_add_cpu(&fd->cmd, 1);
 }
 
 /* The only part of the 'fd' we can't memcmp() is the ppid */

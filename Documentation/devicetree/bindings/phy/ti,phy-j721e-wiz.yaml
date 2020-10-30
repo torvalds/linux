@@ -45,9 +45,15 @@ properties:
   ranges: true
 
   assigned-clocks:
+    minItems: 1
     maxItems: 2
 
   assigned-clock-parents:
+    minItems: 1
+    maxItems: 2
+
+  assigned-clock-rates:
+    minItems: 1
     maxItems: 2
 
   typec-dir-gpios:
@@ -119,9 +125,10 @@ patternProperties:
       logic.
     properties:
       clocks:
+        minItems: 2
         maxItems: 4
-        description: Phandle to four clock nodes representing the inputs to
-          refclk_dig
+        description: Phandle to two (Torrent) or four (Sierra) clock nodes representing
+          the inputs to refclk_dig
 
       "#clock-cells":
         const: 0
@@ -203,7 +210,7 @@ examples:
            };
 
            refclk-dig {
-                  clocks = <&k3_clks 292 11>, <&k3_clks 292 0>, 
+                  clocks = <&k3_clks 292 11>, <&k3_clks 292 0>,
                           <&dummy_cmn_refclk>, <&dummy_cmn_refclk1>;
                   #clock-cells = <0>;
                   assigned-clocks = <&wiz0_refclk_dig>;

@@ -27,11 +27,11 @@
 
 #include "qxl_drv.h"
 
-static inline int qxl_bo_reserve(struct qxl_bo *bo, bool no_wait)
+static inline int qxl_bo_reserve(struct qxl_bo *bo)
 {
 	int r;
 
-	r = ttm_bo_reserve(&bo->tbo, true, no_wait, NULL);
+	r = ttm_bo_reserve(&bo->tbo, true, false, NULL);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS) {
 			struct drm_device *ddev = bo->tbo.base.dev;

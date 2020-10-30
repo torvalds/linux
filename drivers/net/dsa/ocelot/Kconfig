@@ -8,12 +8,19 @@ config NET_DSA_MSCC_FELIX
 	select MSCC_OCELOT_SWITCH_LIB
 	select NET_DSA_TAG_OCELOT
 	select FSL_ENETC_MDIO
+	select PCS_LYNX
 	help
-	  This driver supports network switches from the Vitesse /
-	  Microsemi / Microchip Ocelot family of switching cores that are
-	  connected to their host CPU via Ethernet.
-	  The following switches are supported:
-	  - VSC9959 (Felix): embedded as a PCIe function of the NXP LS1028A
-	    ENETC integrated endpoint.
-	  - VSC9953 (Seville): embedded as a platform device on the
-	    NXP T1040 SoC.
+	  This driver supports the VSC9959 (Felix) switch, which is embedded as
+	  a PCIe function of the NXP LS1028A ENETC RCiEP.
+
+config NET_DSA_MSCC_SEVILLE
+	tristate "Ocelot / Seville Ethernet switch support"
+	depends on NET_DSA
+	depends on NET_VENDOR_MICROSEMI
+	depends on HAS_IOMEM
+	select MSCC_OCELOT_SWITCH_LIB
+	select NET_DSA_TAG_OCELOT
+	select PCS_LYNX
+	help
+	  This driver supports the VSC9953 (Seville) switch, which is embedded
+	  as a platform device on the NXP T1040 SoC.

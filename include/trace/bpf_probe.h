@@ -79,7 +79,7 @@ static union {								\
 	struct bpf_raw_event_map event;					\
 	btf_trace_##call handler;					\
 } __bpf_trace_tp_map_##call __used					\
-__attribute__((section("__bpf_raw_tp_map"))) = {			\
+__section("__bpf_raw_tp_map") = {					\
 	.event = {							\
 		.tp		= &__tracepoint_##call,			\
 		.bpf_func	= __bpf_trace_##template,		\

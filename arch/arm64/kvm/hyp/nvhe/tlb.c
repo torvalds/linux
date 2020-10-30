@@ -31,7 +31,14 @@ static void __tlb_switch_to_guest(struct kvm_s2_mmu *mmu,
 		isb();
 	}
 
+	/*
+	 * __load_guest_stage2() includes an ISB only when the AT
+	 * workaround is applied. Take care of the opposite condition,
+	 * ensuring that we always have an ISB, but not two ISBs back
+	 * to back.
+	 */
 	__load_guest_stage2(mmu);
+	asm(ALTERNATIVE("isb", "nop", ARM64_WORKAROUND_SPECULATIVE_AT));
 }
 
 static void __tlb_switch_to_host(struct tlb_inv_context *cxt)
@@ -54,7 +61,6 @@ void __kvm_tlb_flush_vmid_ipa(struct kvm_s2_mmu *mmu,
 	dsb(ishst);
 
 	/* Switch to requested VMID */
-	mmu = kern_hyp_va(mmu);
 	__tlb_switch_to_guest(mmu, &cxt);
 
 	/*
@@ -108,7 +114,6 @@ void __kvm_tlb_flush_vmid(struct kvm_s2_mmu *mmu)
 	dsb(ishst);
 
 	/* Switch to requested VMID */
-	mmu = kern_hyp_va(mmu);
 	__tlb_switch_to_guest(mmu, &cxt);
 
 	__tlbi(vmalls12e1is);

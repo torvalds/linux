@@ -71,7 +71,7 @@ struct of_cpu_method {
 
 #define CPU_METHOD_OF_DECLARE(name, _method, _ops)			\
 	static const struct of_cpu_method __cpu_method_of_table_##name	\
-		__used __section(__cpu_method_of_table)			\
+		__used __section("__cpu_method_of_table")		\
 		= { .method = _method, .ops = _ops }
 
 #else

@@ -180,6 +180,9 @@ class id_parser(object):
                 # Remove trailing comment closure
                 if line.strip().endswith('*/'):
                     expr = expr.rstrip('*/').strip()
+                # Remove trailing xml comment closure
+                if line.strip().endswith('-->'):
+                    expr = expr.rstrip('-->').strip()
                 # Special case for SH magic boot code files
                 if line.startswith('LIST \"'):
                     expr = expr.rstrip('\"').strip()

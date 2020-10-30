@@ -2727,6 +2727,7 @@
 #define mmDB_STENCIL_WRITE_BASE_DEFAULT                                          0x00000000
 #define mmDB_RESERVED_REG_1_DEFAULT                                              0x00000000
 #define mmDB_RESERVED_REG_3_DEFAULT                                              0x00000000
+#define mmDB_VRS_OVERRIDE_CNTL_DEFAULT                                           0x00000000
 #define mmDB_Z_READ_BASE_HI_DEFAULT                                              0x00000000
 #define mmDB_STENCIL_READ_BASE_HI_DEFAULT                                        0x00000000
 #define mmDB_Z_WRITE_BASE_HI_DEFAULT                                             0x00000000
@@ -3062,6 +3063,7 @@
 #define mmPA_SU_OVER_RASTERIZATION_CNTL_DEFAULT                                  0x00000000
 #define mmPA_STEREO_CNTL_DEFAULT                                                 0x00000000
 #define mmPA_STATE_STEREO_X_DEFAULT                                              0x00000000
+#define mmPA_CL_VRS_CNTL_DEFAULT                                                 0x00000000
 #define mmPA_SU_POINT_SIZE_DEFAULT                                               0x00000000
 #define mmPA_SU_POINT_MINMAX_DEFAULT                                             0x00000000
 #define mmPA_SU_LINE_CNTL_DEFAULT                                                0x00000000

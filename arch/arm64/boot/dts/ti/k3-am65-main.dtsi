@@ -112,7 +112,29 @@
 		power-domains = <&k3_pds 148 TI_SCI_PD_EXCLUSIVE>;
 	};
 
-	main_pmx0: pinmux@11c000 {
+	crypto: crypto@4e00000 {
+		compatible = "ti,am654-sa2ul";
+		reg = <0x0 0x4e00000 0x0 0x1200>;
+		power-domains = <&k3_pds 136 TI_SCI_PD_EXCLUSIVE>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges = <0x0 0x04e00000 0x00 0x04e00000 0x0 0x30000>;
+		status = "okay";
+
+		dmas = <&main_udmap 0xc000>, <&main_udmap 0x4000>,
+				<&main_udmap 0x4001>;
+		dma-names = "tx", "rx1", "rx2";
+		dma-coherent;
+
+		rng: rng@4e10000 {
+			compatible = "inside-secure,safexcel-eip76";
+			reg = <0x0 0x4e10000 0x0 0x7d>;
+			interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&k3_clks 136 1>;
+		};
+	};
+
+	main_pmx0: pinctrl@11c000 {
 		compatible = "pinctrl-single";
 		reg = <0x0 0x11c000 0x0 0x2e4>;
 		#pinctrl-cells = <1>;
@@ -120,7 +142,7 @@
 		pinctrl-single,function-mask = <0xffffffff>;
 	};
 
-	main_pmx1: pinmux@11c2e8 {
+	main_pmx1: pinctrl@11c2e8 {
 		compatible = "pinctrl-single";
 		reg = <0x0 0x11c2e8 0x0 0x24>;
 		#pinctrl-cells = <1>;
@@ -283,7 +305,7 @@
 		no-1-8-v;
 	};
 
-	scm_conf: scm_conf@100000 {
+	scm_conf: scm-conf@100000 {
 		compatible = "syscon", "simple-mfd";
 		reg = <0 0x00100000 0 0x1c000>;
 		#address-cells = <1>;
@@ -305,12 +327,12 @@
 			reg = <0x00000210 0x4>;
 		};
 
-		serdes0_clk: serdes_clk@4080 {
+		serdes0_clk: clock@4080 {
 			compatible = "syscon";
 			reg = <0x00004080 0x4>;
 		};
 
-		serdes1_clk: serdes_clk@4090 {
+		serdes1_clk: clock@4090 {
 			compatible = "syscon";
 			reg = <0x00004090 0x4>;
 		};
@@ -322,12 +344,12 @@
 					<0x4090 0x3>; /* SERDES1 lane select */
 		};
 
-		dss_oldi_io_ctrl: dss_oldi_io_ctrl@41E0 {
+		dss_oldi_io_ctrl: dss-oldi-io-ctrl@41e0 {
 			compatible = "syscon";
-			reg = <0x0000041E0 0x14>;
+			reg = <0x0000041e0 0x14>;
 		};
 
-		ehrpwm_tbclk: syscon@4140 {
+		ehrpwm_tbclk: clock@4140 {
 			compatible = "ti,am654-ehrpwm-tbclk", "syscon";
 			reg = <0x4140 0x18>;
 			#clock-cells = <1>;
@@ -423,7 +445,7 @@
 		ti,interrupt-ranges = <0 392 32>;
 	};
 
-	main_navss {
+	main-navss {
 		compatible = "simple-mfd";
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -639,7 +661,7 @@
 		};
 	};
 
-	main_gpio0:  main_gpio0@600000 {
+	main_gpio0: gpio@600000 {
 		compatible = "ti,am654-gpio", "ti,keystone-gpio";
 		reg = <0x0 0x600000 0x0 0x100>;
 		gpio-controller;
@@ -654,7 +676,7 @@
 		clock-names = "gpio";
 	};
 
-	main_gpio1:  main_gpio1@601000 {
+	main_gpio1: gpio@601000 {
 		compatible = "ti,am654-gpio", "ti,keystone-gpio";
 		reg = <0x0 0x601000 0x0 0x100>;
 		gpio-controller;
@@ -682,7 +704,7 @@
 		ti,syscon-pcie-mode = <&pcie0_mode>;
 		bus-range = <0x0 0xff>;
 		num-viewport = <16>;
-		max-link-speed = <3>;
+		max-link-speed = <2>;
 		dma-coherent;
 		interrupts = <GIC_SPI 340 IRQ_TYPE_EDGE_RISING>;
 		msi-map = <0x0 &gic_its 0x0 0x10000>;
@@ -696,7 +718,7 @@
 		ti,syscon-pcie-mode = <&pcie0_mode>;
 		num-ib-windows = <16>;
 		num-ob-windows = <16>;
-		max-link-speed = <3>;
+		max-link-speed = <2>;
 		dma-coherent;
 		interrupts = <GIC_SPI 340 IRQ_TYPE_EDGE_RISING>;
 	};
@@ -714,7 +736,7 @@
 		ti,syscon-pcie-mode = <&pcie1_mode>;
 		bus-range = <0x0 0xff>;
 		num-viewport = <16>;
-		max-link-speed = <3>;
+		max-link-speed = <2>;
 		dma-coherent;
 		interrupts = <GIC_SPI 355 IRQ_TYPE_EDGE_RISING>;
 		msi-map = <0x0 &gic_its 0x10000 0x10000>;
@@ -728,7 +750,7 @@
 		ti,syscon-pcie-mode = <&pcie1_mode>;
 		num-ib-windows = <16>;
 		num-ob-windows = <16>;
-		max-link-speed = <3>;
+		max-link-speed = <2>;
 		dma-coherent;
 		interrupts = <GIC_SPI 355 IRQ_TYPE_EDGE_RISING>;
 	};
