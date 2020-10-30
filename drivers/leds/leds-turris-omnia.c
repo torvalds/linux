@@ -27,14 +27,6 @@
 #define CMD_LED_SET_BRIGHTNESS		7
 #define CMD_LED_GET_BRIGHTNESS		8
 
-#define OMNIA_CMD			0
-
-#define OMNIA_CMD_LED_COLOR_LED		1
-#define OMNIA_CMD_LED_COLOR_R		2
-#define OMNIA_CMD_LED_COLOR_G		3
-#define OMNIA_CMD_LED_COLOR_B		4
-#define OMNIA_CMD_LED_COLOR_LEN		5
-
 struct omnia_led {
 	struct led_classdev_mc mc_cdev;
 	struct mc_subled subled_info[OMNIA_LED_NUM_CHANNELS];
@@ -55,21 +47,21 @@ static int omnia_led_brightness_set_blocking(struct led_classdev *cdev,
 	struct led_classdev_mc *mc_cdev = lcdev_to_mccdev(cdev);
 	struct omnia_leds *leds = dev_get_drvdata(cdev->dev->parent);
 	struct omnia_led *led = to_omnia_led(mc_cdev);
-	u8 buf[OMNIA_CMD_LED_COLOR_LEN], state;
+	u8 buf[5], state;
 	int ret;
 
 	mutex_lock(&leds->lock);
 
 	led_mc_calc_color_components(&led->mc_cdev, brightness);
 
-	buf[OMNIA_CMD] = CMD_LED_COLOR;
-	buf[OMNIA_CMD_LED_COLOR_LED] = led->reg;
-	buf[OMNIA_CMD_LED_COLOR_R] = mc_cdev->subled_info[0].brightness;
-	buf[OMNIA_CMD_LED_COLOR_G] = mc_cdev->subled_info[1].brightness;
-	buf[OMNIA_CMD_LED_COLOR_B] = mc_cdev->subled_info[2].brightness;
+	buf[0] = CMD_LED_COLOR;
+	buf[1] = led->reg;
+	buf[2] = mc_cdev->subled_info[0].brightness;
+	buf[3] = mc_cdev->subled_info[1].brightness;
+	buf[4] = mc_cdev->subled_info[2].brightness;
 
 	state = CMD_LED_STATE_LED(led->reg);
-	if (buf[OMNIA_CMD_LED_COLOR_R] || buf[OMNIA_CMD_LED_COLOR_G] || buf[OMNIA_CMD_LED_COLOR_B])
+	if (buf[2] || buf[3] || buf[4])
 		state |= CMD_LED_STATE_ON;
 
 	ret = i2c_smbus_write_byte_data(leds->client, CMD_LED_STATE, state);
@@ -250,18 +242,18 @@ static int omnia_leds_probe(struct i2c_client *client,
 
 static int omnia_leds_remove(struct i2c_client *client)
 {
-	u8 buf[OMNIA_CMD_LED_COLOR_LEN];
+	u8 buf[5];
 
 	/* put all LEDs into default (HW triggered) mode */
 	i2c_smbus_write_byte_data(client, CMD_LED_MODE,
 				  CMD_LED_MODE_LED(OMNIA_BOARD_LEDS));
 
 	/* set all LEDs color to [255, 255, 255] */
-	buf[OMNIA_CMD] = CMD_LED_COLOR;
-	buf[OMNIA_CMD_LED_COLOR_LED] = OMNIA_BOARD_LEDS;
-	buf[OMNIA_CMD_LED_COLOR_R] = 255;
-	buf[OMNIA_CMD_LED_COLOR_G] = 255;
-	buf[OMNIA_CMD_LED_COLOR_B] = 255;
+	buf[0] = CMD_LED_COLOR;
+	buf[1] = OMNIA_BOARD_LEDS;
+	buf[2] = 255;
+	buf[3] = 255;
+	buf[4] = 255;
 
 	i2c_master_send(client, buf, 5);
 
