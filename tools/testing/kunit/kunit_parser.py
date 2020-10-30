@@ -54,6 +54,7 @@ kunit_end_re = re.compile('(List of all partitions:|'
 def isolate_kunit_output(kernel_output):
 	started = False
 	for line in kernel_output:
+		line = line.rstrip()  # line always has a trailing \n
 		if kunit_start_re.search(line):
 			prefix_len = len(line.split('TAP version')[0])
 			started = True
@@ -65,7 +66,7 @@ def isolate_kunit_output(kernel_output):
 
 def raw_output(kernel_output):
 	for line in kernel_output:
-		print(line)
+		print(line.rstrip())
 
 DIVIDER = '=' * 60
 
