@@ -228,9 +228,9 @@ static void tc_port_fixup_legacy_flag(struct intel_digital_port *dig_port,
 		return;
 
 	/* If live status mismatches the VBT flag, trust the live status. */
-	drm_err(&i915->drm,
-		"Port %s: live status %08x mismatches the legacy port flag, fix flag\n",
-		dig_port->tc_port_name, live_status_mask);
+	drm_dbg_kms(&i915->drm,
+		    "Port %s: live status %08x mismatches the legacy port flag %08x, fixing flag\n",
+		    dig_port->tc_port_name, live_status_mask, valid_hpd_mask);
 
 	dig_port->tc_legacy_port = !dig_port->tc_legacy_port;
 }
