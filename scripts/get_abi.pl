@@ -18,7 +18,7 @@ my $prefix="Documentation/ABI";
 #
 # If true, assumes that the description is formatted with ReST
 #
-my $description_is_rst = 0;
+my $description_is_rst = 1;
 
 GetOptions(
 	"debug|d+" => \$debug,
