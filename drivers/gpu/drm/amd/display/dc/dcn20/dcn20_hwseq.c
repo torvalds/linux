@@ -1163,11 +1163,13 @@ void dcn20_pipe_control_lock(
 	if (pipe->plane_state != NULL)
 		flip_immediate = pipe->plane_state->flip_immediate;
 
-	temp_pipe = pipe->bottom_pipe;
-	while (!flip_immediate && temp_pipe) {
-		if (temp_pipe->plane_state != NULL)
-			flip_immediate = temp_pipe->plane_state->flip_immediate;
-		temp_pipe = temp_pipe->bottom_pipe;
+	if  (pipe->stream_res.gsl_group > 0) {
+	    temp_pipe = pipe->bottom_pipe;
+	    while (!flip_immediate && temp_pipe) {
+		    if (temp_pipe->plane_state != NULL)
+			    flip_immediate = temp_pipe->plane_state->flip_immediate;
+		    temp_pipe = temp_pipe->bottom_pipe;
+	    }
 	}
 
 	if (flip_immediate && lock) {
