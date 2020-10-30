@@ -12,8 +12,14 @@ my $man;
 my $debug;
 my $prefix="Documentation/ABI";
 
+#
+# If true, assumes that the description is formatted with ReST
+#
+my $description_is_rst = 0;
+
 GetOptions(
 	"debug|d+" => \$debug,
+	"rst-source!" => \$description_is_rst,
 	"dir=s" => \$prefix,
 	'help|?' => \$help,
 	man => \$man
@@ -137,14 +143,15 @@ sub parse_abi {
 					next;
 				}
 				if ($tag eq "description") {
-					next if ($content =~ m/^\s*$/);
-					if ($content =~ m/^(\s*)(.*)/) {
-						my $new_content = $2;
-						$space = $new_tag . $sep . $1;
-						while ($space =~ s/\t+/' ' x (length($&) * 8 - length($`) % 8)/e) {}
-						$space =~ s/./ /g;
-						$data{$what}->{$tag} .= "$new_content\n";
+					# Preserve initial spaces for the first line
+					$content = ' ' x length($new_tag) . $sep . $content;
+					$content =~ s,^(\s*):,$1 ,;
+					if ($content =~ m/^(\s*)(.*)$/) {
+						$space = $1;
+						$content = $2;
 					}
+					while ($space =~ s/\t+/' ' x (length($&) * 8 - length($`) % 8)/e) {}
+					$data{$what}->{$tag} .= $content;
 				} else {
 					$data{$what}->{$tag} = $content;
 				}
@@ -160,11 +167,15 @@ sub parse_abi {
 
 		if ($tag eq "description") {
 			if (!$data{$what}->{description}) {
-				next if (m/^\s*\n/);
+				s/^($space)//;
 				if (m/^(\s*)(.*)/) {
-					$space = $1;
-					while ($space =~ s/\t+/' ' x (length($&) * 8 - length($`) % 8)/e) {}
-					$data{$what}->{$tag} .= "$2\n";
+					my $sp = $1;
+					while ($sp =~ s/\t+/' ' x (length($&) * 8 - length($`) % 8)/e) {}
+					my $content = "$sp$2";
+
+					$content =~ s/^($space)//;
+
+					$data{$what}->{$tag} .= "$content";
 				}
 			} else {
 				my $content = $_;
@@ -274,23 +285,27 @@ sub output_rest {
 		print "Defined on file :ref:`$file <$fileref>`\n\n" if ($type ne "File");
 
 		my $desc = $data{$what}->{description};
-		$desc =~ s/^\s+//;
-
-		# Remove title markups from the description, as they won't work
-		$desc =~ s/\n[\-\*\=\^\~]+\n/\n/g;
 
 		if (!($desc =~ /^\s*$/)) {
-			if ($desc =~ m/\:\n/ || $desc =~ m/\n[\t ]+/  || $desc =~ m/[\x00-\x08\x0b-\x1f\x7b-\xff]/) {
-				# put everything inside a code block
-				$desc =~ s/\n/\n /g;
-
-				print "::\n\n";
-				print " $desc\n\n";
-			} else {
-				# Escape any special chars from description
-				$desc =~s/([\x00-\x08\x0b-\x1f\x21-\x2a\x2d\x2f\x3c-\x40\x5c\x5e-\x60\x7b-\xff])/\\$1/g;
-
+			if ($description_is_rst) {
 				print "$desc\n\n";
+			} else {
+				$desc =~ s/^\s+//;
+
+				# Remove title markups from the description, as they won't work
+				$desc =~ s/\n[\-\*\=\^\~]+\n/\n\n/g;
+
+				if ($desc =~ m/\:\n/ || $desc =~ m/\n[\t ]+/  || $desc =~ m/[\x00-\x08\x0b-\x1f\x7b-\xff]/) {
+					# put everything inside a code block
+					$desc =~ s/\n/\n /g;
+
+					print "::\n\n";
+					print " $desc\n\n";
+				} else {
+					# Escape any special chars from description
+					$desc =~s/([\x00-\x08\x0b-\x1f\x21-\x2a\x2d\x2f\x3c-\x40\x5c\x5e-\x60\x7b-\xff])/\\$1/g;
+					print "$desc\n\n";
+				}
 			}
 		} else {
 			print "DESCRIPTION MISSING for $what\n\n" if (!$data{$what}->{is_file});
@@ -382,7 +397,7 @@ abi_book.pl - parse the Linux ABI files and produce a ReST book.
 
 =head1 SYNOPSIS
 
-B<abi_book.pl> [--debug] [--man] [--help] [--dir=<dir>] <COMAND> [<ARGUMENT>]
+B<abi_book.pl> [--debug] [--man] [--help] --[(no-)rst-source] [--dir=<dir>] <COMAND> [<ARGUMENT>]
 
 Where <COMMAND> can be:
 
@@ -404,6 +419,13 @@ B<validate>              - validate the ABI contents
 
 Changes the location of the ABI search. By default, it uses
 the Documentation/ABI directory.
+
+=item B<--rst-source> and B<--no-rst-source>
+
+The input file may be using ReST syntax or not. Those two options allow
+selecting between a rst-compliant source ABI (--rst-source), or a
+plain text that may be violating ReST spec, so it requres some escaping
+logic (--no-rst-source).
 
 =item B<--debug>
 
