@@ -431,26 +431,8 @@ static void remove_widget(struct snd_soc_component *comp,
 	if (!w->kcontrols)
 		goto free_news;
 
-	/*
-	 * Dynamic Widgets either have 1..N enum kcontrols or mixers.
-	 * The enum may either have an array of values or strings.
-	 */
-	if (dobj->widget.kcontrol_type == SND_SOC_TPLG_TYPE_ENUM) {
-		/* enumerated widget mixer */
-		for (i = 0; w->kcontrols != NULL && i < w->num_kcontrols; i++) {
-			struct snd_kcontrol *kcontrol = w->kcontrols[i];
-
-			snd_ctl_remove(card, kcontrol);
-
-		}
-	} else {
-		/* volume mixer or bytes controls */
-		for (i = 0; w->kcontrols != NULL && i < w->num_kcontrols; i++) {
-			struct snd_kcontrol *kcontrol = w->kcontrols[i];
-
-			snd_ctl_remove(card, kcontrol);
-		}
-	}
+	for (i = 0; w->kcontrols && i < w->num_kcontrols; i++)
+		snd_ctl_remove(card, w->kcontrols[i]);
 
 free_news:
 
