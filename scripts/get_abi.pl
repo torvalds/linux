@@ -114,6 +114,8 @@ sub parse_abi {
 				$space = "";
 				$content =~ s/[,.;]$//;
 
+				push @{$symbols{$content}->{file}}, " $file:" . ($ln - 1);
+
 				if ($tag =~ m/what/) {
 					$what .= ", " . $content;
 				} else {
@@ -121,7 +123,7 @@ sub parse_abi {
 						parse_error($file, $ln, "What '$what' doesn't have a description", "") if (!$data{$what}->{description});
 
 						foreach my $w(split /, /, $what) {
-							$symbols{$w} = $what;
+							$symbols{$w}->{xref} = $what;
 						};
 					}
 
@@ -139,8 +141,6 @@ sub parse_abi {
 			if ($tag ne "" && $new_tag) {
 				$tag = $new_tag;
 
-				$data{$what}->{line_no} = $ln;
-
 				if ($new_what) {
 					@{$data{$what}->{label_list}} = @labels if ($data{$nametag}->{what});
 					@labels = ();
@@ -148,9 +148,19 @@ sub parse_abi {
 					$new_what = 0;
 
 					$data{$what}->{type} = $type;
-					$data{$what}->{file} = $name;
-					$data{$what}->{filepath} = $file;
+					if (!defined($data{$what}->{file})) {
+						$data{$what}->{file} = $name;
+						$data{$what}->{filepath} = $file;
+					} else {
+						if ($name ne $data{$what}->{file}) {
+							$data{$what}->{file} .= " " . $name;
+							$data{$what}->{filepath} .= " " . $file;
+						}
+					}
 					print STDERR "\twhat: $what\n" if ($debug > 1);
+					$data{$what}->{line_no} = $ln;
+				} else {
+					$data{$what}->{line_no} = $ln if (!defined($data{$what}->{line_no}));
 				}
 
 				if (!$what) {
@@ -218,7 +228,7 @@ sub parse_abi {
 		parse_error($file, $ln, "What '$what' doesn't have a description", "") if (!$data{$what}->{description});
 
 		foreach my $w(split /, /,$what) {
-			$symbols{$w} = $what;
+			$symbols{$w}->{xref} = $what;
 		};
 	}
 	close IN;
@@ -267,29 +277,20 @@ sub output_rest {
 				$a cmp $b
 			       } keys %data) {
 		my $type = $data{$what}->{type};
-		my $file = $data{$what}->{file};
-		my $filepath = $data{$what}->{filepath};
+
+		my @file = split / /, $data{$what}->{file};
+		my @filepath = split / /, $data{$what}->{filepath};
 
 		if ($enable_lineno) {
 			printf "#define LINENO %s%s#%s\n\n",
-			       $prefix, $data{$what}->{file},
+			       $prefix, $file[0],
 			       $data{$what}->{line_no};
 		}
 
 		my $w = $what;
 		$w =~ s/([\(\)\_\-\*\=\^\~\\])/\\$1/g;
 
-		$filepath =~ s,.*/(.*/.*),$1,;;
-		$filepath =~ s,[/\-],_,g;;
-		my $fileref = "abi_file_".$filepath;
-
-		if ($type eq "File") {
-			my $bar = $w;
-			$bar =~ s/./-/g;
-
-			print ".. _$fileref:\n\n";
-			print "$w\n$bar\n\n";
-		} else {
+		if ($type ne "File") {
 			printf ".. _%s:\n\n", $data{$what}->{label};
 
 			my @names = split /, /,$w;
@@ -307,7 +308,26 @@ sub output_rest {
 				print "+-" . "-" x $len . "-+\n";
 			}
 
-			print "\nDefined on file :ref:`$file <$fileref>`\n\n";
+			print "\n";
+		}
+
+		for (my $i = 0; $i < scalar(@filepath); $i++) {
+			my $path = $filepath[$i];
+			my $f = $file[$i];
+
+			$path =~ s,.*/(.*/.*),$1,;;
+			$path =~ s,[/\-],_,g;;
+			my $fileref = "abi_file_".$path;
+
+			if ($type eq "File") {
+				my $bar = $w;
+				$bar =~ s/./-/g;
+
+				print ".. _$fileref:\n\n";
+				print "$w\n$bar\n\n";
+			} else {
+				print "Defined on file :ref:`$f <$fileref>`\n\n";
+			}
 		}
 
 		my $desc = "";
@@ -343,7 +363,7 @@ sub output_rest {
 			printf "Has the following ABI:\n\n";
 
 			foreach my $content(@{$data{$what}->{symbols}}) {
-				my $label = $data{$symbols{$content}}->{label};
+				my $label = $data{$symbols{$content}->{xref}}->{label};
 
 				# Escape special chars from content
 				$content =~s/([\x00-\x1f\x21-\x2f\x3a-\x40\x7b-\xff])/\\$1/g;
@@ -390,7 +410,7 @@ sub search_symbols {
 		printf "Date:\t\t\t%s\n", $date if ($date);
 		printf "Contact:\t\t%s\n", $contact if ($contact);
 		printf "Users:\t\t\t%s\n", $users if ($users);
-		print "Defined on file:\t$file\n\n";
+		print "Defined on file(s):\t$file\n\n";
 		print "Description:\n\n$desc";
 	}
 }
@@ -410,12 +430,23 @@ print STDERR Data::Dumper->Dump([\%data], [qw(*data)]) if ($debug);
 #
 # Handles the command
 #
-if ($cmd eq "rest") {
-	output_rest;
-} elsif ($cmd eq "search") {
+if ($cmd eq "search") {
 	search_symbols;
-}
+} else {
+	if ($cmd eq "rest") {
+		output_rest;
+	}
 
+	# Warn about duplicated ABI entries
+	foreach my $what(sort keys %symbols) {
+		my @files = @{$symbols{$what}->{file}};
+
+		next if (scalar(@files) == 1);
+
+		printf STDERR "Warning: $what is defined %d times: @files\n",
+		    scalar(@files);
+	}
+}
 
 __END__
 
