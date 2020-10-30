@@ -3,6 +3,7 @@
 
 use strict;
 use warnings;
+use utf8;
 use Pod::Usage;
 use Getopt::Long;
 use File::Find;
@@ -272,6 +273,9 @@ sub create_labels {
 # Outputs the book on ReST format
 #
 
+# \b doesn't work well with paths. So, we need to define something else
+my $bondary = qr { (?<![\w\/\`\{])(?=[\w\/\`\{])|(?<=[\w\/\`\{])(?![\w\/\`\{]) }x;
+
 sub output_rest {
 	create_labels();
 
@@ -342,6 +346,33 @@ sub output_rest {
 
 		if (!($desc =~ /^\s*$/)) {
 			if ($description_is_rst) {
+				# Enrich text by creating cross-references
+
+				$desc =~ s,Documentation/(?!devicetree)(\S+)\.rst,:doc:`/$1`,g;
+
+				my @matches = $desc =~ m,Documentation/ABI/([\w\/\-]+),;
+				foreach my $f (@matches) {
+					my $xref = $f;
+					my $path = $f;
+					$path =~ s,.*/(.*/.*),$1,;;
+					$path =~ s,[/\-],_,g;;
+					$xref .= " <abi_file_" . $path . ">";
+					$desc =~ s,\bDocumentation/ABI/$f\b,:ref:`$xref`,g;
+				}
+
+				@matches = $desc =~ m,$bondary(/sys/[^\s\.\,\;\:\*\s\`\'\(\)]+)$bondary,;
+
+				foreach my $s (@matches) {
+					if (defined($data{$s}) && defined($data{$s}->{label})) {
+						my $xref = $s;
+
+						$xref =~ s/([\x00-\x1f\x21-\x2f\x3a-\x40\x7b-\xff])/\\$1/g;
+						$xref = ":ref:`$xref <" . $data{$s}->{label} . ">`";
+
+						$desc =~ s,$bondary$s$bondary,$xref,g;
+					}
+				}
+
 				print "$desc\n\n";
 			} else {
 				$desc =~ s/^\s+//;
