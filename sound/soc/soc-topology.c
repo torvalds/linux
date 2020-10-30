@@ -79,8 +79,6 @@ struct soc_tplg {
 
 static int soc_tplg_process_headers(struct soc_tplg *tplg);
 static void soc_tplg_complete(struct soc_tplg *tplg);
-static void soc_tplg_denum_remove_texts(struct soc_enum *se);
-static void soc_tplg_denum_remove_values(struct soc_enum *se);
 
 /* check we dont overflow the data for this control chunk */
 static int soc_tplg_check_elem_count(struct soc_tplg *tplg, size_t elem_size,
@@ -375,7 +373,6 @@ static void remove_enum(struct snd_soc_component *comp,
 	struct snd_soc_dobj *dobj, int pass)
 {
 	struct snd_card *card = comp->card->snd_card;
-	struct soc_enum *se = container_of(dobj, struct soc_enum, dobj);
 
 	if (pass != SOC_TPLG_PASS_MIXER)
 		return;
@@ -385,9 +382,6 @@ static void remove_enum(struct snd_soc_component *comp,
 
 	snd_ctl_remove(card, dobj->control.kcontrol);
 	list_del(&dobj->list);
-
-	soc_tplg_denum_remove_values(se);
-	soc_tplg_denum_remove_texts(se);
 }
 
 /* remove a byte kcontrol */
@@ -445,14 +439,8 @@ static void remove_widget(struct snd_soc_component *comp,
 		/* enumerated widget mixer */
 		for (i = 0; w->kcontrols != NULL && i < w->num_kcontrols; i++) {
 			struct snd_kcontrol *kcontrol = w->kcontrols[i];
-			struct soc_enum *se =
-				(struct soc_enum *)kcontrol->private_value;
 
 			snd_ctl_remove(card, kcontrol);
-
-			/* free enum kcontrol's dvalues and dtexts */
-			soc_tplg_denum_remove_values(se);
-			soc_tplg_denum_remove_texts(se);
 
 		}
 	} else {
@@ -703,11 +691,6 @@ static int soc_tplg_create_tlv(struct soc_tplg *tplg,
 	return 0;
 }
 
-static inline void soc_tplg_free_tlv(struct soc_tplg *tplg,
-	struct snd_kcontrol_new *kc)
-{
-}
-
 static int soc_tplg_dbytes_create(struct soc_tplg *tplg, unsigned int count,
 	size_t size)
 {
@@ -868,7 +851,6 @@ static int soc_tplg_dmixer_create(struct soc_tplg *tplg, unsigned int count,
 		if (err < 0) {
 			dev_err(tplg->dev, "ASoC: failed to init %s\n",
 				mc->hdr.name);
-			soc_tplg_free_tlv(tplg, &kc);
 			break;
 		}
 
@@ -878,7 +860,6 @@ static int soc_tplg_dmixer_create(struct soc_tplg *tplg, unsigned int count,
 		if (err < 0) {
 			dev_err(tplg->dev, "ASoC: failed to add %s\n",
 				mc->hdr.name);
-			soc_tplg_free_tlv(tplg, &kc);
 			break;
 		}
 
@@ -918,13 +899,7 @@ static int soc_tplg_denum_create_texts(struct soc_tplg *tplg, struct soc_enum *s
 	return 0;
 
 err:
-	se->items = i;
-	soc_tplg_denum_remove_texts(se);
 	return ret;
-}
-
-static inline void soc_tplg_denum_remove_texts(struct soc_enum *se)
-{
 }
 
 static int soc_tplg_denum_create_values(struct soc_tplg *tplg, struct soc_enum *se,
@@ -947,10 +922,6 @@ static int soc_tplg_denum_create_values(struct soc_tplg *tplg, struct soc_enum *
 	}
 
 	return 0;
-}
-
-static inline void soc_tplg_denum_remove_values(struct soc_enum *se)
-{
 }
 
 static int soc_tplg_denum_create(struct soc_tplg *tplg, unsigned int count,
@@ -1322,10 +1293,6 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_dmixer_create(
 	return kc;
 
 err_sm:
-	for (; i >= 0; i--) {
-		soc_tplg_free_tlv(tplg, &kc[i]);
-	}
-
 	return NULL;
 }
 
@@ -1422,17 +1389,6 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_denum_create(
 	return kc;
 
 err_se:
-	for (; i >= 0; i--) {
-		/* free values and texts */
-		se = (struct soc_enum *)kc[i].private_value;
-
-		if (se) {
-			soc_tplg_denum_remove_values(se);
-			soc_tplg_denum_remove_texts(se);
-		}
-
-	}
-
 	return NULL;
 }
 
