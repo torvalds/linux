@@ -25,6 +25,7 @@ properties:
     enum:
       - mediatek,mt8173-power-controller
       - mediatek,mt8183-power-controller
+      - mediatek,mt8192-power-controller
 
   '#power-domain-cells':
     const: 1
@@ -60,6 +61,7 @@ patternProperties:
           Power domain index. Valid values are defined in:
               "include/dt-bindings/power/mt8173-power.h" - for MT8173 type power domain.
               "include/dt-bindings/power/mt8183-power.h" - for MT8183 type power domain.
+              "include/dt-bindings/power/mt8192-power.h" - for MT8192 type power domain.
         maxItems: 1
 
       clocks:
