@@ -3918,9 +3918,9 @@ static int handle_one_map(struct ceph_osd_client *osdc,
 	set_pool_was_full(osdc);
 
 	if (incremental)
-		newmap = osdmap_apply_incremental(&p, end, osdc->osdmap);
+		newmap = osdmap_apply_incremental(&p, end, false, osdc->osdmap);
 	else
-		newmap = ceph_osdmap_decode(&p, end);
+		newmap = ceph_osdmap_decode(&p, end, false);
 	if (IS_ERR(newmap))
 		return PTR_ERR(newmap);
 

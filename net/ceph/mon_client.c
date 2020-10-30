@@ -36,57 +36,122 @@ static const struct ceph_connection_operations mon_con_ops;
 
 static int __validate_auth(struct ceph_mon_client *monc);
 
+static int decode_mon_info(void **p, void *end, bool msgr2,
+			   struct ceph_entity_addr *addr)
+{
+	void *mon_info_end;
+	u32 struct_len;
+	u8 struct_v;
+	int ret;
+
+	ret = ceph_start_decoding(p, end, 1, "mon_info_t", &struct_v,
+				  &struct_len);
+	if (ret)
+		return ret;
+
+	mon_info_end = *p + struct_len;
+	ceph_decode_skip_string(p, end, e_inval);  /* skip mon name */
+	ret = ceph_decode_entity_addrvec(p, end, msgr2, addr);
+	if (ret)
+		return ret;
+
+	*p = mon_info_end;
+	return 0;
+
+e_inval:
+	return -EINVAL;
+}
+
 /*
  * Decode a monmap blob (e.g., during mount).
+ *
+ * Assume MonMap v3 (i.e. encoding with MONNAMES and MONENC).
  */
-static struct ceph_monmap *ceph_monmap_decode(void *p, void *end)
+static struct ceph_monmap *ceph_monmap_decode(void **p, void *end, bool msgr2)
 {
-	struct ceph_monmap *m = NULL;
-	int i, err = -EINVAL;
+	struct ceph_monmap *monmap = NULL;
 	struct ceph_fsid fsid;
-	u32 epoch, num_mon;
-	u32 len;
+	u32 struct_len;
+	int blob_len;
+	int num_mon;
+	u8 struct_v;
+	u32 epoch;
+	int ret;
+	int i;
 
-	ceph_decode_32_safe(&p, end, len, bad);
-	ceph_decode_need(&p, end, len, bad);
+	ceph_decode_32_safe(p, end, blob_len, e_inval);
+	ceph_decode_need(p, end, blob_len, e_inval);
 
-	dout("monmap_decode %p %p len %d (%d)\n", p, end, len, (int)(end-p));
-	p += sizeof(u16);  /* skip version */
+	ret = ceph_start_decoding(p, end, 6, "monmap", &struct_v, &struct_len);
+	if (ret)
+		goto fail;
 
-	ceph_decode_need(&p, end, sizeof(fsid) + 2*sizeof(u32), bad);
-	ceph_decode_copy(&p, &fsid, sizeof(fsid));
-	epoch = ceph_decode_32(&p);
+	dout("%s struct_v %d\n", __func__, struct_v);
+	ceph_decode_copy_safe(p, end, &fsid, sizeof(fsid), e_inval);
+	ceph_decode_32_safe(p, end, epoch, e_inval);
+	if (struct_v >= 6) {
+		u32 feat_struct_len;
+		u8 feat_struct_v;
 
-	num_mon = ceph_decode_32(&p);
+		*p += sizeof(struct ceph_timespec);  /* skip last_changed */
+		*p += sizeof(struct ceph_timespec);  /* skip created */
 
-	if (num_mon > CEPH_MAX_MON)
-		goto bad;
-	m = kmalloc(struct_size(m, mon_inst, num_mon), GFP_NOFS);
-	if (m == NULL)
-		return ERR_PTR(-ENOMEM);
-	m->fsid = fsid;
-	m->epoch = epoch;
-	m->num_mon = num_mon;
-	for (i = 0; i < num_mon; ++i) {
-		struct ceph_entity_inst *inst = &m->mon_inst[i];
+		ret = ceph_start_decoding(p, end, 1, "mon_feature_t",
+					  &feat_struct_v, &feat_struct_len);
+		if (ret)
+			goto fail;
 
-		/* copy name portion */
-		ceph_decode_copy_safe(&p, end, &inst->name,
-					sizeof(inst->name), bad);
-		err = ceph_decode_entity_addr(&p, end, &inst->addr);
-		if (err)
-			goto bad;
+		*p += feat_struct_len;  /* skip persistent_features */
+
+		ret = ceph_start_decoding(p, end, 1, "mon_feature_t",
+					  &feat_struct_v, &feat_struct_len);
+		if (ret)
+			goto fail;
+
+		*p += feat_struct_len;  /* skip optional_features */
 	}
-	dout("monmap_decode epoch %d, num_mon %d\n", m->epoch,
-	     m->num_mon);
-	for (i = 0; i < m->num_mon; i++)
-		dout("monmap_decode  mon%d is %s\n", i,
-		     ceph_pr_addr(&m->mon_inst[i].addr));
-	return m;
-bad:
-	dout("monmap_decode failed with %d\n", err);
-	kfree(m);
-	return ERR_PTR(err);
+	ceph_decode_32_safe(p, end, num_mon, e_inval);
+
+	dout("%s fsid %pU epoch %u num_mon %d\n", __func__, &fsid, epoch,
+	     num_mon);
+	if (num_mon > CEPH_MAX_MON)
+		goto e_inval;
+
+	monmap = kmalloc(struct_size(monmap, mon_inst, num_mon), GFP_NOIO);
+	if (!monmap) {
+		ret = -ENOMEM;
+		goto fail;
+	}
+	monmap->fsid = fsid;
+	monmap->epoch = epoch;
+	monmap->num_mon = num_mon;
+
+	/* legacy_mon_addr map or mon_info map */
+	for (i = 0; i < num_mon; i++) {
+		struct ceph_entity_inst *inst = &monmap->mon_inst[i];
+
+		ceph_decode_skip_string(p, end, e_inval);  /* skip mon name */
+		inst->name.type = CEPH_ENTITY_TYPE_MON;
+		inst->name.num = cpu_to_le64(i);
+
+		if (struct_v >= 6)
+			ret = decode_mon_info(p, end, msgr2, &inst->addr);
+		else
+			ret = ceph_decode_entity_addr(p, end, &inst->addr);
+		if (ret)
+			goto fail;
+
+		dout("%s mon%d addr %s\n", __func__, i,
+		     ceph_pr_addr(&inst->addr));
+	}
+
+	return monmap;
+
+e_inval:
+	ret = -EINVAL;
+fail:
+	kfree(monmap);
+	return ERR_PTR(ret);
 }
 
 /*
@@ -476,7 +541,7 @@ static void ceph_monc_handle_map(struct ceph_mon_client *monc,
 	p = msg->front.iov_base;
 	end = p + msg->front.iov_len;
 
-	monmap = ceph_monmap_decode(p, end);
+	monmap = ceph_monmap_decode(&p, end, false);
 	if (IS_ERR(monmap)) {
 		pr_err("problem decoding monmap, %d\n",
 		       (int)PTR_ERR(monmap));

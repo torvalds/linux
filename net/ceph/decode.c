@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <linux/ceph/ceph_debug.h>
 
 #include <linux/ceph/decode.h>
 
@@ -82,3 +83,58 @@ bad:
 }
 EXPORT_SYMBOL(ceph_decode_entity_addr);
 
+/*
+ * Return addr of desired type (MSGR2 or LEGACY) or error.
+ * Make sure there is only one match.
+ *
+ * Assume encoding with MSG_ADDR2.
+ */
+int ceph_decode_entity_addrvec(void **p, void *end, bool msgr2,
+			       struct ceph_entity_addr *addr)
+{
+	__le32 my_type = msgr2 ? CEPH_ENTITY_ADDR_TYPE_MSGR2 :
+				 CEPH_ENTITY_ADDR_TYPE_LEGACY;
+	struct ceph_entity_addr tmp_addr;
+	int addr_cnt;
+	bool found;
+	u8 marker;
+	int ret;
+	int i;
+
+	ceph_decode_8_safe(p, end, marker, e_inval);
+	if (marker != 2) {
+		pr_err("bad addrvec marker %d\n", marker);
+		return -EINVAL;
+	}
+
+	ceph_decode_32_safe(p, end, addr_cnt, e_inval);
+
+	found = false;
+	for (i = 0; i < addr_cnt; i++) {
+		ret = ceph_decode_entity_addr(p, end, &tmp_addr);
+		if (ret)
+			return ret;
+
+		if (tmp_addr.type == my_type) {
+			if (found) {
+				pr_err("another match of type %d in addrvec\n",
+				       le32_to_cpu(my_type));
+				return -EINVAL;
+			}
+
+			memcpy(addr, &tmp_addr, sizeof(*addr));
+			found = true;
+		}
+	}
+	if (!found && addr_cnt != 0) {
+		pr_err("no match of type %d in addrvec\n",
+		       le32_to_cpu(my_type));
+		return -ENOENT;
+	}
+
+	return 0;
+
+e_inval:
+	return -EINVAL;
+}
+EXPORT_SYMBOL(ceph_decode_entity_addrvec);
