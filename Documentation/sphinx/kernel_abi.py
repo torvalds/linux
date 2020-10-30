@@ -73,12 +73,13 @@ class KernelCmd(Directive):
     u"""KernelABI (``kernel-abi``) directive"""
 
     required_arguments = 1
-    optional_arguments = 0
+    optional_arguments = 2
     has_content = False
     final_argument_whitespace = True
 
     option_spec = {
-        "debug"     : directives.flag
+        "debug"     : directives.flag,
+        "rst"       : directives.unchanged
     }
 
     def run(self):
@@ -91,6 +92,9 @@ class KernelCmd(Directive):
         cwd = path.dirname(doc.current_source)
         cmd = "get_abi.pl rest --enable-lineno --dir "
         cmd += self.arguments[0]
+
+        if 'rst' in self.options:
+            cmd += " --rst-source"
 
         srctree = path.abspath(os.environ["srctree"])
 
