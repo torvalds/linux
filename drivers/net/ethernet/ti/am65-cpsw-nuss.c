@@ -241,8 +241,8 @@ static int am65_cpsw_nuss_ndo_slave_add_vid(struct net_device *ndev,
 	if (!vid)
 		unreg_mcast = port_mask;
 	dev_info(common->dev, "Adding vlan %d to vlan filter\n", vid);
-	ret = cpsw_ale_add_vlan(common->ale, vid, port_mask,
-				unreg_mcast, port_mask, 0);
+	ret = cpsw_ale_vlan_add_modify(common->ale, vid, port_mask,
+				       unreg_mcast, port_mask, 0);
 
 	pm_runtime_put(common->dev);
 	return ret;
@@ -252,6 +252,7 @@ static int am65_cpsw_nuss_ndo_slave_kill_vid(struct net_device *ndev,
 					     __be16 proto, u16 vid)
 {
 	struct am65_cpsw_common *common = am65_ndev_to_common(ndev);
+	struct am65_cpsw_port *port = am65_ndev_to_port(ndev);
 	int ret;
 
 	if (!netif_running(ndev) || !vid)
@@ -264,7 +265,8 @@ static int am65_cpsw_nuss_ndo_slave_kill_vid(struct net_device *ndev,
 	}
 
 	dev_info(common->dev, "Removing vlan %d from vlan filter\n", vid);
-	ret = cpsw_ale_del_vlan(common->ale, vid, 0);
+	ret = cpsw_ale_del_vlan(common->ale, vid,
+				BIT(port->port_id) | ALE_PORT_HOST);
 
 	pm_runtime_put(common->dev);
 	return ret;
