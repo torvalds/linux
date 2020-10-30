@@ -1265,9 +1265,7 @@ static int saa7134_g_fmt_vid_overlay(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
 	struct saa7134_dev *dev = video_drvdata(file);
-	struct v4l2_clip __user *clips = f->fmt.win.clips;
 	u32 clipcount = f->fmt.win.clipcount;
-	int err = 0;
 	int i;
 
 	if (saa7134_no_overlay > 0) {
@@ -1275,20 +1273,18 @@ static int saa7134_g_fmt_vid_overlay(struct file *file, void *priv,
 		return -EINVAL;
 	}
 	f->fmt.win = dev->win;
-	f->fmt.win.clips = clips;
-	if (clips == NULL)
+	if (!f->fmt.win.clips)
 		clipcount = 0;
 	if (dev->nclips < clipcount)
 		clipcount = dev->nclips;
 	f->fmt.win.clipcount = clipcount;
 
-	for (i = 0; !err && i < clipcount; i++) {
-		if (copy_to_user(&f->fmt.win.clips[i].c, &dev->clips[i].c,
-					sizeof(struct v4l2_rect)))
-			err = -EFAULT;
+	for (i = 0; i < clipcount; i++) {
+		memcpy(&f->fmt.win.clips[i].c, &dev->clips[i].c,
+		       sizeof(struct v4l2_rect));
 	}
 
-	return err;
+	return 0;
 }
 
 static int saa7134_try_fmt_vid_cap(struct file *file, void *priv,
@@ -1396,9 +1392,8 @@ static int saa7134_s_fmt_vid_overlay(struct file *file, void *priv,
 	dev->win    = f->fmt.win;
 	dev->nclips = f->fmt.win.clipcount;
 
-	if (copy_from_user(dev->clips, f->fmt.win.clips,
-			   sizeof(struct v4l2_clip) * dev->nclips))
-		return -EFAULT;
+	memcpy(dev->clips, f->fmt.win.clips,
+	       sizeof(struct v4l2_clip) * dev->nclips);
 
 	if (priv == dev->overlay_owner) {
 		spin_lock_irqsave(&dev->slock, flags);

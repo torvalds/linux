@@ -2143,12 +2143,8 @@ static int setup_window_lock(struct bttv_fh *fh, struct bttv *btv,
 	clips = kmalloc(size,GFP_KERNEL);
 	if (NULL == clips)
 		return -ENOMEM;
-	if (n > 0) {
-		if (copy_from_user(clips,win->clips,sizeof(struct v4l2_clip)*n)) {
-			kfree(clips);
-			return -EFAULT;
-		}
-	}
+	if (n > 0)
+		memcpy(clips, win->clips, sizeof(struct v4l2_clip) * n);
 
 	/* clip against screen */
 	if (NULL != btv->fbuf.base)
