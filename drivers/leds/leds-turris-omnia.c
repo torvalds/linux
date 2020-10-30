@@ -174,10 +174,10 @@ static ssize_t brightness_store(struct device *dev, struct device_attribute *a,
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct omnia_leds *leds = i2c_get_clientdata(client);
-	unsigned int brightness;
+	unsigned long brightness;
 	int ret;
 
-	if (sscanf(buf, "%u", &brightness) != 1)
+	if (kstrtoul(buf, 10, &brightness))
 		return -EINVAL;
 
 	if (brightness > 100)
