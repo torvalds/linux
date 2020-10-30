@@ -733,7 +733,7 @@ void geni_se_tx_dma_unprep(struct geni_se *se, dma_addr_t iova, size_t len)
 {
 	struct geni_wrapper *wrapper = se->wrapper;
 
-	if (iova && !dma_mapping_error(wrapper->dev, iova))
+	if (!dma_mapping_error(wrapper->dev, iova))
 		dma_unmap_single(wrapper->dev, iova, len, DMA_TO_DEVICE);
 }
 EXPORT_SYMBOL(geni_se_tx_dma_unprep);
@@ -750,7 +750,7 @@ void geni_se_rx_dma_unprep(struct geni_se *se, dma_addr_t iova, size_t len)
 {
 	struct geni_wrapper *wrapper = se->wrapper;
 
-	if (iova && !dma_mapping_error(wrapper->dev, iova))
+	if (!dma_mapping_error(wrapper->dev, iova))
 		dma_unmap_single(wrapper->dev, iova, len, DMA_FROM_DEVICE);
 }
 EXPORT_SYMBOL(geni_se_rx_dma_unprep);
