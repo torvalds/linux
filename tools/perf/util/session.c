@@ -1937,7 +1937,6 @@ static int __perf_session__process_pipe_events(struct perf_session *session)
 {
 	struct ordered_events *oe = &session->ordered_events;
 	struct perf_tool *tool = session->tool;
-	int fd = perf_data__fd(session->data);
 	union perf_event *event;
 	uint32_t size, cur_size = 0;
 	void *buf = NULL;
@@ -1957,7 +1956,8 @@ static int __perf_session__process_pipe_events(struct perf_session *session)
 	ordered_events__set_copy_on_queue(oe, true);
 more:
 	event = buf;
-	err = readn(fd, event, sizeof(struct perf_event_header));
+	err = perf_data__read(session->data, event,
+			      sizeof(struct perf_event_header));
 	if (err <= 0) {
 		if (err == 0)
 			goto done;
@@ -1989,7 +1989,8 @@ more:
 	p += sizeof(struct perf_event_header);
 
 	if (size - sizeof(struct perf_event_header)) {
-		err = readn(fd, p, size - sizeof(struct perf_event_header));
+		err = perf_data__read(session->data, p,
+				      size - sizeof(struct perf_event_header));
 		if (err <= 0) {
 			if (err == 0) {
 				pr_err("unexpected end of event stream\n");

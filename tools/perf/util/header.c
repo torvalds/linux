@@ -3647,7 +3647,8 @@ static int perf_file_section__process(struct perf_file_section *section,
 }
 
 static int perf_file_header__read_pipe(struct perf_pipe_file_header *header,
-				       struct perf_header *ph, int fd,
+				       struct perf_header *ph,
+				       struct perf_data* data,
 				       bool repipe)
 {
 	struct feat_fd ff = {
@@ -3656,7 +3657,7 @@ static int perf_file_header__read_pipe(struct perf_pipe_file_header *header,
 	};
 	ssize_t ret;
 
-	ret = readn(fd, header, sizeof(*header));
+	ret = perf_data__read(data, header, sizeof(*header));
 	if (ret <= 0)
 		return -1;
 
@@ -3679,8 +3680,7 @@ static int perf_header__read_pipe(struct perf_session *session)
 	struct perf_header *header = &session->header;
 	struct perf_pipe_file_header f_header;
 
-	if (perf_file_header__read_pipe(&f_header, header,
-					perf_data__fd(session->data),
+	if (perf_file_header__read_pipe(&f_header, header, session->data,
 					session->repipe) < 0) {
 		pr_debug("incompatible file format\n");
 		return -EINVAL;
