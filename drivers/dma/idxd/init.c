@@ -214,17 +214,14 @@ static void idxd_read_table_offsets(struct idxd_device *idxd)
 	struct device *dev = &idxd->pdev->dev;
 
 	offsets.bits[0] = ioread64(idxd->reg_base + IDXD_TABLE_OFFSET);
-	offsets.bits[1] = ioread64(idxd->reg_base + IDXD_TABLE_OFFSET
-			+ sizeof(u64));
-	idxd->grpcfg_offset = offsets.grpcfg * 0x100;
+	offsets.bits[1] = ioread64(idxd->reg_base + IDXD_TABLE_OFFSET + sizeof(u64));
+	idxd->grpcfg_offset = offsets.grpcfg * IDXD_TABLE_MULT;
 	dev_dbg(dev, "IDXD Group Config Offset: %#x\n", idxd->grpcfg_offset);
-	idxd->wqcfg_offset = offsets.wqcfg * 0x100;
-	dev_dbg(dev, "IDXD Work Queue Config Offset: %#x\n",
-		idxd->wqcfg_offset);
-	idxd->msix_perm_offset = offsets.msix_perm * 0x100;
-	dev_dbg(dev, "IDXD MSIX Permission Offset: %#x\n",
-		idxd->msix_perm_offset);
-	idxd->perfmon_offset = offsets.perfmon * 0x100;
+	idxd->wqcfg_offset = offsets.wqcfg * IDXD_TABLE_MULT;
+	dev_dbg(dev, "IDXD Work Queue Config Offset: %#x\n", idxd->wqcfg_offset);
+	idxd->msix_perm_offset = offsets.msix_perm * IDXD_TABLE_MULT;
+	dev_dbg(dev, "IDXD MSIX Permission Offset: %#x\n", idxd->msix_perm_offset);
+	idxd->perfmon_offset = offsets.perfmon * IDXD_TABLE_MULT;
 	dev_dbg(dev, "IDXD Perfmon Offset: %#x\n", idxd->perfmon_offset);
 }
 

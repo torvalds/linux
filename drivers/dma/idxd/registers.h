@@ -102,6 +102,8 @@ union offsets_reg {
 	u64 bits[2];
 } __packed;
 
+#define IDXD_TABLE_MULT			0x100
+
 #define IDXD_GENCFG_OFFSET		0x80
 union gencfg_reg {
 	struct {
