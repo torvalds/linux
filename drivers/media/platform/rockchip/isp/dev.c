@@ -828,6 +828,8 @@ static const struct dev_pm_ops rkisp_plat_pm_ops = {
 
 static const struct of_device_id rkisp_plat_of_match[] = {
 	{
+		.compatible = "rockchip,rkisp-vir",
+	}, {
 		.compatible = "rockchip,rv1126-rkisp-vir",
 	},
 	{},
