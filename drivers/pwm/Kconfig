@@ -75,7 +75,8 @@ config PWM_ATMEL_HLCDC_PWM
 
 config PWM_ATMEL_TCB
 	tristate "Atmel TC Block PWM support"
-	depends on ATMEL_TCLIB && OF
+	depends on OF
+	select REGMAP_MMIO
 	help
 	  Generic PWM framework driver for Atmel Timer Counter Block.
 
