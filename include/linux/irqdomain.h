@@ -37,6 +37,7 @@
 #include <linux/radix-tree.h>
 
 struct device_node;
+struct fwnode_handle;
 struct irq_domain;
 struct irq_chip;
 struct irq_data;
