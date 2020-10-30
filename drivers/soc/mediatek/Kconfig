@@ -48,7 +48,6 @@ config MTK_SCPSYS_PM_DOMAINS
 	bool "MediaTek SCPSYS generic power domain"
 	default ARCH_MEDIATEK
 	depends on PM
-	depends on MTK_INFRACFG
 	select PM_GENERIC_DOMAINS
 	select REGMAP
 	help
