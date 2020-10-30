@@ -114,8 +114,14 @@ static int amdgpu_mes_doorbell_init(struct amdgpu_device *adev)
 	size_t doorbell_start_offset;
 	size_t doorbell_aperture_size;
 	size_t doorbell_process_limit;
+	size_t aggregated_doorbell_start;
+	int i;
 
-	doorbell_start_offset = (adev->doorbell_index.max_assignment+1) * sizeof(u32);
+	aggregated_doorbell_start = (adev->doorbell_index.max_assignment + 1) * sizeof(u32);
+	aggregated_doorbell_start =
+		roundup(aggregated_doorbell_start, PAGE_SIZE);
+
+	doorbell_start_offset = aggregated_doorbell_start + PAGE_SIZE;
 	doorbell_start_offset =
 		roundup(doorbell_start_offset,
 			amdgpu_mes_doorbell_process_slice(adev));
@@ -134,6 +140,11 @@ static int amdgpu_mes_doorbell_init(struct amdgpu_device *adev)
 
 	adev->mes.doorbell_id_offset = doorbell_start_offset / sizeof(u32);
 	adev->mes.max_doorbell_slices = doorbell_process_limit;
+
+	/* allocate Qword range for aggregated doorbell */
+	for (i = 0; i < AMDGPU_MES_PRIORITY_NUM_LEVELS; i++)
+		adev->mes.aggregated_doorbells[i] =
+			aggregated_doorbell_start / sizeof(u32) + i * 2;
 
 	DRM_INFO("max_doorbell_slices=%zu\n", doorbell_process_limit);
 	return 0;
@@ -173,9 +184,6 @@ int amdgpu_mes_init(struct amdgpu_device *adev)
 		else
 			adev->mes.sdma_hqd_mask[i] = 0xfc;
 	}
-
-	for (i = 0; i < AMDGPU_MES_PRIORITY_NUM_LEVELS; i++)
-		adev->mes.agreegated_doorbells[i] = 0xffffffff;
 
 	r = amdgpu_device_wb_get(adev, &adev->mes.sch_ctx_offs);
 	if (r) {
