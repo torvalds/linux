@@ -162,7 +162,7 @@ extern void ftrace_record_recursion(unsigned long ip, unsigned long parent_ip);
 static __always_inline int trace_test_and_set_recursion(unsigned long ip, unsigned long pip,
 							int start, int max)
 {
-	unsigned int val = current->trace_recursion;
+	unsigned int val = READ_ONCE(current->trace_recursion);
 	int bit;
 
 	/* A previous recursion check was made */
@@ -176,17 +176,14 @@ static __always_inline int trace_test_and_set_recursion(unsigned long ip, unsign
 		 * a switch between contexts. Allow for a single recursion.
 		 */
 		bit = TRACE_TRANSITION_BIT;
-		if (trace_recursion_test(bit)) {
+		if (val & (1 << bit)) {
 			do_ftrace_record_recursion(ip, pip);
 			return -1;
 		}
-		trace_recursion_set(bit);
-		barrier();
-		return bit + 1;
+	} else {
+		/* Normal check passed, clear the transition to allow it again */
+		val &= ~(1 << TRACE_TRANSITION_BIT);
 	}
-
-	/* Normal check passed, clear the transition to allow it again */
-	trace_recursion_clear(TRACE_TRANSITION_BIT);
 
 	val |= 1 << bit;
 	current->trace_recursion = val;
@@ -197,17 +194,12 @@ static __always_inline int trace_test_and_set_recursion(unsigned long ip, unsign
 
 static __always_inline void trace_clear_recursion(int bit)
 {
-	unsigned int val = current->trace_recursion;
-
 	if (!bit)
 		return;
 
-	bit--;
-	bit = 1 << bit;
-	val &= ~bit;
-
 	barrier();
-	current->trace_recursion = val;
+	bit--;
+	trace_recursion_clear(bit);
 }
 
 /**
