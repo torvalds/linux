@@ -349,6 +349,7 @@ properties:
               - abb,aristainetos-imx6dl-7     # aristainetos i.MX6 Dual Lite Board 7
               - abb,aristainetos2-imx6dl-4    # aristainetos2 i.MX6 Dual Lite Board 4
               - abb,aristainetos2-imx6dl-7    # aristainetos2 i.MX6 Dual Lite Board 7
+              - alt,alti6p                    # Altesco I6P Board
               - boundary,imx6dl-nit6xlite     # Boundary Devices Nitrogen6 Lite
               - boundary,imx6dl-nitrogen6x    # Boundary Devices Nitrogen6x
               - bticino,imx6dl-mamoj      # BTicino i.MX6DL Mamoj
