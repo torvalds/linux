@@ -347,6 +347,8 @@ static struct siw_device *siw_device_create(struct net_device *netdev)
 				    addr);
 	}
 
+	base_dev->uverbs_cmd_mask |= BIT_ULL(IB_USER_VERBS_CMD_POST_SEND);
+
 	base_dev->node_type = RDMA_NODE_RNIC;
 	memcpy(base_dev->node_desc, SIW_NODE_DESC_COMMON,
 	       sizeof(SIW_NODE_DESC_COMMON));
