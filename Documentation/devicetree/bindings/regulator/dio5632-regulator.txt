@@ -1,0 +1,39 @@
+DIO5632 regulators
+
+Required properties:
+- compatible: "DIO5632"
+- reg: I2C slave address
+
+Optional Subnode:
+Device supports two regulators OUTP and OUTN. A sub node within the
+   device node describe the properties of these regulators. The sub-node
+   names must be as follows:
+	-For regulator outp, the sub node name should be "outp".
+	-For regulator outn, the sub node name should be "outn".
+
+-enable-gpios:(active high, output) Regulators are controlled by the input pins.
+   If it is connected to GPIO through host system then provide the
+   gpio number as per gpio.txt.
+
+Each regulator is defined using the standard binding for regulators.
+
+Example:
+
+	dio5632@3e {
+		compatible = "DIO5632";
+		reg = <0x3e>;
+
+		outp {
+			regulator-name = "outp";
+			regulator-boot-on;
+			regulator-always-on;
+			enable-gpios = <&gpio0 RK_PB7 GPIO_ACTIVE_HIGH>;
+		};
+
+		outn {
+			regulator-name = "outn";
+			regulator-boot-on;
+			regulator-always-on;
+			enable-gpios = <&gpio0  RK_PC0 GPIO_ACTIVE_HIGH>;
+		};
+	};

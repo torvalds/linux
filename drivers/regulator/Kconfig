@@ -1048,5 +1048,13 @@ config REGULATOR_XZ3216
 	help
 	  Support the voltage and current regulators of the XZ321X series of DCDC devices.
 
+config REGULATOR_DIO5632
+	tristate "DIO5632 Dual Output Power regulators"
+	depends on I2C && GPIOLIB
+	select REGMAP_I2C
+	help
+	  This driver supports DIO5632 single inductor - dual output
+	  power supply specifcally designed for display panels.
+
 endif
 
