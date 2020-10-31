@@ -1175,9 +1175,7 @@ u32 vidtv_psi_pmt_write_into(struct vidtv_psi_pmt_write_args args)
 
 	struct vidtv_psi_desc *table_descriptor   = args.pmt->descriptor;
 	struct vidtv_psi_table_pmt_stream *stream = args.pmt->stream;
-	struct vidtv_psi_desc *stream_descriptor  = (stream) ?
-						    args.pmt->stream->descriptor :
-						    NULL;
+	struct vidtv_psi_desc *stream_descriptor;
 
 	struct header_write_args h_args = {};
 	struct psi_write_args psi_args  = {};
@@ -1236,6 +1234,8 @@ u32 vidtv_psi_pmt_write_into(struct vidtv_psi_pmt_write_args args)
 		psi_args.dest_offset = args.offset + nbytes;
 
 		nbytes += vidtv_psi_ts_psi_write_into(psi_args);
+
+		stream_descriptor = stream->descriptor;
 
 		while (stream_descriptor) {
 			/* write the stream descriptors, if any */
@@ -1324,9 +1324,7 @@ u32 vidtv_psi_sdt_write_into(struct vidtv_psi_sdt_write_args args)
 	u32 crc = INITIAL_CRC;
 
 	struct vidtv_psi_table_sdt_service *service = args.sdt->service;
-	struct vidtv_psi_desc *service_desc = (args.sdt->service) ?
-					      args.sdt->service->descriptor :
-					      NULL;
+	struct vidtv_psi_desc *service_desc;
 
 	struct header_write_args h_args = {};
 	struct psi_write_args psi_args  = {};
@@ -1372,6 +1370,8 @@ u32 vidtv_psi_sdt_write_into(struct vidtv_psi_sdt_write_args args)
 		psi_args.dest_offset = args.offset + nbytes;
 
 		nbytes += vidtv_psi_ts_psi_write_into(psi_args);
+
+		service_desc = service->descriptor;
 
 		while (service_desc) {
 			/* copy the service descriptors, if any */
@@ -1616,9 +1616,7 @@ u32 vidtv_psi_nit_write_into(struct vidtv_psi_nit_write_args args)
 
 	struct vidtv_psi_desc *table_descriptor     = args.nit->descriptor;
 	struct vidtv_psi_table_transport *transport = args.nit->transport;
-	struct vidtv_psi_desc *transport_descriptor = (transport) ?
-						       args.nit->transport->descriptor :
-						       NULL;
+	struct vidtv_psi_desc *transport_descriptor;
 
 	struct header_write_args h_args = {};
 	struct psi_write_args psi_args  = {};
@@ -1685,6 +1683,8 @@ u32 vidtv_psi_nit_write_into(struct vidtv_psi_nit_write_args args)
 		psi_args.dest_offset = args.offset + nbytes;
 
 		nbytes += vidtv_psi_ts_psi_write_into(psi_args);
+
+		transport_descriptor = transport->descriptor;
 
 		while (transport_descriptor) {
 			/* write the transport descriptors, if any */
@@ -1823,9 +1823,7 @@ u32 vidtv_psi_eit_write_into(struct vidtv_psi_eit_write_args args)
 	u32 crc = INITIAL_CRC;
 
 	struct vidtv_psi_table_eit_event *event = args.eit->event;
-	struct vidtv_psi_desc *event_descriptor = (args.eit->event) ?
-						   args.eit->event->descriptor :
-						   NULL;
+	struct vidtv_psi_desc *event_descriptor;
 
 	struct header_write_args h_args = {};
 	struct psi_write_args psi_args  = {};
