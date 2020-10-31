@@ -793,17 +793,20 @@ static int device_kill_open_processes(struct hl_device *hdev)
 
 	mutex_unlock(&hdev->fpriv_list_lock);
 
-	/* We killed the open users, but because the driver cleans up after the
-	 * user contexts are closed (e.g. mmu mappings), we need to wait again
-	 * to make sure the cleaning phase is finished before continuing with
-	 * the reset
+	/*
+	 * We killed the open users, but that doesn't mean they are closed.
+	 * It could be that they are running a long cleanup phase in the driver
+	 * e.g. MMU unmappings, or running other long teardown flow even before
+	 * our cleanup.
+	 * Therefore we need to wait again to make sure they are closed before
+	 * continuing with the reset.
 	 */
 
 	pending_cnt = pending_total;
 
 	while ((!list_empty(&hdev->fpriv_list)) && (pending_cnt)) {
 		dev_info(hdev->dev,
-			"Waiting for all unmap operations to finish before hard reset\n");
+			"Waiting for all user contexts to get closed before hard reset\n");
 
 		pending_cnt--;
 
