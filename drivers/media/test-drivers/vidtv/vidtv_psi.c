@@ -31,6 +31,7 @@
 
 #define CRC_SIZE_IN_BYTES 4
 #define MAX_VERSION_NUM 32
+#define INITIAL_CRC 0xffffffff
 
 static const u32 CRC_LUT[256] = {
 	/* from libdvbv5 */
@@ -784,7 +785,7 @@ u32 vidtv_psi_pat_write_into(struct vidtv_psi_pat_write_args args)
 	/* the number of bytes written by this function */
 	u32 nbytes = 0;
 	const u16 pat_pid = VIDTV_PAT_PID;
-	u32 crc = 0xffffffff;
+	u32 crc = INITIAL_CRC;
 
 	struct vidtv_psi_table_pat_program *p = args.pat->program;
 
@@ -974,7 +975,7 @@ u32 vidtv_psi_pmt_write_into(struct vidtv_psi_pmt_write_args args)
 {
 	/* the number of bytes written by this function */
 	u32 nbytes = 0;
-	u32 crc = 0xffffffff;
+	u32 crc = INITIAL_CRC;
 
 	struct vidtv_psi_desc *table_descriptor   = args.pmt->descriptor;
 	struct vidtv_psi_table_pmt_stream *stream = args.pmt->stream;
@@ -1124,7 +1125,7 @@ u32 vidtv_psi_sdt_write_into(struct vidtv_psi_sdt_write_args args)
 	u32 nbytes  = 0;
 	u16 sdt_pid = VIDTV_SDT_PID;  /* see ETSI EN 300 468 v1.15.1 p. 11 */
 
-	u32 crc = 0xffffffff;
+	u32 crc = INITIAL_CRC;
 
 	struct vidtv_psi_table_sdt_service *service = args.sdt->service;
 	struct vidtv_psi_desc *service_desc = (args.sdt->service) ?
