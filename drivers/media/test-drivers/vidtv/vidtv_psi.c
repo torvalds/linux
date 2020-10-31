@@ -314,6 +314,16 @@ static u32 table_section_crc32_write_into(struct crc32_write_args args)
 	return nbytes;
 }
 
+static void vidtv_psi_desc_chain(struct vidtv_psi_desc *head, struct vidtv_psi_desc *desc)
+{
+	if (head) {
+		while (head->next)
+			head = head->next;
+
+		head->next = desc;
+	}
+}
+
 struct vidtv_psi_desc_service *vidtv_psi_service_desc_init(struct vidtv_psi_desc *head,
 							   enum service_type service_type,
 							   char *service_name,
@@ -345,12 +355,7 @@ struct vidtv_psi_desc_service *vidtv_psi_service_desc_init(struct vidtv_psi_desc
 	if (provider_name && provider_name_len)
 		desc->provider_name = kstrdup(provider_name, GFP_KERNEL);
 
-	if (head) {
-		while (head->next)
-			head = head->next;
-
-		head->next = (struct vidtv_psi_desc *)desc;
-	}
+	vidtv_psi_desc_chain(head, (struct vidtv_psi_desc *)desc);
 	return desc;
 }
 
@@ -376,13 +381,7 @@ struct vidtv_psi_desc_registration
 		       additional_ident_info,
 		       additional_info_len);
 
-	if (head) {
-		while (head->next)
-			head = head->next;
-
-		head->next = (struct vidtv_psi_desc *)desc;
-	}
-
+	vidtv_psi_desc_chain(head, (struct vidtv_psi_desc *)desc);
 	return desc;
 }
 
@@ -401,13 +400,7 @@ struct vidtv_psi_desc_network_name
 	if (network_name && network_name_len)
 		desc->network_name = kstrdup(network_name, GFP_KERNEL);
 
-	if (head) {
-		while (head->next)
-			head = head->next;
-
-		head->next = (struct vidtv_psi_desc *)desc;
-	}
-
+	vidtv_psi_desc_chain(head, (struct vidtv_psi_desc *)desc);
 	return desc;
 }
 
@@ -445,13 +438,7 @@ struct vidtv_psi_desc_service_list
 	desc->length = length;
 	desc->service_list = head_e;
 
-	if (head) {
-		while (head->next)
-			head = head->next;
-
-		head->next = (struct vidtv_psi_desc *)desc;
-	}
-
+	vidtv_psi_desc_chain(head, (struct vidtv_psi_desc *)desc);
 	return desc;
 }
 
@@ -490,13 +477,7 @@ struct vidtv_psi_desc_short_event
 	if (text && text_len)
 		desc->text = kstrdup(text, GFP_KERNEL);
 
-	if (head) {
-		while (head->next)
-			head = head->next;
-
-		head->next = (struct vidtv_psi_desc *)desc;
-	}
-
+	vidtv_psi_desc_chain(head, (struct vidtv_psi_desc *)desc);
 	return desc;
 }
 
