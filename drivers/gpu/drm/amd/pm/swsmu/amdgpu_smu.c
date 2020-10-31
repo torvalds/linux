@@ -2029,8 +2029,9 @@ int smu_set_gfx_cgpg(struct smu_context *smu, bool enabled)
 	return ret;
 }
 
-int smu_set_fan_speed_rpm(struct smu_context *smu, uint32_t speed)
+int smu_set_fan_speed_rpm(void *handle, uint32_t speed)
 {
+	struct smu_context *smu = handle;
 	u32 percent;
 	int ret = 0;
 
@@ -2265,12 +2266,13 @@ int smu_set_power_profile_mode(struct smu_context *smu,
 }
 
 
-int smu_get_fan_control_mode(struct smu_context *smu)
+u32 smu_get_fan_control_mode(void *handle)
 {
-	int ret = 0;
+	struct smu_context *smu = handle;
+	u32 ret = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
-		return -EOPNOTSUPP;
+		return AMD_FAN_CTRL_NONE;
 
 	mutex_lock(&smu->mutex);
 
@@ -2287,7 +2289,7 @@ int smu_set_fan_control_mode(struct smu_context *smu, int value)
 	int ret = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
-		return -EOPNOTSUPP;
+		return  -EOPNOTSUPP;
 
 	mutex_lock(&smu->mutex);
 
@@ -2307,8 +2309,16 @@ int smu_set_fan_control_mode(struct smu_context *smu, int value)
 	return ret;
 }
 
-int smu_get_fan_speed_percent(struct smu_context *smu, uint32_t *speed)
+void smu_pp_set_fan_control_mode(void *handle, u32 value) {
+	struct smu_context *smu = handle;
+
+	smu_set_fan_control_mode(smu, value);
+}
+
+
+int smu_get_fan_speed_percent(void *handle, u32 *speed)
 {
+	struct smu_context *smu = handle;
 	int ret = 0;
 	uint32_t percent;
 
@@ -2330,8 +2340,9 @@ int smu_get_fan_speed_percent(struct smu_context *smu, uint32_t *speed)
 	return ret;
 }
 
-int smu_set_fan_speed_percent(struct smu_context *smu, uint32_t speed)
+int smu_set_fan_speed_percent(void *handle, u32 speed)
 {
+	struct smu_context *smu = handle;
 	int ret = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
@@ -2352,8 +2363,9 @@ int smu_set_fan_speed_percent(struct smu_context *smu, uint32_t speed)
 	return ret;
 }
 
-int smu_get_fan_speed_rpm(struct smu_context *smu, uint32_t *speed)
+int smu_get_fan_speed_rpm(void *handle, uint32_t *speed)
 {
+	struct smu_context *smu = handle;
 	int ret = 0;
 	u32 percent;
 
@@ -2738,7 +2750,13 @@ int smu_gfx_state_change_set(struct smu_context *smu, uint32_t state)
 
 static const struct amd_pm_funcs swsmu_pm_funcs = {
 	/* export for sysfs */
+	.set_fan_control_mode  = smu_pp_set_fan_control_mode,
+	.get_fan_control_mode  = smu_get_fan_control_mode,
+	.set_fan_speed_percent = smu_set_fan_speed_percent,
+	.get_fan_speed_percent = smu_get_fan_speed_percent,
 	.get_performance_level = smu_get_performance_level,
+	.get_fan_speed_rpm     = smu_get_fan_speed_rpm,
+	.set_fan_speed_rpm     = smu_set_fan_speed_rpm,
 	.switch_power_profile  = smu_switch_power_profile,
 	/* export to amdgpu */
 	.set_mp1_state         = smu_set_mp1_state,

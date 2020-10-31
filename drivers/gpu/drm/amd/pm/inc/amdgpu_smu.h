@@ -1230,7 +1230,7 @@ int smu_check_fw_status(struct smu_context *smu);
 
 int smu_set_gfx_cgpg(struct smu_context *smu, bool enabled);
 
-int smu_set_fan_speed_rpm(struct smu_context *smu, uint32_t speed);
+int smu_set_fan_speed_rpm(void *handle, uint32_t speed);
 
 int smu_get_power_limit(struct smu_context *smu,
 			uint32_t *limit,
@@ -1252,11 +1252,12 @@ int smu_set_power_profile_mode(struct smu_context *smu,
 			       long *param,
 			       uint32_t param_size,
 			       bool lock_needed);
-int smu_get_fan_control_mode(struct smu_context *smu);
+u32 smu_get_fan_control_mode(void *handle);
 int smu_set_fan_control_mode(struct smu_context *smu, int value);
-int smu_get_fan_speed_percent(struct smu_context *smu, uint32_t *speed);
-int smu_set_fan_speed_percent(struct smu_context *smu, uint32_t speed);
-int smu_get_fan_speed_rpm(struct smu_context *smu, uint32_t *speed);
+void smu_pp_set_fan_control_mode(void *handle, u32 value);
+int smu_get_fan_speed_percent(void *handle, u32 *speed);
+int smu_set_fan_speed_percent(void *handle, u32 speed);
+int smu_get_fan_speed_rpm(void *handle, uint32_t *speed);
 
 int smu_set_deep_sleep_dcefclk(struct smu_context *smu, int clk);
 
