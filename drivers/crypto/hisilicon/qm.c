@@ -473,7 +473,7 @@ static int qm_wait_mb_ready(struct hisi_qm *qm)
 
 	return readl_relaxed_poll_timeout(qm->io_base + QM_MB_CMD_SEND_BASE,
 					  val, !((val >> QM_MB_BUSY_SHIFT) &
-					  0x1), 10, 1000);
+					  0x1), POLL_PERIOD, POLL_TIMEOUT);
 }
 
 /* 128 bit should be written to hardware at one time to trigger a mailbox */
@@ -583,7 +583,8 @@ static int qm_dev_mem_reset(struct hisi_qm *qm)
 
 	writel(0x1, qm->io_base + QM_MEM_START_INIT);
 	return readl_relaxed_poll_timeout(qm->io_base + QM_MEM_INIT_DONE, val,
-					  val & BIT(0), 10, 1000);
+					  val & BIT(0), POLL_PERIOD,
+					  POLL_TIMEOUT);
 }
 
 static u32 qm_get_irq_num_v1(struct hisi_qm *qm)
@@ -804,7 +805,8 @@ static int qm_set_vft_common(struct hisi_qm *qm, enum vft_type type,
 	int ret;
 
 	ret = readl_relaxed_poll_timeout(qm->io_base + QM_VFT_CFG_RDY, val,
-					 val & BIT(0), 10, 1000);
+					 val & BIT(0), POLL_PERIOD,
+					 POLL_TIMEOUT);
 	if (ret)
 		return ret;
 
@@ -818,7 +820,8 @@ static int qm_set_vft_common(struct hisi_qm *qm, enum vft_type type,
 	writel(0x1, qm->io_base + QM_VFT_CFG_OP_ENABLE);
 
 	return readl_relaxed_poll_timeout(qm->io_base + QM_VFT_CFG_RDY, val,
-					  val & BIT(0), 10, 1000);
+					  val & BIT(0), POLL_PERIOD,
+					  POLL_TIMEOUT);
 }
 
 /* The config should be conducted after qm_dev_mem_reset() */
@@ -1785,10 +1788,11 @@ static int qm_qp_ctx_cfg(struct hisi_qp *qp, int qp_id, u32 pasid)
 
 	INIT_QC_COMMON(cqc, qp->cqe_dma, pasid);
 	if (ver == QM_HW_V1) {
-		cqc->dw3 = cpu_to_le32(QM_MK_CQC_DW3_V1(0, 0, 0, 4));
+		cqc->dw3 = cpu_to_le32(QM_MK_CQC_DW3_V1(0, 0, 0,
+							QM_QC_CQE_SIZE));
 		cqc->w8 = cpu_to_le16(QM_Q_DEPTH - 1);
 	} else {
-		cqc->dw3 = cpu_to_le32(QM_MK_CQC_DW3_V2(4));
+		cqc->dw3 = cpu_to_le32(QM_MK_CQC_DW3_V2(QM_QC_CQE_SIZE));
 		cqc->w8 = 0;
 	}
 	cqc->dw6 = cpu_to_le32(1 << QM_CQ_PHASE_SHIFT | 1 << QM_CQ_FLAG_SHIFT);
@@ -2011,7 +2015,8 @@ static void hisi_qm_cache_wb(struct hisi_qm *qm)
 
 	writel(0x1, qm->io_base + QM_CACHE_WB_START);
 	if (readl_relaxed_poll_timeout(qm->io_base + QM_CACHE_WB_DONE,
-					    val, val & BIT(0), 10, 1000))
+				       val, val & BIT(0), POLL_PERIOD,
+				       POLL_TIMEOUT))
 		dev_err(&qm->pdev->dev, "QM writeback sqc cache fail!\n");
 }
 
