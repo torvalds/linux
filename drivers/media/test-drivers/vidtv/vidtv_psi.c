@@ -6,10 +6,6 @@
  * technically be broken into one or more sections, we do not do this here,
  * hence 'table' and 'section' are interchangeable for vidtv.
  *
- * This code currently supports three tables: PAT, PMT and SDT. These are the
- * bare minimum to get userspace to recognize our MPEG transport stream. It can
- * be extended to support more PSI tables in the future.
- *
  * Copyright (C) 2020 Daniel W. S. Almeida
  */
 
@@ -389,6 +385,75 @@ struct vidtv_psi_desc_registration
 	return desc;
 }
 
+struct vidtv_psi_desc_network_name
+*vidtv_psi_network_name_desc_init(struct vidtv_psi_desc *head, char *network_name)
+{
+	struct vidtv_psi_desc_network_name *desc;
+	u32 network_name_len = network_name ? strlen(network_name) : 0;
+
+	desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+
+	desc->type = NETWORK_NAME_DESCRIPTOR;
+
+	desc->length = network_name_len;
+
+	if (network_name && network_name_len)
+		desc->network_name = kstrdup(network_name, GFP_KERNEL);
+
+	if (head) {
+		while (head->next)
+			head = head->next;
+
+		head->next = (struct vidtv_psi_desc *)desc;
+	}
+
+	return desc;
+}
+
+struct vidtv_psi_desc_service_list
+*vidtv_psi_service_list_desc_init(struct vidtv_psi_desc *head,
+				  struct vidtv_psi_desc_service_list_entry *entry)
+{
+	struct vidtv_psi_desc_service_list *desc;
+	struct vidtv_psi_desc_service_list_entry *curr_e = NULL;
+	struct vidtv_psi_desc_service_list_entry *head_e = NULL;
+	struct vidtv_psi_desc_service_list_entry *prev_e = NULL;
+	u16 length = 0;
+
+	desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+
+	desc->type = SERVICE_LIST_DESCRIPTOR;
+
+	while (entry) {
+		curr_e = kzalloc(sizeof(*curr_e), GFP_KERNEL);
+		curr_e->service_id = entry->service_id;
+		curr_e->service_type = entry->service_type;
+
+		length += sizeof(struct vidtv_psi_desc_service_list_entry) -
+			  sizeof(struct vidtv_psi_desc_service_list_entry *);
+
+		if (!head_e)
+			head_e = curr_e;
+		if (prev_e)
+			prev_e->next = curr_e;
+
+		prev_e = curr_e;
+		entry = entry->next;
+	}
+
+	desc->length = length;
+	desc->service_list = head_e;
+
+	if (head) {
+		while (head->next)
+			head = head->next;
+
+		head->next = (struct vidtv_psi_desc *)desc;
+	}
+
+	return desc;
+}
+
 struct vidtv_psi_desc *vidtv_psi_desc_clone(struct vidtv_psi_desc *desc)
 {
 	struct vidtv_psi_desc *head = NULL;
@@ -396,6 +461,8 @@ struct vidtv_psi_desc *vidtv_psi_desc_clone(struct vidtv_psi_desc *desc)
 	struct vidtv_psi_desc *curr = NULL;
 
 	struct vidtv_psi_desc_service *service;
+	struct vidtv_psi_desc_network_name *desc_network_name;
+	struct vidtv_psi_desc_service_list *desc_service_list;
 
 	while (desc) {
 		switch (desc->type) {
@@ -406,6 +473,20 @@ struct vidtv_psi_desc *vidtv_psi_desc_clone(struct vidtv_psi_desc *desc)
 							    service->service_type,
 							    service->service_name,
 							    service->provider_name);
+		break;
+
+		case NETWORK_NAME_DESCRIPTOR:
+			desc_network_name = (struct vidtv_psi_desc_network_name *)desc;
+			curr = (struct vidtv_psi_desc *)
+			       vidtv_psi_network_name_desc_init(head,
+								desc_network_name->network_name);
+		break;
+
+		case SERVICE_LIST_DESCRIPTOR:
+			desc_service_list = (struct vidtv_psi_desc_service_list *)desc;
+			curr = (struct vidtv_psi_desc *)
+				vidtv_psi_service_list_desc_init(head,
+								 desc_service_list->service_list);
 		break;
 
 		case REGISTRATION_DESCRIPTOR:
@@ -433,6 +514,8 @@ void vidtv_psi_desc_destroy(struct vidtv_psi_desc *desc)
 {
 	struct vidtv_psi_desc *curr = desc;
 	struct vidtv_psi_desc *tmp  = NULL;
+	struct vidtv_psi_desc_service_list_entry *sl_entry = NULL;
+	struct vidtv_psi_desc_service_list_entry *sl_entry_tmp = NULL;
 
 	while (curr) {
 		tmp  = curr;
@@ -446,6 +529,19 @@ void vidtv_psi_desc_destroy(struct vidtv_psi_desc *desc)
 			break;
 		case REGISTRATION_DESCRIPTOR:
 			/* nothing to do */
+			break;
+
+		case NETWORK_NAME_DESCRIPTOR:
+			kfree(((struct vidtv_psi_desc_network_name *)tmp)->network_name);
+			break;
+
+		case SERVICE_LIST_DESCRIPTOR:
+			sl_entry = ((struct vidtv_psi_desc_service_list *)tmp)->service_list;
+			while (sl_entry) {
+				sl_entry_tmp = sl_entry;
+				sl_entry = sl_entry->next;
+				kfree(sl_entry_tmp);
+			}
 			break;
 
 		default:
@@ -519,6 +615,7 @@ static u32 vidtv_psi_desc_write_into(struct desc_write_args args)
 	/* the number of bytes written by this function */
 	u32 nbytes = 0;
 	struct psi_write_args psi_args = {};
+	struct vidtv_psi_desc_service_list_entry *serv_list_entry = NULL;
 
 	psi_args.dest_buf = args.dest_buf;
 	psi_args.from     = &args.desc->type;
@@ -562,6 +659,28 @@ static u32 vidtv_psi_desc_write_into(struct desc_write_args args)
 		psi_args.from = ((struct vidtv_psi_desc_service *)args.desc)->service_name;
 
 		nbytes += vidtv_psi_ts_psi_write_into(psi_args);
+		break;
+
+	case NETWORK_NAME_DESCRIPTOR:
+		psi_args.dest_offset = args.dest_offset + nbytes;
+		psi_args.len = args.desc->length;
+		psi_args.from = ((struct vidtv_psi_desc_network_name *)args.desc)->network_name;
+
+		nbytes += vidtv_psi_ts_psi_write_into(psi_args);
+		break;
+
+	case SERVICE_LIST_DESCRIPTOR:
+		serv_list_entry = ((struct vidtv_psi_desc_service_list *)args.desc)->service_list;
+		while (serv_list_entry) {
+			psi_args.dest_offset = args.dest_offset + nbytes;
+			psi_args.len = sizeof(struct vidtv_psi_desc_service_list_entry) -
+				       sizeof(struct vidtv_psi_desc_service_list_entry *);
+			psi_args.from = serv_list_entry;
+
+			nbytes += vidtv_psi_ts_psi_write_into(psi_args);
+
+			serv_list_entry = serv_list_entry->next;
+		}
 		break;
 
 	case REGISTRATION_DESCRIPTOR:
@@ -682,7 +801,6 @@ void vidtv_psi_sdt_table_update_sec_len(struct vidtv_psi_table_sdt *sdt)
 	}
 
 	length += CRC_SIZE_IN_BYTES;
-
 	vidtv_psi_set_sec_len(&sdt->header, length);
 }
 
@@ -1320,4 +1438,221 @@ struct vidtv_psi_table_pmt
 	}
 
 	return NULL; /* not found */
+}
+
+static void vidtv_psi_nit_table_update_sec_len(struct vidtv_psi_table_nit *nit)
+{
+	u16 length = 0;
+	struct vidtv_psi_table_transport *t = nit->transport;
+	u16 desc_loop_len;
+	u16 transport_loop_len = 0;
+
+	/*
+	 * from immediately after 'section_length' until
+	 * 'network_descriptor_length'
+	 */
+	length += NIT_LEN_UNTIL_NETWORK_DESCRIPTOR_LEN;
+
+	desc_loop_len = vidtv_psi_desc_comp_loop_len(nit->descriptor);
+	vidtv_psi_set_desc_loop_len(&nit->bitfield, desc_loop_len, 12);
+
+	length += desc_loop_len;
+
+	length += sizeof_field(struct vidtv_psi_table_nit, bitfield2);
+
+	while (t) {
+		/* skip both pointers at the end */
+		transport_loop_len += sizeof(struct vidtv_psi_table_transport) -
+				      sizeof(struct vidtv_psi_desc *) -
+				      sizeof(struct vidtv_psi_table_transport *);
+
+		length += transport_loop_len;
+
+		desc_loop_len = vidtv_psi_desc_comp_loop_len(t->descriptor);
+		vidtv_psi_set_desc_loop_len(&t->bitfield, desc_loop_len, 12);
+
+		length += desc_loop_len;
+
+		t = t->next;
+	}
+
+	// Actually sets the transport stream loop len, maybe rename this function later
+	vidtv_psi_set_desc_loop_len(&nit->bitfield2, transport_loop_len, 12);
+	length += CRC_SIZE_IN_BYTES;
+
+	vidtv_psi_set_sec_len(&nit->header, length);
+}
+
+struct vidtv_psi_table_nit
+*vidtv_psi_nit_table_init(u16 network_id,
+			  u16 transport_stream_id,
+			  char *network_name,
+			  struct vidtv_psi_desc_service_list_entry *service_list)
+{
+	struct vidtv_psi_table_nit *nit = kzalloc(sizeof(*nit), GFP_KERNEL);
+	struct vidtv_psi_table_transport *transport = kzalloc(sizeof(*transport), GFP_KERNEL);
+
+	const u16 SYNTAX = 0x1;
+	const u16 ONE = 0x1;
+	const u16 ONES = 0x03;
+
+	nit->header.table_id = 0x40; // ACTUAL_NETWORK
+
+	nit->header.bitfield = cpu_to_be16((SYNTAX << 15) | (ONE << 14) | (ONES << 12));
+
+	nit->header.id = cpu_to_be16(network_id);
+	nit->header.current_next = ONE;
+
+	nit->header.version = 0x1f;
+
+	nit->header.one2  = ONES;
+	nit->header.section_id   = 0;
+	nit->header.last_section = 0;
+
+	nit->bitfield = cpu_to_be16(0xf);
+	nit->bitfield2 = cpu_to_be16(0xf);
+
+	nit->descriptor = (struct vidtv_psi_desc *)
+			  vidtv_psi_network_name_desc_init(NULL, network_name);
+
+	transport->transport_id = cpu_to_be16(transport_stream_id);
+	transport->network_id = cpu_to_be16(network_id);
+	transport->bitfield = cpu_to_be16(0xf);
+	transport->descriptor = (struct vidtv_psi_desc *)
+				vidtv_psi_service_list_desc_init(NULL, service_list);
+
+	nit->transport = transport;
+
+	vidtv_psi_nit_table_update_sec_len(nit);
+
+	return nit;
+}
+
+u32 vidtv_psi_nit_write_into(struct vidtv_psi_nit_write_args args)
+{
+	/* the number of bytes written by this function */
+	u32 nbytes = 0;
+	u32 crc = INITIAL_CRC;
+
+	struct vidtv_psi_desc *table_descriptor     = args.nit->descriptor;
+	struct vidtv_psi_table_transport *transport = args.nit->transport;
+	struct vidtv_psi_desc *transport_descriptor = (transport) ?
+						       args.nit->transport->descriptor :
+						       NULL;
+
+	struct header_write_args h_args = {};
+	struct psi_write_args psi_args  = {};
+	struct desc_write_args d_args   = {};
+	struct crc32_write_args c_args  = {};
+
+	vidtv_psi_nit_table_update_sec_len(args.nit);
+
+	h_args.dest_buf           = args.buf;
+	h_args.dest_offset        = args.offset;
+	h_args.h                  = &args.nit->header;
+	h_args.pid                = VIDTV_NIT_PID;
+	h_args.continuity_counter = args.continuity_counter;
+	h_args.dest_buf_sz        = args.buf_sz;
+	h_args.crc                = &crc;
+
+	nbytes += vidtv_psi_table_header_write_into(h_args);
+
+	/* write the bitfield */
+	psi_args.dest_buf = args.buf;
+	psi_args.from     = &args.nit->bitfield;
+	psi_args.len      = sizeof_field(struct vidtv_psi_table_nit, bitfield);
+
+	psi_args.dest_offset        = args.offset + nbytes;
+	psi_args.pid                = VIDTV_NIT_PID;
+	psi_args.new_psi_section    = false;
+	psi_args.continuity_counter = args.continuity_counter;
+	psi_args.is_crc             = false;
+	psi_args.dest_buf_sz        = args.buf_sz;
+	psi_args.crc                = &crc;
+
+	nbytes += vidtv_psi_ts_psi_write_into(psi_args);
+
+	while (table_descriptor) {
+		/* write the descriptors, if any */
+		d_args.dest_buf           = args.buf;
+		d_args.dest_offset        = args.offset + nbytes;
+		d_args.desc               = table_descriptor;
+		d_args.pid                = VIDTV_NIT_PID;
+		d_args.continuity_counter = args.continuity_counter;
+		d_args.dest_buf_sz        = args.buf_sz;
+		d_args.crc                = &crc;
+
+		nbytes += vidtv_psi_desc_write_into(d_args);
+
+		table_descriptor = table_descriptor->next;
+	}
+
+	/* write the second bitfield */
+	psi_args.dest_buf = args.buf;
+	psi_args.from = &args.nit->bitfield2;
+	psi_args.len = sizeof_field(struct vidtv_psi_table_nit, bitfield2);
+	psi_args.dest_offset = args.offset + nbytes;
+	psi_args.pid = VIDTV_NIT_PID;
+
+	nbytes += vidtv_psi_ts_psi_write_into(psi_args);
+
+	while (transport) {
+		/* write the transport sections, if any */
+		psi_args.from = transport;
+		psi_args.len  = sizeof_field(struct vidtv_psi_table_transport, transport_id) +
+				sizeof_field(struct vidtv_psi_table_transport, network_id)   +
+				sizeof_field(struct vidtv_psi_table_transport, bitfield);
+		psi_args.dest_offset = args.offset + nbytes;
+
+		nbytes += vidtv_psi_ts_psi_write_into(psi_args);
+
+		while (transport_descriptor) {
+			/* write the transport descriptors, if any */
+			d_args.dest_buf           = args.buf;
+			d_args.dest_offset        = args.offset + nbytes;
+			d_args.desc               = transport_descriptor;
+			d_args.pid                = VIDTV_NIT_PID;
+			d_args.continuity_counter = args.continuity_counter;
+			d_args.dest_buf_sz        = args.buf_sz;
+			d_args.crc                = &crc;
+
+			nbytes += vidtv_psi_desc_write_into(d_args);
+
+			transport_descriptor = transport_descriptor->next;
+		}
+
+		transport = transport->next;
+	}
+
+	c_args.dest_buf           = args.buf;
+	c_args.dest_offset        = args.offset + nbytes;
+	c_args.crc                = cpu_to_be32(crc);
+	c_args.pid                = VIDTV_NIT_PID;
+	c_args.continuity_counter = args.continuity_counter;
+	c_args.dest_buf_sz        = args.buf_sz;
+
+	/* Write the CRC32 at the end */
+	nbytes += table_section_crc32_write_into(c_args);
+
+	return nbytes;
+}
+
+static void vidtv_psi_transport_destroy(struct vidtv_psi_table_transport *t)
+{
+	struct vidtv_psi_table_transport *curr_t = t;
+	struct vidtv_psi_table_transport *tmp_t  = NULL;
+
+	while (curr_t) {
+		tmp_t  = curr_t;
+		curr_t = curr_t->next;
+		vidtv_psi_desc_destroy(tmp_t->descriptor);
+		kfree(tmp_t);
+	}
+}
+
+void vidtv_psi_nit_table_destroy(struct vidtv_psi_table_nit *nit)
+{
+	vidtv_psi_desc_destroy(nit->descriptor);
+	vidtv_psi_transport_destroy(nit->transport);
+	kfree(nit);
 }

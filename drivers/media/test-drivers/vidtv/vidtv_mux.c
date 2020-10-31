@@ -74,6 +74,8 @@ static void vidtv_mux_pid_ctx_init(struct vidtv_mux *m)
 	vidtv_mux_create_pid_ctx_once(m, VIDTV_PAT_PID);
 	/* push the SDT pid ctx */
 	vidtv_mux_create_pid_ctx_once(m, VIDTV_SDT_PID);
+	/* push the NIT pid ctx */
+	vidtv_mux_create_pid_ctx_once(m, VIDTV_NIT_PID);
 
 	/* add a ctx for all PMT sections */
 	while (p) {
@@ -117,10 +119,12 @@ static u32 vidtv_mux_push_si(struct vidtv_mux *m)
 	struct vidtv_mux_pid_ctx *pat_ctx;
 	struct vidtv_mux_pid_ctx *pmt_ctx;
 	struct vidtv_mux_pid_ctx *sdt_ctx;
+	struct vidtv_mux_pid_ctx *nit_ctx;
 
 	struct vidtv_psi_pat_write_args pat_args = {};
 	struct vidtv_psi_pmt_write_args pmt_args = {};
 	struct vidtv_psi_sdt_write_args sdt_args = {};
+	struct vidtv_psi_nit_write_args nit_args = {};
 
 	u32 nbytes; /* the number of bytes written by this function */
 	u16 pmt_pid;
@@ -128,6 +132,7 @@ static u32 vidtv_mux_push_si(struct vidtv_mux *m)
 
 	pat_ctx = vidtv_mux_get_pid_ctx(m, VIDTV_PAT_PID);
 	sdt_ctx = vidtv_mux_get_pid_ctx(m, VIDTV_SDT_PID);
+	nit_ctx = vidtv_mux_get_pid_ctx(m, VIDTV_NIT_PID);
 
 	pat_args.buf                = m->mux_buf;
 	pat_args.offset             = m->mux_buf_offset;
@@ -168,6 +173,14 @@ static u32 vidtv_mux_push_si(struct vidtv_mux *m)
 	sdt_args.continuity_counter = &sdt_ctx->cc;
 
 	m->mux_buf_offset += vidtv_psi_sdt_write_into(sdt_args);
+
+	nit_args.buf                = m->mux_buf;
+	nit_args.offset             = m->mux_buf_offset;
+	nit_args.nit                = m->si.nit;
+	nit_args.buf_sz             = m->mux_buf_sz;
+	nit_args.continuity_counter = &nit_ctx->cc;
+
+	m->mux_buf_offset += vidtv_psi_nit_write_into(nit_args);
 
 	nbytes = m->mux_buf_offset - initial_offset;
 
@@ -446,6 +459,8 @@ struct vidtv_mux *vidtv_mux_init(struct dvb_frontend *fe,
 	m->pcr_pid = args.pcr_pid;
 	m->transport_stream_id = args.transport_stream_id;
 	m->priv = args.priv;
+	m->network_id = args.network_id;
+	m->network_name = kstrdup(args.network_name, GFP_KERNEL);
 	m->timing.current_jiffies = get_jiffies_64();
 
 	if (args.channels)
@@ -469,6 +484,7 @@ void vidtv_mux_destroy(struct vidtv_mux *m)
 	vidtv_mux_pid_ctx_destroy(m);
 	vidtv_channel_si_destroy(m);
 	vidtv_channels_destroy(m);
+	kfree(m->network_name);
 	vfree(m->mux_buf);
 	kfree(m);
 }

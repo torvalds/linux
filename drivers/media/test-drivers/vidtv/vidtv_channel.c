@@ -246,10 +246,57 @@ vidtv_channel_pmt_match_sections(struct vidtv_channel *channels,
 	}
 }
 
+static struct vidtv_psi_desc_service_list_entry
+*vidtv_channel_build_service_list(struct vidtv_psi_table_sdt_service *s)
+{
+	struct vidtv_psi_desc_service_list_entry *curr_e = NULL;
+	struct vidtv_psi_desc_service_list_entry *head_e = NULL;
+	struct vidtv_psi_desc_service_list_entry *prev_e = NULL;
+	struct vidtv_psi_desc *desc = s->descriptor;
+	struct vidtv_psi_desc_service *s_desc;
+
+	while (s) {
+		while (desc) {
+			if (s->descriptor->type != SERVICE_DESCRIPTOR)
+				goto next_desc;
+
+			s_desc = (struct vidtv_psi_desc_service *)desc;
+
+			curr_e = kzalloc(sizeof(*curr_e), GFP_KERNEL);
+			curr_e->service_id = s->service_id;
+			curr_e->service_type = s_desc->service_type;
+
+			if (!head_e)
+				head_e = curr_e;
+			if (prev_e)
+				prev_e->next = curr_e;
+
+			prev_e = curr_e;
+
+next_desc:
+			desc = desc->next;
+		}
+		s = s->next;
+	}
+	return head_e;
+}
+
+static void vidtv_channel_destroy_service_list(struct vidtv_psi_desc_service_list_entry *e)
+{
+	struct vidtv_psi_desc_service_list_entry *tmp;
+
+	while (e) {
+		tmp = e;
+		e = e->next;
+		kfree(tmp);
+	}
+}
+
 void vidtv_channel_si_init(struct vidtv_mux *m)
 {
 	struct vidtv_psi_table_pat_program *programs = NULL;
 	struct vidtv_psi_table_sdt_service *services = NULL;
+	struct vidtv_psi_desc_service_list_entry *service_list = NULL;
 
 	m->si.pat = vidtv_psi_pat_table_init(m->transport_stream_id);
 
@@ -257,6 +304,15 @@ void vidtv_channel_si_init(struct vidtv_mux *m)
 
 	programs = vidtv_channel_pat_prog_cat_into_new(m);
 	services = vidtv_channel_sdt_serv_cat_into_new(m);
+
+	/* look for a service descriptor for every service */
+	service_list = vidtv_channel_build_service_list(services);
+
+	/* use these descriptors to build the NIT */
+	m->si.nit = vidtv_psi_nit_table_init(m->network_id,
+					     m->transport_stream_id,
+					     m->network_name,
+					     service_list);
 
 	/* assemble all programs and assign to PAT */
 	vidtv_psi_pat_program_assign(m->si.pat, programs);
@@ -269,6 +325,8 @@ void vidtv_channel_si_init(struct vidtv_mux *m)
 	vidtv_channel_pmt_match_sections(m->channels,
 					 m->si.pmt_secs,
 					 m->si.pat->programs);
+
+	vidtv_channel_destroy_service_list(service_list);
 }
 
 void vidtv_channel_si_destroy(struct vidtv_mux *m)
@@ -283,6 +341,7 @@ void vidtv_channel_si_destroy(struct vidtv_mux *m)
 
 	kfree(m->si.pmt_secs);
 	vidtv_psi_sdt_table_destroy(m->si.sdt);
+	vidtv_psi_nit_table_destroy(m->si.nit);
 }
 
 void vidtv_channels_init(struct vidtv_mux *m)

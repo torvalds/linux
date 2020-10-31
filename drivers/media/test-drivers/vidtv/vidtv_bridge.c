@@ -28,6 +28,8 @@
 //#define MUX_BUF_MIN_SZ
 #define TUNER_DEFAULT_ADDR 0x68
 #define DEMOD_DEFAULT_ADDR 0x60
+#define VIDTV_DEFAULT_NETWORK_ID 0x744
+#define VIDTV_DEFAULT_NETWORK_NAME "LinuxTV.org"
 
 /* LNBf fake parameters: ranges used by an Universal (extended) European LNBf */
 #define LNB_CUT_FREQUENCY	11700000
@@ -177,6 +179,8 @@ static int vidtv_start_streaming(struct vidtv_dvb *dvb)
 	mux_args.si_period_usecs             = si_period_msec * 1000;
 	mux_args.pcr_pid                     = pcr_pid;
 	mux_args.transport_stream_id         = VIDTV_DEFAULT_TS_ID;
+	mux_args.network_id                  = VIDTV_DEFAULT_NETWORK_ID,
+	mux_args.network_name                = VIDTV_DEFAULT_NETWORK_NAME,
 	mux_args.priv                        = dvb;
 
 	dvb->streaming = true;

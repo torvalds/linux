@@ -6,10 +6,6 @@
  * technically be broken into one or more sections, we do not do this here,
  * hence 'table' and 'section' are interchangeable for vidtv.
  *
- * This code currently supports three tables: PAT, PMT and SDT. These are the
- * bare minimum to get userspace to recognize our MPEG transport stream. It can
- * be extended to support more PSI tables in the future.
- *
  * Copyright (C) 2020 Daniel W. S. Almeida
  */
 
@@ -27,12 +23,16 @@
 #define PAT_LEN_UNTIL_LAST_SECTION_NUMBER 5
 #define PMT_LEN_UNTIL_PROGRAM_INFO_LENGTH 9
 #define SDT_LEN_UNTIL_RESERVED_FOR_FUTURE_USE 8
+#define NIT_LEN_UNTIL_NETWORK_DESCRIPTOR_LEN 7
 #define MAX_SECTION_LEN 1021
 #define VIDTV_PAT_PID 0 /* mandated by the specs */
 #define VIDTV_SDT_PID 0x0011 /* mandated by the specs */
+#define VIDTV_NIT_PID 0x0010 /* mandated by the specs */
 
 enum vidtv_psi_descriptors {
 	REGISTRATION_DESCRIPTOR	= 0x05, /* See ISO/IEC 13818-1 section 2.6.8 */
+	NETWORK_NAME_DESCRIPTOR = 0x40, /* See ETSI EN 300 468 section 6.2.27 */
+	SERVICE_LIST_DESCRIPTOR = 0x41, /* See ETSI EN 300 468 section 6.2.35 */
 	SERVICE_DESCRIPTOR = 0x48, /* See ETSI EN 300 468 section 6.2.33 */
 };
 
@@ -88,6 +88,34 @@ struct vidtv_psi_desc_registration {
 	 * they shall not change.
 	 */
 	u8 additional_identification_info[];
+} __packed;
+
+/**
+ * struct vidtv_psi_desc_network_name - A network name descriptor
+ * see ETSI EN 300 468 v1.15.1 section 6.2.27
+ */
+struct vidtv_psi_desc_network_name {
+	struct vidtv_psi_desc *next;
+	u8 type;
+	u8 length;
+	char *network_name;
+} __packed;
+
+struct vidtv_psi_desc_service_list_entry {
+	__be16 service_id;
+	u8 service_type;
+	struct vidtv_psi_desc_service_list_entry *next;
+} __packed;
+
+/**
+ * struct vidtv_psi_desc_service_list - A service list descriptor
+ * see ETSI EN 300 468 v1.15.1 section 6.2.35
+ */
+struct vidtv_psi_desc_service_list {
+	struct vidtv_psi_desc *next;
+	u8 type;
+	u8 length;
+	struct vidtv_psi_desc_service_list_entry *service_list;
 } __packed;
 
 /**
@@ -289,6 +317,13 @@ struct vidtv_psi_desc_registration
 				  __be32 format_id,
 				  u8 *additional_ident_info,
 				  u32 additional_info_len);
+
+struct vidtv_psi_desc_network_name
+*vidtv_psi_network_name_desc_init(struct vidtv_psi_desc *head, char *network_name);
+
+struct vidtv_psi_desc_service_list
+*vidtv_psi_service_list_desc_init(struct vidtv_psi_desc *head,
+				  struct vidtv_psi_desc_service_list_entry *entry);
 
 struct vidtv_psi_table_pat_program
 *vidtv_psi_pat_program_init(struct vidtv_psi_table_pat_program *head,
@@ -573,5 +608,80 @@ struct vidtv_psi_table_pmt *vidtv_psi_find_pmt_sec(struct vidtv_psi_table_pmt **
 
 u16 vidtv_psi_get_pat_program_pid(struct vidtv_psi_table_pat_program *p);
 u16 vidtv_psi_pmt_stream_get_elem_pid(struct vidtv_psi_table_pmt_stream *s);
+
+/**
+ * struct vidtv_psi_table_transport - A entry in the TS loop for the NIT and/or other tables.
+ * See ETSI 300 468 section 5.2.1
+ * @transport_id: The TS ID being described
+ * @network_id: The network_id that contains the TS ID
+ * @bitfield: Contains the descriptor loop length
+ * @descriptor: A descriptor loop
+ * @next: Pointer to the next entry
+ *
+ */
+struct vidtv_psi_table_transport {
+	__be16 transport_id;
+	__be16 network_id;
+	__be16 bitfield; /* desc_len: 12, reserved: 4 */
+	struct vidtv_psi_desc *descriptor;
+	struct vidtv_psi_table_transport *next;
+} __packed;
+
+/**
+ * struct vidtv_psi_table_nit - A Network Information Table (NIT). See ETSI 300
+ * 468 section 5.2.1
+ * @header: A PSI table header
+ * @bitfield: Contains the network descriptor length
+ * @descriptor: A descriptor loop describing the network
+ * @bitfield2: Contains the transport stream loop length
+ * @transport: The transport stream loop
+ *
+ */
+struct vidtv_psi_table_nit {
+	struct vidtv_psi_table_header header;
+	__be16 bitfield; /* network_desc_len: 12, reserved:4 */
+	struct vidtv_psi_desc *descriptor;
+	__be16 bitfield2; /* ts_loop_len: 12, reserved: 4 */
+	struct vidtv_psi_table_transport *transport;
+} __packed;
+
+struct vidtv_psi_table_nit
+*vidtv_psi_nit_table_init(u16 network_id,
+			  u16 transport_stream_id,
+			  char *network_name,
+			  struct vidtv_psi_desc_service_list_entry *service_list);
+
+/**
+ * struct vidtv_psi_nit_write_args - Arguments for writing a NIT section
+ * @buf: The destination buffer.
+ * @offset: The offset into the destination buffer.
+ * @nit: A pointer to the NIT
+ * @buf_sz: The size of the destination buffer.
+ * @continuity_counter: A pointer to the CC. Incremented on every new packet.
+ *
+ */
+struct vidtv_psi_nit_write_args {
+	char *buf;
+	u32 offset;
+	struct vidtv_psi_table_nit *nit;
+	u32 buf_sz;
+	u8 *continuity_counter;
+};
+
+/**
+ * vidtv_psi_nit_write_into - Write NIT as MPEG-TS packets into a buffer.
+ * @args: an instance of struct vidtv_psi_nit_write_args
+ *
+ * This function writes the MPEG TS packets for a NIT table into a buffer.
+ * Calling code will usually generate the NIT via a call to its init function
+ * and thus is responsible for freeing it.
+ *
+ * Return: The number of bytes written into the buffer. This is NOT
+ * equal to the size of the NIT, since more space is needed for TS headers during TS
+ * encapsulation.
+ */
+u32 vidtv_psi_nit_write_into(struct vidtv_psi_nit_write_args args);
+
+void vidtv_psi_nit_table_destroy(struct vidtv_psi_table_nit *nit);
 
 #endif // VIDTV_PSI_H

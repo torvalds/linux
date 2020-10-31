@@ -64,6 +64,7 @@ struct vidtv_mux_si {
 	struct vidtv_psi_table_pat *pat;
 	struct vidtv_psi_table_pmt **pmt_secs; /* the PMT sections */
 	struct vidtv_psi_table_sdt *sdt;
+	struct vidtv_psi_table_nit *nit;
 };
 
 /**
@@ -99,6 +100,8 @@ struct vidtv_mux_pid_ctx {
  * @pcr_pid: The TS PID used for the PSI packets. All channels will share the
  * same PCR.
  * @transport_stream_id: The transport stream ID
+ * @network_id: The network ID
+ * @network_name: The network name
  * @priv: Private data.
  */
 struct vidtv_mux {
@@ -128,6 +131,8 @@ struct vidtv_mux {
 
 	u16 pcr_pid;
 	u16 transport_stream_id;
+	u16 network_id;
+	char *network_name;
 	void *priv;
 };
 
@@ -142,6 +147,8 @@ struct vidtv_mux {
  * same PCR.
  * @transport_stream_id: The transport stream ID
  * @channels: an optional list of channels to use
+ * @network_id: The network ID
+ * @network_name: The network name
  * @priv: Private data.
  */
 struct vidtv_mux_init_args {
@@ -153,6 +160,8 @@ struct vidtv_mux_init_args {
 	u16 pcr_pid;
 	u16 transport_stream_id;
 	struct vidtv_channel *channels;
+	u16 network_id;
+	char *network_name;
 	void *priv;
 };
 
