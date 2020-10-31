@@ -244,6 +244,43 @@ static inline u32 ipa_reg_idle_indication_cfg_offset(enum ipa_version version)
 #define ENTER_IDLE_DEBOUNCE_THRESH_FMASK	GENMASK(15, 0)
 #define CONST_NON_IDLE_ENABLE_FMASK		GENMASK(16, 16)
 
+/* # IPA source resource groups available based on version */
+static inline u32 ipa_resource_group_src_count(enum ipa_version version)
+{
+	switch (version) {
+	case IPA_VERSION_3_5_1:
+	case IPA_VERSION_4_0:
+	case IPA_VERSION_4_1:
+		return 4;
+
+	case IPA_VERSION_4_2:
+		return 1;
+
+	default:
+		return 0;
+	}
+}
+
+/* # IPA destination resource groups available based on version */
+static inline u32 ipa_resource_group_dst_count(enum ipa_version version)
+{
+	switch (version) {
+	case IPA_VERSION_3_5_1:
+		return 3;
+
+	case IPA_VERSION_4_0:
+	case IPA_VERSION_4_1:
+		return 4;
+
+	case IPA_VERSION_4_2:
+		return 1;
+
+	default:
+		return 0;
+	}
+}
+
+/* Not all of the following are valid (depends on the count, above) */
 #define IPA_REG_SRC_RSRC_GRP_01_RSRC_TYPE_N_OFFSET(rt) \
 					(0x00000400 + 0x0020 * (rt))
 #define IPA_REG_SRC_RSRC_GRP_23_RSRC_TYPE_N_OFFSET(rt) \
@@ -341,7 +378,16 @@ static inline u32 ipa_reg_idle_indication_cfg_offset(enum ipa_version version)
 
 #define IPA_REG_ENDP_INIT_RSRC_GRP_N_OFFSET(ep) \
 					(0x00000838 + 0x0070 * (ep))
-#define RSRC_GRP_FMASK				GENMASK(1, 0)
+/* Encoded value for RSRC_GRP endpoint register RSRC_GRP field */
+static inline u32 rsrc_grp_encoded(enum ipa_version version, u32 rsrc_grp)
+{
+	switch (version) {
+	case IPA_VERSION_4_2:
+		return u32_encode_bits(rsrc_grp, GENMASK(0, 0));
+	default:
+		return u32_encode_bits(rsrc_grp, GENMASK(1, 0));
+	}
+}
 
 /* Valid only for TX (IPA consumer) endpoints */
 #define IPA_REG_ENDP_INIT_SEQ_N_OFFSET(txep) \
