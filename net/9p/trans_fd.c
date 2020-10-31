@@ -45,7 +45,7 @@ static struct p9_trans_module p9_fd_trans;
  * @rfd: file descriptor for reading (trans=fd)
  * @wfd: file descriptor for writing (trans=fd)
  * @port: port to connect to (trans=tcp)
- *
+ * @privport: port is privileged
  */
 
 struct p9_fd_opts {
@@ -95,6 +95,8 @@ struct p9_poll_wait {
  * @err: error state
  * @req_list: accounting for requests which have been sent
  * @unsent_req_list: accounting for requests that haven't been sent
+ * @rreq: read request
+ * @wreq: write request
  * @req: current request being processed (if any)
  * @tmp_buf: temporary buffer to read in header
  * @rc: temporary fcall for reading current frame

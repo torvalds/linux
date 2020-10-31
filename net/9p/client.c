@@ -412,8 +412,9 @@ static void p9_tag_cleanup(struct p9_client *c)
 
 /**
  * p9_client_cb - call back from transport to client
- * c: client state
- * req: request received
+ * @c: client state
+ * @req: request received
+ * @status: request status, one of REQ_STATUS_*
  *
  */
 void p9_client_cb(struct p9_client *c, struct p9_req_t *req, int status)
@@ -555,6 +556,7 @@ out_err:
  * p9_check_zc_errors - check 9p packet for error return and process it
  * @c: current client instance
  * @req: request to parse and check for error conditions
+ * @uidata: external buffer containing error
  * @in_hdrlen: Size of response protocol buffer.
  *
  * returns error code if one is discovered, otherwise returns 0
