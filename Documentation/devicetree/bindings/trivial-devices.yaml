@@ -352,6 +352,16 @@ properties:
           - ti,ads7830
             # Temperature Monitoring and Fan Control
           - ti,amc6821
+            # Temperature and humidity sensor with i2c interface
+          - ti,hdc1000
+            # Temperature and humidity sensor with i2c interface
+          - ti,hdc1008
+            # Temperature and humidity sensor with i2c interface
+          - ti,hdc1010
+            # Temperature and humidity sensor with i2c interface
+          - ti,hdc1050
+            # Temperature and humidity sensor with i2c interface
+          - ti,hdc1080
             # Temperature sensor with 2-wire interface
           - ti,lm73
             # Temperature sensor with integrated fan control
