@@ -2442,6 +2442,16 @@ static void hisi_qm_pre_init(struct hisi_qm *qm)
 	qm->is_frozen = false;
 }
 
+static void hisi_qm_pci_uninit(struct hisi_qm *qm)
+{
+	struct pci_dev *pdev = qm->pdev;
+
+	pci_free_irq_vectors(pdev);
+	iounmap(qm->io_base);
+	pci_release_mem_regions(pdev);
+	pci_disable_device(pdev);
+}
+
 /**
  * hisi_qm_uninit() - Uninitialize qm.
  * @qm: The qm needed uninit.
@@ -2460,9 +2470,6 @@ void hisi_qm_uninit(struct hisi_qm *qm)
 		return;
 	}
 
-	uacce_remove(qm->uacce);
-	qm->uacce = NULL;
-
 	hisi_qp_memory_uninit(qm, qm->qp_num);
 	idr_destroy(&qm->qp_idr);
 
@@ -2474,10 +2481,9 @@ void hisi_qm_uninit(struct hisi_qm *qm)
 	}
 
 	qm_irq_unregister(qm);
-	pci_free_irq_vectors(pdev);
-	iounmap(qm->io_base);
-	pci_release_mem_regions(pdev);
-	pci_disable_device(pdev);
+	hisi_qm_pci_uninit(qm);
+	uacce_remove(qm->uacce);
+	qm->uacce = NULL;
 
 	up_write(&qm->qps_lock);
 }
@@ -4038,34 +4044,22 @@ void hisi_qm_alg_unregister(struct hisi_qm *qm, struct hisi_qm_list *qm_list)
 }
 EXPORT_SYMBOL_GPL(hisi_qm_alg_unregister);
 
-/**
- * hisi_qm_init() - Initialize configures about qm.
- * @qm: The qm needing init.
- *
- * This function init qm, then we can call hisi_qm_start to put qm into work.
- */
-int hisi_qm_init(struct hisi_qm *qm)
+static int hisi_qm_pci_init(struct hisi_qm *qm)
 {
 	struct pci_dev *pdev = qm->pdev;
 	struct device *dev = &pdev->dev;
 	unsigned int num_vec;
 	int ret;
 
-	hisi_qm_pre_init(qm);
-
-	ret = qm_alloc_uacce(qm);
-	if (ret < 0)
-		dev_warn(&pdev->dev, "fail to alloc uacce (%d)\n", ret);
-
 	ret = pci_enable_device_mem(pdev);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to enable device mem!\n");
-		goto err_remove_uacce;
+		dev_err(dev, "Failed to enable device mem!\n");
+		return ret;
 	}
 
 	ret = pci_request_mem_regions(pdev, qm->dev_name);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to request mem regions!\n");
+		dev_err(dev, "Failed to request mem regions!\n");
 		goto err_disable_pcidev;
 	}
 
@@ -4093,9 +4087,42 @@ int hisi_qm_init(struct hisi_qm *qm)
 		goto err_iounmap;
 	}
 
+	return 0;
+
+err_iounmap:
+	iounmap(qm->io_base);
+err_release_mem_regions:
+	pci_release_mem_regions(pdev);
+err_disable_pcidev:
+	pci_disable_device(pdev);
+	return ret;
+}
+
+/**
+ * hisi_qm_init() - Initialize configures about qm.
+ * @qm: The qm needing init.
+ *
+ * This function init qm, then we can call hisi_qm_start to put qm into work.
+ */
+int hisi_qm_init(struct hisi_qm *qm)
+{
+	struct pci_dev *pdev = qm->pdev;
+	struct device *dev = &pdev->dev;
+	int ret;
+
+	hisi_qm_pre_init(qm);
+
+	ret = qm_alloc_uacce(qm);
+	if (ret < 0)
+		dev_warn(dev, "fail to alloc uacce (%d)\n", ret);
+
+	ret = hisi_qm_pci_init(qm);
+	if (ret)
+		goto err_remove_uacce;
+
 	ret = qm_irq_register(qm);
 	if (ret)
-		goto err_free_irq_vectors;
+		goto err_pci_uninit;
 
 	if (qm->fun_type == QM_HW_VF && qm->ver != QM_HW_V1) {
 		/* v2 starts to support get vft by mailbox */
@@ -4118,21 +4145,14 @@ int hisi_qm_init(struct hisi_qm *qm)
 
 err_irq_unregister:
 	qm_irq_unregister(qm);
-err_free_irq_vectors:
-	pci_free_irq_vectors(pdev);
-err_iounmap:
-	iounmap(qm->io_base);
-err_release_mem_regions:
-	pci_release_mem_regions(pdev);
-err_disable_pcidev:
-	pci_disable_device(pdev);
+err_pci_uninit:
+	hisi_qm_pci_uninit(qm);
 err_remove_uacce:
 	uacce_remove(qm->uacce);
 	qm->uacce = NULL;
 	return ret;
 }
 EXPORT_SYMBOL_GPL(hisi_qm_init);
-
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Zhou Wang <wangzhou1@hisilicon.com>");
