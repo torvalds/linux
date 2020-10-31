@@ -715,8 +715,9 @@ ports we need are I8042_STATUS_REG and I8042_DATA_REG.
 
 Follow the sections maked with **TODO 1** in the skeleton. Request the I/O
 ports in :c:func:`kbd_init` and make sure to check for errors and to properly
-clean-up in case of errors. Also, add code to release the I/O ports in
-:c:func:`kbd_exit`.
+clean-up in case of errors. When requesting, set the reserving caller's ID
+string (``name``) with ``MODULE_NAME`` macro. Also, add code to release the I/O
+ports in :c:func:`kbd_exit`.
 
 .. note:: You can review the `Request access to I/O ports`_ section before
    proceeding.
