@@ -571,18 +571,20 @@ struct ocelot_vcap_block {
 	int pol_lpr;
 };
 
+struct ocelot_vlan {
+	u16 vid;
+};
+
 struct ocelot_port {
 	struct ocelot			*ocelot;
 
 	struct regmap			*target;
 
 	bool				vlan_aware;
-
-	/* Ingress default VLAN (pvid) */
-	u16				pvid;
-
-	/* Egress default VLAN (vid) */
-	u16				vid;
+	/* VLAN that untagged frames are classified to, on ingress */
+	struct ocelot_vlan		pvid_vlan;
+	/* The VLAN ID that will be transmitted as untagged, on egress */
+	struct ocelot_vlan		native_vlan;
 
 	u8				ptp_cmd;
 	struct sk_buff_head		tx_skbs;

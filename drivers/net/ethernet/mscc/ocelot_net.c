@@ -409,7 +409,7 @@ static int ocelot_mc_unsync(struct net_device *dev, const unsigned char *addr)
 	struct ocelot_port *ocelot_port = &priv->port;
 	struct ocelot *ocelot = ocelot_port->ocelot;
 
-	return ocelot_mact_forget(ocelot, addr, ocelot_port->pvid);
+	return ocelot_mact_forget(ocelot, addr, ocelot_port->pvid_vlan.vid);
 }
 
 static int ocelot_mc_sync(struct net_device *dev, const unsigned char *addr)
@@ -418,8 +418,8 @@ static int ocelot_mc_sync(struct net_device *dev, const unsigned char *addr)
 	struct ocelot_port *ocelot_port = &priv->port;
 	struct ocelot *ocelot = ocelot_port->ocelot;
 
-	return ocelot_mact_learn(ocelot, PGID_CPU, addr, ocelot_port->pvid,
-				 ENTRYTYPE_LOCKED);
+	return ocelot_mact_learn(ocelot, PGID_CPU, addr,
+				 ocelot_port->pvid_vlan.vid, ENTRYTYPE_LOCKED);
 }
 
 static void ocelot_set_rx_mode(struct net_device *dev)
@@ -462,10 +462,10 @@ static int ocelot_port_set_mac_address(struct net_device *dev, void *p)
 	const struct sockaddr *addr = p;
 
 	/* Learn the new net device MAC address in the mac table. */
-	ocelot_mact_learn(ocelot, PGID_CPU, addr->sa_data, ocelot_port->pvid,
-			  ENTRYTYPE_LOCKED);
+	ocelot_mact_learn(ocelot, PGID_CPU, addr->sa_data,
+			  ocelot_port->pvid_vlan.vid, ENTRYTYPE_LOCKED);
 	/* Then forget the previous one. */
-	ocelot_mact_forget(ocelot, dev->dev_addr, ocelot_port->pvid);
+	ocelot_mact_forget(ocelot, dev->dev_addr, ocelot_port->pvid_vlan.vid);
 
 	ether_addr_copy(dev->dev_addr, addr->sa_data);
 	return 0;
@@ -1074,8 +1074,8 @@ int ocelot_probe_port(struct ocelot *ocelot, int port, struct regmap *target,
 
 	memcpy(dev->dev_addr, ocelot->base_mac, ETH_ALEN);
 	dev->dev_addr[ETH_ALEN - 1] += port;
-	ocelot_mact_learn(ocelot, PGID_CPU, dev->dev_addr, ocelot_port->pvid,
-			  ENTRYTYPE_LOCKED);
+	ocelot_mact_learn(ocelot, PGID_CPU, dev->dev_addr,
+			  ocelot_port->pvid_vlan.vid, ENTRYTYPE_LOCKED);
 
 	ocelot_init_port(ocelot, port);
 
