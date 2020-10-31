@@ -199,6 +199,22 @@ static int ocelot_port_set_native_vlan(struct ocelot *ocelot, int port,
 	return 0;
 }
 
+/* Default vlan to clasify for untagged frames (may be zero) */
+static void ocelot_port_set_pvid(struct ocelot *ocelot, int port, u16 pvid)
+{
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
+
+	ocelot_port->pvid = pvid;
+
+	if (!ocelot_port->vlan_aware)
+		pvid = 0;
+
+	ocelot_rmw_gix(ocelot,
+		       ANA_PORT_VLAN_CFG_VLAN_VID(pvid),
+		       ANA_PORT_VLAN_CFG_VLAN_VID_M,
+		       ANA_PORT_VLAN_CFG, port);
+}
+
 int ocelot_port_vlan_filtering(struct ocelot *ocelot, int port,
 			       bool vlan_aware, struct switchdev_trans *trans)
 {
@@ -233,24 +249,12 @@ int ocelot_port_vlan_filtering(struct ocelot *ocelot, int port,
 		       ANA_PORT_VLAN_CFG_VLAN_POP_CNT_M,
 		       ANA_PORT_VLAN_CFG, port);
 
+	ocelot_port_set_pvid(ocelot, port, ocelot_port->pvid);
 	ocelot_port_set_native_vlan(ocelot, port, ocelot_port->vid);
 
 	return 0;
 }
 EXPORT_SYMBOL(ocelot_port_vlan_filtering);
-
-/* Default vlan to clasify for untagged frames (may be zero) */
-static void ocelot_port_set_pvid(struct ocelot *ocelot, int port, u16 pvid)
-{
-	struct ocelot_port *ocelot_port = ocelot->ports[port];
-
-	ocelot_rmw_gix(ocelot,
-		       ANA_PORT_VLAN_CFG_VLAN_VID(pvid),
-		       ANA_PORT_VLAN_CFG_VLAN_VID_M,
-		       ANA_PORT_VLAN_CFG, port);
-
-	ocelot_port->pvid = pvid;
-}
 
 int ocelot_vlan_add(struct ocelot *ocelot, int port, u16 vid, bool pvid,
 		    bool untagged)
@@ -542,25 +546,10 @@ EXPORT_SYMBOL(ocelot_get_txtstamp);
 int ocelot_fdb_add(struct ocelot *ocelot, int port,
 		   const unsigned char *addr, u16 vid)
 {
-	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	int pgid = port;
 
 	if (port == ocelot->npi)
 		pgid = PGID_CPU;
-
-	if (!vid) {
-		if (!ocelot_port->vlan_aware)
-			/* If the bridge is not VLAN aware and no VID was
-			 * provided, set it to pvid to ensure the MAC entry
-			 * matches incoming untagged packets
-			 */
-			vid = ocelot_port->pvid;
-		else
-			/* If the bridge is VLAN aware a VID must be provided as
-			 * otherwise the learnt entry wouldn't match any frame.
-			 */
-			return -EINVAL;
-	}
 
 	return ocelot_mact_learn(ocelot, pgid, addr, vid, ENTRYTYPE_LOCKED);
 }
@@ -1048,7 +1037,6 @@ static void ocelot_encode_ports_to_mdb(unsigned char *addr,
 int ocelot_port_mdb_add(struct ocelot *ocelot, int port,
 			const struct switchdev_obj_port_mdb *mdb)
 {
-	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	unsigned char addr[ETH_ALEN];
 	struct ocelot_multicast *mc;
 	struct ocelot_pgid *pgid;
@@ -1056,9 +1044,6 @@ int ocelot_port_mdb_add(struct ocelot *ocelot, int port,
 
 	if (port == ocelot->npi)
 		port = ocelot->num_phys_ports;
-
-	if (!vid)
-		vid = ocelot_port->pvid;
 
 	mc = ocelot_multicast_get(ocelot, mdb->addr, vid);
 	if (!mc) {
@@ -1108,7 +1093,6 @@ EXPORT_SYMBOL(ocelot_port_mdb_add);
 int ocelot_port_mdb_del(struct ocelot *ocelot, int port,
 			const struct switchdev_obj_port_mdb *mdb)
 {
-	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	unsigned char addr[ETH_ALEN];
 	struct ocelot_multicast *mc;
 	struct ocelot_pgid *pgid;
@@ -1116,9 +1100,6 @@ int ocelot_port_mdb_del(struct ocelot *ocelot, int port,
 
 	if (port == ocelot->npi)
 		port = ocelot->num_phys_ports;
-
-	if (!vid)
-		vid = ocelot_port->pvid;
 
 	mc = ocelot_multicast_get(ocelot, mdb->addr, vid);
 	if (!mc)
