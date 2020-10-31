@@ -35,8 +35,7 @@ static ssize_t is_enabled_show(struct kobject *kobj, struct kobj_attribute *attr
 	return ret;
 }
 
-struct kobj_attribute po_is_pass_set =
-		__ATTR_RO(is_enabled);
+static struct kobj_attribute po_is_pass_set = __ATTR_RO(is_enabled);
 
 static ssize_t current_password_store(struct kobject *kobj,
 				      struct kobj_attribute *attr,
@@ -67,8 +66,7 @@ static ssize_t current_password_store(struct kobject *kobj,
 	return count;
 }
 
-struct kobj_attribute po_current_password =
-		__ATTR_WO(current_password);
+static struct kobj_attribute po_current_password = __ATTR_WO(current_password);
 
 static ssize_t new_password_store(struct kobject *kobj,
 				  struct kobj_attribute *attr,
@@ -96,16 +94,13 @@ out:
 	return ret ? ret : count;
 }
 
-struct kobj_attribute po_new_password =
-		__ATTR_WO(new_password);
+static struct kobj_attribute po_new_password = __ATTR_WO(new_password);
 
 attribute_n_property_show(min_password_length, po);
-struct kobj_attribute po_min_pass_length =
-		__ATTR_RO(min_password_length);
+static struct kobj_attribute po_min_pass_length = __ATTR_RO(min_password_length);
 
 attribute_n_property_show(max_password_length, po);
-struct kobj_attribute po_max_pass_length =
-		__ATTR_RO(max_password_length);
+static struct kobj_attribute po_max_pass_length = __ATTR_RO(max_password_length);
 
 static ssize_t mechanism_show(struct kobject *kobj, struct kobj_attribute *attr,
 			 char *buf)
@@ -113,8 +108,7 @@ static ssize_t mechanism_show(struct kobject *kobj, struct kobj_attribute *attr,
 	return sprintf(buf, "password\n");
 }
 
-struct kobj_attribute po_mechanism =
-	__ATTR_RO(mechanism);
+static struct kobj_attribute po_mechanism = __ATTR_RO(mechanism);
 
 static ssize_t role_show(struct kobject *kobj, struct kobj_attribute *attr,
 			 char *buf)
@@ -126,8 +120,7 @@ static ssize_t role_show(struct kobject *kobj, struct kobj_attribute *attr,
 	return -EIO;
 }
 
-struct kobj_attribute po_role =
-	__ATTR_RO(role);
+static struct kobj_attribute po_role = __ATTR_RO(role);
 
 static struct attribute *po_attrs[] = {
 	&po_is_pass_set.attr,
