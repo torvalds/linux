@@ -112,10 +112,21 @@ static void felix_bridge_leave(struct dsa_switch *ds, int port,
 	ocelot_port_bridge_leave(ocelot, port, br);
 }
 
-/* This callback needs to be present */
 static int felix_vlan_prepare(struct dsa_switch *ds, int port,
 			      const struct switchdev_obj_port_vlan *vlan)
 {
+	struct ocelot *ocelot = ds->priv;
+	u16 vid, flags = vlan->flags;
+	int err;
+
+	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
+		err = ocelot_vlan_prepare(ocelot, port, vid,
+					  flags & BRIDGE_VLAN_INFO_PVID,
+					  flags & BRIDGE_VLAN_INFO_UNTAGGED);
+		if (err)
+			return err;
+	}
+
 	return 0;
 }
 

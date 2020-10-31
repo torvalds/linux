@@ -147,20 +147,11 @@ static int ocelot_vlant_set_mask(struct ocelot *ocelot, u16 vid, u32 mask)
 	return ocelot_vlant_wait_for_completion(ocelot);
 }
 
-static int ocelot_port_set_native_vlan(struct ocelot *ocelot, int port,
-				       struct ocelot_vlan native_vlan)
+static void ocelot_port_set_native_vlan(struct ocelot *ocelot, int port,
+					struct ocelot_vlan native_vlan)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	u32 val = 0;
-
-	/* Deny changing the native VLAN, but always permit deleting it */
-	if (ocelot_port->native_vlan.vid != native_vlan.vid &&
-	    ocelot_port->native_vlan.valid && native_vlan.valid) {
-		dev_err(ocelot->dev,
-			"Port already has a native VLAN: %d\n",
-			ocelot_port->native_vlan.vid);
-		return -EBUSY;
-	}
 
 	ocelot_port->native_vlan = native_vlan;
 
@@ -182,8 +173,6 @@ static int ocelot_port_set_native_vlan(struct ocelot *ocelot, int port,
 	ocelot_rmw_gix(ocelot, val,
 		       REW_TAG_CFG_TAG_CFG_M,
 		       REW_TAG_CFG, port);
-
-	return 0;
 }
 
 /* Default vlan to clasify for untagged frames (may be zero) */
@@ -259,6 +248,24 @@ int ocelot_port_vlan_filtering(struct ocelot *ocelot, int port,
 }
 EXPORT_SYMBOL(ocelot_port_vlan_filtering);
 
+int ocelot_vlan_prepare(struct ocelot *ocelot, int port, u16 vid, bool pvid,
+			bool untagged)
+{
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
+
+	/* Deny changing the native VLAN, but always permit deleting it */
+	if (untagged && ocelot_port->native_vlan.vid != vid &&
+	    ocelot_port->native_vlan.valid) {
+		dev_err(ocelot->dev,
+			"Port already has a native VLAN: %d\n",
+			ocelot_port->native_vlan.vid);
+		return -EBUSY;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(ocelot_vlan_prepare);
+
 int ocelot_vlan_add(struct ocelot *ocelot, int port, u16 vid, bool pvid,
 		    bool untagged)
 {
@@ -285,9 +292,7 @@ int ocelot_vlan_add(struct ocelot *ocelot, int port, u16 vid, bool pvid,
 
 		native_vlan.vid = vid;
 		native_vlan.valid = true;
-		ret = ocelot_port_set_native_vlan(ocelot, port, native_vlan);
-		if (ret)
-			return ret;
+		ocelot_port_set_native_vlan(ocelot, port, native_vlan);
 	}
 
 	return 0;
@@ -1193,7 +1198,9 @@ int ocelot_port_bridge_leave(struct ocelot *ocelot, int port,
 		return ret;
 
 	ocelot_port_set_pvid(ocelot, port, pvid);
-	return ocelot_port_set_native_vlan(ocelot, port, native_vlan);
+	ocelot_port_set_native_vlan(ocelot, port, native_vlan);
+
+	return 0;
 }
 EXPORT_SYMBOL(ocelot_port_bridge_leave);
 

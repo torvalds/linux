@@ -206,6 +206,17 @@ static void ocelot_port_adjust_link(struct net_device *dev)
 	ocelot_adjust_link(ocelot, port, dev->phydev);
 }
 
+static int ocelot_vlan_vid_prepare(struct net_device *dev, u16 vid, bool pvid,
+				   bool untagged)
+{
+	struct ocelot_port_private *priv = netdev_priv(dev);
+	struct ocelot_port *ocelot_port = &priv->port;
+	struct ocelot *ocelot = ocelot_port->ocelot;
+	int port = priv->chip_port;
+
+	return ocelot_vlan_prepare(ocelot, port, vid, pvid, untagged);
+}
+
 static int ocelot_vlan_vid_add(struct net_device *dev, u16 vid, bool pvid,
 			       bool untagged)
 {
@@ -812,9 +823,14 @@ static int ocelot_port_obj_add_vlan(struct net_device *dev,
 	u16 vid;
 
 	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
-		ret = ocelot_vlan_vid_add(dev, vid,
-					  vlan->flags & BRIDGE_VLAN_INFO_PVID,
-					  vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED);
+		bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
+		bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
+
+		if (switchdev_trans_ph_prepare(trans))
+			ret = ocelot_vlan_vid_prepare(dev, vid, pvid,
+						      untagged);
+		else
+			ret = ocelot_vlan_vid_add(dev, vid, pvid, untagged);
 		if (ret)
 			return ret;
 	}
