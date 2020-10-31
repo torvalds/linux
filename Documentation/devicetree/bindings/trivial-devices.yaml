@@ -364,6 +364,8 @@ properties:
           - plx,pex8648
             # Pulsedlight LIDAR range-finding sensor
           - pulsedlight,lidar-lite-v2
+            # Renesas ISL29501 time-of-flight sensor
+          - renesas,isl29501
             # S524AD0XF1 (128K/256K-bit Serial EEPROM for Low Power)
           - samsung,24ad0xd1
             # Sensirion low power multi-pixel gas sensor with I2C interface
