@@ -122,18 +122,6 @@ properties:
           - maxim,ds1803-050
             # 100 kOhm digital potentiometer with I2C interface
           - maxim,ds1803-100
-            # 10-bit 8 channels 300ks/s SPI ADC with temperature sensor
-          - maxim,max1027
-            # 10-bit 12 channels 300ks/s SPI ADC with temperature sensor
-          - maxim,max1029
-            # 10-bit 16 channels 300ks/s SPI ADC with temperature sensor
-          - maxim,max1031
-            # 12-bit 8 channels 300ks/s SPI ADC with temperature sensor
-          - maxim,max1227
-            # 12-bit 12 channels 300ks/s SPI ADC with temperature sensor
-          - maxim,max1229
-            # 12-bit 16 channels 300ks/s SPI ADC with temperature sensor
-          - maxim,max1231
             # Low-Power, 4-/12-Channel, 2-Wire Serial, 12-Bit ADCs
           - maxim,max1237
             # 10-bit 10 kOhm linear programable voltage divider
