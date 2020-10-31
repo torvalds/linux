@@ -932,7 +932,8 @@ static ssize_t qm_debug_read(struct file *filp, char __user *buf,
 		return -EINVAL;
 	}
 	mutex_unlock(&file->lock);
-	ret = sprintf(tbuf, "%u\n", val);
+
+	ret = scnprintf(tbuf, QM_DBG_TMP_BUF_LEN, "%u\n", val);
 	return simple_read_from_buffer(buf, count, pos, tbuf, ret);
 }
 
