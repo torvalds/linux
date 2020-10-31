@@ -764,7 +764,7 @@ void ubifs_dump_lpt_info(struct ubifs_info *c)
 	pr_err("\tnnode_sz:      %d\n", c->nnode_sz);
 	pr_err("\tltab_sz:       %d\n", c->ltab_sz);
 	pr_err("\tlsave_sz:      %d\n", c->lsave_sz);
-	pr_err("\tbig_lpt:       %d\n", c->big_lpt);
+	pr_err("\tbig_lpt:       %u\n", c->big_lpt);
 	pr_err("\tlpt_hght:      %d\n", c->lpt_hght);
 	pr_err("\tpnode_cnt:     %d\n", c->pnode_cnt);
 	pr_err("\tnnode_cnt:     %d\n", c->nnode_cnt);
