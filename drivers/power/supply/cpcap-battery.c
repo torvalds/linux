@@ -28,6 +28,7 @@
 #include <linux/power_supply.h>
 #include <linux/reboot.h>
 #include <linux/regmap.h>
+#include <linux/moduleparam.h>
 
 #include <linux/iio/consumer.h>
 #include <linux/iio/types.h>
@@ -138,6 +139,9 @@ struct cpcap_battery_ddata {
 
 #define CPCAP_NO_BATTERY	-400
 
+static bool ignore_temperature_probe;
+module_param(ignore_temperature_probe, bool, 0660);
+
 static struct cpcap_battery_state_data *
 cpcap_battery_get_state(struct cpcap_battery_ddata *ddata,
 			enum cpcap_battery_state state)
@@ -169,7 +173,8 @@ static int cpcap_charger_battery_temperature(struct cpcap_battery_ddata *ddata,
 	channel = ddata->channels[CPCAP_BATTERY_IIO_BATTDET];
 	error = iio_read_channel_processed(channel, value);
 	if (error < 0) {
-		dev_warn(ddata->dev, "%s failed: %i\n", __func__, error);
+		if (!ignore_temperature_probe)
+			dev_warn(ddata->dev, "%s failed: %i\n", __func__, error);
 		*value = CPCAP_NO_BATTERY;
 
 		return error;
@@ -450,7 +455,7 @@ static int cpcap_battery_get_property(struct power_supply *psy,
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_PRESENT:
-		if (latest->temperature > CPCAP_NO_BATTERY)
+		if (latest->temperature > CPCAP_NO_BATTERY || ignore_temperature_probe)
 			val->intval = 1;
 		else
 			val->intval = 0;
@@ -536,6 +541,8 @@ static int cpcap_battery_get_property(struct power_supply *psy,
 		val->intval = POWER_SUPPLY_SCOPE_SYSTEM;
 		break;
 	case POWER_SUPPLY_PROP_TEMP:
+		if (ignore_temperature_probe)
+			return -ENODATA;
 		val->intval = latest->temperature;
 		break;
 	default:
