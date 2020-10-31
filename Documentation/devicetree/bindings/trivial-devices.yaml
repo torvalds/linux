@@ -106,6 +106,12 @@ properties:
           - isil,isl68137
             # 5 Bit Programmable, Pulse-Width Modulator
           - maxim,ds1050
+            # 10 kOhm digital potentiometer with I2C interface
+          - maxim,ds1803-010
+            # 50 kOhm digital potentiometer with I2C interface
+          - maxim,ds1803-050
+            # 100 kOhm digital potentiometer with I2C interface
+          - maxim,ds1803-100
             # 10-bit 8 channels 300ks/s SPI ADC with temperature sensor
           - maxim,max1027
             # 10-bit 12 channels 300ks/s SPI ADC with temperature sensor
