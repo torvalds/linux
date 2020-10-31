@@ -1735,18 +1735,14 @@ void hisi_qm_release_qp(struct hisi_qp *qp)
 }
 EXPORT_SYMBOL_GPL(hisi_qm_release_qp);
 
-static int qm_qp_ctx_cfg(struct hisi_qp *qp, int qp_id, u32 pasid)
+static int qm_sq_ctx_cfg(struct hisi_qp *qp, int qp_id, int pasid)
 {
 	struct hisi_qm *qm = qp->qm;
 	struct device *dev = &qm->pdev->dev;
 	enum qm_hw_ver ver = qm->ver;
 	struct qm_sqc *sqc;
-	struct qm_cqc *cqc;
 	dma_addr_t sqc_dma;
-	dma_addr_t cqc_dma;
 	int ret;
-
-	qm_init_qp_status(qp);
 
 	sqc = kzalloc(sizeof(struct qm_sqc), GFP_KERNEL);
 	if (!sqc)
@@ -1772,12 +1768,23 @@ static int qm_qp_ctx_cfg(struct hisi_qp *qp, int qp_id, u32 pasid)
 	ret = qm_mb(qm, QM_MB_CMD_SQC, sqc_dma, qp_id, 0);
 	dma_unmap_single(dev, sqc_dma, sizeof(struct qm_sqc), DMA_TO_DEVICE);
 	kfree(sqc);
-	if (ret)
-		return ret;
+
+	return ret;
+}
+
+static int qm_cq_ctx_cfg(struct hisi_qp *qp, int qp_id, int pasid)
+{
+	struct hisi_qm *qm = qp->qm;
+	struct device *dev = &qm->pdev->dev;
+	enum qm_hw_ver ver = qm->ver;
+	struct qm_cqc *cqc;
+	dma_addr_t cqc_dma;
+	int ret;
 
 	cqc = kzalloc(sizeof(struct qm_cqc), GFP_KERNEL);
 	if (!cqc)
 		return -ENOMEM;
+
 	cqc_dma = dma_map_single(dev, cqc, sizeof(struct qm_cqc),
 				 DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, cqc_dma)) {
@@ -1792,7 +1799,7 @@ static int qm_qp_ctx_cfg(struct hisi_qp *qp, int qp_id, u32 pasid)
 		cqc->w8 = cpu_to_le16(QM_Q_DEPTH - 1);
 	} else {
 		cqc->dw3 = cpu_to_le32(QM_MK_CQC_DW3_V2(QM_QC_CQE_SIZE));
-		cqc->w8 = 0;
+		cqc->w8 = 0; /* rand_qc */
 	}
 	cqc->dw6 = cpu_to_le32(1 << QM_CQ_PHASE_SHIFT | 1 << QM_CQ_FLAG_SHIFT);
 
@@ -1801,6 +1808,19 @@ static int qm_qp_ctx_cfg(struct hisi_qp *qp, int qp_id, u32 pasid)
 	kfree(cqc);
 
 	return ret;
+}
+
+static int qm_qp_ctx_cfg(struct hisi_qp *qp, int qp_id, int pasid)
+{
+	int ret;
+
+	qm_init_qp_status(qp);
+
+	ret = qm_sq_ctx_cfg(qp, qp_id, pasid);
+	if (ret)
+		return ret;
+
+	return qm_cq_ctx_cfg(qp, qp_id, pasid);
 }
 
 static int qm_start_qp_nolock(struct hisi_qp *qp, unsigned long arg)
