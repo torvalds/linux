@@ -1419,7 +1419,7 @@ struct ec_response_flash_info_2 {
 	uint16_t num_banks_total;
 	/* Number of banks described in banks array. */
 	uint16_t num_banks_desc;
-	struct ec_flash_bank banks[0];
+	struct ec_flash_bank banks[];
 } __ec_align4;
 
 /*
@@ -2420,12 +2420,12 @@ struct ec_response_motion_sense_fifo_info {
 	/* Total amount of vector lost */
 	uint16_t total_lost;
 	/* Lost events since the last fifo_info, per sensors */
-	uint16_t lost[0];
+	uint16_t lost[];
 } __ec_todo_packed;
 
 struct ec_response_motion_sense_fifo_data {
 	uint32_t number_data;
-	struct ec_response_motion_sensor_data data[0];
+	struct ec_response_motion_sensor_data data[];
 } __ec_todo_packed;
 
 /* List supported activity recognition */
@@ -3093,7 +3093,7 @@ struct ec_response_tmp006_get_calibration_v1 {
 	uint8_t algorithm;
 	uint8_t num_params;
 	uint8_t reserved[2];
-	float val[0];
+	float val[];
 } __ec_align4;
 
 struct ec_params_tmp006_set_calibration_v1 {
@@ -3101,7 +3101,7 @@ struct ec_params_tmp006_set_calibration_v1 {
 	uint8_t algorithm;
 	uint8_t num_params;
 	uint8_t reserved;
-	float val[0];
+	float val[];
 } __ec_align4;
 
 
@@ -5076,7 +5076,7 @@ struct ec_response_pd_log {
 	uint8_t type;       /* event type : see PD_EVENT_xx below */
 	uint8_t size_port;  /* [7:5] port number [4:0] payload size in bytes */
 	uint16_t data;      /* type-defined data payload */
-	uint8_t payload[0]; /* optional additional data payload: 0..16 bytes */
+	uint8_t payload[];  /* optional additional data payload: 0..16 bytes */
 } __ec_align4;
 
 /* The timestamp is the microsecond counter shifted to get about a ms. */
@@ -5789,7 +5789,7 @@ struct ec_response_fp_encryption_status {
 
 struct ec_response_tp_frame_info {
 	uint32_t n_frames;
-	uint32_t frame_sizes[0];
+	uint32_t frame_sizes[];
 } __ec_align4;
 
 /* Create a snapshot of current frame readings */
