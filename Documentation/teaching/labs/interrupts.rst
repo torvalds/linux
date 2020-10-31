@@ -800,7 +800,8 @@ section before proceeding.
 
 Follow the sections maked with **TODO 2** in the skeleton.
 
-First, define an empty interrupt handling routine.
+First, define an empty interrupt handling routine named
+c:func:`kbd_interrupt_handler`.
 
 .. note:: Since we already have a driver that uses this interrupt we
 	  should report the interrupt as not handled (i.e. return
