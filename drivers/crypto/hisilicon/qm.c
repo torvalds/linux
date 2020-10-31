@@ -3291,7 +3291,7 @@ pci_ers_result_t hisi_qm_dev_err_detected(struct pci_dev *pdev,
 }
 EXPORT_SYMBOL_GPL(hisi_qm_dev_err_detected);
 
-static int qm_get_hw_error_status(struct hisi_qm *qm)
+static u32 qm_get_hw_error_status(struct hisi_qm *qm)
 {
 	return readl(qm->io_base + QM_ABNORMAL_INT_STATUS);
 }
@@ -3590,7 +3590,7 @@ restart_fail:
 	return ret;
 }
 
-static int qm_get_dev_err_status(struct hisi_qm *qm)
+static u32 qm_get_dev_err_status(struct hisi_qm *qm)
 {
 	return qm->err_ini->get_dev_hw_err_status(qm);
 }
