@@ -58,6 +58,7 @@ struct vidtv_mux_timing {
  * @pat: The PAT in use by the muxer.
  * @pmt_secs: The PMT sections in use by the muxer. One for each program in the PAT.
  * @sdt: The SDT in use by the muxer.
+ * @eit: the EIT in use by the muxer.
  */
 struct vidtv_mux_si {
 	/* the SI tables */
@@ -65,6 +66,7 @@ struct vidtv_mux_si {
 	struct vidtv_psi_table_pmt **pmt_secs; /* the PMT sections */
 	struct vidtv_psi_table_sdt *sdt;
 	struct vidtv_psi_table_nit *nit;
+	struct vidtv_psi_table_eit *eit;
 };
 
 /**

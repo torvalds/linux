@@ -149,11 +149,11 @@ vidtv_psi.[ch]
 	Because the generator is implemented in a separate file, it can be
 	reused elsewhere in the media subsystem.
 
-	Currently vidtv supports working with 4 PSI tables: PAT, PMT,
-	SDT and NIT.
+	Currently vidtv supports working with 5 PSI tables: PAT, PMT,
+	SDT, NIT and EIT.
 
 	The specification for PAT and PMT can be found in *ISO 13818-1:
-	Systems*, while the specification for the SDT, NIT can be found in *ETSI
+	Systems*, while the specification for the SDT, NIT, EIT can be found in *ETSI
 	EN 300 468: Specification for Service Information (SI) in DVB
 	systems*.
 
@@ -196,6 +196,8 @@ vidtv_channel.[ch]
 	#. Their services will be concatenated to populate the SDT.
 
 	#. Their programs will be concatenated to populate the PAT
+
+	#. Their events will be concatenated to populate the EIT
 
 	#. For each program in the PAT, a PMT section will be created
 

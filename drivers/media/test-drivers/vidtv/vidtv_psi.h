@@ -24,16 +24,20 @@
 #define PMT_LEN_UNTIL_PROGRAM_INFO_LENGTH 9
 #define SDT_LEN_UNTIL_RESERVED_FOR_FUTURE_USE 8
 #define NIT_LEN_UNTIL_NETWORK_DESCRIPTOR_LEN 7
+#define EIT_LEN_UNTIL_LAST_TABLE_ID 11
 #define MAX_SECTION_LEN 1021
+#define EIT_MAX_SECTION_LEN 4093 /* see ETSI 300 468 v.1.10.1 p. 26 */
 #define VIDTV_PAT_PID 0 /* mandated by the specs */
 #define VIDTV_SDT_PID 0x0011 /* mandated by the specs */
 #define VIDTV_NIT_PID 0x0010 /* mandated by the specs */
+#define VIDTV_EIT_PID 0x0012 /*mandated by the specs */
 
 enum vidtv_psi_descriptors {
 	REGISTRATION_DESCRIPTOR	= 0x05, /* See ISO/IEC 13818-1 section 2.6.8 */
 	NETWORK_NAME_DESCRIPTOR = 0x40, /* See ETSI EN 300 468 section 6.2.27 */
 	SERVICE_LIST_DESCRIPTOR = 0x41, /* See ETSI EN 300 468 section 6.2.35 */
 	SERVICE_DESCRIPTOR = 0x48, /* See ETSI EN 300 468 section 6.2.33 */
+	SHORT_EVENT_DESCRIPTOR = 0x4d, /* See ETSI EN 300 468 section 6.2.37 */
 };
 
 enum vidtv_psi_stream_types {
@@ -117,6 +121,27 @@ struct vidtv_psi_desc_service_list {
 	u8 length;
 	struct vidtv_psi_desc_service_list_entry *service_list;
 } __packed;
+
+/**
+ * struct vidtv_psi_desc_short_event - A short event descriptor
+ * see ETSI EN 300 468 v1.15.1 section 6.2.37
+ */
+struct vidtv_psi_desc_short_event {
+	struct vidtv_psi_desc *next;
+	u8 type;
+	u8 length;
+	char *iso_language_code;
+	u8 event_name_len;
+	char *event_name;
+	u8 text_len;
+	char *text;
+} __packed;
+
+struct vidtv_psi_desc_short_event
+*vidtv_psi_short_event_desc_init(struct vidtv_psi_desc *head,
+				 char *iso_language_code,
+				 char *event_name,
+				 char *text);
 
 /**
  * struct vidtv_psi_table_header - A header that is present for all PSI tables.
@@ -344,7 +369,9 @@ struct vidtv_psi_table_sdt *vidtv_psi_sdt_table_init(u16 transport_stream_id);
 
 struct vidtv_psi_table_sdt_service*
 vidtv_psi_sdt_service_init(struct vidtv_psi_table_sdt_service *head,
-			   u16 service_id);
+			   u16 service_id,
+			   bool eit_schedule,
+			   bool eit_present_following);
 
 void
 vidtv_psi_desc_destroy(struct vidtv_psi_desc *desc);
@@ -683,5 +710,96 @@ struct vidtv_psi_nit_write_args {
 u32 vidtv_psi_nit_write_into(struct vidtv_psi_nit_write_args args);
 
 void vidtv_psi_nit_table_destroy(struct vidtv_psi_table_nit *nit);
+
+/**
+ * struct vidtv_psi_desc_short_event - A short event descriptor
+ * see ETSI EN 300 468 v1.15.1 section 6.2.37
+ */
+struct vidtv_psi_table_eit_event {
+	__be16 event_id;
+	u8 start_time[5];
+	u8 duration[3];
+	__be16 bitfield; /* desc_length: 12, free_CA_mode: 1, running_status: 1 */
+	struct vidtv_psi_desc *descriptor;
+	struct vidtv_psi_table_eit_event *next;
+} __packed;
+
+/*
+ * struct vidtv_psi_table_eit - A Event Information Table (EIT)
+ * See ETSI 300 468 section 5.2.4
+ */
+struct vidtv_psi_table_eit {
+	struct vidtv_psi_table_header header;
+	__be16 transport_id;
+	__be16 network_id;
+	u8 last_segment;
+	u8 last_table_id;
+	struct vidtv_psi_table_eit_event *event;
+} __packed;
+
+struct vidtv_psi_table_eit
+*vidtv_psi_eit_table_init(u16 network_id,
+			  u16 transport_stream_id);
+
+/**
+ * struct vidtv_psi_eit_write_args - Arguments for writing an EIT section
+ * @buf: The destination buffer.
+ * @offset: The offset into the destination buffer.
+ * @nit: A pointer to the NIT
+ * @buf_sz: The size of the destination buffer.
+ * @continuity_counter: A pointer to the CC. Incremented on every new packet.
+ *
+ */
+struct vidtv_psi_eit_write_args {
+	char *buf;
+	u32 offset;
+	struct vidtv_psi_table_eit *eit;
+	u32 buf_sz;
+	u8 *continuity_counter;
+};
+
+/**
+ * vidtv_psi_eit_write_into - Write EIT as MPEG-TS packets into a buffer.
+ * @args: an instance of struct vidtv_psi_nit_write_args
+ *
+ * This function writes the MPEG TS packets for a EIT table into a buffer.
+ * Calling code will usually generate the EIT via a call to its init function
+ * and thus is responsible for freeing it.
+ *
+ * Return: The number of bytes written into the buffer. This is NOT
+ * equal to the size of the EIT, since more space is needed for TS headers during TS
+ * encapsulation.
+ */
+u32 vidtv_psi_eit_write_into(struct vidtv_psi_eit_write_args args);
+
+void vidtv_psi_eit_table_destroy(struct vidtv_psi_table_eit *eit);
+
+/**
+ * vidtv_psi_eit_table_update_sec_len - Recompute and update the EIT section length.
+ * @eit: The EIT whose length is to be updated.
+ *
+ * This will traverse the table and accumulate the length of its components,
+ * which is then used to replace the 'section_length' field.
+ *
+ * If section_length > EIT_MAX_SECTION_LEN, the operation fails.
+ */
+void vidtv_psi_eit_table_update_sec_len(struct vidtv_psi_table_eit *eit);
+
+/**
+ * vidtv_psi_eit_event_assign - Assigns the event loop to the EIT.
+ * @eit: The EIT to assign to.
+ * @e: The event loop
+ *
+ * This will free the previous event loop in the table.
+ * This will assign ownership of the stream loop to the table, i.e. the table
+ * will free this stream loop when a call to its destroy function is made.
+ */
+void vidtv_psi_eit_event_assign(struct vidtv_psi_table_eit *eit,
+				struct vidtv_psi_table_eit_event *e);
+
+struct vidtv_psi_table_eit_event
+*vidtv_psi_eit_event_init(struct vidtv_psi_table_eit_event *head, u16 event_id);
+
+void vidtv_psi_eit_event_destroy(struct vidtv_psi_table_eit_event *e);
 
 #endif // VIDTV_PSI_H

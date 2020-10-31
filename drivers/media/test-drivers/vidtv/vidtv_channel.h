@@ -9,6 +9,7 @@
  * When vidtv boots, it will create some hardcoded channels.
  * Their services will be concatenated to populate the SDT.
  * Their programs will be concatenated to populate the PAT
+ * Their events will be concatenated to populate the EIT
  * For each program in the PAT, a PMT section will be created
  * The PMT section for a channel will be assigned its streams.
  * Every stream will have its corresponding encoder polled to produce TS packets
@@ -44,6 +45,7 @@
  * Will be concatenated into the PAT.
  * @streams: A stream loop used to populate the PMT section for 'program'
  * @encoders: A encoder loop. There must be one encoder for each stream.
+ * @events: Optional event information. This will feed into the EIT.
  * @next: Optionally chain this channel.
  */
 struct vidtv_channel {
@@ -54,6 +56,7 @@ struct vidtv_channel {
 	struct vidtv_psi_table_pat_program *program;
 	struct vidtv_psi_table_pmt_stream *streams;
 	struct vidtv_encoder *encoders;
+	struct vidtv_psi_table_eit_event *events;
 	struct vidtv_channel *next;
 };
 

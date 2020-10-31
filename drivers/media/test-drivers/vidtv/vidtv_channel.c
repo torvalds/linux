@@ -9,6 +9,7 @@
  * When vidtv boots, it will create some hardcoded channels.
  * Their services will be concatenated to populate the SDT.
  * Their programs will be concatenated to populate the PAT
+ * Their events will be concatenated to populate the EIT
  * For each program in the PAT, a PMT section will be created
  * The PMT section for a channel will be assigned its streams.
  * Every stream will have its corresponding encoder polled to produce TS packets
@@ -59,13 +60,17 @@ struct vidtv_channel
 
 	char *name = ENCODING_ISO8859_15 "Beethoven";
 	char *provider = ENCODING_ISO8859_15 "LinuxTV.org";
+	char *iso_language_code = ENCODING_ISO8859_15 "eng";
+	char *event_name = ENCODING_ISO8859_15 "Beethoven Music";
+	char *event_text = ENCODING_ISO8859_15 "Beethoven's 5th Symphony";
+	const u16 s302m_beethoven_event_id  = 1;
 
 	struct vidtv_channel *s302m = kzalloc(sizeof(*s302m), GFP_KERNEL);
 	struct vidtv_s302m_encoder_init_args encoder_args = {};
 
 	s302m->name = kstrdup(name, GFP_KERNEL);
 
-	s302m->service = vidtv_psi_sdt_service_init(NULL, s302m_service_id);
+	s302m->service = vidtv_psi_sdt_service_init(NULL, s302m_service_id, false, true);
 
 	s302m->service->descriptor = (struct vidtv_psi_desc *)
 				     vidtv_psi_service_desc_init(NULL,
@@ -94,6 +99,13 @@ struct vidtv_channel
 
 	s302m->encoders = vidtv_s302m_encoder_init(encoder_args);
 
+	s302m->events = vidtv_psi_eit_event_init(NULL, s302m_beethoven_event_id);
+	s302m->events->descriptor = (struct vidtv_psi_desc *)
+				    vidtv_psi_short_event_desc_init(NULL,
+								    iso_language_code,
+								    event_name,
+								    event_text);
+
 	if (head) {
 		while (head->next)
 			head = head->next;
@@ -102,6 +114,48 @@ struct vidtv_channel
 	}
 
 	return s302m;
+}
+
+static struct vidtv_psi_table_eit_event
+*vidtv_channel_eit_event_cat_into_new(struct vidtv_mux *m)
+{
+	/* Concatenate the events */
+	const struct vidtv_channel *cur_chnl = m->channels;
+
+	struct vidtv_psi_table_eit_event *curr = NULL;
+	struct vidtv_psi_table_eit_event *head = NULL;
+	struct vidtv_psi_table_eit_event *tail = NULL;
+
+	struct vidtv_psi_desc *desc = NULL;
+	u16 event_id;
+
+	if (!cur_chnl)
+		return NULL;
+
+	while (cur_chnl) {
+		curr = cur_chnl->events;
+
+		if (!curr)
+			dev_warn_ratelimited(m->dev,
+					     "No events found for channel %s\n", cur_chnl->name);
+
+		while (curr) {
+			event_id = be16_to_cpu(curr->event_id);
+			tail = vidtv_psi_eit_event_init(tail, event_id);
+
+			desc = vidtv_psi_desc_clone(curr->descriptor);
+			vidtv_psi_desc_assign(&tail->descriptor, desc);
+
+			if (!head)
+				head = tail;
+
+			curr = curr->next;
+		}
+
+		cur_chnl = cur_chnl->next;
+	}
+
+	return head;
 }
 
 static struct vidtv_psi_table_sdt_service
@@ -129,7 +183,10 @@ static struct vidtv_psi_table_sdt_service
 
 		while (curr) {
 			service_id = be16_to_cpu(curr->service_id);
-			tail = vidtv_psi_sdt_service_init(tail, service_id);
+			tail = vidtv_psi_sdt_service_init(tail,
+							  service_id,
+							  curr->EIT_schedule,
+							  curr->EIT_present_following);
 
 			desc = vidtv_psi_desc_clone(curr->descriptor);
 			vidtv_psi_desc_assign(&tail->descriptor, desc);
@@ -297,6 +354,7 @@ void vidtv_channel_si_init(struct vidtv_mux *m)
 	struct vidtv_psi_table_pat_program *programs = NULL;
 	struct vidtv_psi_table_sdt_service *services = NULL;
 	struct vidtv_psi_desc_service_list_entry *service_list = NULL;
+	struct vidtv_psi_table_eit_event *events = NULL;
 
 	m->si.pat = vidtv_psi_pat_table_init(m->transport_stream_id);
 
@@ -304,6 +362,8 @@ void vidtv_channel_si_init(struct vidtv_mux *m)
 
 	programs = vidtv_channel_pat_prog_cat_into_new(m);
 	services = vidtv_channel_sdt_serv_cat_into_new(m);
+
+	events = vidtv_channel_eit_event_cat_into_new(m);
 
 	/* look for a service descriptor for every service */
 	service_list = vidtv_channel_build_service_list(services);
@@ -314,11 +374,16 @@ void vidtv_channel_si_init(struct vidtv_mux *m)
 					     m->network_name,
 					     service_list);
 
+	m->si.eit = vidtv_psi_eit_table_init(m->network_id, m->transport_stream_id);
+
 	/* assemble all programs and assign to PAT */
 	vidtv_psi_pat_program_assign(m->si.pat, programs);
 
 	/* assemble all services and assign to SDT */
 	vidtv_psi_sdt_service_assign(m->si.sdt, services);
+
+	/* assemble all events and assign to EIT */
+	vidtv_psi_eit_event_assign(m->si.eit, events);
 
 	m->si.pmt_secs = vidtv_psi_pmt_create_sec_for_each_pat_entry(m->si.pat, m->pcr_pid);
 
@@ -342,6 +407,7 @@ void vidtv_channel_si_destroy(struct vidtv_mux *m)
 	kfree(m->si.pmt_secs);
 	vidtv_psi_sdt_table_destroy(m->si.sdt);
 	vidtv_psi_nit_table_destroy(m->si.nit);
+	vidtv_psi_eit_table_destroy(m->si.eit);
 }
 
 void vidtv_channels_init(struct vidtv_mux *m)
@@ -361,6 +427,7 @@ void vidtv_channels_destroy(struct vidtv_mux *m)
 		vidtv_psi_pat_program_destroy(curr->program);
 		vidtv_psi_pmt_stream_destroy(curr->streams);
 		vidtv_channel_encoder_destroy(curr->encoders);
+		vidtv_psi_eit_event_destroy(curr->events);
 
 		tmp = curr;
 		curr = curr->next;

@@ -28,6 +28,7 @@
 #define CRC_SIZE_IN_BYTES 4
 #define MAX_VERSION_NUM 32
 #define INITIAL_CRC 0xffffffff
+#define ISO_LANGUAGE_CODE_LEN 3
 
 static const u32 CRC_LUT[256] = {
 	/* from libdvbv5 */
@@ -454,6 +455,51 @@ struct vidtv_psi_desc_service_list
 	return desc;
 }
 
+struct vidtv_psi_desc_short_event
+*vidtv_psi_short_event_desc_init(struct vidtv_psi_desc *head,
+				 char *iso_language_code,
+				 char *event_name,
+				 char *text)
+{
+	struct vidtv_psi_desc_short_event *desc;
+	u32 event_name_len = event_name ? strlen(event_name) : 0;
+	u32 text_len =  text ? strlen(text) : 0;
+	u32 iso_len =  iso_language_code ? strlen(iso_language_code) : 0;
+
+	desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+
+	desc->type = SHORT_EVENT_DESCRIPTOR;
+
+	desc->length = ISO_LANGUAGE_CODE_LEN +
+		       sizeof_field(struct vidtv_psi_desc_short_event, event_name_len) +
+		       event_name_len +
+		       sizeof_field(struct vidtv_psi_desc_short_event, text_len) +
+		       text_len;
+
+	desc->event_name_len = event_name_len;
+	desc->text_len = text_len;
+
+	if (iso_len != ISO_LANGUAGE_CODE_LEN)
+		iso_language_code = "eng";
+
+	desc->iso_language_code = kstrdup(iso_language_code, GFP_KERNEL);
+
+	if (event_name && event_name_len)
+		desc->event_name = kstrdup(event_name, GFP_KERNEL);
+
+	if (text && text_len)
+		desc->text = kstrdup(text, GFP_KERNEL);
+
+	if (head) {
+		while (head->next)
+			head = head->next;
+
+		head->next = (struct vidtv_psi_desc *)desc;
+	}
+
+	return desc;
+}
+
 struct vidtv_psi_desc *vidtv_psi_desc_clone(struct vidtv_psi_desc *desc)
 {
 	struct vidtv_psi_desc *head = NULL;
@@ -463,6 +509,7 @@ struct vidtv_psi_desc *vidtv_psi_desc_clone(struct vidtv_psi_desc *desc)
 	struct vidtv_psi_desc_service *service;
 	struct vidtv_psi_desc_network_name *desc_network_name;
 	struct vidtv_psi_desc_service_list *desc_service_list;
+	struct vidtv_psi_desc_short_event  *desc_short_event;
 
 	while (desc) {
 		switch (desc->type) {
@@ -487,6 +534,15 @@ struct vidtv_psi_desc *vidtv_psi_desc_clone(struct vidtv_psi_desc *desc)
 			curr = (struct vidtv_psi_desc *)
 				vidtv_psi_service_list_desc_init(head,
 								 desc_service_list->service_list);
+		break;
+
+		case SHORT_EVENT_DESCRIPTOR:
+			desc_short_event = (struct vidtv_psi_desc_short_event *)desc;
+			curr = (struct vidtv_psi_desc *)
+			       vidtv_psi_short_event_desc_init(head,
+							       desc_short_event->iso_language_code,
+							       desc_short_event->event_name,
+							       desc_short_event->text);
 		break;
 
 		case REGISTRATION_DESCRIPTOR:
@@ -543,6 +599,12 @@ void vidtv_psi_desc_destroy(struct vidtv_psi_desc *desc)
 				kfree(sl_entry_tmp);
 			}
 			break;
+
+		case SHORT_EVENT_DESCRIPTOR:
+			kfree(((struct vidtv_psi_desc_short_event *)tmp)->iso_language_code);
+			kfree(((struct vidtv_psi_desc_short_event *)tmp)->event_name);
+			kfree(((struct vidtv_psi_desc_short_event *)tmp)->text);
+		break;
 
 		default:
 			pr_warn_ratelimited("Possible leak: not handling descriptor type %d\n",
@@ -681,6 +743,41 @@ static u32 vidtv_psi_desc_write_into(struct desc_write_args args)
 
 			serv_list_entry = serv_list_entry->next;
 		}
+		break;
+
+	case SHORT_EVENT_DESCRIPTOR:
+		psi_args.dest_offset = args.dest_offset + nbytes;
+		psi_args.len = ISO_LANGUAGE_CODE_LEN;
+		psi_args.from = ((struct vidtv_psi_desc_short_event *)
+				  args.desc)->iso_language_code;
+
+		nbytes += vidtv_psi_ts_psi_write_into(psi_args);
+
+		psi_args.dest_offset = args.dest_offset + nbytes;
+		psi_args.len = sizeof_field(struct vidtv_psi_desc_short_event, event_name_len);
+		psi_args.from = &((struct vidtv_psi_desc_short_event *)
+				  args.desc)->event_name_len;
+
+		nbytes += vidtv_psi_ts_psi_write_into(psi_args);
+
+		psi_args.dest_offset = args.dest_offset + nbytes;
+		psi_args.len = ((struct vidtv_psi_desc_short_event *)args.desc)->event_name_len;
+		psi_args.from = ((struct vidtv_psi_desc_short_event *)args.desc)->event_name;
+
+		nbytes += vidtv_psi_ts_psi_write_into(psi_args);
+
+		psi_args.dest_offset = args.dest_offset + nbytes;
+		psi_args.len = sizeof_field(struct vidtv_psi_desc_short_event, text_len);
+		psi_args.from = &((struct vidtv_psi_desc_short_event *)args.desc)->text_len;
+
+		nbytes += vidtv_psi_ts_psi_write_into(psi_args);
+
+		psi_args.dest_offset = args.dest_offset + nbytes;
+		psi_args.len = ((struct vidtv_psi_desc_short_event *)args.desc)->text_len;
+		psi_args.from = ((struct vidtv_psi_desc_short_event *)args.desc)->text;
+
+		nbytes += vidtv_psi_ts_psi_write_into(psi_args);
+
 		break;
 
 	case REGISTRATION_DESCRIPTOR:
@@ -1334,7 +1431,9 @@ void vidtv_psi_sdt_table_destroy(struct vidtv_psi_table_sdt *sdt)
 
 struct vidtv_psi_table_sdt_service
 *vidtv_psi_sdt_service_init(struct vidtv_psi_table_sdt_service *head,
-			    u16 service_id)
+			    u16 service_id,
+			    bool eit_schedule,
+			    bool eit_present_following)
 {
 	struct vidtv_psi_table_sdt_service *service;
 
@@ -1347,8 +1446,8 @@ struct vidtv_psi_table_sdt_service
 	 * corresponding program_map_section
 	 */
 	service->service_id            = cpu_to_be16(service_id);
-	service->EIT_schedule          = 0x0;
-	service->EIT_present_following = 0x0;
+	service->EIT_schedule          = eit_schedule;
+	service->EIT_present_following = eit_present_following;
 	service->reserved              = 0x3f;
 
 	service->bitfield = cpu_to_be16(RUNNING << 13);
@@ -1655,4 +1754,214 @@ void vidtv_psi_nit_table_destroy(struct vidtv_psi_table_nit *nit)
 	vidtv_psi_desc_destroy(nit->descriptor);
 	vidtv_psi_transport_destroy(nit->transport);
 	kfree(nit);
+}
+
+void vidtv_psi_eit_table_update_sec_len(struct vidtv_psi_table_eit *eit)
+{
+	u16 length = 0;
+	struct vidtv_psi_table_eit_event *e = eit->event;
+	u16 desc_loop_len;
+
+	/*
+	 * from immediately after 'section_length' until
+	 * 'last_table_id'
+	 */
+	length += EIT_LEN_UNTIL_LAST_TABLE_ID;
+
+	while (e) {
+		/* skip both pointers at the end */
+		length += sizeof(struct vidtv_psi_table_eit_event) -
+			  sizeof(struct vidtv_psi_desc *) -
+			  sizeof(struct vidtv_psi_table_eit_event *);
+
+		desc_loop_len = vidtv_psi_desc_comp_loop_len(e->descriptor);
+		vidtv_psi_set_desc_loop_len(&e->bitfield, desc_loop_len, 12);
+
+		length += desc_loop_len;
+
+		e = e->next;
+	}
+
+	length += CRC_SIZE_IN_BYTES;
+
+	vidtv_psi_set_sec_len(&eit->header, length);
+}
+
+void vidtv_psi_eit_event_assign(struct vidtv_psi_table_eit *eit,
+				struct vidtv_psi_table_eit_event *e)
+{
+	if (e == eit->event)
+		return;
+
+	eit->event = e;
+	vidtv_psi_eit_table_update_sec_len(eit);
+
+	if (vidtv_psi_get_sec_len(&eit->header) > EIT_MAX_SECTION_LEN)
+		vidtv_psi_eit_event_assign(eit, NULL);
+
+	vidtv_psi_update_version_num(&eit->header);
+}
+
+struct vidtv_psi_table_eit
+*vidtv_psi_eit_table_init(u16 network_id,
+			  u16 transport_stream_id)
+{
+	struct vidtv_psi_table_eit *eit = kzalloc(sizeof(*eit), GFP_KERNEL);
+
+	const u16 SYNTAX = 0x1;
+	const u16 ONE = 0x1;
+	const u16 ONES = 0x03;
+
+	eit->header.table_id = 0x4e; //actual_transport_stream: present/following
+
+	eit->header.bitfield = cpu_to_be16((SYNTAX << 15) | (ONE << 14) | (ONES << 12));
+
+	eit->header.id = cpu_to_be16(network_id);
+	eit->header.current_next = ONE;
+
+	eit->header.version = 0x1f;
+
+	eit->header.one2  = ONES;
+	eit->header.section_id   = 0;
+	eit->header.last_section = 0;
+
+	eit->transport_id = cpu_to_be16(transport_stream_id);
+	eit->network_id = cpu_to_be16(network_id);
+
+	eit->last_segment = eit->header.last_section; /* not implemented */
+	eit->last_table_id = eit->header.table_id; /* not implemented */
+
+	vidtv_psi_eit_table_update_sec_len(eit);
+
+	return eit;
+}
+
+u32 vidtv_psi_eit_write_into(struct vidtv_psi_eit_write_args args)
+{
+	u32 nbytes  = 0;
+	u32 crc = INITIAL_CRC;
+
+	struct vidtv_psi_table_eit_event *event = args.eit->event;
+	struct vidtv_psi_desc *event_descriptor = (args.eit->event) ?
+						   args.eit->event->descriptor :
+						   NULL;
+
+	struct header_write_args h_args = {};
+	struct psi_write_args psi_args  = {};
+	struct desc_write_args d_args   = {};
+	struct crc32_write_args c_args  = {};
+
+	vidtv_psi_eit_table_update_sec_len(args.eit);
+
+	h_args.dest_buf           = args.buf;
+	h_args.dest_offset        = args.offset;
+	h_args.h                  = &args.eit->header;
+	h_args.pid                = VIDTV_EIT_PID;
+	h_args.continuity_counter = args.continuity_counter;
+	h_args.dest_buf_sz        = args.buf_sz;
+	h_args.crc                = &crc;
+
+	nbytes += vidtv_psi_table_header_write_into(h_args);
+
+	psi_args.dest_buf = args.buf;
+	psi_args.from     = &args.eit->transport_id;
+
+	psi_args.len = sizeof_field(struct vidtv_psi_table_eit, transport_id) +
+		       sizeof_field(struct vidtv_psi_table_eit, network_id)   +
+		       sizeof_field(struct vidtv_psi_table_eit, last_segment) +
+		       sizeof_field(struct vidtv_psi_table_eit, last_table_id);
+
+	psi_args.dest_offset        = args.offset + nbytes;
+	psi_args.pid                = VIDTV_EIT_PID;
+	psi_args.new_psi_section    = false;
+	psi_args.continuity_counter = args.continuity_counter;
+	psi_args.is_crc             = false;
+	psi_args.dest_buf_sz        = args.buf_sz;
+	psi_args.crc                = &crc;
+
+	nbytes += vidtv_psi_ts_psi_write_into(psi_args);
+
+	while (event) {
+		/* copy the events, if any */
+		psi_args.from = event;
+		/* skip both pointers at the end */
+		psi_args.len = sizeof(struct vidtv_psi_table_eit_event) -
+			       sizeof(struct vidtv_psi_desc *) -
+			       sizeof(struct vidtv_psi_table_eit_event *);
+		psi_args.dest_offset = args.offset + nbytes;
+
+		nbytes += vidtv_psi_ts_psi_write_into(psi_args);
+
+		event_descriptor = event->descriptor;
+
+		while (event_descriptor) {
+			/* copy the event descriptors, if any */
+			d_args.dest_buf           = args.buf;
+			d_args.dest_offset        = args.offset + nbytes;
+			d_args.desc               = event_descriptor;
+			d_args.pid                = VIDTV_EIT_PID;
+			d_args.continuity_counter = args.continuity_counter;
+			d_args.dest_buf_sz        = args.buf_sz;
+			d_args.crc                = &crc;
+
+			nbytes += vidtv_psi_desc_write_into(d_args);
+
+			event_descriptor = event_descriptor->next;
+		}
+
+		event = event->next;
+	}
+
+	c_args.dest_buf           = args.buf;
+	c_args.dest_offset        = args.offset + nbytes;
+	c_args.crc                = cpu_to_be32(crc);
+	c_args.pid                = VIDTV_EIT_PID;
+	c_args.continuity_counter = args.continuity_counter;
+	c_args.dest_buf_sz        = args.buf_sz;
+
+	/* Write the CRC at the end */
+	nbytes += table_section_crc32_write_into(c_args);
+
+	return nbytes;
+}
+
+struct vidtv_psi_table_eit_event
+*vidtv_psi_eit_event_init(struct vidtv_psi_table_eit_event *head, u16 event_id)
+{
+	struct vidtv_psi_table_eit_event *e = kzalloc(sizeof(*e), GFP_KERNEL);
+	const u8 DURATION_ONE_HOUR[] = {1, 0, 0};
+
+	e->event_id = cpu_to_be16(event_id);
+	memset(e->start_time, 0xff, sizeof(e->start_time)); //todo: 0xff means 'unspecified'
+	memcpy(e->duration, DURATION_ONE_HOUR, sizeof(e->duration)); //todo, default to this for now
+
+	e->bitfield = cpu_to_be16(RUNNING << 13);
+
+	if (head) {
+		while (head->next)
+			head = head->next;
+
+		head->next = e;
+	}
+
+	return e;
+}
+
+void vidtv_psi_eit_event_destroy(struct vidtv_psi_table_eit_event *e)
+{
+	struct vidtv_psi_table_eit_event *curr_e = e;
+	struct vidtv_psi_table_eit_event *tmp_e  = NULL;
+
+	while (curr_e) {
+		tmp_e  = curr_e;
+		curr_e = curr_e->next;
+		vidtv_psi_desc_destroy(tmp_e->descriptor);
+		kfree(tmp_e);
+	}
+}
+
+void vidtv_psi_eit_table_destroy(struct vidtv_psi_table_eit *eit)
+{
+	vidtv_psi_eit_event_destroy(eit->event);
+	kfree(eit);
 }

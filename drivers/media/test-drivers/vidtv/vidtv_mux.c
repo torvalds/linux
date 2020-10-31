@@ -76,6 +76,8 @@ static void vidtv_mux_pid_ctx_init(struct vidtv_mux *m)
 	vidtv_mux_create_pid_ctx_once(m, VIDTV_SDT_PID);
 	/* push the NIT pid ctx */
 	vidtv_mux_create_pid_ctx_once(m, VIDTV_NIT_PID);
+	/* push the EIT pid ctx */
+	vidtv_mux_create_pid_ctx_once(m, VIDTV_EIT_PID);
 
 	/* add a ctx for all PMT sections */
 	while (p) {
@@ -120,11 +122,13 @@ static u32 vidtv_mux_push_si(struct vidtv_mux *m)
 	struct vidtv_mux_pid_ctx *pmt_ctx;
 	struct vidtv_mux_pid_ctx *sdt_ctx;
 	struct vidtv_mux_pid_ctx *nit_ctx;
+	struct vidtv_mux_pid_ctx *eit_ctx;
 
 	struct vidtv_psi_pat_write_args pat_args = {};
 	struct vidtv_psi_pmt_write_args pmt_args = {};
 	struct vidtv_psi_sdt_write_args sdt_args = {};
 	struct vidtv_psi_nit_write_args nit_args = {};
+	struct vidtv_psi_eit_write_args eit_args = {};
 
 	u32 nbytes; /* the number of bytes written by this function */
 	u16 pmt_pid;
@@ -133,6 +137,7 @@ static u32 vidtv_mux_push_si(struct vidtv_mux *m)
 	pat_ctx = vidtv_mux_get_pid_ctx(m, VIDTV_PAT_PID);
 	sdt_ctx = vidtv_mux_get_pid_ctx(m, VIDTV_SDT_PID);
 	nit_ctx = vidtv_mux_get_pid_ctx(m, VIDTV_NIT_PID);
+	eit_ctx = vidtv_mux_get_pid_ctx(m, VIDTV_EIT_PID);
 
 	pat_args.buf                = m->mux_buf;
 	pat_args.offset             = m->mux_buf_offset;
@@ -181,6 +186,14 @@ static u32 vidtv_mux_push_si(struct vidtv_mux *m)
 	nit_args.continuity_counter = &nit_ctx->cc;
 
 	m->mux_buf_offset += vidtv_psi_nit_write_into(nit_args);
+
+	eit_args.buf                = m->mux_buf;
+	eit_args.offset             = m->mux_buf_offset;
+	eit_args.eit                = m->si.eit;
+	eit_args.buf_sz             = m->mux_buf_sz;
+	eit_args.continuity_counter = &eit_ctx->cc;
+
+	m->mux_buf_offset += vidtv_psi_eit_write_into(eit_args);
 
 	nbytes = m->mux_buf_offset - initial_offset;
 
