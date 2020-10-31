@@ -494,7 +494,7 @@ object corresponding to it, as follows:
 	residency.
 
 ``below``
-	Total number of times this idle state had been asked for, but cerainly
+	Total number of times this idle state had been asked for, but certainly
 	a deeper idle state would have been a better match for the observed idle
 	duration.
 
