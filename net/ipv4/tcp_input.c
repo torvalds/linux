@@ -2546,7 +2546,7 @@ static bool tcp_try_undo_loss(struct sock *sk, bool frto_undo)
  *   1) If the packets in flight is larger than ssthresh, PRR spreads the
  *	cwnd reductions across a full RTT.
  *   2) Otherwise PRR uses packet conservation to send as much as delivered.
- *      But when the retransmits are acked without further losses, PRR
+ *      But when SND_UNA is acked without further losses,
  *      slow starts cwnd up to ssthresh to speed up the recovery.
  */
 static void tcp_init_cwnd_reduction(struct sock *sk)
@@ -2563,7 +2563,7 @@ static void tcp_init_cwnd_reduction(struct sock *sk)
 	tcp_ecn_queue_cwr(tp);
 }
 
-void tcp_cwnd_reduction(struct sock *sk, int newly_acked_sacked, int flag)
+void tcp_cwnd_reduction(struct sock *sk, int newly_acked_sacked, int newly_lost, int flag)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	int sndcnt = 0;
@@ -2577,8 +2577,7 @@ void tcp_cwnd_reduction(struct sock *sk, int newly_acked_sacked, int flag)
 		u64 dividend = (u64)tp->snd_ssthresh * tp->prr_delivered +
 			       tp->prior_cwnd - 1;
 		sndcnt = div_u64(dividend, tp->prior_cwnd) - tp->prr_out;
-	} else if ((flag & (FLAG_RETRANS_DATA_ACKED | FLAG_LOST_RETRANS)) ==
-		   FLAG_RETRANS_DATA_ACKED) {
+	} else if (flag & FLAG_SND_UNA_ADVANCED && !newly_lost) {
 		sndcnt = min_t(int, delta,
 			       max_t(int, tp->prr_delivered - tp->prr_out,
 				     newly_acked_sacked) + 1);
@@ -3419,7 +3418,7 @@ static void tcp_cong_control(struct sock *sk, u32 ack, u32 acked_sacked,
 
 	if (tcp_in_cwnd_reduction(sk)) {
 		/* Reduce cwnd if state mandates */
-		tcp_cwnd_reduction(sk, acked_sacked, flag);
+		tcp_cwnd_reduction(sk, acked_sacked, rs->losses, flag);
 	} else if (tcp_may_raise_cwnd(sk, flag)) {
 		/* Advance cwnd if state allows */
 		tcp_cong_avoid(sk, ack, acked_sacked);
