@@ -140,6 +140,8 @@ properties:
           - meas,ms8607-humidity
             # Measurement Specialities temp and pressure part of ms8607 device
           - meas,ms8607-temppressure
+            # Measurement Specialties temperature sensor
+          - meas,tsys01
             # Microchip differential I2C ADC, 1 Channel, 18 bit
           - microchip,mcp3421
             # Microchip differential I2C ADC, 2 Channel, 18 bit
