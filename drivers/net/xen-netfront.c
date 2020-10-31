@@ -2413,12 +2413,11 @@ static ssize_t store_rxbuf(struct device *dev,
 			   const char *buf, size_t len)
 {
 	char *endp;
-	unsigned long target;
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
 
-	target = simple_strtoul(buf, &endp, 0);
+	simple_strtoul(buf, &endp, 0);
 	if (endp == buf)
 		return -EBADMSG;
 
