@@ -70,6 +70,12 @@ properties:
           - dlg,da9053
             # DA9063: system PMIC for quad-core application processors
           - dlg,da9063
+            # DMARD05: 3-axis I2C Accelerometer
+          - domintech,dmard05
+            # DMARD06: 3-axis I2C Accelerometer
+          - domintech,dmard06
+            # DMARD05: 3-axis I2C Accelerometer
+          - domintech,dmard07
             # DMARD09: 3-axis Accelerometer
           - domintech,dmard09
             # DMARD10: 3-axis Accelerometer
