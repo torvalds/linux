@@ -765,7 +765,7 @@ It looks like the I/O ports are registered by the kernel during the
 boot and we won't be able to remove the associated module. Instead
 lets trick the kernel and register ports 0x61 and 0x65.
 
-Use the function :c:func:`request_region`(inside the :c:func:`kbd_init`
+Use the function :c:func:`request_region` (inside the :c:func:`kbd_init`
 function) to allocate the ports and the function :c:func:`release_region`
 (inside the :c:func:`kbd_exit` function) to release the allocated memory.
 
@@ -837,7 +837,7 @@ and our driver.
 Print a message inside the routine to make sure it is called. Compile
 and reload the module into the kernel. Check that the interrupt handling
 routine is called when you press the keyboard on the virtual machine,
-using :command:dmesg. Also note that when you use the serial port no
+using :command:`dmesg`. Also note that when you use the serial port no
 keyboard interrupt is generated.
 
 .. attention:: To get access to the keyboard on the virtual machine
