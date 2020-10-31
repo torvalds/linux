@@ -584,12 +584,6 @@ enum rtl_flag {
 	RTL_FLAG_MAX
 };
 
-struct rtl8169_stats {
-	u64			packets;
-	u64			bytes;
-	struct u64_stats_sync	syncp;
-};
-
 struct rtl8169_private {
 	void __iomem *mmio_addr;	/* memory map physical address */
 	struct pci_dev *pci_dev;
@@ -600,8 +594,6 @@ struct rtl8169_private {
 	u32 cur_rx; /* Index into the Rx descriptor buffer of next Rx pkt. */
 	u32 cur_tx; /* Index into the Tx descriptor buffer of next Rx pkt. */
 	u32 dirty_tx;
-	struct rtl8169_stats rx_stats;
-	struct rtl8169_stats tx_stats;
 	struct TxDesc *TxDescArray;	/* 256-aligned Tx descriptor ring */
 	struct RxDesc *RxDescArray;	/* 256-aligned Rx descriptor ring */
 	dma_addr_t TxPhyAddr;
@@ -698,27 +690,6 @@ static bool rtl_supports_eee(struct rtl8169_private *tp)
 	return tp->mac_version >= RTL_GIGA_MAC_VER_34 &&
 	       tp->mac_version != RTL_GIGA_MAC_VER_37 &&
 	       tp->mac_version != RTL_GIGA_MAC_VER_39;
-}
-
-static void rtl_get_priv_stats(struct rtl8169_stats *stats,
-			       u64 *pkts, u64 *bytes)
-{
-	unsigned int start;
-
-	do {
-		start = u64_stats_fetch_begin_irq(&stats->syncp);
-		*pkts = stats->packets;
-		*bytes = stats->bytes;
-	} while (u64_stats_fetch_retry_irq(&stats->syncp, start));
-}
-
-static void rtl_inc_priv_stats(struct rtl8169_stats *stats,
-			       u64 pkts, u64 bytes)
-{
-	u64_stats_update_begin(&stats->syncp);
-	stats->packets += pkts;
-	stats->bytes += bytes;
-	u64_stats_update_end(&stats->syncp);
 }
 
 static void rtl_read_mac_from_reg(struct rtl8169_private *tp, u8 *mac, int reg)
@@ -4416,8 +4387,7 @@ static void rtl_tx(struct net_device *dev, struct rtl8169_private *tp,
 
 	if (tp->dirty_tx != dirty_tx) {
 		netdev_completed_queue(dev, pkts_compl, bytes_compl);
-
-		rtl_inc_priv_stats(&tp->tx_stats, pkts_compl, bytes_compl);
+		dev_sw_netstats_tx_add(dev, pkts_compl, bytes_compl);
 
 		tp->dirty_tx = dirty_tx;
 		/* Sync with rtl8169_start_xmit:
@@ -4539,7 +4509,7 @@ static int rtl_rx(struct net_device *dev, struct rtl8169_private *tp, u32 budget
 
 		napi_gro_receive(&tp->napi, skb);
 
-		rtl_inc_priv_stats(&tp->rx_stats, 1, pkt_size);
+		dev_sw_netstats_rx_add(dev, pkt_size);
 release_descriptor:
 		rtl8169_mark_to_asic(desc);
 	}
@@ -4790,9 +4760,7 @@ rtl8169_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	pm_runtime_get_noresume(&pdev->dev);
 
 	netdev_stats_to_stats64(stats, &dev->stats);
-
-	rtl_get_priv_stats(&tp->rx_stats, &stats->rx_packets, &stats->rx_bytes);
-	rtl_get_priv_stats(&tp->tx_stats, &stats->tx_packets, &stats->tx_bytes);
+	dev_fetch_sw_netstats(stats, dev->tstats);
 
 	/*
 	 * Fetch additional counter values missing in stats collected by driver
@@ -5263,6 +5231,11 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp->eee_adv = -1;
 	tp->ocp_base = OCP_STD_PHY_BASE;
 
+	dev->tstats = devm_netdev_alloc_pcpu_stats(&pdev->dev,
+						   struct pcpu_sw_netstats);
+	if (!dev->tstats)
+		return -ENOMEM;
+
 	/* Get the *optional* external "ether_clk" used on some boards */
 	rc = rtl_get_ether_clk(tp);
 	if (rc)
@@ -5340,8 +5313,6 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	INIT_WORK(&tp->wk.work, rtl_task);
-	u64_stats_init(&tp->rx_stats.syncp);
-	u64_stats_init(&tp->tx_stats.syncp);
 
 	rtl_init_mac_address(tp);
 

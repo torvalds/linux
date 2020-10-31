@@ -2557,6 +2557,18 @@ static inline void dev_sw_netstats_rx_add(struct net_device *dev, unsigned int l
 	u64_stats_update_end(&tstats->syncp);
 }
 
+static inline void dev_sw_netstats_tx_add(struct net_device *dev,
+					  unsigned int packets,
+					  unsigned int len)
+{
+	struct pcpu_sw_netstats *tstats = this_cpu_ptr(dev->tstats);
+
+	u64_stats_update_begin(&tstats->syncp);
+	tstats->tx_bytes += len;
+	tstats->tx_packets += packets;
+	u64_stats_update_end(&tstats->syncp);
+}
+
 static inline void dev_lstats_add(struct net_device *dev, unsigned int len)
 {
 	struct pcpu_lstats *lstats = this_cpu_ptr(dev->lstats);
@@ -2583,6 +2595,20 @@ static inline void dev_lstats_add(struct net_device *dev, unsigned int len)
 
 #define netdev_alloc_pcpu_stats(type)					\
 	__netdev_alloc_pcpu_stats(type, GFP_KERNEL)
+
+#define devm_netdev_alloc_pcpu_stats(dev, type)				\
+({									\
+	typeof(type) __percpu *pcpu_stats = devm_alloc_percpu(dev, type);\
+	if (pcpu_stats) {						\
+		int __cpu;						\
+		for_each_possible_cpu(__cpu) {				\
+			typeof(type) *stat;				\
+			stat = per_cpu_ptr(pcpu_stats, __cpu);		\
+			u64_stats_init(&stat->syncp);			\
+		}							\
+	}								\
+	pcpu_stats;							\
+})
 
 enum netdev_lag_tx_type {
 	NETDEV_LAG_TX_TYPE_UNKNOWN,
