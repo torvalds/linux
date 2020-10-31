@@ -168,19 +168,6 @@ static int ocelot_port_set_native_vlan(struct ocelot *ocelot, int port,
 		       REW_PORT_VLAN_CFG_PORT_VID_M,
 		       REW_PORT_VLAN_CFG, port);
 
-	if (ocelot_port->vlan_aware && !ocelot_port->native_vlan.valid)
-		/* If port is vlan-aware and tagged, drop untagged and priority
-		 * tagged frames.
-		 */
-		val = ANA_PORT_DROP_CFG_DROP_UNTAGGED_ENA |
-		      ANA_PORT_DROP_CFG_DROP_PRIO_S_TAGGED_ENA |
-		      ANA_PORT_DROP_CFG_DROP_PRIO_C_TAGGED_ENA;
-	ocelot_rmw_gix(ocelot, val,
-		       ANA_PORT_DROP_CFG_DROP_UNTAGGED_ENA |
-		       ANA_PORT_DROP_CFG_DROP_PRIO_S_TAGGED_ENA |
-		       ANA_PORT_DROP_CFG_DROP_PRIO_C_TAGGED_ENA,
-		       ANA_PORT_DROP_CFG, port);
-
 	if (ocelot_port->vlan_aware) {
 		if (native_vlan.valid)
 			/* Tag all frames except when VID == DEFAULT_VLAN */
@@ -204,6 +191,7 @@ static void ocelot_port_set_pvid(struct ocelot *ocelot, int port,
 				 struct ocelot_vlan pvid_vlan)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
+	u32 val = 0;
 
 	ocelot_port->pvid_vlan = pvid_vlan;
 
@@ -214,6 +202,20 @@ static void ocelot_port_set_pvid(struct ocelot *ocelot, int port,
 		       ANA_PORT_VLAN_CFG_VLAN_VID(pvid_vlan.vid),
 		       ANA_PORT_VLAN_CFG_VLAN_VID_M,
 		       ANA_PORT_VLAN_CFG, port);
+
+	/* If there's no pvid, we should drop not only untagged traffic (which
+	 * happens automatically), but also 802.1p traffic which gets
+	 * classified to VLAN 0, but that is always in our RX filter, so it
+	 * would get accepted were it not for this setting.
+	 */
+	if (!pvid_vlan.valid && ocelot_port->vlan_aware)
+		val = ANA_PORT_DROP_CFG_DROP_PRIO_S_TAGGED_ENA |
+		      ANA_PORT_DROP_CFG_DROP_PRIO_C_TAGGED_ENA;
+
+	ocelot_rmw_gix(ocelot, val,
+		       ANA_PORT_DROP_CFG_DROP_PRIO_S_TAGGED_ENA |
+		       ANA_PORT_DROP_CFG_DROP_PRIO_C_TAGGED_ENA,
+		       ANA_PORT_DROP_CFG, port);
 }
 
 int ocelot_port_vlan_filtering(struct ocelot *ocelot, int port,
@@ -302,6 +304,13 @@ int ocelot_vlan_del(struct ocelot *ocelot, int port, u16 vid)
 	ret = ocelot_vlant_set_mask(ocelot, vid, ocelot->vlan_mask[vid]);
 	if (ret)
 		return ret;
+
+	/* Ingress */
+	if (ocelot_port->pvid_vlan.vid == vid) {
+		struct ocelot_vlan pvid_vlan = {0};
+
+		ocelot_port_set_pvid(ocelot, port, pvid_vlan);
+	}
 
 	/* Egress */
 	if (ocelot_port->native_vlan.vid == vid) {
