@@ -2895,17 +2895,18 @@ static int module_sig_check(struct load_info *info, int flags)
 		/* We truncate the module to discard the signature */
 		info->len -= markerlen;
 		err = mod_verify_sig(mod, info);
+		if (!err) {
+			info->sig_ok = true;
+			return 0;
+		}
 	}
 
+	/*
+	 * We don't permit modules to be loaded into the trusted kernels
+	 * without a valid signature on them, but if we're not enforcing,
+	 * certain errors are non-fatal.
+	 */
 	switch (err) {
-	case 0:
-		info->sig_ok = true;
-		return 0;
-
-		/* We don't permit modules to be loaded into trusted kernels
-		 * without a valid signature on them, but if we're not
-		 * enforcing, certain errors are non-fatal.
-		 */
 	case -ENODATA:
 		reason = "unsigned module";
 		break;
@@ -2916,11 +2917,12 @@ static int module_sig_check(struct load_info *info, int flags)
 		reason = "module with unavailable key";
 		break;
 
-		/* All other errors are fatal, including nomem, unparseable
-		 * signatures and signature check failures - even if signatures
-		 * aren't required.
-		 */
 	default:
+		/*
+		 * All other errors are fatal, including lack of memory,
+		 * unparseable signatures, and signature check failures --
+		 * even if signatures aren't required.
+		 */
 		return err;
 	}
 
