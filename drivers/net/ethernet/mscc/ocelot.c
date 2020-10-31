@@ -293,10 +293,6 @@ int ocelot_vlan_del(struct ocelot *ocelot, int port, u16 vid)
 	if (ret)
 		return ret;
 
-	/* Ingress */
-	if (ocelot_port->pvid == vid)
-		ocelot_port_set_pvid(ocelot, port, 0);
-
 	/* Egress */
 	if (ocelot_port->vid == vid)
 		ocelot_port_set_native_vlan(ocelot, port, 0);
