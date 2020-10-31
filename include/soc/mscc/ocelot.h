@@ -572,6 +572,7 @@ struct ocelot_vcap_block {
 };
 
 struct ocelot_vlan {
+	bool valid;
 	u16 vid;
 };
 
