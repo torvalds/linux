@@ -142,6 +142,7 @@ int inode_init_always(struct super_block *sb, struct inode *inode)
 	atomic_set(&inode->i_count, 1);
 	inode->i_op = &empty_iops;
 	inode->i_fop = &no_open_fops;
+	inode->i_ino = 0;
 	inode->__i_nlink = 1;
 	inode->i_opflags = 0;
 	if (sb->s_xattr)
