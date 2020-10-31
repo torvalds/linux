@@ -174,8 +174,12 @@ enum nix_scheduler {
 #define NPC_MCAM_KEY_X2			1
 #define NPC_MCAM_KEY_X4			2
 
-#define NIX_INTF_RX			0
-#define NIX_INTF_TX			1
+#define NIX_INTFX_RX(a)			(0x0ull | (a) << 1)
+#define NIX_INTFX_TX(a)			(0x1ull | (a) << 1)
+
+/* Default interfaces are NIX0_RX and NIX0_TX */
+#define NIX_INTF_RX			NIX_INTFX_RX(0)
+#define NIX_INTF_TX			NIX_INTFX_TX(0)
 
 #define NIX_INTF_TYPE_CGX		0
 #define NIX_INTF_TYPE_LBK		1
@@ -206,6 +210,8 @@ enum ndc_idx_e {
 	NIX0_RX = 0x0,
 	NIX0_TX = 0x1,
 	NPA0_U  = 0x2,
+	NIX1_RX = 0x4,
+	NIX1_TX = 0x5,
 };
 
 enum ndc_ctype_e {

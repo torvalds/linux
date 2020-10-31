@@ -54,20 +54,20 @@
 #define RVU_PRIV_PFX_MSIX_CFG(a)            (0x8000110 | (a) << 16)
 #define RVU_PRIV_PFX_ID_CFG(a)              (0x8000120 | (a) << 16)
 #define RVU_PRIV_PFX_INT_CFG(a)             (0x8000200 | (a) << 16)
-#define RVU_PRIV_PFX_NIX0_CFG               (0x8000300)
+#define RVU_PRIV_PFX_NIXX_CFG(a)            (0x8000300 | (a) << 3)
 #define RVU_PRIV_PFX_NPA_CFG		    (0x8000310)
 #define RVU_PRIV_PFX_SSO_CFG                (0x8000320)
 #define RVU_PRIV_PFX_SSOW_CFG               (0x8000330)
 #define RVU_PRIV_PFX_TIM_CFG                (0x8000340)
-#define RVU_PRIV_PFX_CPT0_CFG               (0x8000350)
+#define RVU_PRIV_PFX_CPTX_CFG(a)            (0x8000350 | (a) << 3)
 #define RVU_PRIV_BLOCK_TYPEX_REV(a)         (0x8000400 | (a) << 3)
 #define RVU_PRIV_HWVFX_INT_CFG(a)           (0x8001280 | (a) << 16)
-#define RVU_PRIV_HWVFX_NIX0_CFG             (0x8001300)
+#define RVU_PRIV_HWVFX_NIXX_CFG(a)          (0x8001300 | (a) << 3)
 #define RVU_PRIV_HWVFX_NPA_CFG              (0x8001310)
 #define RVU_PRIV_HWVFX_SSO_CFG              (0x8001320)
 #define RVU_PRIV_HWVFX_SSOW_CFG             (0x8001330)
 #define RVU_PRIV_HWVFX_TIM_CFG              (0x8001340)
-#define RVU_PRIV_HWVFX_CPT0_CFG             (0x8001350)
+#define RVU_PRIV_HWVFX_CPTX_CFG(a)          (0x8001350 | (a) << 3)
 
 /* RVU PF registers */
 #define	RVU_PF_VFX_PFVF_MBOX0		    (0x00000)
@@ -446,6 +446,8 @@
 #define NPC_AF_BLK_RST			(0x00040)
 #define NPC_AF_MCAM_SCRUB_CTL		(0x000a0)
 #define NPC_AF_KCAM_SCRUB_CTL		(0x000b0)
+#define NPC_AF_CONST2			(0x00100)
+#define NPC_AF_CONST3			(0x00110)
 #define NPC_AF_KPUX_CFG(a)		(0x00500 | (a) << 3)
 #define NPC_AF_PCK_CFG			(0x00600)
 #define NPC_AF_PCK_DEF_OL2		(0x00610)
@@ -469,20 +471,7 @@
 		(0x900000 | (a) << 16 | (b) << 12 | (c) << 5 | (d) << 3)
 #define NPC_AF_INTFX_LDATAX_FLAGSX_CFG(a, b, c) \
 		(0x980000 | (a) << 16 | (b) << 12 | (c) << 3)
-#define NPC_AF_MCAMEX_BANKX_CAMX_INTF(a, b, c)       \
-		(0x1000000ull | (a) << 10 | (b) << 6 | (c) << 3)
-#define NPC_AF_MCAMEX_BANKX_CAMX_W0(a, b, c)         \
-		(0x1000010ull | (a) << 10 | (b) << 6 | (c) << 3)
-#define NPC_AF_MCAMEX_BANKX_CAMX_W1(a, b, c)         \
-		(0x1000020ull | (a) << 10 | (b) << 6 | (c) << 3)
-#define NPC_AF_MCAMEX_BANKX_CFG(a, b)	 (0x1800000ull | (a) << 8 | (b) << 4)
-#define NPC_AF_MCAMEX_BANKX_STAT_ACT(a, b) \
-		(0x1880000 | (a) << 8 | (b) << 4)
-#define NPC_AF_MATCH_STATX(a)		(0x1880008 | (a) << 8)
 #define NPC_AF_INTFX_MISS_STAT_ACT(a)	(0x1880040 + (a) * 0x8)
-#define NPC_AF_MCAMEX_BANKX_ACTION(a, b) (0x1900000ull | (a) << 8 | (b) << 4)
-#define NPC_AF_MCAMEX_BANKX_TAG_ACT(a, b) \
-		(0x1900008 | (a) << 8 | (b) << 4)
 #define NPC_AF_INTFX_MISS_ACT(a)	(0x1a00000 | (a) << 4)
 #define NPC_AF_INTFX_MISS_TAG_ACT(a)	(0x1b00008 | (a) << 4)
 #define NPC_AF_MCAM_BANKX_HITX(a, b)	(0x1c80000 | (a) << 8 | (b) << 4)
@@ -498,6 +487,70 @@
 #define NPC_AF_MCAM_DBG			(0x3001000)
 #define NPC_AF_DBG_DATAX(a)		(0x3001400 | (a) << 4)
 #define NPC_AF_DBG_RESULTX(a)		(0x3001800 | (a) << 4)
+
+#define NPC_AF_MCAMEX_BANKX_CAMX_INTF(a, b, c) ({			   \
+	u64 offset;							   \
+									   \
+	offset = (0x1000000ull | (a) << 10 | (b) << 6 | (c) << 3);	   \
+	if (rvu->hw->npc_ext_set)					   \
+		offset = (0x8000000ull | (a) << 8 | (b) << 22 | (c) << 3); \
+	offset; })
+
+#define NPC_AF_MCAMEX_BANKX_CAMX_W0(a, b, c) ({				   \
+	u64 offset;							   \
+									   \
+	offset = (0x1000010ull | (a) << 10 | (b) << 6 | (c) << 3);	   \
+	if (rvu->hw->npc_ext_set)					   \
+		offset = (0x8000010ull | (a) << 8 | (b) << 22 | (c) << 3); \
+	offset; })
+
+#define NPC_AF_MCAMEX_BANKX_CAMX_W1(a, b, c) ({				   \
+	u64 offset;							   \
+									   \
+	offset = (0x1000020ull | (a) << 10 | (b) << 6 | (c) << 3);	   \
+	if (rvu->hw->npc_ext_set)					   \
+		offset = (0x8000020ull | (a) << 8 | (b) << 22 | (c) << 3); \
+	offset; })
+
+#define NPC_AF_MCAMEX_BANKX_CFG(a, b) ({				   \
+	u64 offset;							   \
+									   \
+	offset = (0x1800000ull | (a) << 8 | (b) << 4);			   \
+	if (rvu->hw->npc_ext_set)					   \
+		offset = (0x8000038ull | (a) << 8 | (b) << 22);		   \
+	offset; })
+
+#define NPC_AF_MCAMEX_BANKX_ACTION(a, b) ({				   \
+	u64 offset;							   \
+									   \
+	offset = (0x1900000ull | (a) << 8 | (b) << 4);			   \
+	if (rvu->hw->npc_ext_set)					   \
+		offset = (0x8000040ull | (a) << 8 | (b) << 22);		   \
+	offset; })							   \
+
+#define NPC_AF_MCAMEX_BANKX_TAG_ACT(a, b) ({				   \
+	u64 offset;							   \
+									   \
+	offset = (0x1900008ull | (a) << 8 | (b) << 4);			   \
+	if (rvu->hw->npc_ext_set)					   \
+		offset = (0x8000048ull | (a) << 8 | (b) << 22);		   \
+	offset; })							   \
+
+#define NPC_AF_MCAMEX_BANKX_STAT_ACT(a, b) ({				   \
+	u64 offset;							   \
+									   \
+	offset = (0x1880000ull | (a) << 8 | (b) << 4);			   \
+	if (rvu->hw->npc_ext_set)					   \
+		offset = (0x8000050ull | (a) << 8 | (b) << 22);		   \
+	offset; })							   \
+
+#define NPC_AF_MATCH_STATX(a) ({					   \
+	u64 offset;							   \
+									   \
+	offset = (0x1880008ull | (a) << 8);				   \
+	if (rvu->hw->npc_ext_set)					   \
+		offset = (0x8000078ull | (a) << 8);			   \
+	offset; })							   \
 
 /* NDC */
 #define NDC_AF_CONST			(0x00000)

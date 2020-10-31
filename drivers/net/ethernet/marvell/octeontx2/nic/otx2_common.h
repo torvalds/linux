@@ -197,6 +197,8 @@ struct otx2_hw {
 	struct otx2_drv_stats	drv_stats;
 	u64			cgx_rx_stats[CGX_RX_STATS_COUNT];
 	u64			cgx_tx_stats[CGX_TX_STATS_COUNT];
+	u8			cgx_links;  /* No. of CGX links present in HW */
+	u8			lbk_links;  /* No. of LBK links present in HW */
 };
 
 struct otx2_vf_config {

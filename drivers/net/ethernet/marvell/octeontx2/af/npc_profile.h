@@ -13380,7 +13380,7 @@ static const struct npc_lt_def_cfg npc_lt_defaults = {
 	},
 };
 
-static const struct npc_mcam_kex npc_mkex_default = {
+static struct npc_mcam_kex npc_mkex_default = {
 	.mkex_sign = MKEX_SIGN,
 	.name = "default",
 	.kpu_version = NPC_KPU_PROFILE_VER,
