@@ -350,6 +350,10 @@ properties:
           - pulsedlight,lidar-lite-v2
             # S524AD0XF1 (128K/256K-bit Serial EEPROM for Low Power)
           - samsung,24ad0xd1
+            # Sensirion low power multi-pixel gas sensor with I2C interface
+          - sensirion,sgpc3
+            # Sensirion multi-pixel gas sensor with I2C interface
+          - sensirion,sgp30
             # SGX Sensortech VZ89X Sensors
           - sgx,vz89x
             # Relative Humidity and Temperature Sensors
