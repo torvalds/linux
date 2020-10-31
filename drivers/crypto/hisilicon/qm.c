@@ -1520,7 +1520,7 @@ static const struct file_operations qm_cmd_fops = {
 	.write = qm_cmd_write,
 };
 
-static int qm_create_debugfs_file(struct hisi_qm *qm, enum qm_debug_file index)
+static void qm_create_debugfs_file(struct hisi_qm *qm, enum qm_debug_file index)
 {
 	struct dentry *qm_d = qm->debug.qm_d;
 	struct debugfs_file *file = qm->debug.files + index;
@@ -1531,8 +1531,6 @@ static int qm_create_debugfs_file(struct hisi_qm *qm, enum qm_debug_file index)
 	file->index = index;
 	mutex_init(&file->lock);
 	file->debug = &qm->debug;
-
-	return 0;
 }
 
 static void qm_hw_error_init_v1(struct hisi_qm *qm, u32 ce, u32 nfe, u32 fe)
@@ -2824,12 +2822,12 @@ DEFINE_DEBUGFS_ATTRIBUTE(qm_atomic64_ops, qm_debugfs_atomic64_get,
  *
  * Create qm related debugfs files.
  */
-int hisi_qm_debug_init(struct hisi_qm *qm)
+void hisi_qm_debug_init(struct hisi_qm *qm)
 {
 	struct qm_dfx *dfx = &qm->debug.dfx;
 	struct dentry *qm_d;
 	void *data;
-	int i, ret;
+	int i;
 
 	qm_d = debugfs_create_dir("qm", qm->debug.debug_root);
 	qm->debug.qm_d = qm_d;
@@ -2837,10 +2835,7 @@ int hisi_qm_debug_init(struct hisi_qm *qm)
 	/* only show this in PF */
 	if (qm->fun_type == QM_HW_PF)
 		for (i = CURRENT_Q; i < DEBUG_FILE_NUM; i++)
-			if (qm_create_debugfs_file(qm, i)) {
-				ret = -ENOENT;
-				goto failed_to_create;
-			}
+			qm_create_debugfs_file(qm, i);
 
 	debugfs_create_file("regs", 0444, qm->debug.qm_d, qm, &qm_regs_fops);
 
@@ -2856,12 +2851,6 @@ int hisi_qm_debug_init(struct hisi_qm *qm)
 			data,
 			&qm_atomic64_ops);
 	}
-
-	return 0;
-
-failed_to_create:
-	debugfs_remove_recursive(qm_d);
-	return ret;
 }
 EXPORT_SYMBOL_GPL(hisi_qm_debug_init);
 
