@@ -1735,7 +1735,7 @@ void hisi_qm_release_qp(struct hisi_qp *qp)
 }
 EXPORT_SYMBOL_GPL(hisi_qm_release_qp);
 
-static int qm_sq_ctx_cfg(struct hisi_qp *qp, int qp_id, int pasid)
+static int qm_sq_ctx_cfg(struct hisi_qp *qp, int qp_id, u32 pasid)
 {
 	struct hisi_qm *qm = qp->qm;
 	struct device *dev = &qm->pdev->dev;
@@ -1772,7 +1772,7 @@ static int qm_sq_ctx_cfg(struct hisi_qp *qp, int qp_id, int pasid)
 	return ret;
 }
 
-static int qm_cq_ctx_cfg(struct hisi_qp *qp, int qp_id, int pasid)
+static int qm_cq_ctx_cfg(struct hisi_qp *qp, int qp_id, u32 pasid)
 {
 	struct hisi_qm *qm = qp->qm;
 	struct device *dev = &qm->pdev->dev;
@@ -1784,7 +1784,6 @@ static int qm_cq_ctx_cfg(struct hisi_qp *qp, int qp_id, int pasid)
 	cqc = kzalloc(sizeof(struct qm_cqc), GFP_KERNEL);
 	if (!cqc)
 		return -ENOMEM;
-
 	cqc_dma = dma_map_single(dev, cqc, sizeof(struct qm_cqc),
 				 DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, cqc_dma)) {
@@ -1810,7 +1809,7 @@ static int qm_cq_ctx_cfg(struct hisi_qp *qp, int qp_id, int pasid)
 	return ret;
 }
 
-static int qm_qp_ctx_cfg(struct hisi_qp *qp, int qp_id, int pasid)
+static int qm_qp_ctx_cfg(struct hisi_qp *qp, int qp_id, u32 pasid)
 {
 	int ret;
 
@@ -2550,14 +2549,10 @@ static int qm_eq_ctx_cfg(struct hisi_qm *qm)
 {
 	struct device *dev = &qm->pdev->dev;
 	struct qm_eqc *eqc;
-	struct qm_aeqc *aeqc;
 	dma_addr_t eqc_dma;
-	dma_addr_t aeqc_dma;
 	int ret;
 
-	qm_init_eq_aeq_status(qm);
-
-	eqc = kzalloc(sizeof(struct qm_eqc), GFP_KERNEL);
+	eqc = kzalloc(sizeof(struct qm_eqc), GFP_KERNEL); //todo
 	if (!eqc)
 		return -ENOMEM;
 	eqc_dma = dma_map_single(dev, eqc, sizeof(struct qm_eqc),
@@ -2572,11 +2567,20 @@ static int qm_eq_ctx_cfg(struct hisi_qm *qm)
 	if (qm->ver == QM_HW_V1)
 		eqc->dw3 = cpu_to_le32(QM_EQE_AEQE_SIZE);
 	eqc->dw6 = cpu_to_le32((QM_EQ_DEPTH - 1) | (1 << QM_EQC_PHASE_SHIFT));
+
 	ret = qm_mb(qm, QM_MB_CMD_EQC, eqc_dma, 0, 0);
 	dma_unmap_single(dev, eqc_dma, sizeof(struct qm_eqc), DMA_TO_DEVICE);
 	kfree(eqc);
-	if (ret)
-		return ret;
+
+	return ret;
+}
+
+static int qm_aeq_ctx_cfg(struct hisi_qm *qm)
+{
+	struct device *dev = &qm->pdev->dev;
+	struct qm_aeqc *aeqc;
+	dma_addr_t aeqc_dma;
+	int ret;
 
 	aeqc = kzalloc(sizeof(struct qm_aeqc), GFP_KERNEL);
 	if (!aeqc)
@@ -2599,6 +2603,22 @@ static int qm_eq_ctx_cfg(struct hisi_qm *qm)
 	return ret;
 }
 
+static int qm_eq_aeq_ctx_cfg(struct hisi_qm *qm)
+{
+	struct device *dev = &qm->pdev->dev;
+	int ret;
+
+	qm_init_eq_aeq_status(qm);
+
+	ret = qm_eq_ctx_cfg(qm);
+	if (ret) {
+		dev_err(dev, "Set eqc failed!\n");
+		return ret;
+	}
+
+	return qm_aeq_ctx_cfg(qm);
+}
+
 static int __hisi_qm_start(struct hisi_qm *qm)
 {
 	int ret;
@@ -2615,7 +2635,7 @@ static int __hisi_qm_start(struct hisi_qm *qm)
 			return ret;
 	}
 
-	ret = qm_eq_ctx_cfg(qm);
+	ret = qm_eq_aeq_ctx_cfg(qm);
 	if (ret)
 		return ret;
 
