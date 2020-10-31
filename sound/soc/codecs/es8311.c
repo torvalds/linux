@@ -557,6 +557,9 @@ static int es8311_regs_init(struct snd_soc_component *component)
 	snd_soc_component_write(component, ES8311_CLK_MANAGER_REG01, 0x3F);
 	/* set adc hpf, ADC_EQ bypass */
 	snd_soc_component_write(component, ES8311_ADC_REG1C, 0x6A);
+	/* ensure select Mic1p-Mic1n by default. */
+	snd_soc_component_update_bits(component, ES8311_SYSTEM_REG14,
+				      0x30, 0x10);
 
 	return 0;
 }
