@@ -4,7 +4,6 @@
 #include "hclge_main.h"
 #include "hclge_dcb.h"
 #include "hclge_tm.h"
-#include "hclge_dcb.h"
 #include "hnae3.h"
 
 #define BW_PERCENT	100
