@@ -2118,7 +2118,7 @@ static void hisi_qm_uacce_stop_queue(struct uacce_queue *q)
 	hisi_qm_stop_qp(q->priv);
 }
 
-static int qm_set_sqctype(struct uacce_queue *q, u16 type)
+static void qm_set_sqctype(struct uacce_queue *q, u16 type)
 {
 	struct hisi_qm *qm = q->uacce->priv;
 	struct hisi_qp *qp = q->priv;
@@ -2126,8 +2126,6 @@ static int qm_set_sqctype(struct uacce_queue *q, u16 type)
 	down_write(&qm->qps_lock);
 	qp->alg_type = type;
 	up_write(&qm->qps_lock);
-
-	return 0;
 }
 
 static long hisi_qm_uacce_ioctl(struct uacce_queue *q, unsigned int cmd,
