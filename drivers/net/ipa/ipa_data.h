@@ -46,8 +46,8 @@
  */
 
 /* The maximum value returned by ipa_resource_group_{src,dst}_count() */
-#define IPA_RESOURCE_GROUP_SRC_MAX	4
-#define IPA_RESOURCE_GROUP_DST_MAX	4
+#define IPA_RESOURCE_GROUP_SRC_MAX	5
+#define IPA_RESOURCE_GROUP_DST_MAX	5
 
 /**
  * struct gsi_channel_data - GSI channel configuration data
