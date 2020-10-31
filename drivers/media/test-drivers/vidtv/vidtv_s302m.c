@@ -230,36 +230,38 @@ static u16 vidtv_s302m_get_sample(struct vidtv_encoder *e)
 {
 	u16 sample;
 	int pos;
+	struct vidtv_s302m_ctx *ctx = e->ctx;
 
 	if (!e->src_buf) {
 		/*
 		 * Simple tone generator: play the tones at the
 		 * beethoven_5th_symphony array.
 		 */
-		if (e->last_duration <= 0) {
+		if (ctx->last_duration <= 0) {
 			if (e->src_buf_offset >= ARRAY_SIZE(beethoven_5th_symphony))
 				e->src_buf_offset = 0;
 
-			e->last_tone = beethoven_5th_symphony[e->src_buf_offset].note;
-			e->last_duration = beethoven_5th_symphony[e->src_buf_offset].duration * S302M_SAMPLING_RATE_HZ / COMPASS / 5;
+			ctx->last_tone = beethoven_5th_symphony[e->src_buf_offset].note;
+			ctx->last_duration = beethoven_5th_symphony[e->src_buf_offset].duration *
+					     S302M_SAMPLING_RATE_HZ / COMPASS / 5;
 			e->src_buf_offset++;
-			e->note_offset = 0;
+			ctx->note_offset = 0;
 		} else {
-			e->last_duration--;
+			ctx->last_duration--;
 		}
 
 		/* Handle silent */
-		if (!e->last_tone) {
+		if (!ctx->last_tone) {
 			e->src_buf_offset = 0;
 			return 0x8000;
 		}
 
-		pos = (2 * PI * e->note_offset * e->last_tone / S302M_SAMPLING_RATE_HZ);
+		pos = (2 * PI * ctx->note_offset * ctx->last_tone / S302M_SAMPLING_RATE_HZ);
 
 		if (pos == 360)
-			e->note_offset = 0;
+			ctx->note_offset = 0;
 		else
-			e->note_offset++;
+			ctx->note_offset++;
 
 		return (fixp_sin32(pos % (2 * PI)) >> 16) + 0x8000;
 	}
@@ -442,6 +444,7 @@ struct vidtv_encoder
 {
 	struct vidtv_encoder *e = kzalloc(sizeof(*e), GFP_KERNEL);
 	u32 priv_sz = sizeof(struct vidtv_s302m_ctx);
+	struct vidtv_s302m_ctx *ctx = kzalloc(priv_sz, GFP_KERNEL);
 
 	e->id = S302M;
 
@@ -453,14 +456,14 @@ struct vidtv_encoder
 	e->encoder_buf_offset = 0;
 
 	e->sample_count = 0;
-	e->last_duration = 0;
 
 	e->src_buf = (args.src_buf) ? args.src_buf : NULL;
 	e->src_buf_sz = (args.src_buf) ? args.src_buf_sz : 0;
 	e->src_buf_offset = 0;
 
 	e->is_video_encoder = false;
-	e->ctx = kzalloc(priv_sz, GFP_KERNEL);
+	e->ctx = ctx;
+	ctx->last_duration = 0;
 
 	e->encode = vidtv_s302m_encode;
 	e->clear = vidtv_s302m_clear;
