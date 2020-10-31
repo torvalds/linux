@@ -3078,7 +3078,7 @@ static int ib_to_mlx5_rate_map(u8 rate)
 		return 5;
 	default:
 		return rate + MLX5_STAT_RATE_OFFSET;
-	};
+	}
 
 	return 0;
 }
