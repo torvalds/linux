@@ -55,6 +55,8 @@
 
 #define PEROUT_ENABLE_OUTPUT_MASK		(0xdeadbeef)
 
+#define IDTCM_MAX_WRITE_COUNT			(512)
+
 /* Values of DPLL_N.DPLL_MODE.PLL_MODE */
 enum pll_mode {
 	PLL_MODE_MIN = 0,

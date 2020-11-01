@@ -156,7 +156,7 @@ static void dn_rehash_zone(struct dn_zone *dz)
 	default:
 		printk(KERN_DEBUG "DECnet: dn_rehash_zone: BUG! %d\n",
 		       old_divisor);
-		/* fall through */
+		fallthrough;
 	case 256:
 		new_divisor = 1024;
 		new_hashmask = 0x3FF;

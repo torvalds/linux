@@ -795,7 +795,7 @@ static void scsi_io_completion_action(struct scsi_cmnd *cmd, int result)
 		}
 		if (!scsi_end_request(req, blk_stat, blk_rq_err_bytes(req)))
 			return;
-		/*FALLTHRU*/
+		fallthrough;
 	case ACTION_REPREP:
 		scsi_io_completion_reprep(cmd, q);
 		break;

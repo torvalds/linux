@@ -2108,7 +2108,7 @@ static void fc_exch_rrq_resp(struct fc_seq *sp, struct fc_frame *fp, void *arg)
 	switch (op) {
 	case ELS_LS_RJT:
 		FC_EXCH_DBG(aborted_ep, "LS_RJT for RRQ\n");
-		/* fall through */
+		fallthrough;
 	case ELS_LS_ACC:
 		goto cleanup;
 	default:
@@ -2622,7 +2622,7 @@ void fc_exch_recv(struct fc_lport *lport, struct fc_frame *fp)
 	case FC_EOF_T:
 		if (f_ctl & FC_FC_END_SEQ)
 			skb_trim(fp_skb(fp), fr_len(fp) - FC_FC_FILL(f_ctl));
-		/* fall through */
+		fallthrough;
 	case FC_EOF_N:
 		if (fh->fh_type == FC_TYPE_BLS)
 			fc_exch_recv_bls(ema->mp, fp);

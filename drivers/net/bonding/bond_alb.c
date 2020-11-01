@@ -1206,8 +1206,8 @@ static int alb_handle_addr_collision_on_attach(struct bonding *bond, struct slav
 
 /**
  * alb_set_mac_address
- * @bond:
- * @addr:
+ * @bond: bonding we're working on
+ * @addr: MAC address to set
  *
  * In TLB mode all slaves are configured to the bond's hw address, but set
  * their dev_addr field to different addresses (based on their permanent hw

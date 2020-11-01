@@ -61,6 +61,7 @@ struct nfp_tun_active_tuns {
  * @flags:		options part of the request
  * @tun_info.ipv6:		dest IPv6 address of active route
  * @tun_info.egress_port:	port the encapsulated packet egressed
+ * @tun_info.extra:		reserved for future use
  * @tun_info:		tunnels that have sent traffic in reported period
  */
 struct nfp_tun_active_tuns_v6 {
@@ -70,6 +71,7 @@ struct nfp_tun_active_tuns_v6 {
 	struct route_ip_info_v6 {
 		struct in6_addr ipv6;
 		__be32 egress_port;
+		__be32 extra[2];
 	} tun_info[];
 };
 

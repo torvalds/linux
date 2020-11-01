@@ -221,7 +221,7 @@ int nfsd_vers(struct nfsd_net *nn, int vers, enum vers_op change)
 	case NFSD_TEST:
 		if (nn->nfsd_versions)
 			return nn->nfsd_versions[vers];
-		/* Fallthrough */
+		fallthrough;
 	case NFSD_AVAIL:
 		return nfsd_support_version(vers);
 	}

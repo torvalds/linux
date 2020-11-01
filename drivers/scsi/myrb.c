@@ -650,7 +650,7 @@ static void myrb_bgi_control(struct myrb_hba *cb)
 		if (sdev && cb->bgi_status.status == MYRB_BGI_INPROGRESS)
 			sdev_printk(KERN_INFO, sdev,
 				    "Background Initialization Aborted\n");
-		/* Fallthrough */
+		fallthrough;
 	case MYRB_STATUS_NO_BGI_INPROGRESS:
 		cb->bgi_status.status = MYRB_BGI_INVALID;
 		break;
@@ -1528,7 +1528,7 @@ static int myrb_ldev_queuecommand(struct Scsi_Host *shost,
 			scmd->scsi_done(scmd);
 			return 0;
 		}
-		/* fall through */
+		fallthrough;
 	case WRITE_6:
 		lba = (((scmd->cmnd[1] & 0x1F) << 16) |
 		       (scmd->cmnd[2] << 8) |
@@ -1545,7 +1545,7 @@ static int myrb_ldev_queuecommand(struct Scsi_Host *shost,
 			scmd->scsi_done(scmd);
 			return 0;
 		}
-		/* fall through */
+		fallthrough;
 	case WRITE_10:
 	case VERIFY:		/* 0x2F */
 	case WRITE_VERIFY:	/* 0x2E */
@@ -1562,7 +1562,7 @@ static int myrb_ldev_queuecommand(struct Scsi_Host *shost,
 			scmd->scsi_done(scmd);
 			return 0;
 		}
-		/* fall through */
+		fallthrough;
 	case WRITE_12:
 	case VERIFY_12: /* 0xAF */
 	case WRITE_VERIFY_12:	/* 0xAE */

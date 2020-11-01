@@ -178,7 +178,7 @@ parse_memmap(char *p, unsigned long long *start, unsigned long long *size,
 			}
 			*size = 0;
 		}
-		/* Fall through */
+		fallthrough;
 	default:
 		/*
 		 * If w/o offset, only size specified, memmap=nn[KMG] has the

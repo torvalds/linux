@@ -381,22 +381,13 @@ static int follow_pfn_pte(struct vm_area_struct *vma, unsigned long address,
 }
 
 /*
- * FOLL_FORCE or a forced COW break can write even to unwritable pte's,
- * but only after we've gone through a COW cycle and they are dirty.
+ * FOLL_FORCE can write to even unwritable pte's, but only
+ * after we've gone through a COW cycle and they are dirty.
  */
 static inline bool can_follow_write_pte(pte_t pte, unsigned int flags)
 {
-	return pte_write(pte) || ((flags & FOLL_COW) && pte_dirty(pte));
-}
-
-/*
- * A (separate) COW fault might break the page the other way and
- * get_user_pages() would return the page from what is now the wrong
- * VM. So we need to force a COW break at GUP time even for reads.
- */
-static inline bool should_force_cow_break(struct vm_area_struct *vma, unsigned int flags)
-{
-	return is_cow_mapping(vma->vm_flags) && (flags & (FOLL_GET | FOLL_PIN));
+	return pte_write(pte) ||
+		((flags & FOLL_FORCE) && (flags & FOLL_COW) && pte_dirty(pte));
 }
 
 static struct page *follow_page_pte(struct vm_area_struct *vma,
@@ -843,7 +834,7 @@ static int get_gate_page(struct mm_struct *mm, unsigned long address,
 			goto unmap;
 		*page = pte_page(*pte);
 	}
-	if (unlikely(!try_get_page(*page))) {
+	if (unlikely(!try_grab_page(*page, gup_flags))) {
 		ret = -ENOMEM;
 		goto unmap;
 	}
@@ -1067,11 +1058,9 @@ static long __get_user_pages(struct mm_struct *mm,
 				goto out;
 			}
 			if (is_vm_hugetlb_page(vma)) {
-				if (should_force_cow_break(vma, foll_flags))
-					foll_flags |= FOLL_WRITE;
 				i = follow_hugetlb_page(mm, vma, pages, vmas,
 						&start, &nr_pages, i,
-						foll_flags, locked);
+						gup_flags, locked);
 				if (locked && *locked == 0) {
 					/*
 					 * We've got a VM_FAULT_RETRY
@@ -1085,10 +1074,6 @@ static long __get_user_pages(struct mm_struct *mm,
 				continue;
 			}
 		}
-
-		if (should_force_cow_break(vma, foll_flags))
-			foll_flags |= FOLL_WRITE;
-
 retry:
 		/*
 		 * If we have a pending SIGKILL, don't keep faulting pages and
@@ -2689,19 +2674,6 @@ static int internal_get_user_pages_fast(unsigned long start, int nr_pages,
 		return -EFAULT;
 
 	/*
-	 * The FAST_GUP case requires FOLL_WRITE even for pure reads,
-	 * because get_user_pages() may need to cause an early COW in
-	 * order to avoid confusing the normal COW routines. So only
-	 * targets that are already writable are safe to do by just
-	 * looking at the page tables.
-	 *
-	 * NOTE! With FOLL_FAST_ONLY we allow read-only gup_fast() here,
-	 * because there is no slow path to fall back on. But you'd
-	 * better be careful about possible COW pages - you'll get _a_
-	 * COW page, but not necessarily the one you intended to get
-	 * depending on what COW event happens after this. COW may break
-	 * the page copy in a random direction.
-	 *
 	 * Disable interrupts. The nested form is used, in order to allow
 	 * full, general purpose use of this routine.
 	 *
@@ -2714,8 +2686,6 @@ static int internal_get_user_pages_fast(unsigned long start, int nr_pages,
 	 */
 	if (IS_ENABLED(CONFIG_HAVE_FAST_GUP) && gup_fast_permitted(start, end)) {
 		unsigned long fast_flags = gup_flags;
-		if (!(gup_flags & FOLL_FAST_ONLY))
-			fast_flags |= FOLL_WRITE;
 
 		local_irq_save(flags);
 		gup_pgd_range(addr, end, fast_flags, pages, &nr_pinned);

@@ -636,11 +636,11 @@ static inline unsigned int
 mlxsw_sp_kvdl_entry_size(enum mlxsw_sp_kvdl_entry_type type)
 {
 	switch (type) {
-	case MLXSW_SP_KVDL_ENTRY_TYPE_ADJ: /* fall through */
-	case MLXSW_SP_KVDL_ENTRY_TYPE_ACTSET: /* fall through */
-	case MLXSW_SP_KVDL_ENTRY_TYPE_PBS: /* fall through */
-	case MLXSW_SP_KVDL_ENTRY_TYPE_MCRIGR: /* fall through */
-	case MLXSW_SP_KVDL_ENTRY_TYPE_TNUMT: /* fall through */
+	case MLXSW_SP_KVDL_ENTRY_TYPE_ADJ:
+	case MLXSW_SP_KVDL_ENTRY_TYPE_ACTSET:
+	case MLXSW_SP_KVDL_ENTRY_TYPE_PBS:
+	case MLXSW_SP_KVDL_ENTRY_TYPE_MCRIGR:
+	case MLXSW_SP_KVDL_ENTRY_TYPE_TNUMT:
 	default:
 		return 1;
 	}

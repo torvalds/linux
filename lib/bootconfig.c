@@ -817,7 +817,7 @@ int __init xbc_init(char *buf, const char **emsg, int *epos)
 							q - 2);
 				break;
 			}
-			/* Fall through */
+			/* fall through */
 		case '=':
 			ret = xbc_parse_kv(&p, q, c);
 			break;

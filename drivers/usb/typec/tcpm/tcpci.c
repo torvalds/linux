@@ -157,7 +157,7 @@ static enum typec_cc_status tcpci_to_typec_cc(unsigned int cc, bool sink)
 	case 0x3:
 		if (sink)
 			return TYPEC_CC_RP_3_0;
-		/* fall through */
+		fallthrough;
 	case 0x0:
 	default:
 		return TYPEC_CC_OPEN;

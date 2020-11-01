@@ -1425,7 +1425,6 @@ omap_i2c_probe(struct platform_device *pdev)
 		major = OMAP_I2C_REV_SCHEME_0_MAJOR(omap->rev);
 		break;
 	case OMAP_I2C_SCHEME_1:
-		/* FALLTHROUGH */
 	default:
 		omap->regs = (u8 *)reg_map_ip_v2;
 		rev = (rev << 16) |

@@ -194,7 +194,7 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 				regs->a0 = -EINTR;
 				break;
 			}
-			/* fallthrough */
+			fallthrough;
 		case -ERESTARTNOINTR:
 			regs->a0 = regs->orig_a0;
 			regs->pc -= TRAP0_SIZE;

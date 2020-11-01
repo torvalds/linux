@@ -2748,7 +2748,7 @@ static void toshiba_acpi_process_hotkeys(struct toshiba_acpi_dev *dev)
 				result = hci_write(dev, HCI_SYSTEM_EVENT, 1);
 				if (result == TOS_SUCCESS)
 					pr_notice("Re-enabled hotkeys\n");
-				/* Fall through */
+				fallthrough;
 			default:
 				retries--;
 				break;

@@ -2,8 +2,6 @@
 #ifndef __ASM_MACH_LOONGSON64_IRQ_H_
 #define __ASM_MACH_LOONGSON64_IRQ_H_
 
-#include <boot_param.h>
-
 /* cpu core interrupt numbers */
 #define NR_IRQS_LEGACY		16
 #define NR_MIPS_CPU_IRQS	8

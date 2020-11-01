@@ -2101,7 +2101,7 @@ uart_set_options(struct uart_port *port, struct console *co,
 	switch (parity) {
 	case 'o': case 'O':
 		termios.c_cflag |= PARODD;
-		/*fall through*/
+		fallthrough;
 	case 'e': case 'E':
 		termios.c_cflag |= PARENB;
 		break;

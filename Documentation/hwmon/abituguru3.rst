@@ -13,7 +13,7 @@ Supported chips:
     Note:
 	The uGuru is a microcontroller with onboard firmware which programs
 	it to behave as a hwmon IC. There are many different revisions of the
-	firmware and thus effectivly many different revisions of the uGuru.
+	firmware and thus effectively many different revisions of the uGuru.
 	Below is an incomplete list with which revisions are used for which
 	Motherboards:
 
@@ -24,7 +24,7 @@ Supported chips:
 	- uGuru 3.0.0.0 ~ 3.0.x.x (AW8, AL8, AT8, NI8 SLI, AT8 32X, AN8 32X,
 	  AW9D-MAX)
 
-	The abituguru3 driver is only for revison 3.0.x.x motherboards,
+	The abituguru3 driver is only for revision 3.0.x.x motherboards,
 	this driver will not work on older motherboards. For older
 	motherboards use the abituguru (without the 3 !) driver.
 

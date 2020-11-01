@@ -3472,7 +3472,7 @@ pfm_restart(pfm_context_t *ctx, void *arg, int count, struct pt_regs *regs)
 			break;
 		case PFM_CTX_LOADED: 
 			if (CTX_HAS_SMPL(ctx) && fmt->fmt_restart_active) break;
-			/* fall through */
+			fallthrough;
 		case PFM_CTX_UNLOADED:
 		case PFM_CTX_ZOMBIE:
 			DPRINT(("invalid state=%d\n", state));

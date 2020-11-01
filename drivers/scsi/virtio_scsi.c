@@ -148,7 +148,7 @@ static void virtscsi_complete_cmd(struct virtio_scsi *vscsi, void *buf)
 	default:
 		scmd_printk(KERN_WARNING, sc, "Unknown response %d",
 			    resp->response);
-		/* fall through */
+		fallthrough;
 	case VIRTIO_SCSI_S_FAILURE:
 		set_host_byte(sc, DID_ERROR);
 		break;

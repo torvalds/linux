@@ -18,11 +18,11 @@ static inline unsigned int adfs_readval(unsigned char *p, int len)
 
 	switch (len) {
 	case 4:		val |= p[3] << 24;
-			/* fall through */
+		fallthrough;
 	case 3:		val |= p[2] << 16;
-			/* fall through */
+		fallthrough;
 	case 2:		val |= p[1] << 8;
-			/* fall through */
+		fallthrough;
 	default:	val |= p[0];
 	}
 	return val;
@@ -32,11 +32,11 @@ static inline void adfs_writeval(unsigned char *p, int len, unsigned int val)
 {
 	switch (len) {
 	case 4:		p[3] = val >> 24;
-			/* fall through */
+		fallthrough;
 	case 3:		p[2] = val >> 16;
-			/* fall through */
+		fallthrough;
 	case 2:		p[1] = val >> 8;
-			/* fall through */
+		fallthrough;
 	default:	p[0] = val;
 	}
 }

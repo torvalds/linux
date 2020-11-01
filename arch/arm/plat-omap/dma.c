@@ -309,14 +309,14 @@ void omap_set_dma_src_burst_mode(int lch, enum omap_dma_burst_mode burst_mode)
 		 * not supported by current hardware on OMAP1
 		 * w |= (0x03 << 7);
 		 */
-		/* fall through */
+		fallthrough;
 	case OMAP_DMA_DATA_BURST_16:
 		if (dma_omap2plus()) {
 			burst = 0x3;
 			break;
 		}
 		/* OMAP1 don't support burst 16 */
-		/* fall through */
+		fallthrough;
 	default:
 		BUG();
 	}
@@ -393,7 +393,7 @@ void omap_set_dma_dest_burst_mode(int lch, enum omap_dma_burst_mode burst_mode)
 			break;
 		}
 		/* OMAP1 don't support burst 16 */
-		/* fall through */
+		fallthrough;
 	default:
 		printk(KERN_ERR "Invalid DMA burst mode\n");
 		BUG();

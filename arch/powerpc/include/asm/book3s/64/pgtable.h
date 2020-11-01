@@ -20,13 +20,9 @@
 #define _PAGE_RW		(_PAGE_READ | _PAGE_WRITE)
 #define _PAGE_RWX		(_PAGE_READ | _PAGE_WRITE | _PAGE_EXEC)
 #define _PAGE_PRIVILEGED	0x00008 /* kernel access only */
-
-#define _PAGE_CACHE_CTL		0x00030 /* Bits for the folowing cache modes */
-			/*	No bits set is normal cacheable memory */
-			/*	0x00010 unused, is SAO bit on radix POWER9 */
+#define _PAGE_SAO		0x00010 /* Strong access order */
 #define _PAGE_NON_IDEMPOTENT	0x00020 /* non idempotent memory */
 #define _PAGE_TOLERANT		0x00030 /* tolerant memory, cache inhibited */
-
 #define _PAGE_DIRTY		0x00080 /* C: page changed */
 #define _PAGE_ACCESSED		0x00100 /* R: page referenced */
 /*
@@ -827,6 +823,8 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 		return radix__set_pte_at(mm, addr, ptep, pte, percpu);
 	return hash__set_pte_at(mm, addr, ptep, pte, percpu);
 }
+
+#define _PAGE_CACHE_CTL	(_PAGE_SAO | _PAGE_NON_IDEMPOTENT | _PAGE_TOLERANT)
 
 #define pgprot_noncached pgprot_noncached
 static inline pgprot_t pgprot_noncached(pgprot_t prot)

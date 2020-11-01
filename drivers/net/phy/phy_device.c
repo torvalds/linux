@@ -1979,7 +1979,7 @@ static int genphy_setup_master_slave(struct phy_device *phydev)
 		break;
 	case MASTER_SLAVE_CFG_MASTER_FORCE:
 		ctl |= CTL1000_AS_MASTER;
-		/* fallthrough */
+		fallthrough;
 	case MASTER_SLAVE_CFG_SLAVE_FORCE:
 		ctl |= CTL1000_ENABLE_MASTER;
 		break;

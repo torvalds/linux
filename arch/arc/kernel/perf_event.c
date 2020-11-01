@@ -562,7 +562,7 @@ static int arc_pmu_device_probe(struct platform_device *pdev)
 {
 	struct arc_reg_pct_build pct_bcr;
 	struct arc_reg_cc_build cc_bcr;
-	int i, has_interrupts;
+	int i, has_interrupts, irq;
 	int counter_size;	/* in bits */
 
 	union cc_name {
@@ -637,13 +637,7 @@ static int arc_pmu_device_probe(struct platform_device *pdev)
 		.attr_groups	= arc_pmu->attr_groups,
 	};
 
-	if (has_interrupts) {
-		int irq = platform_get_irq(pdev, 0);
-
-		if (irq < 0) {
-			pr_err("Cannot get IRQ number for the platform\n");
-			return -ENODEV;
-		}
+	if (has_interrupts && (irq = platform_get_irq(pdev, 0) >= 0)) {
 
 		arc_pmu->irq = irq;
 
@@ -652,9 +646,9 @@ static int arc_pmu_device_probe(struct platform_device *pdev)
 				   this_cpu_ptr(&arc_pmu_cpu));
 
 		on_each_cpu(arc_cpu_pmu_irq_init, &irq, 1);
-
-	} else
+	} else {
 		arc_pmu->pmu.capabilities |= PERF_PMU_CAP_NO_INTERRUPT;
+	}
 
 	/*
 	 * perf parser doesn't really like '-' symbol in events name, so let's

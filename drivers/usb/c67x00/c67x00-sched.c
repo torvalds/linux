@@ -710,7 +710,8 @@ static int c67x00_add_ctrl_urb(struct c67x00_hcd *c67x00, struct urb *urb)
 			if (ret)
 				return ret;
 			break;
-		}		/* else fallthrough */
+		}
+		fallthrough;
 	case STATUS_STAGE:
 		pid = !usb_pipeout(urb->pipe) ? USB_PID_OUT : USB_PID_IN;
 		ret = c67x00_create_td(c67x00, urb, NULL, 0, pid, 1,

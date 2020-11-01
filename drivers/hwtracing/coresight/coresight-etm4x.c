@@ -1382,7 +1382,6 @@ static int etm4_cpu_pm_notify(struct notifier_block *nb, unsigned long cmd,
 				return NOTIFY_BAD;
 		break;
 	case CPU_PM_EXIT:
-		/* fallthrough */
 	case CPU_PM_ENTER_FAILED:
 		if (drvdata->state_needs_restore)
 			etm4_cpu_restore(drvdata);

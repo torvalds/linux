@@ -324,7 +324,7 @@ unw_access_gr (struct unw_frame_info *info, int regnum, unsigned long *val, char
 							return 0;
 						}
 					}
-					/* fall through */
+					fallthrough;
 				      case UNW_NAT_NONE:
 					dummy_nat = 0;
 					nat_addr = &dummy_nat;

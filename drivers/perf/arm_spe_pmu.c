@@ -1002,7 +1002,7 @@ static void __arm_spe_pmu_dev_probe(void *info)
 	default:
 		dev_warn(dev, "unknown PMSIDR_EL1.Interval [%d]; assuming 8\n",
 			 fld);
-		/* Fallthrough */
+		fallthrough;
 	case 8:
 		spe_pmu->min_period = 4096;
 	}
@@ -1021,7 +1021,7 @@ static void __arm_spe_pmu_dev_probe(void *info)
 	default:
 		dev_warn(dev, "unknown PMSIDR_EL1.CountSize [%d]; assuming 2\n",
 			 fld);
-		/* Fallthrough */
+		fallthrough;
 	case 2:
 		spe_pmu->counter_sz = 12;
 	}

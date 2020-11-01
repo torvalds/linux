@@ -13,6 +13,7 @@
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/slab.h>
 
+#define FW_FILE_MAX_SIZE	0x1400000 /* maximum size of 20MB */
 /**
  * hl_fw_load_fw_to_device() - Load F/W code to device's memory.
  *
@@ -47,6 +48,14 @@ int hl_fw_load_fw_to_device(struct hl_device *hdev, const char *fw_name,
 	}
 
 	dev_dbg(hdev->dev, "%s firmware size == %zu\n", fw_name, fw_size);
+
+	if (fw_size > FW_FILE_MAX_SIZE) {
+		dev_err(hdev->dev,
+			"FW file size %zu exceeds maximum of %u bytes\n",
+			fw_size, FW_FILE_MAX_SIZE);
+		rc = -EINVAL;
+		goto out;
+	}
 
 	fw_data = (const u64 *) fw->data;
 

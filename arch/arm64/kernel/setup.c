@@ -280,7 +280,6 @@ u64 cpu_logical_map(int cpu)
 {
 	return __cpu_logical_map[cpu];
 }
-EXPORT_SYMBOL_GPL(cpu_logical_map);
 
 void __init __no_sanitize_address setup_arch(char **cmdline_p)
 {

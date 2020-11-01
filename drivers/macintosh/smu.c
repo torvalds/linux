@@ -852,7 +852,7 @@ int smu_queue_i2c(struct smu_i2c_cmd *cmd)
 		break;
 	case SMU_I2C_TRANSFER_COMBINED:
 		cmd->info.devaddr &= 0xfe;
-		/* fall through */
+		fallthrough;
 	case SMU_I2C_TRANSFER_STDSUB:
 		if (cmd->info.sublen > 3)
 			return -EINVAL;

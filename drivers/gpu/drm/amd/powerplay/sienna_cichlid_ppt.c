@@ -68,7 +68,8 @@
 	FEATURE_MASK(FEATURE_DPM_LINK_BIT)       | \
 	FEATURE_MASK(FEATURE_DPM_SOCCLK_BIT)     | \
 	FEATURE_MASK(FEATURE_DPM_FCLK_BIT)	 | \
-	FEATURE_MASK(FEATURE_DPM_DCEFCLK_BIT))
+	FEATURE_MASK(FEATURE_DPM_DCEFCLK_BIT)	 | \
+	FEATURE_MASK(FEATURE_DPM_MP0CLK_BIT))
 
 #define SMU_11_0_7_GFX_BUSY_THRESHOLD 15
 
@@ -95,6 +96,7 @@ static struct cmn2asic_msg_mapping sienna_cichlid_message_map[SMU_MSG_MAX_COUNT]
 	MSG_MAP(TransferTableSmu2Dram,		PPSMC_MSG_TransferTableSmu2Dram,       0),
 	MSG_MAP(TransferTableDram2Smu,		PPSMC_MSG_TransferTableDram2Smu,       0),
 	MSG_MAP(UseDefaultPPTable,		PPSMC_MSG_UseDefaultPPTable,           0),
+	MSG_MAP(RunDcBtc,			PPSMC_MSG_RunDcBtc,                    0),
 	MSG_MAP(EnterBaco,			PPSMC_MSG_EnterBaco,                   0),
 	MSG_MAP(SetSoftMinByFreq,		PPSMC_MSG_SetSoftMinByFreq,            0),
 	MSG_MAP(SetSoftMaxByFreq,		PPSMC_MSG_SetSoftMaxByFreq,            0),
@@ -228,6 +230,7 @@ sienna_cichlid_get_allowed_feature_mask(struct smu_context *smu,
 
 	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_PREFETCHER_BIT)
 				| FEATURE_MASK(FEATURE_DPM_FCLK_BIT)
+				| FEATURE_MASK(FEATURE_DPM_MP0CLK_BIT)
 				| FEATURE_MASK(FEATURE_DS_SOCCLK_BIT)
 				| FEATURE_MASK(FEATURE_DS_DCEFCLK_BIT)
 				| FEATURE_MASK(FEATURE_DS_FCLK_BIT)
@@ -775,7 +778,7 @@ static int sienna_cichlid_dpm_set_vcn_enable(struct smu_context *smu, bool enabl
 			ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_PowerUpVcn, 0, NULL);
 			if (ret)
 				return ret;
-			if (adev->asic_type == CHIP_SIENNA_CICHLID) {
+			if (adev->vcn.num_vcn_inst > 1) {
 				ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_PowerUpVcn,
 								  0x10000, NULL);
 				if (ret)
@@ -787,7 +790,7 @@ static int sienna_cichlid_dpm_set_vcn_enable(struct smu_context *smu, bool enabl
 			ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_PowerDownVcn, 0, NULL);
 			if (ret)
 				return ret;
-			if (adev->asic_type == CHIP_SIENNA_CICHLID) {
+			if (adev->vcn.num_vcn_inst > 1) {
 				ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_PowerDownVcn,
 								  0x10000, NULL);
 				if (ret)
@@ -1146,10 +1149,14 @@ static bool sienna_cichlid_is_dpm_running(struct smu_context *smu)
 {
 	int ret = 0;
 	uint32_t feature_mask[2];
-	unsigned long feature_enabled;
+	uint64_t feature_enabled;
+
 	ret = smu_cmn_get_enabled_mask(smu, feature_mask, 2);
-	feature_enabled = (unsigned long)((uint64_t)feature_mask[0] |
-			   ((uint64_t)feature_mask[1] << 32));
+	if (ret)
+		return false;
+
+	feature_enabled = (uint64_t)feature_mask[1] << 32 | feature_mask[0];
+
 	return !!(feature_enabled & SMC_DPM_FEATURE);
 }
 
@@ -1730,6 +1737,11 @@ static int sienna_cichlid_get_dpm_ultimate_freq(struct smu_context *smu,
 		amdgpu_gfx_off_ctrl(adev, true);
 
 	return ret;
+}
+
+static int sienna_cichlid_run_btc(struct smu_context *smu)
+{
+	return smu_cmn_send_smc_msg(smu, SMU_MSG_RunDcBtc, NULL);
 }
 
 static bool sienna_cichlid_is_baco_supported(struct smu_context *smu)
@@ -2719,6 +2731,7 @@ static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.mode1_reset = smu_v11_0_mode1_reset,
 	.get_dpm_ultimate_freq = sienna_cichlid_get_dpm_ultimate_freq,
 	.set_soft_freq_limited_range = smu_v11_0_set_soft_freq_limited_range,
+	.run_btc = sienna_cichlid_run_btc,
 	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
 	.set_pp_feature_mask = smu_cmn_set_pp_feature_mask,
 };

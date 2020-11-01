@@ -270,3 +270,8 @@ void __noreturn hyp_panic(struct kvm_cpu_context *host_ctxt)
 		       read_sysreg(hpfar_el2), par, vcpu);
 	unreachable();
 }
+
+asmlinkage void kvm_unexpected_el2_exception(void)
+{
+	return __kvm_unexpected_el2_exception();
+}

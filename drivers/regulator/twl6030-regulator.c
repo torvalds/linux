@@ -312,7 +312,7 @@ static int twl6030smps_list_voltage(struct regulator_dev *rdev, unsigned index)
 	switch (info->flags) {
 	case SMPS_OFFSET_EN:
 		voltage = 100000;
-		/* fall through */
+		fallthrough;
 	case 0:
 		switch (index) {
 		case 0:

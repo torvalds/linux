@@ -73,6 +73,10 @@
  */
 #define MB_DEFAULT_GROUP_PREALLOC	512
 
+/*
+ * maximum length of inode prealloc list
+ */
+#define MB_DEFAULT_MAX_INODE_PREALLOC	512
 
 struct ext4_free_data {
 	/* this links the free block information from sb_info */

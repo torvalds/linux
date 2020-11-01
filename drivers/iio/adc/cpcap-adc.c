@@ -690,7 +690,7 @@ static void cpcap_adc_phase(struct cpcap_adc_request *req)
 		break;
 	case CPCAP_ADC_BATTI_PI17:
 		index = req->bank_index;
-		/* fallthrough */
+		fallthrough;
 	default:
 		req->result += conv_tbl[index].cal_offset;
 		req->result += conv_tbl[index].align_offset;

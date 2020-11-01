@@ -699,7 +699,7 @@ static void dbc_handle_xfer_event(struct xhci_dbc *dbc, union xhci_trb *event)
 	switch (comp_code) {
 	case COMP_SUCCESS:
 		remain_length = 0;
-	/* FALLTHROUGH */
+		fallthrough;
 	case COMP_SHORT_PACKET:
 		status = 0;
 		break;

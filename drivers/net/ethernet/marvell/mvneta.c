@@ -2205,10 +2205,10 @@ mvneta_run_xdp(struct mvneta_port *pp, struct mvneta_rx_queue *rxq,
 		break;
 	default:
 		bpf_warn_invalid_xdp_action(act);
-		/* fall through */
+		fallthrough;
 	case XDP_ABORTED:
 		trace_xdp_exception(pp->dev, prog, act);
-		/* fall through */
+		fallthrough;
 	case XDP_DROP:
 		mvneta_xdp_put_buff(pp, rxq, xdp, sync, true);
 		ret = MVNETA_XDP_DROPPED;

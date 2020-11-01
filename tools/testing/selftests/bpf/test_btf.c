@@ -3883,7 +3883,7 @@ static int test_big_btf_info(unsigned int test_num)
 	info_garbage.garbage = 0;
 	err = bpf_obj_get_info_by_fd(btf_fd, info, &info_len);
 	if (CHECK(err || info_len != sizeof(*info),
-		  "err:%d errno:%d info_len:%u sizeof(*info):%lu",
+		  "err:%d errno:%d info_len:%u sizeof(*info):%zu",
 		  err, errno, info_len, sizeof(*info))) {
 		err = -1;
 		goto done;
@@ -4094,7 +4094,7 @@ static int do_test_get_info(unsigned int test_num)
 	if (CHECK(err || !info.id || info_len != sizeof(info) ||
 		  info.btf_size != raw_btf_size ||
 		  (ret = memcmp(raw_btf, user_btf, expected_nbytes)),
-		  "err:%d errno:%d info.id:%u info_len:%u sizeof(info):%lu raw_btf_size:%u info.btf_size:%u expected_nbytes:%u memcmp:%d",
+		  "err:%d errno:%d info.id:%u info_len:%u sizeof(info):%zu raw_btf_size:%u info.btf_size:%u expected_nbytes:%u memcmp:%d",
 		  err, errno, info.id, info_len, sizeof(info),
 		  raw_btf_size, info.btf_size, expected_nbytes, ret)) {
 		err = -1;
@@ -4730,7 +4730,7 @@ ssize_t get_pprint_expected_line(enum pprint_mapv_kind_t mapv_kind,
 
 		nexpected_line = snprintf(expected_line, line_size,
 					  "%s%u: {%u,0,%d,0x%x,0x%x,0x%x,"
-					  "{%lu|[%u,%u,%u,%u,%u,%u,%u,%u]},%s,"
+					  "{%llu|[%u,%u,%u,%u,%u,%u,%u,%u]},%s,"
 					  "%u,0x%x,[[%d,%d],[%d,%d]]}\n",
 					  percpu_map ? "\tcpu" : "",
 					  percpu_map ? cpu : next_key,
@@ -4738,7 +4738,7 @@ ssize_t get_pprint_expected_line(enum pprint_mapv_kind_t mapv_kind,
 					  v->unused_bits2a,
 					  v->bits28,
 					  v->unused_bits2b,
-					  v->ui64,
+					  (__u64)v->ui64,
 					  v->ui8a[0], v->ui8a[1],
 					  v->ui8a[2], v->ui8a[3],
 					  v->ui8a[4], v->ui8a[5],

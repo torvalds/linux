@@ -2860,17 +2860,6 @@ version of the linux kernel, found on http://kernel.org
 The latest version of this document can be found in the latest kernel
 source (named Documentation/networking/bonding.rst).
 
-Discussions regarding the usage of the bonding driver take place on the
-bonding-devel mailing list, hosted at sourceforge.net. If you have questions or
-problems, post them to the list.  The list address is:
-
-bonding-devel@lists.sourceforge.net
-
-The administrative interface (to subscribe or unsubscribe) can
-be found at:
-
-https://lists.sourceforge.net/lists/listinfo/bonding-devel
-
 Discussions regarding the development of the bonding driver take place
 on the main Linux network mailing list, hosted at vger.kernel.org. The list
 address is:
@@ -2881,10 +2870,3 @@ The administrative interface (to subscribe or unsubscribe) can
 be found at:
 
 http://vger.kernel.org/vger-lists.html#netdev
-
-Donald Becker's Ethernet Drivers and diag programs may be found at :
-
- - http://web.archive.org/web/%2E/http://www.scyld.com/network/
-
-You will also find a lot of information regarding Ethernet, NWay, MII,
-etc. at www.scyld.com.

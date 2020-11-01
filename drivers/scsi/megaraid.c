@@ -491,9 +491,9 @@ mega_get_ldrv_num(adapter_t *adapter, struct scsi_cmnd *cmd, int channel)
 
 	if (adapter->support_random_del && adapter->read_ldidmap )
 		switch (cmd->cmnd[0]) {
-		case READ_6:	/* fall through */
-		case WRITE_6:	/* fall through */
-		case READ_10:	/* fall through */
+		case READ_6:
+		case WRITE_6:
+		case READ_10:
 		case WRITE_10:
 			ldrv_num += 0x80;
 		}
@@ -852,7 +852,7 @@ mega_build_cmd(adapter_t *adapter, struct scsi_cmnd *cmd, int *busy)
 			return scb;
 
 #if MEGA_HAVE_CLUSTERING
-		case RESERVE:	/* Fall through */
+		case RESERVE:
 		case RELEASE:
 
 			/*
@@ -987,7 +987,7 @@ mega_prepare_passthru(adapter_t *adapter, scb_t *scb, struct scsi_cmnd *cmd,
 
 			adapter->flag |= (1L << cmd->device->channel);
 		}
-		/* Fall through */
+		fallthrough;
 	default:
 		pthru->numsgelements = mega_build_sglist(adapter, scb,
 				&pthru->dataxferaddr, &pthru->dataxferlen);
@@ -1050,7 +1050,7 @@ mega_prepare_extpassthru(adapter_t *adapter, scb_t *scb,
 
 			adapter->flag |= (1L << cmd->device->channel);
 		}
-		/* Fall through */
+		fallthrough;
 	default:
 		epthru->numsgelements = mega_build_sglist(adapter, scb,
 				&epthru->dataxferaddr, &epthru->dataxferlen);

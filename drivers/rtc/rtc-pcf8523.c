@@ -108,7 +108,7 @@ static int pcf8523_load_capacitance(struct i2c_client *client)
 	default:
 		dev_warn(&client->dev, "Unknown quartz-load-femtofarads value: %d. Assuming 12500",
 			 load);
-		/* fall through */
+		fallthrough;
 	case 12500:
 		value |= REG_CONTROL1_CAP_SEL;
 		break;

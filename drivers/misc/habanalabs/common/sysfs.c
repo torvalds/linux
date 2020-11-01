@@ -81,7 +81,7 @@ u64 hl_get_max_power(struct hl_device *hdev)
 	return result;
 }
 
-void hl_set_max_power(struct hl_device *hdev, u64 value)
+void hl_set_max_power(struct hl_device *hdev)
 {
 	struct armcp_packet pkt;
 	int rc;
@@ -90,7 +90,7 @@ void hl_set_max_power(struct hl_device *hdev, u64 value)
 
 	pkt.ctl = cpu_to_le32(ARMCP_PACKET_MAX_POWER_SET <<
 				ARMCP_PKT_CTL_OPCODE_SHIFT);
-	pkt.value = cpu_to_le64(value);
+	pkt.value = cpu_to_le64(hdev->max_power);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
 						0, NULL);
@@ -316,7 +316,7 @@ static ssize_t max_power_store(struct device *dev,
 	}
 
 	hdev->max_power = value;
-	hl_set_max_power(hdev, value);
+	hl_set_max_power(hdev);
 
 out:
 	return count;
@@ -422,6 +422,7 @@ int hl_sysfs_init(struct hl_device *hdev)
 		hdev->pm_mng_profile = PM_AUTO;
 	else
 		hdev->pm_mng_profile = PM_MANUAL;
+
 	hdev->max_power = hdev->asic_prop.max_power_default;
 
 	hdev->asic_funcs->add_device_attr(hdev, &hl_dev_clks_attr_group);

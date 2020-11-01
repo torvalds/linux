@@ -52,7 +52,7 @@ static int udf_pc_to_char(struct super_block *sb, unsigned char *from,
 				elen += pc->lengthComponentIdent;
 				break;
 			}
-			/* Fall through */
+			fallthrough;
 		case 2:
 			if (tolen == 0)
 				return -ENAMETOOLONG;

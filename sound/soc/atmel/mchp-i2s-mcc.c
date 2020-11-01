@@ -536,7 +536,7 @@ static int mchp_i2s_mcc_hw_params(struct snd_pcm_substream *substream,
 		/* cpu is BCLK master */
 		mrb |= MCHP_I2SMCC_MRB_CLKSEL_INT;
 		set_divs = 1;
-		/* fall through */
+		fallthrough;
 	case SND_SOC_DAIFMT_CBM_CFM:
 		/* cpu is slave */
 		mra |= MCHP_I2SMCC_MRA_MODE_SLAVE;

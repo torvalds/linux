@@ -517,8 +517,8 @@ enum mlxsw_reg_spms_state mlxsw_sp_stp_spms_state(u8 state)
 		return MLXSW_REG_SPMS_STATE_FORWARDING;
 	case BR_STATE_LEARNING:
 		return MLXSW_REG_SPMS_STATE_LEARNING;
-	case BR_STATE_LISTENING: /* fall-through */
-	case BR_STATE_DISABLED: /* fall-through */
+	case BR_STATE_LISTENING:
+	case BR_STATE_DISABLED:
 	case BR_STATE_BLOCKING:
 		return MLXSW_REG_SPMS_STATE_DISCARDING;
 	default:

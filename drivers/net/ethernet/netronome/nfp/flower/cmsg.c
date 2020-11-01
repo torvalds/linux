@@ -289,7 +289,7 @@ nfp_flower_cmsg_process_one_rx(struct nfp_app *app, struct sk_buff *skb)
 			skb_stored = nfp_flower_lag_unprocessed_msg(app, skb);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 err_default:
 		nfp_flower_cmsg_warn(app, "Cannot handle invalid repr control type %u\n",

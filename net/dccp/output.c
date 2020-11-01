@@ -62,7 +62,7 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 		switch (dcb->dccpd_type) {
 		case DCCP_PKT_DATA:
 			set_ack = 0;
-			/* fall through */
+			fallthrough;
 		case DCCP_PKT_DATAACK:
 		case DCCP_PKT_RESET:
 			break;
@@ -72,12 +72,12 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 			/* Use ISS on the first (non-retransmitted) Request. */
 			if (icsk->icsk_retransmits == 0)
 				dcb->dccpd_seq = dp->dccps_iss;
-			/* fall through */
+			fallthrough;
 
 		case DCCP_PKT_SYNC:
 		case DCCP_PKT_SYNCACK:
 			ackno = dcb->dccpd_ack_seq;
-			/* fall through */
+			fallthrough;
 		default:
 			/*
 			 * Set owner/destructor: some skbs are allocated via
@@ -481,7 +481,7 @@ struct sk_buff *dccp_ctl_make_reset(struct sock *sk, struct sk_buff *rcv_skb)
 	case DCCP_RESET_CODE_PACKET_ERROR:
 		dhr->dccph_reset_data[0] = rxdh->dccph_type;
 		break;
-	case DCCP_RESET_CODE_OPTION_ERROR:	/* fall through */
+	case DCCP_RESET_CODE_OPTION_ERROR:
 	case DCCP_RESET_CODE_MANDATORY_ERROR:
 		memcpy(dhr->dccph_reset_data, dcb->dccpd_reset_data, 3);
 		break;

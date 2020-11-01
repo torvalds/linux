@@ -60,7 +60,7 @@ static int tur_done(struct scsi_device *sdev, struct hp_sw_dh_data *h,
 			ret = SCSI_DH_OK;
 			break;
 		}
-		/* Fallthrough */
+		fallthrough;
 	default:
 		sdev_printk(KERN_WARNING, sdev,
 			   "%s: sending tur failed, sense %x/%x/%x\n",
@@ -147,7 +147,7 @@ retry:
 				rc = SCSI_DH_RETRY;
 				break;
 			}
-			/* fall through */
+			fallthrough;
 		default:
 			sdev_printk(KERN_WARNING, sdev,
 				    "%s: sending start_stop_unit failed, "

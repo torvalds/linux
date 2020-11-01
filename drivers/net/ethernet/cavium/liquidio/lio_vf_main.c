@@ -460,9 +460,8 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 
 		schedule_timeout_uninterruptible(HZ / 10);
 
-		/* fallthrough */
+		fallthrough;
 	case OCT_DEV_HOST_OK:
-		/* fallthrough */
 	case OCT_DEV_IO_QUEUES_DONE:
 		if (lio_wait_for_instr_fetch(oct))
 			dev_err(&oct->pci_dev->dev, "IQ had pending instructions\n");
@@ -504,7 +503,7 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 		octeon_free_sc_done_list(oct);
 		octeon_free_sc_zombie_list(oct);
 
-	/* fall through */
+		fallthrough;
 	case OCT_DEV_INTR_SET_DONE:
 		/* Disable interrupts  */
 		oct->fn_list.disable_interrupt(oct, OCTEON_ALL_INTR);
@@ -533,15 +532,15 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 		else
 			cn23xx_vf_ask_pf_to_do_flr(oct);
 
-		/* fallthrough */
+		fallthrough;
 	case OCT_DEV_MSIX_ALLOC_VECTOR_DONE:
 		octeon_free_ioq_vector(oct);
 
-		/* fallthrough */
+		fallthrough;
 	case OCT_DEV_MBOX_SETUP_DONE:
 		oct->fn_list.free_mbox(oct);
 
-		/* fallthrough */
+		fallthrough;
 	case OCT_DEV_IN_RESET:
 	case OCT_DEV_DROQ_INIT_DONE:
 		mdelay(100);
@@ -551,11 +550,11 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 			octeon_delete_droq(oct, i);
 		}
 
-		/* fallthrough */
+		fallthrough;
 	case OCT_DEV_RESP_LIST_INIT_DONE:
 		octeon_delete_response_list(oct);
 
-		/* fallthrough */
+		fallthrough;
 	case OCT_DEV_INSTR_QUEUE_INIT_DONE:
 		for (i = 0; i < MAX_OCTEON_INSTR_QUEUES(oct); i++) {
 			if (!(oct->io_qmask.iq & BIT_ULL(i)))
@@ -563,27 +562,27 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 			octeon_delete_instr_queue(oct, i);
 		}
 
-		/* fallthrough */
+		fallthrough;
 	case OCT_DEV_SC_BUFF_POOL_INIT_DONE:
 		octeon_free_sc_buffer_pool(oct);
 
-		/* fallthrough */
+		fallthrough;
 	case OCT_DEV_DISPATCH_INIT_DONE:
 		octeon_delete_dispatch_list(oct);
 		cancel_delayed_work_sync(&oct->nic_poll_work.work);
 
-		/* fallthrough */
+		fallthrough;
 	case OCT_DEV_PCI_MAP_DONE:
 		octeon_unmap_pci_barx(oct, 0);
 		octeon_unmap_pci_barx(oct, 1);
 
-		/* fallthrough */
+		fallthrough;
 	case OCT_DEV_PCI_ENABLE_DONE:
 		pci_clear_master(oct->pci_dev);
 		/* Disable the device, releasing the PCI INT */
 		pci_disable_device(oct->pci_dev);
 
-		/* fallthrough */
+		fallthrough;
 	case OCT_DEV_BEGIN_STATE:
 		/* Nothing to be done here either */
 		break;

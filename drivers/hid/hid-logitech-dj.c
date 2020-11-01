@@ -844,7 +844,7 @@ static void logi_dj_recv_queue_notification(struct dj_receiver_dev *djrcv_dev,
 			workitem.type = WORKITEM_TYPE_EMPTY;
 			break;
 		}
-		/* fall-through */
+		fallthrough;
 	case REPORT_TYPE_NOTIF_DEVICE_UNPAIRED:
 		workitem.quad_id_msb =
 			dj_report->report_params[DEVICE_PAIRED_PARAM_EQUAD_ID_MSB];

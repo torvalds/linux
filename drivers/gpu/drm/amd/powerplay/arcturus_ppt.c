@@ -1840,10 +1840,14 @@ static bool arcturus_is_dpm_running(struct smu_context *smu)
 {
 	int ret = 0;
 	uint32_t feature_mask[2];
-	unsigned long feature_enabled;
+	uint64_t feature_enabled;
+
 	ret = smu_cmn_get_enabled_mask(smu, feature_mask, 2);
-	feature_enabled = (unsigned long)((uint64_t)feature_mask[0] |
-			   ((uint64_t)feature_mask[1] << 32));
+	if (ret)
+		return false;
+
+	feature_enabled = (uint64_t)feature_mask[1] << 32 | feature_mask[0];
+
 	return !!(feature_enabled & SMC_DPM_FEATURE);
 }
 
@@ -2204,14 +2208,17 @@ static const struct throttling_logging_label {
 };
 static void arcturus_log_thermal_throttling_event(struct smu_context *smu)
 {
+	int ret;
 	int throttler_idx, throtting_events = 0, buf_idx = 0;
 	struct amdgpu_device *adev = smu->adev;
 	uint32_t throttler_status;
 	char log_buf[256];
 
-	arcturus_get_smu_metrics_data(smu,
-				      METRICS_THROTTLER_STATUS,
-				      &throttler_status);
+	ret = arcturus_get_smu_metrics_data(smu,
+					    METRICS_THROTTLER_STATUS,
+					    &throttler_status);
+	if (ret)
+		return;
 
 	memset(log_buf, 0, sizeof(log_buf));
 	for (throttler_idx = 0; throttler_idx < ARRAY_SIZE(logging_label);

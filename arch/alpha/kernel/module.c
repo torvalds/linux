@@ -212,7 +212,7 @@ apply_relocate_add(Elf64_Shdr *sechdrs, const char *strtab,
 			    STO_ALPHA_STD_GPLOAD)
 				/* Omit the prologue. */
 				value += 8;
-			/* FALLTHRU */
+			fallthrough;
 		case R_ALPHA_BRADDR:
 			value -= (u64)location + 4;
 			if (value & 3)

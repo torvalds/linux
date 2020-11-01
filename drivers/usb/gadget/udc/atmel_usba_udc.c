@@ -328,7 +328,7 @@ static int usba_config_fifo_table(struct usba_udc *udc)
 	switch (fifo_mode) {
 	default:
 		fifo_mode = 0;
-		/* fall through */
+		fallthrough;
 	case 0:
 		udc->fifo_cfg = NULL;
 		n = 0;

@@ -290,7 +290,7 @@ static int wm831x_ts_probe(struct platform_device *pdev)
 		default:
 			dev_err(&pdev->dev, "Unsupported ISEL setting: %d\n",
 				pdata->isel);
-			/* Fall through */
+			fallthrough;
 		case 200:
 		case 0:
 			wm831x_set_bits(wm831x, WM831X_TOUCH_CONTROL_2,

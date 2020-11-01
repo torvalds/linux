@@ -179,11 +179,10 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 		}
 		break;
 	case CHIP_SIENNA_CICHLID:
+	case CHIP_NAVY_FLOUNDER:
 		err = psp_init_ta_microcode(&adev->psp, chip_name);
 		if (err)
 			return err;
-		break;
-	case CHIP_NAVY_FLOUNDER:
 		break;
 	default:
 		BUG();

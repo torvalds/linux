@@ -398,6 +398,7 @@ static int j1939_sk_init(struct sock *sk)
 	spin_lock_init(&jsk->sk_session_queue_lock);
 	INIT_LIST_HEAD(&jsk->sk_session_queue);
 	sk->sk_destruct = j1939_sk_sock_destruct;
+	sk->sk_protocol = CAN_J1939;
 
 	return 0;
 }
@@ -461,6 +462,14 @@ static int j1939_sk_bind(struct socket *sock, struct sockaddr *uaddr, int len)
 		}
 
 		if (ndev->type != ARPHRD_CAN) {
+			dev_put(ndev);
+			ret = -ENODEV;
+			goto out_release_sock;
+		}
+
+		if (!ndev->ml_priv) {
+			netdev_warn_once(ndev,
+					 "No CAN mid layer private allocated, please fix your driver and use alloc_candev()!\n");
 			dev_put(ndev);
 			ret = -ENODEV;
 			goto out_release_sock;
@@ -553,6 +562,11 @@ static int j1939_sk_connect(struct socket *sock, struct sockaddr *uaddr,
 static void j1939_sk_sock2sockaddr_can(struct sockaddr_can *addr,
 				       const struct j1939_sock *jsk, int peer)
 {
+	/* There are two holes (2 bytes and 3 bytes) to clear to avoid
+	 * leaking kernel information to user space.
+	 */
+	memset(addr, 0, J1939_MIN_NAMELEN);
+
 	addr->can_family = AF_CAN;
 	addr->can_ifindex = jsk->ifindex;
 	addr->can_addr.j1939.pgn = jsk->addr.pgn;
@@ -1072,7 +1086,7 @@ static int j1939_sk_send_loop(struct j1939_priv *priv,  struct sock *sk,
 		break;
 	case -ERESTARTSYS:
 		ret = -EINTR;
-		/* fall through */
+		fallthrough;
 	case -EAGAIN: /* OK */
 		if (todo_size != size)
 			ret = size - todo_size;

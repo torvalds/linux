@@ -213,7 +213,7 @@ u32 intel_engine_context_size(struct intel_gt *gt, u8 class)
 		break;
 	default:
 		MISSING_CASE(class);
-		/* fall through */
+		fallthrough;
 	case VIDEO_DECODE_CLASS:
 	case VIDEO_ENHANCEMENT_CLASS:
 	case COPY_ENGINE_CLASS:

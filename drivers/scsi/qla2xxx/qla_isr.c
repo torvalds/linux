@@ -1580,11 +1580,11 @@ global_port_update:
 				qla2xxx_wake_dpc(vha);
 			}
 		}
-		/* fall through */
+		fallthrough;
 	case MBA_IDC_COMPLETE:
 		if (ha->notify_lb_portup_comp && !vha->vp_idx)
 			complete(&ha->lb_portup_comp);
-		/* Fallthru */
+		fallthrough;
 	case MBA_IDC_TIME_EXT:
 		if (IS_QLA81XX(vha->hw) || IS_QLA8031(vha->hw) ||
 		    IS_QLA8044(ha))
@@ -2024,8 +2024,8 @@ qla24xx_els_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 				res = DID_ERROR << 16;
 			}
 		}
-		ql_dbg(ql_dbg_user, vha, 0x503f,
-		    "ELS IOCB Done -%s error hdl=%x comp_status=0x%x error subcode 1=0x%x error subcode 2=0x%x total_byte=0x%x\n",
+		ql_dbg(ql_dbg_disc, vha, 0x503f,
+		    "ELS IOCB Done -%s hdl=%x comp_status=0x%x error subcode 1=0x%x error subcode 2=0x%x total_byte=0x%x\n",
 		    type, sp->handle, comp_status, fw_status[1], fw_status[2],
 		    le32_to_cpu(ese->total_byte_count));
 		goto els_ct_done;
@@ -2188,7 +2188,7 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 				set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 			qla2xxx_wake_dpc(vha);
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		data[0] = MBS_COMMAND_ERROR;
 		break;
@@ -2368,7 +2368,7 @@ static void qla24xx_nvme_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 	case CS_PORT_UNAVAILABLE:
 	case CS_PORT_LOGGED_OUT:
 		fcport->nvme_flag |= NVME_FLAG_RESETTING;
-		/* fall through */
+		fallthrough;
 	case CS_ABORTED:
 	case CS_PORT_BUSY:
 		fd->transferred_length = 0;
@@ -3485,7 +3485,7 @@ process_err:
 			} else {
 				qlt_24xx_process_atio_queue(vha, 1);
 			}
-			/* fall through */
+			fallthrough;
 		case ABTS_RESP_24XX:
 		case CTIO_TYPE7:
 		case CTIO_CRC2:

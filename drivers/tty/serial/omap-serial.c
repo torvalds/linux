@@ -587,7 +587,6 @@ static irqreturn_t serial_omap_irq(int irq, void *dev_id)
 			transmit_chars(up, lsr);
 			break;
 		case UART_IIR_RX_TIMEOUT:
-			/* FALLTHROUGH */
 		case UART_IIR_RDI:
 			serial_omap_rdi(up, lsr);
 			break;
@@ -598,7 +597,6 @@ static irqreturn_t serial_omap_irq(int irq, void *dev_id)
 			/* simply try again */
 			break;
 		case UART_IIR_XOFF:
-			/* FALLTHROUGH */
 		default:
 			break;
 		}

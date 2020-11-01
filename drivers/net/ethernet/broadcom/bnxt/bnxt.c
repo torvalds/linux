@@ -1141,6 +1141,9 @@ static int bnxt_discard_rx(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 
 static void bnxt_queue_fw_reset_work(struct bnxt *bp, unsigned long delay)
 {
+	if (!(test_bit(BNXT_STATE_IN_FW_RESET, &bp->state)))
+		return;
+
 	if (BNXT_PF(bp))
 		queue_delayed_work(bnxt_pf_wq, &bp->fw_reset_task, delay);
 	else
@@ -1157,10 +1160,12 @@ static void bnxt_queue_sp_work(struct bnxt *bp)
 
 static void bnxt_cancel_sp_work(struct bnxt *bp)
 {
-	if (BNXT_PF(bp))
+	if (BNXT_PF(bp)) {
 		flush_workqueue(bnxt_pf_wq);
-	else
+	} else {
 		cancel_work_sync(&bp->sp_task);
+		cancel_delayed_work_sync(&bp->fw_reset_task);
+	}
 }
 
 static void bnxt_sched_reset(struct bnxt *bp, struct bnxt_rx_ring_info *rxr)
@@ -1923,7 +1928,7 @@ u32 bnxt_fw_health_readl(struct bnxt *bp, int reg_idx)
 		break;
 	case BNXT_FW_HEALTH_REG_TYPE_GRC:
 		reg_off = fw_health->mapped_regs[reg_idx];
-		/* fall through */
+		fallthrough;
 	case BNXT_FW_HEALTH_REG_TYPE_BAR0:
 		val = readl(bp->bar0 + reg_off);
 		break;
@@ -1966,11 +1971,11 @@ static int bnxt_async_event_process(struct bnxt *bp,
 		}
 		set_bit(BNXT_LINK_SPEED_CHNG_SP_EVENT, &bp->sp_event);
 	}
-	/* fall through */
+		fallthrough;
 	case ASYNC_EVENT_CMPL_EVENT_ID_LINK_SPEED_CHANGE:
 	case ASYNC_EVENT_CMPL_EVENT_ID_PORT_PHY_CFG_CHANGE:
 		set_bit(BNXT_LINK_CFG_CHANGE_SP_EVENT, &bp->sp_event);
-		/* fall through */
+		fallthrough;
 	case ASYNC_EVENT_CMPL_EVENT_ID_LINK_STATUS_CHANGE:
 		set_bit(BNXT_LINK_CHNG_SP_EVENT, &bp->sp_event);
 		break;
@@ -6102,6 +6107,21 @@ static int bnxt_get_func_stat_ctxs(struct bnxt *bp)
 	return cp + ulp_stat;
 }
 
+/* Check if a default RSS map needs to be setup.  This function is only
+ * used on older firmware that does not require reserving RX rings.
+ */
+static void bnxt_check_rss_tbl_no_rmgr(struct bnxt *bp)
+{
+	struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
+
+	/* The RSS map is valid for RX rings set to resv_rx_rings */
+	if (hw_resc->resv_rx_rings != bp->rx_nr_rings) {
+		hw_resc->resv_rx_rings = bp->rx_nr_rings;
+		if (!netif_is_rxfh_configured(bp->dev))
+			bnxt_set_dflt_rss_indir_tbl(bp);
+	}
+}
+
 static bool bnxt_need_reserve_rings(struct bnxt *bp)
 {
 	struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
@@ -6110,22 +6130,28 @@ static bool bnxt_need_reserve_rings(struct bnxt *bp)
 	int rx = bp->rx_nr_rings, stat;
 	int vnic = 1, grp = rx;
 
-	if (bp->hwrm_spec_code < 0x10601)
-		return false;
-
-	if (hw_resc->resv_tx_rings != bp->tx_nr_rings)
+	if (hw_resc->resv_tx_rings != bp->tx_nr_rings &&
+	    bp->hwrm_spec_code >= 0x10601)
 		return true;
 
+	/* Old firmware does not need RX ring reservations but we still
+	 * need to setup a default RSS map when needed.  With new firmware
+	 * we go through RX ring reservations first and then set up the
+	 * RSS map for the successfully reserved RX rings when needed.
+	 */
+	if (!BNXT_NEW_RM(bp)) {
+		bnxt_check_rss_tbl_no_rmgr(bp);
+		return false;
+	}
 	if ((bp->flags & BNXT_FLAG_RFS) && !(bp->flags & BNXT_FLAG_CHIP_P5))
 		vnic = rx + 1;
 	if (bp->flags & BNXT_FLAG_AGG_RINGS)
 		rx <<= 1;
 	stat = bnxt_get_func_stat_ctxs(bp);
-	if (BNXT_NEW_RM(bp) &&
-	    (hw_resc->resv_rx_rings != rx || hw_resc->resv_cp_rings != cp ||
-	     hw_resc->resv_vnics != vnic || hw_resc->resv_stat_ctxs != stat ||
-	     (hw_resc->resv_hw_ring_grps != grp &&
-	      !(bp->flags & BNXT_FLAG_CHIP_P5))))
+	if (hw_resc->resv_rx_rings != rx || hw_resc->resv_cp_rings != cp ||
+	    hw_resc->resv_vnics != vnic || hw_resc->resv_stat_ctxs != stat ||
+	    (hw_resc->resv_hw_ring_grps != grp &&
+	     !(bp->flags & BNXT_FLAG_CHIP_P5)))
 		return true;
 	if ((bp->flags & BNXT_FLAG_CHIP_P5) && BNXT_PF(bp) &&
 	    hw_resc->resv_irqs != nq)
@@ -6213,6 +6239,9 @@ static int __bnxt_reserve_rings(struct bnxt *bp)
 
 	if (!tx || !rx || !cp || !grp || !vnic || !stat)
 		return -ENOMEM;
+
+	if (!netif_is_rxfh_configured(bp->dev))
+		bnxt_set_dflt_rss_indir_tbl(bp);
 
 	return rc;
 }
@@ -8495,9 +8524,6 @@ int bnxt_reserve_rings(struct bnxt *bp, bool irq_re_init)
 			rc = bnxt_init_int_mode(bp);
 		bnxt_ulp_irq_restart(bp, rc);
 	}
-	if (!netif_is_rxfh_configured(bp->dev))
-		bnxt_set_dflt_rss_indir_tbl(bp);
-
 	if (rc) {
 		netdev_err(bp->dev, "ring reservation/IRQ init failure rc: %d\n", rc);
 		return rc;
@@ -9284,16 +9310,19 @@ static ssize_t bnxt_show_temp(struct device *dev,
 	struct hwrm_temp_monitor_query_input req = {0};
 	struct hwrm_temp_monitor_query_output *resp;
 	struct bnxt *bp = dev_get_drvdata(dev);
-	u32 temp = 0;
+	u32 len = 0;
 
 	resp = bp->hwrm_cmd_resp_addr;
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_TEMP_MONITOR_QUERY, -1, -1);
 	mutex_lock(&bp->hwrm_cmd_lock);
-	if (!_hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT))
-		temp = resp->temp * 1000; /* display millidegree */
+	if (!_hwrm_send_message_silent(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT))
+		len = sprintf(buf, "%u\n", resp->temp * 1000); /* display millidegree */
 	mutex_unlock(&bp->hwrm_cmd_lock);
 
-	return sprintf(buf, "%u\n", temp);
+	if (len)
+		return len;
+
+	return sprintf(buf, "unknown\n");
 }
 static SENSOR_DEVICE_ATTR(temp1_input, 0444, bnxt_show_temp, NULL, 0);
 
@@ -9475,14 +9504,14 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 		}
 	}
 
-	bnxt_enable_napi(bp);
-	bnxt_debug_dev_init(bp);
-
 	rc = bnxt_init_nic(bp, irq_re_init);
 	if (rc) {
 		netdev_err(bp->dev, "bnxt_init_nic err: %x\n", rc);
-		goto open_err;
+		goto open_err_irq;
 	}
+
+	bnxt_enable_napi(bp);
+	bnxt_debug_dev_init(bp);
 
 	if (link_re_init) {
 		mutex_lock(&bp->link_lock);
@@ -9513,10 +9542,6 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 	if (BNXT_PF(bp))
 		bnxt_vf_reps_open(bp);
 	return 0;
-
-open_err:
-	bnxt_debug_dev_exit(bp);
-	bnxt_disable_napi(bp);
 
 open_err_irq:
 	bnxt_del_napi(bp);
@@ -9765,7 +9790,7 @@ static int bnxt_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	case SIOCGMIIPHY:
 		mdio->phy_id = bp->link_info.phy_addr;
 
-		/* fallthru */
+		fallthrough;
 	case SIOCGMIIREG: {
 		u16 mii_regval = 0;
 
@@ -11022,7 +11047,7 @@ static void bnxt_fw_reset_writel(struct bnxt *bp, int reg_idx)
 		writel(reg_off & BNXT_GRC_BASE_MASK,
 		       bp->bar0 + BNXT_GRCPF_REG_WINDOW_BASE_OUT + 4);
 		reg_off = (reg_off & BNXT_GRC_OFFSET_MASK) + 0x2000;
-		/* fall through */
+		fallthrough;
 	case BNXT_FW_HEALTH_REG_TYPE_BAR0:
 		writel(val, bp->bar0 + reg_off);
 		break;
@@ -11135,7 +11160,7 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 		}
 		bp->fw_reset_state = BNXT_FW_RESET_STATE_RESET_FW;
 	}
-	/* fall through */
+		fallthrough;
 	case BNXT_FW_RESET_STATE_RESET_FW:
 		bnxt_reset_all(bp);
 		bp->fw_reset_state = BNXT_FW_RESET_STATE_ENABLE_DEV;
@@ -11158,7 +11183,7 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 		}
 		pci_set_master(bp->pdev);
 		bp->fw_reset_state = BNXT_FW_RESET_STATE_POLL_FW;
-		/* fall through */
+		fallthrough;
 	case BNXT_FW_RESET_STATE_POLL_FW:
 		bp->hwrm_cmd_timeout = SHORT_HWRM_CMD_TIMEOUT;
 		rc = __bnxt_hwrm_ver_get(bp, true);
@@ -11173,7 +11198,7 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 		}
 		bp->hwrm_cmd_timeout = DFLT_HWRM_CMD_TIMEOUT;
 		bp->fw_reset_state = BNXT_FW_RESET_STATE_OPENING;
-		/* fall through */
+		fallthrough;
 	case BNXT_FW_RESET_STATE_OPENING:
 		while (!rtnl_trylock()) {
 			bnxt_queue_fw_reset_work(bp, HZ / 10);
@@ -11761,6 +11786,7 @@ static void bnxt_remove_one(struct pci_dev *pdev)
 	unregister_netdev(dev);
 	bnxt_dl_unregister(bp);
 	bnxt_shutdown_tc(bp);
+	clear_bit(BNXT_STATE_IN_FW_RESET, &bp->state);
 	bnxt_cancel_sp_work(bp);
 	bp->sp_event = 0;
 
@@ -12200,6 +12226,10 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (BNXT_CHIP_P5(bp))
 		bp->flags |= BNXT_FLAG_CHIP_P5;
 
+	rc = bnxt_alloc_rss_indir_tbl(bp);
+	if (rc)
+		goto init_err_pci_clean;
+
 	rc = bnxt_fw_init_one_p2(bp);
 	if (rc)
 		goto init_err_pci_clean;
@@ -12304,11 +12334,6 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 	bp->tx_nr_rings_per_tc = bp->tx_nr_rings;
 
-	rc = bnxt_alloc_rss_indir_tbl(bp);
-	if (rc)
-		goto init_err_pci_clean;
-	bnxt_set_dflt_rss_indir_tbl(bp);
-
 	if (BNXT_PF(bp)) {
 		if (!bnxt_pf_wq) {
 			bnxt_pf_wq =
@@ -12339,6 +12364,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		    (long)pci_resource_start(pdev, 0), dev->dev_addr);
 	pcie_print_link_status(pdev);
 
+	pci_save_state(pdev);
 	return 0;
 
 init_err_cleanup:
@@ -12536,6 +12562,8 @@ static pci_ers_result_t bnxt_io_slot_reset(struct pci_dev *pdev)
 			"Cannot re-enable PCI device after reset.\n");
 	} else {
 		pci_set_master(pdev);
+		pci_restore_state(pdev);
+		pci_save_state(pdev);
 
 		err = bnxt_hwrm_func_reset(bp);
 		if (!err) {

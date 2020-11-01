@@ -1516,7 +1516,7 @@ static void mpls_ifdown(struct net_device *dev, int event)
 			case NETDEV_DOWN:
 			case NETDEV_UNREGISTER:
 				nh_flags |= RTNH_F_DEAD;
-				/* fall through */
+				fallthrough;
 			case NETDEV_CHANGE:
 				nh_flags |= RTNH_F_LINKDOWN;
 				break;

@@ -842,6 +842,17 @@ void dce110_edp_power_control(
 		cntl.coherent = false;
 		cntl.lanes_number = LANE_COUNT_FOUR;
 		cntl.hpd_sel = link->link_enc->hpd_source;
+
+		if (ctx->dc->ctx->dmub_srv &&
+				ctx->dc->debug.dmub_command_table) {
+			if (cntl.action == TRANSMITTER_CONTROL_POWER_ON)
+				bp_result = ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
+						LVTMA_CONTROL_POWER_ON);
+			else
+				bp_result = ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
+						LVTMA_CONTROL_POWER_OFF);
+		}
+
 		bp_result = link_transmitter_control(ctx->dc_bios, &cntl);
 
 		if (!power_up)
@@ -919,7 +930,20 @@ void dce110_edp_backlight_control(
 		/*edp 1.2*/
 	if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_ON)
 		edp_receiver_ready_T7(link);
+
+	if (ctx->dc->ctx->dmub_srv &&
+			ctx->dc->debug.dmub_command_table) {
+		if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_ON)
+			ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
+					LVTMA_CONTROL_LCD_BLON);
+		else
+			ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
+					LVTMA_CONTROL_LCD_BLOFF);
+	}
+
 	link_transmitter_control(ctx->dc_bios, &cntl);
+
+
 
 	if (enable && link->dpcd_sink_ext_caps.bits.oled)
 		msleep(OLED_POST_T7_DELAY);

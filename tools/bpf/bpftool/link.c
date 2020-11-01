@@ -106,7 +106,7 @@ static int show_link_close_json(int fd, struct bpf_link_info *info)
 	switch (info->type) {
 	case BPF_LINK_TYPE_RAW_TRACEPOINT:
 		jsonw_string_field(json_wtr, "tp_name",
-				   (const char *)info->raw_tracepoint.tp_name);
+				   u64_to_ptr(info->raw_tracepoint.tp_name));
 		break;
 	case BPF_LINK_TYPE_TRACING:
 		err = get_prog_info(info->prog_id, &prog_info);
@@ -185,7 +185,7 @@ static int show_link_close_plain(int fd, struct bpf_link_info *info)
 	switch (info->type) {
 	case BPF_LINK_TYPE_RAW_TRACEPOINT:
 		printf("\n\ttp '%s'  ",
-		       (const char *)info->raw_tracepoint.tp_name);
+		       (const char *)u64_to_ptr(info->raw_tracepoint.tp_name));
 		break;
 	case BPF_LINK_TYPE_TRACING:
 		err = get_prog_info(info->prog_id, &prog_info);

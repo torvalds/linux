@@ -1556,7 +1556,7 @@ static int sdhci_esdhc_imx_probe_nondt(struct platform_device *pdev,
 				"failed to request card-detect gpio!\n");
 			return err;
 		}
-		/* fall through */
+		fallthrough;
 
 	case ESDHC_CD_CONTROLLER:
 		/* we have a working card_detect back */

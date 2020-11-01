@@ -810,7 +810,7 @@ void i40iw_hw_modify_qp(struct i40iw_device *iwdev, struct i40iw_qp *iwqp,
 	case I40IW_QP_STATE_RTS:
 		if (iwqp->iwarp_state == I40IW_QP_STATE_IDLE)
 			i40iw_send_reset(iwqp->cm_node);
-		/* fall through */
+		fallthrough;
 	case I40IW_QP_STATE_IDLE:
 	case I40IW_QP_STATE_TERMINATE:
 	case I40IW_QP_STATE_CLOSING:
@@ -2144,7 +2144,6 @@ static int i40iw_post_send(struct ib_qp *ibqp,
 
 		switch (ib_wr->opcode) {
 		case IB_WR_SEND:
-			/* fall-through */
 		case IB_WR_SEND_WITH_INV:
 			if (ib_wr->opcode == IB_WR_SEND) {
 				if (ib_wr->send_flags & IB_SEND_SOLICITED)
@@ -2201,7 +2200,7 @@ static int i40iw_post_send(struct ib_qp *ibqp,
 			break;
 		case IB_WR_RDMA_READ_WITH_INV:
 			inv_stag = true;
-			/* fall-through*/
+			fallthrough;
 		case IB_WR_RDMA_READ:
 			if (ib_wr->num_sge > I40IW_MAX_SGE_RD) {
 				err = -EINVAL;

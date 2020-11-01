@@ -637,7 +637,7 @@ static void gpioirq(unsigned long cookie)
 			iwdebi(av7110, DEBINOSWAP, RX_BUFF, 0, 2);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 
 	case DATA_TS_RECORD:
 	case DATA_PES_RECORD:
@@ -2176,7 +2176,7 @@ static int frontend_init(struct av7110 *av7110)
 				break;
 			}
 		}
-		/* fall-thru */
+			fallthrough;
 
 		case 0x0008: // Hauppauge/TT DVB-T
 			// Grundig 29504-401

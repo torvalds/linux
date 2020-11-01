@@ -30,7 +30,7 @@ config GENERIC_BUG_RELATIVE_POINTERS
 	def_bool y
 
 config GENERIC_LOCKBREAK
-	def_bool y if PREEMPTTION
+	def_bool y if PREEMPTION
 
 config PGSTE
 	def_bool y if KVM

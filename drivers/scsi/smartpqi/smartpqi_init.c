@@ -516,7 +516,7 @@ static int pqi_build_raid_path_request(struct pqi_ctrl_info *ctrl_info,
 		break;
 	case BMIC_SENSE_DIAG_OPTIONS:
 		cdb_length = 0;
-		/* fall through */
+		fallthrough;
 	case BMIC_IDENTIFY_CONTROLLER:
 	case BMIC_IDENTIFY_PHYSICAL_DEVICE:
 	case BMIC_SENSE_SUBSYSTEM_INFORMATION:
@@ -527,7 +527,7 @@ static int pqi_build_raid_path_request(struct pqi_ctrl_info *ctrl_info,
 		break;
 	case BMIC_SET_DIAG_OPTIONS:
 		cdb_length = 0;
-		/* fall through */
+		fallthrough;
 	case BMIC_WRITE_HOST_WELLNESS:
 		request->data_direction = SOP_WRITE_FLAG;
 		cdb[0] = BMIC_WRITE;
@@ -2324,7 +2324,7 @@ static int pqi_raid_bypass_submit_scsi_cmd(struct pqi_ctrl_info *ctrl_info,
 	switch (scmd->cmnd[0]) {
 	case WRITE_6:
 		is_write = true;
-		/* fall through */
+		fallthrough;
 	case READ_6:
 		first_block = (u64)(((scmd->cmnd[1] & 0x1f) << 16) |
 			(scmd->cmnd[2] << 8) | scmd->cmnd[3]);
@@ -2334,21 +2334,21 @@ static int pqi_raid_bypass_submit_scsi_cmd(struct pqi_ctrl_info *ctrl_info,
 		break;
 	case WRITE_10:
 		is_write = true;
-		/* fall through */
+		fallthrough;
 	case READ_10:
 		first_block = (u64)get_unaligned_be32(&scmd->cmnd[2]);
 		block_cnt = (u32)get_unaligned_be16(&scmd->cmnd[7]);
 		break;
 	case WRITE_12:
 		is_write = true;
-		/* fall through */
+		fallthrough;
 	case READ_12:
 		first_block = (u64)get_unaligned_be32(&scmd->cmnd[2]);
 		block_cnt = get_unaligned_be32(&scmd->cmnd[6]);
 		break;
 	case WRITE_16:
 		is_write = true;
-		/* fall through */
+		fallthrough;
 	case READ_16:
 		first_block = get_unaligned_be64(&scmd->cmnd[2]);
 		block_cnt = get_unaligned_be32(&scmd->cmnd[10]);
@@ -2948,7 +2948,7 @@ static unsigned int pqi_process_io_intr(struct pqi_ctrl_info *ctrl_info,
 		case PQI_RESPONSE_IU_AIO_PATH_IO_SUCCESS:
 			if (io_request->scmd)
 				io_request->scmd->result = 0;
-			/* fall through */
+			fallthrough;
 		case PQI_RESPONSE_IU_GENERAL_MANAGEMENT:
 			break;
 		case PQI_RESPONSE_IU_VENDOR_GENERAL:
@@ -3115,12 +3115,11 @@ static void pqi_process_soft_reset(struct pqi_ctrl_info *ctrl_info,
 
 	switch (reset_status) {
 	case RESET_INITIATE_DRIVER:
-		/* fall through */
 	case RESET_TIMEDOUT:
 		dev_info(&ctrl_info->pci_dev->dev,
 			"resetting controller %u\n", ctrl_info->ctrl_id);
 		sis_soft_reset(ctrl_info);
-		/* fall through */
+		fallthrough;
 	case RESET_INITIATE_FIRMWARE:
 		rc = pqi_ofa_ctrl_restart(ctrl_info);
 		pqi_ofa_free_host_buffer(ctrl_info);

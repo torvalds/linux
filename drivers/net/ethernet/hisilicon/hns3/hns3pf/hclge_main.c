@@ -3061,7 +3061,7 @@ static irqreturn_t hclge_misc_irq_handle(int irq, void *data)
 		 *    by first decoding the types of errors.
 		 */
 		set_bit(HNAE3_UNKNOWN_RESET, &hdev->reset_request);
-		/* fall through */
+		fallthrough;
 	case HCLGE_VECTOR0_EVENT_RST:
 		hclge_reset_task_schedule(hdev);
 		break;
@@ -3686,12 +3686,10 @@ static int hclge_reset_prepare_up(struct hclge_dev *hdev)
 
 	switch (hdev->reset_type) {
 	case HNAE3_FUNC_RESET:
-		/* fall through */
 	case HNAE3_FLR_RESET:
 		ret = hclge_set_all_vf_rst(hdev, false);
 		break;
 	case HNAE3_GLOBAL_RESET:
-		/* fall through */
 	case HNAE3_IMP_RESET:
 		ret = hclge_set_rst_done(hdev);
 		break;

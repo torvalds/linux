@@ -67,6 +67,9 @@ static void bpf_iter_done_stop(struct seq_file *seq)
 	iter_priv->done_stop = true;
 }
 
+/* maximum visited objects before bailing out */
+#define MAX_ITER_OBJECTS	1000000
+
 /* bpf_seq_read, a customized and simpler version for bpf iterator.
  * no_llseek is assumed for this file.
  * The following are differences from seq_read():
@@ -79,7 +82,7 @@ static ssize_t bpf_seq_read(struct file *file, char __user *buf, size_t size,
 {
 	struct seq_file *seq = file->private_data;
 	size_t n, offs, copied = 0;
-	int err = 0;
+	int err = 0, num_objs = 0;
 	void *p;
 
 	mutex_lock(&seq->lock);
@@ -135,6 +138,7 @@ static ssize_t bpf_seq_read(struct file *file, char __user *buf, size_t size,
 	while (1) {
 		loff_t pos = seq->index;
 
+		num_objs++;
 		offs = seq->count;
 		p = seq->op->next(seq, p, &seq->index);
 		if (pos == seq->index) {
@@ -152,6 +156,15 @@ static ssize_t bpf_seq_read(struct file *file, char __user *buf, size_t size,
 
 		if (seq->count >= size)
 			break;
+
+		if (num_objs >= MAX_ITER_OBJECTS) {
+			if (offs == 0) {
+				err = -EAGAIN;
+				seq->op->stop(seq, p);
+				goto done;
+			}
+			break;
+		}
 
 		err = seq->op->show(seq, p);
 		if (err > 0) {

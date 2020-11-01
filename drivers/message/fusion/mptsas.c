@@ -4326,7 +4326,7 @@ mptsas_hotplug_work(MPT_ADAPTER *ioc, struct fw_event_work *fw_event,
 			}
 		}
 		mpt_findImVolumes(ioc);
-		/* fall through */
+		fallthrough;
 
 	case MPTSAS_ADD_DEVICE:
 		memset(&sas_device, 0, sizeof(struct mptsas_devinfo));

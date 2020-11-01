@@ -322,7 +322,7 @@ void __iomem *acpi_os_ioremap(acpi_physical_address phys, acpi_size size)
 			 */
 			if (memblock_is_map_memory(phys))
 				return (void __iomem *)__phys_to_virt(phys);
-			/* fall through */
+			fallthrough;
 
 		default:
 			if (region->attribute & EFI_MEMORY_WB)

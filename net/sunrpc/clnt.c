@@ -1702,7 +1702,7 @@ call_reserveresult(struct rpc_task *task)
 	switch (status) {
 	case -ENOMEM:
 		rpc_delay(task, HZ >> 2);
-		/* fall through */
+		fallthrough;
 	case -EAGAIN:	/* woken up; retry */
 		task->tk_action = call_retry_reserve;
 		return;
@@ -1759,13 +1759,13 @@ call_refreshresult(struct rpc_task *task)
 		/* Use rate-limiting and a max number of retries if refresh
 		 * had status 0 but failed to update the cred.
 		 */
-		/* fall through */
+		fallthrough;
 	case -ETIMEDOUT:
 		rpc_delay(task, 3*HZ);
-		/* fall through */
+		fallthrough;
 	case -EAGAIN:
 		status = -EACCES;
-		/* fall through */
+		fallthrough;
 	case -EKEYEXPIRED:
 		if (!task->tk_cred_retry)
 			break;
@@ -2132,7 +2132,7 @@ call_connect_status(struct rpc_task *task)
 			rpc_force_rebind(clnt);
 			goto out_retry;
 		}
-		/* fall through */
+		fallthrough;
 	case -ECONNRESET:
 	case -ECONNABORTED:
 	case -ENETDOWN:
@@ -2146,7 +2146,7 @@ call_connect_status(struct rpc_task *task)
 			break;
 		/* retry with existing socket, after a delay */
 		rpc_delay(task, 3*HZ);
-		/* fall through */
+		fallthrough;
 	case -EADDRINUSE:
 	case -ENOTCONN:
 	case -EAGAIN:
@@ -2228,7 +2228,7 @@ call_transmit_status(struct rpc_task *task)
 		 */
 	case -ENOBUFS:
 		rpc_delay(task, HZ>>2);
-		/* fall through */
+		fallthrough;
 	case -EBADSLT:
 	case -EAGAIN:
 		task->tk_action = call_transmit;
@@ -2247,7 +2247,7 @@ call_transmit_status(struct rpc_task *task)
 			rpc_call_rpcerror(task, task->tk_status);
 			return;
 		}
-		/* fall through */
+		fallthrough;
 	case -ECONNRESET:
 	case -ECONNABORTED:
 	case -EADDRINUSE:
@@ -2313,7 +2313,7 @@ call_bc_transmit_status(struct rpc_task *task)
 		break;
 	case -ENOBUFS:
 		rpc_delay(task, HZ>>2);
-		/* fall through */
+		fallthrough;
 	case -EBADSLT:
 	case -EAGAIN:
 		task->tk_status = 0;
@@ -2380,7 +2380,7 @@ call_status(struct rpc_task *task)
 		 * were a timeout.
 		 */
 		rpc_delay(task, 3*HZ);
-		/* fall through */
+		fallthrough;
 	case -ETIMEDOUT:
 		break;
 	case -ECONNREFUSED:
@@ -2391,7 +2391,7 @@ call_status(struct rpc_task *task)
 		break;
 	case -EADDRINUSE:
 		rpc_delay(task, 3*HZ);
-		/* fall through */
+		fallthrough;
 	case -EPIPE:
 	case -EAGAIN:
 		break;

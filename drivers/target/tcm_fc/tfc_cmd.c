@@ -537,7 +537,7 @@ static void ft_send_work(struct work_struct *work)
 	case FCP_PTA_ACA:
 		task_attr = TCM_ACA_TAG;
 		break;
-	case FCP_PTA_SIMPLE: /* Fallthrough */
+	case FCP_PTA_SIMPLE:
 	default:
 		task_attr = TCM_SIMPLE_TAG;
 	}

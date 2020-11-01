@@ -386,7 +386,7 @@ static void tilcdc_crtc_set_mode(struct drm_crtc *crtc)
 		case DRM_FORMAT_XBGR8888:
 		case DRM_FORMAT_XRGB8888:
 			reg |= LCDC_V2_TFT_24BPP_UNPACK;
-			/* fallthrough */
+			fallthrough;
 		case DRM_FORMAT_BGR888:
 		case DRM_FORMAT_RGB888:
 			reg |= LCDC_V2_TFT_24BPP_MODE;

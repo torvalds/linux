@@ -402,6 +402,7 @@ static int modify_p4d_table(pgd_t *pgd, unsigned long addr, unsigned long end,
 			pud = vmem_crst_alloc(_REGION3_ENTRY_EMPTY);
 			if (!pud)
 				goto out;
+			p4d_populate(&init_mm, p4d, pud);
 		}
 		ret = modify_pud_table(p4d, addr, next, add, direct);
 		if (ret)

@@ -170,19 +170,6 @@ alternative_cb_end
 	stp	x28, x29, [sp, #16 * 14]
 
 	.if	\el == 0
-	.if	\regsize == 32
-	/*
-	 * If we're returning from a 32-bit task on a system affected by
-	 * 1418040 then re-enable userspace access to the virtual counter.
-	 */
-#ifdef CONFIG_ARM64_ERRATUM_1418040
-alternative_if ARM64_WORKAROUND_1418040
-	mrs	x0, cntkctl_el1
-	orr	x0, x0, #2	// ARCH_TIMER_USR_VCT_ACCESS_EN
-	msr	cntkctl_el1, x0
-alternative_else_nop_endif
-#endif
-	.endif
 	clear_gp_regs
 	mrs	x21, sp_el0
 	ldr_this_cpu	tsk, __entry_task, x20
@@ -293,14 +280,6 @@ alternative_else_nop_endif
 	msr	sp_el0, x23
 	tst	x22, #PSR_MODE32_BIT		// native task?
 	b.eq	3f
-
-#ifdef CONFIG_ARM64_ERRATUM_1418040
-alternative_if ARM64_WORKAROUND_1418040
-	mrs	x0, cntkctl_el1
-	bic	x0, x0, #2			// ARCH_TIMER_USR_VCT_ACCESS_EN
-	msr	cntkctl_el1, x0
-alternative_else_nop_endif
-#endif
 
 #ifdef CONFIG_ARM64_ERRATUM_845719
 alternative_if ARM64_WORKAROUND_845719

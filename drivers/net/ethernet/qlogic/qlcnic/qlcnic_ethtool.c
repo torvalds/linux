@@ -353,7 +353,7 @@ skip:
 	case QLCNIC_BRDTYPE_P3P_4_GB_MM:
 		supported |= SUPPORTED_Autoneg;
 		advertising |= ADVERTISED_Autoneg;
-		/* fall through */
+		fallthrough;
 	case QLCNIC_BRDTYPE_P3P_10G_CX4:
 	case QLCNIC_BRDTYPE_P3P_10G_CX4_LP:
 	case QLCNIC_BRDTYPE_P3P_10000_BASE_T:
@@ -377,7 +377,7 @@ skip:
 		supported |= SUPPORTED_TP;
 		check_sfp_module = netif_running(adapter->netdev) &&
 				   ahw->has_link_events;
-		/* fall through */
+		fallthrough;
 	case QLCNIC_BRDTYPE_P3P_10G_XFP:
 		supported |= SUPPORTED_FIBRE;
 		advertising |= ADVERTISED_FIBRE;

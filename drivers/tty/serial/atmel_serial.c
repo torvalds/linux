@@ -1845,7 +1845,7 @@ static void atmel_get_ip_name(struct uart_port *port)
 		version = atmel_uart_readl(port, ATMEL_US_VERSION);
 		switch (version) {
 		case 0x814:	/* sama5d2 */
-			/* fall through */
+			fallthrough;
 		case 0x701:	/* sama5d4 */
 			atmel_port->fidi_min = 3;
 			atmel_port->fidi_max = 65535;

@@ -1049,7 +1049,7 @@ static int pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state)
 		if ((pmcsr & PCI_PM_CTRL_STATE_MASK) == PCI_D3hot
 		 && !(pmcsr & PCI_PM_CTRL_NO_SOFT_RESET))
 			need_restore = true;
-		/* Fall-through - force to D0 */
+		fallthrough;	/* force to D0 */
 	default:
 		pmcsr = 0;
 		break;
@@ -2541,7 +2541,7 @@ static pci_power_t pci_target_state(struct pci_dev *dev, bool wakeup)
 		case PCI_D2:
 			if (pci_no_d1d2(dev))
 				break;
-			/* else, fall through */
+			fallthrough;
 		default:
 			target_state = state;
 		}

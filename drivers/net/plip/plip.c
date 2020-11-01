@@ -498,7 +498,7 @@ plip_receive(unsigned short nibble_timeout, struct net_device *dev,
 		*data_p = (c0 >> 3) & 0x0f;
 		write_data (dev, 0x10); /* send ACK */
 		*ns_p = PLIP_NB_1;
-		/* fall through */
+		fallthrough;
 
 	case PLIP_NB_1:
 		cx = nibble_timeout;
@@ -594,7 +594,7 @@ plip_receive_packet(struct net_device *dev, struct net_local *nl,
 			printk(KERN_DEBUG "%s: receive start\n", dev->name);
 		rcv->state = PLIP_PK_LENGTH_LSB;
 		rcv->nibble = PLIP_NB_BEGIN;
-		/* fall through */
+		fallthrough;
 
 	case PLIP_PK_LENGTH_LSB:
 		if (snd->state != PLIP_PK_DONE) {
@@ -615,7 +615,7 @@ plip_receive_packet(struct net_device *dev, struct net_local *nl,
 				return TIMEOUT;
 		}
 		rcv->state = PLIP_PK_LENGTH_MSB;
-		/* fall through */
+		fallthrough;
 
 	case PLIP_PK_LENGTH_MSB:
 		if (plip_receive(nibble_timeout, dev,
@@ -638,7 +638,7 @@ plip_receive_packet(struct net_device *dev, struct net_local *nl,
 		rcv->state = PLIP_PK_DATA;
 		rcv->byte = 0;
 		rcv->checksum = 0;
-		/* fall through */
+		fallthrough;
 
 	case PLIP_PK_DATA:
 		lbuf = rcv->skb->data;
@@ -651,7 +651,7 @@ plip_receive_packet(struct net_device *dev, struct net_local *nl,
 			rcv->checksum += lbuf[--rcv->byte];
 		} while (rcv->byte);
 		rcv->state = PLIP_PK_CHECKSUM;
-		/* fall through */
+		fallthrough;
 
 	case PLIP_PK_CHECKSUM:
 		if (plip_receive(nibble_timeout, dev,
@@ -664,7 +664,7 @@ plip_receive_packet(struct net_device *dev, struct net_local *nl,
 			return ERROR;
 		}
 		rcv->state = PLIP_PK_DONE;
-		/* fall through */
+		fallthrough;
 
 	case PLIP_PK_DONE:
 		/* Inform the upper layer for the arrival of a packet. */
@@ -710,7 +710,7 @@ plip_send(unsigned short nibble_timeout, struct net_device *dev,
 	case PLIP_NB_BEGIN:
 		write_data (dev, data & 0x0f);
 		*ns_p = PLIP_NB_1;
-		/* fall through */
+		fallthrough;
 
 	case PLIP_NB_1:
 		write_data (dev, 0x10 | (data & 0x0f));
@@ -725,7 +725,7 @@ plip_send(unsigned short nibble_timeout, struct net_device *dev,
 		}
 		write_data (dev, 0x10 | (data >> 4));
 		*ns_p = PLIP_NB_2;
-		/* fall through */
+		fallthrough;
 
 	case PLIP_NB_2:
 		write_data (dev, (data >> 4));
@@ -814,7 +814,7 @@ plip_send_packet(struct net_device *dev, struct net_local *nl,
 			      &snd->nibble, snd->length.b.lsb))
 			return TIMEOUT;
 		snd->state = PLIP_PK_LENGTH_MSB;
-		/* fall through */
+		fallthrough;
 
 	case PLIP_PK_LENGTH_MSB:
 		if (plip_send(nibble_timeout, dev,
@@ -823,7 +823,7 @@ plip_send_packet(struct net_device *dev, struct net_local *nl,
 		snd->state = PLIP_PK_DATA;
 		snd->byte = 0;
 		snd->checksum = 0;
-		/* fall through */
+		fallthrough;
 
 	case PLIP_PK_DATA:
 		do {
@@ -835,7 +835,7 @@ plip_send_packet(struct net_device *dev, struct net_local *nl,
 			snd->checksum += lbuf[--snd->byte];
 		} while (snd->byte);
 		snd->state = PLIP_PK_CHECKSUM;
-		/* fall through */
+		fallthrough;
 
 	case PLIP_PK_CHECKSUM:
 		if (plip_send(nibble_timeout, dev,
@@ -846,7 +846,7 @@ plip_send_packet(struct net_device *dev, struct net_local *nl,
 		dev_kfree_skb(snd->skb);
 		dev->stats.tx_packets++;
 		snd->state = PLIP_PK_DONE;
-		/* fall through */
+		fallthrough;
 
 	case PLIP_PK_DONE:
 		/* Close the connection */
@@ -935,7 +935,7 @@ plip_interrupt(void *dev_id)
 	switch (nl->connection) {
 	case PLIP_CN_CLOSING:
 		netif_wake_queue (dev);
-		/* fall through */
+		fallthrough;
 	case PLIP_CN_NONE:
 	case PLIP_CN_SEND:
 		rcv->state = PLIP_PK_TRIGGER;

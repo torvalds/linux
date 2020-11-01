@@ -289,10 +289,10 @@ static ssize_t firmware_loading_store(struct device *dev,
 			}
 			break;
 		}
-		/* fallthrough */
+		fallthrough;
 	default:
 		dev_err(dev, "%s: unexpected value (%d)\n", __func__, loading);
-		/* fallthrough */
+		fallthrough;
 	case -1:
 		fw_load_abort(fw_sysfs);
 		break;

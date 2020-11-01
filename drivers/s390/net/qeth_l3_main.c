@@ -1235,7 +1235,7 @@ static void qeth_l3_rx_mode_work(struct work_struct *work)
 					break;
 				}
 				addr->ref_counter = 1;
-				/* fall through */
+				fallthrough;
 			default:
 				/* for next call to set_rx_mode(): */
 				addr->disp_flag = QETH_DISP_ADDR_DELETE;

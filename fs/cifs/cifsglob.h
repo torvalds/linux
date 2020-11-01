@@ -2031,4 +2031,19 @@ static inline bool is_smb1_server(struct TCP_Server_Info *server)
 	return strcmp(server->vals->version_string, SMB1_VERSION_STRING) == 0;
 }
 
+static inline bool is_tcon_dfs(struct cifs_tcon *tcon)
+{
+	/*
+	 * For SMB1, see MS-CIFS 2.4.55 SMB_COM_TREE_CONNECT_ANDX (0x75) and MS-CIFS 3.3.4.4 DFS
+	 * Subsystem Notifies That a Share Is a DFS Share.
+	 *
+	 * For SMB2+, see MS-SMB2 2.2.10 SMB2 TREE_CONNECT Response and MS-SMB2 3.3.4.14 Server
+	 * Application Updates a Share.
+	 */
+	if (!tcon || !tcon->ses || !tcon->ses->server)
+		return false;
+	return is_smb1_server(tcon->ses->server) ? tcon->Flags & SMB_SHARE_IS_IN_DFS :
+		tcon->share_flags & (SHI1005_FLAGS_DFS | SHI1005_FLAGS_DFS_ROOT);
+}
+
 #endif	/* _CIFS_GLOB_H */

@@ -49,6 +49,8 @@
 #include <linux/cuda.h>
 #ifdef CONFIG_PPC_PMAC
 #include <asm/prom.h>
+#endif
+#ifdef CONFIG_BOOTX_TEXT
 #include <asm/btext.h>
 #endif
 
@@ -713,7 +715,7 @@ static int controlfb_blank(int blank_mode, struct fb_info *info)
 			break;
 		case FB_BLANK_POWERDOWN:
 			ctrl &= ~0x33;
-			/* fall through */
+			fallthrough;
 		case FB_BLANK_NORMAL:
 			ctrl |= 0x400;
 			break;

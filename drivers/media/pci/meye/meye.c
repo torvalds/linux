@@ -952,7 +952,7 @@ static int meyeioc_sync(struct file *file, void *fh, int *i)
 			mutex_unlock(&meye.lock);
 			return -EINTR;
 		}
-		/* fall through */
+		fallthrough;
 	case MEYE_BUF_DONE:
 		meye.grab_buffer[*i].state = MEYE_BUF_UNUSED;
 		if (kfifo_out_locked(&meye.doneq, (unsigned char *)&unused,

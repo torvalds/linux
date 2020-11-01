@@ -502,7 +502,7 @@ static struct net_device *ipoib_get_net_dev_by_params(
 	default:
 		dev_warn_ratelimited(&dev->dev,
 				     "duplicate IP address detected\n");
-		/* Fall through */
+		fallthrough;
 	case 1:
 		return net_dev;
 	}

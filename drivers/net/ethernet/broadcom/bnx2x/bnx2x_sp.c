@@ -3258,7 +3258,7 @@ static int bnx2x_mcast_validate_e2(struct bnx2x *bp,
 	/* DEL command deletes all currently configured MACs */
 	case BNX2X_MCAST_CMD_DEL:
 		o->set_registry_size(o, 0);
-		/* fall through */
+		fallthrough;
 
 	/* RESTORE command will restore the entire multicast configuration */
 	case BNX2X_MCAST_CMD_RESTORE:
@@ -3592,7 +3592,7 @@ static int bnx2x_mcast_validate_e1(struct bnx2x *bp,
 	/* DEL command deletes all currently configured MACs */
 	case BNX2X_MCAST_CMD_DEL:
 		o->set_registry_size(o, 0);
-		/* fall through */
+		fallthrough;
 
 	/* RESTORE command will restore the entire multicast configuration */
 	case BNX2X_MCAST_CMD_RESTORE:

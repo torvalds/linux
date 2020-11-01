@@ -1610,7 +1610,7 @@ next_slot:
 				goto out_check;
 			ret = btrfs_cross_ref_exist(root, ino,
 						    found_key.offset -
-						    extent_offset, disk_bytenr);
+						    extent_offset, disk_bytenr, false);
 			if (ret) {
 				/*
 				 * ret could be -EIO if the above fails to read
@@ -2161,11 +2161,8 @@ static blk_status_t btrfs_submit_bio_start(void *private_data, struct bio *bio,
 				    u64 bio_offset)
 {
 	struct inode *inode = private_data;
-	blk_status_t ret = 0;
 
-	ret = btrfs_csum_one_bio(BTRFS_I(inode), bio, 0, 0);
-	BUG_ON(ret); /* -ENOMEM */
-	return 0;
+	return btrfs_csum_one_bio(BTRFS_I(inode), bio, 0, 0);
 }
 
 /*
@@ -6953,6 +6950,8 @@ static struct extent_map *btrfs_new_extent_direct(struct btrfs_inode *inode,
  * @orig_start:	(optional) Return the original file offset of the file extent
  * @orig_len:	(optional) Return the original on-disk length of the file extent
  * @ram_bytes:	(optional) Return the ram_bytes of the file extent
+ * @strict:	if true, omit optimizations that might force us into unnecessary
+ *		cow. e.g., don't trust generation number.
  *
  * This function will flush ordered extents in the range to ensure proper
  * nocow checks for (nowait == false) case.
@@ -6967,7 +6966,7 @@ static struct extent_map *btrfs_new_extent_direct(struct btrfs_inode *inode,
  */
 noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,
 			      u64 *orig_start, u64 *orig_block_len,
-			      u64 *ram_bytes)
+			      u64 *ram_bytes, bool strict)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_path *path;
@@ -7045,8 +7044,9 @@ noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,
 	 * Do the same check as in btrfs_cross_ref_exist but without the
 	 * unnecessary search.
 	 */
-	if (btrfs_file_extent_generation(leaf, fi) <=
-	    btrfs_root_last_snapshot(&root->root_item))
+	if (!strict &&
+	    (btrfs_file_extent_generation(leaf, fi) <=
+	     btrfs_root_last_snapshot(&root->root_item)))
 		goto out;
 
 	backref_offset = btrfs_file_extent_offset(leaf, fi);
@@ -7082,7 +7082,8 @@ noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,
 	 */
 
 	ret = btrfs_cross_ref_exist(root, btrfs_ino(BTRFS_I(inode)),
-				    key.offset - backref_offset, disk_bytenr);
+				    key.offset - backref_offset, disk_bytenr,
+				    strict);
 	if (ret) {
 		ret = 0;
 		goto out;
@@ -7303,7 +7304,7 @@ static int btrfs_get_blocks_direct_write(struct extent_map **map,
 		block_start = em->block_start + (start - em->start);
 
 		if (can_nocow_extent(inode, start, &len, &orig_start,
-				     &orig_block_len, &ram_bytes) == 1 &&
+				     &orig_block_len, &ram_bytes, false) == 1 &&
 		    btrfs_inc_nocow_writers(fs_info, block_start)) {
 			struct extent_map *em2;
 
@@ -7619,10 +7620,8 @@ static blk_status_t btrfs_submit_bio_start_direct_io(void *private_data,
 				    struct bio *bio, u64 offset)
 {
 	struct inode *inode = private_data;
-	blk_status_t ret;
-	ret = btrfs_csum_one_bio(BTRFS_I(inode), bio, offset, 1);
-	BUG_ON(ret); /* -ENOMEM */
-	return 0;
+
+	return btrfs_csum_one_bio(BTRFS_I(inode), bio, offset, 1);
 }
 
 static void btrfs_end_dio_bio(struct bio *bio)
@@ -10136,7 +10135,7 @@ static int btrfs_swap_activate(struct swap_info_struct *sis, struct file *file,
 		free_extent_map(em);
 		em = NULL;
 
-		ret = can_nocow_extent(inode, start, &len, NULL, NULL, NULL);
+		ret = can_nocow_extent(inode, start, &len, NULL, NULL, NULL, true);
 		if (ret < 0) {
 			goto out;
 		} else if (ret) {

@@ -1940,10 +1940,10 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 				continue;
 			default:
 				bpf_warn_invalid_xdp_action(act);
-				/* fall through */
+				fallthrough;
 			case XDP_ABORTED:
 				trace_xdp_exception(dp->netdev, xdp_prog, act);
-				/* fall through */
+				fallthrough;
 			case XDP_DROP:
 				nfp_net_rx_give_one(dp, rx_ring, rxbuf->frag,
 						    rxbuf->dma_addr);

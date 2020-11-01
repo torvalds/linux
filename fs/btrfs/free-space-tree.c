@@ -22,6 +22,10 @@ void set_free_space_tree_thresholds(struct btrfs_block_group *cache)
 	size_t bitmap_size;
 	u64 num_bitmaps, total_bitmap_size;
 
+	if (WARN_ON(cache->length == 0))
+		btrfs_warn(cache->fs_info, "block group %llu length is zero",
+			   cache->start);
+
 	/*
 	 * We convert to bitmaps when the disk space required for using extents
 	 * exceeds that required for using bitmaps.

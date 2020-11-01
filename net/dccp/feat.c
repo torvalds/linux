@@ -1407,7 +1407,8 @@ int dccp_feat_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 	 *	Negotiation during connection setup
 	 */
 	case DCCP_LISTEN:
-		server = true;			/* fall through */
+		server = true;
+		fallthrough;
 	case DCCP_REQUESTING:
 		switch (opt) {
 		case DCCPO_CHANGE_L:

@@ -502,7 +502,7 @@ syscall_restart(struct pt_regs *regs, struct k_sigaction *ka)
 			regs->gr[28] = -EINTR;
 			break;
 		}
-		/* fallthrough */
+		fallthrough;
 	case -ERESTARTNOINTR:
 		check_syscallno_in_delay_branch(regs);
 		break;

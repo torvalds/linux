@@ -4681,7 +4681,7 @@ _base_update_ioc_page1_inlinewith_perf_mode(struct MPT3SAS_ADAPTER *ioc)
 			ioc_info(ioc, "performance mode: balanced\n");
 			return;
 		}
-		/* Fall through */
+		fallthrough;
 	case MPT_PERF_MODE_LATENCY:
 		/*
 		 * Enable interrupt coalescing on all reply queues

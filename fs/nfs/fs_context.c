@@ -651,21 +651,21 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 		switch (lookup_constant(nfs_xprt_protocol_tokens, param->string, -1)) {
 		case Opt_xprt_udp6:
 			protofamily = AF_INET6;
-			/* fall through */
+			fallthrough;
 		case Opt_xprt_udp:
 			ctx->flags &= ~NFS_MOUNT_TCP;
 			ctx->nfs_server.protocol = XPRT_TRANSPORT_UDP;
 			break;
 		case Opt_xprt_tcp6:
 			protofamily = AF_INET6;
-			/* fall through */
+			fallthrough;
 		case Opt_xprt_tcp:
 			ctx->flags |= NFS_MOUNT_TCP;
 			ctx->nfs_server.protocol = XPRT_TRANSPORT_TCP;
 			break;
 		case Opt_xprt_rdma6:
 			protofamily = AF_INET6;
-			/* fall through */
+			fallthrough;
 		case Opt_xprt_rdma:
 			/* vector side protocols to TCP */
 			ctx->flags |= NFS_MOUNT_TCP;
@@ -684,13 +684,13 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 		switch (lookup_constant(nfs_xprt_protocol_tokens, param->string, -1)) {
 		case Opt_xprt_udp6:
 			mountfamily = AF_INET6;
-			/* fall through */
+			fallthrough;
 		case Opt_xprt_udp:
 			ctx->mount_server.protocol = XPRT_TRANSPORT_UDP;
 			break;
 		case Opt_xprt_tcp6:
 			mountfamily = AF_INET6;
-			/* fall through */
+			fallthrough;
 		case Opt_xprt_tcp:
 			ctx->mount_server.protocol = XPRT_TRANSPORT_TCP;
 			break;
@@ -899,9 +899,11 @@ static int nfs23_parse_monolithic(struct fs_context *fc,
 	ctx->version = NFS_DEFAULT_VERSION;
 	switch (data->version) {
 	case 1:
-		data->namlen = 0; /* fall through */
+		data->namlen = 0;
+		fallthrough;
 	case 2:
-		data->bsize = 0; /* fall through */
+		data->bsize = 0;
+		fallthrough;
 	case 3:
 		if (data->flags & NFS_MOUNT_VER3)
 			goto out_no_v3;
@@ -909,14 +911,14 @@ static int nfs23_parse_monolithic(struct fs_context *fc,
 		memcpy(data->root.data, data->old_root.data, NFS2_FHSIZE);
 		/* Turn off security negotiation */
 		extra_flags |= NFS_MOUNT_SECFLAVOUR;
-		/* fall through */
+		fallthrough;
 	case 4:
 		if (data->flags & NFS_MOUNT_SECFLAVOUR)
 			goto out_no_sec;
-		/* fall through */
+		fallthrough;
 	case 5:
 		memset(data->context, 0, sizeof(data->context));
-		/* fall through */
+		fallthrough;
 	case 6:
 		if (data->flags & NFS_MOUNT_VER3) {
 			if (data->root.size > NFS3_FHSIZE || data->root.size == 0)

@@ -4083,7 +4083,7 @@ static void handle_parity_checks5(struct r5conf *conf, struct stripe_head *sh,
 			break;
 		}
 		dev = &sh->dev[s->failed_num[0]];
-		/* fall through */
+		fallthrough;
 	case check_state_compute_result:
 		sh->check_state = check_state_idle;
 		if (!dev)
@@ -4214,7 +4214,7 @@ static void handle_parity_checks6(struct r5conf *conf, struct stripe_head *sh,
 
 		/* we have 2-disk failure */
 		BUG_ON(s->failed != 2);
-		/* fall through */
+		fallthrough;
 	case check_state_compute_result:
 		sh->check_state = check_state_idle;
 
@@ -6514,9 +6514,12 @@ raid5_store_stripe_size(struct mddev  *mddev, const char *page, size_t len)
 
 	/*
 	 * The value should not be bigger than PAGE_SIZE. It requires to
-	 * be multiple of DEFAULT_STRIPE_SIZE.
+	 * be multiple of DEFAULT_STRIPE_SIZE and the value should be power
+	 * of two.
 	 */
-	if (new % DEFAULT_STRIPE_SIZE != 0 || new > PAGE_SIZE || new == 0)
+	if (new % DEFAULT_STRIPE_SIZE != 0 ||
+			new > PAGE_SIZE || new == 0 ||
+			new != roundup_pow_of_two(new))
 		return -EINVAL;
 
 	err = mddev_lock(mddev);

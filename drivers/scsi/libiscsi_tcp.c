@@ -772,7 +772,7 @@ iscsi_tcp_hdr_dissect(struct iscsi_conn *conn, struct iscsi_hdr *hdr)
 			iscsi_tcp_data_recv_prep(tcp_conn);
 			return 0;
 		}
-	/* fall through */
+		fallthrough;
 	case ISCSI_OP_LOGOUT_RSP:
 	case ISCSI_OP_NOOP_IN:
 	case ISCSI_OP_SCSI_TMFUNC_RSP:

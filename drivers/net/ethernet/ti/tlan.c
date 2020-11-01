@@ -948,7 +948,7 @@ static int tlan_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	switch (cmd) {
 	case SIOCGMIIPHY:		/* get address of MII PHY in use. */
 		data->phy_id = phy;
-		/* fall through */
+		fallthrough;
 
 
 	case SIOCGMIIREG:		/* read MII PHY register. */

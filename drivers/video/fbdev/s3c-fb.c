@@ -284,7 +284,7 @@ static int s3c_fb_check_var(struct fb_var_screeninfo *var,
 		/* 666 with one bit alpha/transparency */
 		var->transp.offset	= 18;
 		var->transp.length	= 1;
-		/* fall through */
+		fallthrough;
 	case 18:
 		var->bits_per_pixel	= 32;
 
@@ -312,7 +312,7 @@ static int s3c_fb_check_var(struct fb_var_screeninfo *var,
 	case 25:
 		var->transp.length	= var->bits_per_pixel - 24;
 		var->transp.offset	= 24;
-		/* fall through */
+		fallthrough;
 	case 24:
 		/* our 24bpp is unpacked, so 32bpp */
 		var->bits_per_pixel	= 32;
@@ -809,7 +809,7 @@ static int s3c_fb_blank(int blank_mode, struct fb_info *info)
 	case FB_BLANK_POWERDOWN:
 		wincon &= ~WINCONx_ENWIN;
 		sfb->enabled &= ~(1 << index);
-		/* fall through - to FB_BLANK_NORMAL */
+		fallthrough;	/* to FB_BLANK_NORMAL */
 
 	case FB_BLANK_NORMAL:
 		/* disable the DMA and display 0x0 (black) */

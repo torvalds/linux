@@ -356,7 +356,7 @@ static void qeth_set_cmd_adv_sup(struct ethtool_link_ksettings *cmd,
 						     10000baseT_Full);
 		ethtool_link_ksettings_add_link_mode(cmd, advertising,
 						     10000baseT_Full);
-		/* fall through */
+		fallthrough;
 	case SPEED_1000:
 		ethtool_link_ksettings_add_link_mode(cmd, supported,
 						     1000baseT_Full);
@@ -366,7 +366,7 @@ static void qeth_set_cmd_adv_sup(struct ethtool_link_ksettings *cmd,
 						     1000baseT_Half);
 		ethtool_link_ksettings_add_link_mode(cmd, advertising,
 						     1000baseT_Half);
-		/* fall through */
+		fallthrough;
 	case SPEED_100:
 		ethtool_link_ksettings_add_link_mode(cmd, supported,
 						     100baseT_Full);
@@ -376,7 +376,7 @@ static void qeth_set_cmd_adv_sup(struct ethtool_link_ksettings *cmd,
 						     100baseT_Half);
 		ethtool_link_ksettings_add_link_mode(cmd, advertising,
 						     100baseT_Half);
-		/* fall through */
+		fallthrough;
 	case SPEED_10:
 		ethtool_link_ksettings_add_link_mode(cmd, supported,
 						     10baseT_Full);

@@ -30,12 +30,9 @@
 #define STATIC		static
 
 /*
- * Use normal definitions of mem*() from string.c. There are already
- * included header files which expect a definition of memset() and by
- * the time we define memset macro, it is too late.
+ * Provide definitions of memzero and memmove as some of the decompressors will
+ * try to define their own functions if these are not defined as macros.
  */
-#undef memcpy
-#undef memset
 #define memzero(s, n)	memset((s), 0, (n))
 #define memmove		memmove
 
