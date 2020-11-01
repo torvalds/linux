@@ -4690,6 +4690,7 @@ static int rtl_open(struct net_device *dev)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 	struct pci_dev *pdev = tp->pci_dev;
+	unsigned long irqflags;
 	int retval = -ENOMEM;
 
 	pm_runtime_get_sync(&pdev->dev);
@@ -4714,8 +4715,9 @@ static int rtl_open(struct net_device *dev)
 
 	rtl_request_firmware(tp);
 
+	irqflags = pci_dev_msi_enabled(pdev) ? IRQF_NO_THREAD : IRQF_SHARED;
 	retval = request_irq(pci_irq_vector(pdev, 0), rtl8169_interrupt,
-			     IRQF_SHARED, dev->name, tp);
+			     irqflags, dev->name, tp);
 	if (retval < 0)
 		goto err_release_fw_2;
 
