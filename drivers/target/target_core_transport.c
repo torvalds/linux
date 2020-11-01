@@ -215,7 +215,7 @@ static void target_release_sess_cmd_refcnt(struct percpu_ref *ref)
 {
 	struct se_session *sess = container_of(ref, typeof(*sess), cmd_count);
 
-	wake_up(&sess->cmd_list_wq);
+	wake_up(&sess->cmd_count_wq);
 }
 
 /**
@@ -228,9 +228,10 @@ int transport_init_session(struct se_session *se_sess)
 {
 	INIT_LIST_HEAD(&se_sess->sess_list);
 	INIT_LIST_HEAD(&se_sess->sess_acl_list);
-	INIT_LIST_HEAD(&se_sess->sess_cmd_list);
 	spin_lock_init(&se_sess->sess_cmd_lock);
-	init_waitqueue_head(&se_sess->cmd_list_wq);
+	init_waitqueue_head(&se_sess->cmd_count_wq);
+	init_completion(&se_sess->stop_done);
+	atomic_set(&se_sess->stopped, 0);
 	return percpu_ref_init(&se_sess->cmd_count,
 			       target_release_sess_cmd_refcnt, 0, GFP_KERNEL);
 }
@@ -239,11 +240,11 @@ EXPORT_SYMBOL(transport_init_session);
 void transport_uninit_session(struct se_session *se_sess)
 {
 	/*
-	 * Drivers like iscsi and loop do not call
-	 * target_sess_cmd_list_set_waiting during session shutdown so we
-	 * have to drop the ref taken at init time here.
+	 * Drivers like iscsi and loop do not call target_stop_session
+	 * during session shutdown so we have to drop the ref taken at init
+	 * time here.
 	 */
-	if (!se_sess->sess_tearing_down)
+	if (!atomic_read(&se_sess->stopped))
 		percpu_ref_put(&se_sess->cmd_count);
 
 	percpu_ref_exit(&se_sess->cmd_count);
@@ -1632,9 +1633,8 @@ int target_submit_cmd_map_sgls(struct se_cmd *se_cmd, struct se_session *se_sess
 	if (flags & TARGET_SCF_UNKNOWN_SIZE)
 		se_cmd->unknown_data_length = 1;
 	/*
-	 * Obtain struct se_cmd->cmd_kref reference and add new cmd to
-	 * se_sess->sess_cmd_list.  A second kref_get here is necessary
-	 * for fabrics using TARGET_SCF_ACK_KREF that expect a second
+	 * Obtain struct se_cmd->cmd_kref reference. A second kref_get here is
+	 * necessary for fabrics using TARGET_SCF_ACK_KREF that expect a second
 	 * kref_put() to happen during fabric packet acknowledgement.
 	 */
 	ret = target_get_sess_cmd(se_cmd, flags & TARGET_SCF_ACK_KREF);
@@ -2763,14 +2763,13 @@ int transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
 EXPORT_SYMBOL(transport_generic_free_cmd);
 
 /**
- * target_get_sess_cmd - Add command to active ->sess_cmd_list
+ * target_get_sess_cmd - Verify the session is accepting cmds and take ref
  * @se_cmd:	command descriptor to add
  * @ack_kref:	Signal that fabric will perform an ack target_put_sess_cmd()
  */
 int target_get_sess_cmd(struct se_cmd *se_cmd, bool ack_kref)
 {
 	struct se_session *se_sess = se_cmd->se_sess;
-	unsigned long flags;
 	int ret = 0;
 
 	/*
@@ -2785,15 +2784,8 @@ int target_get_sess_cmd(struct se_cmd *se_cmd, bool ack_kref)
 		se_cmd->se_cmd_flags |= SCF_ACK_KREF;
 	}
 
-	spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
-	if (se_sess->sess_tearing_down) {
+	if (!percpu_ref_tryget_live(&se_sess->cmd_count))
 		ret = -ESHUTDOWN;
-		goto out;
-	}
-	list_add_tail(&se_cmd->se_cmd_list, &se_sess->sess_cmd_list);
-	percpu_ref_get(&se_sess->cmd_count);
-out:
-	spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
 
 	if (ret && ack_kref)
 		target_put_sess_cmd(se_cmd);
@@ -2818,13 +2810,6 @@ static void target_release_cmd_kref(struct kref *kref)
 	struct se_session *se_sess = se_cmd->se_sess;
 	struct completion *free_compl = se_cmd->free_compl;
 	struct completion *abrt_compl = se_cmd->abrt_compl;
-	unsigned long flags;
-
-	if (se_sess) {
-		spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
-		list_del_init(&se_cmd->se_cmd_list);
-		spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
-	}
 
 	target_free_cmd_mem(se_cmd);
 	se_cmd->se_tfo->release_cmd(se_cmd);
@@ -2952,21 +2937,25 @@ void target_show_cmd(const char *pfx, struct se_cmd *cmd)
 }
 EXPORT_SYMBOL(target_show_cmd);
 
-/**
- * target_sess_cmd_list_set_waiting - Set sess_tearing_down so no new commands are queued.
- * @se_sess:	session to flag
- */
-void target_sess_cmd_list_set_waiting(struct se_session *se_sess)
+static void target_stop_session_confirm(struct percpu_ref *ref)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
-	se_sess->sess_tearing_down = 1;
-	spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
-
-	percpu_ref_kill(&se_sess->cmd_count);
+	struct se_session *se_sess = container_of(ref, struct se_session,
+						  cmd_count);
+	complete_all(&se_sess->stop_done);
 }
-EXPORT_SYMBOL(target_sess_cmd_list_set_waiting);
+
+/**
+ * target_stop_session - Stop new IO from being queued on the session.
+ * @se_sess:    session to stop
+ */
+void target_stop_session(struct se_session *se_sess)
+{
+	pr_debug("Stopping session queue.\n");
+	if (atomic_cmpxchg(&se_sess->stopped, 0, 1) == 0)
+		percpu_ref_kill_and_confirm(&se_sess->cmd_count,
+					    target_stop_session_confirm);
+}
+EXPORT_SYMBOL(target_stop_session);
 
 /**
  * target_wait_for_sess_cmds - Wait for outstanding commands
@@ -2974,19 +2963,19 @@ EXPORT_SYMBOL(target_sess_cmd_list_set_waiting);
  */
 void target_wait_for_sess_cmds(struct se_session *se_sess)
 {
-	struct se_cmd *cmd;
 	int ret;
 
-	WARN_ON_ONCE(!se_sess->sess_tearing_down);
+	WARN_ON_ONCE(!atomic_read(&se_sess->stopped));
 
 	do {
-		ret = wait_event_timeout(se_sess->cmd_list_wq,
+		pr_debug("Waiting for running cmds to complete.\n");
+		ret = wait_event_timeout(se_sess->cmd_count_wq,
 				percpu_ref_is_zero(&se_sess->cmd_count),
 				180 * HZ);
-		list_for_each_entry(cmd, &se_sess->sess_cmd_list, se_cmd_list)
-			target_show_cmd("session shutdown: still waiting for ",
-					cmd);
 	} while (ret <= 0);
+
+	wait_for_completion(&se_sess->stop_done);
+	pr_debug("Waiting for cmds done.\n");
 }
 EXPORT_SYMBOL(target_wait_for_sess_cmds);
 

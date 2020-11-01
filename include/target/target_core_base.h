@@ -608,7 +608,7 @@ static inline struct se_node_acl *fabric_stat_to_nacl(struct config_item *item)
 }
 
 struct se_session {
-	unsigned		sess_tearing_down:1;
+	atomic_t		stopped;
 	u64			sess_bin_isid;
 	enum target_prot_op	sup_prot_ops;
 	enum target_prot_type	sess_prot_type;
@@ -618,9 +618,9 @@ struct se_session {
 	struct percpu_ref	cmd_count;
 	struct list_head	sess_list;
 	struct list_head	sess_acl_list;
-	struct list_head	sess_cmd_list;
 	spinlock_t		sess_cmd_lock;
-	wait_queue_head_t	cmd_list_wq;
+	wait_queue_head_t	cmd_count_wq;
+	struct completion	stop_done;
 	void			*sess_cmd_map;
 	struct sbitmap_queue	sess_tag_pool;
 };

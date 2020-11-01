@@ -368,15 +368,10 @@ static void tcm_qla2xxx_put_sess(struct fc_port *sess)
 static void tcm_qla2xxx_close_session(struct se_session *se_sess)
 {
 	struct fc_port *sess = se_sess->fabric_sess_ptr;
-	struct scsi_qla_host *vha;
-	unsigned long flags;
 
 	BUG_ON(!sess);
-	vha = sess->vha;
 
-	spin_lock_irqsave(&vha->hw->tgt.sess_lock, flags);
-	target_sess_cmd_list_set_waiting(se_sess);
-	spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
+	target_stop_session(se_sess);
 
 	sess->explicit_logout = 1;
 	tcm_qla2xxx_put_sess(sess);
@@ -831,7 +826,7 @@ static void tcm_qla2xxx_clear_nacl_from_fcport_map(struct fc_port *sess)
 
 static void tcm_qla2xxx_shutdown_sess(struct fc_port *sess)
 {
-	target_sess_cmd_list_set_waiting(sess->se_sess);
+	target_stop_session(sess->se_sess);
 }
 
 static int tcm_qla2xxx_init_nodeacl(struct se_node_acl *se_nacl,
