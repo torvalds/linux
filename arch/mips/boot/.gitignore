@@ -2,6 +2,7 @@
 mkboot
 elf2ecoff
 vmlinux.*
+vmlinuz.*
 zImage
 zImage.tmp
 calc_vmlinuz_load_addr

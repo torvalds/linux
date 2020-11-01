@@ -65,7 +65,9 @@ $(obj)/bswapsi.c: $(obj)/%.c: $(srctree)/arch/mips/lib/%.c FORCE
 targets := $(notdir $(vmlinuzobjs-y))
 
 targets += vmlinux.bin
+
 OBJCOPYFLAGS_vmlinux.bin := $(OBJCOPYFLAGS) -O binary -R .comment -S
+
 $(obj)/vmlinux.bin: $(KBUILD_IMAGE) FORCE
 	$(call if_changed,objcopy)
 
@@ -78,12 +80,15 @@ tool_$(CONFIG_KERNEL_XZ)      = xzkern
 tool_$(CONFIG_KERNEL_ZSTD)    = zstd22
 
 targets += vmlinux.bin.z
+
 $(obj)/vmlinux.bin.z: $(obj)/vmlinux.bin FORCE
 	$(call if_changed,$(tool_y))
 
 targets += piggy.o dummy.o
+
 OBJCOPYFLAGS_piggy.o := --add-section=.image=$(obj)/vmlinux.bin.z \
 			--set-section-flags=.image=contents,alloc,load,readonly,data
+
 $(obj)/piggy.o: $(obj)/dummy.o $(obj)/vmlinux.bin.z FORCE
 	$(call if_changed,objcopy)
 
@@ -102,13 +107,20 @@ UIMAGE_LOADADDR = $(VMLINUZ_LOAD_ADDRESS)
 
 vmlinuzobjs-y += $(obj)/piggy.o
 
+targets += ../../../../vmlinuz
+
 quiet_cmd_zld = LD      $@
       cmd_zld = $(LD) $(KBUILD_LDFLAGS) -Ttext $(VMLINUZ_LOAD_ADDRESS) -T $< $(vmlinuzobjs-y) -o $@
-quiet_cmd_strip = STRIP	  $@
+quiet_cmd_strip = STRIP   $@
       cmd_strip = $(STRIP) -s $@
-vmlinuz: $(src)/ld.script $(vmlinuzobjs-y) $(obj)/calc_vmlinuz_load_addr
+
+$(objtree)/vmlinuz: $(src)/ld.script $(vmlinuzobjs-y) $(obj)/calc_vmlinuz_load_addr
 	$(call cmd,zld)
 	$(call cmd,strip)
+
+objboot := $(objtree)/arch/mips/boot
+
+$(objboot)/vmlinuz: $(objtree)/vmlinuz FORCE
 
 #
 # Some DECstations need all possible sections of an ECOFF executable
@@ -121,34 +133,42 @@ endif
 hostprogs += ../elf2ecoff
 
 ifdef CONFIG_32BIT
-	VMLINUZ = vmlinuz
+	VMLINUZ = $(objtree)/vmlinuz
 else
-	VMLINUZ = vmlinuz.32
+	VMLINUZ = $(objboot)/vmlinuz.32
 endif
+
+targets += ../vmlinuz.32
 
 quiet_cmd_32 = OBJCOPY $@
       cmd_32 = $(OBJCOPY) -O $(32bit-bfd) $(OBJCOPYFLAGS) $< $@
-vmlinuz.32: vmlinuz
+
+$(objboot)/vmlinuz.32: $(objtree)/vmlinuz
 	$(call cmd,32)
+
+targets += ../vmlinuz.ecoff
 
 quiet_cmd_ecoff = ECOFF	  $@
       cmd_ecoff = $< $(VMLINUZ) $@ $(e2eflag)
-vmlinuz.ecoff: $(obj)/../elf2ecoff $(VMLINUZ)
+
+$(objboot)/vmlinuz.ecoff: $(objboot)/elf2ecoff $(VMLINUZ)
 	$(call cmd,ecoff)
 
+targets += ../vmlinuz.bin
+
 OBJCOPYFLAGS_vmlinuz.bin := $(OBJCOPYFLAGS) -O binary
-vmlinuz.bin: vmlinuz
+
+$(objboot)/vmlinuz.bin: $(objtree)/vmlinuz
 	$(call cmd,objcopy)
+
+targets += ../vmlinuz.srec
 
 OBJCOPYFLAGS_vmlinuz.srec := $(OBJCOPYFLAGS) -S -O srec
-vmlinuz.srec: vmlinuz
+
+$(objboot)/vmlinuz.srec: $(objtree)/vmlinuz
 	$(call cmd,objcopy)
 
-uzImage.bin: vmlinuz.bin FORCE
-	$(call if_changed,uimage,none)
+targets += ../uzImage.bin
 
-clean-files += $(objtree)/vmlinuz
-clean-files += $(objtree)/vmlinuz.32
-clean-files += $(objtree)/vmlinuz.ecoff
-clean-files += $(objtree)/vmlinuz.bin
-clean-files += $(objtree)/vmlinuz.srec
+$(objboot)/uzImage.bin: $(objboot)/vmlinuz.bin FORCE
+	$(call if_changed,uimage,none)
