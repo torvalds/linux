@@ -1236,7 +1236,7 @@ int smu_get_power_limit(struct smu_context *smu,
 			uint32_t *limit,
 			enum smu_ppt_limit_level limit_level);
 
-int smu_set_power_limit(struct smu_context *smu, uint32_t limit);
+int smu_set_power_limit(void *handle, uint32_t limit);
 int smu_print_clk_levels(struct smu_context *smu, enum smu_clk_type clk_type, char *buf);
 
 int smu_od_edit_dpm_table(struct smu_context *smu,
@@ -1293,10 +1293,10 @@ extern const struct amdgpu_ip_block_version smu_v12_0_ip_block;
 bool is_support_sw_smu(struct amdgpu_device *adev);
 bool is_support_cclk_dpm(struct amdgpu_device *adev);
 int smu_reset(struct smu_context *smu);
-int smu_sys_get_pp_table(struct smu_context *smu, void **table);
+int smu_sys_get_pp_table(void *handle, char **table);
 int smu_sys_set_pp_table(struct smu_context *smu,  void *buf, size_t size);
-int smu_get_power_num_states(struct smu_context *smu, struct pp_states_info *state_info);
-enum amd_pm_state_type smu_get_current_power_state(struct smu_context *smu);
+int smu_get_power_num_states(void *handle, struct pp_states_info *state_info);
+enum amd_pm_state_type smu_get_current_power_state(void *handle);
 int smu_write_watermarks_table(struct smu_context *smu);
 int smu_set_watermarks_for_clock_ranges(
 		struct smu_context *smu,
@@ -1322,8 +1322,8 @@ enum amd_dpm_forced_level smu_get_performance_level(void *handle);
 int smu_force_performance_level(struct smu_context *smu, enum amd_dpm_forced_level level);
 int smu_set_display_count(struct smu_context *smu, uint32_t count);
 int smu_set_ac_dc(struct smu_context *smu);
-size_t smu_sys_get_pp_feature_mask(struct smu_context *smu, char *buf);
-int smu_sys_set_pp_feature_mask(struct smu_context *smu, uint64_t new_mask);
+int smu_sys_get_pp_feature_mask(void *handle, char *buf);
+int smu_sys_set_pp_feature_mask(void *handle, uint64_t new_mask);
 int smu_force_clk_levels(struct smu_context *smu,
 			 enum smu_clk_type clk_type,
 			 uint32_t mask);

@@ -48,9 +48,10 @@
 
 static const struct amd_pm_funcs swsmu_pm_funcs;
 
-size_t smu_sys_get_pp_feature_mask(struct smu_context *smu, char *buf)
+int smu_sys_get_pp_feature_mask(void *handle, char *buf)
 {
-	size_t size = 0;
+	struct smu_context *smu = handle;
+	int size = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
@@ -64,8 +65,9 @@ size_t smu_sys_get_pp_feature_mask(struct smu_context *smu, char *buf)
 	return size;
 }
 
-int smu_sys_set_pp_feature_mask(struct smu_context *smu, uint64_t new_mask)
+int smu_sys_set_pp_feature_mask(void *handle, uint64_t new_mask)
 {
+	struct smu_context *smu = handle;
 	int ret = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
@@ -381,7 +383,7 @@ static void smu_restore_dpm_user_profile(struct smu_context *smu)
 	smu->user_dpm_profile.flags &= ~SMU_DPM_USER_PROFILE_RESTORE;
 }
 
-int smu_get_power_num_states(struct smu_context *smu,
+int smu_get_power_num_states(void *handle,
 			     struct pp_states_info *state_info)
 {
 	if (!state_info)
@@ -417,8 +419,9 @@ bool is_support_cclk_dpm(struct amdgpu_device *adev)
 }
 
 
-int smu_sys_get_pp_table(struct smu_context *smu, void **table)
+int smu_sys_get_pp_table(void *handle, char **table)
 {
+	struct smu_context *smu = handle;
 	struct smu_table_context *smu_table = &smu->smu_table;
 	uint32_t powerplay_table_size;
 
@@ -2085,8 +2088,9 @@ int smu_get_power_limit(struct smu_context *smu,
 	return ret;
 }
 
-int smu_set_power_limit(struct smu_context *smu, uint32_t limit)
+int smu_set_power_limit(void *handle, uint32_t limit)
 {
+	struct smu_context *smu = handle;
 	uint32_t limit_type = limit >> 24;
 	int ret = 0;
 
@@ -2663,8 +2667,9 @@ int smu_get_uclk_dpm_states(struct smu_context *smu,
 	return ret;
 }
 
-enum amd_pm_state_type smu_get_current_power_state(struct smu_context *smu)
+enum amd_pm_state_type smu_get_current_power_state(void *handle)
 {
+	struct smu_context *smu = handle;
 	enum amd_pm_state_type pm_state = POWER_STATE_TYPE_DEFAULT;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
@@ -2750,19 +2755,25 @@ int smu_gfx_state_change_set(struct smu_context *smu, uint32_t state)
 
 static const struct amd_pm_funcs swsmu_pm_funcs = {
 	/* export for sysfs */
-	.set_fan_control_mode  = smu_pp_set_fan_control_mode,
-	.get_fan_control_mode  = smu_get_fan_control_mode,
-	.set_fan_speed_percent = smu_set_fan_speed_percent,
-	.get_fan_speed_percent = smu_get_fan_speed_percent,
-	.get_performance_level = smu_get_performance_level,
-	.get_fan_speed_rpm     = smu_get_fan_speed_rpm,
-	.set_fan_speed_rpm     = smu_set_fan_speed_rpm,
-	.switch_power_profile  = smu_switch_power_profile,
+	.set_fan_control_mode    = smu_pp_set_fan_control_mode,
+	.get_fan_control_mode    = smu_get_fan_control_mode,
+	.set_fan_speed_percent   = smu_set_fan_speed_percent,
+	.get_fan_speed_percent   = smu_get_fan_speed_percent,
+	.get_performance_level   = smu_get_performance_level,
+	.get_current_power_state = smu_get_current_power_state,
+	.get_fan_speed_rpm       = smu_get_fan_speed_rpm,
+	.set_fan_speed_rpm       = smu_set_fan_speed_rpm,
+	.get_pp_num_states       = smu_get_power_num_states,
+	.get_pp_table            = smu_sys_get_pp_table,
+	.switch_power_profile    = smu_switch_power_profile,
 	/* export to amdgpu */
-	.set_mp1_state         = smu_set_mp1_state,
+	.set_power_limit         = smu_set_power_limit,
+	.set_mp1_state           = smu_set_mp1_state,
 	/* export to DC */
-	.enable_mgpu_fan_boost = smu_enable_mgpu_fan_boost,
-	.asic_reset_mode_2     = smu_mode2_reset,
-	.set_df_cstate         = smu_set_df_cstate,
-	.set_xgmi_pstate       = smu_set_xgmi_pstate,
+	.enable_mgpu_fan_boost   = smu_enable_mgpu_fan_boost,
+	.get_ppfeature_status    = smu_sys_get_pp_feature_mask,
+	.set_ppfeature_status    = smu_sys_set_pp_feature_mask,
+	.asic_reset_mode_2       = smu_mode2_reset,
+	.set_df_cstate           = smu_set_df_cstate,
+	.set_xgmi_pstate         = smu_set_xgmi_pstate,
 };
