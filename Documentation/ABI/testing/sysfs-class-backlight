@@ -24,3 +24,63 @@ Description:
 		non-linear
 		  The brightness changes non-linearly with each step. Brightness
 		  controls should use a linear mapping for a linear perception.
+
+What:		/sys/class/backlight/<backlight>/ambient_light_level
+Date:		Apr, 2010
+KernelVersion:	v2.6.35
+Contact:	Michael Hennerich <michael.hennerich@analog.com>
+Description:
+		(RO) Get conversion value of the light sensor.
+
+		The value is automatically updated every 80 ms when the
+		light sensor is enabled.
+
+		The value range is device-driver specific:
+
+		For ADP8870:
+
+		  It returns integer between 0 (dark) and 8000 (max ambient
+		  brightness).
+
+		For ADP8860:
+
+		  It returns a 13-bits integer.
+
+What:		/sys/class/backlight/<backlight>/ambient_light_zone
+Date:		Apr, 2010
+KernelVersion:	v2.6.35
+Contact:	Michael Hennerich <michael.hennerich@analog.com>,
+		device-drivers-devel@blackfin.uclinux.org
+
+Description:
+		(RW) Read or write the specific brightness level at which the
+		backlight operates.
+
+		The value meaning is device-driver specific:
+
+		For ADP8860:
+
+		  ==	==========================
+		   0	Off: Backlight set to 0 mA
+		   1	Level 1: daylight
+		   2	Level 2: bright
+		   3	Level 3: dark
+		  ==	==========================
+
+		For ADP8870:
+
+		  ==	==========================
+		   0	Off: Backlight set to 0 mA
+		   1	Level 1: daylight
+		   2	Level 2: bright
+		   3	Level 3: office
+		   4	Level 4: indoor
+		   5	Level 5: dark
+		  ==	==========================
+
+		Writing 0 returns to normal/automatic ambient light level
+		operation.
+
+		It can be enabled by writing the value stored in
+		/sys/class/backlight/<backlight>/max_brightness to
+		/sys/class/backlight/<backlight>/brightness.

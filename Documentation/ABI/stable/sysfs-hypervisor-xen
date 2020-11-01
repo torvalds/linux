@@ -33,6 +33,8 @@ Description:	If running under Xen:
 		Space separated list of supported guest system types. Each type
 		is in the format: <class>-<major>.<minor>-<arch>
 		With:
+
+			======== ============================================
 			<class>: "xen" -- x86: paravirtualized, arm: standard
 				 "hvm" -- x86 only: fully virtualized
 			<major>: major guest interface version
@@ -43,6 +45,7 @@ Description:	If running under Xen:
 				 "x86_64": 64 bit x86 guest
 				 "armv7l": 32 bit arm guest
 				 "aarch64": 64 bit arm guest
+			======== ============================================
 
 What:		/sys/hypervisor/properties/changeset
 Date:		March 2009
