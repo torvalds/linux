@@ -247,6 +247,13 @@ static int aqr_config_intr(struct phy_device *phydev)
 	bool en = phydev->interrupts == PHY_INTERRUPT_ENABLED;
 	int err;
 
+	if (en) {
+		/* Clear any pending interrupts before enabling them */
+		err = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_TX_VEND_INT_STATUS2);
+		if (err)
+			return err;
+	}
+
 	err = phy_write_mmd(phydev, MDIO_MMD_AN, MDIO_AN_TX_VEND_INT_MASK2,
 			    en ? MDIO_AN_TX_VEND_INT_MASK2_LINK : 0);
 	if (err < 0)
@@ -257,18 +264,20 @@ static int aqr_config_intr(struct phy_device *phydev)
 	if (err < 0)
 		return err;
 
-	return phy_write_mmd(phydev, MDIO_MMD_VEND1, VEND1_GLOBAL_INT_VEND_MASK,
-			     en ? VEND1_GLOBAL_INT_VEND_MASK_GLOBAL3 |
-			     VEND1_GLOBAL_INT_VEND_MASK_AN : 0);
-}
+	err = phy_write_mmd(phydev, MDIO_MMD_VEND1, VEND1_GLOBAL_INT_VEND_MASK,
+			    en ? VEND1_GLOBAL_INT_VEND_MASK_GLOBAL3 |
+			    VEND1_GLOBAL_INT_VEND_MASK_AN : 0);
+	if (err < 0)
+		return err;
 
-static int aqr_ack_interrupt(struct phy_device *phydev)
-{
-	int reg;
+	if (!en) {
+		/* Clear any pending interrupts after we have disabled them */
+		err = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_TX_VEND_INT_STATUS2);
+		if (err)
+			return err;
+	}
 
-	reg = phy_read_mmd(phydev, MDIO_MMD_AN,
-			   MDIO_AN_TX_VEND_INT_STATUS2);
-	return (reg < 0) ? reg : 0;
+	return 0;
 }
 
 static irqreturn_t aqr_handle_interrupt(struct phy_device *phydev)
@@ -604,7 +613,6 @@ static struct phy_driver aqr_driver[] = {
 	.name		= "Aquantia AQ1202",
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
-	.ack_interrupt	= aqr_ack_interrupt,
 	.handle_interrupt = aqr_handle_interrupt,
 	.read_status	= aqr_read_status,
 },
@@ -613,7 +621,6 @@ static struct phy_driver aqr_driver[] = {
 	.name		= "Aquantia AQ2104",
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
-	.ack_interrupt	= aqr_ack_interrupt,
 	.handle_interrupt = aqr_handle_interrupt,
 	.read_status	= aqr_read_status,
 },
@@ -622,7 +629,6 @@ static struct phy_driver aqr_driver[] = {
 	.name		= "Aquantia AQR105",
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
-	.ack_interrupt	= aqr_ack_interrupt,
 	.handle_interrupt = aqr_handle_interrupt,
 	.read_status	= aqr_read_status,
 	.suspend	= aqr107_suspend,
@@ -633,7 +639,6 @@ static struct phy_driver aqr_driver[] = {
 	.name		= "Aquantia AQR106",
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
-	.ack_interrupt	= aqr_ack_interrupt,
 	.handle_interrupt = aqr_handle_interrupt,
 	.read_status	= aqr_read_status,
 },
@@ -644,7 +649,6 @@ static struct phy_driver aqr_driver[] = {
 	.config_init	= aqr107_config_init,
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
-	.ack_interrupt	= aqr_ack_interrupt,
 	.handle_interrupt = aqr_handle_interrupt,
 	.read_status	= aqr107_read_status,
 	.get_tunable    = aqr107_get_tunable,
@@ -663,7 +667,6 @@ static struct phy_driver aqr_driver[] = {
 	.config_init	= aqcs109_config_init,
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
-	.ack_interrupt	= aqr_ack_interrupt,
 	.handle_interrupt = aqr_handle_interrupt,
 	.read_status	= aqr107_read_status,
 	.get_tunable    = aqr107_get_tunable,
@@ -680,7 +683,6 @@ static struct phy_driver aqr_driver[] = {
 	.name		= "Aquantia AQR405",
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
-	.ack_interrupt	= aqr_ack_interrupt,
 	.handle_interrupt = aqr_handle_interrupt,
 	.read_status	= aqr_read_status,
 },
