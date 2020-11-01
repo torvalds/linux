@@ -944,8 +944,8 @@ static long xsdfec_dev_ioctl(struct file *fptr, unsigned int cmd,
 			     unsigned long data)
 {
 	struct xsdfec_dev *xsdfec;
-	void __user *arg = NULL;
-	int rval = -EINVAL;
+	void __user *arg = (void __user *)data;
+	int rval;
 
 	xsdfec = container_of(fptr->private_data, struct xsdfec_dev, miscdev);
 
@@ -954,16 +954,6 @@ static long xsdfec_dev_ioctl(struct file *fptr, unsigned int cmd,
 	    (cmd != XSDFEC_SET_DEFAULT_CONFIG && cmd != XSDFEC_GET_STATUS &&
 	     cmd != XSDFEC_GET_STATS && cmd != XSDFEC_CLEAR_STATS)) {
 		return -EPERM;
-	}
-
-	if (_IOC_TYPE(cmd) != XSDFEC_MAGIC)
-		return -ENOTTY;
-
-	/* check if ioctl argument is present and valid */
-	if (_IOC_DIR(cmd) != _IOC_NONE) {
-		arg = (void __user *)data;
-		if (!arg)
-			return rval;
 	}
 
 	switch (cmd) {
@@ -1010,7 +1000,7 @@ static long xsdfec_dev_ioctl(struct file *fptr, unsigned int cmd,
 		rval = xsdfec_is_active(xsdfec, (bool __user *)arg);
 		break;
 	default:
-		/* Should not get here */
+		rval = -ENOTTY;
 		break;
 	}
 	return rval;
