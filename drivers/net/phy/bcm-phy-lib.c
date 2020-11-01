@@ -181,18 +181,28 @@ EXPORT_SYMBOL_GPL(bcm_phy_ack_intr);
 
 int bcm_phy_config_intr(struct phy_device *phydev)
 {
-	int reg;
+	int reg, err;
 
 	reg = phy_read(phydev, MII_BCM54XX_ECR);
 	if (reg < 0)
 		return reg;
 
-	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
-		reg &= ~MII_BCM54XX_ECR_IM;
-	else
-		reg |= MII_BCM54XX_ECR_IM;
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = bcm_phy_ack_intr(phydev);
+		if (err)
+			return err;
 
-	return phy_write(phydev, MII_BCM54XX_ECR, reg);
+		reg &= ~MII_BCM54XX_ECR_IM;
+		err = phy_write(phydev, MII_BCM54XX_ECR, reg);
+	} else {
+		reg |= MII_BCM54XX_ECR_IM;
+		err = phy_write(phydev, MII_BCM54XX_ECR, reg);
+		if (err)
+			return err;
+
+		err = bcm_phy_ack_intr(phydev);
+	}
+	return err;
 }
 EXPORT_SYMBOL_GPL(bcm_phy_config_intr);
 

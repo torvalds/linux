@@ -634,12 +634,22 @@ static int brcm_fet_config_intr(struct phy_device *phydev)
 	if (reg < 0)
 		return reg;
 
-	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
-		reg &= ~MII_BRCM_FET_IR_MASK;
-	else
-		reg |= MII_BRCM_FET_IR_MASK;
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = brcm_fet_ack_interrupt(phydev);
+		if (err)
+			return err;
 
-	err = phy_write(phydev, MII_BRCM_FET_INTREG, reg);
+		reg &= ~MII_BRCM_FET_IR_MASK;
+		err = phy_write(phydev, MII_BRCM_FET_INTREG, reg);
+	} else {
+		reg |= MII_BRCM_FET_IR_MASK;
+		err = phy_write(phydev, MII_BRCM_FET_INTREG, reg);
+		if (err)
+			return err;
+
+		err = brcm_fet_ack_interrupt(phydev);
+	}
+
 	return err;
 }
 
@@ -699,7 +709,6 @@ static struct phy_driver broadcom_drivers[] = {
 	.name		= "Broadcom BCM5411",
 	/* PHY_GBIT_FEATURES */
 	.config_init	= bcm54xx_config_init,
-	.ack_interrupt	= bcm_phy_ack_intr,
 	.config_intr	= bcm_phy_config_intr,
 	.handle_interrupt = bcm_phy_handle_interrupt,
 }, {
@@ -708,7 +717,6 @@ static struct phy_driver broadcom_drivers[] = {
 	.name		= "Broadcom BCM5421",
 	/* PHY_GBIT_FEATURES */
 	.config_init	= bcm54xx_config_init,
-	.ack_interrupt	= bcm_phy_ack_intr,
 	.config_intr	= bcm_phy_config_intr,
 	.handle_interrupt = bcm_phy_handle_interrupt,
 }, {
@@ -717,7 +725,6 @@ static struct phy_driver broadcom_drivers[] = {
 	.name		= "Broadcom BCM54210E",
 	/* PHY_GBIT_FEATURES */
 	.config_init	= bcm54xx_config_init,
-	.ack_interrupt	= bcm_phy_ack_intr,
 	.config_intr	= bcm_phy_config_intr,
 	.handle_interrupt = bcm_phy_handle_interrupt,
 }, {
@@ -726,7 +733,6 @@ static struct phy_driver broadcom_drivers[] = {
 	.name		= "Broadcom BCM5461",
 	/* PHY_GBIT_FEATURES */
 	.config_init	= bcm54xx_config_init,
-	.ack_interrupt	= bcm_phy_ack_intr,
 	.config_intr	= bcm_phy_config_intr,
 	.handle_interrupt = bcm_phy_handle_interrupt,
 }, {
@@ -735,7 +741,6 @@ static struct phy_driver broadcom_drivers[] = {
 	.name		= "Broadcom BCM54612E",
 	/* PHY_GBIT_FEATURES */
 	.config_init	= bcm54xx_config_init,
-	.ack_interrupt	= bcm_phy_ack_intr,
 	.config_intr	= bcm_phy_config_intr,
 	.handle_interrupt = bcm_phy_handle_interrupt,
 }, {
@@ -745,7 +750,6 @@ static struct phy_driver broadcom_drivers[] = {
 	/* PHY_GBIT_FEATURES */
 	.config_init	= bcm54xx_config_init,
 	.config_aneg	= bcm54616s_config_aneg,
-	.ack_interrupt	= bcm_phy_ack_intr,
 	.config_intr	= bcm_phy_config_intr,
 	.handle_interrupt = bcm_phy_handle_interrupt,
 	.read_status	= bcm54616s_read_status,
@@ -756,7 +760,6 @@ static struct phy_driver broadcom_drivers[] = {
 	.name		= "Broadcom BCM5464",
 	/* PHY_GBIT_FEATURES */
 	.config_init	= bcm54xx_config_init,
-	.ack_interrupt	= bcm_phy_ack_intr,
 	.config_intr	= bcm_phy_config_intr,
 	.handle_interrupt = bcm_phy_handle_interrupt,
 	.suspend	= genphy_suspend,
@@ -768,7 +771,6 @@ static struct phy_driver broadcom_drivers[] = {
 	/* PHY_GBIT_FEATURES */
 	.config_init	= bcm54xx_config_init,
 	.config_aneg	= bcm5481_config_aneg,
-	.ack_interrupt	= bcm_phy_ack_intr,
 	.config_intr	= bcm_phy_config_intr,
 	.handle_interrupt = bcm_phy_handle_interrupt,
 }, {
@@ -778,7 +780,6 @@ static struct phy_driver broadcom_drivers[] = {
 	/* PHY_GBIT_FEATURES */
 	.config_init    = bcm54xx_config_init,
 	.config_aneg    = bcm5481_config_aneg,
-	.ack_interrupt  = bcm_phy_ack_intr,
 	.config_intr    = bcm_phy_config_intr,
 	.handle_interrupt = bcm_phy_handle_interrupt,
 	.suspend	= genphy_suspend,
@@ -790,7 +791,6 @@ static struct phy_driver broadcom_drivers[] = {
 	/* PHY_GBIT_FEATURES */
 	.config_init    = bcm54811_config_init,
 	.config_aneg    = bcm5481_config_aneg,
-	.ack_interrupt  = bcm_phy_ack_intr,
 	.config_intr    = bcm_phy_config_intr,
 	.handle_interrupt = bcm_phy_handle_interrupt,
 	.suspend	= genphy_suspend,
@@ -802,7 +802,6 @@ static struct phy_driver broadcom_drivers[] = {
 	/* PHY_GBIT_FEATURES */
 	.config_init	= bcm5482_config_init,
 	.read_status	= bcm5482_read_status,
-	.ack_interrupt	= bcm_phy_ack_intr,
 	.config_intr	= bcm_phy_config_intr,
 	.handle_interrupt = bcm_phy_handle_interrupt,
 }, {
@@ -811,7 +810,6 @@ static struct phy_driver broadcom_drivers[] = {
 	.name		= "Broadcom BCM50610",
 	/* PHY_GBIT_FEATURES */
 	.config_init	= bcm54xx_config_init,
-	.ack_interrupt	= bcm_phy_ack_intr,
 	.config_intr	= bcm_phy_config_intr,
 	.handle_interrupt = bcm_phy_handle_interrupt,
 }, {
@@ -820,7 +818,6 @@ static struct phy_driver broadcom_drivers[] = {
 	.name		= "Broadcom BCM50610M",
 	/* PHY_GBIT_FEATURES */
 	.config_init	= bcm54xx_config_init,
-	.ack_interrupt	= bcm_phy_ack_intr,
 	.config_intr	= bcm_phy_config_intr,
 	.handle_interrupt = bcm_phy_handle_interrupt,
 }, {
@@ -829,7 +826,6 @@ static struct phy_driver broadcom_drivers[] = {
 	.name		= "Broadcom BCM57780",
 	/* PHY_GBIT_FEATURES */
 	.config_init	= bcm54xx_config_init,
-	.ack_interrupt	= bcm_phy_ack_intr,
 	.config_intr	= bcm_phy_config_intr,
 	.handle_interrupt = bcm_phy_handle_interrupt,
 }, {
@@ -838,7 +834,6 @@ static struct phy_driver broadcom_drivers[] = {
 	.name		= "Broadcom BCMAC131",
 	/* PHY_BASIC_FEATURES */
 	.config_init	= brcm_fet_config_init,
-	.ack_interrupt	= brcm_fet_ack_interrupt,
 	.config_intr	= brcm_fet_config_intr,
 	.handle_interrupt = brcm_fet_handle_interrupt,
 }, {
@@ -847,7 +842,6 @@ static struct phy_driver broadcom_drivers[] = {
 	.name		= "Broadcom BCM5241",
 	/* PHY_BASIC_FEATURES */
 	.config_init	= brcm_fet_config_init,
-	.ack_interrupt	= brcm_fet_ack_interrupt,
 	.config_intr	= brcm_fet_config_intr,
 	.handle_interrupt = brcm_fet_handle_interrupt,
 }, {
@@ -871,7 +865,6 @@ static struct phy_driver broadcom_drivers[] = {
 	.get_stats	= bcm53xx_phy_get_stats,
 	.probe		= bcm53xx_phy_probe,
 	.config_init	= bcm54xx_config_init,
-	.ack_interrupt	= bcm_phy_ack_intr,
 	.config_intr	= bcm_phy_config_intr,
 	.handle_interrupt = bcm_phy_handle_interrupt,
 }, {
@@ -880,7 +873,6 @@ static struct phy_driver broadcom_drivers[] = {
 	.name           = "Broadcom BCM89610",
 	/* PHY_GBIT_FEATURES */
 	.config_init    = bcm54xx_config_init,
-	.ack_interrupt  = bcm_phy_ack_intr,
 	.config_intr    = bcm_phy_config_intr,
 	.handle_interrupt = bcm_phy_handle_interrupt,
 } };

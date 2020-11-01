@@ -144,12 +144,22 @@ static int bcm87xx_config_intr(struct phy_device *phydev)
 	if (reg < 0)
 		return reg;
 
-	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
-		reg |= 1;
-	else
-		reg &= ~1;
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = phy_read(phydev, BCM87XX_LASI_STATUS);
+		if (err)
+			return err;
 
-	err = phy_write(phydev, BCM87XX_LASI_CONTROL, reg);
+		reg |= 1;
+		err = phy_write(phydev, BCM87XX_LASI_CONTROL, reg);
+	} else {
+		reg &= ~1;
+		err = phy_write(phydev, BCM87XX_LASI_CONTROL, reg);
+		if (err)
+			return err;
+
+		err = phy_read(phydev, BCM87XX_LASI_STATUS);
+	}
+
 	return err;
 }
 
@@ -171,22 +181,6 @@ static irqreturn_t bcm87xx_handle_interrupt(struct phy_device *phydev)
 	return IRQ_HANDLED;
 }
 
-static int bcm87xx_ack_interrupt(struct phy_device *phydev)
-{
-	int reg;
-
-	/* Reading the LASI status clears it. */
-	reg = phy_read(phydev, BCM87XX_LASI_STATUS);
-
-	if (reg < 0) {
-		phydev_err(phydev,
-			   "Error: Read of BCM87XX_LASI_STATUS failed: %d\n",
-			   reg);
-		return 0;
-	}
-	return (reg & 1) != 0;
-}
-
 static int bcm8706_match_phy_device(struct phy_device *phydev)
 {
 	return phydev->c45_ids.device_ids[4] == PHY_ID_BCM8706;
@@ -206,7 +200,6 @@ static struct phy_driver bcm87xx_driver[] = {
 	.config_init	= bcm87xx_config_init,
 	.config_aneg	= bcm87xx_config_aneg,
 	.read_status	= bcm87xx_read_status,
-	.ack_interrupt	= bcm87xx_ack_interrupt,
 	.config_intr	= bcm87xx_config_intr,
 	.handle_interrupt = bcm87xx_handle_interrupt,
 	.match_phy_device = bcm8706_match_phy_device,
@@ -218,7 +211,6 @@ static struct phy_driver bcm87xx_driver[] = {
 	.config_init	= bcm87xx_config_init,
 	.config_aneg	= bcm87xx_config_aneg,
 	.read_status	= bcm87xx_read_status,
-	.ack_interrupt	= bcm87xx_ack_interrupt,
 	.config_intr	= bcm87xx_config_intr,
 	.handle_interrupt = bcm87xx_handle_interrupt,
 	.match_phy_device = bcm8727_match_phy_device,
