@@ -29,6 +29,8 @@ patternProperties:
     description: Abilis Systems
   "^abracon,.*":
     description: Abracon Corporation
+  "^abt,.*":
+    description: ShenZhen Asia Better Technology Ltd.
   "^acer,.*":
     description: Acer Inc.
   "^acme,.*":
