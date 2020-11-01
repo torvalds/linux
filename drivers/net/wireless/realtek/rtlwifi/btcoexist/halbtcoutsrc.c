@@ -240,9 +240,6 @@ bool halbtc_send_bt_mp_operation(struct btc_coexist *btcoexist, u8 op_code,
 	rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 		"btmpinfo wait req_num=%d wait=%ld\n", req_num, wait_ms);
 
-	if (in_interrupt())
-		return false;
-
 	if (wait_for_completion_timeout(&btcoexist->bt_mp_comp,
 					msecs_to_jiffies(wait_ms)) == 0) {
 		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_DMESG,
