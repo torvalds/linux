@@ -108,24 +108,45 @@ static int rtl8211f_ack_interrupt(struct phy_device *phydev)
 static int rtl8201_config_intr(struct phy_device *phydev)
 {
 	u16 val;
+	int err;
 
-	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = rtl8201_ack_interrupt(phydev);
+		if (err)
+			return err;
+
 		val = BIT(13) | BIT(12) | BIT(11);
-	else
+		err = phy_write_paged(phydev, 0x7, RTL8201F_IER, val);
+	} else {
 		val = 0;
+		err = phy_write_paged(phydev, 0x7, RTL8201F_IER, val);
+		if (err)
+			return err;
 
-	return phy_write_paged(phydev, 0x7, RTL8201F_IER, val);
+		err = rtl8201_ack_interrupt(phydev);
+	}
+
+	return err;
 }
 
 static int rtl8211b_config_intr(struct phy_device *phydev)
 {
 	int err;
 
-	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = rtl821x_ack_interrupt(phydev);
+		if (err)
+			return err;
+
 		err = phy_write(phydev, RTL821x_INER,
 				RTL8211B_INER_INIT);
-	else
+	} else {
 		err = phy_write(phydev, RTL821x_INER, 0);
+		if (err)
+			return err;
+
+		err = rtl821x_ack_interrupt(phydev);
+	}
 
 	return err;
 }
@@ -134,11 +155,20 @@ static int rtl8211e_config_intr(struct phy_device *phydev)
 {
 	int err;
 
-	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = rtl821x_ack_interrupt(phydev);
+		if (err)
+			return err;
+
 		err = phy_write(phydev, RTL821x_INER,
 				RTL8211E_INER_LINK_STATUS);
-	else
+	} else {
 		err = phy_write(phydev, RTL821x_INER, 0);
+		if (err)
+			return err;
+
+		err = rtl821x_ack_interrupt(phydev);
+	}
 
 	return err;
 }
@@ -146,13 +176,25 @@ static int rtl8211e_config_intr(struct phy_device *phydev)
 static int rtl8211f_config_intr(struct phy_device *phydev)
 {
 	u16 val;
+	int err;
 
-	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = rtl8211f_ack_interrupt(phydev);
+		if (err)
+			return err;
+
 		val = RTL8211F_INER_LINK_STATUS;
-	else
+		err = phy_write_paged(phydev, 0xa42, RTL821x_INER, val);
+	} else {
 		val = 0;
+		err = phy_write_paged(phydev, 0xa42, RTL821x_INER, val);
+		if (err)
+			return err;
 
-	return phy_write_paged(phydev, 0xa42, RTL821x_INER, val);
+		err = rtl8211f_ack_interrupt(phydev);
+	}
+
+	return err;
 }
 
 static irqreturn_t rtl8201_handle_interrupt(struct phy_device *phydev)
@@ -620,7 +662,6 @@ static struct phy_driver realtek_drvs[] = {
 	}, {
 		PHY_ID_MATCH_EXACT(0x001cc816),
 		.name		= "RTL8201F Fast Ethernet",
-		.ack_interrupt	= &rtl8201_ack_interrupt,
 		.config_intr	= &rtl8201_config_intr,
 		.handle_interrupt = rtl8201_handle_interrupt,
 		.suspend	= genphy_suspend,
@@ -647,7 +688,6 @@ static struct phy_driver realtek_drvs[] = {
 	}, {
 		PHY_ID_MATCH_EXACT(0x001cc912),
 		.name		= "RTL8211B Gigabit Ethernet",
-		.ack_interrupt	= &rtl821x_ack_interrupt,
 		.config_intr	= &rtl8211b_config_intr,
 		.handle_interrupt = rtl821x_handle_interrupt,
 		.read_mmd	= &genphy_read_mmd_unsupported,
@@ -667,7 +707,6 @@ static struct phy_driver realtek_drvs[] = {
 	}, {
 		PHY_ID_MATCH_EXACT(0x001cc914),
 		.name		= "RTL8211DN Gigabit Ethernet",
-		.ack_interrupt	= rtl821x_ack_interrupt,
 		.config_intr	= rtl8211e_config_intr,
 		.handle_interrupt = rtl821x_handle_interrupt,
 		.suspend	= genphy_suspend,
@@ -678,7 +717,6 @@ static struct phy_driver realtek_drvs[] = {
 		PHY_ID_MATCH_EXACT(0x001cc915),
 		.name		= "RTL8211E Gigabit Ethernet",
 		.config_init	= &rtl8211e_config_init,
-		.ack_interrupt	= &rtl821x_ack_interrupt,
 		.config_intr	= &rtl8211e_config_intr,
 		.handle_interrupt = rtl821x_handle_interrupt,
 		.suspend	= genphy_suspend,
@@ -689,7 +727,6 @@ static struct phy_driver realtek_drvs[] = {
 		PHY_ID_MATCH_EXACT(0x001cc916),
 		.name		= "RTL8211F Gigabit Ethernet",
 		.config_init	= &rtl8211f_config_init,
-		.ack_interrupt	= &rtl8211f_ack_interrupt,
 		.config_intr	= &rtl8211f_config_intr,
 		.handle_interrupt = rtl8211f_handle_interrupt,
 		.suspend	= genphy_suspend,
@@ -779,7 +816,6 @@ static struct phy_driver realtek_drvs[] = {
 		 * irq is requested and ACKed by reading the status register,
 		 * which is done by the irqchip code.
 		 */
-		.ack_interrupt	= genphy_no_ack_interrupt,
 		.config_intr	= genphy_no_config_intr,
 		.handle_interrupt = genphy_handle_interrupt_no_ack,
 		.suspend	= genphy_suspend,
