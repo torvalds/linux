@@ -1141,64 +1141,6 @@ out_unlock:
 	return rc;
 }
 
-static int dup_vol(struct smb3_fs_context *ctx, struct smb3_fs_context *new)
-{
-	memcpy(new, ctx, sizeof(*new));
-
-	if (ctx->username) {
-		new->username = kstrndup(ctx->username, strlen(ctx->username),
-					 GFP_KERNEL);
-		if (!new->username)
-			return -ENOMEM;
-	}
-	if (ctx->password) {
-		new->password = kstrndup(ctx->password, strlen(ctx->password),
-					 GFP_KERNEL);
-		if (!new->password)
-			goto err_free_username;
-	}
-	if (ctx->UNC) {
-		cifs_dbg(FYI, "%s: ctx->UNC: %s\n", __func__, ctx->UNC);
-		new->UNC = kstrndup(ctx->UNC, strlen(ctx->UNC), GFP_KERNEL);
-		if (!new->UNC)
-			goto err_free_password;
-	}
-	if (ctx->domainname) {
-		new->domainname = kstrndup(ctx->domainname,
-					   strlen(ctx->domainname), GFP_KERNEL);
-		if (!new->domainname)
-			goto err_free_unc;
-	}
-	if (ctx->iocharset) {
-		new->iocharset = kstrndup(ctx->iocharset,
-					  strlen(ctx->iocharset), GFP_KERNEL);
-		if (!new->iocharset)
-			goto err_free_domainname;
-	}
-	if (ctx->prepath) {
-		cifs_dbg(FYI, "%s: ctx->prepath: %s\n", __func__, ctx->prepath);
-		new->prepath = kstrndup(ctx->prepath, strlen(ctx->prepath),
-					GFP_KERNEL);
-		if (!new->prepath)
-			goto err_free_iocharset;
-	}
-
-	return 0;
-
-err_free_iocharset:
-	kfree(new->iocharset);
-err_free_domainname:
-	kfree(new->domainname);
-err_free_unc:
-	kfree(new->UNC);
-err_free_password:
-	kfree_sensitive(new->password);
-err_free_username:
-	kfree(new->username);
-	kfree(new);
-	return -ENOMEM;
-}
-
 /**
  * dfs_cache_add_vol - add a cifs volume during mount() that will be handled by
  * DFS cache refresh worker.
@@ -1229,7 +1171,7 @@ int dfs_cache_add_vol(char *mntdata, struct smb3_fs_context *ctx, const char *fu
 		goto err_free_vi;
 	}
 
-	rc = dup_vol(ctx, &vi->ctx);
+	rc = smb3_fs_context_dup(&vi->ctx, ctx);
 	if (rc)
 		goto err_free_fullpath;
 

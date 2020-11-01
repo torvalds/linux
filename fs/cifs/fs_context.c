@@ -7,6 +7,7 @@
  */
 
 #include "cifsglob.h"
+#include "cifsproto.h"
 #include "cifs_debug.h"
 #include "fs_context.h"
 
@@ -218,4 +219,44 @@ cifs_parse_cache_flavor(char *value, struct smb3_fs_context *ctx)
 		return 1;
 	}
 	return 0;
+}
+
+#define DUP_CTX_STR(field)						\
+do {									\
+	if (ctx->field) {						\
+		new_ctx->field = kstrdup(ctx->field, GFP_ATOMIC);	\
+		if (new_ctx->field == NULL) {				\
+			cifs_cleanup_volume_info_contents(new_ctx);	\
+			return -ENOMEM;					\
+		}							\
+	}								\
+} while (0)
+
+int
+smb3_fs_context_dup(struct smb3_fs_context *new_ctx, struct smb3_fs_context *ctx)
+{
+	int rc = 0;
+
+	memcpy(new_ctx, ctx, sizeof(*ctx));
+	new_ctx->prepath = NULL;
+	new_ctx->local_nls = NULL;
+	new_ctx->nodename = NULL;
+	new_ctx->username = NULL;
+	new_ctx->password = NULL;
+	new_ctx->domainname = NULL;
+	new_ctx->UNC = NULL;
+	new_ctx->iocharset = NULL;
+
+	/*
+	 * Make sure to stay in sync with cifs_cleanup_volume_info_contents()
+	 */
+	DUP_CTX_STR(prepath);
+	DUP_CTX_STR(username);
+	DUP_CTX_STR(password);
+	DUP_CTX_STR(UNC);
+	DUP_CTX_STR(domainname);
+	DUP_CTX_STR(nodename);
+	DUP_CTX_STR(iocharset);
+
+	return rc;
 }

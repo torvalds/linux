@@ -152,6 +152,7 @@ struct smb3_fs_context {
 	bool rootfs:1; /* if it's a SMB root file system */
 };
 
-int cifs_parse_security_flavors(char *value, struct smb3_fs_context *ctx);
+extern int cifs_parse_security_flavors(char *value, struct smb3_fs_context *ctx);
+extern int smb3_fs_context_dup(struct smb3_fs_context *new_ctx, struct smb3_fs_context *ctx);
 
 #endif
