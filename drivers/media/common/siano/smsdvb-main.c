@@ -630,11 +630,11 @@ static void smsdvb_unregister_client(struct smsdvb_client_t *client)
 
 static void smsdvb_onremove(void *context)
 {
-	kmutex_lock(&g_smsdvb_clientslock);
+	mutex_lock(&g_smsdvb_clientslock);
 
 	smsdvb_unregister_client((struct smsdvb_client_t *) context);
 
-	kmutex_unlock(&g_smsdvb_clientslock);
+	mutex_unlock(&g_smsdvb_clientslock);
 }
 
 static int smsdvb_start_feed(struct dvb_demux_feed *feed)
@@ -1151,11 +1151,11 @@ static int smsdvb_hotplug(struct smscore_device_t *coredev,
 	init_completion(&client->tune_done);
 	init_completion(&client->stats_done);
 
-	kmutex_lock(&g_smsdvb_clientslock);
+	mutex_lock(&g_smsdvb_clientslock);
 
 	list_add(&client->entry, &g_smsdvb_clients);
 
-	kmutex_unlock(&g_smsdvb_clientslock);
+	mutex_unlock(&g_smsdvb_clientslock);
 
 	client->event_fe_state = -1;
 	client->event_unc_state = -1;
@@ -1201,7 +1201,7 @@ static int __init smsdvb_module_init(void)
 	int rc;
 
 	INIT_LIST_HEAD(&g_smsdvb_clients);
-	kmutex_init(&g_smsdvb_clientslock);
+	mutex_init(&g_smsdvb_clientslock);
 
 	smsdvb_debugfs_register();
 
@@ -1216,14 +1216,14 @@ static void __exit smsdvb_module_exit(void)
 {
 	smscore_unregister_hotplug(smsdvb_hotplug);
 
-	kmutex_lock(&g_smsdvb_clientslock);
+	mutex_lock(&g_smsdvb_clientslock);
 
 	while (!list_empty(&g_smsdvb_clients))
 		smsdvb_unregister_client((struct smsdvb_client_t *)g_smsdvb_clients.next);
 
 	smsdvb_debugfs_unregister();
 
-	kmutex_unlock(&g_smsdvb_clientslock);
+	mutex_unlock(&g_smsdvb_clientslock);
 }
 
 module_init(smsdvb_module_init);
