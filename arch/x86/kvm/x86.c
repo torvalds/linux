@@ -255,11 +255,10 @@ static struct kmem_cache *x86_emulator_cache;
 
 /*
  * When called, it means the previous get/set msr reached an invalid msr.
- * Return 0 if we want to ignore/silent this failed msr access, or 1 if we want
- * to fail the caller.
+ * Return true if we want to ignore/silent this failed msr access.
  */
-static int kvm_msr_ignored_check(struct kvm_vcpu *vcpu, u32 msr,
-				 u64 data, bool write)
+static bool kvm_msr_ignored_check(struct kvm_vcpu *vcpu, u32 msr,
+				  u64 data, bool write)
 {
 	const char *op = write ? "wrmsr" : "rdmsr";
 
@@ -268,11 +267,11 @@ static int kvm_msr_ignored_check(struct kvm_vcpu *vcpu, u32 msr,
 			kvm_pr_unimpl("ignored %s: 0x%x data 0x%llx\n",
 				      op, msr, data);
 		/* Mask the error */
-		return 0;
+		return true;
 	} else {
 		kvm_debug_ratelimited("unhandled %s: 0x%x data 0x%llx\n",
 				      op, msr, data);
-		return -ENOENT;
+		return false;
 	}
 }
 
@@ -1416,7 +1415,8 @@ static int do_get_msr_feature(struct kvm_vcpu *vcpu, unsigned index, u64 *data)
 	if (r == KVM_MSR_RET_INVALID) {
 		/* Unconditionally clear the output for simplicity */
 		*data = 0;
-		r = kvm_msr_ignored_check(vcpu, index, 0, false);
+		if (kvm_msr_ignored_check(vcpu, index, 0, false))
+			r = 0;
 	}
 
 	if (r)
@@ -1540,7 +1540,7 @@ static int __kvm_set_msr(struct kvm_vcpu *vcpu, u32 index, u64 data,
 	struct msr_data msr;
 
 	if (!host_initiated && !kvm_msr_allowed(vcpu, index, KVM_MSR_FILTER_WRITE))
-		return -EPERM;
+		return KVM_MSR_RET_FILTERED;
 
 	switch (index) {
 	case MSR_FS_BASE:
@@ -1581,7 +1581,8 @@ static int kvm_set_msr_ignored_check(struct kvm_vcpu *vcpu,
 	int ret = __kvm_set_msr(vcpu, index, data, host_initiated);
 
 	if (ret == KVM_MSR_RET_INVALID)
-		ret = kvm_msr_ignored_check(vcpu, index, data, true);
+		if (kvm_msr_ignored_check(vcpu, index, data, true))
+			ret = 0;
 
 	return ret;
 }
@@ -1599,7 +1600,7 @@ int __kvm_get_msr(struct kvm_vcpu *vcpu, u32 index, u64 *data,
 	int ret;
 
 	if (!host_initiated && !kvm_msr_allowed(vcpu, index, KVM_MSR_FILTER_READ))
-		return -EPERM;
+		return KVM_MSR_RET_FILTERED;
 
 	msr.index = index;
 	msr.host_initiated = host_initiated;
@@ -1618,7 +1619,8 @@ static int kvm_get_msr_ignored_check(struct kvm_vcpu *vcpu,
 	if (ret == KVM_MSR_RET_INVALID) {
 		/* Unconditionally clear *data for simplicity */
 		*data = 0;
-		ret = kvm_msr_ignored_check(vcpu, index, 0, false);
+		if (kvm_msr_ignored_check(vcpu, index, 0, false))
+			ret = 0;
 	}
 
 	return ret;
@@ -1662,9 +1664,9 @@ static int complete_emulated_wrmsr(struct kvm_vcpu *vcpu)
 static u64 kvm_msr_reason(int r)
 {
 	switch (r) {
-	case -ENOENT:
+	case KVM_MSR_RET_INVALID:
 		return KVM_MSR_EXIT_REASON_UNKNOWN;
-	case -EPERM:
+	case KVM_MSR_RET_FILTERED:
 		return KVM_MSR_EXIT_REASON_FILTER;
 	default:
 		return KVM_MSR_EXIT_REASON_INVAL;
