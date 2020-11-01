@@ -859,8 +859,6 @@ static int ezusb_access_ltv(struct ezusb_priv *upriv,
 	int retval = 0;
 	enum ezusb_state state;
 
-	BUG_ON(in_irq());
-
 	if (!upriv->udev) {
 		retval = -ENODEV;
 		goto exit;
@@ -1349,7 +1347,6 @@ static int ezusb_init(struct hermes *hw)
 	struct ezusb_priv *upriv = hw->priv;
 	int retval;
 
-	BUG_ON(in_interrupt());
 	if (!upriv)
 		return -EINVAL;
 
@@ -1448,7 +1445,6 @@ static inline void ezusb_delete(struct ezusb_priv *upriv)
 	struct list_head *tmp_item;
 	unsigned long flags;
 
-	BUG_ON(in_interrupt());
 	BUG_ON(!upriv);
 
 	mutex_lock(&upriv->mtx);
