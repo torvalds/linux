@@ -564,7 +564,8 @@ static int caam_qi_napi_schedule(struct qman_portal *p, struct caam_napi *np)
 
 static enum qman_cb_dqrr_result caam_rsp_fq_dqrr_cb(struct qman_portal *p,
 						    struct qman_fq *rsp_fq,
-						    const struct qm_dqrr_entry *dqrr)
+						    const struct qm_dqrr_entry *dqrr,
+						    bool sched_napi)
 {
 	struct caam_napi *caam_napi = raw_cpu_ptr(&pcpu_qipriv.caam_napi);
 	struct caam_drv_req *drv_req;

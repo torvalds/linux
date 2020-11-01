@@ -2316,7 +2316,8 @@ static inline int dpaa_eth_napi_schedule(struct dpaa_percpu_priv *percpu_priv,
 
 static enum qman_cb_dqrr_result rx_error_dqrr(struct qman_portal *portal,
 					      struct qman_fq *fq,
-					      const struct qm_dqrr_entry *dq)
+					      const struct qm_dqrr_entry *dq,
+					      bool sched_napi)
 {
 	struct dpaa_fq *dpaa_fq = container_of(fq, struct dpaa_fq, fq_base);
 	struct dpaa_percpu_priv *percpu_priv;
@@ -2343,7 +2344,8 @@ static enum qman_cb_dqrr_result rx_error_dqrr(struct qman_portal *portal,
 
 static enum qman_cb_dqrr_result rx_default_dqrr(struct qman_portal *portal,
 						struct qman_fq *fq,
-						const struct qm_dqrr_entry *dq)
+						const struct qm_dqrr_entry *dq,
+						bool sched_napi)
 {
 	struct skb_shared_hwtstamps *shhwtstamps;
 	struct rtnl_link_stats64 *percpu_stats;
@@ -2460,7 +2462,8 @@ static enum qman_cb_dqrr_result rx_default_dqrr(struct qman_portal *portal,
 
 static enum qman_cb_dqrr_result conf_error_dqrr(struct qman_portal *portal,
 						struct qman_fq *fq,
-						const struct qm_dqrr_entry *dq)
+						const struct qm_dqrr_entry *dq,
+						bool sched_napi)
 {
 	struct dpaa_percpu_priv *percpu_priv;
 	struct net_device *net_dev;
@@ -2481,7 +2484,8 @@ static enum qman_cb_dqrr_result conf_error_dqrr(struct qman_portal *portal,
 
 static enum qman_cb_dqrr_result conf_dflt_dqrr(struct qman_portal *portal,
 					       struct qman_fq *fq,
-					       const struct qm_dqrr_entry *dq)
+					       const struct qm_dqrr_entry *dq,
+					       bool sched_napi)
 {
 	struct dpaa_percpu_priv *percpu_priv;
 	struct net_device *net_dev;
