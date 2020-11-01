@@ -138,9 +138,10 @@ struct nfs_cache_array_entry {
 };
 
 struct nfs_cache_array {
-	int size;
-	int eof_index;
 	u64 last_cookie;
+	unsigned int size;
+	unsigned char page_full : 1,
+		      page_is_eof : 1;
 	struct nfs_cache_array_entry array[];
 };
 
@@ -172,7 +173,6 @@ void nfs_readdir_init_array(struct page *page)
 
 	array = kmap_atomic(page);
 	memset(array, 0, sizeof(struct nfs_cache_array));
-	array->eof_index = -1;
 	kunmap_atomic(array);
 }
 
@@ -190,6 +190,17 @@ void nfs_readdir_clear_array(struct page *page)
 		kfree(array->array[i].string.name);
 	array->size = 0;
 	kunmap_atomic(array);
+}
+
+static void nfs_readdir_array_set_eof(struct nfs_cache_array *array)
+{
+	array->page_is_eof = 1;
+	array->page_full = 1;
+}
+
+static bool nfs_readdir_array_is_full(struct nfs_cache_array *array)
+{
+	return array->page_full;
 }
 
 /*
@@ -213,6 +224,23 @@ int nfs_readdir_make_qstr(struct qstr *string, const char *name, unsigned int le
 	return 0;
 }
 
+/*
+ * Check that the next array entry lies entirely within the page bounds
+ */
+static int nfs_readdir_array_can_expand(struct nfs_cache_array *array)
+{
+	struct nfs_cache_array_entry *cache_entry;
+
+	if (array->page_full)
+		return -ENOSPC;
+	cache_entry = &array->array[array->size + 1];
+	if ((char *)cache_entry - (char *)array > PAGE_SIZE) {
+		array->page_full = 1;
+		return -ENOSPC;
+	}
+	return 0;
+}
+
 static
 int nfs_readdir_add_to_array(struct nfs_entry *entry, struct page *page)
 {
@@ -220,13 +248,11 @@ int nfs_readdir_add_to_array(struct nfs_entry *entry, struct page *page)
 	struct nfs_cache_array_entry *cache_entry;
 	int ret;
 
-	cache_entry = &array->array[array->size];
-
-	/* Check that this entry lies within the page bounds */
-	ret = -ENOSPC;
-	if ((char *)&cache_entry[1] - (char *)page_address(page) > PAGE_SIZE)
+	ret = nfs_readdir_array_can_expand(array);
+	if (ret)
 		goto out;
 
+	cache_entry = &array->array[array->size];
 	cache_entry->cookie = entry->prev_cookie;
 	cache_entry->ino = entry->ino;
 	cache_entry->d_type = entry->d_type;
@@ -236,10 +262,19 @@ int nfs_readdir_add_to_array(struct nfs_entry *entry, struct page *page)
 	array->last_cookie = entry->cookie;
 	array->size++;
 	if (entry->eof != 0)
-		array->eof_index = array->size;
+		nfs_readdir_array_set_eof(array);
 out:
 	kunmap(page);
 	return ret;
+}
+
+static void nfs_readdir_page_set_eof(struct page *page)
+{
+	struct nfs_cache_array *array;
+
+	array = kmap_atomic(page);
+	nfs_readdir_array_set_eof(array);
+	kunmap_atomic(array);
 }
 
 static inline
@@ -270,7 +305,7 @@ int nfs_readdir_search_for_pos(struct nfs_cache_array *array, nfs_readdir_descri
 	if (diff < 0)
 		goto out_eof;
 	if (diff >= array->size) {
-		if (array->eof_index >= 0)
+		if (array->page_is_eof)
 			goto out_eof;
 		return -EAGAIN;
 	}
@@ -334,7 +369,7 @@ int nfs_readdir_search_for_cookie(struct nfs_cache_array *array, nfs_readdir_des
 			return 0;
 		}
 	}
-	if (array->eof_index >= 0) {
+	if (array->page_is_eof) {
 		status = -EBADCOOKIE;
 		if (desc->dir_cookie == array->last_cookie)
 			desc->eof = true;
@@ -566,7 +601,6 @@ int nfs_readdir_page_filler(nfs_readdir_descriptor_t *desc, struct nfs_entry *en
 	struct xdr_stream stream;
 	struct xdr_buf buf;
 	struct page *scratch;
-	struct nfs_cache_array *array;
 	unsigned int count = 0;
 	int status;
 
@@ -604,10 +638,8 @@ int nfs_readdir_page_filler(nfs_readdir_descriptor_t *desc, struct nfs_entry *en
 
 out_nopages:
 	if (count == 0 || (status == -EBADCOOKIE && entry->eof != 0)) {
-		array = kmap(page);
-		array->eof_index = array->size;
+		nfs_readdir_page_set_eof(page);
 		status = 0;
-		kunmap(page);
 	}
 
 	put_page(scratch);
@@ -689,7 +721,7 @@ int nfs_readdir_xdr_to_array(nfs_readdir_descriptor_t *desc, struct page *page, 
 				status = 0;
 			break;
 		}
-	} while (array->eof_index < 0);
+	} while (!nfs_readdir_array_is_full(array));
 
 	nfs_readdir_free_pages(pages, array_size);
 out_release_array:
@@ -825,7 +857,7 @@ int nfs_do_filldir(nfs_readdir_descriptor_t *desc)
 		if (desc->duped != 0)
 			desc->duped = 1;
 	}
-	if (array->eof_index >= 0)
+	if (array->page_is_eof)
 		desc->eof = true;
 
 	kunmap(desc->page);
