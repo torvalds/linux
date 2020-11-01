@@ -172,3 +172,51 @@ targets += ../uzImage.bin
 
 $(objboot)/uzImage.bin: $(objboot)/vmlinuz.bin FORCE
 	$(call if_changed,uimage,none)
+
+#
+# Flattened Image Tree (.itb) image
+#
+
+ifeq ($(ADDR_BITS),32)
+itb_addr_cells = 1
+endif
+ifeq ($(ADDR_BITS),64)
+itb_addr_cells = 2
+endif
+
+targets += ../vmlinuz.its.S
+
+quiet_cmd_its_cat = CAT     $@
+      cmd_its_cat = cat $(real-prereqs) >$@
+
+$(objboot)/vmlinuz.its.S: $(addprefix $(srctree)/arch/mips/$(PLATFORM)/,$(ITS_INPUTS)) FORCE
+	$(call if_changed,its_cat)
+
+targets += ../vmlinuz.its
+
+quiet_cmd_cpp_its_S = ITS     $@
+      cmd_cpp_its_S = $(CPP) -P -C -o $@ $< \
+		        -DKERNEL_NAME="\"Linux $(KERNELRELEASE)\"" \
+			-DVMLINUX_BINARY="\"$(2)\"" \
+			-DVMLINUX_COMPRESSION="\"none\"" \
+			-DVMLINUX_LOAD_ADDRESS=$(VMLINUZ_LOAD_ADDRESS) \
+			-DVMLINUX_ENTRY_ADDRESS=$(VMLINUZ_LOAD_ADDRESS) \
+			-DADDR_BITS=$(ADDR_BITS) \
+			-DADDR_CELLS=$(itb_addr_cells)
+
+$(objboot)/vmlinuz.its: $(objboot)/vmlinuz.its.S FORCE
+	$(call if_changed,cpp_its_S,vmlinuz.bin)
+
+targets += ../vmlinuz.itb
+
+quiet_cmd_itb-image = ITB     $@
+      cmd_itb-image = \
+		env PATH="$(objtree)/scripts/dtc:$(PATH)" \
+		$(BASH) $(MKIMAGE) \
+		-D "-I dts -O dtb -p 500 \
+			--include $(objtree)/arch/mips \
+			--warning no-unit_address_vs_reg" \
+		-f $(2) $@
+
+$(objboot)/vmlinuz.itb: $(objboot)/vmlinuz.its $(objboot)/vmlinuz.bin FORCE
+	$(call if_changed,itb-image,$<)

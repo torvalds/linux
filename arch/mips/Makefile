@@ -347,6 +347,7 @@ bootz-y			+= vmlinuz.srec
 ifeq ($(shell expr $(zload-y) \< 0xffffffff80000000 2> /dev/null), 0)
 bootz-y			+= uzImage.bin
 endif
+bootz-y			+= vmlinuz.itb
 
 #
 # Some machines like the Indy need 32-bit ELF binaries for booting purposes.
