@@ -409,6 +409,7 @@ struct mlxsw_sp_fib {
 	struct mlxsw_sp_vr *vr;
 	struct mlxsw_sp_lpm_tree *lpm_tree;
 	enum mlxsw_sp_l3proto proto;
+	const struct mlxsw_sp_router_ll_ops *ll_ops;
 };
 
 struct mlxsw_sp_vr {
@@ -422,12 +423,31 @@ struct mlxsw_sp_vr {
 	refcount_t ul_rif_refcnt;
 };
 
+static int mlxsw_sp_router_ll_basic_ralta_write(struct mlxsw_sp *mlxsw_sp, char *xralta_pl)
+{
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralta),
+			       xralta_pl + MLXSW_REG_XRALTA_RALTA_OFFSET);
+}
+
+static int mlxsw_sp_router_ll_basic_ralst_write(struct mlxsw_sp *mlxsw_sp, char *xralst_pl)
+{
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralst),
+			       xralst_pl + MLXSW_REG_XRALST_RALST_OFFSET);
+}
+
+static int mlxsw_sp_router_ll_basic_raltb_write(struct mlxsw_sp *mlxsw_sp, char *xraltb_pl)
+{
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(raltb),
+			       xraltb_pl + MLXSW_REG_XRALTB_RALTB_OFFSET);
+}
+
 static const struct rhashtable_params mlxsw_sp_fib_ht_params;
 
 static struct mlxsw_sp_fib *mlxsw_sp_fib_create(struct mlxsw_sp *mlxsw_sp,
 						struct mlxsw_sp_vr *vr,
 						enum mlxsw_sp_l3proto proto)
 {
+	const struct mlxsw_sp_router_ll_ops *ll_ops = mlxsw_sp->router->proto_ll_ops[proto];
 	struct mlxsw_sp_lpm_tree *lpm_tree;
 	struct mlxsw_sp_fib *fib;
 	int err;
@@ -443,6 +463,7 @@ static struct mlxsw_sp_fib *mlxsw_sp_fib_create(struct mlxsw_sp *mlxsw_sp,
 	fib->proto = proto;
 	fib->vr = vr;
 	fib->lpm_tree = lpm_tree;
+	fib->ll_ops = ll_ops;
 	mlxsw_sp_lpm_tree_hold(lpm_tree);
 	err = mlxsw_sp_vr_lpm_tree_bind(mlxsw_sp, fib, lpm_tree->id);
 	if (err)
@@ -481,33 +502,36 @@ mlxsw_sp_lpm_tree_find_unused(struct mlxsw_sp *mlxsw_sp)
 }
 
 static int mlxsw_sp_lpm_tree_alloc(struct mlxsw_sp *mlxsw_sp,
+				   const struct mlxsw_sp_router_ll_ops *ll_ops,
 				   struct mlxsw_sp_lpm_tree *lpm_tree)
 {
-	char ralta_pl[MLXSW_REG_RALTA_LEN];
+	char xralta_pl[MLXSW_REG_XRALTA_LEN];
 
-	mlxsw_reg_ralta_pack(ralta_pl, true,
-			     (enum mlxsw_reg_ralxx_protocol) lpm_tree->proto,
-			     lpm_tree->id);
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralta), ralta_pl);
+	mlxsw_reg_xralta_pack(xralta_pl, true,
+			      (enum mlxsw_reg_ralxx_protocol) lpm_tree->proto,
+			      lpm_tree->id);
+	return ll_ops->ralta_write(mlxsw_sp, xralta_pl);
 }
 
 static void mlxsw_sp_lpm_tree_free(struct mlxsw_sp *mlxsw_sp,
+				   const struct mlxsw_sp_router_ll_ops *ll_ops,
 				   struct mlxsw_sp_lpm_tree *lpm_tree)
 {
-	char ralta_pl[MLXSW_REG_RALTA_LEN];
+	char xralta_pl[MLXSW_REG_XRALTA_LEN];
 
-	mlxsw_reg_ralta_pack(ralta_pl, false,
-			     (enum mlxsw_reg_ralxx_protocol) lpm_tree->proto,
-			     lpm_tree->id);
-	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralta), ralta_pl);
+	mlxsw_reg_xralta_pack(xralta_pl, false,
+			      (enum mlxsw_reg_ralxx_protocol) lpm_tree->proto,
+			      lpm_tree->id);
+	ll_ops->ralta_write(mlxsw_sp, xralta_pl);
 }
 
 static int
 mlxsw_sp_lpm_tree_left_struct_set(struct mlxsw_sp *mlxsw_sp,
+				  const struct mlxsw_sp_router_ll_ops *ll_ops,
 				  struct mlxsw_sp_prefix_usage *prefix_usage,
 				  struct mlxsw_sp_lpm_tree *lpm_tree)
 {
-	char ralst_pl[MLXSW_REG_RALST_LEN];
+	char xralst_pl[MLXSW_REG_XRALST_LEN];
 	u8 root_bin = 0;
 	u8 prefix;
 	u8 last_prefix = MLXSW_REG_RALST_BIN_NO_CHILD;
@@ -515,19 +539,20 @@ mlxsw_sp_lpm_tree_left_struct_set(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_prefix_usage_for_each(prefix, prefix_usage)
 		root_bin = prefix;
 
-	mlxsw_reg_ralst_pack(ralst_pl, root_bin, lpm_tree->id);
+	mlxsw_reg_xralst_pack(xralst_pl, root_bin, lpm_tree->id);
 	mlxsw_sp_prefix_usage_for_each(prefix, prefix_usage) {
 		if (prefix == 0)
 			continue;
-		mlxsw_reg_ralst_bin_pack(ralst_pl, prefix, last_prefix,
-					 MLXSW_REG_RALST_BIN_NO_CHILD);
+		mlxsw_reg_xralst_bin_pack(xralst_pl, prefix, last_prefix,
+					  MLXSW_REG_RALST_BIN_NO_CHILD);
 		last_prefix = prefix;
 	}
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralst), ralst_pl);
+	return ll_ops->ralst_write(mlxsw_sp, xralst_pl);
 }
 
 static struct mlxsw_sp_lpm_tree *
 mlxsw_sp_lpm_tree_create(struct mlxsw_sp *mlxsw_sp,
+			 const struct mlxsw_sp_router_ll_ops *ll_ops,
 			 struct mlxsw_sp_prefix_usage *prefix_usage,
 			 enum mlxsw_sp_l3proto proto)
 {
@@ -538,12 +563,11 @@ mlxsw_sp_lpm_tree_create(struct mlxsw_sp *mlxsw_sp,
 	if (!lpm_tree)
 		return ERR_PTR(-EBUSY);
 	lpm_tree->proto = proto;
-	err = mlxsw_sp_lpm_tree_alloc(mlxsw_sp, lpm_tree);
+	err = mlxsw_sp_lpm_tree_alloc(mlxsw_sp, ll_ops, lpm_tree);
 	if (err)
 		return ERR_PTR(err);
 
-	err = mlxsw_sp_lpm_tree_left_struct_set(mlxsw_sp, prefix_usage,
-						lpm_tree);
+	err = mlxsw_sp_lpm_tree_left_struct_set(mlxsw_sp, ll_ops, prefix_usage, lpm_tree);
 	if (err)
 		goto err_left_struct_set;
 	memcpy(&lpm_tree->prefix_usage, prefix_usage,
@@ -554,14 +578,15 @@ mlxsw_sp_lpm_tree_create(struct mlxsw_sp *mlxsw_sp,
 	return lpm_tree;
 
 err_left_struct_set:
-	mlxsw_sp_lpm_tree_free(mlxsw_sp, lpm_tree);
+	mlxsw_sp_lpm_tree_free(mlxsw_sp, ll_ops, lpm_tree);
 	return ERR_PTR(err);
 }
 
 static void mlxsw_sp_lpm_tree_destroy(struct mlxsw_sp *mlxsw_sp,
+				      const struct mlxsw_sp_router_ll_ops *ll_ops,
 				      struct mlxsw_sp_lpm_tree *lpm_tree)
 {
-	mlxsw_sp_lpm_tree_free(mlxsw_sp, lpm_tree);
+	mlxsw_sp_lpm_tree_free(mlxsw_sp, ll_ops, lpm_tree);
 }
 
 static struct mlxsw_sp_lpm_tree *
@@ -569,6 +594,7 @@ mlxsw_sp_lpm_tree_get(struct mlxsw_sp *mlxsw_sp,
 		      struct mlxsw_sp_prefix_usage *prefix_usage,
 		      enum mlxsw_sp_l3proto proto)
 {
+	const struct mlxsw_sp_router_ll_ops *ll_ops = mlxsw_sp->router->proto_ll_ops[proto];
 	struct mlxsw_sp_lpm_tree *lpm_tree;
 	int i;
 
@@ -582,7 +608,7 @@ mlxsw_sp_lpm_tree_get(struct mlxsw_sp *mlxsw_sp,
 			return lpm_tree;
 		}
 	}
-	return mlxsw_sp_lpm_tree_create(mlxsw_sp, prefix_usage, proto);
+	return mlxsw_sp_lpm_tree_create(mlxsw_sp, ll_ops, prefix_usage, proto);
 }
 
 static void mlxsw_sp_lpm_tree_hold(struct mlxsw_sp_lpm_tree *lpm_tree)
@@ -593,8 +619,11 @@ static void mlxsw_sp_lpm_tree_hold(struct mlxsw_sp_lpm_tree *lpm_tree)
 static void mlxsw_sp_lpm_tree_put(struct mlxsw_sp *mlxsw_sp,
 				  struct mlxsw_sp_lpm_tree *lpm_tree)
 {
+	const struct mlxsw_sp_router_ll_ops *ll_ops =
+				mlxsw_sp->router->proto_ll_ops[lpm_tree->proto];
+
 	if (--lpm_tree->ref_count == 0)
-		mlxsw_sp_lpm_tree_destroy(mlxsw_sp, lpm_tree);
+		mlxsw_sp_lpm_tree_destroy(mlxsw_sp, ll_ops, lpm_tree);
 }
 
 #define MLXSW_SP_LPM_TREE_MIN 1 /* tree 0 is reserved */
@@ -684,23 +713,23 @@ static struct mlxsw_sp_vr *mlxsw_sp_vr_find_unused(struct mlxsw_sp *mlxsw_sp)
 static int mlxsw_sp_vr_lpm_tree_bind(struct mlxsw_sp *mlxsw_sp,
 				     const struct mlxsw_sp_fib *fib, u8 tree_id)
 {
-	char raltb_pl[MLXSW_REG_RALTB_LEN];
+	char xraltb_pl[MLXSW_REG_XRALTB_LEN];
 
-	mlxsw_reg_raltb_pack(raltb_pl, fib->vr->id,
-			     (enum mlxsw_reg_ralxx_protocol) fib->proto,
-			     tree_id);
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(raltb), raltb_pl);
+	mlxsw_reg_xraltb_pack(xraltb_pl, fib->vr->id,
+			      (enum mlxsw_reg_ralxx_protocol) fib->proto,
+			      tree_id);
+	return fib->ll_ops->raltb_write(mlxsw_sp, xraltb_pl);
 }
 
 static int mlxsw_sp_vr_lpm_tree_unbind(struct mlxsw_sp *mlxsw_sp,
 				       const struct mlxsw_sp_fib *fib)
 {
-	char raltb_pl[MLXSW_REG_RALTB_LEN];
+	char xraltb_pl[MLXSW_REG_XRALTB_LEN];
 
 	/* Bind to tree 0 which is default */
-	mlxsw_reg_raltb_pack(raltb_pl, fib->vr->id,
-			     (enum mlxsw_reg_ralxx_protocol) fib->proto, 0);
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(raltb), raltb_pl);
+	mlxsw_reg_xraltb_pack(xraltb_pl, fib->vr->id,
+			      (enum mlxsw_reg_ralxx_protocol) fib->proto, 0);
+	return fib->ll_ops->raltb_write(mlxsw_sp, xraltb_pl);
 }
 
 static u32 mlxsw_sp_fix_tb_id(u32 tb_id)
@@ -5659,28 +5688,28 @@ static int __mlxsw_sp_router_set_abort_trap(struct mlxsw_sp *mlxsw_sp,
 					    enum mlxsw_reg_ralxx_protocol proto,
 					    u8 tree_id)
 {
-	char ralta_pl[MLXSW_REG_RALTA_LEN];
-	char ralst_pl[MLXSW_REG_RALST_LEN];
+	const struct mlxsw_sp_router_ll_ops *ll_ops = mlxsw_sp->router->proto_ll_ops[proto];
+	char xralta_pl[MLXSW_REG_XRALTA_LEN];
+	char xralst_pl[MLXSW_REG_XRALST_LEN];
 	int i, err;
 
-	mlxsw_reg_ralta_pack(ralta_pl, true, proto, tree_id);
-	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralta), ralta_pl);
+	mlxsw_reg_xralta_pack(xralta_pl, true, proto, tree_id);
+	err = ll_ops->ralta_write(mlxsw_sp, xralta_pl);
 	if (err)
 		return err;
 
-	mlxsw_reg_ralst_pack(ralst_pl, 0xff, tree_id);
-	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralst), ralst_pl);
+	mlxsw_reg_xralst_pack(xralst_pl, 0xff, tree_id);
+	err = ll_ops->ralst_write(mlxsw_sp, xralst_pl);
 	if (err)
 		return err;
 
 	for (i = 0; i < MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_VRS); i++) {
 		struct mlxsw_sp_vr *vr = &mlxsw_sp->router->vrs[i];
-		char raltb_pl[MLXSW_REG_RALTB_LEN];
+		char xraltb_pl[MLXSW_REG_XRALTB_LEN];
 		char ralue_pl[MLXSW_REG_RALUE_LEN];
 
-		mlxsw_reg_raltb_pack(raltb_pl, vr->id, proto, tree_id);
-		err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(raltb),
-				      raltb_pl);
+		mlxsw_reg_xraltb_pack(xraltb_pl, vr->id, proto, tree_id);
+		err = ll_ops->raltb_write(mlxsw_sp, xraltb_pl);
 		if (err)
 			return err;
 
@@ -8057,6 +8086,12 @@ static void __mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp)
 	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(rgcr), rgcr_pl);
 }
 
+static const struct mlxsw_sp_router_ll_ops mlxsw_sp_router_ll_basic_ops = {
+	.ralta_write = mlxsw_sp_router_ll_basic_ralta_write,
+	.ralst_write = mlxsw_sp_router_ll_basic_ralst_write,
+	.raltb_write = mlxsw_sp_router_ll_basic_raltb_write,
+};
+
 int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp,
 			 struct netlink_ext_ack *extack)
 {
@@ -8069,6 +8104,9 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp,
 	mutex_init(&router->lock);
 	mlxsw_sp->router = router;
 	router->mlxsw_sp = mlxsw_sp;
+
+	router->proto_ll_ops[MLXSW_SP_L3_PROTO_IPV4] = &mlxsw_sp_router_ll_basic_ops;
+	router->proto_ll_ops[MLXSW_SP_L3_PROTO_IPV6] = &mlxsw_sp_router_ll_basic_ops;
 
 	INIT_LIST_HEAD(&mlxsw_sp->router->nexthop_neighs_list);
 	err = __mlxsw_sp_router_init(mlxsw_sp);

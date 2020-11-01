@@ -48,6 +48,17 @@ struct mlxsw_sp_router {
 	bool adj_discard_index_valid;
 	struct mlxsw_sp_router_nve_decap nve_decap_config;
 	struct mutex lock; /* Protects shared router resources */
+	/* One set of ops for each protocol: IPv4 and IPv6 */
+	const struct mlxsw_sp_router_ll_ops *proto_ll_ops[MLXSW_SP_L3_PROTO_MAX];
+};
+
+/* Low-level router ops. Basically this is to handle the different
+ * register sets to work with ordinary and XM trees and FIB entries.
+ */
+struct mlxsw_sp_router_ll_ops {
+	int (*ralta_write)(struct mlxsw_sp *mlxsw_sp, char *xralta_pl);
+	int (*ralst_write)(struct mlxsw_sp *mlxsw_sp, char *xralst_pl);
+	int (*raltb_write)(struct mlxsw_sp *mlxsw_sp, char *xraltb_pl);
 };
 
 struct mlxsw_sp_rif_ipip_lb;
