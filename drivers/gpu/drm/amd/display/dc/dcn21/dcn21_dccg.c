@@ -50,43 +50,47 @@ void dccg21_update_dpp_dto(struct dccg *dccg, int dpp_inst, int req_dppclk)
 	if (dccg->ref_dppclk) {
 		int ref_dppclk = dccg->ref_dppclk;
 		int modulo = ref_dppclk / 10000;
+		int phase;
 
 		if (req_dppclk) {
-			int phase;
-
 			/*
 			 * program DPP DTO phase and modulo as below
-			 * phase = dpp_pipe_clk_mhz / 10
-			 * module = dpp_global_clk_mhz / 10
-			 * dmub FW will read phase value to
-			 * determine minimum dpp clk and notify smu
-			 * to set clks for more power saving in PSR state
+			 * phase = ceiling(dpp_pipe_clk_mhz / 10)
+			 * module = trunc(dpp_global_clk_mhz / 10)
+			 *
+			 * storing frequencies in registers allow dmcub fw
+			 * to run time lower clocks when possible for power saving
+			 *
+			 * ceiling phase and truncate modulo guarentees the divided
+			 * down per pipe dpp clock has high enough frequency
 			 */
 			phase = (req_dppclk + 9999) / 10000;
 
-			if (phase > 0xff) {
-				ASSERT(false);
-				phase = 0xff;
+			if (phase > modulo) {
+				/* phase > modulo result in screen corruption
+				 * ie phase = 30, mod = 29 for 4k@60 HDMI
+				 * in these case we don't want pipe clock to be divided
+				 */
+				phase = modulo;
 			}
-
-			REG_SET_2(DPPCLK_DTO_PARAM[dpp_inst], 0,
-					DPPCLK0_DTO_PHASE, phase,
-					DPPCLK0_DTO_MODULO, modulo);
-			REG_UPDATE(DPPCLK_DTO_CTRL,
-					DPPCLK_DTO_ENABLE[dpp_inst], 1);
 		} else {
 			/*
 			 *  set phase to 10 if dpp isn't used to
 			 *  prevent hard hang if access dpp register
 			 *  on unused pipe
+			 *
+			 *  DTO should be on to divide down un-used
+			 *  pipe clock for power saving
 			 */
-			REG_SET_2(DPPCLK_DTO_PARAM[dpp_inst], 0,
-				DPPCLK0_DTO_PHASE, 10,
+			phase = 10;
+		}
+
+		REG_SET_2(DPPCLK_DTO_PARAM[dpp_inst], 0,
+				DPPCLK0_DTO_PHASE, phase,
 				DPPCLK0_DTO_MODULO, modulo);
 
-			REG_UPDATE(DPPCLK_DTO_CTRL,
-				DPPCLK_DTO_ENABLE[dpp_inst], 0);
-		}
+		REG_UPDATE(DPPCLK_DTO_CTRL,
+				DPPCLK_DTO_ENABLE[dpp_inst], 1);
 	}
 
 	dccg->pipe_dppclk_khz[dpp_inst] = req_dppclk;
