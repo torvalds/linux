@@ -1311,7 +1311,7 @@ static const char *alloc_name(u64 flags)
 	default:
 		WARN_ON(1);
 		return "invalid-combination";
-	};
+	}
 }
 
 /*
