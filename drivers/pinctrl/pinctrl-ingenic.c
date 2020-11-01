@@ -626,6 +626,10 @@ static int jz4770_cim_8bit_pins[] = {
 static int jz4770_cim_12bit_pins[] = {
 	0x32, 0x33, 0xb0, 0xb1,
 };
+static int jz4770_lcd_8bit_pins[] = {
+	0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x4c, 0x4d,
+	0x48, 0x49, 0x52, 0x53,
+};
 static int jz4770_lcd_24bit_pins[] = {
 	0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47,
 	0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f,
@@ -730,6 +734,7 @@ static const struct group_desc jz4770_groups[] = {
 	INGENIC_PIN_GROUP("i2c2-data", jz4770_i2c2, 2),
 	INGENIC_PIN_GROUP("cim-data-8bit", jz4770_cim_8bit, 0),
 	INGENIC_PIN_GROUP("cim-data-12bit", jz4770_cim_12bit, 0),
+	INGENIC_PIN_GROUP("lcd-8bit", jz4770_lcd_8bit, 0),
 	INGENIC_PIN_GROUP("lcd-24bit", jz4770_lcd_24bit, 0),
 	{ "lcd-no-pins", },
 	INGENIC_PIN_GROUP("pwm0", jz4770_pwm_pwm0, 0),
@@ -791,7 +796,9 @@ static const char *jz4770_i2c0_groups[] = { "i2c0-data", };
 static const char *jz4770_i2c1_groups[] = { "i2c1-data", };
 static const char *jz4770_i2c2_groups[] = { "i2c2-data", };
 static const char *jz4770_cim_groups[] = { "cim-data-8bit", "cim-data-12bit", };
-static const char *jz4770_lcd_groups[] = { "lcd-24bit", "lcd-no-pins", };
+static const char *jz4770_lcd_groups[] = {
+	"lcd-8bit", "lcd-24bit", "lcd-no-pins",
+};
 static const char *jz4770_pwm0_groups[] = { "pwm0", };
 static const char *jz4770_pwm1_groups[] = { "pwm1", };
 static const char *jz4770_pwm2_groups[] = { "pwm2", };
