@@ -1510,6 +1510,7 @@ int genphy_suspend(struct phy_device *phydev);
 int genphy_resume(struct phy_device *phydev);
 int genphy_loopback(struct phy_device *phydev, bool enable);
 int genphy_soft_reset(struct phy_device *phydev);
+irqreturn_t genphy_handle_interrupt_no_ack(struct phy_device *phydev);
 
 static inline int genphy_config_aneg(struct phy_device *phydev)
 {
