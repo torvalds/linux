@@ -1260,7 +1260,7 @@ static bool tipc_data_input(struct tipc_link *l, struct sk_buff *skb,
 		pr_warn("Dropping received illegal msg type\n");
 		kfree_skb(skb);
 		return true;
-	};
+	}
 }
 
 /* tipc_link_input - process packet that has passed link protocol check

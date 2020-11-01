@@ -1638,7 +1638,7 @@ static void tipc_lxc_xmit(struct net *peer_net, struct sk_buff_head *list)
 		return;
 	default:
 		return;
-	};
+	}
 }
 
 /**
