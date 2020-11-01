@@ -51,7 +51,7 @@ static const char *siliconid_to_rev(u32 siliconid)
 		return "A1";
 	case 3:
 		return "A2";
-	};
+	}
 
 	return "??";
 }
