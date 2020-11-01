@@ -292,3 +292,44 @@
 &usb3_phy {
 	status = "okay";
 };
+
+&nandcs {
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "boot";
+			reg = <0x0000000 0x0080000>;
+			read-only;
+		};
+
+		partition@80000 {
+			label = "nvram";
+			reg = <0x080000 0x0100000>;
+		};
+
+		partition@180000{
+			label = "devinfo";
+			reg = <0x0180000 0x080000>;
+		};
+
+		partition@200000 {
+			label = "firmware";
+			reg = <0x0200000 0x01D00000>;
+			compatible = "brcm,trx";
+		};
+
+		partition@1F00000 {
+			label = "failsafe";
+			reg = <0x01F00000 0x01D00000>;
+			read-only;
+		};
+
+		partition@5200000 {
+			label = "system";
+			reg = <0x05200000 0x02E00000>;
+		};
+	};
+};
