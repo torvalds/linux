@@ -779,7 +779,6 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 
 	i2c->irq = ret = platform_get_irq(pdev, 0);
 	if (ret <= 0) {
-		dev_err(&pdev->dev, "cannot find HS-I2C IRQ\n");
 		ret = -EINVAL;
 		goto err_clk;
 	}
