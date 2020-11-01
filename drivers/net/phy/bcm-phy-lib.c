@@ -196,6 +196,37 @@ int bcm_phy_config_intr(struct phy_device *phydev)
 }
 EXPORT_SYMBOL_GPL(bcm_phy_config_intr);
 
+irqreturn_t bcm_phy_handle_interrupt(struct phy_device *phydev)
+{
+	int irq_status, irq_mask;
+
+	irq_status = phy_read(phydev, MII_BCM54XX_ISR);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	/* If a bit from the Interrupt Mask register is set, the corresponding
+	 * bit from the Interrupt Status register is masked. So read the IMR
+	 * and then flip the bits to get the list of possible interrupt
+	 * sources.
+	 */
+	irq_mask = phy_read(phydev, MII_BCM54XX_IMR);
+	if (irq_mask < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+	irq_mask = ~irq_mask;
+
+	if (!(irq_status & irq_mask))
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
+}
+EXPORT_SYMBOL_GPL(bcm_phy_handle_interrupt);
+
 int bcm_phy_read_shadow(struct phy_device *phydev, u16 shadow)
 {
 	phy_write(phydev, MII_BCM54XX_SHD, MII_BCM54XX_SHD_VAL(shadow));
