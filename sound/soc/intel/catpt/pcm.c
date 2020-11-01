@@ -92,7 +92,7 @@ catpt_get_stream_template(struct snd_pcm_substream *substream)
 		break;
 	default:
 		break;
-	};
+	}
 
 	return catpt_topology[type];
 }
@@ -419,7 +419,7 @@ static int catpt_dai_apply_usettings(struct snd_soc_dai *dai,
 		break;
 	default:
 		return 0;
-	};
+	}
 
 	list_for_each_entry(pos, &component->card->snd_card->controls, list) {
 		if (pos->private_data == component &&

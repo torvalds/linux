@@ -304,7 +304,7 @@ static int catpt_load_block(struct catpt_dev *cdev,
 	default:
 		sram = &cdev->dram;
 		break;
-	};
+	}
 
 	dst_addr = sram->start + blk->ram_offset;
 	if (alloc) {
