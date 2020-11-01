@@ -19,7 +19,7 @@ Background information
 
 Deferred work is a class of kernel facilities that allows one to
 schedule code to be executed at a later timer. This scheduled code can
-run either in the context process or in interruption context depending
+run either in the process context or in interruption context depending
 on the type of deferred work. Deferred work is used to complement the
 interrupt handler functionality since interrupts have important
 requirements and limitations:
@@ -66,7 +66,7 @@ deferred work:
 
 The main types of deferred work are kernel threads and softirqs. Work
 queues are implemented on top of kernel threads and tasklets and
-timers on top of softirqs. Bottom-half handlers was the first
+timers on top of softirqs. Bottom-half handlers were the first
 implementation of deferred work in Linux, but in the meantime it was
 replaced by softirqs. That is why some of the functions presented
 contain *bh* in their name.
@@ -217,7 +217,7 @@ Scheduling a timer is done with :c:func:`mod_timer`:
 Where *expires* is the time (in the future) to run the handler
 function. The function can be used to schedule or reschedule a timer.
 
-The time unit timers is *jiffie*. The absolute value of a jiffie
+The time unit is *jiffie*. The absolute value of a jiffie
 is dependent on the platform and it can be found using the
 :c:type:`HZ` macro that defines the number of jiffies for 1 second. To
 convert between jiffies (*jiffies_value*) and seconds (*seconds_value*),
@@ -524,7 +524,7 @@ To add a task in the new queue, use :c:func:`queue_work` or
 :c:func:`queue_delayed_work` can be used to plan a work for execution
 with a given delay. The time unit for the delay is jiffies.
 
-To wait for all work item to finish call :c:func:`flush_workqueue`:
+To wait for all work items to finish call :c:func:`flush_workqueue`:
 
 .. code-block:: c
 
@@ -664,7 +664,7 @@ common mistakes:
        spin_lock(&events_lock);
        e = list_first_entry(&events_list, struct event*, lh);
        if (e)
-	   list_del(&events->lh);
+	   list_del(&e->lh);
        spin_unlock(&events_lock);
 
        return e
@@ -788,7 +788,7 @@ You will need to implement the following ioctl operations.
 .. hint:: To use the device driver from userspace you must create the
 	  device character file */dev/deferred* using the mknod
 	  utility. Alternatively, you can run the
-	  *3-4-5-deferred/kernel/ makenode* script that performs this
+	  *3-4-5-deferred/kernel/makenode* script that performs this
 	  operation.
 
 Enable and disable the timer by calling user-space ioctl
@@ -880,7 +880,7 @@ TODOs from the skeleton.
 
 .. attention:: Synchronize the thread termination with module unloading:
 
-	       * The thread should finish when the module in unloaded
+	       * The thread should finish when the module is unloaded
 
 	       * Wait for the kernel thread to exit before continuing
 		 with unloading
@@ -899,13 +899,13 @@ TODOs from the skeleton.
 The purpose of this task is to exercise the synchronization between a
 deferrable action (a timer) and process context. Setup a periodic
 timer that monitors a list of processes. If one of the processes
-terminate a message is printed. Processes can be dinamically added to
+terminate a message is printed. Processes can be dynamically added to
 the list. Use the *3-4-5-deferred/kernel/* skeleton as a base and
 follow the **TODO 4** markings to complete the task.
 
 When the *MY_IOCTL_TIMER_MON* command is received check that the given
-process exists and if so added to the monitored list of
-processed and then arm the timer after setting its type.
+process exists and if so add to the monitored list of
+processes and then arm the timer after setting its type.
 
 .. hint:: Use :c:func:`get_proc` which checks the pid, finds the
 	  associated :c:type:`struct task_struct` and allocates a
