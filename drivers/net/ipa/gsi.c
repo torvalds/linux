@@ -1894,11 +1894,14 @@ static void gsi_channel_exit_one(struct gsi_channel *channel)
 
 /* Init function for channels */
 static int gsi_channel_init(struct gsi *gsi, u32 count,
-			    const struct ipa_gsi_endpoint_data *data,
-			    bool modem_alloc)
+			    const struct ipa_gsi_endpoint_data *data)
 {
+	bool modem_alloc;
 	int ret = 0;
 	u32 i;
+
+	/* IPA v4.2 requires the AP to allocate channels for the modem */
+	modem_alloc = gsi->version == IPA_VERSION_4_2;
 
 	gsi_evt_ring_init(gsi);
 
@@ -1961,13 +1964,9 @@ int gsi_init(struct gsi *gsi, struct platform_device *pdev,
 	struct resource *res;
 	resource_size_t size;
 	unsigned int irq;
-	bool modem_alloc;
 	int ret;
 
 	gsi_validate_build();
-
-	/* IPA v4.2 requires the AP to allocate channels for the modem */
-	modem_alloc = version == IPA_VERSION_4_2;
 
 	gsi->dev = dev;
 	gsi->version = version;
@@ -2014,7 +2013,7 @@ int gsi_init(struct gsi *gsi, struct platform_device *pdev,
 		goto err_free_irq;
 	}
 
-	ret = gsi_channel_init(gsi, count, data, modem_alloc);
+	ret = gsi_channel_init(gsi, count, data);
 	if (ret)
 		goto err_iounmap;
 
