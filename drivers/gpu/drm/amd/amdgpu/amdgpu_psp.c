@@ -838,7 +838,7 @@ int psp_xgmi_get_hive_id(struct psp_context *psp, uint64_t *hive_id)
 	struct ta_xgmi_shared_memory *xgmi_cmd;
 	int ret;
 
-	xgmi_cmd = (struct ta_xgmi_shared_memory*)psp->xgmi_context.xgmi_shared_buf;
+	xgmi_cmd = (struct ta_xgmi_shared_memory *)psp->xgmi_context.xgmi_shared_buf;
 	memset(xgmi_cmd, 0, sizeof(struct ta_xgmi_shared_memory));
 
 	xgmi_cmd->cmd_id = TA_COMMAND_XGMI__GET_HIVE_ID;
@@ -858,7 +858,7 @@ int psp_xgmi_get_node_id(struct psp_context *psp, uint64_t *node_id)
 	struct ta_xgmi_shared_memory *xgmi_cmd;
 	int ret;
 
-	xgmi_cmd = (struct ta_xgmi_shared_memory*)psp->xgmi_context.xgmi_shared_buf;
+	xgmi_cmd = (struct ta_xgmi_shared_memory *)psp->xgmi_context.xgmi_shared_buf;
 	memset(xgmi_cmd, 0, sizeof(struct ta_xgmi_shared_memory));
 
 	xgmi_cmd->cmd_id = TA_COMMAND_XGMI__GET_NODE_ID;
@@ -886,7 +886,7 @@ int psp_xgmi_get_topology_info(struct psp_context *psp,
 	if (!topology || topology->num_nodes > TA_XGMI__MAX_CONNECTED_NODES)
 		return -EINVAL;
 
-	xgmi_cmd = (struct ta_xgmi_shared_memory*)psp->xgmi_context.xgmi_shared_buf;
+	xgmi_cmd = (struct ta_xgmi_shared_memory *)psp->xgmi_context.xgmi_shared_buf;
 	memset(xgmi_cmd, 0, sizeof(struct ta_xgmi_shared_memory));
 
 	/* Fill in the shared memory with topology information as input */
@@ -930,7 +930,7 @@ int psp_xgmi_set_topology_info(struct psp_context *psp,
 	if (!topology || topology->num_nodes > TA_XGMI__MAX_CONNECTED_NODES)
 		return -EINVAL;
 
-	xgmi_cmd = (struct ta_xgmi_shared_memory*)psp->xgmi_context.xgmi_shared_buf;
+	xgmi_cmd = (struct ta_xgmi_shared_memory *)psp->xgmi_context.xgmi_shared_buf;
 	memset(xgmi_cmd, 0, sizeof(struct ta_xgmi_shared_memory));
 
 	topology_info_input = &xgmi_cmd->xgmi_in_message.get_topology_info;
@@ -994,7 +994,7 @@ static int psp_ras_load(struct psp_context *psp)
 	ret = psp_cmd_submit_buf(psp, NULL, cmd,
 			psp->fence_buf_mc_addr);
 
-	ras_cmd = (struct ta_ras_shared_memory*)psp->ras.ras_shared_buf;
+	ras_cmd = (struct ta_ras_shared_memory *)psp->ras.ras_shared_buf;
 
 	if (!ret) {
 		psp->ras.session_id = cmd->resp.session_id;
@@ -1916,7 +1916,7 @@ static int psp_execute_np_fw_load(struct psp_context *psp,
 static int psp_load_smu_fw(struct psp_context *psp)
 {
 	int ret;
-	struct amdgpu_device* adev = psp->adev;
+	struct amdgpu_device *adev = psp->adev;
 	struct amdgpu_firmware_info *ucode =
 			&adev->firmware.ucode[AMDGPU_UCODE_ID_SMC];
 	struct amdgpu_ras *ras = psp->ras.ras;
@@ -1982,7 +1982,7 @@ static int psp_np_fw_load(struct psp_context *psp)
 {
 	int i, ret;
 	struct amdgpu_firmware_info *ucode;
-	struct amdgpu_device* adev = psp->adev;
+	struct amdgpu_device *adev = psp->adev;
 
 	if (psp->autoload_supported &&
 	    !psp->pmfw_centralized_cstate_management) {

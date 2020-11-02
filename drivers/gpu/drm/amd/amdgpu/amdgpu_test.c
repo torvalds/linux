@@ -157,10 +157,10 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 					  i, *vram_start, gart_start,
 					  (unsigned long long)
 					  (gart_addr - adev->gmc.gart_start +
-					   (void*)gart_start - gtt_map),
+					   (void *)gart_start - gtt_map),
 					  (unsigned long long)
 					  (vram_addr - adev->gmc.vram_start +
-					   (void*)gart_start - gtt_map));
+					   (void *)gart_start - gtt_map));
 				amdgpu_bo_kunmap(vram_obj);
 				goto out_lclean_unpin;
 			}
@@ -203,10 +203,10 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 					  i, *gart_start, vram_start,
 					  (unsigned long long)
 					  (vram_addr - adev->gmc.vram_start +
-					   (void*)vram_start - vram_map),
+					   (void *)vram_start - vram_map),
 					  (unsigned long long)
 					  (gart_addr - adev->gmc.gart_start +
-					   (void*)vram_start - vram_map));
+					   (void *)vram_start - vram_map));
 				amdgpu_bo_kunmap(gtt_obj[i]);
 				goto out_lclean_unpin;
 			}

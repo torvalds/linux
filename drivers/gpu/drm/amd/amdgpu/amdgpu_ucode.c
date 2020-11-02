@@ -588,8 +588,8 @@ static int amdgpu_ucode_patch_jt(struct amdgpu_firmware_info *ucode,
 {
 	const struct gfx_firmware_header_v1_0 *header = NULL;
 	const struct common_firmware_header *comm_hdr = NULL;
-	uint8_t* src_addr = NULL;
-	uint8_t* dst_addr = NULL;
+	uint8_t *src_addr = NULL;
+	uint8_t *dst_addr = NULL;
 
 	if (NULL == ucode->fw)
 		return 0;
