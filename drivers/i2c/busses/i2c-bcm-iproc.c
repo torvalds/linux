@@ -216,7 +216,8 @@ struct bcm_iproc_i2c_dev {
 
 #define ISR_MASK_SLAVE (BIT(IS_S_START_BUSY_SHIFT)\
 		| BIT(IS_S_RX_EVENT_SHIFT) | BIT(IS_S_RD_EVENT_SHIFT)\
-		| BIT(IS_S_TX_UNDERRUN_SHIFT))
+		| BIT(IS_S_TX_UNDERRUN_SHIFT) | BIT(IS_S_RX_FIFO_FULL_SHIFT)\
+		| BIT(IS_S_RX_THLD_SHIFT))
 
 static int bcm_iproc_i2c_reg_slave(struct i2c_client *slave);
 static int bcm_iproc_i2c_unreg_slave(struct i2c_client *slave);
