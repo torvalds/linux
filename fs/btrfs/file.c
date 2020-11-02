@@ -2450,13 +2450,13 @@ out:
  *	   em->start + em->len > start)
  * When a hole extent is found, return 1 and modify start/len.
  */
-static int find_first_non_hole(struct inode *inode, u64 *start, u64 *len)
+static int find_first_non_hole(struct btrfs_inode *inode, u64 *start, u64 *len)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct extent_map *em;
 	int ret = 0;
 
-	em = btrfs_get_extent(BTRFS_I(inode), NULL, 0,
+	em = btrfs_get_extent(inode, NULL, 0,
 			      round_down(*start, fs_info->sectorsize),
 			      round_up(*len, fs_info->sectorsize));
 	if (IS_ERR(em))
@@ -2761,7 +2761,8 @@ int btrfs_replace_file_extents(struct inode *inode, struct btrfs_path *path,
 		trans->block_rsv = rsv;
 
 		if (!extent_info) {
-			ret = find_first_non_hole(inode, &cur_offset, &len);
+			ret = find_first_non_hole(BTRFS_I(inode), &cur_offset,
+						  &len);
 			if (unlikely(ret < 0))
 				break;
 			if (ret && !len) {
@@ -2873,7 +2874,7 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 
 	inode_lock(inode);
 	ino_size = round_up(inode->i_size, fs_info->sectorsize);
-	ret = find_first_non_hole(inode, &offset, &len);
+	ret = find_first_non_hole(BTRFS_I(inode), &offset, &len);
 	if (ret < 0)
 		goto out_only_mutex;
 	if (ret && !len) {
@@ -2923,7 +2924,7 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 		/* after truncate page, check hole again */
 		len = offset + len - lockstart;
 		offset = lockstart;
-		ret = find_first_non_hole(inode, &offset, &len);
+		ret = find_first_non_hole(BTRFS_I(inode), &offset, &len);
 		if (ret < 0)
 			goto out_only_mutex;
 		if (ret && !len) {
@@ -2937,7 +2938,7 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 	tail_start = lockend + 1;
 	tail_len = offset + len - tail_start;
 	if (tail_len) {
-		ret = find_first_non_hole(inode, &tail_start, &tail_len);
+		ret = find_first_non_hole(BTRFS_I(inode), &tail_start, &tail_len);
 		if (unlikely(ret < 0))
 			goto out_only_mutex;
 		if (!ret) {
