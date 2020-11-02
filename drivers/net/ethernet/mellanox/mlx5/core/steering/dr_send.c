@@ -32,6 +32,7 @@ struct dr_qp_rtr_attr {
 	u8 min_rnr_timer;
 	u8 sgid_index;
 	u16 udp_src_port;
+	u8 fl:1;
 };
 
 struct dr_qp_rts_attr {
@@ -650,12 +651,26 @@ static int dr_cmd_modify_qp_init2rtr(struct mlx5_core_dev *mdev,
 			 attr->udp_src_port);
 
 	MLX5_SET(qpc, qpc, primary_address_path.vhca_port_num, attr->port_num);
+	MLX5_SET(qpc, qpc, primary_address_path.fl, attr->fl);
 	MLX5_SET(qpc, qpc, min_rnr_nak, 1);
 
 	MLX5_SET(init2rtr_qp_in, in, opcode, MLX5_CMD_OP_INIT2RTR_QP);
 	MLX5_SET(init2rtr_qp_in, in, qpn, dr_qp->qpn);
 
 	return mlx5_cmd_exec_in(mdev, init2rtr_qp, in);
+}
+
+static bool dr_send_allow_fl(struct mlx5dr_cmd_caps *caps)
+{
+	/* Check whether RC RoCE QP creation with force loopback is allowed.
+	 * There are two separate capability bits for this:
+	 *  - force loopback when RoCE is enabled
+	 *  - force loopback when RoCE is disabled
+	 */
+	return ((caps->roce_caps.roce_en &&
+		 caps->roce_caps.fl_rc_qp_when_roce_enabled) ||
+		(!caps->roce_caps.roce_en &&
+		 caps->roce_caps.fl_rc_qp_when_roce_disabled));
 }
 
 static int dr_prepare_qp_to_rts(struct mlx5dr_domain *dmn)
@@ -676,16 +691,25 @@ static int dr_prepare_qp_to_rts(struct mlx5dr_domain *dmn)
 	}
 
 	/* RTR */
-	ret = mlx5dr_cmd_query_gid(dmn->mdev, port, gid_index, &rtr_attr.dgid_attr);
-	if (ret)
-		return ret;
-
 	rtr_attr.mtu		= mtu;
 	rtr_attr.qp_num		= dr_qp->qpn;
 	rtr_attr.min_rnr_timer	= 12;
 	rtr_attr.port_num	= port;
-	rtr_attr.sgid_index	= gid_index;
 	rtr_attr.udp_src_port	= dmn->info.caps.roce_min_src_udp;
+
+	/* If QP creation with force loopback is allowed, then there
+	 * is no need for GID index when creating the QP.
+	 * Otherwise we query GID attributes and use GID index.
+	 */
+	rtr_attr.fl = dr_send_allow_fl(&dmn->info.caps);
+	if (!rtr_attr.fl) {
+		ret = mlx5dr_cmd_query_gid(dmn->mdev, port, gid_index,
+					   &rtr_attr.dgid_attr);
+		if (ret)
+			return ret;
+
+		rtr_attr.sgid_index = gid_index;
+	}
 
 	ret = dr_cmd_modify_qp_init2rtr(dmn->mdev, dr_qp, &rtr_attr);
 	if (ret) {

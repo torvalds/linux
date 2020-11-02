@@ -961,7 +961,9 @@ struct mlx5_ifc_roce_cap_bits {
 	u8         roce_apm[0x1];
 	u8         reserved_at_1[0x3];
 	u8         sw_r_roce_src_udp_port[0x1];
-	u8         reserved_at_5[0x19];
+	u8         fl_rc_qp_when_roce_disabled[0x1];
+	u8         fl_rc_qp_when_roce_enabled[0x1];
+	u8         reserved_at_7[0x17];
 	u8	   qp_ts_format[0x2];
 
 	u8         reserved_at_20[0x60];
@@ -2942,7 +2944,8 @@ struct mlx5_ifc_qpc_bits {
 	u8         state[0x4];
 	u8         lag_tx_port_affinity[0x4];
 	u8         st[0x8];
-	u8         reserved_at_10[0x3];
+	u8         reserved_at_10[0x2];
+	u8	   isolate_vl_tc[0x1];
 	u8         pm_state[0x2];
 	u8         reserved_at_15[0x1];
 	u8         req_e2e_credit_mode[0x2];

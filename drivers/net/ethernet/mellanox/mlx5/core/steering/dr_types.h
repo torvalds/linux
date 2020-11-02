@@ -747,6 +747,12 @@ struct mlx5dr_cmd_vport_cap {
 	u32 num;
 };
 
+struct mlx5dr_roce_cap {
+	u8 roce_en:1;
+	u8 fl_rc_qp_when_roce_disabled:1;
+	u8 fl_rc_qp_when_roce_enabled:1;
+};
+
 struct mlx5dr_cmd_caps {
 	u16 gvmi;
 	u64 nic_rx_drop_address;
@@ -783,6 +789,7 @@ struct mlx5dr_cmd_caps {
 	struct mlx5dr_esw_caps esw_caps;
 	struct mlx5dr_cmd_vport_cap *vports_caps;
 	bool prio_tag_required;
+	struct mlx5dr_roce_cap roce_caps;
 };
 
 struct mlx5dr_domain_rx_tx {
