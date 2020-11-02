@@ -938,7 +938,7 @@ static unsigned long calculate_inst_freq(struct venus_inst *inst,
 	u32 fps = (u32)inst->fps;
 	u32 mbs_per_sec;
 
-	mbs_per_sec = load_per_instance(inst) / fps;
+	mbs_per_sec = load_per_instance(inst);
 
 	vpp_freq = mbs_per_sec * inst->clk_data.codec_freq_data->vpp_freq;
 	/* 21 / 20 is overhead factor */
