@@ -793,19 +793,6 @@ static __always_inline unsigned long debug_read_clear_dr6(void)
 	set_debugreg(DR6_RESERVED, 6);
 	dr6 ^= DR6_RESERVED; /* Flip to positive polarity */
 
-	/*
-	 * Clear the virtual DR6 value, ptrace routines will set bits here for
-	 * things we want signals for.
-	 */
-	current->thread.virtual_dr6 = 0;
-
-	/*
-	 * The SDM says "The processor clears the BTF flag when it
-	 * generates a debug exception."  Clear TIF_BLOCKSTEP to keep
-	 * TIF_BLOCKSTEP in sync with the hardware BTF flag.
-	 */
-	clear_thread_flag(TIF_BLOCKSTEP);
-
 	return dr6;
 }
 
@@ -873,6 +860,20 @@ static __always_inline void exc_debug_kernel(struct pt_regs *regs,
 	 */
 	WARN_ON_ONCE(user_mode(regs));
 
+	if (test_thread_flag(TIF_BLOCKSTEP)) {
+		/*
+		 * The SDM says "The processor clears the BTF flag when it
+		 * generates a debug exception." but PTRACE_BLOCKSTEP requested
+		 * it for userspace, but we just took a kernel #DB, so re-set
+		 * BTF.
+		 */
+		unsigned long debugctl;
+
+		rdmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
+		debugctl |= DEBUGCTLMSR_BTF;
+		wrmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
+	}
+
 	/*
 	 * Catch SYSENTER with TF set and clear DR_STEP. If this hit a
 	 * watchpoint at the same time then that will still be handled.
@@ -934,6 +935,22 @@ static __always_inline void exc_debug_user(struct pt_regs *regs,
 
 	irqentry_enter_from_user_mode(regs);
 	instrumentation_begin();
+
+	/*
+	 * Start the virtual/ptrace DR6 value with just the DR_STEP mask
+	 * of the real DR6. ptrace_triggered() will set the DR_TRAPn bits.
+	 *
+	 * Userspace expects DR_STEP to be visible in ptrace_get_debugreg(6)
+	 * even if it is not the result of PTRACE_SINGLESTEP.
+	 */
+	current->thread.virtual_dr6 = (dr6 & DR_STEP);
+
+	/*
+	 * The SDM says "The processor clears the BTF flag when it
+	 * generates a debug exception."  Clear TIF_BLOCKSTEP to keep
+	 * TIF_BLOCKSTEP in sync with the hardware BTF flag.
+	 */
+	clear_thread_flag(TIF_BLOCKSTEP);
 
 	/*
 	 * If dr6 has no reason to give us about the origin of this trap,

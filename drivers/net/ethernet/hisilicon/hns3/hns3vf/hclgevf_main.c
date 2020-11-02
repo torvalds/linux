@@ -3262,8 +3262,8 @@ static void hclgevf_uninit_hdev(struct hclgevf_dev *hdev)
 		hclgevf_uninit_msi(hdev);
 	}
 
-	hclgevf_pci_uninit(hdev);
 	hclgevf_cmd_uninit(hdev);
+	hclgevf_pci_uninit(hdev);
 	hclgevf_uninit_mac_list(hdev);
 }
 

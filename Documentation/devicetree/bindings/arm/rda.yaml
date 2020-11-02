@@ -19,4 +19,6 @@ properties:
           - xunlong,orangepi-i96        # Orange Pi i96
       - const: rda,8810pl
 
+additionalProperties: true
+
 ...

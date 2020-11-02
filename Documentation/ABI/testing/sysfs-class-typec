@@ -40,10 +40,13 @@ Description:
 		attribute will not return until the operation has finished.
 
 		Valid values:
-		- source (The port will behave as source only DFP port)
-		- sink (The port will behave as sink only UFP port)
-		- dual (The port will behave as dual-role-data and
+
+		======  ==============================================
+		source  (The port will behave as source only DFP port)
+		sink    (The port will behave as sink only UFP port)
+		dual    (The port will behave as dual-role-data and
 			dual-role-power port)
+		======  ==============================================
 
 What:		/sys/class/typec/<port>/vconn_source
 Date:		April 2017
@@ -59,6 +62,7 @@ Description:
 		generates uevent KOBJ_CHANGE.
 
 		Valid values:
+
 		- "no" when the port is not the VCONN Source
 		- "yes" when the port is the VCONN Source
 
@@ -72,6 +76,7 @@ Description:
 		power operation mode should show "usb_power_delivery".
 
 		Valid values:
+
 		- default
 		- 1.5A
 		- 3.0A
@@ -191,6 +196,7 @@ Date:		April 2017
 Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 Description:
 		Shows type of the plug on the cable:
+
 		- type-a - Standard A
 		- type-b - Standard B
 		- type-c

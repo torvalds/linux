@@ -2568,14 +2568,12 @@ static int intel_cpufreq_update_pstate(struct cpudata *cpu, int target_pstate,
 	int old_pstate = cpu->pstate.current_pstate;
 
 	target_pstate = intel_pstate_prepare_request(cpu, target_pstate);
-	if (target_pstate != old_pstate) {
+	if (hwp_active) {
+		intel_cpufreq_adjust_hwp(cpu, target_pstate, fast_switch);
 		cpu->pstate.current_pstate = target_pstate;
-		if (hwp_active)
-			intel_cpufreq_adjust_hwp(cpu, target_pstate,
-						 fast_switch);
-		else
-			intel_cpufreq_adjust_perf_ctl(cpu, target_pstate,
-						      fast_switch);
+	} else if (target_pstate != old_pstate) {
+		intel_cpufreq_adjust_perf_ctl(cpu, target_pstate, fast_switch);
+		cpu->pstate.current_pstate = target_pstate;
 	}
 
 	intel_cpufreq_trace(cpu, fast_switch ? INTEL_PSTATE_TRACE_FAST_SWITCH :
@@ -3032,6 +3030,7 @@ static int __init intel_pstate_init(void)
 			hwp_mode_bdw = id->driver_data;
 			intel_pstate.attr = hwp_cpufreq_attrs;
 			intel_cpufreq.attr = hwp_cpufreq_attrs;
+			intel_cpufreq.flags |= CPUFREQ_NEED_UPDATE_LIMITS;
 			if (!default_driver)
 				default_driver = &intel_pstate;
 
