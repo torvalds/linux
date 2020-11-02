@@ -89,7 +89,19 @@
 #include "tpc0_cfg_masks.h"
 #include "psoc_global_conf_masks.h"
 
-#include "psoc_pci_pll_regs.h"
+#include "nic0_qm0_regs.h"
+#include "nic1_qm0_regs.h"
+#include "nic2_qm0_regs.h"
+#include "nic3_qm0_regs.h"
+#include "nic4_qm0_regs.h"
+#include "nic0_qm1_regs.h"
+#include "nic1_qm1_regs.h"
+#include "nic2_qm1_regs.h"
+#include "nic3_qm1_regs.h"
+#include "nic4_qm1_regs.h"
+
+#include "nic0_qm0_masks.h"
+
 #include "psoc_hbm_pll_regs.h"
 #include "psoc_cpu_pll_regs.h"
 
