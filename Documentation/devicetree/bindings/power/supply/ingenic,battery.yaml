@@ -15,10 +15,10 @@ properties:
     oneOf:
       - const: ingenic,jz4740-battery
       - items:
-        - enum:
-          - ingenic,jz4725b-battery
-          - ingenic,jz4770-battery
-        - const: ingenic,jz4740-battery
+          - enum:
+              - ingenic,jz4725b-battery
+              - ingenic,jz4770-battery
+          - const: ingenic,jz4740-battery
 
   io-channels:
     maxItems: 1

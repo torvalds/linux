@@ -33,8 +33,8 @@ properties:
   compatible:
     items:
       - enum:
-        - arm,sp804
-        - hisilicon,sp804
+          - arm,sp804
+          - hisilicon,sp804
       - const: arm,primecell
 
   interrupts:
@@ -58,11 +58,11 @@ properties:
       clock is used for all clock inputs.
     oneOf:
       - items:
-        - description: clock for timer 1
-        - description: clock for timer 2
-        - description: bus clock
+          - description: clock for timer 1
+          - description: clock for timer 2
+          - description: bus clock
       - items:
-        - description: unified clock for both timers and the bus
+          - description: unified clock for both timers and the bus
 
   clock-names: true
     # The original binding did not specify any clock names, and there is no

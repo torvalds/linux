@@ -34,9 +34,12 @@ Description:
 		this file. To disable a trigger, write its name preceded
 		by '-' instead.
 
-		For example, to enable the keyboard as trigger run:
+		For example, to enable the keyboard as trigger run::
+
 		    echo +keyboard > /sys/class/leds/dell::kbd_backlight/start_triggers
-		To disable it:
+
+		To disable it::
+
 		    echo -keyboard > /sys/class/leds/dell::kbd_backlight/start_triggers
 
 		Note that not all the available triggers can be configured.
@@ -57,7 +60,8 @@ Description:
 		with any the above units. If no unit is specified, the value
 		is assumed to be expressed in seconds.
 
-		For example, to set the timeout to 10 minutes run:
+		For example, to set the timeout to 10 minutes run::
+
 		    echo 10m > /sys/class/leds/dell::kbd_backlight/stop_timeout
 
 		Note that when this file is read, the returned value might be

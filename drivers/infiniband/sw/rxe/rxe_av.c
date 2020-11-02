@@ -16,15 +16,24 @@ void rxe_init_av(struct rdma_ah_attr *attr, struct rxe_av *av)
 
 int rxe_av_chk_attr(struct rxe_dev *rxe, struct rdma_ah_attr *attr)
 {
+	const struct ib_global_route *grh = rdma_ah_read_grh(attr);
 	struct rxe_port *port;
+	int type;
 
 	port = &rxe->port;
 
 	if (rdma_ah_get_ah_flags(attr) & IB_AH_GRH) {
-		u8 sgid_index = rdma_ah_read_grh(attr)->sgid_index;
+		if (grh->sgid_index > port->attr.gid_tbl_len) {
+			pr_warn("invalid sgid index = %d\n",
+					grh->sgid_index);
+			return -EINVAL;
+		}
 
-		if (sgid_index > port->attr.gid_tbl_len) {
-			pr_warn("invalid sgid index = %d\n", sgid_index);
+		type = rdma_gid_attr_network_type(grh->sgid_attr);
+		if (type < RDMA_NETWORK_IPV4 ||
+		    type > RDMA_NETWORK_IPV6) {
+			pr_warn("invalid network type for rdma_rxe = %d\n",
+					type);
 			return -EINVAL;
 		}
 	}
@@ -65,11 +74,29 @@ void rxe_av_to_attr(struct rxe_av *av, struct rdma_ah_attr *attr)
 void rxe_av_fill_ip_info(struct rxe_av *av, struct rdma_ah_attr *attr)
 {
 	const struct ib_gid_attr *sgid_attr = attr->grh.sgid_attr;
+	int ibtype;
+	int type;
 
 	rdma_gid2ip((struct sockaddr *)&av->sgid_addr, &sgid_attr->gid);
 	rdma_gid2ip((struct sockaddr *)&av->dgid_addr,
 		    &rdma_ah_read_grh(attr)->dgid);
-	av->network_type = rdma_gid_attr_network_type(sgid_attr);
+
+	ibtype = rdma_gid_attr_network_type(sgid_attr);
+
+	switch (ibtype) {
+	case RDMA_NETWORK_IPV4:
+		type = RXE_NETWORK_TYPE_IPV4;
+		break;
+	case RDMA_NETWORK_IPV6:
+		type = RXE_NETWORK_TYPE_IPV4;
+		break;
+	default:
+		/* not reached - checked in rxe_av_chk_attr */
+		type = 0;
+		break;
+	}
+
+	av->network_type = type;
 }
 
 struct rxe_av *rxe_get_av(struct rxe_pkt_info *pkt)

@@ -7,8 +7,10 @@ Description:
                 the format of DDDD:BB:DD.F-REG:SIZE:MASK will allow the guest
                 to write and read from the PCI device. That is Domain:Bus:
                 Device.Function-Register:Size:Mask (Domain is optional).
-                For example:
-                #echo 00:19.0-E0:2:FF > /sys/bus/pci/drivers/pciback/quirks
+                For example::
+
+                  #echo 00:19.0-E0:2:FF > /sys/bus/pci/drivers/pciback/quirks
+
                 will allow the guest to read and write to the configuration
                 register 0x0E.
 

@@ -20,6 +20,7 @@ Description:	This file contains the currently connected and initialized
 		the official Nintendo Nunchuck extension and classic is the
 		Nintendo Classic Controller extension. The motionp extension can
 		be combined with the other two.
+
 		Starting with kernel-version 3.11 Motion Plus hotplugging is
 		supported and if detected, it's no longer reported as static
 		extension. You will get uevent notifications for the motion-plus
@@ -39,9 +40,13 @@ Description:	While a device is initialized by the wiimote driver, we perform
 		Other strings for each device-type are available and may be
 		added if new device-specific detections are added.
 		Currently supported are:
-			gen10: First Wii Remote generation
-			gen20: Second Wii Remote Plus generation (builtin MP)
+
+			============= =======================================
+			gen10:        First Wii Remote generation
+			gen20:        Second Wii Remote Plus generation
+				      (builtin MP)
 			balanceboard: Wii Balance Board
+			============= =======================================
 
 What:		/sys/bus/hid/drivers/wiimote/<dev>/bboard_calib
 Date:		May 2013
@@ -54,6 +59,7 @@ Description:	This attribute is only provided if the device was detected as a
 		First, 0kg values for all 4 sensors are written, followed by the
 		17kg values for all 4 sensors and last the 34kg values for all 4
 		sensors.
+
 		Calibration data is already applied by the kernel to all input
 		values but may be used by user-space to perform other
 		transformations.
@@ -68,9 +74,11 @@ Description:	This attribute is only provided if the device was detected as a
 		is prefixed with a +/-. Each value is a signed 16bit number.
 		Data is encoded as decimal numbers and specifies the offsets of
 		the analog sticks of the pro-controller.
+
 		Calibration data is already applied by the kernel to all input
 		values but may be used by user-space to perform other
 		transformations.
+
 		Calibration data is detected by the kernel during device setup.
 		You can write "scan\n" into this file to re-trigger calibration.
 		You can also write data directly in the form "x1:y1 x2:y2" to
