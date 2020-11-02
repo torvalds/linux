@@ -51,6 +51,15 @@
  * 1. isp and ispp sync to power off
  * 2. fix error status of stream off
  * 3. use fec share buffer to reduce buffer size
+ *
+ * v1.2.0:
+ * 1. waiting all modules to idle to free buf
+ * 2. enable sharp dma to ddr default
+ * 3. using common dummy buf to save memory
+ * 4. monitor thread to alive during work
+ * 5. fix monitor thread exit
+ * 6. tnr/nr/fec sync to start
+ * 7. fec read yuyv format
  */
 
 #define RKISPP_DRIVER_VERSION ISPP_API_VERSION

@@ -58,6 +58,11 @@
  * 3. fix error status of stream off
  * 4. skip frame when change hdr/normal mode
  * 5. use ldch share buffer to reduce buffer size
+ *
+ * v1.2.0:
+ * 1. resolution write directly to reg for first dev
+ * 2. normal read back to enable hdr merge
+ * 3. enable LDCH in 2th frame
  */
 
 #define RKISP_DRIVER_VERSION RKISP_API_VERSION
