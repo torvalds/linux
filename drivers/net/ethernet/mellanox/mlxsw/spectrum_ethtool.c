@@ -1303,6 +1303,20 @@ mlxsw_sp1_reg_ptys_eth_unpack(struct mlxsw_sp *mlxsw_sp, char *payload,
 				  p_eth_proto_oper);
 }
 
+static u32 mlxsw_sp1_ptys_proto_cap_masked_get(u32 eth_proto_cap)
+{
+	u32 ptys_proto_cap_masked = 0;
+	int i;
+
+	for (i = 0; i < MLXSW_SP1_PORT_LINK_MODE_LEN; i++) {
+		if (mlxsw_sp1_port_link_mode[i].mask & eth_proto_cap)
+			ptys_proto_cap_masked |=
+				mlxsw_sp1_port_link_mode[i].mask;
+	}
+
+	return ptys_proto_cap_masked;
+}
+
 const struct mlxsw_sp_port_type_speed_ops mlxsw_sp1_port_type_speed_ops = {
 	.from_ptys_supported_port	= mlxsw_sp1_from_ptys_supported_port,
 	.from_ptys_link			= mlxsw_sp1_from_ptys_link,
@@ -1313,6 +1327,7 @@ const struct mlxsw_sp_port_type_speed_ops mlxsw_sp1_port_type_speed_ops = {
 	.to_ptys_speed			= mlxsw_sp1_to_ptys_speed,
 	.reg_ptys_eth_pack		= mlxsw_sp1_reg_ptys_eth_pack,
 	.reg_ptys_eth_unpack		= mlxsw_sp1_reg_ptys_eth_unpack,
+	.ptys_proto_cap_masked_get	= mlxsw_sp1_ptys_proto_cap_masked_get,
 };
 
 static const enum ethtool_link_mode_bit_indices
@@ -1731,6 +1746,20 @@ mlxsw_sp2_reg_ptys_eth_unpack(struct mlxsw_sp *mlxsw_sp, char *payload,
 				      p_eth_proto_admin, p_eth_proto_oper);
 }
 
+static u32 mlxsw_sp2_ptys_proto_cap_masked_get(u32 eth_proto_cap)
+{
+	u32 ptys_proto_cap_masked = 0;
+	int i;
+
+	for (i = 0; i < MLXSW_SP2_PORT_LINK_MODE_LEN; i++) {
+		if (mlxsw_sp2_port_link_mode[i].mask & eth_proto_cap)
+			ptys_proto_cap_masked |=
+				mlxsw_sp2_port_link_mode[i].mask;
+	}
+
+	return ptys_proto_cap_masked;
+}
+
 const struct mlxsw_sp_port_type_speed_ops mlxsw_sp2_port_type_speed_ops = {
 	.from_ptys_supported_port	= mlxsw_sp2_from_ptys_supported_port,
 	.from_ptys_link			= mlxsw_sp2_from_ptys_link,
@@ -1741,4 +1770,5 @@ const struct mlxsw_sp_port_type_speed_ops mlxsw_sp2_port_type_speed_ops = {
 	.to_ptys_speed			= mlxsw_sp2_to_ptys_speed,
 	.reg_ptys_eth_pack		= mlxsw_sp2_reg_ptys_eth_pack,
 	.reg_ptys_eth_unpack		= mlxsw_sp2_reg_ptys_eth_unpack,
+	.ptys_proto_cap_masked_get	= mlxsw_sp2_ptys_proto_cap_masked_get,
 };
