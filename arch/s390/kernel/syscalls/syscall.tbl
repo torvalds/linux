@@ -316,7 +316,7 @@
 306  common	splice			sys_splice			sys_splice
 307  common	sync_file_range		sys_sync_file_range		compat_sys_s390_sync_file_range
 308  common	tee			sys_tee				sys_tee
-309  common	vmsplice		sys_vmsplice			compat_sys_vmsplice
+309  common	vmsplice		sys_vmsplice			sys_vmsplice
 310  common	move_pages		sys_move_pages			compat_sys_move_pages
 311  common	getcpu			sys_getcpu			sys_getcpu
 312  common	epoll_pwait		sys_epoll_pwait			compat_sys_epoll_pwait

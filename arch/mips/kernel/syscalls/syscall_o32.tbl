@@ -318,7 +318,7 @@
 304	o32	splice				sys_splice
 305	o32	sync_file_range			sys_sync_file_range		sys32_sync_file_range
 306	o32	tee				sys_tee
-307	o32	vmsplice			sys_vmsplice			compat_sys_vmsplice
+307	o32	vmsplice			sys_vmsplice
 308	o32	move_pages			sys_move_pages			compat_sys_move_pages
 309	o32	set_robust_list			sys_set_robust_list		compat_sys_set_robust_list
 310	o32	get_robust_list			sys_get_robust_list		compat_sys_get_robust_list

@@ -697,7 +697,7 @@ __SYSCALL(__NR_sync_file_range2, compat_sys_aarch32_sync_file_range2)
 #define __NR_tee 342
 __SYSCALL(__NR_tee, sys_tee)
 #define __NR_vmsplice 343
-__SYSCALL(__NR_vmsplice, compat_sys_vmsplice)
+__SYSCALL(__NR_vmsplice, sys_vmsplice)
 #define __NR_move_pages 344
 __SYSCALL(__NR_move_pages, compat_sys_move_pages)
 #define __NR_getcpu 345
