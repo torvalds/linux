@@ -87,6 +87,14 @@ config PINCTRL_DENVERTON
 	  This pinctrl driver provides an interface that allows configuring
 	  of Intel Denverton SoC pins and using them as GPIOs.
 
+config PINCTRL_ELKHARTLAKE
+	tristate "Intel Elkhart Lake SoC pinctrl and GPIO driver"
+	depends on ACPI
+	select PINCTRL_INTEL
+	help
+	  This pinctrl driver provides an interface that allows configuring
+	  of Intel Elkhart Lake SoC pins and using them as GPIOs.
+
 config PINCTRL_EMMITSBURG
 	tristate "Intel Emmitsburg pinctrl and GPIO driver"
 	depends on ACPI
