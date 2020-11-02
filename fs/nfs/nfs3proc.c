@@ -662,37 +662,36 @@ out:
  * Also note that this implementation handles both plain readdir and
  * readdirplus.
  */
-static int
-nfs3_proc_readdir(struct dentry *dentry, const struct cred *cred,
-		  u64 cookie, struct page **pages, unsigned int count, bool plus)
+static int nfs3_proc_readdir(struct nfs_readdir_arg *nr_arg,
+			     struct nfs_readdir_res *nr_res)
 {
-	struct inode		*dir = d_inode(dentry);
-	__be32			*verf = NFS_I(dir)->cookieverf;
+	struct inode		*dir = d_inode(nr_arg->dentry);
 	struct nfs3_readdirargs	arg = {
 		.fh		= NFS_FH(dir),
-		.cookie		= cookie,
-		.verf		= {verf[0], verf[1]},
-		.plus		= plus,
-		.count		= count,
-		.pages		= pages
+		.cookie		= nr_arg->cookie,
+		.plus		= nr_arg->plus,
+		.count		= nr_arg->page_len,
+		.pages		= nr_arg->pages
 	};
 	struct nfs3_readdirres	res = {
-		.verf		= verf,
-		.plus		= plus
+		.verf		= nr_res->verf,
+		.plus		= nr_arg->plus,
 	};
 	struct rpc_message	msg = {
 		.rpc_proc	= &nfs3_procedures[NFS3PROC_READDIR],
 		.rpc_argp	= &arg,
 		.rpc_resp	= &res,
-		.rpc_cred	= cred,
+		.rpc_cred	= nr_arg->cred,
 	};
 	int status = -ENOMEM;
 
-	if (plus)
+	if (nr_arg->plus)
 		msg.rpc_proc = &nfs3_procedures[NFS3PROC_READDIRPLUS];
+	if (arg.cookie)
+		memcpy(arg.verf, nr_arg->verf, sizeof(arg.verf));
 
-	dprintk("NFS call  readdir%s %d\n",
-			plus? "plus" : "", (unsigned int) cookie);
+	dprintk("NFS call  readdir%s %llu\n", nr_arg->plus ? "plus" : "",
+		(unsigned long long)nr_arg->cookie);
 
 	res.dir_attr = nfs_alloc_fattr();
 	if (res.dir_attr == NULL)
@@ -705,8 +704,8 @@ nfs3_proc_readdir(struct dentry *dentry, const struct cred *cred,
 
 	nfs_free_fattr(res.dir_attr);
 out:
-	dprintk("NFS reply readdir%s: %d\n",
-			plus? "plus" : "", status);
+	dprintk("NFS reply readdir%s: %d\n", nr_arg->plus ? "plus" : "",
+		status);
 	return status;
 }
 

@@ -4961,41 +4961,40 @@ static int nfs4_proc_mkdir(struct inode *dir, struct dentry *dentry,
 	return err;
 }
 
-static int _nfs4_proc_readdir(struct dentry *dentry, const struct cred *cred,
-		u64 cookie, struct page **pages, unsigned int count, bool plus)
+static int _nfs4_proc_readdir(struct nfs_readdir_arg *nr_arg,
+			      struct nfs_readdir_res *nr_res)
 {
-	struct inode		*dir = d_inode(dentry);
+	struct inode		*dir = d_inode(nr_arg->dentry);
 	struct nfs_server	*server = NFS_SERVER(dir);
 	struct nfs4_readdir_arg args = {
 		.fh = NFS_FH(dir),
-		.pages = pages,
+		.pages = nr_arg->pages,
 		.pgbase = 0,
-		.count = count,
-		.plus = plus,
+		.count = nr_arg->page_len,
+		.plus = nr_arg->plus,
 	};
 	struct nfs4_readdir_res res;
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_READDIR],
 		.rpc_argp = &args,
 		.rpc_resp = &res,
-		.rpc_cred = cred,
+		.rpc_cred = nr_arg->cred,
 	};
 	int			status;
 
-	dprintk("%s: dentry = %pd2, cookie = %Lu\n", __func__,
-			dentry,
-			(unsigned long long)cookie);
+	dprintk("%s: dentry = %pd2, cookie = %llu\n", __func__,
+		nr_arg->dentry, (unsigned long long)nr_arg->cookie);
 	if (!(server->caps & NFS_CAP_SECURITY_LABEL))
 		args.bitmask = server->attr_bitmask_nl;
 	else
 		args.bitmask = server->attr_bitmask;
 
-	nfs4_setup_readdir(cookie, NFS_I(dir)->cookieverf, dentry, &args);
+	nfs4_setup_readdir(nr_arg->cookie, nr_arg->verf, nr_arg->dentry, &args);
 	res.pgbase = args.pgbase;
 	status = nfs4_call_sync(server->client, server, &msg, &args.seq_args,
 			&res.seq_res, 0);
 	if (status >= 0) {
-		memcpy(NFS_I(dir)->cookieverf, res.verifier.data, NFS4_VERIFIER_SIZE);
+		memcpy(nr_res->verf, res.verifier.data, NFS4_VERIFIER_SIZE);
 		status += args.pgbase;
 	}
 
@@ -5005,19 +5004,18 @@ static int _nfs4_proc_readdir(struct dentry *dentry, const struct cred *cred,
 	return status;
 }
 
-static int nfs4_proc_readdir(struct dentry *dentry, const struct cred *cred,
-		u64 cookie, struct page **pages, unsigned int count, bool plus)
+static int nfs4_proc_readdir(struct nfs_readdir_arg *arg,
+			     struct nfs_readdir_res *res)
 {
 	struct nfs4_exception exception = {
 		.interruptible = true,
 	};
 	int err;
 	do {
-		err = _nfs4_proc_readdir(dentry, cred, cookie,
-				pages, count, plus);
-		trace_nfs4_readdir(d_inode(dentry), err);
-		err = nfs4_handle_exception(NFS_SERVER(d_inode(dentry)), err,
-				&exception);
+		err = _nfs4_proc_readdir(arg, res);
+		trace_nfs4_readdir(d_inode(arg->dentry), err);
+		err = nfs4_handle_exception(NFS_SERVER(d_inode(arg->dentry)),
+					    err, &exception);
 	} while (exception.retry);
 	return err;
 }

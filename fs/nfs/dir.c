@@ -469,8 +469,20 @@ static int nfs_readdir_xdr_filler(struct nfs_readdir_descriptor *desc,
 				  u64 cookie, struct page **pages,
 				  size_t bufsize)
 {
-	struct file *file = desc->file;
-	struct inode *inode = file_inode(file);
+	struct inode *inode = file_inode(desc->file);
+	__be32 verf_res[2];
+	struct nfs_readdir_arg arg = {
+		.dentry = file_dentry(desc->file),
+		.cred = desc->file->f_cred,
+		.verf = NFS_I(inode)->cookieverf,
+		.cookie = cookie,
+		.pages = pages,
+		.page_len = bufsize,
+		.plus = desc->plus,
+	};
+	struct nfs_readdir_res res = {
+		.verf = verf_res,
+	};
 	unsigned long	timestamp, gencount;
 	int		error;
 
@@ -478,20 +490,21 @@ static int nfs_readdir_xdr_filler(struct nfs_readdir_descriptor *desc,
 	timestamp = jiffies;
 	gencount = nfs_inc_attr_generation_counter();
 	desc->dir_verifier = nfs_save_change_attribute(inode);
-	error = NFS_PROTO(inode)->readdir(file_dentry(file), file->f_cred,
-					  cookie, pages, bufsize, desc->plus);
+	error = NFS_PROTO(inode)->readdir(&arg, &res);
 	if (error < 0) {
 		/* We requested READDIRPLUS, but the server doesn't grok it */
 		if (error == -ENOTSUPP && desc->plus) {
 			NFS_SERVER(inode)->caps &= ~NFS_CAP_READDIRPLUS;
 			clear_bit(NFS_INO_ADVISE_RDPLUS, &NFS_I(inode)->flags);
-			desc->plus = false;
+			desc->plus = arg.plus = false;
 			goto again;
 		}
 		goto error;
 	}
 	desc->timestamp = timestamp;
 	desc->gencount = gencount;
+	memcpy(NFS_I(inode)->cookieverf, res.verf,
+	       sizeof(NFS_I(inode)->cookieverf));
 error:
 	return error;
 }
