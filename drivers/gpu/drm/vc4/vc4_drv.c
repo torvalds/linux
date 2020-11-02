@@ -319,7 +319,6 @@ unbind_all:
 static void vc4_drm_unbind(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
-	struct vc4_dev *vc4 = to_vc4_dev(drm);
 
 	drm_dev_unregister(drm);
 
