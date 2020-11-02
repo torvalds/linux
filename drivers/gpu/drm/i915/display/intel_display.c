@@ -18373,8 +18373,6 @@ int intel_modeset_init(struct drm_i915_private *i915)
 
 	intel_init_ipc(i915);
 
-	intel_psr_set_force_mode_changed(i915->psr.dp);
-
 	return 0;
 }
 

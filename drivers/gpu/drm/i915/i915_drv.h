@@ -508,7 +508,6 @@ struct i915_psr {
 	bool dc3co_enabled;
 	u32 dc3co_exit_delay;
 	struct delayed_work dc3co_work;
-	bool force_mode_changed;
 	struct drm_dp_vsc_sdp vsc;
 };
 
