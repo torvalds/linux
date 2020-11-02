@@ -247,5 +247,6 @@ int rn_vbios_smu_is_periodic_retraining_disabled(struct clk_mgr_internal *clk_mg
 	return rn_vbios_smu_send_msg_with_param(
 			clk_mgr,
 			VBIOSSMC_MSG_IsPeriodicRetrainingDisabled,
-			0);
+			1);	// if PMFW doesn't support this message, assume retraining is disabled
+				// so we only use most optimal watermark if we know retraining is enabled.
 }
