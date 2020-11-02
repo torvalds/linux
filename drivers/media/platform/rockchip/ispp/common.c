@@ -242,8 +242,7 @@ static void rkispp_queue_dmabuf(struct rkispp_hw_dev *hw, struct rkisp_ispp_buf 
 	spin_lock_irqsave(&hw->buf_lock, lock_flags);
 	if (!dbufs)
 		hw->is_idle = true;
-	if (dbufs && list_empty(list) &&
-	    (hw->is_idle || hw->is_single)) {
+	if (dbufs && list_empty(list) && hw->is_idle) {
 		/* ispp idle or handle same device */
 		buf = dbufs;
 	} else if (hw->is_idle && !list_empty(list)) {
