@@ -1390,7 +1390,7 @@ sub dump_enum($$) {
 	$members = $2;
     }
 
-    if ($declaration_name) {
+    if ($members) {
 	my %_members;
 
 	$members =~ s/\s+$//;
