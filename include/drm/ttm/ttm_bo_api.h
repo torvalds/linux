@@ -195,6 +195,7 @@ struct ttm_bo_kmap_obj {
  *
  * @interruptible: Sleep interruptible if sleeping.
  * @no_wait_gpu: Return immediately if the GPU is busy.
+ * @gfp_retry_mayfail: Set the __GFP_RETRY_MAYFAIL when allocation pages.
  * @resv: Reservation object to allow reserved evictions with.
  * @flags: Including the following flags
  *
@@ -204,6 +205,7 @@ struct ttm_bo_kmap_obj {
 struct ttm_operation_ctx {
 	bool interruptible;
 	bool no_wait_gpu;
+	bool gfp_retry_mayfail;
 	struct dma_resv *resv;
 	uint64_t bytes_moved;
 	uint32_t flags;

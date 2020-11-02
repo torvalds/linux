@@ -51,9 +51,6 @@ int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc)
 	if (bo->ttm)
 		return 0;
 
-	if (bdev->no_retry)
-		page_flags |= TTM_PAGE_FLAG_NO_RETRY;
-
 	switch (bo->type) {
 	case ttm_bo_type_device:
 		if (zero_alloc)
@@ -211,8 +208,6 @@ int ttm_tt_swapin(struct ttm_tt *ttm)
 
 	swap_space = swap_storage->f_mapping;
 	gfp_mask = mapping_gfp_mask(swap_space);
-	if (ttm->page_flags & TTM_PAGE_FLAG_NO_RETRY)
-		gfp_mask |= __GFP_RETRY_MAYFAIL;
 
 	for (i = 0; i < ttm->num_pages; ++i) {
 		from_page = shmem_read_mapping_page_gfp(swap_space, i,
@@ -260,8 +255,6 @@ int ttm_tt_swapout(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
 
 	swap_space = swap_storage->f_mapping;
 	gfp_mask = mapping_gfp_mask(swap_space);
-	if (ttm->page_flags & TTM_PAGE_FLAG_NO_RETRY)
-		gfp_mask |= __GFP_RETRY_MAYFAIL;
 
 	for (i = 0; i < ttm->num_pages; ++i) {
 		from_page = ttm->pages[i];

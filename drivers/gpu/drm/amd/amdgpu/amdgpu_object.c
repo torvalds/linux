@@ -516,6 +516,8 @@ static int amdgpu_bo_do_create(struct amdgpu_device *adev,
 	struct ttm_operation_ctx ctx = {
 		.interruptible = (bp->type != ttm_bo_type_kernel),
 		.no_wait_gpu = bp->no_wait_gpu,
+		/* We opt to avoid OOM on system pages allocations */
+		.gfp_retry_mayfail = true,
 		.resv = bp->resv,
 		.flags = bp->type != ttm_bo_type_kernel ?
 			TTM_OPT_FLAG_ALLOW_RES_EVICT : 0

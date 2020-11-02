@@ -276,7 +276,6 @@ extern struct ttm_bo_global {
  * @dev_mapping: A pointer to the struct address_space representing the
  * device address space.
  * @wq: Work queue structure for the delayed delete workqueue.
- * @no_retry: Don't retry allocation if it fails
  *
  */
 
@@ -314,8 +313,6 @@ struct ttm_bo_device {
 	 */
 
 	struct delayed_work wq;
-
-	bool no_retry;
 };
 
 static inline struct ttm_resource_manager *ttm_manager_type(struct ttm_bo_device *bdev,

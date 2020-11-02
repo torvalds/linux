@@ -367,7 +367,7 @@ int ttm_pool_alloc(struct ttm_pool *pool, struct ttm_tt *tt,
 	if (tt->page_flags & TTM_PAGE_FLAG_ZERO_ALLOC)
 		gfp_flags |= __GFP_ZERO;
 
-	if (tt->page_flags & TTM_PAGE_FLAG_NO_RETRY)
+	if (ctx->gfp_retry_mayfail)
 		gfp_flags |= __GFP_RETRY_MAYFAIL;
 
 	if (pool->use_dma32)

@@ -1914,9 +1914,6 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	}
 	adev->mman.initialized = true;
 
-	/* We opt to avoid OOM on system pages allocations */
-	adev->mman.bdev.no_retry = true;
-
 	/* Initialize VRAM pool with all of VRAM divided into pages */
 	r = amdgpu_vram_mgr_init(adev);
 	if (r) {
