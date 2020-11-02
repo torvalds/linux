@@ -2771,7 +2771,7 @@ lpfc_soft_wwpn_show(struct device *dev, struct device_attribute *attr,
 
 /**
  * lpfc_soft_wwpn_store - Set the ww port name of the adapter
- * @dev class device that is converted into a Scsi_host.
+ * @dev: class device that is converted into a Scsi_host.
  * @attr: device attribute, not used.
  * @buf: contains the wwpn in hexadecimal.
  * @count: number of wwpn bytes in buf
@@ -2868,7 +2868,8 @@ lpfc_soft_wwnn_show(struct device *dev, struct device_attribute *attr,
 
 /**
  * lpfc_soft_wwnn_store - sets the ww node name of the adapter
- * @cdev: class device that is converted into a Scsi_host.
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
  * @buf: contains the ww node name in hexadecimal.
  * @count: number of wwnn bytes in buf.
  *
@@ -3204,9 +3205,11 @@ static DEVICE_ATTR(lpfc_xlane_lun_status, S_IRUGO,
  * lpfc_oas_lun_state_set - enable or disable a lun for Optimized Access Storage
  *			   (OAS) operations.
  * @phba: lpfc_hba pointer.
- * @ndlp: pointer to fcp target node.
+ * @vpt_wwpn: wwpn of the vport associated with the returned lun
+ * @tgt_wwpn: wwpn of the target associated with the returned lun
  * @lun: the fc lun for setting oas state.
  * @oas_state: the oas state to be set to the lun.
+ * @pri: priority
  *
  * Returns:
  * SUCCESS : 0
@@ -3244,6 +3247,7 @@ lpfc_oas_lun_state_set(struct lpfc_hba *phba, uint8_t vpt_wwpn[],
  * @vpt_wwpn: wwpn of the vport associated with the returned lun
  * @tgt_wwpn: wwpn of the target associated with the returned lun
  * @lun_status: status of the lun returned lun
+ * @lun_pri: priority of the lun returned lun
  *
  * Returns the first or next lun enabled for OAS operations for the vport/target
  * specified.  If a lun is found, its vport wwpn, target wwpn and status is
@@ -3282,6 +3286,7 @@ lpfc_oas_lun_get_next(struct lpfc_hba *phba, uint8_t vpt_wwpn[],
  * @tgt_wwpn: target wwpn by reference.
  * @lun: the fc lun for setting oas state.
  * @oas_state: the oas state to be set to the oas_lun.
+ * @pri: priority
  *
  * This routine enables (OAS_LUN_ENABLE) or disables (OAS_LUN_DISABLE)
  * a lun for OAS operations.
@@ -3356,6 +3361,7 @@ lpfc_oas_lun_show(struct device *dev, struct device_attribute *attr,
  * @dev: class device that is converted into a Scsi_host.
  * @attr: device attribute, not used.
  * @buf: buffer for passing information.
+ * @count: size of the formatting string
  *
  * This function sets the OAS state for lun.  Before this function is called,
  * the vport wwpn, target wwpn, and oas state need to be set.
@@ -3817,7 +3823,7 @@ lpfc_vport_param_init(tgt_queue_depth, LPFC_MAX_TGT_QDEPTH,
 
 /**
  * lpfc_tgt_queue_depth_store: Sets an attribute value.
- * @phba: pointer the the adapter structure.
+ * @vport: lpfc vport structure pointer.
  * @val: integer attribute value.
  *
  * Description: Sets the parameter to the new value.
@@ -4002,8 +4008,10 @@ LPFC_ATTR(topology, 0, 0, 6,
 
 /**
  * lpfc_topology_set - Set the adapters topology field
- * @phba: lpfc_hba pointer.
- * @val: topology value.
+ * @dev: class device that is converted into a scsi_host.
+ * @attr:device attribute, not used.
+ * @buf: buffer for passing information.
+ * @count: size of the data buffer.
  *
  * Description:
  * If val is in a valid range then set the adapter's topology field and
@@ -4122,6 +4130,7 @@ static DEVICE_ATTR_RO(lpfc_static_vport);
 /**
  * lpfc_stat_data_ctrl_store - write call back for lpfc_stat_data_ctrl sysfs file
  * @dev: Pointer to class device.
+ * @attr: Unused.
  * @buf: Data buffer.
  * @count: Size of the data buffer.
  *
@@ -4285,7 +4294,8 @@ lpfc_stat_data_ctrl_store(struct device *dev, struct device_attribute *attr,
 
 /**
  * lpfc_stat_data_ctrl_show - Read function for lpfc_stat_data_ctrl sysfs file
- * @dev: Pointer to class device object.
+ * @dev: Pointer to class device.
+ * @attr: Unused.
  * @buf: Data buffer.
  *
  * This function is the read call back function for
@@ -4364,7 +4374,7 @@ static DEVICE_ATTR_RW(lpfc_stat_data_ctrl);
  * @filp: sysfs file
  * @kobj: Pointer to the kernel object
  * @bin_attr: Attribute object
- * @buff: Buffer pointer
+ * @buf: Buffer pointer
  * @off: File offset
  * @count: Buffer size
  *
@@ -4451,8 +4461,10 @@ static struct bin_attribute sysfs_drvr_stat_data_attr = {
 */
 /**
  * lpfc_link_speed_set - Set the adapters link speed
- * @phba: lpfc_hba pointer.
- * @val: link speed value.
+ * @dev: Pointer to class device.
+ * @attr: Unused.
+ * @buf: Data buffer.
+ * @count: Size of the data buffer.
  *
  * Description:
  * If val is in a valid range then set the adapter's link speed field and
@@ -7111,6 +7123,7 @@ lpfc_set_vport_symbolic_name(struct fc_vport *fc_vport)
 /**
  * lpfc_hba_log_verbose_init - Set hba's log verbose level
  * @phba: Pointer to lpfc_hba struct.
+ * @verbose: Verbose level to set.
  *
  * This function is called by the lpfc_get_cfgparam() routine to set the
  * module lpfc_log_verbose into the @phba cfg_log_verbose for use with
