@@ -66,7 +66,7 @@ typedef struct {
 	bool abort;
 } atom_exec_context;
 
-int amdgpu_atom_debug = 0;
+int amdgpu_atom_debug;
 static int amdgpu_atom_execute_table_locked(struct atom_context *ctx, int index, uint32_t *params);
 int amdgpu_atom_execute_table(struct atom_context *ctx, int index, uint32_t *params);
 
@@ -88,7 +88,7 @@ static int atom_dst_to_src[8][4] = {
 };
 static int atom_def_dst[8] = { 0, 0, 1, 2, 0, 1, 2, 3 };
 
-static int debug_depth = 0;
+static int debug_depth;
 #ifdef ATOM_DEBUG
 static void debug_print_spaces(int n)
 {
