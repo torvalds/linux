@@ -530,6 +530,26 @@ static const struct capture_fmt dmatx_fmts[] = {
 		.fmt_type = FMT_BAYER,
 		.bpp = { 12 },
 		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_YUYV,
+		.fmt_type = FMT_YUV,
+		.bpp = { 16 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_YVYU,
+		.fmt_type = FMT_YUV,
+		.bpp = { 16 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_UYVY,
+		.fmt_type = FMT_YUV,
+		.bpp = { 16 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_VYUY,
+		.fmt_type = FMT_YUV,
+		.bpp = { 16 },
+		.mplanes = 1,
 	}
 };
 
@@ -2549,6 +2569,7 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 
 		if (dev->isp_ver == ISP_V20 &&
 		    !dev->csi_dev.memory &&
+		    fmt->fmt_type == FMT_BAYER &&
 		    stream->id != RKISP_STREAM_MP &&
 		    stream->id != RKISP_STREAM_SP)
 			/* compact mode need bytesperline 4byte align */
@@ -3351,6 +3372,11 @@ void rkisp_mipi_v20_isr(unsigned int phy, unsigned int packet,
 			if (!((RAW0_WR_FRAME << i) & state))
 				continue;
 			dev->csi_dev.tx_first[i] = false;
+
+			if (!IS_HDR_RDBK(dev->hdr.op_mode)) {
+				stream = &dev->cap_dev.stream[i + RKISP_STREAM_DMATX0];
+				atomic_inc(&stream->sequence);
+			}
 		}
 	}
 

@@ -437,6 +437,18 @@ u32 rkisp_mbus_pixelcode_to_v4l2(u32 pixelcode)
 	case MEDIA_BUS_FMT_SRGGB12_1X12:
 		pixelformat = V4L2_PIX_FMT_SRGGB12;
 		break;
+	case MEDIA_BUS_FMT_YUYV8_2X8:
+		pixelformat = V4L2_PIX_FMT_YUYV;
+		break;
+	case MEDIA_BUS_FMT_YVYU8_2X8:
+		pixelformat = V4L2_PIX_FMT_YVYU;
+		break;
+	case MEDIA_BUS_FMT_UYVY8_2X8:
+		pixelformat = V4L2_PIX_FMT_UYVY;
+		break;
+	case MEDIA_BUS_FMT_VYUY8_2X8:
+		pixelformat = V4L2_PIX_FMT_VYUY;
+		break;
 	default:
 		pixelformat = V4L2_PIX_FMT_SRGGB10;
 	}
