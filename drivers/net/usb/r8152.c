@@ -898,6 +898,7 @@ struct fw_header {
  * struct fw_mac - a firmware block used by RTL_FW_PLA and RTL_FW_USB.
  *	The layout of the firmware block is:
  *	<struct fw_mac> + <info> + <firmware data>.
+ * @blk_hdr: firmware descriptor (type, length)
  * @fw_offset: offset of the firmware binary data. The start address of
  *	the data would be the address of struct fw_mac + @fw_offset.
  * @fw_reg: the register to load the firmware. Depends on chip.
@@ -911,6 +912,7 @@ struct fw_header {
  * @bp_num: the break point number which needs to be set for this firmware.
  *	Depends on the firmware.
  * @bp: break points. Depends on firmware.
+ * @reserved: reserved space (unused)
  * @fw_ver_reg: the register to store the fw version.
  * @fw_ver_data: the firmware version of the current type.
  * @info: additional information for debugging, and is followed by the
@@ -936,8 +938,10 @@ struct fw_mac {
 /**
  * struct fw_phy_patch_key - a firmware block used by RTL_FW_PHY_START.
  *	This is used to set patch key when loading the firmware of PHY.
+ * @blk_hdr: firmware descriptor (type, length)
  * @key_reg: the register to write the patch key.
  * @key_data: patch key.
+ * @reserved: reserved space (unused)
  */
 struct fw_phy_patch_key {
 	struct fw_block blk_hdr;
@@ -950,6 +954,7 @@ struct fw_phy_patch_key {
  * struct fw_phy_nc - a firmware block used by RTL_FW_PHY_NC.
  *	The layout of the firmware block is:
  *	<struct fw_phy_nc> + <info> + <firmware data>.
+ * @blk_hdr: firmware descriptor (type, length)
  * @fw_offset: offset of the firmware binary data. The start address of
  *	the data would be the address of struct fw_phy_nc + @fw_offset.
  * @fw_reg: the register to load the firmware. Depends on chip.
@@ -960,6 +965,7 @@ struct fw_phy_patch_key {
  * @mode_reg: the regitster of switching the mode.
  * @mod_pre: the mode needing to be set before loading the firmware.
  * @mod_post: the mode to be set when finishing to load the firmware.
+ * @reserved: reserved space (unused)
  * @bp_start: the start register of break points. Depends on chip.
  * @bp_num: the break point number which needs to be set for this firmware.
  *	Depends on the firmware.
