@@ -627,7 +627,6 @@ void dm_set_dcn_clocks(struct dc_context *ctx, struct dc_clocks *clks)
 {
 	/* TODO: something */
 }
-#ifdef CONFIG_DRM_AMD_DC_DCN3_0
 
 void *dm_helpers_allocate_gpu_mem(
 		struct dc_context *ctx,
@@ -646,4 +645,3 @@ void dm_helpers_free_gpu_mem(
 {
 	// TODO
 }
-#endif

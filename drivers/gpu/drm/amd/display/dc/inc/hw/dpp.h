@@ -121,13 +121,11 @@ struct CM_bias_params {
 };
 
 struct dpp_funcs {
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	bool (*dpp_program_gamcor_lut)(
 		struct dpp *dpp_base, const struct pwl_params *params);
 
 	void (*dpp_set_pre_degam)(struct dpp *dpp_base,
 			enum dc_transfer_func_predefined tr);
-#endif
 
 	void (*dpp_program_cm_dealpha)(struct dpp *dpp_base,
 		uint32_t enable, uint32_t additive_blending);

@@ -278,7 +278,7 @@ struct pp_smu_funcs_rn {
 	enum pp_smu_status (*get_dpm_clock_table) (struct pp_smu *pp,
 			struct dpm_clocks *clock_table);
 };
-#if defined(CONFIG_DRM_AMD_DC_DCN3_01)
+
 struct pp_smu_funcs_vgh {
 	struct pp_smu pp_smu;
 
@@ -300,16 +300,14 @@ struct pp_smu_funcs_vgh {
 
 	enum pp_smu_status (*notify_smu_timeout) (struct pp_smu *pp);
 };
-#endif
+
 struct pp_smu_funcs {
 	struct pp_smu ctx;
 	union {
 		struct pp_smu_funcs_rv rv_funcs;
 		struct pp_smu_funcs_nv nv_funcs;
 		struct pp_smu_funcs_rn rn_funcs;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_01)
 		struct pp_smu_funcs_vgh vgh_funcs;
-#endif
 	};
 };
 

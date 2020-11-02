@@ -15,32 +15,7 @@ config DRM_AMD_DC
 config DRM_AMD_DC_DCN
 	def_bool n
 	help
-	  Raven, Navi and Renoir family support for display engine
-
-config DRM_AMD_DC_DCN3_0
-        bool "DCN 3.0 family"
-        depends on DRM_AMD_DC && X86
-        depends on DRM_AMD_DC_DCN
-        help
-            Choose this option if you want to have
-            sienna_cichlid support for display engine
-
-config DRM_AMD_DC_DCN3_01
-	bool "DCN 3.01 family"
-	depends on DRM_AMD_DC && X86
-	depends on DRM_AMD_DC_DCN
-	depends on DRM_AMD_DC_DCN3_0
-	help
-	    Choose this option if you want to have
-	    Van Gogh support for display engine
-
-config DRM_AMD_DC_DCN3_02
-        bool "DCN 3.02 family"
-        depends on DRM_AMD_DC_DCN3_0
-        depends on DRM_AMD_DC_DCN3_01
-        help
-            Choose this option if you want to have
-            Dimgrey_cavefish support for display engine
+	  Raven, Navi, and newer family support for display engine
 
 config DRM_AMD_DC_HDCP
 	bool "Enable HDCP support in DC"

@@ -919,9 +919,7 @@ struct vba_vars_st {
 	double BPP;
 	enum odm_combine_policy ODMCombinePolicy;
 	bool UseMinimumRequiredDCFCLK;
-#ifdef CONFIG_DRM_AMD_DC_DCN3_0
 	bool ClampMinDCFCLK;
-#endif
 	bool AllowDramClockChangeOneDisplayVactive;
 	bool SynchronizeTimingsIfSingleRefreshRate;
 
