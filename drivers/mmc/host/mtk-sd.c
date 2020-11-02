@@ -78,9 +78,12 @@
 #define MSDC_PAD_TUNE0   0xf0
 #define PAD_DS_TUNE      0x188
 #define PAD_CMD_TUNE     0x18c
+#define EMMC51_CFG0	 0x204
 #define EMMC50_CFG0      0x208
+#define EMMC50_CFG1      0x20c
 #define EMMC50_CFG3      0x220
 #define SDC_FIFO_CFG     0x228
+#define CQHCI_SETTING	 0x7fc
 
 /*--------------------------------------------------------------------------*/
 /* Top Pad Register Offset                                                  */
@@ -261,14 +264,25 @@
 
 #define PAD_CMD_TUNE_RX_DLY3	  (0x1f << 1)  /* RW */
 
+/* EMMC51_CFG0 mask */
+#define CMDQ_RDAT_CNT		  (0x3ff << 12)	/* RW */
+
 #define EMMC50_CFG_PADCMD_LATCHCK (0x1 << 0)   /* RW */
 #define EMMC50_CFG_CRCSTS_EDGE    (0x1 << 3)   /* RW */
 #define EMMC50_CFG_CFCSTS_SEL     (0x1 << 4)   /* RW */
+#define EMMC50_CFG_CMD_RESP_SEL   (0x1 << 9)   /* RW */
+
+/* EMMC50_CFG1 mask */
+#define EMMC50_CFG1_DS_CFG        (0x1 << 28)  /* RW */
 
 #define EMMC50_CFG3_OUTS_WR       (0x1f << 0)  /* RW */
 
 #define SDC_FIFO_CFG_WRVALIDSEL   (0x1 << 24)  /* RW */
 #define SDC_FIFO_CFG_RDVALIDSEL   (0x1 << 25)  /* RW */
+
+/* CQHCI_SETTING */
+#define CQHCI_RD_CMD_WND_SEL	  (0x1 << 14) /* RW */
+#define CQHCI_WR_CMD_WND_SEL	  (0x1 << 15) /* RW */
 
 /* EMMC_TOP_CONTROL mask */
 #define PAD_RXDLY_SEL           (0x1 << 0)      /* RW */
@@ -2276,6 +2290,31 @@ static int msdc_get_cd(struct mmc_host *mmc)
 		return !val;
 }
 
+static void msdc_hs400_enhanced_strobe(struct mmc_host *mmc,
+				       struct mmc_ios *ios)
+{
+	struct msdc_host *host = mmc_priv(mmc);
+
+	if (ios->enhanced_strobe) {
+		msdc_prepare_hs400_tuning(mmc, ios);
+		sdr_set_field(host->base + EMMC50_CFG0, EMMC50_CFG_PADCMD_LATCHCK, 1);
+		sdr_set_field(host->base + EMMC50_CFG0, EMMC50_CFG_CMD_RESP_SEL, 1);
+		sdr_set_field(host->base + EMMC50_CFG1, EMMC50_CFG1_DS_CFG, 1);
+
+		sdr_clr_bits(host->base + CQHCI_SETTING, CQHCI_RD_CMD_WND_SEL);
+		sdr_clr_bits(host->base + CQHCI_SETTING, CQHCI_WR_CMD_WND_SEL);
+		sdr_clr_bits(host->base + EMMC51_CFG0, CMDQ_RDAT_CNT);
+	} else {
+		sdr_set_field(host->base + EMMC50_CFG0, EMMC50_CFG_PADCMD_LATCHCK, 0);
+		sdr_set_field(host->base + EMMC50_CFG0, EMMC50_CFG_CMD_RESP_SEL, 0);
+		sdr_set_field(host->base + EMMC50_CFG1, EMMC50_CFG1_DS_CFG, 0);
+
+		sdr_set_bits(host->base + CQHCI_SETTING, CQHCI_RD_CMD_WND_SEL);
+		sdr_set_bits(host->base + CQHCI_SETTING, CQHCI_WR_CMD_WND_SEL);
+		sdr_set_field(host->base + EMMC51_CFG0, CMDQ_RDAT_CNT, 0xb4);
+	}
+}
+
 static void msdc_cqe_enable(struct mmc_host *mmc)
 {
 	struct msdc_host *host = mmc_priv(mmc);
@@ -2333,6 +2372,7 @@ static const struct mmc_host_ops mt_msdc_ops = {
 	.set_ios = msdc_ops_set_ios,
 	.get_ro = mmc_gpio_get_ro,
 	.get_cd = msdc_get_cd,
+	.hs400_enhanced_strobe = msdc_hs400_enhanced_strobe,
 	.enable_sdio_irq = msdc_enable_sdio_irq,
 	.ack_sdio_irq = msdc_ack_sdio_irq,
 	.start_signal_voltage_switch = msdc_ops_switch_volt,
