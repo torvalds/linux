@@ -1043,8 +1043,7 @@ static int using_multi_irqs(struct net_device *dev)
 	struct fe_priv *np = get_nvpriv(dev);
 
 	if (!(np->msi_flags & NV_MSI_X_ENABLED) ||
-	    ((np->msi_flags & NV_MSI_X_ENABLED) &&
-	     ((np->msi_flags & NV_MSI_X_VECTORS_MASK) == 0x1)))
+	    ((np->msi_flags & NV_MSI_X_VECTORS_MASK) == 0x1))
 		return 0;
 	else
 		return 1;
