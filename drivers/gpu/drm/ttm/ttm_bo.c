@@ -637,7 +637,7 @@ static bool ttm_bo_evict_swapout_allowable(struct ttm_buffer_object *bo,
 
 	if (bo->base.resv == ctx->resv) {
 		dma_resv_assert_held(bo->base.resv);
-		if (ctx->flags & TTM_OPT_FLAG_ALLOW_RES_EVICT)
+		if (ctx->allow_res_evict)
 			ret = true;
 		*locked = false;
 		if (busy)

@@ -315,8 +315,7 @@ vm_fault_t ttm_bo_vm_fault_reserved(struct vm_fault *vmf,
 		struct ttm_operation_ctx ctx = {
 			.interruptible = false,
 			.no_wait_gpu = false,
-			.flags = TTM_OPT_FLAG_FORCE_ALLOC
-
+			.force_alloc = true
 		};
 
 		ttm = bo->ttm;
