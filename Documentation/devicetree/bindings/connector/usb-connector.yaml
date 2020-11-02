@@ -143,22 +143,23 @@ properties:
       power dual role.
 
   ports:
-    description: OF graph bindings (specified in bindings/graph.txt) that model
-      any data bus to the connector unless the bus is between parent node and
-      the connector. Since a single connector can have multiple data buses every
-      bus has an assigned OF graph port number as described below.
-    type: object
+    $ref: /schemas/graph.yaml#/properties/ports
+    description: OF graph bindings modeling any data bus to the connector
+      unless the bus is between parent node and the connector. Since a single
+      connector can have multiple data buses every bus has an assigned OF graph
+      port number as described below.
+
     properties:
       port@0:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: High Speed (HS), present in all connectors.
 
       port@1:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: Super Speed (SS), present in SS capable connectors.
 
       port@2:
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
         description: Sideband Use (SBU), present in USB-C. This describes the
           alternate mode connection of which SBU is a part.
 
