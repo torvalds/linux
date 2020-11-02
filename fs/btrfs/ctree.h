@@ -3114,7 +3114,7 @@ struct extent_map *btrfs_get_extent(struct btrfs_inode *inode,
 int btrfs_update_inode(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root, struct btrfs_inode *inode);
 int btrfs_update_inode_fallback(struct btrfs_trans_handle *trans,
-				struct btrfs_root *root, struct inode *inode);
+				struct btrfs_root *root, struct btrfs_inode *inode);
 int btrfs_orphan_add(struct btrfs_trans_handle *trans,
 		struct btrfs_inode *inode);
 int btrfs_orphan_cleanup(struct btrfs_root *root);
