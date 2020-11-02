@@ -564,7 +564,7 @@ static struct nlmsghdr *xfrm_user_rcv_msg_compat(const struct nlmsghdr *h32,
 		return NULL;
 
 	len += NLMSG_HDRLEN;
-	h64 = kvmalloc(len, GFP_KERNEL | __GFP_ZERO);
+	h64 = kvmalloc(len, GFP_KERNEL);
 	if (!h64)
 		return ERR_PTR(-ENOMEM);
 
