@@ -70,6 +70,11 @@ struct sched_group;
 DECLARE_RESTRICTED_HOOK(android_rvh_find_busiest_group,
 	TP_PROTO(struct sched_group *busiest, struct rq *dst_rq, int *out_balance),
 		TP_ARGS(busiest, dst_rq, out_balance), 1);
+DECLARE_HOOK(android_vh_dump_throttled_rt_tasks,
+	TP_PROTO(int cpu, u64 clock, ktime_t rt_period, u64 rt_runtime,
+			s64 rt_period_timer_expires),
+	TP_ARGS(cpu, clock, rt_period, rt_runtime, rt_period_timer_expires));
+
 #else
 #define trace_android_rvh_select_task_rq_fair(p, prev_cpu, sd_flag, wake_flags, new_cpu)
 #define trace_android_rvh_select_task_rq_rt(p, prev_cpu, sd_flag, wake_flags, new_cpu)
@@ -85,6 +90,7 @@ DECLARE_RESTRICTED_HOOK(android_rvh_find_busiest_group,
 #define trace_android_rvh_set_user_nice(p, nice)
 #define trace_android_rvh_setscheduler(p)
 #define trace_android_rvh_find_busiest_group(busiest, dst_rq, out_balance)
+#define trace_android_vh_dump_throttled_rt_tasks(cpu, clock, rt_period, rt_runtime, rt_period_timer_expires)
 #endif
 #endif /* _TRACE_HOOK_SCHED_H */
 /* This part must be outside protection */
