@@ -25,4 +25,6 @@ properties:
       - const: brcm,bcm53342
       - const: brcm,hr2
 
+additionalProperties: true
+
 ...
