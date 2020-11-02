@@ -2039,8 +2039,7 @@ success:
 		       sizeof(struct btree_iter) * trans->nr_iters +
 		       sizeof(struct btree_insert_entry) * trans->nr_iters);
 
-	if (trans->iters != trans->iters_onstack)
-		kfree(trans->iters);
+	kfree(trans->iters);
 
 	trans->iters		= new_iters;
 	trans->updates		= new_updates;
@@ -2331,21 +2330,15 @@ void bch2_trans_init(struct btree_trans *trans, struct bch_fs *c,
 		     unsigned expected_nr_iters,
 		     size_t expected_mem_bytes)
 {
-	memset(trans, 0, offsetof(struct btree_trans, iters_onstack));
-
 	/*
 	 * reallocating iterators currently completely breaks
 	 * bch2_trans_iter_put():
 	 */
 	expected_nr_iters = BTREE_ITER_MAX;
 
+	memset(trans, 0, sizeof(*trans));
 	trans->c		= c;
 	trans->ip		= _RET_IP_;
-	trans->size		= ARRAY_SIZE(trans->iters_onstack);
-	trans->iters		= trans->iters_onstack;
-	trans->updates		= trans->updates_onstack;
-	trans->updates2		= trans->updates2_onstack;
-	trans->fs_usage_deltas	= NULL;
 
 	if (expected_nr_iters > trans->size)
 		bch2_trans_realloc_iters(trans, expected_nr_iters);
@@ -2377,7 +2370,7 @@ int bch2_trans_exit(struct btree_trans *trans)
 	kfree(trans->mem);
 	if (trans->used_mempool)
 		mempool_free(trans->iters, &trans->c->btree_iters_pool);
-	else if (trans->iters != trans->iters_onstack)
+	else
 		kfree(trans->iters);
 	trans->mem	= (void *) 0x1;
 	trans->iters	= (void *) 0x1;

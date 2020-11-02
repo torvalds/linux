@@ -381,10 +381,6 @@ struct btree_trans {
 	unsigned		journal_u64s;
 	unsigned		journal_preres_u64s;
 	struct replicas_delta_list *fs_usage_deltas;
-
-	struct btree_iter	iters_onstack[2];
-	struct btree_insert_entry updates_onstack[2];
-	struct btree_insert_entry updates2_onstack[2];
 };
 
 #define BTREE_FLAG(flag)						\
