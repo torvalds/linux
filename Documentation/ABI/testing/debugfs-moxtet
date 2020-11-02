@@ -2,13 +2,19 @@ What:		/sys/kernel/debug/moxtet/input
 Date:		March 2019
 KernelVersion:	5.3
 Contact:	Marek Behún <marek.behun@nic.cz>
-Description:	(R) Read input from the shift registers, in hexadecimal.
+Description:	(Read) Read input from the shift registers, in hexadecimal.
 		Returns N+1 bytes, where N is the number of Moxtet connected
 		modules. The first byte is from the CPU board itself.
-		Example: 101214
-			 10: CPU board with SD card
-			 12: 2 = PCIe module, 1 = IRQ not active
-			 14: 4 = Peridot module, 1 = IRQ not active
+
+		Example::
+
+			101214
+
+		==  =======================================
+		10  CPU board with SD card
+		12  2 = PCIe module, 1 = IRQ not active
+		14  4 = Peridot module, 1 = IRQ not active
+		==  =======================================
 
 What:		/sys/kernel/debug/moxtet/output
 Date:		March 2019
@@ -17,7 +23,13 @@ Contact:	Marek Behún <marek.behun@nic.cz>
 Description:	(RW) Read last written value to the shift registers, in
 		hexadecimal, or write values to the shift registers, also
 		in hexadecimal.
-		Example: 0102
-			 01: 01 was last written, or is to be written, to the
-			     first module's shift register
-			 02: the same for second module
+
+		Example::
+
+		    0102
+
+		==  ================================================
+		01  01 was last written, or is to be written, to the
+		    first module's shift register
+		02  the same for second module
+		==  ================================================

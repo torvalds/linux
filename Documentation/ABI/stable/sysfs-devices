@@ -1,5 +1,6 @@
-# Note: This documents additional properties of any device beyond what
-# is documented in Documentation/admin-guide/sysfs-rules.rst
+Note:
+  This documents additional properties of any device beyond what
+  is documented in Documentation/admin-guide/sysfs-rules.rst
 
 What:		/sys/devices/*/of_node
 Date:		February 2015

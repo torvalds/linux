@@ -17,6 +17,7 @@ Description:
 		directory has a name of the form "<key>-<vendor guid>"
 		and contains the following files:
 
+		=============== ========================================
 		attributes:	A read-only text file enumerating the
 				EFI variable flags.  Potential values
 				include:
@@ -59,12 +60,14 @@ Description:
 
 		size:		As ASCII representation of the size of
 				the variable's value.
+		=============== ========================================
 
 
 		In addition, two other magic binary files are provided
 		in the top-level directory and are used for adding and
 		removing variables:
 
+		=============== ========================================
 		new_var:	Takes a "struct efi_variable" and
 				instructs the EFI firmware to create a
 				new variable.
@@ -73,3 +76,4 @@ Description:
 				instructs the EFI firmware to remove any
 				variable that has a matching vendor GUID
 				and variable key name.
+		=============== ========================================
