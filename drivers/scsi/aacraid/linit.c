@@ -1881,7 +1881,6 @@ static int aac_resume(struct pci_dev *pdev)
 	int r;
 
 	pci_set_power_state(pdev, PCI_D0);
-	pci_enable_wake(pdev, PCI_D0, 0);
 	pci_restore_state(pdev);
 	r = pci_enable_device(pdev);
 
