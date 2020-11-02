@@ -44,10 +44,10 @@
 
 #define mmUVD_LMI_RBC_IB_VMID_INTERNAL_OFFSET			0x431
 #define mmUVD_LMI_RBC_IB_64BIT_BAR_LOW_INTERNAL_OFFSET		0x3b4
-#define mmUVD_LMI_RBC_IB_64BIT_BAR_HIGH_INTERNAL_OFFSET 	0x3b5
+#define mmUVD_LMI_RBC_IB_64BIT_BAR_HIGH_INTERNAL_OFFSET		0x3b5
 #define mmUVD_RBC_IB_SIZE_INTERNAL_OFFSET			0x25c
 
-#define VCN_INSTANCES_SIENNA_CICHLID	 				2
+#define VCN_INSTANCES_SIENNA_CICHLID				2
 
 static int amdgpu_ih_clientid_vcns[] = {
 	SOC15_IH_CLIENTID_VCN,
@@ -55,8 +55,8 @@ static int amdgpu_ih_clientid_vcns[] = {
 };
 
 static int amdgpu_ucode_id_vcns[] = {
-       AMDGPU_UCODE_ID_VCN,
-       AMDGPU_UCODE_ID_VCN1
+	AMDGPU_UCODE_ID_VCN,
+	AMDGPU_UCODE_ID_VCN1
 };
 
 static int vcn_v3_0_start_sriov(struct amdgpu_device *adev);
@@ -1371,7 +1371,7 @@ static int vcn_v3_0_start_sriov(struct amdgpu_device *adev)
 	}
 
 	/* Update init table header in memory */
-        size = sizeof(struct mmsch_v3_0_init_header);
+	size = sizeof(struct mmsch_v3_0_init_header);
 	table_loc = (uint32_t *)table->cpu_addr;
 	memcpy((void *)table_loc, &header, size);
 
