@@ -103,6 +103,30 @@ void rn_set_low_power_state(struct clk_mgr *clk_mgr_base)
 	clk_mgr_base->clks.pwr_state = DCN_PWR_STATE_LOW_POWER;
 }
 
+static void rn_update_clocks_update_dpp_dto(struct clk_mgr_internal *clk_mgr,
+		struct dc_state *context, bool safe_to_lower)
+{
+	int i;
+
+	clk_mgr->dccg->ref_dppclk = clk_mgr->base.clks.actual_dppclk_khz;
+	for (i = 0; i < clk_mgr->base.ctx->dc->res_pool->pipe_count; i++) {
+		int dpp_inst, dppclk_khz, prev_dppclk_khz;
+
+		/* Loop index will match dpp->inst if resource exists,
+		 * and we want to avoid dependency on dpp object
+		 */
+		dpp_inst = i;
+		dppclk_khz = context->res_ctx.pipe_ctx[i].plane_res.bw.dppclk_khz;
+
+		prev_dppclk_khz = clk_mgr->dccg->pipe_dppclk_khz[i];
+
+		if (safe_to_lower || prev_dppclk_khz < dppclk_khz)
+			clk_mgr->dccg->funcs->update_dpp_dto(
+							clk_mgr->dccg, dpp_inst, dppclk_khz);
+	}
+}
+
+
 void rn_update_clocks(struct clk_mgr *clk_mgr_base,
 			struct dc_state *context,
 			bool safe_to_lower)
@@ -177,7 +201,7 @@ void rn_update_clocks(struct clk_mgr *clk_mgr_base,
 
 	if (dpp_clock_lowered) {
 		// increase per DPP DTO before lowering global dppclk
-		dcn20_update_clocks_update_dpp_dto(clk_mgr, context, safe_to_lower);
+		rn_update_clocks_update_dpp_dto(clk_mgr, context, safe_to_lower);
 		clk_mgr_base->clks.actual_dppclk_khz =
 				rn_vbios_smu_set_dppclk(clk_mgr, clk_mgr_base->clks.dppclk_khz);
 
@@ -188,7 +212,7 @@ void rn_update_clocks(struct clk_mgr *clk_mgr_base,
 					rn_vbios_smu_set_dppclk(clk_mgr, clk_mgr_base->clks.dppclk_khz);
 		// always update dtos unless clock is lowered and not safe to lower
 		if (new_clocks->dppclk_khz >= dc->current_state->bw_ctx.bw.dcn.clk.dppclk_khz)
-			dcn20_update_clocks_update_dpp_dto(clk_mgr, context, safe_to_lower);
+			rn_update_clocks_update_dpp_dto(clk_mgr, context, safe_to_lower);
 	}
 
 	if (update_dispclk &&
@@ -198,7 +222,6 @@ void rn_update_clocks(struct clk_mgr *clk_mgr_base,
 			clk_mgr_base->clks.dispclk_khz / 1000 / 7);
 	}
 }
-
 
 static int get_vco_frequency_from_reg(struct clk_mgr_internal *clk_mgr)
 {
