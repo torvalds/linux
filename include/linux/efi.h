@@ -1104,13 +1104,6 @@ enum efi_secureboot_mode efi_get_secureboot_mode(efi_get_variable_t *get_var)
 	return efi_secureboot_mode_enabled;
 }
 
-#ifdef CONFIG_RESET_ATTACK_MITIGATION
-void efi_enable_reset_attack_mitigation(void);
-#else
-static inline void
-efi_enable_reset_attack_mitigation(void) { }
-#endif
-
 #ifdef CONFIG_EFI_EMBEDDED_FIRMWARE
 void efi_check_for_embedded_firmwares(void);
 #else
@@ -1118,8 +1111,6 @@ static inline void efi_check_for_embedded_firmwares(void) { }
 #endif
 
 efi_status_t efi_random_get_seed(void);
-
-void efi_retrieve_tpm2_eventlog(void);
 
 /*
  * Arch code can implement the following three template macros, avoiding
