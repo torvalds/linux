@@ -643,7 +643,7 @@ static int psp_v11_0_memory_training_send_msg(struct psp_context *psp, int msg)
 static int psp_v11_0_memory_training(struct psp_context *psp, uint32_t ops)
 {
 	struct psp_memory_training_context *ctx = &psp->mem_train_ctx;
-	uint32_t *pcache = (uint32_t*)ctx->sys_cache;
+	uint32_t *pcache = (uint32_t *)ctx->sys_cache;
 	struct amdgpu_device *adev = psp->adev;
 	uint32_t p2c_header[4];
 	uint32_t sz;
