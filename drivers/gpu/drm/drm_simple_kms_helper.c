@@ -97,7 +97,7 @@ static int drm_simple_kms_crtc_check(struct drm_crtc *crtc,
 	if (has_primary != crtc_state->enable)
 		return -EINVAL;
 
-	return drm_atomic_add_affected_planes(crtc_state->state, crtc);
+	return drm_atomic_add_affected_planes(state, crtc);
 }
 
 static void drm_simple_kms_crtc_enable(struct drm_crtc *crtc,

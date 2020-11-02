@@ -281,7 +281,7 @@ static int mxsfb_crtc_atomic_check(struct drm_crtc *crtc,
 		return -EINVAL;
 
 	/* TODO: Is this needed ? */
-	return drm_atomic_add_affected_planes(crtc_state->state, crtc);
+	return drm_atomic_add_affected_planes(state, crtc);
 }
 
 static void mxsfb_crtc_atomic_flush(struct drm_crtc *crtc,

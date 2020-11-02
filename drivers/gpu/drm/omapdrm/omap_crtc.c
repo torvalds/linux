@@ -583,7 +583,7 @@ static int omap_crtc_atomic_check(struct drm_crtc *crtc,
 			return -EINVAL;
 	}
 
-	pri_state = drm_atomic_get_new_plane_state(crtc_state->state,
+	pri_state = drm_atomic_get_new_plane_state(state,
 						   crtc->primary);
 	if (pri_state) {
 		struct omap_crtc_state *omap_crtc_state =

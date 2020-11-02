@@ -665,9 +665,9 @@ static int tilcdc_crtc_atomic_check(struct drm_crtc *crtc,
 	if (!crtc_state->active)
 		return 0;
 
-	if (crtc_state->state->planes[0].ptr != crtc->primary ||
-	    crtc_state->state->planes[0].state == NULL ||
-	    crtc_state->state->planes[0].state->crtc != crtc) {
+	if (state->planes[0].ptr != crtc->primary ||
+	    state->planes[0].state == NULL ||
+	    state->planes[0].state->crtc != crtc) {
 		dev_dbg(crtc->dev->dev, "CRTC primary plane must be present");
 		return -EINVAL;
 	}
