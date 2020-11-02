@@ -33,9 +33,8 @@ static long compat_keyctl_instantiate_key_iov(
 	if (!_payload_iov)
 		ioc = 0;
 
-	ret = compat_import_iovec(WRITE, _payload_iov, ioc,
-				  ARRAY_SIZE(iovstack), &iov,
-				  &from);
+	ret = import_iovec(WRITE, (const struct iovec __user *)_payload_iov,
+			   ioc, ARRAY_SIZE(iovstack), &iov, &from);
 	if (ret < 0)
 		return ret;
 

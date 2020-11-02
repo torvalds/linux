@@ -1806,20 +1806,10 @@ ssize_t import_iovec(int type, const struct iovec __user *uvec,
 		 unsigned nr_segs, unsigned fast_segs,
 		 struct iovec **iovp, struct iov_iter *i)
 {
-	return __import_iovec(type, uvec, nr_segs, fast_segs, iovp, i, false);
+	return __import_iovec(type, uvec, nr_segs, fast_segs, iovp, i,
+			      in_compat_syscall());
 }
 EXPORT_SYMBOL(import_iovec);
-
-#ifdef CONFIG_COMPAT
-ssize_t compat_import_iovec(int type, const struct compat_iovec __user *uvec,
-		unsigned nr_segs, unsigned fast_segs, struct iovec **iovp,
-		struct iov_iter *i)
-{
-	return __import_iovec(type, (const struct iovec __user *)uvec, nr_segs,
-			     fast_segs, iovp, i, true);
-}
-EXPORT_SYMBOL(compat_import_iovec);
-#endif
 
 int import_single_range(int rw, void __user *buf, size_t len,
 		 struct iovec *iov, struct iov_iter *i)
