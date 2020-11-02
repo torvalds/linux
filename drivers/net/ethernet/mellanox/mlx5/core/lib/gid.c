@@ -55,10 +55,6 @@ void mlx5_cleanup_reserved_gids(struct mlx5_core_dev *dev)
 
 int mlx5_core_reserve_gids(struct mlx5_core_dev *dev, unsigned int count)
 {
-	if (test_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state)) {
-		mlx5_core_err(dev, "Cannot reserve GIDs when interfaces are up\n");
-		return -EPERM;
-	}
 	if (dev->roce.reserved_gids.start < count) {
 		mlx5_core_warn(dev, "GID table exhausted attempting to reserve %d more GIDs\n",
 			       count);
@@ -79,7 +75,6 @@ int mlx5_core_reserve_gids(struct mlx5_core_dev *dev, unsigned int count)
 
 void mlx5_core_unreserve_gids(struct mlx5_core_dev *dev, unsigned int count)
 {
-	WARN(test_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state), "Unreserving GIDs when interfaces are up");
 	WARN(count > dev->roce.reserved_gids.count, "Unreserving %u GIDs when only %u reserved",
 	     count, dev->roce.reserved_gids.count);
 
