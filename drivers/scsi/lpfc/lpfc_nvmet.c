@@ -371,8 +371,7 @@ finish:
 /**
  * lpfc_nvmet_ctxbuf_post - Repost a NVMET RQ DMA buffer and clean up context
  * @phba: HBA buffer is associated with
- * @ctxp: context to clean up
- * @mp: Buffer to free
+ * @ctx_buf: ctx buffer context
  *
  * Description: Frees the given DMA buffer in the appropriate way given by
  * reposting it to its associated RQ so it can be reused.
@@ -1291,10 +1290,10 @@ lpfc_nvmet_ls_req_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 
 /**
  * lpfc_nvmet_ls_req - Issue an Link Service request
- * @targetport - pointer to target instance registered with nvmet transport.
- * @hosthandle - hosthandle set by the driver in a prior ls_rqst_rcv.
+ * @targetport: pointer to target instance registered with nvmet transport.
+ * @hosthandle: hosthandle set by the driver in a prior ls_rqst_rcv.
  *               Driver sets this value to the ndlp pointer.
- * @pnvme_lsreq - the transport nvme_ls_req structure for the LS
+ * @pnvme_lsreq: the transport nvme_ls_req structure for the LS
  *
  * Driver registers this routine to handle any link service request
  * from the nvme_fc transport to a remote nvme-aware port.
@@ -1336,9 +1335,9 @@ lpfc_nvmet_ls_req(struct nvmet_fc_target_port *targetport,
 /**
  * lpfc_nvmet_ls_abort - Abort a prior NVME LS request
  * @targetport: Transport targetport, that LS was issued from.
- * @hosthandle - hosthandle set by the driver in a prior ls_rqst_rcv.
+ * @hosthandle: hosthandle set by the driver in a prior ls_rqst_rcv.
  *               Driver sets this value to the ndlp pointer.
- * @pnvme_lsreq - the transport nvme_ls_req structure for LS to be aborted
+ * @pnvme_lsreq: the transport nvme_ls_req structure for LS to be aborted
  *
  * Driver registers this routine to abort an NVME LS request that is
  * in progress (from the transports perspective).
@@ -3596,8 +3595,8 @@ out:
 /**
  * lpfc_nvmet_invalidate_host
  *
- * @phba - pointer to the driver instance bound to an adapter port.
- * @ndlp - pointer to an lpfc_nodelist type
+ * @phba: pointer to the driver instance bound to an adapter port.
+ * @ndlp: pointer to an lpfc_nodelist type
  *
  * This routine upcalls the nvmet transport to invalidate an NVME
  * host to which this target instance had active connections.
