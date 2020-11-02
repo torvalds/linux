@@ -267,6 +267,7 @@
 
 			cfam0_spi2: spi@40 {
 				reg = <0x40>;
+				compatible = "ibm,fsi2spi-restricted";
 				#address-cells = <1>;
 				#size-cells = <0>;
 
@@ -283,6 +284,7 @@
 
 			cfam0_spi3: spi@60 {
 				reg = <0x60>;
+				compatible = "ibm,fsi2spi-restricted";
 				#address-cells = <1>;
 				#size-cells = <0>;
 
@@ -379,6 +381,7 @@
 
 			cfam1_spi2: spi@40 {
 				reg = <0x40>;
+				compatible = "ibm,fsi2spi-restricted";
 				#address-cells = <1>;
 				#size-cells = <0>;
 
@@ -395,6 +398,7 @@
 
 			cfam1_spi3: spi@60 {
 				reg = <0x60>;
+				compatible = "ibm,fsi2spi-restricted";
 				#address-cells = <1>;
 				#size-cells = <0>;
 
@@ -489,6 +493,7 @@
 
 			cfam2_spi2: spi@40 {
 				reg = <0x40>;
+				compatible = "ibm,fsi2spi-restricted";
 				#address-cells = <1>;
 				#size-cells = <0>;
 
@@ -505,6 +510,7 @@
 
 			cfam2_spi3: spi@60 {
 				reg = <0x60>;
+				compatible = "ibm,fsi2spi-restricted";
 				#address-cells = <1>;
 				#size-cells = <0>;
 
