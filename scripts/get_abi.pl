@@ -287,6 +287,8 @@ my $bondary = qr { (?<![\w\/\`\{])(?=[\w\/\`\{])|(?<=[\w\/\`\{])(?![\w\/\`\{]) }
 sub output_rest {
 	create_labels();
 
+	my $part = "";
+
 	foreach my $what (sort {
 				($data{$a}->{type} eq "File") cmp ($data{$b}->{type} eq "File") ||
 				$a cmp $b
@@ -306,6 +308,21 @@ sub output_rest {
 		$w =~ s/([\(\)\_\-\*\=\^\~\\])/\\$1/g;
 
 		if ($type ne "File") {
+			my $cur_part = $what;
+			if ($what =~ '/') {
+				if ($what =~ m#^(\/?(?:[\w\-]+\/?){1,2})#) {
+					$cur_part = "Symbols under $1";
+					$cur_part =~ s,/$,,;
+				}
+			}
+
+			if ($cur_part ne "" && $part ne $cur_part) {
+			    $part = $cur_part;
+			    my $bar = $part;
+			    $bar =~ s/./-/g;
+			    print "$part\n$bar\n\n";
+			}
+
 			printf ".. _%s:\n\n", $data{$what}->{label};
 
 			my @names = split /, /,$w;
