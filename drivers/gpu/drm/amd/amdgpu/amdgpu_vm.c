@@ -3351,7 +3351,7 @@ bool amdgpu_vm_handle_fault(struct amdgpu_device *adev, unsigned int pasid,
 	}
 
 	r = amdgpu_vm_bo_update_mapping(adev, adev, vm, true, false, NULL, addr,
-					addr + 1, flags, value, NULL, NULL,
+					addr, flags, value, NULL, NULL,
 					NULL);
 	if (r)
 		goto error_unlock;
