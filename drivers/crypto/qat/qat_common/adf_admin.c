@@ -254,7 +254,7 @@ int adf_init_admin_comms(struct adf_accel_dev *accel_dev)
 	hw_data->get_admin_info(&admin_csrs_info);
 
 	mailbox_offset = admin_csrs_info.mailbox_offset;
-	mailbox = (void __iomem *)((uintptr_t)csr + mailbox_offset);
+	mailbox = csr + mailbox_offset;
 	adminmsg_u = admin_csrs_info.admin_msg_ur;
 	adminmsg_l = admin_csrs_info.admin_msg_lr;
 
