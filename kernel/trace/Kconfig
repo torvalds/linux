@@ -752,6 +752,20 @@ config FTRACE_RECORD_RECURSION_SIZE
 	  This file can be reset, but the limit can not change in
 	  size at runtime.
 
+config RING_BUFFER_RECORD_RECURSION
+	bool "Record functions that recurse in the ring buffer"
+	depends on FTRACE_RECORD_RECURSION
+	# default y, because it is coupled with FTRACE_RECORD_RECURSION
+	default y
+	help
+	  The ring buffer has its own internal recursion. Although when
+	  recursion happens it wont cause harm because of the protection,
+	  but it does cause an unwanted overhead. Enabling this option will
+	  place where recursion was detected into the ftrace "recursed_functions"
+	  file.
+
+	  This will add more overhead to cases that have recursion.
+
 config GCOV_PROFILE_FTRACE
 	bool "Enable GCOV profiling on ftrace subsystem"
 	depends on GCOV_KERNEL
