@@ -21,6 +21,7 @@
 #include "gsi_trans.h"
 #include "ipa_gsi.h"
 #include "ipa_data.h"
+#include "ipa_version.h"
 
 /**
  * DOC: The IPA Generic Software Interface
@@ -1952,17 +1953,24 @@ static void gsi_channel_exit(struct gsi *gsi)
 }
 
 /* Init function for GSI.  GSI hardware does not need to be "ready" */
-int gsi_init(struct gsi *gsi, struct platform_device *pdev, bool prefetch,
-	     u32 count, const struct ipa_gsi_endpoint_data *data,
-	     bool modem_alloc)
+int gsi_init(struct gsi *gsi, struct platform_device *pdev,
+	     enum ipa_version version, u32 count,
+	     const struct ipa_gsi_endpoint_data *data)
 {
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	resource_size_t size;
 	unsigned int irq;
+	bool modem_alloc;
+	bool prefetch;
 	int ret;
 
 	gsi_validate_build();
+
+	/* IPA v4.0+ (GSI v2.0+) uses prefetch for the command channel */
+	prefetch = version != IPA_VERSION_3_5_1;
+	/* IPA v4.2 requires the AP to allocate channels for the modem */
+	modem_alloc = version == IPA_VERSION_4_2;
 
 	gsi->dev = dev;
 

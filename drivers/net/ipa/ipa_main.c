@@ -723,10 +723,8 @@ static int ipa_probe(struct platform_device *pdev)
 	const struct ipa_data *data;
 	struct ipa_clock *clock;
 	struct rproc *rproc;
-	bool modem_alloc;
 	bool modem_init;
 	struct ipa *ipa;
-	bool prefetch;
 	phandle ph;
 	int ret;
 
@@ -788,13 +786,8 @@ static int ipa_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_reg_exit;
 
-	/* GSI v2.0+ (IPA v4.0+) uses prefetch for the command channel */
-	prefetch = ipa->version != IPA_VERSION_3_5_1;
-	/* IPA v4.2 requires the AP to allocate channels for the modem */
-	modem_alloc = ipa->version == IPA_VERSION_4_2;
-
-	ret = gsi_init(&ipa->gsi, pdev, prefetch, data->endpoint_count,
-		       data->endpoint_data, modem_alloc);
+	ret = gsi_init(&ipa->gsi, pdev, ipa->version, data->endpoint_count,
+		       data->endpoint_data);
 	if (ret)
 		goto err_mem_exit;
 

@@ -20,6 +20,8 @@
 /* Maximum TLV FIFO size for a channel; 64 here is arbitrary (and high) */
 #define GSI_TLV_MAX		64
 
+enum ipa_version;
+
 struct device;
 struct scatterlist;
 struct platform_device;
@@ -236,15 +238,18 @@ int gsi_channel_resume(struct gsi *gsi, u32 channel_id, bool start);
  * gsi_init() - Initialize the GSI subsystem
  * @gsi:	Address of GSI structure embedded in an IPA structure
  * @pdev:	IPA platform device
+ * @version:	IPA hardware version (implies GSI version)
+ * @count:	Number of entries in the configuration data array
+ * @data:	Endpoint and channel configuration data
  *
  * Return:	0 if successful, or a negative error code
  *
  * Early stage initialization of the GSI subsystem, performing tasks
  * that can be done before the GSI hardware is ready to use.
  */
-int gsi_init(struct gsi *gsi, struct platform_device *pdev, bool prefetch,
-	     u32 count, const struct ipa_gsi_endpoint_data *data,
-	     bool modem_alloc);
+int gsi_init(struct gsi *gsi, struct platform_device *pdev,
+	     enum ipa_version version, u32 count,
+	     const struct ipa_gsi_endpoint_data *data);
 
 /**
  * gsi_exit() - Exit the GSI subsystem
