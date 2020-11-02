@@ -456,9 +456,11 @@ static int pm8001_task_exec(struct sas_task *task,
 		ccb->device = pm8001_dev;
 		switch (task_proto) {
 		case SAS_PROTOCOL_SMP:
+			atomic_inc(&pm8001_dev->running_req);
 			rc = pm8001_task_prep_smp(pm8001_ha, ccb);
 			break;
 		case SAS_PROTOCOL_SSP:
+			atomic_inc(&pm8001_dev->running_req);
 			if (is_tmf)
 				rc = pm8001_task_prep_ssp_tm(pm8001_ha,
 					ccb, tmf);
@@ -467,6 +469,7 @@ static int pm8001_task_exec(struct sas_task *task,
 			break;
 		case SAS_PROTOCOL_SATA:
 		case SAS_PROTOCOL_STP:
+			atomic_inc(&pm8001_dev->running_req);
 			rc = pm8001_task_prep_ata(pm8001_ha, ccb);
 			break;
 		default:
@@ -479,13 +482,13 @@ static int pm8001_task_exec(struct sas_task *task,
 		if (rc) {
 			PM8001_IO_DBG(pm8001_ha,
 				pm8001_printk("rc is %x\n", rc));
+			atomic_dec(&pm8001_dev->running_req);
 			goto err_out_tag;
 		}
 		/* TODO: select normal or high priority */
 		spin_lock(&t->task_state_lock);
 		t->task_state_flags |= SAS_TASK_AT_INITIATOR;
 		spin_unlock(&t->task_state_lock);
-		pm8001_dev->running_req++;
 	} while (0);
 	rc = 0;
 	goto out_done;
@@ -886,11 +889,11 @@ static void pm8001_dev_gone_notify(struct domain_device *dev)
 		PM8001_DISC_DBG(pm8001_ha,
 			pm8001_printk("found dev[%d:%x] is gone.\n",
 			pm8001_dev->device_id, pm8001_dev->dev_type));
-		if (pm8001_dev->running_req) {
+		if (atomic_read(&pm8001_dev->running_req)) {
 			spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 			pm8001_exec_internal_task_abort(pm8001_ha, pm8001_dev ,
 				dev, 1, 0);
-			while (pm8001_dev->running_req)
+			while (atomic_read(&pm8001_dev->running_req))
 				msleep(20);
 			spin_lock_irqsave(&pm8001_ha->lock, flags);
 		}
@@ -968,7 +971,7 @@ void pm8001_open_reject_retry(
 		ts->stat = SAS_OPEN_REJECT;
 		ts->open_rej_reason = SAS_OREJ_RSVD_RETRY;
 		if (pm8001_dev)
-			pm8001_dev->running_req--;
+			atomic_dec(&pm8001_dev->running_req);
 		spin_lock_irqsave(&task->task_state_lock, flags1);
 		task->task_state_flags &= ~SAS_TASK_STATE_PENDING;
 		task->task_state_flags &= ~SAS_TASK_AT_INITIATOR;
