@@ -130,6 +130,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_MT6358
 	imply SND_SOC_MT6359
 	imply SND_SOC_MT6660
+	imply SND_SOC_NAU8315
 	imply SND_SOC_NAU8540
 	imply SND_SOC_NAU8810
 	imply SND_SOC_NAU8822
@@ -1759,6 +1760,10 @@ config SND_SOC_MT6660
 	  speaker protection, multi-band DRC, equalizer functions.
 	  Select N if you don't have MT6660 on board.
 	  Select M to build this as module.
+
+config SND_SOC_NAU8315
+	tristate "Nuvoton Technology Corporation NAU8315 CODEC"
+	depends on GPIOLIB
 
 config SND_SOC_NAU8540
        tristate "Nuvoton Technology Corporation NAU85L40 CODEC"
