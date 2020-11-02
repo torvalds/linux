@@ -23,7 +23,7 @@ endif
 CC_COMPAT ?= $(CC)
 CC_COMPAT += $(CC_COMPAT_CLANG_FLAGS)
 
-ifeq ($(LLVM),1)
+ifneq ($(LLVM),)
 LD_COMPAT ?= $(LD)
 else
 LD_COMPAT ?= $(CROSS_COMPILE_COMPAT)ld
