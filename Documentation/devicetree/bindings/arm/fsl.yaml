@@ -378,6 +378,7 @@ properties:
               - technologic,imx6dl-ts4900
               - technologic,imx6dl-ts7970
               - udoo,imx6dl-udoo          # Udoo i.MX6 Dual-lite Board
+              - vdl,lanmcu                # Van der Laan LANMCU board
               - wand,imx6dl-wandboard     # Wandboard i.MX6 Dual Lite Board
               - ysoft,imx6dl-yapp4-draco  # i.MX6 DualLite Y Soft IOTA Draco board
               - ysoft,imx6dl-yapp4-hydra  # i.MX6 DualLite Y Soft IOTA Hydra board
