@@ -1339,7 +1339,7 @@ static int macvlan_validate(struct nlattr *tb[], struct nlattr *data[],
 	return 0;
 }
 
-/**
+/*
  * reconfigure list of remote source mac address
  * (only for macvlan devices in source mode)
  * Note regarding alignment: all netlink data is aligned to 4 Byte, which
