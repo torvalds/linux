@@ -4655,12 +4655,12 @@ out:
  * This will find the block for the "from" offset and cow the block and zero the
  * part we want to zero.  This is used with truncate and hole punching.
  */
-int btrfs_truncate_block(struct inode *inode, loff_t from, loff_t len,
-			int front)
+int btrfs_truncate_block(struct btrfs_inode *inode, loff_t from, loff_t len,
+			 int front)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	struct address_space *mapping = inode->i_mapping;
-	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	struct address_space *mapping = inode->vfs_inode.i_mapping;
+	struct extent_io_tree *io_tree = &inode->io_tree;
 	struct btrfs_ordered_extent *ordered;
 	struct extent_state *cached_state = NULL;
 	struct extent_changeset *data_reserved = NULL;
@@ -4683,30 +4683,29 @@ int btrfs_truncate_block(struct inode *inode, loff_t from, loff_t len,
 	block_start = round_down(from, blocksize);
 	block_end = block_start + blocksize - 1;
 
-	ret = btrfs_check_data_free_space(BTRFS_I(inode), &data_reserved,
-					  block_start, blocksize);
+	ret = btrfs_check_data_free_space(inode, &data_reserved, block_start,
+					  blocksize);
 	if (ret < 0) {
-		if (btrfs_check_nocow_lock(BTRFS_I(inode), block_start,
-					   &write_bytes) > 0) {
+		if (btrfs_check_nocow_lock(inode, block_start, &write_bytes) > 0) {
 			/* For nocow case, no need to reserve data space */
 			only_release_metadata = true;
 		} else {
 			goto out;
 		}
 	}
-	ret = btrfs_delalloc_reserve_metadata(BTRFS_I(inode), blocksize);
+	ret = btrfs_delalloc_reserve_metadata(inode, blocksize);
 	if (ret < 0) {
 		if (!only_release_metadata)
-			btrfs_free_reserved_data_space(BTRFS_I(inode),
-					data_reserved, block_start, blocksize);
+			btrfs_free_reserved_data_space(inode, data_reserved,
+						       block_start, blocksize);
 		goto out;
 	}
 again:
 	page = find_or_create_page(mapping, index, mask);
 	if (!page) {
-		btrfs_delalloc_release_space(BTRFS_I(inode), data_reserved,
-					     block_start, blocksize, true);
-		btrfs_delalloc_release_extents(BTRFS_I(inode), blocksize);
+		btrfs_delalloc_release_space(inode, data_reserved, block_start,
+					     blocksize, true);
+		btrfs_delalloc_release_extents(inode, blocksize);
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -4729,7 +4728,7 @@ again:
 	lock_extent_bits(io_tree, block_start, block_end, &cached_state);
 	set_page_extent_mapped(page);
 
-	ordered = btrfs_lookup_ordered_extent(BTRFS_I(inode), block_start);
+	ordered = btrfs_lookup_ordered_extent(inode, block_start);
 	if (ordered) {
 		unlock_extent_cached(io_tree, block_start, block_end,
 				     &cached_state);
@@ -4740,11 +4739,11 @@ again:
 		goto again;
 	}
 
-	clear_extent_bit(&BTRFS_I(inode)->io_tree, block_start, block_end,
+	clear_extent_bit(&inode->io_tree, block_start, block_end,
 			 EXTENT_DELALLOC | EXTENT_DO_ACCOUNTING | EXTENT_DEFRAG,
 			 0, 0, &cached_state);
 
-	ret = btrfs_set_extent_delalloc(BTRFS_I(inode), block_start, block_end, 0,
+	ret = btrfs_set_extent_delalloc(inode, block_start, block_end, 0,
 					&cached_state);
 	if (ret) {
 		unlock_extent_cached(io_tree, block_start, block_end,
@@ -4770,24 +4769,23 @@ again:
 	unlock_extent_cached(io_tree, block_start, block_end, &cached_state);
 
 	if (only_release_metadata)
-		set_extent_bit(&BTRFS_I(inode)->io_tree, block_start,
-			       block_end, EXTENT_NORESERVE, NULL, GFP_NOFS);
+		set_extent_bit(&inode->io_tree, block_start, block_end,
+			       EXTENT_NORESERVE, NULL, GFP_NOFS);
 
 out_unlock:
 	if (ret) {
 		if (only_release_metadata)
-			btrfs_delalloc_release_metadata(BTRFS_I(inode),
-					blocksize, true);
+			btrfs_delalloc_release_metadata(inode, blocksize, true);
 		else
-			btrfs_delalloc_release_space(BTRFS_I(inode), data_reserved,
+			btrfs_delalloc_release_space(inode, data_reserved,
 					block_start, blocksize, true);
 	}
-	btrfs_delalloc_release_extents(BTRFS_I(inode), blocksize);
+	btrfs_delalloc_release_extents(inode, blocksize);
 	unlock_page(page);
 	put_page(page);
 out:
 	if (only_release_metadata)
-		btrfs_check_nocow_unlock(BTRFS_I(inode));
+		btrfs_check_nocow_unlock(inode);
 	extent_changeset_free(data_reserved);
 	return ret;
 }
@@ -4869,7 +4867,7 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 	 * rest of the block before we expand the i_size, otherwise we could
 	 * expose stale data.
 	 */
-	err = btrfs_truncate_block(inode, oldsize, 0, 0);
+	err = btrfs_truncate_block(BTRFS_I(inode), oldsize, 0, 0);
 	if (err)
 		return err;
 
@@ -8553,7 +8551,7 @@ static int btrfs_truncate(struct inode *inode, bool skip_writeback)
 		btrfs_end_transaction(trans);
 		btrfs_btree_balance_dirty(fs_info);
 
-		ret = btrfs_truncate_block(inode, inode->i_size, 0, 0);
+		ret = btrfs_truncate_block(BTRFS_I(inode), inode->i_size, 0, 0);
 		if (ret)
 			goto out;
 		trans = btrfs_start_transaction(root, 1);

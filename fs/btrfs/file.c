@@ -2899,7 +2899,8 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 	if (same_block && len < fs_info->sectorsize) {
 		if (offset < ino_size) {
 			truncated_block = true;
-			ret = btrfs_truncate_block(inode, offset, len, 0);
+			ret = btrfs_truncate_block(BTRFS_I(inode), offset, len,
+						   0);
 		} else {
 			ret = 0;
 		}
@@ -2909,7 +2910,7 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 	/* zero back part of the first block */
 	if (offset < ino_size) {
 		truncated_block = true;
-		ret = btrfs_truncate_block(inode, offset, 0, 0);
+		ret = btrfs_truncate_block(BTRFS_I(inode), offset, 0, 0);
 		if (ret) {
 			inode_unlock(inode);
 			return ret;
@@ -2945,7 +2946,7 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 			/* zero the front end of the last page */
 			if (tail_start + tail_len < ino_size) {
 				truncated_block = true;
-				ret = btrfs_truncate_block(inode,
+				ret = btrfs_truncate_block(BTRFS_I(inode),
 							tail_start + tail_len,
 							0, 1);
 				if (ret)
@@ -3187,7 +3188,8 @@ static int btrfs_zero_range(struct inode *inode,
 		}
 		if (len < sectorsize && em->block_start != EXTENT_MAP_HOLE) {
 			free_extent_map(em);
-			ret = btrfs_truncate_block(inode, offset, len, 0);
+			ret = btrfs_truncate_block(BTRFS_I(inode), offset, len,
+						   0);
 			if (!ret)
 				ret = btrfs_fallocate_update_isize(inode,
 								   offset + len,
@@ -3218,7 +3220,7 @@ static int btrfs_zero_range(struct inode *inode,
 			alloc_start = round_down(offset, sectorsize);
 			ret = 0;
 		} else if (ret == RANGE_BOUNDARY_WRITTEN_EXTENT) {
-			ret = btrfs_truncate_block(inode, offset, 0, 0);
+			ret = btrfs_truncate_block(BTRFS_I(inode), offset, 0, 0);
 			if (ret)
 				goto out;
 		} else {
@@ -3235,7 +3237,8 @@ static int btrfs_zero_range(struct inode *inode,
 			alloc_end = round_up(offset + len, sectorsize);
 			ret = 0;
 		} else if (ret == RANGE_BOUNDARY_WRITTEN_EXTENT) {
-			ret = btrfs_truncate_block(inode, offset + len, 0, 1);
+			ret = btrfs_truncate_block(BTRFS_I(inode), offset + len,
+						   0, 1);
 			if (ret)
 				goto out;
 		} else {
@@ -3355,7 +3358,7 @@ static long btrfs_fallocate(struct file *file, int mode,
 		 * need to zero out the end of the block if i_size lands in the
 		 * middle of a block.
 		 */
-		ret = btrfs_truncate_block(inode, inode->i_size, 0, 0);
+		ret = btrfs_truncate_block(BTRFS_I(inode), inode->i_size, 0, 0);
 		if (ret)
 			goto out;
 	}
