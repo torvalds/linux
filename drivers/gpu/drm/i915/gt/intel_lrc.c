@@ -4994,7 +4994,9 @@ gen12_emit_fini_breadcrumb_tail(struct i915_request *request, u32 *cs)
 
 static u32 *gen12_emit_fini_breadcrumb(struct i915_request *rq, u32 *cs)
 {
-	return gen12_emit_fini_breadcrumb_tail(rq, emit_xcs_breadcrumb(rq, cs));
+	/* XXX Stalling flush before seqno write; post-sync not */
+	cs = emit_xcs_breadcrumb(rq, __gen8_emit_flush_dw(cs, 0, 0, 0));
+	return gen12_emit_fini_breadcrumb_tail(rq, cs);
 }
 
 static u32 *
