@@ -352,6 +352,12 @@ sub output_rest {
 
 		if (!($desc =~ /^\s*$/)) {
 			if ($description_is_rst) {
+				# Remove title markups from the description
+				# Having titles inside ABI files will only work if extra
+				# care would be taken in order to strictly follow the same
+				# level order for each markup.
+				$desc =~ s/\n[\-\*\=\^\~]+\n/\n\n/g;
+
 				# Enrich text by creating cross-references
 
 				$desc =~ s,Documentation/(?!devicetree)(\S+)\.rst,:doc:`/$1`,g;
