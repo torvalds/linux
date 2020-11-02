@@ -313,6 +313,8 @@ static void bcm_iproc_i2c_slave_init(
 
 	/* Enable interrupt register to indicate a valid byte in receive fifo */
 	val = BIT(IE_S_RX_EVENT_SHIFT);
+	/* Enable interrupt register to indicate Slave Rx FIFO Full */
+	val |= BIT(IE_S_RX_FIFO_FULL_SHIFT);
 	/* Enable interrupt register to indicate a Master read transaction */
 	val |= BIT(IE_S_RD_EVENT_SHIFT);
 	/* Enable interrupt register for the Slave BUSY command */
@@ -434,9 +436,15 @@ static bool bcm_iproc_i2c_slave_isr(struct bcm_iproc_i2c_dev *iproc_i2c,
 	 *                    events
 	 * Master-read      : both IS_S_RX_EVENT_SHIFT and IS_S_RD_EVENT_SHIFT
 	 *                    events or only IS_S_RD_EVENT_SHIFT
+	 *
+	 * iproc has a slave rx fifo size of 64 bytes. Rx fifo full interrupt
+	 * (IS_S_RX_FIFO_FULL_SHIFT) will be generated when RX fifo becomes
+	 * full. This can happen if Master issues write requests of more than
+	 * 64 bytes.
 	 */
 	if (status & BIT(IS_S_RX_EVENT_SHIFT) ||
-	    status & BIT(IS_S_RD_EVENT_SHIFT)) {
+	    status & BIT(IS_S_RD_EVENT_SHIFT) ||
+	    status & BIT(IS_S_RX_FIFO_FULL_SHIFT)) {
 		/* disable slave interrupts */
 		val = iproc_i2c_rd_reg(iproc_i2c, IE_OFFSET);
 		val &= ~iproc_i2c->slave_int_mask;
@@ -452,9 +460,14 @@ static bool bcm_iproc_i2c_slave_isr(struct bcm_iproc_i2c_dev *iproc_i2c,
 		/* schedule tasklet to read data later */
 		tasklet_schedule(&iproc_i2c->slave_rx_tasklet);
 
-		/* clear only IS_S_RX_EVENT_SHIFT interrupt */
-		iproc_i2c_wr_reg(iproc_i2c, IS_OFFSET,
-				 BIT(IS_S_RX_EVENT_SHIFT));
+		/*
+		 * clear only IS_S_RX_EVENT_SHIFT and
+		 * IS_S_RX_FIFO_FULL_SHIFT interrupt.
+		 */
+		val = BIT(IS_S_RX_EVENT_SHIFT);
+		if (status & BIT(IS_S_RX_FIFO_FULL_SHIFT))
+			val |= BIT(IS_S_RX_FIFO_FULL_SHIFT);
+		iproc_i2c_wr_reg(iproc_i2c, IS_OFFSET, val);
 	}
 
 	if (status & BIT(IS_S_TX_UNDERRUN_SHIFT)) {
