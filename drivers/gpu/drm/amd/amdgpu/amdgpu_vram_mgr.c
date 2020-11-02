@@ -299,7 +299,7 @@ static void amdgpu_vram_mgr_do_reserve(struct ttm_resource_manager *man)
 		if (drm_mm_reserve_node(mm, &rsv->mm_node))
 			continue;
 
-		dev_dbg(adev->dev, "Reservation 0x%llx - %lld, Successed\n",
+		dev_dbg(adev->dev, "Reservation 0x%llx - %lld, Succeeded\n",
 			rsv->mm_node.start, rsv->mm_node.size);
 
 		vis_usage = amdgpu_vram_mgr_vis_size(adev, &rsv->mm_node);
