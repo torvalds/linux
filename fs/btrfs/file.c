@@ -1628,7 +1628,7 @@ static int btrfs_write_check(struct kiocb *iocb, struct iov_iter *from,
 		/* Expand hole size to cover write data, preventing empty gap */
 		loff_t end_pos = round_up(pos + count, fs_info->sectorsize);
 
-		ret = btrfs_cont_expand(inode, oldsize, end_pos);
+		ret = btrfs_cont_expand(BTRFS_I(inode), oldsize, end_pos);
 		if (ret) {
 			current->backing_dev_info = NULL;
 			return ret;
@@ -3348,7 +3348,7 @@ static long btrfs_fallocate(struct file *file, int mode,
 	 * But that's a minor problem and won't do much harm BTW.
 	 */
 	if (alloc_start > inode->i_size) {
-		ret = btrfs_cont_expand(inode, i_size_read(inode),
+		ret = btrfs_cont_expand(BTRFS_I(inode), i_size_read(inode),
 					alloc_start);
 		if (ret)
 			goto out;

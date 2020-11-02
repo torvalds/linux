@@ -654,7 +654,7 @@ static noinline int btrfs_clone_files(struct file *file, struct file *file_src,
 	if (destoff > inode->i_size) {
 		const u64 wb_start = ALIGN_DOWN(inode->i_size, bs);
 
-		ret = btrfs_cont_expand(inode, inode->i_size, destoff);
+		ret = btrfs_cont_expand(BTRFS_I(inode), inode->i_size, destoff);
 		if (ret)
 			return ret;
 		/*

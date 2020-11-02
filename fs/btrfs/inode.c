@@ -4847,14 +4847,14 @@ static int maybe_insert_hole(struct btrfs_root *root, struct btrfs_inode *inode,
  * these file extents so that btrfs_get_extent will return a EXTENT_MAP_HOLE for
  * the range between oldsize and size
  */
-int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
+int btrfs_cont_expand(struct btrfs_inode *inode, loff_t oldsize, loff_t size)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	struct btrfs_root *root = BTRFS_I(inode)->root;
-	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
+	struct btrfs_root *root = inode->root;
+	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct extent_io_tree *io_tree = &inode->io_tree;
 	struct extent_map *em = NULL;
 	struct extent_state *cached_state = NULL;
-	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
+	struct extent_map_tree *em_tree = &inode->extent_tree;
 	u64 hole_start = ALIGN(oldsize, fs_info->sectorsize);
 	u64 block_end = ALIGN(size, fs_info->sectorsize);
 	u64 last_byte;
@@ -4867,18 +4867,18 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 	 * rest of the block before we expand the i_size, otherwise we could
 	 * expose stale data.
 	 */
-	err = btrfs_truncate_block(BTRFS_I(inode), oldsize, 0, 0);
+	err = btrfs_truncate_block(inode, oldsize, 0, 0);
 	if (err)
 		return err;
 
 	if (size <= hole_start)
 		return 0;
 
-	btrfs_lock_and_flush_ordered_range(BTRFS_I(inode), hole_start,
-					   block_end - 1, &cached_state);
+	btrfs_lock_and_flush_ordered_range(inode, hole_start, block_end - 1,
+					   &cached_state);
 	cur_offset = hole_start;
 	while (1) {
-		em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, cur_offset,
+		em = btrfs_get_extent(inode, NULL, 0, cur_offset,
 				      block_end - cur_offset);
 		if (IS_ERR(em)) {
 			err = PTR_ERR(em);
@@ -4892,22 +4892,22 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 		if (!test_bit(EXTENT_FLAG_PREALLOC, &em->flags)) {
 			struct extent_map *hole_em;
 
-			err = maybe_insert_hole(root, BTRFS_I(inode),
-						cur_offset, hole_size);
+			err = maybe_insert_hole(root, inode, cur_offset,
+						hole_size);
 			if (err)
 				break;
 
-			err = btrfs_inode_set_file_extent_range(BTRFS_I(inode),
+			err = btrfs_inode_set_file_extent_range(inode,
 							cur_offset, hole_size);
 			if (err)
 				break;
 
-			btrfs_drop_extent_cache(BTRFS_I(inode), cur_offset,
+			btrfs_drop_extent_cache(inode, cur_offset,
 						cur_offset + hole_size - 1, 0);
 			hole_em = alloc_extent_map();
 			if (!hole_em) {
 				set_bit(BTRFS_INODE_NEEDS_FULL_SYNC,
-					&BTRFS_I(inode)->runtime_flags);
+					&inode->runtime_flags);
 				goto next;
 			}
 			hole_em->start = cur_offset;
@@ -4927,14 +4927,13 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 				write_unlock(&em_tree->lock);
 				if (err != -EEXIST)
 					break;
-				btrfs_drop_extent_cache(BTRFS_I(inode),
-							cur_offset,
+				btrfs_drop_extent_cache(inode, cur_offset,
 							cur_offset +
 							hole_size - 1, 0);
 			}
 			free_extent_map(hole_em);
 		} else {
-			err = btrfs_inode_set_file_extent_range(BTRFS_I(inode),
+			err = btrfs_inode_set_file_extent_range(inode,
 							cur_offset, hole_size);
 			if (err)
 				break;
@@ -4982,7 +4981,7 @@ static int btrfs_setsize(struct inode *inode, struct iattr *attr)
 		 * this truncation.
 		 */
 		btrfs_drew_write_lock(&root->snapshot_lock);
-		ret = btrfs_cont_expand(inode, oldsize, newsize);
+		ret = btrfs_cont_expand(BTRFS_I(inode), oldsize, newsize);
 		if (ret) {
 			btrfs_drew_write_unlock(&root->snapshot_lock);
 			return ret;

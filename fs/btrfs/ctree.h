@@ -3118,7 +3118,7 @@ int btrfs_update_inode_fallback(struct btrfs_trans_handle *trans,
 int btrfs_orphan_add(struct btrfs_trans_handle *trans,
 		struct btrfs_inode *inode);
 int btrfs_orphan_cleanup(struct btrfs_root *root);
-int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size);
+int btrfs_cont_expand(struct btrfs_inode *inode, loff_t oldsize, loff_t size);
 void btrfs_add_delayed_iput(struct inode *inode);
 void btrfs_run_delayed_iputs(struct btrfs_fs_info *fs_info);
 int btrfs_wait_on_delayed_iputs(struct btrfs_fs_info *fs_info);
