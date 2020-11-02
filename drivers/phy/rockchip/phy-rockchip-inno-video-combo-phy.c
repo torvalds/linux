@@ -855,6 +855,7 @@ static const struct of_device_id inno_video_phy_of_match[] = {
 	{ .compatible = "rockchip,px30-video-phy", },
 	{ .compatible = "rockchip,rk3128-video-phy", },
 	{ .compatible = "rockchip,rk3368-video-phy", },
+	{ .compatible = "rockchip,rk3568-video-phy", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, inno_video_phy_of_match);

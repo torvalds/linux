@@ -5,6 +5,7 @@ Required properties:
 	"rockchip,px30-video-phy",
 	"rockchip,rk3128-video-phy",
 	"rockchip,rk3368-video-phy";
+	"rockchip,rk3568-video-phy";
  - reg : the address offset of register for phy and host configuration.
  - #phy-cells : must be 0. See ./phy-bindings.txt for details.
  - clocks: must include clock specifiers corresponding to entries in the
