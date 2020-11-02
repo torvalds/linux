@@ -212,7 +212,7 @@ static int __btree_node_reclaim(struct bch_fs *c, struct btree *b, bool flush)
 		 * - unless btree verify mode is enabled, since it runs out of
 		 * the post write cleanup:
 		 */
-		if (verify_btree_ondisk(c))
+		if (bch2_verify_btree_ondisk)
 			bch2_btree_node_write(c, b, SIX_LOCK_intent);
 		else
 			__bch2_btree_node_write(c, b, SIX_LOCK_read);
@@ -255,7 +255,7 @@ static unsigned long bch2_btree_cache_scan(struct shrinker *shrink,
 	unsigned long freed = 0;
 	unsigned i, flags;
 
-	if (btree_shrinker_disabled(c))
+	if (bch2_btree_shrinker_disabled)
 		return SHRINK_STOP;
 
 	/* Return -1 if we can't do anything right now */
@@ -342,7 +342,7 @@ static unsigned long bch2_btree_cache_count(struct shrinker *shrink,
 					btree_cache.shrink);
 	struct btree_cache *bc = &c->btree_cache;
 
-	if (btree_shrinker_disabled(c))
+	if (bch2_btree_shrinker_disabled)
 		return 0;
 
 	return btree_cache_can_free(bc) * btree_pages(c);
@@ -591,7 +591,7 @@ out:
 	b->sib_u64s[0]		= 0;
 	b->sib_u64s[1]		= 0;
 	b->whiteout_u64s	= 0;
-	bch2_btree_keys_init(b, &c->expensive_debug_checks);
+	bch2_btree_keys_init(b);
 
 	bch2_time_stats_update(&c->times[BCH_TIME_btree_node_mem_alloc],
 			       start_time);

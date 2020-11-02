@@ -74,7 +74,7 @@ static inline void bch2_wake_allocator(struct bch_dev *ca)
 static inline void verify_not_on_freelist(struct bch_fs *c, struct bch_dev *ca,
 					  size_t bucket)
 {
-	if (expensive_debug_checks(c)) {
+	if (bch2_expensive_debug_checks) {
 		size_t iter;
 		long i;
 		unsigned j;

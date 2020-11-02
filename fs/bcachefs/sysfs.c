@@ -208,12 +208,6 @@ read_attribute(io_timers_write);
 write_attribute(perf_test);
 #endif /* CONFIG_BCACHEFS_TESTS */
 
-#define BCH_DEBUG_PARAM(name, description)				\
-	rw_attribute(name);
-
-	BCH_DEBUG_PARAMS()
-#undef BCH_DEBUG_PARAM
-
 #define x(_name)						\
 	static struct attribute sysfs_time_stat_##_name =		\
 		{ .name = #_name, .mode = S_IRUGO };
@@ -414,10 +408,6 @@ SHOW(bch2_fs)
 		return out.pos - buf;
 	}
 
-#define BCH_DEBUG_PARAM(name, description) sysfs_print(name, c->name);
-	BCH_DEBUG_PARAMS()
-#undef BCH_DEBUG_PARAM
-
 	return 0;
 }
 
@@ -461,10 +451,6 @@ STORE(bch2_fs)
 	sysfs_strtoul(promote_whole_extents,	c->promote_whole_extents);
 
 	/* Debugging: */
-
-#define BCH_DEBUG_PARAM(name, description) sysfs_strtoul(name, c->name);
-	BCH_DEBUG_PARAMS()
-#undef BCH_DEBUG_PARAM
 
 	if (!test_bit(BCH_FS_STARTED, &c->flags))
 		return -EPERM;
@@ -590,11 +576,6 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_io_timers_write,
 
 	&sysfs_internal_uuid,
-
-#define BCH_DEBUG_PARAM(name, description) &sysfs_##name,
-	BCH_DEBUG_PARAMS()
-#undef BCH_DEBUG_PARAM
-
 	NULL
 };
 

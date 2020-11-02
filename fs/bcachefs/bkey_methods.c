@@ -236,7 +236,7 @@ enum merge_result bch2_bkey_merge(struct bch_fs *c,
 	const struct bkey_ops *ops = &bch2_bkey_ops[l.k->type];
 	enum merge_result ret;
 
-	if (key_merging_disabled(c) ||
+	if (bch2_key_merging_disabled ||
 	    !ops->key_merge ||
 	    l.k->type != r.k->type ||
 	    bversion_cmp(l.k->version, r.k->version) ||

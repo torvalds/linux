@@ -101,7 +101,7 @@ static int bch2_gc_mark_key(struct bch_fs *c, struct bkey_s_c k,
 	int ret = 0;
 
 	if (initial) {
-		BUG_ON(journal_seq_verify(c) &&
+		BUG_ON(bch2_journal_seq_verify &&
 		       k.k->version.lo > journal_cur_seq(&c->journal));
 
 		/* XXX change to fsck check */
@@ -209,7 +209,7 @@ static int bch2_gc_btree(struct bch_fs *c, enum btree_id btree_id,
 	struct btree_iter *iter;
 	struct btree *b;
 	unsigned depth = metadata_only			? 1
-		: expensive_debug_checks(c)		? 0
+		: bch2_expensive_debug_checks		? 0
 		: !btree_node_type_needs_gc(btree_id)	? 1
 		: 0;
 	u8 max_stale = 0;
@@ -236,8 +236,8 @@ static int bch2_gc_btree(struct bch_fs *c, enum btree_id btree_id,
 						BTREE_INSERT_USE_RESERVE|
 						BTREE_INSERT_NOWAIT|
 						BTREE_INSERT_GC_LOCK_HELD);
-			else if (!btree_gc_rewrite_disabled(c) &&
-				 (btree_gc_always_rewrite(c) || max_stale > 16))
+			else if (!bch2_btree_gc_rewrite_disabled &&
+				 (bch2_btree_gc_always_rewrite || max_stale > 16))
 				bch2_btree_node_rewrite(c, iter,
 						b->data->keys.seq,
 						BTREE_INSERT_NOWAIT|
@@ -328,7 +328,7 @@ static int bch2_gc_btree_init(struct bch_fs *c,
 {
 	struct btree *b;
 	unsigned target_depth = metadata_only		? 1
-		: expensive_debug_checks(c)		? 0
+		: bch2_expensive_debug_checks		? 0
 		: !btree_node_type_needs_gc(btree_id)	? 1
 		: 0;
 	u8 max_stale = 0;
@@ -835,7 +835,7 @@ again:
 out:
 	if (!ret &&
 	    (test_bit(BCH_FS_FIXED_GENS, &c->flags) ||
-	     (!iter && test_restart_gc(c)))) {
+	     (!iter && bch2_test_restart_gc))) {
 		/*
 		 * XXX: make sure gens we fixed got saved
 		 */

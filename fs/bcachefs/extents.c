@@ -88,7 +88,7 @@ static inline bool ptr_better(struct bch_fs *c,
 		return bch2_rand_range(l1 + l2) > l1;
 	}
 
-	if (force_reconstruct_read(c))
+	if (bch2_force_reconstruct_read)
 		return p1.idx > p2.idx;
 
 	return p1.idx < p2.idx;
@@ -136,7 +136,7 @@ int bch2_bkey_pick_read_device(struct bch_fs *c, struct bkey_s_c k,
 		    !bch2_dev_is_readable(ca))
 			p.idx++;
 
-		if (force_reconstruct_read(c) &&
+		if (bch2_force_reconstruct_read &&
 		    !p.idx && p.has_ec)
 			p.idx++;
 

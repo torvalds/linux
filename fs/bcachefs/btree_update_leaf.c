@@ -220,7 +220,7 @@ static inline void btree_insert_entry_checks(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 
 	BUG_ON(bkey_cmp(insert->k.p, iter->pos));
-	BUG_ON(debug_check_bkeys(c) &&
+	BUG_ON(bch2_debug_check_bkeys &&
 	       bch2_bkey_invalid(c, bkey_i_to_s_c(insert),
 				 __btree_node_type(iter->level, iter->btree_id)));
 }
@@ -440,10 +440,10 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 	 */
 
 	if (!(trans->flags & BTREE_INSERT_JOURNAL_REPLAY)) {
-		if (journal_seq_verify(c))
+		if (bch2_journal_seq_verify)
 			trans_for_each_update2(trans, i)
 				i->k->k.version.lo = trans->journal_res.seq;
-		else if (inject_invalid_keys(c))
+		else if (bch2_inject_invalid_keys)
 			trans_for_each_update2(trans, i)
 				i->k->k.version = MAX_VERSION;
 	}

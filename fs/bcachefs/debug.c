@@ -54,7 +54,7 @@ void __bch2_btree_verify(struct bch_fs *c, struct btree *b)
 	v->written	= 0;
 	v->c.level	= b->c.level;
 	v->c.btree_id	= b->c.btree_id;
-	bch2_btree_keys_init(v, &c->expensive_debug_checks);
+	bch2_btree_keys_init(v);
 
 	if (bch2_bkey_pick_read_device(c, bkey_i_to_s_c(&b->key),
 				       NULL, &pick) <= 0)

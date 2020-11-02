@@ -487,7 +487,7 @@ static void bch2_btree_iter_verify_level(struct btree_iter *iter,
 	char buf1[100], buf2[100];
 	const char *msg;
 
-	if (!debug_check_iterators(iter->trans->c))
+	if (!bch2_debug_check_iterators)
 		return;
 
 	if (btree_iter_type(iter) == BTREE_ITER_CACHED) {
@@ -583,7 +583,7 @@ void bch2_btree_trans_verify_iters(struct btree_trans *trans, struct btree *b)
 {
 	struct btree_iter *iter;
 
-	if (!debug_check_iterators(trans->c))
+	if (!bch2_debug_check_iterators)
 		return;
 
 	trans_for_each_iter_with_node(trans, b, iter)
@@ -755,7 +755,7 @@ void bch2_btree_node_iter_fix(struct btree_iter *iter,
 		__bch2_btree_node_iter_fix(iter, b, node_iter, t,
 					   where, clobber_u64s, new_u64s);
 
-		if (debug_check_iterators(iter->trans->c))
+		if (bch2_debug_check_iterators)
 			bch2_btree_node_iter_verify(node_iter, b);
 	}
 
@@ -785,7 +785,7 @@ static inline struct bkey_s_c __btree_iter_unpack(struct btree_iter *iter,
 
 	ret = bkey_disassemble(l->b, k, u);
 
-	if (debug_check_bkeys(iter->trans->c))
+	if (bch2_debug_check_bkeys)
 		bch2_bkey_debugcheck(iter->trans->c, l->b, ret);
 
 	return ret;
@@ -1566,13 +1566,13 @@ static inline struct bkey_s_c btree_iter_peek_uptodate(struct btree_iter *iter)
 
 		ret.v = bkeyp_val(&l->b->format, _k);
 
-		if (debug_check_iterators(iter->trans->c)) {
+		if (bch2_debug_check_iterators) {
 			struct bkey k = bkey_unpack_key(l->b, _k);
 
 			BUG_ON(memcmp(&k, &iter->k, sizeof(k)));
 		}
 
-		if (debug_check_bkeys(iter->trans->c))
+		if (bch2_debug_check_bkeys)
 			bch2_bkey_debugcheck(iter->trans->c, l->b, ret);
 	}
 

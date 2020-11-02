@@ -5,7 +5,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 
-#include "bcachefs_format.h"
+#include "bcachefs.h"
 #include "bkey.h"
 #include "bkey_methods.h"
 #include "btree_types.h"
@@ -147,17 +147,6 @@
  * first key in that range of bytes again.
  */
 
-extern bool bch2_expensive_debug_checks;
-
-static inline bool btree_keys_expensive_checks(const struct btree *b)
-{
-#ifdef CONFIG_BCACHEFS_DEBUG
-	return bch2_expensive_debug_checks || *b->expensive_debug_checks;
-#else
-	return false;
-#endif
-}
-
 enum bset_aux_tree_type {
 	BSET_NO_AUX_TREE,
 	BSET_RO_AUX_TREE,
@@ -228,7 +217,7 @@ __bkey_unpack_key_format_checked(const struct btree *b,
 		compiled_unpack_fn unpack_fn = b->aux_data;
 		unpack_fn(dst, src);
 
-		if (btree_keys_expensive_checks(b)) {
+		if (bch2_expensive_debug_checks) {
 			struct bkey dst2 = __bch2_bkey_unpack_key(&b->format, src);
 
 			BUG_ON(memcmp(dst, &dst2, sizeof(*dst)));
@@ -366,7 +355,7 @@ static inline struct bset *bset_next_set(struct btree *b,
 	return ((void *) i) + round_up(vstruct_bytes(i), block_bytes);
 }
 
-void bch2_btree_keys_init(struct btree *, bool *);
+void bch2_btree_keys_init(struct btree *);
 
 void bch2_bset_init_first(struct btree *, struct bset *);
 void bch2_bset_init_next(struct bch_fs *, struct btree *,
@@ -669,7 +658,7 @@ static inline void bch2_verify_insert_pos(struct btree *b,
 
 static inline void bch2_verify_btree_nr_keys(struct btree *b)
 {
-	if (btree_keys_expensive_checks(b))
+	if (bch2_expensive_debug_checks)
 		__bch2_verify_btree_nr_keys(b);
 }
 

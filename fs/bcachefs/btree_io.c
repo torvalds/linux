@@ -1044,7 +1044,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct btree *b, bool have_retry
 		const char *invalid = bch2_bkey_val_invalid(c, u.s_c);
 
 		if (invalid ||
-		    (inject_invalid_keys(c) &&
+		    (bch2_inject_invalid_keys &&
 		     !bversion_cmp(u.k->version, MAX_VERSION))) {
 			char buf[160];
 

@@ -295,6 +295,16 @@ do {									\
 #define BCH_DEBUG_PARAMS() BCH_DEBUG_PARAMS_ALWAYS()
 #endif
 
+#define BCH_DEBUG_PARAM(name, description) extern bool bch2_##name;
+BCH_DEBUG_PARAMS()
+#undef BCH_DEBUG_PARAM
+
+#ifndef CONFIG_BCACHEFS_DEBUG
+#define BCH_DEBUG_PARAM(name, description) static const bool bch2_##name;
+BCH_DEBUG_PARAMS_DEBUG()
+#undef BCH_DEBUG_PARAM
+#endif
+
 #define BCH_TIME_STATS()			\
 	x(btree_node_mem_alloc)			\
 	x(btree_node_split)			\
@@ -726,7 +736,7 @@ struct bch_fs {
 	struct bio_set		bio_read_split;
 	struct bio_set		bio_write;
 	struct mutex		bio_bounce_pages_lock;
-	mempool_t		bio_bounce_pages;
+mempool_t		bio_bounce_pages;
 	struct rhashtable	promote_table;
 
 	mempool_t		compression_bounce[2];
@@ -830,10 +840,6 @@ struct bch_fs {
 	unsigned		btree_gc_periodic:1;
 	unsigned		copy_gc_enabled:1;
 	bool			promote_whole_extents;
-
-#define BCH_DEBUG_PARAM(name, description) bool name;
-	BCH_DEBUG_PARAMS_ALL()
-#undef BCH_DEBUG_PARAM
 
 	struct bch2_time_stats	times[BCH_TIME_STAT_NR];
 };

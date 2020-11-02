@@ -8,44 +8,15 @@ struct bio;
 struct btree;
 struct bch_fs;
 
-#define BCH_DEBUG_PARAM(name, description) extern bool bch2_##name;
-BCH_DEBUG_PARAMS()
-#undef BCH_DEBUG_PARAM
-
-#define BCH_DEBUG_PARAM(name, description)				\
-	static inline bool name(struct bch_fs *c)			\
-	{ return bch2_##name || c->name;	}
-BCH_DEBUG_PARAMS_ALWAYS()
-#undef BCH_DEBUG_PARAM
-
 #ifdef CONFIG_BCACHEFS_DEBUG
-
-#define BCH_DEBUG_PARAM(name, description)				\
-	static inline bool name(struct bch_fs *c)			\
-	{ return bch2_##name || c->name;	}
-BCH_DEBUG_PARAMS_DEBUG()
-#undef BCH_DEBUG_PARAM
-
 void __bch2_btree_verify(struct bch_fs *, struct btree *);
-
-#define bypass_torture_test(d)		((d)->bypass_torture_test)
-
-#else /* DEBUG */
-
-#define BCH_DEBUG_PARAM(name, description)				\
-	static inline bool name(struct bch_fs *c) { return false; }
-BCH_DEBUG_PARAMS_DEBUG()
-#undef BCH_DEBUG_PARAM
-
+#else
 static inline void __bch2_btree_verify(struct bch_fs *c, struct btree *b) {}
-
-#define bypass_torture_test(d)		0
-
 #endif
 
 static inline void bch2_btree_verify(struct bch_fs *c, struct btree *b)
 {
-	if (verify_btree_ondisk(c))
+	if (bch2_verify_btree_ondisk)
 		__bch2_btree_verify(c, b);
 }
 
