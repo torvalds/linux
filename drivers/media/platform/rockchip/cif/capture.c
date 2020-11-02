@@ -2779,8 +2779,8 @@ static int rkcif_s_crop(struct file *file, void *fh, const struct v4l2_crop *a)
 
 	if (stream->crop_mask & CROP_SRC_SENSOR) {
 		sensor_crop = stream->crop[CROP_SRC_SENSOR];
-		if (sensor_crop.left + rect->left  + rect->width > sensor_crop.width ||
-		    sensor_crop.top + rect->top + rect->height > sensor_crop.height) {
+		if (rect->left + rect->width > sensor_crop.width ||
+		    rect->top + rect->height > sensor_crop.height) {
 			v4l2_err(&dev->v4l2_dev, "crop size is bigger than sensor input:left:%d, top:%d, width:%d, height:%d\n",
 				 sensor_crop.left, sensor_crop.top, sensor_crop.width, sensor_crop.height);
 			return -EINVAL;
