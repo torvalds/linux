@@ -2516,14 +2516,14 @@ static int btrfs_punch_hole_lock_range(struct inode *inode,
 }
 
 static int btrfs_insert_replace_extent(struct btrfs_trans_handle *trans,
-				     struct inode *inode,
+				     struct btrfs_inode *inode,
 				     struct btrfs_path *path,
 				     struct btrfs_replace_extent_info *extent_info,
 				     const u64 replace_len,
 				     const u64 bytes_to_drop)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_fs_info *fs_info = trans->fs_info;
+	struct btrfs_root *root = inode->root;
 	struct btrfs_file_extent_item *extent;
 	struct extent_buffer *leaf;
 	struct btrfs_key key;
@@ -2536,11 +2536,11 @@ static int btrfs_insert_replace_extent(struct btrfs_trans_handle *trans,
 
 	if (extent_info->disk_offset == 0 &&
 	    btrfs_fs_incompat(fs_info, NO_HOLES)) {
-		btrfs_update_inode_bytes(BTRFS_I(inode), 0, bytes_to_drop);
+		btrfs_update_inode_bytes(inode, 0, bytes_to_drop);
 		return 0;
 	}
 
-	key.objectid = btrfs_ino(BTRFS_I(inode));
+	key.objectid = btrfs_ino(inode);
 	key.type = BTRFS_EXTENT_DATA_KEY;
 	key.offset = extent_info->file_offset;
 	ret = btrfs_insert_empty_item(trans, root, path, &key,
@@ -2561,25 +2561,25 @@ static int btrfs_insert_replace_extent(struct btrfs_trans_handle *trans,
 	btrfs_mark_buffer_dirty(leaf);
 	btrfs_release_path(path);
 
-	ret = btrfs_inode_set_file_extent_range(BTRFS_I(inode),
-			extent_info->file_offset, replace_len);
+	ret = btrfs_inode_set_file_extent_range(inode, extent_info->file_offset,
+						replace_len);
 	if (ret)
 		return ret;
 
 	/* If it's a hole, nothing more needs to be done. */
 	if (extent_info->disk_offset == 0) {
-		btrfs_update_inode_bytes(BTRFS_I(inode), 0, bytes_to_drop);
+		btrfs_update_inode_bytes(inode, 0, bytes_to_drop);
 		return 0;
 	}
 
-	btrfs_update_inode_bytes(BTRFS_I(inode), replace_len, bytes_to_drop);
+	btrfs_update_inode_bytes(inode, replace_len, bytes_to_drop);
 
 	if (extent_info->is_new_extent && extent_info->insertions == 0) {
 		key.objectid = extent_info->disk_offset;
 		key.type = BTRFS_EXTENT_ITEM_KEY;
 		key.offset = extent_info->disk_len;
 		ret = btrfs_alloc_reserved_file_extent(trans, root,
-						       btrfs_ino(BTRFS_I(inode)),
+						       btrfs_ino(inode),
 						       extent_info->file_offset,
 						       extent_info->qgroup_reserved,
 						       &key);
@@ -2591,7 +2591,7 @@ static int btrfs_insert_replace_extent(struct btrfs_trans_handle *trans,
 				       extent_info->disk_len, 0);
 		ref_offset = extent_info->file_offset - extent_info->data_offset;
 		btrfs_init_data_ref(&ref, root->root_key.objectid,
-				    btrfs_ino(BTRFS_I(inode)), ref_offset);
+				    btrfs_ino(inode), ref_offset);
 		ret = btrfs_inc_extent_ref(trans, &ref);
 	}
 
@@ -2727,9 +2727,9 @@ int btrfs_replace_file_extents(struct inode *inode, struct btrfs_path *path,
 			u64 replace_len = drop_args.drop_end -
 					  extent_info->file_offset;
 
-			ret = btrfs_insert_replace_extent(trans, inode, path,
-							extent_info, replace_len,
-							drop_args.bytes_found);
+			ret = btrfs_insert_replace_extent(trans, BTRFS_I(inode),
+					path, extent_info, replace_len,
+					drop_args.bytes_found);
 			if (ret) {
 				btrfs_abort_transaction(trans, ret);
 				break;
@@ -2826,9 +2826,9 @@ int btrfs_replace_file_extents(struct inode *inode, struct btrfs_path *path,
 
 	}
 	if (extent_info) {
-		ret = btrfs_insert_replace_extent(trans, inode, path, extent_info,
-						  extent_info->data_len,
-						  drop_args.bytes_found);
+		ret = btrfs_insert_replace_extent(trans, BTRFS_I(inode), path,
+				extent_info, extent_info->data_len,
+				drop_args.bytes_found);
 		if (ret) {
 			btrfs_abort_transaction(trans, ret);
 			goto out_trans;
