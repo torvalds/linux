@@ -4186,6 +4186,7 @@ lpfc_idiag_que_param_check(struct lpfc_queue *q, int index, int count)
 /**
  * lpfc_idiag_queacc_read_qe - read a single entry from the given queue index
  * @pbuffer: The pointer to buffer to copy the read data into.
+ * @len: Length of the buffer.
  * @pque: The pointer to the queue to be read.
  * @index: The index into the queue entry.
  *
@@ -4762,7 +4763,7 @@ error_out:
  * @phba: The pointer to hba structure.
  * @pbuffer: The pointer to the buffer to copy the data to.
  * @len: The length of bytes to copied.
- * @drbregid: The id to doorbell registers.
+ * @ctlregid: The id to doorbell registers.
  *
  * Description:
  * This routine reads a control register and copies its content to the
