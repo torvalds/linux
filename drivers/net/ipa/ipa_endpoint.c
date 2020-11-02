@@ -1314,7 +1314,7 @@ static void ipa_endpoint_reset(struct ipa_endpoint *endpoint)
 	 */
 	legacy = ipa->version == IPA_VERSION_3_5_1;
 	special = !endpoint->toward_ipa && endpoint->data->aggregation;
-	if (special && ipa_endpoint_aggr_active(endpoint))
+	if (legacy && special && ipa_endpoint_aggr_active(endpoint))
 		ret = ipa_endpoint_reset_rx_aggr(endpoint);
 	else
 		gsi_channel_reset(&ipa->gsi, channel_id, legacy);
