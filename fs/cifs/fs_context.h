@@ -53,6 +53,103 @@ enum cifs_sec_param {
 	Opt_sec_err
 };
 
+enum cifs_param {
+	/* Mount options that take no arguments */
+	Opt_user_xattr, Opt_nouser_xattr,
+	Opt_forceuid, Opt_noforceuid,
+	Opt_forcegid, Opt_noforcegid,
+	Opt_noblocksend,
+	Opt_noautotune,
+	Opt_nolease,
+	Opt_hard, Opt_nohard,
+	Opt_soft, Opt_nosoft,
+	Opt_perm, Opt_noperm,
+	Opt_nodelete,
+	Opt_mapposix, Opt_nomapposix,
+	Opt_mapchars,
+	Opt_nomapchars,
+	Opt_sfu, Opt_nosfu,
+	Opt_nodfs,
+	Opt_posixpaths, Opt_noposixpaths,
+	Opt_unix, Opt_nounix,
+	Opt_nocase,
+	Opt_brl, Opt_nobrl,
+	Opt_handlecache, Opt_nohandlecache,
+	Opt_forcemandatorylock,
+	Opt_setuidfromacl,
+	Opt_setuids, Opt_nosetuids,
+	Opt_dynperm, Opt_nodynperm,
+	Opt_intr, Opt_nointr,
+	Opt_strictsync, Opt_nostrictsync,
+	Opt_serverino, Opt_noserverino,
+	Opt_rwpidforward,
+	Opt_cifsacl, Opt_nocifsacl,
+	Opt_acl, Opt_noacl,
+	Opt_locallease,
+	Opt_sign,
+	Opt_ignore_signature,
+	Opt_seal,
+	Opt_noac,
+	Opt_fsc,
+	Opt_mfsymlinks,
+	Opt_multiuser,
+	Opt_sloppy,
+	Opt_nosharesock,
+	Opt_persistent, Opt_nopersistent,
+	Opt_resilient, Opt_noresilient,
+	Opt_domainauto,
+	Opt_rdma,
+	Opt_modesid,
+	Opt_rootfs,
+	Opt_multichannel, Opt_nomultichannel,
+	Opt_compress,
+
+	/* Mount options which take numeric value */
+	Opt_backupuid,
+	Opt_backupgid,
+	Opt_uid,
+	Opt_cruid,
+	Opt_gid,
+	Opt_port,
+	Opt_file_mode,
+	Opt_dirmode,
+	Opt_min_enc_offload,
+	Opt_blocksize,
+	Opt_rsize,
+	Opt_wsize,
+	Opt_actimeo,
+	Opt_echo_interval,
+	Opt_max_credits,
+	Opt_snapshot,
+	Opt_max_channels,
+	Opt_handletimeout,
+
+	/* Mount options which take string value */
+	Opt_source,
+	Opt_user,
+	Opt_pass,
+	Opt_ip,
+	Opt_domain,
+	Opt_srcaddr,
+	Opt_iocharset,
+	Opt_netbiosname,
+	Opt_servern,
+	Opt_ver,
+	Opt_vers,
+	Opt_sec,
+	Opt_cache,
+
+	/* Mount options to be ignored */
+	Opt_ignore,
+
+	/* Options which could be blank */
+	Opt_blank_pass,
+	Opt_blank_user,
+	Opt_blank_ip,
+
+	Opt_err
+};
+
 struct smb3_fs_context {
 	bool uid_specified;
 	bool gid_specified;
