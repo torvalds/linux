@@ -247,7 +247,7 @@ static int fsl_xcvr_ai_write(struct fsl_xcvr *xcvr, u8 reg, u32 data, bool phy)
 	regmap_write(xcvr->regmap, FSL_XCVR_PHY_AI_CTRL_TOG, idx);
 
 	ret = regmap_read_poll_timeout(xcvr->regmap, FSL_XCVR_PHY_AI_CTRL, val,
-				       (val & idx) != ((val & tidx) >> 1),
+				       (val & idx) == ((val & tidx) >> 1),
 				       10, 10000);
 	if (ret)
 		dev_err(dev, "AI timeout: failed to set %s reg 0x%02x=0x%08x\n",
