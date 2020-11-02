@@ -1514,7 +1514,7 @@ static const struct file_operations amdgpu_driver_kms_fops = {
 
 int amdgpu_file_to_fpriv(struct file *filp, struct amdgpu_fpriv **fpriv)
 {
-        struct drm_file *file;
+	struct drm_file *file;
 
 	if (!filp)
 		return -EINVAL;

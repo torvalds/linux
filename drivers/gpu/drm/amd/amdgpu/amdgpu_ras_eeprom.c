@@ -27,9 +27,9 @@
 #include <linux/bits.h>
 #include "atom.h"
 
-#define EEPROM_I2C_TARGET_ADDR_VEGA20    	0xA0
-#define EEPROM_I2C_TARGET_ADDR_ARCTURUS  	0xA8
-#define EEPROM_I2C_TARGET_ADDR_ARCTURUS_D342  	0xA0
+#define EEPROM_I2C_TARGET_ADDR_VEGA20		0xA0
+#define EEPROM_I2C_TARGET_ADDR_ARCTURUS		0xA8
+#define EEPROM_I2C_TARGET_ADDR_ARCTURUS_D342	0xA0
 
 /*
  * The 2 macros bellow represent the actual size in bytes that
@@ -124,11 +124,11 @@ static void __decode_table_header_from_buff(struct amdgpu_ras_eeprom_table_heade
 {
 	uint32_t *pp = (uint32_t *)buff;
 
-	hdr->header 	      = le32_to_cpu(pp[0]);
-	hdr->version 	      = le32_to_cpu(pp[1]);
+	hdr->header	      = le32_to_cpu(pp[0]);
+	hdr->version	      = le32_to_cpu(pp[1]);
 	hdr->first_rec_offset = le32_to_cpu(pp[2]);
-	hdr->tbl_size 	      = le32_to_cpu(pp[3]);
-	hdr->checksum 	      = le32_to_cpu(pp[4]);
+	hdr->tbl_size	      = le32_to_cpu(pp[3]);
+	hdr->checksum	      = le32_to_cpu(pp[4]);
 }
 
 static int __update_table_header(struct amdgpu_ras_eeprom_control *control,

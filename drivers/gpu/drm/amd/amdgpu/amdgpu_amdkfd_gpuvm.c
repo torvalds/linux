@@ -1114,19 +1114,19 @@ void amdgpu_amdkfd_gpuvm_destroy_process_vm(struct kgd_dev *kgd, void *vm)
 void amdgpu_amdkfd_gpuvm_release_process_vm(struct kgd_dev *kgd, void *vm)
 {
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
-        struct amdgpu_vm *avm = (struct amdgpu_vm *)vm;
+	struct amdgpu_vm *avm = (struct amdgpu_vm *)vm;
 
 	if (WARN_ON(!kgd || !vm))
-                return;
+		return;
 
-        pr_debug("Releasing process vm %p\n", vm);
+	pr_debug("Releasing process vm %p\n", vm);
 
-        /* The original pasid of amdgpu vm has already been
-         * released during making a amdgpu vm to a compute vm
-         * The current pasid is managed by kfd and will be
-         * released on kfd process destroy. Set amdgpu pasid
-         * to 0 to avoid duplicate release.
-         */
+	/* The original pasid of amdgpu vm has already been
+	 * released during making a amdgpu vm to a compute vm
+	 * The current pasid is managed by kfd and will be
+	 * released on kfd process destroy. Set amdgpu pasid
+	 * to 0 to avoid duplicate release.
+	 */
 	amdgpu_vm_release_compute(adev, avm);
 }
 
@@ -1693,7 +1693,7 @@ int amdgpu_amdkfd_gpuvm_import_dmabuf(struct kgd_dev *kgd,
 
 	INIT_LIST_HEAD(&(*mem)->bo_va_list);
 	mutex_init(&(*mem)->lock);
-	
+
 	(*mem)->alloc_flags =
 		((bo->preferred_domains & AMDGPU_GEM_DOMAIN_VRAM) ?
 		KFD_IOC_ALLOC_MEM_FLAGS_VRAM : KFD_IOC_ALLOC_MEM_FLAGS_GTT)

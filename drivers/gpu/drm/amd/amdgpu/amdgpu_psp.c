@@ -656,14 +656,14 @@ static void psp_prep_ta_load_cmd_buf(struct psp_gfx_cmd_resp *cmd,
 				     uint64_t ta_shared_mc,
 				     uint32_t ta_shared_size)
 {
-	cmd->cmd_id 				= GFX_CMD_ID_LOAD_TA;
+	cmd->cmd_id				= GFX_CMD_ID_LOAD_TA;
 	cmd->cmd.cmd_load_ta.app_phy_addr_lo 	= lower_32_bits(ta_bin_mc);
-	cmd->cmd.cmd_load_ta.app_phy_addr_hi 	= upper_32_bits(ta_bin_mc);
-	cmd->cmd.cmd_load_ta.app_len 		= ta_bin_size;
+	cmd->cmd.cmd_load_ta.app_phy_addr_hi	= upper_32_bits(ta_bin_mc);
+	cmd->cmd.cmd_load_ta.app_len		= ta_bin_size;
 
 	cmd->cmd.cmd_load_ta.cmd_buf_phy_addr_lo = lower_32_bits(ta_shared_mc);
 	cmd->cmd.cmd_load_ta.cmd_buf_phy_addr_hi = upper_32_bits(ta_shared_mc);
-	cmd->cmd.cmd_load_ta.cmd_buf_len 	 = ta_shared_size;
+	cmd->cmd.cmd_load_ta.cmd_buf_len	 = ta_shared_size;
 }
 
 static int psp_xgmi_init_shared_buf(struct psp_context *psp)
@@ -687,9 +687,9 @@ static void psp_prep_ta_invoke_cmd_buf(struct psp_gfx_cmd_resp *cmd,
 				       uint32_t ta_cmd_id,
 				       uint32_t session_id)
 {
-	cmd->cmd_id 				= GFX_CMD_ID_INVOKE_CMD;
-	cmd->cmd.cmd_invoke_cmd.session_id 	= session_id;
-	cmd->cmd.cmd_invoke_cmd.ta_cmd_id 	= ta_cmd_id;
+	cmd->cmd_id				= GFX_CMD_ID_INVOKE_CMD;
+	cmd->cmd.cmd_invoke_cmd.session_id	= session_id;
+	cmd->cmd.cmd_invoke_cmd.ta_cmd_id	= ta_cmd_id;
 }
 
 static int psp_ta_invoke(struct psp_context *psp,
@@ -2588,9 +2588,9 @@ int parse_ta_bin_descriptor(struct psp_context *psp,
 
 	switch (desc->fw_type) {
 	case TA_FW_TYPE_PSP_ASD:
-		psp->asd_fw_version 	   = le32_to_cpu(desc->fw_version);
+		psp->asd_fw_version	   = le32_to_cpu(desc->fw_version);
 		psp->asd_feature_version   = le32_to_cpu(desc->fw_version);
-		psp->asd_ucode_size 	   = le32_to_cpu(desc->size_bytes);
+		psp->asd_ucode_size	   = le32_to_cpu(desc->size_bytes);
 		psp->asd_start_addr 	   = ucode_start_addr;
 		break;
 	case TA_FW_TYPE_PSP_XGMI:

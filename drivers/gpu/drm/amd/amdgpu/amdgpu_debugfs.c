@@ -170,14 +170,14 @@ static void amdgpu_debugfs_autodump_init(struct amdgpu_device *adev)
  *
  * Bit 62:  Indicates a GRBM bank switch is needed
  * Bit 61:  Indicates a SRBM bank switch is needed (implies bit 62 is
- * 			zero)
+ * 	    zero)
  * Bits 24..33: The SE or ME selector if needed
  * Bits 34..43: The SH (or SA) or PIPE selector if needed
  * Bits 44..53: The INSTANCE (or CU/WGP) or QUEUE selector if needed
  *
  * Bit 23:  Indicates that the PM power gating lock should be held
- * 			This is necessary to read registers that might be
- * 			unreliable during a power gating transistion.
+ * 	    This is necessary to read registers that might be
+ * 	    unreliable during a power gating transistion.
  *
  * The lower bits are the BYTE offset of the register to read.  This
  * allows reading multiple registers in a single call and having
@@ -865,7 +865,7 @@ static ssize_t amdgpu_debugfs_wave_read(struct file *f, char __user *buf,
 {
 	struct amdgpu_device *adev = f->f_inode->i_private;
 	int r, x;
-	ssize_t result=0;
+	ssize_t result = 0;
 	uint32_t offset, se, sh, cu, wave, simd, data[32];
 
 	if (size & 3 || *pos & 3)
@@ -1211,7 +1211,7 @@ static const char *debugfs_regs_names[] = {
 
 /**
  * amdgpu_debugfs_regs_init -	Initialize debugfs entries that provide
- * 								register access.
+ * 				register access.
  *
  * @adev: The device to attach the debugfs entries to
  */

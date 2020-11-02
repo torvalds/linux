@@ -987,7 +987,7 @@ void amdgpu_ttm_tt_set_user_pages(struct ttm_tt *ttm, struct page **pages)
 }
 
 /**
- * amdgpu_ttm_tt_pin_userptr - 	prepare the sg table with the user pages
+ * amdgpu_ttm_tt_pin_userptr - prepare the sg table with the user pages
  *
  * Called by amdgpu_ttm_backend_bind()
  **/
