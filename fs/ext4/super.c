@@ -4771,8 +4771,8 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	INIT_LIST_HEAD(&sbi->s_fc_dentry_q[FC_Q_MAIN]);
 	INIT_LIST_HEAD(&sbi->s_fc_dentry_q[FC_Q_STAGING]);
 	sbi->s_fc_bytes = 0;
-	sbi->s_mount_state &= ~EXT4_FC_INELIGIBLE;
-	sbi->s_mount_state &= ~EXT4_FC_COMMITTING;
+	sbi->s_mount_flags &= ~EXT4_MF_FC_INELIGIBLE;
+	sbi->s_mount_flags &= ~EXT4_MF_FC_COMMITTING;
 	spin_lock_init(&sbi->s_fc_lock);
 	memset(&sbi->s_fc_stats, 0, sizeof(sbi->s_fc_stats));
 	sbi->s_fc_replay_state.fc_regions = NULL;

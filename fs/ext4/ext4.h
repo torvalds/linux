@@ -1166,10 +1166,6 @@ struct ext4_inode_info {
 #define	EXT4_VALID_FS			0x0001	/* Unmounted cleanly */
 #define	EXT4_ERROR_FS			0x0002	/* Errors detected */
 #define	EXT4_ORPHAN_FS			0x0004	/* Orphans being recovered */
-#define EXT4_FC_INELIGIBLE		0x0008	/* Fast commit ineligible */
-#define EXT4_FC_COMMITTING		0x0010	/* File system underoing a fast
-						 * commit.
-						 */
 #define EXT4_FC_REPLAY			0x0020	/* Fast commit replay ongoing */
 
 /*
@@ -1431,6 +1427,10 @@ struct ext4_super_block {
  */
 #define EXT4_MF_MNTDIR_SAMPLED		0x0001
 #define EXT4_MF_FS_ABORTED		0x0002	/* Fatal error detected */
+#define EXT4_MF_FC_INELIGIBLE		0x0004	/* Fast commit ineligible */
+#define EXT4_MF_FC_COMMITTING		0x0008	/* File system underoing a fast
+						 * commit.
+						 */
 
 #ifdef CONFIG_FS_ENCRYPTION
 #define DUMMY_ENCRYPTION_ENABLED(sbi) ((sbi)->s_dummy_enc_policy.policy != NULL)
