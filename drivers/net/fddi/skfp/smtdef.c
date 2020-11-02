@@ -22,10 +22,6 @@
 #define OEM_USER_DATA	"SK-NET FDDI V2.0 Userdata"
 #endif
 
-#ifndef	lint
-static const char ID_sccs[] = "@(#)smtdef.c	2.53 99/08/11 (C) SK " ;
-#endif
-
 /*
  * defaults
  */
