@@ -7668,7 +7668,6 @@ megasas_resume(struct pci_dev *pdev)
 
 	host = instance->host;
 	pci_set_power_state(pdev, PCI_D0);
-	pci_enable_wake(pdev, PCI_D0, 0);
 	pci_restore_state(pdev);
 
 	dev_info(&pdev->dev, "%s is called\n", __func__);
