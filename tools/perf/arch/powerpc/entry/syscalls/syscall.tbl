@@ -189,8 +189,8 @@
 142	common	_newselect			sys_select			compat_sys_select
 143	common	flock				sys_flock
 144	common	msync				sys_msync
-145	common	readv				sys_readv			compat_sys_readv
-146	common	writev				sys_writev			compat_sys_writev
+145	common	readv				sys_readv
+146	common	writev				sys_writev
 147	common	getsid				sys_getsid
 148	common	fdatasync			sys_fdatasync
 149	nospu	_sysctl				sys_ni_syscall
