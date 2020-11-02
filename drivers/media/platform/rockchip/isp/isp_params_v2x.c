@@ -4,7 +4,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf2-core.h>
-#include <media/videobuf2-vmalloc.h>	/* for ISP params */
+#include <media/videobuf2-vmalloc.h>   /* for ISP params */
 #include <linux/rk-preisp.h>
 #include "dev.h"
 #include "regs.h"
@@ -3959,9 +3959,14 @@ void __isp_isr_other_config(struct rkisp_isp_params_vdev *params_vdev,
 			ops->ldch_config(params_vdev,
 				&new_params->others.ldch_cfg);
 
-		if (module_en_update & ISP2X_MODULE_LDCH)
-			ops->ldch_enable(params_vdev,
-				!!(module_ens & ISP2X_MODULE_LDCH));
+		if (module_en_update & ISP2X_MODULE_LDCH) {
+			if (params_vdev->first_cfg_params &&
+			    !!(module_ens & ISP2X_MODULE_LDCH))
+				priv_val->delay_en_ldch = true;
+			else
+				ops->ldch_enable(params_vdev,
+						!!(module_ens & ISP2X_MODULE_LDCH));
+		}
 	}
 
 	if ((module_en_update & ISP2X_MODULE_GAIN) ||
@@ -4198,9 +4203,13 @@ rkisp_params_first_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev)
 	priv_val->tmo_en = 0;
 	priv_val->lsc_en = 0;
 	priv_val->mge_en = 0;
+	priv_val->delay_en_ldch = false;
+	params_vdev->first_cfg_params = true;
 	__isp_isr_other_config(params_vdev, params_vdev->isp2x_params, RKISP_PARAMS_ALL);
 	__isp_isr_meas_config(params_vdev, params_vdev->isp2x_params, RKISP_PARAMS_ALL);
 	__preisp_isr_update_hdrae_para(params_vdev, params_vdev->isp2x_params);
+	params_vdev->first_cfg_params = false;
+
 	params_vdev->cur_hdrtmo = params_vdev->isp2x_params->others.hdrtmo_cfg;
 	params_vdev->cur_hdrmge = params_vdev->isp2x_params->others.hdrmge_cfg;
 	params_vdev->last_hdrtmo = params_vdev->cur_hdrtmo;
@@ -4436,6 +4445,17 @@ rkisp_params_isr_v2x(struct rkisp_isp_params_vdev *params_vdev,
 
 		params_vdev->rdbk_times--;
 		if (IS_HDR_RDBK(dev->csi_dev.rd_mode) && !params_vdev->rdbk_times) {
+			struct rkisp_isp_params_val_v2x *priv_val =
+				(struct rkisp_isp_params_val_v2x *)params_vdev->priv_val;
+
+			if (priv_val->delay_en_ldch) {
+				struct rkisp_isp_params_v2x_ops *ops =
+					(struct rkisp_isp_params_v2x_ops *)params_vdev->priv_ops;
+
+				ops->ldch_enable(params_vdev, true);
+				priv_val->delay_en_ldch = false;
+			}
+
 			rkisp_params_cfg_v2x(params_vdev, cur_frame_id, 0, RKISP_PARAMS_SHD);
 			return;
 		}

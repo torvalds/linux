@@ -50,6 +50,7 @@ struct rkisp_isp_params_vdev {
 	struct v4l2_format vdev_fmt;
 	bool streamon;
 	bool first_params;
+	bool first_cfg_params;
 	bool hdrtmo_en;
 
 	enum v4l2_quantization quantization;

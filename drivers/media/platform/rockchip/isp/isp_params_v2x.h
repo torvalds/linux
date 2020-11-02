@@ -334,6 +334,13 @@ struct rkisp_isp_params_val_v2x {
 	u8 tmo_en;
 	u8 lsc_en;
 	u8 mge_en;
+
+	/*
+	 * LDCH will compete with LSC/3DLUT for the DDR bus,
+	 * which may cause LDCH to read the map table exception.
+	 * so enable LDCH in 2th frame.
+	 */
+	bool delay_en_ldch;
 };
 
 int rkisp_init_params_vdev_v2x(struct rkisp_isp_params_vdev *params_vdev);
