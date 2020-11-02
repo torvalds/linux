@@ -92,16 +92,6 @@ static int usb4_switch_op_write_data(struct tb_switch *sw, const void *data,
 	return tb_sw_write(sw, data, TB_CFG_SWITCH, ROUTER_CS_9, dwords);
 }
 
-static int usb4_switch_op_read_metadata(struct tb_switch *sw, u32 *metadata)
-{
-	return tb_sw_read(sw, metadata, TB_CFG_SWITCH, ROUTER_CS_25, 1);
-}
-
-static int usb4_switch_op_write_metadata(struct tb_switch *sw, u32 metadata)
-{
-	return tb_sw_write(sw, &metadata, TB_CFG_SWITCH, ROUTER_CS_25, 1);
-}
-
 static int usb4_do_read_data(u16 address, void *buf, size_t size,
 			     read_block_fn read_block, void *read_block_data)
 {
@@ -171,10 +161,17 @@ static int usb4_do_write_data(unsigned int address, const void *buf, size_t size
 	return 0;
 }
 
-static int usb4_switch_op(struct tb_switch *sw, u16 opcode, u8 *status)
+static int usb4_switch_op(struct tb_switch *sw, u16 opcode, u32 *metadata,
+			  u8 *status)
 {
 	u32 val;
 	int ret;
+
+	if (metadata) {
+		ret = tb_sw_write(sw, metadata, TB_CFG_SWITCH, ROUTER_CS_25, 1);
+		if (ret)
+			return ret;
+	}
 
 	val = opcode | ROUTER_CS_26_OV;
 	ret = tb_sw_write(sw, &val, TB_CFG_SWITCH, ROUTER_CS_26, 1);
@@ -195,7 +192,9 @@ static int usb4_switch_op(struct tb_switch *sw, u16 opcode, u8 *status)
 	if (status)
 		*status = (val & ROUTER_CS_26_STATUS_MASK) >>
 			ROUTER_CS_26_STATUS_SHIFT;
-	return 0;
+
+	return metadata ?
+		tb_sw_read(sw, metadata, TB_CFG_SWITCH, ROUTER_CS_25, 1) : 0;
 }
 
 static void usb4_switch_check_wakes(struct tb_switch *sw)
@@ -350,11 +349,7 @@ static int usb4_switch_drom_read_block(void *data,
 	metadata |= (dwaddress << USB4_DROM_ADDRESS_SHIFT) &
 		USB4_DROM_ADDRESS_MASK;
 
-	ret = usb4_switch_op_write_metadata(sw, metadata);
-	if (ret)
-		return ret;
-
-	ret = usb4_switch_op(sw, USB4_SWITCH_OP_DROM_READ, &status);
+	ret = usb4_switch_op(sw, USB4_SWITCH_OP_DROM_READ, &metadata, &status);
 	if (ret)
 		return ret;
 
@@ -510,16 +505,13 @@ int usb4_switch_nvm_sector_size(struct tb_switch *sw)
 	u8 status;
 	int ret;
 
-	ret = usb4_switch_op(sw, USB4_SWITCH_OP_NVM_SECTOR_SIZE, &status);
+	ret = usb4_switch_op(sw, USB4_SWITCH_OP_NVM_SECTOR_SIZE, &metadata,
+			     &status);
 	if (ret)
 		return ret;
 
 	if (status)
 		return status == 0x2 ? -EOPNOTSUPP : -EIO;
-
-	ret = usb4_switch_op_read_metadata(sw, &metadata);
-	if (ret)
-		return ret;
 
 	return metadata & USB4_NVM_SECTOR_SIZE_MASK;
 }
@@ -537,11 +529,7 @@ static int usb4_switch_nvm_read_block(void *data,
 	metadata |= (dwaddress << USB4_NVM_READ_OFFSET_SHIFT) &
 		   USB4_NVM_READ_OFFSET_MASK;
 
-	ret = usb4_switch_op_write_metadata(sw, metadata);
-	if (ret)
-		return ret;
-
-	ret = usb4_switch_op(sw, USB4_SWITCH_OP_NVM_READ, &status);
+	ret = usb4_switch_op(sw, USB4_SWITCH_OP_NVM_READ, &metadata, &status);
 	if (ret)
 		return ret;
 
@@ -579,11 +567,8 @@ static int usb4_switch_nvm_set_offset(struct tb_switch *sw,
 	metadata = (dwaddress << USB4_NVM_SET_OFFSET_SHIFT) &
 		   USB4_NVM_SET_OFFSET_MASK;
 
-	ret = usb4_switch_op_write_metadata(sw, metadata);
-	if (ret)
-		return ret;
-
-	ret = usb4_switch_op(sw, USB4_SWITCH_OP_NVM_SET_OFFSET, &status);
+	ret = usb4_switch_op(sw, USB4_SWITCH_OP_NVM_SET_OFFSET, &metadata,
+			     &status);
 	if (ret)
 		return ret;
 
@@ -601,7 +586,7 @@ static int usb4_switch_nvm_write_next_block(void *data, const void *buf,
 	if (ret)
 		return ret;
 
-	ret = usb4_switch_op(sw, USB4_SWITCH_OP_NVM_WRITE, &status);
+	ret = usb4_switch_op(sw, USB4_SWITCH_OP_NVM_WRITE, NULL, &status);
 	if (ret)
 		return ret;
 
@@ -648,7 +633,7 @@ int usb4_switch_nvm_authenticate(struct tb_switch *sw)
 {
 	int ret;
 
-	ret = usb4_switch_op(sw, USB4_SWITCH_OP_NVM_AUTH, NULL);
+	ret = usb4_switch_op(sw, USB4_SWITCH_OP_NVM_AUTH, NULL, NULL);
 	switch (ret) {
 	/*
 	 * The router is power cycled once NVM_AUTH is started so it is
@@ -714,14 +699,12 @@ int usb4_switch_nvm_authenticate_status(struct tb_switch *sw, u32 *status)
  */
 bool usb4_switch_query_dp_resource(struct tb_switch *sw, struct tb_port *in)
 {
+	u32 metadata = in->port;
 	u8 status;
 	int ret;
 
-	ret = usb4_switch_op_write_metadata(sw, in->port);
-	if (ret)
-		return false;
-
-	ret = usb4_switch_op(sw, USB4_SWITCH_OP_QUERY_DP_RESOURCE, &status);
+	ret = usb4_switch_op(sw, USB4_SWITCH_OP_QUERY_DP_RESOURCE, &metadata,
+			     &status);
 	/*
 	 * If DP resource allocation is not supported assume it is
 	 * always available.
@@ -746,14 +729,12 @@ bool usb4_switch_query_dp_resource(struct tb_switch *sw, struct tb_port *in)
  */
 int usb4_switch_alloc_dp_resource(struct tb_switch *sw, struct tb_port *in)
 {
+	u32 metadata = in->port;
 	u8 status;
 	int ret;
 
-	ret = usb4_switch_op_write_metadata(sw, in->port);
-	if (ret)
-		return ret;
-
-	ret = usb4_switch_op(sw, USB4_SWITCH_OP_ALLOC_DP_RESOURCE, &status);
+	ret = usb4_switch_op(sw, USB4_SWITCH_OP_ALLOC_DP_RESOURCE, &metadata,
+			     &status);
 	if (ret == -EOPNOTSUPP)
 		return 0;
 	else if (ret)
@@ -771,14 +752,12 @@ int usb4_switch_alloc_dp_resource(struct tb_switch *sw, struct tb_port *in)
  */
 int usb4_switch_dealloc_dp_resource(struct tb_switch *sw, struct tb_port *in)
 {
+	u32 metadata = in->port;
 	u8 status;
 	int ret;
 
-	ret = usb4_switch_op_write_metadata(sw, in->port);
-	if (ret)
-		return ret;
-
-	ret = usb4_switch_op(sw, USB4_SWITCH_OP_DEALLOC_DP_RESOURCE, &status);
+	ret = usb4_switch_op(sw, USB4_SWITCH_OP_DEALLOC_DP_RESOURCE, &metadata,
+			     &status);
 	if (ret == -EOPNOTSUPP)
 		return 0;
 	else if (ret)
