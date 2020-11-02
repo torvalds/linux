@@ -963,8 +963,8 @@ struct fw_phy_patch_key {
  * @patch_en_addr: the register of enabling patch mode. Depends on chip.
  * @patch_en_value: patch mode enabled mask. Depends on the firmware.
  * @mode_reg: the regitster of switching the mode.
- * @mod_pre: the mode needing to be set before loading the firmware.
- * @mod_post: the mode to be set when finishing to load the firmware.
+ * @mode_pre: the mode needing to be set before loading the firmware.
+ * @mode_post: the mode to be set when finishing to load the firmware.
  * @reserved: reserved space (unused)
  * @bp_start: the start register of break points. Depends on chip.
  * @bp_num: the break point number which needs to be set for this firmware.
