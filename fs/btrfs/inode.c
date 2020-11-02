@@ -9623,7 +9623,8 @@ out_unlock:
 
 static struct btrfs_trans_handle *insert_prealloc_file_extent(
 				       struct btrfs_trans_handle *trans_in,
-				       struct inode *inode, struct btrfs_key *ins,
+				       struct btrfs_inode *inode,
+				       struct btrfs_key *ins,
 				       u64 file_offset)
 {
 	struct btrfs_file_extent_item stack_fi;
@@ -9644,12 +9645,12 @@ static struct btrfs_trans_handle *insert_prealloc_file_extent(
 	btrfs_set_stack_file_extent_compression(&stack_fi, BTRFS_COMPRESS_NONE);
 	/* Encryption and other encoding is reserved and all 0 */
 
-	ret = btrfs_qgroup_release_data(BTRFS_I(inode), file_offset, len);
+	ret = btrfs_qgroup_release_data(inode, file_offset, len);
 	if (ret < 0)
 		return ERR_PTR(ret);
 
 	if (trans) {
-		ret = insert_reserved_file_extent(trans, BTRFS_I(inode),
+		ret = insert_reserved_file_extent(trans, inode,
 						  file_offset, &stack_fi,
 						  true, ret);
 		if (ret)
@@ -9671,7 +9672,7 @@ static struct btrfs_trans_handle *insert_prealloc_file_extent(
 	if (!path)
 		return ERR_PTR(-ENOMEM);
 
-	ret = btrfs_replace_file_extents(inode, path, file_offset,
+	ret = btrfs_replace_file_extents(&inode->vfs_inode, path, file_offset,
 				     file_offset + len - 1, &extent_info,
 				     &trans);
 	btrfs_free_path(path);
@@ -9727,7 +9728,8 @@ static int __btrfs_prealloc_file_range(struct inode *inode, int mode,
 		clear_offset += ins.offset;
 
 		last_alloc = ins.offset;
-		trans = insert_prealloc_file_extent(trans, inode, &ins, cur_offset);
+		trans = insert_prealloc_file_extent(trans, BTRFS_I(inode),
+						    &ins, cur_offset);
 		/*
 		 * Now that we inserted the prealloc extent we can finally
 		 * decrement the number of reservations in the block group.
