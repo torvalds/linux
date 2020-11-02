@@ -763,9 +763,9 @@ __SYSCALL(__NR_sendmmsg, compat_sys_sendmmsg)
 #define __NR_setns 375
 __SYSCALL(__NR_setns, sys_setns)
 #define __NR_process_vm_readv 376
-__SYSCALL(__NR_process_vm_readv, compat_sys_process_vm_readv)
+__SYSCALL(__NR_process_vm_readv, sys_process_vm_readv)
 #define __NR_process_vm_writev 377
-__SYSCALL(__NR_process_vm_writev, compat_sys_process_vm_writev)
+__SYSCALL(__NR_process_vm_writev, sys_process_vm_writev)
 #define __NR_kcmp 378
 __SYSCALL(__NR_kcmp, sys_kcmp)
 #define __NR_finit_module 379

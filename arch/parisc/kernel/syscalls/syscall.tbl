@@ -372,8 +372,8 @@
 327	common	syncfs			sys_syncfs
 328	common	setns			sys_setns
 329	common	sendmmsg		sys_sendmmsg			compat_sys_sendmmsg
-330	common	process_vm_readv	sys_process_vm_readv		compat_sys_process_vm_readv
-331	common	process_vm_writev	sys_process_vm_writev		compat_sys_process_vm_writev
+330	common	process_vm_readv	sys_process_vm_readv
+331	common	process_vm_writev	sys_process_vm_writev
 332	common	kcmp			sys_kcmp
 333	common	finit_module		sys_finit_module
 334	common	sched_setattr		sys_sched_setattr

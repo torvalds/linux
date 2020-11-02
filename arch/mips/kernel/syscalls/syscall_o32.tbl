@@ -356,8 +356,8 @@
 342	o32	syncfs				sys_syncfs
 343	o32	sendmmsg			sys_sendmmsg			compat_sys_sendmmsg
 344	o32	setns				sys_setns
-345	o32	process_vm_readv		sys_process_vm_readv		compat_sys_process_vm_readv
-346	o32	process_vm_writev		sys_process_vm_writev		compat_sys_process_vm_writev
+345	o32	process_vm_readv		sys_process_vm_readv
+346	o32	process_vm_writev		sys_process_vm_writev
 347	o32	kcmp				sys_kcmp
 348	o32	finit_module			sys_finit_module
 349	o32	sched_setattr			sys_sched_setattr
