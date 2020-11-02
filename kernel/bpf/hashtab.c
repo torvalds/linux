@@ -141,7 +141,6 @@ static void htab_init_buckets(struct bpf_htab *htab)
 {
 	unsigned i;
 
-	lockdep_register_key(&htab->lockdep_key);
 	for (i = 0; i < htab->n_buckets; i++) {
 		INIT_HLIST_NULLS_HEAD(&htab->buckets[i].head, i);
 		if (htab_use_raw_lock(htab)) {
@@ -455,6 +454,8 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 	if (!htab)
 		return ERR_PTR(-ENOMEM);
 
+	lockdep_register_key(&htab->lockdep_key);
+
 	bpf_map_init_from_attr(&htab->map, attr);
 
 	if (percpu_lru) {
@@ -546,6 +547,7 @@ free_map_locked:
 free_charge:
 	bpf_map_charge_finish(&htab->map.memory);
 free_htab:
+	lockdep_unregister_key(&htab->lockdep_key);
 	kfree(htab);
 	return ERR_PTR(err);
 }
@@ -1364,9 +1366,9 @@ static void htab_map_free(struct bpf_map *map)
 
 	free_percpu(htab->extra_elems);
 	bpf_map_area_free(htab->buckets);
-	lockdep_unregister_key(&htab->lockdep_key);
 	for (i = 0; i < HASHTAB_MAP_LOCK_COUNT; i++)
 		free_percpu(htab->map_locked[i]);
+	lockdep_unregister_key(&htab->lockdep_key);
 	kfree(htab);
 }
 
