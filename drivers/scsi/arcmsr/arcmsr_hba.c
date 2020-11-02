@@ -1160,7 +1160,6 @@ static int arcmsr_resume(struct pci_dev *pdev)
 		(struct AdapterControlBlock *)host->hostdata;
 
 	pci_set_power_state(pdev, PCI_D0);
-	pci_enable_wake(pdev, PCI_D0, 0);
 	pci_restore_state(pdev);
 	if (pci_enable_device(pdev)) {
 		pr_warn("%s: pci_enable_device error\n", __func__);
