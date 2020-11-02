@@ -866,11 +866,23 @@ static void logi_dj_recv_queue_notification(struct dj_receiver_dev *djrcv_dev,
 	schedule_work(&djrcv_dev->work);
 }
 
+/*
+ * Some quad/bluetooth keyboards have a builtin touchpad in this case we see
+ * only 1 paired device with a device_type of REPORT_TYPE_KEYBOARD. For the
+ * touchpad to work we must also forward mouse input reports to the dj_hiddev
+ * created for the keyboard (instead of forwarding them to a second paired
+ * device with a device_type of REPORT_TYPE_MOUSE as we normally would).
+ */
+static const u16 kbd_builtin_touchpad_ids[] = {
+	0xb309, /* Dinovo Edge */
+};
+
 static void logi_hidpp_dev_conn_notif_equad(struct hid_device *hdev,
 					    struct hidpp_event *hidpp_report,
 					    struct dj_workitem *workitem)
 {
 	struct dj_receiver_dev *djrcv_dev = hid_get_drvdata(hdev);
+	int i, id;
 
 	workitem->type = WORKITEM_TYPE_PAIRED;
 	workitem->device_type = hidpp_report->params[HIDPP_PARAM_DEVICE_INFO] &
@@ -882,6 +894,13 @@ static void logi_hidpp_dev_conn_notif_equad(struct hid_device *hdev,
 		workitem->reports_supported |= STD_KEYBOARD | MULTIMEDIA |
 					       POWER_KEYS | MEDIA_CENTER |
 					       HIDPP;
+		id = (workitem->quad_id_msb << 8) | workitem->quad_id_lsb;
+		for (i = 0; i < ARRAY_SIZE(kbd_builtin_touchpad_ids); i++) {
+			if (id == kbd_builtin_touchpad_ids[i]) {
+				workitem->reports_supported |= STD_MOUSE;
+				break;
+			}
+		}
 		break;
 	case REPORT_TYPE_MOUSE:
 		workitem->reports_supported |= STD_MOUSE | HIDPP;
