@@ -38,27 +38,27 @@
  * Finally new_i_size should only be set in the case of truncate where we're not
  * ready to use i_size_read() as the limiter yet.
  */
-void btrfs_inode_safe_disk_i_size_write(struct inode *inode, u64 new_i_size)
+void btrfs_inode_safe_disk_i_size_write(struct btrfs_inode *inode, u64 new_i_size)
 {
-	struct btrfs_fs_info *fs_info = BTRFS_I(inode)->root->fs_info;
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	u64 start, end, i_size;
 	int ret;
 
-	i_size = new_i_size ?: i_size_read(inode);
+	i_size = new_i_size ?: i_size_read(&inode->vfs_inode);
 	if (btrfs_fs_incompat(fs_info, NO_HOLES)) {
-		BTRFS_I(inode)->disk_i_size = i_size;
+		inode->disk_i_size = i_size;
 		return;
 	}
 
-	spin_lock(&BTRFS_I(inode)->lock);
-	ret = find_contiguous_extent_bit(&BTRFS_I(inode)->file_extent_tree, 0,
-					 &start, &end, EXTENT_DIRTY);
+	spin_lock(&inode->lock);
+	ret = find_contiguous_extent_bit(&inode->file_extent_tree, 0, &start,
+					 &end, EXTENT_DIRTY);
 	if (!ret && start == 0)
 		i_size = min(i_size, end + 1);
 	else
 		i_size = 0;
-	BTRFS_I(inode)->disk_i_size = i_size;
-	spin_unlock(&BTRFS_I(inode)->lock);
+	inode->disk_i_size = i_size;
+	spin_unlock(&inode->lock);
 }
 
 /**

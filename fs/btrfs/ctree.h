@@ -3042,7 +3042,7 @@ int btrfs_inode_clear_file_extent_range(struct btrfs_inode *inode, u64 start,
 					u64 len);
 int btrfs_inode_set_file_extent_range(struct btrfs_inode *inode, u64 start,
 				      u64 len);
-void btrfs_inode_safe_disk_i_size_write(struct inode *inode, u64 new_i_size);
+void btrfs_inode_safe_disk_i_size_write(struct btrfs_inode *inode, u64 new_i_size);
 u64 btrfs_file_extent_end(const struct btrfs_path *path);
 
 /* inode.c */
