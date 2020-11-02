@@ -3072,7 +3072,7 @@ int btrfs_truncate_block(struct inode *inode, loff_t from, loff_t len,
 			int front);
 int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root,
-			       struct inode *inode, u64 new_size,
+			       struct btrfs_inode *inode, u64 new_size,
 			       u32 min_type);
 
 int btrfs_start_delalloc_snapshot(struct btrfs_root *root);
