@@ -382,7 +382,7 @@ static bool bcm_iproc_i2c_slave_isr(struct bcm_iproc_i2c_dev *iproc_i2c,
 	if (status & BIT(IS_S_START_BUSY_SHIFT)) {
 		i2c_slave_event(iproc_i2c->slave, I2C_SLAVE_STOP, &value);
 		/*
-		 * Enable interrupt for TX FIFO becomes empty and
+		 * Disable interrupt for TX FIFO becomes empty and
 		 * less than PKT_LENGTH bytes were output on the SMBUS
 		 */
 		val = iproc_i2c_rd_reg(iproc_i2c, IE_OFFSET);
