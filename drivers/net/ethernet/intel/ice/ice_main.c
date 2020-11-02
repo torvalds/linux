@@ -2476,6 +2476,22 @@ free_qmap:
 }
 
 /**
+ * ice_vsi_rx_napi_schedule - Schedule napi on RX queues from VSI
+ * @vsi: VSI to schedule napi on
+ */
+static void ice_vsi_rx_napi_schedule(struct ice_vsi *vsi)
+{
+	int i;
+
+	ice_for_each_rxq(vsi, i) {
+		struct ice_ring *rx_ring = vsi->rx_rings[i];
+
+		if (rx_ring->xsk_pool)
+			napi_schedule(&rx_ring->q_vector->napi);
+	}
+}
+
+/**
  * ice_xdp_setup_prog - Add or remove XDP eBPF program
  * @vsi: VSI to setup XDP for
  * @prog: XDP program
@@ -2519,16 +2535,8 @@ ice_xdp_setup_prog(struct ice_vsi *vsi, struct bpf_prog *prog,
 	if (if_running)
 		ret = ice_up(vsi);
 
-	if (!ret && prog && vsi->xsk_pools) {
-		int i;
-
-		ice_for_each_rxq(vsi, i) {
-			struct ice_ring *rx_ring = vsi->rx_rings[i];
-
-			if (rx_ring->xsk_pool)
-				napi_schedule(&rx_ring->q_vector->napi);
-		}
-	}
+	if (!ret && prog)
+		ice_vsi_rx_napi_schedule(vsi);
 
 	return (ret || xdp_ring_err) ? -ENOMEM : 0;
 }
