@@ -7958,7 +7958,7 @@ skip_firing_dcmds:
 
 /**
  * megasas_shutdown -	Shutdown entry point
- * @pdev:		Generic device structure
+ * @pdev:		PCI device structure
  */
 static void megasas_shutdown(struct pci_dev *pdev)
 {
