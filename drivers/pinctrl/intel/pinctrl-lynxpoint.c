@@ -967,13 +967,12 @@ static int __init lp_gpio_init(void)
 {
 	return platform_driver_register(&lp_gpio_driver);
 }
+subsys_initcall(lp_gpio_init);
 
 static void __exit lp_gpio_exit(void)
 {
 	platform_driver_unregister(&lp_gpio_driver);
 }
-
-subsys_initcall(lp_gpio_init);
 module_exit(lp_gpio_exit);
 
 MODULE_AUTHOR("Mathias Nyman (Intel)");
