@@ -111,8 +111,7 @@ int ipa_setup(struct ipa *ipa)
 	struct device *dev = &ipa->pdev->dev;
 	int ret;
 
-	/* Setup for IPA v3.5.1 has some slight differences */
-	ret = gsi_setup(&ipa->gsi, ipa->version == IPA_VERSION_3_5_1);
+	ret = gsi_setup(&ipa->gsi);
 	if (ret)
 		return ret;
 

@@ -166,14 +166,13 @@ struct gsi {
 /**
  * gsi_setup() - Set up the GSI subsystem
  * @gsi:	Address of GSI structure embedded in an IPA structure
- * @legacy:	Set up for legacy hardware
  *
  * Return:	0 if successful, or a negative error code
  *
  * Performs initialization that must wait until the GSI hardware is
  * ready (including firmware loaded).
  */
-int gsi_setup(struct gsi *gsi, bool legacy);
+int gsi_setup(struct gsi *gsi);
 
 /**
  * gsi_teardown() - Tear down GSI subsystem
