@@ -4792,10 +4792,10 @@ out:
 	return ret;
 }
 
-static int maybe_insert_hole(struct btrfs_root *root, struct inode *inode,
+static int maybe_insert_hole(struct btrfs_root *root, struct btrfs_inode *inode,
 			     u64 offset, u64 len)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_trans_handle *trans;
 	struct btrfs_drop_extents_args drop_args = { 0 };
 	int ret;
@@ -4805,9 +4805,9 @@ static int maybe_insert_hole(struct btrfs_root *root, struct inode *inode,
 	 * that any holes get logged if we fsync.
 	 */
 	if (btrfs_fs_incompat(fs_info, NO_HOLES)) {
-		BTRFS_I(inode)->last_trans = fs_info->generation;
-		BTRFS_I(inode)->last_sub_trans = root->log_transid;
-		BTRFS_I(inode)->last_log_commit = root->last_log_commit;
+		inode->last_trans = fs_info->generation;
+		inode->last_sub_trans = root->log_transid;
+		inode->last_log_commit = root->last_log_commit;
 		return 0;
 	}
 
@@ -4824,20 +4824,20 @@ static int maybe_insert_hole(struct btrfs_root *root, struct inode *inode,
 	drop_args.end = offset + len;
 	drop_args.drop_cache = true;
 
-	ret = btrfs_drop_extents(trans, root, BTRFS_I(inode), &drop_args);
+	ret = btrfs_drop_extents(trans, root, inode, &drop_args);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		btrfs_end_transaction(trans);
 		return ret;
 	}
 
-	ret = btrfs_insert_file_extent(trans, root, btrfs_ino(BTRFS_I(inode)),
+	ret = btrfs_insert_file_extent(trans, root, btrfs_ino(inode),
 			offset, 0, 0, len, 0, len, 0, 0, 0);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 	} else {
-		btrfs_update_inode_bytes(BTRFS_I(inode), 0, drop_args.bytes_found);
-		btrfs_update_inode(trans, root, BTRFS_I(inode));
+		btrfs_update_inode_bytes(inode, 0, drop_args.bytes_found);
+		btrfs_update_inode(trans, root, inode);
 	}
 	btrfs_end_transaction(trans);
 	return ret;
@@ -4894,8 +4894,8 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 		if (!test_bit(EXTENT_FLAG_PREALLOC, &em->flags)) {
 			struct extent_map *hole_em;
 
-			err = maybe_insert_hole(root, inode, cur_offset,
-						hole_size);
+			err = maybe_insert_hole(root, BTRFS_I(inode),
+						cur_offset, hole_size);
 			if (err)
 				break;
 
