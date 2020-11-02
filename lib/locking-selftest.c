@@ -2009,6 +2009,19 @@ static void ww_test_spin_nest_unlocked(void)
 	U(A);
 }
 
+/* This is not a deadlock, because we have X1 to serialize Y1 and Y2 */
+static void ww_test_spin_nest_lock(void)
+{
+	spin_lock(&lock_X1);
+	spin_lock_nest_lock(&lock_Y1, &lock_X1);
+	spin_lock(&lock_A);
+	spin_lock_nest_lock(&lock_Y2, &lock_X1);
+	spin_unlock(&lock_A);
+	spin_unlock(&lock_Y2);
+	spin_unlock(&lock_Y1);
+	spin_unlock(&lock_X1);
+}
+
 static void ww_test_unneeded_slow(void)
 {
 	WWAI(&t);
@@ -2224,6 +2237,10 @@ static void ww_tests(void)
 
 	print_testname("spinlock nest unlocked");
 	dotest(ww_test_spin_nest_unlocked, FAILURE, LOCKTYPE_WW);
+	pr_cont("\n");
+
+	print_testname("spinlock nest test");
+	dotest(ww_test_spin_nest_lock, SUCCESS, LOCKTYPE_WW);
 	pr_cont("\n");
 
 	printk("  -----------------------------------------------------\n");
