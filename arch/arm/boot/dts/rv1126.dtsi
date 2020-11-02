@@ -1973,6 +1973,7 @@
 				       <400000000>;
 		power-domains = <&power RV1126_PD_ISPP>;
 		iommus = <&rkispp_mmu>;
+		rockchip,restart-monitor-en;
 		status = "disabled";
 	};
 
