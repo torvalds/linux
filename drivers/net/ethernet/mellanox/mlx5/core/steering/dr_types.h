@@ -790,6 +790,7 @@ struct mlx5dr_cmd_caps {
 	struct mlx5dr_cmd_vport_cap *vports_caps;
 	bool prio_tag_required;
 	struct mlx5dr_roce_cap roce_caps;
+	u8 isolate_vl_tc:1;
 };
 
 struct mlx5dr_domain_rx_tx {
@@ -1164,6 +1165,7 @@ struct mlx5dr_cmd_qp_create_attr {
 	u32 sq_wqe_cnt;
 	u32 rq_wqe_cnt;
 	u32 rq_wqe_shift;
+	u8 isolate_vl_tc:1;
 };
 
 int mlx5dr_cmd_query_gid(struct mlx5_core_dev *mdev, u8 vhca_port_num,
