@@ -1633,8 +1633,6 @@ struct hl_mmu_funcs {
  * @pmmu_huge_range: is a different virtual addresses range used for PMMU with
  *                   huge pages.
  * @init_done: is the initialization of the device done.
- * @mmu_enable: is MMU enabled.
- * @mmu_huge_page_opt: is MMU huge pages optimization enabled.
  * @device_cpu_disabled: is the device CPU disabled (due to timeouts)
  * @dma_mask: the dma mask that was set for this device
  * @in_debug: is device under debug. This, together with fpriv_list, enforces
@@ -1750,6 +1748,7 @@ struct hl_device {
 	u8				supports_cb_mapping;
 
 	/* Parameters for bring-up */
+	u64				nic_ports_mask;
 	u64				fw_loading;
 	u8				mmu_enable;
 	u8				mmu_huge_page_opt;
