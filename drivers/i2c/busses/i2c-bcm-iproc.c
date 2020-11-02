@@ -93,6 +93,7 @@
 #define S_CMD_STATUS_MASK            0x07
 #define S_CMD_STATUS_SUCCESS         0x0
 #define S_CMD_STATUS_TIMEOUT         0x5
+#define S_CMD_STATUS_MASTER_ABORT    0x7
 
 #define IE_OFFSET                    0x38
 #define IE_M_RX_FIFO_FULL_SHIFT      31
@@ -311,9 +312,10 @@ static void bcm_iproc_i2c_check_slave_status(
 		return;
 
 	val = (val >> S_CMD_STATUS_SHIFT) & S_CMD_STATUS_MASK;
-	if (val == S_CMD_STATUS_TIMEOUT) {
-		dev_err(iproc_i2c->device, "slave random stretch time timeout\n");
-
+	if (val == S_CMD_STATUS_TIMEOUT || val == S_CMD_STATUS_MASTER_ABORT) {
+		dev_err(iproc_i2c->device, (val == S_CMD_STATUS_TIMEOUT) ?
+			"slave random stretch time timeout\n" :
+			"Master aborted read transaction\n");
 		/* re-initialize i2c for recovery */
 		bcm_iproc_i2c_enable_disable(iproc_i2c, false);
 		bcm_iproc_i2c_slave_init(iproc_i2c, true);
