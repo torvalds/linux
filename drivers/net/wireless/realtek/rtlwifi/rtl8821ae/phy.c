@@ -2446,8 +2446,9 @@ static s8 _rtl8812ae_phy_get_txpower_limit(struct ieee80211_hw *hw,
 	else if (band == BAND_ON_5G)
 		channel_temp = _rtl8812ae_phy_get_chnl_idx_of_txpwr_lmt(hw,
 		BAND_ON_5G, channel);
-	else if (band == BAND_ON_BOTH)
+	else if (band == BAND_ON_BOTH) {
 		;/* BAND_ON_BOTH don't care temporarily */
+	}
 
 	if (band_temp == -1 || regulation == -1 || bandwidth_temp == -1 ||
 		rate_section == -1 || channel_temp == -1) {
