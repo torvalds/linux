@@ -52,6 +52,25 @@ static void set_aux_backlight_enable(struct intel_dp *intel_dp, bool enable)
 	}
 }
 
+static bool intel_dp_aux_backlight_dpcd_mode(struct intel_connector *connector)
+{
+	struct intel_dp *intel_dp = intel_attached_dp(connector);
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	u8 mode_reg;
+
+	if (drm_dp_dpcd_readb(&intel_dp->aux,
+			      DP_EDP_BACKLIGHT_MODE_SET_REGISTER,
+			      &mode_reg) != 1) {
+		drm_dbg_kms(&i915->drm,
+			    "Failed to read the DPCD register 0x%x\n",
+			    DP_EDP_BACKLIGHT_MODE_SET_REGISTER);
+		return false;
+	}
+
+	return (mode_reg & DP_EDP_BACKLIGHT_CONTROL_MODE_MASK) ==
+	       DP_EDP_BACKLIGHT_CONTROL_MODE_DPCD;
+}
+
 /*
  * Read the current backlight value from DPCD register(s) based
  * on if 8-bit(MSB) or 16-bit(MSB and LSB) values are supported
@@ -61,24 +80,13 @@ static u32 intel_dp_aux_get_backlight(struct intel_connector *connector)
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	u8 read_val[2] = { 0x0 };
-	u8 mode_reg;
 	u16 level = 0;
-
-	if (drm_dp_dpcd_readb(&intel_dp->aux,
-			      DP_EDP_BACKLIGHT_MODE_SET_REGISTER,
-			      &mode_reg) != 1) {
-		drm_dbg_kms(&i915->drm,
-			    "Failed to read the DPCD register 0x%x\n",
-			    DP_EDP_BACKLIGHT_MODE_SET_REGISTER);
-		return 0;
-	}
 
 	/*
 	 * If we're not in DPCD control mode yet, the programmed brightness
 	 * value is meaningless and we should assume max brightness
 	 */
-	if ((mode_reg & DP_EDP_BACKLIGHT_CONTROL_MODE_MASK) !=
-	    DP_EDP_BACKLIGHT_CONTROL_MODE_DPCD)
+	if (!intel_dp_aux_backlight_dpcd_mode(connector))
 		return connector->panel.backlight.max;
 
 	if (drm_dp_dpcd_read(&intel_dp->aux, DP_EDP_BACKLIGHT_BRIGHTNESS_MSB,
@@ -319,7 +327,8 @@ static int intel_dp_aux_setup_backlight(struct intel_connector *connector,
 
 	panel->backlight.min = 0;
 	panel->backlight.level = intel_dp_aux_get_backlight(connector);
-	panel->backlight.enabled = panel->backlight.level != 0;
+	panel->backlight.enabled = intel_dp_aux_backlight_dpcd_mode(connector) &&
+				   panel->backlight.level != 0;
 
 	return 0;
 }

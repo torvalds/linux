@@ -21,6 +21,7 @@
 #include "efx_common.h"
 #include "efx_channels.h"
 #include "nic.h"
+#include "mcdi_port_common.h"
 #include "selftest.h"
 #include "workarounds.h"
 
@@ -67,7 +68,7 @@ static const char *const efx_interrupt_mode_names[] = {
 	STRING_TABLE_LOOKUP(efx->interrupt_mode, efx_interrupt_mode)
 
 /**
- * efx_loopback_state - persistent state during a loopback selftest
+ * struct efx_loopback_state - persistent state during a loopback selftest
  * @flush:		Drop all packets in efx_loopback_rx_packet
  * @packet_count:	Number of packets being used in this test
  * @skbs:		An array of skbs transmitted
@@ -99,10 +100,8 @@ static int efx_test_phy_alive(struct efx_nic *efx, struct efx_self_tests *tests)
 {
 	int rc = 0;
 
-	if (efx->phy_op->test_alive) {
-		rc = efx->phy_op->test_alive(efx);
-		tests->phy_alive = rc ? -1 : 1;
-	}
+	rc = efx_mcdi_phy_test_alive(efx);
+	tests->phy_alive = rc ? -1 : 1;
 
 	return rc;
 }
@@ -257,11 +256,8 @@ static int efx_test_phy(struct efx_nic *efx, struct efx_self_tests *tests,
 {
 	int rc;
 
-	if (!efx->phy_op->run_tests)
-		return 0;
-
 	mutex_lock(&efx->mac_lock);
-	rc = efx->phy_op->run_tests(efx, tests->phy_ext, flags);
+	rc = efx_mcdi_phy_run_tests(efx, tests->phy_ext, flags);
 	mutex_unlock(&efx->mac_lock);
 	if (rc == -EPERM)
 		rc = 0;
@@ -660,8 +656,8 @@ static int efx_test_loopbacks(struct efx_nic *efx, struct efx_self_tests *tests,
 
 		/* Test all enabled types of TX queue */
 		efx_for_each_channel_tx_queue(tx_queue, channel) {
-			state->offload_csum = (tx_queue->label &
-					       EFX_TXQ_TYPE_OFFLOAD);
+			state->offload_csum = (tx_queue->type &
+					       EFX_TXQ_TYPE_OUTER_CSUM);
 			rc = efx_test_loopback(tx_queue,
 					       &tests->loopback[mode]);
 			if (rc)

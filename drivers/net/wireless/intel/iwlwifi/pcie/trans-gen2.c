@@ -162,7 +162,7 @@ void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans)
 	if (test_and_clear_bit(STATUS_DEVICE_ENABLED, &trans->status)) {
 		IWL_DEBUG_INFO(trans,
 			       "DEVICE_ENABLED bit was set and is now cleared\n");
-		iwl_pcie_gen2_tx_stop(trans);
+		iwl_txq_gen2_tx_stop(trans);
 		iwl_pcie_rx_stop(trans);
 	}
 
@@ -245,7 +245,7 @@ static int iwl_pcie_gen2_nic_init(struct iwl_trans *trans)
 		return -ENOMEM;
 
 	/* Allocate or reset and init all Tx and Command queues */
-	if (iwl_pcie_gen2_tx_init(trans, trans->txqs.cmd.q_id, queue_size))
+	if (iwl_txq_gen2_init(trans, trans->txqs.cmd.q_id, queue_size))
 		return -ENOMEM;
 
 	/* enable shadow regs in HW */

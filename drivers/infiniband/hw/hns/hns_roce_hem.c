@@ -338,8 +338,8 @@ static int hns_roce_set_hem(struct hns_roce_dev *hr_dev,
 	void __iomem *bt_cmd;
 	__le32 bt_cmd_val[2];
 	__le32 bt_cmd_h = 0;
-	__le32 bt_cmd_l = 0;
-	u64 bt_ba = 0;
+	__le32 bt_cmd_l;
+	u64 bt_ba;
 	int ret = 0;
 
 	/* Find the HEM(Hardware Entry Memory) entry */
@@ -1027,7 +1027,7 @@ void hns_roce_cleanup_hem(struct hns_roce_dev *hr_dev)
 	if (hr_dev->caps.cqc_timer_entry_sz)
 		hns_roce_cleanup_hem_table(hr_dev,
 					   &hr_dev->cqc_timer_table);
-	if (hr_dev->caps.sccc_entry_sz)
+	if (hr_dev->caps.sccc_sz)
 		hns_roce_cleanup_hem_table(hr_dev,
 					   &hr_dev->qp_table.sccc_table);
 	if (hr_dev->caps.trrl_entry_sz)
@@ -1404,7 +1404,7 @@ int hns_roce_hem_list_request(struct hns_roce_dev *hr_dev,
 {
 	const struct hns_roce_buf_region *r;
 	int ofs, end;
-	int ret = 0;
+	int ret;
 	int unit;
 	int i;
 

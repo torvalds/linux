@@ -15,6 +15,7 @@
 #include "selftest.h"
 #include "rx_common.h"
 #include "ethtool_common.h"
+#include "mcdi_port_common.h"
 
 struct efx_sw_stat_desc {
 	const char *name;
@@ -105,7 +106,6 @@ void efx_ethtool_get_drvinfo(struct net_device *net_dev,
 	struct efx_nic *efx = netdev_priv(net_dev);
 
 	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
-	strlcpy(info->version, EFX_DRIVER_VERSION, sizeof(info->version));
 	efx_mcdi_print_fwver(efx, info->fw_version,
 			     sizeof(info->fw_version));
 	strlcpy(info->bus_info, pci_name(efx->pci_dev), sizeof(info->bus_info));
@@ -221,7 +221,7 @@ int efx_ethtool_set_pauseparam(struct net_device *net_dev,
 	efx_link_set_wanted_fc(efx, wanted_fc);
 	if (efx->link_advertising[0] != old_adv ||
 	    (efx->wanted_fc ^ old_fc) & EFX_FC_AUTO) {
-		rc = efx->phy_op->reconfigure(efx);
+		rc = efx_mcdi_port_reconfigure(efx);
 		if (rc) {
 			netif_err(efx, drv, efx->net_dev,
 				  "Unable to advertise requested flow "
@@ -372,20 +372,15 @@ int efx_ethtool_fill_self_tests(struct efx_nic *efx,
 	efx_fill_test(n++, strings, data, &tests->registers,
 		      "core", 0, "registers", NULL);
 
-	if (efx->phy_op->run_tests != NULL) {
-		EFX_WARN_ON_PARANOID(efx->phy_op->test_name == NULL);
+	for (i = 0; true; ++i) {
+		const char *name;
 
-		for (i = 0; true; ++i) {
-			const char *name;
+		EFX_WARN_ON_PARANOID(i >= EFX_MAX_PHY_TESTS);
+		name = efx_mcdi_phy_test_name(efx, i);
+		if (name == NULL)
+			break;
 
-			EFX_WARN_ON_PARANOID(i >= EFX_MAX_PHY_TESTS);
-			name = efx->phy_op->test_name(efx, i);
-			if (name == NULL)
-				break;
-
-			efx_fill_test(n++, strings, data, &tests->phy_ext[i],
-				      "phy", 0, name, NULL);
-		}
+		efx_fill_test(n++, strings, data, &tests->phy_ext[i], "phy", 0, name, NULL);
 	}
 
 	/* Loopback tests */
@@ -412,7 +407,7 @@ static size_t efx_describe_per_queue_stats(struct efx_nic *efx, u8 *strings)
 				snprintf(strings, ETH_GSTRING_LEN,
 					 "tx-%u.tx_packets",
 					 channel->tx_queue[0].queue /
-					 EFX_TXQ_TYPES);
+					 EFX_MAX_TXQ_PER_CHANNEL);
 
 				strings += ETH_GSTRING_LEN;
 			}
@@ -571,7 +566,7 @@ int efx_ethtool_get_link_ksettings(struct net_device *net_dev,
 	u32 supported;
 
 	mutex_lock(&efx->mac_lock);
-	efx->phy_op->get_link_ksettings(efx, cmd);
+	efx_mcdi_phy_get_link_ksettings(efx, cmd);
 	mutex_unlock(&efx->mac_lock);
 
 	/* Both MACs support pause frames (bidirectional and respond-only) */
@@ -607,7 +602,7 @@ int efx_ethtool_set_link_ksettings(struct net_device *net_dev,
 	}
 
 	mutex_lock(&efx->mac_lock);
-	rc = efx->phy_op->set_link_ksettings(efx, cmd);
+	rc = efx_mcdi_phy_set_link_ksettings(efx, cmd);
 	mutex_unlock(&efx->mac_lock);
 	return rc;
 }
@@ -618,10 +613,8 @@ int efx_ethtool_get_fecparam(struct net_device *net_dev,
 	struct efx_nic *efx = netdev_priv(net_dev);
 	int rc;
 
-	if (!efx->phy_op || !efx->phy_op->get_fecparam)
-		return -EOPNOTSUPP;
 	mutex_lock(&efx->mac_lock);
-	rc = efx->phy_op->get_fecparam(efx, fecparam);
+	rc = efx_mcdi_phy_get_fecparam(efx, fecparam);
 	mutex_unlock(&efx->mac_lock);
 
 	return rc;
@@ -633,10 +626,8 @@ int efx_ethtool_set_fecparam(struct net_device *net_dev,
 	struct efx_nic *efx = netdev_priv(net_dev);
 	int rc;
 
-	if (!efx->phy_op || !efx->phy_op->get_fecparam)
-		return -EOPNOTSUPP;
 	mutex_lock(&efx->mac_lock);
-	rc = efx->phy_op->set_fecparam(efx, fecparam);
+	rc = efx_mcdi_phy_set_fecparam(efx, fecparam);
 	mutex_unlock(&efx->mac_lock);
 
 	return rc;
@@ -1332,11 +1323,8 @@ int efx_ethtool_get_module_eeprom(struct net_device *net_dev,
 	struct efx_nic *efx = netdev_priv(net_dev);
 	int ret;
 
-	if (!efx->phy_op || !efx->phy_op->get_module_eeprom)
-		return -EOPNOTSUPP;
-
 	mutex_lock(&efx->mac_lock);
-	ret = efx->phy_op->get_module_eeprom(efx, ee, data);
+	ret = efx_mcdi_phy_get_module_eeprom(efx, ee, data);
 	mutex_unlock(&efx->mac_lock);
 
 	return ret;
@@ -1348,11 +1336,8 @@ int efx_ethtool_get_module_info(struct net_device *net_dev,
 	struct efx_nic *efx = netdev_priv(net_dev);
 	int ret;
 
-	if (!efx->phy_op || !efx->phy_op->get_module_info)
-		return -EOPNOTSUPP;
-
 	mutex_lock(&efx->mac_lock);
-	ret = efx->phy_op->get_module_info(efx, modinfo);
+	ret = efx_mcdi_phy_get_module_info(efx, modinfo);
 	mutex_unlock(&efx->mac_lock);
 
 	return ret;

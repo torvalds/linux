@@ -72,7 +72,7 @@ struct pasid_entry {
 struct pasid_table {
 	void			*table;		/* pasid table pointer */
 	int			order;		/* page order of pasid table */
-	int			max_pasid;	/* max pasid */
+	u32			max_pasid;	/* max pasid */
 	struct list_head	dev;		/* device list */
 };
 
@@ -98,31 +98,31 @@ static inline bool pasid_pte_is_present(struct pasid_entry *pte)
 	return READ_ONCE(pte->val[0]) & PASID_PTE_PRESENT;
 }
 
-extern u32 intel_pasid_max_id;
+extern unsigned int intel_pasid_max_id;
 int intel_pasid_alloc_id(void *ptr, int start, int end, gfp_t gfp);
-void intel_pasid_free_id(int pasid);
-void *intel_pasid_lookup_id(int pasid);
+void intel_pasid_free_id(u32 pasid);
+void *intel_pasid_lookup_id(u32 pasid);
 int intel_pasid_alloc_table(struct device *dev);
 void intel_pasid_free_table(struct device *dev);
 struct pasid_table *intel_pasid_get_table(struct device *dev);
 int intel_pasid_get_dev_max_id(struct device *dev);
-struct pasid_entry *intel_pasid_get_entry(struct device *dev, int pasid);
+struct pasid_entry *intel_pasid_get_entry(struct device *dev, u32 pasid);
 int intel_pasid_setup_first_level(struct intel_iommu *iommu,
 				  struct device *dev, pgd_t *pgd,
-				  int pasid, u16 did, int flags);
+				  u32 pasid, u16 did, int flags);
 int intel_pasid_setup_second_level(struct intel_iommu *iommu,
 				   struct dmar_domain *domain,
-				   struct device *dev, int pasid);
+				   struct device *dev, u32 pasid);
 int intel_pasid_setup_pass_through(struct intel_iommu *iommu,
 				   struct dmar_domain *domain,
-				   struct device *dev, int pasid);
+				   struct device *dev, u32 pasid);
 int intel_pasid_setup_nested(struct intel_iommu *iommu,
-			     struct device *dev, pgd_t *pgd, int pasid,
+			     struct device *dev, pgd_t *pgd, u32 pasid,
 			     struct iommu_gpasid_bind_data_vtd *pasid_data,
 			     struct dmar_domain *domain, int addr_width);
 void intel_pasid_tear_down_entry(struct intel_iommu *iommu,
-				 struct device *dev, int pasid,
+				 struct device *dev, u32 pasid,
 				 bool fault_ignore);
-int vcmd_alloc_pasid(struct intel_iommu *iommu, unsigned int *pasid);
-void vcmd_free_pasid(struct intel_iommu *iommu, unsigned int pasid);
+int vcmd_alloc_pasid(struct intel_iommu *iommu, u32 *pasid);
+void vcmd_free_pasid(struct intel_iommu *iommu, u32 pasid);
 #endif /* __INTEL_PASID_H */

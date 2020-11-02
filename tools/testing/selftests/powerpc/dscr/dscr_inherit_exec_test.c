@@ -44,6 +44,8 @@ int dscr_inherit_exec(void)
 	unsigned long i, dscr = 0;
 	pid_t pid;
 
+	SKIP_IF(!have_hwcap2(PPC_FEATURE2_DSCR));
+
 	for (i = 0; i < COUNT; i++) {
 		dscr++;
 		if (dscr > DSCR_MAX)

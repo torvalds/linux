@@ -143,6 +143,8 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 			zpci_remove_device(zdev);
 		}
 
+		zdev->fh = ccdf->fh;
+		zpci_disable_device(zdev);
 		zdev->state = ZPCI_FN_STATE_STANDBY;
 		if (!clp_get_state(ccdf->fid, &state) &&
 		    state == ZPCI_FN_STATE_RESERVED) {
@@ -150,7 +152,8 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 		}
 		break;
 	case 0x0306: /* 0x308 or 0x302 for multiple devices */
-		clp_rescan_pci_devices();
+		zpci_remove_reserved_devices();
+		clp_scan_pci_devices();
 		break;
 	case 0x0308: /* Standby -> Reserved */
 		if (!zdev)

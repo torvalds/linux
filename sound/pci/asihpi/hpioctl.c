@@ -329,8 +329,17 @@ static irqreturn_t asihpi_isr(int irq, void *dev_id)
 	   asihpi_irq_count, a->adapter->type, a->adapter->index); */
 
 	if (a->interrupt_callback)
-		a->interrupt_callback(a);
+		return IRQ_WAKE_THREAD;
 
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t asihpi_isr_thread(int irq, void *dev_id)
+{
+	struct hpi_adapter *a = dev_id;
+
+	if (a->interrupt_callback)
+		a->interrupt_callback(a);
 	return IRQ_HANDLED;
 }
 
@@ -343,7 +352,7 @@ int asihpi_adapter_probe(struct pci_dev *pci_dev,
 	struct hpi_message hm;
 	struct hpi_response hr;
 	struct hpi_adapter adapter;
-	struct hpi_pci pci;
+	struct hpi_pci pci = { 0 };
 
 	memset(&adapter, 0, sizeof(adapter));
 
@@ -478,8 +487,9 @@ int asihpi_adapter_probe(struct pci_dev *pci_dev,
 		}
 
 		/* Note: request_irq calls asihpi_isr here */
-		if (request_irq(pci_dev->irq, asihpi_isr, IRQF_SHARED,
-				"asihpi", &adapters[adapter_index])) {
+		if (request_threaded_irq(pci_dev->irq, asihpi_isr,
+					 asihpi_isr_thread, IRQF_SHARED,
+					 "asihpi", &adapters[adapter_index])) {
 			dev_err(&pci_dev->dev, "request_irq(%d) failed\n",
 				pci_dev->irq);
 			goto err;
@@ -499,7 +509,7 @@ int asihpi_adapter_probe(struct pci_dev *pci_dev,
 	return 0;
 
 err:
-	for (idx = 0; idx < HPI_MAX_ADAPTER_MEM_SPACES; idx++) {
+	while (--idx >= 0) {
 		if (pci.ap_mem_base[idx]) {
 			iounmap(pci.ap_mem_base[idx]);
 			pci.ap_mem_base[idx] = NULL;

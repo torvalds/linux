@@ -4,6 +4,7 @@
 #include <linux/ctype.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
+#include <linux/pci_ids.h>
 #include "adf_accel_devices.h"
 #include "adf_common_drv.h"
 #include "icp_qat_uclo.h"
@@ -711,11 +712,11 @@ static unsigned int
 qat_uclo_get_dev_type(struct icp_qat_fw_loader_handle *handle)
 {
 	switch (handle->pci_dev->device) {
-	case ADF_DH895XCC_PCI_DEVICE_ID:
+	case PCI_DEVICE_ID_INTEL_QAT_DH895XCC:
 		return ICP_QAT_AC_895XCC_DEV_TYPE;
-	case ADF_C62X_PCI_DEVICE_ID:
+	case PCI_DEVICE_ID_INTEL_QAT_C62X:
 		return ICP_QAT_AC_C62X_DEV_TYPE;
-	case ADF_C3XXX_PCI_DEVICE_ID:
+	case PCI_DEVICE_ID_INTEL_QAT_C3XXX:
 		return ICP_QAT_AC_C3XXX_DEV_TYPE;
 	default:
 		pr_err("QAT: unsupported device 0x%x\n",
@@ -1391,7 +1392,7 @@ int qat_uclo_wr_mimage(struct icp_qat_fw_loader_handle *handle,
 			status = qat_uclo_auth_fw(handle, desc);
 		qat_uclo_ummap_auth_fw(handle, &desc);
 	} else {
-		if (handle->pci_dev->device == ADF_C3XXX_PCI_DEVICE_ID) {
+		if (handle->pci_dev->device == PCI_DEVICE_ID_INTEL_QAT_C3XXX) {
 			pr_err("QAT: C3XXX doesn't support unsigned MMP\n");
 			return -EINVAL;
 		}

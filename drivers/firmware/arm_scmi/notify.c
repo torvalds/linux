@@ -1403,15 +1403,21 @@ static void scmi_protocols_late_init(struct work_struct *work)
 				"finalized PENDING handler - key:%X\n",
 				hndl->key);
 			ret = scmi_event_handler_enable_events(hndl);
+			if (ret) {
+				dev_dbg(ni->handle->dev,
+					"purging INVALID handler - key:%X\n",
+					hndl->key);
+				scmi_put_active_handler(ni, hndl);
+			}
 		} else {
 			ret = scmi_valid_pending_handler(ni, hndl);
-		}
-		if (ret) {
-			dev_dbg(ni->handle->dev,
-				"purging PENDING handler - key:%X\n",
-				hndl->key);
-			/* this hndl can be only a pending one */
-			scmi_put_handler_unlocked(ni, hndl);
+			if (ret) {
+				dev_dbg(ni->handle->dev,
+					"purging PENDING handler - key:%X\n",
+					hndl->key);
+				/* this hndl can be only a pending one */
+				scmi_put_handler_unlocked(ni, hndl);
+			}
 		}
 	}
 	mutex_unlock(&ni->pending_mtx);
@@ -1421,7 +1427,7 @@ static void scmi_protocols_late_init(struct work_struct *work)
  * notify_ops are attached to the handle so that can be accessed
  * directly from an scmi_driver to register its own notifiers.
  */
-static struct scmi_notify_ops notify_ops = {
+static const struct scmi_notify_ops notify_ops = {
 	.register_event_notifier = scmi_register_notifier,
 	.unregister_event_notifier = scmi_unregister_notifier,
 };
@@ -1468,7 +1474,7 @@ int scmi_notification_init(struct scmi_handle *handle)
 	ni->gid = gid;
 	ni->handle = handle;
 
-	ni->notify_wq = alloc_workqueue("scmi_notify",
+	ni->notify_wq = alloc_workqueue(dev_name(handle->dev),
 					WQ_UNBOUND | WQ_FREEZABLE | WQ_SYSFS,
 					0);
 	if (!ni->notify_wq)

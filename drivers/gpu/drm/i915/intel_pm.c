@@ -7136,7 +7136,7 @@ static void tgl_init_clock_gating(struct drm_i915_private *dev_priv)
 		   I915_READ(POWERGATE_ENABLE) | vd_pg_enable);
 
 	/* Wa_1409825376:tgl (pre-prod)*/
-	if (IS_TGL_REVID(dev_priv, TGL_REVID_A0, TGL_REVID_A0))
+	if (IS_TGL_DISP_REVID(dev_priv, TGL_REVID_A0, TGL_REVID_B1))
 		I915_WRITE(GEN9_CLKGATE_DIS_3, I915_READ(GEN9_CLKGATE_DIS_3) |
 			   TGL_VRH_GATING_DIS);
 

@@ -903,6 +903,7 @@ static struct platform_driver meson_mx_sdhc_driver = {
 	.remove  = meson_mx_sdhc_remove,
 	.driver  = {
 		.name = "meson-mx-sdhc",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(meson_mx_sdhc_of_match),
 	},
 };

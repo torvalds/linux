@@ -119,4 +119,7 @@ properties:
           - const: google,krane-sku176
           - const: google,krane
           - const: mediatek,mt8183
+
+additionalProperties: true
+
 ...

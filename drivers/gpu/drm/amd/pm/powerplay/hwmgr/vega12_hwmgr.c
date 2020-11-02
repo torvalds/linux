@@ -2444,7 +2444,7 @@ static int vega12_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
 			!(data->water_marks_bitmap & WaterMarksLoaded)) {
 		result = smum_smc_table_manager(hwmgr,
 						(uint8_t *)wm_table, TABLE_WATERMARKS, false);
-		PP_ASSERT_WITH_CODE(result, "Failed to update WMTABLE!", return EINVAL);
+		PP_ASSERT_WITH_CODE(result, "Failed to update WMTABLE!", return -EINVAL);
 		data->water_marks_bitmap |= WaterMarksLoaded;
 	}
 

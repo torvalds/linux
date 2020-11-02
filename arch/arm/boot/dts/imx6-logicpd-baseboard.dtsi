@@ -212,6 +212,7 @@
 &ecspi1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi1>;
+	cs-gpios = <&gpio4 9 GPIO_ACTIVE_LOW>;
 	status = "disabled";
 };
 
@@ -383,7 +384,7 @@
 			MX6QDL_PAD_KEY_COL0__ECSPI1_SCLK	0x100b1
 			MX6QDL_PAD_KEY_ROW0__ECSPI1_MOSI	0x100b1
 			MX6QDL_PAD_KEY_COL1__ECSPI1_MISO	0x100b1
-			MX6QDL_PAD_KEY_ROW1__ECSPI1_SS0		0x100b1
+			MX6QDL_PAD_KEY_ROW1__GPIO4_IO09		0x1b0b0
 		>;
 	};
 

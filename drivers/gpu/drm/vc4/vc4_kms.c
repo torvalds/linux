@@ -616,7 +616,7 @@ static int
 vc4_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
 {
 	unsigned long unassigned_channels = GENMASK(NUM_CHANNELS - 1, 0);
-	struct drm_crtc_state *crtc_state;
+	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
 	struct drm_crtc *crtc;
 	int i, ret;
 
@@ -629,6 +629,8 @@ vc4_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
 	 * modified.
 	 */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		struct drm_crtc_state *crtc_state;
+
 		if (!crtc->state->enable)
 			continue;
 
@@ -637,14 +639,22 @@ vc4_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
 			return PTR_ERR(crtc_state);
 	}
 
-	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
-		struct vc4_crtc_state *vc4_crtc_state =
-			to_vc4_crtc_state(crtc_state);
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+		struct vc4_crtc_state *new_vc4_crtc_state =
+			to_vc4_crtc_state(new_crtc_state);
 		struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 		unsigned int matching_channels;
 
-		if (!crtc_state->active)
+		if (old_crtc_state->enable && !new_crtc_state->enable)
+			new_vc4_crtc_state->assigned_channel = VC4_HVS_CHANNEL_DISABLED;
+
+		if (!new_crtc_state->enable)
 			continue;
+
+		if (new_vc4_crtc_state->assigned_channel != VC4_HVS_CHANNEL_DISABLED) {
+			unassigned_channels &= ~BIT(new_vc4_crtc_state->assigned_channel);
+			continue;
+		}
 
 		/*
 		 * The problem we have to solve here is that we have
@@ -674,7 +684,7 @@ vc4_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
 		if (matching_channels) {
 			unsigned int channel = ffs(matching_channels) - 1;
 
-			vc4_crtc_state->assigned_channel = channel;
+			new_vc4_crtc_state->assigned_channel = channel;
 			unassigned_channels &= ~BIT(channel);
 		} else {
 			return -EINVAL;

@@ -355,6 +355,27 @@ static inline void mei_tx_cb_dequeue(struct mei_cl_cb *cb)
 }
 
 /**
+ * mei_cl_set_read_by_fp - set pending_read flag to vtag struct for given fp
+ *
+ * Locking: called under "dev->device_lock" lock
+ *
+ * @cl: mei client
+ * @fp: pointer to file structure
+ */
+static void mei_cl_set_read_by_fp(const struct mei_cl *cl,
+				  const struct file *fp)
+{
+	struct mei_cl_vtag *cl_vtag;
+
+	list_for_each_entry(cl_vtag, &cl->vtag_map, list) {
+		if (cl_vtag->fp == fp) {
+			cl_vtag->pending_read = true;
+			return;
+		}
+	}
+}
+
+/**
  * mei_io_cb_init - allocate and initialize io callback
  *
  * @cl: mei client
@@ -378,6 +399,8 @@ static struct mei_cl_cb *mei_io_cb_init(struct mei_cl *cl,
 	cb->cl = cl;
 	cb->buf_idx = 0;
 	cb->fop_type = type;
+	cb->vtag = 0;
+
 	return cb;
 }
 
@@ -406,14 +429,16 @@ static void mei_io_list_flush_cl(struct list_head *head,
  *
  * @head: An instance of our list structure
  * @cl: host client
+ * @fp: file pointer (matching cb file object), may be NULL
  */
 static void mei_io_tx_list_free_cl(struct list_head *head,
-				   const struct mei_cl *cl)
+				   const struct mei_cl *cl,
+				   const struct file *fp)
 {
 	struct mei_cl_cb *cb, *next;
 
 	list_for_each_entry_safe(cb, next, head, list) {
-		if (cl == cb->cl)
+		if (cl == cb->cl && (!fp || fp == cb->fp))
 			mei_tx_cb_dequeue(cb);
 	}
 }
@@ -431,6 +456,19 @@ static void mei_io_list_free_fp(struct list_head *head, const struct file *fp)
 	list_for_each_entry_safe(cb, next, head, list)
 		if (!fp || fp == cb->fp)
 			mei_io_cb_free(cb);
+}
+
+/**
+ * mei_cl_free_pending - free pending cb
+ *
+ * @cl: host client
+ */
+static void mei_cl_free_pending(struct mei_cl *cl)
+{
+	struct mei_cl_cb *cb;
+
+	cb = list_first_entry_or_null(&cl->rd_pending, struct mei_cl_cb, list);
+	mei_io_cb_free(cb);
 }
 
 /**
@@ -505,15 +543,19 @@ struct mei_cl_cb *mei_cl_enqueue_ctrl_wr_cb(struct mei_cl *cl, size_t length,
  *
  * Return: cb on success, NULL if cb is not found
  */
-struct mei_cl_cb *mei_cl_read_cb(const struct mei_cl *cl, const struct file *fp)
+struct mei_cl_cb *mei_cl_read_cb(struct mei_cl *cl, const struct file *fp)
 {
 	struct mei_cl_cb *cb;
+	struct mei_cl_cb *ret_cb = NULL;
 
+	spin_lock(&cl->rd_completed_lock);
 	list_for_each_entry(cb, &cl->rd_completed, list)
-		if (!fp || fp == cb->fp)
-			return cb;
-
-	return NULL;
+		if (!fp || fp == cb->fp) {
+			ret_cb = cb;
+			break;
+		}
+	spin_unlock(&cl->rd_completed_lock);
+	return ret_cb;
 }
 
 /**
@@ -534,12 +576,17 @@ int mei_cl_flush_queues(struct mei_cl *cl, const struct file *fp)
 	dev = cl->dev;
 
 	cl_dbg(dev, cl, "remove list entry belonging to cl\n");
-	mei_io_tx_list_free_cl(&cl->dev->write_list, cl);
-	mei_io_tx_list_free_cl(&cl->dev->write_waiting_list, cl);
-	mei_io_list_flush_cl(&cl->dev->ctrl_wr_list, cl);
-	mei_io_list_flush_cl(&cl->dev->ctrl_rd_list, cl);
-	mei_io_list_free_fp(&cl->rd_pending, fp);
+	mei_io_tx_list_free_cl(&cl->dev->write_list, cl, fp);
+	mei_io_tx_list_free_cl(&cl->dev->write_waiting_list, cl, fp);
+	/* free pending and control cb only in final flush */
+	if (!fp) {
+		mei_io_list_flush_cl(&cl->dev->ctrl_wr_list, cl);
+		mei_io_list_flush_cl(&cl->dev->ctrl_rd_list, cl);
+		mei_cl_free_pending(cl);
+	}
+	spin_lock(&cl->rd_completed_lock);
 	mei_io_list_free_fp(&cl->rd_completed, fp);
+	spin_unlock(&cl->rd_completed_lock);
 
 	return 0;
 }
@@ -557,6 +604,8 @@ static void mei_cl_init(struct mei_cl *cl, struct mei_device *dev)
 	init_waitqueue_head(&cl->rx_wait);
 	init_waitqueue_head(&cl->tx_wait);
 	init_waitqueue_head(&cl->ev_wait);
+	INIT_LIST_HEAD(&cl->vtag_map);
+	spin_lock_init(&cl->rd_completed_lock);
 	INIT_LIST_HEAD(&cl->rd_completed);
 	INIT_LIST_HEAD(&cl->rd_pending);
 	INIT_LIST_HEAD(&cl->link);
@@ -752,8 +801,8 @@ static void mei_cl_set_disconnected(struct mei_cl *cl)
 		return;
 
 	cl->state = MEI_FILE_DISCONNECTED;
-	mei_io_tx_list_free_cl(&dev->write_list, cl);
-	mei_io_tx_list_free_cl(&dev->write_waiting_list, cl);
+	mei_io_tx_list_free_cl(&dev->write_list, cl, NULL);
+	mei_io_tx_list_free_cl(&dev->write_waiting_list, cl, NULL);
 	mei_io_list_flush_cl(&dev->ctrl_rd_list, cl);
 	mei_io_list_flush_cl(&dev->ctrl_wr_list, cl);
 	mei_cl_wake_all(cl);
@@ -1229,6 +1278,157 @@ static int mei_cl_tx_flow_ctrl_creds_reduce(struct mei_cl *cl)
 }
 
 /**
+ * mei_cl_vtag_alloc - allocate and fill the vtag structure
+ *
+ * @fp: pointer to file structure
+ * @vtag: vm tag
+ *
+ * Return:
+ * * Pointer to allocated struct - on success
+ * * ERR_PTR(-ENOMEM) on memory allocation failure
+ */
+struct mei_cl_vtag *mei_cl_vtag_alloc(struct file *fp, u8 vtag)
+{
+	struct mei_cl_vtag *cl_vtag;
+
+	cl_vtag = kzalloc(sizeof(*cl_vtag), GFP_KERNEL);
+	if (!cl_vtag)
+		return ERR_PTR(-ENOMEM);
+
+	INIT_LIST_HEAD(&cl_vtag->list);
+	cl_vtag->vtag = vtag;
+	cl_vtag->fp = fp;
+
+	return cl_vtag;
+}
+
+/**
+ * mei_cl_fp_by_vtag - obtain the file pointer by vtag
+ *
+ * @cl: host client
+ * @vtag: vm tag
+ *
+ * Return:
+ * * A file pointer - on success
+ * * ERR_PTR(-ENOENT) if vtag is not found in the client vtag list
+ */
+const struct file *mei_cl_fp_by_vtag(const struct mei_cl *cl, u8 vtag)
+{
+	struct mei_cl_vtag *vtag_l;
+
+	list_for_each_entry(vtag_l, &cl->vtag_map, list)
+		if (vtag_l->vtag == vtag)
+			return vtag_l->fp;
+
+	return ERR_PTR(-ENOENT);
+}
+
+/**
+ * mei_cl_reset_read_by_vtag - reset pending_read flag by given vtag
+ *
+ * @cl: host client
+ * @vtag: vm tag
+ */
+static void mei_cl_reset_read_by_vtag(const struct mei_cl *cl, u8 vtag)
+{
+	struct mei_cl_vtag *vtag_l;
+
+	list_for_each_entry(vtag_l, &cl->vtag_map, list) {
+		if (vtag_l->vtag == vtag) {
+			vtag_l->pending_read = false;
+			break;
+		}
+	}
+}
+
+/**
+ * mei_cl_read_vtag_add_fc - add flow control for next pending reader
+ *                           in the vtag list
+ *
+ * @cl: host client
+ */
+static void mei_cl_read_vtag_add_fc(struct mei_cl *cl)
+{
+	struct mei_cl_vtag *cl_vtag;
+
+	list_for_each_entry(cl_vtag, &cl->vtag_map, list) {
+		if (cl_vtag->pending_read) {
+			if (mei_cl_enqueue_ctrl_wr_cb(cl,
+						      mei_cl_mtu(cl),
+						      MEI_FOP_READ,
+						      cl_vtag->fp))
+				cl->rx_flow_ctrl_creds++;
+			break;
+		}
+	}
+}
+
+/**
+ * mei_cl_vt_support_check - check if client support vtags
+ *
+ * @cl: host client
+ *
+ * Return:
+ * * 0 - supported, or not connected at all
+ * * -EOPNOTSUPP - vtags are not supported by client
+ */
+int mei_cl_vt_support_check(const struct mei_cl *cl)
+{
+	struct mei_device *dev = cl->dev;
+
+	if (!dev->hbm_f_vt_supported)
+		return -EOPNOTSUPP;
+
+	if (!cl->me_cl)
+		return 0;
+
+	return cl->me_cl->props.vt_supported ? 0 : -EOPNOTSUPP;
+}
+
+/**
+ * mei_cl_add_rd_completed - add read completed callback to list with lock
+ *                           and vtag check
+ *
+ * @cl: host client
+ * @cb: callback block
+ *
+ */
+void mei_cl_add_rd_completed(struct mei_cl *cl, struct mei_cl_cb *cb)
+{
+	const struct file *fp;
+
+	if (!mei_cl_vt_support_check(cl)) {
+		fp = mei_cl_fp_by_vtag(cl, cb->vtag);
+		if (IS_ERR(fp)) {
+			/* client already disconnected, discarding */
+			mei_io_cb_free(cb);
+			return;
+		}
+		cb->fp = fp;
+		mei_cl_reset_read_by_vtag(cl, cb->vtag);
+		mei_cl_read_vtag_add_fc(cl);
+	}
+
+	spin_lock(&cl->rd_completed_lock);
+	list_add_tail(&cb->list, &cl->rd_completed);
+	spin_unlock(&cl->rd_completed_lock);
+}
+
+/**
+ * mei_cl_del_rd_completed - free read completed callback with lock
+ *
+ * @cl: host client
+ * @cb: callback block
+ *
+ */
+void mei_cl_del_rd_completed(struct mei_cl *cl, struct mei_cl_cb *cb)
+{
+	spin_lock(&cl->rd_completed_lock);
+	mei_io_cb_free(cb);
+	spin_unlock(&cl->rd_completed_lock);
+}
+
+/**
  *  mei_cl_notify_fop2req - convert fop to proper request
  *
  * @fop: client notification start response command
@@ -1483,12 +1683,16 @@ int mei_cl_read_start(struct mei_cl *cl, size_t length, const struct file *fp)
 		return 0;
 
 	/* HW currently supports only one pending read */
-	if (cl->rx_flow_ctrl_creds)
+	if (cl->rx_flow_ctrl_creds) {
+		mei_cl_set_read_by_fp(cl, fp);
 		return -EBUSY;
+	}
 
 	cb = mei_cl_enqueue_ctrl_wr_cb(cl, length, MEI_FOP_READ, fp);
 	if (!cb)
 		return -ENOMEM;
+
+	mei_cl_set_read_by_fp(cl, fp);
 
 	rets = pm_runtime_get(dev->dev);
 	if (rets < 0 && rets != -EINPROGRESS) {
@@ -1518,21 +1722,67 @@ nortpm:
 	return rets;
 }
 
-/**
- * mei_msg_hdr_init - initialize mei message header
- *
- * @mei_hdr: mei message header
- * @cb: message callback structure
- */
-static void mei_msg_hdr_init(struct mei_msg_hdr *mei_hdr, struct mei_cl_cb *cb)
+static inline u8 mei_ext_hdr_set_vtag(struct mei_ext_hdr *ext, u8 vtag)
 {
+	ext->type = MEI_EXT_HDR_VTAG;
+	ext->ext_payload[0] = vtag;
+	ext->length = mei_data2slots(sizeof(*ext));
+	return ext->length;
+}
+
+/**
+ * mei_msg_hdr_init - allocate and initialize mei message header
+ *
+ * @cb: message callback structure
+ *
+ * Return: a pointer to initialized header
+ */
+static struct mei_msg_hdr *mei_msg_hdr_init(const struct mei_cl_cb *cb)
+{
+	size_t hdr_len;
+	struct mei_ext_meta_hdr *meta;
+	struct mei_ext_hdr *ext;
+	struct mei_msg_hdr *mei_hdr;
+	bool is_ext, is_vtag;
+
+	if (!cb)
+		return ERR_PTR(-EINVAL);
+
+	/* Extended header for vtag is attached only on the first fragment */
+	is_vtag = (cb->vtag && cb->buf_idx == 0);
+	is_ext = is_vtag;
+
+	/* Compute extended header size */
+	hdr_len = sizeof(*mei_hdr);
+
+	if (!is_ext)
+		goto setup_hdr;
+
+	hdr_len += sizeof(*meta);
+	if (is_vtag)
+		hdr_len += sizeof(*ext);
+
+setup_hdr:
+	mei_hdr = kzalloc(hdr_len, GFP_KERNEL);
+	if (!mei_hdr)
+		return ERR_PTR(-ENOMEM);
+
 	mei_hdr->host_addr = mei_cl_host_addr(cb->cl);
 	mei_hdr->me_addr = mei_cl_me_id(cb->cl);
-	mei_hdr->length = 0;
-	mei_hdr->reserved = 0;
-	mei_hdr->msg_complete = 0;
-	mei_hdr->dma_ring = 0;
 	mei_hdr->internal = cb->internal;
+	mei_hdr->extended = is_ext;
+
+	if (!is_ext)
+		goto out;
+
+	meta = (struct mei_ext_meta_hdr *)mei_hdr->extension;
+	if (is_vtag) {
+		meta->count++;
+		meta->size += mei_ext_hdr_set_vtag(meta->hdrs, cb->vtag);
+	}
+out:
+	mei_hdr->length = hdr_len - sizeof(*mei_hdr);
+	return mei_hdr;
 }
 
 /**
@@ -1550,10 +1800,11 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 {
 	struct mei_device *dev;
 	struct mei_msg_data *buf;
-	struct mei_msg_hdr mei_hdr;
-	size_t hdr_len = sizeof(mei_hdr);
-	size_t len;
+	struct mei_msg_hdr *mei_hdr = NULL;
+	size_t hdr_len;
 	size_t hbuf_len, dr_len;
+	size_t buf_len;
+	size_t data_len;
 	int hbuf_slots;
 	u32 dr_slots;
 	u32 dma_len;
@@ -1579,7 +1830,7 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 		return 0;
 	}
 
-	len = buf->size - cb->buf_idx;
+	buf_len = buf->size - cb->buf_idx;
 	data = buf->data + cb->buf_idx;
 	hbuf_slots = mei_hbuf_empty_slots(dev);
 	if (hbuf_slots < 0) {
@@ -1591,42 +1842,54 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 	dr_slots = mei_dma_ring_empty_slots(dev);
 	dr_len = mei_slots2data(dr_slots);
 
-	mei_msg_hdr_init(&mei_hdr, cb);
+	mei_hdr = mei_msg_hdr_init(cb);
+	if (IS_ERR(mei_hdr)) {
+		rets = PTR_ERR(mei_hdr);
+		mei_hdr = NULL;
+		goto err;
+	}
+
+	cl_dbg(dev, cl, "Extended Header %d vtag = %d\n",
+	       mei_hdr->extended, cb->vtag);
+
+	hdr_len = sizeof(*mei_hdr) + mei_hdr->length;
 
 	/**
 	 * Split the message only if we can write the whole host buffer
 	 * otherwise wait for next time the host buffer is empty.
 	 */
-	if (len + hdr_len <= hbuf_len) {
-		mei_hdr.length = len;
-		mei_hdr.msg_complete = 1;
+	if (hdr_len + buf_len <= hbuf_len) {
+		data_len = buf_len;
+		mei_hdr->msg_complete = 1;
 	} else if (dr_slots && hbuf_len >= hdr_len + sizeof(dma_len)) {
-		mei_hdr.dma_ring = 1;
-		if (len > dr_len)
-			len = dr_len;
+		mei_hdr->dma_ring = 1;
+		if (buf_len > dr_len)
+			buf_len = dr_len;
 		else
-			mei_hdr.msg_complete = 1;
+			mei_hdr->msg_complete = 1;
 
-		mei_hdr.length = sizeof(dma_len);
-		dma_len = len;
+		data_len = sizeof(dma_len);
+		dma_len = buf_len;
 		data = &dma_len;
 	} else if ((u32)hbuf_slots == mei_hbuf_depth(dev)) {
-		len = hbuf_len - hdr_len;
-		mei_hdr.length = len;
+		buf_len = hbuf_len - hdr_len;
+		data_len = buf_len;
 	} else {
+		kfree(mei_hdr);
 		return 0;
 	}
+	mei_hdr->length += data_len;
 
-	if (mei_hdr.dma_ring)
-		mei_dma_ring_write(dev, buf->data + cb->buf_idx, len);
+	if (mei_hdr->dma_ring)
+		mei_dma_ring_write(dev, buf->data + cb->buf_idx, buf_len);
+	rets = mei_write_message(dev, mei_hdr, hdr_len, data, data_len);
 
-	rets = mei_write_message(dev, &mei_hdr, hdr_len, data, mei_hdr.length);
 	if (rets)
 		goto err;
 
 	cl->status = 0;
 	cl->writing_state = MEI_WRITING;
-	cb->buf_idx += len;
+	cb->buf_idx += buf_len;
 
 	if (first_chunk) {
 		if (mei_cl_tx_flow_ctrl_creds_reduce(cl)) {
@@ -1635,12 +1898,14 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 		}
 	}
 
-	if (mei_hdr.msg_complete)
+	if (mei_hdr->msg_complete)
 		list_move_tail(&cb->list, &dev->write_waiting_list);
 
+	kfree(mei_hdr);
 	return 0;
 
 err:
+	kfree(mei_hdr);
 	cl->status = rets;
 	list_move_tail(&cb->list, cmpl_list);
 	return rets;
@@ -1659,9 +1924,11 @@ ssize_t mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb)
 {
 	struct mei_device *dev;
 	struct mei_msg_data *buf;
-	struct mei_msg_hdr mei_hdr;
-	size_t hdr_len = sizeof(mei_hdr);
-	size_t len, hbuf_len, dr_len;
+	struct mei_msg_hdr *mei_hdr = NULL;
+	size_t hdr_len;
+	size_t hbuf_len, dr_len;
+	size_t buf_len;
+	size_t data_len;
 	int hbuf_slots;
 	u32 dr_slots;
 	u32 dma_len;
@@ -1678,9 +1945,9 @@ ssize_t mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb)
 	dev = cl->dev;
 
 	buf = &cb->buf;
-	len = buf->size;
+	buf_len = buf->size;
 
-	cl_dbg(dev, cl, "len=%zd\n", len);
+	cl_dbg(dev, cl, "buf_len=%zd\n", buf_len);
 
 	blocking = cb->blocking;
 	data = buf->data;
@@ -1700,17 +1967,27 @@ ssize_t mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb)
 	if (rets < 0)
 		goto err;
 
-	mei_msg_hdr_init(&mei_hdr, cb);
+	mei_hdr = mei_msg_hdr_init(cb);
+	if (IS_ERR(mei_hdr)) {
+		rets = -PTR_ERR(mei_hdr);
+		mei_hdr = NULL;
+		goto err;
+	}
+
+	cl_dbg(dev, cl, "Extended Header %d vtag = %d\n",
+	       mei_hdr->extended, cb->vtag);
+
+	hdr_len = sizeof(*mei_hdr) + mei_hdr->length;
 
 	if (rets == 0) {
 		cl_dbg(dev, cl, "No flow control credentials: not sending.\n");
-		rets = len;
+		rets = buf_len;
 		goto out;
 	}
 
 	if (!mei_hbuf_acquire(dev)) {
 		cl_dbg(dev, cl, "Cannot acquire the host buffer: not sending.\n");
-		rets = len;
+		rets = buf_len;
 		goto out;
 	}
 
@@ -1724,29 +2001,30 @@ ssize_t mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb)
 	dr_slots = mei_dma_ring_empty_slots(dev);
 	dr_len =  mei_slots2data(dr_slots);
 
-	if (len + hdr_len <= hbuf_len) {
-		mei_hdr.length = len;
-		mei_hdr.msg_complete = 1;
+	if (hdr_len + buf_len <= hbuf_len) {
+		data_len = buf_len;
+		mei_hdr->msg_complete = 1;
 	} else if (dr_slots && hbuf_len >= hdr_len + sizeof(dma_len)) {
-		mei_hdr.dma_ring = 1;
-		if (len > dr_len)
-			len = dr_len;
+		mei_hdr->dma_ring = 1;
+		if (buf_len > dr_len)
+			buf_len = dr_len;
 		else
-			mei_hdr.msg_complete = 1;
+			mei_hdr->msg_complete = 1;
 
-		mei_hdr.length = sizeof(dma_len);
-		dma_len = len;
+		data_len = sizeof(dma_len);
+		dma_len = buf_len;
 		data = &dma_len;
 	} else {
-		len = hbuf_len - hdr_len;
-		mei_hdr.length = len;
+		buf_len = hbuf_len - hdr_len;
+		data_len = buf_len;
 	}
 
-	if (mei_hdr.dma_ring)
-		mei_dma_ring_write(dev, buf->data, len);
+	mei_hdr->length += data_len;
 
-	rets = mei_write_message(dev, &mei_hdr, hdr_len,
-				 data, mei_hdr.length);
+	if (mei_hdr->dma_ring)
+		mei_dma_ring_write(dev, buf->data, buf_len);
+	rets = mei_write_message(dev, mei_hdr, hdr_len, data, data_len);
+
 	if (rets)
 		goto err;
 
@@ -1755,12 +2033,12 @@ ssize_t mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb)
 		goto err;
 
 	cl->writing_state = MEI_WRITING;
-	cb->buf_idx = len;
+	cb->buf_idx = buf_len;
 	/* restore return value */
-	len = buf->size;
+	buf_len = buf->size;
 
 out:
-	if (mei_hdr.msg_complete)
+	if (mei_hdr->msg_complete)
 		mei_tx_cb_enqueue(cb, &dev->write_waiting_list);
 	else
 		mei_tx_cb_enqueue(cb, &dev->write_list);
@@ -1785,7 +2063,7 @@ out:
 		}
 	}
 
-	rets = len;
+	rets = buf_len;
 err:
 	cl_dbg(dev, cl, "rpm: autosuspend\n");
 	pm_runtime_mark_last_busy(dev->dev);
@@ -1793,9 +2071,10 @@ err:
 free:
 	mei_io_cb_free(cb);
 
+	kfree(mei_hdr);
+
 	return rets;
 }
-
 
 /**
  * mei_cl_complete - processes completed operation for a client
@@ -1820,7 +2099,7 @@ void mei_cl_complete(struct mei_cl *cl, struct mei_cl_cb *cb)
 		break;
 
 	case MEI_FOP_READ:
-		list_add_tail(&cb->list, &cl->rd_completed);
+		mei_cl_add_rd_completed(cl, cb);
 		if (!mei_cl_is_fixed_address(cl) &&
 		    !WARN_ON(!cl->rx_flow_ctrl_creds))
 			cl->rx_flow_ctrl_creds--;

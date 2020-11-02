@@ -159,11 +159,15 @@ static uint32_t dce_panel_cntl_hw_init(struct panel_cntl *panel_cntl)
 static bool dce_is_panel_backlight_on(struct panel_cntl *panel_cntl)
 {
 	struct dce_panel_cntl *dce_panel_cntl = TO_DCE_PANEL_CNTL(panel_cntl);
-	uint32_t value;
+	uint32_t blon, blon_ovrd, pwrseq_target_state;
 
-	REG_GET(PWRSEQ_CNTL, LVTMA_BLON, &value);
+	REG_GET_2(PWRSEQ_CNTL, LVTMA_BLON, &blon, LVTMA_BLON_OVRD, &blon_ovrd);
+	REG_GET(PWRSEQ_CNTL, LVTMA_PWRSEQ_TARGET_STATE, &pwrseq_target_state);
 
-	return value;
+	if (blon_ovrd)
+		return blon;
+	else
+		return pwrseq_target_state;
 }
 
 static bool dce_is_panel_powered_on(struct panel_cntl *panel_cntl)

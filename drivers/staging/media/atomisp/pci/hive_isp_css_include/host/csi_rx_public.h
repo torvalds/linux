@@ -16,7 +16,7 @@
 #ifndef __CSI_RX_PUBLIC_H_INCLUDED__
 #define __CSI_RX_PUBLIC_H_INCLUDED__
 
-#ifdef USE_INPUT_SYSTEM_VERSION_2401
+#ifdef ISP2401
 /*****************************************************
  *
  * Native command interface (NCI).
@@ -132,5 +132,5 @@ void csi_rx_be_ctrl_reg_store(
     const hrt_address reg,
     const hrt_data value);
 /* end of DLI */
-#endif /* USE_INPUT_SYSTEM_VERSION_2401 */
+#endif /* ISP2401 */
 #endif /* __CSI_RX_PUBLIC_H_INCLUDED__ */

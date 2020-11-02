@@ -77,6 +77,22 @@ static void show_link_attach_type_json(__u32 attach_type, json_writer_t *wtr)
 		jsonw_uint_field(wtr, "attach_type", attach_type);
 }
 
+static bool is_iter_map_target(const char *target_name)
+{
+	return strcmp(target_name, "bpf_map_elem") == 0 ||
+	       strcmp(target_name, "bpf_sk_storage_map") == 0;
+}
+
+static void show_iter_json(struct bpf_link_info *info, json_writer_t *wtr)
+{
+	const char *target_name = u64_to_ptr(info->iter.target_name);
+
+	jsonw_string_field(wtr, "target_name", target_name);
+
+	if (is_iter_map_target(target_name))
+		jsonw_uint_field(wtr, "map_id", info->iter.map.map_id);
+}
+
 static int get_prog_info(int prog_id, struct bpf_prog_info *info)
 {
 	__u32 len = sizeof(*info);
@@ -128,6 +144,9 @@ static int show_link_close_json(int fd, struct bpf_link_info *info)
 				   info->cgroup.cgroup_id);
 		show_link_attach_type_json(info->cgroup.attach_type, json_wtr);
 		break;
+	case BPF_LINK_TYPE_ITER:
+		show_iter_json(info, json_wtr);
+		break;
 	case BPF_LINK_TYPE_NETNS:
 		jsonw_uint_field(json_wtr, "netns_ino",
 				 info->netns.netns_ino);
@@ -175,6 +194,16 @@ static void show_link_attach_type_plain(__u32 attach_type)
 		printf("attach_type %u  ", attach_type);
 }
 
+static void show_iter_plain(struct bpf_link_info *info)
+{
+	const char *target_name = u64_to_ptr(info->iter.target_name);
+
+	printf("target_name %s  ", target_name);
+
+	if (is_iter_map_target(target_name))
+		printf("map_id %u  ", info->iter.map.map_id);
+}
+
 static int show_link_close_plain(int fd, struct bpf_link_info *info)
 {
 	struct bpf_prog_info prog_info;
@@ -204,6 +233,9 @@ static int show_link_close_plain(int fd, struct bpf_link_info *info)
 		printf("\n\tcgroup_id %zu  ", (size_t)info->cgroup.cgroup_id);
 		show_link_attach_type_plain(info->cgroup.attach_type);
 		break;
+	case BPF_LINK_TYPE_ITER:
+		show_iter_plain(info);
+		break;
 	case BPF_LINK_TYPE_NETNS:
 		printf("\n\tnetns_ino %u  ", info->netns.netns_ino);
 		show_link_attach_type_plain(info->netns.attach_type);
@@ -231,7 +263,7 @@ static int do_show_link(int fd)
 {
 	struct bpf_link_info info;
 	__u32 len = sizeof(info);
-	char raw_tp_name[256];
+	char buf[256];
 	int err;
 
 	memset(&info, 0, sizeof(info));
@@ -245,8 +277,14 @@ again:
 	}
 	if (info.type == BPF_LINK_TYPE_RAW_TRACEPOINT &&
 	    !info.raw_tracepoint.tp_name) {
-		info.raw_tracepoint.tp_name = (unsigned long)&raw_tp_name;
-		info.raw_tracepoint.tp_name_len = sizeof(raw_tp_name);
+		info.raw_tracepoint.tp_name = (unsigned long)&buf;
+		info.raw_tracepoint.tp_name_len = sizeof(buf);
+		goto again;
+	}
+	if (info.type == BPF_LINK_TYPE_ITER &&
+	    !info.iter.target_name) {
+		info.iter.target_name = (unsigned long)&buf;
+		info.iter.target_name_len = sizeof(buf);
 		goto again;
 	}
 

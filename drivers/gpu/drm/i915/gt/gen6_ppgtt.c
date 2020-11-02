@@ -239,18 +239,24 @@ static int gen6_ppgtt_init_scratch(struct gen6_ppgtt *ppgtt)
 			       I915_CACHE_NONE, PTE_READ_ONLY);
 
 	vm->scratch[1] = vm->alloc_pt_dma(vm, I915_GTT_PAGE_SIZE_4K);
-	if (IS_ERR(vm->scratch[1]))
-		return PTR_ERR(vm->scratch[1]);
+	if (IS_ERR(vm->scratch[1])) {
+		ret = PTR_ERR(vm->scratch[1]);
+		goto err_scratch0;
+	}
 
 	ret = pin_pt_dma(vm, vm->scratch[1]);
-	if (ret) {
-		i915_gem_object_put(vm->scratch[1]);
-		return ret;
-	}
+	if (ret)
+		goto err_scratch1;
 
 	fill32_px(vm->scratch[1], vm->scratch[0]->encode);
 
 	return 0;
+
+err_scratch1:
+	i915_gem_object_put(vm->scratch[1]);
+err_scratch0:
+	i915_gem_object_put(vm->scratch[0]);
+	return ret;
 }
 
 static void gen6_ppgtt_free_pd(struct gen6_ppgtt *ppgtt)

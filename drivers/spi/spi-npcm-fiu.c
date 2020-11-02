@@ -677,7 +677,6 @@ static int npcm_fiu_probe(struct platform_device *pdev)
 	struct npcm_fiu_spi *fiu;
 	void __iomem *regbase;
 	struct resource *res;
-	int ret;
 	int id;
 
 	ctrl = spi_alloc_master(dev, sizeof(*fiu));
@@ -736,11 +735,7 @@ static int npcm_fiu_probe(struct platform_device *pdev)
 	ctrl->num_chipselect = fiu->info->max_cs;
 	ctrl->dev.of_node = dev->of_node;
 
-	ret = devm_spi_register_master(dev, ctrl);
-	if (ret)
-		return ret;
-
-	return 0;
+	return devm_spi_register_master(dev, ctrl);
 }
 
 static int npcm_fiu_remove(struct platform_device *pdev)

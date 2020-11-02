@@ -44,7 +44,7 @@
   {
     "EventCode": "0x1e04e",
     "EventName": "PM_DPTEG_FROM_L2MISS",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB from a localtion other than the local core's L2 due to a data side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from a location other than the local core's L2 due to a data side request",
     "PublicDescription": ""
   },
   {

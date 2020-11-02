@@ -894,6 +894,8 @@ static const struct dc_debug_options debug_defaults_diags = {
 		.disable_pplib_wm_range = true,
 		.disable_stutter = true,
 		.disable_48mhz_pwrdwn = true,
+		.disable_psr = true,
+		.enable_tri_buf = true
 };
 
 enum dcn20_clk_src_array_id {

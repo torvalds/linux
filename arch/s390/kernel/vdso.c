@@ -20,6 +20,8 @@
 #include <linux/security.h>
 #include <linux/memblock.h>
 #include <linux/compat.h>
+#include <linux/binfmts.h>
+#include <vdso/datapage.h>
 #include <asm/asm-offsets.h>
 #include <asm/processor.h>
 #include <asm/mmu.h>
@@ -96,34 +98,11 @@ static union {
 	struct vdso_data	data;
 	u8			page[PAGE_SIZE];
 } vdso_data_store __page_aligned_data;
-struct vdso_data *vdso_data = &vdso_data_store.data;
-
-/*
- * Setup vdso data page.
- */
-static void __init vdso_init_data(struct vdso_data *vd)
-{
-	vd->ectg_available = test_facility(31);
-}
-
+struct vdso_data *vdso_data = (struct vdso_data *)&vdso_data_store.data;
 /*
  * Allocate/free per cpu vdso data.
  */
 #define SEGMENT_ORDER	2
-
-/*
- * The initial vdso_data structure for the boot CPU. Eventually
- * it is replaced with a properly allocated structure in vdso_init.
- * This is necessary because a valid S390_lowcore.vdso_per_cpu_data
- * pointer is required to be able to return from an interrupt or
- * program check. See the exit paths in entry.S.
- */
-struct vdso_data boot_vdso_data __initdata;
-
-void __init vdso_alloc_boot_cpu(struct lowcore *lowcore)
-{
-	lowcore->vdso_per_cpu_data = (unsigned long) &boot_vdso_data;
-}
 
 int vdso_alloc_per_cpu(struct lowcore *lowcore)
 {
@@ -245,8 +224,6 @@ out_up:
 static int __init vdso_init(void)
 {
 	int i;
-
-	vdso_init_data(vdso_data);
 
 	/* Calculate the size of the 64 bit vDSO */
 	vdso64_pages = ((&vdso64_end - &vdso64_start

@@ -27,6 +27,7 @@
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/uio.h>
 #include <crypto/rng.h>
 #include <crypto/drbg.h>
 #include <crypto/akcipher.h>
@@ -3954,7 +3955,7 @@ static int test_akcipher_one(struct crypto_akcipher *tfm,
 	key = kmalloc(vecs->key_len + sizeof(u32) * 2 + vecs->param_len,
 		      GFP_KERNEL);
 	if (!key)
-		goto free_xbuf;
+		goto free_req;
 	memcpy(key, vecs->key, vecs->key_len);
 	ptr = key + vecs->key_len;
 	ptr = test_pack_u32(ptr, vecs->algo);
@@ -3966,7 +3967,7 @@ static int test_akcipher_one(struct crypto_akcipher *tfm,
 	else
 		err = crypto_akcipher_set_priv_key(tfm, key, vecs->key_len);
 	if (err)
-		goto free_req;
+		goto free_key;
 
 	/*
 	 * First run test which do not require a private key, such as
@@ -3976,7 +3977,7 @@ static int test_akcipher_one(struct crypto_akcipher *tfm,
 	out_len_max = crypto_akcipher_maxsize(tfm);
 	outbuf_enc = kzalloc(out_len_max, GFP_KERNEL);
 	if (!outbuf_enc)
-		goto free_req;
+		goto free_key;
 
 	if (!vecs->siggen_sigver_test) {
 		m = vecs->m;
@@ -3995,6 +3996,7 @@ static int test_akcipher_one(struct crypto_akcipher *tfm,
 		op = "verify";
 	}
 
+	err = -E2BIG;
 	if (WARN_ON(m_size > PAGE_SIZE))
 		goto free_all;
 	memcpy(xbuf[0], m, m_size);
@@ -4025,7 +4027,7 @@ static int test_akcipher_one(struct crypto_akcipher *tfm,
 		pr_err("alg: akcipher: %s test failed. err %d\n", op, err);
 		goto free_all;
 	}
-	if (!vecs->siggen_sigver_test) {
+	if (!vecs->siggen_sigver_test && c) {
 		if (req->dst_len != c_size) {
 			pr_err("alg: akcipher: %s test failed. Invalid output len\n",
 			       op);
@@ -4056,6 +4058,12 @@ static int test_akcipher_one(struct crypto_akcipher *tfm,
 		goto free_all;
 	}
 
+	if (!vecs->siggen_sigver_test && !c) {
+		c = outbuf_enc;
+		c_size = req->dst_len;
+	}
+
+	err = -E2BIG;
 	op = vecs->siggen_sigver_test ? "sign" : "decrypt";
 	if (WARN_ON(c_size > PAGE_SIZE))
 		goto free_all;
@@ -4092,9 +4100,10 @@ static int test_akcipher_one(struct crypto_akcipher *tfm,
 free_all:
 	kfree(outbuf_dec);
 	kfree(outbuf_enc);
+free_key:
+	kfree(key);
 free_req:
 	akcipher_request_free(req);
-	kfree(key);
 free_xbuf:
 	testmgr_free_buf(xbuf);
 	return err;
@@ -5375,6 +5384,12 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.fips_allowed = 1,
 		.suite = {
 			.hash = __VECS(sha512_tv_template)
+		}
+	}, {
+		.alg = "sm2",
+		.test = alg_test_akcipher,
+		.suite = {
+			.akcipher = __VECS(sm2_tv_template)
 		}
 	}, {
 		.alg = "sm3",

@@ -5379,6 +5379,8 @@
 #define mmDB_RESERVED_REG_1_BASE_IDX                                                                   1
 #define mmDB_RESERVED_REG_3                                                                            0x0017
 #define mmDB_RESERVED_REG_3_BASE_IDX                                                                   1
+#define mmDB_VRS_OVERRIDE_CNTL                                                                         0x0019
+#define mmDB_VRS_OVERRIDE_CNTL_BASE_IDX                                                                1
 #define mmDB_Z_READ_BASE_HI                                                                            0x001a
 #define mmDB_Z_READ_BASE_HI_BASE_IDX                                                                   1
 #define mmDB_STENCIL_READ_BASE_HI                                                                      0x001b
@@ -6049,6 +6051,8 @@
 #define mmPA_STEREO_CNTL_BASE_IDX                                                                      1
 #define mmPA_STATE_STEREO_X                                                                            0x0211
 #define mmPA_STATE_STEREO_X_BASE_IDX                                                                   1
+#define mmPA_CL_VRS_CNTL                                                                               0x0212
+#define mmPA_CL_VRS_CNTL_BASE_IDX                                                                      1
 #define mmPA_SU_POINT_SIZE                                                                             0x0280
 #define mmPA_SU_POINT_SIZE_BASE_IDX                                                                    1
 #define mmPA_SU_POINT_MINMAX                                                                           0x0281

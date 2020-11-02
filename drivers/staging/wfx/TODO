@@ -1,25 +1,6 @@
 This is a list of things that need to be done to get this driver out of the
 staging directory.
 
-  - The HIF API is not yet clean enough.
-
-  - The code that check the corectness of received message (in rx_helper()) can
-    be improved. See:
-       https://lore.kernel.org/driverdev-devel/2302785.6C7ODC2LYm@pc-42/
-
   - As suggested by Felix, rate control could be improved following this idea:
         https://lore.kernel.org/lkml/3099559.gv3Q75KnN1@pc-42/
-
-  - Feature called "secure link" should be either developed (using kernel
-    crypto API) or dropped.
-
-  - The device allows to filter multicast traffic. The code to support these
-    filters exists in the driver but it is disabled because it has never been
-    tested.
-
-  - In wfx_cmd_send(), "async" allow to send command without waiting the reply.
-    It may help in some situation, but it is not yet used. In add, it may cause
-    some trouble:
-      https://lore.kernel.org/driverdev-devel/alpine.DEB.2.21.1910041317381.2992@hadrien/
-    So, fix it (by replacing the mutex with a semaphore) or drop it.
 

@@ -96,9 +96,9 @@ struct type86_fmt2_ext {
 	unsigned int	  offset4;	/* 0x00000000			*/
 } __packed;
 
-unsigned int get_cprb_fc(struct ica_xcRB *, struct ap_message *,
+unsigned int get_cprb_fc(bool userspace, struct ica_xcRB *, struct ap_message *,
 			 unsigned int *, unsigned short **);
-unsigned int get_ep11cprb_fc(struct ep11_urb *, struct ap_message *,
+unsigned int get_ep11cprb_fc(bool userspace, struct ep11_urb *, struct ap_message *,
 			     unsigned int *);
 unsigned int get_rng_fc(struct ap_message *, int *, unsigned int *);
 

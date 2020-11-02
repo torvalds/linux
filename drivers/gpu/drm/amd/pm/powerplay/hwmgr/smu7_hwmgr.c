@@ -1585,9 +1585,19 @@ static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 	data->current_profile_setting.sclk_down_hyst = 100;
 	data->current_profile_setting.sclk_activity = SMU7_SCLK_TARGETACTIVITY_DFLT;
 	data->current_profile_setting.bupdate_mclk = 1;
-	data->current_profile_setting.mclk_up_hyst = 0;
-	data->current_profile_setting.mclk_down_hyst = 100;
-	data->current_profile_setting.mclk_activity = SMU7_MCLK_TARGETACTIVITY_DFLT;
+	if (adev->gmc.vram_width == 256) {
+		data->current_profile_setting.mclk_up_hyst = 10;
+		data->current_profile_setting.mclk_down_hyst = 60;
+		data->current_profile_setting.mclk_activity = 25;
+	} else if (adev->gmc.vram_width == 128) {
+		data->current_profile_setting.mclk_up_hyst = 5;
+		data->current_profile_setting.mclk_down_hyst = 16;
+		data->current_profile_setting.mclk_activity = 20;
+	} else if (adev->gmc.vram_width == 64) {
+		data->current_profile_setting.mclk_up_hyst = 3;
+		data->current_profile_setting.mclk_down_hyst = 16;
+		data->current_profile_setting.mclk_activity = 20;
+	}
 	hwmgr->workload_mask = 1 << hwmgr->workload_prority[PP_SMC_POWER_PROFILE_FULLSCREEN3D];
 	hwmgr->power_profile_mode = PP_SMC_POWER_PROFILE_FULLSCREEN3D;
 	hwmgr->default_power_profile_mode = PP_SMC_POWER_PROFILE_FULLSCREEN3D;
@@ -2873,7 +2883,7 @@ static int smu7_vblank_too_short(struct pp_hwmgr *hwmgr,
 		if (hwmgr->is_kicker)
 			switch_limit_us = data->is_memory_gddr5 ? 450 : 150;
 		else
-			switch_limit_us = data->is_memory_gddr5 ? 190 : 150;
+			switch_limit_us = data->is_memory_gddr5 ? 200 : 150;
 		break;
 	case CHIP_VEGAM:
 		switch_limit_us = 30;

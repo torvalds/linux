@@ -5,4 +5,5 @@ Description:
 		Represents a battery impedance compensation to accelerate charging.
 
                 Access: Read, Write
+
                 Valid values: Represented in milli-ohms. Valid range is [0, 140].

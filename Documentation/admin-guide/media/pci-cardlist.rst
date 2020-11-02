@@ -90,6 +90,7 @@ sta2x11_vip       STA2X11 VIP Video For Linux
 tw5864            Techwell TW5864 video/audio grabber and encoder
 tw686x            Intersil/Techwell TW686x
 tw68              Techwell tw68x Video For Linux
+zoran             Zoran-36057/36067 JPEG codec
 ================  ========================================================
 
 Some of those drivers support multiple devices, as shown at the card
@@ -105,3 +106,4 @@ lists below:
 	ivtv-cardlist
 	saa7134-cardlist
 	saa7164-cardlist
+	zoran-cardlist

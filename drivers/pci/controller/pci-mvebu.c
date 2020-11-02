@@ -12,7 +12,6 @@
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/mbus.h>
-#include <linux/msi.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/of_address.h>
@@ -70,7 +69,6 @@ struct mvebu_pcie_port;
 struct mvebu_pcie {
 	struct platform_device *pdev;
 	struct mvebu_pcie_port *ports;
-	struct msi_controller *msi;
 	struct resource io;
 	struct resource realio;
 	struct resource mem;
@@ -1127,7 +1125,6 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 	bridge->sysdata = pcie;
 	bridge->ops = &mvebu_pcie_ops;
 	bridge->align_resource = mvebu_pcie_align_resource;
-	bridge->msi = pcie->msi;
 
 	return mvebu_pci_host_probe(bridge);
 }

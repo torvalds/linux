@@ -31,7 +31,7 @@ struct cdns3_otg_regs {
 	__le32 simulate;
 	__le32 override;
 	__le32 susp_ctrl;
-	__le32 reserved4;
+	__le32 phyrst_cfg;
 	__le32 anasts;
 	__le32 adp_ramp_time;
 	__le32 ctrl1;
@@ -152,6 +152,9 @@ struct cdns3_otg_common_regs {
 #define OVERRIDE_IDPULLUP		BIT(0)
 /* Only for CDNS3_CONTROLLER_V0 version */
 #define OVERRIDE_IDPULLUP_V0		BIT(24)
+
+/* PHYRST_CFG - bitmasks */
+#define PHYRST_CFG_PHYRST_A_ENABLE     BIT(0)
 
 #define CDNS3_ID_PERIPHERAL		1
 #define CDNS3_ID_HOST			0

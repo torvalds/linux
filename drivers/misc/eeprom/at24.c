@@ -8,6 +8,7 @@
 
 #include <linux/acpi.h>
 #include <linux/bitops.h>
+#include <linux/capability.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
@@ -89,6 +90,7 @@ struct at24_data {
 
 	struct nvmem_device *nvmem;
 	struct regulator *vcc_reg;
+	void (*read_post)(unsigned int off, char *buf, size_t count);
 
 	/*
 	 * Some chips tie up multiple I2C addresses; dummy devices reserve
@@ -121,12 +123,39 @@ MODULE_PARM_DESC(at24_write_timeout, "Time (in ms) to try writes (default 25)");
 struct at24_chip_data {
 	u32 byte_len;
 	u8 flags;
+	void (*read_post)(unsigned int off, char *buf, size_t count);
 };
 
 #define AT24_CHIP_DATA(_name, _len, _flags)				\
 	static const struct at24_chip_data _name = {			\
 		.byte_len = _len, .flags = _flags,			\
 	}
+
+#define AT24_CHIP_DATA_CB(_name, _len, _flags, _read_post)		\
+	static const struct at24_chip_data _name = {			\
+		.byte_len = _len, .flags = _flags,			\
+		.read_post = _read_post,				\
+	}
+
+static void at24_read_post_vaio(unsigned int off, char *buf, size_t count)
+{
+	int i;
+
+	if (capable(CAP_SYS_ADMIN))
+		return;
+
+	/*
+	 * Hide VAIO private settings to regular users:
+	 * - BIOS passwords: bytes 0x00 to 0x0f
+	 * - UUID: bytes 0x10 to 0x1f
+	 * - Serial number: 0xc0 to 0xdf
+	 */
+	for (i = 0; i < count; i++) {
+		if ((off + i <= 0x1f) ||
+		    (off + i >= 0xc0 && off + i <= 0xdf))
+			buf[i] = 0;
+	}
+}
 
 /* needs 8 addresses as A0-A2 are ignored */
 AT24_CHIP_DATA(at24_data_24c00, 128 / 8, AT24_FLAG_TAKE8ADDR);
@@ -144,6 +173,10 @@ AT24_CHIP_DATA(at24_data_24mac602, 64 / 8,
 /* spd is a 24c02 in memory DIMMs */
 AT24_CHIP_DATA(at24_data_spd, 2048 / 8,
 	AT24_FLAG_READONLY | AT24_FLAG_IRUGO);
+/* 24c02_vaio is a 24c02 on some Sony laptops */
+AT24_CHIP_DATA_CB(at24_data_24c02_vaio, 2048 / 8,
+	AT24_FLAG_READONLY | AT24_FLAG_IRUGO,
+	at24_read_post_vaio);
 AT24_CHIP_DATA(at24_data_24c04, 4096 / 8, 0);
 AT24_CHIP_DATA(at24_data_24cs04, 16,
 	AT24_FLAG_SERIAL | AT24_FLAG_READONLY);
@@ -177,6 +210,7 @@ static const struct i2c_device_id at24_ids[] = {
 	{ "24mac402",	(kernel_ulong_t)&at24_data_24mac402 },
 	{ "24mac602",	(kernel_ulong_t)&at24_data_24mac602 },
 	{ "spd",	(kernel_ulong_t)&at24_data_spd },
+	{ "24c02-vaio",	(kernel_ulong_t)&at24_data_24c02_vaio },
 	{ "24c04",	(kernel_ulong_t)&at24_data_24c04 },
 	{ "24cs04",	(kernel_ulong_t)&at24_data_24cs04 },
 	{ "24c08",	(kernel_ulong_t)&at24_data_24c08 },
@@ -388,7 +422,7 @@ static int at24_read(void *priv, unsigned int off, void *val, size_t count)
 	struct at24_data *at24;
 	struct device *dev;
 	char *buf = val;
-	int ret;
+	int i, ret;
 
 	at24 = priv;
 	dev = at24_base_client_dev(at24);
@@ -411,21 +445,21 @@ static int at24_read(void *priv, unsigned int off, void *val, size_t count)
 	 */
 	mutex_lock(&at24->lock);
 
-	while (count) {
-		ret = at24_regmap_read(at24, buf, off, count);
+	for (i = 0; count; i += ret, count -= ret) {
+		ret = at24_regmap_read(at24, buf + i, off + i, count);
 		if (ret < 0) {
 			mutex_unlock(&at24->lock);
 			pm_runtime_put(dev);
 			return ret;
 		}
-		buf += ret;
-		off += ret;
-		count -= ret;
 	}
 
 	mutex_unlock(&at24->lock);
 
 	pm_runtime_put(dev);
+
+	if (unlikely(at24->read_post))
+		at24->read_post(off, buf, i);
 
 	return 0;
 }
@@ -654,6 +688,7 @@ static int at24_probe(struct i2c_client *client)
 	at24->byte_len = byte_len;
 	at24->page_size = page_size;
 	at24->flags = flags;
+	at24->read_post = cdata->read_post;
 	at24->num_addresses = num_addresses;
 	at24->offset_adj = at24_get_offset_adj(flags, byte_len);
 	at24->client[0].client = client;
@@ -678,8 +713,30 @@ static int at24_probe(struct i2c_client *client)
 			return err;
 	}
 
-	nvmem_config.name = dev_name(dev);
+	/*
+	 * If the 'label' property is not present for the AT24 EEPROM,
+	 * then nvmem_config.id is initialised to NVMEM_DEVID_AUTO,
+	 * and this will append the 'devid' to the name of the NVMEM
+	 * device. This is purely legacy and the AT24 driver has always
+	 * defaulted to this. However, if the 'label' property is
+	 * present then this means that the name is specified by the
+	 * firmware and this name should be used verbatim and so it is
+	 * not necessary to append the 'devid'.
+	 */
+	if (device_property_present(dev, "label")) {
+		nvmem_config.id = NVMEM_DEVID_NONE;
+		err = device_property_read_string(dev, "label",
+						  &nvmem_config.name);
+		if (err)
+			return err;
+	} else {
+		nvmem_config.id = NVMEM_DEVID_AUTO;
+		nvmem_config.name = dev_name(dev);
+	}
+
+	nvmem_config.type = NVMEM_TYPE_EEPROM;
 	nvmem_config.dev = dev;
+	nvmem_config.id = NVMEM_DEVID_AUTO;
 	nvmem_config.read_only = !writable;
 	nvmem_config.root_only = !(flags & AT24_FLAG_IRUGO);
 	nvmem_config.owner = THIS_MODULE;

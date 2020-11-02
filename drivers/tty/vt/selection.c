@@ -54,7 +54,7 @@ static struct vc_selection {
 /* set reverse video on characters s-e of console with selection. */
 static inline void highlight(const int s, const int e)
 {
-	invert_screen(vc_sel.cons, s, e-s+2, 1);
+	invert_screen(vc_sel.cons, s, e-s+2, true);
 }
 
 /* use complementary color to show the pointer */

@@ -257,7 +257,7 @@ void rproc_coredump(struct rproc *rproc)
 		 * directly read from device memory.
 		 */
 		data_size += elf_size_of_phdr(class);
-		if (dump_conf == RPROC_COREDUMP_DEFAULT)
+		if (dump_conf == RPROC_COREDUMP_ENABLED)
 			data_size += segment->size;
 
 		phnum++;
@@ -297,14 +297,14 @@ void rproc_coredump(struct rproc *rproc)
 		elf_phdr_set_p_flags(class, phdr, PF_R | PF_W | PF_X);
 		elf_phdr_set_p_align(class, phdr, 0);
 
-		if (dump_conf == RPROC_COREDUMP_DEFAULT)
+		if (dump_conf == RPROC_COREDUMP_ENABLED)
 			rproc_copy_segment(rproc, data + offset, segment, 0,
 					   segment->size);
 
 		offset += elf_phdr_get_p_filesz(class, phdr);
 		phdr += elf_size_of_phdr(class);
 	}
-	if (dump_conf == RPROC_COREDUMP_DEFAULT) {
+	if (dump_conf == RPROC_COREDUMP_ENABLED) {
 		dev_coredumpv(&rproc->dev, data, data_size, GFP_KERNEL);
 		return;
 	}

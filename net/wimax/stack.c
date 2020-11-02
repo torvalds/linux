@@ -401,7 +401,7 @@ static const struct nla_policy wimax_gnl_policy[WIMAX_GNL_ATTR_MAX + 1] = {
 	},
 };
 
-static const struct genl_ops wimax_gnl_ops[] = {
+static const struct genl_small_ops wimax_gnl_ops[] = {
 	{
 		.cmd = WIMAX_GNL_OP_MSG_FROM_USER,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
@@ -560,8 +560,8 @@ struct genl_family wimax_gnl_family __ro_after_init = {
 	.maxattr = WIMAX_GNL_ATTR_MAX,
 	.policy = wimax_gnl_policy,
 	.module = THIS_MODULE,
-	.ops = wimax_gnl_ops,
-	.n_ops = ARRAY_SIZE(wimax_gnl_ops),
+	.small_ops = wimax_gnl_ops,
+	.n_small_ops = ARRAY_SIZE(wimax_gnl_ops),
 	.mcgrps = wimax_gnl_mcgrps,
 	.n_mcgrps = ARRAY_SIZE(wimax_gnl_mcgrps),
 };

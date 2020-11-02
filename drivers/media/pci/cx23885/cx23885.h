@@ -325,8 +325,8 @@ struct cx23885_audio_buffer {
 	struct cx23885_riscmem	risc;
 	void			*vaddr;
 	struct scatterlist	*sglist;
-	int                     sglen;
-	int                     nr_pages;
+	int			sglen;
+	unsigned long		nr_pages;
 };
 
 struct cx23885_audio_dev {

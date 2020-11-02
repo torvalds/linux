@@ -6,7 +6,10 @@
 
 #include <linux/bitrev.h>
 #include <linux/clk.h>
+#include <linux/crc32.h>
 #include <linux/crc32poly.h>
+#include <linux/io.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
@@ -147,7 +150,6 @@ static int burst_update(struct shash_desc *desc, const u8 *d8,
 	struct stm32_crc_desc_ctx *ctx = shash_desc_ctx(desc);
 	struct stm32_crc_ctx *mctx = crypto_shash_ctx(desc->tfm);
 	struct stm32_crc *crc;
-	unsigned long flags;
 
 	crc = stm32_crc_get_next_crc();
 	if (!crc)
@@ -155,7 +157,15 @@ static int burst_update(struct shash_desc *desc, const u8 *d8,
 
 	pm_runtime_get_sync(crc->dev);
 
-	spin_lock_irqsave(&crc->lock, flags);
+	if (!spin_trylock(&crc->lock)) {
+		/* Hardware is busy, calculate crc32 by software */
+		if (mctx->poly == CRC32_POLY_LE)
+			ctx->partial = crc32_le(ctx->partial, d8, length);
+		else
+			ctx->partial = __crc32c_le(ctx->partial, d8, length);
+
+		goto pm_out;
+	}
 
 	/*
 	 * Restore previously calculated CRC for this context as init value
@@ -195,8 +205,9 @@ static int burst_update(struct shash_desc *desc, const u8 *d8,
 	/* Store partial result */
 	ctx->partial = readl_relaxed(crc->regs + CRC_DR);
 
-	spin_unlock_irqrestore(&crc->lock, flags);
+	spin_unlock(&crc->lock);
 
+pm_out:
 	pm_runtime_mark_last_busy(crc->dev);
 	pm_runtime_put_autosuspend(crc->dev);
 
@@ -216,9 +227,8 @@ static int stm32_crc_update(struct shash_desc *desc, const u8 *d8,
 		return burst_update(desc, d8, length);
 
 	/* Digest first bytes not 32bit aligned at first pass in the loop */
-	size = min(length,
-		   burst_sz + (unsigned int)d8 - ALIGN_DOWN((unsigned int)d8,
-							    sizeof(u32)));
+	size = min_t(size_t, length, burst_sz + (size_t)d8 -
+				     ALIGN_DOWN((size_t)d8, sizeof(u32)));
 	for (rem_sz = length, cur = d8; rem_sz;
 	     rem_sz -= size, cur += size, size = min(rem_sz, burst_sz)) {
 		ret = burst_update(desc, cur, size);

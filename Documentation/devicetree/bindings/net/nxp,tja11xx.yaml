@@ -34,6 +34,8 @@ patternProperties:
     required:
       - reg
 
+unevaluatedProperties: false
+
 examples:
   - |
     mdio {

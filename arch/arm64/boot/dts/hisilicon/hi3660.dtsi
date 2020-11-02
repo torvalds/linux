@@ -1089,16 +1089,18 @@
 			compatible = "arm,sp805-wdt", "arm,primecell";
 			reg = <0x0 0xe8a06000 0x0 0x1000>;
 			interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&crg_ctrl HI3660_OSC32K>;
-			clock-names = "apb_pclk";
+			clocks = <&crg_ctrl HI3660_OSC32K>,
+				 <&crg_ctrl HI3660_OSC32K>;
+			clock-names = "wdog_clk", "apb_pclk";
 		};
 
 		watchdog1: watchdog@e8a07000 {
 			compatible = "arm,sp805-wdt", "arm,primecell";
 			reg = <0x0 0xe8a07000 0x0 0x1000>;
 			interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&crg_ctrl HI3660_OSC32K>;
-			clock-names = "apb_pclk";
+			clocks = <&crg_ctrl HI3660_OSC32K>,
+				 <&crg_ctrl HI3660_OSC32K>;
+			clock-names = "wdog_clk", "apb_pclk";
 		};
 
 		tsensor: tsensor@fff30000 {

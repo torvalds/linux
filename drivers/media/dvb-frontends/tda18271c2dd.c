@@ -198,58 +198,55 @@ static void reset(struct tda_state *state)
 	state->m_bFMInput = (ulFMInput == 2);
 }
 
-static bool SearchMap1(struct SMap Map[],
-		       u32 Frequency, u8 *pParam)
+static bool SearchMap1(const struct SMap map[], u32 frequency, u8 *param)
 {
 	int i = 0;
 
-	while ((Map[i].m_Frequency != 0) && (Frequency > Map[i].m_Frequency))
+	while ((map[i].m_Frequency != 0) && (frequency > map[i].m_Frequency))
 		i += 1;
-	if (Map[i].m_Frequency == 0)
+	if (map[i].m_Frequency == 0)
 		return false;
-	*pParam = Map[i].m_Param;
+	*param = map[i].m_Param;
 	return true;
 }
 
-static bool SearchMap2(struct SMapI Map[],
-		       u32 Frequency, s32 *pParam)
+static bool SearchMap2(const struct SMapI map[], u32 frequency, s32 *param)
 {
 	int i = 0;
 
-	while ((Map[i].m_Frequency != 0) &&
-	       (Frequency > Map[i].m_Frequency))
+	while ((map[i].m_Frequency != 0) &&
+	       (frequency > map[i].m_Frequency))
 		i += 1;
-	if (Map[i].m_Frequency == 0)
+	if (map[i].m_Frequency == 0)
 		return false;
-	*pParam = Map[i].m_Param;
+	*param = map[i].m_Param;
 	return true;
 }
 
-static bool SearchMap3(struct SMap2 Map[], u32 Frequency,
-		       u8 *pParam1, u8 *pParam2)
+static bool SearchMap3(const struct SMap2 map[], u32 frequency, u8 *param1,
+		       u8 *param2)
 {
 	int i = 0;
 
-	while ((Map[i].m_Frequency != 0) &&
-	       (Frequency > Map[i].m_Frequency))
+	while ((map[i].m_Frequency != 0) &&
+	       (frequency > map[i].m_Frequency))
 		i += 1;
-	if (Map[i].m_Frequency == 0)
+	if (map[i].m_Frequency == 0)
 		return false;
-	*pParam1 = Map[i].m_Param1;
-	*pParam2 = Map[i].m_Param2;
+	*param1 = map[i].m_Param1;
+	*param2 = map[i].m_Param2;
 	return true;
 }
 
-static bool SearchMap4(struct SRFBandMap Map[],
-		       u32 Frequency, u8 *pRFBand)
+static bool SearchMap4(const struct SRFBandMap map[], u32 frequency, u8 *rfband)
 {
 	int i = 0;
 
-	while (i < 7 && (Frequency > Map[i].m_RF_max))
+	while (i < 7 && (frequency > map[i].m_RF_max))
 		i += 1;
 	if (i == 7)
 		return false;
-	*pRFBand = i;
+	*rfband = i;
 	return true;
 }
 

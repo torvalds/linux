@@ -395,6 +395,8 @@ void nvmet_get_feat_async_event(struct nvmet_req *req);
 u16 nvmet_set_feat_kato(struct nvmet_req *req);
 u16 nvmet_set_feat_async_event(struct nvmet_req *req, u32 mask);
 void nvmet_execute_async_event(struct nvmet_req *req);
+void nvmet_start_keep_alive_timer(struct nvmet_ctrl *ctrl);
+void nvmet_stop_keep_alive_timer(struct nvmet_ctrl *ctrl);
 
 u16 nvmet_parse_connect_cmd(struct nvmet_req *req);
 void nvmet_bdev_set_limits(struct block_device *bdev, struct nvme_id_ns *id);

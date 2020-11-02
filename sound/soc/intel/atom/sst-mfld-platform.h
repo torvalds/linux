@@ -173,6 +173,6 @@ struct sst_data {
 	struct snd_soc_card *soc_card;
 	struct sst_cmd_sba_hw_set_ssp ssp_cmd;
 };
-int sst_register_dsp(struct sst_device *sst);
-int sst_unregister_dsp(struct sst_device *sst);
+int sst_register_dsp(struct sst_device *dev);
+int sst_unregister_dsp(struct sst_device *dev);
 #endif

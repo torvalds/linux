@@ -27,6 +27,20 @@ config TYPEC_RT1711H
 	  Type-C Port Controller Manager to provide USB PD and USB
 	  Type-C functionalities.
 
+config TYPEC_MT6360
+	tristate "Mediatek MT6360 Type-C driver"
+	depends on MFD_MT6360
+	help
+	  Mediatek MT6360 is a multi-functional IC that includes
+	  USB Type-C. It works with Type-C Port Controller Manager
+	  to provide USB PD and USB Type-C functionalities.
+
+config TYPEC_TCPCI_MAXIM
+	tristate "Maxim TCPCI based Type-C chip driver"
+	help
+	  MAXIM TCPCI based Type-C/PD chip driver. Works with
+	  with Type-C Port Controller Manager.
+
 endif # TYPEC_TCPCI
 
 config TYPEC_FUSB302

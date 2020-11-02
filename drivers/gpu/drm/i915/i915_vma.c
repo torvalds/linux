@@ -892,9 +892,11 @@ int i915_vma_pin_ww(struct i915_vma *vma, struct i915_gem_ww_ctx *ww,
 
 		/* Allocate enough page directories to used PTE */
 		if (vma->vm->allocate_va_range) {
-			i915_vm_alloc_pt_stash(vma->vm,
-					       &work->stash,
-					       vma->size);
+			err = i915_vm_alloc_pt_stash(vma->vm,
+						     &work->stash,
+						     vma->size);
+			if (err)
+				goto err_fence;
 
 			err = i915_vm_pin_pt_stash(vma->vm,
 						   &work->stash);

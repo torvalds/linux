@@ -503,8 +503,8 @@ static const struct kfd_device_info *kfd_supported_devices[][2] = {
 #ifdef KFD_SUPPORT_IOMMU_V2
 	[CHIP_KAVERI] = {&kaveri_device_info, NULL},
 	[CHIP_CARRIZO] = {&carrizo_device_info, NULL},
-	[CHIP_RAVEN] = {&raven_device_info, NULL},
 #endif
+	[CHIP_RAVEN] = {&raven_device_info, NULL},
 	[CHIP_HAWAII] = {&hawaii_device_info, NULL},
 	[CHIP_TONGA] = {&tonga_device_info, NULL},
 	[CHIP_FIJI] = {&fiji_device_info, &fiji_vf_device_info},
@@ -582,6 +582,8 @@ struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd,
 		sizeof(kfd->doorbell_available_index));
 
 	atomic_set(&kfd->sram_ecc_flag, 0);
+
+	ida_init(&kfd->doorbell_ida);
 
 	return kfd;
 }
@@ -716,6 +718,8 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 
 	kfd->unique_id = amdgpu_amdkfd_get_unique_id(kfd->kgd);
 
+	kfd->noretry = amdgpu_amdkfd_get_noretry(kfd->kgd);
+
 	if (kfd_interrupt_init(kfd)) {
 		dev_err(kfd_device, "Error initializing interrupts\n");
 		goto kfd_interrupt_error;
@@ -798,6 +802,7 @@ void kgd2kfd_device_exit(struct kfd_dev *kfd)
 		kfd_interrupt_exit(kfd);
 		kfd_topology_remove_device(kfd);
 		kfd_doorbell_fini(kfd);
+		ida_destroy(&kfd->doorbell_ida);
 		kfd_gtt_sa_fini(kfd);
 		amdgpu_amdkfd_free_gtt_mem(kfd->kgd, kfd->gtt_mem);
 		if (kfd->gws)

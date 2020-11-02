@@ -5616,7 +5616,7 @@ int ata_host_start(struct ata_host *host)
 EXPORT_SYMBOL_GPL(ata_host_start);
 
 /**
- *	ata_sas_host_init - Initialize a host struct for sas (ipr, libsas)
+ *	ata_host_init - Initialize a host struct for sas (ipr, libsas)
  *	@host:	host to initialize
  *	@dev:	device host is attached to
  *	@ops:	port_ops

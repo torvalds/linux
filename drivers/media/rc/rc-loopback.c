@@ -113,7 +113,7 @@ static int loop_tx_ir(struct rc_dev *dev, unsigned *txbuf, unsigned count)
 
 	for (i = 0; i < count; i++) {
 		rawir.pulse = i % 2 ? false : true;
-		rawir.duration = txbuf[i] * 1000;
+		rawir.duration = txbuf[i];
 		if (rawir.duration)
 			ir_raw_event_store_with_filter(dev, &rawir);
 	}
@@ -219,11 +219,11 @@ static int __init loop_init(void)
 	rc->allowed_protocols	= RC_PROTO_BIT_ALL_IR_DECODER;
 	rc->allowed_wakeup_protocols = RC_PROTO_BIT_ALL_IR_ENCODER;
 	rc->encode_wakeup	= true;
-	rc->timeout		= 100 * 1000 * 1000; /* 100 ms */
+	rc->timeout		= MS_TO_US(100); /* 100 ms */
 	rc->min_timeout		= 1;
 	rc->max_timeout		= UINT_MAX;
-	rc->rx_resolution	= 1000;
-	rc->tx_resolution	= 1000;
+	rc->rx_resolution	= 1;
+	rc->tx_resolution	= 1;
 	rc->s_tx_mask		= loop_set_tx_mask;
 	rc->s_tx_carrier	= loop_set_tx_carrier;
 	rc->s_tx_duty_cycle	= loop_set_tx_duty_cycle;

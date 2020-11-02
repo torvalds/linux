@@ -147,6 +147,7 @@ config I2C_I801
 	    Tiger Lake (PCH)
 	    Jasper Lake (SOC)
 	    Emmitsburg (PCH)
+	    Alder Lake (PCH)
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
@@ -730,6 +731,19 @@ config I2C_LPC2K
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-lpc2k.
 
+config I2C_MLXBF
+        tristate "Mellanox BlueField I2C controller"
+        depends on ARM64
+        help
+          Enabling this option will add I2C SMBus support for Mellanox BlueField
+          system.
+
+          This driver can also be built as a module. If so, the module will be
+          called i2c-mlxbf.
+
+          This driver implements an I2C SMBus host controller and enables both
+          master and slave functions.
+
 config I2C_MESON
 	tristate "Amlogic Meson I2C controller"
 	depends on ARCH_MESON || COMPILE_TEST
@@ -840,7 +854,6 @@ config I2C_PASEMI
 config I2C_PCA_PLATFORM
 	tristate "PCA9564/PCA9665 as platform device"
 	select I2C_ALGOPCA
-	default n
 	help
 	  This driver supports a memory mapped Philips PCA9564/PCA9665
 	  parallel bus to I2C bus controller.
@@ -1026,6 +1039,7 @@ config I2C_STM32F7
 	tristate "STMicroelectronics STM32F7 I2C support"
 	depends on ARCH_STM32 || COMPILE_TEST
 	select I2C_SLAVE
+	select I2C_SMBUS
 	help
 	  Enable this option to add support for STM32 I2C controller embedded
 	  in STM32F7 SoCs.
@@ -1181,6 +1195,8 @@ config I2C_RCAR
 	tristate "Renesas R-Car I2C Controller"
 	depends on ARCH_RENESAS || COMPILE_TEST
 	select I2C_SLAVE
+	select I2C_SMBUS
+	select RESET_CONTROLLER if ARCH_RCAR_GEN3
 	help
 	  If you say yes to this option, support will be included for the
 	  R-Car I2C controller.
@@ -1240,7 +1256,6 @@ config I2C_TAOS_EVM
 	depends on TTY
 	select SERIO
 	select SERIO_SERPORT
-	default n
 	help
 	  This supports TAOS evaluation modules on serial port. In order to
 	  use this driver, you will need the inputattach tool, which is part
@@ -1324,7 +1339,6 @@ config I2C_PCA_ISA
 	tristate "PCA9564/PCA9665 on an ISA bus"
 	depends on ISA
 	select I2C_ALGOPCA
-	default n
 	help
 	  This driver supports ISA boards using the Philips PCA9564/PCA9665
 	  parallel bus to I2C bus controller.

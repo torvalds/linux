@@ -543,6 +543,7 @@ int amdgpu_mem_train_support(struct amdgpu_device *adev)
 		case HW_REV(11, 0, 0):
 		case HW_REV(11, 0, 5):
 		case HW_REV(11, 0, 7):
+		case HW_REV(11, 0, 11):
 			ret = 1;
 			break;
 		default:

@@ -15,8 +15,11 @@ Description:
 		first object echoed in meters. Default value is 6.020.
 		This setting limits the time the driver is waiting for a
 		echo.
+
 		Showing the range of available values is represented as the
 		minimum value, the step and the maximum value, all enclosed
 		in square brackets.
-		Example:
-		[0.043 0.043 11.008]
+
+		Example::
+
+			[0.043 0.043 11.008]

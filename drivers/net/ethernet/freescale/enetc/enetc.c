@@ -4,7 +4,6 @@
 #include "enetc.h"
 #include <linux/tcp.h>
 #include <linux/udp.h>
-#include <linux/of_mdio.h>
 #include <linux/vmalloc.h>
 
 /* ENETC overhead: optional extension BD + 1 BD gap */
@@ -1392,38 +1391,24 @@ static void enetc_clear_interrupts(struct enetc_ndev_priv *priv)
 		enetc_rxbdr_wr(&priv->si->hw, i, ENETC_RBIER, 0);
 }
 
-static void adjust_link(struct net_device *ndev)
+static int enetc_phylink_connect(struct net_device *ndev)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
-	struct phy_device *phydev = ndev->phydev;
-
-	if (priv->active_offloads & ENETC_F_QBV)
-		enetc_sched_speed_set(ndev);
-
-	phy_print_status(phydev);
-}
-
-static int enetc_phy_connect(struct net_device *ndev)
-{
-	struct enetc_ndev_priv *priv = netdev_priv(ndev);
-	struct phy_device *phydev;
 	struct ethtool_eee edata;
+	int err;
 
-	if (!priv->phy_node)
+	if (!priv->phylink)
 		return 0; /* phy-less mode */
 
-	phydev = of_phy_connect(ndev, priv->phy_node, &adjust_link,
-				0, priv->if_mode);
-	if (!phydev) {
+	err = phylink_of_phy_connect(priv->phylink, priv->dev->of_node, 0);
+	if (err) {
 		dev_err(&ndev->dev, "could not attach to PHY\n");
-		return -ENODEV;
+		return err;
 	}
-
-	phy_attached_info(phydev);
 
 	/* disable EEE autoneg, until ENETC driver supports it */
 	memset(&edata, 0, sizeof(struct ethtool_eee));
-	phy_ethtool_set_eee(phydev, &edata);
+	phylink_ethtool_set_eee(priv->phylink, &edata);
 
 	return 0;
 }
@@ -1443,8 +1428,8 @@ void enetc_start(struct net_device *ndev)
 		enable_irq(irq);
 	}
 
-	if (ndev->phydev)
-		phy_start(ndev->phydev);
+	if (priv->phylink)
+		phylink_start(priv->phylink);
 	else
 		netif_carrier_on(ndev);
 
@@ -1460,7 +1445,7 @@ int enetc_open(struct net_device *ndev)
 	if (err)
 		return err;
 
-	err = enetc_phy_connect(ndev);
+	err = enetc_phylink_connect(ndev);
 	if (err)
 		goto err_phy_connect;
 
@@ -1490,8 +1475,8 @@ err_set_queues:
 err_alloc_rx:
 	enetc_free_tx_resources(priv);
 err_alloc_tx:
-	if (ndev->phydev)
-		phy_disconnect(ndev->phydev);
+	if (priv->phylink)
+		phylink_disconnect_phy(priv->phylink);
 err_phy_connect:
 	enetc_free_irqs(priv);
 
@@ -1514,8 +1499,8 @@ void enetc_stop(struct net_device *ndev)
 		napi_disable(&priv->int_vector[i]->napi);
 	}
 
-	if (ndev->phydev)
-		phy_stop(ndev->phydev);
+	if (priv->phylink)
+		phylink_stop(priv->phylink);
 	else
 		netif_carrier_off(ndev);
 
@@ -1529,8 +1514,8 @@ int enetc_close(struct net_device *ndev)
 	enetc_stop(ndev);
 	enetc_clear_bdrs(priv);
 
-	if (ndev->phydev)
-		phy_disconnect(ndev->phydev);
+	if (priv->phylink)
+		phylink_disconnect_phy(priv->phylink);
 	enetc_free_rxtx_rings(priv);
 	enetc_free_rx_resources(priv);
 	enetc_free_tx_resources(priv);
@@ -1780,6 +1765,7 @@ static int enetc_hwtstamp_get(struct net_device *ndev, struct ifreq *ifr)
 
 int enetc_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 {
+	struct enetc_ndev_priv *priv = netdev_priv(ndev);
 #ifdef CONFIG_FSL_ENETC_PTP_CLOCK
 	if (cmd == SIOCSHWTSTAMP)
 		return enetc_hwtstamp_set(ndev, rq);
@@ -1787,9 +1773,10 @@ int enetc_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 		return enetc_hwtstamp_get(ndev, rq);
 #endif
 
-	if (!ndev->phydev)
+	if (!priv->phylink)
 		return -EOPNOTSUPP;
-	return phy_mii_ioctl(ndev->phydev, rq, cmd);
+
+	return phylink_mii_ioctl(priv->phylink, rq, cmd);
 }
 
 int enetc_alloc_msix(struct enetc_ndev_priv *priv)
