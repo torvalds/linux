@@ -770,8 +770,12 @@ enum {
  * actions in a dump. All dump responses will contain the number of actions
  * being dumped stored in for user app's consumption in TCA_ROOT_COUNT
  *
+ * TCA_FLAG_TERSE_DUMP user->kernel to request terse (brief) dump that only
+ * includes essential action info (kind, index, etc.)
+ *
  */
 #define TCA_FLAG_LARGE_DUMP_ON		(1 << 0)
+#define TCA_FLAG_TERSE_DUMP		(1 << 1)
 
 /* New extended info filters for IFLA_EXT_MASK */
 #define RTEXT_FILTER_VF		(1 << 0)
