@@ -247,7 +247,7 @@ static int jpeg_v2_0_disable_power_gating(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int jpeg_v2_0_enable_power_gating(struct amdgpu_device* adev)
+static int jpeg_v2_0_enable_power_gating(struct amdgpu_device *adev)
 {
 	if (adev->pg_flags & AMD_PG_SUPPORT_JPEG) {
 		uint32_t data;
@@ -274,7 +274,7 @@ static int jpeg_v2_0_enable_power_gating(struct amdgpu_device* adev)
 	return 0;
 }
 
-static void jpeg_v2_0_disable_clock_gating(struct amdgpu_device* adev)
+static void jpeg_v2_0_disable_clock_gating(struct amdgpu_device *adev)
 {
 	uint32_t data;
 
@@ -297,7 +297,7 @@ static void jpeg_v2_0_disable_clock_gating(struct amdgpu_device* adev)
 	WREG32_SOC15(JPEG, 0, mmJPEG_CGC_GATE, data);
 }
 
-static void jpeg_v2_0_enable_clock_gating(struct amdgpu_device* adev)
+static void jpeg_v2_0_enable_clock_gating(struct amdgpu_device *adev)
 {
 	uint32_t data;
 
