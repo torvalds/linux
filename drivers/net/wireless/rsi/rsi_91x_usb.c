@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2014 Redpine Signals Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -75,7 +75,7 @@ static int rsi_usb_card_write(struct rsi_hw *adapter,
  * rsi_write_multiple() - This function writes multiple bytes of information
  *			  to the USB card.
  * @adapter: Pointer to the adapter structure.
- * @addr: Address of the register.
+ * @endpoint: Type of endpoint.
  * @data: Pointer to the data that has to be written.
  * @count: Number of multiple bytes to be written.
  *
@@ -313,6 +313,8 @@ static void rsi_rx_urb_kill(struct rsi_hw *adapter, u8 ep_num)
 /**
  * rsi_rx_urb_submit() - This function submits the given URB to the USB stack.
  * @adapter: Pointer to the adapter structure.
+ * @ep_num: Endpoint number.
+ * @mem_flags: The type of memory to allocate.
  *
  * Return: 0 on success, a negative error code on failure.
  */
