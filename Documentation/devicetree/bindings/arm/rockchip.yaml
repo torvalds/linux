@@ -381,6 +381,11 @@ properties:
               - khadas,edge-v
           - const: rockchip,rk3399
 
+      - description: Kobol Helios64
+        items:
+          - const: kobol,helios64
+          - const: rockchip,rk3399
+
       - description: Mecer Xtreme Mini S6
         items:
           - const: mecer,xms6
