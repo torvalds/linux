@@ -265,6 +265,8 @@ do {									\
 	BCH_DEBUG_PARAM(debug_check_bkeys,				\
 		"Run bkey_debugcheck (primarily checking GC/allocation "\
 		"information) when iterating over keys")		\
+	BCH_DEBUG_PARAM(debug_check_btree_accounting,			\
+		"Verify btree accounting for keys within a node")	\
 	BCH_DEBUG_PARAM(verify_btree_ondisk,				\
 		"Reread btree nodes at various points to verify the "	\
 		"mergesort in the read path against modifications "	\
