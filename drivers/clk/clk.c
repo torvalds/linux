@@ -3107,7 +3107,7 @@ static int clk_dump_show(struct seq_file *s, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(clk_dump);
 
-#undef CLOCK_ALLOW_WRITE_DEBUGFS
+#define CLOCK_ALLOW_WRITE_DEBUGFS
 #ifdef CLOCK_ALLOW_WRITE_DEBUGFS
 /*
  * This can be dangerous, therefore don't provide any real compile time
