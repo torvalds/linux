@@ -170,7 +170,7 @@ static void umc_v8_7_querry_uncorrectable_error_count(struct amdgpu_device *adev
 static void umc_v8_7_query_ras_error_count(struct amdgpu_device *adev,
 					   void *ras_error_status)
 {
-	struct ras_err_data* err_data = (struct ras_err_data*)ras_error_status;
+	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
 
 	uint32_t umc_inst        = 0;
 	uint32_t ch_inst         = 0;
@@ -260,7 +260,7 @@ static void umc_v8_7_query_error_address(struct amdgpu_device *adev,
 static void umc_v8_7_query_ras_error_address(struct amdgpu_device *adev,
 					     void *ras_error_status)
 {
-	struct ras_err_data* err_data = (struct ras_err_data*)ras_error_status;
+	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
 
 	uint32_t umc_inst        = 0;
 	uint32_t ch_inst         = 0;
