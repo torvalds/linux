@@ -3502,7 +3502,7 @@ static int _resume_v3_hw(struct device *device)
 	return 0;
 }
 
-static int suspend_v3_hw(struct device *device)
+static int __maybe_unused suspend_v3_hw(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct sas_ha_struct *sha = pci_get_drvdata(pdev);
@@ -3518,7 +3518,7 @@ static int suspend_v3_hw(struct device *device)
 	return rc;
 }
 
-static int resume_v3_hw(struct device *device)
+static int __maybe_unused resume_v3_hw(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct sas_ha_struct *sha = pci_get_drvdata(pdev);
@@ -3541,21 +3541,10 @@ static const struct pci_error_handlers hisi_sas_err_handler = {
 	.reset_done	= hisi_sas_reset_done_v3_hw,
 };
 
-static int runtime_suspend_v3_hw(struct device *dev)
-{
-	return suspend_v3_hw(dev);
-}
-
-static int runtime_resume_v3_hw(struct device *dev)
-{
-	return resume_v3_hw(dev);
-}
-
-static const struct dev_pm_ops hisi_sas_v3_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(suspend_v3_hw, resume_v3_hw)
-	SET_RUNTIME_PM_OPS(runtime_suspend_v3_hw,
-			   runtime_resume_v3_hw, NULL)
-};
+static UNIVERSAL_DEV_PM_OPS(hisi_sas_v3_pm_ops,
+			    suspend_v3_hw,
+			    resume_v3_hw,
+			    NULL);
 
 static struct pci_driver sas_v3_pci_driver = {
 	.name		= DRV_NAME,
