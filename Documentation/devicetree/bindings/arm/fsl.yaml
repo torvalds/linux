@@ -892,6 +892,7 @@ properties:
           - enum:
               - fsl,lx2160a-qds
               - fsl,lx2160a-rdb
+              - fsl,lx2162a-qds
           - const: fsl,lx2160a
 
       - description: S32V234 based Boards
