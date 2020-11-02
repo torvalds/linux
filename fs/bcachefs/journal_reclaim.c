@@ -465,34 +465,12 @@ static bool journal_flush_pins(struct journal *j, u64 seq_to_flush,
 	return ret;
 }
 
-/**
- * bch2_journal_reclaim - free up journal buckets
- *
- * Background journal reclaim writes out btree nodes. It should be run
- * early enough so that we never completely run out of journal buckets.
- *
- * High watermarks for triggering background reclaim:
- * - FIFO has fewer than 512 entries left
- * - fewer than 25% journal buckets free
- *
- * Background reclaim runs until low watermarks are reached:
- * - FIFO has more than 1024 entries left
- * - more than 50% journal buckets free
- *
- * As long as a reclaim can complete in the time it takes to fill up
- * 512 journal entries or 25% of all journal buckets, then
- * journal_next_bucket() should not stall.
- */
-void bch2_journal_reclaim(struct journal *j)
+static u64 journal_seq_to_flush(struct journal *j)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct bch_dev *ca;
-	unsigned iter, min_nr = 0;
 	u64 seq_to_flush = 0;
-
-	lockdep_assert_held(&j->reclaim_lock);
-
-	bch2_journal_do_discards(j);
+	unsigned iter;
 
 	spin_lock(&j->lock);
 
@@ -524,20 +502,52 @@ void bch2_journal_reclaim(struct journal *j)
 			     (j->pin.size >> 1));
 	spin_unlock(&j->lock);
 
-	/*
-	 * If it's been longer than j->reclaim_delay_ms since we last flushed,
-	 * make sure to flush at least one journal pin:
-	 */
-	if (time_after(jiffies, j->last_flushed +
-		       msecs_to_jiffies(j->reclaim_delay_ms)))
-		min_nr = 1;
+	return seq_to_flush;
+}
 
-	if (j->prereserved.reserved * 2 > j->prereserved.remaining) {
-		seq_to_flush = max(seq_to_flush, journal_last_seq(j));
-		min_nr = 1;
-	}
+/**
+ * bch2_journal_reclaim - free up journal buckets
+ *
+ * Background journal reclaim writes out btree nodes. It should be run
+ * early enough so that we never completely run out of journal buckets.
+ *
+ * High watermarks for triggering background reclaim:
+ * - FIFO has fewer than 512 entries left
+ * - fewer than 25% journal buckets free
+ *
+ * Background reclaim runs until low watermarks are reached:
+ * - FIFO has more than 1024 entries left
+ * - more than 50% journal buckets free
+ *
+ * As long as a reclaim can complete in the time it takes to fill up
+ * 512 journal entries or 25% of all journal buckets, then
+ * journal_next_bucket() should not stall.
+ */
+void bch2_journal_reclaim(struct journal *j)
+{
+	struct bch_fs *c = container_of(j, struct bch_fs, journal);
+	unsigned min_nr = 0;
+	u64 seq_to_flush = 0;
 
-	journal_flush_pins(j, seq_to_flush, min_nr);
+	lockdep_assert_held(&j->reclaim_lock);
+
+	do {
+		bch2_journal_do_discards(j);
+
+		seq_to_flush = journal_seq_to_flush(j);
+		min_nr = 0;
+
+		/*
+		 * If it's been longer than j->reclaim_delay_ms since we last flushed,
+		 * make sure to flush at least one journal pin:
+		 */
+		if (time_after(jiffies, j->last_flushed +
+			       msecs_to_jiffies(j->reclaim_delay_ms)))
+			min_nr = 1;
+
+		if (j->prereserved.reserved * 2 > j->prereserved.remaining)
+			min_nr = 1;
+	} while (journal_flush_pins(j, seq_to_flush, min_nr));
 
 	if (!bch2_journal_error(j))
 		queue_delayed_work(c->journal_reclaim_wq, &j->reclaim_work,
