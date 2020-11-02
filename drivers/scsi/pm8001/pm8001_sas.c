@@ -919,7 +919,7 @@ static int pm8001_issue_ssp_tmf(struct domain_device *dev,
 	if (!(dev->tproto & SAS_PROTOCOL_SSP))
 		return TMF_RESP_FUNC_ESUPP;
 
-	strncpy((u8 *)&ssp_task.LUN, lun, 8);
+	memcpy((u8 *)&ssp_task.LUN, lun, 8);
 	return pm8001_exec_internal_tmf_task(dev, &ssp_task, sizeof(ssp_task),
 		tmf);
 }
