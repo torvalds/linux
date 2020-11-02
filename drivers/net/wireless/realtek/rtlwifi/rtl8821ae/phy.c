@@ -594,11 +594,10 @@ void rtl8821ae_phy_switch_wirelessband(struct ieee80211_hw *hw, u8 band)
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	struct rtl_dm *rtldm = rtl_dm(rtlpriv);
 	u8 current_band = rtlhal->current_bandtype;
-	u32 txpath, rxpath;
 	s8 bb_diff_between_band;
 
-	txpath = rtl8821ae_phy_query_bb_reg(hw, RTXPATH, 0xf0);
-	rxpath = rtl8821ae_phy_query_bb_reg(hw, RCCK_RX, 0x0f000000);
+	rtl8821ae_phy_query_bb_reg(hw, RTXPATH, 0xf0);
+	rtl8821ae_phy_query_bb_reg(hw, RCCK_RX, 0x0f000000);
 	rtlhal->current_bandtype = (enum band_type) band;
 	/* reconfig BB/RF according to wireless mode */
 	if (rtlhal->current_bandtype == BAND_ON_2_4G) {
