@@ -23,6 +23,7 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/limits.h>
 #include <linux/swiotlb.h>
 
 #include "nouveau_drv.h"
