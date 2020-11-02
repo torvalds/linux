@@ -13,14 +13,14 @@
 #include <linux/platform_device.h>
 #include <linux/netdevice.h>
 
+#include "ipa_version.h"
+
 /* Maximum number of channels and event rings supported by the driver */
 #define GSI_CHANNEL_COUNT_MAX	17
 #define GSI_EVT_RING_COUNT_MAX	13
 
 /* Maximum TLV FIFO size for a channel; 64 here is arbitrary (and high) */
 #define GSI_TLV_MAX		64
-
-enum ipa_version;
 
 struct device;
 struct scatterlist;
@@ -109,7 +109,6 @@ struct gsi_channel {
 	struct gsi *gsi;
 	bool toward_ipa;
 	bool command;			/* AP command TX channel or not */
-	bool use_prefetch;		/* use prefetch (else escape buf) */
 
 	u8 tlv_count;			/* # entries in TLV FIFO */
 	u16 tre_count;
@@ -149,6 +148,7 @@ struct gsi_evt_ring {
 
 struct gsi {
 	struct device *dev;		/* Same as IPA device */
+	enum ipa_version version;
 	struct net_device dummy_dev;	/* needed for NAPI */
 	void __iomem *virt;
 	u32 irq;

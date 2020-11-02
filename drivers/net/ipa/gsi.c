@@ -747,7 +747,8 @@ static void gsi_channel_program(struct gsi_channel *channel, bool doorbell)
 	if (doorbell)
 		val |= USE_DB_ENG_FMASK;
 
-	if (!channel->use_prefetch)
+	/* Starting with IPA v4.0 the command channel uses the escape buffer */
+	if (gsi->version != IPA_VERSION_3_5_1 && channel->command)
 		val |= USE_ESCAPE_BUF_ONLY_FMASK;
 
 	iowrite32(val, gsi->virt + GSI_CH_C_QOS_OFFSET(channel_id));
@@ -1815,7 +1816,7 @@ static bool gsi_channel_data_valid(struct gsi *gsi,
 /* Init function for a single channel */
 static int gsi_channel_init_one(struct gsi *gsi,
 				const struct ipa_gsi_endpoint_data *data,
-				bool command, bool prefetch)
+				bool command)
 {
 	struct gsi_channel *channel;
 	u32 tre_count;
@@ -1839,7 +1840,6 @@ static int gsi_channel_init_one(struct gsi *gsi,
 	channel->gsi = gsi;
 	channel->toward_ipa = data->toward_ipa;
 	channel->command = command;
-	channel->use_prefetch = command && prefetch;
 	channel->tlv_count = data->channel.tlv_count;
 	channel->tre_count = tre_count;
 	channel->event_count = data->channel.event_count;
@@ -1893,7 +1893,7 @@ static void gsi_channel_exit_one(struct gsi_channel *channel)
 }
 
 /* Init function for channels */
-static int gsi_channel_init(struct gsi *gsi, bool prefetch, u32 count,
+static int gsi_channel_init(struct gsi *gsi, u32 count,
 			    const struct ipa_gsi_endpoint_data *data,
 			    bool modem_alloc)
 {
@@ -1917,7 +1917,7 @@ static int gsi_channel_init(struct gsi *gsi, bool prefetch, u32 count,
 			continue;
 		}
 
-		ret = gsi_channel_init_one(gsi, &data[i], command, prefetch);
+		ret = gsi_channel_init_one(gsi, &data[i], command);
 		if (ret)
 			goto err_unwind;
 	}
@@ -1962,17 +1962,15 @@ int gsi_init(struct gsi *gsi, struct platform_device *pdev,
 	resource_size_t size;
 	unsigned int irq;
 	bool modem_alloc;
-	bool prefetch;
 	int ret;
 
 	gsi_validate_build();
 
-	/* IPA v4.0+ (GSI v2.0+) uses prefetch for the command channel */
-	prefetch = version != IPA_VERSION_3_5_1;
 	/* IPA v4.2 requires the AP to allocate channels for the modem */
 	modem_alloc = version == IPA_VERSION_4_2;
 
 	gsi->dev = dev;
+	gsi->version = version;
 
 	/* The GSI layer performs NAPI on all endpoints.  NAPI requires a
 	 * network device structure, but the GSI layer does not have one,
@@ -2016,7 +2014,7 @@ int gsi_init(struct gsi *gsi, struct platform_device *pdev,
 		goto err_free_irq;
 	}
 
-	ret = gsi_channel_init(gsi, prefetch, count, data, modem_alloc);
+	ret = gsi_channel_init(gsi, count, data, modem_alloc);
 	if (ret)
 		goto err_iounmap;
 
