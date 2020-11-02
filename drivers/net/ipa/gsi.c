@@ -743,8 +743,8 @@ static void gsi_channel_program(struct gsi_channel *channel, bool doorbell)
 
 	/* Max prefetch is 1 segment (do not set MAX_PREFETCH_FMASK) */
 
-	/* Enable the doorbell engine if requested */
-	if (doorbell)
+	/* We enable the doorbell engine for IPA v3.5.1 */
+	if (gsi->version == IPA_VERSION_3_5_1 && doorbell)
 		val |= USE_DB_ENG_FMASK;
 
 	/* Starting with IPA v4.0 the command channel uses the escape buffer */
@@ -831,8 +831,8 @@ int gsi_channel_stop(struct gsi *gsi, u32 channel_id)
 	return ret;
 }
 
-/* Reset and reconfigure a channel (possibly leaving doorbell disabled) */
-void gsi_channel_reset(struct gsi *gsi, u32 channel_id, bool legacy)
+/* Reset and reconfigure a channel, (possibly) enabling the doorbell engine */
+void gsi_channel_reset(struct gsi *gsi, u32 channel_id, bool doorbell)
 {
 	struct gsi_channel *channel = &gsi->channel[channel_id];
 
@@ -843,7 +843,7 @@ void gsi_channel_reset(struct gsi *gsi, u32 channel_id, bool legacy)
 	if (gsi->version == IPA_VERSION_3_5_1 && !channel->toward_ipa)
 		gsi_channel_reset_command(channel);
 
-	gsi_channel_program(channel, legacy);
+	gsi_channel_program(channel, doorbell);
 	gsi_channel_trans_cancel_pending(channel);
 
 	mutex_unlock(&gsi->mutex);

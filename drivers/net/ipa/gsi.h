@@ -221,15 +221,15 @@ int gsi_channel_stop(struct gsi *gsi, u32 channel_id);
  * gsi_channel_reset() - Reset an allocated GSI channel
  * @gsi:	GSI pointer
  * @channel_id:	Channel to be reset
- * @legacy:	Legacy behavior
+ * @doorbell:	Whether to (possibly) enable the doorbell engine
  *
- * Reset a channel and reconfigure it.  The @legacy flag indicates
- * that some steps should be done differently for legacy hardware.
+ * Reset a channel and reconfigure it.  The @doorbell flag indicates
+ * that the doorbell engine should be enabled if needed.
  *
  * GSI hardware relinquishes ownership of all pending receive buffer
  * transactions and they will complete with their cancelled flag set.
  */
-void gsi_channel_reset(struct gsi *gsi, u32 channel_id, bool legacy);
+void gsi_channel_reset(struct gsi *gsi, u32 channel_id, bool doorbell);
 
 int gsi_channel_suspend(struct gsi *gsi, u32 channel_id, bool stop);
 int gsi_channel_resume(struct gsi *gsi, u32 channel_id, bool start);
