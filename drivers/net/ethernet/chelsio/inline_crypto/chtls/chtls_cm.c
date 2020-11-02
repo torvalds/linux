@@ -1217,8 +1217,9 @@ static struct sock *chtls_recv_sock(struct sock *lsk,
 	csk->sndbuf = csk->snd_win;
 	csk->ulp_mode = ULP_MODE_TLS;
 	step = cdev->lldi->nrxq / cdev->lldi->nchan;
-	csk->rss_qid = cdev->lldi->rxq_ids[port_id * step];
 	rxq_idx = port_id * step;
+	rxq_idx += cdev->round_robin_cnt++ % step;
+	csk->rss_qid = cdev->lldi->rxq_ids[rxq_idx];
 	csk->txq_idx = (rxq_idx < cdev->lldi->ntxq) ? rxq_idx :
 			port_id * step;
 	csk->sndbuf = newsk->sk_sndbuf;

@@ -235,6 +235,7 @@ struct chtls_dev {
 	struct list_head na_node;
 	unsigned int send_page_order;
 	int max_host_sndbuf;
+	u32 round_robin_cnt;
 	struct key_map kmap;
 	unsigned int cdev_state;
 };
