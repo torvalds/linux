@@ -1448,17 +1448,15 @@ static void btc8821a2ant_init_coex_dm(struct btc_coexist *btcoexist)
 static void btc8821a2ant_action_bt_inquiry(struct btc_coexist *btcoexist)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
-	u8 wifi_rssi_state, wifi_rssi_state1, bt_rssi_state;
 	bool wifi_connected = false;
 	bool low_pwr_disable = true;
 	bool scan = false, link = false, roam = false;
 
-	wifi_rssi_state =
-		btc8821a2ant_wifi_rssi_state(btcoexist, 0, 2, 15, 0);
-	wifi_rssi_state1 = btc8821a2ant_wifi_rssi_state(btcoexist, 1, 2,
+	btc8821a2ant_wifi_rssi_state(btcoexist, 0, 2, 15, 0);
+	btc8821a2ant_wifi_rssi_state(btcoexist, 1, 2,
 				BT_8821A_2ANT_WIFI_RSSI_COEXSWITCH_THRES, 0);
-	bt_rssi_state = btc8821a2ant_bt_rssi_state(btcoexist,
-		2, BT_8821A_2ANT_BT_RSSI_COEXSWITCH_THRES, 0);
+	btc8821a2ant_bt_rssi_state(btcoexist,
+				2, BT_8821A_2ANT_BT_RSSI_COEXSWITCH_THRES, 0);
 
 	btcoexist->btc_set(btcoexist, BTC_SET_ACT_DISABLE_LOW_POWER,
 			   &low_pwr_disable);
@@ -1516,15 +1514,14 @@ static void btc8821a2ant_action_wifi_link_process(struct btc_coexist *btcoexist)
 static bool btc8821a2ant_action_wifi_idle_process(struct btc_coexist *btcoexist)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
-	u8 wifi_rssi_state, wifi_rssi_state1, bt_rssi_state;
+	u8 wifi_rssi_state1;
 	u8 ap_num = 0;
 
-	wifi_rssi_state =
-		btc8821a2ant_wifi_rssi_state(btcoexist, 0, 2, 15, 0);
+	btc8821a2ant_wifi_rssi_state(btcoexist, 0, 2, 15, 0);
 	wifi_rssi_state1 = btc8821a2ant_wifi_rssi_state(btcoexist, 1, 2,
 			BT_8821A_2ANT_WIFI_RSSI_COEXSWITCH_THRES - 20, 0);
-	bt_rssi_state = btc8821a2ant_bt_rssi_state(btcoexist,
-			2, BT_8821A_2ANT_BT_RSSI_COEXSWITCH_THRES, 0);
+	btc8821a2ant_bt_rssi_state(btcoexist,
+				2, BT_8821A_2ANT_BT_RSSI_COEXSWITCH_THRES, 0);
 
 	btcoexist->btc_get(btcoexist, BTC_GET_U1_AP_NUM, &ap_num);
 
@@ -2987,11 +2984,11 @@ static void btc8821a2ant_action_pan_edr(struct btc_coexist *btcoexist)
 /* PAN(HS) only */
 static void btc8821a2ant_action_pan_hs(struct btc_coexist *btcoexist)
 {
-	u8 wifi_rssi_state, wifi_rssi_state1, bt_rssi_state;
+	u8 wifi_rssi_state, bt_rssi_state;
 	u32 wifi_bw;
 
 	wifi_rssi_state = btc8821a2ant_wifi_rssi_state(btcoexist, 0, 2, 15, 0);
-	wifi_rssi_state1 = btc8821a2ant_wifi_rssi_state(btcoexist, 1, 2,
+	btc8821a2ant_wifi_rssi_state(btcoexist, 1, 2,
 				BT_8821A_2ANT_WIFI_RSSI_COEXSWITCH_THRES, 0);
 	bt_rssi_state = btc8821a2ant_bt_rssi_state(btcoexist,
 				2, BT_8821A_2ANT_BT_RSSI_COEXSWITCH_THRES, 0);
@@ -3274,11 +3271,11 @@ static void btc8821a2ant_act_hid_a2dp_pan_edr(struct btc_coexist *btcoexist)
 static void btc8821a2ant_action_hid_a2dp(struct btc_coexist *btcoexist)
 {
 	u32 wifi_bw;
-	u8 wifi_rssi_state, wifi_rssi_state1, bt_rssi_state;
+	u8 wifi_rssi_state, bt_rssi_state;
 	u8 ap_num = 0;
 
 	wifi_rssi_state = btc8821a2ant_wifi_rssi_state(btcoexist, 0, 2, 15, 0);
-	wifi_rssi_state1 = btc8821a2ant_wifi_rssi_state(btcoexist, 1, 2,
+	btc8821a2ant_wifi_rssi_state(btcoexist, 1, 2,
 				BT_8821A_2ANT_WIFI_RSSI_COEXSWITCH_THRES, 0);
 	bt_rssi_state = btc8821a2ant_bt_rssi_state(btcoexist,
 				3, BT_8821A_2ANT_BT_RSSI_COEXSWITCH_THRES, 37);
