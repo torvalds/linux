@@ -1322,7 +1322,6 @@ static int pm8001_pci_resume(struct pci_dev *pdev)
 		      pdev, pm8001_ha->name, device_state);
 
 	pci_set_power_state(pdev, PCI_D0);
-	pci_enable_wake(pdev, PCI_D0, 0);
 	pci_restore_state(pdev);
 	rc = pci_enable_device(pdev);
 	if (rc) {
