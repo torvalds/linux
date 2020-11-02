@@ -2442,7 +2442,6 @@ error_dump:
 	ubifs_msg(c, "dumping second node");
 	ubifs_dump_node(c, sb->node);
 	return -EINVAL;
-	return 0;
 }
 
 static inline int chance(unsigned int n, unsigned int out_of)
