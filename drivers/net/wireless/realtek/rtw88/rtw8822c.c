@@ -2442,7 +2442,7 @@ static void rtw8822c_dpk_rxbb_dc_cal(struct rtw_dev *rtwdev, u8 path)
 static u8 rtw8822c_dpk_dc_corr_check(struct rtw_dev *rtwdev, u8 path)
 {
 	u16 dc_i, dc_q;
-	u8 corr_val, corr_idx;
+	u8 corr_idx;
 
 	rtw_write32(rtwdev, REG_RXSRAM_CTL, 0x000900f0);
 	dc_i = (u16)rtw_read32_mask(rtwdev, REG_STAT_RPT, GENMASK(27, 16));
@@ -2455,7 +2455,7 @@ static u8 rtw8822c_dpk_dc_corr_check(struct rtw_dev *rtwdev, u8 path)
 
 	rtw_write32(rtwdev, REG_RXSRAM_CTL, 0x000000f0);
 	corr_idx = (u8)rtw_read32_mask(rtwdev, REG_STAT_RPT, GENMASK(7, 0));
-	corr_val = (u8)rtw_read32_mask(rtwdev, REG_STAT_RPT, GENMASK(15, 8));
+	rtw_read32_mask(rtwdev, REG_STAT_RPT, GENMASK(15, 8));
 
 	if (dc_i > 200 || dc_q > 200 || corr_idx < 40 || corr_idx > 65)
 		return 1;
