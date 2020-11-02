@@ -9,11 +9,13 @@ Date:		June 2015
 KernelVersion:	4.3
 Contact:	Alexander Shishkin <alexander.shishkin@linux.intel.com>
 Description:	(RW) Configure MSC operating mode:
+
 		  - "single", for contiguous buffer mode (high-order alloc);
 		  - "multi", for multiblock mode;
 		  - "ExI", for DCI handler mode;
 		  - "debug", for debug mode;
 		  - any of the currently loaded buffer sinks.
+
 		If operating mode changes, existing buffer is deallocated,
 		provided there are no active users and tracing is not enabled,
 		otherwise the write will fail.
@@ -23,10 +25,12 @@ Date:		June 2015
 KernelVersion:	4.3
 Contact:	Alexander Shishkin <alexander.shishkin@linux.intel.com>
 Description:	(RW) Configure MSC buffer size for "single" or "multi" modes.
+
 		In single mode, this is a single number of pages, has to be
 		power of 2. In multiblock mode, this is a comma-separated list
 		of numbers of pages for each window to be allocated. Number of
 		windows is not limited.
+
 		Writing to this file deallocates existing buffer (provided
 		there are no active users and tracing is not enabled) and then
 		allocates a new one.

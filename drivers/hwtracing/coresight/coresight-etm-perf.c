@@ -210,7 +210,7 @@ static void *etm_setup_aux(struct perf_event *event, void **pages,
 	u32 id;
 	int cpu = event->cpu;
 	cpumask_t *mask;
-	struct coresight_device *sink;
+	struct coresight_device *sink = NULL;
 	struct etm_event_data *event_data = NULL;
 
 	event_data = alloc_event_data(cpu);

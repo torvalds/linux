@@ -200,7 +200,8 @@ int tee_session_calc_client_uuid(uuid_t *uuid, u32 connection_method,
 	int name_len;
 	int rc;
 
-	if (connection_method == TEE_IOCTL_LOGIN_PUBLIC) {
+	if (connection_method == TEE_IOCTL_LOGIN_PUBLIC ||
+	    connection_method == TEE_IOCTL_LOGIN_REE_KERNEL) {
 		/* Nil UUID to be passed to TEE environment */
 		uuid_copy(uuid, &uuid_null);
 		return 0;

@@ -41,6 +41,8 @@ required:
   - enable-gpios
   - mps,fb-voltage-divider
 
+unevaluatedProperties: false
+
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
