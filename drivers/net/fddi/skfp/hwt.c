@@ -27,10 +27,6 @@
 #include "h/fddi.h"
 #include "h/smc.h"
 
-#ifndef	lint
-static const char ID_sccs[] = "@(#)hwt.c	1.13 97/04/23 (C) SK " ;
-#endif
-
 /*
  * Prototypes of local functions.
  */
