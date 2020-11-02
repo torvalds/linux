@@ -277,8 +277,8 @@ static int __init brcmstb_usb_pinmap_probe(struct platform_device *pdev)
 	pdata->out_pins = (struct out_pin *)(pdata->in_pins + in_count);
 
 	pdata->regs = devm_ioremap(&pdev->dev, r->start, resource_size(r));
-	if (IS_ERR(pdata->regs))
-		return PTR_ERR(pdata->regs);
+	if (!pdata->regs)
+		return -ENOMEM;
 	platform_set_drvdata(pdev, pdata);
 
 	err = parse_pins(&pdev->dev, dn, pdata);
