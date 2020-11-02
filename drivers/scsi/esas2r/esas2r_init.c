@@ -678,10 +678,6 @@ int esas2r_resume(struct pci_dev *pdev)
 		       "called");
 	pci_set_power_state(pdev, PCI_D0);
 	esas2r_log_dev(ESAS2R_LOG_INFO, &(pdev->dev),
-		       "pci_enable_wake(PCI_D0, 0) "
-		       "called");
-	pci_enable_wake(pdev, PCI_D0, 0);
-	esas2r_log_dev(ESAS2R_LOG_INFO, &(pdev->dev),
 		       "pci_restore_state() called");
 	pci_restore_state(pdev);
 	esas2r_log_dev(ESAS2R_LOG_INFO, &(pdev->dev),
