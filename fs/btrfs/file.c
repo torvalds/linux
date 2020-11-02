@@ -2741,7 +2741,7 @@ int btrfs_replace_file_extents(struct inode *inode, struct btrfs_path *path,
 
 		cur_offset = drop_args.drop_end;
 
-		ret = btrfs_update_inode(trans, root, inode);
+		ret = btrfs_update_inode(trans, root, BTRFS_I(inode));
 		if (ret)
 			break;
 
@@ -2978,7 +2978,7 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 	ASSERT(trans != NULL);
 	inode_inc_iversion(inode);
 	inode->i_mtime = inode->i_ctime = current_time(inode);
-	ret = btrfs_update_inode(trans, root, inode);
+	ret = btrfs_update_inode(trans, root, BTRFS_I(inode));
 	updated_inode = true;
 	btrfs_end_transaction(trans);
 	btrfs_btree_balance_dirty(fs_info);
@@ -3005,7 +3005,7 @@ out_only_mutex:
 		} else {
 			int ret2;
 
-			ret = btrfs_update_inode(trans, root, inode);
+			ret = btrfs_update_inode(trans, root, BTRFS_I(inode));
 			ret2 = btrfs_end_transaction(trans);
 			if (!ret)
 				ret = ret2;
@@ -3074,7 +3074,7 @@ static int btrfs_fallocate_update_isize(struct inode *inode,
 	inode->i_ctime = current_time(inode);
 	i_size_write(inode, end);
 	btrfs_inode_safe_disk_i_size_write(BTRFS_I(inode), 0);
-	ret = btrfs_update_inode(trans, root, inode);
+	ret = btrfs_update_inode(trans, root, BTRFS_I(inode));
 	ret2 = btrfs_end_transaction(trans);
 
 	return ret ? ret : ret2;

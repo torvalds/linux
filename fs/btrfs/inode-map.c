@@ -463,7 +463,7 @@ again:
 	}
 
 	BTRFS_I(inode)->generation = 0;
-	ret = btrfs_update_inode(trans, root, inode);
+	ret = btrfs_update_inode(trans, root, BTRFS_I(inode));
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		goto out_put;

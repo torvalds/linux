@@ -336,7 +336,7 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 	btrfs_sync_inode_flags_to_i_flags(inode);
 	inode_inc_iversion(inode);
 	inode->i_ctime = current_time(inode);
-	ret = btrfs_update_inode(trans, root, inode);
+	ret = btrfs_update_inode(trans, root, BTRFS_I(inode));
 
  out_end_trans:
 	btrfs_end_transaction(trans);
@@ -479,7 +479,7 @@ static int btrfs_ioctl_fssetxattr(struct file *file, void __user *arg)
 	btrfs_sync_inode_flags_to_i_flags(inode);
 	inode_inc_iversion(inode);
 	inode->i_ctime = current_time(inode);
-	ret = btrfs_update_inode(trans, root, inode);
+	ret = btrfs_update_inode(trans, root, BTRFS_I(inode));
 
 	btrfs_end_transaction(trans);
 
@@ -733,7 +733,7 @@ static noinline int create_subvol(struct inode *dir,
 	}
 
 	btrfs_i_size_write(BTRFS_I(dir), dir->i_size + namelen * 2);
-	ret = btrfs_update_inode(trans, root, dir);
+	ret = btrfs_update_inode(trans, root, BTRFS_I(dir));
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		goto fail;

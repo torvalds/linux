@@ -278,7 +278,7 @@ int btrfs_truncate_free_space_cache(struct btrfs_trans_handle *trans,
 	if (ret)
 		goto fail;
 
-	ret = btrfs_update_inode(trans, root, inode);
+	ret = btrfs_update_inode(trans, root, BTRFS_I(inode));
 
 fail:
 	if (locked)
@@ -1193,7 +1193,7 @@ out:
 	  "failed to write free space cache for block group %llu error %d",
 				  block_group->start, ret);
 	}
-	btrfs_update_inode(trans, root, inode);
+	btrfs_update_inode(trans, root, BTRFS_I(inode));
 
 	if (block_group) {
 		/* the dirty list is protected by the dirty_bgs_lock */
@@ -1383,7 +1383,7 @@ out:
 		invalidate_inode_pages2(inode->i_mapping);
 		BTRFS_I(inode)->generation = 0;
 	}
-	btrfs_update_inode(trans, root, inode);
+	btrfs_update_inode(trans, root, BTRFS_I(inode));
 	if (must_iput)
 		iput(inode);
 	return ret;

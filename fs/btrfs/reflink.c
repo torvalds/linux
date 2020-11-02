@@ -34,7 +34,7 @@ static int clone_finish_inode_update(struct btrfs_trans_handle *trans,
 		btrfs_inode_safe_disk_i_size_write(BTRFS_I(inode), 0);
 	}
 
-	ret = btrfs_update_inode(trans, root, inode);
+	ret = btrfs_update_inode(trans, root, BTRFS_I(inode));
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		btrfs_end_transaction(trans);

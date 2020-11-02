@@ -834,7 +834,7 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 
 update_inode:
 	btrfs_update_inode_bytes(BTRFS_I(inode), nbytes, drop_args.bytes_found);
-	ret = btrfs_update_inode(trans, root, inode);
+	ret = btrfs_update_inode(trans, root, BTRFS_I(inode));
 out:
 	if (inode)
 		iput(inode);
@@ -1533,7 +1533,7 @@ static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
 			if (ret)
 				goto out;
 
-			btrfs_update_inode(trans, root, inode);
+			btrfs_update_inode(trans, root, BTRFS_I(inode));
 		}
 
 		ref_ptr = (unsigned long)(ref_ptr + ref_struct_size) + namelen;
@@ -1708,7 +1708,7 @@ static noinline int fixup_inode_link_count(struct btrfs_trans_handle *trans,
 
 	if (nlink != inode->i_nlink) {
 		set_nlink(inode, nlink);
-		btrfs_update_inode(trans, root, inode);
+		btrfs_update_inode(trans, root, BTRFS_I(inode));
 	}
 	BTRFS_I(inode)->index_cnt = (u64)-1;
 
@@ -1814,7 +1814,7 @@ static noinline int link_to_fixup_dir(struct btrfs_trans_handle *trans,
 			set_nlink(inode, 1);
 		else
 			inc_nlink(inode);
-		ret = btrfs_update_inode(trans, root, inode);
+		ret = btrfs_update_inode(trans, root, BTRFS_I(inode));
 	} else if (ret == -EEXIST) {
 		ret = 0;
 	} else {
@@ -1967,7 +1967,7 @@ out:
 	btrfs_release_path(path);
 	if (!ret && update_size) {
 		btrfs_i_size_write(BTRFS_I(dir), dir->i_size + name_len * 2);
-		ret = btrfs_update_inode(trans, root, dir);
+		ret = btrfs_update_inode(trans, root, BTRFS_I(dir));
 	}
 	kfree(name);
 	iput(dir);
@@ -2602,7 +2602,7 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 							drop_args.bytes_found);
 					/* Update the inode's nbytes. */
 					ret = btrfs_update_inode(wc->trans,
-								 root, inode);
+							root, BTRFS_I(inode));
 				}
 				iput(inode);
 				if (ret)
