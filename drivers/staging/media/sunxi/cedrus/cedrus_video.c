@@ -479,8 +479,10 @@ static int cedrus_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	if (V4L2_TYPE_IS_OUTPUT(vq->type)) {
 		ret = pm_runtime_get_sync(dev->dev);
-		if (ret < 0)
+		if (ret < 0) {
+			pm_runtime_put_noidle(dev->dev);
 			goto err_cleanup;
+		}
 
 		if (dev->dec_ops[ctx->current_codec]->start) {
 			ret = dev->dec_ops[ctx->current_codec]->start(ctx);
