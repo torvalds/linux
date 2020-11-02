@@ -2922,8 +2922,8 @@ mpt3sas_scsih_clear_tm_flag(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 
 /**
  * scsih_tm_cmd_map_status - map the target reset & LUN reset TM status
- * @ioc - per adapter object
- * @channel - the channel assigned by the OS
+ * @ioc: per adapter object
+ * @channel: the channel assigned by the OS
  * @id: the id assigned by the OS
  * @lun: lun number
  * @type: MPI2_SCSITASKMGMT_TASKTYPE__XXX (defined in mpi2_init.h)
@@ -2968,9 +2968,9 @@ scsih_tm_cmd_map_status(struct MPT3SAS_ADAPTER *ioc, uint channel,
 
 /**
  * scsih_tm_post_processing - post processing of target & LUN reset
- * @ioc - per adapter object
+ * @ioc: per adapter object
  * @handle: device handle
- * @channel - the channel assigned by the OS
+ * @channel: the channel assigned by the OS
  * @id: the id assigned by the OS
  * @lun: lun number
  * @type: MPI2_SCSITASKMGMT_TASKTYPE__XXX (defined in mpi2_init.h)
