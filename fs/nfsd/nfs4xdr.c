@@ -1531,25 +1531,13 @@ nfsd4_decode_ssv_sp_parms(struct nfsd4_compoundargs *argp,
 }
 
 static __be32
-nfsd4_decode_exchange_id(struct nfsd4_compoundargs *argp,
-			 struct nfsd4_exchange_id *exid)
+nfsd4_decode_state_protect4_a(struct nfsd4_compoundargs *argp,
+			      struct nfsd4_exchange_id *exid)
 {
-	DECODE_HEAD;
-	int dummy;
+	__be32 status;
 
-	READ_BUF(NFS4_VERIFIER_SIZE);
-	COPYMEM(exid->verifier.data, NFS4_VERIFIER_SIZE);
-
-	status = nfsd4_decode_opaque(argp, &exid->clname);
-	if (status)
+	if (xdr_stream_decode_u32(argp->xdr, &exid->spa_how) < 0)
 		return nfserr_bad_xdr;
-
-	READ_BUF(4);
-	exid->flags = be32_to_cpup(p++);
-
-	/* Ignore state_protect4_a */
-	READ_BUF(4);
-	exid->spa_how = be32_to_cpup(p++);
 	switch (exid->spa_how) {
 	case SP4_NONE:
 		break;
@@ -1564,8 +1552,30 @@ nfsd4_decode_exchange_id(struct nfsd4_compoundargs *argp,
 			return status;
 		break;
 	default:
-		goto xdr_error;
+		return nfserr_bad_xdr;
 	}
+
+	return nfs_ok;
+}
+
+static __be32
+nfsd4_decode_exchange_id(struct nfsd4_compoundargs *argp,
+			 struct nfsd4_exchange_id *exid)
+{
+	DECODE_HEAD;
+	int dummy;
+
+	status = nfsd4_decode_verifier4(argp, &exid->verifier);
+	if (status)
+		return status;
+	status = nfsd4_decode_opaque(argp, &exid->clname);
+	if (status)
+		return status;
+	if (xdr_stream_decode_u32(argp->xdr, &exid->flags) < 0)
+		return nfserr_bad_xdr;
+	status = nfsd4_decode_state_protect4_a(argp, exid);
+	if (status)
+		return status;
 
 	READ_BUF(4);    /* nfs_impl_id4 array length */
 	dummy = be32_to_cpup(p++);
