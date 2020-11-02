@@ -105,6 +105,11 @@ config SND_SOC_FSL_XCVR
 	  iMX CPUs. XCVR is a digital module that supports HDMI2.1 eARC,
 	  HDMI1.4 ARC and SPDIF.
 
+config SND_SOC_FSL_AUD2HTX
+	tristate "AUDIO TO HDMI TX module support"
+	help
+	  Say Y if you want to add AUDIO TO HDMI TX support for NXP.
+
 config SND_SOC_FSL_UTILS
 	tristate
 
