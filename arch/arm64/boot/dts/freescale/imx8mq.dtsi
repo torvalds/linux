@@ -606,11 +606,25 @@
 				              "clk_ext3", "clk_ext4";
 				assigned-clocks = <&clk IMX8MQ_CLK_A53_SRC>,
 						  <&clk IMX8MQ_CLK_A53_CORE>,
-						  <&clk IMX8MQ_CLK_NOC>;
+						  <&clk IMX8MQ_CLK_NOC>,
+						  <&clk IMX8MQ_CLK_AUDIO_AHB>,
+						  <&clk IMX8MQ_AUDIO_PLL1_BYPASS>,
+						  <&clk IMX8MQ_AUDIO_PLL2_BYPASS>,
+						  <&clk IMX8MQ_AUDIO_PLL1>,
+						  <&clk IMX8MQ_AUDIO_PLL2>;
 				assigned-clock-rates = <0>, <0>,
-						       <800000000>;
+						       <800000000>,
+						       <0>,
+						       <0>,
+						       <0>,
+						       <786432000>,
+						       <722534400>;
 				assigned-clock-parents = <&clk IMX8MQ_SYS1_PLL_800M>,
-							 <&clk IMX8MQ_ARM_PLL_OUT>;
+							 <&clk IMX8MQ_ARM_PLL_OUT>,
+							 <0>,
+							 <&clk IMX8MQ_SYS2_PLL_500M>,
+							 <&clk IMX8MQ_AUDIO_PLL1>,
+							 <&clk IMX8MQ_AUDIO_PLL2>;
 			};
 
 			src: reset-controller@30390000 {
