@@ -72,12 +72,6 @@ struct charlcd_priv {
 	/* contains the LCD config state */
 	unsigned long int flags;
 
-	/* Contains the LCD X and Y offset */
-	struct {
-		unsigned long int x;
-		unsigned long int y;
-	} addr;
-
 	/* Current escape sequence and it's length or -1 if outside */
 	struct {
 		char buf[LCD_ESCAPE_LEN + 1];
@@ -148,7 +142,6 @@ EXPORT_SYMBOL_GPL(charlcd_poke);
 
 static void charlcd_gotoxy(struct charlcd *lcd)
 {
-	struct charlcd_priv *priv = charlcd_to_priv(lcd);
 	struct hd44780_common *hdc = lcd->drvdata;
 	unsigned int addr;
 
@@ -156,37 +149,34 @@ static void charlcd_gotoxy(struct charlcd *lcd)
 	 * we force the cursor to stay at the end of the
 	 * line if it wants to go farther
 	 */
-	addr = priv->addr.x < hdc->bwidth ? priv->addr.x & (hdc->hwidth - 1)
+	addr = lcd->addr.x < hdc->bwidth ? lcd->addr.x & (hdc->hwidth - 1)
 					  : hdc->bwidth - 1;
-	if (priv->addr.y & 1)
+	if (lcd->addr.y & 1)
 		addr += hdc->hwidth;
-	if (priv->addr.y & 2)
+	if (lcd->addr.y & 2)
 		addr += hdc->bwidth;
 	hdc->write_cmd(hdc, LCD_CMD_SET_DDRAM_ADDR | addr);
 }
 
 static void charlcd_home(struct charlcd *lcd)
 {
-	struct charlcd_priv *priv = charlcd_to_priv(lcd);
-
-	priv->addr.x = 0;
-	priv->addr.y = 0;
+	lcd->addr.x = 0;
+	lcd->addr.y = 0;
 	charlcd_gotoxy(lcd);
 }
 
 static void charlcd_print(struct charlcd *lcd, char c)
 {
-	struct charlcd_priv *priv = charlcd_to_priv(lcd);
 	struct hd44780_common *hdc = lcd->drvdata;
 
-	if (priv->addr.x < hdc->bwidth) {
+	if (lcd->addr.x < hdc->bwidth) {
 		if (lcd->char_conv)
 			c = lcd->char_conv[(unsigned char)c];
 		hdc->write_data(hdc, c);
-		priv->addr.x++;
+		lcd->addr.x++;
 
 		/* prevents the cursor from wrapping onto the next line */
-		if (priv->addr.x == hdc->bwidth)
+		if (lcd->addr.x == hdc->bwidth)
 			charlcd_gotoxy(lcd);
 	}
 }
@@ -210,12 +200,11 @@ static void charlcd_clear_fast(struct charlcd *lcd)
 /* clears the display and resets X/Y */
 static void charlcd_clear_display(struct charlcd *lcd)
 {
-	struct charlcd_priv *priv = charlcd_to_priv(lcd);
 	struct hd44780_common *hdc = lcd->drvdata;
 
 	hdc->write_cmd(hdc, LCD_CMD_DISPLAY_CLEAR);
-	priv->addr.x = 0;
-	priv->addr.y = 0;
+	lcd->addr.x = 0;
+	lcd->addr.y = 0;
 	/* we must wait a few milliseconds (15) */
 	long_sleep(15);
 }
@@ -415,21 +404,21 @@ static inline int handle_lcd_special_code(struct charlcd *lcd)
 		processed = 1;
 		break;
 	case 'l':	/* Shift Cursor Left */
-		if (priv->addr.x > 0) {
+		if (lcd->addr.x > 0) {
 			/* back one char if not at end of line */
-			if (priv->addr.x < hdc->bwidth)
+			if (lcd->addr.x < hdc->bwidth)
 				hdc->write_cmd(hdc, LCD_CMD_SHIFT);
-			priv->addr.x--;
+			lcd->addr.x--;
 		}
 		processed = 1;
 		break;
 	case 'r':	/* shift cursor right */
-		if (priv->addr.x < lcd->width) {
+		if (lcd->addr.x < lcd->width) {
 			/* allow the cursor to pass the end of the line */
-			if (priv->addr.x < (hdc->bwidth - 1))
+			if (lcd->addr.x < (hdc->bwidth - 1))
 				hdc->write_cmd(hdc,
 					LCD_CMD_SHIFT | LCD_CMD_SHIFT_RIGHT);
-			priv->addr.x++;
+			lcd->addr.x++;
 		}
 		processed = 1;
 		break;
@@ -446,7 +435,7 @@ static inline int handle_lcd_special_code(struct charlcd *lcd)
 	case 'k': {	/* kill end of line */
 		int x;
 
-		for (x = priv->addr.x; x < hdc->bwidth; x++)
+		for (x = lcd->addr.x; x < hdc->bwidth; x++)
 			hdc->write_data(hdc, ' ');
 
 		/* restore cursor position */
@@ -519,7 +508,7 @@ static inline int handle_lcd_special_code(struct charlcd *lcd)
 			break;
 
 		/* If the command is valid, move to the new address */
-		if (parse_xy(esc, &priv->addr.x, &priv->addr.y))
+		if (parse_xy(esc, &lcd->addr.x, &lcd->addr.y))
 			charlcd_gotoxy(lcd);
 
 		/* Regardless of its validity, mark as processed */
@@ -577,15 +566,15 @@ static void charlcd_write_char(struct charlcd *lcd, char c)
 			break;
 		case '\b':
 			/* go back one char and clear it */
-			if (priv->addr.x > 0) {
+			if (lcd->addr.x > 0) {
 				/*
 				 * check if we're not at the
 				 * end of the line
 				 */
-				if (priv->addr.x < hdc->bwidth)
+				if (lcd->addr.x < hdc->bwidth)
 					/* back one char */
 					hdc->write_cmd(hdc, LCD_CMD_SHIFT);
-				priv->addr.x--;
+				lcd->addr.x--;
 			}
 			/* replace with a space */
 			hdc->write_data(hdc, ' ');
@@ -601,15 +590,15 @@ static void charlcd_write_char(struct charlcd *lcd, char c)
 			 * flush the remainder of the current line and
 			 * go to the beginning of the next line
 			 */
-			for (; priv->addr.x < hdc->bwidth; priv->addr.x++)
+			for (; lcd->addr.x < hdc->bwidth; lcd->addr.x++)
 				hdc->write_data(hdc, ' ');
-			priv->addr.x = 0;
-			priv->addr.y = (priv->addr.y + 1) % lcd->height;
+			lcd->addr.x = 0;
+			lcd->addr.y = (lcd->addr.y + 1) % lcd->height;
 			charlcd_gotoxy(lcd);
 			break;
 		case '\r':
 			/* go to the beginning of the same line */
-			priv->addr.x = 0;
+			lcd->addr.x = 0;
 			charlcd_gotoxy(lcd);
 			break;
 		case '\t':
