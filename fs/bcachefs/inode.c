@@ -361,55 +361,6 @@ static inline u32 bkey_generation(struct bkey_s_c k)
 	}
 }
 
-static int scan_free_inums(struct btree_trans *trans)
-{
-	struct bch_fs *c = trans->c;
-	struct btree_iter *iter = NULL;
-	struct bkey_s_c k;
-	u64 min = BLOCKDEV_INODE_MAX;
-	u64 max = c->opts.inodes_32bit
-		? S32_MAX : S64_MAX;
-	u64 start = max(min, READ_ONCE(c->unused_inode_hint));
-	int ret = 0;
-
-	iter = bch2_trans_get_iter(trans, BTREE_ID_INODES, POS(0, start),
-				   BTREE_ITER_SLOTS);
-	if (IS_ERR(iter))
-		return PTR_ERR(iter);
-again:
-	for_each_btree_key_continue(iter, BTREE_ITER_SLOTS, k, ret) {
-		if (bkey_cmp(iter->pos, POS(0, max)) > 0)
-			break;
-
-		/*
-		 * This doesn't check the btree key cache, but we don't care:
-		 * we have to recheck with an intent lock held on the slot we're
-		 * inserting to anyways:
-		 */
-		if (k.k->type != KEY_TYPE_inode) {
-			if (c->unused_inodes_nr < ARRAY_SIZE(c->unused_inodes)) {
-				c->unused_inodes[c->unused_inodes_nr] = k.k->p.offset;
-				c->unused_inodes_gens[c->unused_inodes_nr] = bkey_generation(k);
-				c->unused_inodes_nr++;
-			}
-
-			if (c->unused_inodes_nr == ARRAY_SIZE(c->unused_inodes))
-				goto out;
-		}
-	}
-
-	if (!ret && start != min) {
-		max = start;
-		start = min;
-		bch2_btree_iter_set_pos(iter, POS(0, start));
-		goto again;
-	}
-out:
-	c->unused_inode_hint = iter->pos.offset;
-	bch2_trans_iter_put(trans, iter);
-	return ret;
-}
-
 int bch2_inode_create(struct btree_trans *trans,
 		      struct bch_inode_unpacked *inode_u)
 {
@@ -417,64 +368,68 @@ int bch2_inode_create(struct btree_trans *trans,
 	struct bkey_inode_buf *inode_p;
 	struct btree_iter *iter = NULL;
 	struct bkey_s_c k;
-	u64 inum;
-	u32 generation;
-	int ret = 0;
+	u64 min, max, start, *hint;
+	int ret;
+
+	unsigned cpu = raw_smp_processor_id();
+	unsigned bits = (c->opts.inodes_32bit
+		? 31 : 63) - c->inode_shard_bits;
+
+	min = (cpu << bits);
+	max = (cpu << bits) | ~(ULLONG_MAX << bits);
+
+	min = max_t(u64, min, BLOCKDEV_INODE_MAX);
+	hint = c->unused_inode_hints + cpu;
+
+	start = READ_ONCE(*hint);
+
+	if (start >= max || start < min)
+		start = min;
 
 	inode_p = bch2_trans_kmalloc(trans, sizeof(*inode_p));
 	if (IS_ERR(inode_p))
 		return PTR_ERR(inode_p);
+again:
+	for_each_btree_key(trans, iter, BTREE_ID_INODES, POS(0, start),
+			   BTREE_ITER_SLOTS|BTREE_ITER_INTENT, k, ret) {
+		if (bkey_cmp(iter->pos, POS(0, max)) > 0)
+			break;
 
-	iter = bch2_trans_get_iter(trans, BTREE_ID_INODES, POS_MIN,
-				   BTREE_ITER_CACHED|
-				   BTREE_ITER_INTENT);
-	if (IS_ERR(iter))
-		return PTR_ERR(iter);
-retry:
-	if (!mutex_trylock(&c->inode_create_lock)) {
-		bch2_trans_unlock(trans);
-		mutex_lock(&c->inode_create_lock);
-		if (!bch2_trans_relock(trans)) {
-			mutex_unlock(&c->inode_create_lock);
-			ret = -EINTR;
-			goto err;
-		}
+		/*
+		 * There's a potential cache coherency issue with the btree key
+		 * cache code here - we're iterating over the btree, skipping
+		 * that cache. We should never see an empty slot that isn't
+		 * actually empty due to a pending update in the key cache
+		 * because the update that creates the inode isn't done with a
+		 * cached iterator, but - better safe than sorry, check the
+		 * cache before using a slot:
+		 */
+		if (k.k->type != KEY_TYPE_inode &&
+		    !bch2_btree_key_cache_find(c, BTREE_ID_INODES, iter->pos))
+			goto found_slot;
 	}
 
-	if (!c->unused_inodes_nr)
-		ret = scan_free_inums(trans);
-	if (!ret && !c->unused_inodes_nr)
-		ret = -ENOSPC;
-	if (!ret) {
-		--c->unused_inodes_nr;
-		inum		= c->unused_inodes[c->unused_inodes_nr];
-		generation	= c->unused_inodes_gens[c->unused_inodes_nr];
+	bch2_trans_iter_put(trans, iter);
+
+	if (ret)
+		return ret;
+
+	if (start != min) {
+		/* Retry from start */
+		start = min;
+		goto again;
 	}
 
-	mutex_unlock(&c->inode_create_lock);
-
-	if (ret)
-		goto err;
-
-	bch2_btree_iter_set_pos(iter, POS(0, inum));
-
-	/* Recheck that the slot is free with an intent lock held: */
-	k = bch2_btree_iter_peek_cached(iter);
-	ret = bkey_err(k);
-	if (ret)
-		goto err;
-
-	if (k.k->type == KEY_TYPE_inode)
-		goto retry;
-
-	inode_u->bi_inum	= inum;
-	inode_u->bi_generation	= generation;
+	return -ENOSPC;
+found_slot:
+	*hint			= k.k->p.offset;
+	inode_u->bi_inum	= k.k->p.offset;
+	inode_u->bi_generation	= bkey_generation(k);
 
 	bch2_inode_pack(inode_p, inode_u);
 	bch2_trans_update(trans, iter, &inode_p->inode.k_i, 0);
-err:
 	bch2_trans_iter_put(trans, iter);
-	return ret;
+	return 0;
 }
 
 int bch2_inode_rm(struct bch_fs *c, u64 inode_nr)

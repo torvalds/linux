@@ -493,6 +493,7 @@ static void __bch2_fs_free(struct bch_fs *c)
 	kfree(c->replicas_gc.entries);
 	kfree(rcu_dereference_protected(c->disk_groups, 1));
 	kfree(c->journal_seq_blacklist_table);
+	kfree(c->unused_inode_hints);
 	free_heap(&c->copygc_heap);
 
 	if (c->journal_reclaim_wq)
@@ -703,8 +704,6 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 
 	seqcount_init(&c->usage_lock);
 
-	mutex_init(&c->inode_create_lock);
-
 	c->copy_gc_enabled		= 1;
 	c->rebalance.enabled		= 1;
 	c->promote_whole_extents	= true;
@@ -746,6 +745,8 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 		(btree_blocks(c) + 1) * 2 *
 		sizeof(struct sort_iter_set);
 
+	c->inode_shard_bits = ilog2(roundup_pow_of_two(num_possible_cpus()));
+
 	if (!(c->wq = alloc_workqueue("bcachefs",
 				WQ_FREEZABLE|WQ_MEM_RECLAIM, 1)) ||
 	    !(c->copygc_wq = alloc_workqueue("bcachefs_copygc",
@@ -764,6 +765,8 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	    mempool_init_kvpmalloc_pool(&c->btree_bounce_pool, 1,
 					btree_bytes(c)) ||
 	    mempool_init_kmalloc_pool(&c->large_bkey_pool, 1, 2048) ||
+	    !(c->unused_inode_hints = kcalloc(1U << c->inode_shard_bits,
+					      sizeof(u64), GFP_KERNEL)) ||
 	    bch2_io_clock_init(&c->io_clock[READ]) ||
 	    bch2_io_clock_init(&c->io_clock[WRITE]) ||
 	    bch2_fs_journal_init(&c->journal) ||
