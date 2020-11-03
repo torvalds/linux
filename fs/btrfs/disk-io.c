@@ -523,60 +523,35 @@ static int check_tree_block_fsid(struct extent_buffer *eb)
 	return 1;
 }
 
-int btrfs_validate_metadata_buffer(struct btrfs_io_bio *io_bio, u64 phy_offset,
-				   struct page *page, u64 start, u64 end,
-				   int mirror)
+/* Do basic extent buffer checks at read time */
+static int validate_extent_buffer(struct extent_buffer *eb)
 {
+	struct btrfs_fs_info *fs_info = eb->fs_info;
 	u64 found_start;
-	int found_level;
-	struct extent_buffer *eb;
-	struct btrfs_fs_info *fs_info;
-	u16 csum_size;
-	int ret = 0;
+	const u32 csum_size = fs_info->csum_size;
+	u8 found_level;
 	u8 result[BTRFS_CSUM_SIZE];
-	int reads_done;
-
-	if (!page->private)
-		goto out;
-
-	eb = (struct extent_buffer *)page->private;
-	fs_info = eb->fs_info;
-	csum_size = fs_info->csum_size;
-
-	/* the pending IO might have been the only thing that kept this buffer
-	 * in memory.  Make sure we have a ref for all this other checks
-	 */
-	atomic_inc(&eb->refs);
-
-	reads_done = atomic_dec_and_test(&eb->io_pages);
-	if (!reads_done)
-		goto err;
-
-	eb->read_mirror = mirror;
-	if (test_bit(EXTENT_BUFFER_READ_ERR, &eb->bflags)) {
-		ret = -EIO;
-		goto err;
-	}
+	int ret = 0;
 
 	found_start = btrfs_header_bytenr(eb);
 	if (found_start != eb->start) {
 		btrfs_err_rl(fs_info, "bad tree block start, want %llu have %llu",
 			     eb->start, found_start);
 		ret = -EIO;
-		goto err;
+		goto out;
 	}
 	if (check_tree_block_fsid(eb)) {
 		btrfs_err_rl(fs_info, "bad fsid on block %llu",
 			     eb->start);
 		ret = -EIO;
-		goto err;
+		goto out;
 	}
 	found_level = btrfs_header_level(eb);
 	if (found_level >= BTRFS_MAX_LEVEL) {
 		btrfs_err(fs_info, "bad tree block level %d on %llu",
 			  (int)btrfs_header_level(eb), eb->start);
 		ret = -EIO;
-		goto err;
+		goto out;
 	}
 
 	btrfs_set_buffer_lockdep_class(btrfs_header_owner(eb),
@@ -595,7 +570,7 @@ int btrfs_validate_metadata_buffer(struct btrfs_io_bio *io_bio, u64 phy_offset,
 			      CSUM_FMT_VALUE(csum_size, result),
 			      btrfs_header_level(eb));
 		ret = -EUCLEAN;
-		goto err;
+		goto out;
 	}
 
 	/*
@@ -617,6 +592,37 @@ int btrfs_validate_metadata_buffer(struct btrfs_io_bio *io_bio, u64 phy_offset,
 		btrfs_err(fs_info,
 			  "block=%llu read time tree block corruption detected",
 			  eb->start);
+out:
+	return ret;
+}
+
+int btrfs_validate_metadata_buffer(struct btrfs_io_bio *io_bio, u64 phy_offset,
+				   struct page *page, u64 start, u64 end,
+				   int mirror)
+{
+	struct extent_buffer *eb;
+	int ret = 0;
+	int reads_done;
+
+	ASSERT(page->private);
+	eb = (struct extent_buffer *)page->private;
+
+	/*
+	 * The pending IO might have been the only thing that kept this buffer
+	 * in memory.  Make sure we have a ref for all this other checks
+	 */
+	atomic_inc(&eb->refs);
+
+	reads_done = atomic_dec_and_test(&eb->io_pages);
+	if (!reads_done)
+		goto err;
+
+	eb->read_mirror = mirror;
+	if (test_bit(EXTENT_BUFFER_READ_ERR, &eb->bflags)) {
+		ret = -EIO;
+		goto err;
+	}
+	ret = validate_extent_buffer(eb);
 err:
 	if (reads_done &&
 	    test_and_clear_bit(EXTENT_BUFFER_READAHEAD, &eb->bflags))
@@ -632,7 +638,7 @@ err:
 		clear_extent_buffer_uptodate(eb);
 	}
 	free_extent_buffer(eb);
-out:
+
 	return ret;
 }
 
