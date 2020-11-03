@@ -2470,5 +2470,5 @@ static void __exit mlxbf_i2c_exit(void)
 module_exit(mlxbf_i2c_exit);
 
 MODULE_DESCRIPTION("Mellanox BlueField I2C bus driver");
-MODULE_AUTHOR("Khalil Blaiech <kblaiech@mellanox.com>");
+MODULE_AUTHOR("Khalil Blaiech <kblaiech@nvidia.com>");
 MODULE_LICENSE("GPL v2");
