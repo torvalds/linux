@@ -10,9 +10,10 @@
 #define _LINUX_IOPORT_H
 
 #ifndef __ASSEMBLY__
-#include <linux/compiler.h>
-#include <linux/types.h>
 #include <linux/bits.h>
+#include <linux/compiler.h>
+#include <linux/minmax.h>
+#include <linux/types.h>
 /*
  * Resources are tree-like, allowing
  * nesting etc..
@@ -233,6 +234,16 @@ static inline bool resource_contains(struct resource *r1, struct resource *r2)
 static inline bool resource_overlaps(struct resource *r1, struct resource *r2)
 {
        return r1->start <= r2->end && r1->end >= r2->start;
+}
+
+static inline bool
+resource_union(struct resource *r1, struct resource *r2, struct resource *r)
+{
+	if (!resource_overlaps(r1, r2))
+		return false;
+	r->start = min(r1->start, r2->start);
+	r->end = max(r1->end, r2->end);
+	return true;
 }
 
 /* Convenience shorthand with allocation */
