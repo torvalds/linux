@@ -15,6 +15,10 @@
 	model = "Hardkernel ODROID-X board based on Exynos4412";
 	compatible = "hardkernel,odroid-x", "samsung,exynos4412", "samsung,exynos4";
 
+	aliases {
+		ethernet = &ethernet;
+	};
+
 	memory@40000000 {
 		device_type = "memory";
 		reg = <0x40000000 0x3FF00000>;
@@ -60,8 +64,30 @@
 };
 
 &ehci {
+	#address-cells = <1>;
+	#size-cells = <0>;
 	phys = <&exynos_usbphy 2>;
 	phy-names = "hsic0";
+
+	hub@2 {
+		compatible = "usb0424,3503";
+		reg = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		hub@1 {
+			compatible = "usb0424,9514";
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			ethernet: usbether@1 {
+				compatible = "usb0424,ec00";
+				reg = <1>;
+				local-mac-address = [00 00 00 00 00 00]; /* Filled in by a bootloader */
+			};
+		};
+	};
 };
 
 &gpio_keys {
