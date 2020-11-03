@@ -35,20 +35,6 @@ EXPORT_SYMBOL(__node_data);
 cpumask_t __node_cpumask[MAX_NUMNODES];
 EXPORT_SYMBOL(__node_cpumask);
 
-static void enable_lpa(void)
-{
-	unsigned long value;
-
-	value = __read_32bit_c0_register($16, 3);
-	pr_info("CP0_Config3: CP0 16.3 (0x%lx)\n", value);
-
-	value = __read_32bit_c0_register($5, 1);
-	value |= 0x20000000;
-	__write_32bit_c0_register($5, 1, value);
-	value = __read_32bit_c0_register($5, 1);
-	pr_info("CP0_PageGrain: CP0 5.1 (0x%lx)\n", value);
-}
-
 static void cpu_node_probe(void)
 {
 	int i;
@@ -240,7 +226,8 @@ EXPORT_SYMBOL(pcibus_to_node);
 
 void __init prom_init_numa_memory(void)
 {
-	enable_lpa();
+	pr_info("CP0_Config3: CP0 16.3 (0x%x)\n", read_c0_config3());
+	pr_info("CP0_PageGrain: CP0 5.1 (0x%x)\n", read_c0_pagegrain());
 	prom_meminit();
 }
 EXPORT_SYMBOL(prom_init_numa_memory);
