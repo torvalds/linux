@@ -119,7 +119,8 @@ static const u16 srstclr_for_v3u[] = {
 };
 
 /**
- * Clock Pulse Generator / Module Standby and Software Reset Private Data
+ * struct cpg_mssr_priv - Clock Pulse Generator / Module Standby
+ *                        and Software Reset Private Data
  *
  * @rcdev: Optional reset controller entity
  * @dev: CPG/MSSR device
