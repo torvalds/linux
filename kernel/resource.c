@@ -557,13 +557,13 @@ int region_intersects(resource_size_t start, size_t size, unsigned long flags,
 	}
 	read_unlock(&resource_lock);
 
+	if (type == 0)
+		return REGION_DISJOINT;
+
 	if (other == 0)
-		return type ? REGION_INTERSECTS : REGION_DISJOINT;
+		return REGION_INTERSECTS;
 
-	if (type)
-		return REGION_MIXED;
-
-	return REGION_DISJOINT;
+	return REGION_MIXED;
 }
 EXPORT_SYMBOL_GPL(region_intersects);
 
