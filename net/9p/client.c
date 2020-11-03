@@ -901,7 +901,7 @@ static struct p9_fid *p9_fid_create(struct p9_client *clnt)
 	fid->clnt = clnt;
 	fid->rdir = NULL;
 	fid->fid = 0;
-	atomic_set(&fid->count, 1);
+	refcount_set(&fid->count, 1);
 
 	idr_preload(GFP_KERNEL);
 	spin_lock_irq(&clnt->lock);
@@ -1466,7 +1466,7 @@ int p9_client_clunk(struct p9_fid *fid)
 		dump_stack();
 		return 0;
 	}
-	if (!atomic_dec_and_test(&fid->count))
+	if (!refcount_dec_and_test(&fid->count))
 		return 0;
 
 again:

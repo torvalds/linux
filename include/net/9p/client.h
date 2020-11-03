@@ -149,7 +149,7 @@ enum fid_source {
 struct p9_fid {
 	struct p9_client *clnt;
 	u32 fid;
-	atomic_t count;
+	refcount_t count;
 	int mode;
 	struct p9_qid qid;
 	u32 iounit;
