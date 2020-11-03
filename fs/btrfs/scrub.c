@@ -236,7 +236,7 @@ static int scrub_add_page_to_rd_bio(struct scrub_ctx *sctx,
 				    struct scrub_page *spage);
 static int scrub_pages(struct scrub_ctx *sctx, u64 logical, u64 len,
 		       u64 physical, struct btrfs_device *dev, u64 flags,
-		       u64 gen, int mirror_num, u8 *csum, int force,
+		       u64 gen, int mirror_num, u8 *csum,
 		       u64 physical_for_dev_replace);
 static void scrub_bio_end_io(struct bio *bio);
 static void scrub_bio_end_io_worker(struct btrfs_work *work);
@@ -2150,7 +2150,7 @@ bbio_out:
 
 static int scrub_pages(struct scrub_ctx *sctx, u64 logical, u64 len,
 		       u64 physical, struct btrfs_device *dev, u64 flags,
-		       u64 gen, int mirror_num, u8 *csum, int force,
+		       u64 gen, int mirror_num, u8 *csum,
 		       u64 physical_for_dev_replace)
 {
 	struct scrub_block *sblock;
@@ -2229,7 +2229,7 @@ leave_nomem:
 			}
 		}
 
-		if (force)
+		if (flags & BTRFS_EXTENT_FLAG_SUPER)
 			scrub_submit(sctx);
 	}
 
@@ -2441,7 +2441,7 @@ static int scrub_extent(struct scrub_ctx *sctx, struct map_lookup *map,
 				++sctx->stat.no_csum;
 		}
 		ret = scrub_pages(sctx, logical, l, physical, dev, flags, gen,
-				  mirror_num, have_csum ? csum : NULL, 0,
+				  mirror_num, have_csum ? csum : NULL,
 				  physical_for_dev_replace);
 		if (ret)
 			return ret;
@@ -3710,7 +3710,7 @@ static noinline_for_stack int scrub_supers(struct scrub_ctx *sctx,
 
 		ret = scrub_pages(sctx, bytenr, BTRFS_SUPER_INFO_SIZE, bytenr,
 				  scrub_dev, BTRFS_EXTENT_FLAG_SUPER, gen, i,
-				  NULL, 1, bytenr);
+				  NULL, bytenr);
 		if (ret)
 			return ret;
 	}
