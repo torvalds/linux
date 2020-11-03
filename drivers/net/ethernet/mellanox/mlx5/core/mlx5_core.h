@@ -134,7 +134,7 @@ void mlx5_error_sw_reset(struct mlx5_core_dev *dev);
 u32 mlx5_health_check_fatal_sensors(struct mlx5_core_dev *dev);
 int mlx5_health_wait_pci_up(struct mlx5_core_dev *dev);
 void mlx5_disable_device(struct mlx5_core_dev *dev);
-void mlx5_recover_device(struct mlx5_core_dev *dev);
+int mlx5_recover_device(struct mlx5_core_dev *dev);
 int mlx5_sriov_init(struct mlx5_core_dev *dev);
 void mlx5_sriov_cleanup(struct mlx5_core_dev *dev);
 int mlx5_sriov_attach(struct mlx5_core_dev *dev);
