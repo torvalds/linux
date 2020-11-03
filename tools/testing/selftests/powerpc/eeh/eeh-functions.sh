@@ -3,6 +3,10 @@
 
 export KSELFTESTS_SKIP=4
 
+log() {
+	echo >/dev/stderr $*
+}
+
 pe_ok() {
 	local dev="$1"
 	local path="/sys/bus/pci/devices/$dev/eeh_pe_state"
@@ -49,7 +53,7 @@ eeh_test_prep() {
 
 	if [ ! -e "/sys/kernel/debug/powerpc/eeh_dev_check" ] && \
 	   [ ! -e "/sys/kernel/debug/powerpc/eeh_dev_break" ] ; then
-		echo "debugfs EEH testing files are missing. Is debugfs mounted?"
+		log "debugfs EEH testing files are missing. Is debugfs mounted?"
 		exit $KSELFTESTS_SKIP;
 	fi
 
@@ -61,7 +65,7 @@ eeh_test_prep() {
 eeh_can_break() {
 	# skip bridges since we can't recover them (yet...)
 	if [ -e "/sys/bus/pci/devices/$dev/pci_bus" ] ; then
-		echo "$dev, Skipped: bridge"
+		log "$dev, Skipped: bridge"
 		return 1;
 	fi
 
@@ -70,7 +74,7 @@ eeh_can_break() {
 	# it the system will generally go down. We should probably fix that
 	# at some point
 	if [ "ahci" = "$(basename $(realpath /sys/bus/pci/devices/$dev/driver))" ] ; then
-		echo "$dev, Skipped: ahci doesn't support recovery"
+		log "$dev, Skipped: ahci doesn't support recovery"
 		return 1;
 	fi
 
@@ -80,7 +84,7 @@ eeh_can_break() {
 	# result in the recovery failing and the device being marked as
 	# failed.
 	if ! pe_ok $dev ; then
-		echo "$dev, Skipped: Bad initial PE state"
+		log "$dev, Skipped: Bad initial PE state"
 		return 1;
 	fi
 
@@ -94,7 +98,7 @@ eeh_one_dev() {
 	# testing so check that the argument is a well-formed sysfs device
 	# name.
 	if ! test -e /sys/bus/pci/devices/$dev/ ; then
-		echo "Error: '$dev' must be a sysfs device name (DDDD:BB:DD.F)"
+		log "Error: '$dev' must be a sysfs device name (DDDD:BB:DD.F)"
 		return 1;
 	fi
 
@@ -118,16 +122,16 @@ eeh_one_dev() {
 		if pe_ok $dev ; then
 			break;
 		fi
-		echo "$dev, waited $i/${max_wait}"
+		log "$dev, waited $i/${max_wait}"
 		sleep 1
 	done
 
 	if ! pe_ok $dev ; then
-		echo "$dev, Failed to recover!"
+		log "$dev, Failed to recover!"
 		return 1;
 	fi
 
-	echo "$dev, Recovered after $i seconds"
+	log "$dev, Recovered after $i seconds"
 	return 0;
 }
 
