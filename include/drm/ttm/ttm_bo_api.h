@@ -48,6 +48,8 @@ struct ttm_bo_global;
 
 struct ttm_bo_device;
 
+struct dma_buf_map;
+
 struct drm_mm_node;
 
 struct ttm_placement;
@@ -494,6 +496,32 @@ int ttm_bo_kmap(struct ttm_buffer_object *bo, unsigned long start_page,
  * Unmaps a kernel map set up by ttm_bo_kmap.
  */
 void ttm_bo_kunmap(struct ttm_bo_kmap_obj *map);
+
+/**
+ * ttm_bo_vmap
+ *
+ * @bo: The buffer object.
+ * @map: pointer to a struct dma_buf_map representing the map.
+ *
+ * Sets up a kernel virtual mapping, using ioremap or vmap to the
+ * data in the buffer object. The parameter @map returns the virtual
+ * address as struct dma_buf_map. Unmap the buffer with ttm_bo_vunmap().
+ *
+ * Returns
+ * -ENOMEM: Out of memory.
+ * -EINVAL: Invalid range.
+ */
+int ttm_bo_vmap(struct ttm_buffer_object *bo, struct dma_buf_map *map);
+
+/**
+ * ttm_bo_vunmap
+ *
+ * @bo: The buffer object.
+ * @map: Object describing the map to unmap.
+ *
+ * Unmaps a kernel map set up by ttm_bo_vmap().
+ */
+void ttm_bo_vunmap(struct ttm_buffer_object *bo, struct dma_buf_map *map);
 
 /**
  * ttm_bo_mmap_obj - mmap memory backed by a ttm buffer object.
