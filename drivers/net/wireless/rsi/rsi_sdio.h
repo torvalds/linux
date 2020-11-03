@@ -107,11 +107,6 @@ struct receive_info {
 	u32 buf_available_counter;
 };
 
-struct rsi_sdio_rx_q {
-	u8 num_rx_pkts;
-	struct sk_buff_head head;
-};
-
 struct rsi_91x_sdiodev {
 	struct sdio_func *pfunction;
 	struct task_struct *sdio_irq_task;
@@ -124,11 +119,10 @@ struct rsi_91x_sdiodev {
 	u16 tx_blk_size;
 	u8 write_fail;
 	bool buff_status_updated;
-	struct rsi_sdio_rx_q rx_q;
 	struct rsi_thread rx_thread;
+	u8 pktbuffer[8192] __aligned(4);
 };
 
-void rsi_interrupt_handler(struct rsi_hw *adapter);
 int rsi_init_sdio_slave_regs(struct rsi_hw *adapter);
 int rsi_sdio_read_register(struct rsi_hw *adapter, u32 addr, u8 *data);
 int rsi_sdio_host_intf_read_pkt(struct rsi_hw *adapter, u8 *pkt, u32 length);
