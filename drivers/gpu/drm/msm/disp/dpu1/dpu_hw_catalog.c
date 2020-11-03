@@ -506,9 +506,9 @@ static const struct dpu_lm_cfg sc7180_lm[] = {
 
 static const struct dpu_lm_cfg sm8150_lm[] = {
 	LM_BLK("lm_0", LM_0, 0x44000, MIXER_SDM845_MASK,
-		&sdm845_lm_sblk, PINGPONG_0, LM_1, 0),
+		&sdm845_lm_sblk, PINGPONG_0, LM_1, DSPP_0),
 	LM_BLK("lm_1", LM_1, 0x45000, MIXER_SDM845_MASK,
-		&sdm845_lm_sblk, PINGPONG_1, LM_0, 0),
+		&sdm845_lm_sblk, PINGPONG_1, LM_0, DSPP_1),
 	LM_BLK("lm_2", LM_2, 0x46000, MIXER_SDM845_MASK,
 		&sdm845_lm_sblk, PINGPONG_2, LM_3, 0),
 	LM_BLK("lm_3", LM_3, 0x47000, MIXER_SDM845_MASK,
@@ -527,16 +527,28 @@ static const struct dpu_dspp_sub_blks sc7180_dspp_sblk = {
 		.len = 0x90, .version = 0x10000},
 };
 
-#define DSPP_BLK(_name, _id, _base) \
+static const struct dpu_dspp_sub_blks sm8150_dspp_sblk = {
+	.pcc = {.id = DPU_DSPP_PCC, .base = 0x1700,
+		.len = 0x90, .version = 0x40000},
+};
+
+#define DSPP_BLK(_name, _id, _base, _sblk) \
 		{\
 		.name = _name, .id = _id, \
 		.base = _base, .len = 0x1800, \
 		.features = DSPP_SC7180_MASK, \
-		.sblk = &sc7180_dspp_sblk \
+		.sblk = _sblk \
 		}
 
 static const struct dpu_dspp_cfg sc7180_dspp[] = {
-	DSPP_BLK("dspp_0", DSPP_0, 0x54000),
+	DSPP_BLK("dspp_0", DSPP_0, 0x54000, &sc7180_dspp_sblk),
+};
+
+static const struct dpu_dspp_cfg sm8150_dspp[] = {
+	DSPP_BLK("dspp_0", DSPP_0, 0x54000, &sm8150_dspp_sblk),
+	DSPP_BLK("dspp_1", DSPP_1, 0x56000, &sm8150_dspp_sblk),
+	DSPP_BLK("dspp_2", DSPP_2, 0x58000, &sm8150_dspp_sblk),
+	DSPP_BLK("dspp_3", DSPP_3, 0x5a000, &sm8150_dspp_sblk),
 };
 
 /*************************************************************
@@ -928,6 +940,8 @@ static void sm8150_cfg_init(struct dpu_mdss_cfg *dpu_cfg)
 		.sspp = sdm845_sspp,
 		.mixer_count = ARRAY_SIZE(sm8150_lm),
 		.mixer = sm8150_lm,
+		.dspp_count = ARRAY_SIZE(sm8150_dspp),
+		.dspp = sm8150_dspp,
 		.pingpong_count = ARRAY_SIZE(sm8150_pp),
 		.pingpong = sm8150_pp,
 		.merge_3d_count = ARRAY_SIZE(sm8150_merge_3d),
@@ -960,6 +974,8 @@ static void sm8250_cfg_init(struct dpu_mdss_cfg *dpu_cfg)
 		.sspp = sdm845_sspp,
 		.mixer_count = ARRAY_SIZE(sm8150_lm),
 		.mixer = sm8150_lm,
+		.dspp_count = ARRAY_SIZE(sm8150_dspp),
+		.dspp = sm8150_dspp,
 		.pingpong_count = ARRAY_SIZE(sm8150_pp),
 		.pingpong = sm8150_pp,
 		.merge_3d_count = ARRAY_SIZE(sm8150_merge_3d),
