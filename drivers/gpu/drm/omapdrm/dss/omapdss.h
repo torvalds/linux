@@ -7,13 +7,13 @@
 #ifndef __OMAP_DRM_DSS_H
 #define __OMAP_DRM_DSS_H
 
-#include <linux/list.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_mode.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
-#include <video/videomode.h>
+#include <linux/list.h>
 #include <linux/platform_data/omapdss.h>
-#include <uapi/drm/drm_mode.h>
-#include <drm/drm_crtc.h>
+#include <video/videomode.h>
 
 #define DISPC_IRQ_FRAMEDONE		(1 << 0)
 #define DISPC_IRQ_VSYNC			(1 << 1)
