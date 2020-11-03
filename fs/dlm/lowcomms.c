@@ -936,7 +936,7 @@ static void writequeue_entry_complete(struct writequeue_entry *e, int completed)
 /*
  * sctp_bind_addrs - bind a SCTP socket to all our addresses
  */
-static int sctp_bind_addrs(struct connection *con, uint16_t port)
+static int sctp_bind_addrs(struct socket *sock, uint16_t port)
 {
 	struct sockaddr_storage localaddr;
 	struct sockaddr *addr = (struct sockaddr *)&localaddr;
@@ -947,9 +947,9 @@ static int sctp_bind_addrs(struct connection *con, uint16_t port)
 		make_sockaddr(&localaddr, port, &addr_len);
 
 		if (!i)
-			result = kernel_bind(con->sock, addr, addr_len);
+			result = kernel_bind(sock, addr, addr_len);
 		else
-			result = sock_bind_add(con->sock->sk, addr, addr_len);
+			result = sock_bind_add(sock->sk, addr, addr_len);
 
 		if (result < 0) {
 			log_print("Can't bind to %d addr number %d, %d.\n",
@@ -1010,7 +1010,7 @@ static void sctp_connect_to_sock(struct connection *con)
 	add_sock(sock, con);
 
 	/* Bind to all addresses. */
-	if (sctp_bind_addrs(con, 0))
+	if (sctp_bind_addrs(con->sock, 0))
 		goto bind_err;
 
 	make_sockaddr(&daddr, dlm_config.ci_tcp_port, &addr_len);
@@ -1276,7 +1276,7 @@ static int sctp_listen_for_all(void)
 	write_unlock_bh(&sock->sk->sk_callback_lock);
 
 	/* Bind to all addresses. */
-	if (sctp_bind_addrs(con, dlm_config.ci_tcp_port))
+	if (sctp_bind_addrs(con->sock, dlm_config.ci_tcp_port))
 		goto create_delsock;
 
 	result = sock->ops->listen(sock, 5);
