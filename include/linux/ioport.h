@@ -237,6 +237,16 @@ static inline bool resource_overlaps(struct resource *r1, struct resource *r2)
 }
 
 static inline bool
+resource_intersection(struct resource *r1, struct resource *r2, struct resource *r)
+{
+	if (!resource_overlaps(r1, r2))
+		return false;
+	r->start = max(r1->start, r2->start);
+	r->end = min(r1->end, r2->end);
+	return true;
+}
+
+static inline bool
 resource_union(struct resource *r1, struct resource *r2, struct resource *r)
 {
 	if (!resource_overlaps(r1, r2))
