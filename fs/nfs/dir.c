@@ -861,15 +861,21 @@ static int find_and_lock_cache_page(struct nfs_readdir_descriptor *desc)
 		return -ENOMEM;
 	if (nfs_readdir_page_needs_filling(desc->page)) {
 		res = nfs_readdir_xdr_to_array(desc, desc->page, inode);
-		if (res < 0)
-			goto error;
+		if (res < 0) {
+			nfs_readdir_page_unlock_and_put_cached(desc);
+			if (res == -EBADCOOKIE || res == -ENOTSYNC) {
+				invalidate_inode_pages2(desc->file->f_mapping);
+				desc->page_index = 0;
+				return -EAGAIN;
+			}
+			return res;
+		}
 	}
 	res = nfs_readdir_search_array(desc);
 	if (res == 0) {
 		nfsi->page_index = desc->page_index;
 		return 0;
 	}
-error:
 	nfs_readdir_page_unlock_and_put_cached(desc);
 	return res;
 }
@@ -879,12 +885,12 @@ static int readdir_search_pagecache(struct nfs_readdir_descriptor *desc)
 {
 	int res;
 
-	if (desc->page_index == 0) {
-		desc->current_index = 0;
-		desc->prev_index = 0;
-		desc->last_cookie = 0;
-	}
 	do {
+		if (desc->page_index == 0) {
+			desc->current_index = 0;
+			desc->prev_index = 0;
+			desc->last_cookie = 0;
+		}
 		res = find_and_lock_cache_page(desc);
 	} while (res == -EAGAIN);
 	return res;
@@ -1030,6 +1036,8 @@ static int nfs_readdir(struct file *file, struct dir_context *ctx)
 				res = uncached_readdir(desc);
 				if (res == 0)
 					continue;
+				if (res == -EBADCOOKIE || res == -ENOTSYNC)
+					res = 0;
 			}
 			break;
 		}
