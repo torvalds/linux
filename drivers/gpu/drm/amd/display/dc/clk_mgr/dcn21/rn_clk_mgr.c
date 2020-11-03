@@ -618,8 +618,8 @@ static struct wm_table ddr4_wm_table = {
 			.wm_inst = WM_A,
 			.wm_type = WM_TYPE_PSTATE_CHG,
 			.pstate_latency_us = 11.72,
-			.sr_exit_time_us = 6.09,
-			.sr_enter_plus_exit_time_us = 7.14,
+			.sr_exit_time_us = 7.09,
+			.sr_enter_plus_exit_time_us = 8.14,
 			.valid = true,
 		},
 		{
