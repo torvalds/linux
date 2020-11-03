@@ -125,20 +125,11 @@ static void charlcd_print(struct charlcd *lcd, char c)
 		lcd->ops->gotoxy(lcd);
 }
 
-static void charlcd_clear_fast(struct charlcd *lcd)
+static void charlcd_clear_display(struct charlcd *lcd)
 {
-	struct hd44780_common *hdc = lcd->drvdata;
-	int pos;
-
-	charlcd_home(lcd);
-
-	if (lcd->ops->clear_fast)
-		lcd->ops->clear_fast(lcd);
-	else
-		for (pos = 0; pos < min(2, lcd->height) * hdc->hwidth; pos++)
-			lcd->ops->print(lcd, ' ');
-
-	charlcd_home(lcd);
+	lcd->ops->clear_display(lcd);
+	lcd->addr.x = 0;
+	lcd->addr.y = 0;
 }
 
 /*
@@ -409,7 +400,7 @@ static void charlcd_write_char(struct charlcd *lcd, char c)
 			break;
 		case '\f':
 			/* quickly clear the display */
-			charlcd_clear_fast(lcd);
+			charlcd_clear_display(lcd);
 			break;
 		case '\n':
 			/*
@@ -448,7 +439,7 @@ static void charlcd_write_char(struct charlcd *lcd, char c)
 
 		if (!strcmp(priv->esc_seq.buf, "[2J")) {
 			/* clear the display */
-			charlcd_clear_fast(lcd);
+			charlcd_clear_display(lcd);
 			processed = 1;
 		} else if (!strcmp(priv->esc_seq.buf, "[H")) {
 			/* cursor to home */

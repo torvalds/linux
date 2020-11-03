@@ -55,8 +55,6 @@ struct charlcd {
 /**
  * struct charlcd_ops - Functions used by charlcd. Drivers have to implement
  * these.
- * @clear_fast: Clear the whole display and set cursor to position 0, 0.
- * Optional.
  * @backlight: Turn backlight on or off. Optional.
  * @print: Print one character to the display at current cursor position.
  * The buffered cursor position is advanced by charlcd. The cursor should not
@@ -65,8 +63,8 @@ struct charlcd {
  * previously set in addr.x and addr.y by charlcd.
  * @home: Set cursor to 0, 0. The values in addr.x and addr.y are set to 0, 0 by
  * charlcd prior to calling this function.
- * @clear_display: Again clear the whole display, set the cursor to 0, 0. The
- * values in addr.x and addr.y are set to 0, 0 by charlcd prior to calling this
+ * @clear_display: Clear the whole display and set the cursor to 0, 0. The
+ * values in addr.x and addr.y are set to 0, 0 by charlcd after to calling this
  * function.
  * @init_display: Initialize the display.
  * @shift_cursor: Shift cursor left or right one position.
@@ -78,7 +76,6 @@ struct charlcd {
  * @redefine_char: Redefine the actual pixel matrix of character.
  */
 struct charlcd_ops {
-	void (*clear_fast)(struct charlcd *lcd);
 	void (*backlight)(struct charlcd *lcd, enum charlcd_onoff on);
 	int (*print)(struct charlcd *lcd, int c);
 	int (*gotoxy)(struct charlcd *lcd);

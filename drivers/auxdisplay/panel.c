@@ -808,72 +808,7 @@ static void lcd_write_data_tilcd(struct hd44780_common *hdc, int data)
 	spin_unlock_irq(&pprt_lock);
 }
 
-/* fills the display with spaces and resets X/Y */
-static void lcd_clear_fast_s(struct charlcd *charlcd)
-{
-	struct hd44780_common *hdc = charlcd->drvdata;
-	int pos;
-
-	spin_lock_irq(&pprt_lock);
-	for (pos = 0; pos < charlcd->height * hdc->hwidth; pos++) {
-		lcd_send_serial(0x5F);	/* R/W=W, RS=1 */
-		lcd_send_serial(' ' & 0x0F);
-		lcd_send_serial((' ' >> 4) & 0x0F);
-		/* the shortest data takes at least 40 us */
-		udelay(40);
-	}
-	spin_unlock_irq(&pprt_lock);
-}
-
-/* fills the display with spaces and resets X/Y */
-static void lcd_clear_fast_p8(struct charlcd *charlcd)
-{
-	struct hd44780_common *hdc = charlcd->drvdata;
-	int pos;
-
-	spin_lock_irq(&pprt_lock);
-	for (pos = 0; pos < charlcd->height * hdc->hwidth; pos++) {
-		/* present the data to the data port */
-		w_dtr(pprt, ' ');
-
-		/* maintain the data during 20 us before the strobe */
-		udelay(20);
-
-		set_bit(LCD_BIT_E, bits);
-		set_bit(LCD_BIT_RS, bits);
-		clear_bit(LCD_BIT_RW, bits);
-		set_ctrl_bits();
-
-		/* maintain the strobe during 40 us */
-		udelay(40);
-
-		clear_bit(LCD_BIT_E, bits);
-		set_ctrl_bits();
-
-		/* the shortest data takes at least 45 us */
-		udelay(45);
-	}
-	spin_unlock_irq(&pprt_lock);
-}
-
-/* fills the display with spaces and resets X/Y */
-static void lcd_clear_fast_tilcd(struct charlcd *charlcd)
-{
-	struct hd44780_common *hdc = charlcd->drvdata;
-	int pos;
-
-	spin_lock_irq(&pprt_lock);
-	for (pos = 0; pos < charlcd->height * hdc->hwidth; pos++) {
-		/* present the data to the data port */
-		w_dtr(pprt, ' ');
-		udelay(60);
-	}
-
-	spin_unlock_irq(&pprt_lock);
-}
-
 static const struct charlcd_ops charlcd_serial_ops = {
-	.clear_fast	= lcd_clear_fast_s,
 	.backlight	= lcd_backlight,
 	.gotoxy		= hd44780_common_gotoxy,
 	.home		= hd44780_common_home,
@@ -890,7 +825,6 @@ static const struct charlcd_ops charlcd_serial_ops = {
 };
 
 static const struct charlcd_ops charlcd_parallel_ops = {
-	.clear_fast	= lcd_clear_fast_p8,
 	.backlight	= lcd_backlight,
 	.gotoxy		= hd44780_common_gotoxy,
 	.home		= hd44780_common_home,
@@ -907,7 +841,6 @@ static const struct charlcd_ops charlcd_parallel_ops = {
 };
 
 static const struct charlcd_ops charlcd_tilcd_ops = {
-	.clear_fast	= lcd_clear_fast_tilcd,
 	.backlight	= lcd_backlight,
 	.gotoxy		= hd44780_common_gotoxy,
 	.home		= hd44780_common_home,
