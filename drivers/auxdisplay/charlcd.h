@@ -41,12 +41,15 @@ struct charlcd {
  * wrap to the next line at the end of a line.
  * @gotoxy: Set cursor to x, y. The x and y values to set the cursor to are
  * previously set in addr.x and addr.y by charlcd.
+ * @home: Set cursor to 0, 0. The values in addr.x and addr.y are set to 0, 0 by
+ * charlcd prior to calling this function.
  */
 struct charlcd_ops {
 	void (*clear_fast)(struct charlcd *lcd);
 	void (*backlight)(struct charlcd *lcd, enum charlcd_onoff on);
 	int (*print)(struct charlcd *lcd, int c);
 	int (*gotoxy)(struct charlcd *lcd);
+	int (*home)(struct charlcd *lcd);
 };
 
 struct charlcd *charlcd_alloc(void);

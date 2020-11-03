@@ -144,7 +144,7 @@ static void charlcd_home(struct charlcd *lcd)
 {
 	lcd->addr.x = 0;
 	lcd->addr.y = 0;
-	lcd->ops->gotoxy(lcd);
+	lcd->ops->home(lcd);
 }
 
 static void charlcd_print(struct charlcd *lcd, char c)

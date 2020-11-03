@@ -16,4 +16,5 @@ struct hd44780_common {
 
 int hd44780_common_print(struct charlcd *lcd, int c);
 int hd44780_common_gotoxy(struct charlcd *lcd);
+int hd44780_common_home(struct charlcd *lcd);
 struct hd44780_common *hd44780_common_alloc(void);

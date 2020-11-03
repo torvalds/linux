@@ -41,6 +41,14 @@ int hd44780_common_gotoxy(struct charlcd *lcd)
 }
 EXPORT_SYMBOL_GPL(hd44780_common_gotoxy);
 
+int hd44780_common_home(struct charlcd *lcd)
+{
+	lcd->addr.x = 0;
+	lcd->addr.y = 0;
+	return hd44780_common_gotoxy(lcd);
+}
+EXPORT_SYMBOL_GPL(hd44780_common_home);
+
 struct hd44780_common *hd44780_common_alloc(void)
 {
 	struct hd44780_common *hd;
