@@ -894,20 +894,16 @@ nfsd4_decode_lock(struct nfsd4_compoundargs *argp, struct nfsd4_lock *lock)
 static __be32
 nfsd4_decode_lockt(struct nfsd4_compoundargs *argp, struct nfsd4_lockt *lockt)
 {
-	DECODE_HEAD;
-		        
-	READ_BUF(32);
-	lockt->lt_type = be32_to_cpup(p++);
-	if((lockt->lt_type < NFS4_READ_LT) || (lockt->lt_type > NFS4_WRITEW_LT))
-		goto xdr_error;
-	p = xdr_decode_hyper(p, &lockt->lt_offset);
-	p = xdr_decode_hyper(p, &lockt->lt_length);
-	COPYMEM(&lockt->lt_clientid, 8);
-	lockt->lt_owner.len = be32_to_cpup(p++);
-	READ_BUF(lockt->lt_owner.len);
-	READMEM(lockt->lt_owner.data, lockt->lt_owner.len);
-
-	DECODE_TAIL;
+	if (xdr_stream_decode_u32(argp->xdr, &lockt->lt_type) < 0)
+		return nfserr_bad_xdr;
+	if ((lockt->lt_type < NFS4_READ_LT) || (lockt->lt_type > NFS4_WRITEW_LT))
+		return nfserr_bad_xdr;
+	if (xdr_stream_decode_u64(argp->xdr, &lockt->lt_offset) < 0)
+		return nfserr_bad_xdr;
+	if (xdr_stream_decode_u64(argp->xdr, &lockt->lt_length) < 0)
+		return nfserr_bad_xdr;
+	return nfsd4_decode_state_owner4(argp, &lockt->lt_clientid,
+					 &lockt->lt_owner);
 }
 
 static __be32
