@@ -10,7 +10,7 @@
 
 static __u32 duration;
 
-static void verify_result(int map_fd, int sock_map_fd)
+static void verify_result(struct tcpbpf_globals *result)
 {
 	__u32 expected_events = ((1 << BPF_SOCK_OPS_TIMEOUT_INIT) |
 				 (1 << BPF_SOCK_OPS_RWND_INIT) |
@@ -20,46 +20,31 @@ static void verify_result(int map_fd, int sock_map_fd)
 				 (1 << BPF_SOCK_OPS_NEEDS_ECN) |
 				 (1 << BPF_SOCK_OPS_STATE_CB) |
 				 (1 << BPF_SOCK_OPS_TCP_LISTEN_CB));
-	struct tcpbpf_globals result;
-	__u32 key = 0;
-	int res, rv;
-
-	rv = bpf_map_lookup_elem(map_fd, &key, &result);
-	if (CHECK(rv, "bpf_map_lookup_elem(map_fd)", "err:%d errno:%d",
-		  rv, errno))
-		return;
 
 	/* check global map */
-	CHECK(expected_events != result.event_map, "event_map",
+	CHECK(expected_events != result->event_map, "event_map",
 	      "unexpected event_map: actual 0x%08x != expected 0x%08x\n",
-	      result.event_map, expected_events);
+	      result->event_map, expected_events);
 
-	ASSERT_EQ(result.bytes_received, 501, "bytes_received");
-	ASSERT_EQ(result.bytes_acked, 1002, "bytes_acked");
-	ASSERT_EQ(result.data_segs_in, 1, "data_segs_in");
-	ASSERT_EQ(result.data_segs_out, 1, "data_segs_out");
-	ASSERT_EQ(result.bad_cb_test_rv, 0x80, "bad_cb_test_rv");
-	ASSERT_EQ(result.good_cb_test_rv, 0, "good_cb_test_rv");
-	ASSERT_EQ(result.num_listen, 1, "num_listen");
+	ASSERT_EQ(result->bytes_received, 501, "bytes_received");
+	ASSERT_EQ(result->bytes_acked, 1002, "bytes_acked");
+	ASSERT_EQ(result->data_segs_in, 1, "data_segs_in");
+	ASSERT_EQ(result->data_segs_out, 1, "data_segs_out");
+	ASSERT_EQ(result->bad_cb_test_rv, 0x80, "bad_cb_test_rv");
+	ASSERT_EQ(result->good_cb_test_rv, 0, "good_cb_test_rv");
+	ASSERT_EQ(result->num_listen, 1, "num_listen");
 
 	/* 3 comes from one listening socket + both ends of the connection */
-	ASSERT_EQ(result.num_close_events, 3, "num_close_events");
+	ASSERT_EQ(result->num_close_events, 3, "num_close_events");
 
 	/* check setsockopt for SAVE_SYN */
-	rv = bpf_map_lookup_elem(sock_map_fd, &key, &res);
-	CHECK(rv, "bpf_map_lookup_elem(sock_map_fd)", "err:%d errno:%d",
-	      rv, errno);
-	ASSERT_EQ(res, 0, "bpf_setsockopt(TCP_SAVE_SYN)");
+	ASSERT_EQ(result->tcp_save_syn, 0, "tcp_save_syn");
 
 	/* check getsockopt for SAVED_SYN */
-	key = 1;
-	rv = bpf_map_lookup_elem(sock_map_fd, &key, &res);
-	CHECK(rv, "bpf_map_lookup_elem(sock_map_fd)", "err:%d errno:%d",
-	      rv, errno);
-	ASSERT_EQ(res, 1, "bpf_getsockopt(TCP_SAVED_SYN)");
+	ASSERT_EQ(result->tcp_saved_syn, 1, "tcp_saved_syn");
 }
 
-static void run_test(int map_fd, int sock_map_fd)
+static void run_test(struct tcpbpf_globals *result)
 {
 	int listen_fd = -1, cli_fd = -1, accept_fd = -1;
 	char buf[1000];
@@ -126,13 +111,12 @@ done:
 		close(listen_fd);
 
 	if (!err)
-		verify_result(map_fd, sock_map_fd);
+		verify_result(result);
 }
 
 void test_tcpbpf_user(void)
 {
 	struct test_tcpbpf_kern *skel;
-	int map_fd, sock_map_fd;
 	int cg_fd = -1;
 
 	skel = test_tcpbpf_kern__open_and_load();
@@ -144,14 +128,11 @@ void test_tcpbpf_user(void)
 		  "cg_fd:%d errno:%d", cg_fd, errno))
 		goto err;
 
-	map_fd = bpf_map__fd(skel->maps.global_map);
-	sock_map_fd = bpf_map__fd(skel->maps.sockopt_results);
-
 	skel->links.bpf_testcb = bpf_program__attach_cgroup(skel->progs.bpf_testcb, cg_fd);
 	if (!ASSERT_OK_PTR(skel->links.bpf_testcb, "attach_cgroup(bpf_testcb)"))
 		goto err;
 
-	run_test(map_fd, sock_map_fd);
+	run_test(&skel->bss->global);
 
 err:
 	if (cg_fd != -1)
