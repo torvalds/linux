@@ -374,10 +374,25 @@ unlock:
 	return rv;
 }
 
+/* caller need to held dlm_node_addrs_spin lock */
+static bool dlm_lowcomms_na_has_addr(const struct dlm_node_addr *na,
+				     const struct sockaddr_storage *addr)
+{
+	int i;
+
+	for (i = 0; i < na->addr_count; i++) {
+		if (addr_compare(na->addr[i], addr))
+			return true;
+	}
+
+	return false;
+}
+
 int dlm_lowcomms_addr(int nodeid, struct sockaddr_storage *addr, int len)
 {
 	struct sockaddr_storage *new_addr;
 	struct dlm_node_addr *new_node, *na;
+	bool ret;
 
 	new_node = kzalloc(sizeof(struct dlm_node_addr), GFP_NOFS);
 	if (!new_node)
@@ -400,6 +415,14 @@ int dlm_lowcomms_addr(int nodeid, struct sockaddr_storage *addr, int len)
 		list_add(&new_node->list, &dlm_node_addrs);
 		spin_unlock(&dlm_node_addrs_spin);
 		return 0;
+	}
+
+	ret = dlm_lowcomms_na_has_addr(na, addr);
+	if (ret) {
+		spin_unlock(&dlm_node_addrs_spin);
+		kfree(new_addr);
+		kfree(new_node);
+		return -EEXIST;
 	}
 
 	if (na->addr_count >= DLM_MAX_ADDR_COUNT) {
