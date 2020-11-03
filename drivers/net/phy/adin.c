@@ -8,6 +8,7 @@
 #include <linux/bitfield.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
+#include <linux/ethtool_netlink.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mii.h>
@@ -69,6 +70,31 @@
 #define ADIN1300_EEE_LPABLE_REG			0x8002
 #define ADIN1300_CLOCK_STOP_REG			0x9400
 #define ADIN1300_LPI_WAKE_ERR_CNT_REG		0xa000
+
+#define ADIN1300_CDIAG_RUN			0xba1b
+#define   ADIN1300_CDIAG_RUN_EN			BIT(0)
+
+/*
+ * The XSIM3/2/1 and XSHRT3/2/1 are actually relative.
+ * For CDIAG_DTLD_RSLTS(0) it's ADIN1300_CDIAG_RSLT_XSIM3/2/1
+ * For CDIAG_DTLD_RSLTS(1) it's ADIN1300_CDIAG_RSLT_XSIM3/2/0
+ * For CDIAG_DTLD_RSLTS(2) it's ADIN1300_CDIAG_RSLT_XSIM3/1/0
+ * For CDIAG_DTLD_RSLTS(3) it's ADIN1300_CDIAG_RSLT_XSIM2/1/0
+ */
+#define ADIN1300_CDIAG_DTLD_RSLTS(x)		(0xba1d + (x))
+#define   ADIN1300_CDIAG_RSLT_BUSY		BIT(10)
+#define   ADIN1300_CDIAG_RSLT_XSIM3		BIT(9)
+#define   ADIN1300_CDIAG_RSLT_XSIM2		BIT(8)
+#define   ADIN1300_CDIAG_RSLT_XSIM1		BIT(7)
+#define   ADIN1300_CDIAG_RSLT_SIM		BIT(6)
+#define   ADIN1300_CDIAG_RSLT_XSHRT3		BIT(5)
+#define   ADIN1300_CDIAG_RSLT_XSHRT2		BIT(4)
+#define   ADIN1300_CDIAG_RSLT_XSHRT1		BIT(3)
+#define   ADIN1300_CDIAG_RSLT_SHRT		BIT(2)
+#define   ADIN1300_CDIAG_RSLT_OPEN		BIT(1)
+#define   ADIN1300_CDIAG_RSLT_GOOD		BIT(0)
+
+#define ADIN1300_CDIAG_FLT_DIST(x)		(0xba21 + (x))
 
 #define ADIN1300_GE_SOFT_RESET_REG		0xff0c
 #define   ADIN1300_GE_SOFT_RESET		BIT(0)
@@ -733,10 +759,117 @@ static int adin_probe(struct phy_device *phydev)
 	return 0;
 }
 
+static int adin_cable_test_start(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = phy_clear_bits(phydev, ADIN1300_PHY_CTRL3, ADIN1300_LINKING_EN);
+	if (ret < 0)
+		return ret;
+
+	ret = phy_clear_bits(phydev, ADIN1300_PHY_CTRL1, ADIN1300_DIAG_CLK_EN);
+	if (ret < 0)
+		return ret;
+
+	/* wait a bit for the clock to stabilize */
+	msleep(50);
+
+	return phy_set_bits_mmd(phydev, MDIO_MMD_VEND1, ADIN1300_CDIAG_RUN,
+				ADIN1300_CDIAG_RUN_EN);
+}
+
+static int adin_cable_test_report_trans(int result)
+{
+	int mask;
+
+	if (result & ADIN1300_CDIAG_RSLT_GOOD)
+		return ETHTOOL_A_CABLE_RESULT_CODE_OK;
+	if (result & ADIN1300_CDIAG_RSLT_OPEN)
+		return ETHTOOL_A_CABLE_RESULT_CODE_OPEN;
+
+	/* short with other pairs */
+	mask = ADIN1300_CDIAG_RSLT_XSHRT3 |
+	       ADIN1300_CDIAG_RSLT_XSHRT2 |
+	       ADIN1300_CDIAG_RSLT_XSHRT1;
+	if (result & mask)
+		return ETHTOOL_A_CABLE_RESULT_CODE_CROSS_SHORT;
+
+	if (result & ADIN1300_CDIAG_RSLT_SHRT)
+		return ETHTOOL_A_CABLE_RESULT_CODE_SAME_SHORT;
+
+	return ETHTOOL_A_CABLE_RESULT_CODE_UNSPEC;
+}
+
+static int adin_cable_test_report_pair(struct phy_device *phydev,
+				       unsigned int pair)
+{
+	int fault_rslt;
+	int ret;
+
+	ret = phy_read_mmd(phydev, MDIO_MMD_VEND1,
+			   ADIN1300_CDIAG_DTLD_RSLTS(pair));
+	if (ret < 0)
+		return ret;
+
+	fault_rslt = adin_cable_test_report_trans(ret);
+
+	ret = ethnl_cable_test_result(phydev, pair, fault_rslt);
+	if (ret < 0)
+		return ret;
+
+	ret = phy_read_mmd(phydev, MDIO_MMD_VEND1,
+			   ADIN1300_CDIAG_FLT_DIST(pair));
+	if (ret < 0)
+		return ret;
+
+	switch (fault_rslt) {
+	case ETHTOOL_A_CABLE_RESULT_CODE_OPEN:
+	case ETHTOOL_A_CABLE_RESULT_CODE_SAME_SHORT:
+	case ETHTOOL_A_CABLE_RESULT_CODE_CROSS_SHORT:
+		return ethnl_cable_test_fault_length(phydev, pair, ret * 100);
+	default:
+		return  0;
+	}
+}
+
+static int adin_cable_test_report(struct phy_device *phydev)
+{
+	unsigned int pair;
+	int ret;
+
+	for (pair = ETHTOOL_A_CABLE_PAIR_A; pair <= ETHTOOL_A_CABLE_PAIR_D; pair++) {
+		ret = adin_cable_test_report_pair(phydev, pair);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int adin_cable_test_get_status(struct phy_device *phydev,
+				      bool *finished)
+{
+	int ret;
+
+	*finished = false;
+
+	ret = phy_read_mmd(phydev, MDIO_MMD_VEND1, ADIN1300_CDIAG_RUN);
+	if (ret < 0)
+		return ret;
+
+	if (ret & ADIN1300_CDIAG_RUN_EN)
+		return 0;
+
+	*finished = true;
+
+	return adin_cable_test_report(phydev);
+}
+
 static struct phy_driver adin_driver[] = {
 	{
 		PHY_ID_MATCH_MODEL(PHY_ID_ADIN1200),
 		.name		= "ADIN1200",
+		.flags		= PHY_POLL_CABLE_TEST,
 		.probe		= adin_probe,
 		.config_init	= adin_config_init,
 		.soft_reset	= adin_soft_reset,
@@ -753,10 +886,13 @@ static struct phy_driver adin_driver[] = {
 		.suspend	= genphy_suspend,
 		.read_mmd	= adin_read_mmd,
 		.write_mmd	= adin_write_mmd,
+		.cable_test_start	= adin_cable_test_start,
+		.cable_test_get_status	= adin_cable_test_get_status,
 	},
 	{
 		PHY_ID_MATCH_MODEL(PHY_ID_ADIN1300),
 		.name		= "ADIN1300",
+		.flags		= PHY_POLL_CABLE_TEST,
 		.probe		= adin_probe,
 		.config_init	= adin_config_init,
 		.soft_reset	= adin_soft_reset,
@@ -773,6 +909,8 @@ static struct phy_driver adin_driver[] = {
 		.suspend	= genphy_suspend,
 		.read_mmd	= adin_read_mmd,
 		.write_mmd	= adin_write_mmd,
+		.cable_test_start	= adin_cable_test_start,
+		.cable_test_get_status	= adin_cable_test_get_status,
 	},
 };
 
