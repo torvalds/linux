@@ -199,16 +199,11 @@ static void mlx5_fw_live_patch_event(struct work_struct *work)
 	struct mlx5_fw_reset *fw_reset = container_of(work, struct mlx5_fw_reset,
 						      fw_live_patch_work);
 	struct mlx5_core_dev *dev = fw_reset->dev;
-	struct mlx5_fw_tracer *tracer;
 
 	mlx5_core_info(dev, "Live patch updated firmware version: %d.%d.%d\n", fw_rev_maj(dev),
 		       fw_rev_min(dev), fw_rev_sub(dev));
 
-	tracer = dev->tracer;
-	if (IS_ERR_OR_NULL(tracer))
-		return;
-
-	if (mlx5_fw_tracer_reload(tracer))
+	if (mlx5_fw_tracer_reload(dev->tracer))
 		mlx5_core_err(dev, "Failed to reload FW tracer\n");
 }
 
