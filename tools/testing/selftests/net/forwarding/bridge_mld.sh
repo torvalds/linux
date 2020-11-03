@@ -4,7 +4,7 @@
 ALL_TESTS="mldv2include_test mldv2inc_allow_test mldv2inc_is_include_test mldv2inc_is_exclude_test \
 	   mldv2inc_to_exclude_test mldv2exc_allow_test mldv2exc_is_include_test \
 	   mldv2exc_is_exclude_test mldv2exc_to_exclude_test mldv2inc_block_test \
-	   mldv2exc_block_test mldv2exc_timeout_test"
+	   mldv2exc_block_test mldv2exc_timeout_test mldv2star_ex_auto_add_test"
 NUM_NETIFS=4
 CHECK_TC="yes"
 TEST_GROUP="ff02::cc"
@@ -517,6 +517,35 @@ mldv2exc_timeout_test()
 					mcast_query_response_interval 1000
 
 	mldv2cleanup $swp1
+}
+
+mldv2star_ex_auto_add_test()
+{
+	RET=0
+
+	mldv2exclude_prepare $h1
+
+	$MZ $h2 -c 1 $MZPKT_IS_INC -q
+	sleep 1
+	bridge -j -d -s mdb show dev br0 \
+		| jq -e ".[].mdb[] | \
+			 select(.grp == \"$TEST_GROUP\" and .src == \"2001:db8:1::3\" and \
+				.port == \"$swp1\")" &>/dev/null
+	check_err $? "S,G entry for *,G port doesn't exist"
+
+	bridge -j -d -s mdb show dev br0 \
+		| jq -e ".[].mdb[] | \
+			 select(.grp == \"$TEST_GROUP\" and .src == \"2001:db8:1::3\" and \
+				.port == \"$swp1\" and \
+				.flags[] == \"added_by_star_ex\")" &>/dev/null
+	check_err $? "Auto-added S,G entry doesn't have added_by_star_ex flag"
+
+	brmcast_check_sg_fwding 1 2001:db8:1::3
+
+	log_test "MLDv2 S,G port entry automatic add to a *,G port"
+
+	mldv2cleanup $swp1
+	mldv2cleanup $swp2
 }
 
 trap cleanup EXIT
