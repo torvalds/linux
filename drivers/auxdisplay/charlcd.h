@@ -43,6 +43,9 @@ struct charlcd {
  * previously set in addr.x and addr.y by charlcd.
  * @home: Set cursor to 0, 0. The values in addr.x and addr.y are set to 0, 0 by
  * charlcd prior to calling this function.
+ * @clear_display: Again clear the whole display, set the cursor to 0, 0. The
+ * values in addr.x and addr.y are set to 0, 0 by charlcd prior to calling this
+ * function.
  */
 struct charlcd_ops {
 	void (*clear_fast)(struct charlcd *lcd);
@@ -50,6 +53,7 @@ struct charlcd_ops {
 	int (*print)(struct charlcd *lcd, int c);
 	int (*gotoxy)(struct charlcd *lcd);
 	int (*home)(struct charlcd *lcd);
+	int (*clear_display)(struct charlcd *lcd);
 };
 
 struct charlcd *charlcd_alloc(void);

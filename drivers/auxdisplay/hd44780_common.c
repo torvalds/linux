@@ -1,12 +1,21 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include <linux/module.h>
+#include <linux/sched.h>
 #include <linux/slab.h>
 
 #include "charlcd.h"
 #include "hd44780_common.h"
 
 /* LCD commands */
+#define LCD_CMD_DISPLAY_CLEAR	0x01	/* Clear entire display */
+
 #define LCD_CMD_SET_DDRAM_ADDR	0x80	/* Set display data RAM address */
+
+/* sleeps that many milliseconds with a reschedule */
+static void long_sleep(int ms)
+{
+	schedule_timeout_interruptible(msecs_to_jiffies(ms));
+}
 
 int hd44780_common_print(struct charlcd *lcd, int c)
 {
@@ -48,6 +57,18 @@ int hd44780_common_home(struct charlcd *lcd)
 	return hd44780_common_gotoxy(lcd);
 }
 EXPORT_SYMBOL_GPL(hd44780_common_home);
+
+/* clears the display and resets X/Y */
+int hd44780_common_clear_display(struct charlcd *lcd)
+{
+	struct hd44780_common *hdc = lcd->drvdata;
+
+	hdc->write_cmd(hdc, LCD_CMD_DISPLAY_CLEAR);
+	/* we must wait a few milliseconds (15) */
+	long_sleep(15);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(hd44780_common_clear_display);
 
 struct hd44780_common *hd44780_common_alloc(void)
 {

@@ -34,8 +34,6 @@
 #define LCD_FLAG_L		0x0080	/* Backlight enabled */
 
 /* LCD commands */
-#define LCD_CMD_DISPLAY_CLEAR	0x01	/* Clear entire display */
-
 #define LCD_CMD_ENTRY_MODE	0x04	/* Set entry mode */
 #define LCD_CMD_CURSOR_INC	0x02	/* Increment cursor */
 
@@ -178,18 +176,6 @@ static void charlcd_clear_fast(struct charlcd *lcd)
 	charlcd_home(lcd);
 }
 
-/* clears the display and resets X/Y */
-static void charlcd_clear_display(struct charlcd *lcd)
-{
-	struct hd44780_common *hdc = lcd->drvdata;
-
-	hdc->write_cmd(hdc, LCD_CMD_DISPLAY_CLEAR);
-	lcd->addr.x = 0;
-	lcd->addr.y = 0;
-	/* we must wait a few milliseconds (15) */
-	long_sleep(15);
-}
-
 static int charlcd_init_display(struct charlcd *lcd)
 {
 	void (*write_cmd_raw)(struct hd44780_common *hdc, int cmd);
@@ -254,7 +240,9 @@ static int charlcd_init_display(struct charlcd *lcd)
 	/* entry mode set : increment, cursor shifting */
 	hdc->write_cmd(hdc, LCD_CMD_ENTRY_MODE | LCD_CMD_CURSOR_INC);
 
-	charlcd_clear_display(lcd);
+	lcd->ops->clear_display(lcd);
+	lcd->addr.x = 0;
+	lcd->addr.y = 0;
 	return 0;
 }
 
@@ -670,8 +658,10 @@ static int charlcd_open(struct inode *inode, struct file *file)
 		goto fail;
 
 	if (priv->must_clear) {
-		charlcd_clear_display(&priv->lcd);
+		priv->lcd.ops->clear_display(&priv->lcd);
 		priv->must_clear = false;
+		priv->lcd.addr.x = 0;
+		priv->lcd.addr.y = 0;
 	}
 	return nonseekable_open(inode, file);
 
