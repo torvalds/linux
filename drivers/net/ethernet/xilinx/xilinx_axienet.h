@@ -378,6 +378,7 @@ struct axidma_bd {
  * @dev:	Pointer to device structure
  * @phy_node:	Pointer to device node structure
  * @mii_bus:	Pointer to MII bus structure
+ * @mii_clk_div: MII bus clock divider value
  * @regs_start: Resource start for axienet device addresses
  * @regs:	Base address for the axienet_local device address space
  * @dma_regs:	Base address for the axidma device address space
@@ -427,6 +428,7 @@ struct axienet_local {
 
 	/* MDIO bus data */
 	struct mii_bus *mii_bus;	/* MII bus reference */
+	u8 mii_clk_div; /* MII bus clock divider value */
 
 	/* IO registers, dma functions and IRQs */
 	resource_size_t regs_start;
