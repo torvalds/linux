@@ -131,90 +131,13 @@ xdr_error:					\
 	memcpy((x), p, nbytes);			\
 	p += XDR_QUADLEN(nbytes);		\
 } while (0)
-
-/* READ_BUF, read_buf(): nbytes must be <= PAGE_SIZE */
-#define READ_BUF(nbytes)  do {			\
-	if (nbytes <= (u32)((char *)argp->end - (char *)argp->p)) {	\
-		p = argp->p;			\
-		argp->p += XDR_QUADLEN(nbytes);	\
-	} else if (!(p = read_buf(argp, nbytes))) { \
-		dprintk("NFSD: xdr error (%s:%d)\n", \
-				__FILE__, __LINE__); \
-		goto xdr_error;			\
-	}					\
-} while (0)
-
-static void next_decode_page(struct nfsd4_compoundargs *argp)
-{
-	argp->p = page_address(argp->pagelist[0]);
-	argp->pagelist++;
-	if (argp->pagelen < PAGE_SIZE) {
-		argp->end = argp->p + XDR_QUADLEN(argp->pagelen);
-		argp->pagelen = 0;
-	} else {
-		argp->end = argp->p + (PAGE_SIZE>>2);
-		argp->pagelen -= PAGE_SIZE;
-	}
-}
-
-static __be32 *read_buf(struct nfsd4_compoundargs *argp, u32 nbytes)
-{
-	/* We want more bytes than seem to be available.
-	 * Maybe we need a new page, maybe we have just run out
-	 */
-	unsigned int avail = (char *)argp->end - (char *)argp->p;
-	__be32 *p;
-
-	if (argp->pagelen == 0) {
-		struct kvec *vec = &argp->rqstp->rq_arg.tail[0];
-
-		if (!argp->tail) {
-			argp->tail = true;
-			avail = vec->iov_len;
-			argp->p = vec->iov_base;
-			argp->end = vec->iov_base + avail;
-		}
-
-		if (avail < nbytes)
-			return NULL;
-
-		p = argp->p;
-		argp->p += XDR_QUADLEN(nbytes);
-		return p;
-	}
-
-	if (avail + argp->pagelen < nbytes)
-		return NULL;
-	if (avail + PAGE_SIZE < nbytes) /* need more than a page !! */
-		return NULL;
-	/* ok, we can do it with the current plus the next page */
-	if (nbytes <= sizeof(argp->tmp))
-		p = argp->tmp;
-	else {
-		kfree(argp->tmpp);
-		p = argp->tmpp = kmalloc(nbytes, GFP_KERNEL);
-		if (!p)
-			return NULL;
-		
-	}
-	/*
-	 * The following memcpy is safe because read_buf is always
-	 * called with nbytes > avail, and the two cases above both
-	 * guarantee p points to at least nbytes bytes.
-	 */
-	memcpy(p, argp->p, avail);
-	next_decode_page(argp);
-	memcpy(((char*)p)+avail, argp->p, (nbytes - avail));
-	argp->p += XDR_QUADLEN(nbytes - avail);
-	return p;
-}
-
-static unsigned int compoundargs_bytes_left(struct nfsd4_compoundargs *argp)
-{
-	unsigned int this = (char *)argp->end - (char *)argp->p;
-
-	return this + argp->pagelen;
-}
+#define READ_BUF(nbytes)			\
+	do {					\
+		p = xdr_inline_decode(argp->xdr,\
+				      nbytes);	\
+		if (!p)				\
+			goto xdr_error;		\
+	} while (0)
 
 static int zero_clientid(clientid_t *clid)
 {
@@ -259,44 +182,6 @@ svcxdr_dupstr(struct nfsd4_compoundargs *argp, void *buf, u32 len)
 	memcpy(p, buf, len);
 	p[len] = '\0';
 	return p;
-}
-
-static __be32
-svcxdr_construct_vector(struct nfsd4_compoundargs *argp, struct kvec *head,
-			struct page ***pagelist, u32 buflen)
-{
-	int avail;
-	int len;
-	int pages;
-
-	/* Sorry .. no magic macros for this.. *
-	 * READ_BUF(write->wr_buflen);
-	 * SAVEMEM(write->wr_buf, write->wr_buflen);
-	 */
-	avail = (char *)argp->end - (char *)argp->p;
-	if (avail + argp->pagelen < buflen) {
-		dprintk("NFSD: xdr error (%s:%d)\n",
-			       __FILE__, __LINE__);
-		return nfserr_bad_xdr;
-	}
-	head->iov_base = argp->p;
-	head->iov_len = avail;
-	*pagelist = argp->pagelist;
-
-	len = XDR_QUADLEN(buflen) << 2;
-	if (len >= avail) {
-		len -= avail;
-
-		pages = len >> PAGE_SHIFT;
-		argp->pagelist += pages;
-		argp->pagelen -= pages * PAGE_SIZE;
-		len -= pages * PAGE_SIZE;
-
-		next_decode_page(argp);
-	}
-	argp->p += XDR_QUADLEN(len);
-
-	return 0;
 }
 
 /**
@@ -398,7 +283,7 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 		READ_BUF(4); len += 4;
 		nace = be32_to_cpup(p++);
 
-		if (nace > compoundargs_bytes_left(argp)/20)
+		if (nace > xdr_stream_remaining(argp->xdr) / sizeof(struct nfs4_ace))
 			/*
 			 * Even with 4-byte names there wouldn't be
 			 * space for that many aces; something fishy is
@@ -929,7 +814,7 @@ xdr_error:
 
 static __be32 nfsd4_decode_opaque(struct nfsd4_compoundargs *argp, struct xdr_netobj *o)
 {
-	__be32 *p;
+	DECODE_HEAD;
 
 	READ_BUF(4);
 	o->len = be32_to_cpup(p++);
@@ -939,9 +824,8 @@ static __be32 nfsd4_decode_opaque(struct nfsd4_compoundargs *argp, struct xdr_ne
 
 	READ_BUF(o->len);
 	SAVEMEM(o->data, o->len);
-	return nfs_ok;
-xdr_error:
-	return nfserr_bad_xdr;
+
+	DECODE_TAIL;
 }
 
 static __be32
@@ -1319,10 +1203,8 @@ nfsd4_decode_write(struct nfsd4_compoundargs *argp, struct nfsd4_write *write)
 		goto xdr_error;
 	write->wr_buflen = be32_to_cpup(p++);
 
-	status = svcxdr_construct_vector(argp, &write->wr_head,
-					 &write->wr_pagelist, write->wr_buflen);
-	if (status)
-		return status;
+	if (!xdr_stream_subsegment(argp->xdr, &write->wr_payload, write->wr_buflen))
+		goto xdr_error;
 
 	DECODE_TAIL;
 }
@@ -1891,13 +1773,14 @@ nfsd4_decode_seek(struct nfsd4_compoundargs *argp, struct nfsd4_seek *seek)
  */
 
 /*
- * Decode data into buffer. Uses head and pages constructed by
- * svcxdr_construct_vector.
+ * Decode data into buffer.
  */
 static __be32
-nfsd4_vbuf_from_vector(struct nfsd4_compoundargs *argp, struct kvec *head,
-		       struct page **pages, char **bufp, u32 buflen)
+nfsd4_vbuf_from_vector(struct nfsd4_compoundargs *argp, struct xdr_buf *xdr,
+		       char **bufp, u32 buflen)
 {
+	struct page **pages = xdr->pages;
+	struct kvec *head = xdr->head;
 	char *tmp, *dp;
 	u32 len;
 
@@ -2012,8 +1895,6 @@ nfsd4_decode_setxattr(struct nfsd4_compoundargs *argp,
 {
 	DECODE_HEAD;
 	u32 flags, maxcount, size;
-	struct kvec head;
-	struct page **pagelist;
 
 	READ_BUF(4);
 	flags = be32_to_cpup(p++);
@@ -2036,12 +1917,12 @@ nfsd4_decode_setxattr(struct nfsd4_compoundargs *argp,
 
 	setxattr->setxa_len = size;
 	if (size > 0) {
-		status = svcxdr_construct_vector(argp, &head, &pagelist, size);
-		if (status)
-			return status;
+		struct xdr_buf payload;
 
-		status = nfsd4_vbuf_from_vector(argp, &head, pagelist,
-		    &setxattr->setxa_buf, size);
+		if (!xdr_stream_subsegment(argp->xdr, &payload, size))
+			goto xdr_error;
+		status = nfsd4_vbuf_from_vector(argp, &payload,
+						&setxattr->setxa_buf, size);
 	}
 
 	DECODE_TAIL;
@@ -5288,8 +5169,6 @@ void nfsd4_release_compoundargs(struct svc_rqst *rqstp)
 		kfree(args->ops);
 		args->ops = args->iops;
 	}
-	kfree(args->tmpp);
-	args->tmpp = NULL;
 	while (args->to_free) {
 		struct svcxdr_tmpbuf *tb = args->to_free;
 		args->to_free = tb->next;
@@ -5302,19 +5181,11 @@ nfs4svc_decode_compoundargs(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd4_compoundargs *args = rqstp->rq_argp;
 
-	if (rqstp->rq_arg.head[0].iov_len % 4) {
-		/* client is nuts */
-		dprintk("%s: compound not properly padded! (peeraddr=%pISc xid=0x%x)",
-			__func__, svc_addr(rqstp), be32_to_cpu(rqstp->rq_xid));
-		return 0;
-	}
-	args->p = p;
-	args->end = rqstp->rq_arg.head[0].iov_base + rqstp->rq_arg.head[0].iov_len;
-	args->pagelist = rqstp->rq_arg.pages;
-	args->pagelen = rqstp->rq_arg.page_len;
-	args->tail = false;
+	/* svcxdr_tmp_alloc */
 	args->tmpp = NULL;
 	args->to_free = NULL;
+
+	args->xdr = &rqstp->rq_arg_stream;
 	args->ops = args->iops;
 	args->rqstp = rqstp;
 
