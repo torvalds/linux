@@ -214,12 +214,37 @@ struct hellcreek_counter {
 
 struct hellcreek;
 
+/* State flags for hellcreek_port_hwtstamp::state */
+enum {
+	HELLCREEK_HWTSTAMP_ENABLED,
+	HELLCREEK_HWTSTAMP_TX_IN_PROGRESS,
+};
+
+/* A structure to hold hardware timestamping information per port */
+struct hellcreek_port_hwtstamp {
+	/* Timestamping state */
+	unsigned long state;
+
+	/* Resources for receive timestamping */
+	struct sk_buff_head rx_queue; /* For synchronization messages */
+
+	/* Resources for transmit timestamping */
+	unsigned long tx_tstamp_start;
+	struct sk_buff *tx_skb;
+
+	/* Current timestamp configuration */
+	struct hwtstamp_config tstamp_config;
+};
+
 struct hellcreek_port {
 	struct hellcreek *hellcreek;
 	unsigned long *vlan_dev_bitmap;
 	int port;
 	u16 ptcfg;		/* ptcfg shadow */
 	u64 *counter_values;
+
+	/* Per-port timestamping resources */
+	struct hellcreek_port_hwtstamp port_hwtstamp;
 };
 
 struct hellcreek_fdb_entry {

@@ -59,6 +59,10 @@
 
 int hellcreek_ptp_setup(struct hellcreek *hellcreek);
 void hellcreek_ptp_free(struct hellcreek *hellcreek);
+u16 hellcreek_ptp_read(struct hellcreek *hellcreek, unsigned int offset);
+void hellcreek_ptp_write(struct hellcreek *hellcreek, u16 data,
+			 unsigned int offset);
+u64 hellcreek_ptp_gettime_seconds(struct hellcreek *hellcreek, u64 ns);
 
 #define ptp_to_hellcreek(ptp)					\
 	container_of(ptp, struct hellcreek, ptp_clock_info)

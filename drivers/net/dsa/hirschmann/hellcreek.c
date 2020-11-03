@@ -26,6 +26,7 @@
 
 #include "hellcreek.h"
 #include "hellcreek_ptp.h"
+#include "hellcreek_hwtstamp.h"
 
 static const struct hellcreek_counter hellcreek_counter[] = {
 	{ 0x00, "RxFiltered", },
@@ -1139,6 +1140,7 @@ static const struct dsa_switch_ops hellcreek_ds_ops = {
 	.get_sset_count	     = hellcreek_get_sset_count,
 	.get_strings	     = hellcreek_get_strings,
 	.get_tag_protocol    = hellcreek_get_tag_protocol,
+	.get_ts_info	     = hellcreek_get_ts_info,
 	.phylink_validate    = hellcreek_phylink_validate,
 	.port_bridge_join    = hellcreek_port_bridge_join,
 	.port_bridge_leave   = hellcreek_port_bridge_leave,
@@ -1147,8 +1149,12 @@ static const struct dsa_switch_ops hellcreek_ds_ops = {
 	.port_fdb_add	     = hellcreek_fdb_add,
 	.port_fdb_del	     = hellcreek_fdb_del,
 	.port_fdb_dump	     = hellcreek_fdb_dump,
+	.port_hwtstamp_set   = hellcreek_port_hwtstamp_set,
+	.port_hwtstamp_get   = hellcreek_port_hwtstamp_get,
 	.port_prechangeupper = hellcreek_port_prechangeupper,
+	.port_rxtstamp	     = hellcreek_port_rxtstamp,
 	.port_stp_state_set  = hellcreek_port_stp_state_set,
+	.port_txtstamp	     = hellcreek_port_txtstamp,
 	.port_vlan_add	     = hellcreek_vlan_add,
 	.port_vlan_del	     = hellcreek_vlan_del,
 	.port_vlan_filtering = hellcreek_vlan_filtering,
@@ -1270,10 +1276,18 @@ static int hellcreek_probe(struct platform_device *pdev)
 		goto err_ptp_setup;
 	}
 
+	ret = hellcreek_hwtstamp_setup(hellcreek);
+	if (ret) {
+		dev_err(dev, "Failed to setup hardware timestamping!\n");
+		goto err_tstamp_setup;
+	}
+
 	platform_set_drvdata(pdev, hellcreek);
 
 	return 0;
 
+err_tstamp_setup:
+	hellcreek_ptp_free(hellcreek);
 err_ptp_setup:
 	dsa_unregister_switch(hellcreek->ds);
 
@@ -1284,6 +1298,7 @@ static int hellcreek_remove(struct platform_device *pdev)
 {
 	struct hellcreek *hellcreek = platform_get_drvdata(pdev);
 
+	hellcreek_hwtstamp_free(hellcreek);
 	hellcreek_ptp_free(hellcreek);
 	dsa_unregister_switch(hellcreek->ds);
 	platform_set_drvdata(pdev, NULL);

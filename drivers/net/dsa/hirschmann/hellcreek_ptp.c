@@ -12,14 +12,15 @@
 #include <linux/ptp_clock_kernel.h>
 #include "hellcreek.h"
 #include "hellcreek_ptp.h"
+#include "hellcreek_hwtstamp.h"
 
-static u16 hellcreek_ptp_read(struct hellcreek *hellcreek, unsigned int offset)
+u16 hellcreek_ptp_read(struct hellcreek *hellcreek, unsigned int offset)
 {
 	return readw(hellcreek->ptp_base + offset);
 }
 
-static void hellcreek_ptp_write(struct hellcreek *hellcreek, u16 data,
-				unsigned int offset)
+void hellcreek_ptp_write(struct hellcreek *hellcreek, u16 data,
+			 unsigned int offset)
 {
 	writew(data, hellcreek->ptp_base + offset);
 }
@@ -59,6 +60,24 @@ static u64 __hellcreek_ptp_gettime(struct hellcreek *hellcreek)
 	ns += hellcreek->seconds * NSEC_PER_SEC;
 
 	return ns;
+}
+
+/* Retrieve the seconds parts in nanoseconds for a packet timestamped with @ns.
+ * There has to be a check whether an overflow occurred between the packet
+ * arrival and now. If so use the correct seconds (-1) for calculating the
+ * packet arrival time.
+ */
+u64 hellcreek_ptp_gettime_seconds(struct hellcreek *hellcreek, u64 ns)
+{
+	u64 s;
+
+	__hellcreek_ptp_gettime(hellcreek);
+	if (hellcreek->last_ts > ns)
+		s = hellcreek->seconds * NSEC_PER_SEC;
+	else
+		s = (hellcreek->seconds - 1) * NSEC_PER_SEC;
+
+	return s;
 }
 
 static int hellcreek_ptp_gettime(struct ptp_clock_info *ptp,
@@ -238,17 +257,18 @@ int hellcreek_ptp_setup(struct hellcreek *hellcreek)
 	 * accumulator_overflow_rate shall not exceed 62.5 MHz (which adjusts
 	 * the nominal frequency by 6.25%)
 	 */
-	hellcreek->ptp_clock_info.max_adj   = 62500000;
-	hellcreek->ptp_clock_info.n_alarm   = 0;
-	hellcreek->ptp_clock_info.n_pins    = 0;
-	hellcreek->ptp_clock_info.n_ext_ts  = 0;
-	hellcreek->ptp_clock_info.n_per_out = 0;
-	hellcreek->ptp_clock_info.pps	    = 0;
-	hellcreek->ptp_clock_info.adjfine   = hellcreek_ptp_adjfine;
-	hellcreek->ptp_clock_info.adjtime   = hellcreek_ptp_adjtime;
-	hellcreek->ptp_clock_info.gettime64 = hellcreek_ptp_gettime;
-	hellcreek->ptp_clock_info.settime64 = hellcreek_ptp_settime;
-	hellcreek->ptp_clock_info.enable    = hellcreek_ptp_enable;
+	hellcreek->ptp_clock_info.max_adj     = 62500000;
+	hellcreek->ptp_clock_info.n_alarm     = 0;
+	hellcreek->ptp_clock_info.n_pins      = 0;
+	hellcreek->ptp_clock_info.n_ext_ts    = 0;
+	hellcreek->ptp_clock_info.n_per_out   = 0;
+	hellcreek->ptp_clock_info.pps	      = 0;
+	hellcreek->ptp_clock_info.adjfine     = hellcreek_ptp_adjfine;
+	hellcreek->ptp_clock_info.adjtime     = hellcreek_ptp_adjtime;
+	hellcreek->ptp_clock_info.gettime64   = hellcreek_ptp_gettime;
+	hellcreek->ptp_clock_info.settime64   = hellcreek_ptp_settime;
+	hellcreek->ptp_clock_info.enable      = hellcreek_ptp_enable;
+	hellcreek->ptp_clock_info.do_aux_work = hellcreek_hwtstamp_work;
 
 	hellcreek->ptp_clock = ptp_clock_register(&hellcreek->ptp_clock_info,
 						  hellcreek->dev);
