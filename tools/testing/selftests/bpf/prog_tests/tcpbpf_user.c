@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <inttypes.h>
 #include <test_progs.h>
 #include <network_helpers.h>
 
@@ -10,66 +9,56 @@
 
 static __u32 duration;
 
-#define EXPECT_EQ(expected, actual, fmt)			\
-	do {							\
-		if ((expected) != (actual)) {			\
-			printf("  Value of: " #actual "\n"	\
-			       "    Actual: %" fmt "\n"		\
-			       "  Expected: %" fmt "\n",	\
-			       (actual), (expected));		\
-			ret--;					\
-		}						\
-	} while (0)
-
-int verify_result(const struct tcpbpf_globals *result)
+static void verify_result(int map_fd, int sock_map_fd)
 {
-	__u32 expected_events;
-	int ret = 0;
+	__u32 expected_events = ((1 << BPF_SOCK_OPS_TIMEOUT_INIT) |
+				 (1 << BPF_SOCK_OPS_RWND_INIT) |
+				 (1 << BPF_SOCK_OPS_TCP_CONNECT_CB) |
+				 (1 << BPF_SOCK_OPS_ACTIVE_ESTABLISHED_CB) |
+				 (1 << BPF_SOCK_OPS_PASSIVE_ESTABLISHED_CB) |
+				 (1 << BPF_SOCK_OPS_NEEDS_ECN) |
+				 (1 << BPF_SOCK_OPS_STATE_CB) |
+				 (1 << BPF_SOCK_OPS_TCP_LISTEN_CB));
+	struct tcpbpf_globals result;
+	__u32 key = 0;
+	int res, rv;
 
-	expected_events = ((1 << BPF_SOCK_OPS_TIMEOUT_INIT) |
-			   (1 << BPF_SOCK_OPS_RWND_INIT) |
-			   (1 << BPF_SOCK_OPS_TCP_CONNECT_CB) |
-			   (1 << BPF_SOCK_OPS_ACTIVE_ESTABLISHED_CB) |
-			   (1 << BPF_SOCK_OPS_PASSIVE_ESTABLISHED_CB) |
-			   (1 << BPF_SOCK_OPS_NEEDS_ECN) |
-			   (1 << BPF_SOCK_OPS_STATE_CB) |
-			   (1 << BPF_SOCK_OPS_TCP_LISTEN_CB));
+	rv = bpf_map_lookup_elem(map_fd, &key, &result);
+	if (CHECK(rv, "bpf_map_lookup_elem(map_fd)", "err:%d errno:%d",
+		  rv, errno))
+		return;
 
-	EXPECT_EQ(expected_events, result->event_map, "#" PRIx32);
-	EXPECT_EQ(501ULL, result->bytes_received, "llu");
-	EXPECT_EQ(1002ULL, result->bytes_acked, "llu");
-	EXPECT_EQ(1, result->data_segs_in, PRIu32);
-	EXPECT_EQ(1, result->data_segs_out, PRIu32);
-	EXPECT_EQ(0x80, result->bad_cb_test_rv, PRIu32);
-	EXPECT_EQ(0, result->good_cb_test_rv, PRIu32);
-	EXPECT_EQ(1, result->num_listen, PRIu32);
+	/* check global map */
+	CHECK(expected_events != result.event_map, "event_map",
+	      "unexpected event_map: actual 0x%08x != expected 0x%08x\n",
+	      result.event_map, expected_events);
+
+	ASSERT_EQ(result.bytes_received, 501, "bytes_received");
+	ASSERT_EQ(result.bytes_acked, 1002, "bytes_acked");
+	ASSERT_EQ(result.data_segs_in, 1, "data_segs_in");
+	ASSERT_EQ(result.data_segs_out, 1, "data_segs_out");
+	ASSERT_EQ(result.bad_cb_test_rv, 0x80, "bad_cb_test_rv");
+	ASSERT_EQ(result.good_cb_test_rv, 0, "good_cb_test_rv");
+	ASSERT_EQ(result.num_listen, 1, "num_listen");
 
 	/* 3 comes from one listening socket + both ends of the connection */
-	EXPECT_EQ(3, result->num_close_events, PRIu32);
-
-	return ret;
-}
-
-int verify_sockopt_result(int sock_map_fd)
-{
-	__u32 key = 0;
-	int ret = 0;
-	int res;
-	int rv;
+	ASSERT_EQ(result.num_close_events, 3, "num_close_events");
 
 	/* check setsockopt for SAVE_SYN */
 	rv = bpf_map_lookup_elem(sock_map_fd, &key, &res);
-	EXPECT_EQ(0, rv, "d");
-	EXPECT_EQ(0, res, "d");
-	key = 1;
+	CHECK(rv, "bpf_map_lookup_elem(sock_map_fd)", "err:%d errno:%d",
+	      rv, errno);
+	ASSERT_EQ(res, 0, "bpf_setsockopt(TCP_SAVE_SYN)");
+
 	/* check getsockopt for SAVED_SYN */
+	key = 1;
 	rv = bpf_map_lookup_elem(sock_map_fd, &key, &res);
-	EXPECT_EQ(0, rv, "d");
-	EXPECT_EQ(1, res, "d");
-	return ret;
+	CHECK(rv, "bpf_map_lookup_elem(sock_map_fd)", "err:%d errno:%d",
+	      rv, errno);
+	ASSERT_EQ(res, 1, "bpf_getsockopt(TCP_SAVED_SYN)");
 }
 
-static int run_test(void)
+static void run_test(int map_fd, int sock_map_fd)
 {
 	int listen_fd = -1, cli_fd = -1, accept_fd = -1;
 	char buf[1000];
@@ -135,18 +124,17 @@ done:
 	if (listen_fd != -1)
 		close(listen_fd);
 
-	return err;
+	if (!err)
+		verify_result(map_fd, sock_map_fd);
 }
 
 void test_tcpbpf_user(void)
 {
 	const char *file = "test_tcpbpf_kern.o";
 	int prog_fd, map_fd, sock_map_fd;
-	struct tcpbpf_globals g = {0};
 	int error = EXIT_FAILURE;
 	struct bpf_object *obj;
 	int cg_fd = -1;
-	__u32 key = 0;
 	int rv;
 
 	cg_fd = test__join_cgroup(CG_NAME);
@@ -173,24 +161,7 @@ void test_tcpbpf_user(void)
 	if (sock_map_fd < 0)
 		goto err;
 
-	if (run_test())
-		goto err;
-
-	rv = bpf_map_lookup_elem(map_fd, &key, &g);
-	if (rv != 0) {
-		printf("FAILED: bpf_map_lookup_elem returns %d\n", rv);
-		goto err;
-	}
-
-	if (verify_result(&g)) {
-		printf("FAILED: Wrong stats\n");
-		goto err;
-	}
-
-	if (verify_sockopt_result(sock_map_fd)) {
-		printf("FAILED: Wrong sockopt stats\n");
-		goto err;
-	}
+	run_test(map_fd, sock_map_fd);
 
 	error = 0;
 err:
