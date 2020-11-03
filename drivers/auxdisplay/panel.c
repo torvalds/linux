@@ -56,6 +56,7 @@
 #include <linux/uaccess.h>
 
 #include "charlcd.h"
+#include "hd44780_common.h"
 
 #define LCD_MAXBYTES		256	/* max burst write */
 
@@ -895,10 +896,20 @@ static const struct charlcd_ops charlcd_tilcd_ops = {
 static void lcd_init(void)
 {
 	struct charlcd *charlcd;
+	struct hd44780_common *hdc;
+
+	hdc = hd44780_common_alloc();
+	if (!hdc)
+		return;
 
 	charlcd = charlcd_alloc(0);
-	if (!charlcd)
+	if (!charlcd) {
+		kfree(hdc);
 		return;
+	}
+
+	hdc->hd44780 = &lcd;
+	charlcd->drvdata = hdc;
 
 	/*
 	 * Init lcd struct with load-time values to preserve exact
@@ -1620,7 +1631,7 @@ err_lcd_unreg:
 	if (lcd.enabled)
 		charlcd_unregister(lcd.charlcd);
 err_unreg_device:
-	charlcd_free(lcd.charlcd);
+	kfree(lcd.charlcd);
 	lcd.charlcd = NULL;
 	parport_unregister_device(pprt);
 	pprt = NULL;
@@ -1647,7 +1658,8 @@ static void panel_detach(struct parport *port)
 	if (lcd.enabled) {
 		charlcd_unregister(lcd.charlcd);
 		lcd.initialized = false;
-		charlcd_free(lcd.charlcd);
+		kfree(lcd.charlcd->drvdata);
+		kfree(lcd.charlcd);
 		lcd.charlcd = NULL;
 	}
 

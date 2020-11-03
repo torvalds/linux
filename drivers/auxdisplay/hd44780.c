@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 
 #include "charlcd.h"
+#include "hd44780_common.h"
 
 enum hd44780_pin {
 	/* Order does matter due to writing to GPIO array subsets! */
@@ -179,8 +180,9 @@ static int hd44780_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	unsigned int i, base;
 	struct charlcd *lcd;
+	struct hd44780_common *hdc;
 	struct hd44780 *hd;
-	int ifwidth, ret;
+	int ifwidth, ret = -ENOMEM;
 
 	/* Required pins */
 	ifwidth = gpiod_count(dev, "data");
@@ -198,31 +200,39 @@ static int hd44780_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	lcd = charlcd_alloc(sizeof(struct hd44780));
-	if (!lcd)
+	hdc = hd44780_common_alloc();
+	if (!hdc)
 		return -ENOMEM;
 
-	hd = lcd->drvdata;
+	lcd = charlcd_alloc(sizeof(struct hd44780));
+	if (!lcd)
+		goto fail1;
 
+	hd = kzalloc(sizeof(struct hd44780), GFP_KERNEL);
+	if (!hd)
+		goto fail2;
+
+	hdc->hd44780 = hd;
+	lcd->drvdata = hdc;
 	for (i = 0; i < ifwidth; i++) {
 		hd->pins[base + i] = devm_gpiod_get_index(dev, "data", i,
 							  GPIOD_OUT_LOW);
 		if (IS_ERR(hd->pins[base + i])) {
 			ret = PTR_ERR(hd->pins[base + i]);
-			goto fail;
+			goto fail3;
 		}
 	}
 
 	hd->pins[PIN_CTRL_E] = devm_gpiod_get(dev, "enable", GPIOD_OUT_LOW);
 	if (IS_ERR(hd->pins[PIN_CTRL_E])) {
 		ret = PTR_ERR(hd->pins[PIN_CTRL_E]);
-		goto fail;
+		goto fail3;
 	}
 
 	hd->pins[PIN_CTRL_RS] = devm_gpiod_get(dev, "rs", GPIOD_OUT_HIGH);
 	if (IS_ERR(hd->pins[PIN_CTRL_RS])) {
 		ret = PTR_ERR(hd->pins[PIN_CTRL_RS]);
-		goto fail;
+		goto fail3;
 	}
 
 	/* Optional pins */
@@ -230,24 +240,24 @@ static int hd44780_probe(struct platform_device *pdev)
 							GPIOD_OUT_LOW);
 	if (IS_ERR(hd->pins[PIN_CTRL_RW])) {
 		ret = PTR_ERR(hd->pins[PIN_CTRL_RW]);
-		goto fail;
+		goto fail3;
 	}
 
 	hd->pins[PIN_CTRL_BL] = devm_gpiod_get_optional(dev, "backlight",
 							GPIOD_OUT_LOW);
 	if (IS_ERR(hd->pins[PIN_CTRL_BL])) {
 		ret = PTR_ERR(hd->pins[PIN_CTRL_BL]);
-		goto fail;
+		goto fail3;
 	}
 
 	/* Required properties */
 	ret = device_property_read_u32(dev, "display-height-chars",
 				       &lcd->height);
 	if (ret)
-		goto fail;
+		goto fail3;
 	ret = device_property_read_u32(dev, "display-width-chars", &lcd->width);
 	if (ret)
-		goto fail;
+		goto fail3;
 
 	/*
 	 * On displays with more than two rows, the internal buffer width is
@@ -264,13 +274,17 @@ static int hd44780_probe(struct platform_device *pdev)
 
 	ret = charlcd_register(lcd);
 	if (ret)
-		goto fail;
+		goto fail3;
 
 	platform_set_drvdata(pdev, lcd);
 	return 0;
 
-fail:
-	charlcd_free(lcd);
+fail3:
+	kfree(hd);
+fail2:
+	kfree(lcd);
+fail1:
+	kfree(hdc);
 	return ret;
 }
 
@@ -278,9 +292,10 @@ static int hd44780_remove(struct platform_device *pdev)
 {
 	struct charlcd *lcd = platform_get_drvdata(pdev);
 
+	kfree(lcd->drvdata);
 	charlcd_unregister(lcd);
 
-	charlcd_free(lcd);
+	kfree(lcd);
 	return 0;
 }
 
