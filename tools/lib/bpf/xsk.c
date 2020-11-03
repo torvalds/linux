@@ -891,13 +891,14 @@ int xsk_umem__delete(struct xsk_umem *umem)
 void xsk_socket__delete(struct xsk_socket *xsk)
 {
 	size_t desc_sz = sizeof(struct xdp_desc);
-	struct xsk_ctx *ctx = xsk->ctx;
 	struct xdp_mmap_offsets off;
+	struct xsk_ctx *ctx;
 	int err;
 
 	if (!xsk)
 		return;
 
+	ctx = xsk->ctx;
 	if (ctx->prog_fd != -1) {
 		xsk_delete_bpf_maps(xsk);
 		close(ctx->prog_fd);
