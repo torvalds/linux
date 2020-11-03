@@ -2622,7 +2622,7 @@ int qman_shutdown_fq(u32 fqid)
 	union qm_mc_command *mcc;
 	union qm_mc_result *mcr;
 	int orl_empty, drain = 0, ret = 0;
-	u32 channel, wq, res;
+	u32 channel, res;
 	u8 state;
 
 	p = get_affine_portal();
@@ -2655,7 +2655,7 @@ int qman_shutdown_fq(u32 fqid)
 	DPAA_ASSERT((mcr->verb & QM_MCR_VERB_MASK) == QM_MCR_VERB_QUERYFQ);
 	/* Need to store these since the MCR gets reused */
 	channel = qm_fqd_get_chan(&mcr->queryfq.fqd);
-	wq = qm_fqd_get_wq(&mcr->queryfq.fqd);
+	qm_fqd_get_wq(&mcr->queryfq.fqd);
 
 	if (channel < qm_channel_pool1) {
 		channel_portal = get_portal_for_channel(channel);
@@ -2697,7 +2697,6 @@ int qman_shutdown_fq(u32 fqid)
 			 * to dequeue from the channel the FQ is scheduled on
 			 */
 			int found_fqrn = 0;
-			u16 dequeue_wq = 0;
 
 			/* Flag that we need to drain FQ */
 			drain = 1;
@@ -2705,11 +2704,8 @@ int qman_shutdown_fq(u32 fqid)
 			if (channel >= qm_channel_pool1 &&
 			    channel < qm_channel_pool1 + 15) {
 				/* Pool channel, enable the bit in the portal */
-				dequeue_wq = (channel -
-					      qm_channel_pool1 + 1)<<4 | wq;
 			} else if (channel < qm_channel_pool1) {
 				/* Dedicated channel */
-				dequeue_wq = wq;
 			} else {
 				dev_err(dev, "Can't recover FQ 0x%x, ch: 0x%x",
 					fqid, channel);
