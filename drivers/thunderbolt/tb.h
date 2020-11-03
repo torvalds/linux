@@ -367,6 +367,14 @@ struct tb_path {
  * @disconnect_pcie_paths: Disconnects PCIe paths before NVM update
  * @approve_xdomain_paths: Approve (establish) XDomain DMA paths
  * @disconnect_xdomain_paths: Disconnect XDomain DMA paths
+ * @usb4_switch_op: Optional proxy for USB4 router operations. If set
+ *		    this will be called whenever USB4 router operation is
+ *		    performed. If this returns %-EOPNOTSUPP then the
+ *		    native USB4 router operation is called.
+ * @usb4_switch_nvm_authenticate_status: Optional callback that the CM
+ *					 implementation can be used to
+ *					 return status of USB4 NVM_AUTH
+ *					 router operation.
  */
 struct tb_cm_ops {
 	int (*driver_ready)(struct tb *tb);
@@ -393,6 +401,11 @@ struct tb_cm_ops {
 	int (*disconnect_pcie_paths)(struct tb *tb);
 	int (*approve_xdomain_paths)(struct tb *tb, struct tb_xdomain *xd);
 	int (*disconnect_xdomain_paths)(struct tb *tb, struct tb_xdomain *xd);
+	int (*usb4_switch_op)(struct tb_switch *sw, u16 opcode, u32 *metadata,
+			      u8 *status, const void *tx_data, size_t tx_data_len,
+			      void *rx_data, size_t rx_data_len);
+	int (*usb4_switch_nvm_authenticate_status)(struct tb_switch *sw,
+						   u32 *status);
 };
 
 static inline void *tb_priv(struct tb *tb)

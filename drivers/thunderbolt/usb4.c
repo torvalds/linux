@@ -143,15 +143,13 @@ static int usb4_do_write_data(unsigned int address, const void *buf, size_t size
 	return 0;
 }
 
-static int __usb4_switch_op(struct tb_switch *sw, u16 opcode, u32 *metadata,
-			    u8 *status, const void *tx_data, size_t tx_dwords,
-			    void *rx_data, size_t rx_dwords)
+static int usb4_native_switch_op(struct tb_switch *sw, u16 opcode,
+				 u32 *metadata, u8 *status,
+				 const void *tx_data, size_t tx_dwords,
+				 void *rx_data, size_t rx_dwords)
 {
 	u32 val;
 	int ret;
-
-	if (tx_dwords > USB4_DATA_DWORDS || rx_dwords > USB4_DATA_DWORDS)
-		return -EINVAL;
 
 	if (metadata) {
 		ret = tb_sw_write(sw, metadata, TB_CFG_SWITCH, ROUTER_CS_25, 1);
@@ -198,6 +196,39 @@ static int __usb4_switch_op(struct tb_switch *sw, u16 opcode, u32 *metadata,
 	}
 
 	return 0;
+}
+
+static int __usb4_switch_op(struct tb_switch *sw, u16 opcode, u32 *metadata,
+			    u8 *status, const void *tx_data, size_t tx_dwords,
+			    void *rx_data, size_t rx_dwords)
+{
+	const struct tb_cm_ops *cm_ops = sw->tb->cm_ops;
+
+	if (tx_dwords > USB4_DATA_DWORDS || rx_dwords > USB4_DATA_DWORDS)
+		return -EINVAL;
+
+	/*
+	 * If the connection manager implementation provides USB4 router
+	 * operation proxy callback, call it here instead of running the
+	 * operation natively.
+	 */
+	if (cm_ops->usb4_switch_op) {
+		int ret;
+
+		ret = cm_ops->usb4_switch_op(sw, opcode, metadata, status,
+					     tx_data, tx_dwords, rx_data,
+					     rx_dwords);
+		if (ret != -EOPNOTSUPP)
+			return ret;
+
+		/*
+		 * If the proxy was not supported then run the native
+		 * router operation instead.
+		 */
+	}
+
+	return usb4_native_switch_op(sw, opcode, metadata, status, tx_data,
+				     tx_dwords, rx_data, rx_dwords);
 }
 
 static inline int usb4_switch_op(struct tb_switch *sw, u16 opcode,
@@ -674,9 +705,16 @@ int usb4_switch_nvm_authenticate(struct tb_switch *sw)
  */
 int usb4_switch_nvm_authenticate_status(struct tb_switch *sw, u32 *status)
 {
+	const struct tb_cm_ops *cm_ops = sw->tb->cm_ops;
 	u16 opcode;
 	u32 val;
 	int ret;
+
+	if (cm_ops->usb4_switch_nvm_authenticate_status) {
+		ret = cm_ops->usb4_switch_nvm_authenticate_status(sw, status);
+		if (ret != -EOPNOTSUPP)
+			return ret;
+	}
 
 	ret = tb_sw_read(sw, &val, TB_CFG_SWITCH, ROUTER_CS_26, 1);
 	if (ret)
