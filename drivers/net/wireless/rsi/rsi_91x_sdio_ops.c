@@ -60,39 +60,20 @@ int rsi_sdio_master_access_msword(struct rsi_hw *adapter, u16 ms_word)
 	return status;
 }
 
+static void rsi_rx_handler(struct rsi_hw *adapter);
+
 void rsi_sdio_rx_thread(struct rsi_common *common)
 {
 	struct rsi_hw *adapter = common->priv;
 	struct rsi_91x_sdiodev *sdev = adapter->rsi_dev;
-	struct sk_buff *skb;
-	int status;
 
 	do {
 		rsi_wait_event(&sdev->rx_thread.event, EVENT_WAIT_FOREVER);
 		rsi_reset_event(&sdev->rx_thread.event);
+		rsi_rx_handler(adapter);
+	} while (!atomic_read(&sdev->rx_thread.thread_done));
 
-		while (true) {
-			if (atomic_read(&sdev->rx_thread.thread_done))
-				goto out;
-
-			skb = skb_dequeue(&sdev->rx_q.head);
-			if (!skb)
-				break;
-			if (sdev->rx_q.num_rx_pkts > 0)
-				sdev->rx_q.num_rx_pkts--;
-			status = rsi_read_pkt(common, skb->data, skb->len);
-			if (status) {
-				rsi_dbg(ERR_ZONE, "Failed to read the packet\n");
-				dev_kfree_skb(skb);
-				break;
-			}
-			dev_kfree_skb(skb);
-		}
-	} while (1);
-
-out:
 	rsi_dbg(INFO_ZONE, "%s: Terminated SDIO RX thread\n", __func__);
-	skb_queue_purge(&sdev->rx_q.head);
 	atomic_inc(&sdev->rx_thread.thread_done);
 	complete_and_exit(&sdev->rx_thread.completion, 0);
 }
@@ -113,10 +94,6 @@ static int rsi_process_pkt(struct rsi_common *common)
 	u32 rcv_pkt_len = 0;
 	int status = 0;
 	u8 value = 0;
-	struct sk_buff *skb;
-
-	if (dev->rx_q.num_rx_pkts >= RSI_MAX_RX_PKTS)
-		return 0;
 
 	num_blks = ((adapter->interrupt_status & 1) |
 			((adapter->interrupt_status >> RECV_NUM_BLOCKS) << 1));
@@ -144,22 +121,19 @@ static int rsi_process_pkt(struct rsi_common *common)
 
 	rcv_pkt_len = (num_blks * 256);
 
-	skb = dev_alloc_skb(rcv_pkt_len);
-	if (!skb)
-		return -ENOMEM;
-
-	status = rsi_sdio_host_intf_read_pkt(adapter, skb->data, rcv_pkt_len);
+	status = rsi_sdio_host_intf_read_pkt(adapter, dev->pktbuffer,
+					     rcv_pkt_len);
 	if (status) {
 		rsi_dbg(ERR_ZONE, "%s: Failed to read packet from card\n",
 			__func__);
-		dev_kfree_skb(skb);
 		return status;
 	}
-	skb_put(skb, rcv_pkt_len);
-	skb_queue_tail(&dev->rx_q.head, skb);
-	dev->rx_q.num_rx_pkts++;
 
-	rsi_set_event(&dev->rx_thread.event);
+	status = rsi_read_pkt(common, dev->pktbuffer, rcv_pkt_len);
+	if (status) {
+		rsi_dbg(ERR_ZONE, "Failed to read the packet\n");
+		return status;
+	}
 
 	return 0;
 }
@@ -251,12 +225,12 @@ int rsi_init_sdio_slave_regs(struct rsi_hw *adapter)
 }
 
 /**
- * rsi_interrupt_handler() - This function read and process SDIO interrupts.
+ * rsi_rx_handler() - Read and process SDIO interrupts.
  * @adapter: Pointer to the adapter structure.
  *
  * Return: None.
  */
-void rsi_interrupt_handler(struct rsi_hw *adapter)
+static void rsi_rx_handler(struct rsi_hw *adapter)
 {
 	struct rsi_common *common = adapter->priv;
 	struct rsi_91x_sdiodev *dev =
