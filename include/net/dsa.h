@@ -537,6 +537,12 @@ struct dsa_switch_ops {
 			    struct ethtool_regs *regs, void *p);
 
 	/*
+	 * Upper device tracking.
+	 */
+	int	(*port_prechangeupper)(struct dsa_switch *ds, int port,
+				       struct netdev_notifier_changeupper_info *info);
+
+	/*
 	 * Bridge integration
 	 */
 	int	(*set_ageing_time)(struct dsa_switch *ds, unsigned int msecs);
