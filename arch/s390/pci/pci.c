@@ -668,7 +668,6 @@ out_dma:
 out:
 	return rc;
 }
-EXPORT_SYMBOL_GPL(zpci_enable_device);
 
 int zpci_disable_device(struct zpci_dev *zdev)
 {
@@ -679,7 +678,6 @@ int zpci_disable_device(struct zpci_dev *zdev)
 	 */
 	return clp_disable_fh(zdev);
 }
-EXPORT_SYMBOL_GPL(zpci_disable_device);
 
 /* zpci_remove_device - Removes the given zdev from the PCI core
  * @zdev: the zdev to be removed from the PCI core
@@ -777,6 +775,93 @@ error:
 	zpci_dbg(0, "add fid:%x, rc:%d\n", fid, rc);
 	kfree(zdev);
 	return rc;
+}
+
+/**
+ * zpci_configure_device() - Configure a zpci_dev
+ * @zdev: The zpci_dev to be configured
+ * @fh: The general function handle supplied by the platform
+ *
+ * Configuring a device includes the configuration itself, if not done by the
+ * platform, enabling, scanning and adding it to the common code PCI subsystem.
+ * If any failure occurs, the zpci_dev is left in Standby.
+ *
+ * Return: 0 on success, or an error code otherwise
+ */
+int zpci_configure_device(struct zpci_dev *zdev, u32 fh)
+{
+	struct pci_dev *pdev;
+	int rc;
+
+	zdev->fh = fh;
+	if (zdev->state != ZPCI_FN_STATE_CONFIGURED) {
+		rc = sclp_pci_configure(zdev->fid);
+		zpci_dbg(3, "conf fid:%x, rc:%d\n", zdev->fid, rc);
+		if (rc)
+			return rc;
+		zdev->state = ZPCI_FN_STATE_CONFIGURED;
+	}
+
+	rc = zpci_enable_device(zdev);
+	if (rc)
+		goto error;
+
+	/* the PCI function will be scanned once function 0 appears */
+	if (!zdev->zbus->bus)
+		return 0;
+
+	pdev = pci_scan_single_device(zdev->zbus->bus, zdev->devfn);
+	if (!pdev)
+		goto error_disable;
+
+	pci_bus_add_device(pdev);
+	pci_lock_rescan_remove();
+	pci_bus_add_devices(zdev->zbus->bus);
+	pci_unlock_rescan_remove();
+	return 0;
+
+error_disable:
+	zpci_disable_device(zdev);
+error:
+	if (zdev->state == ZPCI_FN_STATE_CONFIGURED) {
+		rc = sclp_pci_deconfigure(zdev->fid);
+		zpci_dbg(3, "deconf fid:%x, rc:%d\n", zdev->fid, rc);
+		if (!rc)
+			zdev->state = ZPCI_FN_STATE_STANDBY;
+	}
+	return rc;
+}
+
+/**
+ * zpci_deconfigure_device() - Deconfigure a zpci_dev
+ * @zdev: The zpci_dev to configure
+ *
+ * Deconfigure a zPCI function that is currently configured and possibly known
+ * to the common code PCI subsystem.
+ * If any failure occurs the device is left as is.
+ *
+ * Return: 0 on success, or an error code otherwise
+ */
+int zpci_deconfigure_device(struct zpci_dev *zdev)
+{
+	int rc;
+
+	if (zdev->zbus->bus)
+		zpci_remove_device(zdev, false);
+
+	if (zdev_enabled(zdev)) {
+		rc = zpci_disable_device(zdev);
+		if (rc)
+			return rc;
+	}
+
+	rc = sclp_pci_deconfigure(zdev->fid);
+	zpci_dbg(3, "deconf fid:%x, rc:%d\n", zdev->fid, rc);
+	if (rc)
+		return rc;
+	zdev->state = ZPCI_FN_STATE_STANDBY;
+
+	return 0;
 }
 
 void zpci_release_device(struct kref *kref)
