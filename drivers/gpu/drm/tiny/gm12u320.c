@@ -45,7 +45,7 @@ MODULE_PARM_DESC(eco_mode, "Turn on Eco mode (less bright, more silent)");
 #define GM12U320_BLOCK_COUNT		20
 
 #define GM12U320_ERR(fmt, ...) \
-	DRM_DEV_ERROR(&gm12u320->udev->dev, fmt, ##__VA_ARGS__)
+	DRM_DEV_ERROR(gm12u320->dev.dev, fmt, ##__VA_ARGS__)
 
 #define MISC_RCV_EPT			1
 #define DATA_RCV_EPT			2
@@ -85,7 +85,6 @@ struct gm12u320_device {
 	struct drm_device	         dev;
 	struct drm_simple_display_pipe   pipe;
 	struct drm_connector	         conn;
-	struct usb_device               *udev;
 	unsigned char                   *cmd_buf;
 	unsigned char                   *data_buf[GM12U320_BLOCK_COUNT];
 	struct {
@@ -155,6 +154,11 @@ static const char data_block_footer[DATA_BLOCK_FOOTER_SIZE] = {
 	0x80, 0x00, 0x00, 0x4f
 };
 
+static inline struct usb_device *gm12u320_to_usb_device(struct gm12u320_device *gm12u320)
+{
+	return interface_to_usbdev(to_usb_interface(gm12u320->dev.dev));
+}
+
 static int gm12u320_usb_alloc(struct gm12u320_device *gm12u320)
 {
 	int i, block_size;
@@ -191,6 +195,7 @@ static int gm12u320_misc_request(struct gm12u320_device *gm12u320,
 				 u8 req_a, u8 req_b,
 				 u8 arg_a, u8 arg_b, u8 arg_c, u8 arg_d)
 {
+	struct usb_device *udev = gm12u320_to_usb_device(gm12u320);
 	int ret, len;
 
 	memcpy(gm12u320->cmd_buf, &cmd_misc, CMD_SIZE);
@@ -202,8 +207,7 @@ static int gm12u320_misc_request(struct gm12u320_device *gm12u320,
 	gm12u320->cmd_buf[25] = arg_d;
 
 	/* Send request */
-	ret = usb_bulk_msg(gm12u320->udev,
-			   usb_sndbulkpipe(gm12u320->udev, MISC_SND_EPT),
+	ret = usb_bulk_msg(udev, usb_sndbulkpipe(udev, MISC_SND_EPT),
 			   gm12u320->cmd_buf, CMD_SIZE, &len, CMD_TIMEOUT);
 	if (ret || len != CMD_SIZE) {
 		GM12U320_ERR("Misc. req. error %d\n", ret);
@@ -211,8 +215,7 @@ static int gm12u320_misc_request(struct gm12u320_device *gm12u320,
 	}
 
 	/* Read value */
-	ret = usb_bulk_msg(gm12u320->udev,
-			   usb_rcvbulkpipe(gm12u320->udev, MISC_RCV_EPT),
+	ret = usb_bulk_msg(udev, usb_rcvbulkpipe(udev, MISC_RCV_EPT),
 			   gm12u320->cmd_buf, MISC_VALUE_SIZE, &len,
 			   DATA_TIMEOUT);
 	if (ret || len != MISC_VALUE_SIZE) {
@@ -222,8 +225,7 @@ static int gm12u320_misc_request(struct gm12u320_device *gm12u320,
 	/* cmd_buf[0] now contains the read value, which we don't use */
 
 	/* Read status */
-	ret = usb_bulk_msg(gm12u320->udev,
-			   usb_rcvbulkpipe(gm12u320->udev, MISC_RCV_EPT),
+	ret = usb_bulk_msg(udev, usb_rcvbulkpipe(udev, MISC_RCV_EPT),
 			   gm12u320->cmd_buf, READ_STATUS_SIZE, &len,
 			   CMD_TIMEOUT);
 	if (ret || len != READ_STATUS_SIZE) {
@@ -331,6 +333,7 @@ static void gm12u320_fb_update_work(struct work_struct *work)
 	struct gm12u320_device *gm12u320 =
 		container_of(to_delayed_work(work), struct gm12u320_device,
 			     fb_update.work);
+	struct usb_device *udev = gm12u320_to_usb_device(gm12u320);
 	int block, block_size, len;
 	int ret = 0;
 
@@ -350,43 +353,41 @@ static void gm12u320_fb_update_work(struct work_struct *work)
 		gm12u320->cmd_buf[21] =
 			block | (gm12u320->fb_update.frame << 7);
 
-		ret = usb_bulk_msg(gm12u320->udev,
-			usb_sndbulkpipe(gm12u320->udev, DATA_SND_EPT),
-			gm12u320->cmd_buf, CMD_SIZE, &len,
-			CMD_TIMEOUT);
+		ret = usb_bulk_msg(udev,
+				   usb_sndbulkpipe(udev, DATA_SND_EPT),
+				   gm12u320->cmd_buf, CMD_SIZE, &len,
+				   CMD_TIMEOUT);
 		if (ret || len != CMD_SIZE)
 			goto err;
 
 		/* Send data block to device */
-		ret = usb_bulk_msg(gm12u320->udev,
-			usb_sndbulkpipe(gm12u320->udev, DATA_SND_EPT),
-			gm12u320->data_buf[block], block_size,
-			&len, DATA_TIMEOUT);
+		ret = usb_bulk_msg(udev,
+				   usb_sndbulkpipe(udev, DATA_SND_EPT),
+				   gm12u320->data_buf[block], block_size,
+				   &len, DATA_TIMEOUT);
 		if (ret || len != block_size)
 			goto err;
 
 		/* Read status */
-		ret = usb_bulk_msg(gm12u320->udev,
-			usb_rcvbulkpipe(gm12u320->udev, DATA_RCV_EPT),
-			gm12u320->cmd_buf, READ_STATUS_SIZE, &len,
-			CMD_TIMEOUT);
+		ret = usb_bulk_msg(udev,
+				   usb_rcvbulkpipe(udev, DATA_RCV_EPT),
+				   gm12u320->cmd_buf, READ_STATUS_SIZE, &len,
+				   CMD_TIMEOUT);
 		if (ret || len != READ_STATUS_SIZE)
 			goto err;
 	}
 
 	/* Send draw command to device */
 	memcpy(gm12u320->cmd_buf, cmd_draw, CMD_SIZE);
-	ret = usb_bulk_msg(gm12u320->udev,
-		usb_sndbulkpipe(gm12u320->udev, DATA_SND_EPT),
-		gm12u320->cmd_buf, CMD_SIZE, &len, CMD_TIMEOUT);
+	ret = usb_bulk_msg(udev, usb_sndbulkpipe(udev, DATA_SND_EPT),
+			   gm12u320->cmd_buf, CMD_SIZE, &len, CMD_TIMEOUT);
 	if (ret || len != CMD_SIZE)
 		goto err;
 
 	/* Read status */
-	ret = usb_bulk_msg(gm12u320->udev,
-		usb_rcvbulkpipe(gm12u320->udev, DATA_RCV_EPT),
-		gm12u320->cmd_buf, READ_STATUS_SIZE, &len,
-		gm12u320->fb_update.draw_status_timeout);
+	ret = usb_bulk_msg(udev, usb_rcvbulkpipe(udev, DATA_RCV_EPT),
+			   gm12u320->cmd_buf, READ_STATUS_SIZE, &len,
+			   gm12u320->fb_update.draw_status_timeout);
 	if (ret || len != READ_STATUS_SIZE)
 		goto err;
 
@@ -638,7 +639,6 @@ static int gm12u320_usb_probe(struct usb_interface *interface,
 	if (IS_ERR(gm12u320))
 		return PTR_ERR(gm12u320);
 
-	gm12u320->udev = interface_to_usbdev(interface);
 	INIT_DELAYED_WORK(&gm12u320->fb_update.work, gm12u320_fb_update_work);
 	mutex_init(&gm12u320->fb_update.lock);
 
