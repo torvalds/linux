@@ -95,6 +95,7 @@ static int gmc_v10_0_process_interrupt(struct amdgpu_device *adev,
 				       struct amdgpu_iv_entry *entry)
 {
 	struct amdgpu_vmhub *hub = &adev->vmhub[entry->vmid_src];
+	struct amdgpu_task_info task_info;
 	uint32_t status = 0;
 	u64 addr;
 
@@ -115,24 +116,25 @@ static int gmc_v10_0_process_interrupt(struct amdgpu_device *adev,
 		WREG32_P(hub->vm_l2_pro_fault_cntl, 1, ~1);
 	}
 
-	if (printk_ratelimit()) {
-		struct amdgpu_task_info task_info;
+	if (!printk_ratelimit())
+		return 0;
 
-		memset(&task_info, 0, sizeof(struct amdgpu_task_info));
-		amdgpu_vm_get_task_info(adev, entry->pasid, &task_info);
+	memset(&task_info, 0, sizeof(struct amdgpu_task_info));
+	amdgpu_vm_get_task_info(adev, entry->pasid, &task_info);
 
-		dev_err(adev->dev,
-			"[%s] page fault (src_id:%u ring:%u vmid:%u pasid:%u, "
-			"for process %s pid %d thread %s pid %d)\n",
-			entry->vmid_src ? "mmhub" : "gfxhub",
-			entry->src_id, entry->ring_id, entry->vmid,
-			entry->pasid, task_info.process_name, task_info.tgid,
-			task_info.task_name, task_info.pid);
-		dev_err(adev->dev, "  in page starting at address 0x%016llx from client %d\n",
-			addr, entry->client_id);
-		if (!amdgpu_sriov_vf(adev))
-			hub->vmhub_funcs->print_l2_protection_fault_status(adev, status);
-	}
+	dev_err(adev->dev,
+		"[%s] page fault (src_id:%u ring:%u vmid:%u pasid:%u, "
+		"for process %s pid %d thread %s pid %d)\n",
+		entry->vmid_src ? "mmhub" : "gfxhub",
+		entry->src_id, entry->ring_id, entry->vmid,
+		entry->pasid, task_info.process_name, task_info.tgid,
+		task_info.task_name, task_info.pid);
+	dev_err(adev->dev, "  in page starting at address 0x%012llx from client %d\n",
+		addr, entry->client_id);
+
+	if (!amdgpu_sriov_vf(adev))
+		hub->vmhub_funcs->print_l2_protection_fault_status(adev,
+								   status);
 
 	return 0;
 }
