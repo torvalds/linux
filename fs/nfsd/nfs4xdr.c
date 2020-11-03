@@ -1650,24 +1650,28 @@ static __be32
 nfsd4_decode_create_session(struct nfsd4_compoundargs *argp,
 			    struct nfsd4_create_session *sess)
 {
-	DECODE_HEAD;
+	__be32 status;
 
-	READ_BUF(16);
-	COPYMEM(&sess->clientid, 8);
-	sess->seqid = be32_to_cpup(p++);
-	sess->flags = be32_to_cpup(p++);
-
+	status = nfsd4_decode_clientid4(argp, &sess->clientid);
+	if (status)
+		return status;
+	if (xdr_stream_decode_u32(argp->xdr, &sess->seqid) < 0)
+		return nfserr_bad_xdr;
+	if (xdr_stream_decode_u32(argp->xdr, &sess->flags) < 0)
+		return nfserr_bad_xdr;
 	status = nfsd4_decode_channel_attrs4(argp, &sess->fore_channel);
 	if (status)
 		return status;
 	status = nfsd4_decode_channel_attrs4(argp, &sess->back_channel);
 	if (status)
 		return status;
+	if (xdr_stream_decode_u32(argp->xdr, &sess->callback_prog) < 0)
+		return nfserr_bad_xdr;
+	status = nfsd4_decode_cb_sec(argp, &sess->cb_sec);
+	if (status)
+		return status;
 
-	READ_BUF(4);
-	sess->callback_prog = be32_to_cpup(p++);
-	nfsd4_decode_cb_sec(argp, &sess->cb_sec);
-	DECODE_TAIL;
+	return nfs_ok;
 }
 
 static __be32
