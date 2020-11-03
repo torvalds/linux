@@ -37,6 +37,7 @@ static void __init imx7ulp_set_revision(void)
 	 * bit[31:28] of JTAG_ID register defines revision as below from B0:
 	 * 0001        B0
 	 * 0010        B1
+	 * 0011        B2
 	 */
 	switch (revision >> 28) {
 	case 1:
