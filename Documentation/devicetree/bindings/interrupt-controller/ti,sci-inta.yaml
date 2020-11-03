@@ -34,7 +34,7 @@ description: |
                        |                                         |
                        |      Unmap                              |
                        | +--------------+                        |
- Unmapped events ----->| |   umapidx    |-------------------------> Globalevents
+  Unmapped events ---->| |   umapidx    |-------------------------> Globalevents
                        | +--------------+                        |
                        |                                         |
                        +-----------------------------------------+
