@@ -66,6 +66,7 @@
 #include <linux/ftrace.h>
 #include <linux/lockdep.h>
 #include <linux/nmi.h>
+#include <linux/khugepaged.h>
 #include <linux/psi.h>
 
 #include <asm/sections.h>
@@ -5640,7 +5641,7 @@ void __ref build_all_zonelists(pg_data_t *pgdat)
  * done. Non-atomic initialization, single-pass.
  */
 void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
-		unsigned long start_pfn, enum memmap_context context,
+		unsigned long start_pfn, enum meminit_context context,
 		struct vmem_altmap *altmap)
 {
 	unsigned long end_pfn = start_pfn + size;
@@ -5672,7 +5673,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
 		 * There can be holes in boot-time mem_map[]s handed to this
 		 * function.  They do not exist on hotplugged memory.
 		 */
-		if (context != MEMMAP_EARLY)
+		if (context != MEMINIT_EARLY)
 			goto not_early;
 
 		if (!early_pfn_valid(pfn))
@@ -5707,7 +5708,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
 not_early:
 		page = pfn_to_page(pfn);
 		__init_single_page(page, pfn, zone, nid, false);
-		if (context == MEMMAP_HOTPLUG)
+		if (context == MEMINIT_HOTPLUG)
 			SetPageReserved(page);
 
 		/*
@@ -5722,7 +5723,7 @@ not_early:
 		 * check here not to call set_pageblock_migratetype() against
 		 * pfn out of zone.
 		 *
-		 * Please note that MEMMAP_HOTPLUG path doesn't clear memmap
+		 * Please note that MEMINIT_HOTPLUG path doesn't clear memmap
 		 * because this is done early in sparse_add_one_section
 		 */
 		if (!(pfn & (pageblock_nr_pages - 1))) {
@@ -5743,7 +5744,8 @@ static void __meminit zone_init_free_lists(struct zone *zone)
 
 #ifndef __HAVE_ARCH_MEMMAP_INIT
 #define memmap_init(size, nid, zone, start_pfn) \
-	memmap_init_zone((size), (nid), (zone), (start_pfn), MEMMAP_EARLY, NULL)
+	memmap_init_zone((size), (nid), (zone), (start_pfn), \
+			 MEMINIT_EARLY, NULL)
 #endif
 
 static int zone_batchsize(struct zone *zone)
@@ -7568,6 +7570,8 @@ int __meminit init_per_zone_wmark_min(void)
 	setup_min_unmapped_ratio();
 	setup_min_slab_ratio();
 #endif
+
+	khugepaged_min_free_kbytes_update();
 
 	return 0;
 }

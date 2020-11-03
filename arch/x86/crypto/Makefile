@@ -8,8 +8,10 @@ OBJECT_FILES_NON_STANDARD := y
 avx_supported := $(call as-instr,vpxor %xmm0$(comma)%xmm0$(comma)%xmm0,yes,no)
 avx2_supported := $(call as-instr,vpgatherdd %ymm0$(comma)(%eax$(comma)%ymm1\
 				$(comma)4)$(comma)%ymm2,yes,no)
+avx512_supported :=$(call as-instr,vpmovm2b %k1$(comma)%zmm5,yes,no)
 sha1_ni_supported :=$(call as-instr,sha1msg1 %xmm0$(comma)%xmm1,yes,no)
 sha256_ni_supported :=$(call as-instr,sha256msg1 %xmm0$(comma)%xmm1,yes,no)
+adx_supported := $(call as-instr,adox %r10$(comma)%r10,yes,no)
 
 obj-$(CONFIG_CRYPTO_GLUE_HELPER_X86) += glue_helper.o
 
@@ -23,7 +25,7 @@ obj-$(CONFIG_CRYPTO_CAMELLIA_X86_64) += camellia-x86_64.o
 obj-$(CONFIG_CRYPTO_BLOWFISH_X86_64) += blowfish-x86_64.o
 obj-$(CONFIG_CRYPTO_TWOFISH_X86_64) += twofish-x86_64.o
 obj-$(CONFIG_CRYPTO_TWOFISH_X86_64_3WAY) += twofish-x86_64-3way.o
-obj-$(CONFIG_CRYPTO_CHACHA20_X86_64) += chacha20-x86_64.o
+obj-$(CONFIG_CRYPTO_CHACHA20_X86_64) += chacha-x86_64.o
 obj-$(CONFIG_CRYPTO_SERPENT_SSE2_X86_64) += serpent-sse2-x86_64.o
 obj-$(CONFIG_CRYPTO_AES_NI_INTEL) += aesni-intel.o
 obj-$(CONFIG_CRYPTO_GHASH_CLMUL_NI_INTEL) += ghash-clmulni-intel.o
@@ -46,6 +48,11 @@ obj-$(CONFIG_CRYPTO_MORUS1280_GLUE) += morus1280_glue.o
 obj-$(CONFIG_CRYPTO_MORUS640_SSE2) += morus640-sse2.o
 obj-$(CONFIG_CRYPTO_MORUS1280_SSE2) += morus1280-sse2.o
 
+# These modules require the assembler to support ADX.
+ifeq ($(adx_supported),yes)
+	obj-$(CONFIG_CRYPTO_CURVE25519_X86) += curve25519-x86_64.o
+endif
+
 # These modules require assembler to support AVX.
 ifeq ($(avx_supported),yes)
 	obj-$(CONFIG_CRYPTO_CAMELLIA_AESNI_AVX_X86_64) += \
@@ -54,6 +61,7 @@ ifeq ($(avx_supported),yes)
 	obj-$(CONFIG_CRYPTO_CAST6_AVX_X86_64) += cast6-avx-x86_64.o
 	obj-$(CONFIG_CRYPTO_TWOFISH_AVX_X86_64) += twofish-avx-x86_64.o
 	obj-$(CONFIG_CRYPTO_SERPENT_AVX_X86_64) += serpent-avx-x86_64.o
+	obj-$(CONFIG_CRYPTO_BLAKE2S_X86) += blake2s-x86_64.o
 endif
 
 # These modules require assembler to support AVX2.
@@ -77,7 +85,7 @@ camellia-x86_64-y := camellia-x86_64-asm_64.o camellia_glue.o
 blowfish-x86_64-y := blowfish-x86_64-asm_64.o blowfish_glue.o
 twofish-x86_64-y := twofish-x86_64-asm_64.o twofish_glue.o
 twofish-x86_64-3way-y := twofish-x86_64-asm_64-3way.o twofish_glue_3way.o
-chacha20-x86_64-y := chacha20-ssse3-x86_64.o chacha20_glue.o
+chacha-x86_64-y := chacha-ssse3-x86_64.o chacha_glue.o
 serpent-sse2-x86_64-y := serpent-sse2-x86_64-asm_64.o serpent_sse2_glue.o
 
 aegis128-aesni-y := aegis128-aesni-asm.o aegis128-aesni-glue.o
@@ -86,6 +94,12 @@ aegis256-aesni-y := aegis256-aesni-asm.o aegis256-aesni-glue.o
 
 morus640-sse2-y := morus640-sse2-asm.o morus640-sse2-glue.o
 morus1280-sse2-y := morus1280-sse2-asm.o morus1280-sse2-glue.o
+
+blake2s-x86_64-y := blake2s-core.o blake2s-glue.o
+poly1305-x86_64-y := poly1305-x86_64-cryptogams.o poly1305_glue.o
+ifneq ($(CONFIG_CRYPTO_POLY1305_X86_64),)
+targets += poly1305-x86_64-cryptogams.S
+endif
 
 ifeq ($(avx_supported),yes)
 	camellia-aesni-avx-x86_64-y := camellia-aesni-avx-asm_64.o \
@@ -100,20 +114,22 @@ endif
 
 ifeq ($(avx2_supported),yes)
 	camellia-aesni-avx2-y := camellia-aesni-avx2-asm_64.o camellia_aesni_avx2_glue.o
-	chacha20-x86_64-y += chacha20-avx2-x86_64.o
+	chacha-x86_64-y += chacha-avx2-x86_64.o
 	serpent-avx2-y := serpent-avx2-asm_64.o serpent_avx2_glue.o
 
 	morus1280-avx2-y := morus1280-avx2-asm.o morus1280-avx2-glue.o
+endif
+
+ifeq ($(avx512_supported),yes)
+	chacha-x86_64-y += chacha-avx512vl-x86_64.o
 endif
 
 aesni-intel-y := aesni-intel_asm.o aesni-intel_glue.o fpu.o
 aesni-intel-$(CONFIG_64BIT) += aesni-intel_avx-x86_64.o aes_ctrby8_avx-x86_64.o
 ghash-clmulni-intel-y := ghash-clmulni-intel_asm.o ghash-clmulni-intel_glue.o
 sha1-ssse3-y := sha1_ssse3_asm.o sha1_ssse3_glue.o
-poly1305-x86_64-y := poly1305-sse2-x86_64.o poly1305_glue.o
 ifeq ($(avx2_supported),yes)
 sha1-ssse3-y += sha1_avx2_x86_64_asm.o
-poly1305-x86_64-y += poly1305-avx2-x86_64.o
 endif
 ifeq ($(sha1_ni_supported),yes)
 sha1-ssse3-y += sha1_ni_asm.o
@@ -127,3 +143,8 @@ sha256-ssse3-y += sha256_ni_asm.o
 endif
 sha512-ssse3-y := sha512-ssse3-asm.o sha512-avx-asm.o sha512-avx2-asm.o sha512_ssse3_glue.o
 crct10dif-pclmul-y := crct10dif-pcl-asm_64.o crct10dif-pclmul_glue.o
+
+quiet_cmd_perlasm = PERLASM $@
+      cmd_perlasm = $(PERL) $< > $@
+$(obj)/%.S: $(src)/%.pl FORCE
+	$(call if_changed,perlasm)

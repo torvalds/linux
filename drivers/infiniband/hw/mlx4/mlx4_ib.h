@@ -464,6 +464,7 @@ struct mlx4_ib_demux_pv_ctx {
 	struct ib_pd *pd;
 	struct work_struct work;
 	struct workqueue_struct *wq;
+	struct workqueue_struct *wi_wq;
 	struct mlx4_ib_demux_pv_qp qp[2];
 };
 
@@ -471,6 +472,7 @@ struct mlx4_ib_demux_ctx {
 	struct ib_device *ib_dev;
 	int port;
 	struct workqueue_struct *wq;
+	struct workqueue_struct *wi_wq;
 	struct workqueue_struct *ud_wq;
 	spinlock_t ud_lock;
 	atomic64_t subnet_prefix;

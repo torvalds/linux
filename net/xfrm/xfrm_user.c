@@ -974,6 +974,7 @@ static int dump_one_state(struct xfrm_state *x, int count, void *ptr)
 	struct xfrm_dump_info *sp = ptr;
 	struct sk_buff *in_skb = sp->in_skb;
 	struct sk_buff *skb = sp->out_skb;
+	struct xfrm_translator *xtr;
 	struct xfrm_usersa_info *p;
 	struct nlmsghdr *nlh;
 	int err;
@@ -991,6 +992,18 @@ static int dump_one_state(struct xfrm_state *x, int count, void *ptr)
 		return err;
 	}
 	nlmsg_end(skb, nlh);
+
+	xtr = xfrm_get_translator();
+	if (xtr) {
+		err = xtr->alloc_compat(skb, nlh);
+
+		xfrm_put_translator(xtr);
+		if (err) {
+			nlmsg_cancel(skb, nlh);
+			return err;
+		}
+	}
+
 	return 0;
 }
 
@@ -1005,7 +1018,6 @@ static int xfrm_dump_sa_done(struct netlink_callback *cb)
 	return 0;
 }
 
-static const struct nla_policy xfrma_policy[XFRMA_MAX+1];
 static int xfrm_dump_sa(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct net *net = sock_net(skb->sk);
@@ -1082,10 +1094,22 @@ static inline int xfrm_nlmsg_multicast(struct net *net, struct sk_buff *skb,
 				       u32 pid, unsigned int group)
 {
 	struct sock *nlsk = rcu_dereference(net->xfrm.nlsk);
+	struct xfrm_translator *xtr;
 
 	if (!nlsk) {
 		kfree_skb(skb);
 		return -EPIPE;
+	}
+
+	xtr = xfrm_get_translator();
+	if (xtr) {
+		int err = xtr->alloc_compat(skb, nlmsg_hdr(skb));
+
+		xfrm_put_translator(xtr);
+		if (err) {
+			kfree_skb(skb);
+			return err;
+		}
 	}
 
 	return nlmsg_multicast(nlsk, skb, pid, group, GFP_ATOMIC);
@@ -1307,6 +1331,7 @@ static int xfrm_alloc_userspi(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct net *net = sock_net(skb->sk);
 	struct xfrm_state *x;
 	struct xfrm_userspi_info *p;
+	struct xfrm_translator *xtr;
 	struct sk_buff *resp_skb;
 	xfrm_address_t *daddr;
 	int family;
@@ -1355,6 +1380,17 @@ static int xfrm_alloc_userspi(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (IS_ERR(resp_skb)) {
 		err = PTR_ERR(resp_skb);
 		goto out;
+	}
+
+	xtr = xfrm_get_translator();
+	if (xtr) {
+		err = xtr->alloc_compat(skb, nlmsg_hdr(skb));
+
+		xfrm_put_translator(xtr);
+		if (err) {
+			kfree_skb(resp_skb);
+			goto out;
+		}
 	}
 
 	err = nlmsg_unicast(net->xfrm.nlsk, resp_skb, NETLINK_CB(skb).portid);
@@ -1763,6 +1799,7 @@ static int dump_one_policy(struct xfrm_policy *xp, int dir, int count, void *ptr
 	struct xfrm_userpolicy_info *p;
 	struct sk_buff *in_skb = sp->in_skb;
 	struct sk_buff *skb = sp->out_skb;
+	struct xfrm_translator *xtr;
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -1787,6 +1824,18 @@ static int dump_one_policy(struct xfrm_policy *xp, int dir, int count, void *ptr
 		return err;
 	}
 	nlmsg_end(skb, nlh);
+
+	xtr = xfrm_get_translator();
+	if (xtr) {
+		err = xtr->alloc_compat(skb, nlh);
+
+		xfrm_put_translator(xtr);
+		if (err) {
+			nlmsg_cancel(skb, nlh);
+			return err;
+		}
+	}
+
 	return 0;
 }
 
@@ -2528,7 +2577,7 @@ static int xfrm_send_migrate(const struct xfrm_selector *sel, u8 dir, u8 type,
 
 #define XMSGSIZE(type) sizeof(struct type)
 
-static const int xfrm_msg_min[XFRM_NR_MSGTYPES] = {
+const int xfrm_msg_min[XFRM_NR_MSGTYPES] = {
 	[XFRM_MSG_NEWSA       - XFRM_MSG_BASE] = XMSGSIZE(xfrm_usersa_info),
 	[XFRM_MSG_DELSA       - XFRM_MSG_BASE] = XMSGSIZE(xfrm_usersa_id),
 	[XFRM_MSG_GETSA       - XFRM_MSG_BASE] = XMSGSIZE(xfrm_usersa_id),
@@ -2551,10 +2600,11 @@ static const int xfrm_msg_min[XFRM_NR_MSGTYPES] = {
 	[XFRM_MSG_NEWSPDINFO  - XFRM_MSG_BASE] = sizeof(u32),
 	[XFRM_MSG_GETSPDINFO  - XFRM_MSG_BASE] = sizeof(u32),
 };
+EXPORT_SYMBOL_GPL(xfrm_msg_min);
 
 #undef XMSGSIZE
 
-static const struct nla_policy xfrma_policy[XFRMA_MAX+1] = {
+const struct nla_policy xfrma_policy[XFRMA_MAX+1] = {
 	[XFRMA_SA]		= { .len = sizeof(struct xfrm_usersa_info)},
 	[XFRMA_POLICY]		= { .len = sizeof(struct xfrm_userpolicy_info)},
 	[XFRMA_LASTUSED]	= { .type = NLA_U64},
@@ -2586,6 +2636,7 @@ static const struct nla_policy xfrma_policy[XFRMA_MAX+1] = {
 	[XFRMA_SET_MARK_MASK]	= { .type = NLA_U32 },
 	[XFRMA_IF_ID]		= { .type = NLA_U32 },
 };
+EXPORT_SYMBOL_GPL(xfrma_policy);
 
 static const struct nla_policy xfrma_spd_policy[XFRMA_SPD_MAX+1] = {
 	[XFRMA_SPD_IPV4_HTHRESH] = { .len = sizeof(struct xfrmu_spdhthresh) },
@@ -2635,6 +2686,7 @@ static int xfrm_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct net *net = sock_net(skb->sk);
 	struct nlattr *attrs[XFRMA_MAX+1];
 	const struct xfrm_link *link;
+	struct nlmsghdr *nlh64 = NULL;
 	int type, err;
 
 	type = nlh->nlmsg_type;
@@ -2648,32 +2700,55 @@ static int xfrm_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (!netlink_net_capable(skb, CAP_NET_ADMIN))
 		return -EPERM;
 
+	if (in_compat_syscall()) {
+		struct xfrm_translator *xtr = xfrm_get_translator();
+
+		if (!xtr)
+			return -EOPNOTSUPP;
+
+		nlh64 = xtr->rcv_msg_compat(nlh, link->nla_max,
+					    link->nla_pol, extack);
+		xfrm_put_translator(xtr);
+		if (IS_ERR(nlh64))
+			return PTR_ERR(nlh64);
+		if (nlh64)
+			nlh = nlh64;
+	}
+
 	if ((type == (XFRM_MSG_GETSA - XFRM_MSG_BASE) ||
 	     type == (XFRM_MSG_GETPOLICY - XFRM_MSG_BASE)) &&
 	    (nlh->nlmsg_flags & NLM_F_DUMP)) {
-		if (link->dump == NULL)
-			return -EINVAL;
+		struct netlink_dump_control c = {
+			.start = link->start,
+			.dump = link->dump,
+			.done = link->done,
+		};
 
-		{
-			struct netlink_dump_control c = {
-				.start = link->start,
-				.dump = link->dump,
-				.done = link->done,
-			};
-			return netlink_dump_start(net->xfrm.nlsk, skb, nlh, &c);
+		if (link->dump == NULL) {
+			err = -EINVAL;
+			goto err;
 		}
+
+		err = netlink_dump_start(net->xfrm.nlsk, skb, nlh, &c);
+		goto err;
 	}
 
 	err = nlmsg_parse(nlh, xfrm_msg_min[type], attrs,
 			  link->nla_max ? : XFRMA_MAX,
 			  link->nla_pol ? : xfrma_policy, extack);
 	if (err < 0)
-		return err;
+		goto err;
 
-	if (link->doit == NULL)
-		return -EINVAL;
+	if (link->doit == NULL) {
+		err = -EINVAL;
+		goto err;
+	}
 
-	return link->doit(skb, nlh, attrs);
+	err = link->doit(skb, nlh, attrs);
+
+err:
+	kvfree(nlh64);
+	return err;
 }
 
 static void xfrm_netlink_rcv(struct sk_buff *skb)

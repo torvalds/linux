@@ -22,12 +22,22 @@ extern int inet6_unregister_icmp_sender(ip6_icmp_send_t *fn);
 int ip6_err_gen_icmpv6_unreach(struct sk_buff *skb, int nhs, int type,
 			       unsigned int data_len);
 
+#if IS_ENABLED(CONFIG_NF_NAT)
+void icmpv6_ndo_send(struct sk_buff *skb_in, u8 type, u8 code, __u32 info);
+#else
+#define icmpv6_ndo_send icmpv6_send
+#endif
+
 #else
 
 static inline void icmpv6_send(struct sk_buff *skb,
 			       u8 type, u8 code, __u32 info)
 {
+}
 
+static inline void icmpv6_ndo_send(struct sk_buff *skb,
+				   u8 type, u8 code, __u32 info)
+{
 }
 #endif
 

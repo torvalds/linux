@@ -125,14 +125,24 @@ config CRYPTO_CRC32_ARM_CE
 	select CRYPTO_HASH
 
 config CRYPTO_CHACHA20_NEON
-	tristate "NEON accelerated ChaCha stream cipher algorithms"
-	depends on KERNEL_MODE_NEON
+	tristate "NEON and scalar accelerated ChaCha stream cipher algorithms"
 	select CRYPTO_BLKCIPHER
-	select CRYPTO_CHACHA20
+	select CRYPTO_ARCH_HAVE_LIB_CHACHA
+
+config CRYPTO_POLY1305_ARM
+	tristate "Accelerated scalar and SIMD Poly1305 hash implementations"
+	select CRYPTO_HASH
+	select CRYPTO_ARCH_HAVE_LIB_POLY1305
 
 config CRYPTO_NHPOLY1305_NEON
 	tristate "NEON accelerated NHPoly1305 hash function (for Adiantum)"
 	depends on KERNEL_MODE_NEON
 	select CRYPTO_NHPOLY1305
+
+config CRYPTO_CURVE25519_NEON
+	tristate "NEON accelerated Curve25519 scalar multiplication library"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_LIB_CURVE25519_GENERIC
+	select CRYPTO_ARCH_HAVE_LIB_CURVE25519
 
 endif

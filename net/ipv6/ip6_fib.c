@@ -2417,8 +2417,10 @@ static void *ipv6_route_seq_start(struct seq_file *seq, loff_t *pos)
 	iter->skip = *pos;
 
 	if (iter->tbl) {
+		loff_t p = 0;
+
 		ipv6_route_seq_setup_walk(iter, net);
-		return ipv6_route_seq_next(seq, NULL, pos);
+		return ipv6_route_seq_next(seq, NULL, &p);
 	} else {
 		return NULL;
 	}
