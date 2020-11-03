@@ -1,20 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <inttypes.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <errno.h>
-#include <string.h>
-#include <linux/bpf.h>
-#include <sys/types.h>
-#include <bpf/bpf.h>
-#include <bpf/libbpf.h>
-
-#include "bpf_rlimit.h"
-#include "bpf_util.h"
-#include "cgroup_helpers.h"
+#include <test_progs.h>
 
 #include "test_tcpbpf.h"
+
+#define CG_NAME "/tcpbpf-user-test"
 
 /* 3 comes from one listening socket + both ends of the connection */
 #define EXPECTED_CLOSE_EVENTS		3
@@ -76,25 +66,11 @@ int verify_sockopt_result(int sock_map_fd)
 	return ret;
 }
 
-static int bpf_find_map(const char *test, struct bpf_object *obj,
-			const char *name)
-{
-	struct bpf_map *map;
-
-	map = bpf_object__find_map_by_name(obj, name);
-	if (!map) {
-		printf("%s:FAIL:map '%s' not found\n", test, name);
-		return -1;
-	}
-	return bpf_map__fd(map);
-}
-
-int main(int argc, char **argv)
+void test_tcpbpf_user(void)
 {
 	const char *file = "test_tcpbpf_kern.o";
 	int prog_fd, map_fd, sock_map_fd;
 	struct tcpbpf_globals g = {0};
-	const char *cg_path = "/foo";
 	int error = EXIT_FAILURE;
 	struct bpf_object *obj;
 	int cg_fd = -1;
@@ -102,7 +78,7 @@ int main(int argc, char **argv)
 	__u32 key = 0;
 	int rv;
 
-	cg_fd = cgroup_setup_and_join(cg_path);
+	cg_fd = test__join_cgroup(CG_NAME);
 	if (cg_fd < 0)
 		goto err;
 
@@ -155,11 +131,11 @@ retry_lookup:
 		goto err;
 	}
 
-	printf("PASSED!\n");
 	error = 0;
 err:
 	bpf_prog_detach(cg_fd, BPF_CGROUP_SOCK_OPS);
-	close(cg_fd);
-	cleanup_cgroup_environment();
-	return error;
+	if (cg_fd != -1)
+		close(cg_fd);
+
+	CHECK_FAIL(error);
 }
