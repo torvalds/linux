@@ -751,13 +751,7 @@ static int rockchip_i2s_tdm_hw_params(struct snd_pcm_substream *substream,
 	struct clk *mclk;
 	int ret = 0;
 	unsigned int val = 0;
-	unsigned int mclk_rate, bclk_rate, div_bclk, div_lrck;
-
-	if (i2s_tdm->clk_trcm) {
-		spin_lock(&i2s_tdm->lock);
-		if (atomic_read(&i2s_tdm->refcount))
-			rockchip_i2s_tdm_xfer_pause(substream, i2s_tdm);
-	}
+	unsigned int mclk_rate, bclk_rate, div_bclk = 4, div_lrck = 64;
 
 	if (i2s_tdm->is_master_mode) {
 		if (i2s_tdm->mclk_calibrate)
@@ -776,28 +770,6 @@ static int rockchip_i2s_tdm_hw_params(struct snd_pcm_substream *substream,
 		}
 		div_bclk = DIV_ROUND_CLOSEST(mclk_rate, bclk_rate);
 		div_lrck = bclk_rate / params_rate(params);
-		if (i2s_tdm->clk_trcm) {
-			regmap_update_bits(i2s_tdm->regmap, I2S_CLKDIV,
-					   I2S_CLKDIV_TXM_MASK | I2S_CLKDIV_RXM_MASK,
-					   I2S_CLKDIV_TXM(div_bclk) | I2S_CLKDIV_RXM(div_bclk));
-			regmap_update_bits(i2s_tdm->regmap, I2S_CKR,
-					   I2S_CKR_TSD_MASK | I2S_CKR_RSD_MASK,
-					   I2S_CKR_TSD(div_lrck) | I2S_CKR_RSD(div_lrck));
-		} else if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-			regmap_update_bits(i2s_tdm->regmap, I2S_CLKDIV,
-					   I2S_CLKDIV_TXM_MASK,
-					   I2S_CLKDIV_TXM(div_bclk));
-			regmap_update_bits(i2s_tdm->regmap, I2S_CKR,
-					   I2S_CKR_TSD_MASK,
-					   I2S_CKR_TSD(div_lrck));
-		} else {
-			regmap_update_bits(i2s_tdm->regmap, I2S_CLKDIV,
-					   I2S_CLKDIV_RXM_MASK,
-					   I2S_CLKDIV_RXM(div_bclk));
-			regmap_update_bits(i2s_tdm->regmap, I2S_CKR,
-					   I2S_CKR_RSD_MASK,
-					   I2S_CKR_RSD(div_lrck));
-		}
 	}
 
 	switch (params_format(params)) {
@@ -841,6 +813,33 @@ static int rockchip_i2s_tdm_hw_params(struct snd_pcm_substream *substream,
 		goto err;
 	}
 
+	if (i2s_tdm->clk_trcm) {
+		spin_lock(&i2s_tdm->lock);
+		if (atomic_read(&i2s_tdm->refcount))
+			rockchip_i2s_tdm_xfer_pause(substream, i2s_tdm);
+
+		regmap_update_bits(i2s_tdm->regmap, I2S_CLKDIV,
+				   I2S_CLKDIV_TXM_MASK | I2S_CLKDIV_RXM_MASK,
+				   I2S_CLKDIV_TXM(div_bclk) | I2S_CLKDIV_RXM(div_bclk));
+		regmap_update_bits(i2s_tdm->regmap, I2S_CKR,
+				   I2S_CKR_TSD_MASK | I2S_CKR_RSD_MASK,
+				   I2S_CKR_TSD(div_lrck) | I2S_CKR_RSD(div_lrck));
+	} else if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		regmap_update_bits(i2s_tdm->regmap, I2S_CLKDIV,
+				   I2S_CLKDIV_TXM_MASK,
+				   I2S_CLKDIV_TXM(div_bclk));
+		regmap_update_bits(i2s_tdm->regmap, I2S_CKR,
+				   I2S_CKR_TSD_MASK,
+				   I2S_CKR_TSD(div_lrck));
+	} else {
+		regmap_update_bits(i2s_tdm->regmap, I2S_CLKDIV,
+				   I2S_CLKDIV_RXM_MASK,
+				   I2S_CLKDIV_RXM(div_bclk));
+		regmap_update_bits(i2s_tdm->regmap, I2S_CKR,
+				   I2S_CKR_RSD_MASK,
+				   I2S_CKR_RSD(div_lrck));
+	}
+
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
 		regmap_update_bits(i2s_tdm->regmap, I2S_RXCR,
 				   I2S_RXCR_VDW_MASK | I2S_RXCR_CSR_MASK,
@@ -864,8 +863,6 @@ static int rockchip_i2s_tdm_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 
 err:
-	if (i2s_tdm->clk_trcm)
-		spin_unlock(&i2s_tdm->lock);
 	return ret;
 }
 
