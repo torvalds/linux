@@ -54,7 +54,7 @@ enum {
 	 * force to 50 to minimize the chances of userspace binary
 	 * incompatibility on newer upstream kernels
 	 */
-	POWER_SUPPLY_CHARGE_TYPE_TAPER = 50,	/* charging in CV phase */
+	POWER_SUPPLY_CHARGE_TYPE_TAPER_EXT = 50,	/* charging in CV phase */
 };
 
 enum {
