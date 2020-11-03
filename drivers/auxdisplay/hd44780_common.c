@@ -83,8 +83,8 @@ int hd44780_common_clear_display(struct charlcd *lcd)
 	struct hd44780_common *hdc = lcd->drvdata;
 
 	hdc->write_cmd(hdc, LCD_CMD_DISPLAY_CLEAR);
-	/* we must wait a few milliseconds (15) */
-	long_sleep(15);
+	/* datasheet says to wait 1,64 milliseconds */
+	long_sleep(2);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(hd44780_common_clear_display);
