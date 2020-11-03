@@ -1999,6 +1999,18 @@ void smu_v11_0_init_gpu_metrics_v1_0(struct gpu_metrics_v1_0 *gpu_metrics)
 	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();
 }
 
+void smu_v11_0_init_gpu_metrics_v2_0(struct gpu_metrics_v2_0 *gpu_metrics)
+{
+	memset(gpu_metrics, 0xFF, sizeof(struct gpu_metrics_v2_0));
+
+	gpu_metrics->common_header.structure_size =
+				sizeof(struct gpu_metrics_v2_0);
+	gpu_metrics->common_header.format_revision = 2;
+	gpu_metrics->common_header.content_revision = 0;
+
+	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();
+}
+
 int smu_v11_0_gfx_ulv_control(struct smu_context *smu,
 			      bool enablement)
 {
