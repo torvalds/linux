@@ -1357,17 +1357,6 @@ nfsd4_decode_secinfo(struct nfsd4_compoundargs *argp,
 }
 
 static __be32
-nfsd4_decode_secinfo_no_name(struct nfsd4_compoundargs *argp,
-		     struct nfsd4_secinfo_no_name *sin)
-{
-	DECODE_HEAD;
-
-	READ_BUF(4);
-	sin->sin_style = be32_to_cpup(p++);
-	DECODE_TAIL;
-}
-
-static __be32
 nfsd4_decode_setattr(struct nfsd4_compoundargs *argp, struct nfsd4_setattr *setattr)
 {
 	__be32 status;
@@ -1917,6 +1906,14 @@ nfsd4_decode_layoutreturn(struct nfsd4_compoundargs *argp,
 	return nfsd4_decode_layoutreturn4(argp, lrp);
 }
 #endif /* CONFIG_NFSD_PNFS */
+
+static __be32 nfsd4_decode_secinfo_no_name(struct nfsd4_compoundargs *argp,
+					   struct nfsd4_secinfo_no_name *sin)
+{
+	if (xdr_stream_decode_u32(argp->xdr, &sin->sin_style) < 0)
+		return nfserr_bad_xdr;
+	return nfs_ok;
+}
 
 static __be32
 nfsd4_decode_fallocate(struct nfsd4_compoundargs *argp,
