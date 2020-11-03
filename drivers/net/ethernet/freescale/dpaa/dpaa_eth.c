@@ -2545,7 +2545,7 @@ static void dpaa_eth_napi_enable(struct dpaa_priv *priv)
 	for_each_online_cpu(i) {
 		percpu_priv = per_cpu_ptr(priv->percpu_priv, i);
 
-		percpu_priv->np.down = 0;
+		percpu_priv->np.down = false;
 		napi_enable(&percpu_priv->np.napi);
 	}
 }
@@ -2558,7 +2558,7 @@ static void dpaa_eth_napi_disable(struct dpaa_priv *priv)
 	for_each_online_cpu(i) {
 		percpu_priv = per_cpu_ptr(priv->percpu_priv, i);
 
-		percpu_priv->np.down = 1;
+		percpu_priv->np.down = true;
 		napi_disable(&percpu_priv->np.napi);
 	}
 }
