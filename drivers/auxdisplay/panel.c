@@ -875,16 +875,19 @@ static void lcd_clear_fast_tilcd(struct charlcd *charlcd)
 static const struct charlcd_ops charlcd_serial_ops = {
 	.clear_fast	= lcd_clear_fast_s,
 	.backlight	= lcd_backlight,
+	.gotoxy		= hd44780_common_gotoxy,
 };
 
 static const struct charlcd_ops charlcd_parallel_ops = {
 	.clear_fast	= lcd_clear_fast_p8,
 	.backlight	= lcd_backlight,
+	.gotoxy		= hd44780_common_gotoxy,
 };
 
 static const struct charlcd_ops charlcd_tilcd_ops = {
 	.clear_fast	= lcd_clear_fast_tilcd,
 	.backlight	= lcd_backlight,
+	.gotoxy		= hd44780_common_gotoxy,
 };
 
 /* initialize the LCD driver */

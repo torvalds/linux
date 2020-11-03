@@ -37,14 +37,16 @@ struct charlcd {
  * Optional.
  * @backlight: Turn backlight on or off. Optional.
  * @print: Print one character to the display at current cursor position.
- * The cursor is advanced by charlcd.
  * The buffered cursor position is advanced by charlcd. The cursor should not
  * wrap to the next line at the end of a line.
+ * @gotoxy: Set cursor to x, y. The x and y values to set the cursor to are
+ * previously set in addr.x and addr.y by charlcd.
  */
 struct charlcd_ops {
 	void (*clear_fast)(struct charlcd *lcd);
 	void (*backlight)(struct charlcd *lcd, enum charlcd_onoff on);
 	int (*print)(struct charlcd *lcd, int c);
+	int (*gotoxy)(struct charlcd *lcd);
 };
 
 struct charlcd *charlcd_alloc(void);

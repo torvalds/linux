@@ -127,6 +127,7 @@ static void hd44780_write_data_gpio8(struct hd44780_common *hdc, int data)
 static const struct charlcd_ops hd44780_ops_gpio8 = {
 	.backlight	= hd44780_backlight,
 	.print		= hd44780_common_print,
+	.gotoxy		= hd44780_common_gotoxy,
 };
 
 /* Send a command to the LCD panel in 4 bit GPIO mode */
@@ -171,6 +172,7 @@ static void hd44780_write_data_gpio4(struct hd44780_common *hdc, int data)
 static const struct charlcd_ops hd44780_ops_gpio4 = {
 	.backlight	= hd44780_backlight,
 	.print		= hd44780_common_print,
+	.gotoxy		= hd44780_common_gotoxy,
 };
 
 static int hd44780_probe(struct platform_device *pdev)

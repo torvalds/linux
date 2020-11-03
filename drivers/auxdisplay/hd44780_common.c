@@ -5,6 +5,9 @@
 #include "charlcd.h"
 #include "hd44780_common.h"
 
+/* LCD commands */
+#define LCD_CMD_SET_DDRAM_ADDR	0x80	/* Set display data RAM address */
+
 int hd44780_common_print(struct charlcd *lcd, int c)
 {
 	struct hd44780_common *hdc = lcd->drvdata;
@@ -17,6 +20,26 @@ int hd44780_common_print(struct charlcd *lcd, int c)
 	return 1;
 }
 EXPORT_SYMBOL_GPL(hd44780_common_print);
+
+int hd44780_common_gotoxy(struct charlcd *lcd)
+{
+	struct hd44780_common *hdc = lcd->drvdata;
+	unsigned int addr;
+
+	/*
+	 * we force the cursor to stay at the end of the
+	 * line if it wants to go farther
+	 */
+	addr = lcd->addr.x < hdc->bwidth ? lcd->addr.x & (hdc->hwidth - 1)
+					  : hdc->bwidth - 1;
+	if (lcd->addr.y & 1)
+		addr += hdc->hwidth;
+	if (lcd->addr.y & 2)
+		addr += hdc->bwidth;
+	hdc->write_cmd(hdc, LCD_CMD_SET_DDRAM_ADDR | addr);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(hd44780_common_gotoxy);
 
 struct hd44780_common *hd44780_common_alloc(void)
 {

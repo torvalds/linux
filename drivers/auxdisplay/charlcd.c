@@ -55,7 +55,7 @@
 
 #define LCD_CMD_SET_CGRAM_ADDR	0x40	/* Set char generator RAM address */
 
-#define LCD_CMD_SET_DDRAM_ADDR	0x80	/* Set display data RAM address */
+#define LCD_CMD_SET_DDRAM_ADDR 0x80    /* Set display data RAM address */
 
 #define LCD_ESCAPE_LEN		24	/* Max chars for LCD escape command */
 #define LCD_ESCAPE_CHAR		27	/* Use char 27 for escape command */
@@ -140,33 +140,17 @@ void charlcd_poke(struct charlcd *lcd)
 }
 EXPORT_SYMBOL_GPL(charlcd_poke);
 
-static void charlcd_gotoxy(struct charlcd *lcd)
-{
-	struct hd44780_common *hdc = lcd->drvdata;
-	unsigned int addr;
-
-	/*
-	 * we force the cursor to stay at the end of the
-	 * line if it wants to go farther
-	 */
-	addr = lcd->addr.x < hdc->bwidth ? lcd->addr.x & (hdc->hwidth - 1)
-					  : hdc->bwidth - 1;
-	if (lcd->addr.y & 1)
-		addr += hdc->hwidth;
-	if (lcd->addr.y & 2)
-		addr += hdc->bwidth;
-	hdc->write_cmd(hdc, LCD_CMD_SET_DDRAM_ADDR | addr);
-}
-
 static void charlcd_home(struct charlcd *lcd)
 {
 	lcd->addr.x = 0;
 	lcd->addr.y = 0;
-	charlcd_gotoxy(lcd);
+	lcd->ops->gotoxy(lcd);
 }
 
 static void charlcd_print(struct charlcd *lcd, char c)
 {
+	struct hd44780_common *hdc = lcd->drvdata;
+
 	if (lcd->char_conv)
 		c = lcd->char_conv[(unsigned char)c];
 
@@ -174,8 +158,8 @@ static void charlcd_print(struct charlcd *lcd, char c)
 		lcd->addr.x++;
 
 	/* prevents the cursor from wrapping onto the next line */
-	if (lcd->addr.x == lcd->width)
-		charlcd_gotoxy(lcd);
+	if (lcd->addr.x == hdc->bwidth)
+		lcd->ops->gotoxy(lcd);
 }
 
 static void charlcd_clear_fast(struct charlcd *lcd)
@@ -440,7 +424,7 @@ static inline int handle_lcd_special_code(struct charlcd *lcd)
 		/* restore cursor position */
 		lcd->addr.x = xs;
 		lcd->addr.y = ys;
-		charlcd_gotoxy(lcd);
+		lcd->ops->gotoxy(lcd);
 		processed = 1;
 		break;
 	}
@@ -499,7 +483,7 @@ static inline int handle_lcd_special_code(struct charlcd *lcd)
 			hdc->write_data(hdc, cgbytes[addr]);
 
 		/* ensures that we stop writing to CGRAM */
-		charlcd_gotoxy(lcd);
+		lcd->ops->gotoxy(lcd);
 		processed = 1;
 		break;
 	}
@@ -510,7 +494,7 @@ static inline int handle_lcd_special_code(struct charlcd *lcd)
 
 		/* If the command is valid, move to the new address */
 		if (parse_xy(esc, &lcd->addr.x, &lcd->addr.y))
-			charlcd_gotoxy(lcd);
+			lcd->ops->gotoxy(lcd);
 
 		/* Regardless of its validity, mark as processed */
 		processed = 1;
@@ -596,12 +580,12 @@ static void charlcd_write_char(struct charlcd *lcd, char c)
 
 			lcd->addr.x = 0;
 			lcd->addr.y = (lcd->addr.y + 1) % lcd->height;
-			charlcd_gotoxy(lcd);
+			lcd->ops->gotoxy(lcd);
 			break;
 		case '\r':
 			/* go to the beginning of the same line */
 			lcd->addr.x = 0;
-			charlcd_gotoxy(lcd);
+			lcd->ops->gotoxy(lcd);
 			break;
 		case '\t':
 			/* print a space instead of the tab */
