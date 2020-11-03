@@ -764,9 +764,10 @@ static void loongson3_type3_play_dead(int *state_addr)
 		"1: li    %[count], 0x100             \n" /* wait for init loop */
 		"2: bnez  %[count], 2b                \n" /* limit mailbox access */
 		"   addiu %[count], -1                \n"
-		"   ld    %[initfunc], 0x20(%[base])  \n" /* get PC via mailbox */
+		"   lw    %[initfunc], 0x20(%[base])  \n" /* check lower 32-bit as jump indicator */
 		"   beqz  %[initfunc], 1b             \n"
 		"   nop                               \n"
+		"   ld    %[initfunc], 0x20(%[base])  \n" /* get PC (whole 64-bit) via mailbox */
 		"   ld    $sp, 0x28(%[base])          \n" /* get SP via mailbox */
 		"   ld    $gp, 0x30(%[base])          \n" /* get GP via mailbox */
 		"   ld    $a1, 0x38(%[base])          \n"
