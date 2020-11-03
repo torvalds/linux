@@ -303,6 +303,18 @@ config REGULATOR_DA9063
 	  This driver can also be built as a module. If so, the module
 	  will be called da9063-regulator.
 
+config REGULATOR_DA9121
+	tristate "Dialog Semiconductor DA9121 regulator"
+	depends on I2C && OF
+	select REGMAP_I2C
+	help
+	  Say y here to support for the Dialog Semiconductor DA9121.  The
+	  DA9210 is a dual-phase buck converter controlled through an I2C
+	  interface.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called da9121-regulator.
+
 config REGULATOR_DA9210
 	tristate "Dialog Semiconductor DA9210 regulator"
 	depends on I2C
