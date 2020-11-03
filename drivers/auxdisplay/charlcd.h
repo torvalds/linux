@@ -30,9 +30,21 @@ struct charlcd {
 	void *drvdata;
 };
 
+/**
+ * struct charlcd_ops - Functions used by charlcd. Drivers have to implement
+ * these.
+ * @clear_fast: Clear the whole display and set cursor to position 0, 0.
+ * Optional.
+ * @backlight: Turn backlight on or off. Optional.
+ * @print: Print one character to the display at current cursor position.
+ * The cursor is advanced by charlcd.
+ * The buffered cursor position is advanced by charlcd. The cursor should not
+ * wrap to the next line at the end of a line.
+ */
 struct charlcd_ops {
 	void (*clear_fast)(struct charlcd *lcd);
 	void (*backlight)(struct charlcd *lcd, enum charlcd_onoff on);
+	int (*print)(struct charlcd *lcd, int c);
 };
 
 struct charlcd *charlcd_alloc(void);

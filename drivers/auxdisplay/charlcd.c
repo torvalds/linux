@@ -167,18 +167,15 @@ static void charlcd_home(struct charlcd *lcd)
 
 static void charlcd_print(struct charlcd *lcd, char c)
 {
-	struct hd44780_common *hdc = lcd->drvdata;
+	if (lcd->char_conv)
+		c = lcd->char_conv[(unsigned char)c];
 
-	if (lcd->addr.x < hdc->bwidth) {
-		if (lcd->char_conv)
-			c = lcd->char_conv[(unsigned char)c];
-		hdc->write_data(hdc, c);
+	if (!lcd->ops->print(lcd, c))
 		lcd->addr.x++;
 
-		/* prevents the cursor from wrapping onto the next line */
-		if (lcd->addr.x == hdc->bwidth)
-			charlcd_gotoxy(lcd);
-	}
+	/* prevents the cursor from wrapping onto the next line */
+	if (lcd->addr.x == lcd->width)
+		charlcd_gotoxy(lcd);
 }
 
 static void charlcd_clear_fast(struct charlcd *lcd)
@@ -192,7 +189,7 @@ static void charlcd_clear_fast(struct charlcd *lcd)
 		lcd->ops->clear_fast(lcd);
 	else
 		for (pos = 0; pos < min(2, lcd->height) * hdc->hwidth; pos++)
-			hdc->write_data(hdc, ' ');
+			lcd->ops->print(lcd, ' ');
 
 	charlcd_home(lcd);
 }
@@ -433,12 +430,16 @@ static inline int handle_lcd_special_code(struct charlcd *lcd)
 		processed = 1;
 		break;
 	case 'k': {	/* kill end of line */
-		int x;
+		int x, xs, ys;
 
+		xs = lcd->addr.x;
+		ys = lcd->addr.y;
 		for (x = lcd->addr.x; x < hdc->bwidth; x++)
-			hdc->write_data(hdc, ' ');
+			lcd->ops->print(lcd, ' ');
 
 		/* restore cursor position */
+		lcd->addr.x = xs;
+		lcd->addr.y = ys;
 		charlcd_gotoxy(lcd);
 		processed = 1;
 		break;
@@ -591,7 +592,8 @@ static void charlcd_write_char(struct charlcd *lcd, char c)
 			 * go to the beginning of the next line
 			 */
 			for (; lcd->addr.x < hdc->bwidth; lcd->addr.x++)
-				hdc->write_data(hdc, ' ');
+				lcd->ops->print(lcd, ' ');
+
 			lcd->addr.x = 0;
 			lcd->addr.y = (lcd->addr.y + 1) % lcd->height;
 			charlcd_gotoxy(lcd);
