@@ -444,12 +444,13 @@ static int btree_read_extent_buffer_pages(struct extent_buffer *eb,
 }
 
 /*
- * checksum a dirty tree block before IO.  This has extra checks to make sure
- * we only fill in the checksum field in the first page of a multi-page block
+ * Checksum a dirty tree block before IO.  This has extra checks to make sure
+ * we only fill in the checksum field in the first page of a multi-page block.
+ * For subpage extent buffers we need bvec to also read the offset in the page.
  */
-
-static int csum_dirty_buffer(struct btrfs_fs_info *fs_info, struct page *page)
+static int csum_dirty_buffer(struct btrfs_fs_info *fs_info, struct bio_vec *bvec)
 {
+	struct page *page = bvec->bv_page;
 	u64 start = page_offset(page);
 	u64 found_start;
 	u8 result[BTRFS_CSUM_SIZE];
@@ -791,7 +792,7 @@ static blk_status_t btree_csum_one_bio(struct bio *bio)
 	ASSERT(!bio_flagged(bio, BIO_CLONED));
 	bio_for_each_segment_all(bvec, bio, iter_all) {
 		root = BTRFS_I(bvec->bv_page->mapping->host)->root;
-		ret = csum_dirty_buffer(root->fs_info, bvec->bv_page);
+		ret = csum_dirty_buffer(root->fs_info, bvec);
 		if (ret)
 			break;
 	}
