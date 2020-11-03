@@ -47,6 +47,8 @@ struct realtek_pci_sdmmc {
 	bool			using_cookie;
 };
 
+static int sdmmc_init_sd_express(struct mmc_host *mmc, struct mmc_ios *ios);
+
 static inline struct device *sdmmc_dev(struct realtek_pci_sdmmc *host)
 {
 	return &(host->pdev->dev);
@@ -898,6 +900,7 @@ static int sd_power_on(struct realtek_pci_sdmmc *host)
 	struct mmc_host *mmc = host->mmc;
 	int err;
 	u32 val;
+	u8 test_mode;
 
 	if (host->power_state == SDMMC_POWER_ON)
 		return 0;
@@ -925,6 +928,15 @@ static int sd_power_on(struct realtek_pci_sdmmc *host)
 		return err;
 
 	if (PCI_PID(pcr) == PID_5261) {
+		/*
+		 * If test mode is set switch to SD Express mandatorily,
+		 * this is only for factory testing.
+		 */
+		rtsx_pci_read_register(pcr, RTS5261_FW_CFG_INFO0, &test_mode);
+		if (test_mode & RTS5261_FW_EXPRESS_TEST_MASK) {
+			sdmmc_init_sd_express(mmc, NULL);
+			return 0;
+		}
 		if (pcr->extra_caps & EXTRA_CAPS_SD_EXPRESS)
 			mmc->caps2 |= MMC_CAP2_SD_EXP | MMC_CAP2_SD_EXP_1_2V;
 		/*
@@ -1355,10 +1367,11 @@ static int sdmmc_init_sd_express(struct mmc_host *mmc, struct mmc_ios *ios)
 	rtsx_pci_write_register(pcr, RTS5261_FW_CFG0,
 		RTS5261_FW_ENTER_EXPRESS, RTS5261_FW_ENTER_EXPRESS);
 	rtsx_pci_write_register(pcr, RTS5261_FW_CFG1,
+		RTS5261_MCU_CLOCK_GATING, RTS5261_MCU_CLOCK_GATING);
+	rtsx_pci_write_register(pcr, RTS5261_FW_CFG1,
 		RTS5261_MCU_BUS_SEL_MASK | RTS5261_MCU_CLOCK_SEL_MASK
-		| RTS5261_MCU_CLOCK_GATING | RTS5261_DRIVER_ENABLE_FW,
-		RTS5261_MCU_CLOCK_SEL_16M | RTS5261_MCU_CLOCK_GATING
-		| RTS5261_DRIVER_ENABLE_FW);
+		| RTS5261_DRIVER_ENABLE_FW,
+		RTS5261_MCU_CLOCK_SEL_16M | RTS5261_DRIVER_ENABLE_FW);
 	host->eject = true;
 	return 0;
 }

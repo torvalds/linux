@@ -60,11 +60,6 @@
 /* DMACTL 0xFE2C */
 #define RTS5261_DMA_PACK_SIZE_MASK	0xF0
 
-/* FW config info register */
-#define RTS5261_FW_CFG_INFO0		0xFF50
-#define RTS5261_FW_EXPRESS_TEST_MASK	(0x01<<0)
-#define RTS5261_FW_EA_MODE_MASK		(0x01<<5)
-
 /* FW status register */
 #define RTS5261_FW_STATUS		0xFF56
 #define RTS5261_EXPRESS_LINK_FAIL_MASK	(0x01<<7)

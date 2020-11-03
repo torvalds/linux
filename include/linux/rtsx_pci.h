@@ -658,6 +658,10 @@
 #define   PM_WAKE_EN			0x01
 #define PM_CTRL4			0xFF47
 
+/* FW config info register */
+#define RTS5261_FW_CFG_INFO0		0xFF50
+#define   RTS5261_FW_EXPRESS_TEST_MASK	(0x01 << 0)
+#define   RTS5261_FW_EA_MODE_MASK	(0x01 << 5)
 #define RTS5261_FW_CFG0			0xFF54
 #define   RTS5261_FW_ENTER_EXPRESS	(0x01 << 0)
 
