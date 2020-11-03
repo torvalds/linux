@@ -62,10 +62,8 @@
  * Master. Default value is set to 400MHz.
  */
 #define MLXBF_I2C_TYU_PLL_OUT_FREQ  (400 * 1000 * 1000)
-/* Reference clock for Bluefield 1 - 156 MHz. */
-#define MLXBF_I2C_TYU_PLL_IN_FREQ   (156 * 1000 * 1000)
-/* Reference clock for BlueField 2 - 200 MHz. */
-#define MLXBF_I2C_YU_PLL_IN_FREQ    (200 * 1000 * 1000)
+/* Reference clock for Bluefield - 156 MHz. */
+#define MLXBF_I2C_PLL_IN_FREQ       (156 * 1000 * 1000)
 
 /* Constant used to determine the PLL frequency. */
 #define MLNXBF_I2C_COREPLL_CONST    16384
@@ -1422,7 +1420,7 @@ static u64 mlxbf_calculate_freq_from_tyu(struct mlxbf_i2c_resource *corepll_res)
 	u32 corepll_val;
 	u16 core_f;
 
-	pad_frequency = MLXBF_I2C_TYU_PLL_IN_FREQ;
+	pad_frequency = MLXBF_I2C_PLL_IN_FREQ;
 
 	corepll_val = readl(corepll_res->io + MLXBF_I2C_CORE_PLL_REG1);
 
@@ -1457,7 +1455,7 @@ static u64 mlxbf_calculate_freq_from_yu(struct mlxbf_i2c_resource *corepll_res)
 	u8 core_od, core_r;
 	u32 core_f;
 
-	pad_frequency = MLXBF_I2C_YU_PLL_IN_FREQ;
+	pad_frequency = MLXBF_I2C_PLL_IN_FREQ;
 
 	corepll_reg1_val = readl(corepll_res->io + MLXBF_I2C_CORE_PLL_REG1);
 	corepll_reg2_val = readl(corepll_res->io + MLXBF_I2C_CORE_PLL_REG2);
