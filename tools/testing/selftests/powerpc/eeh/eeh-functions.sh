@@ -135,3 +135,111 @@ eeh_one_dev() {
 	return 0;
 }
 
+eeh_has_driver() {
+	test -e /sys/bus/pci/devices/$1/driver;
+	return $?
+}
+
+eeh_can_recover() {
+	# we'll get an IO error if the device's current driver doesn't support
+	# error recovery
+	echo $1 > '/sys/kernel/debug/powerpc/eeh_dev_can_recover' 2>/dev/null
+
+	return $?
+}
+
+eeh_find_all_pfs() {
+	devices=""
+
+	# SR-IOV on pseries requires hypervisor support, so check for that
+	is_pseries=""
+	if grep -q pSeries /proc/cpuinfo ; then
+		if [ ! -f /proc/device-tree/rtas/ibm,open-sriov-allow-unfreeze ] ||
+		   [ ! -f /proc/device-tree/rtas/ibm,open-sriov-map-pe-number ] ; then
+			return 1;
+		fi
+
+		is_pseries="true"
+	fi
+
+	for dev in `ls -1 /sys/bus/pci/devices/` ; do
+		sysfs="/sys/bus/pci/devices/$dev"
+		if [ ! -e "$sysfs/sriov_numvfs" ] ; then
+			continue
+		fi
+
+		# skip unsupported PFs on pseries
+		if [ -z "$is_pseries" ] &&
+		   [ ! -f "$sysfs/of_node/ibm,is-open-sriov-pf" ] &&
+		   [ ! -f "$sysfs/of_node/ibm,open-sriov-vf-bar-info" ] ; then
+			continue;
+		fi
+
+		# no driver, no vfs
+		if ! eeh_has_driver $dev ; then
+			continue
+		fi
+
+		devices="$devices $dev"
+	done
+
+	if [ -z "$devices" ] ; then
+		return 1;
+	fi
+
+	echo $devices
+	return 0;
+}
+
+# attempts to enable one VF on each PF so we can do VF specific tests.
+# stdout: list of enabled VFs, one per line
+# return code: 0 if vfs are found, 1 otherwise
+eeh_enable_vfs() {
+	pf_list="$(eeh_find_all_pfs)"
+
+	vfs=0
+	for dev in $pf_list ; do
+		pf_sysfs="/sys/bus/pci/devices/$dev"
+
+		# make sure we have a single VF
+		echo 0 > "$pf_sysfs/sriov_numvfs"
+		echo 1 > "$pf_sysfs/sriov_numvfs"
+		if [ "$?" != 0 ] ; then
+			log "Unable to enable VFs on $pf, skipping"
+			continue;
+		fi
+
+		vf="$(basename $(realpath "$pf_sysfs/virtfn0"))"
+		if [ $? != 0 ] ; then
+			log "unable to find enabled vf on $pf"
+			echo 0 > "$pf_sysfs/sriov_numvfs"
+			continue;
+		fi
+
+		if ! eeh_can_break $vf ; then
+			log "skipping "
+
+			echo 0 > "$pf_sysfs/sriov_numvfs"
+			continue;
+		fi
+
+		vfs="$((vfs + 1))"
+		echo $vf
+	done
+
+	test "$vfs" != 0
+	return $?
+}
+
+eeh_disable_vfs() {
+	pf_list="$(eeh_find_all_pfs)"
+	if [ -z "$pf_list" ] ; then
+		return 1;
+	fi
+
+	for dev in $pf_list ; do
+		echo 0 > "/sys/bus/pci/devices/$dev/sriov_numvfs"
+	done
+
+	return 0;
+}
