@@ -1287,9 +1287,12 @@ static bool io_identity_cow(struct io_kiocb *req)
 	/* add one for this request */
 	refcount_inc(&id->count);
 
-	/* drop old identity, assign new one. one ref for req, one for tctx */
-	if (req->work.identity != tctx->identity &&
-	    refcount_sub_and_test(2, &req->work.identity->count))
+	/* drop tctx and req identity references, if needed */
+	if (tctx->identity != &tctx->__identity &&
+	    refcount_dec_and_test(&tctx->identity->count))
+		kfree(tctx->identity);
+	if (req->work.identity != &tctx->__identity &&
+	    refcount_dec_and_test(&req->work.identity->count))
 		kfree(req->work.identity);
 
 	req->work.identity = id;
