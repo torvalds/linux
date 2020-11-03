@@ -439,6 +439,19 @@ nfsd4_decode_stateid(struct nfsd4_compoundargs *argp, stateid_t *sid)
 	DECODE_TAIL;
 }
 
+static __be32
+nfsd4_decode_stateid4(struct nfsd4_compoundargs *argp, stateid_t *sid)
+{
+	__be32 *p;
+
+	p = xdr_inline_decode(argp->xdr, NFS4_STATEID_SIZE);
+	if (!p)
+		return nfserr_bad_xdr;
+	sid->si_generation = be32_to_cpup(p++);
+	memcpy(&sid->si_opaque, p, sizeof(sid->si_opaque));
+	return nfs_ok;
+}
+
 static __be32 nfsd4_decode_cb_sec(struct nfsd4_compoundargs *argp, struct nfsd4_cb_sec *cbs)
 {
 	DECODE_HEAD;
@@ -559,13 +572,9 @@ static __be32 nfsd4_decode_bind_conn_to_session(struct nfsd4_compoundargs *argp,
 static __be32
 nfsd4_decode_close(struct nfsd4_compoundargs *argp, struct nfsd4_close *close)
 {
-	DECODE_HEAD;
-
-	READ_BUF(4);
-	close->cl_seqid = be32_to_cpup(p++);
-	return nfsd4_decode_stateid(argp, &close->cl_stateid);
-
-	DECODE_TAIL;
+	if (xdr_stream_decode_u32(argp->xdr, &close->cl_seqid) < 0)
+		return nfserr_bad_xdr;
+	return nfsd4_decode_stateid4(argp, &close->cl_stateid);
 }
 
 
