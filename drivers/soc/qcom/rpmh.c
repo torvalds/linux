@@ -254,7 +254,7 @@ EXPORT_SYMBOL(rpmh_write_async);
 /**
  * rpmh_write: Write a set of RPMH commands and block until response
  *
- * @rc: The RPMH handle got from rpmh_get_client
+ * @dev: The device making the request
  * @state: Active/sleep set
  * @cmd: The payload data
  * @n: The number of elements in @cmd
