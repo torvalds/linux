@@ -723,7 +723,7 @@ static void lcd_backlight(struct charlcd *charlcd, enum charlcd_onoff on)
 }
 
 /* send a command to the LCD panel in serial mode */
-static void lcd_write_cmd_s(struct charlcd *charlcd, int cmd)
+static void lcd_write_cmd_s(struct hd44780_common *hdc, int cmd)
 {
 	spin_lock_irq(&pprt_lock);
 	lcd_send_serial(0x1F);	/* R/W=W, RS=0 */
@@ -745,7 +745,7 @@ static void lcd_write_data_s(struct hd44780_common *hdc, int data)
 }
 
 /* send a command to the LCD panel in 8 bits parallel mode */
-static void lcd_write_cmd_p8(struct charlcd *charlcd, int cmd)
+static void lcd_write_cmd_p8(struct hd44780_common *hdc, int cmd)
 {
 	spin_lock_irq(&pprt_lock);
 	/* present the data to the data port */
@@ -789,7 +789,7 @@ static void lcd_write_data_p8(struct hd44780_common *hdc, int data)
 }
 
 /* send a command to the TI LCD panel */
-static void lcd_write_cmd_tilcd(struct charlcd *charlcd, int cmd)
+static void lcd_write_cmd_tilcd(struct hd44780_common *hdc, int cmd)
 {
 	spin_lock_irq(&pprt_lock);
 	/* present the data to the control port */
@@ -873,19 +873,16 @@ static void lcd_clear_fast_tilcd(struct charlcd *charlcd)
 }
 
 static const struct charlcd_ops charlcd_serial_ops = {
-	.write_cmd	= lcd_write_cmd_s,
 	.clear_fast	= lcd_clear_fast_s,
 	.backlight	= lcd_backlight,
 };
 
 static const struct charlcd_ops charlcd_parallel_ops = {
-	.write_cmd	= lcd_write_cmd_p8,
 	.clear_fast	= lcd_clear_fast_p8,
 	.backlight	= lcd_backlight,
 };
 
 static const struct charlcd_ops charlcd_tilcd_ops = {
-	.write_cmd	= lcd_write_cmd_tilcd,
 	.clear_fast	= lcd_clear_fast_tilcd,
 	.backlight	= lcd_backlight,
 };
@@ -1017,6 +1014,7 @@ static void lcd_init(void)
 	if (lcd.proto == LCD_PROTO_SERIAL) {	/* SERIAL */
 		charlcd->ops = &charlcd_serial_ops;
 		hdc->write_data = lcd_write_data_s;
+		hdc->write_cmd = lcd_write_cmd_s;
 
 		if (lcd.pins.cl == PIN_NOT_SET)
 			lcd.pins.cl = DEFAULT_LCD_PIN_SCL;
@@ -1026,6 +1024,7 @@ static void lcd_init(void)
 	} else if (lcd.proto == LCD_PROTO_PARALLEL) {	/* PARALLEL */
 		charlcd->ops = &charlcd_parallel_ops;
 		hdc->write_data = lcd_write_data_p8;
+		hdc->write_cmd = lcd_write_cmd_p8;
 
 		if (lcd.pins.e == PIN_NOT_SET)
 			lcd.pins.e = DEFAULT_LCD_PIN_E;
@@ -1036,6 +1035,7 @@ static void lcd_init(void)
 	} else {
 		charlcd->ops = &charlcd_tilcd_ops;
 		hdc->write_data = lcd_write_data_tilcd;
+		hdc->write_cmd = lcd_write_cmd_tilcd;
 	}
 
 	if (lcd.pins.bl == PIN_NOT_SET)

@@ -25,11 +25,6 @@ struct charlcd {
 };
 
 struct charlcd_ops {
-	/* Required */
-	void (*write_cmd)(struct charlcd *lcd, int cmd);
-
-	/* Optional */
-	void (*write_cmd_raw4)(struct charlcd *lcd, int cmd);	/* 4-bit only */
 	void (*clear_fast)(struct charlcd *lcd);
 	void (*backlight)(struct charlcd *lcd, enum charlcd_onoff on);
 };

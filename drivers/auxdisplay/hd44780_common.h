@@ -8,6 +8,9 @@ struct hd44780_common {
 	int bwidth;			/* Default set by hd44780_alloc() */
 	int hwidth;			/* Default set by hd44780_alloc() */
 	void (*write_data)(struct hd44780_common *hdc, int data);
+	void (*write_cmd)(struct hd44780_common *hdc, int cmd);
+	/* write_cmd_raw4 is for 4-bit connected displays only */
+	void (*write_cmd_raw4)(struct hd44780_common *hdc, int cmd);
 	void *hd44780;
 };
 

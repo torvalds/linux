@@ -162,7 +162,7 @@ static void charlcd_gotoxy(struct charlcd *lcd)
 		addr += hdc->hwidth;
 	if (priv->addr.y & 2)
 		addr += hdc->bwidth;
-	lcd->ops->write_cmd(lcd, LCD_CMD_SET_DDRAM_ADDR | addr);
+	hdc->write_cmd(hdc, LCD_CMD_SET_DDRAM_ADDR | addr);
 }
 
 static void charlcd_home(struct charlcd *lcd)
@@ -211,8 +211,9 @@ static void charlcd_clear_fast(struct charlcd *lcd)
 static void charlcd_clear_display(struct charlcd *lcd)
 {
 	struct charlcd_priv *priv = charlcd_to_priv(lcd);
+	struct hd44780_common *hdc = lcd->drvdata;
 
-	lcd->ops->write_cmd(lcd, LCD_CMD_DISPLAY_CLEAR);
+	hdc->write_cmd(hdc, LCD_CMD_DISPLAY_CLEAR);
 	priv->addr.x = 0;
 	priv->addr.y = 0;
 	/* we must wait a few milliseconds (15) */
@@ -221,7 +222,7 @@ static void charlcd_clear_display(struct charlcd *lcd)
 
 static int charlcd_init_display(struct charlcd *lcd)
 {
-	void (*write_cmd_raw)(struct charlcd *lcd, int cmd);
+	void (*write_cmd_raw)(struct hd44780_common *hdc, int cmd);
 	struct charlcd_priv *priv = charlcd_to_priv(lcd);
 	struct hd44780_common *hdc = lcd->drvdata;
 	u8 init;
@@ -241,25 +242,25 @@ static int charlcd_init_display(struct charlcd *lcd)
 	init = LCD_CMD_FUNCTION_SET | LCD_CMD_DATA_LEN_8BITS;
 	if (hdc->ifwidth == 4) {
 		init >>= 4;
-		write_cmd_raw = lcd->ops->write_cmd_raw4;
+		write_cmd_raw = hdc->write_cmd_raw4;
 	} else {
-		write_cmd_raw = lcd->ops->write_cmd;
+		write_cmd_raw = hdc->write_cmd;
 	}
-	write_cmd_raw(lcd, init);
+	write_cmd_raw(hdc, init);
 	long_sleep(10);
-	write_cmd_raw(lcd, init);
+	write_cmd_raw(hdc, init);
 	long_sleep(10);
-	write_cmd_raw(lcd, init);
+	write_cmd_raw(hdc, init);
 	long_sleep(10);
 
 	if (hdc->ifwidth == 4) {
 		/* Switch to 4-bit mode, 1 line, small fonts */
-		lcd->ops->write_cmd_raw4(lcd, LCD_CMD_FUNCTION_SET >> 4);
+		hdc->write_cmd_raw4(hdc, LCD_CMD_FUNCTION_SET >> 4);
 		long_sleep(10);
 	}
 
 	/* set font height and lines number */
-	lcd->ops->write_cmd(lcd,
+	hdc->write_cmd(hdc,
 		LCD_CMD_FUNCTION_SET |
 		((hdc->ifwidth == 8) ? LCD_CMD_DATA_LEN_8BITS : 0) |
 		((priv->flags & LCD_FLAG_F) ? LCD_CMD_FONT_5X10_DOTS : 0) |
@@ -267,10 +268,10 @@ static int charlcd_init_display(struct charlcd *lcd)
 	long_sleep(10);
 
 	/* display off, cursor off, blink off */
-	lcd->ops->write_cmd(lcd, LCD_CMD_DISPLAY_CTRL);
+	hdc->write_cmd(hdc, LCD_CMD_DISPLAY_CTRL);
 	long_sleep(10);
 
-	lcd->ops->write_cmd(lcd,
+	hdc->write_cmd(hdc,
 		LCD_CMD_DISPLAY_CTRL |	/* set display mode */
 		((priv->flags & LCD_FLAG_D) ? LCD_CMD_DISPLAY_ON : 0) |
 		((priv->flags & LCD_FLAG_C) ? LCD_CMD_CURSOR_ON : 0) |
@@ -281,7 +282,7 @@ static int charlcd_init_display(struct charlcd *lcd)
 	long_sleep(10);
 
 	/* entry mode set : increment, cursor shifting */
-	lcd->ops->write_cmd(lcd, LCD_CMD_ENTRY_MODE | LCD_CMD_CURSOR_INC);
+	hdc->write_cmd(hdc, LCD_CMD_ENTRY_MODE | LCD_CMD_CURSOR_INC);
 
 	charlcd_clear_display(lcd);
 	return 0;
@@ -417,7 +418,7 @@ static inline int handle_lcd_special_code(struct charlcd *lcd)
 		if (priv->addr.x > 0) {
 			/* back one char if not at end of line */
 			if (priv->addr.x < hdc->bwidth)
-				lcd->ops->write_cmd(lcd, LCD_CMD_SHIFT);
+				hdc->write_cmd(hdc, LCD_CMD_SHIFT);
 			priv->addr.x--;
 		}
 		processed = 1;
@@ -426,18 +427,18 @@ static inline int handle_lcd_special_code(struct charlcd *lcd)
 		if (priv->addr.x < lcd->width) {
 			/* allow the cursor to pass the end of the line */
 			if (priv->addr.x < (hdc->bwidth - 1))
-				lcd->ops->write_cmd(lcd,
+				hdc->write_cmd(hdc,
 					LCD_CMD_SHIFT | LCD_CMD_SHIFT_RIGHT);
 			priv->addr.x++;
 		}
 		processed = 1;
 		break;
 	case 'L':	/* shift display left */
-		lcd->ops->write_cmd(lcd, LCD_CMD_SHIFT | LCD_CMD_DISPLAY_SHIFT);
+		hdc->write_cmd(hdc, LCD_CMD_SHIFT | LCD_CMD_DISPLAY_SHIFT);
 		processed = 1;
 		break;
 	case 'R':	/* shift display right */
-		lcd->ops->write_cmd(lcd,
+		hdc->write_cmd(hdc,
 				    LCD_CMD_SHIFT | LCD_CMD_DISPLAY_SHIFT |
 				    LCD_CMD_SHIFT_RIGHT);
 		processed = 1;
@@ -503,7 +504,7 @@ static inline int handle_lcd_special_code(struct charlcd *lcd)
 			}
 		}
 
-		lcd->ops->write_cmd(lcd, LCD_CMD_SET_CGRAM_ADDR | (cgaddr * 8));
+		hdc->write_cmd(hdc, LCD_CMD_SET_CGRAM_ADDR | (cgaddr * 8));
 		for (addr = 0; addr < cgoffset; addr++)
 			hdc->write_data(hdc, cgbytes[addr]);
 
@@ -535,14 +536,14 @@ static inline int handle_lcd_special_code(struct charlcd *lcd)
 	if ((oldflags ^ priv->flags) &
 	    (LCD_FLAG_B | LCD_FLAG_C | LCD_FLAG_D))
 		/* set display mode */
-		lcd->ops->write_cmd(lcd,
+		hdc->write_cmd(hdc,
 			LCD_CMD_DISPLAY_CTRL |
 			((priv->flags & LCD_FLAG_D) ? LCD_CMD_DISPLAY_ON : 0) |
 			((priv->flags & LCD_FLAG_C) ? LCD_CMD_CURSOR_ON : 0) |
 			((priv->flags & LCD_FLAG_B) ? LCD_CMD_BLINK_ON : 0));
 	/* check whether one of F,N flags was changed */
 	else if ((oldflags ^ priv->flags) & (LCD_FLAG_F | LCD_FLAG_N))
-		lcd->ops->write_cmd(lcd,
+		hdc->write_cmd(hdc,
 			LCD_CMD_FUNCTION_SET |
 			((hdc->ifwidth == 8) ? LCD_CMD_DATA_LEN_8BITS : 0) |
 			((priv->flags & LCD_FLAG_F) ? LCD_CMD_FONT_5X10_DOTS : 0) |
@@ -583,13 +584,13 @@ static void charlcd_write_char(struct charlcd *lcd, char c)
 				 */
 				if (priv->addr.x < hdc->bwidth)
 					/* back one char */
-					lcd->ops->write_cmd(lcd, LCD_CMD_SHIFT);
+					hdc->write_cmd(hdc, LCD_CMD_SHIFT);
 				priv->addr.x--;
 			}
 			/* replace with a space */
 			hdc->write_data(hdc, ' ');
 			/* back one char again */
-			lcd->ops->write_cmd(lcd, LCD_CMD_SHIFT);
+			hdc->write_cmd(hdc, LCD_CMD_SHIFT);
 			break;
 		case '\f':
 			/* quickly clear the display */
