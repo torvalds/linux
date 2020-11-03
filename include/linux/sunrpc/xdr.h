@@ -572,6 +572,27 @@ xdr_stream_decode_u32(struct xdr_stream *xdr, __u32 *ptr)
 }
 
 /**
+ * xdr_stream_decode_u64 - Decode a 64-bit integer
+ * @xdr: pointer to xdr_stream
+ * @ptr: location to store 64-bit integer
+ *
+ * Return values:
+ *   %0 on success
+ *   %-EBADMSG on XDR buffer overflow
+ */
+static inline ssize_t
+xdr_stream_decode_u64(struct xdr_stream *xdr, __u64 *ptr)
+{
+	const size_t count = sizeof(*ptr);
+	__be32 *p = xdr_inline_decode(xdr, count);
+
+	if (unlikely(!p))
+		return -EBADMSG;
+	xdr_decode_hyper(p, ptr);
+	return 0;
+}
+
+/**
  * xdr_stream_decode_opaque_fixed - Decode fixed length opaque xdr data
  * @xdr: pointer to xdr_stream
  * @ptr: location to store data
