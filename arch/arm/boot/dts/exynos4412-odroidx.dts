@@ -76,6 +76,10 @@
 	};
 };
 
+&hsotg {
+	dr_mode = "peripheral";
+};
+
 &mshc_0 {
 	vqmmc-supply = <&buck8_reg>;
 };

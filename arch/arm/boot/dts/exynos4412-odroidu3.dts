@@ -21,6 +21,15 @@
 		reg = <0x40000000 0x7FF00000>;
 	};
 
+	vbus_otg_reg: regulator-1 {
+		compatible = "regulator-fixed";
+		regulator-name = "VBUS_VDD_5.0V";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpl2 0 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
 	leds {
 		compatible = "gpio-leds";
 		led1 {
@@ -103,6 +112,11 @@
 &ehci {
 	phys = <&exynos_usbphy 2>, <&exynos_usbphy 3>;
 	phy-names = "hsic0", "hsic1";
+};
+
+&hsotg {
+	dr_mode = "otg";
+	vbus-supply = <&vbus_otg_reg>;
 };
 
 &sound {
