@@ -2345,14 +2345,14 @@ static int mp_irqdomain_create(int ioapic)
 	if (cfg->dev) {
 		fn = of_node_to_fwnode(cfg->dev);
 	} else {
-		fn = irq_domain_alloc_named_id_fwnode("IO-APIC", ioapic);
+		fn = irq_domain_alloc_named_id_fwnode("IO-APIC", mpc_ioapic_id(ioapic));
 		if (!fn)
 			return -ENOMEM;
 	}
 
 	fwspec.fwnode = fn;
 	fwspec.param_count = 1;
-	fwspec.param[0] = ioapic;
+	fwspec.param[0] = mpc_ioapic_id(ioapic);
 
 	parent = irq_find_matching_fwspec(&fwspec, DOMAIN_BUS_ANY);
 	if (!parent) {
