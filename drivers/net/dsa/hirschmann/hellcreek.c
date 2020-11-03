@@ -25,6 +25,7 @@
 #include <net/dsa.h>
 
 #include "hellcreek.h"
+#include "hellcreek_ptp.h"
 
 static const struct hellcreek_counter hellcreek_counter[] = {
 	{ 0x00, "RxFiltered", },
@@ -959,6 +960,43 @@ static void hellcreek_setup_tc_identity_mapping(struct hellcreek *hellcreek)
 	}
 }
 
+static int hellcreek_setup_fdb(struct hellcreek *hellcreek)
+{
+	static struct hellcreek_fdb_entry ptp = {
+		/* MAC: 01-1B-19-00-00-00 */
+		.mac	      = { 0x01, 0x1b, 0x19, 0x00, 0x00, 0x00 },
+		.portmask     = 0x03,	/* Management ports */
+		.age	      = 0,
+		.is_obt	      = 0,
+		.pass_blocked = 0,
+		.is_static    = 1,
+		.reprio_tc    = 6,	/* TC: 6 as per IEEE 802.1AS */
+		.reprio_en    = 1,
+	};
+	static struct hellcreek_fdb_entry p2p = {
+		/* MAC: 01-80-C2-00-00-0E */
+		.mac	      = { 0x01, 0x80, 0xc2, 0x00, 0x00, 0x0e },
+		.portmask     = 0x03,	/* Management ports */
+		.age	      = 0,
+		.is_obt	      = 0,
+		.pass_blocked = 0,
+		.is_static    = 1,
+		.reprio_tc    = 6,	/* TC: 6 as per IEEE 802.1AS */
+		.reprio_en    = 1,
+	};
+	int ret;
+
+	mutex_lock(&hellcreek->reg_lock);
+	ret = __hellcreek_fdb_add(hellcreek, &ptp);
+	if (ret)
+		goto out;
+	ret = __hellcreek_fdb_add(hellcreek, &p2p);
+out:
+	mutex_unlock(&hellcreek->reg_lock);
+
+	return ret;
+}
+
 static int hellcreek_setup(struct dsa_switch *ds)
 {
 	struct hellcreek *hellcreek = ds->priv;
@@ -1008,6 +1046,14 @@ static int hellcreek_setup(struct dsa_switch *ds)
 	 * filtering setups are not supported.
 	 */
 	ds->vlan_filtering_is_global = true;
+
+	/* Intercept _all_ PTP multicast traffic */
+	ret = hellcreek_setup_fdb(hellcreek);
+	if (ret) {
+		dev_err(hellcreek->dev,
+			"Failed to insert static PTP FDB entries\n");
+		return ret;
+	}
 
 	return 0;
 }
@@ -1160,6 +1206,7 @@ static int hellcreek_probe(struct platform_device *pdev)
 
 	mutex_init(&hellcreek->reg_lock);
 	mutex_init(&hellcreek->vlan_lock);
+	mutex_init(&hellcreek->ptp_lock);
 
 	hellcreek->dev = dev;
 
@@ -1173,6 +1220,18 @@ static int hellcreek_probe(struct platform_device *pdev)
 	if (IS_ERR(hellcreek->base)) {
 		dev_err(dev, "No memory available!\n");
 		return PTR_ERR(hellcreek->base);
+	}
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ptp");
+	if (!res) {
+		dev_err(dev, "No PTP memory region provided!\n");
+		return -ENODEV;
+	}
+
+	hellcreek->ptp_base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(hellcreek->ptp_base)) {
+		dev_err(dev, "No memory available!\n");
+		return PTR_ERR(hellcreek->ptp_base);
 	}
 
 	ret = hellcreek_detect(hellcreek);
@@ -1205,15 +1264,27 @@ static int hellcreek_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	ret = hellcreek_ptp_setup(hellcreek);
+	if (ret) {
+		dev_err(dev, "Failed to setup PTP!\n");
+		goto err_ptp_setup;
+	}
+
 	platform_set_drvdata(pdev, hellcreek);
 
 	return 0;
+
+err_ptp_setup:
+	dsa_unregister_switch(hellcreek->ds);
+
+	return ret;
 }
 
 static int hellcreek_remove(struct platform_device *pdev)
 {
 	struct hellcreek *hellcreek = platform_get_drvdata(pdev);
 
+	hellcreek_ptp_free(hellcreek);
 	dsa_unregister_switch(hellcreek->ds);
 	platform_set_drvdata(pdev, NULL);
 
