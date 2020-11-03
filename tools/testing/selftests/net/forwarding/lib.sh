@@ -1280,14 +1280,22 @@ mcast_packet_test()
 	local host1_if=$4
 	local host2_if=$5
 	local seen=0
+	local tc_proto="ip"
+	local mz_v6arg=""
+
+	# basic check to see if we were passed an IPv4 address, if not assume IPv6
+	if [[ ! $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+		tc_proto="ipv6"
+		mz_v6arg="-6"
+	fi
 
 	# Add an ACL on `host2_if` which will tell us whether the packet
 	# was received by it or not.
 	tc qdisc add dev $host2_if ingress
-	tc filter add dev $host2_if ingress protocol ip pref 1 handle 101 \
+	tc filter add dev $host2_if ingress protocol $tc_proto pref 1 handle 101 \
 		flower ip_proto udp dst_mac $mac action drop
 
-	$MZ $host1_if -c 1 -p 64 -b $mac -A $src_ip -B $ip -t udp "dp=4096,sp=2048" -q
+	$MZ $host1_if $mz_v6arg -c 1 -p 64 -b $mac -A $src_ip -B $ip -t udp "dp=4096,sp=2048" -q
 	sleep 1
 
 	tc -j -s filter show dev $host2_if ingress \
@@ -1297,7 +1305,7 @@ mcast_packet_test()
 		seen=1
 	fi
 
-	tc filter del dev $host2_if ingress protocol ip pref 1 handle 101 flower
+	tc filter del dev $host2_if ingress protocol $tc_proto pref 1 handle 101 flower
 	tc qdisc del dev $host2_if ingress
 
 	return $seen
