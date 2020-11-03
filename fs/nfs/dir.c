@@ -155,6 +155,7 @@ struct nfs_readdir_descriptor {
 	loff_t		current_index;
 	loff_t		prev_index;
 
+	__be32		verf[NFS_DIR_VERIFIER_SIZE];
 	unsigned long	dir_verifier;
 	unsigned long	timestamp;
 	unsigned long	gencount;
@@ -466,15 +467,15 @@ static int nfs_readdir_search_array(struct nfs_readdir_descriptor *desc)
 
 /* Fill a page with xdr information before transferring to the cache page */
 static int nfs_readdir_xdr_filler(struct nfs_readdir_descriptor *desc,
-				  u64 cookie, struct page **pages,
-				  size_t bufsize)
+				  __be32 *verf, u64 cookie,
+				  struct page **pages, size_t bufsize,
+				  __be32 *verf_res)
 {
 	struct inode *inode = file_inode(desc->file);
-	__be32 verf_res[2];
 	struct nfs_readdir_arg arg = {
 		.dentry = file_dentry(desc->file),
 		.cred = desc->file->f_cred,
-		.verf = NFS_I(inode)->cookieverf,
+		.verf = verf,
 		.cookie = cookie,
 		.pages = pages,
 		.page_len = bufsize,
@@ -503,8 +504,6 @@ static int nfs_readdir_xdr_filler(struct nfs_readdir_descriptor *desc,
 	}
 	desc->timestamp = timestamp;
 	desc->gencount = gencount;
-	memcpy(NFS_I(inode)->cookieverf, res.verf,
-	       sizeof(NFS_I(inode)->cookieverf));
 error:
 	return error;
 }
@@ -770,11 +769,13 @@ out_freepages:
 }
 
 static int nfs_readdir_xdr_to_array(struct nfs_readdir_descriptor *desc,
-				    struct page *page, struct inode *inode)
+				    struct page *page, __be32 *verf_arg,
+				    __be32 *verf_res)
 {
 	struct page **pages;
 	struct nfs_entry *entry;
 	size_t array_size;
+	struct inode *inode = file_inode(desc->file);
 	size_t dtsize = NFS_SERVER(inode)->dtsize;
 	int status = -ENOMEM;
 
@@ -801,8 +802,9 @@ static int nfs_readdir_xdr_to_array(struct nfs_readdir_descriptor *desc,
 
 	do {
 		unsigned int pglen;
-		status = nfs_readdir_xdr_filler(desc, entry->cookie,
-						pages, dtsize);
+		status = nfs_readdir_xdr_filler(desc, verf_arg, entry->cookie,
+						pages, dtsize,
+						verf_res);
 		if (status < 0)
 			break;
 
@@ -854,13 +856,15 @@ static int find_and_lock_cache_page(struct nfs_readdir_descriptor *desc)
 {
 	struct inode *inode = file_inode(desc->file);
 	struct nfs_inode *nfsi = NFS_I(inode);
+	__be32 verf[NFS_DIR_VERIFIER_SIZE];
 	int res;
 
 	desc->page = nfs_readdir_page_get_cached(desc);
 	if (!desc->page)
 		return -ENOMEM;
 	if (nfs_readdir_page_needs_filling(desc->page)) {
-		res = nfs_readdir_xdr_to_array(desc, desc->page, inode);
+		res = nfs_readdir_xdr_to_array(desc, desc->page,
+					       nfsi->cookieverf, verf);
 		if (res < 0) {
 			nfs_readdir_page_unlock_and_put_cached(desc);
 			if (res == -EBADCOOKIE || res == -ENOTSYNC) {
@@ -870,6 +874,7 @@ static int find_and_lock_cache_page(struct nfs_readdir_descriptor *desc)
 			}
 			return res;
 		}
+		memcpy(nfsi->cookieverf, verf, sizeof(nfsi->cookieverf));
 	}
 	res = nfs_readdir_search_array(desc);
 	if (res == 0) {
@@ -902,6 +907,7 @@ static int readdir_search_pagecache(struct nfs_readdir_descriptor *desc)
 static void nfs_do_filldir(struct nfs_readdir_descriptor *desc)
 {
 	struct file	*file = desc->file;
+	struct nfs_inode *nfsi = NFS_I(file_inode(file));
 	struct nfs_cache_array *array;
 	unsigned int i = 0;
 
@@ -915,6 +921,7 @@ static void nfs_do_filldir(struct nfs_readdir_descriptor *desc)
 			desc->eof = true;
 			break;
 		}
+		memcpy(desc->verf, nfsi->cookieverf, sizeof(desc->verf));
 		if (i < (array->size-1))
 			desc->dir_cookie = array->array[i+1].cookie;
 		else
@@ -949,8 +956,8 @@ static void nfs_do_filldir(struct nfs_readdir_descriptor *desc)
 static int uncached_readdir(struct nfs_readdir_descriptor *desc)
 {
 	struct page	*page = NULL;
+	__be32		verf[NFS_DIR_VERIFIER_SIZE];
 	int		status;
-	struct inode *inode = file_inode(desc->file);
 
 	dfprintk(DIRCACHE, "NFS: uncached_readdir() searching for cookie %Lu\n",
 			(unsigned long long)desc->dir_cookie);
@@ -967,7 +974,7 @@ static int uncached_readdir(struct nfs_readdir_descriptor *desc)
 	desc->duped = 0;
 
 	nfs_readdir_page_init_array(page, desc->dir_cookie);
-	status = nfs_readdir_xdr_to_array(desc, page, inode);
+	status = nfs_readdir_xdr_to_array(desc, page, desc->verf, verf);
 	if (status < 0)
 		goto out_release;
 
@@ -1023,6 +1030,7 @@ static int nfs_readdir(struct file *file, struct dir_context *ctx)
 	desc->dup_cookie = dir_ctx->dup_cookie;
 	desc->duped = dir_ctx->duped;
 	desc->attr_gencount = dir_ctx->attr_gencount;
+	memcpy(desc->verf, dir_ctx->verf, sizeof(desc->verf));
 	spin_unlock(&file->f_lock);
 
 	do {
@@ -1061,6 +1069,7 @@ static int nfs_readdir(struct file *file, struct dir_context *ctx)
 	dir_ctx->dup_cookie = desc->dup_cookie;
 	dir_ctx->duped = desc->duped;
 	dir_ctx->attr_gencount = desc->attr_gencount;
+	memcpy(dir_ctx->verf, desc->verf, sizeof(dir_ctx->verf));
 	spin_unlock(&file->f_lock);
 
 	kfree(desc);
@@ -1101,6 +1110,8 @@ static loff_t nfs_llseek_dir(struct file *filp, loff_t offset, int whence)
 			dir_ctx->dir_cookie = offset;
 		else
 			dir_ctx->dir_cookie = 0;
+		if (offset == 0)
+			memset(dir_ctx->verf, 0, sizeof(dir_ctx->verf));
 		dir_ctx->duped = 0;
 	}
 	spin_unlock(&filp->f_lock);
