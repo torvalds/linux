@@ -1844,24 +1844,27 @@ static __be32
 nfsd4_decode_layoutget(struct nfsd4_compoundargs *argp,
 		struct nfsd4_layoutget *lgp)
 {
-	DECODE_HEAD;
+	__be32 status;
 
-	READ_BUF(36);
-	lgp->lg_signal = be32_to_cpup(p++);
-	lgp->lg_layout_type = be32_to_cpup(p++);
-	lgp->lg_seg.iomode = be32_to_cpup(p++);
-	p = xdr_decode_hyper(p, &lgp->lg_seg.offset);
-	p = xdr_decode_hyper(p, &lgp->lg_seg.length);
-	p = xdr_decode_hyper(p, &lgp->lg_minlength);
-
-	status = nfsd4_decode_stateid(argp, &lgp->lg_sid);
+	if (xdr_stream_decode_u32(argp->xdr, &lgp->lg_signal) < 0)
+		return nfserr_bad_xdr;
+	if (xdr_stream_decode_u32(argp->xdr, &lgp->lg_layout_type) < 0)
+		return nfserr_bad_xdr;
+	if (xdr_stream_decode_u32(argp->xdr, &lgp->lg_seg.iomode) < 0)
+		return nfserr_bad_xdr;
+	if (xdr_stream_decode_u64(argp->xdr, &lgp->lg_seg.offset) < 0)
+		return nfserr_bad_xdr;
+	if (xdr_stream_decode_u64(argp->xdr, &lgp->lg_seg.length) < 0)
+		return nfserr_bad_xdr;
+	if (xdr_stream_decode_u64(argp->xdr, &lgp->lg_minlength) < 0)
+		return nfserr_bad_xdr;
+	status = nfsd4_decode_stateid4(argp, &lgp->lg_sid);
 	if (status)
 		return status;
+	if (xdr_stream_decode_u32(argp->xdr, &lgp->lg_maxcount) < 0)
+		return nfserr_bad_xdr;
 
-	READ_BUF(4);
-	lgp->lg_maxcount = be32_to_cpup(p++);
-
-	DECODE_TAIL;
+	return nfs_ok;
 }
 
 static __be32
