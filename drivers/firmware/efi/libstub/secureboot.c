@@ -24,9 +24,6 @@ static efi_status_t get_var(efi_char16_t *name, efi_guid_t *vendor, u32 *attr,
 
 /*
  * Determine whether we're in secure boot mode.
- *
- * Please keep the logic in sync with
- * arch/x86/xen/efi.c:xen_efi_get_secureboot().
  */
 enum efi_secureboot_mode efi_get_secureboot(void)
 {
