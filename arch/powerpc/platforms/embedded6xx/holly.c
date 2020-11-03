@@ -108,14 +108,12 @@ static void holly_remap_bridge(void)
 	tsi108_write_reg(TSI108_PCI_P2O_BAR2, 0x0);
 }
 
-static void __init holly_setup_arch(void)
+static void __init holly_init_pci(void)
 {
 	struct device_node *np;
 
 	if (ppc_md.progress)
 		ppc_md.progress("holly_setup_arch():set_bridge", 0);
-
-	tsi108_csr_vir_base = get_vir_csrbase();
 
 	/* setup PCI host bridge */
 	holly_remap_bridge();
@@ -127,6 +125,11 @@ static void __init holly_setup_arch(void)
 	ppc_md.pci_exclude_device = holly_exclude_device;
 	if (ppc_md.progress)
 		ppc_md.progress("tsi108: resources set", 0x100);
+}
+
+static void __init holly_setup_arch(void)
+{
+	tsi108_csr_vir_base = get_vir_csrbase();
 
 	printk(KERN_INFO "PPC750GX/CL Platform\n");
 }
@@ -259,6 +262,7 @@ define_machine(holly){
 	.name                   	= "PPC750 GX/CL TSI",
 	.probe                  	= holly_probe,
 	.setup_arch             	= holly_setup_arch,
+	.discover_phbs			= holly_init_pci,
 	.init_IRQ               	= holly_init_IRQ,
 	.show_cpuinfo           	= holly_show_cpuinfo,
 	.get_irq                	= mpic_get_irq,
