@@ -1868,6 +1868,53 @@ static const struct file_operations eeh_dev_break_fops = {
 	.read   = eeh_debugfs_dev_usage,
 };
 
+static ssize_t eeh_dev_can_recover(struct file *filp,
+				   const char __user *user_buf,
+				   size_t count, loff_t *ppos)
+{
+	struct pci_driver *drv;
+	struct pci_dev *pdev;
+	size_t ret;
+
+	pdev = eeh_debug_lookup_pdev(filp, user_buf, count, ppos);
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+
+	/*
+	 * In order for error recovery to work the driver needs to implement
+	 * .error_detected(), so it can quiesce IO to the device, and
+	 * .slot_reset() so it can re-initialise the device after a reset.
+	 *
+	 * Ideally they'd implement .resume() too, but some drivers which
+	 * we need to support (notably IPR) don't so I guess we can tolerate
+	 * that.
+	 *
+	 * .mmio_enabled() is mostly there as a work-around for devices which
+	 * take forever to re-init after a hot reset. Implementing that is
+	 * strictly optional.
+	 */
+	drv = pci_dev_driver(pdev);
+	if (drv &&
+	    drv->err_handler &&
+	    drv->err_handler->error_detected &&
+	    drv->err_handler->slot_reset) {
+		ret = count;
+	} else {
+		ret = -EOPNOTSUPP;
+	}
+
+	pci_dev_put(pdev);
+
+	return ret;
+}
+
+static const struct file_operations eeh_dev_can_recover_fops = {
+	.open	= simple_open,
+	.llseek	= no_llseek,
+	.write	= eeh_dev_can_recover,
+	.read   = eeh_debugfs_dev_usage,
+};
+
 #endif
 
 static int __init eeh_init_proc(void)
@@ -1892,6 +1939,9 @@ static int __init eeh_init_proc(void)
 		debugfs_create_file_unsafe("eeh_force_recover", 0600,
 				powerpc_debugfs_root, NULL,
 				&eeh_force_recover_fops);
+		debugfs_create_file_unsafe("eeh_dev_can_recover", 0600,
+				powerpc_debugfs_root, NULL,
+				&eeh_dev_can_recover_fops);
 		eeh_cache_debugfs_init();
 #endif
 	}
