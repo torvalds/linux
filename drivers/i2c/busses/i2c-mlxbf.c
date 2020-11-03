@@ -2264,6 +2264,7 @@ static const struct of_device_id mlxbf_i2c_dt_ids[] = {
 
 MODULE_DEVICE_TABLE(of, mlxbf_i2c_dt_ids);
 
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id mlxbf_i2c_acpi_ids[] = {
 	{ "MLNXBF03", (kernel_ulong_t)&mlxbf_i2c_chip[MLXBF_I2C_CHIP_TYPE_1] },
 	{ "MLNXBF23", (kernel_ulong_t)&mlxbf_i2c_chip[MLXBF_I2C_CHIP_TYPE_2] },
@@ -2305,6 +2306,12 @@ static int mlxbf_i2c_acpi_probe(struct device *dev, struct mlxbf_i2c_priv *priv)
 
 	return ret;
 }
+#else
+static int mlxbf_i2c_acpi_probe(struct device *dev, struct mlxbf_i2c_priv *priv)
+{
+	return -ENOENT;
+}
+#endif /* CONFIG_ACPI */
 
 static int mlxbf_i2c_of_probe(struct device *dev, struct mlxbf_i2c_priv *priv)
 {
@@ -2473,7 +2480,9 @@ static struct platform_driver mlxbf_i2c_driver = {
 	.driver = {
 		.name = "i2c-mlxbf",
 		.of_match_table = mlxbf_i2c_dt_ids,
+#ifdef CONFIG_ACPI
 		.acpi_match_table = ACPI_PTR(mlxbf_i2c_acpi_ids),
+#endif /* CONFIG_ACPI  */
 	},
 };
 
