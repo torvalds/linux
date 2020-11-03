@@ -878,21 +878,17 @@ nfsd4_decode_locker4(struct nfsd4_compoundargs *argp, struct nfsd4_lock *lock)
 static __be32
 nfsd4_decode_lock(struct nfsd4_compoundargs *argp, struct nfsd4_lock *lock)
 {
-	DECODE_HEAD;
-
-	/*
-	* type, reclaim(boolean), offset, length, new_lock_owner(boolean)
-	*/
-	READ_BUF(28);
-	lock->lk_type = be32_to_cpup(p++);
+	if (xdr_stream_decode_u32(argp->xdr, &lock->lk_type) < 0)
+		return nfserr_bad_xdr;
 	if ((lock->lk_type < NFS4_READ_LT) || (lock->lk_type > NFS4_WRITEW_LT))
-		goto xdr_error;
-	lock->lk_reclaim = be32_to_cpup(p++);
-	p = xdr_decode_hyper(p, &lock->lk_offset);
-	p = xdr_decode_hyper(p, &lock->lk_length);
-	status = nfsd4_decode_locker4(argp, lock);
-
-	DECODE_TAIL;
+		return nfserr_bad_xdr;
+	if (xdr_stream_decode_bool(argp->xdr, &lock->lk_reclaim) < 0)
+		return nfserr_bad_xdr;
+	if (xdr_stream_decode_u64(argp->xdr, &lock->lk_offset) < 0)
+		return nfserr_bad_xdr;
+	if (xdr_stream_decode_u64(argp->xdr, &lock->lk_length) < 0)
+		return nfserr_bad_xdr;
+	return nfsd4_decode_locker4(argp, lock);
 }
 
 static __be32
