@@ -443,8 +443,10 @@ static int init_bios_attributes(int attr_type, const char *guid)
 
 		/* build attribute */
 		attr_name_kobj = kzalloc(sizeof(*attr_name_kobj), GFP_KERNEL);
-		if (!attr_name_kobj)
+		if (!attr_name_kobj) {
+			retval = -ENOMEM;
 			goto err_attr_init;
+		}
 
 		attr_name_kobj->kset = tmp_set;
 
@@ -486,13 +488,13 @@ nextobj:
 		elements = obj ? obj->package.elements : NULL;
 	}
 
-	goto out;
+	mutex_unlock(&wmi_priv.mutex);
+	return 0;
 
 err_attr_init:
+	mutex_unlock(&wmi_priv.mutex);
 	release_attributes_data();
 	kfree(obj);
-out:
-	mutex_unlock(&wmi_priv.mutex);
 	return retval;
 }
 
