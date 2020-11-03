@@ -82,6 +82,7 @@
 #define   MS_OC_INT_EN			(1 << 23)
 #define   SD_OC_INT_EN			(1 << 22)
 
+#define RTSX_DUM_REG			0x1C
 
 /*
  * macros for easy use
@@ -1272,6 +1273,8 @@ struct rtsx_pcr {
 #define PCI_PID(pcr)			((pcr)->pci->device)
 #define is_version(pcr, pid, ver)				\
 	(CHK_PCI_PID(pcr, pid) && (pcr)->ic_version == (ver))
+#define is_version_higher_than(pcr, pid, ver)			\
+	(CHK_PCI_PID(pcr, pid) && (pcr)->ic_version > (ver))
 #define pcr_dbg(pcr, fmt, arg...)				\
 	dev_dbg(&(pcr)->pci->dev, fmt, ##arg)
 

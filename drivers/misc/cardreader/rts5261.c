@@ -176,6 +176,8 @@ static int rts5261_card_power_on(struct rtsx_pcr *pcr, int card)
 	if (option->ocp_en)
 		rtsx_pci_enable_ocp(pcr);
 
+	rtsx_pci_write_register(pcr, REG_CRC_DUMMY_0,
+		CFG_SD_POW_AUTO_PD, CFG_SD_POW_AUTO_PD);
 
 	rtsx_pci_write_register(pcr, RTS5261_LDO1_CFG1,
 			RTS5261_LDO1_TUNE_MASK, RTS5261_LDO1_33);
@@ -303,6 +305,8 @@ static int rts5261_card_power_off(struct rtsx_pcr *pcr, int card)
 	err = rtsx_pci_write_register(pcr, RTS5261_LDO1233318_POW_CTL,
 				RTS5261_LDO_POWERON_MASK, 0);
 
+	rtsx_pci_write_register(pcr, REG_CRC_DUMMY_0,
+		CFG_SD_POW_AUTO_PD, 0);
 	if (pcr->option.ocp_en)
 		rtsx_pci_disable_ocp(pcr);
 
@@ -475,6 +479,7 @@ static void rts5261_init_from_cfg(struct rtsx_pcr *pcr)
 static int rts5261_extra_init_hw(struct rtsx_pcr *pcr)
 {
 	struct rtsx_cr_option *option = &pcr->option;
+	u32 val;
 
 	rtsx_pci_write_register(pcr, RTS5261_AUTOLOAD_CFG1,
 			CD_RESUME_EN_MASK, CD_RESUME_EN_MASK);
@@ -489,6 +494,10 @@ static int rts5261_extra_init_hw(struct rtsx_pcr *pcr)
 			AUX_CLK_ACTIVE_SEL_MASK, MAC_CKSW_DONE);
 	rtsx_pci_write_register(pcr, L1SUB_CONFIG3, 0xFF, 0);
 
+	if (is_version_higher_than(pcr, PID_5261, IC_VER_B)) {
+		val = rtsx_pci_readl(pcr, RTSX_DUM_REG);
+		rtsx_pci_writel(pcr, RTSX_DUM_REG, val | 0x1);
+	}
 	rtsx_pci_write_register(pcr, RTS5261_AUTOLOAD_CFG4,
 			RTS5261_AUX_CLK_16M_EN, 0);
 
