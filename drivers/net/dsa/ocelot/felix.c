@@ -112,10 +112,32 @@ static void felix_bridge_leave(struct dsa_switch *ds, int port,
 	ocelot_port_bridge_leave(ocelot, port, br);
 }
 
-/* This callback needs to be present */
 static int felix_vlan_prepare(struct dsa_switch *ds, int port,
 			      const struct switchdev_obj_port_vlan *vlan)
 {
+	struct ocelot *ocelot = ds->priv;
+	u16 vid, flags = vlan->flags;
+	int err;
+
+	/* Ocelot switches copy frames as-is to the CPU, so the flags:
+	 * egress-untagged or not, pvid or not, make no difference. This
+	 * behavior is already better than what DSA just tries to approximate
+	 * when it installs the VLAN with the same flags on the CPU port.
+	 * Just accept any configuration, and don't let ocelot deny installing
+	 * multiple native VLANs on the NPI port, because the switch doesn't
+	 * look at the port tag settings towards the NPI interface anyway.
+	 */
+	if (port == ocelot->npi)
+		return 0;
+
+	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
+		err = ocelot_vlan_prepare(ocelot, port, vid,
+					  flags & BRIDGE_VLAN_INFO_PVID,
+					  flags & BRIDGE_VLAN_INFO_UNTAGGED);
+		if (err)
+			return err;
+	}
+
 	return 0;
 }
 
@@ -134,9 +156,6 @@ static void felix_vlan_add(struct dsa_switch *ds, int port,
 	u16 flags = vlan->flags;
 	u16 vid;
 	int err;
-
-	if (dsa_is_cpu_port(ds, port))
-		flags &= ~BRIDGE_VLAN_INFO_UNTAGGED;
 
 	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
 		err = ocelot_vlan_add(ocelot, port, vid,
