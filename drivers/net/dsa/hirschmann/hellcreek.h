@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
+#include <linux/leds.h>
 #include <linux/platform_data/hirschmann-hellcreek.h>
 #include <linux/ptp_clock_kernel.h>
 #include <linux/timecounter.h>
@@ -267,6 +268,8 @@ struct hellcreek {
 	struct ptp_clock_info ptp_clock_info;
 	struct hellcreek_port *ports;
 	struct delayed_work overflow_work;
+	struct led_classdev led_is_gm;
+	struct led_classdev led_sync_good;
 	struct mutex reg_lock;	/* Switch IP register lock */
 	struct mutex vlan_lock;	/* VLAN bitmaps lock */
 	struct mutex ptp_lock;	/* PTP IP register lock */
@@ -276,6 +279,7 @@ struct hellcreek {
 	u8 *vidmbrcfg;		/* vidmbrcfg shadow */
 	u64 seconds;		/* PTP seconds */
 	u64 last_ts;		/* Used for overflow detection */
+	u16 status_out;		/* ptp.status_out shadow */
 	size_t fdb_entries;
 };
 
