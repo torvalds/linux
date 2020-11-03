@@ -1114,7 +1114,7 @@ static int cdns3_ep_run_transfer(struct cdns3_endpoint *priv_ep,
 	struct cdns3_device *priv_dev = priv_ep->cdns3_dev;
 	struct cdns3_request *priv_req;
 	struct cdns3_trb *trb;
-	struct cdns3_trb *link_trb;
+	struct cdns3_trb *link_trb = NULL;
 	dma_addr_t trb_dma;
 	u32 togle_pcs = 1;
 	int sg_iter = 0;
