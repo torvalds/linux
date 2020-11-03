@@ -17,6 +17,8 @@
 #define rts5261_reg_check_reverse_socket(reg)	((reg) & 0x04)
 #define rts5261_reg_to_sd30_drive_sel_1v8(reg)	(((reg) >> 22) & 0x03)
 #define rts5261_reg_to_sd30_drive_sel_3v3(reg)	(((reg) >> 16) & 0x03)
+#define rts5261_reg_to_rtd3(reg)		((reg) & 0x08)
+#define rts5261_reg_check_mmc_support(reg)	((reg) & 0x10)
 
 #define RTS5261_AUTOLOAD_CFG0		0xFF7B
 #define RTS5261_AUTOLOAD_CFG1		0xFF7C

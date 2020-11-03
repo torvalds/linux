@@ -67,9 +67,17 @@ static void rtsx5261_fetch_vendor_settings(struct rtsx_pcr *pcr)
 	pcr_dbg(pcr, "Cfg 0x%x: 0x%x\n", PCR_SETTING_REG2, reg);
 
 	if (!rts5261_vendor_setting_valid(reg)) {
+		/* Not support MMC default */
+		pcr->extra_caps |= EXTRA_CAPS_NO_MMC;
 		pcr_dbg(pcr, "skip fetch vendor setting\n");
 		return;
 	}
+
+	if (!rts5261_reg_check_mmc_support(reg))
+		pcr->extra_caps |= EXTRA_CAPS_NO_MMC;
+
+	/* TO do: need to add rtd3 function */
+	pcr->rtd3_en = rts5261_reg_to_rtd3(reg);
 
 	if (rts5261_reg_check_reverse_socket(reg))
 		pcr->flags |= PCR_REVERSE_SOCKET;
