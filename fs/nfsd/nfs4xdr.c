@@ -315,32 +315,6 @@ nfsd4_decode_verifier4(struct nfsd4_compoundargs *argp, nfs4_verifier *verf)
 	return nfs_ok;
 }
 
-static __be32
-nfsd4_decode_bitmap(struct nfsd4_compoundargs *argp, u32 *bmval)
-{
-	u32 bmlen;
-	DECODE_HEAD;
-
-	bmval[0] = 0;
-	bmval[1] = 0;
-	bmval[2] = 0;
-
-	READ_BUF(4);
-	bmlen = be32_to_cpup(p++);
-	if (bmlen > 1000)
-		goto xdr_error;
-
-	READ_BUF(bmlen << 2);
-	if (bmlen > 0)
-		bmval[0] = be32_to_cpup(p++);
-	if (bmlen > 1)
-		bmval[1] = be32_to_cpup(p++);
-	if (bmlen > 2)
-		bmval[2] = be32_to_cpup(p++);
-
-	DECODE_TAIL;
-}
-
 /**
  * nfsd4_decode_bitmap4 - Decode an NFSv4 bitmap4
  * @argp: NFSv4 compound argument structure
@@ -1497,6 +1471,24 @@ static __be32 nfsd4_decode_bind_conn_to_session(struct nfsd4_compoundargs *argp,
 }
 
 static __be32
+nfsd4_decode_state_protect_ops(struct nfsd4_compoundargs *argp,
+			       struct nfsd4_exchange_id *exid)
+{
+	__be32 status;
+
+	status = nfsd4_decode_bitmap4(argp, exid->spo_must_enforce,
+				      ARRAY_SIZE(exid->spo_must_enforce));
+	if (status)
+		return nfserr_bad_xdr;
+	status = nfsd4_decode_bitmap4(argp, exid->spo_must_allow,
+				      ARRAY_SIZE(exid->spo_must_allow));
+	if (status)
+		return nfserr_bad_xdr;
+
+	return nfs_ok;
+}
+
+static __be32
 nfsd4_decode_exchange_id(struct nfsd4_compoundargs *argp,
 			 struct nfsd4_exchange_id *exid)
 {
@@ -1520,27 +1512,15 @@ nfsd4_decode_exchange_id(struct nfsd4_compoundargs *argp,
 	case SP4_NONE:
 		break;
 	case SP4_MACH_CRED:
-		/* spo_must_enforce */
-		status = nfsd4_decode_bitmap(argp,
-					exid->spo_must_enforce);
+		status = nfsd4_decode_state_protect_ops(argp, exid);
 		if (status)
-			goto out;
-		/* spo_must_allow */
-		status = nfsd4_decode_bitmap(argp, exid->spo_must_allow);
-		if (status)
-			goto out;
+			return status;
 		break;
 	case SP4_SSV:
 		/* ssp_ops */
-		READ_BUF(4);
-		dummy = be32_to_cpup(p++);
-		READ_BUF(dummy * 4);
-		p += dummy;
-
-		READ_BUF(4);
-		dummy = be32_to_cpup(p++);
-		READ_BUF(dummy * 4);
-		p += dummy;
+		status = nfsd4_decode_state_protect_ops(argp, exid);
+		if (status)
+			return status;
 
 		/* ssp_hash_algs<> */
 		READ_BUF(4);
