@@ -18,7 +18,6 @@ struct charlcd {
 	const struct charlcd_ops *ops;
 	const unsigned char *char_conv;	/* Optional */
 
-	int ifwidth;			/* 4-bit or 8-bit (default) */
 	int height;
 	int width;
 

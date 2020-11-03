@@ -275,7 +275,7 @@ static int hd44780_probe(struct platform_device *pdev)
 	/* Optional properties */
 	device_property_read_u32(dev, "internal-buffer-width", &hdc->bwidth);
 
-	lcd->ifwidth = ifwidth;
+	hdc->ifwidth = ifwidth;
 	lcd->ops = ifwidth == 8 ? &hd44780_ops_gpio8 : &hd44780_ops_gpio4;
 
 	ret = charlcd_register(lcd);

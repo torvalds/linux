@@ -4,6 +4,7 @@
 #define DEFAULT_LCD_HWIDTH      64
 
 struct hd44780_common {
+	int ifwidth;			/* 4-bit or 8-bit (default) */
 	int bwidth;			/* Default set by hd44780_alloc() */
 	int hwidth;			/* Default set by hd44780_alloc() */
 	void *hd44780;
