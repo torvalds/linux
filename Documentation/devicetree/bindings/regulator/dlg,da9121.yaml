@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/dlg,da9121.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Dialog Semiconductor DA9121 voltage regulator
+
+maintainers:
+  - Vincent Whitchurch <vincent.whitchurch@axis.com>
+
+properties:
+  compatible:
+    const: dlg,da9121
+
+  reg:
+    maxItems: 1
+
+  buck1:
+    description:
+      Initial data for the Buck1 regulator.
+    $ref: "regulator.yaml#"
+    type: object
+
+unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+
+examples:
+  - |
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+      regulator@68 {
+        compatible = "dlg,da9121";
+        reg = <0x68>;
+
+        buck1 {
+          regulator-min-microvolt = <680000>;
+          regulator-max-microvolt = <820000>;
+        };
+      };
+    };
+
+...
