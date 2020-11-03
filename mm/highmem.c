@@ -32,7 +32,7 @@
 #include <linux/vmalloc.h>
 
 #ifndef CONFIG_KMAP_LOCAL
-#if defined(CONFIG_HIGHMEM) || defined(CONFIG_X86_32)
+#ifdef CONFIG_HIGHMEM
 DEFINE_PER_CPU(int, __kmap_atomic_idx);
 #endif
 #endif

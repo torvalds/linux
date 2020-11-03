@@ -217,7 +217,7 @@ static inline void __kunmap_atomic(void *addr)
 #endif /* CONFIG_HIGHMEM */
 
 #if !defined(CONFIG_KMAP_LOCAL)
-#if defined(CONFIG_HIGHMEM) || defined(CONFIG_X86_32)
+#if defined(CONFIG_HIGHMEM)
 
 DECLARE_PER_CPU(int, __kmap_atomic_idx);
 
