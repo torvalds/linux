@@ -24,6 +24,11 @@ static inline void *qdisc_priv(struct Qdisc *q)
 	return &q->privdata;
 }
 
+static inline struct Qdisc *qdisc_from_priv(void *priv)
+{
+	return container_of(priv, struct Qdisc, privdata);
+}
+
 /* 
    Timer resolution MUST BE < 10% of min_schedulable_packet_size/bandwidth
    
