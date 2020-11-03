@@ -2226,6 +2226,17 @@ config BITFIELD_KUNIT
 
 	  If unsure, say N.
 
+config RESOURCE_KUNIT_TEST
+	tristate "KUnit test for resource API"
+	depends on KUNIT
+	help
+	  This builds the resource API unit test.
+	  Tests the logic of API provided by resource.c and ioport.h.
+	  For more information on KUnit and unit tests in general please refer
+	  to the KUnit documentation in Documentation/dev-tools/kunit/.
+
+	  If unsure, say N.
+
 config SYSCTL_KUNIT_TEST
 	tristate "KUnit test for sysctl" if !KUNIT_ALL_TESTS
 	depends on KUNIT
