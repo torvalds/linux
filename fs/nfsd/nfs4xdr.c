@@ -1370,20 +1370,27 @@ nfsd4_decode_setclientid_confirm(struct nfsd4_compoundargs *argp, struct nfsd4_s
 static __be32
 nfsd4_decode_verify(struct nfsd4_compoundargs *argp, struct nfsd4_verify *verify)
 {
-	DECODE_HEAD;
+	__be32 *p, status;
 
-	if ((status = nfsd4_decode_bitmap(argp, verify->ve_bmval)))
-		goto out;
+	status = nfsd4_decode_bitmap4(argp, verify->ve_bmval,
+				      ARRAY_SIZE(verify->ve_bmval));
+	if (status)
+		return status;
 
 	/* For convenience's sake, we compare raw xdr'd attributes in
 	 * nfsd4_proc_verify */
 
-	READ_BUF(4);
-	verify->ve_attrlen = be32_to_cpup(p++);
-	READ_BUF(verify->ve_attrlen);
-	SAVEMEM(verify->ve_attrval, verify->ve_attrlen);
+	if (xdr_stream_decode_u32(argp->xdr, &verify->ve_attrlen) < 0)
+		return nfserr_bad_xdr;
+	p = xdr_inline_decode(argp->xdr, verify->ve_attrlen);
+	if (!p)
+		return nfserr_bad_xdr;
+	verify->ve_attrval = svcxdr_tmpalloc(argp, verify->ve_attrlen);
+	if (!verify->ve_attrval)
+		return nfserr_jukebox;
+	memcpy(verify->ve_attrval, p, verify->ve_attrlen);
 
-	DECODE_TAIL;
+	return nfs_ok;
 }
 
 static __be32
