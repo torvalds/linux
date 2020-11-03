@@ -9,6 +9,13 @@
 #ifndef _CHARLCD_H
 #define _CHARLCD_H
 
+#define LCD_FLAG_B		0x0004	/* Blink on */
+#define LCD_FLAG_C		0x0008	/* Cursor on */
+#define LCD_FLAG_D		0x0010	/* Display on */
+#define LCD_FLAG_F		0x0020	/* Large font mode */
+#define LCD_FLAG_N		0x0040	/* 2-rows mode */
+#define LCD_FLAG_L		0x0080	/* Backlight enabled */
+
 enum charlcd_onoff {
 	CHARLCD_OFF = 0,
 	CHARLCD_ON,
@@ -46,6 +53,7 @@ struct charlcd {
  * @clear_display: Again clear the whole display, set the cursor to 0, 0. The
  * values in addr.x and addr.y are set to 0, 0 by charlcd prior to calling this
  * function.
+ * @init_display: Initialize the display.
  */
 struct charlcd_ops {
 	void (*clear_fast)(struct charlcd *lcd);
@@ -54,6 +62,7 @@ struct charlcd_ops {
 	int (*gotoxy)(struct charlcd *lcd);
 	int (*home)(struct charlcd *lcd);
 	int (*clear_display)(struct charlcd *lcd);
+	int (*init_display)(struct charlcd *lcd);
 };
 
 void charlcd_backlight(struct charlcd *lcd, enum charlcd_onoff on);

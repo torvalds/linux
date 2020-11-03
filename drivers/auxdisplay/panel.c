@@ -878,6 +878,7 @@ static const struct charlcd_ops charlcd_serial_ops = {
 	.gotoxy		= hd44780_common_gotoxy,
 	.home		= hd44780_common_home,
 	.clear_display	= hd44780_common_clear_display,
+	.init_display	= hd44780_common_init_display,
 };
 
 static const struct charlcd_ops charlcd_parallel_ops = {
@@ -886,6 +887,7 @@ static const struct charlcd_ops charlcd_parallel_ops = {
 	.gotoxy		= hd44780_common_gotoxy,
 	.home		= hd44780_common_home,
 	.clear_display	= hd44780_common_clear_display,
+	.init_display	= hd44780_common_init_display,
 };
 
 static const struct charlcd_ops charlcd_tilcd_ops = {
@@ -894,6 +896,7 @@ static const struct charlcd_ops charlcd_tilcd_ops = {
 	.gotoxy		= hd44780_common_gotoxy,
 	.home		= hd44780_common_home,
 	.clear_display	= hd44780_common_clear_display,
+	.init_display	= hd44780_common_init_display,
 };
 
 /* initialize the LCD driver */
