@@ -40,9 +40,6 @@ static void enable_lpa(void)
 	unsigned long value;
 
 	value = __read_32bit_c0_register($16, 3);
-	value |= 0x00000080;
-	__write_32bit_c0_register($16, 3, value);
-	value = __read_32bit_c0_register($16, 3);
 	pr_info("CP0_Config3: CP0 16.3 (0x%lx)\n", value);
 
 	value = __read_32bit_c0_register($5, 1);
