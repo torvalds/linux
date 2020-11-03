@@ -27,7 +27,6 @@ struct charlcd {
 struct charlcd_ops {
 	/* Required */
 	void (*write_cmd)(struct charlcd *lcd, int cmd);
-	void (*write_data)(struct charlcd *lcd, int data);
 
 	/* Optional */
 	void (*write_cmd_raw4)(struct charlcd *lcd, int cmd);	/* 4-bit only */

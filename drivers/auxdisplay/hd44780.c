@@ -115,9 +115,8 @@ static void hd44780_write_cmd_gpio8(struct charlcd *lcd, int cmd)
 }
 
 /* Send data to the LCD panel in 8 bit GPIO mode */
-static void hd44780_write_data_gpio8(struct charlcd *lcd, int data)
+static void hd44780_write_data_gpio8(struct hd44780_common *hdc, int data)
 {
-	struct hd44780_common *hdc = lcd->drvdata;
 	struct hd44780 *hd = hdc->hd44780;
 
 	hd44780_write_gpio8(hd, data, 1);
@@ -128,7 +127,6 @@ static void hd44780_write_data_gpio8(struct charlcd *lcd, int data)
 
 static const struct charlcd_ops hd44780_ops_gpio8 = {
 	.write_cmd	= hd44780_write_cmd_gpio8,
-	.write_data	= hd44780_write_data_gpio8,
 	.backlight	= hd44780_backlight,
 };
 
@@ -163,9 +161,8 @@ static void hd44780_write_cmd_raw_gpio4(struct charlcd *lcd, int cmd)
 }
 
 /* Send data to the LCD panel in 4 bit GPIO mode */
-static void hd44780_write_data_gpio4(struct charlcd *lcd, int data)
+static void hd44780_write_data_gpio4(struct hd44780_common *hdc, int data)
 {
-	struct hd44780_common *hdc = lcd->drvdata;
 	struct hd44780 *hd = hdc->hd44780;
 
 	hd44780_write_gpio4(hd, data, 1);
@@ -177,7 +174,6 @@ static void hd44780_write_data_gpio4(struct charlcd *lcd, int data)
 static const struct charlcd_ops hd44780_ops_gpio4 = {
 	.write_cmd	= hd44780_write_cmd_gpio4,
 	.write_cmd_raw4	= hd44780_write_cmd_raw_gpio4,
-	.write_data	= hd44780_write_data_gpio4,
 	.backlight	= hd44780_backlight,
 };
 
@@ -276,7 +272,13 @@ static int hd44780_probe(struct platform_device *pdev)
 	device_property_read_u32(dev, "internal-buffer-width", &hdc->bwidth);
 
 	hdc->ifwidth = ifwidth;
-	lcd->ops = ifwidth == 8 ? &hd44780_ops_gpio8 : &hd44780_ops_gpio4;
+	if (ifwidth == 8) {
+		lcd->ops = &hd44780_ops_gpio8;
+		hdc->write_data = hd44780_write_data_gpio8;
+	} else {
+		lcd->ops = &hd44780_ops_gpio4;
+		hdc->write_data = hd44780_write_data_gpio4;
+	}
 
 	ret = charlcd_register(lcd);
 	if (ret)

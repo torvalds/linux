@@ -182,7 +182,7 @@ static void charlcd_print(struct charlcd *lcd, char c)
 	if (priv->addr.x < hdc->bwidth) {
 		if (lcd->char_conv)
 			c = lcd->char_conv[(unsigned char)c];
-		lcd->ops->write_data(lcd, c);
+		hdc->write_data(hdc, c);
 		priv->addr.x++;
 
 		/* prevents the cursor from wrapping onto the next line */
@@ -202,7 +202,7 @@ static void charlcd_clear_fast(struct charlcd *lcd)
 		lcd->ops->clear_fast(lcd);
 	else
 		for (pos = 0; pos < min(2, lcd->height) * hdc->hwidth; pos++)
-			lcd->ops->write_data(lcd, ' ');
+			hdc->write_data(hdc, ' ');
 
 	charlcd_home(lcd);
 }
@@ -446,7 +446,7 @@ static inline int handle_lcd_special_code(struct charlcd *lcd)
 		int x;
 
 		for (x = priv->addr.x; x < hdc->bwidth; x++)
-			lcd->ops->write_data(lcd, ' ');
+			hdc->write_data(hdc, ' ');
 
 		/* restore cursor position */
 		charlcd_gotoxy(lcd);
@@ -505,7 +505,7 @@ static inline int handle_lcd_special_code(struct charlcd *lcd)
 
 		lcd->ops->write_cmd(lcd, LCD_CMD_SET_CGRAM_ADDR | (cgaddr * 8));
 		for (addr = 0; addr < cgoffset; addr++)
-			lcd->ops->write_data(lcd, cgbytes[addr]);
+			hdc->write_data(hdc, cgbytes[addr]);
 
 		/* ensures that we stop writing to CGRAM */
 		charlcd_gotoxy(lcd);
@@ -587,7 +587,7 @@ static void charlcd_write_char(struct charlcd *lcd, char c)
 				priv->addr.x--;
 			}
 			/* replace with a space */
-			lcd->ops->write_data(lcd, ' ');
+			hdc->write_data(hdc, ' ');
 			/* back one char again */
 			lcd->ops->write_cmd(lcd, LCD_CMD_SHIFT);
 			break;
@@ -601,7 +601,7 @@ static void charlcd_write_char(struct charlcd *lcd, char c)
 			 * go to the beginning of the next line
 			 */
 			for (; priv->addr.x < hdc->bwidth; priv->addr.x++)
-				lcd->ops->write_data(lcd, ' ');
+				hdc->write_data(hdc, ' ');
 			priv->addr.x = 0;
 			priv->addr.y = (priv->addr.y + 1) % lcd->height;
 			charlcd_gotoxy(lcd);
