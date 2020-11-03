@@ -53,6 +53,29 @@ static uint32_t core0_c0count[NR_CPUS];
 
 u32 (*ipi_read_clear)(int cpu);
 void (*ipi_write_action)(int cpu, u32 action);
+void (*ipi_write_enable)(int cpu);
+void (*ipi_clear_buf)(int cpu);
+void (*ipi_write_buf)(int cpu, struct task_struct *idle);
+
+/* send mail via Mail_Send register for 3A4000+ CPU */
+static void csr_mail_send(uint64_t data, int cpu, int mailbox)
+{
+	uint64_t val;
+
+	/* send high 32 bits */
+	val = CSR_MAIL_SEND_BLOCK;
+	val |= (CSR_MAIL_SEND_BOX_HIGH(mailbox) << CSR_MAIL_SEND_BOX_SHIFT);
+	val |= (cpu << CSR_MAIL_SEND_CPU_SHIFT);
+	val |= (data & CSR_MAIL_SEND_H32_MASK);
+	csr_writeq(val, LOONGSON_CSR_MAIL_SEND);
+
+	/* send low 32 bits */
+	val = CSR_MAIL_SEND_BLOCK;
+	val |= (CSR_MAIL_SEND_BOX_LOW(mailbox) << CSR_MAIL_SEND_BOX_SHIFT);
+	val |= (cpu << CSR_MAIL_SEND_CPU_SHIFT);
+	val |= (data << CSR_MAIL_SEND_BUF_SHIFT);
+	csr_writeq(val, LOONGSON_CSR_MAIL_SEND);
+};
 
 static u32 csr_ipi_read_clear(int cpu)
 {
@@ -79,6 +102,35 @@ static void csr_ipi_write_action(int cpu, u32 action)
 	}
 }
 
+static void csr_ipi_write_enable(int cpu)
+{
+	csr_writel(0xffffffff, LOONGSON_CSR_IPI_EN);
+}
+
+static void csr_ipi_clear_buf(int cpu)
+{
+	csr_writeq(0, LOONGSON_CSR_MAIL_BUF0);
+}
+
+static void csr_ipi_write_buf(int cpu, struct task_struct *idle)
+{
+	unsigned long startargs[4];
+
+	/* startargs[] are initial PC, SP and GP for secondary CPU */
+	startargs[0] = (unsigned long)&smp_bootstrap;
+	startargs[1] = (unsigned long)__KSTK_TOS(idle);
+	startargs[2] = (unsigned long)task_thread_info(idle);
+	startargs[3] = 0;
+
+	pr_debug("CPU#%d, func_pc=%lx, sp=%lx, gp=%lx\n",
+		cpu, startargs[0], startargs[1], startargs[2]);
+
+	csr_mail_send(startargs[3], cpu_logical_map(cpu), 3);
+	csr_mail_send(startargs[2], cpu_logical_map(cpu), 2);
+	csr_mail_send(startargs[1], cpu_logical_map(cpu), 1);
+	csr_mail_send(startargs[0], cpu_logical_map(cpu), 0);
+}
+
 static u32 legacy_ipi_read_clear(int cpu)
 {
 	u32 action;
@@ -96,14 +148,53 @@ static void legacy_ipi_write_action(int cpu, u32 action)
 	loongson3_ipi_write32((u32)action, ipi_set0_regs[cpu]);
 }
 
+static void legacy_ipi_write_enable(int cpu)
+{
+	loongson3_ipi_write32(0xffffffff, ipi_en0_regs[cpu_logical_map(cpu)]);
+}
+
+static void legacy_ipi_clear_buf(int cpu)
+{
+	loongson3_ipi_write64(0, ipi_mailbox_buf[cpu_logical_map(cpu)] + 0x0);
+}
+
+static void legacy_ipi_write_buf(int cpu, struct task_struct *idle)
+{
+	unsigned long startargs[4];
+
+	/* startargs[] are initial PC, SP and GP for secondary CPU */
+	startargs[0] = (unsigned long)&smp_bootstrap;
+	startargs[1] = (unsigned long)__KSTK_TOS(idle);
+	startargs[2] = (unsigned long)task_thread_info(idle);
+	startargs[3] = 0;
+
+	pr_debug("CPU#%d, func_pc=%lx, sp=%lx, gp=%lx\n",
+			cpu, startargs[0], startargs[1], startargs[2]);
+
+	loongson3_ipi_write64(startargs[3],
+			ipi_mailbox_buf[cpu_logical_map(cpu)] + 0x18);
+	loongson3_ipi_write64(startargs[2],
+			ipi_mailbox_buf[cpu_logical_map(cpu)] + 0x10);
+	loongson3_ipi_write64(startargs[1],
+			ipi_mailbox_buf[cpu_logical_map(cpu)] + 0x8);
+	loongson3_ipi_write64(startargs[0],
+			ipi_mailbox_buf[cpu_logical_map(cpu)] + 0x0);
+}
+
 static void csr_ipi_probe(void)
 {
 	if (cpu_has_csr() && csr_readl(LOONGSON_CSR_FEATURES) & LOONGSON_CSRF_IPI) {
 		ipi_read_clear = csr_ipi_read_clear;
 		ipi_write_action = csr_ipi_write_action;
+		ipi_write_enable = csr_ipi_write_enable;
+		ipi_clear_buf = csr_ipi_clear_buf;
+		ipi_write_buf = csr_ipi_write_buf;
 	} else {
 		ipi_read_clear = legacy_ipi_read_clear;
 		ipi_write_action = legacy_ipi_write_action;
+		ipi_write_enable = legacy_ipi_write_enable;
+		ipi_clear_buf = legacy_ipi_clear_buf;
+		ipi_write_buf = legacy_ipi_write_buf;
 	}
 }
 
@@ -347,8 +438,7 @@ static void loongson3_init_secondary(void)
 
 	/* Set interrupt mask, but don't enable */
 	change_c0_status(ST0_IM, imask);
-
-	loongson3_ipi_write32(0xffffffff, ipi_en0_regs[cpu_logical_map(cpu)]);
+	ipi_write_enable(cpu);
 
 	per_cpu(cpu_state, cpu) = CPU_ONLINE;
 	cpu_set_core(&cpu_data[cpu],
@@ -380,8 +470,8 @@ static void loongson3_smp_finish(void)
 
 	write_c0_compare(read_c0_count() + mips_hpt_frequency/HZ);
 	local_irq_enable();
-	loongson3_ipi_write64(0,
-			ipi_mailbox_buf[cpu_logical_map(cpu)] + 0x0);
+	ipi_clear_buf(cpu);
+
 	pr_info("CPU#%d finished, CP0_ST=%x\n",
 			smp_processor_id(), read_c0_status());
 }
@@ -419,7 +509,8 @@ static void __init loongson3_smp_setup(void)
 	ipi_status0_regs_init();
 	ipi_en0_regs_init();
 	ipi_mailbox_buf_init();
-	loongson3_ipi_write32(0xffffffff, ipi_en0_regs[cpu_logical_map(0)]);
+	ipi_write_enable(0);
+
 	cpu_set_core(&cpu_data[0],
 		     cpu_logical_map(0) % loongson_sysconf.cores_per_package);
 	cpu_data[0].package = cpu_logical_map(0) / loongson_sysconf.cores_per_package;
@@ -439,27 +530,10 @@ static void __init loongson3_prepare_cpus(unsigned int max_cpus)
  */
 static int loongson3_boot_secondary(int cpu, struct task_struct *idle)
 {
-	unsigned long startargs[4];
-
 	pr_info("Booting CPU#%d...\n", cpu);
 
-	/* startargs[] are initial PC, SP and GP for secondary CPU */
-	startargs[0] = (unsigned long)&smp_bootstrap;
-	startargs[1] = (unsigned long)__KSTK_TOS(idle);
-	startargs[2] = (unsigned long)task_thread_info(idle);
-	startargs[3] = 0;
+	ipi_write_buf(cpu, idle);
 
-	pr_debug("CPU#%d, func_pc=%lx, sp=%lx, gp=%lx\n",
-			cpu, startargs[0], startargs[1], startargs[2]);
-
-	loongson3_ipi_write64(startargs[3],
-			ipi_mailbox_buf[cpu_logical_map(cpu)] + 0x18);
-	loongson3_ipi_write64(startargs[2],
-			ipi_mailbox_buf[cpu_logical_map(cpu)] + 0x10);
-	loongson3_ipi_write64(startargs[1],
-			ipi_mailbox_buf[cpu_logical_map(cpu)] + 0x8);
-	loongson3_ipi_write64(startargs[0],
-			ipi_mailbox_buf[cpu_logical_map(cpu)] + 0x0);
 	return 0;
 }
 
