@@ -75,6 +75,7 @@ struct charlcd {
  * @cursor: Turn cursor on or off.
  * @blink: Turn cursor blink on or off.
  * @lines: One or two lines.
+ * @redefine_char: Redefine the actual pixel matrix of character.
  */
 struct charlcd_ops {
 	void (*clear_fast)(struct charlcd *lcd);
@@ -91,6 +92,7 @@ struct charlcd_ops {
 	int (*blink)(struct charlcd *lcd, enum charlcd_onoff on);
 	int (*fontsize)(struct charlcd *lcd, enum charlcd_fontsize size);
 	int (*lines)(struct charlcd *lcd, enum charlcd_lines lines);
+	int (*redefine_char)(struct charlcd *lcd, char *esc);
 };
 
 void charlcd_backlight(struct charlcd *lcd, enum charlcd_onoff on);

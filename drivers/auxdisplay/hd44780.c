@@ -138,6 +138,7 @@ static const struct charlcd_ops hd44780_ops_gpio8 = {
 	.blink		= hd44780_common_blink,
 	.fontsize	= hd44780_common_fontsize,
 	.lines		= hd44780_common_lines,
+	.redefine_char	= hd44780_common_redefine_char,
 };
 
 /* Send a command to the LCD panel in 4 bit GPIO mode */
@@ -193,6 +194,7 @@ static const struct charlcd_ops hd44780_ops_gpio4 = {
 	.blink		= hd44780_common_blink,
 	.fontsize	= hd44780_common_fontsize,
 	.lines		= hd44780_common_lines,
+	.redefine_char	= hd44780_common_redefine_char,
 };
 
 static int hd44780_probe(struct platform_device *pdev)

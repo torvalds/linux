@@ -26,6 +26,8 @@
 #define LCD_CMD_TWO_LINES	0x08	/* Set to two display lines */
 #define LCD_CMD_FONT_5X10_DOTS	0x04	/* Set char font to 5x10 dots */
 
+#define LCD_CMD_SET_CGRAM_ADDR	0x40	/* Set char generator RAM address */
+
 #define LCD_CMD_SET_DDRAM_ADDR	0x80	/* Set display data RAM address */
 
 /* sleeps that many milliseconds with a reschedule */
@@ -288,6 +290,61 @@ int hd44780_common_lines(struct charlcd *lcd, enum charlcd_lines lines)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(hd44780_common_lines);
+
+int hd44780_common_redefine_char(struct charlcd *lcd, char *esc)
+{
+	/* Generator : LGcxxxxx...xx; must have <c> between '0'
+	 * and '7', representing the numerical ASCII code of the
+	 * redefined character, and <xx...xx> a sequence of 16
+	 * hex digits representing 8 bytes for each character.
+	 * Most LCDs will only use 5 lower bits of the 7 first
+	 * bytes.
+	 */
+
+	struct hd44780_common *hdc = lcd->drvdata;
+	unsigned char cgbytes[8];
+	unsigned char cgaddr;
+	int cgoffset;
+	int shift;
+	char value;
+	int addr;
+
+	if (!strchr(esc, ';'))
+		return 0;
+
+	esc++;
+
+	cgaddr = *(esc++) - '0';
+	if (cgaddr > 7)
+		return 1;
+
+	cgoffset = 0;
+	shift = 0;
+	value = 0;
+	while (*esc && cgoffset < 8) {
+		int half;
+
+		shift ^= 4;
+		half = hex_to_bin(*esc++);
+		if (half < 0)
+			continue;
+
+		value |= half << shift;
+		if (shift == 0) {
+			cgbytes[cgoffset++] = value;
+			value = 0;
+		}
+	}
+
+	hdc->write_cmd(hdc, LCD_CMD_SET_CGRAM_ADDR | (cgaddr * 8));
+	for (addr = 0; addr < cgoffset; addr++)
+		hdc->write_data(hdc, cgbytes[addr]);
+
+	/* ensures that we stop writing to CGRAM */
+	lcd->ops->gotoxy(lcd);
+	return 1;
+}
+EXPORT_SYMBOL_GPL(hd44780_common_redefine_char);
 
 struct hd44780_common *hd44780_common_alloc(void)
 {

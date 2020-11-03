@@ -886,6 +886,7 @@ static const struct charlcd_ops charlcd_serial_ops = {
 	.blink		= hd44780_common_blink,
 	.fontsize	= hd44780_common_fontsize,
 	.lines		= hd44780_common_lines,
+	.redefine_char	= hd44780_common_redefine_char,
 };
 
 static const struct charlcd_ops charlcd_parallel_ops = {
@@ -902,6 +903,7 @@ static const struct charlcd_ops charlcd_parallel_ops = {
 	.blink		= hd44780_common_blink,
 	.fontsize	= hd44780_common_fontsize,
 	.lines		= hd44780_common_lines,
+	.redefine_char	= hd44780_common_redefine_char,
 };
 
 static const struct charlcd_ops charlcd_tilcd_ops = {
@@ -918,6 +920,7 @@ static const struct charlcd_ops charlcd_tilcd_ops = {
 	.blink		= hd44780_common_blink,
 	.fontsize	= hd44780_common_fontsize,
 	.lines		= hd44780_common_lines,
+	.redefine_char	= hd44780_common_redefine_char,
 };
 
 /* initialize the LCD driver */
