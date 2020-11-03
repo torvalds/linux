@@ -20,6 +20,19 @@ possible source of information on its own, the EM framework intervenes as an
 abstraction layer which standardizes the format of power cost tables in the
 kernel, hence enabling to avoid redundant work.
 
+The power values might be expressed in milli-Watts or in an 'abstract scale'.
+Multiple subsystems might use the EM and it is up to the system integrator to
+check that the requirements for the power value scale types are met. An example
+can be found in the Energy-Aware Scheduler documentation
+Documentation/scheduler/sched-energy.rst. For some subsystems like thermal or
+powercap power values expressed in an 'abstract scale' might cause issues.
+These subsystems are more interested in estimation of power used in the past,
+thus the real milli-Watts might be needed. An example of these requirements can
+be found in the Intelligent Power Allocation in
+Documentation/driver-api/thermal/power_allocator.rst.
+Important thing to keep in mind is that when the power values are expressed in
+an 'abstract scale' deriving real energy in milli-Joules would not be possible.
+
 The figure below depicts an example of drivers (Arm-specific here, but the
 approach is applicable to any architecture) providing power costs to the EM
 framework, and interested clients reading the data from it::
