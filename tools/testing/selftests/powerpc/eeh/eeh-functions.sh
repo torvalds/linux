@@ -1,6 +1,8 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0-only
 
+export KSELFTESTS_SKIP=4
+
 pe_ok() {
 	local dev="$1"
 	local path="/sys/bus/pci/devices/$dev/eeh_pe_state"
@@ -37,6 +39,52 @@ pe_ok() {
 eeh_supported() {
 	test -e /proc/powerpc/eeh && \
 	grep -q 'EEH Subsystem is enabled' /proc/powerpc/eeh
+}
+
+eeh_test_prep() {
+	if ! eeh_supported ; then
+		echo "EEH not supported on this system, skipping"
+		exit $KSELFTESTS_SKIP;
+	fi
+
+	if [ ! -e "/sys/kernel/debug/powerpc/eeh_dev_check" ] && \
+	   [ ! -e "/sys/kernel/debug/powerpc/eeh_dev_break" ] ; then
+		echo "debugfs EEH testing files are missing. Is debugfs mounted?"
+		exit $KSELFTESTS_SKIP;
+	fi
+
+	# Bump the max freeze count to something absurd so we don't
+	# trip over it while breaking things.
+	echo 5000 > /sys/kernel/debug/powerpc/eeh_max_freezes
+}
+
+eeh_can_break() {
+	# skip bridges since we can't recover them (yet...)
+	if [ -e "/sys/bus/pci/devices/$dev/pci_bus" ] ; then
+		echo "$dev, Skipped: bridge"
+		return 1;
+	fi
+
+	# The ahci driver doesn't support error recovery. If the ahci device
+	# happens to be hosting the root filesystem, and then we go and break
+	# it the system will generally go down. We should probably fix that
+	# at some point
+	if [ "ahci" = "$(basename $(realpath /sys/bus/pci/devices/$dev/driver))" ] ; then
+		echo "$dev, Skipped: ahci doesn't support recovery"
+		return 1;
+	fi
+
+	# Don't inject errosr into an already-frozen PE. This happens with
+	# PEs that contain multiple PCI devices (e.g. multi-function cards)
+	# and injecting new errors during the recovery process will probably
+	# result in the recovery failing and the device being marked as
+	# failed.
+	if ! pe_ok $dev ; then
+		echo "$dev, Skipped: Bad initial PE state"
+		return 1;
+	fi
+
+	return 0
 }
 
 eeh_one_dev() {
