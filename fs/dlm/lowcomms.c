@@ -142,6 +142,8 @@ DEFINE_STATIC_SRCU(connections_srcu);
 static void process_recv_sockets(struct work_struct *work);
 static void process_send_sockets(struct work_struct *work);
 
+static void sctp_connect_to_sock(struct connection *con);
+static void tcp_connect_to_sock(struct connection *con);
 
 /* This is deliberately very simple because most clusters have simple
    sequential nodeids, so we should be able to go straight to a connection
@@ -185,14 +187,10 @@ static int dlm_con_init(struct connection *con, int nodeid)
 	INIT_WORK(&con->rwork, process_recv_sockets);
 	init_waitqueue_head(&con->shutdown_wait);
 
-	/* Setup action pointers for child sockets */
-	if (con->nodeid) {
-		struct connection *zerocon = __find_con(0);
-
-		con->connect_action = zerocon->connect_action;
-		if (!con->rx_action)
-			con->rx_action = zerocon->rx_action;
-	}
+	if (dlm_config.ci_protocol == 0)
+		con->connect_action = tcp_connect_to_sock;
+	else
+		con->connect_action = sctp_connect_to_sock;
 
 	return 0;
 }
@@ -1006,7 +1004,6 @@ static void sctp_connect_to_sock(struct connection *con)
 	sock_set_mark(sock->sk, mark);
 
 	con->rx_action = receive_from_sock;
-	con->connect_action = sctp_connect_to_sock;
 	add_sock(sock, con);
 
 	/* Bind to all addresses. */
@@ -1104,7 +1101,6 @@ static void tcp_connect_to_sock(struct connection *con)
 	}
 
 	con->rx_action = receive_from_sock;
-	con->connect_action = tcp_connect_to_sock;
 	con->shutdown_action = dlm_tcp_shutdown;
 	add_sock(sock, con);
 
@@ -1192,7 +1188,6 @@ static struct socket *tcp_create_listen_sock(struct connection *con,
 	sock->sk->sk_user_data = con;
 	save_listen_callbacks(sock);
 	con->rx_action = accept_from_sock;
-	con->connect_action = tcp_connect_to_sock;
 	write_unlock_bh(&sock->sk->sk_callback_lock);
 
 	/* Bind to our port */
@@ -1275,7 +1270,6 @@ static int sctp_listen_for_all(void)
 	con->sock = sock;
 	con->sock->sk->sk_data_ready = lowcomms_data_ready;
 	con->rx_action = accept_from_sock;
-	con->connect_action = sctp_connect_to_sock;
 
 	write_unlock_bh(&sock->sk->sk_callback_lock);
 
