@@ -13,9 +13,8 @@
 /**
  * em_perf_state - Performance state of a performance domain
  * @frequency:	The frequency in KHz, for consistency with CPUFreq
- * @power:	The power consumed at this level, in milli-watts (by 1 CPU or
-		by a registered device). It can be a total power: static and
-		dynamic.
+ * @power:	The power consumed at this level (by 1 CPU or by a registered
+ *		device). It can be a total power: static and dynamic.
  * @cost:	The cost coefficient associated with this level, used during
  *		energy calculation. Equal to: power * max_frequency / frequency
  */
@@ -58,7 +57,7 @@ struct em_data_callback {
 	/**
 	 * active_power() - Provide power at the next performance state of
 	 *		a device
-	 * @power	: Active power at the performance state in mW
+	 * @power	: Active power at the performance state
 	 *		(modified)
 	 * @freq	: Frequency at the performance state in kHz
 	 *		(modified)
@@ -69,8 +68,8 @@ struct em_data_callback {
 	 * and frequency.
 	 *
 	 * In case of CPUs, the power is the one of a single CPU in the domain,
-	 * expressed in milli-watts. It is expected to fit in the
-	 * [0, EM_MAX_POWER] range.
+	 * expressed in milli-Watts or an abstract scale. It is expected to
+	 * fit in the [0, EM_MAX_POWER] range.
 	 *
 	 * Return 0 on success.
 	 */
