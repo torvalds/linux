@@ -1193,10 +1193,20 @@ static int cdns3_ep_run_transfer(struct cdns3_endpoint *priv_ep,
 
 	/* set incorrect Cycle Bit for first trb*/
 	control = priv_ep->pcs ? 0 : TRB_CYCLE;
+	trb->length = 0;
+	if (priv_dev->dev_ver >= DEV_VER_V2) {
+		u16 td_size;
+
+		td_size = DIV_ROUND_UP(request->length,
+				       priv_ep->endpoint.maxpacket);
+		if (priv_dev->gadget.speed == USB_SPEED_SUPER)
+			trb->length = TRB_TDL_SS_SIZE(td_size);
+		else
+			control |= TRB_TDL_HS_SIZE(td_size);
+	}
 
 	do {
 		u32 length;
-		u16 td_size = 0;
 
 		/* fill TRB */
 		control |= TRB_TYPE(TRB_NORMAL);
@@ -1208,20 +1218,12 @@ static int cdns3_ep_run_transfer(struct cdns3_endpoint *priv_ep,
 			length = request->length;
 		}
 
-		if (likely(priv_dev->dev_ver >= DEV_VER_V2))
-			td_size = DIV_ROUND_UP(length,
-					       priv_ep->endpoint.maxpacket);
-		else if (priv_ep->flags & EP_TDLCHK_EN)
+		if (priv_ep->flags & EP_TDLCHK_EN)
 			total_tdl += DIV_ROUND_UP(length,
 					       priv_ep->endpoint.maxpacket);
 
-		trb->length = cpu_to_le32(TRB_BURST_LEN(priv_ep->trb_burst_size) |
+		trb->length |= cpu_to_le32(TRB_BURST_LEN(priv_ep->trb_burst_size) |
 					TRB_LEN(length));
-		if (priv_dev->gadget.speed == USB_SPEED_SUPER)
-			trb->length |= cpu_to_le32(TRB_TDL_SS_SIZE(td_size));
-		else
-			control |= TRB_TDL_HS_SIZE(td_size);
-
 		pcs = priv_ep->pcs ? TRB_CYCLE : 0;
 
 		/*
