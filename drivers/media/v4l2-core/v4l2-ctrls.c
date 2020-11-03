@@ -3363,9 +3363,6 @@ static int v4l2_ctrl_request_clone(struct v4l2_ctrl_handler *hdl,
 		/* Skip refs inherited from other devices */
 		if (ref->from_other_dev)
 			continue;
-		/* And buttons */
-		if (ctrl->type == V4L2_CTRL_TYPE_BUTTON)
-			continue;
 		err = handler_new_ref(hdl, ctrl, &new_ref, false, true);
 		if (err)
 			break;
@@ -4447,8 +4444,7 @@ int v4l2_ctrl_request_setup(struct media_request *req,
 		 * Skip if this control was already handled by a cluster.
 		 * Skip button controls and read-only controls.
 		 */
-		if (ref->req_done || ctrl->type == V4L2_CTRL_TYPE_BUTTON ||
-		    (ctrl->flags & V4L2_CTRL_FLAG_READ_ONLY))
+		if (ref->req_done || (ctrl->flags & V4L2_CTRL_FLAG_READ_ONLY))
 			continue;
 
 		v4l2_ctrl_lock(master);
