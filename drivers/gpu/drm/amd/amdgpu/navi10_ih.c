@@ -136,6 +136,9 @@ static void navi10_ih_enable_interrupts(struct amdgpu_device *adev)
 		}
 		adev->irq.ih2.enabled = true;
 	}
+
+	if (adev->irq.ih_soft.ring_size)
+		adev->irq.ih_soft.enabled = true;
 }
 
 /**
@@ -694,6 +697,10 @@ static int navi10_ih_sw_init(void *handle)
 		adev->irq.ih2.doorbell_index =
 					(adev->doorbell_index.ih + 2) << 1;
 	}
+
+	r = amdgpu_ih_ring_init(adev, &adev->irq.ih_soft, PAGE_SIZE, true);
+	if (r)
+		return r;
 
 	r = amdgpu_irq_init(adev);
 
