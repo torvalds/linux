@@ -170,29 +170,12 @@ static struct connection *__find_con(int nodeid)
 	return NULL;
 }
 
-/*
- * If 'allocation' is zero then we don't attempt to create a new
- * connection structure for this node.
- */
-static struct connection *nodeid2con(int nodeid, gfp_t alloc)
+static int dlm_con_init(struct connection *con, int nodeid)
 {
-	struct connection *con, *tmp;
-	int r;
-
-	con = __find_con(nodeid);
-	if (con || !alloc)
-		return con;
-
-	con = kzalloc(sizeof(*con), alloc);
-	if (!con)
-		return NULL;
-
 	con->rx_buflen = dlm_config.ci_buffer_size;
 	con->rx_buf = kmalloc(con->rx_buflen, GFP_NOFS);
-	if (!con->rx_buf) {
-		kfree(con);
-		return NULL;
-	}
+	if (!con->rx_buf)
+		return -ENOMEM;
 
 	con->nodeid = nodeid;
 	mutex_init(&con->sock_mutex);
@@ -209,6 +192,32 @@ static struct connection *nodeid2con(int nodeid, gfp_t alloc)
 		con->connect_action = zerocon->connect_action;
 		if (!con->rx_action)
 			con->rx_action = zerocon->rx_action;
+	}
+
+	return 0;
+}
+
+/*
+ * If 'allocation' is zero then we don't attempt to create a new
+ * connection structure for this node.
+ */
+static struct connection *nodeid2con(int nodeid, gfp_t alloc)
+{
+	struct connection *con, *tmp;
+	int r, ret;
+
+	con = __find_con(nodeid);
+	if (con || !alloc)
+		return con;
+
+	con = kzalloc(sizeof(*con), alloc);
+	if (!con)
+		return NULL;
+
+	ret = dlm_con_init(con, nodeid);
+	if (ret) {
+		kfree(con);
+		return NULL;
 	}
 
 	r = nodeid_hash(nodeid);
@@ -849,32 +858,20 @@ static int accept_from_sock(struct connection *con)
 				goto accept_err;
 			}
 
-			othercon->rx_buflen = dlm_config.ci_buffer_size;
-			othercon->rx_buf = kmalloc(othercon->rx_buflen, GFP_NOFS);
-			if (!othercon->rx_buf) {
-				mutex_unlock(&newcon->sock_mutex);
+			result = dlm_con_init(othercon, nodeid);
+			if (result < 0) {
 				kfree(othercon);
-				log_print("failed to allocate incoming socket receive buffer");
-				result = -ENOMEM;
 				goto accept_err;
 			}
 
-			othercon->nodeid = nodeid;
-			othercon->rx_action = receive_from_sock;
-			mutex_init(&othercon->sock_mutex);
-			INIT_LIST_HEAD(&othercon->writequeue);
-			spin_lock_init(&othercon->writequeue_lock);
-			INIT_WORK(&othercon->swork, process_send_sockets);
-			INIT_WORK(&othercon->rwork, process_recv_sockets);
-			init_waitqueue_head(&othercon->shutdown_wait);
 			set_bit(CF_IS_OTHERCON, &othercon->flags);
+			newcon->othercon = othercon;
 		} else {
 			/* close other sock con if we have something new */
 			close_connection(othercon, false, true, false);
 		}
 
 		mutex_lock_nested(&othercon->sock_mutex, 2);
-		newcon->othercon = othercon;
 		add_sock(newsock, othercon);
 		addcon = othercon;
 		mutex_unlock(&othercon->sock_mutex);
