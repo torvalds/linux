@@ -649,7 +649,7 @@ int rts5261_pci_switch_clock(struct rtsx_pcr *pcr, unsigned int card_clock,
 
 	if (initial_mode) {
 		/* We use 250k(around) here, in initial stage */
-		if (is_version(pcr, PID_5261, IC_VER_D)) {
+		if (is_version_higher_than(pcr, PID_5261, IC_VER_C)) {
 			clk_divider = SD_CLK_DIVIDE_256;
 			card_clock = 60000000;
 		} else {
@@ -700,7 +700,7 @@ int rts5261_pci_switch_clock(struct rtsx_pcr *pcr, unsigned int card_clock,
 		div++;
 	}
 
-	n = (n / 2);
+	n = (n / 2) - 1;
 	pcr_dbg(pcr, "n = %d, div = %d\n", n, div);
 
 	ssc_depth = depth[ssc_depth];
