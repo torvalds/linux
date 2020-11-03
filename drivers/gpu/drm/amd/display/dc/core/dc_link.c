@@ -2740,7 +2740,7 @@ bool dc_link_setup_psr(struct dc_link *link,
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	/*skip power down the single pipe since it blocks the cstate*/
-	if ((link->ctx->asic_id.chip_family == FAMILY_AI) &&
+	if ((link->ctx->asic_id.chip_family == FAMILY_RV) &&
 	     ASICREV_IS_RAVEN(link->ctx->asic_id.hw_internal_rev))
 		psr_context->psr_level.bits.SKIP_CRTC_DISABLE = true;
 #endif
