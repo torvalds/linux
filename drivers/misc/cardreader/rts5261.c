@@ -26,16 +26,16 @@ static u8 rts5261_get_ic_version(struct rtsx_pcr *pcr)
 static void rts5261_fill_driving(struct rtsx_pcr *pcr, u8 voltage)
 {
 	u8 driving_3v3[4][3] = {
-		{0x13, 0x13, 0x13},
+		{0x96, 0x96, 0x96},
 		{0x96, 0x96, 0x96},
 		{0x7F, 0x7F, 0x7F},
-		{0x96, 0x96, 0x96},
+		{0x13, 0x13, 0x13},
 	};
 	u8 driving_1v8[4][3] = {
-		{0x99, 0x99, 0x99},
+		{0xB3, 0xB3, 0xB3},
 		{0x3A, 0x3A, 0x3A},
 		{0xE6, 0xE6, 0xE6},
-		{0xB3, 0xB3, 0xB3},
+		{0x99, 0x99, 0x99},
 	};
 	u8 (*driving)[3], drive_sel;
 
@@ -70,9 +70,6 @@ static void rtsx5261_fetch_vendor_settings(struct rtsx_pcr *pcr)
 		pcr_dbg(pcr, "skip fetch vendor setting\n");
 		return;
 	}
-
-	pcr->card_drive_sel &= 0x3F;
-	pcr->card_drive_sel |= rts5261_reg_to_card_drive_sel(reg);
 
 	if (rts5261_reg_check_reverse_socket(reg))
 		pcr->flags |= PCR_REVERSE_SOCKET;
@@ -761,8 +758,8 @@ void rts5261_init_params(struct rtsx_pcr *pcr)
 
 	pcr->flags = 0;
 	pcr->card_drive_sel = RTSX_CARD_DRIVE_DEFAULT;
-	pcr->sd30_drive_sel_1v8 = CFG_DRIVER_TYPE_B;
-	pcr->sd30_drive_sel_3v3 = CFG_DRIVER_TYPE_B;
+	pcr->sd30_drive_sel_1v8 = 0x00;
+	pcr->sd30_drive_sel_3v3 = 0x00;
 	pcr->aspm_en = ASPM_L1_EN;
 	pcr->tx_initial_phase = SET_CLOCK_PHASE(27, 27, 11);
 	pcr->rx_initial_phase = SET_CLOCK_PHASE(24, 6, 5);

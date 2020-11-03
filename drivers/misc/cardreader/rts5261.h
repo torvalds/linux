@@ -15,10 +15,8 @@
 #define rts5261_reg_to_aspm(reg) \
 	(((~(reg) >> 28) & 0x02) | (((reg) >> 28) & 0x01))
 #define rts5261_reg_check_reverse_socket(reg)	((reg) & 0x04)
-#define rts5261_reg_to_card_drive_sel(reg)	((((reg) >> 6) & 0x01) << 6)
-#define rts5261_reg_to_sd30_drive_sel_1v8(reg)	(((reg) >> 22) ^ 0x03)
-#define rts5261_reg_to_sd30_drive_sel_3v3(reg)	(((reg) >> 16) ^ 0x03)
-
+#define rts5261_reg_to_sd30_drive_sel_1v8(reg)	(((reg) >> 22) & 0x03)
+#define rts5261_reg_to_sd30_drive_sel_3v3(reg)	(((reg) >> 16) & 0x03)
 
 #define RTS5261_AUTOLOAD_CFG0		0xFF7B
 #define RTS5261_AUTOLOAD_CFG1		0xFF7C
