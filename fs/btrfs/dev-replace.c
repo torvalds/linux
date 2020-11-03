@@ -96,7 +96,7 @@ no_valid_dev_replace_entry_found:
 		 * a replace target, fail the mount.
 		 */
 		if (btrfs_find_device(fs_info->fs_devices,
-				      BTRFS_DEV_REPLACE_DEVID, NULL, NULL, false)) {
+				      BTRFS_DEV_REPLACE_DEVID, NULL, NULL)) {
 			btrfs_err(fs_info,
 			"found replace target device without a valid replace item");
 			ret = -EUCLEAN;
@@ -159,7 +159,7 @@ no_valid_dev_replace_entry_found:
 		 * replace target, fail the mount.
 		 */
 		if (btrfs_find_device(fs_info->fs_devices,
-				      BTRFS_DEV_REPLACE_DEVID, NULL, NULL, false)) {
+				      BTRFS_DEV_REPLACE_DEVID, NULL, NULL)) {
 			btrfs_err(fs_info,
 			"replace devid present without an active replace item");
 			ret = -EUCLEAN;
@@ -171,10 +171,10 @@ no_valid_dev_replace_entry_found:
 	case BTRFS_IOCTL_DEV_REPLACE_STATE_STARTED:
 	case BTRFS_IOCTL_DEV_REPLACE_STATE_SUSPENDED:
 		dev_replace->srcdev = btrfs_find_device(fs_info->fs_devices,
-						src_devid, NULL, NULL, true);
+						src_devid, NULL, NULL);
 		dev_replace->tgtdev = btrfs_find_device(fs_info->fs_devices,
 							BTRFS_DEV_REPLACE_DEVID,
-							NULL, NULL, true);
+							NULL, NULL);
 		/*
 		 * allow 'btrfs dev replace_cancel' if src/tgt device is
 		 * missing
