@@ -510,7 +510,7 @@ static u32 mlxbf_i2c_read(void __iomem *io, int reg)
  */
 static u32 mlxbf_i2c_read_data(void __iomem *io, int reg)
 {
-	return (u32)be32_to_cpu(mlxbf_i2c_read(io, reg));
+	return ioread32be(io + reg);
 }
 
 /*
@@ -524,7 +524,7 @@ static u32 mlxbf_i2c_read_data(void __iomem *io, int reg)
  */
 static void mlxbf_i2c_write_data(void __iomem *io, int reg, u32 val)
 {
-	mlxbf_i2c_write(io, reg, (u32)cpu_to_be32(val));
+	iowrite32be(val, io + reg);
 }
 
 /*
