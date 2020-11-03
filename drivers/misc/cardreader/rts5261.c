@@ -510,6 +510,11 @@ static int rts5261_extra_init_hw(struct rtsx_pcr *pcr)
 	/* Configure driving */
 	rts5261_fill_driving(pcr, OUTPUT_3V3);
 
+	if (pcr->flags & PCR_REVERSE_SOCKET)
+		rtsx_pci_write_register(pcr, PETXCFG, 0x30, 0x30);
+	else
+		rtsx_pci_write_register(pcr, PETXCFG, 0x30, 0x00);
+
 	/*
 	 * If u_force_clkreq_0 is enabled, CLKREQ# PIN will be forced
 	 * to drive low, and we forcibly request clock.
