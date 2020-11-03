@@ -54,7 +54,6 @@ static int clk_gate2_enable(struct clk_hw *hw)
 {
 	struct clk_gate2 *gate = to_clk_gate2(hw);
 	unsigned long flags;
-	int ret = 0;
 
 	spin_lock_irqsave(gate->lock, flags);
 
@@ -65,7 +64,7 @@ static int clk_gate2_enable(struct clk_hw *hw)
 out:
 	spin_unlock_irqrestore(gate->lock, flags);
 
-	return ret;
+	return 0;
 }
 
 static void clk_gate2_disable(struct clk_hw *hw)
