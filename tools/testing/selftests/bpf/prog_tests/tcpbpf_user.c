@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <inttypes.h>
 #include <test_progs.h>
+#include <network_helpers.h>
 
 #include "test_tcpbpf.h"
 
+#define LO_ADDR6 "::1"
 #define CG_NAME "/tcpbpf-user-test"
 
-/* 3 comes from one listening socket + both ends of the connection */
-#define EXPECTED_CLOSE_EVENTS		3
+static __u32 duration;
 
 #define EXPECT_EQ(expected, actual, fmt)			\
 	do {							\
@@ -42,7 +43,9 @@ int verify_result(const struct tcpbpf_globals *result)
 	EXPECT_EQ(0x80, result->bad_cb_test_rv, PRIu32);
 	EXPECT_EQ(0, result->good_cb_test_rv, PRIu32);
 	EXPECT_EQ(1, result->num_listen, PRIu32);
-	EXPECT_EQ(EXPECTED_CLOSE_EVENTS, result->num_close_events, PRIu32);
+
+	/* 3 comes from one listening socket + both ends of the connection */
+	EXPECT_EQ(3, result->num_close_events, PRIu32);
 
 	return ret;
 }
@@ -66,6 +69,75 @@ int verify_sockopt_result(int sock_map_fd)
 	return ret;
 }
 
+static int run_test(void)
+{
+	int listen_fd = -1, cli_fd = -1, accept_fd = -1;
+	char buf[1000];
+	int err = -1;
+	int i, rv;
+
+	listen_fd = start_server(AF_INET6, SOCK_STREAM, LO_ADDR6, 0, 0);
+	if (CHECK(listen_fd == -1, "start_server", "listen_fd:%d errno:%d\n",
+		  listen_fd, errno))
+		goto done;
+
+	cli_fd = connect_to_fd(listen_fd, 0);
+	if (CHECK(cli_fd == -1, "connect_to_fd(listen_fd)",
+		  "cli_fd:%d errno:%d\n", cli_fd, errno))
+		goto done;
+
+	accept_fd = accept(listen_fd, NULL, NULL);
+	if (CHECK(accept_fd == -1, "accept(listen_fd)",
+		  "accept_fd:%d errno:%d\n", accept_fd, errno))
+		goto done;
+
+	/* Send 1000B of '+'s from cli_fd -> accept_fd */
+	for (i = 0; i < 1000; i++)
+		buf[i] = '+';
+
+	rv = send(cli_fd, buf, 1000, 0);
+	if (CHECK(rv != 1000, "send(cli_fd)", "rv:%d errno:%d\n", rv, errno))
+		goto done;
+
+	rv = recv(accept_fd, buf, 1000, 0);
+	if (CHECK(rv != 1000, "recv(accept_fd)", "rv:%d errno:%d\n", rv, errno))
+		goto done;
+
+	/* Send 500B of '.'s from accept_fd ->cli_fd */
+	for (i = 0; i < 500; i++)
+		buf[i] = '.';
+
+	rv = send(accept_fd, buf, 500, 0);
+	if (CHECK(rv != 500, "send(accept_fd)", "rv:%d errno:%d\n", rv, errno))
+		goto done;
+
+	rv = recv(cli_fd, buf, 500, 0);
+	if (CHECK(rv != 500, "recv(cli_fd)", "rv:%d errno:%d\n", rv, errno))
+		goto done;
+
+	/*
+	 * shutdown accept first to guarantee correct ordering for
+	 * bytes_received and bytes_acked when we go to verify the results.
+	 */
+	shutdown(accept_fd, SHUT_WR);
+	err = recv(cli_fd, buf, 1, 0);
+	if (CHECK(err, "recv(cli_fd) for fin", "err:%d errno:%d\n", err, errno))
+		goto done;
+
+	shutdown(cli_fd, SHUT_WR);
+	err = recv(accept_fd, buf, 1, 0);
+	CHECK(err, "recv(accept_fd) for fin", "err:%d errno:%d\n", err, errno);
+done:
+	if (accept_fd != -1)
+		close(accept_fd);
+	if (cli_fd != -1)
+		close(cli_fd);
+	if (listen_fd != -1)
+		close(listen_fd);
+
+	return err;
+}
+
 void test_tcpbpf_user(void)
 {
 	const char *file = "test_tcpbpf_kern.o";
@@ -74,7 +146,6 @@ void test_tcpbpf_user(void)
 	int error = EXIT_FAILURE;
 	struct bpf_object *obj;
 	int cg_fd = -1;
-	int retry = 10;
 	__u32 key = 0;
 	int rv;
 
@@ -94,11 +165,6 @@ void test_tcpbpf_user(void)
 		goto err;
 	}
 
-	if (system("./tcp_server.py")) {
-		printf("FAILED: TCP server\n");
-		goto err;
-	}
-
 	map_fd = bpf_find_map(__func__, obj, "global_map");
 	if (map_fd < 0)
 		goto err;
@@ -107,18 +173,13 @@ void test_tcpbpf_user(void)
 	if (sock_map_fd < 0)
 		goto err;
 
-retry_lookup:
+	if (run_test())
+		goto err;
+
 	rv = bpf_map_lookup_elem(map_fd, &key, &g);
 	if (rv != 0) {
 		printf("FAILED: bpf_map_lookup_elem returns %d\n", rv);
 		goto err;
-	}
-
-	if (g.num_close_events != EXPECTED_CLOSE_EVENTS && retry--) {
-		printf("Unexpected number of close events (%d), retrying!\n",
-		       g.num_close_events);
-		usleep(100);
-		goto retry_lookup;
 	}
 
 	if (verify_result(&g)) {
