@@ -299,8 +299,6 @@ static unsigned char lcd_bits[LCD_PORTS][LCD_BITS][BIT_STATES];
 #define DEFAULT_LCD_TYPE        LCD_TYPE_OLD
 #define DEFAULT_LCD_HEIGHT      2
 #define DEFAULT_LCD_WIDTH       40
-#define DEFAULT_LCD_BWIDTH      40
-#define DEFAULT_LCD_HWIDTH      64
 #define DEFAULT_LCD_CHARSET     LCD_CHARSET_NORMAL
 #define DEFAULT_LCD_PROTO       LCD_PROTO_PARALLEL
 
@@ -813,10 +811,11 @@ static void lcd_write_data_tilcd(struct charlcd *charlcd, int data)
 /* fills the display with spaces and resets X/Y */
 static void lcd_clear_fast_s(struct charlcd *charlcd)
 {
+	struct hd44780_common *hdc = charlcd->drvdata;
 	int pos;
 
 	spin_lock_irq(&pprt_lock);
-	for (pos = 0; pos < charlcd->height * charlcd->hwidth; pos++) {
+	for (pos = 0; pos < charlcd->height * hdc->hwidth; pos++) {
 		lcd_send_serial(0x5F);	/* R/W=W, RS=1 */
 		lcd_send_serial(' ' & 0x0F);
 		lcd_send_serial((' ' >> 4) & 0x0F);
@@ -829,10 +828,11 @@ static void lcd_clear_fast_s(struct charlcd *charlcd)
 /* fills the display with spaces and resets X/Y */
 static void lcd_clear_fast_p8(struct charlcd *charlcd)
 {
+	struct hd44780_common *hdc = charlcd->drvdata;
 	int pos;
 
 	spin_lock_irq(&pprt_lock);
-	for (pos = 0; pos < charlcd->height * charlcd->hwidth; pos++) {
+	for (pos = 0; pos < charlcd->height * hdc->hwidth; pos++) {
 		/* present the data to the data port */
 		w_dtr(pprt, ' ');
 
@@ -859,10 +859,11 @@ static void lcd_clear_fast_p8(struct charlcd *charlcd)
 /* fills the display with spaces and resets X/Y */
 static void lcd_clear_fast_tilcd(struct charlcd *charlcd)
 {
+	struct hd44780_common *hdc = charlcd->drvdata;
 	int pos;
 
 	spin_lock_irq(&pprt_lock);
-	for (pos = 0; pos < charlcd->height * charlcd->hwidth; pos++) {
+	for (pos = 0; pos < charlcd->height * hdc->hwidth; pos++) {
 		/* present the data to the data port */
 		w_dtr(pprt, ' ');
 		udelay(60);
@@ -902,7 +903,7 @@ static void lcd_init(void)
 	if (!hdc)
 		return;
 
-	charlcd = charlcd_alloc(0);
+	charlcd = charlcd_alloc();
 	if (!charlcd) {
 		kfree(hdc);
 		return;
@@ -917,8 +918,8 @@ static void lcd_init(void)
 	 */
 	charlcd->height = lcd_height;
 	charlcd->width = lcd_width;
-	charlcd->bwidth = lcd_bwidth;
-	charlcd->hwidth = lcd_hwidth;
+	hdc->bwidth = lcd_bwidth;
+	hdc->hwidth = lcd_hwidth;
 
 	switch (selected_lcd_type) {
 	case LCD_TYPE_OLD:
@@ -929,8 +930,8 @@ static void lcd_init(void)
 		lcd.pins.rs = PIN_AUTOLF;
 
 		charlcd->width = 40;
-		charlcd->bwidth = 40;
-		charlcd->hwidth = 64;
+		hdc->bwidth = 40;
+		hdc->hwidth = 64;
 		charlcd->height = 2;
 		break;
 	case LCD_TYPE_KS0074:
@@ -942,8 +943,8 @@ static void lcd_init(void)
 		lcd.pins.da = PIN_D0;
 
 		charlcd->width = 16;
-		charlcd->bwidth = 40;
-		charlcd->hwidth = 16;
+		hdc->bwidth = 40;
+		hdc->hwidth = 16;
 		charlcd->height = 2;
 		break;
 	case LCD_TYPE_NEXCOM:
@@ -955,8 +956,8 @@ static void lcd_init(void)
 		lcd.pins.rw = PIN_INITP;
 
 		charlcd->width = 16;
-		charlcd->bwidth = 40;
-		charlcd->hwidth = 64;
+		hdc->bwidth = 40;
+		hdc->hwidth = 64;
 		charlcd->height = 2;
 		break;
 	case LCD_TYPE_CUSTOM:
@@ -974,8 +975,8 @@ static void lcd_init(void)
 		lcd.pins.rs = PIN_SELECP;
 
 		charlcd->width = 16;
-		charlcd->bwidth = 40;
-		charlcd->hwidth = 64;
+		hdc->bwidth = 40;
+		hdc->hwidth = 64;
 		charlcd->height = 2;
 		break;
 	}
@@ -986,9 +987,9 @@ static void lcd_init(void)
 	if (lcd_width != NOT_SET)
 		charlcd->width = lcd_width;
 	if (lcd_bwidth != NOT_SET)
-		charlcd->bwidth = lcd_bwidth;
+		hdc->bwidth = lcd_bwidth;
 	if (lcd_hwidth != NOT_SET)
-		charlcd->hwidth = lcd_hwidth;
+		hdc->hwidth = lcd_hwidth;
 	if (lcd_charset != NOT_SET)
 		lcd.charset = lcd_charset;
 	if (lcd_proto != NOT_SET)
@@ -1009,10 +1010,10 @@ static void lcd_init(void)
 	/* this is used to catch wrong and default values */
 	if (charlcd->width <= 0)
 		charlcd->width = DEFAULT_LCD_WIDTH;
-	if (charlcd->bwidth <= 0)
-		charlcd->bwidth = DEFAULT_LCD_BWIDTH;
-	if (charlcd->hwidth <= 0)
-		charlcd->hwidth = DEFAULT_LCD_HWIDTH;
+	if (hdc->bwidth <= 0)
+		hdc->bwidth = DEFAULT_LCD_BWIDTH;
+	if (hdc->hwidth <= 0)
+		hdc->hwidth = DEFAULT_LCD_HWIDTH;
 	if (charlcd->height <= 0)
 		charlcd->height = DEFAULT_LCD_HEIGHT;
 

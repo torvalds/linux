@@ -21,9 +21,7 @@
 #include <generated/utsrelease.h>
 
 #include "charlcd.h"
-
-#define DEFAULT_LCD_BWIDTH      40
-#define DEFAULT_LCD_HWIDTH      64
+#include "hd44780_common.h"
 
 /* Keep the backlight on this many seconds for each flash */
 #define LCD_BL_TEMPO_PERIOD	4
@@ -151,18 +149,19 @@ EXPORT_SYMBOL_GPL(charlcd_poke);
 static void charlcd_gotoxy(struct charlcd *lcd)
 {
 	struct charlcd_priv *priv = charlcd_to_priv(lcd);
+	struct hd44780_common *hdc = lcd->drvdata;
 	unsigned int addr;
 
 	/*
 	 * we force the cursor to stay at the end of the
 	 * line if it wants to go farther
 	 */
-	addr = priv->addr.x < lcd->bwidth ? priv->addr.x & (lcd->hwidth - 1)
-					  : lcd->bwidth - 1;
+	addr = priv->addr.x < hdc->bwidth ? priv->addr.x & (hdc->hwidth - 1)
+					  : hdc->bwidth - 1;
 	if (priv->addr.y & 1)
-		addr += lcd->hwidth;
+		addr += hdc->hwidth;
 	if (priv->addr.y & 2)
-		addr += lcd->bwidth;
+		addr += hdc->bwidth;
 	lcd->ops->write_cmd(lcd, LCD_CMD_SET_DDRAM_ADDR | addr);
 }
 
@@ -178,21 +177,23 @@ static void charlcd_home(struct charlcd *lcd)
 static void charlcd_print(struct charlcd *lcd, char c)
 {
 	struct charlcd_priv *priv = charlcd_to_priv(lcd);
+	struct hd44780_common *hdc = lcd->drvdata;
 
-	if (priv->addr.x < lcd->bwidth) {
+	if (priv->addr.x < hdc->bwidth) {
 		if (lcd->char_conv)
 			c = lcd->char_conv[(unsigned char)c];
 		lcd->ops->write_data(lcd, c);
 		priv->addr.x++;
 
 		/* prevents the cursor from wrapping onto the next line */
-		if (priv->addr.x == lcd->bwidth)
+		if (priv->addr.x == hdc->bwidth)
 			charlcd_gotoxy(lcd);
 	}
 }
 
 static void charlcd_clear_fast(struct charlcd *lcd)
 {
+	struct hd44780_common *hdc = lcd->drvdata;
 	int pos;
 
 	charlcd_home(lcd);
@@ -200,7 +201,7 @@ static void charlcd_clear_fast(struct charlcd *lcd)
 	if (lcd->ops->clear_fast)
 		lcd->ops->clear_fast(lcd);
 	else
-		for (pos = 0; pos < min(2, lcd->height) * lcd->hwidth; pos++)
+		for (pos = 0; pos < min(2, lcd->height) * hdc->hwidth; pos++)
 			lcd->ops->write_data(lcd, ' ');
 
 	charlcd_home(lcd);
@@ -348,6 +349,7 @@ static bool parse_xy(const char *s, unsigned long *x, unsigned long *y)
 static inline int handle_lcd_special_code(struct charlcd *lcd)
 {
 	struct charlcd_priv *priv = charlcd_to_priv(lcd);
+	struct hd44780_common *hdc = lcd->drvdata;
 
 	/* LCD special codes */
 
@@ -413,7 +415,7 @@ static inline int handle_lcd_special_code(struct charlcd *lcd)
 	case 'l':	/* Shift Cursor Left */
 		if (priv->addr.x > 0) {
 			/* back one char if not at end of line */
-			if (priv->addr.x < lcd->bwidth)
+			if (priv->addr.x < hdc->bwidth)
 				lcd->ops->write_cmd(lcd, LCD_CMD_SHIFT);
 			priv->addr.x--;
 		}
@@ -422,7 +424,7 @@ static inline int handle_lcd_special_code(struct charlcd *lcd)
 	case 'r':	/* shift cursor right */
 		if (priv->addr.x < lcd->width) {
 			/* allow the cursor to pass the end of the line */
-			if (priv->addr.x < (lcd->bwidth - 1))
+			if (priv->addr.x < (hdc->bwidth - 1))
 				lcd->ops->write_cmd(lcd,
 					LCD_CMD_SHIFT | LCD_CMD_SHIFT_RIGHT);
 			priv->addr.x++;
@@ -442,7 +444,7 @@ static inline int handle_lcd_special_code(struct charlcd *lcd)
 	case 'k': {	/* kill end of line */
 		int x;
 
-		for (x = priv->addr.x; x < lcd->bwidth; x++)
+		for (x = priv->addr.x; x < hdc->bwidth; x++)
 			lcd->ops->write_data(lcd, ' ');
 
 		/* restore cursor position */
@@ -554,6 +556,7 @@ static inline int handle_lcd_special_code(struct charlcd *lcd)
 static void charlcd_write_char(struct charlcd *lcd, char c)
 {
 	struct charlcd_priv *priv = charlcd_to_priv(lcd);
+	struct hd44780_common *hdc = lcd->drvdata;
 
 	/* first, we'll test if we're in escape mode */
 	if ((c != '\n') && priv->esc_seq.len >= 0) {
@@ -577,7 +580,7 @@ static void charlcd_write_char(struct charlcd *lcd, char c)
 				 * check if we're not at the
 				 * end of the line
 				 */
-				if (priv->addr.x < lcd->bwidth)
+				if (priv->addr.x < hdc->bwidth)
 					/* back one char */
 					lcd->ops->write_cmd(lcd, LCD_CMD_SHIFT);
 				priv->addr.x--;
@@ -596,7 +599,7 @@ static void charlcd_write_char(struct charlcd *lcd, char c)
 			 * flush the remainder of the current line and
 			 * go to the beginning of the next line
 			 */
-			for (; priv->addr.x < lcd->bwidth; priv->addr.x++)
+			for (; priv->addr.x < hdc->bwidth; priv->addr.x++)
 				lcd->ops->write_data(lcd, ' ');
 			priv->addr.x = 0;
 			priv->addr.y = (priv->addr.y + 1) % lcd->height;
@@ -779,12 +782,12 @@ static int charlcd_init(struct charlcd *lcd)
 	return 0;
 }
 
-struct charlcd *charlcd_alloc(unsigned int drvdata_size)
+struct charlcd *charlcd_alloc(void)
 {
 	struct charlcd_priv *priv;
 	struct charlcd *lcd;
 
-	priv = kzalloc(sizeof(*priv) + drvdata_size, GFP_KERNEL);
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return NULL;
 
@@ -792,9 +795,6 @@ struct charlcd *charlcd_alloc(unsigned int drvdata_size)
 
 	lcd = &priv->lcd;
 	lcd->ifwidth = 8;
-	lcd->bwidth = DEFAULT_LCD_BWIDTH;
-	lcd->hwidth = DEFAULT_LCD_HWIDTH;
-	lcd->drvdata = priv->drvdata;
 
 	return lcd;
 }

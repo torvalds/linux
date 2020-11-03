@@ -12,6 +12,8 @@ struct hd44780_common *hd44780_common_alloc(void)
 	if (!hd)
 		return NULL;
 
+	hd->bwidth = DEFAULT_LCD_BWIDTH;
+	hd->hwidth = DEFAULT_LCD_HWIDTH;
 	return hd;
 }
 EXPORT_SYMBOL_GPL(hd44780_common_alloc);
