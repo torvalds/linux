@@ -2362,38 +2362,65 @@ static void scrub_block_complete(struct scrub_block *sblock)
 	}
 }
 
+static void drop_csum_range(struct scrub_ctx *sctx, struct btrfs_ordered_sum *sum)
+{
+	sctx->stat.csum_discards += sum->len >> sctx->fs_info->sectorsize_bits;
+	list_del(&sum->list);
+	kfree(sum);
+}
+
+/*
+ * Find the desired csum for range [logical, logical + sectorsize), and store
+ * the csum into @csum.
+ *
+ * The search source is sctx->csum_list, which is a pre-populated list
+ * storing bytenr ordered csum ranges.  We're reponsible to cleanup any range
+ * that is before @logical.
+ *
+ * Return 0 if there is no csum for the range.
+ * Return 1 if there is csum for the range and copied to @csum.
+ */
 static int scrub_find_csum(struct scrub_ctx *sctx, u64 logical, u8 *csum)
 {
-	struct btrfs_ordered_sum *sum = NULL;
-	unsigned long index;
-	unsigned long num_sectors;
+	bool found = false;
 
 	while (!list_empty(&sctx->csum_list)) {
+		struct btrfs_ordered_sum *sum = NULL;
+		unsigned long index;
+		unsigned long num_sectors;
+
 		sum = list_first_entry(&sctx->csum_list,
 				       struct btrfs_ordered_sum, list);
+		/* The current csum range is beyond our range, no csum found */
 		if (sum->bytenr > logical)
-			return 0;
-		if (sum->bytenr + sum->len > logical)
 			break;
 
-		++sctx->stat.csum_discards;
-		list_del(&sum->list);
-		kfree(sum);
-		sum = NULL;
+		/*
+		 * The current sum is before our bytenr, since scrub is always
+		 * done in bytenr order, the csum will never be used anymore,
+		 * clean it up so that later calls won't bother with the range,
+		 * and continue search the next range.
+		 */
+		if (sum->bytenr + sum->len <= logical) {
+			drop_csum_range(sctx, sum);
+			continue;
+		}
+
+		/* Now the csum range covers our bytenr, copy the csum */
+		found = true;
+		index = (logical - sum->bytenr) >> sctx->fs_info->sectorsize_bits;
+		num_sectors = sum->len >> sctx->fs_info->sectorsize_bits;
+
+		memcpy(csum, sum->sums + index * sctx->fs_info->csum_size,
+		       sctx->fs_info->csum_size);
+
+		/* Cleanup the range if we're at the end of the csum range */
+		if (index == num_sectors - 1)
+			drop_csum_range(sctx, sum);
+		break;
 	}
-	if (!sum)
+	if (!found)
 		return 0;
-
-	index = (logical - sum->bytenr) >> sctx->fs_info->sectorsize_bits;
-	ASSERT(index < UINT_MAX);
-
-	num_sectors = sum->len >> sctx->fs_info->sectorsize_bits;
-	memcpy(csum, sum->sums + index * sctx->fs_info->csum_size,
-		sctx->fs_info->csum_size);
-	if (index == num_sectors - 1) {
-		list_del(&sum->list);
-		kfree(sum);
-	}
 	return 1;
 }
 
