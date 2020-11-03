@@ -112,6 +112,7 @@ struct smp2p_entry {
  * struct qcom_smp2p - device driver context
  * @dev:	device driver handle
  * @in:		pointer to the inbound smem item
+ * @out:	pointer to the outbound smem item
  * @smem_items:	ids of the two smem items
  * @valid_entries: already scanned inbound entries
  * @local_pid:	processor id of the inbound edge
