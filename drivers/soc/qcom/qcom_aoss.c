@@ -225,7 +225,6 @@ static bool qmp_message_empty(struct qmp *qmp)
 static int qmp_send(struct qmp *qmp, const void *data, size_t len)
 {
 	long time_left;
-	size_t tlen;
 	int ret;
 
 	if (WARN_ON(len + sizeof(u32) > qmp->size))
@@ -242,7 +241,7 @@ static int qmp_send(struct qmp *qmp, const void *data, size_t len)
 	writel(len, qmp->msgram + qmp->offset);
 
 	/* Read back len to confirm data written in message RAM */
-	tlen = readl(qmp->msgram + qmp->offset);
+	readl(qmp->msgram + qmp->offset);
 	qmp_kick(qmp);
 
 	time_left = wait_event_interruptible_timeout(qmp->event,
