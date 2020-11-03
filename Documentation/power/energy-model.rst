@@ -30,6 +30,8 @@ These subsystems are more interested in estimation of power used in the past,
 thus the real milli-Watts might be needed. An example of these requirements can
 be found in the Intelligent Power Allocation in
 Documentation/driver-api/thermal/power_allocator.rst.
+Kernel subsystems might implement automatic detection to check whether EM
+registered devices have inconsistent scale (based on EM internal flag).
 Important thing to keep in mind is that when the power values are expressed in
 an 'abstract scale' deriving real energy in milli-Joules would not be possible.
 
@@ -86,7 +88,7 @@ Drivers are expected to register performance domains into the EM framework by
 calling the following API::
 
   int em_dev_register_perf_domain(struct device *dev, unsigned int nr_states,
-		struct em_data_callback *cb, cpumask_t *cpus);
+		struct em_data_callback *cb, cpumask_t *cpus, bool milliwatts);
 
 Drivers must provide a callback function returning <frequency, power> tuples
 for each performance state. The callback function provided by the driver is free
@@ -94,6 +96,10 @@ to fetch data from any relevant location (DT, firmware, ...), and by any mean
 deemed necessary. Only for CPU devices, drivers must specify the CPUs of the
 performance domains using cpumask. For other devices than CPUs the last
 argument must be set to NULL.
+The last argument 'milliwatts' is important to set with correct value. Kernel
+subsystems which use EM might rely on this flag to check if all EM devices use
+the same scale. If there are different scales, these subsystems might decide
+to: return warning/error, stop working or panic.
 See Section 3. for an example of driver implementing this
 callback, and kernel/power/energy_model.c for further documentation on this
 API.
@@ -169,7 +175,8 @@ EM framework::
   37     	nr_opp = foo_get_nr_opp(policy);
   38
   39     	/* And register the new performance domain */
-  40     	em_dev_register_perf_domain(cpu_dev, nr_opp, &em_cb, policy->cpus);
-  41
-  42	        return 0;
-  43	}
+  40     	em_dev_register_perf_domain(cpu_dev, nr_opp, &em_cb, policy->cpus,
+  41					    true);
+  42
+  43	        return 0;
+  44	}
