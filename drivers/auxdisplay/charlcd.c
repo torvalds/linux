@@ -119,7 +119,7 @@ static void charlcd_print(struct charlcd *lcd, char c)
 
 	/* prevents the cursor from wrapping onto the next line */
 	if (lcd->addr.x == lcd->width)
-		lcd->ops->gotoxy(lcd);
+		lcd->ops->gotoxy(lcd, lcd->addr.x - 1, lcd->addr.y);
 }
 
 static void charlcd_clear_display(struct charlcd *lcd)
@@ -325,7 +325,7 @@ static inline int handle_lcd_special_code(struct charlcd *lcd)
 		/* restore cursor position */
 		lcd->addr.x = xs;
 		lcd->addr.y = ys;
-		lcd->ops->gotoxy(lcd);
+		lcd->ops->gotoxy(lcd, lcd->addr.x, lcd->addr.y);
 		processed = 1;
 		break;
 	}
@@ -349,7 +349,7 @@ static inline int handle_lcd_special_code(struct charlcd *lcd)
 
 		/* If the command is valid, move to the new address */
 		if (parse_xy(esc, &lcd->addr.x, &lcd->addr.y))
-			lcd->ops->gotoxy(lcd);
+			lcd->ops->gotoxy(lcd, lcd->addr.x, lcd->addr.y);
 
 		/* Regardless of its validity, mark as processed */
 		processed = 1;
@@ -407,12 +407,12 @@ static void charlcd_write_char(struct charlcd *lcd, char c)
 
 			lcd->addr.x = 0;
 			lcd->addr.y = (lcd->addr.y + 1) % lcd->height;
-			lcd->ops->gotoxy(lcd);
+			lcd->ops->gotoxy(lcd, lcd->addr.x, lcd->addr.y);
 			break;
 		case '\r':
 			/* go to the beginning of the same line */
 			lcd->addr.x = 0;
-			lcd->ops->gotoxy(lcd);
+			lcd->ops->gotoxy(lcd, lcd->addr.x, lcd->addr.y);
 			break;
 		case '\t':
 			/* print a space instead of the tab */

@@ -78,7 +78,7 @@ struct charlcd {
 struct charlcd_ops {
 	void (*backlight)(struct charlcd *lcd, enum charlcd_onoff on);
 	int (*print)(struct charlcd *lcd, int c);
-	int (*gotoxy)(struct charlcd *lcd);
+	int (*gotoxy)(struct charlcd *lcd, unsigned int x, unsigned int y);
 	int (*home)(struct charlcd *lcd);
 	int (*clear_display)(struct charlcd *lcd);
 	int (*init_display)(struct charlcd *lcd);

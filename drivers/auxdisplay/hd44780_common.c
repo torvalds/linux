@@ -49,7 +49,7 @@ int hd44780_common_print(struct charlcd *lcd, int c)
 }
 EXPORT_SYMBOL_GPL(hd44780_common_print);
 
-int hd44780_common_gotoxy(struct charlcd *lcd)
+int hd44780_common_gotoxy(struct charlcd *lcd, unsigned int x, unsigned int y)
 {
 	struct hd44780_common *hdc = lcd->drvdata;
 	unsigned int addr;
@@ -58,11 +58,10 @@ int hd44780_common_gotoxy(struct charlcd *lcd)
 	 * we force the cursor to stay at the end of the
 	 * line if it wants to go farther
 	 */
-	addr = lcd->addr.x < hdc->bwidth ? lcd->addr.x & (hdc->hwidth - 1)
-					  : hdc->bwidth - 1;
-	if (lcd->addr.y & 1)
+	addr = x < hdc->bwidth ? x & (hdc->hwidth - 1) : hdc->bwidth - 1;
+	if (y & 1)
 		addr += hdc->hwidth;
-	if (lcd->addr.y & 2)
+	if (y & 2)
 		addr += hdc->bwidth;
 	hdc->write_cmd(hdc, LCD_CMD_SET_DDRAM_ADDR | addr);
 	return 0;
@@ -71,9 +70,7 @@ EXPORT_SYMBOL_GPL(hd44780_common_gotoxy);
 
 int hd44780_common_home(struct charlcd *lcd)
 {
-	lcd->addr.x = 0;
-	lcd->addr.y = 0;
-	return hd44780_common_gotoxy(lcd);
+	return hd44780_common_gotoxy(lcd, 0, 0);
 }
 EXPORT_SYMBOL_GPL(hd44780_common_home);
 
@@ -341,7 +338,7 @@ int hd44780_common_redefine_char(struct charlcd *lcd, char *esc)
 		hdc->write_data(hdc, cgbytes[addr]);
 
 	/* ensures that we stop writing to CGRAM */
-	lcd->ops->gotoxy(lcd);
+	lcd->ops->gotoxy(lcd, lcd->addr.x, lcd->addr.y);
 	return 1;
 }
 EXPORT_SYMBOL_GPL(hd44780_common_redefine_char);
