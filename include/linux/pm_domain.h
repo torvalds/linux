@@ -280,11 +280,11 @@ static inline int dev_pm_genpd_remove_notifier(struct device *dev)
 #endif
 
 #ifdef CONFIG_PM_GENERIC_DOMAINS_SLEEP
-void pm_genpd_syscore_poweroff(struct device *dev);
-void pm_genpd_syscore_poweron(struct device *dev);
+void dev_pm_genpd_suspend(struct device *dev);
+void dev_pm_genpd_resume(struct device *dev);
 #else
-static inline void pm_genpd_syscore_poweroff(struct device *dev) {}
-static inline void pm_genpd_syscore_poweron(struct device *dev) {}
+static inline void dev_pm_genpd_suspend(struct device *dev) {}
+static inline void dev_pm_genpd_resume(struct device *dev) {}
 #endif
 
 /* OF PM domain providers */

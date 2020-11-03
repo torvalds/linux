@@ -658,7 +658,7 @@ static void sh_cmt_clocksource_suspend(struct clocksource *cs)
 		return;
 
 	sh_cmt_stop(ch, FLAG_CLOCKSOURCE);
-	pm_genpd_syscore_poweroff(&ch->cmt->pdev->dev);
+	dev_pm_genpd_suspend(&ch->cmt->pdev->dev);
 }
 
 static void sh_cmt_clocksource_resume(struct clocksource *cs)
@@ -668,7 +668,7 @@ static void sh_cmt_clocksource_resume(struct clocksource *cs)
 	if (!ch->cs_enabled)
 		return;
 
-	pm_genpd_syscore_poweron(&ch->cmt->pdev->dev);
+	dev_pm_genpd_resume(&ch->cmt->pdev->dev);
 	sh_cmt_start(ch, FLAG_CLOCKSOURCE);
 }
 
@@ -760,7 +760,7 @@ static void sh_cmt_clock_event_suspend(struct clock_event_device *ced)
 {
 	struct sh_cmt_channel *ch = ced_to_sh_cmt(ced);
 
-	pm_genpd_syscore_poweroff(&ch->cmt->pdev->dev);
+	dev_pm_genpd_suspend(&ch->cmt->pdev->dev);
 	clk_unprepare(ch->cmt->clk);
 }
 
@@ -769,7 +769,7 @@ static void sh_cmt_clock_event_resume(struct clock_event_device *ced)
 	struct sh_cmt_channel *ch = ced_to_sh_cmt(ced);
 
 	clk_prepare(ch->cmt->clk);
-	pm_genpd_syscore_poweron(&ch->cmt->pdev->dev);
+	dev_pm_genpd_resume(&ch->cmt->pdev->dev);
 }
 
 static int sh_cmt_register_clockevent(struct sh_cmt_channel *ch,

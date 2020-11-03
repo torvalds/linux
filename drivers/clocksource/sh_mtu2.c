@@ -297,12 +297,12 @@ static int sh_mtu2_clock_event_set_periodic(struct clock_event_device *ced)
 
 static void sh_mtu2_clock_event_suspend(struct clock_event_device *ced)
 {
-	pm_genpd_syscore_poweroff(&ced_to_sh_mtu2(ced)->mtu->pdev->dev);
+	dev_pm_genpd_suspend(&ced_to_sh_mtu2(ced)->mtu->pdev->dev);
 }
 
 static void sh_mtu2_clock_event_resume(struct clock_event_device *ced)
 {
-	pm_genpd_syscore_poweron(&ced_to_sh_mtu2(ced)->mtu->pdev->dev);
+	dev_pm_genpd_resume(&ced_to_sh_mtu2(ced)->mtu->pdev->dev);
 }
 
 static void sh_mtu2_register_clockevent(struct sh_mtu2_channel *ch,
