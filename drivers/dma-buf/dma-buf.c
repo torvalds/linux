@@ -908,7 +908,7 @@ struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *attach,
 	}
 
 #ifdef CONFIG_DMA_API_DEBUG
-	{
+	if (!IS_ERR(sg_table)) {
 		struct scatterlist *sg;
 		u64 addr;
 		int len;
