@@ -53,7 +53,6 @@ static const struct drm_driver driver = {
 
 static struct udl_device *udl_driver_create(struct usb_interface *interface)
 {
-	struct usb_device *udev = interface_to_usbdev(interface);
 	struct udl_device *udl;
 	int r;
 
@@ -61,8 +60,6 @@ static struct udl_device *udl_driver_create(struct usb_interface *interface)
 				 struct udl_device, drm);
 	if (IS_ERR(udl))
 		return udl;
-
-	udl->udev = udev;
 
 	r = udl_init(udl);
 	if (r)
