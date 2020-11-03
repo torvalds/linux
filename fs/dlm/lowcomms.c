@@ -1616,10 +1616,11 @@ static void free_conn(struct connection *con)
 	spin_unlock(&connections_lock);
 	if (con->othercon) {
 		clean_one_writequeue(con->othercon);
-		call_rcu(&con->othercon->rcu, connection_release);
+		call_srcu(&connections_srcu, &con->othercon->rcu,
+			  connection_release);
 	}
 	clean_one_writequeue(con);
-	call_rcu(&con->rcu, connection_release);
+	call_srcu(&connections_srcu, &con->rcu, connection_release);
 }
 
 static void work_flush(void)
