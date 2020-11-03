@@ -7,6 +7,7 @@
 #ifndef __OMAP_DRM_DSS_H
 #define __OMAP_DRM_DSS_H
 
+#include <drm/drm_color_mgmt.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_mode.h>
 #include <linux/device.h>
@@ -243,6 +244,9 @@ struct omap_overlay_info {
 	u8 global_alpha;
 	u8 pre_mult_alpha;
 	u8 zorder;
+
+	enum drm_color_encoding color_encoding;
+	enum drm_color_range color_range;
 };
 
 struct omap_overlay_manager_info {

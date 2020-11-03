@@ -59,6 +59,8 @@ static void omap_plane_atomic_update(struct drm_plane *plane,
 		info.pre_mult_alpha = 1;
 	else
 		info.pre_mult_alpha = 0;
+	info.color_encoding = state->color_encoding;
+	info.color_range = state->color_range;
 
 	/* update scanout: */
 	omap_framebuffer_update_scanout(state->fb, state, &info);
@@ -189,6 +191,8 @@ static void omap_plane_reset(struct drm_plane *plane)
 	 */
 	plane->state->zpos = plane->type == DRM_PLANE_TYPE_PRIMARY
 			   ? 0 : omap_plane->id;
+	plane->state->color_encoding = DRM_COLOR_YCBCR_BT601;
+	plane->state->color_range = DRM_COLOR_YCBCR_FULL_RANGE;
 }
 
 static int omap_plane_atomic_set_property(struct drm_plane *plane,
@@ -231,6 +235,23 @@ static const struct drm_plane_funcs omap_plane_funcs = {
 	.atomic_set_property = omap_plane_atomic_set_property,
 	.atomic_get_property = omap_plane_atomic_get_property,
 };
+
+static bool omap_plane_supports_yuv(struct drm_plane *plane)
+{
+	struct omap_drm_private *priv = plane->dev->dev_private;
+	struct omap_plane *omap_plane = to_omap_plane(plane);
+	const u32 *formats =
+		priv->dispc_ops->ovl_get_color_modes(priv->dispc, omap_plane->id);
+	u32 i;
+
+	for (i = 0; formats[i]; i++)
+		if (formats[i] == DRM_FORMAT_YUYV ||
+		    formats[i] == DRM_FORMAT_UYVY ||
+		    formats[i] == DRM_FORMAT_NV12)
+			return true;
+
+	return false;
+}
 
 static const char *plane_id_to_name[] = {
 	[OMAP_DSS_GFX] = "gfx",
@@ -292,6 +313,15 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 	drm_plane_create_alpha_property(plane);
 	drm_plane_create_blend_mode_property(plane, BIT(DRM_MODE_BLEND_PREMULTI) |
 					     BIT(DRM_MODE_BLEND_COVERAGE));
+
+	if (omap_plane_supports_yuv(plane))
+		drm_plane_create_color_properties(plane,
+						  BIT(DRM_COLOR_YCBCR_BT601) |
+						  BIT(DRM_COLOR_YCBCR_BT709),
+						  BIT(DRM_COLOR_YCBCR_FULL_RANGE) |
+						  BIT(DRM_COLOR_YCBCR_LIMITED_RANGE),
+						  DRM_COLOR_YCBCR_BT601,
+						  DRM_COLOR_YCBCR_FULL_RANGE);
 
 	return plane;
 
