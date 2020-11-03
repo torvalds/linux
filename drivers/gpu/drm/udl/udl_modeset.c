@@ -276,6 +276,7 @@ static int udl_handle_damage(struct drm_framebuffer *fb, int x, int y,
 	struct urb *urb;
 	struct drm_rect clip;
 	int log_bpp;
+	struct dma_buf_map map;
 	void *vaddr;
 
 	ret = udl_log_cpp(fb->format->cpp[0]);
@@ -296,11 +297,12 @@ static int udl_handle_damage(struct drm_framebuffer *fb, int x, int y,
 			return ret;
 	}
 
-	vaddr = drm_gem_shmem_vmap(fb->obj[0]);
-	if (IS_ERR(vaddr)) {
+	ret = drm_gem_shmem_vmap(fb->obj[0], &map);
+	if (ret) {
 		DRM_ERROR("failed to vmap fb\n");
 		goto out_dma_buf_end_cpu_access;
 	}
+	vaddr = map.vaddr; /* TODO: Use mapping abstraction properly */
 
 	urb = udl_get_urb(dev);
 	if (!urb)
@@ -333,7 +335,7 @@ static int udl_handle_damage(struct drm_framebuffer *fb, int x, int y,
 	ret = 0;
 
 out_drm_gem_shmem_vunmap:
-	drm_gem_shmem_vunmap(fb->obj[0], vaddr);
+	drm_gem_shmem_vunmap(fb->obj[0], &map);
 out_dma_buf_end_cpu_access:
 	if (import_attach) {
 		tmp_ret = dma_buf_end_cpu_access(import_attach->dmabuf,

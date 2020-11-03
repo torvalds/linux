@@ -519,6 +519,8 @@ EXPORT_SYMBOL_GPL(drm_gem_cma_prime_mmap);
  * drm_gem_cma_prime_vmap - map a CMA GEM object into the kernel's virtual
  *     address space
  * @obj: GEM object
+ * @map: Returns the kernel virtual address of the CMA GEM object's backing
+ *       store.
  *
  * This function maps a buffer exported via DRM PRIME into the kernel's
  * virtual address space. Since the CMA buffers are already mapped into the
@@ -527,13 +529,15 @@ EXPORT_SYMBOL_GPL(drm_gem_cma_prime_mmap);
  * driver's &drm_gem_object_funcs.vmap callback.
  *
  * Returns:
- * The kernel virtual address of the CMA GEM object's backing store.
+ * 0 on success, or a negative error code otherwise.
  */
-void *drm_gem_cma_prime_vmap(struct drm_gem_object *obj)
+int drm_gem_cma_prime_vmap(struct drm_gem_object *obj, struct dma_buf_map *map)
 {
 	struct drm_gem_cma_object *cma_obj = to_drm_gem_cma_obj(obj);
 
-	return cma_obj->vaddr;
+	dma_buf_map_set_vaddr(map, cma_obj->vaddr);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(drm_gem_cma_prime_vmap);
 

@@ -25,6 +25,7 @@
 
 #include <linux/crc32.h>
 #include <linux/delay.h>
+#include <linux/dma-buf-map.h>
 
 #include <drm/drm_drv.h>
 #include <drm/drm_atomic.h>
@@ -581,6 +582,8 @@ static void qxl_cursor_atomic_update(struct drm_plane *plane,
 	struct drm_gem_object *obj;
 	struct qxl_bo *cursor_bo = NULL, *user_bo = NULL, *old_cursor_bo = NULL;
 	int ret;
+	struct dma_buf_map user_map;
+	struct dma_buf_map cursor_map;
 	void *user_ptr;
 	int size = 64*64*4;
 
@@ -595,9 +598,10 @@ static void qxl_cursor_atomic_update(struct drm_plane *plane,
 		user_bo = gem_to_qxl_bo(obj);
 
 		/* pinning is done in the prepare/cleanup framevbuffer */
-		ret = qxl_bo_kmap(user_bo, &user_ptr);
+		ret = qxl_bo_kmap(user_bo, &user_map);
 		if (ret)
 			goto out_free_release;
+		user_ptr = user_map.vaddr; /* TODO: Use mapping abstraction properly */
 
 		ret = qxl_alloc_bo_reserved(qdev, release,
 					    sizeof(struct qxl_cursor) + size,
@@ -613,9 +617,13 @@ static void qxl_cursor_atomic_update(struct drm_plane *plane,
 		if (ret)
 			goto out_unpin;
 
-		ret = qxl_bo_kmap(cursor_bo, (void **)&cursor);
+		ret = qxl_bo_kmap(cursor_bo, &cursor_map);
 		if (ret)
 			goto out_backoff;
+		if (cursor_map.is_iomem) /* TODO: Use mapping abstraction properly */
+			cursor = (struct qxl_cursor __force *)cursor_map.vaddr_iomem;
+		else
+			cursor = (struct qxl_cursor *)cursor_map.vaddr;
 
 		cursor->header.unique = 0;
 		cursor->header.type = SPICE_CURSOR_TYPE_ALPHA;
@@ -1133,6 +1141,7 @@ int qxl_create_monitors_object(struct qxl_device *qdev)
 {
 	int ret;
 	struct drm_gem_object *gobj;
+	struct dma_buf_map map;
 	int monitors_config_size = sizeof(struct qxl_monitors_config) +
 		qxl_num_crtc * sizeof(struct qxl_head);
 
@@ -1149,7 +1158,7 @@ int qxl_create_monitors_object(struct qxl_device *qdev)
 	if (ret)
 		return ret;
 
-	qxl_bo_kmap(qdev->monitors_config_bo, NULL);
+	qxl_bo_kmap(qdev->monitors_config_bo, &map);
 
 	qdev->monitors_config = qdev->monitors_config_bo->kptr;
 	qdev->ram_header->monitors_config =

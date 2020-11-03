@@ -509,7 +509,6 @@ struct radeon_bo {
 	/* Constant after initialization */
 	struct radeon_device		*rdev;
 
-	struct ttm_bo_kmap_obj		dma_buf_vmap;
 	pid_t				pid;
 
 #ifdef CONFIG_MMU_NOTIFIER

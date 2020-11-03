@@ -36,6 +36,7 @@
 #include <linux/pagemap.h>
 #include <linux/shmem_fs.h>
 #include <linux/dma-buf.h>
+#include <linux/dma-buf-map.h>
 #include <linux/mem_encrypt.h>
 #include <linux/pagevec.h>
 
@@ -1207,26 +1208,30 @@ void drm_gem_unpin(struct drm_gem_object *obj)
 
 void *drm_gem_vmap(struct drm_gem_object *obj)
 {
-	void *vaddr;
+	struct dma_buf_map map;
+	int ret;
 
-	if (obj->funcs->vmap)
-		vaddr = obj->funcs->vmap(obj);
-	else
-		vaddr = ERR_PTR(-EOPNOTSUPP);
+	if (!obj->funcs->vmap)
+		return ERR_PTR(-EOPNOTSUPP);
 
-	if (!vaddr)
-		vaddr = ERR_PTR(-ENOMEM);
+	ret = obj->funcs->vmap(obj, &map);
+	if (ret)
+		return ERR_PTR(ret);
+	else if (dma_buf_map_is_null(&map))
+		return ERR_PTR(-ENOMEM);
 
-	return vaddr;
+	return map.vaddr;
 }
 
 void drm_gem_vunmap(struct drm_gem_object *obj, void *vaddr)
 {
+	struct dma_buf_map map = DMA_BUF_MAP_INIT_VADDR(vaddr);
+
 	if (!vaddr)
 		return;
 
 	if (obj->funcs->vunmap)
-		obj->funcs->vunmap(obj, vaddr);
+		obj->funcs->vunmap(obj, &map);
 }
 
 /**

@@ -30,6 +30,7 @@
  * Definitions taken from spice-protocol, plus kernel driver specific bits.
  */
 
+#include <linux/dma-buf-map.h>
 #include <linux/dma-fence.h>
 #include <linux/firmware.h>
 #include <linux/platform_device.h>
@@ -49,6 +50,8 @@
 #include <drm/ttm/ttm_placement.h>
 
 #include "qxl_dev.h"
+
+struct dma_buf_map;
 
 #define DRIVER_AUTHOR		"Dave Airlie"
 
@@ -79,7 +82,7 @@ struct qxl_bo {
 	/* Protected by tbo.reserved */
 	struct ttm_place		placements[3];
 	struct ttm_placement		placement;
-	struct ttm_bo_kmap_obj		kmap;
+	struct dma_buf_map		map;
 	void				*kptr;
 	unsigned int                    map_count;
 	int                             type;
@@ -335,7 +338,6 @@ int qxl_gem_object_open(struct drm_gem_object *obj, struct drm_file *file_priv);
 void qxl_gem_object_close(struct drm_gem_object *obj,
 			  struct drm_file *file_priv);
 void qxl_bo_force_delete(struct qxl_device *qdev);
-int qxl_bo_kmap(struct qxl_bo *bo, void **ptr);
 
 /* qxl_dumb.c */
 int qxl_mode_dumb_create(struct drm_file *file_priv,
@@ -445,8 +447,9 @@ struct sg_table *qxl_gem_prime_get_sg_table(struct drm_gem_object *obj);
 struct drm_gem_object *qxl_gem_prime_import_sg_table(
 	struct drm_device *dev, struct dma_buf_attachment *attach,
 	struct sg_table *sgt);
-void *qxl_gem_prime_vmap(struct drm_gem_object *obj);
-void qxl_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
+int qxl_gem_prime_vmap(struct drm_gem_object *obj, struct dma_buf_map *map);
+void qxl_gem_prime_vunmap(struct drm_gem_object *obj,
+			  struct dma_buf_map *map);
 int qxl_gem_prime_mmap(struct drm_gem_object *obj,
 				struct vm_area_struct *vma);
 

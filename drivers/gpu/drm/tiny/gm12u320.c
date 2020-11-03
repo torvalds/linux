@@ -250,6 +250,7 @@ static void gm12u320_copy_fb_to_blocks(struct gm12u320_device *gm12u320)
 {
 	int block, dst_offset, len, remain, ret, x1, x2, y1, y2;
 	struct drm_framebuffer *fb;
+	struct dma_buf_map map;
 	void *vaddr;
 	u8 *src;
 
@@ -264,11 +265,12 @@ static void gm12u320_copy_fb_to_blocks(struct gm12u320_device *gm12u320)
 	y1 = gm12u320->fb_update.rect.y1;
 	y2 = gm12u320->fb_update.rect.y2;
 
-	vaddr = drm_gem_shmem_vmap(fb->obj[0]);
-	if (IS_ERR(vaddr)) {
-		GM12U320_ERR("failed to vmap fb: %ld\n", PTR_ERR(vaddr));
+	ret = drm_gem_shmem_vmap(fb->obj[0], &map);
+	if (ret) {
+		GM12U320_ERR("failed to vmap fb: %d\n", ret);
 		goto put_fb;
 	}
+	vaddr = map.vaddr; /* TODO: Use mapping abstraction properly */
 
 	if (fb->obj[0]->import_attach) {
 		ret = dma_buf_begin_cpu_access(
@@ -320,7 +322,7 @@ static void gm12u320_copy_fb_to_blocks(struct gm12u320_device *gm12u320)
 			GM12U320_ERR("dma_buf_end_cpu_access err: %d\n", ret);
 	}
 vunmap:
-	drm_gem_shmem_vunmap(fb->obj[0], vaddr);
+	drm_gem_shmem_vunmap(fb->obj[0], &map);
 put_fb:
 	drm_framebuffer_put(fb);
 	gm12u320->fb_update.fb = NULL;

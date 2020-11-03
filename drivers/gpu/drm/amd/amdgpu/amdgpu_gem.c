@@ -33,6 +33,7 @@
 
 #include <drm/amdgpu_drm.h>
 #include <drm/drm_debugfs.h>
+#include <drm/drm_gem_ttm_helper.h>
 
 #include "amdgpu.h"
 #include "amdgpu_display.h"
@@ -220,8 +221,8 @@ static const struct drm_gem_object_funcs amdgpu_gem_object_funcs = {
 	.open = amdgpu_gem_object_open,
 	.close = amdgpu_gem_object_close,
 	.export = amdgpu_gem_prime_export,
-	.vmap = amdgpu_gem_prime_vmap,
-	.vunmap = amdgpu_gem_prime_vunmap,
+	.vmap = drm_gem_ttm_vmap,
+	.vunmap = drm_gem_ttm_vunmap,
 };
 
 /*

@@ -232,6 +232,7 @@ config DRM_RADEON
 	select FW_LOADER
         select DRM_KMS_HELPER
         select DRM_TTM
+	select DRM_TTM_HELPER
 	select POWER_SUPPLY
 	select HWMON
 	select BACKLIGHT_CLASS_DEVICE
@@ -252,6 +253,7 @@ config DRM_AMDGPU
 	select DRM_KMS_HELPER
 	select DRM_SCHED
 	select DRM_TTM
+	select DRM_TTM_HELPER
 	select POWER_SUPPLY
 	select HWMON
 	select BACKLIGHT_CLASS_DEVICE

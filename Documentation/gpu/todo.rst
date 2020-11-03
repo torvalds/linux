@@ -450,6 +450,24 @@ Contact: Ville Syrjälä, Daniel Vetter
 
 Level: Intermediate
 
+Use struct dma_buf_map throughout codebase
+------------------------------------------
+
+Pointers to shared device memory are stored in struct dma_buf_map. Each
+instance knows whether it refers to system or I/O memory. Most of the DRM-wide
+interface have been converted to use struct dma_buf_map, but implementations
+often still use raw pointers.
+
+The task is to use struct dma_buf_map where it makes sense.
+
+* Memory managers should use struct dma_buf_map for dma-buf-imported buffers.
+* TTM might benefit from using struct dma_buf_map internally.
+* Framebuffer copying and blitting helpers should operate on struct dma_buf_map.
+
+Contact: Thomas Zimmermann <tzimmermann@suse.de>, Christian König, Daniel Vetter
+
+Level: Intermediate
+
 
 Core refactorings
 =================
