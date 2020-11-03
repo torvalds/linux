@@ -79,9 +79,9 @@ struct icm {
 	struct mutex request_lock;
 	struct delayed_work rescan_work;
 	struct pci_dev *upstream_port;
-	size_t max_boot_acl;
 	int vnd_cap;
 	bool safe_mode;
+	size_t max_boot_acl;
 	bool rpm;
 	bool can_upgrade_nvm;
 	bool veto;
