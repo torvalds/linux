@@ -575,8 +575,8 @@ static int omap_crtc_atomic_check(struct drm_crtc *crtc,
 									  crtc);
 	struct drm_plane_state *pri_state;
 
-	if (crtc_state->color_mgmt_changed && crtc_state->gamma_lut) {
-		unsigned int length = crtc_state->gamma_lut->length /
+	if (crtc_state->color_mgmt_changed && crtc_state->degamma_lut) {
+		unsigned int length = crtc_state->degamma_lut->length /
 			sizeof(struct drm_color_lut);
 
 		if (length < 2)
@@ -617,10 +617,10 @@ static void omap_crtc_atomic_flush(struct drm_crtc *crtc,
 		struct drm_color_lut *lut = NULL;
 		unsigned int length = 0;
 
-		if (crtc->state->gamma_lut) {
+		if (crtc->state->degamma_lut) {
 			lut = (struct drm_color_lut *)
-				crtc->state->gamma_lut->data;
-			length = crtc->state->gamma_lut->length /
+				crtc->state->degamma_lut->data;
+			length = crtc->state->degamma_lut->length /
 				sizeof(*lut);
 		}
 		priv->dispc_ops->mgr_set_gamma(priv->dispc, omap_crtc->channel,
@@ -841,7 +841,7 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 	if (priv->dispc_ops->mgr_gamma_size(priv->dispc, channel)) {
 		unsigned int gamma_lut_size = 256;
 
-		drm_crtc_enable_color_mgmt(crtc, 0, false, gamma_lut_size);
+		drm_crtc_enable_color_mgmt(crtc, gamma_lut_size, false, 0);
 		drm_mode_crtc_set_gamma_size(crtc, gamma_lut_size);
 	}
 
