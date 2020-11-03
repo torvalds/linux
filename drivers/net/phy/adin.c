@@ -23,6 +23,7 @@
 #define ADIN1300_PHY_CTRL1			0x0012
 #define   ADIN1300_AUTO_MDI_EN			BIT(10)
 #define   ADIN1300_MAN_MDIX_EN			BIT(9)
+#define   ADIN1300_DIAG_CLK_EN			BIT(2)
 
 #define ADIN1300_RX_ERR_CNT			0x0014
 
@@ -321,10 +322,9 @@ static int adin_set_downshift(struct phy_device *phydev, u8 cnt)
 		return -E2BIG;
 
 	val = FIELD_PREP(ADIN1300_DOWNSPEED_RETRIES_MSK, cnt);
-	val |= ADIN1300_LINKING_EN;
 
 	rc = phy_modify(phydev, ADIN1300_PHY_CTRL3,
-			ADIN1300_LINKING_EN | ADIN1300_DOWNSPEED_RETRIES_MSK,
+			ADIN1300_DOWNSPEED_RETRIES_MSK,
 			val);
 	if (rc < 0)
 		return rc;
@@ -554,6 +554,14 @@ static int adin_config_mdix(struct phy_device *phydev)
 static int adin_config_aneg(struct phy_device *phydev)
 {
 	int ret;
+
+	ret = phy_clear_bits(phydev, ADIN1300_PHY_CTRL1, ADIN1300_DIAG_CLK_EN);
+	if (ret < 0)
+		return ret;
+
+	ret = phy_set_bits(phydev, ADIN1300_PHY_CTRL3, ADIN1300_LINKING_EN);
+	if (ret < 0)
+		return ret;
 
 	ret = adin_config_mdix(phydev);
 	if (ret)
