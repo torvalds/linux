@@ -65,6 +65,7 @@ struct qmp_cooling_device {
  * @tx_lock: provides synchronization between multiple callers of qmp_send()
  * @qdss_clk: QDSS clock hw struct
  * @pd_data: genpd data
+ * @cooling_devs: thermal cooling devices
  */
 struct qmp {
 	void __iomem *msgram;
