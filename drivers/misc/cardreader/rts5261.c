@@ -272,6 +272,9 @@ static void rts5261_enable_ocp(struct rtsx_pcr *pcr)
 	u8 val = 0;
 
 	val = SD_OCP_INT_EN | SD_DETECT_EN;
+	rtsx_pci_write_register(pcr, RTS5261_LDO1_CFG0,
+			RTS5261_LDO1_OCP_EN | RTS5261_LDO1_OCP_LMT_EN,
+			RTS5261_LDO1_OCP_EN | RTS5261_LDO1_OCP_LMT_EN);
 	rtsx_pci_write_register(pcr, REG_OCPCTL, 0xFF, val);
 
 }
@@ -340,7 +343,7 @@ static void rts5261_clear_ocpstat(struct rtsx_pcr *pcr)
 
 	rtsx_pci_write_register(pcr, REG_OCPCTL, mask, val);
 
-	udelay(10);
+	udelay(1000);
 	rtsx_pci_write_register(pcr, REG_OCPCTL, mask, 0);
 
 }
@@ -353,9 +356,9 @@ static void rts5261_process_ocp(struct rtsx_pcr *pcr)
 	rtsx_pci_get_ocpstat(pcr, &pcr->ocp_stat);
 
 	if (pcr->ocp_stat & (SD_OC_NOW | SD_OC_EVER)) {
+		rts5261_clear_ocpstat(pcr);
 		rts5261_card_power_off(pcr, RTSX_SD_CARD);
 		rtsx_pci_write_register(pcr, CARD_OE, SD_OUTPUT_EN, 0);
-		rts5261_clear_ocpstat(pcr);
 		pcr->ocp_stat = 0;
 	}
 
@@ -513,6 +516,7 @@ static int rts5261_extra_init_hw(struct rtsx_pcr *pcr)
 		rtsx_pci_write_register(pcr, PETXCFG,
 				 FORCE_CLKREQ_DELINK_MASK, FORCE_CLKREQ_HIGH);
 
+	rtsx_pci_write_register(pcr, PWD_SUSPEND_EN, 0xFF, 0xFB);
 	rtsx_pci_write_register(pcr, pcr->reg_pm_ctrl3, 0x10, 0x00);
 	rtsx_pci_write_register(pcr, RTS5261_REG_PME_FORCE_CTL,
 			FORCE_PM_CONTROL | FORCE_PM_VALUE, FORCE_PM_CONTROL);
