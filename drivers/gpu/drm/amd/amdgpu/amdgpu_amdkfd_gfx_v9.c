@@ -799,7 +799,7 @@ static void get_wave_count(struct amdgpu_device *adev, int queue_idx,
  *
  *  Reading registers referenced above involves programming GRBM appropriately
  */
-static void kgd_gfx_v9_get_cu_occupancy(struct kgd_dev *kgd, int pasid,
+void kgd_gfx_v9_get_cu_occupancy(struct kgd_dev *kgd, int pasid,
 		int *pasid_wave_cnt, int *max_waves_per_cu)
 {
 	int qidx;
