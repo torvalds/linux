@@ -51,7 +51,7 @@
 #define BANK_OFFSET_STRIDE	      0x80000
 
 /**
- * llcc_slice_config - Data associated with the llcc slice
+ * struct llcc_slice_config - Data associated with the llcc slice
  * @usecase_id: Unique id for the client's use case
  * @slice_id: llcc slice id for each client
  * @max_cap: The maximum capacity of the cache slice provided in KB
