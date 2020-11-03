@@ -1512,6 +1512,8 @@ int dlm_lowcomms_close(int nodeid)
 		set_bit(CF_CLOSE, &con->flags);
 		close_connection(con, true, true, true);
 		clean_one_writequeue(con);
+		if (con->othercon)
+			clean_one_writequeue(con->othercon);
 	}
 
 	spin_lock(&dlm_node_addrs_spin);
