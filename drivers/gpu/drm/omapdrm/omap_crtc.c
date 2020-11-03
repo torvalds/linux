@@ -391,6 +391,33 @@ static void omap_crtc_manual_display_update(struct work_struct *data)
 	}
 }
 
+static s16 omap_crtc_s31_32_to_s2_8(s64 coef)
+{
+	u64 sign_bit = 1ULL << 63;
+	u64 cbits = (u64)coef;
+
+	s16 ret = clamp_val(((cbits & ~sign_bit) >> 24), 0, 0x1ff);
+
+	if (cbits & sign_bit)
+		ret = -ret;
+
+	return ret;
+}
+
+static void omap_crtc_cpr_coefs_from_ctm(const struct drm_color_ctm *ctm,
+					 struct omap_dss_cpr_coefs *cpr)
+{
+	cpr->rr = omap_crtc_s31_32_to_s2_8(ctm->matrix[0]);
+	cpr->rg = omap_crtc_s31_32_to_s2_8(ctm->matrix[1]);
+	cpr->rb = omap_crtc_s31_32_to_s2_8(ctm->matrix[2]);
+	cpr->gr = omap_crtc_s31_32_to_s2_8(ctm->matrix[3]);
+	cpr->gg = omap_crtc_s31_32_to_s2_8(ctm->matrix[4]);
+	cpr->gb = omap_crtc_s31_32_to_s2_8(ctm->matrix[5]);
+	cpr->br = omap_crtc_s31_32_to_s2_8(ctm->matrix[6]);
+	cpr->bg = omap_crtc_s31_32_to_s2_8(ctm->matrix[7]);
+	cpr->bb = omap_crtc_s31_32_to_s2_8(ctm->matrix[8]);
+}
+
 static void omap_crtc_write_crtc_properties(struct drm_crtc *crtc)
 {
 	struct omap_drm_private *priv = crtc->dev->dev_private;
@@ -402,7 +429,15 @@ static void omap_crtc_write_crtc_properties(struct drm_crtc *crtc)
 	info.default_color = 0x000000;
 	info.trans_enabled = false;
 	info.partial_alpha_enabled = false;
-	info.cpr_enable = false;
+
+	if (crtc->state->ctm) {
+		struct drm_color_ctm *ctm = crtc->state->ctm->data;
+
+		info.cpr_enable = true;
+		omap_crtc_cpr_coefs_from_ctm(ctm, &info.cpr_coefs);
+	} else {
+		info.cpr_enable = false;
+	}
 
 	priv->dispc_ops->mgr_setup(priv->dispc, omap_crtc->channel, &info);
 }
@@ -841,7 +876,7 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 	if (priv->dispc_ops->mgr_gamma_size(priv->dispc, channel)) {
 		unsigned int gamma_lut_size = 256;
 
-		drm_crtc_enable_color_mgmt(crtc, gamma_lut_size, false, 0);
+		drm_crtc_enable_color_mgmt(crtc, gamma_lut_size, true, 0);
 		drm_mode_crtc_set_gamma_size(crtc, gamma_lut_size);
 	}
 
