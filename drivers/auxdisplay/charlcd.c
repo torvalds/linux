@@ -31,10 +31,6 @@
 #define LCD_CMD_CURSOR_ON	0x02	/* Set cursor on */
 #define LCD_CMD_BLINK_ON	0x01	/* Set blink on */
 
-#define LCD_CMD_SHIFT		0x10	/* Shift cursor/display */
-#define LCD_CMD_DISPLAY_SHIFT	0x08	/* Shift display instead of cursor */
-#define LCD_CMD_SHIFT_RIGHT	0x04	/* Shift display/cursor to the right */
-
 #define LCD_CMD_FUNCTION_SET	0x20	/* Set function */
 #define LCD_CMD_DATA_LEN_8BITS	0x10	/* Set data length to 8 bits */
 #define LCD_CMD_TWO_LINES	0x08	/* Set to two display lines */
@@ -236,26 +232,44 @@ static inline int handle_lcd_special_code(struct charlcd *lcd)
 	switch (*esc) {
 	case 'D':	/* Display ON */
 		priv->flags |= LCD_FLAG_D;
+		if (priv->flags != oldflags)
+			lcd->ops->display(lcd, CHARLCD_ON);
+
 		processed = 1;
 		break;
 	case 'd':	/* Display OFF */
 		priv->flags &= ~LCD_FLAG_D;
+		if (priv->flags != oldflags)
+			lcd->ops->display(lcd, CHARLCD_OFF);
+
 		processed = 1;
 		break;
 	case 'C':	/* Cursor ON */
 		priv->flags |= LCD_FLAG_C;
+		if (priv->flags != oldflags)
+			lcd->ops->cursor(lcd, CHARLCD_ON);
+
 		processed = 1;
 		break;
 	case 'c':	/* Cursor OFF */
 		priv->flags &= ~LCD_FLAG_C;
+		if (priv->flags != oldflags)
+			lcd->ops->cursor(lcd, CHARLCD_OFF);
+
 		processed = 1;
 		break;
 	case 'B':	/* Blink ON */
 		priv->flags |= LCD_FLAG_B;
+		if (priv->flags != oldflags)
+			lcd->ops->blink(lcd, CHARLCD_ON);
+
 		processed = 1;
 		break;
 	case 'b':	/* Blink OFF */
 		priv->flags &= ~LCD_FLAG_B;
+		if (priv->flags != oldflags)
+			lcd->ops->blink(lcd, CHARLCD_OFF);
+
 		processed = 1;
 		break;
 	case '+':	/* Back light ON */
@@ -272,47 +286,54 @@ static inline int handle_lcd_special_code(struct charlcd *lcd)
 		break;
 	case 'f':	/* Small Font */
 		priv->flags &= ~LCD_FLAG_F;
+		if (priv->flags != oldflags)
+			lcd->ops->fontsize(lcd, CHARLCD_FONTSIZE_SMALL);
+
 		processed = 1;
 		break;
 	case 'F':	/* Large Font */
 		priv->flags |= LCD_FLAG_F;
+		if (priv->flags != oldflags)
+			lcd->ops->fontsize(lcd, CHARLCD_FONTSIZE_LARGE);
+
 		processed = 1;
 		break;
 	case 'n':	/* One Line */
 		priv->flags &= ~LCD_FLAG_N;
+		if (priv->flags != oldflags)
+			lcd->ops->lines(lcd, CHARLCD_LINES_1);
+
 		processed = 1;
 		break;
 	case 'N':	/* Two Lines */
 		priv->flags |= LCD_FLAG_N;
+		if (priv->flags != oldflags)
+			lcd->ops->lines(lcd, CHARLCD_LINES_2);
+
 		processed = 1;
 		break;
 	case 'l':	/* Shift Cursor Left */
 		if (lcd->addr.x > 0) {
-			/* back one char if not at end of line */
-			if (lcd->addr.x < hdc->bwidth)
-				hdc->write_cmd(hdc, LCD_CMD_SHIFT);
-			lcd->addr.x--;
+			if (!lcd->ops->shift_cursor(lcd, CHARLCD_SHIFT_LEFT))
+				lcd->addr.x--;
 		}
+
 		processed = 1;
 		break;
 	case 'r':	/* shift cursor right */
 		if (lcd->addr.x < lcd->width) {
-			/* allow the cursor to pass the end of the line */
-			if (lcd->addr.x < (hdc->bwidth - 1))
-				hdc->write_cmd(hdc,
-					LCD_CMD_SHIFT | LCD_CMD_SHIFT_RIGHT);
-			lcd->addr.x++;
+			if (!lcd->ops->shift_cursor(lcd, CHARLCD_SHIFT_RIGHT))
+				lcd->addr.x++;
 		}
+
 		processed = 1;
 		break;
 	case 'L':	/* shift display left */
-		hdc->write_cmd(hdc, LCD_CMD_SHIFT | LCD_CMD_DISPLAY_SHIFT);
+		lcd->ops->shift_display(lcd, CHARLCD_SHIFT_LEFT);
 		processed = 1;
 		break;
 	case 'R':	/* shift display right */
-		hdc->write_cmd(hdc,
-				    LCD_CMD_SHIFT | LCD_CMD_DISPLAY_SHIFT |
-				    LCD_CMD_SHIFT_RIGHT);
+		lcd->ops->shift_display(lcd, CHARLCD_SHIFT_RIGHT);
 		processed = 1;
 		break;
 	case 'k': {	/* kill end of line */
@@ -456,19 +477,17 @@ static void charlcd_write_char(struct charlcd *lcd, char c)
 		case '\b':
 			/* go back one char and clear it */
 			if (lcd->addr.x > 0) {
-				/*
-				 * check if we're not at the
-				 * end of the line
-				 */
-				if (lcd->addr.x < hdc->bwidth)
-					/* back one char */
-					hdc->write_cmd(hdc, LCD_CMD_SHIFT);
-				lcd->addr.x--;
+				/* back one char */
+				if (!lcd->ops->shift_cursor(lcd,
+							CHARLCD_SHIFT_LEFT))
+					lcd->addr.x--;
 			}
 			/* replace with a space */
-			hdc->write_data(hdc, ' ');
+			charlcd_print(lcd, ' ');
 			/* back one char again */
-			hdc->write_cmd(hdc, LCD_CMD_SHIFT);
+			if (!lcd->ops->shift_cursor(lcd, CHARLCD_SHIFT_LEFT))
+				lcd->addr.x--;
+
 			break;
 		case '\f':
 			/* quickly clear the display */

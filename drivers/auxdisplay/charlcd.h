@@ -21,6 +21,21 @@ enum charlcd_onoff {
 	CHARLCD_ON,
 };
 
+enum charlcd_shift_dir {
+	CHARLCD_SHIFT_LEFT,
+	CHARLCD_SHIFT_RIGHT,
+};
+
+enum charlcd_fontsize {
+	CHARLCD_FONTSIZE_SMALL,
+	CHARLCD_FONTSIZE_LARGE,
+};
+
+enum charlcd_lines {
+	CHARLCD_LINES_1,
+	CHARLCD_LINES_2,
+};
+
 struct charlcd {
 	const struct charlcd_ops *ops;
 	const unsigned char *char_conv;	/* Optional */
@@ -54,6 +69,12 @@ struct charlcd {
  * values in addr.x and addr.y are set to 0, 0 by charlcd prior to calling this
  * function.
  * @init_display: Initialize the display.
+ * @shift_cursor: Shift cursor left or right one position.
+ * @shift_display: Shift whole display content left or right.
+ * @display: Turn display on or off.
+ * @cursor: Turn cursor on or off.
+ * @blink: Turn cursor blink on or off.
+ * @lines: One or two lines.
  */
 struct charlcd_ops {
 	void (*clear_fast)(struct charlcd *lcd);
@@ -63,6 +84,13 @@ struct charlcd_ops {
 	int (*home)(struct charlcd *lcd);
 	int (*clear_display)(struct charlcd *lcd);
 	int (*init_display)(struct charlcd *lcd);
+	int (*shift_cursor)(struct charlcd *lcd, enum charlcd_shift_dir dir);
+	int (*shift_display)(struct charlcd *lcd, enum charlcd_shift_dir dir);
+	int (*display)(struct charlcd *lcd, enum charlcd_onoff on);
+	int (*cursor)(struct charlcd *lcd, enum charlcd_onoff on);
+	int (*blink)(struct charlcd *lcd, enum charlcd_onoff on);
+	int (*fontsize)(struct charlcd *lcd, enum charlcd_fontsize size);
+	int (*lines)(struct charlcd *lcd, enum charlcd_lines lines);
 };
 
 void charlcd_backlight(struct charlcd *lcd, enum charlcd_onoff on);

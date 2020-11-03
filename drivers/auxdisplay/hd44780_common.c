@@ -17,6 +17,10 @@
 #define LCD_CMD_CURSOR_ON	0x02	/* Set cursor on */
 #define LCD_CMD_BLINK_ON	0x01	/* Set blink on */
 
+#define LCD_CMD_SHIFT		0x10	/* Shift cursor/display */
+#define LCD_CMD_DISPLAY_SHIFT	0x08	/* Shift display instead of cursor */
+#define LCD_CMD_SHIFT_RIGHT	0x04	/* Shift display/cursor to the right */
+
 #define LCD_CMD_FUNCTION_SET	0x20	/* Set function */
 #define LCD_CMD_DATA_LEN_8BITS	0x10	/* Set data length to 8 bits */
 #define LCD_CMD_TWO_LINES	0x08	/* Set to two display lines */
@@ -157,6 +161,133 @@ int hd44780_common_init_display(struct charlcd *lcd)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(hd44780_common_init_display);
+
+int hd44780_common_shift_cursor(struct charlcd *lcd, enum charlcd_shift_dir dir)
+{
+	struct hd44780_common *hdc = lcd->drvdata;
+
+	if (dir == CHARLCD_SHIFT_LEFT) {
+		/* back one char if not at end of line */
+		if (lcd->addr.x < hdc->bwidth)
+			hdc->write_cmd(hdc, LCD_CMD_SHIFT);
+	} else if (dir == CHARLCD_SHIFT_RIGHT) {
+		/* allow the cursor to pass the end of the line */
+		if (lcd->addr.x < (hdc->bwidth - 1))
+			hdc->write_cmd(hdc,
+					LCD_CMD_SHIFT | LCD_CMD_SHIFT_RIGHT);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(hd44780_common_shift_cursor);
+
+int hd44780_common_shift_display(struct charlcd *lcd,
+		enum charlcd_shift_dir dir)
+{
+	struct hd44780_common *hdc = lcd->drvdata;
+
+	if (dir == CHARLCD_SHIFT_LEFT)
+		hdc->write_cmd(hdc, LCD_CMD_SHIFT | LCD_CMD_DISPLAY_SHIFT);
+	else if (dir == CHARLCD_SHIFT_RIGHT)
+		hdc->write_cmd(hdc, LCD_CMD_SHIFT | LCD_CMD_DISPLAY_SHIFT |
+			LCD_CMD_SHIFT_RIGHT);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(hd44780_common_shift_display);
+
+static void hd44780_common_set_mode(struct hd44780_common *hdc)
+{
+	hdc->write_cmd(hdc,
+		LCD_CMD_DISPLAY_CTRL |
+		((hdc->hd44780_common_flags & LCD_FLAG_D) ?
+			LCD_CMD_DISPLAY_ON : 0) |
+		((hdc->hd44780_common_flags & LCD_FLAG_C) ?
+			LCD_CMD_CURSOR_ON : 0) |
+		((hdc->hd44780_common_flags & LCD_FLAG_B) ?
+			LCD_CMD_BLINK_ON : 0));
+}
+
+int hd44780_common_display(struct charlcd *lcd, enum charlcd_onoff on)
+{
+	struct hd44780_common *hdc = lcd->drvdata;
+
+	if (on == CHARLCD_ON)
+		hdc->hd44780_common_flags |= LCD_FLAG_D;
+	else
+		hdc->hd44780_common_flags &= ~LCD_FLAG_D;
+
+	hd44780_common_set_mode(hdc);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(hd44780_common_display);
+
+int hd44780_common_cursor(struct charlcd *lcd, enum charlcd_onoff on)
+{
+	struct hd44780_common *hdc = lcd->drvdata;
+
+	if (on == CHARLCD_ON)
+		hdc->hd44780_common_flags |= LCD_FLAG_C;
+	else
+		hdc->hd44780_common_flags &= ~LCD_FLAG_C;
+
+	hd44780_common_set_mode(hdc);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(hd44780_common_cursor);
+
+int hd44780_common_blink(struct charlcd *lcd, enum charlcd_onoff on)
+{
+	struct hd44780_common *hdc = lcd->drvdata;
+
+	if (on == CHARLCD_ON)
+		hdc->hd44780_common_flags |= LCD_FLAG_B;
+	else
+		hdc->hd44780_common_flags &= ~LCD_FLAG_B;
+
+	hd44780_common_set_mode(hdc);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(hd44780_common_blink);
+
+static void hd44780_common_set_function(struct hd44780_common *hdc)
+{
+	hdc->write_cmd(hdc,
+		LCD_CMD_FUNCTION_SET |
+		((hdc->ifwidth == 8) ? LCD_CMD_DATA_LEN_8BITS : 0) |
+		((hdc->hd44780_common_flags & LCD_FLAG_F) ?
+			LCD_CMD_FONT_5X10_DOTS : 0) |
+		((hdc->hd44780_common_flags & LCD_FLAG_N) ?
+			LCD_CMD_TWO_LINES : 0));
+}
+
+int hd44780_common_fontsize(struct charlcd *lcd, enum charlcd_fontsize size)
+{
+	struct hd44780_common *hdc = lcd->drvdata;
+
+	if (size == CHARLCD_FONTSIZE_LARGE)
+		hdc->hd44780_common_flags |= LCD_FLAG_F;
+	else
+		hdc->hd44780_common_flags &= ~LCD_FLAG_F;
+
+	hd44780_common_set_function(hdc);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(hd44780_common_fontsize);
+
+int hd44780_common_lines(struct charlcd *lcd, enum charlcd_lines lines)
+{
+	struct hd44780_common *hdc = lcd->drvdata;
+
+	if (lines == CHARLCD_LINES_2)
+		hdc->hd44780_common_flags |= LCD_FLAG_N;
+	else
+		hdc->hd44780_common_flags &= ~LCD_FLAG_N;
+
+	hd44780_common_set_function(hdc);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(hd44780_common_lines);
 
 struct hd44780_common *hd44780_common_alloc(void)
 {

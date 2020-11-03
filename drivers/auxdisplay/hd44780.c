@@ -131,6 +131,13 @@ static const struct charlcd_ops hd44780_ops_gpio8 = {
 	.home		= hd44780_common_home,
 	.clear_display	= hd44780_common_clear_display,
 	.init_display	= hd44780_common_init_display,
+	.shift_cursor	= hd44780_common_shift_cursor,
+	.shift_display	= hd44780_common_shift_display,
+	.display	= hd44780_common_display,
+	.cursor		= hd44780_common_cursor,
+	.blink		= hd44780_common_blink,
+	.fontsize	= hd44780_common_fontsize,
+	.lines		= hd44780_common_lines,
 };
 
 /* Send a command to the LCD panel in 4 bit GPIO mode */
@@ -179,6 +186,13 @@ static const struct charlcd_ops hd44780_ops_gpio4 = {
 	.home		= hd44780_common_home,
 	.clear_display	= hd44780_common_clear_display,
 	.init_display	= hd44780_common_init_display,
+	.shift_cursor	= hd44780_common_shift_cursor,
+	.shift_display	= hd44780_common_shift_display,
+	.display	= hd44780_common_display,
+	.cursor		= hd44780_common_cursor,
+	.blink		= hd44780_common_blink,
+	.fontsize	= hd44780_common_fontsize,
+	.lines		= hd44780_common_lines,
 };
 
 static int hd44780_probe(struct platform_device *pdev)
