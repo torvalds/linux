@@ -259,6 +259,7 @@ struct coda_ctx {
 	struct list_head		buffer_meta_list;
 	spinlock_t			buffer_meta_lock;
 	int				num_metas;
+	unsigned int			first_frame_sequence;
 	struct coda_aux_buf		workbuf;
 	int				num_internal_frames;
 	int				idx;
