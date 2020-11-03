@@ -190,17 +190,17 @@ static inline enum bset_aux_tree_type bset_aux_tree_type(const struct bset_tree 
 
 #define BSET_CACHELINE		128
 
-static inline size_t btree_keys_cachelines(struct btree *b)
+static inline size_t btree_keys_cachelines(const struct btree *b)
 {
 	return (1U << b->byte_order) / BSET_CACHELINE;
 }
 
-static inline size_t btree_aux_data_bytes(struct btree *b)
+static inline size_t btree_aux_data_bytes(const struct btree *b)
 {
 	return btree_keys_cachelines(b) * 8;
 }
 
-static inline size_t btree_aux_data_u64s(struct btree *b)
+static inline size_t btree_aux_data_u64s(const struct btree *b)
 {
 	return btree_aux_data_bytes(b) / sizeof(u64);
 }

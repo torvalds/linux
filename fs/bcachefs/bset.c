@@ -357,10 +357,10 @@ static struct bkey_float *bkey_float(const struct btree *b,
 	return ro_aux_tree_base(b, t)->f + idx;
 }
 
-static void bset_aux_tree_verify(struct btree *b)
+static void bset_aux_tree_verify(const struct btree *b)
 {
 #ifdef CONFIG_BCACHEFS_DEBUG
-	struct bset_tree *t;
+	const struct bset_tree *t;
 
 	for_each_bset(b, t) {
 		if (t->aux_data_offset == U16_MAX)
@@ -696,20 +696,20 @@ static void make_bfloat(struct btree *b, struct bset_tree *t,
 }
 
 /* bytes remaining - only valid for last bset: */
-static unsigned __bset_tree_capacity(struct btree *b, struct bset_tree *t)
+static unsigned __bset_tree_capacity(const struct btree *b, const struct bset_tree *t)
 {
 	bset_aux_tree_verify(b);
 
 	return btree_aux_data_bytes(b) - t->aux_data_offset * sizeof(u64);
 }
 
-static unsigned bset_ro_tree_capacity(struct btree *b, struct bset_tree *t)
+static unsigned bset_ro_tree_capacity(const struct btree *b, const struct bset_tree *t)
 {
 	return __bset_tree_capacity(b, t) /
 		(sizeof(struct bkey_float) + sizeof(u8));
 }
 
-static unsigned bset_rw_tree_capacity(struct btree *b, struct bset_tree *t)
+static unsigned bset_rw_tree_capacity(const struct btree *b, const struct bset_tree *t)
 {
 	return __bset_tree_capacity(b, t) / sizeof(struct rw_aux_tree);
 }
@@ -1213,8 +1213,8 @@ static inline bool bkey_mantissa_bits_dropped(const struct btree *b,
 
 __flatten
 static struct bkey_packed *bset_search_tree(const struct btree *b,
-				struct bset_tree *t,
-				struct bpos *search,
+				const struct bset_tree *t,
+				const struct bpos *search,
 				const struct bkey_packed *packed_search)
 {
 	struct ro_aux_tree *base = ro_aux_tree_base(b, t);
