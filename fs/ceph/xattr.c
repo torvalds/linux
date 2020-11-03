@@ -42,6 +42,7 @@ struct ceph_vxattr {
 #define VXATTR_FLAG_READONLY		(1<<0)
 #define VXATTR_FLAG_HIDDEN		(1<<1)
 #define VXATTR_FLAG_RSTAT		(1<<2)
+#define VXATTR_FLAG_DIRSTAT		(1<<3)
 
 /* layouts */
 
@@ -347,9 +348,9 @@ static struct ceph_vxattr ceph_dir_vxattrs[] = {
 	XATTR_LAYOUT_FIELD(dir, layout, object_size),
 	XATTR_LAYOUT_FIELD(dir, layout, pool),
 	XATTR_LAYOUT_FIELD(dir, layout, pool_namespace),
-	XATTR_NAME_CEPH(dir, entries, 0),
-	XATTR_NAME_CEPH(dir, files, 0),
-	XATTR_NAME_CEPH(dir, subdirs, 0),
+	XATTR_NAME_CEPH(dir, entries, VXATTR_FLAG_DIRSTAT),
+	XATTR_NAME_CEPH(dir, files, VXATTR_FLAG_DIRSTAT),
+	XATTR_NAME_CEPH(dir, subdirs, VXATTR_FLAG_DIRSTAT),
 	XATTR_RSTAT_FIELD(dir, rentries),
 	XATTR_RSTAT_FIELD(dir, rfiles),
 	XATTR_RSTAT_FIELD(dir, rsubdirs),
@@ -837,6 +838,8 @@ ssize_t __ceph_getxattr(struct inode *inode, const char *name, void *value,
 		int mask = 0;
 		if (vxattr->flags & VXATTR_FLAG_RSTAT)
 			mask |= CEPH_STAT_RSTAT;
+		if (vxattr->flags & VXATTR_FLAG_DIRSTAT)
+			mask |= CEPH_CAP_FILE_SHARED;
 		err = ceph_do_getattr(inode, mask, true);
 		if (err)
 			return err;
