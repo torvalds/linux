@@ -3,6 +3,7 @@
 #include <network_helpers.h>
 
 #include "test_tcpbpf.h"
+#include "test_tcpbpf_kern.skel.h"
 
 #define LO_ADDR6 "::1"
 #define CG_NAME "/tcpbpf-user-test"
@@ -130,44 +131,30 @@ done:
 
 void test_tcpbpf_user(void)
 {
-	const char *file = "test_tcpbpf_kern.o";
-	int prog_fd, map_fd, sock_map_fd;
-	int error = EXIT_FAILURE;
-	struct bpf_object *obj;
+	struct test_tcpbpf_kern *skel;
+	int map_fd, sock_map_fd;
 	int cg_fd = -1;
-	int rv;
+
+	skel = test_tcpbpf_kern__open_and_load();
+	if (CHECK(!skel, "open and load skel", "failed"))
+		return;
 
 	cg_fd = test__join_cgroup(CG_NAME);
-	if (cg_fd < 0)
+	if (CHECK(cg_fd < 0, "test__join_cgroup(" CG_NAME ")",
+		  "cg_fd:%d errno:%d", cg_fd, errno))
 		goto err;
 
-	if (bpf_prog_load(file, BPF_PROG_TYPE_SOCK_OPS, &obj, &prog_fd)) {
-		printf("FAILED: load_bpf_file failed for: %s\n", file);
-		goto err;
-	}
+	map_fd = bpf_map__fd(skel->maps.global_map);
+	sock_map_fd = bpf_map__fd(skel->maps.sockopt_results);
 
-	rv = bpf_prog_attach(prog_fd, cg_fd, BPF_CGROUP_SOCK_OPS, 0);
-	if (rv) {
-		printf("FAILED: bpf_prog_attach: %d (%s)\n",
-		       error, strerror(errno));
-		goto err;
-	}
-
-	map_fd = bpf_find_map(__func__, obj, "global_map");
-	if (map_fd < 0)
-		goto err;
-
-	sock_map_fd = bpf_find_map(__func__, obj, "sockopt_results");
-	if (sock_map_fd < 0)
+	skel->links.bpf_testcb = bpf_program__attach_cgroup(skel->progs.bpf_testcb, cg_fd);
+	if (!ASSERT_OK_PTR(skel->links.bpf_testcb, "attach_cgroup(bpf_testcb)"))
 		goto err;
 
 	run_test(map_fd, sock_map_fd);
 
-	error = 0;
 err:
-	bpf_prog_detach(cg_fd, BPF_CGROUP_SOCK_OPS);
 	if (cg_fd != -1)
 		close(cg_fd);
-
-	CHECK_FAIL(error);
+	test_tcpbpf_kern__destroy(skel);
 }
