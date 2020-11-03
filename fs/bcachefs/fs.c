@@ -1261,6 +1261,11 @@ static int bch2_statfs(struct dentry *dentry, struct kstatfs *buf)
 	struct bch_fs *c = sb->s_fs_info;
 	struct bch_fs_usage_short usage = bch2_fs_usage_read_short(c);
 	unsigned shift = sb->s_blocksize_bits - 9;
+	/*
+	 * this assumes inodes take up 64 bytes, which is a decent average
+	 * number:
+	 */
+	u64 avail_inodes = ((usage.capacity - usage.used) << 3);
 	u64 fsid;
 
 	buf->f_type	= BCACHEFS_STATFS_MAGIC;
@@ -1268,8 +1273,9 @@ static int bch2_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_blocks	= usage.capacity >> shift;
 	buf->f_bfree	= (usage.capacity - usage.used) >> shift;
 	buf->f_bavail	= buf->f_bfree;
-	buf->f_files	= 0;
-	buf->f_ffree	= 0;
+
+	buf->f_files	= usage.nr_inodes + avail_inodes;
+	buf->f_ffree	= avail_inodes;
 
 	fsid = le64_to_cpup((void *) c->sb.user_uuid.b) ^
 	       le64_to_cpup((void *) c->sb.user_uuid.b + sizeof(u64));
