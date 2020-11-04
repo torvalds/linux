@@ -43,8 +43,6 @@
 #include "vmwgfx_drv.h"
 
 #define VMWGFX_DRIVER_DESC "Linux drm driver for VMware graphics devices"
-#define VMWGFX_CHIP_SVGAII 0
-#define VMW_FB_RESERVATION 0
 
 #define VMW_MIN_INITIAL_WIDTH 800
 #define VMW_MIN_INITIAL_HEIGHT 600
@@ -253,8 +251,8 @@ static const struct drm_ioctl_desc vmw_ioctls[] = {
 };
 
 static const struct pci_device_id vmw_pci_id_list[] = {
-	{0x15ad, 0x0405, PCI_ANY_ID, PCI_ANY_ID, 0, 0, VMWGFX_CHIP_SVGAII},
-	{0, 0, 0}
+	{ PCI_DEVICE(0x15ad, VMWGFX_PCI_ID_SVGA2) },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, vmw_pci_id_list);
 
@@ -644,19 +642,83 @@ static void vmw_vram_manager_fini(struct vmw_private *dev_priv)
 #endif
 }
 
-static int vmw_driver_load(struct vmw_private *dev_priv, unsigned long chipset)
+static int vmw_setup_pci_resources(struct vmw_private *dev,
+				   unsigned long pci_id)
+{
+	resource_size_t fifo_start;
+	resource_size_t fifo_size;
+	int ret;
+	struct pci_dev *pdev = to_pci_dev(dev->drm.dev);
+
+	pci_set_master(pdev);
+
+	ret = pci_request_regions(pdev, "vmwgfx probe");
+	if (ret)
+		return ret;
+
+	dev->io_start = pci_resource_start(pdev, 0);
+	dev->vram_start = pci_resource_start(pdev, 1);
+	dev->vram_size = pci_resource_len(pdev, 1);
+	fifo_start = pci_resource_start(pdev, 2);
+	fifo_size = pci_resource_len(pdev, 2);
+
+	DRM_INFO("FIFO at %pa size is %llu kiB\n",
+		 &fifo_start, (uint64_t)fifo_size / 1024);
+	dev->fifo_mem = devm_memremap(dev->drm.dev,
+				      fifo_start,
+				      fifo_size,
+				      MEMREMAP_WB);
+
+	if (unlikely(dev->fifo_mem == NULL)) {
+		DRM_ERROR("Failed mapping FIFO memory.\n");
+		return -ENOMEM;
+	}
+
+	/*
+	 * This is approximate size of the vram, the exact size will only
+	 * be known after we read SVGA_REG_VRAM_SIZE. The PCI resource
+	 * size will be equal to or bigger than the size reported by
+	 * SVGA_REG_VRAM_SIZE.
+	 */
+	DRM_INFO("VRAM at %pa size is %llu kiB\n",
+		 &dev->vram_start, (uint64_t)dev->vram_size / 1024);
+
+	return 0;
+}
+
+static int vmw_detect_version(struct vmw_private *dev)
+{
+	uint32_t svga_id;
+
+	vmw_write(dev, SVGA_REG_ID, SVGA_ID_2);
+	svga_id = vmw_read(dev, SVGA_REG_ID);
+	if (svga_id != SVGA_ID_2) {
+		DRM_ERROR("Unsupported SVGA ID 0x%x on chipset 0x%x\n",
+			  svga_id, dev->vmw_chipset);
+		return -ENOSYS;
+	}
+	return 0;
+}
+
+static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 {
 	int ret;
-	uint32_t svga_id;
 	enum vmw_res_type i;
 	bool refuse_dma = false;
 	char host_log[100] = {0};
 	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
 
-	pci_set_master(pdev);
-
-	dev_priv->vmw_chipset = chipset;
+	dev_priv->vmw_chipset = pci_id;
 	dev_priv->last_read_seqno = (uint32_t) -100;
+	dev_priv->drm.dev_private = dev_priv;
+
+	ret = vmw_setup_pci_resources(dev_priv, pci_id);
+	if (ret)
+		return ret;
+	ret = vmw_detect_version(dev_priv);
+	if (ret)
+		return ret;
+
 	mutex_init(&dev_priv->cmdbuf_mutex);
 	mutex_init(&dev_priv->release_mutex);
 	mutex_init(&dev_priv->binding_mutex);
@@ -681,21 +743,10 @@ static int vmw_driver_load(struct vmw_private *dev_priv, unsigned long chipset)
 
 	dev_priv->used_memory_size = 0;
 
-	dev_priv->io_start = pci_resource_start(pdev, 0);
-	dev_priv->vram_start = pci_resource_start(pdev, 1);
-	dev_priv->fifo_mem_start = pci_resource_start(pdev, 2);
-
 	dev_priv->assume_16bpp = !!vmw_assume_16bpp;
 
 	dev_priv->enable_fb = enable_fbdev;
 
-	vmw_write(dev_priv, SVGA_REG_ID, SVGA_ID_2);
-	svga_id = vmw_read(dev_priv, SVGA_REG_ID);
-	if (svga_id != SVGA_ID_2) {
-		ret = -ENOSYS;
-		DRM_ERROR("Unsupported SVGA ID 0x%x\n", svga_id);
-		goto out_err0;
-	}
 
 	dev_priv->capabilities = vmw_read(dev_priv, SVGA_REG_CAPABILITIES);
 
@@ -799,21 +850,6 @@ static int vmw_driver_load(struct vmw_private *dev_priv, unsigned long chipset)
 	}
 	DRM_INFO("Maximum display memory size is %llu kiB\n",
 		 (uint64_t)dev_priv->prim_bb_mem / 1024);
-	DRM_INFO("VRAM at %pa size is %llu kiB\n",
-		 &dev_priv->vram_start, (uint64_t)dev_priv->vram_size / 1024);
-	DRM_INFO("MMIO at %pa size is %llu kiB\n",
-		 &dev_priv->fifo_mem_start, (uint64_t)dev_priv->fifo_mem_size / 1024);
-
-	dev_priv->fifo_mem = devm_memremap(dev_priv->drm.dev,
-					   dev_priv->fifo_mem_start,
-					   dev_priv->fifo_mem_size,
-					   MEMREMAP_WB);
-
-	if (unlikely(dev_priv->fifo_mem == NULL)) {
-		ret = -ENOMEM;
-		DRM_ERROR("Failed mapping the FIFO MMIO.\n");
-		goto out_err0;
-	}
 
 	/* Need mmio memory to check for fifo pitchlock cap. */
 	if (!(dev_priv->capabilities & SVGA_CAP_DISPLAY_TOPOLOGY) &&
@@ -831,14 +867,6 @@ static int vmw_driver_load(struct vmw_private *dev_priv, unsigned long chipset)
 		DRM_ERROR("Unable to initialize TTM object management.\n");
 		ret = -ENOMEM;
 		goto out_err0;
-	}
-
-	dev_priv->drm.dev_private = dev_priv;
-
-	ret = pci_request_regions(pdev, "vmwgfx probe");
-	if (ret) {
-		DRM_ERROR("Failed reserving PCI regions.\n");
-		goto out_no_device;
 	}
 
 	if (dev_priv->capabilities & SVGA_CAP_IRQMASK) {
@@ -988,7 +1016,6 @@ out_no_fman:
 		vmw_irq_uninstall(&dev_priv->drm);
 out_no_irq:
 	pci_release_regions(pdev);
-out_no_device:
 	ttm_object_device_release(&dev_priv->tdev);
 out_err0:
 	for (i = vmw_res_context; i < vmw_res_max; ++i)

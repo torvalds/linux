@@ -66,6 +66,8 @@
 #define VMWGFX_CMD_BOUNCE_INIT_SIZE 32768
 #define VMWGFX_ENABLE_SCREEN_TARGET_OTABLE 1
 
+#define VMWGFX_PCI_ID_SVGA2              0x0405
+
 /*
  * Perhaps we should have sysfs entries for these.
  */
@@ -495,13 +497,12 @@ struct vmw_private {
 	struct vmw_fifo_state fifo;
 
 	struct drm_vma_offset_manager vma_manager;
-	unsigned long vmw_chipset;
+	u32 vmw_chipset;
 	resource_size_t io_start;
 	resource_size_t vram_start;
 	resource_size_t vram_size;
 	resource_size_t prim_bb_mem;
 	u32 *fifo_mem;
-	resource_size_t fifo_mem_start;
 	resource_size_t fifo_mem_size;
 	uint32_t fb_max_width;
 	uint32_t fb_max_height;
