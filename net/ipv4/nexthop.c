@@ -157,6 +157,27 @@ static int call_nexthop_notifiers(struct net *net,
 	return notifier_to_errno(err);
 }
 
+static int call_nexthop_notifier(struct notifier_block *nb, struct net *net,
+				 enum nexthop_event_type event_type,
+				 struct nexthop *nh,
+				 struct netlink_ext_ack *extack)
+{
+	struct nh_notifier_info info = {
+		.net = net,
+		.extack = extack,
+	};
+	int err;
+
+	err = nh_notifier_info_init(&info, nh);
+	if (err)
+		return err;
+
+	err = nb->notifier_call(nb, event_type, &info);
+	nh_notifier_info_fini(&info);
+
+	return notifier_to_errno(err);
+}
+
 static unsigned int nh_dev_hashfn(unsigned int val)
 {
 	unsigned int mask = NH_DEV_HASHSIZE - 1;
@@ -2118,11 +2139,40 @@ static struct notifier_block nh_netdev_notifier = {
 	.notifier_call = nh_netdev_event,
 };
 
+static int nexthops_dump(struct net *net, struct notifier_block *nb,
+			 struct netlink_ext_ack *extack)
+{
+	struct rb_root *root = &net->nexthop.rb_root;
+	struct rb_node *node;
+	int err = 0;
+
+	for (node = rb_first(root); node; node = rb_next(node)) {
+		struct nexthop *nh;
+
+		nh = rb_entry(node, struct nexthop, rb_node);
+		err = call_nexthop_notifier(nb, net, NEXTHOP_EVENT_REPLACE, nh,
+					    extack);
+		if (err)
+			break;
+	}
+
+	return err;
+}
+
 int register_nexthop_notifier(struct net *net, struct notifier_block *nb,
 			      struct netlink_ext_ack *extack)
 {
-	return blocking_notifier_chain_register(&net->nexthop.notifier_chain,
-						nb);
+	int err;
+
+	rtnl_lock();
+	err = nexthops_dump(net, nb, extack);
+	if (err)
+		goto unlock;
+	err = blocking_notifier_chain_register(&net->nexthop.notifier_chain,
+					       nb);
+unlock:
+	rtnl_unlock();
+	return err;
 }
 EXPORT_SYMBOL(register_nexthop_notifier);
 
