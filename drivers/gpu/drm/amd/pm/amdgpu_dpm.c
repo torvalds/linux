@@ -1019,18 +1019,13 @@ int amdgpu_dpm_baco_enter(struct amdgpu_device *adev)
 {
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
 	void *pp_handle = adev->powerplay.pp_handle;
-	struct smu_context *smu = &adev->smu;
 	int ret = 0;
 
-	if (is_support_sw_smu(adev)) {
-		ret = smu_baco_enter(smu);
-	} else {
-		if (!pp_funcs || !pp_funcs->set_asic_baco_state)
-			return -ENOENT;
+	if (!pp_funcs || !pp_funcs->set_asic_baco_state)
+		return -ENOENT;
 
-		/* enter BACO state */
-		ret = pp_funcs->set_asic_baco_state(pp_handle, 1);
-	}
+	/* enter BACO state */
+	ret = pp_funcs->set_asic_baco_state(pp_handle, 1);
 
 	return ret;
 }
@@ -1039,18 +1034,13 @@ int amdgpu_dpm_baco_exit(struct amdgpu_device *adev)
 {
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
 	void *pp_handle = adev->powerplay.pp_handle;
-	struct smu_context *smu = &adev->smu;
 	int ret = 0;
 
-	if (is_support_sw_smu(adev)) {
-		ret = smu_baco_exit(smu);
-	} else {
-		if (!pp_funcs || !pp_funcs->set_asic_baco_state)
-			return -ENOENT;
+	if (!pp_funcs || !pp_funcs->set_asic_baco_state)
+		return -ENOENT;
 
-		/* exit BACO state */
-		ret = pp_funcs->set_asic_baco_state(pp_handle, 0);
-	}
+	/* exit BACO state */
+	ret = pp_funcs->set_asic_baco_state(pp_handle, 0);
 
 	return ret;
 }
@@ -1074,20 +1064,15 @@ bool amdgpu_dpm_is_baco_supported(struct amdgpu_device *adev)
 {
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
 	void *pp_handle = adev->powerplay.pp_handle;
-	struct smu_context *smu = &adev->smu;
 	bool baco_cap;
 
-	if (is_support_sw_smu(adev)) {
-		return smu_baco_is_support(smu);
-	} else {
-		if (!pp_funcs || !pp_funcs->get_asic_baco_capability)
-			return false;
+	if (!pp_funcs || !pp_funcs->get_asic_baco_capability)
+		return false;
 
-		if (pp_funcs->get_asic_baco_capability(pp_handle, &baco_cap))
-			return false;
+	if (pp_funcs->get_asic_baco_capability(pp_handle, &baco_cap))
+		return false;
 
-		return baco_cap ? true : false;
-	}
+	return baco_cap;
 }
 
 int amdgpu_dpm_mode2_reset(struct amdgpu_device *adev)
@@ -1105,32 +1090,20 @@ int amdgpu_dpm_baco_reset(struct amdgpu_device *adev)
 {
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
 	void *pp_handle = adev->powerplay.pp_handle;
-	struct smu_context *smu = &adev->smu;
 	int ret = 0;
 
-	if (is_support_sw_smu(adev)) {
-		ret = smu_baco_enter(smu);
-		if (ret)
-			return ret;
+	if (!pp_funcs || !pp_funcs->set_asic_baco_state)
+		return -ENOENT;
 
-		ret = smu_baco_exit(smu);
-		if (ret)
-			return ret;
-	} else {
-		if (!pp_funcs
-		    || !pp_funcs->set_asic_baco_state)
-			return -ENOENT;
+	/* enter BACO state */
+	ret = pp_funcs->set_asic_baco_state(pp_handle, 1);
+	if (ret)
+		return ret;
 
-		/* enter BACO state */
-		ret = pp_funcs->set_asic_baco_state(pp_handle, 1);
-		if (ret)
-			return ret;
-
-		/* exit BACO state */
-		ret = pp_funcs->set_asic_baco_state(pp_handle, 0);
-		if (ret)
-			return ret;
-	}
+	/* exit BACO state */
+	ret = pp_funcs->set_asic_baco_state(pp_handle, 0);
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -1272,20 +1245,17 @@ void amdgpu_pm_acpi_event_handler(struct amdgpu_device *adev)
 int amdgpu_dpm_read_sensor(struct amdgpu_device *adev, enum amd_pp_sensors sensor,
 			   void *data, uint32_t *size)
 {
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
 	int ret = 0;
 
 	if (!data || !size)
 		return -EINVAL;
 
-	if (is_support_sw_smu(adev))
-		ret = smu_read_sensor(&adev->smu, sensor, data, size);
-	else {
-		if (adev->powerplay.pp_funcs && adev->powerplay.pp_funcs->read_sensor)
-			ret = adev->powerplay.pp_funcs->read_sensor((adev)->powerplay.pp_handle,
+	if (pp_funcs && pp_funcs->read_sensor)
+		ret = pp_funcs->read_sensor((adev)->powerplay.pp_handle,
 								    sensor, data, size);
-		else
-			ret = -EINVAL;
-	}
+	else
+		ret = -EINVAL;
 
 	return ret;
 }

@@ -1243,9 +1243,7 @@ int smu_od_edit_dpm_table(struct smu_context *smu,
 			  enum PP_OD_DPM_TABLE_COMMAND type,
 			  long *input, uint32_t size);
 
-int smu_read_sensor(struct smu_context *smu,
-		    enum amd_pp_sensors sensor,
-		    void *data, uint32_t *size);
+int smu_read_sensor(void *handle, int sensor, void *data, int *size);
 int smu_get_power_profile_mode(struct smu_context *smu, char *buf);
 
 int smu_set_power_profile_mode(struct smu_context *smu,
@@ -1275,11 +1273,14 @@ int smu_set_xgmi_pstate(void *handle,
 int smu_set_azalia_d3_pme(struct smu_context *smu);
 
 bool smu_baco_is_support(struct smu_context *smu);
+int smu_get_baco_capability(void *handle, bool *cap);
 
 int smu_baco_get_state(struct smu_context *smu, enum smu_baco_state *state);
 
 int smu_baco_enter(struct smu_context *smu);
 int smu_baco_exit(struct smu_context *smu);
+int smu_baco_set_state(void *handle, int state);
+
 
 bool smu_mode1_reset_is_support(struct smu_context *smu);
 int smu_mode1_reset(struct smu_context *smu);

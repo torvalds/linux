@@ -2169,19 +2169,22 @@ int smu_od_edit_dpm_table(struct smu_context *smu,
 	return ret;
 }
 
-int smu_read_sensor(struct smu_context *smu,
-		    enum amd_pp_sensors sensor,
-		    void *data, uint32_t *size)
+int smu_read_sensor(void *handle, int sensor, void *data, int *size_arg)
 {
+	struct smu_context *smu = handle;
 	struct smu_umd_pstate_table *pstate_table =
 				&smu->pstate_table;
 	int ret = 0;
+	uint32_t *size, size_val;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
-	if (!data || !size)
+	if (!data || !size_arg)
 		return -EINVAL;
+
+	size_val = *size_arg;
+	size = &size_val;
 
 	mutex_lock(&smu->mutex);
 
@@ -2226,6 +2229,9 @@ int smu_read_sensor(struct smu_context *smu,
 
 unlock:
 	mutex_unlock(&smu->mutex);
+
+	// assign uint32_t to int
+	*size_arg = size_val;
 
 	return ret;
 }
@@ -2523,6 +2529,27 @@ bool smu_baco_is_support(struct smu_context *smu)
 	return ret;
 }
 
+int smu_get_baco_capability(void *handle, bool *cap)
+{
+	struct smu_context *smu = handle;
+	int ret = 0;
+
+	*cap = false;
+
+	if (!smu->pm_enabled)
+		return 0;
+
+	mutex_lock(&smu->mutex);
+
+	if (smu->ppt_funcs && smu->ppt_funcs->baco_is_support)
+		*cap = smu->ppt_funcs->baco_is_support(smu);
+
+	mutex_unlock(&smu->mutex);
+
+	return ret;
+}
+
+
 int smu_baco_get_state(struct smu_context *smu, enum smu_baco_state *state)
 {
 	if (smu->ppt_funcs->baco_get_state)
@@ -2571,6 +2598,40 @@ int smu_baco_exit(struct smu_context *smu)
 
 	if (ret)
 		dev_err(smu->adev->dev, "Failed to exit BACO state!\n");
+
+	return ret;
+}
+
+int smu_baco_set_state(void *handle, int state)
+{
+	struct smu_context *smu = handle;
+	int ret = 0;
+
+	if (!smu->pm_enabled)
+		return -EOPNOTSUPP;
+
+	if (state == 0) {
+		mutex_lock(&smu->mutex);
+
+		if (smu->ppt_funcs->baco_exit)
+			ret = smu->ppt_funcs->baco_exit(smu);
+
+		mutex_unlock(&smu->mutex);
+	} else if (state == 1) {
+		mutex_lock(&smu->mutex);
+
+		if (smu->ppt_funcs->baco_enter)
+			ret = smu->ppt_funcs->baco_enter(smu);
+
+		mutex_unlock(&smu->mutex);
+
+	} else {
+		return -EINVAL;
+	}
+
+	if (ret)
+		dev_err(smu->adev->dev, "Failed to %s BACO state!\n",
+				(state)?"enter":"exit");
 
 	return ret;
 }
@@ -2759,6 +2820,7 @@ static const struct amd_pm_funcs swsmu_pm_funcs = {
 	.get_fan_control_mode    = smu_get_fan_control_mode,
 	.set_fan_speed_percent   = smu_set_fan_speed_percent,
 	.get_fan_speed_percent   = smu_get_fan_speed_percent,
+	.read_sensor             = smu_read_sensor,
 	.get_performance_level   = smu_get_performance_level,
 	.get_current_power_state = smu_get_current_power_state,
 	.get_fan_speed_rpm       = smu_get_fan_speed_rpm,
@@ -2771,6 +2833,8 @@ static const struct amd_pm_funcs swsmu_pm_funcs = {
 	.set_mp1_state           = smu_set_mp1_state,
 	/* export to DC */
 	.enable_mgpu_fan_boost   = smu_enable_mgpu_fan_boost,
+	.get_asic_baco_capability = smu_get_baco_capability,
+	.set_asic_baco_state     = smu_baco_set_state,
 	.get_ppfeature_status    = smu_sys_get_pp_feature_mask,
 	.set_ppfeature_status    = smu_sys_set_pp_feature_mask,
 	.asic_reset_mode_2       = smu_mode2_reset,
