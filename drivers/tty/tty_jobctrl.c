@@ -21,6 +21,7 @@ static int is_ignored(int sig)
 /**
  *	tty_check_change	-	check for POSIX terminal changes
  *	@tty: tty to check
+ *	@sig: signal to send
  *
  *	If we try to write to, or set the state of, a terminal and we're
  *	not in the foreground, send a SIGTTOU.  If the signal is blocked or
@@ -83,6 +84,7 @@ void proc_clear_tty(struct task_struct *p)
 
 /**
  * proc_set_tty -  set the controlling terminal
+ *	@tty: tty structure
  *
  * Only callable by the session leader and only if it does not already have
  * a controlling terminal.
@@ -330,6 +332,7 @@ void no_tty(void)
 /**
  *	tiocsctty	-	set controlling tty
  *	@tty: tty structure
+ *	@file: file structure used to check permissions
  *	@arg: user argument
  *
  *	This ioctl is used to manage job control. It permits a session
