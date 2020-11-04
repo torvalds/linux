@@ -1524,7 +1524,7 @@ static void msm_poll_put_char(struct uart_port *port, unsigned char c)
 }
 #endif
 
-static struct uart_ops msm_uart_pops = {
+static const struct uart_ops msm_uart_pops = {
 	.tx_empty = msm_tx_empty,
 	.set_mctrl = msm_set_mctrl,
 	.get_mctrl = msm_get_mctrl,
