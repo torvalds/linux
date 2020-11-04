@@ -609,7 +609,7 @@ static int vmw_dma_select_mode(struct vmw_private *dev_priv)
  */
 static int vmw_dma_masks(struct vmw_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	int ret = 0;
 
 	ret = dma_set_mask_and_coherent(dev->dev, DMA_BIT_MASK(64));
@@ -644,25 +644,17 @@ static void vmw_vram_manager_fini(struct vmw_private *dev_priv)
 #endif
 }
 
-static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
+static int vmw_driver_load(struct vmw_private *dev_priv, unsigned long chipset)
 {
-	struct vmw_private *dev_priv;
 	int ret;
 	uint32_t svga_id;
 	enum vmw_res_type i;
 	bool refuse_dma = false;
 	char host_log[100] = {0};
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
-
-	dev_priv = kzalloc(sizeof(*dev_priv), GFP_KERNEL);
-	if (unlikely(!dev_priv)) {
-		DRM_ERROR("Failed allocating a device private struct.\n");
-		return -ENOMEM;
-	}
+	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
 
 	pci_set_master(pdev);
 
-	dev_priv->dev = dev;
 	dev_priv->vmw_chipset = chipset;
 	dev_priv->last_read_seqno = (uint32_t) -100;
 	mutex_init(&dev_priv->cmdbuf_mutex);
@@ -795,7 +787,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	if (unlikely(ret != 0))
 		goto out_err0;
 
-	dma_set_max_seg_size(dev->dev, U32_MAX);
+	dma_set_max_seg_size(dev_priv->drm.dev, U32_MAX);
 
 	if (dev_priv->capabilities & SVGA_CAP_GMR2) {
 		DRM_INFO("Max GMR ids is %u\n",
@@ -839,7 +831,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		goto out_err4;
 	}
 
-	dev->dev_private = dev_priv;
+	dev_priv->drm.dev_private = dev_priv;
 
 	ret = pci_request_regions(pdev, "vmwgfx probe");
 	if (ret) {
@@ -848,7 +840,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	}
 
 	if (dev_priv->capabilities & SVGA_CAP_IRQMASK) {
-		ret = vmw_irq_install(dev, pdev->irq);
+		ret = vmw_irq_install(&dev_priv->drm, pdev->irq);
 		if (ret != 0) {
 			DRM_ERROR("Failed installing irq: %d\n", ret);
 			goto out_no_irq;
@@ -865,8 +857,8 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 				    DRM_FILE_PAGE_OFFSET_START,
 				    DRM_FILE_PAGE_OFFSET_SIZE);
 	ret = ttm_bo_device_init(&dev_priv->bdev, &vmw_bo_driver,
-				 dev_priv->dev->dev,
-				 dev->anon_inode->i_mapping,
+				 dev_priv->drm.dev,
+				 dev_priv->drm.anon_inode->i_mapping,
 				 &dev_priv->vma_manager,
 				 dev_priv->map_mode == vmw_dma_alloc_coherent,
 				 false);
@@ -946,7 +938,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	if (ret)
 		goto out_no_fifo;
 
-	DRM_INFO("Atomic: %s\n", (dev->driver->driver_features & DRIVER_ATOMIC)
+	DRM_INFO("Atomic: %s\n", (dev_priv->drm.driver->driver_features & DRIVER_ATOMIC)
 		 ? "yes." : "no.");
 	if (dev_priv->sm_type == VMW_SM_5)
 		DRM_INFO("SM5 support available.\n");
@@ -991,7 +983,7 @@ out_no_bdev:
 	vmw_fence_manager_takedown(dev_priv->fman);
 out_no_fman:
 	if (dev_priv->capabilities & SVGA_CAP_IRQMASK)
-		vmw_irq_uninstall(dev_priv->dev);
+		vmw_irq_uninstall(&dev_priv->drm);
 out_no_irq:
 	pci_release_regions(pdev);
 out_no_device:
@@ -1041,7 +1033,7 @@ static void vmw_driver_unload(struct drm_device *dev)
 	vmw_release_device_late(dev_priv);
 	vmw_fence_manager_takedown(dev_priv->fman);
 	if (dev_priv->capabilities & SVGA_CAP_IRQMASK)
-		vmw_irq_uninstall(dev_priv->dev);
+		vmw_irq_uninstall(&dev_priv->drm);
 	pci_release_regions(pdev);
 
 	ttm_object_device_release(&dev_priv->tdev);
@@ -1239,7 +1231,7 @@ void vmw_svga_disable(struct vmw_private *dev_priv)
 	 * to be inconsistent with the device, causing modesetting problems.
 	 *
 	 */
-	vmw_kms_lost_device(dev_priv->dev);
+	vmw_kms_lost_device(&dev_priv->drm);
 	ttm_write_lock(&dev_priv->reservation_sem, false);
 	spin_lock(&dev_priv->svga_lock);
 	if (ttm_resource_manager_used(man)) {
@@ -1261,8 +1253,6 @@ static void vmw_remove(struct pci_dev *pdev)
 
 	drm_dev_unregister(dev);
 	vmw_driver_unload(dev);
-	drm_dev_put(dev);
-	pci_disable_device(pdev);
 }
 
 static unsigned long
@@ -1363,7 +1353,7 @@ static int vmw_pm_freeze(struct device *kdev)
 	 * No user-space processes should be running now.
 	 */
 	ttm_suspend_unlock(&dev_priv->reservation_sem);
-	ret = vmw_kms_suspend(dev_priv->dev);
+	ret = vmw_kms_suspend(&dev_priv->drm);
 	if (ret) {
 		ttm_suspend_lock(&dev_priv->reservation_sem);
 		DRM_ERROR("Failed to freeze modesetting.\n");
@@ -1424,7 +1414,7 @@ static int vmw_pm_restore(struct device *kdev)
 	dev_priv->suspend_locked = false;
 	ttm_suspend_unlock(&dev_priv->reservation_sem);
 	if (dev_priv->suspend_state)
-		vmw_kms_resume(dev_priv->dev);
+		vmw_kms_resume(&dev_priv->drm);
 
 	if (dev_priv->enable_fb)
 		vmw_fb_on(dev_priv);
@@ -1493,42 +1483,36 @@ static struct pci_driver vmw_pci_driver = {
 
 static int vmw_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	struct drm_device *dev;
+	struct vmw_private *vmw;
 	int ret;
 
 	ret = drm_fb_helper_remove_conflicting_pci_framebuffers(pdev, "svgadrmfb");
 	if (ret)
 		return ret;
 
-	ret = pci_enable_device(pdev);
+	ret = pcim_enable_device(pdev);
 	if (ret)
 		return ret;
 
-	dev = drm_dev_alloc(&driver, &pdev->dev);
-	if (IS_ERR(dev)) {
-		ret = PTR_ERR(dev);
-		goto err_pci_disable_device;
+	vmw = devm_drm_dev_alloc(&pdev->dev, &driver,
+				 struct vmw_private, drm);
+	if (IS_ERR(vmw))
+		return PTR_ERR(vmw);
+
+	vmw->drm.pdev = pdev;
+	pci_set_drvdata(pdev, &vmw->drm);
+
+	ret = vmw_driver_load(vmw, ent->device);
+	if (ret)
+		return ret;
+
+	ret = drm_dev_register(&vmw->drm, 0);
+	if (ret) {
+		vmw_driver_unload(&vmw->drm);
+		return ret;
 	}
 
-	pci_set_drvdata(pdev, dev);
-
-	ret = vmw_driver_load(dev, ent->driver_data);
-	if (ret)
-		goto err_drm_dev_put;
-
-	ret = drm_dev_register(dev, ent->driver_data);
-	if (ret)
-		goto err_vmw_driver_unload;
-
 	return 0;
-
-err_vmw_driver_unload:
-	vmw_driver_unload(dev);
-err_drm_dev_put:
-	drm_dev_put(dev);
-err_pci_disable_device:
-	pci_disable_device(pdev);
-	return ret;
 }
 
 static int __init vmwgfx_init(void)

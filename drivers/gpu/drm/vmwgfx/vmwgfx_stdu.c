@@ -1713,7 +1713,7 @@ static const struct drm_crtc_helper_funcs vmw_stdu_crtc_helper_funcs = {
 static int vmw_stdu_init(struct vmw_private *dev_priv, unsigned unit)
 {
 	struct vmw_screen_target_display_unit *stdu;
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
 	struct drm_plane *primary, *cursor;
@@ -1861,7 +1861,7 @@ static void vmw_stdu_destroy(struct vmw_screen_target_display_unit *stdu)
  */
 int vmw_kms_stdu_init_display(struct vmw_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	int i, ret;
 
 

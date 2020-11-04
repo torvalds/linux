@@ -236,7 +236,7 @@ err_unreserve:
  */
 void vmw_kms_legacy_hotspot_clear(struct vmw_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	struct vmw_display_unit *du;
 	struct drm_crtc *crtc;
 
@@ -252,7 +252,7 @@ void vmw_kms_legacy_hotspot_clear(struct vmw_private *dev_priv)
 
 void vmw_kms_cursor_post_execbuf(struct vmw_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	struct vmw_display_unit *du;
 	struct drm_crtc *crtc;
 
@@ -891,7 +891,7 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 					   bool is_bo_proxy)
 
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	struct vmw_framebuffer_surface *vfbs;
 	enum SVGA3dSurfaceFormat format;
 	int ret;
@@ -1003,11 +1003,11 @@ static int vmw_framebuffer_bo_dirty(struct drm_framebuffer *framebuffer,
 	struct drm_clip_rect norect;
 	int ret, increment = 1;
 
-	drm_modeset_lock_all(dev_priv->dev);
+	drm_modeset_lock_all(&dev_priv->drm);
 
 	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
 	if (unlikely(ret != 0)) {
-		drm_modeset_unlock_all(dev_priv->dev);
+		drm_modeset_unlock_all(&dev_priv->drm);
 		return ret;
 	}
 
@@ -1036,7 +1036,7 @@ static int vmw_framebuffer_bo_dirty(struct drm_framebuffer *framebuffer,
 	vmw_fifo_flush(dev_priv, false);
 	ttm_read_unlock(&dev_priv->reservation_sem);
 
-	drm_modeset_unlock_all(dev_priv->dev);
+	drm_modeset_unlock_all(&dev_priv->drm);
 
 	return ret;
 }
@@ -1213,7 +1213,7 @@ static int vmw_kms_new_framebuffer_bo(struct vmw_private *dev_priv,
 				      *mode_cmd)
 
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	struct vmw_framebuffer_bo *vfbd;
 	unsigned int requested_size;
 	struct drm_format_name_buf format_name;
@@ -1319,7 +1319,7 @@ vmw_kms_new_framebuffer(struct vmw_private *dev_priv,
 	    bo && only_2d &&
 	    mode_cmd->width > 64 &&  /* Don't create a proxy for cursor */
 	    dev_priv->active_display_unit == vmw_du_screen_target) {
-		ret = vmw_create_bo_proxy(dev_priv->dev, mode_cmd,
+		ret = vmw_create_bo_proxy(&dev_priv->drm, mode_cmd,
 					  bo, &surface);
 		if (ret)
 			return ERR_PTR(ret);
@@ -1780,7 +1780,7 @@ vmw_kms_create_hotplug_mode_update_property(struct vmw_private *dev_priv)
 		return;
 
 	dev_priv->hotplug_mode_update_property =
-		drm_property_create_range(dev_priv->dev,
+		drm_property_create_range(&dev_priv->drm,
 					  DRM_MODE_PROP_IMMUTABLE,
 					  "hotplug_mode_update", 0, 1);
 
@@ -1791,7 +1791,7 @@ vmw_kms_create_hotplug_mode_update_property(struct vmw_private *dev_priv)
 
 int vmw_kms_init(struct vmw_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	int ret;
 
 	drm_mode_config_init(dev);
@@ -1823,7 +1823,7 @@ int vmw_kms_close(struct vmw_private *dev_priv)
 	 * but since it destroys encoders and our destructor calls
 	 * drm_encoder_cleanup which takes the lock we deadlock.
 	 */
-	drm_mode_config_cleanup(dev_priv->dev);
+	drm_mode_config_cleanup(&dev_priv->drm);
 	if (dev_priv->active_display_unit == vmw_du_legacy)
 		ret = vmw_kms_ldu_close_display(dev_priv);
 
@@ -1934,7 +1934,7 @@ void vmw_disable_vblank(struct drm_crtc *crtc)
 static int vmw_du_update_layout(struct vmw_private *dev_priv,
 				unsigned int num_rects, struct drm_rect *rects)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	struct vmw_display_unit *du;
 	struct drm_connector *con;
 	struct drm_connector_list_iter conn_iter;
@@ -2366,7 +2366,7 @@ int vmw_kms_helper_dirty(struct vmw_private *dev_priv,
 	if (dirty->crtc) {
 		units[num_units++] = vmw_crtc_to_du(dirty->crtc);
 	} else {
-		list_for_each_entry(crtc, &dev_priv->dev->mode_config.crtc_list,
+		list_for_each_entry(crtc, &dev_priv->drm.mode_config.crtc_list,
 				    head) {
 			struct drm_plane *plane = crtc->primary;
 
@@ -2568,8 +2568,8 @@ int vmw_kms_fbdev_init_data(struct vmw_private *dev_priv,
 	int i = 0;
 	int ret = 0;
 
-	mutex_lock(&dev_priv->dev->mode_config.mutex);
-	list_for_each_entry(con, &dev_priv->dev->mode_config.connector_list,
+	mutex_lock(&dev_priv->drm.mode_config.mutex);
+	list_for_each_entry(con, &dev_priv->drm.mode_config.connector_list,
 			    head) {
 		if (i == unit)
 			break;
@@ -2577,7 +2577,7 @@ int vmw_kms_fbdev_init_data(struct vmw_private *dev_priv,
 		++i;
 	}
 
-	if (&con->head == &dev_priv->dev->mode_config.connector_list) {
+	if (&con->head == &dev_priv->drm.mode_config.connector_list) {
 		DRM_ERROR("Could not find initial display unit.\n");
 		ret = -EINVAL;
 		goto out_unlock;
@@ -2611,7 +2611,7 @@ int vmw_kms_fbdev_init_data(struct vmw_private *dev_priv,
 	}
 
  out_unlock:
-	mutex_unlock(&dev_priv->dev->mode_config.mutex);
+	mutex_unlock(&dev_priv->drm.mode_config.mutex);
 
 	return ret;
 }
@@ -2631,7 +2631,7 @@ vmw_kms_create_implicit_placement_property(struct vmw_private *dev_priv)
 		return;
 
 	dev_priv->implicit_placement_property =
-		drm_property_create_range(dev_priv->dev,
+		drm_property_create_range(&dev_priv->drm,
 					  DRM_MODE_PROP_IMMUTABLE,
 					  "implicit_placement", 0, 1);
 }

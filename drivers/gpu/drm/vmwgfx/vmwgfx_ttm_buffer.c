@@ -309,7 +309,7 @@ void vmw_piter_start(struct vmw_piter *viter, const struct vmw_sg_table *vsgt,
  */
 static void vmw_ttm_unmap_from_dma(struct vmw_ttm_tt *vmw_tt)
 {
-	struct device *dev = vmw_tt->dev_priv->dev->dev;
+	struct device *dev = vmw_tt->dev_priv->drm.dev;
 
 	dma_unmap_sgtable(dev, &vmw_tt->sgt, DMA_BIDIRECTIONAL, 0);
 	vmw_tt->sgt.nents = vmw_tt->sgt.orig_nents;
@@ -330,7 +330,7 @@ static void vmw_ttm_unmap_from_dma(struct vmw_ttm_tt *vmw_tt)
  */
 static int vmw_ttm_map_for_dma(struct vmw_ttm_tt *vmw_tt)
 {
-	struct device *dev = vmw_tt->dev_priv->dev->dev;
+	struct device *dev = vmw_tt->dev_priv->drm.dev;
 
 	return dma_map_sgtable(dev, &vmw_tt->sgt, DMA_BIDIRECTIONAL, 0);
 }
@@ -385,7 +385,7 @@ static int vmw_ttm_map_dma(struct vmw_ttm_tt *vmw_tt)
 		sg = __sg_alloc_table_from_pages(&vmw_tt->sgt, vsgt->pages,
 				vsgt->num_pages, 0,
 				(unsigned long) vsgt->num_pages << PAGE_SHIFT,
-				dma_get_max_seg_size(dev_priv->dev->dev),
+				dma_get_max_seg_size(dev_priv->drm.dev),
 				NULL, 0, GFP_KERNEL);
 		if (IS_ERR(sg)) {
 			ret = PTR_ERR(sg);

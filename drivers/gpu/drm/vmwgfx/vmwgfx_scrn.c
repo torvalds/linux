@@ -829,7 +829,7 @@ static const struct drm_crtc_helper_funcs vmw_sou_crtc_helper_funcs = {
 static int vmw_sou_init(struct vmw_private *dev_priv, unsigned unit)
 {
 	struct vmw_screen_object_unit *sou;
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
 	struct drm_plane *primary, *cursor;
@@ -946,7 +946,7 @@ err_free:
 
 int vmw_kms_sou_init_display(struct vmw_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	int i, ret;
 
 	if (!(dev_priv->capabilities & SVGA_CAP_SCREEN_OBJECT_2)) {

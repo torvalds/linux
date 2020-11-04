@@ -1033,7 +1033,7 @@ int vmw_event_fence_action_queue(struct drm_file *file_priv,
 	eaction->action.type = VMW_ACTION_EVENT;
 
 	eaction->fence = vmw_fence_obj_reference(fence);
-	eaction->dev = fman->dev_priv->dev;
+	eaction->dev = &fman->dev_priv->drm;
 	eaction->tv_sec = tv_sec;
 	eaction->tv_usec = tv_usec;
 
@@ -1055,7 +1055,7 @@ static int vmw_event_fence_action_create(struct drm_file *file_priv,
 {
 	struct vmw_event_fence_pending *event;
 	struct vmw_fence_manager *fman = fman_from_fence(fence);
-	struct drm_device *dev = fman->dev_priv->dev;
+	struct drm_device *dev = &fman->dev_priv->drm;
 	int ret;
 
 	event = kzalloc(sizeof(*event), GFP_KERNEL);
