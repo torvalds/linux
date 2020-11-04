@@ -1170,10 +1170,9 @@ static void __ceph_msg_data_cursor_init(struct ceph_msg_data_cursor *cursor)
 	cursor->need_crc = true;
 }
 
-static void ceph_msg_data_cursor_init(struct ceph_msg *msg, size_t length)
+static void ceph_msg_data_cursor_init(struct ceph_msg_data_cursor *cursor,
+				      struct ceph_msg *msg, size_t length)
 {
-	struct ceph_msg_data_cursor *cursor = &msg->cursor;
-
 	BUG_ON(!length);
 	BUG_ON(length > msg->data_length);
 	BUG_ON(!msg->num_data_items);
@@ -1278,7 +1277,7 @@ static void prepare_message_data(struct ceph_msg *msg, u32 data_len)
 {
 	/* Initialize data cursor */
 
-	ceph_msg_data_cursor_init(msg, (size_t)data_len);
+	ceph_msg_data_cursor_init(&msg->cursor, msg, data_len);
 }
 
 /*
