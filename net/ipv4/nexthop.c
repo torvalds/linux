@@ -2081,6 +2081,27 @@ int unregister_nexthop_notifier(struct net *net, struct notifier_block *nb)
 }
 EXPORT_SYMBOL(unregister_nexthop_notifier);
 
+void nexthop_set_hw_flags(struct net *net, u32 id, bool offload, bool trap)
+{
+	struct nexthop *nexthop;
+
+	rcu_read_lock();
+
+	nexthop = nexthop_find_by_id(net, id);
+	if (!nexthop)
+		goto out;
+
+	nexthop->nh_flags &= ~(RTNH_F_OFFLOAD | RTNH_F_TRAP);
+	if (offload)
+		nexthop->nh_flags |= RTNH_F_OFFLOAD;
+	if (trap)
+		nexthop->nh_flags |= RTNH_F_TRAP;
+
+out:
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL(nexthop_set_hw_flags);
+
 static void __net_exit nexthop_net_exit(struct net *net)
 {
 	rtnl_lock();
