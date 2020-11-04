@@ -2244,6 +2244,7 @@ int radeon_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *filp);
 int radeon_gem_get_tiling_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *filp);
+int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp);
 
 /* VRAM scratch page for HDP bug, default vram page */
 struct r600_vram_scratch {
