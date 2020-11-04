@@ -2876,7 +2876,8 @@ static void mmc_blk_remove_debugfs(struct mmc_card *card,
 
 #endif /* CONFIG_DEBUG_FS */
 
-extern struct mmc_card *this_card;
+struct mmc_card *this_card;
+EXPORT_SYMBOL(this_card);
 static int mmc_blk_probe(struct mmc_card *card)
 {
 	struct mmc_blk_data *md, *part_md;
@@ -2912,7 +2913,7 @@ static int mmc_blk_probe(struct mmc_card *card)
 
 	dev_set_drvdata(&card->dev, md);
 
-#if defined(CONFIG_MMC_DW_ROCKCHIP) || defined(CONFIG_MMC_SDHCI_OF_ARASAN)
+#if IS_ENABLED(CONFIG_MMC_DW_ROCKCHIP) || IS_ENABLED(CONFIG_MMC_SDHCI_OF_ARASAN)
 	if (card->host->restrict_caps & RESTRICT_CARD_TYPE_EMMC)
 		this_card = card;
 #endif

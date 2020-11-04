@@ -17,4 +17,8 @@ struct work_struct;
 
 void mmc_blk_mq_complete_work(struct work_struct *work);
 
+struct mmc_card;
+
+extern struct mmc_card *this_card;
+
 #endif
