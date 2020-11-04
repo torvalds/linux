@@ -130,7 +130,7 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	limits.min_lane_count =
 	limits.max_lane_count = intel_dp_max_lane_count(intel_dp);
 
-	limits.min_bpp = intel_dp_min_bpp(pipe_config);
+	limits.min_bpp = intel_dp_min_bpp(pipe_config->output_format);
 	/*
 	 * FIXME: If all the streams can't fit into the link with
 	 * their current pipe_bpp we should reduce pipe_bpp across
@@ -318,19 +318,23 @@ intel_dp_mst_atomic_check(struct drm_connector *connector,
 	return ret;
 }
 
-static void clear_act_sent(struct intel_dp *intel_dp)
+static void clear_act_sent(struct intel_encoder *encoder,
+			   const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 
-	intel_de_write(i915, intel_dp->regs.dp_tp_status,
+	intel_de_write(i915, dp_tp_status_reg(encoder, crtc_state),
 		       DP_TP_STATUS_ACT_SENT);
 }
 
-static void wait_for_act_sent(struct intel_dp *intel_dp)
+static void wait_for_act_sent(struct intel_encoder *encoder,
+			      const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(encoder);
+	struct intel_dp *intel_dp = &intel_mst->primary->dp;
 
-	if (intel_de_wait_for_set(i915, intel_dp->regs.dp_tp_status,
+	if (intel_de_wait_for_set(i915, dp_tp_status_reg(encoder, crtc_state),
 				  DP_TP_STATUS_ACT_SENT, 1))
 		drm_err(&i915->drm, "Timed out waiting for ACT sent\n");
 
@@ -392,7 +396,7 @@ static void intel_mst_post_disable_dp(struct intel_atomic_state *state,
 
 	drm_dp_update_payload_part2(&intel_dp->mst_mgr);
 
-	clear_act_sent(intel_dp);
+	clear_act_sent(encoder, old_crtc_state);
 
 	val = intel_de_read(dev_priv,
 			    TRANS_DDI_FUNC_CTL(old_crtc_state->cpu_transcoder));
@@ -401,7 +405,7 @@ static void intel_mst_post_disable_dp(struct intel_atomic_state *state,
 		       TRANS_DDI_FUNC_CTL(old_crtc_state->cpu_transcoder),
 		       val);
 
-	wait_for_act_sent(intel_dp);
+	wait_for_act_sent(encoder, old_crtc_state);
 
 	drm_dp_mst_deallocate_vcpi(&intel_dp->mst_mgr, connector->port);
 
@@ -488,7 +492,7 @@ static void intel_mst_pre_enable_dp(struct intel_atomic_state *state,
 		    intel_dp->active_mst_links);
 
 	if (first_mst_stream)
-		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
+		intel_dp_set_power(intel_dp, DP_SET_POWER_D0);
 
 	drm_dp_send_power_updown_phy(&intel_dp->mst_mgr, connector->port, true);
 
@@ -535,7 +539,7 @@ static void intel_mst_enable_dp(struct intel_atomic_state *state,
 
 	drm_WARN_ON(&dev_priv->drm, pipe_config->has_pch_encoder);
 
-	clear_act_sent(intel_dp);
+	clear_act_sent(encoder, pipe_config);
 
 	intel_ddi_enable_transcoder_func(encoder, pipe_config);
 
@@ -549,7 +553,7 @@ static void intel_mst_enable_dp(struct intel_atomic_state *state,
 	drm_dbg_kms(&dev_priv->drm, "active links %d\n",
 		    intel_dp->active_mst_links);
 
-	wait_for_act_sent(intel_dp);
+	wait_for_act_sent(encoder, pipe_config);
 
 	drm_dp_update_payload_part2(&intel_dp->mst_mgr);
 
@@ -585,6 +589,15 @@ static void intel_dp_mst_enc_get_config(struct intel_encoder *encoder,
 	struct intel_digital_port *dig_port = intel_mst->primary;
 
 	intel_ddi_get_config(&dig_port->base, pipe_config);
+}
+
+static bool intel_dp_mst_initial_fastset_check(struct intel_encoder *encoder,
+					       struct intel_crtc_state *crtc_state)
+{
+	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(encoder);
+	struct intel_digital_port *dig_port = intel_mst->primary;
+
+	return intel_dp_initial_fastset_check(&dig_port->base, crtc_state);
 }
 
 static int intel_dp_mst_get_ddc_modes(struct drm_connector *connector)
@@ -893,6 +906,7 @@ intel_dp_create_fake_mst_encoder(struct intel_digital_port *dig_port, enum pipe 
 	intel_encoder->enable = intel_mst_enable_dp;
 	intel_encoder->get_hw_state = intel_dp_mst_enc_get_hw_state;
 	intel_encoder->get_config = intel_dp_mst_enc_get_config;
+	intel_encoder->initial_fastset_check = intel_dp_mst_initial_fastset_check;
 
 	return intel_mst;
 

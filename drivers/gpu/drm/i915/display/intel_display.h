@@ -28,6 +28,7 @@
 #include <drm/drm_util.h>
 
 enum link_m_n_set;
+enum drm_scaling_filter;
 struct dpll;
 struct drm_connector;
 struct drm_device;
@@ -207,6 +208,14 @@ enum port {
 	PORT_H,
 	PORT_I,
 
+	/* tgl+ */
+	PORT_TC1 = PORT_D,
+	PORT_TC2,
+	PORT_TC3,
+	PORT_TC4,
+	PORT_TC5,
+	PORT_TC6,
+
 	I915_MAX_PORTS
 };
 
@@ -243,14 +252,14 @@ static inline const char *port_identifier(enum port port)
 }
 
 enum tc_port {
-	PORT_TC_NONE = -1,
+	TC_PORT_NONE = -1,
 
-	PORT_TC1 = 0,
-	PORT_TC2,
-	PORT_TC3,
-	PORT_TC4,
-	PORT_TC5,
-	PORT_TC6,
+	TC_PORT_1 = 0,
+	TC_PORT_2,
+	TC_PORT_3,
+	TC_PORT_4,
+	TC_PORT_5,
+	TC_PORT_6,
 
 	I915_MAX_TC_PORTS
 };
@@ -282,6 +291,14 @@ enum aux_ch {
 	AUX_CH_G,
 	AUX_CH_H,
 	AUX_CH_I,
+
+	/* tgl+ */
+	AUX_CH_USBC1 = AUX_CH_D,
+	AUX_CH_USBC2,
+	AUX_CH_USBC3,
+	AUX_CH_USBC4,
+	AUX_CH_USBC5,
+	AUX_CH_USBC6,
 };
 
 #define aux_ch_name(a) ((a) + 'A')
@@ -599,6 +616,9 @@ void intel_crtc_arm_fifo_underrun(struct intel_crtc *crtc,
 
 u16 skl_scaler_calc_phase(int sub, int scale, bool chroma_center);
 void skl_scaler_disable(const struct intel_crtc_state *old_crtc_state);
+u32 skl_scaler_get_filter_select(enum drm_scaling_filter filter, int set);
+void skl_scaler_setup_filter(struct drm_i915_private *dev_priv, enum pipe pipe,
+			     int id, int set, enum drm_scaling_filter filter);
 void ilk_pfit_disable(const struct intel_crtc_state *old_crtc_state);
 u32 glk_plane_color_ctl(const struct intel_crtc_state *crtc_state,
 			const struct intel_plane_state *plane_state);

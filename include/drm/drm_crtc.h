@@ -325,6 +325,13 @@ struct drm_crtc_state {
 	bool self_refresh_active;
 
 	/**
+	 * @scaling_filter:
+	 *
+	 * Scaling filter to be applied
+	 */
+	enum drm_scaling_filter scaling_filter;
+
+	/**
 	 * @event:
 	 *
 	 * Optional pointer to a DRM event to signal upon completion of the
@@ -1084,6 +1091,12 @@ struct drm_crtc {
 	struct drm_object_properties properties;
 
 	/**
+	 * @scaling_filter_property: property to apply a particular filter while
+	 * scaling.
+	 */
+	struct drm_property *scaling_filter_property;
+
+	/**
 	 * @state:
 	 *
 	 * Current atomic state for this CRTC.
@@ -1265,5 +1278,8 @@ static inline struct drm_crtc *drm_crtc_find(struct drm_device *dev,
  */
 #define drm_for_each_crtc(crtc, dev) \
 	list_for_each_entry(crtc, &(dev)->mode_config.crtc_list, head)
+
+int drm_crtc_create_scaling_filter_property(struct drm_crtc *crtc,
+					    unsigned int supported_filters);
 
 #endif /* __DRM_CRTC_H__ */

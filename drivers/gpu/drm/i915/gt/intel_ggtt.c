@@ -835,7 +835,7 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 	u16 snb_gmch_ctl;
 
 	/* TODO: We're not aware of mappable constraints on gen8 yet */
-	if (!IS_DGFX(i915)) {
+	if (!HAS_LMEM(i915)) {
 		ggtt->gmadr = pci_resource(pdev, 2);
 		ggtt->mappable_end = resource_size(&ggtt->gmadr);
 	}

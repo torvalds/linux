@@ -2775,8 +2775,9 @@ static void vlv_hdmi_pre_enable(struct intel_atomic_state *state,
 	vlv_phy_pre_encoder_enable(encoder, pipe_config);
 
 	/* HDMI 1.0V-2dB */
-	vlv_set_phy_signal_level(encoder, 0x2b245f5f, 0x00002000, 0x5578b83a,
-				 0x2b247878);
+	vlv_set_phy_signal_level(encoder, pipe_config,
+				 0x2b245f5f, 0x00002000,
+				 0x5578b83a, 0x2b247878);
 
 	dig_port->set_infoframes(encoder,
 			      pipe_config->has_infoframe,
@@ -2853,7 +2854,7 @@ static void chv_hdmi_pre_enable(struct intel_atomic_state *state,
 
 	/* FIXME: Program the support xxx V-dB */
 	/* Use 800mV-0dB */
-	chv_set_phy_signal_level(encoder, 128, 102, false);
+	chv_set_phy_signal_level(encoder, pipe_config, 128, 102, false);
 
 	dig_port->set_infoframes(encoder,
 			      pipe_config->has_infoframe,
@@ -3139,6 +3140,11 @@ static u8 rkl_port_to_ddc_pin(struct drm_i915_private *dev_priv, enum port port)
 	return GMBUS_PIN_1_BXT + phy;
 }
 
+static u8 dg1_port_to_ddc_pin(struct drm_i915_private *dev_priv, enum port port)
+{
+	return intel_port_to_phy(dev_priv, port) + 1;
+}
+
 static u8 g4x_port_to_ddc_pin(struct drm_i915_private *dev_priv,
 			      enum port port)
 {
@@ -3176,7 +3182,9 @@ static u8 intel_hdmi_ddc_pin(struct intel_encoder *encoder)
 		return ddc_pin;
 	}
 
-	if (IS_ROCKETLAKE(dev_priv))
+	if (INTEL_PCH_TYPE(dev_priv) >= PCH_DG1)
+		ddc_pin = dg1_port_to_ddc_pin(dev_priv, port);
+	else if (IS_ROCKETLAKE(dev_priv))
 		ddc_pin = rkl_port_to_ddc_pin(dev_priv, port);
 	else if (HAS_PCH_MCC(dev_priv))
 		ddc_pin = mcc_port_to_ddc_pin(dev_priv, port);
@@ -3214,7 +3222,7 @@ void intel_infoframe_init(struct intel_digital_port *dig_port)
 		dig_port->set_infoframes = g4x_set_infoframes;
 		dig_port->infoframes_enabled = g4x_infoframes_enabled;
 	} else if (HAS_DDI(dev_priv)) {
-		if (dig_port->lspcon.active) {
+		if (intel_bios_is_lspcon_present(dev_priv, dig_port->base.port)) {
 			dig_port->write_infoframe = lspcon_write_infoframe;
 			dig_port->read_infoframe = lspcon_read_infoframe;
 			dig_port->set_infoframes = lspcon_set_infoframes;

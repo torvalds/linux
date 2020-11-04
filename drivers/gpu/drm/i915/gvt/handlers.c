@@ -290,8 +290,8 @@ static int mul_force_wake_write(struct intel_vgpu *vgpu,
 		case FORCEWAKE_RENDER_GEN9_REG:
 			ack_reg_offset = FORCEWAKE_ACK_RENDER_GEN9_REG;
 			break;
-		case FORCEWAKE_BLITTER_GEN9_REG:
-			ack_reg_offset = FORCEWAKE_ACK_BLITTER_GEN9_REG;
+		case FORCEWAKE_GT_GEN9_REG:
+			ack_reg_offset = FORCEWAKE_ACK_GT_GEN9_REG;
 			break;
 		case FORCEWAKE_MEDIA_GEN9_REG:
 			ack_reg_offset = FORCEWAKE_ACK_MEDIA_GEN9_REG;
@@ -2209,9 +2209,9 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(PF_VSCALE(PIPE_C), D_ALL);
 	MMIO_D(PF_HSCALE(PIPE_C), D_ALL);
 
-	MMIO_D(WM0_PIPEA_ILK, D_ALL);
-	MMIO_D(WM0_PIPEB_ILK, D_ALL);
-	MMIO_D(WM0_PIPEC_IVB, D_ALL);
+	MMIO_D(WM0_PIPE_ILK(PIPE_A), D_ALL);
+	MMIO_D(WM0_PIPE_ILK(PIPE_B), D_ALL);
+	MMIO_D(WM0_PIPE_ILK(PIPE_C), D_ALL);
 	MMIO_D(WM1_LP_ILK, D_ALL);
 	MMIO_D(WM2_LP_ILK, D_ALL);
 	MMIO_D(WM3_LP_ILK, D_ALL);
@@ -2901,8 +2901,8 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 
 	MMIO_DH(FORCEWAKE_RENDER_GEN9, D_SKL_PLUS, NULL, mul_force_wake_write);
 	MMIO_DH(FORCEWAKE_ACK_RENDER_GEN9, D_SKL_PLUS, NULL, NULL);
-	MMIO_DH(FORCEWAKE_BLITTER_GEN9, D_SKL_PLUS, NULL, mul_force_wake_write);
-	MMIO_DH(FORCEWAKE_ACK_BLITTER_GEN9, D_SKL_PLUS, NULL, NULL);
+	MMIO_DH(FORCEWAKE_GT_GEN9, D_SKL_PLUS, NULL, mul_force_wake_write);
+	MMIO_DH(FORCEWAKE_ACK_GT_GEN9, D_SKL_PLUS, NULL, NULL);
 	MMIO_DH(FORCEWAKE_MEDIA_GEN9, D_SKL_PLUS, NULL, mul_force_wake_write);
 	MMIO_DH(FORCEWAKE_ACK_MEDIA_GEN9, D_SKL_PLUS, NULL, NULL);
 
