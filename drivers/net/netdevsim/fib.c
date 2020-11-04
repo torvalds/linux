@@ -42,6 +42,7 @@ struct nsim_fib_data {
 	struct notifier_block fib_nb;
 	struct nsim_per_fib_data ipv4;
 	struct nsim_per_fib_data ipv6;
+	struct nsim_fib_entry nexthops;
 	struct rhashtable fib_rt_ht;
 	struct list_head fib_rt_list;
 	spinlock_t fib_lock;	/* Protects hashtable, list and accounting */
@@ -104,6 +105,9 @@ u64 nsim_fib_get_val(struct nsim_fib_data *fib_data,
 	case NSIM_RESOURCE_IPV6_FIB_RULES:
 		entry = &fib_data->ipv6.rules;
 		break;
+	case NSIM_RESOURCE_NEXTHOPS:
+		entry = &fib_data->nexthops;
+		break;
 	default:
 		return 0;
 	}
@@ -128,6 +132,9 @@ static void nsim_fib_set_max(struct nsim_fib_data *fib_data,
 		break;
 	case NSIM_RESOURCE_IPV6_FIB_RULES:
 		entry = &fib_data->ipv6.rules;
+		break;
+	case NSIM_RESOURCE_NEXTHOPS:
+		entry = &fib_data->nexthops;
 		break;
 	default:
 		WARN_ON(1);
@@ -866,12 +873,20 @@ static u64 nsim_fib_ipv6_rules_res_occ_get(void *priv)
 	return nsim_fib_get_val(data, NSIM_RESOURCE_IPV6_FIB_RULES, false);
 }
 
+static u64 nsim_fib_nexthops_res_occ_get(void *priv)
+{
+	struct nsim_fib_data *data = priv;
+
+	return nsim_fib_get_val(data, NSIM_RESOURCE_NEXTHOPS, false);
+}
+
 static void nsim_fib_set_max_all(struct nsim_fib_data *data,
 				 struct devlink *devlink)
 {
 	enum nsim_resource_id res_ids[] = {
 		NSIM_RESOURCE_IPV4_FIB, NSIM_RESOURCE_IPV4_FIB_RULES,
-		NSIM_RESOURCE_IPV6_FIB, NSIM_RESOURCE_IPV6_FIB_RULES
+		NSIM_RESOURCE_IPV6_FIB, NSIM_RESOURCE_IPV6_FIB_RULES,
+		NSIM_RESOURCE_NEXTHOPS,
 	};
 	int i;
 
@@ -929,6 +944,10 @@ struct nsim_fib_data *nsim_fib_create(struct devlink *devlink,
 					  NSIM_RESOURCE_IPV6_FIB_RULES,
 					  nsim_fib_ipv6_rules_res_occ_get,
 					  data);
+	devlink_resource_occ_get_register(devlink,
+					  NSIM_RESOURCE_NEXTHOPS,
+					  nsim_fib_nexthops_res_occ_get,
+					  data);
 	return data;
 
 err_rhashtable_destroy:
@@ -941,6 +960,8 @@ err_data_free:
 
 void nsim_fib_destroy(struct devlink *devlink, struct nsim_fib_data *data)
 {
+	devlink_resource_occ_get_unregister(devlink,
+					    NSIM_RESOURCE_NEXTHOPS);
 	devlink_resource_occ_get_unregister(devlink,
 					    NSIM_RESOURCE_IPV6_FIB_RULES);
 	devlink_resource_occ_get_unregister(devlink,
