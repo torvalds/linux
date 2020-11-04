@@ -667,9 +667,7 @@ static int idma64_platform_remove(struct platform_device *pdev)
 	return idma64_remove(chip);
 }
 
-#ifdef CONFIG_PM_SLEEP
-
-static int idma64_pm_suspend(struct device *dev)
+static int __maybe_unused idma64_pm_suspend(struct device *dev)
 {
 	struct idma64_chip *chip = dev_get_drvdata(dev);
 
@@ -677,15 +675,13 @@ static int idma64_pm_suspend(struct device *dev)
 	return 0;
 }
 
-static int idma64_pm_resume(struct device *dev)
+static int __maybe_unused idma64_pm_resume(struct device *dev)
 {
 	struct idma64_chip *chip = dev_get_drvdata(dev);
 
 	idma64_on(chip->idma64);
 	return 0;
 }
-
-#endif /* CONFIG_PM_SLEEP */
 
 static const struct dev_pm_ops idma64_dev_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(idma64_pm_suspend, idma64_pm_resume)
