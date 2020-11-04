@@ -184,4 +184,14 @@ struct tegra_mc {
 int tegra_mc_write_emem_configuration(struct tegra_mc *mc, unsigned long rate);
 unsigned int tegra_mc_get_emem_device_count(struct tegra_mc *mc);
 
+#ifdef CONFIG_TEGRA_MC
+struct tegra_mc *devm_tegra_memory_controller_get(struct device *dev);
+#else
+static inline struct tegra_mc *
+devm_tegra_memory_controller_get(struct device *dev)
+{
+	ERR_PTR(-ENODEV);
+}
+#endif
+
 #endif /* __SOC_TEGRA_MC_H__ */

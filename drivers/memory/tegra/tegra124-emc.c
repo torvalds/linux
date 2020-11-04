@@ -1177,7 +1177,6 @@ static void emc_debugfs_init(struct device *dev, struct tegra_emc *emc)
 
 static int tegra_emc_probe(struct platform_device *pdev)
 {
-	struct platform_device *mc;
 	struct device_node *np;
 	struct tegra_emc *emc;
 	struct resource *res;
@@ -1195,20 +1194,9 @@ static int tegra_emc_probe(struct platform_device *pdev)
 	if (IS_ERR(emc->regs))
 		return PTR_ERR(emc->regs);
 
-	np = of_parse_phandle(pdev->dev.of_node, "nvidia,memory-controller", 0);
-	if (!np) {
-		dev_err(&pdev->dev, "could not get memory controller\n");
-		return -ENOENT;
-	}
-
-	mc = of_find_device_by_node(np);
-	of_node_put(np);
-	if (!mc)
-		return -ENOENT;
-
-	emc->mc = platform_get_drvdata(mc);
-	if (!emc->mc)
-		return -EPROBE_DEFER;
+	emc->mc = devm_tegra_memory_controller_get(&pdev->dev);
+	if (IS_ERR(emc->mc))
+		return PTR_ERR(emc->mc);
 
 	ram_code = tegra_read_ram_code();
 
