@@ -322,7 +322,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&dsi_default_mode>;
 
-			dsi-controller@a0351000 {
+			dsi@a0351000 {
 				panel@0 {
 					compatible = "samsung,s6e63m0";
 					reg = <0>;
