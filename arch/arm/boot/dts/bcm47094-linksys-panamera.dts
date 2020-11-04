@@ -123,31 +123,11 @@
 		};
 	};
 
-	mdio-bus-mux {
-		#address-cells = <1>;
-		#size-cells = <0>;
+	mdio-bus-mux@18003000 {
 
 		/* BIT(9) = 1 => external mdio */
-		mdio_ext: mdio@200 {
+		mdio@200 {
 			reg = <0x200>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-		};
-	};
-
-	mdio-mii-mux {
-		compatible = "mdio-mux-mmioreg";
-		mdio-parent-bus = <&mdio_ext>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		reg = <0x1800c1c0 0x4>;
-
-		/* BIT(6) = mdc, BIT(7) = mdio */
-		mux-mask = <0xc0>;
-
-		mdio-mii@0 {
-			/* Enable MII function */
-			reg = <0x0>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 
@@ -159,6 +139,8 @@
 				reset-names = "robo_reset";
 				reg = <0>;
 				dsa,member = <1 0>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinmux_mdio>;
 
 				ports {
 					#address-cells = <1>;
