@@ -7791,7 +7791,8 @@ static int gaudi_internal_cb_pool_init(struct hl_device *hdev,
 	}
 
 	hdev->internal_cb_va_base = hl_reserve_va_block(hdev, ctx,
-			HL_VA_RANGE_TYPE_HOST, HOST_SPACE_INTERNAL_CB_SZ);
+			HL_VA_RANGE_TYPE_HOST, HOST_SPACE_INTERNAL_CB_SZ,
+			HL_MMU_VA_ALIGNMENT_NOT_NEEDED);
 
 	if (!hdev->internal_cb_va_base)
 		goto destroy_internal_cb_pool;

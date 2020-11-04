@@ -626,18 +626,20 @@ out:
  * @ctx: current context
  * @type: virtual addresses range type.
  * @size: requested block size.
+ * @alignment: required alignment in bytes of the virtual block start address,
+ *             0 means no alignment.
  *
  * This function does the following:
  * - Iterate on the virtual block list to find a suitable virtual block for the
- *   given size.
+ *   given size and alignment.
  * - Reserve the requested block and update the list.
  * - Return the start address of the virtual block.
  */
 u64 hl_reserve_va_block(struct hl_device *hdev, struct hl_ctx *ctx,
-		enum hl_va_range_type type, u32 size)
+		enum hl_va_range_type type, u32 size, u32 alignment)
 {
 	return get_va_block(hdev, ctx->va_range[type], size, 0,
-			ctx->va_range[type]->page_size);
+			max(alignment, ctx->va_range[type]->page_size));
 }
 
 /**
