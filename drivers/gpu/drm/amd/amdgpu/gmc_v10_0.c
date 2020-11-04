@@ -675,6 +675,7 @@ static void gmc_v10_0_set_mmhub_funcs(struct amdgpu_device *adev)
 {
 	switch (adev->asic_type) {
 	case CHIP_VANGOGH:
+	case CHIP_YELLOW_CARP:
 		adev->mmhub.funcs = &mmhub_v2_3_funcs;
 		break;
 	default:
@@ -691,6 +692,7 @@ static void gmc_v10_0_set_gfxhub_funcs(struct amdgpu_device *adev)
 	case CHIP_VANGOGH:
 	case CHIP_DIMGREY_CAVEFISH:
 	case CHIP_BEIGE_GOBY:
+	case CHIP_YELLOW_CARP:
 		adev->gfxhub.funcs = &gfxhub_v2_1_funcs;
 		break;
 	default:
@@ -807,6 +809,7 @@ static int gmc_v10_0_mc_init(struct amdgpu_device *adev)
 		case CHIP_VANGOGH:
 		case CHIP_DIMGREY_CAVEFISH:
 		case CHIP_BEIGE_GOBY:
+		case CHIP_YELLOW_CARP:
 		default:
 			adev->gmc.gart_size = 512ULL << 20;
 			break;
@@ -875,6 +878,7 @@ static int gmc_v10_0_sw_init(void *handle)
 	case CHIP_VANGOGH:
 	case CHIP_DIMGREY_CAVEFISH:
 	case CHIP_BEIGE_GOBY:
+	case CHIP_YELLOW_CARP:
 		adev->num_vmhubs = 2;
 		/*
 		 * To fulfill 4-level page support,
@@ -990,6 +994,7 @@ static void gmc_v10_0_init_golden_registers(struct amdgpu_device *adev)
 	case CHIP_VANGOGH:
 	case CHIP_DIMGREY_CAVEFISH:
 	case CHIP_BEIGE_GOBY:
+	case CHIP_YELLOW_CARP:
 		break;
 	default:
 		break;
@@ -1145,7 +1150,7 @@ static int gmc_v10_0_set_clockgating_state(void *handle,
 		return r;
 
 	if (adev->asic_type >= CHIP_SIENNA_CICHLID &&
-	    adev->asic_type <= CHIP_DIMGREY_CAVEFISH)
+	    adev->asic_type <= CHIP_YELLOW_CARP)
 		return athub_v2_1_set_clockgating(adev, state);
 	else
 		return athub_v2_0_set_clockgating(adev, state);
@@ -1158,7 +1163,7 @@ static void gmc_v10_0_get_clockgating_state(void *handle, u32 *flags)
 	adev->mmhub.funcs->get_clockgating(adev, flags);
 
 	if (adev->asic_type >= CHIP_SIENNA_CICHLID &&
-	    adev->asic_type <= CHIP_DIMGREY_CAVEFISH)
+	    adev->asic_type <= CHIP_YELLOW_CARP)
 		athub_v2_1_get_clockgating(adev, flags);
 	else
 		athub_v2_0_get_clockgating(adev, flags);
