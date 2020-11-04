@@ -137,6 +137,7 @@ static void put_ldops(struct tty_ldisc_ops *ldops)
 
 /**
  *	tty_ldisc_get		-	take a reference to an ldisc
+ *	@tty: tty device
  *	@disc: ldisc number
  *
  *	Takes a reference to a line discipline. Deals with refcounts and
