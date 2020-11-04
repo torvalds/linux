@@ -224,10 +224,9 @@
 
 		reset-gpios = <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>; //
 		irq-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_HIGH>; //
-		pwren-gpios = <&gpio2 RK_PD7 GPIO_ACTIVE_HIGH>;
 
 		pinctrl-names = "default";
-		pinctrl-0 = <&preisp_irq_gpios &preisp_reset_gpios &preisp_pwren_gpios &preisp_24m_mclk>;
+		pinctrl-0 = <&preisp_irq_gpios &preisp_reset_gpios &preisp_24m_mclk>;
 
 		/* regulator config */
 		//vdd-core-regulator = "vdd_preisp";
@@ -271,11 +270,6 @@
 		preisp_reset_gpios: preisp-reset-gpios {
 			rockchip,pins =
 				<0 RK_PA5 0 &pcfg_output_low>;
-		};
-
-		preisp_pwren_gpios: preisp-pwren-gpios {
-			rockchip,pins =
-				<2 RK_PD7 0 &pcfg_pull_up>;
 		};
 
 		preisp_24m_mclk: preisp-24m-mclk {
