@@ -32,6 +32,7 @@
 #include <linux/mem_encrypt.h>
 
 #include <drm/drm_drv.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_sysfs.h>
 #include <drm/ttm/ttm_bo_driver.h>
@@ -841,19 +842,9 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	dev->dev_private = dev_priv;
 
 	ret = pci_request_regions(pdev, "vmwgfx probe");
-	dev_priv->stealth = (ret != 0);
-	if (dev_priv->stealth) {
-		/**
-		 * Request at least the mmio PCI resource.
-		 */
-
-		DRM_INFO("It appears like vesafb is loaded. "
-			 "Ignore above error if any.\n");
-		ret = pci_request_region(pdev, 2, "vmwgfx stealth probe");
-		if (unlikely(ret != 0)) {
-			DRM_ERROR("Failed reserving the SVGA MMIO resource.\n");
-			goto out_no_device;
-		}
+	if (ret) {
+		DRM_ERROR("Failed reserving PCI regions.\n");
+		goto out_no_device;
 	}
 
 	if (dev_priv->capabilities & SVGA_CAP_IRQMASK) {
@@ -1002,10 +993,7 @@ out_no_fman:
 	if (dev_priv->capabilities & SVGA_CAP_IRQMASK)
 		vmw_irq_uninstall(dev_priv->dev);
 out_no_irq:
-	if (dev_priv->stealth)
-		pci_release_region(pdev, 2);
-	else
-		pci_release_regions(pdev);
+	pci_release_regions(pdev);
 out_no_device:
 	ttm_object_device_release(&dev_priv->tdev);
 out_err4:
@@ -1054,10 +1042,7 @@ static void vmw_driver_unload(struct drm_device *dev)
 	vmw_fence_manager_takedown(dev_priv->fman);
 	if (dev_priv->capabilities & SVGA_CAP_IRQMASK)
 		vmw_irq_uninstall(dev_priv->dev);
-	if (dev_priv->stealth)
-		pci_release_region(pdev, 2);
-	else
-		pci_release_regions(pdev);
+	pci_release_regions(pdev);
 
 	ttm_object_device_release(&dev_priv->tdev);
 	memunmap(dev_priv->mmio_virt);
@@ -1510,6 +1495,10 @@ static int vmw_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct drm_device *dev;
 	int ret;
+
+	ret = drm_fb_helper_remove_conflicting_pci_framebuffers(pdev, "svgadrmfb");
+	if (ret)
+		return ret;
 
 	ret = pci_enable_device(pdev);
 	if (ret)

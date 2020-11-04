@@ -590,11 +590,6 @@ struct vmw_private {
 	struct mutex cmdbuf_mutex;
 	struct mutex binding_mutex;
 
-	/**
-	 * Operating mode.
-	 */
-
-	bool stealth;
 	bool enable_fb;
 	spinlock_t svga_lock;
 
