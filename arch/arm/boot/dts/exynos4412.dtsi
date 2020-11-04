@@ -383,6 +383,8 @@
 			clocks = <&clock CLK_DIV_DMC>;
 			clock-names = "bus";
 			operating-points-v2 = <&bus_dmc_opp_table>;
+			samsung,data-clock-ratio = <4>;
+			#interconnect-cells = <0>;
 			status = "disabled";
 		};
 
@@ -450,6 +452,8 @@
 			clocks = <&clock CLK_DIV_GDL>;
 			clock-names = "bus";
 			operating-points-v2 = <&bus_leftbus_opp_table>;
+			interconnects = <&bus_dmc>;
+			#interconnect-cells = <0>;
 			status = "disabled";
 		};
 
@@ -466,6 +470,8 @@
 			clocks = <&clock CLK_ACLK160>;
 			clock-names = "bus";
 			operating-points-v2 = <&bus_display_opp_table>;
+			interconnects = <&bus_leftbus &bus_dmc>;
+			#interconnect-cells = <0>;
 			status = "disabled";
 		};
 
