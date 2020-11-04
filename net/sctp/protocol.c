@@ -843,7 +843,6 @@ static int sctp_ctl_sock_init(struct net *net)
 
 static int sctp_udp_rcv(struct sock *sk, struct sk_buff *skb)
 {
-	memset(skb->cb, 0, sizeof(skb->cb));
 	SCTP_INPUT_CB(skb)->encap_port = udp_hdr(skb)->source;
 
 	skb_set_transport_header(skb, sizeof(struct udphdr));
@@ -1163,7 +1162,7 @@ static struct inet_protosw sctp_stream_protosw = {
 
 static int sctp4_rcv(struct sk_buff *skb)
 {
-	memset(skb->cb, 0, sizeof(skb->cb));
+	SCTP_INPUT_CB(skb)->encap_port = 0;
 	return sctp_rcv(skb);
 }
 

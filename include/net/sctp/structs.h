@@ -1121,6 +1121,12 @@ static inline void sctp_outq_cork(struct sctp_outq *q)
  * sctp_input_cb is currently used on rx and sock rx queue
  */
 struct sctp_input_cb {
+	union {
+		struct inet_skb_parm    h4;
+#if IS_ENABLED(CONFIG_IPV6)
+		struct inet6_skb_parm   h6;
+#endif
+	} header;
 	struct sctp_chunk *chunk;
 	struct sctp_af *af;
 	__be16 encap_port;
