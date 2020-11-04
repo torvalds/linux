@@ -375,6 +375,12 @@ static void ucsi_qti_notify(struct ucsi_dev *udev, unsigned int offset,
 		udev->constat_info.partner_usb = false;
 		udev->constat_info.partner_alternate_mode = false;
 
+		udev->constat_info.partner_change =
+				status->change & UCSI_CONSTAT_PARTNER_CHANGE;
+
+		udev->constat_info.connect =
+				status->flags & UCSI_CONSTAT_CONNECTED;
+
 		conn_partner_type = UCSI_CONSTAT_PARTNER_TYPE(status->flags);
 
 		switch (conn_partner_type) {
