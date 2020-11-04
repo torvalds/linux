@@ -20,10 +20,7 @@ GPIODIR := $(realpath ../../../gpio)
 GPIOOUT := $(OUTPUT)/tools-gpio/
 GPIOOBJ := $(GPIOOUT)/gpio-utils.o
 
-override define CLEAN
-	$(RM) $(TEST_GEN_PROGS_EXTENDED)
-	$(RM) -rf $(GPIOOUT)
-endef
+CLEAN += ; $(RM) -rf $(GPIOOUT)
 
 $(TEST_GEN_PROGS_EXTENDED): $(GPIOOBJ)
 
