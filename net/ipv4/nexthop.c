@@ -36,15 +36,124 @@ static const struct nla_policy rtm_nh_policy[NHA_MAX + 1] = {
 	[NHA_FDB]		= { .type = NLA_FLAG },
 };
 
+static bool nexthop_notifiers_is_empty(struct net *net)
+{
+	return !net->nexthop.notifier_chain.head;
+}
+
+static void
+__nh_notifier_single_info_init(struct nh_notifier_single_info *nh_info,
+			       const struct nexthop *nh)
+{
+	struct nh_info *nhi = rtnl_dereference(nh->nh_info);
+
+	nh_info->dev = nhi->fib_nhc.nhc_dev;
+	nh_info->gw_family = nhi->fib_nhc.nhc_gw_family;
+	if (nh_info->gw_family == AF_INET)
+		nh_info->ipv4 = nhi->fib_nhc.nhc_gw.ipv4;
+	else if (nh_info->gw_family == AF_INET6)
+		nh_info->ipv6 = nhi->fib_nhc.nhc_gw.ipv6;
+
+	nh_info->is_reject = nhi->reject_nh;
+	nh_info->is_fdb = nhi->fdb_nh;
+	nh_info->has_encap = !!nhi->fib_nhc.nhc_lwtstate;
+}
+
+static int nh_notifier_single_info_init(struct nh_notifier_info *info,
+					const struct nexthop *nh)
+{
+	info->nh = kzalloc(sizeof(*info->nh), GFP_KERNEL);
+	if (!info->nh)
+		return -ENOMEM;
+
+	__nh_notifier_single_info_init(info->nh, nh);
+
+	return 0;
+}
+
+static void nh_notifier_single_info_fini(struct nh_notifier_info *info)
+{
+	kfree(info->nh);
+}
+
+static int nh_notifier_grp_info_init(struct nh_notifier_info *info,
+				     const struct nexthop *nh)
+{
+	struct nh_group *nhg = rtnl_dereference(nh->nh_grp);
+	u16 num_nh = nhg->num_nh;
+	int i;
+
+	info->nh_grp = kzalloc(struct_size(info->nh_grp, nh_entries, num_nh),
+			       GFP_KERNEL);
+	if (!info->nh_grp)
+		return -ENOMEM;
+
+	info->nh_grp->num_nh = num_nh;
+	info->nh_grp->is_fdb = nhg->fdb_nh;
+
+	for (i = 0; i < num_nh; i++) {
+		struct nh_grp_entry *nhge = &nhg->nh_entries[i];
+
+		info->nh_grp->nh_entries[i].id = nhge->nh->id;
+		info->nh_grp->nh_entries[i].weight = nhge->weight;
+		__nh_notifier_single_info_init(&info->nh_grp->nh_entries[i].nh,
+					       nhge->nh);
+	}
+
+	return 0;
+}
+
+static void nh_notifier_grp_info_fini(struct nh_notifier_info *info)
+{
+	kfree(info->nh_grp);
+}
+
+static int nh_notifier_info_init(struct nh_notifier_info *info,
+				 const struct nexthop *nh)
+{
+	info->id = nh->id;
+	info->is_grp = nh->is_group;
+
+	if (info->is_grp)
+		return nh_notifier_grp_info_init(info, nh);
+	else
+		return nh_notifier_single_info_init(info, nh);
+}
+
+static void nh_notifier_info_fini(struct nh_notifier_info *info)
+{
+	if (info->is_grp)
+		nh_notifier_grp_info_fini(info);
+	else
+		nh_notifier_single_info_fini(info);
+}
+
 static int call_nexthop_notifiers(struct net *net,
 				  enum nexthop_event_type event_type,
 				  struct nexthop *nh,
 				  struct netlink_ext_ack *extack)
 {
+	struct nh_notifier_info info = {
+		.net = net,
+		.extack = extack,
+	};
 	int err;
+
+	ASSERT_RTNL();
+
+	if (nexthop_notifiers_is_empty(net))
+		return 0;
+
+	err = nh_notifier_info_init(&info, nh);
+	if (err) {
+		NL_SET_ERR_MSG(extack, "Failed to initialize nexthop notifier info");
+		return err;
+	}
 
 	err = blocking_notifier_call_chain(&net->nexthop.notifier_chain,
 					   event_type, nh);
+	nh_notifier_info_fini(&info);
+
 	return notifier_to_errno(err);
 }
 
