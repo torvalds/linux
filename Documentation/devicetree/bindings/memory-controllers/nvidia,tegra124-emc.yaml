@@ -345,6 +345,7 @@ examples:
 
         #iommu-cells = <1>;
         #reset-cells = <1>;
+        #interconnect-cells = <1>;
     };
 
     external-memory-controller@7001b000 {
