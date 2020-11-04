@@ -202,7 +202,7 @@ static int btrfs_init_inode_security(struct btrfs_trans_handle *trans,
  * no overlapping inline items exist in the btree
  */
 static int insert_inline_extent(struct btrfs_trans_handle *trans,
-				struct btrfs_path *path, int extent_inserted,
+				struct btrfs_path *path, bool extent_inserted,
 				struct btrfs_root *root, struct inode *inode,
 				u64 start, size_t size, size_t compressed_size,
 				int compress_type,
@@ -316,6 +316,7 @@ static noinline int cow_file_range_inline(struct btrfs_inode *inode, u64 start,
 					  int compress_type,
 					  struct page **compressed_pages)
 {
+	struct btrfs_drop_extents_args drop_args = { 0 };
 	struct btrfs_root *root = inode->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_trans_handle *trans;
@@ -326,8 +327,6 @@ static noinline int cow_file_range_inline(struct btrfs_inode *inode, u64 start,
 	u64 data_len = inline_len;
 	int ret;
 	struct btrfs_path *path;
-	int extent_inserted = 0;
-	u32 extent_item_size;
 
 	if (compressed_size)
 		data_len = compressed_size;
@@ -353,16 +352,20 @@ static noinline int cow_file_range_inline(struct btrfs_inode *inode, u64 start,
 	}
 	trans->block_rsv = &inode->block_rsv;
 
+	drop_args.path = path;
+	drop_args.start = start;
+	drop_args.end = aligned_end;
+	drop_args.drop_cache = true;
+	drop_args.replace_extent = true;
+
 	if (compressed_size && compressed_pages)
-		extent_item_size = btrfs_file_extent_calc_inline_size(
+		drop_args.extent_item_size = btrfs_file_extent_calc_inline_size(
 		   compressed_size);
 	else
-		extent_item_size = btrfs_file_extent_calc_inline_size(
+		drop_args.extent_item_size = btrfs_file_extent_calc_inline_size(
 		    inline_len);
 
-	ret = __btrfs_drop_extents(trans, root, inode, path, start, aligned_end,
-				   NULL, 1, 1, extent_item_size,
-				   &extent_inserted);
+	ret = btrfs_drop_extents(trans, root, inode, &drop_args);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		goto out;
@@ -370,7 +373,7 @@ static noinline int cow_file_range_inline(struct btrfs_inode *inode, u64 start,
 
 	if (isize > actual_end)
 		inline_len = min_t(u64, isize, actual_end);
-	ret = insert_inline_extent(trans, path, extent_inserted,
+	ret = insert_inline_extent(trans, path, drop_args.extent_inserted,
 				   root, &inode->vfs_inode, start,
 				   inline_len, compressed_size,
 				   compress_type, compressed_pages);
@@ -2568,7 +2571,7 @@ static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 	u64 disk_bytenr = btrfs_stack_file_extent_disk_bytenr(stack_fi);
 	u64 num_bytes = btrfs_stack_file_extent_num_bytes(stack_fi);
 	u64 ram_bytes = btrfs_stack_file_extent_ram_bytes(stack_fi);
-	int extent_inserted = 0;
+	struct btrfs_drop_extents_args drop_args = { 0 };
 	int ret;
 
 	path = btrfs_alloc_path();
@@ -2584,13 +2587,16 @@ static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 	 * the caller is expected to unpin it and allow it to be merged
 	 * with the others.
 	 */
-	ret = __btrfs_drop_extents(trans, root, inode, path, file_pos,
-				   file_pos + num_bytes, NULL, 0,
-				   1, sizeof(*stack_fi), &extent_inserted);
+	drop_args.path = path;
+	drop_args.start = file_pos;
+	drop_args.end = file_pos + num_bytes;
+	drop_args.replace_extent = true;
+	drop_args.extent_item_size = sizeof(*stack_fi);
+	ret = btrfs_drop_extents(trans, root, inode, &drop_args);
 	if (ret)
 		goto out;
 
-	if (!extent_inserted) {
+	if (!drop_args.extent_inserted) {
 		ins.objectid = btrfs_ino(inode);
 		ins.offset = file_pos;
 		ins.type = BTRFS_EXTENT_DATA_KEY;
@@ -4748,6 +4754,7 @@ static int maybe_insert_hole(struct btrfs_root *root, struct inode *inode,
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_trans_handle *trans;
+	struct btrfs_drop_extents_args drop_args = { 0 };
 	int ret;
 
 	/*
@@ -4770,7 +4777,11 @@ static int maybe_insert_hole(struct btrfs_root *root, struct inode *inode,
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
 
-	ret = btrfs_drop_extents(trans, root, inode, offset, offset + len, 1);
+	drop_args.start = offset;
+	drop_args.end = offset + len;
+	drop_args.drop_cache = true;
+
+	ret = btrfs_drop_extents(trans, root, BTRFS_I(inode), &drop_args);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		btrfs_end_transaction(trans);

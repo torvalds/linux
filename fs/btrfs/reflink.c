@@ -163,6 +163,7 @@ static int clone_copy_inline_extent(struct inode *dst,
 	const u64 aligned_end = ALIGN(new_key->offset + datal,
 				      fs_info->sectorsize);
 	struct btrfs_trans_handle *trans = NULL;
+	struct btrfs_drop_extents_args drop_args = { 0 };
 	int ret;
 	struct btrfs_key key;
 
@@ -252,7 +253,11 @@ copy_inline_extent:
 		trans = NULL;
 		goto out;
 	}
-	ret = btrfs_drop_extents(trans, root, dst, drop_start, aligned_end, 1);
+	drop_args.path = path;
+	drop_args.start = drop_start;
+	drop_args.end = aligned_end;
+	drop_args.drop_cache = true;
+	ret = btrfs_drop_extents(trans, root, BTRFS_I(dst), &drop_args);
 	if (ret)
 		goto out;
 	ret = btrfs_insert_empty_item(trans, root, path, new_key, size);

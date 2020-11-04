@@ -1233,6 +1233,58 @@ struct btrfs_replace_extent_info {
 	int insertions;
 };
 
+/* Arguments for btrfs_drop_extents() */
+struct btrfs_drop_extents_args {
+	/* Input parameters */
+
+	/*
+	 * If NULL, btrfs_drop_extents() will allocate and free its own path.
+	 * If 'replace_extent' is true, this must not be NULL. Also the path
+	 * is always released except if 'replace_extent' is true and
+	 * btrfs_drop_extents() sets 'extent_inserted' to true, in which case
+	 * the path is kept locked.
+	 */
+	struct btrfs_path *path;
+	/* Start offset of the range to drop extents from */
+	u64 start;
+	/* End (exclusive, last byte + 1) of the range to drop extents from */
+	u64 end;
+	/* If true drop all the extent maps in the range */
+	bool drop_cache;
+	/*
+	 * If true it means we want to insert a new extent after dropping all
+	 * the extents in the range. If this is true, the 'extent_item_size'
+	 * parameter must be set as well and the 'extent_inserted' field will
+	 * be set to true by btrfs_drop_extents() if it could insert the new
+	 * extent.
+	 * Note: when this is set to true the path must not be NULL.
+	 */
+	bool replace_extent;
+	/*
+	 * Used if 'replace_extent' is true. Size of the file extent item to
+	 * insert after dropping all existing extents in the range
+	 */
+	u32 extent_item_size;
+
+	/* Output parameters */
+
+	/*
+	 * Set to the minimum between the input parameter 'end' and the end
+	 * (exclusive, last byte + 1) of the last dropped extent. This is always
+	 * set even if btrfs_drop_extents() returns an error.
+	 */
+	u64 drop_end;
+	/*
+	 * Only set if 'replace_extent' is true. Set to true if we were able
+	 * to insert a replacement extent after dropping all extents in the
+	 * range, otherwise set to false by btrfs_drop_extents().
+	 * Also, if btrfs_drop_extents() has set this to true it means it
+	 * returned with the path locked, otherwise if it has set this to
+	 * false it has returned with the path released.
+	 */
+	bool extent_inserted;
+};
+
 struct btrfs_file_private {
 	void *filldir_buf;
 };
@@ -3119,16 +3171,9 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync);
 void btrfs_drop_extent_cache(struct btrfs_inode *inode, u64 start, u64 end,
 			     int skip_pinned);
 extern const struct file_operations btrfs_file_operations;
-int __btrfs_drop_extents(struct btrfs_trans_handle *trans,
-			 struct btrfs_root *root, struct btrfs_inode *inode,
-			 struct btrfs_path *path, u64 start, u64 end,
-			 u64 *drop_end, int drop_cache,
-			 int replace_extent,
-			 u32 extent_item_size,
-			 int *key_inserted);
 int btrfs_drop_extents(struct btrfs_trans_handle *trans,
-		       struct btrfs_root *root, struct inode *inode, u64 start,
-		       u64 end, int drop_cache);
+		       struct btrfs_root *root, struct btrfs_inode *inode,
+		       struct btrfs_drop_extents_args *args);
 int btrfs_replace_file_extents(struct inode *inode, struct btrfs_path *path,
 			   const u64 start, const u64 end,
 			   struct btrfs_replace_extent_info *extent_info,
