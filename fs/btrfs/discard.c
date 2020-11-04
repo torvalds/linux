@@ -519,7 +519,6 @@ void btrfs_discard_calc_delay(struct btrfs_discard_ctl *discard_ctl)
 	s64 discardable_bytes;
 	u32 iops_limit;
 	unsigned long delay;
-	unsigned long lower_limit = BTRFS_DISCARD_MIN_DELAY_MSEC;
 
 	discardable_extents = atomic_read(&discard_ctl->discardable_extents);
 	if (!discardable_extents)
@@ -550,11 +549,12 @@ void btrfs_discard_calc_delay(struct btrfs_discard_ctl *discard_ctl)
 
 	iops_limit = READ_ONCE(discard_ctl->iops_limit);
 	if (iops_limit)
-		lower_limit = max_t(unsigned long, lower_limit,
-				    MSEC_PER_SEC / iops_limit);
+		delay = MSEC_PER_SEC / iops_limit;
+	else
+		delay = BTRFS_DISCARD_TARGET_MSEC / discardable_extents;
 
-	delay = BTRFS_DISCARD_TARGET_MSEC / discardable_extents;
-	delay = clamp(delay, lower_limit, BTRFS_DISCARD_MAX_DELAY_MSEC);
+	delay = clamp(delay, BTRFS_DISCARD_MIN_DELAY_MSEC,
+		      BTRFS_DISCARD_MAX_DELAY_MSEC);
 	discard_ctl->delay = msecs_to_jiffies(delay);
 
 	spin_unlock(&discard_ctl->lock);
