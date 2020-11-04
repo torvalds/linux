@@ -95,10 +95,14 @@ enum pp_clock_type {
 	PP_SOCCLK,
 	PP_FCLK,
 	PP_DCEFCLK,
+	PP_VCLK,
+	PP_DCLK,
 	OD_SCLK,
 	OD_MCLK,
 	OD_VDDC_CURVE,
 	OD_RANGE,
+	OD_VDDGFX_OFFSET,
+	OD_CCLK,
 };
 
 enum amd_pp_sensors {

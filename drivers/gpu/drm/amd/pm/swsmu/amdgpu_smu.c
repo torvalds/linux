@@ -47,6 +47,9 @@
 #undef pr_debug
 
 static const struct amd_pm_funcs swsmu_pm_funcs;
+static int smu_force_smuclk_levels(struct smu_context *smu,
+				   enum smu_clk_type clk_type,
+				   uint32_t mask);
 
 int smu_sys_get_pp_feature_mask(void *handle, char *buf)
 {
@@ -355,7 +358,7 @@ static void smu_restore_dpm_user_profile(struct smu_context *smu)
 			 */
 			if (!(smu->user_dpm_profile.clk_dependency & BIT(clk_type)) &&
 					smu->user_dpm_profile.clk_mask[clk_type]) {
-				ret = smu_force_clk_levels(smu, clk_type,
+				ret = smu_force_smuclk_levels(smu, clk_type,
 						smu->user_dpm_profile.clk_mask[clk_type]);
 				if (ret)
 					dev_err(smu->adev->dev, "Failed to set clock type = %d\n",
@@ -1574,6 +1577,18 @@ static int smu_enable_umd_pstate(void *handle,
 	return 0;
 }
 
+static int smu_bump_power_profile_mode(struct smu_context *smu,
+					   long *param,
+					   uint32_t param_size)
+{
+	int ret = 0;
+
+	if (smu->ppt_funcs->set_power_profile_mode)
+		ret = smu->ppt_funcs->set_power_profile_mode(smu, param, param_size);
+
+	return ret;
+}
+
 static int smu_adjust_power_state_dynamic(struct smu_context *smu,
 				   enum amd_dpm_forced_level level,
 				   bool skip_display_settings)
@@ -1622,7 +1637,7 @@ static int smu_adjust_power_state_dynamic(struct smu_context *smu,
 		workload = smu->workload_setting[index];
 
 		if (smu->power_profile_mode != workload)
-			smu_set_power_profile_mode(smu, &workload, 0, false);
+			smu_bump_power_profile_mode(smu, &workload, 0);
 	}
 
 	return ret;
@@ -1693,7 +1708,7 @@ int smu_switch_power_profile(void *handle,
 	}
 
 	if (smu_dpm_ctx->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL)
-		smu_set_power_profile_mode(smu, &workload, 0, false);
+		smu_bump_power_profile_mode(smu, &workload, 0);
 
 	mutex_unlock(&smu->mutex);
 
@@ -1767,7 +1782,7 @@ int smu_set_display_count(struct smu_context *smu, uint32_t count)
 	return ret;
 }
 
-int smu_force_clk_levels(struct smu_context *smu,
+static int smu_force_smuclk_levels(struct smu_context *smu,
 			 enum smu_clk_type clk_type,
 			 uint32_t mask)
 {
@@ -1795,6 +1810,43 @@ int smu_force_clk_levels(struct smu_context *smu,
 	mutex_unlock(&smu->mutex);
 
 	return ret;
+}
+
+int smu_force_ppclk_levels(void *handle, enum pp_clock_type type, uint32_t mask)
+{
+	struct smu_context *smu = handle;
+	enum smu_clk_type clk_type;
+
+	switch (type) {
+	case PP_SCLK:
+		clk_type = SMU_SCLK; break;
+	case PP_MCLK:
+		clk_type = SMU_MCLK; break;
+	case PP_PCIE:
+		clk_type = SMU_PCIE; break;
+	case PP_SOCCLK:
+		clk_type = SMU_SOCCLK; break;
+	case PP_FCLK:
+		clk_type = SMU_FCLK; break;
+	case PP_DCEFCLK:
+		clk_type = SMU_DCEFCLK; break;
+	case PP_VCLK:
+		clk_type = SMU_VCLK; break;
+	case PP_DCLK:
+		clk_type = SMU_DCLK; break;
+	case OD_SCLK:
+		clk_type = SMU_OD_SCLK; break;
+	case OD_MCLK:
+		clk_type = SMU_OD_MCLK; break;
+	case OD_VDDC_CURVE:
+		clk_type = SMU_OD_VDDC_CURVE; break;
+	case OD_RANGE:
+		clk_type = SMU_OD_RANGE; break;
+	default:
+		return -EINVAL;
+	}
+
+	return smu_force_smuclk_levels(smu, clk_type, mask);
 }
 
 /*
@@ -2127,7 +2179,7 @@ out:
 	return ret;
 }
 
-int smu_print_clk_levels(struct smu_context *smu, enum smu_clk_type clk_type, char *buf)
+static int smu_print_smuclk_levels(struct smu_context *smu, enum smu_clk_type clk_type, char *buf)
 {
 	int ret = 0;
 
@@ -2142,6 +2194,47 @@ int smu_print_clk_levels(struct smu_context *smu, enum smu_clk_type clk_type, ch
 	mutex_unlock(&smu->mutex);
 
 	return ret;
+}
+
+int smu_print_ppclk_levels(void *handle, enum pp_clock_type type, char *buf)
+{
+	struct smu_context *smu = handle;
+	enum smu_clk_type clk_type;
+
+	switch (type) {
+	case PP_SCLK:
+		clk_type = SMU_SCLK; break;
+	case PP_MCLK:
+		clk_type = SMU_MCLK; break;
+	case PP_PCIE:
+		clk_type = SMU_PCIE; break;
+	case PP_SOCCLK:
+		clk_type = SMU_SOCCLK; break;
+	case PP_FCLK:
+		clk_type = SMU_FCLK; break;
+	case PP_DCEFCLK:
+		clk_type = SMU_DCEFCLK; break;
+	case PP_VCLK:
+		clk_type = SMU_VCLK; break;
+	case PP_DCLK:
+		clk_type = SMU_DCLK; break;
+	case OD_SCLK:
+		clk_type = SMU_OD_SCLK; break;
+	case OD_MCLK:
+		clk_type = SMU_OD_MCLK; break;
+	case OD_VDDC_CURVE:
+		clk_type = SMU_OD_VDDC_CURVE; break;
+	case OD_RANGE:
+		clk_type = SMU_OD_RANGE; break;
+	case OD_VDDGFX_OFFSET:
+		clk_type = SMU_OD_VDDGFX_OFFSET; break;
+	case OD_CCLK:
+		clk_type = SMU_OD_CCLK; break;
+	default:
+		return -EINVAL;
+	}
+
+	return smu_print_smuclk_levels(smu, clk_type, buf);
 }
 
 int smu_od_edit_dpm_table(struct smu_context *smu,
@@ -2236,8 +2329,9 @@ unlock:
 	return ret;
 }
 
-int smu_get_power_profile_mode(struct smu_context *smu, char *buf)
+int smu_get_power_profile_mode(void *handle, char *buf)
 {
+	struct smu_context *smu = handle;
 	int ret = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
@@ -2253,24 +2347,19 @@ int smu_get_power_profile_mode(struct smu_context *smu, char *buf)
 	return ret;
 }
 
-int smu_set_power_profile_mode(struct smu_context *smu,
-			       long *param,
-			       uint32_t param_size,
-			       bool lock_needed)
+int smu_set_power_profile_mode(void *handle, long *param, uint32_t param_size)
 {
+	struct smu_context *smu = handle;
 	int ret = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
-	if (lock_needed)
-		mutex_lock(&smu->mutex);
+	mutex_lock(&smu->mutex);
 
-	if (smu->ppt_funcs->set_power_profile_mode)
-		ret = smu->ppt_funcs->set_power_profile_mode(smu, param, param_size);
+	smu_bump_power_profile_mode(smu, param, param_size);
 
-	if (lock_needed)
-		mutex_unlock(&smu->mutex);
+	mutex_unlock(&smu->mutex);
 
 	return ret;
 }
@@ -2764,9 +2853,9 @@ int smu_get_dpm_clock_table(struct smu_context *smu,
 	return ret;
 }
 
-ssize_t smu_sys_get_gpu_metrics(struct smu_context *smu,
-				void **table)
+ssize_t smu_sys_get_gpu_metrics(void *handle, void **table)
 {
+	struct smu_context *smu = handle;
 	ssize_t size;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
@@ -2840,4 +2929,9 @@ static const struct amd_pm_funcs swsmu_pm_funcs = {
 	.asic_reset_mode_2       = smu_mode2_reset,
 	.set_df_cstate           = smu_set_df_cstate,
 	.set_xgmi_pstate         = smu_set_xgmi_pstate,
+	.get_gpu_metrics         = smu_sys_get_gpu_metrics,
+	.set_power_profile_mode  = smu_set_power_profile_mode,
+	.get_power_profile_mode  = smu_get_power_profile_mode,
+	.force_clock_level       = smu_force_ppclk_levels,
+	.print_clock_levels      = smu_print_ppclk_levels,
 };

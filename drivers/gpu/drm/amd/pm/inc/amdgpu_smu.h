@@ -1237,19 +1237,15 @@ int smu_get_power_limit(struct smu_context *smu,
 			enum smu_ppt_limit_level limit_level);
 
 int smu_set_power_limit(void *handle, uint32_t limit);
-int smu_print_clk_levels(struct smu_context *smu, enum smu_clk_type clk_type, char *buf);
+int smu_print_ppclk_levels(void *handle, enum pp_clock_type type, char *buf);
 
 int smu_od_edit_dpm_table(struct smu_context *smu,
 			  enum PP_OD_DPM_TABLE_COMMAND type,
 			  long *input, uint32_t size);
 
 int smu_read_sensor(void *handle, int sensor, void *data, int *size);
-int smu_get_power_profile_mode(struct smu_context *smu, char *buf);
-
-int smu_set_power_profile_mode(struct smu_context *smu,
-			       long *param,
-			       uint32_t param_size,
-			       bool lock_needed);
+int smu_get_power_profile_mode(void *handle, char *buf);
+int smu_set_power_profile_mode(void *handle, long *param, uint32_t param_size);
 u32 smu_get_fan_control_mode(void *handle);
 int smu_set_fan_control_mode(struct smu_context *smu, int value);
 void smu_pp_set_fan_control_mode(void *handle, u32 value);
@@ -1325,9 +1321,7 @@ int smu_set_display_count(struct smu_context *smu, uint32_t count);
 int smu_set_ac_dc(struct smu_context *smu);
 int smu_sys_get_pp_feature_mask(void *handle, char *buf);
 int smu_sys_set_pp_feature_mask(void *handle, uint64_t new_mask);
-int smu_force_clk_levels(struct smu_context *smu,
-			 enum smu_clk_type clk_type,
-			 uint32_t mask);
+int smu_force_ppclk_levels(void *handle, enum pp_clock_type type, uint32_t mask);
 int smu_set_mp1_state(void *handle,
 		      enum pp_mp1_state mp1_state);
 int smu_set_df_cstate(void *handle,
@@ -1346,7 +1340,7 @@ int smu_get_dpm_clock_table(struct smu_context *smu,
 
 int smu_get_status_gfxoff(struct amdgpu_device *adev, uint32_t *value);
 
-ssize_t smu_sys_get_gpu_metrics(struct smu_context *smu, void **table);
+ssize_t smu_sys_get_gpu_metrics(void *handle, void **table);
 
 int smu_enable_mgpu_fan_boost(void *handle);
 int smu_gfx_state_change_set(struct smu_context *smu, uint32_t state);
