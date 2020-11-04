@@ -13,6 +13,9 @@ TEST_PROGS := gpio-mockup.sh
 TEST_FILES := gpio-mockup-sysfs.sh
 TEST_GEN_PROGS_EXTENDED := gpio-mockup-chardev
 
+KSFT_KHDR_INSTALL := 1
+include ../lib.mk
+
 GPIODIR := $(realpath ../../../gpio)
 GPIOOBJ := gpio-utils.o
 
@@ -20,9 +23,6 @@ override define CLEAN
 	$(RM) $(TEST_GEN_PROGS_EXTENDED)
 	$(MAKE) -C $(GPIODIR) OUTPUT=$(GPIODIR)/ clean
 endef
-
-KSFT_KHDR_INSTALL := 1
-include ../lib.mk
 
 $(TEST_GEN_PROGS_EXTENDED): $(GPIODIR)/$(GPIOOBJ)
 
