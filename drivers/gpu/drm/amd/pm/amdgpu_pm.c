@@ -941,8 +941,6 @@ static ssize_t amdgpu_set_pp_features(struct device *dev,
 	if (ret)
 		return -EINVAL;
 
-	pr_debug("featuremask = 0x%llx\n", featuremask);
-
 	ret = pm_runtime_get_sync(ddev->dev);
 	if (ret < 0) {
 		pm_runtime_put_autosuspend(ddev->dev);
