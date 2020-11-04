@@ -135,31 +135,13 @@ static inline int param_write(struct regmap *base,
 	return regmap_write(base, reg->offset, val);
 }
 
-static inline bool param_exped(void __iomem *base,
-			       const struct combphy_reg *reg,
-			       unsigned int value)
-{
-	int ret;
-	unsigned int tmp, orig;
-	unsigned int mask = GENMASK(reg->bitend, reg->bitstart);
-
-	ret = regmap_read(base, reg->offset, &orig);
-	if (ret)
-		return false;
-
-	tmp = (orig & mask) >> reg->bitstart;
-
-	return tmp == value;
-}
-
 static ssize_t u3phy_mode_show(struct device *device,
 			       struct device_attribute *attr,
 			       char *buf)
 {
 	struct rockchip_combphy_priv *priv = dev_get_drvdata(device);
 
-	if (param_exped(priv->usb_pcie_grf,
-			&priv->cfg->grfcfg.u3_port_num, 0))
+	if (param_read(priv->usb_pcie_grf, &priv->cfg->grfcfg.u3_port_num, 0))
 		return sprintf(buf, "u2\n");
 	else
 		return sprintf(buf, "u3\n");
@@ -172,8 +154,7 @@ static ssize_t u3phy_mode_store(struct device *device,
 	struct rockchip_combphy_priv *priv = dev_get_drvdata(device);
 
 	if (!strncmp(buf, "u3", 2) &&
-	    param_exped(priv->usb_pcie_grf,
-			&priv->cfg->grfcfg.u3_port_num, 0)) {
+	    param_read(priv->usb_pcie_grf, &priv->cfg->grfcfg.u3_port_num, 0)) {
 		/*
 		 * Enable USB 3.0 rx termination, need to select
 		 * pipe_l0_rxtermination from USB 3.0 controller.
@@ -188,8 +169,8 @@ static ssize_t u3phy_mode_store(struct device *device,
 			    &priv->cfg->grfcfg.u3_port_disable, false);
 		dev_info(priv->dev, "Set usb3.0 and usb2.0 mode successfully\n");
 	} else if (!strncmp(buf, "u2", 2) &&
-		   param_exped(priv->usb_pcie_grf,
-			       &priv->cfg->grfcfg.u3_port_num, 1)) {
+		   param_read(priv->usb_pcie_grf,
+			      &priv->cfg->grfcfg.u3_port_num, 1)) {
 		/*
 		 * Disable USB 3.0 rx termination, need to select
 		 * pipe_l0_rxtermination from grf and remove rx
