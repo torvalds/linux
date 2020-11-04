@@ -17,12 +17,16 @@
  * struct rmi_i2c_xport - stores information for i2c communication
  *
  * @xport: The transport interface structure
+ * @client: The I2C client device structure
  *
  * @page_mutex: Locks current page to avoid changing pages in unexpected ways.
  * @page: Keeps track of the current virtual page
  *
  * @tx_buf: Buffer used for transmitting data to the sensor over i2c.
  * @tx_buf_size: Size of the buffer
+ *
+ * @supplies: Array of voltage regulators
+ * @startup_delay: Milliseconds to pause after powering up the regulators
  */
 struct rmi_i2c_xport {
 	struct rmi_transport_dev xport;
