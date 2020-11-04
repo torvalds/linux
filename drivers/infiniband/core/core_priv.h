@@ -347,6 +347,8 @@ static inline struct ib_qp *_ib_create_qp(struct ib_device *dev,
 	qp->srq = attr->srq;
 	qp->rwq_ind_tbl = attr->rwq_ind_tbl;
 	qp->event_handler = attr->event_handler;
+	qp->qp_type = attr->qp_type;
+	qp->port = attr->port_num;
 
 	atomic_set(&qp->usecnt, 0);
 	spin_lock_init(&qp->mr_lock);

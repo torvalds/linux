@@ -232,8 +232,15 @@ void rdma_restrack_add(struct rdma_restrack_entry *res)
 		/* Special case to ensure that LQPN points to right QP */
 		struct ib_qp *qp = container_of(res, struct ib_qp, res);
 
-		ret = xa_insert(&rt->xa, qp->qp_num, res, GFP_KERNEL);
-		res->id = ret ? 0 : qp->qp_num;
+		WARN_ONCE(qp->qp_num >> 24 || qp->port >> 8,
+			  "QP number 0x%0X and port 0x%0X", qp->qp_num,
+			  qp->port);
+		res->id = qp->qp_num;
+		if (qp->qp_type == IB_QPT_SMI || qp->qp_type == IB_QPT_GSI)
+			res->id |= qp->port << 24;
+		ret = xa_insert(&rt->xa, res->id, res, GFP_KERNEL);
+		if (ret)
+			res->id = 0;
 	} else if (res->type == RDMA_RESTRACK_COUNTER) {
 		/* Special case to ensure that cntn points to right counter */
 		struct rdma_counter *counter;
