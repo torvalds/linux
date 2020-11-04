@@ -1099,7 +1099,9 @@ static int replace_nexthop_single(struct net *net, struct nexthop *old,
 				  struct nexthop *new,
 				  struct netlink_ext_ack *extack)
 {
+	u8 old_protocol, old_nh_flags;
 	struct nh_info *oldi, *newi;
+	struct nh_grp_entry *nhge;
 	int err;
 
 	if (new->is_group) {
@@ -1122,18 +1124,29 @@ static int replace_nexthop_single(struct net *net, struct nexthop *old,
 	newi->nh_parent = old;
 	oldi->nh_parent = new;
 
+	old_protocol = old->protocol;
+	old_nh_flags = old->nh_flags;
+
 	old->protocol = new->protocol;
 	old->nh_flags = new->nh_flags;
 
 	rcu_assign_pointer(old->nh_info, newi);
 	rcu_assign_pointer(new->nh_info, oldi);
 
+	/* Send a replace notification for all the groups using the nexthop. */
+	list_for_each_entry(nhge, &old->grp_list, nh_list) {
+		struct nexthop *nhp = nhge->nh_parent;
+
+		err = call_nexthop_notifiers(net, NEXTHOP_EVENT_REPLACE, nhp,
+					     extack);
+		if (err)
+			goto err_notify;
+	}
+
 	/* When replacing an IPv4 nexthop with an IPv6 nexthop, potentially
 	 * update IPv4 indication in all the groups using the nexthop.
 	 */
 	if (oldi->family == AF_INET && newi->family == AF_INET6) {
-		struct nh_grp_entry *nhge;
-
 		list_for_each_entry(nhge, &old->grp_list, nh_list) {
 			struct nexthop *nhp = nhge->nh_parent;
 			struct nh_group *nhg;
@@ -1144,6 +1157,21 @@ static int replace_nexthop_single(struct net *net, struct nexthop *old,
 	}
 
 	return 0;
+
+err_notify:
+	rcu_assign_pointer(new->nh_info, newi);
+	rcu_assign_pointer(old->nh_info, oldi);
+	old->nh_flags = old_nh_flags;
+	old->protocol = old_protocol;
+	oldi->nh_parent = old;
+	newi->nh_parent = new;
+	list_for_each_entry_continue_reverse(nhge, &old->grp_list, nh_list) {
+		struct nexthop *nhp = nhge->nh_parent;
+
+		call_nexthop_notifiers(net, NEXTHOP_EVENT_REPLACE, nhp, extack);
+	}
+	call_nexthop_notifiers(net, NEXTHOP_EVENT_REPLACE, old, extack);
+	return err;
 }
 
 static void __nexthop_replace_notify(struct net *net, struct nexthop *nh,
