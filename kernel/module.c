@@ -727,13 +727,12 @@ bool __is_module_percpu_address(unsigned long addr, unsigned long *can_addr)
 }
 
 /**
- * is_module_percpu_address - test whether address is from module static percpu
+ * is_module_percpu_address() - test whether address is from module static percpu
  * @addr: address to test
  *
  * Test whether @addr belongs to module static percpu area.
  *
- * RETURNS:
- * %true if @addr is from module static percpu area
+ * Return: %true if @addr is from module static percpu area
  */
 bool is_module_percpu_address(unsigned long addr)
 {
@@ -957,11 +956,10 @@ static int try_stop_module(struct module *mod, int flags, int *forced)
 }
 
 /**
- * module_refcount - return the refcount or -1 if unloading
- *
+ * module_refcount() - return the refcount or -1 if unloading
  * @mod:	the module we're checking
  *
- * Returns:
+ * Return:
  *	-1 if the module is in the process of unloading
  *	otherwise the number of references in the kernel to the module
  */
