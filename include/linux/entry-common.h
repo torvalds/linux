@@ -415,7 +415,7 @@ void irqentry_exit_cond_resched(void);
  * @state:	Return value from matching call to irqentry_enter()
  *
  * Depending on the return target (kernel/user) this runs the necessary
- * preemption and work checks if possible and reguired and returns to
+ * preemption and work checks if possible and required and returns to
  * the caller with interrupts disabled and no further work pending.
  *
  * This is the last action before returning to the low level ASM code which
@@ -438,7 +438,7 @@ irqentry_state_t noinstr irqentry_nmi_enter(struct pt_regs *regs);
  * @regs:	Pointer to pt_regs (NMI entry regs)
  * @irq_state:	Return value from matching call to irqentry_nmi_enter()
  *
- * Last action before returning to the low level assmenbly code.
+ * Last action before returning to the low level assembly code.
  *
  * Counterpart to irqentry_nmi_enter().
  */
