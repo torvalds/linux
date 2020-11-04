@@ -365,7 +365,7 @@ static void idio_24_irq_mask(struct irq_data *data)
 
 	raw_spin_lock_irqsave(&idio24gpio->lock, flags);
 
-	idio24gpio->irq_mask &= BIT(bit_offset);
+	idio24gpio->irq_mask &= ~BIT(bit_offset);
 	new_irq_mask = idio24gpio->irq_mask >> bank_offset;
 
 	if (!new_irq_mask) {
