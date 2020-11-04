@@ -355,7 +355,7 @@ void btrfs_discard_schedule_work(struct btrfs_discard_ctl *discard_ctl,
 
 	block_group = find_next_block_group(discard_ctl, now);
 	if (block_group) {
-		unsigned long delay = discard_ctl->delay;
+		u64 delay = discard_ctl->delay_ms * NSEC_PER_MSEC;
 		u32 kbps_limit = READ_ONCE(discard_ctl->kbps_limit);
 
 		/*
@@ -366,9 +366,9 @@ void btrfs_discard_schedule_work(struct btrfs_discard_ctl *discard_ctl,
 		if (kbps_limit && discard_ctl->prev_discard) {
 			u64 bps_limit = ((u64)kbps_limit) * SZ_1K;
 			u64 bps_delay = div64_u64(discard_ctl->prev_discard *
-						  MSEC_PER_SEC, bps_limit);
+						  NSEC_PER_SEC, bps_limit);
 
-			delay = max(delay, msecs_to_jiffies(bps_delay));
+			delay = max(delay, bps_delay);
 		}
 
 		/*
@@ -378,11 +378,11 @@ void btrfs_discard_schedule_work(struct btrfs_discard_ctl *discard_ctl,
 		if (now < block_group->discard_eligible_time) {
 			u64 bg_timeout = block_group->discard_eligible_time - now;
 
-			delay = max(delay, nsecs_to_jiffies(bg_timeout));
+			delay = max(delay, bg_timeout);
 		}
 
 		mod_delayed_work(discard_ctl->discard_workers,
-				 &discard_ctl->work, delay);
+				 &discard_ctl->work, nsecs_to_jiffies(delay));
 	}
 out:
 	spin_unlock(&discard_ctl->lock);
@@ -555,7 +555,7 @@ void btrfs_discard_calc_delay(struct btrfs_discard_ctl *discard_ctl)
 
 	delay = clamp(delay, BTRFS_DISCARD_MIN_DELAY_MSEC,
 		      BTRFS_DISCARD_MAX_DELAY_MSEC);
-	discard_ctl->delay = msecs_to_jiffies(delay);
+	discard_ctl->delay_ms = delay;
 
 	spin_unlock(&discard_ctl->lock);
 }
@@ -688,7 +688,7 @@ void btrfs_discard_init(struct btrfs_fs_info *fs_info)
 	atomic_set(&discard_ctl->discardable_extents, 0);
 	atomic64_set(&discard_ctl->discardable_bytes, 0);
 	discard_ctl->max_discard_size = BTRFS_ASYNC_DISCARD_DEFAULT_MAX_SIZE;
-	discard_ctl->delay = BTRFS_DISCARD_MAX_DELAY_MSEC;
+	discard_ctl->delay_ms = BTRFS_DISCARD_MAX_DELAY_MSEC;
 	discard_ctl->iops_limit = BTRFS_DISCARD_MAX_IOPS;
 	discard_ctl->kbps_limit = 0;
 	discard_ctl->discard_extent_bytes = 0;
