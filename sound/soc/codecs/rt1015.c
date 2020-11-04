@@ -944,6 +944,106 @@ static int rt1015_set_bclk_ratio(struct snd_soc_dai *dai, unsigned int ratio)
 	return 0;
 }
 
+static int rt1015_set_tdm_slot(struct snd_soc_dai *dai,
+	unsigned int tx_mask, unsigned int rx_mask, int slots, int slot_width)
+{
+	struct snd_soc_component *component = dai->component;
+	unsigned int val = 0, rx_slotnum, tx_slotnum;
+	int ret = 0, first_bit;
+
+	switch (slots) {
+	case 2:
+		val |= RT1015_I2S_TX_2CH;
+		break;
+	case 4:
+		val |= RT1015_I2S_TX_4CH;
+		break;
+	case 6:
+		val |= RT1015_I2S_TX_6CH;
+		break;
+	case 8:
+		val |= RT1015_I2S_TX_8CH;
+		break;
+	default:
+		ret = -EINVAL;
+		goto _set_tdm_err_;
+	}
+
+	switch (slot_width) {
+	case 16:
+		val |= RT1015_I2S_CH_TX_LEN_16B;
+		break;
+	case 20:
+		val |= RT1015_I2S_CH_TX_LEN_20B;
+		break;
+	case 24:
+		val |= RT1015_I2S_CH_TX_LEN_24B;
+		break;
+	case 32:
+		val |= RT1015_I2S_CH_TX_LEN_32B;
+		break;
+	default:
+		ret = -EINVAL;
+		goto _set_tdm_err_;
+	}
+
+	/* Rx slot configuration */
+	rx_slotnum = hweight_long(rx_mask);
+	if (rx_slotnum != 1) {
+		ret = -EINVAL;
+		dev_err(component->dev, "too many rx slots or zero slot\n");
+		goto _set_tdm_err_;
+	}
+
+	/* This is an assumption that the system sends stereo audio to the amplifier typically.
+	 * And the stereo audio is placed in slot 0/2/4/6 as the starting slot.
+	 * The users could select the channel from L/R/L+R by "Mono LR Select" control.
+	 */
+	first_bit = __ffs(rx_mask);
+	switch (first_bit) {
+	case 0:
+	case 2:
+	case 4:
+	case 6:
+		snd_soc_component_update_bits(component,
+			RT1015_TDM1_4,
+			RT1015_TDM_I2S_TX_L_DAC1_1_MASK |
+			RT1015_TDM_I2S_TX_R_DAC1_1_MASK,
+			(first_bit << RT1015_TDM_I2S_TX_L_DAC1_1_SFT) |
+			((first_bit+1) << RT1015_TDM_I2S_TX_R_DAC1_1_SFT));
+		break;
+	case 1:
+	case 3:
+	case 5:
+	case 7:
+		snd_soc_component_update_bits(component,
+			RT1015_TDM1_4,
+			RT1015_TDM_I2S_TX_L_DAC1_1_MASK |
+			RT1015_TDM_I2S_TX_R_DAC1_1_MASK,
+			((first_bit-1) << RT1015_TDM_I2S_TX_L_DAC1_1_SFT) |
+			(first_bit << RT1015_TDM_I2S_TX_R_DAC1_1_SFT));
+		break;
+	default:
+		ret = -EINVAL;
+		goto _set_tdm_err_;
+	}
+
+	/* Tx slot configuration */
+	tx_slotnum = hweight_long(tx_mask);
+	if (tx_slotnum) {
+		ret = -EINVAL;
+		dev_err(component->dev, "doesn't need to support tx slots\n");
+		goto _set_tdm_err_;
+	}
+
+	snd_soc_component_update_bits(component, RT1015_TDM1_1,
+		RT1015_I2S_CH_TX_MASK | RT1015_I2S_CH_RX_MASK |
+		RT1015_I2S_CH_TX_LEN_MASK | RT1015_I2S_CH_RX_LEN_MASK, val);
+
+_set_tdm_err_:
+	return ret;
+}
+
 static int rt1015_probe(struct snd_soc_component *component)
 {
 	struct rt1015_priv *rt1015 =
@@ -975,6 +1075,7 @@ static struct snd_soc_dai_ops rt1015_aif_dai_ops = {
 	.hw_params = rt1015_hw_params,
 	.set_fmt = rt1015_set_dai_fmt,
 	.set_bclk_ratio = rt1015_set_bclk_ratio,
+	.set_tdm_slot = rt1015_set_tdm_slot,
 };
 
 static struct snd_soc_dai_driver rt1015_dai[] = {
