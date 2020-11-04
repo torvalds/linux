@@ -2636,13 +2636,16 @@ static bool cnl_ddi_hdmi_pll_dividers(struct intel_crtc_state *crtc_state)
 }
 
 /*
- * Display WA #22010492432: tgl
+ * Display WA #22010492432: ehl, tgl
  * Program half of the nominal DCO divider fraction value.
  */
 static bool
-tgl_combo_pll_div_frac_wa_needed(struct drm_i915_private *i915)
+ehl_combo_pll_div_frac_wa_needed(struct drm_i915_private *i915)
 {
-	return IS_TIGERLAKE(i915) && i915->dpll.ref_clks.nssc == 38400;
+	return ((IS_PLATFORM(i915, INTEL_ELKHARTLAKE) &&
+		 IS_JSL_EHL_REVID(i915, EHL_REVID_B0, REVID_FOREVER)) ||
+		 IS_TIGERLAKE(i915)) &&
+		 i915->dpll.ref_clks.nssc == 38400;
 }
 
 static int __cnl_ddi_wrpll_get_freq(struct drm_i915_private *dev_priv,
@@ -2696,7 +2699,7 @@ static int __cnl_ddi_wrpll_get_freq(struct drm_i915_private *dev_priv,
 	dco_fraction = (pll_state->cfgcr0 & DPLL_CFGCR0_DCO_FRACTION_MASK) >>
 		       DPLL_CFGCR0_DCO_FRACTION_SHIFT;
 
-	if (tgl_combo_pll_div_frac_wa_needed(dev_priv))
+	if (ehl_combo_pll_div_frac_wa_needed(dev_priv))
 		dco_fraction *= 2;
 
 	dco_freq += (dco_fraction * ref_clock) / 0x8000;
@@ -3086,7 +3089,7 @@ static void icl_calc_dpll_state(struct drm_i915_private *i915,
 
 	memset(pll_state, 0, sizeof(*pll_state));
 
-	if (tgl_combo_pll_div_frac_wa_needed(i915))
+	if (ehl_combo_pll_div_frac_wa_needed(i915))
 		dco_fraction = DIV_ROUND_CLOSEST(dco_fraction, 2);
 
 	pll_state->cfgcr0 = DPLL_CFGCR0_DCO_FRACTION(dco_fraction) |

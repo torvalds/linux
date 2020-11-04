@@ -1559,6 +1559,7 @@ extern const struct i915_rev_steppings kbl_revids[];
 	(IS_ICELAKE(p) && IS_REVID(p, since, until))
 
 #define EHL_REVID_A0            0x0
+#define EHL_REVID_B0            0x1
 
 #define IS_JSL_EHL_REVID(p, since, until) \
 	(IS_JSL_EHL(p) && IS_REVID(p, since, until))
