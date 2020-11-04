@@ -2184,11 +2184,11 @@ static __be32
 nfsd4_decode_setxattr(struct nfsd4_compoundargs *argp,
 		      struct nfsd4_setxattr *setxattr)
 {
-	DECODE_HEAD;
 	u32 flags, maxcount, size;
+	__be32 status;
 
-	READ_BUF(4);
-	flags = be32_to_cpup(p++);
+	if (xdr_stream_decode_u32(argp->xdr, &flags) < 0)
+		return nfserr_bad_xdr;
 
 	if (flags > SETXATTR4_REPLACE)
 		return nfserr_inval;
@@ -2201,8 +2201,8 @@ nfsd4_decode_setxattr(struct nfsd4_compoundargs *argp,
 	maxcount = svc_max_payload(argp->rqstp);
 	maxcount = min_t(u32, XATTR_SIZE_MAX, maxcount);
 
-	READ_BUF(4);
-	size = be32_to_cpup(p++);
+	if (xdr_stream_decode_u32(argp->xdr, &size) < 0)
+		return nfserr_bad_xdr;
 	if (size > maxcount)
 		return nfserr_xattr2big;
 
@@ -2211,12 +2211,12 @@ nfsd4_decode_setxattr(struct nfsd4_compoundargs *argp,
 		struct xdr_buf payload;
 
 		if (!xdr_stream_subsegment(argp->xdr, &payload, size))
-			goto xdr_error;
+			return nfserr_bad_xdr;
 		status = nfsd4_vbuf_from_vector(argp, &payload,
 						&setxattr->setxa_buf, size);
 	}
 
-	DECODE_TAIL;
+	return nfs_ok;
 }
 
 static __be32
