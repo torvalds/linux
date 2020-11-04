@@ -4491,8 +4491,8 @@ out:
 	return e;
 }
 
-/*
- * is_module_address - is this address inside a module?
+/**
+ * is_module_address() - is this address inside a module?
  * @addr: the address to check.
  *
  * See is_module_text_address() if you simply want to see if the address
@@ -4509,8 +4509,8 @@ bool is_module_address(unsigned long addr)
 	return ret;
 }
 
-/*
- * __module_address - get the module which contains an address.
+/**
+ * __module_address() - get the module which contains an address.
  * @addr: the address.
  *
  * Must be called with preempt disabled or module mutex held so that
@@ -4534,8 +4534,8 @@ struct module *__module_address(unsigned long addr)
 	return mod;
 }
 
-/*
- * is_module_text_address - is this address inside module code?
+/**
+ * is_module_text_address() - is this address inside module code?
  * @addr: the address to check.
  *
  * See is_module_address() if you simply want to see if the address is
@@ -4553,8 +4553,8 @@ bool is_module_text_address(unsigned long addr)
 	return ret;
 }
 
-/*
- * __module_text_address - get the module whose code contains an address.
+/**
+ * __module_text_address() - get the module whose code contains an address.
  * @addr: the address.
  *
  * Must be called with preempt disabled or module mutex held so that
