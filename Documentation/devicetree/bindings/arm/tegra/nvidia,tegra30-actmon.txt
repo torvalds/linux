@@ -18,8 +18,30 @@ clock-names. See ../../clock/clock-bindings.txt for details.
 ../../reset/reset.txt for details.
 - reset-names: Must include the following entries:
   - actmon
+- operating-points-v2: See ../bindings/opp/opp.txt for details.
+- interconnects: Should contain entries for memory clients sitting on
+                 MC->EMC memory interconnect path.
+- interconnect-names: Should include name of the interconnect path for each
+                      interconnect entry. Consult TRM documentation for
+                      information about available memory clients, see MEMORY
+                      CONTROLLER section.
+
+For each opp entry in 'operating-points-v2' table:
+- opp-supported-hw: bitfield indicating SoC speedo ID mask
+- opp-peak-kBps: peak bandwidth of the memory channel
 
 Example:
+	dfs_opp_table: opp-table {
+		compatible = "operating-points-v2";
+
+		opp@12750000 {
+			opp-hz = /bits/ 64 <12750000>;
+			opp-supported-hw = <0x000F>;
+			opp-peak-kBps = <51000>;
+		};
+		...
+	};
+
 	actmon@6000c800 {
 		compatible = "nvidia,tegra124-actmon";
 		reg = <0x0 0x6000c800 0x0 0x400>;
@@ -29,4 +51,7 @@ Example:
 		clock-names = "actmon", "emc";
 		resets = <&tegra_car 119>;
 		reset-names = "actmon";
+		operating-points-v2 = <&dfs_opp_table>;
+		interconnects = <&mc TEGRA124_MC_MPCORER &emc>;
+		interconnect-names = "cpu";
 	};
