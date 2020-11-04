@@ -2271,8 +2271,13 @@ netdev_tx_t ieee80211_monitor_start_xmit(struct sk_buff *skb,
 						    payload[7]);
 	}
 
-	/* Initialize skb->priority for QoS frames */
-	if (ieee80211_is_data_qos(hdr->frame_control)) {
+	/* Initialize skb->priority for QoS frames. If the DONT_REORDER flag
+	 * is set, stick to the default value for skb->priority to assure
+	 * frames injected with this flag are not reordered relative to each
+	 * other.
+	 */
+	if (ieee80211_is_data_qos(hdr->frame_control) &&
+	    !(info->control.flags & IEEE80211_TX_CTRL_DONT_REORDER)) {
 		u8 *p = ieee80211_get_qos_ctl(hdr);
 		skb->priority = *p & IEEE80211_QOS_CTL_TAG1D_MASK;
 	}
