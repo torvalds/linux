@@ -268,7 +268,7 @@ copy_inline_extent:
 			    btrfs_item_ptr_offset(path->nodes[0],
 						  path->slots[0]),
 			    size);
-	inode_add_bytes(dst, datal);
+	btrfs_update_inode_bytes(BTRFS_I(dst), datal, drop_args.bytes_found);
 	set_bit(BTRFS_INODE_NEEDS_FULL_SYNC, &BTRFS_I(dst)->runtime_flags);
 	ret = btrfs_inode_set_file_extent_range(BTRFS_I(dst), 0, aligned_end);
 out:

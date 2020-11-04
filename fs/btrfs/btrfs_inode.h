@@ -50,7 +50,8 @@ struct btrfs_inode {
 	/*
 	 * Lock for counters and all fields used to determine if the inode is in
 	 * the log or not (last_trans, last_sub_trans, last_log_commit,
-	 * logged_trans).
+	 * logged_trans), to access/update new_delalloc_bytes and to update the
+	 * VFS' inode number of bytes used.
 	 */
 	spinlock_t lock;
 

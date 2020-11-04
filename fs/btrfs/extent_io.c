@@ -4423,12 +4423,14 @@ static int try_release_extent_state(struct extent_io_tree *tree,
 		ret = 0;
 	} else {
 		/*
-		 * at this point we can safely clear everything except the
-		 * locked bit and the nodatasum bit
+		 * At this point we can safely clear everything except the
+		 * locked bit, the nodatasum bit and the delalloc new bit.
+		 * The delalloc new bit will be cleared by ordered extent
+		 * completion.
 		 */
 		ret = __clear_extent_bit(tree, start, end,
-				 ~(EXTENT_LOCKED | EXTENT_NODATASUM),
-				 0, 0, NULL, mask, NULL);
+			 ~(EXTENT_LOCKED | EXTENT_NODATASUM | EXTENT_DELALLOC_NEW),
+			 0, 0, NULL, mask, NULL);
 
 		/* if clear_extent_bit failed for enomem reasons,
 		 * we can't allow the release to continue.

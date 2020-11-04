@@ -21,10 +21,24 @@ struct io_failure_record;
 #define EXTENT_NORESERVE	(1U << 11)
 #define EXTENT_QGROUP_RESERVED	(1U << 12)
 #define EXTENT_CLEAR_DATA_RESV	(1U << 13)
+/*
+ * Must be cleared only during ordered extent completion or on error paths if we
+ * did not manage to submit bios and create the ordered extents for the range.
+ * Should not be cleared during page release and page invalidation (if there is
+ * an ordered extent in flight), that is left for the ordered extent completion.
+ */
 #define EXTENT_DELALLOC_NEW	(1U << 14)
+/*
+ * When an ordered extent successfully completes for a region marked as a new
+ * delalloc range, use this flag when clearing a new delalloc range to indicate
+ * that the VFS' inode number of bytes should be incremented and the inode's new
+ * delalloc bytes decremented, in an atomic way to prevent races with stat(2).
+ */
+#define EXTENT_ADD_INODE_BYTES  (1U << 15)
 #define EXTENT_DO_ACCOUNTING    (EXTENT_CLEAR_META_RESV | \
 				 EXTENT_CLEAR_DATA_RESV)
-#define EXTENT_CTLBITS		(EXTENT_DO_ACCOUNTING)
+#define EXTENT_CTLBITS		(EXTENT_DO_ACCOUNTING | \
+				 EXTENT_ADD_INODE_BYTES)
 
 /*
  * Redefined bits above which are used only in the device allocation tree,

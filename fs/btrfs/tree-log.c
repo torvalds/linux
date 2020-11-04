@@ -832,8 +832,8 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 	if (ret)
 		goto out;
 
-	inode_add_bytes(inode, nbytes);
 update_inode:
+	btrfs_update_inode_bytes(BTRFS_I(inode), nbytes, drop_args.bytes_found);
 	ret = btrfs_update_inode(trans, root, inode);
 out:
 	if (inode)
@@ -2598,6 +2598,8 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 							 BTRFS_I(inode),
 							 &drop_args);
 				if (!ret) {
+					inode_sub_bytes(inode,
+							drop_args.bytes_found);
 					/* Update the inode's nbytes. */
 					ret = btrfs_update_inode(wc->trans,
 								 root, inode);

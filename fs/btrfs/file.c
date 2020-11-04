@@ -677,6 +677,12 @@ next:
  * If an extent intersects the range but is not entirely inside the range
  * it is either truncated or split.  Anything entirely inside the range
  * is deleted from the tree.
+ *
+ * Note: the VFS' inode number of bytes is not updated, it's up to the caller
+ * to deal with that. We set the field 'bytes_found' of the arguments structure
+ * with the number of allocated bytes found in the target range, so that the
+ * caller can update the inode's number of bytes in an atomic way when
+ * replacing extents in a range to avoid races with stat(2).
  */
 int btrfs_drop_extents(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root, struct btrfs_inode *inode,
@@ -688,7 +694,6 @@ int btrfs_drop_extents(struct btrfs_trans_handle *trans,
 	struct btrfs_ref ref = { 0 };
 	struct btrfs_key key;
 	struct btrfs_key new_key;
-	struct inode *vfs_inode = &inode->vfs_inode;
 	u64 ino = btrfs_ino(inode);
 	u64 search_start = args->start;
 	u64 disk_bytenr = 0;
@@ -707,6 +712,7 @@ int btrfs_drop_extents(struct btrfs_trans_handle *trans,
 	int leafs_visited = 0;
 	struct btrfs_path *path = args->path;
 
+	args->bytes_found = 0;
 	args->extent_inserted = false;
 
 	/* Must always have a path if ->replace_extent is true */
@@ -894,8 +900,7 @@ next_slot:
 							extent_end - args->end);
 			btrfs_mark_buffer_dirty(leaf);
 			if (update_refs && disk_bytenr > 0)
-				inode_sub_bytes(vfs_inode,
-						args->end - key.offset);
+				args->bytes_found += args->end - key.offset;
 			break;
 		}
 
@@ -915,8 +920,7 @@ next_slot:
 							args->start - key.offset);
 			btrfs_mark_buffer_dirty(leaf);
 			if (update_refs && disk_bytenr > 0)
-				inode_sub_bytes(vfs_inode,
-						extent_end - args->start);
+				args->bytes_found += extent_end - args->start;
 			if (args->end == extent_end)
 				break;
 
@@ -940,8 +944,7 @@ delete_extent_item:
 
 			if (update_refs &&
 			    extent_type == BTRFS_FILE_EXTENT_INLINE) {
-				inode_sub_bytes(vfs_inode,
-						extent_end - key.offset);
+				args->bytes_found += extent_end - key.offset;
 				extent_end = ALIGN(extent_end,
 						   fs_info->sectorsize);
 			} else if (update_refs && disk_bytenr > 0) {
@@ -954,8 +957,7 @@ delete_extent_item:
 						key.offset - extent_offset);
 				ret = btrfs_free_extent(trans, &ref);
 				BUG_ON(ret); /* -ENOMEM */
-				inode_sub_bytes(vfs_inode,
-						extent_end - key.offset);
+				args->bytes_found += extent_end - key.offset;
 			}
 
 			if (args->end == extent_end)
@@ -2517,7 +2519,8 @@ static int btrfs_insert_replace_extent(struct btrfs_trans_handle *trans,
 				     struct inode *inode,
 				     struct btrfs_path *path,
 				     struct btrfs_replace_extent_info *extent_info,
-				     const u64 replace_len)
+				     const u64 replace_len,
+				     const u64 bytes_to_drop)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -2532,8 +2535,10 @@ static int btrfs_insert_replace_extent(struct btrfs_trans_handle *trans,
 		return 0;
 
 	if (extent_info->disk_offset == 0 &&
-	    btrfs_fs_incompat(fs_info, NO_HOLES))
+	    btrfs_fs_incompat(fs_info, NO_HOLES)) {
+		btrfs_update_inode_bytes(BTRFS_I(inode), 0, bytes_to_drop);
 		return 0;
+	}
 
 	key.objectid = btrfs_ino(BTRFS_I(inode));
 	key.type = BTRFS_EXTENT_DATA_KEY;
@@ -2562,10 +2567,12 @@ static int btrfs_insert_replace_extent(struct btrfs_trans_handle *trans,
 		return ret;
 
 	/* If it's a hole, nothing more needs to be done. */
-	if (extent_info->disk_offset == 0)
+	if (extent_info->disk_offset == 0) {
+		btrfs_update_inode_bytes(BTRFS_I(inode), 0, bytes_to_drop);
 		return 0;
+	}
 
-	inode_add_bytes(inode, replace_len);
+	btrfs_update_inode_bytes(BTRFS_I(inode), replace_len, bytes_to_drop);
 
 	if (extent_info->is_new_extent && extent_info->insertions == 0) {
 		key.objectid = extent_info->disk_offset;
@@ -2660,6 +2667,10 @@ int btrfs_replace_file_extents(struct inode *inode, struct btrfs_path *path,
 	while (cur_offset < end) {
 		drop_args.start = cur_offset;
 		ret = btrfs_drop_extents(trans, root, BTRFS_I(inode), &drop_args);
+		/* If we are punching a hole decrement the inode's byte count */
+		if (!extent_info)
+			btrfs_update_inode_bytes(BTRFS_I(inode), 0,
+						 drop_args.bytes_found);
 		if (ret != -ENOSPC) {
 			/*
 			 * When cloning we want to avoid transaction aborts when
@@ -2717,7 +2728,8 @@ int btrfs_replace_file_extents(struct inode *inode, struct btrfs_path *path,
 					  extent_info->file_offset;
 
 			ret = btrfs_insert_replace_extent(trans, inode, path,
-							extent_info, replace_len);
+							extent_info, replace_len,
+							drop_args.bytes_found);
 			if (ret) {
 				btrfs_abort_transaction(trans, ret);
 				break;
@@ -2814,7 +2826,8 @@ int btrfs_replace_file_extents(struct inode *inode, struct btrfs_path *path,
 	}
 	if (extent_info) {
 		ret = btrfs_insert_replace_extent(trans, inode, path, extent_info,
-						extent_info->data_len);
+						  extent_info->data_len,
+						  drop_args.bytes_found);
 		if (ret) {
 			btrfs_abort_transaction(trans, ret);
 			goto out_trans;

@@ -1275,6 +1275,11 @@ struct btrfs_drop_extents_args {
 	 */
 	u64 drop_end;
 	/*
+	 * The number of allocated bytes found in the range. This can be smaller
+	 * than the range's length when there are holes in the range.
+	 */
+	u64 bytes_found;
+	/*
 	 * Only set if 'replace_extent' is true. Set to true if we were able
 	 * to insert a replacement extent after dropping all extents in the
 	 * range, otherwise set to false by btrfs_drop_extents().
@@ -3142,6 +3147,9 @@ extern const struct iomap_dio_ops btrfs_dio_ops;
 
 int btrfs_inode_lock(struct inode *inode, unsigned int ilock_flags);
 void btrfs_inode_unlock(struct inode *inode, unsigned int ilock_flags);
+void btrfs_update_inode_bytes(struct btrfs_inode *inode,
+			      const u64 add_bytes,
+			      const u64 del_bytes);
 
 /* ioctl.c */
 long btrfs_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
