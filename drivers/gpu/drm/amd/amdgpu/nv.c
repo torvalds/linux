@@ -782,6 +782,9 @@ legacy_init:
 	case CHIP_BEIGE_GOBY:
 		beige_goby_reg_base_init(adev);
 		break;
+	case CHIP_YELLOW_CARP:
+		yellow_carp_reg_base_init(adev);
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1308,6 +1311,11 @@ static int nv_common_early_init(void *handle)
 			AMD_PG_SUPPORT_ATHUB |
 			AMD_PG_SUPPORT_MMHUB;
 		adev->external_rev_id = adev->rev_id + 0x46;
+		break;
+	case CHIP_YELLOW_CARP:
+		adev->cg_flags = 0;
+		adev->pg_flags = 0;
+		adev->external_rev_id = adev->rev_id + 0x01;
 		break;
 	default:
 		/* FIXME: not supported yet */
