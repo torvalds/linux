@@ -2118,7 +2118,8 @@ static struct notifier_block nh_netdev_notifier = {
 	.notifier_call = nh_netdev_event,
 };
 
-int register_nexthop_notifier(struct net *net, struct notifier_block *nb)
+int register_nexthop_notifier(struct net *net, struct notifier_block *nb,
+			      struct netlink_ext_ack *extack)
 {
 	return blocking_notifier_chain_register(&net->nexthop.notifier_chain,
 						nb);

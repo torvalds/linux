@@ -4711,7 +4711,8 @@ static __net_init int vxlan_init_net(struct net *net)
 	for (h = 0; h < PORT_HASH_SIZE; ++h)
 		INIT_HLIST_HEAD(&vn->sock_list[h]);
 
-	return register_nexthop_notifier(net, &vn->nexthop_notifier_block);
+	return register_nexthop_notifier(net, &vn->nexthop_notifier_block,
+					 NULL);
 }
 
 static void vxlan_destroy_tunnels(struct net *net, struct list_head *head)
