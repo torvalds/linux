@@ -386,13 +386,6 @@ struct nfsd4_setclientid_confirm {
 	nfs4_verifier	sc_confirm;
 };
 
-struct nfsd4_saved_compoundargs {
-	__be32 *p;
-	__be32 *end;
-	int pagelen;
-	struct page **pagelist;
-};
-
 struct nfsd4_test_stateid_id {
 	__be32			ts_id_status;
 	stateid_t		ts_id_stateid;
@@ -696,8 +689,6 @@ struct svcxdr_tmpbuf {
 
 struct nfsd4_compoundargs {
 	/* scratch variables for XDR decode */
-	__be32				tmp[8];
-	__be32 *			tmpp;
 	struct xdr_stream		*xdr;
 	struct svcxdr_tmpbuf		*to_free;
 	struct svc_rqst			*rqstp;
