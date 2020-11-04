@@ -275,6 +275,10 @@ static void rk628_post_process_bridge_mode_set(struct drm_bridge *bridge,
 		drm_mode_copy(&pp->dst_mode, &rk628->dst_mode);
 	else
 		drm_mode_copy(&pp->dst_mode, &pp->src_mode);
+
+	/* hdmirx 4k-60Hz mode only support yuv420 */
+	if (pp->src_mode.clock == 594000)
+		regmap_write(pp->grf, GRF_CSC_CTRL_CON, SW_Y2R_EN(1));
 }
 
 static int rk628_post_process_bridge_attach(struct drm_bridge *bridge)
