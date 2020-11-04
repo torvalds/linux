@@ -75,7 +75,7 @@
 	};
 
 	gpio@6000d000 {
-		init-mode {
+		init-mode-hog {
 			gpio-hog;
 			gpios =	<TEGRA_GPIO(DD, 7) GPIO_ACTIVE_HIGH>,
 				<TEGRA_GPIO(CC, 6) GPIO_ACTIVE_HIGH>,
@@ -83,7 +83,7 @@
 			output-low;
 		};
 
-		init-low-power-mode {
+		init-low-power-mode-hog {
 			gpio-hog;
 			gpios = <TEGRA_GPIO(I, 6) GPIO_ACTIVE_HIGH>;
 			input;
