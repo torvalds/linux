@@ -1299,10 +1299,9 @@ static int tegra_emc_probe(struct platform_device *pdev)
 		return err;
 
 	err = platform_get_irq(pdev, 0);
-	if (err < 0) {
-		dev_err(&pdev->dev, "interrupt not specified: %d\n", err);
+	if (err < 0)
 		return err;
-	}
+
 	emc->irq = err;
 
 	err = devm_request_irq(&pdev->dev, emc->irq, tegra_emc_isr, 0,

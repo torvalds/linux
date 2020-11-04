@@ -665,7 +665,6 @@ static int tegra_emc_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "interrupt not specified\n");
 		dev_err(&pdev->dev, "please update your device tree\n");
 		return irq;
 	}
