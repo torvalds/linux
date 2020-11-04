@@ -3037,6 +3037,8 @@ static struct execlists_capture *capture_regs(struct intel_engine_cs *engine)
 	if (!cap->error->gt->engine)
 		goto err_gt;
 
+	cap->error->gt->engine->hung = true;
+
 	return cap;
 
 err_gt:
