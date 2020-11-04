@@ -360,13 +360,13 @@ static void idio_24_irq_mask(struct irq_data *data)
 	unsigned long flags;
 	const unsigned long bit_offset = irqd_to_hwirq(data) - 24;
 	unsigned char new_irq_mask;
-	const unsigned long bank_offset = bit_offset/8 * 8;
+	const unsigned long bank_offset = bit_offset / 8;
 	unsigned char cos_enable_state;
 
 	raw_spin_lock_irqsave(&idio24gpio->lock, flags);
 
 	idio24gpio->irq_mask &= ~BIT(bit_offset);
-	new_irq_mask = idio24gpio->irq_mask >> bank_offset;
+	new_irq_mask = idio24gpio->irq_mask >> bank_offset * 8;
 
 	if (!new_irq_mask) {
 		cos_enable_state = ioread8(&idio24gpio->reg->cos_enable);
@@ -389,12 +389,12 @@ static void idio_24_irq_unmask(struct irq_data *data)
 	unsigned long flags;
 	unsigned char prev_irq_mask;
 	const unsigned long bit_offset = irqd_to_hwirq(data) - 24;
-	const unsigned long bank_offset = bit_offset/8 * 8;
+	const unsigned long bank_offset = bit_offset / 8;
 	unsigned char cos_enable_state;
 
 	raw_spin_lock_irqsave(&idio24gpio->lock, flags);
 
-	prev_irq_mask = idio24gpio->irq_mask >> bank_offset;
+	prev_irq_mask = idio24gpio->irq_mask >> bank_offset * 8;
 	idio24gpio->irq_mask |= BIT(bit_offset);
 
 	if (!prev_irq_mask) {
