@@ -1073,8 +1073,16 @@
 	};
 
 	display-panel {
-		compatible = "hydis,hv070wx2-1e0", "chunghwa,claa070wp03xg",
-			     "panel-lvds";
+		/*
+		 * Nexus 7 supports two compatible panel models:
+		 *
+		 *  1. hydis,hv070wx2-1e0
+		 *  2. chunghwa,claa070wp03xg
+		 *
+		 * We want to use timing which is optimized for Nexus 7,
+		 * hence we need to customize the timing.
+		 */
+		compatible = "panel-lvds";
 
 		power-supply = <&vdd_pnl>;
 		backlight = <&backlight>;
