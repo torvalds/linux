@@ -19,8 +19,8 @@ static int UVERBS_HANDLER(UVERBS_METHOD_ASYNC_EVENT_ALLOC)(
 	return 0;
 }
 
-static int uverbs_async_event_destroy_uobj(struct ib_uobject *uobj,
-					   enum rdma_remove_reason why)
+static void uverbs_async_event_destroy_uobj(struct ib_uobject *uobj,
+					    enum rdma_remove_reason why)
 {
 	struct ib_uverbs_async_event_file *event_file =
 		container_of(uobj, struct ib_uverbs_async_event_file, uobj);
@@ -30,7 +30,6 @@ static int uverbs_async_event_destroy_uobj(struct ib_uobject *uobj,
 	if (why == RDMA_REMOVE_DRIVER_REMOVE)
 		ib_uverbs_async_handler(event_file, 0, IB_EVENT_DEVICE_FATAL,
 					NULL, NULL);
-	return 0;
 }
 
 int uverbs_async_event_release(struct inode *inode, struct file *filp)

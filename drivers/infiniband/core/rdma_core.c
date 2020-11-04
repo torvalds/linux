@@ -571,7 +571,8 @@ static int __must_check destroy_hw_fd_uobject(struct ib_uobject *uobj,
 	const struct uverbs_obj_fd_type *fd_type = container_of(
 		uobj->uapi_object->type_attrs, struct uverbs_obj_fd_type, type);
 
-	return fd_type->destroy_object(uobj, why);
+	fd_type->destroy_object(uobj, why);
+	return 0;
 }
 
 static void remove_handle_fd_uobject(struct ib_uobject *uobj)

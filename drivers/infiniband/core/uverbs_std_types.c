@@ -154,7 +154,7 @@ void ib_uverbs_free_event_queue(struct ib_uverbs_event_queue *event_queue)
 	spin_unlock_irq(&event_queue->lock);
 }
 
-static int
+static void
 uverbs_completion_event_file_destroy_uobj(struct ib_uobject *uobj,
 					  enum rdma_remove_reason why)
 {
@@ -163,7 +163,6 @@ uverbs_completion_event_file_destroy_uobj(struct ib_uobject *uobj,
 			     uobj);
 
 	ib_uverbs_free_event_queue(&file->ev_queue);
-	return 0;
 }
 
 int uverbs_destroy_def_handler(struct uverbs_attr_bundle *attrs)
