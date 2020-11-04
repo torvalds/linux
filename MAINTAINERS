@@ -15609,6 +15609,15 @@ F:	Documentation/scsi/st.rst
 F:	drivers/scsi/st.*
 F:	drivers/scsi/st_*.h
 
+SCSI TARGET CORE USER DRIVER
+M:	Bodo Stroesser <bostroesser@gmail.com>
+L:	linux-scsi@vger.kernel.org
+L:	target-devel@vger.kernel.org
+S:	Supported
+F:	Documentation/target/tcmu-design.rst
+F:	drivers/target/target_core_user.c
+F:	include/uapi/linux/target_core_user.h
+
 SCSI TARGET SUBSYSTEM
 M:	"Martin K. Petersen" <martin.petersen@oracle.com>
 L:	linux-scsi@vger.kernel.org
