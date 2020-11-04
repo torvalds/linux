@@ -27,8 +27,6 @@
 
 #ifdef __NR_userfaultfd
 
-#define DEFAULT_GUEST_TEST_MEM_SIZE (1 << 30) /* 1G */
-
 #ifdef PRINT_PER_PAGE_UPDATES
 #define PER_PAGE_DEBUG(...) printf(__VA_ARGS__)
 #else
@@ -251,8 +249,7 @@ static int setup_demand_paging(struct kvm_vm *vm,
 }
 
 static void run_test(enum vm_guest_mode mode, bool use_uffd,
-		     useconds_t uffd_delay, int vcpus,
-		     uint64_t vcpu_memory_bytes)
+		     useconds_t uffd_delay, int vcpus)
 {
 	pthread_t *vcpu_threads;
 	pthread_t *uffd_handler_threads = NULL;
@@ -264,7 +261,7 @@ static void run_test(enum vm_guest_mode mode, bool use_uffd,
 	int vcpu_id;
 	int r;
 
-	vm = create_vm(mode, vcpus, vcpu_memory_bytes);
+	vm = create_vm(mode, vcpus, guest_percpu_mem_size);
 
 	perf_test_args.wr_fract = 1;
 
@@ -276,7 +273,7 @@ static void run_test(enum vm_guest_mode mode, bool use_uffd,
 	vcpu_threads = malloc(vcpus * sizeof(*vcpu_threads));
 	TEST_ASSERT(vcpu_threads, "Memory allocation failed");
 
-	add_vcpus(vm, vcpus, vcpu_memory_bytes);
+	add_vcpus(vm, vcpus, guest_percpu_mem_size);
 
 	if (use_uffd) {
 		uffd_handler_threads =
@@ -293,9 +290,9 @@ static void run_test(enum vm_guest_mode mode, bool use_uffd,
 			vm_paddr_t vcpu_gpa;
 			void *vcpu_hva;
 
-			vcpu_gpa = guest_test_phys_mem + (vcpu_id * vcpu_memory_bytes);
+			vcpu_gpa = guest_test_phys_mem + (vcpu_id * guest_percpu_mem_size);
 			PER_VCPU_DEBUG("Added VCPU %d with test mem gpa [%lx, %lx)\n",
-				       vcpu_id, vcpu_gpa, vcpu_gpa + vcpu_memory_bytes);
+				       vcpu_id, vcpu_gpa, vcpu_gpa + guest_percpu_mem_size);
 
 			/* Cache the HVA pointer of the region */
 			vcpu_hva = addr_gpa2hva(vm, vcpu_gpa);
@@ -312,7 +309,7 @@ static void run_test(enum vm_guest_mode mode, bool use_uffd,
 						&uffd_handler_threads[vcpu_id],
 						pipefds[vcpu_id * 2],
 						uffd_delay, &uffd_args[vcpu_id],
-						vcpu_hva, vcpu_memory_bytes);
+						vcpu_hva, guest_percpu_mem_size);
 			if (r < 0)
 				exit(-r);
 		}
@@ -413,7 +410,6 @@ static void help(char *name)
 int main(int argc, char *argv[])
 {
 	bool mode_selected = false;
-	uint64_t vcpu_memory_bytes = DEFAULT_GUEST_TEST_MEM_SIZE;
 	int vcpus = 1;
 	unsigned int mode;
 	int opt, i;
@@ -463,7 +459,7 @@ int main(int argc, char *argv[])
 				    "A negative UFFD delay is not supported.");
 			break;
 		case 'b':
-			vcpu_memory_bytes = parse_size(optarg);
+			guest_percpu_mem_size = parse_size(optarg);
 			break;
 		case 'v':
 			vcpus = atoi(optarg);
@@ -486,7 +482,7 @@ int main(int argc, char *argv[])
 		TEST_ASSERT(guest_modes[i].supported,
 			    "Guest mode ID %d (%s) not supported.",
 			    i, vm_guest_mode_string(i));
-		run_test(i, use_uffd, uffd_delay, vcpus, vcpu_memory_bytes);
+		run_test(i, use_uffd, uffd_delay, vcpus);
 	}
 
 	return 0;

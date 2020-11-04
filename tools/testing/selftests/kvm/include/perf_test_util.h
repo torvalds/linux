@@ -21,6 +21,8 @@
 /* Default guest test virtual memory offset */
 #define DEFAULT_GUEST_TEST_MEM		0xc0000000
 
+#define DEFAULT_PER_VCPU_MEM_SIZE	(1 << 30) /* 1G */
+
 /*
  * Guest physical memory offset of the testing memory slot.
  * This will be set to the topmost valid physical address minus
@@ -33,6 +35,7 @@ static uint64_t guest_test_phys_mem;
  * Must not conflict with identity mapped test code.
  */
 static uint64_t guest_test_virt_mem = DEFAULT_GUEST_TEST_MEM;
+static uint64_t guest_percpu_mem_size = DEFAULT_PER_VCPU_MEM_SIZE;
 
 struct vcpu_args {
 	uint64_t gva;
