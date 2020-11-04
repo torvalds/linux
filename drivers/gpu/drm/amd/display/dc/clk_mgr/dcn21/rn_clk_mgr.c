@@ -104,11 +104,12 @@ void rn_set_low_power_state(struct clk_mgr *clk_mgr_base)
 }
 
 static void rn_update_clocks_update_dpp_dto(struct clk_mgr_internal *clk_mgr,
-		struct dc_state *context, bool safe_to_lower)
+		struct dc_state *context, int ref_dpp_clk, bool safe_to_lower)
 {
 	int i;
 
-	clk_mgr->dccg->ref_dppclk = clk_mgr->base.clks.actual_dppclk_khz;
+	clk_mgr->dccg->ref_dppclk = ref_dpp_clk;
+
 	for (i = 0; i < clk_mgr->base.ctx->dc->res_pool->pipe_count; i++) {
 		int dpp_inst, dppclk_khz, prev_dppclk_khz;
 
@@ -200,19 +201,36 @@ void rn_update_clocks(struct clk_mgr *clk_mgr_base,
 	}
 
 	if (dpp_clock_lowered) {
-		// increase per DPP DTO before lowering global dppclk
-		rn_update_clocks_update_dpp_dto(clk_mgr, context, safe_to_lower);
+		// increase per DPP DTO before lowering global dppclk with requested dppclk
+		rn_update_clocks_update_dpp_dto(
+				clk_mgr,
+				context,
+				clk_mgr_base->clks.dppclk_khz,
+				safe_to_lower);
+
 		clk_mgr_base->clks.actual_dppclk_khz =
 				rn_vbios_smu_set_dppclk(clk_mgr, clk_mgr_base->clks.dppclk_khz);
+
+		//update dpp dto with actual dpp clk.
+		rn_update_clocks_update_dpp_dto(
+				clk_mgr,
+				context,
+				clk_mgr_base->clks.actual_dppclk_khz,
+				safe_to_lower);
 
 	} else {
 		// increase global DPPCLK before lowering per DPP DTO
 		if (update_dppclk || update_dispclk)
 			clk_mgr_base->clks.actual_dppclk_khz =
 					rn_vbios_smu_set_dppclk(clk_mgr, clk_mgr_base->clks.dppclk_khz);
+
 		// always update dtos unless clock is lowered and not safe to lower
 		if (new_clocks->dppclk_khz >= dc->current_state->bw_ctx.bw.dcn.clk.dppclk_khz)
-			rn_update_clocks_update_dpp_dto(clk_mgr, context, safe_to_lower);
+			rn_update_clocks_update_dpp_dto(
+					clk_mgr,
+					context,
+					clk_mgr_base->clks.actual_dppclk_khz,
+					safe_to_lower);
 	}
 
 	if (update_dispclk &&
