@@ -119,7 +119,7 @@ static ssize_t cyapa_i2c_read(struct cyapa *cyapa, u8 reg, size_t len,
 /**
  * cyapa_i2c_write - Execute i2c block data write operation
  * @cyapa: Handle to this driver
- * @ret: Offset of the data to written in the register map
+ * @reg: Offset of the data to written in the register map
  * @len: number of bytes to write
  * @values: Data to be written
  *
