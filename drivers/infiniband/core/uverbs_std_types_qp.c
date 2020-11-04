@@ -32,14 +32,14 @@ static int uverbs_free_qp(struct ib_uobject *uobject,
 	}
 
 	ret = ib_destroy_qp_user(qp, &attrs->driver_udata);
-	if (ib_is_destroy_retryable(ret, why, uobject))
+	if (ret)
 		return ret;
 
 	if (uqp->uxrcd)
 		atomic_dec(&uqp->uxrcd->refcnt);
 
 	ib_uverbs_release_uevent(&uqp->uevent);
-	return ret;
+	return 0;
 }
 
 static int check_creation_flags(enum ib_qp_type qp_type,
