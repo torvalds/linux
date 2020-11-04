@@ -554,7 +554,7 @@ struct nfsd4_copy {
 	bool			cp_intra;
 
 	/* both */
-	bool		cp_synchronous;
+	u32			cp_synchronous;
 
 	/* response */
 	struct nfsd42_write_res	cp_res;
