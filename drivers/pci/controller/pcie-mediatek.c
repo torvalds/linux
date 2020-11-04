@@ -760,7 +760,7 @@ static struct pci_ops mtk_pcie_ops = {
 static int mtk_pcie_startup_port(struct mtk_pcie_port *port)
 {
 	struct mtk_pcie *pcie = port->pcie;
-	u32 func = PCI_FUNC(port->slot << 3);
+	u32 func = PCI_FUNC(port->slot);
 	u32 slot = PCI_SLOT(port->slot << 3);
 	u32 val;
 	int err;
