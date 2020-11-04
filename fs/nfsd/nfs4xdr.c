@@ -207,6 +207,33 @@ static char *savemem(struct nfsd4_compoundargs *argp, __be32 *p, int nbytes)
 	return ret;
 }
 
+
+/*
+ * NFSv4 basic data type decoders
+ */
+
+static __be32
+nfsd4_decode_opaque(struct nfsd4_compoundargs *argp, struct xdr_netobj *o)
+{
+	__be32 *p;
+	u32 len;
+
+	if (xdr_stream_decode_u32(argp->xdr, &len) < 0)
+		return nfserr_bad_xdr;
+	if (len == 0 || len > NFS4_OPAQUE_LIMIT)
+		return nfserr_bad_xdr;
+	p = xdr_inline_decode(argp->xdr, len);
+	if (!p)
+		return nfserr_bad_xdr;
+	o->data = svcxdr_tmpalloc(argp, len);
+	if (!o->data)
+		return nfserr_jukebox;
+	o->len = len;
+	memcpy(o->data, p, len);
+
+	return nfs_ok;
+}
+
 static __be32
 nfsd4_decode_component4(struct nfsd4_compoundargs *argp, char **namp, u32 *lenp)
 {
@@ -941,22 +968,6 @@ static __be32 nfsd4_decode_share_deny(struct nfsd4_compoundargs *argp, u32 *x)
 	return nfs_ok;
 xdr_error:
 	return nfserr_bad_xdr;
-}
-
-static __be32 nfsd4_decode_opaque(struct nfsd4_compoundargs *argp, struct xdr_netobj *o)
-{
-	DECODE_HEAD;
-
-	READ_BUF(4);
-	o->len = be32_to_cpup(p++);
-
-	if (o->len == 0 || o->len > NFS4_OPAQUE_LIMIT)
-		return nfserr_bad_xdr;
-
-	READ_BUF(o->len);
-	SAVEMEM(o->data, o->len);
-
-	DECODE_TAIL;
 }
 
 static __be32
