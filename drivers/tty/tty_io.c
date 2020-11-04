@@ -514,8 +514,6 @@ static const struct file_operations hung_up_tty_fops = {
 static DEFINE_SPINLOCK(redirect_lock);
 static struct file *redirect;
 
-extern void tty_sysctl_init(void);
-
 /**
  *	tty_wakeup	-	request more data
  *	@tty: terminal
