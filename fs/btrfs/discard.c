@@ -381,6 +381,15 @@ void btrfs_discard_schedule_work(struct btrfs_discard_ctl *discard_ctl,
 			delay = max(delay, bg_timeout);
 		}
 
+		if (override && discard_ctl->prev_discard) {
+			u64 elapsed = now - discard_ctl->prev_discard_time;
+
+			if (delay > elapsed)
+				delay -= elapsed;
+			else
+				delay = 0;
+		}
+
 		mod_delayed_work(discard_ctl->discard_workers,
 				 &discard_ctl->work, nsecs_to_jiffies(delay));
 	}
@@ -465,7 +474,12 @@ static void btrfs_discard_workfn(struct work_struct *work)
 		discard_ctl->discard_extent_bytes += trimmed;
 	}
 
+	/*
+	 * Updated without locks as this is inside the workfn and nothing else
+	 * is reading the values
+	 */
 	discard_ctl->prev_discard = trimmed;
+	discard_ctl->prev_discard_time = ktime_get_ns();
 
 	/* Determine next steps for a block_group */
 	if (block_group->discard_cursor >= btrfs_block_group_end(block_group)) {
@@ -685,6 +699,7 @@ void btrfs_discard_init(struct btrfs_fs_info *fs_info)
 		INIT_LIST_HEAD(&discard_ctl->discard_list[i]);
 
 	discard_ctl->prev_discard = 0;
+	discard_ctl->prev_discard_time = 0;
 	atomic_set(&discard_ctl->discardable_extents, 0);
 	atomic64_set(&discard_ctl->discardable_bytes, 0);
 	discard_ctl->max_discard_size = BTRFS_ASYNC_DISCARD_DEFAULT_MAX_SIZE;
