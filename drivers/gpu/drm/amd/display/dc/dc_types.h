@@ -697,6 +697,7 @@ struct psr_config {
 	bool psr_frame_capture_indication_req;
 	unsigned int psr_sdp_transmit_line_num_deadline;
 	bool allow_smu_optimizations;
+	bool allow_multi_disp_optimizations;
 };
 
 union dmcu_psr_level {
@@ -799,6 +800,7 @@ struct psr_context {
 	 */
 	unsigned int frame_delay;
 	bool allow_smu_optimizations;
+	bool allow_multi_disp_optimizations;
 };
 
 struct colorspace_transform {

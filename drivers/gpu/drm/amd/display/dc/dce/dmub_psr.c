@@ -261,6 +261,7 @@ static bool dmub_psr_copy_settings(struct dmub_psr *dmub,
 	// Misc
 	copy_settings_data->psr_level				= psr_context->psr_level.u32all;
 	copy_settings_data->smu_optimizations_en		= psr_context->allow_smu_optimizations;
+	copy_settings_data->multi_disp_optimizations_en	= psr_context->allow_multi_disp_optimizations;
 	copy_settings_data->frame_delay				= psr_context->frame_delay;
 	copy_settings_data->frame_cap_ind			= psr_context->psrFrameCaptureIndicationReq;
 	copy_settings_data->init_sdp_deadline			= psr_context->sdpTransmitLineNumDeadline;
