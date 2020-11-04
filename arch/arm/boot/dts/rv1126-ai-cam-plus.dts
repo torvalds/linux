@@ -1,0 +1,123 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2019 Fuzhou Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+#include "rv1126.dtsi"
+#include "rv1126-ai-cam.dtsi"
+
+/ {
+	model = "Rockchip RV1126 AI CAMERA PLUS";
+	compatible = "rockchip,rv1126-ai-cam-plus", "rockchip,rv1126";
+
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0xff570000 console=ttyFIQ0 root=PARTUUID=614e0000-0000 rootfstype=ext4 rootwait snd_aloop.index=7";
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		work-led {
+			gpios = <&gpio2 RK_PD1 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "timer";
+		};
+	};
+};
+
+&csi_dphy0 {
+	status = "okay";
+
+	ports {
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in_ucam0: endpoint@0 {
+				reg = <1>;
+				remote-endpoint = <&ucam_out0>;
+				data-lanes = <1 2 3 4>;
+			};
+
+			mipi_in_ucam1: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&ucam_out1>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&i2c1 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	imx378: imx378@1a {
+		compatible = "sony,imx378";
+		reg = <0x1a>;
+		clocks = <&cru CLK_MIPICSI_OUT>;
+		clock-names = "xvclk";
+		power-domains = <&power RV1126_PD_VI>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&mipicsi_clk0>;
+		pwren-gpios= <&gpio2 RK_PD2 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio1 RK_PD4 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "A12N01B";
+		rockchip,camera-module-lens-name = "48IRC-12M-F18";
+		// NO_HDR:0 HDR_X2:5 HDR_X3:6
+		rockchip,camera-hdr-mode = <0>;
+		port {
+			ucam_out0: endpoint {
+				remote-endpoint = <&mipi_in_ucam0>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+
+	gc4c33: gc4c33@29 {
+		compatible = "galaxycore,gc4c33";
+		reg = <0x29>;
+		clocks = <&cru CLK_MIPICSI_OUT>;
+		clock-names = "xvclk";
+		power-domains = <&power RV1126_PD_VI>;
+		pinctrl-names = "rockchip,camera_default";
+		pinctrl-0 = <&mipicsi_clk0>;
+		pwren-gpios= <&gpio2 RK_PD2 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio1 RK_PD4 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "PCORW0009A";
+		rockchip,camera-module-lens-name = "40IRC-4M";
+		// NO_HDR:0 HDR_X2:5 HDR_X3:6
+		rockchip,camera-hdr-mode = <0>;
+		port {
+			ucam_out1: endpoint {
+				remote-endpoint = <&mipi_in_ucam1>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
+};
+
+&npu {
+	npu-supply = <&vdd_npu>;
+	status = "okay";
+};
+
+&rkvenc {
+	venc-supply = <&vdd_npu>;
+	status = "okay";
+};
+
+&vdd_npu {
+	regulator-min-microvolt = <715000>;
+	regulator-max-microvolt = <975000>;
+	regulator-init-microvolt = <825000>;
+	status = "okay";
+};
