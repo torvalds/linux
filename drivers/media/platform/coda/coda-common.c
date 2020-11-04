@@ -26,6 +26,7 @@
 #include <linux/videodev2.h>
 #include <linux/of.h>
 #include <linux/platform_data/media/coda.h>
+#include <linux/ratelimit.h>
 #include <linux/reset.h>
 
 #include <media/v4l2-ctrls.h>
@@ -2062,6 +2063,7 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 	if (q_data_dst->fourcc == V4L2_PIX_FMT_JPEG)
 		ctx->params.gop_size = 1;
 	ctx->gopcounter = ctx->params.gop_size - 1;
+	v4l2_ctrl_s_ctrl(ctx->mb_err_cnt_ctrl, 0);
 
 	ret = ctx->ops->start_streaming(ctx);
 	if (ctx->inst_type == CODA_INST_DECODER) {
@@ -2462,6 +2464,15 @@ static void coda_decode_ctrls(struct coda_ctx *ctx)
 		ctx->mpeg4_level_ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 }
 
+static const struct v4l2_ctrl_config coda_mb_err_cnt_ctrl_config = {
+	.id	= V4L2_CID_CODA_MB_ERR_CNT,
+	.name	= "Macroblocks Error Count",
+	.type	= V4L2_CTRL_TYPE_INTEGER,
+	.min	= 0,
+	.max	= 0x7fffffff,
+	.step	= 1,
+};
+
 static int coda_ctrls_setup(struct coda_ctx *ctx)
 {
 	v4l2_ctrl_handler_init(&ctx->ctrls, 2);
@@ -2484,6 +2495,12 @@ static int coda_ctrls_setup(struct coda_ctx *ctx)
 				  1, 1, 1, 1);
 		if (ctx->cvd->src_formats[0] == V4L2_PIX_FMT_H264)
 			coda_decode_ctrls(ctx);
+
+		ctx->mb_err_cnt_ctrl = v4l2_ctrl_new_custom(&ctx->ctrls,
+						&coda_mb_err_cnt_ctrl_config,
+						NULL);
+		if (ctx->mb_err_cnt_ctrl)
+			ctx->mb_err_cnt_ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 	}
 
 	if (ctx->ctrls.error) {
@@ -3202,6 +3219,7 @@ static int coda_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	ratelimit_default_init(&dev->mb_err_rs);
 	mutex_init(&dev->dev_mutex);
 	mutex_init(&dev->coda_mutex);
 	ida_init(&dev->ida);

@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/log2.h>
 #include <linux/platform_device.h>
+#include <linux/ratelimit.h>
 #include <linux/reset.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
@@ -2369,9 +2370,12 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 	}
 
 	err_mb = coda_read(dev, CODA_RET_DEC_PIC_ERR_MB);
-	if (err_mb > 0)
-		v4l2_err(&dev->v4l2_dev,
-			 "errors in %d macroblocks\n", err_mb);
+	if (err_mb > 0) {
+		if (__ratelimit(&dev->mb_err_rs))
+			coda_dbg(1, ctx, "errors in %d macroblocks\n", err_mb);
+		v4l2_ctrl_s_ctrl(ctx->mb_err_cnt_ctrl,
+				 v4l2_ctrl_g_ctrl(ctx->mb_err_cnt_ctrl) + err_mb);
+	}
 
 	if (dev->devtype->product == CODA_HX4 ||
 	    dev->devtype->product == CODA_7541) {
