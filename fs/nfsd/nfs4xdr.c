@@ -1272,15 +1272,7 @@ nfsd4_decode_rename(struct nfsd4_compoundargs *argp, struct nfsd4_rename *rename
 static __be32
 nfsd4_decode_renew(struct nfsd4_compoundargs *argp, clientid_t *clientid)
 {
-	DECODE_HEAD;
-
-	if (argp->minorversion >= 1)
-		return nfserr_notsupp;
-
-	READ_BUF(sizeof(clientid_t));
-	COPYMEM(clientid, sizeof(clientid_t));
-
-	DECODE_TAIL;
+	return nfsd4_decode_clientid4(argp, clientid);
 }
 
 static __be32
