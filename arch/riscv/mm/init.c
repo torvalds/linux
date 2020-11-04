@@ -293,6 +293,7 @@ pmd_t fixmap_pmd[PTRS_PER_PMD] __page_aligned_bss;
 #define NUM_EARLY_PMDS		(1UL + MAX_EARLY_MAPPING_SIZE / PGDIR_SIZE)
 #endif
 pmd_t early_pmd[PTRS_PER_PMD * NUM_EARLY_PMDS] __initdata __aligned(PAGE_SIZE);
+pmd_t early_dtb_pmd[PTRS_PER_PMD] __initdata __aligned(PAGE_SIZE);
 
 static pmd_t *__init get_pmd_virt_early(phys_addr_t pa)
 {
@@ -490,6 +491,18 @@ asmlinkage void __init setup_vm(uintptr_t dtb_pa)
 				   load_pa + (va - PAGE_OFFSET),
 				   map_size, PAGE_KERNEL_EXEC);
 
+#ifndef __PAGETABLE_PMD_FOLDED
+	/* Setup early PMD for DTB */
+	create_pgd_mapping(early_pg_dir, DTB_EARLY_BASE_VA,
+			   (uintptr_t)early_dtb_pmd, PGDIR_SIZE, PAGE_TABLE);
+	/* Create two consecutive PMD mappings for FDT early scan */
+	pa = dtb_pa & ~(PMD_SIZE - 1);
+	create_pmd_mapping(early_dtb_pmd, DTB_EARLY_BASE_VA,
+			   pa, PMD_SIZE, PAGE_KERNEL);
+	create_pmd_mapping(early_dtb_pmd, DTB_EARLY_BASE_VA + PMD_SIZE,
+			   pa + PMD_SIZE, PMD_SIZE, PAGE_KERNEL);
+	dtb_early_va = (void *)DTB_EARLY_BASE_VA + (dtb_pa & (PMD_SIZE - 1));
+#else
 	/* Create two consecutive PGD mappings for FDT early scan */
 	pa = dtb_pa & ~(PGDIR_SIZE - 1);
 	create_pgd_mapping(early_pg_dir, DTB_EARLY_BASE_VA,
@@ -497,6 +510,7 @@ asmlinkage void __init setup_vm(uintptr_t dtb_pa)
 	create_pgd_mapping(early_pg_dir, DTB_EARLY_BASE_VA + PGDIR_SIZE,
 			   pa + PGDIR_SIZE, PGDIR_SIZE, PAGE_KERNEL);
 	dtb_early_va = (void *)DTB_EARLY_BASE_VA + (dtb_pa & (PGDIR_SIZE - 1));
+#endif
 	dtb_early_pa = dtb_pa;
 
 	/*
