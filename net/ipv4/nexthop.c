@@ -38,7 +38,8 @@ static const struct nla_policy rtm_nh_policy[NHA_MAX + 1] = {
 
 static int call_nexthop_notifiers(struct net *net,
 				  enum nexthop_event_type event_type,
-				  struct nexthop *nh)
+				  struct nexthop *nh,
+				  struct netlink_ext_ack *extack)
 {
 	int err;
 
@@ -907,7 +908,7 @@ static void __remove_nexthop(struct net *net, struct nexthop *nh,
 static void remove_nexthop(struct net *net, struct nexthop *nh,
 			   struct nl_info *nlinfo)
 {
-	call_nexthop_notifiers(net, NEXTHOP_EVENT_DEL, nh);
+	call_nexthop_notifiers(net, NEXTHOP_EVENT_DEL, nh, NULL);
 
 	/* remove from the tree */
 	rb_erase(&nh->rb_node, &net->nexthop.rb_root);
