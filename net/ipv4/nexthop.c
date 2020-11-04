@@ -1050,12 +1050,16 @@ static int replace_nexthop_grp(struct net *net, struct nexthop *old,
 			       struct netlink_ext_ack *extack)
 {
 	struct nh_group *oldg, *newg;
-	int i;
+	int i, err;
 
 	if (!new->is_group) {
 		NL_SET_ERR_MSG(extack, "Can not replace a nexthop group with a nexthop.");
 		return -EINVAL;
 	}
+
+	err = call_nexthop_notifiers(net, NEXTHOP_EVENT_REPLACE, new, extack);
+	if (err)
+		return err;
 
 	oldg = rtnl_dereference(old->nh_grp);
 	newg = rtnl_dereference(new->nh_grp);
