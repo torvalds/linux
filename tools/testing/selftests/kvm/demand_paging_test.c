@@ -249,7 +249,7 @@ static int setup_demand_paging(struct kvm_vm *vm,
 }
 
 static void run_test(enum vm_guest_mode mode, bool use_uffd,
-		     useconds_t uffd_delay, int vcpus)
+		     useconds_t uffd_delay)
 {
 	pthread_t *vcpu_threads;
 	pthread_t *uffd_handler_threads = NULL;
@@ -261,7 +261,7 @@ static void run_test(enum vm_guest_mode mode, bool use_uffd,
 	int vcpu_id;
 	int r;
 
-	vm = create_vm(mode, vcpus, guest_percpu_mem_size);
+	vm = create_vm(mode, nr_vcpus, guest_percpu_mem_size);
 
 	perf_test_args.wr_fract = 1;
 
@@ -270,23 +270,23 @@ static void run_test(enum vm_guest_mode mode, bool use_uffd,
 		    "Failed to allocate buffer for guest data pattern");
 	memset(guest_data_prototype, 0xAB, perf_test_args.host_page_size);
 
-	vcpu_threads = malloc(vcpus * sizeof(*vcpu_threads));
+	vcpu_threads = malloc(nr_vcpus * sizeof(*vcpu_threads));
 	TEST_ASSERT(vcpu_threads, "Memory allocation failed");
 
-	add_vcpus(vm, vcpus, guest_percpu_mem_size);
+	add_vcpus(vm, nr_vcpus, guest_percpu_mem_size);
 
 	if (use_uffd) {
 		uffd_handler_threads =
-			malloc(vcpus * sizeof(*uffd_handler_threads));
+			malloc(nr_vcpus * sizeof(*uffd_handler_threads));
 		TEST_ASSERT(uffd_handler_threads, "Memory allocation failed");
 
-		uffd_args = malloc(vcpus * sizeof(*uffd_args));
+		uffd_args = malloc(nr_vcpus * sizeof(*uffd_args));
 		TEST_ASSERT(uffd_args, "Memory allocation failed");
 
-		pipefds = malloc(sizeof(int) * vcpus * 2);
+		pipefds = malloc(sizeof(int) * nr_vcpus * 2);
 		TEST_ASSERT(pipefds, "Unable to allocate memory for pipefd");
 
-		for (vcpu_id = 0; vcpu_id < vcpus; vcpu_id++) {
+		for (vcpu_id = 0; vcpu_id < nr_vcpus; vcpu_id++) {
 			vm_paddr_t vcpu_gpa;
 			void *vcpu_hva;
 
@@ -322,7 +322,7 @@ static void run_test(enum vm_guest_mode mode, bool use_uffd,
 
 	clock_gettime(CLOCK_MONOTONIC, &start);
 
-	for (vcpu_id = 0; vcpu_id < vcpus; vcpu_id++) {
+	for (vcpu_id = 0; vcpu_id < nr_vcpus; vcpu_id++) {
 		pthread_create(&vcpu_threads[vcpu_id], NULL, vcpu_worker,
 			       &perf_test_args.vcpu_args[vcpu_id]);
 	}
@@ -330,7 +330,7 @@ static void run_test(enum vm_guest_mode mode, bool use_uffd,
 	pr_info("Started all vCPUs\n");
 
 	/* Wait for the vcpu threads to quit */
-	for (vcpu_id = 0; vcpu_id < vcpus; vcpu_id++) {
+	for (vcpu_id = 0; vcpu_id < nr_vcpus; vcpu_id++) {
 		pthread_join(vcpu_threads[vcpu_id], NULL);
 		PER_VCPU_DEBUG("Joined thread for vCPU %d\n", vcpu_id);
 	}
@@ -343,7 +343,7 @@ static void run_test(enum vm_guest_mode mode, bool use_uffd,
 		char c;
 
 		/* Tell the user fault fd handler threads to quit */
-		for (vcpu_id = 0; vcpu_id < vcpus; vcpu_id++) {
+		for (vcpu_id = 0; vcpu_id < nr_vcpus; vcpu_id++) {
 			r = write(pipefds[vcpu_id * 2 + 1], &c, 1);
 			TEST_ASSERT(r == 1, "Unable to write to pipefd");
 
@@ -354,7 +354,7 @@ static void run_test(enum vm_guest_mode mode, bool use_uffd,
 	pr_info("Total guest execution time: %ld.%.9lds\n",
 		ts_diff.tv_sec, ts_diff.tv_nsec);
 	pr_info("Overall demand paging rate: %f pgs/sec\n",
-		perf_test_args.vcpu_args[0].pages * vcpus /
+		perf_test_args.vcpu_args[0].pages * nr_vcpus /
 		((double)ts_diff.tv_sec + (double)ts_diff.tv_nsec / 100000000.0));
 
 	ucall_uninit(vm);
@@ -409,8 +409,8 @@ static void help(char *name)
 
 int main(int argc, char *argv[])
 {
+	int max_vcpus = kvm_check_cap(KVM_CAP_MAX_VCPUS);
 	bool mode_selected = false;
-	int vcpus = 1;
 	unsigned int mode;
 	int opt, i;
 	bool use_uffd = false;
@@ -462,12 +462,9 @@ int main(int argc, char *argv[])
 			guest_percpu_mem_size = parse_size(optarg);
 			break;
 		case 'v':
-			vcpus = atoi(optarg);
-			TEST_ASSERT(vcpus > 0,
-				    "Must have a positive number of vCPUs");
-			TEST_ASSERT(vcpus <= MAX_VCPUS,
-				    "This test does not currently support\n"
-				    "more than %d vCPUs.", MAX_VCPUS);
+			nr_vcpus = atoi(optarg);
+			TEST_ASSERT(nr_vcpus > 0 && nr_vcpus <= max_vcpus,
+				    "Invalid number of vcpus, must be between 1 and %d", max_vcpus);
 			break;
 		case 'h':
 		default:
@@ -482,7 +479,7 @@ int main(int argc, char *argv[])
 		TEST_ASSERT(guest_modes[i].supported,
 			    "Guest mode ID %d (%s) not supported.",
 			    i, vm_guest_mode_string(i));
-		run_test(i, use_uffd, uffd_delay, vcpus);
+		run_test(i, use_uffd, uffd_delay);
 	}
 
 	return 0;

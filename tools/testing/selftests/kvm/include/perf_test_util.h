@@ -37,6 +37,9 @@ static uint64_t guest_test_phys_mem;
 static uint64_t guest_test_virt_mem = DEFAULT_GUEST_TEST_MEM;
 static uint64_t guest_percpu_mem_size = DEFAULT_PER_VCPU_MEM_SIZE;
 
+/* Number of VCPUs for the test */
+static int nr_vcpus = 1;
+
 struct vcpu_args {
 	uint64_t gva;
 	uint64_t pages;
