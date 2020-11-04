@@ -273,7 +273,7 @@
 };
 
 &isp_reserved {
-	size = <0x05c00000>;
+	size = <0x02400000>;
 };
 
 &npu {
@@ -338,7 +338,7 @@
 };
 
 &rkisp_thunderboot {
-	reg = <0x10000000 (72 * 0x00100000)>;
+	reg = <0x10000000 (36 * 0x00100000)>;
 };
 
 &rkisp_vir0 {
