@@ -31,10 +31,10 @@ properties:
   clock-names:
     oneOf:
       - items:          # for PXs2
-        - const: link
+          - const: link
       - items:          # for others
-        - const: link
-        - const: phy
+          - const: link
+          - const: phy
 
   resets:
     maxItems: 2

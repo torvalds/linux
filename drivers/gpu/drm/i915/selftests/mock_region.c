@@ -24,7 +24,7 @@ mock_object_create(struct intel_memory_region *mem,
 	struct drm_i915_private *i915 = mem->i915;
 	struct drm_i915_gem_object *obj;
 
-	if (size > BIT(mem->mm.max_order) * mem->mm.chunk_size)
+	if (size > mem->mm.size)
 		return ERR_PTR(-E2BIG);
 
 	obj = i915_gem_object_alloc();

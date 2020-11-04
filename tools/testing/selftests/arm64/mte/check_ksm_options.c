@@ -140,6 +140,10 @@ int main(int argc, char *argv[])
 	/* Register signal handlers */
 	mte_register_signal(SIGBUS, mte_default_handler);
 	mte_register_signal(SIGSEGV, mte_default_handler);
+
+	/* Set test plan */
+	ksft_set_plan(4);
+
 	/* Enable KSM */
 	mte_ksm_setup();
 

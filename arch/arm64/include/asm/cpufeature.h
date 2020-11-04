@@ -375,6 +375,23 @@ cpucap_multi_entry_cap_matches(const struct arm64_cpu_capabilities *entry,
 	return false;
 }
 
+static __always_inline bool is_vhe_hyp_code(void)
+{
+	/* Only defined for code run in VHE hyp context */
+	return __is_defined(__KVM_VHE_HYPERVISOR__);
+}
+
+static __always_inline bool is_nvhe_hyp_code(void)
+{
+	/* Only defined for code run in NVHE hyp context */
+	return __is_defined(__KVM_NVHE_HYPERVISOR__);
+}
+
+static __always_inline bool is_hyp_code(void)
+{
+	return is_vhe_hyp_code() || is_nvhe_hyp_code();
+}
+
 extern DECLARE_BITMAP(cpu_hwcaps, ARM64_NCAPS);
 extern struct static_key_false cpu_hwcap_keys[ARM64_NCAPS];
 extern struct static_key_false arm64_const_caps_ready;
@@ -428,22 +445,6 @@ static __always_inline bool __cpus_have_const_cap(int num)
 }
 
 /*
- * Test for a capability, possibly with a runtime check.
- *
- * Before capabilities are finalized, this behaves as cpus_have_cap().
- * After capabilities are finalized, this is patched to avoid a runtime check.
- *
- * @num must be a compile-time constant.
- */
-static __always_inline bool cpus_have_const_cap(int num)
-{
-	if (system_capabilities_finalized())
-		return __cpus_have_const_cap(num);
-	else
-		return cpus_have_cap(num);
-}
-
-/*
  * Test for a capability without a runtime check.
  *
  * Before capabilities are finalized, this will BUG().
@@ -457,6 +458,27 @@ static __always_inline bool cpus_have_final_cap(int num)
 		return __cpus_have_const_cap(num);
 	else
 		BUG();
+}
+
+/*
+ * Test for a capability, possibly with a runtime check for non-hyp code.
+ *
+ * For hyp code, this behaves the same as cpus_have_final_cap().
+ *
+ * For non-hyp code:
+ * Before capabilities are finalized, this behaves as cpus_have_cap().
+ * After capabilities are finalized, this is patched to avoid a runtime check.
+ *
+ * @num must be a compile-time constant.
+ */
+static __always_inline bool cpus_have_const_cap(int num)
+{
+	if (is_hyp_code())
+		return cpus_have_final_cap(num);
+	else if (system_capabilities_finalized())
+		return __cpus_have_const_cap(num);
+	else
+		return cpus_have_cap(num);
 }
 
 static inline void cpus_set_cap(unsigned int num)

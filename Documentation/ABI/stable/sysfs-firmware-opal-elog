@@ -38,6 +38,7 @@ Description:
 		For each log entry (directory), there are the following
 		files:
 
+		==============  ================================================
 		id:		An ASCII representation of the ID of the
 				error log, in hex - e.g. "0x01".
 
@@ -58,3 +59,4 @@ Description:
 				entry will be removed from sysfs.
 				Reading this file will list the supported
 				operations (currently just acknowledge).
+		==============  ================================================

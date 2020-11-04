@@ -20,3 +20,5 @@ properties:
       - enum:
           - calxeda,highbank
           - calxeda,ecx-2000
+
+additionalProperties: true

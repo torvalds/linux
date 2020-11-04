@@ -1239,7 +1239,7 @@ static void __init intel_idle_init_cstates_acpi(struct cpuidle_driver *drv)
 		struct acpi_processor_cx *cx;
 		struct cpuidle_state *state;
 
-		if (intel_idle_max_cstate_reached(cstate))
+		if (intel_idle_max_cstate_reached(cstate - 1))
 			break;
 
 		cx = &acpi_state_table.states[cstate];

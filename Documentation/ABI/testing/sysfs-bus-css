@@ -20,6 +20,7 @@ Contact:	Cornelia Huck <cornelia.huck@de.ibm.com>
 Description:	Contains the ids of the channel paths used by this
 		subchannel, as reported by the channel subsystem
 		during subchannel recognition.
+
 		Note: This is an I/O-subchannel specific attribute.
 Users:		s390-tools, HAL
 
@@ -31,6 +32,7 @@ Description:	Contains the PIM/PAM/POM values, as reported by the
 		channel subsystem when last queried by the common I/O
 		layer (this implies that this attribute is not necessarily
 		in sync with the values current in the channel subsystem).
+
 		Note: This is an I/O-subchannel specific attribute.
 Users:		s390-tools, HAL
 
@@ -53,6 +55,7 @@ Description:	This file allows the driver for a device to be specified. When
 		opt-out of driver binding using a driver_override name such as
 		"none".  Only a single driver may be specified in the override,
 		there is no support for parsing delimiters.
+
 		Note that unlike the mechanism of the same name for pci, this
 		file does not allow to override basic matching rules. I.e.,
 		the driver must still match the subchannel type of the device.

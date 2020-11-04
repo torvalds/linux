@@ -523,6 +523,16 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 		.cpu_enable = cpu_enable_trap_ctr_access,
 	},
 #endif
+#ifdef CONFIG_ARM64_ERRATUM_1508412
+	{
+		/* we depend on the firmware portion for correctness */
+		.desc = "ARM erratum 1508412 (kernel portion)",
+		.capability = ARM64_WORKAROUND_1508412,
+		ERRATA_MIDR_RANGE(MIDR_CORTEX_A77,
+				  0, 0,
+				  1, 0),
+	},
+#endif
 	{
 	}
 };
