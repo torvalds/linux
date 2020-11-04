@@ -458,7 +458,8 @@ static ssize_t btrfs_discard_iops_limit_store(struct kobject *kobj,
 		return -EINVAL;
 
 	WRITE_ONCE(discard_ctl->iops_limit, iops_limit);
-
+	btrfs_discard_calc_delay(discard_ctl);
+	btrfs_discard_schedule_work(discard_ctl, true);
 	return len;
 }
 BTRFS_ATTR_RW(discard, iops_limit, btrfs_discard_iops_limit_show,
@@ -488,7 +489,7 @@ static ssize_t btrfs_discard_kbps_limit_store(struct kobject *kobj,
 		return -EINVAL;
 
 	WRITE_ONCE(discard_ctl->kbps_limit, kbps_limit);
-
+	btrfs_discard_schedule_work(discard_ctl, true);
 	return len;
 }
 BTRFS_ATTR_RW(discard, kbps_limit, btrfs_discard_kbps_limit_show,
