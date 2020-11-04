@@ -12,6 +12,7 @@ Properties:
   irrespective of ram-code configuration.
 - interrupts : Should contain EMC General interrupt.
 - clocks : Should contain EMC clock.
+- nvidia,memory-controller : Phandle of the Memory Controller node.
 
 Child device nodes describe the memory settings for different configurations and clock rates.
 
@@ -24,6 +25,7 @@ Example:
 		reg = <0x7000f400 0x400>;
 		interrupts = <0 78 0x04>;
 		clocks = <&tegra_car TEGRA20_CLK_EMC>;
+		nvidia,memory-controller = <&mc>;
 	}
 
 
