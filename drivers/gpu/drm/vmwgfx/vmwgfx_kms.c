@@ -128,15 +128,14 @@ err_unreserve:
 static void vmw_cursor_update_position(struct vmw_private *dev_priv,
 				       bool show, int x, int y)
 {
-	u32 *fifo_mem = dev_priv->mmio_virt;
 	uint32_t count;
 
 	spin_lock(&dev_priv->cursor_lock);
-	vmw_mmio_write(show ? 1 : 0, fifo_mem + SVGA_FIFO_CURSOR_ON);
-	vmw_mmio_write(x, fifo_mem + SVGA_FIFO_CURSOR_X);
-	vmw_mmio_write(y, fifo_mem + SVGA_FIFO_CURSOR_Y);
-	count = vmw_mmio_read(fifo_mem + SVGA_FIFO_CURSOR_COUNT);
-	vmw_mmio_write(++count, fifo_mem + SVGA_FIFO_CURSOR_COUNT);
+	vmw_fifo_mem_write(dev_priv, SVGA_FIFO_CURSOR_ON, show ? 1 : 0);
+	vmw_fifo_mem_write(dev_priv, SVGA_FIFO_CURSOR_X, x);
+	vmw_fifo_mem_write(dev_priv, SVGA_FIFO_CURSOR_Y, y);
+	count = vmw_fifo_mem_read(dev_priv, SVGA_FIFO_CURSOR_COUNT);
+	vmw_fifo_mem_write(dev_priv, SVGA_FIFO_CURSOR_COUNT, ++count);
 	spin_unlock(&dev_priv->cursor_lock);
 }
 
@@ -1876,8 +1875,7 @@ int vmw_kms_write_svga(struct vmw_private *vmw_priv,
 	if (vmw_priv->capabilities & SVGA_CAP_PITCHLOCK)
 		vmw_write(vmw_priv, SVGA_REG_PITCHLOCK, pitch);
 	else if (vmw_fifo_have_pitchlock(vmw_priv))
-		vmw_mmio_write(pitch, vmw_priv->mmio_virt +
-			       SVGA_FIFO_PITCHLOCK);
+		vmw_fifo_mem_write(vmw_priv, SVGA_FIFO_PITCHLOCK, pitch);
 	vmw_write(vmw_priv, SVGA_REG_WIDTH, width);
 	vmw_write(vmw_priv, SVGA_REG_HEIGHT, height);
 	vmw_write(vmw_priv, SVGA_REG_BITS_PER_PIXEL, bpp);

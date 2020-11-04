@@ -683,7 +683,7 @@ static int vmw_driver_load(struct vmw_private *dev_priv, unsigned long chipset)
 
 	dev_priv->io_start = pci_resource_start(pdev, 0);
 	dev_priv->vram_start = pci_resource_start(pdev, 1);
-	dev_priv->mmio_start = pci_resource_start(pdev, 2);
+	dev_priv->fifo_mem_start = pci_resource_start(pdev, 2);
 
 	dev_priv->assume_16bpp = !!vmw_assume_16bpp;
 
@@ -713,7 +713,7 @@ static int vmw_driver_load(struct vmw_private *dev_priv, unsigned long chipset)
 	}
 
 	dev_priv->vram_size = vmw_read(dev_priv, SVGA_REG_VRAM_SIZE);
-	dev_priv->mmio_size = vmw_read(dev_priv, SVGA_REG_MEM_SIZE);
+	dev_priv->fifo_mem_size = vmw_read(dev_priv, SVGA_REG_MEM_SIZE);
 	dev_priv->fb_max_width = vmw_read(dev_priv, SVGA_REG_MAX_WIDTH);
 	dev_priv->fb_max_height = vmw_read(dev_priv, SVGA_REG_MAX_HEIGHT);
 
@@ -797,19 +797,21 @@ static int vmw_driver_load(struct vmw_private *dev_priv, unsigned long chipset)
 		DRM_INFO("Max dedicated hypervisor surface memory is %u kiB\n",
 			 (unsigned)dev_priv->memory_size / 1024);
 	}
-	DRM_INFO("Maximum display memory size is %u kiB\n",
-		 dev_priv->prim_bb_mem / 1024);
-	DRM_INFO("VRAM at 0x%08x size is %u kiB\n",
-		 dev_priv->vram_start, dev_priv->vram_size / 1024);
-	DRM_INFO("MMIO at 0x%08x size is %u kiB\n",
-		 dev_priv->mmio_start, dev_priv->mmio_size / 1024);
+	DRM_INFO("Maximum display memory size is %llu kiB\n",
+		 (uint64_t)dev_priv->prim_bb_mem / 1024);
+	DRM_INFO("VRAM at %pa size is %llu kiB\n",
+		 &dev_priv->vram_start, (uint64_t)dev_priv->vram_size / 1024);
+	DRM_INFO("MMIO at %pa size is %llu kiB\n",
+		 &dev_priv->fifo_mem_start, (uint64_t)dev_priv->fifo_mem_size / 1024);
 
-	dev_priv->mmio_virt = memremap(dev_priv->mmio_start,
-				       dev_priv->mmio_size, MEMREMAP_WB);
+	dev_priv->fifo_mem = devm_memremap(dev_priv->drm.dev,
+					   dev_priv->fifo_mem_start,
+					   dev_priv->fifo_mem_size,
+					   MEMREMAP_WB);
 
-	if (unlikely(dev_priv->mmio_virt == NULL)) {
+	if (unlikely(dev_priv->fifo_mem == NULL)) {
 		ret = -ENOMEM;
-		DRM_ERROR("Failed mapping MMIO.\n");
+		DRM_ERROR("Failed mapping the FIFO MMIO.\n");
 		goto out_err0;
 	}
 
@@ -819,7 +821,7 @@ static int vmw_driver_load(struct vmw_private *dev_priv, unsigned long chipset)
 	    !vmw_fifo_have_pitchlock(dev_priv)) {
 		ret = -ENOSYS;
 		DRM_ERROR("Hardware has no pitchlock\n");
-		goto out_err4;
+		goto out_err0;
 	}
 
 	dev_priv->tdev = ttm_object_device_init(&ttm_mem_glob, 12,
@@ -828,7 +830,7 @@ static int vmw_driver_load(struct vmw_private *dev_priv, unsigned long chipset)
 	if (unlikely(dev_priv->tdev == NULL)) {
 		DRM_ERROR("Unable to initialize TTM object management.\n");
 		ret = -ENOMEM;
-		goto out_err4;
+		goto out_err0;
 	}
 
 	dev_priv->drm.dev_private = dev_priv;
@@ -988,8 +990,6 @@ out_no_irq:
 	pci_release_regions(pdev);
 out_no_device:
 	ttm_object_device_release(&dev_priv->tdev);
-out_err4:
-	memunmap(dev_priv->mmio_virt);
 out_err0:
 	for (i = vmw_res_context; i < vmw_res_max; ++i)
 		idr_destroy(&dev_priv->res_idr[i]);
@@ -1037,7 +1037,6 @@ static void vmw_driver_unload(struct drm_device *dev)
 	pci_release_regions(pdev);
 
 	ttm_object_device_release(&dev_priv->tdev);
-	memunmap(dev_priv->mmio_virt);
 	if (dev_priv->ctx.staged_bindings)
 		vmw_binding_state_free(dev_priv->ctx.staged_bindings);
 

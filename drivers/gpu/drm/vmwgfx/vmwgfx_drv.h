@@ -496,12 +496,13 @@ struct vmw_private {
 
 	struct drm_vma_offset_manager vma_manager;
 	unsigned long vmw_chipset;
-	unsigned int io_start;
-	uint32_t vram_start;
-	uint32_t vram_size;
-	uint32_t prim_bb_mem;
-	uint32_t mmio_start;
-	uint32_t mmio_size;
+	resource_size_t io_start;
+	resource_size_t vram_start;
+	resource_size_t vram_size;
+	resource_size_t prim_bb_mem;
+	u32 *fifo_mem;
+	resource_size_t fifo_mem_start;
+	resource_size_t fifo_mem_size;
 	uint32_t fb_max_width;
 	uint32_t fb_max_height;
 	uint32_t texture_max_width;
@@ -510,7 +511,6 @@ struct vmw_private {
 	uint32_t stdu_max_height;
 	uint32_t initial_width;
 	uint32_t initial_height;
-	u32 *mmio_virt;
 	uint32_t capabilities;
 	uint32_t capabilities2;
 	uint32_t max_gmr_ids;
@@ -1575,28 +1575,29 @@ static inline void vmw_fifo_resource_dec(struct vmw_private *dev_priv)
 }
 
 /**
- * vmw_mmio_read - Perform a MMIO read from volatile memory
+ * vmw_fifo_mem_read - Perform a MMIO read from the fifo memory
  *
- * @addr: The address to read from
+ * @fifo_reg: The fifo register to read from
  *
  * This function is intended to be equivalent to ioread32() on
  * memremap'd memory, but without byteswapping.
  */
-static inline u32 vmw_mmio_read(u32 *addr)
+static inline u32 vmw_fifo_mem_read(struct vmw_private *vmw, uint32 fifo_reg)
 {
-	return READ_ONCE(*addr);
+	return READ_ONCE(*(vmw->fifo_mem + fifo_reg));
 }
 
 /**
- * vmw_mmio_write - Perform a MMIO write to volatile memory
+ * vmw_fifo_mem_write - Perform a MMIO write to volatile memory
  *
- * @addr: The address to write to
+ * @addr: The fifo register to write to
  *
  * This function is intended to be equivalent to iowrite32 on
  * memremap'd memory, but without byteswapping.
  */
-static inline void vmw_mmio_write(u32 value, u32 *addr)
+static inline void vmw_fifo_mem_write(struct vmw_private *vmw, u32 fifo_reg,
+				      u32 value)
 {
-	WRITE_ONCE(*addr, value);
+	WRITE_ONCE(*(vmw->fifo_mem + fifo_reg), value);
 }
 #endif
