@@ -151,7 +151,7 @@ static int call_nexthop_notifiers(struct net *net,
 	}
 
 	err = blocking_notifier_call_chain(&net->nexthop.notifier_chain,
-					   event_type, nh);
+					   event_type, &info);
 	nh_notifier_info_fini(&info);
 
 	return notifier_to_errno(err);
