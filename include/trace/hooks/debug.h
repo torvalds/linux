@@ -18,6 +18,7 @@ DECLARE_HOOK(android_vh_ipi_stop,
 	TP_ARGS(regs))
 #else
 #define trace_android_vh_ipi_stop(regs)
+#define trace_android_vh_ipi_stop_rcuidle(regs)
 #endif
 
 #endif /* _TRACE_HOOK_DEBUG_H */
