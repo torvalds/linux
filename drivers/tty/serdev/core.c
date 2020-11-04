@@ -800,6 +800,7 @@ EXPORT_SYMBOL_GPL(serdev_controller_remove);
 /**
  * serdev_driver_register() - Register client driver with serdev core
  * @sdrv:	client driver to be associated with client-device.
+ * @owner:	client driver owner to set.
  *
  * This API will register the client driver with the serdev framework.
  * It is typically called from the driver's module-init function.
