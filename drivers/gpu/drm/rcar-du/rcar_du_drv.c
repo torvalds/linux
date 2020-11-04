@@ -507,7 +507,7 @@ MODULE_DEVICE_TABLE(of, rcar_du_of_table);
 
 DEFINE_DRM_GEM_CMA_FOPS(rcar_du_fops);
 
-static struct drm_driver rcar_du_driver = {
+static const struct drm_driver rcar_du_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	DRM_GEM_CMA_DRIVER_OPS_WITH_DUMB_CREATE(rcar_du_dumb_create),
 	.fops			= &rcar_du_fops,

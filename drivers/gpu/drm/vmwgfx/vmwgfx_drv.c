@@ -1469,7 +1469,7 @@ static const struct file_operations vmwgfx_driver_fops = {
 	.get_unmapped_area = vmw_get_unmapped_area,
 };
 
-static struct drm_driver driver = {
+static const struct drm_driver driver = {
 	.driver_features =
 	DRIVER_MODESET | DRIVER_RENDER | DRIVER_ATOMIC,
 	.ioctls = vmw_ioctls,

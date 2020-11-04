@@ -297,7 +297,7 @@ static struct pci_device_id pciidlist[] = {
 
 MODULE_DEVICE_TABLE(pci, pciidlist);
 
-static struct drm_driver kms_driver;
+static const struct drm_driver kms_driver;
 
 bool radeon_device_is_virtual(void);
 
@@ -629,7 +629,7 @@ static const struct drm_ioctl_desc radeon_ioctls_kms[] = {
 	DRM_IOCTL_DEF_DRV(RADEON_GEM_USERPTR, radeon_gem_userptr_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
 };
 
-static struct drm_driver kms_driver = {
+static const struct drm_driver kms_driver = {
 	.driver_features =
 	    DRIVER_GEM | DRIVER_RENDER | DRIVER_MODESET,
 	.load = radeon_driver_load_kms,

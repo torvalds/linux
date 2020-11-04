@@ -392,7 +392,7 @@ static void ast_device_release(void *data)
 	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa1, 0x04);
 }
 
-struct ast_private *ast_device_create(struct drm_driver *drv,
+struct ast_private *ast_device_create(const struct drm_driver *drv,
 				      struct pci_dev *pdev,
 				      unsigned long flags)
 {

@@ -108,7 +108,7 @@ static void tidss_release(struct drm_device *ddev)
 
 DEFINE_DRM_GEM_CMA_FOPS(tidss_fops);
 
-static struct drm_driver tidss_driver = {
+static const struct drm_driver tidss_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.fops			= &tidss_fops,
 	.release		= tidss_release,

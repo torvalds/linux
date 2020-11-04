@@ -213,7 +213,7 @@ pl111_gem_import_sg_table(struct drm_device *dev,
 
 DEFINE_DRM_GEM_CMA_FOPS(drm_fops);
 
-static struct drm_driver pl111_drm_driver = {
+static const struct drm_driver pl111_drm_driver = {
 	.driver_features =
 		DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
 	.ioctls = NULL,

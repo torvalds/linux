@@ -415,7 +415,7 @@ static const struct drm_gem_object_funcs vgem_gem_object_funcs = {
 	.vm_ops = &vgem_gem_vm_ops,
 };
 
-static struct drm_driver vgem_driver = {
+static const struct drm_driver vgem_driver = {
 	.driver_features		= DRIVER_GEM | DRIVER_RENDER,
 	.open				= vgem_open,
 	.postclose			= vgem_postclose,

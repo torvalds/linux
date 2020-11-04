@@ -34,7 +34,7 @@ static int udl_usb_resume(struct usb_interface *interface)
 
 DEFINE_DRM_GEM_FOPS(udl_driver_fops);
 
-static struct drm_driver driver = {
+static const struct drm_driver driver = {
 	.driver_features = DRIVER_ATOMIC | DRIVER_GEM | DRIVER_MODESET,
 
 	/* GEM hooks */

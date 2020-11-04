@@ -137,7 +137,7 @@ finish:
 
 DEFINE_DRM_GEM_CMA_FOPS(drm_fops);
 
-static struct drm_driver tve200_drm_driver = {
+static const struct drm_driver tve200_drm_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
 	.ioctls = NULL,
 	.fops = &drm_fops,

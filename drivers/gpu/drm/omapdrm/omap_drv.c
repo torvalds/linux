@@ -533,7 +533,7 @@ static const struct file_operations omapdriver_fops = {
 	.llseek = noop_llseek,
 };
 
-static struct drm_driver omap_drm_driver = {
+static const struct drm_driver omap_drm_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM  |
 		DRIVER_ATOMIC | DRIVER_RENDER,
 	.open = dev_open,

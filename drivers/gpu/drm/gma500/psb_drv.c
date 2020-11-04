@@ -34,7 +34,7 @@
 #include "psb_intel_reg.h"
 #include "psb_reg.h"
 
-static struct drm_driver driver;
+static const struct drm_driver driver;
 static int psb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
 
 /*
@@ -491,7 +491,7 @@ static const struct file_operations psb_gem_fops = {
 	.read = drm_read,
 };
 
-static struct drm_driver driver = {
+static const struct drm_driver driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM,
 	.lastclose = drm_fb_helper_lastclose,
 

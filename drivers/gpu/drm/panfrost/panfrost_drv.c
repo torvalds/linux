@@ -548,7 +548,7 @@ DEFINE_DRM_GEM_FOPS(panfrost_drm_driver_fops);
  * - 1.0 - initial interface
  * - 1.1 - adds HEAP and NOEXEC flags for CREATE_BO
  */
-static struct drm_driver panfrost_drm_driver = {
+static const struct drm_driver panfrost_drm_driver = {
 	.driver_features	= DRIVER_RENDER | DRIVER_GEM | DRIVER_SYNCOBJ,
 	.open			= panfrost_open,
 	.postclose		= panfrost_postclose,

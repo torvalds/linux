@@ -600,7 +600,7 @@ static const uint64_t gm12u320_pipe_modifiers[] = {
 
 DEFINE_DRM_GEM_FOPS(gm12u320_fops);
 
-static struct drm_driver gm12u320_drm_driver = {
+static const struct drm_driver gm12u320_drm_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
 
 	.name		 = DRIVER_NAME,

@@ -393,7 +393,7 @@ static int msm_init_vram(struct drm_device *dev)
 	return ret;
 }
 
-static int msm_drm_init(struct device *dev, struct drm_driver *drv)
+static int msm_drm_init(struct device *dev, const struct drm_driver *drv)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct drm_device *ddev;
@@ -984,7 +984,7 @@ static const struct file_operations fops = {
 	.mmap               = msm_gem_mmap,
 };
 
-static struct drm_driver msm_driver = {
+static const struct drm_driver msm_driver = {
 	.driver_features    = DRIVER_GEM |
 				DRIVER_RENDER |
 				DRIVER_ATOMIC |

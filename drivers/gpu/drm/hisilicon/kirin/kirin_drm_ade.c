@@ -918,7 +918,7 @@ static const struct drm_mode_config_funcs ade_mode_config_funcs = {
 
 DEFINE_DRM_GEM_CMA_FOPS(ade_fops);
 
-static struct drm_driver ade_driver = {
+static const struct drm_driver ade_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.fops = &ade_fops,
 	DRM_GEM_CMA_DRIVER_OPS,

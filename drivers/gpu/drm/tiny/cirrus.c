@@ -536,7 +536,7 @@ static int cirrus_mode_config_init(struct cirrus_device *cirrus)
 
 DEFINE_DRM_GEM_FOPS(cirrus_fops);
 
-static struct drm_driver cirrus_driver = {
+static const struct drm_driver cirrus_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
 
 	.name		 = DRIVER_NAME,

@@ -936,7 +936,7 @@ static const u8 repaper_e2271cs021_cs[] = { 0x00, 0x00, 0x00, 0x7f,
 
 DEFINE_DRM_GEM_CMA_FOPS(repaper_fops);
 
-static struct drm_driver repaper_driver = {
+static const struct drm_driver repaper_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.fops			= &repaper_fops,
 	DRM_GEM_CMA_DRIVER_OPS_VMAP,
