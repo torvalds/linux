@@ -101,3 +101,6 @@ Image.%: Image
 
 zinstall install:
 	$(Q)$(MAKE) $(build)=$(boot) $@
+
+archclean:
+	$(Q)$(MAKE) $(clean)=$(boot)
