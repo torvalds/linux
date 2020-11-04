@@ -70,6 +70,7 @@ struct amdtee_session {
 struct amdtee_context_data {
 	struct list_head sess_list;
 	struct list_head shm_list;
+	struct mutex shm_mutex;   /* synchronizes access to @shm_list */
 };
 
 struct amdtee_driver_data {
