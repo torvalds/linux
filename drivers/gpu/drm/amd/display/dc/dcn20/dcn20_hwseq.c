@@ -1695,6 +1695,15 @@ void dcn20_program_front_end_for_ctx(
 				&& context->res_ctx.pipe_ctx[i].stream)
 			hws->funcs.blank_pixel_data(dc, &context->res_ctx.pipe_ctx[i], true);
 
+	/* wait for outstanding pending changes before adding or removing planes */
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		if (context->res_ctx.pipe_ctx[i].update_flags.bits.disable ||
+				context->res_ctx.pipe_ctx[i].update_flags.bits.enable) {
+			dc->hwss.wait_for_pending_cleared(dc, context);
+			break;
+		}
+	}
+
 	/* Disconnect mpcc */
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
 		if (context->res_ctx.pipe_ctx[i].update_flags.bits.disable
