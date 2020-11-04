@@ -60,6 +60,7 @@ enum amd_asic_type {
 	CHIP_VANGOGH,	/* 31 */
 	CHIP_DIMGREY_CAVEFISH,	/* 32 */
 	CHIP_BEIGE_GOBY,	/* 33 */
+	CHIP_YELLOW_CARP,	/* 34 */
 	CHIP_LAST,
 };
 
