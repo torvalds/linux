@@ -34,6 +34,7 @@ properties:
               - renesas,pcie-r8a7795      # R-Car H3
               - renesas,pcie-r8a7796      # R-Car M3-W
               - renesas,pcie-r8a77961     # R-Car M3-W+
+              - renesas,pcie-r8a77965     # R-Car M3-N
               - renesas,pcie-r8a77980     # R-Car V3H
               - renesas,pcie-r8a77990     # R-Car E3
           - const: renesas,pcie-rcar-gen3 # R-Car Gen3 and RZ/G2
