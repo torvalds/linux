@@ -412,11 +412,6 @@ static int nsim_fib4_event(struct nsim_fib_data *data,
 
 	fen_info = container_of(info, struct fib_entry_notifier_info, info);
 
-	if (fen_info->fi->nh) {
-		NL_SET_ERR_MSG_MOD(info->extack, "IPv4 route with nexthop objects is not supported");
-		return 0;
-	}
-
 	switch (event) {
 	case FIB_EVENT_ENTRY_REPLACE:
 		err = nsim_fib4_rt_insert(data, fen_info);
@@ -726,11 +721,6 @@ static int nsim_fib6_event(struct nsim_fib_data *data,
 	int err = 0;
 
 	fen6_info = container_of(info, struct fib6_entry_notifier_info, info);
-
-	if (fen6_info->rt->nh) {
-		NL_SET_ERR_MSG_MOD(info->extack, "IPv6 route with nexthop objects is not supported");
-		return 0;
-	}
 
 	if (fen6_info->rt->fib6_src.plen) {
 		NL_SET_ERR_MSG_MOD(info->extack, "IPv6 source-specific route is not supported");
