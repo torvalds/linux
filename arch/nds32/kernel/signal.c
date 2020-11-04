@@ -316,7 +316,7 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 				regs->uregs[0] = -EINTR;
 				break;
 			}
-			/* Else, fall through */
+			fallthrough;
 		case -ERESTARTNOINTR:
 			regs->uregs[0] = regs->orig_r0;
 			regs->ipc -= 4;
@@ -361,7 +361,7 @@ static void do_signal(struct pt_regs *regs)
 		switch (regs->uregs[0]) {
 		case -ERESTART_RESTARTBLOCK:
 			regs->uregs[15] = __NR_restart_syscall;
-			/* Fall through */
+			fallthrough;
 		case -ERESTARTNOHAND:
 		case -ERESTARTSYS:
 		case -ERESTARTNOINTR:
@@ -379,8 +379,6 @@ do_notify_resume(struct pt_regs *regs, unsigned int thread_flags)
 	if (thread_flags & _TIF_SIGPENDING)
 		do_signal(regs);
 
-	if (thread_flags & _TIF_NOTIFY_RESUME) {
-		clear_thread_flag(TIF_NOTIFY_RESUME);
+	if (thread_flags & _TIF_NOTIFY_RESUME)
 		tracehook_notify_resume(regs);
-	}
 }

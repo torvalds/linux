@@ -181,7 +181,7 @@ static void vt_event_wait(struct vt_event_wait *vw)
 
 /**
  *	vt_event_wait_ioctl	-	event ioctl handler
- *	@arg: argument to ioctl
+ *	@event: argument to ioctl (the event)
  *
  *	Implement the VT_WAITEVENT ioctl using the VT event interface
  */
@@ -208,7 +208,6 @@ static int vt_event_wait_ioctl(struct vt_event __user *event)
 
 /**
  *	vt_waitactive	-	active console wait
- *	@event: event code
  *	@n: new console
  *
  *	Helper for event waits. Used to implement the legacy
@@ -550,7 +549,7 @@ static int vt_io_fontreset(struct console_font_op *op)
 }
 
 static inline int do_unimap_ioctl(int cmd, struct unimapdesc __user *user_ud,
-		struct vc_data *vc)
+		bool perm, struct vc_data *vc)
 {
 	struct unimapdesc tmp;
 
@@ -558,9 +557,11 @@ static inline int do_unimap_ioctl(int cmd, struct unimapdesc __user *user_ud,
 		return -EFAULT;
 	switch (cmd) {
 	case PIO_UNIMAP:
+		if (!perm)
+			return -EPERM;
 		return con_set_unimap(vc, tmp.entry_ct, tmp.entries);
 	case GIO_UNIMAP:
-		if (fg_console != vc->vc_num)
+		if (!perm && fg_console != vc->vc_num)
 			return -EPERM;
 		return con_get_unimap(vc, tmp.entry_ct, &(user_ud->entry_ct),
 				tmp.entries);
@@ -640,10 +641,7 @@ static int vt_io_ioctl(struct vc_data *vc, unsigned int cmd, void __user *up,
 
 	case PIO_UNIMAP:
 	case GIO_UNIMAP:
-		if (!perm)
-			return -EPERM;
-
-		return do_unimap_ioctl(cmd, up, vc);
+		return do_unimap_ioctl(cmd, up, perm, vc);
 
 	default:
 		return -ENOIOCTLCMD;
@@ -773,48 +771,21 @@ static int vt_resizex(struct vc_data *vc, struct vt_consize __user *cs)
 	if (copy_from_user(&v, cs, sizeof(struct vt_consize)))
 		return -EFAULT;
 
-	/* FIXME: Should check the copies properly */
-	if (!v.v_vlin)
-		v.v_vlin = vc->vc_scan_lines;
+	if (v.v_vlin)
+		pr_info_once("\"struct vt_consize\"->v_vlin is ignored. Please report if you need this.\n");
+	if (v.v_clin)
+		pr_info_once("\"struct vt_consize\"->v_clin is ignored. Please report if you need this.\n");
 
-	if (v.v_clin) {
-		int rows = v.v_vlin / v.v_clin;
-		if (v.v_rows != rows) {
-			if (v.v_rows) /* Parameters don't add up */
-				return -EINVAL;
-			v.v_rows = rows;
-		}
-	}
-
-	if (v.v_vcol && v.v_ccol) {
-		int cols = v.v_vcol / v.v_ccol;
-		if (v.v_cols != cols) {
-			if (v.v_cols)
-				return -EINVAL;
-			v.v_cols = cols;
-		}
-	}
-
-	if (v.v_clin > 32)
-		return -EINVAL;
-
+	console_lock();
 	for (i = 0; i < MAX_NR_CONSOLES; i++) {
-		struct vc_data *vcp;
+		vc = vc_cons[i].d;
 
-		if (!vc_cons[i].d)
-			continue;
-		console_lock();
-		vcp = vc_cons[i].d;
-		if (vcp) {
-			if (v.v_vlin)
-				vcp->vc_scan_lines = v.v_vlin;
-			if (v.v_clin)
-				vcp->vc_font.height = v.v_clin;
-			vcp->vc_resize_user = 1;
-			vc_resize(vcp, v.v_cols, v.v_rows);
+		if (vc) {
+			vc->vc_resize_user = 1;
+			vc_resize(vc, v.v_cols, v.v_rows);
 		}
-		console_unlock();
 	}
+	console_unlock();
 
 	return 0;
 }

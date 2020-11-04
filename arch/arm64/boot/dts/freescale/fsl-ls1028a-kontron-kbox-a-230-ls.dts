@@ -11,11 +11,29 @@
 
 /dts-v1/;
 #include "fsl-ls1028a-kontron-sl28-var4.dts"
+#include <dt-bindings/leds/common.h>
 
 / {
 	model = "Kontron KBox A-230-LS";
 	compatible = "kontron,kbox-a-230-ls", "kontron,sl28-var4",
 		     "kontron,sl28", "fsl,ls1028a";
+
+	leds {
+		compatible = "gpio-leds";
+
+		alarm-led {
+			function = LED_FUNCTION_ALARM;
+			color = <LED_COLOR_ID_YELLOW>;
+			gpios = <&sl28cpld_gpio0 0 GPIO_ACTIVE_HIGH>;
+		};
+
+		power-led {
+			linux,default-trigger = "default-on";
+			function = LED_FUNCTION_POWER;
+			color = <LED_COLOR_ID_GREEN>;
+			gpios = <&sl28cpld_gpio1 3 GPIO_ACTIVE_HIGH>;
+		};
+	};
 };
 
 &enetc_mdio_pf3 {

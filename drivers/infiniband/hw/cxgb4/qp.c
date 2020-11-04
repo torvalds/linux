@@ -1165,7 +1165,7 @@ int c4iw_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 				break;
 			}
 			fw_flags |= FW_RI_RDMA_WRITE_WITH_IMMEDIATE;
-			/*FALLTHROUGH*/
+			fallthrough;
 		case IB_WR_RDMA_WRITE:
 			fw_opcode = FW_RI_RDMA_WRITE_WR;
 			swsqe->opcode = FW_RI_RDMA_WRITE;
@@ -2797,7 +2797,7 @@ err_free_wr_wait:
 	return ret;
 }
 
-void c4iw_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
+int c4iw_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
 {
 	struct c4iw_dev *rhp;
 	struct c4iw_srq *srq;
@@ -2813,4 +2813,5 @@ void c4iw_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
 		       srq->wr_waitp);
 	c4iw_free_srq_idx(&rhp->rdev, srq->idx);
 	c4iw_put_wr_wait(srq->wr_waitp);
+	return 0;
 }

@@ -94,6 +94,7 @@ enum {
 static const struct constant_table nfs_param_enums_local_lock[] = {
 	{ "all",		Opt_local_lock_all },
 	{ "flock",	Opt_local_lock_flock },
+	{ "posix",	Opt_local_lock_posix },
 	{ "none",		Opt_local_lock_none },
 	{}
 };
@@ -651,21 +652,21 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 		switch (lookup_constant(nfs_xprt_protocol_tokens, param->string, -1)) {
 		case Opt_xprt_udp6:
 			protofamily = AF_INET6;
-			/* fall through */
+			fallthrough;
 		case Opt_xprt_udp:
 			ctx->flags &= ~NFS_MOUNT_TCP;
 			ctx->nfs_server.protocol = XPRT_TRANSPORT_UDP;
 			break;
 		case Opt_xprt_tcp6:
 			protofamily = AF_INET6;
-			/* fall through */
+			fallthrough;
 		case Opt_xprt_tcp:
 			ctx->flags |= NFS_MOUNT_TCP;
 			ctx->nfs_server.protocol = XPRT_TRANSPORT_TCP;
 			break;
 		case Opt_xprt_rdma6:
 			protofamily = AF_INET6;
-			/* fall through */
+			fallthrough;
 		case Opt_xprt_rdma:
 			/* vector side protocols to TCP */
 			ctx->flags |= NFS_MOUNT_TCP;
@@ -684,13 +685,13 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 		switch (lookup_constant(nfs_xprt_protocol_tokens, param->string, -1)) {
 		case Opt_xprt_udp6:
 			mountfamily = AF_INET6;
-			/* fall through */
+			fallthrough;
 		case Opt_xprt_udp:
 			ctx->mount_server.protocol = XPRT_TRANSPORT_UDP;
 			break;
 		case Opt_xprt_tcp6:
 			mountfamily = AF_INET6;
-			/* fall through */
+			fallthrough;
 		case Opt_xprt_tcp:
 			ctx->mount_server.protocol = XPRT_TRANSPORT_TCP;
 			break;
@@ -899,9 +900,11 @@ static int nfs23_parse_monolithic(struct fs_context *fc,
 	ctx->version = NFS_DEFAULT_VERSION;
 	switch (data->version) {
 	case 1:
-		data->namlen = 0; /* fall through */
+		data->namlen = 0;
+		fallthrough;
 	case 2:
-		data->bsize = 0; /* fall through */
+		data->bsize = 0;
+		fallthrough;
 	case 3:
 		if (data->flags & NFS_MOUNT_VER3)
 			goto out_no_v3;
@@ -909,14 +912,14 @@ static int nfs23_parse_monolithic(struct fs_context *fc,
 		memcpy(data->root.data, data->old_root.data, NFS2_FHSIZE);
 		/* Turn off security negotiation */
 		extra_flags |= NFS_MOUNT_SECFLAVOUR;
-		/* fall through */
+		fallthrough;
 	case 4:
 		if (data->flags & NFS_MOUNT_SECFLAVOUR)
 			goto out_no_sec;
-		/* fall through */
+		fallthrough;
 	case 5:
 		memset(data->context, 0, sizeof(data->context));
-		/* fall through */
+		fallthrough;
 	case 6:
 		if (data->flags & NFS_MOUNT_VER3) {
 			if (data->root.size > NFS3_FHSIZE || data->root.size == 0)
@@ -1037,6 +1040,65 @@ out_invalid_fh:
 }
 
 #if IS_ENABLED(CONFIG_NFS_V4)
+struct compat_nfs_string {
+	compat_uint_t len;
+	compat_uptr_t data;
+};
+
+static inline void compat_nfs_string(struct nfs_string *dst,
+				     struct compat_nfs_string *src)
+{
+	dst->data = compat_ptr(src->data);
+	dst->len = src->len;
+}
+
+struct compat_nfs4_mount_data_v1 {
+	compat_int_t version;
+	compat_int_t flags;
+	compat_int_t rsize;
+	compat_int_t wsize;
+	compat_int_t timeo;
+	compat_int_t retrans;
+	compat_int_t acregmin;
+	compat_int_t acregmax;
+	compat_int_t acdirmin;
+	compat_int_t acdirmax;
+	struct compat_nfs_string client_addr;
+	struct compat_nfs_string mnt_path;
+	struct compat_nfs_string hostname;
+	compat_uint_t host_addrlen;
+	compat_uptr_t host_addr;
+	compat_int_t proto;
+	compat_int_t auth_flavourlen;
+	compat_uptr_t auth_flavours;
+};
+
+static void nfs4_compat_mount_data_conv(struct nfs4_mount_data *data)
+{
+	struct compat_nfs4_mount_data_v1 *compat =
+			(struct compat_nfs4_mount_data_v1 *)data;
+
+	/* copy the fields backwards */
+	data->auth_flavours = compat_ptr(compat->auth_flavours);
+	data->auth_flavourlen = compat->auth_flavourlen;
+	data->proto = compat->proto;
+	data->host_addr = compat_ptr(compat->host_addr);
+	data->host_addrlen = compat->host_addrlen;
+	compat_nfs_string(&data->hostname, &compat->hostname);
+	compat_nfs_string(&data->mnt_path, &compat->mnt_path);
+	compat_nfs_string(&data->client_addr, &compat->client_addr);
+	data->acdirmax = compat->acdirmax;
+	data->acdirmin = compat->acdirmin;
+	data->acregmax = compat->acregmax;
+	data->acregmin = compat->acregmin;
+	data->retrans = compat->retrans;
+	data->timeo = compat->timeo;
+	data->wsize = compat->wsize;
+	data->rsize = compat->rsize;
+	data->flags = compat->flags;
+	data->version = compat->version;
+}
+
 /*
  * Validate NFSv4 mount options
  */
@@ -1047,88 +1109,82 @@ static int nfs4_parse_monolithic(struct fs_context *fc,
 	struct sockaddr *sap = (struct sockaddr *)&ctx->nfs_server.address;
 	char *c;
 
-	if (data == NULL)
-		goto out_no_data;
+	if (!data) {
+		if (is_remount_fc(fc))
+			goto done;
+		return nfs_invalf(fc,
+			"NFS4: mount program didn't pass any mount data");
+	}
 
 	ctx->version = 4;
 
-	switch (data->version) {
-	case 1:
-		if (data->host_addrlen > sizeof(ctx->nfs_server.address))
-			goto out_no_address;
-		if (data->host_addrlen == 0)
-			goto out_no_address;
-		ctx->nfs_server.addrlen = data->host_addrlen;
-		if (copy_from_user(sap, data->host_addr, data->host_addrlen))
+	if (data->version != 1)
+		return generic_parse_monolithic(fc, data);
+
+	if (in_compat_syscall())
+		nfs4_compat_mount_data_conv(data);
+
+	if (data->host_addrlen > sizeof(ctx->nfs_server.address))
+		goto out_no_address;
+	if (data->host_addrlen == 0)
+		goto out_no_address;
+	ctx->nfs_server.addrlen = data->host_addrlen;
+	if (copy_from_user(sap, data->host_addr, data->host_addrlen))
+		return -EFAULT;
+	if (!nfs_verify_server_address(sap))
+		goto out_no_address;
+	ctx->nfs_server.port = ntohs(((struct sockaddr_in *)sap)->sin_port);
+
+	if (data->auth_flavourlen) {
+		rpc_authflavor_t pseudoflavor;
+
+		if (data->auth_flavourlen > 1)
+			goto out_inval_auth;
+		if (copy_from_user(&pseudoflavor, data->auth_flavours,
+				   sizeof(pseudoflavor)))
 			return -EFAULT;
-		if (!nfs_verify_server_address(sap))
-			goto out_no_address;
-		ctx->nfs_server.port = ntohs(((struct sockaddr_in *)sap)->sin_port);
-
-		if (data->auth_flavourlen) {
-			rpc_authflavor_t pseudoflavor;
-			if (data->auth_flavourlen > 1)
-				goto out_inval_auth;
-			if (copy_from_user(&pseudoflavor,
-					   data->auth_flavours,
-					   sizeof(pseudoflavor)))
-				return -EFAULT;
-			ctx->selected_flavor = pseudoflavor;
-		} else
-			ctx->selected_flavor = RPC_AUTH_UNIX;
-
-		c = strndup_user(data->hostname.data, NFS4_MAXNAMLEN);
-		if (IS_ERR(c))
-			return PTR_ERR(c);
-		ctx->nfs_server.hostname = c;
-
-		c = strndup_user(data->mnt_path.data, NFS4_MAXPATHLEN);
-		if (IS_ERR(c))
-			return PTR_ERR(c);
-		ctx->nfs_server.export_path = c;
-		dfprintk(MOUNT, "NFS: MNTPATH: '%s'\n", c);
-
-		c = strndup_user(data->client_addr.data, 16);
-		if (IS_ERR(c))
-			return PTR_ERR(c);
-		ctx->client_address = c;
-
-		/*
-		 * Translate to nfs_fs_context, which nfs_fill_super
-		 * can deal with.
-		 */
-
-		ctx->flags	= data->flags & NFS4_MOUNT_FLAGMASK;
-		ctx->rsize	= data->rsize;
-		ctx->wsize	= data->wsize;
-		ctx->timeo	= data->timeo;
-		ctx->retrans	= data->retrans;
-		ctx->acregmin	= data->acregmin;
-		ctx->acregmax	= data->acregmax;
-		ctx->acdirmin	= data->acdirmin;
-		ctx->acdirmax	= data->acdirmax;
-		ctx->nfs_server.protocol = data->proto;
-		nfs_validate_transport_protocol(ctx);
-		if (ctx->nfs_server.protocol == XPRT_TRANSPORT_UDP)
-			goto out_invalid_transport_udp;
-
-		break;
-	default:
-		goto generic;
+		ctx->selected_flavor = pseudoflavor;
+	} else {
+		ctx->selected_flavor = RPC_AUTH_UNIX;
 	}
 
+	c = strndup_user(data->hostname.data, NFS4_MAXNAMLEN);
+	if (IS_ERR(c))
+		return PTR_ERR(c);
+	ctx->nfs_server.hostname = c;
+
+	c = strndup_user(data->mnt_path.data, NFS4_MAXPATHLEN);
+	if (IS_ERR(c))
+		return PTR_ERR(c);
+	ctx->nfs_server.export_path = c;
+	dfprintk(MOUNT, "NFS: MNTPATH: '%s'\n", c);
+
+	c = strndup_user(data->client_addr.data, 16);
+	if (IS_ERR(c))
+		return PTR_ERR(c);
+	ctx->client_address = c;
+
+	/*
+	 * Translate to nfs_fs_context, which nfs_fill_super
+	 * can deal with.
+	 */
+
+	ctx->flags	= data->flags & NFS4_MOUNT_FLAGMASK;
+	ctx->rsize	= data->rsize;
+	ctx->wsize	= data->wsize;
+	ctx->timeo	= data->timeo;
+	ctx->retrans	= data->retrans;
+	ctx->acregmin	= data->acregmin;
+	ctx->acregmax	= data->acregmax;
+	ctx->acdirmin	= data->acdirmin;
+	ctx->acdirmax	= data->acdirmax;
+	ctx->nfs_server.protocol = data->proto;
+	nfs_validate_transport_protocol(ctx);
+	if (ctx->nfs_server.protocol == XPRT_TRANSPORT_UDP)
+		goto out_invalid_transport_udp;
+done:
 	ctx->skip_reconfig_option_check = true;
 	return 0;
-
-generic:
-	return generic_parse_monolithic(fc, data);
-
-out_no_data:
-	if (is_remount_fc(fc)) {
-		ctx->skip_reconfig_option_check = true;
-		return 0;
-	}
-	return nfs_invalf(fc, "NFS4: mount program didn't pass any mount data");
 
 out_inval_auth:
 	return nfs_invalf(fc, "NFS4: Invalid number of RPC auth flavours %d",

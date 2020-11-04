@@ -773,7 +773,7 @@ static int bcm3510_init(struct dvb_frontend* fe)
 			deb_info("attempting to download firmware\n");
 			if ((ret = bcm3510_init_cold(st)) < 0)
 				return ret;
-			/* fall-through */
+			fallthrough;
 		case JDEC_EEPROM_LOAD_WAIT:
 			deb_info("firmware is loaded\n");
 			bcm3510_check_firmware_version(st);

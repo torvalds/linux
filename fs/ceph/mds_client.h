@@ -372,7 +372,7 @@ struct ceph_quotarealm_inode {
 
 struct cap_wait {
 	struct list_head	list;
-	unsigned long		ino;
+	u64			ino;
 	pid_t			tgid;
 	int			need;
 	int			want;
@@ -393,7 +393,7 @@ struct ceph_mds_client {
 
 	struct ceph_mds_session **sessions;    /* NULL for mds if no session */
 	atomic_t		num_sessions;
-	int                     max_sessions;  /* len of s_mds_sessions */
+	int                     max_sessions;  /* len of sessions array */
 	int                     stopping;      /* true if shutting down */
 
 	atomic64_t		quotarealms_count; /* # realms with quota */

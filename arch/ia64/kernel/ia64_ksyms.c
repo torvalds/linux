@@ -3,7 +3,7 @@
  * Architecture-specific kernel symbols
  */
 
-#ifdef CONFIG_VIRTUAL_MEM_MAP
+#if defined(CONFIG_VIRTUAL_MEM_MAP) || defined(CONFIG_DISCONTIGMEM)
 #include <linux/compiler.h>
 #include <linux/export.h>
 #include <linux/memblock.h>

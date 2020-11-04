@@ -6,8 +6,8 @@ config DRM_MSM
 	depends on ARCH_QCOM || SOC_IMX5 || (ARM && COMPILE_TEST)
 	depends on OF && COMMON_CLK
 	depends on MMU
-	depends on INTERCONNECT || !INTERCONNECT
 	depends on QCOM_OCMEM || QCOM_OCMEM=n
+	select IOMMU_IO_PGTABLE
 	select QCOM_MDT_LOADER if ARCH_QCOM
 	select REGULATOR
 	select DRM_KMS_HELPER
@@ -56,6 +56,15 @@ config DRM_MSM_HDMI_HDCP
 	default y
 	help
 	  Choose this option to enable HDCP state machine
+
+config DRM_MSM_DP
+	bool "Enable DisplayPort support in MSM DRM driver"
+	depends on DRM_MSM
+	default y
+	help
+	  Compile in support for DP driver in MSM DRM driver. DP external
+	  display support is enabled through this config option. It can
+	  be primary or secondary display on device.
 
 config DRM_MSM_DSI
 	bool "Enable DSI support in MSM DRM driver"
@@ -110,3 +119,11 @@ config DRM_MSM_DSI_10NM_PHY
 	default y
 	help
 	  Choose this option if DSI PHY on SDM845 is used on the platform.
+
+config DRM_MSM_DSI_7NM_PHY
+	bool "Enable DSI 7nm PHY driver in MSM DRM (used by SM8150/SM8250)"
+	depends on DRM_MSM_DSI
+	default y
+	help
+	  Choose this option if DSI PHY on SM8150/SM8250 is used on the
+	  platform.

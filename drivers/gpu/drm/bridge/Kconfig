@@ -48,6 +48,19 @@ config DRM_DISPLAY_CONNECTOR
 	  on ARM-based platforms. Saying Y here when this driver is not needed
 	  will not cause any issue.
 
+config DRM_LONTIUM_LT9611
+	tristate "Lontium LT9611 DSI/HDMI bridge"
+	select SND_SOC_HDMI_CODEC if SND_SOC
+	depends on OF
+	select DRM_PANEL_BRIDGE
+	select DRM_KMS_HELPER
+	select REGMAP_I2C
+	help
+	  Driver for Lontium LT9611 DSI to HDMI bridge
+	  chip driver that converts dual DSI and I2S to
+	  HDMI signals
+	  Please say Y if you have such hardware.
+
 config DRM_LVDS_CODEC
 	tristate "Transparent LVDS encoders and decoders support"
 	depends on OF
@@ -153,6 +166,14 @@ config DRM_THINE_THC63LVD1024
 	help
 	  Thine THC63LVD1024 LVDS/parallel converter driver.
 
+config DRM_TOSHIBA_TC358762
+	tristate "TC358762 DSI/DPI bridge"
+	depends on OF
+	select DRM_MIPI_DSI
+	select DRM_PANEL_BRIDGE
+	help
+	  Toshiba TC358762 DSI/DPI bridge driver.
+
 config DRM_TOSHIBA_TC358764
 	tristate "TC358764 DSI/LVDS bridge"
 	depends on OF
@@ -180,6 +201,16 @@ config DRM_TOSHIBA_TC358768
 	select DRM_MIPI_DSI
 	help
 	  Toshiba TC358768AXBG/TC358778XBG DSI bridge chip driver.
+
+config DRM_TOSHIBA_TC358775
+	tristate "Toshiba TC358775 DSI/LVDS bridge"
+	depends on OF
+	select DRM_KMS_HELPER
+	select REGMAP_I2C
+	select DRM_PANEL
+	select DRM_MIPI_DSI
+	help
+	  Toshiba TC358775 DSI/LVDS bridge chip driver.
 
 config DRM_TI_TFP410
 	tristate "TI TFP410 DVI/HDMI bridge"
@@ -209,6 +240,8 @@ config DRM_TI_TPD12S015
 source "drivers/gpu/drm/bridge/analogix/Kconfig"
 
 source "drivers/gpu/drm/bridge/adv7511/Kconfig"
+
+source "drivers/gpu/drm/bridge/cadence/Kconfig"
 
 source "drivers/gpu/drm/bridge/synopsys/Kconfig"
 

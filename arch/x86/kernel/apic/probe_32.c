@@ -149,7 +149,7 @@ void __init default_setup_apic_routing(void)
 				break;
 			}
 			/* P4 and above */
-			/* fall through */
+			fallthrough;
 		case X86_VENDOR_HYGON:
 		case X86_VENDOR_AMD:
 			def_to_bigsmp = 1;
@@ -170,9 +170,6 @@ void __init default_setup_apic_routing(void)
 
 	if (apic->setup_apic_routing)
 		apic->setup_apic_routing();
-
-	if (x86_platform.apic_post_init)
-		x86_platform.apic_post_init();
 }
 
 void __init generic_apic_probe(void)

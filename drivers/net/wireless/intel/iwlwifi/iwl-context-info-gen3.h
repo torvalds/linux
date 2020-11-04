@@ -138,16 +138,16 @@ struct iwl_prph_scratch_control {
 } __packed; /* PERIPH_SCRATCH_CONTROL_S */
 
 /*
- * struct iwl_prph_scratch_ror_cfg - ror config
- * @ror_base_addr: ror start address
- * @ror_size: ror size in DWs
+ * struct iwl_prph_scratch_pnvm_cfg - ror config
+ * @pnvm_base_addr: PNVM start address
+ * @pnvm_size: PNVM size in DWs
  * @reserved: reserved
  */
-struct iwl_prph_scratch_ror_cfg {
-	__le64 ror_base_addr;
-	__le32 ror_size;
+struct iwl_prph_scratch_pnvm_cfg {
+	__le64 pnvm_base_addr;
+	__le32 pnvm_size;
 	__le32 reserved;
-} __packed; /* PERIPH_SCRATCH_ROR_CFG_S */
+} __packed; /* PERIPH_SCRATCH_PNVM_CFG_S */
 
 /*
  * struct iwl_prph_scratch_hwm_cfg - hwm config
@@ -175,14 +175,14 @@ struct iwl_prph_scratch_rbd_cfg {
  * struct iwl_prph_scratch_ctrl_cfg - prph scratch ctrl and config
  * @version: version information of context info and HW
  * @control: control flags of FH configurations
- * @ror_cfg: ror configuration
+ * @pnvm_cfg: ror configuration
  * @hwm_cfg: hwm configuration
  * @rbd_cfg: default RX queue configuration
  */
 struct iwl_prph_scratch_ctrl_cfg {
 	struct iwl_prph_scratch_version version;
 	struct iwl_prph_scratch_control control;
-	struct iwl_prph_scratch_ror_cfg ror_cfg;
+	struct iwl_prph_scratch_pnvm_cfg pnvm_cfg;
 	struct iwl_prph_scratch_hwm_cfg hwm_cfg;
 	struct iwl_prph_scratch_rbd_cfg rbd_cfg;
 } __packed; /* PERIPH_SCRATCH_CTRL_CFG_S */
@@ -290,5 +290,8 @@ struct iwl_context_info_gen3 {
 int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 				 const struct fw_img *fw);
 void iwl_pcie_ctxt_info_gen3_free(struct iwl_trans *trans);
+
+int iwl_trans_pcie_ctx_info_gen3_set_pnvm(struct iwl_trans *trans,
+					  const void *data, u32 len);
 
 #endif /* __iwl_context_info_file_gen3_h__ */

@@ -988,6 +988,9 @@ exit:
 
 /**
  * vxge_hw_device_hw_info_get - Get the hw information
+ * @bar0: the bar
+ * @hw_info: the hw_info struct
+ *
  * Returns the vpath mask that has the bits set for each vpath allocated
  * for the driver, FW version information, and the first mac address for
  * each vpath
@@ -2303,16 +2306,9 @@ exit:
 static inline void
 vxge_os_dma_malloc_async(struct pci_dev *pdev, void *devh, unsigned long size)
 {
-	gfp_t flags;
 	void *vaddr;
 
-	if (in_interrupt())
-		flags = GFP_ATOMIC | GFP_DMA;
-	else
-		flags = GFP_KERNEL | GFP_DMA;
-
-	vaddr = kmalloc((size), flags);
-
+	vaddr = kmalloc(size, GFP_KERNEL | GFP_DMA);
 	vxge_hw_blockpool_block_add(devh, vaddr, size, pdev, pdev);
 }
 
@@ -3768,20 +3764,20 @@ vxge_hw_rts_rth_data0_data1_get(u32 j, u64 *data0, u64 *data1,
 			VXGE_HW_RTS_ACCESS_STEER_DATA0_RTH_ITEM0_ENTRY_EN |
 			VXGE_HW_RTS_ACCESS_STEER_DATA0_RTH_ITEM0_BUCKET_DATA(
 			itable[j]);
-		/* fall through */
+		fallthrough;
 	case 2:
 		*data0 |=
 			VXGE_HW_RTS_ACCESS_STEER_DATA0_RTH_ITEM1_BUCKET_NUM(j)|
 			VXGE_HW_RTS_ACCESS_STEER_DATA0_RTH_ITEM1_ENTRY_EN |
 			VXGE_HW_RTS_ACCESS_STEER_DATA0_RTH_ITEM1_BUCKET_DATA(
 			itable[j]);
-		/* fall through */
+		fallthrough;
 	case 3:
 		*data1 = VXGE_HW_RTS_ACCESS_STEER_DATA1_RTH_ITEM0_BUCKET_NUM(j)|
 			VXGE_HW_RTS_ACCESS_STEER_DATA1_RTH_ITEM0_ENTRY_EN |
 			VXGE_HW_RTS_ACCESS_STEER_DATA1_RTH_ITEM0_BUCKET_DATA(
 			itable[j]);
-		/* fall through */
+		fallthrough;
 	case 4:
 		*data1 |=
 			VXGE_HW_RTS_ACCESS_STEER_DATA1_RTH_ITEM1_BUCKET_NUM(j)|
@@ -3926,7 +3922,7 @@ exit:
 
 /**
  * vxge_hw_vpath_check_leak - Check for memory leak
- * @ringh: Handle to the ring object used for receive
+ * @ring: Handle to the ring object used for receive
  *
  * If PRC_RXD_DOORBELL_VPn.NEW_QW_CNT is larger or equal to
  * PRC_CFG6_VPn.RXD_SPAT then a leak has occurred.

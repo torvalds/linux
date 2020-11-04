@@ -15,7 +15,7 @@
 
 #include "system_global.h"
 
-#ifdef USE_INPUT_SYSTEM_VERSION_2
+#ifndef ISP2401
 
 #include "input_formatter.h"
 #include <type_support.h>
@@ -26,6 +26,10 @@
 #ifndef __INLINE_INPUT_FORMATTER__
 #include "input_formatter_private.h"
 #endif /* __INLINE_INPUT_FORMATTER__ */
+
+static const unsigned int input_formatter_alignment[N_INPUT_FORMATTER_ID] = {
+	ISP_VEC_ALIGN, ISP_VEC_ALIGN, HIVE_ISP_CTRL_DATA_BYTES
+};
 
 const hrt_address HIVE_IF_SRST_ADDRESS[N_INPUT_FORMATTER_ID] = {
 	INPUT_FORMATTER0_SRST_OFFSET,

@@ -144,10 +144,9 @@ void debugfs_create_u32_array(const char *name, umode_t mode,
 			      struct dentry *parent,
 			      struct debugfs_u32_array *array);
 
-struct dentry *debugfs_create_devm_seqfile(struct device *dev, const char *name,
-					   struct dentry *parent,
-					   int (*read_fn)(struct seq_file *s,
-							  void *data));
+void debugfs_create_devm_seqfile(struct device *dev, const char *name,
+				 struct dentry *parent,
+				 int (*read_fn)(struct seq_file *s, void *data));
 
 bool debugfs_initialized(void);
 
@@ -327,13 +326,12 @@ static inline void debugfs_create_u32_array(const char *name, umode_t mode,
 {
 }
 
-static inline struct dentry *debugfs_create_devm_seqfile(struct device *dev,
-							 const char *name,
-							 struct dentry *parent,
-					   int (*read_fn)(struct seq_file *s,
-							  void *data))
+static inline void debugfs_create_devm_seqfile(struct device *dev,
+					       const char *name,
+					       struct dentry *parent,
+					       int (*read_fn)(struct seq_file *s,
+							      void *data))
 {
-	return ERR_PTR(-ENODEV);
 }
 
 static inline ssize_t debugfs_read_file_bool(struct file *file,

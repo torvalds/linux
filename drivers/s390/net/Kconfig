@@ -107,7 +107,7 @@ config QETH_OSX
 
 config CCWGROUP
 	tristate
-	default (LCS || CTCM || QETH)
+	default (LCS || CTCM || QETH || SMC)
 
 config ISM
 	tristate "Support for ISM vPCI Adapter"

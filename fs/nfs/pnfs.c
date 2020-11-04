@@ -902,7 +902,7 @@ restart:
 }
 
 /*
- * Called by the state manger to remove all layouts established under an
+ * Called by the state manager to remove all layouts established under an
  * expired lease.
  */
 void
@@ -1541,7 +1541,7 @@ void pnfs_roc_release(struct nfs4_layoutreturn_args *args,
 	case 0:
 		if (res->lrs_present)
 			res_stateid = &res->stateid;
-		/* Fallthrough */
+		fallthrough;
 	default:
 		arg_stateid = &args->stateid;
 	}

@@ -142,7 +142,7 @@ static int ralink_usb_phy_power_off(struct phy *_phy)
 	return 0;
 }
 
-static struct phy_ops ralink_usb_phy_ops = {
+static const struct phy_ops ralink_usb_phy_ops = {
 	.power_on	= ralink_usb_phy_power_on,
 	.power_off	= ralink_usb_phy_power_off,
 	.owner		= THIS_MODULE,

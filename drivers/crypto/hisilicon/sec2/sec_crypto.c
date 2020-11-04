@@ -66,8 +66,6 @@
 #define SEC_SQE_AEAD_FLAG	3
 #define SEC_SQE_DONE		0x1
 
-static atomic_t sec_active_devs;
-
 /* Get an en/de-cipher queue cyclically to balance load over queues of TFM */
 static inline int sec_alloc_queue_id(struct sec_ctx *ctx, struct sec_req *req)
 {
@@ -342,11 +340,14 @@ static int sec_alg_resource_alloc(struct sec_ctx *ctx,
 		ret = sec_alloc_pbuf_resource(dev, res);
 		if (ret) {
 			dev_err(dev, "fail to alloc pbuf dma resource!\n");
-			goto alloc_fail;
+			goto alloc_pbuf_fail;
 		}
 	}
 
 	return 0;
+alloc_pbuf_fail:
+	if (ctx->alg_type == SEC_AEAD)
+		sec_free_mac_resource(dev, qp_ctx->res);
 alloc_fail:
 	sec_free_civ_resource(dev, res);
 
@@ -457,8 +458,10 @@ static int sec_ctx_base_init(struct sec_ctx *ctx)
 	ctx->fake_req_limit = QM_Q_DEPTH >> 1;
 	ctx->qp_ctx = kcalloc(sec->ctx_q_num, sizeof(struct sec_qp_ctx),
 			      GFP_KERNEL);
-	if (!ctx->qp_ctx)
-		return -ENOMEM;
+	if (!ctx->qp_ctx) {
+		ret = -ENOMEM;
+		goto err_destroy_qps;
+	}
 
 	for (i = 0; i < sec->ctx_q_num; i++) {
 		ret = sec_create_qp_ctx(&sec->qm, ctx, i, 0);
@@ -467,12 +470,15 @@ static int sec_ctx_base_init(struct sec_ctx *ctx)
 	}
 
 	return 0;
+
 err_sec_release_qp_ctx:
 	for (i = i - 1; i >= 0; i--)
 		sec_release_qp_ctx(ctx, &ctx->qp_ctx[i]);
 
-	sec_destroy_qps(ctx->qps, sec->ctx_q_num);
 	kfree(ctx->qp_ctx);
+err_destroy_qps:
+	sec_destroy_qps(ctx->qps, sec->ctx_q_num);
+
 	return ret;
 }
 
@@ -1633,33 +1639,24 @@ static struct aead_alg sec_aeads[] = {
 
 int sec_register_to_crypto(void)
 {
-	int ret = 0;
+	int ret;
 
 	/* To avoid repeat register */
-	if (atomic_add_return(1, &sec_active_devs) == 1) {
-		ret = crypto_register_skciphers(sec_skciphers,
-						ARRAY_SIZE(sec_skciphers));
-		if (ret)
-			return ret;
+	ret = crypto_register_skciphers(sec_skciphers,
+					ARRAY_SIZE(sec_skciphers));
+	if (ret)
+		return ret;
 
-		ret = crypto_register_aeads(sec_aeads, ARRAY_SIZE(sec_aeads));
-		if (ret)
-			goto reg_aead_fail;
-	}
-
-	return ret;
-
-reg_aead_fail:
-	crypto_unregister_skciphers(sec_skciphers, ARRAY_SIZE(sec_skciphers));
-
+	ret = crypto_register_aeads(sec_aeads, ARRAY_SIZE(sec_aeads));
+	if (ret)
+		crypto_unregister_skciphers(sec_skciphers,
+					    ARRAY_SIZE(sec_skciphers));
 	return ret;
 }
 
 void sec_unregister_from_crypto(void)
 {
-	if (atomic_sub_return(1, &sec_active_devs) == 0) {
-		crypto_unregister_skciphers(sec_skciphers,
-					    ARRAY_SIZE(sec_skciphers));
-		crypto_unregister_aeads(sec_aeads, ARRAY_SIZE(sec_aeads));
-	}
+	crypto_unregister_skciphers(sec_skciphers,
+				    ARRAY_SIZE(sec_skciphers));
+	crypto_unregister_aeads(sec_aeads, ARRAY_SIZE(sec_aeads));
 }

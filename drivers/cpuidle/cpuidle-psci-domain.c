@@ -105,7 +105,7 @@ static void psci_pd_free_states(struct genpd_power_state *states,
 	kfree(states);
 }
 
-static int psci_pd_init(struct device_node *np)
+static int psci_pd_init(struct device_node *np, bool use_osi)
 {
 	struct generic_pm_domain *pd;
 	struct psci_pd_provider *pd_provider;
@@ -135,10 +135,15 @@ static int psci_pd_init(struct device_node *np)
 
 	pd->free_states = psci_pd_free_states;
 	pd->name = kbasename(pd->name);
-	pd->power_off = psci_pd_power_off;
 	pd->states = states;
 	pd->state_count = state_count;
 	pd->flags |= GENPD_FLAG_IRQ_SAFE | GENPD_FLAG_CPU_DOMAIN;
+
+	/* Allow power off when OSI has been successfully enabled. */
+	if (use_osi)
+		pd->power_off = psci_pd_power_off;
+	else
+		pd->flags |= GENPD_FLAG_ALWAYS_ON;
 
 	/* Use governor for CPU PM domains if it has some states to manage. */
 	pd_gov = state_count > 0 ? &pm_domain_cpu_gov : NULL;
@@ -190,7 +195,7 @@ static void psci_pd_remove(void)
 	}
 }
 
-static int psci_pd_init_topology(struct device_node *np, bool add)
+static int psci_pd_init_topology(struct device_node *np)
 {
 	struct device_node *node;
 	struct of_phandle_args child, parent;
@@ -203,9 +208,7 @@ static int psci_pd_init_topology(struct device_node *np, bool add)
 
 		child.np = node;
 		child.args_count = 0;
-
-		ret = add ? of_genpd_add_subdomain(&parent, &child) :
-			of_genpd_remove_subdomain(&parent, &child);
+		ret = of_genpd_add_subdomain(&parent, &child);
 		of_node_put(parent.np);
 		if (ret) {
 			of_node_put(node);
@@ -216,14 +219,20 @@ static int psci_pd_init_topology(struct device_node *np, bool add)
 	return 0;
 }
 
-static int psci_pd_add_topology(struct device_node *np)
+static bool psci_pd_try_set_osi_mode(void)
 {
-	return psci_pd_init_topology(np, true);
-}
+	int ret;
 
-static void psci_pd_remove_topology(struct device_node *np)
-{
-	psci_pd_init_topology(np, false);
+	if (!psci_has_osi_support())
+		return false;
+
+	ret = psci_set_osi_mode(true);
+	if (ret) {
+		pr_warn("failed to enable OSI mode: %d\n", ret);
+		return false;
+	}
+
+	return true;
 }
 
 static void psci_cpuidle_domain_sync_state(struct device *dev)
@@ -244,14 +253,14 @@ static int psci_cpuidle_domain_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct device_node *node;
+	bool use_osi;
 	int ret = 0, pd_count = 0;
 
 	if (!np)
 		return -ENODEV;
 
-	/* Currently limit the hierarchical topology to be used in OSI mode. */
-	if (!psci_has_osi_support())
-		return 0;
+	/* If OSI mode is supported, let's try to enable it. */
+	use_osi = psci_pd_try_set_osi_mode();
 
 	/*
 	 * Parse child nodes for the "#power-domain-cells" property and
@@ -261,7 +270,7 @@ static int psci_cpuidle_domain_probe(struct platform_device *pdev)
 		if (!of_find_property(node, "#power-domain-cells", NULL))
 			continue;
 
-		ret = psci_pd_init(node);
+		ret = psci_pd_init(node, use_osi);
 		if (ret)
 			goto put_node;
 
@@ -270,20 +279,12 @@ static int psci_cpuidle_domain_probe(struct platform_device *pdev)
 
 	/* Bail out if not using the hierarchical CPU topology. */
 	if (!pd_count)
-		return 0;
+		goto no_pd;
 
 	/* Link genpd masters/subdomains to model the CPU topology. */
-	ret = psci_pd_add_topology(np);
+	ret = psci_pd_init_topology(np);
 	if (ret)
 		goto remove_pd;
-
-	/* Try to enable OSI mode. */
-	ret = psci_set_osi_mode();
-	if (ret) {
-		pr_warn("failed to enable OSI mode: %d\n", ret);
-		psci_pd_remove_topology(np);
-		goto remove_pd;
-	}
 
 	pr_info("Initialized CPU PM domain topology\n");
 	return 0;
@@ -291,9 +292,11 @@ static int psci_cpuidle_domain_probe(struct platform_device *pdev)
 put_node:
 	of_node_put(node);
 remove_pd:
-	if (pd_count)
-		psci_pd_remove();
+	psci_pd_remove();
 	pr_err("failed to create CPU PM domains ret=%d\n", ret);
+no_pd:
+	if (use_osi)
+		psci_set_osi_mode(false);
 	return ret;
 }
 

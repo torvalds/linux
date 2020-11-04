@@ -8,6 +8,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
@@ -17,7 +18,6 @@
 #include <linux/delay.h>
 #include <linux/bitops.h>
 #include <linux/gpio/consumer.h>
-#include <linux/acpi.h>
 #include <linux/regulator/consumer.h>
 #include <linux/pm_runtime.h>
 
@@ -366,6 +366,12 @@ struct ak8975_data {
 	struct iio_mount_matrix orientation;
 	struct regulator	*vdd;
 	struct regulator	*vid;
+
+	/* Ensure natural alignment of timestamp */
+	struct {
+		s16 channels[3];
+		s64 ts __aligned(8);
+	} scan;
 };
 
 /* Enable attached power regulator if any. */
@@ -773,7 +779,6 @@ static const struct iio_info ak8975_info = {
 	.read_raw = &ak8975_read_raw,
 };
 
-#ifdef CONFIG_ACPI
 static const struct acpi_device_id ak_acpi_match[] = {
 	{"AK8975", AK8975},
 	{"AK8963", AK8963},
@@ -785,7 +790,6 @@ static const struct acpi_device_id ak_acpi_match[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, ak_acpi_match);
-#endif
 
 static void ak8975_fill_buffer(struct iio_dev *indio_dev)
 {
@@ -793,7 +797,6 @@ static void ak8975_fill_buffer(struct iio_dev *indio_dev)
 	const struct i2c_client *client = data->client;
 	const struct ak_def *def = data->def;
 	int ret;
-	s16 buff[8]; /* 3 x 16 bits axis values + 1 aligned 64 bits timestamp */
 	__le16 fval[3];
 
 	mutex_lock(&data->lock);
@@ -816,12 +819,13 @@ static void ak8975_fill_buffer(struct iio_dev *indio_dev)
 	mutex_unlock(&data->lock);
 
 	/* Clamp to valid range. */
-	buff[0] = clamp_t(s16, le16_to_cpu(fval[0]), -def->range, def->range);
-	buff[1] = clamp_t(s16, le16_to_cpu(fval[1]), -def->range, def->range);
-	buff[2] = clamp_t(s16, le16_to_cpu(fval[2]), -def->range, def->range);
+	data->scan.channels[0] = clamp_t(s16, le16_to_cpu(fval[0]), -def->range, def->range);
+	data->scan.channels[1] = clamp_t(s16, le16_to_cpu(fval[1]), -def->range, def->range);
+	data->scan.channels[2] = clamp_t(s16, le16_to_cpu(fval[2]), -def->range, def->range);
 
-	iio_push_to_buffers_with_timestamp(indio_dev, buff,
+	iio_push_to_buffers_with_timestamp(indio_dev, &data->scan,
 					   iio_get_time_ns(indio_dev));
+
 	return;
 
 unlock:
@@ -1075,8 +1079,8 @@ static struct i2c_driver ak8975_driver = {
 	.driver = {
 		.name	= "ak8975",
 		.pm = &ak8975_dev_pm_ops,
-		.of_match_table = of_match_ptr(ak8975_of_match),
-		.acpi_match_table = ACPI_PTR(ak_acpi_match),
+		.of_match_table = ak8975_of_match,
+		.acpi_match_table = ak_acpi_match,
 	},
 	.probe		= ak8975_probe,
 	.remove		= ak8975_remove,

@@ -54,7 +54,7 @@ int __cmdline_find_option(unsigned long cmdline_ptr, const char *option, char *b
 			/* else */
 			state = st_wordcmp;
 			opptr = option;
-			/* fall through */
+			fallthrough;
 
 		case st_wordcmp:
 			if (c == '=' && !*opptr) {
@@ -129,7 +129,7 @@ int __cmdline_find_option_bool(unsigned long cmdline_ptr, const char *option)
 			state = st_wordcmp;
 			opptr = option;
 			wstart = pos;
-			/* fall through */
+			fallthrough;
 
 		case st_wordcmp:
 			if (!*opptr)

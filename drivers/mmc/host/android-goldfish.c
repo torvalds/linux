@@ -537,6 +537,7 @@ static struct platform_driver goldfish_mmc_driver = {
 	.remove		= goldfish_mmc_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
 

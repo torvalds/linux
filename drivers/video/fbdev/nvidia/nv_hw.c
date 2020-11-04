@@ -896,7 +896,7 @@ void NVCalcStateExt(struct nvidia_par *par,
 		if (!par->FlatPanel)
 			state->control = NV_RD32(par->PRAMDAC0, 0x0580) &
 				0xeffffeff;
-		/* fallthrough */
+		fallthrough;
 	case NV_ARCH_10:
 	case NV_ARCH_20:
 	case NV_ARCH_30:

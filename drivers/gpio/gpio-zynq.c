@@ -929,11 +929,9 @@ static int zynq_gpio_probe(struct platform_device *pdev)
 
 	/* Retrieve GPIO clock */
 	gpio->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(gpio->clk)) {
-		if (PTR_ERR(gpio->clk) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "input clock not found.\n");
-		return PTR_ERR(gpio->clk);
-	}
+	if (IS_ERR(gpio->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(gpio->clk), "input clock not found.\n");
+
 	ret = clk_prepare_enable(gpio->clk);
 	if (ret) {
 		dev_err(&pdev->dev, "Unable to enable clock.\n");

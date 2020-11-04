@@ -28,6 +28,8 @@
 #include "clockdomain.h"
 #include "pm.h"
 
+u32 enable_off_mode;
+
 #ifdef CONFIG_SUSPEND
 /*
  * omap_pm_suspend: points to a function that does the SoC-specific

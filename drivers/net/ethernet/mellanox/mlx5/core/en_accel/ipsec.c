@@ -560,6 +560,9 @@ void mlx5e_ipsec_build_netdev(struct mlx5e_priv *priv)
 		return;
 	}
 
+	if (mlx5_is_ipsec_device(mdev))
+		netdev->gso_partial_features |= NETIF_F_GSO_ESP;
+
 	mlx5_core_dbg(mdev, "mlx5e: ESP GSO capability turned on\n");
 	netdev->features |= NETIF_F_GSO_ESP;
 	netdev->hw_features |= NETIF_F_GSO_ESP;

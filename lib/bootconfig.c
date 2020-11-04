@@ -31,6 +31,8 @@ static size_t xbc_data_size __initdata;
 static struct xbc_node *last_parent __initdata;
 static const char *xbc_err_msg __initdata;
 static int xbc_err_pos __initdata;
+static int open_brace[XBC_DEPTH_MAX] __initdata;
+static int brace_index __initdata;
 
 static int __init xbc_parse_error(const char *msg, const char *p)
 {
@@ -431,27 +433,27 @@ static char *skip_spaces_until_newline(char *p)
 	return p;
 }
 
-static int __init __xbc_open_brace(void)
+static int __init __xbc_open_brace(char *p)
 {
-	/* Mark the last key as open brace */
-	last_parent->next = XBC_NODE_MAX;
+	/* Push the last key as open brace */
+	open_brace[brace_index++] = xbc_node_index(last_parent);
+	if (brace_index >= XBC_DEPTH_MAX)
+		return xbc_parse_error("Exceed max depth of braces", p);
 
 	return 0;
 }
 
 static int __init __xbc_close_brace(char *p)
 {
-	struct xbc_node *node;
-
-	if (!last_parent || last_parent->next != XBC_NODE_MAX)
+	brace_index--;
+	if (!last_parent || brace_index < 0 ||
+	    (open_brace[brace_index] != xbc_node_index(last_parent)))
 		return xbc_parse_error("Unexpected closing brace", p);
 
-	node = last_parent;
-	node->next = 0;
-	do {
-		node = xbc_node_get_parent(node);
-	} while (node && node->next != XBC_NODE_MAX);
-	last_parent = node;
+	if (brace_index == 0)
+		last_parent = NULL;
+	else
+		last_parent = &xbc_nodes[open_brace[brace_index - 1]];
 
 	return 0;
 }
@@ -492,8 +494,8 @@ static int __init __xbc_parse_value(char **__v, char **__n)
 			break;
 		}
 		if (strchr(",;\n#}", c)) {
-			v = strim(v);
 			*p++ = '\0';
+			v = strim(v);
 			break;
 		}
 	}
@@ -661,7 +663,7 @@ static int __init xbc_open_brace(char **k, char *n)
 		return ret;
 	*k = n;
 
-	return __xbc_open_brace();
+	return __xbc_open_brace(n - 1);
 }
 
 static int __init xbc_close_brace(char **k, char *n)
@@ -680,6 +682,13 @@ static int __init xbc_verify_tree(void)
 {
 	int i, depth, len, wlen;
 	struct xbc_node *n, *m;
+
+	/* Brace closing */
+	if (brace_index) {
+		n = &xbc_nodes[open_brace[brace_index]];
+		return xbc_parse_error("Brace is not closed",
+					xbc_node_get_data(n));
+	}
 
 	/* Empty tree */
 	if (xbc_node_num == 0) {
@@ -745,6 +754,7 @@ void __init xbc_destroy_all(void)
 	xbc_node_num = 0;
 	memblock_free(__pa(xbc_nodes), sizeof(struct xbc_node) * XBC_NODE_MAX);
 	xbc_nodes = NULL;
+	brace_index = 0;
 }
 
 /**
@@ -817,7 +827,7 @@ int __init xbc_init(char *buf, const char **emsg, int *epos)
 							q - 2);
 				break;
 			}
-			/* Fall through */
+			/* fall through */
 		case '=':
 			ret = xbc_parse_kv(&p, q, c);
 			break;

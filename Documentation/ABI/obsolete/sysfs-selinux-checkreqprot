@@ -15,7 +15,7 @@ Description:
 	actual protection), and Android and Linux distributions have been
 	explicitly writing a "0" to /sys/fs/selinux/checkreqprot during
 	initialization for some time.  Support for setting checkreqprot to 1
-	will be	removed in a future kernel release, at which point the kernel
+	will be	removed no sooner than June 2021, at which point the kernel
 	will always cease using checkreqprot internally and will always
 	check the actual protections being applied upon mmap/mprotect calls.
 	The checkreqprot selinuxfs node will remain for backward compatibility

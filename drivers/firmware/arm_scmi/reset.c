@@ -36,9 +36,7 @@ struct scmi_msg_reset_domain_reset {
 #define EXPLICIT_RESET_ASSERT	BIT(1)
 #define ASYNCHRONOUS_RESET	BIT(2)
 	__le32 reset_state;
-#define ARCH_RESET_TYPE		BIT(31)
-#define COLD_RESET_STATE	BIT(0)
-#define ARCH_COLD_RESET		(ARCH_RESET_TYPE | COLD_RESET_STATE)
+#define ARCH_COLD_RESET		0
 };
 
 struct scmi_msg_reset_notify {
@@ -194,7 +192,7 @@ scmi_reset_domain_deassert(const struct scmi_handle *handle, u32 domain)
 	return scmi_domain_reset(handle, domain, 0, ARCH_COLD_RESET);
 }
 
-static struct scmi_reset_ops reset_ops = {
+static const struct scmi_reset_ops reset_ops = {
 	.num_domains_get = scmi_reset_num_domains_get,
 	.name_get = scmi_reset_name_get,
 	.latency_get = scmi_reset_latency_get,
@@ -313,9 +311,4 @@ static int scmi_reset_protocol_init(struct scmi_handle *handle)
 	return 0;
 }
 
-static int __init scmi_reset_init(void)
-{
-	return scmi_protocol_register(SCMI_PROTOCOL_RESET,
-				      &scmi_reset_protocol_init);
-}
-subsys_initcall(scmi_reset_init);
+DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(SCMI_PROTOCOL_RESET, reset)

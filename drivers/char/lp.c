@@ -734,7 +734,7 @@ static long lp_ioctl(struct file *file, unsigned int cmd,
 			ret = lp_set_timeout32(minor, (void __user *)arg);
 			break;
 		}
-		/* fall through - for 64-bit */
+		fallthrough;	/* for 64-bit */
 	case LPSETTIMEOUT_NEW:
 		ret = lp_set_timeout64(minor, (void __user *)arg);
 		break;
@@ -762,7 +762,7 @@ static long lp_compat_ioctl(struct file *file, unsigned int cmd,
 			ret = lp_set_timeout32(minor, (void __user *)arg);
 			break;
 		}
-		/* fall through - for x32 mode */
+		fallthrough;	/* for x32 mode */
 	case LPSETTIMEOUT_NEW:
 		ret = lp_set_timeout64(minor, (void __user *)arg);
 		break;
@@ -853,8 +853,10 @@ static void lp_console_write(struct console *co, const char *s,
 			count--;
 			do {
 				written = parport_write(port, crlf, i);
-				if (written > 0)
-					i -= written, crlf += written;
+				if (written > 0) {
+					i -= written;
+					crlf += written;
+				}
 			} while (i > 0 && (CONSOLE_LP_STRICT || written > 0));
 		}
 	} while (count > 0 && (CONSOLE_LP_STRICT || written > 0));

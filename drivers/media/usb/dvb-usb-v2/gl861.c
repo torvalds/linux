@@ -41,7 +41,7 @@ static int gl861_ctrl_msg(struct dvb_usb_device *d, u8 request, u16 value,
 	switch (request) {
 	case CMD_WRITE:
 		memcpy(ctx->buf, data, size);
-		/* Fall through */
+		fallthrough;
 	case CMD_WRITE_SHORT:
 		pipe = usb_sndctrlpipe(d->udev, 0);
 		requesttype = USB_TYPE_VENDOR | USB_DIR_OUT;

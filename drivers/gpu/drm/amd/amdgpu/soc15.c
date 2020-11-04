@@ -101,75 +101,40 @@
  */
 static u32 soc15_pcie_rreg(struct amdgpu_device *adev, u32 reg)
 {
-	unsigned long flags, address, data;
-	u32 r;
+	unsigned long address, data;
 	address = adev->nbio.funcs->get_pcie_index_offset(adev);
 	data = adev->nbio.funcs->get_pcie_data_offset(adev);
 
-	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
-	WREG32(address, reg);
-	(void)RREG32(address);
-	r = RREG32(data);
-	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
-	return r;
+	return amdgpu_device_indirect_rreg(adev, address, data, reg);
 }
 
 static void soc15_pcie_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
 {
-	unsigned long flags, address, data;
+	unsigned long address, data;
 
 	address = adev->nbio.funcs->get_pcie_index_offset(adev);
 	data = adev->nbio.funcs->get_pcie_data_offset(adev);
 
-	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
-	WREG32(address, reg);
-	(void)RREG32(address);
-	WREG32(data, v);
-	(void)RREG32(data);
-	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
+	amdgpu_device_indirect_wreg(adev, address, data, reg, v);
 }
 
 static u64 soc15_pcie_rreg64(struct amdgpu_device *adev, u32 reg)
 {
-	unsigned long flags, address, data;
-	u64 r;
+	unsigned long address, data;
 	address = adev->nbio.funcs->get_pcie_index_offset(adev);
 	data = adev->nbio.funcs->get_pcie_data_offset(adev);
 
-	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
-	/* read low 32 bit */
-	WREG32(address, reg);
-	(void)RREG32(address);
-	r = RREG32(data);
-
-	/* read high 32 bit*/
-	WREG32(address, reg + 4);
-	(void)RREG32(address);
-	r |= ((u64)RREG32(data) << 32);
-	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
-	return r;
+	return amdgpu_device_indirect_rreg64(adev, address, data, reg);
 }
 
 static void soc15_pcie_wreg64(struct amdgpu_device *adev, u32 reg, u64 v)
 {
-	unsigned long flags, address, data;
+	unsigned long address, data;
 
 	address = adev->nbio.funcs->get_pcie_index_offset(adev);
 	data = adev->nbio.funcs->get_pcie_data_offset(adev);
 
-	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
-	/* write low 32 bit */
-	WREG32(address, reg);
-	(void)RREG32(address);
-	WREG32(data, (u32)(v & 0xffffffffULL));
-	(void)RREG32(data);
-
-	/* write high 32 bit */
-	WREG32(address, reg + 4);
-	(void)RREG32(address);
-	WREG32(data, (u32)(v >> 32));
-	(void)RREG32(data);
-	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
+	amdgpu_device_indirect_wreg64(adev, address, data, reg, v);
 }
 
 static u32 soc15_uvd_ctx_rreg(struct amdgpu_device *adev, u32 reg)
@@ -484,13 +449,13 @@ static int soc15_asic_mode1_reset(struct amdgpu_device *adev)
 	/* disable BM */
 	pci_clear_master(adev->pdev);
 
-	pci_save_state(adev->pdev);
+	amdgpu_device_cache_pci_state(adev->pdev);
 
 	ret = psp_gpu_reset(adev);
 	if (ret)
 		dev_err(adev->dev, "GPU mode1 reset failed\n");
 
-	pci_restore_state(adev->pdev);
+	amdgpu_device_load_pci_state(adev->pdev);
 
 	/* wait for asic to come out of reset */
 	for (i = 0; i < adev->usec_timeout; i++) {
@@ -580,10 +545,13 @@ static int soc15_asic_reset(struct amdgpu_device *adev)
 
 	switch (soc15_asic_reset_method(adev)) {
 		case AMD_RESET_METHOD_BACO:
+			dev_info(adev->dev, "BACO reset\n");
 			return soc15_asic_baco_reset(adev);
 		case AMD_RESET_METHOD_MODE2:
+			dev_info(adev->dev, "MODE2 reset\n");
 			return amdgpu_dpm_mode2_reset(adev);
 		default:
+			dev_info(adev->dev, "MODE1 reset\n");
 			return soc15_asic_mode1_reset(adev);
 	}
 }
@@ -694,12 +662,12 @@ static void soc15_reg_base_init(struct amdgpu_device *adev)
 		 * it doesn't support SRIOV. */
 		if (amdgpu_discovery) {
 			r = amdgpu_discovery_reg_base_init(adev);
-			if (r) {
-				DRM_WARN("failed to init reg base from ip discovery table, "
-					 "fallback to legacy init method\n");
-				vega10_reg_base_init(adev);
-			}
+			if (r == 0)
+				break;
+			DRM_WARN("failed to init reg base from ip discovery table, "
+				 "fallback to legacy init method\n");
 		}
+		vega10_reg_base_init(adev);
 		break;
 	case CHIP_VEGA20:
 		vega20_reg_base_init(adev);
@@ -1026,6 +994,11 @@ static uint64_t soc15_get_pcie_replay_count(struct amdgpu_device *adev)
 	return (nak_r + nak_g);
 }
 
+static void soc15_pre_asic_init(struct amdgpu_device *adev)
+{
+	gmc_v9_0_restore_registers(adev);
+}
+
 static const struct amdgpu_asic_funcs soc15_asic_funcs =
 {
 	.read_disabled_bios = &soc15_read_disabled_bios,
@@ -1046,6 +1019,7 @@ static const struct amdgpu_asic_funcs soc15_asic_funcs =
 	.need_reset_on_init = &soc15_need_reset_on_init,
 	.get_pcie_replay_count = &soc15_get_pcie_replay_count,
 	.supports_baco = &soc15_supports_baco,
+	.pre_asic_init = &soc15_pre_asic_init,
 };
 
 static const struct amdgpu_asic_funcs vega20_asic_funcs =
@@ -1069,6 +1043,7 @@ static const struct amdgpu_asic_funcs vega20_asic_funcs =
 	.need_reset_on_init = &soc15_need_reset_on_init,
 	.get_pcie_replay_count = &soc15_get_pcie_replay_count,
 	.supports_baco = &soc15_supports_baco,
+	.pre_asic_init = &soc15_pre_asic_init,
 };
 
 static int soc15_common_early_init(void *handle)
@@ -1449,7 +1424,8 @@ static void soc15_update_hdp_light_sleep(struct amdgpu_device *adev, bool enable
 	uint32_t def, data;
 
 	if (adev->asic_type == CHIP_VEGA20 ||
-		adev->asic_type == CHIP_ARCTURUS) {
+		adev->asic_type == CHIP_ARCTURUS ||
+		adev->asic_type == CHIP_RENOIR) {
 		def = data = RREG32(SOC15_REG_OFFSET(HDP, 0, mmHDP_MEM_POWER_CTRL));
 
 		if (enable && (adev->cg_flags & AMD_CG_SUPPORT_HDP_LS))

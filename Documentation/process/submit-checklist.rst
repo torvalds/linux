@@ -24,6 +24,10 @@ and elsewhere regarding submitting Linux kernel patches.
 
   c) Builds successfully when using ``O=builddir``
 
+  d) Any Documentation/ changes build successfully without new warnings/errors.
+     Use ``make htmldocs`` or ``make pdfdocs`` to check the build and
+     fix any issues.
+
 3) Builds on multiple CPU architectures by using local cross-compile tools
    or some other build farm.
 
@@ -49,8 +53,7 @@ and elsewhere regarding submitting Linux kernel patches.
 
 9) Check cleanly with sparse.
 
-10) Use ``make checkstack`` and ``make namespacecheck`` and fix any problems
-    that they find.
+10) Use ``make checkstack`` and fix any problems that it finds.
 
     .. note::
 

@@ -22,7 +22,7 @@
  * is later flushed into the main ring buffer via IRQ work.
  *
  * The alternative implementation is chosen transparently
- * by examinig current printk() context mask stored in @printk_context
+ * by examining current printk() context mask stored in @printk_context
  * per-CPU variable.
  *
  * The implementation allows to flush the strings also from another CPU.
@@ -375,7 +375,7 @@ __printf(1, 0) int vprintk_func(const char *fmt, va_list args)
 	    raw_spin_trylock(&logbuf_lock)) {
 		int len;
 
-		len = vprintk_store(0, LOGLEVEL_DEFAULT, NULL, 0, fmt, args);
+		len = vprintk_store(0, LOGLEVEL_DEFAULT, NULL, fmt, args);
 		raw_spin_unlock(&logbuf_lock);
 		defer_console_output();
 		return len;

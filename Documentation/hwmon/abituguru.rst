@@ -17,7 +17,7 @@ Supported chips:
     Note:
 	The uGuru is a microcontroller with onboard firmware which programs
 	it to behave as a hwmon IC. There are many different revisions of the
-	firmware and thus effectivly many different revisions of the uGuru.
+	firmware and thus effectively many different revisions of the uGuru.
 	Below is an incomplete list with which revisions are used for which
 	Motherboards:
 
@@ -33,7 +33,7 @@ Supported chips:
 	sensortype (Volt or Temp) for bank1 sensors, for revision 1 uGuru's
 	this does not always work. For these uGuru's the autodetection can
 	be overridden with the bank1_types module param. For all 3 known
-	revison 1 motherboards the correct use of this param is:
+	revision 1 motherboards the correct use of this param is:
 	bank1_types=1,1,0,0,0,0,0,2,0,0,0,0,2,0,0,1
 	You may also need to specify the fan_sensors option for these boards
 	fan_sensors=5

@@ -62,7 +62,8 @@ Description:
 		driver should provide the list of available frequencies
 		with its profile. If need to reset the statistics of devfreq
 		behavior on a specific device, enter 0(zero) to 'trans_stat'
-		as following:
+		as following::
+
 			echo 0 > /sys/class/devfreq/.../trans_stat
 
 What:		/sys/class/devfreq/.../userspace/set_freq
@@ -117,6 +118,7 @@ Description:
 		This work timer is used by devfreq workqueue in order to
 		monitor the device status such as utilization. The user
 		can change the work timer on runtime according to their demand
-		as following:
+		as following::
+
 			echo deferrable > /sys/class/devfreq/.../timer
 			echo delayed > /sys/class/devfreq/.../timer

@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * QLogic Fibre Channel HBA Driver
  * Copyright (c)  2003-2014 QLogic Corporation
- *
- * See LICENSE.qla2xxx for copyright and licensing details.
  */
 #include "qla_def.h"
 
@@ -2457,7 +2456,7 @@ qla2x00_write_optrom_data(struct scsi_qla_host *vha, void *buf,
 				sec_mask = 0x10000;
 				break;
 			}
-			/* Fall through... */
+			fallthrough;
 
 		case 0x1f: /* Atmel flash. */
 			/* 512k sector size. */
@@ -2466,7 +2465,7 @@ qla2x00_write_optrom_data(struct scsi_qla_host *vha, void *buf,
 				sec_mask =   0x80000000;
 				break;
 			}
-			/* Fall through... */
+			fallthrough;
 
 		case 0x01: /* AMD flash. */
 			if (flash_id == 0x38 || flash_id == 0x40 ||
@@ -2499,7 +2498,7 @@ qla2x00_write_optrom_data(struct scsi_qla_host *vha, void *buf,
 				sec_mask = 0x1e000;
 				break;
 			}
-			/* fall through */
+			fallthrough;
 		default:
 			/* Default to 16 kb sector size. */
 			rest_addr = 0x3fff;

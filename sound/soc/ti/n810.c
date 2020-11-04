@@ -46,7 +46,7 @@ static void n810_ext_control(struct snd_soc_dapm_context *dapm)
 	switch (n810_jack_func) {
 	case N810_JACK_HS:
 		line1l = 1;
-		/* fall through */
+		fallthrough;
 	case N810_JACK_HP:
 		hp = 1;
 		break;

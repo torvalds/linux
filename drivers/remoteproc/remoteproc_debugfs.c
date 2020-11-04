@@ -33,9 +33,9 @@ static struct dentry *rproc_dbg;
  * enum rproc_coredump_mechanism
  */
 static const char * const rproc_coredump_str[] = {
-	[RPROC_COREDUMP_DEFAULT]	= "default",
-	[RPROC_COREDUMP_INLINE]		= "inline",
 	[RPROC_COREDUMP_DISABLED]	= "disabled",
+	[RPROC_COREDUMP_ENABLED]	= "enabled",
+	[RPROC_COREDUMP_INLINE]		= "inline",
 };
 
 /* Expose the current coredump configuration via debugfs */
@@ -54,20 +54,19 @@ static ssize_t rproc_coredump_read(struct file *filp, char __user *userbuf,
 
 /*
  * By writing to the 'coredump' debugfs entry, we control the behavior of the
- * coredump mechanism dynamically. The default value of this entry is "default".
+ * coredump mechanism dynamically. The default value of this entry is "disabled".
  *
  * The 'coredump' debugfs entry supports these commands:
  *
- * default:	This is the default coredump mechanism. When the remoteproc
- *		crashes the entire coredump will be copied to a separate buffer
- *		and exposed to userspace.
+ * disabled:	By default coredump collection is disabled. Recovery will
+ *		proceed without collecting any dump.
+ *
+ * enabled:	When the remoteproc crashes the entire coredump will be copied
+ *		to a separate buffer and exposed to userspace.
  *
  * inline:	The coredump will not be copied to a separate buffer and the
  *		recovery process will have to wait until data is read by
  *		userspace. But this avoid usage of extra memory.
- *
- * disabled:	This will disable coredump. Recovery will proceed without
- *		collecting any dump.
  */
 static ssize_t rproc_coredump_write(struct file *filp,
 				    const char __user *user_buf, size_t count,
@@ -94,12 +93,12 @@ static ssize_t rproc_coredump_write(struct file *filp,
 		goto out;
 	}
 
-	if (!strncmp(buf, "disable", count)) {
+	if (!strncmp(buf, "disabled", count)) {
 		rproc->dump_conf = RPROC_COREDUMP_DISABLED;
+	} else if (!strncmp(buf, "enabled", count)) {
+		rproc->dump_conf = RPROC_COREDUMP_ENABLED;
 	} else if (!strncmp(buf, "inline", count)) {
 		rproc->dump_conf = RPROC_COREDUMP_INLINE;
-	} else if (!strncmp(buf, "default", count)) {
-		rproc->dump_conf = RPROC_COREDUMP_DEFAULT;
 	} else {
 		dev_err(&rproc->dev, "Invalid coredump configuration\n");
 		err = -EINVAL;

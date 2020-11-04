@@ -564,7 +564,7 @@ static const struct of_device_id tegra_ahub_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, tegra_ahub_of_match);
 
-static int tegra_ahub_runtime_suspend(struct device *dev)
+static int __maybe_unused tegra_ahub_runtime_suspend(struct device *dev)
 {
 	struct tegra_ahub *ahub = dev_get_drvdata(dev);
 
@@ -576,7 +576,7 @@ static int tegra_ahub_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int tegra_ahub_runtime_resume(struct device *dev)
+static int __maybe_unused tegra_ahub_runtime_resume(struct device *dev)
 {
 	struct tegra_ahub *ahub = dev_get_drvdata(dev);
 	int err;

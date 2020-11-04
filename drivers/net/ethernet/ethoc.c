@@ -177,6 +177,7 @@ MODULE_PARM_DESC(buffer_size, "DMA buffer allocation size");
  * struct ethoc - driver-private device structure
  * @iobase:	pointer to I/O memory region
  * @membase:	pointer to buffer memory region
+ * @big_endian: just big or little (endian)
  * @num_bd:	number of buffer descriptors
  * @num_tx:	number of send buffers
  * @cur_tx:	last send buffer written
@@ -189,7 +190,10 @@ MODULE_PARM_DESC(buffer_size, "DMA buffer allocation size");
  * @msg_enable:	device state flags
  * @lock:	device lock
  * @mdio:	MDIO bus for PHY access
+ * @clk:	clock
  * @phy_id:	address of attached PHY
+ * @old_link:	previous link info
+ * @old_duplex: previous duplex info
  */
 struct ethoc {
 	void __iomem *iobase;
@@ -1015,7 +1019,7 @@ static const struct net_device_ops ethoc_netdev_ops = {
 
 /**
  * ethoc_probe - initialize OpenCores ethernet MAC
- * pdev:	platform device
+ * @pdev:	platform device
  */
 static int ethoc_probe(struct platform_device *pdev)
 {

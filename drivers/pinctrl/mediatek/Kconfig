@@ -119,6 +119,13 @@ config PINCTRL_MT7622
 	default ARM64 && ARCH_MEDIATEK
 	select PINCTRL_MTK_MOORE
 
+config PINCTRL_MT8167
+	bool "Mediatek MT8167 pin control"
+	depends on OF
+	depends on ARM64 || COMPILE_TEST
+	default ARM64 && ARCH_MEDIATEK
+	select PINCTRL_MTK
+
 config PINCTRL_MT8173
 	bool "Mediatek MT8173 pin control"
 	depends on OF
@@ -128,6 +135,13 @@ config PINCTRL_MT8173
 
 config PINCTRL_MT8183
 	bool "Mediatek MT8183 pin control"
+	depends on OF
+	depends on ARM64 || COMPILE_TEST
+	default ARM64 && ARCH_MEDIATEK
+	select PINCTRL_MTK_PARIS
+
+config PINCTRL_MT8192
+	bool "Mediatek MT8192 pin control"
 	depends on OF
 	depends on ARM64 || COMPILE_TEST
 	default ARM64 && ARCH_MEDIATEK

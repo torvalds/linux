@@ -199,14 +199,20 @@ static ssize_t part_alignment_offset_show(struct device *dev,
 					  struct device_attribute *attr, char *buf)
 {
 	struct hd_struct *p = dev_to_part(dev);
-	return sprintf(buf, "%llu\n", (unsigned long long)p->alignment_offset);
+
+	return sprintf(buf, "%u\n",
+		queue_limit_alignment_offset(&part_to_disk(p)->queue->limits,
+				p->start_sect));
 }
 
 static ssize_t part_discard_alignment_show(struct device *dev,
 					   struct device_attribute *attr, char *buf)
 {
 	struct hd_struct *p = dev_to_part(dev);
-	return sprintf(buf, "%u\n", p->discard_alignment);
+
+	return sprintf(buf, "%u\n",
+		queue_limit_discard_alignment(&part_to_disk(p)->queue->limits,
+				p->start_sect));
 }
 
 static DEVICE_ATTR(partition, 0444, part_partition_show, NULL);
@@ -278,6 +284,15 @@ static void hd_struct_free_work(struct work_struct *work)
 {
 	struct hd_struct *part =
 		container_of(to_rcu_work(work), struct hd_struct, rcu_work);
+	struct gendisk *disk = part_to_disk(part);
+
+	/*
+	 * Release the disk reference acquired in delete_partition here.
+	 * We can't release it in hd_struct_free because the final put_device
+	 * needs process context and thus can't be run directly from a
+	 * percpu_ref ->release handler.
+	 */
+	put_device(disk_to_dev(disk));
 
 	part->start_sect = 0;
 	part->nr_sects = 0;
@@ -293,7 +308,6 @@ static void hd_struct_free(struct percpu_ref *ref)
 		rcu_dereference_protected(disk->part_tbl, 1);
 
 	rcu_assign_pointer(ptbl->last_lookup, NULL);
-	put_device(disk_to_dev(disk));
 
 	INIT_RCU_WORK(&part->rcu_work, hd_struct_free_work);
 	queue_rcu_work(system_wq, &part->rcu_work);
@@ -310,8 +324,9 @@ int hd_ref_init(struct hd_struct *part)
  * Must be called either with bd_mutex held, before a disk can be opened or
  * after all disk users are gone.
  */
-void delete_partition(struct gendisk *disk, struct hd_struct *part)
+void delete_partition(struct hd_struct *part)
 {
+	struct gendisk *disk = part_to_disk(part);
 	struct disk_part_tbl *ptbl =
 		rcu_dereference_protected(disk->part_tbl, 1);
 
@@ -319,7 +334,7 @@ void delete_partition(struct gendisk *disk, struct hd_struct *part)
 	 * ->part_tbl is referenced in this part's release handler, so
 	 *  we have to hold the disk device
 	 */
-	get_device(disk_to_dev(part_to_disk(part)));
+	get_device(disk_to_dev(disk));
 	rcu_assign_pointer(ptbl->part[part->partno], NULL);
 	kobject_put(part->holder_dir);
 	device_del(part_to_dev(part));
@@ -397,10 +412,6 @@ static struct hd_struct *add_partition(struct gendisk *disk, int partno,
 	pdev = part_to_dev(p);
 
 	p->start_sect = start;
-	p->alignment_offset =
-		queue_limit_alignment_offset(&disk->queue->limits, start);
-	p->discard_alignment =
-		queue_limit_discard_alignment(&disk->queue->limits, start);
 	p->nr_sects = len;
 	p->partno = partno;
 	p->policy = get_disk_ro(disk);
@@ -524,19 +535,20 @@ int bdev_add_partition(struct block_device *bdev, int partno,
 int bdev_del_partition(struct block_device *bdev, int partno)
 {
 	struct block_device *bdevp;
-	struct hd_struct *part;
-	int ret = 0;
+	struct hd_struct *part = NULL;
+	int ret;
 
-	part = disk_get_part(bdev->bd_disk, partno);
-	if (!part)
+	bdevp = bdget_disk(bdev->bd_disk, partno);
+	if (!bdevp)
 		return -ENXIO;
 
-	ret = -ENOMEM;
-	bdevp = bdget(part_devt(part));
-	if (!bdevp)
-		goto out_put_part;
-
 	mutex_lock(&bdevp->bd_mutex);
+	mutex_lock_nested(&bdev->bd_mutex, 1);
+
+	ret = -ENXIO;
+	part = disk_get_part(bdev->bd_disk, partno);
+	if (!part)
+		goto out_unlock;
 
 	ret = -EBUSY;
 	if (bdevp->bd_openers)
@@ -545,16 +557,14 @@ int bdev_del_partition(struct block_device *bdev, int partno)
 	sync_blockdev(bdevp);
 	invalidate_bdev(bdevp);
 
-	mutex_lock_nested(&bdev->bd_mutex, 1);
-	delete_partition(bdev->bd_disk, part);
-	mutex_unlock(&bdev->bd_mutex);
-
+	delete_partition(part);
 	ret = 0;
 out_unlock:
+	mutex_unlock(&bdev->bd_mutex);
 	mutex_unlock(&bdevp->bd_mutex);
 	bdput(bdevp);
-out_put_part:
-	disk_put_part(part);
+	if (part)
+		disk_put_part(part);
 	return ret;
 }
 
@@ -570,7 +580,7 @@ int bdev_resize_partition(struct block_device *bdev, int partno,
 		return -ENXIO;
 
 	ret = -ENOMEM;
-	bdevp = bdget(part_devt(part));
+	bdevp = bdget_part(part);
 	if (!bdevp)
 		goto out_put_part;
 
@@ -585,8 +595,8 @@ int bdev_resize_partition(struct block_device *bdev, int partno,
 	if (partition_overlaps(bdev->bd_disk, start, length, partno))
 		goto out_unlock;
 
-	part_nr_sects_write(part, (sector_t)length);
-	i_size_write(bdevp->bd_inode, length << SECTOR_SHIFT);
+	part_nr_sects_write(part, length);
+	bd_set_nr_sectors(bdevp, length);
 
 	ret = 0;
 out_unlock:
@@ -627,7 +637,7 @@ int blk_drop_partitions(struct block_device *bdev)
 
 	disk_part_iter_init(&piter, bdev->bd_disk, DISK_PITER_INCL_EMPTY);
 	while ((part = disk_part_iter_next(&piter)))
-		delete_partition(bdev->bd_disk, part);
+		delete_partition(part);
 	disk_part_iter_exit(&piter);
 
 	return 0;

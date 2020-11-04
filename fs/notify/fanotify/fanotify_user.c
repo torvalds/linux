@@ -1147,7 +1147,7 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 	}
 
 	switch (flags & (FAN_MARK_ADD | FAN_MARK_REMOVE | FAN_MARK_FLUSH)) {
-	case FAN_MARK_ADD:		/* fallthrough */
+	case FAN_MARK_ADD:
 	case FAN_MARK_REMOVE:
 		if (!mask)
 			return -EINVAL;

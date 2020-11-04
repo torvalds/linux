@@ -1,39 +1,26 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _ASM_RISCV_CLINT_H
-#define _ASM_RISCV_CLINT_H 1
+/* SPDX-License-Identifier: GPL-2.0-only */
+/*
+ * Copyright (C) 2020 Google, Inc
+ */
 
-#include <linux/io.h>
-#include <linux/smp.h>
+#ifndef _ASM_RISCV_CLINT_H
+#define _ASM_RISCV_CLINT_H
+
+#include <linux/types.h>
+#include <asm/mmio.h>
 
 #ifdef CONFIG_RISCV_M_MODE
-extern u32 __iomem *clint_ipi_base;
+/*
+ * This lives in the CLINT driver, but is accessed directly by timex.h to avoid
+ * any overhead when accessing the MMIO timer.
+ *
+ * The ISA defines mtime as a 64-bit memory-mapped register that increments at
+ * a constant frequency, but it doesn't define some other constraints we depend
+ * on (most notably ordering constraints, but also some simpler stuff like the
+ * memory layout).  Thus, this is called "clint_time_val" instead of something
+ * like "riscv_mtime", to signify that these non-ISA assumptions must hold.
+ */
+extern u64 __iomem *clint_time_val;
+#endif
 
-void clint_init_boot_cpu(void);
-
-static inline void clint_send_ipi_single(unsigned long hartid)
-{
-	writel(1, clint_ipi_base + hartid);
-}
-
-static inline void clint_send_ipi_mask(const struct cpumask *mask)
-{
-	int cpu;
-
-	for_each_cpu(cpu, mask)
-		clint_send_ipi_single(cpuid_to_hartid_map(cpu));
-}
-
-static inline void clint_clear_ipi(unsigned long hartid)
-{
-	writel(0, clint_ipi_base + hartid);
-}
-#else /* CONFIG_RISCV_M_MODE */
-#define clint_init_boot_cpu()	do { } while (0)
-
-/* stubs to for code is only reachable under IS_ENABLED(CONFIG_RISCV_M_MODE): */
-void clint_send_ipi_single(unsigned long hartid);
-void clint_send_ipi_mask(const struct cpumask *hartid_mask);
-void clint_clear_ipi(unsigned long hartid);
-#endif /* CONFIG_RISCV_M_MODE */
-
-#endif /* _ASM_RISCV_CLINT_H */
+#endif

@@ -291,7 +291,7 @@ static void ssip_set_rxstate(struct ssi_protocol *ssi, unsigned int state)
 		/* CMT speech workaround */
 		if (atomic_read(&ssi->tx_usecnt))
 			break;
-		/* Else, fall through */
+		fallthrough;
 	case RECEIVING:
 		mod_timer(&ssi->keep_alive, jiffies +
 						msecs_to_jiffies(SSIP_KATOUT));
@@ -466,7 +466,7 @@ static void ssip_keep_alive(struct timer_list *t)
 		case SEND_READY:
 			if (atomic_read(&ssi->tx_usecnt) == 0)
 				break;
-			/* Fall through */
+			fallthrough;
 			/*
 			 * Workaround for cmt-speech in that case
 			 * we relay on audio timers.
@@ -668,7 +668,7 @@ static void ssip_rx_bootinforeq(struct hsi_client *cl, u32 cmd)
 	case ACTIVE:
 		dev_err(&cl->device, "Boot info req on active state\n");
 		ssip_error(cl);
-		/* Fall through */
+		fallthrough;
 	case INIT:
 	case HANDSHAKE:
 		spin_lock_bh(&ssi->lock);

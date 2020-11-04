@@ -34,7 +34,7 @@
  * but may get written to during init, so can't live in .rodata (via "const").
  */
 #ifndef __ro_after_init
-#define __ro_after_init __attribute__((__section__(".data..ro_after_init")))
+#define __ro_after_init __section(".data..ro_after_init")
 #endif
 
 #ifndef ____cacheline_aligned

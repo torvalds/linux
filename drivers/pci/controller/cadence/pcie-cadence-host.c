@@ -337,7 +337,7 @@ static int cdns_pcie_host_init_address_translation(struct cdns_pcie_rc *rc)
 	struct resource_entry *entry;
 	u64 cpu_addr = cfg_res->start;
 	u32 addr0, addr1, desc1;
-	int r, err, busnr = 0;
+	int r, busnr = 0;
 
 	entry = resource_list_first_type(&bridge->windows, IORESOURCE_BUS);
 	if (entry)
@@ -383,11 +383,7 @@ static int cdns_pcie_host_init_address_translation(struct cdns_pcie_rc *rc)
 		r++;
 	}
 
-	err = cdns_pcie_host_map_dma_ranges(rc);
-	if (err)
-		return err;
-
-	return 0;
+	return cdns_pcie_host_map_dma_ranges(rc);
 }
 
 static int cdns_pcie_host_init(struct device *dev,

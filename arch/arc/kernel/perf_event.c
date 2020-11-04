@@ -562,7 +562,7 @@ static int arc_pmu_device_probe(struct platform_device *pdev)
 {
 	struct arc_reg_pct_build pct_bcr;
 	struct arc_reg_cc_build cc_bcr;
-	int i, has_interrupts;
+	int i, has_interrupts, irq = -1;
 	int counter_size;	/* in bits */
 
 	union cc_name {
@@ -638,22 +638,25 @@ static int arc_pmu_device_probe(struct platform_device *pdev)
 	};
 
 	if (has_interrupts) {
-		int irq = platform_get_irq(pdev, 0);
+		irq = platform_get_irq(pdev, 0);
+		if (irq >= 0) {
+			int ret;
 
-		if (irq < 0) {
-			pr_err("Cannot get IRQ number for the platform\n");
-			return -ENODEV;
+			arc_pmu->irq = irq;
+
+			/* intc map function ensures irq_set_percpu_devid() called */
+			ret = request_percpu_irq(irq, arc_pmu_intr, "ARC perf counters",
+						 this_cpu_ptr(&arc_pmu_cpu));
+
+			if (!ret)
+				on_each_cpu(arc_cpu_pmu_irq_init, &irq, 1);
+			else
+				irq = -1;
 		}
 
-		arc_pmu->irq = irq;
+	}
 
-		/* intc map function ensures irq_set_percpu_devid() called */
-		request_percpu_irq(irq, arc_pmu_intr, "ARC perf counters",
-				   this_cpu_ptr(&arc_pmu_cpu));
-
-		on_each_cpu(arc_cpu_pmu_irq_init, &irq, 1);
-
-	} else
+	if (irq == -1)
 		arc_pmu->pmu.capabilities |= PERF_PMU_CAP_NO_INTERRUPT;
 
 	/*

@@ -77,9 +77,9 @@ static int enable_ecn;
 module_param(enable_ecn, int, 0644);
 MODULE_PARM_DESC(enable_ecn, "Enable ECN (default=0/disabled)");
 
-static int dack_mode = 1;
+static int dack_mode;
 module_param(dack_mode, int, 0644);
-MODULE_PARM_DESC(dack_mode, "Delayed ack mode (default=1)");
+MODULE_PARM_DESC(dack_mode, "Delayed ack mode (default=0)");
 
 uint c4iw_max_read_depth = 32;
 module_param(c4iw_max_read_depth, int, 0644);
@@ -2885,7 +2885,7 @@ static int peer_abort(struct c4iw_dev *dev, struct sk_buff *skb)
 	case MORIBUND:
 	case CLOSING:
 		stop_ep_timer(ep);
-		/*FALLTHROUGH*/
+		fallthrough;
 	case FPDU_MODE:
 		if (ep->com.qp && ep->com.qp->srq) {
 			srqidx = ABORT_RSS_SRQIDX_G(
@@ -3759,7 +3759,7 @@ static void active_ofld_conn_reply(struct c4iw_dev *dev, struct sk_buff *skb,
 			send_fw_act_open_req(ep, atid);
 			return;
 		}
-		/* fall through */
+		fallthrough;
 	case FW_EADDRINUSE:
 		set_bit(ACT_RETRY_INUSE, &ep->com.history);
 		if (ep->retry_count++ < ACT_OPEN_RETRY_COUNT) {

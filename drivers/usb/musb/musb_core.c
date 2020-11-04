@@ -852,7 +852,7 @@ static void musb_handle_intr_suspend(struct musb *musb, u8 devctl)
 	case OTG_STATE_B_IDLE:
 		if (!musb->is_active)
 			break;
-		/* fall through */
+		fallthrough;
 	case OTG_STATE_B_PERIPHERAL:
 		musb_g_suspend(musb);
 		musb->is_active = musb->g.b_hnp_enable;
@@ -972,9 +972,8 @@ static void musb_handle_intr_disconnect(struct musb *musb, u8 devctl)
 	case OTG_STATE_A_PERIPHERAL:
 		musb_hnp_stop(musb);
 		musb_root_disconnect(musb);
-		/* FALLTHROUGH */
+		fallthrough;
 	case OTG_STATE_B_WAIT_ACON:
-		/* FALLTHROUGH */
 	case OTG_STATE_B_PERIPHERAL:
 	case OTG_STATE_B_IDLE:
 		musb_g_disconnect(musb);
@@ -1009,7 +1008,7 @@ static void musb_handle_intr_reset(struct musb *musb)
 		switch (musb->xceiv->otg->state) {
 		case OTG_STATE_A_SUSPEND:
 			musb_g_reset(musb);
-			/* FALLTHROUGH */
+			fallthrough;
 		case OTG_STATE_A_WAIT_BCON:	/* OPT TD.4.7-900ms */
 			/* never use invalid T(a_wait_bcon) */
 			musb_dbg(musb, "HNP: in %s, %d msec timeout",
@@ -1030,7 +1029,7 @@ static void musb_handle_intr_reset(struct musb *musb)
 			break;
 		case OTG_STATE_B_IDLE:
 			musb->xceiv->otg->state = OTG_STATE_B_PERIPHERAL;
-			/* FALLTHROUGH */
+			fallthrough;
 		case OTG_STATE_B_PERIPHERAL:
 			musb_g_reset(musb);
 			break;
@@ -1471,7 +1470,7 @@ static int ep_config_from_table(struct musb *musb)
 	switch (fifo_mode) {
 	default:
 		fifo_mode = 0;
-		/* FALLTHROUGH */
+		fallthrough;
 	case 0:
 		cfg = mode_0_cfg;
 		n = ARRAY_SIZE(mode_0_cfg);
@@ -2018,7 +2017,7 @@ static void musb_pm_runtime_check_session(struct musb *musb)
 			musb->quirk_retries--;
 			return;
 		}
-		/* fall through */
+		fallthrough;
 	case MUSB_QUIRK_A_DISCONNECT_19:
 		if (musb->quirk_retries && !musb->flush_irq_work) {
 			musb_dbg(musb,

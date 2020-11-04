@@ -59,13 +59,12 @@ u8 *efx_tx_get_copy_buffer_limited(struct efx_tx_queue *tx_queue,
 
 static void efx_tx_maybe_stop_queue(struct efx_tx_queue *txq1)
 {
-	/* We need to consider both queues that the net core sees as one */
-	struct efx_tx_queue *txq2 = efx_tx_queue_partner(txq1);
+	/* We need to consider all queues that the net core sees as one */
 	struct efx_nic *efx = txq1->efx;
+	struct efx_tx_queue *txq2;
 	unsigned int fill_level;
 
-	fill_level = max(txq1->insert_count - txq1->old_read_count,
-			 txq2->insert_count - txq2->old_read_count);
+	fill_level = efx_channel_tx_old_fill_level(txq1->channel);
 	if (likely(fill_level < efx->txq_stop_thresh))
 		return;
 
@@ -85,11 +84,10 @@ static void efx_tx_maybe_stop_queue(struct efx_tx_queue *txq1)
 	 */
 	netif_tx_stop_queue(txq1->core_txq);
 	smp_mb();
-	txq1->old_read_count = READ_ONCE(txq1->read_count);
-	txq2->old_read_count = READ_ONCE(txq2->read_count);
+	efx_for_each_channel_tx_queue(txq2, txq1->channel)
+		txq2->old_read_count = READ_ONCE(txq2->read_count);
 
-	fill_level = max(txq1->insert_count - txq1->old_read_count,
-			 txq2->insert_count - txq2->old_read_count);
+	fill_level = efx_channel_tx_old_fill_level(txq1->channel);
 	EFX_WARN_ON_ONCE_PARANOID(fill_level >= efx->txq_entries);
 	if (likely(fill_level < efx->txq_stop_thresh)) {
 		smp_mb();
@@ -266,7 +264,44 @@ static int efx_enqueue_skb_pio(struct efx_tx_queue *tx_queue,
 	++tx_queue->insert_count;
 	return 0;
 }
+
+/* Decide whether we can use TX PIO, ie. write packet data directly into
+ * a buffer on the device.  This can reduce latency at the expense of
+ * throughput, so we only do this if both hardware and software TX rings
+ * are empty, including all queues for the channel.  This also ensures that
+ * only one packet at a time can be using the PIO buffer. If the xmit_more
+ * flag is set then we don't use this - there'll be another packet along
+ * shortly and we want to hold off the doorbell.
+ */
+static bool efx_tx_may_pio(struct efx_tx_queue *tx_queue)
+{
+	struct efx_channel *channel = tx_queue->channel;
+
+	if (!tx_queue->piobuf)
+		return false;
+
+	EFX_WARN_ON_ONCE_PARANOID(!channel->efx->type->option_descriptors);
+
+	efx_for_each_channel_tx_queue(tx_queue, channel)
+		if (!efx_nic_tx_is_empty(tx_queue, tx_queue->packet_write_count))
+			return false;
+
+	return true;
+}
 #endif /* EFX_USE_PIO */
+
+/* Send any pending traffic for a channel. xmit_more is shared across all
+ * queues for a channel, so we must check all of them.
+ */
+static void efx_tx_send_pending(struct efx_channel *channel)
+{
+	struct efx_tx_queue *q;
+
+	efx_for_each_channel_tx_queue(q, channel) {
+		if (q->xmit_pending)
+			efx_nic_push_buffers(q);
+	}
+}
 
 /*
  * Add a socket buffer to a TX queue
@@ -303,8 +338,18 @@ netdev_tx_t __efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb
 	 * size limit.
 	 */
 	if (segments) {
-		EFX_WARN_ON_ONCE_PARANOID(!tx_queue->handle_tso);
-		rc = tx_queue->handle_tso(tx_queue, skb, &data_mapped);
+		switch (tx_queue->tso_version) {
+		case 1:
+			rc = efx_enqueue_skb_tso(tx_queue, skb, &data_mapped);
+			break;
+		case 2:
+			rc = efx_ef10_tx_tso_desc(tx_queue, skb, &data_mapped);
+			break;
+		case 0: /* No TSO on this queue, SW fallback needed */
+		default:
+			rc = -EINVAL;
+			break;
+		}
 		if (rc == -EINVAL) {
 			rc = efx_tx_tso_fallback(tx_queue, skb);
 			tx_queue->tso_fallbacks++;
@@ -315,7 +360,7 @@ netdev_tx_t __efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb
 			goto err;
 #ifdef EFX_USE_PIO
 	} else if (skb_len <= efx_piobuf_size && !xmit_more &&
-		   efx_nic_may_tx_pio(tx_queue)) {
+		   efx_tx_may_pio(tx_queue)) {
 		/* Use PIO for short packets with an empty queue. */
 		if (efx_enqueue_skb_pio(tx_queue, skb))
 			goto err;
@@ -336,21 +381,11 @@ netdev_tx_t __efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb
 
 	efx_tx_maybe_stop_queue(tx_queue);
 
+	tx_queue->xmit_pending = true;
+
 	/* Pass off to hardware */
-	if (__netdev_tx_sent_queue(tx_queue->core_txq, skb_len, xmit_more)) {
-		struct efx_tx_queue *txq2 = efx_tx_queue_partner(tx_queue);
-
-		/* There could be packets left on the partner queue if
-		 * xmit_more was set. If we do not push those they
-		 * could be left for a long time and cause a netdev watchdog.
-		 */
-		if (txq2->xmit_more_available)
-			efx_nic_push_buffers(txq2);
-
-		efx_nic_push_buffers(tx_queue);
-	} else {
-		tx_queue->xmit_more_available = xmit_more;
-	}
+	if (__netdev_tx_sent_queue(tx_queue->core_txq, skb_len, xmit_more))
+		efx_tx_send_pending(tx_queue->channel);
 
 	if (segments) {
 		tx_queue->tso_bursts++;
@@ -371,14 +406,8 @@ err:
 	 * on this queue or a partner queue then we need to push here to get the
 	 * previous packets out.
 	 */
-	if (!xmit_more) {
-		struct efx_tx_queue *txq2 = efx_tx_queue_partner(tx_queue);
-
-		if (txq2->xmit_more_available)
-			efx_nic_push_buffers(txq2);
-
-		efx_nic_push_buffers(tx_queue);
-	}
+	if (!xmit_more)
+		efx_tx_send_pending(tx_queue->channel);
 
 	return NETDEV_TX_OK;
 }
@@ -472,13 +501,10 @@ int efx_xdp_tx_buffers(struct efx_nic *efx, int n, struct xdp_frame **xdpfs,
 }
 
 /* Initiate a packet transmission.  We use one channel per CPU
- * (sharing when we have more CPUs than channels).  On Falcon, the TX
- * completion events will be directed back to the CPU that transmitted
- * the packet, which should be cache-efficient.
+ * (sharing when we have more CPUs than channels).
  *
  * Context: non-blocking.
- * Note that returning anything other than NETDEV_TX_OK will cause the
- * OS to free the skb.
+ * Should always return NETDEV_TX_OK and consume the skb.
  */
 netdev_tx_t efx_hard_start_xmit(struct sk_buff *skb,
 				struct net_device *net_dev)
@@ -489,19 +515,39 @@ netdev_tx_t efx_hard_start_xmit(struct sk_buff *skb,
 
 	EFX_WARN_ON_PARANOID(!netif_device_present(net_dev));
 
-	/* PTP "event" packet */
-	if (unlikely(efx_xmit_with_hwtstamp(skb)) &&
-	    unlikely(efx_ptp_is_ptp_tx(efx, skb))) {
-		return efx_ptp_tx(efx, skb);
-	}
-
 	index = skb_get_queue_mapping(skb);
-	type = skb->ip_summed == CHECKSUM_PARTIAL ? EFX_TXQ_TYPE_OFFLOAD : 0;
+	type = efx_tx_csum_type_skb(skb);
 	if (index >= efx->n_tx_channels) {
 		index -= efx->n_tx_channels;
 		type |= EFX_TXQ_TYPE_HIGHPRI;
 	}
+
+	/* PTP "event" packet */
+	if (unlikely(efx_xmit_with_hwtstamp(skb)) &&
+	    unlikely(efx_ptp_is_ptp_tx(efx, skb))) {
+		/* There may be existing transmits on the channel that are
+		 * waiting for this packet to trigger the doorbell write.
+		 * We need to send the packets at this point.
+		 */
+		efx_tx_send_pending(efx_get_tx_channel(efx, index));
+		return efx_ptp_tx(efx, skb);
+	}
+
 	tx_queue = efx_get_tx_queue(efx, index, type);
+	if (WARN_ON_ONCE(!tx_queue)) {
+		/* We don't have a TXQ of the right type.
+		 * This should never happen, as we don't advertise offload
+		 * features unless we can support them.
+		 */
+		dev_kfree_skb_any(skb);
+		/* If we're not expecting another transmit and we had something to push
+		 * on this queue or a partner queue then we need to push here to get the
+		 * previous packets out.
+		 */
+		if (!netdev_xmit_more())
+			efx_tx_send_pending(tx_queue->channel);
+		return NETDEV_TX_OK;
+	}
 
 	return __efx_enqueue_skb(tx_queue, skb);
 }
@@ -552,7 +598,7 @@ void efx_init_tx_queue_core_txq(struct efx_tx_queue *tx_queue)
 	tx_queue->core_txq =
 		netdev_get_tx_queue(efx->net_dev,
 				    tx_queue->channel->channel +
-				    ((tx_queue->label & EFX_TXQ_TYPE_HIGHPRI) ?
+				    ((tx_queue->type & EFX_TXQ_TYPE_HIGHPRI) ?
 				     efx->n_tx_channels : 0));
 }
 

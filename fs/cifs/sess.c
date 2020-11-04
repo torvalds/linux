@@ -798,7 +798,7 @@ cifs_select_sectype(struct TCP_Server_Info *server, enum securityEnum requested)
 			if ((server->sec_kerberos || server->sec_mskerberos) &&
 			    (global_secflags & CIFSSEC_MAY_KRB5))
 				return Kerberos;
-			/* Fallthrough */
+			fallthrough;
 		default:
 			return Unspecified;
 		}
@@ -815,7 +815,7 @@ cifs_select_sectype(struct TCP_Server_Info *server, enum securityEnum requested)
 		default:
 			break;
 		}
-		/* Fallthrough - to attempt LANMAN authentication next */
+		fallthrough;	/* to attempt LANMAN authentication next */
 	case CIFS_NEGFLAVOR_LANMAN:
 		switch (requested) {
 		case LANMAN:
@@ -823,7 +823,7 @@ cifs_select_sectype(struct TCP_Server_Info *server, enum securityEnum requested)
 		case Unspecified:
 			if (global_secflags & CIFSSEC_MAY_LANMAN)
 				return LANMAN;
-			/* Fallthrough */
+			fallthrough;
 		default:
 			return Unspecified;
 		}

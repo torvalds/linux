@@ -953,7 +953,7 @@ nouveau_pmops_resume(struct device *dev)
 	ret = nouveau_do_resume(drm_dev, false);
 
 	/* Monitors may have been connected / disconnected during suspend */
-	schedule_work(&nouveau_drm(drm_dev)->hpd_work);
+	nouveau_display_hpd_resume(drm_dev);
 
 	return ret;
 }
@@ -1036,7 +1036,7 @@ nouveau_pmops_runtime_resume(struct device *dev)
 	drm_dev->switch_power_state = DRM_SWITCH_POWER_ON;
 
 	/* Monitors may have been connected / disconnected during suspend */
-	schedule_work(&nouveau_drm(drm_dev)->hpd_work);
+	nouveau_display_hpd_resume(drm_dev);
 
 	return ret;
 }

@@ -1352,7 +1352,7 @@ static void fyl2xp1(FPU_REG *st0_ptr, u_char st0_tag)
 		case TW_Denormal:
 			if (denormal_operand() < 0)
 				return;
-			/* fall through */
+			fallthrough;
 		case TAG_Zero:
 		case TAG_Valid:
 			setsign(st0_ptr, getsign(st0_ptr) ^ getsign(st1_ptr));

@@ -454,8 +454,8 @@ static int cas_page_free(struct cas *cp, cas_page_t *page)
 #define RX_USED_ADD(x, y)       ((x)->used += (y))
 #define RX_USED_SET(x, y)       ((x)->used  = (y))
 #else
-#define RX_USED_ADD(x, y)
-#define RX_USED_SET(x, y)
+#define RX_USED_ADD(x, y) do { } while(0)
+#define RX_USED_SET(x, y) do { } while(0)
 #endif
 
 /* local page allocation routines for the receive buffers. jumbo pages
@@ -4759,7 +4759,7 @@ static int cas_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	switch (cmd) {
 	case SIOCGMIIPHY:		/* Get address of MII PHY in use. */
 		data->phy_id = cp->phy_addr;
-		/* Fallthrough... */
+		fallthrough;
 
 	case SIOCGMIIREG:		/* Read MII PHY register. */
 		spin_lock_irqsave(&cp->lock, flags);

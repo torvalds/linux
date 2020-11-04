@@ -50,6 +50,10 @@
 #define TCB_T_FLAGS_M		0xffffffffffffffffULL
 #define TCB_T_FLAGS_V(x)	((__u64)(x) << TCB_T_FLAGS_S)
 
+#define TF_DROP_S		22
+#define TF_DIRECT_STEER_S	23
+#define TF_LPBK_S		59
+
 #define TF_CCTRL_ECE_S		60
 #define TF_CCTRL_CWR_S		61
 #define TF_CCTRL_RFR_S		62

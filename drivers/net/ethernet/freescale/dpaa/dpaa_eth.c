@@ -87,7 +87,7 @@ MODULE_PARM_DESC(tx_timeout, "The Tx timeout in ms");
 
 #define DPAA_MSG_DEFAULT (NETIF_MSG_DRV | NETIF_MSG_PROBE | \
 			  NETIF_MSG_LINK | NETIF_MSG_IFUP | \
-			  NETIF_MSG_IFDOWN)
+			  NETIF_MSG_IFDOWN | NETIF_MSG_HW)
 
 #define DPAA_INGRESS_CS_THRESHOLD 0x10000000
 /* Ingress congestion threshold on FMan ports
@@ -945,7 +945,7 @@ static void dpaa_fq_setup(struct dpaa_priv *priv,
 			break;
 		case FQ_TYPE_TX_CONF_MQ:
 			priv->conf_fqs[conf_cnt++] = &fq->fq_base;
-			/* fall through */
+			fallthrough;
 		case FQ_TYPE_TX_CONFIRM:
 			dpaa_setup_ingress(priv, fq, &fq_cbs->tx_defq);
 			break;

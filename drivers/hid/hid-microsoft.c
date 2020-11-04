@@ -163,16 +163,13 @@ static int ms_surface_dial_quirk(struct hid_input *hi, struct hid_field *field,
 {
 	switch (usage->hid & HID_USAGE_PAGE) {
 	case 0xff070000:
-		/* fall-through */
 	case HID_UP_DIGITIZER:
 		/* ignore those axis */
 		return -1;
 	case HID_UP_GENDESK:
 		switch (usage->hid) {
 		case HID_GD_X:
-			/* fall-through */
 		case HID_GD_Y:
-			/* fall-through */
 		case HID_GD_RFKILL_BTN:
 			/* ignore those axis */
 			return -1;
@@ -450,6 +447,8 @@ static const struct hid_device_id ms_devices[] = {
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_MICROSOFT, 0x091B),
 		.driver_data = MS_SURFACE_DIAL },
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_XBOX_ONE_S_CONTROLLER),
+		.driver_data = MS_QUIRK_FF },
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_8BITDO_SN30_PRO_PLUS),
 		.driver_data = MS_QUIRK_FF },
 	{ }
 };

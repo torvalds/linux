@@ -518,6 +518,8 @@
 				<GIC_SPI 472 IRQ_TYPE_LEVEL_HIGH>,
 				<GIC_SPI 473 IRQ_TYPE_LEVEL_HIGH>,
 				<GIC_SPI 474 IRQ_TYPE_LEVEL_HIGH>;
+
+			status = "disabled";
 		};
 
 		tcsr_mutex_regs: syscon@1f40000 {
@@ -749,6 +751,8 @@
 				<GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>,
 				<GIC_SPI 349 IRQ_TYPE_LEVEL_HIGH>,
 				<GIC_SPI 350 IRQ_TYPE_LEVEL_HIGH>;
+
+			status = "disabled";
 		};
 
 		lpass_smmu: iommu@5100000 {
@@ -778,6 +782,8 @@
 				<GIC_SPI 225 IRQ_TYPE_LEVEL_HIGH>,
 				<GIC_SPI 310 IRQ_TYPE_LEVEL_HIGH>,
 				<GIC_SPI 404 IRQ_TYPE_LEVEL_HIGH>;
+
+			status = "disabled";
 		};
 
 		spmi_bus: spmi@800f000 {
@@ -1074,6 +1080,8 @@
 				<GIC_SPI 274 IRQ_TYPE_LEVEL_HIGH>,
 				<GIC_SPI 275 IRQ_TYPE_LEVEL_HIGH>,
 				<GIC_SPI 276 IRQ_TYPE_LEVEL_HIGH>;
+
+			status = "disabled";
 		};
 
 		apcs_glb: mailbox@17911000 {

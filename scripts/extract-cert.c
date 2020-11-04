@@ -71,7 +71,7 @@ static void drain_openssl_errors(void)
 static const char *key_pass;
 static BIO *wb;
 static char *cert_dst;
-int kbuild_verbose;
+static int kbuild_verbose;
 
 static void write_cert(X509 *x509)
 {

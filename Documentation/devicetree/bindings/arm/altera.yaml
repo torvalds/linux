@@ -10,6 +10,8 @@ maintainers:
   - Dinh Nguyen <dinguyen@kernel.org>
 
 properties:
+  $nodename:
+    const: "/"
   compatible:
     items:
       - enum:
@@ -17,4 +19,7 @@ properties:
           - altr,socfpga-arria5
           - altr,socfpga-arria10
       - const: altr,socfpga
+
+additionalProperties: true
+
 ...

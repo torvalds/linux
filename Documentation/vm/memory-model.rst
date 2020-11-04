@@ -24,7 +24,7 @@ whether it is possible to manually override that default.
    although it is still in use by several architectures.
 
 All the memory models track the status of physical page frames using
-:c:type:`struct page` arranged in one or more arrays.
+struct page arranged in one or more arrays.
 
 Regardless of the selected memory model, there exists one-to-one
 mapping between the physical page frame number (PFN) and the
@@ -111,7 +111,7 @@ maps for non-volatile memory devices and deferred initialization of
 the memory map for larger systems.
 
 The SPARSEMEM model presents the physical memory as a collection of
-sections. A section is represented with :c:type:`struct mem_section`
+sections. A section is represented with struct mem_section
 that contains `section_mem_map` that is, logically, a pointer to an
 array of struct pages. However, it is stored with some other magic
 that aids the sections management. The section size and maximal number
@@ -172,7 +172,7 @@ management.
 
 The virtually mapped memory map allows storing `struct page` objects
 for persistent memory devices in pre-allocated storage on those
-devices. This storage is represented with :c:type:`struct vmem_altmap`
+devices. This storage is represented with struct vmem_altmap
 that is eventually passed to vmemmap_populate() through a long chain
 of function calls. The vmemmap_populate() implementation may use the
 `vmem_altmap` along with :c:func:`vmemmap_alloc_block_buf` helper to

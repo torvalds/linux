@@ -428,7 +428,7 @@ static int ide_floppy_get_capacity(ide_drive_t *drive)
 				 * (maintains previous driver behaviour)
 				 */
 				break;
-			/* fall through */
+			fallthrough;
 		case CAPACITY_CURRENT:
 			/* Normal Zip/LS-120 disks */
 			if (memcmp(cap_desc, &floppy->cap_desc, 8))
@@ -516,8 +516,6 @@ static void ide_floppy_setup(ide_drive_t *drive)
 	(void) ide_floppy_get_capacity(drive);
 
 	ide_proc_register_driver(drive, floppy->driver);
-
-	drive->dev_flags |= IDE_DFLAG_ATTACH;
 }
 
 static void ide_floppy_flush(ide_drive_t *drive)

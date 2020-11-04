@@ -5,16 +5,16 @@
 
 #include <linux/vmalloc.h>
 
+#include "debugfs_sta.h"
 #include "core.h"
 #include "peer.h"
 #include "debug.h"
 #include "dp_tx.h"
-#include "debug_htt_stats.h"
+#include "debugfs_htt_stats.h"
 
-void
-ath11k_accumulate_per_peer_tx_stats(struct ath11k_sta *arsta,
-				    struct ath11k_per_peer_tx_stats *peer_stats,
-				    u8 legacy_rate_idx)
+void ath11k_debugfs_sta_add_tx_stats(struct ath11k_sta *arsta,
+				     struct ath11k_per_peer_tx_stats *peer_stats,
+				     u8 legacy_rate_idx)
 {
 	struct rate_info *txrate = &arsta->txrate;
 	struct ath11k_htt_tx_stats *tx_stats;
@@ -125,9 +125,9 @@ ath11k_accumulate_per_peer_tx_stats(struct ath11k_sta *arsta,
 	tx_stats->tx_duration += peer_stats->duration;
 }
 
-void ath11k_update_per_peer_stats_from_txcompl(struct ath11k *ar,
-					       struct sk_buff *msdu,
-					       struct hal_tx_status *ts)
+void ath11k_debugfs_sta_update_txcompl(struct ath11k *ar,
+				       struct sk_buff *msdu,
+				       struct hal_tx_status *ts)
 {
 	struct ath11k_base *ab = ar->ab;
 	struct ath11k_per_peer_tx_stats *peer_stats = &ar->cached_stats;
@@ -200,7 +200,8 @@ void ath11k_update_per_peer_stats_from_txcompl(struct ath11k *ar,
 	arsta->txrate.nss = arsta->last_txrate.nss;
 	arsta->txrate.bw = ath11k_mac_bw_to_mac80211_bw(bw);
 
-	ath11k_accumulate_per_peer_tx_stats(arsta, peer_stats, rate_idx);
+	ath11k_debugfs_sta_add_tx_stats(arsta, peer_stats, rate_idx);
+
 err_out:
 	spin_unlock_bh(&ab->base_lock);
 	rcu_read_unlock();
@@ -428,7 +429,7 @@ ath11k_dbg_sta_open_htt_peer_stats(struct inode *inode, struct file *file)
 	ar->debug.htt_stats.stats_req = stats_req;
 	stats_req->type = ATH11K_DBG_HTT_EXT_STATS_PEER_INFO;
 	memcpy(stats_req->peer_addr, sta->addr, ETH_ALEN);
-	ret = ath11k_dbg_htt_stats_req(ar);
+	ret = ath11k_debugfs_htt_stats_req(ar);
 	mutex_unlock(&ar->conf_mutex);
 	if (ret < 0)
 		goto out;
@@ -820,15 +821,15 @@ static const struct file_operations fops_htt_peer_stats_reset = {
 	.llseek = default_llseek,
 };
 
-void ath11k_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			    struct ieee80211_sta *sta, struct dentry *dir)
+void ath11k_debugfs_sta_op_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			       struct ieee80211_sta *sta, struct dentry *dir)
 {
 	struct ath11k *ar = hw->priv;
 
-	if (ath11k_debug_is_extd_tx_stats_enabled(ar))
+	if (ath11k_debugfs_is_extd_tx_stats_enabled(ar))
 		debugfs_create_file("tx_stats", 0400, dir, sta,
 				    &fops_tx_stats);
-	if (ath11k_debug_is_extd_rx_stats_enabled(ar))
+	if (ath11k_debugfs_is_extd_rx_stats_enabled(ar))
 		debugfs_create_file("rx_stats", 0400, dir, sta,
 				    &fops_rx_stats);
 

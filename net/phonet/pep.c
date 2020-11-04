@@ -368,7 +368,7 @@ static int pipe_do_rcv(struct sock *sk, struct sk_buff *skb)
 			err = -EINVAL;
 			goto out;
 		}
-		/* fall through */
+		fallthrough;
 	case PNS_PEP_DISABLE_REQ:
 		atomic_set(&pn->tx_credits, 0);
 		pep_reply(sk, skb, PN_PIPE_NO_ERROR, NULL, 0, GFP_ATOMIC);
@@ -385,7 +385,7 @@ static int pipe_do_rcv(struct sock *sk, struct sk_buff *skb)
 
 	case PNS_PIPE_ALIGNED_DATA:
 		__skb_pull(skb, 1);
-		/* fall through */
+		fallthrough;
 	case PNS_PIPE_DATA:
 		__skb_pull(skb, 3); /* Pipe data header */
 		if (!pn_flow_safe(pn->rx_fc)) {
@@ -417,11 +417,11 @@ static int pipe_do_rcv(struct sock *sk, struct sk_buff *skb)
 		err = pipe_rcv_created(sk, skb);
 		if (err)
 			break;
-		/* fall through */
+		fallthrough;
 	case PNS_PIPE_RESET_IND:
 		if (!pn->init_enable)
 			break;
-		/* fall through */
+		fallthrough;
 	case PNS_PIPE_ENABLED_IND:
 		if (!pn_flow_safe(pn->tx_fc)) {
 			atomic_set(&pn->tx_credits, 1);
@@ -555,7 +555,7 @@ static int pipe_handler_do_rcv(struct sock *sk, struct sk_buff *skb)
 	switch (hdr->message_id) {
 	case PNS_PIPE_ALIGNED_DATA:
 		__skb_pull(skb, 1);
-		/* fall through */
+		fallthrough;
 	case PNS_PIPE_DATA:
 		__skb_pull(skb, 3); /* Pipe data header */
 		if (!pn_flow_safe(pn->rx_fc)) {

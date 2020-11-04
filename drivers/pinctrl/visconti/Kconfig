@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config PINCTRL_VISCONTI
+	bool
+	select PINMUX
+	select GENERIC_PINCONF
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+
+config PINCTRL_TMPV7700
+	bool "Toshiba Visconti TMPV7700 series pinctrl driver"
+	depends on OF
+	depends on ARCH_VISCONTI || COMPILE_TEST
+	select PINCTRL_VISCONTI
+	default ARCH_VISCONTI

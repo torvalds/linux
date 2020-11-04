@@ -1310,7 +1310,7 @@ static int vicodec_subscribe_event(struct v4l2_fh *fh,
 	case V4L2_EVENT_SOURCE_CHANGE:
 		if (ctx->is_enc)
 			return -EINVAL;
-		/* fall through */
+		fallthrough;
 	case V4L2_EVENT_EOS:
 		if (ctx->is_stateless)
 			return -EINVAL;
@@ -1671,8 +1671,8 @@ static void vicodec_stop_streaming(struct vb2_queue *q)
 		ctx->comp_size = 0;
 		ctx->header_size = 0;
 		ctx->comp_magic_cnt = 0;
-		ctx->comp_has_frame = 0;
-		ctx->comp_has_next_frame = 0;
+		ctx->comp_has_frame = false;
+		ctx->comp_has_next_frame = false;
 	}
 }
 
@@ -1994,6 +1994,7 @@ static int vicodec_request_validate(struct media_request *req)
 	}
 	ctrl = v4l2_ctrl_request_hdl_ctrl_find(hdl,
 					       vicodec_ctrl_stateless_state.id);
+	v4l2_ctrl_request_hdl_put(hdl);
 	if (!ctrl) {
 		v4l2_info(&ctx->dev->v4l2_dev,
 			  "Missing required codec control\n");

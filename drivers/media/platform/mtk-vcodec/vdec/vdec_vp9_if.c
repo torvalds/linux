@@ -795,7 +795,6 @@ static int vdec_vp9_init(struct mtk_vcodec_ctx *ctx)
 	inst->ctx = ctx;
 
 	inst->vpu.id = IPI_VDEC_VP9;
-	inst->vpu.dev = ctx->dev->vpu_plat_dev;
 	inst->vpu.ctx = ctx;
 
 	if (vpu_dec_init(&inst->vpu)) {
@@ -960,7 +959,7 @@ static int vdec_vp9_decode(void *h_vdec, struct mtk_vcodec_mem *bs,
 			goto DECODE_ERROR;
 		}
 
-		if (vp9_decode_end_proc(inst) != true) {
+		if (!vp9_decode_end_proc(inst)) {
 			mtk_vcodec_err(inst, "vp9_decode_end_proc");
 			ret = -EINVAL;
 			goto DECODE_ERROR;

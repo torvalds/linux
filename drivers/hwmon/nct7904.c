@@ -231,7 +231,7 @@ static int nct7904_read_fan(struct device *dev, u32 attr, int channel,
 		if (ret < 0)
 			return ret;
 		cnt = ((ret & 0xff00) >> 3) | (ret & 0x1f);
-		if (cnt == 0x1fff)
+		if (cnt == 0 || cnt == 0x1fff)
 			rpm = 0;
 		else
 			rpm = 1350000 / cnt;
@@ -243,7 +243,7 @@ static int nct7904_read_fan(struct device *dev, u32 attr, int channel,
 		if (ret < 0)
 			return ret;
 		cnt = ((ret & 0xff00) >> 3) | (ret & 0x1f);
-		if (cnt == 0x1fff)
+		if (cnt == 0 || cnt == 0x1fff)
 			rpm = 0;
 		else
 			rpm = 1350000 / cnt;
@@ -1009,8 +1009,7 @@ static const struct watchdog_ops nct7904_wdt_ops = {
 	.get_timeleft	= nct7904_wdt_get_timeleft,
 };
 
-static int nct7904_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int nct7904_probe(struct i2c_client *client)
 {
 	struct nct7904_data *data;
 	struct device *hwmon_dev;
@@ -1172,7 +1171,7 @@ static struct i2c_driver nct7904_driver = {
 	.driver = {
 		.name = "nct7904",
 	},
-	.probe = nct7904_probe,
+	.probe_new = nct7904_probe,
 	.id_table = nct7904_id,
 	.detect = nct7904_detect,
 	.address_list = normal_i2c,

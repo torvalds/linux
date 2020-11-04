@@ -876,7 +876,7 @@ static irqreturn_t tegra_uart_isr(int irq, void *data)
 				tegra_uart_write(tup, ier, UART_IER);
 				break;
 			}
-			/* Fall through */
+			fallthrough;
 		case 2: /* Receive */
 			if (!tup->use_rx_pio) {
 				is_rx_start = tup->rx_in_progress;

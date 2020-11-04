@@ -91,10 +91,13 @@ Description:
 		h/w strapping (for WDT2 only).
 
 		At alternate flash the 'access_cs0' sysfs node provides:
-			ast2400: a way to get access to the primary SPI flash
+
+			ast2400:
+				a way to get access to the primary SPI flash
 				chip at CS0 after booting from the alternate
 				chip at CS1.
-			ast2500: a way to restore the normal address mapping
+			ast2500:
+				a way to restore the normal address mapping
 				from (CS0->CS1, CS1->CS0) to (CS0->CS0,
 				CS1->CS1).
 

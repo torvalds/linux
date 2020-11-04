@@ -78,7 +78,7 @@ int thermal_genl_sampling_temp(int id, int temp)
 	hdr = genlmsg_put(skb, 0, 0, &thermal_gnl_family, 0,
 			  THERMAL_GENL_SAMPLING_TEMP);
 	if (!hdr)
-		return -EMSGSIZE;
+		goto out_free;
 
 	if (nla_put_u32(skb, THERMAL_GENL_ATTR_TZ_ID, id))
 		goto out_cancel;
@@ -93,6 +93,7 @@ int thermal_genl_sampling_temp(int id, int temp)
 	return 0;
 out_cancel:
 	genlmsg_cancel(skb, hdr);
+out_free:
 	nlmsg_free(skb);
 
 	return -EMSGSIZE;
@@ -545,7 +546,7 @@ static int thermal_genl_cmd_dumpit(struct sk_buff *skb,
 {
 	struct param p = { .msg = skb };
 	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
-	int cmd = info->ops->cmd;
+	int cmd = info->op.cmd;
 	int ret;
 	void *hdr;
 
@@ -601,7 +602,7 @@ out_free_msg:
 	return ret;
 }
 
-static const struct genl_ops thermal_genl_ops[] = {
+static const struct genl_small_ops thermal_genl_ops[] = {
 	{
 		.cmd = THERMAL_GENL_CMD_TZ_GET_ID,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
@@ -635,8 +636,8 @@ static struct genl_family thermal_gnl_family __ro_after_init = {
 	.version	= THERMAL_GENL_VERSION,
 	.maxattr	= THERMAL_GENL_ATTR_MAX,
 	.policy		= thermal_genl_policy,
-	.ops		= thermal_genl_ops,
-	.n_ops		= ARRAY_SIZE(thermal_genl_ops),
+	.small_ops	= thermal_genl_ops,
+	.n_small_ops	= ARRAY_SIZE(thermal_genl_ops),
 	.mcgrps		= thermal_genl_mcgrps,
 	.n_mcgrps	= ARRAY_SIZE(thermal_genl_mcgrps),
 };

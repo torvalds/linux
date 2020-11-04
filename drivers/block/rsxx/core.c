@@ -425,7 +425,7 @@ static void card_state_change(struct rsxx_cardinfo *card,
 		 * Fall through so the DMA devices can be attached and
 		 * the user can attempt to pull off their data.
 		 */
-		/* fall through */
+		fallthrough;
 	case CARD_STATE_GOOD:
 		st = rsxx_get_card_size8(card, &card->size8);
 		if (st)
@@ -439,7 +439,7 @@ static void card_state_change(struct rsxx_cardinfo *card,
 	case CARD_STATE_FAULT:
 		dev_crit(CARD_TO_DEV(card),
 			"Hardware Fault reported!\n");
-		/* Fall through. */
+		fallthrough;
 
 	/* Everything else, detach DMA interface if it's attached. */
 	case CARD_STATE_SHUTDOWN:

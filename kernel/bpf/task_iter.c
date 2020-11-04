@@ -22,17 +22,25 @@ struct bpf_iter_seq_task_info {
 };
 
 static struct task_struct *task_seq_get_next(struct pid_namespace *ns,
-					     u32 *tid)
+					     u32 *tid,
+					     bool skip_if_dup_files)
 {
 	struct task_struct *task = NULL;
 	struct pid *pid;
 
 	rcu_read_lock();
 retry:
-	pid = idr_get_next(&ns->idr, tid);
+	pid = find_ge_pid(*tid, ns);
 	if (pid) {
+		*tid = pid_nr_ns(pid, ns);
 		task = get_pid_task(pid, PIDTYPE_PID);
 		if (!task) {
+			++*tid;
+			goto retry;
+		} else if (skip_if_dup_files && task->tgid != task->pid &&
+			   task->files == task->group_leader->files) {
+			put_task_struct(task);
+			task = NULL;
 			++*tid;
 			goto retry;
 		}
@@ -47,7 +55,7 @@ static void *task_seq_start(struct seq_file *seq, loff_t *pos)
 	struct bpf_iter_seq_task_info *info = seq->private;
 	struct task_struct *task;
 
-	task = task_seq_get_next(info->common.ns, &info->tid);
+	task = task_seq_get_next(info->common.ns, &info->tid, false);
 	if (!task)
 		return NULL;
 
@@ -64,7 +72,7 @@ static void *task_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	++*pos;
 	++info->tid;
 	put_task_struct((struct task_struct *)v);
-	task = task_seq_get_next(info->common.ns, &info->tid);
+	task = task_seq_get_next(info->common.ns, &info->tid, false);
 	if (!task)
 		return NULL;
 
@@ -147,7 +155,7 @@ again:
 		curr_files = *fstruct;
 		curr_fd = info->fd;
 	} else {
-		curr_task = task_seq_get_next(ns, &curr_tid);
+		curr_task = task_seq_get_next(ns, &curr_tid, true);
 		if (!curr_task)
 			return NULL;
 
@@ -178,10 +186,11 @@ again:
 		f = fcheck_files(curr_files, curr_fd);
 		if (!f)
 			continue;
+		if (!get_file_rcu(f))
+			continue;
 
 		/* set info->fd */
 		info->fd = curr_fd;
-		get_file(f);
 		rcu_read_unlock();
 		return f;
 	}

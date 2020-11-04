@@ -465,7 +465,7 @@ key_ref_t search_cred_keyrings_rcu(struct keyring_search_context *ctx)
 		case -EAGAIN: /* no key */
 			if (ret)
 				break;
-			/* fall through */
+			fallthrough;
 		case -ENOKEY: /* negative key */
 			ret = key_ref;
 			break;
@@ -487,7 +487,7 @@ key_ref_t search_cred_keyrings_rcu(struct keyring_search_context *ctx)
 		case -EAGAIN: /* no key */
 			if (ret)
 				break;
-			/* fall through */
+			fallthrough;
 		case -ENOKEY: /* negative key */
 			ret = key_ref;
 			break;
@@ -509,7 +509,7 @@ key_ref_t search_cred_keyrings_rcu(struct keyring_search_context *ctx)
 		case -EAGAIN: /* no key */
 			if (ret)
 				break;
-			/* fall through */
+			fallthrough;
 		case -ENOKEY: /* negative key */
 			ret = key_ref;
 			break;

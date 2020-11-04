@@ -321,7 +321,7 @@ static void arc_restart_syscall(struct k_sigaction *ka, struct pt_regs *regs)
 			regs->r0 = -EINTR;
 			break;
 		}
-		/* fallthrough */
+		fallthrough;
 
 	case -ERESTARTNOINTR:
 		/*
@@ -394,6 +394,6 @@ void do_notify_resume(struct pt_regs *regs)
 	 * ASM glue gaurantees that this is only called when returning to
 	 * user mode
 	 */
-	if (test_and_clear_thread_flag(TIF_NOTIFY_RESUME))
+	if (test_thread_flag(TIF_NOTIFY_RESUME))
 		tracehook_notify_resume(regs);
 }

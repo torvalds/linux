@@ -28,7 +28,6 @@
 #include <sound/soc.h>
 #include <sound/soc-acpi.h>
 #include "../atom/sst-atom-controls.h"
-#include "../common/sst-dsp.h"
 #include "../common/soc-intel-quirks.h"
 
 /* jd-inv + terminating entry */
@@ -573,7 +572,7 @@ static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 			break;
 		default:
 			dev_err(dev, "get speaker GPIO failed: %d\n", ret);
-			/* fall through */
+			fallthrough;
 		case -EPROBE_DEFER:
 			return ret;
 		}

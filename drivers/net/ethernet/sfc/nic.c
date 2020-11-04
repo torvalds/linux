@@ -129,6 +129,7 @@ int efx_nic_init_interrupt(struct efx_nic *efx)
 #endif
 	}
 
+	efx->irqs_hooked = true;
 	return 0;
 
  fail2:
@@ -154,6 +155,8 @@ void efx_nic_fini_interrupt(struct efx_nic *efx)
 	efx->net_dev->rx_cpu_rmap = NULL;
 #endif
 
+	if (!efx->irqs_hooked)
+		return;
 	if (EFX_INT_MODE_USE_MSI(efx)) {
 		/* Disable MSI/MSI-X interrupts */
 		efx_for_each_channel(channel, efx)
@@ -163,6 +166,7 @@ void efx_nic_fini_interrupt(struct efx_nic *efx)
 		/* Disable legacy interrupt */
 		free_irq(efx->legacy_irq, efx);
 	}
+	efx->irqs_hooked = false;
 }
 
 /* Register dump */

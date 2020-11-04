@@ -41,14 +41,6 @@ static int __init powersave_off(char *arg)
 }
 __setup("powersave=off", powersave_off);
 
-#ifdef CONFIG_HOTPLUG_CPU
-void arch_cpu_idle_dead(void)
-{
-	sched_preempt_enable_no_resched();
-	cpu_die();
-}
-#endif
-
 void arch_cpu_idle(void)
 {
 	ppc64_runlatch_off();

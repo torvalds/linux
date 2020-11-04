@@ -370,7 +370,6 @@ syscall_trace_entry:
 	 nop
 	cmp/eq	#-1, r0
 	bt	syscall_exit
-	mov.l	r0, @(OFF_R0,r15)	! Save return value
 	!			Reload R0-R4 from kernel stack, where the
 	!   	    	    	parent may have modified them using
 	!   	    	    	ptrace(POKEUSR).  (Note that R0-R2 are

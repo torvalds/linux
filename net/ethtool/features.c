@@ -20,14 +20,9 @@ struct features_reply_data {
 #define FEATURES_REPDATA(__reply_base) \
 	container_of(__reply_base, struct features_reply_data, base)
 
-static const struct nla_policy
-features_get_policy[ETHTOOL_A_FEATURES_MAX + 1] = {
-	[ETHTOOL_A_FEATURES_UNSPEC]	= { .type = NLA_REJECT },
-	[ETHTOOL_A_FEATURES_HEADER]	= { .type = NLA_NESTED },
-	[ETHTOOL_A_FEATURES_HW]		= { .type = NLA_REJECT },
-	[ETHTOOL_A_FEATURES_WANTED]	= { .type = NLA_REJECT },
-	[ETHTOOL_A_FEATURES_ACTIVE]	= { .type = NLA_REJECT },
-	[ETHTOOL_A_FEATURES_NOCHANGE]	= { .type = NLA_REJECT },
+const struct nla_policy ethnl_features_get_policy[] = {
+	[ETHTOOL_A_FEATURES_HEADER]	=
+		NLA_POLICY_NESTED(ethnl_header_policy),
 };
 
 static void ethnl_features_to_bitmap32(u32 *dest, netdev_features_t src)
@@ -120,10 +115,8 @@ const struct ethnl_request_ops ethnl_features_request_ops = {
 	.request_cmd		= ETHTOOL_MSG_FEATURES_GET,
 	.reply_cmd		= ETHTOOL_MSG_FEATURES_GET_REPLY,
 	.hdr_attr		= ETHTOOL_A_FEATURES_HEADER,
-	.max_attr		= ETHTOOL_A_FEATURES_MAX,
 	.req_info_size		= sizeof(struct features_req_info),
 	.reply_data_size	= sizeof(struct features_reply_data),
-	.request_policy		= features_get_policy,
 
 	.prepare_data		= features_prepare_data,
 	.reply_size		= features_reply_size,
@@ -132,14 +125,10 @@ const struct ethnl_request_ops ethnl_features_request_ops = {
 
 /* FEATURES_SET */
 
-static const struct nla_policy
-features_set_policy[ETHTOOL_A_FEATURES_MAX + 1] = {
-	[ETHTOOL_A_FEATURES_UNSPEC]	= { .type = NLA_REJECT },
-	[ETHTOOL_A_FEATURES_HEADER]	= { .type = NLA_NESTED },
-	[ETHTOOL_A_FEATURES_HW]		= { .type = NLA_REJECT },
+const struct nla_policy ethnl_features_set_policy[] = {
+	[ETHTOOL_A_FEATURES_HEADER]	=
+		NLA_POLICY_NESTED(ethnl_header_policy),
 	[ETHTOOL_A_FEATURES_WANTED]	= { .type = NLA_NESTED },
-	[ETHTOOL_A_FEATURES_ACTIVE]	= { .type = NLA_REJECT },
-	[ETHTOOL_A_FEATURES_NOCHANGE]	= { .type = NLA_REJECT },
 };
 
 static void ethnl_features_to_bitmap(unsigned long *dest, netdev_features_t val)
@@ -224,20 +213,17 @@ int ethnl_set_features(struct sk_buff *skb, struct genl_info *info)
 	DECLARE_BITMAP(wanted_diff_mask, NETDEV_FEATURE_COUNT);
 	DECLARE_BITMAP(active_diff_mask, NETDEV_FEATURE_COUNT);
 	DECLARE_BITMAP(old_active, NETDEV_FEATURE_COUNT);
+	DECLARE_BITMAP(old_wanted, NETDEV_FEATURE_COUNT);
 	DECLARE_BITMAP(new_active, NETDEV_FEATURE_COUNT);
+	DECLARE_BITMAP(new_wanted, NETDEV_FEATURE_COUNT);
 	DECLARE_BITMAP(req_wanted, NETDEV_FEATURE_COUNT);
 	DECLARE_BITMAP(req_mask, NETDEV_FEATURE_COUNT);
-	struct nlattr *tb[ETHTOOL_A_FEATURES_MAX + 1];
 	struct ethnl_req_info req_info = {};
+	struct nlattr **tb = info->attrs;
 	struct net_device *dev;
 	bool mod;
 	int ret;
 
-	ret = nlmsg_parse(info->nlhdr, GENL_HDRLEN, tb,
-			  ETHTOOL_A_FEATURES_MAX, features_set_policy,
-			  info->extack);
-	if (ret < 0)
-		return ret;
 	if (!tb[ETHTOOL_A_FEATURES_WANTED])
 		return -EINVAL;
 	ret = ethnl_parse_header_dev_get(&req_info,
@@ -250,6 +236,7 @@ int ethnl_set_features(struct sk_buff *skb, struct genl_info *info)
 
 	rtnl_lock();
 	ethnl_features_to_bitmap(old_active, dev->features);
+	ethnl_features_to_bitmap(old_wanted, dev->wanted_features);
 	ret = ethnl_parse_bitset(req_wanted, req_mask, NETDEV_FEATURE_COUNT,
 				 tb[ETHTOOL_A_FEATURES_WANTED],
 				 netdev_features_strings, info->extack);
@@ -261,17 +248,15 @@ int ethnl_set_features(struct sk_buff *skb, struct genl_info *info)
 		goto out_rtnl;
 	}
 
-	/* set req_wanted bits not in req_mask from old_active */
+	/* set req_wanted bits not in req_mask from old_wanted */
 	bitmap_and(req_wanted, req_wanted, req_mask, NETDEV_FEATURE_COUNT);
-	bitmap_andnot(new_active, old_active, req_mask, NETDEV_FEATURE_COUNT);
-	bitmap_or(req_wanted, new_active, req_wanted, NETDEV_FEATURE_COUNT);
-	if (bitmap_equal(req_wanted, old_active, NETDEV_FEATURE_COUNT)) {
-		ret = 0;
-		goto out_rtnl;
+	bitmap_andnot(new_wanted, old_wanted, req_mask, NETDEV_FEATURE_COUNT);
+	bitmap_or(req_wanted, new_wanted, req_wanted, NETDEV_FEATURE_COUNT);
+	if (!bitmap_equal(req_wanted, old_wanted, NETDEV_FEATURE_COUNT)) {
+		dev->wanted_features &= ~dev->hw_features;
+		dev->wanted_features |= ethnl_bitmap_to_features(req_wanted) & dev->hw_features;
+		__netdev_update_features(dev);
 	}
-
-	dev->wanted_features = ethnl_bitmap_to_features(req_wanted);
-	__netdev_update_features(dev);
 	ethnl_features_to_bitmap(new_active, dev->features);
 	mod = !bitmap_equal(old_active, new_active, NETDEV_FEATURE_COUNT);
 

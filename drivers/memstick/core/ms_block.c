@@ -371,7 +371,7 @@ again:
 			serial mode), then just fall through */
 		if (msb_read_int_reg(msb, -1))
 			return 0;
-		/* fallthrough */
+		fallthrough;
 
 	case MSB_RP_RECEIVE_INT_REQ_RESULT:
 		intreg = mrq->data[0];
@@ -403,7 +403,7 @@ again:
 	case MSB_RP_RECEIVE_STATUS_REG:
 		msb->regs.status = *(struct ms_status_register *)mrq->data;
 		msb->state = MSB_RP_SEND_OOB_READ;
-		/* fallthrough */
+		fallthrough;
 
 	case MSB_RP_SEND_OOB_READ:
 		if (!msb_read_regs(msb,
@@ -418,7 +418,7 @@ again:
 		msb->regs.extra_data =
 			*(struct ms_extra_data_register *) mrq->data;
 		msb->state = MSB_RP_SEND_READ_DATA;
-		/* fallthrough */
+		fallthrough;
 
 	case MSB_RP_SEND_READ_DATA:
 		/* Skip that state if we only read the oob */
@@ -518,7 +518,7 @@ again:
 		msb->state = MSB_WB_RECEIVE_INT_REQ;
 		if (msb_read_int_reg(msb, -1))
 			return 0;
-		/* fallthrough */
+		fallthrough;
 
 	case MSB_WB_RECEIVE_INT_REQ:
 		intreg = mrq->data[0];
@@ -549,7 +549,7 @@ again:
 
 		msb->int_polling = false;
 		msb->state = MSB_WB_SEND_WRITE_DATA;
-		/* fallthrough */
+		fallthrough;
 
 	case MSB_WB_SEND_WRITE_DATA:
 		sg_init_table(sg, ARRAY_SIZE(sg));
@@ -628,7 +628,7 @@ again:
 		msb->state = MSB_SC_RECEIVE_INT_REQ;
 		if (msb_read_int_reg(msb, -1))
 			return 0;
-		/* fallthrough */
+		fallthrough;
 
 	case MSB_SC_RECEIVE_INT_REQ:
 		intreg = mrq->data[0];
@@ -1223,7 +1223,7 @@ static int msb_read_boot_blocks(struct msb_data *msb)
 		}
 
 		if (be16_to_cpu(page->header.block_id) != MS_BLOCK_BOOT_ID) {
-			dbg("the pba at %d doesn' contain boot block ID", pba);
+			dbg("the pba at %d doesn't contain boot block ID", pba);
 			continue;
 		}
 

@@ -21,10 +21,6 @@
 #include <linux/bitrev.h>
 #include <linux/etherdevice.h>
 
-#ifndef	lint
-static const char ID_sccs[] = "@(#)fplustm.c	1.32 99/02/23 (C) SK " ;
-#endif
-
 #ifndef UNUSED
 #ifdef  lint
 #define UNUSED(x)	(x) = (x)

@@ -14,6 +14,8 @@
 #include <linux/inetdevice.h>
 #include <linux/if_ether.h>
 #include <linux/sched/signal.h>
+#include <linux/utsname.h>
+#include <linux/ctype.h>
 
 #include <net/addrconf.h>
 #include <net/sock.h>
@@ -27,6 +29,7 @@
 
 #define SMCR_CLC_ACCEPT_CONFIRM_LEN 68
 #define SMCD_CLC_ACCEPT_CONFIRM_LEN 48
+#define SMCD_CLC_ACCEPT_CONFIRM_LEN_V2 78
 #define SMC_CLC_RECV_BUF_LEN	100
 
 /* eye catcher "SMCR" EBCDIC for CLC messages */
@@ -34,13 +37,88 @@ static const char SMC_EYECATCHER[4] = {'\xe2', '\xd4', '\xc3', '\xd9'};
 /* eye catcher "SMCD" EBCDIC for CLC messages */
 static const char SMCD_EYECATCHER[4] = {'\xe2', '\xd4', '\xc3', '\xc4'};
 
+static u8 smc_hostname[SMC_MAX_HOSTNAME_LEN];
+
+/* check arriving CLC proposal */
+static bool smc_clc_msg_prop_valid(struct smc_clc_msg_proposal *pclc)
+{
+	struct smc_clc_msg_proposal_prefix *pclc_prfx;
+	struct smc_clc_smcd_v2_extension *smcd_v2_ext;
+	struct smc_clc_msg_hdr *hdr = &pclc->hdr;
+	struct smc_clc_v2_extension *v2_ext;
+
+	v2_ext = smc_get_clc_v2_ext(pclc);
+	pclc_prfx = smc_clc_proposal_get_prefix(pclc);
+	if (hdr->version == SMC_V1) {
+		if (hdr->typev1 == SMC_TYPE_N)
+			return false;
+		if (ntohs(hdr->length) !=
+			sizeof(*pclc) + ntohs(pclc->iparea_offset) +
+			sizeof(*pclc_prfx) +
+			pclc_prfx->ipv6_prefixes_cnt *
+				sizeof(struct smc_clc_ipv6_prefix) +
+			sizeof(struct smc_clc_msg_trail))
+			return false;
+	} else {
+		if (ntohs(hdr->length) !=
+			sizeof(*pclc) +
+			sizeof(struct smc_clc_msg_smcd) +
+			(hdr->typev1 != SMC_TYPE_N ?
+				sizeof(*pclc_prfx) +
+				pclc_prfx->ipv6_prefixes_cnt *
+				sizeof(struct smc_clc_ipv6_prefix) : 0) +
+			(hdr->typev2 != SMC_TYPE_N ?
+				sizeof(*v2_ext) +
+				v2_ext->hdr.eid_cnt * SMC_MAX_EID_LEN : 0) +
+			(smcd_indicated(hdr->typev2) ?
+				sizeof(*smcd_v2_ext) + v2_ext->hdr.ism_gid_cnt *
+					sizeof(struct smc_clc_smcd_gid_chid) :
+				0) +
+			sizeof(struct smc_clc_msg_trail))
+			return false;
+	}
+	return true;
+}
+
+/* check arriving CLC accept or confirm */
+static bool
+smc_clc_msg_acc_conf_valid(struct smc_clc_msg_accept_confirm_v2 *clc_v2)
+{
+	struct smc_clc_msg_hdr *hdr = &clc_v2->hdr;
+
+	if (hdr->typev1 != SMC_TYPE_R && hdr->typev1 != SMC_TYPE_D)
+		return false;
+	if (hdr->version == SMC_V1) {
+		if ((hdr->typev1 == SMC_TYPE_R &&
+		     ntohs(hdr->length) != SMCR_CLC_ACCEPT_CONFIRM_LEN) ||
+		    (hdr->typev1 == SMC_TYPE_D &&
+		     ntohs(hdr->length) != SMCD_CLC_ACCEPT_CONFIRM_LEN))
+			return false;
+	} else {
+		if (hdr->typev1 == SMC_TYPE_D &&
+		    ntohs(hdr->length) != SMCD_CLC_ACCEPT_CONFIRM_LEN_V2 &&
+		    (ntohs(hdr->length) != SMCD_CLC_ACCEPT_CONFIRM_LEN_V2 +
+				sizeof(struct smc_clc_first_contact_ext)))
+			return false;
+	}
+	return true;
+}
+
+static void smc_clc_fill_fce(struct smc_clc_first_contact_ext *fce, int *len)
+{
+	memset(fce, 0, sizeof(*fce));
+	fce->os_type = SMC_CLC_OS_LINUX;
+	fce->release = SMC_RELEASE;
+	memcpy(fce->hostname, smc_hostname, sizeof(smc_hostname));
+	(*len) += sizeof(*fce);
+}
+
 /* check if received message has a correct header length and contains valid
  * heading and trailing eyecatchers
  */
 static bool smc_clc_msg_hdr_valid(struct smc_clc_msg_hdr *clcm, bool check_trl)
 {
-	struct smc_clc_msg_proposal_prefix *pclc_prfx;
-	struct smc_clc_msg_accept_confirm *clc;
+	struct smc_clc_msg_accept_confirm_v2 *clc_v2;
 	struct smc_clc_msg_proposal *pclc;
 	struct smc_clc_msg_decline *dclc;
 	struct smc_clc_msg_trail *trl;
@@ -51,29 +129,19 @@ static bool smc_clc_msg_hdr_valid(struct smc_clc_msg_hdr *clcm, bool check_trl)
 	switch (clcm->type) {
 	case SMC_CLC_PROPOSAL:
 		pclc = (struct smc_clc_msg_proposal *)clcm;
-		pclc_prfx = smc_clc_proposal_get_prefix(pclc);
-		if (ntohs(pclc->hdr.length) <
-			sizeof(*pclc) + ntohs(pclc->iparea_offset) +
-			sizeof(*pclc_prfx) +
-			pclc_prfx->ipv6_prefixes_cnt *
-				sizeof(struct smc_clc_ipv6_prefix) +
-			sizeof(*trl))
+		if (!smc_clc_msg_prop_valid(pclc))
 			return false;
 		trl = (struct smc_clc_msg_trail *)
 			((u8 *)pclc + ntohs(pclc->hdr.length) - sizeof(*trl));
 		break;
 	case SMC_CLC_ACCEPT:
 	case SMC_CLC_CONFIRM:
-		if (clcm->path != SMC_TYPE_R && clcm->path != SMC_TYPE_D)
-			return false;
-		clc = (struct smc_clc_msg_accept_confirm *)clcm;
-		if ((clcm->path == SMC_TYPE_R &&
-		     ntohs(clc->hdr.length) != SMCR_CLC_ACCEPT_CONFIRM_LEN) ||
-		    (clcm->path == SMC_TYPE_D &&
-		     ntohs(clc->hdr.length) != SMCD_CLC_ACCEPT_CONFIRM_LEN))
+		clc_v2 = (struct smc_clc_msg_accept_confirm_v2 *)clcm;
+		if (!smc_clc_msg_acc_conf_valid(clc_v2))
 			return false;
 		trl = (struct smc_clc_msg_trail *)
-			((u8 *)clc + ntohs(clc->hdr.length) - sizeof(*trl));
+			((u8 *)clc_v2 + ntohs(clc_v2->hdr.length) -
+							sizeof(*trl));
 		break;
 	case SMC_CLC_DECLINE:
 		dclc = (struct smc_clc_msg_decline *)clcm;
@@ -153,7 +221,6 @@ static int smc_clc_prfx_set(struct socket *clcsock,
 	struct sockaddr_in *addr;
 	int rc = -ENOENT;
 
-	memset(prop, 0, sizeof(*prop));
 	if (!dst) {
 		rc = -ENOTCONN;
 		goto out;
@@ -320,16 +387,13 @@ int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 	}
 	datlen = ntohs(clcm->length);
 	if ((len < sizeof(struct smc_clc_msg_hdr)) ||
-	    (clcm->version < SMC_CLC_V1) ||
+	    (clcm->version < SMC_V1) ||
 	    ((clcm->type != SMC_CLC_DECLINE) &&
 	     (clcm->type != expected_type))) {
 		smc->sk.sk_err = EPROTO;
 		reason_code = -EPROTO;
 		goto out;
 	}
-
-	if (clcm->type == SMC_CLC_PROPOSAL && clcm->path == SMC_TYPE_N)
-		reason_code = SMC_CLC_DECL_VERSMISMAT; /* just V2 offered */
 
 	/* receive the complete CLC message */
 	memset(&msg, 0, sizeof(struct msghdr));
@@ -366,7 +430,8 @@ int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 		dclc = (struct smc_clc_msg_decline *)clcm;
 		reason_code = SMC_CLC_DECL_PEERDECL;
 		smc->peer_diagnosis = ntohl(dclc->peer_diagnosis);
-		if (((struct smc_clc_msg_decline *)buf)->hdr.flag) {
+		if (((struct smc_clc_msg_decline *)buf)->hdr.typev2 &
+						SMC_FIRST_CONTACT_MASK) {
 			smc->conn.lgr->sync_err = 1;
 			smc_lgr_terminate_sched(smc->conn.lgr);
 		}
@@ -378,7 +443,7 @@ out:
 }
 
 /* send CLC DECLINE message across internal TCP socket */
-int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info)
+int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info, u8 version)
 {
 	struct smc_clc_msg_decline dclc;
 	struct msghdr msg;
@@ -389,8 +454,10 @@ int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info)
 	memcpy(dclc.hdr.eyecatcher, SMC_EYECATCHER, sizeof(SMC_EYECATCHER));
 	dclc.hdr.type = SMC_CLC_DECLINE;
 	dclc.hdr.length = htons(sizeof(struct smc_clc_msg_decline));
-	dclc.hdr.version = SMC_CLC_V1;
-	dclc.hdr.flag = (peer_diag_info == SMC_CLC_DECL_SYNCERR) ? 1 : 0;
+	dclc.hdr.version = version;
+	dclc.os_type = version == SMC_V1 ? 0 : SMC_CLC_OS_LINUX;
+	dclc.hdr.typev2 = (peer_diag_info == SMC_CLC_DECL_SYNCERR) ?
+						SMC_FIRST_CONTACT_MASK : 0;
 	if ((!smc->conn.lgr || !smc->conn.lgr->is_smcd) &&
 	    smc_ib_is_valid_local_systemid())
 		memcpy(dclc.id_for_peer, local_systemid,
@@ -409,142 +476,274 @@ int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info)
 }
 
 /* send CLC PROPOSAL message across internal TCP socket */
-int smc_clc_send_proposal(struct smc_sock *smc, int smc_type,
-			  struct smc_init_info *ini)
+int smc_clc_send_proposal(struct smc_sock *smc, struct smc_init_info *ini)
 {
-	struct smc_clc_ipv6_prefix ipv6_prfx[SMC_CLC_MAX_V6_PREFIX];
-	struct smc_clc_msg_proposal_prefix pclc_prfx;
-	struct smc_clc_msg_smcd pclc_smcd;
-	struct smc_clc_msg_proposal pclc;
-	struct smc_clc_msg_trail trl;
+	struct smc_clc_smcd_v2_extension *smcd_v2_ext;
+	struct smc_clc_msg_proposal_prefix *pclc_prfx;
+	struct smc_clc_msg_proposal *pclc_base;
+	struct smc_clc_smcd_gid_chid *gidchids;
+	struct smc_clc_msg_proposal_area *pclc;
+	struct smc_clc_ipv6_prefix *ipv6_prfx;
+	struct smc_clc_v2_extension *v2_ext;
+	struct smc_clc_msg_smcd *pclc_smcd;
+	struct smc_clc_msg_trail *trl;
 	int len, i, plen, rc;
 	int reason_code = 0;
-	struct kvec vec[5];
+	struct kvec vec[8];
 	struct msghdr msg;
 
+	pclc = kzalloc(sizeof(*pclc), GFP_KERNEL);
+	if (!pclc)
+		return -ENOMEM;
+
+	pclc_base = &pclc->pclc_base;
+	pclc_smcd = &pclc->pclc_smcd;
+	pclc_prfx = &pclc->pclc_prfx;
+	ipv6_prfx = pclc->pclc_prfx_ipv6;
+	v2_ext = &pclc->pclc_v2_ext;
+	smcd_v2_ext = &pclc->pclc_smcd_v2_ext;
+	gidchids = pclc->pclc_gidchids;
+	trl = &pclc->pclc_trl;
+
+	pclc_base->hdr.version = SMC_V2;
+	pclc_base->hdr.typev1 = ini->smc_type_v1;
+	pclc_base->hdr.typev2 = ini->smc_type_v2;
+	plen = sizeof(*pclc_base) + sizeof(*pclc_smcd) + sizeof(*trl);
+
 	/* retrieve ip prefixes for CLC proposal msg */
-	rc = smc_clc_prfx_set(smc->clcsock, &pclc_prfx, ipv6_prfx);
-	if (rc)
-		return SMC_CLC_DECL_CNFERR; /* configuration error */
+	if (ini->smc_type_v1 != SMC_TYPE_N) {
+		rc = smc_clc_prfx_set(smc->clcsock, pclc_prfx, ipv6_prfx);
+		if (rc) {
+			if (ini->smc_type_v2 == SMC_TYPE_N) {
+				kfree(pclc);
+				return SMC_CLC_DECL_CNFERR;
+			}
+			pclc_base->hdr.typev1 = SMC_TYPE_N;
+		} else {
+			pclc_base->iparea_offset = htons(sizeof(*pclc_smcd));
+			plen += sizeof(*pclc_prfx) +
+					pclc_prfx->ipv6_prefixes_cnt *
+					sizeof(ipv6_prfx[0]);
+		}
+	}
+
+	/* build SMC Proposal CLC message */
+	memcpy(pclc_base->hdr.eyecatcher, SMC_EYECATCHER,
+	       sizeof(SMC_EYECATCHER));
+	pclc_base->hdr.type = SMC_CLC_PROPOSAL;
+	if (smcr_indicated(ini->smc_type_v1)) {
+		/* add SMC-R specifics */
+		memcpy(pclc_base->lcl.id_for_peer, local_systemid,
+		       sizeof(local_systemid));
+		memcpy(pclc_base->lcl.gid, ini->ib_gid, SMC_GID_SIZE);
+		memcpy(pclc_base->lcl.mac, &ini->ib_dev->mac[ini->ib_port - 1],
+		       ETH_ALEN);
+	}
+	if (smcd_indicated(ini->smc_type_v1)) {
+		/* add SMC-D specifics */
+		if (ini->ism_dev[0]) {
+			pclc_smcd->ism.gid = htonll(ini->ism_dev[0]->local_gid);
+			pclc_smcd->ism.chid =
+				htons(smc_ism_get_chid(ini->ism_dev[0]));
+		}
+	}
+	if (ini->smc_type_v2 == SMC_TYPE_N) {
+		pclc_smcd->v2_ext_offset = 0;
+	} else {
+		u16 v2_ext_offset;
+		u8 *eid = NULL;
+
+		v2_ext_offset = sizeof(*pclc_smcd) -
+			offsetofend(struct smc_clc_msg_smcd, v2_ext_offset);
+		if (ini->smc_type_v1 != SMC_TYPE_N)
+			v2_ext_offset += sizeof(*pclc_prfx) +
+						pclc_prfx->ipv6_prefixes_cnt *
+						sizeof(ipv6_prfx[0]);
+		pclc_smcd->v2_ext_offset = htons(v2_ext_offset);
+		v2_ext->hdr.eid_cnt = 0;
+		v2_ext->hdr.ism_gid_cnt = ini->ism_offered_cnt;
+		v2_ext->hdr.flag.release = SMC_RELEASE;
+		v2_ext->hdr.flag.seid = 1;
+		v2_ext->hdr.smcd_v2_ext_offset = htons(sizeof(*v2_ext) -
+				offsetofend(struct smc_clnt_opts_area_hdr,
+					    smcd_v2_ext_offset) +
+				v2_ext->hdr.eid_cnt * SMC_MAX_EID_LEN);
+		if (ini->ism_dev[0])
+			smc_ism_get_system_eid(ini->ism_dev[0], &eid);
+		else
+			smc_ism_get_system_eid(ini->ism_dev[1], &eid);
+		if (eid)
+			memcpy(smcd_v2_ext->system_eid, eid, SMC_MAX_EID_LEN);
+		plen += sizeof(*v2_ext) + sizeof(*smcd_v2_ext);
+		if (ini->ism_offered_cnt) {
+			for (i = 1; i <= ini->ism_offered_cnt; i++) {
+				gidchids[i - 1].gid =
+					htonll(ini->ism_dev[i]->local_gid);
+				gidchids[i - 1].chid =
+					htons(smc_ism_get_chid(ini->ism_dev[i]));
+			}
+			plen += ini->ism_offered_cnt *
+				sizeof(struct smc_clc_smcd_gid_chid);
+		}
+	}
+	pclc_base->hdr.length = htons(plen);
+	memcpy(trl->eyecatcher, SMC_EYECATCHER, sizeof(SMC_EYECATCHER));
 
 	/* send SMC Proposal CLC message */
-	plen = sizeof(pclc) + sizeof(pclc_prfx) +
-	       (pclc_prfx.ipv6_prefixes_cnt * sizeof(ipv6_prfx[0])) +
-	       sizeof(trl);
-	memset(&pclc, 0, sizeof(pclc));
-	memcpy(pclc.hdr.eyecatcher, SMC_EYECATCHER, sizeof(SMC_EYECATCHER));
-	pclc.hdr.type = SMC_CLC_PROPOSAL;
-	pclc.hdr.version = SMC_CLC_V1;		/* SMC version */
-	pclc.hdr.path = smc_type;
-	if (smc_type == SMC_TYPE_R || smc_type == SMC_TYPE_B) {
-		/* add SMC-R specifics */
-		memcpy(pclc.lcl.id_for_peer, local_systemid,
-		       sizeof(local_systemid));
-		memcpy(&pclc.lcl.gid, ini->ib_gid, SMC_GID_SIZE);
-		memcpy(&pclc.lcl.mac, &ini->ib_dev->mac[ini->ib_port - 1],
-		       ETH_ALEN);
-		pclc.iparea_offset = htons(0);
-	}
-	if (smc_type == SMC_TYPE_D || smc_type == SMC_TYPE_B) {
-		/* add SMC-D specifics */
-		memset(&pclc_smcd, 0, sizeof(pclc_smcd));
-		plen += sizeof(pclc_smcd);
-		pclc.iparea_offset = htons(SMC_CLC_PROPOSAL_MAX_OFFSET);
-		pclc_smcd.gid = ini->ism_dev->local_gid;
-	}
-	pclc.hdr.length = htons(plen);
-
-	memcpy(trl.eyecatcher, SMC_EYECATCHER, sizeof(SMC_EYECATCHER));
 	memset(&msg, 0, sizeof(msg));
 	i = 0;
-	vec[i].iov_base = &pclc;
-	vec[i++].iov_len = sizeof(pclc);
-	if (smc_type == SMC_TYPE_D || smc_type == SMC_TYPE_B) {
-		vec[i].iov_base = &pclc_smcd;
-		vec[i++].iov_len = sizeof(pclc_smcd);
+	vec[i].iov_base = pclc_base;
+	vec[i++].iov_len = sizeof(*pclc_base);
+	vec[i].iov_base = pclc_smcd;
+	vec[i++].iov_len = sizeof(*pclc_smcd);
+	if (ini->smc_type_v1 != SMC_TYPE_N) {
+		vec[i].iov_base = pclc_prfx;
+		vec[i++].iov_len = sizeof(*pclc_prfx);
+		if (pclc_prfx->ipv6_prefixes_cnt > 0) {
+			vec[i].iov_base = ipv6_prfx;
+			vec[i++].iov_len = pclc_prfx->ipv6_prefixes_cnt *
+					   sizeof(ipv6_prfx[0]);
+		}
 	}
-	vec[i].iov_base = &pclc_prfx;
-	vec[i++].iov_len = sizeof(pclc_prfx);
-	if (pclc_prfx.ipv6_prefixes_cnt > 0) {
-		vec[i].iov_base = &ipv6_prfx[0];
-		vec[i++].iov_len = pclc_prfx.ipv6_prefixes_cnt *
-				   sizeof(ipv6_prfx[0]);
+	if (ini->smc_type_v2 != SMC_TYPE_N) {
+		vec[i].iov_base = v2_ext;
+		vec[i++].iov_len = sizeof(*v2_ext);
+		vec[i].iov_base = smcd_v2_ext;
+		vec[i++].iov_len = sizeof(*smcd_v2_ext);
+		if (ini->ism_offered_cnt) {
+			vec[i].iov_base = gidchids;
+			vec[i++].iov_len = ini->ism_offered_cnt *
+					sizeof(struct smc_clc_smcd_gid_chid);
+		}
 	}
-	vec[i].iov_base = &trl;
-	vec[i++].iov_len = sizeof(trl);
+	vec[i].iov_base = trl;
+	vec[i++].iov_len = sizeof(*trl);
 	/* due to the few bytes needed for clc-handshake this cannot block */
 	len = kernel_sendmsg(smc->clcsock, &msg, vec, i, plen);
 	if (len < 0) {
 		smc->sk.sk_err = smc->clcsock->sk->sk_err;
 		reason_code = -smc->sk.sk_err;
-	} else if (len < (int)sizeof(pclc)) {
+	} else if (len < ntohs(pclc_base->hdr.length)) {
 		reason_code = -ENETUNREACH;
 		smc->sk.sk_err = -reason_code;
 	}
 
+	kfree(pclc);
 	return reason_code;
 }
 
-/* send CLC CONFIRM message across internal TCP socket */
-int smc_clc_send_confirm(struct smc_sock *smc)
+/* build and send CLC CONFIRM / ACCEPT message */
+static int smc_clc_send_confirm_accept(struct smc_sock *smc,
+				       struct smc_clc_msg_accept_confirm_v2 *clc_v2,
+				       int first_contact, u8 version)
 {
 	struct smc_connection *conn = &smc->conn;
-	struct smc_clc_msg_accept_confirm cclc;
-	struct smc_link *link;
-	int reason_code = 0;
+	struct smc_clc_msg_accept_confirm *clc;
+	struct smc_clc_first_contact_ext fce;
+	struct smc_clc_msg_trail trl;
+	struct kvec vec[3];
 	struct msghdr msg;
-	struct kvec vec;
-	int len;
+	int i, len;
 
 	/* send SMC Confirm CLC msg */
-	memset(&cclc, 0, sizeof(cclc));
-	cclc.hdr.type = SMC_CLC_CONFIRM;
-	cclc.hdr.version = SMC_CLC_V1;		/* SMC version */
-	if (smc->conn.lgr->is_smcd) {
+	clc = (struct smc_clc_msg_accept_confirm *)clc_v2;
+	clc->hdr.version = version;	/* SMC version */
+	if (first_contact)
+		clc->hdr.typev2 |= SMC_FIRST_CONTACT_MASK;
+	if (conn->lgr->is_smcd) {
 		/* SMC-D specific settings */
-		memcpy(cclc.hdr.eyecatcher, SMCD_EYECATCHER,
+		memcpy(clc->hdr.eyecatcher, SMCD_EYECATCHER,
 		       sizeof(SMCD_EYECATCHER));
-		cclc.hdr.path = SMC_TYPE_D;
-		cclc.hdr.length = htons(SMCD_CLC_ACCEPT_CONFIRM_LEN);
-		cclc.gid = conn->lgr->smcd->local_gid;
-		cclc.token = conn->rmb_desc->token;
-		cclc.dmbe_size = conn->rmbe_size_short;
-		cclc.dmbe_idx = 0;
-		memcpy(&cclc.linkid, conn->lgr->id, SMC_LGR_ID_SIZE);
-		memcpy(cclc.smcd_trl.eyecatcher, SMCD_EYECATCHER,
+		clc->hdr.typev1 = SMC_TYPE_D;
+		clc->d0.gid = conn->lgr->smcd->local_gid;
+		clc->d0.token = conn->rmb_desc->token;
+		clc->d0.dmbe_size = conn->rmbe_size_short;
+		clc->d0.dmbe_idx = 0;
+		memcpy(&clc->d0.linkid, conn->lgr->id, SMC_LGR_ID_SIZE);
+		if (version == SMC_V1) {
+			clc->hdr.length = htons(SMCD_CLC_ACCEPT_CONFIRM_LEN);
+		} else {
+			u8 *eid = NULL;
+
+			clc_v2->chid = htons(smc_ism_get_chid(conn->lgr->smcd));
+			smc_ism_get_system_eid(conn->lgr->smcd, &eid);
+			if (eid)
+				memcpy(clc_v2->eid, eid, SMC_MAX_EID_LEN);
+			len = SMCD_CLC_ACCEPT_CONFIRM_LEN_V2;
+			if (first_contact)
+				smc_clc_fill_fce(&fce, &len);
+			clc_v2->hdr.length = htons(len);
+		}
+		memcpy(trl.eyecatcher, SMCD_EYECATCHER,
 		       sizeof(SMCD_EYECATCHER));
 	} else {
+		struct smc_link *link = conn->lnk;
+
 		/* SMC-R specific settings */
 		link = conn->lnk;
-		memcpy(cclc.hdr.eyecatcher, SMC_EYECATCHER,
+		memcpy(clc->hdr.eyecatcher, SMC_EYECATCHER,
 		       sizeof(SMC_EYECATCHER));
-		cclc.hdr.path = SMC_TYPE_R;
-		cclc.hdr.length = htons(SMCR_CLC_ACCEPT_CONFIRM_LEN);
-		memcpy(cclc.lcl.id_for_peer, local_systemid,
+		clc->hdr.typev1 = SMC_TYPE_R;
+		clc->hdr.length = htons(SMCR_CLC_ACCEPT_CONFIRM_LEN);
+		memcpy(clc->r0.lcl.id_for_peer, local_systemid,
 		       sizeof(local_systemid));
-		memcpy(&cclc.lcl.gid, link->gid, SMC_GID_SIZE);
-		memcpy(&cclc.lcl.mac, &link->smcibdev->mac[link->ibport - 1],
+		memcpy(&clc->r0.lcl.gid, link->gid, SMC_GID_SIZE);
+		memcpy(&clc->r0.lcl.mac, &link->smcibdev->mac[link->ibport - 1],
 		       ETH_ALEN);
-		hton24(cclc.qpn, link->roce_qp->qp_num);
-		cclc.rmb_rkey =
+		hton24(clc->r0.qpn, link->roce_qp->qp_num);
+		clc->r0.rmb_rkey =
 			htonl(conn->rmb_desc->mr_rx[link->link_idx]->rkey);
-		cclc.rmbe_idx = 1; /* for now: 1 RMB = 1 RMBE */
-		cclc.rmbe_alert_token = htonl(conn->alert_token_local);
-		cclc.qp_mtu = min(link->path_mtu, link->peer_mtu);
-		cclc.rmbe_size = conn->rmbe_size_short;
-		cclc.rmb_dma_addr = cpu_to_be64((u64)sg_dma_address
+		clc->r0.rmbe_idx = 1; /* for now: 1 RMB = 1 RMBE */
+		clc->r0.rmbe_alert_token = htonl(conn->alert_token_local);
+		switch (clc->hdr.type) {
+		case SMC_CLC_ACCEPT:
+			clc->r0.qp_mtu = link->path_mtu;
+			break;
+		case SMC_CLC_CONFIRM:
+			clc->r0.qp_mtu = min(link->path_mtu, link->peer_mtu);
+			break;
+		}
+		clc->r0.rmbe_size = conn->rmbe_size_short;
+		clc->r0.rmb_dma_addr = cpu_to_be64((u64)sg_dma_address
 				(conn->rmb_desc->sgt[link->link_idx].sgl));
-		hton24(cclc.psn, link->psn_initial);
-		memcpy(cclc.smcr_trl.eyecatcher, SMC_EYECATCHER,
-		       sizeof(SMC_EYECATCHER));
+		hton24(clc->r0.psn, link->psn_initial);
+		memcpy(trl.eyecatcher, SMC_EYECATCHER, sizeof(SMC_EYECATCHER));
 	}
 
 	memset(&msg, 0, sizeof(msg));
-	vec.iov_base = &cclc;
-	vec.iov_len = ntohs(cclc.hdr.length);
-	len = kernel_sendmsg(smc->clcsock, &msg, &vec, 1,
-			     ntohs(cclc.hdr.length));
-	if (len < ntohs(cclc.hdr.length)) {
+	i = 0;
+	vec[i].iov_base = clc_v2;
+	if (version > SMC_V1)
+		vec[i++].iov_len = SMCD_CLC_ACCEPT_CONFIRM_LEN_V2 - sizeof(trl);
+	else
+		vec[i++].iov_len = (clc->hdr.typev1 == SMC_TYPE_D ?
+						SMCD_CLC_ACCEPT_CONFIRM_LEN :
+						SMCR_CLC_ACCEPT_CONFIRM_LEN) -
+				   sizeof(trl);
+	if (version > SMC_V1 && first_contact) {
+		vec[i].iov_base = &fce;
+		vec[i++].iov_len = sizeof(fce);
+	}
+	vec[i].iov_base = &trl;
+	vec[i++].iov_len = sizeof(trl);
+	return kernel_sendmsg(smc->clcsock, &msg, vec, 1,
+			      ntohs(clc->hdr.length));
+}
+
+/* send CLC CONFIRM message across internal TCP socket */
+int smc_clc_send_confirm(struct smc_sock *smc, bool clnt_first_contact,
+			 u8 version)
+{
+	struct smc_clc_msg_accept_confirm_v2 cclc_v2;
+	int reason_code = 0;
+	int len;
+
+	/* send SMC Confirm CLC msg */
+	memset(&cclc_v2, 0, sizeof(cclc_v2));
+	cclc_v2.hdr.type = SMC_CLC_CONFIRM;
+	len = smc_clc_send_confirm_accept(smc, &cclc_v2, clnt_first_contact,
+					  version);
+	if (len < ntohs(cclc_v2.hdr.length)) {
 		if (len >= 0) {
 			reason_code = -ENETUNREACH;
 			smc->sk.sk_err = -reason_code;
@@ -557,67 +756,28 @@ int smc_clc_send_confirm(struct smc_sock *smc)
 }
 
 /* send CLC ACCEPT message across internal TCP socket */
-int smc_clc_send_accept(struct smc_sock *new_smc, int srv_first_contact)
+int smc_clc_send_accept(struct smc_sock *new_smc, bool srv_first_contact,
+			u8 version)
 {
-	struct smc_connection *conn = &new_smc->conn;
-	struct smc_clc_msg_accept_confirm aclc;
-	struct smc_link *link;
-	struct msghdr msg;
-	struct kvec vec;
+	struct smc_clc_msg_accept_confirm_v2 aclc_v2;
 	int len;
 
-	memset(&aclc, 0, sizeof(aclc));
-	aclc.hdr.type = SMC_CLC_ACCEPT;
-	aclc.hdr.version = SMC_CLC_V1;		/* SMC version */
-	if (srv_first_contact)
-		aclc.hdr.flag = 1;
-
-	if (new_smc->conn.lgr->is_smcd) {
-		/* SMC-D specific settings */
-		aclc.hdr.length = htons(SMCD_CLC_ACCEPT_CONFIRM_LEN);
-		memcpy(aclc.hdr.eyecatcher, SMCD_EYECATCHER,
-		       sizeof(SMCD_EYECATCHER));
-		aclc.hdr.path = SMC_TYPE_D;
-		aclc.gid = conn->lgr->smcd->local_gid;
-		aclc.token = conn->rmb_desc->token;
-		aclc.dmbe_size = conn->rmbe_size_short;
-		aclc.dmbe_idx = 0;
-		memcpy(&aclc.linkid, conn->lgr->id, SMC_LGR_ID_SIZE);
-		memcpy(aclc.smcd_trl.eyecatcher, SMCD_EYECATCHER,
-		       sizeof(SMCD_EYECATCHER));
-	} else {
-		/* SMC-R specific settings */
-		aclc.hdr.length = htons(SMCR_CLC_ACCEPT_CONFIRM_LEN);
-		memcpy(aclc.hdr.eyecatcher, SMC_EYECATCHER,
-		       sizeof(SMC_EYECATCHER));
-		aclc.hdr.path = SMC_TYPE_R;
-		link = conn->lnk;
-		memcpy(aclc.lcl.id_for_peer, local_systemid,
-		       sizeof(local_systemid));
-		memcpy(&aclc.lcl.gid, link->gid, SMC_GID_SIZE);
-		memcpy(&aclc.lcl.mac, link->smcibdev->mac[link->ibport - 1],
-		       ETH_ALEN);
-		hton24(aclc.qpn, link->roce_qp->qp_num);
-		aclc.rmb_rkey =
-			htonl(conn->rmb_desc->mr_rx[link->link_idx]->rkey);
-		aclc.rmbe_idx = 1;		/* as long as 1 RMB = 1 RMBE */
-		aclc.rmbe_alert_token = htonl(conn->alert_token_local);
-		aclc.qp_mtu = link->path_mtu;
-		aclc.rmbe_size = conn->rmbe_size_short,
-		aclc.rmb_dma_addr = cpu_to_be64((u64)sg_dma_address
-				(conn->rmb_desc->sgt[link->link_idx].sgl));
-		hton24(aclc.psn, link->psn_initial);
-		memcpy(aclc.smcr_trl.eyecatcher, SMC_EYECATCHER,
-		       sizeof(SMC_EYECATCHER));
-	}
-
-	memset(&msg, 0, sizeof(msg));
-	vec.iov_base = &aclc;
-	vec.iov_len = ntohs(aclc.hdr.length);
-	len = kernel_sendmsg(new_smc->clcsock, &msg, &vec, 1,
-			     ntohs(aclc.hdr.length));
-	if (len < ntohs(aclc.hdr.length))
+	memset(&aclc_v2, 0, sizeof(aclc_v2));
+	aclc_v2.hdr.type = SMC_CLC_ACCEPT;
+	len = smc_clc_send_confirm_accept(new_smc, &aclc_v2, srv_first_contact,
+					  version);
+	if (len < ntohs(aclc_v2.hdr.length))
 		len = len >= 0 ? -EPROTO : -new_smc->clcsock->sk->sk_err;
 
 	return len > 0 ? 0 : len;
+}
+
+void __init smc_clc_init(void)
+{
+	struct new_utsname *u;
+
+	memset(smc_hostname, _S, sizeof(smc_hostname)); /* ASCII blanks */
+	u = utsname();
+	memcpy(smc_hostname, u->nodename,
+	       min_t(size_t, strlen(u->nodename), sizeof(smc_hostname)));
 }

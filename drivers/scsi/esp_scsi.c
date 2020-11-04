@@ -307,7 +307,7 @@ static void esp_reset_esp(struct esp *esp)
 
 	case FASHME:
 		esp->config2 |= (ESP_CONFIG2_HME32 | ESP_CONFIG2_HMEFENAB);
-		/* fallthrough... */
+		fallthrough;
 
 	case FAS236:
 	case PCSCSI:
@@ -1741,7 +1741,7 @@ again:
 
 	case ESP_EVENT_DATA_IN:
 		write = 1;
-		/* fallthru */
+		fallthrough;
 
 	case ESP_EVENT_DATA_OUT: {
 		struct esp_cmd_entry *ent = esp->active_cmd;

@@ -309,6 +309,7 @@ static void v4_to_v6(struct sockaddr_storage *ss)
 	v6->sin6_addr.s6_addr[10] = 0xff;
 	v6->sin6_addr.s6_addr[11] = 0xff;
 	memcpy(&v6->sin6_addr.s6_addr[12], &v4.sin_addr.s_addr, 4);
+	memset(&v6->sin6_addr.s6_addr[0], 0, 10);
 }
 
 static int udp_recv_send(int server_fd)

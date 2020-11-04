@@ -60,7 +60,7 @@ enum {
 };
 
 extern void gfs2_remove_from_journal(struct buffer_head *bh, int meta);
-extern void gfs2_meta_wipe(struct gfs2_inode *ip, u64 bstart, u32 blen);
+extern void gfs2_journal_wipe(struct gfs2_inode *ip, u64 bstart, u32 blen);
 extern int gfs2_meta_indirect_buffer(struct gfs2_inode *ip, int height, u64 num,
 				     struct buffer_head **bhp);
 

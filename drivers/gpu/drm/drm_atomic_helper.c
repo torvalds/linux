@@ -34,6 +34,7 @@
 #include <drm/drm_bridge.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_device.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_print.h>
 #include <drm/drm_self_refresh_helper.h>
@@ -1114,9 +1115,7 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
  * @old_state: atomic state object with old state structures
  *
  * This function updates all the various legacy modeset state pointers in
- * connectors, encoders and CRTCs. It also updates the timestamping constants
- * used for precise vblank timestamps by calling
- * drm_calc_timestamping_constants().
+ * connectors, encoders and CRTCs.
  *
  * Drivers can use this for building their own atomic commit if they don't have
  * a pure helper-based modeset implementation.
@@ -1185,13 +1184,30 @@ drm_atomic_helper_update_legacy_modeset_state(struct drm_device *dev,
 			crtc->x = new_plane_state->src_x >> 16;
 			crtc->y = new_plane_state->src_y >> 16;
 		}
+	}
+}
+EXPORT_SYMBOL(drm_atomic_helper_update_legacy_modeset_state);
 
+/**
+ * drm_atomic_helper_calc_timestamping_constants - update vblank timestamping constants
+ * @state: atomic state object
+ *
+ * Updates the timestamping constants used for precise vblank timestamps
+ * by calling drm_calc_timestamping_constants() for all enabled crtcs in @state.
+ */
+void drm_atomic_helper_calc_timestamping_constants(struct drm_atomic_state *state)
+{
+	struct drm_crtc_state *new_crtc_state;
+	struct drm_crtc *crtc;
+	int i;
+
+	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
 		if (new_crtc_state->enable)
 			drm_calc_timestamping_constants(crtc,
 							&new_crtc_state->adjusted_mode);
 	}
 }
-EXPORT_SYMBOL(drm_atomic_helper_update_legacy_modeset_state);
+EXPORT_SYMBOL(drm_atomic_helper_calc_timestamping_constants);
 
 static void
 crtc_set_mode(struct drm_device *dev, struct drm_atomic_state *old_state)
@@ -1275,6 +1291,7 @@ void drm_atomic_helper_commit_modeset_disables(struct drm_device *dev,
 	disable_outputs(dev, old_state);
 
 	drm_atomic_helper_update_legacy_modeset_state(dev, old_state);
+	drm_atomic_helper_calc_timestamping_constants(old_state);
 
 	crtc_set_mode(dev, old_state);
 }
@@ -3106,7 +3123,7 @@ void drm_atomic_helper_shutdown(struct drm_device *dev)
 	if (ret)
 		DRM_ERROR("Disabling all crtc's during unload failed with %i\n", ret);
 
-	DRM_MODESET_LOCK_ALL_END(ctx, ret);
+	DRM_MODESET_LOCK_ALL_END(dev, ctx, ret);
 }
 EXPORT_SYMBOL(drm_atomic_helper_shutdown);
 
@@ -3246,7 +3263,7 @@ struct drm_atomic_state *drm_atomic_helper_suspend(struct drm_device *dev)
 	}
 
 unlock:
-	DRM_MODESET_LOCK_ALL_END(ctx, err);
+	DRM_MODESET_LOCK_ALL_END(dev, ctx, err);
 	if (err)
 		return ERR_PTR(err);
 
@@ -3327,7 +3344,7 @@ int drm_atomic_helper_resume(struct drm_device *dev,
 
 	err = drm_atomic_helper_commit_duplicated_state(state, &ctx);
 
-	DRM_MODESET_LOCK_ALL_END(ctx, err);
+	DRM_MODESET_LOCK_ALL_END(dev, ctx, err);
 	drm_atomic_state_put(state);
 
 	return err;

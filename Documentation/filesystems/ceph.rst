@@ -163,14 +163,14 @@ Mount Options
         to the default VFS implementation if this option is used.
 
   recover_session=<no|clean>
-	Set auto reconnect mode in the case where the client is blacklisted. The
+	Set auto reconnect mode in the case where the client is blocklisted. The
 	available modes are "no" and "clean". The default is "no".
 
 	* no: never attempt to reconnect when client detects that it has been
-	  blacklisted. Operations will generally fail after being blacklisted.
+	  blocklisted. Operations will generally fail after being blocklisted.
 
 	* clean: client reconnects to the ceph cluster automatically when it
-	  detects that it has been blacklisted. During reconnect, client drops
+	  detects that it has been blocklisted. During reconnect, client drops
 	  dirty data/metadata, invalidates page caches and writable file handles.
 	  After reconnect, file locks become stale because the MDS loses track
 	  of them. If an inode contains any stale file locks, read/write on the

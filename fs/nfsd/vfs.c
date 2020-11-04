@@ -1456,7 +1456,7 @@ do_nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 					*created = true;
 				break;
 			}
-			/* fall through */
+			fallthrough;
 		case NFS4_CREATE_EXCLUSIVE4_1:
 			if (   d_inode(dchild)->i_mtime.tv_sec == v_mtime
 			    && d_inode(dchild)->i_atime.tv_sec == v_atime
@@ -1465,7 +1465,7 @@ do_nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 					*created = true;
 				goto set_attr;
 			}
-			/* fall through */
+			fallthrough;
 		case NFS3_CREATE_GUARDED:
 			err = nfserr_exist;
 		}
@@ -2259,7 +2259,8 @@ out:
 __be32
 nfsd_removexattr(struct svc_rqst *rqstp, struct svc_fh *fhp, char *name)
 {
-	int err, ret;
+	__be32 err;
+	int ret;
 
 	err = fh_verify(rqstp, fhp, 0, NFSD_MAY_WRITE);
 	if (err)
@@ -2283,7 +2284,8 @@ __be32
 nfsd_setxattr(struct svc_rqst *rqstp, struct svc_fh *fhp, char *name,
 	      void *buf, u32 len, u32 flags)
 {
-	int err, ret;
+	__be32 err;
+	int ret;
 
 	err = fh_verify(rqstp, fhp, 0, NFSD_MAY_WRITE);
 	if (err)

@@ -1416,14 +1416,14 @@ static netdev_tx_t cxgb4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	pi = netdev_priv(dev);
 	adap = pi->adapter;
 	ssi = skb_shinfo(skb);
-#ifdef CONFIG_CHELSIO_IPSEC_INLINE
+#if IS_ENABLED(CONFIG_CHELSIO_IPSEC_INLINE)
 	if (xfrm_offload(skb) && !ssi->gso_size)
-		return adap->uld[CXGB4_ULD_CRYPTO].tx_handler(skb, dev);
+		return adap->uld[CXGB4_ULD_IPSEC].tx_handler(skb, dev);
 #endif /* CHELSIO_IPSEC_INLINE */
 
-#ifdef CONFIG_CHELSIO_TLS_DEVICE
+#if IS_ENABLED(CONFIG_CHELSIO_TLS_DEVICE)
 	if (skb->decrypted)
-		return adap->uld[CXGB4_ULD_CRYPTO].tx_handler(skb, dev);
+		return adap->uld[CXGB4_ULD_KTLS].tx_handler(skb, dev);
 #endif /* CHELSIO_TLS_DEVICE */
 
 	qidx = skb_get_queue_mapping(skb);
@@ -2553,19 +2553,22 @@ int cxgb4_selftest_lb_pkt(struct net_device *netdev)
 
 	pkt_len = ETH_HLEN + sizeof(CXGB4_SELFTEST_LB_STR);
 
-	flits = DIV_ROUND_UP(pkt_len + sizeof(struct cpl_tx_pkt) +
-			     sizeof(*wr), sizeof(__be64));
+	flits = DIV_ROUND_UP(pkt_len + sizeof(*cpl) + sizeof(*wr),
+			     sizeof(__be64));
 	ndesc = flits_to_desc(flits);
 
 	lb = &pi->ethtool_lb;
 	lb->loopback = 1;
 
 	q = &adap->sge.ethtxq[pi->first_qset];
+	__netif_tx_lock(q->txq, smp_processor_id());
 
 	reclaim_completed_tx(adap, &q->q, -1, true);
 	credits = txq_avail(&q->q) - ndesc;
-	if (unlikely(credits < 0))
+	if (unlikely(credits < 0)) {
+		__netif_tx_unlock(q->txq);
 		return -ENOMEM;
+	}
 
 	wr = (void *)&q->q.desc[q->q.pidx];
 	memset(wr, 0, sizeof(struct tx_desc));
@@ -2598,6 +2601,7 @@ int cxgb4_selftest_lb_pkt(struct net_device *netdev)
 	init_completion(&lb->completion);
 	txq_advance(&q->q, ndesc);
 	cxgb4_ring_tx_db(adap, &q->q, ndesc);
+	__netif_tx_unlock(q->txq);
 
 	/* wait for the pkt to return */
 	ret = wait_for_completion_timeout(&lb->completion, 10 * HZ);
@@ -2656,15 +2660,15 @@ static int ctrl_xmit(struct sge_ctrl_txq *q, struct sk_buff *skb)
 
 /**
  *	restart_ctrlq - restart a suspended control queue
- *	@data: the control queue to restart
+ *	@t: pointer to the tasklet associated with this handler
  *
  *	Resumes transmission on a suspended Tx control queue.
  */
-static void restart_ctrlq(unsigned long data)
+static void restart_ctrlq(struct tasklet_struct *t)
 {
 	struct sk_buff *skb;
 	unsigned int written = 0;
-	struct sge_ctrl_txq *q = (struct sge_ctrl_txq *)data;
+	struct sge_ctrl_txq *q = from_tasklet(q, t, qresume_tsk);
 
 	spin_lock(&q->sendq.lock);
 	reclaim_completed_tx_imm(&q->q);
@@ -2957,13 +2961,13 @@ static int ofld_xmit(struct sge_uld_txq *q, struct sk_buff *skb)
 
 /**
  *	restart_ofldq - restart a suspended offload queue
- *	@data: the offload queue to restart
+ *	@t: pointer to the tasklet associated with this handler
  *
  *	Resumes transmission on a suspended Tx offload queue.
  */
-static void restart_ofldq(unsigned long data)
+static void restart_ofldq(struct tasklet_struct *t)
 {
-	struct sge_uld_txq *q = (struct sge_uld_txq *)data;
+	struct sge_uld_txq *q = from_tasklet(q, t, qresume_tsk);
 
 	spin_lock(&q->sendq.lock);
 	q->full = 0;            /* the queue actually is completely empty now */
@@ -3883,9 +3887,10 @@ static int napi_rx_handler(struct napi_struct *napi, int budget)
 	return work_done;
 }
 
-void cxgb4_ethofld_restart(unsigned long data)
+void cxgb4_ethofld_restart(struct tasklet_struct *t)
 {
-	struct sge_eosw_txq *eosw_txq = (struct sge_eosw_txq *)data;
+	struct sge_eosw_txq *eosw_txq = from_tasklet(eosw_txq, t,
+						     qresume_tsk);
 	int pktcount;
 
 	spin_lock(&eosw_txq->lock);
@@ -4576,7 +4581,7 @@ int t4_sge_alloc_ctrl_txq(struct adapter *adap, struct sge_ctrl_txq *txq,
 	init_txq(adap, &txq->q, FW_EQ_CTRL_CMD_EQID_G(ntohl(c.cmpliqid_eqid)));
 	txq->adap = adap;
 	skb_queue_head_init(&txq->sendq);
-	tasklet_init(&txq->qresume_tsk, restart_ctrlq, (unsigned long)txq);
+	tasklet_setup(&txq->qresume_tsk, restart_ctrlq);
 	txq->full = 0;
 	return 0;
 }
@@ -4666,7 +4671,7 @@ int t4_sge_alloc_uld_txq(struct adapter *adap, struct sge_uld_txq *txq,
 	txq->q.q_type = CXGB4_TXQ_ULD;
 	txq->adap = adap;
 	skb_queue_head_init(&txq->sendq);
-	tasklet_init(&txq->qresume_tsk, restart_ofldq, (unsigned long)txq);
+	tasklet_setup(&txq->qresume_tsk, restart_ofldq);
 	txq->full = 0;
 	txq->mapping_err = 0;
 	return 0;
@@ -4867,9 +4872,6 @@ void t4_sge_stop(struct adapter *adap)
 {
 	int i;
 	struct sge *s = &adap->sge;
-
-	if (in_interrupt())  /* actions below require waiting */
-		return;
 
 	if (s->rx_timer.function)
 		del_timer_sync(&s->rx_timer);

@@ -29,10 +29,17 @@ struct pt_regs;
 		(b)->handler = (tmp).handler - (delta);		\
 	} while (0)
 
+enum handler_type {
+	EX_HANDLER_NONE,
+	EX_HANDLER_FAULT,
+	EX_HANDLER_UACCESS,
+	EX_HANDLER_OTHER
+};
+
 extern int fixup_exception(struct pt_regs *regs, int trapnr,
 			   unsigned long error_code, unsigned long fault_addr);
 extern int fixup_bug(struct pt_regs *regs, int trapnr);
-extern bool ex_has_fault_handler(unsigned long ip);
+extern enum handler_type ex_get_fault_handler_type(unsigned long ip);
 extern void early_fixup_exception(struct pt_regs *regs, int trapnr);
 
 #endif

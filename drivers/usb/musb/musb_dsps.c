@@ -232,7 +232,7 @@ static int dsps_check_status(struct musb *musb, void *unused)
 			dsps_mod_timer_optional(glue);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 
 	case OTG_STATE_A_WAIT_BCON:
 		/* keep VBUS on for host-only mode */
@@ -242,7 +242,7 @@ static int dsps_check_status(struct musb *musb, void *unused)
 		}
 		musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 		skip_session = 1;
-		/* fall through */
+		fallthrough;
 
 	case OTG_STATE_A_IDLE:
 	case OTG_STATE_B_IDLE:
@@ -793,7 +793,7 @@ static int dsps_create_musb_pdev(struct dsps_glue *glue,
 	case USB_SPEED_SUPER:
 		dev_warn(dev, "ignore incorrect maximum_speed "
 				"(super-speed) setting in dts");
-		/* fall through */
+		fallthrough;
 	default:
 		config->maximum_speed = USB_SPEED_HIGH;
 	}

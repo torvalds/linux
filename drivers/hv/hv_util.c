@@ -282,26 +282,52 @@ static struct {
 	spinlock_t			lock;
 } host_ts;
 
-static struct timespec64 hv_get_adj_host_time(void)
+static inline u64 reftime_to_ns(u64 reftime)
 {
-	struct timespec64 ts;
-	u64 newtime, reftime;
+	return (reftime - WLTIMEDELTA) * 100;
+}
+
+/*
+ * Hard coded threshold for host timesync delay: 600 seconds
+ */
+static const u64 HOST_TIMESYNC_DELAY_THRESH = 600 * (u64)NSEC_PER_SEC;
+
+static int hv_get_adj_host_time(struct timespec64 *ts)
+{
+	u64 newtime, reftime, timediff_adj;
 	unsigned long flags;
+	int ret = 0;
 
 	spin_lock_irqsave(&host_ts.lock, flags);
 	reftime = hv_read_reference_counter();
-	newtime = host_ts.host_time + (reftime - host_ts.ref_time);
-	ts = ns_to_timespec64((newtime - WLTIMEDELTA) * 100);
+
+	/*
+	 * We need to let the caller know that last update from host
+	 * is older than the max allowable threshold. clock_gettime()
+	 * and PTP ioctl do not have a documented error that we could
+	 * return for this specific case. Use ESTALE to report this.
+	 */
+	timediff_adj = reftime - host_ts.ref_time;
+	if (timediff_adj * 100 > HOST_TIMESYNC_DELAY_THRESH) {
+		pr_warn_once("TIMESYNC IC: Stale time stamp, %llu nsecs old\n",
+			     (timediff_adj * 100));
+		ret = -ESTALE;
+	}
+
+	newtime = host_ts.host_time + timediff_adj;
+	*ts = ns_to_timespec64(reftime_to_ns(newtime));
 	spin_unlock_irqrestore(&host_ts.lock, flags);
 
-	return ts;
+	return ret;
 }
 
 static void hv_set_host_time(struct work_struct *work)
 {
-	struct timespec64 ts = hv_get_adj_host_time();
 
-	do_settimeofday64(&ts);
+	struct timespec64 ts;
+
+	if (!hv_get_adj_host_time(&ts))
+		do_settimeofday64(&ts);
 }
 
 /*
@@ -361,10 +387,23 @@ static void timesync_onchannelcallback(void *context)
 	struct ictimesync_ref_data *refdata;
 	u8 *time_txf_buf = util_timesynch.recv_buffer;
 
-	vmbus_recvpacket(channel, time_txf_buf,
-			 HV_HYP_PAGE_SIZE, &recvlen, &requestid);
+	/*
+	 * Drain the ring buffer and use the last packet to update
+	 * host_ts
+	 */
+	while (1) {
+		int ret = vmbus_recvpacket(channel, time_txf_buf,
+					   HV_HYP_PAGE_SIZE, &recvlen,
+					   &requestid);
+		if (ret) {
+			pr_warn_once("TimeSync IC pkt recv failed (Err: %d)\n",
+				     ret);
+			break;
+		}
 
-	if (recvlen > 0) {
+		if (!recvlen)
+			break;
+
 		icmsghdrp = (struct icmsg_hdr *)&time_txf_buf[
 				sizeof(struct vmbuspipe_hdr)];
 
@@ -461,6 +500,9 @@ static void heartbeat_onchannelcallback(void *context)
 	}
 }
 
+#define HV_UTIL_RING_SEND_SIZE VMBUS_RING_SIZE(3 * HV_HYP_PAGE_SIZE)
+#define HV_UTIL_RING_RECV_SIZE VMBUS_RING_SIZE(3 * HV_HYP_PAGE_SIZE)
+
 static int util_probe(struct hv_device *dev,
 			const struct hv_vmbus_device_id *dev_id)
 {
@@ -491,8 +533,8 @@ static int util_probe(struct hv_device *dev,
 
 	hv_set_drvdata(dev, srv);
 
-	ret = vmbus_open(dev->channel, 4 * HV_HYP_PAGE_SIZE,
-			 4 * HV_HYP_PAGE_SIZE, NULL, 0, srv->util_cb,
+	ret = vmbus_open(dev->channel, HV_UTIL_RING_SEND_SIZE,
+			 HV_UTIL_RING_RECV_SIZE, NULL, 0, srv->util_cb,
 			 dev->channel);
 	if (ret)
 		goto error;
@@ -551,8 +593,8 @@ static int util_resume(struct hv_device *dev)
 			return ret;
 	}
 
-	ret = vmbus_open(dev->channel, 4 * HV_HYP_PAGE_SIZE,
-			 4 * HV_HYP_PAGE_SIZE, NULL, 0, srv->util_cb,
+	ret = vmbus_open(dev->channel, HV_UTIL_RING_SEND_SIZE,
+			 HV_UTIL_RING_RECV_SIZE, NULL, 0, srv->util_cb,
 			 dev->channel);
 	return ret;
 }
@@ -622,9 +664,7 @@ static int hv_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 
 static int hv_ptp_gettime(struct ptp_clock_info *info, struct timespec64 *ts)
 {
-	*ts = hv_get_adj_host_time();
-
-	return 0;
+	return hv_get_adj_host_time(ts);
 }
 
 static struct ptp_clock_info ptp_hyperv_info = {

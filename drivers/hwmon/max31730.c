@@ -292,7 +292,7 @@ static void max31730_remove(void *data)
 }
 
 static int
-max31730_probe(struct i2c_client *client, const struct i2c_device_id *id)
+max31730_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device *hwmon_dev;
@@ -427,7 +427,7 @@ static struct i2c_driver max31730_driver = {
 		.of_match_table = of_match_ptr(max31730_of_match),
 		.pm	= &max31730_pm_ops,
 	},
-	.probe		= max31730_probe,
+	.probe_new	= max31730_probe,
 	.id_table	= max31730_ids,
 	.detect		= max31730_detect,
 	.address_list	= normal_i2c,

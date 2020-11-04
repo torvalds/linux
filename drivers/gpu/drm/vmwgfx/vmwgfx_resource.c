@@ -855,7 +855,7 @@ int vmw_query_readback_all(struct vmw_buffer_object *dx_query_mob)
  * states from the device.
  */
 void vmw_query_move_notify(struct ttm_buffer_object *bo,
-			   struct ttm_mem_reg *mem)
+			   struct ttm_resource *mem)
 {
 	struct vmw_buffer_object *dx_query_mob;
 	struct ttm_bo_device *bdev = bo->bdev;

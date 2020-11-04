@@ -418,7 +418,7 @@ static void iucv_sock_close(struct sock *sk)
 			sk->sk_state = IUCV_DISCONN;
 			sk->sk_state_change(sk);
 		}
-		/* fall through */
+		fallthrough;
 
 	case IUCV_DISCONN:
 		sk->sk_state = IUCV_CLOSING;
@@ -433,7 +433,7 @@ static void iucv_sock_close(struct sock *sk)
 					iucv_sock_in_state(sk, IUCV_CLOSED, 0),
 					timeo);
 		}
-		/* fall through */
+		fallthrough;
 
 	case IUCV_CLOSING:
 		sk->sk_state = IUCV_CLOSED;
@@ -444,7 +444,7 @@ static void iucv_sock_close(struct sock *sk)
 
 		skb_queue_purge(&iucv->send_skb_q);
 		skb_queue_purge(&iucv->backlog_skb_q);
-		/* fall through */
+		fallthrough;
 
 	default:
 		iucv_sever_path(sk, 1);
@@ -588,11 +588,11 @@ static int iucv_sock_bind(struct socket *sock, struct sockaddr *addr,
 			  int addr_len)
 {
 	struct sockaddr_iucv *sa = (struct sockaddr_iucv *) addr;
+	char uid[sizeof(sa->siucv_user_id)];
 	struct sock *sk = sock->sk;
 	struct iucv_sock *iucv;
 	int err = 0;
 	struct net_device *dev;
-	char uid[9];
 
 	/* Verify the input sockaddr */
 	if (addr_len < sizeof(struct sockaddr_iucv) ||
@@ -2111,10 +2111,10 @@ static int afiucv_hs_rcv(struct sk_buff *skb, struct net_device *dev,
 			kfree_skb(skb);
 			break;
 		}
-		/* fall through - and receive non-zero length data */
+		fallthrough;	/* and receive non-zero length data */
 	case (AF_IUCV_FLAG_SHT):
 		/* shutdown request */
-		/* fall through - and receive zero length data */
+		fallthrough;	/* and receive zero length data */
 	case 0:
 		/* plain data frame */
 		IUCV_SKB_CB(skb)->class = trans_hdr->iucv_hdr.class;

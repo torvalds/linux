@@ -85,6 +85,8 @@ enum hwmon_temp_attributes {
 	hwmon_temp_lowest,
 	hwmon_temp_highest,
 	hwmon_temp_reset_history,
+	hwmon_temp_rated_min,
+	hwmon_temp_rated_max,
 };
 
 #define HWMON_T_ENABLE		BIT(hwmon_temp_enable)
@@ -112,6 +114,8 @@ enum hwmon_temp_attributes {
 #define HWMON_T_LOWEST		BIT(hwmon_temp_lowest)
 #define HWMON_T_HIGHEST		BIT(hwmon_temp_highest)
 #define HWMON_T_RESET_HISTORY	BIT(hwmon_temp_reset_history)
+#define HWMON_T_RATED_MIN	BIT(hwmon_temp_rated_min)
+#define HWMON_T_RATED_MAX	BIT(hwmon_temp_rated_max)
 
 enum hwmon_in_attributes {
 	hwmon_in_enable,
@@ -130,6 +134,8 @@ enum hwmon_in_attributes {
 	hwmon_in_max_alarm,
 	hwmon_in_lcrit_alarm,
 	hwmon_in_crit_alarm,
+	hwmon_in_rated_min,
+	hwmon_in_rated_max,
 };
 
 #define HWMON_I_ENABLE		BIT(hwmon_in_enable)
@@ -148,6 +154,8 @@ enum hwmon_in_attributes {
 #define HWMON_I_MAX_ALARM	BIT(hwmon_in_max_alarm)
 #define HWMON_I_LCRIT_ALARM	BIT(hwmon_in_lcrit_alarm)
 #define HWMON_I_CRIT_ALARM	BIT(hwmon_in_crit_alarm)
+#define HWMON_I_RATED_MIN	BIT(hwmon_in_rated_min)
+#define HWMON_I_RATED_MAX	BIT(hwmon_in_rated_max)
 
 enum hwmon_curr_attributes {
 	hwmon_curr_enable,
@@ -166,6 +174,8 @@ enum hwmon_curr_attributes {
 	hwmon_curr_max_alarm,
 	hwmon_curr_lcrit_alarm,
 	hwmon_curr_crit_alarm,
+	hwmon_curr_rated_min,
+	hwmon_curr_rated_max,
 };
 
 #define HWMON_C_ENABLE		BIT(hwmon_curr_enable)
@@ -184,6 +194,8 @@ enum hwmon_curr_attributes {
 #define HWMON_C_MAX_ALARM	BIT(hwmon_curr_max_alarm)
 #define HWMON_C_LCRIT_ALARM	BIT(hwmon_curr_lcrit_alarm)
 #define HWMON_C_CRIT_ALARM	BIT(hwmon_curr_crit_alarm)
+#define HWMON_C_RATED_MIN	BIT(hwmon_curr_rated_min)
+#define HWMON_C_RATED_MAX	BIT(hwmon_curr_rated_max)
 
 enum hwmon_power_attributes {
 	hwmon_power_enable,
@@ -215,6 +227,8 @@ enum hwmon_power_attributes {
 	hwmon_power_max_alarm,
 	hwmon_power_lcrit_alarm,
 	hwmon_power_crit_alarm,
+	hwmon_power_rated_min,
+	hwmon_power_rated_max,
 };
 
 #define HWMON_P_ENABLE			BIT(hwmon_power_enable)
@@ -246,6 +260,8 @@ enum hwmon_power_attributes {
 #define HWMON_P_MAX_ALARM		BIT(hwmon_power_max_alarm)
 #define HWMON_P_LCRIT_ALARM		BIT(hwmon_power_lcrit_alarm)
 #define HWMON_P_CRIT_ALARM		BIT(hwmon_power_crit_alarm)
+#define HWMON_P_RATED_MIN		BIT(hwmon_power_rated_min)
+#define HWMON_P_RATED_MAX		BIT(hwmon_power_rated_max)
 
 enum hwmon_energy_attributes {
 	hwmon_energy_enable,
@@ -267,6 +283,8 @@ enum hwmon_humidity_attributes {
 	hwmon_humidity_max_hyst,
 	hwmon_humidity_alarm,
 	hwmon_humidity_fault,
+	hwmon_humidity_rated_min,
+	hwmon_humidity_rated_max,
 };
 
 #define HWMON_H_ENABLE			BIT(hwmon_humidity_enable)
@@ -278,6 +296,8 @@ enum hwmon_humidity_attributes {
 #define HWMON_H_MAX_HYST		BIT(hwmon_humidity_max_hyst)
 #define HWMON_H_ALARM			BIT(hwmon_humidity_alarm)
 #define HWMON_H_FAULT			BIT(hwmon_humidity_fault)
+#define HWMON_H_RATED_MIN		BIT(hwmon_humidity_rated_min)
+#define HWMON_H_RATED_MAX		BIT(hwmon_humidity_rated_max)
 
 enum hwmon_fan_attributes {
 	hwmon_fan_enable,

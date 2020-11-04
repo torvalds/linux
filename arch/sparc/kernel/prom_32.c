@@ -224,7 +224,7 @@ void __init of_console_init(void)
 
 		case PROMDEV_TTYB:
 			skip = 1;
-			/* FALLTHRU */
+			fallthrough;
 
 		case PROMDEV_TTYA:
 			type = "serial";

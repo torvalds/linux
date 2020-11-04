@@ -480,7 +480,7 @@ static int gic_irq_domain_map(struct irq_domain *d, unsigned int virq,
 	case GIC_LOCAL_INT_TIMER:
 		/* CONFIG_MIPS_CMP workaround (see __gic_init) */
 		map = GIC_MAP_PIN_MAP_TO_PIN | timer_cpu_pin;
-		/* fall-through */
+		fallthrough;
 	case GIC_LOCAL_INT_PERFCTR:
 	case GIC_LOCAL_INT_FDC:
 		/*

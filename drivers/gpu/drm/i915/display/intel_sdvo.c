@@ -1531,7 +1531,7 @@ static void intel_sdvo_pre_enable(struct intel_atomic_state *state,
 	default:
 		drm_WARN(&dev_priv->drm, 1,
 			 "unknown pixel multiplier specified\n");
-		/* fall through */
+		fallthrough;
 	case 1: rate = SDVO_CLOCK_RATE_MULT_1X; break;
 	case 2: rate = SDVO_CLOCK_RATE_MULT_2X; break;
 	case 4: rate = SDVO_CLOCK_RATE_MULT_4X; break;
@@ -2084,13 +2084,17 @@ intel_sdvo_connector_matches_edid(struct intel_sdvo_connector *sdvo,
 static enum drm_connector_status
 intel_sdvo_detect(struct drm_connector *connector, bool force)
 {
-	u16 response;
+	struct drm_i915_private *i915 = to_i915(connector->dev);
 	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(to_intel_connector(connector));
 	struct intel_sdvo_connector *intel_sdvo_connector = to_intel_sdvo_connector(connector);
 	enum drm_connector_status ret;
+	u16 response;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
 		      connector->base.id, connector->name);
+
+	if (!INTEL_DISPLAY_ENABLED(i915))
+		return connector_status_disconnected;
 
 	if (!intel_sdvo_get_value(intel_sdvo,
 				  SDVO_CMD_GET_ATTACHED_DISPLAYS,
@@ -2549,19 +2553,19 @@ intel_sdvo_guess_ddc_bus(struct intel_sdvo *sdvo)
 	switch (sdvo->controlled_output) {
 	case SDVO_OUTPUT_LVDS1:
 		mask |= SDVO_OUTPUT_LVDS1;
-		/* fall through */
+		fallthrough;
 	case SDVO_OUTPUT_LVDS0:
 		mask |= SDVO_OUTPUT_LVDS0;
-		/* fall through */
+		fallthrough;
 	case SDVO_OUTPUT_TMDS1:
 		mask |= SDVO_OUTPUT_TMDS1;
-		/* fall through */
+		fallthrough;
 	case SDVO_OUTPUT_TMDS0:
 		mask |= SDVO_OUTPUT_TMDS0;
-		/* fall through */
+		fallthrough;
 	case SDVO_OUTPUT_RGB1:
 		mask |= SDVO_OUTPUT_RGB1;
-		/* fall through */
+		fallthrough;
 	case SDVO_OUTPUT_RGB0:
 		mask |= SDVO_OUTPUT_RGB0;
 		break;

@@ -61,10 +61,10 @@ static int dw_hdmi_i2s_hw_params(struct device *dev, void *data,
 	switch (hparms->channels) {
 	case 7 ... 8:
 		conf0 |= HDMI_AUD_CONF0_I2S_EN3;
-		/* Fall-thru */
+		fallthrough;
 	case 5 ... 6:
 		conf0 |= HDMI_AUD_CONF0_I2S_EN2;
-		/* Fall-thru */
+		fallthrough;
 	case 3 ... 4:
 		conf0 |= HDMI_AUD_CONF0_I2S_EN1;
 		/* Fall-thru */

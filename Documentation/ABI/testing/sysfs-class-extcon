@@ -39,19 +39,22 @@ Description:
 		callback.
 
 		If the default callback for showing function is used, the
-		format is like this:
-		# cat state
-		USB_OTG=1
-		HDMI=0
-		TA=1
-		EAR_JACK=0
-		#
+		format is like this::
+
+		    # cat state
+		    USB_OTG=1
+		    HDMI=0
+		    TA=1
+		    EAR_JACK=0
+		    #
+
 		In this example, the extcon device has USB_OTG and TA
 		cables attached and HDMI and EAR_JACK cables detached.
 
 		In order to update the state of an extcon device, enter a hex
-		state number starting with 0x:
-		# echo 0xHEX > state
+		state number starting with 0x::
+
+		    # echo 0xHEX > state
 
 		This updates the whole state of the extcon device.
 		Inputs of all the methods are required to meet the
@@ -84,12 +87,13 @@ Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
 Description:
 		Shows the relations of mutually exclusiveness. For example,
 		if the mutually_exclusive array of extcon device is
-		{0x3, 0x5, 0xC, 0x0}, then the output is:
-		# ls mutually_exclusive/
-		0x3
-		0x5
-		0xc
-		#
+		{0x3, 0x5, 0xC, 0x0}, then the output is::
+
+		    # ls mutually_exclusive/
+		    0x3
+		    0x5
+		    0xc
+		    #
 
 		Note that mutually_exclusive is a sub-directory of the extcon
 		device and the file names under the mutually_exclusive

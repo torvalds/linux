@@ -820,7 +820,7 @@ static void logi_dj_recv_queue_unknown_work(struct dj_receiver_dev *djrcv_dev)
 {
 	struct dj_workitem workitem = { .type = WORKITEM_TYPE_UNKNOWN };
 
-	/* Rate limit queries done because of unhandeled reports to 2/sec */
+	/* Rate limit queries done because of unhandled reports to 2/sec */
 	if (time_before(jiffies, djrcv_dev->last_query + HZ / 2))
 		return;
 
@@ -844,7 +844,7 @@ static void logi_dj_recv_queue_notification(struct dj_receiver_dev *djrcv_dev,
 			workitem.type = WORKITEM_TYPE_EMPTY;
 			break;
 		}
-		/* fall-through */
+		fallthrough;
 	case REPORT_TYPE_NOTIF_DEVICE_UNPAIRED:
 		workitem.quad_id_msb =
 			dj_report->report_params[DEVICE_PAIRED_PARAM_EQUAD_ID_MSB];

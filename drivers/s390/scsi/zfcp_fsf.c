@@ -426,21 +426,27 @@ static void zfcp_fsf_protstatus_eval(struct zfcp_fsf_req *req)
  * or it has been dismissed due to a queue shutdown, this function
  * is called to process the completion status and trigger further
  * events related to the FSF request.
+ * Caller must ensure that the request has been removed from
+ * adapter->req_list, to protect against concurrent modification
+ * by zfcp_erp_strategy_check_fsfreq().
  */
 static void zfcp_fsf_req_complete(struct zfcp_fsf_req *req)
 {
+	struct zfcp_erp_action *erp_action;
+
 	if (unlikely(zfcp_fsf_req_is_status_read_buffer(req))) {
 		zfcp_fsf_status_read_handler(req);
 		return;
 	}
 
-	del_timer(&req->timer);
+	del_timer_sync(&req->timer);
 	zfcp_fsf_protstatus_eval(req);
 	zfcp_fsf_fsfstatus_eval(req);
 	req->handler(req);
 
-	if (req->erp_action)
-		zfcp_erp_notify(req->erp_action, 0);
+	erp_action = req->erp_action;
+	if (erp_action)
+		zfcp_erp_notify(erp_action, 0);
 
 	if (likely(req->status & ZFCP_STATUS_FSFREQ_CLEANUP))
 		zfcp_fsf_req_free(req);
@@ -867,7 +873,7 @@ static int zfcp_fsf_req_send(struct zfcp_fsf_req *req)
 	req->qdio_req.qdio_outb_usage = atomic_read(&qdio->req_q_free);
 	req->issued = get_tod_clock();
 	if (zfcp_qdio_send(qdio, &req->qdio_req)) {
-		del_timer(&req->timer);
+		del_timer_sync(&req->timer);
 		/* lookup request again, list might have changed */
 		zfcp_reqlist_find_rm(adapter->req_list, req_id);
 		zfcp_erp_adapter_reopen(adapter, 0, "fsrs__1");
