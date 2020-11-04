@@ -182,26 +182,33 @@ rockchip_rgb_encoder_atomic_check(struct drm_encoder *encoder,
 	switch (s->bus_format) {
 	case MEDIA_BUS_FMT_RGB666_1X18:
 		s->output_mode = ROCKCHIP_OUT_MODE_P666;
+		s->output_if = VOP_OUTPUT_IF_RGB;
 		break;
 	case MEDIA_BUS_FMT_RGB565_1X16:
 		s->output_mode = ROCKCHIP_OUT_MODE_P565;
+		s->output_if = VOP_OUTPUT_IF_RGB;
 		break;
 	case MEDIA_BUS_FMT_SRGB888_3X8:
 		s->output_mode = ROCKCHIP_OUT_MODE_S888;
+		s->output_if = VOP_OUTPUT_IF_RGB;
 		break;
 	case MEDIA_BUS_FMT_SRGB888_DUMMY_4X8:
 		s->output_mode = ROCKCHIP_OUT_MODE_S888_DUMMY;
+		s->output_if = VOP_OUTPUT_IF_RGB;
 		break;
 	case MEDIA_BUS_FMT_YUYV8_2X8:
 		s->output_mode = ROCKCHIP_OUT_MODE_BT656;
+		s->output_if = VOP_OUTPUT_IF_BT656;
 		break;
 	case MEDIA_BUS_FMT_YUYV8_1X16:
 		s->output_mode = ROCKCHIP_OUT_MODE_BT1120;
+		s->output_if = VOP_OUTPUT_IF_BT1120;
 		break;
 	case MEDIA_BUS_FMT_RGB888_1X24:
 	case MEDIA_BUS_FMT_RGB666_1X24_CPADHI:
 	default:
 		s->output_mode = ROCKCHIP_OUT_MODE_P888;
+		s->output_if = VOP_OUTPUT_IF_RGB;
 		break;
 	}
 
@@ -267,6 +274,7 @@ static int rockchip_rgb_bind(struct device *dev, struct device *master,
 
 	if (rgb->panel) {
 		connector = &rgb->connector;
+		connector->interlace_allowed = true;
 		ret = drm_connector_init(drm_dev, connector,
 					 &rockchip_rgb_connector_funcs,
 					 DRM_MODE_CONNECTOR_DPI);
